@@ -112,12 +112,12 @@ csl.func @initialize() {
 
 
     %one = "test.op"() : () -> i32
-    %variable_with_default = "csl.variable"() <{default = 42 : i32}> : () -> !csl.var<i32>
-    %variable = "csl.variable"() : () -> !csl.var<i32>
-    %value = "csl.load_var"(%variable_with_default) : (!csl.var<i32>) -> i32
+    %variable_with_default = csl.variable(42 : i32) : !csl.var<i32>
+    %variable = csl.variable() : !csl.var<i32>
+    %value = csl.load_var(%variable_with_default : !csl.var<i32>) : i32
     %new_value = arith.addi %value, %one : i32
-    "csl.store_var"(%variable_with_default, %new_value) : (!csl.var<i32>, i32) -> ()
-    "csl.store_var"(%variable, %new_value) : (!csl.var<i32>, i32) -> ()
+    csl.store_var %variable_with_default : !csl.var<i32> = %new_value : i32
+    csl.store_var %variable : !csl.var<i32> = %new_value : i32
 
   csl.return
 }
@@ -408,12 +408,12 @@ csl.func @builtins() {
 // CHECK-NEXT:       "csl.faddh"(%dsd_1d1, %dsd_1d2, %dsd_1d3) : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
 // CHECK-NEXT:       "csl.faddh"(%f16_ptr, %f16_val, %dsd_1d3) : (!csl.ptr<f16, #csl<ptr_kind single>, #csl<ptr_const var>>, f16, !csl<dsd mem1d_dsd>) -> ()
 // CHECK-NEXT:       %one = "test.op"() : () -> i32
-// CHECK-NEXT:       %variable_with_default = "csl.variable"() <{default = 42 : i32}> : () -> !csl.var<i32>
-// CHECK-NEXT:       %variable = "csl.variable"() : () -> !csl.var<i32>
-// CHECK-NEXT:       %value = "csl.load_var"(%variable_with_default) : (!csl.var<i32>) -> i32
+// CHECK-NEXT:       %variable_with_default = csl.variable(42 : i32) : !csl.var<i32>
+// CHECK-NEXT:       %variable = csl.variable() : !csl.var<i32>
+// CHECK-NEXT:       %value = csl.load_var(%variable_with_default : !csl.var<i32>) : i32
 // CHECK-NEXT:       %new_value = arith.addi %value, %one : i32
-// CHECK-NEXT:       "csl.store_var"(%variable_with_default, %new_value) : (!csl.var<i32>, i32) -> ()
-// CHECK-NEXT:       "csl.store_var"(%variable, %new_value) : (!csl.var<i32>, i32) -> ()
+// CHECK-NEXT:       csl.store_var %variable_with_default : !csl.var<i32> = %new_value : i32
+// CHECK-NEXT:       csl.store_var %variable : !csl.var<i32> = %new_value : i32
 // CHECK-NEXT:       csl.return
 // CHECK-NEXT:     }
 // CHECK-NEXT:     csl.func @builtins() {
@@ -586,7 +586,7 @@ csl.func @builtins() {
 // CHECK-GENERIC-NEXT:   "csl.module"() <{kind = #csl<module_kind program>}> ({
 // CHECK-GENERIC-NEXT:     %thing = "csl.import_module"() <{module = "<thing>"}> : () -> !csl.imported_module
 // CHECK-GENERIC-NEXT:     "csl.func"() <{sym_name = "func_with_args", function_type = (i32, i16) -> i32}> ({
-// CHECK-GENERIC-NEXT:     ^0(%arg1 : i32, %arg2 : i16):
+// CHECK-GENERIC-NEXT:     ^bb0(%arg1 : i32, %arg2 : i16):
 // CHECK-GENERIC-NEXT:       "csl.return"(%arg1) : (i32) -> ()
 // CHECK-GENERIC-NEXT:     }) : () -> ()
 // CHECK-GENERIC-NEXT:     %zero = "arith.constant"() <{value = 0 : i32}> : () -> i32
@@ -597,14 +597,14 @@ csl.func @builtins() {
 // CHECK-GENERIC-NEXT:       "csl.return"() : () -> ()
 // CHECK-GENERIC-NEXT:     }) : () -> ()
 // CHECK-GENERIC-NEXT:     "csl.task"() <{sym_name = "data_task", function_type = (i32) -> (), kind = #csl<task_kind data>, id = 1 : ui5}> ({
-// CHECK-GENERIC-NEXT:     ^1(%a : i32):
+// CHECK-GENERIC-NEXT:     ^bb1(%a : i32):
 // CHECK-GENERIC-NEXT:       "csl.return"() : () -> ()
 // CHECK-GENERIC-NEXT:     }) : () -> ()
 // CHECK-GENERIC-NEXT:     "csl.task"() <{sym_name = "control_task", function_type = () -> (), kind = #csl<task_kind control>, id = 2 : ui6}> ({
 // CHECK-GENERIC-NEXT:       "csl.return"() : () -> ()
 // CHECK-GENERIC-NEXT:     }) : () -> ()
 // CHECK-GENERIC-NEXT:     "csl.task"() <{sym_name = "control_task_args", function_type = (i32) -> (), kind = #csl<task_kind control>, id = 2 : ui6}> ({
-// CHECK-GENERIC-NEXT:     ^2(%a_1 : i32):
+// CHECK-GENERIC-NEXT:     ^bb2(%a_1 : i32):
 // CHECK-GENERIC-NEXT:       "csl.return"() : () -> ()
 // CHECK-GENERIC-NEXT:     }) : () -> ()
 // CHECK-GENERIC-NEXT:     "csl.task"() <{sym_name = "runtime_bound_local_task", function_type = () -> (), kind = #csl<task_kind local>}> ({

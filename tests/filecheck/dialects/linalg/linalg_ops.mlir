@@ -48,6 +48,9 @@ linalg.generic {indexing_maps = [affine_map<(d0, d1) -> ()>, affine_map<(d0, d1)
  %fill = linalg.fill ins(%0 : f32) outs(%t3 : tensor<4x16xf32>) -> tensor<4x16xf32>
  linalg.fill ins(%0 : f32) outs(%m3 : memref<4x16xf32>)
 
+ %copy = linalg.copy {id} ins(%t1 : tensor<4x16xf32>) outs(%t3 : tensor<4x16xf32>) -> tensor<4x16xf32>
+ linalg.copy {id} ins(%m1 : memref<4x16xf32>) outs(%m3 : memref<4x16xf32>)
+
  %5, %6 = "test.op"() : () -> (tensor<64x9216xi8>, tensor<9216x4096xi8>)
  %7 = arith.constant 0 : i32
  %8 = arith.constant 0 : i32
@@ -62,10 +65,25 @@ linalg.generic {indexing_maps = [affine_map<(d0, d1) -> ()>, affine_map<(d0, d1)
  %11 = linalg.max ins(%t1, %t2 : tensor<4x16xf32>, tensor<4x16xf32>) outs(%t1 : tensor<4x16xf32>) -> tensor<4x16xf32>
  %12 = linalg.min ins(%t1, %t2 : tensor<4x16xf32>, tensor<4x16xf32>) outs(%t1 : tensor<4x16xf32>) -> tensor<4x16xf32>
 
+ %13, %14 = "test.op"() : () -> (memref<64x10xi32>, memref<i32>)
+ linalg.reduce ins(%13:memref<64x10xi32>) outs(%14:memref<i32>) dimensions = [0, 1]
+ (%15 : i32, %16 : i32) {
+     %17 = arith.addi %15, %16 : i32
+     linalg.yield %17 : i32
+ }
+
+ %18, %19 = "test.op"() : () -> (tensor<12x20xf32>, tensor<20xf32>)
+ linalg.reduce ins(%18:tensor<12x20xf32>) outs(%19:tensor<20xf32>) dimensions = [0]
+ (%20 : f32, %21 : f32) {
+     %22 = arith.addf %20, %21 : f32
+     linalg.yield %22 : f32
+ }
+
+
 // CHECK:        module {
 // CHECK-NEXT:    %{{.*}} %{{.*}} = "test.op"() : () -> (f32, memref<1x256xf32>)
 // CHECK-NEXT:    linalg.generic {indexing_maps = [affine_map<(d0, d1) -> ()>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%{{.*}} : f32) outs(%{{.*}} : memref<1x256xf32>) {
-// CHECK-NEXT:    ^0(%{{.*}} f32, %{{.*}} f32):
+// CHECK-NEXT:    ^bb0(%{{.*}} f32, %{{.*}} f32):
 // CHECK-NEXT:      linalg.yield %{{.*}} : f32
 // CHECK-NEXT:    }
 // CHECK-NEXT:    linalg.generic {indexing_maps = [affine_map<(d0, d1) -> ()>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%{{.*}} : f32) outs(%{{.*}} : memref<1x256xf32>) {
@@ -98,6 +116,8 @@ linalg.generic {indexing_maps = [affine_map<(d0, d1) -> ()>, affine_map<(d0, d1)
 // CHECK-NEXT:    linalg.matmul {id} ins(%{{.*}} %{{.*}} : memref<64x9216xi32>, memref<9216x4096xi32>) outs(%{{.*}} : memref<64x4096xi32>)
 // CHECK-NEXT:    %{{.*}} = linalg.fill ins(%{{.*}} : f32) outs(%{{.*}} : tensor<4x16xf32>) -> tensor<4x16xf32>
 // CHECK-NEXT:    linalg.fill ins(%{{.*}} : f32) outs(%{{.*}} : memref<4x16xf32>)
+// CHECK-NEXT:    %{{.*}} = linalg.copy {id} ins(%{{.*}} : tensor<4x16xf32>) outs(%{{.*}} : tensor<4x16xf32>) -> tensor<4x16xf32>
+// CHECK-NEXT:    linalg.copy {id} ins(%{{.*}} : memref<4x16xf32>) outs(%{{.*}} : memref<4x16xf32>)
 // CHECK-NEXT:    %5, %6 = "test.op"() : () -> (tensor<64x9216xi8>, tensor<9216x4096xi8>)
 // CHECK-NEXT:    %7 = arith.constant 0 : i32
 // CHECK-NEXT:    %8 = arith.constant 0 : i32
@@ -108,6 +128,18 @@ linalg.generic {indexing_maps = [affine_map<(d0, d1) -> ()>, affine_map<(d0, d1)
 // CHECK-NEXT:    "test.op"(%11) : (tensor<4x16xf32>) -> ()
 // CHECK-NEXT:    %12 = linalg.max ins(%t1, %t2 : tensor<4x16xf32>, tensor<4x16xf32>) outs(%t1 : tensor<4x16xf32>) -> tensor<4x16xf32>
 // CHECK-NEXT:    %13 = linalg.min ins(%t1, %t2 : tensor<4x16xf32>, tensor<4x16xf32>) outs(%t1 : tensor<4x16xf32>) -> tensor<4x16xf32>
+// CHECK-NEXT:    %14, %15 = "test.op"() : () -> (memref<64x10xi32>, memref<i32>)
+// CHECK-NEXT:    linalg.reduce ins(%14:memref<64x10xi32>) outs(%15:memref<i32>) dimensions = [0, 1]
+// CHECK-NEXT:    (%16 : i32, %17 : i32) {
+// CHECK-NEXT:        %18 = arith.addi %16, %17 : i32
+// CHECK-NEXT:        linalg.yield %18 : i32
+// CHECK-NEXT:    }
+// CHECK-NEXT:    %19, %20 = "test.op"() : () -> (tensor<12x20xf32>, tensor<20xf32>)
+// CHECK-NEXT:    %21 = linalg.reduce ins(%19:tensor<12x20xf32>) outs(%20:tensor<20xf32>) dimensions = [0]
+// CHECK-NEXT:    (%22 : f32, %23 : f32) {
+// CHECK-NEXT:        %24 = arith.addf %22, %23 : f32
+// CHECK-NEXT:        linalg.yield %24 : f32
+// CHECK-NEXT:    }
 // CHECK-NEXT:    }
 
 // CHECK-GENERIC:       "linalg.generic"(%{{.*}}, %{{.*}}) <{indexing_maps = [affine_map<(d0, d1) -> ()>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = [#linalg.iterator_type<parallel>, #linalg.iterator_type<parallel>], operandSegmentSizes = array<i32: 1, 1>}> ({
@@ -189,6 +221,16 @@ linalg.generic {indexing_maps = [affine_map<(d0, d1) -> ()>, affine_map<(d0, d1)
 // CHECK-GENERIC-NEXT:      "linalg.yield"(%{{.*}} : (f32) -> ()
 // CHECK-GENERIC-NEXT:    }) : (f32, memref<4x16xf32>) -> ()
 
+// CHECK-GENERIC-NEXT:    %{{.*}} = "linalg.copy"(%{{.*}}, %{{.*}} <{operandSegmentSizes = array<i32: 1, 1>}> ({
+// CHECK-GENERIC-NEXT:    ^{{.*}}(%{{.*}} : f32, %{{.*}} : f32):
+// CHECK-GENERIC-NEXT:      "linalg.yield"(%{{.*}} : (f32) -> ()
+// CHECK-GENERIC-NEXT:    }) {id} : (tensor<4x16xf32>, tensor<4x16xf32>) -> tensor<4x16xf32>
+
+// CHECK-GENERIC-NEXT:    "linalg.copy"(%{{.*}}, %{{.*}} <{operandSegmentSizes = array<i32: 1, 1>}> ({
+// CHECK-GENERIC-NEXT:    ^{{.*}}(%{{.*}} : f32, %{{.*}} : f32):
+// CHECK-GENERIC-NEXT:      "linalg.yield"(%{{.*}} : (f32) -> ()
+// CHECK-GENERIC-NEXT:    }) {id} : (memref<4x16xf32>, memref<4x16xf32>) -> ()
+
 // CHECK-GENERIC-NEXT:     %{{.*}}, %{{.*}} = "test.op"() : () -> (tensor<64x9216xi8>, tensor<9216x4096xi8>)
 // CHECK-GENERIC-NEXT:     %{{.*}} = "arith.constant"() <{value = 0 : i32}> : () -> i32
 // CHECK-GENERIC-NEXT:     %{{.*}} = "arith.constant"() <{value = 0 : i32}> : () -> i32
@@ -221,3 +263,15 @@ linalg.generic {indexing_maps = [affine_map<(d0, d1) -> ()>, affine_map<(d0, d1)
 // CHECK-GENERIC-NEXT:      %{{.*}} = "arith.minimumf"(%{{.*}}, %{{.*}}) <{fastmath = #arith.fastmath<none>}> : (f32, f32) -> f32
 // CHECK-GENERIC-NEXT:      "linalg.yield"(%{{.*}}) : (f32) -> ()
 // CHECK-GENERIC-NEXT:    }) : (tensor<4x16xf32>, tensor<4x16xf32>, tensor<4x16xf32>) -> tensor<4x16xf32>
+// CHECK-GENERIC-NEXT:    %{{.*}}, %{{.*}} = "test.op"() : () -> (memref<64x10xi32>, memref<i32>)
+// CHECK-GENERIC-NEXT:    "linalg.reduce"(%{{.*}}, %{{.*}}) <{dimensions = array<i64: 0, 1>, operandSegmentSizes = array<i32: 1, 1>}> ({
+// CHECK-GENERIC-NEXT:    ^{{.*}}(%{{.*}} : i32, %{{.*}} : i32):
+// CHECK-GENERIC-NEXT:      %{{.*}} = "arith.addi"(%{{.*}}, %{{.*}}) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
+// CHECK-GENERIC-NEXT:      "linalg.yield"(%{{.*}}) : (i32) -> ()
+// CHECK-GENERIC-NEXT:    }) : (memref<64x10xi32>, memref<i32>) -> ()
+// CHECK-GENERIC-NEXT:    %{{.*}}, %{{.*}} = "test.op"() : () -> (tensor<12x20xf32>, tensor<20xf32>)
+// CHECK-GENERIC-NEXT:    %{{.*}} = "linalg.reduce"(%{{.*}}, %{{.*}}) <{dimensions = array<i64: 0>, operandSegmentSizes = array<i32: 1, 1>}> ({
+// CHECK-GENERIC-NEXT:    ^{{.*}}(%{{.*}} : f32, %{{.*}} : f32):
+// CHECK-GENERIC-NEXT:      %{{.*}} = "arith.addf"(%{{.*}}, %{{.*}}) <{fastmath = #arith.fastmath<none>}> : (f32, f32) -> f32
+// CHECK-GENERIC-NEXT:      "linalg.yield"(%{{.*}}) : (f32) -> ()
+// CHECK-GENERIC-NEXT:    }) : (tensor<12x20xf32>, tensor<20xf32>) -> tensor<20xf32>

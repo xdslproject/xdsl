@@ -25,14 +25,22 @@ class LinalgFunctions(InterpreterFunctions):
             raise NotImplementedError(
                 "library_call not yet supported in linalg.generic interpreter"
             )
-        if op.res:
-            raise NotImplementedError(
-                "results not yet supported in linalg.generic interpreter"
-            )
-
         inputs_count = len(op.inputs)
+        input_args = args[:inputs_count]
+        output_args = args[inputs_count:]
 
-        outputs: tuple[ShapedArray[float], ...] = args[inputs_count:]
+        for arg in output_args:
+            assert isinstance(arg, ShapedArray)
+
+        output_args = cast(tuple[ShapedArray[float], ...], output_args)
+        if op.results:
+            # If there are results, they must be tensors, initialised with the
+            # `output_args`. If not, the results are stored in output_args directly.
+            outputs = tuple(arg.copy() for arg in output_args)
+        else:
+            outputs = output_args
+
+        loop_shaped_args = input_args + outputs
 
         indexing_maps = op.get_indexing_maps()
         output_indexing_maps = indexing_maps[inputs_count:]
@@ -46,7 +54,7 @@ class LinalgFunctions(InterpreterFunctions):
                     if isinstance(i, ShapedArray)
                     else i
                 )
-                for i, indexing_map in zip(args, indexing_maps, strict=True)
+                for i, indexing_map in zip(loop_shaped_args, indexing_maps, strict=True)
             )
             loop_results = interpreter.run_ssacfg_region(op.body, loop_args, "for_loop")
             for res, indexing_map in zip(
@@ -55,7 +63,7 @@ class LinalgFunctions(InterpreterFunctions):
                 result_indices = indexing_map.eval(indices, ())
                 outputs[0].store(result_indices, res)
 
-        return ()
+        return outputs if op.results else ()
 
     @impl_terminator(linalg.YieldOp)
     def run_yield(
@@ -188,7 +196,7 @@ class LinalgFunctions(InterpreterFunctions):
         strides_type = op.strides.type
         assert isinstance(strides_type, TensorType)
         (strides_shape,) = strides_type.get_shape()
-        strides = op.strides.get_int_values()
+        strides = op.strides.get_values()
         if strides_shape != 2:
             raise NotImplementedError("Only 2d max pooling supported")
 
@@ -233,7 +241,7 @@ class LinalgFunctions(InterpreterFunctions):
             raise NotImplementedError()
         m_height, m_width = input.shape[2:]
         ky, kx = kernel_filter.shape[2], kernel_filter.shape[3]
-        strides = op.strides.get_int_values()
+        strides = op.strides.get_values()
         # convert input into a numpy like array
         input_data = [
             [input.data[r * m_width + c] for c in range(m_width)]

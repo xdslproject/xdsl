@@ -10,9 +10,9 @@
         #memref_stream.stride_pattern<ub = [8, 16], index_map = (d0, d1) -> (d0, d1)>
     ]
   } ins(%arg0, %arg1 : memref<8x16xf64>, memref<8x16xf64>) outs(%arg2 : memref<8x16xf64>) {
-    ^0(%0 : !memref_stream.readable<f64>, %1 : !memref_stream.readable<f64>, %2 : !memref_stream.writable<f64>):
+    ^bb0(%0 : !memref_stream.readable<f64>, %1 : !memref_stream.readable<f64>, %2 : !memref_stream.writable<f64>):
       memref_stream.generic {bounds = [8, 16], indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%0, %1 : !memref_stream.readable<f64>, !memref_stream.readable<f64>) outs(%2 : !memref_stream.writable<f64>) {
-      ^1(%in : f64, %in_0 : f64, %out : f64):
+      ^bb1(%in : f64, %in_0 : f64, %out : f64):
         %3 = arith.addf %in, %in_0 : f64
         memref_stream.yield %3 : f64
       }
@@ -53,9 +53,9 @@
         #memref_stream.stride_pattern<ub = [16, 16], index_map = (d0, d1) -> (d0, d1)>
     ]
   } ins(%arg0_1 : memref<16x16xf64>) outs(%arg1_1 : memref<16x16xf64>) {
-    ^2(%4 : !memref_stream.readable<f64>, %5 : !memref_stream.writable<f64>):
+    ^bb2(%4 : !memref_stream.readable<f64>, %5 : !memref_stream.writable<f64>):
       memref_stream.generic {bounds = [16, 16], indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%4 : !memref_stream.readable<f64>) outs(%5 : !memref_stream.writable<f64>) {
-      ^3(%in_1 : f64, %out_1 : f64):
+      ^bb3(%in_1 : f64, %out_1 : f64):
         %6 = arith.maximumf %in_1, %cst : f64
         memref_stream.yield %6 : f64
       }
@@ -95,7 +95,7 @@ func.func public @fill(%arg0 : memref<16x16xf64>) -> memref<16x16xf64> {
       #memref_stream.stride_pattern<ub = [16, 16], index_map = (d0, d1) -> (d0, d1)>
     ]
   } outs(%arg0 : memref<16x16xf64>) {
-  ^3(%7 : !memref_stream.writable<f64>):
+  ^bb3(%7 : !memref_stream.writable<f64>):
     memref_stream.generic {
         bounds = [16, 16],
         indexing_maps = [
@@ -104,7 +104,7 @@ func.func public @fill(%arg0 : memref<16x16xf64>) -> memref<16x16xf64> {
         ],
         iterator_types = ["parallel", "parallel"]
     } ins(%zero : f64) outs(%7 : !memref_stream.writable<f64>) {
-    ^4(%in: f64, %out: f64):
+    ^bb4(%in: f64, %out: f64):
         memref_stream.yield %in : f64
     }
   }
@@ -139,7 +139,7 @@ func.func @main(%A : memref<4x2xf64>, %B : memref<2x3xf64>, %C : memref<4x3xf64>
         #memref_stream.stride_pattern<ub = [4, 3, 2], index_map = (d0, d1, d2) -> (d2, d1)>
       ]
     } ins(%A, %B : memref<4x2xf64>, memref<2x3xf64>) {
-    ^0(%0 : !memref_stream.readable<f64>, %1 : !memref_stream.readable<f64>):
+    ^bb0(%0 : !memref_stream.readable<f64>, %1 : !memref_stream.readable<f64>):
       memref_stream.generic {
         bounds = [4, 3, 2],
         indexing_maps = [
@@ -149,7 +149,7 @@ func.func @main(%A : memref<4x2xf64>, %B : memref<2x3xf64>, %C : memref<4x3xf64>
         ],
         iterator_types = ["parallel", "parallel", "reduction"]
       } ins(%0, %1 : !memref_stream.readable<f64>, !memref_stream.readable<f64>) outs(%C : memref<4x3xf64>) {
-      ^1(%a : f64, %b : f64, %acc_old : f64):
+      ^bb1(%a : f64, %b : f64, %acc_old : f64):
         %prod = arith.mulf %a, %b : f64
         %acc_new = arith.addf %acc_old, %prod : f64
         memref_stream.yield %acc_new : f64
@@ -193,7 +193,7 @@ func.func @elide_affine(%A : memref<6xf64>, %B : memref<f64>) -> memref<f64> {
         #memref_stream.stride_pattern<ub = [2, 3], index_map = (d0, d1) -> (d0 * 3 + d1)>
       ]
     } ins(%A : memref<6xf64>) {
-    ^0(%0 : !memref_stream.readable<f64>):
+    ^bb0(%0 : !memref_stream.readable<f64>):
       memref_stream.generic {
         bounds = [2, 3],
         indexing_maps = [
@@ -202,7 +202,7 @@ func.func @elide_affine(%A : memref<6xf64>, %B : memref<f64>) -> memref<f64> {
         ],
         iterator_types = ["parallel", "reduction"]
       } ins(%0 : !memref_stream.readable<f64>) outs(%B : memref<f64>) {
-      ^1(%a : f64, %acc_old : f64):
+      ^bb1(%a : f64, %acc_old : f64):
         %acc_new = arith.addf %acc_old, %a : f64
         memref_stream.yield %acc_new : f64
       }
@@ -238,7 +238,7 @@ func.func @nested_imperfect(%A : memref<2x3x4xf64>, %B : memref<f64>) -> memref<
         #memref_stream.stride_pattern<ub = [2, 3, 4], index_map = (d0, d1, d2) -> (d0, d1, d2)>
       ]
     } ins(%A : memref<2x3x4xf64>) {
-    ^0(%0 : !memref_stream.readable<f64>):
+    ^bb0(%0 : !memref_stream.readable<f64>):
       memref_stream.generic {
         bounds = [2, 3, 4],
         indexing_maps = [
@@ -247,7 +247,7 @@ func.func @nested_imperfect(%A : memref<2x3x4xf64>, %B : memref<f64>) -> memref<
         ],
         iterator_types = ["reduction", "reduction", "reduction"]
       } ins(%0 : !memref_stream.readable<f64>) outs(%B : memref<f64>) {
-      ^1(%a : f64, %acc_old : f64):
+      ^bb1(%a : f64, %acc_old : f64):
         %acc_new = arith.addf %acc_old, %a : f64
         memref_stream.yield %acc_new : f64
       }
@@ -292,7 +292,7 @@ func.func @main_inits(%A : memref<4x2xf64>, %B : memref<2x3xf64>, %C : memref<4x
         #memref_stream.stride_pattern<ub = [4, 3, 2], index_map = (d0, d1, d2) -> (d2, d1)>
       ]
     } ins(%A, %B : memref<4x2xf64>, memref<2x3xf64>) {
-    ^0(%0 : !memref_stream.readable<f64>, %1 : !memref_stream.readable<f64>):
+    ^bb0(%0 : !memref_stream.readable<f64>, %1 : !memref_stream.readable<f64>):
       memref_stream.generic {
         bounds = [4, 3, 2],
         indexing_maps = [
@@ -302,7 +302,7 @@ func.func @main_inits(%A : memref<4x2xf64>, %B : memref<2x3xf64>, %C : memref<4x
         ],
         iterator_types = ["parallel", "parallel", "reduction"]
       } ins(%0, %1 : !memref_stream.readable<f64>, !memref_stream.readable<f64>) outs(%C : memref<4x3xf64>) inits(%zero_float : f64) {
-      ^1(%a : f64, %b : f64, %acc_old : f64):
+      ^bb1(%a : f64, %b : f64, %acc_old : f64):
         %prod = arith.mulf %a, %b : f64
         %acc_new = arith.addf %acc_old, %prod : f64
         memref_stream.yield %acc_new : f64
@@ -350,7 +350,7 @@ func.func @interleaved_no_init(%A : memref<3x5xf64>, %B : memref<5x8xf64>, %C : 
         ],
         iterator_types = ["parallel", "parallel", "reduction", "interleaved"]
     } ins(%A, %B : memref<3x5xf64>, memref<5x8xf64>) outs(%C : memref<3x8xf64>) {
-    ^1(
+    ^bb1(
         %a0 : f64, %a1 : f64, %a2 : f64, %a3 : f64,
         %b0 : f64, %b1 : f64, %b2 : f64, %b3 : f64,
         %c0 : f64, %c1 : f64, %c2 : f64, %c3 : f64
@@ -437,7 +437,7 @@ func.func @interleaved_init(%A : memref<3x5xf64>, %B : memref<5x8xf64>, %C : mem
         ],
         iterator_types = ["parallel", "parallel", "reduction", "interleaved"]
     } ins(%A, %B : memref<3x5xf64>, memref<5x8xf64>) outs(%C : memref<3x8xf64>) inits(%zero_float : f64) {
-    ^1(
+    ^bb1(
         %a0 : f64, %a1 : f64, %a2 : f64, %a3 : f64,
         %b0 : f64, %b1 : f64, %b2 : f64, %b3 : f64,
         %c0 : f64, %c1 : f64, %c2 : f64, %c3 : f64

@@ -3,20 +3,19 @@ from __future__ import annotations
 import itertools
 from collections.abc import Iterator, Sequence
 from dataclasses import KW_ONLY, dataclass, field
-from typing import Generic, Literal, TypeVar
+from typing import Generic, Literal
 
-from typing_extensions import Self
+from typing_extensions import Self, TypeVar
 
 from xdsl.dialects.builtin import (
-    Float32Type,
-    Float64Type,
     PackableType,
+    f32,
+    f64,
     i32,
     i64,
 )
 
 _T = TypeVar("_T")
-_TCov = TypeVar("_TCov", covariant=True)
 
 
 @dataclass
@@ -51,11 +50,11 @@ class RawPtr:
 
     @property
     def int32(self) -> TypedPtr[int]:
-        return TypedPtr(self, xtype=int32)
+        return TypedPtr(self, xtype=i32)
 
     @property
     def int64(self) -> TypedPtr[int]:
-        return TypedPtr(self, xtype=int64)
+        return TypedPtr(self, xtype=i64)
 
     def index(self, index_bitwidth: int) -> TypedPtr[int]:
         if index_bitwidth != 32 and index_bitwidth != 64:
@@ -66,21 +65,15 @@ class RawPtr:
 
     @property
     def float32(self) -> TypedPtr[float]:
-        return TypedPtr(self, xtype=float32)
+        return TypedPtr(self, xtype=f32)
 
     @property
     def float64(self) -> TypedPtr[float]:
-        return TypedPtr(self, xtype=Float64Type())
-
-
-int32 = i32
-int64 = i64
-float32 = Float32Type()
-float64 = Float64Type()
+        return TypedPtr(self, xtype=f64)
 
 
 def index(bitwidth: Literal[32, 64]) -> PackableType[int]:
-    return int32 if bitwidth == 32 else int64
+    return i32 if bitwidth == 32 else i64
 
 
 @dataclass
@@ -138,11 +131,11 @@ class TypedPtr(Generic[_T]):
 
     @staticmethod
     def new_float32(els: Sequence[float]) -> TypedPtr[float]:
-        return TypedPtr[float].new(els, xtype=Float32Type())
+        return TypedPtr[float].new(els, xtype=f32)
 
     @staticmethod
     def new_float64(els: Sequence[float]) -> TypedPtr[float]:
-        return TypedPtr[float].new(els, xtype=Float64Type())
+        return TypedPtr[float].new(els, xtype=f64)
 
     @staticmethod
     def new_int32(els: Sequence[int]) -> TypedPtr[int]:

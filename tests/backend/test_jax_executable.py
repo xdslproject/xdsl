@@ -4,7 +4,13 @@ import pytest
 
 from xdsl.builder import ImplicitBuilder
 from xdsl.dialects import func, stablehlo
-from xdsl.dialects.builtin import ModuleOp, StringAttr, TensorType, i32
+from xdsl.dialects.builtin import (
+    ModuleOp,
+    StringAttr,
+    SymbolNameConstraint,
+    TensorType,
+    i32,
+)
 from xdsl.irdl import IRDLOperation, attr_def, irdl_op_definition, traits_def
 from xdsl.traits import SymbolOpInterface
 
@@ -105,7 +111,7 @@ def test_main_not_func():
     class SymNameOp(IRDLOperation):
         name = "sym_name"
 
-        sym_name = attr_def(StringAttr)
+        sym_name = attr_def(SymbolNameConstraint())
         traits = traits_def(SymbolOpInterface())
 
     module = ModuleOp([SymNameOp(attributes={"sym_name": StringAttr("main")})])

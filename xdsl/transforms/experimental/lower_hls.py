@@ -1,5 +1,4 @@
 import typing
-from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any, cast
 
@@ -38,7 +37,6 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
-from xdsl.utils.hints import isa
 
 
 @dataclass
@@ -436,7 +434,6 @@ class LowerHLSExtractStencilValue(RewritePattern):
         self, op: HLSExtractStencilValueOp, rewriter: PatternRewriter, /
     ):
         indices = op.position.get_values()
-        assert isa(indices, Sequence[int])
 
         assert isinstance(op.container, OpResult)
         assert isinstance(op.container.op, llvm.LoadOp)

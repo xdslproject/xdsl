@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from typing import Generic, TypeVar, overload
+from typing import Generic, overload
+
+from typing_extensions import TypeVar
 
 _Key = TypeVar("_Key")
 _Value = TypeVar("_Value")
@@ -9,7 +11,6 @@ _Value = TypeVar("_Value")
 class ScopedDict(Generic[_Key, _Value]):
     """
     A tiered mapping from keys to values.
-    Once a value is set for a key, it cannot be overwritten.
     A ScopedDict may have a parent dict, which is used as a fallback when a value for a
     key is not found.
     If a ScopedDict and its parent have values for the same key, the child value will be
@@ -53,21 +54,20 @@ class ScopedDict(Generic[_Key, _Value]):
         Fetch key from environment. Attempts to first fetch from current scope,
         then from parent scopes. Raises KeyError error if not found.
         """
-        if key in self._local_scope:
+        cur = self
+        if key in cur._local_scope:
             return self._local_scope[key]
-        if self.parent is None:
-            raise KeyError(f"No value for key {key}")
-        return self.parent[key]
+        while cur.parent is not None:
+            cur = cur.parent
+            if key in cur._local_scope:
+                return cur._local_scope[key]
+        raise KeyError(f"No value for key {key}")
 
     def __setitem__(self, key: _Key, value: _Value):
         """
         Assign key to current scope. Raises InterpretationError if key already
         assigned to.
         """
-        if key in self._local_scope:
-            raise ValueError(
-                f"Cannot overwrite value {self._local_scope[key]} for key {key}"
-            )
         self._local_scope[key] = value
 
     def __contains__(self, key: _Key) -> bool:

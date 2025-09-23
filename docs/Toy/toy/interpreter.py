@@ -34,8 +34,8 @@ class ToyFunctions(InterpreterFunctions):
         self, interpreter: Interpreter, op: toy.ConstantOp, args: tuple[Any, ...]
     ) -> tuple[Any, ...]:
         assert not len(args)
-        data = op.get_data()
-        shape = op.get_shape()
+        data = op.value.get_values()
+        shape = list(op.value.get_shape())
         result = ShapedArray(TypedPtr.new_float64(data), shape)
         return (result,)
 

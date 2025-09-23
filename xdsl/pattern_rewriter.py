@@ -6,9 +6,11 @@ from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, field
 from functools import wraps
 from types import UnionType
-from typing import TypeVar, Union, final, get_args, get_origin
+from typing import Union, final, get_args, get_origin
 
-from xdsl.builder import Builder, BuilderListener
+from typing_extensions import TypeVar
+
+from xdsl.builder import Builder, BuilderListener, InsertOpInvT
 from xdsl.dialects.builtin import ArrayAttr, DictionaryAttr, ModuleOp
 from xdsl.ir import (
     Attribute,
@@ -21,7 +23,7 @@ from xdsl.ir import (
     Region,
     SSAValue,
 )
-from xdsl.irdl import GenericAttrConstraint, base
+from xdsl.irdl import AttrConstraint, base
 from xdsl.rewriter import BlockInsertPoint, InsertPoint, Rewriter
 from xdsl.utils.hints import isa
 
@@ -98,25 +100,21 @@ class PatternRewriter(Builder, PatternRewriterListener):
         Builder.__init__(self, InsertPoint.before(current_operation))
 
     def insert_op(
-        self, op: Operation | Sequence[Operation], insertion_point: InsertPoint
-    ):
+        self,
+        op: InsertOpInvT,
+        insertion_point: InsertPoint | None = None,
+    ) -> InsertOpInvT:
         """Insert operations at a certain location in a block."""
         self.has_done_action = True
-        op = (op,) if isinstance(op, Operation) else op
-        if not op:
-            return
-        Rewriter.insert_op(op, insertion_point)
+        return super().insert_op(op, insertion_point)
 
-        for op_ in op:
-            self.handle_operation_insertion(op_)
-
-    def insert_op_before_matched_op(self, op: Operation | Sequence[Operation]):
+    def insert_op_before_matched_op(self, op: InsertOpInvT) -> InsertOpInvT:
         """Insert operations before the matched operation."""
-        self.insert_op(op, InsertPoint.before(self.current_operation))
+        return self.insert_op(op, InsertPoint.before(self.current_operation))
 
-    def insert_op_after_matched_op(self, op: Operation | Sequence[Operation]):
+    def insert_op_after_matched_op(self, op: InsertOpInvT) -> InsertOpInvT:
         """Insert operations after the matched operation."""
-        self.insert_op(op, InsertPoint.after(self.current_operation))
+        return self.insert_op(op, InsertPoint.after(self.current_operation))
 
     def erase_matched_op(self, safe_erase: bool = True):
         """
@@ -140,12 +138,13 @@ class PatternRewriter(Builder, PatternRewriterListener):
         self, from_: SSAValue, to: SSAValue | None, safe_erase: bool = True
     ):
         """Replace all uses of an SSA value with another SSA value."""
-        for use in from_.uses:
-            self.handle_operation_modification(use.operation)
+        modified_ops = [use.operation for use in from_.uses]
         if to is None:
             from_.erase(safe_erase=safe_erase)
         else:
             from_.replace_by(to)
+        for op in modified_ops:
+            self.handle_operation_modification(op)
 
     def replace_matched_op(
         self,
@@ -490,7 +489,7 @@ _ConvertedT = TypeVar("_ConvertedT", bound=Attribute)
 
 
 def attr_constr_rewrite_pattern(
-    constr: GenericAttrConstraint[_AttributeT],
+    constr: AttrConstraint[_AttributeT],
 ) -> Callable[
     [Callable[[_TypeConversionPatternT, _AttributeT], Attribute | None]],
     Callable[[_TypeConversionPatternT, Attribute], Attribute | None],
@@ -649,7 +648,7 @@ class PatternRewriteWalker:
         """
         for operand in operands:
             if (
-                len(operand.uses) == 1
+                operand.has_one_use()
                 and not isinstance(operand, ErasedSSAValue)
                 and isinstance((op := operand.owner), Operation)
             ):
@@ -772,14 +771,14 @@ class PatternRewriteWalker:
             rewriter.has_done_action = False
             rewriter.current_operation = op
             rewriter.insertion_point = InsertPoint.before(op)
+            rewriter.name_hint = None
 
             # Apply the pattern on the operation
             try:
                 self.pattern.match_and_rewrite(op, rewriter)
             except Exception as err:
                 op.emit_error(
-                    f"Error while applying pattern: {str(err)}",
-                    exception_type=type(err),
+                    f"Error while applying pattern: {err}",
                     underlying_error=err,
                 )
             rewriter_has_done_action |= rewriter.has_done_action

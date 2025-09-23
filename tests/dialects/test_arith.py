@@ -1,12 +1,12 @@
-from typing import TypeVar
-
 import pytest
 
+from xdsl.dialect_interfaces import ConstantMaterializationInterface
 from xdsl.dialects.arith import (
     AddfOp,
     AddiOp,
     AddUIExtendedOp,
     AndIOp,
+    Arith,
     BitcastOp,
     CeilDivSIOp,
     CeilDivUIOp,
@@ -53,6 +53,7 @@ from xdsl.dialects.arith import (
 )
 from xdsl.dialects.builtin import (
     DenseIntOrFPElementsAttr,
+    DenseResourceAttr,
     FloatAttr,
     IndexType,
     IntegerAttr,
@@ -68,10 +69,9 @@ from xdsl.dialects.builtin import (
     i64,
 )
 from xdsl.ir import Attribute
+from xdsl.traits import ConstantLike
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.test_value import create_ssa_value
-
-_BinOpArgT = TypeVar("_BinOpArgT", bound=Attribute)
 
 
 class Test_integer_arith_construction:
@@ -130,13 +130,24 @@ class Test_integer_arith_construction:
 def test_constant_construction():
     c1 = ConstantOp(IntegerAttr(1, i32))
     assert c1.value.type == i32
+    constantlike1 = c1.get_trait(ConstantLike)
+    assert constantlike1 is not None
+    assert constantlike1.get_constant_value(c1) == IntegerAttr(1, i32)
 
     c3 = ConstantOp(FloatAttr(1.0, f32))
     assert c3.value.type == f32
+    constantlike3 = c3.get_trait(ConstantLike)
+    assert constantlike3 is not None
+    assert constantlike3.get_constant_value(c3) == FloatAttr(1.0, f32)
 
     value_type = TensorType(i32, [2, 2])
-    c5 = ConstantOp(DenseIntOrFPElementsAttr.create_dense_int(value_type, [1, 2, 3, 4]))
+    c5 = ConstantOp(DenseIntOrFPElementsAttr.from_list(value_type, [1, 2, 3, 4]))
     assert c5.value.type == value_type
+    constantlike5 = c5.get_trait(ConstantLike)
+    assert constantlike5 is not None
+    assert constantlike5.get_constant_value(c5) == DenseIntOrFPElementsAttr.from_list(
+        value_type, [1, 2, 3, 4]
+    )
 
 
 @pytest.mark.parametrize(
@@ -406,48 +417,44 @@ def test_cmpf_get():
     assert cmpf_op.predicate.value.data == 1
 
 
-def test_cmpf_missmatch_type():
+def test_cmpf_mismatch_type():
     a = ConstantOp(FloatAttr(1.0, f32))
     b = ConstantOp(FloatAttr(2.0, f64))
 
-    with pytest.raises(TypeError) as e:
+    with pytest.raises(
+        TypeError,
+        match="Comparison operands must have same type, but provided f32 and f64",
+    ):
         _cmpf_op = CmpfOp(a, b, 1)
-    assert (
-        e.value.args[0]
-        == "Comparison operands must have same type, but provided f32 and f64"
-    )
 
 
 def test_cmpi_mismatch_type():
     a = ConstantOp.from_int_and_width(1, i32)
     b = ConstantOp.from_int_and_width(2, i64)
 
-    with pytest.raises(TypeError) as e:
+    with pytest.raises(
+        TypeError,
+        match="Comparison operands must have same type, but provided i32 and i64",
+    ):
         _cmpi_op = CmpiOp(a, b, 1)
-    assert (
-        e.value.args[0]
-        == "Comparison operands must have same type, but provided i32 and i64"
-    )
 
 
 def test_cmpf_incorrect_comparison():
     a = ConstantOp(FloatAttr(1.0, f32))
     b = ConstantOp(FloatAttr(2.0, f32))
 
-    with pytest.raises(VerifyException) as e:
+    with pytest.raises(VerifyException, match="Unknown comparison mnemonic: eq"):
         # 'eq' is a comparison op for cmpi but not cmpf
         _cmpf_op = CmpfOp(a, b, "eq")
-    assert e.value.args[0] == "Unknown comparison mnemonic: eq"
 
 
 def test_cmpi_incorrect_comparison():
     a = ConstantOp.from_int_and_width(1, i32)
     b = ConstantOp.from_int_and_width(2, i32)
 
-    with pytest.raises(VerifyException) as e:
+    with pytest.raises(VerifyException, match="Unknown comparison mnemonic: oeq"):
         # 'oeq' is a comparison op for cmpf but not cmpi
         _cmpi_op = CmpiOp(a, b, "oeq")
-    assert e.value.args[0] == "Unknown comparison mnemonic: oeq"
 
 
 def test_cmpi_index_type():
@@ -486,3 +493,63 @@ def test_extui_incorrect_bitwidth():
     # bitwidth of b has to be larger than the one of a
     with pytest.raises(VerifyException):
         _extui_op = ExtUIOp(a, i32).verify()
+
+
+def test_constant_materialization():
+    interface = Arith.get_interface(ConstantMaterializationInterface)
+    assert interface is not None
+    const = interface.materialize_constant(IntegerAttr.from_int_and_width(42, 32), i32)
+    assert isinstance(const, ConstantOp)
+    assert const.value == IntegerAttr.from_int_and_width(42, 32)
+    assert const.result_types[0] == i32
+
+    const = interface.materialize_constant(FloatAttr(42.0, f64), f64)
+    assert isinstance(const, ConstantOp)
+    assert const.value == FloatAttr(42.0, f64)
+    assert const.result_types[0] == f64
+
+    const = interface.materialize_constant(
+        DenseIntOrFPElementsAttr.from_list(TensorType(i32, [2]), [1, 2]),
+        TensorType(i32, [2]),
+    )
+    assert isinstance(const, ConstantOp)
+    assert const.value == DenseIntOrFPElementsAttr.from_list(
+        TensorType(i32, [2]), [1, 2]
+    )
+    assert const.result_types[0] == TensorType(i32, [2])
+
+    const = interface.materialize_constant(
+        DenseResourceAttr.from_params("my_resource", TensorType(i32, [2])),
+        TensorType(i32, [2]),
+    )
+    assert isinstance(const, ConstantOp)
+    assert const.value == DenseResourceAttr.from_params(
+        "my_resource", TensorType(i32, [2])
+    )
+    assert const.result_types[0] == TensorType(i32, [2])
+
+
+def test_fold():
+    """Test that try_fold correctly folds an AddiOp with zero."""
+
+    one_const = ConstantOp.from_int_and_width(1, i32)
+    five_const = ConstantOp.from_int_and_width(5, i32)
+
+    # 1 + 5 = 6
+    addi_op = AddiOp(one_const.result, five_const.result)
+    assert addi_op.fold() == (IntegerAttr(6, i32),)
+
+    zero_const = ConstantOp.from_int_and_width(0, i32)
+    some_value = create_ssa_value(i32)
+
+    # 0 + x = x
+    addi_op_zero_lhs = AddiOp(zero_const.result, some_value)
+    assert addi_op_zero_lhs.fold() == (some_value,)
+
+    # x + 0 = x
+    addi_op_zero_rhs = AddiOp(some_value, zero_const.result)
+    assert addi_op_zero_rhs.fold() == (some_value,)
+
+    # x + x cannot be folded
+    addi_val_val = AddiOp(some_value, some_value)
+    assert addi_val_val.fold() is None

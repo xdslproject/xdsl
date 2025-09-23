@@ -217,3 +217,6 @@
 // CHECK-NEXT: %from_si_to_fp = arith.sitofp %to_si : i32 to f32
 // CHECK-NEXT: %to_ui = arith.fptoui %fp : f32 to i32
 // CHECK-NEXT: %from_ui_to_fp = arith.uitofp %to_ui : i32 to f32
+
+%dense_const = arith.constant dense_resource<dense_resource_test_5xf32> : tensor<5xf32>
+// CHECK-NEXT: %dense_const = arith.constant dense_resource<dense_resource_test_5xf32> : tensor<5xf32>

@@ -12,7 +12,7 @@ from typing import Any
 if typing.TYPE_CHECKING:
     from xdsl.ir import Attribute
     from xdsl.parser import Span
-    from xdsl.utils.parse_pipeline import Token
+    from xdsl.utils.parse_pipeline import SpecToken
 
 
 class UnregisteredConstructException(Exception):
@@ -47,15 +47,27 @@ class PassFailedException(DiagnosticException):
 
 
 class PyRDLError(Exception):
-    pass
+    """
+    An error in our IRDL eDSL.
+    """
 
 
-class PyRDLOpDefinitionError(Exception):
-    pass
+class PyRDLOpDefinitionError(PyRDLError):
+    """
+    An error in the Operation definition eDSL.
+    """
 
 
-class PyRDLAttrDefinitionError(Exception):
-    pass
+class PyRDLAttrDefinitionError(PyRDLError):
+    """
+    An error in the Attribute definition eDSL.
+    """
+
+
+class PyRDLTypeError(TypeError, PyRDLError):
+    """
+    A type error in our IRDL eDSL.
+    """
 
 
 class InvalidIRException(Exception):
@@ -126,7 +138,7 @@ class MultipleSpansParseError(ParseError):
 
 
 class PassPipelineParseError(BaseException):
-    def __init__(self, token: Token, msg: str):
+    def __init__(self, token: SpecToken, msg: str):
         super().__init__(
             "Error parsing pass pipeline specification:\n"
             + token.span.print_with_context(msg)

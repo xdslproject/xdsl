@@ -6,7 +6,7 @@ import pytest
 from xdsl.context import Context
 from xdsl.dialects import test
 from xdsl.dialects.arith import AddiOp, Arith, ConstantOp
-from xdsl.dialects.builtin import Builtin, Float32Type, Float64Type, ModuleOp, i32, i64
+from xdsl.dialects.builtin import Builtin, ModuleOp, f32, f64, i32, i64
 from xdsl.ir import Block, Region
 from xdsl.parser import Parser
 from xdsl.printer import Printer
@@ -29,7 +29,7 @@ def rewrite_and_compare(
 
     file = StringIO()
     printer = Printer(stream=file, print_generic_format=True)
-    printer.print(module)
+    printer.print_op(module)
 
     assert file.getvalue().strip() == expected_prog.strip()
 
@@ -45,7 +45,7 @@ def test_operation_deletion():
 
     expected = """\
 "builtin.module"() ({
-^0:
+^bb0:
 }) : () -> ()"""
 
     def transformation(module: ModuleOp, rewriter: Rewriter) -> None:
@@ -244,8 +244,8 @@ def test_insert_block():
 
     expected = """\
 "builtin.module"() ({
-^0:
-^1:
+^bb0:
+^bb1:
   %0 = "arith.constant"() <{value = true}> : () -> i1
 }) : () -> ()
 """
@@ -267,7 +267,7 @@ def test_insert_block2():
     expected = """\
 "builtin.module"() ({
   %0 = "arith.constant"() <{value = true}> : () -> i1
-^0:
+^bb0:
 }) : () -> ()
 """
 
@@ -287,8 +287,8 @@ def test_insert_block_before():
 
     expected = """\
 "builtin.module"() ({
-^0:
-^1:
+^bb0:
+^bb1:
   %0 = "arith.constant"() <{value = true}> : () -> i1
 }) : () -> ()
 """
@@ -314,7 +314,7 @@ def test_insert_block_after():
     expected = """\
 "builtin.module"() ({
   %0 = "arith.constant"() <{value = true}> : () -> i1
-^0:
+^bb0:
 }) : () -> ()
 """
 
@@ -479,7 +479,10 @@ def test_erase_op():
 
     rewrite_and_compare(prog, expected, transformation_unsafe)
 
-    with pytest.raises(Exception):
+    with pytest.raises(
+        Exception,
+        match="Attempting to delete SSA value that still has uses",
+    ):
         rewrite_and_compare(prog, expected, transformation_safe)
 
 
@@ -495,7 +498,7 @@ def test_inline_region_before():
     prog = """\
 "builtin.module"() ({
   %0 = "test.op"() : () -> i32
-^0:
+^bb0:
   %1 = "test.op"() : () -> i64
 }) : () -> ()
 """
@@ -503,11 +506,11 @@ def test_inline_region_before():
     expected = """\
 "builtin.module"() ({
   %0 = "test.op"() : () -> i32
-^0:
+^bb0:
   %1 = "test.op"() : () -> f32
-^1:
+^bb1:
   %2 = "test.op"() : () -> f64
-^2:
+^bb2:
   %3 = "test.op"() : () -> i64
 }) : () -> ()
 """
@@ -515,8 +518,8 @@ def test_inline_region_before():
     def transformation(module: ModuleOp, rewriter: Rewriter) -> None:
         region = Region(
             (
-                Block((test.TestOp(result_types=(Float32Type(),)),)),
-                Block((test.TestOp(result_types=(Float64Type(),)),)),
+                Block((test.TestOp(result_types=(f32,)),)),
+                Block((test.TestOp(result_types=(f64,)),)),
             )
         )
         rewriter.inline_region(region, BlockInsertPoint.before(module.body.blocks[1]))
@@ -529,7 +532,7 @@ def test_inline_region_after():
     prog = """\
 "builtin.module"() ({
   %0 = "test.op"() : () -> i32
-^0:
+^bb0:
   %1 = "test.op"() : () -> i64
 }) : () -> ()
 """
@@ -537,11 +540,11 @@ def test_inline_region_after():
     expected = """\
 "builtin.module"() ({
   %0 = "test.op"() : () -> i32
-^0:
+^bb0:
   %1 = "test.op"() : () -> f32
-^1:
+^bb1:
   %2 = "test.op"() : () -> f64
-^2:
+^bb2:
   %3 = "test.op"() : () -> i64
 }) : () -> ()
 """
@@ -549,8 +552,8 @@ def test_inline_region_after():
     def transformation(module: ModuleOp, rewriter: Rewriter) -> None:
         region = Region(
             (
-                Block((test.TestOp(result_types=(Float32Type(),)),)),
-                Block((test.TestOp(result_types=(Float64Type(),)),)),
+                Block((test.TestOp(result_types=(f32,)),)),
+                Block((test.TestOp(result_types=(f64,)),)),
             )
         )
         rewriter.inline_region(region, BlockInsertPoint.after(module.body.blocks[0]))
@@ -563,7 +566,7 @@ def test_inline_region_at_start():
     prog = """\
 "builtin.module"() ({
   %0 = "test.op"() : () -> i32
-^0:
+^bb0:
   %1 = "test.op"() : () -> i64
 }) : () -> ()
 """
@@ -571,11 +574,11 @@ def test_inline_region_at_start():
     expected = """\
 "builtin.module"() ({
   %0 = "test.op"() : () -> f32
-^0:
+^bb0:
   %1 = "test.op"() : () -> f64
-^1:
+^bb1:
   %2 = "test.op"() : () -> i32
-^2:
+^bb2:
   %3 = "test.op"() : () -> i64
 }) : () -> ()
 """
@@ -583,8 +586,8 @@ def test_inline_region_at_start():
     def transformation(module: ModuleOp, rewriter: Rewriter) -> None:
         region = Region(
             (
-                Block((test.TestOp(result_types=(Float32Type(),)),)),
-                Block((test.TestOp(result_types=(Float64Type(),)),)),
+                Block((test.TestOp(result_types=(f32,)),)),
+                Block((test.TestOp(result_types=(f64,)),)),
             )
         )
         rewriter.inline_region(region, BlockInsertPoint.at_start(module.body))
@@ -597,7 +600,7 @@ def test_inline_region_at_end():
     prog = """\
 "builtin.module"() ({
   %0 = "test.op"() : () -> i32
-^0:
+^bb0:
   %1 = "test.op"() : () -> i64
 }) : () -> ()
 """
@@ -605,11 +608,11 @@ def test_inline_region_at_end():
     expected = """\
 "builtin.module"() ({
   %0 = "test.op"() : () -> i32
-^0:
+^bb0:
   %1 = "test.op"() : () -> i64
-^1:
+^bb1:
   %2 = "test.op"() : () -> f32
-^2:
+^bb2:
   %3 = "test.op"() : () -> f64
 }) : () -> ()
 """
@@ -617,8 +620,8 @@ def test_inline_region_at_end():
     def transformation(module: ModuleOp, rewriter: Rewriter) -> None:
         region = Region(
             (
-                Block((test.TestOp(result_types=(Float32Type(),)),)),
-                Block((test.TestOp(result_types=(Float64Type(),)),)),
+                Block((test.TestOp(result_types=(f32,)),)),
+                Block((test.TestOp(result_types=(f64,)),)),
             )
         )
         rewriter.inline_region(region, BlockInsertPoint.at_end(module.body))

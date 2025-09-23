@@ -1,7 +1,7 @@
 import pytest
 
 from xdsl.utils.exceptions import ParseError
-from xdsl.utils.lexer import Input
+from xdsl.utils.lexer import Input, Position
 from xdsl.utils.mlir_lexer import MLIRLexer, MLIRToken, MLIRTokenKind
 
 
@@ -248,3 +248,25 @@ def test_token_get_string_literal_value(text: str, expected: float):
     token = get_token(text)
     assert token.kind == MLIRTokenKind.STRING_LIT
     assert token.kind.get_string_literal_value(token.span) == expected
+
+
+START_END_LINE_CONTENT = """\
+0123
+5678"""
+
+
+@pytest.mark.parametrize(
+    "pos,expected_start,expected_end",
+    [
+        (0, 0, 4),
+        (1, 0, 4),
+        (5, 5, 9),
+        (9, 5, 9),
+    ],
+)
+def test_get_start_of_line(
+    pos: Position, expected_start: Position, expected_end: Position
+):
+    input = Input(START_END_LINE_CONTENT, "<>")
+    assert input.get_start_of_line(pos) == expected_start
+    assert input.get_end_of_line(pos) == expected_end

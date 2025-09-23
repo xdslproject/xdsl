@@ -1,6 +1,7 @@
 import re
 from collections.abc import Callable, Sequence
-from typing import TypeVar
+
+from typing_extensions import TypeVar
 
 from xdsl.dialects.builtin import ArrayAttr, FloatData, IntAttr
 from xdsl.dialects.stim import (

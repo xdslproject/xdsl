@@ -7,7 +7,14 @@ from unittest.mock import ANY, patch
 import pytest
 
 from xdsl.context import Context
-from xdsl.dialects.builtin import ArrayAttr, StringAttr, SymbolRefAttr, i32, i64
+from xdsl.dialects.builtin import (
+    ArrayAttr,
+    StringAttr,
+    SymbolNameConstraint,
+    SymbolRefAttr,
+    i32,
+    i64,
+)
 from xdsl.dialects.hw import (
     HW,
     Direction,
@@ -72,7 +79,7 @@ def test_inner_sym_target():
 class ModuleOp(IRDLOperation):
     name = "module"
     region = region_def()
-    sym_name = attr_def(StringAttr)
+    sym_name = attr_def(SymbolNameConstraint())
     traits = traits_def(InnerSymbolTableTrait(), SymbolOpInterface())
 
 
@@ -86,7 +93,7 @@ class OutputOp(IRDLOperation):
 class CircuitOp(IRDLOperation):
     name = "circuit"
     region: Region | None = opt_region_def()
-    sym_name = attr_def(StringAttr)
+    sym_name = attr_def(SymbolNameConstraint())
     traits = traits_def(
         InnerRefNamespaceTrait(),
         SymbolTable(),
@@ -101,7 +108,7 @@ class CircuitOp(IRDLOperation):
 @irdl_op_definition
 class WireOp(IRDLOperation):
     name = "wire"
-    sym_name = attr_def(StringAttr)
+    sym_name = attr_def(SymbolNameConstraint())
     traits = traits_def(InnerRefUserOpInterfaceTrait())
 
 
@@ -144,7 +151,7 @@ def test_inner_symbol_table_interface():
     class MissingTraitModuleOp(IRDLOperation):
         name = "module"
         region = region_def()
-        sym_name = attr_def(StringAttr)
+        sym_name = attr_def(SymbolNameConstraint())
         traits = traits_def(InnerSymbolTableTrait())
 
     mod_missing_trait = MissingTraitModuleOp(
@@ -170,7 +177,7 @@ def test_inner_symbol_table_interface():
     MissingAttrModuleOp(regions=[[mod_missing_trait_parent, OutputOp()]])
     with pytest.raises(
         VerifyException,
-        match="attribute sym_name expected",
+        match="attribute 'sym_name' expected in operation 'module'",
     ):
         mod_missing_trait_parent.verify()
 
@@ -184,7 +191,7 @@ def test_inner_ref_namespace_interface():
     class MissingTraitCircuitOp(IRDLOperation):
         name = "circuit"
         region: Region | None = opt_region_def()
-        sym_name = attr_def(StringAttr)
+        sym_name = attr_def(SymbolNameConstraint())
         traits = traits_def(
             InnerRefNamespaceTrait(), SingleBlockImplicitTerminator(OutputOp)
         )
@@ -368,7 +375,7 @@ hw.module @module(in %foo: i32, in %bar: i64, out baz: i32, out qux: i64) {
 
 
 def test_hwmoduleop_hwmodulelike():
-    module_type = ModuleType((ArrayAttr(()),))
+    module_type = ModuleType(ArrayAttr(()))
 
     hw_module = HWModuleOp(
         StringAttr("foo"), module_type, Region((Block((OutputOp(),)),))
@@ -379,11 +386,7 @@ def test_hwmoduleop_hwmodulelike():
     assert hw_module_like.get_hw_module_type(hw_module) == module_type
 
     new_module_type = ModuleType(
-        (
-            ArrayAttr(
-                (ModulePort((StringAttr("in1"), i32, DirectionAttr(Direction.INPUT))),)
-            ),
-        )
+        ArrayAttr((ModulePort(StringAttr("in1"), i32, DirectionAttr(Direction.INPUT)),))
     )
     hw_module_like.set_hw_module_type(hw_module, new_module_type)
     assert hw_module_like.get_hw_module_type(hw_module) == new_module_type

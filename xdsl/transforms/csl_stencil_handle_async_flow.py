@@ -14,7 +14,6 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.dialects.csl import csl, csl_stencil, csl_wrapper
 from xdsl.ir import (
-    Attribute,
     Block,
     Operation,
     OpResult,
@@ -137,11 +136,10 @@ class ConvertForLoopToCallGraphPass(RewritePattern):
 
         # limitation: all iter_args must be memrefs (stencil buffers) and have the same data type
         if op.iter_args:
-            assert isa(op.iter_args[0].type, MemRefType[Attribute])
+            assert isa(op.iter_args[0].type, MemRefType)
             element_type = op.iter_args[0].type.get_element_type()
             assert all(
-                isa(a.type, MemRefType[Attribute])
-                and element_type == a.type.get_element_type()
+                isa(a.type, MemRefType) and element_type == a.type.get_element_type()
                 for a in op.iter_args
             )
 

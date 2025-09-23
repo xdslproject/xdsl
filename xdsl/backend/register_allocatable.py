@@ -2,8 +2,12 @@ import abc
 from collections.abc import Iterator, Sequence
 from typing import NamedTuple
 
+from xdsl.backend.register_allocator import BlockAllocator
 from xdsl.backend.register_type import RegisterType
 from xdsl.ir import Operation, Region, SSAValue
+from xdsl.irdl import traits_def
+from xdsl.traits import OpTrait
+from xdsl.utils.exceptions import VerifyException
 
 
 class RegisterAllocatableOperation(Operation, abc.ABC):
@@ -24,6 +28,12 @@ class RegisterAllocatableOperation(Operation, abc.ABC):
             for val in vals
             if isinstance(val.type, RegisterType) and val.type.is_allocated
         )
+
+    @abc.abstractmethod
+    def allocate_registers(self, allocator: BlockAllocator) -> None:
+        """
+        Allocate registers for this operation.
+        """
 
     @staticmethod
     def iter_all_used_registers(
@@ -52,7 +62,36 @@ class RegisterConstraints(NamedTuple):
     inouts: Sequence[Sequence[SSAValue]]
 
 
+class HasRegisterConstraintsTrait(OpTrait):
+    """
+    Trait that verifies that the operation implements HasRegisterConstraints, and that
+    its inout operands are used only once.
+    Using an inout operand more than once breaks SSA, as the register will hold an
+    unexpected value after being mutated by this operation.
+    """
+
+    def verify(self, op: Operation) -> None:
+        if not isinstance(op, HasRegisterConstraints):
+            raise VerifyException(
+                f"Operation {op.name} is not a subclass of {HasRegisterConstraints.__name__}."
+            )
+
+        for o, _ in op.get_register_constraints().inouts:
+            if not o.has_one_use():
+                raise VerifyException(
+                    f"Inout register operand at index {op.operands.index(o)} used more than once."
+                )
+
+
 class HasRegisterConstraints(RegisterAllocatableOperation, abc.ABC):
+    """
+    Abstract superclass for operations corresponding to assembly, with registers used
+    as in, out, or inout registers.
+    Inout registers must only be used once.
+    """
+
+    traits = traits_def(HasRegisterConstraintsTrait())
+
     @abc.abstractmethod
     def get_register_constraints(self) -> RegisterConstraints:
         """
@@ -60,3 +99,22 @@ class HasRegisterConstraints(RegisterAllocatableOperation, abc.ABC):
         allocation.
         """
         raise NotImplementedError()
+
+    def allocate_registers(self, allocator: BlockAllocator) -> None:
+        ins, outs, inouts = self.get_register_constraints()
+
+        # Allocate registers to inout operand groups since they are defined further up
+        # in the use-def SSA chain
+        for operand_group in inouts:
+            allocator.allocate_values_same_reg(operand_group)
+
+        for result in outs:
+            # Allocate registers to result if not already allocated
+            if (new_result := allocator.allocate_value(result)) is not None:
+                result = new_result
+            allocator.free_value(result)
+
+        # Allocate registers to operands since they are defined further up
+        # in the use-def SSA chain
+        for operand in ins:
+            allocator.allocate_value(operand)

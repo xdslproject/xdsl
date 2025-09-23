@@ -1,6 +1,8 @@
 from collections.abc import Iterator
 from dataclasses import dataclass
 
+from typing_extensions import Self
+
 from xdsl.ir import Block, Operation
 from xdsl.traits import IsTerminator
 
@@ -23,7 +25,7 @@ class PostOrderIterator(Iterator[Block]):
         self.stack = [(block, False)]
         self.seen = {block}
 
-    def __iter__(self) -> Iterator[Block]:
+    def __iter__(self) -> Self:
         return self
 
     def __next__(self) -> Block:

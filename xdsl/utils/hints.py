@@ -8,12 +8,13 @@ from typing import (
     Generic,
     Literal,
     TypeGuard,
-    TypeVar,
     Union,
     cast,
     get_args,
     get_origin,
 )
+
+from typing_extensions import TypeVar
 
 from xdsl.ir import ParametrizedAttribute, SSAValue
 from xdsl.utils.exceptions import VerifyException
@@ -93,9 +94,7 @@ def isa(arg: Any, hint: "TypeForm[_T]") -> TypeGuard[_T]:
     from xdsl.irdl import GenericData, irdl_to_attr_constraint
 
     if (origin is not None) and issubclass(origin, GenericData | ParametrizedAttribute):
-        constraint = irdl_to_attr_constraint(
-            hint  # pyright: ignore[reportArgumentType]
-        )
+        constraint = irdl_to_attr_constraint(hint)
         try:
             constraint.verify(arg, ConstraintContext())
             return True
@@ -150,48 +149,60 @@ def get_type_var_from_generic_class(cls: type[Any]) -> tuple[TypeVar, ...]:
 
 def get_type_var_mapping(
     cls: type[Any],
-) -> tuple[type[Any], dict[TypeVar, Any]]:
+) -> tuple[tuple[TypeVar, ...], dict[TypeVar, Any]]:
     """
-    Given a class that specializes a generic class, return the generic class and
-    the mapping from the generic class type variables to the specialized arguments.
+    Given a Generic class, return the TypeVars used to specialize it, and the mapping
+    from the generic class type variables to the specialized arguments for all type
+    variables used in ancestor classes.
+    Raises a ValueError if the specialized arguments for the same TypeVar are not
+    consistent among superclasses.
     """
 
     if not issubclass(cls, Generic):
         raise ValueError(f"{cls} does not specialize a generic class.")
 
-    # Get the generic parent
     orig_bases: Iterable[Any] = getattr(cls, "__orig_bases__")
-    orig_bases = [
-        orig_base
-        for orig_base in orig_bases
-        if (origin := get_origin(orig_base)) is not Generic and origin is not None
-    ]
-    # Do not handle more than one generic parent in the mro.
-    # It is possible to handle more than one generic parent, but
-    # the mapping of type variables will be more complex, especially for
-    # generic parents inheriting from other generic parents.
-    if len(orig_bases) != 1:
-        raise ValueError(
-            "Class cannot have more than one generic class in its mro. This "
-            "restriction may be lifted in the future.",
-            orig_bases,
-        )
+    mapping: dict[TypeVar, Any] = {}
+    args: tuple[TypeVar, ...] = ()
 
-    # Get the generic operation, and its specialized type parameters.
-    generic_parent: type[Any] = get_origin(orig_bases[0])
-    specialized_args = get_args(orig_bases[0])
+    for base in orig_bases:
+        base_origin = get_origin(base)
+        if base_origin is Generic:
+            args = get_args(base)
 
-    # Get the `TypeVar` used in the generic parent
-    generic_args = get_type_var_from_generic_class(generic_parent)
+    for base in orig_bases:
+        base_origin = get_origin(base)
+        if base_origin is Generic:
+            continue
+        base_cls = base if base_origin is None else base_origin
+        if not issubclass(base_cls, Generic):
+            continue
+        base_type_vars, base_mapping = get_type_var_mapping(cast(type[Any], base_cls))
+        base_args = get_args(base)
 
-    if len(generic_args) != len(specialized_args):
-        raise ValueError(
-            f"Generic class {generic_parent} class has {len(generic_args)} "
-            f"parameters, but {cls} specialize {len(specialized_args)} of them."
-        )
+        for k, v in zip(base_type_vars, base_args, strict=True):
+            if isinstance(v, TypeVar) and v not in args:
+                # Pyright complains if there is a Generic parent that doesn't include
+                # all the TypeVars used in later classes, so this is a valid check.
+                raise ValueError(
+                    f"Invalid definition {cls.__qualname__}, generic classes must subclass `Generic`."
+                )
+            if k is not v:
+                # Don't assign forwarded TypeVars
+                base_mapping[k] = v
 
-    type_var_mapping = dict(zip(generic_args, specialized_args))
-    return generic_parent, type_var_mapping
+        for k, v in base_mapping.items():
+            if k in mapping:
+                if v is not mapping[k]:
+                    raise ValueError(
+                        "Error extracting assignments of TypeVars of "
+                        f"{cls.__qualname__}, inconsistent assignments to {k} in "
+                        f"superclasses: {v.__qualname__}, {mapping[k].__qualname__}."
+                    )
+                continue
+            mapping[k] = v
+
+    return args, mapping
 
 
 def type_repr(obj: Any) -> str:

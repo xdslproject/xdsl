@@ -15,16 +15,16 @@ jobs:
   build:
     runs-on: ubuntu-latest
     # https://github.com/xdslproject/llvm-docker/pkgs/container/llvm
-    container: ghcr.io/xdslproject/llvm:20.1.1
+    container: ghcr.io/xdslproject/llvm:20.1.7
     strategy:
       matrix:
-        python-version: ['3.10', '3.11', '3.12']
+        python-version: ['3.10', '3.11', '3.12', '3.13']
 
     env:
       LLVM_SYMBOLIZER_PATH: /usr/lib/llvm-11/bin/llvm-symbolizer
       COLLECT_COVERAGE: ${{ matrix.python-version == '3.10' }}
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
       with:
         path: xdsl
         fetch-depth: 2
@@ -36,16 +36,15 @@ jobs:
         cache-dependency-glob: "xdsl/uv.lock"
 
     - name: Set up Python ${{ matrix.python-version }}
-      run: |
-        # Change directory so that xdsl-opt can be found during installation.
-        cd xdsl
-        uv python install ${{ matrix.python-version }}
+      uses: actions/setup-python@v6
+      with:
+        python-version: ${{ matrix.python-version }}
 
     - name: Install the package locally and nbval
       run: |
         # Change directory so that xdsl-opt can be found during installation.
         cd xdsl
-        VENV_EXTRAS="--all-extras" make venv
+        make venv
 
     - name: Test with pytest and generate code coverage
       run: |

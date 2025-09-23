@@ -1,4 +1,6 @@
-from typing import Any, Generic, Literal, TypeAlias, TypeVar
+from typing import Any, Generic, Literal, TypeAlias
+
+from typing_extensions import TypeVar
 
 from xdsl.dialects.builtin import (
     ArrayAttr,
@@ -12,9 +14,8 @@ from xdsl.dialects.builtin import (
     i32,
 )
 from xdsl.ir import Attribute, ParametrizedAttribute, SSAValue
-from xdsl.irdl import BaseAttr, EqAttrConstraint, ParameterDef, irdl_attr_definition
+from xdsl.irdl import irdl_attr_definition
 from xdsl.utils.hints import isa
-from xdsl.utils.isattr import isattr  # pyright: ignore[reportDeprecated]
 from xdsl.utils.test_value import create_ssa_value
 
 
@@ -284,7 +285,7 @@ def test_dict_hint_failure():
     assert not isa({0: "0", 2: "1", "2": "2"}, dict[int, str])
 
 
-threeDict: TypeAlias = dict[int, dict[int, dict[int, str]]]
+ThreeDict: TypeAlias = dict[int, dict[int, dict[int, str]]]
 
 
 def test_dict_hint_nested():
@@ -300,11 +301,11 @@ def test_dict_hint_nested():
     assert not isa({0: {"": ""}}, dict[int, dict[int, str]])
     assert not isa({0: {0: 0}}, dict[int, dict[int, str]])
 
-    assert isa({}, threeDict)
-    assert isa({0: {}}, threeDict)
-    assert isa({0: {0: {}}}, threeDict)
-    assert isa({0: {}, 1: {0: {}}}, threeDict)
-    assert isa({0: {}, 1: {0: {0: "0", 1: "32"}}}, threeDict)
+    assert isa({}, ThreeDict)
+    assert isa({0: {}}, ThreeDict)
+    assert isa({0: {0: {}}}, ThreeDict)
+    assert isa({0: {}, 1: {0: {}}}, ThreeDict)
+    assert isa({0: {}, 1: {0: {0: "0", 1: "32"}}}, ThreeDict)
 
 
 ################################################################################
@@ -353,14 +354,14 @@ _T = TypeVar("_T", bound=Attribute)
 
 
 @irdl_attr_definition
-class MyParamAttr(Generic[_T], ParametrizedAttribute):
+class MyParamAttr(ParametrizedAttribute, Generic[_T]):
     name = "test.param"
 
-    v: ParameterDef[_T]
+    v: _T
 
 
 def test_parametrized_attribute():
-    attr = MyParamAttr[IntAttr]([IntAttr(0)])
+    attr = MyParamAttr[IntAttr](IntAttr(0))
 
     # `assert isa(attr, MyParamAttr)` not supported: use isinstance instead
     assert isa(attr, MyParamAttr[IntAttr])
@@ -386,23 +387,6 @@ def test_literal():
 
     assert not isa(1, Literal["1"])
     assert not isa("1", Literal[1])
-
-
-################################################################################
-# isattr
-################################################################################
-
-
-def test_isattr():
-    # We're testing the deprecated function, so we need to suppress the warnings
-    import warnings
-
-    with warnings.catch_warnings():
-        warnings.filterwarnings("ignore", category=DeprecationWarning)
-        assert isattr(IntAttr(1), BaseAttr(IntAttr))  # pyright: ignore[reportDeprecated]
-        assert not isattr(IntAttr(1), BaseAttr(StringAttr))  # pyright: ignore[reportDeprecated]
-        assert isattr(IntAttr(1), EqAttrConstraint(IntAttr(1)))  # pyright: ignore[reportDeprecated]
-        assert not isattr(IntAttr(1), EqAttrConstraint(IntAttr(2)))  # pyright: ignore[reportDeprecated]
 
 
 ################################################################################

@@ -1,34 +1,43 @@
 # RUN: python %s | filecheck %s
 
-from xdsl.frontend.pyast.context import CodeContext
-from xdsl.frontend.pyast.dialects.builtin import i1, i32
-from xdsl.frontend.pyast.exception import CodeGenerationException
-from xdsl.frontend.pyast.program import FrontendProgram
 
-p = FrontendProgram()
-with CodeContext(p):
-    # CHECK: cf.assert %{{.*}}, ""
-    def test_assert_I(cond: i1):
-        assert cond
-        return
+from xdsl.dialects import bigint, builtin
+from xdsl.frontend.pyast.context import PyASTContext
+from xdsl.frontend.pyast.utils.exceptions import CodeGenerationException
 
-    # CHECK: cf.assert %{{.*}}, "some message"
-    def test_assert_II(cond: i1):
-        assert cond, "some message"
-        return
+ctx = PyASTContext(post_transforms=[])
+ctx.register_type(bool, builtin.i1)
+ctx.register_type(int, bigint.bigint)
 
 
-p.compile(desymref=False)
-print(p.textual_format())
+# CHECK: cf.assert %{{.*}}, ""
+@ctx.parse_program
+def test_assert_I(cond: bool):
+    assert cond
+    return
+
+
+print(test_assert_I.module)
+
+
+# CHECK: cf.assert %{{.*}}, "some message"
+@ctx.parse_program
+def test_assert_II(cond: bool):
+    assert cond, "some message"
+    return
+
+
+print(test_assert_II.module)
+
+
+# CHECK: Expected a string constant for assertion message, found 'ast.Name'
+@ctx.parse_program
+def test_assert_message_type(cond: bool, a: int):
+    assert cond, a
+    return
+
 
 try:
-    with CodeContext(p):
-        # CHECK: Expected a string constant for assertion message, found 'ast.Name'
-        def test_assert_message_type(cond: i1, a: i32):
-            assert cond, a
-            return
-
-    p.compile(desymref=False)
-    print(p.textual_format())
+    test_assert_message_type.module
 except CodeGenerationException as e:
     print(e.msg)

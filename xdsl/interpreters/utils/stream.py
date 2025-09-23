@@ -1,13 +1,15 @@
 import abc
 from dataclasses import dataclass, field
-from typing import Generic, TypeVar
+from typing import Generic
+
+from typing_extensions import TypeVar
 
 T = TypeVar("T")
 TCov = TypeVar("TCov", covariant=True)
 TCon = TypeVar("TCon", contravariant=True)
 
 
-class ReadableStream(Generic[TCov], abc.ABC):
+class ReadableStream(abc.ABC, Generic[TCov]):
     """
     Abstract base class for readable stream interpreter model objects.
     """
@@ -17,7 +19,7 @@ class ReadableStream(Generic[TCov], abc.ABC):
         raise NotImplementedError()
 
 
-class WritableStream(Generic[TCon], abc.ABC):
+class WritableStream(abc.ABC, Generic[TCon]):
     """
     Abstract base class for readable stream interpreter model objects.
     """

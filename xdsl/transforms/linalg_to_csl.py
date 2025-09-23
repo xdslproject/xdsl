@@ -1,11 +1,9 @@
 from dataclasses import dataclass
 
 from xdsl.context import Context
-from xdsl.dialects import arith, linalg
+from xdsl.dialects import arith, builtin, linalg
 from xdsl.dialects.builtin import (
     DenseIntOrFPElementsAttr,
-    Float16Type,
-    Float32Type,
     FloatAttr,
     IntegerAttr,
     MemRefType,
@@ -31,9 +29,9 @@ def match_op_for_precision(
     """Returns the op type matching a given precision."""
     # todo support mixed-precision
     match prec:
-        case Float16Type():
+        case builtin.f16:
             return f16
-        case Float32Type():
+        case builtin.f32:
             return f32
         case _:
             raise ValueError(f"Unsupported element type {prec}")
@@ -51,7 +49,7 @@ def get_scalar_const(op: SSAValue) -> FloatAttr | IntegerAttr | None:
 
 
 def transform_op(
-    op: linalg.NamedOpBase,
+    op: linalg.NamedOperation,
     rewriter: PatternRewriter,
     f16: type[csl.BuiltinDsdOp],
     f32: type[csl.BuiltinDsdOp],

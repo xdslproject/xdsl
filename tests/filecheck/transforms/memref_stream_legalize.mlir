@@ -12,7 +12,7 @@ func.func public @reducef64(%arg0 : memref<8x16xf64>, %arg1 : memref<8x16xf64>, 
       ],
       iterator_types = ["parallel", "reduction"]
   } ins(%arg0, %arg1 : memref<8x16xf64>, memref<8x16xf64>) outs(%arg2 : memref<8xf64>) {
-  ^0(%in : f64, %in_1 : f64, %out : f64):
+  ^bb0(%in : f64, %in_1 : f64, %out : f64):
       %add = arith.addf %in, %in_1 : f64
       memref_stream.yield %add : f64
   }
@@ -29,7 +29,7 @@ func.func public @reducef64(%arg0 : memref<8x16xf64>, %arg1 : memref<8x16xf64>, 
 // CHECK-NEXT:     ],
 // CHECK-NEXT:     iterator_types = ["parallel", "reduction"]
 // CHECK-NEXT:   } ins(%arg0, %arg1 : memref<8x16xf64>, memref<8x16xf64>) outs(%arg2 : memref<8xf64>) {
-// CHECK-NEXT:   ^0(%in : f64, %in_1 : f64, %out : f64):
+// CHECK-NEXT:   ^bb0(%in : f64, %in_1 : f64, %out : f64):
 // CHECK-NEXT:     %add = arith.addf %in, %in_1 : f64
 // CHECK-NEXT:     memref_stream.yield %add : f64
 // CHECK-NEXT:   }
@@ -46,7 +46,7 @@ func.func public @sumvf64(%arg0 : memref<8x16xf64>, %arg1 : memref<8x16xf64>, %a
     ],
     iterator_types = ["parallel", "parallel"]
   } ins(%arg0, %arg1 : memref<8x16xf64>, memref<8x16xf64>) outs(%arg2 : memref<8x16xf64>) {
-  ^0(%in : vector<1xf64>, %in_1 : vector<1xf64>, %out : vector<1xf64>):
+  ^bb0(%in : vector<1xf64>, %in_1 : vector<1xf64>, %out : vector<1xf64>):
     %0 = arith.addf %in, %in_1 : vector<1xf64>
     memref_stream.yield %0 : vector<1xf64>
   }
@@ -63,7 +63,7 @@ func.func public @sumvf64(%arg0 : memref<8x16xf64>, %arg1 : memref<8x16xf64>, %a
 // CHECK-NEXT:     ],
 // CHECK-NEXT:     iterator_types = ["parallel", "parallel"]
 // CHECK-NEXT:   } ins(%arg0, %arg1 : memref<8x16xf64>, memref<8x16xf64>) outs(%arg2 : memref<8x16xf64>) {
-// CHECK-NEXT:   ^0(%in : vector<1xf64>, %in_1 : vector<1xf64>, %out : vector<1xf64>):
+// CHECK-NEXT:   ^bb0(%in : vector<1xf64>, %in_1 : vector<1xf64>, %out : vector<1xf64>):
 // CHECK-NEXT:     %0 = arith.addf %in, %in_1 : vector<1xf64>
 // CHECK-NEXT:     memref_stream.yield %0 : vector<1xf64>
 // CHECK-NEXT:   }
@@ -81,7 +81,7 @@ func.func public @sumf32(%arg0 : memref<8x16xf32>, %arg1 : memref<8x16xf32>, %ar
     ],
     iterator_types = ["parallel", "parallel"]
   } ins(%arg0, %arg1 : memref<8x16xf32>, memref<8x16xf32>) outs(%arg2 : memref<8x16xf32>) {
-  ^0(%in : f32, %in_1 : f32, %out : f32):
+  ^bb0(%in : f32, %in_1 : f32, %out : f32):
     %0 = arith.addf %in, %in_1 : f32
     memref_stream.yield %0 : f32
   }
@@ -98,7 +98,7 @@ func.func public @sumf32(%arg0 : memref<8x16xf32>, %arg1 : memref<8x16xf32>, %ar
 // CHECK-NEXT:     ],
 // CHECK-NEXT:     iterator_types = ["parallel", "parallel"]
 // CHECK-NEXT:   } ins(%arg0, %arg1 : memref<8x16xf32>, memref<8x16xf32>) outs(%arg2 : memref<8x16xf32>) {
-// CHECK-NEXT:   ^0(%in : vector<2xf32>, %in_1 : vector<2xf32>, %out : vector<2xf32>):
+// CHECK-NEXT:   ^bb0(%in : vector<2xf32>, %in_1 : vector<2xf32>, %out : vector<2xf32>):
 // CHECK-NEXT:     %0 = arith.addf %in, %in_1 : vector<2xf32>
 // CHECK-NEXT:     memref_stream.yield %0 : vector<2xf32>
 // CHECK-NEXT:   }
@@ -115,7 +115,7 @@ func.func public @sumf16(%arg0 : memref<8x16xf16>, %arg1 : memref<8x16xf16>, %ar
     ],
     iterator_types = ["parallel", "parallel"]
   } ins(%arg0, %arg1 : memref<8x16xf16>, memref<8x16xf16>) outs(%arg2 : memref<8x16xf16>) {
-  ^0(%in : f16, %in_1 : f16, %out : f16):
+  ^bb0(%in : f16, %in_1 : f16, %out : f16):
     %0 = arith.addf %in, %in_1 : f16
     memref_stream.yield %0 : f16
   }
@@ -132,7 +132,7 @@ func.func public @sumf16(%arg0 : memref<8x16xf16>, %arg1 : memref<8x16xf16>, %ar
 // CHECK-NEXT:     ],
 // CHECK-NEXT:     iterator_types = ["parallel", "parallel"]
 // CHECK-NEXT:   } ins(%arg0, %arg1 : memref<8x16xf16>, memref<8x16xf16>) outs(%arg2 : memref<8x16xf16>) {
-// CHECK-NEXT:   ^0(%in : vector<4xf16>, %in_1 : vector<4xf16>, %out : vector<4xf16>):
+// CHECK-NEXT:   ^bb0(%in : vector<4xf16>, %in_1 : vector<4xf16>, %out : vector<4xf16>):
 // CHECK-NEXT:     %0 = arith.addf %in, %in_1 : vector<4xf16>
 // CHECK-NEXT:     memref_stream.yield %0 : vector<4xf16>
 // CHECK-NEXT:   }
@@ -149,7 +149,7 @@ func.func public @chainf16(%arg0 : memref<8x16xf16>, %arg1 : memref<8x16xf16>, %
     ],
     iterator_types = ["parallel", "parallel"]
   } ins(%arg0, %arg1 : memref<8x16xf16>, memref<8x16xf16>) outs(%arg2 : memref<8x16xf16>) {
-  ^0(%in : f16, %in_1 : f16, %out : f16):
+  ^bb0(%in : f16, %in_1 : f16, %out : f16):
     %0 = arith.addf %in, %in_1 : f16
     %1 = arith.mulf %0, %in_1 : f16
     %2 = arith.divf %0, %1 : f16
@@ -173,7 +173,7 @@ func.func public @chainf16(%arg0 : memref<8x16xf16>, %arg1 : memref<8x16xf16>, %
 // CHECK-NEXT:    ],
 // CHECK-NEXT:    iterator_types = ["parallel", "parallel"]
 // CHECK-NEXT:  } ins(%arg0, %arg1 : memref<8x16xf16>, memref<8x16xf16>) outs(%arg2 : memref<8x16xf16>) {
-// CHECK-NEXT:  ^0(%in : vector<4xf16>, %in_1 : vector<4xf16>, %out : vector<4xf16>):
+// CHECK-NEXT:  ^bb0(%in : vector<4xf16>, %in_1 : vector<4xf16>, %out : vector<4xf16>):
 // CHECK-NEXT:    %0 = arith.addf %in, %in_1 : vector<4xf16>
 // CHECK-NEXT:    %1 = arith.mulf %0, %in_1 : vector<4xf16>
 // CHECK-NEXT:    %2 = arith.divf %0, %1 : vector<4xf16>

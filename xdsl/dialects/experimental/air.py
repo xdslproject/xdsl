@@ -70,7 +70,7 @@ class AllocOp(IRDLOperation):
     async_dependencies = var_operand_def(AsyncTokenAttr)
 
     async_token = result_def(AsyncTokenAttr)
-    result = result_def(MemRefType[Attribute])
+    result = result_def(MemRefType)
 
     def __init__(
         self,
@@ -106,7 +106,7 @@ class ChannelGetOp(IRDLOperation):
     chan_name = attr_def(SymbolRefAttr)
     async_dependencies = var_operand_def(AsyncTokenAttr())
     indices = var_operand_def(AsyncTokenAttr())
-    dst = operand_def(MemRefType[Attribute])
+    dst = operand_def(MemRefType)
     dst_offsets = var_operand_def(IndexType())
     dst_sizes = var_operand_def(IndexType())
     dst_strides = var_operand_def(IndexType())
@@ -148,7 +148,7 @@ class ChannelPutOp(IRDLOperation):
 
     async_dependencies = var_operand_def(AsyncTokenAttr())
     indices = var_operand_def(IndexType())
-    src = operand_def(MemRefType[Attribute])
+    src = operand_def(MemRefType)
     src_offsets = var_operand_def(IndexType())
     src_sizes = var_operand_def(IndexType())
     src_strides = var_operand_def(IndexType())
@@ -213,7 +213,7 @@ class DeallocOp(IRDLOperation):
     name = "air.dealloc"
 
     async_dependencies = var_operand_def(AsyncTokenAttr)
-    memref = operand_def(MemRefType[Attribute])
+    memref = operand_def(MemRefType)
 
     async_token = result_def(AsyncTokenAttr)
 
@@ -232,11 +232,11 @@ class DmaMemcpyNdOp(IRDLOperation):
     name = "air.dma_memcpy_nd"
 
     async_dependencies = var_operand_def(AsyncTokenAttr())
-    dst = operand_def(MemRefType[Attribute])
+    dst = operand_def(MemRefType)
     dst_offsets = var_operand_def(IndexType())
     dst_sizes = var_operand_def(IndexType())
     dst_strides = var_operand_def(IndexType())
-    src = operand_def(MemRefType[Attribute])
+    src = operand_def(MemRefType)
     src_offsets = var_operand_def(IndexType())
     src_sizes = var_operand_def(IndexType())
     src_strides = var_operand_def(IndexType())
@@ -393,58 +393,62 @@ class HerdOp(IRDLOperation):
         )
 
     def print(self, printer: Printer):
-        printer.print(" tile")
-        printer.print("(")
-        if len(self.sizes) == 1:
-            printer.print("%tx")
-        if len(self.sizes) == 2:
-            printer.print("%tx, %ty")
-        if len(self.sizes) == 3:
-            printer.print("%tx, %ty, %tz")
-        printer.print(")")
-        printer.print(" in ")
-        printer.print("(")
-        if len(self.sizes) == 1:
-            printer.print("%\\size_x = ")
-        if len(self.sizes) == 2:
-            printer.print("%size_x = ")
-            printer.print(self.sizes[0])
-            printer.print(", ")
-            printer.print("%size_y = ")
-            printer.print(self.sizes[1])
-        if len(self.sizes) == 3:
-            printer.print("%\\size_x, %\\size_y, %\\size_z")
-        printer.print(")")
+        printer.print_string(" tile")
+        with printer.in_parens():
+            if len(self.sizes) == 1:
+                printer.print_string("%tx")
+            if len(self.sizes) == 2:
+                printer.print_string("%tx, %ty")
+            if len(self.sizes) == 3:
+                printer.print_string("%tx, %ty, %tz")
+        printer.print_string(" in ")
+        with printer.in_parens():
+            if len(self.sizes) == 1:
+                printer.print_string("%size_x = ")
+                printer.print_ssa_value(self.sizes[0])
+            if len(self.sizes) == 2:
+                printer.print_string("%size_x = ")
+                printer.print_ssa_value(self.sizes[0])
+                printer.print_string(", ")
+                printer.print_string("%size_y = ")
+                printer.print_ssa_value(self.sizes[1])
+            if len(self.sizes) == 3:
+                printer.print_string("%size_x = ")
+                printer.print_ssa_value(self.sizes[0])
+                printer.print_string(", ")
+                printer.print_string("%size_y = ")
+                printer.print_ssa_value(self.sizes[1])
+                printer.print_string(", ")
+                printer.print_string("%size_z = ")
+                printer.print_ssa_value(self.sizes[2])
 
         if self.herd_operands:
-            printer.print(" args")
-            printer.print("(")
-            if len(self.herd_operands) == 1:
-                printer.print("%ext0 = ")
-                printer.print(self.herd_operands[0])
-            if len(self.herd_operands) == 2:
-                printer.print("%ext0 = ")
-                printer.print(self.herd_operands[0])
-                printer.print(", ")
-                printer.print("ext1 = ")
-                printer.print(self.herd_operands[1])
-            if len(self.herd_operands) == 3:
-                printer.print("%ext0 = ")
-                printer.print(self.herd_operands[0])
-                printer.print(", ")
-                printer.print("%ext1 = ")
-                printer.print(self.herd_operands[1])
-                printer.print(", ")
-                printer.print("%ext2 = ")
-                printer.print(self.herd_operands[2])
+            printer.print_string(" args")
+            with printer.in_parens():
+                if len(self.herd_operands) == 1:
+                    printer.print_string("%ext0 = ")
+                    printer.print_ssa_value(self.herd_operands[0])
+                if len(self.herd_operands) == 2:
+                    printer.print_string("%ext0 = ")
+                    printer.print_ssa_value(self.herd_operands[0])
+                    printer.print_string(", ")
+                    printer.print_string("%ext1 = ")
+                    printer.print_ssa_value(self.herd_operands[1])
+                if len(self.herd_operands) == 3:
+                    printer.print_string("%ext0 = ")
+                    printer.print_ssa_value(self.herd_operands[0])
+                    printer.print_string(", ")
+                    printer.print_string("%ext1 = ")
+                    printer.print_ssa_value(self.herd_operands[1])
+                    printer.print_string(", ")
+                    printer.print_string("%ext2 = ")
+                    printer.print_ssa_value(self.herd_operands[2])
 
-        printer.print(" : ")
-        for n_arg in range(len(self.herd_operands)):
-            printer.print(self.herd_operands[n_arg].type)
-            if n_arg < len(self.herd_operands) - 1:
-                printer.print(",")
+                printer.print_string(" : ")
+                printer.print_list(
+                    self.herd_operands, lambda o: printer.print_attribute(o.type), ","
+                )
 
-        printer.print(")")
         if self.region:
             printer.print_region(self.region)
 
@@ -836,9 +840,9 @@ class WaitAllOp(IRDLOperation):
         super().__init__(operands=[async_dependencies], result_types=[AsyncTokenAttr()])
 
     def print(self, printer: Printer):
-        printer.print(" async ")
+        printer.print_string(" async ")
         if self.async_dependencies:
-            printer.print(self.async_dependencies, printer.print_ssa_value, ",")
+            printer.print_list(self.async_dependencies, printer.print_ssa_value)
 
     @classmethod
     def parse(cls, parser: Parser) -> WaitAllOp:

@@ -95,6 +95,9 @@
 
   // CHECK: [0 : i64, "foo"]
 
+  "test.op"() {empty = tuple<>, single = tuple<f32>, many = tuple<i32, f32, tensor<i1>, i5>} : () -> ()
+
+  // CHECK: empty = tuple<>, single = tuple<f32>, many = tuple<i32, f32, tensor<i1>, i5>
 
   "func.func"() ({
     ^bb0(%arg0: vector<4xf32>, %arg1: vector<f32>, %arg2: vector<1x12xi32>):

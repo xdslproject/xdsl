@@ -9,7 +9,7 @@
 
 import marimo
 
-__generated_with = "0.11.10"
+__generated_with = "0.13.6"
 app = marimo.App()
 
 
@@ -41,19 +41,12 @@ def _():
         Builder,
         CmpfOp,
         ConstantOp,
-        DivfOp,
-        E,
         Expr,
         Float,
         Float64Type,
         FloatAttr,
-        FloatingPointLikeBinaryOperation,
         ForOp,
         FuncOp,
-        Function,
-        GreedyRewritePatternApplier,
-        I,
-        IRDLOperation,
         IfOp,
         InsertPoint,
         Integer,
@@ -63,38 +56,19 @@ def _():
         Mul,
         MulfOp,
         MuliOp,
-        Operation,
-        ParametrizedAttribute,
-        PatternRewriteWalker,
-        PatternRewriter,
         Pow,
         PowFOp,
-        Pure,
-        Rational,
         Region,
         ReturnOp,
-        RewritePattern,
-        S,
         SIToFPOp,
         SSAValue,
         SelectOp,
-        SqrtOp,
         SubfOp,
         Sum,
         Symbol,
-        UnevaluatedExpr,
         YieldOp,
-        im,
-        irdl_attr_definition,
-        irdl_op_definition,
         mo,
-        op_type_rewrite_pattern,
-        operand_def,
-        re,
-        region_dce,
-        result_def,
         symbols,
-        traits_def,
     )
 
 
@@ -102,11 +76,11 @@ def _():
 def _(mo):
     mo.md(
         r"""
-        # Writing an IR emitter for SymPy
+    # Writing an IR emitter for SymPy
 
-        SymPy is a Python library for symbolic mathematics. The goal here is to convert SymPy
-        expressions to MLIR core dialects, namely `builtin`, `func`, and `arith`. In this exercise, we will only handle a subset of SymPy that only deals with real numbers for simplicity.
-        """
+    SymPy is a Python library for symbolic mathematics. The goal here is to convert SymPy
+    expressions to MLIR core dialects, namely `builtin`, `func`, and `arith`. In this exercise, we will only handle a subset of SymPy that only deals with real numbers for simplicity.
+    """
     )
     return
 
@@ -120,7 +94,7 @@ def _(mo):
 @app.cell
 def _(symbols):
     # Define variables that can be used in the rest of the notebook
-    # x, y, z, t are non-zere reals, while a, b, c, d are non-zero integers
+    # x, y, z, t are non-zero reals, while a, b, c, d are non-zero integers
     x, y, z, t = symbols("x y z t", real=True, zero=False)
     a, b, c, d = symbols("a b c d", integer=True, zero=False)
 
@@ -129,27 +103,27 @@ def _(symbols):
     print('"x + y * z" -> ', x + y * z)
     print('"x + x" -> ', x + x)
     print('"x - x" -> ', x - x)
-    return a, b, c, d, t, x, y, z
+    return a, b, x, y
 
 
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(
         r"""
-        ## Expected MLIR output
+    ## Expected MLIR output
 
-        We want to only output code from the `arith` dialect (and `math.powf`), which deals with arithmetic.
+    We want to only output code from the `arith` dialect (and `math.powf`), which deals with arithmetic.
 
-        Here is the expected MLIR output for the expression `x + x`:
-        ```
-        builtin.module {
-          func.func @main(%x : f64) -> f64 {
-            %add = arith.addf %x, %x : f64
-            func.return %add : f64
-          }
-        }
-        ```
-        """
+    Here is the expected MLIR output for the expression `x + x`:
+    ```
+    builtin.module {
+      func.func @main(%x : f64) -> f64 {
+        %add = arith.addf %x, %x : f64
+        func.return %add : f64
+      }
+    }
+    ```
+    """
     )
     return
 
@@ -158,27 +132,27 @@ def _(mo):
 def _(mo):
     mo.md(
         """
-        The operations you will have to use have the following constructors.:
+    The operations you will have to use have the following constructors.:
 
-        * arith.constant: ConstantOp(IntegerAttr(int_cst, IntegerType(64)))
-        * arith.constant: ConstantOp(FloatAttr(float_cst, Float64Type()))
-        * arith.addi: AddiOp(lhs, rhs)
-        * arith.muli: MuliOp(lhs, rhs)
-        * arith.addf: AddfOp(lhs, rhs)
-        * arith.mulf: MulfOp(lhs, rhs)
-        * math.powf: PowFOp(lhs, rhs)
-        * arith.select: SelectOp(cond, lhs, rhs)
-            * Represents the formula `if cond then lhs else rhs`
-        * arith.cmpf: CmpfOp("olt", lhs, rhs)
-            * Represents `lhs < rhs` with floating points
-        * scf.if: IfOp(cond, region1, region2)
-            * Regions should have a single block, without block arguments. The last operation in the regions should be an `scf.yield` with constructor `YieldOp([result])`
-            * `.results[0]` is used to get the result of `IfOp`
-        * scf.for: ForOp(lower_bound, upper_bound, step, [first_acc], region)
-            * `first_acc` is the initial value of the accumulator
-            * `region` should have a single block with two block arguments. One for the value we iterate on (we use `i64`), and the second for the accumulator (we use `f64` here).
-            * `.results[0]` is used to get the result of `ForOp`
-        """
+    * arith.constant: ConstantOp(IntegerAttr(int_cst, IntegerType(64)))
+    * arith.constant: ConstantOp(FloatAttr(float_cst, Float64Type()))
+    * arith.addi: AddiOp(lhs, rhs)
+    * arith.muli: MuliOp(lhs, rhs)
+    * arith.addf: AddfOp(lhs, rhs)
+    * arith.mulf: MulfOp(lhs, rhs)
+    * math.powf: PowFOp(lhs, rhs)
+    * arith.select: SelectOp(cond, lhs, rhs)
+        * Represents the formula `if cond then lhs else rhs`
+    * arith.cmpf: CmpfOp(lhs, rhs, "olt")
+        * Represents `lhs < rhs` with floating points
+    * scf.if: IfOp(cond, region1, region2)
+        * Regions should have a single block, without block arguments. The last operation in the regions should be an `scf.yield` with constructor `YieldOp([result])`
+        * `.results[0]` is used to get the result of `IfOp`
+    * scf.for: ForOp(lower_bound, upper_bound, step, [first_acc], region)
+        * `first_acc` is the initial value of the accumulator
+        * `region` should have a single block with two block arguments. One for the value we iterate on (we use `i64`), and the second for the accumulator (we use `f64` here).
+        * `.results[0]` is used to get the result of `ForOp`
+    """
     )
     return
 
@@ -187,16 +161,16 @@ def _(mo):
 def _(mo):
     mo.md(
         r"""
-        ## Introspecting SymPy expressions
+    ## Introspecting SymPy expressions
 
-        SymPy expressions all inherit from `Expr`. For all our examples, `Expr` are a tree of expressions, where nodes are function calls and leaves are either symbols or constants.
+    SymPy expressions all inherit from `Expr`. For all our examples, `Expr` are a tree of expressions, where nodes are function calls and leaves are either symbols or constants.
 
-        * Function calls can be introspected using the `func` and `args` fields, which respectively return the associated function and its arguments (its node children). Additionally, the type of a function call is equal to the value returned by `func`.
-        * Constants can be converted to floats using the `float` function.
-        * Each symbol is a function argument.
+    * Function calls can be introspected using the `func` and `args` fields, which respectively return the associated function and its arguments (its node children). Additionally, the type of a function call is equal to the value returned by `func`.
+    * Constants can be converted to floats using the `float` function.
+    * Each symbol is a function argument.
 
-        Here are some examples of SymPy introspection:
-        """
+    Here are some examples of SymPy introspection:
+    """
     )
     return
 
@@ -216,20 +190,20 @@ def _(x):
     print("args:", expression.args)
     print("type(args[0]):", type(expression.args[0]))
     print("type(args[1]):", type(expression.args[1]))
-    return (expression,)
+    return
 
 
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(
         r"""
-        ## Exercise: Emitting MLIR IR from SymPy
+    ## Exercise: Emitting MLIR IR from SymPy
 
-        Your goal is to convert SymPy AST nodes to MLIR IR, using xDSL.
-        We are giving you most of the boilerplate, so you only have to focus on emitting IR for each SymPy AST node.
+    Your goal is to convert SymPy AST nodes to MLIR IR, using xDSL.
+    We are giving you most of the boilerplate, so you only have to focus on emitting IR for each SymPy AST node.
 
-        The following function will print an expression, and print the resulting MLIR that you are emitting:
-        """
+    The following function will print an expression, and print the resulting MLIR that you are emitting:
+    """
     )
     return
 
@@ -260,10 +234,10 @@ def _(Expr, emit_ir):
 def _(mo):
     mo.md(
         """
-        The following function returns the MLIR type of the expression result. As we are only handling integer and real types, we only returns either the `i64` or `f64` types, which correspond to 64bits integers and floating points.
+    The following function returns the MLIR type of the expression result. As we are only handling integer and real types, we only returns either the `i64` or `f64` types, which correspond to 64bits integers and floating points.
 
-        For instance, the type of `x + y` is `f64`, as `x` and `y` are floating points. The type of `a * b` is `i64`, as both `a` and `b` are integers.
-        """
+    For instance, the type of `x + y` is `f64`, as `x` and `y` are floating points. The type of `a * b` is `i64`, as both `a` and `b` are integers.
+    """
     )
     return
 
@@ -376,7 +350,7 @@ def _(
             # Hint: int(expr) returns the value of the `expr` constant
             raise NotImplementedError("Integer constants are not implemented")
 
-        # Hint: Implement here support for Add and Mul
+        # Hint: Here, implement support for Add and Mul
 
         raise NotImplementedError(f"No IR emitter for integer function {expr.func}")
 
@@ -385,8 +359,8 @@ def _(
         builder: Builder,
         args: dict[Symbol, SSAValue],
     ) -> SSAValue:
-        # If the expression is an integer expression, emits it and then convert it
-        # back to a float expression.
+        # If the expression is an integer expression, emit it and then convert it
+        # to a float expression.
         if expr.is_integer:
             res = emit_integer_op(expr, builder, args)
             op = builder.insert(SIToFPOp(res, Float64Type()))
@@ -401,10 +375,10 @@ def _(
         if isinstance(expr, Symbol):
             return args[expr]
 
-        # Hint: Implement here support for Add, Mul, and Pow (and later Abs and Sum)
+        # Hint: Here, implement support for Add, Mul, and Pow (and later Abs and Sum)
 
         raise NotImplementedError(f"No IR emitter for float function {expr.func}")
-    return emit_integer_op, emit_op, emit_real_op
+    return (emit_op,)
 
 
 @app.cell(hide_code=True)
@@ -440,7 +414,7 @@ def _(Float, Integer, a, b, print_ir, x, y):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""The following expression requires to handle the AST node `Abs`. Instead of converting it to `math.absf` operation, we taks you to write it using the formula `x < 0 ? 0-x : x` using only `arith` operations. Hint, you should use `arith.select` for expressing the conditional.""")
+    mo.md(r"""The following expression requires to handle the AST node `Abs`. Instead of converting it to `math.absf` operation, the task is to write it using the formula `x < 0 ? 0-x : x` using only `arith` operations. Hint, you should use `arith.select` for expressing the conditional.""")
     return
 
 
@@ -455,14 +429,14 @@ def _(Abs, print_ir, x, y):
 def _(mo):
     mo.md(
         r"""
-        ## Supporting operations with regions
+    ## Supporting operations with regions
 
-        Your next task is to handle operations that may have regions.
+    Your next task is to handle operations that may have regions.
 
-        As a first step, rewrite the lowering to `Abs` to output an `scf.if` instead of an `arith.select`. Then, as an harder task, support the `Sum` operation using an `scf.for` loop.
+    As a first step, rewrite the lowering to `Abs` to output an `scf.if` instead of an `arith.select`. Then, as a harder task, support the `Sum` operation using an `scf.for` loop.
 
-        Here are a few examples:
-        """
+    Here are a few examples:
+    """
     )
     return
 
@@ -485,10 +459,10 @@ def _(Abs, Sum, a, b, print_ir, x, y):
 def _(mo):
     mo.md(
         r"""
-        ## Solutions
+    ## Solutions
 
-        Here is a solution for the implementation of `emit_real_op` and `emit_integer_op`.
-        """
+    Here is a solution for the implementation of `emit_real_op` and `emit_integer_op`.
+    """
     )
     return
 
@@ -649,7 +623,7 @@ def _(
                 return builder.insert(ForOp(lb, ub, step, [zero], region)).results[0]
 
             raise NotImplementedError(f"No IR emitter for float function {expr.func}")
-    return (solution,)
+    return
 
 
 if __name__ == "__main__":

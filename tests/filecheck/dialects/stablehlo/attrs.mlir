@@ -27,6 +27,17 @@
     >
 } : () -> ()
 
+// CHECK-NEXT:    "test.op"() {dot = #stablehlo.dot<
+// CHECK-NEXT:      lhs_contracting_dimensions = [0],
+// CHECK-NEXT:      rhs_contracting_dimensions = [1]
+// CHECK-NEXT:    >} : () -> ()
+"test.op"() {
+    dot = #stablehlo.dot<
+        lhs_contracting_dimensions = [0],
+        rhs_contracting_dimensions = [1]
+    >
+} : () -> ()
+
 // CHECK-NEXT:    "test.op"() {
 // CHECK-SAME:      eq = #stablehlo<comparison_direction EQ>,
 // CHECK-SAME:      ne = #stablehlo<comparison_direction NE>,

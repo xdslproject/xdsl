@@ -23,7 +23,7 @@ def test_ml_program_global_load_constant():
             StringAttr("my_global"),
             tensor_type,
             None,
-            DenseIntOrFPElementsAttr.create_dense_int(tensor_type, 4),
+            DenseIntOrFPElementsAttr.from_list(tensor_type, [4]),
             StringAttr("private"),
         )
         with ImplicitBuilder(func.FuncOp("main", ((), ())).body):
@@ -46,7 +46,7 @@ def test_ml_program_global_load_constant_ex2():
             StringAttr("my_global"),
             tensor_type,
             None,
-            DenseIntOrFPElementsAttr.create_dense_int(tensor_type, [1, 320]),
+            DenseIntOrFPElementsAttr.from_list(tensor_type, [1, 320]),
             StringAttr("private"),
         )
         with ImplicitBuilder(func.FuncOp("main", ((), ())).body):

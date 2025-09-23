@@ -19,9 +19,9 @@
 // -----
 
 %c = arith.constant 1 : si32
-// CHECK:  Unexpected attribute 1 : si32
+// CHECK: Expected attribute #builtin.signedness<signless> but got #builtin.signedness<signed>
 
 // -----
 
 %c = arith.constant 1 : ui32
-// CHECK:  Unexpected attribute 1 : ui32
+// CHECK: Expected attribute #builtin.signedness<signless> but got #builtin.signedness<unsigned>

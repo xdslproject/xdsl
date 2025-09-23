@@ -24,8 +24,6 @@ class TestPass(ModulePass):
 class LaunchScreenApp(App[None]):
     """A minimal app that can launch the AddArguments screen for testing."""
 
-    ...
-
 
 @pytest.mark.asyncio
 async def test_enter_button_enabled_state():

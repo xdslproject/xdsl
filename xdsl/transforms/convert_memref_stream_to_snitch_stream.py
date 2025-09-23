@@ -79,7 +79,7 @@ class ReadOpLowering(RewritePattern):
             (op.stream,), (snitch.ReadableStreamType(register_type),)
         )
         new_op = riscv_snitch.ReadOp(new_stream.results[0])
-        if len(op.res.uses) == 1:
+        if op.res.has_one_use():
             new_mv = ()
             new_vals = (new_op.res,)
         else:
@@ -141,7 +141,7 @@ class StreamOpLowering(RewritePattern):
         self, op: memref_stream.StreamingRegionOp, rewriter: PatternRewriter
     ) -> None:
         operand_types = tuple(
-            cast(memref.MemRefType[Attribute], value_type)
+            cast(memref.MemRefType, value_type)
             for value in op.operands
             if isinstance(value_type := value.type, memref.MemRefType)
         )

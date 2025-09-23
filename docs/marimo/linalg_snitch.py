@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.11.10"
+__generated_with = "0.14.16"
 app = marimo.App(width="medium")
 
 
@@ -20,59 +20,37 @@ def _():
     from xdsl.backend.riscv.lowering.convert_riscv_scf_to_riscv_cf import (
         ConvertRiscvScfToRiscvCfPass,
     )
-    from xdsl.backend.riscv.lowering.convert_snitch_stream_to_snitch import (
-        ConvertSnitchStreamToSnitch,
-    )
     from xdsl.builder import ImplicitBuilder
     from xdsl.context import Context
     from xdsl.dialects import arith, func, linalg
     from xdsl.dialects.builtin import AffineMap, AffineMapAttr, MemRefType, ModuleOp, f64
     from xdsl.dialects.riscv import riscv_code
     from xdsl.interpreters.utils.ptr import TypedPtr
-    from xdsl.ir import Attribute, Block, Region, SSAValue
-    from xdsl.passes import PipelinePass
-    from xdsl.tools.command_line_tool import get_all_dialects
+    from xdsl.ir import Block, Region
+    from xdsl.passes import PassPipeline
+    from xdsl.dialects import get_all_dialects
     from xdsl.transforms import (
         arith_add_fastmath,
         convert_linalg_to_loops,
         convert_linalg_to_memref_stream,
-        convert_memref_stream_to_loops,
-        convert_memref_stream_to_snitch_stream,
         convert_riscv_scf_for_to_frep,
-        dead_code_elimination,
-        loop_hoist_memref,
-        lower_affine,
-        memref_streamify,
         reconcile_unrealized_casts,
     )
     from xdsl.transforms.canonicalize import CanonicalizePass
-    from xdsl.transforms.lower_snitch import LowerSnitchPass
-    from xdsl.transforms.mlir_opt import MLIROptPass
-    from xdsl.transforms.riscv_register_allocation import RISCVRegisterAllocation
-    from xdsl.transforms.riscv_scf_loop_range_folding import (
-        RiscvScfLoopRangeFoldingPass,
-    )
-    from xdsl.transforms.snitch_register_allocation import SnitchRegisterAllocation
+    from xdsl.transforms.riscv_allocate_registers import RISCVAllocateRegistersPass
     return (
         AffineMap,
         AffineMapAttr,
-        Attribute,
         Block,
         CanonicalizePass,
         Context,
         ConvertRiscvScfToRiscvCfPass,
-        ConvertSnitchStreamToSnitch,
         ImplicitBuilder,
-        LowerSnitchPass,
-        MLIROptPass,
         MemRefType,
         ModuleOp,
-        PipelinePass,
-        RISCVRegisterAllocation,
+        PassPipeline,
+        RISCVAllocateRegistersPass,
         Region,
-        RiscvScfLoopRangeFoldingPass,
-        SSAValue,
-        SnitchRegisterAllocation,
         TypedPtr,
         arith,
         arith_add_fastmath,
@@ -80,19 +58,13 @@ def _():
         convert_func_to_riscv_func,
         convert_linalg_to_loops,
         convert_linalg_to_memref_stream,
-        convert_memref_stream_to_loops,
-        convert_memref_stream_to_snitch_stream,
         convert_memref_to_riscv,
         convert_riscv_scf_for_to_frep,
         convert_scf_to_riscv_scf,
-        dead_code_elimination,
         f64,
         func,
         get_all_dialects,
         linalg,
-        loop_hoist_memref,
-        lower_affine,
-        memref_streamify,
         mo,
         reconcile_unrealized_casts,
         riscv_code,
@@ -104,12 +76,12 @@ def _():
 def _(mo):
     mo.md(
         """
-        # Compiling `linalg` to Snitch
+    # Compiling `linalg` to Snitch
 
-        This notebook walks through compiling micro-kernels defined in `linalg` to RISC-V and RISC-V with extensions for [Snitch](https://pulp-platform.github.io/snitch/), a neural network accelerator.
+    This notebook walks through compiling micro-kernels defined in `linalg` to RISC-V and RISC-V with extensions for [Snitch](https://pulp-platform.github.io/snitch/), a neural network accelerator.
 
-        _Toggle app view with `⌘` + `.` or `ctrl` + `.`_
-        """
+    _Toggle app view with `⌘` + `.` or `ctrl` + `.`_
+    """
     )
     return
 
@@ -179,22 +151,7 @@ def _(
 
     {xmo.module_html(linalg_module)}
     """)
-    return (
-        a,
-        a_type,
-        a_val,
-        acc_new_val,
-        acc_old_val,
-        b,
-        b_type,
-        b_val,
-        body,
-        c,
-        c_type,
-        kernel_op,
-        linalg_module,
-        prod_val,
-    )
+    return (linalg_module,)
 
 
 @app.cell
@@ -204,21 +161,21 @@ def _(mo):
     m = mo.ui.slider(min_val, max_val, value=2, label="M")
     n = mo.ui.slider(min_val, max_val, value=2, label="N")
     k = mo.ui.slider(min_val, max_val, value=2, label="K")
-    return k, m, max_val, min_val, n
+    return k, m, n
 
 
 @app.cell(hide_code=True)
 def _(k, m, mo, n):
     mo.md(
         f"""
-        We can parametrize the shapes of the matrices operated on:
+    We can parametrize the shapes of the matrices operated on:
 
-        {m}{m.value}
+    {m}{m.value}
 
-        {n}{n.value}
+    {n}{n.value}
 
-        {k}{k.value}
-        """
+    {k}{k.value}
+    """
     )
     return
 
@@ -252,7 +209,7 @@ def _(Context, get_all_dialects):
 
     for dialect_name, dialect_factory in get_all_dialects().items():
         linalg_ctx.register_dialect(dialect_name, dialect_factory)
-    return dialect_factory, dialect_name, linalg_ctx
+    return (linalg_ctx,)
 
 
 @app.cell(hide_code=True)
@@ -263,7 +220,7 @@ def _(mo):
 
 @app.cell
 def _(
-    PipelinePass,
+    PassPipeline,
     convert_arith_to_riscv,
     convert_func_to_riscv_func,
     convert_linalg_to_loops,
@@ -274,7 +231,7 @@ def _(
     reconcile_unrealized_casts,
     xmo,
 ):
-    lower_to_riscv = PipelinePass(
+    lower_to_riscv = PassPipeline(
         [
             convert_linalg_to_loops.ConvertLinalgToLoopsPass(),
             convert_func_to_riscv_func.ConvertFuncToRiscvFuncPass(),
@@ -290,17 +247,17 @@ def _(
     )
 
     riscv_html
-    return lower_to_riscv, riscv_ctx, riscv_html, riscv_module
+    return riscv_ctx, riscv_module
 
 
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(
         """
-        #### Register allocation
+    #### Register allocation
 
-        xDSL provides a register allocator for our RISC-V representation, that works on functions with structured control flow:
-        """
+    xDSL provides a register allocator for our RISC-V representation, that works on functions with structured control flow:
+    """
     )
     return
 
@@ -308,15 +265,15 @@ def _(mo):
 @app.cell
 def _(
     CanonicalizePass,
-    PipelinePass,
-    RISCVRegisterAllocation,
+    PassPipeline,
+    RISCVAllocateRegistersPass,
     riscv_ctx,
     riscv_module,
     xmo,
 ):
-    allocate_registers = PipelinePass(
+    allocate_registers = PassPipeline(
         [
-            RISCVRegisterAllocation(),
+            RISCVAllocateRegistersPass(),
             CanonicalizePass(),
         ]
     )
@@ -326,19 +283,19 @@ def _(
     )
 
     regalloc_html
-    return allocate_registers, regalloc_ctx, regalloc_html, regalloc_module
+    return regalloc_ctx, regalloc_module
 
 
 @app.cell
 def _(
     CanonicalizePass,
     ConvertRiscvScfToRiscvCfPass,
-    PipelinePass,
+    PassPipeline,
     regalloc_ctx,
     regalloc_module,
     xmo,
 ):
-    lower_to_asm = PipelinePass(
+    lower_to_asm = PassPipeline(
         [
             ConvertRiscvScfToRiscvCfPass(),
             CanonicalizePass(),
@@ -350,7 +307,7 @@ def _(
     )
 
     assembly_html
-    return assembly_html, lower_to_asm, riscv_asm_ctx, riscv_asm_module
+    return (riscv_asm_module,)
 
 
 @app.cell
@@ -369,24 +326,24 @@ def _(mo, riscv_asm_module, riscv_code, xmo):
     {xmo.asm_html(riscv_asm)}
     """
     )
-    return (riscv_asm,)
+    return
 
 
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(
         """
-        ### Compiling to Snitch
+    ### Compiling to Snitch
 
-        xDSL is also capable of targeting Snitch, and making use of its streaming registers and fixed-repetition loop. We use a different lowering flow from the linalg.generic representation to represent a high-level, structured, but Snitch-specific representation of the code:
-        """
+    xDSL is also capable of targeting Snitch, and making use of its streaming registers and fixed-repetition loop. We use a different lowering flow from the linalg.generic representation to represent a high-level, structured, but Snitch-specific representation of the code:
+    """
     )
     return
 
 
 @app.cell
 def _(
-    PipelinePass,
+    PassPipeline,
     arith_add_fastmath,
     convert_linalg_to_memref_stream,
     convert_riscv_scf_for_to_frep,
@@ -396,7 +353,7 @@ def _(
 ):
     from xdsl.transforms.test_lower_linalg_to_snitch import LOWER_MEMREF_STREAM_TO_SNITCH_STREAM_PASSES, OPTIMISE_MEMREF_STREAM_PASSES
 
-    convert_linalg_to_snitch = PipelinePass(
+    convert_linalg_to_snitch = PassPipeline(
         [
             convert_linalg_to_memref_stream.ConvertLinalgToMemRefStreamPass(),
             arith_add_fastmath.AddArithFastMathFlagsPass(),
@@ -411,14 +368,7 @@ def _(
     )
 
     snitch_stream_html
-    return (
-        LOWER_MEMREF_STREAM_TO_SNITCH_STREAM_PASSES,
-        OPTIMISE_MEMREF_STREAM_PASSES,
-        convert_linalg_to_snitch,
-        snitch_stream_ctx,
-        snitch_stream_html,
-        snitch_stream_module,
-    )
+    return snitch_stream_ctx, snitch_stream_module
 
 
 @app.cell(hide_code=True)
@@ -436,26 +386,21 @@ def _(snitch_stream_ctx, snitch_stream_module, xmo):
     )
 
     snitch_asm_html
-    return (
-        LOWER_SNITCH_STREAM_TO_ASM_PASSES,
-        snitch_asm_ctx,
-        snitch_asm_html,
-        snitch_asm_module,
-    )
+    return (snitch_asm_module,)
 
 
 @app.cell
 def _(k, m, mo, n):
     mo.md(
         f"""
-        We can see how changing our input sizes affects the assembly produced:
+    We can see how changing our input sizes affects the assembly produced:
 
-        {m}{m.value}
+    {m}{m.value}
 
-        {n}{n.value}
+    {n}{n.value}
 
-        {k}{k.value}
-        """
+    {k}{k.value}
+    """
     )
     return
 
@@ -470,17 +415,17 @@ def _(mo, riscv_code, snitch_asm_module, xmo):
     {xmo.asm_html(snitch_asm)}
     """
     )
-    return (snitch_asm,)
+    return
 
 
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(
         """
-        ### Interpreting the assembly using xDSL
+    ### Interpreting the assembly using xDSL
 
-        One of the useful features of xDSL is its interpreter. Here we've implemented all the necessary functions to interpret the code at a low level, to check that our compilation is correct. Here's the slider modifying the shape variable defined above, we can slide it to see the result of the code compiled with different input shapes, and interpreted at the RISC-V level.
-        """
+    One of the useful features of xDSL is its interpreter. Here we've implemented all the necessary functions to interpret the code at a low level, to check that our compilation is correct. Here's the slider modifying the shape variable defined above, we can slide it to see the result of the code compiled with different input shapes, and interpreted at the RISC-V level.
+    """
     )
     return
 
@@ -521,15 +466,11 @@ def _(TypedPtr, a_shape, b_shape, c_shape, mo, riscv_ctx, riscv_module):
         Interpreter,
         OpCounter,
         ShapedArray,
-        a_len,
         a_shaped,
-        b_len,
         b_shaped,
         c_len,
-        prod,
         register_implementations,
         riscv_c_shaped,
-        riscv_interpreter,
         riscv_op_counter,
     )
 
@@ -578,7 +519,7 @@ def _(
 
     C: {riscv_c_shaped}
     """)
-    return snitch_c_shaped, snitch_interpreter, snitch_op_counter
+    return (snitch_op_counter,)
 
 
 @app.cell(hide_code=True)
@@ -646,26 +587,7 @@ def _(k, m, mo, n, riscv_op_counter, snitch_op_counter):
     ```
     """
     )
-    return (
-        ZERO_VAL,
-        all_keys,
-        diff_str,
-        diff_val,
-        format_row,
-        key,
-        max_len_key,
-        max_len_value,
-        rows,
-        rv_dict,
-        rv_str,
-        rv_sum,
-        rv_val,
-        sn_dict,
-        sn_str,
-        sn_sum,
-        sn_val,
-        total_diff,
-    )
+    return
 
 
 if __name__ == "__main__":

@@ -2,13 +2,15 @@ from __future__ import annotations
 
 import abc
 from collections.abc import Mapping, Sequence
-from typing import ClassVar, Literal, TypeVar, cast
+from typing import ClassVar, Literal, cast
 
+from xdsl.dialect_interfaces import ConstantMaterializationInterface
 from xdsl.dialects.builtin import (
     AnyFloat,
     AnyFloatConstr,
     ContainerOf,
     DenseIntOrFPElementsAttr,
+    DenseResourceAttr,
     FixedBitwidthType,
     Float16Type,
     Float32Type,
@@ -26,13 +28,19 @@ from xdsl.dialects.builtin import (
     VectorType,
 )
 from xdsl.dialects.utils import FastMathAttrBase, FastMathFlag
-from xdsl.ir import Attribute, BitEnumAttribute, Dialect, Operation, SSAValue
+from xdsl.interfaces import ConstantLikeInterface, HasFolderInterface
+from xdsl.ir import (
+    Attribute,
+    BitEnumAttribute,
+    Dialect,
+    Operation,
+    SSAValue,
+)
 from xdsl.irdl import (
     AnyAttr,
     AnyOf,
-    BaseAttr,
     IRDLOperation,
-    TypedAttributeConstraint,
+    ParamAttrConstraint,
     VarConstraint,
     base,
     irdl_attr_definition,
@@ -48,12 +56,12 @@ from xdsl.printer import Printer
 from xdsl.traits import (
     Commutative,
     ConditionallySpeculatable,
-    ConstantLike,
     HasCanonicalizationPatternsTrait,
     NoMemoryEffect,
     Pure,
 )
 from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.hints import isa
 from xdsl.utils.str_enum import StrEnum
 from xdsl.utils.type import get_element_type_or_self, have_compatible_shape
 
@@ -61,7 +69,6 @@ boolLike = ContainerOf(IntegerType(1))
 signlessIntegerLike = ContainerOf(AnyOf([IntegerType, IndexType]))
 floatingPointLike = ContainerOf(AnyOf([Float16Type, Float32Type, Float64Type]))
 
-_FloatTypeT = TypeVar("_FloatTypeT", bound=AnyFloat)
 
 CMPI_COMPARISON_OPERATIONS = [
     "eq",
@@ -128,26 +135,24 @@ class IntegerOverflowAttr(BitEnumAttribute[IntegerOverflowFlag]):
 
 
 @irdl_op_definition
-class ConstantOp(IRDLOperation):
+class ConstantOp(IRDLOperation, ConstantLikeInterface):
     name = "arith.constant"
     _T: ClassVar = VarConstraint("T", AnyAttr())
     result = result_def(_T)
     value = prop_def(
-        TypedAttributeConstraint(
-            IntegerAttr.constr(type=SignlessIntegerConstraint | IndexTypeConstr)
-            | BaseAttr[FloatAttr[AnyFloat]](FloatAttr)
-            | BaseAttr(DenseIntOrFPElementsAttr),
-            _T,
-        )
+        IntegerAttr.constr((SignlessIntegerConstraint | IndexTypeConstr) & _T)
+        | ParamAttrConstraint(FloatAttr, (AnyAttr(), _T))
+        | ParamAttrConstraint(DenseIntOrFPElementsAttr, (_T, AnyAttr()))
+        | ParamAttrConstraint(DenseResourceAttr, (AnyAttr(), _T))
     )
 
-    traits = traits_def(ConstantLike(), Pure())
+    traits = traits_def(Pure())
 
     assembly_format = "attr-dict $value"
 
     def __init__(
         self,
-        value: IntegerAttr | FloatAttr[AnyFloat] | DenseIntOrFPElementsAttr,
+        value: IntegerAttr | FloatAttr | DenseIntOrFPElementsAttr | DenseResourceAttr,
         value_type: Attribute | None = None,
     ):
         if value_type is None:
@@ -173,11 +178,11 @@ class ConstantOp(IRDLOperation):
             },
         )
 
+    def get_constant_value(self) -> Attribute:
+        return self.value
 
-_T = TypeVar("_T", bound=Attribute)
 
-
-class SignlessIntegerBinaryOperation(IRDLOperation, abc.ABC):
+class SignlessIntegerBinaryOperation(IRDLOperation, HasFolderInterface, abc.ABC):
     """A generic base class for arith's binary operations on signless integers."""
 
     T: ClassVar = VarConstraint("T", signlessIntegerLike)
@@ -219,6 +224,22 @@ class SignlessIntegerBinaryOperation(IRDLOperation, abc.ABC):
         See external [documentation](https://en.wikipedia.org/wiki/Identity_element).
         """
         return False
+
+    def fold(self):
+        lhs = self.get_constant(self.lhs)
+        rhs = self.get_constant(self.rhs)
+        if lhs is not None and rhs is not None:
+            if isa(lhs, IntegerAttr) and isa(rhs, IntegerAttr):
+                assert lhs.type == rhs.type
+                result = self.py_operation(lhs.value.data, rhs.value.data)
+                if result is not None:
+                    return (IntegerAttr(result, lhs.type),)
+        if isa(rhs, IntegerAttr) and self.is_right_unit(rhs):
+            return (self.lhs,)
+        if not self.has_trait(Commutative):
+            return None
+        if isa(lhs, IntegerAttr) and self.is_right_unit(lhs):
+            return (self.rhs,)
 
     def __init__(
         self,
@@ -882,14 +903,14 @@ class CmpiOp(ComparisonOperation):
         return cls(operand1, operand2, arg)
 
     def print(self, printer: Printer):
-        printer.print(" ")
+        printer.print_string(" ")
 
         printer.print_string(CMPI_COMPARISON_OPERATIONS[self.predicate.value.data])
-        printer.print(", ")
+        printer.print_string(", ")
         printer.print_operand(self.lhs)
-        printer.print(", ")
+        printer.print_string(", ")
         printer.print_operand(self.rhs)
-        printer.print(" : ")
+        printer.print_string(" : ")
         printer.print_attribute(self.lhs.type)
 
 
@@ -990,16 +1011,16 @@ class CmpfOp(ComparisonOperation):
         return cls(operand1, operand2, arg, fastmath)
 
     def print(self, printer: Printer):
-        printer.print(" ")
+        printer.print_string(" ")
         printer.print_string(CMPF_COMPARISON_OPERATIONS[self.predicate.value.data])
-        printer.print(", ")
+        printer.print_string(", ")
         printer.print_operand(self.lhs)
-        printer.print(", ")
+        printer.print_string(", ")
         printer.print_operand(self.rhs)
         if self.fastmath != FastMathFlagsAttr("none"):
             printer.print_string(" fastmath")
             self.fastmath.print_parameter(printer)
-        printer.print(" : ")
+        printer.print_string(" : ")
         printer.print_attribute(self.lhs.type)
 
 
@@ -1171,13 +1192,15 @@ class BitcastOp(IRDLOperation):
     name = "arith.bitcast"
 
     input = operand_def(
-        signlessIntegerLike
-        | floatingPointLike
+        ContainerOf(
+            AnyOf((IntegerType, IndexType, Float16Type, Float32Type, Float64Type))
+        )
         | MemRefType.constr(element_type=AnyFloatConstr | SignlessIntegerConstraint)
     )
     result = result_def(
-        signlessIntegerLike
-        | floatingPointLike
+        ContainerOf(
+            AnyOf((IntegerType, IndexType, Float16Type, Float32Type, Float64Type))
+        )
         | MemRefType.constr(element_type=AnyFloatConstr | SignlessIntegerConstraint)
     )
 
@@ -1323,8 +1346,7 @@ class TruncIOp(IRDLOperation):
         super().__init__(operands=[op], result_types=[target_type])
 
     def verify_(self) -> None:
-        assert isinstance(self.input.type, IntegerType)
-        assert isinstance(self.result.type, IntegerType)
+        assert isa(self.input.type, IntegerType)
         if not self.result.type.width.data < self.input.type.width.data:
             raise VerifyException(
                 "Destination bit-width must be smaller than the input bit-width"
@@ -1346,8 +1368,7 @@ class ExtSIOp(IRDLOperation):
         super().__init__(operands=[op], result_types=[target_type])
 
     def verify_(self) -> None:
-        assert isinstance(self.input.type, IntegerType)
-        assert isinstance(self.result.type, IntegerType)
+        assert isa(self.input.type, IntegerType)
         if not self.result.type.width.data > self.input.type.width.data:
             raise VerifyException(
                 "Destination bit-width must be larger than the input bit-width"
@@ -1367,8 +1388,7 @@ class ExtUIOp(IRDLOperation):
         super().__init__(operands=[op], result_types=[target_type])
 
     def verify_(self) -> None:
-        assert isinstance(self.input.type, IntegerType)
-        assert isinstance(self.result.type, IntegerType)
+        assert isa(self.input.type, IntegerType)
         if not self.result.type.width.data > self.input.type.width.data:
             raise VerifyException(
                 "Destination bit-width must be larger than the input bit-width"
@@ -1377,6 +1397,14 @@ class ExtUIOp(IRDLOperation):
     assembly_format = "$input attr-dict `:` type($input) `to` type($result)"
 
     traits = traits_def(Pure())
+
+
+class ArithConstantMaterializationInterface(ConstantMaterializationInterface):
+    def materialize_constant(self, value: Attribute, type: Attribute) -> Operation:
+        return cast(
+            Operation,
+            ConstantOp.build(properties={"value": value}, result_types=(type,)),
+        )
 
 
 Arith = Dialect(
@@ -1440,5 +1468,8 @@ Arith = Dialect(
     [
         FastMathFlagsAttr,
         IntegerOverflowAttr,
+    ],
+    [
+        ArithConstantMaterializationInterface(),
     ],
 )

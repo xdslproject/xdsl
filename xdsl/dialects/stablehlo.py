@@ -7,7 +7,7 @@ ML frameworks that produce StableHLO programs are compatible with ML compilers t
 
 import abc
 from collections.abc import Sequence
-from typing import Annotated, ClassVar, TypeAlias, cast
+from typing import ClassVar, TypeAlias, cast
 
 from xdsl.dialects.builtin import (
     I32,
@@ -18,6 +18,7 @@ from xdsl.dialects.builtin import (
     ArrayAttr,
     ComplexType,
     DenseArrayBase,
+    DenseIntOrFPElementsAttr,
     IntegerAttr,
     IntegerType,
     TensorType,
@@ -35,10 +36,9 @@ from xdsl.ir import (
     TypeAttribute,
 )
 from xdsl.irdl import (
+    AnyAttr,
     BaseAttr,
-    ConstraintVar,
     IRDLOperation,
-    ParameterDef,
     VarConstraint,
     attr_def,
     base,
@@ -287,10 +287,10 @@ class DotAttr(ParametrizedAttribute):
 
     name = "stablehlo.dot"
 
-    lhs_batching_dimensions: ParameterDef[ArrayAttr[IntegerAttr[I64]]]
-    rhs_batching_dimensions: ParameterDef[ArrayAttr[IntegerAttr[I64]]]
-    lhs_contracting_dimensions: ParameterDef[ArrayAttr[IntegerAttr[I64]]]
-    rhs_contracting_dimensions: ParameterDef[ArrayAttr[IntegerAttr[I64]]]
+    lhs_batching_dimensions: ArrayAttr[IntegerAttr[I64]]
+    rhs_batching_dimensions: ArrayAttr[IntegerAttr[I64]]
+    lhs_contracting_dimensions: ArrayAttr[IntegerAttr[I64]]
+    rhs_contracting_dimensions: ArrayAttr[IntegerAttr[I64]]
 
     @staticmethod
     def _print_parameter(
@@ -304,8 +304,14 @@ class DotAttr(ParametrizedAttribute):
         printer.print_string("]")
 
     @staticmethod
-    def _parse_parameter(name: str, parser: AttrParser) -> ArrayAttr[IntegerAttr[I64]]:
-        parser.parse_characters(name)
+    def _parse_parameter(
+        name: str, parser: AttrParser, optional: bool = False
+    ) -> ArrayAttr[IntegerAttr[I64]]:
+        if optional:
+            if parser.parse_optional_characters(name) is None:
+                return ArrayAttr(())
+        else:
+            parser.parse_characters(name)
         parser.parse_punctuation("=")
         value = parser.parse_comma_separated_list(
             AttrParser.Delimiter.SQUARE,
@@ -316,14 +322,19 @@ class DotAttr(ParametrizedAttribute):
     def print_parameters(self, printer: Printer) -> None:
         with printer.in_angle_brackets():
             with printer.indented():
-                DotAttr._print_parameter(
-                    "lhs_batching_dimensions", self.lhs_batching_dimensions, printer
-                )
-                printer.print_string(",")
-                DotAttr._print_parameter(
-                    "rhs_batching_dimensions", self.rhs_batching_dimensions, printer
-                )
-                printer.print_string(",")
+                if (
+                    self.lhs_batching_dimensions.data
+                    and self.rhs_batching_dimensions.data
+                ):
+                    DotAttr._print_parameter(
+                        "lhs_batching_dimensions", self.lhs_batching_dimensions, printer
+                    )
+                    printer.print_string(",")
+                    DotAttr._print_parameter(
+                        "rhs_batching_dimensions", self.rhs_batching_dimensions, printer
+                    )
+                    printer.print_string(",")
+
                 DotAttr._print_parameter(
                     "lhs_contracting_dimensions",
                     self.lhs_contracting_dimensions,
@@ -341,13 +352,17 @@ class DotAttr(ParametrizedAttribute):
     def parse_parameters(cls, parser: AttrParser) -> Sequence[Attribute]:
         with parser.in_angle_brackets():
             lhs_batching_dimensions = DotAttr._parse_parameter(
-                "lhs_batching_dimensions", parser
+                "lhs_batching_dimensions", parser, optional=True
             )
-            parser.parse_punctuation(",")
-            rhs_batching_dimensions = DotAttr._parse_parameter(
-                "rhs_batching_dimensions", parser
-            )
-            parser.parse_punctuation(",")
+            if lhs_batching_dimensions.data:
+                parser.parse_punctuation(",")
+                rhs_batching_dimensions = DotAttr._parse_parameter(
+                    "rhs_batching_dimensions", parser
+                )
+                parser.parse_punctuation(",")
+            else:
+                rhs_batching_dimensions = ArrayAttr(())
+
             lhs_contracting_dimensions = DotAttr._parse_parameter(
                 "lhs_contracting_dimensions", parser
             )
@@ -563,6 +578,23 @@ class CountLeadingZerosOp(IntegerTensorLikeElementwiseUnaryOperation):
 
 
 @irdl_op_definition
+class ConstantOp(IRDLOperation):
+    """
+    Produces an `output` tensor from a constant `value`.
+
+    See [StableHLO specification](https://github.com/openxla/stablehlo/blob/main/docs/spec.md#constant)
+    """
+
+    name = "stablehlo.constant"
+
+    value = attr_def(DenseIntOrFPElementsAttr)
+    output = result_def(AnyTensorType)
+
+    def __init__(self, value: DenseIntOrFPElementsAttr):
+        super().__init__(attributes={"value": value}, result_types=(value.type,))
+
+
+@irdl_op_definition
 class MultiplyOp(ElementwiseBinaryOperation):
     """
     Performs element-wise product of two tensors `lhs` and `rhs` and produces a
@@ -709,11 +741,11 @@ class TransposeOp(IRDLOperation):
 
     name = "stablehlo.transpose"
 
-    ElementType = Annotated[Attribute, ConstraintVar("ElementType")]
+    ELEMENT_TYPE: ClassVar = VarConstraint("ELEMENT_TYPE", AnyAttr())
 
-    operand = operand_def(TensorType[ElementType])
-    result = result_def(TensorType[ElementType])
-    permutation = attr_def(DenseArrayBase)
+    operand = operand_def(TensorType.constr(ELEMENT_TYPE))
+    result = result_def(TensorType.constr(ELEMENT_TYPE))
+    permutation = attr_def(DenseArrayBase.constr(i64))
 
     def __init__(
         self, operand: SSAValue, permutation: DenseArrayBase, result_type: Attribute
@@ -725,7 +757,7 @@ class TransposeOp(IRDLOperation):
         )
 
     def get_permutation(self) -> tuple[int, ...]:
-        return cast(tuple[int, ...], self.permutation.get_values())
+        return self.permutation.get_values()
 
     def verify_(self) -> None:
         # Operand and result types are checked before the custom `verify_`
@@ -779,6 +811,7 @@ StableHLO = Dialect(
         CaseOp,
         CbrtOp,
         CeilOp,
+        ConstantOp,
         CountLeadingZerosOp,
         MultiplyOp,
         NotOp,

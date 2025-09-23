@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Iterator, Sequence
-from typing import Any, TypeAlias, TypeVar, cast
+from typing import Any, TypeAlias, cast
+
+from typing_extensions import TypeVar
 
 from xdsl.dialects import builtin, riscv
 from xdsl.dialects.builtin import (

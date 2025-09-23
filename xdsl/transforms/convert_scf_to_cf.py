@@ -1,6 +1,3 @@
-from collections.abc import Sequence
-from typing import cast
-
 from xdsl.context import Context
 from xdsl.dialects import builtin
 from xdsl.dialects.arith import AddiOp, CmpiOp, IndexCastOp
@@ -195,7 +192,7 @@ class SwitchLowering(RewritePattern):
             self._convert_region(region, continue_block, rewriter)
             for region in op.case_regions
         )
-        case_values = cast(Sequence[int], op.cases.get_values())
+        case_values = op.cases.get_values()
 
         # Convert the default region
         default_block = self._convert_region(
@@ -213,7 +210,7 @@ class SwitchLowering(RewritePattern):
                 case_value,
                 default_block,
                 (),
-                DenseIntElementsAttr.create_dense_int(
+                DenseIntElementsAttr.from_list(
                     VectorType(i32, (len(case_values),)), case_values
                 ),
                 case_successors,

@@ -27,7 +27,6 @@ from xdsl.ir import (
 from xdsl.irdl import (
     IRDLOperation,
     Operand,
-    ParameterDef,
     attr_def,
     base,
     irdl_attr_definition,
@@ -55,7 +54,7 @@ class OperationType(ParametrizedAttribute, TypeAttribute):
 
     name = "mpi.operation"
 
-    op_str: ParameterDef[StringAttr]
+    op_str: StringAttr
 
 
 class MpiOp:
@@ -63,20 +62,20 @@ class MpiOp:
     A collection of MPI_Op types used for
     """
 
-    MPI_MAX = OperationType([StringAttr("MPI_MAX")])
-    MPI_MIN = OperationType([StringAttr("MPI_MIN")])
-    MPI_SUM = OperationType([StringAttr("MPI_SUM")])
-    MPI_PROD = OperationType([StringAttr("MPI_PROD")])
-    MPI_LAND = OperationType([StringAttr("MPI_LAND")])
-    MPI_BAND = OperationType([StringAttr("MPI_BAND")])
-    MPI_LOR = OperationType([StringAttr("MPI_LOR")])
-    MPI_BOR = OperationType([StringAttr("MPI_BOR")])
-    MPI_LXOR = OperationType([StringAttr("MPI_LXOR")])
-    MPI_BXOR = OperationType([StringAttr("MPI_BXOR")])
-    MPI_MINLOC = OperationType([StringAttr("MPI_MINLOC")])
-    MPI_MAXLOC = OperationType([StringAttr("MPI_MAXLOC")])
-    MPI_REPLACE = OperationType([StringAttr("MPI_REPLACE")])
-    MPI_NO_OP = OperationType([StringAttr("MPI_NO_OP")])
+    MPI_MAX = OperationType(StringAttr("MPI_MAX"))
+    MPI_MIN = OperationType(StringAttr("MPI_MIN"))
+    MPI_SUM = OperationType(StringAttr("MPI_SUM"))
+    MPI_PROD = OperationType(StringAttr("MPI_PROD"))
+    MPI_LAND = OperationType(StringAttr("MPI_LAND"))
+    MPI_BAND = OperationType(StringAttr("MPI_BAND"))
+    MPI_LOR = OperationType(StringAttr("MPI_LOR"))
+    MPI_BOR = OperationType(StringAttr("MPI_BOR"))
+    MPI_LXOR = OperationType(StringAttr("MPI_LXOR"))
+    MPI_BXOR = OperationType(StringAttr("MPI_BXOR"))
+    MPI_MINLOC = OperationType(StringAttr("MPI_MINLOC"))
+    MPI_MAXLOC = OperationType(StringAttr("MPI_MAXLOC"))
+    MPI_REPLACE = OperationType(StringAttr("MPI_REPLACE"))
+    MPI_NO_OP = OperationType(StringAttr("MPI_NO_OP"))
 
 
 @irdl_attr_definition
@@ -116,17 +115,13 @@ _VectorT = TypeVar("_VectorT", bound=VectorWrappable, default=VectorWrappable)
 
 
 @irdl_attr_definition
-class VectorType(Generic[_VectorT], ParametrizedAttribute, TypeAttribute):
+class VectorType(ParametrizedAttribute, TypeAttribute, Generic[_VectorT]):
     """
     This type holds multiple MPI types
     """
 
     name = "mpi.vector"
-    wrapped_type: ParameterDef[_VectorT]
-
-    @staticmethod
-    def of(dtype: type[_VectorT]) -> VectorType[_VectorT]:
-        return VectorType([dtype([])])
+    wrapped_type: _VectorT
 
 
 class StatusTypeField(Enum):
@@ -574,7 +569,7 @@ class WaitallOp(MPIBaseOp):
     statuses = opt_result_def(VectorType[StatusType])
 
     def __init__(self, requests: Operand, count: Operand, ignore_status: bool = True):
-        result_types: list[list[Attribute]] = [[VectorType[StatusType].of(StatusType)]]
+        result_types: list[list[Attribute]] = [[VectorType(StatusType())]]
         if ignore_status:
             result_types = [[]]
 
@@ -700,7 +695,7 @@ class GetDtypeOp(MPIBaseOp):
 
     name = "mpi.get_dtype"
 
-    dtype = attr_def(Attribute)
+    dtype = attr_def()
 
     result = result_def(DataType)
 
@@ -735,7 +730,7 @@ class AllocateTypeOp(MPIBaseOp):
         bindc_name: StringAttr | None = None,
     ):
         return super().__init__(
-            result_types=[VectorType[dtype].of(dtype)],
+            result_types=[VectorType(dtype())],
             attributes={
                 "dtype": dtype(),
                 "bindc_name": bindc_name,

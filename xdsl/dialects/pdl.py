@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from collections.abc import Iterable, Sequence
-from typing import Generic, TypeVar
+from typing import Generic
+
+from typing_extensions import TypeVar
 
 from xdsl.dialects.builtin import (
     I16,
@@ -24,7 +26,6 @@ from xdsl.ir import (
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
-    ParameterDef,
     base,
     irdl_attr_definition,
     irdl_op_definition,
@@ -76,9 +77,9 @@ def parse_operands_with_types(parser: Parser) -> list[SSAValue]:
 
 
 def print_operands_with_types(printer: Printer, operands: Iterable[SSAValue]) -> None:
-    printer.print_list(operands, printer.print)
-    printer.print(" : ")
-    printer.print_list([operand.type for operand in operands], printer.print)
+    printer.print_list(operands, printer.print_ssa_value)
+    printer.print_string(" : ")
+    printer.print_list(operands, lambda o: printer.print_attribute(o.type))
 
 
 def has_binding_use(op: Operation) -> bool:
@@ -141,12 +142,9 @@ _RangeT = TypeVar(
 
 
 @irdl_attr_definition
-class RangeType(Generic[_RangeT], ParametrizedAttribute, TypeAttribute):
+class RangeType(ParametrizedAttribute, TypeAttribute, Generic[_RangeT]):
     name = "pdl.range"
-    element_type: ParameterDef[_RangeT]
-
-    def __init__(self, element_type: _RangeT):
-        super().__init__([element_type])
+    element_type: _RangeT
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> Sequence[Attribute]:
@@ -167,50 +165,47 @@ class RangeType(Generic[_RangeT], ParametrizedAttribute, TypeAttribute):
     def print_parameters(self, printer: Printer) -> None:
         match self.element_type:
             case AttributeType():
-                printer.print("<attribute>")
+                printer.print_string("<attribute>")
             case OperationType():
-                printer.print("<operation>")
+                printer.print_string("<operation>")
             case TypeType():
-                printer.print("<type>")
+                printer.print_string("<type>")
             case ValueType():
-                printer.print("<value>")
+                printer.print_string("<value>")
 
 
 @irdl_op_definition
 class ApplyNativeConstraintOp(IRDLOperation):
     """
-    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlapply_native_constraint-mlirpdlapplynativeconstraintop).
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlapply_native_constraint-pdlapplynativeconstraintop).
     """
 
     name = "pdl.apply_native_constraint"
     constraint_name = prop_def(StringAttr, prop_name="name")
     args = var_operand_def(AnyPDLTypeConstr)
+    res = var_result_def(AnyPDLTypeConstr)
 
-    def __init__(self, name: str | StringAttr, args: Sequence[SSAValue]) -> None:
+    assembly_format = (
+        "$name (`(` $args^ `:` type($args) `)`)? (`:` type($res)^)? attr-dict"
+    )
+
+    def __init__(
+        self,
+        name: str | StringAttr,
+        args: Sequence[SSAValue],
+        result_types: Sequence[Attribute],
+    ) -> None:
         if isinstance(name, str):
             name = StringAttr(name)
-        super().__init__(operands=[args], properties={"name": name})
-
-    @classmethod
-    def parse(cls, parser: Parser) -> ApplyNativeConstraintOp:
-        name = parser.parse_str_literal()
-        parser.parse_punctuation("(")
-        operands = parse_operands_with_types(parser)
-        parser.parse_punctuation(")")
-        return ApplyNativeConstraintOp(name, operands)
-
-    def print(self, printer: Printer) -> None:
-        printer.print(" ")
-        printer.print_string_literal(self.constraint_name.data)
-        printer.print("(")
-        print_operands_with_types(printer, self.operands)
-        printer.print(")")
+        super().__init__(
+            result_types=[result_types], operands=[args], properties={"name": name}
+        )
 
 
 @irdl_op_definition
 class ApplyNativeRewriteOp(IRDLOperation):
     """
-    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlapply_native_rewrite-mlirpdlapplynativerewriteop).
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlapply_native_rewrite-pdlapplynativerewriteop).
     """
 
     name = "pdl.apply_native_rewrite"
@@ -246,24 +241,24 @@ class ApplyNativeRewriteOp(IRDLOperation):
         return ApplyNativeRewriteOp(name, operands, result_types)
 
     def print(self, printer: Printer) -> None:
-        printer.print(" ")
+        printer.print_string(" ")
         printer.print_string_literal(self.constraint_name.data)
-        printer.print("(")
-        print_operands_with_types(printer, self.operands)
-        printer.print(")")
+        with printer.in_parens():
+            print_operands_with_types(printer, self.operands)
         if len(self.results) != 0:
-            printer.print(" : ")
-            printer.print_list(self.result_types, printer.print)
+            printer.print_string(" : ")
+            printer.print_list(self.result_types, printer.print_attribute)
 
 
 @irdl_op_definition
 class AttributeOp(IRDLOperation):
     """
-    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlattribute-mlirpdlattributeop).
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlattribute-pdlattributeop).
+    https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlattribute-pdlattributeop
     """
 
     name = "pdl.attribute"
-    value = opt_prop_def(Attribute)
+    value = opt_prop_def()
     value_type = opt_operand_def(TypeType)
     output = result_def(AttributeType)
 
@@ -301,7 +296,7 @@ class AttributeOp(IRDLOperation):
 @irdl_op_definition
 class EraseOp(IRDLOperation):
     """
-    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlerase-mlirpdleraseop).
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlerase-pdleraseop).
     """
 
     name = "pdl.erase"
@@ -316,7 +311,7 @@ class EraseOp(IRDLOperation):
 @irdl_op_definition
 class OperandOp(IRDLOperation):
     """
-    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLOps/#pdloperand-mlirpdloperandop).
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLOps/#pdloperand-pdloperandop).
     """
 
     name = "pdl.operand"
@@ -335,7 +330,7 @@ class OperandOp(IRDLOperation):
 @irdl_op_definition
 class OperandsOp(IRDLOperation):
     """
-    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLOps/#pdloperands-mlirpdloperandsop).
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLOps/#pdloperands-pdloperandsop).
     """
 
     name = "pdl.operands"
@@ -354,7 +349,7 @@ class OperandsOp(IRDLOperation):
 @irdl_op_definition
 class OperationOp(IRDLOperation):
     """
-    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLOps/#pdloperation-mlirpdloperationop).
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLOps/#pdloperation-pdloperationop).
     """
 
     name = "pdl.operation"
@@ -445,28 +440,31 @@ class OperationOp(IRDLOperation):
 
     def print(self, printer: Printer) -> None:
         if self.opName is not None:
-            printer.print(" ", self.opName)
+            printer.print_string(" ")
+            printer.print_attribute(self.opName)
 
         if len(self.operand_values) != 0:
-            printer.print(" (")
-            print_operands_with_types(printer, self.operand_values)
-            printer.print(")")
+            printer.print_string(" ")
+            with printer.in_parens():
+                print_operands_with_types(printer, self.operand_values)
 
         def print_attribute_entry(entry: tuple[StringAttr, SSAValue]):
-            printer.print(entry[0], " = ", entry[1])
+            printer.print_attribute(entry[0])
+            printer.print_string(" = ")
+            printer.print_ssa_value(entry[1])
 
         if len(self.attributeValueNames) != 0:
-            printer.print(" {")
-            printer.print_list(
-                zip(self.attributeValueNames, self.attribute_values),
-                print_attribute_entry,
-            )
-            printer.print("}")
+            printer.print_string(" ")
+            with printer.in_braces():
+                printer.print_list(
+                    zip(self.attributeValueNames, self.attribute_values),
+                    print_attribute_entry,
+                )
 
         if len(self.type_values) != 0:
-            printer.print(" -> (")
-            print_operands_with_types(printer, self.type_values)
-            printer.print(")")
+            printer.print_string(" -> ")
+            with printer.in_parens():
+                print_operands_with_types(printer, self.type_values)
 
 
 def _visit_pdl_ops(op: Operation, visited: set[Operation]):
@@ -510,7 +508,7 @@ def _has_user_in_rewrite(op: Operation) -> bool:
 @irdl_op_definition
 class PatternOp(IRDLOperation):
     """
-    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlpattern-mlirpdlpatternop).
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlpattern-pdlpatternop).
     """
 
     name = "pdl.pattern"
@@ -587,14 +585,16 @@ class PatternOp(IRDLOperation):
 
     def print(self, printer: Printer) -> None:
         if self.sym_name is not None:
-            printer.print(" @", self.sym_name.data)
-        printer.print(" : benefit(", self.benefit.value.data, ") ", self.body)
+            printer.print_string(" @")
+            printer.print_string(self.sym_name.data)
+        printer.print_string(f" : benefit({self.benefit.value.data}) ")
+        printer.print_region(self.body)
 
 
 @irdl_op_definition
 class RangeOp(IRDLOperation):
     """
-    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlrange-mlirpdlrangeop).
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlrange-pdlrangeop).
     """
 
     name = "pdl.range"
@@ -651,16 +651,17 @@ class RangeOp(IRDLOperation):
 
     def print(self, printer: Printer) -> None:
         if len(self.arguments) == 0:
-            printer.print(" : ", self.result.type)
+            printer.print_string(" : ")
+            printer.print_attribute(self.result.type)
             return
-        printer.print(" ")
+        printer.print_string(" ")
         print_operands_with_types(printer, self.arguments)
 
 
 @irdl_op_definition
 class ReplaceOp(IRDLOperation):
     """
-    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlreplace-mlirpdlreplaceop).
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlreplace-pdlreplaceop).
 
     `pdl.replace` operations are used within `pdl.rewrite` regions to specify
     that an input operation should be marked as replaced. The semantics of this
@@ -718,7 +719,7 @@ class ReplaceOp(IRDLOperation):
 @irdl_op_definition
 class ResultOp(IRDLOperation):
     """
-    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlresult-mlirpdlresultop).
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlresult-pdlresultop).
     """
 
     name = "pdl.result"
@@ -739,11 +740,11 @@ class ResultOp(IRDLOperation):
 @irdl_op_definition
 class ResultsOp(IRDLOperation):
     """
-    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlresults-mlirpdlresultsop).
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlresults-pdlresultsop).
     """
 
     name = "pdl.results"
-    index = opt_prop_def(IntegerAttr[IntegerType])
+    index = opt_prop_def(IntegerAttr[I32])
     parent_ = operand_def(OperationType)
     val = result_def(base(ValueType) | base(RangeType[ValueType]))
 
@@ -773,17 +774,19 @@ class ResultsOp(IRDLOperation):
 
     def print(self, printer: Printer) -> None:
         if self.index is None:
-            printer.print(" of ", self.parent_)
-            return
-        printer.print(
-            " ", self.index.value.data, " of ", self.parent_, " -> ", self.val.type
-        )
+            printer.print_string(" of ")
+            printer.print_ssa_value(self.parent_)
+        else:
+            printer.print_string(f" {self.index.value.data} of ")
+            printer.print_ssa_value(self.parent_)
+            printer.print_string(" -> ")
+            printer.print_attribute(self.val.type)
 
 
 @irdl_op_definition
 class RewriteOp(IRDLOperation):
     """
-    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlrewrite-mlirpdlrewriteop).
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlrewrite-pdlrewriteop).
     """
 
     name = "pdl.rewrite"
@@ -845,11 +848,11 @@ class RewriteOp(IRDLOperation):
 @irdl_op_definition
 class TypeOp(IRDLOperation):
     """
-    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLOps/#pdltype-mlirpdltypeop).
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLOps/#pdltype-pdltypeop).
     """
 
     name = "pdl.type"
-    constantType = opt_prop_def(Attribute)
+    constantType = opt_prop_def(TypeAttribute)
     result = result_def(TypeType)
 
     assembly_format = "attr-dict (`:` $constantType^)?"
@@ -866,11 +869,11 @@ class TypeOp(IRDLOperation):
 @irdl_op_definition
 class TypesOp(IRDLOperation):
     """
-    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLOps/#pdltypes-mlirpdltypesop).
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLOps/#pdltypes-pdltypesop).
     """
 
     name = "pdl.types"
-    constantTypes = opt_prop_def(ArrayAttr)
+    constantTypes = opt_prop_def(ArrayAttr[TypeAttribute])
     result = result_def(RangeType[TypeType])
 
     assembly_format = "attr-dict (`:` $constantTypes^)?"

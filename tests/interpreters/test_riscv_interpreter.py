@@ -392,7 +392,7 @@ def test_values():
 
     assert (
         interpreter.value_for_attribute(
-            DenseIntOrFPElementsAttr.create_dense_int(
+            DenseIntOrFPElementsAttr.from_list(
                 TensorType(i32, [2, 3]), tuple(range(6))
             ),
             riscv.Registers.A0,

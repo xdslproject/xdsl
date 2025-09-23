@@ -35,6 +35,7 @@ from xdsl.irdl import (
 from xdsl.parser import Parser
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.hints import isa
 
 ICMP_COMPARISON_OPERATIONS = [
     "eq",
@@ -89,12 +90,12 @@ class BinCombOperation(IRDLOperation, ABC):
         return cls(lhs, rhs, result_type)
 
     def print(self, printer: Printer):
-        printer.print(" ")
+        printer.print_string(" ")
         printer.print_ssa_value(self.lhs)
-        printer.print(", ")
+        printer.print_string(", ")
         printer.print_ssa_value(self.rhs)
-        printer.print(" : ")
-        printer.print(self.result.type)
+        printer.print_string(" : ")
+        printer.print_attribute(self.result.type)
 
 
 class VariadicCombOperation(IRDLOperation, ABC):
@@ -142,10 +143,10 @@ class VariadicCombOperation(IRDLOperation, ABC):
         return cls.create(operands=inputs, result_types=[result_type])
 
     def print(self, printer: Printer):
-        printer.print(" ")
+        printer.print_string(" ")
         printer.print_list(self.inputs, printer.print_ssa_value)
-        printer.print(" : ")
-        printer.print(self.result.type)
+        printer.print_string(" : ")
+        printer.print_attribute(self.result.type)
 
 
 @irdl_op_definition
@@ -331,15 +332,15 @@ class ICmpOp(IRDLOperation, ABC):
         return cls(operand1, operand2, arg, has_two_state_semantics)
 
     def print(self, printer: Printer):
-        printer.print(" ")
+        printer.print_string(" ")
         if self.two_state is not None:
-            printer.print("bin ")
+            printer.print_string("bin ")
         printer.print_string(ICMP_COMPARISON_OPERATIONS[self.predicate.value.data])
-        printer.print(" ")
+        printer.print_string(" ")
         printer.print_operand(self.lhs)
-        printer.print(", ")
+        printer.print_string(", ")
         printer.print_operand(self.rhs)
-        printer.print(" : ")
+        printer.print_string(" : ")
         printer.print_attribute(self.lhs.type)
 
 
@@ -376,12 +377,12 @@ class ParityOp(IRDLOperation):
         return cls(op, two_state)
 
     def print(self, printer: Printer):
-        printer.print(" ")
+        printer.print_string(" ")
         if self.two_state is not None:
-            printer.print("bin ")
+            printer.print_string("bin ")
         printer.print_ssa_value(self.input)
-        printer.print(" : ")
-        printer.print(self.result.type)
+        printer.print_string(" : ")
+        printer.print_attribute(self.result.type)
 
 
 @irdl_op_definition
@@ -416,7 +417,7 @@ class ExtractOp(IRDLOperation):
         )
 
     def verify_(self) -> None:
-        assert isinstance(self.input.type, IntegerType)
+        assert isa(self.input.type, IntegerType)
         assert isinstance(self.result.type, IntegerType)
         if (
             self.low_bit.value.data + self.result.type.width.data
@@ -440,7 +441,7 @@ class ExtractOp(IRDLOperation):
             parser.raise_error(
                 "expected exactly one input and exactly one output types"
             )
-        if not isinstance(result_type.outputs.data[0], IntegerType):
+        if not isa(result_type.outputs.data[0], IntegerType):
             parser.raise_error(
                 f"expected output to be an integer type, got '{result_type.outputs.data[0]}'"
             )
@@ -448,9 +449,9 @@ class ExtractOp(IRDLOperation):
         return cls(op, IntegerAttr(bit, 32), result_type.outputs.data[0])
 
     def print(self, printer: Printer):
-        printer.print(" ")
+        printer.print_string(" ")
         printer.print_ssa_value(self.input)
-        printer.print(f" from {self.low_bit.value.data} : ")
+        printer.print_string(f" from {self.low_bit.value.data} : ")
         printer.print_function_type([self.input.type], [self.result.type])
 
 
@@ -461,7 +462,7 @@ def _get_sum_of_int_width(int_types: Sequence[Attribute]) -> int | None:
     """
     sum_of_width = 0
     for typ in int_types:
-        if not isinstance(typ, IntegerType):
+        if not isa(typ, IntegerType):
             return None
         sum_of_width += typ.width.data
     return sum_of_width
@@ -519,9 +520,9 @@ class ConcatOp(IRDLOperation):
         return cls.create(operands=inputs, result_types=[IntegerType(sum_of_width)])
 
     def print(self, printer: Printer):
-        printer.print(" ")
+        printer.print_string(" ")
         printer.print_list(self.inputs, printer.print_ssa_value)
-        printer.print(" : ")
+        printer.print_string(" : ")
         printer.print_list(self.inputs.types, printer.print_attribute)
 
 
@@ -548,9 +549,9 @@ class ReplicateOp(IRDLOperation):
         return cls.create(operands=operands, result_types=fun_type.outputs.data)
 
     def print(self, printer: Printer):
-        printer.print(" ")
+        printer.print_string(" ")
         printer.print_ssa_value(self.input)
-        printer.print(" : ")
+        printer.print_string(" : ")
         printer.print_function_type((self.input.type,), (self.result.type,))
 
 
@@ -597,13 +598,13 @@ class MuxOp(IRDLOperation):
         return cls(condition, true_val, false_val)
 
     def print(self, printer: Printer):
-        printer.print(" ")
+        printer.print_string(" ")
         printer.print_operand(self.cond)
-        printer.print(", ")
+        printer.print_string(", ")
         printer.print_operand(self.true_value)
-        printer.print(", ")
+        printer.print_string(", ")
         printer.print_operand(self.false_value)
-        printer.print(" : ")
+        printer.print_string(" : ")
         printer.print_attribute(self.result.type)
 
 

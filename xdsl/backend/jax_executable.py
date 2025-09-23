@@ -1,6 +1,6 @@
 from collections.abc import Callable, Sequence
 from inspect import signature
-from typing import Any, ParamSpec, TypeVar, cast, get_args, get_origin
+from typing import Any, ParamSpec, cast, get_args, get_origin
 
 import jax.numpy as jnp
 import numpy as np
@@ -10,6 +10,7 @@ from jax._src.interpreters import mlir
 from jax._src.typing import SupportsDType
 from jaxlib.mlir import ir
 from jaxlib.xla_client import LoadedExecutable
+from typing_extensions import TypeVar
 
 from xdsl.dialects.builtin import FunctionType, ModuleOp
 from xdsl.dialects.func import FuncOp

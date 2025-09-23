@@ -21,7 +21,7 @@ from xdsl.parser import Parser, UnresolvedOperand
 from xdsl.printer import Printer
 
 
-class AbstractYieldOperation(Generic[AttributeInvT], IRDLOperation):
+class AbstractYieldOperation(IRDLOperation, Generic[AttributeInvT]):
     """
     A base class for yielding operations to inherit, provides the standard custom syntax
     and a definition of the `arguments` variadic operand.
@@ -192,23 +192,24 @@ def print_func_op_like(
     res_attrs: ArrayAttr[DictionaryAttr] | None = None,
     reserved_attr_names: Sequence[str],
 ):
-    printer.print(f" @{sym_name.data}")
+    printer.print_string(" ")
+    printer.print_symbol_name(sym_name.data)
     if body.blocks:
-        printer.print("(")
-        if arg_attrs is not None:
-            printer.print_list(
-                zip(body.blocks[0].args, arg_attrs),
-                lambda arg_with_attrs: print_func_argument(
-                    printer, arg_with_attrs[0], arg_with_attrs[1]
-                ),
-            )
-        else:
-            printer.print_list(body.blocks[0].args, printer.print_block_argument)
-        printer.print(")")
+        with printer.in_parens():
+            if arg_attrs is not None:
+                printer.print_list(
+                    zip(body.blocks[0].args, arg_attrs),
+                    lambda arg_with_attrs: print_func_argument(
+                        printer, arg_with_attrs[0], arg_with_attrs[1]
+                    ),
+                )
+            else:
+                printer.print_list(body.blocks[0].args, printer.print_block_argument)
+
         if function_type.outputs:
-            printer.print(" -> ")
+            printer.print_string(" -> ")
             if len(function_type.outputs) > 1 or res_attrs is not None:
-                printer.print("(")
+                printer.print_string("(")
             if res_attrs is not None:
                 printer.print_list(
                     zip(function_type.outputs, res_attrs),
@@ -219,7 +220,7 @@ def print_func_op_like(
             else:
                 printer.print_list(function_type.outputs, printer.print_attribute)
             if len(function_type.outputs) > 1 or res_attrs is not None:
-                printer.print(")")
+                printer.print_string(")")
     else:
         printer.print_attribute(function_type)
     printer.print_op_attributes(
@@ -259,7 +260,7 @@ def parse_func_op_like(
             ret = (arg, arg_attr_dict)
         return ret
 
-    def parse_fun_output() -> tuple[Attribute, dict[str, Attribute]]:
+    def parse_fun_output() -> tuple[TypeAttribute, dict[str, Attribute]]:
         arg_type = parser.parse_optional_type()
         if arg_type is None:
             parser.raise_error("Return type should be specified")
@@ -298,7 +299,7 @@ def parse_func_op_like(
         arg_attrs = None
 
     # Parse return type
-    return_types: list[Attribute] = []
+    return_types: list[TypeAttribute] = []
     res_attrs_raw: list[dict[str, Attribute]] | None = []
     if parser.parse_optional_punctuation("->"):
         return_attributes = parser.parse_optional_comma_separated_list(

@@ -45,7 +45,7 @@ class Test_AnyAttrOfOp(IRDLOperation):
     attr = prop_def(
         AnyOf(
             [
-                IntegerAttr.constr(type=EqAttrConstraint(IntegerType(32))),
+                IntegerAttr.constr(EqAttrConstraint(IntegerType(32))),
                 BaseAttr(StringAttr),
             ]
         )
@@ -56,7 +56,7 @@ class Test_AnyAttrOfOp(IRDLOperation):
 class Test_AnyAttrOfSingleOp(IRDLOperation):
     name = "test.any_attr_of_i32"
 
-    attr = prop_def(AnyOf([IntegerAttr.constr(type=EqAttrConstraint(IntegerType(32)))]))
+    attr = prop_def(AnyOf([IntegerAttr.constr(EqAttrConstraint(IntegerType(32)))]))
 
 
 @irdl_op_definition
@@ -91,7 +91,7 @@ class Test_AssemblyFormatLong(IRDLOperation):
 class Test_AttributesOp(IRDLOperation):
     name = "test.attributes"
 
-    int_attr = prop_def(IntegerAttr.constr(type=EqAttrConstraint(IntegerType(16))))
+    int_attr = prop_def(IntegerAttr.constr(EqAttrConstraint(IntegerType(16))))
 
     in_ = prop_def(BaseAttr(Test_TestAttr), prop_name="in")
 
@@ -158,6 +158,8 @@ class Test_TypesOp(IRDLOperation):
     e = operand_def(EqAttrConstraint(Float32Type()))
 
     f = operand_def(EqAttrConstraint(NoneType()))
+
+    g = prop_def(SymbolNameConstraint())
 
     v1 = operand_def(
         ParamAttrConstraint(

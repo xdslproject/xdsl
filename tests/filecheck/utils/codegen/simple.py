@@ -3,13 +3,13 @@
 from xdsl.dialects.builtin import (
     AnyTensorTypeConstr,
     ComplexType,
-    Float32Type,
     IndexType,
     IntAttr,
     IntegerAttr,
     IntegerType,
     NoneType,
     Signedness,
+    f32,
 )
 from xdsl.irdl import (
     AllOf,
@@ -31,15 +31,23 @@ from xdsl.irdl import (
     traits_def,
 )
 from xdsl.traits import (
-    ConstantLike,
     Pure,
 )
 from xdsl.utils.dialect_codegen import dump_dialect_pyfile, generate_dynamic_attr_class
 
 types = [
-    ("Test_SingletonAType", ParamAttrDef(name="test.singleton_a", parameters=[])),
-    ("Test_SingletonBType", ParamAttrDef(name="test.singleton_b", parameters=[])),
-    ("Test_SingletonCType", ParamAttrDef(name="test.singleton_c", parameters=[])),
+    (
+        "Test_SingletonAType",
+        ParamAttrDef(name="test.singleton_a", parameters=[]),
+    ),
+    (
+        "Test_SingletonBType",
+        ParamAttrDef(name="test.singleton_b", parameters=[]),
+    ),
+    (
+        "Test_SingletonCType",
+        ParamAttrDef(name="test.singleton_c", parameters=[]),
+    ),
 ]
 
 SingletonAType = generate_dynamic_attr_class(types[0][0], types[0][1])
@@ -123,7 +131,7 @@ ops = [
                     OperandDef(EqAttrConstraint(IntegerType(8, Signedness.UNSIGNED))),
                 ),
                 ("d", OperandDef(EqAttrConstraint(IndexType()))),
-                ("e", OperandDef(EqAttrConstraint(Float32Type()))),
+                ("e", OperandDef(EqAttrConstraint(f32))),
                 ("f", OperandDef(EqAttrConstraint(NoneType()))),
                 ("v1", OperandDef(ParamAttrConstraint(ComplexType, (AnyAttr(),)))),
             ],
@@ -156,7 +164,7 @@ ops = [
             name="test.properties",
             properties={
                 "int_attr": PropertyDef(
-                    IntegerAttr.constr(type=EqAttrConstraint(IntegerType(16)))
+                    IntegerAttr.constr(EqAttrConstraint(IntegerType(16)))
                 ),
                 "in": PropertyDef(AnyAttr()),
             },
@@ -167,7 +175,7 @@ ops = [
         "Test_TraitsOp",
         OpDef(
             name="test.traits",
-            traits=traits_def(ConstantLike(), Pure()),
+            traits=traits_def(Pure()),
         ),
     ),
     (
@@ -256,9 +264,9 @@ dump_dialect_pyfile(
 # CHECK-NEXT:      a = operand_def(EqAttrConstraint(attr=IntegerType(32)))
 # CHECK-NEXT:      b = operand_def(EqAttrConstraint(attr=IntegerType(64, Signedness.SIGNED)))
 # CHECK-NEXT:      c = operand_def(EqAttrConstraint(attr=IntegerType(8, Signedness.UNSIGNED)))
-# CHECK-NEXT:      d = operand_def(EqAttrConstraint(attr=IndexType(parameters=())))
-# CHECK-NEXT:      e = operand_def(EqAttrConstraint(attr=Float32Type(parameters=())))
-# CHECK-NEXT:      f = operand_def(EqAttrConstraint(attr=NoneType(parameters=())))
+# CHECK-NEXT:      d = operand_def(EqAttrConstraint(attr=IndexType()))
+# CHECK-NEXT:      e = operand_def(EqAttrConstraint(attr=Float32Type()))
+# CHECK-NEXT:      f = operand_def(EqAttrConstraint(attr=NoneType()))
 # CHECK-NEXT:      v1 = operand_def(ParamAttrConstraint(ComplexType, (AnyAttr(),)))
 
 # CHECK:       @irdl_op_definition
@@ -297,7 +305,7 @@ dump_dialect_pyfile(
 # CHECK-NEXT:  class Test_TraitsOp(IRDLOperation):
 # CHECK-NEXT:      name = "test.traits"
 # CHECK-EMPTY:
-# CHECK-NEXT:      traits = traits_def(ConstantLike(), Pure())
+# CHECK-NEXT:      traits = traits_def(Pure())
 
 # CHECK:       @irdl_op_definition
 # CHECK-NEXT:  class Test_AttributesOp(IRDLOperation):

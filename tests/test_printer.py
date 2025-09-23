@@ -14,12 +14,15 @@ from xdsl.dialects.builtin import (
     ComplexType,
     FloatAttr,
     FunctionType,
+    IndexType,
     IntAttr,
     IntegerType,
     ModuleOp,
+    Signedness,
     SymbolRefAttr,
     UnitAttr,
     f32,
+    i1,
     i32,
 )
 from xdsl.dialects.func import Func
@@ -32,7 +35,6 @@ from xdsl.ir import (
 )
 from xdsl.irdl import (
     IRDLOperation,
-    ParameterDef,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
@@ -44,7 +46,7 @@ from xdsl.irdl import (
 from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
 from xdsl.utils.diagnostic import Diagnostic
-from xdsl.utils.exceptions import DiagnosticException, ParseError
+from xdsl.utils.exceptions import ParseError
 from xdsl.utils.test_value import create_ssa_value
 
 
@@ -91,7 +93,7 @@ def test_unit_attr():
 "unit_attr_op"() {parallelize} : () -> ()
 """
 
-    unit_op = UnitAttrOp.build(attributes={"parallelize": UnitAttr([])})
+    unit_op = UnitAttrOp.build(attributes={"parallelize": UnitAttr()})
 
     assert_print_op(unit_op, expected)
 
@@ -103,7 +105,7 @@ def test_added_unit_attr():
 "unit_attr_op"() {parallelize, vectorize} : () -> ()
 """
     unitop = UnitAttrOp.build(
-        attributes={"parallelize": UnitAttr([]), "vectorize": UnitAttr([])}
+        attributes={"parallelize": UnitAttr(), "vectorize": UnitAttr()}
     )
 
     assert_print_op(unitop, expected)
@@ -303,10 +305,12 @@ def test_diagnostic():
     parser = Parser(ctx, prog)
     module = parser.parse_op()
 
+    class MyException(Exception): ...
+
     diag = Diagnostic()
     diag.add_message(module, "Test")
-    with pytest.raises(DiagnosticException):
-        diag.raise_exception("test message", module)
+    with pytest.raises(MyException, match="Test"):
+        diag.raise_exception(module, MyException("hello"))
 
 
 #  ____ ____    _    _   _
@@ -385,7 +389,7 @@ def test_print_custom_block_arg_name():
     io = StringIO()
     p = Printer(stream=io)
     p.print_block(block)
-    assert io.getvalue() == """\n^0(%test : i32, %test_1 : i32):"""
+    assert io.getvalue() == """\n^bb0(%test : i32, %test_1 : i32):"""
 
 
 def test_print_block_argument():
@@ -395,7 +399,7 @@ def test_print_block_argument():
     io = StringIO()
     p = Printer(stream=io)
     p.print_block_argument(block.args[0])
-    p.print(", ")
+    p.print_string(", ")
     p.print_block_argument(block.args[1], print_type=False)
     assert io.getvalue() == """%0 : i32, %1"""
 
@@ -407,7 +411,7 @@ def test_print_block_argument_location():
     io = StringIO()
     p = Printer(stream=io, print_debuginfo=True)
     p.print_block_argument(block.args[0])
-    p.print(", ")
+    p.print_string(", ")
     p.print_block_argument(block.args[1])
     assert io.getvalue() == """%0 : i32 loc(unknown), %1 : i32 loc(unknown)"""
 
@@ -422,7 +426,8 @@ def test_print_block():
     p = Printer(stream=io)
     p.print_block(block)
     assert (
-        io.getvalue() == """\n^0(%0 : i32, %1 : i32):\n  "test.op"(%1) : (i32) -> ()"""
+        io.getvalue()
+        == """\n^bb0(%0 : i32, %1 : i32):\n  "test.op"(%1) : (i32) -> ()"""
     )
 
 
@@ -435,7 +440,7 @@ def test_print_block_without_arguments():
     io = StringIO()
     p = Printer(stream=io)
     p.print_block_argument(block.args[0])
-    p.print(", ")
+    p.print_string(", ")
     p.print_block_argument(block.args[1])
     p.print_block(block, print_block_args=False)
     assert io.getvalue() == """%0 : i32, %1 : i32\n  "test.op"(%1) : (i32) -> ()"""
@@ -452,7 +457,7 @@ def test_print_block_with_terminator():
     assert (
         io.getvalue()
         == """
-^0:
+^bb0:
   "test.op"() : () -> ()
   "test.termop"() : () -> ()"""
     )
@@ -470,7 +475,7 @@ def test_print_block_without_terminator():
     assert (
         io.getvalue()
         == """
-^0:
+^bb0:
   "test.op"() : () -> ()"""
     )
 
@@ -486,7 +491,7 @@ def test_print_region():
     p.print_region(region)
     assert (
         io.getvalue()
-        == """{\n^0(%0 : i32, %1 : i32):\n  "test.op"(%1) : (i32) -> ()\n}"""
+        == """{\n^bb0(%0 : i32, %1 : i32):\n  "test.op"(%1) : (i32) -> ()\n}"""
     )
 
 
@@ -499,9 +504,9 @@ def test_print_region_without_arguments():
     io = StringIO()
     p = Printer(stream=io)
     p.print_block_argument(block.args[0])
-    p.print(", ")
+    p.print_string(", ")
     p.print_block_argument(block.args[1])
-    p.print(" ")
+    p.print_string(" ")
     p.print_region(region, print_entry_block_args=False)
     assert io.getvalue() == """%0 : i32, %1 : i32 {\n  "test.op"(%1) : (i32) -> ()\n}"""
 
@@ -531,7 +536,7 @@ def test_print_region_empty_block_with_args():
     io = StringIO()
     p = Printer(stream=io)
     p.print_region(region, print_empty_block=False)
-    assert io.getvalue() == """{\n^0(%0 : i32, %1 : i32):\n}"""
+    assert io.getvalue() == """{\n^bb0(%0 : i32, %1 : i32):\n}"""
 
 
 #   ____          _                  _____                          _
@@ -560,7 +565,12 @@ class PlusCustomFormatOp(IRDLOperation):
         return PlusCustomFormatOp.create(operands=[lhs, rhs], result_types=[type])
 
     def print(self, printer: Printer):
-        printer.print(" ", self.lhs, " + ", self.rhs, " : ", self.res.type)
+        printer.print_string(" ")
+        printer.print_ssa_value(self.lhs)
+        printer.print_string(" + ")
+        printer.print_ssa_value(self.rhs)
+        printer.print_string(" : ")
+        printer.print_attribute(self.res.type)
 
 
 def test_generic_format():
@@ -682,7 +692,7 @@ def test_missing_custom_format():
 class CustomFormatAttr(ParametrizedAttribute):
     name = "test.custom"
 
-    attr: ParameterDef[IntAttr]
+    attr: IntAttr
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
@@ -697,7 +707,8 @@ class CustomFormatAttr(ParametrizedAttribute):
 
     def print_parameters(self, printer: Printer) -> None:
         assert 0 <= self.attr.data <= 1
-        printer.print("<", "zero" if self.attr.data == 0 else "one", ">")
+        with printer.in_angle_brackets():
+            printer.print_string("zero" if self.attr.data == 0 else "one")
 
 
 @irdl_op_definition
@@ -752,7 +763,7 @@ def test_densearray_attr():
     """Test that a DenseArrayAttr can be parsed and then printed."""
 
     prog = """
-"func.func"() <{sym_name = "test", function_type = i64, sym_visibility = "private", unit_attr}> {bool_attrs = array<i1: false, true>, int_attr = array<i32: 19, 23, 55>, float_attr = array<f32: 0.3400000035762787>} : () -> ()
+"func.func"() <{sym_name = "test", function_type = i64, sym_visibility = "private", unit_attr}> {bool_attrs = array<i1: false, true>, int_attr = array<i32: 19, 23, 55>, float_attr = array<f32: 3.400000e-01>} : () -> ()
     """
 
     ctx = Context()
@@ -786,6 +797,44 @@ def test_float():
 
 
 @pytest.mark.parametrize(
+    "expected, value, type",
+    [
+        ("true", -1, IntegerType(1)),
+        ("false", 0, IntegerType(1)),
+        ("true", True, IntegerType(1)),
+        ("false", False, IntegerType(1)),
+        ("-1", -1, IntegerType(1, signedness=Signedness.SIGNED)),
+        ("0", 0, IntegerType(1, signedness=Signedness.SIGNED)),
+        ("1", True, IntegerType(1, signedness=Signedness.SIGNED)),
+        ("0", False, IntegerType(1, signedness=Signedness.SIGNED)),
+        ("-1", -1, IntegerType(32)),
+        ("0", 0, IntegerType(32)),
+        ("1", True, IntegerType(32)),
+        ("0", False, IntegerType(32)),
+        ("-1", -1, IntegerType(32, signedness=Signedness.SIGNED)),
+        ("0", 0, IntegerType(32, signedness=Signedness.SIGNED)),
+        ("1", True, IntegerType(32, signedness=Signedness.SIGNED)),
+        ("0", False, IntegerType(32, signedness=Signedness.SIGNED)),
+        ("-1", -1, IndexType()),
+        ("0", 0, IndexType()),
+        ("1", True, IndexType()),
+        ("0", False, IndexType()),
+        ("-1", -1, None),
+        ("0", 0, None),
+        ("1", True, None),
+        ("0", False, None),
+    ],
+)
+def test_int(expected: str, value: int, type: IntegerType | IndexType | None):
+    printer = Printer()
+    printer.stream = StringIO()
+
+    printer.print_int(value, type)
+
+    assert printer.stream.getvalue() == expected
+
+
+@pytest.mark.parametrize(
     "expected, value",
     [
         ("(-3.000000e+00,-3.000000e+00)", (-3.0, -3.0)),
@@ -813,6 +862,22 @@ def test_complex_int(expected: str, value: tuple[int, int]):
     io = StringIO()
     printer.stream = io
     type = ComplexType(i32)
+    printer.print_complex_int(value, type)
+    assert io.getvalue() == expected
+
+
+@pytest.mark.parametrize(
+    "expected, value",
+    [
+        ("(true,true)", (1, 1)),
+        ("(false,false)", (0, 0)),
+    ],
+)
+def test_complex_bool(expected: str, value: tuple[int, int]):
+    printer = Printer()
+    io = StringIO()
+    printer.stream = io
+    type = ComplexType(i1)
     printer.print_complex_int(value, type)
     assert io.getvalue() == expected
 
@@ -852,7 +917,7 @@ def test_float_attr():
 
         io_attr = StringIO()
         printer.stream = io_attr
-        printer.print_float_attr(FloatAttr(value, type))
+        FloatAttr(value, type).print_without_type(printer)
 
         assert io_float.getvalue() == io_attr.getvalue()
 
@@ -887,6 +952,23 @@ def test_float_attr_specials():
     _test_attr_print("0x7ff8000000000000 : f64", FloatAttr(float("nan"), 64))
     _test_attr_print("0x7ff0000000000000 : f64", FloatAttr(float("inf"), 64))
     _test_attr_print("0xfff0000000000000 : f64", FloatAttr(float("-inf"), 64))
+
+
+@pytest.mark.parametrize(
+    "dims, expected",
+    [
+        ([], ""),
+        ([1, 2, 3], "1x2x3"),
+        ([1, -1, 3, -1], "1x?x3x?"),
+        ([5], "5"),
+    ],
+)
+def test_print_dimension_list(dims: list[int], expected: str):
+    io = StringIO()
+    printer = Printer(stream=io)
+    printer.print_dimension_list(dims)
+
+    assert io.getvalue() == expected
 
 
 def test_print_function_type():
@@ -1013,6 +1095,47 @@ def test_get_printed_name():
     assert f"%{picked_name}" == printed.getvalue()
 
 
+def test_delimiters():
+    printer = Printer()
+
+    printer.stream = StringIO()
+    with printer.in_angle_brackets():
+        printer.print_string("testing")
+    assert "<testing>" == printer.stream.getvalue()
+
+    printer.stream = StringIO()
+    with printer.in_square_brackets():
+        printer.print_string("testing")
+    assert "[testing]" == printer.stream.getvalue()
+
+    printer.stream = StringIO()
+    with printer.in_braces():
+        printer.print_string("testing")
+    assert "{testing}" == printer.stream.getvalue()
+
+    printer.stream = StringIO()
+    with printer.in_parens():
+        printer.print_string("testing")
+    assert "(testing)" == printer.stream.getvalue()
+
+    printer.stream = StringIO()
+    with printer.delimited("test<", ">"):
+        printer.print_string("testing")
+    assert "test<testing>" == printer.stream.getvalue()
+
+
+def test_symbol_printing():
+    printer = Printer()
+
+    printer.stream = StringIO()
+    printer.print_symbol_name("symbol")
+    assert "@symbol" == printer.stream.getvalue()
+
+    printer.stream = StringIO()
+    printer.print_symbol_name("@symbol")
+    assert '@"@symbol"' == printer.stream.getvalue()
+
+
 def assert_print_op(
     operation: Operation,
     expected: str,
@@ -1072,5 +1195,5 @@ def assert_print_op(
         indent_num_spaces=indent_num_spaces,
     )
 
-    printer.print(operation)
+    printer.print_op(operation)
     assert file.getvalue().strip() == expected.strip()

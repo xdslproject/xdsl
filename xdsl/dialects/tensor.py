@@ -2,29 +2,37 @@ from __future__ import annotations
 
 import math
 from collections.abc import Mapping, Sequence
-from typing import Any, cast
+from typing import ClassVar, cast
 
 from typing_extensions import Self
 
 from xdsl.dialects import memref
 from xdsl.dialects.builtin import (
-    Annotated,
     AnySignlessIntegerOrIndexType,
     ArrayAttr,
-    ContainerType,
     DenseArrayBase,
     IndexType,
     IntegerAttr,
-    IntegerType,
+    ShapedType,
     TensorType,
     UnrankedTensorType,
     i64,
 )
+from xdsl.dialects.utils.dynamic_index_list import (
+    parse_dynamic_index_list_without_types,
+    print_dynamic_index_list,
+)
+from xdsl.dialects.utils.reshape_ops_utils import (
+    ContiguousArrayOfIntArray,
+    verify_reshape_like_types,
+)
 from xdsl.ir import Attribute, Dialect, Operation, SSAValue
 from xdsl.irdl import (
+    AnyAttr,
     AttrSizedOperandSegments,
     IRDLOperation,
     Operand,
+    VarConstraint,
     base,
     irdl_op_definition,
     operand_def,
@@ -35,17 +43,21 @@ from xdsl.irdl import (
 )
 from xdsl.parser import Parser
 from xdsl.printer import Printer
-from xdsl.traits import NoMemoryEffect
+from xdsl.traits import NoMemoryEffect, Pure
 from xdsl.utils.exceptions import VerifyException
 
 
 @irdl_op_definition
 class CastOp(IRDLOperation):
     """
+    Tensor cast operation.
+
     Convert a tensor from one type to an equivalent type without changing any data elements.
     The source and destination types must both be tensor types with the same element type.
     If both are ranked, then the rank should be the same and static dimensions should match.
     The operation is invalid if converting to a mismatching constant dimension.
+
+    https://mlir.llvm.org/docs/Dialects/TensorOps/#tensorcast-tensorcastop
     """
 
     name = "tensor.cast"
@@ -80,9 +92,13 @@ class CastOp(IRDLOperation):
 @irdl_op_definition
 class DimOp(IRDLOperation):
     """
+    Dimension index operation.
+
     The tensor.dim operation takes a tensor and a dimension operand of type index.
     It returns the size of the requested dimension of the given tensor.
-    If the dimension index is out of bounds, the behavior is undefined
+    If the dimension index is out of bounds, the behavior is undefined.
+
+    https://mlir.llvm.org/docs/Dialects/TensorOps/#tensordim-tensordimop
     """
 
     name = "tensor.dim"
@@ -93,7 +109,9 @@ class DimOp(IRDLOperation):
     index = operand_def(IndexType)
     result = result_def(IndexType)
 
-    traits = traits_def(NoMemoryEffect())
+    traits = traits_def(Pure())
+
+    assembly_format = "attr-dict $source `,` $index `:` type($source)"
 
     def __init__(
         self,
@@ -105,25 +123,6 @@ class DimOp(IRDLOperation):
             operands=(source, index), result_types=(IndexType(),), attributes=attributes
         )
 
-    def print(self, printer: Printer):
-        printer.print_op_attributes(self.attributes)
-        printer.print_string(" ")
-        printer.print_ssa_value(self.source)
-        printer.print_string(", ")
-        printer.print_ssa_value(self.index)
-        printer.print_string(" : ")
-        printer.print_attribute(self.source.type)
-
-    @classmethod
-    def parse(cls, parser: Parser) -> Self:
-        attributes = parser.parse_optional_attr_dict()
-        source = parser.parse_operand()
-        parser.parse_punctuation(",")
-        index = parser.parse_operand()
-        parser.parse_punctuation(":")
-        parser.parse_type()
-        return cls(source, index, attributes)
-
     def verify_(self):
         if isinstance((source_type := self.source.type), TensorType):
             if not len(source_type.get_shape()):
@@ -132,6 +131,17 @@ class DimOp(IRDLOperation):
 
 @irdl_op_definition
 class EmptyOp(IRDLOperation):
+    """
+    Empty tensor operation.
+
+    Defines a tensor of a particular shape which could be dynamic or static.
+    The contents of the tensor are unspecified and the only purpose of the op
+    result is to materialize the specified shape in IR and make it available
+    to other transformations.
+
+    https://mlir.llvm.org/docs/Dialects/TensorOps/#tensorempty-tensoremptyop
+    """
+
     name = "tensor.empty"
 
     dynamic_sizes = var_operand_def(IndexType)
@@ -181,18 +191,22 @@ class EmptyOp(IRDLOperation):
         return empty
 
 
-ReassociationAttr = ArrayAttr[
-    ArrayAttr[IntegerAttr[Annotated[IntegerType, IntegerType(64)]]]
-]
-
-
 @irdl_op_definition
 class CollapseShapeOp(IRDLOperation):
+    """
+    Operation to produce a tensor with a smaller rank.
+
+    The collapse_shape operation produces a new tensor of lower (or equal)
+    rank whose dimension sizes are a reassociation of the original src dimensions.
+
+    https://mlir.llvm.org/docs/Dialects/TensorOps/#tensorcollapse_shape-tensorcollapseshapeop
+    """
+
     name = "tensor.collapse_shape"
 
     src = operand_def(TensorType[Attribute])
     result = result_def(TensorType[Attribute])
-    reassociation = prop_def(ReassociationAttr)
+    reassociation = prop_def(ContiguousArrayOfIntArray())
     assembly_format = (
         "$src $reassociation attr-dict `:` type($src) `into` type($result)"
     )
@@ -202,11 +216,22 @@ class CollapseShapeOp(IRDLOperation):
 
 @irdl_op_definition
 class ReshapeOp(IRDLOperation):
+    """
+    Tensor reshape operation.
+
+    The reshape operation converts a tensor from one type to an equivalent
+    type with a provided shape. The source and destination types are compatible
+    if both have the same element type, same number of elements.
+
+    https://mlir.llvm.org/docs/Dialects/TensorOps/#tensorreshape-tensorreshapeop
+    """
+
     name = "tensor.reshape"
 
     source = operand_def(TensorType[Attribute])
     shape = operand_def(TensorType[AnySignlessIntegerOrIndexType])
     result = result_def(TensorType[Attribute])
+    assembly_format = "attr-dict $source `(` $shape `)` `:` `(` type($source) `,` type($shape) `)` `->` type($result)"
 
     traits = traits_def(NoMemoryEffect())
 
@@ -218,43 +243,6 @@ class ReshapeOp(IRDLOperation):
             ),
             result_types=(result_type,),
         )
-
-    def print(self, printer: Printer):
-        printer.print_string(" ")
-        printer.print_ssa_value(self.source)
-        printer.print_string("(")
-        printer.print_ssa_value(self.shape)
-        printer.print_string(")")
-        printer.print_string(" : ")
-        printer.print_string("(")
-        printer.print_attribute(self.source.type)
-        printer.print_string(", ")
-        printer.print_attribute(self.shape.type)
-        printer.print_string(")")
-        printer.print_string(" -> ")
-        printer.print_attribute(self.result.type)
-
-    @classmethod
-    def parse(cls, parser: Parser) -> Self:
-        attrs = parser.parse_optional_attr_dict()
-        source = parser.parse_operand()
-        parser.parse_punctuation("(")
-        shape = parser.parse_operand()
-        parser.parse_punctuation(")")
-        parser.parse_punctuation(":")
-        parser.parse_punctuation("(")
-        parser.parse_comma_separated_list(Parser.Delimiter.NONE, parser.parse_type)
-        parser.parse_punctuation(")")
-        parser.parse_optional_punctuation("->")
-        result_type = parser.parse_attribute()
-
-        reshape = cls(
-            source,
-            shape,
-            result_type,
-        )
-        reshape.attributes |= attrs
-        return reshape
 
     def verify_(self) -> None:
         if not isinstance(
@@ -294,16 +282,143 @@ class ReshapeOp(IRDLOperation):
 
 
 @irdl_op_definition
+class ExpandShapeOp(IRDLOperation):
+    """
+    Operation to produce a tensor with a higher rank.
+
+    The tensor.expand_shape op produces a tensor of higher (or equal)
+    rank than the operand src whose dimension sizes are a reassociation of src.
+
+    https://mlir.llvm.org/docs/Dialects/TensorOps/#tensorexpand_shape-tensorexpandshapeop
+    """
+
+    # Constant value used to denote dynamic indices in offsets, sizes, and strides.
+    # Same constant as in MLIR.
+    DYNAMIC_INDEX: ClassVar[int] = -9223372036854775808
+
+    name = "tensor.expand_shape"
+
+    src = operand_def(TensorType)
+    dynamic_output_shape = var_operand_def(IndexType)
+
+    reassociation = prop_def(ContiguousArrayOfIntArray())
+
+    static_output_shape = prop_def(DenseArrayBase.constr(i64))
+
+    result = result_def(TensorType[Attribute])
+
+    def __init__(
+        self,
+        src: SSAValue | Operation,
+        dynamic_output_shape: Sequence[SSAValue],
+        reassociation: ArrayAttr[ArrayAttr[IntegerAttr]],
+        static_output_shape: Sequence[int] | DenseArrayBase,
+        result_type: TensorType[Attribute],
+        attributes: dict[str, Attribute] | None = None,
+    ):
+        if not isinstance(static_output_shape, DenseArrayBase):
+            static_output_shape = DenseArrayBase.from_list(i64, static_output_shape)
+
+        super().__init__(
+            operands=[src, dynamic_output_shape],
+            result_types=[result_type],
+            properties={
+                "reassociation": reassociation,
+                "static_output_shape": static_output_shape,
+            },
+            attributes=attributes,
+        )
+
+    def verify_(self):
+        assert isinstance(self.src.type, ShapedType)
+        assert isinstance(self.result.type, ShapedType)
+
+        # make sure the static output shape matches the result type
+        if len(self.static_output_shape) != len(self.result.type.get_shape()):
+            raise VerifyException(
+                "expected number of static shape dims to be equal to the output rank "
+                f"({len(self.result.type.get_shape())}) but found {len(self.static_output_shape)} inputs instead"
+            )
+
+        verify_reshape_like_types(
+            collapsed_type=self.src.type,
+            expanded_type=self.result.type,
+            reassociation=self.reassociation,
+        )
+
+    @classmethod
+    def parse(cls, parser: Parser) -> Self:
+        src_operand = parser.parse_unresolved_operand()
+
+        reassociation = parser.parse_attribute()
+        parser.parse_characters("output_shape")
+        index = IndexType()
+
+        # Parse shape: mixture of ints and SSA values
+        dyn_shape, static_shape = parse_dynamic_index_list_without_types(
+            parser, dynamic_index=cls.DYNAMIC_INDEX
+        )
+
+        dyn_shape = parser.resolve_operands(
+            dyn_shape, (index,) * len(dyn_shape), parser.pos
+        )
+
+        attributes = parser.parse_optional_attr_dict()
+
+        parser.parse_punctuation(":")
+        src_type = parser.parse_type()
+        parser.parse_characters("into")
+        result_type = parser.parse_type()
+        src = parser.resolve_operand(src_operand, src_type)
+
+        shape_attr = DenseArrayBase.from_list(i64, static_shape)
+
+        reassociation = cast(ArrayAttr[ArrayAttr[IntegerAttr]], reassociation)
+        result_type = cast(TensorType[Attribute], result_type)
+
+        return cls(src, dyn_shape, reassociation, shape_attr, result_type, attributes)
+
+    def print(self, printer: Printer):
+        printer.print_string(" ")
+        printer.print_ssa_value(self.src)
+        printer.print_string(" ")
+        printer.print_attribute(self.reassociation)
+        printer.print_string(" output_shape ")
+        print_dynamic_index_list(
+            printer,
+            self.DYNAMIC_INDEX,
+            self.dynamic_output_shape,
+            self.static_output_shape.get_values(),
+        )
+
+        printer.print_op_attributes(attributes=self.attributes)
+
+        printer.print_string(" : ")
+        printer.print_attribute(self.src.type)
+        printer.print_string(" into ")
+        printer.print_attribute(self.result.type)
+
+
+@irdl_op_definition
 class ExtractSliceOp(IRDLOperation):
+    """
+    Extract slice operation.
+
+    Extracts a tensor from another tensor as specified by the operation’s
+    offsets, sizes and strides arguments.
+
+    https://mlir.llvm.org/docs/Dialects/TensorOps/#tensorextract_slice-tensorextractsliceop
+    """
+
     name = "tensor.extract_slice"
 
     source = operand_def(TensorType)
     offsets = var_operand_def(IndexType)
     sizes = var_operand_def(IndexType)
     strides = var_operand_def(IndexType)
-    static_offsets = prop_def(DenseArrayBase)
-    static_sizes = prop_def(DenseArrayBase)
-    static_strides = prop_def(DenseArrayBase)
+    static_offsets = prop_def(DenseArrayBase.constr(i64))
+    static_sizes = prop_def(DenseArrayBase.constr(i64))
+    static_strides = prop_def(DenseArrayBase.constr(i64))
     result = result_def(TensorType)
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
@@ -320,17 +435,15 @@ class ExtractSliceOp(IRDLOperation):
     ) -> ExtractSliceOp:
         if strides is None:
             strides = [1] * len(offsets)
-        source_v = SSAValue.get(source)
+        source_v = SSAValue.get(source, type=TensorType)
         source_t = source_v.type
-        if not isinstance(source_t, ContainerType):
-            raise ValueError(f"Expected ContainerType, got {source_t}")
 
         if reduce_rank:
             result_sizes = list(s for s in sizes if s != 1)
         else:
             result_sizes = list(sizes)
 
-        return_type = TensorType[Any](source_t.get_element_type(), result_sizes)
+        return_type = TensorType(source_t.get_element_type(), result_sizes)
 
         return ExtractSliceOp.build(
             operands=[source, [], [], []],
@@ -345,6 +458,16 @@ class ExtractSliceOp(IRDLOperation):
 
 @irdl_op_definition
 class InsertSliceOp(IRDLOperation):
+    """
+    Insert_slice operation.
+
+    The insert_slice operation insert a tensor, source, into another tensor, dest,
+    as specified by the operation’s offsets, sizes and strides arguments. It
+    returns a copy of dest with the proper slice updated with the value of source.
+
+    https://mlir.llvm.org/docs/Dialects/TensorOps/#tensorinsert_slice-tensorinsertsliceop
+    """
+
     name = "tensor.insert_slice"
 
     source = operand_def(TensorType)
@@ -352,9 +475,9 @@ class InsertSliceOp(IRDLOperation):
     offsets = var_operand_def(IndexType)
     sizes = var_operand_def(IndexType)
     strides = var_operand_def(IndexType)
-    static_offsets = prop_def(DenseArrayBase)
-    static_sizes = prop_def(DenseArrayBase)
-    static_strides = prop_def(DenseArrayBase)
+    static_offsets = prop_def(DenseArrayBase.constr(i64))
+    static_sizes = prop_def(DenseArrayBase.constr(i64))
+    static_strides = prop_def(DenseArrayBase.constr(i64))
     result = result_def(TensorType)
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
@@ -437,6 +560,17 @@ class InsertSliceOp(IRDLOperation):
 
 @irdl_op_definition
 class ExtractOp(IRDLOperation):
+    """
+    Element extraction operation.
+
+    The tensor.extract op reads a ranked tensor and returns one element as specified
+    by the given indices. The result of the op is a value with the same type as the
+    elements of the tensor. The arity of indices must match the rank of the accessed
+    value. All indices should all be of index type.
+
+    https://mlir.llvm.org/docs/Dialects/TensorOps/#tensorextract-tensorextractop
+    """
+
     name = "tensor.extract"
 
     tensor = operand_def(TensorType)
@@ -477,6 +611,16 @@ class ExtractOp(IRDLOperation):
 
 @irdl_op_definition
 class InsertOp(IRDLOperation):
+    """
+    Element insertion operation.
+
+    The tensor.insert op inserts a scalar into a ranked tensor, dest, as
+    specified by the operation’s indices. It returns a copy of dest with the
+    indexed position updated to the value of scalar.
+
+    https://mlir.llvm.org/docs/Dialects/TensorOps/#tensorinsert-tensorinsertop
+    """
+
     name = "tensor.insert"
 
     scalar = operand_def(Attribute)
@@ -519,18 +663,80 @@ class InsertOp(IRDLOperation):
         return cls(scalar, dest, indices)
 
 
+@irdl_op_definition
+class FromElementsOp(IRDLOperation):
+    """
+    Tensor from elements operation.
+
+    Create a N-D tensor from a range of same-type arguments. The number of provided
+    elements should equal to the number of the elements in the result type.
+    The elements correspond to a flattened tensor.
+
+    https://mlir.llvm.org/docs/Dialects/TensorOps/#tensorfrom_elements-tensorfromelementsop
+    """
+
+    name = "tensor.from_elements"
+
+    ELEMENT_TYPE: ClassVar = VarConstraint("ELEMENT_TYPE", AnyAttr())
+
+    elements = var_operand_def(ELEMENT_TYPE)
+    result = result_def(TensorType.constr(ELEMENT_TYPE))
+    assembly_format = "$elements attr-dict `:` type($result)"
+
+
+@irdl_op_definition
+class SplatOp(IRDLOperation):
+    """
+    Tensor splat or broadcast operation.
+
+    Broadcast the operand to all elements of the result tensor. An additional
+    argument of type index must be provided for each dynamic dimension present
+    in the result type.
+
+    https://mlir.llvm.org/docs/Dialects/TensorOps/#tensorsplat-tensorsplatop
+    """
+
+    name = "tensor.splat"
+
+    SPLAT_TYPE: ClassVar = VarConstraint("SPLAT_TYPE", AnyAttr())
+
+    input = operand_def(SPLAT_TYPE)
+    dynamicSizes = var_operand_def(IndexType)
+    result = result_def(TensorType.constr(SPLAT_TYPE))
+    assembly_format = "$input (`[` $dynamicSizes^ `]`)? attr-dict `:` type($result)"
+
+    traits = traits_def(NoMemoryEffect())
+
+    def __init__(
+        self,
+        input: SSAValue,
+        dynamicSizes: Sequence[SSAValue | Operation],
+        result_type: TensorType[Attribute],
+    ):
+        super().__init__(operands=(input, dynamicSizes), result_types=(result_type,))
+
+    def verify_(self):
+        if self.result.type.get_shape().count(-1) != len(self.dynamicSizes):
+            raise VerifyException(
+                "number of dynamic sizes must equal number of unknown dimensions in result tensor"
+            )
+
+
 Tensor = Dialect(
     "tensor",
     [
         CastOp,
+        CollapseShapeOp,
         DimOp,
         EmptyOp,
+        ExpandShapeOp,
+        ExtractOp,
         ExtractSliceOp,
+        FromElementsOp,
+        InsertOp,
         InsertSliceOp,
         ReshapeOp,
-        CollapseShapeOp,
-        ExtractOp,
-        InsertOp,
+        SplatOp,
     ],
     [],
 )

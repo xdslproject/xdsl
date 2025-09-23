@@ -19,8 +19,7 @@ from xdsl.dialects.builtin import (
 from xdsl.interactive import _pasteboard
 from xdsl.interactive.add_arguments_screen import AddArguments
 from xdsl.interactive.app import InputApp
-from xdsl.interactive.passes import AvailablePass, get_condensed_pass_list
-from xdsl.interactive.rewrites import get_all_possible_rewrites
+from xdsl.interactive.passes import get_condensed_pass_list, get_new_registered_context
 from xdsl.ir import Block, Region
 from xdsl.transforms import (
     get_all_passes,
@@ -52,13 +51,13 @@ async def test_inputs():
         await pilot.pause()
         assert (
             app.output_text_area.text
-            == "<unknown>:1:5\ndkjfd\n     ^\n     Operation builtin.unregistered does not have a custom format.\n"
+            == "<unknown>:1:6\ndkjfd\n     ^\n     Operation builtin.unregistered does not have a custom format.\n"
         )
 
         assert isinstance(app.current_module, ParseError)
         assert (
             str(app.current_module)
-            == "<unknown>:1:5\ndkjfd\n     ^\n     Operation builtin.unregistered does not have a custom format.\n"
+            == "<unknown>:1:6\ndkjfd\n     ^\n     Operation builtin.unregistered does not have a custom format.\n"
         )
 
         # Test corect input
@@ -189,9 +188,9 @@ builtin.module {
     %res_1 = builtin.unrealized_conversion_cast %two_1 : index to !riscv.reg
     %res_2 = riscv.mul %res, %res_1 : (!riscv.reg, !riscv.reg) -> !riscv.reg
     %res_3 = builtin.unrealized_conversion_cast %res_2 : !riscv.reg to index
-    %1 = builtin.unrealized_conversion_cast %res_3 : index to !riscv.reg
-    %2 = riscv.mv %1 : (!riscv.reg) -> !riscv.reg<a0>
-    riscv_func.return %2 : !riscv.reg<a0>
+    %res_4 = builtin.unrealized_conversion_cast %res_3 : index to !riscv.reg
+    %1 = riscv.mv %res_4 : (!riscv.reg) -> !riscv.reg<a0>
+    riscv_func.return %1 : !riscv.reg<a0>
   }
 }
 """
@@ -222,9 +221,9 @@ builtin.module {
     %n_1 = builtin.unrealized_conversion_cast %0 : !riscv.reg to index
     %two = arith.constant 2 : index
     %res = arith.muli %n_1, %two : index
-    %1 = builtin.unrealized_conversion_cast %res : index to !riscv.reg
-    %2 = riscv.mv %1 : (!riscv.reg) -> !riscv.reg<a0>
-    riscv_func.return %2 : !riscv.reg<a0>
+    %res_1 = builtin.unrealized_conversion_cast %res : index to !riscv.reg
+    %1 = riscv.mv %res_1 : (!riscv.reg) -> !riscv.reg<a0>
+    riscv_func.return %1 : !riscv.reg<a0>
   }
 }
 """
@@ -273,12 +272,14 @@ builtin.module {
         await pilot.pause()
         # assert after "Condense Button" is clicked that the state and condensed_pass list change accordingly
         assert app.condense_mode is True
-        rewrites = get_all_possible_rewrites(
-            expected_module,
-            individual_rewrite.INDIVIDUAL_REWRITE_PATTERNS_BY_NAME,
+        ctx = get_new_registered_context(app.all_dialects)
+        rewrites = individual_rewrite.ApplyIndividualRewritePass.schedule_space(
+            ctx, expected_module
         )
         assert app.available_pass_list == get_condensed_pass_list(
-            expected_module, app.all_passes
+            ctx,
+            expected_module,
+            app.all_passes,
         ) + tuple(rewrites)
 
         # press "Uncondense" button
@@ -315,19 +316,14 @@ async def test_rewrites():
         # press "Condense" button
         await pilot.click("#condense_button")
 
-        addi_pass = AvailablePass(
-            display_name="AddiOp(%res = arith.addi %n, %c0 : i32):arith.addi:SignlessIntegerBinaryOperationZeroOrUnitRight",
-            module_pass=individual_rewrite.ApplyIndividualRewritePass(
-                3, "arith.addi", "SignlessIntegerBinaryOperationZeroOrUnitRight"
-            ),
-        )
-
         await pilot.pause()
         # assert after "Condense Button" is clicked that the state and get_condensed_pass list change accordingly
         assert app.condense_mode is True
         assert isinstance(app.current_module, ModuleOp)
-        condensed_list = get_condensed_pass_list(app.current_module, app.all_passes) + (
-            addi_pass,
+        condensed_list = get_condensed_pass_list(
+            get_new_registered_context(app.all_dialects),
+            app.current_module,
+            app.all_passes,
         )
         assert app.available_pass_list == condensed_list
 
@@ -405,9 +401,9 @@ async def test_passes():
     %n_1 = builtin.unrealized_conversion_cast %0 : !riscv.reg to index
     %two = arith.constant 2 : index
     %res = arith.muli %n_1, %two : index
-    %1 = builtin.unrealized_conversion_cast %res : index to !riscv.reg
-    %2 = riscv.mv %1 : (!riscv.reg) -> !riscv.reg<a0>
-    riscv_func.return %2 : !riscv.reg<a0>
+    %res_1 = builtin.unrealized_conversion_cast %res : index to !riscv.reg
+    %1 = riscv.mv %res_1 : (!riscv.reg) -> !riscv.reg<a0>
+    riscv_func.return %1 : !riscv.reg<a0>
   }
 }
 """
@@ -507,7 +503,15 @@ async def test_dark_mode():
 async def test_apply_individual_rewrite():
     """Tests that using the tree to apply an individual rewrite works"""
 
-    async with InputApp(tuple(get_all_dialects().items()), ()).run_test() as pilot:
+    async with InputApp(
+        tuple(get_all_dialects().items()),
+        (
+            (
+                "apply-individual-rewrite",
+                individual_rewrite.ApplyIndividualRewritePass,
+            ),
+        ),
+    ).run_test() as pilot:
         app = cast(InputApp, pilot.app)
         # clear preloaded code and unselect preselected pass
         app.input_text_area.clear()
@@ -523,8 +527,7 @@ async def test_apply_individual_rewrite():
 }
         """
         )
-        app.passes_tree.root.expand()
-        await pilot.pause()
+        await pilot.click("#condense_button")
 
         node = None
         for n in app.passes_tree.root.children:

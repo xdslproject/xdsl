@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.11.10"
+__generated_with = "0.13.6"
 app = marimo.App()
 
 
@@ -47,10 +47,10 @@ def _(mo):
 def _(mo):
     mo.md(
         r"""
-        In xDSL, ops often define a custom `__init__` constructor to make operation creation easier.
+    In xDSL, ops often define a custom `__init__` constructor to make operation creation easier.
 
-        For example, here is the API for creating an `arith.constant` instance:
-        """
+    For example, here is the API for creating an `arith.constant` instance:
+    """
     )
     return
 
@@ -72,12 +72,12 @@ def _(mo):
 def _(AddiOp, c0):
     addi = AddiOp(c0.result, c0.result)
     addi
-    return (addi,)
+    return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""Generally, it is recommended to look at the definition of the operation you would like to create to see the API. Here is the xDSL generated documentation for the [`arith` dialect](https://xdsl.readthedocs.io/en/latest/reference/xdsl.dialects.arith.html) and the [`scf` dialect](https://xdsl.readthedocs.io/en/latest/reference/xdsl.dialects.scf.html).""")
+    mo.md(r"""Generally, it is recommended to look at the definition of the operation you would like to create to see the API. Here is the xDSL generated documentation for the [`arith` dialect](https://xdsl.readthedocs.io/stable/reference/dialects/arith/) and the [`scf` dialect](https://xdsl.readthedocs.io/stable/reference/dialects/scf/).""")
     return
 
 
@@ -91,12 +91,12 @@ def _(mo):
 def _(mo):
     mo.md(
         r"""
-        A `Builder` insert new operations at a given insertion point (A position before an operation, or at the end of a block). Whenever a builder inserts a new operation, it updates its insertion point to be after the inserted operation.
+    A `Builder` insert new operations at a given insertion point (A position before an operation, or at the end of a block). Whenever a builder inserts a new operation, it updates its insertion point to be after the inserted operation.
 
-        The `Builder` constructor takes a single argument, which is an `InsertPoint`. An `InsertPoint` can be created using the static methods `before`, `after`, `at_start`, and `at_end`.
+    The `Builder` constructor takes a single argument, which is an `InsertPoint`. An `InsertPoint` can be created using the static methods `before`, `after`, `at_start`, and `at_end`.
 
-        Let's look at the following program:
-        """
+    Let's look at the following program:
+    """
     )
     return
 
@@ -138,14 +138,7 @@ def _(Builder, ConstantOp, InsertPoint, IntegerAttr, IntegerType, module):
     builder2.insert(ConstantOp(IntegerAttr(5, IntegerType(64))))
 
     None
-    return (
-        block_cloned,
-        builder1,
-        builder2,
-        cst0_cloned,
-        cst1_cloned,
-        module_cloned,
-    )
+    return (module_cloned,)
 
 
 @app.cell
@@ -158,10 +151,10 @@ def _(module_cloned):
 def _(mo):
     mo.md(
         r"""
-        ## Small exercise
+    ## Small exercise
 
-        As a simple task, insert the program so the operations are read in order `0, 1, 2, 3, 4, 5, 6, 7`
-        """
+    As a simple task, insert the program so the operations are read in order `0, 1, 2, 3, 4, 5, 6, 7`
+    """
     )
     return
 
@@ -188,7 +181,7 @@ def _(module2):
     cst6 = cst4.next_op
 
     # Use the builder here
-    return block, cst1, cst4, cst6, module2_cloned
+    return
 
 
 if __name__ == "__main__":

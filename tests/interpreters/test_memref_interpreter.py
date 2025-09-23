@@ -56,7 +56,7 @@ def test_memref_get_global():
         memref.GlobalOp.get(
             StringAttr("my_global"),
             memref_type,
-            DenseIntOrFPElementsAttr.create_dense_int(tensor_type, [1, 2, 3, 4]),
+            DenseIntOrFPElementsAttr.from_list(tensor_type, [1, 2, 3, 4]),
             sym_visibility=StringAttr("public"),
         )
         with ImplicitBuilder(func.FuncOp("main", ((), ())).body):

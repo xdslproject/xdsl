@@ -1,6 +1,5 @@
-from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import TypeGuard
+from typing import Any, TypeGuard
 
 from xdsl.context import Context
 from xdsl.dialects import builtin, varith
@@ -15,7 +14,6 @@ from xdsl.dialects.builtin import (
     DenseIntOrFPElementsAttr,
     FloatAttr,
     IndexType,
-    IntAttr,
     IntegerType,
     ModuleOp,
     ShapedType,
@@ -60,7 +58,7 @@ from xdsl.rewriter import InsertPoint
 from xdsl.utils.hints import isa
 
 
-def get_required_result_type(op: Operation) -> TensorType[Attribute] | None:
+def get_required_result_type(op: Operation) -> TensorType[Any] | None:
     for result in op.results:
         for use in result.uses:
             if (
@@ -69,20 +67,16 @@ def get_required_result_type(op: Operation) -> TensorType[Attribute] | None:
             ):
                 for ret in p_op.results:
                     if is_tensorized(ret.type):
-                        if isa(ret.type, TempType[Attribute]) and isa(
-                            r_type := ret.type.get_element_type(), TensorType[Attribute]
+                        if isa(ret.type, TempType) and isa(
+                            r_type := ret.type.get_element_type(), TensorType
                         ):
                             return r_type
                 # abort when encountering an un-tensorized ReturnOp successor
                 return None
-            if (
-                isinstance(use.operation, InsertSliceOp)
-                and is_tensor(use.operation.result.type)
-                and isa(
-                    static_sizes := use.operation.static_sizes.get_values(),
-                    tuple[int, ...],
-                )
+            if isinstance(use.operation, InsertSliceOp) and is_tensor(
+                use.operation.result.type
             ):
+                static_sizes = use.operation.static_sizes.get_values()
                 assert is_tensor(use.operation.source.type)
                 # inserting an (n-1)d tensor into an (n)d tensor should not require the input tensor to also be (n)d
                 # instead, drop the first `dimdiff` dimensions
@@ -92,7 +86,7 @@ def get_required_result_type(op: Operation) -> TensorType[Attribute] | None:
                     static_sizes[dimdiff:],
                 )
             for ret in use.operation.results:
-                if isa(r_type := ret.type, TensorType[Attribute]):
+                if isa(r_type := ret.type, TensorType):
                     return r_type
 
 
@@ -205,7 +199,7 @@ class ArithOpTensorize(RewritePattern):
             assert isinstance(float_attr := scalar_op.op.value, FloatAttr)
             scalar_value = float_attr.value.data
             tens_const = ConstantOp(
-                DenseIntOrFPElementsAttr.create_dense_float(dest_typ, scalar_value)
+                DenseIntOrFPElementsAttr.from_list(dest_typ, [scalar_value])
             )
             rewriter.insert_op(tens_const, InsertPoint.before(scalar_op.op))
             return tens_const.result
@@ -364,14 +358,9 @@ class ExtractSliceOpUpdateShape(RewritePattern):
     def match_and_rewrite(self, op: ExtractSliceOp, rewriter: PatternRewriter, /):
         if typ := get_required_result_type(op):
             if needs_update_shape(op.result.type, typ):
-                if isa(offsets := op.static_offsets.get_values(), Sequence[IntAttr]):
-                    new_offsets = [o.data for o in offsets]
-                else:
-                    assert isa(offsets, Sequence[int])
-                    new_offsets = offsets
                 rewriter.replace_matched_op(
                     ExtractSliceOp.from_static_parameters(
-                        op.source, new_offsets, typ.get_shape()
+                        op.source, op.static_offsets.get_values(), typ.get_shape()
                     )
                 )
 
@@ -434,7 +423,7 @@ class ConstOpUpdateShape(RewritePattern):
                 if needs_update_shape(op.result.type, typ):
                     assert isinstance(op.value, DenseIntOrFPElementsAttr)
                     rewriter.replace_matched_op(
-                        ConstantOp(DenseIntOrFPElementsAttr([typ, op.value.data]))
+                        ConstantOp(DenseIntOrFPElementsAttr(typ, op.value.data))
                     )
 
 

@@ -319,7 +319,7 @@ class TblgenLoader:
                 return "BaseAttr(BoolAttr)"
             case "IndexAttr":
                 return textwrap.dedent("""
-                IntegerAttr.constr(type=IndexTypeConstr)
+                IntegerAttr.constr(IndexTypeConstr)
                 """)
 
             case "APIntAttr":
@@ -330,7 +330,7 @@ class TblgenLoader:
             case "StrAttr":
                 return "BaseAttr(StringAttr)"
             case "SymbolNameAttr":
-                return "BaseAttr(SymbolNameAttr)"
+                return "SymbolNameConstraint()"
             case "UnitAttr":
                 return "EqAttrConstraint(UnitAttr())"
             case _:
@@ -350,7 +350,7 @@ class TblgenLoader:
             or "UnsignedIntegerAttrBase" in rec.superclasses
         ):
             return textwrap.dedent(f"""
-            IntegerAttr.constr(type={self._resolve_type_constraint(rec["valueType"]["def"])})
+            IntegerAttr.constr({self._resolve_type_constraint(rec["valueType"]["def"])})
             """)
 
         if "FloatAttrBase" in rec.superclasses:

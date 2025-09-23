@@ -12,7 +12,7 @@ from xdsl.dialects.builtin import (
     MemRefType,
     ModuleOp,
 )
-from xdsl.ir import Attribute, Block, Region
+from xdsl.ir import Block, Region
 from xdsl.ir.affine import AffineMap
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
@@ -35,7 +35,7 @@ class GeneralizeFillPattern(RewritePattern):
 
         assert isinstance(memref_type := op.memref.type, memref.MemRefType)
 
-        memref_type = cast(MemRefType[Attribute], memref_type)
+        memref_type = cast(MemRefType, memref_type)
 
         shape = memref_type.get_shape()
         index = IndexType()

@@ -9,12 +9,21 @@ from typing import IO, Any
 
 from xdsl.context import Context
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.passes import ModulePass, PipelinePass
+from xdsl.ir import Attribute
+from xdsl.passes import ModulePass, PassPipeline
 from xdsl.printer import Printer
 from xdsl.tools.command_line_tool import CommandLineTool
-from xdsl.transforms import get_all_passes
-from xdsl.utils.exceptions import DiagnosticException, ShrinkException
-from xdsl.utils.parse_pipeline import parse_pipeline
+from xdsl.universe import Universe
+from xdsl.utils.exceptions import DiagnosticException, ParseError, ShrinkException
+from xdsl.utils.lexer import Span
+
+
+def _empty_post_init(self: Attribute):
+    """
+    An empty 'post_init' function.
+    Used to replace the default 'post_init' on 'Attribute' when verification is disabled.
+    """
+    pass
 
 
 class xDSLOptMain(CommandLineTool):
@@ -29,7 +38,7 @@ class xDSLOptMain(CommandLineTool):
     stream.
     """
 
-    pipeline: PipelinePass
+    pipeline: PassPipeline
     """ The pass-pipeline to be applied. """
 
     def __init__(
@@ -54,6 +63,9 @@ class xDSLOptMain(CommandLineTool):
 
         self.ctx.allow_unregistered = self.args.allow_unregistered_dialect
 
+        if self.args.disable_verify:
+            Attribute.__post_init__ = _empty_post_init
+
         self.setup_pipeline()
 
     def run(self):
@@ -73,6 +85,22 @@ class xDSLOptMain(CommandLineTool):
                         if self.apply_passes(module):
                             output_stream.write(self.output_resulting_program(module))
                     output_stream.flush()
+                except ParseError as e:
+                    s = e.span
+                    e.span = Span(s.start, s.end, s.input, offset)
+                    if self.args.parsing_diagnostics:
+                        print(e)
+                    else:
+                        raise
+                except DiagnosticException as e:
+                    if self.args.verify_diagnostics:
+                        print(e)
+                        # __notes__ only in Python 3.11 and above
+                        if hasattr(e, "__notes__"):
+                            for e in getattr(e, "__notes__"):
+                                print(e)
+                    else:
+                        raise
                 finally:
                     chunk.close()
         except ShrinkException:
@@ -197,7 +225,8 @@ class xDSLOptMain(CommandLineTool):
 
         Add other/additional passes by overloading this function.
         """
-        for pass_name, pass_factory in get_all_passes().items():
+        multiverse = Universe.get_multiverse()
+        for pass_name, pass_factory in multiverse.all_passes.items():
             self.register_pass(pass_name, pass_factory)
 
     def register_all_targets(self):
@@ -220,6 +249,7 @@ class xDSLOptMain(CommandLineTool):
                 print_debuginfo=self.args.print_debuginfo,
             )
             printer.print_op(prog)
+            printer.print_metadata(self.ctx.loaded_dialects)
             print("\n", file=output)
 
         def _output_riscv_asm(prog: ModuleOp, output: IO[str]):
@@ -304,13 +334,9 @@ class xDSLOptMain(CommandLineTool):
                 printer.print_op(module)
                 print("\n\n\n")
 
-        self.pipeline = PipelinePass(
-            tuple(
-                pass_type.from_pass_spec(spec)
-                for pass_type, spec in PipelinePass.build_pipeline_tuples(
-                    self.available_passes, parse_pipeline(self.args.passes)
-                )
-            ),
+        self.pipeline = PassPipeline.parse_spec(
+            self.available_passes,
+            self.args.passes,
             callback,
         )
 
@@ -342,7 +368,7 @@ class xDSLOptMain(CommandLineTool):
         if file_extension not in self.available_frontends:
             for chunk, _ in chunks:
                 chunk.close()
-            raise Exception(f"Unrecognized file extension '{file_extension}'")
+            raise ValueError(f"Unrecognized file extension '{file_extension}'")
 
         return chunks, file_extension
 
@@ -354,34 +380,17 @@ class xDSLOptMain(CommandLineTool):
 
     def apply_passes(self, prog: ModuleOp) -> bool:
         """Apply passes in order."""
-        try:
-            assert isinstance(prog, ModuleOp)
-            if not self.args.disable_verify:
-                prog.verify()
-            self.pipeline.apply(self.ctx, prog)
-            if not self.args.disable_verify:
-                prog.verify()
-        except DiagnosticException as e:
-            if self.args.verify_diagnostics:
-                print(e)
-                return False
-            else:
-                raise
+        if not self.args.disable_verify:
+            prog.verify()
+        self.pipeline.apply(self.ctx, prog)
+        if not self.args.disable_verify:
+            prog.verify()
         return True
 
     def output_resulting_program(self, prog: ModuleOp) -> str:
         """Get the resulting program."""
         output = StringIO()
-        if self.args.target not in self.available_targets:
-            raise Exception(f"Unknown target {self.args.target}")
-
-        try:
-            self.available_targets[self.args.target](prog, output)
-        except DiagnosticException as e:
-            if self.args.verify_diagnostics:
-                return f"{e}\n"
-            else:
-                raise
+        self.available_targets[self.args.target](prog, output)
         return output.getvalue()
 
 

@@ -14,7 +14,7 @@ from xdsl.dialects.arith import (
 from xdsl.dialects.builtin import Builtin, IntegerAttr, IntegerType, ModuleOp
 from xdsl.ir import Region
 from xdsl.ir.post_order import PostOrderIterator
-from xdsl.irdl import VarIRConstruct, get_variadic_sizes
+from xdsl.irdl import VarIRConstruct, verify_variadic_size
 from xdsl.parser import Parser as XdslParser
 from xdsl.pattern_rewriter import PatternRewriter, Worklist
 from xdsl.rewriter import InsertPoint
@@ -30,12 +30,18 @@ from xdsl.transforms.dead_code_elimination import (
     result_only_effects,
     would_be_trivially_dead,
 )
+from xdsl.transforms.test_constant_folding import (
+    TestConstantFoldingPass,
+    TestSpecialisedConstantFoldingPass,
+)
 
 CTX = Context(allow_unregistered=True)
 CTX.load_dialect(Arith)
 CTX.load_dialect(Builtin)
 
 CANONICALIZE_PASS = CanonicalizePass()
+CONSTANT_FOLDING_SIMPLE_PASS = TestConstantFoldingPass()
+CONSTANT_FOLDING_SPECIALISED_PASS = TestSpecialisedConstantFoldingPass()
 
 
 def parse_module(context: Context, contents: str) -> ModuleOp:
@@ -68,6 +74,14 @@ class ConstantFolding:
     def time_constant_folding_20(self) -> None:
         """Time canonicalizing constant folding for 20 items."""
         CANONICALIZE_PASS.apply(CTX, self.workload_constant_20)
+
+    def time_constant_folding_simple_20(self) -> None:
+        """Time simple constant folding for 20 items."""
+        CONSTANT_FOLDING_SIMPLE_PASS.apply(CTX, self.workload_constant_20)
+
+    def time_constant_folding_specialised_20(self) -> None:
+        """Time simple constant folding for 20 items."""
+        CONSTANT_FOLDING_SPECIALISED_PASS.apply(CTX, self.workload_constant_20)
 
     def setup_constant_folding_100(self) -> None:
         """Setup the constant folding 100 items benchmark."""
@@ -174,14 +188,14 @@ class PatternRewriting(RewritingMicrobenchmarks):
         """
         self.pattern_rewriter.insert_op((self.sub_op,), self.insert_point)
 
-    def time_get_variadic_sizes(self) -> None:
-        """Time `get_variadic_sizes`.
+    def time_verify_variadic_size(self) -> None:
+        """Time `verify_variadic_size`.
 
-        Exercise getting the variadic size of an operation, including a
+        Exercise verifying the variadic size of an operation, including a
         significant amount of logic to check lengths and types. This is invoked
-        whenever an operation argument is defined with `irdl_op_arg_definition`.
+        4 times whenever an operation is verified.
         """
-        get_variadic_sizes(self.add_op, self.add_op_def, self.add_op_construct)
+        verify_variadic_size(self.add_op, self.add_op_def, self.add_op_construct)
 
 
 class Canonicalization(RewritingMicrobenchmarks):
@@ -371,7 +385,15 @@ if __name__ == "__main__":
         {
             "ConstantFolding.20": Benchmark(
                 CONSTANT_FOLDING.time_constant_folding_20,
-                CONSTANT_FOLDING.setup,
+                CONSTANT_FOLDING.setup_constant_folding_20,
+            ),
+            "ConstantFoldingSimple.20": Benchmark(
+                CONSTANT_FOLDING.time_constant_folding_simple_20,
+                CONSTANT_FOLDING.setup_constant_folding_20,
+            ),
+            "ConstantFoldingSpecialised.20": Benchmark(
+                CONSTANT_FOLDING.time_constant_folding_specialised_20,
+                CONSTANT_FOLDING.setup_constant_folding_20,
             ),
             "ConstantFolding.100": Benchmark(
                 CONSTANT_FOLDING.time_constant_folding_100,
@@ -403,8 +425,8 @@ if __name__ == "__main__":
                 GENERAL.ignore_time_pattern_rewriter_insert_op,
                 GENERAL.setup,
             ),
-            "General.get_variadic_sizes": Benchmark(
-                GENERAL.time_get_variadic_sizes, GENERAL.setup
+            "General.verify_variadic_size": Benchmark(
+                GENERAL.time_verify_variadic_size, GENERAL.setup
             ),
             "Canonicalization.operation_drop_all_references": Benchmark(
                 CANONICALIZATION.ignore_time_operation_drop_all_references,

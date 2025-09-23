@@ -38,11 +38,10 @@ from xdsl.ir import (
 )
 from xdsl.irdl import (
     AnyAttr,
+    AttrConstraint,
     AttrSizedOperandSegments,
-    GenericAttrConstraint,
     IRDLOperation,
     ParamAttrConstraint,
-    ParameterDef,
     VarConstraint,
     irdl_attr_definition,
     irdl_op_definition,
@@ -72,25 +71,21 @@ _StreamTypeElement = TypeVar(
 
 @irdl_attr_definition
 class ReadableStreamType(
-    Generic[_StreamTypeElement],
     ParametrizedAttribute,
     TypeAttribute,
     ContainerType[_StreamTypeElement],
+    Generic[_StreamTypeElement],
 ):
     name = "memref_stream.readable"
 
-    element_type: ParameterDef[_StreamTypeElement]
+    element_type: _StreamTypeElement
 
     def get_element_type(self) -> _StreamTypeElement:
         return self.element_type
 
-    def __init__(self, element_type: _StreamTypeElement):
-        super().__init__([element_type])
-
-    @classmethod
+    @staticmethod
     def constr(
-        cls,
-        element_type: GenericAttrConstraint[_StreamTypeElement] = AnyAttr(),
+        element_type: AttrConstraint[_StreamTypeElement] = AnyAttr(),
     ) -> ParamAttrConstraint[ReadableStreamType[_StreamTypeElement]]:
         return ParamAttrConstraint[ReadableStreamType[_StreamTypeElement]](
             ReadableStreamType, (element_type,)
@@ -99,25 +94,21 @@ class ReadableStreamType(
 
 @irdl_attr_definition
 class WritableStreamType(
-    Generic[_StreamTypeElement],
     ParametrizedAttribute,
     TypeAttribute,
     ContainerType[_StreamTypeElement],
+    Generic[_StreamTypeElement],
 ):
     name = "memref_stream.writable"
 
-    element_type: ParameterDef[_StreamTypeElement]
+    element_type: _StreamTypeElement
 
     def get_element_type(self) -> _StreamTypeElement:
         return self.element_type
 
-    def __init__(self, element_type: _StreamTypeElement):
-        super().__init__([element_type])
-
-    @classmethod
+    @staticmethod
     def constr(
-        cls,
-        element_type: GenericAttrConstraint[_StreamTypeElement] = AnyAttr(),
+        element_type: AttrConstraint[_StreamTypeElement] = AnyAttr(),
     ) -> ParamAttrConstraint[WritableStreamType[_StreamTypeElement]]:
         return ParamAttrConstraint[WritableStreamType[_StreamTypeElement]](
             WritableStreamType, (element_type,)
@@ -193,15 +184,8 @@ class StridePattern(ParametrizedAttribute):
 
     name = "memref_stream.stride_pattern"
 
-    ub: ParameterDef[ArrayAttr[IntegerAttr[IndexType]]]
-    index_map: ParameterDef[AffineMapAttr]
-
-    def __init__(
-        self,
-        ub: ArrayAttr[IntegerAttr[IndexType]],
-        index_map: ParameterDef[AffineMapAttr],
-    ):
-        super().__init__((ub, index_map))
+    ub: ArrayAttr[IntegerAttr[IndexType]]
+    index_map: AffineMapAttr
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> Sequence[Attribute]:
@@ -223,9 +207,12 @@ class StridePattern(ParametrizedAttribute):
 
     def print_parameters(self, printer: Printer) -> None:
         with printer.in_angle_brackets():
-            printer.print_string("ub = [")
-            printer.print_list(self.ub, lambda attr: printer.print(attr.value.data))
-            printer.print_string(f"], index_map = {self.index_map.data}")
+            printer.print_string("ub = ")
+            with printer.in_square_brackets():
+                printer.print_list(
+                    self.ub, lambda attr: attr.print_without_type(printer)
+                )
+            printer.print_string(f", index_map = {self.index_map.data}")
 
     def rank(self):
         return len(self.ub)
@@ -345,11 +332,13 @@ class StreamingRegionOp(IRDLOperation):
             if self.patterns.data:
                 printer.print_string("\npatterns = [")
                 with printer.indented():
-                    printer.print_list(
-                        self.patterns.data,
-                        lambda attr: printer.print("\n", attr),
-                        delimiter=",",
-                    )
+                    if self.patterns.data:
+                        printer.print_string("\n")
+                        printer.print_list(
+                            self.patterns.data,
+                            printer.print_attribute,
+                            delimiter=",\n",
+                        )
                 printer.print_string("\n]")
             else:
                 printer.print_string("\npatterns = []")
@@ -370,7 +359,7 @@ class StreamingRegionOp(IRDLOperation):
             printer.print_string(")")
 
         if self.attributes:
-            printer.print(" attrs = ")
+            printer.print_string(" attrs = ")
             printer.print_op_attributes(self.attributes)
 
         printer.print_string(" ")
@@ -659,7 +648,7 @@ class GenericOp(IRDLOperation):
             del extra_attrs["library_call"]
 
         if extra_attrs:
-            printer.print(" attrs = ")
+            printer.print_string(" attrs = ")
             printer.print_op_attributes(extra_attrs)
 
         printer.print_string(" ")
@@ -945,7 +934,7 @@ class FillOp(IRDLOperation):
 
     T: ClassVar = VarConstraint("T", AnyAttr())
 
-    memref = operand_def(memref.MemRefType.constr(element_type=T))
+    memref = operand_def(memref.MemRefType.constr(T))
     value = operand_def(T)
 
     assembly_format = "$memref `with` $value attr-dict `:` type($memref)"

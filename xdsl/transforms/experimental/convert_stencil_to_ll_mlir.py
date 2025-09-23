@@ -1,8 +1,10 @@
 from dataclasses import dataclass
 from itertools import product
 from math import prod
-from typing import TypeVar, cast
+from typing import cast
 from warnings import warn
+
+from typing_extensions import TypeVar
 
 from xdsl.context import Context
 from xdsl.dialects import arith, builtin, memref, scf
@@ -49,6 +51,7 @@ from xdsl.pattern_rewriter import (
     PatternRewriteWalker,
     RewritePattern,
     TypeConversionPattern,
+    attr_constr_rewrite_pattern,
     attr_type_rewrite_pattern,
     op_type_rewrite_pattern,
 )
@@ -308,7 +311,7 @@ class BufferOpToMemRef(RewritePattern):
             temp_t.get_element_type(), shape=temp_t.get_shape(), layout=layout
         )
         alloc_type = alloc.memref.type
-        assert isa(alloc_type, MemRefType[Attribute])
+        assert isa(alloc_type, MemRefType)
 
         rewriter.insert_op(alloc, InsertPoint.before(first_op))
 
@@ -497,7 +500,9 @@ class AccessOpToMemRef(RewritePattern):
             else:
                 memref_load_args.append(arg.idx)
 
-        load = memref.LoadOp.get(op.temp, memref_load_args)
+        load = memref.LoadOp(
+            operands=[op.temp, memref_load_args], result_types=[temp.element_type]
+        )
 
         rewriter.insert_op_before_matched_op(args)
         rewriter.replace_matched_op([*off_const_ops, load], [load.res])
@@ -607,15 +612,11 @@ def _get_use_target(use: Use) -> SSAValue | None:
                 temp = store.results[use.index - len(store.lower) - len(store.lowerext)]
                 # If it's the nth upperext arg, the combined temp is the
                 # (lower+lowerext+n)th combined.
-            temp_uses = temp.uses
-            match len(temp_uses):
-                case 0:
-                    return None
-                case 1:
-                    target = _get_use_target(list(temp_uses)[0])
-                    return target
-                case _:
-                    raise ValueError("Each stencil result should be stored only once.")
+            if not temp.uses:
+                return None
+            if (temp_use := temp.get_unique_use()) is not None:
+                return _get_use_target(temp_use)
+            raise ValueError("Each stencil result should be stored only once.")
         case _:
             # Should be unreachable
             raise ValueError(f"Unexpected store type {store}")
@@ -654,8 +655,8 @@ def return_target_analysis(module: builtin.ModuleOp):
 
 
 class StencilTypeConversion(TypeConversionPattern):
-    @attr_type_rewrite_pattern
-    def convert_type(self, typ: StencilType[Attribute]) -> MemRefType[Attribute]:
+    @attr_constr_rewrite_pattern(StencilTypeConstr)
+    def convert_type(self, typ: StencilType[Attribute]) -> MemRefType:
         return StencilToMemRefType(typ)
 
 

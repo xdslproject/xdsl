@@ -2,9 +2,9 @@ from collections.abc import Callable
 from typing import NamedTuple
 
 from xdsl.context import Context
-from xdsl.dialects import builtin, get_all_dialects
+from xdsl.dialects import builtin
 from xdsl.ir import Dialect
-from xdsl.passes import ModulePass, PipelinePass
+from xdsl.passes import ModulePass
 from xdsl.transforms.mlir_opt import MLIROptPass
 
 
@@ -14,8 +14,14 @@ class AvailablePass(NamedTuple):
     pass, the module pass and pass spec.
     """
 
-    display_name: str
     module_pass: type[ModulePass] | ModulePass
+
+    def __str__(self) -> str:
+        module_pass = self.module_pass
+        if isinstance(module_pass, ModulePass):
+            return str(module_pass.pipeline_pass_spec())
+        else:
+            return module_pass.name
 
 
 def get_new_registered_context(
@@ -30,47 +36,22 @@ def get_new_registered_context(
     return ctx
 
 
-def apply_passes_to_module(
-    module: builtin.ModuleOp,
-    ctx: Context,
-    passes: tuple[ModulePass, ...],
-) -> builtin.ModuleOp:
-    """
-    Function that takes a ModuleOp, an Context and a pass_pipeline, applies the
-    passes to the ModuleOp and returns the modified ModuleOp.
-    """
-    pipeline = PipelinePass(passes=passes)
-    pipeline.apply(ctx, module)
-    return module
-
-
 def iter_condensed_passes(
+    ctx: Context,
     input: builtin.ModuleOp,
     all_passes: tuple[tuple[str, type[ModulePass]], ...],
 ):
-    ctx = Context(True)
-
-    for dialect_name, dialect_factory in get_all_dialects().items():
-        ctx.register_dialect(dialect_name, dialect_factory)
-
     for _, pass_type in all_passes:
         if pass_type is MLIROptPass:
             # Always keep MLIROptPass as an option in condensed list
-            yield AvailablePass(pass_type.name, pass_type), None
+            yield AvailablePass(pass_type)
             continue
-        cloned_module = input.clone()
-        cloned_ctx = ctx.clone()
-        try:
-            pass_instance = pass_type()
-            pass_instance.apply(cloned_ctx, cloned_module)
-            if input.is_structurally_equivalent(cloned_module):
-                continue
-        except Exception:
-            continue
-        yield AvailablePass(pass_type.name, pass_instance), cloned_module
+        for p in pass_type.schedule_space(ctx, input):
+            yield AvailablePass(p)
 
 
 def get_condensed_pass_list(
+    ctx: Context,
     input: builtin.ModuleOp,
     all_passes: tuple[tuple[str, type[ModulePass]], ...],
 ) -> tuple[AvailablePass, ...]:
@@ -78,4 +59,4 @@ def get_condensed_pass_list(
     Function that returns the condensed pass list for a given ModuleOp, i.e. the passes that
     change the ModuleOp.
     """
-    return tuple(ap for ap, _ in iter_condensed_passes(input, all_passes))
+    return tuple(iter_condensed_passes(ctx, input, all_passes))

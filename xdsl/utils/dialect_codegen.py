@@ -10,7 +10,6 @@ from typing import TextIO
 
 from xdsl.ir import Attribute, ParametrizedAttribute, TypeAttribute
 from xdsl.irdl import (
-    AnyInt,
     OpDef,
     OperandDef,
     OptOperandDef,
@@ -22,6 +21,7 @@ from xdsl.irdl import (
     VarOperandDef,
     VarResultDef,
 )
+from xdsl.utils.runtime_final import runtime_final
 
 
 def generate_dynamic_attr_class(
@@ -31,10 +31,12 @@ def generate_dynamic_attr_class(
     Dynamically define a type based on ParamAttrDef.
     This is needed to reference dynamically created attributes in operations.
     """
-    return type(
-        class_name,
-        (ParametrizedAttribute,) + ((TypeAttribute,) if is_type else ()),
-        dict(ParametrizedAttribute.__dict__) | {"name": attr.name},
+    return runtime_final(
+        type(
+            class_name,
+            (ParametrizedAttribute,) + ((TypeAttribute,) if is_type else ()),
+            dict(ParametrizedAttribute.__dict__) | {"name": attr.name},
+        )
     )
 
 
@@ -42,13 +44,13 @@ def get_str_from_operand_or_result(
     name: str, operand_or_result: OperandDef | ResultDef
 ) -> str:
     """
-    Get a constraint from the GenericRangeConstraint wrapper.
+    Get a constraint from the RangeConstraint wrapper.
     Build the correct definition function based on the wrapper's type.
     """
     match operand_or_result.constr:
         case SingleOf():
             inner_constr = operand_or_result.constr.constr
-        case RangeOf(length=AnyInt()):
+        case RangeOf():
             inner_constr = operand_or_result.constr.constr
         case _:
             raise NotImplementedError(

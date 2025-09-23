@@ -3,7 +3,7 @@ name = "xdsl"
 description = "xDSL"
 readme = "README.md"
 requires-python = ">=3.10"
-license = { text = "MIT License" }
+license = { text = "Apache License v2.0 with LLVM Exceptions" }
 authors = [{ name = "Mathieu Fehr", email = "mathieu.fehr@ed.ac.uk" }]
 classifiers = ["Programming Language :: Python :: 3"]
 dependencies = [
@@ -13,36 +13,34 @@ dependencies = [
 ]
 dynamic = ["version"]
 
+[project.entry-points.'xdsl.universe']
+xdsl = 'xdsl.universe:XDSL_UNIVERSE'
+
+
 [project.optional-dependencies]
 dev = [
     "toml<0.11",
     "pytest-cov",
     "coverage<8.0.0",
     "ipykernel",
-    "pytest<8.4",
+    "pytest<8.5",
     "nbval<0.12",
-    "filecheck==1.0.2",
+    "filecheck==1.0.3",
     "lit<19.0.0",
-    "marimo==0.13.8",
+    "marimo==0.16.1",
     "pre-commit>=4.0.0,<5.0.0",
-    "ruff==0.11.9",
+    "ruff==0.13.1",
     "nbconvert>=7.7.2,<8.0.0",
     "textual-dev==1.7.0",
-    "pytest-asyncio==0.26.0",
-    "pyright==1.1.400",
+    "pytest-asyncio==1.2.0",
+    "pyright==1.1.405",
     "sympy==1.14.0",
 ]
-docs = [
-    "mkdocs-gen-files>=0.5.0",
-    "mkdocs-material>=9.5.49",
-    "mkdocs>=1.6.1",
-    "mkdocstrings[python]>=0.27.0",
-    "pymdown-extensions>=10.7",
-    "lzstring2",
-]
-gui = ["textual==3.2.0", "pyclip==0.7"]
-jax = ["jax==0.6.0", "numpy==2.2.5"]
-riscv = ["riscemu==2.2.7"]
+gui = ["textual>=6,<7", "pyclip==0.7"]
+jax = ["jax==0.6.0", "numpy==2.2.6"]
+
+[dependency-groups]
+dev = ["xdsl[dev,gui]", "my_plugin"]
 bench = [
     "asv>=0.6.4",
     "snakeviz>=2.2.2",
@@ -50,6 +48,20 @@ bench = [
     "flameprof>=0.4",
     "orjson>=3.10.15",
     "pyinstrument>=5.0.1",
+    "bytesight",
+]
+docs = [
+    "lzstring2",
+    "mkdocs-awesome-nav>=3.1.2",
+    "mkdocs-gen-files>=0.5.0",
+    "mkdocs-marimo>=0.2.1",
+    "mkdocs-material>=9.5.49",
+    "mkdocs-simple-hooks>=0.1.5",
+    "mkdocs>=1.6.1",
+    "mkdocstrings[python]>=0.27.0",
+    "pymdown-extensions>=10.7",
+    "riscemu==2.2.7",
+    "micropip>=0.7",
 ]
 
 [project.urls]
@@ -74,6 +86,8 @@ zip-safe = false
 
 [tool.uv.sources]
 lzstring2 = { git = "https://github.com/superlopuh/lz-string.git" }
+bytesight = { git = "https://github.com/EdmundGoodman/bytesight.git", rev = "e8e8e45ec34316fdc99ee09ea8886c4f63c248be" }
+my_plugin = { path = "tests/my_plugin" }
 
 [tool.setuptools.packages]
 find = {}
@@ -99,32 +113,21 @@ reportUnnecessaryIsInstance = true
 reportUnnecessaryTypeIgnoreComment = true
 typeCheckingMode = "strict"
 extraPaths = ["tests"]
-"include" = ["docs", "xdsl", "tests"]
-"exclude" = [
-    "tests/dialects/test_memref.py",
-    "tests/test_frontend_op_resolver.py",
-    "tests/test_frontend_python_code_check.py",
-]
-"ignore" = [
-    "docs/marimo",
-    "tests/filecheck/frontend/dialects/builtin.py",
-    "tests/filecheck/frontend/dialects/invalid.py",
-    "tests/filecheck/frontend/dialects/arith.py",
-    "tests/filecheck/frontend/dialects/scf.py",
-    "tests/filecheck/frontend/programs/invalid.py",
-]
+"include" = ["docs", "xdsl", "tests", "benchmarks"]
+"exclude" = ["docs/marimo"]
 
 [tool.ruff]
 target-version = "py310"
 extend-include = ["*.ipynb", "*.pyi"]
+exclude = [".venv", "docs/marimo"]
 
 [tool.ruff.lint]
-select = ["E", "F", "W", "I", "UP", "PT", "TID251", "INP"]
+select = ["E", "F", "W", "I", "UP", "PT", "TID251", "INP", "PYI"]
 ignore = [
-    "E741",  # https://beta.ruff.rs/docs/rules/ambiguous-variable-name/
-    "PT006", # https://beta.ruff.rs/docs/rules/pytest-parametrize-names-wrong-type/
-    "PT011", # https://beta.ruff.rs/docs/rules/pytest-raises-too-broad/
-    "PT012", # https://beta.ruff.rs/docs/rules/pytest-raises-with-multiple-statements/
+    "E741",   # https://beta.ruff.rs/docs/rules/ambiguous-variable-name/
+    "PT006",  # https://beta.ruff.rs/docs/rules/pytest-parametrize-names-wrong-type/
+    "PT012",  # https://beta.ruff.rs/docs/rules/pytest-raises-with-multiple-statements/
+    "PYI041", # https://docs.astral.sh/ruff/rules/redundant-numeric-union
 ]
 
 [tool.ruff.lint.pycodestyle]
@@ -149,24 +152,25 @@ max-line-length = 130
 "xdsl.parser.base_parser".msg = "Use xdsl.parser instead."
 "xdsl.parser.core".msg = "Use xdsl.parser instead."
 "xdsl.parser.generic_parser".msg = "Use xdsl.parser instead."
+"typing.TypeVar".msg = "Use typing_extensions.TypeVar instead."
 
 
 [tool.ruff.lint.per-file-ignores]
-"tests/test_declarative_assembly_format.py" = ["F811"]
-"**/filecheck/*" = ["F811", "F841", "E501"]
-"docs/xdsl-introduction.ipynb" = ["ALL"]
-"docs/tutorial.ipynb" = ["ALL"]
-"docs/Toy/Toy_Ch3.ipynb" = ["E402"]
-"docs/Toy/Toy_Ch2.ipynb" = ["E402"]
-"docs/Toy/Toy_Ch1.ipynb" = ["E402"]
-"docs/mlir_interoperation.ipynb" = ["E402"]
-"docs/irdl.ipynb" = ["ALL"]
-"docs/database_example.ipynb" = ["ALL"]
-"**/{docs/marimo}/*" = ["E501", "I001"]
 "__init__.py" = ["F403"]
-"tests/*" = ["E501", "INP"]
-"docs/marimo/**" = ["INP"]
+"**/filecheck/*" = ["F811", "F841", "E501"]
+"docs/database_example.ipynb" = ["ALL"]
+"docs/irdl.ipynb" = ["ALL"]
+"docs/mlir_interoperation.ipynb" = ["E402"]
+"docs/Toy/Toy_Ch1.ipynb" = ["E402"]
+"docs/Toy/Toy_Ch2.ipynb" = ["E402"]
+"docs/Toy/Toy_Ch3.ipynb" = ["E402"]
+"docs/tutorial.ipynb" = ["ALL"]
+"docs/xdsl-introduction.ipynb" = ["ALL"]
 "scripts/**" = ["INP"]
+"tests/*" = ["E501", "INP"]
+"tests/test_declarative_assembly_format.py" = ["F811"]
+"tests/test_frontend_type_conversion.py" = ["PYI042"]  # typealias i32 error
+"xdsl/frontend/pyast/dialects/builtin.py" = ["PYI042"] # typealias i32 error
 
 [tool.ruff.lint.mccabe]
 max-complexity = 10
@@ -175,7 +179,7 @@ max-complexity = 10
 exclude = ["docs/marimo/**/*.py"]
 
 [tool.pytest.ini_options]
-python_files = ["tests/*test_*.py", "docs/*test_*.py"]
+python_files = ["tests/*test_*.py", "docs/*test_*.py", "docs/marimo/**.py"]
 python_classes = "Test_*"
 python_functions = "test_*"
 addopts = ["--durations=20", "--maxfail=5", "--import-mode=importlib"]

@@ -12,7 +12,7 @@ from __future__ import annotations
 from abc import ABC
 from collections.abc import Sequence
 from dataclasses import KW_ONLY, dataclass, field
-from typing import Annotated, ClassVar, Literal, TypeAlias
+from typing import ClassVar, Literal, TypeAlias
 
 from xdsl.dialects import builtin
 from xdsl.dialects.builtin import (
@@ -31,8 +31,11 @@ from xdsl.dialects.builtin import (
     ModuleOp,
     Signedness,
     StringAttr,
+    SymbolNameConstraint,
     SymbolRefAttr,
     TensorType,
+    f16,
+    f32,
     i8,
     i16,
 )
@@ -49,10 +52,8 @@ from xdsl.ir import (
     TypeAttribute,
 )
 from xdsl.irdl import (
-    AnyOf,
     BaseAttr,
     IRDLOperation,
-    ParameterDef,
     ParametrizedAttribute,
     VarConstraint,
     attr_def,
@@ -135,7 +136,7 @@ class _FuncBase(IRDLOperation, ABC):
     """
 
     body = region_def()
-    sym_name = prop_def(StringAttr)
+    sym_name = prop_def(SymbolNameConstraint())
     function_type = prop_def(FunctionType)
     arg_attrs = opt_prop_def(ArrayAttr[DictionaryAttr])
     res_attrs = opt_prop_def(ArrayAttr[DictionaryAttr])
@@ -303,7 +304,7 @@ class DirectionType(ParametrizedAttribute, TypeAttribute):
 
 
 @irdl_attr_definition
-class PtrType(ParametrizedAttribute, TypeAttribute, ContainerType[Attribute]):
+class PtrType(ParametrizedAttribute, TypeAttribute, ContainerType):
     """
     Represents a typed pointer in CSL.
 
@@ -312,18 +313,17 @@ class PtrType(ParametrizedAttribute, TypeAttribute, ContainerType[Attribute]):
 
     name = "csl.ptr"
 
-    type: ParameterDef[TypeAttribute]
-    kind: ParameterDef[PtrKindAttr]
-    constness: ParameterDef[PtrConstAttr]
+    type: TypeAttribute
+    kind: PtrKindAttr
+    constness: PtrConstAttr
 
     @staticmethod
     def get(typ: Attribute, is_single: bool, is_const: bool):
+        assert isinstance(typ, TypeAttribute)
         return PtrType(
-            [
-                typ,
-                PtrKindAttr(PtrKind.SINGLE if is_single else PtrKind.MANY),
-                PtrConstAttr(PtrConst.CONST if is_const else PtrConst.VAR),
-            ]
+            typ,
+            PtrKindAttr(PtrKind.SINGLE if is_single else PtrKind.MANY),
+            PtrConstAttr(PtrConst.CONST if is_const else PtrConst.VAR),
         )
 
     def get_element_type(self) -> Attribute:
@@ -357,28 +357,24 @@ DsdElementTypeConstr = (
 )
 
 
-f16_pointer = PtrType(
-    [Float16Type(), PtrKindAttr(PtrKind.SINGLE), PtrConstAttr(PtrConst.VAR)]
-)
-f32_pointer = PtrType(
-    [Float32Type(), PtrKindAttr(PtrKind.SINGLE), PtrConstAttr(PtrConst.VAR)]
-)
+f16_pointer = PtrType(f16, PtrKindAttr(PtrKind.SINGLE), PtrConstAttr(PtrConst.VAR))
+f32_pointer = PtrType(f32, PtrKindAttr(PtrKind.SINGLE), PtrConstAttr(PtrConst.VAR))
 i8_value = IntegerType(8, Signedness.SIGNED)
 u16_value = IntegerType(16, Signedness.UNSIGNED)
 i16_value = IntegerType(16, Signedness.SIGNED)
 u32_value = IntegerType(32, Signedness.UNSIGNED)
 i32_value = IntegerType(32, Signedness.SIGNED)
 i16_pointer = PtrType(
-    [i16_value, PtrKindAttr(PtrKind.SINGLE), PtrConstAttr(PtrConst.VAR)]
+    i16_value, PtrKindAttr(PtrKind.SINGLE), PtrConstAttr(PtrConst.VAR)
 )
 u16_pointer = PtrType(
-    [u16_value, PtrKindAttr(PtrKind.SINGLE), PtrConstAttr(PtrConst.VAR)]
+    u16_value, PtrKindAttr(PtrKind.SINGLE), PtrConstAttr(PtrConst.VAR)
 )
 i32_pointer = PtrType(
-    [i32_value, PtrKindAttr(PtrKind.SINGLE), PtrConstAttr(PtrConst.VAR)]
+    i32_value, PtrKindAttr(PtrKind.SINGLE), PtrConstAttr(PtrConst.VAR)
 )
 u32_pointer = PtrType(
-    [u32_value, PtrKindAttr(PtrKind.SINGLE), PtrConstAttr(PtrConst.VAR)]
+    u32_value, PtrKindAttr(PtrKind.SINGLE), PtrConstAttr(PtrConst.VAR)
 )
 
 
@@ -401,24 +397,22 @@ class ColorType(ParametrizedAttribute, TypeAttribute):
 
 
 @irdl_attr_definition
-class VarType(ParametrizedAttribute, TypeAttribute, ContainerType[Attribute]):
+class VarType(ParametrizedAttribute, TypeAttribute, ContainerType):
     name = "csl.var"
 
-    child_type: ParameterDef[TypeAttribute]
+    child_type: TypeAttribute
 
     def get_element_type(self) -> TypeAttribute:
         return self.child_type
 
 
-ColorIdAttr: TypeAlias = IntegerAttr[
-    Annotated[
-        IntegerType,
-        eq(IntegerType(5, Signedness.UNSIGNED))
-        | eq(IntegerType(6, Signedness.UNSIGNED)),
-    ]
-]
+ColorId = IntegerType[Literal[5, 6], Signedness.UNSIGNED]
 
-QueueIdAttr: TypeAlias = IntegerAttr[Annotated[IntegerType, IntegerType(3)]]
+ColorIdAttr: TypeAlias = IntegerAttr[ColorId]
+
+I3 = IntegerType[3, Signedness.SIGNLESS]
+
+QueueIdAttr: TypeAlias = IntegerAttr[I3]
 
 ParamAttr: TypeAlias = FloatAttr | IntegerAttr
 
@@ -439,19 +433,22 @@ class VariableOp(IRDLOperation):
     default = opt_prop_def(ParamAttr)
     res = result_def(VarType)
 
+    assembly_format = "`(` $default `)` `:` type($res) attr-dict"
+
     def get_element_type(self):
         assert isinstance(self.res.type, VarType)
         return self.res.type.get_element_type()
 
     @staticmethod
     def from_type(child_type: Attribute) -> VariableOp:
-        return VariableOp(result_types=[VarType([child_type])])
+        assert isinstance(child_type, TypeAttribute)
+        return VariableOp(result_types=[VarType(child_type)])
 
     @staticmethod
     def from_value(value: ParamAttr) -> VariableOp:
         return VariableOp(
             properties={"default": value},
-            result_types=[VarType([value.type])],
+            result_types=[VarType(value.type)],
         )
 
     def verify_(self) -> None:
@@ -477,6 +474,8 @@ class LoadVarOp(IRDLOperation):
     res = result_def()
 
     traits = traits_def(MemoryReadEffect())
+
+    assembly_format = "`(` $var `:` type($var) `)` `:` type($res) attr-dict"
 
     def __init__(self, var: VariableOp | SSAValue):
         if isinstance(var, SSAValue):
@@ -509,6 +508,10 @@ class StoreVarOp(IRDLOperation):
     new_value = operand_def()
 
     traits = traits_def(MemoryWriteEffect())
+
+    assembly_format = (
+        "$var `:` type($var) `=` $new_value `:` type($new_value) attr-dict"
+    )
 
     def __init__(self, var: VariableOp, new_value: Operation | SSAValue):
         super().__init__(operands=[var, new_value])
@@ -547,7 +550,7 @@ class CslModuleOp(IRDLOperation):
     name = "csl.module"
     body = region_def("single_block")
     kind = prop_def(ModuleKindAttr)
-    sym_name = attr_def(StringAttr)
+    sym_name = attr_def(SymbolNameConstraint())
 
     traits = traits_def(
         HasParent(ModuleOp),
@@ -622,7 +625,7 @@ class ConstStructOp(IRDLOperation):
 
 
 ZerosOpAttr: TypeAlias = IntegerType | Float32Type | Float16Type
-ZerosOpAttrConstr: AnyOf[ZerosOpAttr] = (
+ZerosOpAttrConstr = (
     BaseAttr(IntegerType) | BaseAttr(Float32Type) | BaseAttr(Float16Type)
 )
 
@@ -639,7 +642,7 @@ class ZerosOp(IRDLOperation):
 
     size = opt_operand_def(T)
 
-    result = result_def(MemRefType.constr(element_type=T))
+    result = result_def(MemRefType.constr(T))
 
     is_const = opt_prop_def(builtin.UnitAttr)
 
@@ -676,7 +679,7 @@ class ConstantsOp(IRDLOperation):
 
     value = operand_def(T)
 
-    result = result_def(MemRefType.constr(element_type=T))
+    result = result_def(MemRefType.constr(T))
 
     is_const = opt_prop_def(builtin.UnitAttr)
 
@@ -850,7 +853,7 @@ class TaskOp(_FuncBase):
             task_kind = TaskKindAttr(task_kind)
         if isinstance(id, int):
             id = IntegerAttr(
-                id, IntegerType(task_kind.get_color_bits(), Signedness.UNSIGNED)
+                id, ColorId(task_kind.get_color_bits(), Signedness.UNSIGNED)
             )
         if id is not None:
             assert id.type.width.data == task_kind.get_color_bits(), (
@@ -966,9 +969,7 @@ class ActivateOp(IRDLOperation):
         if isinstance(kind, TaskKind):
             kind = TaskKindAttr(kind)
         if isinstance(id, int):
-            id = IntegerAttr(
-                id, IntegerType(kind.get_color_bits(), Signedness.UNSIGNED)
-            )
+            id = IntegerAttr(id, ColorId(kind.get_color_bits(), Signedness.UNSIGNED))
 
         super().__init__(properties={"id": id, "kind": kind})
 
@@ -1020,7 +1021,8 @@ class LayoutOp(IRDLOperation):
         return cls(parser.parse_region())
 
     def print(self, printer: Printer):
-        printer.print(" ", self.body)
+        printer.print_string(" ")
+        printer.print_region(self.body)
 
 
 @irdl_op_definition
@@ -1151,7 +1153,7 @@ class GetMemDsdOp(_GetDsdOp):
     """
 
     name = "csl.get_mem_dsd"
-    base_addr = operand_def(base(MemRefType[Attribute]) | base(TensorType[Attribute]))
+    base_addr = operand_def(base(MemRefType) | base(TensorType[Attribute]))
     tensor_access = opt_prop_def(AffineMapAttr)
 
     traits = traits_def(
@@ -1227,7 +1229,7 @@ class SetDsdBaseAddrOp(IRDLOperation):
 
     op = operand_def(DsdType)
     base_addr = operand_def(
-        base(MemRefType[Attribute]) | base(TensorType[Attribute]) | base(PtrType)
+        base(MemRefType) | base(TensorType[Attribute]) | base(PtrType)
     )
     result = result_def(DsdType)
 
@@ -1853,11 +1855,9 @@ class AddressOfFnOp(IRDLOperation):
     def __init__(self, fn: FuncOp):
         fn_name = SymbolRefAttr(fn.sym_name)
         res = PtrType(
-            [
-                fn.function_type,
-                PtrKindAttr(PtrKind.SINGLE),
-                PtrConstAttr(PtrConst.CONST),
-            ]
+            fn.function_type,
+            PtrKindAttr(PtrKind.SINGLE),
+            PtrConstAttr(PtrConst.CONST),
         )
 
         super().__init__(properties={"fn_name": fn_name}, result_types=[res])
@@ -1895,7 +1895,7 @@ class AddressOfOp(IRDLOperation):
     def __init__(self, value: SSAValue | Operation, result_type: PtrType):
         super().__init__(operands=[value], result_types=[result_type])
 
-    def _verify_memref_addr(self, val_ty: MemRefType[Attribute], res_ty: PtrType):
+    def _verify_memref_addr(self, val_ty: MemRefType, res_ty: PtrType):
         """
         Verify that if the address of a memref is taken, the resulting pointer is either:
         - A single pointer to the array type or
@@ -1933,7 +1933,7 @@ class AddressOfOp(IRDLOperation):
     def verify_(self) -> None:
         val_ty = self.value.type
         res_ty = self.res.type
-        if isa(val_ty, MemRefType[Attribute]):
+        if isa(val_ty, MemRefType):
             self._verify_memref_addr(val_ty, res_ty)
         else:
             if res_ty.get_element_type() != val_ty:
@@ -2044,7 +2044,7 @@ class SignednessCastOp(IRDLOperation):
         """
         if result_type is None:
             typ = op.results[0].type if isinstance(op, Operation) else op.type
-            assert isinstance(typ, IntegerType)
+            assert isa(typ, IntegerType)
             result_type = IntegerType(
                 typ.width,
                 (
@@ -2056,7 +2056,7 @@ class SignednessCastOp(IRDLOperation):
         super().__init__(operands=[op], result_types=[result_type])
 
     def verify_(self) -> None:
-        assert isinstance(self.inp.type, IntegerType)
+        assert isa(self.inp.type, IntegerType)
         assert isinstance(self.result.type, IntegerType)
         if self.inp.type.width != self.result.type.width:
             raise VerifyException("Input and output type must be of same bitwidth")

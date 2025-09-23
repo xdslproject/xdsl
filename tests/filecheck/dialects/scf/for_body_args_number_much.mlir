@@ -6,7 +6,7 @@
   %carried = "arith.constant"() {"value" = 255 : i8} : () -> i8
   "scf.for"(%lb, %ub, %step) ({
 // CHECK: Expected 1 args, but got 2. Body block must have induction and loop-carried variables as args
-  ^0(%iv : index, %carried_arg : i8):
+  ^bb0(%iv : index, %carried_arg : i8):
     "scf.yield"() : () -> ()
   }) : (index, index, index) -> ()
 }) : () -> ()

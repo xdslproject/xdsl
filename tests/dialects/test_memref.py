@@ -31,7 +31,7 @@ from xdsl.dialects.memref import (
     StoreOp,
     SubviewOp,
 )
-from xdsl.ir import Attribute, BlockArgument, OpResult
+from xdsl.ir import BlockArgument, OpResult
 from xdsl.ir.affine import AffineMap
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
@@ -297,7 +297,7 @@ def test_memref_extract_strided_metadata():
     alloc = AllocOp.get(
         el_type, alignment, shape, layout=layout, memory_space=memory_space
     )
-    assert isa(alloc.memref.type, MemRefType[Attribute])
+    assert isa(alloc.memref.type, MemRefType)
 
     extract_op = ExtractStridedMetaDataOp(alloc)
     # output type is expected to have no layout information, and no shape
@@ -307,7 +307,7 @@ def test_memref_extract_strided_metadata():
 
 def test_memref_subview_constant_parameters():
     alloc = AllocOp.get(i32, 8, [10, 10, 10])
-    assert isa(alloc.memref.type, MemRefType[Attribute])
+    assert isa(alloc.memref.type, MemRefType)
 
     subview = SubviewOp.from_static_parameters(
         alloc, alloc.memref.type, [2, 2, 2], [2, 2, 2], [3, 3, 3]

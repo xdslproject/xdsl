@@ -21,6 +21,7 @@ from typing import (
     Generic,
     NoReturn,
     Protocol,
+    TypeAlias,
     cast,
     get_args,
     get_origin,
@@ -29,18 +30,21 @@ from typing import (
 
 from typing_extensions import Self, TypeVar
 
+from xdsl.dialect_interfaces import DialectInterface
 from xdsl.traits import IsTerminator, NoTerminator, OpTrait, OpTraitInvT
 from xdsl.utils.exceptions import VerifyException
-from xdsl.utils.mlir_lexer import MLIRLexer
 from xdsl.utils.str_enum import StrEnum
 
 # Used for cyclic dependencies in type hints
 if TYPE_CHECKING:
+    from typing_extensions import TypeForm
+
     from xdsl.irdl import ParamAttrDef
     from xdsl.parser import AttrParser, Parser
     from xdsl.printer import Printer
 
 OpT = TypeVar("OpT", bound="Operation")
+DialectInterfaceT = TypeVar("DialectInterfaceT", bound=DialectInterface)
 
 
 @dataclass
@@ -54,6 +58,9 @@ class Dialect:
     )
     _attributes: list[type[Attribute]] = field(
         default_factory=list[type["Attribute"]], init=True, repr=True
+    )
+    _interfaces: list[DialectInterface] = field(
+        default_factory=list[DialectInterface], init=True, repr=True
     )
 
     @property
@@ -76,6 +83,20 @@ class Dialect:
             return (first, second)
         except ValueError as e:
             raise ValueError(f"Invalid operation or attribute name {name}.") from e
+
+    def get_interface(
+        self, interface: type[DialectInterfaceT]
+    ) -> DialectInterfaceT | None:
+        """
+        Return a class that implements the 'interface' if it exists.
+        """
+        for i in self._interfaces:
+            if isinstance(i, interface):
+                return i
+        return None
+
+    def has_interface(self, interface: type[DialectInterfaceT]) -> bool:
+        return self.get_interface(interface) is not None
 
 
 A = TypeVar("A", bound="Attribute")
@@ -116,15 +137,25 @@ class Attribute(ABC):
         return res.getvalue()
 
 
+@dataclass(frozen=True, init=False)
 class BuiltinAttribute(Attribute, ABC):
     """
     This class is used to mark builtin attributes.
-    Unlike other attributes in MLIR, printing and parsing of *Builtin*
-    attributes is handled directly by the parser.
+    Unlike other attributes in MLIR, parsing of *Builtin* attributes
+    is handled directly by the parser.
+    Printing of these attributes is handled by the `print_builtin` function, which must
+    be implemented by all *Builtin* attributes.
     Attributes outside of the `builtin` dialect should not inherit from `BuiltinAttribute`.
     """
 
-    pass
+    @abstractmethod
+    def print_builtin(self, printer: Printer) -> None:
+        """
+        Prints the attribute using the supplied printer.
+        `BuiltinAttribute`s need not follow the same rules as other attributes, for example
+        they do not need to be prefixed by `!` or `#` and do not need to print their name.
+        """
+        ...
 
 
 class TypeAttribute(Attribute):
@@ -168,7 +199,7 @@ AttributeInvT = TypeVar("AttributeInvT", bound=Attribute, default=Attribute)
 
 
 @dataclass(frozen=True)
-class Data(Generic[DataElement], Attribute, ABC):
+class Data(Attribute, ABC, Generic[DataElement]):
     """An attribute represented by a Python structure."""
 
     data: DataElement
@@ -191,6 +222,19 @@ class Data(Generic[DataElement], Attribute, ABC):
 
         # Call the __init__ of Data, which will set the parameters field.
         Data.__init__(attr, params)  # pyright: ignore[reportUnknownMemberType]
+        return attr
+
+    @classmethod
+    def get(cls, attr: DataElement | Self) -> Self:
+        """
+        Creates an element of this class from `DataElement`,
+        or returns the input when it is already an instance of this class.
+
+        This function is useful for `__init__` methods, for example when a we
+        would like to accept either a `StringAttr` or a `str`.
+        """
+        if not isinstance(attr, cls):
+            attr = cls.new(attr)
         return attr
 
     @classmethod
@@ -220,9 +264,6 @@ def _check_enum_constraints(
     of EnumAttribute as a base class is *not supported*.
       This simplifies type-hacking code and I don't see it being too restrictive
       anytime soon.
-    - The StrEnum values must all be parsable as identifiers. This is to keep the
-    parsing code simple and efficient. This restriction is easier to lift, but I
-    haven't yet met an example use case where it matters, so I'm keeping it simple.
     """
     orig_bases = getattr(enum_class, "__orig_bases__")
     enumattr = next(
@@ -233,12 +274,6 @@ def _check_enum_constraints(
     enum_type = get_args(enumattr)[0]
     if isinstance(enum_type, TypeVar):
         raise TypeError("Only direct inheritance from EnumAttribute is allowed.")
-
-    for v in enum_type:
-        if MLIRLexer.bare_identifier_suffix_regex.fullmatch(v) is None:
-            raise ValueError(
-                "All StrEnum values of an EnumAttribute must be parsable as an identifer."
-            )
 
     enum_class.enum_type = enum_type
 
@@ -269,14 +304,15 @@ class EnumAttribute(Data[EnumType]):
         _check_enum_constraints(cls)
 
     def print_parameter(self, printer: Printer) -> None:
-        printer.print(self.data.value)
+        printer.print_identifier_or_string_literal(self.data.value)
 
     @classmethod
     def parse_parameter(cls, parser: AttrParser) -> EnumType:
         return cast(EnumType, parser.parse_str_enum(cls.enum_type))
 
 
-class BitEnumAttribute(Generic[EnumType], Data[tuple[EnumType, ...]]):
+@dataclass(frozen=True, init=False)
+class BitEnumAttribute(Data[tuple[EnumType, ...]], Generic[EnumType]):
     """
     Core helper for BitEnumAttributes. Takes a StrEnum type parameter, and
     defines parsing/printing automatically from its values.
@@ -377,13 +413,15 @@ class BitEnumAttribute(Generic[EnumType], Data[tuple[EnumType, ...]]):
         with printer.in_angle_brackets():
             flags = self.data
             if len(flags) == 0 and self.none_value is not None:
-                printer.print(self.none_value)
+                printer.print_string(self.none_value)
             elif len(flags) == len(self.enum_type) and self.all_value is not None:
-                printer.print(self.all_value)
+                printer.print_string(self.all_value)
             else:
                 # make sure we emit flags in a consistent order
-                printer.print(
-                    ",".join(flag.value for flag in self.enum_type if flag in flags)
+                printer.print_list(
+                    tuple(flag.value for flag in self.enum_type if flag in flags),
+                    printer.print_string,
+                    ",",
                 )
 
 
@@ -391,11 +429,22 @@ class BitEnumAttribute(Generic[EnumType], Data[tuple[EnumType, ...]]):
 class ParametrizedAttribute(Attribute):
     """An attribute parametrized by other attributes."""
 
-    parameters: tuple[Attribute, ...] = field()
-
-    def __init__(self, parameters: Sequence[Attribute] = ()):
-        object.__setattr__(self, "parameters", tuple(parameters))
+    def __init__(self, *parameters: Any):
+        irdl_def = self.get_irdl_definition()
+        for (f, d), param in zip(irdl_def.parameters, parameters, strict=True):
+            if d.converter is not None:
+                param = d.converter(param)
+            object.__setattr__(self, f, param)
         super().__init__()
+
+    @property
+    def parameters(self) -> tuple[Attribute, ...]:
+        return (
+            *(
+                self.__getattribute__(field)
+                for field, _ in self.get_irdl_definition().parameters
+            ),
+        )
 
     @classmethod
     def new(cls: type[Self], params: Sequence[Attribute]) -> Self:
@@ -410,9 +459,13 @@ class ParametrizedAttribute(Attribute):
         # We do this to allow users to redefine their own __init__.
         attr = cls.__new__(cls)
 
-        # Call the __init__ of ParametrizedAttribute, which will set the
-        # parameters field.
-        ParametrizedAttribute.__init__(attr, tuple(params))
+        # Set the parameters based on the definition
+        for (f, _), param in zip(
+            cls.get_irdl_definition().parameters, params, strict=True
+        ):
+            object.__setattr__(attr, f, param)
+        attr.__post_init__()
+
         return attr
 
     @classmethod
@@ -462,36 +515,189 @@ class TypedAttribute(ParametrizedAttribute, ABC):
     def print_without_type(self, printer: Printer): ...
 
 
-@dataclass(frozen=True)
+@dataclass
 class Use:
     """The use of a SSA value."""
 
-    operation: Operation
+    _operation: Operation
     """The operation using the value."""
 
-    index: int
+    _index: int
     """The index of the operand using the value in the operation."""
+
+    _prev_use: Use | None = None
+    """The previous use of the value in the use list."""
+
+    _next_use: Use | None = None
+    """The next use of the value in the use list."""
+
+    @property
+    def operation(self) -> Operation:
+        """The operation using the value."""
+        return self._operation
+
+    @property
+    def index(self) -> int:
+        """The index of the operand using the value in the operation."""
+        return self._index
+
+    def __hash__(self) -> int:
+        return id(self)
+
+    def __eq__(self, other: object) -> bool:
+        return self is other
+
+
+@dataclass
+class IRUses(Iterable[Use]):
+    """
+    Multi-pass iterable of the uses of an IR value (SSAValue or Block).
+    """
+
+    ir: IRWithUses
+
+    def __iter__(self):
+        use = self.ir.first_use
+        while use is not None:
+            yield use
+            use = use._next_use  # pyright: ignore[reportPrivateUsage]
+
+    def __bool__(self) -> bool:
+        """Returns `True` if there are operations in this block."""
+        return self.ir.first_use is not None
+
+    def get_length(self) -> int:
+        """
+        Returns the number of uses.
+        We do not expose it as `__len__` as it is expensive to compute `O(len)`.
+        """
+        return len(tuple(self))
 
 
 @dataclass(eq=False)
 class IRWithUses(ABC):
     """IRNode which stores a list of its uses."""
 
-    uses: set[Use] = field(init=False, default_factory=set[Use], repr=False)
-    """All uses of the value."""
+    first_use: Use | None = field(init=False, default=None, repr=False)
+    """The first use of the value in the use list."""
+
+    @property
+    def uses(self) -> IRUses:
+        """Returns an iterable of all uses of the value."""
+        return IRUses(self)
 
     def add_use(self, use: Use):
         """Add a new use of the value."""
-        self.uses.add(use)
+        first_use = self.first_use
+        use._next_use = first_use  # pyright: ignore[reportPrivateUsage]
+        use._prev_use = None  # pyright: ignore[reportPrivateUsage]
+        if first_use is not None:
+            first_use._prev_use = use  # pyright: ignore[reportPrivateUsage]
+        self.first_use = use
 
     def remove_use(self, use: Use):
         """Remove a use of the value."""
-        assert use in self.uses, "use to be removed was not in use list"
-        self.uses.remove(use)
+        prev_use = use._prev_use  # pyright: ignore[reportPrivateUsage]
+        next_use = use._next_use  # pyright: ignore[reportPrivateUsage]
+        if prev_use is not None:
+            prev_use._next_use = next_use  # pyright: ignore[reportPrivateUsage]
+        if next_use is not None:
+            next_use._prev_use = prev_use  # pyright: ignore[reportPrivateUsage]
+
+        if prev_use is None:
+            self.first_use = next_use
+
+    def has_one_use(self) -> bool:
+        """Returns true if the value has exactly one use."""
+        first_use = self.first_use
+        return (
+            first_use is not None and first_use._next_use is None  # pyright: ignore[reportPrivateUsage]
+        )
+
+    def has_more_than_one_use(self) -> bool:
+        """Returns true if the value has more than one use."""
+        if (first_use := self.first_use) is None:
+            return False
+        return first_use._next_use is not None  # pyright: ignore[reportPrivateUsage]
+
+    def get_unique_use(self) -> Use | None:
+        """
+        Returns the single use of the value, or None if there are no uses or
+        more than one use.
+        """
+        if (first_use := self.first_use) is None:
+            return None
+        if first_use._next_use is not None:  # pyright: ignore[reportPrivateUsage]
+            return None
+        return first_use
+
+    def get_user_of_unique_use(self) -> Operation | None:
+        """
+        Returns the user of the single use of the value.
+        If there are no uses or more than one use, returns None.
+        """
+        if (use := self.get_unique_use()) is not None:
+            return use.operation
+        return None
+
+
+_VALUE_NAME_PATTERN = re.compile(r"([A-Za-z_$.-][\w$.-]*)")
+"""Pattern to check if a name is valid for an SSAValue or Block."""
+
+_VALUE_NAME_SUFFIX_PATTERN = re.compile(r"(_\d+)$")
+"""This pattern is used to remove the suffix from an SSAValue or Block name."""
 
 
 @dataclass(eq=False)
-class SSAValue(Generic[AttributeCovT], IRWithUses, ABC):
+class IRWithName(ABC):
+    _name: str | None = field(init=False, default=None)
+
+    @property
+    def name_hint(self) -> str | None:
+        return self._name
+
+    @name_hint.setter
+    def name_hint(self, name: str | None):
+        self._name = self.extract_valid_name(name)
+
+    @classmethod
+    def is_valid_name(cls, name: str | None):
+        """
+        Returns `True` if `name` is None or a valid name for an identifier.
+        """
+        return name is None or _VALUE_NAME_PATTERN.fullmatch(name)
+
+    @overload
+    @classmethod
+    def extract_valid_name(cls, name: str) -> str: ...
+
+    @overload
+    @classmethod
+    def extract_valid_name(cls, name: None) -> None: ...
+
+    @classmethod
+    def extract_valid_name(cls, name: str | None) -> str | None:
+        """
+        If the name is valid, extracts the name before an optional `_\\d+` suffix.
+        Raises ValueError otherwise.
+        """
+        if name is None:
+            return
+        if _VALUE_NAME_PATTERN.fullmatch(name) is None:
+            raise ValueError(
+                f"Invalid {cls.__name__} name format `{name}`.",
+                r"Make sure names contain only characters of [A-Za-z0-9_$.-] and don't start with a number.",
+            )
+
+        if match := _VALUE_NAME_SUFFIX_PATTERN.search(name):
+            # Remove `_` followed by numbers at the end of the name
+            return name[: match.start()]
+
+        return name
+
+
+@dataclass(eq=False)
+class SSAValue(IRWithUses, IRWithName, ABC, Generic[AttributeCovT]):
     """
     A reference to an SSA variable.
     An SSA variable is either an operation result, or a basic block argument.
@@ -499,10 +705,6 @@ class SSAValue(Generic[AttributeCovT], IRWithUses, ABC):
 
     _type: AttributeCovT
     """Each SSA variable is associated to a type."""
-
-    _name: str | None = field(init=False, default=None)
-
-    _name_regex: ClassVar[re.Pattern[str]] = re.compile(r"([A-Za-z_$.-][\w$.-]*)")
 
     @property
     def type(self) -> AttributeCovT:
@@ -517,58 +719,45 @@ class SSAValue(Generic[AttributeCovT], IRWithUses, ABC):
         """
         pass
 
-    @property
-    def name_hint(self) -> str | None:
-        return self._name
-
-    @name_hint.setter
-    def name_hint(self, name: str | None):
-        # only allow valid names
-        if SSAValue.is_valid_name(name):
-            # Remove `_` followed by numbers at the end of the name
-            if name is not None:
-                r1 = re.compile(r"(_\d+)+$")
-                if match := r1.search(name):
-                    name = name[: match.start()]
-            self._name = name
-        else:
-            raise ValueError(
-                "Invalid SSA Value name format!",
-                r"Make sure names contain only characters of [A-Za-z0-9_$.-] and don't start with a number!",
-            )
-
-    @classmethod
-    def is_valid_name(cls, name: str | None):
-        return name is None or cls._name_regex.fullmatch(name)
-
     @staticmethod
-    def get(arg: SSAValue | Operation) -> SSAValue:
-        "Get a new SSAValue from either a SSAValue, or an operation with a single result."
+    def get(
+        arg: SSAValue | Operation, *, type: TypeForm[AttributeInvT] = Attribute
+    ) -> SSAValue[AttributeInvT]:
+        """
+        Get a new SSAValue from either a SSAValue, or an operation with a single result.
+        Checks that the resulting SSAValue is of the supplied type, if provided.
+        """
+        from xdsl.utils.hints import isa
+
         match arg:
             case SSAValue():
-                return arg
+                if type is Attribute or isa(arg.type, type):
+                    return cast(SSAValue[AttributeInvT], arg)
+                raise ValueError(
+                    f"SSAValue.get: Expected {type} but got SSAValue with type {arg.type}."
+                )
             case Operation():
                 if len(arg.results) == 1:
-                    return arg.results[0]
+                    return SSAValue.get(arg.results[0], type=type)
                 raise ValueError(
-                    "SSAValue.build: expected operation with a single result."
+                    "SSAValue.get: expected operation with a single result."
                 )
 
     def replace_by(self, value: SSAValue) -> None:
         """Replace the value by another value in all its uses."""
-        for use in self.uses.copy():
+        for use in tuple(self.uses):
             use.operation.operands[use.index] = value
         # carry over name if possible
         if value.name_hint is None:
             value.name_hint = self.name_hint
-        assert not self.uses, "unexpected error in xdsl"
+        assert self.first_use is None, "unexpected error in xdsl"
 
     def replace_by_if(self, value: SSAValue, test: Callable[[Use], bool]):
         """
         Replace the value by another value in all its uses that pass the given test
         function.
         """
-        for use in self.uses.copy():
+        for use in tuple(self.uses):
             if test(use):
                 use.operation.operands[use.index] = value
         # carry over name if possible
@@ -581,8 +770,8 @@ class SSAValue(Generic[AttributeCovT], IRWithUses, ABC):
         If safe_erase is True, then check that no operations use the value anymore.
         If safe_erase is False, then replace its uses by an ErasedSSAValue.
         """
-        if safe_erase and len(self.uses) != 0:
-            raise Exception(
+        if safe_erase and self.first_use is not None:
+            raise ValueError(
                 "Attempting to delete SSA value that still has uses of result "
                 f"of operation:\n{self.owner}"
             )
@@ -600,7 +789,7 @@ class SSAValue(Generic[AttributeCovT], IRWithUses, ABC):
 
 
 @dataclass(eq=False)
-class OpResult(Generic[AttributeCovT], SSAValue[AttributeCovT]):
+class OpResult(SSAValue[AttributeCovT], Generic[AttributeCovT]):
     """A reference to an SSA variable defined by an operation result."""
 
     op: Operation
@@ -614,11 +803,16 @@ class OpResult(Generic[AttributeCovT], SSAValue[AttributeCovT]):
         return self.op
 
     def __repr__(self) -> str:
-        return f"<{self.__class__.__name__}[{self.type}] index: {self.index}, operation: {self.op.name}, uses: {len(self.uses)}>"
+        return (
+            f"<{self.__class__.__name__}[{self.type}]"
+            f" index: {self.index},"
+            f" operation: {self.op.name},"
+            f" uses: {self.uses.get_length()}>"
+        )
 
 
 @dataclass(eq=False)
-class BlockArgument(Generic[AttributeCovT], SSAValue[AttributeCovT]):
+class BlockArgument(SSAValue[AttributeCovT], Generic[AttributeCovT]):
     """A reference to an SSA variable defined by a basic block argument."""
 
     block: Block
@@ -632,7 +826,11 @@ class BlockArgument(Generic[AttributeCovT], SSAValue[AttributeCovT]):
         return self.block
 
     def __repr__(self) -> str:
-        return f"<{self.__class__.__name__}[{self.type}] index: {self.index}, uses: {len(self.uses)}>"
+        return (
+            f"<{self.__class__.__name__}[{self.type}]"
+            f" index: {self.index},"
+            f" uses: {self.uses.get_length()}>"
+        )
 
 
 @dataclass(eq=False)
@@ -650,20 +848,25 @@ class ErasedSSAValue(SSAValue):
 
 
 @dataclass(init=False)
-class IRNode(ABC):
+class _IRNode(ABC):
     def is_ancestor(self, op: IRNode) -> bool:
-        "Returns true if the IRNode is an ancestor of another IRNode."
-        if op is self:
-            return True
-        if (parent := op.parent_node) is None:
-            return False
-        return self.is_ancestor(parent)
+        "Returns true if `self` is an ancestor of `op`."
+        curr = op
+        while curr is not None:
+            if curr is self:
+                return True
+            curr = curr.parent_node
+        return False
 
     def get_toplevel_object(self) -> IRNode:
-        """Get the operation, block, or region ancestor that has no parents."""
-        if (parent := self.parent_node) is None:
-            return self
-        return parent.get_toplevel_object()
+        """
+        Get the ancestor of `self` that has no parent.
+        This can be an Operation, Block, or Region.
+        """
+        current = self
+        while (parent := current.parent_node) is not None:
+            current = parent
+        return current  # pyright: ignore[reportReturnType]
 
     def is_structurally_equivalent(
         self,
@@ -677,11 +880,40 @@ class IRNode(ABC):
     @abstractmethod
     def parent_node(self) -> IRNode | None: ...
 
-    @abstractmethod
-    def __eq__(self, other: object) -> bool: ...
+    def __eq__(self, other: object) -> bool:
+        return self is other
 
-    @abstractmethod
-    def __hash__(self) -> int: ...
+    def __hash__(self) -> int:
+        return id(self)
+
+
+SSAValueCovT = TypeVar(
+    "SSAValueCovT", bound=SSAValue[Attribute], default=SSAValue[Attribute]
+)
+
+
+class SSAValues(tuple[SSAValueCovT, ...], Generic[SSAValueCovT]):
+    """
+    A helper data structure for a sequence of SSAValues.
+    """
+
+    @property
+    def types(self):
+        return tuple(o.type for o in self)
+
+    @overload
+    def __getitem__(self, idx: int) -> SSAValueCovT: ...
+
+    @overload
+    def __getitem__(self, idx: slice) -> SSAValues[SSAValueCovT]: ...
+
+    def __getitem__(  # pyright: ignore[reportIncompatibleMethodOverride]
+        self, idx: int | slice
+    ) -> SSAValueCovT | SSAValues[SSAValueCovT]:
+        if isinstance(idx, int):
+            return super().__getitem__(idx)
+        else:
+            return SSAValues(super().__getitem__(idx))
 
 
 @dataclass
@@ -705,9 +937,10 @@ class OpOperands(Sequence[SSAValue]):
 
     def __setitem__(self, idx: int, operand: SSAValue) -> None:
         operands = self._op._operands  # pyright: ignore[reportPrivateUsage]
-        operands[idx].remove_use(Use(self._op, idx))
-        operand.add_use(Use(self._op, idx))
-        new_operands = (*operands[:idx], operand, *operands[idx + 1 :])
+        operand_uses = self._op._operand_uses  # pyright: ignore[reportPrivateUsage]
+        operands[idx].remove_use(operand_uses[idx])
+        operand.add_use(operand_uses[idx])
+        new_operands = SSAValues((*operands[:idx], operand, *operands[idx + 1 :]))
         self._op._operands = new_operands  # pyright: ignore[reportPrivateUsage]
 
     def __iter__(self) -> Iterator[SSAValue]:
@@ -733,22 +966,28 @@ class OpTraits(Iterable[OpTrait]):
     An operation's traits.
     Some operations have mutually recursive traits, such as one is always the parent
     operation of the other.
-    For this case, the operation's traits can be declared lazily, and resolved only
-    at the first use.
+    For this case, the operation's traits can be declared lazily and resolved only at
+    the first use.
     """
 
-    _traits: frozenset[OpTrait] | Callable[[], tuple[OpTrait, ...]]
+    gen_traits: Callable[[], tuple[OpTrait, ...]]
+    """
+    Factory method that lazily populates the traits on first use.
+    """
+    _traits: frozenset[OpTrait] | None
+    """
+    The traits of this operation, can be updated via `add_trait`.
+    """
 
-    def __init__(
-        self, traits: frozenset[OpTrait] | Callable[[], tuple[OpTrait, ...]]
-    ) -> None:
-        self._traits = traits
+    def __init__(self, gen_traits: Callable[[], tuple[OpTrait, ...]]) -> None:
+        self.gen_traits = gen_traits
+        self._traits = None
 
     @property
     def traits(self) -> frozenset[OpTrait]:
         """Returns a copy of this instance's traits."""
-        if callable(self._traits):
-            self._traits = frozenset(self._traits())
+        if self._traits is None:
+            self._traits = frozenset(self.gen_traits())
         return self._traits
 
     def add_trait(self, trait: OpTrait):
@@ -759,26 +998,40 @@ class OpTraits(Iterable[OpTrait]):
         return iter(self.traits)
 
     def __eq__(self, value: object, /) -> bool:
-        return isinstance(value, OpTraits) and self._traits == value._traits
+        return isinstance(value, OpTraits) and self.traits == value.traits
 
 
-@dataclass
-class Operation(IRNode):
+@dataclass(eq=False, unsafe_hash=False)
+class Operation(_IRNode):
     """A generic operation. Operation definitions inherit this class."""
 
     name: ClassVar[str] = field(repr=False)
     """The operation name. Should be a static member of the class"""
 
-    _operands: tuple[SSAValue, ...] = field(default=())
+    _operands: SSAValues = field(default=SSAValues())
     """The operation operands."""
 
-    results: tuple[OpResult, ...] = field(default=())
+    _operand_uses: tuple[Use, ...] = field(default=())
+    """
+    The uses for each operand.
+    They are stored separately from the operands to allow for more efficient
+    access to the operand SSAValue.
+    """
+
+    results: SSAValues[OpResult] = field(default=SSAValues())
     """The results created by the operation."""
 
     _successors: tuple[Block, ...] = field(default=())
     """
     The basic blocks that the operation may give control to.
     This list should be empty for non-terminator operations.
+    """
+
+    _successor_uses: tuple[Use, ...] = field(default=())
+    """
+    The uses for each successor.
+    They are stored separately from the successors to allow for more efficient
+    access to the successor Block.
     """
 
     properties: dict[str, Attribute] = field(default_factory=dict[str, Attribute])
@@ -887,12 +1140,14 @@ class Operation(IRNode):
 
     @operands.setter
     def operands(self, new: Sequence[SSAValue]):
-        new = tuple(new)
-        for idx, operand in enumerate(self._operands):
-            operand.remove_use(Use(self, idx))
-        for idx, operand in enumerate(new):
-            operand.add_use(Use(self, idx))
+        new = SSAValues(new)
+        new_uses = tuple(Use(self, idx) for idx in range(len(new)))
+        for operand, use in zip(self._operands, self._operand_uses):
+            operand.remove_use(use)
+        for operand, use in zip(new, new_uses):
+            operand.add_use(use)
         self._operands = new
+        self._operand_uses = new_uses
 
     @property
     def successors(self) -> OpSuccessors:
@@ -901,11 +1156,17 @@ class Operation(IRNode):
     @successors.setter
     def successors(self, new: Sequence[Block]):
         new = tuple(new)
-        for idx, successor in enumerate(self._successors):
-            successor.remove_use(Use(self, idx))
-        for idx, successor in enumerate(new):
-            successor.add_use(Use(self, idx))
+        new_uses = tuple(Use(self, idx) for idx in range(len(new)))
+        for successor, use in zip(self._successors, self._successor_uses):
+            successor.remove_use(use)
+        for successor, use in zip(new, new_uses):
+            successor.add_use(use)
         self._successors = new
+        self._successor_uses = new_uses
+
+    @property
+    def successor_uses(self) -> Sequence[Use]:
+        return self._successor_uses
 
     def __post_init__(self):
         assert self.name != ""
@@ -926,7 +1187,7 @@ class Operation(IRNode):
         # This is assumed to exist by Operation.operand setter.
         self.operands = operands
 
-        self.results = tuple(
+        self.results = SSAValues(
             OpResult(result_type, self, idx)
             for (idx, result_type) in enumerate(result_types)
         )
@@ -965,7 +1226,7 @@ class Operation(IRNode):
     def add_region(self, region: Region) -> None:
         """Add an unattached region to the operation."""
         if region.parent:
-            raise Exception(
+            raise ValueError(
                 "Cannot add region that is already attached on an operation."
             )
         self.regions += (region,)
@@ -974,7 +1235,7 @@ class Operation(IRNode):
     def get_region_index(self, region: Region) -> int:
         """Get the region position in the operation."""
         if region.parent is not self:
-            raise Exception("Region is not attached to the operation.")
+            raise ValueError("Region is not attached to the operation.")
         return next(
             idx for idx, curr_region in enumerate(self.regions) if curr_region is region
         )
@@ -999,8 +1260,8 @@ class Operation(IRNode):
         This function is called prior to deleting an operation.
         """
         self.parent = None
-        for idx, operand in enumerate(self.operands):
-            operand.remove_use(Use(self, idx))
+        for operand, use in zip(self._operands, self._operand_uses):
+            operand.remove_use(use)
         for region in self.regions:
             region.drop_all_references()
 
@@ -1060,7 +1321,7 @@ class Operation(IRNode):
     def verify(self, verify_nested_ops: bool = True) -> None:
         for operand in self.operands:
             if isinstance(operand, ErasedSSAValue):
-                raise Exception("Erased SSA value is used by the operation")
+                raise ValueError("Erased SSA value is used by the operation")
 
         parent_block = self.parent
         parent_region = None if parent_block is None else parent_block.parent
@@ -1109,7 +1370,8 @@ class Operation(IRNode):
             self.verify_()
         except VerifyException as err:
             self.emit_error(
-                "Operation does not verify: " + str(err), underlying_error=err
+                f"Operation does not verify: {err}",
+                err,
             )
 
     def verify_(self) -> None:
@@ -1118,19 +1380,19 @@ class Operation(IRNode):
     _OperationType = TypeVar("_OperationType", bound="Operation")
 
     @classmethod
-    def parse(cls: type[_OperationType], parser: Parser) -> _OperationType:
+    def parse(cls, parser: Parser) -> Self:
         parser.raise_error(f"Operation {cls.name} does not have a custom format.")
 
     def print(self, printer: Printer):
         return printer.print_op_with_default_format(self)
 
     def clone_without_regions(
-        self: OpT,
+        self,
         value_mapper: dict[SSAValue, SSAValue] | None = None,
         block_mapper: dict[Block, Block] | None = None,
         *,
         clone_name_hints: bool = True,
-    ) -> OpT:
+    ) -> Self:
         """Clone an operation, with empty regions instead."""
         if value_mapper is None:
             value_mapper = {}
@@ -1165,12 +1427,12 @@ class Operation(IRNode):
         return cloned_op
 
     def clone(
-        self: OpT,
+        self,
         value_mapper: dict[SSAValue, SSAValue] | None = None,
         block_mapper: dict[Block, Block] | None = None,
         *,
         clone_name_hints: bool = True,
-    ) -> OpT:
+    ) -> Self:
         """Clone an operation with all its regions and operations in them."""
         if value_mapper is None:
             value_mapper = {}
@@ -1240,7 +1502,7 @@ class Operation(IRNode):
     def detach(self):
         """Detach the operation from its parent block."""
         if self.parent is None:
-            raise Exception("Cannot detach a toplevel operation.")
+            raise ValueError("Cannot detach a toplevel operation.")
         self.parent.detach_op(self)
 
     def is_structurally_equivalent(
@@ -1299,25 +1561,18 @@ class Operation(IRNode):
     def emit_error(
         self,
         message: str,
-        exception_type: type[Exception] = VerifyException,
-        underlying_error: Exception | None = None,
+        underlying_error: Exception,
     ) -> NoReturn:
         """Emit an error with the given message."""
         from xdsl.utils.diagnostic import Diagnostic
 
         diagnostic = Diagnostic()
         diagnostic.add_message(self, message)
-        diagnostic.raise_exception(message, self, exception_type, underlying_error)
+        diagnostic.raise_exception(self, underlying_error)
 
     @classmethod
     def dialect_name(cls) -> str:
         return Dialect.split_name(cls.name)[0]
-
-    def __eq__(self, other: object) -> bool:
-        return self is other
-
-    def __hash__(self) -> int:
-        return id(self)
 
     def __str__(self) -> str:
         from xdsl.printer import Printer
@@ -1327,7 +1582,7 @@ class Operation(IRNode):
         printer.print_op(self)
         return res.getvalue()
 
-    def __format__(self, __format_spec: str) -> str:
+    def __format__(self, format_spec: str, /) -> str:
         desc = str(self)
         if "\n" in desc:
             # Description is multi-line, indent each line
@@ -1420,8 +1675,8 @@ class BlockOps(Reversible[Operation], Iterable[Operation]):
         return self.block.last_op
 
 
-@dataclass(init=False)
-class Block(IRNode, IRWithUses):
+@dataclass(init=False, eq=False, unsafe_hash=False)
+class Block(_IRNode, IRWithUses, IRWithName):
     """A sequence of operations"""
 
     _args: tuple[BlockArgument, ...]
@@ -1435,6 +1690,11 @@ class Block(IRNode, IRWithUses):
 
     parent: Region | None = field(default=None, repr=False)
     """Parent region containing the block."""
+
+    @staticmethod
+    def is_default_block_name(name: str) -> bool:
+        """Check if a name matches the default block naming pattern (bb followed by digits)."""
+        return name.startswith("bb") and name[2:].isdigit() and name[2:] != ""
 
     def __init__(
         self,
@@ -1506,7 +1766,7 @@ class Block(IRNode, IRWithUses):
         Returns the new argument.
         """
         if index < 0 or index > len(self._args):
-            raise Exception("Unexpected index")
+            raise ValueError("Unexpected index")
         new_arg = BlockArgument(arg_type, self, index)
         for arg in self._args[index:]:
             arg.index += 1
@@ -1520,7 +1780,7 @@ class Block(IRNode, IRWithUses):
         If safe_erase is False, replace the block argument uses with an ErasedSSAVAlue.
         """
         if arg.block is not self:
-            raise Exception("Attempting to delete an argument of the wrong block")
+            raise ValueError("Attempting to delete an argument of the wrong block")
         for block_arg in self._args[arg.index + 1 :]:
             block_arg.index -= 1
         self._args = tuple(chain(self._args[: arg.index], self._args[arg.index + 1 :]))
@@ -1690,7 +1950,7 @@ class Block(IRNode, IRWithUses):
     def get_operation_index(self, op: Operation) -> int:
         """Get the operation position in a block."""
         if op.parent is not self:
-            raise Exception("Operation is not a children of the block.")
+            raise ValueError("Operation is not a child of the block.")
         return next(idx for idx, block_op in enumerate(self.ops) if block_op is op)
 
     def detach_op(self, op: Operation) -> Operation:
@@ -1699,7 +1959,7 @@ class Block(IRNode, IRWithUses):
         Returns the detached operation.
         """
         if op.parent is not self:
-            raise Exception("Cannot detach operation from a different block.")
+            raise ValueError("Cannot detach operation from a different block.")
         op.parent = None
 
         prev_op = op.prev_op
@@ -1763,7 +2023,7 @@ class Block(IRNode, IRWithUses):
     def verify(self) -> None:
         for operation in self.ops:
             if operation.parent != self:
-                raise Exception(
+                raise ValueError(
                     "Parent pointer of operation does not refer to containing region"
                 )
             operation.verify()
@@ -1849,12 +2109,6 @@ class Block(IRNode, IRWithUses):
 
         return True
 
-    def __eq__(self, other: object) -> bool:
-        return self is other
-
-    def __hash__(self) -> int:
-        return id(self)
-
 
 @dataclass
 class _RegionBlocksIterator(Iterator[Block]):
@@ -1897,8 +2151,9 @@ class OpSuccessors(Sequence[Block]):
 
     def __setitem__(self, idx: int, successor: Block) -> None:
         successors = self._op._successors  # pyright: ignore[reportPrivateUsage]
-        successors[idx].remove_use(Use(self._op, idx))
-        successor.add_use(Use(self._op, idx))
+        successor_uses = self._op._successor_uses  # pyright: ignore[reportPrivateUsage]
+        successors[idx].remove_use(successor_uses[idx])
+        successor.add_use(successor_uses[idx])
         new_successors = (*successors[:idx], successor, *successors[idx + 1 :])
         self._op._successors = new_successors  # pyright: ignore[reportPrivateUsage]
 
@@ -2002,8 +2257,8 @@ class RegionBlocks(Sequence[Block], Reversible[Block]):
         return self._region.last_block
 
 
-@dataclass(init=False)
-class Region(IRNode):
+@dataclass(init=False, eq=False, unsafe_hash=False)
+class Region(_IRNode):
     """A region contains a CFG of blocks. Regions are contained in operations."""
 
     class DEFAULT:
@@ -2248,7 +2503,7 @@ class Region(IRNode):
     def get_block_index(self, block: Block) -> int:
         """Get the block position in a region."""
         if block.parent is not self:
-            raise Exception("Block is not a child of the region.")
+            raise ValueError("Block is not a child of the region.")
         return next(
             idx for idx, region_block in enumerate(self.blocks) if region_block is block
         )
@@ -2262,7 +2517,7 @@ class Region(IRNode):
             block = self.blocks[block]
         else:
             if block.parent is not self:
-                raise Exception("Block is not a child of the region.")
+                raise ValueError("Block is not a child of the region.")
 
         block.parent = None
         if (prev_block := block.prev_block) is None:
@@ -2358,7 +2613,7 @@ class Region(IRNode):
         for block in self.blocks:
             block.verify()
             if block.parent != self:
-                raise Exception(
+                raise ValueError(
                     "Parent pointer of block does not refer to containing region"
                 )
 
@@ -2472,3 +2727,6 @@ class Region(IRNode):
         ):
             return False
         return True
+
+
+IRNode: TypeAlias = Operation | Region | Block

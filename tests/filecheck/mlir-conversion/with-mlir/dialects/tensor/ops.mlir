@@ -17,6 +17,15 @@
 %collapsed = tensor.collapse_shape %big_tensor [[0, 1], [2, 3]] : tensor<2x3x2x3xf32> into tensor<6x6xf32>
 %extracted = tensor.extract %t2[%i1] : tensor<2xf32>
 %tensor_with_ins = tensor.insert %extracted into %t2[%i1] : tensor<2xf32>
+%fromelements = tensor.from_elements %i1, %i1: tensor<2xindex>
+%index, %index1, %tensor = "test.op"() : () -> (index, index, tensor<?x?xf32>)
+%expanded = tensor.expand_shape %tensor [[0, 1, 2], [3]] output_shape [%dim1, 1, 1, %dim2] : tensor<?x?xf32> into tensor<?x1x1x?xf32>
+%expanded_with_attr_dict = tensor.expand_shape %tensor [[0, 1, 2], [3]] output_shape [%dim1, 1, 1, %dim2] {test_attr = 42 : i8} : tensor<?x?xf32> into tensor<?x1x1x?xf32>
+%expanded_generic = "tensor.expand_shape"(%tensor, %dim1, %dim2) <{reassociation = [[0 : i64, 1 : i64, 2 : i64], [3 : i64]], static_output_shape = array<i64: -9223372036854775808, 1, 1, -9223372036854775808>}> : (tensor<?x?xf32>, index, index) -> tensor<?x1x1x?xf32>
+
+%s = "test.op"() : () -> (f32)
+%v = tensor.splat %s : tensor<8xf32>
+%v2 = tensor.splat %s[%index, %index1] : tensor<?x8x?xf32>
 
 
 // CHECK:       module {
@@ -37,4 +46,12 @@
 // CHECK-NEXT:  %collapsed = tensor.collapse_shape %6 [[0, 1], [2, 3]] : tensor<2x3x2x3xf32> into tensor<6x6xf32>
 // CHECK-NEXT:  %extracted = tensor.extract %1[%2] : tensor<2xf32>
 // CHECK-NEXT:  %{{.*}} = tensor.insert %extracted into %1[%2] : tensor<2xf32>
+// CHECK-NEXT:  %{{.*}} = tensor.from_elements %2, %2 : tensor<2xindex>
+// CHECK-NEXT:  %7:3 = "test.op"() : () -> (index, index, tensor<?x?xf32>)
+// CHECK-NEXT:  %expanded = tensor.expand_shape %7#2 [[0, 1, 2], [3]] output_shape [%dim, 1, 1, %dim_0] : tensor<?x?xf32> into tensor<?x1x1x?xf32>
+// CHECK-NEXT:  %expanded_2 = tensor.expand_shape %7#2 [[0, 1, 2], [3]] output_shape [%dim, 1, 1, %dim_0] {test_attr = 42 : i8} : tensor<?x?xf32> into tensor<?x1x1x?xf32>
+// CHECK-NEXT:  %expanded_3 = tensor.expand_shape %7#2 [[0, 1, 2], [3]] output_shape [%dim, 1, 1, %dim_0] : tensor<?x?xf32> into tensor<?x1x1x?xf32>
+// CHECK-NEXT:  %8 = "test.op"() : () -> f32
+// CHECK-NEXT:  %{{.*}} = tensor.splat %8 : tensor<8xf32>
+// CHECK-NEXT:  %{{.*}} = tensor.splat %8[%7#0, %7#1] : tensor<?x8x?xf32>
 // CHECK-NEXT: }

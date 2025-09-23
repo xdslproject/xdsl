@@ -8,6 +8,7 @@ from xdsl.dialects.builtin import (
     FlatSymbolRefAttrConstr,
     FunctionType,
     StringAttr,
+    SymbolNameConstraint,
     SymbolRefAttr,
 )
 from xdsl.dialects.utils import (
@@ -109,7 +110,7 @@ class FuncOp(IRDLOperation):
     name = "func.func"
 
     body = region_def()
-    sym_name = prop_def(StringAttr)
+    sym_name = prop_def(SymbolNameConstraint())
     function_type = prop_def(FunctionType)
     sym_visibility = opt_prop_def(StringAttr)
     arg_attrs = opt_prop_def(ArrayAttr[DictionaryAttr])
@@ -189,7 +190,8 @@ class FuncOp(IRDLOperation):
     def print(self, printer: Printer):
         if self.sym_visibility:
             visibility = self.sym_visibility.data
-            printer.print(f" {visibility}")
+            printer.print_string(" ")
+            printer.print_string(visibility)
 
         print_func_op_like(
             printer,

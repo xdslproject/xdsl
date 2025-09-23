@@ -42,7 +42,7 @@ builtin.module {
    // CHECK-NEXT: }
 
   func.func @arg_rec_block(i32) -> i32 {
-  ^0(%2 : i32):
+  ^bb0(%2 : i32):
     %3 = "func.call"(%2) {"callee" = @arg_rec_block} : (i32) -> i32
     func.return %3 : i32
   }

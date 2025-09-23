@@ -5,6 +5,7 @@ from xdsl.interpreter import Interpreter
 from xdsl.interpreters.transform import TransformFunctions
 from xdsl.ir import Block, Region
 from xdsl.parser import Parser
+from xdsl.transforms import get_all_passes
 
 
 def test_empty_transform_module():
@@ -30,13 +31,13 @@ def test_empty_transform_module():
         function_type = builtin.FunctionType.from_lists([ty], [ty])
         named_sequence = transform.NamedSequenceOp(sym_name, function_type, body)
 
-    interpreter = Interpreter(module)
-    interpreter.register_implementations(TransformFunctions())
-
     ctx = Context()
     ctx.load_dialect(builtin.Builtin)
     ctx.load_dialect(func.Func)
     ctx.load_dialect(transform.Transform)
+
+    interpreter = Interpreter(module)
+    interpreter.register_implementations(TransformFunctions(ctx, get_all_passes()))
 
     expected = Parser(ctx, payload).parse_module()
     (observed,) = interpreter.call_op(named_sequence, (expected,))

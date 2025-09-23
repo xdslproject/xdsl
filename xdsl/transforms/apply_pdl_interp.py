@@ -1,6 +1,5 @@
 import os
 from dataclasses import dataclass
-from typing import IO
 
 from xdsl.context import Context
 from xdsl.dialects import builtin, pdl_interp
@@ -19,24 +18,26 @@ class PDLInterpRewritePattern(RewritePattern):
     A rewrite pattern that uses the pdl_interp dialect for matching and rewriting operations.
     """
 
-    ctx: Context
     interpreter: Interpreter
     functions: PDLInterpFunctions
     matcher: pdl_interp.FuncOp
+    name: None | str = None
 
     def __init__(
-        self, matcher: pdl_interp.FuncOp, ctx: Context, file: IO[str] | None = None
+        self,
+        matcher: pdl_interp.FuncOp,
+        interpreter: Interpreter,
+        functions: PDLInterpFunctions,
+        name: None | str = None,
     ):
-        # Create interpreter and register implementations
-        self.ctx = ctx
-        self.functions = PDLInterpFunctions(ctx)
+        self.functions = functions
         module = matcher.parent_op()
         assert isinstance(module, ModuleOp)
-        self.interpreter = Interpreter(module=module, file=file)
-        self.interpreter.register_implementations(self.functions)
+        self.interpreter = interpreter
         if matcher.sym_name.data != "matcher":
             raise ValueError("Matcher function name must be 'matcher'")
         self.matcher = matcher
+        self.name = name
 
     def match_and_rewrite(self, xdsl_op: Operation, rewriter: PatternRewriter) -> None:
         # Setup the rewriter
@@ -67,5 +68,8 @@ class ApplyPDLInterpPass(ModulePass):
                 matcher = cur
                 break
         assert matcher is not None, "matcher function not found"
-        rewrite_pattern = PDLInterpRewritePattern(matcher, ctx, None)
+        interpreter = Interpreter(pdl_interp_module)
+        implementations = PDLInterpFunctions(ctx)
+        interpreter.register_implementations(implementations)
+        rewrite_pattern = PDLInterpRewritePattern(matcher, interpreter, implementations)
         PatternRewriteWalker(rewrite_pattern).rewrite_module(op)

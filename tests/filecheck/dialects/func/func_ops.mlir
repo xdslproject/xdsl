@@ -41,7 +41,7 @@ builtin.module {
    // CHECK-NEXT: }
 
   func.func @arg_rec_block(!test.type<"int">) -> !test.type<"int"> {
-  ^0(%2 : !test.type<"int">):
+  ^bb0(%2 : !test.type<"int">):
     %3 = func.call @arg_rec_block(%2) : (!test.type<"int">) -> !test.type<"int">
     func.return %3 : !test.type<"int">
   }

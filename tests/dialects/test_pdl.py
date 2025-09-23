@@ -27,7 +27,7 @@ type_val, attr_val, val_val, op_val = block.args
 
 
 def test_build_anc():
-    anc = pdl.ApplyNativeConstraintOp("anc", [type_val])
+    anc = pdl.ApplyNativeConstraintOp("anc", [type_val], [])
 
     assert anc.constraint_name == StringAttr("anc")
     assert anc.args == (type_val,)
@@ -211,5 +211,7 @@ def test_empty_range():
 
 
 def test_range_cannot_infer():
-    with pytest.raises(ValueError):
+    with pytest.raises(
+        ValueError, match="Empty range constructions require a return type."
+    ):
         pdl.RangeOp(())  # Cannot infer return type

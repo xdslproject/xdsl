@@ -12,14 +12,13 @@ from xdsl.dialects.builtin import (
     ArrayAttr,
     ContainerType,
     DenseArrayBase,
-    DenseI32ArrayConstr,
-    DenseI64ArrayConstr,
-    IndexType,
+    DictionaryAttr,
     IntAttr,
     IntegerAttr,
     IntegerType,
     NoneAttr,
     StringAttr,
+    SymbolNameConstraint,
     SymbolRefAttr,
     UnitAttr,
     i1,
@@ -42,7 +41,6 @@ from xdsl.irdl import (
     AttrSizedOperandSegments,
     BaseAttr,
     IRDLOperation,
-    ParameterDef,
     ParsePropInAttrDict,
     VarConstraint,
     base,
@@ -80,25 +78,28 @@ should be used for this index.
 """
 
 
-def _parse_llvm_type(parser: AttrParser):
+def _parse_optional_llvm_type(parser: AttrParser) -> Attribute | None:
+    """
+    Used to parse llvm types without the `llvm.` prefix.
+    """
     if parser.parse_optional_characters("void"):
         return LLVMVoidType()
     if parser.parse_optional_characters("ptr"):
-        return LLVMPointerType(LLVMPointerType.parse_parameters(parser))
+        return LLVMPointerType(*LLVMPointerType.parse_parameters(parser))
     if parser.parse_optional_characters("array"):
-        return LLVMArrayType(LLVMArrayType.parse_parameters(parser))
+        return LLVMArrayType(*LLVMArrayType.parse_parameters(parser))
     if parser.parse_optional_characters("struct"):
-        return LLVMStructType(LLVMStructType.parse_parameters(parser))
+        return LLVMStructType(*LLVMStructType.parse_parameters(parser))
 
 
-def parse_llvm_type(parser: AttrParser):
-    if (l := _parse_llvm_type(parser)) is not None:
+def parse_llvm_type(parser: AttrParser) -> Attribute:
+    if (l := _parse_optional_llvm_type(parser)) is not None:
         return l
     return parser.parse_attribute()
 
 
-def parse_optional_llvm_type(parser: AttrParser):
-    if (l := _parse_llvm_type(parser)) is not None:
+def parse_optional_llvm_type(parser: AttrParser) -> Attribute | None:
+    if (l := _parse_optional_llvm_type(parser)) is not None:
         return l
     return parser.parse_optional_attribute()
 
@@ -112,27 +113,26 @@ class LLVMStructType(ParametrizedAttribute, TypeAttribute):
     name = "llvm.struct"
 
     # An empty string refers to a struct without a name.
-    struct_name: ParameterDef[StringAttr]
-    types: ParameterDef[ArrayAttr[Attribute]]
+    struct_name: StringAttr
+    types: ArrayAttr[Attribute]
 
     # TODO: Add this parameter once xDSL supports the necessary capabilities.
-    #  bitmask = ParameterDef(StringAttr)
+    #  bitmask: StringAttr
 
     @staticmethod
     def from_type_list(types: Sequence[Attribute]) -> LLVMStructType:
-        return LLVMStructType([StringAttr(""), ArrayAttr(types)])
+        return LLVMStructType(StringAttr(""), ArrayAttr(types))
 
     def print_parameters(self, printer: Printer) -> None:
-        printer.print("<")
-        if self.struct_name.data:
-            printer.print_string_literal(self.struct_name.data)
-            printer.print_string(", ")
-        printer.print("(")
-        printer.print_list(self.types.data, printer.print_attribute)
-        printer.print(")>")
+        with printer.in_angle_brackets():
+            if self.struct_name.data:
+                printer.print_string_literal(self.struct_name.data)
+                printer.print_string(", ")
+            with printer.in_parens():
+                printer.print_list(self.types.data, printer.print_attribute)
 
     @classmethod
-    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
+    def parse_parameters(cls, parser: AttrParser) -> tuple[StringAttr, ArrayAttr]:
         parser.parse_characters("<", " in LLVM struct")
         struct_name = parser.parse_optional_str_literal()
         if struct_name is None:
@@ -144,17 +144,15 @@ class LLVMStructType(ParametrizedAttribute, TypeAttribute):
             parser.Delimiter.PAREN, lambda: parse_llvm_type(parser)
         )
         parser.parse_characters(">", " to close LLVM struct parameters")
-        return [StringAttr(struct_name), ArrayAttr(params)]
+        return (StringAttr(struct_name), ArrayAttr(params))
 
 
 @irdl_attr_definition
-class LLVMPointerType(
-    ParametrizedAttribute, TypeAttribute, ContainerType[Attribute | None]
-):
+class LLVMPointerType(ParametrizedAttribute, TypeAttribute, ContainerType):
     name = "llvm.ptr"
 
-    type: ParameterDef[Attribute | NoneAttr]
-    addr_space: ParameterDef[IntAttr | NoneAttr]
+    type: Attribute
+    addr_space: IntAttr | NoneAttr
 
     def print_parameters(self, printer: Printer) -> None:
         if isinstance(self.type, NoneAttr):
@@ -169,32 +167,34 @@ class LLVMPointerType(
         printer.print_string(">")
 
     @classmethod
-    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
+    def parse_parameters(
+        cls, parser: AttrParser
+    ) -> tuple[Attribute, IntAttr | NoneAttr]:
         if parser.parse_optional_characters("<") is None:
-            return [NoneAttr(), NoneAttr()]
+            return (NoneAttr(), NoneAttr())
         type = parse_optional_llvm_type(parser)
         if type is None:
             parser.raise_error("Expected first parameter of llvm.ptr to be a type!")
         if parser.parse_optional_characters(",") is None:
             parser.parse_characters(">", " for llvm.ptr parameters")
-            return [type, NoneAttr()]
+            return (type, NoneAttr())
         parser.parse_characters(",", " between llvm.ptr args")
         addr_space = parser.parse_integer()
         parser.parse_characters(">", " to end llvm.ptr parameters")
-        return [type, IntegerAttr(addr_space, IndexType())]
+        return (type, IntAttr(addr_space))
 
     @staticmethod
     def opaque():
-        return LLVMPointerType([NoneAttr(), NoneAttr()])
+        return LLVMPointerType(NoneAttr(), NoneAttr())
 
     @staticmethod
     def typed(type: Attribute):
-        return LLVMPointerType([type, NoneAttr()])
+        return LLVMPointerType(type, NoneAttr())
 
     def is_typed(self):
         return not isinstance(self.type, NoneAttr)
 
-    def get_element_type(self) -> Attribute | None:
+    def get_element_type(self) -> Attribute:
         return self.type
 
 
@@ -202,35 +202,28 @@ class LLVMPointerType(
 class LLVMArrayType(ParametrizedAttribute, TypeAttribute):
     name = "llvm.array"
 
-    size: ParameterDef[IntAttr]
-    type: ParameterDef[Attribute]
+    size: IntAttr
+    type: Attribute
 
     def print_parameters(self, printer: Printer) -> None:
-        printer.print_string("<")
-        printer.print_string(str(self.size.data))
-        printer.print_string(" x ")
-        printer.print_attribute(self.type)
-        printer.print_string(">")
+        with printer.in_angle_brackets():
+            printer.print_int(self.size.data)
+            printer.print_string(" x ")
+            printer.print_attribute(self.type)
 
     @classmethod
-    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
-        if parser.parse_optional_characters("<") is None:
-            return [NoneAttr(), NoneAttr()]
-        size = IntAttr(parser.parse_integer())
-        if parser.parse_optional_characters(">") is not None:
-            return [size, NoneAttr()]
-        parser.parse_shape_delimiter()
-        type = parse_optional_llvm_type(parser)
-        if type is None:
-            parser.raise_error("Expected second parameter of llvm.array to be a type!")
-        parser.parse_characters(">", " to end llvm.array parameters")
-        return [size, type]
+    def parse_parameters(cls, parser: AttrParser) -> tuple[IntAttr, Attribute]:
+        with parser.in_angle_brackets():
+            size = IntAttr(parser.parse_integer())
+            parser.parse_shape_delimiter()
+            type = parse_llvm_type(parser)
+        return (size, type)
 
     @staticmethod
     def from_size_and_type(size: int | IntAttr, type: Attribute):
         if isinstance(size, int):
             size = IntAttr(size)
-        return LLVMArrayType([size, type])
+        return LLVMArrayType(size, type)
 
 
 @irdl_attr_definition
@@ -248,9 +241,9 @@ class LLVMFunctionType(ParametrizedAttribute, TypeAttribute):
 
     name = "llvm.func"
 
-    inputs: ParameterDef[ArrayAttr[Attribute]]
-    output: ParameterDef[Attribute]
-    variadic: ParameterDef[UnitAttr | NoneAttr]
+    inputs: ArrayAttr[Attribute]
+    output: Attribute
+    variadic: UnitAttr | NoneAttr
 
     def __init__(
         self,
@@ -263,27 +256,26 @@ class LLVMFunctionType(ParametrizedAttribute, TypeAttribute):
         if output is None:
             output = LLVMVoidType()
         variad_attr = UnitAttr() if is_variadic else NoneAttr()
-        super().__init__([inputs, output, variad_attr])
+        super().__init__(inputs, output, variad_attr)
 
     @property
     def is_variadic(self) -> bool:
         return isinstance(self.variadic, UnitAttr)
 
     def print_parameters(self, printer: Printer) -> None:
-        printer.print_string("<")
-        if isinstance(self.output, LLVMVoidType):
-            printer.print("void")
-        else:
-            printer.print_attribute(self.output)
+        with printer.in_angle_brackets():
+            if isinstance(self.output, LLVMVoidType):
+                printer.print_string("void")
+            else:
+                printer.print_attribute(self.output)
 
-        printer.print(" (")
-        printer.print_list(self.inputs, printer.print_attribute)
-        if self.is_variadic:
-            if self.inputs:
-                printer.print(", ")
-            printer.print("...")
-
-        printer.print_string(")>")
+            printer.print_string(" ")
+            with printer.in_parens():
+                printer.print_list(self.inputs, printer.print_attribute)
+                if self.is_variadic:
+                    if self.inputs:
+                        printer.print_string(", ")
+                    printer.print_string("...")
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
@@ -326,12 +318,12 @@ class LLVMFunctionType(ParametrizedAttribute, TypeAttribute):
 class LinkageAttr(ParametrizedAttribute):
     name = "llvm.linkage"
 
-    linkage: ParameterDef[StringAttr]
+    linkage: StringAttr
 
     def __init__(self, linkage: str | StringAttr) -> None:
         if isinstance(linkage, str):
             linkage = StringAttr(linkage)
-        super().__init__([linkage])
+        super().__init__(linkage)
 
     def print_parameters(self, printer: Printer) -> None:
         printer.print_string("<")
@@ -404,10 +396,13 @@ class ArithmeticBinOperation(IRDLOperation, ABC):
         return cls(operands[0], operands[1], attributes)
 
     def print(self, printer: Printer) -> None:
-        printer.print(" ", self.lhs, ", ", self.rhs)
+        printer.print_string(" ")
+        printer.print_ssa_value(self.lhs)
+        printer.print_string(", ")
+        printer.print_ssa_value(self.rhs)
         printer.print_op_attributes(self.attributes)
-        printer.print(" : ")
-        printer.print(self.lhs.type)
+        printer.print_string(" : ")
+        printer.print_attribute(self.lhs.type)
 
 
 class OverflowFlag(StrEnum):
@@ -420,7 +415,7 @@ class OverflowAttrBase(BitEnumAttribute[OverflowFlag]):
     none_value = "none"
 
 
-@irdl_attr_definition
+@irdl_attr_definition(init=False)
 class OverflowAttr(OverflowAttrBase):
     name = "llvm.overflow"
 
@@ -432,7 +427,7 @@ class OverflowAttr(OverflowAttrBase):
 
     def print(self, printer: Printer):
         if self.flags:
-            printer.print(" overflow")
+            printer.print_string(" overflow")
             self.print_parameter(printer)
 
 
@@ -477,12 +472,15 @@ class ArithmeticBinOpOverflow(IRDLOperation, ABC):
         return cls(operands[0], operands[1], attributes, overflowFlags)
 
     def print(self, printer: Printer) -> None:
-        printer.print(" ", self.lhs, ", ", self.rhs)
+        printer.print_string(" ")
+        printer.print_ssa_value(self.lhs)
+        printer.print_string(", ")
+        printer.print_ssa_value(self.rhs)
         if self.overflowFlags:
             self.overflowFlags.print(printer)
         printer.print_op_attributes(self.attributes)
-        printer.print(" : ")
-        printer.print(self.lhs.type)
+        printer.print_string(" : ")
+        printer.print_attribute(self.lhs.type)
 
 
 class ArithmeticBinOpExact(IRDLOperation, ABC):
@@ -520,7 +518,7 @@ class ArithmeticBinOpExact(IRDLOperation, ABC):
 
     def print_exact(self, printer: Printer) -> None:
         if self.is_exact:
-            printer.print(" exact")
+            printer.print_string(" exact")
 
     @classmethod
     def parse(cls, parser: Parser):
@@ -536,10 +534,13 @@ class ArithmeticBinOpExact(IRDLOperation, ABC):
 
     def print(self, printer: Printer) -> None:
         self.print_exact(printer)
-        printer.print(" ", self.lhs, ", ", self.rhs)
+        printer.print_string(" ")
+        printer.print_ssa_value(self.lhs)
+        printer.print_string(", ")
+        printer.print_ssa_value(self.rhs)
         printer.print_op_attributes(self.attributes)
-        printer.print(" : ")
-        printer.print(self.lhs.type)
+        printer.print_string(" : ")
+        printer.print_attribute(self.lhs.type)
 
 
 class ArithmeticBinOpDisjoint(IRDLOperation, ABC):
@@ -602,10 +603,13 @@ class IntegerConversionOp(IRDLOperation, ABC):
         return cls(operands[0], res_type, attributes)
 
     def print(self, printer: Printer):
-        printer.print(" ", self.arg)
+        printer.print_string(" ")
+        printer.print_ssa_value(self.arg)
         printer.print_op_attributes(self.attributes)
-        printer.print(" : ")
-        printer.print(self.arg.type, " to ", self.res.type)
+        printer.print_string(" : ")
+        printer.print_attribute(self.arg.type)
+        printer.print_string(" to ")
+        printer.print_attribute(self.res.type)
 
 
 class IntegerConversionOpNNeg(IRDLOperation, ABC):
@@ -668,12 +672,15 @@ class IntegerConversionOpOverflow(IRDLOperation, ABC):
         return cls(operands[0], res_type, attributes, overflowFlags)
 
     def print(self, printer: Printer):
-        printer.print(" ", self.arg)
+        printer.print_string(" ")
+        printer.print_ssa_value(self.arg)
         if self.overflowFlags:
             self.overflowFlags.print(printer)
         printer.print_op_attributes(self.attributes)
-        printer.print(" : ")
-        printer.print(self.arg.type, " to ", self.res.type)
+        printer.print_string(" : ")
+        printer.print_attribute(self.arg.type)
+        printer.print_string(" to ")
+        printer.print_attribute(self.res.type)
 
 
 @irdl_op_definition
@@ -746,7 +753,7 @@ class TruncOp(IntegerConversionOpOverflow):
     name = "llvm.trunc"
 
     def verify(self, verify_nested_ops: bool = True):
-        assert isinstance(self.arg.type, IntegerType)
+        assert isa(self.arg.type, IntegerType)
         assert isinstance(self.res.type, IntegerType)
         if self.arg.type.bitwidth <= self.res.type.bitwidth:
             raise VerifyException(
@@ -760,7 +767,7 @@ class ZExtOp(IntegerConversionOpNNeg):
     name = "llvm.zext"
 
     def verify(self, verify_nested_ops: bool = True):
-        assert isinstance(self.arg.type, IntegerType)
+        assert isa(self.arg.type, IntegerType)
         assert isinstance(self.res.type, IntegerType)
         if self.arg.type.bitwidth >= self.res.type.bitwidth:
             raise VerifyException(
@@ -774,7 +781,7 @@ class SExtOp(IntegerConversionOp):
     name = "llvm.sext"
 
     def verify(self, verify_nested_ops: bool = True):
-        assert isinstance(self.arg.type, IntegerType)
+        assert isa(self.arg.type, IntegerType)
         assert isinstance(self.res.type, IntegerType)
         if self.arg.type.bitwidth >= self.res.type.bitwidth:
             raise VerifyException(
@@ -857,10 +864,13 @@ class ICmpOp(IRDLOperation):
     def print(self, printer: Printer):
         printer.print_string(' "')
         self.print_predicate(printer)
-        printer.print('" ', self.lhs, ", ", self.rhs)
+        printer.print_string('" ')
+        printer.print_ssa_value(self.lhs)
+        printer.print_string(", ")
+        printer.print_ssa_value(self.rhs)
         printer.print_op_attributes(self.attributes)
         printer.print_string(" : ")
-        printer.print(self.lhs.type)
+        printer.print_attribute(self.lhs.type)
 
 
 @irdl_op_definition
@@ -979,7 +989,7 @@ class GEPOp(IRDLOperation):
 
     ptr = operand_def(LLVMPointerType)
     ssa_indices = var_operand_def(IntegerType)
-    elem_type = opt_prop_def(Attribute)
+    elem_type = opt_prop_def()
 
     result = result_def(LLVMPointerType)
 
@@ -1010,14 +1020,11 @@ class GEPOp(IRDLOperation):
             ssa_indices = []
 
         # convert a potential Operation into an SSAValue
-        ptr_val = SSAValue.get(ptr)
+        ptr_val = SSAValue.get(ptr, type=LLVMPointerType)
         ptr_type = ptr_val.type
 
-        if not isinstance(ptr_type, LLVMPointerType):
-            raise ValueError("Input must be a pointer")
-
         props: dict[str, Attribute] = {
-            "rawConstantIndices": DenseArrayBase.create_dense_int(i32, indices),
+            "rawConstantIndices": DenseArrayBase.from_list(i32, indices),
         }
 
         if not ptr_type.is_typed():
@@ -1074,7 +1081,7 @@ class AllocaOp(IRDLOperation):
     size = operand_def(IntegerType)
 
     alignment = opt_prop_def(IntegerAttr)
-    elem_type = opt_prop_def(Attribute)
+    elem_type = opt_prop_def()
 
     res = result_def()
 
@@ -1190,14 +1197,20 @@ class LoadOp(IRDLOperation):
 
     ptr = operand_def(LLVMPointerType)
 
-    ordering = opt_prop_def(IntegerAttr[IntegerType])
+    alignment = opt_prop_def(IntegerAttr[IntegerType])
+    ordering = prop_def(IntegerAttr[IntegerType], default_value=IntegerAttr(0, i64))
 
     dereferenced_value = result_def()
 
-    def __init__(self, ptr: SSAValue | Operation, result_type: Attribute | None = None):
+    def __init__(
+        self,
+        ptr: SSAValue | Operation,
+        result_type: Attribute | None = None,
+        alignment: int | None = None,
+        ordering: int = 0,
+    ):
         if result_type is None:
-            ptr = SSAValue.get(ptr)
-            assert isinstance(ptr.type, LLVMPointerType)
+            ptr = SSAValue.get(ptr, type=LLVMPointerType)
 
             if isinstance(ptr.type.type, NoneAttr):
                 raise ValueError(
@@ -1205,7 +1218,14 @@ class LoadOp(IRDLOperation):
                 )
             result_type = ptr.type.type
 
-        super().__init__(operands=[ptr], result_types=[result_type])
+        props: dict[str, Attribute] = {
+            "ordering": IntegerAttr(ordering, i64),
+        }
+
+        if alignment is not None:
+            props["alignment"] = IntegerAttr(alignment, i64)
+
+        super().__init__(operands=[ptr], result_types=[result_type], properties=props)
 
 
 @irdl_op_definition
@@ -1271,7 +1291,7 @@ class ExtractValueOp(IRDLOperation):
 
     name = "llvm.extractvalue"
 
-    position = prop_def(DenseI64ArrayConstr)
+    position = prop_def(DenseArrayBase.constr(i64))
     container = operand_def(Attribute)
 
     res = result_def(Attribute)
@@ -1301,7 +1321,7 @@ class InsertValueOp(IRDLOperation):
 
     name = "llvm.insertvalue"
 
-    position = prop_def(DenseI64ArrayConstr)
+    position = prop_def(DenseArrayBase.constr(i64))
     container = operand_def(Attribute)
     value = operand_def(Attribute)
 
@@ -1344,14 +1364,14 @@ class UndefOp(IRDLOperation):
 class GlobalOp(IRDLOperation):
     name = "llvm.mlir.global"
 
-    global_type = prop_def(Attribute)
+    global_type = prop_def()
     constant = opt_prop_def(UnitAttr)
-    sym_name = prop_def(StringAttr)
+    sym_name = prop_def(SymbolNameConstraint())
     linkage = prop_def(LinkageAttr)
     dso_local = opt_prop_def(UnitAttr)
     thread_local_ = opt_prop_def(UnitAttr)
     visibility_ = opt_prop_def(IntegerAttr[IntegerType])
-    value = opt_prop_def(Attribute)
+    value = opt_prop_def()
     alignment = opt_prop_def(IntegerAttr)
     addr_space = prop_def(IntegerAttr)
     unnamed_addr = opt_prop_def(IntegerAttr)
@@ -1375,6 +1395,7 @@ class GlobalOp(IRDLOperation):
         alignment: int | None = None,
         unnamed_addr: int | None = None,
         section: str | StringAttr | None = None,
+        body: Region | None = None,
     ):
         if isinstance(sym_name, str):
             sym_name = StringAttr(sym_name)
@@ -1412,7 +1433,10 @@ class GlobalOp(IRDLOperation):
                 section = StringAttr(section)
             props["section"] = section
 
-        super().__init__(properties=props, regions=[Region([])])
+        if body is None:
+            body = Region()
+
+        super().__init__(properties=props, regions=(body,))
 
 
 @irdl_op_definition
@@ -1467,14 +1491,14 @@ class CallingConventionAttr(ParametrizedAttribute):
 
     name = "llvm.cconv"
 
-    convention: ParameterDef[StringAttr]
+    convention: StringAttr
 
     @property
     def cconv_name(self) -> str:
         return self.convention.data
 
     def __init__(self, conv: str):
-        super().__init__([StringAttr(conv)])
+        super().__init__(StringAttr(conv))
 
     def _verify(self):
         if self.cconv_name not in LLVM_CALLING_CONVS:
@@ -1493,17 +1517,70 @@ class CallingConventionAttr(ParametrizedAttribute):
         parser.raise_error("Unknown calling convention")
 
 
+class FramePointerKind(StrEnum):
+    NONE = "none"
+    NONLEAF = "non-leaf"
+    ALL = "all"
+    RESERVED = "reserved"
+
+
+@irdl_attr_definition
+class FramePointerKindAttr(EnumAttribute[FramePointerKind]):
+    """LLVM Frame Pointer Kind."""
+
+    name = "llvm.framePointerKind"
+
+    def print_parameter(self, printer: Printer) -> None:
+        with printer.in_angle_brackets():
+            super().print_parameter(printer)
+
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> FramePointerKind:
+        with parser.in_angle_brackets():
+            return super().parse_parameter(parser)
+
+
+@irdl_attr_definition
+class TargetFeaturesAttr(ParametrizedAttribute):
+    """
+    Represents the LLVM target features as a list that can be checked within
+    passes/rewrites.
+    """
+
+    name = "llvm.target_features"
+
+    features: ArrayAttr[StringAttr]
+
+    def verify(self):
+        for feature in self.features:
+            if not feature.data.startswith(("-", "+")):
+                raise VerifyException("target features must start with '+' or '-'")
+
+
 @irdl_op_definition
 class FuncOp(IRDLOperation):
     name = "llvm.func"
 
     body = region_def()
-    sym_name = prop_def(StringAttr)
+    sym_name = prop_def(SymbolNameConstraint())
     function_type = prop_def(LLVMFunctionType)
     CConv = prop_def(CallingConventionAttr)
     linkage = prop_def(LinkageAttr)
     sym_visibility = opt_prop_def(StringAttr)
     visibility_ = prop_def(IntegerAttr[IntegerType])
+
+    # The following properties are not yet verified by the xDSL verifier, but
+    # are verified to at least allow the IR to be parsed and printed correctly.
+    arg_attrs = opt_prop_def(ArrayAttr[DictionaryAttr])
+    frame_pointer = opt_prop_def(FramePointerKindAttr)
+    no_inline = opt_prop_def(UnitAttr)
+    no_unwind = opt_prop_def(UnitAttr)
+    optimize_none = opt_prop_def(UnitAttr)
+    passthrough = opt_prop_def(ArrayAttr[Attribute])
+    target_cpu = opt_prop_def(StringAttr)
+    target_features = opt_prop_def(TargetFeaturesAttr)
+    tune_cpu = opt_prop_def(StringAttr)
+    unnamed_addr = opt_prop_def(IntegerAttr)
 
     def __init__(
         self,
@@ -1514,6 +1591,7 @@ class FuncOp(IRDLOperation):
         visibility: int | IntegerAttr[IntegerType] = 0,
         sym_visibility: str | StringAttr | None = None,
         body: Region | None = None,
+        other_props: dict[str, Attribute | None] | None = None,
     ):
         if isinstance(sym_name, str):
             sym_name = StringAttr(sym_name)
@@ -1523,17 +1601,21 @@ class FuncOp(IRDLOperation):
             body = Region([])
         if isinstance(sym_visibility, str):
             sym_visibility = StringAttr(sym_visibility)
-        super().__init__(
-            operands=[],
-            regions=[body],
-            properties={
+        properties = other_props if other_props is not None else {}
+        properties.update(
+            {
                 "sym_name": sym_name,
                 "function_type": function_type,
                 "CConv": cconv,
                 "linkage": linkage,
                 "visibility_": visibility,
                 "sym_visibility": sym_visibility,
-            },
+            }
+        )
+        super().__init__(
+            operands=[],
+            regions=[body],
+            properties=properties,
         )
 
 
@@ -1557,7 +1639,7 @@ class ReturnOp(IRDLOperation):
 class ConstantOp(IRDLOperation):
     name = "llvm.mlir.constant"
     result = result_def(Attribute)
-    value = prop_def(Attribute)
+    value = prop_def()
 
     traits = traits_def(NoMemoryEffect())
 
@@ -1584,15 +1666,16 @@ class ConstantOp(IRDLOperation):
         return cls(value, value_type)
 
     def print(self, printer: Printer) -> None:
-        printer.print("(")
-        if isa(self.value, IntegerAttr) and self.result.type == IntegerType(64):
-            self.value.print_without_type(printer)
-        else:
-            printer.print(self.value)
-        printer.print(") : ", self.result.type)
+        with printer.in_parens():
+            if isa(self.value, IntegerAttr) and self.result.type == IntegerType(64):
+                self.value.print_without_type(printer)
+            else:
+                printer.print_attribute(self.value)
+        printer.print_string(" : ")
+        printer.print_attribute(self.result.type)
 
 
-@irdl_attr_definition
+@irdl_attr_definition(init=False)
 class FastMathAttr(FastMathAttrBase):
     name = "llvm.fastmath"
 
@@ -1607,7 +1690,7 @@ class CallIntrinsicOp(IRDLOperation):
 
     fastmathFlags = opt_prop_def(FastMathAttr)
     intrin = prop_def(StringAttr)
-    op_bundle_sizes = prop_def(DenseI32ArrayConstr)
+    op_bundle_sizes = prop_def(DenseArrayBase.constr(i32))
     args = var_operand_def()
     op_bundle_operands = var_operand_def()
     ress = opt_result_def()
@@ -1669,7 +1752,8 @@ class CallOp(IRDLOperation):
     fastmathFlags = prop_def(FastMathAttr, default_value=FastMathAttr("none"))
     CConv = prop_def(CallingConventionAttr, default_value=CallingConventionAttr("ccc"))
     op_bundle_sizes = prop_def(
-        DenseI32ArrayConstr, default_value=DenseArrayBase.create_dense_int(i32, ())
+        DenseArrayBase.constr(i32),
+        default_value=DenseArrayBase.from_list(i32, ()),
     )
     TailCallKind = prop_def(
         TailCallKindAttr, default_value=TailCallKindAttr(TailCallKind.NONE)
@@ -1682,7 +1766,7 @@ class CallOp(IRDLOperation):
         self,
         callee: str | SymbolRefAttr | StringAttr,
         *args: SSAValue | Operation,
-        op_bundle_sizes: DenseArrayBase = DenseArrayBase.create_dense_int(i32, ()),
+        op_bundle_sizes: DenseArrayBase = DenseArrayBase.from_list(i32, ()),
         op_bundle_operands: tuple[SSAValue, ...] = (),
         return_type: Attribute | None = None,
         calling_convention: CallingConventionAttr = CallingConventionAttr("ccc"),
@@ -1697,7 +1781,12 @@ class CallOp(IRDLOperation):
         input_types = [
             SSAValue.get(arg).type for arg in args[: len(args) - variadic_args]
         ]
-        var_callee_type = LLVMFunctionType(input_types, return_type, variadic_args > 0)
+        if variadic_args:
+            var_callee_type = LLVMFunctionType(
+                input_types, return_type, bool(variadic_args)
+            )
+        else:
+            var_callee_type = None
         super().__init__(
             operands=[args, op_bundle_operands],
             properties={
@@ -1829,6 +1918,14 @@ class FPExtOp(GenericCastOp):
     name = "llvm.fpext"
 
 
+@irdl_op_definition
+class UnreachableOp(IRDLOperation):
+    name = "llvm.unreachable"
+
+    traits = traits_def(IsTerminator())
+    assembly_format = "attr-dict"
+
+
 LLVM = Dialect(
     "llvm",
     [
@@ -1872,6 +1969,7 @@ LLVM = Dialect(
         UDivOp,
         URemOp,
         UndefOp,
+        UnreachableOp,
         XOrOp,
         ZExtOp,
         ZeroOp,
@@ -1879,6 +1977,7 @@ LLVM = Dialect(
     [
         CallingConventionAttr,
         FastMathAttr,
+        FramePointerKindAttr,
         LLVMArrayType,
         LLVMFunctionType,
         LLVMPointerType,
@@ -1887,5 +1986,6 @@ LLVM = Dialect(
         LinkageAttr,
         OverflowAttr,
         TailCallKindAttr,
+        TargetFeaturesAttr,
     ],
 )

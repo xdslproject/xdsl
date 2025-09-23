@@ -4,39 +4,28 @@ Full documentation can be found here: https://github.com/quantumlib/Stim/blob/ma
 """
 
 import abc
-from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import cast
 
 from xdsl.dialects.builtin import ArrayAttr, FloatData, IntAttr
 from xdsl.ir import Attribute, Operation
 from xdsl.utils.base_printer import BasePrinter
+from xdsl.utils.hints import isa
 
 
 @dataclass(eq=False, repr=False)
 class StimPrinter(BasePrinter):
-    @contextmanager
-    def in_braces(self):
-        self.print_string("{")
-        yield
-        self.print_string("}")
-
-    @contextmanager
-    def in_parens(self):
-        self.print_string("(")
-        yield
-        self.print_string(") ")
-
     def print_attribute(self, attribute: Attribute) -> None:
         if isinstance(attribute, ArrayAttr):
             attribute = cast(ArrayAttr[Attribute], attribute)
             with self.in_parens():
                 self.print_list(attribute, self.print_attribute)
+            self.print_string(" ")
             return
         if isinstance(attribute, FloatData):
             self.print_string(f"{attribute.data}")
             return
-        if isinstance(attribute, IntAttr):
+        if isa(attribute, IntAttr):
             self.print_string(f"{attribute.data}")
             return
         raise ValueError(f"Cannot print in stim format: {attribute}")
