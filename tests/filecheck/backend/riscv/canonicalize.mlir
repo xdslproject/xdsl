@@ -117,6 +117,9 @@ builtin.module {
   %and_bitwise_zero_r0 = riscv.and %c0, %c1 : (!riscv.reg, !riscv.reg) -> !riscv.reg<a0>
   "test.op"(%and_bitwise_zero_r0) : (!riscv.reg<a0>) -> ()
 
+  %and_bitwise_self = riscv.and %i1, %i1 : (!riscv.reg<a1>, !riscv.reg<a1>) -> !riscv.reg<a0>
+  "test.op"(%and_bitwise_self) : (!riscv.reg<a0>) -> ()
+  
   %or_bitwise_zero_l0 = riscv.or %c1, %c0 : (!riscv.reg, !riscv.reg) -> !riscv.reg<a0>
   "test.op"(%or_bitwise_zero_l0) : (!riscv.reg<a0>) -> ()
 
@@ -255,6 +258,9 @@ builtin.module {
 
 // CHECK-NEXT:   %and_bitwise_zero_r0 = riscv.mv %c0_1 : (!riscv.reg) -> !riscv.reg<a0>
 // CHECK-NEXT:   "test.op"(%and_bitwise_zero_r0) : (!riscv.reg<a0>) -> ()
+
+// CHECK-NEXT:   %and_bitwise_self = riscv.mv %i1 : (!riscv.reg<a1>) -> !riscv.reg<a0>
+// CHECK-NEXT:   "test.op"(%and_bitwise_self) : (!riscv.reg<a0>) -> ()
 
 // CHECK-NEXT:   %or_bitwise_zero_l0 = riscv.mv %c1 : (!riscv.reg) -> !riscv.reg<a0>
 // CHECK-NEXT:   "test.op"(%or_bitwise_zero_l0) : (!riscv.reg<a0>) -> ()
