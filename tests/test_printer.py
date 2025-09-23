@@ -9,6 +9,7 @@ from xdsl.context import Context
 from xdsl.dialects import test
 from xdsl.dialects.arith import AddiOp, Arith, ConstantOp
 from xdsl.dialects.builtin import (
+    DYNAMIC_INDEX,
     AnyFloat,
     Builtin,
     ComplexType,
@@ -959,7 +960,7 @@ def test_float_attr_specials():
     [
         ([], ""),
         ([1, 2, 3], "1x2x3"),
-        ([1, -1, 3, -1], "1x?x3x?"),
+        ([1, DYNAMIC_INDEX, 3, DYNAMIC_INDEX], "1x?x3x?"),
         ([5], "5"),
     ],
 )
