@@ -18,11 +18,11 @@ from xdsl.frontend.listlang.lang_types import (
     ListLangType,
     TypedExpression,
 )
-from xdsl.frontend.listlang.scoped_dict_shadow import ScopedDict
 from xdsl.frontend.listlang.source import CodeCursor, Located, Location, ParseError
 from xdsl.ir import Block, SSAValue
 from xdsl.printer import Printer
 from xdsl.rewriter import InsertPoint
+from xdsl.utils.scoped_dict import ScopedDict
 
 RESERVED_KEYWORDS = ["let", "if", "else", "true", "false"]
 
