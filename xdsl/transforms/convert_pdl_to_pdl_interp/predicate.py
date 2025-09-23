@@ -325,8 +325,8 @@ class Predicate:
         """Get predicate for a native constraint"""
         question = ConstraintQuestion(
             name=name,
-            arg_positions=arg_positions,
-            result_types=result_types,
+            arg_positions=tuple(arg_positions),
+            result_types=tuple(result_types),
             is_negated=is_negated,
         )
         return Predicate(question, TrueAnswer())
@@ -383,8 +383,8 @@ class ConstraintQuestion(Question):
     """Represents a native constraint check"""
 
     name: str
-    arg_positions: list[Position]
-    result_types: list[pdl.AnyPDLType]
+    arg_positions: tuple[Position, ...]
+    result_types: tuple[pdl.AnyPDLType, ...]
     is_negated: bool
 
 
