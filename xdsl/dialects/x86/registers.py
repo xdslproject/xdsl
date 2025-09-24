@@ -299,6 +299,10 @@ class AVX512RegisterType(X86VectorRegisterType):
     def infinite_register_prefix(cls):
         return "inf_avx512_"
 
+    @classmethod
+    def allocatable_registers(cls):
+        return ZMM
+
 
 X86AVX512_INDEX_BY_NAME = {
     "zmm0": 0,
