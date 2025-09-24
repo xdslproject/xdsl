@@ -163,20 +163,16 @@ class ArithFunctions(InterpreterFunctions):
 
     @impl(arith.CmpfOp)
     def run_cmpf(self, interpreter: Interpreter, op: arith.CmpfOp, args: PythonValues):
-        def o(x: float, y: float):
-            return not isnan(x) and not isnan(y)
-
-        def u(x: float, y: float):
-            return isnan(x) or isnan(y)
-
         x = args[0]
         y = args[1]
+        
+        nan = isnan(x) or isnan(y)
 
         match op.predicate.value.data:
             case 0:
                 return (False,)
             case 1:
-                return ((x == y) and o(x, y),)
+                return ((x == y) and not nan,)
             case 2:
                 return ((x > y) and o(x, y),)
             case 3:
