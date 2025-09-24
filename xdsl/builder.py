@@ -6,7 +6,7 @@ from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, field
 from typing import TypeAlias, overload
 
-from typing_extensions import TypeVar
+from typing_extensions import TypeVar, deprecated
 
 from xdsl.dialects.builtin import ArrayAttr
 from xdsl.ir import (
@@ -80,6 +80,7 @@ class Builder(BuilderListener):
     def name_hint(self, name: str | None):
         self._name_hint = SSAValue.extract_valid_name(name)
 
+    @deprecated("Use .insert_op instead")
     def insert(self, op: OperationInvT) -> OperationInvT:
         """
         Inserts op at the current location and returns it.
@@ -359,7 +360,7 @@ _CallableImplicitRegionFuncType: TypeAlias = Callable[[tuple[BlockArgument, ...]
 
 def _op_init_callback(op: Operation):
     if (b := _current_builder.builder) is not None:
-        b.insert(op)
+        b.insert_op(op)
 
 
 def _override_operation_post_init() -> Callable[[Operation], None]:

@@ -72,11 +72,11 @@ class IRGen:
         assert inputVars == outputVars
 
         return_ssa = block.args[0]
-        self.builder.insert(ReturnOp(return_ssa))
+        self.builder.insert_op(ReturnOp(return_ssa))
 
         self.builder = parent_builder
 
-        self.builder.insert(
+        self.builder.insert_op(
             FuncOp("main", func_type, Region(block), visibility="public")
         )
 

@@ -34,7 +34,7 @@ def constraint_to_irdl(builder: Builder, constraint: AttrConstraint) -> SSAValue
     Convert an attribute constraint to IRDL.
     This will create new operations at the provided builder location.
     """
-    any_op = builder.insert(AnyOp())
+    any_op = builder.insert_op(AnyOp())
     return any_op.output
 
 
@@ -43,7 +43,7 @@ def range_to_irdl(builder: Builder, constraint: RangeConstraint) -> SSAValue:
     Convert a range constraint to IRDL.
     This will create new operations at the provided builder location.
     """
-    any_op = builder.insert(AnyOp())
+    any_op = builder.insert_op(AnyOp())
     return any_op.output
 
 
@@ -68,7 +68,7 @@ def op_def_to_irdl(op: type[IRDLOperation]) -> OperationOp:
             operand_variadicities.append(VariadicityAttr.SINGLE)
         operand_names.append(StringAttr(depython_name(operand[0])))
     if operand_values:
-        builder.insert(
+        builder.insert_op(
             OperandsOp(
                 operand_values,
                 VariadicityArrayAttr(ArrayAttr(operand_variadicities)),
@@ -90,7 +90,7 @@ def op_def_to_irdl(op: type[IRDLOperation]) -> OperationOp:
             result_variadicities.append(VariadicityAttr.SINGLE)
         result_names.append(StringAttr(depython_name(result[0])))
     if result_values:
-        builder.insert(
+        builder.insert_op(
             ResultsOp(
                 result_values,
                 VariadicityArrayAttr(ArrayAttr(result_variadicities)),
@@ -116,7 +116,7 @@ def attr_def_to_irdl(
     for param in attr_def.parameters:
         param_values.append(constraint_to_irdl(builder, param[1].constr))
         names.append(StringAttr(depython_name(param[0])))
-    builder.insert(ParametersOp(param_values, ArrayAttr(names)))
+    builder.insert_op(ParametersOp(param_values, ArrayAttr(names)))
 
     return AttributeOp(Dialect.split_name(attr_def.name)[1], Region([block]))
 
@@ -131,11 +131,11 @@ def dialect_to_irdl(dialect: Dialect, name: str) -> DialectOp:
             raise ValueError(
                 "Can only convert ParametrizedAttribute attributes to IRDL"
             )
-        builder.insert(attr_def_to_irdl(attribute))
+        builder.insert_op(attr_def_to_irdl(attribute))
 
     for operation in dialect.operations:
         if not issubclass(operation, IRDLOperation):
             raise ValueError("Can only convert IRDLOperations operations to IRDL")
-        builder.insert(op_def_to_irdl(operation))
+        builder.insert_op(op_def_to_irdl(operation))
 
     return DialectOp(name, Region([block]))

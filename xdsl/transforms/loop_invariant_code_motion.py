@@ -66,7 +66,7 @@ def _move_loop_invariant_code(region: Region, builder: Builder):
             continue
 
         op.detach()
-        builder.insert(op)
+        builder.insert_op(op)
 
         # Since the op has been moved, we need to check its users within the
         # top-level of the loop body.

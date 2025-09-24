@@ -135,7 +135,7 @@ class IRGen:
         func_type = FunctionType.from_lists(
             [self.get_type([])] * len(proto_ast.args), [self.get_type([])]
         )
-        return self.builder.insert(FuncOp(proto_ast.name, func_type, Region()))
+        return self.builder.insert_op(FuncOp(proto_ast.name, func_type, Region()))
 
     def ir_gen_function(self, function_ast: FunctionAST) -> FuncOp:
         "Emit a new function and add it to the MLIR module."
@@ -173,7 +173,7 @@ class IRGen:
                     return_arg = return_op.input
                     return_types = [return_arg.type]
         if return_op is None:
-            self.builder.insert(ReturnOp())
+            self.builder.insert_op(ReturnOp())
 
         input_types = [self.get_type([]) for _ in range(len(function_ast.proto.args))]
 
@@ -186,7 +186,7 @@ class IRGen:
         self.symbol_table = None
         self.builder = parent_builder
 
-        func = self.builder.insert(
+        func = self.builder.insert_op(
             FuncOp(function_ast.proto.name, func_type, Region(block), private=private)
         )
 
@@ -214,9 +214,9 @@ class IRGen:
         # Derive the operation name from the binary operator. At the moment we only
         # support '+' and '*'.
         if binop.op == "+":
-            op = self.builder.insert(AddOp(lhs, rhs))
+            op = self.builder.insert_op(AddOp(lhs, rhs))
         elif binop.op == "*":
-            op = self.builder.insert(MulOp(lhs, rhs))
+            op = self.builder.insert_op(MulOp(lhs, rhs))
         else:
             raise IRGenError(f"Unsupported binary operation `{binop.op}`")
 
@@ -245,7 +245,7 @@ class IRGen:
         else:
             expr = None
 
-        self.builder.insert(ReturnOp(expr))
+        self.builder.insert_op(ReturnOp(expr))
 
     def ir_gen_literal_expr(self, lit: LiteralExprAST) -> SSAValue:
         """
@@ -272,7 +272,7 @@ class IRGen:
 
         # Build the MLIR op `toy.constant`. This invokes the `ConstantOp::build`
         # method.
-        op = self.builder.insert(ConstantOp.from_list(data, lit.dims))
+        op = self.builder.insert_op(ConstantOp.from_list(data, lit.dims))
         return op.res
 
     def collect_data(self, expr: ExprAST) -> list[float]:
@@ -319,13 +319,13 @@ class IRGen:
                     "MLIR codegen encountered an error: toy.transpose "
                     "does not accept multiple arguments"
                 )
-            op = self.builder.insert(TransposeOp(operands[0]))
+            op = self.builder.insert_op(TransposeOp(operands[0]))
             return op.res
 
         # Otherwise this is a call to a user-defined function. Calls to
         # user-defined functions are mapped to a custom call that takes the callee
         # name as an attribute.
-        op = self.builder.insert(
+        op = self.builder.insert_op(
             GenericCallOp(callee, operands, [UnrankedTensorTypeF64(f64)])
         )
 
@@ -337,11 +337,11 @@ class IRGen:
         transpose(x) and print(x).
         """
         arg = self.ir_gen_expr(call.arg)
-        self.builder.insert(PrintOp(arg))
+        self.builder.insert_op(PrintOp(arg))
 
     def ir_gen_number_expr(self, num: NumberExprAST) -> SSAValue:
         "Emit a constant for a single number"
-        constant_op = self.builder.insert(ConstantOp.from_value(num.val))
+        constant_op = self.builder.insert_op(ConstantOp.from_value(num.val))
         return constant_op.res
 
     def ir_gen_expr(self, expr: ExprAST) -> SSAValue:
@@ -376,7 +376,7 @@ class IRGen:
         # with specific shape, we emit a "reshape" operation. It will get
         # optimized out later as needed.
         if len(vardecl.varType.shape):
-            reshape_op = self.builder.insert(ReshapeOp(value, vardecl.varType.shape))
+            reshape_op = self.builder.insert_op(ReshapeOp(value, vardecl.varType.shape))
 
             value = reshape_op.res
 
