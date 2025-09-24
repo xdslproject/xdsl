@@ -348,6 +348,11 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
 
         return X86_FUNC
 
+    def get_x86_scf():
+        from xdsl.dialects.x86_scf import X86_Scf
+
+        return X86_Scf
+
     def get_transform():
         from xdsl.dialects.transform import Transform
 
@@ -422,6 +427,7 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "wasm": get_wasm,
         "x86": get_x86,
         "x86_func": get_x86_func,
+        "x86_scf": get_x86_scf,
         "transform": get_transform,
     }
 
