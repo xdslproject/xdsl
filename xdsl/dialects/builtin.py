@@ -101,7 +101,7 @@ if TYPE_CHECKING:
     from xdsl.printer import Printer
 
 
-DYNAMIC_INDEX = -(2 ** 63)
+DYNAMIC_INDEX = -(2**63)
 """
 A constant value denoting a dynamic index in a shape.
 Equal to -(2 ** 63) which is used in C++ MLIR.
