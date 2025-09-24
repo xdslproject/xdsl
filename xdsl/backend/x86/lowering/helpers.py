@@ -5,7 +5,7 @@ from typing import cast, overload
 
 from xdsl.backend.utils import cast_to_regs
 from xdsl.builder import Builder
-from xdsl.dialects import x86
+from xdsl.dialects import ptr, x86
 from xdsl.dialects.builtin import (
     FixedBitwidthType,
     IndexType,
@@ -61,8 +61,10 @@ class Arch(StrEnum):
     def _scalar_type_for_type(self, value_type: Attribute) -> type[X86RegisterType]:
         assert not isinstance(value_type, ShapedType)
         if (
-            isinstance(value_type, FixedBitwidthType) and value_type.bitwidth <= 64
-        ) or isinstance(value_type, IndexType):
+            (isinstance(value_type, FixedBitwidthType) and value_type.bitwidth <= 64)
+            or isinstance(value_type, IndexType)
+            or isinstance(value_type, ptr.PtrType)
+        ):
             return x86.registers.GeneralRegisterType
         else:
             raise DiagnosticException("Not implemented for bitwidth larger than 64.")
@@ -86,18 +88,48 @@ class Arch(StrEnum):
 
     def cast_to_regs(
         self, values: Sequence[SSAValue], builder: Builder
-    ) -> list[SSAValue[Attribute]]:
+    ) -> list[SSAValue]:
         return cast_to_regs(values, self.register_type_for_type, builder)
 
-    def cast_operands_to_regs(
-        self, rewriter: PatternRewriter
-    ) -> list[SSAValue[Attribute]]:
+    def cast_operands_to_regs(self, rewriter: PatternRewriter) -> list[SSAValue]:
         new_operands = cast_to_regs(
             rewriter.current_operation.operands,
             self.register_type_for_type,
             rewriter,
         )
         return new_operands
+
+    def move_value_to_unallocated(
+        self, value: SSAValue, value_type: Attribute, builder: Builder
+    ) -> SSAValue:
+        if isa(value_type, VectorType[FixedBitwidthType]):
+            if not isinstance(reg_type := value.type, X86VectorRegisterType):
+                raise ValueError(f"Invalid type for move {value_type}")
+            # Choose the x86 vector instruction according to the
+            # abstract vector element size
+            match value_type.get_element_type().bitwidth:
+                case 16:
+                    raise DiagnosticException(
+                        "Half-precision floating point vector move is not implemented yet."
+                    )
+                case 32:
+                    raise DiagnosticException(
+                        "Half-precision floating point vector move is not implemented yet."
+                    )
+                case 64:
+                    mov_op = x86.ops.DS_VmovapdOp(
+                        value, destination=type(reg_type).unallocated()
+                    )
+                case _:
+                    raise DiagnosticException(
+                        "Float precision must be half, single or double."
+                    )
+        else:
+            if not isinstance(reg_type := value.type, X86RegisterType):
+                raise ValueError(f"Invalid type for move {value_type}")
+            mov_op = x86.DS_MovOp(value, destination=type(reg_type).unallocated())
+
+        return builder.insert_op(mov_op).results[0]
 
 
 _ARCH_BY_NAME = {str(case): case for case in Arch}

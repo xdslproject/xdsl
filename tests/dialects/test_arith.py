@@ -527,3 +527,29 @@ def test_constant_materialization():
         "my_resource", TensorType(i32, [2])
     )
     assert const.result_types[0] == TensorType(i32, [2])
+
+
+def test_fold():
+    """Test that try_fold correctly folds an AddiOp with zero."""
+
+    one_const = ConstantOp.from_int_and_width(1, i32)
+    five_const = ConstantOp.from_int_and_width(5, i32)
+
+    # 1 + 5 = 6
+    addi_op = AddiOp(one_const.result, five_const.result)
+    assert addi_op.fold() == (IntegerAttr(6, i32),)
+
+    zero_const = ConstantOp.from_int_and_width(0, i32)
+    some_value = create_ssa_value(i32)
+
+    # 0 + x = x
+    addi_op_zero_lhs = AddiOp(zero_const.result, some_value)
+    assert addi_op_zero_lhs.fold() == (some_value,)
+
+    # x + 0 = x
+    addi_op_zero_rhs = AddiOp(some_value, zero_const.result)
+    assert addi_op_zero_rhs.fold() == (some_value,)
+
+    # x + x cannot be folded
+    addi_val_val = AddiOp(some_value, some_value)
+    assert addi_val_val.fold() is None
