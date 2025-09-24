@@ -12,6 +12,7 @@ import xdsl.parser as affine_parser
 from xdsl.context import Context
 from xdsl.dialect_interfaces import OpAsmDialectInterface
 from xdsl.dialects.builtin import (
+    DYNAMIC_INDEX,
     AffineMapAttr,
     AffineSetAttr,
     AnyDenseElement,
@@ -452,10 +453,10 @@ class AttrParser(BaseParser):
     def parse_shape_dimension(self, allow_dynamic: bool = True) -> int:
         """
         Parse a single shape dimension, which is a decimal literal or `?`.
-        `?` is interpreted as -1. Note that if the integer literal is in
+        `?` is interpreted as DYNAMIC_INDEX. Note that if the integer literal is in
         hexadecimal form, it will be split into multiple tokens. For example,
         `0x10` will be split into `0` and `x10`.
-        Optionally allows to not parse `?` as -1.
+        Optionally allows to not parse `?` as DYNAMIC_INDEX.
         """
         if self._current_token.kind not in (
             MLIRTokenKind.INTEGER_LIT,
@@ -473,7 +474,7 @@ class AttrParser(BaseParser):
 
         if self.parse_optional_punctuation("?") is not None:
             if allow_dynamic:
-                return -1
+                return DYNAMIC_INDEX
             self.raise_error("Unexpected dynamic dimension!")
 
         # If the integer literal starts with `0x`, this is decomposed into
@@ -799,7 +800,7 @@ class AttrParser(BaseParser):
             )
 
         # Check for static shapes in type
-        if any(dim == -1 for dim in list(type.get_shape())):
+        if any(dim == DYNAMIC_INDEX for dim in list(type.get_shape())):
             self.raise_error("Dense literal attribute should have a static shape.")
         return type
 

@@ -11,6 +11,7 @@ from typing_extensions import TypeVar
 
 from xdsl.dialects import builtin, memref
 from xdsl.dialects.builtin import (
+    DYNAMIC_INDEX,
     ArrayAttr,
     IndexType,
     IntAttr,
@@ -275,7 +276,7 @@ class StencilType(
 
     def get_shape(self) -> tuple[int, ...]:
         if isinstance(self.bounds, IntAttr):
-            return (-1,) * self.bounds.data
+            return (DYNAMIC_INDEX,) * self.bounds.data
         else:
             return tuple(self.bounds.ub - self.bounds.lb)
 
@@ -286,7 +287,7 @@ class StencilType(
     def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
         def parse_interval() -> tuple[int, int] | int:
             if parser.parse_optional_punctuation("?"):
-                return -1
+                return DYNAMIC_INDEX
             parser.parse_punctuation("[")
             l = parser.parse_integer(allow_boolean=False)
             parser.parse_punctuation(",")
