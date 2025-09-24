@@ -239,11 +239,11 @@ def test_cmpi(
     assert ret[0] == fn(lhs_value, rhs_value)
 
 
-def o(x: float, y: float):
+def o(x: float, y: float) -> bool:
     return not isnan(x) and not isnan(y)
 
 
-def u(x: float, y: float):
+def u(x: float, y: float) -> bool:
     return isnan(x) or isnan(y)
 
 
@@ -251,37 +251,71 @@ def u(x: float, y: float):
 @pytest.mark.parametrize("rhs_value", [1.5, 0.5, -1.5, 127.5, float("nan")])
 @pytest.mark.parametrize(
     "pred",
-    list(
-        {
-            "false": lambda x, y: False,  # "false"
-            "oeq": lambda x, y: (x == y) and o(x, y),  # "oeq"
-            "ogt": lambda x, y: (x > y) and o(x, y),  # "ogt"
-            "oge": lambda x, y: (x >= y) and o(x, y),  # "oge"
-            "olt": lambda x, y: (x < y) and o(x, y),  # "olt"
-            "ole": lambda x, y: (x <= y) and o(x, y),  # "ole"
-            "one": lambda x, y: (x != y) and o(x, y),  # "one
-            "ord": lambda x, y: o(x, y),  # "ord"
-            "ueq": lambda x, y: (x == y) or u(x, y),  # "ueq"
-            "ugt": lambda x, y: (x > y) or u(x, y),  # "ugt"
-            "uge": lambda x, y: (x >= y) or u(x, y),  # "uge"
-            "ult": lambda x, y: (x < y) or u(x, y),  # "ult"
-            "ule": lambda x, y: (x <= y) or u(x, y),  # "ule"
-            "une": lambda x, y: (x != y) or u(x, y),  # "une"
-            "uno": lambda x, y: u(x, y),  # "uno"
-            "true": lambda x, y: True,  # "true"
-        }.items()
-    ),
+    [
+        "false",
+        "oeq",
+        "ogt",
+        "oge",
+        "olt",
+        "ole",
+        "one",
+        "ord",
+        "ueq",
+        "ugt",
+        "uge",
+        "ult",
+        "ule",
+        "une",
+        "uno",
+        "true",
+    ],
 )
-def test_cmpf(
-    lhs_value: int, rhs_value: int, pred: tuple[str, Callable[[int, int], int]]
-):
-    arg, fn = pred
-    cmpf = CmpfOp(lhs_op, rhs_op, arg)
+def test_cmpf(lhs_value: int, rhs_value: int, pred: str):
+    x = lhs_value
+    y = rhs_value
+
+    match pred:
+        case "false":
+            expectation = False
+        case "oeq":
+            expectation = (x == y) and o(x, y)
+        case "ogt":
+            expectation = (x > y) and o(x, y)
+        case "oge":
+            expectation = (x >= y) and o(x, y)
+        case "olt":
+            expectation = (x < y) and o(x, y)
+        case "ole":
+            expectation = (x <= y) and o(x, y)
+        case "one":
+            expectation = (x != y) and o(x, y)
+        case "ord":
+            expectation = o(x, y)
+        case "ueq":
+            expectation = (x == y) or u(x, y)
+        case "ugt":
+            expectation = (x > y) or u(x, y)
+        case "uge":
+            expectation = (x >= y) or u(x, y)
+        case "ult":
+            expectation = (x < y) or u(x, y)
+        case "ule":
+            expectation = (x <= y) or u(x, y)
+        case "une":
+            expectation = (x != y) or u(x, y)
+        case "uno":
+            expectation = u(x, y)
+        case "true":
+            expectation = True
+        case _:
+            expectation = None
+
+    cmpf = CmpfOp(lhs_op, rhs_op, pred)
 
     ret = interpreter.run_op(cmpf, (lhs_value, rhs_value))
 
     assert len(ret) == 1
-    assert ret[0] == fn(lhs_value, rhs_value)
+    assert ret[0] == expectation
 
 
 @pytest.mark.parametrize("lhs_value", [1, 0, -1, 127])

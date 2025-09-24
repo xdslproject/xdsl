@@ -169,31 +169,46 @@ class ArithFunctions(InterpreterFunctions):
         def u(x: float, y: float):
             return isnan(x) or isnan(y)
 
-        case_dict = {
-            0: lambda x, y: False,  # "false"
-            1: lambda x, y: (x == y) and o(x, y),  # "oeq"
-            2: lambda x, y: (x > y) and o(x, y),  # "ogt"
-            3: lambda x, y: (x >= y) and o(x, y),  # "oge"
-            4: lambda x, y: (x < y) and o(x, y),  # "olt"
-            5: lambda x, y: (x <= y) and o(x, y),  # "ole"
-            6: lambda x, y: (x != y) and o(x, y),  # "one
-            7: lambda x, y: o(x, y),  # "ord"
-            8: lambda x, y: (x == y) or u(x, y),  # "ueq"
-            9: lambda x, y: (x > y) or u(x, y),  # "ugt"
-            10: lambda x, y: (x >= y) or u(x, y),  # "uge"
-            11: lambda x, y: (x < y) or u(x, y),  # "ult"
-            12: lambda x, y: (x <= y) or u(x, y),  # "ule"
-            13: lambda x, y: (x != y) or u(x, y),  # "une"
-            14: lambda x, y: u(x, y),  # "uno"
-            15: lambda x, y: True,  # "true"
-        }
+        x = args[0]
+        y = args[1]
 
-        try:
-            return (case_dict[op.predicate.value.data](args[0], args[1]),)
-        except KeyError:
-            raise InterpretationError(
-                f"arith.cmpf predicate {op.predicate} mot implemented yet."
-            )
+        match op.predicate.value.data:
+            case 0:
+                return (False,)
+            case 1:
+                return ((x == y) and o(x, y),)
+            case 2:
+                return ((x > y) and o(x, y),)
+            case 3:
+                return ((x >= y) and o(x, y),)
+            case 4:
+                return ((x < y) and o(x, y),)
+            case 5:
+                return ((x <= y) and o(x, y),)
+            case 6:
+                return ((x != y) and o(x, y),)
+            case 7:
+                return (o(x, y),)
+            case 8:
+                return ((x == y) or u(x, y),)
+            case 9:
+                return ((x > y) or u(x, y),)
+            case 10:
+                return ((x >= y) or u(x, y),)
+            case 11:
+                return ((x < y) or u(x, y),)
+            case 12:
+                return ((x <= y) or u(x, y),)
+            case 13:
+                return ((x != y) or u(x, y),)
+            case 14:
+                return (u(x, y),)
+            case 15:
+                return (True,)
+            case _:
+                raise InterpretationError(
+                    f"arith.cmpf predicate {op.predicate} mot implemented yet."
+                )
 
     @impl(arith.ShLIOp)
     def run_shlsi(self, interpreter: Interpreter, op: arith.ShLIOp, args: PythonValues):
