@@ -178,6 +178,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return convert_scf_to_riscv_scf.ConvertScfToRiscvPass
 
+    def get_convert_scf_to_x86_scf():
+        from xdsl.transforms import convert_scf_to_x86_scf
+
+        return convert_scf_to_x86_scf.ConvertScfToX86ScfPass
+
     def get_convert_snitch_stream_to_snitch():
         from xdsl.backend.riscv.lowering import convert_snitch_stream_to_snitch
 
@@ -636,6 +641,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "convert-scf-to-cf": get_convert_scf_to_cf,
         "convert-scf-to-openmp": get_convert_scf_to_openmp,
         "convert-scf-to-riscv-scf": get_convert_scf_to_riscv_scf,
+        "convert-scf-to-x86-scf": get_convert_scf_to_x86_scf,
         "convert-snitch-stream-to-snitch": get_convert_snitch_stream_to_snitch,
         "convert-ptr-type-offsets": get_convert_ptr_type_offsets,
         "convert-stencil-to-csl-stencil": get_convert_stencil_to_csl_stencil,
