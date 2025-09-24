@@ -25,7 +25,7 @@ def _name_hint_ext(name_hint: str | None, extension: str) -> str | None:
 
 def _list_type_to_tensor(li: Attribute) -> builtin.TensorType:
     if isa(li, list_dialect.ListType):
-        return builtin.TensorType(li.elem_type, (-1,))
+        return builtin.TensorType(li.elem_type, (builtin.DYNAMIC_INDEX,))
     if isa(li, builtin.TensorType):
         return li
     raise ValueError("unexpected type")

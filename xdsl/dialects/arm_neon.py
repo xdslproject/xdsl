@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import ClassVar
 
-from xdsl.dialects.arm.assembly import AssemblyInstructionArg, reg, square_brackets_reg
+from xdsl.backend.assembly_printer import reg
 from xdsl.dialects.arm.ops import ARMInstruction, ARMOperation
 from xdsl.dialects.arm.registers import ARMRegisterType, IntRegisterType
 from xdsl.dialects.builtin import (
@@ -135,56 +135,37 @@ class NeonArrangementAttr(EnumAttribute[NeonArrangement], SpacedOpaqueSyntaxAttr
     name = "arm_neon.arrangement"
 
 
-class VectorWithArrangement(AssemblyInstructionArg):
-    reg: NEONRegisterType
-    arrangement: NeonArrangementAttr
-    index: int | None = None
-
-    def __init__(
-        self,
-        reg: NEONRegisterType | SSAValue,
-        arrangement: NeonArrangementAttr,
-        *,
-        index: int | None = None,
-    ):
-        if isinstance(reg, SSAValue):
-            assert isinstance(reg.type, NEONRegisterType)
-            reg = reg.type
-
-        self.reg = reg
-        self.arrangement = arrangement
-        self.index = index
-
-    def assembly_str(self):
-        if self.index is None:
-            return (
-                f"{self.reg.register_name.data}."
-                f"{self.arrangement.data.num_elements}"
-                f"{self.arrangement.data.name}"
-            )
-        else:
-            return f"{self.reg.register_name.data}.{self.arrangement.data.name}[{self.index}]"
+def vector_with_arrangement(
+    reg: NEONRegisterType | SSAValue,
+    arrangement: NeonArrangementAttr,
+    *,
+    index: int | None = None,
+) -> str:
+    if isinstance(reg, SSAValue):
+        assert isinstance(reg.type, NEONRegisterType)
+        reg = reg.type
+    if index is None:
+        return (
+            f"{reg.register_name.data}."
+            f"{arrangement.data.num_elements}"
+            f"{arrangement.data.name}"
+        )
+    else:
+        return f"{reg.register_name.data}.{arrangement.data.name}[{index}]"
 
 
-class VariadicNeonRegArg(AssemblyInstructionArg):
-    regs: Sequence[VectorWithArrangement]
-    arrangement: NeonArrangementAttr
-
-    def __init__(
-        self,
-        regs: Sequence[SSAValue],
-        arrangement: NeonArrangementAttr,
-    ):
-        self.arrangement = arrangement
-        vectors: Sequence[VectorWithArrangement] = []
-        for register in regs:
-            assert isinstance(register.type, NEONRegisterType)
-            vectors.append(VectorWithArrangement(register, self.arrangement))
-
-        self.regs = vectors
-
-    def assembly_str(self):
-        return "{" + ", ".join(s.assembly_str() for s in self.regs) + "}"
+def variadic_neon_reg_arg(
+    regs: Sequence[SSAValue],
+    arrangement: NeonArrangementAttr,
+) -> str:
+    """
+    Returns the assembly string for a variadic NEON register argument with the given arrangement.
+    """
+    return (
+        "{"
+        + ", ".join(vector_with_arrangement(register, arrangement) for register in regs)
+        + "}"
+    )
 
 
 @irdl_op_definition
@@ -264,9 +245,9 @@ class DSSFMulOp(ARMInstruction):
 
     def assembly_line_args(self):
         return (
-            VectorWithArrangement(self.d, self.arrangement),
-            VectorWithArrangement(self.s1, self.arrangement),
-            VectorWithArrangement(
+            vector_with_arrangement(self.d, self.arrangement),
+            vector_with_arrangement(self.s1, self.arrangement),
+            vector_with_arrangement(
                 self.s2,
                 self.arrangement,
                 index=self.scalar_idx.value.data
@@ -340,9 +321,9 @@ class DSSFmlaVecScalarOp(ARMInstruction):
 
     def assembly_line_args(self):
         return (
-            VectorWithArrangement(self.res, self.arrangement),
-            VectorWithArrangement(self.s1, self.arrangement),
-            VectorWithArrangement(
+            vector_with_arrangement(self.res, self.arrangement),
+            vector_with_arrangement(self.s1, self.arrangement),
+            vector_with_arrangement(
                 self.s2, self.arrangement, index=self.scalar_idx.value.data
             ),
         )
@@ -384,7 +365,7 @@ class DSDupOp(ARMInstruction):
 
     def assembly_line_args(self):
         return (
-            VectorWithArrangement(self.d, self.arrangement),
+            vector_with_arrangement(self.d, self.arrangement),
             reg(self.s),
         )
 
@@ -436,7 +417,7 @@ class DSVecMovOp(ARMInstruction):
     def assembly_line_args(self):
         return (
             reg(self.d),
-            VectorWithArrangement(
+            vector_with_arrangement(
                 self.s, self.arrangement, index=self.scalar_idx.value.data
             ),
         )
@@ -491,8 +472,8 @@ class DVarSLd1Op(ARMInstruction):
 
     def assembly_line_args(self):
         return (
-            VariadicNeonRegArg(self.dest_regs, self.arrangement),
-            square_brackets_reg(self.s),
+            variadic_neon_reg_arg(self.dest_regs, self.arrangement),
+            f"[{reg(self.s)}]",
         )
 
 
@@ -545,8 +526,8 @@ class DVarSSt1Op(ARMInstruction):
 
     def assembly_line_args(self):
         return (
-            VariadicNeonRegArg(self.src_regs, self.arrangement),
-            square_brackets_reg(self.d),
+            variadic_neon_reg_arg(self.src_regs, self.arrangement),
+            f"[{reg(self.d)}]",
         )
 
 

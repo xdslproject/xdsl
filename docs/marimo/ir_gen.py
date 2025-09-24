@@ -143,7 +143,7 @@ def _(mo):
     * math.powf: PowFOp(lhs, rhs)
     * arith.select: SelectOp(cond, lhs, rhs)
         * Represents the formula `if cond then lhs else rhs`
-    * arith.cmpf: CmpfOp("olt", lhs, rhs)
+    * arith.cmpf: CmpfOp(lhs, rhs, "olt")
         * Represents `lhs < rhs` with floating points
     * scf.if: IfOp(cond, region1, region2)
         * Regions should have a single block, without block arguments. The last operation in the regions should be an `scf.yield` with constructor `YieldOp([result])`

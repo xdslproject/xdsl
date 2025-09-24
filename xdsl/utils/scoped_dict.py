@@ -11,7 +11,6 @@ _Value = TypeVar("_Value")
 class ScopedDict(Generic[_Key, _Value]):
     """
     A tiered mapping from keys to values.
-    Once a value is set for a key, it cannot be overwritten.
     A ScopedDict may have a parent dict, which is used as a fallback when a value for a
     key is not found.
     If a ScopedDict and its parent have values for the same key, the child value will be
@@ -69,10 +68,6 @@ class ScopedDict(Generic[_Key, _Value]):
         Assign key to current scope. Raises InterpretationError if key already
         assigned to.
         """
-        if key in self._local_scope:
-            raise ValueError(
-                f"Cannot overwrite value {self._local_scope[key]} for key {key}"
-            )
         self._local_scope[key] = value
 
     def __contains__(self, key: _Key) -> bool:

@@ -60,15 +60,17 @@ class ArithBinaryToX86(RewritePattern):
             raise DiagnosticException(
                 f"Lowering of {op.name} not implemented for ShapedType"
             )
+        rewriter.name_hint = op.results[0].name_hint
+
         lhs_x86, rhs_x86 = self.arch.cast_operands_to_regs(rewriter)
-        rhs_copy_op = x86.DS_MovOp(
-            source=rhs_x86, destination=x86.registers.UNALLOCATED_GENERAL
+        moved_rhs = self.arch.move_value_to_unallocated(
+            rhs_x86, op.operands[1].type, rewriter
         )
-        add_op = new_type(source=lhs_x86, register_in=rhs_copy_op.destination)
+        add_op = new_type(source=lhs_x86, register_in=moved_rhs)
         result_cast_op, _ = UnrealizedConversionCastOp.cast_one(
             add_op.register_out, lhs.type
         )
-        rewriter.replace_matched_op([rhs_copy_op, add_op, result_cast_op])
+        rewriter.replace_matched_op([add_op, result_cast_op])
 
 
 @dataclass(frozen=True)

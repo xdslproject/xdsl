@@ -11,6 +11,7 @@ from typing_extensions import TypeVar, deprecated
 
 from xdsl.dialect_interfaces import OpAsmDialectInterface
 from xdsl.dialects.builtin import (
+    DYNAMIC_INDEX,
     AnyFloat,
     BuiltinAttribute,
     ComplexType,
@@ -414,12 +415,14 @@ class Printer(BasePrinter):
         Prints the dimension list of a shape, ending with a dimension.
 
         e.g.:
-          Input: [5, 1, -1, 4]
+          Input: [5, 1, DYNAMIC_INDEX, 4]
           Prints: "5x1x?x4"
         """
         self.print_list(
             dims,
-            lambda x: self.print_int(x) if x != -1 else self.print_string("?"),
+            lambda x: self.print_int(x)
+            if x != DYNAMIC_INDEX
+            else self.print_string("?"),
             "x",
         )
 
