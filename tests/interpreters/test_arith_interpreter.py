@@ -239,11 +239,11 @@ def test_cmpi(
     assert ret[0] == fn(lhs_value, rhs_value)
 
 
-def o(x, y):
+def o(x: float, y: float):
     return not isnan(x) and not isnan(y)
 
 
-def u(x, y):
+def u(x: float, y: float):
     return isnan(x) or isnan(y)
 
 

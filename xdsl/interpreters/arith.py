@@ -163,10 +163,10 @@ class ArithFunctions(InterpreterFunctions):
 
     @impl(arith.CmpfOp)
     def run_cmpf(self, interpreter: Interpreter, op: arith.CmpfOp, args: PythonValues):
-        def o(x, y):
+        def o(x: float, y: float):
             return not isnan(x) and not isnan(y)
 
-        def u(x, y):
+        def u(x: float, y: float):
             return isnan(x) or isnan(y)
 
         case_dict = {
