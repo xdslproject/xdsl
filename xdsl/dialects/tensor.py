@@ -8,6 +8,7 @@ from typing_extensions import Self
 
 from xdsl.dialects import memref
 from xdsl.dialects.builtin import (
+    DYNAMIC_INDEX,
     AnySignlessIntegerOrIndexType,
     ArrayAttr,
     DenseArrayBase,
@@ -716,7 +717,7 @@ class SplatOp(IRDLOperation):
         super().__init__(operands=(input, dynamicSizes), result_types=(result_type,))
 
     def verify_(self):
-        if self.result.type.get_shape().count(-1) != len(self.dynamicSizes):
+        if self.result.type.get_shape().count(DYNAMIC_INDEX) != len(self.dynamicSizes):
             raise VerifyException(
                 "number of dynamic sizes must equal number of unknown dimensions in result tensor"
             )

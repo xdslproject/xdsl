@@ -7,6 +7,7 @@ from typing import ClassVar, cast
 from typing_extensions import Self
 
 from xdsl.dialects.builtin import (
+    DYNAMIC_INDEX,
     I64,
     AnyFloatConstr,
     ArrayAttr,
@@ -220,7 +221,7 @@ class AllocOp(IRDLOperation):
     def verify_(self) -> None:
         memref_type = self.memref.type
 
-        dyn_dims = [x for x in memref_type.shape.data if x.data == -1]
+        dyn_dims = [x for x in memref_type.shape.data if x.data == DYNAMIC_INDEX]
         if len(dyn_dims) != len(self.dynamic_sizes):
             raise VerifyException(
                 "op dimension operand count does not equal memref dynamic dimension count."
@@ -358,7 +359,7 @@ class AllocaOp(IRDLOperation):
     def verify_(self) -> None:
         memref_type = self.memref.type
 
-        dyn_dims = [x for x in memref_type.shape.data if x.data == -1]
+        dyn_dims = [x for x in memref_type.shape.data if x.data == DYNAMIC_INDEX]
         if len(dyn_dims) != len(self.dynamic_sizes):
             raise VerifyException(
                 "op dimension operand count does not equal memref dynamic dimension count."
@@ -959,7 +960,7 @@ class ReinterpretCastOp(IRDLOperation):
                 strict=True,
             )
         ):
-            if expected == ReinterpretCastOp.DYNAMIC_INDEX and actual != -1:
+            if expected == ReinterpretCastOp.DYNAMIC_INDEX and actual != DYNAMIC_INDEX:
                 raise VerifyException(
                     f"Expected result type with dynamic size instead of {actual} in dim = {dim}"
                 )
