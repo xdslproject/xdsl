@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from xdsl.context import Context
 from xdsl.dialects import arith, builtin, csl, memref
 from xdsl.dialects.builtin import (
+    DYNAMIC_INDEX,
     AffineMapAttr,
     ArrayAttr,
     Float16Type,
@@ -142,7 +143,7 @@ class LowerSubviewOpPass(RewritePattern):
             )
 
             amap: list[AffineExpr] = [
-                AffineConstantExpr(o if o != memref.SubviewOp.DYNAMIC_INDEX else 0)
+                AffineConstantExpr(o if o != DYNAMIC_INDEX else 0)
                 for o in op.static_offsets.get_values()
             ]
             amap[sizes.index(size)] += AffineDimExpr(0)
@@ -188,7 +189,7 @@ class LowerSubviewOpPass(RewritePattern):
 
         static_sizes = subview.static_sizes.get_values()
 
-        if static_sizes[0] == memref.SubviewOp.DYNAMIC_INDEX:
+        if static_sizes[0] == DYNAMIC_INDEX:
             ops.append(cast_op := arith.IndexCastOp(subview.sizes[0], i16))
             ops.append(
                 curr_op := csl.SetDsdLengthOp.build(
@@ -221,7 +222,7 @@ class LowerSubviewOpPass(RewritePattern):
 
         static_strides = subview.static_strides.get_values()
 
-        if static_strides[0] == memref.SubviewOp.DYNAMIC_INDEX:
+        if static_strides[0] == DYNAMIC_INDEX:
             ops.append(cast_op := arith.IndexCastOp(subview.strides[0], i8))
             ops.append(
                 csl.SetDsdStrideOp.build(

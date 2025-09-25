@@ -6,7 +6,6 @@ from typing import ClassVar, cast
 
 from typing_extensions import Self
 
-from xdsl.dialects import memref
 from xdsl.dialects.builtin import (
     DYNAMIC_INDEX,
     AnySignlessIntegerOrIndexType,
@@ -502,11 +501,11 @@ class InsertSliceOp(IRDLOperation):
         sizes = [] if sizes is None else sizes
         strides = [] if strides is None else strides
         if not static_offsets:
-            static_offsets = [memref.SubviewOp.DYNAMIC_INDEX] * len(offsets) + (
+            static_offsets = [DYNAMIC_INDEX] * len(offsets) + (
                 [0] * (dims - len(offsets))
             )
         if not static_strides:
-            static_strides = [memref.SubviewOp.DYNAMIC_INDEX] * len(strides) + (
+            static_strides = [DYNAMIC_INDEX] * len(strides) + (
                 [1] * (dims - len(strides))
             )
         return InsertSliceOp.build(
