@@ -213,6 +213,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return convert_vector_to_x86.ConvertVectorToX86Pass
 
+    def get_convert_x86_scf_to_x86():
+        from xdsl.transforms import convert_x86_scf_to_x86
+
+        return convert_x86_scf_to_x86.ConvertX86ScfToX86Pass
+
     def get_jax_use_donated_arguments():
         from xdsl.transforms import jax_use_donated_arguments
 
@@ -649,6 +654,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "convert-varith-to-arith": get_convert_varith_to_arith,
         "convert-vector-to-ptr": get_convert_vector_to_ptr,
         "convert-vector-to-x86": get_convert_vector_to_x86,
+        "convert-x86-scf-to-x86": get_convert_x86_scf_to_x86,
         "jax-use-donated-arguments": get_jax_use_donated_arguments,
         "cse": get_cse,
         "csl-stencil-bufferize": get_csl_stencil_bufferize,
