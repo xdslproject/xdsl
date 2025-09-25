@@ -44,6 +44,7 @@ from .ops import (
     DM_VmovupsOp,
     DMI_ImulOp,
     DS_MovOp,
+    DS_VmovapdOp,
     DS_VpbroadcastdOp,
     DS_VpbroadcastqOp,
     DSI_ImulOp,
@@ -97,7 +98,6 @@ from .ops import (
     RS_ImulOp,
     RS_OrOp,
     RS_SubOp,
-    RS_VmovapdOp,
     RS_XorOp,
     RSS_Vfmadd231pdOp,
     RSS_Vfmadd231psOp,
@@ -108,7 +108,7 @@ from .ops import (
     SM_CmpOp,
     SS_CmpOp,
 )
-from .register import (
+from .registers import (
     AVX2RegisterType,
     AVX512RegisterType,
     GeneralRegisterType,
@@ -161,6 +161,7 @@ X86 = Dialect(
         DM_VmovupsOp,
         DMI_ImulOp,
         DS_MovOp,
+        DS_VmovapdOp,
         DS_VpbroadcastdOp,
         DS_VpbroadcastqOp,
         DSI_ImulOp,
@@ -214,7 +215,6 @@ X86 = Dialect(
         RS_ImulOp,
         RS_OrOp,
         RS_SubOp,
-        RS_VmovapdOp,
         RS_XorOp,
         RSS_Vfmadd231pdOp,
         RSS_Vfmadd231psOp,

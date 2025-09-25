@@ -6,7 +6,7 @@ builtin.module {
         %pi = arith.constant 3.14159 : f32
         %12 = arith.constant 12 : i32
 
-        printf.print_format "Hello: {} {}", %pi : f32, %12 : i32
+        printf.print_format "Hello: {} {}\n", %pi : f32, %12 : i32
 
         func.return
     }

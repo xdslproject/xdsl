@@ -168,7 +168,7 @@ class Token(Generic[TokenKindT]):
 
 
 @dataclass
-class Lexer(Generic[TokenKindT], ABC):
+class Lexer(ABC, Generic[TokenKindT]):
     input: Input
     """Input that is currently being lexed."""
 

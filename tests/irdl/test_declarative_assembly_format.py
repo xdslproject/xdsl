@@ -26,6 +26,7 @@ from xdsl.dialects.builtin import (
     StringAttr,
     SymbolNameConstraint,
     UnitAttr,
+    f32,
     i32,
 )
 from xdsl.dialects.test import Test, TestType
@@ -845,7 +846,7 @@ def test_dense_array_special_cases(program: str, generic_program: str, format: s
         i64s = opt_prop_def(DenseArrayBase[I64])
         f32s = prop_def(
             DenseArrayBase[Float32Type],
-            default_value=DenseArrayBase.from_list(Float32Type(), (9.0,)),
+            default_value=DenseArrayBase.from_list(f32, (9.0,)),
         )
         f64s = prop_def(
             VarConstraint("F64S", irdl_to_attr_constraint(DenseArrayBase[Float64Type]))

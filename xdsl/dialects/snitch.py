@@ -47,10 +47,10 @@ _StreamTypeElement = TypeVar(
 
 @irdl_attr_definition
 class ReadableStreamType(
-    Generic[_StreamTypeElement],
     ParametrizedAttribute,
     TypeAttribute,
     ContainerType[_StreamTypeElement],
+    Generic[_StreamTypeElement],
 ):
     name = "snitch.readable"
 
@@ -70,10 +70,10 @@ class ReadableStreamType(
 
 @irdl_attr_definition
 class WritableStreamType(
-    Generic[_StreamTypeElement],
     ParametrizedAttribute,
     TypeAttribute,
     ContainerType[_StreamTypeElement],
+    Generic[_StreamTypeElement],
 ):
     name = "snitch.writable"
 

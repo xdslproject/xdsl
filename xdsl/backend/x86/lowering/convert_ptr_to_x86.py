@@ -24,7 +24,7 @@ from xdsl.utils.hints import isa
 class PtrAddToX86(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ptr.PtrAddOp, rewriter: PatternRewriter):
-        x86_reg_type = x86.register.UNALLOCATED_GENERAL
+        x86_reg_type = x86.registers.UNALLOCATED_GENERAL
 
         rewriter.replace_matched_op(
             [
@@ -35,7 +35,7 @@ class PtrAddToX86(RewritePattern):
                     (op.offset,), (x86_reg_type,)
                 ),
                 ptr_mv_op := x86.DS_MovOp(
-                    ptr_cast_op, destination=x86.register.UNALLOCATED_GENERAL
+                    ptr_cast_op, destination=x86.registers.UNALLOCATED_GENERAL
                 ),
                 add_op := x86.RS_AddOp(
                     ptr_mv_op.destination, offset_cast_op, register_out=x86_reg_type
@@ -56,7 +56,7 @@ class PtrStoreToX86(RewritePattern):
         value_type = op.value.type
         # Pointer casts
         addr_cast_op, x86_ptr = UnrealizedConversionCastOp.cast_one(
-            op.addr, x86.register.UNALLOCATED_GENERAL
+            op.addr, x86.registers.UNALLOCATED_GENERAL
         )
         if isa(value_type, VectorType[FixedBitwidthType]):
             x86_vect_type = self.arch.register_type_for_type(value_type)
@@ -81,7 +81,7 @@ class PtrStoreToX86(RewritePattern):
             mov_op = mov(x86_ptr, x86_data, memory_offset=0)
         else:
             cast_op, x86_data = UnrealizedConversionCastOp.cast_one(
-                op.value, x86.register.UNALLOCATED_GENERAL
+                op.value, x86.registers.UNALLOCATED_GENERAL
             )
             mov_op = x86.MS_MovOp(x86_ptr, x86_data, memory_offset=0)
 
@@ -95,7 +95,7 @@ class PtrLoadToX86(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ptr.LoadOp, rewriter: PatternRewriter):
         # Pointer cast
-        x86_reg_type = x86.register.UNALLOCATED_GENERAL
+        x86_reg_type = x86.registers.UNALLOCATED_GENERAL
         cast_op, addr_x86 = UnrealizedConversionCastOp.cast_one(op.addr, x86_reg_type)
 
         value_type = op.res.type
@@ -122,7 +122,7 @@ class PtrLoadToX86(RewritePattern):
             )
         else:
             mov_op = x86.DM_MovOp(
-                addr_x86, memory_offset=0, destination=x86.register.UNALLOCATED_GENERAL
+                addr_x86, memory_offset=0, destination=x86.registers.UNALLOCATED_GENERAL
             )
 
         res_cast_op = UnrealizedConversionCastOp.get(mov_op.results, (value_type,))

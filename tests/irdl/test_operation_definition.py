@@ -798,7 +798,7 @@ _Operand = TypeVar("_Operand", bound=TestType)
 _Result = TypeVar("_Result", bound=TestType)
 
 
-class GenericOp(Generic[_Attr, _Operand, _Result], IRDLOperation):
+class GenericOp(IRDLOperation, Generic[_Attr, _Operand, _Result]):
     name = "test.string_or_int_generic"
 
     attr: _Attr = attr_def(_Attr)
@@ -811,7 +811,7 @@ class StringFooOp(GenericOp[StringAttr, FooType, FooType]):
     name = "test.string_specialized"
 
 
-class Generic2Op(Generic[_Operand], GenericOp[StringAttr, _Operand, FooType]): ...
+class Generic2Op(GenericOp[StringAttr, _Operand, FooType], Generic[_Operand]): ...
 
 
 @irdl_op_definition

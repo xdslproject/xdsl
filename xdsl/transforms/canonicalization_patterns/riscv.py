@@ -440,6 +440,17 @@ class BitwiseAndByZero(RewritePattern):
             rewriter.replace_matched_op(riscv.MVOp(op.rs2, rd=rd))
 
 
+class BitwiseAndBySelf(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: riscv.AndOp, rewriter: PatternRewriter):
+        """
+        x & x = x
+        """
+        if op.rs1 == op.rs2:
+            rd = cast(riscv.IntRegisterType, op.rd.type)
+            rewriter.replace_matched_op(riscv.MVOp(op.rs1, rd=rd, comment=op.comment))
+
+
 class BitwiseOrByZero(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: riscv.OrOp, rewriter: PatternRewriter):
@@ -458,6 +469,17 @@ class BitwiseOrByZero(RewritePattern):
             # if the second operand is 0, set the destination to first operand
             rd = cast(riscv.IntRegisterType, op.rd.type)
             rewriter.replace_matched_op(riscv.MVOp(op.rs1, rd=rd))
+
+
+class BitwiseOrBySelf(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: riscv.OrOp, rewriter: PatternRewriter):
+        """
+        x | x = x
+        """
+        if op.rs1 == op.rs2:
+            rd = cast(riscv.IntRegisterType, op.rd.type)
+            rewriter.replace_matched_op(riscv.MVOp(op.rs1, rd=rd, comment=op.comment))
 
 
 class XorBySelf(RewritePattern):

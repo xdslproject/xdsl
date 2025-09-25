@@ -64,7 +64,7 @@ The first step is finding a missing optimisation pattern.
 You're welcome to come up with your own, or do one of the following:
 
 - `x + x * n -> x * (n + 1)` (where `n` is an immediate)
-- `x | x -> x`
+- `n & m -> k` (where `n`, `m`, and `k` are immediates, and k == n & m)
 - `x * 1 -> x`
 - `n * x -> x * n` (where `n` is an immediate)
 

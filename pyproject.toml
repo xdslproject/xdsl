@@ -27,16 +27,16 @@ dev = [
     "nbval<0.12",
     "filecheck==1.0.3",
     "lit<19.0.0",
-    "marimo==0.14.17",
+    "marimo==0.16.2",
     "pre-commit>=4.0.0,<5.0.0",
-    "ruff==0.12.9",
+    "ruff==0.13.1",
     "nbconvert>=7.7.2,<8.0.0",
     "textual-dev==1.7.0",
-    "pytest-asyncio==1.1.0",
-    "pyright==1.1.403",
+    "pytest-asyncio==1.2.0",
+    "pyright==1.1.405",
     "sympy==1.14.0",
 ]
-gui = ["textual>=5,<6", "pyclip==0.7"]
+gui = ["textual>=6,<7", "pyclip==0.7"]
 jax = ["jax==0.6.0", "numpy==2.2.6"]
 
 [dependency-groups]
@@ -61,6 +61,7 @@ docs = [
     "mkdocstrings[python]>=0.27.0",
     "pymdown-extensions>=10.7",
     "riscemu==2.2.7",
+    "micropip>=0.7",
 ]
 
 [project.urls]

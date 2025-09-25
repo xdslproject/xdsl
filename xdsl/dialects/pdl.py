@@ -142,7 +142,7 @@ _RangeT = TypeVar(
 
 
 @irdl_attr_definition
-class RangeType(Generic[_RangeT], ParametrizedAttribute, TypeAttribute):
+class RangeType(ParametrizedAttribute, TypeAttribute, Generic[_RangeT]):
     name = "pdl.range"
     element_type: _RangeT
 
@@ -177,37 +177,35 @@ class RangeType(Generic[_RangeT], ParametrizedAttribute, TypeAttribute):
 @irdl_op_definition
 class ApplyNativeConstraintOp(IRDLOperation):
     """
-    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlapply_native_constraint-mlirpdlapplynativeconstraintop).
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlapply_native_constraint-pdlapplynativeconstraintop).
     """
 
     name = "pdl.apply_native_constraint"
     constraint_name = prop_def(StringAttr, prop_name="name")
     args = var_operand_def(AnyPDLTypeConstr)
+    res = var_result_def(AnyPDLTypeConstr)
 
-    def __init__(self, name: str | StringAttr, args: Sequence[SSAValue]) -> None:
+    assembly_format = (
+        "$name (`(` $args^ `:` type($args) `)`)? (`:` type($res)^)? attr-dict"
+    )
+
+    def __init__(
+        self,
+        name: str | StringAttr,
+        args: Sequence[SSAValue],
+        result_types: Sequence[Attribute],
+    ) -> None:
         if isinstance(name, str):
             name = StringAttr(name)
-        super().__init__(operands=[args], properties={"name": name})
-
-    @classmethod
-    def parse(cls, parser: Parser) -> ApplyNativeConstraintOp:
-        name = parser.parse_str_literal()
-        parser.parse_punctuation("(")
-        operands = parse_operands_with_types(parser)
-        parser.parse_punctuation(")")
-        return ApplyNativeConstraintOp(name, operands)
-
-    def print(self, printer: Printer) -> None:
-        printer.print_string(" ")
-        printer.print_string_literal(self.constraint_name.data)
-        with printer.in_parens():
-            print_operands_with_types(printer, self.operands)
+        super().__init__(
+            result_types=[result_types], operands=[args], properties={"name": name}
+        )
 
 
 @irdl_op_definition
 class ApplyNativeRewriteOp(IRDLOperation):
     """
-    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlapply_native_rewrite-mlirpdlapplynativerewriteop).
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlapply_native_rewrite-pdlapplynativerewriteop).
     """
 
     name = "pdl.apply_native_rewrite"
@@ -255,7 +253,8 @@ class ApplyNativeRewriteOp(IRDLOperation):
 @irdl_op_definition
 class AttributeOp(IRDLOperation):
     """
-    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlattribute-mlirpdlattributeop).
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlattribute-pdlattributeop).
+    https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlattribute-pdlattributeop
     """
 
     name = "pdl.attribute"
@@ -297,7 +296,7 @@ class AttributeOp(IRDLOperation):
 @irdl_op_definition
 class EraseOp(IRDLOperation):
     """
-    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlerase-mlirpdleraseop).
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlerase-pdleraseop).
     """
 
     name = "pdl.erase"
@@ -312,7 +311,7 @@ class EraseOp(IRDLOperation):
 @irdl_op_definition
 class OperandOp(IRDLOperation):
     """
-    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLOps/#pdloperand-mlirpdloperandop).
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLOps/#pdloperand-pdloperandop).
     """
 
     name = "pdl.operand"
@@ -331,7 +330,7 @@ class OperandOp(IRDLOperation):
 @irdl_op_definition
 class OperandsOp(IRDLOperation):
     """
-    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLOps/#pdloperands-mlirpdloperandsop).
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLOps/#pdloperands-pdloperandsop).
     """
 
     name = "pdl.operands"
@@ -350,7 +349,7 @@ class OperandsOp(IRDLOperation):
 @irdl_op_definition
 class OperationOp(IRDLOperation):
     """
-    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLOps/#pdloperation-mlirpdloperationop).
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLOps/#pdloperation-pdloperationop).
     """
 
     name = "pdl.operation"
@@ -509,7 +508,7 @@ def _has_user_in_rewrite(op: Operation) -> bool:
 @irdl_op_definition
 class PatternOp(IRDLOperation):
     """
-    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlpattern-mlirpdlpatternop).
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlpattern-pdlpatternop).
     """
 
     name = "pdl.pattern"
@@ -595,7 +594,7 @@ class PatternOp(IRDLOperation):
 @irdl_op_definition
 class RangeOp(IRDLOperation):
     """
-    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlrange-mlirpdlrangeop).
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlrange-pdlrangeop).
     """
 
     name = "pdl.range"
@@ -662,7 +661,7 @@ class RangeOp(IRDLOperation):
 @irdl_op_definition
 class ReplaceOp(IRDLOperation):
     """
-    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlreplace-mlirpdlreplaceop).
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlreplace-pdlreplaceop).
 
     `pdl.replace` operations are used within `pdl.rewrite` regions to specify
     that an input operation should be marked as replaced. The semantics of this
@@ -720,7 +719,7 @@ class ReplaceOp(IRDLOperation):
 @irdl_op_definition
 class ResultOp(IRDLOperation):
     """
-    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlresult-mlirpdlresultop).
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlresult-pdlresultop).
     """
 
     name = "pdl.result"
@@ -741,11 +740,11 @@ class ResultOp(IRDLOperation):
 @irdl_op_definition
 class ResultsOp(IRDLOperation):
     """
-    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlresults-mlirpdlresultsop).
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlresults-pdlresultsop).
     """
 
     name = "pdl.results"
-    index = opt_prop_def(IntegerAttr[IntegerType])
+    index = opt_prop_def(IntegerAttr[I32])
     parent_ = operand_def(OperationType)
     val = result_def(base(ValueType) | base(RangeType[ValueType]))
 
@@ -787,7 +786,7 @@ class ResultsOp(IRDLOperation):
 @irdl_op_definition
 class RewriteOp(IRDLOperation):
     """
-    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlrewrite-mlirpdlrewriteop).
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlrewrite-pdlrewriteop).
     """
 
     name = "pdl.rewrite"
@@ -849,11 +848,11 @@ class RewriteOp(IRDLOperation):
 @irdl_op_definition
 class TypeOp(IRDLOperation):
     """
-    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLOps/#pdltype-mlirpdltypeop).
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLOps/#pdltype-pdltypeop).
     """
 
     name = "pdl.type"
-    constantType = opt_prop_def()
+    constantType = opt_prop_def(TypeAttribute)
     result = result_def(TypeType)
 
     assembly_format = "attr-dict (`:` $constantType^)?"
@@ -870,11 +869,11 @@ class TypeOp(IRDLOperation):
 @irdl_op_definition
 class TypesOp(IRDLOperation):
     """
-    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLOps/#pdltypes-mlirpdltypesop).
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLOps/#pdltypes-pdltypesop).
     """
 
     name = "pdl.types"
-    constantTypes = opt_prop_def(ArrayAttr)
+    constantTypes = opt_prop_def(ArrayAttr[TypeAttribute])
     result = result_def(RangeType[TypeType])
 
     assembly_format = "attr-dict (`:` $constantTypes^)?"

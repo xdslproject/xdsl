@@ -101,3 +101,4 @@ def test_pass_to_spec_exclude_default(
 ):
     assert test_pass.pipeline_pass_spec(include_default=False) == test_spec
     assert test_pass.pipeline_pass_spec() == test_spec
+    assert str(test_pass) == str(test_spec)

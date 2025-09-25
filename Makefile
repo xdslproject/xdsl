@@ -192,6 +192,9 @@ asv-clean:
 
 # Set to 1 to skip the generation of "API Reference".
 SKIP_GEN_PAGES ?= 0
+# Set to 1 to skip the building of xDSL wheel
+SKIP_BUILD_WHEEL ?= 0
+
 
 .PHONY: docs-serve
 docs-serve: uv-installed

@@ -7,8 +7,9 @@ Those can be translated to C/C++ via the Cpp emitter.
 See external [documentation](https://mlir.llvm.org/docs/Dialects/EmitC/).
 """
 
-from collections.abc import Iterable, Sequence
-from typing import Generic, Literal, cast
+import abc
+from collections.abc import Iterable, Mapping, Sequence
+from typing import Generic, Literal
 
 from typing_extensions import TypeVar
 
@@ -25,6 +26,7 @@ from xdsl.dialects.builtin import (
     IntegerAttr,
     IntegerType,
     ShapedType,
+    StaticShapeArrayConstr,
     StringAttr,
     TensorType,
     TupleType,
@@ -37,13 +39,20 @@ from xdsl.ir import (
     TypeAttribute,
 )
 from xdsl.irdl import (
+    AnyAttr,
+    AttrConstraint,
+    ConstraintContext,
+    IntConstraint,
     IRDLOperation,
     ParsePropInAttrDict,
     irdl_attr_definition,
     irdl_op_definition,
     irdl_to_attr_constraint,
+    operand_def,
     opt_prop_def,
+    param_def,
     prop_def,
+    result_def,
     var_operand_def,
     var_result_def,
 )
@@ -142,6 +151,16 @@ Constraint for valid element types in EmitC arrays.
 """
 
 
+@irdl_attr_definition
+class EmitC_OpaqueAttr(ParametrizedAttribute):
+    """
+    An opaque attribute of which the value gets emitted as is.
+    """
+
+    name = "emitc.opaque"
+    value: StringAttr
+
+
 EmitCArrayElementTypeCovT = TypeVar(
     "EmitCArrayElementTypeCovT",
     bound=EmitCArrayElementType,
@@ -152,17 +171,17 @@ EmitCArrayElementTypeCovT = TypeVar(
 
 @irdl_attr_definition
 class EmitC_ArrayType(
-    Generic[EmitCArrayElementTypeCovT],
     ParametrizedAttribute,
     TypeAttribute,
     ShapedType,
     ContainerType[EmitCArrayElementTypeCovT],
+    Generic[EmitCArrayElementTypeCovT],
 ):
     """EmitC array type"""
 
     name = "emitc.array"
 
-    shape: ArrayAttr[IntAttr]
+    shape: ArrayAttr[IntAttr] = param_def(StaticShapeArrayConstr)
     element_type: EmitCArrayElementTypeCovT
 
     def __init__(
@@ -178,6 +197,9 @@ class EmitC_ArrayType(
     def verify(self) -> None:
         if not self.shape.data:
             raise VerifyException("EmitC array shape must not be empty")
+
+        if isinstance(self.element_type, EmitC_ArrayType):
+            raise VerifyException("nested EmitC arrays are not allowed")
 
         for dim_attr in self.shape.data:
             if dim_attr.data < 0:
@@ -209,6 +231,53 @@ class EmitC_ArrayType(
             printer.print_attribute(self.element_type)
 
 
+class EmitCTypeConstraint(AttrConstraint):
+    """
+    Check if a type is supported by EmitC.
+    See [MLIR implementation](https://github.com/llvm/llvm-project/blob/main/mlir/lib/Dialect/EmitC/IR/EmitC.cpp#L62).
+    """
+
+    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
+        if isa(attr, TensorType):
+            # EmitC only supports tensors with static shapes
+            if not attr.has_static_shape():
+                raise VerifyException(f"Type {attr} is not a supported EmitC type")
+            elem_type = attr.get_element_type()
+            if isinstance(elem_type, EmitC_ArrayType):
+                raise VerifyException("EmitC type cannot be a tensor of EmitC arrays")
+            self.verify(elem_type, constraint_context)
+            return
+
+        if isa(attr, EmitC_ArrayType):
+            elem_type = attr.get_element_type()
+            self.verify(elem_type, constraint_context)
+            return
+
+        if isinstance(attr, EmitC_PointerType):
+            self.verify(attr.pointee_type, constraint_context)
+            return
+
+        if isinstance(attr, TupleType):
+            for t in attr.types:
+                if isinstance(t, EmitC_ArrayType):
+                    raise VerifyException(
+                        "EmitC type cannot be a tuple of EmitC arrays"
+                    )
+                self.verify(t, constraint_context)
+            return
+
+        EmitCArrayElementTypeConstr.verify(attr, constraint_context)
+
+    def mapping_type_vars(
+        self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
+    ) -> AttrConstraint:
+        # No type variables to map in this constraint
+        return self
+
+
+EmitCTypeConstr = EmitCTypeConstraint()
+
+
 @irdl_attr_definition
 class EmitC_LValueType(ParametrizedAttribute, TypeAttribute):
     """
@@ -218,18 +287,13 @@ class EmitC_LValueType(ParametrizedAttribute, TypeAttribute):
     """
 
     name = "emitc.lvalue"
-    value_type: TypeAttribute
+    value_type: Attribute = param_def(EmitCTypeConstr)
 
     def verify(self) -> None:
         """
         Verify the LValueType.
         See [MLIR implementation](https://github.com/llvm/llvm-project/blob/main/mlir/lib/Dialect/EmitC/IR/EmitC.cpp#L1095)
         """
-        # Check that the wrapped type is valid. This especially forbids nested lvalue types.
-        if not is_supported_emitc_type(self.value_type):
-            raise VerifyException(
-                f"!emitc.lvalue must wrap supported emitc type, but got {self.value_type}"
-            )
         if isinstance(self.value_type, EmitC_ArrayType):
             raise VerifyException("!emitc.lvalue cannot wrap !emitc.array type")
 
@@ -246,42 +310,119 @@ class EmitC_PointerType(ParametrizedAttribute, TypeAttribute):
             raise VerifyException("pointers to lvalues are not allowed")
 
 
-def is_supported_emitc_type(type_attr: Attribute) -> bool:
+class EmitC_BinaryOperation(IRDLOperation, abc.ABC):
+    """Base class for EmitC binary operations."""
+
+    lhs = operand_def(EmitCTypeConstr)
+    rhs = operand_def(EmitCTypeConstr)
+    result = result_def(EmitCTypeConstr)
+
+    assembly_format = "operands attr-dict `:` functional-type(operands, results)"
+
+    def __init__(
+        self,
+        lhs: SSAValue,
+        rhs: SSAValue,
+        result_type: Attribute,
+    ):
+        super().__init__(
+            operands=[lhs, rhs],
+            result_types=[result_type],
+        )
+
+
+@irdl_op_definition
+class EmitC_AddOp(EmitC_BinaryOperation):
     """
-    Check if a type is supported by EmitC.
-    See [MLIR implementation](https://github.com/llvm/llvm-project/blob/main/mlir/lib/Dialect/EmitC/IR/EmitC.cpp#L62).
+    Addition operation.
+
+    With the `emitc.add` operation the arithmetic operator + (addition) can
+    be applied. Supports pointer arithmetic where one operand is a pointer
+    and the other is an integer or opaque type.
+
+    Example:
+
+    ```mlir
+    // Custom form of the addition operation.
+    %0 = emitc.add %arg0, %arg1 : (i32, i32) -> i32
+    %1 = emitc.add %arg2, %arg3 : (!emitc.ptr<f32>, i32) -> !emitc.ptr<f32>
+    ```
+    ```c++
+    // Code emitted for the operations above.
+    int32_t v5 = v1 + v2;
+    float* v6 = v3 + v4;
+    ```
     """
 
-    _constrs = EmitCIntegerTypeConstr | EmitCFloatTypeConstr
-    if _constrs.verifies(type_attr):
-        return True
+    name = "emitc.add"
 
-    match type_attr:
-        case IndexType():
-            return True
-        case EmitC_OpaqueType():
-            return True
-        case EmitC_ArrayType():
-            elem_type = cast(Attribute, type_attr.get_element_type())
-            return not isinstance(
-                elem_type, EmitC_ArrayType
-            ) and is_supported_emitc_type(elem_type)
-        case EmitC_PointerType():
-            return is_supported_emitc_type(type_attr.pointee_type)
-        case TensorType():
-            elem_type = cast(Attribute, type_attr.get_element_type())
-            if isinstance(elem_type, EmitC_ArrayType):
-                return False
-            return is_supported_emitc_type(elem_type)
-        case TupleType():
-            return all(
-                not isinstance(t, EmitC_ArrayType) and is_supported_emitc_type(t)
-                for t in type_attr.types
+    def verify_(self) -> None:
+        lhs_type = self.lhs.type
+        rhs_type = self.rhs.type
+
+        if isa(lhs_type, EmitC_PointerType) and isa(rhs_type, EmitC_PointerType):
+            raise VerifyException(
+                "emitc.add requires that at most one operand is a pointer"
             )
-        case EmitC_PtrDiffT():
-            return True
-        case _:
-            return False
+
+        if (
+            isa(lhs_type, EmitC_PointerType)
+            and not isa(rhs_type, IntegerType | EmitC_OpaqueType)
+        ) or (
+            isa(rhs_type, EmitC_PointerType)
+            and not isa(lhs_type, IntegerType | EmitC_OpaqueType)
+        ):
+            raise VerifyException(
+                "emitc.add requires that one operand is an integer or of opaque "
+                "type if the other is a pointer"
+            )
+
+
+@irdl_op_definition
+class EmitC_ApplyOp(IRDLOperation):
+    """Apply operation"""
+
+    name = "emitc.apply"
+
+    assembly_format = """
+        $applicableOperator `(` $operand `)` attr-dict `:` functional-type($operand, results)
+      """
+
+    applicableOperator = prop_def(StringAttr)
+
+    operand = operand_def(AnyAttr())
+
+    result = result_def(EmitCTypeConstr)
+
+    def verify_(self) -> None:
+        applicable_operator = self.applicableOperator.data
+
+        # Applicable operator must not be empty
+        if not applicable_operator:
+            raise VerifyException("applicable operator must not be empty")
+
+        if applicable_operator not in ("&", "*"):
+            raise VerifyException("applicable operator is illegal")
+
+        operand_type = self.operand.type
+        result_type = self.result.type
+
+        if applicable_operator == "&":
+            if not isinstance(operand_type, EmitC_LValueType):
+                raise VerifyException(
+                    "operand type must be an lvalue when applying `&`"
+                )
+            if not isinstance(result_type, EmitC_PointerType):
+                raise VerifyException("result type must be a pointer when applying `&`")
+        else:  # applicable_operator == "*"
+            if not isinstance(operand_type, EmitC_PointerType):
+                raise VerifyException(
+                    "operand type must be a pointer when applying `*`"
+                )
+
+    def has_side_effects(self) -> bool:
+        """Return True if the operation has side effects."""
+        return self.applicableOperator.data == "*"
 
 
 @irdl_op_definition
@@ -349,9 +490,7 @@ class EmitC_CallOpaqueOp(IRDLOperation):
             for t_arg in self.template_args.data:
                 if not isa(
                     t_arg,
-                    TypeAttribute | IntegerAttr | FloatAttr,
-                    # FIXME: uncomment and replace the line above when EmitC_OpaqueAttr is implemented
-                    # TypeAttribute | IntegerAttr | FloatAttr | EmitC_OpaqueAttr,
+                    TypeAttribute | IntegerAttr | FloatAttr | EmitC_OpaqueAttr,
                 ):
                     raise VerifyException("template argument has invalid type")
 
@@ -363,11 +502,14 @@ class EmitC_CallOpaqueOp(IRDLOperation):
 EmitC = Dialect(
     "emitc",
     [
+        EmitC_AddOp,
+        EmitC_ApplyOp,
         EmitC_CallOpaqueOp,
     ],
     [
         EmitC_ArrayType,
         EmitC_LValueType,
+        EmitC_OpaqueAttr,
         EmitC_OpaqueType,
         EmitC_PointerType,
         EmitC_PtrDiffT,

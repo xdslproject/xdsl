@@ -93,10 +93,8 @@ class TestAddBenchTimersToTopLevelFunctions(ModulePass):
         ):
             return
 
-        start_func_t = func.FunctionType.from_lists([], [builtin.Float64Type()])
-        end_func_t = func.FunctionType.from_lists(
-            [builtin.Float64Type()], [builtin.Float64Type()]
-        )
+        start_func_t = func.FunctionType.from_lists([], [builtin.f64])
+        end_func_t = func.FunctionType.from_lists([builtin.f64], [builtin.f64])
         start_func = func.FuncOp(TIMER_START, start_func_t, Region([]), "private")
         end_func = func.FuncOp(TIMER_END, end_func_t, Region([]), "private")
 

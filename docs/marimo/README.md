@@ -26,6 +26,7 @@ constructs, and implement your rewrites.
 1. [Rewrites](pattern_rewrites.py)
 1. [Rewrite Exercises](rewrite_exercises.py)
 1. [Defining Dialects](defining_dialects.py)
+1. [Pattern Description Language (PDL)](pdl.py)
 
 ## RISC-V Dialects
 

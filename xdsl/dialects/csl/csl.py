@@ -34,6 +34,8 @@ from xdsl.dialects.builtin import (
     SymbolNameConstraint,
     SymbolRefAttr,
     TensorType,
+    f16,
+    f32,
     i8,
     i16,
 )
@@ -355,12 +357,8 @@ DsdElementTypeConstr = (
 )
 
 
-f16_pointer = PtrType(
-    Float16Type(), PtrKindAttr(PtrKind.SINGLE), PtrConstAttr(PtrConst.VAR)
-)
-f32_pointer = PtrType(
-    Float32Type(), PtrKindAttr(PtrKind.SINGLE), PtrConstAttr(PtrConst.VAR)
-)
+f16_pointer = PtrType(f16, PtrKindAttr(PtrKind.SINGLE), PtrConstAttr(PtrConst.VAR))
+f32_pointer = PtrType(f32, PtrKindAttr(PtrKind.SINGLE), PtrConstAttr(PtrConst.VAR))
 i8_value = IntegerType(8, Signedness.SIGNED)
 u16_value = IntegerType(16, Signedness.UNSIGNED)
 i16_value = IntegerType(16, Signedness.SIGNED)
@@ -435,6 +433,8 @@ class VariableOp(IRDLOperation):
     default = opt_prop_def(ParamAttr)
     res = result_def(VarType)
 
+    assembly_format = "`(` $default `)` `:` type($res) attr-dict"
+
     def get_element_type(self):
         assert isinstance(self.res.type, VarType)
         return self.res.type.get_element_type()
@@ -475,6 +475,8 @@ class LoadVarOp(IRDLOperation):
 
     traits = traits_def(MemoryReadEffect())
 
+    assembly_format = "`(` $var `:` type($var) `)` `:` type($res) attr-dict"
+
     def __init__(self, var: VariableOp | SSAValue):
         if isinstance(var, SSAValue):
             assert isinstance(var.type, VarType)
@@ -506,6 +508,10 @@ class StoreVarOp(IRDLOperation):
     new_value = operand_def()
 
     traits = traits_def(MemoryWriteEffect())
+
+    assembly_format = (
+        "$var `:` type($var) `=` $new_value `:` type($new_value) attr-dict"
+    )
 
     def __init__(self, var: VariableOp, new_value: Operation | SSAValue):
         super().__init__(operands=[var, new_value])

@@ -61,6 +61,7 @@ from xdsl.irdl import (
     IRDLAttrConstraint,
     IRDLOperation,
     MessageConstraint,
+    NotEqualIntConstraint,
     ParamAttrConstraint,
     RangeConstraint,
     RangeOf,
@@ -100,9 +101,10 @@ if TYPE_CHECKING:
     from xdsl.printer import Printer
 
 
-DYNAMIC_INDEX = -1
+DYNAMIC_INDEX = -(2**63)
 """
 A constant value denoting a dynamic index in a shape.
+Equal to -(2 ** 63) which is used in C++ MLIR.
 """
 
 
@@ -135,13 +137,13 @@ _ContainerElementTypeT = TypeVar(
 )
 
 
-class ContainerType(Generic[_ContainerElementTypeT], ABC):
+class ContainerType(ABC, Generic[_ContainerElementTypeT]):
     @abstractmethod
     def get_element_type(self) -> _ContainerElementTypeT:
         pass
 
 
-class _BuiltinData(Generic[DataElement], Data[DataElement], BuiltinAttribute, ABC):
+class _BuiltinData(Data[DataElement], BuiltinAttribute, ABC, Generic[DataElement]):
     """
     Helper superclass to implement dummy print and parse parameter methods.
     """
@@ -157,7 +159,7 @@ class _BuiltinData(Generic[DataElement], Data[DataElement], BuiltinAttribute, AB
 
 
 class _BuiltinGenericData(
-    Generic[DataElement], GenericData[DataElement], _BuiltinData[DataElement], ABC
+    GenericData[DataElement], _BuiltinData[DataElement], ABC, Generic[DataElement]
 ):
     """
     Helper superclass to implement dummy print and parse parameter methods.
@@ -176,9 +178,9 @@ class NoneAttr(ParametrizedAttribute, BuiltinAttribute):
 
 @irdl_attr_definition
 class ArrayAttr(
-    Generic[AttributeCovT],
     _BuiltinGenericData[tuple[AttributeCovT, ...]],
     Iterable[AttributeCovT],
+    Generic[AttributeCovT],
 ):
     name = "array"
 
@@ -196,8 +198,13 @@ class ArrayAttr(
         | RangeConstraint[AttributeInvT]
         | None = None,
     ) -> ArrayOfConstraint[AttributeInvT]:
-        return ArrayOfConstraint(
-            TypeVarConstraint(AttributeCovT, AnyAttr()) if constr is None else constr
+        return ArrayOfConstraint[AttributeInvT](
+            cast(
+                AttrConstraint[AttributeInvT],
+                TypeVarConstraint(AttributeCovT, AnyAttr()),
+            )
+            if constr is None
+            else constr
         )
 
     def __len__(self):
@@ -217,7 +224,7 @@ class ArrayOfConstraint(AttrConstraint[ArrayAttr[AttributeCovT]]):
 
     def __init__(
         self,
-        constr: (IRDLAttrConstraint | RangeConstraint[AttributeCovT]),
+        constr: (IRDLAttrConstraint[AttributeCovT] | RangeConstraint[AttributeCovT]),
     ):
         if isinstance(constr, RangeConstraint):
             object.__setattr__(self, "elem_range_constraint", constr)
@@ -361,7 +368,7 @@ IntCovT = TypeVar("IntCovT", bound=int, default=int, covariant=True)
 
 
 @irdl_attr_definition
-class IntAttr(Generic[IntCovT], GenericData[IntCovT]):
+class IntAttr(GenericData[IntCovT], Generic[IntCovT]):
     name = "builtin.int"
 
     @classmethod
@@ -419,6 +426,24 @@ class IntAttrConstraint(AttrConstraint[IntAttr]):
         )
 
 
+StaticDimensionConstr = MessageConstraint(
+    IntAttrConstraint(NotEqualIntConstraint(DYNAMIC_INDEX)),
+    f"expected static dimension, but got {DYNAMIC_INDEX}",
+)
+"""
+Constrain a dimension to be static (not equal to `DYNAMIC_INDEX`).
+"""
+
+
+StaticShapeArrayConstr = MessageConstraint(
+    ArrayOfConstraint(StaticDimensionConstr),
+    "expected static shape, but got dynamic dimension",
+)
+"""
+Constrain an array to be a static shape (all dimensions static).
+"""
+
+
 class Signedness(ConstraintConvertible, Enum):
     "Signedness semantics for integer"
 
@@ -459,7 +484,7 @@ SignednessCovT = TypeVar(
 
 
 @irdl_attr_definition
-class SignednessAttr(Generic[SignednessCovT], GenericData[SignednessCovT]):
+class SignednessAttr(GenericData[SignednessCovT], Generic[SignednessCovT]):
     name = "builtin.signedness"
 
     @classmethod
@@ -532,7 +557,7 @@ class FixedBitwidthType(CompileTimeFixedBitwidthType, ABC):
 _PyT = TypeVar("_PyT")
 
 
-class PackableType(Generic[_PyT], CompileTimeFixedBitwidthType, ABC):
+class PackableType(CompileTimeFixedBitwidthType, ABC, Generic[_PyT]):
     """
     Abstract base class for xDSL types whose values can be encoded and decoded as bytes.
     """
@@ -566,7 +591,7 @@ class PackableType(Generic[_PyT], CompileTimeFixedBitwidthType, ABC):
         raise NotImplementedError()
 
 
-class StructPackableType(Generic[_PyT], PackableType[_PyT], ABC):
+class StructPackableType(PackableType[_PyT], ABC, Generic[_PyT]):
     """
     Abstract base class for xDSL types that can be packed and unpacked using Python's
     `struct` package, using a format string.
@@ -615,11 +640,11 @@ Bitwidths: `<B`: 1-8, `<H`: 9-16, `<I`: 17-32, `<Q`: 33-64.
 
 @irdl_attr_definition
 class IntegerType(
-    Generic[IntCovT, SignednessCovT],
     ParametrizedAttribute,
     StructPackableType[int],
     FixedBitwidthType,
     BuiltinAttribute,
+    Generic[IntCovT, SignednessCovT],
 ):
     name = "integer_type"
     width: IntAttr[IntCovT]
@@ -728,26 +753,24 @@ class IntegerType(
         return f[format_index]
 
 
-i64 = IntegerType[64, Signedness.SIGNLESS](64)
-i32 = IntegerType[32, Signedness.SIGNLESS](32)
-i16 = IntegerType[16, Signedness.SIGNLESS](16)
-i8 = IntegerType[8, Signedness.SIGNLESS](8)
-i1 = IntegerType[1, Signedness.SIGNLESS](1)
-I64 = IntegerType[64, Signedness.SIGNLESS]
-I32 = IntegerType[32, Signedness.SIGNLESS]
-I16 = IntegerType[16, Signedness.SIGNLESS]
-I8 = IntegerType[8, Signedness.SIGNLESS]
-I1 = IntegerType[1, Signedness.SIGNLESS]
+I64: TypeAlias = IntegerType[Literal[64], Literal[Signedness.SIGNLESS]]
+I32: TypeAlias = IntegerType[Literal[32], Literal[Signedness.SIGNLESS]]
+I16: TypeAlias = IntegerType[Literal[16], Literal[Signedness.SIGNLESS]]
+I8: TypeAlias = IntegerType[Literal[8], Literal[Signedness.SIGNLESS]]
+I1: TypeAlias = IntegerType[Literal[1], Literal[Signedness.SIGNLESS]]
+i64: I64 = IntegerType(64)
+i32: I32 = IntegerType(32)
+i16: I16 = IntegerType(16)
+i8: I8 = IntegerType(8)
+i1: I1 = IntegerType(1)
 
 _IntegerTypeInvT = TypeVar("_IntegerTypeInvT", bound=IntegerType, default=IntegerType)
 
-SignlessIntegerConstraint = ParamAttrConstraint(
-    IntegerType, [IntAttr, SignednessAttr(Signedness.SIGNLESS)]
-)
-"""Type constraint for signless IntegerType."""
-
-AnySignlessIntegerType: TypeAlias = Annotated[IntegerType, SignlessIntegerConstraint]
+AnySignlessIntegerType: TypeAlias = IntegerType[int, Literal[Signedness.SIGNLESS]]
 """Type alias constrained to signless IntegerType."""
+
+SignlessIntegerConstraint = irdl_to_attr_constraint(AnySignlessIntegerType)
+"""Type constraint for signless IntegerType."""
 
 
 @irdl_attr_definition
@@ -856,9 +879,9 @@ AnySignlessIntegerOrIndexType: TypeAlias = Annotated[
 
 @irdl_attr_definition
 class IntegerAttr(
-    Generic[_IntegerAttrType],
     BuiltinAttribute,
     TypedAttribute,
+    Generic[_IntegerAttrType],
 ):
     name = "integer"
     value: IntAttr
@@ -1118,7 +1141,7 @@ _FloatAttrTypeInvT = TypeVar("_FloatAttrTypeInvT", bound=AnyFloat)
 
 
 @irdl_attr_definition
-class FloatAttr(Generic[_FloatAttrType], BuiltinAttribute, TypedAttribute):
+class FloatAttr(BuiltinAttribute, TypedAttribute, Generic[_FloatAttrType]):
     name = "float"
 
     value: FloatData
@@ -1135,15 +1158,15 @@ class FloatAttr(Generic[_FloatAttrType], BuiltinAttribute, TypedAttribute):
     ) -> None:
         if isinstance(type, int):
             if type == 16:
-                type = Float16Type()
+                type = f16
             elif type == 32:
-                type = Float32Type()
+                type = f32
             elif type == 64:
-                type = Float64Type()
+                type = f64
             elif type == 80:
-                type = Float80Type()
+                type = f80
             elif type == 128:
-                type = Float128Type()
+                type = f128
             else:
                 raise ValueError(f"Invalid bitwidth: {type}")
 
@@ -1203,12 +1226,12 @@ ComplexElementCovT = TypeVar(
 
 @irdl_attr_definition
 class ComplexType(
-    Generic[ComplexElementCovT],
     PackableType[tuple[float, float] | tuple[int, int]],
     ParametrizedAttribute,
     BuiltinAttribute,
     ContainerType[ComplexElementCovT],
     TypeAttribute,
+    Generic[ComplexElementCovT],
 ):
     name = "complex"
     element_type: ComplexElementCovT
@@ -1276,6 +1299,16 @@ class ComplexType(
     def pack(self, values: Sequence[tuple[float, float] | tuple[int, int]]) -> bytes:
         return self.element_type.pack(tuple(val for vals in values for val in vals))  # pyright: ignore[reportArgumentType]
 
+    @staticmethod
+    def constr(
+        element_type: IRDLAttrConstraint[ComplexElementCovT] | None = None,
+    ) -> AttrConstraint[ComplexType[ComplexElementCovT]]:
+        if element_type is None:
+            return BaseAttr[ComplexType[ComplexElementCovT]](ComplexType)
+        return ParamAttrConstraint[ComplexType[ComplexElementCovT]](
+            ComplexType, (element_type,)
+        )
+
 
 @irdl_attr_definition
 class DictionaryAttr(_BuiltinData[immutabledict[str, Attribute]]):
@@ -1307,12 +1340,12 @@ class TupleType(ParametrizedAttribute, BuiltinAttribute, TypeAttribute):
 
 @irdl_attr_definition
 class VectorType(
-    Generic[AttributeCovT],
     BuiltinAttribute,
     ParametrizedAttribute,
     TypeAttribute,
     ShapedType,
     ContainerType[AttributeCovT],
+    Generic[AttributeCovT],
 ):
     name = "vector"
 
@@ -1409,12 +1442,12 @@ AnyVectorType: TypeAlias = VectorType[Attribute]
 
 @irdl_attr_definition
 class TensorType(
-    Generic[AttributeCovT],
     ParametrizedAttribute,
     BuiltinAttribute,
     TypeAttribute,
     ShapedType,
     ContainerType[AttributeCovT],
+    Generic[AttributeCovT],
 ):
     name = "tensor"
 
@@ -1436,15 +1469,7 @@ class TensorType(
     def print_builtin(self, printer: Printer):
         printer.print_string("tensor")
         with printer.in_angle_brackets():
-            printer.print_list(
-                self.shape.data,
-                lambda x: (
-                    printer.print_string(f"{x.data}")
-                    if x.data != -1
-                    else printer.print_string("?")
-                ),
-                "x",
-            )
+            printer.print_dimension_list(self.get_shape())
             if len(self.shape.data) != 0:
                 printer.print_string("x")
             printer.print_attribute(self.element_type)
@@ -1480,11 +1505,11 @@ AnyTensorTypeConstr = BaseAttr[TensorType[Attribute]](TensorType)
 
 @irdl_attr_definition
 class UnrankedTensorType(
-    Generic[AttributeCovT],
     ParametrizedAttribute,
     BuiltinAttribute,
     TypeAttribute,
     ContainerType[AttributeCovT],
+    Generic[AttributeCovT],
 ):
     name = "unranked_tensor"
 
@@ -1504,10 +1529,10 @@ AnyUnrankedTensorTypeConstr = BaseAttr[AnyUnrankedTensorType](UnrankedTensorType
 
 @dataclass(frozen=True, init=False)
 class ContainerOf(
-    Generic[AttributeCovT],
     AttrConstraint[
         AttributeCovT | VectorType[AttributeCovT] | TensorType[AttributeCovT]
     ],
+    Generic[AttributeCovT],
 ):
     """A type constraint that can be nested once in a vector or a tensor."""
 
@@ -1655,10 +1680,10 @@ DenseArrayInvT = TypeVar(
 
 @irdl_attr_definition
 class DenseArrayBase(
-    Generic[DenseArrayT],
     ContainerType[DenseArrayT],
     ParametrizedAttribute,
     BuiltinAttribute,
+    Generic[DenseArrayT],
 ):
     name = "array"
 
@@ -2314,12 +2339,12 @@ class NoneType(ParametrizedAttribute, BuiltinAttribute, TypeAttribute):
 
 @irdl_attr_definition
 class MemRefType(
-    Generic[_MemRefTypeElement],
     ParametrizedAttribute,
     BuiltinAttribute,
     TypeAttribute,
     ShapedType,
     ContainerType[_MemRefTypeElement],
+    Generic[_MemRefTypeElement],
 ):
     name = "memref"
 
@@ -2387,15 +2412,7 @@ class MemRefType(
         printer.print_string("memref")
         with printer.in_angle_brackets():
             if self.shape.data:
-                printer.print_list(
-                    self.shape.data,
-                    lambda x: (
-                        printer.print_string(f"{x.data}")
-                        if x.data != -1
-                        else printer.print_string("?")
-                    ),
-                    "x",
-                )
+                printer.print_dimension_list(self.get_shape())
                 printer.print_string("x")
             printer.print_attribute(self.element_type)
             if not isinstance(self.layout, NoneAttr):
@@ -2477,11 +2494,11 @@ class MemRefType(
 
 @irdl_attr_definition
 class UnrankedMemRefType(
-    Generic[_UnrankedMemRefTypeElems],
     ParametrizedAttribute,
     BuiltinAttribute,
     TypeAttribute,
     ContainerType[_UnrankedMemRefTypeElems],
+    Generic[_UnrankedMemRefTypeElems],
 ):
     name = "unranked_memref"
 
@@ -2523,10 +2540,10 @@ DenseElementT = TypeVar("DenseElementT", bound=AnyDenseElement, default=AnyDense
 
 @irdl_attr_definition
 class DenseIntOrFPElementsAttr(
-    Generic[DenseElementCovT],
     TypedAttribute,
     BuiltinAttribute,
     ContainerType[DenseElementCovT],
+    Generic[DenseElementCovT],
 ):
     name = "dense"
     type: RankedStructure[DenseElementCovT]

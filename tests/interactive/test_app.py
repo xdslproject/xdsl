@@ -527,7 +527,6 @@ async def test_apply_individual_rewrite():
 }
         """
         )
-        app.passes_tree.root.expand()
         await pilot.click("#condense_button")
 
         node = None

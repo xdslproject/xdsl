@@ -12,6 +12,7 @@ import xdsl.parser as affine_parser
 from xdsl.context import Context
 from xdsl.dialect_interfaces import OpAsmDialectInterface
 from xdsl.dialects.builtin import (
+    DYNAMIC_INDEX,
     AffineMapAttr,
     AffineSetAttr,
     AnyDenseElement,
@@ -20,7 +21,6 @@ from xdsl.dialects.builtin import (
     AnyUnrankedTensorType,
     AnyVectorType,
     ArrayAttr,
-    BFloat16Type,
     BoolAttr,
     BytesAttr,
     ComplexType,
@@ -60,6 +60,8 @@ from xdsl.dialects.builtin import (
     UnrankedTensorType,
     UnregisteredAttr,
     VectorType,
+    bf16,
+    f64,
     i64,
 )
 from xdsl.ir import Attribute, Data, ParametrizedAttribute, TypeAttribute
@@ -451,10 +453,10 @@ class AttrParser(BaseParser):
     def parse_shape_dimension(self, allow_dynamic: bool = True) -> int:
         """
         Parse a single shape dimension, which is a decimal literal or `?`.
-        `?` is interpreted as -1. Note that if the integer literal is in
+        `?` is interpreted as DYNAMIC_INDEX. Note that if the integer literal is in
         hexadecimal form, it will be split into multiple tokens. For example,
         `0x10` will be split into `0` and `x10`.
-        Optionally allows to not parse `?` as -1.
+        Optionally allows to not parse `?` as DYNAMIC_INDEX.
         """
         if self._current_token.kind not in (
             MLIRTokenKind.INTEGER_LIT,
@@ -472,7 +474,7 @@ class AttrParser(BaseParser):
 
         if self.parse_optional_punctuation("?") is not None:
             if allow_dynamic:
-                return -1
+                return DYNAMIC_INDEX
             self.raise_error("Unexpected dynamic dimension!")
 
         # If the integer literal starts with `0x`, this is decomposed into
@@ -484,24 +486,68 @@ class AttrParser(BaseParser):
 
         return int_token.kind.get_int_value(int_token.span)
 
-    def parse_shape_delimiter(self) -> None:
+    def _parse_optional_shape_delimiter(self) -> str | None:
         """
         Parse 'x', a shape delimiter. Note that if 'x' is followed by other
         characters, it will split the token. For instance, 'x1' will be split
         into 'x' and '1'.
         """
         if self._current_token.kind != MLIRTokenKind.BARE_IDENT:
-            self.raise_error(
-                f"Expected 'x' in shape delimiter, got {self._current_token.kind.name}"
-            )
+            return None
 
         if self._current_token.text[0] != "x":
-            self.raise_error(
-                f"Expected 'x' in shape delimiter, got {self._current_token.text}"
-            )
+            return None
 
         # Move the lexer to the position after 'x'.
         self._resume_from(self._current_token.span.start + 1)
+        return "x"
+
+    def parse_shape_delimiter(self) -> None:
+        """
+        Parse 'x', a shape delimiter. Note that if 'x' is followed by other
+        characters, it will split the token. For instance, 'x1' will be split
+        into 'x' and '1'.
+        """
+        if self._parse_optional_shape_delimiter() is not None:
+            return
+
+        token = self._current_token
+        tk = token.kind
+
+        err_val = tk.name if tk != MLIRTokenKind.BARE_IDENT else token.text
+
+        self.raise_error(
+            f"Expected 'x' in shape delimiter, got {err_val}",
+        )
+
+    def parse_dimension_list(self) -> list[int]:
+        """
+        Parse a dimension list with the following format:
+          dimension-list ::= (dimension `x`)* dimension
+        each dimension is also required to be non-negative.
+        """
+        dims: list[int] = []
+        accepted_token_kinds = (MLIRTokenKind.INTEGER_LIT, MLIRTokenKind.QUESTION)
+
+        # empty case
+        if self._current_token.kind not in accepted_token_kinds:
+            return []
+
+        # parse first number
+        dim = self.parse_shape_dimension()
+        dims.append(dim)
+
+        while self._parse_optional_shape_delimiter():
+            if self._current_token.kind in accepted_token_kinds:
+                dim = self.parse_shape_dimension()
+                dims.append(dim)
+            else:
+                # We want to preserve a trailing `x` as it provides useful
+                # information to the rest of the parser, so we undo the parse
+                self._resume_from(self._current_token.span.start - 1)
+                break
+
+        return dims
 
     def parse_ranked_shape(self) -> tuple[list[int], Attribute]:
         """
@@ -510,13 +556,8 @@ class AttrParser(BaseParser):
           dimension ::= `?` | decimal-literal
         each dimension is also required to be non-negative.
         """
-        dims: list[int] = []
-        while self._current_token.kind in (
-            MLIRTokenKind.INTEGER_LIT,
-            MLIRTokenKind.QUESTION,
-        ):
-            dim = self.parse_shape_dimension()
-            dims.append(dim)
+        dims = self.parse_dimension_list()
+        if dims:
             self.parse_shape_delimiter()
 
         type = self.expect(self.parse_optional_type, "Expected shape type.")
@@ -759,7 +800,7 @@ class AttrParser(BaseParser):
             )
 
         # Check for static shapes in type
-        if any(dim == -1 for dim in list(type.get_shape())):
+        if any(dim == DYNAMIC_INDEX for dim in list(type.get_shape())):
             self.raise_error("Dense literal attribute should have a static shape.")
         return type
 
@@ -1293,7 +1334,7 @@ class AttrParser(BaseParser):
         # If no types are given, we take the default ones
         if self._current_token.kind != MLIRTokenKind.COLON:
             if isinstance(value, float):
-                return FloatAttr(value, Float64Type())
+                return FloatAttr(value, f64)
             return IntegerAttr(value, i64)
 
         # Otherwise, we parse the attribute type
@@ -1458,7 +1499,7 @@ class AttrParser(BaseParser):
         # bf16 type
         if name == "bf16":
             self._consume_token()
-            return BFloat16Type()
+            return bf16
 
         # Float type
         if (re_match := self._builtin_float_type_regex.match(name)) is not None:
