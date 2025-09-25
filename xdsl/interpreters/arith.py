@@ -165,40 +165,41 @@ class ArithFunctions(InterpreterFunctions):
     def run_cmpf(self, interpreter: Interpreter, op: arith.CmpfOp, args: PythonValues):
         x = args[0]
         y = args[1]
-        
-        nan = isnan(x) or isnan(y)
+
+        o = not isnan(x) and not isnan(y)
+        u = isnan(x) or isnan(y)
 
         match op.predicate.value.data:
             case 0:
                 return (False,)
             case 1:
-                return ((x == y) and not nan,)
+                return ((x == y) and o,)
             case 2:
-                return ((x > y) and o(x, y),)
+                return ((x > y) and o,)
             case 3:
-                return ((x >= y) and o(x, y),)
+                return ((x >= y) and o,)
             case 4:
-                return ((x < y) and o(x, y),)
+                return ((x < y) and o,)
             case 5:
-                return ((x <= y) and o(x, y),)
+                return ((x <= y) and o,)
             case 6:
-                return ((x != y) and o(x, y),)
+                return ((x != y) and o,)
             case 7:
-                return (o(x, y),)
+                return (o,)
             case 8:
-                return ((x == y) or u(x, y),)
+                return ((x == y) or u,)
             case 9:
-                return ((x > y) or u(x, y),)
+                return ((x > y) or u,)
             case 10:
-                return ((x >= y) or u(x, y),)
+                return ((x >= y) or u,)
             case 11:
-                return ((x < y) or u(x, y),)
+                return ((x < y) or u,)
             case 12:
-                return ((x <= y) or u(x, y),)
+                return ((x <= y) or u,)
             case 13:
-                return ((x != y) or u(x, y),)
+                return ((x != y) or u,)
             case 14:
-                return (u(x, y),)
+                return (u,)
             case 15:
                 return (True,)
             case _:

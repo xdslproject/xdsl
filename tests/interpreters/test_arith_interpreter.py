@@ -239,14 +239,6 @@ def test_cmpi(
     assert ret[0] == fn(lhs_value, rhs_value)
 
 
-def o(x: float, y: float) -> bool:
-    return not isnan(x) and not isnan(y)
-
-
-def u(x: float, y: float) -> bool:
-    return isnan(x) or isnan(y)
-
-
 @pytest.mark.parametrize("lhs_value", [1.5, 0.5, -1.5, 127.5, float("nan")])
 @pytest.mark.parametrize("rhs_value", [1.5, 0.5, -1.5, 127.5, float("nan")])
 @pytest.mark.parametrize(
@@ -274,37 +266,40 @@ def test_cmpf(lhs_value: int, rhs_value: int, pred: str):
     x = lhs_value
     y = rhs_value
 
+    o = not isnan(x) and not isnan(y)
+    u = isnan(x) or isnan(y)
+
     match pred:
         case "false":
             expectation = False
         case "oeq":
-            expectation = (x == y) and o(x, y)
+            expectation = (x == y) and o
         case "ogt":
-            expectation = (x > y) and o(x, y)
+            expectation = (x > y) and o
         case "oge":
-            expectation = (x >= y) and o(x, y)
+            expectation = (x >= y) and o
         case "olt":
-            expectation = (x < y) and o(x, y)
+            expectation = (x < y) and o
         case "ole":
-            expectation = (x <= y) and o(x, y)
+            expectation = (x <= y) and o
         case "one":
-            expectation = (x != y) and o(x, y)
+            expectation = (x != y) and o
         case "ord":
-            expectation = o(x, y)
+            expectation = o
         case "ueq":
-            expectation = (x == y) or u(x, y)
+            expectation = (x == y) or u
         case "ugt":
-            expectation = (x > y) or u(x, y)
+            expectation = (x > y) or u
         case "uge":
-            expectation = (x >= y) or u(x, y)
+            expectation = (x >= y) or u
         case "ult":
-            expectation = (x < y) or u(x, y)
+            expectation = (x < y) or u
         case "ule":
-            expectation = (x <= y) or u(x, y)
+            expectation = (x <= y) or u
         case "une":
-            expectation = (x != y) or u(x, y)
+            expectation = (x != y) or u
         case "uno":
-            expectation = u(x, y)
+            expectation = u
         case "true":
             expectation = True
         case _:
