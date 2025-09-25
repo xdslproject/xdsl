@@ -85,11 +85,12 @@ def get_strides_offset(
     Given SSA values for indices, and constant strides, insert the arithmetic ops that
     create the combined index offset.
     The length of indices and strides must be the same.
-    Strides must not contain `-1`.
+    Strides must be positive.
     """
     head: SSAValue | None = None
 
     for index, stride in zip(indices, strides, strict=True):
+        assert stride > 0, f"Strides must be positive, got {stride}"
         # Calculate the offset that needs to be added through the index of the current
         # dimension.
         increment = index
