@@ -558,6 +558,8 @@ class ExtractStridedMetaDataOp(IRDLOperation):
 
     irdl_options = [SameVariadicResultSize()]
 
+    assembly_format = "$source `:` type($source) `->` type(results) attr-dict"
+
     def __init__(self, source: SSAValue | Operation):
         """
         Create an ExtractStridedMetaDataOp that extracts the metadata from the
