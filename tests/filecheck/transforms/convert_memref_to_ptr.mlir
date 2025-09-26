@@ -87,6 +87,21 @@ memref.store %fv4, %mstr4[%idx4] {"nontemporal" = false} : memref<2xf32, strided
 // CHECK-NEXT:    %offset_pointer_7 = ptr_xdsl.ptradd %mstr4_1, %scaled_pointer_offset_7 : (!ptr_xdsl.ptr, index) -> !ptr_xdsl.ptr
 // CHECK-NEXT:    ptr_xdsl.store %fv4, %offset_pointer_7 : f32, !ptr_xdsl.ptr
 
+%vcast = "test.op"() : () -> (memref<10xi32>)
+%cast = "memref.cast"(%vcast) : (memref<10xi32>) -> memref<?xi32>
+%cast2 = "memref.cast"(%cast) : (memref<?xi32>) -> memref<10xi32>
+"test.op"(%cast2) : (memref<10xi32>) -> ()
+
+// CHECK-NEXT:  %vcast = "test.op"() : () -> memref<10xi32>
+// CHECK-NEXT: "test.op"(%vcast) : (memref<10xi32>) -> ()
+
+%fmemcast = "test.op"() : () -> (memref<f64>)
+%fmemcast2 = memref.reinterpret_cast %fmemcast to offset: [0], sizes: [5, 2], strides: [2, 1] : memref<f64> to memref<5x2xf64> 
+
+// CHECK-NEXT:  %fmemcast = "test.op"() : () -> memref<f64>
+// CHECK-NEXT:  %fmemcast2 = ptr_xdsl.to_ptr %fmemcast : memref<f64> -> !ptr_xdsl.ptr
+// CHECK-NEXT:  %fmemcast2_1 = builtin.unrealized_conversion_cast %fmemcast2 : !ptr_xdsl.ptr to memref<5x2xf64>
+
 // -----
 
 %fv, %idx, %mstr = "test.op"() : () -> (f64, index, memref<2xf64, strided<[?]>>)
