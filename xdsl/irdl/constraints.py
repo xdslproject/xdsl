@@ -447,6 +447,7 @@ class AnyOf(AttrConstraint[AttributeCovT], Generic[AttributeCovT]):
     _based_constrs: dict[type[Attribute], AttrConstraint[AttributeCovT]] = field(
         hash=False, repr=False
     )
+    _abstr_constr: AttrConstraint[AttributeCovT] | None = field(hash=False, repr=False)
 
     def __init__(
         self,
@@ -460,17 +461,27 @@ class AnyOf(AttrConstraint[AttributeCovT], Generic[AttributeCovT]):
             irdl_to_attr_constraint(constr) for constr in attr_constrs
         )
 
-        eq_constrs = set[Attribute]()
+        eq_constrs = dict[Attribute, AttrConstraint[AttributeCovT]]()
         based_constrs = dict[type[Attribute], AttrConstraint[AttributeCovT]]()
 
-        bases = set[Attribute]()
-        eq_bases = set[Attribute]()
+        bases = set[type[Attribute]]()
+        eq_bases = set[type[Attribute]]()
+        abstr_constr: AttrConstraint[AttributeCovT] | None = None
         for i, c in enumerate(constrs):
             b = c.get_bases()
             if b is None:
-                raise PyRDLError(
-                    f"Constraint {c} cannot appear in an `AnyOf` constraint as its bases aren't known."
-                )
+                if abstr_constr is not None:
+                    raise PyRDLError(
+                        "Only one abstract constraint is allowed in `AnyOf` constraint,"
+                        f" found {c} when {abstr_constr} was already present."
+                    )
+                if not isinstance(c, BaseAttr) or is_runtime_final(c.attr):
+                    raise PyRDLError(
+                        f"Abstract constraint in `AnyOf` must be a `BaseAttr` "
+                        f"with a non-final attribute class, got {c} instead."
+                    )
+                abstr_constr = c
+                continue
 
             if not b.isdisjoint(bases):
                 raise PyRDLError(
@@ -479,7 +490,7 @@ class AnyOf(AttrConstraint[AttributeCovT], Generic[AttributeCovT]):
                 )
 
             if isinstance(c, EqAttrConstraint):
-                eq_constrs.add(c.attr)
+                eq_constrs[c.attr] = c
                 eq_bases |= b
             else:
                 if not b.isdisjoint(eq_bases):
@@ -490,6 +501,23 @@ class AnyOf(AttrConstraint[AttributeCovT], Generic[AttributeCovT]):
                 for base in b:
                     based_constrs[base] = c
                 bases |= b
+
+        # check for overlaps with the abstract constraint
+        if abstr_constr is not None:
+            # equality constraints should not overlap
+            for attr, constr in eq_constrs.items():
+                if isinstance(attr, abstr_constr.attr):
+                    raise PyRDLError(
+                        f"Equality constraint {constr} overlaps with the abstract "
+                        f"constraint {abstr_constr} in `AnyOf` constraint."
+                    )
+            # bases should not overlap via issubclass
+            for base in bases:
+                if issubclass(base, abstr_constr.attr):
+                    raise PyRDLError(
+                        f"Non-equality constraint {based_constrs[base]} overlaps with "
+                        f"the abstract constraint {abstr_constr} in `AnyOf` constraint."
+                    )
 
         object.__setattr__(
             self,
@@ -506,14 +534,20 @@ class AnyOf(AttrConstraint[AttributeCovT], Generic[AttributeCovT]):
             "_based_constrs",
             based_constrs,
         )
+        object.__setattr__(self, "_abstr_constr", abstr_constr)
 
     def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
         if attr in self._eq_constrs:
             return
         constr = self._based_constrs.get(attr.__class__)
-        if constr is None:
-            raise VerifyException(f"Unexpected attribute {attr}")
-        constr.verify(attr, constraint_context)
+        if constr is not None:
+            constr.verify(attr, constraint_context)
+            return
+        # Try abstract constraint if present
+        if self._abstr_constr is not None:
+            self._abstr_constr.verify(attr, constraint_context)
+            return
+        raise VerifyException(f"Unexpected attribute {attr}")
 
     def __or__(
         self, value: AttrConstraint[_AttributeCovT], /
