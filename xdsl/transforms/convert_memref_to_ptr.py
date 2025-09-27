@@ -35,7 +35,7 @@ from xdsl.pattern_rewriter import (
     op_type_rewrite_pattern,
 )
 from xdsl.rewriter import InsertPoint
-from xdsl.utils.exceptions import DiagnosticException
+from xdsl.utils.exceptions import DiagnosticException, PassFailedException
 from xdsl.utils.hints import isa
 
 _index_type = builtin.IndexType()
@@ -160,7 +160,7 @@ def get_target_ptr(
 
 
 @dataclass
-class ConvertStoreOp(RewritePattern):
+class ConvertStorePattern(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: memref.StoreOp, rewriter: PatternRewriter, /):
         assert isa(memref_type := op.memref.type, memref.MemRefType)
@@ -169,12 +169,91 @@ class ConvertStoreOp(RewritePattern):
 
 
 @dataclass
-class ConvertLoadOp(RewritePattern):
+class ConvertLoadPattern(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: memref.LoadOp, rewriter: PatternRewriter, /):
         assert isa(memref_type := op.memref.type, memref.MemRefType)
         target_ptr = get_target_ptr(op.memref, memref_type, op.indices, rewriter)
         rewriter.replace_matched_op(ptr.LoadOp(target_ptr, memref_type.element_type))
+
+
+class ConvertSubviewPattern(RewritePattern):
+    """
+    Converts the subview to a pointer offset.
+
+    From the subview op documentation:
+
+    > In the absence of rank reductions, the resulting memref type is computed as
+    follows:
+    ```
+    ...
+    result_offset = src_offset + dot_product(offset_operands, src_strides)
+    ```
+
+    The pointer that the source memref is lowered to is assumed to incorporate the
+    `src_offset`, so this lowering just addds the dot product.
+    """
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: memref.SubviewOp, rewriter: PatternRewriter, /):
+        # The result of the subview op has the necessary information for downstream
+        # users to perform indexing, we only need to translate the offset here.
+
+        source_type = op.source.type
+        assert isa(source_type, builtin.MemRefType)
+        result_type = op.result.type
+        element_type = result_type.element_type
+
+        source_shape = source_type.get_shape()
+        if builtin.DYNAMIC_INDEX in source_shape:
+            raise PassFailedException(
+                f"Cannot lower memref subview of memref type with dynamic "
+                f"shape {source_type}."
+            )
+        source_strides = get_constant_strides(source_type)
+
+        pointer = rewriter.insert_op(ptr.ToPtrOp(op.source)).res
+        pointer.name_hint = op.source.name_hint
+        # The new pointer
+        head = None
+        dynamic_offset_index = 0
+
+        for stride, offset in zip(
+            source_strides, op.static_offsets.iter_values(), strict=True
+        ):
+            if offset == builtin.DYNAMIC_INDEX:
+                offset_val = op.offsets[dynamic_offset_index]
+                dynamic_offset_index += 1
+            else:
+                offset_val = rewriter.insert_op(
+                    arith.ConstantOp(builtin.IntegerAttr(offset, _index_type))
+                ).result
+                offset_val.name_hint = f"c{offset}"
+
+            if stride == 1:
+                increment = offset_val
+            else:
+                stride_val = rewriter.insert_op(
+                    arith.ConstantOp(builtin.IntegerAttr(stride, _index_type))
+                ).result
+                increment = rewriter.insert_op(
+                    arith.MuliOp(stride_val, offset_val)
+                ).result
+                stride_val.name_hint = f"c{stride}"
+                increment.name_hint = "increment"
+
+            if head is None:
+                head = increment
+            else:
+                # Otherwise sum up the products.
+                head = rewriter.insert_op(arith.AddiOp(head, increment)).result
+                head.name_hint = "subview"
+
+        if head is not None:
+            offset = get_bytes_offset(head, element_type, rewriter)
+            pointer = get_offset_pointer(pointer, offset, rewriter)
+
+        rewriter.replace_matched_op(ptr.FromPtrOp(pointer, result_type))
 
 
 @dataclass
@@ -296,7 +375,13 @@ class ConvertMemRefToPtr(ModulePass):
 
     def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         PatternRewriteWalker(
-            GreedyRewritePatternApplier([ConvertStoreOp(), ConvertLoadOp()])
+            GreedyRewritePatternApplier(
+                [
+                    ConvertStorePattern(),
+                    ConvertLoadPattern(),
+                    ConvertSubviewPattern(),
+                ]
+            )
         ).rewrite_module(op)
 
         if self.lower_func:
