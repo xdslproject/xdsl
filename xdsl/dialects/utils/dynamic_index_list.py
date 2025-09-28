@@ -11,7 +11,7 @@ where `MARKER` is a special value that indicates that the value at that position
 from __future__ import annotations
 
 from collections.abc import Iterable, Sequence
-from typing import ClassVar
+from typing import ClassVar, override
 
 from xdsl.dialects.builtin import DenseArrayBase, IntegerType, i64
 from xdsl.ir import Attribute, SSAValue
@@ -248,3 +248,23 @@ class DynamicIndexList(CustomDirective):
         print_dynamic_index_list(
             printer, self.DYNAMIC_INDEX, dynamic, static.get_values()
         )
+
+    @override
+    def set_empty(self, state: ParsingState):
+        self.dynamic_position.set(state, [])
+        self.static_position.set(state, DenseArrayBase.from_list(i64, []))
+
+    @override
+    def is_present(self, op: IRDLOperation) -> bool:
+        dynamic_empty = len(self.dynamic_position.get(op)) == 0
+
+        static_vals = self.static_position.get(op)
+        static_empty = (
+            static_vals == DenseArrayBase.from_list(i64, []) or static_vals is None
+        )
+
+        return not (dynamic_empty and static_empty)
+
+    @override
+    def is_anchorable(self) -> bool:
+        return True
