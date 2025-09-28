@@ -30,6 +30,7 @@ from xdsl.dialects.builtin import (
     i32,
 )
 from xdsl.dialects.test import Test, TestType
+from xdsl.dialects.utils import DynamicIndexList
 from xdsl.ir import (
     Attribute,
     Operation,
@@ -4071,3 +4072,46 @@ def test_ref_directives():
     ctx.load_op(RefDirectivesOp)
     ctx.load_dialect(Test)
     check_roundtrip("%0 = test.ref_directives %1 i1 i2 i3 i4 {\n} ^bb0", ctx)
+
+
+@pytest.mark.parametrize(
+    "program, generic_program",
+    [
+        (
+            "test.dyn_index_list",
+            '"test.dyn_index_list"() <{static_indices = array<i64>}> : () -> ()',
+        ),
+        (
+            '%0 = "test.op"() : () -> i64\ntest.dyn_index_list keyword [%0]',
+            '%0 = "test.op"() : () -> i64\n'
+            '"test.dyn_index_list"(%0) <{static_indices = array<i64: -9223372036854775808>}> : (i64) -> ()',
+        ),
+        (
+            "test.dyn_index_list keyword [3, 5, 7, 9]",
+            '"test.dyn_index_list"() <{static_indices = array<i64: 3, 5, 7 ,9>}> : () -> ()',
+        ),
+        (
+            '%0 = "test.op"() : () -> i64\ntest.dyn_index_list keyword [%0, 5, %0, 9]',
+            '%0 = "test.op"() : () -> i64\n'
+            '"test.dyn_index_list"(%0, %0) <{static_indices = array<i64: -9223372036854775808, 5, -9223372036854775808, 9>}> : (i64, i64) -> ()',
+        ),
+    ],
+)
+def test_optional_anchor_dynamic_index_list(program: str, generic_program: str):
+    @irdl_op_definition
+    class DynIndexListOp(IRDLOperation):
+        name = "test.dyn_index_list"
+
+        dynamic_indices = var_operand_def(I64)
+        static_indices = prop_def(DenseArrayBase[I64])
+
+        assembly_format = "(`keyword` custom<DynamicIndexList>($dynamic_indices, $static_indices)^)? attr-dict"
+
+        custom_directives = (DynamicIndexList,)
+
+    ctx = Context()
+    ctx.load_op(DynIndexListOp)
+    ctx.load_dialect(Test)
+
+    check_roundtrip(program, ctx)
+    check_equivalence(program, generic_program, ctx)
