@@ -259,9 +259,7 @@ class DynamicIndexList(CustomDirective):
         dynamic_empty = len(self.dynamic_position.get(op)) == 0
 
         static_vals = self.static_position.get(op)
-        static_empty = (
-            static_vals == DenseArrayBase.from_list(i64, []) or static_vals is None
-        )
+        static_empty = static_vals == DenseArrayBase.from_list(i64, [])
 
         return not (dynamic_empty and static_empty)
 
