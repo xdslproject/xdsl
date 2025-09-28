@@ -254,10 +254,11 @@ class DynamicIndexList(CustomDirective):
         self.static_position.set(state, DenseArrayBase.from_list(i64, []))
 
     def is_present(self, op: IRDLOperation) -> bool:
-        dynamic_empty = len(self.dynamic_position.get(op)) == 0
+        dynamic_empty = not self.dynamic_position.get(op)
 
         static_vals = self.static_position.get(op)
-        static_empty = static_vals == DenseArrayBase.from_list(i64, [])
+        assert isa(static_vals, DenseArrayBase[IntegerType])
+        static_empty = not static_vals.data.data
 
         return not (dynamic_empty and static_empty)
 
