@@ -292,7 +292,7 @@ def test_constraint_simplification(lhs: AttrConstraint, rhs: AttrConstraint):
             AnyAttr(),
             BaseAttr(AttrA),
             re.escape(
-                "Abstract constraint in `AnyOf` must be a `BaseAttr` with a non-final attribute class, got AnyAttr() instead."
+                "Constraint in `AnyOf` without bases must be a `BaseAttr` of a non-final abstract attribute class, got AnyAttr() instead."
             ),
         ),
         (
@@ -320,21 +320,21 @@ def test_constraint_simplification(lhs: AttrConstraint, rhs: AttrConstraint):
             BaseAttr(Base),
             BaseAttr(Base2),
             re.escape(
-                "Only one abstract constraint is allowed in `AnyOf` constraint, found BaseAttr(Base2) when BaseAttr(Base) was already present."
+                "Cannot form `AnyOf` constraint with both BaseAttr(Base2) and BaseAttr(Base), as they cannot be verified as disjoint."
             ),
         ),
         (
             BaseAttr(Base),
             BaseAttr(AttrA),
             re.escape(
-                "Non-equality constraint BaseAttr(AttrA) overlaps with the abstract constraint BaseAttr(Base) in `AnyOf` constraint."
+                "Non-equality constraint BaseAttr(AttrA) overlaps with the constraint BaseAttr(Base) in `AnyOf` constraint."
             ),
         ),
         (
             BaseAttr(Base),
             EqAttrConstraint(AttrA()),
             re.escape(
-                "Equality constraint EqAttrConstraint(attr=AttrA()) overlaps with the abstract constraint BaseAttr(Base) in `AnyOf` constraint."
+                "Equality constraint EqAttrConstraint(attr=AttrA()) overlaps with the constraint BaseAttr(Base) in `AnyOf` constraint."
             ),
         ),
     ],

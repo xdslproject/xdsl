@@ -478,13 +478,13 @@ class AnyOf(AttrConstraint[AttributeCovT], Generic[AttributeCovT]):
             if b is None:
                 if abstr_constr is not None:
                     raise PyRDLError(
-                        "Only one abstract constraint is allowed in `AnyOf` constraint,"
-                        f" found {c} when {abstr_constr} was already present."
+                        f"Cannot form `AnyOf` constraint with both {c} and {abstr_constr}, "
+                        "as they cannot be verified as disjoint."
                     )
                 if not isinstance(c, BaseAttr) or is_runtime_final(c.attr):
                     raise PyRDLError(
-                        f"Abstract constraint in `AnyOf` must be a `BaseAttr` "
-                        f"with a non-final attribute class, got {c} instead."
+                        f"Constraint in `AnyOf` without bases must be a `BaseAttr` "
+                        f"of a non-final abstract attribute class, got {c} instead."
                     )
                 abstr_constr = c
                 continue
@@ -514,7 +514,7 @@ class AnyOf(AttrConstraint[AttributeCovT], Generic[AttributeCovT]):
             for attr in eq_constrs:
                 if isinstance(attr, abstr_constr.attr):
                     raise PyRDLError(
-                        f"Equality constraint {EqAttrConstraint(attr)} overlaps with the abstract "
+                        f"Equality constraint {EqAttrConstraint(attr)} overlaps with the "
                         f"constraint {abstr_constr} in `AnyOf` constraint."
                     )
             # bases should not overlap via issubclass
@@ -522,7 +522,7 @@ class AnyOf(AttrConstraint[AttributeCovT], Generic[AttributeCovT]):
                 if issubclass(base, abstr_constr.attr):
                     raise PyRDLError(
                         f"Non-equality constraint {based_constrs[base]} overlaps with "
-                        f"the abstract constraint {abstr_constr} in `AnyOf` constraint."
+                        f"the constraint {abstr_constr} in `AnyOf` constraint."
                     )
 
         object.__setattr__(
