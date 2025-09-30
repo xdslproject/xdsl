@@ -5,6 +5,7 @@ from typing import ClassVar, Generic
 from typing_extensions import TypeVar
 
 from xdsl.dialects.builtin import (
+    I8,
     I32,
     I64,
     AnyAttr,
@@ -17,6 +18,7 @@ from xdsl.dialects.builtin import (
     ShapedType,
     StringAttr,
     TensorType,
+    i32,
 )
 from xdsl.ir import Attribute, Dialect, SSAValue, TypeAttribute
 from xdsl.irdl import (
@@ -25,6 +27,7 @@ from xdsl.irdl import (
     VarConstraint,
     irdl_op_definition,
     operand_def,
+    opt_operand_def,
     opt_prop_def,
     prop_def,
     result_def,
@@ -177,8 +180,12 @@ class SubOp(ElementwiseBinaryOperation):
     name = "tosa.sub"
 
 
+class ShiftableOperation(IRDLOperation, ABC):
+    shift = opt_operand_def(TensorType.constr(I8))
+
+
 @irdl_op_definition
-class MulOp(ElementwiseBinaryOperation):
+class MulOp(ElementwiseBinaryOperation, ShiftableOperation):
     """
     Tosa elementwise multiplication operation (Hadamard product)
 
@@ -190,6 +197,26 @@ class MulOp(ElementwiseBinaryOperation):
     traits = traits_def(
         Commutative(),
     )
+
+    def verify_(self):
+        super().verify_()
+        tensor_type = self.input1.type
+
+        assert isinstance(tensor_type, TensorType)
+
+        if tensor_type.get_element_type() == i32:
+            if not self.shift:
+                raise VerifyException(
+                    "'tosa.mul' Expected third operand 'shift' : tensor<1xi8> when multiplying i32 tensors"
+                )
+
+            shift_type = self.shift.type
+            assert isinstance(shift_type, TensorType)
+
+            if shift_type.get_num_dims() != 1:
+                raise VerifyException(
+                    "'tosa.mul' Expected 'shift' to have type: tensor<1xi8>"
+                )
 
 
 TInv = TypeVar("TInv", bound=TensorType)
@@ -233,8 +260,6 @@ class MatMulOp(IRDLOperation):
 
     `tensor<1x14x19xf32> * tensor<1x19x28xf32> -> tensor<1x14x28xf32>`
 
-    The operands `a_zp` and `b_zp` are the zero-point which are used for quantized operations, can be set to 0.0 for no effect.
-
     See external [documentation](https://mlir.llvm.org/docs/Dialects/TOSA/#tosamul-mlirtosamulop).
     """
 
@@ -244,8 +269,6 @@ class MatMulOp(IRDLOperation):
 
     a = operand_def(TensorType.constr(T))
     b = operand_def(TensorType.constr(T))
-    a_zp = operand_def(TensorType.constr(T))
-    b_zp = operand_def(TensorType.constr(T))
 
     output = result_def(TensorType.constr(T))
 
@@ -258,13 +281,9 @@ class MatMulOp(IRDLOperation):
     def verify_(self) -> None:
         assert isinstance(self.a.type, ShapedType)
         assert isinstance(self.b.type, ShapedType)
-        assert isinstance(self.a_zp.type, ShapedType)
-        assert isinstance(self.b_zp.type, ShapedType)
 
         sa = self.a.type.get_shape()
         sb = self.b.type.get_shape()
-        s_az = self.a_zp.type.get_shape()
-        s_bz = self.b_zp.type.get_shape()
 
         if len(sa) != 3 or len(sb) != 3:
             raise VerifyException("'tosa.matmul' Expected operand tensors of rank 3")
@@ -278,12 +297,6 @@ class MatMulOp(IRDLOperation):
         if sa[2] != sb[1]:
             raise VerifyException(
                 "'tosa.matmul' Incompatible shapes for performing matrix multiplication"
-            )
-
-        # check that zero-points are unranked or scalar
-        if len(s_az) not in [0, 1] or len(s_bz) not in [0, 1]:
-            raise VerifyException(
-                "'tosa.matmul' Expected zero-point operands to be unranked or scalar tensors"
             )
 
 
