@@ -1,6 +1,7 @@
 import ctypes
 import subprocess
 
+import llvmlite
 import llvmlite.binding as llvm
 
 from xdsl.dialects import func
@@ -32,7 +33,7 @@ def xdsl_to_ctypes(xdsl_type: ParametrizedAttribute):
     raise TypeError(f"Unsupported or unknown xDSL type: {xdsl_type}")
 
 
-def translate_to_llvmlite_module(module: ModuleOp) -> llvm.binding.module.ModuleRef:
+def translate_to_llvmlite_module(module: ModuleOp) -> llvmlite.binding.module.ModuleRef:
     mlir_text = str(module)
     mlir_opt_passes = [
         "mlir-opt",
