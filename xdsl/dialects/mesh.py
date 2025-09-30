@@ -104,42 +104,6 @@ class ReductionKindAttr(EnumAttribute[ReductionKind], SpacedOpaqueSyntaxAttribut
 
     assembly_format = "$value"
 
-    @classmethod
-    def sum(cls) -> ReductionKindAttr:
-        return ReductionKindAttr(ReductionKind.SUM)
-
-    @classmethod
-    def max(cls) -> ReductionKindAttr:
-        return ReductionKindAttr(ReductionKind.MAX)
-
-    @classmethod
-    def min(cls) -> ReductionKindAttr:
-        return ReductionKindAttr(ReductionKind.MIN)
-
-    @classmethod
-    def product(cls) -> ReductionKindAttr:
-        return ReductionKindAttr(ReductionKind.PRODUCT)
-
-    @classmethod
-    def average(cls) -> ReductionKindAttr:
-        return ReductionKindAttr(ReductionKind.AVERAGE)
-
-    @classmethod
-    def bitwise_and(cls) -> ReductionKindAttr:
-        return ReductionKindAttr(ReductionKind.BITWISE_AND)
-
-    @classmethod
-    def bitwise_or(cls) -> ReductionKindAttr:
-        return ReductionKindAttr(ReductionKind.BITWISE_OR)
-
-    @classmethod
-    def bitwise_xor(cls) -> ReductionKindAttr:
-        return ReductionKindAttr(ReductionKind.BITWISE_XOR)
-
-    @classmethod
-    def generic(cls) -> ReductionKindAttr:
-        return ReductionKindAttr(ReductionKind.GENERIC)
-
 
 @irdl_attr_definition
 class ShardingType(ParametrizedAttribute, TypeAttribute):
