@@ -11,15 +11,19 @@ from xdsl.dialects.builtin import (
     BytesAttr,
     DenseArrayBase,
     FlatSymbolRefAttr,
+    IntegerAttr,
     SymbolNameConstraint,
+    i16,
     i64,
 )
-from xdsl.dialects.utils.dimension_list import DimensionList
+from xdsl.dialects.utils import DimensionList, DynamicIndexList
 from xdsl.ir import (
     Attribute,
     Dialect,
     EnumAttribute,
+    OpaqueSyntaxAttribute,
     ParametrizedAttribute,
+    SpacedOpaqueSyntaxAttribute,
     TypeAttribute,
     VerifyException,
 )
@@ -37,20 +41,17 @@ from xdsl.irdl import (
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
 from xdsl.traits import Pure, SymbolOpInterface
+from xdsl.utils.hints import isa
 from xdsl.utils.str_enum import StrEnum
 
 MeshAxesAttr: TypeAlias = DenseArrayBase[I16]
 
 
 @irdl_attr_definition
-class MeshAxesArrayAttr(ParametrizedAttribute):
+class MeshAxesArrayAttr(ParametrizedAttribute, OpaqueSyntaxAttribute):
     name = "mesh.axisarray"
 
     axes: ArrayAttr[MeshAxesAttr]
-
-    def print_parameters(self, printer: Printer) -> None:
-        with printer.in_square_brackets():
-            printer.print_attribute(self.axes)
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> Sequence[Attribute]:
@@ -59,7 +60,25 @@ class MeshAxesArrayAttr(ParametrizedAttribute):
             parser.parse_attribute,
         )
 
-        return axes
+        assert isa(axes, list[ArrayAttr[IntegerAttr[I64]]])
+
+        axes_i16: list[MeshAxesAttr] = []
+
+        for array_attr in axes:
+            dense = DenseArrayBase[I16].from_list(
+                i16, list(map(lambda attr: attr.value.data, array_attr.data))
+            )
+            axes_i16.append(dense)
+
+        return (ArrayAttr(axes_i16),)
+
+    def print_parameters(self, printer: Printer) -> None:
+        with printer.in_square_brackets():
+            for axis in self.axes.data:
+                assert isa(axis, MeshAxesAttr)
+
+                with printer.in_square_brackets():
+                    printer.print_list(axis.get_values(), printer.print_int)
 
 
 class ReductionKind(StrEnum):
@@ -77,7 +96,7 @@ class ReductionKind(StrEnum):
 
 
 @irdl_attr_definition
-class ReductionKindAttr(EnumAttribute[ReductionKind]):
+class ReductionKindAttr(EnumAttribute[ReductionKind], SpacedOpaqueSyntaxAttribute):
     name = "mesh.partial"
 
     assembly_format = "$value"
@@ -179,8 +198,16 @@ class ShardingOp(IRDLOperation):
         Pure(),
     )
 
-    # TODO: Implement assembly_format
-    # custom_directives = (DynamicIndexList,)
+    assembly_format = (
+        "$mesh `split_axes` "
+        + "`=` $split_axes (`partial` `=` $partial_type $partial_axes^)? "
+        + "(`halo_sizes` `=` custom<DynamicIndexList>($dynamic_halo_sizes, $static_halo_sizes)^)? "
+        + "(`sharded_dims_offsets` `=` "
+        + "custom<DynamicIndexList>($dynamic_sharded_dims_offsets, $static_sharded_dims_offsets)^)? "
+        + "attr-dict `:` type($result)"
+    )
+
+    custom_directives = (DynamicIndexList,)
 
 
 Mesh = Dialect(
