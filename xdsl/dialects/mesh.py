@@ -73,12 +73,15 @@ class MeshAxesArrayAttr(ParametrizedAttribute, OpaqueSyntaxAttribute):
         return (ArrayAttr(axes_i16),)
 
     def print_parameters(self, printer: Printer) -> None:
-        with printer.in_square_brackets():
-            for axis in self.axes.data:
-                assert isa(axis, MeshAxesAttr)
+        def print_sublist(sublist: MeshAxesAttr):
+            with printer.in_square_brackets():
+                printer.print_list(sublist.get_values(), printer.print_int)
 
-                with printer.in_square_brackets():
-                    printer.print_list(axis.get_values(), printer.print_int)
+        with printer.in_square_brackets():
+            printer.print_list(
+                self.axes.data,
+                print_sublist,
+            )
 
 
 class ReductionKind(StrEnum):
