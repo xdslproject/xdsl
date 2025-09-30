@@ -47,7 +47,7 @@ class MeshAxesArrayAttr(ParametrizedAttribute, OpaqueSyntaxAttribute):
     ELT_TYPE: ClassVar = i16
 
     @classmethod
-    def parse_mesh_axes_attr(cls, parser: AttrParser) -> DenseArrayBase[I16]:
+    def _parse_mesh_axes_attr(cls, parser: AttrParser) -> DenseArrayBase[I16]:
         """
         Parses a single MeshAxesAttr, e.g. [1, 4, 7, 8]
         """
@@ -68,13 +68,13 @@ class MeshAxesArrayAttr(ParametrizedAttribute, OpaqueSyntaxAttribute):
         """
         axes = parser.parse_comma_separated_list(
             parser.Delimiter.SQUARE,
-            lambda: cls.parse_mesh_axes_attr(parser),
+            lambda: cls._parse_mesh_axes_attr(parser),
         )
 
         return (ArrayAttr(axes),)
 
     @classmethod
-    def print_sublist(cls, sublist: MeshAxesAttr, printer: Printer) -> None:
+    def _print_sublist(cls, sublist: MeshAxesAttr, printer: Printer) -> None:
         """
         Prints a single MeshAxesAttr, e.g. [1, 4, 6, 8]
         """
@@ -91,7 +91,7 @@ class MeshAxesArrayAttr(ParametrizedAttribute, OpaqueSyntaxAttribute):
         with printer.in_square_brackets():
             printer.print_list(
                 self.axes.data,
-                lambda x: MeshAxesArrayAttr.print_sublist(x, printer),
+                lambda x: MeshAxesArrayAttr._print_sublist(x, printer),
             )
 
 
