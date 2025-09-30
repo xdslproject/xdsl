@@ -6,8 +6,8 @@ from typing import ClassVar, cast
 
 from typing_extensions import Self
 
-from xdsl.dialects import memref
 from xdsl.dialects.builtin import (
+    DYNAMIC_INDEX,
     AnySignlessIntegerOrIndexType,
     ArrayAttr,
     DenseArrayBase,
@@ -501,11 +501,11 @@ class InsertSliceOp(IRDLOperation):
         sizes = [] if sizes is None else sizes
         strides = [] if strides is None else strides
         if not static_offsets:
-            static_offsets = [memref.SubviewOp.DYNAMIC_INDEX] * len(offsets) + (
+            static_offsets = [DYNAMIC_INDEX] * len(offsets) + (
                 [0] * (dims - len(offsets))
             )
         if not static_strides:
-            static_strides = [memref.SubviewOp.DYNAMIC_INDEX] * len(strides) + (
+            static_strides = [DYNAMIC_INDEX] * len(strides) + (
                 [1] * (dims - len(strides))
             )
         return InsertSliceOp.build(
@@ -716,7 +716,7 @@ class SplatOp(IRDLOperation):
         super().__init__(operands=(input, dynamicSizes), result_types=(result_type,))
 
     def verify_(self):
-        if self.result.type.get_shape().count(-1) != len(self.dynamicSizes):
+        if self.result.type.get_shape().count(DYNAMIC_INDEX) != len(self.dynamicSizes):
             raise VerifyException(
                 "number of dynamic sizes must equal number of unknown dimensions in result tensor"
             )

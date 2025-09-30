@@ -101,9 +101,10 @@ if TYPE_CHECKING:
     from xdsl.printer import Printer
 
 
-DYNAMIC_INDEX = -1
+DYNAMIC_INDEX = -(2**63)
 """
 A constant value denoting a dynamic index in a shape.
+Equal to -(2 ** 63) which is used in C++ MLIR.
 """
 
 
@@ -2349,7 +2350,7 @@ class MemRefType(
 
     shape: ArrayAttr[IntAttr]
     element_type: _MemRefTypeElement
-    layout: StridedLayoutAttr | AffineMapAttr | NoneAttr
+    layout: MemRefLayoutAttr | NoneAttr
     memory_space: Attribute
 
     def __init__(

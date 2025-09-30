@@ -7,6 +7,7 @@ from typing import ClassVar, cast
 from typing_extensions import Self
 
 from xdsl.dialects.builtin import (
+    DYNAMIC_INDEX,
     I64,
     AnyFloatConstr,
     ArrayAttr,
@@ -220,7 +221,7 @@ class AllocOp(IRDLOperation):
     def verify_(self) -> None:
         memref_type = self.memref.type
 
-        dyn_dims = [x for x in memref_type.shape.data if x.data == -1]
+        dyn_dims = [x for x in memref_type.shape.data if x.data == DYNAMIC_INDEX]
         if len(dyn_dims) != len(self.dynamic_sizes):
             raise VerifyException(
                 "op dimension operand count does not equal memref dynamic dimension count."
@@ -358,7 +359,7 @@ class AllocaOp(IRDLOperation):
     def verify_(self) -> None:
         memref_type = self.memref.type
 
-        dyn_dims = [x for x in memref_type.shape.data if x.data == -1]
+        dyn_dims = [x for x in memref_type.shape.data if x.data == DYNAMIC_INDEX]
         if len(dyn_dims) != len(self.dynamic_sizes):
             raise VerifyException(
                 "op dimension operand count does not equal memref dynamic dimension count."
@@ -557,6 +558,8 @@ class ExtractStridedMetaDataOp(IRDLOperation):
 
     irdl_options = [SameVariadicResultSize()]
 
+    assembly_format = "$source `:` type($source) `->` type(results) attr-dict"
+
     def __init__(self, source: SSAValue | Operation):
         """
         Create an ExtractStridedMetaDataOp that extracts the metadata from the
@@ -608,12 +611,6 @@ class MemRefHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
 
 @irdl_op_definition
 class SubviewOp(IRDLOperation):
-    DYNAMIC_INDEX: ClassVar[int] = -9223372036854775808
-    """
-    Constant value used to denote dynamic indices in offsets, sizes, and strides.
-    Same constant as in MLIR.
-    """
-
     name = "memref.subview"
 
     source = operand_def(MemRefType)
@@ -646,13 +643,13 @@ class SubviewOp(IRDLOperation):
         static_sizes = self.static_sizes.get_values()
         static_strides = self.static_strides.get_values()
         verify_dynamic_index_list(
-            static_sizes, self.sizes, self.DYNAMIC_INDEX, " in the size arguments"
+            static_sizes, self.sizes, DYNAMIC_INDEX, " in the size arguments"
         )
         verify_dynamic_index_list(
-            static_offsets, self.offsets, self.DYNAMIC_INDEX, " in the offset arguments"
+            static_offsets, self.offsets, DYNAMIC_INDEX, " in the offset arguments"
         )
         verify_dynamic_index_list(
-            static_strides, self.strides, self.DYNAMIC_INDEX, " in the stride arguments"
+            static_strides, self.strides, DYNAMIC_INDEX, " in the stride arguments"
         )
 
     def __init__(
@@ -690,15 +687,9 @@ class SubviewOp(IRDLOperation):
         strides: Sequence[SSAValue | int],
         result_type: Attribute,
     ) -> SubviewOp:
-        static_offsets, dyn_offsets = split_dynamic_index_list(
-            offsets, SubviewOp.DYNAMIC_INDEX
-        )
-        static_sizes, dyn_sizes = split_dynamic_index_list(
-            sizes, SubviewOp.DYNAMIC_INDEX
-        )
-        static_strides, dyn_strides = split_dynamic_index_list(
-            strides, SubviewOp.DYNAMIC_INDEX
-        )
+        static_offsets, dyn_offsets = split_dynamic_index_list(offsets, DYNAMIC_INDEX)
+        static_sizes, dyn_sizes = split_dynamic_index_list(sizes, DYNAMIC_INDEX)
+        static_strides, dyn_strides = split_dynamic_index_list(strides, DYNAMIC_INDEX)
 
         return SubviewOp(
             source,
@@ -959,7 +950,7 @@ class ReinterpretCastOp(IRDLOperation):
                 strict=True,
             )
         ):
-            if expected == ReinterpretCastOp.DYNAMIC_INDEX and actual != -1:
+            if expected == ReinterpretCastOp.DYNAMIC_INDEX and actual != DYNAMIC_INDEX:
                 raise VerifyException(
                     f"Expected result type with dynamic size instead of {actual} in dim = {dim}"
                 )

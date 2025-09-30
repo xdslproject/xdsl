@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from xdsl.context import Context
 from xdsl.dialects import arith, bufferization, func, linalg, memref, stencil, tensor
 from xdsl.dialects.builtin import (
+    DYNAMIC_INDEX,
     AnyDenseElement,
     AnyTensorType,
     AnyTensorTypeConstr,
@@ -229,7 +230,7 @@ class ApplyOpBufferize(RewritePattern):
                     result_types=[chunk_type],
                     properties={
                         "static_offsets": DenseArrayBase.from_list(
-                            i64, (memref.SubviewOp.DYNAMIC_INDEX,)
+                            i64, (DYNAMIC_INDEX,)
                         ),
                         "static_sizes": DenseArrayBase.from_list(
                             i64, chunk_type.get_shape()
@@ -262,9 +263,7 @@ class ApplyOpBufferize(RewritePattern):
             operands=[to_tensor.tensor, [offset], [], []],
             result_types=[TensorType(typ.get_element_type(), typ.get_shape()[1:])],
             properties={
-                "static_offsets": DenseArrayBase.from_list(
-                    i64, (memref.SubviewOp.DYNAMIC_INDEX,)
-                ),
+                "static_offsets": DenseArrayBase.from_list(i64, (DYNAMIC_INDEX,)),
                 "static_sizes": DenseArrayBase.from_list(i64, typ.get_shape()[1:]),
                 "static_strides": DenseArrayBase.from_list(i64, (1,)),
             },

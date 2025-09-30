@@ -57,6 +57,10 @@ class Base(ParametrizedAttribute, ABC):
     pass
 
 
+class Base2(ParametrizedAttribute, ABC):
+    pass
+
+
 @irdl_attr_definition
 class AttrA(Base):
     name = "test.attr_a"
@@ -288,7 +292,7 @@ def test_constraint_simplification(lhs: AttrConstraint, rhs: AttrConstraint):
             AnyAttr(),
             BaseAttr(AttrA),
             re.escape(
-                "Constraint AnyAttr() cannot appear in an `AnyOf` constraint as its bases aren't known"
+                "Constraint in `AnyOf` without bases must be a `BaseAttr` of a non-final abstract attribute class, got AnyAttr() instead."
             ),
         ),
         (
@@ -310,6 +314,27 @@ def test_constraint_simplification(lhs: AttrConstraint, rhs: AttrConstraint):
             BaseAttr(AttrA),
             re.escape(
                 "Non-equality constraint BaseAttr(AttrA) shares a base with a constraint in {EqAttrConstraint(attr=AttrA())} in `AnyOf` constraint."
+            ),
+        ),
+        (
+            BaseAttr(Base),
+            BaseAttr(Base2),
+            re.escape(
+                "Cannot form `AnyOf` constraint with both BaseAttr(Base2) and BaseAttr(Base), as they cannot be verified as disjoint."
+            ),
+        ),
+        (
+            BaseAttr(Base),
+            BaseAttr(AttrA),
+            re.escape(
+                "Non-equality constraint BaseAttr(AttrA) overlaps with the constraint BaseAttr(Base) in `AnyOf` constraint."
+            ),
+        ),
+        (
+            BaseAttr(Base),
+            EqAttrConstraint(AttrA()),
+            re.escape(
+                "Equality constraint EqAttrConstraint(attr=AttrA()) overlaps with the constraint BaseAttr(Base) in `AnyOf` constraint."
             ),
         ),
     ],

@@ -188,6 +188,11 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
 
         return MemRefStream
 
+    def get_mesh():
+        from xdsl.dialects.mesh import Mesh
+
+        return Mesh
+
     def get_ml_program():
         from xdsl.dialects.ml_program import MLProgram
 
@@ -288,11 +293,6 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
 
         return SnitchStream
 
-    def get_stablehlo():
-        from xdsl.dialects.stablehlo import StableHLO
-
-        return StableHLO
-
     def get_stencil():
         from xdsl.dialects.stencil import Stencil
 
@@ -348,6 +348,11 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
 
         return X86_FUNC
 
+    def get_x86_scf():
+        from xdsl.dialects.x86_scf import X86_Scf
+
+        return X86_Scf
+
     def get_transform():
         from xdsl.dialects.transform import Transform
 
@@ -390,6 +395,7 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "math_xdsl": get_math_xdsl,
         "memref": get_memref,
         "memref_stream": get_memref_stream,
+        "mesh": get_mesh,
         "ml_program": get_ml_program,
         "mod_arith": get_mod_arith,
         "mpi": get_mpi,
@@ -410,7 +416,6 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "snitch": get_snitch,
         "snrt": get_snitch_runtime,
         "snitch_stream": get_snitch_stream,
-        "stablehlo": get_stablehlo,
         "stencil": get_stencil,
         "stim": get_stim,
         "symref": get_symref,
@@ -422,6 +427,7 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "wasm": get_wasm,
         "x86": get_x86,
         "x86_func": get_x86_func,
+        "x86_scf": get_x86_scf,
         "transform": get_transform,
     }
 

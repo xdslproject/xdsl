@@ -72,12 +72,43 @@ memref.store %fv, %farr[%idx] {"nontemporal" = false} : memref<10xf64>
 
 // CHECK-NEXT:  %idx3, %offsetmem = "test.op"() : () -> (index, memref<16xf64, strided<[1], offset: 4>>
 // CHECK-NEXT:  %offsetmem_1 = ptr_xdsl.to_ptr %offsetmem : memref<16xf64, strided<[1], offset: 4>> -> !ptr_xdsl.ptr
-// CHECK-NEXT:  %memref_base_offset = arith.constant 4 : index
-// CHECK-NEXT:  %pointer_with_offset = arith.addi %idx3, %memref_base_offset : index
 // CHECK-NEXT:  %bytes_per_element_6 = ptr_xdsl.type_offset f64 : index
-// CHECK-NEXT:  %scaled_pointer_offset_6 = arith.muli %pointer_with_offset, %bytes_per_element_6 : index
+// CHECK-NEXT:  %scaled_pointer_offset_6 = arith.muli %idx3, %bytes_per_element_6 : index
 // CHECK-NEXT:  %offset_pointer_6 = ptr_xdsl.ptradd %offsetmem_1, %scaled_pointer_offset_6 : (!ptr_xdsl.ptr, index) -> !ptr_xdsl.ptr
 // CHECK-NEXT:  %flv3 = ptr_xdsl.load %offset_pointer_6 : !ptr_xdsl.ptr -> f64
+
+%fv4, %idx4, %mstr4 = "test.op"() : () -> (f32, index, memref<2xf32, strided<[1], offset: ?>>)
+memref.store %fv4, %mstr4[%idx4] {"nontemporal" = false} : memref<2xf32, strided<[1], offset: ?>>
+
+// CHECK-NEXT:    %fv4, %idx4, %mstr4 = "test.op"() : () -> (f32, index, memref<2xf32, strided<[1], offset: ?>>)
+// CHECK-NEXT:    %mstr4_1 = ptr_xdsl.to_ptr %mstr4 : memref<2xf32, strided<[1], offset: ?>> -> !ptr_xdsl.ptr
+// CHECK-NEXT:    %bytes_per_element_7 = ptr_xdsl.type_offset f32 : index
+// CHECK-NEXT:    %scaled_pointer_offset_7 = arith.muli %idx4, %bytes_per_element_7 : index
+// CHECK-NEXT:    %offset_pointer_7 = ptr_xdsl.ptradd %mstr4_1, %scaled_pointer_offset_7 : (!ptr_xdsl.ptr, index) -> !ptr_xdsl.ptr
+// CHECK-NEXT:    ptr_xdsl.store %fv4, %offset_pointer_7 : f32, !ptr_xdsl.ptr
+
+%subview1d = memref.subview %arr[5][5][1] : memref<10xi32> to memref<5xi32>
+
+// CHECK-NEXT:  %arr_3 = ptr_xdsl.to_ptr %arr : memref<10xi32> -> !ptr_xdsl.ptr
+// CHECK-NEXT:  %c5 = arith.constant 5 : index
+// CHECK-NEXT:  %bytes_per_element_8 = ptr_xdsl.type_offset i32 : index
+// CHECK-NEXT:  %scaled_pointer_offset_8 = arith.muli %c5, %bytes_per_element_8 : index
+// CHECK-NEXT:  %offset_pointer_8 = ptr_xdsl.ptradd %arr_3, %scaled_pointer_offset_8 : (!ptr_xdsl.ptr, index) -> !ptr_xdsl.ptr
+// CHECK-NEXT:  %subview1d = ptr_xdsl.from_ptr %offset_pointer_8 : !ptr_xdsl.ptr -> memref<5xi32>
+
+%subview2d = memref.subview %arr2[2, 3][5, 4][1, 1] : memref<10x10xi32> to memref<5x4xi32>
+
+// CHECK-NEXT:  %arr2_3 = ptr_xdsl.to_ptr %arr2 : memref<10x10xi32> -> !ptr_xdsl.ptr
+// CHECK-NEXT:  %c2 = arith.constant 2 : index
+// CHECK-NEXT:  %c10 = arith.constant 10 : index
+// CHECK-NEXT:  %increment = arith.muli %c10, %c2 : index
+// CHECK-NEXT:  %c3 = arith.constant 3 : index
+// CHECK-NEXT:  %subview = arith.addi %increment, %c3 : index
+// CHECK-NEXT:  %bytes_per_element_9 = ptr_xdsl.type_offset i32 : index
+// CHECK-NEXT:  %scaled_pointer_offset_9 = arith.muli %subview, %bytes_per_element_9 : index
+// CHECK-NEXT:  %offset_pointer_9 = ptr_xdsl.ptradd %arr2_3, %scaled_pointer_offset_9 : (!ptr_xdsl.ptr, index) -> !ptr_xdsl.ptr
+// CHECK-NEXT:  %subview2d = ptr_xdsl.from_ptr %offset_pointer_9 : !ptr_xdsl.ptr -> memref<5x4xi32>
+
 
 // -----
 
@@ -92,10 +123,3 @@ memref.store %fv, %mstr[%idx] {"nontemporal" = false} : memref<2xf64, strided<[?
 memref.store %fv, %mstr[%idx] {"nontemporal" = false} : memref<2xf64, affine_map<(d0) -> (d0 * 10)>>
 
 // CHECK: Unsupported layout type affine_map<(d0) -> ((d0 * 10))>
-
-// -----
-
-%fv, %idx, %mstr = "test.op"() : () -> (f32, index, memref<2xf32, strided<[1], offset: ?>>)
-memref.store %fv, %mstr[%idx] {"nontemporal" = false} : memref<2xf32, strided<[1], offset: ?>>
-
-// CHECK: Unsupported layout with dynamic offset strided<[1], offset: ?>

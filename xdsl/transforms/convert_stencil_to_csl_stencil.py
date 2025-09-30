@@ -4,8 +4,9 @@ from math import prod
 
 from xdsl.builder import ImplicitBuilder
 from xdsl.context import Context
-from xdsl.dialects import arith, builtin, memref, stencil, tensor, varith
+from xdsl.dialects import arith, builtin, stencil, tensor, varith
 from xdsl.dialects.builtin import (
+    DYNAMIC_INDEX,
     AnyTensorType,
     DenseIntOrFPElementsAttr,
     FloatAttr,
@@ -623,7 +624,7 @@ class TransformPrefetch(RewritePattern):
                     source=ac_op.result,
                     dest=dest,
                     static_sizes=[1, *ac_op.result.type.get_shape()],
-                    static_offsets=[i, memref.SubviewOp.DYNAMIC_INDEX],
+                    static_offsets=[i, DYNAMIC_INDEX],
                     offsets=[offset],
                 ).result
             csl_stencil.YieldOp(dest)

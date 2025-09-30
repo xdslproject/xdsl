@@ -81,7 +81,7 @@ builtin.module {
 // CHECK-NEXT:     %{{.*}} = "memref.memory_space_cast"(%{{.*}}) : (memref<10x2xindex>) -> memref<10x2xindex, 1 : i32>
 // CHECK-NEXT:     %{{.*}} = memref.alloc() : memref<64x64xindex, strided<[2, 4], offset: 6>, 2 : i32>
 // CHECK-NEXT:     %{{.*}} = "memref.alloca"() <{operandSegmentSizes = array<i32: 0, 0>}> : () -> memref<64x64xindex, strided<[2, 4], offset: 6>, 2 : i32>
-// CHECK-NEXT:     %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}} = "memref.extract_strided_metadata"(%{{.*}}) : (memref<64x64xindex, strided<[2, 4], offset: 6>, 2 : i32>) -> (memref<index>, index, index, index, index, index)
+// CHECK-NEXT:     %base_buffer, %offset, %sizes, %sizes_1, %strides, %strides_1 = memref.extract_strided_metadata %{{.*}} : memref<64x64xindex, strided<[2, 4], offset: 6>, 2 : i32> -> memref<index>, index, index, index, index, index
 // CHECK-NEXT:     %{{.*}}, %{{.*}}, %{{.*}} = "test.op"() : () -> (index, index, index)
 // CHECK-NEXT:     %{{.*}} = memref.alloc(%{{.*}}) {alignment = 0 : i64} : memref<?xindex>
 // CHECK-NEXT:     %{{.*}} = memref.alloc(%{{.*}}, %{{.*}}, %{{.*}}) {alignment = 0 : i64} : memref<?x?x?xindex>
