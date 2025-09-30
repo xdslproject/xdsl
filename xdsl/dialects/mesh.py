@@ -212,6 +212,17 @@ class ShardingOp(IRDLOperation):
 
     custom_directives = (DynamicIndexList,)
 
+    def verify_(self) -> None:
+        dims_offsets = (
+            self.static_sharded_dims_offsets or self.dynamic_sharded_dims_offsets
+        )
+        halo_sizes = self.static_halo_sizes or self.dynamic_halo_sizes
+
+        if dims_offsets and halo_sizes:
+            raise VerifyException(
+                "'mesh.sharding' cannot use both `halo_sizes` and `sharded_dims_offsets`"
+            )
+
 
 Mesh = Dialect(
     "mesh",
