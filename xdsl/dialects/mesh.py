@@ -1,12 +1,12 @@
 from collections.abc import Sequence
-from typing import TypeAlias
+from typing import ClassVar, TypeAlias
 
 from xdsl.dialects.builtin import (
     I16,
     I64,
     ArrayAttr,
+    BytesAttr,
     DenseArrayBase,
-    IntegerAttr,
     SymbolNameConstraint,
     i16,
 )
@@ -28,7 +28,6 @@ from xdsl.irdl import (
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
 from xdsl.traits import SymbolOpInterface
-from xdsl.utils.hints import isa
 
 MeshAxesAttr: TypeAlias = DenseArrayBase[I16]
 
@@ -39,24 +38,26 @@ class MeshAxesArrayAttr(ParametrizedAttribute, OpaqueSyntaxAttribute):
 
     axes: ArrayAttr[MeshAxesAttr]
 
+    ELT_TYPE: ClassVar = i16
+
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> Sequence[Attribute]:
+        def parse_mesh_axes_attr():
+            elements = parser.parse_comma_separated_list(
+                parser.Delimiter.SQUARE,
+                parser.parse_integer,
+            )
+
+            return DenseArrayBase[I16](
+                cls.ELT_TYPE, BytesAttr(cls.ELT_TYPE.pack(elements))
+            )
+
         axes = parser.parse_comma_separated_list(
             parser.Delimiter.SQUARE,
-            parser.parse_attribute,  # TODO: Update to use parse_dense_i16
+            parse_mesh_axes_attr,
         )
 
-        assert isa(axes, list[ArrayAttr[IntegerAttr[I64]]])
-
-        axes_i16: list[MeshAxesAttr] = []
-
-        for array_attr in axes:
-            dense = DenseArrayBase[I16].from_list(
-                i16, list(map(lambda attr: attr.value.data, array_attr.data))
-            )
-            axes_i16.append(dense)
-
-        return (ArrayAttr(axes_i16),)
+        return (ArrayAttr(axes),)
 
     def print_parameters(self, printer: Printer) -> None:
         def print_sublist(sublist: MeshAxesAttr):
