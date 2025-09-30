@@ -18,6 +18,7 @@ from xdsl.dialects.builtin import (
     ShapedType,
     StringAttr,
     TensorType,
+    i8,
     i32,
 )
 from xdsl.ir import Attribute, Dialect, SSAValue, TypeAttribute
@@ -213,7 +214,7 @@ class MulOp(ElementwiseBinaryOperation, ShiftableOperation):
             shift_type = self.shift.type
             assert isinstance(shift_type, TensorType)
 
-            if shift_type.get_num_dims() != 1:
+            if shift_type != TensorType(i8, [1]):
                 raise VerifyException(
                     "'tosa.mul' Expected 'shift' to have type: tensor<1xi8>"
                 )
