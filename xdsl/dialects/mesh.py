@@ -34,6 +34,12 @@ MeshAxesAttr: TypeAlias = DenseArrayBase[I16]
 
 @irdl_attr_definition
 class MeshAxesArrayAttr(ParametrizedAttribute, OpaqueSyntaxAttribute):
+    """
+    MeshAxesArrayAttr attribute for representing mutiple mesh axes.
+
+    See [external documentation](https://mlir.llvm.org/docs/Dialects/Shard/#gridaxesarrayattr).
+    """
+
     name = "mesh.axisarray"
 
     axes: ArrayAttr[MeshAxesAttr]
@@ -41,33 +47,51 @@ class MeshAxesArrayAttr(ParametrizedAttribute, OpaqueSyntaxAttribute):
     ELT_TYPE: ClassVar = i16
 
     @classmethod
+    def parse_mesh_axes_attr(cls, parser: AttrParser) -> DenseArrayBase[I16]:
+        """
+        Parses a single MeshAxesAttr, e.g. [1, 4, 7, 8]
+        """
+        elements = parser.parse_comma_separated_list(
+            parser.Delimiter.SQUARE,
+            parser.parse_integer,
+        )
+
+        return DenseArrayBase[I16](cls.ELT_TYPE, BytesAttr(cls.ELT_TYPE.pack(elements)))
+
+    @classmethod
     def parse_parameters(cls, parser: AttrParser) -> Sequence[Attribute]:
-        def parse_mesh_axes_attr():
-            elements = parser.parse_comma_separated_list(
-                parser.Delimiter.SQUARE,
-                parser.parse_integer,
-            )
+        """
+        Parses a MeshAxesArrayAttr, which has the syntax of a list
+        of lists, e.g.:
 
-            return DenseArrayBase[I16](
-                cls.ELT_TYPE, BytesAttr(cls.ELT_TYPE.pack(elements))
-            )
-
+        [[1, 2, 3], [], [4, 5]]
+        """
         axes = parser.parse_comma_separated_list(
             parser.Delimiter.SQUARE,
-            parse_mesh_axes_attr,
+            lambda: cls.parse_mesh_axes_attr(parser),
         )
 
         return (ArrayAttr(axes),)
 
-    def print_parameters(self, printer: Printer) -> None:
-        def print_sublist(sublist: MeshAxesAttr):
-            with printer.in_square_brackets():
-                printer.print_list(sublist.get_values(), printer.print_int)
+    @classmethod
+    def print_sublist(cls, sublist: MeshAxesAttr, printer: Printer) -> None:
+        """
+        Prints a single MeshAxesAttr, e.g. [1, 4, 6, 8]
+        """
+        with printer.in_square_brackets():
+            printer.print_list(sublist.get_values(), printer.print_int)
 
+    def print_parameters(self, printer: Printer) -> None:
+        """
+        Prints a MeshAxesArrayAttr, which has the syntax of a list
+        of lists, e.g.:
+
+        [[1, 2, 3], [], [4, 5]]
+        """
         with printer.in_square_brackets():
             printer.print_list(
                 self.axes.data,
-                print_sublist,
+                lambda x: MeshAxesArrayAttr.print_sublist(x, printer),
             )
 
 
