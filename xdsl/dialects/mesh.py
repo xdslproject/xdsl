@@ -37,7 +37,7 @@ class MeshAxesArrayAttr(ParametrizedAttribute, OpaqueSyntaxAttribute):
     """
     MeshAxesArrayAttr attribute for representing mutiple mesh axes.
 
-    See [external documentation](https://mlir.llvm.org/docs/Dialects/Shard/#gridaxesarrayattr).
+    Reflects [the MLIR attribute](https://github.com/llvm/llvm-project/blob/6146a88f60492b520a36f8f8f3231e15f3cc6082/mlir/include/mlir/Dialect/Mesh/IR/MeshBase.td#L83)
     """
 
     name = "mesh.axisarray"
