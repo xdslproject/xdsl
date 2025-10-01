@@ -101,11 +101,13 @@ class SwitchNode(MatcherNode):
     children: dict[Answer, MatcherNode | None] = field(default_factory=lambda: {})
 
 
-@dataclass
+@dataclass(kw_only=True)
 class ChooseNode(MatcherNode):
     """Similar to a SwitchNode, but tries all choices by backtracking upon finalization."""
 
-    choices: list[MatcherNode | None] = field(default_factory=lambda: [])
+    parent: MatcherNode
+
+    choices: list[MatcherNode | None]
 
 
 @dataclass(kw_only=True)
@@ -1296,28 +1298,15 @@ class PredicateTreeBuilder:
             ] = [(sorted_predicates, op_pos_tree.children)]
             while worklist:
                 preds, children = worklist.pop()
-                preds.append(
-                    PredicateSplit(
-                        [
-                            cast(
-                                list[OrderedPredicate | PredicateSplit],
-                                pos_to_pred_group[child.operation].predicates,
-                            )
-                            for child in children
-                        ]
-                    )
-                )
-
+                splits: list[list[OrderedPredicate | PredicateSplit]] = []
                 for child in children:
-                    worklist.append(
-                        (
-                            cast(
-                                list[OrderedPredicate | PredicateSplit],
-                                sorted(pos_to_pred_group[child.operation].predicates),
-                            ),
-                            child.children,
-                        )
+                    child_predicates = cast(
+                        list[OrderedPredicate | PredicateSplit],
+                        sorted(pos_to_pred_group[child.operation].predicates),
                     )
+                    splits.append(child_predicates)
+                    worklist.append((child_predicates, child.children))
+                preds.append(PredicateSplit(splits))
 
             root_node = None
             for (pattern, predicates), path in zip(
@@ -1485,6 +1474,7 @@ class PredicateTreeBuilder:
         sorted_predicates: list[OrderedPredicate | PredicateSplit],
         predicate_index: int,
         path: list[int] = [],
+        parent: MatcherNode | None = None,
     ) -> MatcherNode:
         """Propagate a pattern through the predicate tree"""
 
@@ -1498,24 +1488,39 @@ class PredicateTreeBuilder:
             if not path:
                 root_val = self._pattern_roots.get(pattern)
                 return SuccessNode(pattern=pattern, root=root_val, failure_node=node)
-            choice = path[0]
-            path = path[1:]
+            assert parent is not None
             if node is None:
                 node = ChooseNode(
                     None,
                     None,
                     None,
-                    [None for _ in range(len(current_predicate.splits))],
+                    parent=parent,
+                    choices=[None for _ in range(len(current_predicate.splits))],
                 )
-            assert isinstance(node, ChooseNode)
-            node.choices[choice] = self._propagate_pattern(
-                node.choices[choice],
-                pattern,
-                pattern_predicates,
-                current_predicate.splits[choice],
-                0,
-                path,
-            )
+            if isinstance(node, ChooseNode):
+                choice = path[0]
+                path = path[1:]
+
+                node.choices[choice] = self._propagate_pattern(
+                    node.choices[choice],
+                    pattern,
+                    pattern_predicates,
+                    current_predicate.splits[choice],
+                    0,
+                    path,
+                    parent=node,
+                )
+            else:
+                assert isinstance(node, SwitchNode)
+                node.failure_node = self._propagate_pattern(
+                    node.failure_node,
+                    pattern,
+                    pattern_predicates,
+                    sorted_predicates,
+                    predicate_index,
+                    path,
+                    parent=node,
+                )
             return node
 
         assert isinstance(current_predicate, OrderedPredicate)
@@ -1531,7 +1536,25 @@ class PredicateTreeBuilder:
                 sorted_predicates,
                 predicate_index + 1,
                 path,
+                parent,
             )
+
+        if isinstance(node, ChooseNode):
+            assert isinstance(parent := node.parent, SwitchNode)
+            replacement_node = SwitchNode(
+                position=current_predicate.position,
+                question=current_predicate.question,
+                failure_node=node,
+            )
+            if parent.failure_node == node:
+                parent.failure_node = replacement_node
+            else:
+                replaced = False
+                for answer, child in parent.children.items():
+                    if child == node:
+                        parent.children[answer] = replacement_node
+                        replaced = True
+                assert replaced
 
         # Create or match existing node
         if node is None:
@@ -1554,6 +1577,7 @@ class PredicateTreeBuilder:
                 sorted_predicates,
                 predicate_index + 1,
                 path,
+                parent=node,
             )
 
         else:
@@ -1565,6 +1589,7 @@ class PredicateTreeBuilder:
                 sorted_predicates,
                 predicate_index,
                 path,
+                parent=node,
             )
 
         return node
@@ -1591,9 +1616,20 @@ class PredicateTreeBuilder:
                 child_node = root.children[answer]
                 if child_node is not None:
                     root.children[answer] = self._optimize_tree(child_node)
-        elif isinstance(root, ChooseNode) and len(root.choices) == 1:
-            assert root.choices[0] is not None
-            return self._optimize_tree(root.choices[0])
+        elif isinstance(root, ChooseNode):
+            choices: list[MatcherNode] = []
+            for choice in root.choices:
+                if choice is not None:
+                    choices.append(self._optimize_tree(choice))
+            # if len(choices) == 1:
+            #     return choices[0]
+            return ChooseNode(
+                None,
+                None,
+                None,
+                parent=root.parent,
+                choices=cast(list[MatcherNode | None], choices),
+            )
         elif isinstance(root, BoolNode):
             if root.success_node is not None:
                 root.success_node = self._optimize_tree(root.success_node)
