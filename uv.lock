@@ -1328,7 +1328,7 @@ source = { git = "https://github.com/superlopuh/lz-string.git#d435be09f8aa454ce0
 
 [[package]]
 name = "marimo"
-version = "0.16.2"
+version = "0.16.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "click" },
@@ -1350,9 +1350,9 @@ dependencies = [
     { name = "uvicorn" },
     { name = "websockets" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/5f/62/d8def85c7ddf58a3a371eef3e553b8426e685b99a9cb8c3847c702422ec8/marimo-0.16.2.tar.gz", hash = "sha256:2bd90431846c470b4a83ded7ee8b4442854c47ad670b0aafa5fe697e54bddd5a", size = 33654187, upload-time = "2025-09-24T12:41:55.255Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/22/b6/ad9f00808e8f67fd7c179dc12e17ce6f219fbd382ba4f13d07e481b1f038/marimo-0.16.3.tar.gz", hash = "sha256:ce59bff2b7964a69faf65b20a57f3156ae845ddba364476720da89a3090670ef", size = 33680060, upload-time = "2025-09-29T18:38:46.556Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/b3/0c/65a605b99486461babb6a44e516cff7cfd892a7476df8c9990e023c07625/marimo-0.16.2-py3-none-any.whl", hash = "sha256:4617864fec69a5114ce74d3200dd2f1fb38e3757afd00e0a89b2fe2b56532d09", size = 34058910, upload-time = "2025-09-24T12:41:59.721Z" },
+    { url = "https://files.pythonhosted.org/packages/ab/f5/b830e8f532c3493bb1e8aa82c5151c232dd80bb382432c9d411e9ca644d3/marimo-0.16.3-py3-none-any.whl", hash = "sha256:6ed5c472368a56045007f5c6456b433ec59be15e6959e25469161e9f75f8d9b9", size = 34081814, upload-time = "2025-09-29T18:38:41.795Z" },
 ]
 
 [[package]]
@@ -3857,7 +3857,7 @@ requires-dist = [
     { name = "ipykernel", marker = "extra == 'dev'" },
     { name = "jax", marker = "extra == 'jax'", specifier = "==0.6.0" },
     { name = "lit", marker = "extra == 'dev'", specifier = "<19.0.0" },
-    { name = "marimo", marker = "extra == 'dev'", specifier = "==0.16.2" },
+    { name = "marimo", marker = "extra == 'dev'", specifier = "==0.16.3" },
     { name = "nbconvert", marker = "extra == 'dev'", specifier = ">=7.7.2,<8.0.0" },
     { name = "nbval", marker = "extra == 'dev'", specifier = "<0.12" },
     { name = "numpy", marker = "extra == 'jax'", specifier = "==2.2.6" },

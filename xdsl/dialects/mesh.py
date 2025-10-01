@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from collections.abc import Sequence
 from enum import auto
 from typing import TypeAlias
@@ -11,7 +9,6 @@ from xdsl.dialects.builtin import (
     BytesAttr,
     DenseArrayBase,
     FlatSymbolRefAttr,
-    IntegerAttr,
     SymbolNameConstraint,
     i16,
     i64,
@@ -41,46 +38,82 @@ from xdsl.irdl import (
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
 from xdsl.traits import Pure, SymbolOpInterface
-from xdsl.utils.hints import isa
 from xdsl.utils.str_enum import StrEnum
 
-MeshAxesAttr: TypeAlias = DenseArrayBase[I16]
+MeshAxis: TypeAlias = I16
+"""
+The type used to represent numbers on a mesh axis.
+
+See [the MLIR definition](https://github.com/llvm/llvm-project/blob/6146a88f60492b520a36f8f8f3231e15f3cc6082/mlir/include/mlir/Dialect/Mesh/IR/MeshBase.td#L39).
+"""
+
+
+MeshAxesAttr: TypeAlias = DenseArrayBase[MeshAxis]
+"""
+The type used to represent a list of mesh axes.
+
+See [the MLIR definition](https://github.com/llvm/llvm-project/blob/6146a88f60492b520a36f8f8f3231e15f3cc6082/mlir/include/mlir/Dialect/Mesh/IR/MeshBase.td#L40).
+"""
+
+
+def _parse_mesh_axes_attr(parser: AttrParser) -> MeshAxesAttr:
+    """
+    Parses a single MeshAxesAttr, e.g. [1, 4, 7, 8]
+    """
+    elements = parser.parse_comma_separated_list(
+        parser.Delimiter.SQUARE,
+        parser.parse_integer,
+    )
+
+    return MeshAxesAttr(i16, BytesAttr(i16.pack(elements)))
+
+
+def _print_sublist(printer: Printer, sublist: MeshAxesAttr) -> None:
+    """
+    Prints a single MeshAxesAttr, e.g. [1, 4, 6, 8]
+    """
+    with printer.in_square_brackets():
+        printer.print_list(sublist.get_values(), printer.print_int)
 
 
 @irdl_attr_definition
 class MeshAxesArrayAttr(ParametrizedAttribute, OpaqueSyntaxAttribute):
+    """
+    MeshAxesArrayAttr attribute for representing mutiple mesh axes.
+
+    Reflects [the MLIR attribute](https://github.com/llvm/llvm-project/blob/6146a88f60492b520a36f8f8f3231e15f3cc6082/mlir/include/mlir/Dialect/Mesh/IR/MeshBase.td#L83).
+    """
+
     name = "mesh.axisarray"
 
     axes: ArrayAttr[MeshAxesAttr]
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> Sequence[Attribute]:
+        """
+        Parses a MeshAxesArrayAttr, which has the syntax of a list
+        of lists, e.g.:
+
+        [[1, 2, 3], [], [4, 5]]
+        """
         axes = parser.parse_comma_separated_list(
             parser.Delimiter.SQUARE,
-            parser.parse_attribute,
+            lambda: _parse_mesh_axes_attr(parser),
         )
 
-        assert isa(axes, list[ArrayAttr[IntegerAttr[I64]]])
-
-        axes_i16: list[MeshAxesAttr] = []
-
-        for array_attr in axes:
-            dense = DenseArrayBase[I16].from_list(
-                i16, list(map(lambda attr: attr.value.data, array_attr.data))
-            )
-            axes_i16.append(dense)
-
-        return (ArrayAttr(axes_i16),)
+        return (ArrayAttr(axes),)
 
     def print_parameters(self, printer: Printer) -> None:
-        def print_sublist(sublist: MeshAxesAttr):
-            with printer.in_square_brackets():
-                printer.print_list(sublist.get_values(), printer.print_int)
+        """
+        Prints a MeshAxesArrayAttr, which has the syntax of a list
+        of lists, e.g.:
 
+        [[1, 2, 3], [], [4, 5]]
+        """
         with printer.in_square_brackets():
             printer.print_list(
                 self.axes.data,
-                print_sublist,
+                lambda x: _print_sublist(printer, x),
             )
 
 
