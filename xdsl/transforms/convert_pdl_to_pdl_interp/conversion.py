@@ -11,7 +11,7 @@ from typing import Optional, cast
 
 from xdsl.builder import Builder
 from xdsl.context import Context
-from xdsl.dialects import pdl, pdl_interp
+from xdsl.dialects import eqsat, pdl, pdl_interp
 from xdsl.dialects.builtin import (
     ArrayAttr,
     FunctionType,
@@ -1743,6 +1743,8 @@ class MatcherGenerator:
             self.generate_switch_node(node, current_block, val)
         elif isinstance(node, SuccessNode):
             self.generate_success_node(node, current_block)
+        elif isinstance(node, ChooseNode):
+            self.generate_choose_node(node, current_block)
 
         # Pop failure block if we pushed one
         if node.failure_node:
@@ -2162,6 +2164,52 @@ class MatcherGenerator:
             self.failure_block_stack[-1],
         )
         self.builder.insert(record_op)
+
+    def generate_choose_node(self, node: ChooseNode, block: Block) -> None:
+        """Generate operations for a choose node"""
+        region = block.parent
+        assert region is not None, "Block must be in a region"
+
+        # Get the current failure destination (for when all choices are exhausted)
+        default_dest = (
+            self.failure_block_stack[-1] if self.failure_block_stack else None
+        )
+
+        # Push this block as the failure destination for choices
+        # When a choice fails, control should jump back to the choose operation
+        self.failure_block_stack.append(block)
+
+        # Generate blocks for each non-None choice
+        choice_blocks: list[Block] = []
+        for choice in node.choices:
+            if choice is not None:
+                choice_block = self.generate_matcher(choice, region)
+                choice_blocks.append(choice_block)
+
+        # Pop the failure destination we pushed
+        self.failure_block_stack.pop()
+
+        # Check if block already has a terminator and remove it if necessary
+        if block.ops:
+            last_op = list(block.ops)[-1]
+            from xdsl.traits import IsTerminator
+
+            is_terminator = any(
+                isinstance(trait, IsTerminator) for trait in last_op.traits
+            )
+            if is_terminator:
+                last_op.detach()
+
+        # Set insertion point and create the eqsat.choose operation as a terminator
+        self.builder.insertion_point = InsertPoint.at_end(block)
+        if choice_blocks:
+            assert default_dest is not None
+            choose_op = eqsat.ChooseOp(choice_blocks, default_dest)
+            self.builder.insert(choose_op)
+        else:
+            # If no choices, use finalize as fallback
+            finalize_op = pdl_interp.FinalizeOp()
+            self.builder.insert(finalize_op)
 
     def generate_rewriter(
         self, pattern: pdl.PatternOp, used_match_positions: list[Position]
