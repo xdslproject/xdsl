@@ -308,6 +308,14 @@ class AffineExpr:
     def used_dims(self) -> set[int]:
         return {expr.position for expr in self.dfs() if isinstance(expr, AffineDimExpr)}
 
+    @abstractmethod
+    def is_pure_affine(self) -> bool:
+        """
+        Returns true if this is a pure affine expression, i.e., multiplication,
+        floordiv, ceildiv, and mod is only allowed w.r.t constants.
+        """
+        ...
+
 
 class AffineBinaryOpKind(Enum):
     """Enum for the kind of storage node used in AffineExpr."""
@@ -340,13 +348,40 @@ class AffineBinaryOpExpr(AffineExpr):
     lhs: AffineExpr
     rhs: AffineExpr
 
-    def __str__(self) -> str:
-        return f"({self.lhs} {self.kind.get_token()} {self.rhs})"
-
     def dfs(self) -> Iterator[AffineExpr]:
         yield self
         yield from self.lhs.dfs()
         yield from self.rhs.dfs()
+
+    def is_pure_affine(self) -> bool:
+        match self.kind:
+            case AffineBinaryOpKind.Add:
+                return self.lhs.is_pure_affine() and self.rhs.is_pure_affine()
+            case AffineBinaryOpKind.Mul:
+                # Multiplication is only allowed with a constant on the right
+                # or left for pure affine expressions.
+                # Check if either lhs or rhs is a constant and the other is pure affine.
+                lhs_is_const = isinstance(self.lhs, AffineConstantExpr)
+                rhs_is_const = isinstance(self.rhs, AffineConstantExpr)
+
+                return (
+                    (lhs_is_const or rhs_is_const)
+                    and self.lhs.is_pure_affine()
+                    and self.rhs.is_pure_affine()
+                )
+            case (
+                AffineBinaryOpKind.Mod
+                | AffineBinaryOpKind.FloorDiv
+                | AffineBinaryOpKind.CeilDiv
+            ):
+                # Mod, floordiv, ceildiv are only allowed with a constant on the right for pure affine
+                return (
+                    isinstance(self.rhs, AffineConstantExpr)
+                    and self.lhs.is_pure_affine()
+                )
+
+    def __str__(self) -> str:
+        return f"({self.lhs} {self.kind.get_token()} {self.rhs})"
 
 
 @dataclass(frozen=True)
@@ -354,6 +389,9 @@ class AffineDimExpr(AffineExpr):
     """An affine expression storage node representing a dimension."""
 
     position: int
+
+    def is_pure_affine(self) -> bool:
+        return True
 
     def __str__(self) -> str:
         return f"d{self.position}"
@@ -365,6 +403,9 @@ class AffineSymExpr(AffineExpr):
 
     position: int
 
+    def is_pure_affine(self) -> bool:
+        return True
+
     def __str__(self) -> str:
         return f"s{self.position}"
 
@@ -374,6 +415,9 @@ class AffineConstantExpr(AffineExpr):
     """An affine expression storage node representing a constant."""
 
     value: int
+
+    def is_pure_affine(self) -> bool:
+        return True
 
     def __str__(self) -> str:
         return f"{self.value}"
