@@ -329,7 +329,7 @@ class MaxPool2DOp(IRDLOperation):
     kernel = prop_def(DenseArrayBase[I64])
     stride = prop_def(DenseArrayBase[I64])
     pad = prop_def(DenseArrayBase[I64])
-    nan_mode = opt_prop_def(StringAttr)
+    nan_mode = opt_prop_def(StringAttr, default_value=StringAttr("PROPAGATE"))
 
     irdl_options = [ParsePropInAttrDict()]
 
