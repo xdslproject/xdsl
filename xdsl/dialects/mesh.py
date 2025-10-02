@@ -1,3 +1,4 @@
+from abc import ABC
 from collections.abc import Sequence
 from enum import auto
 from typing import TypeAlias
@@ -9,7 +10,11 @@ from xdsl.dialects.builtin import (
     BytesAttr,
     DenseArrayBase,
     FlatSymbolRefAttr,
+    IndexType,
+    IndexTypeConstr,
+    IntegerAttr,
     SymbolNameConstraint,
+    TensorType,
     i16,
     i64,
 )
@@ -29,6 +34,7 @@ from xdsl.irdl import (
     IRDLOperation,
     irdl_attr_definition,
     irdl_op_definition,
+    operand_def,
     opt_prop_def,
     prop_def,
     result_def,
@@ -39,6 +45,10 @@ from xdsl.parser import AttrParser
 from xdsl.printer import Printer
 from xdsl.traits import Pure, SymbolOpInterface
 from xdsl.utils.str_enum import StrEnum
+
+################################################################################
+# Types and attributes                                                         #
+################################################################################
 
 MeshAxis: TypeAlias = I16
 """
@@ -143,6 +153,116 @@ class ShardingType(ParametrizedAttribute, TypeAttribute):
     name = "mesh.sharding"
 
 
+################################################################################
+# Collevtive communication ops                                                 #
+################################################################################
+
+
+class CollectiveCommunicationOp(IRDLOperation, ABC):
+    """
+    Base class for collective communication ops.
+    """
+
+    mesh = prop_def(FlatSymbolRefAttr)
+    mesh_axes = prop_def(MeshAxesAttr, default_value=MeshAxesAttr(i16, BytesAttr(b"")))
+
+
+@irdl_op_definition
+class BroadcastOp(CollectiveCommunicationOp):
+    """
+    Broadcast tensor from one device to many devices.
+
+    See [external documentation](https://mlir.llvm.org/docs/Dialects/Shard/#shardbroadcast-shardbroadcastop).
+    """
+
+    name = "mesh.broadcast"
+
+    input = operand_def(TensorType)
+    root = prop_def(DenseArrayBase[I64])
+    root_dynamic = var_operand_def(IndexType)
+
+    result = result_def(TensorType)
+
+    traits = traits_def(Pure())
+
+    assembly_format = (
+        "$input `on` $mesh (`mesh_axes` `=` $mesh_axes^)? "
+        + "`root` `=` custom<DynamicIndexList>($root_dynamic, $root) "
+        + "attr-dict `:` functional-type(operands, results)"
+    )
+
+    custom_directives = (DynamicIndexList,)
+
+
+@irdl_op_definition
+class GatherOp(CollectiveCommunicationOp):
+    """
+    Gather tensor shards from many devices to a single device.
+
+    See [external documentation](https://mlir.llvm.org/docs/Dialects/Shard/#shardgather-shardgatherop).
+    """
+
+    name = "mesh.gather"
+
+    input = operand_def(TensorType)
+    gather_axis = prop_def(IntegerAttr.constr(IndexTypeConstr))
+    root = prop_def(DenseArrayBase[I64])
+    root_dynamic = var_operand_def(IndexType)
+
+    result = result_def(TensorType)
+
+    traits = traits_def(Pure())
+
+    assembly_format = (
+        "$input `on` $mesh (`mesh_axes` `=` $mesh_axes^)? "
+        + "`gather_axis` `=` $gather_axis "
+        + "`root` `=` custom<DynamicIndexList>($root_dynamic, $root) "
+        + "attr-dict `:` functional-type(operands, results)"
+    )
+
+    custom_directives = (DynamicIndexList,)
+
+
+@irdl_op_definition
+class ScatterOp(CollectiveCommunicationOp):
+    """
+    Scatter tensor over a device mesh.
+
+    For each device group split the input tensor on the `root` device along
+    axis `scatter_axis` and scatter the parts across the group devices.
+
+    See [external documentation](https://mlir.llvm.org/docs/Dialects/Shard/#shardscatter-shardscatterop).
+    """
+
+    name = "mesh.scatter"
+
+    input = operand_def(TensorType)
+    scatter_axis = prop_def(IntegerAttr.constr(IndexTypeConstr))
+
+    root = prop_def(DenseArrayBase[I64])
+    root_dynamic = var_operand_def(IndexType)
+
+    result = result_def(TensorType)
+
+    traits = traits_def(
+        Pure(),
+    )
+
+    assembly_format = (
+        "$input `on` $mesh (`mesh_axes` `=` $mesh_axes^)? "
+        + "`scatter_axis` `=` $scatter_axis "
+        + "`root` `=` custom<DynamicIndexList>($root_dynamic, $root) "
+        + "attr-dict `:` functional-type(operands, results)"
+    )
+
+    custom_directives = (DynamicIndexList,)
+
+
+################################################################################
+# Operations on mesh                                                           #
+################################################################################
+
+
 @irdl_op_definition
 class MeshOp(IRDLOperation):
     name = "mesh.mesh"
@@ -163,6 +283,11 @@ class MeshOp(IRDLOperation):
             raise VerifyException(
                 "'mesh.mesh' op rank of mesh is expected to be a positive integer"
             )
+
+
+################################################################################
+# Sharding operations                                                          #
+################################################################################
 
 
 @irdl_op_definition
@@ -224,6 +349,9 @@ class ShardingOp(IRDLOperation):
 Mesh = Dialect(
     "mesh",
     [
+        BroadcastOp,
+        GatherOp,
+        ScatterOp,
         MeshOp,
         ShardingOp,
     ],
