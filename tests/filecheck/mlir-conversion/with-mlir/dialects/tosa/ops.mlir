@@ -45,3 +45,10 @@ func.func @test_cos(%arg0: tensor<13x21x3xf32>) -> tensor<13x21x3xf32> {
   %0 = tosa.cos %arg0 : (tensor<13x21x3xf32>) -> tensor<13x21x3xf32>
   return %0 : tensor<13x21x3xf32>
 }
+
+// TODO: use zp args for MLIR v21 
+func.func @test_matmul(%arg0: tensor<1x14x19xf32>, %arg1: tensor<1x19x28xf32>, %azp0: tensor<1xf32>, %bzp0: tensor<1xf32>) -> tensor<1x14x28xf32> {
+  // CHECK: %0 = tosa.matmul %{{.*}}, %{{.*}} : (tensor<1x14x19xf32>, tensor<1x19x28xf32>) -> tensor<1x14x28xf32>
+  %0 = tosa.matmul %arg0, %arg1 : (tensor<1x14x19xf32>, tensor<1x19x28xf32>)  -> tensor<1x14x28xf32>
+  return %0 : tensor<1x14x28xf32>
+}
