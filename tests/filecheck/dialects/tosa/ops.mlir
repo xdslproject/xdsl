@@ -93,3 +93,19 @@ func.func @test_max_pool2d_f16(%arg0: tensor<1x32x32x8xf16>) -> tensor<1x32x32x8
   %0 = tosa.max_pool2d %arg0 {kernel = array<i64: 1, 1>, pad = array<i64: 0, 0, 0, 0>, stride = array<i64: 1, 1>} : (tensor<1x32x32x8xf16>) -> tensor<1x32x32x8xf16>
   return %0 : tensor<1x32x32x8xf16>
 }
+
+// -----
+// CHECK-LABEL: rescale
+func.func @test_rescale(%arg0: tensor<12x34xi32>) -> tensor<12x34xi32> {
+  // CHECK: {{%.*}} = tosa.rescale {{%.*}} {double_round = false, input_zp = 127 : i32, multiplier = array<i32: 1073741824>, output_zp = -1 : i32, per_channel = false, scale32 = true, shift = array<i8: 30>} : (tensor<12x34xi32>) -> tensor<12x34xi32>
+  %0 = tosa.rescale %arg0 {double_round = false, input_zp = 127 : i32, multiplier = array<i32: 1073741824>, output_zp = -1 : i32, per_channel = false, scale32 = true, shift = array<i8: 30>} : (tensor<12x34xi32>) -> tensor<12x34xi32>
+  return %0 : tensor<12x34xi32>
+}
+
+// -----
+// CHECK-LABEL: test_sin
+func.func @test_sin(%arg0: tensor<13x21x3xf32>) -> tensor<13x21x3xf32> {
+  // CHECK: %{{.*}} = tosa.sin %{{.*}} : (tensor<13x21x3xf32>) -> tensor<13x21x3xf32>
+  %0 = tosa.sin %arg0 : (tensor<13x21x3xf32>) -> tensor<13x21x3xf32>
+  return %0 : tensor<13x21x3xf32>
+}
