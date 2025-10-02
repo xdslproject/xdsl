@@ -5,6 +5,7 @@ from typing import ClassVar, Generic
 from typing_extensions import TypeVar
 
 from xdsl.dialects.builtin import (
+    I8,
     I32,
     I64,
     AnyAttr,
@@ -81,7 +82,7 @@ class ClampOp(IRDLOperation):
     min_fp = prop_def(FloatAttr)
     max_fp = prop_def(FloatAttr)
 
-    nan_mode = opt_prop_def(StringAttr)
+    nan_mode = opt_prop_def(StringAttr, default_value=StringAttr("PROPAGATE"))
 
     input = operand_def(TensorType)
     output = result_def(TensorType)
@@ -178,7 +179,7 @@ class SubOp(ElementwiseBinaryOperation):
 
 
 @irdl_op_definition
-class MulOp(ElementwiseBinaryOperation):
+class MulOp(ElementwiseOperation):
     """
     Tosa elementwise multiplication operation (Hadamard product)
 
@@ -190,6 +191,23 @@ class MulOp(ElementwiseBinaryOperation):
     traits = traits_def(
         Commutative(),
     )
+
+    T: ClassVar = VarConstraint("T", AnyAttr())
+
+    input1 = operand_def(TensorType.constr(T))
+    input2 = operand_def(TensorType.constr(T))
+    shift = operand_def(TensorType[I8])
+    output = result_def(TensorType.constr(T))
+
+    def verify_(self) -> None:
+        t1 = self.input1.type
+        t2 = self.input2.type
+        t_out = self.output.type
+
+        if not are_tosa_broadcastable(t1, t2, t_out):
+            raise VerifyException(
+                f"'{type(self).name}' Operand and result tensor shapes are not compatible"
+            )
 
 
 TInv = TypeVar("TInv", bound=TensorType)
@@ -244,8 +262,10 @@ class MatMulOp(IRDLOperation):
 
     a = operand_def(TensorType.constr(T))
     b = operand_def(TensorType.constr(T))
-    a_zp = operand_def(TensorType.constr(T))
-    b_zp = operand_def(TensorType.constr(T))
+
+    # TODO: use these operands for MLIR v21
+    # a_zp = operand_def(TensorType.constr(T))
+    # b_zp = operand_def(TensorType.constr(T))
 
     output = result_def(TensorType.constr(T))
 
@@ -258,13 +278,17 @@ class MatMulOp(IRDLOperation):
     def verify_(self) -> None:
         assert isinstance(self.a.type, ShapedType)
         assert isinstance(self.b.type, ShapedType)
-        assert isinstance(self.a_zp.type, ShapedType)
-        assert isinstance(self.b_zp.type, ShapedType)
+
+        # TODO: uncomment for MLIR v21
+        # assert isinstance(self.a_zp.type, ShapedType)
+        # assert isinstance(self.b_zp.type, ShapedType)
 
         sa = self.a.type.get_shape()
         sb = self.b.type.get_shape()
-        s_az = self.a_zp.type.get_shape()
-        s_bz = self.b_zp.type.get_shape()
+
+        # TODO: uncomment for MLIR v21
+        # s_az = self.a_zp.type.get_shape()
+        # s_bz = self.b_zp.type.get_shape()
 
         if len(sa) != 3 or len(sb) != 3:
             raise VerifyException("'tosa.matmul' Expected operand tensors of rank 3")
@@ -281,10 +305,11 @@ class MatMulOp(IRDLOperation):
             )
 
         # check that zero-points are unranked or scalar
-        if len(s_az) not in [0, 1] or len(s_bz) not in [0, 1]:
-            raise VerifyException(
-                "'tosa.matmul' Expected zero-point operands to be unranked or scalar tensors"
-            )
+        # TODO: uncomment for MLIR v21
+        # if len(s_az) not in [0, 1] or len(s_bz) not in [0, 1]:
+        #     raise VerifyException(
+        #         "'tosa.matmul' Expected zero-point operands to be unranked or scalar tensors"
+        #     )
 
 
 @irdl_op_definition
@@ -304,7 +329,7 @@ class MaxPool2DOp(IRDLOperation):
     kernel = prop_def(DenseArrayBase[I64])
     stride = prop_def(DenseArrayBase[I64])
     pad = prop_def(DenseArrayBase[I64])
-    nan_mode = opt_prop_def(StringAttr)
+    nan_mode = opt_prop_def(StringAttr, default_value=StringAttr("PROPAGATE"))
 
     irdl_options = [ParsePropInAttrDict()]
 
