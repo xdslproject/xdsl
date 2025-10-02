@@ -227,6 +227,17 @@ class CosOp(ElementwiseUnaryOperation[TensorType[AnyFloat]]):
 
 
 @irdl_op_definition
+class ReciprocalOp(ElementwiseUnaryOperation[TensorType]):
+    """
+    Elementwise reciprocal operation.
+
+    See [external documentation](https://mlir.llvm.org/docs/Dialects/TOSA/#tosareciprocal-mlirtosareciprocalop).
+    """
+
+    name = "tosa.reciprocal"
+
+
+@irdl_op_definition
 class MatMulOp(IRDLOperation):
     """
     TOSA dialect operation for computing 2D matmuls. Expects 3D tensors as input with leading rank of 1 element, e.g.
@@ -384,6 +395,7 @@ TOSA = Dialect(
         MulOp,
         SinOp,
         CosOp,
+        ReciprocalOp,
         MatMulOp,
         MaxPool2DOp,
         AvgPool2DOp,
