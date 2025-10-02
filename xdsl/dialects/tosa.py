@@ -81,7 +81,7 @@ class ClampOp(IRDLOperation):
     min_fp = prop_def(FloatAttr)
     max_fp = prop_def(FloatAttr)
 
-    nan_mode = opt_prop_def(StringAttr)
+    nan_mode = opt_prop_def(StringAttr, default_value=StringAttr("PROPAGATE"))
 
     input = operand_def(TensorType)
     output = result_def(TensorType)
