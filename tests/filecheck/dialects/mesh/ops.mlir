@@ -23,6 +23,12 @@ mesh.mesh @mesh5(shape = ?)
 %12 = mesh.sharding @mesh4 split_axes = [[0]] sharded_dims_offsets = [0, 1, 4, 6] : !mesh.sharding
 %13 = mesh.sharding @mesh4 split_axes = [[0]] sharded_dims_offsets = [0, 2, %10, 5] : !mesh.sharding
 
+// Collective communications
+%t = "test.op"() : () -> tensor<2x2xi8>
+%14 = mesh.broadcast %t on @mesh0 mesh_axes = [0] root = [0] : (tensor<2x2xi8>) -> tensor<2x2xi8>
+%15 = mesh.gather %t on @mesh0 mesh_axes = [1] gather_axis = 1 root = [1] : (tensor<2x2xi8>) -> tensor<2x4xi8>
+%16 = mesh.scatter %t on @mesh0 mesh_axes = [0] scatter_axis = 0 root = [1] : (tensor<2x2xi8>) -> tensor<1x2xi8>
+
 // CHECK:      mesh.mesh @mesh0(shape = 2x2x4)
 // CHECK-NEXT: mesh.mesh @mesh1(shape = 4x?)
 // CHECK-NEXT: mesh.mesh @mesh2(shape = ?x4)
@@ -44,3 +50,7 @@ mesh.mesh @mesh5(shape = ?)
 // CHECK-NEXT: %11 = mesh.sharding @mesh4 split_axes = [[0]] halo_sizes = [4, %10] : !mesh.sharding
 // CHECK-NEXT: %12 = mesh.sharding @mesh4 split_axes = [[0]] sharded_dims_offsets = [0, 1, 4, 6] : !mesh.sharding
 // CHECK-NEXT: %13 = mesh.sharding @mesh4 split_axes = [[0]] sharded_dims_offsets = [0, 2, %10, 5] : !mesh.sharding
+// CHECK-NEXT: %t = "test.op"() : () -> tensor<2x2xi8>
+// CHECK-NEXT: %14 = mesh.broadcast %t on @mesh0 mesh_axes = [0] root = [0] : (tensor<2x2xi8>) -> tensor<2x2xi8>
+// CHECK-NEXT: %15 = mesh.gather %t on @mesh0 mesh_axes = [1] gather_axis = 1 root = [1] : (tensor<2x2xi8>) -> tensor<2x4xi8>
+// CHECK-NEXT: %16 = mesh.scatter %t on @mesh0 mesh_axes = [0] scatter_axis = 0 root = [1] : (tensor<2x2xi8>) -> tensor<1x2xi8>

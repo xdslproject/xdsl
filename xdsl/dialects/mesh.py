@@ -220,6 +220,8 @@ class GatherOp(CollectiveCommunicationOp):
         + "attr-dict `:` functional-type(operands, results)"
     )
 
+    custom_directives = (DynamicIndexList,)
+
 
 @irdl_op_definition
 class ScatterOp(CollectiveCommunicationOp):
