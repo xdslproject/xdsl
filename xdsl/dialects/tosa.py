@@ -5,6 +5,7 @@ from typing import ClassVar, Generic
 from typing_extensions import TypeVar
 
 from xdsl.dialects.builtin import (
+    I8,
     I32,
     I64,
     AnyAttr,
@@ -178,7 +179,7 @@ class SubOp(ElementwiseBinaryOperation):
 
 
 @irdl_op_definition
-class MulOp(ElementwiseBinaryOperation):
+class MulOp(ElementwiseOperation):
     """
     Tosa elementwise multiplication operation (Hadamard product)
 
@@ -190,6 +191,23 @@ class MulOp(ElementwiseBinaryOperation):
     traits = traits_def(
         Commutative(),
     )
+
+    T: ClassVar = VarConstraint("T", AnyAttr())
+
+    input1 = operand_def(TensorType.constr(T))
+    input2 = operand_def(TensorType.constr(T))
+    shift = operand_def(TensorType[I8])
+    output = result_def(TensorType.constr(T))
+
+    def veriry_(self) -> None:
+        t1 = self.input1.type
+        t2 = self.input2.type
+        t_out = self.output.type
+
+        if not are_tosa_broadcastable(t1, t2, t_out):
+            raise VerifyException(
+                f"'{type(self).name}' Operand and result tensor are not compatible"
+            )
 
 
 TInv = TypeVar("TInv", bound=TensorType)
