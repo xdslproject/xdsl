@@ -160,7 +160,7 @@ class ShardingType(ParametrizedAttribute, TypeAttribute):
 
 class CollectiveCommunicationOp(IRDLOperation, ABC):
     """
-    Base class for collective communication ops
+    Base class for collective communication ops.
     """
 
     mesh = prop_def(FlatSymbolRefAttr)
