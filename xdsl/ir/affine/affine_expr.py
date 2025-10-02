@@ -308,7 +308,7 @@ class AffineExpr(ABC):
         """
         Iterates nodes in pre-order (left-right-parent).
 
-        See external [documentation](https://en.wikipedia.org/wiki/Depth-first_search).
+        See external [documentation](https://en.wikipedia.org/wiki/Tree_traversal).
         """
         yield self
 
