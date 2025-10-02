@@ -206,7 +206,7 @@ class MulOp(ElementwiseOperation):
 
         if not are_tosa_broadcastable(t1, t2, t_out):
             raise VerifyException(
-                f"'{type(self).name}' Operand and result tensor are not compatible"
+                f"'{type(self).name}' Operand and result tensor shapes are not compatible"
             )
 
 
