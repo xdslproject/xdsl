@@ -33,7 +33,8 @@
 
 %simple = "test.op"() : () -> tensor<1x2x3x4xi32>
 %float = "test.op"() : () -> tensor<1x2x3x4xf32>
-%0 = tosa.mul %simple, %float : (tensor<1x2x3x4xi32>, tensor<1x2x3x4xf32>) -> tensor<1x2x3x4xf32>
+%shift = "test.op"() : () -> tensor<1xi8>
+%0 = tosa.mul %simple, %float, %shift : (tensor<1x2x3x4xi32>, tensor<1x2x3x4xf32>, tensor<1xi8>) -> tensor<1x2x3x4xf32>
 // CHECK: attribute i32 expected from variable 'T', but got f32 
 
 // -----
@@ -41,7 +42,8 @@
 
 %simple = "test.op"() : () -> tensor<1x2x3x4xi32>
 %flat = "test.op"() : () -> tensor<1x1x1x1xi32>
-%1 = tosa.mul %simple, %flat : (tensor<1x2x3x4xi32>, tensor<1x1x1x1xi32>) -> tensor<1x1x1x1xi32>
+%shift = "test.op"() : () -> tensor<1xi8>
+%1 = tosa.mul %simple, %flat, %shift : (tensor<1x2x3x4xi32>, tensor<1x1x1x1xi32>, tensor<1xi8>) -> tensor<1x1x1x1xi32>
 // CHECK: 'tosa.mul' Operand and result tensor shapes are not compatible 
 
 // -----

@@ -199,7 +199,7 @@ class MulOp(ElementwiseOperation):
     shift = operand_def(TensorType[I8])
     output = result_def(TensorType.constr(T))
 
-    def veriry_(self) -> None:
+    def verify_(self) -> None:
         t1 = self.input1.type
         t2 = self.input2.type
         t_out = self.output.type
