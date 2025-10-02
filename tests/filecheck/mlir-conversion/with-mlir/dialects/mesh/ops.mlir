@@ -28,6 +28,9 @@ mesh.mesh @mesh5(shape = ?)
 %14 = mesh.broadcast %t on @mesh0 mesh_axes = [0] root = [0] : (tensor<2x2xi8>) -> tensor<2x2xi8>
 %15 = mesh.gather %t on @mesh0 mesh_axes = [1] gather_axis = 1 root = [1] : (tensor<2x2xi8>) -> tensor<2x4xi8>
 %16 = mesh.scatter %t on @mesh0 mesh_axes = [0] scatter_axis = 0 root = [1] : (tensor<2x2xi8>) -> tensor<1x2xi8>
+%17 = mesh.recv %t on @mesh0 mesh_axes = [0, 2] source = [0, 1] : (tensor<2x2xi8>) -> tensor<2x2xi8>
+%18 = mesh.send %t on @mesh0 mesh_axes = [1] destination = [1] : (tensor<2x2xi8>) -> tensor<2x2xi8>
+%19 = mesh.shift %t on @mesh0 mesh_axes = [1] shift_axis = 1 offset = 2 rotate : tensor<2x2xi8> -> tensor<2x2xi8>
 
 // CHECK:      mesh.mesh @mesh0(shape = 2x2x4)
 // CHECK-NEXT: mesh.mesh @mesh1(shape = 4x?)
@@ -54,3 +57,6 @@ mesh.mesh @mesh5(shape = ?)
 // CHECK-NEXT: {{%.*}} = mesh.broadcast {{%.*}} on @mesh0 mesh_axes = [0] root = [0] : (tensor<2x2xi8>) -> tensor<2x2xi8>
 // CHECK-NEXT: {{%.*}} = mesh.gather {{%.*}} on @mesh0 mesh_axes = [1] gather_axis = 1 root = [1] : (tensor<2x2xi8>) -> tensor<2x4xi8>
 // CHECK-NEXT: {{%.*}} = mesh.scatter {{%.*}} on @mesh0 mesh_axes = [0] scatter_axis = 0 root = [1] : (tensor<2x2xi8>) -> tensor<1x2xi8>
+// CHECK-NEXT: {{%.*}} = mesh.recv {{%.*}} on @mesh0 mesh_axes = [0, 2] source = [0, 1] : (tensor<2x2xi8>) -> tensor<2x2xi8>
+// CHECK-NEXT: {{%.*}} = mesh.send {{%.*}} on @mesh0 mesh_axes = [1] destination = [1] : (tensor<2x2xi8>) -> tensor<2x2xi8>
+// CHECK-NEXT: {{%.*}} = mesh.shift {{%.*}} on @mesh0 mesh_axes = [1] shift_axis = 1 offset = 2 rotate : tensor<2x2xi8> -> tensor<2x2xi8>
