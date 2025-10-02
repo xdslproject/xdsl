@@ -108,3 +108,19 @@ func.func @test_sin(%arg0: tensor<13x21x3xf32>) -> tensor<13x21x3xf32> {
   %0 = tosa.sin %arg0 : (tensor<13x21x3xf32>) -> tensor<13x21x3xf32>
   return %0 : tensor<13x21x3xf32>
 }
+
+// -----
+// CHECK-LABEL: recip_i32
+func.func @test_recip_i32(%arg0: tensor<12x24xi32>) -> tensor<12x24xi32> {
+  // CHECK: {{%.*}} = tosa.reciprocal {{%.*}} : (tensor<12x24xi32>) -> tensor<12x24xi32>
+  %0 = tosa.reciprocal %arg0 : (tensor<12x24xi32>) -> tensor<12x24xi32>
+  return %0 : tensor<12x24xi32>
+}
+
+// -----
+// CHECK-LABEL: recip_f32
+func.func @test_recip_f32(%arg0: tensor<12x24xf32>) -> tensor<12x24xf32> {
+  // CHECK: {{%.*}} = tosa.reciprocal {{%.*}} : (tensor<12x24xf32>) -> tensor<12x24xf32>
+  %0 = tosa.reciprocal %arg0 : (tensor<12x24xf32>) -> tensor<12x24xf32>
+  return %0 : tensor<12x24xf32>
+}
