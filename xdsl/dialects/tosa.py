@@ -324,6 +324,24 @@ class MatMulOp(IRDLOperation):
 
 
 @irdl_op_definition
+class ReduceAllOp(IRDLOperation):
+    """
+    Reduce a tensor along the given axis with a logical AND operation
+    """
+
+    name = "tosa.reduce_all"
+
+    input = operand_def(TensorType)
+    axis = prop_def(IntegerAttr[I32])
+
+    output = result_def(TensorType)
+
+    assembly_format = "$input attr-dict `:` functional-type(operands, results)"
+
+    irdl_options = [ParsePropInAttrDict()]
+
+
+@irdl_op_definition
 class MaxPool2DOp(IRDLOperation):
     """
     TOSA dialect operation for performing 2D max pooling on a tensor.
@@ -421,6 +439,7 @@ TOSA = Dialect(
         SinOp,
         CosOp,
         ReciprocalOp,
+        ReduceAllOp,
         MatMulOp,
         MaxPool2DOp,
         AvgPool2DOp,

@@ -124,3 +124,10 @@ func.func @test_recip_f32(%arg0: tensor<12x24xf32>) -> tensor<12x24xf32> {
   %0 = tosa.reciprocal %arg0 : (tensor<12x24xf32>) -> tensor<12x24xf32>
   return %0 : tensor<12x24xf32>
 }
+
+// -----
+// CHECK-LABEL: reduce_all
+func.func @test_reduce_all(%arg0: tensor<31x5x3xi1>) -> tensor<1x5x3xi1> {
+  %0 = tosa.reduce_all %arg0 {axis = 0 : i32} : (tensor<31x5x3xi1>) -> tensor<1x5x3xi1>
+  return %0 : tensor<1x5x3xi1>
+}
