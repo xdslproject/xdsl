@@ -323,13 +323,15 @@ class MatMulOp(IRDLOperation):
         #     )
 
 
-@irdl_op_definition
-class ReduceAllOp(IRDLOperation):
-    """
-    Reduce a tensor along the given axis with a logical AND operation
-    """
+################################################################################
+# Reduction ops                                                                #
+################################################################################
 
-    name = "tosa.reduce_all"
+
+class ReductionOperation(IRDLOperation, ABC):
+    """
+    Base class for all TOSA reduction operations
+    """
 
     input = operand_def(TensorType)
     axis = prop_def(IntegerAttr[I32])
@@ -339,6 +341,24 @@ class ReduceAllOp(IRDLOperation):
     assembly_format = "$input attr-dict `:` functional-type(operands, results)"
 
     irdl_options = [ParsePropInAttrDict()]
+
+
+@irdl_op_definition
+class ReduceAllOp(ReductionOperation):
+    """
+    Reduce a tensor along the given axis with a logical AND operation
+    """
+
+    name = "tosa.reduce_all"
+
+
+@irdl_op_definition
+class ReduceAnyOp(ReductionOperation):
+    """
+    Reduce a tensor along the given axis with a logical OR operation
+    """
+
+    name = "tosa.reduce_any"
 
 
 @irdl_op_definition
@@ -440,6 +460,7 @@ TOSA = Dialect(
         CosOp,
         ReciprocalOp,
         ReduceAllOp,
+        ReduceAnyOp,
         MatMulOp,
         MaxPool2DOp,
         AvgPool2DOp,
