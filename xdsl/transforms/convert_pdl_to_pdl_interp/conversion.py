@@ -107,7 +107,7 @@ class ChooseNode(MatcherNode):
 
     parent: MatcherNode
 
-    choices: list[MatcherNode | None]
+    choices: dict[OperationPosition, MatcherNode] = field(default_factory=lambda: {})
 
 
 @dataclass(kw_only=True)
@@ -1087,9 +1087,9 @@ class GroupedPredicates:
 
 @dataclass
 class PredicateSplit:
-    splits: list[list["OrderedPredicate | PredicateSplit"]] = field(
-        default_factory=lambda: []
-    )
+    splits: list[
+        tuple[OperationPosition, list["OrderedPredicate | PredicateSplit"]]
+    ] = field(default_factory=lambda: [])
 
 
 @dataclass
@@ -1298,13 +1298,15 @@ class PredicateTreeBuilder:
             ] = [(sorted_predicates, op_pos_tree.children)]
             while worklist:
                 preds, children = worklist.pop()
-                splits: list[list[OrderedPredicate | PredicateSplit]] = []
+                splits: list[
+                    tuple[OperationPosition, list[OrderedPredicate | PredicateSplit]]
+                ] = []
                 for child in children:
                     child_predicates = cast(
                         list[OrderedPredicate | PredicateSplit],
                         sorted(pos_to_pred_group[child.operation].predicates),
                     )
-                    splits.append(child_predicates)
+                    splits.append((child.operation, child_predicates))
                     worklist.append((child_predicates, child.children))
                 preds.append(PredicateSplit(splits))
 
@@ -1490,22 +1492,16 @@ class PredicateTreeBuilder:
                 return SuccessNode(pattern=pattern, root=root_val, failure_node=node)
             assert parent is not None
             if node is None:
-                node = ChooseNode(
-                    None,
-                    None,
-                    None,
-                    parent=parent,
-                    choices=[None for _ in range(len(current_predicate.splits))],
-                )
+                node = ChooseNode(parent=parent)
             if isinstance(node, ChooseNode):
                 choice = path[0]
                 path = path[1:]
-
-                node.choices[choice] = self._propagate_pattern(
-                    node.choices[choice],
+                position, predicates = current_predicate.splits[choice]
+                node.choices[position] = self._propagate_pattern(
+                    node.choices.get(position),
                     pattern,
                     pattern_predicates,
-                    current_predicate.splits[choice],
+                    predicates,
                     0,
                     path,
                     parent=node,
@@ -1618,18 +1614,12 @@ class PredicateTreeBuilder:
                 if child_node is not None:
                     root.children[answer] = self._optimize_tree(child_node)
         elif isinstance(root, ChooseNode):
-            choices: list[MatcherNode] = []
-            for choice in root.choices:
-                if choice is not None:
-                    choices.append(self._optimize_tree(choice))
-            # if len(choices) == 1:
-            #     return choices[0]
+            choices: dict[OperationPosition, MatcherNode] = {}
+            for position, choice in root.choices.items():
+                choices[position] = self._optimize_tree(choice)
             return ChooseNode(
-                None,
-                None,
-                None,
                 parent=root.parent,
-                choices=cast(list[MatcherNode | None], choices),
+                choices=choices,
             )
         elif isinstance(root, BoolNode):
             if root.success_node is not None:
@@ -2176,30 +2166,18 @@ class MatcherGenerator:
             self.failure_block_stack[-1] if self.failure_block_stack else None
         )
 
-        # Push this block as the failure destination for choices
-        # When a choice fails, control should jump back to the choose operation
-        self.failure_block_stack.append(block)
+        # Push the finalize block as the failure destination.
+        # When a choice fails, finalize should be called and the backtrack stack is incremented.
+        self.failure_block_stack.append(self.failure_block_stack[0])
 
         # Generate blocks for each non-None choice
         choice_blocks: list[Block] = []
-        for choice in node.choices:
-            if choice is not None:
-                choice_block = self.generate_matcher(choice, region)
-                choice_blocks.append(choice_block)
+        for choice in node.choices.values():
+            choice_block = self.generate_matcher(choice, region)
+            choice_blocks.append(choice_block)
 
         # Pop the failure destination we pushed
         self.failure_block_stack.pop()
-
-        # Check if block already has a terminator and remove it if necessary
-        if block.ops:
-            last_op = list(block.ops)[-1]
-            from xdsl.traits import IsTerminator
-
-            is_terminator = any(
-                isinstance(trait, IsTerminator) for trait in last_op.traits
-            )
-            if is_terminator:
-                last_op.detach()
 
         # Set insertion point and create the eqsat.choose operation as a terminator
         self.builder.insertion_point = InsertPoint.at_end(block)
