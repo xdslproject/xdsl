@@ -1537,6 +1537,7 @@ class PredicateTreeBuilder:
                         parent.children[answer] = replacement_node
                         replaced = True
                 assert replaced
+            node = replacement_node
 
         # Create or match existing node
         if node is None:
