@@ -323,44 +323,6 @@ class MatMulOp(IRDLOperation):
         #     )
 
 
-################################################################################
-# Reduction ops                                                                #
-################################################################################
-
-
-class ReductionOperation(IRDLOperation, ABC):
-    """
-    Base class for all TOSA reduction operations
-    """
-
-    input = operand_def(TensorType)
-    axis = prop_def(IntegerAttr[I32])
-
-    output = result_def(TensorType)
-
-    assembly_format = "$input attr-dict `:` functional-type(operands, results)"
-
-    irdl_options = [ParsePropInAttrDict()]
-
-
-@irdl_op_definition
-class ReduceAllOp(ReductionOperation):
-    """
-    Reduce a tensor along the given axis with a logical AND operation
-    """
-
-    name = "tosa.reduce_all"
-
-
-@irdl_op_definition
-class ReduceAnyOp(ReductionOperation):
-    """
-    Reduce a tensor along the given axis with a logical OR operation
-    """
-
-    name = "tosa.reduce_any"
-
-
 @irdl_op_definition
 class MaxPool2DOp(IRDLOperation):
     """
@@ -448,6 +410,84 @@ class ConcatOp(IRDLOperation):
     assembly_format = "$tensors attr-dict `:` `(` type($tensors) `)` `->` type($output)"
 
 
+################################################################################
+# Reduction ops                                                                #
+################################################################################
+
+
+class ReductionOperation(IRDLOperation, ABC):
+    """
+    Base class for all TOSA reduction operations
+    """
+
+    input = operand_def(TensorType)
+    axis = prop_def(IntegerAttr[I32])
+
+    output = result_def(TensorType)
+
+    assembly_format = "$input attr-dict `:` functional-type(operands, results)"
+
+    irdl_options = [ParsePropInAttrDict()]
+
+
+@irdl_op_definition
+class ReduceAllOp(ReductionOperation):
+    """
+    Reduce a tensor along the given axis with a logical AND operation
+    """
+
+    name = "tosa.reduce_all"
+
+
+@irdl_op_definition
+class ReduceAnyOp(ReductionOperation):
+    """
+    Reduce a tensor along the given axis with a logical OR operation
+    """
+
+    name = "tosa.reduce_any"
+
+
+@irdl_op_definition
+class ReduceMaxOp(ReductionOperation):
+    """
+    Reduce a tensor along the given axis by taking the maximum value
+    """
+
+    name = "tosa.reduce_max"
+
+    nan_mode = prop_def(StringAttr, default_value=StringAttr("PROPAGATE"))
+
+
+@irdl_op_definition
+class ReduceMinOp(ReductionOperation):
+    """
+    Reduce a tensor along the given axis by taking the minimum value
+    """
+
+    name = "tosa.reduce_min"
+
+    nan_mode = prop_def(StringAttr, default_value=StringAttr("PROPAGATE"))
+
+
+@irdl_op_definition
+class ReduceProdOp(ReductionOperation):
+    """
+    Reduce a tensor along the given axis by taking the product of all values
+    """
+
+    name = "tosa.reduce_prod"
+
+
+@irdl_op_definition
+class ReduceSumOp(ReductionOperation):
+    """
+    Reduce a tensor along the given axis by taking the product of all values
+    """
+
+    name = "tosa.reduce_sum"
+
+
 TOSA = Dialect(
     "tosa",
     [
@@ -461,6 +501,10 @@ TOSA = Dialect(
         ReciprocalOp,
         ReduceAllOp,
         ReduceAnyOp,
+        ReduceMaxOp,
+        ReduceMinOp,
+        ReduceProdOp,
+        ReduceSumOp,
         MatMulOp,
         MaxPool2DOp,
         AvgPool2DOp,
