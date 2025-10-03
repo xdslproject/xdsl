@@ -45,8 +45,8 @@ class BacktrackPoint:
     scope: ScopedDict[SSAValue, Any]
     """Variable scope to restore when backtracking."""
 
-    gdo_op: pdl_interp.GetDefiningOpOp
-    """The GetDefiningOpOp that created this backtrack point."""
+    cause: pdl_interp.GetDefiningOpOp | eqsat.ChooseOp
+    """The GetDefiningOpOp or ChooseOp that created this backtrack point."""
 
     index: int
     """Current operand index being tried in the EClassOp."""
@@ -209,7 +209,7 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
 
         eclass_op = defining_op
         if not self.visited:  # we come directly from run_finalize
-            if op != self.backtrack_stack[-1].gdo_op:
+            if op != self.backtrack_stack[-1].cause:
                 # we first encounter a GDO that is not the one we are backtracking to:
                 raise InterpretationError(
                     "Case where a block contains multiple pdl_interp.get_defining_op is currently not supported."
@@ -382,6 +382,33 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
                 self.visited = False
                 return Successor(backtrack_point.block, backtrack_point.block_args), ()
         return ReturnedValues(()), ()
+
+    @impl_terminator(eqsat.ChooseOp)
+    def run_choose(
+        self, interpreter: Interpreter, op: eqsat.ChooseOp, args: tuple[Any, ...]
+    ):
+        if not self.visited:  # we come directly from run_finalize
+            if op != self.backtrack_stack[-1].cause:
+                raise InterpretationError(
+                    "Expected this ChooseOp to be at the top of the backtrack stack."
+                )
+            index = self.backtrack_stack[-1].index
+            self.visited = True
+        else:
+            block = op.parent_block()
+            assert block
+            block_args = interpreter.get_values(block.args)
+            scope = interpreter._ctx.parent  # pyright: ignore[reportPrivateUsage]
+            assert scope
+            index = 0
+            self.backtrack_stack.append(
+                BacktrackPoint(block, block_args, scope, op, index, len(op.choices))
+            )
+        if index == len(op.choices):
+            dest = op.default_dest
+        else:
+            dest = op.choices[index]
+        return Successor(dest, ()), ()
 
     def repair(self, eclass: eqsat.EClassOp):
         unique_parents = KnownOps()
