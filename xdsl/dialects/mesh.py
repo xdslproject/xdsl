@@ -15,6 +15,7 @@ from xdsl.dialects.builtin import (
     IntegerAttr,
     SymbolNameConstraint,
     TensorType,
+    UnitAttr,
     i16,
     i64,
 )
@@ -258,6 +259,85 @@ class ScatterOp(CollectiveCommunicationOp):
     custom_directives = (DynamicIndexList,)
 
 
+@irdl_op_definition
+class RecvOp(CollectiveCommunicationOp):
+    """
+    Receive from a device within a device group.
+    """
+
+    name = "mesh.recv"
+
+    input = operand_def(TensorType)
+    source = opt_prop_def(DenseArrayBase[I64])
+    source_dynamic = var_operand_def(IndexType)
+
+    result = result_def(TensorType)
+
+    assembly_format = (
+        "$input `on` $mesh (`mesh_axes` `=` $mesh_axes^)? "
+        + "(`source` `=` custom<DynamicIndexList>($source_dynamic, $source)^)? "
+        + "attr-dict `:` functional-type(operands, results)"
+    )
+
+    custom_directives = (DynamicIndexList,)
+
+
+@irdl_op_definition
+class SendOp(CollectiveCommunicationOp):
+    """
+    Send from one device to another within a device group.
+    """
+
+    name = "mesh.send"
+
+    input = operand_def(TensorType)
+
+    destination = prop_def(DenseArrayBase[I64])
+    destination_dynamic = var_operand_def(IndexType)
+
+    result = result_def(TensorType)
+
+    assembly_format = (
+        "$input `on` $mesh (`mesh_axes` `=` $mesh_axes^)? "
+        + "`destination` `=` custom<DynamicIndexList>($destination_dynamic, $destination) "
+        + "attr-dict `:` functional-type(operands, results)"
+    )
+
+    custom_directives = (DynamicIndexList,)
+
+
+@irdl_op_definition
+class ShiftOp(CollectiveCommunicationOp):
+    """
+    Shift over a device mesh.
+
+    Within each device group shift along `shift_axis` by `offset`. If the
+    `rotate` flag is present a rotation is performed instead of a shift.
+    """
+
+    name = "mesh.shift"
+
+    input = operand_def(TensorType)
+
+    shift_axis = prop_def(IntegerAttr.constr(IndexTypeConstr))
+    offset = prop_def(IntegerAttr[I64])
+    rotate = prop_def(UnitAttr)
+
+    result = result_def(TensorType)
+
+    traits = traits_def(
+        Pure(),
+    )
+
+    assembly_format = (
+        "$input `on` $mesh (`mesh_axes` `=` $mesh_axes^)? "
+        + "`shift_axis` `=` $shift_axis "
+        + "`offset` `=` $offset "
+        + "(`rotate` $rotate^)? "
+        + "attr-dict `:` type($input) `->` type($result)"
+    )
+
+
 ################################################################################
 # Operations on mesh                                                           #
 ################################################################################
@@ -351,7 +431,10 @@ Mesh = Dialect(
     [
         BroadcastOp,
         GatherOp,
+        RecvOp,
+        SendOp,
         ScatterOp,
+        ShiftOp,
         MeshOp,
         ShardingOp,
     ],
