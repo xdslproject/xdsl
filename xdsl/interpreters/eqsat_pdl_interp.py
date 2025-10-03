@@ -377,6 +377,9 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
                     backtrack_point.scope
                 )
                 self.visited = False
+                # TODO: block args are always empty (there are no block args in pdl_interp).
+                # backtrackpoint shouldn't store them then.
+                assert not backtrack_point.block_args
                 return Successor(backtrack_point.block, backtrack_point.block_args), ()
         return ReturnedValues(()), ()
 
