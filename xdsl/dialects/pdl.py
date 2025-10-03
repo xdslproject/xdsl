@@ -27,6 +27,7 @@ from xdsl.ir import (
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
+    ParsePropInAttrDict,
     base,
     irdl_attr_definition,
     irdl_op_definition,
@@ -188,6 +189,8 @@ class ApplyNativeConstraintOp(IRDLOperation):
     )
     args = var_operand_def(AnyPDLTypeConstr)
     res = var_result_def(AnyPDLTypeConstr)
+
+    irdl_options = [ParsePropInAttrDict()]
 
     assembly_format = (
         "$name (`(` $args^ `:` type($args) `)`)? (`:` type($res)^)? attr-dict"
