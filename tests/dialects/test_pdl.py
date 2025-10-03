@@ -31,6 +31,11 @@ def test_build_anc():
 
     assert anc.constraint_name == StringAttr("anc")
     assert anc.args == (type_val,)
+    assert bool(anc.is_negated.value.data) is False
+
+    anc2 = pdl.ApplyNativeConstraintOp("anc", [type_val], [], is_negated=True)
+    assert bool(anc2.is_negated.value.data) is True
+    assert anc2.args == (type_val,)
 
 
 def test_build_anr():
