@@ -912,3 +912,168 @@ def test_run_get_defining_op_block_argument():
     )
     assert result == (None,)
     assert len(interp_functions.backtrack_stack) == 1
+
+
+def test_run_choose_not_visited():
+    """Test that run_choose handles ChooseOp when not visited (coming from run_finalize)."""
+    interpreter = Interpreter(ModuleOp([]))
+    interp_functions = EqsatPDLInterpFunctions(Context())
+    interpreter.register_implementations(interp_functions)
+
+    # Create blocks for choices and default
+    from xdsl.ir import Block
+
+    choice1_block = Block()
+    choice2_block = Block()
+    default_block = Block()
+
+    # Create ChooseOp with two choices
+    choose_op = eqsat.ChooseOp([choice1_block, choice2_block], default_block)
+
+    # Set up backtrack stack with this ChooseOp and visited=False
+    from xdsl.interpreters.eqsat_pdl_interp import BacktrackPoint
+    from xdsl.utils.scoped_dict import ScopedDict
+
+    block = Block()
+    scope = ScopedDict[Any, Any]()
+    backtrack_point = BacktrackPoint(block, (), scope, choose_op, 1, 2)  # Index 1
+    interp_functions.backtrack_stack.append(backtrack_point)
+    interp_functions.visited = False
+
+    # Test ChooseOp execution
+    from xdsl.interpreter import Successor
+
+    result = interp_functions.run_choose(interpreter, choose_op, ())
+
+    # Should use index from backtrack stack (1) and set visited to True
+    assert interp_functions.visited
+    assert isinstance(result.terminator_value, Successor)
+    assert (
+        result.terminator_value.block == choice2_block
+    )  # Should go to choice at index 1
+    assert result.terminator_value.args == ()
+    assert result.values == ()
+
+
+def test_run_choose_visited():
+    """Test that run_choose handles ChooseOp when visited (creating new backtrack point)."""
+    interpreter = Interpreter(ModuleOp([]))
+    interp_functions = EqsatPDLInterpFunctions(Context())
+    interpreter.register_implementations(interp_functions)
+
+    # Create blocks for choices and default
+    from xdsl.ir import Block
+
+    choice1_block = Block()
+    choice2_block = Block()
+    default_block = Block()
+
+    # Create a parent block and add the ChooseOp to it
+    parent_block = Block()
+    choose_op = eqsat.ChooseOp([choice1_block, choice2_block], default_block)
+    parent_block.add_op(choose_op)
+
+    # Set visited to True and create a parent scope for the interpreter context
+    interp_functions.visited = True
+
+    # Create a child scope to give the current context a parent
+    from xdsl.utils.scoped_dict import ScopedDict
+
+    child_scope = ScopedDict(parent=interpreter._ctx)  # pyright: ignore[reportPrivateUsage]
+    interpreter._ctx = child_scope  # pyright: ignore[reportPrivateUsage]
+
+    # Test ChooseOp execution
+    from xdsl.interpreter import Successor
+
+    result = interp_functions.run_choose(interpreter, choose_op, ())
+
+    # Should create new backtrack point and use index 0
+    assert len(interp_functions.backtrack_stack) == 1
+    assert interp_functions.backtrack_stack[0].index == 0
+    assert interp_functions.backtrack_stack[0].max_index == 2  # len(choices)
+    assert interp_functions.backtrack_stack[0].cause == choose_op
+
+    # Should return first choice
+    assert isinstance(result.terminator_value, Successor)
+    assert (
+        result.terminator_value.block == choice1_block
+    )  # Should go to choice at index 0
+    assert result.terminator_value.args == ()
+    assert result.values == ()
+
+
+def test_run_choose_default_dest():
+    """Test that run_choose goes to default destination when index equals len(choices)."""
+    interpreter = Interpreter(ModuleOp([]))
+    interp_functions = EqsatPDLInterpFunctions(Context())
+    interpreter.register_implementations(interp_functions)
+
+    # Create blocks for choices and default
+    from xdsl.ir import Block
+
+    choice1_block = Block()
+    choice2_block = Block()
+    default_block = Block()
+
+    # Create ChooseOp with two choices
+    choose_op = eqsat.ChooseOp([choice1_block, choice2_block], default_block)
+
+    # Set up backtrack stack with index equal to number of choices
+    from xdsl.interpreters.eqsat_pdl_interp import BacktrackPoint
+    from xdsl.utils.scoped_dict import ScopedDict
+
+    block = Block()
+    scope = ScopedDict[Any, Any]()
+    backtrack_point = BacktrackPoint(
+        block, (), scope, choose_op, 2, 2
+    )  # Index 2 = len(choices)
+    interp_functions.backtrack_stack.append(backtrack_point)
+    interp_functions.visited = False
+
+    # Test ChooseOp execution
+    from xdsl.interpreter import Successor
+
+    result = interp_functions.run_choose(interpreter, choose_op, ())
+
+    # Should go to default destination
+    assert interp_functions.visited
+    assert isinstance(result.terminator_value, Successor)
+    assert (
+        result.terminator_value.block == default_block
+    )  # Should go to default destination
+    assert result.terminator_value.args == ()
+    assert result.values == ()
+
+
+def test_run_choose_error_wrong_op():
+    """Test that run_choose raises error when expected ChooseOp is not at top of backtrack stack."""
+    interpreter = Interpreter(ModuleOp([]))
+    interp_functions = EqsatPDLInterpFunctions(Context())
+    interpreter.register_implementations(interp_functions)
+
+    # Create blocks for choices and default
+    from xdsl.ir import Block
+
+    choice1_block = Block()
+    default_block = Block()
+
+    # Create two different ChooseOp operations
+    choose_op1 = eqsat.ChooseOp([choice1_block], default_block)
+    choose_op2 = eqsat.ChooseOp([choice1_block], default_block)
+
+    # Set up backtrack stack with different choose_op and visited=False
+    from xdsl.interpreters.eqsat_pdl_interp import BacktrackPoint
+    from xdsl.utils.scoped_dict import ScopedDict
+
+    block = Block()
+    scope = ScopedDict[Any, Any]()
+    backtrack_point = BacktrackPoint(block, (), scope, choose_op1, 0, 1)  # Different op
+    interp_functions.backtrack_stack.append(backtrack_point)
+    interp_functions.visited = False
+
+    # Test should raise InterpretationError when using different choose_op
+    with pytest.raises(
+        InterpretationError,
+        match="Expected this ChooseOp to be at the top of the backtrack stack.",
+    ):
+        interp_functions.run_choose(interpreter, choose_op2, ())
