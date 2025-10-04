@@ -109,3 +109,67 @@ func.func @test_sin(%arg0: tensor<13x21x3xf32>) -> tensor<13x21x3xf32> {
   %0 = tosa.sin %arg0 : (tensor<13x21x3xf32>) -> tensor<13x21x3xf32>
   return %0 : tensor<13x21x3xf32>
 }
+
+// -----
+// CHECK-LABEL: recip_i32
+func.func @test_recip_i32(%arg0: tensor<12x24xi32>) -> tensor<12x24xi32> {
+  // CHECK: {{%.*}} = tosa.reciprocal {{%.*}} : (tensor<12x24xi32>) -> tensor<12x24xi32>
+  %0 = tosa.reciprocal %arg0 : (tensor<12x24xi32>) -> tensor<12x24xi32>
+  return %0 : tensor<12x24xi32>
+}
+
+// -----
+// CHECK-LABEL: recip_f32
+func.func @test_recip_f32(%arg0: tensor<12x24xf32>) -> tensor<12x24xf32> {
+  // CHECK: {{%.*}} = tosa.reciprocal {{%.*}} : (tensor<12x24xf32>) -> tensor<12x24xf32>
+  %0 = tosa.reciprocal %arg0 : (tensor<12x24xf32>) -> tensor<12x24xf32>
+  return %0 : tensor<12x24xf32>
+}
+
+// -----
+// CHECK-LABEL: reduce_all
+func.func @test_reduce_all(%arg0: tensor<31x5x3xi1>) -> tensor<1x5x3xi1> {
+  // CHECK: {{%.*}} = tosa.reduce_all {{%.*}} {axis = 0 : i32} : (tensor<31x5x3xi1>) -> tensor<1x5x3xi1>
+  %0 = tosa.reduce_all %arg0 {axis = 0 : i32} : (tensor<31x5x3xi1>) -> tensor<1x5x3xi1>
+  return %0 : tensor<1x5x3xi1>
+}
+
+// -----
+// CHECK-LABEL: reduce_any
+func.func @test_reduce_any(%arg0: tensor<31x5x3xi1>) -> tensor<1x5x3xi1> {
+  // CHECK: {{%.*}} = tosa.reduce_any {{%.*}} {axis = 0 : i32} : (tensor<31x5x3xi1>) -> tensor<1x5x3xi1>
+  %0 = tosa.reduce_any %arg0 {axis = 0 : i32} : (tensor<31x5x3xi1>) -> tensor<1x5x3xi1>
+  return %0 : tensor<1x5x3xi1>
+}
+
+// -----
+// CHECK-LABEL: reduce_max
+func.func @test_reduce_max(%arg0: tensor<31x5x3xf32>) -> tensor<1x5x3xf32> {
+  // CHECK: {{%.*}} = tosa.reduce_max {{%.*}} {axis = 0 : i32} : (tensor<31x5x3xf32>) -> tensor<1x5x3xf32>
+  %0 = tosa.reduce_max %arg0 {axis = 0 : i32} : (tensor<31x5x3xf32>) -> tensor<1x5x3xf32>
+  return %0 : tensor<1x5x3xf32>
+}
+
+// -----
+// CHECK-LABEL: reduce_min
+func.func @test_reduce_min(%arg0: tensor<31x5x3xf32>) -> tensor<1x5x3xf32> {
+  // CHECK: {{%.*}} = tosa.reduce_min {{%.*}} {axis = 0 : i32} : (tensor<31x5x3xf32>) -> tensor<1x5x3xf32>
+  %0 = tosa.reduce_min %arg0 {axis = 0 : i32} : (tensor<31x5x3xf32>) -> tensor<1x5x3xf32>
+  return %0 : tensor<1x5x3xf32>
+}
+
+// -----
+// CHECK-LABEL: reduce_prod
+func.func @test_reduce_prod(%arg0: tensor<31x5x3xf32>) -> tensor<1x5x3xf32> {
+  // CHECK: {{%.*}} = tosa.reduce_prod {{%.*}} {axis = 0 : i32} : (tensor<31x5x3xf32>) -> tensor<1x5x3xf32>
+  %0 = tosa.reduce_prod %arg0 {axis = 0 : i32} : (tensor<31x5x3xf32>) -> tensor<1x5x3xf32>
+  return %0 : tensor<1x5x3xf32>
+}
+
+// -----
+// CHECK-LABEL: reduce_sum
+func.func @test_reduce_sum(%arg0: tensor<31x5x3xf32>) -> tensor<1x5x3xf32> {
+  // CHECK: {{%.*}} = tosa.reduce_sum {{%.*}} {axis = 0 : i32} : (tensor<31x5x3xf32>) -> tensor<1x5x3xf32>
+  %0 = tosa.reduce_sum %arg0 {axis = 0 : i32} : (tensor<31x5x3xf32>) -> tensor<1x5x3xf32>
+  return %0 : tensor<1x5x3xf32>
+}
