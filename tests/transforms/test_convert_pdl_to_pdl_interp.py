@@ -1,8 +1,26 @@
 from xdsl.builder import ImplicitBuilder
 from xdsl.dialects import pdl
+from xdsl.dialects.builtin import f32
 from xdsl.ir import Block, Region
-from xdsl.transforms.convert_pdl_to_pdl_interp.conversion import PatternAnalyzer
-from xdsl.transforms.convert_pdl_to_pdl_interp.predicate import OperationPosition
+from xdsl.transforms.convert_pdl_to_pdl_interp.conversion import (
+    PatternAnalyzer,
+    PredicateTreeBuilder,
+)
+from xdsl.transforms.convert_pdl_to_pdl_interp.predicate import (
+    IsNotNullQuestion,
+    OperandCountQuestion,
+    OperationNameQuestion,
+    OperationPosition,
+    PositionalPredicate,
+    ResultCountQuestion,
+    ResultPosition,
+    StringAnswer,
+    TrueAnswer,
+    TypeAnswer,
+    TypeConstraintQuestion,
+    TypePosition,
+    UnsignedAnswer,
+)
 
 
 def test_get_operation_depth():
@@ -32,3 +50,44 @@ def test_detect_roots():
     pattern = pdl.PatternOp(1, "pattern", body)
     roots = PatternAnalyzer().detect_roots(pattern)
     assert roots == [op2, op3]
+
+
+def test_extract_tree_predicates():
+    body = Region([Block()])
+    block = body.first_block
+    with ImplicitBuilder(block):
+        type = pdl.TypeOp(f32).result
+        pdl.OperationOp("op1", type_values=(type,)).op
+
+        pdl.RewriteOp(None, name="rewrite")
+    pattern = pdl.PatternOp(1, "pattern", body)
+
+    p = PredicateTreeBuilder()
+    predicates, _, _ = p._extract_pattern_predicates(pattern)  # pyright: ignore[reportPrivateUsage]
+
+    assert predicates[0] == PositionalPredicate(
+        OperationNameQuestion(),
+        StringAnswer("op1"),
+        root_pos := OperationPosition(None, depth=0),
+    )
+    assert predicates[1] == PositionalPredicate(
+        OperandCountQuestion(),
+        UnsignedAnswer(0),
+        root_pos,
+    )
+    assert predicates[2] == PositionalPredicate(
+        ResultCountQuestion(),
+        UnsignedAnswer(1),
+        root_pos,
+    )
+    assert predicates[3] == PositionalPredicate(
+        IsNotNullQuestion(),
+        TrueAnswer(),
+        result_pos := ResultPosition(root_pos, result_number=0),
+    )
+    assert predicates[4] == PositionalPredicate(
+        TypeConstraintQuestion(),
+        TypeAnswer(f32),
+        TypePosition(result_pos),
+    )
+    assert len(predicates) == 5
