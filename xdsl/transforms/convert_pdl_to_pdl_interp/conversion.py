@@ -3,7 +3,7 @@ PDL to PDL_interp Transformation
 """
 
 from abc import ABC
-from collections.abc import Sequence
+from collections.abc import Collection, Sequence
 from dataclasses import dataclass, field
 from typing import Optional, cast
 
@@ -29,6 +29,7 @@ from xdsl.transforms.convert_pdl_to_pdl_interp.predicate import (
     Question,
     TypeLiteralPosition,
     TypePosition,
+    ValuePosition,
     get_position_cost,
     get_question_cost,
 )
@@ -82,6 +83,19 @@ class ExitNode(MatcherNode):
 
 
 # =============================================================================
+# Root Ordering and Cost Graph
+# =============================================================================
+
+
+@dataclass
+class RootOrderingEntry:
+    """Entry in the root ordering cost graph"""
+
+    cost: tuple[int, int]  # (depth, tie_breaker)
+    connector: SSAValue  # Value that connects the roots
+
+
+# =============================================================================
 # Pattern Analysis
 # =============================================================================
 
@@ -119,6 +133,150 @@ class PatternAnalyzer:
             if isinstance(op, pdl.OperationOp) and op.op not in used
         ]
         return roots
+
+    def build_cost_graph(
+        self, roots: Sequence[SSAValue]
+    ) -> tuple[
+        dict[SSAValue, dict[SSAValue, RootOrderingEntry]],
+        dict[SSAValue, dict[SSAValue, OpIndex]],
+    ]:
+        """Builds the cost graph for connecting candidate roots."""
+        graph: dict[SSAValue, dict[SSAValue, RootOrderingEntry]] = {}
+        parent_maps: dict[SSAValue, dict[SSAValue, OpIndex]] = {}
+        connectors_roots_depths: dict[SSAValue, list[tuple[SSAValue, int]]] = {}
+
+        @dataclass
+        class Entry:
+            value: SSAValue
+            parent: SSAValue | None
+            index: int | None
+            depth: int
+
+        for root in roots:
+            to_visit = [Entry(root, None, None, 0)]
+            parent_map: dict[SSAValue, OpIndex] = {}
+            parent_maps[root] = parent_map
+            visited_values: set[SSAValue] = set()
+
+            while to_visit:
+                entry = to_visit.pop(0)
+                if entry.value in visited_values:
+                    continue
+                visited_values.add(entry.value)
+
+                if entry.parent is not None:
+                    parent_map[entry.value] = OpIndex(entry.parent, entry.index)
+
+                if entry.value not in connectors_roots_depths:
+                    connectors_roots_depths[entry.value] = []
+                connectors_roots_depths[entry.value].append((root, entry.depth))
+
+                defining_op = entry.value.owner
+                if isinstance(defining_op, pdl.OperationOp):
+                    operands = defining_op.operand_values
+                    if len(operands) == 1 and isinstance(
+                        operands[0].type, pdl.RangeType
+                    ):
+                        to_visit.append(
+                            Entry(operands[0], entry.value, None, entry.depth + 1)
+                        )
+                    else:
+                        for i, operand in enumerate(operands):
+                            to_visit.append(
+                                Entry(operand, entry.value, i, entry.depth + 1)
+                            )
+                elif isinstance(defining_op, pdl.ResultOp | pdl.ResultsOp):
+                    to_visit.append(
+                        Entry(
+                            defining_op.parent_,
+                            entry.value,
+                            defining_op.index.value.data if defining_op.index else None,
+                            entry.depth,
+                        )
+                    )
+
+        next_id = 0
+        for value, roots_depths in connectors_roots_depths.items():
+            if len(roots_depths) <= 1:
+                continue
+
+            for source_root, _ in roots_depths:
+                for target_root, depth in roots_depths:
+                    if source_root == target_root:
+                        continue
+                    if target_root not in graph:
+                        graph[target_root] = {}
+                    entry = graph[target_root].get(source_root)
+
+                    if entry is None or entry.cost[0] > depth:
+                        tie_breaker = entry.cost[1] if entry else next_id
+                        if entry is None:
+                            next_id += 1
+                        graph[target_root][source_root] = RootOrderingEntry(
+                            (depth, tie_breaker), value
+                        )
+        return graph, parent_maps
+
+    def _use_operand_group(self, op: pdl.OperationOp, index: int) -> bool:
+        """Checks if an operand at an index should be queried as a group."""
+        return any(
+            isinstance(op.operand_values[i].type, pdl.RangeType)
+            for i in range(index + 1)
+        )
+
+    def visit_upward(
+        self,
+        predicates: list[PositionalPredicate],
+        op_index: OpIndex,
+        inputs: dict[SSAValue, Position],
+        pos: ValuePosition,
+        root_id: int,
+    ) -> Position:
+        """Visit a node during upward traversal and generate predicates."""
+        value = op_index.parent
+        defining_op = value.owner
+
+        if isinstance(defining_op, pdl.OperationOp):
+            users_pos = pos.get_users(use_representative=True)
+            for_each_pos = users_pos.get_for_each(root_id)
+            op_pos = for_each_pos.get_passthrough_op()
+
+            if op_index.index is None:
+                # operand_pos = self.builder.get_all_operands(op_pos)
+                operand_pos = op_pos.get_all_operands()
+            elif self._use_operand_group(defining_op, op_index.index):
+                is_variadic = isinstance(
+                    defining_op.operand_values[op_index.index].type, pdl.RangeType
+                )
+                operand_pos = op_pos.get_operand_group(op_index.index, is_variadic)
+            else:
+                operand_pos = op_pos.get_operand(op_index.index)
+
+            equal_to = Predicate.get_equal_to(pos)
+            predicates.append(PositionalPredicate(equal_to.q, equal_to.a, operand_pos))
+
+            assert value not in inputs, "Duplicate upward visit"
+            inputs[value] = op_pos
+
+            predicates.extend(
+                self.extract_tree_predicates(
+                    value, op_pos, inputs, ignore_operand=op_index.index
+                )
+            )
+            return op_pos
+
+        elif isinstance(defining_op, pdl.ResultOp | pdl.ResultsOp):
+            assert isinstance(pos, OperationPosition)
+            if isinstance(defining_op, pdl.ResultOp):
+                assert op_index.index is not None
+                new_pos = pos.get_result(op_index.index)
+            else:
+                is_variadic = isinstance(value.type, pdl.RangeType)
+                new_pos = pos.get_result_group(op_index.index, is_variadic)
+            inputs.setdefault(value, new_pos)
+            return new_pos
+
+        raise TypeError(f"Unexpected op type in upward traversal: {type(defining_op)}")
 
     def extract_tree_predicates(
         self,
@@ -667,7 +825,7 @@ def _depends_on(pred_a: OrderedPredicate, pred_b: OrderedPredicate) -> bool:
     return position_depends_on_a(pred_b.position)
 
 
-def _stable_topological_sort(  # pyright: ignore[reportUnusedFunction]
+def _stable_topological_sort(
     predicates: list[OrderedPredicate],
 ) -> list[OrderedPredicate]:
     """Sorts predicates topologically while maintaining stability for independent items."""
@@ -706,17 +864,123 @@ def _stable_topological_sort(  # pyright: ignore[reportUnusedFunction]
     return sorted_list
 
 
+@dataclass
+class GroupedPredicates:
+    position: OperationPosition
+    predicates: list[OrderedPredicate] = field(default_factory=lambda: [])
+    primary_score: int = 0
+    secondary_score: int = 0
+
+    def sort_key(self):
+        return (
+            -self.position.get_operation_depth(),
+            self.primary_score,
+            self.secondary_score,
+        )
+
+    def __lt__(self, other: "GroupedPredicates") -> bool:
+        return (
+            -self.position.get_operation_depth(),
+            self.primary_score,
+            self.secondary_score,
+        ) > (
+            -other.position.get_operation_depth(),
+            other.primary_score,
+            other.secondary_score,
+        )
+
+
 class PredicateTreeBuilder:
     """Builds optimized predicate matching trees"""
 
     analyzer: PatternAnalyzer
     _pattern_roots: dict[pdl.PatternOp, SSAValue]
     pattern_value_positions: dict[pdl.PatternOp, dict[SSAValue, Position]]
+    optimize_for_eqsat: bool
 
-    def __init__(self):
+    def __init__(self, optimize_for_eqsat: bool = False):
         self.analyzer = PatternAnalyzer()
-        self._pattern_roots = {}
-        self.pattern_value_positions = {}
+        self._pattern_roots: dict[pdl.PatternOp, SSAValue] = {}
+        self.pattern_value_positions: dict[pdl.PatternOp, dict[SSAValue, Position]] = {}
+        self.optimize_for_eqsat = optimize_for_eqsat
+
+    def _build_operation_groups(self, predicates: Collection[OrderedPredicate]):
+        pos_to_group: dict[OperationPosition, GroupedPredicates] = {}
+
+        for pred in predicates:
+            op_pos = pred.position.get_base_operation()
+            group = pos_to_group.setdefault(op_pos, GroupedPredicates(position=op_pos))
+            group.predicates.append(pred)
+            group.primary_score += pred.primary_score
+            group.secondary_score += pred.secondary_score
+
+        return pos_to_group
+
+    def _sort_grouped(self, ordered_predicates: Collection[OrderedPredicate]):
+        pos_to_group = self._build_operation_groups(ordered_predicates)
+        sorted_predicates: list[OrderedPredicate] = []
+        seen_positions: set[OperationPosition] = set()
+        for group in sorted(pos_to_group.values()):
+            seen_positions.add(group.position)
+            to_delete: list[int] = []
+            for i, pred in enumerate(group.predicates):
+                if isinstance(q := pred.question, EqualToQuestion):
+                    if q.other_position.get_base_operation() in seen_positions:
+                        continue
+                    # If an EqualQuestion refers to a position that comes later, move it to the later group.
+                    new_q = EqualToQuestion(other_position=pred.position)
+                    pred.position = q.other_position
+                    pred.question = new_q
+                    to_delete.append(i)
+                    pos_to_group[pred.position.get_base_operation()].predicates.append(
+                        pred
+                    )
+            for i in reversed(to_delete):
+                del group.predicates[i]
+            sorted_predicates.extend(sorted(group.predicates))
+        return sorted_predicates
+
+    def build_predicate_tree(self, patterns: list[pdl.PatternOp]) -> MatcherNode:
+        """Build optimized matcher tree from multiple patterns"""
+
+        # Extract predicates for all patterns
+        all_pattern_predicates: list[
+            tuple[pdl.PatternOp, list[PositionalPredicate]]
+        ] = []
+        for pattern in patterns:
+            predicates, root, inputs = self._extract_pattern_predicates(pattern)
+            all_pattern_predicates.append((pattern, predicates))
+            self._pattern_roots[pattern] = root
+            self.pattern_value_positions[pattern] = inputs
+
+        # Create ordered predicates with frequency analysis
+        ordered_predicates = self._create_ordered_predicates(all_pattern_predicates)
+        if self.optimize_for_eqsat:
+            sorted_predicates = self._sort_grouped(ordered_predicates.values())
+        else:
+            # Sort predicates by priority
+            sorted_predicates = sorted(ordered_predicates.values())
+
+        sorted_predicates = _stable_topological_sort(sorted_predicates)
+
+        # Build matcher tree by propagating patterns
+        root_node = None
+        for pattern, predicates in all_pattern_predicates:
+            pattern_predicate_set = {
+                (pred.position, pred.q): pred for pred in predicates
+            }
+            root_node = self._propagate_pattern(
+                root_node, pattern, pattern_predicate_set, sorted_predicates, 0
+            )
+
+        # Add exit node and optimize
+        if root_node is not None:
+            root_node = self._optimize_tree(root_node)
+            root_node = self._insert_exit_node(root_node)
+            return root_node
+        else:
+            # Return a default exit node if no patterns were processed
+            return ExitNode()
 
     def _extract_pattern_predicates(
         self, pattern: pdl.PatternOp
