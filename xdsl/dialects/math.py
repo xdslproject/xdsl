@@ -8,15 +8,18 @@ See external [documentation](https://mlir.llvm.org/docs/Dialects/MathOps/).
 from __future__ import annotations
 
 import abc
+import math
 from typing import ClassVar
 
 from xdsl.dialects.arith import FastMathFlagsAttr
 from xdsl.dialects.builtin import (
     AnyFloatConstr,
     ContainerOf,
+    FloatAttr,
     IndexType,
     SignlessIntegerConstraint,
 )
+from xdsl.interfaces import HasFolderInterface
 from xdsl.ir import Dialect, Operation, SSAValue
 from xdsl.irdl import (
     AnyOf,
@@ -29,6 +32,7 @@ from xdsl.irdl import (
     traits_def,
 )
 from xdsl.traits import Pure, SameOperandsAndResultType
+from xdsl.utils.hints import isa
 
 signlessIntegerLike = ContainerOf(AnyOf([SignlessIntegerConstraint, IndexType]))
 floatingPointLike = ContainerOf(AnyFloatConstr)
@@ -126,7 +130,7 @@ class FloatingPointLikeBinaryMathOperation(IRDLOperation, abc.ABC):
 
 
 @irdl_op_definition
-class AbsFOp(FloatingPointLikeUnaryMathOperation):
+class AbsFOp(FloatingPointLikeUnaryMathOperation, HasFolderInterface):
     """
     The absf operation computes the absolute value. It takes one operand of
     floating point type (i.e., scalar, tensor or vector) and returns one result
@@ -141,6 +145,12 @@ class AbsFOp(FloatingPointLikeUnaryMathOperation):
     name = "math.absf"
 
     traits = traits_def(Pure(), SameOperandsAndResultType())
+
+    def fold(self):
+        cst = self.get_constant(self.operand)
+        if isa(cst, FloatAttr):
+            return [FloatAttr(abs(cst.value.data), cst.type)]
+        return None
 
 
 @irdl_op_definition
@@ -162,7 +172,7 @@ class AbsIOp(SignlessIntegerLikeUnaryMathOperation):
 
 
 @irdl_op_definition
-class AcosOp(FloatingPointLikeUnaryMathOperation):
+class AcosOp(FloatingPointLikeUnaryMathOperation, HasFolderInterface):
     """
     Arcus cosine of the specified value
 
@@ -179,9 +189,15 @@ class AcosOp(FloatingPointLikeUnaryMathOperation):
 
     traits = traits_def(Pure(), SameOperandsAndResultType())
 
+    def fold(self):
+        cst = self.get_constant(self.operand)
+        if isa(cst, FloatAttr):
+            return [FloatAttr(math.acos(cst.value.data), cst.type)]
+        return None
+
 
 @irdl_op_definition
-class AcoshOp(FloatingPointLikeUnaryMathOperation):
+class AcoshOp(FloatingPointLikeUnaryMathOperation, HasFolderInterface):
     """
     Hyperbolic arcus cosine of the given value
 
@@ -198,9 +214,15 @@ class AcoshOp(FloatingPointLikeUnaryMathOperation):
 
     traits = traits_def(Pure(), SameOperandsAndResultType())
 
+    def fold(self):
+        cst = self.get_constant(self.operand)
+        if isa(cst, FloatAttr):
+            return [FloatAttr(math.acosh(cst.value.data), cst.type)]
+        return None
+
 
 @irdl_op_definition
-class AsinOp(FloatingPointLikeUnaryMathOperation):
+class AsinOp(FloatingPointLikeUnaryMathOperation, HasFolderInterface):
     """
     Arcus sine of the given value
 
@@ -217,9 +239,15 @@ class AsinOp(FloatingPointLikeUnaryMathOperation):
 
     traits = traits_def(Pure(), SameOperandsAndResultType())
 
+    def fold(self):
+        cst = self.get_constant(self.operand)
+        if isa(cst, FloatAttr):
+            return [FloatAttr(math.asin(cst.value.data), cst.type)]
+        return None
+
 
 @irdl_op_definition
-class AsinhOp(FloatingPointLikeUnaryMathOperation):
+class AsinhOp(FloatingPointLikeUnaryMathOperation, HasFolderInterface):
     """
     Hyperbolic arcus sine of the given value
 
@@ -236,9 +264,15 @@ class AsinhOp(FloatingPointLikeUnaryMathOperation):
 
     traits = traits_def(Pure(), SameOperandsAndResultType())
 
+    def fold(self):
+        cst = self.get_constant(self.operand)
+        if isa(cst, FloatAttr):
+            return [FloatAttr(math.asinh(cst.value.data), cst.type)]
+        return None
+
 
 @irdl_op_definition
-class AtanhOp(FloatingPointLikeUnaryMathOperation):
+class AtanhOp(FloatingPointLikeUnaryMathOperation, HasFolderInterface):
     """
     Hyperbolic arcus tangent of the given value
 
@@ -255,9 +289,15 @@ class AtanhOp(FloatingPointLikeUnaryMathOperation):
 
     traits = traits_def(Pure(), SameOperandsAndResultType())
 
+    def fold(self):
+        cst = self.get_constant(self.operand)
+        if isa(cst, FloatAttr):
+            return [FloatAttr(math.atanh(cst.value.data), cst.type)]
+        return None
+
 
 @irdl_op_definition
-class Atan2Op(FloatingPointLikeBinaryMathOperation):
+class Atan2Op(FloatingPointLikeBinaryMathOperation, HasFolderInterface):
     """
     The atan2 operation takes two operands and returns one result, all of
     which must be of the same type.  The operands must be of floating point type
@@ -280,9 +320,20 @@ class Atan2Op(FloatingPointLikeBinaryMathOperation):
 
     traits = traits_def(Pure(), SameOperandsAndResultType())
 
+    def fold(self):
+        lhs_cst = self.get_constant(self.lhs)
+        rhs_cst = self.get_constant(self.rhs)
+        if isa(lhs_cst, FloatAttr) and isa(rhs_cst, FloatAttr):
+            return [
+                FloatAttr(
+                    math.atan2(lhs_cst.value.data, rhs_cst.value.data), lhs_cst.type
+                )
+            ]
+        return None
+
 
 @irdl_op_definition
-class AtanOp(FloatingPointLikeUnaryMathOperation):
+class AtanOp(FloatingPointLikeUnaryMathOperation, HasFolderInterface):
     """
     The atan operation computes the arcus tangent of a given value.  It takes
     one operand of floating point type (i.e., scalar, tensor or vector) and returns
@@ -298,9 +349,15 @@ class AtanOp(FloatingPointLikeUnaryMathOperation):
 
     traits = traits_def(Pure(), SameOperandsAndResultType())
 
+    def fold(self):
+        cst = self.get_constant(self.operand)
+        if isa(cst, FloatAttr):
+            return [FloatAttr(math.atan(cst.value.data), cst.type)]
+        return None
+
 
 @irdl_op_definition
-class CbrtOp(FloatingPointLikeUnaryMathOperation):
+class CbrtOp(FloatingPointLikeUnaryMathOperation, HasFolderInterface):
     """
     The cbrt operation computes the cube root. It takes one operand of
     floating point type (i.e., scalar, tensor or vector) and returns one result
@@ -318,9 +375,15 @@ class CbrtOp(FloatingPointLikeUnaryMathOperation):
 
     traits = traits_def(Pure(), SameOperandsAndResultType())
 
+    def fold(self):
+        cst = self.get_constant(self.operand)
+        if isa(cst, FloatAttr):
+            return [FloatAttr(math.cbrt(cst.value.data), cst.type)]
+        return None
+
 
 @irdl_op_definition
-class CeilOp(FloatingPointLikeUnaryMathOperation):
+class CeilOp(FloatingPointLikeUnaryMathOperation, HasFolderInterface):
     """
     The ceil operation computes the ceiling of a given value. It takes one
     operand of floating point type (i.e., scalar, tensor or vector) and returns one
@@ -336,9 +399,15 @@ class CeilOp(FloatingPointLikeUnaryMathOperation):
 
     traits = traits_def(Pure(), SameOperandsAndResultType())
 
+    def fold(self):
+        cst = self.get_constant(self.operand)
+        if isa(cst, FloatAttr):
+            return [FloatAttr(math.ceil(cst.value.data), cst.type)]
+        return None
+
 
 @irdl_op_definition
-class CopySignOp(FloatingPointLikeBinaryMathOperation):
+class CopySignOp(FloatingPointLikeBinaryMathOperation, HasFolderInterface):
     """
     The copysign returns a value with the magnitude of the first operand and
     the sign of the second operand. It takes two operands and returns one result of
@@ -355,9 +424,20 @@ class CopySignOp(FloatingPointLikeBinaryMathOperation):
 
     traits = traits_def(Pure(), SameOperandsAndResultType())
 
+    def fold(self):
+        lhs_cst = self.get_constant(self.lhs)
+        rhs_cst = self.get_constant(self.rhs)
+        if isa(lhs_cst, FloatAttr) and isa(rhs_cst, FloatAttr):
+            return [
+                FloatAttr(
+                    math.copysign(lhs_cst.value.data, rhs_cst.value.data), lhs_cst.type
+                )
+            ]
+        return None
+
 
 @irdl_op_definition
-class CosOp(FloatingPointLikeUnaryMathOperation):
+class CosOp(FloatingPointLikeUnaryMathOperation, HasFolderInterface):
     """
     The `cos` operation computes the cosine of a given value. It takes one
     operand of floating point type (i.e., scalar, tensor or vector) and returns one
@@ -373,9 +453,15 @@ class CosOp(FloatingPointLikeUnaryMathOperation):
 
     traits = traits_def(Pure(), SameOperandsAndResultType())
 
+    def fold(self):
+        cst = self.get_constant(self.operand)
+        if isa(cst, FloatAttr):
+            return [FloatAttr(math.cos(cst.value.data), cst.type)]
+        return None
+
 
 @irdl_op_definition
-class CoshOp(FloatingPointLikeUnaryMathOperation):
+class CoshOp(FloatingPointLikeUnaryMathOperation, HasFolderInterface):
     """
     The cosh operation computes the hyperbolic cosine. It takes one
     operand of floating point type (i.e., scalar, tensor or vector) and returns
@@ -390,6 +476,12 @@ class CoshOp(FloatingPointLikeUnaryMathOperation):
     name = "math.cosh"
 
     traits = traits_def(Pure(), SameOperandsAndResultType())
+
+    def fold(self):
+        cst = self.get_constant(self.operand)
+        if isa(cst, FloatAttr):
+            return [FloatAttr(math.cosh(cst.value.data), cst.type)]
+        return None
 
 
 @irdl_op_definition
@@ -444,7 +536,7 @@ class CtPopOp(SignlessIntegerLikeUnaryMathOperation):
 
 
 @irdl_op_definition
-class ErfOp(FloatingPointLikeUnaryMathOperation):
+class ErfOp(FloatingPointLikeUnaryMathOperation, HasFolderInterface):
     """
     The erf operation computes the error function. It takes one operand of
     floating point type (i.e., scalar, tensor or vector) and returns one result of
@@ -460,9 +552,15 @@ class ErfOp(FloatingPointLikeUnaryMathOperation):
 
     traits = traits_def(Pure(), SameOperandsAndResultType())
 
+    def fold(self):
+        cst = self.get_constant(self.operand)
+        if isa(cst, FloatAttr):
+            return [FloatAttr(math.erf(cst.value.data), cst.type)]
+        return None
+
 
 @irdl_op_definition
-class Exp2Op(FloatingPointLikeUnaryMathOperation):
+class Exp2Op(FloatingPointLikeUnaryMathOperation, HasFolderInterface):
     """
     The exp operation takes one operand of floating point type (i.e., scalar,
     tensor or vector) and returns one result of the same type. It has no standard
@@ -478,9 +576,15 @@ class Exp2Op(FloatingPointLikeUnaryMathOperation):
 
     traits = traits_def(Pure(), SameOperandsAndResultType())
 
+    def fold(self):
+        cst = self.get_constant(self.operand)
+        if isa(cst, FloatAttr):
+            return [FloatAttr(math.exp2(cst.value.data), cst.type)]
+        return None
+
 
 @irdl_op_definition
-class ExpM1Op(FloatingPointLikeUnaryMathOperation):
+class ExpM1Op(FloatingPointLikeUnaryMathOperation, HasFolderInterface):
     """
     expm1(x) := exp(x) - 1
 
@@ -498,9 +602,15 @@ class ExpM1Op(FloatingPointLikeUnaryMathOperation):
 
     traits = traits_def(Pure(), SameOperandsAndResultType())
 
+    def fold(self):
+        cst = self.get_constant(self.operand)
+        if isa(cst, FloatAttr):
+            return [FloatAttr(math.expm1(cst.value.data), cst.type)]
+        return None
+
 
 @irdl_op_definition
-class ExpOp(FloatingPointLikeUnaryMathOperation):
+class ExpOp(FloatingPointLikeUnaryMathOperation, HasFolderInterface):
     """
     The exp operation takes one operand of floating point type (i.e., scalar,
     tensor or vector) and returns one result of the same type. It has no standard
@@ -515,6 +625,12 @@ class ExpOp(FloatingPointLikeUnaryMathOperation):
     name = "math.exp"
 
     traits = traits_def(Pure(), SameOperandsAndResultType())
+
+    def fold(self):
+        cst = self.get_constant(self.operand)
+        if isa(cst, FloatAttr):
+            return [FloatAttr(math.exp(cst.value.data), cst.type)]
+        return None
 
 
 @irdl_op_definition
@@ -566,7 +682,7 @@ class FPowIOp(IRDLOperation):
 
 
 @irdl_op_definition
-class FloorOp(FloatingPointLikeUnaryMathOperation):
+class FloorOp(FloatingPointLikeUnaryMathOperation, HasFolderInterface):
     """
     The floor operation computes the floor of a given value. It takes one
     operand of floating point type (i.e., scalar, tensor or vector) and returns one
@@ -581,6 +697,12 @@ class FloorOp(FloatingPointLikeUnaryMathOperation):
     name = "math.floor"
 
     traits = traits_def(Pure(), SameOperandsAndResultType())
+
+    def fold(self):
+        cst = self.get_constant(self.operand)
+        if isa(cst, FloatAttr):
+            return [FloatAttr(math.floor(cst.value.data), cst.type)]
+        return None
 
 
 @irdl_op_definition
@@ -651,7 +773,7 @@ class IPowIOp(SignlessIntegerLikeBinaryMathOperation):
 
 
 @irdl_op_definition
-class Log10Op(FloatingPointLikeUnaryMathOperation):
+class Log10Op(FloatingPointLikeUnaryMathOperation, HasFolderInterface):
     """
     Computes the base-10 logarithm of the given value. It takes one operand of
     floating point type (i.e., scalar, tensor or vector) and returns one result of
@@ -667,9 +789,15 @@ class Log10Op(FloatingPointLikeUnaryMathOperation):
 
     traits = traits_def(Pure(), SameOperandsAndResultType())
 
+    def fold(self):
+        cst = self.get_constant(self.operand)
+        if isa(cst, FloatAttr):
+            return [FloatAttr(math.log10(cst.value.data), cst.type)]
+        return None
+
 
 @irdl_op_definition
-class Log1pOp(FloatingPointLikeUnaryMathOperation):
+class Log1pOp(FloatingPointLikeUnaryMathOperation, HasFolderInterface):
     """
     Computes the base-e logarithm of one plus the given value. It takes one
     operand of floating point type (i.e., scalar, tensor or vector) and returns one
@@ -687,9 +815,15 @@ class Log1pOp(FloatingPointLikeUnaryMathOperation):
 
     traits = traits_def(Pure(), SameOperandsAndResultType())
 
+    def fold(self):
+        cst = self.get_constant(self.operand)
+        if isa(cst, FloatAttr):
+            return [FloatAttr(math.log1p(cst.value.data), cst.type)]
+        return None
+
 
 @irdl_op_definition
-class Log2Op(FloatingPointLikeUnaryMathOperation):
+class Log2Op(FloatingPointLikeUnaryMathOperation, HasFolderInterface):
     """
     Computes the base-2 logarithm of the given value. It takes one operand of
     floating point type (i.e., scalar, tensor or vector) and returns one result of
@@ -705,9 +839,15 @@ class Log2Op(FloatingPointLikeUnaryMathOperation):
 
     traits = traits_def(Pure(), SameOperandsAndResultType())
 
+    def fold(self):
+        cst = self.get_constant(self.operand)
+        if isa(cst, FloatAttr):
+            return [FloatAttr(math.log2(cst.value.data), cst.type)]
+        return None
+
 
 @irdl_op_definition
-class LogOp(FloatingPointLikeUnaryMathOperation):
+class LogOp(FloatingPointLikeUnaryMathOperation, HasFolderInterface):
     """
     Computes the base-e logarithm of the given value. It takes one operand of
     floating point type (i.e., scalar, tensor or vector) and returns one result of
@@ -723,9 +863,15 @@ class LogOp(FloatingPointLikeUnaryMathOperation):
 
     traits = traits_def(Pure(), SameOperandsAndResultType())
 
+    def fold(self):
+        cst = self.get_constant(self.operand)
+        if isa(cst, FloatAttr):
+            return [FloatAttr(math.log(cst.value.data), cst.type)]
+        return None
+
 
 @irdl_op_definition
-class PowFOp(FloatingPointLikeBinaryMathOperation):
+class PowFOp(FloatingPointLikeBinaryMathOperation, HasFolderInterface):
     """
     The powf operation takes two operands of floating point type (i.e.,
     scalar, tensor or vector) and returns one result of the same type. Operands
@@ -740,6 +886,17 @@ class PowFOp(FloatingPointLikeBinaryMathOperation):
     name = "math.powf"
 
     traits = traits_def(Pure(), SameOperandsAndResultType())
+
+    def fold(self):
+        lhs_cst = self.get_constant(self.lhs)
+        rhs_cst = self.get_constant(self.rhs)
+        if isa(lhs_cst, FloatAttr) and isa(rhs_cst, FloatAttr):
+            return [
+                FloatAttr(
+                    math.pow(lhs_cst.value.data, rhs_cst.value.data), lhs_cst.type
+                )
+            ]
+        return None
 
 
 @irdl_op_definition
@@ -764,7 +921,7 @@ class RoundEvenOp(FloatingPointLikeUnaryMathOperation):
 
 
 @irdl_op_definition
-class RoundOp(FloatingPointLikeUnaryMathOperation):
+class RoundOp(FloatingPointLikeUnaryMathOperation, HasFolderInterface):
     """
     The round operation returns the operand rounded to the nearest integer
     value in floating-point format. It takes one operand of floating point type
@@ -782,6 +939,12 @@ class RoundOp(FloatingPointLikeUnaryMathOperation):
     name = "math.round"
 
     traits = traits_def(Pure(), SameOperandsAndResultType())
+
+    def fold(self):
+        cst = self.get_constant(self.operand)
+        if isa(cst, FloatAttr):
+            return [FloatAttr(round(cst.value.data, 0), cst.type)]
+        return None
 
 
 @irdl_op_definition
@@ -802,7 +965,7 @@ class RsqrtOp(FloatingPointLikeUnaryMathOperation):
 
 
 @irdl_op_definition
-class SinOp(FloatingPointLikeUnaryMathOperation):
+class SinOp(FloatingPointLikeUnaryMathOperation, HasFolderInterface):
     """
     The sin operation computes the sine of a given value. It takes one
     operand of floating point type (i.e., scalar, tensor or vector) and returns one
@@ -818,9 +981,15 @@ class SinOp(FloatingPointLikeUnaryMathOperation):
 
     traits = traits_def(Pure(), SameOperandsAndResultType())
 
+    def fold(self):
+        cst = self.get_constant(self.operand)
+        if isa(cst, FloatAttr):
+            return [FloatAttr(math.sin(cst.value.data), cst.type)]
+        return None
+
 
 @irdl_op_definition
-class SinhOp(FloatingPointLikeUnaryMathOperation):
+class SinhOp(FloatingPointLikeUnaryMathOperation, HasFolderInterface):
     """
     The sinh operation computes the hyperbolic sine. It takes one
     operand of floating point type (i.e., scalar, tensor or vector) and
@@ -836,9 +1005,15 @@ class SinhOp(FloatingPointLikeUnaryMathOperation):
 
     traits = traits_def(Pure(), SameOperandsAndResultType())
 
+    def fold(self):
+        cst = self.get_constant(self.operand)
+        if isa(cst, FloatAttr):
+            return [FloatAttr(math.sinh(cst.value.data), cst.type)]
+        return None
+
 
 @irdl_op_definition
-class SqrtOp(FloatingPointLikeUnaryMathOperation):
+class SqrtOp(FloatingPointLikeUnaryMathOperation, HasFolderInterface):
     """
     The sqrt operation computes the square root. It takes one operand of
     floating point type (i.e., scalar, tensor or vector) and returns one result of
@@ -853,9 +1028,15 @@ class SqrtOp(FloatingPointLikeUnaryMathOperation):
 
     traits = traits_def(Pure(), SameOperandsAndResultType())
 
+    def fold(self):
+        cst = self.get_constant(self.operand)
+        if isa(cst, FloatAttr):
+            return [FloatAttr(math.sqrt(cst.value.data), cst.type)]
+        return None
+
 
 @irdl_op_definition
-class TanOp(FloatingPointLikeUnaryMathOperation):
+class TanOp(FloatingPointLikeUnaryMathOperation, HasFolderInterface):
     """
     The tan operation computes the tangent. It takes one operand
     of floating point type (i.e., scalar, tensor or vector) and returns one
@@ -871,9 +1052,15 @@ class TanOp(FloatingPointLikeUnaryMathOperation):
 
     traits = traits_def(Pure(), SameOperandsAndResultType())
 
+    def fold(self):
+        cst = self.get_constant(self.operand)
+        if isa(cst, FloatAttr):
+            return [FloatAttr(math.tan(cst.value.data), cst.type)]
+        return None
+
 
 @irdl_op_definition
-class TanhOp(FloatingPointLikeUnaryMathOperation):
+class TanhOp(FloatingPointLikeUnaryMathOperation, HasFolderInterface):
     """
     The tanh operation computes the hyperbolic tangent. It takes one operand
     of floating point type (i.e., scalar, tensor or vector) and returns one
@@ -888,6 +1075,12 @@ class TanhOp(FloatingPointLikeUnaryMathOperation):
     name = "math.tanh"
 
     traits = traits_def(Pure(), SameOperandsAndResultType())
+
+    def fold(self):
+        cst = self.get_constant(self.operand)
+        if isa(cst, FloatAttr):
+            return [FloatAttr(math.tanh(cst.value.data), cst.type)]
+        return None
 
 
 @irdl_op_definition
