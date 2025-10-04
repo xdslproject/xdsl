@@ -130,6 +130,16 @@ class YieldOp(IRDLOperation):
 
 @irdl_op_definition
 class ChooseOp(IRDLOperation):
+    """
+    This operation can be used in pdl_interp matchers and
+    integrates with the backtracking mechanism. It holds multiple
+    "choices" (successors). When this operation is encountered,
+    a BacktrackPoint is stored, and the choice is visited.
+    When this execution of this choice eventually finalizes, the
+    backtracking logic will jump to the next choice, until all
+    choices are exhausted. Finally, the default successor is visited.
+    """
+
     name = "eqsat.choose"
     default_dest = successor_def()
     choices = var_successor_def()
