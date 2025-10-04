@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
 from enum import Enum, auto
@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 
 
 @dataclass(frozen=True)
-class AffineExpr:
+class AffineExpr(ABC):
     """
     An AffineExpr models an affine expression, which is a linear combination of
     dimensions with integer coefficients. For example, 2 * d0 + 3 * d1 is an
@@ -296,12 +296,19 @@ class AffineExpr:
         # TODO (#1086): Simplify modulo here before returning.
         return AffineBinaryOpExpr(AffineBinaryOpKind.Mod, self, other)
 
-    @abstractmethod
     def dfs(self) -> Iterator[AffineExpr]:
         """
-        Iterates nodes in depth-first order.
+        Iterates nodes in depth-first order (parent-left-right).
 
         See external [documentation](https://en.wikipedia.org/wiki/Depth-first_search).
+        """
+        yield self
+
+    def post_order(self) -> Iterator[AffineExpr]:
+        """
+        Iterates nodes in pre-order (left-right-parent).
+
+        See external [documentation](https://en.wikipedia.org/wiki/Tree_traversal).
         """
         yield self
 
@@ -352,6 +359,11 @@ class AffineBinaryOpExpr(AffineExpr):
         yield self
         yield from self.lhs.dfs()
         yield from self.rhs.dfs()
+
+    def post_order(self) -> Iterator[AffineExpr]:
+        yield from self.lhs.post_order()
+        yield from self.rhs.post_order()
+        yield self
 
     def is_pure_affine(self) -> bool:
         match self.kind:
