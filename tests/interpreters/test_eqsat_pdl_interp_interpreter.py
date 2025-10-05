@@ -242,7 +242,7 @@ def test_run_get_defining_op_eclass_not_visited():
 
     block = Block()
     scope = ScopedDict[Any, Any]()
-    backtrack_point = BacktrackPoint(block, (), scope, gdo_op, 0, 0)
+    backtrack_point = BacktrackPoint(block, scope, gdo_op, 0, 0)
     interp_functions.backtrack_stack.append(backtrack_point)
     interp_functions.visited = False
 
@@ -315,7 +315,7 @@ def test_run_get_defining_op_eclass_error_multiple_gdo():
 
     block = Block()
     scope = ScopedDict[Any, Any]()
-    backtrack_point = BacktrackPoint(block, (), scope, gdo_op1, 0, 1)  # Different op
+    backtrack_point = BacktrackPoint(block, scope, gdo_op1, 0, 1)  # Different op
     interp_functions.backtrack_stack.append(backtrack_point)
     interp_functions.visited = False
 
@@ -518,7 +518,7 @@ def test_backtrack_stack_manipulation():
     block = Block()
     scope = ScopedDict[Any, Any]()
     gdo_op = pdl_interp.GetDefiningOpOp(create_ssa_value(pdl.OperationType()))
-    backtrack_point = BacktrackPoint(block, (), scope, gdo_op, 0, 2)
+    backtrack_point = BacktrackPoint(block, scope, gdo_op, 0, 2)
 
     interp_functions.backtrack_stack.append(backtrack_point)
     assert len(interp_functions.backtrack_stack) == 1
@@ -542,9 +542,7 @@ def test_run_finalize_with_backtrack_stack():
     block = Block()
     scope = ScopedDict[Any, Any]()
     gdo_op = pdl_interp.GetDefiningOpOp(create_ssa_value(pdl.OperationType()))
-    backtrack_point = BacktrackPoint(
-        block, (), scope, gdo_op, 0, 2
-    )  # index < max_index
+    backtrack_point = BacktrackPoint(block, scope, gdo_op, 0, 2)  # index < max_index
 
     interp_functions.backtrack_stack.append(backtrack_point)
 
@@ -936,7 +934,7 @@ def test_run_choose_not_visited():
 
     block = Block()
     scope = ScopedDict[Any, Any]()
-    backtrack_point = BacktrackPoint(block, (), scope, choose_op, 1, 2)  # Index 1
+    backtrack_point = BacktrackPoint(block, scope, choose_op, 1, 2)  # Index 1
     interp_functions.backtrack_stack.append(backtrack_point)
     interp_functions.visited = False
 
@@ -1025,7 +1023,7 @@ def test_run_choose_default_dest():
     block = Block()
     scope = ScopedDict[Any, Any]()
     backtrack_point = BacktrackPoint(
-        block, (), scope, choose_op, 2, 2
+        block, scope, choose_op, 2, 2
     )  # Index 2 = len(choices)
     interp_functions.backtrack_stack.append(backtrack_point)
     interp_functions.visited = False
@@ -1067,7 +1065,7 @@ def test_run_choose_error_wrong_op():
 
     block = Block()
     scope = ScopedDict[Any, Any]()
-    backtrack_point = BacktrackPoint(block, (), scope, choose_op1, 0, 1)  # Different op
+    backtrack_point = BacktrackPoint(block, scope, choose_op1, 0, 1)  # Different op
     interp_functions.backtrack_stack.append(backtrack_point)
     interp_functions.visited = False
 
