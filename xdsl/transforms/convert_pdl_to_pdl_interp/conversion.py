@@ -1,5 +1,5 @@
 from xdsl.dialects import pdl
-from xdsl.ir import OpResult, SSAValue
+from xdsl.ir import OpResult
 
 
 class PatternAnalyzer:
@@ -7,15 +7,13 @@ class PatternAnalyzer:
 
     def detect_roots(self, pattern: pdl.PatternOp) -> list[OpResult[pdl.OperationType]]:
         """Detect root operations in a pattern"""
-        used: set[SSAValue] = set()
-
-        for operation_op in pattern.body.ops:
-            if not isinstance(operation_op, pdl.OperationOp):
-                continue
-            for operand in operation_op.operand_values:
-                result_op = operand.owner
-                if isinstance(result_op, pdl.ResultOp | pdl.ResultsOp):
-                    used.add(result_op.parent_)
+        used = {
+            operand.owner.parent_
+            for operation_op in pattern.body.ops
+            if isinstance(operation_op, pdl.OperationOp)
+            for operand in operation_op.operand_values
+            if isinstance(operand.owner, pdl.ResultOp | pdl.ResultsOp)
+        }
 
         rewriter = pattern.body.block.last_op
         assert isinstance(rewriter, pdl.RewriteOp)
