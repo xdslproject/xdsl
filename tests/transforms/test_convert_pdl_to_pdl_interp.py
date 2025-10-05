@@ -32,3 +32,22 @@ def test_detect_roots():
     pattern = pdl.PatternOp(1, "pattern", body)
     roots = PatternAnalyzer().detect_roots(pattern)
     assert roots == [op2, op3]
+
+
+def test_detect_roots_with_rewrite_root_exclusion():
+    body = Region([Block()])
+    block = body.first_block
+    with ImplicitBuilder(block):
+        type = pdl.TypeOp().result
+        op1 = pdl.OperationOp("op1", type_values=(type,)).op
+        op2 = pdl.OperationOp("op2").op
+        op1_res = pdl.ResultOp(0, op1).val
+        op3 = pdl.OperationOp("op3", operand_values=(op1_res,)).op
+
+        # Rewrite operation specifies op1 as root, even though it's used by op3
+        pdl.RewriteOp(op1, name="rewrite")
+
+    pattern = pdl.PatternOp(1, "pattern", body)
+    roots = PatternAnalyzer().detect_roots(pattern)
+    # op1 should be included as a root despite being used by op3, because it's specified as the rewrite root
+    assert roots == [op1, op2, op3]
