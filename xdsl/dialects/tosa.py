@@ -428,7 +428,7 @@ class YieldOp(IRDLOperation):
     """
     TOSA operation for returning out of conditional and body of structured control flow
 
-    See external [documentation](https://mlir.llvm.org/docs/Dialects/TOSA/#tosayield-mlirtosayieldop)
+    See [external documentation](https://mlir.llvm.org/docs/Dialects/TOSA/#tosayield-mlirtosayieldop)
     """
 
     name = "tosa.yield"
@@ -451,7 +451,7 @@ class IfOp(IRDLOperation):
     """
     Conditional operation on tensors.
 
-    See [external documentation]().
+    See [external documentation](https://mlir.llvm.org/docs/Dialects/TOSA/#tosacond_if-mlirtosaifop).
     """
 
     name = "tosa.cond_if"
