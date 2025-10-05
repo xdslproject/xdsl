@@ -318,8 +318,8 @@ class Predicate:
     @staticmethod
     def get_constraint(
         name: str,
-        arg_positions: list[Position],
-        result_types: list[pdl.AnyPDLType],
+        arg_positions: tuple[Position, ...],
+        result_types: tuple[pdl.AnyPDLType, ...],
         is_negated: bool = False,
     ) -> "Predicate":
         """Get predicate for a native constraint"""
