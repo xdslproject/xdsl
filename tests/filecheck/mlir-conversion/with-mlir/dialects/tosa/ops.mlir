@@ -172,3 +172,19 @@ func.func @test_reduce_sum(%arg0: tensor<31x5x3xf32>) -> tensor<1x5x3xf32> {
   %0 = tosa.reduce_sum %arg0 {axis = 0 : i32} : (tensor<31x5x3xf32>) -> tensor<1x5x3xf32>
   return %0 : tensor<1x5x3xf32>
 }
+
+// -----
+// CHECK-LABEL: cond_if
+func.func @test_cond_if(%arg0: tensor<i1>, %arg1: tensor<3x4x5xf32>) -> tensor<3x4x5xf32> {
+  // CHECK: {{%.*}} = tosa.cond_if {{%.*}} -> (tensor<3x4x5xf32>) {
+  %0 = tosa.cond_if %arg0 -> (tensor<3x4x5xf32>) {
+    // CHECK-NEXT: tosa.yield {{%.*}} : tensor<3x4x5xf32>
+    tosa.yield %arg1 : tensor<3x4x5xf32>
+    // CHECK-NEXT: } else {
+  } else {
+    // CHECK-NEXT: tosa.yield {{%.*}} : tensor<3x4x5xf32>
+    tosa.yield %arg1 : tensor<3x4x5xf32>
+    // CHECK-NEXT: }
+  }
+  return %0 : tensor<3x4x5xf32>
+}
