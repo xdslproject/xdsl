@@ -49,10 +49,13 @@ class BacktrackPoint:
     """The GetDefiningOpOp or ChooseOp that created this backtrack point."""
 
     index: int
-    """Current operand index being tried in the EClassOp."""
+    """Current backtrack index being tried.
+    When `cause` is a GetDefiningOpOp, this is the index of the operand of the EClassOp being tried.
+    When `cause` is a ChooseOp, this is the index of the choice being tried.
+    """
 
     max_index: int
-    """Last valid operand index in the EClassOp (len(operands) - 1)."""
+    """Last valid index to backtrack to."""
 
 
 @register_impls
@@ -64,21 +67,15 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
     """Stack of backtrack points for exploring multiple matching paths in e-classes."""
 
     visited: bool = True
-    """Signals whether the GetDefiningOp (GDO) in the block that run_finalize jumps to has been encountered.
+    """Signals whether we have processed the last backtrack point after a finalize.
+    This is used to tell whether we are encountering a GetDefiningOpOp or ChooseOp
+    for the first time (in which case we need to create a new backtrack point)
+    or whether we are backtracking to it (in which case we need to use the existing
+    backtrack point and continue from the stored index).
 
-    This is to handle when a block contains GDOs before the GDO we're backtracking to.
-    If this is the case, run_finalize jumps to the block but will encounter the wrong GDOs first.
-    e.g.:
-    ```
-    BB0:
-        %0 = pdl_interp.get_defining_op ...
-        %1 = pdl_interp.get_defining_op ...
-    BB1:
-        pdl_interp.finalize # backtrack to BB0 at this point
-    ```
-    Backtracking works by jumping to the start of the block containing the GDO (`BB0`).
-    When we need to backtrack to the second GDO (`%1`), `visited` is still `False` when encountering the first GDO (`%0`).
-    This allows us to know that we have to skip the first GDO and continue with the second one.
+    When visited is False, the next GetDefiningOpOp or ChooseOp we encounter must be
+    the one at the top of the backtrack stack and the index is incremented. Otherwise,
+    the last finalize has already been handled and a new backtrack point must be created.
     """
 
     known_ops: KnownOps = field(default_factory=KnownOps)
