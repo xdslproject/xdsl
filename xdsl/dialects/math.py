@@ -357,7 +357,7 @@ class AtanOp(FloatingPointLikeUnaryMathOperation, HasFolderInterface):
 
 
 @irdl_op_definition
-class CbrtOp(FloatingPointLikeUnaryMathOperation, HasFolderInterface):
+class CbrtOp(FloatingPointLikeUnaryMathOperation):
     """
     The cbrt operation computes the cube root. It takes one operand of
     floating point type (i.e., scalar, tensor or vector) and returns one result
@@ -374,12 +374,6 @@ class CbrtOp(FloatingPointLikeUnaryMathOperation, HasFolderInterface):
     name = "math.cbrt"
 
     traits = traits_def(Pure(), SameOperandsAndResultType())
-
-    def fold(self):
-        cst = self.get_constant(self.operand)
-        if isa(cst, FloatAttr):
-            return [FloatAttr(math.cbrt(cst.value.data), cst.type)]
-        return None
 
 
 @irdl_op_definition
@@ -560,7 +554,7 @@ class ErfOp(FloatingPointLikeUnaryMathOperation, HasFolderInterface):
 
 
 @irdl_op_definition
-class Exp2Op(FloatingPointLikeUnaryMathOperation, HasFolderInterface):
+class Exp2Op(FloatingPointLikeUnaryMathOperation):
     """
     The exp operation takes one operand of floating point type (i.e., scalar,
     tensor or vector) and returns one result of the same type. It has no standard
@@ -575,12 +569,6 @@ class Exp2Op(FloatingPointLikeUnaryMathOperation, HasFolderInterface):
     name = "math.exp2"
 
     traits = traits_def(Pure(), SameOperandsAndResultType())
-
-    def fold(self):
-        cst = self.get_constant(self.operand)
-        if isa(cst, FloatAttr):
-            return [FloatAttr(math.exp2(cst.value.data), cst.type)]
-        return None
 
 
 @irdl_op_definition
