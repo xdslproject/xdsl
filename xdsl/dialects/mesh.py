@@ -1,7 +1,7 @@
 from abc import ABC
 from collections.abc import Sequence
 from enum import auto
-from typing import TypeAlias
+from typing import Self, TypeAlias
 
 from xdsl.dialects.builtin import (
     I16,
@@ -27,6 +27,7 @@ from xdsl.ir import (
     OpaqueSyntaxAttribute,
     ParametrizedAttribute,
     SpacedOpaqueSyntaxAttribute,
+    SSAValue,
     TypeAttribute,
     VerifyException,
 )
@@ -42,7 +43,7 @@ from xdsl.irdl import (
     traits_def,
     var_operand_def,
 )
-from xdsl.parser import AttrParser
+from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
 from xdsl.traits import Pure, SymbolOpInterface
 from xdsl.utils.str_enum import StrEnum
@@ -426,6 +427,68 @@ class ShardingOp(IRDLOperation):
             )
 
 
+@irdl_op_definition
+class ShardOp(IRDLOperation):
+    """
+    Annotate on how a tensor is sharded across a shard.
+
+    See [external documentation](https://mlir.llvm.org/docs/Dialects/Shard/#shardshard-shardshardop).
+    """
+
+    name = "mesh.shard"
+
+    src = operand_def(TensorType)
+    sharding = operand_def(ShardingType)
+    annotate_for_users = opt_prop_def(UnitAttr)
+
+    result = result_def(TensorType)
+
+    traits = traits_def(
+        Pure(),
+    )
+
+    def __init__(
+        self,
+        src: SSAValue,
+        sharding: SSAValue,
+        annotate_for_users: UnitAttr | None,
+    ):
+        return super().__init__(
+            operands=[src, sharding],
+            result_types=[src.type],
+            properties={
+                "annotate_for_users": annotate_for_users,
+            },
+        )
+
+    def print(self, printer: Printer):
+        printer.print_string(" ")
+        printer.print_ssa_value(self.src)
+        printer.print_string(" to ")
+        printer.print_ssa_value(self.sharding)
+
+        if self.annotate_for_users:
+            printer.print_string(" annotate_for_users")
+
+        printer.print_string(" : ")
+        printer.print_attribute(self.src.type)
+
+    @classmethod
+    def parse(cls, parser: Parser) -> Self:
+        tensor = parser.parse_operand()
+        parser.parse_keyword("to")
+        sharding = parser.parse_operand()
+
+        annotate_for_users = None
+        if parser.parse_optional_keyword("annotate_for_users"):
+            annotate_for_users = UnitAttr()
+
+        parser.parse_punctuation(":")
+        parser.parse_type()
+
+        return cls(tensor, sharding, annotate_for_users)
+
+
 Mesh = Dialect(
     "mesh",
     [
@@ -437,6 +500,7 @@ Mesh = Dialect(
         ShiftOp,
         MeshOp,
         ShardingOp,
+        ShardOp,
     ],
     [
         ReductionKindAttr,
