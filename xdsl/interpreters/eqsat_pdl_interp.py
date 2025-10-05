@@ -39,9 +39,6 @@ class BacktrackPoint:
     block: Block
     """The block to return to when backtracking."""
 
-    block_args: tuple[SSAValue, ...]
-    """Block arguments to restore when backtracking."""
-
     scope: ScopedDict[SSAValue, Any]
     """Variable scope to restore when backtracking."""
 
@@ -216,14 +213,11 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
         else:
             block = op.parent_block()
             assert block
-            block_args = interpreter.get_values(block.args)
             scope = interpreter._ctx.parent  # pyright: ignore[reportPrivateUsage]
             assert scope
             index = 0
             self.backtrack_stack.append(
-                BacktrackPoint(
-                    block, block_args, scope, op, index, len(eclass_op.operands) - 1
-                )
+                BacktrackPoint(block, scope, op, index, len(eclass_op.operands) - 1)
             )
         defining_op = eclass_op.operands[index].owner
         if not isinstance(defining_op, Operation):
@@ -377,7 +371,7 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
                     backtrack_point.scope
                 )
                 self.visited = False
-                return Successor(backtrack_point.block, backtrack_point.block_args), ()
+                return Successor(backtrack_point.block, ()), ()
         return ReturnedValues(()), ()
 
     @impl_terminator(eqsat.ChooseOp)
@@ -394,12 +388,11 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
         else:
             block = op.parent_block()
             assert block
-            block_args = interpreter.get_values(block.args)
             scope = interpreter._ctx.parent  # pyright: ignore[reportPrivateUsage]
             assert scope
             index = 0
             self.backtrack_stack.append(
-                BacktrackPoint(block, block_args, scope, op, index, len(op.choices))
+                BacktrackPoint(block, scope, op, index, len(op.choices))
             )
         if index == len(op.choices):
             dest = op.default_dest
