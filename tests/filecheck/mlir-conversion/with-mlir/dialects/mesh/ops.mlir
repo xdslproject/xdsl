@@ -36,6 +36,7 @@ mesh.mesh @mesh5(shape = ?)
 %20 = mesh.shard %t to %11 : tensor<2x2xi8>
 %21 = mesh.shard %t to %11 annotate_for_users : tensor<2x2xi8>
 
+
 // CHECK:      mesh.mesh @mesh0(shape = 2x2x4)
 // CHECK-NEXT: mesh.mesh @mesh1(shape = 4x?)
 // CHECK-NEXT: mesh.mesh @mesh2(shape = ?x4)
