@@ -2,9 +2,10 @@ from abc import ABC
 from collections.abc import Sequence
 from typing import ClassVar, Generic
 
-from typing_extensions import TypeVar
+from typing_extensions import Self, TypeVar
 
 from xdsl.dialects.builtin import (
+    I1,
     I8,
     I32,
     I64,
@@ -25,14 +26,26 @@ from xdsl.irdl import (
     ParsePropInAttrDict,
     VarConstraint,
     irdl_op_definition,
+    lazy_traits_def,
     operand_def,
     opt_prop_def,
     prop_def,
+    region_def,
     result_def,
     traits_def,
     var_operand_def,
+    var_result_def,
 )
-from xdsl.traits import Commutative, Pure
+from xdsl.parser import Parser
+from xdsl.printer import Printer
+from xdsl.traits import (
+    Commutative,
+    HasParent,
+    IsTerminator,
+    Pure,
+    RecursiveMemoryEffect,
+    SingleBlockImplicitTerminator,
+)
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -410,6 +423,81 @@ class ConcatOp(IRDLOperation):
     assembly_format = "$tensors attr-dict `:` `(` type($tensors) `)` `->` type($output)"
 
 
+@irdl_op_definition
+class YieldOp(IRDLOperation):
+    """
+    TOSA operation for returning out of conditional and body of structured control flow
+
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/TOSA/#tosayield-mlirtosayieldop)
+    """
+
+    name = "tosa.yield"
+
+    inputs = var_operand_def(TensorType)
+
+    traits = lazy_traits_def(
+        lambda: (
+            IsTerminator(),
+            HasParent(IfOp),
+            Pure(),
+        )
+    )
+
+    assembly_format = "$inputs attr-dict `:` type($inputs)"
+
+
+@irdl_op_definition
+class IfOp(IRDLOperation):
+    """
+    Conditional operation on tensors.
+
+    See [external documentation]().
+    """
+
+    name = "tosa.cond_if"
+
+    cond = operand_def(TensorType[I1])
+
+    output = var_result_def(TensorType)
+
+    true_region = region_def("single_block")
+    false_region = region_def("single_block")
+
+    traits = traits_def(
+        RecursiveMemoryEffect(),
+        SingleBlockImplicitTerminator(YieldOp),
+    )
+
+    def print(self, printer: Printer):
+        printer.print_string(" ")
+        printer.print_ssa_value(self.cond)
+        printer.print_string(" -> (")
+        printer.print_list(
+            self.output.types,
+            printer.print_attribute,
+        )
+        printer.print_string(") ")
+        printer.print_region(self.true_region)
+        printer.print_string(" else ")
+        printer.print_region(self.false_region)
+
+    @classmethod
+    def parse(cls, parser: Parser) -> Self:
+        cond = parser.parse_operand()
+        parser.parse_punctuation("->")
+        types = parser.parse_comma_separated_list(
+            parser.Delimiter.PAREN,
+            parser.parse_attribute,
+        )
+        true_region = parser.parse_region()
+        parser.parse_keyword("else")
+        false_region = parser.parse_region()
+
+        return cls(
+            operands=[cond], result_types=types, regions=[true_region, false_region]
+        )
+
+
 ################################################################################
 # Reduction ops                                                                #
 ################################################################################
@@ -509,6 +597,8 @@ TOSA = Dialect(
         MaxPool2DOp,
         AvgPool2DOp,
         ConcatOp,
+        IfOp,
+        YieldOp,
     ],
     [],
 )
