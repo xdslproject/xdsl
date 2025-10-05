@@ -1,7 +1,9 @@
 from abc import ABC
 from collections.abc import Sequence
 from enum import auto
-from typing import Self, TypeAlias
+from typing import TypeAlias
+
+from typing_extensions import Self
 
 from xdsl.dialects.builtin import (
     I16,
