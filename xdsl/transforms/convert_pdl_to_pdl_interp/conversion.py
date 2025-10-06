@@ -542,3 +542,41 @@ class PatternAnalyzer:
                     pass
 
         return predicates
+
+
+# =============================================================================
+# Predicate Ordering and Tree Construction
+# =============================================================================
+
+
+class PredicateTreeBuilder:
+    """Builds optimized predicate matching trees"""
+
+    def __init__(self):
+        self.analyzer = PatternAnalyzer()
+        self._pattern_roots: dict[pdl.PatternOp, SSAValue] = {}
+        self.pattern_value_positions: dict[pdl.PatternOp, dict[SSAValue, Position]] = {}
+
+    def _extract_pattern_predicates(
+        self, pattern: pdl.PatternOp
+    ) -> tuple[list[PositionalPredicate], SSAValue, dict[SSAValue, Position]]:
+        """Extract all predicates for a single pattern"""
+        predicates: list[PositionalPredicate] = []
+        inputs: dict[SSAValue, Position] = {}
+
+        roots = self.analyzer.detect_roots(pattern)
+        if not (len(roots) == 1):
+            raise ValueError("Multi-root patterns are not yet supported.")
+
+        rewriter = pattern.body.block.last_op
+        assert isinstance(rewriter, pdl.RewriteOp)
+        best_root = rewriter.root if rewriter.root is not None else roots[0]
+
+        # Downward traversal from the best root
+        root_pos = OperationPosition(depth=0)
+        predicates.extend(
+            self.analyzer.extract_tree_predicates(best_root, root_pos, inputs)
+        )
+
+        predicates.extend(self.analyzer.extract_non_tree_predicates(pattern, inputs))
+        return predicates, best_root, inputs
