@@ -114,7 +114,7 @@ def test_extract_type_predicates():
     type_value = type_op_with_const.result
 
     predicates = analyzer._extract_type_predicates(  # pyright: ignore[reportPrivateUsage]
-        type_value, type_pos, {}
+        type_value.owner, type_pos, {}
     )
 
     assert len(predicates) == 1
