@@ -5,6 +5,7 @@ from xdsl.ir import (
     SSAValue,
 )
 from xdsl.transforms.convert_pdl_to_pdl_interp.predicate import (
+    AttributePosition,
     Position,
     PositionalPredicate,
     Predicate,
@@ -64,5 +65,42 @@ class PatternAnalyzer:
                 )
             case _:
                 pass
+
+        return predicates
+
+    def _extract_attribute_predicates(
+        self,
+        attr_value: Operation | SSAValue,
+        attr_pos: AttributePosition,
+        inputs: dict[SSAValue, Position],
+    ) -> list[PositionalPredicate]:
+        """Extract predicates for an attribute"""
+        predicates: list[PositionalPredicate] = []
+
+        is_not_null = Predicate.get_is_not_null()
+        predicates.append(
+            PositionalPredicate(q=is_not_null.q, a=is_not_null.a, position=attr_pos)
+        )
+
+        # Get the actual attribute operation
+        if isinstance(attr_value, SSAValue):
+            attr_op = attr_value.owner
+        else:
+            attr_op = attr_value
+
+        if isinstance(attr_op, pdl.AttributeOp):
+            if attr_op.value_type:
+                type_pos = attr_pos.get_type()
+                predicates.extend(
+                    self.extract_tree_predicates(attr_op.value_type, type_pos, inputs)
+                )
+
+            elif attr_op.value:
+                attr_constraint = Predicate.get_attribute_constraint(attr_op.value)
+                predicates.append(
+                    PositionalPredicate(
+                        q=attr_constraint.q, a=attr_constraint.a, position=attr_pos
+                    )
+                )
 
         return predicates
