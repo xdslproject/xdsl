@@ -47,19 +47,22 @@ class PatternAnalyzer:
         """Extract predicates for a type"""
         predicates: list[PositionalPredicate] = []
 
-        if isinstance(type_op, pdl.TypeOp) and type_op.constantType:
-            type_constraint = Predicate.get_type_constraint(type_op.constantType)
-            predicates.append(
-                PositionalPredicate(
-                    q=type_constraint.q, a=type_constraint.a, position=type_pos
+        match type_op:
+            case pdl.TypeOp(constantType=const_type) if const_type:
+                type_constraint = Predicate.get_type_constraint(const_type)
+                predicates.append(
+                    PositionalPredicate(
+                        q=type_constraint.q, a=type_constraint.a, position=type_pos
+                    )
                 )
-            )
-        elif isinstance(type_op, pdl.TypesOp) and type_op.constantTypes:
-            type_constraint = Predicate.get_type_constraint(type_op.constantTypes)
-            predicates.append(
-                PositionalPredicate(
-                    q=type_constraint.q, a=type_constraint.a, position=type_pos
+            case pdl.TypesOp(constantTypes=const_types) if const_types:
+                type_constraint = Predicate.get_type_constraint(const_types)
+                predicates.append(
+                    PositionalPredicate(
+                        q=type_constraint.q, a=type_constraint.a, position=type_pos
+                    )
                 )
-            )
+            case _:
+                pass
 
         return predicates
