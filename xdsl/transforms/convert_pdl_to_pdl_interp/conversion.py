@@ -40,18 +40,12 @@ class PatternAnalyzer:
 
     def _extract_type_predicates(
         self,
-        type_value: Operation | SSAValue,
+        type_op: Operation,
         type_pos: TypePosition,
         inputs: dict[SSAValue, Position],
     ) -> list[PositionalPredicate]:
         """Extract predicates for a type"""
         predicates: list[PositionalPredicate] = []
-
-        # Get the actual type operation
-        if isinstance(type_value, SSAValue):
-            type_op = type_value.owner
-        else:
-            type_op = type_value
 
         if isinstance(type_op, pdl.TypeOp) and type_op.constantType:
             type_constraint = Predicate.get_type_constraint(type_op.constantType)
