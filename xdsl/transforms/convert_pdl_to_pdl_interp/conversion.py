@@ -1,5 +1,15 @@
 from xdsl.dialects import pdl
-from xdsl.ir import OpResult
+from xdsl.ir import (
+    Operation,
+    OpResult,
+    SSAValue,
+)
+from xdsl.transforms.convert_pdl_to_pdl_interp.predicate import (
+    Position,
+    PositionalPredicate,
+    Predicate,
+    TypePosition,
+)
 
 
 class PatternAnalyzer:
@@ -27,3 +37,32 @@ class PatternAnalyzer:
             if isinstance(op, pdl.OperationOp) and op.op not in used
         ]
         return roots
+
+    def _extract_type_predicates(
+        self,
+        type_op: Operation,
+        type_pos: TypePosition,
+        inputs: dict[SSAValue, Position],
+    ) -> list[PositionalPredicate]:
+        """Extract predicates for a type"""
+        predicates: list[PositionalPredicate] = []
+
+        match type_op:
+            case pdl.TypeOp(constantType=const_type) if const_type:
+                type_constraint = Predicate.get_type_constraint(const_type)
+                predicates.append(
+                    PositionalPredicate(
+                        q=type_constraint.q, a=type_constraint.a, position=type_pos
+                    )
+                )
+            case pdl.TypesOp(constantTypes=const_types) if const_types:
+                type_constraint = Predicate.get_type_constraint(const_types)
+                predicates.append(
+                    PositionalPredicate(
+                        q=type_constraint.q, a=type_constraint.a, position=type_pos
+                    )
+                )
+            case _:
+                pass
+
+        return predicates
