@@ -151,33 +151,33 @@ def test_int_disjoint_set_rooted_union():
     ds = IntDisjointSet(size=5)
 
     # Test successful rooted union
-    assert ds.rooted_union(0, 1)  # Union with 0 as root
+    assert ds.union_left(0, 1)  # Union with 0 as root
     assert ds[1] == 0
     assert ds.connected(0, 1)
 
     # Test rooted union with multiple elements
-    assert ds.rooted_union(0, 2)  # Add 2 to the set rooted at 0
+    assert ds.union_left(0, 2)  # Add 2 to the set rooted at 0
     assert ds[2] == 0
     assert ds.connected(0, 2)
     assert ds.connected(1, 2)
 
     # Test rooted union when sets are already connected
-    assert not ds.rooted_union(0, 1)  # Should return False
+    assert not ds.union_left(0, 1)  # Should return False
     assert ds[1] == 0  # Still connected
 
     # Test error when representative is not a root
     with pytest.raises(
         ValueError, match="The given representative is not a root of its set"
     ):
-        ds.rooted_union(1, 3)  # 1 is not a root, 0 is its root
+        ds.union_left(1, 3)  # 1 is not a root, 0 is its root
 
     # Test that the specified representative becomes the root
-    assert ds.rooted_union(3, 4)  # 3 becomes root of its own set with 4
+    assert ds.union_left(3, 4)  # 3 becomes root of its own set with 4
     assert ds[3] == 3
     assert ds[4] == 3
 
     # Now union the two sets with 0 as the specified root
-    assert ds.rooted_union(0, 3)
+    assert ds.union_left(0, 3)
     assert ds[3] == 0  # 3's set is now under 0
     assert ds[4] == 0  # 4 also points to 0
     assert ds.connected(0, 4)
@@ -187,40 +187,40 @@ def test_generic_disjoint_set_rooted_union():
     ds = DisjointSet(["a", "b", "c", "d", "e"])
 
     # Test successful rooted union
-    assert ds.rooted_union("a", "b")  # Union with "a" as root
+    assert ds.union_left("a", "b")  # Union with "a" as root
     assert ds.find("b") == "a"
     assert ds.connected("a", "b")
 
     # Test rooted union with multiple elements
-    assert ds.rooted_union("a", "c")  # Add "c" to the set rooted at "a"
+    assert ds.union_left("a", "c")  # Add "c" to the set rooted at "a"
     assert ds.find("c") == "a"
     assert ds.connected("a", "c")
     assert ds.connected("b", "c")
 
     # Test rooted union when sets are already connected
-    assert not ds.rooted_union("a", "b")  # Should return False
+    assert not ds.union_left("a", "b")  # Should return False
     assert ds.find("b") == "a"  # Still connected
 
     # Test error when representative is not a root
     with pytest.raises(
         ValueError, match="The given representative is not a root of its set"
     ):
-        ds.rooted_union("b", "d")  # "b" is not a root, "a" is its root
+        ds.union_left("b", "d")  # "b" is not a root, "a" is its root
 
     # Test that the specified representative becomes the root
-    assert ds.rooted_union("d", "e")  # "d" becomes root of its own set with "e"
+    assert ds.union_left("d", "e")  # "d" becomes root of its own set with "e"
     assert ds.find("d") == "d"
     assert ds.find("e") == "d"
 
     # Now union the two sets with "a" as the specified root
-    assert ds.rooted_union("a", "d")
+    assert ds.union_left("a", "d")
     assert ds.find("d") == "a"  # "d"'s set is now under "a"
     assert ds.find("e") == "a"  # "e" also points to "a"
     assert ds.connected("a", "e")
 
     # Test with KeyError for non-existent values
     with pytest.raises(KeyError):
-        ds.rooted_union("a", "nonexistent")
+        ds.union_left("a", "nonexistent")
 
     with pytest.raises(KeyError):
-        ds.rooted_union("nonexistent", "a")
+        ds.union_left("nonexistent", "a")
