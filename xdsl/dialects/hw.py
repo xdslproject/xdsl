@@ -854,7 +854,7 @@ class HWModuleOp(IRDLOperation):
 
     def verify_(self) -> None:
         if self.parameters is not None:
-            # FIXME: once xDSL supports typed properties, check that parameter
+            # FIXME: once xDSL supports typed attributes, check that parameter
             # types are consistent with their default values
             param_names = [param.port_name.data for param in self.parameters.data]
             if len(set(param_names)) != len(param_names):
