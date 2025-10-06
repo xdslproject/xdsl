@@ -908,7 +908,7 @@ class HWModuleOp(IRDLOperation):
             arg_ssa_iter=self.body.block.args,
             module_type=self.module_type,
         )
-        printer.print_op_properties(
+        printer._print_op_properties(
             self.properties,
             reserved_prop_names=_MODULE_OP_ATTRS_HANDLED_BY_CUSTOM_FORMAT,
             print_keyword=True,
@@ -997,7 +997,7 @@ class HWModuleExternOp(IRDLOperation):
             arg_ssa_iter=arg_ssa_names,
             module_type=self.module_type,
         )
-        printer.print_op_properties(
+        printer._print_op_properties(
             self.properties,
             reserved_prop_names=_MODULE_OP_ATTRS_HANDLED_BY_CUSTOM_FORMAT,
             print_keyword=True,
@@ -1219,7 +1219,7 @@ class InstanceOp(IRDLOperation):
                 ),
                 lambda x: print_output_port(*x),
             )
-        printer.print_op_properties(
+        printer._print_op_properties(
             self.properties,
             reserved_prop_names=(
                 "instanceName",
