@@ -1,3 +1,5 @@
+from typing import cast
+
 from xdsl.builder import ImplicitBuilder
 from xdsl.dialects import pdl
 from xdsl.dialects.builtin import IntegerType, StringAttr, f32, i32
@@ -8,22 +10,26 @@ from xdsl.transforms.convert_pdl_to_pdl_interp.conversion import (
 from xdsl.transforms.convert_pdl_to_pdl_interp.predicate import (
     AttributeAnswer,
     AttributeConstraintQuestion,
+    AttributeLiteralPosition,
     AttributePosition,
     ConstraintQuestion,
     EqualToQuestion,
     IsNotNullQuestion,
+    OperandCountAtLeastQuestion,
     OperandCountQuestion,
     OperationNameQuestion,
     OperationPosition,
     Position,
     PositionalPredicate,
     Predicate,
+    ResultCountAtLeastQuestion,
     ResultCountQuestion,
     ResultPosition,
     StringAnswer,
     TrueAnswer,
     TypeAnswer,
     TypeConstraintQuestion,
+    TypeLiteralPosition,
     TypePosition,
     UnsignedAnswer,
 )
@@ -412,3 +418,411 @@ def test_apply_native_constraint():
             OperationPosition(None, depth=0),
         )
     ]
+
+
+def test_operation_without_name():
+    """Test operation without an operation name"""
+    body = Region([Block()])
+    block = body.first_block
+    with ImplicitBuilder(block):
+        root = pdl.OperationOp(None).op  # No operation name
+        pdl.RewriteOp(None, name="rewrite")
+
+    p = PatternAnalyzer()
+    root_pos = OperationPosition(depth=0)
+    predicates = p.extract_tree_predicates(root, root_pos, {})
+
+    assert len(predicates) == 2  # Only operand count and result count
+    # Should not include OperationNameQuestion predicate
+    assert isinstance(predicates[0].q, OperandCountQuestion)
+    assert isinstance(predicates[1].q, ResultCountQuestion)
+
+
+def test_variadic_operands():
+    """Test operation with variadic operands"""
+    body = Region([Block()])
+    block = body.first_block
+    with ImplicitBuilder(block):
+        # Create some operands
+        operand1 = pdl.OperandOp().value
+        operand2 = pdl.OperandOp().value
+        operands = pdl.OperandsOp(None).value  # Variadic operands
+
+        # Operation with both individual and variadic operands
+        root = pdl.OperationOp("op1", operand_values=(operand1, operand2, operands)).op
+        pdl.RewriteOp(None, name="rewrite")
+
+    p = PatternAnalyzer()
+    root_pos = OperationPosition(depth=0)
+    predicates = p.extract_tree_predicates(root, root_pos, {})
+
+    # Should create operand count at least predicate instead of exact count
+    operand_count_predicates = [
+        p for p in predicates if isinstance(p.q, OperandCountAtLeastQuestion)
+    ]
+    assert len(operand_count_predicates) == 1
+    # Should be at least 2 (non-variadic operands)
+    assert operand_count_predicates[0].a == UnsignedAnswer(2)
+
+
+def test_single_variadic_operand():
+    """Test operation with single variadic operand"""
+    body = Region([Block()])
+    block = body.first_block
+    with ImplicitBuilder(block):
+        operands = pdl.OperandsOp(
+            None
+        ).value  # Single variadic operand represents all operands
+        root = pdl.OperationOp("op1", operand_values=(operands,)).op
+        pdl.RewriteOp(None, name="rewrite")
+
+    p = PatternAnalyzer()
+    root_pos = OperationPosition(depth=0)
+    predicates = p.extract_tree_predicates(root, root_pos, {})
+
+    # Should not create individual operand predicates, but process all operands as group
+    assert len(predicates) == 2  # At least operation name, result count
+
+
+def test_variadic_results():
+    """Test operation with variadic results"""
+    body = Region([Block()])
+    block = body.first_block
+    with ImplicitBuilder(block):
+        type1 = pdl.TypeOp(i32).result
+        type2 = pdl.TypeOp(f32).result
+        types = pdl.TypesOp().result  # Variadic types
+
+        root = pdl.OperationOp("op1", type_values=(type1, type2, types)).op
+        pdl.RewriteOp(None, name="rewrite")
+
+    p = PatternAnalyzer()
+    root_pos = OperationPosition(depth=0)
+    predicates = p.extract_tree_predicates(root, root_pos, {})
+
+    # Should create result count at least predicate for variadic results
+    result_count_predicates = [
+        p for p in predicates if isinstance(p.q, ResultCountAtLeastQuestion)
+    ]
+    assert len(result_count_predicates) == 1
+    # Should be at least 2 (non-variadic operands)
+    assert result_count_predicates[0].a == UnsignedAnswer(2)
+
+    assert len(result_count_predicates) >= 1
+
+
+def test_single_variadic_result():
+    """Test operation with single variadic result"""
+    body = Region([Block()])
+    block = body.first_block
+    with ImplicitBuilder(block):
+        types = pdl.TypesOp().result  # Single variadic result represents all results
+        root = pdl.OperationOp("op1", type_values=(types,)).op
+        pdl.RewriteOp(root, name="rewrite")
+
+    p = PatternAnalyzer()
+    root_pos = OperationPosition(depth=0)
+    predicates = p.extract_tree_predicates(root, root_pos, {})
+    assert len(predicates) == 2  # No ResultCountQuestion
+
+
+def test_existing_value_reuse():
+    """Test case where a value is reused (has existing position)"""
+    body = Region([Block()])
+    block = body.first_block
+    with ImplicitBuilder(block):
+        shared_type = pdl.TypeOp(i32).result
+        op1 = pdl.OperationOp("op1", type_values=(shared_type,)).op
+        op2 = pdl.OperationOp("op2", type_values=(shared_type,)).op  # Reuse shared_type
+        pdl.RewriteOp(None, name="rewrite")
+
+    p = PatternAnalyzer()
+    inputs: dict[SSAValue, Position] = {}
+
+    # Process first operation
+    op1_pos = OperationPosition(depth=0)
+    p.extract_tree_predicates(op1, op1_pos, inputs)
+
+    # Process second operation - should create equality predicate for shared type
+    op2_pos = OperationPosition(op1_pos, depth=1)
+    predicates2 = p.extract_tree_predicates(op2, op2_pos, inputs)
+
+    # Should have equality predicates for the shared type
+    equal_predicates = [p for p in predicates2 if isinstance(p.q, EqualToQuestion)]
+    assert len(equal_predicates) == 1
+    pred = equal_predicates[0]
+    assert isinstance(pred.q, EqualToQuestion)
+    assert pred.position == TypePosition(ResultPosition(op2_pos, result_number=0))
+    assert pred.q.other_position == TypePosition(
+        ResultPosition(op1_pos, result_number=0)
+    )
+
+
+def test_attribute_with_type():
+    """Test attribute with type constraint"""
+    body = Region([Block()])
+    block = body.first_block
+    with ImplicitBuilder(block):
+        attr_type = pdl.TypeOp(i32).result
+        attr = pdl.AttributeOp(attr_type).output
+        root = pdl.OperationOp(
+            "op1",
+            attribute_value_names=[StringAttr("typed_attr")],
+            attribute_values=(attr,),
+        ).op
+        pdl.RewriteOp(None, name="rewrite")
+
+    p = PatternAnalyzer()
+    root_pos = OperationPosition(depth=0)
+    predicates = p.extract_tree_predicates(root, root_pos, {})
+
+    # Should have type constraint for attribute type
+    type_constraint_predicates = [
+        p for p in predicates if isinstance(p.q, TypeConstraintQuestion)
+    ]
+
+    # Should have exactly one type constraint for the attribute type
+    assert len(type_constraint_predicates) == 1
+    # Check it's for the correct type
+    assert type_constraint_predicates[0].a == TypeAnswer(i32)
+    # Check it's at the right position (attribute type position)
+    assert isinstance(type_constraint_predicates[0].position, TypePosition)
+    assert isinstance(type_constraint_predicates[0].position.parent, AttributePosition)
+    assert type_constraint_predicates[0].position.parent.attribute_name == "typed_attr"
+
+
+def test_results_op():
+    """Test ResultsOp (multiple results)"""
+    body = Region([Block()])
+    block = body.first_block
+    with ImplicitBuilder(block):
+        op1 = pdl.OperationOp("producer", type_values=()).op
+        results = pdl.ResultsOp(op1, 0).val  # Get all results
+        root = pdl.OperationOp("consumer", operand_values=(results,)).op
+        pdl.RewriteOp(None, name="rewrite")
+
+    p = PatternAnalyzer()
+    root_pos = OperationPosition(depth=0)
+    predicates = p.extract_tree_predicates(root, root_pos, {})
+
+    # Should process the results connection - expect 9 predicates total
+    assert len(predicates) == 9
+
+    # Check we have the root consumer operation predicates
+    assert predicates[0].q == OperationNameQuestion()
+    assert predicates[0].a == StringAnswer("consumer")
+
+    # Check we have the producer operation predicates
+    producer_name_predicates = [
+        p
+        for p in predicates
+        if isinstance(p.q, OperationNameQuestion) and p.a == StringAnswer("producer")
+    ]
+    assert len(producer_name_predicates) == 1
+
+    # Check we have the EqualToQuestion for linking results to operands
+    equal_predicates = [p for p in predicates if isinstance(p.q, EqualToQuestion)]
+    assert len(equal_predicates) == 1
+
+
+def test_operands_op():
+    """Test OperandsOp (multiple operands)"""
+    body = Region([Block()])
+    block = body.first_block
+    with ImplicitBuilder(block):
+        pdl.OperationOp("producer").op
+        operands = pdl.OperandsOp(None).value  # Get all operands
+        root = pdl.OperationOp("consumer", operand_values=(operands,)).op
+        pdl.RewriteOp(None, name="rewrite")
+
+    p = PatternAnalyzer()
+    root_pos = OperationPosition(depth=0)
+    predicates = p.extract_tree_predicates(root, root_pos, {})
+
+    # Should have exactly 2 predicates for basic consumer operation
+    assert len(predicates) == 2
+    assert predicates[0].q == OperationNameQuestion()
+    assert predicates[0].a == StringAnswer("consumer")
+    assert predicates[1].q == ResultCountQuestion()
+    assert predicates[1].a == UnsignedAnswer(0)
+
+
+def test_non_tree_predicates_type_literal():
+    """Test non-tree predicates for TypeOp with constant"""
+    body = Region([Block()])
+    block = body.first_block
+    with ImplicitBuilder(block):
+        const_type = pdl.TypeOp(i32)  # Constant type not connected to anything
+        root = pdl.OperationOp("op1").op
+        pdl.RewriteOp(None, name="rewrite")
+
+    pattern = pdl.PatternOp(1, "pattern", body)
+    p = PatternAnalyzer()
+    inputs: dict[SSAValue, Position] = {}
+
+    # Process tree predicates first
+    root_pos = OperationPosition(depth=0)
+    p.extract_tree_predicates(root, root_pos, inputs)
+
+    # Extract non-tree predicates should handle unconnected constant type
+    p.extract_non_tree_predicates(pattern, inputs)
+
+    # Should have processed the constant type
+    assert const_type.result in inputs
+    # Check it's at a TypeLiteralPosition with the correct value
+    assert isinstance(type_pos := inputs[const_type.result], TypeLiteralPosition)
+    assert type_pos.value == i32
+
+
+def test_non_tree_predicates_types_literal():
+    """Test non-tree predicates for TypesOp with constant"""
+    from xdsl.dialects.builtin import ArrayAttr
+
+    body = Region([Block()])
+    block = body.first_block
+    with ImplicitBuilder(block):
+        const_types = pdl.TypesOp(ArrayAttr([i32, f32]))  # Constant types
+        root = pdl.OperationOp("op1").op
+        pdl.RewriteOp(None, name="rewrite")
+
+    pattern = pdl.PatternOp(1, "pattern", body)
+    p = PatternAnalyzer()
+    inputs: dict[SSAValue, Position] = {}
+
+    root_pos = OperationPosition(depth=0)
+    p.extract_tree_predicates(root, root_pos, inputs)
+
+    p.extract_non_tree_predicates(pattern, inputs)
+
+    # Should have processed the constant types
+    assert const_types.result in inputs
+    # Check it's at a TypeLiteralPosition with the correct array value
+    assert isinstance(type_pos := inputs[const_types.result], TypeLiteralPosition)
+    # The ArrayAttr should contain both i32 and f32
+    from xdsl.dialects.builtin import ArrayAttr
+
+    expected_attr = ArrayAttr([i32, f32])
+    assert type_pos.value == expected_attr
+
+
+def test_non_tree_predicates_attribute_literal():
+    """Test non-tree predicates for AttributeOp with constant value"""
+    from xdsl.dialects.builtin import IntegerAttr
+
+    body = Region([Block()])
+    block = body.first_block
+    with ImplicitBuilder(block):
+        const_attr = pdl.AttributeOp(IntegerAttr(42, i32))  # Constant attribute
+        root = pdl.OperationOp("op1").op
+        pdl.RewriteOp(None, name="rewrite")
+
+    pattern = pdl.PatternOp(1, "pattern", body)
+    p = PatternAnalyzer()
+    inputs: dict[SSAValue, Position] = {}
+
+    root_pos = OperationPosition(depth=0)
+    p.extract_tree_predicates(root, root_pos, inputs)
+
+    p.extract_non_tree_predicates(pattern, inputs)
+
+    # Should have processed the constant attribute
+    assert const_attr.output in inputs
+    # Check it's at an AttributeLiteralPosition with the correct value
+    assert isinstance(attr_pos := inputs[const_attr.output], AttributeLiteralPosition)
+    from xdsl.dialects.builtin import IntegerAttr
+
+    expected_attr = IntegerAttr(42, i32)
+    assert attr_pos.value == expected_attr
+
+
+def test_constraint_simple():
+    """Test ApplyNativeConstraintOp basic functionality"""
+    body = Region([Block()])
+    block = body.first_block
+    with ImplicitBuilder(block):
+        root = pdl.OperationOp("op1").op
+        # Simple constraint that doesn't create conflicts
+        pdl.ApplyNativeConstraintOp("simple_constraint", [root], []).res
+        pdl.RewriteOp(None, name="rewrite")
+
+    pattern = pdl.PatternOp(1, "pattern", body)
+    p = PatternAnalyzer()
+    inputs: dict[SSAValue, Position] = {}
+
+    # Process tree predicates to populate inputs
+    root_pos = OperationPosition(depth=0)
+    p.extract_tree_predicates(root, root_pos, inputs)
+
+    # Extract non-tree predicates should handle the constraint
+    predicates = p.extract_non_tree_predicates(pattern, inputs)
+
+    # Should have constraint predicate
+    constraint_predicates = [
+        p for p in predicates if isinstance(p.q, ConstraintQuestion)
+    ]
+
+    # Should have exactly one constraint predicate
+    assert len(constraint_predicates) == 1
+    # Check the constraint details
+    constraint_pred = constraint_predicates[0]
+    assert (
+        q := cast(ConstraintQuestion, constraint_pred.q)
+    ).name == "simple_constraint"
+    assert constraint_pred.a == TrueAnswer()
+    assert len(q.arg_positions) == 1  # Should have the root operation as argument
+
+
+def test_result_op_non_tree():
+    """Test ResultOp handling in non-tree predicates"""
+    body = Region([Block()])
+    block = body.first_block
+    with ImplicitBuilder(block):
+        producer = pdl.OperationOp("producer", type_values=[pdl.TypeOp(i32).result]).op
+        pdl.ResultOp(0, producer)  # Standalone result op
+        pdl.OperationOp("consumer").op
+        pdl.RewriteOp(None, name="rewrite")
+
+    pattern = pdl.PatternOp(1, "pattern", body)
+    p = PatternAnalyzer()
+    inputs: dict[SSAValue, Position] = {}
+
+    # Add producer to inputs
+    producer_pos = OperationPosition(depth=0)
+    inputs[producer] = producer_pos
+
+    predicates = p.extract_non_tree_predicates(pattern, inputs)
+
+    # Should handle the standalone result
+    is_not_null_predicates = [
+        p for p in predicates if isinstance(p.q, IsNotNullQuestion)
+    ]
+
+    # Should have exactly one IsNotNull predicate for the result
+    assert len(is_not_null_predicates) == 1
+    # Check it's for a result position
+    assert isinstance(is_not_null_predicates[0].position, ResultPosition)
+    assert is_not_null_predicates[0].position.result_number == 0
+
+
+def test_results_op_non_tree():
+    """Test ResultsOp handling in non-tree predicates"""
+    body = Region([Block()])
+    block = body.first_block
+    with ImplicitBuilder(block):
+        producer = pdl.OperationOp("producer").op
+        pdl.ResultsOp(producer)  # Standalone results op
+        pdl.OperationOp("consumer").op
+        pdl.RewriteOp(None, name="rewrite")
+
+    pattern = pdl.PatternOp(1, "pattern", body)
+    p = PatternAnalyzer()
+    inputs: dict[SSAValue, Position] = {}
+
+    # Add producer to inputs
+    producer_pos = OperationPosition(depth=0)
+    inputs[producer] = producer_pos
+
+    predicates = p.extract_non_tree_predicates(pattern, inputs)
+
+    # Should handle the standalone results - no predicates expected for unused results
+    assert len(predicates) == 0
