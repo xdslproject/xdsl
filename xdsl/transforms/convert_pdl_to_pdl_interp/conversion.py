@@ -100,18 +100,22 @@ class PatternAnalyzer:
 
         # Dispatch based on position type (not value type!)
         if isinstance(position, AttributePosition):
+            assert isinstance(value, OpResult)
             predicates.extend(
-                self._extract_attribute_predicates(value, position, inputs)
+                self._extract_attribute_predicates(value.owner, position, inputs)
             )
         elif isinstance(position, OperationPosition):
+            assert isinstance(value, OpResult)
             predicates.extend(
                 self._extract_operation_predicates(
-                    value, position, inputs, ignore_operand
+                    value.owner, position, inputs, ignore_operand
                 )
             )
         elif isinstance(position, TypePosition):
             assert isinstance(value, OpResult)
-            predicates.extend(self._extract_type_predicates(value.owner, position, inputs))
+            predicates.extend(
+                self._extract_type_predicates(value.owner, position, inputs)
+            )
         elif isinstance(position, OperandPosition | OperandGroupPosition):
             assert isinstance(value, SSAValue)
             predicates.extend(
@@ -128,7 +132,7 @@ class PatternAnalyzer:
 
     def _extract_attribute_predicates(
         self,
-        attr_value: Operation | SSAValue,
+        attr_op: Operation,
         attr_pos: AttributePosition,
         inputs: dict[SSAValue, Position],
     ) -> list[PositionalPredicate]:
@@ -139,12 +143,6 @@ class PatternAnalyzer:
         predicates.append(
             PositionalPredicate(q=is_not_null.q, a=is_not_null.a, position=attr_pos)
         )
-
-        # Get the actual attribute operation
-        if isinstance(attr_value, SSAValue):
-            attr_op = attr_value.owner
-        else:
-            attr_op = attr_value
 
         if isinstance(attr_op, pdl.AttributeOp):
             if attr_op.value_type:
@@ -165,7 +163,7 @@ class PatternAnalyzer:
 
     def _extract_operation_predicates(
         self,
-        op_value: Operation | SSAValue,
+        op_op: Operation,
         op_pos: OperationPosition,
         inputs: dict[SSAValue, Position],
         ignore_operand: int | None = None,
@@ -179,23 +177,18 @@ class PatternAnalyzer:
                 PositionalPredicate(q=is_not_null.q, a=is_not_null.a, position=op_pos)
             )
 
-        # Get the actual operation
-        if isinstance(op_value, SSAValue):
-            assert isinstance(op_value.owner, Operation)
-            op_value = op_value.owner
-
-        if not isinstance(op_value, pdl.OperationOp):
+        if not isinstance(op_op, pdl.OperationOp):
             return predicates
 
         # Operation name check
-        if op_value.opName:
-            op_name = op_value.opName.data
+        if op_op.opName:
+            op_name = op_op.opName.data
             op_name_pred = Predicate.get_operation_name(op_name)
             predicates.append(
                 PositionalPredicate(q=op_name_pred.q, a=op_name_pred.a, position=op_pos)
             )
 
-        operands = op_value.operand_values
+        operands = op_op.operand_values
         min_operands = self._get_num_non_range_values(operands)
         if min_operands != len(operands):
             # Has variadic operands - check minimum
@@ -215,7 +208,7 @@ class PatternAnalyzer:
                 )
             )
 
-        types = op_value.type_values
+        types = op_op.type_values
         min_results = self._get_num_non_range_values(types)
         if min_results == len(types):
             # All non-variadic - check exact count
@@ -235,9 +228,7 @@ class PatternAnalyzer:
             )
 
         # Process attributes
-        for attr_name, attr in zip(
-            op_value.attributeValueNames, op_value.attribute_values
-        ):
+        for attr_name, attr in zip(op_op.attributeValueNames, op_op.attribute_values):
             attr_pos = op_pos.get_attribute(attr_name.data)
             predicates.extend(self.extract_tree_predicates(attr, attr_pos, inputs))
 
