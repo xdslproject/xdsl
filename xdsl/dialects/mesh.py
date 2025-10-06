@@ -1,9 +1,7 @@
 from abc import ABC
 from collections.abc import Sequence
 from enum import auto
-from typing import TypeAlias
-
-from typing_extensions import Self
+from typing import ClassVar, TypeAlias
 
 from xdsl.dialects.builtin import (
     I16,
@@ -36,6 +34,7 @@ from xdsl.ir import (
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
+    VarConstraint,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
@@ -45,7 +44,7 @@ from xdsl.irdl import (
     traits_def,
     var_operand_def,
 )
-from xdsl.parser import AttrParser, Parser
+from xdsl.parser import AttrParser
 from xdsl.printer import Printer
 from xdsl.traits import Pure, SymbolOpInterface
 from xdsl.utils.str_enum import StrEnum
@@ -439,15 +438,19 @@ class ShardOp(IRDLOperation):
 
     name = "mesh.shard"
 
-    src = operand_def(TensorType)
+    T: ClassVar = VarConstraint("T", TensorType.constr())
+
+    src = operand_def(T)
     sharding = operand_def(ShardingType)
     annotate_for_users = opt_prop_def(UnitAttr)
 
-    result = result_def(TensorType)
+    result = result_def(T)
 
     traits = traits_def(
         Pure(),
     )
+
+    assembly_format = "$src `to` $sharding (`annotate_for_users` $annotate_for_users^)? attr-dict `:` type($result)"
 
     def __init__(
         self,
@@ -462,33 +465,6 @@ class ShardOp(IRDLOperation):
                 "annotate_for_users": annotate_for_users,
             },
         )
-
-    def print(self, printer: Printer):
-        printer.print_string(" ")
-        printer.print_ssa_value(self.src)
-        printer.print_string(" to ")
-        printer.print_ssa_value(self.sharding)
-
-        if self.annotate_for_users:
-            printer.print_string(" annotate_for_users")
-
-        printer.print_string(" : ")
-        printer.print_attribute(self.src.type)
-
-    @classmethod
-    def parse(cls, parser: Parser) -> Self:
-        tensor = parser.parse_operand()
-        parser.parse_keyword("to")
-        sharding = parser.parse_operand()
-
-        annotate_for_users = None
-        if parser.parse_optional_keyword("annotate_for_users"):
-            annotate_for_users = UnitAttr()
-
-        parser.parse_punctuation(":")
-        parser.parse_type()
-
-        return cls(tensor, sharding, annotate_for_users)
 
 
 Mesh = Dialect(
