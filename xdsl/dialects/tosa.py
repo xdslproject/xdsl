@@ -2,10 +2,9 @@ from abc import ABC
 from collections.abc import Sequence
 from typing import ClassVar, Generic
 
-from typing_extensions import Self, TypeVar
+from typing_extensions import TypeVar
 
 from xdsl.dialects.builtin import (
-    I1,
     I8,
     I32,
     I64,
@@ -19,6 +18,7 @@ from xdsl.dialects.builtin import (
     ShapedType,
     StringAttr,
     TensorType,
+    i1,
 )
 from xdsl.ir import Attribute, Dialect, SSAValue, TypeAttribute
 from xdsl.irdl import (
@@ -36,8 +36,6 @@ from xdsl.irdl import (
     var_operand_def,
     var_result_def,
 )
-from xdsl.parser import Parser
-from xdsl.printer import Printer
 from xdsl.traits import (
     Commutative,
     HasParent,
@@ -456,7 +454,7 @@ class IfOp(IRDLOperation):
 
     name = "tosa.cond_if"
 
-    cond = operand_def(TensorType[I1])
+    cond = operand_def(TensorType(i1, []))
 
     output = var_result_def(TensorType)
 
@@ -468,34 +466,9 @@ class IfOp(IRDLOperation):
         SingleBlockImplicitTerminator(YieldOp),
     )
 
-    def print(self, printer: Printer):
-        printer.print_string(" ")
-        printer.print_ssa_value(self.cond)
-        printer.print_string(" -> (")
-        printer.print_list(
-            self.output.types,
-            printer.print_attribute,
-        )
-        printer.print_string(") ")
-        printer.print_region(self.true_region)
-        printer.print_string(" else ")
-        printer.print_region(self.false_region)
-
-    @classmethod
-    def parse(cls, parser: Parser) -> Self:
-        cond = parser.parse_operand()
-        parser.parse_punctuation("->")
-        types = parser.parse_comma_separated_list(
-            parser.Delimiter.PAREN,
-            parser.parse_attribute,
-        )
-        true_region = parser.parse_region()
-        parser.parse_keyword("else")
-        false_region = parser.parse_region()
-
-        return cls(
-            operands=[cond], result_types=types, regions=[true_region, false_region]
-        )
+    assembly_format = (
+        "$cond `->` `(` type($output) `)` $true_region `else` $false_region attr-dict"
+    )
 
 
 ################################################################################
