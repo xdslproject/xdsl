@@ -12,7 +12,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import ClassVar
 
-from xdsl.dialects.builtin import IntAttr
+from xdsl.dialects.builtin import IntAttr, NoneAttr
 from xdsl.interfaces import ConstantLikeInterface
 from xdsl.ir import Attribute, Dialect, OpResult, Region, SSAValue
 from xdsl.irdl import (
@@ -78,13 +78,14 @@ class ConstantEClassOp(IRDLOperation, ConstantLikeInterface):
 
 
 @irdl_op_definition
-class EClassOp(IRDLOperation):
+class EClassOp(IRDLOperation, ConstantLikeInterface):
     T: ClassVar = VarConstraint("T", AnyAttr())
 
     name = "eqsat.eclass"
     arguments = var_operand_def(T)
     result = result_def(T)
     min_cost_index = opt_attr_def(IntAttr)
+    constant_val = opt_attr_def(AnyAttr())
     traits = traits_def(Pure())
 
     assembly_format = "$arguments attr-dict `:` type($result)"
@@ -94,6 +95,7 @@ class EClassOp(IRDLOperation):
         *arguments: SSAValue,
         min_cost_index: IntAttr | None = None,
         res_type: Attribute | None = None,
+        constant_val: Attribute | None = None,
     ):
         if not arguments:
             raise DiagnosticException("eclass op must have at least one operand")
@@ -103,8 +105,11 @@ class EClassOp(IRDLOperation):
         super().__init__(
             operands=[arguments],
             result_types=[res_type],
-            attributes={"min_cost_index": min_cost_index},
+            attributes={"min_cost_index": min_cost_index, "constant_val": constant_val},
         )
+
+    def get_constant_value(self):
+        return NoneAttr() if self.constant_val is None else self.constant_val
 
     def verify_(self) -> None:
         if not self.operands:
