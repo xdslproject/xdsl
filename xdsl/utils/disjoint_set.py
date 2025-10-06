@@ -75,6 +75,30 @@ class IntDisjointSet:
 
         return root
 
+    def rooted_union(self, representative: int, other: int) -> bool:
+        """
+        Merges the set with the given representative and the set containing `other`.
+        The `representative` must be a root of its set (i.e. `ds[representative] == representative`).
+        Returns True if the sets were merged, False if they were already the same set.
+
+        In contrast to `union`, this does not do union by size - the `other` set is always
+        attached to the `representative` set. This is useful when we want to control
+        which element becomes the representative of the merged set.
+        """
+        if self[representative] != representative:
+            raise ValueError("The given representative is not a root of its set.")
+
+        other_root = self[other]
+        if representative == other_root:
+            return False
+
+        rep_count = self._count[representative]
+        other_count = self._count[other_root]
+        self._parent[other_root] = representative
+        self._count[representative] = rep_count + other_count
+        # Note: We don't need to update _count[other_root] since it's no longer a root
+        return True
+
     def union(self, lhs: int, rhs: int) -> bool:
         """
         Merges the sets containing lhs and rhs if they are different.
@@ -153,6 +177,25 @@ class DisjointSet(Generic[_T]):
         """
         index = self._base[self._index_by_value[value]]
         return self._values[index]
+
+    def rooted_union(self, representative: _T, other: _T) -> bool:
+        """
+        Merges the set with the given representative and the set containing `other`.
+        The `representative` must be a root of its set (i.e. `ds.find(representative) == representative`).
+        Returns True if the sets were merged, False if they were already the same set.
+
+        In contrast to `union`, this does not do union by size - the `other` set is always
+        attached to the `representative` set. This is useful when we want to control
+        which element becomes the representative of the merged set.
+
+        Raises:
+            KeyError: If either value is not in the disjoint set
+            ValueError: If the given representative is not a root of its set
+        """
+        return self._base.rooted_union(
+            self._index_by_value[representative],
+            self._index_by_value[other],
+        )
 
     def union(self, lhs: _T, rhs: _T) -> bool:
         """
