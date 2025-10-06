@@ -99,30 +99,31 @@ class PatternAnalyzer:
         inputs[value] = position
 
         # Dispatch based on position type (not value type!)
-        if isinstance(position, AttributePosition):
-            assert isinstance(value, OpResult)
-            predicates.extend(
-                self._extract_attribute_predicates(value.owner, position, inputs)
-            )
-        elif isinstance(position, OperationPosition):
-            assert isinstance(value, OpResult)
-            predicates.extend(
-                self._extract_operation_predicates(
-                    value.owner, position, inputs, ignore_operand
+        match position:
+            case AttributePosition():
+                assert isinstance(value, OpResult)
+                predicates.extend(
+                    self._extract_attribute_predicates(value.owner, position, inputs)
                 )
-            )
-        elif isinstance(position, TypePosition):
-            assert isinstance(value, OpResult)
-            predicates.extend(
-                self._extract_type_predicates(value.owner, position, inputs)
-            )
-        elif isinstance(position, OperandPosition | OperandGroupPosition):
-            assert isinstance(value, SSAValue)
-            predicates.extend(
-                self._extract_operand_tree_predicates(value, position, inputs)
-            )
-        else:
-            raise TypeError(f"Unexpected position kind: {type(position)}")
+            case OperationPosition():
+                assert isinstance(value, OpResult)
+                predicates.extend(
+                    self._extract_operation_predicates(
+                        value.owner, position, inputs, ignore_operand
+                    )
+                )
+            case TypePosition():
+                assert isinstance(value, OpResult)
+                predicates.extend(
+                    self._extract_type_predicates(value.owner, position, inputs)
+                )
+            case OperandPosition() | OperandGroupPosition():
+                assert isinstance(value, SSAValue)
+                predicates.extend(
+                    self._extract_operand_tree_predicates(value, position, inputs)
+                )
+            case _:
+                raise TypeError(f"Unexpected position kind: {type(position)}")
 
         return predicates
 
@@ -306,73 +307,82 @@ class PatternAnalyzer:
         defining_op = operand_value.owner
         is_variadic = isinstance(operand_value.type, pdl.RangeType)
 
-        if isinstance(defining_op, pdl.OperandOp | pdl.OperandsOp):
-            if isinstance(defining_op, pdl.OperandOp):
-                is_not_null = Predicate.get_is_not_null()
-                predicates.append(
-                    PositionalPredicate(
-                        q=is_not_null.q, a=is_not_null.a, position=operand_pos
+        match defining_op:
+            case pdl.OperandOp() | pdl.OperandsOp():
+                match defining_op:
+                    case pdl.OperandOp():
+                        is_not_null = Predicate.get_is_not_null()
+                        predicates.append(
+                            PositionalPredicate(
+                                q=is_not_null.q, a=is_not_null.a, position=operand_pos
+                            )
+                        )
+                    case pdl.OperandsOp() if (
+                        isinstance(operand_pos, OperandGroupPosition)
+                        and operand_pos.group_number is not None
+                    ):
+                        is_not_null = Predicate.get_is_not_null()
+                        predicates.append(
+                            PositionalPredicate(
+                                q=is_not_null.q, a=is_not_null.a, position=operand_pos
+                            )
+                        )
+                    case _:
+                        pass
+
+                if defining_op.value_type:
+                    type_pos = operand_pos.get_type()
+                    predicates.extend(
+                        self.extract_tree_predicates(
+                            defining_op.value_type, type_pos, inputs
+                        )
                     )
-                )
-            elif (
-                isinstance(operand_pos, OperandGroupPosition)
-                and operand_pos.group_number is not None
-            ):
+
+            case pdl.ResultOp() | pdl.ResultsOp():
+                index_attr = defining_op.index
+                index = index_attr.value.data if index_attr is not None else None
+
+                if index is not None:
+                    is_not_null = Predicate.get_is_not_null()
+                    predicates.append(
+                        PositionalPredicate(
+                            q=is_not_null.q, a=is_not_null.a, position=operand_pos
+                        )
+                    )
+
+                # Get the parent operation position
+                parent_op = defining_op.parent_
+                defining_op_pos = operand_pos.get_defining_op()
+
+                # Parent operation should not be null
                 is_not_null = Predicate.get_is_not_null()
                 predicates.append(
                     PositionalPredicate(
-                        q=is_not_null.q, a=is_not_null.a, position=operand_pos
+                        q=is_not_null.q, a=is_not_null.a, position=defining_op_pos
                     )
                 )
 
-            if defining_op.value_type:
-                type_pos = operand_pos.get_type()
+                match defining_op:
+                    case pdl.ResultOp():
+                        result_pos = defining_op_pos.get_result(
+                            index if index is not None else 0
+                        )
+                    case pdl.ResultsOp():  # ResultsOp
+                        result_pos = defining_op_pos.get_result_group(
+                            index, is_variadic
+                        )
+
+                equal_to = Predicate.get_equal_to(operand_pos)
+                predicates.append(
+                    PositionalPredicate(q=equal_to.q, a=equal_to.a, position=result_pos)
+                )
+
+                # Recursively process the parent operation
                 predicates.extend(
-                    self.extract_tree_predicates(
-                        defining_op.value_type, type_pos, inputs
-                    )
+                    self.extract_tree_predicates(parent_op, defining_op_pos, inputs)
                 )
-
-        elif isinstance(defining_op, pdl.ResultOp | pdl.ResultsOp):
-            index_attr = defining_op.index
-            index = index_attr.value.data if index_attr is not None else None
-
-            if index is not None:
-                is_not_null = Predicate.get_is_not_null()
-                predicates.append(
-                    PositionalPredicate(
-                        q=is_not_null.q, a=is_not_null.a, position=operand_pos
-                    )
-                )
-
-            # Get the parent operation position
-            parent_op = defining_op.parent_
-            defining_op_pos = operand_pos.get_defining_op()
-
-            # Parent operation should not be null
-            is_not_null = Predicate.get_is_not_null()
-            predicates.append(
-                PositionalPredicate(
-                    q=is_not_null.q, a=is_not_null.a, position=defining_op_pos
-                )
-            )
-
-            if isinstance(defining_op, pdl.ResultOp):
-                result_pos = defining_op_pos.get_result(
-                    index if index is not None else 0
-                )
-            else:  # ResultsOp
-                result_pos = defining_op_pos.get_result_group(index, is_variadic)
-
-            equal_to = Predicate.get_equal_to(operand_pos)
-            predicates.append(
-                PositionalPredicate(q=equal_to.q, a=equal_to.a, position=result_pos)
-            )
-
-            # Recursively process the parent operation
-            predicates.extend(
-                self.extract_tree_predicates(parent_op, defining_op_pos, inputs)
-            )
+            case _:
+                pass
 
         return predicates
 
@@ -414,87 +424,75 @@ class PatternAnalyzer:
         predicates: list[PositionalPredicate] = []
 
         for op in pattern.body.ops:
-            if isinstance(op, pdl.AttributeOp):
-                if op.output not in inputs:
-                    if op.value:
-                        # Create literal position for constant attribute
-                        attr_pos = AttributeLiteralPosition(value=op.value, parent=None)
-                        inputs[op.output] = attr_pos
-
-            elif isinstance(op, pdl.ApplyNativeConstraintOp):
-                # Collect all argument positions
-                arg_positions = tuple(inputs.get(arg) for arg in op.args)
-                for pos in arg_positions:
-                    assert pos is not None
-                arg_positions = cast(tuple[Position, ...], arg_positions)
-
-                # Find the furthest position (deepest)
-                furthest_pos = max(
-                    arg_positions, key=lambda p: p.get_operation_depth() if p else 0
-                )
-
-                # Create the constraint predicate
-                result_types = tuple(r.type for r in op.res)
-                # TODO: is_negated is not part of the dialect definition yet
-                is_negated = False
-                constraint_pred = Predicate.get_constraint(
-                    op.constraint_name.data, arg_positions, result_types, is_negated
-                )
-
-                # Register positions for constraint results
-                for i, result in enumerate(op.results):
-                    assert isinstance(constraint_pred.q, ConstraintQuestion)
-                    constraint_pos = ConstraintPosition.get_constraint(
-                        constraint_pred.q, i
-                    )
-                    existing = inputs.get(result)
-                    if existing:
-                        # Add equality constraint if result already has a position
-                        deeper, shallower = (
-                            (constraint_pos, existing)
-                            if constraint_pos.get_operation_depth()
-                            > existing.get_operation_depth()
-                            else (existing, constraint_pos)
-                        )
-                        eq_pred = Predicate.get_equal_to(shallower)
-                        predicates.append(
-                            PositionalPredicate(
-                                q=eq_pred.q, a=eq_pred.a, position=deeper
+            match op:
+                case pdl.AttributeOp():
+                    if op.output not in inputs:
+                        if op.value:
+                            # Create literal position for constant attribute
+                            attr_pos = AttributeLiteralPosition(
+                                value=op.value, parent=None
                             )
-                        )
-                    else:
-                        inputs[result] = constraint_pos
+                            inputs[op.output] = attr_pos
 
-                predicates.append(
-                    PositionalPredicate(
-                        q=constraint_pred.q, a=constraint_pred.a, position=furthest_pos
+                case pdl.ApplyNativeConstraintOp():
+                    # Collect all argument positions
+                    arg_positions = tuple(inputs.get(arg) for arg in op.args)
+                    for pos in arg_positions:
+                        assert pos is not None
+                    arg_positions = cast(tuple[Position, ...], arg_positions)
+
+                    # Find the furthest position (deepest)
+                    furthest_pos = max(
+                        arg_positions, key=lambda p: p.get_operation_depth() if p else 0
                     )
-                )
 
-            elif isinstance(op, pdl.ResultOp):
-                # Ensure result exists
-                if op.val not in inputs:
-                    assert isinstance(op.parent_.owner, pdl.OperationOp)
-                    parent_pos = inputs.get(op.parent_.owner.op)
-                    if parent_pos and isinstance(parent_pos, OperationPosition):
-                        result_pos = parent_pos.get_result(op.index.value.data)
-                        is_not_null = Predicate.get_is_not_null()
-                        predicates.append(
-                            PositionalPredicate(
-                                q=is_not_null.q, a=is_not_null.a, position=result_pos
-                            )
+                    # Create the constraint predicate
+                    result_types = tuple(r.type for r in op.res)
+                    # TODO: is_negated is not part of the dialect definition yet
+                    is_negated = False
+                    constraint_pred = Predicate.get_constraint(
+                        op.constraint_name.data, arg_positions, result_types, is_negated
+                    )
+
+                    # Register positions for constraint results
+                    for i, result in enumerate(op.results):
+                        assert isinstance(constraint_pred.q, ConstraintQuestion)
+                        constraint_pos = ConstraintPosition.get_constraint(
+                            constraint_pred.q, i
                         )
+                        existing = inputs.get(result)
+                        if existing:
+                            # Add equality constraint if result already has a position
+                            deeper, shallower = (
+                                (constraint_pos, existing)
+                                if constraint_pos.get_operation_depth()
+                                > existing.get_operation_depth()
+                                else (existing, constraint_pos)
+                            )
+                            eq_pred = Predicate.get_equal_to(shallower)
+                            predicates.append(
+                                PositionalPredicate(
+                                    q=eq_pred.q, a=eq_pred.a, position=deeper
+                                )
+                            )
+                        else:
+                            inputs[result] = constraint_pos
 
-            elif isinstance(op, pdl.ResultsOp):
-                # Handle result groups
-                if op.val not in inputs:
-                    assert isinstance(op.parent_.owner, pdl.OperationOp)
-                    parent_pos = inputs.get(op.parent_.owner.op)
-                    if parent_pos and isinstance(parent_pos, OperationPosition):
-                        is_variadic = isinstance(op.val.type, pdl.RangeType)
-                        index = op.index.value.data if op.index else None
-                        result_pos = parent_pos.get_result_group(index, is_variadic)
-                        if index is not None:
+                    predicates.append(
+                        PositionalPredicate(
+                            q=constraint_pred.q,
+                            a=constraint_pred.a,
+                            position=furthest_pos,
+                        )
+                    )
+
+                case pdl.ResultOp():
+                    # Ensure result exists
+                    if op.val not in inputs:
+                        assert isinstance(op.parent_.owner, pdl.OperationOp)
+                        parent_pos = inputs.get(op.parent_.owner.op)
+                        if parent_pos and isinstance(parent_pos, OperationPosition):
+                            result_pos = parent_pos.get_result(op.index.value.data)
                             is_not_null = Predicate.get_is_not_null()
                             predicates.append(
                                 PositionalPredicate(
@@ -504,20 +502,42 @@ class PatternAnalyzer:
                                 )
                             )
 
-            elif isinstance(op, pdl.TypeOp):
-                # Handle constant types
-                if op.result not in inputs and op.constantType:
-                    type_pos = TypeLiteralPosition.get_type_literal(
-                        value=op.constantType
-                    )
-                    inputs[op.result] = type_pos
+                case pdl.ResultsOp():
+                    # Handle result groups
+                    if op.val not in inputs:
+                        assert isinstance(op.parent_.owner, pdl.OperationOp)
+                        parent_pos = inputs.get(op.parent_.owner.op)
+                        if parent_pos and isinstance(parent_pos, OperationPosition):
+                            is_variadic = isinstance(op.val.type, pdl.RangeType)
+                            index = op.index.value.data if op.index else None
+                            result_pos = parent_pos.get_result_group(index, is_variadic)
+                            if index is not None:
+                                is_not_null = Predicate.get_is_not_null()
+                                predicates.append(
+                                    PositionalPredicate(
+                                        q=is_not_null.q,
+                                        a=is_not_null.a,
+                                        position=result_pos,
+                                    )
+                                )
 
-            elif isinstance(op, pdl.TypesOp):
-                # Handle constant type arrays
-                if op.result not in inputs and op.constantTypes:
-                    type_pos = TypeLiteralPosition.get_type_literal(
-                        value=op.constantTypes
-                    )
-                    inputs[op.result] = type_pos
+                case pdl.TypeOp():
+                    # Handle constant types
+                    if op.result not in inputs and op.constantType:
+                        type_pos = TypeLiteralPosition.get_type_literal(
+                            value=op.constantType
+                        )
+                        inputs[op.result] = type_pos
+
+                case pdl.TypesOp():
+                    # Handle constant type arrays
+                    if op.result not in inputs and op.constantTypes:
+                        type_pos = TypeLiteralPosition.get_type_literal(
+                            value=op.constantTypes
+                        )
+                        inputs[op.result] = type_pos
+
+                case _:
+                    pass
 
         return predicates
