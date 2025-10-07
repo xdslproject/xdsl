@@ -2256,6 +2256,11 @@ def test_attr_dict_directly_before_region_variable():
             'test.region_attr_dict {a = 2 : i32}, {\n  "test.op"() : () -> ()\n}',
             '"test.region_attr_dict"() ({  "test.op"() : () -> ()}) {a = 2 : i32} : () -> ()',
         ),
+        (
+            "($region^)? attr-dict-with-keyword",
+            "test.region_attr_dict attributes {a = 2 : i32}",
+            '"test.region_attr_dict"() ({}) {a = 2 : i32} : () -> ()',
+        ),
     ],
 )
 def test_regions_with_attr_dict(format: str, program: str, generic_program: str):
@@ -2412,16 +2417,6 @@ def test_multiple_optional_regions():
     "format, program, generic_program",
     [
         (
-            "($opt_region^ `keyword`)? attr-dict",
-            "test.optional_region_group",
-            '"test.optional_region_group"() : () -> ()',
-        ),
-        (
-            "($opt_region^ `keyword`)? attr-dict",
-            'test.optional_region_group {\n  "test.op"() : () -> ()\n} keyword',
-            '"test.optional_region_group"() ({"test.op"() : () -> ()}) : () -> ()',
-        ),
-        (
             "(`keyword` $opt_region^)? attr-dict",
             "test.optional_region_group",
             '"test.optional_region_group"() : () -> ()',
@@ -2485,6 +2480,21 @@ def test_optional_groups_empty_regions(program: str, generic_program: str):
 
     check_roundtrip(program, ctx)
     check_equivalence(program, generic_program, ctx)
+
+
+def test_attr_dict_directly_after_optional_group_with_first_region_variable():
+    """Test that regions require an 'attr-dict' directive."""
+    with pytest.raises(
+        PyRDLOpDefinitionError,
+        match="An optional group with a region as a first element cannot be followed by a `attr-dict' directive as it is ambiguous.",
+    ):
+
+        @irdl_op_definition
+        class RegionAttrDictWrongOp(IRDLOperation):  # pyright: ignore[reportUnusedClass]
+            name = "test.region_op_ambiguous_optional_group"
+            region = region_def()
+
+            assembly_format = "($region^)? attr-dict"
 
 
 ################################################################################
