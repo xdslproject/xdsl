@@ -199,3 +199,51 @@ func.func @test_im_neg(%arg0: f32, %arg1: f32) -> f32 {
   // CHECK:       %[[IM:.*]] = arith.negf %[[ARG1]] : f32
   // CHECK-NEXT:  return %[[IM]] : f32
 }
+
+
+// CHECK-LABEL: func @test_complex_neg_neg
+func.func @test_complex_neg_neg() -> complex<f32> {
+  %complex1 = complex.constant [1.0 : f32, 0.0 : f32] : complex<f32>
+  %neg1 = complex.neg %complex1 : complex<f32>
+  %neg2 = complex.neg %neg1 : complex<f32>
+  return %neg2 : complex<f32>
+
+  // CHECK:       %[[COMPLEX:.*]] = complex.constant [1.000000e+00 : f32, 0.000000e+00 : f32] : complex<f32>
+  // CHECK-NEXT:  return %[[COMPLEX]] : complex<f32>
+}
+
+
+// CHECK-LABEL: func @test_complex_log_exp
+func.func @test_complex_log_exp() -> complex<f32> {
+  %complex1 = complex.constant [1.0 : f32, 0.0 : f32] : complex<f32>
+  %exp = complex.exp %complex1 : complex<f32>
+  %log = complex.log %exp : complex<f32>
+  return %log : complex<f32>
+
+  // CHECK:       %[[COMPLEX:.*]] = complex.constant [1.000000e+00 : f32, 0.000000e+00 : f32] : complex<f32>
+  // CHECK-NEXT:  return %[[COMPLEX]] : complex<f32>  
+}
+
+
+// CHECK-LABEL: func @test_complex_exp_log
+func.func @test_complex_exp_log() -> complex<f32> {
+  %complex1 = complex.constant [1.0 : f32, 0.0 : f32] : complex<f32>
+  %log = complex.log %complex1 : complex<f32>
+  %exp = complex.exp %log : complex<f32>
+  return %exp : complex<f32>
+
+  // CHECK:       %[[COMPLEX:.*]] = complex.constant [1.000000e+00 : f32, 0.000000e+00 : f32] : complex<f32>
+  // CHECK-NEXT:  return %[[COMPLEX]] : complex<f32>   
+}
+
+
+// CHECK-LABEL: func @test_complex_conj_conj
+func.func @test_complex_conj_conj() -> complex<f32> {
+  %complex1 = complex.constant [1.0 : f32, 0.0 : f32] : complex<f32>
+  %conj1 = complex.conj %complex1 : complex<f32>
+  %conj2 = complex.conj %conj1 : complex<f32>
+  return %conj2 : complex<f32>
+
+  // CHECK:       %[[COMPLEX:.*]] = complex.constant [1.000000e+00 : f32, 0.000000e+00 : f32] : complex<f32>
+  // CHECK-NEXT:  return %[[COMPLEX]] : complex<f32>  
+}
