@@ -305,7 +305,7 @@ class FormatDirective(Directive, ABC):
 
     def parse_optional(self, parser: Parser, state: ParsingState) -> bool:
         """
-        Parses an optional directive, returning false if not present.
+        Parses an optional directive, returning False if not present.
         """
         return self.parse(parser, state)
 
