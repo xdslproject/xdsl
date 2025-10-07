@@ -979,10 +979,11 @@ class RegionVariable(RegionDirective, VariableDirective):
 
     def parse_optional(self, parser: Parser, state: ParsingState) -> bool:
         region = parser.parse_optional_region()
-        if region is None:
+        res = region is None
+        if res:
             region = Region()
         self.set(state, region)
-        return True
+        return res
 
     def get(self, op: IRDLOperation) -> Region:
         return getattr(op, self.name)
@@ -1026,6 +1027,9 @@ class VariadicRegionVariable(RegionDirective, VariadicVariable):
         self.set(state, regions)
         return bool(regions)
 
+    def parse_optional(self, parser: Parser, state: ParsingState) -> bool:
+        return self.parse(parser, state)
+
     def get(self, op: IRDLOperation) -> Sequence[Region]:
         return getattr(op, self.name)
 
@@ -1054,6 +1058,9 @@ class OptionalRegionVariable(RegionDirective, OptionalVariable):
         region = parser.parse_optional_region()
         self.set(state, region)
         return region is not None
+
+    def parse_optional(self, parser: Parser, state: ParsingState) -> bool:
+        return self.parse(parser, state)
 
     def get(self, op: IRDLOperation) -> Region | None:
         return getattr(op, self.name)
