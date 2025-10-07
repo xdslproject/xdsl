@@ -33,6 +33,7 @@ from xdsl.irdl import (
     operand_def,
     opt_operand_def,
     opt_prop_def,
+    opt_region_def,
     prop_def,
     region_def,
     result_def,
@@ -795,7 +796,7 @@ class RewriteOp(IRDLOperation):
     # parameters of external rewriter function
     external_args = var_operand_def(AnyPDLTypeConstr)
     # body of inline rewriter function
-    body = region_def()
+    body = opt_region_def()
 
     irdl_options = [AttrSizedOperandSegments()]
 
@@ -810,7 +811,7 @@ class RewriteOp(IRDLOperation):
     def __init__(
         self,
         root: SSAValue | None,
-        body: Region | type[Region.DEFAULT] = Region.DEFAULT,
+        body: Region | type[Region.DEFAULT] | None = Region.DEFAULT,
         name: str | StringAttr | None = None,
         external_args: Sequence[SSAValue] = (),
     ) -> None:
@@ -829,6 +830,8 @@ class RewriteOp(IRDLOperation):
             regions.append(Region(Block()))
         elif isinstance(body, Region):
             regions.append(body)
+        elif body is None:
+            regions.append([])
 
         properties: dict[str, Attribute] = {}
         if name is not None:
