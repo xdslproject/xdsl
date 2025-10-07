@@ -465,7 +465,7 @@ class PatternAnalyzer:
                             # Add equality constraint if result already has a position
                             deeper, shallower = (
                                 (constraint_pos, existing)
-                                if constraint_pos.get_operation_depth()
+                                if furthest_pos.get_operation_depth()
                                 > existing.get_operation_depth()
                                 else (existing, constraint_pos)
                             )
