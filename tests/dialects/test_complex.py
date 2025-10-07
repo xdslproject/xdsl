@@ -20,6 +20,7 @@ from xdsl.dialects.builtin import (
     i1,
     i16,
     i32,
+    i64,
 )
 from xdsl.traits import ConstantLike
 from xdsl.utils.exceptions import VerifyException
@@ -291,6 +292,46 @@ def test_create_op(lhs_type: Attribute, rhs_type: Attribute, is_correct: bool):
         with pytest.raises(VerifyException):
             op = complex.CreateOp(lhs, rhs, ComplexType(lhs_type))
             op.verify_()
+
+
+@pytest.mark.parametrize(
+    "in_type, out_type",
+    [
+        (ComplexType(f16), i32),
+        (i64, ComplexType(f32)),
+        (ComplexType(f32), i64),
+        (ComplexType(f32), f64),
+        (f64, ComplexType(f32)),
+        (ComplexType(f16), f32),
+    ],
+)
+def test_bitcast_op(in_type: Attribute, out_type: Attribute):
+    in_arg = create_ssa_value(in_type)
+    op = complex.BitcastOp(in_arg, out_type)
+    op.verify_()
+    assert op.result.type == out_type
+
+
+@pytest.mark.parametrize(
+    "in_type, out_type",
+    [
+        (ComplexType(f16), ComplexType(f32)),
+        (ComplexType(i64), ComplexType(f32)),
+        (ComplexType(f32), ComplexType(i64)),
+        (ComplexType(f32), ComplexType(f64)),
+        (f64, f32),
+        (f32, i64),
+        (i64, f64),
+        (ComplexType(i32), i64),
+        (ComplexType(i16), f32),
+        (ComplexType(f16), i64),
+    ],
+)
+def test_bitcast_op_incorrect(in_type: Attribute, out_type: Attribute):
+    in_arg = create_ssa_value(in_type)
+    op = complex.BitcastOp(in_arg, out_type)
+    with pytest.raises(VerifyException):
+        op.verify_()
 
 
 @pytest.mark.parametrize(
