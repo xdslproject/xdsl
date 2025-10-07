@@ -173,3 +173,29 @@ func.func @test_imag_of_create_op() -> f32 {
   // CHECK:       %[[IMAG:.*]] = arith.constant 0.000000e+00 : f32
   // CHECK-NEXT:  return %[[IMAG]] : f32
 }
+
+
+// CHECK-LABEL: func @test_re_neg
+// CHECK-SAME: (%[[ARG0:.*]] : f32, %[[ARG1:.*]] : f32) -> f32
+func.func @test_re_neg(%arg0: f32, %arg1: f32) -> f32 {
+  %create = complex.create %arg0, %arg1: complex<f32>
+  %neg = complex.neg %create : complex<f32>
+  %re = complex.re %neg : complex<f32>
+  return %re : f32
+
+  // CHECK:       %[[RE:.*]] = arith.negf %[[ARG0]] : f32
+  // CHECK-NEXT:  return %[[RE]] : f32
+}
+
+
+// CHECK-LABEL: func @test_im_neg
+// CHECK-SAME: (%[[ARG0:.*]] : f32, %[[ARG1:.*]] : f32) -> f32
+func.func @test_im_neg(%arg0: f32, %arg1: f32) -> f32 {
+  %create = complex.create %arg0, %arg1: complex<f32>
+  %neg = complex.neg %create : complex<f32>
+  %im = complex.im %neg : complex<f32>
+  return %im : f32
+
+  // CHECK:       %[[IM:.*]] = arith.negf %[[ARG1]] : f32
+  // CHECK-NEXT:  return %[[IM]] : f32
+}
