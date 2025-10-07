@@ -1,4 +1,4 @@
-from xdsl.dialects import complex
+from xdsl.dialects import arith, complex
 from xdsl.dialects.builtin import (
     ArrayAttr,
     FloatAttr,
@@ -84,3 +84,36 @@ class RedundantCreateOpPattern(RewritePattern):
             and ((op.real.owner.complex) is (op.imaginary.owner.complex))
         ):
             rewriter.replace_matched_op((), (op.real.owner.complex,))
+
+
+class ReImRedundantOpPattern(RewritePattern):
+    """
+    %x = (complex.constant [a, b]) | (complex.create %c, %d)
+    %y = complex.re %x = (%c | a)
+    %y = complex.im %x = (%d | b)
+    """
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(
+        self, op: complex.ReOp | complex.ImOp, rewriter: PatternRewriter
+    ):
+        if isinstance(op.complex.owner, complex.ConstantOp) and isa(
+            val := op.complex.owner.value, ArrayAttr[FloatAttr]
+        ):
+            index = 0 if isinstance(op, complex.ReOp) else 1
+            rewriter.replace_matched_op(arith.ConstantOp(val.data[index]))
+            return
+        elif isinstance(operand := op.complex.owner, complex.CreateOp) and (
+            (
+                isinstance(l := operand.real.owner, arith.ConstantOp)
+                and isinstance(l.value, FloatAttr)
+            )
+            or (
+                isinstance(r := operand.imaginary.owner, arith.ConstantOp)
+                and isinstance(r.value, FloatAttr)
+            )
+        ):
+            new_ssa_value = (
+                operand.real if isinstance(op, complex.ReOp) else operand.imaginary
+            )
+            rewriter.replace_matched_op((), (new_ssa_value,))

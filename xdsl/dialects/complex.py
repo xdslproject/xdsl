@@ -343,9 +343,23 @@ class Expm1Op(ComplexUnaryComplexResultOperation):
     name = "complex.expm1"
 
 
+class ReImOpCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.complex import (
+            ReImRedundantOpPattern,
+        )
+
+        return (ReImRedundantOpPattern(),)
+
+
 @irdl_op_definition
 class ImOp(ComplexUnaryRealResultOperation):
     name = "complex.im"
+    traits = traits_def(
+        Pure(),
+        ReImOpCanonicalizationPatternsTrait(),
+    )
 
 
 @irdl_op_definition
@@ -385,6 +399,10 @@ class PowOp(ComplexBinaryOp):
 @irdl_op_definition
 class ReOp(ComplexUnaryRealResultOperation):
     name = "complex.re"
+    traits = traits_def(
+        Pure(),
+        ReImOpCanonicalizationPatternsTrait(),
+    )
 
 
 @irdl_op_definition
