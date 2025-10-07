@@ -552,9 +552,9 @@ class PatternAnalyzer:
 class PredicateTreeBuilder:
     """Builds optimized predicate matching trees"""
 
-	analyzer: PatternAnalyzer
-	_pattern_roots: dict[pdl.PatternOp, SSAValue]
-	pattern_value_positions: dict[pdl.PatternOp, dict[SSAValue, Position]]
+    analyzer: PatternAnalyzer
+    _pattern_roots: dict[pdl.PatternOp, SSAValue]
+    pattern_value_positions: dict[pdl.PatternOp, dict[SSAValue, Position]]
 
     def __init__(self):
         self.analyzer = PatternAnalyzer()
