@@ -86,6 +86,14 @@ class ExitNode(MatcherNode):
 # =============================================================================
 
 
+@dataclass(frozen=True)
+class OpIndex:
+    """An op accepting a value at an optional index."""
+
+    parent: SSAValue
+    index: int | None
+
+
 class PatternAnalyzer:
     """Analyzes PDL patterns and extracts predicates"""
 
