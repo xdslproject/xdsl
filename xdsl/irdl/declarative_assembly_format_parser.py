@@ -44,6 +44,7 @@ from xdsl.irdl import (
     VarSuccessorDef,
 )
 from xdsl.irdl.declarative_assembly_format import (
+    AnchorRegionVariable,
     AttrDictDirective,
     AttributeVariable,
     DenseArrayAttributeVariable,
@@ -660,6 +661,9 @@ class FormatParser(BaseParser):
                 if anchor is not None:
                     self.raise_error("An optional group can only have one anchor.")
                 anchor = then_elements[-1]
+                if isinstance(anchor, RegionVariable):
+                    anchor = AnchorRegionVariable(anchor.name, anchor.index)
+                    then_elements = then_elements[:-1] + (anchor,)
 
         if self.parse_optional_punctuation(":"):
             self.parse_punctuation("(")

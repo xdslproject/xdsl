@@ -3,7 +3,7 @@ import pytest
 import xdsl.dialects.pdl as pdl
 from xdsl.builder import Builder
 from xdsl.dialects.builtin import ArrayAttr, IntegerAttr, StringAttr, i32, i64
-from xdsl.ir import Block
+from xdsl.ir import Block, Region
 from xdsl.irdl import IRDLOperation, irdl_op_definition, traits_def
 from xdsl.traits import HasParent, IsTerminator
 from xdsl.utils.exceptions import VerifyException
@@ -43,18 +43,16 @@ def test_build_anr():
 
 
 def test_build_rewrite():
-    r = pdl.RewriteOp(
-        name="r", root=None, external_args=[type_val, attr_val], body=None
-    )
+    r = pdl.RewriteOp(name="r", root=None, external_args=[type_val, attr_val])
 
     assert r.name_ == StringAttr("r")
     assert r.external_args == (type_val, attr_val)
     assert len(r.results) == 0
-    assert r.body is None
+    assert r.body.is_structurally_equivalent(Region(Block()))
 
     r1 = pdl.RewriteOp(name="r", root=None, external_args=[type_val, attr_val])
 
-    assert r1.body is not None
+    assert r1.body.is_structurally_equivalent(Region(Block()))
 
 
 def test_build_operation_replace():
