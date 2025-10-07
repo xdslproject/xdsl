@@ -125,3 +125,51 @@ func.func @test_create_of_real_and_imag_different_operand(
   // CHECK-NEXT:  %[[COMPLEX:.*]] = complex.create %[[REAL]], %[[IMAG]] : complex<f32>
   // CHECK-NEXT:  return %[[COMPLEX]] : complex<f32>
 }
+
+
+// CHECK-LABEL: func @test_real_of_const
+func.func @test_real_of_const() -> f32 {
+  %complex = complex.constant [1.0 : f32, 0.0 : f32] : complex<f32>
+  %real = complex.re %complex : complex<f32>
+  return %real : f32
+
+  // CHECK:       %[[REAL:.*]] = arith.constant 1.000000e+00 : f32
+  // CHECK-NEXT:  return %[[REAL]] : f32
+}
+
+
+// CHECK-LABEL: func @test_real_of_create_op
+func.func @test_real_of_create_op() -> f32 {
+  %real = arith.constant 1.0 : f32
+  %imag = arith.constant 0.0 : f32
+  %complex = complex.create %real, %imag : complex<f32>
+  %1 = complex.re %complex : complex<f32>
+  return %1 : f32
+
+  // CHECK:       %[[REAL:.*]] = arith.constant 1.000000e+00 : f32
+  // CHECK-NEXT:  return %[[REAL]] : f32
+}
+
+
+// CHECK-LABEL: func @test_imag_of_const
+func.func @test_imag_of_const() -> f32 {
+  %complex = complex.constant [1.0 : f32, 0.0 : f32] : complex<f32>
+  %imag = complex.im %complex : complex<f32>
+  return %imag : f32
+
+  // CHECK:       %[[IMAG:.*]] = arith.constant 0.000000e+00 : f32
+  // CHECK-NEXT:  return %[[IMAG]] : f32
+}
+
+
+// CHECK-LABEL: func @test_imag_of_create_op
+func.func @test_imag_of_create_op() -> f32 {
+  %real = arith.constant 1.0 : f32
+  %imag = arith.constant 0.0 : f32
+  %complex = complex.create %real, %imag : complex<f32>
+  %1 = complex.im %complex : complex<f32>
+  return %1 : f32
+
+  // CHECK:       %[[IMAG:.*]] = arith.constant 0.000000e+00 : f32
+  // CHECK-NEXT:  return %[[IMAG]] : f32
+}
