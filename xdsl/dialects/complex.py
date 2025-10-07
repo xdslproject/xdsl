@@ -32,7 +32,8 @@ from xdsl.irdl import (
     result_def,
     traits_def,
 )
-from xdsl.traits import Pure
+from xdsl.pattern_rewriter import RewritePattern
+from xdsl.traits import HasCanonicalizationPatternsTrait, Pure
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
@@ -148,6 +149,16 @@ class ComplexCompareOp(IRDLOperation, abc.ABC):
         super().__init__(operands=[lhs, rhs], result_types=[IntegerType(1)])
 
 
+class ComplexBinaryOpCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.complex import (
+            FoldConstConstOp,
+        )
+
+        return (FoldConstConstOp(),)
+
+
 @irdl_op_definition
 class AbsOp(ComplexUnaryRealResultOperation):
     name = "complex.abs"
@@ -156,6 +167,10 @@ class AbsOp(ComplexUnaryRealResultOperation):
 @irdl_op_definition
 class AddOp(ComplexBinaryOp):
     name = "complex.add"
+    traits = traits_def(
+        Pure(),
+        ComplexBinaryOpCanonicalizationPatternsTrait(),
+    )
 
 
 @irdl_op_definition
@@ -294,6 +309,10 @@ class CreateOp(IRDLOperation):
 @irdl_op_definition
 class DivOp(ComplexBinaryOp):
     name = "complex.div"
+    traits = traits_def(
+        Pure(),
+        ComplexBinaryOpCanonicalizationPatternsTrait(),
+    )
 
 
 @irdl_op_definition
@@ -329,6 +348,10 @@ class Log1pOp(ComplexUnaryComplexResultOperation):
 @irdl_op_definition
 class MulOp(ComplexBinaryOp):
     name = "complex.mul"
+    traits = traits_def(
+        Pure(),
+        ComplexBinaryOpCanonicalizationPatternsTrait(),
+    )
 
 
 @irdl_op_definition
@@ -374,6 +397,10 @@ class SqrtOp(ComplexUnaryComplexResultOperation):
 @irdl_op_definition
 class SubOp(ComplexBinaryOp):
     name = "complex.sub"
+    traits = traits_def(
+        Pure(),
+        ComplexBinaryOpCanonicalizationPatternsTrait(),
+    )
 
 
 @irdl_op_definition
