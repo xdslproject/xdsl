@@ -14,6 +14,7 @@ from typing import NamedTuple, overload
 
 from xdsl.dialects.builtin import (
     ArrayAttr,
+    DictionaryAttr,
     FlatSymbolRefAttr,
     FlatSymbolRefAttrConstr,
     IntAttr,
@@ -814,8 +815,11 @@ class HWModuleOp(IRDLOperation):
 
     sym_name = prop_def(SymbolNameConstraint())
     module_type = prop_def(ModuleType)
+    per_port_attrs = opt_prop_def(ArrayAttr[DictionaryAttr])
+    result_locs = opt_prop_def(ArrayAttr[LocationAttr])
     sym_visibility = opt_prop_def(StringAttr)
     parameters = opt_prop_def(ArrayAttr[ParamDeclAttr])
+    comment = opt_prop_def(StringAttr)
 
     body = region_def("single_block")
 
@@ -833,7 +837,10 @@ class HWModuleOp(IRDLOperation):
         sym_name: StringAttr,
         module_type: ModuleType,
         body: Region,
+        per_port_attrs: ArrayAttr[DictionaryAttr] | None = None,
+        result_locs: ArrayAttr[LocationAttr] | None = None,
         parameters: ArrayAttr[ParamDeclAttr] = ArrayAttr([]),
+        comment: StringAttr | None = None,
         visibility: str | StringAttr | None = None,
     ):
         properties: dict[str, Attribute] = {
@@ -841,6 +848,15 @@ class HWModuleOp(IRDLOperation):
             "module_type": module_type,
             "parameters": parameters,
         }
+
+        if per_port_attrs:
+            properties["per_port_attrs"] = per_port_attrs
+
+        if result_locs:
+            properties["result_locs"] = result_locs
+
+        if comment:
+            properties["comment"] = comment
 
         if visibility:
             if isinstance(visibility, str):
@@ -911,7 +927,6 @@ class HWModuleOp(IRDLOperation):
         printer._print_op_properties(
             self.properties,
             reserved_prop_names=_MODULE_OP_ATTRS_HANDLED_BY_CUSTOM_FORMAT,
-            print_keyword=True,
         )
         printer.print_string(" ")
         printer.print_region(self.body, print_entry_block_args=False)
@@ -1021,6 +1036,7 @@ class InstanceOp(IRDLOperation):
     arg_names = prop_def(ArrayAttr[StringAttr], prop_name="argNames")
     result_names = prop_def(ArrayAttr[StringAttr], prop_name="resultNames")
     inner_sym = opt_prop_def(InnerSymAttr)
+    parameters = opt_prop_def(ArrayAttr[ParamDeclAttr])
 
     def __init__(
         self,
@@ -1029,6 +1045,7 @@ class InstanceOp(IRDLOperation):
         inputs: Iterable[tuple[str, SSAValue]],
         outputs: Iterable[tuple[str, TypeAttribute]],
         inner_sym: InnerSymAttr | None = None,
+        parameters: ArrayAttr[ParamDeclAttr] | None = None,
     ):
         arg_names = ArrayAttr(StringAttr(port[0]) for port in inputs)
         result_names = ArrayAttr(StringAttr(port[0]) for port in outputs)
@@ -1037,6 +1054,7 @@ class InstanceOp(IRDLOperation):
             "moduleName": module_name,
             "argNames": arg_names,
             "resultNames": result_names,
+            "parameters": parameters,
         }
         if inner_sym is not None:
             properties["inner_sym"] = inner_sym
@@ -1158,15 +1176,19 @@ class InstanceOp(IRDLOperation):
         output_ports = parser.parse_comma_separated_list(
             Parser.Delimiter.PAREN, parse_output_port, "output port list expected"
         )
-        properties_attr = parser.parse_optional_attr_dict_with_reserved_prop_names(
-            (
-                "instanceName",
-                "moduleName",
-                "argNames",
-                "resultNames",
-                "inner_sym",
+        attributes_attr, properties_attr = (
+            parser.parse_optional_attr_dict_into_separate_prop_and_attr_dict(
+                (),
+                (
+                    "instanceName",
+                    "moduleName",
+                    "argNames",
+                    "resultNames",
+                    "inner_sym",
+                ),
             )
         )
+        attributes = dict(attributes_attr.data) if attributes_attr is not None else {}
         properties = dict(properties_attr.data) if properties_attr is not None else {}
 
         operands = tuple(port[1] for port in input_ports)
@@ -1180,7 +1202,10 @@ class InstanceOp(IRDLOperation):
         if inner_sym is not None:
             properties["inner_sym"] = inner_sym
         return cls.create(
-            operands=operands, result_types=result_types, properties=properties
+            operands=operands,
+            result_types=result_types,
+            attributes=attributes,
+            properties=properties,
         )
 
     def print(self, printer: Printer) -> None:
