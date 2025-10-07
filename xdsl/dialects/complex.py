@@ -216,6 +216,20 @@ class ConstantOp(IRDLOperation, ConstantLikeInterface):
     def get_constant_value(self) -> Attribute:
         return self.value
 
+    @staticmethod
+    def from_floats(value: tuple[float, float], type: AnyFloat) -> ConstantOp:
+        return ConstantOp(
+            ArrayAttr([FloatAttr(value[0], type), FloatAttr(value[1], type)]),
+            ComplexType(type),
+        )
+
+    @staticmethod
+    def from_ints(value: tuple[int, int], type: IntegerType) -> ConstantOp:
+        return ConstantOp(
+            ArrayAttr([IntegerAttr(value[0], type), IntegerAttr(value[1], type)]),
+            ComplexType(type),
+        )
+
 
 @irdl_op_definition
 class CosOp(ComplexUnaryComplexResultOperation):
