@@ -172,14 +172,14 @@ class PatternAnalyzer:
         """Extract predicates for an operation"""
         predicates: list[PositionalPredicate] = []
 
+        if not isinstance(op_op, pdl.OperationOp):
+            return predicates
+
         if not op_pos.is_root():
             is_not_null = Predicate.get_is_not_null()
             predicates.append(
                 PositionalPredicate(q=is_not_null.q, a=is_not_null.a, position=op_pos)
             )
-
-        if not isinstance(op_op, pdl.OperationOp):
-            return predicates
 
         # Operation name check
         if op_op.opName:
