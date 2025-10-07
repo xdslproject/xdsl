@@ -84,3 +84,44 @@
 // CHECK-NEXT:  "test.op"(%addf32, %addf32_1, %subf32, %subf32_1, %mulf32, %mulf32_1, %divf32, %divf32_1) : (complex<f32>, complex<f32>, complex<f32>, complex<f32>, complex<f32>, complex<f32>, complex<f32>, complex<f32>) -> ()
 // CHECK-NEXT:  "test.op"(%div16, %div16_inf, %div16_minus_inf) : (complex<f16>, complex<f16>, complex<f16>) -> ()
 // CHECK-NEXT:  "test.op"(%div32, %div32_inf, %div32_minus_inf) : (complex<f32>, complex<f32>, complex<f32>) -> ()
+
+
+// CHECK-LABEL: func @test_create_of_real_and_imag
+// CHECK-SAME: (%[[CPLX:.*]] : complex<f32>) -> complex<f32>
+func.func @test_create_of_real_and_imag(%cplx: complex<f32>) -> complex<f32> {
+  %real = complex.re %cplx : complex<f32>
+  %imag = complex.im %cplx : complex<f32>
+  %complex = complex.create %real, %imag : complex<f32>
+  return %complex : complex<f32>
+
+  // CHECK:  return %[[CPLX]] : complex<f32>
+}
+
+
+// CHECK-LABEL: func @test_create_of_real_and_imag2
+func.func @test_create_of_real_and_imag2() -> complex<f32> {
+  %cplx = "test.op"() : () -> (complex<f32>)
+  %real = complex.re %cplx : complex<f32>
+  %imag = complex.im %cplx : complex<f32>
+  %complex = complex.create %real, %imag : complex<f32>
+  return %complex : complex<f32>
+
+  // CHECK:       %[[CPLX:.*]] = "test.op"() : () -> complex<f32>
+  // CHECK-NEXT:  return %[[CPLX]] : complex<f32>
+}
+
+
+// CHECK-LABEL: func @test_create_of_real_and_imag_different_operand
+// CHECK-SAME: (%[[CPLX:.*]] : complex<f32>, %[[CPLX2:.*]] : complex<f32>) -> complex<f32>
+func.func @test_create_of_real_and_imag_different_operand(
+    %cplx: complex<f32>, %cplx2 : complex<f32>) -> complex<f32> {
+  %real = complex.re %cplx : complex<f32>
+  %imag = complex.im %cplx2 : complex<f32>
+  %complex = complex.create %real, %imag : complex<f32>
+  return %complex: complex<f32>
+
+  // CHECK:       %[[REAL:.*]] = complex.re %[[CPLX]] : complex<f32>
+  // CHECK-NEXT:  %[[IMAG:.*]] = complex.im %[[CPLX2]] : complex<f32>
+  // CHECK-NEXT:  %[[COMPLEX:.*]] = complex.create %[[REAL]], %[[IMAG]] : complex<f32>
+  // CHECK-NEXT:  return %[[COMPLEX]] : complex<f32>
+}
