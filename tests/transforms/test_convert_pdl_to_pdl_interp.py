@@ -1104,3 +1104,90 @@ def test_extract_pattern_predicates_regular_flow():
     # check that inputs are populated
     assert op1 in inputs
     assert inputs[op1] == root_pos
+
+
+def test_create_ordered_predicates():
+    """Test the _create_ordered_predicates method for frequency analysis."""
+    builder = PredicateTreeBuilder()
+
+    # Create mock patterns
+    body1 = Region([Block()])
+    with ImplicitBuilder(body1.first_block):
+        pdl.RewriteOp(None, name="rewrite1")
+    pattern1 = pdl.PatternOp(1, "pattern1", body1)
+
+    body2 = Region([Block()])
+    with ImplicitBuilder(body2.first_block):
+        pdl.RewriteOp(None, name="rewrite2")
+    pattern2 = pdl.PatternOp(2, "pattern2", body2)
+
+    # Create mock predicates
+    pos1 = OperationPosition(None, depth=0)
+    q1 = OperationNameQuestion()
+    a1 = StringAnswer("op1")
+    a2 = StringAnswer("op2")
+
+    pos2 = OperationPosition(None, depth=1)
+    q2 = ResultCountQuestion()
+    a3 = UnsignedAnswer(1)
+
+    # A predicate that is present in both patterns
+    pred1_p1 = PositionalPredicate(q1, a1, pos1)
+    pred1_p2 = PositionalPredicate(q1, a2, pos1)
+
+    # A predicate that is unique to pattern1
+    pred2_p1 = PositionalPredicate(q2, a3, pos2)
+
+    # A predicate that is unique to pattern2
+    pred3_p2 = PositionalPredicate(q2, a3, pos1)
+
+    all_pattern_predicates = [
+        (pattern1, [pred1_p1, pred2_p1, pred1_p1]),  # pred1_p1 is duplicated
+        (pattern2, [pred1_p2, pred3_p2]),
+    ]
+
+    # Run the method under test
+    predicate_map = builder._create_ordered_predicates(  # pyright: ignore[reportPrivateUsage]
+        all_pattern_predicates
+    )
+
+    # Verification
+    assert len(predicate_map) == 3  # Three unique predicates
+
+    key1 = (pos1, q1)
+    key2 = (pos2, q2)
+    key3 = (pos1, q2)
+
+    assert key1 in predicate_map
+    assert key2 in predicate_map
+    assert key3 in predicate_map
+
+    # Check ordered predicate for key1
+    ordered_pred1 = predicate_map[key1]
+    assert ordered_pred1.position == pos1
+    assert ordered_pred1.question == q1
+    assert ordered_pred1.primary_score == 3  # Occurs twice in p1, once in p2
+    assert ordered_pred1.pattern_answers == {pattern1: a1, pattern2: a2}
+    assert ordered_pred1.tie_breaker == 0
+    # p1_sum = 3**2 + 1**2 = 10. p2_sum = 3**2 + 1**2 = 10. Total = 10 + 10 = 20
+    assert ordered_pred1.secondary_score == 20
+
+    # Check ordered predicate for key2
+    ordered_pred2 = predicate_map[key2]
+    assert ordered_pred2.position == pos2
+    assert ordered_pred2.question == q2
+    assert ordered_pred2.primary_score == 1
+    assert ordered_pred2.pattern_answers == {pattern1: a3}
+    assert ordered_pred2.tie_breaker == 1
+    # p1_sum = 3**2 + 1**2 = 10.
+    assert ordered_pred2.secondary_score == 10
+
+    # Check ordered predicate for key3
+    ordered_pred3 = predicate_map[key3]
+    assert ordered_pred3.position == pos1
+    assert ordered_pred3.question == q2
+    assert ordered_pred3.primary_score == 1
+    assert ordered_pred3.pattern_answers == {pattern2: a3}
+    assert ordered_pred3.tie_breaker == 2
+    # p2_sum = 3**2 + 1**2 = 10.
+    assert ordered_pred3.secondary_score == 10
