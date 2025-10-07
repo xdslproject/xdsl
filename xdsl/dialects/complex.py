@@ -33,6 +33,7 @@ from xdsl.irdl import (
 )
 from xdsl.traits import Pure
 from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.hints import isa
 
 ComplexTypeConstr = ComplexType.constr(AnyFloat)
 
@@ -215,6 +216,22 @@ class ConstantOp(IRDLOperation, ConstantLikeInterface):
 
     def get_constant_value(self) -> Attribute:
         return self.value
+
+    @staticmethod
+    def from_tuple_and_width(
+        value: tuple[int | float, int | float], width: int
+    ) -> ConstantOp:
+        if width == 1 and isa(value, tuple[int, int]):
+            result_type = ComplexType(IntegerType(1))
+            value = ArrayAttr([IntegerAttr(value[0], 1), IntegerAttr(value[1], 1)])
+        elif width > 1:
+            value = ArrayAttr([FloatAttr(value[0], width), FloatAttr(value[1], width)])
+            result_type = ComplexType(value.data[0].type)
+        else:
+            raise ValueError(
+                f"Not expected 'width'={width} with 'tuple'=[{type(value[0])}, {type(value[1])}"
+            )
+        return ConstantOp(value, result_type)
 
 
 @irdl_op_definition
