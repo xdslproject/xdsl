@@ -8,6 +8,7 @@ from xdsl.dialects.builtin import IntegerType, StringAttr, f32, i32
 from xdsl.ir import Block, Region, SSAValue
 from xdsl.transforms.convert_pdl_to_pdl_interp.conversion import (
     PatternAnalyzer,
+    PredicateTreeBuilder,
 )
 from xdsl.transforms.convert_pdl_to_pdl_interp.predicate import (
     AttributeAnswer,
@@ -1031,3 +1032,75 @@ def test_extract_non_tree_predicates_results_op_with_index():
     from xdsl.transforms.convert_pdl_to_pdl_interp.predicate import ResultGroupPosition
 
     assert isinstance(is_not_null_preds[0].position, ResultGroupPosition)
+
+
+def test_extract_pattern_predicates_multiple_roots():
+    """Test that an error is thrown when multiple roots are present"""
+    body = Region([Block()])
+    block = body.first_block
+    with ImplicitBuilder(block):
+        pdl.OperationOp("op1").op
+        pdl.OperationOp("op2").op
+        pdl.RewriteOp(None, name="rewrite")
+
+    pattern = pdl.PatternOp(1, "pattern", body)
+    builder = PredicateTreeBuilder()
+
+    with pytest.raises(ValueError, match="Multi-root patterns are not yet supported."):
+        builder._extract_pattern_predicates(pattern)  # pyright: ignore[reportPrivateUsage]
+
+
+def test_extract_pattern_predicates_regular_flow():
+    """Test a regular flow where there are some regular and non-tree predicates."""
+    body = Region([Block()])
+    block = body.first_block
+    with ImplicitBuilder(block):
+        type1 = pdl.TypeOp(i32).result
+        op1 = pdl.OperationOp("op1", type_values=(type1,)).op
+        pdl.ApplyNativeConstraintOp("my_constraint", [op1], [])
+        pdl.RewriteOp(op1, name="rewrite")
+
+    pattern = pdl.PatternOp(1, "pattern", body)
+    builder = PredicateTreeBuilder()
+
+    predicates, best_root, inputs = builder._extract_pattern_predicates(pattern)  # pyright: ignore[reportPrivateUsage]
+
+    assert best_root is op1
+
+    # Check for some tree predicates
+    root_pos = OperationPosition(None, depth=0)
+    assert (
+        PositionalPredicate(
+            OperationNameQuestion(),
+            StringAnswer("op1"),
+            root_pos,
+        )
+        in predicates
+    )
+    assert (
+        PositionalPredicate(
+            ResultCountQuestion(),
+            UnsignedAnswer(1),
+            root_pos,
+        )
+        in predicates
+    )
+
+    # Check for non-tree predicate
+    assert (
+        PositionalPredicate(
+            ConstraintQuestion(
+                "my_constraint",
+                (root_pos,),
+                (),
+                False,
+            ),
+            TrueAnswer(),
+            root_pos,
+        )
+        in predicates
+    )
+
+    # check that inputs are populated
+    assert op1 in inputs
+    assert inputs[op1] == root_pos
