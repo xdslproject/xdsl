@@ -565,7 +565,7 @@ class PredicateTreeBuilder:
         inputs: dict[SSAValue, Position] = {}
 
         roots = self.analyzer.detect_roots(pattern)
-        if not (len(roots) == 1):
+        if len(roots) != 1:
             raise ValueError("Multi-root patterns are not yet supported.")
 
         rewriter = pattern.body.block.last_op
