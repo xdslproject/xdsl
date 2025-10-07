@@ -3,6 +3,7 @@ from xdsl.dialects.builtin import (
     ArrayAttr,
     FloatAttr,
 )
+from xdsl.irdl import Operation
 from xdsl.pattern_rewriter import (
     PatternRewriter,
     RewritePattern,
@@ -138,3 +139,26 @@ class ReImNegOpPattern(RewritePattern):
                 creat_op.real if isinstance(op, complex.ReOp) else creat_op.imaginary
             )
             rewriter.replace_matched_op(arith.NegfOp(ssa_value))
+
+
+class RedundantUnaryOpOpPattern(RewritePattern):
+    """
+    conj(conj(x)) = x
+    log(exp(x)) = x
+    exp(log(x)) = x
+    neg(neg(x)) = x
+    """
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(
+        self, op: complex.ComplexUnaryComplexResultOperation, rewriter: PatternRewriter
+    ):
+        if isinstance(op.complex.owner, Operation) and (
+            (
+                isa(inner_op := op.complex.owner, complex.ConjOp | complex.NegOp)
+                and isinstance(inner_op, type(op))
+            )
+            or (isinstance(inner_op, complex.LogOp) and isinstance(op, complex.ExpOp))
+            or (isinstance(inner_op, complex.ExpOp) and isinstance(op, complex.LogOp))
+        ):
+            rewriter.replace_matched_op((), (inner_op.complex,))

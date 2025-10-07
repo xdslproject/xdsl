@@ -159,6 +159,16 @@ class ComplexBinaryOpCanonicalizationPatternsTrait(HasCanonicalizationPatternsTr
         return (FoldConstConstOp(),)
 
 
+class UnaryOpCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.complex import (
+            RedundantUnaryOpOpPattern,
+        )
+
+        return (RedundantUnaryOpOpPattern(),)
+
+
 @irdl_op_definition
 class AbsOp(ComplexUnaryRealResultOperation):
     name = "complex.abs"
@@ -230,6 +240,10 @@ class BitcastOp(IRDLOperation):
 @irdl_op_definition
 class ConjOp(ComplexUnaryComplexResultOperation):
     name = "complex.conj"
+    traits = traits_def(
+        Pure(),
+        UnaryOpCanonicalizationPatternsTrait(),
+    )
 
 
 @irdl_op_definition
@@ -336,6 +350,10 @@ class EqualOp(ComplexCompareOp):
 @irdl_op_definition
 class ExpOp(ComplexUnaryComplexResultOperation):
     name = "complex.exp"
+    traits = traits_def(
+        Pure(),
+        UnaryOpCanonicalizationPatternsTrait(),
+    )
 
 
 @irdl_op_definition
@@ -369,6 +387,10 @@ class ImOp(ComplexUnaryRealResultOperation):
 @irdl_op_definition
 class LogOp(ComplexUnaryComplexResultOperation):
     name = "complex.log"
+    traits = traits_def(
+        Pure(),
+        UnaryOpCanonicalizationPatternsTrait(),
+    )
 
 
 @irdl_op_definition
@@ -388,6 +410,10 @@ class MulOp(ComplexBinaryOp):
 @irdl_op_definition
 class NegOp(ComplexUnaryComplexResultOperation):
     name = "complex.neg"
+    traits = traits_def(
+        Pure(),
+        UnaryOpCanonicalizationPatternsTrait(),
+    )
 
 
 @irdl_op_definition
