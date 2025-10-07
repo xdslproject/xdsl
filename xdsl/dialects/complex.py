@@ -285,6 +285,16 @@ class CosOp(ComplexUnaryComplexResultOperation):
     name = "complex.cos"
 
 
+class CreateOpCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.complex import (
+            RedundantCreateOpPattern,
+        )
+
+        return (RedundantCreateOpPattern(),)
+
+
 @irdl_op_definition
 class CreateOp(IRDLOperation):
     name = "complex.create"
@@ -293,7 +303,10 @@ class CreateOp(IRDLOperation):
     imaginary = operand_def(T)
     complex = result_def(ComplexType.constr(T))
 
-    traits = traits_def(Pure())
+    traits = traits_def(
+        Pure(),
+        CreateOpCanonicalizationPatternsTrait(),
+    )
 
     assembly_format = "$real `,` $imaginary attr-dict `:` type($complex)"
 

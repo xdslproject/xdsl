@@ -67,3 +67,20 @@ class FoldConstConstOp(RewritePattern):
             and (cnst := _fold_const_operation(type(op), l, r))
         ):
             rewriter.replace_matched_op(cnst)
+
+
+class RedundantCreateOpPattern(RewritePattern):
+    """
+    %real = complex.re %x
+    %imag = complex.im %x
+    %y = complex.create %real, %imag = %x
+    """
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: complex.CreateOp, rewriter: PatternRewriter):
+        if (
+            isinstance(op.real.owner, complex.ReOp)
+            and isinstance(op.imaginary.owner, complex.ImOp)
+            and ((op.real.owner.complex) is (op.imaginary.owner.complex))
+        ):
+            rewriter.replace_matched_op((), (op.real.owner.complex,))
