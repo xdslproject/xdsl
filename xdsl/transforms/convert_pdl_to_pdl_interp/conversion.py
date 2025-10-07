@@ -2,9 +2,10 @@
 PDL to PDL_interp Transformation
 """
 
+from abc import ABC
 from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import cast
+from typing import Optional, cast
 
 from xdsl.dialects import pdl
 from xdsl.ir import (
@@ -30,6 +31,54 @@ from xdsl.transforms.convert_pdl_to_pdl_interp.predicate import (
     get_position_cost,
     get_question_cost,
 )
+
+# =============================================================================
+# Matcher Tree Nodes
+# =============================================================================
+
+
+@dataclass
+class MatcherNode(ABC):
+    """Base class for matcher tree nodes"""
+
+    position: Position | None = None
+    question: Question | None = None
+    failure_node: Optional["MatcherNode"] = None
+
+
+@dataclass(kw_only=True)
+class BoolNode(MatcherNode):
+    """Boolean predicate node"""
+
+    success_node: MatcherNode | None = None
+    failure_node: MatcherNode | None = None
+
+    answer: Answer
+
+    success_node: MatcherNode | None = None
+
+
+@dataclass
+class SwitchNode(MatcherNode):
+    """Multi-way switch node"""
+
+    children: dict[Answer, MatcherNode | None] = field(default_factory=lambda: {})
+
+
+@dataclass(kw_only=True)
+class SuccessNode(MatcherNode):
+    """Successful pattern match"""
+
+    pattern: pdl.PatternOp  # PDL pattern reference
+    root: SSAValue | None = None  # Root value
+
+
+@dataclass
+class ExitNode(MatcherNode):
+    """Exit/failure node"""
+
+    pass
+
 
 # =============================================================================
 # Pattern Analysis
