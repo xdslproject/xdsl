@@ -347,10 +347,14 @@ class ReImOpCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.complex import (
+            ReImNegOpPattern,
             ReImRedundantOpPattern,
         )
 
-        return (ReImRedundantOpPattern(),)
+        return (
+            ReImRedundantOpPattern(),
+            ReImNegOpPattern(),
+        )
 
 
 @irdl_op_definition

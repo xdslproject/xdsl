@@ -117,3 +117,24 @@ class ReImRedundantOpPattern(RewritePattern):
                 operand.real if isinstance(op, complex.ReOp) else operand.imaginary
             )
             rewriter.replace_matched_op((), (new_ssa_value,))
+
+
+class ReImNegOpPattern(RewritePattern):
+    """
+    %x = complex.create %a, %b
+    %y = complex.neg %x
+    %re = complex.re %y = arith.negf %a
+    %im = complex.im %y = arith.negf %b
+    """
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(
+        self, op: complex.ReOp | complex.ImOp, rewriter: PatternRewriter
+    ):
+        if isinstance(inner_op := op.complex.owner, complex.NegOp) and isinstance(
+            creat_op := inner_op.complex.owner, complex.CreateOp
+        ):
+            ssa_value = (
+                creat_op.real if isinstance(op, complex.ReOp) else creat_op.imaginary
+            )
+            rewriter.replace_matched_op(arith.NegfOp(ssa_value))
