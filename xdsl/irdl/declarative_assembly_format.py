@@ -303,6 +303,12 @@ class FormatDirective(Directive, ABC):
         """
         ...
 
+    def parse_optional(self, parser: Parser, state: ParsingState) -> bool:
+        """
+        Parses an optional directive, returning false if not present.
+        """
+        return self.parse(parser, state)
+
     @abstractmethod
     def print(
         self, printer: Printer, state: PrintingState, op: IRDLOperation
@@ -971,6 +977,13 @@ class RegionVariable(RegionDirective, VariableDirective):
         self.set(state, parser.parse_region())
         return True
 
+    def parse_optional(self, parser: Parser, state: ParsingState) -> bool:
+        region = parser.parse_optional_region()
+        if region is None:
+            region = Region()
+        self.set(state, region)
+        return True
+
     def get(self, op: IRDLOperation) -> Region:
         return getattr(op, self.name)
 
@@ -986,6 +999,9 @@ class RegionVariable(RegionDirective, VariableDirective):
 
     def is_present(self, op: IRDLOperation) -> bool:
         return bool(self.get(op).blocks)
+
+    def is_optional_like(self) -> bool:
+        return True
 
 
 @dataclass(frozen=True)
@@ -1051,42 +1067,6 @@ class OptionalRegionVariable(RegionDirective, OptionalVariable):
 
     def set_empty(self, state: ParsingState):
         self.set(state, None)
-
-
-@dataclass(frozen=True)
-class AnchorRegionVariable(RegionDirective, VariableDirective):
-    """
-    A special case for non-optional anchor regions, which treat the empty region as a special case.
-    """
-
-    def set(self, state: ParsingState, region: Region):
-        state.regions[self.index] = (region,)
-
-    def parse(self, parser: Parser, state: ParsingState) -> bool:
-        region = parser.parse_optional_region()
-        if region is None:
-            region = Region()
-        self.set(state, region)
-        return True
-
-    def get(self, op: IRDLOperation) -> Region:
-        return getattr(op, self.name)
-
-    def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
-        state.print_whitespace(printer)
-        printer.print_region(self.get(op))
-
-    def is_anchorable(self) -> bool:
-        return True
-
-    def set_empty(self, state: ParsingState):
-        self.set(state, Region())
-
-    def is_present(self, op: IRDLOperation) -> bool:
-        return bool(self.get(op).blocks)
-
-    def is_optional_like(self) -> bool:
-        return True
 
 
 class SuccessorDirective(FormatDirective, ABC):
@@ -1469,7 +1449,7 @@ class OptionalGroupDirective(FormatDirective):
 
     def parse(self, parser: Parser, state: ParsingState) -> bool:
         # If the first element was parsed, parse the then-elements as usual
-        if ret := self.then_first.parse(parser, state):
+        if ret := self.then_first.parse_optional(parser, state):
             for element in self.then_elements:
                 element.parse(parser, state)
             for element in self.else_elements:
