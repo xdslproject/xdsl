@@ -826,3 +826,113 @@ def test_results_op_non_tree():
 
     # Should handle the standalone results - no predicates expected for unused results
     assert len(predicates) == 0
+
+
+def test_extract_operation_predicates_non_operation_op():
+    """Test that _extract_operation_predicates returns empty list when op_op is not an OperationOp"""
+    body = Region([Block()])
+    block = body.first_block
+    with ImplicitBuilder(block):
+        # Create a non-OperationOp (e.g., TypeOp)
+        type_op = pdl.TypeOp(f32)
+        op_op = pdl.OperationOp(None, type_values=(type_op.result,))
+        pdl.RewriteOp(None, name="rewrite")
+
+    p = PatternAnalyzer()
+    op_pos = OperationPosition(depth=0)
+    inputs: dict[SSAValue, Position] = {}
+
+    # Call _extract_operation_predicates with a non-OperationOp
+    predicates = p._extract_operation_predicates(type_op, op_pos, inputs)  # pyright: ignore[reportPrivateUsage]
+
+    # Should return no predicates
+    assert len(predicates) == 0  # Root position, so no is_not_null predicate
+
+    # Test with non-root position
+    non_root_pos = OperationPosition(depth=1)
+    predicates = p._extract_operation_predicates(op_op, non_root_pos, inputs)  # pyright: ignore[reportPrivateUsage]
+
+    # Should return only the is_not_null predicate
+    assert len(predicates) == 5
+    assert predicates[0].q == IsNotNullQuestion()
+    assert predicates[0].a == TrueAnswer()
+    assert predicates[0].position == non_root_pos
+
+
+def test_extract_operation_predicates_with_ignore_operand():
+    """Test extract_tree_predicates with ignore_operand parameter"""
+    body = Region([Block()])
+    block = body.first_block
+    with ImplicitBuilder(block):
+        # Create operands with types to ensure they generate predicates
+        operand_type = pdl.TypeOp(i32)
+        operand1 = pdl.OperandOp(value_type=operand_type.result)
+        operand2 = pdl.OperandOp(value_type=operand_type.result)
+        operand3 = pdl.OperandOp(value_type=operand_type.result)
+
+        # Create operation with multiple operands
+        op = pdl.OperationOp(
+            "test_op",
+            operand_values=(operand1.value, operand2.value, operand3.value),
+        )
+
+        pdl.RewriteOp(None, name="rewrite")
+
+    p = PatternAnalyzer()
+    op_pos = OperationPosition(depth=0)
+
+    # Extract predicates without ignore_operand
+    predicates_all = p.extract_tree_predicates(op.op, op_pos, {})
+
+    # Extract predicates with ignore_operand=1 (ignore second operand)
+    predicates_ignore = p.extract_tree_predicates(op.op, op_pos, {}, ignore_operand=1)
+
+    # Should have fewer predicates when ignoring an operand
+    # The ignore_operand parameter should result in different predicate generation
+    assert len(predicates_ignore) < len(predicates_all)
+
+    ignored = set((p.q, p.a, p.position) for p in predicates_all).difference(
+        set((p.q, p.a, p.position) for p in predicates_ignore)
+    )
+    assert (
+        EqualToQuestion(TypePosition(op_pos.get_operand(1))),
+        TrueAnswer(),
+        TypePosition(op_pos.get_operand(0)),
+    ) in ignored
+    assert (IsNotNullQuestion(), TrueAnswer(), op_pos.get_operand(1)) in ignored
+
+
+def test_extract_operand_tree_predicates_with_value_type():
+    """Test _extract_operand_tree_predicates where defining_op has value_type"""
+    body = Region([Block()])
+    block = body.first_block
+    with ImplicitBuilder(block):
+        # Create a type for the operand
+        operand_type = pdl.TypeOp(i32)
+
+        # Create an OperandOp with a value_type
+        operand_op = pdl.OperandOp(value_type=operand_type.result)
+
+        pdl.RewriteOp(None, name="rewrite")
+
+    p = PatternAnalyzer()
+    operand_pos = OperationPosition(depth=0).get_operand(0)
+    inputs: dict[SSAValue, Position] = {}
+
+    # Extract operand tree predicates
+    predicates = p._extract_operand_tree_predicates(  # pyright: ignore[reportPrivateUsage]
+        operand_op.value, operand_pos, inputs
+    )
+
+    # Should have is_not_null predicate and type constraint predicate
+    assert len(predicates) == 2
+
+    # First predicate should be is_not_null for the operand
+    assert predicates[0].q == IsNotNullQuestion()
+    assert predicates[0].a == TrueAnswer()
+    assert predicates[0].position == operand_pos
+
+    # Second predicate should be type constraint for the operand's type
+    assert predicates[1].q == TypeConstraintQuestion()
+    assert predicates[1].a == TypeAnswer(i32)
+    assert isinstance(predicates[1].position, TypePosition)
