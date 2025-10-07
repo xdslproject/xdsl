@@ -2261,6 +2261,11 @@ def test_attr_dict_directly_before_region_variable():
             "test.region_attr_dict attributes {a = 2 : i32}",
             '"test.region_attr_dict"() ({}) {a = 2 : i32} : () -> ()',
         ),
+        (
+            "($region^)? attr-dict-with-keyword",
+            'test.region_attr_dict {\n  "test.op"() : () -> ()\n} attributes {a = 2 : i32}',
+            '"test.region_attr_dict"() ({\n  "test.op"() : () -> ()\n}) {a = 2 : i32} : () -> ()',
+        ),
     ],
 )
 def test_regions_with_attr_dict(format: str, program: str, generic_program: str):
