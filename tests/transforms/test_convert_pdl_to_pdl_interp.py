@@ -12,6 +12,7 @@ from xdsl.transforms.convert_pdl_to_pdl_interp.predicate import (
     AttributeConstraintQuestion,
     AttributeLiteralPosition,
     AttributePosition,
+    ConstraintPosition,
     ConstraintQuestion,
     EqualToQuestion,
     IsNotNullQuestion,
@@ -936,3 +937,91 @@ def test_extract_operand_tree_predicates_with_value_type():
     assert predicates[1].q == TypeConstraintQuestion()
     assert predicates[1].a == TypeAnswer(i32)
     assert isinstance(predicates[1].position, TypePosition)
+
+
+def test_extract_non_tree_predicates_existing_constraint_result():
+    """Test extract_non_tree_predicates when constraint result already exists in inputs
+
+    Note: This test documents a limitation where the existing constraint result
+    handling has issues with ConstraintPosition.get_operation_depth().
+    The current implementation assumes ConstraintPosition can determine operation depth
+    but it has parent=None, causing assertion failures in get_base_operation().
+    """
+    body = Region([Block()])
+    block = body.first_block
+    with ImplicitBuilder(block):
+        root = pdl.OperationOp("op1").op
+        # Create a constraint that returns a result
+        constraint_result = pdl.ApplyNativeConstraintOp(
+            "my_constraint", [root], [i32]
+        ).res[0]
+        pdl.RewriteOp(None, name="rewrite")
+
+    pattern = pdl.PatternOp(1, "pattern", body)
+    p = PatternAnalyzer()
+    inputs: dict[SSAValue, Position] = {}
+
+    # Add the root operation to inputs
+    root_pos = OperationPosition(depth=0)
+    inputs[root] = root_pos
+
+    # Pre-add the constraint result to inputs to simulate the "existing" case
+    # Use a simple result position that has proper operation depth support
+    result_pos = root_pos.get_result(0)
+    inputs[constraint_result] = result_pos
+
+    predicates = p.extract_non_tree_predicates(pattern, inputs)
+
+    assert len(predicates) == 2
+    assert predicates[0] == PositionalPredicate(
+        EqualToQuestion(
+            ConstraintPosition(
+                None,
+                constraint=ConstraintQuestion(
+                    "my_constraint",
+                    arg_positions=(root_pos,),
+                    result_types=(i32,),
+                    is_negated=False,
+                ),
+                result_index=0,
+            ),
+        ),
+        TrueAnswer(),
+        result_pos,
+    )
+    assert isinstance(predicates[1].q, ConstraintQuestion)
+
+
+def test_extract_non_tree_predicates_results_op_with_index():
+    """Test extract_non_tree_predicates with ResultsOp where index is not None"""
+    body = Region([Block()])
+    block = body.first_block
+    with ImplicitBuilder(block):
+        # Create an operation with multiple results
+        type1 = pdl.TypeOp(i32).result
+        type2 = pdl.TypeOp(f32).result
+        producer = pdl.OperationOp("producer", type_values=(type1, type2)).op
+
+        # Create a ResultsOp with explicit index
+        pdl.ResultsOp(producer, index=1)  # index=1 means it's not None
+
+        pdl.RewriteOp(None, name="rewrite")
+
+    pattern = pdl.PatternOp(1, "pattern", body)
+    p = PatternAnalyzer()
+    inputs: dict[SSAValue, Position] = {}
+
+    # Add producer to inputs
+    producer_pos = OperationPosition(depth=0)
+    inputs[producer] = producer_pos
+
+    predicates = p.extract_non_tree_predicates(pattern, inputs)
+
+    # Should have exactly one IsNotNull predicate for the ResultsOp with index
+    is_not_null_preds = [p for p in predicates if isinstance(p.q, IsNotNullQuestion)]
+    assert len(is_not_null_preds) == 1
+
+    # Verify it's for a result group position
+    from xdsl.transforms.convert_pdl_to_pdl_interp.predicate import ResultGroupPosition
+
+    assert isinstance(is_not_null_preds[0].position, ResultGroupPosition)
