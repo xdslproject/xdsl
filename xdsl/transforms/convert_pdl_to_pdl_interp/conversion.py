@@ -229,7 +229,9 @@ class PatternAnalyzer:
             )
 
         # Process attributes
-        for attr_name, attr in zip(op_op.attributeValueNames, op_op.attribute_values, strict=True):
+        for attr_name, attr in zip(
+            op_op.attributeValueNames, op_op.attribute_values, strict=True
+        ):
             attr_pos = op_pos.get_attribute(attr_name.data)
             predicates.extend(self.extract_tree_predicates(attr, attr_pos, inputs))
 
@@ -448,8 +450,7 @@ class PatternAnalyzer:
 
                     # Create the constraint predicate
                     result_types = tuple(r.type for r in op.res)
-                    # TODO: is_negated is not part of the dialect definition yet
-                    is_negated = False
+                    is_negated = bool(op.is_negated.value.data)
                     constraint_pred = Predicate.get_constraint(
                         op.constraint_name.data, arg_positions, result_types, is_negated
                     )
