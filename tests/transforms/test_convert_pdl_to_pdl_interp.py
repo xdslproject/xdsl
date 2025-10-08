@@ -1574,3 +1574,74 @@ def test_depends_on():
     # Case 6: No dependency
     pred_b_no_dep = create_pred(op_pos, op_q)
     assert not _depends_on(pred_a, pred_b_no_dep)
+
+
+def test_stable_topological_sort():
+    """Tests for the _stable_topological_sort function."""
+    from xdsl.transforms.convert_pdl_to_pdl_interp.conversion import (
+        _stable_topological_sort,  # pyright: ignore[reportPrivateUsage]
+    )
+
+    # Helper to create a mock OrderedPredicate
+    def create_pred(pos: Position, q: Question) -> OrderedPredicate:
+        return OrderedPredicate(position=pos, question=q)
+
+    op_pos = OperationPosition(None, depth=0)
+    op_q = OperationNameQuestion()
+
+    # Constraints A, B, C, where C depends on B, and B depends on A
+    constraint_q_a = ConstraintQuestion("constraint_a", (), (), False)
+    pred_a = create_pred(op_pos, constraint_q_a)
+
+    pos_depends_on_a = ConstraintPosition(
+        None, constraint=constraint_q_a, result_index=0
+    )
+    constraint_q_b = ConstraintQuestion("constraint_b", (pos_depends_on_a,), (), False)
+    pred_b = create_pred(op_pos, constraint_q_b)
+
+    pos_depends_on_b = ConstraintPosition(
+        None, constraint=constraint_q_b, result_index=0
+    )
+    constraint_q_c = ConstraintQuestion("constraint_c", (pos_depends_on_b,), (), False)
+    pred_c = create_pred(op_pos, constraint_q_c)
+
+    # Independent predicate
+    pred_d = create_pred(op_pos, op_q)
+
+    # Case 1: Simple dependency chain (c, b, a) -> (a, b, c)
+    input_list = [pred_c, pred_b, pred_a]
+    sorted_list = _stable_topological_sort(input_list)
+    assert sorted_list == [pred_a, pred_b, pred_c]
+
+    # Case 2: Mix of dependent and independent items
+    input_list = [pred_c, pred_d, pred_b, pred_a]
+    sorted_list = _stable_topological_sort(input_list)
+    assert sorted_list == [pred_d, pred_a, pred_b, pred_c]
+
+    # Case 3: Already sorted
+    input_list = [pred_a, pred_b, pred_c]
+    sorted_list = _stable_topological_sort(input_list)
+    assert sorted_list == [pred_a, pred_b, pred_c]
+
+    # Case 4: Cycle detection
+    pos_depends_on_b_for_cycle = ConstraintPosition(
+        None, constraint=constraint_q_b, result_index=0
+    )
+    constraint_q_a_cycle = ConstraintQuestion(
+        "constraint_a", (pos_depends_on_b_for_cycle,), (), False
+    )
+    pred_a_cycle = create_pred(op_pos, constraint_q_a_cycle)  # a depends on b
+
+    # b depends on a (from fixture), a depends on b
+    input_list_cycle = [pred_a_cycle, pred_b]
+    with pytest.raises(ValueError, match="Cycle detected in predicate dependencies"):
+        _stable_topological_sort(input_list_cycle)
+
+    # Case 5: Empty list
+    assert _stable_topological_sort([]) == []
+
+    # Case 6: Stability with independent items
+    pred_e = create_pred(op_pos, ResultCountQuestion())
+    input_list = [pred_d, pred_e]
+    sorted_list = _stable_topological_sort(input_list)
+    assert sorted_list == [pred_d, pred_e]
