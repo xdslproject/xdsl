@@ -38,6 +38,7 @@ dev = [
 ]
 gui = ["textual>=6,<7", "pyclip==0.7"]
 jax = ["jax==0.6.0", "numpy==2.2.6"]
+riscv = ["riscemu==2.2.7"]
 
 [dependency-groups]
 dev = ["xdsl[dev,gui]", "my_plugin"]
@@ -60,7 +61,6 @@ docs = [
     "mkdocs>=1.6.1",
     "mkdocstrings[python]>=0.27.0",
     "pymdown-extensions>=10.7",
-    "riscemu==2.2.7",
     "micropip>=0.7",
 ]
 
