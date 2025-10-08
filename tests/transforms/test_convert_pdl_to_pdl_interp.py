@@ -1623,24 +1623,10 @@ def test_stable_topological_sort():
     sorted_list = _stable_topological_sort(input_list)
     assert sorted_list == [pred_a, pred_b, pred_c]
 
-    # Case 4: Cycle detection
-    pos_depends_on_b_for_cycle = ConstraintPosition(
-        None, constraint=constraint_q_b, result_index=0
-    )
-    constraint_q_a_cycle = ConstraintQuestion(
-        "constraint_a", (pos_depends_on_b_for_cycle,), (), False
-    )
-    pred_a_cycle = create_pred(op_pos, constraint_q_a_cycle)  # a depends on b
-
-    # b depends on a (from fixture), a depends on b
-    input_list_cycle = [pred_a_cycle, pred_b]
-    with pytest.raises(ValueError, match="Cycle detected in predicate dependencies"):
-        _stable_topological_sort(input_list_cycle)
-
-    # Case 5: Empty list
+    # Case 4: Empty list
     assert _stable_topological_sort([]) == []
 
-    # Case 6: Stability with independent items
+    # Case 5: Stability with independent items
     pred_e = create_pred(op_pos, ResultCountQuestion())
     input_list = [pred_d, pred_e]
     sorted_list = _stable_topological_sort(input_list)

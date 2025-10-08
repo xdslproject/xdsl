@@ -681,8 +681,13 @@ def _stable_topological_sort(  # pyright: ignore[reportUnusedFunction]
         to_sort = [
             p for p in pred_list if all(dep not in pred_list for dep in dependencies[p])
         ]
-        if not to_sort:
-            raise ValueError("Cycle detected in predicate dependencies")
+        # It is not possible to have cycles in the dependency graph
+        # because predicates can only depend on predicates containing
+        # a ConstraintQuestion. It is however impossible to construct
+        # a cycle with those because they are frozen at construction
+        # and thus cannot refer to a ConstraintPosition that was
+        # defined later.
+        assert to_sort, "Encountered a cycle!"
 
         # Append them to the sorted list
         sorted_list.extend(to_sort)
