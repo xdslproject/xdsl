@@ -229,7 +229,7 @@ class PatternAnalyzer:
             )
 
         # Process attributes
-        for attr_name, attr in zip(op_op.attributeValueNames, op_op.attribute_values):
+        for attr_name, attr in zip(op_op.attributeValueNames, op_op.attribute_values, strict=True):
             attr_pos = op_pos.get_attribute(attr_name.data)
             predicates.extend(self.extract_tree_predicates(attr, attr_pos, inputs))
 
