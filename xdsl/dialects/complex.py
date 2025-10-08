@@ -202,6 +202,14 @@ class Atan2Op(ComplexBinaryOp):
     name = "complex.atan2"
 
 
+class BitcastOpCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.complex import BitcastOpPattern
+
+        return (BitcastOpPattern(),)
+
+
 @irdl_op_definition
 class BitcastOp(IRDLOperation):
     name = "complex.bitcast"
@@ -212,7 +220,10 @@ class BitcastOp(IRDLOperation):
         ComplexType.constr(AnyFloatConstr) | AnyFloatConstr | BaseAttr(IntegerType)
     )
 
-    traits = traits_def(Pure())
+    traits = traits_def(
+        Pure(),
+        BitcastOpCanonicalizationPatternsTrait(),
+    )
 
     assembly_format = "$operand attr-dict `:` type($operand) `to` type($result)"
 

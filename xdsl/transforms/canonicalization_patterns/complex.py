@@ -1,7 +1,14 @@
 from xdsl.dialects import arith, complex
 from xdsl.dialects.builtin import (
+    AnyFloat,
     ArrayAttr,
+    ComplexType,
+    Float16Type,
+    Float32Type,
+    Float64Type,
     FloatAttr,
+    IndexType,
+    IntegerType,
 )
 from xdsl.irdl import Operation
 from xdsl.pattern_rewriter import (
@@ -195,3 +202,50 @@ class AddSubOpPattern(RewritePattern):
             and (inner_op.rhs == op.rhs)
         ):
             rewriter.replace_matched_op((), (inner_op.lhs,))
+
+
+class BitcastOpPattern(RewritePattern):
+    """
+    %0 = complex.bitcast %arg0 : i64 to complex<f32>
+    %1 = complex.bitcast %0 : complex<f32> to i64 = %arg0
+    -----------------------------------------------------------------------------------------
+    %0 = complex.bitcast %arg0 : f64 to complex<f32>
+    %1 = complex.bitcast %0 : complex<f32> to i64 = arith.bitcast %arg0
+    ------------------------------------------------------------------------------------------
+    %0 = arith.bitcast %arg0 : f64 to i64
+    %1 = complex.bitcast %0 : i64 to complex<f32> = complex.bitcast %arg0 : f64 to complex<f32>
+    """
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: complex.BitcastOp, rewriter: PatternRewriter):
+        if isinstance(inner_op := op.operand.owner, complex.BitcastOp):
+            if isinstance(
+                res_type := op.result.type,
+                IntegerType
+                | IndexType
+                | Float16Type
+                | Float32Type
+                | Float64Type
+                | ComplexType,
+            ) and isinstance(
+                operand_type := inner_op.operand.type,
+                IntegerType
+                | IndexType
+                | Float16Type
+                | Float32Type
+                | Float64Type
+                | ComplexType,
+            ):
+                if res_type == operand_type:
+                    rewriter.replace_matched_op((), (inner_op.operand,))
+                else:
+                    rewriter.replace_matched_op(
+                        arith.BitcastOp(inner_op.operand, res_type)
+                    )
+                return
+        if isinstance(inner_op := op.operand.owner, arith.BitcastOp) and isinstance(
+            inner_op.input.type, AnyFloat
+        ):
+            rewriter.replace_matched_op(
+                complex.BitcastOp(inner_op.input, op.result.type)
+            )
