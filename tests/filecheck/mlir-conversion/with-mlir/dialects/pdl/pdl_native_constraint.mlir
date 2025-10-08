@@ -1,5 +1,5 @@
-// RUN: xdsl-opt --print-op-generic %s | mlir-opt --mlir-print-op-generic | xdsl-opt | filecheck %s
-// RUN: xdsl-opt %s | mlir-opt --mlir-print-op-generic | xdsl-opt | filecheck %s
+// RUN: MLIR_ROUNDTRIP  
+// RUN: MLIR_GENERIC_ROUNDTRIP  
 
 
 pdl.pattern @nativeConstraint : benefit(1) {
