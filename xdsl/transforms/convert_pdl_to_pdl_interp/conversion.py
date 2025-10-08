@@ -3,6 +3,7 @@ PDL to PDL_interp Transformation
 """
 
 from collections.abc import Sequence
+from dataclasses import dataclass, field
 from typing import cast
 
 from xdsl.dialects import pdl
@@ -12,6 +13,7 @@ from xdsl.ir import (
     SSAValue,
 )
 from xdsl.transforms.convert_pdl_to_pdl_interp.predicate import (
+    Answer,
     AttributeLiteralPosition,
     AttributePosition,
     ConstraintPosition,
@@ -22,8 +24,11 @@ from xdsl.transforms.convert_pdl_to_pdl_interp.predicate import (
     Position,
     PositionalPredicate,
     Predicate,
+    Question,
     TypeLiteralPosition,
     TypePosition,
+    get_position_cost,
+    get_question_cost,
 )
 
 # =============================================================================
@@ -549,6 +554,40 @@ class PatternAnalyzer:
 # =============================================================================
 
 
+@dataclass
+class OrderedPredicate:
+    """Predicate with ordering information"""
+
+    position: Position
+    question: Question
+    primary_score: int = 0  # Frequency across patterns
+    secondary_score: int = 0  # Squared sum within patterns
+    tie_breaker: int = 0  # Insertion order
+    pattern_answers: dict[pdl.PatternOp, Answer] = field(default_factory=lambda: {})
+
+    def __lt__(self, other: "OrderedPredicate") -> bool:
+        """Comparison for priority ordering"""
+        return (
+            self.primary_score,
+            self.secondary_score,
+            -self.position.get_operation_depth(),  # Prefer lower depth
+            -get_position_cost(self.position),  # Position dependency
+            -get_question_cost(self.question),  # Predicate dependency
+            -self.tie_breaker,  # Deterministic order
+        ) > (
+            other.primary_score,
+            other.secondary_score,
+            -other.position.get_operation_depth(),
+            -get_position_cost(other.position),
+            -get_question_cost(other.question),
+            -other.tie_breaker,
+        )
+
+    def __hash__(self):
+        """The hash is based on the immutable identity of the predicate."""
+        return hash((self.position, self.question))
+
+
 class PredicateTreeBuilder:
     """Builds optimized predicate matching trees"""
 
@@ -584,3 +623,51 @@ class PredicateTreeBuilder:
 
         predicates.extend(self.analyzer.extract_non_tree_predicates(pattern, inputs))
         return predicates, best_root, inputs
+
+    def _create_ordered_predicates(
+        self,
+        all_pattern_predicates: list[tuple[pdl.PatternOp, list[PositionalPredicate]]],
+    ) -> dict[tuple[Position, Question], OrderedPredicate]:
+        """Create ordered predicates with frequency analysis"""
+        predicate_map: dict[tuple[Position, Question], OrderedPredicate] = {}
+        tie_breaker = 0
+
+        # Collect unique predicates
+        for pattern, predicates in all_pattern_predicates:
+            for pred in predicates:
+                key = (pred.position, pred.q)
+
+                if key not in predicate_map:
+                    ordered_pred = OrderedPredicate(
+                        position=pred.position,
+                        question=pred.q,
+                        tie_breaker=tie_breaker,
+                    )
+                    predicate_map[key] = ordered_pred
+                    tie_breaker += 1
+
+                # Track pattern answers and increment frequency
+                predicate_map[key].pattern_answers[pattern] = pred.a
+                predicate_map[key].primary_score += 1
+
+        # Calculate secondary scores
+        for pattern, predicates in all_pattern_predicates:
+            pattern_primary_sum = 0
+            seen_keys: set[tuple[Position, Question]] = (
+                set()
+            )  # Track unique keys per pattern
+
+            # First pass: collect unique predicates for this pattern
+            for pred in predicates:
+                key = (pred.position, pred.q)
+                if key not in seen_keys:
+                    seen_keys.add(key)
+                    ordered_pred = predicate_map[key]
+                    pattern_primary_sum += ordered_pred.primary_score**2
+
+            # Second pass: add secondary score to each unique predicate
+            for key in seen_keys:
+                ordered_pred = predicate_map[key]
+                ordered_pred.secondary_score += pattern_primary_sum
+
+        return predicate_map
