@@ -1,5 +1,7 @@
 from typing import cast
 
+import pytest
+
 from xdsl.builder import ImplicitBuilder
 from xdsl.dialects import pdl
 from xdsl.dialects.builtin import IntegerType, StringAttr, f32, i32
@@ -736,14 +738,17 @@ def test_non_tree_predicates_attribute_literal():
     assert attr_pos.value == expected_attr
 
 
-def test_constraint_simple():
+@pytest.mark.parametrize("is_negated", [True, False])
+def test_constraint_simple(is_negated: bool):
     """Test ApplyNativeConstraintOp basic functionality"""
     body = Region([Block()])
     block = body.first_block
     with ImplicitBuilder(block):
         root = pdl.OperationOp("op1").op
         # Simple constraint that doesn't create conflicts
-        pdl.ApplyNativeConstraintOp("simple_constraint", [root], []).res
+        pdl.ApplyNativeConstraintOp(
+            "simple_constraint", [root], [], is_negated=is_negated
+        ).res
         pdl.RewriteOp(None, name="rewrite")
 
     pattern = pdl.PatternOp(1, "pattern", body)
@@ -771,6 +776,7 @@ def test_constraint_simple():
     ).name == "simple_constraint"
     assert constraint_pred.a == TrueAnswer()
     assert len(q.arg_positions) == 1  # Should have the root operation as argument
+    assert q.is_negated is is_negated
 
 
 def test_result_op_non_tree():
