@@ -659,6 +659,40 @@ def _depends_on(pred_a: OrderedPredicate, pred_b: OrderedPredicate) -> bool:
     return position_depends_on_a(pred_b.position)
 
 
+def _stable_topological_sort(  # pyright: ignore[reportUnusedFunction]
+    predicates: list[OrderedPredicate],
+) -> list[OrderedPredicate]:
+    """Sorts predicates topologically while maintaining stability for independent items."""
+    # Build dependency graph
+    dependencies: dict[OrderedPredicate, set[OrderedPredicate]] = {
+        p: set() for p in predicates
+    }
+    for i, pred_b in enumerate(predicates):
+        for j in range(i + 1, len(predicates)):
+            pred_a = predicates[j]
+            if _depends_on(pred_a, pred_b):
+                dependencies[pred_b].add(pred_a)  # b depends on a
+
+    sorted_list: list[OrderedPredicate] = []
+    pred_list: list[OrderedPredicate] = predicates[:]
+
+    while pred_list:
+        # Find all items with no dependencies within the current list
+        to_sort = [
+            p for p in pred_list if all(dep not in pred_list for dep in dependencies[p])
+        ]
+        if not to_sort:
+            raise ValueError("Cycle detected in predicate dependencies")
+
+        # Append them to the sorted list
+        sorted_list.extend(to_sort)
+
+        # Remove them from the list to be sorted
+        pred_list = [p for p in pred_list if p not in to_sort]
+
+    return sorted_list
+
+
 class PredicateTreeBuilder:
     """Builds optimized predicate matching trees"""
 
