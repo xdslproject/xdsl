@@ -33,7 +33,6 @@ from xdsl.irdl import (
     operand_def,
     opt_operand_def,
     opt_prop_def,
-    opt_region_def,
     prop_def,
     region_def,
     result_def,
@@ -361,7 +360,9 @@ class OperationOp(IRDLOperation):
     type_values = var_operand_def(base(TypeType) | base(RangeType[TypeType]))
     op = result_def(OperationType)
 
-    irdl_options = [AttrSizedOperandSegments()]
+    irdl_options = [
+        AttrSizedOperandSegments(as_property=True),
+    ]
 
     def __init__(
         self,
@@ -678,7 +679,7 @@ class ReplaceOp(IRDLOperation):
     repl_operation = opt_operand_def(OperationType)
     repl_values = var_operand_def(base(ValueType) | base(ArrayAttr[ValueType]))
 
-    irdl_options = [AttrSizedOperandSegments()]
+    irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
     assembly_format = (
         "$op_value `with` ` ` "
@@ -796,9 +797,9 @@ class RewriteOp(IRDLOperation):
     # parameters of external rewriter function
     external_args = var_operand_def(AnyPDLTypeConstr)
     # body of inline rewriter function
-    body = opt_region_def()
+    body = region_def()
 
-    irdl_options = [AttrSizedOperandSegments()]
+    irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
     traits = traits_def(HasParent(PatternOp), NoTerminator(), IsTerminator())
 
@@ -811,7 +812,7 @@ class RewriteOp(IRDLOperation):
     def __init__(
         self,
         root: SSAValue | None,
-        body: Region | type[Region.DEFAULT] | None = Region.DEFAULT,
+        body: Region | type[Region.DEFAULT] = Region.DEFAULT,
         name: str | StringAttr | None = None,
         external_args: Sequence[SSAValue] = (),
     ) -> None:
@@ -830,8 +831,6 @@ class RewriteOp(IRDLOperation):
             regions.append(Region(Block()))
         elif isinstance(body, Region):
             regions.append(body)
-        elif body is None:
-            regions.append([])
 
         properties: dict[str, Attribute] = {}
         if name is not None:
