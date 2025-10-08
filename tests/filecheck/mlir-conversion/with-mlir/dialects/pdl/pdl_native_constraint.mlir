@@ -1,4 +1,6 @@
-// RUN: XDSL_ROUNDTRIP
+// RUN: MLIR_ROUNDTRIP  
+// RUN: MLIR_GENERIC_ROUNDTRIP  
+
 
 pdl.pattern @nativeConstraint : benefit(1) {
   %type = pdl.type 

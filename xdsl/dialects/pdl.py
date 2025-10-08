@@ -9,6 +9,7 @@ from xdsl.dialects.builtin import (
     I16,
     I32,
     ArrayAttr,
+    BoolAttr,
     IntegerAttr,
     IntegerType,
     StringAttr,
@@ -26,6 +27,7 @@ from xdsl.ir import (
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
+    ParsePropInAttrDict,
     base,
     irdl_attr_definition,
     irdl_op_definition,
@@ -181,8 +183,13 @@ class ApplyNativeConstraintOp(IRDLOperation):
 
     name = "pdl.apply_native_constraint"
     constraint_name = prop_def(StringAttr, prop_name="name")
+    is_negated = prop_def(
+        BoolAttr, prop_name="isNegated", default_value=BoolAttr.from_bool(False)
+    )
     args = var_operand_def(AnyPDLTypeConstr)
     res = var_result_def(AnyPDLTypeConstr)
+
+    irdl_options = [ParsePropInAttrDict()]
 
     assembly_format = (
         "$name (`(` $args^ `:` type($args) `)`)? (`:` type($res)^)? attr-dict"
@@ -193,11 +200,14 @@ class ApplyNativeConstraintOp(IRDLOperation):
         name: str | StringAttr,
         args: Sequence[SSAValue],
         result_types: Sequence[Attribute],
+        is_negated: bool = False,
     ) -> None:
         if isinstance(name, str):
             name = StringAttr(name)
         super().__init__(
-            result_types=[result_types], operands=[args], properties={"name": name}
+            result_types=[result_types],
+            operands=[args],
+            properties={"name": name, "isNegated": BoolAttr.from_bool(is_negated)},
         )
 
 
