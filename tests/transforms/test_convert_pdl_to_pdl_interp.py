@@ -7,8 +7,11 @@ from xdsl.dialects import pdl
 from xdsl.dialects.builtin import IntegerType, StringAttr, f32, i32
 from xdsl.ir import Block, Region, SSAValue
 from xdsl.transforms.convert_pdl_to_pdl_interp.conversion import (
+    OrderedPredicate,
     PatternAnalyzer,
     PredicateTreeBuilder,
+    SuccessNode,
+    SwitchNode,
 )
 from xdsl.transforms.convert_pdl_to_pdl_interp.predicate import (
     AttributeAnswer,
@@ -26,6 +29,7 @@ from xdsl.transforms.convert_pdl_to_pdl_interp.predicate import (
     Position,
     PositionalPredicate,
     Predicate,
+    Question,
     ResultCountAtLeastQuestion,
     ResultCountQuestion,
     ResultPosition,
@@ -1191,3 +1195,221 @@ def test_create_ordered_predicates():
     assert ordered_pred3.tie_breaker == 2
     # p2_sum = 3**2 + 1**2 = 10.
     assert ordered_pred3.secondary_score == 10
+
+
+def test_propagate_pattern():
+    """Tests for the _propagate_pattern method of PredicateTreeBuilder."""
+
+    # region Test Fixtures
+    pos1 = OperationPosition(None, depth=0)
+    pos2 = OperationPosition(None, depth=1)
+    q1 = OperationNameQuestion()
+    q2 = ResultCountQuestion()
+    ans1 = StringAnswer("op1")
+    ans2 = StringAnswer("op2")
+    ans3 = UnsignedAnswer(1)
+
+    pred1 = PositionalPredicate(q1, ans1, pos1)
+    pred2 = PositionalPredicate(q1, ans2, pos1)
+    pred3 = PositionalPredicate(q2, ans3, pos2)
+
+    ordered_pred1 = OrderedPredicate(position=pos1, question=q1)
+    ordered_pred2 = OrderedPredicate(position=pos2, question=q2)
+
+    body1 = Region([Block()])
+    with ImplicitBuilder(body1.first_block):
+        root_val1 = pdl.OperationOp("test_op")
+        pdl.RewriteOp(None, name="rewrite1")
+    pattern1 = pdl.PatternOp(1, "pattern1", body1)
+
+    body2 = Region([Block()])
+    with ImplicitBuilder(body2.first_block):
+        root_val2 = pdl.OperationOp("test_op")
+        pdl.RewriteOp(None, name="rewrite2")
+    pattern2 = pdl.PatternOp(2, "pattern2", body2)
+
+    # endregion
+
+    def test_single_pattern_single_predicate():
+        builder = PredicateTreeBuilder()
+        builder._pattern_roots = {pattern1: root_val1.op}  # pyright: ignore[reportPrivateUsage]
+        pattern_preds: dict[tuple[Position, Question], PositionalPredicate] = {
+            (pos1, q1): pred1
+        }
+        sorted_preds = [ordered_pred1]
+
+        tree = builder._propagate_pattern(  # pyright: ignore[reportPrivateUsage]
+            None, pattern1, pattern_preds, sorted_preds, 0
+        )
+
+        assert isinstance(tree, SwitchNode)
+        assert tree.position == pos1
+        assert tree.question == q1
+        assert tree.failure_node is None
+        assert len(tree.children) == 1
+        assert ans1 in tree.children
+
+        child = tree.children[ans1]
+        assert isinstance(child, SuccessNode)
+        assert child.pattern is pattern1
+        assert child.failure_node is None
+
+    def test_single_pattern_multiple_predicates():
+        builder = PredicateTreeBuilder()
+        builder._pattern_roots = {pattern1: root_val1.op}  # pyright: ignore[reportPrivateUsage]
+        pattern_preds: dict[tuple[Position, Question], PositionalPredicate] = {
+            (pos1, q1): pred1,
+            (pos2, q2): pred3,
+        }
+        sorted_preds = [ordered_pred1, ordered_pred2]
+
+        tree = builder._propagate_pattern(  # pyright: ignore[reportPrivateUsage]
+            None, pattern1, pattern_preds, sorted_preds, 0
+        )
+
+        assert isinstance(tree, SwitchNode)
+        assert tree.position == pos1
+        assert tree.question == q1
+        child1 = tree.children[ans1]
+        assert isinstance(child1, SwitchNode)
+        assert child1.position == pos2
+        assert child1.question == q2
+        child2 = child1.children[ans3]
+        assert isinstance(child2, SuccessNode)
+        assert child2.pattern is pattern1
+
+    def test_two_patterns_shared_node():
+        builder = PredicateTreeBuilder()
+        builder._pattern_roots = {  # pyright: ignore[reportPrivateUsage]
+            pattern1: root_val1.op,
+            pattern2: root_val2.op,
+        }
+        pattern1_preds: dict[tuple[Position, Question], PositionalPredicate] = {
+            (pos1, q1): pred1
+        }
+        pattern2_preds: dict[tuple[Position, Question], PositionalPredicate] = {
+            (pos1, q1): pred2
+        }
+        sorted_preds = [ordered_pred1]
+
+        tree = builder._propagate_pattern(  # pyright: ignore[reportPrivateUsage]
+            None, pattern1, pattern1_preds, sorted_preds, 0
+        )
+        tree = builder._propagate_pattern(  # pyright: ignore[reportPrivateUsage]
+            tree, pattern2, pattern2_preds, sorted_preds, 0
+        )
+
+        assert isinstance(tree, SwitchNode)
+        assert tree.position == pos1
+        assert tree.question == q1
+        assert len(tree.children) == 2
+        assert ans1 in tree.children
+        assert ans2 in tree.children
+        child1 = tree.children[ans1]
+        assert isinstance(child1, SuccessNode)
+        assert child1.pattern is pattern1
+        child2 = tree.children[ans2]
+        assert isinstance(child2, SuccessNode)
+        assert child2.pattern is pattern2
+
+    def test_predicate_not_in_pattern():
+        builder = PredicateTreeBuilder()
+        builder._pattern_roots = {pattern1: root_val1.op}  # pyright: ignore[reportPrivateUsage]
+        pattern_preds: dict[tuple[Position, Question], PositionalPredicate] = {
+            (pos1, q1): pred1
+        }
+        sorted_preds = [ordered_pred2, ordered_pred1]
+
+        tree = builder._propagate_pattern(  # pyright: ignore[reportPrivateUsage]
+            None, pattern1, pattern_preds, sorted_preds, 0
+        )
+
+        assert isinstance(tree, SwitchNode)
+        assert tree.position == pos1
+        assert tree.question == q1
+        child = tree.children[ans1]
+        assert isinstance(child, SuccessNode)
+        assert child.pattern is pattern1
+
+    def test_predicate_divergence():
+        builder = PredicateTreeBuilder()
+        builder._pattern_roots = {  # pyright: ignore[reportPrivateUsage]
+            pattern1: root_val1.op,
+            pattern2: root_val2.op,
+        }
+        pattern1_preds: dict[tuple[Position, Question], PositionalPredicate] = {
+            (pos1, q1): pred1
+        }
+        pattern2_preds: dict[tuple[Position, Question], PositionalPredicate] = {
+            (pos2, q2): pred3
+        }
+        sorted_preds = [ordered_pred1, ordered_pred2]
+
+        tree = builder._propagate_pattern(  # pyright: ignore[reportPrivateUsage]
+            None, pattern1, pattern1_preds, sorted_preds, 0
+        )
+        tree = builder._propagate_pattern(  # pyright: ignore[reportPrivateUsage]
+            tree, pattern2, pattern2_preds, sorted_preds, 0
+        )
+
+        assert isinstance(tree, SwitchNode)
+        assert tree.position == pos1
+        assert tree.question == q1
+        assert tree.failure_node is not None
+
+        child1 = tree.children[ans1]
+        assert isinstance(child1, SuccessNode)
+        assert child1.pattern is pattern1
+
+        failure_node = tree.failure_node
+        assert isinstance(failure_node, SwitchNode)
+        assert failure_node.position == pos2
+        assert failure_node.question == q2
+        child2 = failure_node.children[ans3]
+        assert isinstance(child2, SuccessNode)
+        assert child2.pattern is pattern2
+
+    def test_success_node_failure_path():
+        builder = PredicateTreeBuilder()
+        builder._pattern_roots = {  # pyright: ignore[reportPrivateUsage]
+            pattern1: root_val1.op,
+            pattern2: root_val2.op,
+        }
+        pattern1_preds: dict[tuple[Position, Question], PositionalPredicate] = {
+            (pos1, q1): pred1
+        }
+        pattern2_preds: dict[tuple[Position, Question], PositionalPredicate] = {
+            (pos1, q1): pred1,
+            (pos2, q2): pred3,
+        }
+        sorted_preds = [ordered_pred1, ordered_pred2]
+
+        tree = builder._propagate_pattern(  # pyright: ignore[reportPrivateUsage]
+            None, pattern2, pattern2_preds, sorted_preds, 0
+        )
+        tree = builder._propagate_pattern(  # pyright: ignore[reportPrivateUsage]
+            tree, pattern1, pattern1_preds, sorted_preds, 0
+        )
+
+        assert isinstance(tree, SwitchNode)
+        child1 = tree.children[ans1]
+        assert isinstance(child1, SuccessNode)
+        assert child1.pattern is pattern1
+        assert child1.failure_node is not None
+
+        failure_node = child1.failure_node
+        assert isinstance(failure_node, SwitchNode)
+        assert failure_node.position == pos2
+        assert failure_node.question == q2
+        assert ans3 in failure_node.children
+
+        child2 = failure_node.children[ans3]
+        assert isinstance(child2, SuccessNode)
+        assert child2.pattern is pattern2
+
+    test_single_pattern_single_predicate()
+    test_single_pattern_multiple_predicates()
+    test_two_patterns_shared_node()
+    test_predicate_not_in_pattern()
+    test_predicate_divergence()
+    test_success_node_failure_path()

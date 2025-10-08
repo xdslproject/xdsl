@@ -2,9 +2,10 @@
 PDL to PDL_interp Transformation
 """
 
+from abc import ABC
 from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import cast
+from typing import Optional, cast
 
 from xdsl.dialects import pdl
 from xdsl.ir import (
@@ -30,6 +31,54 @@ from xdsl.transforms.convert_pdl_to_pdl_interp.predicate import (
     get_position_cost,
     get_question_cost,
 )
+
+# =============================================================================
+# Matcher Tree Nodes
+# =============================================================================
+
+
+@dataclass
+class MatcherNode(ABC):
+    """Base class for matcher tree nodes"""
+
+    position: Position | None = None
+    question: Question | None = None
+    failure_node: Optional["MatcherNode"] = None
+
+
+@dataclass(kw_only=True)
+class BoolNode(MatcherNode):
+    """Boolean predicate node"""
+
+    success_node: MatcherNode | None = None
+    failure_node: MatcherNode | None = None
+
+    answer: Answer
+
+    success_node: MatcherNode | None = None
+
+
+@dataclass
+class SwitchNode(MatcherNode):
+    """Multi-way switch node"""
+
+    children: dict[Answer, MatcherNode | None] = field(default_factory=lambda: {})
+
+
+@dataclass(kw_only=True)
+class SuccessNode(MatcherNode):
+    """Successful pattern match"""
+
+    pattern: pdl.PatternOp  # PDL pattern reference
+    root: SSAValue | None = None  # Root value
+
+
+@dataclass
+class ExitNode(MatcherNode):
+    """Exit/failure node"""
+
+    pass
+
 
 # =============================================================================
 # Pattern Analysis
@@ -671,3 +720,72 @@ class PredicateTreeBuilder:
                 ordered_pred.secondary_score += pattern_primary_sum
 
         return predicate_map
+
+    def _propagate_pattern(
+        self,
+        node: MatcherNode | None,
+        pattern: pdl.PatternOp,
+        pattern_predicates: dict[tuple[Position, Question], PositionalPredicate],
+        sorted_predicates: list[OrderedPredicate],
+        predicate_index: int,
+    ) -> MatcherNode:
+        """Propagate a pattern through the predicate tree"""
+
+        # Base case: reached end of predicates
+        if predicate_index >= len(sorted_predicates):
+            root_val = self._pattern_roots.get(pattern)
+            return SuccessNode(pattern=pattern, root=root_val, failure_node=node)
+
+        current_predicate = sorted_predicates[predicate_index]
+        pred_key = (current_predicate.position, current_predicate.question)
+
+        # Skip predicates not in this pattern
+        if pred_key not in pattern_predicates:
+            return self._propagate_pattern(
+                node,
+                pattern,
+                pattern_predicates,
+                sorted_predicates,
+                predicate_index + 1,
+            )
+
+        # Create or match existing node
+        if node is None:
+            # Create new switch node
+            node = SwitchNode(
+                position=current_predicate.position, question=current_predicate.question
+            )
+
+        if self._nodes_match(node, current_predicate):
+            # Continue down matching path
+            pattern_answer = pattern_predicates[pred_key].a
+
+            if isinstance(node, SwitchNode):
+                if pattern_answer not in node.children:
+                    node.children[pattern_answer] = None
+
+                node.children[pattern_answer] = self._propagate_pattern(
+                    node.children[pattern_answer],
+                    pattern,
+                    pattern_predicates,
+                    sorted_predicates,
+                    predicate_index + 1,
+                )
+
+        else:
+            # Divergence - continue down failure path
+            node.failure_node = self._propagate_pattern(
+                node.failure_node,
+                pattern,
+                pattern_predicates,
+                sorted_predicates,
+                predicate_index,
+            )
+
+        return node
+
+    def _nodes_match(self, node: MatcherNode, predicate: OrderedPredicate) -> bool:
+        """Check if node matches the given predicate"""
+        return (
+            node.position == predicate.position and node.question == predicate.question
+        )
