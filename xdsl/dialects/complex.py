@@ -174,11 +174,20 @@ class AbsOp(ComplexUnaryRealResultOperation):
     name = "complex.abs"
 
 
+class AddSubCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.complex import AddSubOpPattern
+
+        return (AddSubOpPattern(),)
+
+
 @irdl_op_definition
 class AddOp(ComplexBinaryOp):
     name = "complex.add"
     traits = traits_def(
         Pure(),
+        AddSubCanonicalizationPatternsTrait(),
         ComplexBinaryOpCanonicalizationPatternsTrait(),
     )
 
@@ -460,6 +469,7 @@ class SubOp(ComplexBinaryOp):
     name = "complex.sub"
     traits = traits_def(
         Pure(),
+        AddSubCanonicalizationPatternsTrait(),
         ComplexBinaryOpCanonicalizationPatternsTrait(),
     )
 

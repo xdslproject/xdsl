@@ -162,3 +162,36 @@ class RedundantUnaryOpOpPattern(RewritePattern):
             or (isinstance(inner_op, complex.ExpOp) and isinstance(op, complex.LogOp))
         ):
             rewriter.replace_matched_op((), (inner_op.complex,))
+
+
+class AddSubOpPattern(RewritePattern):
+    """
+    %sub = complex.sub %x, %y
+    %add = (complex.add %sub, %y) | (complex.add %y, %sub) = %x
+    ------------------------------------------------------------------
+    %add = complex.add %x, %y
+    %sub = complex.sub %add, %y = %x
+    """
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(
+        self, op: complex.AddOp | complex.SubOp, rewriter: PatternRewriter
+    ):
+        if (
+            isinstance(op, complex.AddOp)
+            and (
+                (
+                    isinstance(inner_op := op.lhs.owner, complex.SubOp)
+                    and (inner_op.rhs == op.rhs)
+                )
+                or (
+                    isinstance(inner_op := op.rhs.owner, complex.SubOp)
+                    and (op.lhs == inner_op.rhs)
+                )
+            )
+        ) or (
+            isinstance(op, complex.SubOp)
+            and isinstance(inner_op := op.lhs.owner, complex.AddOp)
+            and (inner_op.rhs == op.rhs)
+        ):
+            rewriter.replace_matched_op((), (inner_op.lhs,))
