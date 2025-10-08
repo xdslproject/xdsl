@@ -158,7 +158,7 @@ _PARAMETRIZED_ATTRIBUTE_DICT_KEYS = {
     )
     for dict in dict_seq
     for key in dict
-}
+} | {"__type_params__"}  # Forward compatibility for Python 3.12 generics
 
 _IGNORED_PARAM_ATTR_FIELD_TYPES = set(("name", "parameters"))
 
