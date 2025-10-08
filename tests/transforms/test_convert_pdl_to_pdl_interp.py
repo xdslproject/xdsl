@@ -1521,3 +1521,113 @@ def test_optimize_tree():
     )
     optimized5 = builder._optimize_tree(root5)  # pyright: ignore[reportPrivateUsage]
     assert optimized5 is root5
+
+
+def test_depends_on():
+    """Tests for the _depends_on function."""
+    from xdsl.transforms.convert_pdl_to_pdl_interp.conversion import (
+        _depends_on,  # pyright: ignore[reportPrivateUsage]
+    )
+
+    # Helper to create a mock OrderedPredicate
+    def create_pred(pos: Position, q: Question) -> OrderedPredicate:
+        return OrderedPredicate(position=pos, question=q)
+
+    # Test fixtures
+    op_pos = OperationPosition(None, depth=0)
+    op_q = OperationNameQuestion()
+
+    # Constraint A
+    constraint_q_a = ConstraintQuestion("constraint_a", (), (), False)
+    pred_a = create_pred(op_pos, constraint_q_a)
+
+    # A predicate that is not a constraint
+    pred_not_constraint = create_pred(op_pos, op_q)
+
+    # A position that depends on constraint A
+    pos_depends_on_a = ConstraintPosition(
+        None, constraint=constraint_q_a, result_index=0
+    )
+
+    # Case 1: pred_a is not a constraint question
+    assert not _depends_on(pred_not_constraint, pred_a)
+
+    # Case 2: pred_b's position depends on pred_a
+    pred_b_pos_dep = create_pred(pos_depends_on_a, op_q)
+    assert _depends_on(pred_a, pred_b_pos_dep)
+
+    # Case 3: pred_b is an EqualToQuestion, with position depending on pred_a
+    eq_q_pos_dep = EqualToQuestion(other_position=op_pos)
+    pred_b_eq_pos_dep = create_pred(pos_depends_on_a, eq_q_pos_dep)
+    assert _depends_on(pred_a, pred_b_eq_pos_dep)
+
+    # Case 4: pred_b is an EqualToQuestion, with other_position depending on pred_a
+    eq_q_other_pos_dep = EqualToQuestion(other_position=pos_depends_on_a)
+    pred_b_eq_other_pos_dep = create_pred(op_pos, eq_q_other_pos_dep)
+    assert _depends_on(pred_a, pred_b_eq_other_pos_dep)
+
+    # Case 5: pred_b is a ConstraintQuestion, with arg_positions depending on pred_a
+    constraint_q_b = ConstraintQuestion("constraint_b", (pos_depends_on_a,), (), False)
+    pred_b_constraint_dep = create_pred(op_pos, constraint_q_b)
+    assert _depends_on(pred_a, pred_b_constraint_dep)
+
+    # Case 6: No dependency
+    pred_b_no_dep = create_pred(op_pos, op_q)
+    assert not _depends_on(pred_a, pred_b_no_dep)
+
+
+def test_stable_topological_sort():
+    """Tests for the _stable_topological_sort function."""
+    from xdsl.transforms.convert_pdl_to_pdl_interp.conversion import (
+        _stable_topological_sort,  # pyright: ignore[reportPrivateUsage]
+    )
+
+    # Helper to create a mock OrderedPredicate
+    def create_pred(pos: Position, q: Question) -> OrderedPredicate:
+        return OrderedPredicate(position=pos, question=q)
+
+    op_pos = OperationPosition(None, depth=0)
+    op_q = OperationNameQuestion()
+
+    # Constraints A, B, C, where C depends on B, and B depends on A
+    constraint_q_a = ConstraintQuestion("constraint_a", (), (), False)
+    pred_a = create_pred(op_pos, constraint_q_a)
+
+    pos_depends_on_a = ConstraintPosition(
+        None, constraint=constraint_q_a, result_index=0
+    )
+    constraint_q_b = ConstraintQuestion("constraint_b", (pos_depends_on_a,), (), False)
+    pred_b = create_pred(op_pos, constraint_q_b)
+
+    pos_depends_on_b = ConstraintPosition(
+        None, constraint=constraint_q_b, result_index=0
+    )
+    constraint_q_c = ConstraintQuestion("constraint_c", (pos_depends_on_b,), (), False)
+    pred_c = create_pred(op_pos, constraint_q_c)
+
+    # Independent predicate
+    pred_d = create_pred(op_pos, op_q)
+
+    # Case 1: Simple dependency chain (c, b, a) -> (a, b, c)
+    input_list = [pred_c, pred_b, pred_a]
+    sorted_list = _stable_topological_sort(input_list)
+    assert sorted_list == [pred_a, pred_b, pred_c]
+
+    # Case 2: Mix of dependent and independent items
+    input_list = [pred_c, pred_d, pred_b, pred_a]
+    sorted_list = _stable_topological_sort(input_list)
+    assert sorted_list == [pred_d, pred_a, pred_b, pred_c]
+
+    # Case 3: Already sorted
+    input_list = [pred_a, pred_b, pred_c]
+    sorted_list = _stable_topological_sort(input_list)
+    assert sorted_list == [pred_a, pred_b, pred_c]
+
+    # Case 4: Empty list
+    assert _stable_topological_sort([]) == []
+
+    # Case 5: Stability with independent items
+    pred_e = create_pred(op_pos, ResultCountQuestion())
+    input_list = [pred_d, pred_e]
+    sorted_list = _stable_topological_sort(input_list)
+    assert sorted_list == [pred_d, pred_e]

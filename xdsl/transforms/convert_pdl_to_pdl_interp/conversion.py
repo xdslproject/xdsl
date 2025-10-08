@@ -19,6 +19,7 @@ from xdsl.transforms.convert_pdl_to_pdl_interp.predicate import (
     AttributePosition,
     ConstraintPosition,
     ConstraintQuestion,
+    EqualToQuestion,
     OperandGroupPosition,
     OperandPosition,
     OperationPosition,
@@ -635,6 +636,66 @@ class OrderedPredicate:
     def __hash__(self):
         """The hash is based on the immutable identity of the predicate."""
         return hash((self.position, self.question))
+
+
+def _depends_on(pred_a: OrderedPredicate, pred_b: OrderedPredicate) -> bool:
+    """Returns true if predicate 'b' depends on a result of predicate 'a'."""
+    constraint_q_a = pred_a.question
+    if not isinstance(constraint_q_a, ConstraintQuestion):
+        return False
+
+    def position_depends_on_a(pos: Position) -> bool:
+        if isinstance(pos, ConstraintPosition):
+            return pos.constraint == constraint_q_a
+        return False
+
+    if isinstance(pred_b.question, ConstraintQuestion):
+        # Does any argument of b use a?
+        return any(position_depends_on_a(arg) for arg in pred_b.question.arg_positions)
+    if isinstance(pred_b.question, EqualToQuestion):
+        return position_depends_on_a(pred_b.position) or position_depends_on_a(
+            pred_b.question.other_position
+        )
+    return position_depends_on_a(pred_b.position)
+
+
+def _stable_topological_sort(  # pyright: ignore[reportUnusedFunction]
+    predicates: list[OrderedPredicate],
+) -> list[OrderedPredicate]:
+    """Sorts predicates topologically while maintaining stability for independent items."""
+    # Build dependency graph
+    dependencies: dict[OrderedPredicate, set[OrderedPredicate]] = {
+        p: set() for p in predicates
+    }
+    for i, pred_b in enumerate(predicates):
+        for j in range(i + 1, len(predicates)):
+            pred_a = predicates[j]
+            if _depends_on(pred_a, pred_b):
+                dependencies[pred_b].add(pred_a)  # b depends on a
+
+    sorted_list: list[OrderedPredicate] = []
+    pred_list: list[OrderedPredicate] = predicates[:]
+
+    while pred_list:
+        # Find all items with no dependencies within the current list
+        to_sort = [
+            p for p in pred_list if all(dep not in pred_list for dep in dependencies[p])
+        ]
+        # It is not possible to have cycles in the dependency graph
+        # because predicates can only depend on predicates containing
+        # a ConstraintQuestion. It is however impossible to construct
+        # a cycle with those because they are frozen at construction
+        # and thus cannot refer to a ConstraintPosition that was
+        # defined later.
+        assert to_sort, "Encountered a cycle!"
+
+        # Append them to the sorted list
+        sorted_list.extend(to_sort)
+
+        # Remove them from the list to be sorted
+        pred_list = [p for p in pred_list if p not in to_sort]
+
+    return sorted_list
 
 
 class PredicateTreeBuilder:
