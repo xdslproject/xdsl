@@ -33,7 +33,11 @@ from xdsl.irdl import (
     traits_def,
 )
 from xdsl.pattern_rewriter import RewritePattern
-from xdsl.traits import HasCanonicalizationPatternsTrait, Pure
+from xdsl.traits import (
+    Commutative,
+    HasCanonicalizationPatternsTrait,
+    Pure,
+)
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
@@ -187,6 +191,7 @@ class AddOp(ComplexBinaryOp):
     name = "complex.add"
     traits = traits_def(
         Pure(),
+        Commutative(),
         AddSubCanonicalizationPatternsTrait(),
         ComplexBinaryOpCanonicalizationPatternsTrait(),
     )
@@ -423,6 +428,7 @@ class MulOp(ComplexBinaryOp):
     name = "complex.mul"
     traits = traits_def(
         Pure(),
+        Commutative(),
         ComplexBinaryOpCanonicalizationPatternsTrait(),
     )
 
