@@ -18,6 +18,7 @@ from xdsl.dialects.builtin import (
     ShapedType,
     StringAttr,
     TensorType,
+    i1,
 )
 from xdsl.ir import Attribute, Dialect, SSAValue, TypeAttribute
 from xdsl.irdl import (
@@ -25,14 +26,24 @@ from xdsl.irdl import (
     ParsePropInAttrDict,
     VarConstraint,
     irdl_op_definition,
+    lazy_traits_def,
     operand_def,
     opt_prop_def,
     prop_def,
+    region_def,
     result_def,
     traits_def,
     var_operand_def,
+    var_result_def,
 )
-from xdsl.traits import Commutative, Pure
+from xdsl.traits import (
+    Commutative,
+    HasParent,
+    IsTerminator,
+    Pure,
+    RecursiveMemoryEffect,
+    SingleBlockImplicitTerminator,
+)
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -245,6 +256,17 @@ class CosOp(ElementwiseUnaryOperation[TensorType[AnyFloat]]):
 
 
 @irdl_op_definition
+class ReciprocalOp(ElementwiseUnaryOperation[TensorType]):
+    """
+    Elementwise reciprocal operation.
+
+    See [external documentation](https://mlir.llvm.org/docs/Dialects/TOSA/#tosareciprocal-mlirtosareciprocalop).
+    """
+
+    name = "tosa.reciprocal"
+
+
+@irdl_op_definition
 class MatMulOp(IRDLOperation):
     """
     TOSA dialect operation for computing 2D matmuls. Expects 3D tensors as input with leading rank of 1 element, e.g.
@@ -399,6 +421,134 @@ class ConcatOp(IRDLOperation):
     assembly_format = "$tensors attr-dict `:` `(` type($tensors) `)` `->` type($output)"
 
 
+@irdl_op_definition
+class YieldOp(IRDLOperation):
+    """
+    TOSA operation for returning out of conditional and body of structured control flow
+
+    See [external documentation](https://mlir.llvm.org/docs/Dialects/TOSA/#tosayield-mlirtosayieldop)
+    """
+
+    name = "tosa.yield"
+
+    inputs = var_operand_def(TensorType)
+
+    traits = lazy_traits_def(
+        lambda: (
+            IsTerminator(),
+            HasParent(IfOp),
+            Pure(),
+        )
+    )
+
+    assembly_format = "$inputs attr-dict `:` type($inputs)"
+
+
+@irdl_op_definition
+class IfOp(IRDLOperation):
+    """
+    Conditional operation on tensors.
+
+    See [external documentation](https://mlir.llvm.org/docs/Dialects/TOSA/#tosacond_if-mlirtosaifop).
+    """
+
+    name = "tosa.cond_if"
+
+    cond = operand_def(TensorType(i1, []))
+
+    output = var_result_def(TensorType)
+
+    true_region = region_def("single_block")
+    false_region = region_def("single_block")
+
+    traits = traits_def(
+        RecursiveMemoryEffect(),
+        SingleBlockImplicitTerminator(YieldOp),
+    )
+
+    assembly_format = (
+        "$cond `->` `(` type($output) `)` $true_region `else` $false_region attr-dict"
+    )
+
+
+################################################################################
+# Reduction ops                                                                #
+################################################################################
+
+
+class ReductionOperation(IRDLOperation, ABC):
+    """
+    Base class for all TOSA reduction operations
+    """
+
+    input = operand_def(TensorType)
+    axis = prop_def(IntegerAttr[I32])
+
+    output = result_def(TensorType)
+
+    assembly_format = "$input attr-dict `:` functional-type(operands, results)"
+
+    irdl_options = [ParsePropInAttrDict()]
+
+
+@irdl_op_definition
+class ReduceAllOp(ReductionOperation):
+    """
+    Reduce a tensor along the given axis with a logical AND operation
+    """
+
+    name = "tosa.reduce_all"
+
+
+@irdl_op_definition
+class ReduceAnyOp(ReductionOperation):
+    """
+    Reduce a tensor along the given axis with a logical OR operation
+    """
+
+    name = "tosa.reduce_any"
+
+
+@irdl_op_definition
+class ReduceMaxOp(ReductionOperation):
+    """
+    Reduce a tensor along the given axis by taking the maximum value
+    """
+
+    name = "tosa.reduce_max"
+
+    nan_mode = prop_def(StringAttr, default_value=StringAttr("PROPAGATE"))
+
+
+@irdl_op_definition
+class ReduceMinOp(ReductionOperation):
+    """
+    Reduce a tensor along the given axis by taking the minimum value
+    """
+
+    name = "tosa.reduce_min"
+
+    nan_mode = prop_def(StringAttr, default_value=StringAttr("PROPAGATE"))
+
+
+@irdl_op_definition
+class ReduceProdOp(ReductionOperation):
+    """
+    Reduce a tensor along the given axis by taking the product of all values
+    """
+
+    name = "tosa.reduce_prod"
+
+
+@irdl_op_definition
+class ReduceSumOp(ReductionOperation):
+    """
+    Reduce a tensor along the given axis by taking the product of all values
+    """
+
+    name = "tosa.reduce_sum"
+
+
 TOSA = Dialect(
     "tosa",
     [
@@ -409,10 +559,19 @@ TOSA = Dialect(
         MulOp,
         SinOp,
         CosOp,
+        ReciprocalOp,
+        ReduceAllOp,
+        ReduceAnyOp,
+        ReduceMaxOp,
+        ReduceMinOp,
+        ReduceProdOp,
+        ReduceSumOp,
         MatMulOp,
         MaxPool2DOp,
         AvgPool2DOp,
         ConcatOp,
+        IfOp,
+        YieldOp,
     ],
     [],
 )

@@ -1,7 +1,7 @@
 from abc import ABC
 from collections.abc import Sequence
 from enum import auto
-from typing import TypeAlias
+from typing import ClassVar, TypeAlias
 
 from xdsl.dialects.builtin import (
     I16,
@@ -27,12 +27,14 @@ from xdsl.ir import (
     OpaqueSyntaxAttribute,
     ParametrizedAttribute,
     SpacedOpaqueSyntaxAttribute,
+    SSAValue,
     TypeAttribute,
     VerifyException,
 )
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
+    VarConstraint,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
@@ -426,6 +428,45 @@ class ShardingOp(IRDLOperation):
             )
 
 
+@irdl_op_definition
+class ShardOp(IRDLOperation):
+    """
+    Annotate on how a tensor is sharded across a shard.
+
+    See [external documentation](https://mlir.llvm.org/docs/Dialects/Shard/#shardshard-shardshardop).
+    """
+
+    name = "mesh.shard"
+
+    T: ClassVar = VarConstraint("T", TensorType.constr())
+
+    src = operand_def(T)
+    sharding = operand_def(ShardingType)
+    annotate_for_users = opt_prop_def(UnitAttr)
+
+    result = result_def(T)
+
+    traits = traits_def(
+        Pure(),
+    )
+
+    assembly_format = "$src `to` $sharding (`annotate_for_users` $annotate_for_users^)? attr-dict `:` type($result)"
+
+    def __init__(
+        self,
+        src: SSAValue,
+        sharding: SSAValue,
+        annotate_for_users: UnitAttr | None,
+    ):
+        return super().__init__(
+            operands=[src, sharding],
+            result_types=[src.type],
+            properties={
+                "annotate_for_users": annotate_for_users,
+            },
+        )
+
+
 Mesh = Dialect(
     "mesh",
     [
@@ -437,6 +478,7 @@ Mesh = Dialect(
         ShiftOp,
         MeshOp,
         ShardingOp,
+        ShardOp,
     ],
     [
         ReductionKindAttr,

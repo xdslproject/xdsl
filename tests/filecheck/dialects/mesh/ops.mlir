@@ -32,6 +32,9 @@ mesh.mesh @mesh5(shape = ?)
 %18 = mesh.send %t on @mesh0 mesh_axes = [1] destination = [1] : (tensor<2x2xi8>) -> tensor<2x2xi8>
 %19 = mesh.shift %t on @mesh0 mesh_axes = [1] shift_axis = 1 offset = 2 rotate : tensor<2x2xi8> -> tensor<2x2xi8>
 
+// Sharding
+%20 = mesh.shard %t to %11 : tensor<2x2xi8>
+%21 = mesh.shard %t to %11 annotate_for_users : tensor<2x2xi8>
 
 // CHECK:      mesh.mesh @mesh0(shape = 2x2x4)
 // CHECK-NEXT: mesh.mesh @mesh1(shape = 4x?)
@@ -61,3 +64,5 @@ mesh.mesh @mesh5(shape = ?)
 // CHECK-NEXT: %17 = mesh.recv %t on @mesh0 mesh_axes = [0, 2] source = [0, 1] : (tensor<2x2xi8>) -> tensor<2x2xi8>
 // CHECK-NEXT: %18 = mesh.send %t on @mesh0 mesh_axes = [1] destination = [1] : (tensor<2x2xi8>) -> tensor<2x2xi8>
 // CHECK-NEXT: %19 = mesh.shift %t on @mesh0 mesh_axes = [1] shift_axis = 1 offset = 2 rotate : tensor<2x2xi8> -> tensor<2x2xi8>
+// CHECK-NEXT: %20 = mesh.shard %t to %11 : tensor<2x2xi8>
+// CHECK-NEXT: %21 = mesh.shard %t to %11 annotate_for_users : tensor<2x2xi8>

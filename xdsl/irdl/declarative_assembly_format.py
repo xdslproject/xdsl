@@ -303,6 +303,12 @@ class FormatDirective(Directive, ABC):
         """
         ...
 
+    def parse_optional(self, parser: Parser, state: ParsingState) -> bool:
+        """
+        Parses an optional directive, returning False if not present.
+        """
+        return self.parse(parser, state)
+
     @abstractmethod
     def print(
         self, printer: Printer, state: PrintingState, op: IRDLOperation
@@ -971,6 +977,14 @@ class RegionVariable(RegionDirective, VariableDirective):
         self.set(state, parser.parse_region())
         return True
 
+    def parse_optional(self, parser: Parser, state: ParsingState) -> bool:
+        region = parser.parse_optional_region()
+        res = region is None
+        if res:
+            region = Region()
+        self.set(state, region)
+        return res
+
     def get(self, op: IRDLOperation) -> Region:
         return getattr(op, self.name)
 
@@ -986,6 +1000,9 @@ class RegionVariable(RegionDirective, VariableDirective):
 
     def is_present(self, op: IRDLOperation) -> bool:
         return bool(self.get(op).blocks)
+
+    def is_optional_like(self) -> bool:
+        return True
 
 
 @dataclass(frozen=True)
@@ -1009,6 +1026,9 @@ class VariadicRegionVariable(RegionDirective, VariadicVariable):
 
         self.set(state, regions)
         return bool(regions)
+
+    def parse_optional(self, parser: Parser, state: ParsingState) -> bool:
+        return self.parse(parser, state)
 
     def get(self, op: IRDLOperation) -> Sequence[Region]:
         return getattr(op, self.name)
@@ -1038,6 +1058,9 @@ class OptionalRegionVariable(RegionDirective, OptionalVariable):
         region = parser.parse_optional_region()
         self.set(state, region)
         return region is not None
+
+    def parse_optional(self, parser: Parser, state: ParsingState) -> bool:
+        return self.parse(parser, state)
 
     def get(self, op: IRDLOperation) -> Region | None:
         return getattr(op, self.name)
@@ -1433,7 +1456,7 @@ class OptionalGroupDirective(FormatDirective):
 
     def parse(self, parser: Parser, state: ParsingState) -> bool:
         # If the first element was parsed, parse the then-elements as usual
-        if ret := self.then_first.parse(parser, state):
+        if ret := self.then_first.parse_optional(parser, state):
             for element in self.then_elements:
                 element.parse(parser, state)
             for element in self.else_elements:
