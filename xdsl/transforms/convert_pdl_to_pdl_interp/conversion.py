@@ -19,6 +19,7 @@ from xdsl.transforms.convert_pdl_to_pdl_interp.predicate import (
     AttributePosition,
     ConstraintPosition,
     ConstraintQuestion,
+    EqualToQuestion,
     OperandGroupPosition,
     OperandPosition,
     OperationPosition,
@@ -635,6 +636,27 @@ class OrderedPredicate:
     def __hash__(self):
         """The hash is based on the immutable identity of the predicate."""
         return hash((self.position, self.question))
+
+
+def _depends_on(pred_a: OrderedPredicate, pred_b: OrderedPredicate) -> bool:
+    """Returns true if predicate 'b' depends on a result of predicate 'a'."""
+    constraint_q_a = pred_a.question
+    if not isinstance(constraint_q_a, ConstraintQuestion):
+        return False
+
+    def position_depends_on_a(pos: Position) -> bool:
+        if isinstance(pos, ConstraintPosition):
+            return pos.constraint == constraint_q_a
+        return False
+
+    if isinstance(pred_b.question, ConstraintQuestion):
+        # Does any argument of b use a?
+        return any(position_depends_on_a(arg) for arg in pred_b.question.arg_positions)
+    if isinstance(pred_b.question, EqualToQuestion):
+        return position_depends_on_a(pred_b.position) or position_depends_on_a(
+            pred_b.question.other_position
+        )
+    return position_depends_on_a(pred_b.position)
 
 
 class PredicateTreeBuilder:
