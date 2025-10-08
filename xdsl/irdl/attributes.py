@@ -158,9 +158,13 @@ _PARAMETRIZED_ATTRIBUTE_DICT_KEYS = {
     )
     for dict in dict_seq
     for key in dict
-} | {"__type_params__"}  # Forward compatibility for Python 3.12 generics
+}
 
 _IGNORED_PARAM_ATTR_FIELD_TYPES = set(("name", "parameters"))
+
+
+def _is_dunder(name: str) -> bool:
+    return name.startswith("__") and name.endswith("__")
 
 
 class ParamDef(NamedTuple):
@@ -189,7 +193,7 @@ class ParamAttrDef:
             key: value
             for parent_cls in pyrdl_def.mro()[::-1]
             for key, value in parent_cls.__dict__.items()
-            if key not in _PARAMETRIZED_ATTRIBUTE_DICT_KEYS
+            if key not in _PARAMETRIZED_ATTRIBUTE_DICT_KEYS and not _is_dunder(key)
         }
 
         if "name" not in clsdict:
