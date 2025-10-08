@@ -789,3 +789,40 @@ class PredicateTreeBuilder:
         return (
             node.position == predicate.position and node.question == predicate.question
         )
+
+    def _insert_exit_node(self, root: MatcherNode) -> MatcherNode:
+        """Insert exit node at end of failure paths"""
+        curr = root
+        while curr.failure_node:
+            curr = curr.failure_node
+        curr.failure_node = ExitNode()
+        return root
+
+    def _optimize_tree(self, root: MatcherNode) -> MatcherNode:
+        """Optimize the tree by collapsing single-child switches to bools"""
+        # Recursively optimize children
+        if isinstance(root, SwitchNode):
+            for answer in root.children:
+                child_node = root.children[answer]
+                if child_node is not None:
+                    root.children[answer] = self._optimize_tree(child_node)
+        elif isinstance(root, BoolNode):
+            if root.success_node is not None:
+                root.success_node = self._optimize_tree(root.success_node)
+
+        if root.failure_node is not None:
+            root.failure_node = self._optimize_tree(root.failure_node)
+
+        if isinstance(root, SwitchNode) and len(root.children) == 1:
+            # Convert switch to bool node
+            answer, child = next(iter(root.children.items()))
+            bool_node = BoolNode(
+                position=root.position,
+                question=root.question,
+                success_node=child,
+                failure_node=root.failure_node,
+                answer=answer,
+            )
+            return bool_node
+
+        return root
