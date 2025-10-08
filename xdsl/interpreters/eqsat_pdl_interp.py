@@ -5,7 +5,7 @@ from typing import Any
 
 from ordered_set import OrderedSet
 
-from xdsl.dialects import eqsat, pdl_interp
+from xdsl.dialects import eqsat, eqsat_pdl_interp, pdl_interp
 from xdsl.dialects.builtin import ModuleOp, SymbolRefAttr
 from xdsl.dialects.pdl import ValueType
 from xdsl.interpreter import (
@@ -45,14 +45,17 @@ class BacktrackPoint:
     scope: ScopedDict[SSAValue, Any]
     """Variable scope to restore when backtracking."""
 
-    gdo_op: pdl_interp.GetDefiningOpOp
-    """The GetDefiningOpOp that created this backtrack point."""
+    cause: pdl_interp.GetDefiningOpOp | eqsat_pdl_interp.ChooseOp
+    """The GetDefiningOpOp or ChooseOp that created this backtrack point."""
 
     index: int
-    """Current operand index being tried in the EClassOp."""
+    """Current backtrack index being tried.
+    When `cause` is a GetDefiningOpOp, this is the index of the operand of the EClassOp being tried.
+    When `cause` is a ChooseOp, this is the index of the choice being tried.
+    """
 
     max_index: int
-    """Last valid operand index in the EClassOp (len(operands) - 1)."""
+    """Last valid index to backtrack to."""
 
 
 @register_impls
@@ -64,21 +67,15 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
     """Stack of backtrack points for exploring multiple matching paths in e-classes."""
 
     visited: bool = True
-    """Signals whether the GetDefiningOp (GDO) in the block that run_finalize jumps to has been encountered.
+    """Signals whether we have processed the last backtrack point after a finalize.
+    This is used to tell whether we are encountering a GetDefiningOpOp or ChooseOp
+    for the first time (in which case we need to create a new backtrack point)
+    or whether we are backtracking to it (in which case we need to use the existing
+    backtrack point and continue from the stored index).
 
-    This is to handle when a block contains GDOs before the GDO we're backtracking to.
-    If this is the case, run_finalize jumps to the block but will encounter the wrong GDOs first.
-    e.g.:
-    ```
-    BB0:
-        %0 = pdl_interp.get_defining_op ...
-        %1 = pdl_interp.get_defining_op ...
-    BB1:
-        pdl_interp.finalize # backtrack to BB0 at this point
-    ```
-    Backtracking works by jumping to the start of the block containing the GDO (`BB0`).
-    When we need to backtrack to the second GDO (`%1`), `visited` is still `False` when encountering the first GDO (`%0`).
-    This allows us to know that we have to skip the first GDO and continue with the second one.
+    When visited is False, the next GetDefiningOpOp or ChooseOp we encounter must be
+    the one at the top of the backtrack stack and the index is incremented. Otherwise,
+    the last finalize has already been handled and a new backtrack point must be created.
     """
 
     known_ops: KnownOps = field(default_factory=KnownOps)
@@ -209,7 +206,7 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
 
         eclass_op = defining_op
         if not self.visited:  # we come directly from run_finalize
-            if op != self.backtrack_stack[-1].gdo_op:
+            if op != self.backtrack_stack[-1].cause:
                 # we first encounter a GDO that is not the one we are backtracking to:
                 raise InterpretationError(
                     "Case where a block contains multiple pdl_interp.get_defining_op is currently not supported."
@@ -382,6 +379,36 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
                 self.visited = False
                 return Successor(backtrack_point.block, backtrack_point.block_args), ()
         return ReturnedValues(()), ()
+
+    @impl_terminator(eqsat_pdl_interp.ChooseOp)
+    def run_choose(
+        self,
+        interpreter: Interpreter,
+        op: eqsat_pdl_interp.ChooseOp,
+        args: tuple[Any, ...],
+    ):
+        if not self.visited:  # we come directly from run_finalize
+            if op != self.backtrack_stack[-1].cause:
+                raise InterpretationError(
+                    "Expected this ChooseOp to be at the top of the backtrack stack."
+                )
+            index = self.backtrack_stack[-1].index
+            self.visited = True
+        else:
+            block = op.parent_block()
+            assert block
+            block_args = interpreter.get_values(block.args)
+            scope = interpreter._ctx.parent  # pyright: ignore[reportPrivateUsage]
+            assert scope
+            index = 0
+            self.backtrack_stack.append(
+                BacktrackPoint(block, block_args, scope, op, index, len(op.choices))
+            )
+        if index == len(op.choices):
+            dest = op.default_dest
+        else:
+            dest = op.choices[index]
+        return Successor(dest, ()), ()
 
     def repair(self, eclass: eqsat.EClassOp):
         unique_parents = KnownOps()

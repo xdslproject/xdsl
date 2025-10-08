@@ -1,7 +1,7 @@
 from abc import ABC
 from collections.abc import Sequence
 from enum import auto
-from typing import TypeAlias
+from typing import ClassVar, TypeAlias
 
 from xdsl.dialects.builtin import (
     I16,
@@ -15,6 +15,7 @@ from xdsl.dialects.builtin import (
     IntegerAttr,
     SymbolNameConstraint,
     TensorType,
+    UnitAttr,
     i16,
     i64,
 )
@@ -26,12 +27,14 @@ from xdsl.ir import (
     OpaqueSyntaxAttribute,
     ParametrizedAttribute,
     SpacedOpaqueSyntaxAttribute,
+    SSAValue,
     TypeAttribute,
     VerifyException,
 )
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
+    VarConstraint,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
@@ -258,6 +261,85 @@ class ScatterOp(CollectiveCommunicationOp):
     custom_directives = (DynamicIndexList,)
 
 
+@irdl_op_definition
+class RecvOp(CollectiveCommunicationOp):
+    """
+    Receive from a device within a device group.
+    """
+
+    name = "mesh.recv"
+
+    input = operand_def(TensorType)
+    source = opt_prop_def(DenseArrayBase[I64])
+    source_dynamic = var_operand_def(IndexType)
+
+    result = result_def(TensorType)
+
+    assembly_format = (
+        "$input `on` $mesh (`mesh_axes` `=` $mesh_axes^)? "
+        + "(`source` `=` custom<DynamicIndexList>($source_dynamic, $source)^)? "
+        + "attr-dict `:` functional-type(operands, results)"
+    )
+
+    custom_directives = (DynamicIndexList,)
+
+
+@irdl_op_definition
+class SendOp(CollectiveCommunicationOp):
+    """
+    Send from one device to another within a device group.
+    """
+
+    name = "mesh.send"
+
+    input = operand_def(TensorType)
+
+    destination = prop_def(DenseArrayBase[I64])
+    destination_dynamic = var_operand_def(IndexType)
+
+    result = result_def(TensorType)
+
+    assembly_format = (
+        "$input `on` $mesh (`mesh_axes` `=` $mesh_axes^)? "
+        + "`destination` `=` custom<DynamicIndexList>($destination_dynamic, $destination) "
+        + "attr-dict `:` functional-type(operands, results)"
+    )
+
+    custom_directives = (DynamicIndexList,)
+
+
+@irdl_op_definition
+class ShiftOp(CollectiveCommunicationOp):
+    """
+    Shift over a device mesh.
+
+    Within each device group shift along `shift_axis` by `offset`. If the
+    `rotate` flag is present a rotation is performed instead of a shift.
+    """
+
+    name = "mesh.shift"
+
+    input = operand_def(TensorType)
+
+    shift_axis = prop_def(IntegerAttr.constr(IndexTypeConstr))
+    offset = prop_def(IntegerAttr[I64])
+    rotate = prop_def(UnitAttr)
+
+    result = result_def(TensorType)
+
+    traits = traits_def(
+        Pure(),
+    )
+
+    assembly_format = (
+        "$input `on` $mesh (`mesh_axes` `=` $mesh_axes^)? "
+        + "`shift_axis` `=` $shift_axis "
+        + "`offset` `=` $offset "
+        + "(`rotate` $rotate^)? "
+        + "attr-dict `:` type($input) `->` type($result)"
+    )
+
+
 ################################################################################
 # Operations on mesh                                                           #
 ################################################################################
@@ -346,14 +428,57 @@ class ShardingOp(IRDLOperation):
             )
 
 
+@irdl_op_definition
+class ShardOp(IRDLOperation):
+    """
+    Annotate on how a tensor is sharded across a shard.
+
+    See [external documentation](https://mlir.llvm.org/docs/Dialects/Shard/#shardshard-shardshardop).
+    """
+
+    name = "mesh.shard"
+
+    T: ClassVar = VarConstraint("T", TensorType.constr())
+
+    src = operand_def(T)
+    sharding = operand_def(ShardingType)
+    annotate_for_users = opt_prop_def(UnitAttr)
+
+    result = result_def(T)
+
+    traits = traits_def(
+        Pure(),
+    )
+
+    assembly_format = "$src `to` $sharding (`annotate_for_users` $annotate_for_users^)? attr-dict `:` type($result)"
+
+    def __init__(
+        self,
+        src: SSAValue,
+        sharding: SSAValue,
+        annotate_for_users: UnitAttr | None,
+    ):
+        return super().__init__(
+            operands=[src, sharding],
+            result_types=[src.type],
+            properties={
+                "annotate_for_users": annotate_for_users,
+            },
+        )
+
+
 Mesh = Dialect(
     "mesh",
     [
         BroadcastOp,
         GatherOp,
+        RecvOp,
+        SendOp,
         ScatterOp,
+        ShiftOp,
         MeshOp,
         ShardingOp,
+        ShardOp,
     ],
     [
         ReductionKindAttr,

@@ -509,3 +509,27 @@ c3 = AffineExpr.constant(3)
 )
 def test_is_pure_affine(expr: AffineExpr, expected: bool):
     assert expr.is_pure_affine() is expected
+
+
+def test_traversal():
+    #    6
+    #  4 + 5
+    # 0+1 2+3
+    nodes = [AffineExpr.dimension(i) for i in range(4)]
+    nodes.append(nodes[0] + nodes[1])
+    nodes.append(nodes[2] + nodes[3])
+    nodes.append(nodes[4] + nodes[5])
+
+    root = nodes[-1]
+
+    dfs = tuple(root.dfs())
+    assert len(dfs) == 7
+    dfs_indices = [6, 4, 0, 1, 5, 2, 3]
+    for i, node in zip(dfs_indices, dfs):
+        assert nodes[i] is node
+
+    post_order = tuple(root.post_order())
+    post_order_indices = [0, 1, 4, 2, 3, 5, 6]
+    assert len(post_order) == 7
+    for i, node in zip(post_order_indices, post_order):
+        assert nodes[i] is node
