@@ -7,6 +7,8 @@ from xdsl.dialects import pdl
 from xdsl.dialects.builtin import IntegerType, StringAttr, f32, i32
 from xdsl.ir import Block, Region, SSAValue
 from xdsl.transforms.convert_pdl_to_pdl_interp.conversion import (
+    BoolNode,
+    ExitNode,
     OrderedPredicate,
     PatternAnalyzer,
     PredicateTreeBuilder,
@@ -1413,3 +1415,109 @@ def test_propagate_pattern():
     test_predicate_not_in_pattern()
     test_predicate_divergence()
     test_success_node_failure_path()
+
+
+def test_insert_exit_node():
+    """Test the _insert_exit_node method."""
+    builder = PredicateTreeBuilder()
+    pos = OperationPosition(None, depth=0)
+    q = OperationNameQuestion()
+
+    # Test with a chain of failure nodes
+    root = SwitchNode(position=pos, question=q)
+    root.failure_node = SwitchNode(position=pos, question=q)
+    root.failure_node.failure_node = SwitchNode(position=pos, question=q)
+
+    builder._insert_exit_node(root)  # pyright: ignore[reportPrivateUsage]
+
+    assert root.failure_node is not None
+    assert root.failure_node.failure_node is not None
+    assert root.failure_node.failure_node.failure_node is not None
+    assert isinstance(root.failure_node.failure_node.failure_node, ExitNode)
+    assert root.failure_node.failure_node.failure_node.failure_node is None
+
+    # Test with a single node
+    root2 = SwitchNode(position=pos, question=q)
+    builder._insert_exit_node(root2)  # pyright: ignore[reportPrivateUsage]
+    assert root2.failure_node is not None
+    assert isinstance(root2.failure_node, ExitNode)
+
+
+def test_optimize_tree():
+    """Test the _optimize_tree method."""
+    builder = PredicateTreeBuilder()
+    pos1 = OperationPosition(None, depth=0)
+    q1 = OperationNameQuestion()
+    ans1 = StringAnswer("op1")
+    ans1_other = StringAnswer("op2")
+
+    pos2 = OperationPosition(None, depth=1)
+    q2 = ResultCountQuestion()
+    ans2 = UnsignedAnswer(1)
+
+    body = Region([Block()])
+    with ImplicitBuilder(body.first_block):
+        pdl.RewriteOp(None, name="rewrite")
+    pattern = pdl.PatternOp(1, "pattern", body)
+    success = SuccessNode(pattern=pattern)
+
+    # Test case 1: Single-child SwitchNode is converted to BoolNode
+    root1 = SwitchNode(position=pos1, question=q1, children={ans1: success})
+    optimized1 = builder._optimize_tree(root1)  # pyright: ignore[reportPrivateUsage]
+
+    assert isinstance(optimized1, BoolNode)
+    assert optimized1.position == pos1
+    assert optimized1.question == q1
+    assert optimized1.answer == ans1
+    assert optimized1.success_node is success
+    assert optimized1.failure_node is None
+
+    # Test case 2: Multi-child SwitchNode is not converted
+    root2 = SwitchNode(
+        position=pos1, question=q1, children={ans1: success, ans1_other: success}
+    )
+    optimized2 = builder._optimize_tree(root2)  # pyright: ignore[reportPrivateUsage]
+
+    assert isinstance(optimized2, SwitchNode)
+    assert len(optimized2.children) == 2
+
+    # Test case 3: Recursive optimization
+    child3 = SwitchNode(position=pos2, question=q2, children={ans2: success})
+    root3 = SwitchNode(position=pos1, question=q1, children={ans1: child3})
+    optimized3 = builder._optimize_tree(root3)  # pyright: ignore[reportPrivateUsage]
+
+    assert isinstance(optimized3, BoolNode)
+    assert optimized3.position == pos1
+    assert optimized3.question == q1
+    assert optimized3.answer == ans1
+    assert optimized3.success_node is not None
+    assert isinstance(optimized3.success_node, BoolNode)
+    assert optimized3.success_node.position == pos2
+    assert optimized3.success_node.question == q2
+    assert optimized3.success_node.answer == ans2
+    assert optimized3.success_node.success_node is success
+
+    # Test case 4: Optimization on failure path
+    failure_child4 = SwitchNode(position=pos2, question=q2, children={ans2: success})
+    root4 = SwitchNode(position=pos1, question=q1, children={ans1: success})
+    root4.failure_node = failure_child4
+    optimized4 = builder._optimize_tree(root4)  # pyright: ignore[reportPrivateUsage]
+
+    assert isinstance(optimized4, BoolNode)
+    assert optimized4.position == pos1
+    assert optimized4.failure_node is not None
+    assert isinstance(optimized4.failure_node, BoolNode)
+    assert optimized4.failure_node.position == pos2
+    assert optimized4.failure_node.question == q2
+    assert optimized4.failure_node.answer == ans2
+
+    # Test case 5: No optimization needed
+    root5 = BoolNode(
+        position=pos1,
+        question=q1,
+        answer=ans1,
+        success_node=success,
+        failure_node=None,
+    )
+    optimized5 = builder._optimize_tree(root5)  # pyright: ignore[reportPrivateUsage]
+    assert optimized5 is root5
