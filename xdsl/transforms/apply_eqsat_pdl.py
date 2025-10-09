@@ -8,6 +8,7 @@ from xdsl.dialects import builtin, pdl, pdl_interp
 from xdsl.dialects.builtin import StringAttr
 from xdsl.interpreter import Interpreter
 from xdsl.interpreters.eqsat_pdl_interp import EqsatPDLInterpFunctions
+from xdsl.ir import Operation
 from xdsl.parser import Parser
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import PatternRewriterListener, PatternRewriteWalker
@@ -15,6 +16,11 @@ from xdsl.rewriter import InsertPoint
 from xdsl.traits import SymbolTable
 from xdsl.transforms.apply_pdl_interp import PDLInterpRewritePattern
 from xdsl.transforms.mlir_opt import MLIROptPass
+
+
+def is_not_unsound(op: Operation) -> tuple[bool, tuple[()]]:
+    """Check if an operation is not marked as 'unsound'."""
+    return "unsound" not in op.attributes, ()
 
 
 @dataclass(frozen=True)
@@ -96,6 +102,7 @@ class ApplyEqsatPDLPass(ModulePass):
 
         implementations = EqsatPDLInterpFunctions(ctx)
         implementations.populate_known_ops(op)
+        implementations.native_constraints["soundness_constraint"] = is_not_unsound
 
         matchers_module = builtin.ModuleOp([])
         rewriters_module = builtin.ModuleOp([], sym_name=StringAttr("rewriters"))
@@ -175,6 +182,7 @@ class ApplyEqsatPDLPass(ModulePass):
         # Initialize interpreter and implementations
         interpreter = Interpreter(pdl_interp_module)
         implementations = EqsatPDLInterpFunctions(ctx)
+        implementations.native_constraints["soundness_constraint"] = is_not_unsound
         implementations.populate_known_ops(op)
         interpreter.register_implementations(implementations)
         rewrite_pattern = PDLInterpRewritePattern(matcher, interpreter, implementations)
