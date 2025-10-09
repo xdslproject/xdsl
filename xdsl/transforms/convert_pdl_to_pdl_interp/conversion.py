@@ -5,7 +5,7 @@ PDL to PDL_interp Transformation
 import sys
 from abc import ABC
 from collections import defaultdict
-from collections.abc import Callable, Collection, Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from typing import Optional, cast
 
@@ -1355,43 +1355,6 @@ class PredicateTreeBuilder:
         self._pattern_roots: dict[pdl.PatternOp, SSAValue] = {}
         self.pattern_value_positions: dict[pdl.PatternOp, dict[SSAValue, Position]] = {}
         self.optimize_for_eqsat = optimize_for_eqsat
-
-    def _build_operation_groups(self, predicates: Collection[OrderedPredicate]):
-        pos_to_group: dict[OperationPosition, GroupedPredicates] = {}
-
-        for pred in predicates:
-            op_pos = pred.position.get_base_operation()
-            group = pos_to_group.setdefault(op_pos, GroupedPredicates(position=op_pos))
-            group.predicates.append(pred)
-            group.primary_score += pred.primary_score
-            group.secondary_score += pred.secondary_score
-
-        return pos_to_group
-
-    def _sort_grouped(self, ordered_predicates: Collection[OrderedPredicate]):
-        pos_to_group = self._build_operation_groups(ordered_predicates)
-        sorted_predicates: list[GroupedPredicates] = []
-        seen_positions: set[OperationPosition] = set()
-        for group in sorted(pos_to_group.values()):
-            seen_positions.add(group.position)
-            to_delete: list[int] = []
-            for i, pred in enumerate(group.predicates):
-                if isinstance(q := pred.question, EqualToQuestion):
-                    if q.other_position.get_base_operation() in seen_positions:
-                        continue
-                    # If an EqualQuestion refers to a position that comes later, move it to the later group.
-                    new_q = EqualToQuestion(other_position=pred.position)
-                    pred.position = q.other_position
-                    pred.question = new_q
-                    to_delete.append(i)
-                    pos_to_group[pred.position.get_base_operation()].predicates.append(
-                        pred
-                    )
-            for i in reversed(to_delete):
-                del group.predicates[i]
-            group.predicates.sort()
-            sorted_predicates.append(group)
-        return sorted_predicates
 
     def build_predicate_tree(self, patterns: list[pdl.PatternOp]) -> MatcherNode:
         """Build optimized matcher tree from multiple patterns"""
