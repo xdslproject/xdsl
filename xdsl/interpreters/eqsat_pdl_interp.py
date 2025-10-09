@@ -287,9 +287,15 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
         if a == b:
             return False
         if isinstance(a, eqsat.ConstantEClassOp):
+            if isinstance(b, eqsat.ConstantEClassOp):
+                assert a.value == b.value, (
+                    "Trying to union two different constant eclasses.",
+                )
             to_keep, to_replace = a, b
+            self.eclass_union_find.union_left(to_keep, to_replace)
         elif isinstance(b, eqsat.ConstantEClassOp):
             to_keep, to_replace = b, a
+            self.eclass_union_find.union_left(to_keep, to_replace)
         else:
             self.eclass_union_find.union(
                 a,
@@ -297,11 +303,11 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
             )
             to_keep = self.eclass_union_find.find(a)
             to_replace = b if to_keep is a else a
-            # Operands need to be deduplicated because it can happen the same operand was
-            # used by different parent eclasses after their children were merged:
-            new_operands = OrderedSet(to_keep.operands)
-            new_operands.update(to_replace.operands)
-            to_keep.operands = new_operands
+        # Operands need to be deduplicated because it can happen the same operand was
+        # used by different parent eclasses after their children were merged:
+        new_operands = OrderedSet(to_keep.operands)
+        new_operands.update(to_replace.operands)
+        to_keep.operands = new_operands
 
         for use in to_replace.result.uses:
             # uses are removed from the hashcons before the replacement is carried out.
