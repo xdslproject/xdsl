@@ -1121,16 +1121,44 @@ def build_operation_position_tree(
         pattern_predicates: List of predicate lists, one per pattern
 
     Returns:
-        Root of the operation position tree
+        Root of the operation position tree and pattern paths
     """
     # Extract operation positions for each pattern
     pattern_operations: list[set[OperationPosition]] = []
 
     for predicates in pattern_predicates:
         operations: set[OperationPosition] = set()
+
+        # Use a worklist to process all relevant positions
+        worklist: list[Position] = []
+        visited: set[Position] = set()
+
+        # Seed the worklist with positions from predicates
         for pred in predicates:
-            op = pred.position.get_base_operation()
-            # Add this operation and all ancestors
+            worklist.append(pred.position)
+
+            # Handle EqualToQuestion - add the other position
+            if isinstance(pred.q, EqualToQuestion):
+                worklist.append(pred.q.other_position)
+
+            # Handle ConstraintQuestion - add all argument positions
+            if isinstance(pred.q, ConstraintQuestion):
+                worklist.extend(pred.q.arg_positions)
+
+        # Process the worklist
+        while worklist:
+            pos = worklist.pop(0)
+
+            if pos in visited:
+                continue
+            visited.add(pos)
+
+            # If this is a ConstraintPosition, add its argument positions to the worklist
+            if isinstance(pos, ConstraintPosition):
+                worklist.extend(pos.constraint.arg_positions)
+
+            # Get the base operation and all ancestors
+            op = pos.get_base_operation()
             while op:
                 operations.add(op)
                 if op.parent:
@@ -1141,6 +1169,7 @@ def build_operation_position_tree(
                         break
                 else:
                     break
+
         pattern_operations.append(operations)
 
     # Find root operation
