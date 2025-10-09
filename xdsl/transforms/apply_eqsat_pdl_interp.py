@@ -9,6 +9,7 @@ from xdsl.parser import Parser
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import PatternRewriterListener, PatternRewriteWalker
 from xdsl.traits import SymbolTable
+from xdsl.transforms.apply_eqsat_pdl import is_not_unsound
 from xdsl.transforms.apply_pdl_interp import PDLInterpRewritePattern
 
 _DEFAULT_MAX_ITERATIONS = 20
@@ -29,6 +30,7 @@ def apply_eqsat_pdl_interp(
     interpreter = Interpreter(pdl_interp_module)
     implementations = EqsatPDLInterpFunctions(ctx)
     implementations.populate_known_ops(op)
+    implementations.native_constraints["is_not_unsound"] = is_not_unsound
     interpreter.register_implementations(implementations)
     rewrite_pattern = PDLInterpRewritePattern(matcher, interpreter, implementations)
 
