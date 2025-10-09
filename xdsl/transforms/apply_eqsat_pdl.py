@@ -102,7 +102,7 @@ class ApplyEqsatPDLPass(ModulePass):
 
         implementations = EqsatPDLInterpFunctions(ctx)
         implementations.populate_known_ops(op)
-        implementations.native_constraints["soundness_constraint"] = is_not_unsound
+        implementations.native_constraints["is_not_unsound"] = is_not_unsound
 
         matchers_module = builtin.ModuleOp([])
         rewriters_module = builtin.ModuleOp([], sym_name=StringAttr("rewriters"))
@@ -182,7 +182,7 @@ class ApplyEqsatPDLPass(ModulePass):
         # Initialize interpreter and implementations
         interpreter = Interpreter(pdl_interp_module)
         implementations = EqsatPDLInterpFunctions(ctx)
-        implementations.native_constraints["soundness_constraint"] = is_not_unsound
+        implementations.native_constraints["is_not_unsound"] = is_not_unsound
         implementations.populate_known_ops(op)
         interpreter.register_implementations(implementations)
         rewrite_pattern = PDLInterpRewritePattern(matcher, interpreter, implementations)
