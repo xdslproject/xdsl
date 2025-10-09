@@ -568,13 +568,13 @@ class Printer(BasePrinter):
             self.enter_scope()
         use_custom_format = False
         if isinstance(op, UnregisteredOp):
-            self.print_string(f'"{op.op_name.data}"')
+            self.print_op_name(f'"{op.op_name.data}"')
         # If we print with the generic format, or the operation does not have a custom
         # format
         elif self.print_generic_format or Operation.print is type(op).print:
-            self.print_string(f'"{op.name}"')
+            self.print_op_name(f'"{op.name}"')
         else:
-            self.print_string(op.name)
+            self.print_op_name(op.name)
             use_custom_format = True
         end_op_pos = self._current_column
         if op in self.diagnostic.op_messages:
@@ -591,6 +591,9 @@ class Printer(BasePrinter):
             self.print_op_with_default_format(op)
         if scope:
             self.exit_scope()
+
+    def print_op_name(self, name: str):
+        self.print_string(name)
 
     def print_resource_handle(self, dialect: str, handle: str) -> None:
         if dialect not in self._dialect_resources:
