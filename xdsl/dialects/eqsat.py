@@ -12,25 +12,22 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import ClassVar
 
-from xdsl.dialects.builtin import IntAttr, NoneAttr
+from xdsl.dialects.builtin import IntAttr
 from xdsl.interfaces import ConstantLikeInterface
-from xdsl.ir import Attribute, Block, Dialect, OpResult, Region, SSAValue
+from xdsl.ir import Attribute, Dialect, OpResult, Region, SSAValue
 from xdsl.irdl import (
     AnyAttr,
     IRDLOperation,
     VarConstraint,
     irdl_op_definition,
     lazy_traits_def,
-    operand_def,
     opt_attr_def,
     prop_def,
     region_def,
     result_def,
-    successor_def,
     traits_def,
     var_operand_def,
     var_result_def,
-    var_successor_def,
 )
 from xdsl.traits import (
     ConstantLike,
@@ -54,11 +51,11 @@ class ConstantEClassOp(IRDLOperation, ConstantLikeInterface):
     name = "eqsat.const_eclass"
 
     assembly_format = (
-        "$argument ` ` `(` `constant` `=` $value `)` attr-dict `:` type($result)"
+        "$arguments ` ` `(` `constant` `=` $value `)` attr-dict `:` type($result)"
     )
     traits = traits_def(Pure())
 
-    argument = operand_def(T)
+    arguments = var_operand_def(T)
     result = result_def(T)
     value = prop_def()
     min_cost_index = opt_attr_def(IntAttr)
@@ -80,7 +77,7 @@ class ConstantEClassOp(IRDLOperation, ConstantLikeInterface):
 
 
 @irdl_op_definition
-class EClassOp(IRDLOperation, ConstantLikeInterface):
+class EClassOp(IRDLOperation):
     T: ClassVar = VarConstraint("T", AnyAttr())
 
     name = "eqsat.eclass"
@@ -109,9 +106,6 @@ class EClassOp(IRDLOperation, ConstantLikeInterface):
             result_types=[res_type],
             attributes={"min_cost_index": min_cost_index, "constant_val": constant_val},
         )
-
-    def get_constant_value(self):
-        return NoneAttr() if self.constant_val is None else self.constant_val
 
     def verify_(self) -> None:
         if not self.operands:
@@ -177,20 +171,6 @@ class YieldOp(IRDLOperation):
         super().__init__(operands=[values])
 
 
-@irdl_op_definition
-class ChooseOp(IRDLOperation):
-    name = "eqsat.choose"
-    default_dest = successor_def()
-    choices = var_successor_def()
-    traits = traits_def(IsTerminator())
-    assembly_format = "`from` $choices `then` $default_dest attr-dict"
-
-    def __init__(self, choices: Sequence[Block], default: Block):
-        super().__init__(
-            successors=[default, choices],
-        )
-
-
 EqSat = Dialect(
     "eqsat",
     [
@@ -198,6 +178,5 @@ EqSat = Dialect(
         ConstantEClassOp,
         YieldOp,
         EGraphOp,
-        ChooseOp,
     ],
 )
