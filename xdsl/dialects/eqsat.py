@@ -12,15 +12,18 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import ClassVar
 
-from xdsl.dialects.builtin import IntAttr
-from xdsl.ir import Attribute, Block, Dialect, Region, SSAValue
+from xdsl.dialects.builtin import IntAttr, NoneAttr
+from xdsl.interfaces import ConstantLikeInterface
+from xdsl.ir import Attribute, Block, Dialect, OpResult, Region, SSAValue
 from xdsl.irdl import (
     AnyAttr,
     IRDLOperation,
     VarConstraint,
     irdl_op_definition,
     lazy_traits_def,
+    operand_def,
     opt_attr_def,
+    prop_def,
     region_def,
     result_def,
     successor_def,
@@ -29,7 +32,13 @@ from xdsl.irdl import (
     var_result_def,
     var_successor_def,
 )
-from xdsl.traits import HasParent, IsTerminator, Pure, SingleBlockImplicitTerminator
+from xdsl.traits import (
+    ConstantLike,
+    HasParent,
+    IsTerminator,
+    Pure,
+    SingleBlockImplicitTerminator,
+)
 from xdsl.utils.exceptions import DiagnosticException, VerifyException
 
 EQSAT_COST_LABEL = "eqsat_cost"
@@ -39,13 +48,46 @@ Key used to store the cost of computing the result of an operation.
 
 
 @irdl_op_definition
-class EClassOp(IRDLOperation):
+class ConstantEClassOp(IRDLOperation, ConstantLikeInterface):
+    T: ClassVar = VarConstraint("T", AnyAttr())
+
+    name = "eqsat.const_eclass"
+
+    assembly_format = (
+        "$argument ` ` `(` `constant` `=` $value `)` attr-dict `:` type($result)"
+    )
+    traits = traits_def(Pure())
+
+    argument = operand_def(T)
+    result = result_def(T)
+    value = prop_def()
+    min_cost_index = opt_attr_def(IntAttr)
+
+    def get_constant_value(self):
+        return self.value
+
+    def __init__(self, const_arg: OpResult):
+        if (trait := const_arg.owner.get_trait(ConstantLike)) is None:
+            raise DiagnosticException(
+                "The argument of a ConstantEClass must be a constant-like operation."
+            )
+        value = trait.get_constant_value(const_arg.owner)
+        super().__init__(
+            operands=[const_arg],
+            result_types=[const_arg.type],
+            properties={"value": value},
+        )
+
+
+@irdl_op_definition
+class EClassOp(IRDLOperation, ConstantLikeInterface):
     T: ClassVar = VarConstraint("T", AnyAttr())
 
     name = "eqsat.eclass"
     arguments = var_operand_def(T)
     result = result_def(T)
     min_cost_index = opt_attr_def(IntAttr)
+    constant_val = opt_attr_def(AnyAttr())
     traits = traits_def(Pure())
 
     assembly_format = "$arguments attr-dict `:` type($result)"
@@ -55,6 +97,7 @@ class EClassOp(IRDLOperation):
         *arguments: SSAValue,
         min_cost_index: IntAttr | None = None,
         res_type: Attribute | None = None,
+        constant_val: Attribute | None = None,
     ):
         if not arguments:
             raise DiagnosticException("eclass op must have at least one operand")
@@ -64,8 +107,11 @@ class EClassOp(IRDLOperation):
         super().__init__(
             operands=[arguments],
             result_types=[res_type],
-            attributes={"min_cost_index": min_cost_index},
+            attributes={"min_cost_index": min_cost_index, "constant_val": constant_val},
         )
+
+    def get_constant_value(self):
+        return NoneAttr() if self.constant_val is None else self.constant_val
 
     def verify_(self) -> None:
         if not self.operands:
@@ -88,6 +134,9 @@ class EClassOp(IRDLOperation):
                     raise VerifyException(
                         "Eclass operands must only be used by the eclass."
                     )
+
+
+AnyEClassOp = EClassOp | ConstantEClassOp
 
 
 @irdl_op_definition
@@ -146,6 +195,7 @@ EqSat = Dialect(
     "eqsat",
     [
         EClassOp,
+        ConstantEClassOp,
         YieldOp,
         EGraphOp,
         ChooseOp,

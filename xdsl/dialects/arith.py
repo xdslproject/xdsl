@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import abc
 from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
 from typing import ClassVar, Literal, cast
 
 from xdsl.dialect_interfaces import ConstantMaterializationInterface
@@ -101,6 +102,59 @@ CMPF_COMPARISON_OPERATIONS = [
     "uno",
     "true",
 ]
+
+
+@dataclass
+class IntN:
+    value: int
+    bits: int
+    signed: bool
+    mask: int
+
+    def __init__(self, value: int, bits: int, signed: bool = False):
+        self.bits = bits
+        self.signed = signed
+        self.mask = (1 << bits) - 1
+        self.value = self._wrap(value)
+
+    def _wrap(self, x: int) -> int:
+        x &= self.mask
+        if self.signed and (x & (1 << (self.bits - 1))):
+            x -= 1 << self.bits
+        return x
+
+    def __add__(self, other: IntN | int):
+        return IntN(self.value + self._unwrap(other), self.bits, self.signed)
+
+    def __sub__(self, other: IntN | int):
+        return IntN(self.value - self._unwrap(other), self.bits, self.signed)
+
+    def __mul__(self, other: IntN | int):
+        return IntN(self.value * self._unwrap(other), self.bits, self.signed)
+
+    def __and__(self, other: IntN | int):
+        return IntN(self.value & self._unwrap(other), self.bits, self.signed)
+
+    def __or__(self, other: IntN | int):
+        return IntN(self.value | self._unwrap(other), self.bits, self.signed)
+
+    def __xor__(self, other: IntN | int):
+        return IntN(self.value ^ self._unwrap(other), self.bits, self.signed)
+
+    def __lshift__(self, other: IntN | int):
+        return IntN(self.value << self._unwrap(other), self.bits, self.signed)
+
+    def __rshift__(self, other: IntN | int):
+        return IntN(self.value >> self._unwrap(other), self.bits, self.signed)
+
+    def __int__(self):
+        return self.value
+
+    def __repr__(self):
+        return f"IntN({self.value}, bits={self.bits}, signed={self.signed})"
+
+    def _unwrap(self, other: IntN | int):
+        return other.value if isinstance(other, IntN) else other
 
 
 @irdl_attr_definition
@@ -361,7 +415,7 @@ class FloatingPointLikeBinaryOperation(IRDLOperation, abc.ABC):
 
 
 @irdl_op_definition
-class AddiOp(SignlessIntegerBinaryOperationWithOverflow):
+class AddiOp(SignlessIntegerBinaryOperationWithOverflow, HasFolderInterface):
     name = "arith.addi"
 
     traits = traits_def(
@@ -377,6 +431,19 @@ class AddiOp(SignlessIntegerBinaryOperationWithOverflow):
     @staticmethod
     def is_right_unit(attr: IntegerAttr) -> bool:
         return attr.value.data == 0
+
+    def fold(self):
+        lhs = self.get_constant(self.lhs)
+        rhs = self.get_constant(self.rhs)
+        if isa(lhs, IntegerAttr) and isa(rhs, IntegerAttr):
+            assert lhs.type == rhs.type
+            result = lhs.value.data + rhs.value.data
+            return (IntegerAttr(result, lhs.type),)
+        if isa(lhs, IntegerAttr) and lhs.value.data == 0:
+            return (self.rhs,)
+        if isa(rhs, IntegerAttr) and rhs.value.data == 0:
+            return (self.lhs,)
+        return None
 
 
 @irdl_op_definition
@@ -465,6 +532,23 @@ class MuliOp(SignlessIntegerBinaryOperationWithOverflow):
     def is_right_zero(attr: IntegerAttr) -> bool:
         return attr.value.data == 0
 
+    def fold(self):
+        lhs = self.get_constant(self.lhs)
+        rhs = self.get_constant(self.rhs)
+        if isa(lhs, IntegerAttr) and isa(rhs, IntegerAttr):
+            assert lhs.type == rhs.type
+            result = lhs.value.data * rhs.value.data
+            return (IntegerAttr(result, lhs.type),)
+        if isa(lhs, IntegerAttr) and lhs.value.data == 0:
+            return (IntegerAttr(0, lhs.type),)
+        if isa(rhs, IntegerAttr) and rhs.value.data == 0:
+            return (IntegerAttr(0, rhs.type),)
+        if isa(lhs, IntegerAttr) and lhs.value.data == 1:
+            return (self.rhs,)
+        if isa(rhs, IntegerAttr) and rhs.value.data == 1:
+            return (self.lhs,)
+        return None
+
 
 class MulExtendedBase(IRDLOperation):
     """Base class for extended multiplication operations."""
@@ -523,6 +607,19 @@ class SubiOp(SignlessIntegerBinaryOperationWithOverflow):
     def is_right_unit(attr: IntegerAttr) -> bool:
         return attr.value.data == 0
 
+    def fold(self):
+        if isa(self.lhs.type, IntegerType) and self.lhs == self.rhs:
+            return (IntegerAttr(0, self.lhs.type),)
+        lhs = self.get_constant(self.lhs)
+        rhs = self.get_constant(self.rhs)
+        if isa(lhs, IntegerAttr) and isa(rhs, IntegerAttr):
+            assert lhs.type == rhs.type
+            result = lhs.value.data - rhs.value.data
+            return (IntegerAttr(result, lhs.type),)
+        if isa(rhs, IntegerAttr) and rhs.value.data == 0:
+            return (self.lhs,)
+        return None
+
 
 class DivUISpeculatable(ConditionallySpeculatable):
     @classmethod
@@ -573,6 +670,21 @@ class DivSIOp(SignlessIntegerBinaryOperation):
     def is_right_unit(attr: IntegerAttr) -> bool:
         return attr == IntegerAttr(1, attr.type)
 
+    def fold(self):
+        if isa(self.lhs.type, IntegerType) and self.lhs == self.rhs:
+            return (IntegerAttr(1, self.lhs.type),)
+        lhs = self.get_constant(self.lhs)
+        rhs = self.get_constant(self.rhs)
+        if isa(lhs, IntegerAttr) and isa(rhs, IntegerAttr):
+            assert lhs.type == rhs.type
+            if rhs.value.data == 0:
+                return None
+            result = int(lhs.value.data / rhs.value.data)
+            return (IntegerAttr(result, lhs.type),)
+        if isa(rhs, IntegerAttr) and rhs.value.data == 1:
+            return (self.lhs,)
+        return None
+
 
 @irdl_op_definition
 class FloorDivSIOp(SignlessIntegerBinaryOperation):
@@ -590,6 +702,26 @@ class FloorDivSIOp(SignlessIntegerBinaryOperation):
     def is_right_unit(attr: IntegerAttr) -> bool:
         return attr == IntegerAttr(1, attr.type)
 
+    def fold(self):
+        if isa(self.lhs.type, IntegerType) and self.lhs == self.rhs:
+            return (IntegerAttr(1, self.lhs.type),)
+        lhs = self.get_constant(self.lhs)
+        rhs = self.get_constant(self.rhs)
+        if isa(lhs, IntegerAttr) and isa(rhs, IntegerAttr):
+            assert lhs.type == rhs.type
+            if rhs.value.data == 0:
+                return None
+            result = lhs.value.data // rhs.value.data
+            # If the signs are different and there's a remainder, decrement the result
+            if (lhs.value.data % rhs.value.data != 0) and (
+                (lhs.value.data < 0) != (rhs.value.data < 0)
+            ):
+                result -= 1
+            return (IntegerAttr(result, lhs.type),)
+        if isa(rhs, IntegerAttr) and rhs.value.data == 1:
+            return (self.lhs,)
+        return None
+
 
 @irdl_op_definition
 class CeilDivSIOp(SignlessIntegerBinaryOperation):
@@ -602,6 +734,21 @@ class CeilDivSIOp(SignlessIntegerBinaryOperation):
     @staticmethod
     def is_right_unit(attr: IntegerAttr) -> bool:
         return attr == IntegerAttr(1, attr.type)
+
+    def fold(self):
+        if isa(self.lhs.type, IntegerType) and self.lhs == self.rhs:
+            return (IntegerAttr(1, self.lhs.type),)
+        lhs = self.get_constant(self.lhs)
+        rhs = self.get_constant(self.rhs)
+        if isa(lhs, IntegerAttr) and isa(rhs, IntegerAttr):
+            assert lhs.type == rhs.type
+            if rhs.value.data == 0:
+                return None
+            result = int(-(-lhs.value.data // rhs.value.data))  # Ceiling division
+            return (IntegerAttr(result, lhs.type),)
+        if isa(rhs, IntegerAttr) and rhs.value.data == 1:
+            return (self.lhs,)
+        return None
 
 
 @irdl_op_definition
@@ -629,6 +776,19 @@ class RemSIOp(SignlessIntegerBinaryOperation):
 
     traits = traits_def(Pure())
 
+    def fold(self):
+        if isa(self.lhs.type, IntegerType) and self.lhs == self.rhs:
+            return (IntegerAttr(0, self.lhs.type),)
+        lhs = self.get_constant(self.lhs)
+        rhs = self.get_constant(self.rhs)
+        if isa(lhs, IntegerAttr) and isa(rhs, IntegerAttr):
+            assert lhs.type == rhs.type
+            if rhs.value.data == 0:
+                return None
+            result = lhs.value.data % rhs.value.data
+            return (IntegerAttr(result, lhs.type),)
+        return None
+
 
 @irdl_op_definition
 class MinUIOp(SignlessIntegerBinaryOperation):
@@ -650,12 +810,34 @@ class MinSIOp(SignlessIntegerBinaryOperation):
 
     traits = traits_def(Pure())
 
+    def fold(self):
+        if isa(self.lhs.type, IntegerType) and self.lhs == self.rhs:
+            return (self.lhs,)
+        lhs = self.get_constant(self.lhs)
+        rhs = self.get_constant(self.rhs)
+        if isa(lhs, IntegerAttr) and isa(rhs, IntegerAttr):
+            assert lhs.type == rhs.type
+            result = min(lhs.value.data, rhs.value.data)
+            return (IntegerAttr(result, lhs.type),)
+        return None
+
 
 @irdl_op_definition
 class MaxSIOp(SignlessIntegerBinaryOperation):
     name = "arith.maxsi"
 
     traits = traits_def(Pure())
+
+    def fold(self):
+        if isa(self.lhs.type, IntegerType) and self.lhs == self.rhs:
+            return (self.lhs,)
+        lhs = self.get_constant(self.lhs)
+        rhs = self.get_constant(self.rhs)
+        if isa(lhs, IntegerAttr) and isa(rhs, IntegerAttr):
+            assert lhs.type == rhs.type
+            result = max(lhs.value.data, rhs.value.data)
+            return (IntegerAttr(result, lhs.type),)
+        return None
 
 
 @irdl_op_definition
@@ -676,6 +858,23 @@ class AndIOp(SignlessIntegerBinaryOperation):
     def is_right_zero(attr: IntegerAttr) -> bool:
         return attr.value.data == 0
 
+    def fold(self):
+        lhs = self.get_constant(self.lhs)
+        rhs = self.get_constant(self.rhs)
+        if isa(lhs, IntegerAttr) and isa(rhs, IntegerAttr):
+            assert lhs.type == rhs.type
+            result = lhs.value.data & rhs.value.data
+            return (IntegerAttr(result, lhs.type),)
+        if isa(lhs, IntegerAttr) and lhs.value.data == 0:
+            return (IntegerAttr(0, lhs.type),)
+        if isa(rhs, IntegerAttr) and rhs.value.data == 0:
+            return (IntegerAttr(0, rhs.type),)
+        if isa(lhs, IntegerAttr) and lhs.value.data == -1:
+            return (self.rhs,)
+        if isa(rhs, IntegerAttr) and rhs.value.data == -1:
+            return (self.lhs,)
+        return None
+
 
 @irdl_op_definition
 class OrIOp(SignlessIntegerBinaryOperation):
@@ -694,6 +893,23 @@ class OrIOp(SignlessIntegerBinaryOperation):
     @staticmethod
     def is_right_unit(attr: IntegerAttr) -> bool:
         return attr.value.data == 0
+
+    def fold(self):
+        lhs = self.get_constant(self.lhs)
+        rhs = self.get_constant(self.rhs)
+        if isa(lhs, IntegerAttr) and isa(rhs, IntegerAttr):
+            assert lhs.type == rhs.type
+            result = lhs.value.data | rhs.value.data
+            return (IntegerAttr(result, lhs.type),)
+        if isa(lhs, IntegerAttr) and lhs.value.data == -1:
+            return (IntegerAttr(-1, lhs.type),)
+        if isa(rhs, IntegerAttr) and rhs.value.data == -1:
+            return (IntegerAttr(-1, rhs.type),)
+        if isa(lhs, IntegerAttr) and lhs.value.data == 0:
+            return (self.rhs,)
+        if isa(rhs, IntegerAttr) and rhs.value.data == 0:
+            return (self.lhs,)
+        return None
 
 
 @irdl_op_definition
@@ -714,6 +930,19 @@ class XOrIOp(SignlessIntegerBinaryOperation):
     def is_right_unit(attr: IntegerAttr) -> bool:
         return attr.value.data == 0
 
+    def fold(self):
+        lhs = self.get_constant(self.lhs)
+        rhs = self.get_constant(self.rhs)
+        if isa(lhs, IntegerAttr) and isa(rhs, IntegerAttr):
+            assert lhs.type == rhs.type
+            result = lhs.value.data ^ rhs.value.data
+            return (IntegerAttr(result, lhs.type),)
+        if isa(lhs, IntegerAttr) and lhs.value.data == 0:
+            return (self.rhs,)
+        if isa(rhs, IntegerAttr) and rhs.value.data == 0:
+            return (self.lhs,)
+        return None
+
 
 @irdl_op_definition
 class ShLIOp(SignlessIntegerBinaryOperationWithOverflow):
@@ -731,6 +960,17 @@ class ShLIOp(SignlessIntegerBinaryOperationWithOverflow):
     @staticmethod
     def is_right_unit(attr: IntegerAttr) -> bool:
         return attr.value.data == 0
+
+    def fold(self):
+        lhs = self.get_constant(self.lhs)
+        rhs = self.get_constant(self.rhs)
+        if isa(lhs, IntegerAttr) and isa(rhs, IntegerAttr):
+            assert lhs.type == rhs.type
+            result = lhs.value.data << rhs.value.data
+            return (IntegerAttr(result, lhs.type),)
+        if isa(rhs, IntegerAttr) and rhs.value.data == 0:
+            return (self.lhs,)
+        return None
 
 
 @irdl_op_definition
@@ -770,6 +1010,17 @@ class ShRSIOp(SignlessIntegerBinaryOperation):
     @staticmethod
     def is_right_unit(attr: IntegerAttr) -> bool:
         return attr.value.data == 0
+
+    def fold(self):
+        lhs = self.get_constant(self.lhs)
+        rhs = self.get_constant(self.rhs)
+        if isa(lhs, IntegerAttr) and isa(rhs, IntegerAttr):
+            assert lhs.type == rhs.type
+            result = lhs.value.data >> rhs.value.data
+            return (IntegerAttr(result, lhs.type),)
+        if isa(rhs, IntegerAttr) and rhs.value.data == 0:
+            return (self.lhs,)
+        return None
 
 
 class ComparisonOperation(IRDLOperation):
@@ -1076,7 +1327,7 @@ class SelectOp(IRDLOperation):
 
 
 @irdl_op_definition
-class AddfOp(FloatingPointLikeBinaryOperation):
+class AddfOp(FloatingPointLikeBinaryOperation, HasFolderInterface):
     name = "arith.addf"
 
     traits = traits_def(
@@ -1084,18 +1335,42 @@ class AddfOp(FloatingPointLikeBinaryOperation):
         FloatingPointLikeBinaryOpHasFastReassociativeCanonicalizationPatternsTrait(),
     )
 
+    def fold(self):
+        lhs = self.get_constant(self.lhs)
+        rhs = self.get_constant(self.rhs)
+        if isa(lhs, FloatAttr) and isa(rhs, FloatAttr):
+            assert lhs.type == rhs.type
+            result = lhs.value.data + rhs.value.data
+            return (FloatAttr(result, lhs.type),)
+        if isa(lhs, FloatAttr) and lhs.value.data == 0.0:
+            return (self.rhs,)
+        if isa(rhs, FloatAttr) and rhs.value.data == 0.0:
+            return (self.lhs,)
+        return None
+
 
 @irdl_op_definition
-class SubfOp(FloatingPointLikeBinaryOperation):
+class SubfOp(FloatingPointLikeBinaryOperation, HasFolderInterface):
     name = "arith.subf"
 
     traits = traits_def(
         Pure(), FloatingPointLikeBinaryOpHasCanonicalizationPatternsTrait()
     )
 
+    def fold(self):
+        lhs = self.get_constant(self.lhs)
+        rhs = self.get_constant(self.rhs)
+        if isa(lhs, FloatAttr) and isa(rhs, FloatAttr):
+            assert lhs.type == rhs.type
+            result = lhs.value.data - rhs.value.data
+            return (FloatAttr(result, lhs.type),)
+        if isa(rhs, FloatAttr) and rhs.value.data == 0.0:
+            return (self.lhs,)
+        return None
+
 
 @irdl_op_definition
-class MulfOp(FloatingPointLikeBinaryOperation):
+class MulfOp(FloatingPointLikeBinaryOperation, HasFolderInterface):
     name = "arith.mulf"
 
     traits = traits_def(
@@ -1103,18 +1378,48 @@ class MulfOp(FloatingPointLikeBinaryOperation):
         FloatingPointLikeBinaryOpHasFastReassociativeCanonicalizationPatternsTrait(),
     )
 
+    def fold(self):
+        lhs = self.get_constant(self.lhs)
+        rhs = self.get_constant(self.rhs)
+        if isa(lhs, FloatAttr) and isa(rhs, FloatAttr):
+            assert lhs.type == rhs.type
+            result = lhs.value.data * rhs.value.data
+            return (FloatAttr(result, lhs.type),)
+        if isa(lhs, FloatAttr) and lhs.value.data == 0.0:
+            return (FloatAttr(0.0, lhs.type),)
+        if isa(rhs, FloatAttr) and rhs.value.data == 0.0:
+            return (FloatAttr(0.0, rhs.type),)
+        if isa(lhs, FloatAttr) and lhs.value.data == 1.0:
+            return (self.rhs,)
+        if isa(rhs, FloatAttr) and rhs.value.data == 1.0:
+            return (self.lhs,)
+        return None
+
 
 @irdl_op_definition
-class DivfOp(FloatingPointLikeBinaryOperation):
+class DivfOp(FloatingPointLikeBinaryOperation, HasFolderInterface):
     name = "arith.divf"
 
     traits = traits_def(
         Pure(), FloatingPointLikeBinaryOpHasCanonicalizationPatternsTrait()
     )
 
+    def fold(self):
+        lhs = self.get_constant(self.lhs)
+        rhs = self.get_constant(self.rhs)
+        if isa(lhs, FloatAttr) and isa(rhs, FloatAttr):
+            assert lhs.type == rhs.type
+            if rhs.value.data == 0.0:
+                return None
+            result = lhs.value.data / rhs.value.data
+            return (FloatAttr(result, lhs.type),)
+        if isa(rhs, FloatAttr) and rhs.value.data == 1.0:
+            return (self.lhs,)
+        return None
+
 
 @irdl_op_definition
-class NegfOp(IRDLOperation):
+class NegfOp(IRDLOperation, HasFolderInterface):
     name = "arith.negf"
 
     _T: ClassVar = VarConstraint("_T", floatingPointLike)
@@ -1137,9 +1442,16 @@ class NegfOp(IRDLOperation):
 
     assembly_format = "$operand (`fastmath` `` $fastmath^)? attr-dict `:` type($result)"
 
+    def fold(self):
+        op = self.get_constant(self.operand)
+        if isa(op, FloatAttr):
+            result = -op.value.data
+            return (FloatAttr(result, op.type),)
+        return None
+
 
 @irdl_op_definition
-class MaximumfOp(FloatingPointLikeBinaryOperation):
+class MaximumfOp(FloatingPointLikeBinaryOperation, HasFolderInterface):
     """
     Returns the maximum of the two arguments, treating -0.0 as less than +0.0.
     If one of the arguments is NaN, then the result is also NaN.
@@ -1149,9 +1461,18 @@ class MaximumfOp(FloatingPointLikeBinaryOperation):
 
     traits = traits_def(Pure())
 
+    def fold(self):
+        lhs = self.get_constant(self.lhs)
+        rhs = self.get_constant(self.rhs)
+        if isa(lhs, FloatAttr) and isa(rhs, FloatAttr):
+            assert lhs.type == rhs.type
+            result = max(lhs.value.data, rhs.value.data)
+            return (FloatAttr(result, lhs.type),)
+        return None
+
 
 @irdl_op_definition
-class MaxnumfOp(FloatingPointLikeBinaryOperation):
+class MaxnumfOp(FloatingPointLikeBinaryOperation, HasFolderInterface):
     """
     Returns the maximum of the two arguments.
     If the arguments are -0.0 and +0.0, then the result is either of them.
@@ -1162,9 +1483,21 @@ class MaxnumfOp(FloatingPointLikeBinaryOperation):
 
     traits = traits_def(Pure())
 
+    def fold(self):
+        lhs = self.get_constant(self.lhs)
+        rhs = self.get_constant(self.rhs)
+        if isa(lhs, FloatAttr) and isa(rhs, FloatAttr):
+            assert lhs.type == rhs.type
+            if rhs.value.data == float("nan"):
+                result = lhs.value.data
+            else:
+                result = max(lhs.value.data, rhs.value.data)
+            return (FloatAttr(result, lhs.type),)
+        return None
+
 
 @irdl_op_definition
-class MinimumfOp(FloatingPointLikeBinaryOperation):
+class MinimumfOp(FloatingPointLikeBinaryOperation, HasFolderInterface):
     """
     Returns the minimum of the two arguments, treating -0.0 as less than +0.0.
     If one of the arguments is NaN, then the result is also NaN.
@@ -1174,9 +1507,18 @@ class MinimumfOp(FloatingPointLikeBinaryOperation):
 
     traits = traits_def(Pure())
 
+    def fold(self):
+        lhs = self.get_constant(self.lhs)
+        rhs = self.get_constant(self.rhs)
+        if isa(lhs, FloatAttr) and isa(rhs, FloatAttr):
+            assert lhs.type == rhs.type
+            result = min(lhs.value.data, rhs.value.data)
+            return (FloatAttr(result, lhs.type),)
+        return None
+
 
 @irdl_op_definition
-class MinnumfOp(FloatingPointLikeBinaryOperation):
+class MinnumfOp(FloatingPointLikeBinaryOperation, HasFolderInterface):
     """
     Returns the minimum of the two arguments. If the arguments are -0.0 and +0.0, then the result is either of them.
     If one of the arguments is NaN, then the result is the other argument.
@@ -1185,6 +1527,18 @@ class MinnumfOp(FloatingPointLikeBinaryOperation):
     name = "arith.minnumf"
 
     traits = traits_def(Pure())
+
+    def fold(self):
+        lhs = self.get_constant(self.lhs)
+        rhs = self.get_constant(self.rhs)
+        if isa(lhs, FloatAttr) and isa(rhs, FloatAttr):
+            assert lhs.type == rhs.type
+            if rhs.value.data == float("nan"):
+                result = lhs.value.data
+            else:
+                result = min(lhs.value.data, rhs.value.data)
+            return (FloatAttr(result, lhs.type),)
+        return None
 
 
 @irdl_op_definition
