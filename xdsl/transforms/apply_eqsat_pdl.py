@@ -14,7 +14,10 @@ from xdsl.pattern_rewriter import PatternRewriterListener, PatternRewriteWalker
 from xdsl.rewriter import InsertPoint
 from xdsl.traits import SymbolTable
 from xdsl.transforms.apply_pdl_interp import PDLInterpRewritePattern
-from xdsl.transforms.mlir_opt import MLIROptPass
+from xdsl.transforms.convert_pdl_to_pdl_interp.conversion import (
+    ConvertPDLToPDLInterpPass,
+    MatcherGenerator,
+)
 
 
 @dataclass(frozen=True)
@@ -58,16 +61,18 @@ class ApplyEqsatPDLPass(ModulePass):
 
     def _convert_single_pattern(
         self, ctx: Context, pattern_op: pdl.PatternOp
-    ) -> builtin.ModuleOp:
+    ) -> tuple[pdl_interp.FuncOp, pdl_interp.FuncOp]:
         """Convert a single PDL pattern to PDL_interp."""
-        pattern_copy = pattern_op.clone()
-        temp_module = builtin.ModuleOp([pattern_copy])
-
-        pdl_to_pdl_interp = MLIROptPass(
-            arguments=("--convert-pdl-to-pdl-interp", "-allow-unregistered-dialect")
+        matcher_func = pdl_interp.FuncOp("matcher", ((pdl.OperationType(),), ()))
+        rewriter_module = builtin.ModuleOp([])
+        mg = MatcherGenerator(matcher_func, rewriter_module, True)
+        mg.lower([pattern_op])
+        assert rewriter_module.body.first_block is not None
+        assert isinstance(
+            rewriter_func := rewriter_module.body.first_block.first_op,
+            pdl_interp.FuncOp,
         )
-        pdl_to_pdl_interp.apply(ctx, temp_module)
-        return temp_module
+        return matcher_func, rewriter_func
 
     def _extract_matcher_and_rewriters(
         self, temp_module: builtin.ModuleOp
@@ -108,8 +113,7 @@ class ApplyEqsatPDLPass(ModulePass):
 
         rewrite_patterns: list[PDLInterpRewritePattern] = []
         for pattern_op in patterns:
-            temp_module = self._convert_single_pattern(ctx, pattern_op)
-            matcher, rewriter_func = self._extract_matcher_and_rewriters(temp_module)
+            matcher, rewriter_func = self._convert_single_pattern(ctx, pattern_op)
 
             assert matcher.body.last_block is not None
             assert isinstance(
@@ -162,10 +166,7 @@ class ApplyEqsatPDLPass(ModulePass):
         self, ctx: Context, op: builtin.ModuleOp, pdl_module: builtin.ModuleOp
     ) -> None:
         """Apply all patterns together (original behavior)."""
-        pdl_to_pdl_interp = MLIROptPass(
-            arguments=("--convert-pdl-to-pdl-interp", "-allow-unregistered-dialect")
-        )
-        pdl_to_pdl_interp.apply(ctx, pdl_module)
+        ConvertPDLToPDLInterpPass(True).apply(ctx, pdl_module)
         pdl_interp_module = pdl_module
 
         matcher = SymbolTable.lookup_symbol(pdl_interp_module, "matcher")
