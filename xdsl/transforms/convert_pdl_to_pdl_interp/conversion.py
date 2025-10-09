@@ -11,7 +11,7 @@ from typing import Optional, cast
 
 from xdsl.builder import Builder
 from xdsl.context import Context
-from xdsl.dialects import eqsat, pdl, pdl_interp
+from xdsl.dialects import eqsat_pdl_interp, pdl, pdl_interp
 from xdsl.dialects.builtin import (
     ArrayAttr,
     FunctionType,
@@ -2183,7 +2183,7 @@ class MatcherGenerator:
         self.builder.insertion_point = InsertPoint.at_end(block)
         if choice_blocks:
             assert default_dest is not None
-            choose_op = eqsat.ChooseOp(choice_blocks, default_dest)
+            choose_op = eqsat_pdl_interp.ChooseOp(choice_blocks, default_dest)
             self.builder.insert(choose_op)
         else:
             # If no choices, use finalize as fallback
