@@ -390,7 +390,6 @@ class xDSLOptMain(CommandLineTool):
     def output_resulting_program(self, prog: ModuleOp) -> str:
         """Get the resulting program."""
         if self.args.no_print:
-            exit(1)
             return ""
         output = StringIO()
         self.available_targets[self.args.target](prog, output)
