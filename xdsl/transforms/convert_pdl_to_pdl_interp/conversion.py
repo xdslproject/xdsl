@@ -1111,54 +1111,29 @@ class OperationPositionTree:
             child.pretty_print(indent + 1)
 
 
-def build_operation_position_tree(
-    pattern_predicates: list[list[PositionalPredicate]],
-) -> tuple[OperationPositionTree, list[list[int]]]:
-    """
-    Build a tree representing all operation positions from multiple patterns.
+def get_predicate_operation_dependencies(
+    pred: PositionalPredicate,
+) -> set[OperationPosition]:
+    """Get all operation position dependencies for a predicate."""
 
-    Args:
-        pattern_predicates: List of predicate lists, one per pattern
-
-    Returns:
-        Root of the operation position tree and pattern paths
-    """
-    # Extract operation positions for each pattern
-    pattern_operations: list[set[OperationPosition]] = []
-
-    for predicates in pattern_predicates:
+    def get_position_dependencies(pos: Position) -> set[OperationPosition]:
+        """Get all operation position dependencies for a position."""
         operations: set[OperationPosition] = set()
-
-        # Use a worklist to process all relevant positions
-        worklist: list[Position] = []
+        worklist: list[Position] = [pos]
         visited: set[Position] = set()
 
-        # Seed the worklist with positions from predicates
-        for pred in predicates:
-            worklist.append(pred.position)
-
-            # Handle EqualToQuestion - add the other position
-            if isinstance(pred.q, EqualToQuestion):
-                worklist.append(pred.q.other_position)
-
-            # Handle ConstraintQuestion - add all argument positions
-            if isinstance(pred.q, ConstraintQuestion):
-                worklist.extend(pred.q.arg_positions)
-
-        # Process the worklist
         while worklist:
-            pos = worklist.pop(0)
-
-            if pos in visited:
+            current = worklist.pop(0)
+            if current in visited:
                 continue
-            visited.add(pos)
+            visited.add(current)
 
-            # If this is a ConstraintPosition, add its argument positions to the worklist
-            if isinstance(pos, ConstraintPosition):
-                worklist.extend(pos.constraint.arg_positions)
+            # If this is a ConstraintPosition, add its argument positions
+            if isinstance(current, ConstraintPosition):
+                worklist.extend(current.constraint.arg_positions)
 
             # Get the base operation and all ancestors
-            op = pos.get_base_operation()
+            op = current.get_base_operation()
             while op:
                 operations.add(op)
                 if op.parent:
@@ -1170,6 +1145,64 @@ def build_operation_position_tree(
                 else:
                     break
 
+        return operations
+
+    deps: set[OperationPosition] = set()
+
+    # Add dependencies from the predicate position
+    deps.update(get_position_dependencies(pred.position))
+
+    # Handle EqualToQuestion - add the other position
+    if isinstance(pred.q, EqualToQuestion):
+        deps.update(get_position_dependencies(pred.q.other_position))
+
+    # Handle ConstraintQuestion - add all argument positions
+    if isinstance(pred.q, ConstraintQuestion):
+        for arg_pos in pred.q.arg_positions:
+            deps.update(get_position_dependencies(arg_pos))
+
+    return deps
+
+
+def build_operation_position_tree(
+    pattern_predicates: list[list[PositionalPredicate]],
+) -> tuple[
+    OperationPositionTree,
+    list[list[int]],
+    list[dict[tuple[Position, Question], set[OperationPosition]]],
+]:
+    """
+    Build a tree representing all operation positions from multiple patterns,
+    computing operation dependencies for each predicate.
+
+    Args:
+        pattern_predicates: List of predicate lists, one per pattern
+
+    Returns:
+        - Root of the operation position tree
+        - Pattern paths (indices for each pattern)
+        - Predicate dependencies (one dict per pattern mapping predicates to their operation dependencies)
+    """
+
+    # Extract operation position dependencies per predicate
+    predicate_dependencies: list[
+        dict[tuple[Position, Question], set[OperationPosition]]
+    ] = []
+
+    for predicates in pattern_predicates:
+        # PositionalPredicates aren't hashable so we use a tuple of (Position, Question) as key
+        pattern_pred_deps: dict[tuple[Position, Question], set[OperationPosition]] = {}
+        for pred in predicates:
+            deps = get_predicate_operation_dependencies(pred)
+            pattern_pred_deps[(pred.position, pred.q)] = deps
+        predicate_dependencies.append(pattern_pred_deps)
+
+    # Build pattern_operations by taking union of all predicate dependencies
+    pattern_operations: list[set[OperationPosition]] = []
+    for pattern_pred_deps in predicate_dependencies:
+        operations: set[OperationPosition] = set()
+        for deps in pattern_pred_deps.values():
+            operations.update(deps)
         pattern_operations.append(operations)
 
     # Find root operation
@@ -1179,7 +1212,6 @@ def build_operation_position_tree(
         raise ValueError(f"Did not find exactly one root operation, found: {roots}")
 
     root = OperationPositionTree(operation=roots[0])
-
     pattern_paths: list[list[int]] = [[] for _ in pattern_operations]
 
     # Build tree recursively
@@ -1236,7 +1268,78 @@ def build_operation_position_tree(
             child_index += 1
 
     build_subtree(root, {roots[0]}, list(range(len(pattern_operations))), {})
-    return root, pattern_paths
+    return root, pattern_paths, predicate_dependencies
+
+
+def build_predicate_tree_from_operation_tree(
+    op_tree: OperationPositionTree,
+    ordered_predicates: dict[tuple[Position, Question], OrderedPredicate],
+    pattern_predicates: list[list[PositionalPredicate]],
+    predicate_dependencies: list[
+        dict[tuple[Position, Question], set[OperationPosition]]
+    ],
+) -> list[OrderedPredicate | PredicateSplit]:
+    """
+    Build a predicate tree structure with PredicateSplits based on the operation position tree.
+
+    Args:
+        op_tree: The operation position tree
+        ordered_predicates: Map from (position, question) to OrderedPredicate
+        pattern_predicates: List of predicates per pattern
+        predicate_dependencies: List of dependency maps per pattern
+
+    Returns:
+        List of predicates with PredicateSplits representing the tree structure
+    """
+
+    def build_predicate_subtree(
+        node: OperationPositionTree,
+        prefix: set[OperationPosition],
+        parent_prefix: set[OperationPosition],
+    ) -> list[OrderedPredicate | PredicateSplit]:
+        """Build predicate tree for a subtree of the operation position tree."""
+
+        # Collect predicates whose dependencies are satisfied by current prefix
+        # but weren't satisfied by parent prefix (newly satisfied)
+        node_predicates: dict[tuple[Position, Question], OrderedPredicate] = {}
+
+        for pattern_preds, pred_deps in zip(pattern_predicates, predicate_dependencies):
+            for pred in pattern_preds:
+                deps = pred_deps.get((pred.position, pred.q))
+                if deps is None:
+                    continue  # Skip if no dependencies recorded
+                # Check if all dependencies are satisfied by current prefix
+                # but not all were satisfied by parent prefix
+                if deps.issubset(prefix) and not deps.issubset(parent_prefix):
+                    key = (pred.position, pred.q)
+                    if key in ordered_predicates:
+                        node_predicates[key] = ordered_predicates[key]
+
+        # Sort predicates for this node
+        sorted_node_preds = cast(
+            list[OrderedPredicate | PredicateSplit], sorted(node_predicates.values())
+        )
+
+        # If there are children, create a PredicateSplit
+        if node.children:
+            splits: list[
+                tuple[OperationPosition, list[OrderedPredicate | PredicateSplit]]
+            ] = []
+
+            for child in node.children:
+                # Recursively build predicate tree for child
+                child_preds = build_predicate_subtree(
+                    child, prefix | {child.operation}, prefix
+                )
+                splits.append((child.operation, child_preds))
+
+            sorted_node_preds.append(PredicateSplit(splits))
+
+        return sorted_node_preds
+
+    # Start building from root
+    root_prefix = {op_tree.operation}
+    return build_predicate_subtree(op_tree, root_prefix, set())
 
 
 class PredicateTreeBuilder:
@@ -1306,39 +1409,22 @@ class PredicateTreeBuilder:
         # Create ordered predicates with frequency analysis
         ordered_predicates = self._create_ordered_predicates(all_pattern_predicates)
         if self.optimize_for_eqsat:
-            # TODO: take into account extra position dependency in ConstraintQuestion and EqualToQuestion
-            op_pos_tree, pattern_paths = build_operation_position_tree(
-                [predicates for (_, predicates) in all_pattern_predicates]
-            )
-            pos_to_pred_group = self._build_operation_groups(
-                ordered_predicates.values()
+            # Build operation position tree and compute predicate dependencies
+            op_pos_tree, pattern_paths, predicate_dependencies = (
+                build_operation_position_tree(
+                    [predicates for (_, predicates) in all_pattern_predicates]
+                )
             )
 
-            sorted_predicates = sorted(
-                pos_to_pred_group[op_pos_tree.operation].predicates
+            # Build the predicate tree with PredicateSplits based on operation dependencies
+            sorted_predicates = build_predicate_tree_from_operation_tree(
+                op_pos_tree,
+                ordered_predicates,
+                [predicates for (_, predicates) in all_pattern_predicates],
+                predicate_dependencies,
             )
-            sorted_predicates = cast(
-                list[OrderedPredicate | PredicateSplit], sorted_predicates
-            )
-            worklist: list[
-                tuple[
-                    list[OrderedPredicate | PredicateSplit], list[OperationPositionTree]
-                ]
-            ] = [(sorted_predicates, op_pos_tree.children)]
-            while worklist:
-                preds, children = worklist.pop()
-                splits: list[
-                    tuple[OperationPosition, list[OrderedPredicate | PredicateSplit]]
-                ] = []
-                for child in children:
-                    child_predicates = cast(
-                        list[OrderedPredicate | PredicateSplit],
-                        sorted(pos_to_pred_group[child.operation].predicates),
-                    )
-                    splits.append((child.operation, child_predicates))
-                    worklist.append((child_predicates, child.children))
-                preds.append(PredicateSplit(splits))
 
+            # Build matcher tree by propagating patterns through the predicate structure
             root_node = None
             for (pattern, predicates), path in zip(
                 all_pattern_predicates, pattern_paths
