@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, cast
 
 from ordered_set import OrderedSet
 
@@ -18,7 +18,7 @@ from xdsl.interpreter import (
     register_impls,
 )
 from xdsl.interpreters.pdl_interp import PDLInterpFunctions
-from xdsl.ir import Block, Operation, OpResult, SSAValue
+from xdsl.ir import Block, Operation, OpResult, SSAValue, Use
 from xdsl.rewriter import InsertPoint
 from xdsl.transforms.common_subexpression_elimination import KnownOps
 from xdsl.utils.disjoint_set import DisjointSet
@@ -338,11 +338,20 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
             updated_operands.append(self.eclass_union_find.find(arg.owner).result)
         args = (*updated_operands, *args[len(op.input_operands) :])
         (new_op,) = super().run_create_operation(interpreter, op, args).values
-        if values := Folder(self.ctx).replace_with_fold(new_op, self.rewriter):
+        if cast(Operation, new_op).get_attr_or_prop("unsound") is None and (
+            values := Folder(self.ctx).replace_with_fold(new_op, self.rewriter)
+        ):
             assert len(values) == 1, (
                 "pdl_interp.create_operation currently only supports creating operations with a single result."
             )
-            new_op = values[0].owner
+            new_op2 = values[0].owner
+            if isinstance(new_op2, eqsat.AnyEClassOp):
+                # Slightly hacky: if the folder returned one of the operands of the original new_op,
+                # this operand is an eclass result while we're actually looking for an non-eclass operation result (e-node).
+                # We take the operation defining the first operand of that e-class as new_op and create a virtual use that points
+                new_op.results[0].first_use = Use(new_op2, -1)
+                return (new_op,)
+            new_op = new_op2
 
         assert isinstance(new_op, Operation)
 
