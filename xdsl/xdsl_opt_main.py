@@ -214,6 +214,13 @@ class xDSLOptMain(CommandLineTool):
             help="Return success on exit if ShrinkException was raised.",
         )
 
+        arg_parser.add_argument(
+            "--no-print",
+            default=False,
+            action="store_true",
+            help="Don't print anything.",
+        )
+
     def register_pass(
         self, pass_name: str, pass_factory: Callable[[], type[ModulePass]]
     ):
@@ -382,6 +389,8 @@ class xDSLOptMain(CommandLineTool):
 
     def output_resulting_program(self, prog: ModuleOp) -> str:
         """Get the resulting program."""
+        if self.args.no_print:
+            return ""
         output = StringIO()
         self.available_targets[self.args.target](prog, output)
         return output.getvalue()
