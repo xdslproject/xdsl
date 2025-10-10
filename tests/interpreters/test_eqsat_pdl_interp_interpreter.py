@@ -1164,6 +1164,65 @@ def test_eclass_union_different_constants_fails():
         interp_functions.eclass_union(const_eclass1, const_eclass2)
 
 
+def test_eclass_union_constant_with_regular():
+    """Test that eclass_union of ConstantEClassOp with regular EClassOp results in ConstantEClassOp containing both operands."""
+    ctx = Context()
+    interp_functions = EqsatPDLInterpFunctions(ctx)
+
+    from xdsl.builder import ImplicitBuilder
+    from xdsl.dialects.builtin import IntegerAttr
+    from xdsl.ir import Block, Region
+
+    testmodule = ModuleOp(Region([Block()]))
+    block = testmodule.body.first_block
+    with ImplicitBuilder(block):
+        # Create a constant operation
+        const_op = arith.ConstantOp(IntegerAttr(1, i32))
+
+        # Create a regular operation
+        regular_op = test.TestOp(result_types=[i32])
+
+        # Create ConstantEClassOp
+        const_eclass = eqsat.ConstantEClassOp(const_op.result)
+        const_eclass.value = IntegerAttr(1, i32)
+
+        # Create regular EClassOp with the regular operation's result
+        regular_eclass = eqsat.EClassOp(regular_op.results[0], res_type=i32)
+
+    rewriter = PatternRewriter(const_op)
+    interp_functions.rewriter = rewriter
+
+    # Add both to union-find
+    interp_functions.eclass_union_find.add(const_eclass)
+    interp_functions.eclass_union_find.add(regular_eclass)
+
+    # Union the constant eclass with the regular eclass
+    interp_functions.eclass_union(const_eclass, regular_eclass)
+
+    # Find the canonical representative
+    canonical = interp_functions.eclass_union_find.find(const_eclass)
+
+    # Verify that the canonical is a ConstantEClassOp
+    assert isinstance(canonical, eqsat.ConstantEClassOp), (
+        "Result should be a ConstantEClassOp"
+    )
+
+    # Verify that the canonical contains both operands (constant and regular operation results)
+    assert len(canonical.operands) == 2, (
+        "ConstantEClassOp should contain both operands after union"
+    )
+    operand_values = [op for op in canonical.operands]
+    assert const_op.result in operand_values, (
+        "Should contain the constant operation result"
+    )
+    assert regular_op.results[0] in operand_values, (
+        "Should contain the regular operation result"
+    )
+
+    # Verify the constant value is preserved
+    assert canonical.value == IntegerAttr(1, i32), "Constant value should be preserved"
+
+
 def test_run_replace_no_uses_returns_empty():
     """Test that run_replace returns empty tuple when input_op has no uses."""
     interpreter = Interpreter(ModuleOp([]))
