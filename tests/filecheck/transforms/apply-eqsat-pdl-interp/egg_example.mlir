@@ -25,9 +25,9 @@ func.func @impl() -> i32 {
 // CHECK-NEXT:  %mul = arith.muli %divc, %twoc : i32
 // CHECK-NEXT:  %mulc = eqsat.eclass %mul : i32
 // CHECK-NEXT:  %0 = arith.constant 1 : i32
-// CHECK-NEXT:  %1 = arith.divui %twoc, %twoc : i32
-// CHECK-NEXT:  %2 = eqsat.eclass %1, %0 : i32
-// CHECK-NEXT:  %3 = arith.muli %divc, %2 : i32
+// CHECK-NEXT:  %1 = eqsat.const_eclass %0, %2 (constant = 1 : i32) : i32
+// CHECK-NEXT:  %2 = arith.divui %twoc, %twoc : i32
+// CHECK-NEXT:  %3 = arith.muli %divc, %1 : i32
 // CHECK-NEXT:  %div = arith.divui %mulc, %twoc : i32
 // CHECK-NEXT:  %divc = eqsat.eclass %div, %3, %a : i32
 // CHECK-NEXT:  func.return %divc : i32
