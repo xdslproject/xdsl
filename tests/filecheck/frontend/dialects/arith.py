@@ -2,7 +2,7 @@
 
 from ctypes import c_float, c_int32, c_int64
 
-from xdsl.dialects import arith, builtin
+from xdsl.dialects import arith, bigint, builtin
 from xdsl.frontend.pyast.context import PyASTContext
 from xdsl.frontend.pyast.utils.exceptions import CodeGenerationException
 
@@ -28,6 +28,7 @@ ctx = PyASTContext(post_transforms=[])
 ctx.register_type(c_int32, builtin.i32)
 ctx.register_type(c_int64, builtin.i64)
 ctx.register_type(c_float, builtin.f32)
+ctx.register_type(int, bigint.bigint)
 ctx.register_type(float, builtin.f64)
 ctx.register_type(bool, builtin.i1)
 ctx.register_function(add_i32, arith.AddiOp)
@@ -210,6 +211,45 @@ def test_mulf_overload_f64(a: float, b: float) -> float:
 
 
 print(test_mulf_overload_f64.module)
+
+
+# CHECK: bigint.constant #builtin.int<0>
+@ctx.parse_program
+def test_constant_int() -> int:
+    return 0
+
+
+print(test_constant_int.module)
+
+
+# CHECK: arith.constant 0.000000e+00 : f64
+@ctx.parse_program
+def test_constant_float() -> float:
+    return 0.0
+
+
+print(test_constant_float.module)
+
+
+# CHECK: arith.constant false
+@ctx.parse_program
+def test_constant_bool() -> bool:
+    return False
+
+
+print(test_constant_bool.module)
+
+
+# CHECK: Unsupported constant 'some_string' of type 'str'.
+@ctx.parse_program
+def test_constant_unsupported() -> int:
+    return "some_string"  # pyright: ignore[reportReturnType]
+
+
+try:
+    test_constant_unsupported.module
+except CodeGenerationException as e:
+    print(e.msg)
 
 
 # CHECK: Binary operation 'FloorDiv' is not supported by type 'float' which does not overload '__floordiv__'.
