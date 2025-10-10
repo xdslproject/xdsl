@@ -14,9 +14,16 @@ from xdsl.dialects.builtin import (
     i32,
     i64,
 )
-from xdsl.interpreter import Interpreter, Successor
+from xdsl.interpreter import (
+    Interpreter,
+    InterpreterFunctions,
+    PythonValues,
+    Successor,
+    impl_external,
+    register_impls,
+)
 from xdsl.interpreters.pdl_interp import PDLInterpFunctions
-from xdsl.ir import Block, Region
+from xdsl.ir import Block, Operation, Region
 from xdsl.pattern_rewriter import PatternRewriter
 from xdsl.utils.exceptions import InterpretationError
 from xdsl.utils.test_value import create_ssa_value
@@ -775,17 +782,24 @@ def test_get_defining_op_block_argument():
 
 
 def test_apply_constraint():
+    # This is used in the `PDLInterpFunctions` documentation, if you update this test
+    # please also update the class doc string.
+    @register_impls
+    class TestImplFunctions(InterpreterFunctions):
+        @impl_external("test_constraint")
+        def run_test_constraint(
+            self, interp: Interpreter, op: Operation, args: PythonValues
+        ) -> tuple[bool, tuple[int]]:
+            assert isinstance(args[0], int)
+            (x,) = args
+            return True, (x + 42,)
+
     interpreter = Interpreter(ModuleOp([]))
     ctx = Context()
     ctx.register_dialect("test", lambda: test.Test)
     pdl_interp_functions = PDLInterpFunctions(ctx)
     interpreter.register_implementations(pdl_interp_functions)
-
-    # Register a simple native constraint function
-    def native_constraint(x: int):
-        return True, (x + 42,)  # Return a boolean and an additional result
-
-    pdl_interp_functions.native_constraints["test_constraint"] = native_constraint
+    interpreter.register_implementations(TestImplFunctions())
 
     c0 = create_ssa_value(pdl.OperationType())
 
@@ -837,7 +851,10 @@ def test_apply_constraint():
     )
     with pytest.raises(
         InterpretationError,
-        match="Unknown constraint function: non_existent_constraint",
+        match=(
+            "Could not find external function implementation named "
+            "non_existent_constraint"
+        ),
     ):
         pdl_interp_functions.run_apply_constraint(
             interpreter, apply_constraint_op_nonexistent, (1,)
