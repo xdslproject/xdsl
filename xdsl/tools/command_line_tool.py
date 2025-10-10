@@ -5,7 +5,6 @@ from collections.abc import Callable
 from typing import IO
 
 from xdsl.context import Context
-from xdsl.dialects import get_all_dialects
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.parser import Parser
 
@@ -78,7 +77,10 @@ class CommandLineTool:
 
         Add other/additional dialects by overloading this function.
         """
-        for dialect_name, dialect_factory in get_all_dialects().items():
+        from xdsl.universe import Universe
+
+        multiverse = Universe.get_multiverse()
+        for dialect_name, dialect_factory in multiverse.all_dialects.items():
             self.ctx.register_dialect(dialect_name, dialect_factory)
 
     def register_all_frontends(self):

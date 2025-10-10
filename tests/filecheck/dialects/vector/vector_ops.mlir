@@ -1,15 +1,16 @@
 // RUN: XDSL_ROUNDTRIP
 
-func.func private @vector_test(%base : memref<4x4xindex>, %vec : vector<1xi1>, %i : index, %fvec : vector<2xf32>) {
+func.func private @vector_test(%base : memref<4x4xindex>, %vec : vector<1xi1>, %i : index, %fvec : vector<2xf32>, %c0 : f32) {
   %load = vector.load %base[%i, %i] : memref<4x4xindex>, vector<2xindex>
   vector.store %load, %base[%i, %i] : memref<4x4xindex>, vector<2xindex>
   %load_nontemporal = vector.load %base[%i, %i] {"nontemporal" = false} : memref<4x4xindex>, vector<2xindex>
   vector.store %load_nontemporal, %base[%i, %i] {"nontemporal" = false} : memref<4x4xindex>, vector<2xindex>
   %load_nontemporal_1 = vector.load %base[%i, %i] {"nontemporal" = true} : memref<4x4xindex>, vector<2xindex>
   vector.store %load_nontemporal_1, %base[%i, %i] {"nontemporal" = true} : memref<4x4xindex>, vector<2xindex>
-  %broadcast = vector.broadcast %i : index to vector<1xindex>
+  %broadcast_scalar = vector.broadcast %i : index to vector<1xindex>
+  %broadcast_vector = vector.broadcast %broadcast_scalar : vector<1xindex> to vector<4x1xindex>
   %fma = vector.fma %fvec, %fvec, %fvec : vector<2xf32>
-  %masked_load = vector.maskedload %base[%i, %i], %vec, %broadcast : memref<4x4xindex>, vector<1xi1>, vector<1xindex> into vector<1xindex>
+  %masked_load = vector.maskedload %base[%i, %i], %vec, %broadcast_scalar : memref<4x4xindex>, vector<1xi1>, vector<1xindex> into vector<1xindex>
   vector.maskedstore %base[%i, %i], %vec, %masked_load : memref<4x4xindex>, vector<1xi1>, vector<1xindex>
   "vector.print"(%masked_load) : (vector<1xindex>) -> ()
   %mask = vector.create_mask %i : vector<2xi1>
@@ -20,16 +21,17 @@ func.func private @vector_test(%base : memref<4x4xindex>, %vec : vector<1xi1>, %
 }
 
 
-// CHECK:       func.func private @vector_test(%base : memref<4x4xindex>, %vec : vector<1xi1>, %i : index, %fvec : vector<2xf32>) {
+// CHECK:       func.func private @vector_test(%base : memref<4x4xindex>, %vec : vector<1xi1>, %i : index, %fvec : vector<2xf32>, %c0 : f32) {
 // CHECK-NEXT:     %load = vector.load %base[%i, %i] : memref<4x4xindex>, vector<2xindex>
 // CHECK-NEXT:     vector.store %load, %base[%i, %i] : memref<4x4xindex>, vector<2xindex>
 // CHECK-NEXT:     %load_nontemporal = vector.load %base[%i, %i] : memref<4x4xindex>, vector<2xindex>
 // CHECK-NEXT:     vector.store %load_nontemporal, %base[%i, %i] : memref<4x4xindex>, vector<2xindex>
 // CHECK-NEXT:     %load_nontemporal_1 = vector.load %base[%i, %i] {nontemporal = true} : memref<4x4xindex>, vector<2xindex>
 // CHECK-NEXT:     vector.store %load_nontemporal_1, %base[%i, %i] {nontemporal = true} : memref<4x4xindex>, vector<2xindex>
-// CHECK-NEXT:     %broadcast = vector.broadcast %i : index to vector<1xindex>
+// CHECK-NEXT:     %broadcast_scalar = vector.broadcast %i : index to vector<1xindex>
+// CHECK-NEXT:     %broadcast_vector = vector.broadcast %broadcast_scalar : vector<1xindex> to vector<4x1xindex>
 // CHECK-NEXT:     %fma = vector.fma %fvec, %fvec, %fvec : vector<2xf32>
-// CHECK-NEXT:     %masked_load = vector.maskedload %base[%i, %i], %vec, %broadcast : memref<4x4xindex>, vector<1xi1>, vector<1xindex> into vector<1xindex>
+// CHECK-NEXT:     %masked_load = vector.maskedload %base[%i, %i], %vec, %broadcast_scalar : memref<4x4xindex>, vector<1xi1>, vector<1xindex> into vector<1xindex>
 // CHECK-NEXT:     vector.maskedstore %base[%i, %i], %vec, %masked_load : memref<4x4xindex>, vector<1xi1>, vector<1xindex>
 // CHECK-NEXT:     "vector.print"(%masked_load) : (vector<1xindex>) -> ()
 // CHECK-NEXT:     %mask = vector.create_mask %i : vector<2xi1>
@@ -38,6 +40,19 @@ func.func private @vector_test(%base : memref<4x4xindex>, %vec : vector<1xi1>, %
 // CHECK-NEXT:     vector.transfer_write %read, %base[%i, %i] {in_bounds = [true], permutation_map = affine_map<(d0, d1) -> (d0)>} : vector<4xindex>, memref<4x4xindex>
 // CHECK-NEXT:     func.return
 // CHECK-NEXT:   }
+
+// CHECK-LABEL: @reduction_ops
+func.func @reduction_ops(%v_f32: vector<4xf32>, %v_i32: vector<4xi32>, %acc_f32: f32, %acc_i32: i32) -> (f32, f32, i32, i32) {
+  // CHECK: %sum = vector.reduction <add>, %v_f32 : vector<4xf32> into f32
+  %sum = vector.reduction <add>, %v_f32 : vector<4xf32> into f32
+  // CHECK: %sum_acc = vector.reduction <add>, %v_f32, %acc_f32 : vector<4xf32> into f32
+  %sum_acc = vector.reduction <add>, %v_f32, %acc_f32 : vector<4xf32> into f32
+  // CHECK: %max = vector.reduction <maxsi>, %v_i32 : vector<4xi32> into i32
+  %max = vector.reduction <maxsi>, %v_i32 : vector<4xi32> into i32
+  // CHECK: %max_acc = vector.reduction <maxsi>, %v_i32, %acc_i32 : vector<4xi32> into i32
+  %max_acc = vector.reduction <maxsi>, %v_i32, %acc_i32 : vector<4xi32> into i32
+  func.return %sum, %sum_acc, %max, %max_acc : f32, f32, i32, i32
+}
 
 // CHECK-LABEL: @extract_const_idx
 func.func @extract_const_idx(%arg0: vector<4x8x16xf32>)
@@ -119,4 +134,17 @@ func.func @insert_poison_idx(%a: vector<4x5xf32>, %b: f32) {
   // CHECK-NEXT: vector.insert %{{.*}}, %{{.*}}[-1, 0] : f32 into vector<4x5xf32>
   vector.insert %b, %a[-1, 0] : f32 into vector<4x5xf32>
   return
+}
+
+// CHECK-LABEL: @shuffle
+func.func @shuffle(%a : vector<2xf32>, %b : vector<1x16xf32>, %c : vector<2x16xf32>, %d : vector<f32>) -> (vector<2xf32>, vector<3x16xf32>, vector<4xf32>, vector<2xf32>) {
+  // CHECK-NEXT: %0 = vector.shuffle %a, %a [0, 3] : vector<2xf32>, vector<2xf32>
+  %0 = vector.shuffle %a, %a [0, 3] : vector<2xf32>, vector<2xf32>
+  // CHECK-NEXT: %1 = vector.shuffle %c, %b [0, 1, 2] : vector<2x16xf32>, vector<1x16xf32>
+  %1 = vector.shuffle %c, %b [0, 1, 2] : vector<2x16xf32>, vector<1x16xf32>
+  // CHECK-NEXT: %2 = vector.shuffle %a, %a [3, 2, 1, 0] : vector<2xf32>, vector<2xf32>
+  %2 = vector.shuffle %a, %a [3, 2, 1, 0] : vector<2xf32>, vector<2xf32>
+  // CHECK-NEXT: %3 = vector.shuffle %d, %d [0, 1] : vector<f32>, vector<f32>
+  %3 = vector.shuffle %d, %d [0, 1] : vector<f32>, vector<f32>
+  return %0, %1, %2, %3 : vector<2xf32>, vector<3x16xf32>, vector<4xf32>, vector<2xf32>
 }

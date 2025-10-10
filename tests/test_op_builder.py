@@ -4,6 +4,7 @@ from xdsl.builder import Builder
 from xdsl.dialects.arith import ConstantOp
 from xdsl.dialects.builtin import IntAttr, i32, i64
 from xdsl.dialects.scf import IfOp
+from xdsl.dialects.test import TestOp
 from xdsl.ir import Block, BlockArgument, Operation, Region
 from xdsl.rewriter import BlockInsertPoint, InsertPoint
 
@@ -188,6 +189,24 @@ def test_builder_listener_block_created():
     b4 = b.create_block(BlockInsertPoint.after(block))
 
     assert created_blocks == [b1, b2, b3, b4]
+
+
+def test_builder_name_hint_listener():
+    block = Block()
+    b = Builder(InsertPoint.at_start(block))
+    assert b.insert_op(TestOp((), result_types=(i32,))).results[0].name_hint is None
+
+    b.name_hint = "hello"
+    # No name hint
+    assert b.insert_op(TestOp((), result_types=(i32,))).results[0].name_hint == "hello"
+
+    # With name hint
+    op = TestOp((), result_types=(i32,))
+    op.results[0].name_hint = "world"
+    assert b.insert_op(op).results[0].name_hint == "world"
+
+    with pytest.raises(ValueError, match="Invalid SSAValue name format `1`."):
+        b.name_hint = "1"
 
 
 def test_build_region():

@@ -20,7 +20,7 @@ builtin.module {
     %zero = "arith.constant"() {"value" = 0 : index} : () -> index
     %i = "arith.constant"() {"value" = 12} : () -> i64
     %fac = "func.call"(%i) {"callee" = @factorial} : (i64) -> i64
-    printf.print_format "factorial({})={}", %i : i64, %fac : i64
+    printf.print_format "factorial({})={}\n", %i : i64, %fac : i64
     "func.return"(%zero) : (index) -> ()
   }
 }

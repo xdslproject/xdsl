@@ -43,6 +43,7 @@ from xdsl.dialects.smt import (
     YieldOp,
 )
 from xdsl.ir import Block, Region
+from xdsl.traits import ConstantLike
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.test_value import create_ssa_value
 
@@ -51,10 +52,16 @@ def test_constant_bool():
     op = ConstantBoolOp(True)
     assert op.value is True
     assert op.value_attr == IntegerAttr(-1, 1)
+    constantlike = op.get_trait(ConstantLike)
+    assert constantlike is not None
+    assert constantlike.get_constant_value(op) == IntegerAttr(-1, 1)
 
     op = ConstantBoolOp(False)
     assert op.value is False
     assert op.value_attr == IntegerAttr(0, 1)
+    constantlike = op.get_trait(ConstantLike)
+    assert constantlike is not None
+    assert constantlike.get_constant_value(op) == IntegerAttr(0, 1)
 
 
 def test_bv_type():
@@ -182,14 +189,23 @@ def test_bv_constant_op():
     op = BvConstantOp(bv_attr)
     assert op.value == bv_attr
     assert op.result.type == BitVectorType(32)
+    constantlike = op.get_trait(ConstantLike)
+    assert constantlike is not None
+    assert constantlike.get_constant_value(op) == bv_attr
 
-    op2 = BvConstantOp.from_value_and_type(42, 32)
+    op2 = BvConstantOp(42, 32)
     assert op2.value == bv_attr
     assert op2.result.type == BitVectorType(32)
+    constantlike2 = op2.get_trait(ConstantLike)
+    assert constantlike2 is not None
+    assert constantlike2.get_constant_value(op2) == bv_attr
 
-    op3 = BvConstantOp.from_value_and_type(42, BitVectorType(32))
+    op3 = BvConstantOp(42, BitVectorType(32))
     assert op3.value == bv_attr
     assert op3.result.type == BitVectorType(32)
+    constantlike3 = op3.get_trait(ConstantLike)
+    assert constantlike3 is not None
+    assert constantlike3.get_constant_value(op3) == bv_attr
 
 
 @pytest.mark.parametrize("op_type", [BVNotOp, BVNegOp])

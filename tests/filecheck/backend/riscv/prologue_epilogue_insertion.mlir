@@ -23,8 +23,8 @@ riscv_func.func @main() {
   %zero = riscv.get_register : !riscv.reg<zero>
   // Clobber s5.
   %0 = riscv.mv %zero : (!riscv.reg<zero>) -> !riscv.reg<s5>
-  riscv_cf.blt %0 : !riscv.reg<s5>, %zero : !riscv.reg<zero>, ^0(), ^1()
-^1:
+  riscv_cf.blt %0 : !riscv.reg<s5>, %zero : !riscv.reg<zero>, ^bb0(), ^bb1()
+^bb1:
   // CHECK: label "l1"
   riscv.label "l1"
   // CHECK-NEXT: fld %{{.*}}, 0
@@ -35,7 +35,7 @@ riscv_func.func @main() {
   // CHECK-SAME: (!riscv.reg<sp>) -> !riscv.reg<sp>
   // CHECK-NEXT: return
   riscv_func.return
-^0:
+^bb0:
   // CHECK: label "l0"
   riscv.label "l0"
   // CHECK-NEXT: fld %{{.*}}, 0

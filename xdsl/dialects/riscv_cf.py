@@ -11,6 +11,7 @@ from xdsl.dialects.riscv import (
     RISCVInstruction,
     RISCVRegisterType,
 )
+from xdsl.interfaces import HasCanonicalizationPatternsInterface
 from xdsl.ir import Dialect, Operation, SSAValue
 from xdsl.irdl import (
     AttrSizedOperandSegments,
@@ -25,7 +26,7 @@ from xdsl.irdl import (
 from xdsl.parser import Parser
 from xdsl.pattern_rewriter import RewritePattern
 from xdsl.printer import Printer
-from xdsl.traits import HasCanonicalizationPatternsTrait, IsTerminator
+from xdsl.traits import IsTerminator
 from xdsl.utils.comparisons import to_signed, to_unsigned
 from xdsl.utils.exceptions import VerifyException
 
@@ -43,17 +44,9 @@ def _parse_type_pair(parser: Parser) -> SSAValue:
     return parser.resolve_operand(unresolved, type)
 
 
-class ConditionalBranchOpCanonicalizationPatternTrait(HasCanonicalizationPatternsTrait):
-    @classmethod
-    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.transforms.canonicalization_patterns.riscv_cf import (
-            ElideConstantBranches,
-        )
-
-        return (ElideConstantBranches(),)
-
-
-class ConditionalBranchOperation(RISCVInstruction, ABC):
+class ConditionalBranchOperation(
+    RISCVInstruction, HasCanonicalizationPatternsInterface, ABC
+):
     """
     A base class for RISC-V branch operations. Lowers to RsRsOffOperation.
     """
@@ -69,9 +62,7 @@ class ConditionalBranchOperation(RISCVInstruction, ABC):
     then_block = successor_def()
     else_block = successor_def()
 
-    traits = traits_def(
-        IsTerminator(), ConditionalBranchOpCanonicalizationPatternTrait()
-    )
+    traits = traits_def(IsTerminator())
 
     def __init__(
         self,
@@ -188,6 +179,14 @@ class ConditionalBranchOperation(RISCVInstruction, ABC):
     @abstractmethod
     def const_evaluate(self, rs1: int, rs2: int, bitwidth: int) -> bool:
         pass
+
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.riscv_cf import (
+            ElideConstantBranches,
+        )
+
+        return (ElideConstantBranches(),)
 
 
 @irdl_op_definition

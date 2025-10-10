@@ -11,6 +11,7 @@ from typing_extensions import TypeVar, deprecated
 
 from xdsl.dialect_interfaces import OpAsmDialectInterface
 from xdsl.dialects.builtin import (
+    DYNAMIC_INDEX,
     AnyFloat,
     BuiltinAttribute,
     ComplexType,
@@ -61,14 +62,16 @@ class Printer(BasePrinter):
     _ssa_values: dict[SSAValue, str] = field(
         default_factory=dict[SSAValue, str], init=False
     )
+    _blocks: dict[Block, str] = field(default_factory=dict[Block, str], init=False)
+
     """
     maps SSA Values to their "allocated" names
     """
     _ssa_names: list[dict[str, int]] = field(
         default_factory=lambda: [dict[str, int]()], init=False
     )
-    _block_names: list[dict[Block, int]] = field(
-        default_factory=lambda: [dict[Block, int]()], init=False
+    _block_names: list[dict[str, int]] = field(
+        default_factory=lambda: [dict[str, int]()], init=False
     )
     _next_valid_name_id: list[int] = field(default_factory=lambda: [0], init=False)
     _next_valid_block_id: list[int] = field(default_factory=lambda: [0], init=False)
@@ -176,11 +179,29 @@ class Printer(BasePrinter):
     def print_operand(self, operand: SSAValue) -> None:
         self.print_ssa_value(operand)
 
-    def print_block_name(self, block: Block) -> None:
-        self.print_string("^")
-        if block not in self.block_names:
-            self.block_names[block] = self._get_new_valid_block_id()
-        self.print_int(self._block_names[-1][block])
+    def print_block_name(self, block: Block) -> str:
+        """
+        Print a block name in the printer. This assigns a name to the block if the block
+        does not have one in the current printing context.
+        If the block has a name hint, it will use it as a prefix, and otherwise assign
+        "bb" followed by a number as the name. Numbers are assigned in order.
+
+        Returns the name used for printing the block.
+        """
+        if block in self._blocks:
+            name = self._blocks[block]
+        elif block.name_hint:
+            curr_ind = self.block_names.get(block.name_hint, 0)
+            suffix = f"_{curr_ind}" if curr_ind != 0 else ""
+            name = f"{block.name_hint}{suffix}"
+            self._blocks[block] = name
+            self.block_names[block.name_hint] = curr_ind + 1
+        else:
+            name = f"bb{self._get_new_valid_block_id()}"
+            self._blocks[block] = name
+
+        self.print_string(f"^{name}")
+        return name
 
     def print_block(
         self,
@@ -388,6 +409,22 @@ class Printer(BasePrinter):
                 self.print_string("false")
         else:
             self.print_string(f"{value:d}")
+
+    def print_dimension_list(self, dims: Sequence[int]):
+        """
+        Prints the dimension list of a shape, ending with a dimension.
+
+        e.g.:
+          Input: [5, 1, DYNAMIC_INDEX, 4]
+          Prints: "5x1x?x4"
+        """
+        self.print_list(
+            dims,
+            lambda x: self.print_int(x)
+            if x != DYNAMIC_INDEX
+            else self.print_string("?"),
+            "x",
+        )
 
     def print_attribute(self, attribute: Attribute) -> None:
         # Print builtin attributes

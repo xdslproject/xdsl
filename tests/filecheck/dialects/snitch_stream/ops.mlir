@@ -8,7 +8,7 @@ snitch_stream.streaming_region {
         #snitch_stream.stride_pattern<ub = [8, 16], strides = [128, 8]>
     ]
 } ins(%X, %Y : !riscv.reg, !riscv.reg) outs(%Z : !riscv.reg) {
-^0(%a_stream : !snitch.readable<!riscv.freg<ft0>>, %b_stream : !snitch.readable<!riscv.freg<ft1>>, %c_stream : !snitch.writable<!riscv.freg<ft2>>):
+^bb0(%a_stream : !snitch.readable<!riscv.freg<ft0>>, %b_stream : !snitch.readable<!riscv.freg<ft1>>, %c_stream : !snitch.writable<!riscv.freg<ft2>>):
     %c5 = riscv.li 5 : !riscv.reg
     riscv_snitch.frep_outer %c5 {
         %a = riscv_snitch.read from %a_stream : !riscv.freg<ft0>
@@ -26,7 +26,7 @@ snitch_stream.streaming_region {
 // CHECK-NEXT:        #snitch_stream.stride_pattern<ub = [8, 16], strides = [128, 8]>
 // CHECK-NEXT:      ]
 // CHECK-NEXT:    } ins(%X, %Y : !riscv.reg, !riscv.reg) outs(%Z : !riscv.reg) {
-// CHECK-NEXT:    ^0(%a_stream : !snitch.readable<!riscv.freg<ft0>>, %b_stream : !snitch.readable<!riscv.freg<ft1>>, %c_stream : !snitch.writable<!riscv.freg<ft2>>):
+// CHECK-NEXT:    ^bb0(%a_stream : !snitch.readable<!riscv.freg<ft0>>, %b_stream : !snitch.readable<!riscv.freg<ft1>>, %c_stream : !snitch.writable<!riscv.freg<ft2>>):
 // CHECK-NEXT:      %c5 = riscv.li 5 : !riscv.reg
 // CHECK-NEXT:      riscv_snitch.frep_outer %c5 {
 // CHECK-NEXT:        %a = riscv_snitch.read from %a_stream : !riscv.freg<ft0>
@@ -38,7 +38,7 @@ snitch_stream.streaming_region {
 
 // CHECK-GENERIC:         %X, %Y, %Z = "test.op"() : () -> (!riscv.reg, !riscv.reg, !riscv.reg)
 // CHECK-GENERIC-NEXT:    "snitch_stream.streaming_region"(%X, %Y, %Z) <{stride_patterns = [#snitch_stream.stride_pattern<ub = [8, 16], strides = [128, 8]>], operandSegmentSizes = array<i32: 2, 1>}> ({
-// CHECK-GENERIC-NEXT:    ^0(%a_stream : !snitch.readable<!riscv.freg<ft0>>, %b_stream : !snitch.readable<!riscv.freg<ft1>>, %c_stream : !snitch.writable<!riscv.freg<ft2>>):
+// CHECK-GENERIC-NEXT:    ^bb0(%a_stream : !snitch.readable<!riscv.freg<ft0>>, %b_stream : !snitch.readable<!riscv.freg<ft1>>, %c_stream : !snitch.writable<!riscv.freg<ft2>>):
 // CHECK-GENERIC-NEXT:      %c5 = "riscv.li"() {immediate = 5 : i32} : () -> !riscv.reg
 // CHECK-GENERIC-NEXT:      "riscv_snitch.frep_outer"(%c5) ({
 // CHECK-GENERIC-NEXT:        %a = "riscv_snitch.read"(%a_stream) : (!snitch.readable<!riscv.freg<ft0>>) -> !riscv.freg<ft0>
@@ -46,5 +46,5 @@ snitch_stream.streaming_region {
 // CHECK-GENERIC-NEXT:        %c = "riscv.fadd.d"(%a, %b) {fastmath = #riscv.fastmath<none>} : (!riscv.freg<ft0>, !riscv.freg<ft1>) -> !riscv.freg<ft2>
 // CHECK-GENERIC-NEXT:        "riscv_snitch.write"(%c, %c_stream) : (!riscv.freg<ft2>, !snitch.writable<!riscv.freg<ft2>>) -> ()
 // CHECK-GENERIC-NEXT:        "riscv_snitch.frep_yield"() : () -> ()
-// CHECK-GENERIC-NEXT:      }) {stagger_mask = #builtin.int<0>, stagger_count = #builtin.int<0>} : (!riscv.reg) -> ()
+// CHECK-GENERIC-NEXT:      }) {stagger_mask = 0 : i4, stagger_count = 0 : i3} : (!riscv.reg) -> ()
 // CHECK-GENERIC-NEXT:    }) : (!riscv.reg, !riscv.reg, !riscv.reg) -> ()

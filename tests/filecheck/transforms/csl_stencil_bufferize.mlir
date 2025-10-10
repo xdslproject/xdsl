@@ -4,7 +4,7 @@ builtin.module {
   func.func @bufferized_stencil(%a : !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>, %b : !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>) {
     %0 = tensor.empty() : tensor<510xf32>
     csl_stencil.apply(%a : !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>, %0 : tensor<510xf32>) outs (%b : !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>) <{"swaps" = [#csl_stencil.exchange<to [1, 0]>, #csl_stencil.exchange<to [-1, 0]>, #csl_stencil.exchange<to [0, 1]>, #csl_stencil.exchange<to [0, -1]>], "topo" = #dmp.topo<1022x510>, "num_chunks" = 2 : i64, "bounds" = #stencil.bounds<[0, 0], [1, 1]>, operandSegmentSizes = array<i32: 1, 1, 0, 0, 1>}> ({
-    ^0(%1 : tensor<4x255xf32>, %2 : index, %3 : tensor<510xf32>):
+    ^bb0(%1 : tensor<4x255xf32>, %2 : index, %3 : tensor<510xf32>):
       %4 = csl_stencil.access %1[1, 0] : tensor<4x255xf32>
       %5 = csl_stencil.access %1[-1, 0] : tensor<4x255xf32>
       %6 = csl_stencil.access %1[0, 1] : tensor<4x255xf32>
@@ -15,7 +15,7 @@ builtin.module {
       %11 = "tensor.insert_slice"(%10, %3, %2) <{"static_offsets" = array<i64: -9223372036854775808>, "static_sizes" = array<i64: 255>, "static_strides" = array<i64: 1>, operandSegmentSizes = array<i32: 1, 1, 1, 0, 0>}> : (tensor<255xf32>, tensor<510xf32>, index) -> tensor<510xf32>
       csl_stencil.yield %11 : tensor<510xf32>
     }, {
-    ^1(%12 : !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>, %13 : tensor<510xf32>):
+    ^bb1(%12 : !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>, %13 : tensor<510xf32>):
       %14 = csl_stencil.access %12[0, 0] : !stencil.field<[-1,1023]x[-1,511]xtensor<512xf32>>
       %15 = arith.constant dense<1.666600e-01> : tensor<510xf32>
       %16 = "tensor.extract_slice"(%14) <{"static_offsets" = array<i64: 2>, "static_sizes" = array<i64: 510>, "static_strides" = array<i64: 1>, operandSegmentSizes = array<i32: 1, 0, 0, 0>}> : (tensor<512xf32>) -> tensor<510xf32>
@@ -35,7 +35,7 @@ builtin.module {
 // CHECK-NEXT:     %0 = tensor.empty() : tensor<510xf32>
 // CHECK-NEXT:     %1 = bufferization.to_memref %0 : tensor<510xf32> to memref<510xf32>
 // CHECK-NEXT:     csl_stencil.apply(%a : memref<512xf32>, %1 : memref<510xf32>, %b : memref<512xf32>) outs (%b : memref<512xf32>) <{swaps = [#csl_stencil.exchange<to [1, 0]>, #csl_stencil.exchange<to [-1, 0]>, #csl_stencil.exchange<to [0, 1]>, #csl_stencil.exchange<to [0, -1]>], topo = #dmp.topo<1022x510>, num_chunks = 2 : i64, bounds = #stencil.bounds<[0, 0], [1, 1]>, operandSegmentSizes = array<i32: 1, 1, 0, 1, 1>}> ({
-// CHECK-NEXT:     ^0(%2 : memref<4x255xf32>, %3 : index, %4 : memref<510xf32>):
+// CHECK-NEXT:     ^bb0(%2 : memref<4x255xf32>, %3 : index, %4 : memref<510xf32>):
 // CHECK-NEXT:       %5 = bufferization.to_tensor %4 restrict writable : memref<510xf32>
 // CHECK-NEXT:       %6 = csl_stencil.access %2[1, 0] : memref<4x255xf32>
 // CHECK-NEXT:       %7 = bufferization.to_tensor %6 restrict : memref<255xf32>
@@ -53,7 +53,7 @@ builtin.module {
 // CHECK-NEXT:       %19 = bufferization.to_memref %18 : tensor<510xf32> to memref<510xf32>
 // CHECK-NEXT:       csl_stencil.yield %19 : memref<510xf32>
 // CHECK-NEXT:     }, {
-// CHECK-NEXT:     ^1(%20 : memref<512xf32>, %21 : memref<510xf32>, %22 : memref<512xf32>):
+// CHECK-NEXT:     ^bb1(%20 : memref<512xf32>, %21 : memref<510xf32>, %22 : memref<512xf32>):
 // CHECK-NEXT:       %23 = bufferization.to_tensor %21 restrict writable : memref<510xf32>
 // CHECK-NEXT:       %24 = bufferization.to_tensor %20 restrict : memref<512xf32>
 // CHECK-NEXT:       %25 = arith.constant dense<1.666600e-01> : memref<510xf32>

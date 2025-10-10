@@ -39,8 +39,13 @@ from xdsl.traits import HasCanonicalizationPatternsTrait, Pure
 class PtrType(ParametrizedAttribute, TypeAttribute):
     name = "ptr_xdsl.ptr"
 
-    def __init__(self):
-        super().__init__()
+
+class PtrAddOpHasCanonicalizationPatterns(HasCanonicalizationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns import ptr
+
+        return (ptr.PtrAddZero(),)
 
 
 @irdl_op_definition
@@ -52,6 +57,8 @@ class PtrAddOp(IRDLOperation):
     result = result_def(PtrType)
 
     assembly_format = "$addr `,` $offset attr-dict `:` `(` type($addr) `,` type($offset) `)` `->` type($result)"
+
+    traits = traits_def(PtrAddOpHasCanonicalizationPatterns())
 
     def __init__(self, addr: SSAValue, offset: SSAValue):
         super().__init__(operands=(addr, offset), result_types=(PtrType(),))

@@ -1,4 +1,4 @@
-/// RUN: mlir-opt %s --mlir-print-op-generic --allow-unregistered-dialect | xdsl-opt --print-op-generic | filecheck %s
+// RUN: MLIR_GENERIC_ROUNDTRIP
 
 %0 = "test.op"() : () -> i32
 %1 = "test.op"() : () -> i32

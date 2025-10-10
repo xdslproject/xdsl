@@ -9,6 +9,7 @@ from xdsl.context import Context
 from xdsl.dialects import test
 from xdsl.dialects.arith import AddiOp, Arith, ConstantOp
 from xdsl.dialects.builtin import (
+    DYNAMIC_INDEX,
     AnyFloat,
     Builtin,
     ComplexType,
@@ -389,7 +390,7 @@ def test_print_custom_block_arg_name():
     io = StringIO()
     p = Printer(stream=io)
     p.print_block(block)
-    assert io.getvalue() == """\n^0(%test : i32, %test_1 : i32):"""
+    assert io.getvalue() == """\n^bb0(%test : i32, %test_1 : i32):"""
 
 
 def test_print_block_argument():
@@ -426,7 +427,8 @@ def test_print_block():
     p = Printer(stream=io)
     p.print_block(block)
     assert (
-        io.getvalue() == """\n^0(%0 : i32, %1 : i32):\n  "test.op"(%1) : (i32) -> ()"""
+        io.getvalue()
+        == """\n^bb0(%0 : i32, %1 : i32):\n  "test.op"(%1) : (i32) -> ()"""
     )
 
 
@@ -456,7 +458,7 @@ def test_print_block_with_terminator():
     assert (
         io.getvalue()
         == """
-^0:
+^bb0:
   "test.op"() : () -> ()
   "test.termop"() : () -> ()"""
     )
@@ -474,7 +476,7 @@ def test_print_block_without_terminator():
     assert (
         io.getvalue()
         == """
-^0:
+^bb0:
   "test.op"() : () -> ()"""
     )
 
@@ -490,7 +492,7 @@ def test_print_region():
     p.print_region(region)
     assert (
         io.getvalue()
-        == """{\n^0(%0 : i32, %1 : i32):\n  "test.op"(%1) : (i32) -> ()\n}"""
+        == """{\n^bb0(%0 : i32, %1 : i32):\n  "test.op"(%1) : (i32) -> ()\n}"""
     )
 
 
@@ -535,7 +537,7 @@ def test_print_region_empty_block_with_args():
     io = StringIO()
     p = Printer(stream=io)
     p.print_region(region, print_empty_block=False)
-    assert io.getvalue() == """{\n^0(%0 : i32, %1 : i32):\n}"""
+    assert io.getvalue() == """{\n^bb0(%0 : i32, %1 : i32):\n}"""
 
 
 #   ____          _                  _____                          _
@@ -814,10 +816,10 @@ def test_float():
         ("0", 0, IntegerType(32, signedness=Signedness.SIGNED)),
         ("1", True, IntegerType(32, signedness=Signedness.SIGNED)),
         ("0", False, IntegerType(32, signedness=Signedness.SIGNED)),
-        ("-1", -1, IndexType),
-        ("0", 0, IndexType),
-        ("1", True, IndexType),
-        ("0", False, IndexType),
+        ("-1", -1, IndexType()),
+        ("0", 0, IndexType()),
+        ("1", True, IndexType()),
+        ("0", False, IndexType()),
         ("-1", -1, None),
         ("0", 0, None),
         ("1", True, None),
@@ -951,6 +953,23 @@ def test_float_attr_specials():
     _test_attr_print("0x7ff8000000000000 : f64", FloatAttr(float("nan"), 64))
     _test_attr_print("0x7ff0000000000000 : f64", FloatAttr(float("inf"), 64))
     _test_attr_print("0xfff0000000000000 : f64", FloatAttr(float("-inf"), 64))
+
+
+@pytest.mark.parametrize(
+    "dims, expected",
+    [
+        ([], ""),
+        ([1, 2, 3], "1x2x3"),
+        ([1, DYNAMIC_INDEX, 3, DYNAMIC_INDEX], "1x?x3x?"),
+        ([5], "5"),
+    ],
+)
+def test_print_dimension_list(dims: list[int], expected: str):
+    io = StringIO()
+    printer = Printer(stream=io)
+    printer.print_dimension_list(dims)
+
+    assert io.getvalue() == expected
 
 
 def test_print_function_type():

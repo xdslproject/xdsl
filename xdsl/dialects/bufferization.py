@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from collections.abc import Set as AbstractSet
 from dataclasses import dataclass
 from typing import ClassVar
@@ -23,7 +23,7 @@ from xdsl.irdl import (
     AttrConstraint,
     AttrSizedOperandSegments,
     ConstraintContext,
-    GenericAttrConstraint,
+    IntConstraint,
     IRDLOperation,
     VarConstraint,
     irdl_op_definition,
@@ -40,7 +40,7 @@ from xdsl.utils.hints import isa
 
 @dataclass(frozen=True)
 class TensorFromMemRefConstraint(
-    GenericAttrConstraint[TensorType[Attribute] | UnrankedTensorType[Attribute]]
+    AttrConstraint[TensorType[Attribute] | UnrankedTensorType[Attribute]]
 ):
     """
     Converts an input memref constraint to the corresponding tensor constraint, i.e. the constraints
@@ -48,7 +48,7 @@ class TensorFromMemRefConstraint(
     a tensor instead of a memref.
     """
 
-    memref_constraint: GenericAttrConstraint[MemRefType | UnrankedMemRefType]
+    memref_constraint: AttrConstraint[MemRefType | UnrankedMemRefType]
 
     @staticmethod
     def tensor_to_memref(
@@ -90,7 +90,7 @@ class TensorFromMemRefConstraint(
         return {TensorType, UnrankedTensorType}
 
     def mapping_type_vars(
-        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+        self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
     ) -> TensorFromMemRefConstraint:
         return TensorFromMemRefConstraint(
             self.memref_constraint.mapping_type_vars(type_var_mapping)

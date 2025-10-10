@@ -11,6 +11,7 @@ from xdsl.builder import ImplicitBuilder
 from xdsl.context import Context
 from xdsl.dialects import memref, riscv, riscv_func
 from xdsl.dialects.builtin import (
+    DYNAMIC_INDEX,
     AnyFloat,
     DenseArrayBase,
     DenseIntOrFPElementsAttr,
@@ -361,7 +362,7 @@ class ConvertMemRefSubviewOp(RewritePattern):
             dynamic_offset_index = 0
             for static_offset in op.static_offsets.iter_values():
                 assert isinstance(static_offset, int)
-                if static_offset == memref.SubviewOp.DYNAMIC_INDEX:
+                if static_offset == DYNAMIC_INDEX:
                     index_ops.append(
                         cast_index_op := UnrealizedConversionCastOp.get(
                             (op.offsets[dynamic_offset_index],),

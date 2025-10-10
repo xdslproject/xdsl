@@ -7,8 +7,14 @@ from typing_extensions import TypeVar
 
 from xdsl.backend.register_type import RegisterType
 from xdsl.dialects.builtin import IntAttr, NoneAttr
+from xdsl.utils.exceptions import DiagnosticException
 
 _T = TypeVar("_T", bound=RegisterType)
+
+
+class OutOfRegisters(DiagnosticException):
+    def __str__(self):
+        return "Out of registers."
 
 
 @dataclass
@@ -44,6 +50,11 @@ class RegisterStack:
     context.
     """
 
+    allow_infinite: bool = False
+    """
+    When there are no more registers, use infinite register set.
+    """
+
     @classmethod
     def default_allocatable_registers(cls) -> Iterable[RegisterType]:
         """
@@ -52,10 +63,15 @@ class RegisterStack:
         return ()
 
     @classmethod
-    def get(cls, allocatable_registers: Iterable[RegisterType] | None = None):
+    def get(
+        cls,
+        allocatable_registers: Iterable[RegisterType] | None = None,
+        *,
+        allow_infinite: bool = False,
+    ):
         if allocatable_registers is None:
             allocatable_registers = cls.default_allocatable_registers()
-        res = cls()
+        res = cls(allow_infinite=allow_infinite)
         for reg in allocatable_registers:
             res.include_register(reg)
         return res
@@ -87,8 +103,13 @@ class RegisterStack:
         if available_registers:
             reg = reg_type.from_index(available_registers.pop())
         else:
-            reg = reg_type.infinite_register(self.next_infinite_indices[register_set])
-            self.next_infinite_indices[register_set] += 1
+            if self.allow_infinite:
+                reg = reg_type.infinite_register(
+                    self.next_infinite_indices[register_set]
+                )
+                self.next_infinite_indices[register_set] += 1
+            else:
+                raise OutOfRegisters
 
         reserved_registers = self.reserved_registers[reg_type.name]
 

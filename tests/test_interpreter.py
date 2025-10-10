@@ -272,3 +272,35 @@ def test_combined_listener():
     interpreter.run_op(test.TestOp())
 
     assert strings == ["will A", "will B", "did A", "did B"]
+
+
+def test_error_message():
+    @dataclass
+    @register_impls
+    class TestFunctions(InterpreterFunctions):
+        @impl(test.TestOp)
+        def run_test(
+            self, interpreter: Interpreter, op: test.TestOp, args: PythonValues
+        ) -> PythonValues:
+            raise ValueError("Uh oh")
+
+    interpreter = Interpreter(ModuleOp([]))
+    interpreter.register_implementations(TestFunctions())
+    test_op = test.TestOp(
+        (),
+        (
+            TensorType(f32, [4]),
+            TensorType(f32, [4]),
+        ),
+    )
+    with pytest.raises(ValueError, match="Uh oh") as e:
+        interpreter.run_op(test_op, ())
+
+    assert getattr(e.value, "__notes__") == [
+        """\
+%0, %1 = "test.op"() : () -> (tensor<4xf32>, tensor<4xf32>)
+^^^^^^^^^^^^^^^^^^-----------
+| Error while interpreting op
+-----------------------------
+"""
+    ]

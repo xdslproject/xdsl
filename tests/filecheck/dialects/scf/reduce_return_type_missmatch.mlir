@@ -7,9 +7,9 @@
   %3 = "arith.constant"() {"value" = 10.2 : f32} : () -> f32
   %4 = "arith.constant"() {"value" = 18.1 : f32} : () -> f32
   %5 = "scf.parallel"(%0, %1, %2, %3) ({
-    ^0(%8 : index):
+    ^bb0(%8 : index):
       scf.reduce(%4 : f32) {
-      ^1(%9 : f32, %10 : f32):
+      ^bb1(%9 : f32, %10 : f32):
         %11 = "arith.addf"(%9, %10) : (f32, f32) -> f32
         scf.reduce.return %11 : f32
       }

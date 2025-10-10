@@ -1,4 +1,4 @@
-// RUN: xdsl-opt --verify-diagnostics --split-input-file %s | filecheck %s
+// RUN: xdsl-opt --parsing-diagnostics --verify-diagnostics --split-input-file %s | filecheck %s
 
 // Verification checks
 
@@ -41,7 +41,6 @@ builtin.module {
 builtin.module {
   %t0, %t1 = "test.op"() : () -> (f32, tensor<1xi32>)
 
-  // CHECK: operand at position 0 does not verify:
   // CHECK: f32 should be of base attribute tensor
   %res_reshape =  tensor.reshape %t0(%t1)  : (f32, tensor<1xi32>) -> tensor<4xf32>
 
@@ -111,3 +110,13 @@ builtin.module {
 // CHECK: expected dimension 1 of collapsed type to be static value of 20
 %illegal_expanding_reshape_mixed_tensor_2 = tensor.expand_shape %0 [[0], [1, 2]] output_shape [%sz0, 4, 5]
       : tensor<?x?xf32> into tensor<?x4x5xf32>
+
+// -----
+%s, %index = "test.op"() : () -> (f32, index)
+// CHECK: number of dynamic sizes must equal number of unknown dimensions in result tensor
+%v = tensor.splat %s[%index] : tensor<?x8x?xf32>
+
+// -----
+%s = "test.op"() : () -> (f32)
+// CHECK: operand is used with type i32, but has been previously used or defined with type f32
+%v = tensor.splat %s : tensor<8xi32>
