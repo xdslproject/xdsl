@@ -5,7 +5,7 @@ Test the definition of attributes and their constraints.
 from __future__ import annotations
 
 import re
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from enum import auto
 from io import StringIO
@@ -22,11 +22,11 @@ from xdsl.dialects.builtin import (
     IntegerType,
     NoneAttr,
     Signedness,
+    StringAttr,
     i32,
 )
 from xdsl.ir import (
     Attribute,
-    AttributeCovT,
     AttributeInvT,
     BitEnumAttribute,
     BuiltinAttribute,
@@ -44,8 +44,8 @@ from xdsl.irdl import (
     AttrConstraint,
     BaseAttr,
     ConstraintContext,
-    GenericAttrConstraint,
     GenericData,
+    IntConstraint,
     MessageConstraint,
     ParamAttrConstraint,
     ParamAttrDef,
@@ -206,16 +206,17 @@ def test_indirect_enum_guard():
             name = "test.indirect_enum"
 
 
-def test_identifier_enum_guard():
-    with pytest.raises(
-        ValueError,
-        match="All StrEnum values of an EnumAttribute must be parsable as an identifer.",
-    ):
+def test_attribute_def_with_non_identifier_enum():
+    """
+    Test the definition of an EnumAttribute with a non-identifier enum is
+    allowed.
+    """
 
-        class IndirectEnumData(  # pyright: ignore[reportUnusedClass]
-            EnumAttribute[TestNonIdentifierEnum]
-        ):
-            name = "test.non_identifier_enum"
+    @irdl_attr_definition
+    class TestNonIdentifierEnumAttr(  # pyright: ignore[reportUnusedClass]
+        EnumAttribute[TestNonIdentifierEnum]
+    ):
+        name = "test.non_identifier_enum"
 
 
 @irdl_attr_definition(init=False)
@@ -436,7 +437,7 @@ class PositiveIntConstr(AttrConstraint):
             raise VerifyException(f"Expected positive integer, got {attr.data}.")
 
     def mapping_type_vars(
-        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+        self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
     ) -> PositiveIntConstr:
         return self
 
@@ -471,7 +472,7 @@ _T = TypeVar("_T", bound=BoolData | IntData)
 
 
 @irdl_attr_definition
-class ParamWrapperAttr(Generic[_T], ParametrizedAttribute):
+class ParamWrapperAttr(ParametrizedAttribute, Generic[_T]):
     name = "test.int_or_bool_generic"
 
     param: _T
@@ -535,7 +536,7 @@ _U = TypeVar("_U", bound=IntData)
 
 
 @irdl_attr_definition
-class NestedParamWrapperAttr(Generic[_U], ParametrizedAttribute):
+class NestedParamWrapperAttr(ParametrizedAttribute, Generic[_U]):
     name = "test.nested_param_wrapper"
 
     param: ParamWrapperAttr[_U]
@@ -644,7 +645,7 @@ def test_informative_constraint():
 
 
 @irdl_attr_definition
-class ListData(Generic[AttributeInvT], GenericData[tuple[AttributeInvT, ...]]):
+class ListData(GenericData[tuple[AttributeInvT, ...]], Generic[AttributeInvT]):
     name = "test.list"
 
     @classmethod
@@ -659,10 +660,8 @@ class ListData(Generic[AttributeInvT], GenericData[tuple[AttributeInvT, ...]]):
 
     @staticmethod
     @override
-    def constr(
-        constr: GenericAttrConstraint[AttributeCovT],
-    ) -> DataListAttr[AttributeCovT]:
-        return DataListAttr(constr)
+    def constr() -> DataListAttr:
+        return DataListAttr(TypeVarConstraint(AttributeInvT, AnyAttr()))
 
     @staticmethod
     def from_list(data: list[AttributeInvT]) -> ListData[AttributeInvT]:
@@ -673,13 +672,13 @@ AnyListData: TypeAlias = ListData[Attribute]
 
 
 @dataclass(frozen=True)
-class DataListAttr(GenericAttrConstraint[ListData[AttributeInvT]]):
+class DataListAttr(AttrConstraint[ListData[AttributeInvT]]):
     """
     A constraint that enforces that the elements of a ListData all respect
     a constraint.
     """
 
-    elem_constr: GenericAttrConstraint[AttributeInvT]
+    elem_constr: AttrConstraint[AttributeInvT]
 
     def verify(
         self,
@@ -694,7 +693,7 @@ class DataListAttr(GenericAttrConstraint[ListData[AttributeInvT]]):
             self.elem_constr.verify(e, constraint_context)
 
     def mapping_type_vars(
-        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+        self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
     ) -> DataListAttr[AttributeInvT]:
         return DataListAttr(self.elem_constr.mapping_type_vars(type_var_mapping))
 
@@ -797,13 +796,6 @@ def test_irdl_definition():
     )
 
 
-def test_deprecated_tuple_init():
-    with pytest.deprecated_call():
-        assert ParamAttrDefAttr(StringData(""), BoolData(True)) == ParamAttrDefAttr(
-            (StringData(""), BoolData(True))  # pyright: ignore[reportCallIssue]
-        )
-
-
 @irdl_attr_definition
 class ParamAttrDefAttr2(ParametrizedAttribute):
     name = "test.param_attr_def_attr"
@@ -884,7 +876,7 @@ def test_custom_constructor():
 
 
 @irdl_attr_definition
-class GenericAttr(Generic[AttributeInvT], ParametrizedAttribute):
+class GenericAttr(ParametrizedAttribute, Generic[AttributeInvT]):
     name = "test.generic_attr"
 
     param: AttributeInvT
@@ -1097,3 +1089,39 @@ def test_class_var_fail():
             name = "test.invalid_class_var"
             constant: ClassVar[int]  # Should be uppercase
             param: IntData
+
+
+################################################################################
+# Converters
+################################################################################
+
+
+@irdl_attr_definition
+class ConverterAttr(ParametrizedAttribute):
+    name = "test.converters"
+
+    string: StringAttr = param_def(converter=StringAttr.get)
+
+    i: IntAttr = param_def(converter=IntAttr.get)
+
+
+def test_converters():
+    string = "My string"
+    string_attr = StringAttr(string)
+
+    i = 2
+    i_attr = IntAttr(i)
+
+    attr_no_convertion = ConverterAttr(string_attr, i_attr)
+    assert attr_no_convertion.i == i_attr
+    assert attr_no_convertion.string == string_attr
+
+    attr_some_convertion = ConverterAttr(string_attr, i)
+    assert attr_some_convertion.i == i_attr
+    assert attr_some_convertion.string == string_attr
+    assert attr_no_convertion == attr_some_convertion
+
+    attr_all_convertion = ConverterAttr(string, i)
+    assert attr_all_convertion.i == i_attr
+    assert attr_all_convertion.string == string_attr
+    assert attr_no_convertion == attr_all_convertion

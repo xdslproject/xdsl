@@ -7,7 +7,7 @@
 
 import marimo
 
-__generated_with = "0.13.6"
+__generated_with = "0.14.11"
 app = marimo.App(width="medium")
 
 
@@ -399,7 +399,7 @@ def _(mo):
 
 @app.cell
 def _(print_ir, symbols):
-    # x, y, z, t are non-zere reals.
+    # x, y, z, t are non-zero reals.
     x, y, z, t = symbols("x y z t", real=True, zero=False)
 
     print_ir(x - y)
@@ -454,7 +454,7 @@ def _(
     emit_ir,
     region_dce,
 ):
-    def test_with_opts(expr: Expr):
+    def print_with_opts(expr: Expr):
         print(expr)
         op = emit_ir(expr)
         op.verify()
@@ -467,12 +467,12 @@ def _(
         region_dce(op.body)
         print("After optimizations:", op)
         print("\n" * 3)
-    return (test_with_opts,)
+    return (print_with_opts,)
 
 
 @app.cell
-def _(test_with_opts, x, y):
-    test_with_opts(x - y)
+def _(print_with_opts, x, y):
+    print_with_opts(x - y)
     return
 
 

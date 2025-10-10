@@ -5,7 +5,7 @@ builtin.module {
     "csl_wrapper.module"() <{"width"=10 : i16, "height"=10: i16, target = "wse2", "params" = [
         #csl_wrapper.param<"z_dim" default=4: i16>, #csl_wrapper.param<"pattern" : i16>
     ]}> ({
-        ^0(%x: i16, %y: i16, %width: i16, %height: i16, %z_dim: i16, %pattern: i16):
+        ^bb0(%x: i16, %y: i16, %width: i16, %height: i16, %z_dim: i16, %pattern: i16):
             %0 = arith.constant 0 : i16
             %1 = "csl.get_color"(%0) : (i16) -> !csl.color
 
@@ -29,7 +29,7 @@ builtin.module {
 
             "csl_wrapper.yield"(%memcpy_params, %compute_all_routes, %is_border_region_pe) <{"fields" = ["memcpy_params", "stencil_comms_params", "isBorderRegionPE"]}> : (!csl.comptime_struct, !csl.comptime_struct, i1) -> ()
     }, {
-        ^0(%width: i16, %height: i16, %z_dim: i16, %pattern: i16, %memcpy_params: !csl.comptime_struct, %stencil_comms_params: !csl.comptime_struct, %is_border_region_pe: i1):
+        ^bb0(%width: i16, %height: i16, %z_dim: i16, %pattern: i16, %memcpy_params: !csl.comptime_struct, %stencil_comms_params: !csl.comptime_struct, %is_border_region_pe: i1):
 
             func.func @gauss_seidel () {
                 func.return
@@ -41,7 +41,7 @@ builtin.module {
 
 // CHECK:      builtin.module {
 // CHECK-NEXT:   "csl_wrapper.module"() <{width = 10 : i16, height = 10 : i16, target = "wse2", params = [#csl_wrapper.param<"z_dim" default=4 : i16>, #csl_wrapper.param<"pattern" : i16>]}> ({
-// CHECK-NEXT:   ^0(%x : i16, %y : i16, %width : i16, %height : i16, %z_dim : i16, %pattern : i16):
+// CHECK-NEXT:   ^bb0(%x : i16, %y : i16, %width : i16, %height : i16, %z_dim : i16, %pattern : i16):
 // CHECK-NEXT:     %0 = arith.constant 0 : i16
 // CHECK-NEXT:     %1 = "csl.get_color"(%0) : (i16) -> !csl.color
 // CHECK-NEXT:     %routes = "csl_wrapper.import"(%pattern, %width, %height) <{module = "routes.csl", fields = ["pattern", "peWidth", "peHeight"]}> : (i16, i16, i16) -> !csl.imported_module
@@ -61,7 +61,7 @@ builtin.module {
 // CHECK-NEXT:     %is_border_region_pe = arith.ori %11, %9 : i1
 // CHECK-NEXT:     "csl_wrapper.yield"(%memcpy_params, %compute_all_routes, %is_border_region_pe) <{fields = ["memcpy_params", "stencil_comms_params", "isBorderRegionPE"]}> : (!csl.comptime_struct, !csl.comptime_struct, i1) -> ()
 // CHECK-NEXT:   }, {
-// CHECK-NEXT:   ^1(%width_1 : i16, %height_1 : i16, %z_dim_1 : i16, %pattern_1 : i16, %memcpy_params_1 : !csl.comptime_struct, %stencil_comms_params : !csl.comptime_struct, %is_border_region_pe_1 : i1):
+// CHECK-NEXT:   ^bb1(%width_1 : i16, %height_1 : i16, %z_dim_1 : i16, %pattern_1 : i16, %memcpy_params_1 : !csl.comptime_struct, %stencil_comms_params : !csl.comptime_struct, %is_border_region_pe_1 : i1):
 // CHECK-NEXT:     func.func @gauss_seidel() {
 // CHECK-NEXT:       func.return
 // CHECK-NEXT:     }
@@ -72,7 +72,7 @@ builtin.module {
 
 // CHECK-GENERIC:      "builtin.module"() ({
 // CHECK-GENERIC-NEXT:   "csl_wrapper.module"() <{width = 10 : i16, height = 10 : i16, target = "wse2", params = [#csl_wrapper.param<"z_dim" default=4 : i16>, #csl_wrapper.param<"pattern" : i16>]}> ({
-// CHECK-GENERIC-NEXT:   ^0(%x : i16, %y : i16, %width : i16, %height : i16, %z_dim : i16, %pattern : i16):
+// CHECK-GENERIC-NEXT:   ^bb0(%x : i16, %y : i16, %width : i16, %height : i16, %z_dim : i16, %pattern : i16):
 // CHECK-GENERIC-NEXT:     %0 = "arith.constant"() <{value = 0 : i16}> : () -> i16
 // CHECK-GENERIC-NEXT:     %1 = "csl.get_color"(%0) : (i16) -> !csl.color
 // CHECK-GENERIC-NEXT:     %routes = "csl_wrapper.import"(%pattern, %width, %height) <{module = "routes.csl", fields = ["pattern", "peWidth", "peHeight"]}> : (i16, i16, i16) -> !csl.imported_module
@@ -92,7 +92,7 @@ builtin.module {
 // CHECK-GENERIC-NEXT:     %is_border_region_pe = "arith.ori"(%11, %9) : (i1, i1) -> i1
 // CHECK-GENERIC-NEXT:     "csl_wrapper.yield"(%memcpy_params, %compute_all_routes, %is_border_region_pe) <{fields = ["memcpy_params", "stencil_comms_params", "isBorderRegionPE"]}> : (!csl.comptime_struct, !csl.comptime_struct, i1) -> ()
 // CHECK-GENERIC-NEXT:   }, {
-// CHECK-GENERIC-NEXT:   ^1(%width_1 : i16, %height_1 : i16, %z_dim_1 : i16, %pattern_1 : i16, %memcpy_params_1 : !csl.comptime_struct, %stencil_comms_params : !csl.comptime_struct, %is_border_region_pe_1 : i1):
+// CHECK-GENERIC-NEXT:   ^bb1(%width_1 : i16, %height_1 : i16, %z_dim_1 : i16, %pattern_1 : i16, %memcpy_params_1 : !csl.comptime_struct, %stencil_comms_params : !csl.comptime_struct, %is_border_region_pe_1 : i1):
 // CHECK-GENERIC-NEXT:     "func.func"() <{sym_name = "gauss_seidel", function_type = () -> ()}> ({
 // CHECK-GENERIC-NEXT:       "func.return"() : () -> ()
 // CHECK-GENERIC-NEXT:     }) : () -> ()

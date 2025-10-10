@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 import abc
-from collections.abc import Iterator
+from collections.abc import Iterator, Sequence
 from dataclasses import dataclass, field
 from enum import Enum, auto
-from typing import TYPE_CHECKING, final
+from typing import TYPE_CHECKING
 
 from typing_extensions import TypeVar
 
@@ -33,12 +33,39 @@ class OpTrait:
 OpTraitInvT = TypeVar("OpTraitInvT", bound=OpTrait)
 
 
-class ConstantLike(OpTrait):
+class ConstantLike(OpTrait, abc.ABC):
     """
     Operation known to be constant-like.
 
     See external [documentation](https://mlir.llvm.org/doxygen/classmlir_1_1OpTrait_1_1ConstantLike.html).
     """
+
+    @classmethod
+    @abc.abstractmethod
+    def get_constant_value(cls, op: Operation) -> Attribute:
+        """
+        Get the constant value from this constant-like operation.
+
+        Returns:
+            The constant value as an Attribute, or None if the value cannot be determined.
+        """
+        raise NotImplementedError()
+
+
+class HasFolder(OpTrait):
+    """
+    Operation known to support folding.
+    """
+
+    @classmethod
+    @abc.abstractmethod
+    def fold(cls, op: Operation) -> Sequence[SSAValue | Attribute] | None:
+        """
+        Attempts to fold the operation. The fold method cannot modify the IR.
+        Returns either an existing SSAValue or an Attribute for each result of the operation.
+        When folding is unsuccessful, returns None.
+        """
+        raise NotImplementedError()
 
 
 @dataclass(frozen=True)
@@ -461,8 +488,11 @@ class HasCanonicalizationPatternsTrait(OpTrait):
     Each rewrite pattern must have the trait's op as root.
     """
 
-    def verify(self, op: Operation) -> None:
-        return
+    def get_patterns(
+        self,
+        op: type[Operation],
+    ) -> tuple[RewritePattern, ...]:
+        return type(self).get_canonicalization_patterns()
 
     @classmethod
     @abc.abstractmethod
@@ -554,14 +584,13 @@ class MemoryEffect(OpTrait):
         """
         raise NotImplementedError()
 
-    @final
-    @classmethod
-    def has_effects(cls, op: Operation) -> bool:
-        """
-        Returns if the operation has any side effects.
-        """
-        effects = cls.get_effects(op)
-        return (effects is not None) and len(effects) > 0
+
+def has_effects(op: Operation, effect: MemoryEffectKind) -> bool:
+    """
+    Returns if the operation has side effects of this kind.
+    """
+    effects = get_effects(op)
+    return effects is not None and any(e.kind == effect for e in effects)
 
 
 def has_exact_effect(op: Operation, effect: MemoryEffectKind) -> bool:

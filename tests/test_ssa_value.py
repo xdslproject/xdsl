@@ -1,3 +1,5 @@
+import re
+
 import pytest
 
 from xdsl.dialects.builtin import StringAttr, i32, i64
@@ -61,8 +63,22 @@ def test_invalid_ssa_vals(name: str):
     structured.
     """
     val = BlockArgument(i32, Block(), 0)
-    with pytest.raises(ValueError, match="Invalid SSA Value name format"):
+    with pytest.raises(
+        ValueError, match=re.escape(f"Invalid BlockArgument name format `{name}`.")
+    ):
         val.name_hint = name
+
+
+def test_extract_valid_name():
+    """
+    This test tests invalid name hints that raise an error, because
+    they don't conform to the rules of how SSA value names should be
+    structured.
+    """
+    assert SSAValue.extract_valid_name("hello") == "hello"
+    assert SSAValue.extract_valid_name("hello_1") == "hello"
+    with pytest.raises(ValueError, match="Invalid SSAValue name format"):
+        SSAValue.extract_valid_name("1hello")
 
 
 def test_rewrite_type():

@@ -3,11 +3,12 @@ from typing import Any
 import pytest
 
 from xdsl.context import Context
-from xdsl.dialects import eqsat, pdl, pdl_interp, test
+from xdsl.dialects import arith, eqsat, eqsat_pdl_interp, func, pdl, pdl_interp, test
 from xdsl.dialects.builtin import ModuleOp, i32, i64
 from xdsl.interpreter import Interpreter
 from xdsl.interpreters.eqsat_pdl_interp import EqsatPDLInterpFunctions
 from xdsl.ir import Operation
+from xdsl.pattern_rewriter import PatternRewriter
 from xdsl.utils.exceptions import InterpretationError
 from xdsl.utils.test_value import create_ssa_value
 
@@ -343,11 +344,11 @@ def test_run_create_operation_new_operation():
     block = testmodule.body.first_block
     with ImplicitBuilder(block):
         root = test.TestOp()
+        operand = eqsat.EClassOp(create_ssa_value(i32), res_type=i32).result
     rewriter = PatternRewriter(root)
     interp_functions.rewriter = rewriter
 
     # Create operands and types for the operation
-    operand = create_ssa_value(i32)
     result_type = i32
 
     # Create CreateOperationOp
@@ -357,6 +358,7 @@ def test_run_create_operation_new_operation():
         input_attributes=[],
         input_result_types=[create_ssa_value(pdl.TypeType())],
     )
+    interp_functions.populate_known_ops(testmodule)
 
     # Run the create operation
     result = interp_functions.run_create_operation(
@@ -369,14 +371,13 @@ def test_run_create_operation_new_operation():
     assert isinstance(created_op, Operation)
     assert created_op.name == "test.op"
 
-    # Should add the operation to known_ops
     assert created_op in interp_functions.known_ops
     assert interp_functions.known_ops[created_op] is created_op
 
     # Should create an EClass operation and add it to eclass_union_find
     # The EClass should be created and inserted after the operation
-    assert len(interp_functions.eclass_union_find._values) == 1  # pyright: ignore[reportPrivateUsage]
-    eclass_op = interp_functions.eclass_union_find._values[0]  # pyright: ignore[reportPrivateUsage]
+    assert len(interp_functions.eclass_union_find._values) == 2  # pyright: ignore[reportPrivateUsage]
+    eclass_op = interp_functions.eclass_union_find._values[1]  # pyright: ignore[reportPrivateUsage]
     assert isinstance(eclass_op, eqsat.EClassOp)
 
 
@@ -397,18 +398,16 @@ def test_run_create_operation_existing_operation_in_use():
     block = testmodule.body.first_block
     with ImplicitBuilder(block):
         root = test.TestOp()
+        operand = eqsat.EClassOp(create_ssa_value(i32), res_type=i32).result
+        # Create an existing operation that's identical to what we'll create
+        existing_op = test.TestOp((operand,), (i32,))
     rewriter = PatternRewriter(root)
     interp_functions.rewriter = rewriter
-
-    # Create an existing operation that's identical to what we'll create
-    operand = create_ssa_value(i32)
-    existing_op = test.TestOp((operand,), (i32,))
 
     # Create a user for the existing operation to ensure it's "in use"
     _user_op = test.TestOp((existing_op.results[0],), (i32,))
 
-    # Add the existing operation to known_ops
-    interp_functions.known_ops[existing_op] = existing_op
+    interp_functions.populate_known_ops(testmodule)
 
     # Create CreateOperationOp that will create an identical operation
     create_op = pdl_interp.CreateOperationOp(
@@ -452,21 +451,19 @@ def test_run_create_operation_existing_operation_not_in_use():
     block = testmodule.body.first_block
     with ImplicitBuilder(block):
         root = test.TestOp()
+        operand = eqsat.EClassOp(create_ssa_value(i32), res_type=i32).result
+        # Create an existing operation with no result uses
+        existing_op = test.TestOp((operand,), (i32,))
     rewriter = PatternRewriter(root)
     interp_functions.rewriter = rewriter
 
-    # Create an existing operation with no result uses
-    operand = create_ssa_value(i32)
-    existing_op = test.TestOp((operand,), (i32,))
-
     # Verify the existing operation has no uses
     assert len(existing_op.results) > 0, "Existing operation must have results"
-    assert len(existing_op.results[0].uses) == 0, (
+    assert not existing_op.results[0].uses, (
         "Existing operation result should have no uses"
     )
 
-    # Add the existing operation to known_ops
-    interp_functions.known_ops[existing_op] = existing_op
+    interp_functions.populate_known_ops(testmodule)
 
     # Create CreateOperationOp that will create an identical operation
     create_op = pdl_interp.CreateOperationOp(
@@ -590,14 +587,20 @@ def test_run_replace():
     ctx = Context()
     interp_functions = EqsatPDLInterpFunctions(ctx)
 
-    # Create test operations
-    c0 = create_ssa_value(i32)
-    original_op = test.TestOp((c0,), (i32,))
-    replacement_op = test.TestOp((c0,), (i32,))
+    from xdsl.builder import ImplicitBuilder
+    from xdsl.ir import Block, Region
 
-    # Create EClass operations for both
-    original_eclass = eqsat.EClassOp(original_op.results[0], res_type=i32)
-    replacement_eclass = eqsat.EClassOp(replacement_op.results[0], res_type=i32)
+    testmodule = ModuleOp(Region([Block()]))
+    block = testmodule.body.first_block
+    with ImplicitBuilder(block):
+        # Create test operations
+        c0 = create_ssa_value(i32)
+        original_op = test.TestOp((c0,), (i32,))
+        replacement_op = test.TestOp((c0,), (i32,))
+
+        # Create EClass operations for both
+        original_eclass = eqsat.EClassOp(original_op.results[0], res_type=i32)
+        replacement_eclass = eqsat.EClassOp(replacement_op.results[0], res_type=i32)
 
     # Add both EClass operations to union-find
     interp_functions.eclass_union_find.add(original_eclass)
@@ -607,6 +610,9 @@ def test_run_replace():
     input_op_value = create_ssa_value(pdl.OperationType())
     repl_value = create_ssa_value(pdl.ValueType())
     replace_op = pdl_interp.ReplaceOp(input_op_value, [repl_value])
+
+    rewriter = PatternRewriter(original_op)
+    interp_functions.rewriter = rewriter
 
     # Call run_replace directly
     result = interp_functions.run_replace(
@@ -622,11 +628,11 @@ def test_run_replace():
     )
 
     # Should have added a merge todo
-    assert len(interp_functions.merge_list) == 1
-    merge_todo = interp_functions.merge_list[0]
+    assert len(interp_functions.worklist) == 1
+    merge_todo = interp_functions.worklist[0]
     # One of them should be the canonical representative
     canonical = interp_functions.eclass_union_find.find(original_eclass)
-    assert merge_todo.to_keep == canonical
+    assert interp_functions.eclass_union_find.find(merge_todo) == canonical
 
 
 def test_run_replace_same_eclass():
@@ -659,7 +665,7 @@ def test_run_replace_same_eclass():
     assert not result.values
 
     # Should not add any merge todos since it's the same EClass
-    assert not interp_functions.merge_list
+    assert not interp_functions.worklist
 
 
 def test_run_replace_error_not_eclass_original():
@@ -723,54 +729,146 @@ def test_run_replace_error_not_eclass_replacement():
         )
 
 
-def test_apply_matches():
-    """Test that apply_matches correctly processes merge operations."""
-    ctx = Context()
-    interp_functions = EqsatPDLInterpFunctions(ctx)
-
-    # Set up a mock rewriter
+def test_rebuilding():
     from xdsl.builder import ImplicitBuilder
     from xdsl.ir import Block, Region
-    from xdsl.pattern_rewriter import PatternRewriter
-
-    # Create test operations and EClasses
-    c0 = create_ssa_value(i32)
-    c1 = create_ssa_value(i32)
 
     testmodule = ModuleOp(Region([Block()]))
     block = testmodule.body.first_block
     with ImplicitBuilder(block):
-        root = test.TestOp()
-        op1 = test.TestOp((c0,), (i32,))
-        op2 = test.TestOp((c1,), (i32,))
-        eclass1 = eqsat.EClassOp(op1.results[0], res_type=i32)
-        eclass2 = eqsat.EClassOp(op2.results[0], res_type=i32)
-    rewriter = PatternRewriter(root)
+        a = create_ssa_value(i32)
+        b = create_ssa_value(i32)
+        x = create_ssa_value(i32)
+
+        c_a = eqsat.EClassOp(a, res_type=i32).result
+        c_b = eqsat.EClassOp(b, res_type=i32).result
+        c_x = eqsat.EClassOp(x, res_type=i32).result
+
+        c = arith.MuliOp(c_a, c_a).result
+        c_c = eqsat.EClassOp(c, res_type=i32).result
+
+        d = arith.MuliOp(c_b, c_b).result
+        c_d = eqsat.EClassOp(d, res_type=i32).result
+    a.name_hint = "a"
+    b.name_hint = "b"
+    x.name_hint = "x"
+    c_a.name_hint = "c_a"
+    c_b.name_hint = "c_b"
+    c_x.name_hint = "c_x"
+    c.name_hint = "c"
+    c_c.name_hint = "c_c"
+    d.name_hint = "d"
+    c_d.name_hint = "c_d"
+
+    ctx = Context()
+    ctx.register_dialect("func", lambda: func.Func)
+    ctx.register_dialect("eqsat", lambda: eqsat.EqSat)
+    ctx.register_dialect("arith", lambda: arith.Arith)
+    rewriter = PatternRewriter(c_b.owner)
+
+    interp_functions = EqsatPDLInterpFunctions(ctx)
     interp_functions.rewriter = rewriter
 
-    # Add to union-find and merge them
-    interp_functions.eclass_union_find.add(eclass1)
-    interp_functions.eclass_union_find.add(eclass2)
-    interp_functions.eclass_union_find.union(eclass1, eclass2)
+    interp_functions.populate_known_ops(testmodule)
 
-    # Add merge todo manually (simulating what run_replace would do)
-    from xdsl.interpreters.eqsat_pdl_interp import MergeTodo
+    assert isinstance(c_x.owner, eqsat.EClassOp)
+    assert isinstance(c_a.owner, eqsat.EClassOp)
+    assert isinstance(c_b.owner, eqsat.EClassOp)
+    assert isinstance(c_d.owner, eqsat.EClassOp)
 
-    canonical = interp_functions.eclass_union_find.find(eclass1)
-    to_replace = eclass2 if canonical == eclass1 else eclass1
-    interp_functions.merge_list.append(MergeTodo(canonical, to_replace))
+    interp_functions.eclass_union(c_x.owner, c_d.owner)
+    interp_functions.worklist.append(c_x.owner)
 
-    # Track initial operand count
-    initial_operand_count = len(canonical.operands)
+    interp_functions.eclass_union(c_b.owner, c_a.owner)
+    interp_functions.worklist.append(c_b.owner)
 
-    # Apply the matches
-    interp_functions.apply_matches()
+    interp_functions.rebuild()
 
-    # Should have cleared the merge list
-    assert not interp_functions.merge_list
+    assert (
+        str(testmodule)
+        == """builtin.module {
+  %a = "test.op"() : () -> i32
+  %b = "test.op"() : () -> i32
+  %x = "test.op"() : () -> i32
+  %c_b = eqsat.eclass %b, %a : i32
+  %c_x = eqsat.eclass %x, %c : i32
+  %c = arith.muli %c_b, %c_b : i32
+}"""
+    )
 
-    # Should have merged operands from to_replace into canonical
-    assert len(canonical.operands) == initial_operand_count + len(to_replace.operands)
+
+def test_rebuilding_parents_already_equivalent():
+    """
+    Take for example:
+    ```
+    %c_x = eqsat.eclass(%x)
+    %c_y = eqsat.eclass(%y)
+    %a = f(%c_x)
+    %b = f(%c_y)
+    eqsat.eclass(%a, %b)
+    ```
+    When `%x` and `%y` become equivalent, this becomes:
+    ```
+    %c_xy = eqsat.eclass(%x, %y)
+    %a = f(%x)
+    %b = f(%x)
+    eqsat.eclass(%a, %b)
+    ```
+    The rebuilding procedure has to deduplicate `%a` and `%b`, and the eclass should only contain `%c_xy`.
+    """
+    from xdsl.builder import ImplicitBuilder
+    from xdsl.ir import Block, Region
+
+    testmodule = ModuleOp(Region([Block()]))
+    block = testmodule.body.first_block
+    with ImplicitBuilder(block):
+        x = create_ssa_value(i32)
+        y = create_ssa_value(i32)
+
+        c_x = eqsat.EClassOp(x, res_type=i32).result
+        c_y = eqsat.EClassOp(y, res_type=i32).result
+
+        a = test.TestOp((c_x,), result_types=(i32,)).results[0]
+        b = test.TestOp((c_y,), result_types=(i32,)).results[0]
+
+        c_ab = eqsat.EClassOp(a, b, res_type=i32).result
+    x.name_hint = "x"
+    y.name_hint = "y"
+    c_x.name_hint = "c_x"
+    c_y.name_hint = "c_y"
+    a.name_hint = "a"
+    b.name_hint = "b"
+    c_ab.name_hint = "c_ab"
+
+    ctx = Context()
+    ctx.register_dialect("func", lambda: func.Func)
+    ctx.register_dialect("eqsat", lambda: eqsat.EqSat)
+    ctx.register_dialect("test", lambda: test.Test)
+    rewriter = PatternRewriter(c_ab.owner)
+
+    interp_functions = EqsatPDLInterpFunctions(ctx)
+    interp_functions.rewriter = rewriter
+
+    interp_functions.populate_known_ops(testmodule)
+
+    assert isinstance(c_x.owner, eqsat.EClassOp)
+    assert isinstance(c_y.owner, eqsat.EClassOp)
+
+    interp_functions.eclass_union(c_x.owner, c_y.owner)
+    interp_functions.worklist.append(c_x.owner)
+
+    interp_functions.rebuild()
+
+    assert (
+        str(testmodule)
+        == """builtin.module {
+  %x = "test.op"() : () -> i32
+  %y = "test.op"() : () -> i32
+  %c_x = eqsat.eclass %x, %y : i32
+  %b = "test.op"(%c_x) : (i32) -> i32
+  %c_ab = eqsat.eclass %b : i32
+}"""
+    )
 
 
 def test_run_get_defining_op_block_argument():
@@ -814,3 +912,168 @@ def test_run_get_defining_op_block_argument():
     )
     assert result == (None,)
     assert len(interp_functions.backtrack_stack) == 1
+
+
+def test_run_choose_not_visited():
+    """Test that run_choose handles ChooseOp when not visited (coming from run_finalize)."""
+    interpreter = Interpreter(ModuleOp([]))
+    interp_functions = EqsatPDLInterpFunctions(Context())
+    interpreter.register_implementations(interp_functions)
+
+    # Create blocks for choices and default
+    from xdsl.ir import Block
+
+    choice1_block = Block()
+    choice2_block = Block()
+    default_block = Block()
+
+    # Create ChooseOp with two choices
+    choose_op = eqsat_pdl_interp.ChooseOp([choice1_block, choice2_block], default_block)
+
+    # Set up backtrack stack with this ChooseOp and visited=False
+    from xdsl.interpreters.eqsat_pdl_interp import BacktrackPoint
+    from xdsl.utils.scoped_dict import ScopedDict
+
+    block = Block()
+    scope = ScopedDict[Any, Any]()
+    backtrack_point = BacktrackPoint(block, (), scope, choose_op, 1, 2)  # Index 1
+    interp_functions.backtrack_stack.append(backtrack_point)
+    interp_functions.visited = False
+
+    # Test ChooseOp execution
+    from xdsl.interpreter import Successor
+
+    result = interp_functions.run_choose(interpreter, choose_op, ())
+
+    # Should use index from backtrack stack (1) and set visited to True
+    assert interp_functions.visited
+    assert isinstance(result.terminator_value, Successor)
+    assert (
+        result.terminator_value.block == choice2_block
+    )  # Should go to choice at index 1
+    assert result.terminator_value.args == ()
+    assert result.values == ()
+
+
+def test_run_choose_visited():
+    """Test that run_choose handles ChooseOp when visited (creating new backtrack point)."""
+    interpreter = Interpreter(ModuleOp([]))
+    interp_functions = EqsatPDLInterpFunctions(Context())
+    interpreter.register_implementations(interp_functions)
+
+    # Create blocks for choices and default
+    from xdsl.ir import Block
+
+    choice1_block = Block()
+    choice2_block = Block()
+    default_block = Block()
+
+    # Create a parent block and add the ChooseOp to it
+    parent_block = Block()
+    choose_op = eqsat_pdl_interp.ChooseOp([choice1_block, choice2_block], default_block)
+    parent_block.add_op(choose_op)
+
+    # Set visited to True and create a parent scope for the interpreter context
+    interp_functions.visited = True
+
+    # Create a child scope to give the current context a parent
+    from xdsl.utils.scoped_dict import ScopedDict
+
+    child_scope = ScopedDict(parent=interpreter._ctx)  # pyright: ignore[reportPrivateUsage]
+    interpreter._ctx = child_scope  # pyright: ignore[reportPrivateUsage]
+
+    # Test ChooseOp execution
+    from xdsl.interpreter import Successor
+
+    result = interp_functions.run_choose(interpreter, choose_op, ())
+
+    # Should create new backtrack point and use index 0
+    assert len(interp_functions.backtrack_stack) == 1
+    assert interp_functions.backtrack_stack[0].index == 0
+    assert interp_functions.backtrack_stack[0].max_index == 2  # len(choices)
+    assert interp_functions.backtrack_stack[0].cause == choose_op
+
+    # Should return first choice
+    assert isinstance(result.terminator_value, Successor)
+    assert (
+        result.terminator_value.block == choice1_block
+    )  # Should go to choice at index 0
+    assert result.terminator_value.args == ()
+    assert result.values == ()
+
+
+def test_run_choose_default_dest():
+    """Test that run_choose goes to default destination when index equals len(choices)."""
+    interpreter = Interpreter(ModuleOp([]))
+    interp_functions = EqsatPDLInterpFunctions(Context())
+    interpreter.register_implementations(interp_functions)
+
+    # Create blocks for choices and default
+    from xdsl.ir import Block
+
+    choice1_block = Block()
+    choice2_block = Block()
+    default_block = Block()
+
+    # Create ChooseOp with two choices
+    choose_op = eqsat_pdl_interp.ChooseOp([choice1_block, choice2_block], default_block)
+
+    # Set up backtrack stack with index equal to number of choices
+    from xdsl.interpreters.eqsat_pdl_interp import BacktrackPoint
+    from xdsl.utils.scoped_dict import ScopedDict
+
+    block = Block()
+    scope = ScopedDict[Any, Any]()
+    backtrack_point = BacktrackPoint(
+        block, (), scope, choose_op, 2, 2
+    )  # Index 2 = len(choices)
+    interp_functions.backtrack_stack.append(backtrack_point)
+    interp_functions.visited = False
+
+    # Test ChooseOp execution
+    from xdsl.interpreter import Successor
+
+    result = interp_functions.run_choose(interpreter, choose_op, ())
+
+    # Should go to default destination
+    assert interp_functions.visited
+    assert isinstance(result.terminator_value, Successor)
+    assert (
+        result.terminator_value.block == default_block
+    )  # Should go to default destination
+    assert result.terminator_value.args == ()
+    assert result.values == ()
+
+
+def test_run_choose_error_wrong_op():
+    """Test that run_choose raises error when expected ChooseOp is not at top of backtrack stack."""
+    interpreter = Interpreter(ModuleOp([]))
+    interp_functions = EqsatPDLInterpFunctions(Context())
+    interpreter.register_implementations(interp_functions)
+
+    # Create blocks for choices and default
+    from xdsl.ir import Block
+
+    choice1_block = Block()
+    default_block = Block()
+
+    # Create two different ChooseOp operations
+    choose_op1 = eqsat_pdl_interp.ChooseOp([choice1_block], default_block)
+    choose_op2 = eqsat_pdl_interp.ChooseOp([choice1_block], default_block)
+
+    # Set up backtrack stack with different choose_op and visited=False
+    from xdsl.interpreters.eqsat_pdl_interp import BacktrackPoint
+    from xdsl.utils.scoped_dict import ScopedDict
+
+    block = Block()
+    scope = ScopedDict[Any, Any]()
+    backtrack_point = BacktrackPoint(block, (), scope, choose_op1, 0, 1)  # Different op
+    interp_functions.backtrack_stack.append(backtrack_point)
+    interp_functions.visited = False
+
+    # Test should raise InterpretationError when using different choose_op
+    with pytest.raises(
+        InterpretationError,
+        match="Expected this ChooseOp to be at the top of the backtrack stack.",
+    ):
+        interp_functions.run_choose(interpreter, choose_op2, ())

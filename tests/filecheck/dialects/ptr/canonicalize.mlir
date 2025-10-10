@@ -46,3 +46,13 @@ func.func @test_to_ptr_1(%ptr: !ptr_xdsl.ptr) -> memref<f32> {
   %mr = ptr_xdsl.from_ptr %ptr : !ptr_xdsl.ptr -> memref<f32>
   return %mr : memref<f32>
 }
+
+// CHECK-LABEL: @test_add_zero
+// CHECK-SAME: (%ptr : !ptr_xdsl.ptr)
+// CHECK-NOT: ptradd
+// CHECK: return %ptr
+func.func @test_add_zero(%ptr: !ptr_xdsl.ptr) -> !ptr_xdsl.ptr {
+  %c0 = arith.constant 0 : index
+  %res = ptr_xdsl.ptradd %ptr, %c0 : (!ptr_xdsl.ptr, index) -> !ptr_xdsl.ptr
+  return %res : !ptr_xdsl.ptr
+}

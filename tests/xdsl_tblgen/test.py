@@ -159,6 +159,8 @@ class Test_TypesOp(IRDLOperation):
 
     f = operand_def(EqAttrConstraint(NoneType()))
 
+    g = prop_def(SymbolNameConstraint())
+
     v1 = operand_def(
         ParamAttrConstraint(
             ComplexType,

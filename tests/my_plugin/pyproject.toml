@@ -1,0 +1,13 @@
+[project]
+name = "my_plugin"
+description = "Plugin to test pass and transform discovery"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "Apache License v2.0 with LLVM Exceptions" }
+authors = [{ name = "Sasha Lopoukhine", email = "sasha@lopoukhine.com" }]
+classifiers = ["Programming Language :: Python :: 3"]
+dependencies = ["xdsl"]
+dynamic = ["version"]
+
+[project.entry-points.'xdsl.universe']
+my_plugin = 'my_plugin:MY_UNIVERSE'

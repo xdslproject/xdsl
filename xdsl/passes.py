@@ -12,6 +12,7 @@ from typing import (
     Union,
     get_args,
     get_origin,
+    get_type_hints,
 )
 
 from typing_extensions import Self, TypeVar
@@ -63,6 +64,18 @@ class ModulePass(ABC):
     @abstractmethod
     def apply(self, ctx: Context, op: builtin.ModuleOp) -> None: ...
 
+    def apply_to_clone(
+        self, ctx: Context, op: builtin.ModuleOp
+    ) -> tuple[Context, builtin.ModuleOp]:
+        """
+        Creates deep copies of the module and the context, and returns the result of
+        calling `apply` on them.
+        """
+        ctx = ctx.clone()
+        op = op.clone()
+        self.apply(ctx, op)
+        return ctx, op
+
     @classmethod
     def from_pass_spec(cls, spec: PipelinePassSpec) -> Self:
         """
@@ -88,6 +101,8 @@ class ModulePass(ABC):
 
         required_fields = cls.required_fields()
 
+        field_types = get_type_hints(cls)
+
         # iterate over all fields of the dataclass
         for op_field in fields:
             # ignore the name field and everything that's not used by __init__
@@ -101,9 +116,10 @@ class ModulePass(ABC):
                 raise ValueError(f'Pass {cls.name} requires argument "{op_field.name}"')
 
             # convert pass arg to the correct type:
+            field_type = field_types[op_field.name]
             arg_dict[op_field.name] = _convert_pass_arg_to_type(
                 spec_arguments_dict.pop(op_field.name),
-                op_field.type,
+                field_type,
             )
             # we use .pop here to also remove the arg from the dict
 
@@ -161,6 +177,31 @@ class ModulePass(ABC):
 
             args[name] = arg_list
         return PipelinePassSpec(self.name, args)
+
+    @classmethod
+    def schedule_space(
+        cls, ctx: Context, module_op: builtin.ModuleOp
+    ) -> tuple[Self, ...]:
+        """
+        Returns a tuple of `Self` that can be applied to rewrite the given module with
+        the given context without error.
+        The default implementation attempts to construct an instance with no parameters,
+        and run it on the module_op; if the module_op is mutated then the pass instance
+        is returned.
+        Parametrizable passes should override this implementation to provide a full
+        schedule space of transformations.
+        """
+        try:
+            pass_instance = cls()
+            _, cloned_module = pass_instance.apply_to_clone(ctx, module_op)
+            if module_op.is_structurally_equivalent(cloned_module):
+                return ()
+        except Exception:
+            return ()
+        return (pass_instance,)
+
+    def __str__(self) -> str:
+        return str(self.pipeline_pass_spec())
 
 
 class PassOptionInfo(NamedTuple):

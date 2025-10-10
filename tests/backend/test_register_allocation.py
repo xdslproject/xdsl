@@ -11,7 +11,7 @@ from xdsl.backend.register_allocatable import (
     RegisterConstraints,
 )
 from xdsl.backend.register_allocator import ValueAllocator
-from xdsl.backend.register_stack import RegisterStack
+from xdsl.backend.register_stack import OutOfRegisters, RegisterStack
 from xdsl.backend.register_type import RegisterType
 from xdsl.builder import Builder
 from xdsl.ir import Attribute, Block, SSAValue
@@ -178,7 +178,7 @@ def test_allocate_value():
     a1 = TestRegister.from_name("a1")
     y0 = TestRegister.from_name("y0")
 
-    register_stack = RegisterStack.get((a0, a1))
+    register_stack = RegisterStack.get((a0, a1), allow_infinite=True)
     allocator = ValueAllocator(register_stack, TestRegister)
 
     op0 = op((), u, u, u, u)
@@ -364,10 +364,16 @@ def test_fail_error_message():
 
     assert getattr(e.value, "__notes__") == [
         """
-^0:
+^bb0:
   %0 = "test.inout"(%1) : (!test.reg<a0>) -> !test.reg<a1>
   ^^^^^^^^^^^^^^^^^----
   | Error allocating op
   ---------------------
 """
     ]
+
+
+def test_out_of_registers():
+    register_stack = RegisterStack()
+    with pytest.raises(OutOfRegisters, match="Out of registers."):
+        register_stack.pop(TestRegister)

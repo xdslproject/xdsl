@@ -16,11 +16,11 @@
 %affine_map = "test.op"() : () -> !transform.affine_map
 
 // CHECK: "transform.sequence"() <{failure_propagation_mode = 1 : i32, operandSegmentSizes = array<i32: 0, 0>}> ({
-// CHECK: ^0(%arg0 : !transform.any_value, %arg1 : !transform.op<"linalg.matmul">):
+// CHECK: ^bb0(%arg0 : !transform.any_value, %arg1 : !transform.op<"linalg.matmul">):
 // CHECK:   transform.yield
 // CHECK: }) : () -> ()
 "transform.sequence"() <{failure_propagation_mode = 1 : i32, operandSegmentSizes = array<i32: 0, 0>}> ({
-^0(%arg0 : !transform.any_value, %arg1 : !transform.op<"linalg.matmul">):
+^bb0(%arg0 : !transform.any_value, %arg1 : !transform.op<"linalg.matmul">):
   transform.yield
 }) : () -> ()
 

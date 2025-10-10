@@ -2,14 +2,16 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from xdsl.dialects.builtin import FunctionType, StringAttr
+from xdsl.backend.assembly_printer import AssemblyPrintable, AssemblyPrinter
+from xdsl.dialects.builtin import FunctionType, StringAttr, SymbolNameConstraint
 from xdsl.dialects.utils import (
     parse_func_op_like,
     print_func_op_like,
 )
-from xdsl.dialects.x86.ops import X86AsmOperation, X86Instruction
+from xdsl.dialects.x86.ops import X86Instruction
 from xdsl.ir import Attribute, Dialect, Operation, Region
 from xdsl.irdl import (
+    IRDLOperation,
     attr_def,
     irdl_op_definition,
     opt_attr_def,
@@ -25,6 +27,7 @@ from xdsl.traits import (
     IsTerminator,
     SymbolOpInterface,
 )
+from xdsl.utils.exceptions import DiagnosticException
 
 
 class FuncOpCallableInterface(CallableOpInterface):
@@ -45,11 +48,11 @@ class FuncOpCallableInterface(CallableOpInterface):
 
 
 @irdl_op_definition
-class FuncOp(X86AsmOperation):
+class FuncOp(IRDLOperation, AssemblyPrintable):
     """x86 function definition operation"""
 
     name = "x86_func.func"
-    sym_name = attr_def(StringAttr)
+    sym_name = attr_def(SymbolNameConstraint())
     body = region_def()
     function_type = attr_def(FunctionType)
     sym_visibility = opt_attr_def(StringAttr)
@@ -112,11 +115,25 @@ class FuncOp(X86AsmOperation):
             reserved_attr_names=("sym_name", "function_type", "sym_visibility"),
         )
 
-    def assembly_line(self) -> str | None:
-        if self.body.blocks:
-            return f"{self.sym_name.data}:"
-        else:
-            return None
+    def print_assembly(self, printer: AssemblyPrinter) -> None:
+        if not self.body.blocks:
+            # Print nothing for function declaration
+            return
+
+        printer.emit_section(".text")
+
+        if self.sym_visibility is not None:
+            match self.sym_visibility.data:
+                case "public":
+                    printer.print_string(f".globl {self.sym_name.data}\n", indent=0)
+                case "private":
+                    printer.print_string(f".local {self.sym_name.data}\n", indent=0)
+                case _:
+                    raise DiagnosticException(
+                        f"Unexpected visibility {self.sym_visibility.data} for function {self.sym_name}"
+                    )
+
+        printer.print_string(f"{self.sym_name.data}:\n")
 
 
 @irdl_op_definition

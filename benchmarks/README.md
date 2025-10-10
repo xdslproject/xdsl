@@ -1,14 +1,20 @@
 # Benchmarking infrastructure for xDSL
 
-This directory contains infrastructure for the benchmarking and performance profiling of the xDSL compiler framework.
+This directory contains infrastructure for the benchmarking and performance profiling of
+the xDSL compiler framework.
 
-The benchmarks are structured such that they can be automatically useed by the airspeed velocity, enabling a CI-based web frontend: <https://xdsl.dev/xdsl-bench/>.
+The benchmarks are structured such that they can be automatically used by the [airspeed
+velocity](https://asv.readthedocs.io/en/latest/), enabling a CI-based web frontend: <https://xdsl.dev/xdsl-bench/>.
 
-In addition to this, helper scripts and infrastructure is provided to run and profile benchmark performance on a developer's local machine
+In addition to this, helper scripts and infrastructure is provided to run and profile
+benchmark performance on a developer's local machine.
 
 ## Using benchmarks locally
 
-Benchmarks can be invoked by calling the script that contains them, which has a CLI to select the benchmarks to run and tools to run them under. These tools are installed with the `uv` extra group `bench`. The help menu for this tool can be shown by invoking any script with the `--help` flag:
+Benchmarks can be invoked by calling the script that contains them, which has a CLI to
+select the benchmarks to run and tools to run them under.
+These tools are installed with the `uv` extra group `bench`.
+The help menu for this tool can be shown by invoking any script with the `--help` flag:
 
 ```text
 $ uv run benchmarks/lexer.py --help
@@ -71,8 +77,11 @@ uv run benchmarks/lexer.py Lexer.empty_program dis
         importlib.reload(xdsl.dialects.newdialect)
     ```
 
-2. Associate the method with a name in the main code at the bottom of the file
-   
+2. If the test operates on an xDSL operation or other workload which needs to be set up,
+this is best added in `benchmarks/workloads.py` as a new class method on `WorkloadBuilder`.
+
+3. Associate the method with a name in the main code at the bottom of the file
+
    For example, to add this new method, you might write
 
    ```python

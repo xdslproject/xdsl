@@ -5,6 +5,7 @@ from xdsl.context import Context
 from xdsl.dialects import pdl, pdl_interp, test
 from xdsl.dialects.builtin import (
     ArrayAttr,
+    BoolAttr,
     FunctionType,
     IntegerAttr,
     ModuleOp,
@@ -13,9 +14,16 @@ from xdsl.dialects.builtin import (
     i32,
     i64,
 )
-from xdsl.interpreter import Interpreter, Successor
+from xdsl.interpreter import (
+    Interpreter,
+    InterpreterFunctions,
+    PythonValues,
+    Successor,
+    impl_external,
+    register_impls,
+)
 from xdsl.interpreters.pdl_interp import PDLInterpFunctions
-from xdsl.ir import Block, Region
+from xdsl.ir import Block, Operation, Region
 from xdsl.pattern_rewriter import PatternRewriter
 from xdsl.utils.exceptions import InterpretationError
 from xdsl.utils.test_value import create_ssa_value
@@ -771,3 +779,83 @@ def test_get_defining_op_block_argument():
 
     # Should return None for block arguments since they are not defined by operations
     assert result == (None,)
+
+
+def test_apply_constraint():
+    # This is used in the `PDLInterpFunctions` documentation, if you update this test
+    # please also update the class doc string.
+    @register_impls
+    class TestImplFunctions(InterpreterFunctions):
+        @impl_external("test_constraint")
+        def run_test_constraint(
+            self, interp: Interpreter, op: Operation, args: PythonValues
+        ) -> tuple[bool, tuple[int]]:
+            assert isinstance(args[0], int)
+            (x,) = args
+            return True, (x + 42,)
+
+    interpreter = Interpreter(ModuleOp([]))
+    ctx = Context()
+    ctx.register_dialect("test", lambda: test.Test)
+    pdl_interp_functions = PDLInterpFunctions(ctx)
+    interpreter.register_implementations(pdl_interp_functions)
+    interpreter.register_implementations(TestImplFunctions())
+
+    c0 = create_ssa_value(pdl.OperationType())
+
+    true_dest = Block()
+    false_dest = Block()
+
+    apply_constraint_op = pdl_interp.ApplyConstraintOp(
+        "test_constraint",
+        (c0,),
+        true_dest,
+        false_dest,
+        (pdl.AttributeType(),),
+        is_negated=False,
+    )
+
+    result = pdl_interp_functions.run_apply_constraint(
+        interpreter, apply_constraint_op, (1,)
+    )
+
+    assert result.values == (43,)
+
+    assert isinstance(result.terminator_value, Successor)
+    assert result.terminator_value.block is true_dest
+
+    # Test negated constraint
+    apply_constraint_op_negated = pdl_interp.ApplyConstraintOp(
+        StringAttr("test_constraint"),
+        (c0,),
+        true_dest,
+        false_dest,
+        (pdl.AttributeType(),),
+        is_negated=True,
+    )
+    negated_result = pdl_interp_functions.run_apply_constraint(
+        interpreter, apply_constraint_op_negated, (1,)
+    )
+    assert negated_result.values == (43,)
+    assert isinstance(negated_result.terminator_value, Successor)
+    assert negated_result.terminator_value.block is false_dest
+
+    # Test with non-existent constraint
+    apply_constraint_op_nonexistent = pdl_interp.ApplyConstraintOp(
+        "non_existent_constraint",
+        (c0,),
+        true_dest,
+        false_dest,
+        (pdl.AttributeType(),),
+        is_negated=BoolAttr.from_bool(False),
+    )
+    with pytest.raises(
+        InterpretationError,
+        match=(
+            "Could not find external function implementation named "
+            "non_existent_constraint"
+        ),
+    ):
+        pdl_interp_functions.run_apply_constraint(
+            interpreter, apply_constraint_op_nonexistent, (1,)
+        )

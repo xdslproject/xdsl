@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from collections.abc import Set as AbstractSet
 from dataclasses import dataclass
 from typing import ClassVar, cast
@@ -11,6 +11,7 @@ from xdsl.dialects.builtin import (
     I16,
     I32,
     ArrayAttr,
+    BoolAttr,
     ContainerOf,
     DictionaryAttr,
     Float16Type,
@@ -21,10 +22,12 @@ from xdsl.dialects.builtin import (
     IntegerAttr,
     IntegerType,
     StringAttr,
+    SymbolNameConstraint,
     SymbolRefAttr,
     UnitAttr,
 )
 from xdsl.dialects.pdl import (
+    AnyPDLType,
     AnyPDLTypeConstr,
     AttributeType,
     OperationType,
@@ -48,8 +51,9 @@ from xdsl.irdl import (
     AttrConstraint,
     AttrSizedOperandSegments,
     ConstraintContext,
-    GenericAttrConstraint,
+    IntConstraint,
     IRDLOperation,
+    ParsePropInAttrDict,
     VarConstraint,
     base,
     irdl_op_definition,
@@ -61,6 +65,7 @@ from xdsl.irdl import (
     successor_def,
     traits_def,
     var_operand_def,
+    var_result_def,
     var_successor_def,
 )
 from xdsl.parser import Parser
@@ -345,7 +350,7 @@ class CheckAttributeOp(IRDLOperation):
 
     name = "pdl_interp.check_attribute"
     traits = traits_def(IsTerminator())
-    constantValue = prop_def(Attribute)
+    constantValue = prop_def()
     attribute = operand_def(AttributeType)
     true_dest = successor_def()
     false_dest = successor_def()
@@ -418,6 +423,52 @@ class AreEqualOp(IRDLOperation):
 
 
 @irdl_op_definition
+class ApplyConstraintOp(IRDLOperation):
+    """
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interpapply_constraint-pdl_interpapplyconstraintop).
+    """
+
+    name = "pdl_interp.apply_constraint"
+    traits = traits_def(IsTerminator())
+    constraint_name = prop_def(StringAttr, prop_name="name")
+    is_negated = prop_def(
+        BoolAttr, prop_name="isNegated", default_value=BoolAttr.from_bool(False)
+    )
+    args = var_operand_def(AnyPDLTypeConstr)
+    results_ = var_result_def(AnyPDLTypeConstr)
+    true_dest = successor_def()
+    false_dest = successor_def()
+    irdl_options = [ParsePropInAttrDict()]
+
+    assembly_format = "$name `(` $args `:` type($args) `)` (`:` type($results_)^)? attr-dict `->` $true_dest `,` $false_dest"
+
+    def __init__(
+        self,
+        constraint_name: str | StringAttr,
+        args: Sequence[SSAValue],
+        true_dest: Block,
+        false_dest: Block,
+        res_types: Sequence[AnyPDLType] = (),
+        is_negated: bool | BoolAttr = False,
+    ) -> None:
+        if isinstance(constraint_name, str):
+            constraint_name = StringAttr(constraint_name)
+        if isinstance(is_negated, bool):
+            is_negated = BoolAttr.from_bool(is_negated)
+        super().__init__(
+            operands=args,
+            properties={
+                "name": constraint_name,
+                "isNegated": is_negated,
+            },
+            result_types=[
+                res_types,
+            ],
+            successors=[true_dest, false_dest],
+        )
+
+
+@irdl_op_definition
 class RecordMatchOp(IRDLOperation):
     """
     See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interprecord_match-pdl_interprecordmatchop).
@@ -427,7 +478,7 @@ class RecordMatchOp(IRDLOperation):
     traits = traits_def(IsTerminator())
     rewriter = prop_def(SymbolRefAttr)
     rootKind = opt_prop_def(StringAttr)
-    generatedOps = opt_prop_def(ArrayAttr)
+    generatedOps = opt_prop_def(ArrayAttr[StringAttr])
     benefit = prop_def(IntegerAttr[I16])
 
     inputs = var_operand_def(AnyPDLTypeConstr)
@@ -446,8 +497,8 @@ class RecordMatchOp(IRDLOperation):
     def __init__(
         self,
         rewriter: str | SymbolRefAttr,
-        root_kind: str | StringAttr,
-        generated_ops: list[OperationType] | None,
+        root_kind: str | StringAttr | None,
+        generated_ops: ArrayAttr[StringAttr] | None,
         benefit: int | IntegerAttr[I16],
         inputs: Sequence[SSAValue],
         matched_ops: Sequence[SSAValue],
@@ -457,10 +508,6 @@ class RecordMatchOp(IRDLOperation):
             rewriter = SymbolRefAttr(rewriter)
         if isinstance(root_kind, str):
             root_kind = StringAttr(root_kind)
-        if (
-            generated_ops is None
-        ):  # TODO: if generatedOps is actually optional (check this), we shouldn't even pass an empty list
-            generated_ops = []
         if isinstance(benefit, int):
             benefit = IntegerAttr.from_int_and_width(benefit, 16)
         super().__init__(
@@ -468,7 +515,7 @@ class RecordMatchOp(IRDLOperation):
             properties={
                 "rewriter": rewriter,
                 "rootKind": root_kind,
-                "generatedOps": ArrayAttr(generated_ops),
+                "generatedOps": generated_ops,
                 "benefit": benefit,
             },
             successors=[dest],
@@ -476,10 +523,8 @@ class RecordMatchOp(IRDLOperation):
 
 
 @dataclass(frozen=True)
-class ValueConstrFromResultConstr(
-    GenericAttrConstraint[ValueType | RangeType[ValueType]]
-):
-    result_constr: GenericAttrConstraint[TypeType | RangeType[TypeType]]
+class ValueConstrFromResultConstr(AttrConstraint[ValueType | RangeType[ValueType]]):
+    result_constr: AttrConstraint[TypeType | RangeType[TypeType]]
 
     def can_infer(self, var_constraint_names: AbstractSet[str]) -> bool:
         return self.result_constr.can_infer(var_constraint_names)
@@ -502,8 +547,8 @@ class ValueConstrFromResultConstr(
         return self.result_constr.verify(result_type, constraint_context)
 
     def mapping_type_vars(
-        self, type_var_mapping: dict[TypeVar, AttrConstraint]
-    ) -> GenericAttrConstraint[ValueType | RangeType[ValueType]]:
+        self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
+    ) -> AttrConstraint[ValueType | RangeType[ValueType]]:
         return ValueConstrFromResultConstr(
             self.result_constr.mapping_type_vars(type_var_mapping)
         )
@@ -813,7 +858,7 @@ class FuncOp(IRDLOperation):
     """
 
     name = "pdl_interp.func"
-    sym_name = prop_def(StringAttr)
+    sym_name = prop_def(SymbolNameConstraint())
     function_type = prop_def(FunctionType)
     arg_attrs = opt_prop_def(ArrayAttr[DictionaryAttr])
     res_attrs = opt_prop_def(ArrayAttr[DictionaryAttr])
@@ -979,6 +1024,7 @@ PDLInterp = Dialect(
         GetAttributeOp,
         CheckAttributeOp,
         AreEqualOp,
+        ApplyConstraintOp,
         RecordMatchOp,
         GetValueTypeOp,
         ReplaceOp,

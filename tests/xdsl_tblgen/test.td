@@ -94,6 +94,7 @@ def Test_TypesOp : Test_Op<"types"> {
                        Index:$d,
                        F32:$e,
                        NoneType:$f,
+                       SymbolNameAttr:$g,
                        Complex<F8E4M3FN>);
 }
 

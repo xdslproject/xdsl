@@ -4,9 +4,9 @@
 %v0 = ptr_xdsl.load %ptr0 : !ptr_xdsl.ptr -> vector<8xf32>
 // CHECK:       builtin.module {
 // CHECK-NEXT:    %ptr0 = "test.op"() : () -> !ptr_xdsl.ptr
-// CHECK-NEXT:    %v0 = builtin.unrealized_conversion_cast %ptr0 : !ptr_xdsl.ptr to !x86.reg
-// CHECK-NEXT:    %v0_1 = x86.dm.vmovups %v0, 0 : (!x86.reg) -> !x86.avx2reg
-// CHECK-NEXT:    %v0_2 = builtin.unrealized_conversion_cast %v0_1 : !x86.avx2reg to vector<8xf32>
+// CHECK-NEXT:    %ptr0_1 = builtin.unrealized_conversion_cast %ptr0 : !ptr_xdsl.ptr to !x86.reg
+// CHECK-NEXT:    %v0 = x86.dm.vmovups %ptr0_1, 0 : (!x86.reg) -> !x86.avx2reg
+// CHECK-NEXT:    %v0_1 = builtin.unrealized_conversion_cast %v0 : !x86.avx2reg to vector<8xf32>
 // CHECK-NEXT:  }
 
 // -----
@@ -15,9 +15,9 @@
 %v0b = ptr_xdsl.load %ptr0b : !ptr_xdsl.ptr -> vector<16xf32>
 // CHECK:       builtin.module {
 // CHECK-NEXT:    %ptr0b = "test.op"() : () -> !ptr_xdsl.ptr
-// CHECK-NEXT:    %v0b = builtin.unrealized_conversion_cast %ptr0b : !ptr_xdsl.ptr to !x86.reg
-// CHECK-NEXT:    %v0b_1 = x86.dm.vmovups %v0b, 0 : (!x86.reg) -> !x86.avx512reg
-// CHECK-NEXT:    %v0b_2 = builtin.unrealized_conversion_cast %v0b_1 : !x86.avx512reg to vector<16xf32>
+// CHECK-NEXT:    %ptr0b_1 = builtin.unrealized_conversion_cast %ptr0b : !ptr_xdsl.ptr to !x86.reg
+// CHECK-NEXT:    %v0b = x86.dm.vmovups %ptr0b_1, 0 : (!x86.reg) -> !x86.avx512reg
+// CHECK-NEXT:    %v0b_1 = builtin.unrealized_conversion_cast %v0b : !x86.avx512reg to vector<16xf32>
 // CHECK-NEXT:  }
 
 // -----
@@ -26,9 +26,9 @@
 %v1 = ptr_xdsl.load %ptr1 : !ptr_xdsl.ptr -> f32
 // CHECK:      builtin.module {
 // CHECK-NEXT:   %ptr1 = "test.op"() : () -> !ptr_xdsl.ptr
-// CHECK-NEXT:   %v1 = builtin.unrealized_conversion_cast %ptr1 : !ptr_xdsl.ptr to !x86.reg
-// CHECK-NEXT:   %v1_1 = x86.dm.mov %v1, 0 : (!x86.reg) -> !x86.reg
-// CHECK-NEXT:   %v1_2 = builtin.unrealized_conversion_cast %v1_1 : !x86.reg to f32
+// CHECK-NEXT:   %ptr1_1 = builtin.unrealized_conversion_cast %ptr1 : !ptr_xdsl.ptr to !x86.reg
+// CHECK-NEXT:   %v1 = x86.dm.mov %ptr1_1, 0 : (!x86.reg) -> !x86.reg
+// CHECK-NEXT:   %v1_1 = builtin.unrealized_conversion_cast %v1 : !x86.reg to f32
 // CHECK-NEXT: }
 
 // -----
@@ -44,14 +44,14 @@
 
 // CHECK:      builtin.module {
 // CHECK-NEXT:   %ptr3 = "test.op"() : () -> !ptr_xdsl.ptr
-// CHECK-NEXT:   %v3 = builtin.unrealized_conversion_cast %ptr3 : !ptr_xdsl.ptr to !x86.reg
-// CHECK-NEXT:   %v3_1 = x86.dm.vmovupd %v3, 0 : (!x86.reg) -> !x86.avx2reg
-// CHECK-NEXT:   %v3_2 = builtin.unrealized_conversion_cast %v3_1 : !x86.avx2reg to vector<4xf64>
+// CHECK-NEXT:   %ptr3_1 = builtin.unrealized_conversion_cast %ptr3 : !ptr_xdsl.ptr to !x86.reg
+// CHECK-NEXT:   %v3 = x86.dm.vmovupd %ptr3_1, 0 : (!x86.reg) -> !x86.avx2reg
+// CHECK-NEXT:   %v3_1 = builtin.unrealized_conversion_cast %v3 : !x86.avx2reg to vector<4xf64>
 // CHECK-NEXT: }
 
 // -----
 
-// CHECK: The vector size and target architecture are inconsistent.
+// CHECK: The vector size (1024 bits) and target architecture `avx512` are inconsistent.
 %ptr4 = "test.op"(): () -> !ptr_xdsl.ptr
 %v4 = ptr_xdsl.load %ptr4 : !ptr_xdsl.ptr -> vector<32xf32>
 
@@ -70,9 +70,9 @@ ptr_xdsl.store %v6, %ptr6 : vector<8xf32>, !ptr_xdsl.ptr
 // CHECK:      builtin.module {
 // CHECK-NEXT:   %ptr6 = "test.op"() : () -> !ptr_xdsl.ptr
 // CHECK-NEXT:   %v6 = "test.op"() : () -> vector<8xf32>
-// CHECK-NEXT:   %0 = builtin.unrealized_conversion_cast %ptr6 : !ptr_xdsl.ptr to !x86.reg
-// CHECK-NEXT:   %1 = builtin.unrealized_conversion_cast %v6 : vector<8xf32> to !x86.avx2reg
-// CHECK-NEXT:   x86.ms.vmovups %0, %1, 0 : (!x86.reg, !x86.avx2reg) -> ()
+// CHECK-NEXT:   %ptr6_1 = builtin.unrealized_conversion_cast %ptr6 : !ptr_xdsl.ptr to !x86.reg
+// CHECK-NEXT:   %v6_1 = builtin.unrealized_conversion_cast %v6 : vector<8xf32> to !x86.avx2reg
+// CHECK-NEXT:   x86.ms.vmovups %ptr6_1, %v6_1, 0 : (!x86.reg, !x86.avx2reg) -> ()
 // CHECK-NEXT: }
 
 // -----
@@ -84,9 +84,9 @@ ptr_xdsl.store %v6b, %ptr6b : vector<16xf32>, !ptr_xdsl.ptr
 // CHECK:      builtin.module {
 // CHECK-NEXT:   %ptr6b = "test.op"() : () -> !ptr_xdsl.ptr
 // CHECK-NEXT:   %v6b = "test.op"() : () -> vector<16xf32>
-// CHECK-NEXT:   %0 = builtin.unrealized_conversion_cast %ptr6b : !ptr_xdsl.ptr to !x86.reg
-// CHECK-NEXT:   %1 = builtin.unrealized_conversion_cast %v6b : vector<16xf32> to !x86.avx512reg
-// CHECK-NEXT:   x86.ms.vmovups %0, %1, 0 : (!x86.reg, !x86.avx512reg) -> ()
+// CHECK-NEXT:   %ptr6b_1 = builtin.unrealized_conversion_cast %ptr6b : !ptr_xdsl.ptr to !x86.reg
+// CHECK-NEXT:   %v6b_1 = builtin.unrealized_conversion_cast %v6b : vector<16xf32> to !x86.avx512reg
+// CHECK-NEXT:   x86.ms.vmovups %ptr6b_1, %v6b_1, 0 : (!x86.reg, !x86.avx512reg) -> ()
 // CHECK-NEXT: }
 
 // -----
@@ -98,9 +98,9 @@ ptr_xdsl.store %v6, %ptr6 : vector<4xf64>, !ptr_xdsl.ptr
 // CHECK:      builtin.module {
 // CHECK-NEXT:   %ptr6 = "test.op"() : () -> !ptr_xdsl.ptr
 // CHECK-NEXT:   %v6 = "test.op"() : () -> vector<4xf64>
-// CHECK-NEXT:   %0 = builtin.unrealized_conversion_cast %ptr6 : !ptr_xdsl.ptr to !x86.reg
-// CHECK-NEXT:   %1 = builtin.unrealized_conversion_cast %v6 : vector<4xf64> to !x86.avx2reg
-// CHECK-NEXT:   x86.ms.vmovapd %0, %1, 0 : (!x86.reg, !x86.avx2reg) -> ()
+// CHECK-NEXT:   %ptr6_1 = builtin.unrealized_conversion_cast %ptr6 : !ptr_xdsl.ptr to !x86.reg
+// CHECK-NEXT:   %v6_1 = builtin.unrealized_conversion_cast %v6 : vector<4xf64> to !x86.avx2reg
+// CHECK-NEXT:   x86.ms.vmovapd %ptr6_1, %v6_1, 0 : (!x86.reg, !x86.avx2reg) -> ()
 // CHECK-NEXT: }
 
 // -----
@@ -126,9 +126,9 @@ ptr_xdsl.store %v6, %ptr6 : f32, !ptr_xdsl.ptr
 // CHECK:      builtin.module {
 // CHECK-NEXT:   %ptr6 = "test.op"() : () -> !ptr_xdsl.ptr
 // CHECK-NEXT:   %v6 = "test.op"() : () -> f32
-// CHECK-NEXT:   %0 = builtin.unrealized_conversion_cast %ptr6 : !ptr_xdsl.ptr to !x86.reg
-// CHECK-NEXT:   %1 = builtin.unrealized_conversion_cast %v6 : f32 to !x86.reg
-// CHECK-NEXT:   x86.ms.mov %0, %1, 0 : (!x86.reg, !x86.reg) -> ()
+// CHECK-NEXT:   %ptr6_1 = builtin.unrealized_conversion_cast %ptr6 : !ptr_xdsl.ptr to !x86.reg
+// CHECK-NEXT:   %v6_1 = builtin.unrealized_conversion_cast %v6 : f32 to !x86.reg
+// CHECK-NEXT:   x86.ms.mov %ptr6_1, %v6_1, 0 : (!x86.reg, !x86.reg) -> ()
 // CHECK-NEXT: }
 
 // -----

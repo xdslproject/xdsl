@@ -6,13 +6,14 @@ from typing import ClassVar
 from xdsl.dialects.builtin import (
     ArrayAttr,
     BoolAttr,
-    DenseIntOrFPElementsAttr,
+    DenseArrayBase,
     IndexType,
     IntAttr,
     IntegerAttr,
     IntegerType,
     Signedness,
     StringAttr,
+    SymbolNameConstraint,
     SymbolRefAttr,
     UnitAttr,
     i1,
@@ -64,6 +65,7 @@ from xdsl.traits import (
     NoTerminator,
     Pure,
     RecursiveMemoryEffect,
+    SymbolOpInterface,
 )
 from xdsl.utils.exceptions import VerifyException
 
@@ -260,9 +262,9 @@ class BlockArgOpenMPOperation(IRDLOperation, ABC):
             )
         expected = self.num_block_args()
 
-        if (actual := len(self.regions[0].blocks[0].args)) != expected:
+        if (actual := len(self.regions[0].blocks[0].args)) < expected:
             raise VerifyException(
-                f"{self.name} expected to have {expected} block argument(s), got {actual}"
+                f"{self.name} expected to have at least {expected} block argument(s), got {actual}"
             )
 
     @abstractmethod
@@ -508,19 +510,19 @@ class WsLoopOp(BlockArgOpenMPOperation):
 
     allocate_vars = var_operand_def()
     allocator_vars = var_operand_def()
-    linear_vars = var_operand_def(RangeOf(AnyAttr(), length=LINEAR_COUNT))
-    linear_step_vars = var_operand_def(RangeOf(eq(i32), length=LINEAR_COUNT))
+    linear_vars = var_operand_def(RangeOf(AnyAttr()).of_length(LINEAR_COUNT))
+    linear_step_vars = var_operand_def(RangeOf(eq(i32)).of_length(LINEAR_COUNT))
     private_vars = var_operand_def()
     # TODO: this is constrained to OpenMP_PointerLikeTypeInterface upstream
     # Relatively shallow interface with just `getElementType`
-    reduction_vars = var_operand_def(RangeOf(AnyAttr(), length=REDUCTION_COUNT))
+    reduction_vars = var_operand_def(RangeOf(AnyAttr()).of_length(REDUCTION_COUNT))
     schedule_chunk = opt_operand_def()
 
     reduction_syms = opt_prop_def(
-        ArrayAttr.constr(RangeOf(base(SymbolRefAttr), length=REDUCTION_COUNT))
+        ArrayAttr.constr(RangeOf(base(SymbolRefAttr)).of_length(REDUCTION_COUNT))
     )
     reduction_mod = opt_prop_def(ReductionModifierAttr)
-    reduction_byref = opt_prop_def(DenseIntOrFPElementsAttr[i1])
+    reduction_byref = opt_prop_def(DenseArrayBase[i1])
     schedule_kind = opt_prop_def(ScheduleKindAttr)
     schedule_mod = opt_prop_def(ScheduleModifierAttr)
     schedule_simd = opt_prop_def(UnitAttr)
@@ -572,7 +574,7 @@ class ParallelOp(BlockArgOpenMPOperation):
     privatizers = opt_prop_def(ArrayAttr[SymbolRefAttr])
     private_syms = opt_prop_def(ArrayAttr[SymbolRefAttr])
     reduction_mod = opt_prop_def(ReductionModifierAttr)
-    reduction_byref = opt_prop_def(DenseIntOrFPElementsAttr[i1])
+    reduction_byref = opt_prop_def(DenseArrayBase[i1])
     reduction_syms = opt_prop_def(ArrayAttr[SymbolRefAttr])
 
     irdl_options = [AttrSizedOperandSegments(as_property=True)]
@@ -581,6 +583,76 @@ class ParallelOp(BlockArgOpenMPOperation):
 
     def num_block_args(self) -> int:
         return len(self.private_vars) + len(self.reduction_vars)
+
+
+@irdl_op_definition
+class DeclareReductionOp(IRDLOperation):
+    """
+    Implementation of upstream omp.declare_reduction
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenMPDialect/ODS/#ompdeclare_reduction-ompdeclarereductionop).
+    """
+
+    name = "omp.declare_reduction"
+
+    sym_name = prop_def(SymbolNameConstraint())
+    var_type = prop_def(TypeAttribute, prop_name="type")
+
+    alloc_region = region_def()
+    init_region = region_def()
+    reduction_region = region_def()
+    atomic_reduction_region = region_def()
+    cleanup_region = region_def()
+
+    traits = traits_def(IsolatedFromAbove(), SymbolOpInterface())
+
+    assembly_format = """
+        $sym_name `:` $type attr-dict-with-keyword
+        ( `alloc` $alloc_region^ )?
+        `init` $init_region
+        `combiner` $reduction_region
+        ( `atomic` $atomic_reduction_region^ )?
+        ( `cleanup` $cleanup_region^ )?
+    """
+
+    def verify_(self) -> None:
+        if len(self.alloc_region.blocks) > 1:
+            raise VerifyException(
+                f"{self.name} should have at most 1 block in alloc_region"
+            )
+
+
+@irdl_op_definition
+class PrivateClauseOp(IRDLOperation):
+    """
+    Implementation of upstream omp.private
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenMPDialect/ODS/#ompprivate-ompprivateclauseop).
+    """
+
+    name = "omp.private"
+
+    sym_name = prop_def(SymbolNameConstraint())
+    var_type = prop_def(TypeAttribute, prop_name="type")
+    data_sharing_type = prop_def(DataSharingClauseAttr)
+
+    alloc_region = region_def()
+    copy_region = region_def()
+    dealloc_region = region_def()
+
+    traits = traits_def(IsolatedFromAbove())
+
+    assembly_format = """
+        $data_sharing_type $sym_name `:` $type
+        `alloc` $alloc_region
+        (`copy` $copy_region^)?
+        (`dealloc` $dealloc_region^)?
+        attr-dict
+    """
+
+    def verify_(self) -> None:
+        if len(self.alloc_region.blocks) < 1:
+            raise VerifyException(
+                f"alloc_region of {self.name} has to have at least 1 block"
+            )
 
 
 @irdl_op_definition
@@ -596,8 +668,8 @@ class YieldOp(AbstractYieldOperation[Attribute]):
             LoopNestOp,
             # TODO: add these when they are implemented
             # AtomicUpdateOp,
-            # PrivateClauseOp,
-            # DeclareReductionOp,
+            PrivateClauseOp,
+            DeclareReductionOp,
         ),
     )
 
@@ -625,8 +697,7 @@ class TargetOp(BlockArgOpenMPOperation):
     depend_vars = var_operand_def(
         RangeOf(
             AnyAttr(),  # TODO: OpenMP_PointerLikeTypeInterface
-            length=DEP_COUNT,
-        )
+        ).of_length(DEP_COUNT)
     )
     device = opt_operand_def(IntegerType)
     has_device_addr_vars = var_operand_def()  # TODO: OpenMP_PointerLikeTypeInterface
@@ -640,14 +711,14 @@ class TargetOp(BlockArgOpenMPOperation):
 
     bare = opt_prop_def(UnitAttr)
     depend_kinds = opt_prop_def(
-        ArrayAttr.constr(RangeOf(base(DependKindAttr), length=DEP_COUNT))
+        ArrayAttr.constr(RangeOf(base(DependKindAttr)).of_length(DEP_COUNT))
     )
-    in_reduction_byref = opt_prop_def(DenseIntOrFPElementsAttr[i1])
+    in_reduction_byref = opt_prop_def(DenseArrayBase[i1])
     in_reduction_syms = opt_prop_def(ArrayAttr[SymbolRefAttr])
     nowait = opt_prop_def(UnitAttr)
     private_syms = opt_prop_def(ArrayAttr[SymbolRefAttr])
     private_needs_barrier = opt_prop_def(UnitAttr)
-    private_maps = opt_prop_def(DenseIntOrFPElementsAttr[i64])
+    private_maps = opt_prop_def(DenseArrayBase[i64])
 
     region = region_def()
 
@@ -742,24 +813,23 @@ class SimdOp(BlockArgOpenMPOperation):
     aligned_vars = var_operand_def(
         RangeOf(
             AnyAttr(),  # TODO: OpenMP_PointerLikeTypeInterface
-            length=ALIGN_COUNT,
-        )
+        ).of_length(ALIGN_COUNT)
     )
     if_expr = opt_operand_def(i1)
-    linear_vars = var_operand_def(RangeOf(AnyAttr(), length=LINEAR_COUNT))
-    linear_step_vars = var_operand_def(RangeOf(eq(i32), length=LINEAR_COUNT))
+    linear_vars = var_operand_def(RangeOf(AnyAttr()).of_length(LINEAR_COUNT))
+    linear_step_vars = var_operand_def(RangeOf(eq(i32)).of_length(LINEAR_COUNT))
     nontemporal_vars = opt_operand_def()  # TODO: OpenMP_PointerLikeTypeInterface
     private_vars = var_operand_def()
     reduction_vars = var_operand_def()  # TODO: OpenMP_PointerLikeTypeInterface
 
     alignments = opt_prop_def(
-        ArrayAttr.constr(RangeOf(base(IntegerAttr[i64]), length=ALIGN_COUNT))
+        ArrayAttr.constr(RangeOf(base(IntegerAttr[i64])).of_length(ALIGN_COUNT))
     )
     order = opt_prop_def(OrderKindAttr)
     order_mod = opt_prop_def(OrderModifierAttr)
     private_syms = opt_prop_def(ArrayAttr[SymbolRefAttr])
     reduction_mod = opt_prop_def(ReductionModifierAttr)
-    reduction_byref = opt_prop_def(DenseIntOrFPElementsAttr[i1])
+    reduction_byref = opt_prop_def(DenseArrayBase[i1])
     reduction_syms = opt_prop_def(ArrayAttr[SymbolRefAttr])
     simdlen = opt_prop_def(IntegerAttr.constr(value=AtLeast(1), type=eq(i64)))
     safelen = opt_prop_def(IntegerAttr.constr(value=AtLeast(1), type=eq(i64)))
@@ -782,6 +852,74 @@ class SimdOp(BlockArgOpenMPOperation):
         return super().verify_()
 
 
+@irdl_op_definition
+class TeamsOp(BlockArgOpenMPOperation):
+    """
+    Implementation of upstream omp.teams
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenMPDialect/ODS/#ompteams-ompteamsop).
+    """
+
+    name = "omp.teams"
+
+    allocate_vars = var_operand_def()
+    allocator_vars = var_operand_def()
+    if_expr = opt_operand_def(i1)
+    num_teams_lower = opt_operand_def(IntegerType)
+    num_teams_upper = opt_operand_def(IntegerType)
+    private_vars = var_operand_def()
+    reduction_vars = var_operand_def()  # TODO: OpenMP_PointerLikeTypeInterface
+    thread_limit = opt_operand_def(IntegerType)
+
+    private_syms = opt_prop_def(ArrayAttr[SymbolRefAttr])
+    reduction_mod = opt_prop_def(ReductionModifierAttr)
+    reduction_byref = opt_prop_def(DenseArrayBase[i1])
+    reduction_syms = opt_prop_def(ArrayAttr[SymbolRefAttr])
+
+    body = region_def()
+
+    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    traits = traits_def(RecursiveMemoryEffect())
+
+    def num_block_args(self) -> int:
+        return len(self.private_vars) + len(self.reduction_vars)
+
+
+@irdl_op_definition
+class DistributeOp(BlockArgOpenMPOperation):
+    """
+    Implementation of upstream omp.distribute
+    https://mlir.llvm.org/docs/Dialects/OpenMPDialect/ODS/#ompdistribute-ompdistributeop
+    """
+
+    name = "omp.distribute"
+
+    allocate_vars = var_operand_def()
+    allocator_vars = var_operand_def()
+    dist_schedule_chunk_size = opt_operand_def(IntegerType | IndexType)
+    private_vars = var_operand_def()
+
+    dist_schedule_static = opt_prop_def(UnitAttr)
+    order = opt_prop_def(OrderKindAttr)
+    order_mod = opt_prop_def(OrderModifierAttr)
+    private_syms = opt_prop_def(ArrayAttr[SymbolRefAttr])
+
+    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+
+    body = region_def("single_block")
+
+    traits = traits_def(LoopWrapper(), RecursiveMemoryEffect())
+
+    def num_block_args(self) -> int:
+        return len(self.private_vars)
+
+    def verify_(self) -> None:
+        if bool(self.dist_schedule_chunk_size) != bool(self.dist_schedule_static):
+            raise VerifyException(
+                f"{self.name} should have either both dist_schedule_static and dist_schedule_chunk_size, or neither."
+            )
+        return super().verify_()
+
+
 class TargetTaskBasedDataOp(IRDLOperation):
     """
     Base class representing target data movement operations which are task based,
@@ -793,15 +931,14 @@ class TargetTaskBasedDataOp(IRDLOperation):
     depend_vars = var_operand_def(
         RangeOf(
             AnyAttr(),  # TODO: OpenMP_PointerLikeTypeInterface
-            length=DEP_COUNT,
-        )
+        ).of_length(DEP_COUNT)
     )
     device = opt_operand_def(IntegerType | IndexType)
     if_expr = opt_operand_def(i1)
     mapped_vars = var_operand_def()  # TODO: OpenMP_PointerLikeTypeInterface
 
     depend_kinds = opt_prop_def(
-        ArrayAttr.constr(RangeOf(base(DependKindAttr), length=DEP_COUNT))
+        ArrayAttr.constr(RangeOf(base(DependKindAttr)).of_length(DEP_COUNT))
     )
     nowait = opt_prop_def(UnitAttr)
 
@@ -919,10 +1056,14 @@ OMP = Dialect(
         MapBoundsOp,
         MapInfoOp,
         SimdOp,
+        TeamsOp,
+        DistributeOp,
+        PrivateClauseOp,
         TargetEnterDataOp,
         TargetExitDataOp,
         TargetUpdateOp,
         TargetDataOp,
+        DeclareReductionOp,
     ],
     [
         ClauseRequiresKindAttr,

@@ -12,7 +12,7 @@ from __future__ import annotations
 from abc import ABC
 from collections.abc import Sequence
 from dataclasses import KW_ONLY, dataclass, field
-from typing import Annotated, ClassVar, Literal, TypeAlias
+from typing import ClassVar, Literal, TypeAlias
 
 from xdsl.dialects import builtin
 from xdsl.dialects.builtin import (
@@ -31,8 +31,11 @@ from xdsl.dialects.builtin import (
     ModuleOp,
     Signedness,
     StringAttr,
+    SymbolNameConstraint,
     SymbolRefAttr,
     TensorType,
+    f16,
+    f32,
     i8,
     i16,
 )
@@ -133,7 +136,7 @@ class _FuncBase(IRDLOperation, ABC):
     """
 
     body = region_def()
-    sym_name = prop_def(StringAttr)
+    sym_name = prop_def(SymbolNameConstraint())
     function_type = prop_def(FunctionType)
     arg_attrs = opt_prop_def(ArrayAttr[DictionaryAttr])
     res_attrs = opt_prop_def(ArrayAttr[DictionaryAttr])
@@ -354,12 +357,8 @@ DsdElementTypeConstr = (
 )
 
 
-f16_pointer = PtrType(
-    Float16Type(), PtrKindAttr(PtrKind.SINGLE), PtrConstAttr(PtrConst.VAR)
-)
-f32_pointer = PtrType(
-    Float32Type(), PtrKindAttr(PtrKind.SINGLE), PtrConstAttr(PtrConst.VAR)
-)
+f16_pointer = PtrType(f16, PtrKindAttr(PtrKind.SINGLE), PtrConstAttr(PtrConst.VAR))
+f32_pointer = PtrType(f32, PtrKindAttr(PtrKind.SINGLE), PtrConstAttr(PtrConst.VAR))
 i8_value = IntegerType(8, Signedness.SIGNED)
 u16_value = IntegerType(16, Signedness.UNSIGNED)
 i16_value = IntegerType(16, Signedness.SIGNED)
@@ -407,15 +406,13 @@ class VarType(ParametrizedAttribute, TypeAttribute, ContainerType):
         return self.child_type
 
 
-ColorIdAttr: TypeAlias = IntegerAttr[
-    Annotated[
-        IntegerType,
-        eq(IntegerType(5, Signedness.UNSIGNED))
-        | eq(IntegerType(6, Signedness.UNSIGNED)),
-    ]
-]
+ColorId = IntegerType[Literal[5, 6], Signedness.UNSIGNED]
 
-QueueIdAttr: TypeAlias = IntegerAttr[Annotated[IntegerType, IntegerType(3)]]
+ColorIdAttr: TypeAlias = IntegerAttr[ColorId]
+
+I3 = IntegerType[3, Signedness.SIGNLESS]
+
+QueueIdAttr: TypeAlias = IntegerAttr[I3]
 
 ParamAttr: TypeAlias = FloatAttr | IntegerAttr
 
@@ -435,6 +432,8 @@ class VariableOp(IRDLOperation):
 
     default = opt_prop_def(ParamAttr)
     res = result_def(VarType)
+
+    assembly_format = "`(` $default `)` `:` type($res) attr-dict"
 
     def get_element_type(self):
         assert isinstance(self.res.type, VarType)
@@ -476,6 +475,8 @@ class LoadVarOp(IRDLOperation):
 
     traits = traits_def(MemoryReadEffect())
 
+    assembly_format = "`(` $var `:` type($var) `)` `:` type($res) attr-dict"
+
     def __init__(self, var: VariableOp | SSAValue):
         if isinstance(var, SSAValue):
             assert isinstance(var.type, VarType)
@@ -507,6 +508,10 @@ class StoreVarOp(IRDLOperation):
     new_value = operand_def()
 
     traits = traits_def(MemoryWriteEffect())
+
+    assembly_format = (
+        "$var `:` type($var) `=` $new_value `:` type($new_value) attr-dict"
+    )
 
     def __init__(self, var: VariableOp, new_value: Operation | SSAValue):
         super().__init__(operands=[var, new_value])
@@ -545,7 +550,7 @@ class CslModuleOp(IRDLOperation):
     name = "csl.module"
     body = region_def("single_block")
     kind = prop_def(ModuleKindAttr)
-    sym_name = attr_def(StringAttr)
+    sym_name = attr_def(SymbolNameConstraint())
 
     traits = traits_def(
         HasParent(ModuleOp),
@@ -848,7 +853,7 @@ class TaskOp(_FuncBase):
             task_kind = TaskKindAttr(task_kind)
         if isinstance(id, int):
             id = IntegerAttr(
-                id, IntegerType(task_kind.get_color_bits(), Signedness.UNSIGNED)
+                id, ColorId(task_kind.get_color_bits(), Signedness.UNSIGNED)
             )
         if id is not None:
             assert id.type.width.data == task_kind.get_color_bits(), (
@@ -964,9 +969,7 @@ class ActivateOp(IRDLOperation):
         if isinstance(kind, TaskKind):
             kind = TaskKindAttr(kind)
         if isinstance(id, int):
-            id = IntegerAttr(
-                id, IntegerType(kind.get_color_bits(), Signedness.UNSIGNED)
-            )
+            id = IntegerAttr(id, ColorId(kind.get_color_bits(), Signedness.UNSIGNED))
 
         super().__init__(properties={"id": id, "kind": kind})
 
@@ -2041,7 +2044,7 @@ class SignednessCastOp(IRDLOperation):
         """
         if result_type is None:
             typ = op.results[0].type if isinstance(op, Operation) else op.type
-            assert isinstance(typ, IntegerType)
+            assert isa(typ, IntegerType)
             result_type = IntegerType(
                 typ.width,
                 (
@@ -2053,7 +2056,7 @@ class SignednessCastOp(IRDLOperation):
         super().__init__(operands=[op], result_types=[result_type])
 
     def verify_(self) -> None:
-        assert isinstance(self.inp.type, IntegerType)
+        assert isa(self.inp.type, IntegerType)
         assert isinstance(self.result.type, IntegerType)
         if self.inp.type.width != self.result.type.width:
             raise VerifyException("Input and output type must be of same bitwidth")

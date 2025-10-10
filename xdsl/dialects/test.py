@@ -44,9 +44,9 @@ class TestOp(IRDLOperation):
     ops = var_operand_def()
     regs = var_region_def()
 
-    prop1 = opt_prop_def(Attribute)
-    prop2 = opt_prop_def(Attribute)
-    prop3 = opt_prop_def(Attribute)
+    prop1 = opt_prop_def()
+    prop2 = opt_prop_def()
+    prop3 = opt_prop_def()
 
     def __init__(
         self,
@@ -83,9 +83,9 @@ class TestTermOp(IRDLOperation):
     regs = var_region_def()
     successor = var_successor_def()
 
-    prop1 = opt_prop_def(Attribute)
-    prop2 = opt_prop_def(Attribute)
-    prop3 = opt_prop_def(Attribute)
+    prop1 = opt_prop_def()
+    prop2 = opt_prop_def()
+    prop3 = opt_prop_def()
 
     traits = traits_def(IsTerminator())
 
@@ -126,9 +126,9 @@ class TestPureOp(IRDLOperation):
     regs = var_region_def()
     successor = var_successor_def()
 
-    prop1 = opt_prop_def(Attribute)
-    prop2 = opt_prop_def(Attribute)
-    prop3 = opt_prop_def(Attribute)
+    prop1 = opt_prop_def()
+    prop2 = opt_prop_def()
+    prop3 = opt_prop_def()
 
     traits = traits_def(Pure())
 
@@ -169,9 +169,9 @@ class TestReadOp(IRDLOperation):
     regs = var_region_def()
     successor = var_successor_def()
 
-    prop1 = opt_prop_def(Attribute)
-    prop2 = opt_prop_def(Attribute)
-    prop3 = opt_prop_def(Attribute)
+    prop1 = opt_prop_def()
+    prop2 = opt_prop_def()
+    prop3 = opt_prop_def()
 
     traits = traits_def(MemoryReadEffect())
 
@@ -212,9 +212,9 @@ class TestWriteOp(IRDLOperation):
     regs = var_region_def()
     successor = var_successor_def()
 
-    prop1 = opt_prop_def(Attribute)
-    prop2 = opt_prop_def(Attribute)
-    prop3 = opt_prop_def(Attribute)
+    prop1 = opt_prop_def()
+    prop2 = opt_prop_def()
+    prop3 = opt_prop_def()
 
     traits = traits_def(MemoryWriteEffect())
 

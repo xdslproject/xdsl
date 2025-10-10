@@ -19,6 +19,7 @@ from xdsl.dialects.builtin import (
     IntAttr,
     LocationAttr,
     StringAttr,
+    SymbolNameConstraint,
     SymbolRefAttr,
 )
 from xdsl.ir import (
@@ -811,7 +812,7 @@ class HWModuleOp(IRDLOperation):
 
     name = "hw.module"
 
-    sym_name = attr_def(StringAttr)
+    sym_name = attr_def(SymbolNameConstraint())
     module_type = attr_def(ModuleType)
     sym_visibility = opt_attr_def(StringAttr)
     parameters = opt_attr_def(ArrayAttr[ParamDeclAttr])
@@ -928,7 +929,7 @@ class HWModuleExternOp(IRDLOperation):
 
     name = "hw.module.extern"
 
-    sym_name = attr_def(StringAttr)
+    sym_name = attr_def(SymbolNameConstraint())
     module_type = attr_def(ModuleType)
     sym_visibility = opt_attr_def(StringAttr)
     parameters = opt_attr_def(ArrayAttr[ParamDeclAttr])

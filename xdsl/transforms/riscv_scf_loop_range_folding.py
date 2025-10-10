@@ -17,7 +17,7 @@ class HoistIndexTimesConstantOp(RewritePattern):
 
         # Fold until a fixed point is reached
         while True:
-            if len(index.uses) != 1:
+            if not index.has_one_use():
                 # If the induction variable is used more than once, we can't fold its
                 # arith ops into the loop range
                 return

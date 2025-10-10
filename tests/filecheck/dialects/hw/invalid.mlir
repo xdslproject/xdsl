@@ -83,7 +83,7 @@ hw.module @double_param<param: i1, param: i1>() {
 
 "builtin.module"() ({
   "hw.module"() ({
-  ^0:
+  ^bb0:
     "hw.output"() : () -> ()
   }) {"sym_name" = "too_few_args", "module_type" = !hw.modty<input a : i32>, "parameters" = []} : () -> ()
 }) : () -> ()
@@ -94,7 +94,7 @@ hw.module @double_param<param: i1, param: i1>() {
 
 "builtin.module"() ({
   "hw.module"() ({
-  ^0(%a: i32, %b: i32):
+  ^bb0(%a: i32, %b: i32):
     "hw.output"() : () -> ()
   }) {"sym_name" = "too_many_args", "module_type" = !hw.modty<input a : i32>, "parameters" = []} : () -> ()
 }) : () -> ()
@@ -105,7 +105,7 @@ hw.module @double_param<param: i1, param: i1>() {
 
 "builtin.module"() ({
   "hw.module"() ({
-  ^0(%a: i8):
+  ^bb0(%a: i8):
     "hw.output"() : () -> ()
   }) {"sym_name" = "wrong_arg", "module_type" = !hw.modty<input a : i32>, "parameters" = []} : () -> ()
 }) : () -> ()

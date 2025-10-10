@@ -46,7 +46,7 @@ from xdsl.ir import Dialect
 from xdsl.parser import Parser
 from xdsl.passes import ModulePass, PassPipeline
 from xdsl.printer import Printer
-from xdsl.transforms import get_all_passes, individual_rewrite
+from xdsl.transforms import get_all_passes
 
 from ._pasteboard import pyclip_copy
 
@@ -78,12 +78,11 @@ class InputApp(App[None]):
     A dictionary that maps names on to Screen objects.
     """
 
-    INITIAL_IR_TEXT = """
-        func.func @hello(%n : i32) -> i32 {
-          %two = arith.constant 0 : i32
-          %res = arith.addi %two, %n : i32
-          func.return %res : i32
-        }
+    INITIAL_IR_TEXT = """func.func @hello(%n : i32) -> i32 {
+    %two = arith.constant 0 : i32
+    %res = arith.addi %two, %n : i32
+    func.return %res : i32
+}
         """
 
     all_dialects: tuple[tuple[str, Callable[[], Dialect]], ...]
@@ -230,6 +229,9 @@ class InputApp(App[None]):
                 data=module_pass,
             )
 
+        # Expand the root node to show all passes on initialization
+        self.passes_tree.root.expand()
+
         # initialize GUI with either specified input text or default example
         self.input_text_area.load_text(self.pre_loaded_input_text)
 
@@ -250,7 +252,7 @@ class InputApp(App[None]):
         """
         match self.current_module:
             case None:
-                return tuple(AvailablePass(p.name, p) for _, p in self.all_passes)
+                return tuple(AvailablePass(p) for _, p in self.all_passes)
             case Exception():
                 return ()
             case ModuleOp():
@@ -260,7 +262,6 @@ class InputApp(App[None]):
                     self.input_text_area.text,
                     self.pass_pipeline,
                     self.condense_mode,
-                    individual_rewrite.INDIVIDUAL_REWRITE_PATTERNS_BY_NAME,
                 )
 
     def watch_available_pass_list(
@@ -339,10 +340,10 @@ class InputApp(App[None]):
         # remove potential children nodes in case expand node has been clicked multiple times on the same node
         expanded_pass.remove_children()
 
-        for pass_name, value in child_pass_list:
+        for value in child_pass_list:
             expanded_pass.add(
-                label=pass_name,
-                data=value,
+                label=str(value),
+                data=value.module_pass,
             )
 
     def update_root_of_passes_tree(self) -> None:
@@ -471,7 +472,6 @@ class InputApp(App[None]):
             self.input_text_area.text,
             child_pass_pipeline,
             self.condense_mode,
-            individual_rewrite.INDIVIDUAL_REWRITE_PATTERNS_BY_NAME,
         )
 
         self.expand_node(expanded_node, child_pass_list)

@@ -4,9 +4,11 @@ that is inherited from the different parsers used in xDSL.
 """
 
 from dataclasses import dataclass
+from typing import NoReturn
 
 from typing_extensions import TypeVar
 
+from xdsl.utils.lexer import Span
 from xdsl.utils.mlir_lexer import MLIRTokenKind, PunctuationSpelling, StringLiteral
 from xdsl.utils.str_enum import StrEnum
 
@@ -226,6 +228,26 @@ class BaseParser(GenericParser[MLIRTokenKind]):
             self.parse_optional_identifier, "identifier expected" + context_msg
         )
 
+    def parse_optional_identifier_or_str_literal(self) -> str | None:
+        """
+        Parse an identifier or a string literal, if present.
+            ident_or_str ::= ident | str_lit
+        """
+
+        if (ident := self.parse_optional_identifier()) is not None:
+            return ident
+        return self.parse_optional_str_literal()
+
+    def parse_identifier_or_str_literal(self, context_msg: str = "") -> str:
+        """
+        Parse an identifier or a string literal, if present.
+            ident_or_str ::= ident | str_lit
+        """
+        return self.expect(
+            self.parse_optional_identifier_or_str_literal,
+            "identifier or string literal expected" + context_msg,
+        )
+
     def parse_optional_keyword(self, keyword: str) -> str | None:
         """Parse a specific identifier if it is present"""
 
@@ -278,27 +300,32 @@ class BaseParser(GenericParser[MLIRTokenKind]):
         self._parse_token(kind, f"Expected '{punctuation}'" + context_msg)
         return punctuation
 
+    def _raise_wrong_str_enum_value_error(
+        self, enum_type: type[_EnumType], span: Span
+    ) -> NoReturn:
+        """Raise an error for an unexpected string enum value."""
+        enum_values = tuple(enum_type)
+        if len(enum_values) == 1:
+            self.raise_error(f"Expected `{enum_values[0]}`.", span)
+        self.raise_error(
+            f"Expected `{'`, `'.join(enum_values[:-1])}`, or `{enum_values[-1]}`.",
+            span,
+        )
+
     def parse_str_enum(self, enum_type: type[_EnumType]) -> _EnumType:
         """Parse a string enum value."""
+        span = self._current_token.span
         result = self.parse_optional_str_enum(enum_type)
         if result is not None:
             return result
-        enum_values = tuple(enum_type)
-        if len(enum_values) == 1:
-            self.raise_error(f"Expected `{enum_values[0]}`.")
-        self.raise_error(
-            f"Expected `{'`, `'.join(enum_values[:-1])}`, or `{enum_values[-1]}`."
-        )
+        self._raise_wrong_str_enum_value_error(enum_type, span)
 
     def parse_optional_str_enum(self, enum_type: type[_EnumType]) -> _EnumType | None:
         """Parse a string enum value, if present."""
-
-        if self._current_token.kind != MLIRTokenKind.BARE_IDENT:
+        span = self._current_token.span
+        value = self.parse_optional_identifier_or_str_literal()
+        if value is None:
             return None
-
-        val = self._current_token.text
-        if val not in enum_type.__members__.values():
-            return None
-
-        self._consume_token(MLIRTokenKind.BARE_IDENT)
-        return enum_type(val)
+        if value not in enum_type.__members__.values():
+            self._raise_wrong_str_enum_value_error(enum_type, span)
+        return enum_type(value)

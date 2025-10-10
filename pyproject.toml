@@ -13,6 +13,10 @@ dependencies = [
 ]
 dynamic = ["version"]
 
+[project.entry-points.'xdsl.universe']
+xdsl = 'xdsl.universe:XDSL_UNIVERSE'
+
+
 [project.optional-dependencies]
 dev = [
     "toml<0.11",
@@ -21,28 +25,22 @@ dev = [
     "ipykernel",
     "pytest<8.5",
     "nbval<0.12",
-    "filecheck==1.0.2",
+    "filecheck==1.0.3",
     "lit<19.0.0",
-    "marimo==0.14.11",
+    "marimo==0.16.5",
     "pre-commit>=4.0.0,<5.0.0",
-    "ruff==0.12.3",
+    "ruff==0.14.0",
     "nbconvert>=7.7.2,<8.0.0",
     "textual-dev==1.7.0",
-    "pytest-asyncio==1.1.0",
-    "pyright==1.1.403",
+    "pytest-asyncio==1.2.0",
+    "pyright==1.1.406",
     "sympy==1.14.0",
 ]
-docs = [
-    "mkdocs-gen-files>=0.5.0",
-    "mkdocs-material>=9.5.49",
-    "mkdocs>=1.6.1",
-    "mkdocstrings[python]>=0.27.0",
-    "pymdown-extensions>=10.7",
-    "lzstring2",
-]
-gui = ["textual>=4,<5", "pyclip==0.7"]
+gui = ["textual>=6,<7", "pyclip==0.7"]
 jax = ["jax==0.6.0", "numpy==2.2.6"]
-riscv = ["riscemu==2.2.7"]
+
+[dependency-groups]
+dev = ["xdsl[dev,gui]", "my_plugin"]
 bench = [
     "asv>=0.6.4",
     "snakeviz>=2.2.2",
@@ -51,6 +49,19 @@ bench = [
     "orjson>=3.10.15",
     "pyinstrument>=5.0.1",
     "bytesight",
+]
+docs = [
+    "lzstring2",
+    "mkdocs-awesome-nav>=3.1.2",
+    "mkdocs-gen-files>=0.5.0",
+    "mkdocs-marimo>=0.2.1",
+    "mkdocs-material>=9.5.49",
+    "mkdocs-simple-hooks>=0.1.5",
+    "mkdocs>=1.6.1",
+    "mkdocstrings[python]>=0.27.0",
+    "pymdown-extensions>=10.7",
+    "riscemu==2.2.7",
+    "micropip>=0.7",
 ]
 
 [project.urls]
@@ -75,7 +86,8 @@ zip-safe = false
 
 [tool.uv.sources]
 lzstring2 = { git = "https://github.com/superlopuh/lz-string.git" }
-bytesight = { git = "https://github.com/EdmundGoodman/bytesight.git", rev = "ee773b979ba70d707a4d6532244de21496399c08" }
+bytesight = { git = "https://github.com/EdmundGoodman/bytesight.git", rev = "e8e8e45ec34316fdc99ee09ea8886c4f63c248be" }
+my_plugin = { path = "tests/my_plugin" }
 
 [tool.setuptools.packages]
 find = {}
@@ -101,7 +113,7 @@ reportUnnecessaryIsInstance = true
 reportUnnecessaryTypeIgnoreComment = true
 typeCheckingMode = "strict"
 extraPaths = ["tests"]
-"include" = ["docs", "xdsl", "tests"]
+"include" = ["docs", "xdsl", "tests", "benchmarks"]
 "exclude" = ["docs/marimo"]
 
 [tool.ruff]
@@ -167,7 +179,7 @@ max-complexity = 10
 exclude = ["docs/marimo/**/*.py"]
 
 [tool.pytest.ini_options]
-python_files = ["tests/*test_*.py", "docs/*test_*.py"]
+python_files = ["tests/*test_*.py", "docs/*test_*.py", "docs/marimo/**.py"]
 python_classes = "Test_*"
 python_functions = "test_*"
 addopts = ["--durations=20", "--maxfail=5", "--import-mode=importlib"]
