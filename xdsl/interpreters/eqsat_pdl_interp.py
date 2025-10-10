@@ -362,12 +362,13 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
         if existing_op := self.known_ops.get(new_op):
             # CSE can have removed the existing operation, here we check if it is still in use:
             assert existing_op.results
-            if existing_op.parent is not None:
+            if existing_op.parent is new_op.parent:
                 self.rewriter.erase_op(new_op)
                 self.rewriter.has_done_action = has_done_action_checkpoint
-                if (
-                    first_use := existing_op.results[0].first_use
-                ) is None or not isinstance(first_use.operation, eqsat.AnyEClassOp):
+                if not any(
+                    isinstance(use.operation, eqsat.AnyEClassOp)
+                    for use in existing_op.results[0].uses
+                ):
                     # It is possible that the existing_op was stripped from its eclass when it merged with a constant eclass.
                     # In this case we should wrap it in a new eclass:
                     new_op = existing_op
