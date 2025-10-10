@@ -156,7 +156,10 @@ class InvalidIRDLOpts(IRDLOperation):
 
 def test_invalid_irdl_options():
     """Check that irdl_options only contains IRDLOptions"""
-    with pytest.raises(PyRDLOpDefinitionError):
+    with pytest.raises(
+        PyRDLOpDefinitionError,
+        match="All values in irdl_options should inherit IRDLOption",
+    ):
         irdl_op_definition(InvalidIRDLOpts)
 
 
