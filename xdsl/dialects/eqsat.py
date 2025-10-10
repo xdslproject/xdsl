@@ -129,6 +129,7 @@ class EClassOp(IRDLOperation):
 
 
 AnyEClassOp = EClassOp | ConstantEClassOp
+"""A type representing either a regular e-class operation or a constant e-class operation."""
 
 
 @irdl_op_definition
