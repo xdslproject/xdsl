@@ -989,7 +989,7 @@ class OpDef:
 
                 if field_name == "irdl_options":
                     if not isa(value, list[IRDLOption]):
-                        raise ValueError(
+                        raise PyRDLOpDefinitionError(
                             "All values in irdl_options should inherit IRDLOption"
                         )
                     op_def.options.extend(value)
