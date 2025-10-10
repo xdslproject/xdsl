@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
 from enum import Enum, auto
+from itertools import chain
 from typing import TYPE_CHECKING
 
 from typing_extensions import assert_never
@@ -70,6 +71,50 @@ class AffineExpr(ABC):
                 return lhs.ceil_div(rhs)
             case _:
                 assert_never(kind)
+
+    @staticmethod
+    def from_flat_form(
+        flat_exprs: Sequence[int],
+        num_dims: int,
+        num_symbols: int,
+        local_exprs: Sequence[AffineExpr],
+    ) -> AffineExpr:
+        """
+        Constructs an affine expression from a flat list of coefficients.
+        If there are local identifiers (neither dimensional nor symbolic) that appear in
+        the sum of products expression, `local_exprs` is expected to have the AffineExpr
+        for it, and is substituted into.
+        The list `flat_exprs` is expected to be in the format [*dims, *symbols, *locals,
+        constant term].
+        """
+        assert len(flat_exprs) == num_dims + num_symbols + len(local_exprs) + 1, (
+            f"unexpected number of local expressions {len(local_exprs)}, expected "
+            f"{len(flat_exprs) - num_dims - num_symbols - 1}"
+        )
+
+        expr = sum(
+            (
+                e * f
+                for e, f in zip(
+                    chain(
+                        (AffineExpr.dimension(d) for d in range(num_dims)),
+                        (AffineExpr.symbol(s) for s in range(num_symbols)),
+                        local_exprs,
+                    ),
+                    flat_exprs[:-1],
+                    strict=True,
+                )
+                if f != 0
+            ),
+            start=AffineExpr.constant(0),
+        )
+
+        # Constant term
+        const_term = flat_exprs[-1]
+        if const_term != 0:
+            expr = expr + const_term
+
+        return expr
 
     def compose(self, map: AffineMap) -> AffineExpr:
         """
