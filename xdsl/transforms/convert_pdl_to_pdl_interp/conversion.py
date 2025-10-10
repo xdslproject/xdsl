@@ -56,8 +56,6 @@ class BoolNode(MatcherNode):
 
     answer: Answer
 
-    success_node: MatcherNode | None = None
-
 
 @dataclass
 class SwitchNode(MatcherNode):
@@ -659,7 +657,7 @@ def _depends_on(pred_a: OrderedPredicate, pred_b: OrderedPredicate) -> bool:
     return position_depends_on_a(pred_b.position)
 
 
-def _stable_topological_sort(  # pyright: ignore[reportUnusedFunction]
+def _stable_topological_sort(
     predicates: list[OrderedPredicate],
 ) -> list[OrderedPredicate]:
     """Sorts predicates topologically while maintaining stability for independent items."""
@@ -709,6 +707,44 @@ class PredicateTreeBuilder:
         self.analyzer = PatternAnalyzer()
         self._pattern_roots = {}
         self.pattern_value_positions = {}
+
+    def build_predicate_tree(self, patterns: list[pdl.PatternOp]) -> MatcherNode:
+        """Build optimized matcher tree from multiple patterns"""
+
+        # Extract predicates for all patterns
+        all_pattern_predicates: list[
+            tuple[pdl.PatternOp, list[PositionalPredicate]]
+        ] = []
+        for pattern in patterns:
+            predicates, root, inputs = self._extract_pattern_predicates(pattern)
+            all_pattern_predicates.append((pattern, predicates))
+            self._pattern_roots[pattern] = root
+            self.pattern_value_positions[pattern] = inputs
+
+        # Create ordered predicates with frequency analysis
+        ordered_predicates = self._create_ordered_predicates(all_pattern_predicates)
+        # Sort predicates by priority
+        sorted_predicates = sorted(ordered_predicates.values())
+        sorted_predicates = _stable_topological_sort(sorted_predicates)
+
+        # Build matcher tree by propagating patterns
+        root_node = None
+        for pattern, predicates in all_pattern_predicates:
+            pattern_predicate_set = {
+                (pred.position, pred.q): pred for pred in predicates
+            }
+            root_node = self._propagate_pattern(
+                root_node, pattern, pattern_predicate_set, sorted_predicates, 0
+            )
+
+        # Add exit node and optimize
+        if root_node is not None:
+            root_node = self._optimize_tree(root_node)
+            root_node = self._insert_exit_node(root_node)
+            return root_node
+        else:
+            # Return a default exit node if no patterns were processed
+            return ExitNode()
 
     def _extract_pattern_predicates(
         self, pattern: pdl.PatternOp
