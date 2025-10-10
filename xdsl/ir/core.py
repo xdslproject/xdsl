@@ -1403,10 +1403,10 @@ class Operation(_IRNode):
         return Dialect.split_name(cls.name)[0]
 
     def __str__(self) -> str:
-        from xdsl.printer import Printer
+        from xdsl.syntax_printer import SyntaxPrinter
 
         res = StringIO()
-        printer = Printer(stream=res)
+        printer = SyntaxPrinter(stream=res)
         printer.print_op(self)
         return res.getvalue()
 
@@ -1931,6 +1931,14 @@ class Block(_IRNode, IRWithUses):
             return False
 
         return True
+
+    def __str__(self) -> str:
+        from xdsl.syntax_printer import SyntaxPrinter
+
+        res = StringIO()
+        printer = SyntaxPrinter(stream=res)
+        printer.print_block(self)
+        return res.getvalue()
 
 
 @dataclass
@@ -2549,6 +2557,14 @@ class Region(_IRNode):
         ):
             return False
         return True
+
+    def __str__(self) -> str:
+        from xdsl.syntax_printer import SyntaxPrinter
+
+        res = StringIO()
+        printer = SyntaxPrinter(stream=res)
+        printer.print_region(self)
+        return res.getvalue()
 
 
 IRNode: TypeAlias = Operation | Region | Block

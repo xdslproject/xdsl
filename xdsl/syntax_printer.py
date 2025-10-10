@@ -1,4 +1,4 @@
-from xdsl.ir import Attribute, Block, Operation, Region, TypeAttribute
+from xdsl.ir import Attribute, TypeAttribute
 from xdsl.printer import Printer
 from xdsl.utils.color_printer import ColorPrinter
 from xdsl.utils.colors import Colors
@@ -18,14 +18,3 @@ class SyntaxPrinter(Printer, ColorPrinter):
             with self.colored(Colors.GREEN):
                 return super().print_attribute(attribute)
         return super().print_attribute(attribute)
-
-
-def pprint(obj: Operation | Region | Block):
-    printer = SyntaxPrinter()
-
-    if isinstance(obj, Operation):
-        printer.print_op(obj)
-    elif isinstance(obj, Region):
-        printer.print_region(obj)
-    elif isinstance(obj, Block):
-        printer.print_block(obj)
