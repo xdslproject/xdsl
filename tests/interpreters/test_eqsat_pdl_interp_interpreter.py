@@ -1129,3 +1129,139 @@ def test_run_choose_error_wrong_op():
         match="Expected this ChooseOp to be at the top of the backtrack stack.",
     ):
         interp_functions.run_choose(interpreter, choose_op2, ())
+
+
+def test_eclass_union_different_constants_fails():
+    """Test that eclass_union of two ConstantEClassOp with different constant values fails."""
+    ctx = Context()
+    interp_functions = EqsatPDLInterpFunctions(ctx)
+
+    from xdsl.builder import ImplicitBuilder
+    from xdsl.dialects.builtin import IntegerAttr
+    from xdsl.ir import Block, Region
+
+    testmodule = ModuleOp(Region([Block()]))
+    block = testmodule.body.first_block
+    with ImplicitBuilder(block):
+        # Create two constant operations with different values
+        const1 = arith.ConstantOp(IntegerAttr(1, i32))
+        const2 = arith.ConstantOp(IntegerAttr(2, i32))
+
+        # Create ConstantEClassOp for both
+        const_eclass1 = eqsat.ConstantEClassOp(const1.result)
+        const_eclass1.value = IntegerAttr(1, i32)
+        const_eclass2 = eqsat.ConstantEClassOp(const2.result)
+        const_eclass2.value = IntegerAttr(2, i32)
+
+    # Add both to union-find
+    interp_functions.eclass_union_find.add(const_eclass1)
+    interp_functions.eclass_union_find.add(const_eclass2)
+
+    # Should raise assertion error when trying to union different constant eclasses
+    with pytest.raises(
+        AssertionError, match="Trying to union two different constant eclasses."
+    ):
+        interp_functions.eclass_union(const_eclass1, const_eclass2)
+
+
+def test_run_replace_no_uses_returns_empty():
+    """Test that run_replace returns empty tuple when input_op has no uses."""
+    interpreter = Interpreter(ModuleOp([]))
+    ctx = Context()
+    interp_functions = EqsatPDLInterpFunctions(ctx)
+
+    from xdsl.builder import ImplicitBuilder
+    from xdsl.ir import Block, Region
+
+    testmodule = ModuleOp(Region([Block()]))
+    block = testmodule.body.first_block
+    with ImplicitBuilder(block):
+        # Create test operation with no uses
+        c0 = create_ssa_value(i32)
+        input_op = test.TestOp((c0,), (i32,))
+        # Don't create any uses for input_op.results[0]
+
+        # Create replacement eclass
+        replacement_op = test.TestOp((c0,), (i32,))
+        replacement_eclass = eqsat.EClassOp(replacement_op.results[0], res_type=i32)
+
+    # Add replacement eclass to union-find
+    interp_functions.eclass_union_find.add(replacement_eclass)
+
+    # Create a ReplaceOp for testing
+    input_op_value = create_ssa_value(pdl.OperationType())
+    repl_value = create_ssa_value(pdl.ValueType())
+    replace_op = pdl_interp.ReplaceOp(input_op_value, [repl_value])
+
+    rewriter = PatternRewriter(input_op)
+    interp_functions.rewriter = rewriter
+
+    # Call run_replace - should return empty tuple since input_op has no uses
+    result = interp_functions.run_replace(
+        interpreter, replace_op, (input_op, replacement_eclass.results[0])
+    )
+
+    # Should return empty tuple
+    assert result.values == ()
+
+
+def test_run_create_operation_folding():
+    """Test that run_create_operation handles folding operations correctly."""
+    interpreter = Interpreter(ModuleOp([]))
+    ctx = Context()
+    ctx.register_dialect("arith", lambda: arith.Arith)
+    interp_functions = EqsatPDLInterpFunctions(ctx)
+    interpreter.register_implementations(interp_functions)
+
+    from xdsl.builder import ImplicitBuilder
+    from xdsl.dialects.builtin import IntegerAttr
+    from xdsl.ir import Block, Region
+    from xdsl.pattern_rewriter import PatternRewriter
+
+    testmodule = ModuleOp(Region([Block()]))
+    block = testmodule.body.first_block
+    with ImplicitBuilder(block):
+        root = test.TestOp()
+
+        # Create constant operations
+        const1 = arith.ConstantOp(IntegerAttr(1, i32))
+        const2 = arith.ConstantOp(IntegerAttr(2, i32))
+
+        # Create constant eclasses
+        const_eclass1 = eqsat.ConstantEClassOp(const1.result)
+        const_eclass2 = eqsat.ConstantEClassOp(const2.result)
+
+    rewriter = PatternRewriter(root)
+    interp_functions.rewriter = rewriter
+    interp_functions.populate_known_ops(testmodule)
+
+    # Add eclasses to union-find
+    interp_functions.eclass_union_find.add(const_eclass1)
+    interp_functions.eclass_union_find.add(const_eclass2)
+
+    # Create CreateOperationOp for arith.addi
+    create_op = pdl_interp.CreateOperationOp(
+        name="arith.addi",
+        input_operands=[const_eclass1.result, const_eclass2.result],
+        input_attributes=[],
+        input_result_types=[create_ssa_value(pdl.TypeType())],
+    )
+
+    # Run the create operation - should fold into arith.constant with value=3
+    result = interp_functions.run_create_operation(
+        interpreter, create_op, (const_eclass1.result, const_eclass2.result, i32)
+    )
+
+    # Should return the created operation
+    assert len(result.values) == 1
+    created_op = result.values[0]
+    assert isinstance(created_op, Operation)
+
+    # The created operation should be wrapped in a new eclass
+    # Check that there's an eclass using this operation
+    eclass_users = [
+        use.operation
+        for use in created_op.results[0].uses
+        if isinstance(use.operation, (eqsat.EClassOp, eqsat.ConstantEClassOp))
+    ]
+    assert len(eclass_users) == 1, "Created operation should be wrapped in an eclass"
