@@ -2190,6 +2190,11 @@ def irdl_op_definition(cls: type[IRDLOperationInvT]) -> type[IRDLOperationInvT]:
         f"class {cls.__name__} should be a subclass of IRDLOperation"
     )
 
+    # This is required as traits are mutable, and thus we do not want to mutate
+    # the parent traits.
+    if (traits := getattr(cls, "traits", None)) is not None:
+        cls.traits = traits.copy()
+
     op_def = OpDef.from_pyrdl(cls)
     new_attrs = get_accessors_from_op_def(op_def, getattr(cls, "verify_", None))
 
