@@ -10,12 +10,7 @@ class SyntaxPrinter(Printer, ColorPrinter):
     """
 
     def print_op_name(self, name: str):
-        dialect = name.split(".")[0]
-        if dialect in ["scf", "cf", "func"]:
-            color = Colors.MAGENTA
-        else:
-            color = Colors.CYAN
-        with self.colored(color):
+        with self.colored(Colors.CYAN):
             return super().print_op_name(name)
 
     def print_attribute(self, attribute: Attribute):
