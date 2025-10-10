@@ -1854,11 +1854,11 @@ class AbstractFloatArithOp(IRDLOperation, ABC):
 
     fastmathFlags = prop_def(FastMathAttr, default_value=FastMathAttr(None))
 
-    traits = traits_def(Pure())
+    traits = traits_def(Pure(), SameOperandsAndResultType())
 
     assembly_format = "$lhs `,` $rhs attr-dict `:` type($lhs)"
 
-    irdl_options = [ParsePropInAttrDict(), SameOperandsAndResultType()]
+    irdl_options = [ParsePropInAttrDict()]
 
     def __init__(
         self,
