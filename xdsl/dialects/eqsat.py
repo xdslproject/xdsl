@@ -46,6 +46,10 @@ Key used to store the cost of computing the result of an operation.
 
 @irdl_op_definition
 class ConstantEClassOp(IRDLOperation, ConstantLikeInterface):
+    """An e-class representing a known constant value.
+    For non-constant e-classes, use [EClassOp][xdsl.dialects.eqsat.EClassOp].
+    """
+
     T: ClassVar = VarConstraint("T", AnyAttr())
 
     name = "eqsat.const_eclass"
@@ -78,6 +82,11 @@ class ConstantEClassOp(IRDLOperation, ConstantLikeInterface):
 
 @irdl_op_definition
 class EClassOp(IRDLOperation):
+    """An e-class representing a set of equivalent values.
+    E-classes that represent a constant value can instead
+    be represented by [ConstantEClassOp][xdsl.dialects.eqsat.ConstantEClassOp].
+    """
+
     T: ClassVar = VarConstraint("T", AnyAttr())
 
     name = "eqsat.eclass"
@@ -129,7 +138,10 @@ class EClassOp(IRDLOperation):
 
 
 AnyEClassOp = EClassOp | ConstantEClassOp
-"""A type representing either a regular e-class operation or a constant e-class operation."""
+"""
+A type representing either a [regular e-class operation][xdsl.dialects.eqsat.EClassOp]
+or a [constant e-class operation][xdsl.dialects.eqsat.ConstantEClassOp].
+"""
 
 
 @irdl_op_definition
