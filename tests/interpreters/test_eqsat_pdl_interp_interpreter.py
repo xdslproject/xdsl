@@ -79,7 +79,7 @@ def test_run_get_result_error_case():
     # Test GetResultOp should raise InterpretationError
     with pytest.raises(
         InterpretationError,
-        match="pdl_interp.get_result currently only supports operations with results that are used by a single EClassOp each.",
+        match="pdl_interp.get_result currently only supports operations with results that are used by a single eclass each.",
     ):
         interpreter.run_op(
             pdl_interp.GetResultOp(0, create_ssa_value(pdl.OperationType())), (test_op,)
@@ -128,7 +128,7 @@ def test_run_get_results_error_case():
     # Test GetResultsOp should raise InterpretationError
     with pytest.raises(
         InterpretationError,
-        match="pdl_interp.get_results currently only supports operations with results that are used by a single EClassOp each.",
+        match="pdl_interp.get_results currently only supports operations with results that are used by a single eclass each.",
     ):
         interpreter.run_op(
             pdl_interp.GetResultsOp(
@@ -381,7 +381,7 @@ def test_run_create_operation_new_operation():
     assert isinstance(eclass_op, eqsat.EClassOp)
 
 
-def test_run_create_operation_existing_operation_in_use():
+def test_run_create_operation_existing_operation_in_use_by_eclass():
     """Test that run_create_operation returns existing operation when it's still in use."""
     interpreter = Interpreter(ModuleOp([]))
     ctx = Context()
@@ -401,11 +401,13 @@ def test_run_create_operation_existing_operation_in_use():
         operand = eqsat.EClassOp(create_ssa_value(i32), res_type=i32).result
         # Create an existing operation that's identical to what we'll create
         existing_op = test.TestOp((operand,), (i32,))
+        _user_op = test.TestOp((existing_op.results[0],), (i32,))
+        _eclass_user = eqsat.EClassOp(existing_op.results[0])
+
     rewriter = PatternRewriter(root)
     interp_functions.rewriter = rewriter
 
     # Create a user for the existing operation to ensure it's "in use"
-    _user_op = test.TestOp((existing_op.results[0],), (i32,))
 
     interp_functions.populate_known_ops(testmodule)
 
@@ -430,12 +432,66 @@ def test_run_create_operation_existing_operation_in_use():
     returned_op = result.values[0]
     assert returned_op is existing_op
 
-    # Should restore the rewriter's has_done_action state
     assert rewriter.has_done_action == initial_has_done_action
 
 
+def test_run_create_operation_existing_operation_in_use():
+    """Test that run_create_operation returns existing operation when it's still in use but not by an eclass."""
+    interpreter = Interpreter(ModuleOp([]))
+    ctx = Context()
+    ctx.register_dialect("test", lambda: test.Test)
+    interp_functions = EqsatPDLInterpFunctions(ctx)
+    interpreter.register_implementations(interp_functions)
+
+    # Set up a mock rewriter
+    from xdsl.builder import ImplicitBuilder
+    from xdsl.ir import Block, Region
+    from xdsl.pattern_rewriter import PatternRewriter
+
+    testmodule = ModuleOp(Region([Block()]))
+    block = testmodule.body.first_block
+    with ImplicitBuilder(block):
+        root = test.TestOp()
+        operand = eqsat.EClassOp(create_ssa_value(i32), res_type=i32).result
+        # Create an existing operation that's identical to what we'll create
+        existing_op = test.TestOp((operand,), (i32,))
+        _user_op = test.TestOp((existing_op.results[0],), (i32,))
+
+    rewriter = PatternRewriter(root)
+    interp_functions.rewriter = rewriter
+
+    # Create a user for the existing operation to ensure it's "in use"
+
+    interp_functions.populate_known_ops(testmodule)
+
+    # Create CreateOperationOp that will create an identical operation
+    create_op = pdl_interp.CreateOperationOp(
+        name="test.op",
+        input_operands=[operand],
+        input_attributes=[],
+        input_result_types=[create_ssa_value(pdl.TypeType())],
+    )
+
+    # Run the create operation
+    result = interp_functions.run_create_operation(
+        interpreter, create_op, (operand, i32)
+    )
+
+    # Should return the existing operation, not create a new one
+    assert len(result.values) == 1
+    returned_op = result.values[0]
+    assert returned_op is existing_op
+
+    assert any(
+        isinstance(use.operation, eqsat.EClassOp) for use in returned_op.results[0].uses
+    )
+
+    assert rewriter.has_done_action  # create a new EClassOp
+
+
 def test_run_create_operation_existing_operation_not_in_use():
-    """Test that run_create_operation creates new operation when existing has no uses."""
+    """Test that run_create_operation reuses an operation not currently
+    in use by wrapping it in a new eclass."""
     interpreter = Interpreter(ModuleOp([]))
     ctx = Context()
     ctx.register_dialect("test", lambda: test.Test)
@@ -478,17 +534,13 @@ def test_run_create_operation_existing_operation_not_in_use():
         interpreter, create_op, (operand, i32)
     )
 
-    # Should return a new operation (core behavior test)
+    # Should reuse the existing operation
     assert len(result.values) == 1
     created_op = result.values[0]
-    assert isinstance(created_op, Operation)
-    assert created_op.name == "test.op"
+    assert created_op is existing_op
 
-    # The key test: should get a new operation, not the existing unused one
-    assert created_op is not existing_op
-
-    # Should create an EClass operation
-    assert interp_functions.eclass_union_find._values  # pyright: ignore[reportPrivateUsage]
+    assert existing_op.results[0].first_use, "Existing operation result have a use now"
+    assert isinstance(existing_op.results[0].first_use.operation, eqsat.EClassOp)
 
 
 def test_run_finalize_empty_stack():
@@ -693,7 +745,7 @@ def test_run_replace_error_not_eclass_original():
     # Should raise InterpretationError
     with pytest.raises(
         InterpretationError,
-        match="Replaced operation result must be used by an EClassOp",
+        match="Replaced operation result must be used by an eclass",
     ):
         interp_functions.run_replace(
             interpreter, replace_op, (test_op, replacement_eclass.results[0])
@@ -722,7 +774,7 @@ def test_run_replace_error_not_eclass_replacement():
     # Should raise InterpretationError
     with pytest.raises(
         InterpretationError,
-        match="Replacement value must be the result of an EClassOp",
+        match="Replacement value must be the result of an eclass",
     ):
         interp_functions.run_replace(
             interpreter, replace_op, (original_op, replacement_op.results[0])
