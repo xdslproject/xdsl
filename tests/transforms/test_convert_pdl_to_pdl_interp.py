@@ -1750,3 +1750,529 @@ def test_build_predicate_tree_without_predicates():
 
     # Should return an ExitNode since no predicates are generated
     assert isinstance(tree, ExitNode)
+
+
+def test_get_value_at_operation_position():
+    """Test get_value_at with OperationPosition"""
+    from xdsl.dialects import pdl_interp
+    from xdsl.dialects.builtin import ModuleOp
+    from xdsl.ir import Block, Region
+    from xdsl.transforms.convert_pdl_to_pdl_interp.conversion import MatcherGenerator
+    from xdsl.transforms.convert_pdl_to_pdl_interp.predicate import OperationPosition
+
+    # Create matcher function and rewriter module
+    matcher_body = Region([Block(arg_types=(pdl.OperationType(),))])
+    matcher_func = pdl_interp.FuncOp(
+        "matcher", ((pdl.OperationType(),), ()), region=matcher_body
+    )
+    rewriter_module = ModuleOp([])
+
+    generator = MatcherGenerator(matcher_func, rewriter_module)
+
+    # Test case 1: Root operation position (passthrough)
+    root_pos = OperationPosition(None, depth=0)
+    block = matcher_func.body.block
+    root_val = block.args[0]
+
+    # Manually add root to cache
+    generator.values[root_pos] = root_val
+
+    result = generator.get_value_at(block, root_pos)
+    assert result is root_val
+
+    # Test case 2: Operand defining op position
+    operand_pos = root_pos.get_operand(0)
+    defining_op_pos = operand_pos.get_defining_op()
+
+    # First get the operand value
+    generator.values[operand_pos] = root_val  # Mock operand value
+
+    result = generator.get_value_at(block, defining_op_pos)
+
+    # Should create GetDefiningOpOp
+    get_def_ops = [op for op in block.ops if isinstance(op, pdl_interp.GetDefiningOpOp)]
+    assert len(get_def_ops) == 1
+    assert get_def_ops[0].value is root_val
+    assert result == get_def_ops[0].input_op
+
+
+def test_get_value_at_operand_position():
+    """Test get_value_at with OperandPosition"""
+    from xdsl.dialects import pdl_interp
+    from xdsl.dialects.builtin import ModuleOp
+    from xdsl.ir import Block, Region
+    from xdsl.transforms.convert_pdl_to_pdl_interp.conversion import MatcherGenerator
+    from xdsl.transforms.convert_pdl_to_pdl_interp.predicate import OperationPosition
+
+    matcher_body = Region([Block(arg_types=(pdl.OperationType(),))])
+    matcher_func = pdl_interp.FuncOp(
+        "matcher", ((pdl.OperationType(),), ()), region=matcher_body
+    )
+    rewriter_module = ModuleOp([])
+
+    generator = MatcherGenerator(matcher_func, rewriter_module)
+
+    root_pos = OperationPosition(None, depth=0)
+    block = matcher_func.body.block
+    root_val = block.args[0]
+    generator.values[root_pos] = root_val
+
+    # Get operand at index 2
+    operand_pos = root_pos.get_operand(2)
+    result = generator.get_value_at(block, operand_pos)
+
+    # Should create GetOperandOp with index 2
+    get_operand_ops = [
+        op for op in block.ops if isinstance(op, pdl_interp.GetOperandOp)
+    ]
+    assert len(get_operand_ops) == 1
+    assert get_operand_ops[0].index.value.data == 2
+    assert get_operand_ops[0].input_op is root_val
+    assert result == get_operand_ops[0].value
+
+
+def test_get_value_at_result_position():
+    """Test get_value_at with ResultPosition"""
+    from xdsl.dialects import pdl_interp
+    from xdsl.dialects.builtin import ModuleOp
+    from xdsl.ir import Block, Region
+    from xdsl.transforms.convert_pdl_to_pdl_interp.conversion import MatcherGenerator
+    from xdsl.transforms.convert_pdl_to_pdl_interp.predicate import OperationPosition
+
+    matcher_body = Region([Block(arg_types=(pdl.OperationType(),))])
+    matcher_func = pdl_interp.FuncOp(
+        "matcher", ((pdl.OperationType(),), ()), region=matcher_body
+    )
+    rewriter_module = ModuleOp([])
+
+    generator = MatcherGenerator(matcher_func, rewriter_module)
+
+    root_pos = OperationPosition(None, depth=0)
+    block = matcher_func.body.block
+    root_val = block.args[0]
+    generator.values[root_pos] = root_val
+
+    # Get result at index 1
+    result_pos = root_pos.get_result(1)
+    result = generator.get_value_at(block, result_pos)
+
+    # Should create GetResultOp with index 1
+    get_result_ops = [op for op in block.ops if isinstance(op, pdl_interp.GetResultOp)]
+    assert len(get_result_ops) == 1
+    assert get_result_ops[0].index.value.data == 1
+    assert get_result_ops[0].input_op is root_val
+    assert result == get_result_ops[0].value
+
+
+def test_get_value_at_result_group_position():
+    """Test get_value_at with ResultGroupPosition"""
+    from xdsl.dialects import pdl_interp
+    from xdsl.dialects.builtin import ModuleOp
+    from xdsl.ir import Block, Region
+    from xdsl.transforms.convert_pdl_to_pdl_interp.conversion import MatcherGenerator
+    from xdsl.transforms.convert_pdl_to_pdl_interp.predicate import OperationPosition
+
+    matcher_body = Region([Block(arg_types=(pdl.OperationType(),))])
+    matcher_func = pdl_interp.FuncOp(
+        "matcher", ((pdl.OperationType(),), ()), region=matcher_body
+    )
+    rewriter_module = ModuleOp([])
+
+    generator = MatcherGenerator(matcher_func, rewriter_module)
+
+    root_pos = OperationPosition(None, depth=0)
+    block = matcher_func.body.block
+    root_val = block.args[0]
+    generator.values[root_pos] = root_val
+
+    # Test variadic result group
+    result_group_pos = root_pos.get_result_group(0, is_variadic=True)
+    result = generator.get_value_at(block, result_group_pos)
+
+    # Should create GetResultsOp
+    get_results_ops = [
+        op for op in block.ops if isinstance(op, pdl_interp.GetResultsOp)
+    ]
+    assert len(get_results_ops) == 1
+    assert get_results_ops[0].index is not None
+    assert get_results_ops[0].index.value.data == 0
+    assert get_results_ops[0].input_op is root_val
+    assert isinstance(result.type, pdl.RangeType)
+
+    # Test non-variadic result group
+    result_group_pos2 = root_pos.get_result_group(1, is_variadic=False)
+    result2 = generator.get_value_at(block, result_group_pos2)
+
+    get_results_ops = [
+        op for op in block.ops if isinstance(op, pdl_interp.GetResultsOp)
+    ]
+    assert len(get_results_ops) == 2
+    assert get_results_ops[1].index is not None
+    assert get_results_ops[1].index.value.data == 1
+    assert result2.type == pdl.ValueType()
+
+
+def test_get_value_at_attribute_position():
+    """Test get_value_at with AttributePosition"""
+    from xdsl.dialects import pdl_interp
+    from xdsl.dialects.builtin import ModuleOp
+    from xdsl.ir import Block, Region
+    from xdsl.transforms.convert_pdl_to_pdl_interp.conversion import MatcherGenerator
+    from xdsl.transforms.convert_pdl_to_pdl_interp.predicate import OperationPosition
+
+    matcher_body = Region([Block(arg_types=(pdl.OperationType(),))])
+    matcher_func = pdl_interp.FuncOp(
+        "matcher", ((pdl.OperationType(),), ()), region=matcher_body
+    )
+    rewriter_module = ModuleOp([])
+
+    generator = MatcherGenerator(matcher_func, rewriter_module)
+
+    root_pos = OperationPosition(None, depth=0)
+    block = matcher_func.body.block
+    root_val = block.args[0]
+    generator.values[root_pos] = root_val
+
+    # Get attribute named "test_attr"
+    attr_pos = root_pos.get_attribute("test_attr")
+    result = generator.get_value_at(block, attr_pos)
+
+    # Should create GetAttributeOp
+    get_attr_ops = [op for op in block.ops if isinstance(op, pdl_interp.GetAttributeOp)]
+    assert len(get_attr_ops) == 1
+    assert get_attr_ops[0].constraint_name.data == "test_attr"
+    assert get_attr_ops[0].input_op is root_val
+    assert result == get_attr_ops[0].value
+
+
+def test_get_value_at_attribute_literal_position():
+    """Test get_value_at with AttributeLiteralPosition"""
+    from xdsl.dialects import pdl_interp
+    from xdsl.dialects.builtin import IntegerAttr, ModuleOp
+    from xdsl.ir import Block, Region
+    from xdsl.transforms.convert_pdl_to_pdl_interp.conversion import MatcherGenerator
+    from xdsl.transforms.convert_pdl_to_pdl_interp.predicate import (
+        AttributeLiteralPosition,
+    )
+
+    matcher_body = Region([Block(arg_types=(pdl.OperationType(),))])
+    matcher_func = pdl_interp.FuncOp(
+        "matcher", ((pdl.OperationType(),), ()), region=matcher_body
+    )
+    rewriter_module = ModuleOp([])
+
+    generator = MatcherGenerator(matcher_func, rewriter_module)
+
+    block = matcher_func.body.block
+
+    # Create constant attribute
+    const_attr = IntegerAttr(42, i32)
+    attr_literal_pos = AttributeLiteralPosition(value=const_attr, parent=None)
+
+    result = generator.get_value_at(block, attr_literal_pos)
+
+    # Should create CreateAttributeOp
+    create_attr_ops = [
+        op for op in block.ops if isinstance(op, pdl_interp.CreateAttributeOp)
+    ]
+    assert len(create_attr_ops) == 1
+    assert create_attr_ops[0].value == const_attr
+    assert result == create_attr_ops[0].attribute
+
+
+def test_get_value_at_type_position():
+    """Test get_value_at with TypePosition"""
+    from xdsl.dialects import pdl_interp
+    from xdsl.dialects.builtin import ModuleOp
+    from xdsl.ir import Block, Region
+    from xdsl.transforms.convert_pdl_to_pdl_interp.conversion import MatcherGenerator
+    from xdsl.transforms.convert_pdl_to_pdl_interp.predicate import OperationPosition
+
+    matcher_body = Region([Block(arg_types=(pdl.OperationType(),))])
+    matcher_func = pdl_interp.FuncOp(
+        "matcher", ((pdl.OperationType(),), ()), region=matcher_body
+    )
+    rewriter_module = ModuleOp([])
+
+    generator = MatcherGenerator(matcher_func, rewriter_module)
+
+    root_pos = OperationPosition(None, depth=0)
+    block = matcher_func.body.block
+    root_val = block.args[0]
+    generator.values[root_pos] = root_val
+
+    # Get type of a result
+    result_pos = root_pos.get_result(0)
+    result_val = pdl_interp.GetResultOp(0, root_val).value
+    generator.values[result_pos] = result_val
+
+    type_pos = result_pos.get_type()
+    result = generator.get_value_at(block, type_pos)
+
+    # Should create GetValueTypeOp
+    get_type_ops = [op for op in block.ops if isinstance(op, pdl_interp.GetValueTypeOp)]
+    assert len(get_type_ops) == 1
+    assert get_type_ops[0].value is result_val
+    assert result == get_type_ops[0].result
+
+
+def test_get_value_at_type_literal_position():
+    """Test get_value_at with TypeLiteralPosition"""
+    from xdsl.dialects import pdl_interp
+    from xdsl.dialects.builtin import ArrayAttr, ModuleOp
+    from xdsl.ir import Block, Region
+    from xdsl.transforms.convert_pdl_to_pdl_interp.conversion import MatcherGenerator
+    from xdsl.transforms.convert_pdl_to_pdl_interp.predicate import TypeLiteralPosition
+
+    matcher_body = Region([Block(arg_types=(pdl.OperationType(),))])
+    matcher_func = pdl_interp.FuncOp(
+        "matcher", ((pdl.OperationType(),), ()), region=matcher_body
+    )
+    rewriter_module = ModuleOp([])
+
+    generator = MatcherGenerator(matcher_func, rewriter_module)
+
+    block = matcher_func.body.block
+
+    # Test case 1: Single type literal
+    type_literal_pos = TypeLiteralPosition.get_type_literal(value=i32)
+    result = generator.get_value_at(block, type_literal_pos)
+
+    # Should create CreateTypeOp
+    create_type_ops = [
+        op for op in block.ops if isinstance(op, pdl_interp.CreateTypeOp)
+    ]
+    assert len(create_type_ops) == 1
+    assert create_type_ops[0].value == i32
+    assert result == create_type_ops[0].result
+
+    # Test case 2: Multiple types (ArrayAttr)
+    types_array = ArrayAttr([i32, f32])
+    types_literal_pos = TypeLiteralPosition.get_type_literal(value=types_array)
+    result2 = generator.get_value_at(block, types_literal_pos)
+
+    # Should create CreateTypesOp
+    create_types_ops = [
+        op for op in block.ops if isinstance(op, pdl_interp.CreateTypesOp)
+    ]
+    assert len(create_types_ops) == 1
+    assert create_types_ops[0].value == types_array
+    assert result2 == create_types_ops[0].result
+
+
+def test_get_value_at_constraint_position():
+    """Test get_value_at with ConstraintPosition"""
+    from xdsl.dialects import pdl_interp
+    from xdsl.dialects.builtin import ModuleOp
+    from xdsl.ir import Block, Region
+    from xdsl.transforms.convert_pdl_to_pdl_interp.conversion import MatcherGenerator
+    from xdsl.transforms.convert_pdl_to_pdl_interp.predicate import (
+        ConstraintPosition,
+        ConstraintQuestion,
+        OperationPosition,
+    )
+
+    matcher_body = Region([Block(arg_types=(pdl.OperationType(),))])
+    matcher_func = pdl_interp.FuncOp(
+        "matcher", ((pdl.OperationType(),), ()), region=matcher_body
+    )
+    rewriter_module = ModuleOp([])
+
+    generator = MatcherGenerator(matcher_func, rewriter_module)
+
+    block = matcher_func.body.block
+    root_val = block.args[0]
+
+    # Create a mock constraint operation with results
+    root_pos = OperationPosition(None, depth=0)
+    constraint_q = ConstraintQuestion(
+        name="test_constraint",
+        arg_positions=(root_pos,),
+        result_types=(i32, f32),
+        is_negated=False,
+    )
+
+    # Create and register the constraint op
+    constraint_op = pdl_interp.ApplyConstraintOp(
+        "test_constraint",
+        [root_val],
+        res_types=[pdl.OperationType(), pdl.TypeType()],
+        true_dest=Block(),
+        false_dest=Block(),
+    )
+    generator.constraint_op_map[constraint_q] = constraint_op
+
+    # Get constraint result at index 1
+    constraint_pos = ConstraintPosition.get_constraint(constraint_q, result_index=1)
+    result = generator.get_value_at(block, constraint_pos)
+
+    # Should return the second result of the constraint op
+    assert result == constraint_op.results[1]
+
+
+def test_get_value_at_caching():
+    """Test that get_value_at properly caches values"""
+    from xdsl.dialects import pdl_interp
+    from xdsl.dialects.builtin import ModuleOp
+    from xdsl.ir import Block, Region
+    from xdsl.transforms.convert_pdl_to_pdl_interp.conversion import MatcherGenerator
+    from xdsl.transforms.convert_pdl_to_pdl_interp.predicate import OperationPosition
+
+    matcher_body = Region([Block(arg_types=(pdl.OperationType(),))])
+    matcher_func = pdl_interp.FuncOp(
+        "matcher", ((pdl.OperationType(),), ()), region=matcher_body
+    )
+    rewriter_module = ModuleOp([])
+
+    generator = MatcherGenerator(matcher_func, rewriter_module)
+
+    root_pos = OperationPosition(None, depth=0)
+    block = matcher_func.body.block
+    root_val = block.args[0]
+    generator.values[root_pos] = root_val
+
+    # Get operand twice
+    operand_pos = root_pos.get_operand(0)
+    result1 = generator.get_value_at(block, operand_pos)
+    result2 = generator.get_value_at(block, operand_pos)
+
+    # Should return the same value (cached)
+    assert result1 is result2
+
+    # Should only create one GetOperandOp
+    get_operand_ops = [
+        op for op in block.ops if isinstance(op, pdl_interp.GetOperandOp)
+    ]
+    assert len(get_operand_ops) == 1
+
+
+def test_get_value_at_unimplemented_positions():
+    """Test that get_value_at raises NotImplementedError for unsupported positions"""
+    from xdsl.dialects import pdl_interp
+    from xdsl.dialects.builtin import ModuleOp
+    from xdsl.ir import Block, Region
+    from xdsl.transforms.convert_pdl_to_pdl_interp.conversion import MatcherGenerator
+    from xdsl.transforms.convert_pdl_to_pdl_interp.predicate import (
+        ForEachPosition,
+        OperationPosition,
+        UsersPosition,
+    )
+
+    matcher_body = Region([Block(arg_types=(pdl.OperationType(),))])
+    matcher_func = pdl_interp.FuncOp(
+        "matcher", ((pdl.OperationType(),), ()), region=matcher_body
+    )
+    rewriter_module = ModuleOp([])
+
+    generator = MatcherGenerator(matcher_func, rewriter_module)
+
+    root_pos = OperationPosition(None, depth=0)
+    generator.values[root_pos] = matcher_func.body.block.args[0]
+    block = matcher_func.body.block
+
+    # Test UsersPosition
+    users_pos = UsersPosition(parent=root_pos, use_representative=True)
+    with pytest.raises(NotImplementedError, match="UsersPosition"):
+        generator.get_value_at(block, users_pos)
+
+    # Test ForEachPosition
+    foreach_pos = ForEachPosition(parent=root_pos, id=0)
+    with pytest.raises(NotImplementedError, match="ForEachPosition"):
+        generator.get_value_at(block, foreach_pos)
+
+
+def test_get_value_at_operand_group_position():
+    """Test that get_value_at raises NotImplementedError for OperandGroupPosition"""
+    from xdsl.dialects import pdl_interp
+    from xdsl.dialects.builtin import ModuleOp
+    from xdsl.ir import Block, Region
+    from xdsl.transforms.convert_pdl_to_pdl_interp.conversion import MatcherGenerator
+    from xdsl.transforms.convert_pdl_to_pdl_interp.predicate import OperationPosition
+
+    matcher_body = Region([Block(arg_types=(pdl.OperationType(),))])
+    matcher_func = pdl_interp.FuncOp(
+        "matcher", ((pdl.OperationType(),), ()), region=matcher_body
+    )
+    rewriter_module = ModuleOp([])
+
+    generator = MatcherGenerator(matcher_func, rewriter_module)
+
+    root_pos = OperationPosition(None, depth=0)
+    block = matcher_func.body.block
+    root_val = block.args[0]
+    generator.values[root_pos] = root_val
+
+    # Get operand group
+    operand_group_pos = root_pos.get_operand_group(0, is_variadic=True)
+
+    with pytest.raises(NotImplementedError, match="pdl_interp.get_operands"):
+        generator.get_value_at(block, operand_group_pos)
+
+
+def test_get_value_at_operation_position_passthrough():
+    """Test get_value_at with OperationPosition passthrough (not operand-defining-op)
+
+    This case occurs when a constraint returns a pdl.OperationType and we need
+    to access it through an OperationPosition that just passes through the parent value.
+    """
+    from xdsl.dialects import pdl_interp
+    from xdsl.dialects.builtin import ModuleOp
+    from xdsl.ir import Block, Region
+    from xdsl.transforms.convert_pdl_to_pdl_interp.conversion import MatcherGenerator
+    from xdsl.transforms.convert_pdl_to_pdl_interp.predicate import (
+        ConstraintPosition,
+        ConstraintQuestion,
+        OperationPosition,
+    )
+
+    matcher_body = Region([Block(arg_types=(pdl.OperationType(),))])
+    matcher_func = pdl_interp.FuncOp(
+        "matcher", ((pdl.OperationType(),), ()), region=matcher_body
+    )
+    rewriter_module = ModuleOp([])
+
+    generator = MatcherGenerator(matcher_func, rewriter_module)
+
+    block = matcher_func.body.block
+    root_val = block.args[0]
+
+    # Create a constraint operation that returns a pdl.OperationType
+    root_pos = OperationPosition(None, depth=0)
+    constraint_q = ConstraintQuestion(
+        name="returns_operation",
+        arg_positions=(root_pos,),
+        result_types=(pdl.OperationType(),),  # Constraint returns an operation
+        is_negated=False,
+    )
+
+    # Create and register the constraint op that returns an operation
+    constraint_op = pdl_interp.ApplyConstraintOp(
+        "returns_operation",
+        [root_val],
+        res_types=[pdl.OperationType()],
+        true_dest=Block(),
+        false_dest=Block(),
+    )
+    generator.constraint_op_map[constraint_q] = constraint_op
+
+    # Get the constraint position for the returned operation
+    constraint_pos = ConstraintPosition.get_constraint(constraint_q, result_index=0)
+
+    # Create an OperationPosition that has the constraint position as parent
+    # This represents an operation value that comes from a constraint
+    # Since it's not an operand-defining-op, it should just pass through the parent value
+    op_pos_with_parent = OperationPosition(parent=constraint_pos, depth=1)
+
+    # Get the value - should hit the passthrough branch
+    result = generator.get_value_at(block, op_pos_with_parent)
+
+    # Should return the constraint's operation result (passthrough from parent)
+    assert result == constraint_op.results[0]
+
+    # Verify it was cached
+    assert op_pos_with_parent in generator.values
+    assert generator.values[op_pos_with_parent] is result
+
+    # Getting it again should return the cached value
+    result2 = generator.get_value_at(block, op_pos_with_parent)
+    assert result2 is result
