@@ -1631,3 +1631,122 @@ def test_stable_topological_sort():
     input_list = [pred_d, pred_e]
     sorted_list = _stable_topological_sort(input_list)
     assert sorted_list == [pred_d, pred_e]
+
+
+def test_build_predicate_tree():
+    """Test the build_predicate_tree method with a simple pattern."""
+    from xdsl.builder import ImplicitBuilder
+    from xdsl.dialects import pdl
+    from xdsl.dialects.builtin import i32
+    from xdsl.ir import Block, Region
+    from xdsl.transforms.convert_pdl_to_pdl_interp.conversion import (
+        BoolNode,
+        ExitNode,
+        PredicateTreeBuilder,
+        SuccessNode,
+    )
+    from xdsl.transforms.convert_pdl_to_pdl_interp.predicate import (
+        IsNotNullQuestion,
+        OperandCountQuestion,
+        OperationNameQuestion,
+        OperationPosition,
+        ResultCountQuestion,
+        ResultPosition,
+        StringAnswer,
+        TrueAnswer,
+        TypeAnswer,
+        TypeConstraintQuestion,
+        TypePosition,
+        UnsignedAnswer,
+    )
+
+    # Create a simple pattern: match an operation named "test_op" with one i32 result
+    body = Region([Block()])
+    block = body.first_block
+    with ImplicitBuilder(block):
+        result_type = pdl.TypeOp(i32).result
+        root = pdl.OperationOp("test_op", type_values=(result_type,)).op
+        pdl.RewriteOp(root, name="rewrite")
+
+    pattern = pdl.PatternOp(1, "test_pattern", body)
+
+    # Build the predicate tree
+    builder = PredicateTreeBuilder()
+    tree = builder.build_predicate_tree([pattern])
+
+    # Verify the tree structure
+    # Root node: Check operation name
+    assert isinstance(tree, BoolNode)
+    assert tree.position == OperationPosition(None, depth=0)
+    assert isinstance(tree.question, OperationNameQuestion)
+    assert tree.answer == StringAnswer("test_op")
+    assert tree.failure_node is not None
+    assert isinstance(tree.failure_node, ExitNode)
+
+    # Second level: Check operand count
+    node2 = tree.success_node
+    assert isinstance(node2, BoolNode)
+    assert node2.position == OperationPosition(None, depth=0)
+    assert isinstance(node2.question, OperandCountQuestion)
+    assert node2.answer == UnsignedAnswer(0)
+
+    # Third level: Check result count
+    node3 = node2.success_node
+    assert isinstance(node3, BoolNode)
+    assert node3.position == OperationPosition(None, depth=0)
+    assert isinstance(node3.question, ResultCountQuestion)
+    assert node3.answer == UnsignedAnswer(1)
+
+    # Fourth level: Check result[0] is not null
+    node4 = node3.success_node
+    assert isinstance(node4, BoolNode)
+    assert node4.position == ResultPosition(
+        OperationPosition(None, depth=0), result_number=0
+    )
+    assert isinstance(node4.question, IsNotNullQuestion)
+    assert node4.answer == TrueAnswer()
+
+    # Fifth level: Check result[0].type constraint
+    node5 = node4.success_node
+    assert isinstance(node5, BoolNode)
+    assert node5.position == TypePosition(
+        ResultPosition(OperationPosition(None, depth=0), result_number=0)
+    )
+    assert isinstance(node5.question, TypeConstraintQuestion)
+    assert node5.answer == TypeAnswer(i32)
+
+    # Final level: Success node
+    node6 = node5.success_node
+    assert isinstance(node6, SuccessNode)
+    assert node6.pattern is pattern
+    assert node6.root is root
+    assert node6.failure_node is None
+
+
+def test_build_predicate_tree_without_predicates():
+    """Test build_predicate_tree when no predicates are generated."""
+    from xdsl.builder import ImplicitBuilder
+    from xdsl.dialects import pdl
+    from xdsl.ir import Block, Region
+    from xdsl.transforms.convert_pdl_to_pdl_interp.conversion import (
+        ExitNode,
+        PredicateTreeBuilder,
+    )
+
+    # Create a pattern that matches any operation (no specific predicates)
+    body = Region([Block()])
+    block = body.first_block
+    with ImplicitBuilder(block):
+        result_type = pdl.TypesOp(None).result
+        operands = pdl.OperandsOp(None).value
+        pdl.OperationOp(None, operand_values=(operands,), type_values=(result_type,)).op
+        pdl.RewriteOp(None, name="rewrite")
+
+    pattern = pdl.PatternOp(1, "pattern", body)
+
+    # Build the predicate tree
+    builder = PredicateTreeBuilder()
+    tree = builder.build_predicate_tree([pattern])
+
+    # Should return an ExitNode since no predicates are generated
+    assert isinstance(tree, ExitNode)
