@@ -1721,3 +1721,32 @@ def test_build_predicate_tree():
     assert node6.pattern is pattern
     assert node6.root is root
     assert node6.failure_node is None
+
+
+def test_build_predicate_tree_without_predicates():
+    """Test build_predicate_tree when no predicates are generated."""
+    from xdsl.builder import ImplicitBuilder
+    from xdsl.dialects import pdl
+    from xdsl.ir import Block, Region
+    from xdsl.transforms.convert_pdl_to_pdl_interp.conversion import (
+        ExitNode,
+        PredicateTreeBuilder,
+    )
+
+    # Create a pattern that matches any operation (no specific predicates)
+    body = Region([Block()])
+    block = body.first_block
+    with ImplicitBuilder(block):
+        result_type = pdl.TypesOp(None).result
+        operands = pdl.OperandsOp(None).value
+        pdl.OperationOp(None, operand_values=(operands,), type_values=(result_type,)).op
+        pdl.RewriteOp(None, name="rewrite")
+
+    pattern = pdl.PatternOp(1, "pattern", body)
+
+    # Build the predicate tree
+    builder = PredicateTreeBuilder()
+    tree = builder.build_predicate_tree([pattern])
+
+    # Should return an ExitNode since no predicates are generated
+    assert isinstance(tree, ExitNode)
