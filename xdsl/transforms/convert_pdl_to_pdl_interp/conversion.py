@@ -730,6 +730,8 @@ class PredicateTreeBuilder:
         # Build matcher tree by propagating patterns
         root_node = None
         for pattern, predicates in all_pattern_predicates:
+            if not predicates:
+                continue
             pattern_predicate_set = {
                 (pred.position, pred.q): pred for pred in predicates
             }
