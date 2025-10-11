@@ -7,12 +7,21 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import Optional, cast
 
-from xdsl.dialects import pdl
+from xdsl.builder import Builder
+from xdsl.dialects import pdl, pdl_interp
+from xdsl.dialects.builtin import (
+    ArrayAttr,
+    ModuleOp,
+    StringAttr,
+    TypeAttribute,
+)
 from xdsl.ir import (
+    Block,
     Operation,
     OpResult,
     SSAValue,
 )
+from xdsl.rewriter import InsertPoint
 from xdsl.transforms.convert_pdl_to_pdl_interp.predicate import (
     Answer,
     AttributeLiteralPosition,
@@ -20,6 +29,7 @@ from xdsl.transforms.convert_pdl_to_pdl_interp.predicate import (
     ConstraintPosition,
     ConstraintQuestion,
     EqualToQuestion,
+    ForEachPosition,
     OperandGroupPosition,
     OperandPosition,
     OperationPosition,
@@ -27,11 +37,15 @@ from xdsl.transforms.convert_pdl_to_pdl_interp.predicate import (
     PositionalPredicate,
     Predicate,
     Question,
+    ResultGroupPosition,
+    ResultPosition,
     TypeLiteralPosition,
     TypePosition,
+    UsersPosition,
     get_position_cost,
     get_question_cost,
 )
+from xdsl.utils.scoped_dict import ScopedDict
 
 # =============================================================================
 # Matcher Tree Nodes
@@ -925,3 +939,172 @@ class PredicateTreeBuilder:
             return bool_node
 
         return root
+
+
+# =============================================================================
+# Code Generation
+# =============================================================================
+
+
+class MatcherGenerator:
+    """Generates PDL interpreter matcher from matcher tree"""
+
+    matcher_func: pdl_interp.FuncOp
+    rewriter_module: ModuleOp
+    rewriter_builder: Builder
+    value_to_position: dict[pdl.PatternOp, dict[SSAValue, Position]]
+    values: ScopedDict[Position, SSAValue]
+    failure_block_stack: list[Block]
+    builder: Builder
+    constraint_op_map: dict[ConstraintQuestion, pdl_interp.ApplyConstraintOp]
+    rewriter_names: dict[str, int]
+
+    def __init__(
+        self,
+        matcher_func: pdl_interp.FuncOp,
+        rewriter_module: ModuleOp,
+        optimize_for_eqsat: bool = False,
+    ) -> None:
+        self.matcher_func = matcher_func
+        self.rewriter_module = rewriter_module
+        self.rewriter_builder = Builder(InsertPoint.at_end(rewriter_module.body.block))
+        self.value_to_position = {}
+        self.values = ScopedDict()
+        self.failure_block_stack = []
+        self.builder = Builder(InsertPoint.at_start(matcher_func.body.block))
+        self.constraint_op_map = {}
+        self.rewriter_names: dict[str, int] = {}
+
+    def get_value_at(self, block: Block, position: Position) -> SSAValue:
+        """Get or create SSA value for a position"""
+
+        # Check cache
+        if position in self.values:
+            return self.values[position]
+
+        # Get parent value if needed
+        parent_val = None
+        if position.parent:
+            parent_val = self.get_value_at(block, position.parent)
+
+        # Create value based on position type
+        self.builder.insertion_point = InsertPoint.at_end(block)
+        value = None
+
+        if isinstance(position, OperationPosition):
+            if position.is_operand_defining_op():
+                assert parent_val is not None
+                # Get defining operation of operand
+                defining_op = pdl_interp.GetDefiningOpOp(parent_val)
+                defining_op.attributes["position"] = StringAttr(position.__repr__())
+                for op in self.builder.insertion_point.block.ops:
+                    if isinstance(op, pdl_interp.GetDefiningOpOp):
+                        raise ValueError(
+                            "Cannot have two GetDefiningOpOp in the same block"
+                        )
+                self.builder.insert(defining_op)
+                value = defining_op.input_op
+            else:
+                # Passthrough
+                value = parent_val
+
+        elif isinstance(position, OperandPosition):
+            assert parent_val is not None
+            get_operand_op = pdl_interp.GetOperandOp(
+                position.operand_number, parent_val
+            )
+            self.builder.insert(get_operand_op)
+            value = get_operand_op.value
+
+        elif isinstance(position, OperandGroupPosition):
+            assert parent_val is not None
+            # Get operands (possibly variadic)
+            result_type = (
+                pdl.RangeType(pdl.ValueType())
+                if position.is_variadic
+                else pdl.ValueType()
+            )
+            raise NotImplementedError("pdl_interp.get_operands is not yet implemented")
+            get_operands_op = pdl_interp.GetOperandsOp(
+                position.group_number, parent_val, result_type
+            )
+            self.builder.insert(get_operands_op)
+            value = get_operands_op.value
+
+        elif isinstance(position, ResultPosition):
+            assert parent_val is not None
+            get_result_op = pdl_interp.GetResultOp(position.result_number, parent_val)
+            self.builder.insert(get_result_op)
+            value = get_result_op.value
+
+        elif isinstance(position, ResultGroupPosition):
+            assert parent_val is not None
+            # Get results (possibly variadic)
+            result_type = (
+                pdl.RangeType(pdl.ValueType())
+                if position.is_variadic
+                else pdl.ValueType()
+            )
+            get_results_op = pdl_interp.GetResultsOp(
+                position.group_number, parent_val, result_type
+            )
+            self.builder.insert(get_results_op)
+            value = get_results_op.value
+
+        elif isinstance(position, AttributePosition):
+            assert parent_val is not None
+            get_attr_op = pdl_interp.GetAttributeOp(position.attribute_name, parent_val)
+            self.builder.insert(get_attr_op)
+            value = get_attr_op.value
+
+        elif isinstance(position, AttributeLiteralPosition):
+            # Create a constant attribute
+            create_attr_op = pdl_interp.CreateAttributeOp(position.value)
+            self.builder.insert(create_attr_op)
+            value = create_attr_op.attribute
+
+        elif isinstance(position, TypePosition):
+            assert parent_val is not None
+            # Get type of value or attribute
+            if parent_val.type == pdl.AttributeType():
+                raise NotImplementedError(
+                    "pdl_interp.get_attribute_type is not yet implemented"
+                )
+                get_type_op = pdl_interp.GetAttributeTypeOp(parent_val)
+            else:
+                get_type_op = pdl_interp.GetValueTypeOp(parent_val)
+            self.builder.insert(get_type_op)
+            value = get_type_op.result
+
+        elif isinstance(position, TypeLiteralPosition):
+            # Create a constant type or types
+            raw_type_attr = position.value
+            if isinstance(raw_type_attr, TypeAttribute):
+                create_type_op = pdl_interp.CreateTypeOp(raw_type_attr)
+                self.builder.insert(create_type_op)
+                value = create_type_op.result
+            else:
+                # Assume it's an ArrayAttr of types
+                assert isinstance(raw_type_attr, ArrayAttr)
+                type_attr = cast(ArrayAttr[TypeAttribute], raw_type_attr)
+                create_types_op = pdl_interp.CreateTypesOp(type_attr)
+                self.builder.insert(create_types_op)
+                value = create_types_op.result
+
+        elif isinstance(position, ConstraintPosition):
+            # The constraint op has already been created, find it in the map
+            constraint_op = self.constraint_op_map.get(position.constraint)
+            assert constraint_op is not None
+            value = constraint_op.results[position.result_index]
+
+        elif isinstance(position, UsersPosition):
+            raise NotImplementedError("UsersPosition not implemented in lowering")
+        elif isinstance(position, ForEachPosition):
+            raise NotImplementedError("ForEachPosition not implemented in lowering")
+        else:
+            raise NotImplementedError(f"Unhandled position type {type(position)}")
+
+        # Cache and return
+        assert value is not None
+        self.values[position] = value
+        return value
