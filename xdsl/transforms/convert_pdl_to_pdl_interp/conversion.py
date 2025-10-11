@@ -997,11 +997,6 @@ class MatcherGenerator:
                 # Get defining operation of operand
                 defining_op = pdl_interp.GetDefiningOpOp(parent_val)
                 defining_op.attributes["position"] = StringAttr(position.__repr__())
-                for op in self.builder.insertion_point.block.ops:
-                    if isinstance(op, pdl_interp.GetDefiningOpOp):
-                        raise ValueError(
-                            "Cannot have two GetDefiningOpOp in the same block"
-                        )
                 self.builder.insert(defining_op)
                 value = defining_op.input_op
             else:
