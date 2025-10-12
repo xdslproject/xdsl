@@ -144,6 +144,23 @@ class IsTerminator(OpTrait):
             )
 
 
+class ReturnLike(OpTrait):
+    """
+    This trait indicates that a terminator operation is "return-like". This
+    means that it exits its current region and forwards its operands as "exit"
+    values to the parent region. Operations with this trait are not permitted to
+    contain successors or produce results.
+    """
+
+    def verify(self, op: Operation) -> None:
+        if not op.has_trait(IsTerminator):
+            raise VerifyException(f"{op.name} is not a terminator")
+        if op.results:
+            raise VerifyException(f"{op.name} does not have zero results")
+        if op.successors:
+            raise VerifyException(f"{op.name} does not have zero successors")
+
+
 class NoTerminator(OpTrait):
     """
     Allow an operation to have single block regions with no terminator.
