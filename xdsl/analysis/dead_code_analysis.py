@@ -13,7 +13,8 @@ from xdsl.analysis.dataflow import (
     ProgramPoint,
 )
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.ir import Block, Operation, SSAValue
+from xdsl.ir import Block, Operation, Region, SSAValue
+from xdsl.traits import IsTerminator
 
 
 @dataclass(frozen=True)
@@ -129,6 +130,16 @@ class DeadCodeAnalysis(DataFlowAnalysis):
             executable = self.get_or_create_state(entry_point, Executable)
             self.propagate_if_changed(executable, executable.set_to_live())
 
+        # Walk all operations and enqueue those with control-flow semantics for
+        # an initial visit. This builds the initial dependency graph.
+        for sub_op in op.walk():
+            # This is a simplified check for control-flow semantics.
+            if sub_op.successors or sub_op.regions or sub_op.has_trait(IsTerminator):
+                self.solver.enqueue((ProgramPoint.before(sub_op), self))
+            # A more robust check for call ops would be better.
+            if sub_op.name == "func.call":
+                self.solver.enqueue((ProgramPoint.before(sub_op), self))
+
     def visit(self, point: ProgramPoint) -> None:
         op = point.op
         if op is None:
@@ -155,7 +166,45 @@ class DeadCodeAnalysis(DataFlowAnalysis):
             # Subscribe to block liveness to visit all ops if it becomes live.
             parent_executable.block_content_subscribers.add(self)
 
-        # Assert that we don't have nested regions or control flow yet
-        assert not op.regions, (
-            f"Operation {op.name} has nested regions, which are not supported yet"
-        )
+        # Handle terminators with successors (BranchOpInterface).
+        if op.successors and op.has_trait(IsTerminator):
+            self.visit_branch_operation(op)
+        # Handle ops with regions (RegionBranchOpInterface).
+        elif op.regions:
+            # This is a conservative approximation. A real implementation would use
+            # an interface to see which regions are entered.
+            for region in op.regions:
+                self.mark_region_entry_live(region)
+
+    def visit_branch_operation(self, op: Operation) -> None:
+        """Handles terminators with successors."""
+        parent_block = op.parent
+        if not parent_block:
+            return
+
+        # A full implementation would query a constant propagation analysis here
+        # to resolve conditional branches. For now, we conservatively mark all
+        # successors as live.
+        for successor in op.successors:
+            self.mark_edge_live(parent_block, successor)
+
+    def mark_edge_live(self, from_block: Block, to_block: Block) -> None:
+        """Marks a CFG edge and its destination block as live."""
+        edge = CFGEdge(from_block, to_block)
+        edge_executable = self.get_or_create_state(edge, Executable)
+        self.propagate_if_changed(edge_executable, edge_executable.set_to_live())
+
+        to_block_point = ProgramPoint.at_start_of_block(to_block)
+        to_block_executable = self.get_or_create_state(to_block_point, Executable)
+        changed = to_block_executable.set_to_live()
+        self.propagate_if_changed(to_block_executable, changed)
+
+    def mark_region_entry_live(self, region: Region) -> None:
+        """Marks the entry block of a region as live."""
+        if region.first_block is None:
+            # empty region
+            return
+        entry_block = region.blocks[0]
+        entry_point = ProgramPoint.at_start_of_block(entry_block)
+        executable = self.get_or_create_state(entry_point, Executable)
+        self.propagate_if_changed(executable, executable.set_to_live())
