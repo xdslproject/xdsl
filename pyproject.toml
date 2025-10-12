@@ -7,7 +7,7 @@ license = { text = "Apache License v2.0 with LLVM Exceptions" }
 authors = [{ name = "Mathieu Fehr", email = "mathieu.fehr@ed.ac.uk" }]
 classifiers = ["Programming Language :: Python :: 3"]
 dependencies = [
-    "immutabledict<4.2.2",
+    "immutabledict<4.2.3",
     "typing-extensions>=4.7,<5",
     "ordered-set==4.1.0",
 ]
