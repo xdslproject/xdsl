@@ -21,6 +21,7 @@ from xdsl.analysis.dataflow import (
 )
 from xdsl.analysis.dead_code_analysis import CFGEdge, Executable
 from xdsl.ir import Block, Operation, SSAValue
+from xdsl.traits import IsTerminator, ReturnLike
 
 
 class AbstractLatticeValue(Protocol):
@@ -242,6 +243,9 @@ class SparseForwardDataFlowAnalysis(
     """
     Base class for sparse forward data-flow analyses. It propagates lattices
     attached to SSA values along the direction of data flow.
+
+    Args:
+        lattice_type: The concrete lattice type for this analysis.
     """
 
     def __init__(
@@ -314,7 +318,14 @@ class SparseForwardDataFlowAnalysis(
                 "between regions."
             )
 
-        # TODO: handle call operations when CallOpInterface is implemented
+        # Check if this looks like a call operation
+        # (operations that might invoke callables need CallOpInterface)
+        if "call" in op.name.lower():
+            raise NotImplementedError(
+                f"Operation {op.name} appears to be a call operation. "
+                "Full support requires CallOpInterface to handle "
+                "inter-procedural data flow."
+            )
 
         self.visit_operation_impl(op, operands, results)
 
@@ -347,8 +358,15 @@ class SparseForwardDataFlowAnalysis(
                     f"terminator {terminator.name} correspond to arguments of "
                     f"successor block."
                 )
-        # else:  # For entry blocks of regions
-        # TODO: Requires CallableOpInterface and RegionBranchOpInterface
+        else:  # For entry blocks of regions
+            # Requires CallableOpInterface and RegionBranchOpInterface
+            if block.parent.parent is not None:
+                raise NotImplementedError(
+                    "Handling entry block arguments for nested regions requires "
+                    "RegionBranchOpInterface to determine how values flow from "
+                    "the parent operation to the region entry."
+                )
+            # Top-level entry blocks are already initialized in initialize()
 
     def join(self, lhs: PropagatingLatticeInvT, rhs: PropagatingLatticeInvT) -> None:
         """Joins the rhs lattice into the lhs and propagates if changed."""
@@ -381,4 +399,110 @@ class SparseForwardDataFlowAnalysis(
     @abstractmethod
     def set_to_entry_state(self, lattice: PropagatingLatticeInvT) -> None:
         """Sets a lattice to its most pessimistic (entry) state."""
+        ...
+
+
+class SparseBackwardDataFlowAnalysis(DataFlowAnalysis, Generic[PropagatingLatticeInvT]):
+    """
+    Base class for sparse backward data-flow analyses. It propagates lattices
+    from results to operands.
+
+    Args:
+        lattice_type: The concrete lattice type for this analysis.
+    """
+
+    def __init__(
+        self, solver: DataFlowSolver, lattice_type: type[PropagatingLatticeInvT]
+    ):
+        super().__init__(solver)
+        self.lattice_type = lattice_type
+
+    def initialize(self, op: Operation) -> None:
+        # In backward analysis, results of ops with no users and arguments of
+        # public functions are the exit points.
+        def initialize_recursively(op: Operation):
+            # Visit ops in reverse order for better initial propagation
+            for region in op.regions:
+                for block in reversed(region.blocks):
+                    for nested_op in reversed(block.ops):
+                        initialize_recursively(nested_op)
+            self.visit(ProgramPoint.before(op))
+
+        initialize_recursively(op)
+
+    def visit(self, point: ProgramPoint) -> None:
+        op = point.op
+        if op is None:
+            return
+
+        if (
+            op.parent
+            and not self.get_or_create_state(
+                ProgramPoint.at_start_of_block(op.parent), Executable
+            ).live
+        ):
+            return
+
+        operands = [self.get_lattice_element(o) for o in op.operands]
+        results = [self.get_lattice_element_for(point, r) for r in op.results]
+
+        # If op is a terminator, propagate info from successor block args
+        if op.has_trait(IsTerminator):
+            if op.successors:
+                # Requires BranchOpInterface to map successor args to operands
+                raise NotImplementedError(
+                    f"Propagating backward from successor block arguments to "
+                    f"terminator operands requires BranchOpInterface. Cannot "
+                    f"determine mapping for {op.name}."
+                )
+
+        # Handle function returns and other exit points
+        # This requires inter-procedural analysis support
+        if op.has_trait(ReturnLike):
+            raise NotImplementedError(
+                f"Operation {op.name} appears to be a return operation. "
+                "Proper handling requires CallableOpInterface and call graph "
+                "information to propagate backward through call sites."
+            )
+
+        # Check for operations with regions
+        if op.regions:
+            raise NotImplementedError(
+                f"Operation {op.name} has regions. Full support requires "
+                "RegionBranchOpInterface to properly handle backward "
+                "propagation through region boundaries."
+            )
+
+        self.visit_operation_impl(op, operands, results)
+
+    def meet(self, lhs: PropagatingLatticeInvT, rhs: PropagatingLatticeInvT) -> None:
+        """Meets the rhs lattice into the lhs and propagates if changed."""
+        self.propagate_if_changed(lhs, lhs.meet(rhs))
+
+    def get_lattice_element(self, value: SSAValue) -> PropagatingLatticeInvT:
+        return self.get_or_create_state(value, self.get_lattice_type())
+
+    def get_lattice_element_for(
+        self, point: ProgramPoint, value: SSAValue
+    ) -> PropagatingLatticeInvT:
+        lattice = self.get_lattice_element(value)
+        self.add_dependency(lattice, point)
+        return lattice
+
+    def get_lattice_type(self) -> type[PropagatingLatticeInvT]:
+        return self.lattice_type
+
+    @abstractmethod
+    def visit_operation_impl(
+        self,
+        op: Operation,
+        operands: list[PropagatingLatticeInvT],
+        results: list[PropagatingLatticeInvT],
+    ) -> None:
+        """The user-defined transfer function for a generic operation."""
+        ...
+
+    @abstractmethod
+    def set_to_exit_state(self, lattice: PropagatingLatticeInvT) -> None:
+        """Sets a lattice to its most pessimistic (exit) state."""
         ...
