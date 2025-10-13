@@ -1,17 +1,23 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from unittest.mock import Mock
 
 import pytest
 
 from xdsl.analysis.dataflow import (
+    AnalysisState,
     ChangeResult,
+    DataFlowAnalysis,
+    DataFlowSolver,
     GenericLatticeAnchor,
     ProgramPoint,
 )
 from xdsl.context import Context
-from xdsl.dialects.builtin import UnregisteredOp
+from xdsl.dialects import test
+from xdsl.dialects.builtin import IntegerType, UnregisteredOp
 from xdsl.ir import Block, Operation
+from xdsl.utils.test_value import create_ssa_value
 
 
 # region ChangeResult tests
@@ -141,6 +147,36 @@ def test_program_point_properties(
     pp_at_end = ProgramPoint.at_end_of_block(block)
     assert pp_at_end.op is None
     assert pp_at_end.block is block
+
+
+# endregion
+
+
+# region AnalysisState tests
+class MyState(AnalysisState):
+    def __str__(self) -> str:
+        return "MyState"
+
+
+def test_analysis_state_on_update():
+    solver = Mock(spec=DataFlowSolver)
+    anchor = create_ssa_value(IntegerType(32))
+    state = MyState(anchor)
+
+    point1 = ProgramPoint.before(test.TestOp())
+    analysis1 = Mock(spec=DataFlowAnalysis)
+
+    point2 = ProgramPoint.at_end_of_block(Block())
+    analysis2 = Mock(spec=DataFlowAnalysis)
+
+    state.dependents.add((point1, analysis1))
+    state.dependents.add((point2, analysis2))
+
+    state.on_update(solver)
+
+    solver.enqueue.assert_any_call((point1, analysis1))
+    solver.enqueue.assert_any_call((point2, analysis2))
+    assert solver.enqueue.call_count == 2
 
 
 # endregion
