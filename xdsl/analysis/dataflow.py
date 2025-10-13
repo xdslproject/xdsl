@@ -98,6 +98,8 @@ class ProgramPoint:
 
 
 LatticeAnchor: TypeAlias = SSAValue | Block | ProgramPoint | GenericLatticeAnchor
+"""Union type for all possible lattice anchors."""
+
 AnalysisStateInvT = TypeVar("AnalysisStateInvT", bound="AnalysisState")
 DataFlowAnalysisInvT = TypeVar("DataFlowAnalysisInvT", bound="DataFlowAnalysis")
 
