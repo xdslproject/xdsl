@@ -4,11 +4,16 @@ Core datastructures and solver for dataflow analyses.
 
 from __future__ import annotations
 
+import collections
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
+from typing import TypeAlias
 
-from xdsl.ir import Block, Operation
+from typing_extensions import TypeVar
+
+from xdsl.context import Context
+from xdsl.ir import Block, Operation, SSAValue
 
 
 class ChangeResult(Enum):
@@ -90,3 +95,63 @@ class ProgramPoint:
         if isinstance(self.entity, Operation):
             return f"before op '{self.entity.name}'"
         return f"at end of block '{self.entity.name_hint or id(self.entity)}'"
+
+
+LatticeAnchor: TypeAlias = SSAValue | Block | ProgramPoint | GenericLatticeAnchor
+StateType = TypeVar("StateType", bound="AnalysisState")
+AnalysisT = TypeVar("AnalysisT", bound="DataFlowAnalysis")
+
+
+class AnalysisState(ABC):
+    """
+    Base class for all analysis states. States are attached to lattice anchors
+    and evolve as the analysis iterates.
+    """
+
+    anchor: LatticeAnchor
+    dependents: set[tuple[ProgramPoint, DataFlowAnalysis]]
+
+    def __init__(self, anchor: LatticeAnchor):
+        self.anchor = anchor
+        self.dependents = set()
+
+    def on_update(self, solver: DataFlowSolver) -> None:
+        """
+        Called by the solver when the state is updated. Enqueues dependent
+        work items.
+        """
+        for point, analysis in self.dependents:
+            solver.enqueue((point, analysis))
+
+    @abstractmethod
+    def __str__(self) -> str: ...
+
+
+class DataFlowSolver:
+    """
+    The main dataflow analysis solver. It orchestrates child analyses, runs
+    the fixed-point iteration, and manages analysis states.
+    """
+
+    context: Context
+    _worklist: collections.deque[tuple[ProgramPoint, DataFlowAnalysis]]
+    _is_running: bool
+
+    def __init__(self, context: Context) -> None:
+        self.context = context
+        self._worklist = collections.deque()
+
+    def enqueue(self, item: tuple[ProgramPoint, DataFlowAnalysis]) -> None:
+        """Adds a work item to the solver's worklist."""
+        if not self._is_running:
+            raise RuntimeError(
+                "Cannot enqueue work items when the solver is not running."
+            )
+        self._worklist.append(item)
+
+
+class DataFlowAnalysis(ABC):
+    """
+    Base class for all dataflow analyses. An analysis implements transfer
+    functions for IR constructs and is orchestrated by the DataFlowSolver.
+    """
