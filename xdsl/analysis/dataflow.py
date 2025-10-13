@@ -240,3 +240,28 @@ class DataFlowAnalysis(ABC):
         solver when a dependency of this analysis at this point has changed.
         """
         ...
+
+    def get_or_create_state(
+        self, anchor: LatticeAnchor, state_type: type[AnalysisStateInvT]
+    ) -> AnalysisStateInvT:
+        """Helper to get or create a state from the solver."""
+        return self.solver.get_or_create_state(anchor, state_type)
+
+    def get_state(
+        self, anchor: LatticeAnchor, state_type: type[AnalysisStateInvT]
+    ) -> AnalysisStateInvT | None:
+        """Helper to look up a state from the solver."""
+        return self.solver.lookup_state(anchor, state_type)
+
+    def add_dependency(
+        self, state: AnalysisState, dependent_point: ProgramPoint
+    ) -> None:
+        """
+        Adds a dependency: if `state` changes, `self.visit(dependent_point)`
+        will be called.
+        """
+        state.dependents.add((dependent_point, self))
+
+    def propagate_if_changed(self, state: AnalysisState, changed: ChangeResult) -> None:
+        """Helper to propagate a state change to the solver."""
+        self.solver.propagate_if_changed(state, changed)
