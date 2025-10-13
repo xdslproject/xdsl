@@ -1,3 +1,7 @@
+"""
+Core datastructures and solver for dataflow analyses.
+"""
+
 from __future__ import annotations
 
 from enum import Enum
