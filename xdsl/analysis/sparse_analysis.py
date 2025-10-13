@@ -15,6 +15,16 @@ from xdsl.analysis.dataflow import (
 from xdsl.ir import SSAValue
 
 
+class AbstractLatticeValue(Protocol):
+    """Protocol for types that have join and meet methods."""
+
+    def meet(self, other: Self) -> Self:
+        raise NotImplementedError()
+
+    def join(self, other: Self) -> Self:
+        raise NotImplementedError()
+
+
 class AbstractSparseLattice(Protocol):
     """Protocol for types that have join and meet methods."""
 
