@@ -8,7 +8,7 @@ import collections
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
-from typing import TypeAlias
+from typing import Generic, TypeAlias
 
 from typing_extensions import TypeVar
 
@@ -100,11 +100,13 @@ class ProgramPoint:
 LatticeAnchor: TypeAlias = SSAValue | Block | ProgramPoint | GenericLatticeAnchor
 """Union type for all possible lattice anchors."""
 
+AnchorInvT = TypeVar("AnchorInvT", bound=LatticeAnchor, default=LatticeAnchor)
+
 AnalysisStateInvT = TypeVar("AnalysisStateInvT", bound="AnalysisState")
 DataFlowAnalysisInvT = TypeVar("DataFlowAnalysisInvT", bound="DataFlowAnalysis")
 
 
-class AnalysisState(ABC):
+class AnalysisState(ABC, Generic[AnchorInvT]):
     """
     Base class for all analysis states. States are attached to lattice anchors
     and evolve as the analysis iterates.
