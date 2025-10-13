@@ -15,6 +15,11 @@ from typing_extensions import TypeVar
 from xdsl.context import Context
 from xdsl.ir import Block, Operation, SSAValue
 
+from typing_extensions import TypeVar
+
+from xdsl.context import Context
+from xdsl.ir import Block, Operation, SSAValue
+
 
 class ChangeResult(Enum):
     """
