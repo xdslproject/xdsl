@@ -4,9 +4,9 @@ from dataclasses import dataclass
 from xdsl.builder import Builder
 from xdsl.context import Context
 from xdsl.dialect_interfaces import ConstantMaterializationInterface
-from xdsl.interfaces import HasFolderInterface
 from xdsl.ir import Attribute, Operation, SSAValue, TypeAttribute
 from xdsl.pattern_rewriter import PatternRewriter
+from xdsl.traits import HasFolder
 
 
 @dataclass
@@ -24,9 +24,9 @@ class Folder:
         Each of the results of the original operation might be replaced by a new constant operation.
         """
 
-        if not isinstance(op, HasFolderInterface):
+        if (trait := op.get_trait(HasFolder)) is None:
             return None
-        folded = op.fold()
+        folded = trait.fold(op)
         if folded is None:
             return None
         results: list[SSAValue] = []
