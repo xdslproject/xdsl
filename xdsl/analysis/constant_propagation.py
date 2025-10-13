@@ -104,33 +104,40 @@ class ConstantValue(AbstractLatticeValue):
         return f"const({self.value})"
 
 
-class SparseConstantPropagation(SparseForwardDataFlowAnalysis[Lattice[ConstantValue]]):
+class ConstantValueLattice(Lattice[ConstantValue]):
+    value_cls = ConstantValue
+
+
+class SparseConstantPropagation(SparseForwardDataFlowAnalysis[ConstantValueLattice]):
     """
     An analysis that implements sparse constant propagation.
     It determines if an SSA value is a constant, and if so, what its value is.
     """
 
+    value_cls = ConstantValue
     folder: Folder
 
     def __init__(self, solver: DataFlowSolver):
         # The parent constructor is called by the solver's `load` method.
         # We get the context from the solver, which is needed by the Folder.
-        super().__init__(solver, Lattice[ConstantValue])
+        super().__init__(solver, ConstantValueLattice)
         self.folder = Folder(self.solver.context)
 
-    def set_to_entry_state(self, lattice: Lattice[ConstantValue]) -> None:
+    def set_to_entry_state(self, lattice: ConstantValueLattice) -> None:
         """
         The entry state for any value is 'unknown', as we cannot make any
         assumptions about its value.
         """
         assert isinstance(lattice.anchor, SSAValue)
-        self.join(lattice, Lattice(lattice.anchor, ConstantValue.unknown()))
+        self.join(
+            lattice, ConstantValueLattice(lattice.anchor, ConstantValue.unknown())
+        )
 
     def visit_operation_impl(
         self,
         op: Operation,
-        operands: list[Lattice[ConstantValue]],
-        results: list[Lattice[ConstantValue]],
+        operands: list[ConstantValueLattice],
+        results: list[ConstantValueLattice],
     ) -> None:
         # If the op is a constant, its result is constant.
         if (trait := op.get_trait(ConstantLike)) is not None:
@@ -139,7 +146,9 @@ class SparseConstantPropagation(SparseForwardDataFlowAnalysis[Lattice[ConstantVa
                 assert isinstance(results[0].anchor, SSAValue)
                 self.join(
                     results[0],
-                    Lattice(results[0].anchor, ConstantValue.constant(new_const_val)),
+                    ConstantValueLattice(
+                        results[0].anchor, ConstantValue.constant(new_const_val)
+                    ),
                 )
             return
 
@@ -180,7 +189,9 @@ class SparseConstantPropagation(SparseForwardDataFlowAnalysis[Lattice[ConstantVa
                 # Attribute result - propagate as constant
                 new_const_val = ConstantValue.constant(folded_val)
                 assert isinstance(res_lattice.anchor, SSAValue)
-                self.join(res_lattice, Lattice(res_lattice.anchor, new_const_val))
+                self.join(
+                    res_lattice, ConstantValueLattice(res_lattice.anchor, new_const_val)
+                )
             else:
                 # SSAValue result - set to unknown/entry state
                 self.set_to_entry_state(res_lattice)
