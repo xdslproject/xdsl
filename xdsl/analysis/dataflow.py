@@ -8,7 +8,7 @@ import collections
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
-from typing import Generic, TypeAlias
+from typing import Any, Generic, TypeAlias, cast
 
 from typing_extensions import TypeVar
 
@@ -138,12 +138,63 @@ class DataFlowSolver:
     """
 
     context: Context
+    _analyses: list[DataFlowAnalysis]
     _worklist: collections.deque[tuple[ProgramPoint, DataFlowAnalysis]]
+    _analysis_states: dict[LatticeAnchor, dict[type[AnalysisState], AnalysisState]]
     _is_running: bool
 
     def __init__(self, context: Context) -> None:
         self.context = context
+        self._analyses = []
         self._worklist = collections.deque()
+        self._analysis_states = collections.defaultdict(dict)
+        self._is_running = False
+
+    def load(
+        self, analysis_class: type[DataFlowAnalysisInvT], *args: Any
+    ) -> DataFlowAnalysisInvT:
+        """Registers a new analysis with the solver."""
+        if self._is_running:
+            raise RuntimeError("Cannot load new analyses while the solver is running.")
+        analysis = analysis_class(self, *args)
+        self._analyses.append(analysis)
+        return analysis
+
+    def initialize_and_run(self, op: Operation) -> None:
+        """Initializes all analyses and runs the solver to a fixed point."""
+        if self._is_running:
+            raise RuntimeError("Solver is already running.")
+        self._is_running = True
+        try:
+            for analysis in self._analyses:
+                analysis.initialize(op)
+
+            while self._worklist:
+                point, analysis = self._worklist.popleft()
+                analysis.visit(point)
+        finally:
+            self._is_running = False
+
+    def get_or_create_state(
+        self, anchor: LatticeAnchor, state_type: type[AnalysisStateInvT]
+    ) -> AnalysisStateInvT:
+        """
+        Get the state for a given anchor. If it doesn't exist, create it.
+        """
+        if state_type not in self._analysis_states[anchor]:
+            self._analysis_states[anchor][state_type] = state_type(anchor)
+        return cast(AnalysisStateInvT, self._analysis_states[anchor][state_type])
+
+    def lookup_state(
+        self, anchor: LatticeAnchor, state_type: type[AnalysisStateInvT]
+    ) -> AnalysisStateInvT | None:
+        """Look up an analysis state. Returns None if it doesn't exist."""
+        if (
+            anchor in self._analysis_states
+            and state_type in self._analysis_states[anchor]
+        ):
+            return cast(AnalysisStateInvT, self._analysis_states[anchor][state_type])
+        return None
 
     def enqueue(self, item: tuple[ProgramPoint, DataFlowAnalysis]) -> None:
         """Adds a work item to the solver's worklist."""
@@ -153,9 +204,39 @@ class DataFlowSolver:
             )
         self._worklist.append(item)
 
+    def propagate_if_changed(self, state: AnalysisState, changed: ChangeResult) -> None:
+        """If the state has changed, trigger its `on_update` hook."""
+        if not self._is_running:
+            raise RuntimeError(
+                "Cannot propagate changes when the solver is not running."
+            )
+        if changed == ChangeResult.CHANGE:
+            state.on_update(self)
+
 
 class DataFlowAnalysis(ABC):
     """
     Base class for all dataflow analyses. An analysis implements transfer
     functions for IR constructs and is orchestrated by the DataFlowSolver.
     """
+
+    solver: DataFlowSolver
+
+    def __init__(self, solver: DataFlowSolver):
+        self.solver = solver
+
+    @abstractmethod
+    def initialize(self, op: Operation) -> None:
+        """
+        Initializes the analysis, setting up initial states and dependencies
+        for a given top-level operation.
+        """
+        ...
+
+    @abstractmethod
+    def visit(self, point: ProgramPoint) -> None:
+        """
+        The transfer function for a given program point. This is called by the
+        solver when a dependency of this analysis at this point has changed.
+        """
+        ...
