@@ -38,6 +38,7 @@ from xdsl.traits import (
     HasParent,
     IsolatedFromAbove,
     IsTerminator,
+    ReturnLike,
     SymbolOpInterface,
 )
 from xdsl.utils.exceptions import DiagnosticException, VerifyException
@@ -253,7 +254,7 @@ class ReturnOp(riscv.RISCVInstruction):
     values = var_operand_def(riscv.RISCVRegisterType)
     comment = opt_attr_def(StringAttr)
 
-    traits = traits_def(IsTerminator(), HasParent(FuncOp))
+    traits = traits_def(IsTerminator(), HasParent(FuncOp), ReturnLike())
 
     assembly_format = "attr-dict ($values^ `:` type($values))?"
 
