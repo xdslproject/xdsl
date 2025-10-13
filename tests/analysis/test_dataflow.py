@@ -11,12 +11,13 @@ from xdsl.analysis.dataflow import (
     DataFlowAnalysis,
     DataFlowSolver,
     GenericLatticeAnchor,
+    LatticeAnchor,
     ProgramPoint,
 )
 from xdsl.context import Context
 from xdsl.dialects import test
-from xdsl.dialects.builtin import IntegerType, UnregisteredOp
-from xdsl.ir import Block, Operation
+from xdsl.dialects.builtin import IntegerType, ModuleOp, UnregisteredOp
+from xdsl.ir import Block, Operation, Region
 from xdsl.utils.test_value import create_ssa_value
 
 
@@ -279,6 +280,92 @@ def test_data_flow_solver_run_twice_raises(solver: DataFlowSolver):
 
     solver.load(ReentrantAnalysis)
     solver.initialize_and_run(Mock())
+
+
+# State for the test
+class CounterState(AnalysisState):
+    def __init__(self, anchor: LatticeAnchor):
+        super().__init__(anchor)
+        self.count = 0
+
+    def __str__(self) -> str:
+        return f"CounterState({self.count})"
+
+
+# Analysis for the test
+class CounterAnalysis(DataFlowAnalysis):
+    def initialize(self, op: Operation) -> None:
+        # Enqueue the start of the first block
+        start_point = ProgramPoint.at_start_of_block(op.regions[0].blocks[0])
+        self.solver.enqueue((start_point, self))
+
+    def visit(self, point: ProgramPoint) -> None:
+        state = self.get_or_create_state(point, CounterState)
+
+        # Only visit each point twice
+        if state.count >= 2:
+            return
+
+        state.count += 1
+
+        # Add a dependency on self to re-trigger the visit
+        self.add_dependency(state, point)
+
+        self.propagate_if_changed(state, ChangeResult.CHANGE)
+
+
+def test_data_flow_solver_run_loop(solver: DataFlowSolver):
+    op1 = test.TestOp()
+    block = Block([op1])
+
+    module = ModuleOp([test.TestOp(regions=[Region([block])])])
+
+    assert module.body.first_block is not None
+    assert module.body.first_block.first_op is not None
+    solver.load(CounterAnalysis)
+    solver.initialize_and_run(module.body.first_block.first_op)
+
+    start_point = ProgramPoint.at_start_of_block(block)
+    state = solver.lookup_state(start_point, CounterState)
+
+    assert state is not None
+    assert state.count == 2
+
+
+# endregion
+
+
+# region DataFlowAnalysis tests
+def test_data_flow_analysis_helpers(solver: DataFlowSolver):
+    analysis = MyAnalysis(solver)
+
+    # Mock the solver methods to check if they are called
+    solver.get_or_create_state = Mock(return_value="state")
+    solver.lookup_state = Mock(return_value="state")
+    solver.propagate_if_changed = Mock()
+
+    anchor = create_ssa_value(IntegerType(32))
+
+    # test get_or_create_state
+    res = analysis.get_or_create_state(anchor, MyState)
+    solver.get_or_create_state.assert_called_once_with(anchor, MyState)
+    assert res == "state"
+
+    # test get_state
+    res = analysis.get_state(anchor, MyState)
+    solver.lookup_state.assert_called_once_with(anchor, MyState)
+    assert res == "state"
+
+    # test add_dependency
+    state = MyState(anchor)
+    # point = ProgramPoint.before(UnregisteredOp(name="op"))
+    point = ProgramPoint.before(test.TestOp())
+    analysis.add_dependency(state, point)
+    assert (point, analysis) in state.dependents
+
+    # test propagate_if_changed
+    analysis.propagate_if_changed(state, ChangeResult.CHANGE)
+    solver.propagate_if_changed.assert_called_once_with(state, ChangeResult.CHANGE)
 
 
 # endregion
