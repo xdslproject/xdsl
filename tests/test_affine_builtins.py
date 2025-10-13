@@ -533,3 +533,35 @@ def test_traversal():
     assert len(post_order) == 7
     for i, node in zip(post_order_indices, post_order):
         assert nodes[i] is node
+
+
+def test_from_flat_form():
+    d0, d1, d2 = (AffineExpr.dimension(i) for i in range(3))
+    s0, s1, s2 = (AffineExpr.symbol(i) for i in range(3))
+
+    # Empty case
+    assert AffineExpr.from_flat_form([0], 0, 0, []) == AffineExpr.constant(0)
+    # One dimension
+    assert AffineExpr.from_flat_form([1, 0], 1, 0, []) == d0
+    # One symbol
+    assert AffineExpr.from_flat_form([1, 0], 0, 1, []) == s0
+    # Factors
+    assert (
+        AffineExpr.from_flat_form(
+            [
+                0,  # d0 * 0
+                1,  # d1 * 1
+                2,  # d2 * 2
+                0,  # s0 * 0
+                1,  # s1 * 1
+                2,  # s2 * 2
+                0,  # d0 * 0
+                2,  # s0 * 2
+                1,  # c1
+            ],
+            3,
+            3,
+            [d0, s0],
+        )
+        == d1 + d2 * 2 + s1 + s2 * 2 + s0 * 2 + 1
+    )
