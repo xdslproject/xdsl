@@ -2,10 +2,16 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+import pytest
+
 from xdsl.analysis.dataflow import (
     ChangeResult,
     GenericLatticeAnchor,
+    ProgramPoint,
 )
+from xdsl.context import Context
+from xdsl.dialects.builtin import UnregisteredOp
+from xdsl.ir import Block, Operation
 
 
 # region ChangeResult tests
@@ -39,6 +45,102 @@ def test_generic_lattice_anchor():
     assert hash(anchor1) != hash(anchor3)
     assert str(anchor1) == "MyAnchor(a)"
     assert not (anchor1 == "a")
+
+
+# endregion
+
+
+# region ProgramPoint tests
+@pytest.fixture
+def ops_in_block() -> tuple[Operation, Operation, Operation, Block]:
+    context = Context()
+    context.allow_unregistered = True
+    op1_class = context.get_optional_op("test_op1")
+    op2_class = context.get_optional_op("test_op2")
+    op3_class = context.get_optional_op("test_op3")
+    assert op1_class is not None
+    assert op2_class is not None
+    assert op3_class is not None
+    op1 = op1_class()
+    op2 = op2_class()
+    op3 = op3_class()
+    block = Block([op1, op2, op3])
+    return op1, op2, op3, block
+
+
+@pytest.fixture
+def empty_block() -> Block:
+    return Block()
+
+
+@pytest.fixture
+def detached_op() -> Operation:
+    return UnregisteredOp.with_name("test.detached")()
+
+
+def test_program_point_before(
+    ops_in_block: tuple[Operation, Operation, Operation, Block],
+):
+    _, op2, _, _ = ops_in_block
+    pp = ProgramPoint.before(op2)
+    assert pp.entity is op2
+
+
+def test_program_point_after(
+    ops_in_block: tuple[Operation, Operation, Operation, Block],
+):
+    op1, op2, op3, block = ops_in_block
+
+    # After op in middle of block
+    pp_after_op1 = ProgramPoint.after(op1)
+    assert pp_after_op1.entity is op2
+
+    # After last op in block
+    pp_after_op3 = ProgramPoint.after(op3)
+    assert pp_after_op3.entity is block
+
+
+def test_program_point_after_detached(detached_op: Operation):
+    with pytest.raises(
+        ValueError, match="Cannot get ProgramPoint after a detached operation."
+    ):
+        ProgramPoint.after(detached_op)
+
+
+def test_program_point_at_block_boundaries(
+    ops_in_block: tuple[Operation, Operation, Operation, Block], empty_block: Block
+):
+    op1, _, _, block = ops_in_block
+
+    # Start of non-empty block
+    pp_start = ProgramPoint.at_start_of_block(block)
+    assert pp_start.entity is op1
+
+    # End of non-empty block
+    pp_end = ProgramPoint.at_end_of_block(block)
+    assert pp_end.entity is block
+
+    # Start of empty block
+    pp_start_empty = ProgramPoint.at_start_of_block(empty_block)
+    assert pp_start_empty.entity is empty_block
+
+    # End of empty block
+    pp_end_empty = ProgramPoint.at_end_of_block(empty_block)
+    assert pp_end_empty.entity is empty_block
+
+
+def test_program_point_properties(
+    ops_in_block: tuple[Operation, Operation, Operation, Block],
+):
+    op1, _, _, block = ops_in_block
+
+    pp_before_op = ProgramPoint.before(op1)
+    assert pp_before_op.op is op1
+    assert pp_before_op.block is block
+
+    pp_at_end = ProgramPoint.at_end_of_block(block)
+    assert pp_at_end.op is None
+    assert pp_at_end.block is block
 
 
 # endregion
