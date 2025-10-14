@@ -82,7 +82,7 @@ class AbstractSparseLattice(Protocol):
     """
     Protocol for sparse lattice elements used in data flow analysis.
 
-    Seem [AbstractLatticeValue][xdsl.analysis.sparse_analysis.AbstractLatticeValue] for more
+    See [AbstractLatticeValue][xdsl.analysis.sparse_analysis.AbstractLatticeValue] for more
     information about lattices and their operations.
 
     In contrast to [AbstractLatticeValue][xdsl.analysis.sparse_analysis.AbstractLatticeValue],
