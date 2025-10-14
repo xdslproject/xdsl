@@ -203,7 +203,7 @@ class Lattice(PropagatingLattice, Generic[LatticeValueInvT]):
         return self._value
 
     def meet(self, other: Self) -> ChangeResult:
-        new_value = type(self.value).meet(self.value, other.value)
+        new_value = self.value.meet(other.value)
 
         if new_value == self.value:
             return ChangeResult.NO_CHANGE
@@ -211,8 +211,7 @@ class Lattice(PropagatingLattice, Generic[LatticeValueInvT]):
         self._value = new_value
         return ChangeResult.CHANGE
 
-    def join(self, other: AbstractSparseLattice) -> ChangeResult:
-        assert isinstance(other, type(self))
+    def join(self, other: Self) -> ChangeResult:
         new_value = self.value.join(other.value)
 
         if new_value == self.value:
