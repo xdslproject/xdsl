@@ -1537,6 +1537,12 @@ class ReductionOp(IRDLOperation):
 
 @irdl_op_definition
 class BitcastOp(IRDLOperation):
+    """
+    Bitcast between vectors.
+
+    See [external documentation](https://mlir.llvm.org/docs/Dialects/Vector/#vectorbitcast-vectorbitcastop).
+    """
+
     name = "vector.bitcast"
 
     source = operand_def(VectorType)
