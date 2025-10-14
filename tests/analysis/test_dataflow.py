@@ -180,3 +180,105 @@ def test_analysis_state_on_update():
 
 
 # endregion
+
+
+# region DataFlowSolver tests
+@pytest.fixture
+def solver() -> DataFlowSolver:
+    return DataFlowSolver(Context())
+
+
+class MyAnalysis(DataFlowAnalysis):
+    def initialize(self, op: Operation) -> None:
+        pass
+
+    def visit(self, point: ProgramPoint) -> None:
+        pass
+
+
+def test_data_flow_solver_init(solver: DataFlowSolver):
+    # solver should be able to load analyses
+    # and accept basic operations without errors
+    assert isinstance(solver.context, Context)
+    analysis = solver.load(MyAnalysis)
+    assert isinstance(analysis, MyAnalysis)
+
+
+def test_data_flow_solver_load(solver: DataFlowSolver):
+    analysis = solver.load(MyAnalysis)
+    assert isinstance(analysis, MyAnalysis)
+    assert analysis.solver is solver
+
+
+def test_data_flow_solver_load_while_running_raises(solver: DataFlowSolver):
+    # Create an analysis that tries to load another analysis during execution
+    class LoadingAnalysis(DataFlowAnalysis):
+        def initialize(self, op: Operation) -> None:
+            # Try to load while running
+            with pytest.raises(
+                RuntimeError,
+                match="Cannot load new analyses while the solver is running.",
+            ):
+                self.solver.load(MyAnalysis)
+
+        def visit(self, point: ProgramPoint) -> None:
+            pass
+
+    solver.load(LoadingAnalysis)
+    solver.initialize_and_run(Mock())
+
+
+def test_data_flow_solver_get_lookup_state(solver: DataFlowSolver):
+    anchor = create_ssa_value(IntegerType(32))
+
+    # Test get_or_create_state
+    state1 = solver.get_or_create_state(anchor, MyState)
+    assert isinstance(state1, MyState)
+    assert state1.anchor is anchor
+
+    # Test that it returns the same state
+    state2 = solver.get_or_create_state(anchor, MyState)
+    assert state1 is state2
+
+    # Test lookup_state
+    state3 = solver.lookup_state(anchor, MyState)
+    assert state1 is state3
+
+    # Test lookup_state for non-existent state
+    anchor2 = create_ssa_value(IntegerType(64))
+    assert solver.lookup_state(anchor2, MyState) is None
+    assert solver.lookup_state(anchor, AnalysisState) is None
+
+
+def test_data_flow_solver_enqueue_not_running(solver: DataFlowSolver):
+    # This tests the public contract - enqueue should only work while running
+    with pytest.raises(
+        RuntimeError, match="Cannot enqueue work items when the solver is not running."
+    ):
+        solver.enqueue((Mock(), Mock()))
+
+
+def test_data_flow_solver_propagate_not_running(solver: DataFlowSolver):
+    # This tests the public contract - propagate should only work while running
+    with pytest.raises(
+        RuntimeError, match="Cannot propagate changes when the solver is not running."
+    ):
+        solver.propagate_if_changed(Mock(), ChangeResult.CHANGE)
+
+
+def test_data_flow_solver_run_twice_raises(solver: DataFlowSolver):
+    # Create an analysis that tries to run the solver again during execution
+    class ReentrantAnalysis(DataFlowAnalysis):
+        def initialize(self, op: Operation) -> None:
+            # Try to run again while already running
+            with pytest.raises(RuntimeError, match="Solver is already running."):
+                self.solver.initialize_and_run(Mock())
+
+        def visit(self, point: ProgramPoint) -> None:
+            pass
+
+    solver.load(ReentrantAnalysis)
+    solver.initialize_and_run(Mock())
+
+
+# endregion
