@@ -4,6 +4,7 @@ from abc import ABC
 from collections.abc import Mapping, Sequence
 from collections.abc import Set as AbstractSet
 from dataclasses import dataclass
+from math import prod
 from typing import ClassVar, cast
 
 from typing_extensions import TypeVar, deprecated
@@ -18,6 +19,7 @@ from xdsl.dialects.builtin import (
     ArrayAttr,
     BoolAttr,
     DenseArrayBase,
+    FixedBitwidthType,
     IndexType,
     IndexTypeConstr,
     IntAttr,
@@ -1545,8 +1547,12 @@ class BitcastOp(IRDLOperation):
 
     name = "vector.bitcast"
 
-    source = operand_def(VectorType)
-    result = result_def(VectorType)
+    source = operand_def(
+        VectorType.constr(base(IntegerType) | base(IndexType) | AnyFloatConstr)
+    )
+    result = result_def(
+        VectorType.constr(base(IntegerType) | base(IndexType) | AnyFloatConstr)
+    )
 
     assembly_format = "$source attr-dict `:` type($source) `to` type($result)"
 
@@ -1559,6 +1565,42 @@ class BitcastOp(IRDLOperation):
             operands=[source],
             result_types=[result_type],
         )
+
+    def verify_(self) -> None:
+        s_t = self.source.type
+        r_t = self.result.type
+
+        assert isa(s_t, VectorType)
+        assert isa(r_t, VectorType)
+
+        s_elem_t = s_t.get_element_type()
+        r_elem_t = r_t.get_element_type()
+        s_shape = s_t.get_shape()
+        r_shape = r_t.get_shape()
+
+        # technically only support index -> index conversions if sizes unknown,
+        # and they must have the same shape
+        s_elem_t_sized = isinstance(s_elem_t, FixedBitwidthType)
+        r_elem_t_sized = isinstance(r_elem_t, FixedBitwidthType)
+
+        if not s_elem_t_sized or not r_elem_t_sized:
+            # if they are both unsized and have the same shape
+            if not (s_elem_t_sized ^ r_elem_t_sized) and s_shape == r_shape:
+                return
+
+            raise VerifyException(
+                "For element types of undefined bitwidth, expect "
+                + "both types to have undefined bitwidth and shape to be equal"
+            )
+
+        source_size = prod(s_shape) * s_elem_t.bitwidth
+        result_size = prod(r_shape) * r_elem_t.bitwidth
+
+        # if sizes are known, they must match perfectly
+        if not source_size == result_size:
+            raise VerifyException(
+                "The source and result types do not have an equal bitwidth"
+            )
 
 
 Vector = Dialect(
