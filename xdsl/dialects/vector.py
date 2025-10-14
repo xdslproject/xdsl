@@ -1535,9 +1535,30 @@ class ReductionOp(IRDLOperation):
         )
 
 
+@irdl_op_definition
+class BitcastOp(IRDLOperation):
+    name = "vector.bitcast"
+
+    source = operand_def(VectorType)
+    result = result_def(VectorType)
+
+    assembly_format = "$source attr-dict `:` type($source) `to` type($result)"
+
+    def __init__(
+        self,
+        source: SSAValue | Operation,
+        result_type: Attribute,
+    ):
+        super().__init__(
+            operands=[source],
+            result_types=[result_type],
+        )
+
+
 Vector = Dialect(
     "vector",
     [
+        BitcastOp,
         BroadcastOp,
         CreateMaskOp,
         ExtractElementOp,
