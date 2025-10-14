@@ -101,23 +101,30 @@ LatticeAnchor: TypeAlias = SSAValue | Block | ProgramPoint | GenericLatticeAncho
 """Union type for all possible lattice anchors."""
 
 AnchorInvT = TypeVar("AnchorInvT", bound=LatticeAnchor, default=LatticeAnchor)
+AnchorCovT = TypeVar(
+    "AnchorCovT", bound=LatticeAnchor, default=LatticeAnchor, covariant=True
+)
 
 AnalysisStateInvT = TypeVar("AnalysisStateInvT", bound="AnalysisState")
 DataFlowAnalysisInvT = TypeVar("DataFlowAnalysisInvT", bound="DataFlowAnalysis")
 
 
-class AnalysisState(ABC, Generic[AnchorInvT]):
+class AnalysisState(ABC, Generic[AnchorCovT]):
     """
     Base class for all analysis states. States are attached to lattice anchors
     and evolve as the analysis iterates.
     """
 
-    anchor: AnchorInvT
+    _anchor: AnchorCovT
     dependents: set[tuple[ProgramPoint, DataFlowAnalysis]]
 
-    def __init__(self, anchor: AnchorInvT):
-        self.anchor = anchor
+    def __init__(self, anchor: AnchorCovT):
+        self._anchor = anchor
         self.dependents = set()
+
+    @property
+    def anchor(self) -> AnchorCovT:
+        return self._anchor
 
     def on_update(self, solver: DataFlowSolver) -> None:
         """
