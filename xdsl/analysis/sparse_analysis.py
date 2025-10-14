@@ -111,7 +111,7 @@ class AbstractSparseLattice(Protocol):
         ...
 
 
-class PropagatingLattice(AnalysisState, AbstractSparseLattice, ABC):
+class PropagatingLattice(AnalysisState[SSAValue], AbstractSparseLattice, ABC):
     """
     Base class for sparse lattice elements attached to SSA values.
 
@@ -152,8 +152,6 @@ class PropagatingLattice(AnalysisState, AbstractSparseLattice, ABC):
         """
         super().on_update(solver)
 
-        if not isinstance(self.anchor, SSAValue):
-            return
         for use in self.anchor.uses:
             user_op = use.operation
             user_point = ProgramPoint.before(user_op)
