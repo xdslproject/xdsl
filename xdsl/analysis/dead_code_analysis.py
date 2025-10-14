@@ -14,8 +14,6 @@ from xdsl.analysis.dataflow import (
 )
 from xdsl.ir import Block, Operation, SSAValue
 
-_ValueRange = Sequence[SSAValue]
-
 
 @dataclass(frozen=True)
 class CFGEdge(GenericLatticeAnchor):
@@ -77,7 +75,7 @@ class PredecessorState(AnalysisState):
 
     all_known: bool
     known_predecessors: set[Operation]
-    successor_inputs: dict[Operation, _ValueRange]
+    successor_inputs: dict[Operation, Sequence[SSAValue]]
 
     def __init__(self, anchor: LatticeAnchor):
         super().__init__(anchor)
@@ -93,7 +91,7 @@ class PredecessorState(AnalysisState):
         return ChangeResult.CHANGE
 
     def join(
-        self, predecessor: Operation, inputs: _ValueRange | None = None
+        self, predecessor: Operation, inputs: Sequence[SSAValue] | None = None
     ) -> ChangeResult:
         """Add a known predecessor and its successor inputs."""
         changed = predecessor not in self.known_predecessors
