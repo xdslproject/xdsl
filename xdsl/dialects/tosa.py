@@ -303,9 +303,8 @@ class MatMulOp(IRDLOperation):
     a = operand_def(TensorType.constr(T))
     b = operand_def(TensorType.constr(T))
 
-    # TODO: use these operands for MLIR v21
-    # a_zp = operand_def(TensorType.constr(T))
-    # b_zp = operand_def(TensorType.constr(T))
+    a_zp = operand_def(TensorType.constr(T))
+    b_zp = operand_def(TensorType.constr(T))
 
     output = result_def(TensorType.constr(T))
 
@@ -319,16 +318,14 @@ class MatMulOp(IRDLOperation):
         assert isinstance(self.a.type, ShapedType)
         assert isinstance(self.b.type, ShapedType)
 
-        # TODO: uncomment for MLIR v21
-        # assert isinstance(self.a_zp.type, ShapedType)
-        # assert isinstance(self.b_zp.type, ShapedType)
+        assert isinstance(self.a_zp.type, ShapedType)
+        assert isinstance(self.b_zp.type, ShapedType)
 
         sa = self.a.type.get_shape()
         sb = self.b.type.get_shape()
 
-        # TODO: uncomment for MLIR v21
-        # s_az = self.a_zp.type.get_shape()
-        # s_bz = self.b_zp.type.get_shape()
+        s_az = self.a_zp.type.get_shape()
+        s_bz = self.b_zp.type.get_shape()
 
         if len(sa) != 3 or len(sb) != 3:
             raise VerifyException("'tosa.matmul' Expected operand tensors of rank 3")
@@ -345,11 +342,10 @@ class MatMulOp(IRDLOperation):
             )
 
         # check that zero-points are unranked or scalar
-        # TODO: uncomment for MLIR v21
-        # if len(s_az) not in [0, 1] or len(s_bz) not in [0, 1]:
-        #     raise VerifyException(
-        #         "'tosa.matmul' Expected zero-point operands to be unranked or scalar tensors"
-        #     )
+        if len(s_az) not in [0, 1] or len(s_bz) not in [0, 1]:
+            raise VerifyException(
+                "'tosa.matmul' Expected zero-point operands to be unranked or scalar tensors"
+            )
 
 
 @irdl_op_definition
@@ -553,12 +549,12 @@ class ReduceMinOp(ReductionOperation):
 
 
 @irdl_op_definition
-class ReduceProdOp(ReductionOperation):
+class ReduceProductOp(ReductionOperation):
     """
     Reduce a tensor along the given axis by taking the product of all values
     """
 
-    name = "tosa.reduce_prod"
+    name = "tosa.reduce_product"
 
 
 @irdl_op_definition
@@ -585,7 +581,7 @@ TOSA = Dialect(
         ReduceAnyOp,
         ReduceMaxOp,
         ReduceMinOp,
-        ReduceProdOp,
+        ReduceProductOp,
         ReduceSumOp,
         MatMulOp,
         MaxPool2DOp,
