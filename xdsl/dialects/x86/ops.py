@@ -42,11 +42,14 @@ from xdsl.backend.register_allocatable import (
 )
 from xdsl.backend.register_type import RegisterAllocatedMemoryEffect, RegisterType
 from xdsl.dialects.builtin import (
+    I32,
     IntegerAttr,
     IntegerType,
     ModuleOp,
     Signedness,
     StringAttr,
+    i32,
+    i64,
 )
 from xdsl.ir import (
     Attribute,
@@ -151,10 +154,12 @@ class X86CustomFormatOperation(IRDLOperation, ABC):
         )
 
     @classmethod
-    def parse_optional_memory_access_offset(cls, parser: Parser) -> Attribute | None:
+    def parse_optional_memory_access_offset(
+        cls, parser: Parser, integer_type: IntegerType = i64
+    ) -> Attribute | None:
         return parse_optional_immediate_value(
             parser,
-            IntegerType(64, Signedness.SIGNED),
+            integer_type,
         )
 
     @classmethod
@@ -1078,13 +1083,13 @@ class RSM_Operation(
         register_in: SSAValue[R1InvT],
         source1: Operation | SSAValue,
         memory: Operation | SSAValue,
-        memory_offset: int | IntegerAttr,
+        memory_offset: int | IntegerAttr[I32],
         *,
         comment: str | StringAttr | None = None,
         register_out: R1InvT | None = None,
     ):
         if isinstance(memory_offset, int):
-            memory_offset = IntegerAttr(memory_offset, 64)
+            memory_offset = IntegerAttr[I32](memory_offset, 32)
         if isinstance(comment, str):
             comment = StringAttr(comment)
 
@@ -1109,7 +1114,7 @@ class RSM_Operation(
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
-        if offset := cls.parse_optional_memory_access_offset(parser):
+        if offset := cls.parse_optional_memory_access_offset(parser, i32):
             attributes["memory_offset"] = offset
         return attributes
 
