@@ -11,10 +11,16 @@ from xdsl.analysis.dataflow import (
     LatticeAnchor,
     ProgramPoint,
 )
-from xdsl.analysis.dead_code_analysis import CFGEdge, Executable, PredecessorState
+from xdsl.analysis.dead_code_analysis import (
+    CFGEdge,
+    DeadCodeAnalysis,
+    Executable,
+    PredecessorState,
+)
+from xdsl.context import Context
 from xdsl.dialects import arith, test
-from xdsl.dialects.builtin import IntegerType
-from xdsl.ir import Block, Operation
+from xdsl.dialects.builtin import IntegerType, ModuleOp
+from xdsl.ir import Block, Operation, Region
 from xdsl.utils.test_value import create_ssa_value
 
 
@@ -289,3 +295,115 @@ def test_predecessor_state_str():
     assert "test.op" in str_repr
     assert "arith.constant" in str_repr
     assert "] (unknown predecessors)" in str_repr
+
+
+@pytest.fixture
+def solver_with_dca() -> tuple[DataFlowSolver, DeadCodeAnalysis]:
+    """Fixture to get a solver with DeadCodeAnalysis loaded."""
+    context = Context()
+    solver = DataFlowSolver(context)
+    analysis = solver.load(DeadCodeAnalysis)
+    return solver, analysis
+
+
+def test_dca_initialize_marks_entry_block_live(
+    solver_with_dca: tuple[DataFlowSolver, DeadCodeAnalysis],
+):
+    """Test that DeadCodeAnalysis.initialize marks the entry block as live."""
+    solver, analysis = solver_with_dca
+
+    block = Block()
+    region = Region([block])
+    op = ModuleOp.create(regions=[region])
+
+    solver.propagate_if_changed = Mock()
+
+    analysis.initialize(op)
+
+    entry_point = ProgramPoint.at_start_of_block(block)
+    exec_state = solver.lookup_state(entry_point, Executable)
+    assert exec_state is not None
+
+    solver.propagate_if_changed.assert_called_once()
+    call_args = solver.propagate_if_changed.call_args[0]
+    assert call_args[0] is exec_state
+    assert call_args[1] is ChangeResult.CHANGE
+    assert exec_state.live
+
+
+def test_dca_initialize_no_region(
+    solver_with_dca: tuple[DataFlowSolver, DeadCodeAnalysis],
+):
+    """Test initialize on an op with no regions."""
+    solver, analysis = solver_with_dca
+    op = test.TestOp()  # has no regions by default
+
+    solver.propagate_if_changed = Mock()
+    analysis.initialize(op)
+    solver.propagate_if_changed.assert_not_called()
+
+
+def test_dca_initialize_empty_region(
+    solver_with_dca: tuple[DataFlowSolver, DeadCodeAnalysis],
+):
+    """Test initialize on an op with an empty region."""
+    solver, analysis = solver_with_dca
+    region = Region()
+    op = ModuleOp.create(regions=[region])
+
+    solver.propagate_if_changed = Mock()
+    analysis.initialize(op)
+    solver.propagate_if_changed.assert_not_called()
+
+
+def test_dca_visit_op_in_live_block(
+    solver_with_dca: tuple[DataFlowSolver, DeadCodeAnalysis],
+):
+    """Test visiting an op in a live block."""
+    solver, analysis = solver_with_dca
+
+    op = test.TestOp()
+    block = Block([op])
+
+    block_point = ProgramPoint.at_start_of_block(block)
+    exec_state = solver.get_or_create_state(block_point, Executable)
+    exec_state.set_to_live()
+
+    op_point = ProgramPoint.before(op)
+    analysis.visit(op_point)
+
+    assert (op_point, analysis) in exec_state.dependents
+    assert analysis in exec_state.block_content_subscribers
+
+
+def test_dca_visit_op_in_dead_block(
+    solver_with_dca: tuple[DataFlowSolver, DeadCodeAnalysis],
+):
+    """Test visiting an op in a dead block."""
+    solver, analysis = solver_with_dca
+
+    op = test.TestOp()
+    block = Block([op])
+
+    block_point = ProgramPoint.at_start_of_block(block)
+    exec_state = solver.get_or_create_state(block_point, Executable)
+
+    op_point = ProgramPoint.before(op)
+    analysis.visit(op_point)
+
+    assert (op_point, analysis) in exec_state.dependents
+    assert analysis not in exec_state.block_content_subscribers
+
+
+def test_dca_visit_non_op_point(
+    solver_with_dca: tuple[DataFlowSolver, DeadCodeAnalysis],
+):
+    """Test visiting a non-op program point."""
+    solver, analysis = solver_with_dca
+
+    block = Block()
+    point = ProgramPoint.at_end_of_block(block)  # Not an op
+
+    solver.get_or_create_state = Mock()
+    analysis.visit(point)
+    solver.get_or_create_state.assert_not_called()

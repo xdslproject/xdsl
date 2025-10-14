@@ -109,3 +109,49 @@ class PredecessorState(AnalysisState):
         preds = ", ".join(p.name for p in self.known_predecessors)
         status = "all known" if self.all_known else "unknown predecessors"
         return f"Predecessors: [{preds}] ({status})"
+
+
+class DeadCodeAnalysis(DataFlowAnalysis):
+    """
+    This analysis identifies executable code paths. It is a foundational analysis
+    that other dataflow analyses can depend on to correctly handle control flow.
+
+    NOTE: Due to the lack of control flow interfaces in xDSL (e.g., BranchOpInterface,
+    RegionBranchOpInterface, CallOpInterface), the analysis does not handle control flow at all.
+    Essentially, only the entry block of the top-level op's first region is marked as live.
+    """
+
+    def initialize(self, op: Operation) -> None:
+        # Mark the entry block of the top-level op's first region as live.
+        if op.regions and op.regions[0].first_block:
+            entry_point = ProgramPoint.at_start_of_block(op.regions[0].first_block)
+            executable = self.get_or_create_state(entry_point, Executable)
+            self.propagate_if_changed(executable, executable.set_to_live())
+
+    def visit(self, point: ProgramPoint) -> None:
+        op = point.op
+        if op is None:
+            # This analysis only triggers on operations.
+            return
+        assert not op.regions, "Cannot yet handle operations with regions"
+
+        # If parent block is not live, do nothing.
+        parent_block = op.parent
+        if parent_block:
+            assert parent_block.last_op
+            assert not parent_block.last_op.successors, (
+                "Block has successor blocks, which are not supported yet"
+            )
+            block_start_point = ProgramPoint.at_start_of_block(parent_block)
+            parent_executable = self.get_or_create_state(block_start_point, Executable)
+            # Create dependency: if block liveness changes, re-visit this op.
+            self.add_dependency(parent_executable, point)
+            if not parent_executable.live:
+                return
+            # Subscribe to block liveness to visit all ops if it becomes live.
+            parent_executable.block_content_subscribers.add(self)
+
+        # Assert that we don't have nested regions or control flow yet
+        assert not op.regions, (
+            f"Operation {op.name} has nested regions, which are not supported yet"
+        )
