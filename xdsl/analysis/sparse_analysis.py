@@ -57,7 +57,7 @@ class AbstractLatticeValue(Protocol):
         - In sign analysis: `Positive ∧ NonZero = Positive`
         - In range analysis: `[0, 10] ∧ [5, 15] = [5, 10]`
         """
-        raise NotImplementedError()
+        ...
 
     def join(self, other: Self) -> Self:
         """
@@ -75,7 +75,7 @@ class AbstractLatticeValue(Protocol):
         - In sign analysis: `Positive ∨ Negative = Unknown`
         - In range analysis: `[0, 10] ∨ [5, 15] = [0, 15]`
         """
-        raise NotImplementedError()
+        ...
 
 
 class AbstractSparseLattice(Protocol):
