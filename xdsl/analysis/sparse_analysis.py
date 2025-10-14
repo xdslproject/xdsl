@@ -8,9 +8,9 @@ For more information on lattices, refer to [this Wikipedia article](https://en.w
 from __future__ import annotations
 
 from abc import ABC
-from typing import Protocol
+from typing import Generic, Protocol
 
-from typing_extensions import Self
+from typing_extensions import Self, TypeVar
 
 from xdsl.analysis.dataflow import (
     AnalysisState,
@@ -20,6 +20,7 @@ from xdsl.analysis.dataflow import (
     ProgramPoint,
 )
 from xdsl.ir import SSAValue
+from xdsl.utils.hints import isa
 
 
 class AbstractLatticeValue(Protocol):
@@ -164,3 +165,62 @@ class PropagatingLattice(AnalysisState[SSAValue], AbstractSparseLattice, ABC):
         whenever this lattice state changes.
         """
         self.use_def_subscribers.add(analysis)
+
+
+LatticeValueInvT = TypeVar("LatticeValueInvT", bound=AbstractLatticeValue)
+
+
+class Lattice(PropagatingLattice, Generic[LatticeValueInvT]):
+    """
+    Generic wrapper that combines a lattice value with sparse propagation infrastructure.
+
+    See [`AbstractLatticeValue`][xdsl.analysis.sparse_analysis.AbstractLatticeValue] for more information around
+    the meet and join operations that need to be implemented.
+
+    If you need meet/join functionality that does not match with what `Lattice` provides,
+    consider using [`PropagatingLattice`][xdsl.analysis.sparse_analysis.PropagatingLattice] directly.
+    """
+
+    value_cls: type[LatticeValueInvT]
+    _value: LatticeValueInvT
+
+    def __init__(
+        self,
+        anchor: SSAValue,
+        value: LatticeValueInvT | None = None,
+    ):
+        super().__init__(anchor)
+        if value is not None:
+            self._value = value
+        else:
+            self._value = self.value_cls()
+
+    @property
+    def value(self) -> LatticeValueInvT:
+        return self._value
+
+    def meet(self, other: Self) -> ChangeResult:
+        new_value = type(self.value).meet(self.value, other.value)
+
+        if new_value == self.value:
+            return ChangeResult.NO_CHANGE
+
+        assert isa(new_value, LatticeValueInvT)
+        self._value = new_value
+        return ChangeResult.CHANGE
+
+    def join(self, other: AbstractSparseLattice) -> ChangeResult:
+        assert isinstance(other, type(self))
+        new_value = self.value.join(other.value)
+
+        if new_value == self.value:
+            return ChangeResult.NO_CHANGE
+
+        self._value = new_value
+        return ChangeResult.CHANGE
+
+    def __str__(self) -> str:
+        return str(self.value)
+
+
+LatticeInvT = TypeVar("LatticeInvT", bound=PropagatingLattice)
