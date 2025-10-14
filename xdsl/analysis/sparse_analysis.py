@@ -224,4 +224,4 @@ class Lattice(PropagatingLattice, Generic[LatticeValueInvT]):
         return str(self.value)
 
 
-LatticeInvT = TypeVar("LatticeInvT", bound=PropagatingLattice)
+PropagatingLatticeInvT = TypeVar("PropagatingLatticeInvT", bound=PropagatingLattice)
