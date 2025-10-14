@@ -11,8 +11,8 @@ from xdsl.analysis.dataflow import (
     LatticeAnchor,
     ProgramPoint,
 )
-from xdsl.analysis.dead_code_analysis import Executable
-from xdsl.dialects import test
+from xdsl.analysis.dead_code_analysis import CFGEdge, Executable, PredecessorState
+from xdsl.dialects import arith, test
 from xdsl.dialects.builtin import IntegerType
 from xdsl.ir import Block, Operation
 from xdsl.utils.test_value import create_ssa_value
@@ -145,3 +145,147 @@ def test_executable_on_update_empty_block():
     # block, it's the block itself, so this should do nothing.
     state.on_update(solver)
     solver.enqueue.assert_not_called()
+
+
+def test_cfg_edge_str():
+    """Test the __str__ method of CFGEdge."""
+    b1 = Block()
+    b1.name_hint = "b1"
+    b2 = Block()
+    b2.name_hint = "b2"
+    edge = CFGEdge(b1, b2)
+    assert str(edge) == "edge(b1 -> b2)"
+
+
+def test_cfg_edge_str_no_hint():
+    """Test the __str__ method of CFGEdge when blocks have no name hints."""
+    b1 = Block()
+    b2 = Block()
+    edge = CFGEdge(b1, b2)
+    assert str(edge) == f"edge({id(b1)} -> {id(b2)})"
+
+
+def test_predecessor_state_initial():
+    """Test the initial state of PredecessorState."""
+    anchor = Mock(spec=LatticeAnchor)
+    state = PredecessorState(anchor)
+
+    assert state.all_known is True
+    assert state.known_predecessors == set()
+    assert state.successor_inputs == {}
+    assert str(state) == "Predecessors: [] (all known)"
+
+
+def test_predecessor_state_set_has_unknown_predecessors():
+    """Test the set_has_unknown_predecessors method."""
+    anchor = Mock(spec=LatticeAnchor)
+    state = PredecessorState(anchor)
+
+    # First call should change the state
+    assert state.set_has_unknown_predecessors() is ChangeResult.CHANGE
+    assert state.all_known is False
+    assert "unknown predecessors" in str(state)
+
+    # Second call should not change the state
+    assert state.set_has_unknown_predecessors() is ChangeResult.NO_CHANGE
+    assert state.all_known is False
+
+
+def test_predecessor_state_join_new_predecessor_no_inputs():
+    """Test joining a new predecessor without inputs."""
+    anchor = Mock(spec=LatticeAnchor)
+    state = PredecessorState(anchor)
+    pred_op = test.TestOp()
+
+    assert state.join(pred_op) is ChangeResult.CHANGE
+    assert state.known_predecessors == {pred_op}
+
+
+def test_predecessor_state_join_existing_predecessor_no_inputs():
+    """Test joining an existing predecessor without inputs."""
+    anchor = Mock(spec=LatticeAnchor)
+    state = PredecessorState(anchor)
+    pred_op = test.TestOp()
+    state.join(pred_op)
+
+    assert state.join(pred_op) is ChangeResult.NO_CHANGE
+    assert state.known_predecessors == {pred_op}
+
+
+def test_predecessor_state_join_new_predecessor_with_inputs():
+    """Test joining a new predecessor with inputs."""
+    anchor = Mock(spec=LatticeAnchor)
+    state = PredecessorState(anchor)
+    pred_op = test.TestOp()
+    inputs = (create_ssa_value(IntegerType(32)),)
+
+    assert state.join(pred_op, inputs) is ChangeResult.CHANGE
+    assert state.known_predecessors == {pred_op}
+    assert state.successor_inputs == {pred_op: inputs}
+
+
+def test_predecessor_state_join_existing_predecessor_same_inputs():
+    """Test joining an existing predecessor with the same inputs."""
+    anchor = Mock(spec=LatticeAnchor)
+    state = PredecessorState(anchor)
+    pred_op = test.TestOp()
+    inputs = (create_ssa_value(IntegerType(32)),)
+    state.join(pred_op, inputs)
+
+    assert state.join(pred_op, inputs) is ChangeResult.NO_CHANGE
+    assert state.known_predecessors == {pred_op}
+    assert state.successor_inputs == {pred_op: inputs}
+
+
+def test_predecessor_state_join_existing_predecessor_different_inputs():
+    """Test joining an existing predecessor with different inputs."""
+    anchor = Mock(spec=LatticeAnchor)
+    state = PredecessorState(anchor)
+    pred_op = test.TestOp()
+    inputs1 = (create_ssa_value(IntegerType(32)),)
+    state.join(pred_op, inputs1)
+
+    inputs2 = (create_ssa_value(IntegerType(64)),)
+    assert state.join(pred_op, inputs2) is ChangeResult.CHANGE
+    assert state.known_predecessors == {pred_op}
+    assert state.successor_inputs == {pred_op: inputs2}
+
+
+def test_predecessor_state_join_existing_predecessor_add_inputs():
+    """Test adding inputs to an existing predecessor that had none."""
+    anchor = Mock(spec=LatticeAnchor)
+    state = PredecessorState(anchor)
+    pred_op = test.TestOp()
+    state.join(pred_op)
+
+    inputs = (create_ssa_value(IntegerType(32)),)
+    assert state.join(pred_op, inputs) is ChangeResult.CHANGE
+    assert state.known_predecessors == {pred_op}
+    assert state.successor_inputs == {pred_op: inputs}
+
+
+def test_predecessor_state_str():
+    """Test the __str__ method of PredecessorState."""
+    anchor = Mock(spec=LatticeAnchor)
+    state = PredecessorState(anchor)
+
+    pred1 = test.TestOp()
+    state.join(pred1)
+    assert str(state) == "Predecessors: [test.op] (all known)"
+
+    pred2 = arith.ConstantOp.from_int_and_width(42, IntegerType(32))
+    state.join(pred2)
+
+    str_repr = str(state)
+    assert "Predecessors: [" in str_repr
+    # Order is not guaranteed
+    assert "test.op" in str_repr
+    assert "arith.constant" in str_repr
+    assert "] (all known)" in str_repr
+
+    state.set_has_unknown_predecessors()
+    str_repr = str(state)
+    assert "Predecessors: [" in str_repr
+    assert "test.op" in str_repr
+    assert "arith.constant" in str_repr
+    assert "] (unknown predecessors)" in str_repr
