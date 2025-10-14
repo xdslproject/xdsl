@@ -1069,7 +1069,7 @@ class RSM_Operation(
     register_out = result_def(R1InvT)
     source1 = operand_def(R2InvT)
     memory = operand_def(R4InvT)
-    memory_offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
+    memory_offset = attr_def(IntegerAttr[I32], default_value=IntegerAttr(0, 32))
 
     traits = traits_def(MemoryReadEffect())
 
