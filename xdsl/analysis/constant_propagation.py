@@ -74,7 +74,7 @@ class ConstantValue(AbstractLatticeValue):
             raise RuntimeError("ConstantValue is not a constant")
         return self._value
 
-    def join(self: Self, other: Self) -> Self:  # pyright: ignore[reportIncompatibleMethodOverride]
+    def join(self, other: Self) -> Self:
         """The join operation for the constant value lattice."""
         if self.is_uninitialized:
             return other
