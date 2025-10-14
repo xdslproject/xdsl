@@ -1,3 +1,10 @@
+"""
+The sparse analysis module provides data flow analysis utilities for sparse lattices.
+
+For more information on lattices, refer to [this Wikipedia article](https://en.wikipedia.org/wiki/Lattice_(order)).
+
+"""
+
 from __future__ import annotations
 
 from abc import ABC
@@ -18,19 +25,56 @@ from xdsl.ir import SSAValue
 class AbstractLatticeValue(Protocol):
     """
     Protocol for the mathematical lattice value types used within Lattice wrappers.
+    A lattice is a mathematical structure with a partial ordering and two operations:
+
+    - join (∨): computes the least upper bound (union of information)
+    - meet (∧): computes the greatest lower bound (intersection of information)
+
+    Classes implementing this protocol should provide implementations for the `meet` and/or `join` methods.
 
     This protocol represents the actual lattice element (the abstract value being
     tracked), separate from the propagation infrastructure. For example:
 
-    - In constant propagation: the lattice value might be `Bottom | Constant(n) | Top`
+    - In constant propagation: the lattice value might be `⊥ (bottom) | Constant(n) | ⊤ (top)`
     - In sign analysis: the lattice value might be `Positive | Negative | Zero | Unknown`
     - In range analysis: the lattice value might be `Interval(min, max)`
     """
 
     def meet(self, other: Self) -> Self:
+        """
+        Computes the greatest lower bound (intersection of information) of two lattice values.
+
+        `a.meet(b)` (or `a ∧ b`) produces the most precise value that is less than or equal
+        to both `a` and `b` in the lattice ordering. It represents the combination of two
+        abstract values where we keep only information guaranteed to hold in both.
+
+        In other words, `meet` refines information by taking their common part.
+
+        Examples:
+
+        - In constant propagation: `Constant(3) ∧ Constant(3) = Constant(3)`,
+          but `Constant(3) ∧ Constant(4) = ⊥ (bottom)`
+        - In sign analysis: `Positive ∧ NonZero = Positive`
+        - In range analysis: `[0, 10] ∧ [5, 15] = [5, 10]`
+        """
         raise NotImplementedError()
 
     def join(self, other: Self) -> Self:
+        """
+        Computes the least upper bound (union of information) of two lattice values.
+
+        `a.join(b)` (or `a ∨ b`) produces the least precise value that is greater than or
+        equal to both `a` and `b` in the lattice ordering. It represents the merging of
+        two abstract values where we keep any information that could hold in either.
+
+        In other words, `join` generalizes information by taking their union.
+
+        Examples:
+
+        - In constant propagation: `Constant(3) ∨ Constant(4) = ⊤ (top)`
+        - In sign analysis: `Positive ∨ Negative = Unknown`
+        - In range analysis: `[0, 10] ∨ [5, 15] = [0, 15]`
+        """
         raise NotImplementedError()
 
 
@@ -38,22 +82,33 @@ class AbstractSparseLattice(Protocol):
     """
     Protocol for sparse lattice elements used in data flow analysis.
 
-    A lattice is a mathematical structure with a partial ordering and two operations:
+    Seem [AbstractLatticeValue][xdsl.analysis.sparse_analysis.AbstractLatticeValue] for more
+    information about lattices and their operations.
 
-    - join (∨): computes the least upper bound (union of information)
-    - meet (∧): computes the greatest lower bound (intersection of information)
-
-    In data flow analysis, lattices represent abstract values or properties that
-    flow through the program. For example, in constant propagation:
-
-    - ⊥ (bottom) means "undefined/no information"
-    - specific constants like `5`, `7`, etc.
-    - ⊤ (top) means "not a constant/conflicting information"
+    In contrast to [AbstractLatticeValue][xdsl.analysis.sparse_analysis.AbstractLatticeValue],
+    the `meet` and `join` methods in this protocol are required to return a ChangeResult,
+    signaling whether the lattice element has changed.
     """
 
-    def join(self, other: Self) -> ChangeResult: ...
+    def join(self, other: Self) -> ChangeResult:
+        """
+        Join two lattice elements. Returns `ChangeResult.CHANGE` if the lattice element has changed,
+        otherwise `ChangeResult.NO_CHANGE`.
 
-    def meet(self, other: Self) -> ChangeResult: ...
+        For more information about the join operation, see
+        [`AbstractLatticeValue.join`][xdsl.analysis.sparse_analysis.AbstractLatticeValue.join].
+        """
+        ...
+
+    def meet(self, other: Self) -> ChangeResult:
+        """
+        Meet two lattice elements. Returns `ChangeResult.CHANGE` if the lattice element has changed,
+        otherwise `ChangeResult.NO_CHANGE`.
+
+        For more information about the meet operation, see
+        [`AbstractLatticeValue.meet`][xdsl.analysis.sparse_analysis.AbstractLatticeValue.meet].
+        """
+        ...
 
 
 class PropagatingLattice(AnalysisState, AbstractSparseLattice, ABC):
