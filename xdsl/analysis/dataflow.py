@@ -176,24 +176,28 @@ class DataFlowSolver:
             self._is_running = False
 
     def get_or_create_state(
-        self, anchor: LatticeAnchor, state_type: type[AnalysisStateInvT]
-    ) -> AnalysisStateInvT:
+        self, anchor: AnchorInvT, state_type: type[AnalysisState[AnchorInvT]]
+    ) -> AnalysisState[AnchorInvT]:
         """
         Get the state for a given anchor. If it doesn't exist, create it.
         """
         if state_type not in self._analysis_states[anchor]:
             self._analysis_states[anchor][state_type] = state_type(anchor)
-        return cast(AnalysisStateInvT, self._analysis_states[anchor][state_type])
+        return cast(
+            AnalysisState[AnchorInvT], self._analysis_states[anchor][state_type]
+        )
 
     def lookup_state(
-        self, anchor: LatticeAnchor, state_type: type[AnalysisStateInvT]
-    ) -> AnalysisStateInvT | None:
+        self, anchor: AnchorInvT, state_type: type[AnalysisState[AnchorInvT]]
+    ) -> AnalysisState[AnchorInvT] | None:
         """Look up an analysis state. Returns None if it doesn't exist."""
         if (
             anchor in self._analysis_states
             and state_type in self._analysis_states[anchor]
         ):
-            return cast(AnalysisStateInvT, self._analysis_states[anchor][state_type])
+            return cast(
+                AnalysisState[AnchorInvT], self._analysis_states[anchor][state_type]
+            )
         return None
 
     def enqueue(self, item: tuple[ProgramPoint, DataFlowAnalysis]) -> None:
