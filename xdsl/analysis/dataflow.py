@@ -269,6 +269,8 @@ class DataFlowAnalysis(ABC):
         """
         state.dependents.add((dependent_point, self))
 
-    def propagate_if_changed(self, state: AnalysisState, changed: ChangeResult) -> None:
+    def propagate_if_changed(
+        self, state: AnalysisState[Any], changed: ChangeResult
+    ) -> None:
         """Helper to propagate a state change to the solver."""
         self.solver.propagate_if_changed(state, changed)
