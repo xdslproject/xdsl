@@ -20,7 +20,6 @@ from xdsl.analysis.dataflow import (
     ProgramPoint,
 )
 from xdsl.ir import SSAValue
-from xdsl.utils.hints import isa
 
 
 class AbstractLatticeValue(Protocol):
@@ -32,6 +31,8 @@ class AbstractLatticeValue(Protocol):
     - meet (∧): computes the greatest lower bound (intersection of information)
 
     Classes implementing this protocol should provide implementations for the `meet` and/or `join` methods.
+    The class should also provide a constructor with no arguments that initializes the lattice
+    value to an uninitialized state.
 
     This protocol represents the actual lattice element (the abstract value being
     tracked), separate from the propagation infrastructure. For example:
@@ -40,6 +41,8 @@ class AbstractLatticeValue(Protocol):
     - In sign analysis: the lattice value might be `Positive | Negative | Zero | Unknown`
     - In range analysis: the lattice value might be `Interval(min, max)`
     """
+
+    def __init__(self): ...
 
     def meet(self, other: Self) -> Self:
         """
@@ -205,7 +208,6 @@ class Lattice(PropagatingLattice, Generic[LatticeValueInvT]):
         if new_value == self.value:
             return ChangeResult.NO_CHANGE
 
-        assert isa(new_value, LatticeValueInvT)
         self._value = new_value
         return ChangeResult.CHANGE
 
