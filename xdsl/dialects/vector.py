@@ -48,12 +48,15 @@ from xdsl.ir import (
 from xdsl.ir.affine import AffineConstantExpr, AffineDimExpr, AffineMap
 from xdsl.irdl import (
     AnyAttr,
+    AtLeast,
     AttrConstraint,
     AttrSizedOperandSegments,
     ConstraintContext,
     IntConstraint,
     IRDLOperation,
+    MessageConstraint,
     ParsePropInAttrDict,
+    RangeOf,
     VarConstraint,
     base,
     irdl_attr_definition,
@@ -601,7 +604,16 @@ class ExtractOp(IRDLOperation):
     vector = operand_def(_V)
     dynamic_position = var_operand_def(IndexTypeConstr)
 
-    result = result_def(VectorType.constr(_T) | _T)
+    result = result_def(
+        VectorType.constr(
+            _T,
+            shape=MessageConstraint(
+                ArrayAttr.constr(RangeOf(base(IntAttr)).of_length(AtLeast(1))),
+                "Cannot extract 0d vector.",
+            ),
+        )
+        | _T
+    )
 
     traits = traits_def(Pure())
 
@@ -727,7 +739,16 @@ class InsertOp(IRDLOperation):
 
     static_position = prop_def(DenseArrayBase.constr(i64))
 
-    source = operand_def(VectorType.constr(_T) | _T)
+    source = operand_def(
+        VectorType.constr(
+            _T,
+            shape=MessageConstraint(
+                ArrayAttr.constr(RangeOf(base(IntAttr)).of_length(AtLeast(1))),
+                "Cannot insert 0d vector.",
+            ),
+        )
+        | _T
+    )
     dest = operand_def(_V)
     dynamic_position = var_operand_def(IndexTypeConstr)
 
