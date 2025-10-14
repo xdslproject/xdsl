@@ -42,11 +42,14 @@ from xdsl.backend.register_allocatable import (
 )
 from xdsl.backend.register_type import RegisterAllocatedMemoryEffect, RegisterType
 from xdsl.dialects.builtin import (
+    I32,
     IntegerAttr,
     IntegerType,
     ModuleOp,
     Signedness,
     StringAttr,
+    i32,
+    i64,
 )
 from xdsl.ir import (
     Attribute,
@@ -103,6 +106,7 @@ from .registers import (
 R1InvT = TypeVar("R1InvT", bound=X86RegisterType)
 R2InvT = TypeVar("R2InvT", bound=X86RegisterType)
 R3InvT = TypeVar("R3InvT", bound=X86RegisterType)
+R4InvT = TypeVar("R4InvT", bound=X86RegisterType)
 
 
 class X86AsmOperation(
@@ -150,10 +154,12 @@ class X86CustomFormatOperation(IRDLOperation, ABC):
         )
 
     @classmethod
-    def parse_optional_memory_access_offset(cls, parser: Parser) -> Attribute | None:
+    def parse_optional_memory_access_offset(
+        cls, parser: Parser, integer_type: IntegerType = i64
+    ) -> Attribute | None:
         return parse_optional_immediate_value(
             parser,
-            IntegerType(64, Signedness.SIGNED),
+            integer_type,
         )
 
     @classmethod
@@ -1054,6 +1060,68 @@ class RSS_Operation(
         return RegisterConstraints(
             (self.source1, self.source2), (), ((self.register_in, self.register_out),)
         )
+
+
+class RSM_Operation(
+    X86Instruction, X86CustomFormatOperation, ABC, Generic[R1InvT, R2InvT, R4InvT]
+):
+    """
+    A base class for x86 operations that have one register that is read and written to,
+    one source register and one memory source operand.
+    """
+
+    register_in = operand_def(R1InvT)
+    register_out = result_def(R1InvT)
+    source1 = operand_def(R2InvT)
+    memory = operand_def(R4InvT)
+    memory_offset = attr_def(IntegerAttr[I32], default_value=IntegerAttr(0, 32))
+
+    traits = traits_def(MemoryReadEffect())
+
+    def __init__(
+        self,
+        register_in: SSAValue[R1InvT],
+        source1: Operation | SSAValue,
+        memory: Operation | SSAValue,
+        memory_offset: int | IntegerAttr[I32],
+        *,
+        comment: str | StringAttr | None = None,
+        register_out: R1InvT | None = None,
+    ):
+        if isinstance(memory_offset, int):
+            memory_offset = IntegerAttr[I32](memory_offset, 32)
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        if register_out is None:
+            register_out = register_in.type
+
+        super().__init__(
+            operands=[register_in, source1, memory],
+            attributes={
+                "memory_offset": memory_offset,
+                "comment": comment,
+            },
+            result_types=[register_out],
+        )
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        memory_access = memory_access_str(self.memory, self.memory_offset)
+        src1 = assembly_arg_str(self.source1)
+        destination = assembly_arg_str(self.register_in)
+        return destination, src1, memory_access
+
+    @classmethod
+    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
+        attributes = dict[str, Attribute]()
+        if offset := cls.parse_optional_memory_access_offset(parser, i32):
+            attributes["memory_offset"] = offset
+        return attributes
+
+    def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
+        printer.print_string(", ")
+        print_immediate_value(printer, self.memory_offset)
+        return {"memory_offset"}
 
 
 class DSSI_Operation(
@@ -3010,6 +3078,20 @@ class RSS_Vfmadd231pdOp(
 
 
 @irdl_op_definition
+class RSM_Vfmadd231pdOp(
+    RSM_Operation[X86VectorRegisterType, X86VectorRegisterType, GeneralRegisterType]
+):
+    """
+    Multiply packed double-precision floating-point elements in s1 and at specified memory location, add the
+    intermediate result to r, and store the final result in r.
+
+    See external [documentation](https://www.felixcloutier.com/x86/vfmadd132pd:vfmadd213pd:vfmadd231pd).
+    """
+
+    name = "x86.rsm.vfmadd231pd"
+
+
+@irdl_op_definition
 class RSS_Vfmadd231psOp(
     RSS_Operation[X86VectorRegisterType, X86VectorRegisterType, X86VectorRegisterType]
 ):
@@ -3021,6 +3103,20 @@ class RSS_Vfmadd231psOp(
     """
 
     name = "x86.rss.vfmadd231ps"
+
+
+@irdl_op_definition
+class RSM_Vfmadd231psOp(
+    RSM_Operation[X86VectorRegisterType, X86VectorRegisterType, GeneralRegisterType]
+):
+    """
+    Multiply packed single-precision floating-point elements in s1 and at specified memory location, add the
+    intermediate result to r, and store the final result in r.
+
+    See external [documentation](https://www.felixcloutier.com/x86/vfmadd132pd:vfmadd213pd:vfmadd231pd).
+    """
+
+    name = "x86.rsm.vfmadd231ps"
 
 
 @irdl_op_definition
