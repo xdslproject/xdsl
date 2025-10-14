@@ -86,20 +86,14 @@ def test_abstract_lattice_value_join():
 # region SparseLatticeSubscriberBase tests
 
 
-def test_sparse_lattice_initialization():
-    """Test that SparseLatticeSubscriberBase initializes correctly."""
+def test_use_def_subscribe():
+    """Test that analyses can subscribe to use-def updates."""
     anchor = create_ssa_value(IntegerType(32))
     lattice = SimpleSparseLattice(anchor)
 
     assert lattice.anchor is anchor
     assert len(lattice.use_def_subscribers) == 0
     assert len(lattice.dependents) == 0
-
-
-def test_use_def_subscribe():
-    """Test that analyses can subscribe to use-def updates."""
-    anchor = create_ssa_value(IntegerType(32))
-    lattice = SimpleSparseLattice(anchor)
 
     solver = DataFlowSolver(Context())
 
