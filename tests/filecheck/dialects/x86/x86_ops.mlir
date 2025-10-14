@@ -358,6 +358,8 @@ func.func @funcyasm() {
 // CHECK: %{{.*}} = x86.rss.vfmadd231pd %{{.*}}, %{{.*}}, %{{.*}} : (!x86.ssereg, !x86.ssereg, !x86.ssereg) -> !x86.ssereg
 %rrm_vfmadd231pd_sse = x86.rsm.vfmadd231pd %xmm3, %xmm4, %1, 8 : (!x86.ssereg, !x86.ssereg, !x86.reg) -> !x86.ssereg
 // CHECK: %{{.*}} = x86.rsm.vfmadd231pd %{{.*}}, %{{.*}}, %{{.*}}, 8 : (!x86.ssereg, !x86.ssereg, !x86.reg) -> !x86.ssereg
+%rrm_vfmadd231pd_sse_no_offset = x86.rsm.vfmadd231pd %xmm3, %xmm4, %1 : (!x86.ssereg, !x86.ssereg, !x86.reg) -> !x86.ssereg
+// CHECK: %{{.*}} = x86.rsm.vfmadd231pd %{{.*}}, %{{.*}}, %{{.*}} : (!x86.ssereg, !x86.ssereg, !x86.reg) -> !x86.ssereg
 %rrm_vfmadd231ps_sse = x86.rsm.vfmadd231ps %xmm5, %xmm6, %1, 1 : (!x86.ssereg, !x86.ssereg, !x86.reg) -> !x86.ssereg
 // CHECK: %{{.*}} = x86.rsm.vfmadd231ps %{{.*}}, %{{.*}}, %{{.*}}, 1 : (!x86.ssereg, !x86.ssereg, !x86.reg) -> !x86.ssereg
 %ds_vmovapd_sse = x86.ds.vmovapd %xmm1 : (!x86.ssereg) -> !x86.ssereg
@@ -374,6 +376,8 @@ x86.ms.vmovapd %1, %xmm1, 8 : (!x86.reg, !x86.ssereg) -> ()
 // CHECK: %{{.*}} = x86.rss.vfmadd231pd %{{.*}}, %{{.*}}, %{{.*}} : (!x86.avx2reg, !x86.avx2reg, !x86.avx2reg) -> !x86.avx2reg
 %rrm_vfmadd231pd_avx2 = x86.rsm.vfmadd231pd %ymm3, %ymm4, %1, 8 : (!x86.avx2reg, !x86.avx2reg, !x86.reg) -> !x86.avx2reg
 // CHECK: %{{.*}} = x86.rsm.vfmadd231pd %{{.*}}, %{{.*}}, %{{.*}}, 8 : (!x86.avx2reg, !x86.avx2reg, !x86.reg) -> !x86.avx2reg
+%rrm_vfmadd231pd_avx2_no_offset = x86.rsm.vfmadd231pd %ymm3, %ymm4, %1 : (!x86.avx2reg, !x86.avx2reg, !x86.reg) -> !x86.avx2reg
+// CHECK: %{{.*}} = x86.rsm.vfmadd231pd %{{.*}}, %{{.*}}, %{{.*}} : (!x86.avx2reg, !x86.avx2reg, !x86.reg) -> !x86.avx2reg
 %rrm_vfmadd231ps_avx2 = x86.rsm.vfmadd231ps %ymm5, %ymm6, %1, 2 : (!x86.avx2reg, !x86.avx2reg, !x86.reg) -> !x86.avx2reg
 // CHECK: %{{.*}} = x86.rsm.vfmadd231ps %{{.*}}, %{{.*}}, %{{.*}}, 2 : (!x86.avx2reg, !x86.avx2reg, !x86.reg) -> !x86.avx2reg
 %ds_vmovapd_avx2 = x86.ds.vmovapd %ymm1 : (!x86.avx2reg) -> !x86.avx2reg
@@ -394,6 +398,8 @@ x86.ms.vmovapd %1, %ymm1, 8 : (!x86.reg, !x86.avx2reg) -> ()
 // CHECK: %{{.*}} = x86.rss.vfmadd231pd %{{.*}}, %{{.*}}, %{{.*}} : (!x86.avx512reg, !x86.avx512reg, !x86.avx512reg) -> !x86.avx512reg
 %rrm_vfmadd231pd_avx512 = x86.rsm.vfmadd231pd %zmm3, %zmm4, %1, 8 : (!x86.avx512reg, !x86.avx512reg, !x86.reg) -> !x86.avx512reg
 // CHECK: %{{.*}} = x86.rsm.vfmadd231pd %{{.*}}, %{{.*}}, %{{.*}}, 8 : (!x86.avx512reg, !x86.avx512reg, !x86.reg) -> !x86.avx512reg
+%rrm_vfmadd231pd_avx512_no_offset = x86.rsm.vfmadd231pd %zmm3, %zmm4, %1 : (!x86.avx512reg, !x86.avx512reg, !x86.reg) -> !x86.avx512reg
+// CHECK: %{{.*}} = x86.rsm.vfmadd231pd %{{.*}}, %{{.*}}, %{{.*}} : (!x86.avx512reg, !x86.avx512reg, !x86.reg) -> !x86.avx512reg
 %rrm_vfmadd231ps_avx512 = x86.rsm.vfmadd231ps %zmm5, %zmm6, %1, 6 : (!x86.avx512reg, !x86.avx512reg, !x86.reg) -> !x86.avx512reg
 // CHECK: %{{.*}} = x86.rsm.vfmadd231ps %{{.*}}, %{{.*}}, %{{.*}}, 6 : (!x86.avx512reg, !x86.avx512reg, !x86.reg) -> !x86.avx512reg
 %ds_vmovapd_avx512 = x86.ds.vmovapd %zmm1 : (!x86.avx512reg) -> !x86.avx512reg
