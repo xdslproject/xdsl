@@ -33,8 +33,7 @@ class AbstractSparseLattice(Protocol):
     def meet(self, other: Self) -> ChangeResult: ...
 
 
-# TODO: find better name for this
-class SparseLatticeSubscriberBase(AnalysisState, AbstractSparseLattice, ABC):
+class PropagatingLattice(AnalysisState, AbstractSparseLattice, ABC):
     """
     The base class for a lattice element in a sparse analysis.
     It is attached to an SSAValue.

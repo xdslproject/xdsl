@@ -11,7 +11,7 @@ from xdsl.analysis.dataflow import (
     ProgramPoint,
 )
 from xdsl.analysis.sparse_analysis import (
-    SparseLatticeSubscriberBase,
+    PropagatingLattice,
 )
 from xdsl.context import Context
 from xdsl.dialects import test
@@ -35,7 +35,7 @@ class SimpleLatticeValue:
         return SimpleLatticeValue(max(self.value, other.value))
 
 
-class SimpleSparseLattice(SparseLatticeSubscriberBase):
+class SimpleSparseLattice(PropagatingLattice):
     """Concrete implementation of SparseLatticeSubscriberBase for testing."""
 
     def __init__(self, anchor: SSAValue):
