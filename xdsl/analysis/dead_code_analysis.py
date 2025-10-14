@@ -133,10 +133,15 @@ class DeadCodeAnalysis(DataFlowAnalysis):
         if op is None:
             # This analysis only triggers on operations.
             return
+        assert not op.regions, "Cannot yet handle operations with regions"
 
         # If parent block is not live, do nothing.
         parent_block = op.parent
         if parent_block:
+            assert parent_block.last_op
+            assert not parent_block.last_op.successors, (
+                "Block has successor blocks, which are not supported yet"
+            )
             block_start_point = ProgramPoint.at_start_of_block(parent_block)
             parent_executable = self.get_or_create_state(block_start_point, Executable)
             # Create dependency: if block liveness changes, re-visit this op.
@@ -145,3 +150,8 @@ class DeadCodeAnalysis(DataFlowAnalysis):
                 return
             # Subscribe to block liveness to visit all ops if it becomes live.
             parent_executable.block_content_subscribers.add(self)
+
+        # Assert that we don't have nested regions or control flow yet
+        assert not op.regions, (
+            f"Operation {op.name} has nested regions, which are not supported yet"
+        )
