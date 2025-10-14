@@ -17,7 +17,15 @@ from xdsl.dialects.builtin import (
     VectorType,
 )
 from xdsl.dialects.memref import MemRefType
-from xdsl.ir import Attribute, Block, Dialect, Operation, Region, SSAValue
+from xdsl.ir import (
+    Attribute,
+    Block,
+    Dialect,
+    Operation,
+    Region,
+    SSAValue,
+    TypeAttribute,
+)
 from xdsl.ir.affine import AffineExpr, AffineMap
 from xdsl.irdl import (
     AnyAttr,
@@ -395,7 +403,7 @@ class VectorLoadOp(IRDLOperation):
         map: AffineMapAttr | None = None,
         result_type: Attribute | None = None,
     ):
-        if not isinstance(memref_type := memref.type, MemRefType):
+        if not isa(memref_type := memref.type, MemRefType[TypeAttribute]):
             raise ValueError(
                 "affine.vector_load memref operand must be of type MemRefType"
             )
