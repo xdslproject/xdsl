@@ -112,10 +112,10 @@ class AnalysisState(ABC, Generic[AnchorInvT]):
     and evolve as the analysis iterates.
     """
 
-    anchor: LatticeAnchor
+    anchor: AnchorInvT
     dependents: set[tuple[ProgramPoint, DataFlowAnalysis]]
 
-    def __init__(self, anchor: LatticeAnchor):
+    def __init__(self, anchor: AnchorInvT):
         self.anchor = anchor
         self.dependents = set()
 
