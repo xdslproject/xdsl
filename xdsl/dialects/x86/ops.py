@@ -1069,6 +1069,7 @@ class RSM_Operation(
     register_out = result_def(R1InvT)
     source1 = operand_def(R2InvT)
     memory = operand_def(R4InvT)
+    memory_offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
 
     traits = traits_def(MemoryReadEffect())
 
@@ -1077,10 +1078,13 @@ class RSM_Operation(
         register_in: SSAValue[R1InvT],
         source1: Operation | SSAValue,
         memory: Operation | SSAValue,
+        memory_offset: int | IntegerAttr,
         *,
         comment: str | StringAttr | None = None,
         register_out: R1InvT | None = None,
     ):
+        if isinstance(memory_offset, int):
+            memory_offset = IntegerAttr(memory_offset, 64)
         if isinstance(comment, str):
             comment = StringAttr(comment)
 
@@ -1090,18 +1094,29 @@ class RSM_Operation(
         super().__init__(
             operands=[register_in, source1, memory],
             attributes={
+                "memory_offset": memory_offset,
                 "comment": comment,
             },
             result_types=[register_out],
         )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
-        memory_access = memory_access_str(
-            self.memory, offset=IntegerAttr(0, IntegerType(32))
-        )
+        memory_access = memory_access_str(self.memory, self.memory_offset)
         src1 = assembly_arg_str(self.source1)
         destination = assembly_arg_str(self.register_in)
         return destination, src1, memory_access
+
+    @classmethod
+    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
+        attributes = dict[str, Attribute]()
+        if offset := cls.parse_optional_memory_access_offset(parser):
+            attributes["memory_offset"] = offset
+        return attributes
+
+    def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
+        printer.print_string(", ")
+        print_immediate_value(printer, self.memory_offset)
+        return {"memory_offset"}
 
 
 class DSSI_Operation(
