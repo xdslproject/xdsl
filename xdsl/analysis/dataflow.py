@@ -242,14 +242,14 @@ class DataFlowAnalysis(ABC):
         ...
 
     def get_or_create_state(
-        self, anchor: LatticeAnchor, state_type: type[AnalysisStateInvT]
-    ) -> AnalysisStateInvT:
+        self, anchor: AnchorInvT, state_type: type[AnalysisState[AnchorInvT]]
+    ) -> AnalysisState[AnchorInvT]:
         """Helper to get or create a state from the solver."""
         return self.solver.get_or_create_state(anchor, state_type)
 
     def get_state(
-        self, anchor: LatticeAnchor, state_type: type[AnalysisStateInvT]
-    ) -> AnalysisStateInvT | None:
+        self, anchor: AnchorInvT, state_type: type[AnalysisState[AnchorInvT]]
+    ) -> AnalysisState[AnchorInvT] | None:
         """Helper to look up a state from the solver."""
         return self.solver.lookup_state(anchor, state_type)
 
