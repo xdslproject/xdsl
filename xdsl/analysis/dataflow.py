@@ -261,7 +261,7 @@ class DataFlowAnalysis(ABC):
         return self.solver.lookup_state(anchor, state_type)
 
     def add_dependency(
-        self, state: AnalysisState, dependent_point: ProgramPoint
+        self, state: AnalysisState[Any], dependent_point: ProgramPoint
     ) -> None:
         """
         Adds a dependency: if `state` changes, `self.visit(dependent_point)`
