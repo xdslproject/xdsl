@@ -255,19 +255,24 @@ class SparseForwardDataFlowAnalysis(DataFlowAnalysis, Generic[PropagatingLattice
                 for arg in region.first_block.args:
                     self.set_to_entry_state(self.get_lattice_element(arg))
 
-        # Recursively visit all ops to build initial dependencies.
-        def initialize_recursively(op: Operation):
-            self.visit(ProgramPoint.before(op))
-            for region in op.regions:
+        # Iteratively visit all ops to build initial dependencies.
+        stack = [op]
+
+        while stack:
+            current_op = stack.pop()
+
+            self.visit(ProgramPoint.before(current_op))
+
+            for region in current_op.regions:
                 for block in region.blocks:
                     block_start_point = ProgramPoint.at_start_of_block(block)
                     executable = self.get_or_create_state(block_start_point, Executable)
                     executable.block_content_subscribers.add(self)
                     self.visit(block_start_point)
-                    for nested_op in block.ops:
-                        initialize_recursively(nested_op)
 
-        initialize_recursively(op)
+                    # Add nested ops to stack in reverse order to maintain traversal order
+                    for nested_op in reversed(block.ops):
+                        stack.append(nested_op)
 
     def visit(self, point: ProgramPoint) -> None:
         if point.op is not None:
@@ -284,7 +289,7 @@ class SparseForwardDataFlowAnalysis(DataFlowAnalysis, Generic[PropagatingLattice
 
         # If the parent block is not executable, do nothing.
         if (
-            op.parent
+            op.parent is not None
             and not self.get_or_create_state(
                 ProgramPoint.at_start_of_block(op.parent), Executable
             ).live
@@ -320,8 +325,6 @@ class SparseForwardDataFlowAnalysis(DataFlowAnalysis, Generic[PropagatingLattice
         point = ProgramPoint.at_start_of_block(block)
         if not self.get_or_create_state(point, Executable).live:
             return
-
-        # arg_lattices = [self.get_lattice_element(arg) for arg in block.args]
 
         # For non-entry blocks, join values from predecessors.
         if block.parent is None or block.parent.first_block is not block:
