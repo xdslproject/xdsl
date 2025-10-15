@@ -69,3 +69,27 @@ func.func @extract_0d(%arg0: vector<f32>) {
   %1 = vector.extract %arg0[0] : vector<f32> from vector<4xf32>
   func.return
 }
+
+// -----
+
+func.func @vector_uneq_bitwidths_dt(%arg0: vector<3x4x5xf32>) {
+  // CHECK: The source and result types do not have an equal bitwidth
+  %1 = vector.bitcast %arg0 : vector<3x4x5xf32> to vector<3x4x5xi16>
+  func.return
+}
+
+// -----
+
+func.func @vector_uneq_bitwidths_shape(%arg0: vector<3x4x5xf32>) {
+  // CHECK: The source and result types do not have an equal bitwidth
+  %1 = vector.bitcast %arg0 : vector<3x4x5xf32> to vector<3x8x5xi32>
+  func.return
+}
+
+// -----
+
+func.func @vector_uneq_bitwidths_dynamic(%arg0: vector<3x4x5xf32>) {
+  // CHECK: For element types of undefined bitwidth, expect both types to have undefined bitwidth and shape to be equal
+  %1 = vector.bitcast %arg0 : vector<3x4x5xf32> to vector<3x4x5xindex>
+  func.return
+}
