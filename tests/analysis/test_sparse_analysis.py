@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Literal
 
 from typing_extensions import Self
 
@@ -555,8 +556,7 @@ def test_lattice_multiple_operations():
 class KnownLatticeValue(AbstractLatticeValue):
     """A simple lattice value: Unknown (⊥) < Known < Top (⊤)"""
 
-    state: str  # "unknown", "known", or "top"
-    value: int | None = None
+    value: Literal["unknown", "top"] | int
 
     @classmethod
     def initial_value(cls) -> Self:
@@ -564,32 +564,31 @@ class KnownLatticeValue(AbstractLatticeValue):
 
     def meet(self, other: KnownLatticeValue) -> KnownLatticeValue:
         """Meet returns the more precise value."""
-        if self.state == "unknown":
-            return other
-        if other.state == "unknown":
-            return self
-        if self.state == "top" or other.state == "top":
-            return KnownLatticeValue("top")
-        if self.value == other.value:
-            return self
-        return KnownLatticeValue("top")
+        match (self.value, other.value):
+            case ("unknown", _):
+                return other
+            case (_, "unknown"):
+                return self
+            case ("top", _) | (_, "top"):
+                return KnownLatticeValue("top")
+            case (a, b) if a == b:
+                return self
+            case _:
+                return KnownLatticeValue("top")
 
     def join(self, other: KnownLatticeValue) -> KnownLatticeValue:
         """Join returns the less precise value."""
-        if self.state == "top" or other.state == "top":
-            return KnownLatticeValue("top")
-        if self.state == "unknown":
-            return other
-        if other.state == "unknown":
-            return self
-        if self.value == other.value:
-            return self
-        return KnownLatticeValue("top")
-
-    def __eq__(self, other: object) -> bool:
-        if not isinstance(other, KnownLatticeValue):
-            return NotImplemented
-        return self.state == other.state and self.value == other.value
+        match (self.value, other.value):
+            case ("top", _) | (_, "top"):
+                return KnownLatticeValue("top")
+            case ("unknown", _):
+                return other
+            case (_, "unknown"):
+                return self
+            case (a, b) if a == b:
+                return self
+            case _:
+                return KnownLatticeValue("top")
 
 
 class SimpleLattice(Lattice[KnownLatticeValue]):
@@ -660,8 +659,8 @@ def test_forward_analysis_initialization():
     assert arg0_lattice is not None
     assert arg1_lattice is not None
     # Entry state should be "top"
-    assert arg0_lattice.value.state == "top"
-    assert arg1_lattice.value.state == "top"
+    assert arg0_lattice.value.value == "top"
+    assert arg1_lattice.value.value == "top"
 
 
 # endregion
@@ -784,14 +783,13 @@ def test_join_operation():
 
     anchor = create_ssa_value(IntegerType(32))
     lattice1 = SimpleLattice(anchor, value=KnownLatticeValue("unknown"))
-    lattice2 = SimpleLattice(anchor, value=KnownLatticeValue("known", 42))
+    lattice2 = SimpleLattice(anchor, value=KnownLatticeValue(42))
 
     solver._is_running = True  # pyright: ignore[reportPrivateUsage]
 
     # Join should update lattice1
     analysis.join(lattice1, lattice2)
 
-    assert lattice1.value.state == "known"
     assert lattice1.value.value == 42
 
 
