@@ -273,8 +273,7 @@ class SparseForwardDataFlowAnalysis(
                     self.visit(block_start_point)
 
                     # Add nested ops to stack in reverse order to maintain traversal order
-                    for nested_op in reversed(block.ops):
-                        stack.append(nested_op)
+                    stack.extend(reversed(block.ops))
 
     def visit(self, point: ProgramPoint) -> None:
         if point.op is not None:
