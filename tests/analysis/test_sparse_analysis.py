@@ -255,7 +255,11 @@ def test_sparse_lattice_join_and_meet():
 class TestLatticeValue(AbstractLatticeValue):
     """A test lattice value implementing AbstractLatticeValue protocol."""
 
-    value: int = -1  # default value represents an uninitialized/initial state
+    value: int
+
+    @classmethod
+    def initial_value(cls) -> Self:
+        return cls(-1)
 
     def meet(self, other: TestLatticeValue) -> TestLatticeValue:
         """Meet returns minimum value."""

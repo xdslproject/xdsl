@@ -30,9 +30,9 @@ class AbstractLatticeValue(Protocol):
     - join (∨): computes the least upper bound (union of information)
     - meet (∧): computes the greatest lower bound (intersection of information)
 
-    Classes implementing this protocol should provide implementations for the `meet` and/or `join` methods.
-    The class should also provide a constructor with no arguments that initializes the lattice
-    value to an uninitialized state.
+    Classes implementing this protocol should provide implementations for the `meet`
+    and/or `join` methods. The class should also define the classmethod `initial_value`
+    that takes no additional arguments and returns an initial lattice value.
 
     This protocol represents the actual lattice element (the abstract value being
     tracked), separate from the propagation infrastructure. For example:
@@ -42,7 +42,13 @@ class AbstractLatticeValue(Protocol):
     - In range analysis: the lattice value might be `Interval(min, max)`
     """
 
-    def __init__(self): ...
+    @classmethod
+    def initial_value(cls) -> Self:
+        """
+        Returns an initial lattice value, typically the
+        bottom (⊥) or uninitialized state of the lattice.
+        """
+        ...
 
     def meet(self, other: Self) -> Self:
         """
@@ -196,7 +202,7 @@ class Lattice(PropagatingLattice, Generic[LatticeValueInvT]):
         if value is not None:
             self._value = value
         else:
-            self._value = self.value_cls()
+            self._value = self.value_cls.initial_value()
 
     @property
     def value(self) -> LatticeValueInvT:
