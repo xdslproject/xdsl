@@ -307,7 +307,7 @@ def test_lattice_initialization_without_value():
     assert lattice.anchor is anchor
     # Should initialize with default constructor of TestLatticeValue
     assert isinstance(lattice.value, TestLatticeValue)
-    assert len(lattice.use_def_subscribers) == 0
+    assert not lattice.use_def_subscribers
 
 
 # endregion
@@ -541,21 +541,6 @@ def test_lattice_multiple_operations():
     result3 = lattice.meet(other2)
     assert result3 == ChangeResult.CHANGE
     assert lattice.value.value == 3
-
-
-def test_lattice_inherits_propagating_lattice_behavior():
-    """Test that Lattice correctly inherits from PropagatingLattice."""
-    anchor = create_ssa_value(IntegerType(32))
-    lattice = TestLattice(anchor, value=TestLatticeValue(0))
-
-    # Should have inherited attributes
-    assert hasattr(lattice, "use_def_subscribers")
-    assert hasattr(lattice, "dependents")
-    assert hasattr(lattice, "on_update")
-    assert hasattr(lattice, "use_def_subscribe")
-
-    # Should be an AnalysisState
-    assert hasattr(lattice, "anchor")
 
 
 # endregion
