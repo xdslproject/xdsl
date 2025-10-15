@@ -176,10 +176,12 @@ class PropagatingLattice(AnalysisState[SSAValue], AbstractSparseLattice, ABC):
         self.use_def_subscribers.add(analysis)
 
 
-LatticeValueInvT = TypeVar("LatticeValueInvT", bound=AbstractLatticeValue)
+AbstractLatticeValueInvT = TypeVar(
+    "AbstractLatticeValueInvT", bound=AbstractLatticeValue
+)
 
 
-class Lattice(PropagatingLattice, Generic[LatticeValueInvT]):
+class Lattice(PropagatingLattice, Generic[AbstractLatticeValueInvT]):
     """
     Generic wrapper that combines a lattice value with sparse propagation infrastructure.
 
@@ -190,13 +192,13 @@ class Lattice(PropagatingLattice, Generic[LatticeValueInvT]):
     consider using [`PropagatingLattice`][xdsl.analysis.sparse_analysis.PropagatingLattice] directly.
     """
 
-    value_cls: type[LatticeValueInvT]
-    _value: LatticeValueInvT
+    value_cls: type[AbstractLatticeValueInvT]
+    _value: AbstractLatticeValueInvT
 
     def __init__(
         self,
         anchor: SSAValue,
-        value: LatticeValueInvT | None = None,
+        value: AbstractLatticeValueInvT | None = None,
     ):
         super().__init__(anchor)
         if value is not None:
@@ -205,7 +207,7 @@ class Lattice(PropagatingLattice, Generic[LatticeValueInvT]):
             self._value = self.value_cls.initial_value()
 
     @property
-    def value(self) -> LatticeValueInvT:
+    def value(self) -> AbstractLatticeValueInvT:
         return self._value
 
     def meet(self, other: Self) -> ChangeResult:
