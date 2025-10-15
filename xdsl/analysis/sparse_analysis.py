@@ -8,9 +8,9 @@ For more information on lattices, refer to [this Wikipedia article](https://en.w
 from __future__ import annotations
 
 from abc import ABC
-from typing import Protocol
+from typing import Generic, Protocol
 
-from typing_extensions import Self
+from typing_extensions import Self, TypeVar
 
 from xdsl.analysis.dataflow import (
     AnalysisState,
@@ -30,7 +30,9 @@ class AbstractLatticeValue(Protocol):
     - join (∨): computes the least upper bound (union of information)
     - meet (∧): computes the greatest lower bound (intersection of information)
 
-    Classes implementing this protocol should provide implementations for the `meet` and/or `join` methods.
+    Classes implementing this protocol should provide implementations for the `meet`
+    and/or `join` methods. The class should also define the classmethod `initial_value`
+    that takes no additional arguments and returns an initial lattice value.
 
     This protocol represents the actual lattice element (the abstract value being
     tracked), separate from the propagation infrastructure. For example:
@@ -39,6 +41,14 @@ class AbstractLatticeValue(Protocol):
     - In sign analysis: the lattice value might be `Positive | Negative | Zero | Unknown`
     - In range analysis: the lattice value might be `Interval(min, max)`
     """
+
+    @classmethod
+    def initial_value(cls) -> Self:
+        """
+        Returns an initial lattice value, typically the
+        bottom (⊥) or uninitialized state of the lattice.
+        """
+        ...
 
     def meet(self, other: Self) -> Self:
         """
@@ -164,3 +174,62 @@ class PropagatingLattice(AnalysisState[SSAValue], AbstractSparseLattice, ABC):
         whenever this lattice state changes.
         """
         self.use_def_subscribers.add(analysis)
+
+
+AbstractLatticeValueInvT = TypeVar(
+    "AbstractLatticeValueInvT", bound=AbstractLatticeValue
+)
+
+
+class Lattice(PropagatingLattice, Generic[AbstractLatticeValueInvT]):
+    """
+    Generic wrapper that combines a lattice value with sparse propagation infrastructure.
+
+    See [`AbstractLatticeValue`][xdsl.analysis.sparse_analysis.AbstractLatticeValue] for more information around
+    the meet and join operations that need to be implemented.
+
+    If you need meet/join functionality that does not match with what `Lattice` provides,
+    consider using [`PropagatingLattice`][xdsl.analysis.sparse_analysis.PropagatingLattice] directly.
+    """
+
+    value_cls: type[AbstractLatticeValueInvT]
+    _value: AbstractLatticeValueInvT
+
+    def __init__(
+        self,
+        anchor: SSAValue,
+        value: AbstractLatticeValueInvT | None = None,
+    ):
+        super().__init__(anchor)
+        if value is not None:
+            self._value = value
+        else:
+            self._value = self.value_cls.initial_value()
+
+    @property
+    def value(self) -> AbstractLatticeValueInvT:
+        return self._value
+
+    def meet(self, other: Self) -> ChangeResult:
+        new_value = self.value.meet(other.value)
+
+        if new_value == self.value:
+            return ChangeResult.NO_CHANGE
+
+        self._value = new_value
+        return ChangeResult.CHANGE
+
+    def join(self, other: Self) -> ChangeResult:
+        new_value = self.value.join(other.value)
+
+        if new_value == self.value:
+            return ChangeResult.NO_CHANGE
+
+        self._value = new_value
+        return ChangeResult.CHANGE
+
+    def __str__(self) -> str:
+        return str(self.value)
+
+
+PropagatingLatticeInvT = TypeVar("PropagatingLatticeInvT", bound=PropagatingLattice)
