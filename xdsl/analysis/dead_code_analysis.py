@@ -12,6 +12,7 @@ from xdsl.analysis.dataflow import (
     LatticeAnchor,
     ProgramPoint,
 )
+from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import Block, Operation, SSAValue
 
 
@@ -133,7 +134,10 @@ class DeadCodeAnalysis(DataFlowAnalysis):
         if op is None:
             # This analysis only triggers on operations.
             return
-        assert not op.regions, "Cannot yet handle operations with regions"
+        # special cased for the typical case where the analysis is run on a ModuleOp:
+        assert isinstance(op, ModuleOp) or not op.regions, (
+            "Cannot yet handle operations with regions"
+        )
 
         # If parent block is not live, do nothing.
         parent_block = op.parent
