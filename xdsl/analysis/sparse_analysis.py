@@ -236,7 +236,9 @@ class Lattice(PropagatingLattice, Generic[AbstractLatticeValueInvT]):
 PropagatingLatticeInvT = TypeVar("PropagatingLatticeInvT", bound=PropagatingLattice)
 
 
-class SparseForwardDataFlowAnalysis(DataFlowAnalysis, Generic[PropagatingLatticeInvT]):
+class SparseForwardDataFlowAnalysis(
+    DataFlowAnalysis, ABC, Generic[PropagatingLatticeInvT]
+):
     """
     Base class for sparse forward data-flow analyses. It propagates lattices
     attached to SSA values along the direction of data flow.
