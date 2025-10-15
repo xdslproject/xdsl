@@ -402,7 +402,7 @@ def test_apply_native_constraint():
     with ImplicitBuilder(block):
         type1 = pdl.TypeOp(i32).result
         root = op1 = pdl.OperationOp("op1", type_values=(type1,)).op
-        pdl.ApplyNativeConstraintOp("my_constraint", [op1], [i32]).res[0]
+        pdl.ApplyNativeConstraintOp("my_constraint", [op1], [pdl.TypeType()]).res[0]
         # Use constraint_result somehow to make it binding
         pdl.RewriteOp(None, name="rewrite")
 
@@ -421,7 +421,7 @@ def test_apply_native_constraint():
             ConstraintQuestion(
                 "my_constraint",
                 (OperationPosition(None, depth=0),),
-                (IntegerType(32),),
+                (pdl.TypeType(),),
                 False,
             ),
             TrueAnswer(),
@@ -966,7 +966,7 @@ def test_extract_non_tree_predicates_existing_constraint_result():
         root = pdl.OperationOp("op1").op
         # Create a constraint that returns a result
         constraint_result = pdl.ApplyNativeConstraintOp(
-            "my_constraint", [root], [i32]
+            "my_constraint", [root], [pdl.OperationType()]
         ).res[0]
         pdl.RewriteOp(None, name="rewrite")
 
@@ -993,7 +993,7 @@ def test_extract_non_tree_predicates_existing_constraint_result():
                 constraint=ConstraintQuestion(
                     "my_constraint",
                     arg_positions=(root_pos,),
-                    result_types=(i32,),
+                    result_types=(pdl.OperationType(),),
                     is_negated=False,
                 ),
                 result_index=0,
@@ -2088,7 +2088,7 @@ def test_get_value_at_constraint_position():
     constraint_q = ConstraintQuestion(
         name="test_constraint",
         arg_positions=(root_pos,),
-        result_types=(i32, f32),
+        result_types=(pdl.OperationType(), pdl.TypeType()),
         is_negated=False,
     )
 
