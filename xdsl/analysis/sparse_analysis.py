@@ -7,7 +7,7 @@ For more information on lattices, refer to [this Wikipedia article](https://en.w
 
 from __future__ import annotations
 
-from abc import ABC
+from abc import ABC, abstractmethod
 from typing import Generic, Protocol
 
 from typing_extensions import Self, TypeVar
@@ -19,7 +19,8 @@ from xdsl.analysis.dataflow import (
     DataFlowSolver,  # For type annotations
     ProgramPoint,
 )
-from xdsl.ir import SSAValue
+from xdsl.analysis.dead_code_analysis import CFGEdge, Executable
+from xdsl.ir import Block, Operation, SSAValue
 
 
 class AbstractLatticeValue(Protocol):
@@ -233,3 +234,151 @@ class Lattice(PropagatingLattice, Generic[AbstractLatticeValueInvT]):
 
 
 PropagatingLatticeInvT = TypeVar("PropagatingLatticeInvT", bound=PropagatingLattice)
+
+
+class SparseForwardDataFlowAnalysis(
+    DataFlowAnalysis, ABC, Generic[PropagatingLatticeInvT]
+):
+    """
+    Base class for sparse forward data-flow analyses. It propagates lattices
+    attached to SSA values along the direction of data flow.
+    """
+
+    def __init__(
+        self, solver: DataFlowSolver, lattice_type: type[PropagatingLatticeInvT]
+    ):
+        super().__init__(solver)
+        self.lattice_type = lattice_type
+
+    def initialize(self, op: Operation) -> None:
+        # Set entry state for all arguments of the top-level regions.
+        for region in op.regions:
+            if region.first_block is not None:
+                for arg in region.first_block.args:
+                    self.set_to_entry_state(self.get_lattice_element(arg))
+
+        # Iteratively visit all ops to build initial dependencies.
+        stack = [op]
+
+        while stack:
+            current_op = stack.pop()
+
+            self.visit(ProgramPoint.before(current_op))
+
+            for region in current_op.regions:
+                for block in region.blocks:
+                    block_start_point = ProgramPoint.at_start_of_block(block)
+                    executable = self.get_or_create_state(block_start_point, Executable)
+                    executable.block_content_subscribers.add(self)
+                    self.visit(block_start_point)
+
+                    # Add nested ops to stack in reverse order to maintain traversal order
+                    stack.extend(reversed(block.ops))
+
+    def visit(self, point: ProgramPoint) -> None:
+        if point.op is not None:
+            self.visit_operation(point.op)
+        elif point.block is not None:
+            # This case handles end-of-block points, which for forward analysis
+            # means we are visiting the block itself to handle its arguments.
+            self.visit_block(point.block)
+
+    def visit_operation(self, op: Operation) -> None:
+        """Transfer function for an operation's results."""
+        if not op.results:
+            return
+
+        # If the parent block is not executable, do nothing.
+        if (
+            op.parent is not None
+            and not self.get_or_create_state(
+                ProgramPoint.at_start_of_block(op.parent), Executable
+            ).live
+        ):
+            return
+
+        # Get operand and result lattices
+        point = ProgramPoint.before(op)
+        operands = [self.get_lattice_element_for(point, o) for o in op.operands]
+        results = [self.get_lattice_element(r) for r in op.results]
+
+        # Subscribe to operand changes for future updates.
+        for o in op.operands:
+            self.get_lattice_element(o).use_def_subscribe(self)
+
+        # Check if operation requires special interface support
+        if op.regions:
+            raise NotImplementedError(
+                f"Operation {op.name} has regions. Full support requires "
+                "RegionBranchOpInterface to properly handle control flow "
+                "between regions."
+            )
+
+        # TODO: handle call operations when CallOpInterface is implemented
+
+        self.visit_operation_impl(op, operands, results)
+
+    def visit_block(self, block: Block) -> None:
+        """Transfer function for a block's arguments."""
+        if not block.args:
+            return
+
+        point = ProgramPoint.at_start_of_block(block)
+        if not self.get_or_create_state(point, Executable).live:
+            return
+
+        # For non-entry blocks, join values from predecessors.
+        if block.parent is None or block.parent.first_block is not block:
+            for pred_block in block.predecessors():
+                edge = CFGEdge(pred_block, block)
+                executable = self.get_state(edge, Executable)
+                if not executable or not executable.live:
+                    continue
+
+                terminator = pred_block.last_op
+                if terminator is None:
+                    continue
+
+                # Requires BranchOpInterface to correctly map terminator operands
+                # to successor block arguments
+                raise NotImplementedError(
+                    f"Mapping values across control flow edges requires "
+                    "BranchOpInterface. Cannot determine which operands of "
+                    f"terminator {terminator.name} correspond to arguments of "
+                    f"successor block."
+                )
+        # else:  # For entry blocks of regions
+        # TODO: Requires CallableOpInterface and RegionBranchOpInterface
+
+    def join(self, lhs: PropagatingLatticeInvT, rhs: PropagatingLatticeInvT) -> None:
+        """Joins the rhs lattice into the lhs and propagates if changed."""
+        self.propagate_if_changed(lhs, lhs.join(rhs))
+
+    def get_lattice_element(self, value: SSAValue) -> PropagatingLatticeInvT:
+        return self.get_or_create_state(value, self.lattice_type)
+
+    def get_lattice_element_for(
+        self, point: ProgramPoint, value: SSAValue
+    ) -> PropagatingLatticeInvT:
+        lattice = self.get_lattice_element(value)
+        self.add_dependency(lattice, point)
+        return lattice
+
+    def set_all_to_entry_state(self, lattices: list[PropagatingLatticeInvT]) -> None:
+        for lattice in lattices:
+            self.set_to_entry_state(lattice)
+
+    @abstractmethod
+    def visit_operation_impl(
+        self,
+        op: Operation,
+        operands: list[PropagatingLatticeInvT],
+        results: list[PropagatingLatticeInvT],
+    ) -> None:
+        """The user-defined transfer function for a generic operation."""
+        ...
+
+    @abstractmethod
+    def set_to_entry_state(self, lattice: PropagatingLatticeInvT) -> None:
+        """Sets a lattice to its most pessimistic (entry) state."""
+        ...

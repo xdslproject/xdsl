@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Literal
 
 from typing_extensions import Self
 
@@ -10,15 +11,17 @@ from xdsl.analysis.dataflow import (
     DataFlowSolver,
     ProgramPoint,
 )
+from xdsl.analysis.dead_code_analysis import Executable
 from xdsl.analysis.sparse_analysis import (
     AbstractLatticeValue,
     Lattice,
     PropagatingLattice,
+    SparseForwardDataFlowAnalysis,
 )
 from xdsl.context import Context
 from xdsl.dialects import test
-from xdsl.dialects.builtin import IntegerType, i32
-from xdsl.ir import Block, Operation, SSAValue
+from xdsl.dialects.builtin import IntegerType, ModuleOp, i32
+from xdsl.ir import Block, Operation, Region, SSAValue
 from xdsl.utils.test_value import create_ssa_value
 
 # region Test lattice implementations
@@ -541,6 +544,292 @@ def test_lattice_multiple_operations():
     result3 = lattice.meet(other2)
     assert result3 == ChangeResult.CHANGE
     assert lattice.value.value == 3
+
+
+# endregion
+
+
+# region Test lattice for simple analysis
+
+
+@dataclass(frozen=True)
+class KnownLatticeValue(AbstractLatticeValue):
+    """A simple lattice value: Unknown (⊥) < Known < Top (⊤)"""
+
+    value: Literal["unknown", "top"] | int
+
+    @classmethod
+    def initial_value(cls) -> Self:
+        return cls("unknown")
+
+    def meet(self, other: KnownLatticeValue) -> KnownLatticeValue:
+        """Meet returns the more precise value."""
+        match (self.value, other.value):
+            case ("unknown", _):
+                return other
+            case (_, "unknown"):
+                return self
+            case ("top", _) | (_, "top"):
+                return KnownLatticeValue("top")
+            case (a, b) if a == b:
+                return self
+            case _:
+                return KnownLatticeValue("top")
+
+    def join(self, other: KnownLatticeValue) -> KnownLatticeValue:
+        """Join returns the less precise value."""
+        match (self.value, other.value):
+            case ("top", _) | (_, "top"):
+                return KnownLatticeValue("top")
+            case ("unknown", _):
+                return other
+            case (_, "unknown"):
+                return self
+            case (a, b) if a == b:
+                return self
+            case _:
+                return KnownLatticeValue("top")
+
+
+class SimpleLattice(Lattice[KnownLatticeValue]):
+    value_cls = KnownLatticeValue
+
+
+# endregion
+
+
+# region Concrete analysis implementation
+
+
+class SimpleForwardAnalysis(SparseForwardDataFlowAnalysis[SimpleLattice]):
+    """A simple forward analysis for testing."""
+
+    def __init__(self, solver: DataFlowSolver):
+        super().__init__(solver, SimpleLattice)
+        self.visited_ops: list[Operation] = []
+
+    def visit_operation_impl(
+        self,
+        op: Operation,
+        operands: list[SimpleLattice],
+        results: list[SimpleLattice],
+    ) -> None:
+        """Simple transfer function: propagate operand states to results."""
+        self.visited_ops.append(op)
+
+        # For testing, just copy first operand state to all results
+        if operands and results:
+            for result in results:
+                self.join(result, operands[0])
+
+    def set_to_entry_state(self, lattice: SimpleLattice) -> None:
+        """Set lattice to top (most pessimistic) state."""
+        lattice._value = KnownLatticeValue("top")  # pyright: ignore[reportPrivateUsage]
+
+
+# endregion
+
+
+# region Basic initialization tests
+
+
+def test_forward_analysis_initialization():
+    """Test that initialization creates lattices for region arguments."""
+    ctx = Context()
+    solver = DataFlowSolver(ctx)
+    analysis = SimpleForwardAnalysis(solver)
+
+    # Create operation with a region containing arguments
+    arg_type = IntegerType(32)
+    block = Block(arg_types=[arg_type, arg_type])
+    region = Region([block])
+    op = ModuleOp(region)
+
+    # Mark the entry block as executable
+    entry_point = ProgramPoint.at_start_of_block(block)
+    executable = solver.get_or_create_state(entry_point, Executable)
+    executable.live = True
+
+    analysis.initialize(op)
+
+    # Check that lattices were created for arguments
+    arg0_lattice = solver.lookup_state(block.args[0], SimpleLattice)
+    arg1_lattice = solver.lookup_state(block.args[1], SimpleLattice)
+
+    assert arg0_lattice is not None
+    assert arg1_lattice is not None
+    # Entry state should be "top"
+    assert arg0_lattice.value.value == "top"
+    assert arg1_lattice.value.value == "top"
+
+
+# endregion
+
+
+# region visit_operation tests
+
+
+def test_visit_operation_creates_lattices():
+    """Test that visit_operation retrieves/creates lattices for operands and results."""
+    ctx = Context()
+    solver = DataFlowSolver(ctx)
+    analysis = SimpleForwardAnalysis(solver)
+
+    # Create operations
+    producer = test.TestOp(result_types=[i32])
+    consumer = test.TestOp(operands=[producer.results[0]], result_types=[i32])
+    block = Block([producer, consumer])
+
+    # Mark block as executable
+    entry_point = ProgramPoint.at_start_of_block(block)
+    executable = solver.get_or_create_state(entry_point, Executable)
+    executable.live = True
+
+    solver._is_running = True  # pyright: ignore[reportPrivateUsage]
+
+    # Visit consumer operation
+    analysis.visit_operation(consumer)
+
+    # Check that lattices exist
+    operand_lattice = solver.lookup_state(producer.results[0], SimpleLattice)
+    result_lattice = solver.lookup_state(consumer.results[0], SimpleLattice)
+
+    assert operand_lattice is not None
+    assert result_lattice is not None
+
+
+def test_visit_operation_skips_non_executable_blocks():
+    """Test that operations in non-executable blocks are skipped."""
+    ctx = Context()
+    solver = DataFlowSolver(ctx)
+    analysis = SimpleForwardAnalysis(solver)
+
+    # Create operation in a block
+    op = test.TestOp(result_types=[i32])
+    block = Block([op])
+
+    # Don't mark block as executable
+    entry_point = ProgramPoint.at_start_of_block(block)
+    executable = solver.get_or_create_state(entry_point, Executable)
+    executable.live = False
+
+    # Visit should not process the operation
+    analysis.visit_operation(op)
+
+    # The operation should not be in visited list
+    assert op not in analysis.visited_ops
+
+
+def test_visit_operation_subscribes_to_operands():
+    """Test that visit_operation subscribes to operand changes."""
+    ctx = Context()
+    solver = DataFlowSolver(ctx)
+    analysis = SimpleForwardAnalysis(solver)
+
+    # Create operations
+    producer = test.TestOp(result_types=[i32])
+    consumer = test.TestOp(operands=[producer.results[0]], result_types=[i32])
+    block = Block([producer, consumer])
+
+    # Mark block as executable
+    entry_point = ProgramPoint.at_start_of_block(block)
+    executable = solver.get_or_create_state(entry_point, Executable)
+    executable.live = True
+
+    solver._is_running = True  # pyright: ignore[reportPrivateUsage]
+
+    # Visit consumer
+    analysis.visit_operation(consumer)
+
+    # Check that analysis subscribed to the operand lattice
+    operand_lattice = analysis.get_lattice_element(producer.results[0])
+    assert analysis in operand_lattice.use_def_subscribers
+
+
+def test_visit_operation_handles_no_results():
+    """Test that operations without results are handled correctly."""
+    ctx = Context()
+    solver = DataFlowSolver(ctx)
+    analysis = SimpleForwardAnalysis(solver)
+
+    # Create operation without results
+    op = test.TestOp(result_types=[])
+    block = Block([op])
+
+    # Mark block as executable
+    entry_point = ProgramPoint.at_start_of_block(block)
+    executable = solver.get_or_create_state(entry_point, Executable)
+    executable.live = True
+
+    # Should return early without error
+    analysis.visit_operation(op)
+    assert op not in analysis.visited_ops
+
+
+# endregion
+
+
+# region join operation tests
+
+
+def test_join_operation():
+    """Test that join operation works correctly."""
+    ctx = Context()
+    solver = DataFlowSolver(ctx)
+    analysis = SimpleForwardAnalysis(solver)
+
+    # Create two lattices with the same anchor
+    from xdsl.utils.test_value import create_ssa_value
+
+    anchor = create_ssa_value(IntegerType(32))
+    lattice1 = SimpleLattice(anchor, value=KnownLatticeValue("unknown"))
+    lattice2 = SimpleLattice(anchor, value=KnownLatticeValue(42))
+
+    solver._is_running = True  # pyright: ignore[reportPrivateUsage]
+
+    # Join should update lattice1
+    analysis.join(lattice1, lattice2)
+
+    assert lattice1.value.value == 42
+
+
+# endregion
+
+
+# region Integration test
+
+
+def test_simple_forward_analysis_integration():
+    """Test a simple forward analysis end-to-end."""
+    ctx = Context()
+    solver = DataFlowSolver(ctx)
+    analysis = solver.load(SimpleForwardAnalysis)
+
+    # Create a simple chain: producer -> consumer
+    producer = test.TestOp(result_types=[i32])
+    consumer = test.TestOp(operands=[producer.results[0]], result_types=[i32])
+    block = Block([producer, consumer])
+    region = Region([block])
+    module = ModuleOp(region)
+
+    # Mark block as executable before running
+    entry_point = ProgramPoint.at_start_of_block(block)
+    executable = solver.get_or_create_state(entry_point, Executable)
+    executable.live = True
+
+    # Run the analysis
+    solver.initialize_and_run(module)
+
+    # Both operations should have been visited
+    assert producer in analysis.visited_ops
+    assert consumer in analysis.visited_ops
+
+    # Lattices should exist for results
+    producer_lattice = solver.lookup_state(producer.results[0], SimpleLattice)
+    consumer_lattice = solver.lookup_state(consumer.results[0], SimpleLattice)
+
+    assert producer_lattice is not None
+    assert consumer_lattice is not None
 
 
 # endregion
