@@ -687,7 +687,8 @@ class FromElementsOp(IRDLOperation):
 
     def __init__(
         self,
-        elements: Sequence[SSAValue] | SSAValue,
+        *elements: SSAValue,
+        result_type: Attribute | None = None
     ):
         if isinstance(elements, SSAValue):
             shape: tuple[int, ...] = tuple()
