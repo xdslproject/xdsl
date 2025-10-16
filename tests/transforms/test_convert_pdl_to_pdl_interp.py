@@ -3076,6 +3076,8 @@ def test_generate_bool_node_with_success_node_calls_generate_matcher():
         op for op in success_block.ops if isinstance(op, pdl_interp.FinalizeOp)
     ]
     assert len(finalize_ops) == 1
+
+
 def test_generate_switch_node_operation_name():
     """Test generate_switch_node with OperationNameQuestion"""
     from unittest.mock import patch
