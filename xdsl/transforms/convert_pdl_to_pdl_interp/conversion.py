@@ -19,6 +19,7 @@ from xdsl.ir import (
     Block,
     Operation,
     OpResult,
+    Region,
     SSAValue,
 )
 from xdsl.rewriter import InsertPoint
@@ -988,6 +989,61 @@ class MatcherGenerator:
         self.constraint_op_map = {}
         self.rewriter_names = {}
 
+    def generate_matcher(
+        self, node: MatcherNode, region: Region, block: Block | None = None
+    ) -> Block:
+        """Generate PDL interpreter operations for a matcher node"""
+
+        # Create block if needed
+        if block is None:
+            block = Block()
+            region.add_block(block)
+        self.values = ScopedDict(self.values)
+        assert self.values.parent is not None
+
+        # Handle exit node - just add finalize
+        if isinstance(node, ExitNode):
+            finalize_op = pdl_interp.FinalizeOp()
+            self.builder.insert_op(finalize_op, InsertPoint.at_end(block))
+            self.values = self.values.parent  # Pop scope
+            return block
+
+        # Handle failure node
+        failure_block = None
+        if node.failure_node:
+            failure_block = self.generate_matcher(node.failure_node, region)
+            self.failure_block_stack.append(failure_block)
+        else:
+            assert self.failure_block_stack, "Expected valid failure block"
+            failure_block = self.failure_block_stack[-1]
+
+        # Get value for position if exists
+        current_block = block
+        val = None
+        if node.position:
+            val = self.get_value_at(current_block, node.position)
+
+        # Dispatch based on node type
+        match node:
+            case BoolNode():
+                assert val is not None
+                self.generate_bool_node(node, current_block, val)
+            case SwitchNode():
+                assert val is not None
+                raise NotImplementedError()
+                self.generate_switch_node(node, current_block, val)
+            case SuccessNode():
+                raise NotImplementedError()
+            case _:
+                raise NotImplementedError(f"Unhandled node type {type(node)}")
+
+        # Pop failure block if we pushed one
+        if node.failure_node:
+            self.failure_block_stack.pop()
+
+        self.values = self.values.parent  # Pop scope
+        return block
+
     def get_value_at(self, block: Block, position: Position) -> SSAValue:
         """Get or create SSA value for a position"""
 
@@ -1205,4 +1261,4 @@ class MatcherGenerator:
 
         # Generate matcher for success node
         if node.success_node:
-            raise NotImplementedError()
+            self.generate_matcher(node.success_node, region, success_block)
