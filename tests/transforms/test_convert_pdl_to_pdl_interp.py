@@ -18,6 +18,7 @@ from xdsl.transforms.convert_pdl_to_pdl_interp.conversion import (
     BoolNode,
     ExitNode,
     MatcherGenerator,
+    MatcherNode,
     OrderedPredicate,
     PatternAnalyzer,
     PredicateTreeBuilder,
@@ -25,6 +26,7 @@ from xdsl.transforms.convert_pdl_to_pdl_interp.conversion import (
     SwitchNode,
 )
 from xdsl.transforms.convert_pdl_to_pdl_interp.predicate import (
+    Answer,
     AttributeAnswer,
     AttributeConstraintQuestion,
     AttributeLiteralPosition,
@@ -3074,3 +3076,465 @@ def test_generate_bool_node_with_success_node_calls_generate_matcher():
         op for op in success_block.ops if isinstance(op, pdl_interp.FinalizeOp)
     ]
     assert len(finalize_ops) == 1
+def test_generate_switch_node_operation_name():
+    """Test generate_switch_node with OperationNameQuestion"""
+    from unittest.mock import patch
+
+    from xdsl.dialects import pdl_interp
+    from xdsl.dialects.builtin import ModuleOp
+    from xdsl.ir import Block, Region
+    from xdsl.transforms.convert_pdl_to_pdl_interp.conversion import (
+        MatcherGenerator,
+        SuccessNode,
+        SwitchNode,
+    )
+    from xdsl.transforms.convert_pdl_to_pdl_interp.predicate import (
+        OperationNameQuestion,
+        StringAnswer,
+    )
+
+    matcher_body = Region([Block(arg_types=(pdl.OperationType(),))])
+    matcher_func = pdl_interp.FuncOp(
+        "matcher", ((pdl.OperationType(),), ()), region=matcher_body
+    )
+    rewriter_module = ModuleOp([])
+
+    generator = MatcherGenerator(matcher_func, rewriter_module)
+    block = matcher_func.body.block
+    val = block.args[0]
+
+    # Create failure block
+    failure_block = Block()
+    matcher_body.add_block(failure_block)
+    generator.failure_block_stack.append(failure_block)
+
+    # Create mock pattern for SuccessNode
+    mock_pattern = pdl.PatternOp(1, "test_pattern", Region())
+
+    # Create SwitchNode with multiple operation name cases
+    question = OperationNameQuestion()
+    children: dict[Answer, MatcherNode | None] = {
+        StringAnswer("arith.addi"): SuccessNode(pattern=mock_pattern),
+        StringAnswer("arith.subi"): SuccessNode(pattern=mock_pattern),
+        StringAnswer("arith.muli"): SuccessNode(pattern=mock_pattern),
+    }
+    switch_node = SwitchNode(question=question, children=children)
+
+    # Mock generate_matcher to return dummy blocks
+    mock_blocks = [Block(), Block(), Block()]
+    with patch.object(generator, "generate_matcher", side_effect=mock_blocks):
+        # Generate the switch node
+        generator.generate_switch_node(switch_node, block, val)
+
+    # Check that SwitchOperationNameOp was created
+    switch_ops = [
+        op for op in block.ops if isinstance(op, pdl_interp.SwitchOperationNameOp)
+    ]
+    assert len(switch_ops) == 1
+    switch_op = switch_ops[0]
+
+    # Check case values
+    case_values = [attr.data for attr in switch_op.case_values.data]
+    assert set(case_values) == {"arith.addi", "arith.subi", "arith.muli"}
+
+    # Check operand and successors
+    assert switch_op.input_op is val
+    assert switch_op.default_dest is failure_block
+    assert len(switch_op.cases) == 3
+
+
+def test_generate_switch_node_attribute_constraint():
+    """Test generate_switch_node with AttributeConstraintQuestion"""
+    from unittest.mock import patch
+
+    from xdsl.dialects import pdl_interp
+    from xdsl.dialects.builtin import IntegerAttr, ModuleOp
+    from xdsl.ir import Block, Region
+    from xdsl.transforms.convert_pdl_to_pdl_interp.conversion import (
+        MatcherGenerator,
+        SuccessNode,
+        SwitchNode,
+    )
+    from xdsl.transforms.convert_pdl_to_pdl_interp.predicate import (
+        AttributeAnswer,
+        AttributeConstraintQuestion,
+    )
+
+    matcher_body = Region([Block(arg_types=(pdl.AttributeType(),))])
+    matcher_func = pdl_interp.FuncOp(
+        "matcher", ((pdl.AttributeType(),), ()), region=matcher_body
+    )
+    rewriter_module = ModuleOp([])
+
+    generator = MatcherGenerator(matcher_func, rewriter_module)
+    block = matcher_func.body.block
+    val = block.args[0]
+
+    # Create failure block
+    failure_block = Block()
+    matcher_body.add_block(failure_block)
+    generator.failure_block_stack.append(failure_block)
+
+    # Create mock pattern for SuccessNode
+    mock_pattern = pdl.PatternOp(1, "test_pattern", Region())
+
+    # Create SwitchNode with multiple attribute cases
+    question = AttributeConstraintQuestion()
+    attr1 = IntegerAttr(1, i32)
+    attr2 = IntegerAttr(2, i32)
+    attr3 = IntegerAttr(3, i32)
+    children: dict[Answer, MatcherNode | None] = {
+        AttributeAnswer(attr1): SuccessNode(pattern=mock_pattern),
+        AttributeAnswer(attr2): SuccessNode(pattern=mock_pattern),
+        AttributeAnswer(attr3): SuccessNode(pattern=mock_pattern),
+    }
+    switch_node = SwitchNode(question=question, children=children)
+
+    # Mock generate_matcher to return dummy blocks
+    mock_blocks = [Block(), Block(), Block()]
+    with patch.object(generator, "generate_matcher", side_effect=mock_blocks):
+        # Generate the switch node
+        generator.generate_switch_node(switch_node, block, val)
+
+    # Check that SwitchAttributeOp was created
+    switch_ops = [
+        op for op in block.ops if isinstance(op, pdl_interp.SwitchAttributeOp)
+    ]
+    assert len(switch_ops) == 1
+    switch_op = switch_ops[0]
+
+    # Check case values
+    case_attrs = switch_op.caseValues.data
+    assert len(case_attrs) == 3
+    assert attr1 in case_attrs
+    assert attr2 in case_attrs
+    assert attr3 in case_attrs
+
+    # Check operand and successors
+    assert switch_op.attribute is val
+    assert switch_op.defaultDest is failure_block
+    assert len(switch_op.cases) == 3
+
+
+def test_generate_switch_node_with_none_child():
+    """Test generate_switch_node with None children (should be skipped)"""
+    from unittest.mock import patch
+
+    from xdsl.dialects import pdl_interp
+    from xdsl.dialects.builtin import ModuleOp
+    from xdsl.ir import Block, Region
+    from xdsl.transforms.convert_pdl_to_pdl_interp.conversion import (
+        MatcherGenerator,
+        SuccessNode,
+        SwitchNode,
+    )
+    from xdsl.transforms.convert_pdl_to_pdl_interp.predicate import (
+        OperationNameQuestion,
+        StringAnswer,
+    )
+
+    matcher_body = Region([Block(arg_types=(pdl.OperationType(),))])
+    matcher_func = pdl_interp.FuncOp(
+        "matcher", ((pdl.OperationType(),), ()), region=matcher_body
+    )
+    rewriter_module = ModuleOp([])
+
+    generator = MatcherGenerator(matcher_func, rewriter_module)
+    block = matcher_func.body.block
+    val = block.args[0]
+
+    # Create failure block
+    failure_block = Block()
+    matcher_body.add_block(failure_block)
+    generator.failure_block_stack.append(failure_block)
+
+    # Create mock pattern for SuccessNode
+    mock_pattern = pdl.PatternOp(1, "test_pattern", Region())
+
+    # Create SwitchNode with some None children
+    question = OperationNameQuestion()
+    children: dict[Answer, MatcherNode | None] = {
+        StringAnswer("arith.addi"): SuccessNode(pattern=mock_pattern),
+        StringAnswer("arith.subi"): None,  # This should be skipped
+        StringAnswer("arith.muli"): SuccessNode(pattern=mock_pattern),
+    }
+    switch_node = SwitchNode(question=question, children=children)
+
+    # Mock generate_matcher to return dummy blocks (only for non-None children)
+    mock_blocks = [Block(), Block()]
+    with patch.object(generator, "generate_matcher", side_effect=mock_blocks):
+        # Generate the switch node
+        generator.generate_switch_node(switch_node, block, val)
+
+    # Check that SwitchOperationNameOp was created
+    switch_ops = [
+        op for op in block.ops if isinstance(op, pdl_interp.SwitchOperationNameOp)
+    ]
+    assert len(switch_ops) == 1
+    switch_op = switch_ops[0]
+
+    # Should only have 2 cases (None child skipped)
+    case_values = [attr.data for attr in switch_op.case_values.data]
+    assert len(case_values) == 2
+    assert set(case_values) == {"arith.addi", "arith.muli"}
+    assert len(switch_op.cases) == 2
+
+
+def test_generate_switch_node_empty_children():
+    """Test generate_switch_node with empty children"""
+    from xdsl.dialects import pdl_interp
+    from xdsl.dialects.builtin import ModuleOp
+    from xdsl.ir import Block, Region
+    from xdsl.transforms.convert_pdl_to_pdl_interp.conversion import (
+        MatcherGenerator,
+        SwitchNode,
+    )
+    from xdsl.transforms.convert_pdl_to_pdl_interp.predicate import (
+        OperationNameQuestion,
+    )
+
+    matcher_body = Region([Block(arg_types=(pdl.OperationType(),))])
+    matcher_func = pdl_interp.FuncOp(
+        "matcher", ((pdl.OperationType(),), ()), region=matcher_body
+    )
+    rewriter_module = ModuleOp([])
+
+    generator = MatcherGenerator(matcher_func, rewriter_module)
+    block = matcher_func.body.block
+    val = block.args[0]
+
+    # Create failure block
+    failure_block = Block()
+    matcher_body.add_block(failure_block)
+    generator.failure_block_stack.append(failure_block)
+
+    # Create SwitchNode with empty children
+    question = OperationNameQuestion()
+    children: dict[Answer, MatcherNode | None] = {}
+    switch_node = SwitchNode(question=question, children=children)
+
+    # Generate the switch node
+    generator.generate_switch_node(switch_node, block, val)
+
+    # Check that SwitchOperationNameOp was created even with empty cases
+    switch_ops = [
+        op for op in block.ops if isinstance(op, pdl_interp.SwitchOperationNameOp)
+    ]
+    assert len(switch_ops) == 1
+    switch_op = switch_ops[0]
+
+    # Should have no cases
+    assert len(switch_op.case_values.data) == 0
+    assert len(switch_op.cases) == 0
+    assert switch_op.default_dest is failure_block
+
+
+def test_generate_switch_node_operand_count_not_implemented():
+    """Test that OperandCountQuestion raises NotImplementedError"""
+    from unittest.mock import patch
+
+    from xdsl.dialects import pdl_interp
+    from xdsl.dialects.builtin import ModuleOp
+    from xdsl.ir import Block, Region
+    from xdsl.transforms.convert_pdl_to_pdl_interp.conversion import (
+        MatcherGenerator,
+        SuccessNode,
+        SwitchNode,
+    )
+    from xdsl.transforms.convert_pdl_to_pdl_interp.predicate import (
+        OperandCountQuestion,
+        UnsignedAnswer,
+    )
+
+    matcher_body = Region([Block(arg_types=(pdl.OperationType(),))])
+    matcher_func = pdl_interp.FuncOp(
+        "matcher", ((pdl.OperationType(),), ()), region=matcher_body
+    )
+    rewriter_module = ModuleOp([])
+
+    generator = MatcherGenerator(matcher_func, rewriter_module)
+    block = matcher_func.body.block
+    val = block.args[0]
+
+    # Create failure block
+    failure_block = Block()
+    matcher_body.add_block(failure_block)
+    generator.failure_block_stack.append(failure_block)
+
+    # Create mock pattern for SuccessNode
+    mock_pattern = pdl.PatternOp(1, "test_pattern", Region())
+
+    # Create SwitchNode with operand count cases
+    question = OperandCountQuestion()
+    children: dict[Answer, MatcherNode | None] = {
+        UnsignedAnswer(1): SuccessNode(pattern=mock_pattern),
+        UnsignedAnswer(2): SuccessNode(pattern=mock_pattern),
+    }
+    switch_node = SwitchNode(question=question, children=children)
+
+    # Mock generate_matcher to return dummy blocks
+    mock_blocks = [Block(), Block()]
+    with patch.object(generator, "generate_matcher", side_effect=mock_blocks):
+        # Should raise NotImplementedError
+        with pytest.raises(
+            NotImplementedError,
+            match="pdl_interp.switch_operand_count is not yet implemented",
+        ):
+            generator.generate_switch_node(switch_node, block, val)
+
+
+def test_generate_switch_node_result_count_not_implemented():
+    """Test that ResultCountQuestion raises NotImplementedError"""
+    from unittest.mock import patch
+
+    from xdsl.dialects import pdl_interp
+    from xdsl.dialects.builtin import ModuleOp
+    from xdsl.ir import Block, Region
+    from xdsl.transforms.convert_pdl_to_pdl_interp.conversion import (
+        MatcherGenerator,
+        SuccessNode,
+        SwitchNode,
+    )
+    from xdsl.transforms.convert_pdl_to_pdl_interp.predicate import (
+        ResultCountQuestion,
+        UnsignedAnswer,
+    )
+
+    matcher_body = Region([Block(arg_types=(pdl.OperationType(),))])
+    matcher_func = pdl_interp.FuncOp(
+        "matcher", ((pdl.OperationType(),), ()), region=matcher_body
+    )
+    rewriter_module = ModuleOp([])
+
+    generator = MatcherGenerator(matcher_func, rewriter_module)
+    block = matcher_func.body.block
+    val = block.args[0]
+
+    # Create failure block
+    failure_block = Block()
+    matcher_body.add_block(failure_block)
+    generator.failure_block_stack.append(failure_block)
+
+    # Create mock pattern for SuccessNode
+    mock_pattern = pdl.PatternOp(1, "test_pattern", Region())
+
+    # Create SwitchNode with result count cases
+    question = ResultCountQuestion()
+    children: dict[Answer, MatcherNode | None] = {
+        UnsignedAnswer(1): SuccessNode(pattern=mock_pattern),
+        UnsignedAnswer(2): SuccessNode(pattern=mock_pattern),
+    }
+    switch_node = SwitchNode(question=question, children=children)
+
+    # Mock generate_matcher to return dummy blocks
+    mock_blocks = [Block(), Block()]
+    with patch.object(generator, "generate_matcher", side_effect=mock_blocks):
+        # Should raise NotImplementedError
+        with pytest.raises(
+            NotImplementedError,
+            match="pdl_interp.switch_result_count is not yet implemented",
+        ):
+            generator.generate_switch_node(switch_node, block, val)
+
+
+def test_generate_switch_node_type_constraint_not_implemented():
+    """Test that TypeConstraintQuestion raises NotImplementedError"""
+    from unittest.mock import patch
+
+    from xdsl.dialects import pdl_interp
+    from xdsl.dialects.builtin import ModuleOp
+    from xdsl.ir import Block, Region
+    from xdsl.transforms.convert_pdl_to_pdl_interp.conversion import (
+        MatcherGenerator,
+        SuccessNode,
+        SwitchNode,
+    )
+    from xdsl.transforms.convert_pdl_to_pdl_interp.predicate import (
+        TypeAnswer,
+        TypeConstraintQuestion,
+    )
+
+    matcher_body = Region([Block(arg_types=(pdl.TypeType(),))])
+    matcher_func = pdl_interp.FuncOp(
+        "matcher", ((pdl.TypeType(),), ()), region=matcher_body
+    )
+    rewriter_module = ModuleOp([])
+
+    generator = MatcherGenerator(matcher_func, rewriter_module)
+    block = matcher_func.body.block
+    val = block.args[0]
+
+    # Create failure block
+    failure_block = Block()
+    matcher_body.add_block(failure_block)
+    generator.failure_block_stack.append(failure_block)
+
+    # Create mock pattern for SuccessNode
+    mock_pattern = pdl.PatternOp(1, "test_pattern", Region())
+
+    # Create SwitchNode with type constraint cases
+    question = TypeConstraintQuestion()
+    children: dict[Answer, MatcherNode | None] = {
+        TypeAnswer(i32): SuccessNode(pattern=mock_pattern),
+        TypeAnswer(f32): SuccessNode(pattern=mock_pattern),
+    }
+    switch_node = SwitchNode(question=question, children=children)
+
+    # Mock generate_matcher to return dummy blocks
+    mock_blocks = [Block(), Block()]
+    with patch.object(generator, "generate_matcher", side_effect=mock_blocks):
+        # Should raise NotImplementedError
+        with pytest.raises(
+            NotImplementedError, match="pdl_interp.switch_types is not yet implemented"
+        ):
+            generator.generate_switch_node(switch_node, block, val)
+
+
+def test_generate_switch_node_unhandled_question():
+    """Test that unhandled question types raise NotImplementedError"""
+    from unittest.mock import patch
+
+    from xdsl.dialects import pdl_interp
+    from xdsl.dialects.builtin import ModuleOp
+    from xdsl.ir import Block, Region
+    from xdsl.transforms.convert_pdl_to_pdl_interp.conversion import (
+        MatcherGenerator,
+        SuccessNode,
+        SwitchNode,
+    )
+    from xdsl.transforms.convert_pdl_to_pdl_interp.predicate import (
+        IsNotNullQuestion,
+        TrueAnswer,
+    )
+
+    matcher_body = Region([Block(arg_types=(pdl.OperationType(),))])
+    matcher_func = pdl_interp.FuncOp(
+        "matcher", ((pdl.OperationType(),), ()), region=matcher_body
+    )
+    rewriter_module = ModuleOp([])
+
+    generator = MatcherGenerator(matcher_func, rewriter_module)
+    block = matcher_func.body.block
+    val = block.args[0]
+
+    # Create failure block
+    failure_block = Block()
+    matcher_body.add_block(failure_block)
+    generator.failure_block_stack.append(failure_block)
+
+    # Create mock pattern for SuccessNode
+    mock_pattern = pdl.PatternOp(1, "test_pattern", Region())
+
+    # Create SwitchNode with unsupported question type
+    question = IsNotNullQuestion()  # Not supported in switch
+    children: dict[Answer, MatcherNode | None] = {
+        TrueAnswer(): SuccessNode(pattern=mock_pattern),
+    }
+    switch_node = SwitchNode(question=question, children=children)
+
+    # Mock generate_matcher to return dummy blocks
+    mock_blocks = [Block()]
+    with patch.object(generator, "generate_matcher", side_effect=mock_blocks):
+        # Should raise NotImplementedError
+        with pytest.raises(NotImplementedError, match="Unhandled question type"):
+            generator.generate_switch_node(switch_node, block, val)
