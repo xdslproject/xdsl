@@ -3,12 +3,21 @@ from typing import cast
 import pytest
 
 from xdsl.builder import ImplicitBuilder
-from xdsl.dialects import pdl
-from xdsl.dialects.builtin import IntegerType, StringAttr, UnitAttr, f32, i32
+from xdsl.dialects import pdl, pdl_interp
+from xdsl.dialects.builtin import (
+    IntegerAttr,
+    IntegerType,
+    StringAttr,
+    UnitAttr,
+    f32,
+    i32,
+)
 from xdsl.ir import Block, Region, SSAValue
+from xdsl.rewriter import InsertPoint
 from xdsl.transforms.convert_pdl_to_pdl_interp.conversion import (
     BoolNode,
     ExitNode,
+    MatcherGenerator,
     OrderedPredicate,
     PatternAnalyzer,
     PredicateTreeBuilder,
@@ -2523,7 +2532,7 @@ def test_generate_bool_node_equal_to():
 def test_generate_bool_node_attribute_constraint():
     """Test generate_bool_node with AttributeConstraintQuestion"""
     from xdsl.dialects import pdl_interp
-    from xdsl.dialects.builtin import IntegerAttr, ModuleOp, i32
+    from xdsl.dialects.builtin import ModuleOp, i32
     from xdsl.ir import Block, Region
     from xdsl.transforms.convert_pdl_to_pdl_interp.conversion import (
         BoolNode,
@@ -2711,3 +2720,357 @@ def test_generate_bool_node_operand_count_at_least():
     assert check_op.count.value.data == 3
     assert check_op.compareAtLeast is not None
     assert check_op.input_op is val
+
+
+def test_generate_matcher_exit_node():
+    """Test generate_matcher with ExitNode"""
+    from xdsl.dialects.builtin import ModuleOp
+    from xdsl.ir import Block, Region
+
+    matcher_body = Region([Block(arg_types=(pdl.OperationType(),))])
+    matcher_func = pdl_interp.FuncOp(
+        "matcher", ((pdl.OperationType(),), ()), region=matcher_body
+    )
+    rewriter_module = ModuleOp([])
+
+    generator = MatcherGenerator(matcher_func, rewriter_module)
+
+    # Create exit node
+    exit_node = ExitNode()
+
+    # Generate matcher for exit node
+    result_block = generator.generate_matcher(exit_node, matcher_body)
+
+    # Check that FinalizeOp was created
+    finalize_ops = [
+        op for op in result_block.ops if isinstance(op, pdl_interp.FinalizeOp)
+    ]
+    assert len(finalize_ops) == 1
+
+
+def test_generate_matcher_bool_node_simple():
+    """Test generate_matcher with a simple BoolNode"""
+    from xdsl.dialects.builtin import ModuleOp
+    from xdsl.ir import Block, Region
+    from xdsl.transforms.convert_pdl_to_pdl_interp.predicate import (
+        IsNotNullQuestion,
+        OperationPosition,
+        TrueAnswer,
+    )
+
+    matcher_body = Region([Block(arg_types=(pdl.OperationType(),))])
+    matcher_func = pdl_interp.FuncOp(
+        "matcher", ((pdl.OperationType(),), ()), region=matcher_body
+    )
+    rewriter_module = ModuleOp([])
+
+    generator = MatcherGenerator(matcher_func, rewriter_module)
+
+    # Create bool node with failure node
+    pos = OperationPosition(None, depth=0)
+    question = IsNotNullQuestion()
+    answer = TrueAnswer()
+    failure_node = ExitNode()
+    bool_node = BoolNode(
+        position=pos, question=question, answer=answer, failure_node=failure_node
+    )
+
+    # Set up root operation value
+    root_val = matcher_func.body.block.args[0]
+    generator.values[pos] = root_val
+
+    # Generate matcher
+    result_block = generator.generate_matcher(bool_node, matcher_body)
+
+    # Check that IsNotNullOp was created
+    check_ops = [
+        op for op in result_block.ops if isinstance(op, pdl_interp.IsNotNullOp)
+    ]
+    assert len(check_ops) == 1
+
+    # Check that failure block was created with FinalizeOp
+    finalize_ops = [
+        op
+        for block in matcher_body.blocks
+        for op in block.ops
+        if isinstance(op, pdl_interp.FinalizeOp)
+    ]
+
+    assert len(finalize_ops) == 1
+
+
+def test_generate_matcher_bool_node_with_success():
+    """Test generate_matcher with BoolNode that has success_node"""
+    from xdsl.dialects.builtin import ModuleOp
+    from xdsl.ir import Block, Region
+    from xdsl.transforms.convert_pdl_to_pdl_interp.predicate import (
+        IsNotNullQuestion,
+        OperationPosition,
+        TrueAnswer,
+    )
+
+    matcher_body = Region([Block(arg_types=(pdl.OperationType(),))])
+    matcher_func = pdl_interp.FuncOp(
+        "matcher", ((pdl.OperationType(),), ()), region=matcher_body
+    )
+    rewriter_module = ModuleOp([])
+
+    generator = MatcherGenerator(matcher_func, rewriter_module)
+
+    # Create nested structure: BoolNode -> success_node -> ExitNode
+    pos = OperationPosition(None, depth=0)
+    question = IsNotNullQuestion()
+    answer = TrueAnswer()
+
+    # Create success and failure nodes
+    success_node = ExitNode()
+    failure_node = ExitNode()
+
+    bool_node = BoolNode(
+        position=pos,
+        question=question,
+        answer=answer,
+        success_node=success_node,
+        failure_node=failure_node,
+    )
+
+    # Set up root operation value
+    root_val = matcher_func.body.block.args[0]
+    generator.values[pos] = root_val
+
+    # Generate matcher
+    result_block = generator.generate_matcher(bool_node, matcher_body)
+
+    # Check that IsNotNullOp was created
+    check_ops = [
+        op for op in result_block.ops if isinstance(op, pdl_interp.IsNotNullOp)
+    ]
+    assert len(check_ops) == 1
+    check_op = check_ops[0]
+
+    # Check that both success and failure blocks exist and have FinalizeOps
+    success_block = check_op.true_dest
+    failure_block = check_op.false_dest
+
+    success_finalize_ops = [
+        op for op in success_block.ops if isinstance(op, pdl_interp.FinalizeOp)
+    ]
+    failure_finalize_ops = [
+        op for op in failure_block.ops if isinstance(op, pdl_interp.FinalizeOp)
+    ]
+
+    assert len(success_finalize_ops) == 1
+    assert len(failure_finalize_ops) == 1
+
+
+def test_generate_matcher_nested_bool_nodes():
+    """Test generate_matcher with nested BoolNodes"""
+    from xdsl.dialects.builtin import ModuleOp
+    from xdsl.ir import Block, Region
+    from xdsl.transforms.convert_pdl_to_pdl_interp.predicate import (
+        IsNotNullQuestion,
+        OperationNameQuestion,
+        OperationPosition,
+        StringAnswer,
+        TrueAnswer,
+    )
+
+    matcher_body = Region([Block(arg_types=(pdl.OperationType(),))])
+    matcher_func = pdl_interp.FuncOp(
+        "matcher", ((pdl.OperationType(),), ()), region=matcher_body
+    )
+    rewriter_module = ModuleOp([])
+
+    generator = MatcherGenerator(matcher_func, rewriter_module)
+
+    # Create nested structure:
+    # BoolNode(IsNotNull) -> success -> BoolNode(OpName) -> success -> ExitNode
+    pos = OperationPosition(None, depth=0)
+
+    # Create leaf node (final success)
+    final_success = ExitNode()
+
+    # Create inner bool node (operation name check)
+    inner_question = OperationNameQuestion()
+    inner_answer = StringAnswer("arith.addi")
+    inner_bool = BoolNode(
+        position=pos,
+        question=inner_question,
+        answer=inner_answer,
+        success_node=final_success,
+        failure_node=ExitNode(),
+    )
+
+    # Create outer bool node (null check)
+    outer_question = IsNotNullQuestion()
+    outer_answer = TrueAnswer()
+    outer_bool = BoolNode(
+        position=pos,
+        question=outer_question,
+        answer=outer_answer,
+        success_node=inner_bool,
+        failure_node=ExitNode(),
+    )
+
+    # Set up root operation value
+    root_val = matcher_func.body.block.args[0]
+    generator.values[pos] = root_val
+
+    # Generate matcher
+    result_block = generator.generate_matcher(outer_bool, matcher_body)
+
+    # Check that IsNotNullOp was created in the main block
+    is_not_null_ops = [
+        op for op in result_block.ops if isinstance(op, pdl_interp.IsNotNullOp)
+    ]
+    assert len(is_not_null_ops) == 1
+
+    # Check that success block contains CheckOperationNameOp
+    success_block = is_not_null_ops[0].true_dest
+    check_name_ops = [
+        op
+        for op in success_block.ops
+        if isinstance(op, pdl_interp.CheckOperationNameOp)
+    ]
+    assert len(check_name_ops) == 1
+    assert check_name_ops[0].operation_name.data == "arith.addi"
+
+    # Check that final success block has FinalizeOp
+    final_block = check_name_ops[0].true_dest
+    finalize_ops = [
+        op for op in final_block.ops if isinstance(op, pdl_interp.FinalizeOp)
+    ]
+    assert len(finalize_ops) == 1
+
+
+def test_generate_matcher_reuses_failure_block():
+    """Test that generate_matcher reuses failure blocks from stack"""
+    from xdsl.dialects.builtin import ModuleOp
+    from xdsl.ir import Block, Region
+    from xdsl.transforms.convert_pdl_to_pdl_interp.predicate import (
+        IsNotNullQuestion,
+        OperationPosition,
+        TrueAnswer,
+    )
+
+    matcher_body = Region([Block(arg_types=(pdl.OperationType(),))])
+    matcher_func = pdl_interp.FuncOp(
+        "matcher", ((pdl.OperationType(),), ()), region=matcher_body
+    )
+    rewriter_module = ModuleOp([])
+
+    generator = MatcherGenerator(matcher_func, rewriter_module)
+
+    # Create a failure block and push it to the stack
+    failure_block = Block()
+    matcher_body.add_block(failure_block)
+    finalize_op = pdl_interp.FinalizeOp()
+    generator.builder.insert_op(finalize_op, InsertPoint.at_end(failure_block))
+    generator.failure_block_stack.append(failure_block)
+
+    # Create bool node without failure_node (should use stack)
+    pos = OperationPosition(None, depth=0)
+    question = IsNotNullQuestion()
+    answer = TrueAnswer()
+    bool_node = BoolNode(position=pos, question=question, answer=answer)
+
+    # Set up root operation value
+    assert matcher_func.body.first_block
+    root_val = matcher_func.body.first_block.args[0]
+    generator.values[pos] = root_val
+
+    # Generate matcher
+    result_block = generator.generate_matcher(bool_node, matcher_body)
+
+    # Check that IsNotNullOp was created and uses the existing failure block
+    check_ops = [
+        op for op in result_block.ops if isinstance(op, pdl_interp.IsNotNullOp)
+    ]
+    assert len(check_ops) == 1
+    assert check_ops[0].false_dest is failure_block
+
+
+def test_generate_matcher_scoped_values():
+    """Test that generate_matcher properly manages scoped values"""
+    from xdsl.dialects.builtin import ModuleOp
+    from xdsl.ir import Block, Region
+    from xdsl.transforms.convert_pdl_to_pdl_interp.predicate import (
+        IsNotNullQuestion,
+        OperationPosition,
+        TrueAnswer,
+    )
+
+    matcher_body = Region([Block(arg_types=(pdl.OperationType(),))])
+    matcher_func = pdl_interp.FuncOp(
+        "matcher", ((pdl.OperationType(),), ()), region=matcher_body
+    )
+    rewriter_module = ModuleOp([])
+
+    generator = MatcherGenerator(matcher_func, rewriter_module)
+
+    # Store the initial values dict
+    initial_values = generator.values
+
+    # Create bool node
+    pos = OperationPosition(None, depth=0)
+    question = IsNotNullQuestion()
+    answer = TrueAnswer()
+    bool_node = BoolNode(
+        position=pos, question=question, answer=answer, failure_node=ExitNode()
+    )
+
+    # Set up root operation value
+    root_val = matcher_func.body.block.args[0]
+    generator.values[pos] = root_val
+
+    # Generate matcher
+    _result_block = generator.generate_matcher(bool_node, matcher_body)
+
+    # Check that values dict was restored after generation
+    assert generator.values is initial_values
+
+
+def test_generate_bool_node_with_success_node_calls_generate_matcher():
+    """Test that generate_bool_node calls generate_matcher when success_node exists"""
+    from xdsl.dialects.builtin import ModuleOp
+    from xdsl.ir import Block, Region
+    from xdsl.transforms.convert_pdl_to_pdl_interp.predicate import (
+        IsNotNullQuestion,
+        TrueAnswer,
+    )
+
+    matcher_body = Region([Block(arg_types=(pdl.OperationType(),))])
+    matcher_func = pdl_interp.FuncOp(
+        "matcher", ((pdl.OperationType(),), ()), region=matcher_body
+    )
+    rewriter_module = ModuleOp([])
+
+    generator = MatcherGenerator(matcher_func, rewriter_module)
+    block = matcher_func.body.block
+    val = block.args[0]
+
+    # Create failure block
+    failure_block = Block()
+    matcher_body.add_block(failure_block)
+    generator.failure_block_stack.append(failure_block)
+
+    # Create BoolNode with success_node
+    question = IsNotNullQuestion()
+    answer = TrueAnswer()
+    success_node = ExitNode()
+    bool_node = BoolNode(question=question, answer=answer, success_node=success_node)
+
+    # Generate the bool node
+    generator.generate_bool_node(bool_node, block, val)
+
+    # Check that IsNotNullOp was created
+    check_ops = [op for op in block.ops if isinstance(op, pdl_interp.IsNotNullOp)]
+    assert len(check_ops) == 1
+    check_op = check_ops[0]
+
+    # Check that success block was created and contains FinalizeOp (from generate_matcher)
+    success_block = check_op.true_dest
+    finalize_ops = [
+        op for op in success_block.ops if isinstance(op, pdl_interp.FinalizeOp)
+    ]
+    assert len(finalize_ops) == 1
