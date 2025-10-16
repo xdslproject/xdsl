@@ -4,10 +4,9 @@ from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from collections.abc import Set as AbstractSet
 from io import StringIO
-from itertools import chain
 from typing import IO, Annotated, Generic, Literal, TypeAlias
 
-from typing_extensions import Self, TypeVar, assert_never
+from typing_extensions import Self, TypeVar
 
 from xdsl.backend.assembly_printer import (
     AssemblyPrintable,
@@ -18,7 +17,7 @@ from xdsl.backend.register_allocatable import (
     HasRegisterConstraints,
     RegisterConstraints,
 )
-from xdsl.backend.register_type import RegisterType
+from xdsl.backend.register_type import RegisterAllocatedMemoryEffect, RegisterType
 from xdsl.dialects.builtin import (
     IndexType,
     IntegerAttr,
@@ -31,6 +30,7 @@ from xdsl.dialects.builtin import (
     i32,
 )
 from xdsl.dialects.utils import FastMathAttrBase, FastMathFlag
+from xdsl.interfaces import ConstantLikeInterface
 from xdsl.ir import (
     Attribute,
     Block,
@@ -58,18 +58,13 @@ from xdsl.parser import AttrParser, Parser, UnresolvedOperand
 from xdsl.pattern_rewriter import RewritePattern
 from xdsl.printer import Printer
 from xdsl.traits import (
-    ConstantLike,
-    EffectInstance,
     HasCanonicalizationPatternsTrait,
     IsolatedFromAbove,
     IsTerminator,
-    MemoryEffect,
-    MemoryEffectKind,
     NoTerminator,
     Pure,
 )
 from xdsl.utils.exceptions import VerifyException
-from xdsl.utils.hints import isa
 
 
 def is_non_zero(reg: IntRegisterType) -> bool:
@@ -451,7 +446,7 @@ class RISCVCustomFormatOperation(IRDLOperation, ABC):
 
 
 AssemblyInstructionArg: TypeAlias = (
-    IntegerAttr | LabelAttr | SSAValue | IntRegisterType | str | int
+    IntegerAttr | LabelAttr | SSAValue | RegisterType | str
 )
 
 
@@ -500,28 +495,18 @@ class RISCVInstruction(RISCVAsmOperation, ABC):
 
 
 def _assembly_arg_str(arg: AssemblyInstructionArg) -> str:
-    if isa(arg, IntegerAttr):
+    if isinstance(arg, SSAValue):
+        if not isinstance(t := arg.type, RegisterType):
+            raise ValueError(f"Unexpected register type {t}")
+        return t.register_name.data
+    elif isinstance(arg, IntegerAttr):
         return f"{arg.value.data}"
-    elif isinstance(arg, int):
-        return f"{arg}"
     elif isinstance(arg, LabelAttr):
         return arg.data
-    elif isinstance(arg, str):
-        return arg
-    elif isinstance(arg, IntRegisterType):
+    elif isinstance(arg, RegisterType):
         return arg.register_name.data
-    elif isinstance(arg, FloatRegisterType):
-        return arg.register_name.data
-    else:
-        if isinstance(arg.type, IntRegisterType):
-            reg = arg.type.register_name.data
-            return reg
-        elif isinstance(arg.type, FloatRegisterType):
-            reg = arg.type.register_name.data
-            return reg
-        else:
-            raise ValueError(f"Unexpected register type {arg.type}")
-    assert_never(arg)
+
+    return arg
 
 
 def print_assembly(module: ModuleOp, output: IO[str]) -> None:
@@ -541,7 +526,7 @@ def riscv_code(module: ModuleOp) -> str:
 
 
 class RdRsRsOperation(
-    Generic[RDInvT, RS1InvT, RS2InvT], RISCVCustomFormatOperation, RISCVInstruction, ABC
+    RISCVCustomFormatOperation, RISCVInstruction, ABC, Generic[RDInvT, RS1InvT, RS2InvT]
 ):
     """
     A base class for RISC-V operations that have one destination register, and two source
@@ -578,7 +563,7 @@ class RdRsRsOperation(
 
 
 class RdRsRsIntegerOperation(
-    Generic[RS1InvT, RS2InvT], RdRsRsOperation[IntRegisterType, RS1InvT, RS2InvT], ABC
+    RdRsRsOperation[IntRegisterType, RS1InvT, RS2InvT], ABC, Generic[RS1InvT, RS2InvT]
 ):
     def __init__(
         self,
@@ -592,7 +577,7 @@ class RdRsRsIntegerOperation(
 
 
 class RdRsRsFloatOperation(
-    Generic[RS1InvT, RS2InvT], RdRsRsOperation[FloatRegisterType, RS1InvT, RS2InvT], ABC
+    RdRsRsOperation[FloatRegisterType, RS1InvT, RS2InvT], ABC, Generic[RS1InvT, RS2InvT]
 ):
     def __init__(
         self,
@@ -946,7 +931,7 @@ class RdRsImmJumpOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
 
 
 class RdRsOperation(
-    Generic[RDInvT, RSInvT], RISCVCustomFormatOperation, RISCVInstruction, ABC
+    RISCVCustomFormatOperation, RISCVInstruction, ABC, Generic[RDInvT, RSInvT]
 ):
     """
     A base class for RISC-V pseudo-instructions that have one destination register and one
@@ -976,7 +961,7 @@ class RdRsOperation(
 
 
 class RdRsIntegerOperation(
-    Generic[RSInvT], RdRsOperation[IntRegisterType, RSInvT], ABC
+    RdRsOperation[IntRegisterType, RSInvT], ABC, Generic[RSInvT]
 ):
     def __init__(
         self,
@@ -989,7 +974,7 @@ class RdRsIntegerOperation(
 
 
 class RdRsFloatOperation(
-    Generic[RSInvT], RdRsOperation[FloatRegisterType, RSInvT], ABC
+    RdRsOperation[FloatRegisterType, RSInvT], ABC, Generic[RSInvT]
 ):
     def __init__(
         self,
@@ -1916,9 +1901,12 @@ class SltuOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
 class BitwiseAndHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.transforms.canonicalization_patterns.riscv import BitwiseAndByZero
+        from xdsl.transforms.canonicalization_patterns.riscv import (
+            BitwiseAndBySelf,
+            BitwiseAndByZero,
+        )
 
-        return (BitwiseAndByZero(),)
+        return (BitwiseAndByZero(), BitwiseAndBySelf())
 
 
 @irdl_op_definition
@@ -1939,9 +1927,12 @@ class AndOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
 class BitwiseOrHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.transforms.canonicalization_patterns.riscv import BitwiseOrByZero
+        from xdsl.transforms.canonicalization_patterns.riscv import (
+            BitwiseOrBySelf,
+            BitwiseOrByZero,
+        )
 
-        return (BitwiseOrByZero(),)
+        return (BitwiseOrByZero(), BitwiseOrBySelf())
 
 
 @irdl_op_definition
@@ -3362,7 +3353,7 @@ class LiOpHasCanonicalizationPatternTrait(HasCanonicalizationPatternsTrait):
 
 
 @irdl_op_definition
-class LiOp(RISCVCustomFormatOperation, RISCVInstruction, ABC):
+class LiOp(RISCVCustomFormatOperation, RISCVInstruction, ConstantLikeInterface, ABC):
     """
     Loads a 32-bit immediate into rd.
 
@@ -3376,7 +3367,7 @@ class LiOp(RISCVCustomFormatOperation, RISCVInstruction, ABC):
     rd = result_def(IntRegisterType)
     immediate = attr_def(base(Imm32Attr) | base(LabelAttr))
 
-    traits = traits_def(Pure(), ConstantLike(), LiOpHasCanonicalizationPatternTrait())
+    traits = traits_def(Pure(), LiOpHasCanonicalizationPatternTrait())
 
     def __init__(
         self,
@@ -3402,6 +3393,9 @@ class LiOp(RISCVCustomFormatOperation, RISCVInstruction, ABC):
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
         return self.rd, self.immediate
+
+    def get_constant_value(self):
+        return self.immediate
 
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
@@ -3733,30 +3727,8 @@ class WfiOp(NullaryOperation):
 # region RISC-V SSA Helpers
 
 
-class RegisterAllocatedMemoryEffect(MemoryEffect):
-    """
-    An assembly operation that only has side-effect if some registers are allocated to
-    it.
-    """
-
-    @classmethod
-    def get_effects(cls, op: Operation) -> set[EffectInstance]:
-        effects = set[EffectInstance]()
-        if any(
-            isinstance(r.type, RegisterType) and r.type.is_allocated
-            for r in chain(op.results)
-        ):
-            effects.add(EffectInstance(MemoryEffectKind.WRITE))
-        if any(
-            isinstance(r.type, RegisterType) and r.type.is_allocated
-            for r in chain(op.operands)
-        ):
-            effects.add(EffectInstance(MemoryEffectKind.READ))
-        return effects
-
-
 class GetAnyRegisterOperation(
-    Generic[RDInvT], RISCVCustomFormatOperation, RISCVAsmOperation, ABC
+    RISCVCustomFormatOperation, RISCVAsmOperation, ABC, Generic[RDInvT]
 ):
     """
     This instruction allows us to create an SSAValue with for a given register name. This

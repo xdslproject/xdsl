@@ -14,9 +14,8 @@ from xdsl.dialects.builtin import (
     i32,
 )
 from xdsl.ir import Attribute, ParametrizedAttribute, SSAValue
-from xdsl.irdl import BaseAttr, EqAttrConstraint, irdl_attr_definition
+from xdsl.irdl import irdl_attr_definition
 from xdsl.utils.hints import isa
-from xdsl.utils.isattr import isattr  # pyright: ignore[reportDeprecated]
 from xdsl.utils.test_value import create_ssa_value
 
 
@@ -355,7 +354,7 @@ _T = TypeVar("_T", bound=Attribute)
 
 
 @irdl_attr_definition
-class MyParamAttr(Generic[_T], ParametrizedAttribute):
+class MyParamAttr(ParametrizedAttribute, Generic[_T]):
     name = "test.param"
 
     v: _T
@@ -388,23 +387,6 @@ def test_literal():
 
     assert not isa(1, Literal["1"])
     assert not isa("1", Literal[1])
-
-
-################################################################################
-# isattr
-################################################################################
-
-
-def test_isattr():
-    # We're testing the deprecated function, so we need to suppress the warnings
-    import warnings
-
-    with warnings.catch_warnings():
-        warnings.filterwarnings("ignore", category=DeprecationWarning)
-        assert isattr(IntAttr(1), BaseAttr(IntAttr))  # pyright: ignore[reportDeprecated]
-        assert not isattr(IntAttr(1), BaseAttr(StringAttr))  # pyright: ignore[reportDeprecated]
-        assert isattr(IntAttr(1), EqAttrConstraint(IntAttr(1)))  # pyright: ignore[reportDeprecated]
-        assert not isattr(IntAttr(1), EqAttrConstraint(IntAttr(2)))  # pyright: ignore[reportDeprecated]
 
 
 ################################################################################

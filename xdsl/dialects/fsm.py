@@ -16,6 +16,7 @@ from xdsl.dialects.builtin import (
     FlatSymbolRefAttrConstr,
     FunctionType,
     StringAttr,
+    SymbolNameConstraint,
     SymbolRefAttr,
 )
 from xdsl.ir import (
@@ -69,7 +70,7 @@ class MachineOp(IRDLOperation):
 
     body = region_def()
 
-    sym_name = attr_def(StringAttr)
+    sym_name = attr_def(SymbolNameConstraint())
     initialState = attr_def(StringAttr)
     function_type = attr_def(FunctionType)
     arg_attrs = opt_attr_def(ArrayAttr[DictionaryAttr])
@@ -142,7 +143,7 @@ class StateOp(IRDLOperation):
 
     transitions = region_def()
 
-    sym_name = attr_def(StringAttr)
+    sym_name = attr_def(SymbolNameConstraint())
 
     traits = traits_def(NoTerminator(), SymbolOpInterface(), HasParent(MachineOp))
 
@@ -322,7 +323,7 @@ class VariableOp(IRDLOperation):
 
     name = "fsm.variable"
 
-    initValue = attr_def(Attribute)
+    initValue = attr_def()
     name_var = opt_attr_def(StringAttr)
 
     result = var_result_def(Attribute)
@@ -375,7 +376,7 @@ class InstanceOp(IRDLOperation):
 
     name = "fsm.instance"
 
-    sym_name = attr_def(StringAttr)
+    sym_name = attr_def(SymbolNameConstraint())
 
     machine = attr_def(FlatSymbolRefAttrConstr)
 
@@ -464,7 +465,7 @@ class HWInstanceOp(IRDLOperation):
 
     name = "fsm.hw_instance"
 
-    sym_name = attr_def(StringAttr)
+    sym_name = attr_def(SymbolNameConstraint())
     machine = attr_def(FlatSymbolRefAttrConstr)
     inputs = var_operand_def()
     clock = operand_def(signlessIntegerLike)

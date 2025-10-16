@@ -540,7 +540,7 @@ def test_operation_deletion():
 }) : () -> ()"""
 
     expected = """"builtin.module"() ({
-^0:
+^bb0:
 }) : () -> ()"""
 
     class Rewrite(RewritePattern):
@@ -563,7 +563,7 @@ def test_operation_deletion_reversed():
 }) : () -> ()"""
 
     expected = """"builtin.module"() ({
-^0:
+^bb0:
 }) : () -> ()"""
 
     class EraseAll(RewritePattern):
@@ -619,7 +619,7 @@ def test_delete_inner_op():
 
     expected = """"builtin.module"() ({
   "test.op"() ({
-  ^0:
+  ^bb0:
   }) : () -> ()
 }) : () -> ()"""
 
@@ -678,7 +678,7 @@ def test_block_argument_type_change():
     prog = """\
 "builtin.module"() ({
   %0 = "test.op"() ({
-  ^0(%1 : !test.type<"int">):
+  ^bb0(%1 : !test.type<"int">):
     %2 = "test.op"() : () -> !test.type<"int">
   }) : () -> !test.type<"int">
 }) : () -> ()
@@ -687,7 +687,7 @@ def test_block_argument_type_change():
     expected = """\
 "builtin.module"() ({
   %0 = "test.op"() ({
-  ^0(%1 : i64):
+  ^bb0(%1 : i64):
     %2 = "test.op"() : () -> !test.type<"int">
   }) : () -> !test.type<"int">
 }) : () -> ()
@@ -715,10 +715,10 @@ def test_block_argument_erasure():
     prog = """\
 "builtin.module"() ({
   %0 = "test.op"() ({
-  ^0(%1 : !test.type<"int">):
+  ^bb0(%1 : !test.type<"int">):
     %2 = "test.op"() : () -> !test.type<"int">
   }, {
-  ^0:
+  ^bb0:
   }) : () -> !test.type<"int">
 }) : () -> ()
 """
@@ -728,7 +728,7 @@ def test_block_argument_erasure():
   %0 = "test.op"() ({
     %1 = "test.op"() : () -> !test.type<"int">
   }, {
-  ^0:
+  ^bb0:
   }) : () -> !test.type<"int">
 }) : () -> ()
 """
@@ -752,7 +752,7 @@ def test_block_argument_insertion():
   %0 = "test.op"() ({
     %1 = "test.op"() : () -> !test.type<"int">
   }, {
-  ^0:
+  ^bb0:
   }) : () -> !test.type<"int">
 }) : () -> ()
 """
@@ -760,10 +760,10 @@ def test_block_argument_insertion():
     expected = """\
 "builtin.module"() ({
   %0 = "test.op"() ({
-  ^0(%1 : !test.type<"int">):
+  ^bb0(%1 : !test.type<"int">):
     %2 = "test.op"() : () -> !test.type<"int">
   }, {
-  ^1:
+  ^bb1:
   }) : () -> !test.type<"int">
 }) : () -> ()
 """
@@ -790,10 +790,10 @@ def test_inline_block_before_matched_op():
 "builtin.module"() ({
   %0 = "test.op"() : () -> !test.type<"int">
   %1 = "test.op"() ({
-  ^0:
+  ^bb0:
     %2 = "test.op"() : () -> !test.type<"int">
   }, {
-  ^1:
+  ^bb1:
   }) : () -> !test.type<"int">
 }) : () -> ()
 """
@@ -804,7 +804,7 @@ def test_inline_block_before_matched_op():
   %1 = "test.op"() : () -> !test.type<"int">
   %2 = "test.op"() ({
   }, {
-  ^0:
+  ^bb0:
   }) : () -> !test.type<"int">
 }) : () -> ()
 """
@@ -832,10 +832,10 @@ def test_inline_block_before():
     %1 = "test.op"() ({
       %1 = "test.op"() : () -> !test.type<"int">
     }, {
-    ^1:
+    ^bb1:
     }) : () -> !test.type<"int">
   }, {
-  ^2:
+  ^bb2:
   }) : () -> !test.type<"int">
 }) : () -> ()
 """
@@ -847,10 +847,10 @@ def test_inline_block_before():
     %2 = "test.op"() : () -> !test.type<"int">
     %3 = "test.op"() ({
     }, {
-    ^0:
+    ^bb0:
     }) : () -> !test.type<"int">
   }, {
-  ^1:
+  ^bb1:
   }) : () -> !test.type<"int">
 }) : () -> ()
 """
@@ -879,10 +879,10 @@ def test_inline_block_at_before_when_op_is_matched_op():
 "builtin.module"() ({
   %0 = "test.op"() : () -> !test.type<"int">
   %1 = "test.op"() ({
-  ^0:
+  ^bb0:
     %2 = "test.op"() : () -> !test.type<"int">
   }, {
-  ^1:
+  ^bb1:
   }) : () -> !test.type<"int">
 }) : () -> ()
 """
@@ -893,7 +893,7 @@ def test_inline_block_at_before_when_op_is_matched_op():
   %1 = "test.op"() : () -> !test.type<"int">
   %2 = "test.op"() ({
   }, {
-  ^0:
+  ^bb0:
   }) : () -> !test.type<"int">
 }) : () -> ()
 """
@@ -920,15 +920,15 @@ def test_inline_block_before_with_args():
 "builtin.module"() ({
   %0 = "test.op"() : () -> !test.type<"int">
   %1 = "test.op"() ({
-  ^0(%arg0 : !test.type<"int">):
+  ^bb0(%arg0 : !test.type<"int">):
     %1 = "test.op"() ({
-    ^1(%arg1 : !test.type<"int">):
+    ^bb1(%arg1 : !test.type<"int">):
       %1 = "test.op"(%arg1) : (!test.type<"int">) -> !test.type<"int">
     }, {
-    ^2:
+    ^bb2:
     }) : () -> !test.type<"int">
   }, {
-  ^3:
+  ^bb3:
   }) : () -> !test.type<"int">
 }) : () -> ()
 """
@@ -937,14 +937,14 @@ def test_inline_block_before_with_args():
 "builtin.module"() ({
   %0 = "test.op"() : () -> !test.type<"int">
   %1 = "test.op"() ({
-  ^0(%arg0 : !test.type<"int">):
+  ^bb0(%arg0 : !test.type<"int">):
     %2 = "test.op"(%arg0) : (!test.type<"int">) -> !test.type<"int">
     %3 = "test.op"() ({
     }, {
-    ^1:
+    ^bb1:
     }) : () -> !test.type<"int">
   }, {
-  ^2:
+  ^bb2:
   }) : () -> !test.type<"int">
 }) : () -> ()
 """
@@ -979,10 +979,10 @@ def test_inline_block_after():
     %1 = "test.op"() ({
       %1 = "test.op"() : () -> !test.type<"int">
     }, {
-      ^1:
+      ^bb1:
     }) : () -> !test.type<"int">
   }, {
-  ^2:
+  ^bb2:
   }) : () -> !test.type<"int">
 }) : () -> ()
 """
@@ -993,11 +993,11 @@ def test_inline_block_after():
   %1 = "test.op"() ({
     %2 = "test.op"() ({
     }, {
-    ^0:
+    ^bb0:
     }) : () -> !test.type<"int">
     %3 = "test.op"() : () -> !test.type<"int">
   }, {
-  ^1:
+  ^bb1:
   }) : () -> !test.type<"int">
 }) : () -> ()
 """
@@ -1030,10 +1030,10 @@ def test_inline_block_after_matched():
     %1 = "test.op"() ({
       %1 = "test.op"() : () -> !test.type<"int">
     }, {
-    ^1:
+    ^bb1:
     }) : () -> !test.type<"int">
   }, {
-  ^2:
+  ^bb2:
   }) : () -> !test.type<"int">
 }) : () -> ()
 """
@@ -1044,10 +1044,10 @@ def test_inline_block_after_matched():
   %1 = "test.op"() ({
     %2 = "test.op"() ({
     }, {
-    ^0:
+    ^bb0:
     }) : () -> !test.type<"int">
   }, {
-  ^1:
+  ^bb1:
   }) : () -> !test.type<"int">
   %3 = "test.op"() : () -> !test.type<"int">
 }) : () -> ()
@@ -1081,7 +1081,7 @@ def test_move_region_contents_to_new_regions():
   "test.op"() ({
     %0 = "test.op"() : () -> !test.type<"int">
     %1 = "test.op"() ({
-    ^0:
+    ^bb0:
       %2 = "test.op"() : () -> !test.type<"int">
     }) : () -> !test.type<"int">
   }) : () -> ()
@@ -1201,11 +1201,11 @@ def test_inline_region_before():
     prog = """\
 "builtin.module"() ({
   %0 = "test.op"() : () -> i32
-^0:
+^bb0:
   "test.op"() ({
-    ^1:
+    ^bb1:
     %1 = "test.op"() : () -> f32
-    ^2:
+    ^bb2:
     %2 = "test.op"() : () -> f64
   }) {label = "а"} : () -> ()
   %2 = "test.op"() : () -> i64
@@ -1215,11 +1215,11 @@ def test_inline_region_before():
     expected = """\
 "builtin.module"() ({
   %0 = "test.op"() : () -> i32
-^0:
+^bb0:
   %1 = "test.op"() : () -> f32
-^1:
+^bb1:
   %2 = "test.op"() : () -> f64
-^2:
+^bb2:
   %3 = "test.op"() : () -> i64
 }) : () -> ()
 """
@@ -1249,12 +1249,12 @@ def test_inline_region_after():
 "builtin.module"() ({
   %0 = "test.op"() : () -> i32
   "test.op"() ({
-    ^1:
+    ^bb1:
     %1 = "test.op"() : () -> f32
-    ^2:
+    ^bb2:
     %2 = "test.op"() : () -> f64
   }) {label = "а"} : () -> ()
-^0:
+^bb0:
   %2 = "test.op"() : () -> i64
 }) : () -> ()
 """
@@ -1262,11 +1262,11 @@ def test_inline_region_after():
     expected = """\
 "builtin.module"() ({
   %0 = "test.op"() : () -> i32
-^0:
+^bb0:
   %1 = "test.op"() : () -> f32
-^1:
+^bb1:
   %2 = "test.op"() : () -> f64
-^2:
+^bb2:
   %3 = "test.op"() : () -> i64
 }) : () -> ()
 """
@@ -1295,11 +1295,11 @@ def test_inline_region_at_start():
     prog = """\
 "builtin.module"() ({
   %0 = "test.op"() : () -> i32
-^0:
+^bb0:
   "test.op"() ({
-    ^1:
+    ^bb1:
     %1 = "test.op"() : () -> f32
-    ^2:
+    ^bb2:
     %2 = "test.op"() : () -> f64
   }) {label = "а"} : () -> ()
   %2 = "test.op"() : () -> i64
@@ -1309,11 +1309,11 @@ def test_inline_region_at_start():
     expected = """\
 "builtin.module"() ({
   %0 = "test.op"() : () -> f32
-^0:
+^bb0:
   %1 = "test.op"() : () -> f64
-^1:
+^bb1:
   %2 = "test.op"() : () -> i32
-^2:
+^bb2:
   %3 = "test.op"() : () -> i64
 }) : () -> ()
 """
@@ -1345,11 +1345,11 @@ def test_inline_region_at_end():
     prog = """\
 "builtin.module"() ({
   %0 = "test.op"() : () -> i32
-^0:
+^bb0:
   "test.op"() ({
-    ^1:
+    ^bb1:
     %1 = "test.op"() : () -> f32
-    ^2:
+    ^bb2:
     %2 = "test.op"() : () -> f64
   }) {label = "а"} : () -> ()
   %2 = "test.op"() : () -> i64
@@ -1359,11 +1359,11 @@ def test_inline_region_at_end():
     expected = """\
 "builtin.module"() ({
   %0 = "test.op"() : () -> i32
-^0:
+^bb0:
   %1 = "test.op"() : () -> i64
-^1:
+^bb1:
   %2 = "test.op"() : () -> f32
-^2:
+^bb2:
   %3 = "test.op"() : () -> f64
 }) : () -> ()
 """
@@ -1404,7 +1404,7 @@ builtin.module {
     expected = """\
 "builtin.module"() ({
   "test.op"() ({
-  ^0:
+  ^bb0:
   }) : () -> ()
 }) : () -> ()
 """
@@ -1466,7 +1466,7 @@ def test_type_conversion():
     prog = """\
 "builtin.module"() ({
   "func.func"() ({
-  ^0(%arg : i32):
+  ^bb0(%arg : i32):
   }) : () -> ()
   %0 = "test.op"() {nested = memref<*xi32>} : () -> i32
   %1 = "test.op"() {type = () -> memref<*xi32>} : () -> f32
@@ -1480,7 +1480,7 @@ def test_type_conversion():
     expected = """\
 "builtin.module"() ({
   "func.func"() ({
-  ^0(%arg : index):
+  ^bb0(%arg : index):
   }) : () -> ()
   %0 = "test.op"() {nested = memref<*xindex>} : () -> index
   %1 = "test.op"() {type = () -> memref<*xindex>} : () -> f32
@@ -1529,7 +1529,7 @@ def test_type_conversion():
     non_rec_expected = """\
 "builtin.module"() ({
   "func.func"() ({
-  ^0(%arg : index):
+  ^bb0(%arg : index):
   }) : () -> ()
   %0 = "test.op"() {nested = memref<*xi32>} : () -> index
   %1 = "test.op"() {type = () -> memref<*xi32>} : () -> f32
@@ -1571,7 +1571,7 @@ def test_type_conversion():
     expected = """\
 "builtin.module"() ({
   "func.func"() ({
-  ^0(%arg : i32):
+  ^bb0(%arg : i32):
   }) : () -> ()
   %0 = "test.op"() {nested = memref<*xindex>} : () -> index
   %1 = "test.op"() {type = () -> memref<*xindex>} : () -> f32
@@ -1626,7 +1626,7 @@ def test_type_conversion():
     prog = """\
 "builtin.module"() ({
   "func.func"() ({
-  ^0(%arg : i6):
+  ^bb0(%arg : i6):
   }) : () -> ()
   %0 = "test.op"() {nested = memref<*xi4>} : () -> i6
   %1 = "test.op"() {type = () -> memref<*xi32>} : () -> f32
@@ -1640,7 +1640,7 @@ def test_type_conversion():
     expected = """\
 "builtin.module"() ({
   "func.func"() ({
-  ^0(%arg : i6):
+  ^bb0(%arg : i6):
   }) : () -> ()
   %0 = "test.op"() {nested = memref<*xi4>} : () -> i6
   %1 = "test.op"() {type = () -> memref<*xindex>} : () -> f32
@@ -1702,7 +1702,7 @@ def test_recursive_type_conversion_in_regions():
     expected_prog = """\
 "builtin.module"() ({
   "func.func"() <{function_type = (memref<2x4xindex>) -> (), sym_name = "main", sym_visibility = "private"}> ({
-  ^0(%arg0 : memref<2x4xindex>):
+  ^bb0(%arg0 : memref<2x4xindex>):
     "func.return"() : () -> ()
   }) : () -> ()
 }) : () -> ()
@@ -1805,7 +1805,7 @@ def test_attr_constr_rewrite_pattern():
     expected_prog = """\
 "builtin.module"() ({
   "func.func"() <{function_type = (memref<2x4xindex>) -> (), sym_name = "main", sym_visibility = "private"}> ({
-  ^0(%arg0 : memref<2x4xindex>):
+  ^bb0(%arg0 : memref<2x4xindex>):
     "func.return"() : () -> ()
   }) : () -> ()
 }) : () -> ()
@@ -1837,7 +1837,7 @@ def test_pattern_rewriter_erase_op_with_region():
 }) : () -> ()"""
     expected = """
 "builtin.module"() ({
-^0:
+^bb0:
 }) : () -> ()"""
 
     class Rewrite(RewritePattern):

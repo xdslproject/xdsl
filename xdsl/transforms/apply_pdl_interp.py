@@ -21,12 +21,14 @@ class PDLInterpRewritePattern(RewritePattern):
     interpreter: Interpreter
     functions: PDLInterpFunctions
     matcher: pdl_interp.FuncOp
+    name: None | str = None
 
     def __init__(
         self,
         matcher: pdl_interp.FuncOp,
         interpreter: Interpreter,
         functions: PDLInterpFunctions,
+        name: None | str = None,
     ):
         self.functions = functions
         module = matcher.parent_op()
@@ -35,6 +37,7 @@ class PDLInterpRewritePattern(RewritePattern):
         if matcher.sym_name.data != "matcher":
             raise ValueError("Matcher function name must be 'matcher'")
         self.matcher = matcher
+        self.name = name
 
     def match_and_rewrite(self, xdsl_op: Operation, rewriter: PatternRewriter) -> None:
         # Setup the rewriter

@@ -2,12 +2,7 @@ from dataclasses import dataclass
 
 from xdsl.context import Context
 from xdsl.dialects import arith, memref, stencil
-from xdsl.dialects.builtin import (
-    DenseIntOrFPElementsAttr,
-    Float32Type,
-    IntegerAttr,
-    ModuleOp,
-)
+from xdsl.dialects.builtin import DenseIntOrFPElementsAttr, IntegerAttr, ModuleOp, f32
 from xdsl.dialects.csl import csl, csl_stencil, csl_wrapper
 from xdsl.ir import Operation
 from xdsl.passes import ModulePass
@@ -63,7 +58,6 @@ def get_dir_and_distance_ops(
 
 def get_coeff_api_ops(op: csl_stencil.ApplyOp, wrapper: csl_wrapper.ModuleOp):
     coeffs = list(op.coeffs or [])
-    elem_t = Float32Type()
     pattern = wrapper.get_param_value("pattern").value.data
     neighbours = pattern - 1
     is_wse2 = wrapper.target.data == "wse2"
@@ -87,7 +81,7 @@ def get_coeff_api_ops(op: csl_stencil.ApplyOp, wrapper: csl_wrapper.ModuleOp):
             distance -= 1
         cmap[direction][distance] = c.coeff.value.data
 
-    memref_t = memref.MemRefType(elem_t, shape)
+    memref_t = memref.MemRefType(f32, shape)
     ptr_t = csl.PtrType.get(memref_t, is_single=True, is_const=True)
 
     cnsts = {

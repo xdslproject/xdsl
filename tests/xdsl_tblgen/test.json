@@ -186,6 +186,22 @@
       "printable": "NoneType"
     }
   },
+  "SymbolNameAttr": {
+    "!name": "SymbolNameAttr",
+    "!superclasses": [
+      "Constraint",
+      "AttrConstraint",
+      "Attr",
+      "StringBasedAttr"
+    ],
+    "baseAttr": null,
+    "summary": "string attribute",
+    "valueType": {
+      "def": "NoneType",
+      "kind": "def",
+      "printable": "NoneType"
+    }
+  },
   "Test_AndOp": {
     "!name": "Test_AndOp",
     "!superclasses": [
@@ -1043,6 +1059,14 @@
         ],
         [
           {
+            "def": "SymbolNameAttr",
+            "kind": "def",
+            "printable": "SymbolNameAttr"
+          },
+          "g"
+        ],
+        [
+          {
             "def": "anonymous_349",
             "kind": "def",
             "printable": "anonymous_349"
@@ -1056,7 +1080,7 @@
         "kind": "def",
         "printable": "ins"
       },
-      "printable": "(ins I32:$a, SI64:$b, UI8:$c, Index:$d, F32:$e, NoneType:$f, anonymous_349)"
+      "printable": "(ins I32:$a, SI64:$b, UI8:$c, Index:$d, F32:$e, NoneType:$f, SymbolNameAttr:$g, anonymous_349)"
     },
     "assemblyFormat": null,
     "opDialect": {

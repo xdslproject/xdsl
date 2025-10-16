@@ -15,7 +15,7 @@ memref_stream.fill %Z with %zero : memref<8x8xf64>
 // CHECK-NEXT:      ],
 // CHECK-NEXT:      iterator_types = ["parallel", "parallel"]
 // CHECK-NEXT:    } ins(%zero : f64) outs(%Z : memref<8x8xf64>) {
-// CHECK-NEXT:    ^0(%{{.*}} : f64, %{{.*}} : f64):
+// CHECK-NEXT:    ^bb0(%{{.*}} : f64, %{{.*}} : f64):
 // CHECK-NEXT:      memref_stream.yield %{{.*}} : f64
 // CHECK-NEXT:    }
 

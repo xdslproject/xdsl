@@ -4,8 +4,9 @@ from math import prod
 
 from xdsl.builder import ImplicitBuilder
 from xdsl.context import Context
-from xdsl.dialects import arith, builtin, memref, stencil, tensor, varith
+from xdsl.dialects import arith, builtin, stencil, tensor, varith
 from xdsl.dialects.builtin import (
+    DYNAMIC_INDEX,
     AnyTensorType,
     DenseIntOrFPElementsAttr,
     FloatAttr,
@@ -132,9 +133,8 @@ class ConvertAccessOpPattern(RewritePattern):
         # Since ghost cells are not prefetched, these ops can be removed again. Check if the ExtractSliceOp
         # has no other effect and if so, remove both.
         if (
-            len(new_access_op.result.uses) == 1
-            and isinstance(
-                use := list(new_access_op.result.uses)[0].operation,
+            isinstance(
+                use := new_access_op.result.get_user_of_unique_use(),
                 tensor.ExtractSliceOp,
             )
             and use.static_sizes.get_values() == res_type.get_shape()
@@ -549,7 +549,7 @@ class ConvertApplyOpPattern(RewritePattern):
             )
         )
 
-        if len(prefetch.uses) == 0:
+        if not prefetch.uses:
             rewriter.erase_op(prefetch.op)
 
 
@@ -565,8 +565,7 @@ class PromoteCoefficients(RewritePattern):
         if (
             not isinstance(apply := op.get_apply(), csl_stencil.ApplyOp)
             or not op.op == apply.receive_chunk.block.args[0]
-            or len(op.result.uses) != 1
-            or not isinstance(mulf := list(op.result.uses)[0].operation, arith.MulfOp)
+            or not isinstance(mulf := op.result.get_user_of_unique_use(), arith.MulfOp)
         ):
             return
 
@@ -625,7 +624,7 @@ class TransformPrefetch(RewritePattern):
                     source=ac_op.result,
                     dest=dest,
                     static_sizes=[1, *ac_op.result.type.get_shape()],
-                    static_offsets=[i, memref.SubviewOp.DYNAMIC_INDEX],
+                    static_offsets=[i, DYNAMIC_INDEX],
                     offsets=[offset],
                 ).result
             csl_stencil.YieldOp(dest)

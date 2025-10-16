@@ -654,7 +654,7 @@ def _(mo):
     ```
     %0 : !sql.bag = sql.select() ["table_name" = "T"]
     %1 : !sql.bag = sql.filter(%0 : !sql.bag) {
-    ^0(%2 : !i32):
+    ^bb0(%2 : !i32):
       %3 : !i32 = arith.constant() ["value" = 5 : !i32]
       %4 : !i32 = arith.constant() ["value" = 5 : !i32]
       %5 : !i32 = arith.addi(%3 : !i32, %4 : !i32)
@@ -780,7 +780,7 @@ def _(
     class DeadConstantElim(RewritePattern):
         @op_type_rewrite_pattern
         def match_and_rewrite(self, op: arith.ConstantOp, rewriter: PatternRewriter):
-            if len(op.result.uses) == 0:
+            if not op.result.uses:
                 rewriter.erase_matched_op()
 
 

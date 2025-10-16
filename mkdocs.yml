@@ -1,21 +1,53 @@
 site_name: xDSL
+site_url: https://xdsl.readthedocs.io/
+site_description: xDSL -- a Python-native compiler framework
+site_author: xDSL developers
+copyright: Copyright &copy xDSL developers
+repo_name:  xdslproject/xdsl
+repo_url: https://github.com/xdslproject/xdsl
 
 strict: true
 
 theme:
   name: "material"
+  logo: assets/img/logos/xdsl-transparent-single.png
+  favicon: assets/img/logos/xdsl-transparent-single.png
+  locale: en
   features:
+    - content.code.annotate
+    - content.code.copy
     - navigation.instant
     - navigation.tracking
     - navigation.tabs
     - navigation.sections
     - navigation.expand
+    - navigation.indexes
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: xdsl
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/weather-night
+        name: Switch to light mode
+
+extra_css:
+  - stylesheets/extra.css
 
 plugins:
 - search
 - gen-files:
     scripts:
     - scripts/gen_ref_pages.py
+- awesome-nav
+- marimo
 - mkdocstrings:
     handlers:
       python:
@@ -25,33 +57,19 @@ plugins:
           show_root_heading: true
           show_root_full_path: false
           show_signature_annotations: true
+          show_if_no_docstring: true
+- mkdocs-simple-hooks:
+    hooks:
+      on_post_build: "scripts.hooks:build_xdsl_wheel"
 
-nav:
-  - xDSL: index.md
-  - API Reference:
-    - API Reference: api/index.md
-    - Core IR Data Structures:
-      - Core IR Data Structures: api/ir/index.md
-      - Attribute: api/ir/attribute.md
-      - SSAValue: api/ir/ssa_value.md
-      - IRNode: api/ir/ir_node.md
-      - Operation: api/ir/operation.md
-      - Block: api/ir/block.md
-      - Region: api/ir/region.md
-      - Dialect: api/ir/dialect.md
-  - Notebooks:
-    - Overview: marimo/index.md
-    - Manipulating IR:
-      - MLIR IR: marimo/mlir_ir.html
-      - Traversing IR: marimo/traversing_ir.html
-      - Builders: marimo/builders.html
-      - IR Generation: marimo/ir_gen.html
-      - Rewrites: marimo/pattern_rewrites.html
-      - Rewrite Exercises: marimo/rewrite_exercises.html
-      - Defining Dialects: marimo/defining_dialects.html
-    - RISC-V Dialects:
-      - RISC-V Dialects: marimo/riscv_dialects.html
-      - Compiling Linalg to Snitch: marimo/linalg_snitch.html
-  - Code Reference: reference/index.md
-  - Guides:
-    - MLIR Interoperation: guides/mlir_interoperation.md
+extra:
+  social:
+    - icon: material/rss
+      link: https://xdsl.dev/feed.xml
+      name: Subscribe to our RSS Feed
+    - icon: material/chat
+      link: https://xdsl.zulipchat.com/
+      name: Chat on Zulip
+    - icon: material/github
+      link: https://github.com/xdslproject
+      name: Contribute on Github

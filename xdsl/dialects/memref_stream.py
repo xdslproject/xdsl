@@ -38,8 +38,8 @@ from xdsl.ir import (
 )
 from xdsl.irdl import (
     AnyAttr,
+    AttrConstraint,
     AttrSizedOperandSegments,
-    GenericAttrConstraint,
     IRDLOperation,
     ParamAttrConstraint,
     VarConstraint,
@@ -71,10 +71,10 @@ _StreamTypeElement = TypeVar(
 
 @irdl_attr_definition
 class ReadableStreamType(
-    Generic[_StreamTypeElement],
     ParametrizedAttribute,
     TypeAttribute,
     ContainerType[_StreamTypeElement],
+    Generic[_StreamTypeElement],
 ):
     name = "memref_stream.readable"
 
@@ -85,7 +85,7 @@ class ReadableStreamType(
 
     @staticmethod
     def constr(
-        element_type: GenericAttrConstraint[_StreamTypeElement] = AnyAttr(),
+        element_type: AttrConstraint[_StreamTypeElement] = AnyAttr(),
     ) -> ParamAttrConstraint[ReadableStreamType[_StreamTypeElement]]:
         return ParamAttrConstraint[ReadableStreamType[_StreamTypeElement]](
             ReadableStreamType, (element_type,)
@@ -94,10 +94,10 @@ class ReadableStreamType(
 
 @irdl_attr_definition
 class WritableStreamType(
-    Generic[_StreamTypeElement],
     ParametrizedAttribute,
     TypeAttribute,
     ContainerType[_StreamTypeElement],
+    Generic[_StreamTypeElement],
 ):
     name = "memref_stream.writable"
 
@@ -108,7 +108,7 @@ class WritableStreamType(
 
     @staticmethod
     def constr(
-        element_type: GenericAttrConstraint[_StreamTypeElement] = AnyAttr(),
+        element_type: AttrConstraint[_StreamTypeElement] = AnyAttr(),
     ) -> ParamAttrConstraint[WritableStreamType[_StreamTypeElement]]:
         return ParamAttrConstraint[WritableStreamType[_StreamTypeElement]](
             WritableStreamType, (element_type,)

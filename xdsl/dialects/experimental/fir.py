@@ -24,6 +24,7 @@ from xdsl.dialects.builtin import (
     IntegerAttr,
     IntegerType,
     StringAttr,
+    SymbolNameConstraint,
     SymbolRefAttr,
     UnitAttr,
 )
@@ -74,6 +75,7 @@ class FortranVariableFlags(Enum):
     VALUE = "value"
     VOLATILE = "volatile"
     HOSTASSOC = "host_assoc"
+    INTERNALASSOC = "internal_assoc"
 
     @staticmethod
     def try_parse(parser: AttrParser) -> set[FortranVariableFlags] | None:
@@ -229,10 +231,7 @@ class SequenceType(ParametrizedAttribute, TypeAttribute):
             if shape is None:
                 shape = [1]
             shape_array_attr = ArrayAttr(
-                [
-                    (IntegerAttr[IntegerType](d, 32) if isinstance(d, int) else d)
-                    for d in shape
-                ]
+                [(IntegerAttr(d, 32) if isinstance(d, int) else d) for d in shape]
             )
             super().__init__(
                 shape_array_attr,
@@ -271,7 +270,7 @@ class SequenceType(ParametrizedAttribute, TypeAttribute):
             if parser.parse_optional_punctuation("?"):
                 return DeferredAttr()
             s = parser.parse_integer(allow_boolean=False)
-            return IntegerAttr[IntegerType](s, 32)
+            return IntegerAttr(s, 32)
 
         shape: list[IntegerAttr[IntegerType] | DeferredAttr] = []
         type2 = NoneType()
@@ -284,7 +283,7 @@ class SequenceType(ParametrizedAttribute, TypeAttribute):
             parser.parse_characters(",")
             type2 = parser.parse_type()
             parser.parse_characters(">")
-            shape.append(IntegerAttr[IntegerType](1, 32))
+            shape.append(IntegerAttr(1, 32))
         else:
             type1 = parser.parse_optional_type()
             while type1 is None:
@@ -581,7 +580,7 @@ class AllocmemOp(IRDLOperation):
     """
 
     name = "fir.allocmem"
-    in_type = prop_def(Attribute)
+    in_type = prop_def()
     uniq_name = opt_prop_def(StringAttr)
     bindc_name = opt_prop_def(StringAttr)
     typeparams = var_operand_def()
@@ -657,7 +656,7 @@ class AllocaOp(IRDLOperation):
     """
 
     name = "fir.alloca"
-    in_type = prop_def(Attribute)
+    in_type = prop_def()
     uniq_name = opt_prop_def(StringAttr)
     bindc_name = opt_prop_def(StringAttr)
     typeparams = var_operand_def()
@@ -1105,7 +1104,7 @@ class BoxOffsetOp(IRDLOperation):
     """
 
     name = "fir.box_offset"
-    field = prop_def(Attribute)
+    field = prop_def()
     val = operand_def()
     result_0 = result_def()
 
@@ -1176,7 +1175,7 @@ class CallOp(IRDLOperation):
     """
 
     name = "fir.call"
-    callee = prop_def(Attribute)
+    callee = prop_def()
     fastmath = opt_prop_def(FastMathFlagsAttr)
     result_0 = opt_result_def()
     args = var_operand_def()
@@ -1279,7 +1278,7 @@ class CoordinateOfOp(IRDLOperation):
     """
 
     name = "fir.coordinate_of"
-    baseType = prop_def(Attribute)
+    baseType = prop_def()
     ref = operand_def()
     coor = var_operand_def()
     result_0 = result_def()
@@ -1388,7 +1387,7 @@ class DispatchTableOp(IRDLOperation):
 
     name = "fir.dispatch_table"
 
-    sym_name = prop_def(StringAttr)
+    sym_name = prop_def(SymbolNameConstraint())
     regs = var_region_def()
 
     traits = traits_def(SymbolOpInterface())
@@ -1430,7 +1429,7 @@ class DoLoopOp(IRDLOperation):
     step = operand_def()
     reduceOperands = var_operand_def()
     initArgs = var_operand_def()
-    finalValue = opt_prop_def(Attribute)
+    finalValue = opt_prop_def()
     initArgs = opt_operand_def()
     _results = var_result_def()
     regs = var_region_def()
@@ -1624,7 +1623,7 @@ class ExtractValueOp(IRDLOperation):
 
     name = "fir.extract_value"
     adt = operand_def()
-    coor = opt_prop_def(Attribute)
+    coor = opt_prop_def()
     res = result_def()
     regs = var_region_def()
 
@@ -1739,11 +1738,15 @@ class GlobalOp(IRDLOperation):
 
     name = "fir.global"
     regs = var_region_def()
-    sym_name = prop_def(StringAttr)
+    sym_name = prop_def(SymbolNameConstraint())
     symref = prop_def(SymbolRefAttr)
-    type = prop_def(Attribute)
-    linkName = opt_prop_def(StringAttr)
+    type = prop_def()
+    initVal = opt_prop_def()
     constant = opt_prop_def(UnitAttr)
+    target = opt_prop_def(UnitAttr)
+    linkName = opt_prop_def(StringAttr)
+    data_attr = opt_prop_def()
+    alignment = opt_prop_def(IntegerAttr)
 
     traits = traits_def(SymbolOpInterface())
 
@@ -1839,7 +1842,7 @@ class InsertValueOp(IRDLOperation):
     name = "fir.insert_value"
     adt = operand_def()
     val = operand_def()
-    coor = opt_prop_def(Attribute)
+    coor = opt_prop_def()
     result_0 = result_def()
     regs = var_region_def()
 
@@ -2030,7 +2033,7 @@ class ResultOp(IRDLOperation):
 
     name = "fir.result"
     regs = var_region_def()
-    _results = opt_operand_def()
+    _results = var_operand_def()
 
     traits = traits_def(IsTerminator())
 

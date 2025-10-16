@@ -471,3 +471,65 @@ def test_apply_permutation_map(
     permutation_map: AffineMap, inputs: Sequence[_T], expected: tuple[_T, ...]
 ):
     assert permutation_map.apply_permutation(inputs) == expected
+
+
+d0 = AffineExpr.dimension(0)
+d1 = AffineExpr.dimension(1)
+s0 = AffineExpr.symbol(0)
+c2 = AffineExpr.constant(2)
+c3 = AffineExpr.constant(3)
+
+
+@pytest.mark.parametrize(
+    "expr, expected",
+    [
+        # Pure affine: only addition, multiplication by constant, dimensions, symbols, constants
+        (d0 + d1, True),  # d0 + d1 is pure affine
+        (c2 * d0 + c3 * d1, True),  # 2 * d0 + 3 * d1 is pure affine
+        (d0 * 2 + d1 * 3, True),  # d0 * 2 + d1 * 3 is pure affine
+        (d0 + s0, True),  # d0 + s0 is pure affine
+        (d0 + 5, True),  # d0 + 5 is pure affine
+        (d0 // 2, True),  # d0 // 2 is pure affine (floordiv by constant)
+        ((d0 + d1) // 3, True),  # (d0 + d1) // 3 is pure affine
+        (d0 % 4, True),  # d0 % 4 is pure affine (mod by constant)
+        ((d0 + d1) % 5, True),  # (d0 + d1) % 5 is pure affine
+        (d0.ceil_div(7), True),  # d0.ceil_div(7) is pure affine (ceildiv by constant)
+        ((d0 + d1).ceil_div(2), True),  # (d0 + d1).ceil_div(2) is pure affine
+        # Not pure affine: multiplication by symbol
+        (AffineBinaryOpExpr(AffineBinaryOpKind.Mul, d0, s0), False),
+        # Not pure affine: multiplication by dimension
+        (AffineBinaryOpExpr(AffineBinaryOpKind.Mul, d0, d1), False),
+        # Not pure affine: floordiv by symbol
+        (AffineBinaryOpExpr(AffineBinaryOpKind.FloorDiv, d0, s0), False),
+        # Not pure affine: mod by symbol
+        (AffineBinaryOpExpr(AffineBinaryOpKind.Mod, d0, s0), False),
+        # Not pure affine: ceildiv by symbol
+        (AffineBinaryOpExpr(AffineBinaryOpKind.CeilDiv, d0, s0), False),
+    ],
+)
+def test_is_pure_affine(expr: AffineExpr, expected: bool):
+    assert expr.is_pure_affine() is expected
+
+
+def test_traversal():
+    #    6
+    #  4 + 5
+    # 0+1 2+3
+    nodes = [AffineExpr.dimension(i) for i in range(4)]
+    nodes.append(nodes[0] + nodes[1])
+    nodes.append(nodes[2] + nodes[3])
+    nodes.append(nodes[4] + nodes[5])
+
+    root = nodes[-1]
+
+    dfs = tuple(root.dfs())
+    assert len(dfs) == 7
+    dfs_indices = [6, 4, 0, 1, 5, 2, 3]
+    for i, node in zip(dfs_indices, dfs):
+        assert nodes[i] is node
+
+    post_order = tuple(root.post_order())
+    post_order_indices = [0, 1, 4, 2, 3, 5, 6]
+    assert len(post_order) == 7
+    for i, node in zip(post_order_indices, post_order):
+        assert nodes[i] is node

@@ -1,6 +1,6 @@
 import collections
 from dataclasses import dataclass
-from typing import Literal
+from typing import Literal, cast
 
 from xdsl.context import Context
 from xdsl.dialects import arith, builtin, varith
@@ -14,6 +14,7 @@ from xdsl.pattern_rewriter import (
     op_type_rewrite_pattern,
 )
 from xdsl.rewriter import InsertPoint
+from xdsl.utils.hints import isa
 from xdsl.utils.type import get_element_type_or_self
 
 # map the arith operation to the right varith op:
@@ -42,13 +43,13 @@ class ArithToVarithPattern(RewritePattern):
     ):
         dest_type = ARITH_TO_VARITH_TYPE_MAP[type(op)]
 
-        if len(op.result.uses) != 1:
-            return
-        if type(use_op := list(op.result.uses)[0].operation) not in (
+        if type(use_op := op.result.get_user_of_unique_use()) not in (
             type(op),
             dest_type,
         ):
             return
+        # pyright does not understand that `use_op` cannot be None here
+        use_op = cast(Operation, use_op)
 
         other_operands = [o for o in use_op.operands if o != op.result]
         rewriter.replace_op(
@@ -165,7 +166,7 @@ class MergeVarithOpsPattern(RewritePattern):
 
         # check all ops that may be erased later:
         for old_op in possibly_erased_ops:
-            if len(old_op.results[-1].uses) == 0:
+            if not old_op.results[-1].uses:
                 rewriter.erase_op(old_op)
 
 
@@ -193,9 +194,7 @@ class FuseRepeatedAddArgsPattern(RewritePattern):
     def match_and_rewrite(self, op: varith.VarithAddOp, rewriter: PatternRewriter, /):
         elem_t = get_element_type_or_self(op.res.type)
 
-        assert isinstance(
-            elem_t, builtin.IntegerType | builtin.IndexType | builtin.AnyFloat
-        )
+        assert isa(elem_t, builtin.IntegerType | builtin.IndexType | builtin.AnyFloat)
 
         consts: list[arith.ConstantOp] = []
         fusions: list[Operation] = []

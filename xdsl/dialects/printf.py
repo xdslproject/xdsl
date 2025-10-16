@@ -24,7 +24,7 @@ class PrintFormatOp(IRDLOperation):
 
     Example uses:
     %42 = arith.constant 42 : i32
-    printf.print_format "The magic number is {}", %42
+    printf.print_format "The magic number is {}\n", %42
     """
 
     name = "printf.print_format"

@@ -94,7 +94,7 @@ def _(mo):
 @app.cell
 def _(symbols):
     # Define variables that can be used in the rest of the notebook
-    # x, y, z, t are non-zere reals, while a, b, c, d are non-zero integers
+    # x, y, z, t are non-zero reals, while a, b, c, d are non-zero integers
     x, y, z, t = symbols("x y z t", real=True, zero=False)
     a, b, c, d = symbols("a b c d", integer=True, zero=False)
 
@@ -143,7 +143,7 @@ def _(mo):
     * math.powf: PowFOp(lhs, rhs)
     * arith.select: SelectOp(cond, lhs, rhs)
         * Represents the formula `if cond then lhs else rhs`
-    * arith.cmpf: CmpfOp("olt", lhs, rhs)
+    * arith.cmpf: CmpfOp(lhs, rhs, "olt")
         * Represents `lhs < rhs` with floating points
     * scf.if: IfOp(cond, region1, region2)
         * Regions should have a single block, without block arguments. The last operation in the regions should be an `scf.yield` with constructor `YieldOp([result])`
@@ -350,7 +350,7 @@ def _(
             # Hint: int(expr) returns the value of the `expr` constant
             raise NotImplementedError("Integer constants are not implemented")
 
-        # Hint: Implement here support for Add and Mul
+        # Hint: Here, implement support for Add and Mul
 
         raise NotImplementedError(f"No IR emitter for integer function {expr.func}")
 
@@ -359,8 +359,8 @@ def _(
         builder: Builder,
         args: dict[Symbol, SSAValue],
     ) -> SSAValue:
-        # If the expression is an integer expression, emits it and then convert it
-        # back to a float expression.
+        # If the expression is an integer expression, emit it and then convert it
+        # to a float expression.
         if expr.is_integer:
             res = emit_integer_op(expr, builder, args)
             op = builder.insert(SIToFPOp(res, Float64Type()))
@@ -375,7 +375,7 @@ def _(
         if isinstance(expr, Symbol):
             return args[expr]
 
-        # Hint: Implement here support for Add, Mul, and Pow (and later Abs and Sum)
+        # Hint: Here, implement support for Add, Mul, and Pow (and later Abs and Sum)
 
         raise NotImplementedError(f"No IR emitter for float function {expr.func}")
     return (emit_op,)
@@ -414,7 +414,7 @@ def _(Float, Integer, a, b, print_ir, x, y):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""The following expression requires to handle the AST node `Abs`. Instead of converting it to `math.absf` operation, we taks you to write it using the formula `x < 0 ? 0-x : x` using only `arith` operations. Hint, you should use `arith.select` for expressing the conditional.""")
+    mo.md(r"""The following expression requires to handle the AST node `Abs`. Instead of converting it to `math.absf` operation, the task is to write it using the formula `x < 0 ? 0-x : x` using only `arith` operations. Hint, you should use `arith.select` for expressing the conditional.""")
     return
 
 
@@ -433,7 +433,7 @@ def _(mo):
 
     Your next task is to handle operations that may have regions.
 
-    As a first step, rewrite the lowering to `Abs` to output an `scf.if` instead of an `arith.select`. Then, as an harder task, support the `Sum` operation using an `scf.for` loop.
+    As a first step, rewrite the lowering to `Abs` to output an `scf.if` instead of an `arith.select`. Then, as a harder task, support the `Sum` operation using an `scf.for` loop.
 
     Here are a few examples:
     """

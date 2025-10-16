@@ -5,6 +5,9 @@ from typing import NamedTuple
 from xdsl.backend.register_allocator import BlockAllocator
 from xdsl.backend.register_type import RegisterType
 from xdsl.ir import Operation, Region, SSAValue
+from xdsl.irdl import traits_def
+from xdsl.traits import OpTrait
+from xdsl.utils.exceptions import VerifyException
 
 
 class RegisterAllocatableOperation(Operation, abc.ABC):
@@ -59,7 +62,36 @@ class RegisterConstraints(NamedTuple):
     inouts: Sequence[Sequence[SSAValue]]
 
 
+class HasRegisterConstraintsTrait(OpTrait):
+    """
+    Trait that verifies that the operation implements HasRegisterConstraints, and that
+    its inout operands are used only once.
+    Using an inout operand more than once breaks SSA, as the register will hold an
+    unexpected value after being mutated by this operation.
+    """
+
+    def verify(self, op: Operation) -> None:
+        if not isinstance(op, HasRegisterConstraints):
+            raise VerifyException(
+                f"Operation {op.name} is not a subclass of {HasRegisterConstraints.__name__}."
+            )
+
+        for o, _ in op.get_register_constraints().inouts:
+            if not o.has_one_use():
+                raise VerifyException(
+                    f"Inout register operand at index {op.operands.index(o)} used more than once."
+                )
+
+
 class HasRegisterConstraints(RegisterAllocatableOperation, abc.ABC):
+    """
+    Abstract superclass for operations corresponding to assembly, with registers used
+    as in, out, or inout registers.
+    Inout registers must only be used once.
+    """
+
+    traits = traits_def(HasRegisterConstraintsTrait())
+
     @abc.abstractmethod
     def get_register_constraints(self) -> RegisterConstraints:
         """

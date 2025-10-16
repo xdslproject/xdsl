@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import IO, Any, ClassVar
+from typing import IO, Any
 
 from xdsl.context import Context
 from xdsl.dialects import pdl
@@ -31,7 +31,9 @@ class PDLMatcher:
     the corresponding xDSL object.
     """
 
-    native_constraints: ClassVar[dict[str, Callable[..., bool]]] = {}
+    native_constraints: dict[str, Callable[..., bool]] = field(
+        default_factory=lambda: {}
+    )
     """
     The functions that can be used in `pdl.apply_native_constraint`. Note that we do
     not verify that the functions are used with the correct types.
@@ -217,9 +219,14 @@ class PDLRewritePattern(RewritePattern):
     functions: PDLRewriteFunctions
     pdl_rewrite_op: pdl.RewriteOp
     interpreter: Interpreter
+    native_constraints: dict[str, Callable[..., bool]]
 
     def __init__(
-        self, pdl_rewrite_op: pdl.RewriteOp, ctx: Context, file: IO[str] | None = None
+        self,
+        pdl_rewrite_op: pdl.RewriteOp,
+        ctx: Context,
+        file: IO[str] | None = None,
+        native_constraints: dict[str, Callable[..., bool]] | None = None,
     ):
         pdl_pattern = pdl_rewrite_op.parent_op()
         assert isinstance(pdl_pattern, pdl.PatternOp)
@@ -229,6 +236,9 @@ class PDLRewritePattern(RewritePattern):
         self.interpreter = Interpreter(pdl_module, file=file)
         self.interpreter.register_implementations(self.functions)
         self.pdl_rewrite_op = pdl_rewrite_op
+        if native_constraints is None:
+            native_constraints = {}
+        self.native_constraints = native_constraints
 
     def match_and_rewrite(self, xdsl_op: Operation, rewriter: PatternRewriter) -> None:
         pdl_op_val = self.pdl_rewrite_op.root
@@ -241,7 +251,7 @@ class PDLRewritePattern(RewritePattern):
         pdl_op = pdl_op_val.op
 
         assert isinstance(pdl_op, pdl.OperationOp)
-        matcher = PDLMatcher()
+        matcher = PDLMatcher(native_constraints=self.native_constraints)
         if not matcher.match_operation(pdl_op_val, pdl_op, xdsl_op):
             return
 

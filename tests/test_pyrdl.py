@@ -1,27 +1,47 @@
 """Unit tests for IRDL."""
 
+from collections.abc import Mapping
 from dataclasses import dataclass
+from enum import auto
+from typing import Literal
 
 import pytest
 from typing_extensions import Self, TypeVar
 
+from xdsl.dialects.builtin import (
+    I32,
+    IntAttr,
+    IntAttrConstraint,
+    IntegerAttr,
+    IntegerType,
+    Signedness,
+    SignednessAttr,
+)
 from xdsl.ir import Attribute, Data, ParametrizedAttribute
 from xdsl.irdl import (
     AllOf,
     AnyAttr,
+    AnyInt,
+    AnyOf,
     AttrConstraint,
     BaseAttr,
     ConstraintContext,
+    ConstraintConvertible,
     EqAttrConstraint,
+    EqIntConstraint,
+    IntConstraint,
+    IntSetConstraint,
     ParamAttrConstraint,
     VarConstraint,
     eq,
+    get_constraint,
     irdl_attr_definition,
     irdl_to_attr_constraint,
 )
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import PyRDLTypeError, VerifyException
+from xdsl.utils.str_enum import StrEnum
 
 
 @irdl_attr_definition
@@ -161,7 +181,7 @@ class LessThan(AttrConstraint):
             raise VerifyException(f"{attr} should hold a value less than {self.bound}")
 
     def mapping_type_vars(
-        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+        self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
     ) -> Self:
         return self
 
@@ -179,7 +199,7 @@ class GreaterThan(AttrConstraint):
             )
 
     def mapping_type_vars(
-        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+        self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
     ) -> Self:
         return self
 
@@ -377,11 +397,152 @@ def test_data_with_generic_missing_generic_data_failure():
         irdl_to_attr_constraint(MissingGenericDataData[int])
 
 
+class TestEnum(ConstraintConvertible["TestEnumAttr"], StrEnum):
+    A = auto()
+    B = auto()
+
+    @staticmethod
+    def base_constr() -> AttrConstraint["TestEnumAttr"]:
+        return BaseAttr(TestEnumAttr)
+
+    def constr(self) -> AttrConstraint["TestEnumAttr"]:
+        return EqAttrConstraint(TestEnumAttr(self))
+
+
+class TestEnumAttr(Data[TestEnum]):
+    name = "test.enum"
+
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> TestEnum: ...
+    def print_parameter(self, printer: Printer) -> None: ...
+
+
 def test_irdl_to_attr_constraint():
     with pytest.raises(
         PyRDLTypeError, match="Unexpected irdl constraint: <class 'int'>"
     ):
         irdl_to_attr_constraint(int)  # pyright: ignore[reportArgumentType]
+
+    assert irdl_to_attr_constraint(TestEnumAttr) == BaseAttr(TestEnumAttr)
+    assert irdl_to_attr_constraint(TestEnumAttr(TestEnum.A)) == EqAttrConstraint(
+        TestEnumAttr(TestEnum.A)
+    )
+    assert irdl_to_attr_constraint(TestEnum) == BaseAttr(TestEnumAttr)
+    assert irdl_to_attr_constraint(TestEnum.A) == EqAttrConstraint(
+        TestEnumAttr(TestEnum.A)
+    )
+    assert irdl_to_attr_constraint(Literal[TestEnum.A]) == EqAttrConstraint(
+        TestEnumAttr(TestEnum.A)
+    )
+    assert irdl_to_attr_constraint(Literal[TestEnum.A, TestEnum.B]) == AnyOf(  # pyright: ignore[reportArgumentType]
+        (
+            EqAttrConstraint(TestEnumAttr(TestEnum.A)),
+            EqAttrConstraint(TestEnumAttr(TestEnum.B)),
+        )
+    )
+    assert irdl_to_attr_constraint(IntAttr) == BaseAttr(IntAttr)
+    assert irdl_to_attr_constraint(IntAttr[int]) == IntAttrConstraint(
+        int_constraint=AnyInt()
+    )
+    assert irdl_to_attr_constraint(IntAttr[Literal[1]]) == IntAttrConstraint(
+        int_constraint=EqIntConstraint(value=1)
+    )
+    assert irdl_to_attr_constraint(IntAttr[2]) == IntAttrConstraint(
+        int_constraint=EqIntConstraint(value=2)
+    )
+
+    assert irdl_to_attr_constraint(IntegerType) == BaseAttr(IntegerType)
+    # With one type arg, second default
+    assert irdl_to_attr_constraint(IntegerType[int]) == ParamAttrConstraint(
+        IntegerType,
+        (IntAttrConstraint(AnyInt()), BaseAttr(SignednessAttr)),
+    )
+    # With both type args
+    assert irdl_to_attr_constraint(IntegerType[int, Signedness]) == ParamAttrConstraint(
+        IntegerType,
+        (IntAttrConstraint(AnyInt()), BaseAttr(SignednessAttr)),
+    )
+    assert irdl_to_attr_constraint(IntegerType[32]) == ParamAttrConstraint(
+        IntegerType,
+        (IntAttrConstraint(EqIntConstraint(32)), BaseAttr(SignednessAttr)),
+    )
+    assert irdl_to_attr_constraint(IntegerType[Literal[32, 64]]) == ParamAttrConstraint(
+        IntegerType,
+        (
+            IntAttrConstraint(IntSetConstraint(frozenset((32, 64)))),
+            BaseAttr(SignednessAttr),
+        ),
+    )
+
+    assert irdl_to_attr_constraint(Signedness.SIGNED) == EqAttrConstraint(
+        SignednessAttr(Signedness.SIGNED)
+    )
+
+    assert irdl_to_attr_constraint(Signedness) == BaseAttr(SignednessAttr)
+    assert irdl_to_attr_constraint(SignednessAttr) == BaseAttr(SignednessAttr)
+    assert irdl_to_attr_constraint(
+        SignednessAttr[Signedness.SIGNED]
+    ) == EqAttrConstraint(SignednessAttr(Signedness.SIGNED))
+
+    assert irdl_to_attr_constraint(IntegerAttr[I32]) == ParamAttrConstraint(
+        IntegerAttr,
+        (
+            BaseAttr(IntAttr),
+            ParamAttrConstraint(
+                IntegerType,
+                (
+                    IntAttrConstraint(EqIntConstraint(32)),
+                    EqAttrConstraint(SignednessAttr(Signedness.SIGNLESS)),
+                ),
+            ),
+        ),
+    )
+    assert irdl_to_attr_constraint(IntegerAttr[IntegerType[32]]) == ParamAttrConstraint(
+        IntegerAttr,
+        (
+            BaseAttr(IntAttr),
+            ParamAttrConstraint(
+                IntegerType,
+                (IntAttrConstraint(EqIntConstraint(32)), BaseAttr(SignednessAttr)),
+            ),
+        ),
+    )
+
+
+def test_get_constraint():
+    assert get_constraint(int) == AnyInt()
+    assert get_constraint(Literal[1]) == EqIntConstraint(1)
+    assert get_constraint(Literal[2]) == EqIntConstraint(2)
+    assert get_constraint(Literal[2, 3]) == IntSetConstraint(frozenset((2, 3)))
+
+    assert get_constraint(
+        Literal[2] | Literal[3]  # noqa
+    ) == IntSetConstraint(frozenset((2, 3)))
+
+    assert get_constraint(
+        Literal[1] | Literal[2, 3]  # noqa
+    ) == IntSetConstraint(frozenset((1, 2, 3)))
+
+    assert get_constraint(TestEnumAttr) == BaseAttr(TestEnumAttr)
+    assert get_constraint(TestEnumAttr(TestEnum.A)) == EqAttrConstraint(
+        TestEnumAttr(TestEnum.A)
+    )
+    assert get_constraint(TestEnum) == BaseAttr(TestEnumAttr)
+    assert get_constraint(TestEnum.A) == EqAttrConstraint(TestEnumAttr(TestEnum.A))
+    assert get_constraint(Literal[TestEnum.A]) == EqAttrConstraint(
+        TestEnumAttr(TestEnum.A)
+    )
+    assert get_constraint(Literal[TestEnum.A, TestEnum.B]) == AnyOf(
+        (
+            EqAttrConstraint(TestEnumAttr(TestEnum.A)),
+            EqAttrConstraint(TestEnumAttr(TestEnum.B)),
+        )
+    )
+
+    with pytest.raises(
+        PyRDLTypeError, match="Unexpected irdl constraint: <class 'str'>"
+    ):
+        get_constraint(str)  # pyright: ignore[reportCallIssue, reportArgumentType]
 
 
 # endregion

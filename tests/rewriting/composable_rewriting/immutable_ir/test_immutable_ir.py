@@ -55,7 +55,7 @@ program_add_2 = """
 program_func = """
 "builtin.module"() ({
   "func.func"() <{"sym_name" = "test", "function_type" = (i32, i32) -> i32, "sym_visibility" = "private"}> ({
-  ^0(%0 : i32, %1 : i32):
+  ^bb0(%0 : i32, %1 : i32):
     %2 = "arith.addi"(%0, %1) : (i32, i32) -> i32
     "func.return"(%2) : (i32) -> ()
   }) : () -> ()
@@ -65,10 +65,10 @@ program_func = """
 program_successors = """
 "builtin.module"() ({
   "func.func"() <{"sym_name" = "unconditional_br", "function_type" = () -> (), "sym_visibility" = "private"}> ({
-  ^0:
-    "cf.br"() [^1] : () -> ()
-  ^1:
-    "cf.br"() [^0] : () -> ()
+  ^bb0:
+    "cf.br"() [^bb1] : () -> ()
+  ^bb1:
+    "cf.br"() [^bb0] : () -> ()
   }) : () -> ()
 }) : () -> ()
 """

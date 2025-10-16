@@ -697,7 +697,7 @@ def _(mo):
         r"""
     #### Variadic Operands and Results
 
-    Operand and result definitions can be defined variadic, meaning that their definition can have different numbers of operands or results. Variadic definitions are defined with `VarOperand` and `VarResultDef`.
+    Operand and result definitions can be defined variadic, meaning that their definition can have different numbers of operands or results. Variadic definitions are defined with `var_operand_def` and `var_result_def`.
     """
     )
     return
@@ -713,7 +713,7 @@ def _(
     printer,
     result_def,
 ):
-    from xdsl.irdl import VarOperand, var_operand_def
+    from xdsl.irdl import var_operand_def
 
 
     @irdl_op_definition

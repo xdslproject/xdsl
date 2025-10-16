@@ -28,6 +28,8 @@ class CustomPass(ModulePass):
 
     optional_bool: bool = False
 
+    annotation: "str" = "default_value"
+
     def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         pass
 
@@ -61,6 +63,7 @@ def test_pass_instantiation():
                 "str-thing": ("hello world",),
                 "literal": ("maybe",),
                 # "optional" was left out here, as it is optional
+                "annotation": ("other_value",),
             },
         )
     )

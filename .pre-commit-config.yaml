@@ -2,15 +2,15 @@
 # See https://pre-commit.com/hooks.html for more hooks
 repos:
 -   repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v5.0.0
+    rev: v6.0.0
     hooks:
     -   id: check-yaml
     -   id: end-of-file-fixer
     -   id: mixed-line-ending
 -   repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.12.3
+    rev: v0.14.0
     hooks:
-    -   id: ruff
+    -   id: ruff-check
         types_or: [ python, pyi, jupyter ]
         args: [ --fix, --exit-non-zero-on-fix ]
     -   id: ruff-format

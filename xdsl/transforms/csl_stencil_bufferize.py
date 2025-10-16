@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from xdsl.context import Context
 from xdsl.dialects import arith, bufferization, func, linalg, memref, stencil, tensor
 from xdsl.dialects.builtin import (
+    DYNAMIC_INDEX,
     AnyDenseElement,
     AnyTensorType,
     AnyTensorTypeConstr,
@@ -229,7 +230,7 @@ class ApplyOpBufferize(RewritePattern):
                     result_types=[chunk_type],
                     properties={
                         "static_offsets": DenseArrayBase.from_list(
-                            i64, (memref.SubviewOp.DYNAMIC_INDEX,)
+                            i64, (DYNAMIC_INDEX,)
                         ),
                         "static_sizes": DenseArrayBase.from_list(
                             i64, chunk_type.get_shape()
@@ -262,9 +263,7 @@ class ApplyOpBufferize(RewritePattern):
             operands=[to_tensor.tensor, [offset], [], []],
             result_types=[TensorType(typ.get_element_type(), typ.get_shape()[1:])],
             properties={
-                "static_offsets": DenseArrayBase.from_list(
-                    i64, (memref.SubviewOp.DYNAMIC_INDEX,)
-                ),
+                "static_offsets": DenseArrayBase.from_list(i64, (DYNAMIC_INDEX,)),
                 "static_sizes": DenseArrayBase.from_list(i64, typ.get_shape()[1:]),
                 "static_strides": DenseArrayBase.from_list(i64, (1,)),
             },
@@ -428,7 +427,7 @@ class InjectApplyOutsIntoLinalgOuts(RewritePattern):
                 new_yield_args.append(yld_arg)
                 continue
             additional_args.append(arg)
-            if len(yld_arg.uses) == 1:
+            if yld_arg.has_one_use():
                 to_remove.append(yld_arg.op)
 
             arg = op.done_exchange.block.insert_arg(
@@ -514,7 +513,7 @@ class ReselectLinalgOutsFromInputs(RewritePattern):
 
         for arg in op.inputs:
             # reselect outs that has no later use to avoid read-after-write conflicts
-            if len(arg.uses) == 1:
+            if arg.has_one_use():
                 # check for a `writable` input with no later uses and break immediately
                 if self.is_writable(arg):
                     out = arg

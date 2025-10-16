@@ -70,7 +70,7 @@ class PragmaDataflowOp(IRDLOperation):
 class PragmaArrayPartitionOp(IRDLOperation):
     name = "hls.array_partition"
     variable = opt_attr_def(StringAttr)
-    array_type = opt_attr_def(Attribute)  # look at memref.Global
+    array_type = opt_attr_def()  # look at memref.Global
     factor = operand_def()
     dim = operand_def()
 
@@ -97,7 +97,7 @@ class HLSStreamType(ParametrizedAttribute, TypeAttribute):
 @irdl_op_definition
 class HLSStreamOp(IRDLOperation):
     name = "hls.stream"
-    elem_type = attr_def(Attribute)
+    elem_type = attr_def()
     result = result_def(HLSStreamType)  # This should be changed to HLSStreamType
 
     @staticmethod

@@ -10,7 +10,7 @@ func.func public @pooling_nchw_max_d1_s2_3x3(%X : memref<1x1x18x18xf64> {"llvm.n
         ],
         iterator_types = ["parallel", "parallel", "parallel", "parallel", "reduction", "reduction", "interleaved"]
     } ins(%X : memref<1x1x18x18xf64>) outs(%Y : memref<1x1x8x8xf64>) inits(%cst : f64) {
-    ^0(%in : f64, %in_1 : f64, %in_2 : f64, %in_3 : f64, %out : f64, %out_1 : f64, %out_2 : f64, %out_3 : f64):
+    ^bb0(%in : f64, %in_1 : f64, %in_2 : f64, %in_3 : f64, %out : f64, %out_1 : f64, %out_2 : f64, %out_3 : f64):
         %res_0 = arith.maximumf %out, %in fastmath<fast> : f64
         %res_1 = arith.maximumf %out_1, %in_1 fastmath<fast> : f64
         %res_2 = arith.maximumf %out_2, %in_2 fastmath<fast> : f64
@@ -46,7 +46,7 @@ func.func public @pooling_nchw_max_d1_s2_3x3(%X : memref<1x1x18x18xf64> {"llvm.n
 // CHECK-NEXT:          ],
 // CHECK-NEXT:          iterator_types = ["parallel", "parallel", "parallel", "parallel", "reduction", "reduction", "interleaved"]
 // CHECK-NEXT:        } ins(%X_subview : memref<1x1x3x17xf64, strided<[324, 324, 18, 1], offset: ?>>) outs(%Y_subview : memref<1x1x1x8xf64, strided<[64, 64, 8, 1], offset: ?>>) inits(%cst : f64) {
-// CHECK-NEXT:        ^0(%in : f64, %in_1 : f64, %in_2 : f64, %in_3 : f64, %out : f64, %out_1 : f64, %out_2 : f64, %out_3 : f64):
+// CHECK-NEXT:        ^bb0(%in : f64, %in_1 : f64, %in_2 : f64, %in_3 : f64, %out : f64, %out_1 : f64, %out_2 : f64, %out_3 : f64):
 // CHECK-NEXT:          %res = arith.maximumf %out, %in fastmath<fast> : f64
 // CHECK-NEXT:          %res_1 = arith.maximumf %out_1, %in_1 fastmath<fast> : f64
 // CHECK-NEXT:          %res_2 = arith.maximumf %out_2, %in_2 fastmath<fast> : f64
@@ -70,7 +70,7 @@ func.func public @pooling_nchw_max_d1_s2_3x3(%X : memref<1x2x18x18xf64> {"llvm.n
         ],
         iterator_types = ["parallel", "parallel", "parallel", "parallel", "reduction", "reduction", "interleaved"]
     } ins(%X : memref<1x2x18x18xf64>) outs(%Y : memref<1x2x8x8xf64>) inits(%cst : f64) {
-    ^0(%in : f64, %in_1 : f64, %in_2 : f64, %in_3 : f64, %out : f64, %out_1 : f64, %out_2 : f64, %out_3 : f64):
+    ^bb0(%in : f64, %in_1 : f64, %in_2 : f64, %in_3 : f64, %out : f64, %out_1 : f64, %out_2 : f64, %out_3 : f64):
         %res_0 = arith.maximumf %out, %in fastmath<fast> : f64
         %res_1 = arith.maximumf %out_1, %in_1 fastmath<fast> : f64
         %res_2 = arith.maximumf %out_2, %in_2 fastmath<fast> : f64
@@ -119,7 +119,7 @@ func.func public @pooling_nchw_max_d1_s2_3x3(%X : memref<1x2x18x18xf64> {"llvm.n
 // CHECK-NEXT:            ],
 // CHECK-NEXT:            iterator_types = ["parallel", "parallel", "parallel", "parallel", "reduction", "reduction", "interleaved"]
 // CHECK-NEXT:          } ins(%X_subview_subview : memref<1x1x17x17xf64, strided<[648, 324, 18, 1], offset: ?>>) outs(%Y_subview_subview : memref<1x1x8x8xf64, strided<[128, 64, 8, 1], offset: ?>>) inits(%cst : f64) {
-// CHECK-NEXT:          ^0(%in : f64, %in_1 : f64, %in_2 : f64, %in_3 : f64, %out : f64, %out_1 : f64, %out_2 : f64, %out_3 : f64):
+// CHECK-NEXT:          ^bb0(%in : f64, %in_1 : f64, %in_2 : f64, %in_3 : f64, %out : f64, %out_1 : f64, %out_2 : f64, %out_3 : f64):
 // CHECK-NEXT:            %res = arith.maximumf %out, %in fastmath<fast> : f64
 // CHECK-NEXT:            %res_1 = arith.maximumf %out_1, %in_1 fastmath<fast> : f64
 // CHECK-NEXT:            %res_2 = arith.maximumf %out_2, %in_2 fastmath<fast> : f64

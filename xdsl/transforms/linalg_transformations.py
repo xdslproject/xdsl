@@ -79,7 +79,7 @@ class FuseMultiplyAddPass(RewritePattern):
 
             # replace in position of the add op
             rewriter.replace_op(add, fma)
-            if len(mul.res[0].uses) == 0:
+            if not mul.res[0].uses:
                 rewriter.erase_matched_op()
 
     @staticmethod

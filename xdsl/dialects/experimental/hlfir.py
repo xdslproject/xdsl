@@ -20,7 +20,6 @@ from xdsl.dialects.builtin import (
     DenseArrayBase,
     IntAttr,
     IntegerAttr,
-    IntegerType,
     ParametrizedAttribute,
     StringAttr,
     UnitAttr,
@@ -55,6 +54,8 @@ from xdsl.traits import IsTerminator
 @irdl_attr_definition
 class ExprType(ParametrizedAttribute, TypeAttribute):
     """
+    The type of an array, character, or derived type Fortran expression.
+
     Abstract value type for Fortran arrays, characters and derived types.
     The rank cannot be assumed, and empty shape means that the expression is a scalar.
     When the element type is a derived type, the polymorphic flag may be set to true
@@ -83,13 +84,13 @@ class ExprType(ParametrizedAttribute, TypeAttribute):
     def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
         # We need extra work here as the builtin tuple is not being supported
         # yet, therefore handle this here
-        def parse_interval() -> IntegerAttr[IntegerType] | DeferredAttr:
+        def parse_interval() -> IntegerAttr | DeferredAttr:
             if parser.parse_optional_punctuation("?"):
                 return DeferredAttr()
             s = parser.parse_integer(allow_boolean=False)
-            return IntegerAttr[IntegerType](s, 32)
+            return IntegerAttr(s, 32)
 
-        shape: list[IntegerAttr[IntegerType] | DeferredAttr] = []
+        shape: list[IntegerAttr | DeferredAttr] = []
         parser.parse_characters("<")
         elementType = parser.parse_optional_type()
         while elementType is None:
@@ -103,6 +104,8 @@ class ExprType(ParametrizedAttribute, TypeAttribute):
 @irdl_op_definition
 class DeclareOp(IRDLOperation):
     """
+    Declare a variable and produce an SSA value that can be used as a variable in HLFIR operations.
+
     Tie the properties of a Fortran variable to an address. The properties
     include bounds, length parameters, and Fortran attributes.
 
@@ -159,6 +162,8 @@ class DeclareOp(IRDLOperation):
 @irdl_op_definition
 class DesignateOp(IRDLOperation):
     """
+    Designate a Fortran variable.
+
     This operation represents a Fortran "part-ref", except that it can embed a
     substring or or complex part directly, and that vector subscripts cannot be
     used. It returns a Fortran variable that is a part of the input variable.
@@ -191,13 +196,13 @@ class DesignateOp(IRDLOperation):
 
     name = "hlfir.designate"
     memref = operand_def()
-    component = opt_prop_def(StringAttr)
     component_shape = opt_operand_def()
     indices = var_operand_def()
     substring = var_operand_def()
-    complex_part = opt_prop_def(BoolAttr)
     shape = opt_operand_def()
     typeparams = var_operand_def()
+    component = opt_prop_def(StringAttr)
+    complex_part = opt_prop_def(BoolAttr)
     is_triplet = prop_def(DenseArrayBase)
     fortran_attrs = opt_prop_def(FortranVariableFlagsAttr)
     result = result_def()
@@ -208,6 +213,8 @@ class DesignateOp(IRDLOperation):
 @irdl_op_definition
 class AssignOp(IRDLOperation):
     """
+    Assign an expression or variable value to a Fortran variable.
+
     Assign rhs to lhs following Fortran intrinsic assignments rules.
     The operation deals with inserting a temporary if the lhs and rhs
     may overlap.
@@ -255,6 +262,8 @@ class AssignOp(IRDLOperation):
 @irdl_op_definition
 class ParentComponentOp(IRDLOperation):
     """
+    Designate the parent component of a variable.
+
     This operation represents a Fortran component reference where the
     component name is a parent type of the variable's derived type.
     These component references cannot be represented with an hlfir.designate
@@ -284,6 +293,8 @@ class ParentComponentOp(IRDLOperation):
 @irdl_op_definition
 class ConcatOp(IRDLOperation):
     """
+    Concatenate characters.
+
     Concatenate two or more character strings of a same character kind.
     """
 
@@ -297,6 +308,8 @@ class ConcatOp(IRDLOperation):
 @irdl_op_definition
 class AllOp(IRDLOperation):
     """
+    ALL transformational intrinsic.
+
     Takes a logical array MASK as argument, optionally along a particular dimension,
     and returns true if all elements of MASK are true.
     """
@@ -310,6 +323,8 @@ class AllOp(IRDLOperation):
 @irdl_op_definition
 class AnyOp(IRDLOperation):
     """
+    ANY transformational intrinsic.
+
     Takes a logical array MASK as argument, optionally along a particular dimension,
     and returns true if any element of MASK is true.
     """
@@ -323,21 +338,22 @@ class AnyOp(IRDLOperation):
 @irdl_op_definition
 class CountOp(IRDLOperation):
     """
+    COUNT transformational intrinsic.
+
     Takes a logical and counts the number of true values.
     """
 
     name = "hlfir.count"
     mask = operand_def()
     dim = opt_operand_def()
-    kind = opt_operand_def()
     result = result_def()
-
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
 
 @irdl_op_definition
 class MaxvalOp(IRDLOperation):
     """
+    MAXVAL transformational intrinsic.
+
     Maximum value(s) of an array.
     If DIM is absent, the result is a scalar.
     If DIM is present, the result is an array of rank n-1, where n is the rank of ARRAY.
@@ -345,8 +361,8 @@ class MaxvalOp(IRDLOperation):
 
     name = "hlfir.maxval"
     array = operand_def()
-    mask = opt_operand_def()
     dim = opt_operand_def()
+    mask = opt_operand_def()
     fastmath = opt_prop_def(FastMathFlagsAttr)
     result = result_def()
 
@@ -356,6 +372,8 @@ class MaxvalOp(IRDLOperation):
 @irdl_op_definition
 class MinvalOp(IRDLOperation):
     """
+    MINVAL transformational intrinsic.
+
     Minimum value(s) of an array.
     If DIM is absent, the result is a scalar.
     If DIM is present, the result is an array of rank n-1, where n is the rank of ARRAY.
@@ -363,8 +381,8 @@ class MinvalOp(IRDLOperation):
 
     name = "hlfir.minval"
     array = operand_def()
-    mask = opt_operand_def()
     dim = opt_operand_def()
+    mask = opt_operand_def()
     fastmath = opt_prop_def(FastMathFlagsAttr)
     result = result_def()
 
@@ -374,14 +392,16 @@ class MinvalOp(IRDLOperation):
 @irdl_op_definition
 class ProductOp(IRDLOperation):
     """
+    PRODUCT transformational intrinsic.
+
     Multiplies the elements of an array, optionally along a particular dimension,
     optionally if a mask is true.
     """
 
     name = "hlfir.product"
     array = operand_def()
-    mask = opt_operand_def()
     dim = opt_operand_def()
+    mask = opt_operand_def()
     fastmath = opt_prop_def(FastMathFlagsAttr)
     result = result_def()
 
@@ -391,7 +411,9 @@ class ProductOp(IRDLOperation):
 @irdl_op_definition
 class SetLengthOp(IRDLOperation):
     """
-    Change the length of character entity. This trims or pads the
+    Change the length of a character entity.
+
+    This trims or pads the
     character argument according to the new length.
     """
 
@@ -404,6 +426,8 @@ class SetLengthOp(IRDLOperation):
 @irdl_op_definition
 class GetLengthOp(IRDLOperation):
     """
+    Get the length of a character entity.
+
     Get the length of character entity represented as hlfir.expr.
     """
 
@@ -415,14 +439,16 @@ class GetLengthOp(IRDLOperation):
 @irdl_op_definition
 class SumOp(IRDLOperation):
     """
+    SUM transformational intrinsic.
+
     Sums the elements of an array, optionally along a particular dimension,
     optionally if a mask is true.
     """
 
     name = "hlfir.sum"
     array = operand_def()
-    mask = opt_operand_def()
     dim = opt_operand_def()
+    mask = opt_operand_def()
     fastmath = opt_prop_def(FastMathFlagsAttr)
     result = result_def()
 
@@ -432,7 +458,9 @@ class SumOp(IRDLOperation):
 @irdl_op_definition
 class DotProductOp(IRDLOperation):
     """
-    Dot product of two vectors
+    DOT_PRODUCT transformational intrinsic,
+
+    Dot product of two vectors,
     """
 
     name = "hlfir.dot_product"
@@ -445,7 +473,9 @@ class DotProductOp(IRDLOperation):
 @irdl_op_definition
 class MatmulOp(IRDLOperation):
     """
-    Matrix multiplication
+    MATMUL transformational intrinsic.
+
+    Matrix multiplication.
     """
 
     name = "hlfir.matmul"
@@ -458,7 +488,9 @@ class MatmulOp(IRDLOperation):
 @irdl_op_definition
 class TransposeOp(IRDLOperation):
     """
-    Transpose a rank 2 array
+    TRANSPOSE transformational intrinsic.
+
+    Transpose a rank 2 array.
     """
 
     name = "hlfir.transpose"
@@ -469,7 +501,9 @@ class TransposeOp(IRDLOperation):
 @irdl_op_definition
 class MatmulTransposeOp(IRDLOperation):
     """
-    Matrix multiplication where the left hand side is transposed
+    Optimized MATMUL(TRANSPOSE(...), ...).
+
+    Matrix multiplication where the left hand side is transposed.
     """
 
     name = "hlfir.matmul_transpose"
@@ -483,6 +517,7 @@ class MatmulTransposeOp(IRDLOperation):
 class AssociateOp(IRDLOperation):
     """
     Create a variable from an expression value.
+
     For expressions, this operation is an incentive to re-use the expression
     storage, if any, after the bufferization pass when possible (if the
     expression is not used afterwards).
@@ -503,6 +538,7 @@ class AssociateOp(IRDLOperation):
 class EndAssociateOp(IRDLOperation):
     """
     Mark the end of life of a variable associated to an expression.
+
     If the expression has a derived type that may contain allocatable
     components, the variable operand must be a Fortran entity.
     """
@@ -516,6 +552,7 @@ class EndAssociateOp(IRDLOperation):
 class AsExprOp(IRDLOperation):
     """
     Take the value of an array, character or derived variable.
+
     In general, this operation will lead to a copy of the variable
     in the bufferization pass if it was not transformed.
 
@@ -537,17 +574,21 @@ class AsExprOp(IRDLOperation):
 @irdl_op_definition
 class NoReassocOp(IRDLOperation):
     """
+    Synthetic op to prevent reassociation.
+
     Same as fir.reassoc, except it accepts hlfir.expr arguments.
     """
 
     name = "hlfir.no_reassoc"
-    var = operand_def()
+    val = operand_def()
     result = result_def()
 
 
 @irdl_op_definition
 class ElementalOp(IRDLOperation):
     """
+    Elemental expression.
+
     Represent an elemental expression as a function of the indices.
     This operation contain a region whose block arguments are one
     based indices iterating over the elemental expression shape.
@@ -597,6 +638,8 @@ class ElementalOp(IRDLOperation):
 @irdl_op_definition
 class YieldElementOp(IRDLOperation):
     """
+    Yield the elemental value in an ElementalOp.
+
     Yield the element value of the current elemental expression iteration
     in an hlfir.elemental region. See hlfir.elemental description for an
     example.
@@ -611,6 +654,8 @@ class YieldElementOp(IRDLOperation):
 @irdl_op_definition
 class ApplyOp(IRDLOperation):
     """
+    Get the element value of an expression.
+
     Given an hlfir.expr array value, hlfir.apply allow retrieving
     the value for an element given one based indices.
 
@@ -639,6 +684,7 @@ class ApplyOp(IRDLOperation):
 class NullOp(IRDLOperation):
     """
     Create a NULL() address.
+
     So far is not intended to represent NULL(MOLD).
     """
 
@@ -649,7 +695,9 @@ class NullOp(IRDLOperation):
 @irdl_op_definition
 class DestroyOp(IRDLOperation):
     """
-    Mark the last use of an hlfir.expr. This will be the point at which the
+    Mark the last use of an hlfir.expr.
+
+    This will be the point at which the
     buffer of an hlfir.expr, if any, will be deallocated if it was heap
     allocated.
     If "finalize" attribute is set, the hlfir.expr value will be finalized
@@ -679,6 +727,8 @@ class DestroyOp(IRDLOperation):
 @irdl_op_definition
 class CopyInOp(IRDLOperation):
     """
+    Copy a variable into a contiguous temporary if it is not contiguous.
+
     Copy a variable into a contiguous temporary if the variable is not
     an absent optional and is not contiguous at runtime. When a copy is made this
     operation returns the temporary as first result, otherwise, it returns the
@@ -698,6 +748,7 @@ class CopyInOp(IRDLOperation):
 
     name = "hlfir.copy_in"
     var = operand_def()
+    tempBox = operand_def()
     var_is_present = opt_operand_def()
     result = var_result_def()
 
@@ -705,6 +756,8 @@ class CopyInOp(IRDLOperation):
 @irdl_op_definition
 class CopyOutOp(IRDLOperation):
     """
+    Copy out a variable after a copy in.
+
     If the variable was copied in a temporary in the related hlfir.copy_in,
     optionally copy back the temporary value to it (that may have been
     modified between the hlfir.copy_in and hlfir.copy_out). Then deallocate
@@ -722,6 +775,8 @@ class CopyOutOp(IRDLOperation):
 @irdl_op_definition
 class ShapeOfOp(IRDLOperation):
     """
+    Get the shape of a hlfir.expr.
+
     Gets the runtime shape of a hlfir.expr. In lowering to FIR, the
     hlfir.shape_of operation will be replaced by an fir.shape.
     It is not valid to request the shape of a hlfir.expr which has no shape.
@@ -735,7 +790,9 @@ class ShapeOfOp(IRDLOperation):
 @irdl_op_definition
 class GetExtentOp(IRDLOperation):
     """
-    Gets an extent value from a fir.shape. The dimension argument uses C style
+    Gets an extent value from a fir.shape.
+
+    The dimension argument uses C style
     indexing and so should be between 0 and 1 less than the rank of the shape
     """
 
@@ -748,6 +805,8 @@ class GetExtentOp(IRDLOperation):
 @irdl_op_definition
 class RegionAssignOp(IRDLOperation):
     """
+    Represent a Fortran assignment using regions for the LHS and RHS evaluation.
+
     This operation can represent Forall and Where assignment when inside an
     hlfir.forall or hlfir.where "ordered assignment tree". It can
     also represent user defined assignments and assignment to vector
@@ -788,8 +847,10 @@ class RegionAssignOp(IRDLOperation):
 
 
 @irdl_op_definition
-class RegionYieldOp(IRDLOperation):
+class YieldOp(IRDLOperation):
     """
+    Yield a value or variable inside a forall, where or region assignment.
+
     Terminator operation that yields an HLFIR value or variable that was computed in
     a region and hold the yielded entity cleanup, if any, into its own region.
     This allows representing any Fortran expression evaluation in its own region so
@@ -816,6 +877,8 @@ class RegionYieldOp(IRDLOperation):
 @irdl_op_definition
 class ElementalAddrOp(IRDLOperation):
     """
+    Yield the address of a vector subscripted variable inside an hlfir.region_assign.
+
     Special terminator node for the left-hand side region of an hlfir.region_assign
     to a vector subscripted entity.
 
@@ -851,6 +914,7 @@ class ElementalAddrOp(IRDLOperation):
 
     name = "hlfir.elemental_addr"
     shape = operand_def()
+    mold = opt_operand_def()
     typeparams = var_operand_def()
     unordered = opt_prop_def(UnitAttr)
     body = region_def()
@@ -862,6 +926,8 @@ class ElementalAddrOp(IRDLOperation):
 @irdl_op_definition
 class ForallOp(IRDLOperation):
     """
+    Represent a Fortran forall.
+
     This operation allows representing Fortran forall. It computes
     a set of "index-name" values based on lower bound, upper bound,
     and step values whose evaluations are represented in their own
@@ -1004,6 +1070,8 @@ class ElseWhereOp(IRDLOperation):
 @irdl_op_definition
 class ForallIndexOp(IRDLOperation):
     """
+    Represent a Fortran forall index declaration.
+
     This operation allows placing an hlfir.forall index in memory with
     the related Fortran index-value name and type.
 
@@ -1027,6 +1095,8 @@ class ForallIndexOp(IRDLOperation):
 @irdl_op_definition
 class CharExtremumOp(IRDLOperation):
     """
+    Find max/min from given character strings.
+
     Find the lexicographical minimum or maximum of two or more character
     strings of the same character kind and return the string with the lexicographical
     minimum or maximum number of characters. Example:
@@ -1045,46 +1115,46 @@ class CharExtremumOp(IRDLOperation):
 HLFIR = Dialect(
     "hlfir",
     [
-        DeclareOp,
-        DesignateOp,
-        AssignOp,
-        ParentComponentOp,
-        ConcatOp,
         AllOp,
         AnyOp,
-        CountOp,
-        MaxvalOp,
-        MinvalOp,
-        ProductOp,
-        SetLengthOp,
-        GetLengthOp,
-        SumOp,
-        DotProductOp,
-        MatmulOp,
-        TransposeOp,
-        MatmulTransposeOp,
-        AssociateOp,
-        EndAssociateOp,
-        AsExprOp,
-        NoReassocOp,
-        ElementalOp,
-        YieldElementOp,
         ApplyOp,
-        NullOp,
-        DestroyOp,
+        AsExprOp,
+        AssignmentMaskOp,
+        AssignOp,
+        AssociateOp,
+        CharExtremumOp,
+        ConcatOp,
         CopyInOp,
         CopyOutOp,
-        ShapeOfOp,
-        GetExtentOp,
-        RegionAssignOp,
-        RegionYieldOp,
+        CountOp,
+        DeclareOp,
+        DesignateOp,
+        DestroyOp,
+        DotProductOp,
         ElementalAddrOp,
-        ForallOp,
-        ForallMaskOp,
-        AssignmentMaskOp,
+        ElementalOp,
         ElseWhereOp,
+        EndAssociateOp,
         ForallIndexOp,
-        CharExtremumOp,
+        ForallMaskOp,
+        ForallOp,
+        GetExtentOp,
+        GetLengthOp,
+        MatmulOp,
+        MatmulTransposeOp,
+        MaxvalOp,
+        MinvalOp,
+        NoReassocOp,
+        NullOp,
+        ParentComponentOp,
+        ProductOp,
+        RegionAssignOp,
+        SetLengthOp,
+        ShapeOfOp,
+        SumOp,
+        TransposeOp,
+        YieldElementOp,
+        YieldOp,
     ],
     [
         ExprType,

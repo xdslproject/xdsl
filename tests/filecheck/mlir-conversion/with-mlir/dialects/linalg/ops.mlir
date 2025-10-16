@@ -63,6 +63,8 @@ linalg.fill ins(%4 : f32) outs(%1 : memref<1x256xf32>)
 %zero = arith.constant 0.0 : f32
 linalg.fill {id} ins(%zero : f32) outs(%20 : memref<64x4096xf32>)
 
+linalg.copy {id} ins(%1 : memref<1x256xf32>) outs(%1 : memref<1x256xf32>)
+
 linalg.matmul {id} ins(%18, %19 : memref<64x9216xf32>, memref<9216x4096xf32>) outs(%20 : memref<64x4096xf32>)
 
 
@@ -116,6 +118,33 @@ linalg.matmul {id} ins(%18, %19 : memref<64x9216xf32>, memref<9216x4096xf32>) ou
             ins(%45, %46: tensor<1x8x9x18x18xi8>, tensor<7x8x9x3x3xi8>)
             outs(%47: tensor<1x8x7x16x16xi32>) -> tensor<1x8x7x16x16xi32>
 
+%copy = linalg.copy ins(%3 : tensor<2x3xf32>) outs(%2 : tensor<2x3xf32>) -> tensor<2x3xf32>
+linalg.copy ins(%1 : memref<1x256xf32>) outs(%1 : memref<1x256xf32>)
+
+%48 = "test.op"() : () -> (memref<f32>)
+
+linalg.broadcast ins(%48 : memref<f32>) outs(%1 : memref<1x256xf32>) dimensions = [0,1]
+
+%49, %50 = "test.op"() : () -> (memref<16x64xf32>, memref<64x16xf32>)
+
+linalg.transpose ins(%49 : memref<16x64xf32>) outs(%50 : memref<64x16xf32>) permutation = [1, 0]
+
+%51 = "test.op"() : () -> (memref<16xf32>)
+
+linalg.reduce ins(%49:memref<16x64xf32>) outs(%51:memref<16xf32>) dimensions = [1]
+(%52 : f32, %53 : f32) {
+    %54 = arith.addf %52, %53 : f32
+    linalg.yield %54 : f32
+}
+
+%55, %56 = "test.op"(): () ->  (tensor<100x50xi32>, tensor<i32>)
+
+%reduced = linalg.reduce ins(%55:tensor<100x50xi32>) outs(%56:tensor<i32>) dimensions = [0, 1]
+(%57 : i32, %58 : i32) {
+    %59 = arith.addi %57, %58 : i32
+    linalg.yield %59 : i32
+}
+
 // CHECK-NEXT:  #map = affine_map<(d0, d1) -> ()>
 // CHECK-NEXT:  #map1 = affine_map<(d0, d1) -> (d0, d1)>
 // CHECK-NEXT:  module {
@@ -155,6 +184,7 @@ linalg.matmul {id} ins(%18, %19 : memref<64x9216xf32>, memref<9216x4096xf32>) ou
 // CHECK-NEXT:    %17 = "test.op"() : () -> memref<64x4096xf32>
 // CHECK-NEXT:    %cst_0 = arith.constant 0.000000e+00 : f32
 // CHECK-NEXT:    linalg.fill {id} ins(%cst_0 : f32) outs(%17 : memref<64x4096xf32>)
+// CHECK-NEXT:    linalg.copy {id} ins(%0#1 : memref<1x256xf32>) outs(%0#1 : memref<1x256xf32>)
 // CHECK-NEXT:    linalg.matmul {id} ins(%16#0, %16#1 : memref<64x9216xf32>, memref<9216x4096xf32>) outs(%17 : memref<64x4096xf32>)
 // CHECK-NEXT:    %18:2 = "test.op"() : () -> (tensor<64x9216xi8>, tensor<9216x4096xi8>)
 // CHECK-NEXT:    %c0_i32 = arith.constant 0 : i32
@@ -178,4 +208,22 @@ linalg.matmul {id} ins(%18, %19 : memref<64x9216xf32>, memref<9216x4096xf32>) ou
 // CHECK-NEXT:    %34 = linalg.conv_2d_ngchw_gfchw {dilations = dense<1> : tensor<2xi64>, strides = dense<1> : tensor<2xi64>} ins(%33#0, %33#1 : tensor<1x8x9x18x18xi8>, tensor<8x7x9x3x3xi8>) outs(%33#2 : tensor<1x8x7x16x16xi32>) -> tensor<1x8x7x16x16xi32>
 // CHECK-NEXT:    %35:3 = "test.op"() : () -> (tensor<1x8x9x18x18xi8>, tensor<7x8x9x3x3xi8>, tensor<1x8x7x16x16xi32>)
 // CHECK-NEXT:    %36 = linalg.conv_2d_ngchw_fgchw {dilations = dense<1> : tensor<2xi64>, strides = dense<1> : tensor<2xi64>} ins(%35#0, %35#1 : tensor<1x8x9x18x18xi8>, tensor<7x8x9x3x3xi8>) outs(%35#2 : tensor<1x8x7x16x16xi32>) -> tensor<1x8x7x16x16xi32>
+// CHECK-NEXT:    %{{.*}} = linalg.copy ins(%1#1 : tensor<2x3xf32>) outs(%1#0 : tensor<2x3xf32>) -> tensor<2x3xf32>
+// CHECK-NEXT:    linalg.copy ins(%0#1 : memref<1x256xf32>) outs(%0#1 : memref<1x256xf32>)
+// CHECK-NEXT:    %38 = "test.op"() : () -> memref<f32>
+// CHECK-NEXT:    linalg.broadcast ins(%38 : memref<f32>) outs(%0#1 : memref<1x256xf32>) dimensions = [0, 1]
+// CHECK-NEXT:    %39:2 = "test.op"() : () -> (memref<16x64xf32>, memref<64x16xf32>)
+// CHECK-NEXT:    linalg.transpose ins(%39#0 : memref<16x64xf32>) outs(%39#1 : memref<64x16xf32>) permutation = [1, 0]
+// CHECK-NEXT:    %40 = "test.op"() : () -> memref<16xf32>
+// CHECK-NEXT:    linalg.reduce ins(%39#0 : memref<16x64xf32>) outs(%40 : memref<16xf32>) dimensions = [1]
+// CHECK-NEXT:    (%in: f32, %init: f32) {
+// CHECK-NEXT:        %42 = arith.addf %in, %init : f32
+// CHECK-NEXT:        linalg.yield %42 : f32
+// CHECK-NEXT:    }
+// CHECK-NEXT:    %41:2 = "test.op"() : () -> (tensor<100x50xi32>, tensor<i32>)
+// CHECK-NEXT:    %reduced = linalg.reduce ins(%41#0 : tensor<100x50xi32>) outs(%41#1 : tensor<i32>) dimensions = [0, 1]
+// CHECK-NEXT:    (%in: i32, %init: i32) {
+// CHECK-NEXT:        %42 = arith.addi %in, %init : i32
+// CHECK-NEXT:        linalg.yield %42 : i32
+// CHECK-NEXT:    }
 // CHECK-NEXT:  }

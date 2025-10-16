@@ -7,7 +7,7 @@ func.func @while() {
         %c = "arith.cmpi"(%zero, %arg) {"predicate" = 1 : i64} : (i32, i32) -> i1
         scf.condition(%c) %zero : i32
     } do {
-    ^1(%arg2: i32):
+    ^bb1(%arg2: i32):
         scf.yield %arg2 : i32
     }
     return

@@ -5,11 +5,13 @@ from enum import auto
 
 from xdsl.dialects import memref
 from xdsl.dialects.builtin import (
+    DYNAMIC_INDEX,
     AffineMapAttr,
     DenseArrayBase,
     FunctionType,
     IndexType,
     StringAttr,
+    SymbolNameConstraint,
     SymbolRefAttr,
     UnitAttr,
     i32,
@@ -156,7 +158,7 @@ class AllocOp(IRDLOperation):
     def verify_(self) -> None:
         ndyn = len(self.dynamicSizes)
         assert isinstance(res_type := self.result.type, memref.MemRefType)
-        ndyn_type = len([i for i in res_type.get_shape() if i == -1])
+        ndyn_type = len([i for i in res_type.get_shape() if i == DYNAMIC_INDEX])
         if ndyn != ndyn_type:
             raise VerifyException(
                 f"Expected {ndyn_type} dynamic sizes, got {ndyn}. All "
@@ -343,7 +345,7 @@ class ModuleOp(IRDLOperation):
     name = "gpu.module"
 
     body = region_def("single_block")
-    sym_name = prop_def(StringAttr)
+    sym_name = prop_def(SymbolNameConstraint())
 
     traits = traits_def(
         IsolatedFromAbove(),
@@ -361,7 +363,7 @@ class FuncOp(IRDLOperation):
     name = "gpu.func"
 
     body = region_def()
-    sym_name = attr_def(StringAttr)
+    sym_name = attr_def(SymbolNameConstraint())
     function_type = prop_def(FunctionType)
     kernel = opt_prop_def(UnitAttr)
     known_block_size = opt_attr_def(

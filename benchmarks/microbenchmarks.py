@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from xdsl.dialects.arith import ConstantOp
 from xdsl.dialects.builtin import IntAttr, IntegerAttr, ModuleOp, i32
-from xdsl.ir import Block, OpResult
+from xdsl.ir import Block, OpResult, SSAValues
 from xdsl.irdl import (
     IRDLOperation,
     irdl_op_definition,
@@ -203,18 +203,6 @@ class Extensibility:
         """
         assert Extensibility.OP_WITH_REGION.has_trait(Extensibility.TRAIT_4)
 
-    def time_trait_check_optimised(self) -> None:
-        """Time checking the trait of an operation using optimised code."""
-        OP = Extensibility.OP_WITH_REGION
-        TRAIT = Extensibility.TRAIT_4
-
-        has_trait = False
-        for t in OP.traits._traits:  # pyright: ignore[reportUnknownVariableType, reportGeneralTypeIssues, reportPrivateUsage]
-            if isinstance(t, TRAIT):
-                has_trait = True
-                break
-        assert has_trait
-
     def time_trait_check_single(self) -> None:
         """Time checking the trait of an operation with one trait."""
         Extensibility.HAS_TRAIT_A_OP.has_trait(TraitA)
@@ -297,8 +285,8 @@ class OpCreation:
     def time_operation_create_optimised(self) -> None:
         """Time creating an empty operation directly."""
         empty_op = EmptyOp.__new__(EmptyOp)
-        empty_op._operands = ()  # pyright: ignore[reportPrivateUsage]
-        empty_op.results = ()
+        empty_op._operands = SSAValues()  # pyright: ignore[reportPrivateUsage]
+        empty_op.results = SSAValues()
         empty_op.properties = {}
         empty_op.attributes = {}
         empty_op._successors = ()  # pyright: ignore[reportPrivateUsage]
@@ -316,8 +304,8 @@ class OpCreation:
         object.__setattr__(integer_attr, "value", int_attr)
         object.__setattr__(integer_attr, "type", i32)
         constant_op = ConstantOp.__new__(ConstantOp)
-        constant_op._operands = ()  # pyright: ignore[reportPrivateUsage]
-        constant_op.results = (OpResult(i32, constant_op, 0),)
+        constant_op._operands = SSAValues()  # pyright: ignore[reportPrivateUsage]
+        constant_op.results = SSAValues((OpResult(i32, constant_op, 0),))
         constant_op.properties = {"value": integer_attr}
         constant_op.attributes = {}
         constant_op._successors = ()  # pyright: ignore[reportPrivateUsage]
@@ -370,9 +358,6 @@ if __name__ == "__main__":
                 EXTENSIBILITY.time_interface_check
             ),
             "Extensibility.trait_check": Benchmark(EXTENSIBILITY.time_trait_check),
-            "Extensibility.trait_check_optimised": Benchmark(
-                EXTENSIBILITY.time_trait_check_optimised
-            ),
             "Extensibility.trait_check_single": Benchmark(
                 EXTENSIBILITY.time_trait_check_single
             ),

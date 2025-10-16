@@ -5,7 +5,7 @@
   %step = "arith.constant"() {"value" = 7 : index} : () -> index
 // CHECK: Body block must have induction var as first block arg
   "scf.for"(%lb, %ub, %step) ({
-  ^0():
+  ^bb0():
     "scf.yield"() : () -> ()
   }) : (index, index, index) -> ()
 }) : () -> ()

@@ -1,4 +1,5 @@
-// RUN: xdsl-opt %s | xdsl-opt | mlir-opt --allow-unregistered-dialect | filecheck %s
+// RUN: MLIR_GENERIC_ROUNDTRIP
+// RUN: MLIR_ROUNDTRIP
 
 %vali32 = "test.op"() : () -> i32
 %vali64 = "test.op"() : () -> i64

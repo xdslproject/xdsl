@@ -17,7 +17,7 @@ from xdsl.dialects.builtin import (
     i64,
 )
 from xdsl.dialects.test import TestType
-from xdsl.ir import Attribute, Block, Region
+from xdsl.ir import Block, Region
 from xdsl.irdl import (
     AnyAttr,
     AnyInt,
@@ -78,8 +78,8 @@ class OpDefTestOp(IRDLOperation):
 
     operand = operand_def()
     result = result_def()
-    prop = prop_def(Attribute)
-    attr = attr_def(Attribute)
+    prop = prop_def()
+    attr = attr_def()
     region = region_def()
 
     # Check that we can define methods in operation definitions
@@ -422,8 +422,8 @@ class SameLengthOp(IRDLOperation):
     name = "test.same_length"
 
     LENGTH: ClassVar = IntVarConstraint("length", AnyInt())
-    operand = var_operand_def(RangeOf(AnyAttr(), length=LENGTH))
-    result = var_result_def(RangeOf(AnyAttr(), length=LENGTH))
+    operand = var_operand_def(RangeOf(AnyAttr()).of_length(LENGTH))
+    result = var_result_def(RangeOf(AnyAttr()).of_length(LENGTH))
 
 
 def test_same_length_op():
@@ -452,7 +452,7 @@ def test_same_length_op():
 class WithoutPropOp(IRDLOperation):
     name = "test.op_without_prop"
 
-    prop1 = prop_def(Attribute)
+    prop1 = prop_def()
 
 
 # Check that an operation cannot accept properties that are not defined
@@ -798,7 +798,7 @@ _Operand = TypeVar("_Operand", bound=TestType)
 _Result = TypeVar("_Result", bound=TestType)
 
 
-class GenericOp(Generic[_Attr, _Operand, _Result], IRDLOperation):
+class GenericOp(IRDLOperation, Generic[_Attr, _Operand, _Result]):
     name = "test.string_or_int_generic"
 
     attr: _Attr = attr_def(_Attr)
@@ -811,7 +811,7 @@ class StringFooOp(GenericOp[StringAttr, FooType, FooType]):
     name = "test.string_specialized"
 
 
-class Generic2Op(Generic[_Operand], GenericOp[StringAttr, _Operand, FooType]): ...
+class Generic2Op(GenericOp[StringAttr, _Operand, FooType], Generic[_Operand]): ...
 
 
 @irdl_op_definition
@@ -860,7 +860,7 @@ def test_generic_op(cls: type[StringFooOp | StringFoo2Op]):
 
 
 class OtherParentOp(IRDLOperation):
-    other_attr = attr_def(Attribute)
+    other_attr = attr_def()
 
 
 @irdl_op_definition
