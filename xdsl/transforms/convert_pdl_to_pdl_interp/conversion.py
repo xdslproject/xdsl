@@ -998,15 +998,15 @@ class MatcherGenerator:
         if block is None:
             block = Block()
             region.add_block(block)
-        self.values = ScopedDict(self.values)
-        assert self.values.parent is not None
 
         # Handle exit node - just add finalize
         if isinstance(node, ExitNode):
             finalize_op = pdl_interp.FinalizeOp()
             self.builder.insert_op(finalize_op, InsertPoint.at_end(block))
-            self.values = self.values.parent  # Pop scope
             return block
+
+        self.values = ScopedDict(self.values)
+        assert self.values.parent is not None
 
         # Handle failure node
         failure_block = None

@@ -2789,11 +2789,13 @@ def test_generate_matcher_bool_node_simple():
     assert len(check_ops) == 1
 
     # Check that failure block was created with FinalizeOp
-    finalize_ops: list[pdl_interp.FinalizeOp] = []
-    for block in matcher_body.blocks:
-        finalize_ops.extend(
-            op for op in block.ops if isinstance(op, pdl_interp.FinalizeOp)
-        )
+    finalize_ops = [
+        op
+        for block in matcher_body.blocks
+        for op in block.ops
+        if isinstance(op, pdl_interp.FinalizeOp)
+    ]
+
     assert len(finalize_ops) == 1
 
 
