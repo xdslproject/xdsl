@@ -1,4 +1,3 @@
-from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any, cast
 
@@ -9,6 +8,7 @@ from xdsl.dialects.pdl import RangeType, ValueType
 from xdsl.interpreter import (
     Interpreter,
     InterpreterFunctions,
+    PythonValues,
     ReturnedValues,
     Successor,
     impl,
@@ -28,20 +28,31 @@ from xdsl.utils.hints import isa
 class PDLInterpFunctions(InterpreterFunctions):
     """
     Interpreter functions for the pdl_interp dialect.
-    All operations that get a value from the IR will return None if the requested value cannot be determined.
+    All operations that get a value from the IR will return None if the requested value
+    cannot be determined.
+
+    Native constraints are implemented via `impl_external`. Clients that want to provide
+    extra constraint declarations must do so with a similar extra `InterpreterFunctions`
+    subclass registered with the interpreter:
+
+    ```py
+    @register_impls
+    class TestImplFunctions(InterpreterFunctions):
+        @impl_external("test_constraint")
+        def run_test_constraint(
+            self, interp: Interpreter, op: Operation, args: PythonValues
+        ) -> tuple[bool, PythonValues]:
+            assert isinstance(args[0], int)
+            (x,) = args
+            return True, (x + 42,)
+    ```
+
+    Note that the return type of a native constraint must be `tuple[bool, PythonValues]`.
     """
 
     ctx: Context
 
     _rewriter: PatternRewriter | None = field(default=None)
-
-    native_constraints: dict[str, Callable[..., tuple[bool, tuple[Any, ...]]]] = field(
-        default_factory=lambda: {}
-    )
-    """
-    The functions that can be used in `pdl_interp.apply_constraint`. Note that we do
-    not verify that the functions are used with the correct types.
-    """
 
     @property
     def rewriter(self) -> PatternRewriter:
@@ -418,18 +429,18 @@ class PDLInterpFunctions(InterpreterFunctions):
         interpreter: Interpreter,
         op: pdl_interp.ApplyConstraintOp,
         args: tuple[Any, ...],
-    ) -> tuple[Any, ...]:
+    ) -> tuple[Successor, PythonValues]:
         assert len(args) == 1
         constraint_name = op.constraint_name.data
 
-        if constraint_name not in self.native_constraints:
-            raise InterpretationError(f"Unknown constraint function: {constraint_name}")
-        passed, *results = self.native_constraints[constraint_name](
-            *args,
-        )
+        passed, results = interpreter.call_external(constraint_name, op, args)
+        assert isinstance(passed, bool)
+        assert isinstance(results, tuple)
+        any_results = cast(tuple[Any], results)
+
         terminator = op.true_dest if passed != bool(op.is_negated) else op.false_dest
 
-        return Successor(terminator, ()), *results
+        return Successor(terminator, ()), any_results
 
     @impl_terminator(pdl_interp.RecordMatchOp)
     def run_recordmatch(

@@ -13,7 +13,8 @@ from collections.abc import Sequence
 from typing import ClassVar
 
 from xdsl.dialects.builtin import IntAttr
-from xdsl.ir import Attribute, Dialect, Region, SSAValue
+from xdsl.interfaces import ConstantLikeInterface
+from xdsl.ir import Attribute, Dialect, OpResult, Region, SSAValue
 from xdsl.irdl import (
     AnyAttr,
     IRDLOperation,
@@ -21,13 +22,20 @@ from xdsl.irdl import (
     irdl_op_definition,
     lazy_traits_def,
     opt_attr_def,
+    prop_def,
     region_def,
     result_def,
     traits_def,
     var_operand_def,
     var_result_def,
 )
-from xdsl.traits import HasParent, IsTerminator, Pure, SingleBlockImplicitTerminator
+from xdsl.traits import (
+    ConstantLike,
+    HasParent,
+    IsTerminator,
+    Pure,
+    SingleBlockImplicitTerminator,
+)
 from xdsl.utils.exceptions import DiagnosticException, VerifyException
 
 EQSAT_COST_LABEL = "eqsat_cost"
@@ -37,7 +45,48 @@ Key used to store the cost of computing the result of an operation.
 
 
 @irdl_op_definition
+class ConstantEClassOp(IRDLOperation, ConstantLikeInterface):
+    """An e-class representing a known constant value.
+    For non-constant e-classes, use [EClassOp][xdsl.dialects.eqsat.EClassOp].
+    """
+
+    T: ClassVar = VarConstraint("T", AnyAttr())
+
+    name = "eqsat.const_eclass"
+
+    assembly_format = (
+        "$arguments ` ` `(` `constant` `=` $value `)` attr-dict `:` type($result)"
+    )
+    traits = traits_def(Pure())
+
+    arguments = var_operand_def(T)
+    result = result_def(T)
+    value = prop_def()
+    min_cost_index = opt_attr_def(IntAttr)
+
+    def get_constant_value(self):
+        return self.value
+
+    def __init__(self, const_arg: OpResult):
+        if (trait := const_arg.owner.get_trait(ConstantLike)) is None:
+            raise DiagnosticException(
+                "The argument of a ConstantEClass must be a constant-like operation."
+            )
+        value = trait.get_constant_value(const_arg.owner)
+        super().__init__(
+            operands=[const_arg],
+            result_types=[const_arg.type],
+            properties={"value": value},
+        )
+
+
+@irdl_op_definition
 class EClassOp(IRDLOperation):
+    """An e-class representing a set of equivalent values.
+    E-classes that represent a constant value can instead
+    be represented by [ConstantEClassOp][xdsl.dialects.eqsat.ConstantEClassOp].
+    """
+
     T: ClassVar = VarConstraint("T", AnyAttr())
 
     name = "eqsat.eclass"
@@ -88,6 +137,13 @@ class EClassOp(IRDLOperation):
                     )
 
 
+AnyEClassOp = EClassOp | ConstantEClassOp
+"""
+A type representing either a [regular e-class operation][xdsl.dialects.eqsat.EClassOp]
+or a [constant e-class operation][xdsl.dialects.eqsat.ConstantEClassOp].
+"""
+
+
 @irdl_op_definition
 class EGraphOp(IRDLOperation):
     name = "eqsat.egraph"
@@ -130,6 +186,7 @@ EqSat = Dialect(
     "eqsat",
     [
         EClassOp,
+        ConstantEClassOp,
         YieldOp,
         EGraphOp,
     ],

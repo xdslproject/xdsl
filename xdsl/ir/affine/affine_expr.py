@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
 from enum import Enum, auto
+from itertools import chain
 from typing import TYPE_CHECKING
 
 from typing_extensions import assert_never
@@ -14,7 +15,7 @@ if TYPE_CHECKING:
 
 
 @dataclass(frozen=True)
-class AffineExpr:
+class AffineExpr(ABC):
     """
     An AffineExpr models an affine expression, which is a linear combination of
     dimensions with integer coefficients. For example, 2 * d0 + 3 * d1 is an
@@ -70,6 +71,63 @@ class AffineExpr:
                 return lhs.ceil_div(rhs)
             case _:
                 assert_never(kind)
+
+    @staticmethod
+    def from_flat_form(
+        flat_exprs: Sequence[int],
+        num_dims: int,
+        num_symbols: int,
+        local_exprs: Sequence[AffineExpr],
+    ) -> AffineExpr:
+        """
+        Constructs an affine expression from a flat list of coefficients.
+        If there are local identifiers (neither dimensional nor symbolic) that appear in
+        the sum of products expression, `local_exprs` is expected to have the AffineExpr
+        for it, and is substituted into.
+        The list `flat_exprs` is expected to be in the format [*dims, *symbols, *locals,
+        constant term].
+        """
+        assert len(flat_exprs) == num_dims + num_symbols + len(local_exprs) + 1, (
+            f"unexpected number of local expressions {len(local_exprs)}, expected "
+            f"{len(flat_exprs) - num_dims - num_symbols - 1}"
+        )
+
+        expr = sum(
+            (
+                e * f
+                for e, f in zip(
+                    chain(
+                        (AffineExpr.dimension(d) for d in range(num_dims)),
+                        (AffineExpr.symbol(s) for s in range(num_symbols)),
+                        local_exprs,
+                    ),
+                    flat_exprs[:-1],
+                    strict=True,
+                )
+                if f != 0
+            ),
+            start=AffineExpr.constant(0),
+        )
+
+        # Constant term
+        const_term = flat_exprs[-1]
+        if const_term != 0:
+            expr = expr + const_term
+
+        return expr
+
+    def simplify(self, num_dims: int, num_symbols: int) -> AffineExpr:
+        """
+        Simplify the affine expression by flattening it and reconstructing it.
+        """
+        if not self.is_pure_affine():
+            # Simplify semi-affine expressions separately
+            raise NotImplementedError(
+                "Simplification of semi-affine expressions is not implemented yet."
+            )
+
+        flattener = SimpleAffineExprFlattener(num_dims, num_symbols)
+        return flattener.simplify(self)
 
     def compose(self, map: AffineMap) -> AffineExpr:
         """
@@ -296,17 +354,32 @@ class AffineExpr:
         # TODO (#1086): Simplify modulo here before returning.
         return AffineBinaryOpExpr(AffineBinaryOpKind.Mod, self, other)
 
-    @abstractmethod
     def dfs(self) -> Iterator[AffineExpr]:
         """
-        Iterates nodes in depth-first order.
+        Iterates nodes in depth-first order (parent-left-right).
 
         See external [documentation](https://en.wikipedia.org/wiki/Depth-first_search).
         """
         yield self
 
+    def post_order(self) -> Iterator[AffineExpr]:
+        """
+        Iterates nodes in pre-order (left-right-parent).
+
+        See external [documentation](https://en.wikipedia.org/wiki/Tree_traversal).
+        """
+        yield self
+
     def used_dims(self) -> set[int]:
         return {expr.position for expr in self.dfs() if isinstance(expr, AffineDimExpr)}
+
+    @abstractmethod
+    def is_pure_affine(self) -> bool:
+        """
+        Returns true if this is a pure affine expression, i.e., multiplication,
+        floordiv, ceildiv, and mod is only allowed w.r.t constants.
+        """
+        ...
 
 
 class AffineBinaryOpKind(Enum):
@@ -340,13 +413,45 @@ class AffineBinaryOpExpr(AffineExpr):
     lhs: AffineExpr
     rhs: AffineExpr
 
-    def __str__(self) -> str:
-        return f"({self.lhs} {self.kind.get_token()} {self.rhs})"
-
     def dfs(self) -> Iterator[AffineExpr]:
         yield self
         yield from self.lhs.dfs()
         yield from self.rhs.dfs()
+
+    def post_order(self) -> Iterator[AffineExpr]:
+        yield from self.lhs.post_order()
+        yield from self.rhs.post_order()
+        yield self
+
+    def is_pure_affine(self) -> bool:
+        match self.kind:
+            case AffineBinaryOpKind.Add:
+                return self.lhs.is_pure_affine() and self.rhs.is_pure_affine()
+            case AffineBinaryOpKind.Mul:
+                # Multiplication is only allowed with a constant on the right
+                # or left for pure affine expressions.
+                # Check if either lhs or rhs is a constant and the other is pure affine.
+                lhs_is_const = isinstance(self.lhs, AffineConstantExpr)
+                rhs_is_const = isinstance(self.rhs, AffineConstantExpr)
+
+                return (
+                    (lhs_is_const or rhs_is_const)
+                    and self.lhs.is_pure_affine()
+                    and self.rhs.is_pure_affine()
+                )
+            case (
+                AffineBinaryOpKind.Mod
+                | AffineBinaryOpKind.FloorDiv
+                | AffineBinaryOpKind.CeilDiv
+            ):
+                # Mod, floordiv, ceildiv are only allowed with a constant on the right for pure affine
+                return (
+                    isinstance(self.rhs, AffineConstantExpr)
+                    and self.lhs.is_pure_affine()
+                )
+
+    def __str__(self) -> str:
+        return f"({self.lhs} {self.kind.get_token()} {self.rhs})"
 
 
 @dataclass(frozen=True)
@@ -354,6 +459,9 @@ class AffineDimExpr(AffineExpr):
     """An affine expression storage node representing a dimension."""
 
     position: int
+
+    def is_pure_affine(self) -> bool:
+        return True
 
     def __str__(self) -> str:
         return f"d{self.position}"
@@ -365,6 +473,9 @@ class AffineSymExpr(AffineExpr):
 
     position: int
 
+    def is_pure_affine(self) -> bool:
+        return True
+
     def __str__(self) -> str:
         return f"s{self.position}"
 
@@ -375,5 +486,187 @@ class AffineConstantExpr(AffineExpr):
 
     value: int
 
+    def is_pure_affine(self) -> bool:
+        return True
+
     def __str__(self) -> str:
         return f"{self.value}"
+
+
+class SimpleAffineExprFlattener:
+    """
+    This class is used to flatten a pure affine expression (AffineExpr, which is in a
+    tree form) into a sum of products (with respect to constants) when possible, thereby
+    simplifying the expression. For modulo, floordiv, or ceildiv expressions, an
+    additional identifier, called a local identifier, is introduced to rewrite the
+    expression as a sum of product affine expression. Each local identifier is always,
+    by construction, a floordiv of a pure add/mul affine function of dimensional,
+    symbolic, and other local identifiers, in a non-mutually recursive way. Thus, every
+    local identifier can ultimately always be recovered as an affine function of
+    dimensional and symbolic identifiers (involving floordiv's); note, however, that by
+    AffineExpr construction, some floordiv combinations are converted to mod's.
+    The result of the flattening is a flattened expression and a set of
+    constraints involving just the local variables.
+
+    For example, `d2 + (d0 + d1) // 4` is flattened to `d2 + q` where `q` is
+    the local variable introduced, with `localVarCst` containing
+    `4*q <= d0 + d1 <= 4*q + 3`.
+
+    The simplification performed includes the accumulation of contributions for
+    each dimensional and symbolic identifier together, the simplification of
+    floordiv/ceildiv/mod expressions, and other simplifications that in turn
+    happen as a result. A simplification that this flattening naturally performs
+    is simplifying the numerator and denominator of floordiv/ceildiv, and
+    folding a modulo expression to zero, if possible. Three examples are below:
+
+    ```
+    (d0 + 3 * d1) + d0) - 2 * d1) - d0    simplified to     d0 + d1
+    (d0 - d0 % 4 + 4) % 4                 simplified to     0
+    (3*d0 + 2*d1 + d0) // 2 + d1          simplified to     2*d0 + 2*d1
+    ```
+
+    The way the flattening works for the second example is as follows: `d0 % 4` is
+    replaced by `d0 - 4*q` with `q` being introduced; the expression then simplifies
+    to: `(d0 - (d0 - 4q) + 4) = 4q + 4`, modulo of which with respect to 4
+    simplifies to zero. Note that an affine expression may not always be
+    expressible purely as a sum of products involving just the original
+    dimensional and symbolic identifiers due to the presence of
+    modulo/floordiv/ceildiv expressions that may not be eliminated after
+    simplification; in such cases, the final expression can be reconstructed by
+    replacing the local identifiers with their corresponding explicit form
+    stored in `localExprs` (note that each of the explicit forms itself would
+    have been simplified).
+
+    The expression walk method here performs a linear time post-order walk that
+    performs the above simplifications through visit methods, with partial
+    results being stored in `operandExprStack`. When a parent expr is visited,
+    the flattened expressions corresponding to its two operands would already be
+    on the stack—the parent expression looks at the two flattened expressions
+    and combines the two. It pops off the operand expressions and pushes the
+    combined result (although this is done in-place on its LHS operand expr).
+    When the walk is completed, the flattened form of the top-level expression
+    would be left on the stack.
+
+    A flattener can be repeatedly used for multiple affine expressions that bind
+    to the same operands, for example, for all result expressions of an
+    AffineMap or AffineValueMap. In such cases, using it for multiple
+    expressions is more efficient than creating a new flattener for each
+    expression since common identical div and mod expressions appearing across
+    different expressions are mapped to the same local identifier (same column
+    position in `localVarCst`).
+    """
+
+    # Flattend expression layout: [dims, symbols, locals, constant]
+    # Stack that holds the LHS and RHS operands while visiting a binary op expr.
+    operand_expr_stack: list[list[int]]
+    """
+    Flattend expression layout: [dims, symbols, locals, constant]
+    Stack that holds the LHS and RHS operands while visiting a binary op expr.
+    """
+    num_dims: int
+    num_symbols: int
+    local_exprs: list[AffineExpr]
+
+    def __init__(self, num_dims: int, num_symbols: int) -> None:
+        self.operand_expr_stack = []
+        self.num_dims = num_dims
+        self.num_symbols = num_symbols
+        self.local_exprs = []
+
+    def visit_mul_expr(self, expr: AffineBinaryOpExpr) -> None:
+        """
+        In pure affine t = expr * c, we multiply each coefficient of lhs with c.
+        In case of semi affine multiplication expressions, `t = expr * symbolic_expr`,
+        introduce a local variable `p (= expr * symbolic_expr)`, and the affine expression
+        `expr * symbolic_expr`` is added to `localExprs`.
+        """
+        assert len(self.operand_expr_stack) >= 2
+        rhs = self.operand_expr_stack.pop()
+        lhs = self.operand_expr_stack.pop()
+
+        if not isinstance(expr.rhs, AffineConstantExpr):
+            # Flatten semi-affine multiplication expressions by introducing a local
+            # variable in place of the product; the affine expression
+            # corresponding to the quantifier is added to `localExprs`.
+            raise NotImplementedError("Semi-affine map flattening not implemented")
+
+        rhs_const = rhs[self.get_constant_index()]
+        self.operand_expr_stack.append([l * rhs_const for l in lhs])
+
+    def visit_add_expr(self, expr: AffineBinaryOpExpr) -> None:
+        assert len(self.operand_expr_stack) >= 2
+        rhs = self.operand_expr_stack.pop()
+        lhs = self.operand_expr_stack.pop()
+        assert len(lhs) == len(rhs)
+        self.operand_expr_stack.append([l + r for l, r in zip(lhs, rhs, strict=True)])
+
+    def visit_dim_expr(self, expr: AffineDimExpr) -> None:
+        row = [0] * self.get_num_cols()
+        assert expr.position < self.num_dims, "Inconsistent number of dims"
+        row[self.get_dim_start_index() + expr.position] = 1
+        self.operand_expr_stack.append(row)
+
+    def visit_symbol_expr(self, expr: AffineSymExpr) -> None:
+        # Equivalent to SimpleAffineExprFlattener::visitSymbolExpr
+        row = [0] * self.get_num_cols()
+        assert expr.position < self.num_symbols, "Inconsistent number of symbols"
+        row[self.get_symbol_start_index() + expr.position] = 1
+        self.operand_expr_stack.append(row)
+
+    def visit_constant_expr(self, expr: AffineConstantExpr) -> None:
+        # Equivalent to SimpleAffineExprFlattener::visitConstantExpr
+        row = [0] * self.get_num_cols()
+        row[self.get_constant_index()] = expr.value
+        self.operand_expr_stack.append(row)
+
+    def visit_div_expr(self, expr: AffineBinaryOpExpr, *, is_ceil: bool) -> None:
+        raise NotImplementedError("Simplifying div expr not yet implemented")
+
+    def visit_mod_expr(self, expr: AffineBinaryOpExpr) -> None:
+        raise NotImplementedError("Simplifying mod expr not yet implemented")
+
+    def simplify(self, expr: AffineExpr):
+        for inner in expr.post_order():
+            match inner:
+                case AffineBinaryOpExpr():
+                    match inner.kind:
+                        case AffineBinaryOpKind.Mul:
+                            self.visit_mul_expr(inner)
+                        case AffineBinaryOpKind.Add:
+                            self.visit_add_expr(inner)
+                        case AffineBinaryOpKind.Mod:
+                            self.visit_mod_expr(inner)
+                        case AffineBinaryOpKind.FloorDiv:
+                            self.visit_div_expr(inner, is_ceil=False)
+                        case AffineBinaryOpKind.CeilDiv:
+                            self.visit_div_expr(inner, is_ceil=True)
+                case AffineDimExpr():
+                    self.visit_dim_expr(inner)
+                case AffineConstantExpr():
+                    self.visit_constant_expr(inner)
+                case AffineSymExpr():
+                    self.visit_symbol_expr(inner)
+                case _:
+                    raise ValueError("Unreachable")
+
+        return AffineExpr.from_flat_form(
+            self.operand_expr_stack.pop(),
+            self.num_dims,
+            self.num_symbols,
+            self.local_exprs,
+        )
+
+    def get_num_cols(self) -> int:
+        return self.num_dims + self.num_symbols + len(self.local_exprs) + 1
+
+    def get_constant_index(self) -> int:
+        return self.get_num_cols() - 1
+
+    def get_local_var_start_index(self) -> int:
+        return self.num_dims + self.num_symbols
+
+    def get_symbol_start_index(self) -> int:
+        return self.num_dims
+
+    def get_dim_start_index(self) -> int:
+        return 0

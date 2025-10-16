@@ -121,12 +121,10 @@ func.func @insert_val_idx(%a: f32, %b: vector<16xf32>, %c: vector<8x16xf32>,
 }
 
 // CHECK-LABEL: @insert_0d
-func.func @insert_0d(%a: f32, %b: vector<f32>, %c: vector<2x3xf32>) -> (vector<f32>, vector<2x3xf32>) {
+func.func @insert_0d(%a: f32, %b: vector<f32>) -> vector<f32> {
   // CHECK-NEXT: vector.insert %{{.*}}, %{{.*}}[] : f32 into vector<f32>
   %1 = vector.insert %a,  %b[] : f32 into vector<f32>
-  // CHECK-NEXT: vector.insert %{{.*}}, %{{.*}}[0, 1] : vector<f32> into vector<2x3xf32>
-  %2 = vector.insert %b,  %c[0, 1] : vector<f32> into vector<2x3xf32>
-  return %1, %2 : vector<f32>, vector<2x3xf32>
+  return %1 : vector<f32>
 }
 
 // CHECK-LABEL: @insert_poison_idx
@@ -147,4 +145,11 @@ func.func @shuffle(%a : vector<2xf32>, %b : vector<1x16xf32>, %c : vector<2x16xf
   // CHECK-NEXT: %3 = vector.shuffle %d, %d [0, 1] : vector<f32>, vector<f32>
   %3 = vector.shuffle %d, %d [0, 1] : vector<f32>, vector<f32>
   return %0, %1, %2, %3 : vector<2xf32>, vector<3x16xf32>, vector<4xf32>, vector<2xf32>
+}
+
+// CHECK-LABEL: @bitcast
+func.func @bitcast(%a : vector<5x1x4x3xf32>) -> vector<5x1x4x6xi16> {
+  %0 = vector.bitcast %a : vector<5x1x4x3xf32> to vector<5x1x4x6xi16>
+  // CHECK-NEXT: %{{.*}} = vector.bitcast %{{.*}} : vector<5x1x4x3xf32> to vector<5x1x4x6xi16>
+  return %0 : vector<5x1x4x6xi16>
 }

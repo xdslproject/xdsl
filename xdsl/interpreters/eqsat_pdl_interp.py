@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, cast
 
 from ordered_set import OrderedSet
 
-from xdsl.dialects import eqsat, pdl_interp
+from xdsl.dialects import eqsat, eqsat_pdl_interp, pdl_interp
 from xdsl.dialects.builtin import ModuleOp, SymbolRefAttr
 from xdsl.dialects.pdl import ValueType
+from xdsl.folder import Folder
 from xdsl.interpreter import (
     Interpreter,
     ReturnedValues,
@@ -17,7 +18,7 @@ from xdsl.interpreter import (
     register_impls,
 )
 from xdsl.interpreters.pdl_interp import PDLInterpFunctions
-from xdsl.ir import Block, Operation, OpResult, SSAValue
+from xdsl.ir import Block, Operation, OpResult, SSAValue, Use
 from xdsl.rewriter import InsertPoint
 from xdsl.transforms.common_subexpression_elimination import KnownOps
 from xdsl.utils.disjoint_set import DisjointSet
@@ -45,14 +46,17 @@ class BacktrackPoint:
     scope: ScopedDict[SSAValue, Any]
     """Variable scope to restore when backtracking."""
 
-    gdo_op: pdl_interp.GetDefiningOpOp
-    """The GetDefiningOpOp that created this backtrack point."""
+    cause: pdl_interp.GetDefiningOpOp | eqsat_pdl_interp.ChooseOp
+    """The GetDefiningOpOp or ChooseOp that created this backtrack point."""
 
     index: int
-    """Current operand index being tried in the EClassOp."""
+    """Current backtrack index being tried.
+    When `cause` is a GetDefiningOpOp, this is the index of the operand of the EClassOp being tried.
+    When `cause` is a ChooseOp, this is the index of the choice being tried.
+    """
 
     max_index: int
-    """Last valid operand index in the EClassOp (len(operands) - 1)."""
+    """Last valid index to backtrack to."""
 
 
 @register_impls
@@ -64,29 +68,23 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
     """Stack of backtrack points for exploring multiple matching paths in e-classes."""
 
     visited: bool = True
-    """Signals whether the GetDefiningOp (GDO) in the block that run_finalize jumps to has been encountered.
+    """Signals whether we have processed the last backtrack point after a finalize.
+    This is used to tell whether we are encountering a GetDefiningOpOp or ChooseOp
+    for the first time (in which case we need to create a new backtrack point)
+    or whether we are backtracking to it (in which case we need to use the existing
+    backtrack point and continue from the stored index).
 
-    This is to handle when a block contains GDOs before the GDO we're backtracking to.
-    If this is the case, run_finalize jumps to the block but will encounter the wrong GDOs first.
-    e.g.:
-    ```
-    BB0:
-        %0 = pdl_interp.get_defining_op ...
-        %1 = pdl_interp.get_defining_op ...
-    BB1:
-        pdl_interp.finalize # backtrack to BB0 at this point
-    ```
-    Backtracking works by jumping to the start of the block containing the GDO (`BB0`).
-    When we need to backtrack to the second GDO (`%1`), `visited` is still `False` when encountering the first GDO (`%0`).
-    This allows us to know that we have to skip the first GDO and continue with the second one.
+    When visited is False, the next GetDefiningOpOp or ChooseOp we encounter must be
+    the one at the top of the backtrack stack and the index is incremented. Otherwise,
+    the last finalize has already been handled and a new backtrack point must be created.
     """
 
     known_ops: KnownOps = field(default_factory=KnownOps)
     """Used for hashconsing operations. When new operations are created, if they are identical to an existing operation,
     the existing operation is reused instead of creating a new one."""
 
-    eclass_union_find: DisjointSet[eqsat.EClassOp] = field(
-        default_factory=lambda: DisjointSet[eqsat.EClassOp]()
+    eclass_union_find: DisjointSet[eqsat.AnyEClassOp] = field(
+        default_factory=lambda: DisjointSet[eqsat.AnyEClassOp]()
     )
     """Union-find structure tracking which e-classes are equivalent and should be merged."""
 
@@ -95,7 +93,7 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
     )
     """List of pending rewrites to be executed. Each entry is a tuple of (rewriter, root, args)."""
 
-    worklist: list[eqsat.EClassOp] = field(default_factory=list[eqsat.EClassOp])
+    worklist: list[eqsat.AnyEClassOp] = field(default_factory=list[eqsat.AnyEClassOp])
     """Worklist of e-classes that need to be processed for matching."""
 
     is_matching: bool = True
@@ -120,8 +118,8 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
         """
         # Walk through all operations in the module
         for op in module.walk():
-            # Skip EClassOp instances
-            if not isinstance(op, eqsat.EClassOp):
+            # Skip eclasses instances
+            if not isinstance(op, eqsat.AnyEClassOp):
                 self.known_ops[op] = op
             else:
                 self.eclass_union_find.add(op)
@@ -144,14 +142,16 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
             return (None,)
 
         if result.has_one_use():
-            if isinstance(eclass_op := result.get_user_of_unique_use(), eqsat.EClassOp):
+            if isinstance(
+                eclass_op := result.get_user_of_unique_use(), eqsat.AnyEClassOp
+            ):
                 result = eclass_op.result
         else:
             for use in result.uses:
-                if isinstance(use.operation, eqsat.EClassOp):
+                if isinstance(use.operation, eqsat.AnyEClassOp):
                     raise InterpretationError(
                         "pdl_interp.get_result currently only supports operations with results"
-                        " that are used by a single EClassOp each."
+                        " that are used by a single eclass each."
                     )
         return (result,)
 
@@ -174,16 +174,16 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
         for result in src_op.results:
             if result.has_one_use():
                 if isinstance(
-                    eclass_op := result.get_user_of_unique_use(), eqsat.EClassOp
+                    eclass_op := result.get_user_of_unique_use(), eqsat.AnyEClassOp
                 ):
                     assert len(eclass_op.results) == 1
                     result = eclass_op.results[0]
             else:
                 for use in result.uses:
-                    if isinstance(use.operation, eqsat.EClassOp):
+                    if isinstance(use.operation, eqsat.AnyEClassOp):
                         raise InterpretationError(
                             "pdl_interp.get_results currently only supports operations with results"
-                            " that are used by a single EClassOp each."
+                            " that are used by a single eclass each."
                         )
             results.append(result)
         return (results,)
@@ -204,12 +204,12 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
         else:
             defining_op = args[0].owner
 
-        if not isinstance(defining_op, eqsat.EClassOp):
+        if not isinstance(defining_op, eqsat.AnyEClassOp):
             return (defining_op,)
 
         eclass_op = defining_op
         if not self.visited:  # we come directly from run_finalize
-            if op != self.backtrack_stack[-1].gdo_op:
+            if op != self.backtrack_stack[-1].cause:
                 # we first encounter a GDO that is not the one we are backtracking to:
                 raise InterpretationError(
                     "Case where a block contains multiple pdl_interp.get_defining_op is currently not supported."
@@ -249,10 +249,15 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
         )
 
         it = iter(input_op.results[0].uses)
-        original_eclass = next(it).operation
-        if not isinstance(original_eclass, eqsat.EClassOp):
+        if (first_use := next(it, None)) is None:
+            # The value to be replaced is not part of an eclass anymore. This happens
+            # when the original eclass was merged with a constant eclass which only
+            # keeps the constant operand.
+            return ()
+        original_eclass = first_use.operation
+        if not isinstance(original_eclass, eqsat.AnyEClassOp):
             raise InterpretationError(
-                "Replaced operation result must be used by an EClassOp"
+                "Replaced operation result must be used by an eclass"
             )
 
         repl_values = (
@@ -263,9 +268,9 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
         )
         repl_value: SSAValue = repl_values[0]
         repl_eclass = repl_value.owner
-        if not isinstance(repl_eclass, eqsat.EClassOp):
+        if not isinstance(repl_eclass, eqsat.AnyEClassOp):
             raise InterpretationError(
-                "Replacement value must be the result of an EClassOp"
+                "Replacement value must be the result of an eclass"
             )
 
         if self.eclass_union(original_eclass, repl_eclass):
@@ -273,22 +278,31 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
 
         return ()
 
-    def eclass_union(self, a: eqsat.EClassOp, b: eqsat.EClassOp) -> bool:
-        """Unions two e-classes, merging their operands and results.
-        Returns True if the e-classes were merged, False if they were already the same."""
+    def eclass_union(self, a: eqsat.AnyEClassOp, b: eqsat.AnyEClassOp) -> bool:
+        """Unions two eclasses, merging their operands and results.
+        Returns True if the eclasses were merged, False if they were already the same."""
         a = self.eclass_union_find.find(a)
         b = self.eclass_union_find.find(b)
 
         if a == b:
             return False
-
-        self.eclass_union_find.union(
-            a,
-            b,
-        )
-        to_keep = self.eclass_union_find.find(a)
-        to_replace = b if to_keep is a else a
-
+        if isinstance(a, eqsat.ConstantEClassOp):
+            if isinstance(b, eqsat.ConstantEClassOp):
+                assert a.value == b.value, (
+                    "Trying to union two different constant eclasses.",
+                )
+            to_keep, to_replace = a, b
+            self.eclass_union_find.union_left(to_keep, to_replace)
+        elif isinstance(b, eqsat.ConstantEClassOp):
+            to_keep, to_replace = b, a
+            self.eclass_union_find.union_left(to_keep, to_replace)
+        else:
+            self.eclass_union_find.union(
+                a,
+                b,
+            )
+            to_keep = self.eclass_union_find.find(a)
+            to_replace = b if to_keep is a else a
         # Operands need to be deduplicated because it can happen the same operand was
         # used by different parent eclasses after their children were merged:
         new_operands = OrderedSet(to_keep.operands)
@@ -318,31 +332,63 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
             assert isinstance(arg, OpResult), (
                 "pdl_interp.create_operation currently only supports creating operations with operands that are OpResult."
             )
-            assert isinstance(arg.owner, eqsat.EClassOp), (
-                "pdl_interp.create_operation currently only supports creating operations with operands that are EClassOp results."
+            assert isinstance(arg.owner, eqsat.AnyEClassOp), (
+                "pdl_interp.create_operation currently only supports creating operations with operands that are eclass results."
             )
             updated_operands.append(self.eclass_union_find.find(arg.owner).result)
         args = (*updated_operands, *args[len(op.input_operands) :])
         (new_op,) = super().run_create_operation(interpreter, op, args).values
+        if cast(Operation, new_op).get_attr_or_prop("unsound") is None and (
+            values := Folder(self.ctx).replace_with_fold(new_op, self.rewriter)
+        ):
+            assert len(values) == 1, (
+                "pdl_interp.create_operation currently only supports creating operations with a single result."
+            )
+            new_op2 = values[0].owner
+            if isinstance(new_op2, eqsat.AnyEClassOp):
+                # If the folder returned one of the operands of the original new_op,
+                # this operand is an eclass result while we're actually looking for
+                # a non-eclass operation result (e-node).
+                # We take the operation defining the first operand of that e-class as
+                # new_op and create a virtual use that points to it.
+                new_op.results[0].first_use = Use(new_op2, -1)
+                return (new_op,)
+
+            new_op = new_op2
 
         assert isinstance(new_op, Operation)
 
         # Check if an identical operation already exists in our known_ops map
         if existing_op := self.known_ops.get(new_op):
             # CSE can have removed the existing operation, here we check if it is still in use:
-            if existing_op.results and existing_op.results[0].first_use is not None:
+            assert existing_op.results
+            if existing_op.parent is new_op.parent:
                 self.rewriter.erase_op(new_op)
                 self.rewriter.has_done_action = has_done_action_checkpoint
-                return (existing_op,)
+                if not any(
+                    isinstance(use.operation, eqsat.AnyEClassOp)
+                    for use in existing_op.results[0].uses
+                ):
+                    # It is possible that the existing_op was stripped from its eclass when it merged with a constant eclass.
+                    # In this case we should wrap it in a new eclass:
+                    new_op = existing_op
+                else:
+                    return (existing_op,)
             else:
                 # if CSE has removed the existing operation, we can remove it from our known_ops map:
                 self.known_ops.pop(existing_op)
 
         # No existing eclass for this operation yet
 
-        eclass_op = eqsat.EClassOp(
-            new_op.results[0],
-        )
+        if new_op.has_trait(eqsat.ConstantLike):
+            eclass_op = eqsat.ConstantEClassOp(
+                new_op.results[0],
+            )
+        else:
+            eclass_op = eqsat.EClassOp(
+                new_op.results[0],
+            )
+
         self.rewriter.insert_op(
             eclass_op,
             InsertPoint.after(new_op),
@@ -383,7 +429,37 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
                 return Successor(backtrack_point.block, backtrack_point.block_args), ()
         return ReturnedValues(()), ()
 
-    def repair(self, eclass: eqsat.EClassOp):
+    @impl_terminator(eqsat_pdl_interp.ChooseOp)
+    def run_choose(
+        self,
+        interpreter: Interpreter,
+        op: eqsat_pdl_interp.ChooseOp,
+        args: tuple[Any, ...],
+    ):
+        if not self.visited:  # we come directly from run_finalize
+            if op != self.backtrack_stack[-1].cause:
+                raise InterpretationError(
+                    "Expected this ChooseOp to be at the top of the backtrack stack."
+                )
+            index = self.backtrack_stack[-1].index
+            self.visited = True
+        else:
+            block = op.parent_block()
+            assert block
+            block_args = interpreter.get_values(block.args)
+            scope = interpreter._ctx.parent  # pyright: ignore[reportPrivateUsage]
+            assert scope
+            index = 0
+            self.backtrack_stack.append(
+                BacktrackPoint(block, block_args, scope, op, index, len(op.choices))
+            )
+        if index == len(op.choices):
+            dest = op.default_dest
+        else:
+            dest = op.choices[index]
+        return Successor(dest, ()), ()
+
+    def repair(self, eclass: eqsat.AnyEClassOp):
         unique_parents = KnownOps()
         eclass = self.eclass_union_find.find(eclass)
         for op1 in OrderedSet(use.operation for use in eclass.result.uses):
@@ -395,7 +471,7 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
                 assert (op1_use := op1.results[0].first_use), (
                     "Modification handler currently only supports operations with a single (EClassOp) use"
                 )
-                assert isinstance(eclass1 := op1_use.operation, eqsat.EClassOp)
+                assert isinstance(eclass1 := op1_use.operation, eqsat.AnyEClassOp)
 
                 assert len(op2.results) == 1, (
                     "Expected a single result for the operation being modified."
@@ -403,7 +479,7 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
                 assert (op2_use := op2.results[0].first_use), (
                     "Modification handler currently only supports operations with a single (EClassOp) use"
                 )
-                assert isinstance(eclass2 := op2_use.operation, eqsat.EClassOp)
+                assert isinstance(eclass2 := op2_use.operation, eqsat.AnyEClassOp)
 
                 # This temporarily breaks the invariant since eclass2 will now contain the result of op2 twice.
                 # Callling `eclass_union` will deduplicate this operand.

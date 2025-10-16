@@ -43,6 +43,7 @@ from xdsl.traits import (
     HasParent,
     IsolatedFromAbove,
     IsTerminator,
+    ReturnLike,
     SymbolOpInterface,
     SymbolTable,
     SymbolUserOpInterface,
@@ -351,7 +352,7 @@ class ReturnOp(IRDLOperation):
     name = "func.return"
     arguments = var_operand_def()
 
-    traits = traits_def(HasParent(FuncOp), IsTerminator())
+    traits = traits_def(HasParent(FuncOp), IsTerminator(), ReturnLike())
 
     assembly_format = "attr-dict ($arguments^ `:` type($arguments))?"
 

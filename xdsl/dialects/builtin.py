@@ -1873,8 +1873,6 @@ class MemRefLayoutAttr(Attribute, ABC):
     Interface for any attribute acceptable as a memref layout.
     """
 
-    name = "abstract.memref_layout_att"
-
     @abstractmethod
     def get_affine_map(self) -> AffineMap:
         """

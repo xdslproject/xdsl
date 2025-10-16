@@ -9,6 +9,7 @@ from xdsl.dialects.builtin import (
     I16,
     I32,
     ArrayAttr,
+    BoolAttr,
     IntegerAttr,
     IntegerType,
     StringAttr,
@@ -26,6 +27,7 @@ from xdsl.ir import (
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
+    ParsePropInAttrDict,
     base,
     irdl_attr_definition,
     irdl_op_definition,
@@ -33,7 +35,6 @@ from xdsl.irdl import (
     operand_def,
     opt_operand_def,
     opt_prop_def,
-    opt_region_def,
     prop_def,
     region_def,
     result_def,
@@ -182,8 +183,13 @@ class ApplyNativeConstraintOp(IRDLOperation):
 
     name = "pdl.apply_native_constraint"
     constraint_name = prop_def(StringAttr, prop_name="name")
+    is_negated = prop_def(
+        BoolAttr, prop_name="isNegated", default_value=BoolAttr.from_bool(False)
+    )
     args = var_operand_def(AnyPDLTypeConstr)
     res = var_result_def(AnyPDLTypeConstr)
+
+    irdl_options = [ParsePropInAttrDict()]
 
     assembly_format = (
         "$name (`(` $args^ `:` type($args) `)`)? (`:` type($res)^)? attr-dict"
@@ -194,11 +200,14 @@ class ApplyNativeConstraintOp(IRDLOperation):
         name: str | StringAttr,
         args: Sequence[SSAValue],
         result_types: Sequence[Attribute],
+        is_negated: bool = False,
     ) -> None:
         if isinstance(name, str):
             name = StringAttr(name)
         super().__init__(
-            result_types=[result_types], operands=[args], properties={"name": name}
+            result_types=[result_types],
+            operands=[args],
+            properties={"name": name, "isNegated": BoolAttr.from_bool(is_negated)},
         )
 
 
@@ -361,7 +370,9 @@ class OperationOp(IRDLOperation):
     type_values = var_operand_def(base(TypeType) | base(RangeType[TypeType]))
     op = result_def(OperationType)
 
-    irdl_options = [AttrSizedOperandSegments()]
+    irdl_options = [
+        AttrSizedOperandSegments(as_property=True),
+    ]
 
     def __init__(
         self,
@@ -678,7 +689,7 @@ class ReplaceOp(IRDLOperation):
     repl_operation = opt_operand_def(OperationType)
     repl_values = var_operand_def(base(ValueType) | base(ArrayAttr[ValueType]))
 
-    irdl_options = [AttrSizedOperandSegments()]
+    irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
     assembly_format = (
         "$op_value `with` ` ` "
@@ -796,9 +807,9 @@ class RewriteOp(IRDLOperation):
     # parameters of external rewriter function
     external_args = var_operand_def(AnyPDLTypeConstr)
     # body of inline rewriter function
-    body = opt_region_def()
+    body = region_def()
 
-    irdl_options = [AttrSizedOperandSegments()]
+    irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
     traits = traits_def(HasParent(PatternOp), NoTerminator(), IsTerminator())
 
@@ -811,7 +822,7 @@ class RewriteOp(IRDLOperation):
     def __init__(
         self,
         root: SSAValue | None,
-        body: Region | type[Region.DEFAULT] | None = Region.DEFAULT,
+        body: Region | type[Region.DEFAULT] = Region.DEFAULT,
         name: str | StringAttr | None = None,
         external_args: Sequence[SSAValue] = (),
     ) -> None:
@@ -830,8 +841,6 @@ class RewriteOp(IRDLOperation):
             regions.append(Region(Block()))
         elif isinstance(body, Region):
             regions.append(body)
-        elif body is None:
-            regions.append([])
 
         properties: dict[str, Attribute] = {}
         if name is not None:
