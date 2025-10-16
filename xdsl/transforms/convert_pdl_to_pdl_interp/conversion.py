@@ -19,28 +19,42 @@ from xdsl.ir import (
     Block,
     Operation,
     OpResult,
+    Region,
     SSAValue,
 )
 from xdsl.rewriter import InsertPoint
 from xdsl.transforms.convert_pdl_to_pdl_interp.predicate import (
     Answer,
+    AttributeAnswer,
+    AttributeConstraintQuestion,
     AttributeLiteralPosition,
     AttributePosition,
     ConstraintPosition,
     ConstraintQuestion,
     EqualToQuestion,
     ForEachPosition,
+    IsNotNullQuestion,
+    OperandCountAtLeastQuestion,
+    OperandCountQuestion,
     OperandGroupPosition,
     OperandPosition,
+    OperationNameQuestion,
     OperationPosition,
     Position,
     PositionalPredicate,
     Predicate,
     Question,
+    ResultCountAtLeastQuestion,
+    ResultCountQuestion,
     ResultGroupPosition,
     ResultPosition,
+    StringAnswer,
+    TrueAnswer,
+    TypeAnswer,
+    TypeConstraintQuestion,
     TypeLiteralPosition,
     TypePosition,
+    UnsignedAnswer,
     UsersPosition,
     get_position_cost,
     get_question_cost,
@@ -973,7 +987,62 @@ class MatcherGenerator:
         self.failure_block_stack = []
         self.builder = Builder(InsertPoint.at_start(matcher_func.body.block))
         self.constraint_op_map = {}
-        self.rewriter_names: dict[str, int] = {}
+        self.rewriter_names = {}
+
+    def generate_matcher(
+        self, node: MatcherNode, region: Region, block: Block | None = None
+    ) -> Block:
+        """Generate PDL interpreter operations for a matcher node"""
+
+        # Create block if needed
+        if block is None:
+            block = Block()
+            region.add_block(block)
+
+        # Handle exit node - just add finalize
+        if isinstance(node, ExitNode):
+            finalize_op = pdl_interp.FinalizeOp()
+            self.builder.insert_op(finalize_op, InsertPoint.at_end(block))
+            return block
+
+        self.values = ScopedDict(self.values)
+        assert self.values.parent is not None
+
+        # Handle failure node
+        failure_block = None
+        if node.failure_node:
+            failure_block = self.generate_matcher(node.failure_node, region)
+            self.failure_block_stack.append(failure_block)
+        else:
+            assert self.failure_block_stack, "Expected valid failure block"
+            failure_block = self.failure_block_stack[-1]
+
+        # Get value for position if exists
+        current_block = block
+        val = None
+        if node.position:
+            val = self.get_value_at(current_block, node.position)
+
+        # Dispatch based on node type
+        match node:
+            case BoolNode():
+                assert val is not None
+                self.generate_bool_node(node, current_block, val)
+            case SwitchNode():
+                assert val is not None
+                raise NotImplementedError()
+                self.generate_switch_node(node, current_block, val)
+            case SuccessNode():
+                raise NotImplementedError()
+            case _:
+                raise NotImplementedError(f"Unhandled node type {type(node)}")
+
+        # Pop failure block if we pushed one
+        if node.failure_node:
+            self.failure_block_stack.pop()
+
+        self.values = self.values.parent  # Pop scope
+        return block
 
     def get_value_at(self, block: Block, position: Position) -> SSAValue:
         """Get or create SSA value for a position"""
@@ -1103,3 +1172,93 @@ class MatcherGenerator:
         assert value is not None
         self.values[position] = value
         return value
+
+    def generate_bool_node(self, node: BoolNode, block: Block, val: SSAValue) -> None:
+        """Generate operations for a boolean predicate node"""
+
+        question = node.question
+        answer = node.answer
+        region = block.parent
+        assert region is not None, "Block must be in a region"
+
+        # Handle getValue queries first for constraint questions
+        args: list[SSAValue] = []
+        if isinstance(question, EqualToQuestion):
+            args = [self.get_value_at(block, question.other_position)]
+        elif isinstance(question, ConstraintQuestion):
+            for position in question.arg_positions:
+                args.append(self.get_value_at(block, position))
+
+        # Create success block
+        success_block = Block()
+        region.add_block(success_block)
+        failure_block = self.failure_block_stack[-1]
+
+        # Generate predicate check operation based on question type
+        match question:
+            case IsNotNullQuestion():
+                check_op = pdl_interp.IsNotNullOp(val, success_block, failure_block)
+            case OperationNameQuestion():
+                assert isinstance(answer, StringAnswer)
+                check_op = pdl_interp.CheckOperationNameOp(
+                    answer.value, val, success_block, failure_block
+                )
+            case OperandCountQuestion() | OperandCountAtLeastQuestion():
+                assert isinstance(answer, UnsignedAnswer)
+                compare_at_least = isinstance(question, OperandCountAtLeastQuestion)
+                check_op = pdl_interp.CheckOperandCountOp(
+                    val, answer.value, success_block, failure_block, compare_at_least
+                )
+            case ResultCountQuestion() | ResultCountAtLeastQuestion():
+                assert isinstance(answer, UnsignedAnswer)
+                compare_at_least = isinstance(question, ResultCountAtLeastQuestion)
+                check_op = pdl_interp.CheckResultCountOp(
+                    val, answer.value, success_block, failure_block, compare_at_least
+                )
+            case EqualToQuestion():
+                # Get the other value to compare with
+                other_val = self.get_value_at(block, question.other_position)
+                assert isinstance(answer, TrueAnswer)
+                check_op = pdl_interp.AreEqualOp(
+                    val, other_val, success_block, failure_block
+                )
+            case AttributeConstraintQuestion():
+                assert isinstance(answer, AttributeAnswer)
+                check_op = pdl_interp.CheckAttributeOp(
+                    answer.value, val, success_block, failure_block
+                )
+            case TypeConstraintQuestion():
+                assert isinstance(answer, TypeAnswer)
+                if isinstance(val.type, pdl.RangeType):
+                    # Check multiple types
+                    raise NotImplementedError(
+                        "pdl_interp.check_types is not yet implemented"
+                    )
+                    check_op = pdl_interp.CheckTypesOp(
+                        val, answer.value, success_block, failure_block
+                    )
+                else:
+                    # Check single type
+                    assert isinstance(answer.value, TypeAttribute)
+                    check_op = pdl_interp.CheckTypeOp(
+                        answer.value, val, success_block, failure_block
+                    )
+            case ConstraintQuestion():
+                check_op = pdl_interp.ApplyConstraintOp(
+                    question.name,
+                    args,
+                    success_block,
+                    failure_block,
+                    is_negated=question.is_negated,
+                    res_types=question.result_types,
+                )
+                # Store the constraint op for later result access
+                self.constraint_op_map[question] = check_op
+            case _:
+                raise NotImplementedError(f"Unhandled question type {type(question)}")
+
+        self.builder.insert_op(check_op, InsertPoint.at_end(block))
+
+        # Generate matcher for success node
+        if node.success_node:
+            self.generate_matcher(node.success_node, region, success_block)
