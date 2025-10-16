@@ -690,15 +690,24 @@ class FromElementsOp(IRDLOperation):
         elements: Sequence[SSAValue] | SSAValue,
     ):
         if isinstance(elements, SSAValue):
-            shape = tuple([])
+            shape: tuple[int, ...] = tuple()
             elem_type = elements.type
-            elements = [elements]
+            operands = [elements]
         else:
-            shape = len(elements)
-            assert all(elem.type == elements[0].type for elem in elements)
-            elem_type = elements[0].type
+            shape = (len(elements),)
+            if len(elements) > 0:
+                assert all(elem.type == elements[0].type for elem in elements)
+                elem_type = elements[0].type
+                operands = list(elements)
+            else:
+                # Handle empty list case - we need a default element type
+                # This is a design decision - in MLIR, empty tensors need explicit type annotation
+                raise ValueError(
+                    "Cannot create tensor from empty list without explicit element type"
+                )
+
         super().__init__(
-            operands=elements, result_types=(TensorType(elem_type, shape=shape),)
+            operands=[operands], result_types=[TensorType(elem_type, shape=shape)]
         )
 
 
