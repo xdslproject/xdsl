@@ -1210,6 +1210,6 @@ class MatcherGenerator:
 
         self.builder.insert_op(check_op, InsertPoint.at_end(block))
 
-        # Generate matcher for success node (TODO)
-        # if node.success_node:
-        #     self.generate_matcher(node.success_node, region, success_block)
+        # Generate matcher for success node
+        if node.success_node:
+            raise NotImplementedError()
