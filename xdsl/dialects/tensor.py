@@ -683,6 +683,24 @@ class FromElementsOp(IRDLOperation):
     result = result_def(TensorType.constr(ELEMENT_TYPE))
     assembly_format = "$elements attr-dict `:` type($result)"
 
+    traits = traits_def(NoMemoryEffect())
+
+    def __init__(
+        self,
+        elements: Sequence[SSAValue] | SSAValue,
+    ):
+        if isinstance(elements, SSAValue):
+            shape = tuple([])
+            elem_type = elements.type
+            elements = [elements]
+        else:
+            shape = len(elements)
+            assert all(elem.type == elements[0].type for elem in elements)
+            elem_type = elements[0].type
+        super().__init__(
+            operands=elements, result_types=(TensorType(elem_type, shape=shape),)
+        )
+
 
 @irdl_op_definition
 class SplatOp(IRDLOperation):
