@@ -2260,7 +2260,7 @@ class ModuleOp(IRDLOperation):
 
     def __init__(
         self,
-        ops: list[Operation] | Region,
+        ops: Iterable[Operation] | Region,
         attributes: Mapping[str, Attribute] | None = None,
         sym_name: StringAttr | None = None,
     ):
