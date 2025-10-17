@@ -1284,7 +1284,9 @@ class MatcherGenerator:
                 reverse=True,
             )
 
-            current_failure_target = default_dest
+            # Push temporary entry to failure block stack
+            self.failure_block_stack.append(default_dest)
+
             for answer, child_node in sorted_children:
                 if child_node:
                     success_block = self.generate_matcher(child_node, region)
@@ -1300,7 +1302,7 @@ class MatcherGenerator:
                             val,
                             answer.value,
                             success_block,
-                            current_failure_target,
+                            default_dest,
                             True,
                         )
                     else:
@@ -1308,18 +1310,24 @@ class MatcherGenerator:
                             val,
                             answer.value,
                             success_block,
-                            current_failure_target,
+                            default_dest,
                             True,
                         )
                     self.builder.insert(check_op)
-                    current_failure_target = current_check_block
+
+                    # Update failure block stack for next child matcher
+                    self.failure_block_stack[-1] = current_check_block
+
+            # Pop the temporary entry from failure block stack
+            first_predicate_block = self.failure_block_stack.pop()
 
             # Move ops from the first check block into the main block
-            if block.parent:
-                for op in list(current_failure_target.ops):
-                    op.detach()
-                    block.add_op(op)
-                current_failure_target.erase()
+            for op in list(first_predicate_block.ops):
+                op.detach()
+                block.add_op(op)
+            assert first_predicate_block.parent is not None
+            first_predicate_block.parent.detach_block(first_predicate_block)
+            first_predicate_block.erase()
 
             return
 
