@@ -3327,8 +3327,8 @@ def test_generate_switch_node_empty_children():
     switch_op = switch_ops[0]
 
     # Should have no cases
-    assert len(switch_op.case_values.data) == 0
-    assert len(switch_op.cases) == 0
+    assert not switch_op.case_values.data
+    assert not switch_op.cases
     assert switch_op.default_dest is failure_block
 
 
