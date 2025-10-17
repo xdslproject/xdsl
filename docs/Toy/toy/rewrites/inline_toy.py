@@ -7,35 +7,24 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
+from xdsl.traits import SymbolTable
 from xdsl.transforms.dead_code_elimination import dce
 
 from ..dialects import toy
 
 
 class InlineFunctions(RewritePattern):
-    _func_op_by_name: dict[str, toy.FuncOp] | None = None
-
-    def lookup_func_op(self, module: ModuleOp, name: str) -> toy.FuncOp:
-        if self._func_op_by_name is None:
-            self._func_op_by_name = {
-                op.sym_name.data: op for op in module.ops if isinstance(op, toy.FuncOp)
-            }
-        return self._func_op_by_name[name]
-
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: toy.GenericCallOp, rewriter: PatternRewriter):
         """
         For each generic call, find the function that it calls, and inline it.
         """
 
-        # Get module
-        parent = op.parent_op()
-        assert isinstance(parent, toy.FuncOp)
-        module = parent.parent_op()
-        assert isinstance(module, ModuleOp)
+        callee = SymbolTable.lookup_symbol(op, op.callee)
+        assert isinstance(callee, toy.FuncOp)
 
         # Clone called function
-        impl = self.lookup_func_op(module, op.callee.string_value()).clone()
+        impl = callee.clone()
         impl_block = impl.body.block
 
         # Cast operands to unranked
