@@ -7,6 +7,7 @@ from xdsl.dialects import pdl, pdl_interp
 from xdsl.dialects.builtin import (
     IntegerAttr,
     IntegerType,
+    ModuleOp,
     StringAttr,
     UnitAttr,
     f32,
@@ -3540,3 +3541,78 @@ def test_generate_switch_node_unhandled_question():
         # Should raise NotImplementedError
         with pytest.raises(NotImplementedError, match="Unhandled question type"):
             generator.generate_switch_node(switch_node, block, val)
+
+
+@pytest.mark.parametrize(
+    "question_type, check_op_type",
+    [
+        (OperandCountAtLeastQuestion, pdl_interp.CheckOperandCountOp),
+        (ResultCountAtLeastQuestion, pdl_interp.CheckResultCountOp),
+    ],
+)
+def test_generate_switch_node_at_least_question(
+    question_type: type[Question],
+    check_op_type: type[pdl_interp.CheckOperandCountOp | pdl_interp.CheckResultCountOp],
+):
+    from unittest.mock import patch
+
+    """
+    Test generate_switch_node with OperandCountAtLeastQuestion and
+    ResultCountAtLeastQuestion, which have special handling.
+    """
+    # 1. Set up the test environment
+    matcher_body = Region([Block(arg_types=(pdl.OperationType(),))])
+    matcher_func = pdl_interp.FuncOp(
+        "matcher", ((pdl.OperationType(),), ()), region=matcher_body
+    )
+    rewriter_module = ModuleOp([])
+    generator = MatcherGenerator(matcher_func, rewriter_module)
+    block = matcher_func.body.block
+    val = block.args[0]
+
+    # Create a default failure block and push it to the stack
+    default_failure_block = Block()
+    matcher_body.add_block(default_failure_block)
+    generator.failure_block_stack.append(default_failure_block)
+
+    # 2. Construct the SwitchNode
+    mock_pattern = pdl.PatternOp(1, "test_pattern", Region())
+    question = question_type()
+    # Children are intentionally unordered to test the sorting logic
+    children: dict[Answer, MatcherNode | None] = {
+        UnsignedAnswer(3): SuccessNode(pattern=mock_pattern),
+        UnsignedAnswer(5): SuccessNode(pattern=mock_pattern),
+        UnsignedAnswer(1): SuccessNode(pattern=mock_pattern),
+    }
+    switch_node = SwitchNode(question=question, children=children)
+
+    # 3. Mock `generate_matcher` to return distinct success blocks
+    # The side_effect order corresponds to the reverse-sorted keys (5, 3, 1)
+    mock_success_block_5 = Block()
+    mock_success_block_3 = Block()
+    mock_success_block_1 = Block()
+    side_effects = [mock_success_block_5, mock_success_block_3, mock_success_block_1]
+
+    with patch.object(
+        generator, "generate_matcher", side_effect=side_effects
+    ) as mock_gen:
+        # 4. Call the method under test
+        generator.generate_switch_node(switch_node, block, val)
+
+    # 5. Verify the generated IR
+    # The logic creates a chain starting with the LOWEST count (1)
+    # Check 1 (for count >= 1) should be in the initial block
+    assert len(block.ops) == 1
+    check_op_1 = block.first_op
+    assert isinstance(check_op_1, check_op_type)
+    assert check_op_1.count.value.data == 1  # Fixed: expect 1, not 5
+    assert check_op_1.compareAtLeast is not None
+    assert check_op_1.true_dest is mock_success_block_1  # Fixed: expect block_1
+    assert check_op_1.false_dest is default_failure_block
+
+    # The success block for count >= 1 should fail to check_3
+    # This is set via the failure_block_stack during generation
+
+    # Verify that generate_matcher was called for each child in reverse order
+    assert mock_gen.call_count == 3
+    # Calls were made in order: child_5, child_3, child_1
