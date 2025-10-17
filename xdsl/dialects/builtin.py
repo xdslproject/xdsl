@@ -21,7 +21,7 @@ from typing import (
 from immutabledict import immutabledict
 from typing_extensions import Self, TypeVar, deprecated, override
 
-from xdsl.dialect_interfaces import OpAsmDialectInterface
+from xdsl.dialect_interfaces.op_asm import OpAsmDialectInterface
 from xdsl.ir import (
     Attribute,
     AttributeCovT,

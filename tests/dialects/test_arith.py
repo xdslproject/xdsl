@@ -1,6 +1,8 @@
 import pytest
 
-from xdsl.dialect_interfaces import ConstantMaterializationInterface
+from xdsl.dialect_interfaces.constant_materialization import (
+    ConstantMaterializationInterface,
+)
 from xdsl.dialects.arith import (
     AddfOp,
     AddiOp,
