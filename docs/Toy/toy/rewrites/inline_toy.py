@@ -7,7 +7,7 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
-from xdsl.traits import SymbolTable
+from xdsl.traits import CallableOpInterface, SymbolTable
 from xdsl.transforms.dead_code_elimination import dce
 
 from ..dialects import toy
@@ -21,11 +21,14 @@ class InlineFunctions(RewritePattern):
         """
 
         callee = SymbolTable.lookup_symbol(op, op.callee)
-        assert isinstance(callee, toy.FuncOp)
+        assert callee is not None
+        callable_interface = callee.get_trait(CallableOpInterface)
+        assert callable_interface is not None
 
-        # Clone called function
-        impl = callee.clone()
-        impl_block = impl.body.block
+        impl_body = callable_interface.get_callable_region(callee)
+        assert len(impl_body.blocks) == 1
+        # Clone called function body
+        impl_block = impl_body.clone().block
 
         # Cast operands to unranked
         inputs = [toy.CastOp(operand) for operand in op.operands]
