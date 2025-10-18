@@ -1122,6 +1122,27 @@ class IntToPtrOp(IRDLOperation):
         super().__init__(operands=[input], result_types=[ptr_type])
 
 
+class TailCallKind(StrEnum):
+    NONE = "none"
+    TAIL = "tail"
+    MUST_TAIL = "musttail"
+    NOTAIL = "notail"
+
+
+@irdl_attr_definition
+class TailCallKindAttr(EnumAttribute[TailCallKind]):
+    name = "llvm.tailcallkind"
+
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> TailCallKind:
+        with parser.in_angle_brackets():
+            return super().parse_parameter(parser)
+
+    def print_parameter(self, printer: Printer) -> None:
+        with printer.in_angle_brackets():
+            super().print_parameter(printer)
+
+
 @irdl_op_definition
 class InlineAsmOp(IRDLOperation):
     """
@@ -1149,6 +1170,10 @@ class InlineAsmOp(IRDLOperation):
     has_side_effects = opt_prop_def(UnitAttr)
     is_align_stack = opt_prop_def(UnitAttr)
 
+    tail_call_kind = prop_def(
+        TailCallKindAttr, default_value=TailCallKindAttr(TailCallKind.NONE)
+    )
+
     def __init__(
         self,
         asm_string: str,
@@ -1158,6 +1183,7 @@ class InlineAsmOp(IRDLOperation):
         asm_dialect: int = 0,
         has_side_effects: bool = False,
         is_align_stack: bool = False,
+        tail_call_kind: TailCallKindAttr | None = None,
     ):
         props: dict[str, Attribute | None] = {
             "asm_string": StringAttr(asm_string),
@@ -1165,6 +1191,7 @@ class InlineAsmOp(IRDLOperation):
             "asm_dialect": IntegerAttr.from_int_and_width(asm_dialect, 64),
             "has_side_effects": UnitAttr() if has_side_effects else None,
             "is_align_stack": UnitAttr() if is_align_stack else None,
+            "tail_call_kind": tail_call_kind,
         }
 
         if res_types is None:
@@ -1716,28 +1743,6 @@ class CallIntrinsicOp(IRDLOperation):
                 "op_bundle_sizes": op_bundle_sizes,
             },
         )
-
-
-class TailCallKind(StrEnum):
-    NONE = "none"
-    TAIL = "tail"
-    MUST_TAIL = "musttail"
-    NOTAIL = "notail"
-
-
-@irdl_attr_definition
-class TailCallKindAttr(EnumAttribute[TailCallKind]):
-    name = "llvm.tailcallkind"
-
-    @classmethod
-    def parse_parameter(cls, parser: AttrParser) -> TailCallKind:
-        with parser.in_angle_brackets():
-            return super().parse_parameter(parser)
-
-    def print_parameter(self, printer: Printer) -> None:
-        printer.print_string("<")
-        super().print_parameter(printer)
-        printer.print_string(">")
 
 
 @irdl_op_definition

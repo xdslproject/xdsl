@@ -1215,6 +1215,18 @@ class FloatAttr(BuiltinAttribute, TypedAttribute, Generic[_FloatAttrType]):
         """
         return tuple(FloatAttr(value, type) for value in type.unpack(buffer, num))
 
+    @staticmethod
+    def constr(
+        type: IRDLAttrConstraint[_FloatAttrType] = AnyFloatConstr,
+    ) -> AttrConstraint[FloatAttr[_FloatAttrType]]:
+        return ParamAttrConstraint[FloatAttr[_FloatAttrType]](
+            FloatAttr,
+            (
+                None,
+                type,
+            ),
+        )
+
 
 ComplexElementCovT = TypeVar(
     "ComplexElementCovT",
