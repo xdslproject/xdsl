@@ -149,6 +149,20 @@ def test_invalid_field():
         irdl_op_definition(InvalidFieldTestOp)
 
 
+class InvalidIRDLOpts(IRDLOperation):
+    name = "test.invalid_field"
+    irdl_options = [42]
+
+
+def test_invalid_irdl_options():
+    """Check that irdl_options only contains IRDLOptions"""
+    with pytest.raises(
+        PyRDLOpDefinitionError,
+        match="All values in irdl_options should inherit IRDLOption",
+    ):
+        irdl_op_definition(InvalidIRDLOpts)
+
+
 ################################################################################
 #                                  Verifiers                                   #
 ################################################################################
