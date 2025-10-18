@@ -1459,9 +1459,8 @@ class MatcherGenerator:
                 types_list.extend(temp_types)
                 return False
 
-        # Strategy 2: Check for `inferredResultTypes` attribute hint
-        if "inferredResultTypes" in op.attributes:
-            return True
+        # Strategy 2: Check if created op has `inferredResultTypes` interface
+        # This interface doesn't exist in xDSL, so we don't do this yet.
 
         # Strategy 3: Infer from a replaced operation
         for use in op.op.uses:
