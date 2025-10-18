@@ -3747,3 +3747,368 @@ def test_generate_rewriter_for_attribute_without_constant():
 
     # Verify no mapping was added
     assert attr_op.output not in rewrite_values
+
+def test_generate_operation_result_type_rewriter_strategy1_all_resolvable():
+    """Test _generate_operation_result_type_rewriter Strategy 1: all types resolvable"""
+    from xdsl.dialects.builtin import ModuleOp
+    from xdsl.ir import Block, Region
+    from xdsl.transforms.convert_pdl_to_pdl_interp.conversion import MatcherGenerator
+
+    # Setup
+    matcher_body = Region([Block(arg_types=(pdl.OperationType(),))])
+    matcher_func = pdl_interp.FuncOp(
+        "matcher", ((pdl.OperationType(),), ()), region=matcher_body
+    )
+    rewriter_module = ModuleOp([])
+    generator = MatcherGenerator(matcher_func, rewriter_module)
+
+    # Create rewriter region with an operation that has resolvable types
+    rewriter_region = Region([Block()])
+    rewriter_block = rewriter_region.first_block
+    with ImplicitBuilder(rewriter_block):
+        type1 = pdl.TypeOp(i32).result
+        type2 = pdl.TypeOp(f32).result
+        op_to_create = pdl.OperationOp("test.op", type_values=(type1, type2))
+
+    rewrite_values: dict[SSAValue, SSAValue] = {}
+
+    # Map the type values
+    type_block = Block()
+    type1_arg = type_block.insert_arg(pdl.TypeType(), 0)
+    type2_arg = type_block.insert_arg(pdl.TypeType(), 1)
+    rewrite_values[type1] = type1_arg
+    rewrite_values[type2] = type2_arg
+
+    def map_rewrite_value(val: SSAValue) -> SSAValue:
+        return rewrite_values.get(val, val)
+
+    types_list: list[SSAValue] = []
+
+    # Call method
+    has_inferred = generator._generate_operation_result_type_rewriter(  # pyright: ignore[reportPrivateUsage]
+        op_to_create, map_rewrite_value, types_list, rewrite_values
+    )
+
+    # Verify Strategy 1 was used: all types resolved
+    assert has_inferred is False
+    assert len(types_list) == 2
+    assert types_list[0] == type1_arg
+    assert types_list[1] == type2_arg
+
+
+def test_generate_operation_result_type_rewriter_strategy2_inferred_attribute():
+    """Test _generate_operation_result_type_rewriter Strategy 2: inferredResultTypes attribute"""
+    from xdsl.dialects.builtin import ModuleOp
+    from xdsl.ir import Block, Region
+    from xdsl.transforms.convert_pdl_to_pdl_interp.conversion import MatcherGenerator
+
+    # Setup
+    matcher_body = Region([Block(arg_types=(pdl.OperationType(),))])
+    matcher_func = pdl_interp.FuncOp(
+        "matcher", ((pdl.OperationType(),), ()), region=matcher_body
+    )
+    rewriter_module = ModuleOp([])
+    generator = MatcherGenerator(matcher_func, rewriter_module)
+
+    # Create rewriter region with an operation that has inferredResultTypes hint
+    rewriter_region = Region([Block()])
+    rewriter_block = rewriter_region.first_block
+    with ImplicitBuilder(rewriter_block):
+        type1 = pdl.TypeOp().result
+        op_to_create = pdl.OperationOp("test.op", type_values=(type1,))
+        # Add the inferredResultTypes attribute hint
+        op_to_create.attributes["inferredResultTypes"] = UnitAttr()
+
+    rewrite_values: dict[SSAValue, SSAValue] = {}
+
+    def map_rewrite_value(val: SSAValue) -> SSAValue:
+        return rewrite_values.get(val, val)
+
+    types_list: list[SSAValue] = []
+
+    # Call method
+    has_inferred = generator._generate_operation_result_type_rewriter(  # pyright: ignore[reportPrivateUsage]
+        op_to_create, map_rewrite_value, types_list, rewrite_values
+    )
+
+    # Verify Strategy 2 was used: inferred types
+    assert has_inferred is True
+    assert len(types_list) == 0  # No types added to list
+
+
+def test_generate_operation_result_type_rewriter_strategy3_from_replace():
+    """Test _generate_operation_result_type_rewriter Strategy 3: infer from replaced operation"""
+    from xdsl.dialects.builtin import ModuleOp
+    from xdsl.ir import Block, Region
+    from xdsl.transforms.convert_pdl_to_pdl_interp.conversion import MatcherGenerator
+
+    # Setup
+    matcher_body = Region([Block(arg_types=(pdl.OperationType(),))])
+    matcher_func = pdl_interp.FuncOp(
+        "matcher", ((pdl.OperationType(),), ()), region=matcher_body
+    )
+    rewriter_module = ModuleOp([])
+    generator = MatcherGenerator(matcher_func, rewriter_module)
+
+    # Create rewriter region with operations
+    rewriter_region = Region([Block()])
+    rewriter_block = rewriter_region.first_block
+    with ImplicitBuilder(rewriter_block):
+        # Old operation to be replaced
+        old_op = pdl.OperationOp("old.op")
+        # New operation that will replace it
+        type1 = pdl.TypeOp().result
+        new_op = pdl.OperationOp("new.op", type_values=(type1,))
+        # Replace operation
+        pdl.ReplaceOp(old_op.op, repl_operation=new_op.op)
+
+    rewrite_values: dict[SSAValue, SSAValue] = {}
+
+    # Map the old operation value (from match)
+    match_block = Block()
+    old_op_arg = match_block.insert_arg(pdl.OperationType(), 0)
+    rewrite_values[old_op.op] = old_op_arg
+
+    def map_rewrite_value(val: SSAValue) -> SSAValue:
+        return rewrite_values.get(val, val)
+
+    types_list: list[SSAValue] = []
+
+    # Set up rewriter builder for the ops that will be generated
+    result_block = Block()
+    generator.rewriter_builder.insertion_point = InsertPoint.at_end(result_block)
+
+    # Call method
+    has_inferred = generator._generate_operation_result_type_rewriter(  # pyright: ignore[reportPrivateUsage]
+        new_op, map_rewrite_value, types_list, rewrite_values
+    )
+
+    # Verify Strategy 3 was used: inferred from replaced operation
+    assert has_inferred is False
+    assert len(types_list) == 1
+
+    # Check that GetResultsOp and GetValueTypeOp were created
+    get_results_ops = [
+        op for op in result_block.ops if isinstance(op, pdl_interp.GetResultsOp)
+    ]
+    assert len(get_results_ops) == 1
+    assert get_results_ops[0].input_op == old_op_arg
+
+    get_type_ops = [
+        op for op in result_block.ops if isinstance(op, pdl_interp.GetValueTypeOp)
+    ]
+    assert len(get_type_ops) == 1
+
+
+def test_generate_operation_result_type_rewriter_strategy4_no_types():
+    """Test _generate_operation_result_type_rewriter Strategy 4: no explicit types"""
+    from xdsl.dialects.builtin import ModuleOp
+    from xdsl.ir import Block, Region
+    from xdsl.transforms.convert_pdl_to_pdl_interp.conversion import MatcherGenerator
+
+    # Setup
+    matcher_body = Region([Block(arg_types=(pdl.OperationType(),))])
+    matcher_func = pdl_interp.FuncOp(
+        "matcher", ((pdl.OperationType(),), ()), region=matcher_body
+    )
+    rewriter_module = ModuleOp([])
+    generator = MatcherGenerator(matcher_func, rewriter_module)
+
+    # Create rewriter region with an operation that has no result types
+    rewriter_region = Region([Block()])
+    rewriter_block = rewriter_region.first_block
+    with ImplicitBuilder(rewriter_block):
+        op_to_create = pdl.OperationOp("test.op", type_values=())
+
+    rewrite_values: dict[SSAValue, SSAValue] = {}
+
+    def map_rewrite_value(val: SSAValue) -> SSAValue:
+        return rewrite_values.get(val, val)
+
+    types_list: list[SSAValue] = []
+
+    # Call method
+    has_inferred = generator._generate_operation_result_type_rewriter(  # pyright: ignore[reportPrivateUsage]
+        op_to_create, map_rewrite_value, types_list, rewrite_values
+    )
+
+    # Verify Strategy 4 was used: no results assumed
+    assert has_inferred is False
+    assert len(types_list) == 0
+
+
+def test_generate_operation_result_type_rewriter_error_unresolvable():
+    """Test _generate_operation_result_type_rewriter raises error when types can't be inferred"""
+    from xdsl.dialects.builtin import ModuleOp
+    from xdsl.ir import Block, Region
+    from xdsl.transforms.convert_pdl_to_pdl_interp.conversion import MatcherGenerator
+
+    # Setup
+    matcher_body = Region([Block(arg_types=(pdl.OperationType(),))])
+    matcher_func = pdl_interp.FuncOp(
+        "matcher", ((pdl.OperationType(),), ()), region=matcher_body
+    )
+    rewriter_module = ModuleOp([])
+    generator = MatcherGenerator(matcher_func, rewriter_module)
+
+    # Create rewriter region with an operation that has unresolvable types
+    rewriter_region = Region([Block()])
+    rewriter_block = rewriter_region.first_block
+    with ImplicitBuilder(rewriter_block):
+        # Type is defined in rewriter block but not in rewrite_values
+        type1 = pdl.TypeOp().result
+        op_to_create = pdl.OperationOp("test.op", type_values=(type1,))
+
+    rewrite_values: dict[SSAValue, SSAValue] = {}
+
+    def map_rewrite_value(val: SSAValue) -> SSAValue:
+        return rewrite_values.get(val, val)
+
+    types_list: list[SSAValue] = []
+
+    # Call method - should raise ValueError
+    with pytest.raises(
+        ValueError, match='Unable to infer result types for pdl.operation "test.op"'
+    ):
+        generator._generate_operation_result_type_rewriter(  # pyright: ignore[reportPrivateUsage]
+            op_to_create, map_rewrite_value, types_list, rewrite_values
+        )
+
+
+def test_generate_operation_result_type_rewriter_strategy1_partial_resolution():
+    """Test Strategy 1 with some types resolvable but not all (should fall through)"""
+    from xdsl.dialects.builtin import ModuleOp
+    from xdsl.ir import Block, Region
+    from xdsl.transforms.convert_pdl_to_pdl_interp.conversion import MatcherGenerator
+
+    # Setup
+    matcher_body = Region([Block(arg_types=(pdl.OperationType(),))])
+    matcher_func = pdl_interp.FuncOp(
+        "matcher", ((pdl.OperationType(),), ()), region=matcher_body
+    )
+    rewriter_module = ModuleOp([])
+    generator = MatcherGenerator(matcher_func, rewriter_module)
+
+    # Create rewriter region with mixed resolvable/unresolvable types
+    rewriter_region = Region([Block()])
+    rewriter_block = rewriter_region.first_block
+    with ImplicitBuilder(rewriter_block):
+        type1 = pdl.TypeOp(i32).result  # Resolvable constant
+        type2 = pdl.TypeOp().result  # Unresolvable
+        op_to_create = pdl.OperationOp("test.op", type_values=(type1, type2))
+
+    rewrite_values: dict[SSAValue, SSAValue] = {}
+    # Only map type1, not type2
+    type_block = Block()
+    type1_arg = type_block.insert_arg(pdl.TypeType(), 0)
+    rewrite_values[type1] = type1_arg
+
+    def map_rewrite_value(val: SSAValue) -> SSAValue:
+        return rewrite_values.get(val, val)
+
+    types_list: list[SSAValue] = []
+
+    # Should raise ValueError because not all types can be resolved
+    with pytest.raises(
+        ValueError, match='Unable to infer result types for pdl.operation "test.op"'
+    ):
+        generator._generate_operation_result_type_rewriter(  # pyright: ignore[reportPrivateUsage]
+            op_to_create, map_rewrite_value, types_list, rewrite_values
+        )
+
+
+def test_generate_operation_result_type_rewriter_strategy3_operation_before_replace():
+    """Test Strategy 3 skips replace ops where new op is before old op in block"""
+    from xdsl.dialects.builtin import ModuleOp
+    from xdsl.ir import Block, Region
+    from xdsl.transforms.convert_pdl_to_pdl_interp.conversion import MatcherGenerator
+
+    # Setup
+    matcher_body = Region([Block(arg_types=(pdl.OperationType(),))])
+    matcher_func = pdl_interp.FuncOp(
+        "matcher", ((pdl.OperationType(),), ()), region=matcher_body
+    )
+    rewriter_module = ModuleOp([])
+    generator = MatcherGenerator(matcher_func, rewriter_module)
+
+    # Create rewriter region where new_op comes AFTER old_op
+    rewriter_region = Region([Block()])
+    rewriter_block = rewriter_region.first_block
+    with ImplicitBuilder(rewriter_block):
+        # New operation (comes first)
+        type1 = pdl.TypeOp().result
+        new_op = pdl.OperationOp("new.op", type_values=(type1,))
+        # Old operation (comes second)
+        old_op = pdl.OperationOp("old.op")
+        # Replace - but new_op is defined BEFORE old_op in the block
+        pdl.ReplaceOp(old_op.op, repl_operation=new_op.op)
+
+    rewrite_values: dict[SSAValue, SSAValue] = {}
+    # Map old_op as coming from the rewriter block itself
+    rewrite_values[old_op.op] = old_op.op  # Not from match, from rewriter
+
+    def map_rewrite_value(val: SSAValue) -> SSAValue:
+        return rewrite_values.get(val, val)
+
+    types_list: list[SSAValue] = []
+
+    # Should raise ValueError because Strategy 3 skips this case
+    with pytest.raises(
+        ValueError, match='Unable to infer result types for pdl.operation "new.op"'
+    ):
+        generator._generate_operation_result_type_rewriter(  # pyright: ignore[reportPrivateUsage]
+            new_op, map_rewrite_value, types_list, rewrite_values
+        )
+
+
+def test_generate_operation_result_type_rewriter_strategy1_with_external_types():
+    """Test Strategy 1 with types from outside the rewriter block"""
+    from xdsl.dialects.builtin import ModuleOp
+    from xdsl.ir import Block, Region
+    from xdsl.transforms.convert_pdl_to_pdl_interp.conversion import MatcherGenerator
+
+    # Setup
+    matcher_body = Region([Block(arg_types=(pdl.OperationType(),))])
+    matcher_func = pdl_interp.FuncOp(
+        "matcher", ((pdl.OperationType(),), ()), region=matcher_body
+    )
+    rewriter_module = ModuleOp([])
+    generator = MatcherGenerator(matcher_func, rewriter_module)
+
+    # Create rewriter region
+    rewriter_region = Region([Block()])
+    rewriter_block = rewriter_region.first_block
+
+    # Create type outside rewriter block (simulating match input)
+    match_region = Region([Block()])
+    match_block = match_region.first_block
+    with ImplicitBuilder(match_block):
+        external_type = pdl.TypeOp(i32).result
+
+    # Create operation in rewriter block using external type
+    with ImplicitBuilder(rewriter_block):
+        op_to_create = pdl.OperationOp("test.op", type_values=(external_type,))
+
+    rewrite_values: dict[SSAValue, SSAValue] = {}
+
+    # Map external type (will be called via map_rewrite_value)
+    type_arg = Block().insert_arg(pdl.TypeType(), 0)
+    rewrite_values[external_type] = type_arg
+
+    def map_rewrite_value(val: SSAValue) -> SSAValue:
+        if val in rewrite_values:
+            return rewrite_values[val]
+        # Simulate mapping external values
+        return type_arg
+
+    types_list: list[SSAValue] = []
+
+    # Call method
+    has_inferred = generator._generate_operation_result_type_rewriter(  # pyright: ignore[reportPrivateUsage]
+        op_to_create, map_rewrite_value, types_list, rewrite_values
+    )
+
+    # Verify Strategy 1 was used with external type
+    assert has_inferred is False
+    assert len(types_list) == 1
+    assert types_list[0] == type_arg
