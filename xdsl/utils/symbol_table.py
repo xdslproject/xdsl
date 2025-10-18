@@ -100,7 +100,7 @@ class SymbolTable:
         self, from_op: Operation | StringAttr, to_name: StringAttr | str
     ) -> None:
         """
-        Renames the given op or the op refered to by the given name to the given new
+        Renames the given op or the op referred to by the given name to the given new
         name and updates the symbol table and all usages of the symbol accordingly.
         Fails if the updating of the usages fails.
         """
@@ -111,8 +111,8 @@ class SymbolTable:
         self, from_op: Operation | StringAttr, others: Sequence[SymbolTable]
     ) -> StringAttr | None:
         """
-        Renames the given op or the op refered to by the given name to the a name
-        that is unique within this and the provided other symbol tables and
+        Renames the given op or the op referred to by the given name to the given new
+        name that is unique within this and the provided other symbol tables and
         updates the symbol table and all usages of the symbol accordingly.
         Returns the new name or `None` if the renaming fails.
         """
@@ -194,7 +194,7 @@ class SymbolTable:
         Returns the operation registered with the given symbol name with the regions of
         `op`.
         `op` is required to be an operation with the 'xdsl.traits.SymbolTable' trait.
-        If `all_symbols` is `True`, return all symbols references by the symbol.
+        If `all_symbols` is `True`, returns all symbols referenced by the symbol.
         """
         raise NotImplementedError
 
@@ -205,7 +205,7 @@ class SymbolTable:
         """
         Returns the operation registered with the given symbol name within the closest
         parent operation of, or including, `from_op` with the
-        [SymbolTable][xdsl.traits.SymbolTable] trait.
+        [`SymbolTable`][xdsl.traits.SymbolTable] trait.
         Returns `None` if no valid symbol was found.
         """
         raise NotImplementedError
@@ -301,7 +301,7 @@ class SymbolTableCollection:
         operation, returning `None` if no such name exists.
         Accepts either a `StringAttr` or a `SymbolRefAttr`.
         `op` is required to be an operation with the 'xdsl.traits.SymbolTable' trait.
-        If `all_symbols` is `True`, return all symbols references by the symbol.
+        If `all_symbols` is `True`, returns all symbols referenced by the symbol.
         """
         raise NotImplementedError
 
@@ -312,7 +312,7 @@ class SymbolTableCollection:
         """
         Returns the operation registered with the given symbol name within the closest
         parent operation of, or including, `from_op` with the
-        [SymbolTable][xdsl.traits.SymbolTable] trait.
+        [`SymbolTable`][xdsl.traits.SymbolTable] trait.
         Returns `None` if no valid symbol was found.
         """
         raise NotImplementedError
