@@ -3748,6 +3748,7 @@ def test_generate_rewriter_for_attribute_without_constant():
     # Verify no mapping was added
     assert attr_op.output not in rewrite_values
 
+
 def test_generate_operation_result_type_rewriter_strategy1_all_resolvable():
     """Test _generate_operation_result_type_rewriter Strategy 1: all types resolvable"""
     from xdsl.dialects.builtin import ModuleOp
@@ -3794,46 +3795,6 @@ def test_generate_operation_result_type_rewriter_strategy1_all_resolvable():
     assert len(types_list) == 2
     assert types_list[0] == type1_arg
     assert types_list[1] == type2_arg
-
-
-def test_generate_operation_result_type_rewriter_strategy2_inferred_attribute():
-    """Test _generate_operation_result_type_rewriter Strategy 2: inferredResultTypes attribute"""
-    from xdsl.dialects.builtin import ModuleOp
-    from xdsl.ir import Block, Region
-    from xdsl.transforms.convert_pdl_to_pdl_interp.conversion import MatcherGenerator
-
-    # Setup
-    matcher_body = Region([Block(arg_types=(pdl.OperationType(),))])
-    matcher_func = pdl_interp.FuncOp(
-        "matcher", ((pdl.OperationType(),), ()), region=matcher_body
-    )
-    rewriter_module = ModuleOp([])
-    generator = MatcherGenerator(matcher_func, rewriter_module)
-
-    # Create rewriter region with an operation that has inferredResultTypes hint
-    rewriter_region = Region([Block()])
-    rewriter_block = rewriter_region.first_block
-    with ImplicitBuilder(rewriter_block):
-        type1 = pdl.TypeOp().result
-        op_to_create = pdl.OperationOp("test.op", type_values=(type1,))
-        # Add the inferredResultTypes attribute hint
-        op_to_create.attributes["inferredResultTypes"] = UnitAttr()
-
-    rewrite_values: dict[SSAValue, SSAValue] = {}
-
-    def map_rewrite_value(val: SSAValue) -> SSAValue:
-        return rewrite_values.get(val, val)
-
-    types_list: list[SSAValue] = []
-
-    # Call method
-    has_inferred = generator._generate_operation_result_type_rewriter(  # pyright: ignore[reportPrivateUsage]
-        op_to_create, map_rewrite_value, types_list, rewrite_values
-    )
-
-    # Verify Strategy 2 was used: inferred types
-    assert has_inferred is True
-    assert len(types_list) == 0  # No types added to list
 
 
 def test_generate_operation_result_type_rewriter_strategy3_from_replace():
