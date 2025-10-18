@@ -1430,3 +1430,73 @@ class MatcherGenerator:
             new_attr_op = pdl_interp.CreateAttributeOp(op.value)
             self.rewriter_builder.insert(new_attr_op)
             rewrite_values[op.output] = new_attr_op.attribute
+
+    def _generate_operation_result_type_rewriter(
+        self,
+        op: pdl.OperationOp,
+        map_rewrite_value: Callable[[SSAValue], SSAValue],
+        types_list: list[SSAValue],
+        rewrite_values: dict[SSAValue, SSAValue],
+    ) -> bool:
+        """Returns `has_inferred_result_types`"""
+        rewriter_block = op.parent
+        assert rewriter_block is not None
+        result_type_values = op.type_values
+
+        # Strategy 1: Resolve all types individually
+        if result_type_values:
+            temp_types: list[SSAValue] = []
+            can_resolve_all = True
+            for result_type in result_type_values:
+                if (val := rewrite_values.get(result_type)) is not None:
+                    temp_types.append(val)
+                elif result_type.owner.parent is not rewriter_block:
+                    temp_types.append(map_rewrite_value(result_type))
+                else:
+                    can_resolve_all = False
+                    break
+            if can_resolve_all:
+                types_list.extend(temp_types)
+                return False
+
+        # Strategy 2: Check for `inferredResultTypes` attribute hint
+        if "inferredResultTypes" in op.attributes:
+            return True
+
+        # Strategy 3: Infer from a replaced operation
+        for use in op.op.uses:
+            user_op = use.operation
+            if not isinstance(user_op, pdl.ReplaceOp) or use.index == 0:
+                continue
+
+            replaced_op_val = user_op.op_value
+            replaced_op_def = replaced_op_val.owner
+            if replaced_op_def.parent is rewriter_block:
+                # MLIR has `Operation::isBeforeInBlock` to execute this check more efficiently:
+                is_before = False
+                p = rewriter_block.first_op
+                assert p is not None
+                while p is not replaced_op_def:
+                    if p is op:
+                        is_before = True
+                        break
+                    p = p.next_op
+                    assert p is not None
+                if is_before:
+                    continue
+
+            mapped_replaced_op = map_rewrite_value(replaced_op_val)
+            get_results = pdl_interp.GetResultsOp(
+                None, mapped_replaced_op, pdl.RangeType(pdl.ValueType())
+            )
+            self.rewriter_builder.insert(get_results)
+            get_type = pdl_interp.GetValueTypeOp(get_results.value)
+            self.rewriter_builder.insert(get_type)
+            types_list.append(get_type.result)
+            return False
+
+        # Strategy 4: If no explicit types, assume no results
+        if not result_type_values:
+            return False
+
+        raise ValueError(f"Unable to infer result types for pdl.operation {op.opName}")
