@@ -3616,3 +3616,134 @@ def test_generate_switch_node_at_least_question(
     # Verify that generate_matcher was called for each child in reverse order
     assert mock_gen.call_count == 3
     # Calls were made in order: child_5, child_3, child_1
+
+
+def test_generate_rewriter_for_apply_native_rewrite():
+    """Test _generate_rewriter_for_apply_native_rewrite method"""
+    from xdsl.dialects.builtin import ModuleOp
+    from xdsl.ir import Block, Region
+    from xdsl.transforms.convert_pdl_to_pdl_interp.conversion import MatcherGenerator
+
+    # Setup
+    matcher_body = Region([Block(arg_types=(pdl.OperationType(),))])
+    matcher_func = pdl_interp.FuncOp(
+        "matcher", ((pdl.OperationType(),), ()), region=matcher_body
+    )
+    rewriter_module = ModuleOp([])
+    generator = MatcherGenerator(matcher_func, rewriter_module)
+
+    # Create a pattern with ApplyNativeRewriteOp
+    body = Region([Block()])
+    block = body.first_block
+    with ImplicitBuilder(block):
+        op1 = pdl.OperationOp("test_op").op
+        apply_native = pdl.ApplyNativeRewriteOp("my_rewrite", [op1], [pdl.TypeType()])
+        pdl.RewriteOp(None, name="rewrite")
+
+    rewrite_values: dict[SSAValue, SSAValue] = {}
+
+    # Map the operation value
+    rewriter_func_block = Block()
+    arg = rewriter_func_block.insert_arg(pdl.OperationType(), 0)
+    rewrite_values[op1] = arg
+
+    def map_rewrite_value(val: SSAValue) -> SSAValue:
+        return rewrite_values.get(val, val)
+
+    # The method should raise NotImplementedError
+    with pytest.raises(
+        NotImplementedError, match="pdl_interp.apply_rewrite is not yet implemented"
+    ):
+        generator._generate_rewriter_for_apply_native_rewrite(  # pyright: ignore[reportPrivateUsage]
+            apply_native, rewrite_values, map_rewrite_value
+        )
+
+
+def test_generate_rewriter_for_attribute_with_constant():
+    """Test _generate_rewriter_for_attribute with constant value"""
+    from xdsl.dialects.builtin import ModuleOp
+    from xdsl.ir import Block, Region
+    from xdsl.transforms.convert_pdl_to_pdl_interp.conversion import MatcherGenerator
+
+    # Setup
+    matcher_body = Region([Block(arg_types=(pdl.OperationType(),))])
+    matcher_func = pdl_interp.FuncOp(
+        "matcher", ((pdl.OperationType(),), ()), region=matcher_body
+    )
+    rewriter_module = ModuleOp([])
+    generator = MatcherGenerator(matcher_func, rewriter_module)
+
+    # Create AttributeOp with constant value
+    body = Region([Block()])
+    block = body.first_block
+    with ImplicitBuilder(block):
+        attr_op = pdl.AttributeOp(IntegerAttr(42, i32))
+        pdl.RewriteOp(None, name="rewrite")
+
+    rewrite_values: dict[SSAValue, SSAValue] = {}
+
+    def map_rewrite_value(val: SSAValue) -> SSAValue:
+        return rewrite_values.get(val, val)
+
+    # Set up rewriter builder
+    rewriter_block = Block()
+    generator.rewriter_builder.insertion_point = InsertPoint.at_end(rewriter_block)
+
+    # Call method
+    generator._generate_rewriter_for_attribute(  # pyright: ignore[reportPrivateUsage]
+        attr_op, rewrite_values, map_rewrite_value
+    )
+
+    # Verify CreateAttributeOp was created
+    create_ops = [
+        op for op in rewriter_block.ops if isinstance(op, pdl_interp.CreateAttributeOp)
+    ]
+    assert len(create_ops) == 1
+    assert create_ops[0].value == IntegerAttr(42, i32)
+
+    # Verify mapping was added
+    assert attr_op.output in rewrite_values
+    assert rewrite_values[attr_op.output] == create_ops[0].attribute
+
+
+def test_generate_rewriter_for_attribute_without_constant():
+    """Test _generate_rewriter_for_attribute without constant value"""
+    from xdsl.dialects.builtin import ModuleOp
+    from xdsl.ir import Block, Region
+    from xdsl.transforms.convert_pdl_to_pdl_interp.conversion import MatcherGenerator
+
+    # Setup
+    matcher_body = Region([Block(arg_types=(pdl.OperationType(),))])
+    matcher_func = pdl_interp.FuncOp(
+        "matcher", ((pdl.OperationType(),), ()), region=matcher_body
+    )
+    rewriter_module = ModuleOp([])
+    generator = MatcherGenerator(matcher_func, rewriter_module)
+
+    # Create AttributeOp without constant value
+    body = Region([Block()])
+    block = body.first_block
+    with ImplicitBuilder(block):
+        attr_type = pdl.TypeOp(i32).result
+        attr_op = pdl.AttributeOp(attr_type)
+        pdl.RewriteOp(None, name="rewrite")
+
+    rewrite_values: dict[SSAValue, SSAValue] = {}
+
+    def map_rewrite_value(val: SSAValue) -> SSAValue:
+        return rewrite_values.get(val, val)
+
+    # Set up rewriter builder
+    rewriter_block = Block()
+    generator.rewriter_builder.insertion_point = InsertPoint.at_end(rewriter_block)
+
+    # Call method
+    generator._generate_rewriter_for_attribute(  # pyright: ignore[reportPrivateUsage]
+        attr_op, rewrite_values, map_rewrite_value
+    )
+
+    # Verify no ops were created
+    assert len(list(rewriter_block.ops)) == 0
+
+    # Verify no mapping was added
+    assert attr_op.output not in rewrite_values
