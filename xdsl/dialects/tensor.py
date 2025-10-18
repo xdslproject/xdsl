@@ -683,6 +683,34 @@ class FromElementsOp(IRDLOperation):
     result = result_def(TensorType.constr(ELEMENT_TYPE))
     assembly_format = "$elements attr-dict `:` type($result)"
 
+    traits = traits_def(NoMemoryEffect())
+
+    def __init__(
+        self,
+        *elements: SSAValue,
+        result_type: Attribute | None = None
+    ):
+        if isinstance(elements, SSAValue):
+            shape: tuple[int, ...] = tuple()
+            elem_type = elements.type
+            operands = [elements]
+        else:
+            shape = (len(elements),)
+            if len(elements) > 0:
+                assert all(elem.type == elements[0].type for elem in elements)
+                elem_type = elements[0].type
+                operands = list(elements)
+            else:
+                # Handle empty list case - we need a default element type
+                # This is a design decision - in MLIR, empty tensors need explicit type annotation
+                raise ValueError(
+                    "Cannot create tensor from empty list without explicit element type"
+                )
+
+        super().__init__(
+            operands=[operands], result_types=[TensorType(elem_type, shape=shape)]
+        )
+
 
 @irdl_op_definition
 class SplatOp(IRDLOperation):
