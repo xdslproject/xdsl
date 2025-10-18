@@ -11,6 +11,7 @@ from xdsl.builder import Builder
 from xdsl.dialects import pdl, pdl_interp
 from xdsl.dialects.builtin import (
     ArrayAttr,
+    IntegerAttr,
     ModuleOp,
     StringAttr,
     TypeAttribute,
@@ -1030,7 +1031,6 @@ class MatcherGenerator:
                 self.generate_bool_node(node, current_block, val)
             case SwitchNode():
                 assert val is not None
-                raise NotImplementedError()
                 self.generate_switch_node(node, current_block, val)
             case SuccessNode():
                 raise NotImplementedError()
@@ -1262,3 +1262,144 @@ class MatcherGenerator:
         # Generate matcher for success node
         if node.success_node:
             self.generate_matcher(node.success_node, region, success_block)
+
+    def generate_switch_node(
+        self, node: SwitchNode, block: Block, val: SSAValue
+    ) -> None:
+        """Generate operations for a switch node"""
+
+        question = node.question
+        region = block.parent
+        assert region is not None, "Block must be in a region"
+        default_dest = self.failure_block_stack[-1]
+
+        # Handle at-least questions specially
+        if isinstance(
+            question, OperandCountAtLeastQuestion | ResultCountAtLeastQuestion
+        ):
+            # Sort children in reverse numerical order
+            sorted_children = sorted(
+                node.children.items(),
+                key=lambda x: cast(UnsignedAnswer, x[0]).value,
+                reverse=True,
+            )
+
+            # Push temporary entry to failure block stack
+            self.failure_block_stack.append(default_dest)
+
+            for answer, child_node in sorted_children:
+                if child_node:
+                    success_block = self.generate_matcher(child_node, region)
+                    current_check_block = Block()
+                    region.add_block(current_check_block)
+
+                    self.builder.insertion_point = InsertPoint.at_end(
+                        current_check_block
+                    )
+                    assert isinstance(answer, UnsignedAnswer)
+                    if isinstance(question, OperandCountAtLeastQuestion):
+                        check_op = pdl_interp.CheckOperandCountOp(
+                            val,
+                            answer.value,
+                            success_block,
+                            default_dest,
+                            True,
+                        )
+                    else:
+                        check_op = pdl_interp.CheckResultCountOp(
+                            val,
+                            answer.value,
+                            success_block,
+                            default_dest,
+                            True,
+                        )
+                    self.builder.insert(check_op)
+
+                    # Update failure block stack for next child matcher
+                    self.failure_block_stack[-1] = current_check_block
+
+            # Pop the temporary entry from failure block stack
+            first_predicate_block = self.failure_block_stack.pop()
+
+            # Move ops from the first check block into the main block
+            for op in list(first_predicate_block.ops):
+                op.detach()
+                block.add_op(op)
+            assert first_predicate_block.parent is not None
+            first_predicate_block.parent.detach_block(first_predicate_block)
+            first_predicate_block.erase()
+
+            return
+
+        # Generate child blocks and collect case values
+        case_blocks: list[Block] = []
+        case_values: list[Answer] = []
+
+        for answer, child_node in node.children.items():
+            if child_node:
+                child_block = self.generate_matcher(child_node, region)
+                case_blocks.append(child_block)
+                case_values.append(answer)
+
+        # Position builder at end of current block
+        self.builder.insertion_point = InsertPoint.at_end(block)
+
+        # Create switch operation based on question type
+        match question:
+            case OperationNameQuestion():
+                # Extract string values from StringAnswer objects
+                switch_values = [cast(StringAnswer, ans).value for ans in case_values]
+                switch_attr = ArrayAttr([StringAttr(v) for v in switch_values])
+                switch_op = pdl_interp.SwitchOperationNameOp(
+                    switch_attr, val, default_dest, case_blocks
+                )
+            case OperandCountQuestion():
+                # Extract integer values from UnsignedAnswer objects
+                switch_values = [cast(UnsignedAnswer, ans).value for ans in case_values]
+                switch_attr = ArrayAttr([IntegerAttr(v, 32) for v in switch_values])
+                raise NotImplementedError(
+                    "pdl_interp.switch_operand_count is not yet implemented"
+                )
+                switch_op = pdl_interp.SwitchOperandCountOp(
+                    switch_attr, val, default_dest, case_blocks
+                )
+            case ResultCountQuestion():
+                # Extract integer values from UnsignedAnswer objects
+                switch_values = [cast(UnsignedAnswer, ans).value for ans in case_values]
+                switch_attr = ArrayAttr([IntegerAttr(v, 32) for v in switch_values])
+                raise NotImplementedError(
+                    "pdl_interp.switch_result_count is not yet implemented"
+                )
+                switch_op = pdl_interp.SwitchResultCountOp(
+                    switch_attr, val, default_dest, case_blocks
+                )
+            case TypeConstraintQuestion():
+                # Extract type attributes from TypeAnswer objects
+                switch_values = [cast(TypeAnswer, ans).value for ans in case_values]
+                raise NotImplementedError(
+                    "pdl_interp.switch_types is not yet implemented"
+                )
+                if isinstance(val.type, pdl.RangeType):
+                    switch_attr = ArrayAttr(switch_values)
+
+                    switch_op = pdl_interp.SwitchTypesOp(
+                        switch_attr, val, default_dest, case_blocks
+                    )
+                else:
+                    switch_attr = ArrayAttr(switch_values)
+                    switch_op = pdl_interp.SwitchTypeOp(
+                        switch_attr, val, default_dest, case_blocks
+                    )
+            case AttributeConstraintQuestion():
+                # Extract attribute values from AttributeAnswer objects
+                switch_values = [
+                    cast(AttributeAnswer, ans).value for ans in case_values
+                ]
+                switch_attr = ArrayAttr(switch_values)
+                switch_op = pdl_interp.SwitchAttributeOp(
+                    val, switch_attr, default_dest, case_blocks
+                )
+            case _:
+                raise NotImplementedError(f"Unhandled question type {type(question)}")
+
+        self.builder.insert(switch_op)
