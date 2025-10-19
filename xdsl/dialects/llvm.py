@@ -8,7 +8,9 @@ from typing import ClassVar
 
 from xdsl.dialects.builtin import (
     I64,
-    AnyFloatConstr,
+    AnyFloat,
+    AnyOf,
+    AnySignlessIntegerType,
     ArrayAttr,
     ContainerType,
     DenseArrayBase,
@@ -21,6 +23,7 @@ from xdsl.dialects.builtin import (
     SymbolNameConstraint,
     SymbolRefAttr,
     UnitAttr,
+    VectorType,
     i1,
     i32,
     i64,
@@ -39,7 +42,6 @@ from xdsl.ir import (
 )
 from xdsl.irdl import (
     AttrSizedOperandSegments,
-    BaseAttr,
     IRDLOperation,
     ParsePropInAttrDict,
     VarConstraint,
@@ -361,10 +363,23 @@ class LinkageAttr(ParametrizedAttribute):
             raise VerifyException(f"Specified linkage '{self.linkage.data}' is unknown")
 
 
+LLVMScalarOrVectorOfInteger = AnyOf(
+    [AnySignlessIntegerType, VectorType[AnySignlessIntegerType]]
+)
+LLVMScalarOrVectorOfFloat = AnyOf([AnyFloat, VectorType[AnyFloat]])
+LLVMScalarOrVectorOfNumeric = AnyOf(
+    [
+        AnySignlessIntegerType,
+        AnyFloat,
+        VectorType[AnySignlessIntegerType | AnyFloat],
+    ]
+)
+
+
 class ArithmeticBinOperation(IRDLOperation, ABC):
     """Class for arithmetic binary operations."""
 
-    T: ClassVar = VarConstraint("T", BaseAttr(IntegerType))
+    T: ClassVar = VarConstraint("T", LLVMScalarOrVectorOfInteger)
 
     lhs = operand_def(T)
     rhs = operand_def(T)
@@ -434,7 +449,7 @@ class OverflowAttr(OverflowAttrBase):
 class ArithmeticBinOpOverflow(IRDLOperation, ABC):
     """Class for arithmetic binary operations that use overflow flags."""
 
-    T: ClassVar = VarConstraint("T", BaseAttr(IntegerType))
+    T: ClassVar = VarConstraint("T", LLVMScalarOrVectorOfInteger)
 
     lhs = operand_def(T)
     rhs = operand_def(T)
@@ -486,7 +501,7 @@ class ArithmeticBinOpOverflow(IRDLOperation, ABC):
 class ArithmeticBinOpExact(IRDLOperation, ABC):
     """Class for arithmetic binary operations that use an exact flag."""
 
-    T: ClassVar = VarConstraint("T", BaseAttr(IntegerType))
+    T: ClassVar = VarConstraint("T", LLVMScalarOrVectorOfInteger)
 
     lhs = operand_def(T)
     rhs = operand_def(T)
@@ -546,7 +561,7 @@ class ArithmeticBinOpExact(IRDLOperation, ABC):
 class ArithmeticBinOpDisjoint(IRDLOperation, ABC):
     """Class for arithmetic binary operations that use a disjoint flag."""
 
-    T: ClassVar = VarConstraint("T", BaseAttr(IntegerType))
+    T: ClassVar = VarConstraint("T", LLVMScalarOrVectorOfInteger)
 
     lhs = operand_def(T)
     rhs = operand_def(T)
@@ -577,9 +592,9 @@ class ArithmeticBinOpDisjoint(IRDLOperation, ABC):
 
 
 class IntegerConversionOp(IRDLOperation, ABC):
-    arg = operand_def(IntegerType)
+    arg = operand_def(LLVMScalarOrVectorOfInteger)
 
-    res = result_def(IntegerType)
+    res = result_def(LLVMScalarOrVectorOfInteger)
 
     traits = traits_def(NoMemoryEffect())
 
@@ -613,8 +628,8 @@ class IntegerConversionOp(IRDLOperation, ABC):
 
 
 class IntegerConversionOpNNeg(IRDLOperation, ABC):
-    arg = operand_def(IntegerType)
-    res = result_def(IntegerType)
+    arg = operand_def(LLVMScalarOrVectorOfInteger)
+    res = result_def(LLVMScalarOrVectorOfInteger)
     traits = traits_def(NoMemoryEffect())
     non_neg = opt_prop_def(UnitAttr, prop_name="nonNeg")
 
@@ -638,8 +653,8 @@ class IntegerConversionOpNNeg(IRDLOperation, ABC):
 
 
 class IntegerConversionOpOverflow(IRDLOperation, ABC):
-    arg = operand_def(IntegerType)
-    res = result_def(IntegerType)
+    arg = operand_def(LLVMScalarOrVectorOfInteger)
+    res = result_def(LLVMScalarOrVectorOfInteger)
     overflowFlags = opt_prop_def(OverflowAttr)
     traits = traits_def(NoMemoryEffect())
 
@@ -753,11 +768,19 @@ class TruncOp(IntegerConversionOpOverflow):
     name = "llvm.trunc"
 
     def verify(self, verify_nested_ops: bool = True):
-        assert isa(self.arg.type, IntegerType)
-        assert isinstance(self.res.type, IntegerType)
-        if self.arg.type.bitwidth <= self.res.type.bitwidth:
+        arg_type = (
+            arg_t.element_type if isa(arg_t := self.arg.type, VectorType) else arg_t
+        )
+        res_type = (
+            res_t.element_type if isa(res_t := self.res.type, VectorType) else res_t
+        )
+
+        assert isa(arg_type, IntegerType)
+        assert isa(res_type, IntegerType)
+
+        if arg_type.bitwidth <= res_type.bitwidth:
             raise VerifyException(
-                f"invalid cast opcode for cast from {self.arg.type} to {self.res.type}"
+                f"invalid cast opcode for cast from {arg_type} to {res_type}"
             )
         super().verify(verify_nested_ops)
 
@@ -767,11 +790,18 @@ class ZExtOp(IntegerConversionOpNNeg):
     name = "llvm.zext"
 
     def verify(self, verify_nested_ops: bool = True):
-        assert isa(self.arg.type, IntegerType)
-        assert isinstance(self.res.type, IntegerType)
-        if self.arg.type.bitwidth >= self.res.type.bitwidth:
+        arg_type = (
+            arg_t.element_type if isa(arg_t := self.arg.type, VectorType) else arg_t
+        )
+        res_type = (
+            res_t.element_type if isa(res_t := self.res.type, VectorType) else res_t
+        )
+
+        assert isa(arg_type, IntegerType)
+        assert isa(res_type, IntegerType)
+        if arg_type.bitwidth >= res_type.bitwidth:
             raise VerifyException(
-                f"invalid cast opcode for cast from {self.arg.type} to {self.res.type}"
+                f"invalid cast opcode for cast from {arg_type} to {res_type}"
             )
         super().verify(verify_nested_ops)
 
@@ -781,11 +811,18 @@ class SExtOp(IntegerConversionOp):
     name = "llvm.sext"
 
     def verify(self, verify_nested_ops: bool = True):
-        assert isa(self.arg.type, IntegerType)
-        assert isinstance(self.res.type, IntegerType)
-        if self.arg.type.bitwidth >= self.res.type.bitwidth:
+        arg_type = (
+            arg_t.element_type if isa(arg_t := self.arg.type, VectorType) else arg_t
+        )
+        res_type = (
+            res_t.element_type if isa(res_t := self.res.type, VectorType) else res_t
+        )
+
+        assert isa(arg_type, IntegerType)
+        assert isa(res_type, IntegerType)
+        if arg_type.bitwidth >= res_type.bitwidth:
             raise VerifyException(
-                f"invalid cast opcode for cast from {self.arg.type} to {self.res.type}"
+                f"invalid cast opcode for cast from {arg_type} to {res_type}"
             )
         super().verify(verify_nested_ops)
 
@@ -817,11 +854,11 @@ ICMP_INDEX_BY_FLAG = {f: i for (i, f) in enumerate(ALL_ICMP_FLAGS)}
 @irdl_op_definition
 class ICmpOp(IRDLOperation):
     name = "llvm.icmp"
-    T: ClassVar = VarConstraint("T", BaseAttr(IntegerType))
+    T: ClassVar = VarConstraint("T", LLVMScalarOrVectorOfInteger)
 
     lhs = operand_def(T)
     rhs = operand_def(T)
-    res = result_def(i1)
+    res = result_def(AnyOf([i1, VectorType[i1]]))
     predicate = prop_def(IntegerAttr[i64])
 
     traits = traits_def(NoMemoryEffect())
@@ -833,10 +870,16 @@ class ICmpOp(IRDLOperation):
         predicate: IntegerAttr[IntegerType],
         attributes: dict[str, Attribute] = {},
     ):
+        result_type = (
+            VectorType(i1, lhs_type.shape)
+            if isa(lhs_type := lhs.type, VectorType)
+            else i1
+        )
+
         super().__init__(
             operands=[lhs, rhs],
             attributes=attributes,
-            result_types=[i1],
+            result_types=[result_type],
             properties={
                 "predicate": predicate,
             },
@@ -1846,7 +1889,7 @@ class GenericCastOp(IRDLOperation, ABC):
 
 
 class AbstractFloatArithOp(IRDLOperation, ABC):
-    T: ClassVar = VarConstraint("T", AnyFloatConstr)
+    T: ClassVar = VarConstraint("T", LLVMScalarOrVectorOfFloat)
 
     lhs = operand_def(T)
     rhs = operand_def(T)
