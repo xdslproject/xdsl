@@ -3,7 +3,7 @@ PDL to PDL_interp Transformation
 """
 
 from abc import ABC
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from typing import Optional, cast
 
@@ -1403,3 +1403,30 @@ class MatcherGenerator:
                 raise NotImplementedError(f"Unhandled question type {type(question)}")
 
         self.builder.insert(switch_op)
+
+    def _generate_rewriter_for_apply_native_rewrite(
+        self,
+        op: pdl.ApplyNativeRewriteOp,
+        rewrite_values: dict[SSAValue, SSAValue],
+        map_rewrite_value: Callable[[SSAValue], SSAValue],
+    ):
+        arguments = [map_rewrite_value(arg) for arg in op.args]
+        result_types = [res.type for res in op.res]
+        raise NotImplementedError("pdl_interp.apply_rewrite is not yet implemented")
+        interp_op = pdl_interp.ApplyRewriteOp(
+            arguments, name=op.constraint_name, result_types=result_types
+        )
+        self.rewriter_builder.insert(interp_op)
+        for old_res, new_res in zip(op.results, interp_op.results, strict=True):
+            rewrite_values[old_res] = new_res
+
+    def _generate_rewriter_for_attribute(
+        self,
+        op: pdl.AttributeOp,
+        rewrite_values: dict[SSAValue, SSAValue],
+        map_rewrite_value: Callable[[SSAValue], SSAValue],
+    ):
+        if op.value is not None:
+            new_attr_op = pdl_interp.CreateAttributeOp(op.value)
+            self.rewriter_builder.insert(new_attr_op)
+            rewrite_values[op.output] = new_attr_op.attribute
