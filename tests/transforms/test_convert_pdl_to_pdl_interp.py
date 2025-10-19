@@ -3743,7 +3743,7 @@ def test_generate_rewriter_for_attribute_without_constant():
     )
 
     # Verify no ops were created
-    assert len(list(rewriter_block.ops)) == 0
+    assert not rewriter_block.ops
 
     # Verify no mapping was added
     assert attr_op.output not in rewrite_values

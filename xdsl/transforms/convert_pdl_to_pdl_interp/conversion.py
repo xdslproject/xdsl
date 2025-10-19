@@ -1417,7 +1417,7 @@ class MatcherGenerator:
             arguments, name=op.constraint_name, result_types=result_types
         )
         self.rewriter_builder.insert(interp_op)
-        for old_res, new_res in zip(op.results, interp_op.results):
+        for old_res, new_res in zip(op.results, interp_op.results, strict=True):
             rewrite_values[old_res] = new_res
 
     def _generate_rewriter_for_attribute(
@@ -1426,7 +1426,7 @@ class MatcherGenerator:
         rewrite_values: dict[SSAValue, SSAValue],
         map_rewrite_value: Callable[[SSAValue], SSAValue],
     ):
-        if op.value:
+        if op.value is not None:
             new_attr_op = pdl_interp.CreateAttributeOp(op.value)
             self.rewriter_builder.insert(new_attr_op)
             rewrite_values[op.output] = new_attr_op.attribute
