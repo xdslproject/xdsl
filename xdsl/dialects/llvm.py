@@ -924,6 +924,18 @@ class ICmpOp(IRDLOperation):
         printer.print_string(" : ")
         printer.print_attribute(self.lhs.type)
 
+    def verify_(self, verify_nested_ops: bool = True) -> None:
+        if isa(self.lhs.type, VectorType):
+            if not isa(res_type := self.res.type, VectorType):
+                raise VerifyException(
+                    f"Result must be a vector if operands are vectors, got {res_type}"
+                )
+        else:
+            if isa(res_type := self.res.type, VectorType):
+                raise VerifyException(
+                    f"Result must be scalar if operands are scalar, got {res_type}"
+                )
+
 
 @irdl_op_definition
 class GEPOp(IRDLOperation):
