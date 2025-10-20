@@ -1122,7 +1122,8 @@ class FloatData(Data[float]):
             return float(parser.parse_number())
 
     def print_parameter(self, printer: Printer) -> None:
-        printer.print_string(f"{self.data}")
+        with printer.in_angle_brackets():
+            printer.print_string(f"{self.data}")
 
     def __eq__(self, other: object):
         # avoid triggering `float('nan') != float('nan')` inequality
