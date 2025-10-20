@@ -22,6 +22,7 @@ _DEFAULT_MAX_ITERATIONS = 20
 """Default number of times to iterate over the module."""
 
 
+# TODO: remove the constraint functions here (https://github.com/xdslproject/xdsl/issues/5391)
 @register_impls
 class EqsatConstraintFunctions(InterpreterFunctions):
     @impl_external("is_not_unsound")
