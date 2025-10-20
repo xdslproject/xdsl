@@ -3,8 +3,15 @@ from dataclasses import dataclass
 
 from xdsl.context import Context
 from xdsl.dialects import builtin, pdl_interp
-from xdsl.interpreter import Interpreter
+from xdsl.interpreter import (
+    Interpreter,
+    InterpreterFunctions,
+    PythonValues,
+    impl_external,
+    register_impls,
+)
 from xdsl.interpreters.eqsat_pdl_interp import EqsatPDLInterpFunctions
+from xdsl.ir import Operation
 from xdsl.parser import Parser
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import PatternRewriterListener, PatternRewriteWalker
@@ -13,6 +20,16 @@ from xdsl.transforms.apply_pdl_interp import PDLInterpRewritePattern
 
 _DEFAULT_MAX_ITERATIONS = 20
 """Default number of times to iterate over the module."""
+
+
+@register_impls
+class EqsatConstraintFunctions(InterpreterFunctions):
+    @impl_external("is_not_unsound")
+    def run_is_not_unsound(
+        self, interp: Interpreter, _op: Operation, args: PythonValues
+    ):
+        assert isinstance(op := args[0], Operation)
+        return "unsound" not in op.attributes, ()
 
 
 def apply_eqsat_pdl_interp(
@@ -30,6 +47,7 @@ def apply_eqsat_pdl_interp(
     implementations = EqsatPDLInterpFunctions(ctx)
     implementations.populate_known_ops(op)
     interpreter.register_implementations(implementations)
+    interpreter.register_implementations(EqsatConstraintFunctions())
     rewrite_pattern = PDLInterpRewritePattern(matcher, interpreter, implementations)
 
     listener = PatternRewriterListener()

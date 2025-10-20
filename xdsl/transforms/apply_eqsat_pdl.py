@@ -13,6 +13,7 @@ from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import PatternRewriterListener, PatternRewriteWalker
 from xdsl.rewriter import InsertPoint
 from xdsl.traits import SymbolTable
+from xdsl.transforms.apply_eqsat_pdl_interp import EqsatConstraintFunctions
 from xdsl.transforms.apply_pdl_interp import PDLInterpRewritePattern
 from xdsl.transforms.mlir_opt import MLIROptPass
 
@@ -105,6 +106,7 @@ class ApplyEqsatPDLPass(ModulePass):
 
         interpreter = Interpreter(matchers_module)
         interpreter.register_implementations(implementations)
+        interpreter.register_implementations(EqsatConstraintFunctions())
 
         rewrite_patterns: list[PDLInterpRewritePattern] = []
         for pattern_op in patterns:
@@ -177,6 +179,7 @@ class ApplyEqsatPDLPass(ModulePass):
         implementations = EqsatPDLInterpFunctions(ctx)
         implementations.populate_known_ops(op)
         interpreter.register_implementations(implementations)
+        interpreter.register_implementations(EqsatConstraintFunctions())
         rewrite_pattern = PDLInterpRewritePattern(matcher, interpreter, implementations)
 
         listener = PatternRewriterListener()
