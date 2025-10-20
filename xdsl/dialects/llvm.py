@@ -7,10 +7,9 @@ from types import EllipsisType
 from typing import ClassVar
 
 from xdsl.dialects.builtin import (
+    I1,
     I64,
-    AnyFloat,
-    AnyOf,
-    AnySignlessIntegerType,
+    AnyFloatConstr,
     ArrayAttr,
     ContainerType,
     DenseArrayBase,
@@ -19,6 +18,7 @@ from xdsl.dialects.builtin import (
     IntegerAttr,
     IntegerType,
     NoneAttr,
+    SignlessIntegerConstraint,
     StringAttr,
     SymbolNameConstraint,
     SymbolRefAttr,
@@ -363,23 +363,12 @@ class LinkageAttr(ParametrizedAttribute):
             raise VerifyException(f"Specified linkage '{self.linkage.data}' is unknown")
 
 
-LLVMScalarOrVectorOfInteger = AnyOf(
-    [AnySignlessIntegerType, VectorType[AnySignlessIntegerType]]
-)
-LLVMScalarOrVectorOfFloat = AnyOf([AnyFloat, VectorType[AnyFloat]])
-LLVMScalarOrVectorOfNumeric = AnyOf(
-    [
-        AnySignlessIntegerType,
-        AnyFloat,
-        VectorType[AnySignlessIntegerType | AnyFloat],
-    ]
-)
-
-
 class ArithmeticBinOperation(IRDLOperation, ABC):
     """Class for arithmetic binary operations."""
 
-    T: ClassVar = VarConstraint("T", LLVMScalarOrVectorOfInteger)
+    T: ClassVar = VarConstraint(
+        "T", SignlessIntegerConstraint | VectorType.constr(SignlessIntegerConstraint)
+    )
 
     lhs = operand_def(T)
     rhs = operand_def(T)
@@ -449,7 +438,9 @@ class OverflowAttr(OverflowAttrBase):
 class ArithmeticBinOpOverflow(IRDLOperation, ABC):
     """Class for arithmetic binary operations that use overflow flags."""
 
-    T: ClassVar = VarConstraint("T", LLVMScalarOrVectorOfInteger)
+    T: ClassVar = VarConstraint(
+        "T", SignlessIntegerConstraint | VectorType.constr(SignlessIntegerConstraint)
+    )
 
     lhs = operand_def(T)
     rhs = operand_def(T)
@@ -501,7 +492,9 @@ class ArithmeticBinOpOverflow(IRDLOperation, ABC):
 class ArithmeticBinOpExact(IRDLOperation, ABC):
     """Class for arithmetic binary operations that use an exact flag."""
 
-    T: ClassVar = VarConstraint("T", LLVMScalarOrVectorOfInteger)
+    T: ClassVar = VarConstraint(
+        "T", SignlessIntegerConstraint | VectorType.constr(SignlessIntegerConstraint)
+    )
 
     lhs = operand_def(T)
     rhs = operand_def(T)
@@ -561,7 +554,9 @@ class ArithmeticBinOpExact(IRDLOperation, ABC):
 class ArithmeticBinOpDisjoint(IRDLOperation, ABC):
     """Class for arithmetic binary operations that use a disjoint flag."""
 
-    T: ClassVar = VarConstraint("T", LLVMScalarOrVectorOfInteger)
+    T: ClassVar = VarConstraint(
+        "T", SignlessIntegerConstraint | VectorType.constr(SignlessIntegerConstraint)
+    )
 
     lhs = operand_def(T)
     rhs = operand_def(T)
@@ -592,9 +587,13 @@ class ArithmeticBinOpDisjoint(IRDLOperation, ABC):
 
 
 class IntegerConversionOp(IRDLOperation, ABC):
-    arg = operand_def(LLVMScalarOrVectorOfInteger)
+    arg = operand_def(
+        SignlessIntegerConstraint | VectorType.constr(SignlessIntegerConstraint)
+    )
 
-    res = result_def(LLVMScalarOrVectorOfInteger)
+    res = result_def(
+        SignlessIntegerConstraint | VectorType.constr(SignlessIntegerConstraint)
+    )
 
     traits = traits_def(NoMemoryEffect())
 
@@ -628,8 +627,12 @@ class IntegerConversionOp(IRDLOperation, ABC):
 
 
 class IntegerConversionOpNNeg(IRDLOperation, ABC):
-    arg = operand_def(LLVMScalarOrVectorOfInteger)
-    res = result_def(LLVMScalarOrVectorOfInteger)
+    arg = operand_def(
+        SignlessIntegerConstraint | VectorType.constr(SignlessIntegerConstraint)
+    )
+    res = result_def(
+        SignlessIntegerConstraint | VectorType.constr(SignlessIntegerConstraint)
+    )
     traits = traits_def(NoMemoryEffect())
     non_neg = opt_prop_def(UnitAttr, prop_name="nonNeg")
 
@@ -653,8 +656,12 @@ class IntegerConversionOpNNeg(IRDLOperation, ABC):
 
 
 class IntegerConversionOpOverflow(IRDLOperation, ABC):
-    arg = operand_def(LLVMScalarOrVectorOfInteger)
-    res = result_def(LLVMScalarOrVectorOfInteger)
+    arg = operand_def(
+        SignlessIntegerConstraint | VectorType.constr(SignlessIntegerConstraint)
+    )
+    res = result_def(
+        SignlessIntegerConstraint | VectorType.constr(SignlessIntegerConstraint)
+    )
     overflowFlags = opt_prop_def(OverflowAttr)
     traits = traits_def(NoMemoryEffect())
 
@@ -854,11 +861,13 @@ ICMP_INDEX_BY_FLAG = {f: i for (i, f) in enumerate(ALL_ICMP_FLAGS)}
 @irdl_op_definition
 class ICmpOp(IRDLOperation):
     name = "llvm.icmp"
-    T: ClassVar = VarConstraint("T", LLVMScalarOrVectorOfInteger)
+    T: ClassVar = VarConstraint(
+        "T", SignlessIntegerConstraint | VectorType.constr(SignlessIntegerConstraint)
+    )
 
     lhs = operand_def(T)
     rhs = operand_def(T)
-    res = result_def(AnyOf([i1, VectorType[i1]]))
+    res = result_def(I1 | VectorType[I1])
     predicate = prop_def(IntegerAttr[i64])
 
     traits = traits_def(NoMemoryEffect())
@@ -1889,7 +1898,7 @@ class GenericCastOp(IRDLOperation, ABC):
 
 
 class AbstractFloatArithOp(IRDLOperation, ABC):
-    T: ClassVar = VarConstraint("T", LLVMScalarOrVectorOfFloat)
+    T: ClassVar = VarConstraint("T", AnyFloatConstr | VectorType.constr(AnyFloatConstr))
 
     lhs = operand_def(T)
     rhs = operand_def(T)
