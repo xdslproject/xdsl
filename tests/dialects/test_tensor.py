@@ -99,7 +99,7 @@ def test_from_elements_scalar():
     """Test FromElementsOp with a single scalar element (0-D tensor)."""
     a = create_ssa_value(i64)
 
-    res = FromElementsOp(a)
+    res = FromElementsOp(a, result_type=TensorType(i64, shape=tuple()))
 
     # Check that the result is a 0-D tensor (scalar)
     assert isinstance(res.result.type, TensorType)
@@ -115,7 +115,7 @@ def test_from_elements_1d_tensor():
     b = create_ssa_value(i64)
     c = create_ssa_value(i64)
 
-    res = FromElementsOp([a, b, c])
+    res = FromElementsOp(a, b, c)
 
     # Check that the result is a 1-D tensor with 3 elements
     assert isinstance(res.result.type, TensorType)
@@ -127,11 +127,11 @@ def test_from_elements_1d_tensor():
     assert res.elements[2] is c
 
 
-def test_from_elements_single_element_list():
+def test_from_elements_single_element():
     """Test FromElementsOp with a single element in a list."""
     a = create_ssa_value(f64)
 
-    res = FromElementsOp([a])
+    res = FromElementsOp(a)
 
     # Check that the result is a 1-D tensor with 1 element
     assert isinstance(res.result.type, TensorType)
@@ -145,7 +145,7 @@ def test_from_elements_empty_list():
     """Test FromElementsOp with an empty list."""
     # Empty lists should raise a ValueError since we can't infer element type
     try:
-        FromElementsOp([])
+        FromElementsOp()
     except ValueError:
         # This is expected
         return
@@ -158,7 +158,7 @@ def test_from_elements_different_numeric_types():
     a_f64 = create_ssa_value(f64)
     b_f64 = create_ssa_value(f64)
 
-    res_f64 = FromElementsOp([a_f64, b_f64])
+    res_f64 = FromElementsOp(a_f64, b_f64)
     assert res_f64.result.type.element_type == f64
     assert res_f64.result.type.get_shape() == (2,)
 
@@ -166,7 +166,7 @@ def test_from_elements_different_numeric_types():
     a_i64 = create_ssa_value(i64)
     b_i64 = create_ssa_value(i64)
 
-    res_i64 = FromElementsOp([a_i64, b_i64])
+    res_i64 = FromElementsOp(a_i64, b_i64)
     assert res_i64.result.type.element_type == i64
     assert res_i64.result.type.get_shape() == (2,)
 
@@ -176,10 +176,12 @@ def test_from_elements_type_consistency():
     a_i64 = create_ssa_value(i64)
     b_f64 = create_ssa_value(f64)
 
+    from xdsl.utils.exceptions import VerifyException
+
     # This should raise an assertion error due to type mismatch
     try:
-        FromElementsOp([a_i64, b_f64])
-    except AssertionError:
+        FromElementsOp(a_i64, b_f64).verify()
+    except VerifyException:
         # This is expected
         return
     raise Exception("Expected assertion error for mismatched types")
@@ -189,7 +191,7 @@ def test_from_elements_large_tensor():
     """Test FromElementsOp with a larger number of elements."""
     elements = [create_ssa_value(i64) for _ in range(100)]
 
-    res = FromElementsOp(elements)
+    res = FromElementsOp(*elements)
 
     assert isinstance(res.result.type, TensorType)
     assert res.result.type.get_shape() == (100,)
@@ -207,7 +209,7 @@ def test_from_elements_assembly_format():
     a = create_ssa_value(i64)
     b = create_ssa_value(i64)
 
-    res = FromElementsOp([a, b])
+    res = FromElementsOp(a, b)
 
     output = StringIO()
     printer = Printer(stream=output)
