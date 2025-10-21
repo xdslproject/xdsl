@@ -452,7 +452,6 @@ class DM_Operation(
     destination = result_def(R1InvT)
     memory = operand_def(R2InvT)
     memory_offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
-    mask = opt_attr_def()
 
     traits = traits_def(
         DM_OperationHasCanonicalizationPatterns(),
