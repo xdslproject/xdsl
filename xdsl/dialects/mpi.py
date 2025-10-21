@@ -676,7 +676,7 @@ class UnwrapMemRefOp(MPIBaseOp):
     def __init__(self, ref: SSAValue | Operation):
         return super().__init__(
             operands=[ref],
-            result_types=[llvm.LLVMPointerType.opaque(), i32, DataType()],
+            result_types=[llvm.LLVMPointerType(), i32, DataType()],
         )
 
 
