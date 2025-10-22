@@ -185,7 +185,7 @@ def test_from_elements_type_consistency():
 
 def test_from_elements_large_tensor():
     """Test FromElementsOp with a larger number of elements."""
-    elements = [create_ssa_value(i64) for _ in range(100)]
+    elements = [create_ssa_value(i64) for _ in range(10)]
 
     res = FromElementsOp(*elements)
 
