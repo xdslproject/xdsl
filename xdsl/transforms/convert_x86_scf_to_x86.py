@@ -124,6 +124,10 @@ class LowerX86ScfForPattern(RewritePattern):
             ),
         )
 
+        mv_op.destination.name_hint = iv.name_hint
+        inc_op.register_out.name_hint = iv.name_hint
+        end_block.args[0].name_hint = iv.name_hint
+
         rewriter.inline_region(op.body, BlockInsertPoint.before(end_block))
 
         # Move lb to new register to initialize the iv.
@@ -142,6 +146,8 @@ class LowerX86ScfForPattern(RewritePattern):
             ),
             InsertPoint.at_end(init_block),
         )
+
+        mv_op.destination.name_hint = op.lb.name_hint
 
         # Insert label at the start of the first body block.
         rewriter.insert_op(
