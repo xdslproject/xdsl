@@ -1071,6 +1071,19 @@ class RangeConstraint(ABC, Generic[AttributeCovT]):
         """
         ...
 
+    def verifies(
+        self,
+        attrs: Sequence[Attribute],
+    ) -> TypeGuard[AttributeCovT]:
+        """
+        A helper method to check whether a given attribute matches `self`.
+        """
+        try:
+            self.verify(attrs, ConstraintContext())
+            return True
+        except VerifyException:
+            return False
+
     @abstractmethod
     def verify_length(self, length: int, constraint_context: ConstraintContext) -> None:
         """
