@@ -25,8 +25,8 @@
 // CHECK-NEXT: %{{.*}} = x86.rs.xor %{{.*}}, %{{.*}} : (!x86.reg, !x86.reg) -> !x86.reg
 %ds_mov = x86.ds.mov %1 : (!x86.reg) -> !x86.reg
 // CHECK-NEXT: %ds_mov = x86.ds.mov %{{.*}} : (!x86.reg) -> !x86.reg
-%rr_cmp = x86.ss.cmp %rr_xor, %1 : (!x86.reg, !x86.reg) -> !x86.rflags<rflags>
-// CHECK: %{{.*}} = x86.ss.cmp %{{.*}}, %{{.*}} : (!x86.reg, !x86.reg) -> !x86.rflags
+x86.ss.cmp %rr_xor, %1 : (!x86.reg, !x86.reg) -> ()
+// CHECK: x86.ss.cmp %{{.*}}, %{{.*}} : (!x86.reg, !x86.reg) -> ()
 
 %r_pushrsp = x86.s.push %rsp, %1 : (!x86.reg<rsp>, !x86.reg) -> !x86.reg<rsp>
 // CHECK-NEXT: %{{.*}} = x86.s.push %rsp, %{{.*}} : (!x86.reg<rsp>, !x86.reg) -> !x86.reg<rsp>
@@ -62,8 +62,8 @@
 // CHECK-NEXT: %{{.*}} = x86.rm.xor %{{.*}}, %{{.*}}, 8 : (!x86.reg, !x86.reg) -> !x86.reg
 %rm_mov = x86.dm.mov %1, 8 : (!x86.reg) -> !x86.reg
 // CHECK-NEXT: %{{.*}} = x86.dm.mov %{{.*}}, 8 : (!x86.reg) -> !x86.reg
-%rm_cmp = x86.sm.cmp %1, %1, 8 : (!x86.reg, !x86.reg) -> !x86.rflags<rflags>
-// CHECK-NEXT: %{{.*}} = x86.sm.cmp %{{.*}}, %{{.*}}, 8 : (!x86.reg, !x86.reg) -> !x86.rflags
+x86.sm.cmp %1, %1, 8 : (!x86.reg, !x86.reg) -> ()
+// CHECK-NEXT: x86.sm.cmp %{{.*}}, %{{.*}}, 8 : (!x86.reg, !x86.reg) -> ()
 %dm_lea = x86.dm.lea %1, 8 : (!x86.reg) -> !x86.reg
 // CHECK-NEXT: %{{.*}} = x86.dm.lea %{{.*}}, 8 : (!x86.reg) -> !x86.reg
 
@@ -79,8 +79,8 @@
 // CHECK-NEXT: %{{.*}} = x86.ri.xor %{{.*}}, 2 : (!x86.reg) -> !x86.reg
 %di_mov = x86.di.mov 2 : () -> !x86.reg
 // CHECK-NEXT: %di_mov = x86.di.mov 2 : () -> !x86.reg
-%ri_cmp = x86.si.cmp %1, 2 : (!x86.reg) -> !x86.rflags<rflags>
-// CHECK-NEXT: %{{.*}} = x86.si.cmp %{{.*}}, 2 : (!x86.reg) -> !x86.rflags
+x86.si.cmp %1, 2 : (!x86.reg) -> ()
+// CHECK-NEXT: x86.si.cmp %{{.*}}, 2 : (!x86.reg) -> ()
 
 x86.ms.add %1, %1 : (!x86.reg, !x86.reg) -> ()
 // CHECK-NEXT: x86.ms.add %{{.*}}, %{{.*}} : (!x86.reg, !x86.reg) -> ()
@@ -96,8 +96,8 @@ x86.ms.xor %1, %1, 8 : (!x86.reg, !x86.reg) -> ()
 // CHECK-NEXT: x86.ms.xor %{{.*}}, %{{.*}}, 8 : (!x86.reg, !x86.reg) -> ()
 x86.ms.mov %1, %1, 8 : (!x86.reg, !x86.reg) -> ()
 // CHECK-NEXT: x86.ms.mov %{{.*}}, %{{.*}}, 8 : (!x86.reg, !x86.reg) -> ()
-%mr.cmp = x86.ms.cmp %1, %1, 8 : (!x86.reg, !x86.reg) -> !x86.rflags<rflags>
-// CHECK-NEXT: %{{.*}} = x86.ms.cmp %{{.*}}, %{{.*}}, 8 : (!x86.reg, !x86.reg) -> !x86.rflags
+x86.ms.cmp %1, %1, 8 : (!x86.reg, !x86.reg) -> ()
+// CHECK-NEXT: x86.ms.cmp %{{.*}}, %{{.*}}, 8 : (!x86.reg, !x86.reg) -> ()
 
 x86.mi.add %1, 2 : (!x86.reg) -> ()
 // CHECK-NEXT: x86.mi.add %{{.*}}, 2 : (!x86.reg) -> ()
@@ -113,8 +113,8 @@ x86.mi.xor %1, 2, 8 : (!x86.reg) -> ()
 // CHECK-NEXT: x86.mi.xor %{{.*}}, 2, 8 : (!x86.reg) -> ()
 x86.mi.mov %1, 2, 8 : (!x86.reg) -> ()
 // CHECK-NEXT: x86.mi.mov %{{.*}}, 2, 8 : (!x86.reg) -> ()
-%mi_cmp = x86.mi.cmp %1, 2, 8 : (!x86.reg) -> !x86.rflags<rflags>
-// CHECK-NEXT: %{{.*}} = x86.mi.cmp %{{.*}}, 2, 8 : (!x86.reg) -> !x86.rflags
+x86.mi.cmp %1, 2, 8 : (!x86.reg) -> ()
+// CHECK-NEXT: x86.mi.cmp %{{.*}}, 2, 8 : (!x86.reg) -> ()
 
 %rri_imul = x86.dsi.imul %1, 2 : (!x86.reg) -> !x86.reg
 // CHECK-NEXT: %{{.*}} = x86.dsi.imul %{{.*}}, 2 : (!x86.reg) -> !x86.reg
@@ -157,8 +157,8 @@ x86.label "label"
 
 func.func @funcyasm() {
     %3, %4 = "test.op"() : () -> (!x86.reg, !x86.reg)
-    %rflags = x86.ss.cmp %3, %4 : (!x86.reg, !x86.reg) -> !x86.rflags<rflags>
-    // CHECK: %{{.*}} = x86.ss.cmp %{{.*}}, %{{.*}} : (!x86.reg, !x86.reg) -> !x86.rflags
+    x86.ss.cmp %3, %4 : (!x86.reg, !x86.reg) -> ()
+    // CHECK: x86.ss.cmp %{{.*}}, %{{.*}} : (!x86.reg, !x86.reg) -> ()
 
     x86.c.jmp ^then(%arg : !x86.reg)
     // CHECK-NEXT: x86.c.jmp ^{{.+}}(%arg : !x86.reg)
@@ -166,182 +166,182 @@ func.func @funcyasm() {
     // CHECK-NEXT: ^{{.+}}(%arg : !x86.reg):
     x86.label "then"
     // CHECK-NEXT: x86.label "then"
-    x86.c.ja %rflags : !x86.rflags<rflags>, ^then(%arg : !x86.reg), ^else(%arg2 : !x86.reg)
-    // CHECK-NEXT: x86.c.ja %rflags : !x86.rflags<rflags>, ^{{.+}}(%arg : !x86.reg), ^{{.+}}(%arg2 : !x86.reg)
+    x86.c.ja ^then(%arg : !x86.reg), ^else(%arg2 : !x86.reg)
+    // CHECK-NEXT: x86.c.ja ^{{.+}}(%arg : !x86.reg), ^{{.+}}(%arg2 : !x86.reg)
     ^else(%arg2 : !x86.reg):
     // CHECK-NEXT: ^{{.+}}(%arg2 : !x86.reg):
     x86.label "else"
     // CHECK-NEXT: x86.label "else"
-    x86.c.jae %rflags : !x86.rflags<rflags>, ^then(%arg : !x86.reg), ^else2(%arg3 : !x86.reg)
-    // CHECK-NEXT: x86.c.jae %rflags : !x86.rflags<rflags>, ^{{.+}}(%arg : !x86.reg), ^{{.+}}(%arg3 : !x86.reg)
+    x86.c.jae ^then(%arg : !x86.reg), ^else2(%arg3 : !x86.reg)
+    // CHECK-NEXT: x86.c.jae ^{{.+}}(%arg : !x86.reg), ^{{.+}}(%arg3 : !x86.reg)
     ^else2(%arg3 : !x86.reg):
     // CHECK-NEXT: ^{{.+}}(%arg3 : !x86.reg):
     x86.label "else2"
     // CHECK-NEXT: x86.label "else2"
-    x86.c.jb %rflags : !x86.rflags<rflags>, ^then(%arg : !x86.reg), ^else3(%arg4 : !x86.reg)
-    // CHECK-NEXT: x86.c.jb %rflags : !x86.rflags<rflags>, ^{{.+}}(%arg : !x86.reg), ^{{.+}}(%arg4 : !x86.reg)
+    x86.c.jb ^then(%arg : !x86.reg), ^else3(%arg4 : !x86.reg)
+    // CHECK-NEXT: x86.c.jb ^{{.+}}(%arg : !x86.reg), ^{{.+}}(%arg4 : !x86.reg)
     ^else3(%arg4 : !x86.reg):
     // CHECK-NEXT: ^{{.+}}(%arg4 : !x86.reg):
     x86.label "else3"
     // CHECK-NEXT: x86.label "else3"
-    x86.c.jbe %rflags : !x86.rflags<rflags>, ^then(%arg : !x86.reg), ^else4(%arg5 : !x86.reg)
-    // CHECK-NEXT: x86.c.jbe %rflags : !x86.rflags<rflags>, ^{{.+}}(%arg : !x86.reg), ^{{.+}}(%arg5 : !x86.reg)
+    x86.c.jbe ^then(%arg : !x86.reg), ^else4(%arg5 : !x86.reg)
+    // CHECK-NEXT: x86.c.jbe ^{{.+}}(%arg : !x86.reg), ^{{.+}}(%arg5 : !x86.reg)
     ^else4(%arg5 : !x86.reg):
     // CHECK-NEXT: ^{{.+}}(%arg5 : !x86.reg):
     x86.label "else4"
     // CHECK-NEXT: x86.label "else4"
-    x86.c.jc %rflags : !x86.rflags<rflags>, ^then(%arg : !x86.reg), ^else5(%arg6 : !x86.reg)
-    // CHECK-NEXT: x86.c.jc %rflags : !x86.rflags<rflags>, ^{{.+}}(%arg : !x86.reg), ^{{.+}}(%arg6 : !x86.reg)
+    x86.c.jc ^then(%arg : !x86.reg), ^else5(%arg6 : !x86.reg)
+    // CHECK-NEXT: x86.c.jc ^{{.+}}(%arg : !x86.reg), ^{{.+}}(%arg6 : !x86.reg)
     ^else5(%arg6 : !x86.reg):
     // CHECK-NEXT: ^{{.+}}(%arg6 : !x86.reg):
     x86.label "else5"
     // CHECK-NEXT: x86.label "else5"
-    x86.c.je %rflags : !x86.rflags<rflags>, ^then(%arg : !x86.reg), ^else6(%arg7 : !x86.reg)
-    // CHECK-NEXT: x86.c.je %rflags : !x86.rflags<rflags>, ^{{.+}}(%arg : !x86.reg), ^{{.+}}(%arg7 : !x86.reg)
+    x86.c.je ^then(%arg : !x86.reg), ^else6(%arg7 : !x86.reg)
+    // CHECK-NEXT: x86.c.je ^{{.+}}(%arg : !x86.reg), ^{{.+}}(%arg7 : !x86.reg)
     ^else6(%arg7 : !x86.reg):
     // CHECK-NEXT: ^{{.+}}(%arg7 : !x86.reg):
     x86.label "else6"
     // CHECK-NEXT: x86.label "else6"
-    x86.c.jg %rflags : !x86.rflags<rflags>, ^then(%arg : !x86.reg), ^else7(%arg8 : !x86.reg)
-    // CHECK-NEXT: x86.c.jg %rflags : !x86.rflags<rflags>, ^{{.+}}(%arg : !x86.reg), ^{{.+}}(%arg8 : !x86.reg)
+    x86.c.jg ^then(%arg : !x86.reg), ^else7(%arg8 : !x86.reg)
+    // CHECK-NEXT: x86.c.jg ^{{.+}}(%arg : !x86.reg), ^{{.+}}(%arg8 : !x86.reg)
     ^else7(%arg8 : !x86.reg):
     // CHECK-NEXT: ^{{.+}}(%arg8 : !x86.reg):
     x86.label "else7"
     // CHECK-NEXT: x86.label "else7"
-    x86.c.jge %rflags : !x86.rflags<rflags>, ^then(%arg : !x86.reg), ^else8(%arg9 : !x86.reg)
-    // CHECK-NEXT: x86.c.jge %rflags : !x86.rflags<rflags>, ^{{.+}}(%arg : !x86.reg), ^{{.+}}(%arg9 : !x86.reg)
+    x86.c.jge ^then(%arg : !x86.reg), ^else8(%arg9 : !x86.reg)
+    // CHECK-NEXT: x86.c.jge ^{{.+}}(%arg : !x86.reg), ^{{.+}}(%arg9 : !x86.reg)
     ^else8(%arg9 : !x86.reg):
     // CHECK-NEXT: ^{{.+}}(%arg9 : !x86.reg):
     x86.label "else8"
     // CHECK-NEXT: x86.label "else8"
-    x86.c.jl %rflags : !x86.rflags<rflags>, ^then(%arg : !x86.reg), ^else9(%arg10 : !x86.reg)
-    // CHECK-NEXT: x86.c.jl %rflags : !x86.rflags<rflags>, ^{{.+}}(%arg : !x86.reg), ^{{.+}}(%arg10 : !x86.reg)
+    x86.c.jl ^then(%arg : !x86.reg), ^else9(%arg10 : !x86.reg)
+    // CHECK-NEXT: x86.c.jl ^{{.+}}(%arg : !x86.reg), ^{{.+}}(%arg10 : !x86.reg)
     ^else9(%arg10 : !x86.reg):
     // CHECK-NEXT: ^{{.+}}(%arg10 : !x86.reg):
     x86.label "else9"
     // CHECK-NEXT: x86.label "else9"
-    x86.c.jle %rflags : !x86.rflags<rflags>, ^then(%arg : !x86.reg), ^else10(%arg11 : !x86.reg)
-    // CHECK-NEXT: x86.c.jle %rflags : !x86.rflags<rflags>, ^{{.+}}(%arg : !x86.reg), ^{{.+}}(%arg11 : !x86.reg)
+    x86.c.jle ^then(%arg : !x86.reg), ^else10(%arg11 : !x86.reg)
+    // CHECK-NEXT: x86.c.jle ^{{.+}}(%arg : !x86.reg), ^{{.+}}(%arg11 : !x86.reg)
     ^else10(%arg11 : !x86.reg):
     // CHECK-NEXT: ^{{.+}}(%arg11 : !x86.reg):
     x86.label "else10"
     // CHECK-NEXT: x86.label "else10"
-    x86.c.jna %rflags : !x86.rflags<rflags>, ^then(%arg : !x86.reg), ^else11(%arg12 : !x86.reg)
-    // CHECK-NEXT: x86.c.jna %rflags : !x86.rflags<rflags>, ^{{.+}}(%arg : !x86.reg), ^{{.+}}(%arg12 : !x86.reg)
+    x86.c.jna ^then(%arg : !x86.reg), ^else11(%arg12 : !x86.reg)
+    // CHECK-NEXT: x86.c.jna ^{{.+}}(%arg : !x86.reg), ^{{.+}}(%arg12 : !x86.reg)
     ^else11(%arg12 : !x86.reg):
     // CHECK-NEXT: ^{{.+}}(%arg12 : !x86.reg):
     x86.label "else11"
     // CHECK-NEXT: x86.label "else11"
-    x86.c.jnae %rflags : !x86.rflags<rflags>, ^then(%arg : !x86.reg), ^else12(%arg13 : !x86.reg)
-    // CHECK-NEXT: x86.c.jnae %rflags : !x86.rflags<rflags>, ^{{.+}}(%arg : !x86.reg), ^{{.+}}(%arg13 : !x86.reg)
+    x86.c.jnae ^then(%arg : !x86.reg), ^else12(%arg13 : !x86.reg)
+    // CHECK-NEXT: x86.c.jnae ^{{.+}}(%arg : !x86.reg), ^{{.+}}(%arg13 : !x86.reg)
     ^else12(%arg13 : !x86.reg):
     // CHECK-NEXT: ^{{.+}}(%arg13 : !x86.reg):
     x86.label "else12"
     // CHECK-NEXT: x86.label "else12"
-    x86.c.jnb %rflags : !x86.rflags<rflags>, ^then(%arg : !x86.reg), ^else13(%arg14 : !x86.reg)
-    // CHECK-NEXT: x86.c.jnb %rflags : !x86.rflags<rflags>, ^{{.+}}(%arg : !x86.reg), ^{{.+}}(%arg14 : !x86.reg)
+    x86.c.jnb ^then(%arg : !x86.reg), ^else13(%arg14 : !x86.reg)
+    // CHECK-NEXT: x86.c.jnb ^{{.+}}(%arg : !x86.reg), ^{{.+}}(%arg14 : !x86.reg)
     ^else13(%arg14 : !x86.reg):
     // CHECK-NEXT: ^{{.+}}(%arg14 : !x86.reg):
     x86.label "else13"
     // CHECK-NEXT: x86.label "else13"
-    x86.c.jnbe %rflags : !x86.rflags<rflags>, ^then(%arg : !x86.reg), ^else14(%arg15 : !x86.reg)
-    // CHECK-NEXT: x86.c.jnbe %rflags : !x86.rflags<rflags>, ^{{.+}}(%arg : !x86.reg), ^{{.+}}(%arg15 : !x86.reg)
+    x86.c.jnbe ^then(%arg : !x86.reg), ^else14(%arg15 : !x86.reg)
+    // CHECK-NEXT: x86.c.jnbe ^{{.+}}(%arg : !x86.reg), ^{{.+}}(%arg15 : !x86.reg)
     ^else14(%arg15 : !x86.reg):
     // CHECK-NEXT: ^{{.+}}(%arg15 : !x86.reg):
     x86.label "else14"
     // CHECK-NEXT: x86.label "else14"
-    x86.c.jnc %rflags : !x86.rflags<rflags>, ^then(%arg : !x86.reg), ^else15(%arg16 : !x86.reg)
-    // CHECK-NEXT: x86.c.jnc %rflags : !x86.rflags<rflags>, ^{{.+}}(%arg : !x86.reg), ^{{.+}}(%arg16 : !x86.reg)
+    x86.c.jnc ^then(%arg : !x86.reg), ^else15(%arg16 : !x86.reg)
+    // CHECK-NEXT: x86.c.jnc ^{{.+}}(%arg : !x86.reg), ^{{.+}}(%arg16 : !x86.reg)
     ^else15(%arg16 : !x86.reg):
     // CHECK-NEXT: ^{{.+}}(%arg16 : !x86.reg):
     x86.label "else15"
     // CHECK-NEXT: x86.label "else15"
-    x86.c.jne %rflags : !x86.rflags<rflags>, ^then(%arg : !x86.reg), ^else16(%arg17 : !x86.reg)
-    // CHECK-NEXT: x86.c.jne %rflags : !x86.rflags<rflags>, ^{{.+}}(%arg : !x86.reg), ^{{.+}}(%arg17 : !x86.reg)
+    x86.c.jne ^then(%arg : !x86.reg), ^else16(%arg17 : !x86.reg)
+    // CHECK-NEXT: x86.c.jne ^{{.+}}(%arg : !x86.reg), ^{{.+}}(%arg17 : !x86.reg)
     ^else16(%arg17 : !x86.reg):
     // CHECK-NEXT: ^{{.+}}(%arg17 : !x86.reg):
     x86.label "else16"
     // CHECK-NEXT: x86.label "else16"
-    x86.c.jng %rflags : !x86.rflags<rflags>, ^then(%arg : !x86.reg), ^else17(%arg18 : !x86.reg)
-    // CHECK-NEXT: x86.c.jng %rflags : !x86.rflags<rflags>, ^{{.+}}(%arg : !x86.reg), ^{{.+}}(%arg18 : !x86.reg)
+    x86.c.jng ^then(%arg : !x86.reg), ^else17(%arg18 : !x86.reg)
+    // CHECK-NEXT: x86.c.jng ^{{.+}}(%arg : !x86.reg), ^{{.+}}(%arg18 : !x86.reg)
     ^else17(%arg18 : !x86.reg):
     // CHECK-NEXT: ^{{.+}}(%arg18 : !x86.reg):
     x86.label "else17"
     // CHECK-NEXT: x86.label "else17"
-    x86.c.jnge %rflags : !x86.rflags<rflags>, ^then(%arg : !x86.reg), ^else18(%arg19 : !x86.reg)
-    // CHECK-NEXT: x86.c.jnge %rflags : !x86.rflags<rflags>, ^{{.+}}(%arg : !x86.reg), ^{{.+}}(%arg19 : !x86.reg)
+    x86.c.jnge ^then(%arg : !x86.reg), ^else18(%arg19 : !x86.reg)
+    // CHECK-NEXT: x86.c.jnge ^{{.+}}(%arg : !x86.reg), ^{{.+}}(%arg19 : !x86.reg)
     ^else18(%arg19 : !x86.reg):
     // CHECK-NEXT: ^{{.+}}(%arg19 : !x86.reg):
     x86.label "else18"
     // CHECK-NEXT: x86.label "else18"
-    x86.c.jnl %rflags : !x86.rflags<rflags>, ^then(%arg : !x86.reg), ^else19(%arg20 : !x86.reg)
-    // CHECK-NEXT: x86.c.jnl %rflags : !x86.rflags<rflags>, ^{{.+}}(%arg : !x86.reg), ^{{.+}}(%arg20 : !x86.reg)
+    x86.c.jnl ^then(%arg : !x86.reg), ^else19(%arg20 : !x86.reg)
+    // CHECK-NEXT: x86.c.jnl ^{{.+}}(%arg : !x86.reg), ^{{.+}}(%arg20 : !x86.reg)
     ^else19(%arg20 : !x86.reg):
     // CHECK-NEXT: ^{{.+}}(%arg20 : !x86.reg):
     x86.label "else19"
     // CHECK-NEXT: x86.label "else19"
-    x86.c.jnle %rflags : !x86.rflags<rflags>, ^then(%arg : !x86.reg), ^else20(%arg21 : !x86.reg)
-    // CHECK-NEXT: x86.c.jnle %rflags : !x86.rflags<rflags>, ^{{.+}}(%arg : !x86.reg), ^{{.+}}(%arg21 : !x86.reg)
+    x86.c.jnle ^then(%arg : !x86.reg), ^else20(%arg21 : !x86.reg)
+    // CHECK-NEXT: x86.c.jnle ^{{.+}}(%arg : !x86.reg), ^{{.+}}(%arg21 : !x86.reg)
     ^else20(%arg21 : !x86.reg):
     // CHECK-NEXT: ^{{.+}}(%arg21 : !x86.reg):
     x86.label "else20"
     // CHECK-NEXT: x86.label "else20"
-    x86.c.jno %rflags : !x86.rflags<rflags>, ^then(%arg : !x86.reg), ^else21(%arg22 : !x86.reg)
-    // CHECK-NEXT: x86.c.jno %rflags : !x86.rflags<rflags>, ^{{.+}}(%arg : !x86.reg), ^{{.+}}(%arg22 : !x86.reg)
+    x86.c.jno ^then(%arg : !x86.reg), ^else21(%arg22 : !x86.reg)
+    // CHECK-NEXT: x86.c.jno ^{{.+}}(%arg : !x86.reg), ^{{.+}}(%arg22 : !x86.reg)
     ^else21(%arg22 : !x86.reg):
     // CHECK-NEXT: ^{{.+}}(%arg22 : !x86.reg):
     x86.label "else21"
     // CHECK-NEXT: x86.label "else21"
-    x86.c.jnp %rflags : !x86.rflags<rflags>, ^then(%arg : !x86.reg), ^else22(%arg23 : !x86.reg)
-    // CHECK-NEXT: x86.c.jnp %rflags : !x86.rflags<rflags>, ^{{.+}}(%arg : !x86.reg), ^{{.+}}(%arg23 : !x86.reg)
+    x86.c.jnp ^then(%arg : !x86.reg), ^else22(%arg23 : !x86.reg)
+    // CHECK-NEXT: x86.c.jnp ^{{.+}}(%arg : !x86.reg), ^{{.+}}(%arg23 : !x86.reg)
     ^else22(%arg23 : !x86.reg):
     // CHECK-NEXT: ^{{.+}}(%arg23 : !x86.reg):
     x86.label "else22"
     // CHECK-NEXT: x86.label "else22"
-    x86.c.jns %rflags : !x86.rflags<rflags>, ^then(%arg : !x86.reg), ^else23(%arg24 : !x86.reg)
-    // CHECK-NEXT: x86.c.jns %rflags : !x86.rflags<rflags>, ^{{.+}}(%arg : !x86.reg), ^{{.+}}(%arg24 : !x86.reg)
+    x86.c.jns ^then(%arg : !x86.reg), ^else23(%arg24 : !x86.reg)
+    // CHECK-NEXT: x86.c.jns ^{{.+}}(%arg : !x86.reg), ^{{.+}}(%arg24 : !x86.reg)
     ^else23(%arg24 : !x86.reg):
     // CHECK-NEXT: ^{{.+}}(%arg24 : !x86.reg):
     x86.label "else23"
     // CHECK-NEXT: x86.label "else23"
-    x86.c.jnz %rflags : !x86.rflags<rflags>, ^then(%arg : !x86.reg), ^else24(%arg25 : !x86.reg)
-    // CHECK-NEXT: x86.c.jnz %rflags : !x86.rflags<rflags>, ^{{.+}}(%arg : !x86.reg), ^{{.+}}(%arg25 : !x86.reg)
+    x86.c.jnz ^then(%arg : !x86.reg), ^else24(%arg25 : !x86.reg)
+    // CHECK-NEXT: x86.c.jnz ^{{.+}}(%arg : !x86.reg), ^{{.+}}(%arg25 : !x86.reg)
     ^else24(%arg25 : !x86.reg):
     // CHECK-NEXT: ^{{.+}}(%arg25 : !x86.reg):
     x86.label "else24"
     // CHECK-NEXT: x86.label "else24"
-    x86.c.jo %rflags : !x86.rflags<rflags>, ^then(%arg : !x86.reg), ^else25(%arg26 : !x86.reg)
-    // CHECK-NEXT: x86.c.jo %rflags : !x86.rflags<rflags>, ^{{.+}}(%arg : !x86.reg), ^{{.+}}(%arg26 : !x86.reg)
+    x86.c.jo ^then(%arg : !x86.reg), ^else25(%arg26 : !x86.reg)
+    // CHECK-NEXT: x86.c.jo ^{{.+}}(%arg : !x86.reg), ^{{.+}}(%arg26 : !x86.reg)
     ^else25(%arg26 : !x86.reg):
     // CHECK-NEXT: ^{{.+}}(%arg26 : !x86.reg):
     x86.label "else25"
     // CHECK-NEXT: x86.label "else25"
-    x86.c.jp %rflags : !x86.rflags<rflags>, ^then(%arg : !x86.reg), ^else26(%arg27 : !x86.reg)
-    // CHECK-NEXT: x86.c.jp %rflags : !x86.rflags<rflags>, ^{{.+}}(%arg : !x86.reg), ^{{.+}}(%arg27 : !x86.reg)
+    x86.c.jp ^then(%arg : !x86.reg), ^else26(%arg27 : !x86.reg)
+    // CHECK-NEXT: x86.c.jp ^{{.+}}(%arg : !x86.reg), ^{{.+}}(%arg27 : !x86.reg)
     ^else26(%arg27 : !x86.reg):
     // CHECK-NEXT: ^{{.+}}(%arg27 : !x86.reg):
     x86.label "else26"
     // CHECK-NEXT: x86.label "else26"
-    x86.c.jpe %rflags : !x86.rflags<rflags>, ^then(%arg : !x86.reg), ^else27(%arg28 : !x86.reg)
-    // CHECK-NEXT: x86.c.jpe %rflags : !x86.rflags<rflags>, ^{{.+}}(%arg : !x86.reg), ^{{.+}}(%arg28 : !x86.reg)
+    x86.c.jpe ^then(%arg : !x86.reg), ^else27(%arg28 : !x86.reg)
+    // CHECK-NEXT: x86.c.jpe ^{{.+}}(%arg : !x86.reg), ^{{.+}}(%arg28 : !x86.reg)
     ^else27(%arg28 : !x86.reg):
     // CHECK-NEXT: ^{{.+}}(%arg28 : !x86.reg):
     x86.label "else27"
     // CHECK-NEXT: x86.label "else27"
-    x86.c.jpo %rflags : !x86.rflags<rflags>, ^then(%arg : !x86.reg), ^else28(%arg29 : !x86.reg)
-    // CHECK-NEXT: x86.c.jpo %rflags : !x86.rflags<rflags>, ^{{.+}}(%arg : !x86.reg), ^{{.+}}(%arg29 : !x86.reg)
+    x86.c.jpo ^then(%arg : !x86.reg), ^else28(%arg29 : !x86.reg)
+    // CHECK-NEXT: x86.c.jpo ^{{.+}}(%arg : !x86.reg), ^{{.+}}(%arg29 : !x86.reg)
     ^else28(%arg29 : !x86.reg):
     // CHECK-NEXT: ^{{.+}}(%arg29 : !x86.reg):
     x86.label "else28"
     // CHECK-NEXT: x86.label "else28"
-    x86.c.js %rflags : !x86.rflags<rflags>, ^then(%arg : !x86.reg), ^else29(%arg30 : !x86.reg)
-    // CHECK-NEXT: x86.c.js %rflags : !x86.rflags<rflags>, ^{{.+}}(%arg : !x86.reg), ^{{.+}}(%arg30 : !x86.reg)
+    x86.c.js ^then(%arg : !x86.reg), ^else29(%arg30 : !x86.reg)
+    // CHECK-NEXT: x86.c.js ^{{.+}}(%arg : !x86.reg), ^{{.+}}(%arg30 : !x86.reg)
     ^else29(%arg30 : !x86.reg):
     // CHECK-NEXT: ^{{.+}}(%arg30 : !x86.reg):
     x86.label "else29"
     // CHECK-NEXT: x86.label "else29"
-    x86.c.jz %rflags : !x86.rflags<rflags>, ^then(%arg : !x86.reg), ^else30(%arg31 : !x86.reg)
-    // CHECK-NEXT: x86.c.jz %rflags : !x86.rflags<rflags>, ^{{.+}}(%arg : !x86.reg), ^{{.+}}(%arg31 : !x86.reg)
+    x86.c.jz ^then(%arg : !x86.reg), ^else30(%arg31 : !x86.reg)
+    // CHECK-NEXT: x86.c.jz ^{{.+}}(%arg : !x86.reg), ^{{.+}}(%arg31 : !x86.reg)
     ^else30(%arg31 : !x86.reg):
     // CHECK-NEXT: ^{{.+}}(%arg31 : !x86.reg):
     x86.label "else30"

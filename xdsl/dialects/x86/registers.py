@@ -121,31 +121,6 @@ R13 = GeneralRegisterType.from_name("r13")
 R14 = GeneralRegisterType.from_name("r14")
 R15 = GeneralRegisterType.from_name("r15")
 
-RFLAGS_INDEX_BY_NAME = {
-    "rflags": 0,
-}
-
-
-@irdl_attr_definition
-class RFLAGSRegisterType(X86RegisterType):
-    """
-    A scalar x86 register type representing the RFLAGS register.
-    """
-
-    name = "x86.rflags"
-
-    @classmethod
-    def index_by_name(cls) -> dict[str, int]:
-        return RFLAGS_INDEX_BY_NAME
-
-    @classmethod
-    def infinite_register_prefix(cls):
-        return "inf_rflags_"
-
-
-UNALLOCATED_RFLAGS = RFLAGSRegisterType.unallocated()
-RFLAGS = RFLAGSRegisterType.from_name("rflags")
-
 
 class X86VectorRegisterType(X86RegisterType):
     """

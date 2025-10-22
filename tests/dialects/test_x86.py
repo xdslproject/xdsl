@@ -49,10 +49,6 @@ def test_unallocated_register():
     assert not unallocated.is_allocated
     assert unallocated == x86.registers.UNALLOCATED_GENERAL
 
-    unallocated = x86.registers.RFLAGSRegisterType.from_name("")
-    assert not unallocated.is_allocated
-    assert unallocated == x86.registers.UNALLOCATED_RFLAGS
-
     unallocated = x86.registers.AVX2RegisterType.from_name("")
     assert not unallocated.is_allocated
     assert unallocated == x86.registers.UNALLOCATED_AVX2
@@ -100,12 +96,6 @@ def test_unallocated_register():
 def test_register(register: x86.registers.GeneralRegisterType, name: str):
     assert register.is_allocated
     assert register.register_name.data == name
-
-
-def test_rflags_register():
-    rflags = x86.registers.RFLAGS
-    assert rflags.is_allocated
-    assert rflags.register_name.data == "rflags"
 
 
 @pytest.mark.parametrize(

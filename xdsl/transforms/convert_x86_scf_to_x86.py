@@ -2,7 +2,7 @@ from typing import cast
 
 from xdsl.context import Context
 from xdsl.dialects import builtin, x86, x86_scf
-from xdsl.dialects.x86.registers import RFLAGS, GeneralRegisterType
+from xdsl.dialects.x86.registers import GeneralRegisterType
 from xdsl.ir import SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
@@ -113,9 +113,8 @@ class LowerX86ScfForPattern(RewritePattern):
                 inc_op := x86.ops.R_IncOp(
                     cast(SSAValue[GeneralRegisterType], mv_op.destination)
                 ),
-                cmp_op := x86.ops.SS_CmpOp(inc_op.register_out, op.ub, result=RFLAGS),
+                x86.ops.SS_CmpOp(inc_op.register_out, op.ub),
                 x86.ops.C_JlOp(
-                    cmp_op.result,
                     (inc_op.register_out, *yield_op.operands),
                     (inc_op.register_out, *yield_op.operands),
                     first_body_block,
@@ -135,9 +134,8 @@ class LowerX86ScfForPattern(RewritePattern):
         rewriter.insert_op(
             (
                 mv_op := x86.ops.DS_MovOp(op.lb, destination=iv_reg),
-                cmp_op := x86.ops.SS_CmpOp(mv_op.destination, op.ub, result=RFLAGS),
+                x86.ops.SS_CmpOp(mv_op.destination, op.ub),
                 x86.ops.C_JlOp(
-                    cmp_op.result,
                     (mv_op.destination, *op.iter_args),
                     (mv_op.destination, *op.iter_args),
                     end_block,

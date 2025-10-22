@@ -98,7 +98,6 @@ from .registers import (
     RDX,
     RSP,
     GeneralRegisterType,
-    RFLAGSRegisterType,
     X86RegisterType,
     X86VectorRegisterType,
 )
@@ -905,8 +904,6 @@ class ConditionalJumpOperation(X86Instruction, X86CustomFormatOperation, ABC):
     See external [documentation](https://www.felixcloutier.com/x86/jcc).
     """
 
-    rflags = operand_def(RFLAGSRegisterType)
-
     then_values = var_operand_def(X86RegisterType)
     else_values = var_operand_def(X86RegisterType)
 
@@ -919,7 +916,6 @@ class ConditionalJumpOperation(X86Instruction, X86CustomFormatOperation, ABC):
 
     def __init__(
         self,
-        rflags: Operation | SSAValue,
         then_values: Sequence[SSAValue],
         else_values: Sequence[SSAValue],
         then_block: Successor,
@@ -931,7 +927,7 @@ class ConditionalJumpOperation(X86Instruction, X86CustomFormatOperation, ABC):
             comment = StringAttr(comment)
 
         super().__init__(
-            operands=[rflags, then_values, else_values],
+            operands=[then_values, else_values],
             attributes={
                 "comment": comment,
             },
@@ -980,8 +976,6 @@ class ConditionalJumpOperation(X86Instruction, X86CustomFormatOperation, ABC):
 
     def print(self, printer: Printer) -> None:
         printer.print_string(" ")
-        print_type_pair(printer, self.rflags)
-        printer.print_string(", ")
         printer.print_block_name(self.then_block)
         printer.print_string("(")
         printer.print_list(self.then_values, lambda val: print_type_pair(printer, val))
@@ -999,8 +993,6 @@ class ConditionalJumpOperation(X86Instruction, X86CustomFormatOperation, ABC):
 
     @classmethod
     def parse(cls, parser: Parser) -> Self:
-        rflags = parse_type_pair(parser)
-        parser.parse_punctuation(",")
         then_block = parser.parse_successor()
         then_args = parser.parse_comma_separated_list(
             parser.Delimiter.PAREN, lambda: parse_type_pair(parser)
@@ -1011,7 +1003,7 @@ class ConditionalJumpOperation(X86Instruction, X86CustomFormatOperation, ABC):
             parser.Delimiter.PAREN, lambda: parse_type_pair(parser)
         )
         attrs = parser.parse_optional_attr_dict_with_keyword()
-        op = cls(rflags, then_args, else_args, then_block, else_block)
+        op = cls(then_args, else_args, then_block, else_block)
         if attrs is not None:
             op.attributes |= attrs.data
         return op
@@ -2457,7 +2449,8 @@ class SS_CmpOp(X86Instruction, X86CustomFormatOperation):
     source1 = operand_def(X86RegisterType)
     source2 = operand_def(X86RegisterType)
 
-    result = result_def(RFLAGSRegisterType)
+    # This operation writes to the rflags register
+    traits = traits_def(MemoryWriteEffect())
 
     def __init__(
         self,
@@ -2465,7 +2458,6 @@ class SS_CmpOp(X86Instruction, X86CustomFormatOperation):
         source2: Operation | SSAValue,
         *,
         comment: str | StringAttr | None = None,
-        result: RFLAGSRegisterType,
     ):
         if isinstance(comment, str):
             comment = StringAttr(comment)
@@ -2475,7 +2467,6 @@ class SS_CmpOp(X86Instruction, X86CustomFormatOperation):
             attributes={
                 "comment": comment,
             },
-            result_types=[result],
         )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
@@ -2497,8 +2488,6 @@ class SM_CmpOp(X86Instruction, X86CustomFormatOperation):
     memory = operand_def(GeneralRegisterType)
     memory_offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
 
-    result = result_def(RFLAGSRegisterType)
-
     traits = traits_def(MemoryReadEffect())
 
     def __init__(
@@ -2508,7 +2497,6 @@ class SM_CmpOp(X86Instruction, X86CustomFormatOperation):
         memory_offset: int | IntegerAttr,
         *,
         comment: str | StringAttr | None = None,
-        result: RFLAGSRegisterType,
     ):
         if isinstance(memory_offset, int):
             memory_offset = IntegerAttr(memory_offset, 64)
@@ -2521,7 +2509,6 @@ class SM_CmpOp(X86Instruction, X86CustomFormatOperation):
                 "memory_offset": memory_offset,
                 "comment": comment,
             },
-            result_types=[result],
         )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
@@ -2558,15 +2545,12 @@ class SI_CmpOp(X86Instruction, X86CustomFormatOperation):
     source = operand_def(GeneralRegisterType)
     immediate = attr_def(IntegerAttr)
 
-    result = result_def(RFLAGSRegisterType)
-
     def __init__(
         self,
         source: Operation | SSAValue,
         immediate: int | IntegerAttr,
         *,
         comment: str | StringAttr | None = None,
-        result: RFLAGSRegisterType,
     ):
         if isinstance(immediate, int):
             immediate = IntegerAttr(immediate, 32)
@@ -2579,7 +2563,6 @@ class SI_CmpOp(X86Instruction, X86CustomFormatOperation):
                 "immediate": immediate,
                 "comment": comment,
             },
-            result_types=[result],
         )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
@@ -2613,8 +2596,6 @@ class MS_CmpOp(X86Instruction, X86CustomFormatOperation):
     memory_offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
     source = operand_def(GeneralRegisterType)
 
-    result = result_def(RFLAGSRegisterType)
-
     traits = traits_def(MemoryReadEffect())
 
     def __init__(
@@ -2624,7 +2605,6 @@ class MS_CmpOp(X86Instruction, X86CustomFormatOperation):
         memory_offset: int | IntegerAttr,
         *,
         comment: str | StringAttr | None = None,
-        result: RFLAGSRegisterType,
     ):
         if isinstance(memory_offset, int):
             memory_offset = IntegerAttr(memory_offset, 64)
@@ -2637,7 +2617,6 @@ class MS_CmpOp(X86Instruction, X86CustomFormatOperation):
                 "memory_offset": memory_offset,
                 "comment": comment,
             },
-            result_types=[result],
         )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
@@ -2675,8 +2654,6 @@ class MI_CmpOp(X86Instruction, X86CustomFormatOperation):
     memory_offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
     immediate = attr_def(IntegerAttr)
 
-    result = result_def(RFLAGSRegisterType)
-
     traits = traits_def(MemoryReadEffect())
 
     def __init__(
@@ -2686,7 +2663,6 @@ class MI_CmpOp(X86Instruction, X86CustomFormatOperation):
         immediate: int | IntegerAttr,
         *,
         comment: str | StringAttr | None = None,
-        result: RFLAGSRegisterType,
     ):
         if isinstance(immediate, int):
             immediate = IntegerAttr(
@@ -2704,7 +2680,6 @@ class MI_CmpOp(X86Instruction, X86CustomFormatOperation):
                 "memory_offset": memory_offset,
                 "comment": comment,
             },
-            result_types=[result],
         )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:

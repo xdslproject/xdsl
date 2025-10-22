@@ -115,7 +115,6 @@ from .registers import (
     AVX512MaskRegisterType,
     AVX512RegisterType,
     GeneralRegisterType,
-    RFLAGSRegisterType,
     SSERegisterType,
 )
 
@@ -232,7 +231,6 @@ X86 = Dialect(
     ],
     [
         GeneralRegisterType,
-        RFLAGSRegisterType,
         SSERegisterType,
         AVX2RegisterType,
         AVX512RegisterType,
