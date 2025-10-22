@@ -144,12 +144,8 @@ def test_from_elements_single_element():
 def test_from_elements_empty_list():
     """Test FromElementsOp with an empty list."""
     # Empty lists should raise a ValueError since we can't infer element type
-    try:
+    with pytest.raises(ValueError):
         FromElementsOp()
-    except ValueError:
-        # This is expected
-        return
-    raise Exception("Expected assertion error for empty initialization list")
 
 
 def test_from_elements_different_numeric_types():
