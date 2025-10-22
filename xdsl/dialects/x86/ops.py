@@ -96,6 +96,7 @@ from .attributes import LabelAttr
 from .registers import (
     RAX,
     RDX,
+    RFLAGS,
     RSP,
     GeneralRegisterType,
     RFLAGSRegisterType,
@@ -905,7 +906,7 @@ class ConditionalJumpOperation(X86Instruction, X86CustomFormatOperation, ABC):
     See external [documentation](https://www.felixcloutier.com/x86/jcc).
     """
 
-    rflags = operand_def(RFLAGSRegisterType)
+    rflags = operand_def(RFLAGS)
 
     then_values = var_operand_def(X86RegisterType)
     else_values = var_operand_def(X86RegisterType)
@@ -2558,7 +2559,7 @@ class SI_CmpOp(X86Instruction, X86CustomFormatOperation):
     source = operand_def(GeneralRegisterType)
     immediate = attr_def(IntegerAttr)
 
-    result = result_def(RFLAGSRegisterType)
+    result = result_def(RFLAGS)
 
     def __init__(
         self,
@@ -2566,7 +2567,6 @@ class SI_CmpOp(X86Instruction, X86CustomFormatOperation):
         immediate: int | IntegerAttr,
         *,
         comment: str | StringAttr | None = None,
-        result: RFLAGSRegisterType,
     ):
         if isinstance(immediate, int):
             immediate = IntegerAttr(immediate, 32)
@@ -2579,7 +2579,7 @@ class SI_CmpOp(X86Instruction, X86CustomFormatOperation):
                 "immediate": immediate,
                 "comment": comment,
             },
-            result_types=[result],
+            result_types=[RFLAGS],
         )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
