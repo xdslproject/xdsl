@@ -248,7 +248,7 @@ class LoadOpToMemRef(RewritePattern):
         assert_subset(field, temp)
 
         offsets = [i for i in -field.bounds.lb]
-        sizes = [i for i in temp.get_shape()]
+        sizes = [ub + lb for lb, ub in zip(field.bounds.lb, field.bounds.ub)]
         strides = [1] * len(sizes)
 
         subview = memref.SubviewOp.from_static_parameters(
