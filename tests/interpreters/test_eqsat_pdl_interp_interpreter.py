@@ -23,7 +23,7 @@ def test_populate_known_ops():
     module = ModuleOp([regular_op, eclass_op])
 
     # Create interpreter functions instance
-    interp_functions = EqsatPDLInterpFunctions(Context())
+    interp_functions = EqsatPDLInterpFunctions()
 
     # Call the method under test
     interp_functions.populate_known_ops(module)
@@ -40,7 +40,7 @@ def test_populate_known_ops():
 def test_run_get_result():
     """Test that run_get_result handles EClass operations correctly."""
     interpreter = Interpreter(ModuleOp([]))
-    interpreter.register_implementations(EqsatPDLInterpFunctions(Context()))
+    interpreter.register_implementations(EqsatPDLInterpFunctions())
 
     # Create a test operation with results
     c0 = create_ssa_value(i32)
@@ -66,7 +66,7 @@ def test_run_get_result():
 def test_run_get_result_error_case():
     """Test that run_get_result raises error when result is not used by EClass."""
     interpreter = Interpreter(ModuleOp([]))
-    interpreter.register_implementations(EqsatPDLInterpFunctions(Context()))
+    interpreter.register_implementations(EqsatPDLInterpFunctions())
 
     # Create a test operation with result that is not used by EClass
     c0 = create_ssa_value(i32)
@@ -89,7 +89,7 @@ def test_run_get_result_error_case():
 def test_run_get_results():
     """Test that run_get_results handles EClass operations correctly."""
     interpreter = Interpreter(ModuleOp([]))
-    interpreter.register_implementations(EqsatPDLInterpFunctions(Context()))
+    interpreter.register_implementations(EqsatPDLInterpFunctions())
 
     # Create a test operation with multiple results
     c0 = create_ssa_value(i32)
@@ -115,7 +115,7 @@ def test_run_get_results():
 def test_run_get_results_error_case():
     """Test that run_get_results raises error when result is not used by EClass."""
     interpreter = Interpreter(ModuleOp([]))
-    interpreter.register_implementations(EqsatPDLInterpFunctions(Context()))
+    interpreter.register_implementations(EqsatPDLInterpFunctions())
 
     # Create a test operation with results that are not used by EClass
     c0 = create_ssa_value(i32)
@@ -143,7 +143,7 @@ def test_run_get_results_error_case():
 def test_run_get_result_none_case():
     """Test that run_get_result returns None when result index doesn't exist."""
     interpreter = Interpreter(ModuleOp([]))
-    interpreter.register_implementations(EqsatPDLInterpFunctions(Context()))
+    interpreter.register_implementations(EqsatPDLInterpFunctions())
 
     # Create a test operation with only one result
     c0 = create_ssa_value(i32)
@@ -159,7 +159,7 @@ def test_run_get_result_none_case():
 def test_run_get_results_valuetype_multi_results():
     """Test that run_get_results returns None for ValueType with multiple results."""
     interpreter = Interpreter(ModuleOp([]))
-    interpreter.register_implementations(EqsatPDLInterpFunctions(Context()))
+    interpreter.register_implementations(EqsatPDLInterpFunctions())
 
     # Create a test operation with multiple results
     c0 = create_ssa_value(i32)
@@ -180,7 +180,7 @@ def test_run_get_results_valuetype_multi_results():
 def test_run_get_results_valuetype_no_results():
     """Test that run_get_results returns None for ValueType with no results."""
     interpreter = Interpreter(ModuleOp([]))
-    interpreter.register_implementations(EqsatPDLInterpFunctions(Context()))
+    interpreter.register_implementations(EqsatPDLInterpFunctions())
 
     # Create a test operation with no results
     c0 = create_ssa_value(i32)
@@ -201,7 +201,7 @@ def test_run_get_results_valuetype_no_results():
 def test_run_get_defining_op():
     """Test that run_get_defining_op handles regular operations correctly."""
     interpreter = Interpreter(ModuleOp([]))
-    interp_functions = EqsatPDLInterpFunctions(Context())
+    interp_functions = EqsatPDLInterpFunctions()
     interpreter.register_implementations(interp_functions)
 
     # Create a test operation and its result
@@ -224,7 +224,7 @@ def test_run_get_defining_op():
 def test_run_get_defining_op_eclass_not_visited():
     """Test that run_get_defining_op handles EClassOp when not visited."""
     interpreter = Interpreter(ModuleOp([]))
-    interp_functions = EqsatPDLInterpFunctions(Context())
+    interp_functions = EqsatPDLInterpFunctions()
     interpreter.register_implementations(interp_functions)
 
     # Create test operations
@@ -257,7 +257,7 @@ def test_run_get_defining_op_eclass_not_visited():
 def test_run_get_defining_op_eclass_visited():
     """Test that run_get_defining_op handles EClassOp when visited."""
     interpreter = Interpreter(ModuleOp([]))
-    interp_functions = EqsatPDLInterpFunctions(Context())
+    interp_functions = EqsatPDLInterpFunctions()
     interpreter.register_implementations(interp_functions)
 
     # Create test operations with multiple operands
@@ -296,7 +296,7 @@ def test_run_get_defining_op_eclass_visited():
 def test_run_get_defining_op_eclass_error_multiple_gdo():
     """Test that run_get_defining_op raises error for multiple get_defining_op in block."""
     interpreter = Interpreter(ModuleOp([]))
-    interp_functions = EqsatPDLInterpFunctions(Context())
+    interp_functions = EqsatPDLInterpFunctions()
     interpreter.register_implementations(interp_functions)
 
     # Create test operations
@@ -330,9 +330,9 @@ def test_run_get_defining_op_eclass_error_multiple_gdo():
 def test_run_create_operation_new_operation():
     """Test that run_create_operation creates new operation and EClass when no existing match."""
     interpreter = Interpreter(ModuleOp([]))
-    ctx = Context()
+    interp_functions = EqsatPDLInterpFunctions()
+    ctx = interp_functions.get_ctx(interpreter)
     ctx.register_dialect("test", lambda: test.Test)
-    interp_functions = EqsatPDLInterpFunctions(ctx)
     interpreter.register_implementations(interp_functions)
 
     # Set up a mock rewriter
@@ -384,9 +384,9 @@ def test_run_create_operation_new_operation():
 def test_run_create_operation_existing_operation_in_use_by_eclass():
     """Test that run_create_operation returns existing operation when it's still in use."""
     interpreter = Interpreter(ModuleOp([]))
-    ctx = Context()
+    interp_functions = EqsatPDLInterpFunctions()
+    ctx = interp_functions.get_ctx(interpreter)
     ctx.register_dialect("test", lambda: test.Test)
-    interp_functions = EqsatPDLInterpFunctions(ctx)
     interpreter.register_implementations(interp_functions)
 
     # Set up a mock rewriter
@@ -438,9 +438,9 @@ def test_run_create_operation_existing_operation_in_use_by_eclass():
 def test_run_create_operation_existing_operation_in_use():
     """Test that run_create_operation returns existing operation when it's still in use but not by an eclass."""
     interpreter = Interpreter(ModuleOp([]))
-    ctx = Context()
+    interp_functions = EqsatPDLInterpFunctions()
+    ctx = interp_functions.get_ctx(interpreter)
     ctx.register_dialect("test", lambda: test.Test)
-    interp_functions = EqsatPDLInterpFunctions(ctx)
     interpreter.register_implementations(interp_functions)
 
     # Set up a mock rewriter
@@ -493,9 +493,9 @@ def test_run_create_operation_existing_operation_not_in_use():
     """Test that run_create_operation reuses an operation not currently
     in use by wrapping it in a new eclass."""
     interpreter = Interpreter(ModuleOp([]))
-    ctx = Context()
+    interp_functions = EqsatPDLInterpFunctions()
+    ctx = interp_functions.get_ctx(interpreter)
     ctx.register_dialect("test", lambda: test.Test)
-    interp_functions = EqsatPDLInterpFunctions(ctx)
     interpreter.register_implementations(interp_functions)
 
     # Set up a mock rewriter
@@ -546,7 +546,7 @@ def test_run_create_operation_existing_operation_not_in_use():
 def test_run_finalize_empty_stack():
     """Test that run_finalize handles empty backtrack stack correctly."""
     interpreter = Interpreter(ModuleOp([]))
-    interp_functions = EqsatPDLInterpFunctions(Context())
+    interp_functions = EqsatPDLInterpFunctions()
     interpreter.register_implementations(interp_functions)
 
     # Test finalize with empty backtrack stack - should return empty values
@@ -556,7 +556,7 @@ def test_run_finalize_empty_stack():
 
 def test_backtrack_stack_manipulation():
     """Test that backtrack stack operations work correctly."""
-    interp_functions = EqsatPDLInterpFunctions(Context())
+    interp_functions = EqsatPDLInterpFunctions()
 
     # Verify initial state
     assert len(interp_functions.backtrack_stack) == 0
@@ -581,7 +581,7 @@ def test_backtrack_stack_manipulation():
 def test_run_finalize_with_backtrack_stack():
     """Test that run_finalize handles non-empty backtrack stack correctly."""
     interpreter = Interpreter(ModuleOp([]))
-    interp_functions = EqsatPDLInterpFunctions(Context())
+    interp_functions = EqsatPDLInterpFunctions()
     interpreter.register_implementations(interp_functions)
 
     # Import necessary classes
@@ -636,8 +636,7 @@ def test_run_finalize_with_backtrack_stack():
 def test_run_replace():
     """Test that run_replace correctly merges EClass operations."""
     interpreter = Interpreter(ModuleOp([]))
-    ctx = Context()
-    interp_functions = EqsatPDLInterpFunctions(ctx)
+    interp_functions = EqsatPDLInterpFunctions()
 
     from xdsl.builder import ImplicitBuilder
     from xdsl.ir import Block, Region
@@ -690,8 +689,7 @@ def test_run_replace():
 def test_run_replace_same_eclass():
     """Test that run_replace handles replacing with same EClass correctly."""
     interpreter = Interpreter(ModuleOp([]))
-    ctx = Context()
-    interp_functions = EqsatPDLInterpFunctions(ctx)
+    interp_functions = EqsatPDLInterpFunctions()
 
     # Create test operation
     c0 = create_ssa_value(i32)
@@ -723,8 +721,7 @@ def test_run_replace_same_eclass():
 def test_run_replace_error_not_eclass_original():
     """Test that run_replace raises error when original operation result is not used by EClass."""
     interpreter = Interpreter(ModuleOp([]))
-    ctx = Context()
-    interp_functions = EqsatPDLInterpFunctions(ctx)
+    interp_functions = EqsatPDLInterpFunctions()
 
     # Create test operation without EClass usage
     c0 = create_ssa_value(i32)
@@ -755,8 +752,7 @@ def test_run_replace_error_not_eclass_original():
 def test_run_replace_error_not_eclass_replacement():
     """Test that run_replace raises error when replacement value is not from EClass."""
     interpreter = Interpreter(ModuleOp([]))
-    ctx = Context()
-    interp_functions = EqsatPDLInterpFunctions(ctx)
+    interp_functions = EqsatPDLInterpFunctions()
 
     # Create test operation with EClass usage
     c0 = create_ssa_value(i32)
@@ -818,7 +814,9 @@ def test_rebuilding():
     ctx.register_dialect("arith", lambda: arith.Arith)
     rewriter = PatternRewriter(c_b.owner)
 
-    interp_functions = EqsatPDLInterpFunctions(ctx)
+    interpreter = Interpreter(ModuleOp([]))
+    interp_functions = EqsatPDLInterpFunctions()
+    ctx = interp_functions.get_ctx(interpreter)
     interp_functions.rewriter = rewriter
 
     interp_functions.populate_known_ops(testmodule)
@@ -892,13 +890,15 @@ def test_rebuilding_parents_already_equivalent():
     b.name_hint = "b"
     c_ab.name_hint = "c_ab"
 
-    ctx = Context()
+    rewriter = PatternRewriter(c_ab.owner)
+
+    interpreter = Interpreter(ModuleOp(()))
+    interp_functions = EqsatPDLInterpFunctions()
+    ctx = EqsatPDLInterpFunctions.get_ctx(interpreter)
     ctx.register_dialect("func", lambda: func.Func)
     ctx.register_dialect("eqsat", lambda: eqsat.EqSat)
     ctx.register_dialect("test", lambda: test.Test)
-    rewriter = PatternRewriter(c_ab.owner)
 
-    interp_functions = EqsatPDLInterpFunctions(ctx)
     interp_functions.rewriter = rewriter
 
     interp_functions.populate_known_ops(testmodule)
@@ -926,7 +926,7 @@ def test_rebuilding_parents_already_equivalent():
 def test_run_get_defining_op_block_argument():
     """Test that run_get_defining_op returns None for block arguments."""
     interpreter = Interpreter(ModuleOp([]))
-    interp_functions = EqsatPDLInterpFunctions(Context())
+    interp_functions = EqsatPDLInterpFunctions()
     interpreter.register_implementations(interp_functions)
 
     # Create a block argument
@@ -969,7 +969,7 @@ def test_run_get_defining_op_block_argument():
 def test_run_choose_not_visited():
     """Test that run_choose handles ChooseOp when not visited (coming from run_finalize)."""
     interpreter = Interpreter(ModuleOp([]))
-    interp_functions = EqsatPDLInterpFunctions(Context())
+    interp_functions = EqsatPDLInterpFunctions()
     interpreter.register_implementations(interp_functions)
 
     # Create blocks for choices and default
@@ -1010,7 +1010,7 @@ def test_run_choose_not_visited():
 def test_run_choose_visited():
     """Test that run_choose handles ChooseOp when visited (creating new backtrack point)."""
     interpreter = Interpreter(ModuleOp([]))
-    interp_functions = EqsatPDLInterpFunctions(Context())
+    interp_functions = EqsatPDLInterpFunctions()
     interpreter.register_implementations(interp_functions)
 
     # Create blocks for choices and default
@@ -1057,7 +1057,7 @@ def test_run_choose_visited():
 def test_run_choose_default_dest():
     """Test that run_choose goes to default destination when index equals len(choices)."""
     interpreter = Interpreter(ModuleOp([]))
-    interp_functions = EqsatPDLInterpFunctions(Context())
+    interp_functions = EqsatPDLInterpFunctions()
     interpreter.register_implementations(interp_functions)
 
     # Create blocks for choices and default
@@ -1100,7 +1100,7 @@ def test_run_choose_default_dest():
 def test_run_choose_error_wrong_op():
     """Test that run_choose raises error when expected ChooseOp is not at top of backtrack stack."""
     interpreter = Interpreter(ModuleOp([]))
-    interp_functions = EqsatPDLInterpFunctions(Context())
+    interp_functions = EqsatPDLInterpFunctions()
     interpreter.register_implementations(interp_functions)
 
     # Create blocks for choices and default
@@ -1133,8 +1133,7 @@ def test_run_choose_error_wrong_op():
 
 def test_eclass_union_different_constants_fails():
     """Test that eclass_union of two ConstantEClassOp with different constant values fails."""
-    ctx = Context()
-    interp_functions = EqsatPDLInterpFunctions(ctx)
+    interp_functions = EqsatPDLInterpFunctions()
 
     from xdsl.builder import ImplicitBuilder
     from xdsl.dialects.builtin import IntegerAttr
@@ -1166,8 +1165,7 @@ def test_eclass_union_different_constants_fails():
 
 def test_eclass_union_constant_with_regular():
     """Test that eclass_union of ConstantEClassOp with regular EClassOp results in ConstantEClassOp containing both operands."""
-    ctx = Context()
-    interp_functions = EqsatPDLInterpFunctions(ctx)
+    interp_functions = EqsatPDLInterpFunctions()
 
     from xdsl.builder import ImplicitBuilder
     from xdsl.dialects.builtin import IntegerAttr
@@ -1226,8 +1224,7 @@ def test_eclass_union_constant_with_regular():
 def test_run_replace_no_uses_returns_empty():
     """Test that run_replace returns empty tuple when input_op has no uses."""
     interpreter = Interpreter(ModuleOp([]))
-    ctx = Context()
-    interp_functions = EqsatPDLInterpFunctions(ctx)
+    interp_functions = EqsatPDLInterpFunctions()
 
     from xdsl.builder import ImplicitBuilder
     from xdsl.ir import Block, Region
@@ -1267,9 +1264,9 @@ def test_run_replace_no_uses_returns_empty():
 def test_run_create_operation_folding():
     """Test that run_create_operation handles folding operations correctly."""
     interpreter = Interpreter(ModuleOp([]))
-    ctx = Context()
+    interp_functions = EqsatPDLInterpFunctions()
+    ctx = EqsatPDLInterpFunctions.get_ctx(interpreter)
     ctx.register_dialect("arith", lambda: arith.Arith)
-    interp_functions = EqsatPDLInterpFunctions(ctx)
     interpreter.register_implementations(interp_functions)
 
     from xdsl.builder import ImplicitBuilder
