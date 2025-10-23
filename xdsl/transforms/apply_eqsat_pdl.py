@@ -159,7 +159,7 @@ class ApplyEqsatPDLPass(ModulePass):
             if not implementations.worklist:
                 break
 
-            implementations.rebuild()
+            implementations.rebuild(interpreter)
 
     def _apply_combined_patterns(
         self, ctx: Context, op: builtin.ModuleOp, pdl_module: builtin.ModuleOp
@@ -198,7 +198,7 @@ class ApplyEqsatPDLPass(ModulePass):
             if not implementations.worklist:
                 break
 
-            implementations.rebuild()
+            implementations.rebuild(interpreter)
 
     def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         pdl_module = self._load_pdl_module(ctx, op)
