@@ -95,7 +95,7 @@ class ApplyEqsatPDLPass(ModulePass):
             pattern for pattern in pdl_module.ops if isinstance(pattern, pdl.PatternOp)
         )
 
-        implementations = EqsatPDLInterpFunctions(ctx)
+        implementations = EqsatPDLInterpFunctions()
         implementations.populate_known_ops(op)
 
         matchers_module = builtin.ModuleOp([])
@@ -105,6 +105,7 @@ class ApplyEqsatPDLPass(ModulePass):
         rewriters_builder = Builder(InsertPoint.at_end(rewriters_module.body.block))
 
         interpreter = Interpreter(matchers_module)
+        EqsatPDLInterpFunctions.set_ctx(interpreter, ctx)
         interpreter.register_implementations(implementations)
         interpreter.register_implementations(EqsatConstraintFunctions())
 
@@ -176,7 +177,8 @@ class ApplyEqsatPDLPass(ModulePass):
 
         # Initialize interpreter and implementations
         interpreter = Interpreter(pdl_interp_module)
-        implementations = EqsatPDLInterpFunctions(ctx)
+        implementations = EqsatPDLInterpFunctions()
+        implementations.set_ctx(interpreter, ctx)
         implementations.populate_known_ops(op)
         interpreter.register_implementations(implementations)
         interpreter.register_implementations(EqsatConstraintFunctions())

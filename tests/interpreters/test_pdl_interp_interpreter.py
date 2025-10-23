@@ -1,7 +1,6 @@
 import pytest
 
 from xdsl.builder import ImplicitBuilder
-from xdsl.context import Context
 from xdsl.dialects import pdl, pdl_interp, test
 from xdsl.dialects.builtin import (
     ArrayAttr,
@@ -31,7 +30,7 @@ from xdsl.utils.test_value import create_ssa_value
 
 def test_getters():
     interpreter = Interpreter(ModuleOp([]))
-    interpreter.register_implementations(PDLInterpFunctions(Context()))
+    interpreter.register_implementations(PDLInterpFunctions())
 
     c0 = create_ssa_value(i32)
     c1 = create_ssa_value(i32)
@@ -120,7 +119,7 @@ def test_getters():
 
 def test_check_operation_name():
     interpreter = Interpreter(ModuleOp([]))
-    pdl_interp_functions = PDLInterpFunctions(Context())
+    pdl_interp_functions = PDLInterpFunctions()
     interpreter.register_implementations(pdl_interp_functions)
 
     truedest = Block()
@@ -158,7 +157,7 @@ def test_check_operation_name():
 
 def test_check_operand_count():
     interpreter = Interpreter(ModuleOp([]))
-    pdl_interp_functions = PDLInterpFunctions(Context())
+    pdl_interp_functions = PDLInterpFunctions()
     interpreter.register_implementations(pdl_interp_functions)
 
     truedest = Block()
@@ -220,7 +219,7 @@ def test_check_operand_count():
 
 def test_check_result_count():
     interpreter = Interpreter(ModuleOp([]))
-    pdl_interp_functions = PDLInterpFunctions(Context())
+    pdl_interp_functions = PDLInterpFunctions()
     interpreter.register_implementations(pdl_interp_functions)
 
     truedest = Block()
@@ -282,7 +281,7 @@ def test_check_result_count():
 
 def test_check_attribute():
     interpreter = Interpreter(ModuleOp([]))
-    pdl_interp_functions = PDLInterpFunctions(Context())
+    pdl_interp_functions = PDLInterpFunctions()
     interpreter.register_implementations(pdl_interp_functions)
 
     truedest = Block()
@@ -314,7 +313,7 @@ def test_check_attribute():
 
 def test_check_type():
     interpreter = Interpreter(ModuleOp([]))
-    pdl_interp_functions = PDLInterpFunctions(Context())
+    pdl_interp_functions = PDLInterpFunctions()
     interpreter.register_implementations(pdl_interp_functions)
 
     truedest = Block()
@@ -346,7 +345,7 @@ def test_check_type():
 
 def test_is_not_null():
     interpreter = Interpreter(ModuleOp([]))
-    pdl_interp_functions = PDLInterpFunctions(Context())
+    pdl_interp_functions = PDLInterpFunctions()
     interpreter.register_implementations(pdl_interp_functions)
 
     truedest = Block()
@@ -379,7 +378,7 @@ def test_is_not_null():
 
 def test_are_equal():
     interpreter = Interpreter(ModuleOp([]))
-    pdl_interp_functions = PDLInterpFunctions(Context())
+    pdl_interp_functions = PDLInterpFunctions()
     interpreter.register_implementations(pdl_interp_functions)
 
     truedest = Block()
@@ -414,7 +413,7 @@ def test_are_equal():
 
 def test_create_attribute():
     interpreter = Interpreter(ModuleOp([]))
-    interpreter.register_implementations(PDLInterpFunctions(Context()))
+    interpreter.register_implementations(PDLInterpFunctions())
 
     # Create test attribute
     test_attr = StringAttr("test")
@@ -429,9 +428,9 @@ def test_create_attribute():
 
 def test_create_operation():
     interpreter = Interpreter(ModuleOp([]))
-    ctx = Context()
+    implementations = PDLInterpFunctions()
+    ctx = PDLInterpFunctions.get_ctx(interpreter)
     ctx.register_dialect("test", lambda: test.Test)
-    implementations = PDLInterpFunctions(ctx)
     interpreter.register_implementations(implementations)
 
     testmodule = ModuleOp(Region([Block()]))
@@ -487,9 +486,9 @@ def test_create_operation():
 
 def test_replace():
     interpreter = Interpreter(ModuleOp([]))
-    ctx = Context()
+    pdl_interp_functions = PDLInterpFunctions()
+    ctx = PDLInterpFunctions.get_ctx(interpreter)
     ctx.register_dialect("test", lambda: test.Test)
-    pdl_interp_functions = PDLInterpFunctions(ctx)
     interpreter.register_implementations(pdl_interp_functions)
 
     testmodule = ModuleOp(Region([Block()]))
@@ -527,9 +526,9 @@ def test_replace():
 
 def test_replace_with_range():
     interpreter = Interpreter(ModuleOp([]))
-    ctx = Context()
+    pdl_interp_functions = PDLInterpFunctions()
+    ctx = PDLInterpFunctions.get_ctx(interpreter)
     ctx.register_dialect("test", lambda: test.Test)
-    pdl_interp_functions = PDLInterpFunctions(ctx)
     interpreter.register_implementations(pdl_interp_functions)
 
     testmodule = ModuleOp(Region([Block()]))
@@ -570,9 +569,9 @@ def test_replace_with_range():
 
 def test_replace_with_range_invalid():
     interpreter = Interpreter(ModuleOp([]))
-    ctx = Context()
+    pdl_interp_functions = PDLInterpFunctions()
+    ctx = PDLInterpFunctions.get_ctx(interpreter)
     ctx.register_dialect("test", lambda: test.Test)
-    pdl_interp_functions = PDLInterpFunctions(ctx)
     interpreter.register_implementations(pdl_interp_functions)
 
     testmodule = ModuleOp(Region([Block()]))
@@ -624,9 +623,9 @@ def test_func():
     testmodule.verify()
 
     interpreter = Interpreter(testmodule)
-    ctx = Context()
+    pdl_interp_functions = PDLInterpFunctions()
+    ctx = PDLInterpFunctions.get_ctx(interpreter)
     ctx.register_dialect("test", lambda: test.Test)
-    pdl_interp_functions = PDLInterpFunctions(ctx)
     interpreter.register_implementations(pdl_interp_functions)
     with pytest.raises(InterpretationError):
         interpreter.call_op("matcher", (op,))
@@ -636,7 +635,7 @@ def test_func():
 
 def test_switch_operation_name():
     interpreter = Interpreter(ModuleOp([]))
-    pdl_interp_functions = PDLInterpFunctions(Context())
+    pdl_interp_functions = PDLInterpFunctions()
     interpreter.register_implementations(pdl_interp_functions)
 
     case1 = Block()
@@ -687,7 +686,7 @@ def test_switch_operation_name():
 
 def test_create_type():
     interpreter = Interpreter(ModuleOp([]))
-    interpreter.register_implementations(PDLInterpFunctions(Context()))
+    interpreter.register_implementations(PDLInterpFunctions())
 
     # Test create_type operation
     create_type_op = pdl_interp.CreateTypeOp(i32)
@@ -698,7 +697,7 @@ def test_create_type():
 
 def test_create_types():
     interpreter = Interpreter(ModuleOp([]))
-    interpreter.register_implementations(PDLInterpFunctions(Context()))
+    interpreter.register_implementations(PDLInterpFunctions())
 
     # Test create_types operation
     type_attrs = ArrayAttr([i32, i64])
@@ -710,7 +709,7 @@ def test_create_types():
 
 def test_switch_attribute():
     interpreter = Interpreter(ModuleOp([]))
-    pdl_interp_functions = PDLInterpFunctions(Context())
+    pdl_interp_functions = PDLInterpFunctions()
     interpreter.register_implementations(pdl_interp_functions)
 
     case1 = Block()
@@ -767,7 +766,7 @@ def test_switch_attribute():
 def test_get_defining_op_block_argument():
     """Test that get_defining_op returns None for block arguments."""
     interpreter = Interpreter(ModuleOp([]))
-    interpreter.register_implementations(PDLInterpFunctions(Context()))
+    interpreter.register_implementations(PDLInterpFunctions())
 
     # Create a block argument
     block_arg = Block((), arg_types=(i32,)).args[0]
@@ -795,9 +794,9 @@ def test_apply_constraint():
             return True, (x + 42,)
 
     interpreter = Interpreter(ModuleOp([]))
-    ctx = Context()
+    pdl_interp_functions = PDLInterpFunctions()
+    ctx = pdl_interp_functions.get_ctx(interpreter)
     ctx.register_dialect("test", lambda: test.Test)
-    pdl_interp_functions = PDLInterpFunctions(ctx)
     interpreter.register_implementations(pdl_interp_functions)
     interpreter.register_implementations(TestImplFunctions())
 

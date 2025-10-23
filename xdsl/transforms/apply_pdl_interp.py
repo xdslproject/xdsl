@@ -69,7 +69,8 @@ class ApplyPDLInterpPass(ModulePass):
                 break
         assert matcher is not None, "matcher function not found"
         interpreter = Interpreter(pdl_interp_module)
-        implementations = PDLInterpFunctions(ctx)
+        implementations = PDLInterpFunctions()
+        PDLInterpFunctions.set_ctx(interpreter, ctx)
         interpreter.register_implementations(implementations)
         rewrite_pattern = PDLInterpRewritePattern(matcher, interpreter, implementations)
         PatternRewriteWalker(rewrite_pattern).rewrite_module(op)

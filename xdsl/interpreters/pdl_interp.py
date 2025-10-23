@@ -50,9 +50,23 @@ class PDLInterpFunctions(InterpreterFunctions):
     Note that the return type of a native constraint must be `tuple[bool, PythonValues]`.
     """
 
-    ctx: Context
-
     _rewriter: PatternRewriter | None = field(default=None)
+
+    @staticmethod
+    def get_ctx(interpreter: Interpreter) -> Context:
+        return interpreter.get_data(
+            PDLInterpFunctions,
+            "ctx",
+            lambda: Context(),
+        )
+
+    @staticmethod
+    def set_ctx(interpreter: Interpreter, ctx: Context) -> None:
+        interpreter.set_data(
+            PDLInterpFunctions,
+            "ctx",
+            ctx,
+        )
 
     @property
     def rewriter(self) -> PatternRewriter:
@@ -364,7 +378,8 @@ class PDLInterpFunctions(InterpreterFunctions):
     ) -> tuple[Any, ...]:
         # Get operation name
         op_name = op.constraint_name.data
-        op_type = self.ctx.get_optional_op(op_name)
+        ctx = self.get_ctx(interpreter)
+        op_type = ctx.get_optional_op(op_name)
         if op_type is None:
             raise InterpretationError(
                 f"Could not find op type for name {op_name} in context"

@@ -45,7 +45,8 @@ def apply_eqsat_pdl_interp(
 
     # Initialize interpreter and implementations once
     interpreter = Interpreter(pdl_interp_module)
-    implementations = EqsatPDLInterpFunctions(ctx)
+    implementations = EqsatPDLInterpFunctions()
+    EqsatPDLInterpFunctions.set_ctx(interpreter, ctx)
     implementations.populate_known_ops(op)
     interpreter.register_implementations(implementations)
     interpreter.register_implementations(EqsatConstraintFunctions())

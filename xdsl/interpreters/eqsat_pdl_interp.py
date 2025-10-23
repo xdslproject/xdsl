@@ -339,7 +339,9 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
         args = (*updated_operands, *args[len(op.input_operands) :])
         (new_op,) = super().run_create_operation(interpreter, op, args).values
         if cast(Operation, new_op).get_attr_or_prop("unsound") is None and (
-            values := Folder(self.ctx).replace_with_fold(new_op, self.rewriter)
+            values := Folder(
+                EqsatPDLInterpFunctions.get_ctx(interpreter)
+            ).replace_with_fold(new_op, self.rewriter)
         ):
             assert len(values) == 1, (
                 "pdl_interp.create_operation currently only supports creating operations with a single result."
