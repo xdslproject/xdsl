@@ -283,7 +283,6 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
     ) -> bool:
         """Unions two eclasses, merging their operands and results.
         Returns True if the eclasses were merged, False if they were already the same."""
-        rewriter = PDLInterpFunctions.get_rewriter(interpreter)
         a = self.eclass_union_find.find(a)
         b = self.eclass_union_find.find(b)
 
@@ -318,6 +317,7 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
             if use.operation in self.known_ops:
                 self.known_ops.pop(use.operation)
 
+        rewriter = PDLInterpFunctions.get_rewriter(interpreter)
         rewriter.replace_op(to_replace, new_ops=[], new_results=to_keep.results)
         return True
 
