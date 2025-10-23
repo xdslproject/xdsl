@@ -41,7 +41,7 @@ class PDLInterpRewritePattern(RewritePattern):
 
     def match_and_rewrite(self, xdsl_op: Operation, rewriter: PatternRewriter) -> None:
         # Setup the rewriter
-        self.functions.rewriter = rewriter
+        self.functions.set_rewriter(self.interpreter, rewriter)
 
         # Call the matcher function on the operation
         self.interpreter.call_op(self.matcher, (xdsl_op,))

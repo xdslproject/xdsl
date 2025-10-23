@@ -346,7 +346,7 @@ def test_run_create_operation_new_operation():
         root = test.TestOp()
         operand = eqsat.EClassOp(create_ssa_value(i32), res_type=i32).result
     rewriter = PatternRewriter(root)
-    interp_functions.rewriter = rewriter
+    interp_functions.set_rewriter(interpreter, rewriter)
 
     # Create operands and types for the operation
     result_type = i32
@@ -405,7 +405,7 @@ def test_run_create_operation_existing_operation_in_use_by_eclass():
         _eclass_user = eqsat.EClassOp(existing_op.results[0])
 
     rewriter = PatternRewriter(root)
-    interp_functions.rewriter = rewriter
+    interp_functions.set_rewriter(interpreter, rewriter)
 
     # Create a user for the existing operation to ensure it's "in use"
 
@@ -458,7 +458,7 @@ def test_run_create_operation_existing_operation_in_use():
         _user_op = test.TestOp((existing_op.results[0],), (i32,))
 
     rewriter = PatternRewriter(root)
-    interp_functions.rewriter = rewriter
+    interp_functions.set_rewriter(interpreter, rewriter)
 
     # Create a user for the existing operation to ensure it's "in use"
 
@@ -511,7 +511,7 @@ def test_run_create_operation_existing_operation_not_in_use():
         # Create an existing operation with no result uses
         existing_op = test.TestOp((operand,), (i32,))
     rewriter = PatternRewriter(root)
-    interp_functions.rewriter = rewriter
+    interp_functions.set_rewriter(interpreter, rewriter)
 
     # Verify the existing operation has no uses
     assert len(existing_op.results) > 0, "Existing operation must have results"
@@ -663,7 +663,7 @@ def test_run_replace():
     replace_op = pdl_interp.ReplaceOp(input_op_value, [repl_value])
 
     rewriter = PatternRewriter(original_op)
-    interp_functions.rewriter = rewriter
+    interp_functions.set_rewriter(interpreter, rewriter)
 
     # Call run_replace directly
     result = interp_functions.run_replace(
@@ -817,7 +817,7 @@ def test_rebuilding():
     interpreter = Interpreter(ModuleOp([]))
     interp_functions = EqsatPDLInterpFunctions()
     ctx = interp_functions.get_ctx(interpreter)
-    interp_functions.rewriter = rewriter
+    interp_functions.set_rewriter(interpreter, rewriter)
 
     interp_functions.populate_known_ops(testmodule)
 
@@ -826,13 +826,13 @@ def test_rebuilding():
     assert isinstance(c_b.owner, eqsat.EClassOp)
     assert isinstance(c_d.owner, eqsat.EClassOp)
 
-    interp_functions.eclass_union(c_x.owner, c_d.owner)
+    interp_functions.eclass_union(interpreter, c_x.owner, c_d.owner)
     interp_functions.worklist.append(c_x.owner)
 
-    interp_functions.eclass_union(c_b.owner, c_a.owner)
+    interp_functions.eclass_union(interpreter, c_b.owner, c_a.owner)
     interp_functions.worklist.append(c_b.owner)
 
-    interp_functions.rebuild()
+    interp_functions.rebuild(interpreter)
 
     assert (
         str(testmodule)
@@ -899,17 +899,17 @@ def test_rebuilding_parents_already_equivalent():
     ctx.register_dialect("eqsat", lambda: eqsat.EqSat)
     ctx.register_dialect("test", lambda: test.Test)
 
-    interp_functions.rewriter = rewriter
+    interp_functions.set_rewriter(interpreter, rewriter)
 
     interp_functions.populate_known_ops(testmodule)
 
     assert isinstance(c_x.owner, eqsat.EClassOp)
     assert isinstance(c_y.owner, eqsat.EClassOp)
 
-    interp_functions.eclass_union(c_x.owner, c_y.owner)
+    interp_functions.eclass_union(interpreter, c_x.owner, c_y.owner)
     interp_functions.worklist.append(c_x.owner)
 
-    interp_functions.rebuild()
+    interp_functions.rebuild(interpreter)
 
     assert (
         str(testmodule)
@@ -1133,6 +1133,7 @@ def test_run_choose_error_wrong_op():
 
 def test_eclass_union_different_constants_fails():
     """Test that eclass_union of two ConstantEClassOp with different constant values fails."""
+    interpreter = Interpreter(ModuleOp(()))
     interp_functions = EqsatPDLInterpFunctions()
 
     from xdsl.builder import ImplicitBuilder
@@ -1160,7 +1161,7 @@ def test_eclass_union_different_constants_fails():
     with pytest.raises(
         AssertionError, match="Trying to union two different constant eclasses."
     ):
-        interp_functions.eclass_union(const_eclass1, const_eclass2)
+        interp_functions.eclass_union(interpreter, const_eclass1, const_eclass2)
 
 
 def test_eclass_union_constant_with_regular():
@@ -1188,14 +1189,15 @@ def test_eclass_union_constant_with_regular():
         regular_eclass = eqsat.EClassOp(regular_op.results[0], res_type=i32)
 
     rewriter = PatternRewriter(const_op)
-    interp_functions.rewriter = rewriter
+    interpreter = Interpreter(ModuleOp(()))
+    interp_functions.set_rewriter(interpreter, rewriter)
 
     # Add both to union-find
     interp_functions.eclass_union_find.add(const_eclass)
     interp_functions.eclass_union_find.add(regular_eclass)
 
     # Union the constant eclass with the regular eclass
-    interp_functions.eclass_union(const_eclass, regular_eclass)
+    interp_functions.eclass_union(interpreter, const_eclass, regular_eclass)
 
     # Find the canonical representative
     canonical = interp_functions.eclass_union_find.find(const_eclass)
@@ -1250,7 +1252,7 @@ def test_run_replace_no_uses_returns_empty():
     replace_op = pdl_interp.ReplaceOp(input_op_value, [repl_value])
 
     rewriter = PatternRewriter(input_op)
-    interp_functions.rewriter = rewriter
+    interp_functions.set_rewriter(interpreter, rewriter)
 
     # Call run_replace - should return empty tuple since input_op has no uses
     result = interp_functions.run_replace(
@@ -1288,7 +1290,7 @@ def test_run_create_operation_folding():
         const_eclass2 = eqsat.ConstantEClassOp(const2.result)
 
     rewriter = PatternRewriter(root)
-    interp_functions.rewriter = rewriter
+    interp_functions.set_rewriter(interpreter, rewriter)
     interp_functions.populate_known_ops(testmodule)
 
     # Add eclasses to union-find

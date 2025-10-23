@@ -437,7 +437,7 @@ def test_create_operation():
     block = testmodule.body.first_block
     with ImplicitBuilder(block):
         root = test.TestOp()
-        implementations.rewriter = PatternRewriter(root)
+        implementations.set_rewriter(interpreter, PatternRewriter(root))
 
     # Create test values
     c0 = create_ssa_value(i32)
@@ -505,7 +505,7 @@ def test_replace():
     repl_value = repl_owner.results[0]
 
     # Set up the rewriter for testing
-    pdl_interp_functions.rewriter = PatternRewriter(target_op)
+    pdl_interp_functions.set_rewriter(interpreter, PatternRewriter(target_op))
 
     # Before replacement, verify the target_op is in the block
     assert target_op.parent is block
@@ -543,7 +543,7 @@ def test_replace_with_range():
         # Create an operation that we'll replace
         user = test.TestOp(target_op.results)
     # Set up the rewriter for testing
-    pdl_interp_functions.rewriter = PatternRewriter(target_op)
+    pdl_interp_functions.set_rewriter(interpreter, PatternRewriter(target_op))
 
     # Create the replace op
     replace_op = pdl_interp.ReplaceOp(
@@ -586,7 +586,7 @@ def test_replace_with_range_invalid():
         # Create an operation that we'll replace
         test.TestOp(target_op.results)
     # Set up the rewriter for testing
-    pdl_interp_functions.rewriter = PatternRewriter(target_op)
+    pdl_interp_functions.set_rewriter(interpreter, PatternRewriter(target_op))
 
     # Create the replace op
     replace_op = pdl_interp.ReplaceOp(
@@ -629,7 +629,7 @@ def test_func():
     interpreter.register_implementations(pdl_interp_functions)
     with pytest.raises(InterpretationError):
         interpreter.call_op("matcher", (op,))
-    pdl_interp_functions.rewriter = PatternRewriter(op)
+    pdl_interp_functions.set_rewriter(interpreter, PatternRewriter(op))
     interpreter.call_op("matcher", (op,))
 
 
