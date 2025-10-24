@@ -1124,7 +1124,9 @@ class RSSK_Operation(X86Instruction, X86CustomFormatOperation, ABC):
 
     def get_register_constraints(self) -> RegisterConstraints:
         return RegisterConstraints(
-            (self.source1, self.source2), (), ((self.register_in, self.register_out),)
+            (self.source1, self.source2, self.mask_reg),
+            (),
+            ((self.register_in, self.register_out),),
         )
 
 
