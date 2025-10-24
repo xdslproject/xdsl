@@ -1062,6 +1062,46 @@ class RSS_Operation(
         )
 
 
+class DSS_Operation(
+    X86Instruction, X86CustomFormatOperation, ABC, Generic[R1InvT, R2InvT, R3InvT]
+):
+    """
+    A base class for x86 operations that have one destination register and two source
+    registers.
+    """
+
+    destination = result_def(R1InvT)
+    source1 = operand_def(R2InvT)
+    source2 = operand_def(R3InvT)
+
+    def __init__(
+        self,
+        source1: Operation | SSAValue[R2InvT],
+        source2: Operation | SSAValue[R3InvT],
+        *,
+        comment: str | StringAttr | None = None,
+        destination: R1InvT,
+    ):
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            operands=[source1, source2],
+            attributes={
+                "comment": comment,
+            },
+            result_types=[destination],
+        )
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        return self.destination, self.source1, self.source2
+
+    def get_register_constraints(self) -> RegisterConstraints:
+        return RegisterConstraints(
+            (self.source1, self.source2), (self.destination,), ()
+        )
+
+
 class RSM_Operation(
     X86Instruction, X86CustomFormatOperation, ABC, Generic[R1InvT, R2InvT, R4InvT]
 ):
@@ -3117,6 +3157,34 @@ class RSM_Vfmadd231psOp(
     """
 
     name = "x86.rsm.vfmadd231ps"
+
+
+@irdl_op_definition
+class DSS_AddpdOp(
+    DSS_Operation[X86VectorRegisterType, X86VectorRegisterType, X86VectorRegisterType]
+):
+    """
+    Add packed double-precision floating-point elements in s1 and s2 and store the
+    result in d.
+
+    See external [documentation](https://www.felixcloutier.com/x86/addpd).
+    """
+
+    name = "x86.dss.addpd"
+
+
+@irdl_op_definition
+class DSS_AddpsOp(
+    DSS_Operation[X86VectorRegisterType, X86VectorRegisterType, X86VectorRegisterType]
+):
+    """
+    Add packed single-precision floating-point elements in s1 and s2 and store the
+    result in d.
+
+    See external [documentation](https://www.felixcloutier.com/x86/addps).
+    """
+
+    name = "x86.dss.addps"
 
 
 @irdl_op_definition
