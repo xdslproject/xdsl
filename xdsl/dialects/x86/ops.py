@@ -112,9 +112,6 @@ R2InvT = TypeVar("R2InvT", bound=X86RegisterType)
 R3InvT = TypeVar("R3InvT", bound=X86RegisterType)
 R4InvT = TypeVar("R4InvT", bound=X86RegisterType)
 
-AVX512R1InvT = TypeVar("R3InvT", bound=X86RegisterType)
-AVX512R2InvT = TypeVar("R4InvT", bound=X86RegisterType)
-
 
 class X86AsmOperation(
     IRDLOperation, HasRegisterConstraints, OneLineAssemblyPrintable, ABC
