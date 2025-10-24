@@ -31,7 +31,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from collections.abc import Set as AbstractSet
 from io import StringIO
-from typing import IO, Generic, Literal, cast
+from typing import IO, ClassVar, Generic, Literal, cast
 
 from typing_extensions import Self, TypeVar
 
@@ -62,7 +62,9 @@ from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
     Successor,
+    VarConstraint,
     attr_def,
+    base,
     irdl_op_definition,
     operand_def,
     opt_attr_def,
@@ -1074,8 +1076,10 @@ class RSSK_Operation(X86Instruction, X86CustomFormatOperation, ABC):
     is zero.
     """
 
-    register_in = operand_def(AVX512RegisterType)
-    register_out = result_def(AVX512RegisterType)
+    T: ClassVar[VarConstraint] = VarConstraint("T", base(AVX512RegisterType))
+
+    register_in = operand_def(T)
+    register_out = result_def(T)
     source1 = operand_def(AVX512RegisterType)
     source2 = operand_def(AVX512RegisterType)
     mask_reg = operand_def(AVX512MaskRegisterType)
