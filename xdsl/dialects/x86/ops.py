@@ -1112,19 +1112,12 @@ class RSSK_Operation(X86Instruction, X86CustomFormatOperation, ABC):
         )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
-        return self.register_in, self.source1, self.source2, self.mask_reg
-
-    def assembly_line(self) -> str | None:
-        # default assembly code generator
-        instruction_name = self.assembly_instruction_name()
-        arg_str = ", ".join(
-            assembly_arg_str(arg)
-            for arg in self.assembly_line_args()
-            if arg is not None
+        register_in = (
+            assembly_arg_str(self.register_in) + " " + assembly_arg_str(self.mask_reg)
         )
-        if self.z:
-            arg_str += " {z}"
-        return AssemblyPrinter.assembly_line(instruction_name, arg_str, self.comment)
+        if self.z is not None:
+            register_in += "{z}"
+        return register_in, self.source1, self.source2
 
     def get_register_constraints(self) -> RegisterConstraints:
         return RegisterConstraints(
