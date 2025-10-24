@@ -48,6 +48,7 @@ from xdsl.dialects.builtin import (
     ModuleOp,
     Signedness,
     StringAttr,
+    UnitAttr,
     i32,
     i64,
 )
@@ -98,6 +99,8 @@ from .registers import (
     RDX,
     RFLAGS,
     RSP,
+    AVX512MaskRegisterType,
+    AVX512RegisterType,
     GeneralRegisterType,
     RFLAGSRegisterType,
     X86RegisterType,
@@ -108,6 +111,9 @@ R1InvT = TypeVar("R1InvT", bound=X86RegisterType)
 R2InvT = TypeVar("R2InvT", bound=X86RegisterType)
 R3InvT = TypeVar("R3InvT", bound=X86RegisterType)
 R4InvT = TypeVar("R4InvT", bound=X86RegisterType)
+
+AVX512R1InvT = TypeVar("R3InvT", bound=X86RegisterType)
+AVX512R2InvT = TypeVar("R4InvT", bound=X86RegisterType)
 
 
 class X86AsmOperation(
@@ -1063,6 +1069,56 @@ class RSS_Operation(
         )
 
 
+class RSSK_Operation(X86Instruction, X86CustomFormatOperation, ABC):
+    """
+    A base class for x86 AVX512 operations that have one register that is read and written to,
+    and two source registers, with masking. The z attribute enables zero masking, which sets
+    the elements of the destination register to zero where the corresponding bit in the mask
+    is zero.
+    """
+
+    register_in = operand_def(AVX512RegisterType)
+    register_out = result_def(AVX512RegisterType)
+    source1 = operand_def(AVX512RegisterType)
+    source2 = operand_def(AVX512RegisterType)
+    mask_reg = operand_def(AVX512MaskRegisterType)
+    z = opt_attr_def(UnitAttr)
+
+    def __init__(
+        self,
+        register_in: SSAValue[R1InvT],
+        source1: Operation | SSAValue,
+        source2: Operation | SSAValue,
+        mask_reg: Operation | SSAValue,
+        *,
+        z: bool = False,
+        comment: str | StringAttr | None = None,
+        register_out: R1InvT | None = None,
+    ):
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        if register_out is None:
+            register_out = register_in.type
+
+        super().__init__(
+            operands=[register_in, source1, source2, mask_reg],
+            attributes={
+                "z": UnitAttr() if z else None,
+                "comment": comment,
+            },
+            result_types=[register_out],
+        )
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        return self.register_in, self.source1, self.source2, self.mask_reg
+
+    def get_register_constraints(self) -> RegisterConstraints:
+        return RegisterConstraints(
+            (self.source1, self.source2), (), ((self.register_in, self.register_out),)
+        )
+
+
 class RSM_Operation(
     X86Instruction, X86CustomFormatOperation, ABC, Generic[R1InvT, R2InvT, R4InvT]
 ):
@@ -1123,6 +1179,11 @@ class RSM_Operation(
         printer.print_string(", ")
         print_immediate_value(printer, self.memory_offset)
         return {"memory_offset"}
+
+    def get_register_constraints(self) -> RegisterConstraints:
+        return RegisterConstraints(
+            (self.source1, self.memory), (), ((self.register_in, self.register_out),)
+        )
 
 
 class DSSI_Operation(
@@ -3075,6 +3136,18 @@ class RSS_Vfmadd231pdOp(
     """
 
     name = "x86.rss.vfmadd231pd"
+
+
+@irdl_op_definition
+class RSSK_Vfmadd231pdOp(RSSK_Operation):
+    """
+    AVX512 masked multiply packed double-precision floating-point elements in s1 and s2, add the
+    intermediate result to r, and store the final result in r.
+
+    See external [documentation](https://www.felixcloutier.com/x86/vfmadd132pd:vfmadd213pd:vfmadd231pd).
+    """
+
+    name = "x86.rssk.vfmadd231pd"
 
 
 @irdl_op_definition
