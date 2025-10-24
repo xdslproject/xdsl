@@ -96,6 +96,7 @@ from .attributes import LabelAttr
 from .registers import (
     RAX,
     RDX,
+    RFLAGS,
     RSP,
     GeneralRegisterType,
     RFLAGSRegisterType,
@@ -393,12 +394,15 @@ class RM_Operation(
         memory_offset: int | IntegerAttr,
         *,
         comment: str | StringAttr | None = None,
-        register_out: R1InvT,
+        register_out: R1InvT | None = None,
     ):
         if isinstance(memory_offset, int):
             memory_offset = IntegerAttr(memory_offset, 64)
         if isinstance(comment, str):
             comment = StringAttr(comment)
+        register_in = SSAValue.get(register_in)
+        if register_out is None:
+            register_out = cast(R1InvT, register_in.type)
 
         super().__init__(
             operands=[register_in, memory],
@@ -562,7 +566,7 @@ class RI_Operation(X86Instruction, X86CustomFormatOperation, ABC, Generic[R1InvT
         immediate: int | IntegerAttr,
         *,
         comment: str | StringAttr | None = None,
-        register_out: R1InvT,
+        register_out: R1InvT | None = None,
     ):
         if isinstance(immediate, int):
             immediate = IntegerAttr(
@@ -570,6 +574,9 @@ class RI_Operation(X86Instruction, X86CustomFormatOperation, ABC, Generic[R1InvT
             )  # the default immediate size is 32 bits
         if isinstance(comment, str):
             comment = StringAttr(comment)
+        register_in = SSAValue.get(register_in)
+        if register_out is None:
+            register_out = cast(R1InvT, register_in.type)
 
         super().__init__(
             operands=[register_in],
@@ -905,7 +912,7 @@ class ConditionalJumpOperation(X86Instruction, X86CustomFormatOperation, ABC):
     See external [documentation](https://www.felixcloutier.com/x86/jcc).
     """
 
-    rflags = operand_def(RFLAGSRegisterType)
+    rflags = operand_def(RFLAGS)
 
     then_values = var_operand_def(X86RegisterType)
     else_values = var_operand_def(X86RegisterType)
@@ -2598,7 +2605,7 @@ class SI_CmpOp(X86Instruction, X86CustomFormatOperation):
     source = operand_def(GeneralRegisterType)
     immediate = attr_def(IntegerAttr)
 
-    result = result_def(RFLAGSRegisterType)
+    result = result_def(RFLAGS)
 
     def __init__(
         self,
@@ -2606,7 +2613,6 @@ class SI_CmpOp(X86Instruction, X86CustomFormatOperation):
         immediate: int | IntegerAttr,
         *,
         comment: str | StringAttr | None = None,
-        result: RFLAGSRegisterType,
     ):
         if isinstance(immediate, int):
             immediate = IntegerAttr(immediate, 32)
@@ -2619,7 +2625,7 @@ class SI_CmpOp(X86Instruction, X86CustomFormatOperation):
                 "immediate": immediate,
                 "comment": comment,
             },
-            result_types=[result],
+            result_types=[RFLAGS],
         )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
