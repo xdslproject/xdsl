@@ -41,7 +41,7 @@ from xdsl.utils.exceptions import (
     PyRDLOpDefinitionError,
     VerifyException,
 )
-from xdsl.utils.hints import PropertyType, get_type_var_mapping
+from xdsl.utils.hints import PropertyType, get_type_var_mapping, isa
 
 from .attributes import (  # noqa: TID251
     IRDLAttrConstraint,
@@ -988,7 +988,10 @@ class OpDef:
                 # in Operation, or are class functions or methods.
 
                 if field_name == "irdl_options":
-                    value = cast(list[IRDLOption], value)
+                    if not isa(value, list[IRDLOption]):
+                        raise PyRDLOpDefinitionError(
+                            "All values in irdl_options should inherit IRDLOption"
+                        )
                     op_def.options.extend(value)
                     for option in value:
                         if isinstance(option, AttrSizedSegments):
