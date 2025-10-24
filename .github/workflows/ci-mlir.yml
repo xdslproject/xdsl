@@ -22,7 +22,7 @@ jobs:
 
     env:
       LLVM_SYMBOLIZER_PATH: /usr/lib/llvm-11/bin/llvm-symbolizer
-      COLLECT_COVERAGE: ${{ matrix.python-version == '3.10' }}
+      COLLECT_COVERAGE: ${{ matrix.python-version == '3.13' }}
     steps:
     - uses: actions/checkout@v5
       with:
@@ -76,7 +76,7 @@ jobs:
         make tests-marimo
 
     - name: Combine coverage data
-      if: matrix.python-version == '3.10'
+      if: matrix.python-version == '3.13'
       run: |
         cd xdsl
         uv run coverage combine --append
@@ -84,7 +84,7 @@ jobs:
         uv run coverage xml
 
     - name: Upload coverage to Codecov
-      if: matrix.python-version == '3.10'
+      if: matrix.python-version == '3.13'
       uses: Wandalen/wretry.action@v3
       with:
         action: codecov/codecov-action@v4
