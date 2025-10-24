@@ -2439,7 +2439,6 @@ def test_optional_groups_regions(format: str, program: str, generic_program: str
     @irdl_op_definition
     class OptionalRegionOp(IRDLOperation):
         name = "test.optional_region_group"
-        irdl_options = [AttrSizedRegionSegments]
         opt_region = opt_region_def()
 
         assembly_format = format

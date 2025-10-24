@@ -498,7 +498,9 @@ class LoopNestOp(IRDLOperation):
 
     body = region_def("single_block")
 
-    irdl_options = [SameVariadicOperandSize(), RecursiveMemoryEffect()]
+    irdl_options = [SameVariadicOperandSize()]
+
+    traits = traits_def(RecursiveMemoryEffect())
 
 
 @irdl_op_definition

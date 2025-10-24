@@ -99,6 +99,8 @@ from .ops import (
     RS_OrOp,
     RS_SubOp,
     RS_XorOp,
+    RSM_Vfmadd231pdOp,
+    RSM_Vfmadd231psOp,
     RSS_Vfmadd231pdOp,
     RSS_Vfmadd231psOp,
     S_IDivOp,
@@ -110,6 +112,7 @@ from .ops import (
 )
 from .registers import (
     AVX2RegisterType,
+    AVX512MaskRegisterType,
     AVX512RegisterType,
     GeneralRegisterType,
     RFLAGSRegisterType,
@@ -216,6 +219,8 @@ X86 = Dialect(
         RS_OrOp,
         RS_SubOp,
         RS_XorOp,
+        RSM_Vfmadd231pdOp,
+        RSM_Vfmadd231psOp,
         RSS_Vfmadd231pdOp,
         RSS_Vfmadd231psOp,
         S_IDivOp,
@@ -231,6 +236,7 @@ X86 = Dialect(
         SSERegisterType,
         AVX2RegisterType,
         AVX512RegisterType,
+        AVX512MaskRegisterType,
         LabelAttr,
     ],
 )

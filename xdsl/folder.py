@@ -3,7 +3,9 @@ from dataclasses import dataclass
 
 from xdsl.builder import Builder
 from xdsl.context import Context
-from xdsl.dialect_interfaces import ConstantMaterializationInterface
+from xdsl.dialect_interfaces.constant_materialization import (
+    ConstantMaterializationInterface,
+)
 from xdsl.ir import Attribute, Operation, SSAValue, TypeAttribute
 from xdsl.pattern_rewriter import PatternRewriter
 from xdsl.traits import HasFolder

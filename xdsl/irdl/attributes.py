@@ -68,7 +68,6 @@ from .constraints import (  # noqa: TID251
 _DataElement = TypeVar("_DataElement", bound=Hashable, covariant=True)
 
 
-@dataclass(frozen=True)
 class GenericData(Data[_DataElement], ABC):
     """
     A Data with type parameters.
