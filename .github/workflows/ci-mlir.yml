@@ -91,7 +91,8 @@ jobs:
         attempt_delay: 10000
         attempt_limit: 10
         with: |
-          fail_ci_if_error: true
+          # Temporary setting to not fail the CI job while we debug recent codecov issues
+          fail_ci_if_error: false
           verbose: true
           root_dir: xdsl
           files: coverage.xml
