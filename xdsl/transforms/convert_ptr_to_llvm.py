@@ -21,7 +21,7 @@ class ConvertStoreOp(RewritePattern):
         rewriter.replace_matched_op(
             (
                 cast_op := builtin.UnrealizedConversionCastOp.get(
-                    (op.addr,), (llvm.LLVMPointerType.opaque(),)
+                    (op.addr,), (llvm.LLVMPointerType(),)
                 ),
                 llvm.StoreOp(op.value, cast_op.results[0]),
             )
@@ -35,7 +35,7 @@ class ConvertLoadOp(RewritePattern):
         rewriter.replace_matched_op(
             (
                 cast_op := builtin.UnrealizedConversionCastOp.get(
-                    [op.addr], [llvm.LLVMPointerType.opaque()]
+                    [op.addr], [llvm.LLVMPointerType()]
                 ),
                 llvm.LoadOp(cast_op.results[0], op.res.type),
             )
@@ -50,7 +50,7 @@ class ConvertPtrAddOp(RewritePattern):
             (
                 cast_addr_op := builtin.UnrealizedConversionCastOp.get(
                     [op.addr],
-                    [llvm.LLVMPointerType.opaque()],
+                    [llvm.LLVMPointerType()],
                 ),
                 # offset (index) -> offset (int)
                 offest_to_int_op := arith.IndexCastOp(op.offset, builtin.i64),
@@ -88,7 +88,7 @@ class RewritePtrTypes(TypeConversionPattern):
 
     @attr_type_rewrite_pattern
     def convert_type(self, typ: ptr.PtrType):
-        return llvm.LLVMPointerType.opaque()
+        return llvm.LLVMPointerType()
 
 
 class ConvertPtrToLLVMPass(ModulePass):
