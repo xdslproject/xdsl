@@ -1367,7 +1367,7 @@ source = { git = "https://github.com/superlopuh/lz-string.git#d435be09f8aa454ce0
 
 [[package]]
 name = "marimo"
-version = "0.17.0"
+version = "0.17.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "click" },
@@ -1389,9 +1389,9 @@ dependencies = [
     { name = "uvicorn" },
     { name = "websockets" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/c5/df/e0ac84f020d717ee257b6d0634ac56c6dbff639e1929dc3ceb7458b89b06/marimo-0.17.0.tar.gz", hash = "sha256:f634e1aedc1f4d784a1cc92e916a474b73cad02fd4b72aab502237bcf104434a", size = 33938630, upload-time = "2025-10-15T16:41:26.238Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/b7/49/a8c37df4c2c4c4d13c50d06843be81bc86ee3b2acd7530df6e038bc71571/marimo-0.17.2.tar.gz", hash = "sha256:c95a357d688d2cd1d0235f97ea597b009e64c708fdd4760396cc9e62ca5de544", size = 33964383, upload-time = "2025-10-24T20:15:26.672Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/31/12/2e31088c1e535c7fa5234fe9a8e03954daa11e5e4f4751abb29661aa1523/marimo-0.17.0-py3-none-any.whl", hash = "sha256:3bea339b8df7ead0d7e694347ec06bd071a88cbc9dd84e00a5363c8a894ea05d", size = 34459410, upload-time = "2025-10-15T16:41:29.998Z" },
+    { url = "https://files.pythonhosted.org/packages/90/66/c77eafb32d09f1d1e570cee06c4b1d265027864202de4177c8980b90fe0b/marimo-0.17.2-py3-none-any.whl", hash = "sha256:5ed1f013694e375cb524663c0930d83b8aa2bfb0e8af9400ffc078d72d253404", size = 34478909, upload-time = "2025-10-24T20:15:22.302Z" },
 ]
 
 [[package]]
@@ -3762,7 +3762,7 @@ requires-dist = [
     { name = "immutabledict", specifier = "<4.2.3" },
     { name = "ipykernel", marker = "extra == 'dev'" },
     { name = "lit", marker = "extra == 'dev'", specifier = "<19.0.0" },
-    { name = "marimo", marker = "extra == 'dev'", specifier = "==0.17.0" },
+    { name = "marimo", marker = "extra == 'dev'", specifier = ">=0.17,<0.18" },
     { name = "nbconvert", marker = "extra == 'dev'", specifier = ">=7.7.2,<8.0.0" },
     { name = "nbval", marker = "extra == 'dev'", specifier = "<0.12" },
     { name = "ordered-set", specifier = "==4.1.0" },
