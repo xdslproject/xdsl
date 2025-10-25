@@ -351,6 +351,8 @@ x86_func.func @funcyasm() {
 // CHECK: vfmadd231ps xmm5, xmm6, [rdx+1]
 %ds_vmovapd_sse = x86.ds.vmovapd %xmm1 : (!x86.ssereg<xmm1>) -> !x86.ssereg<xmm0>
 // CHECK-NEXT: vmovapd xmm0, xmm1
+%ds_vmovaps_sse = x86.ds.vmovaps %xmm1 : (!x86.ssereg<xmm1>) -> !x86.ssereg<xmm0>
+// CHECK-NEXT: vmovaps xmm0, xmm1
 x86.ms.vmovapd %rax, %xmm1, 0 : (!x86.reg<rax>, !x86.ssereg<xmm1>) -> ()
 // CHECK-NEXT: vmovapd [rax], xmm1
 x86.ms.vmovapd %rax, %xmm1, 8 : (!x86.reg<rax>, !x86.ssereg<xmm1>) -> ()
@@ -378,6 +380,8 @@ x86.ms.vmovapd %rax, %xmm1, 8 : (!x86.reg<rax>, !x86.ssereg<xmm1>) -> ()
 // CHECK: vfmadd231ps ymm5, ymm6, [rdx+1]
 %ds_vmovapd_avx2 = x86.ds.vmovapd %ymm1 : (!x86.avx2reg<ymm1>) -> !x86.avx2reg<ymm0>
 // CHECK-NEXT: vmovapd ymm0, ymm1
+%ds_vmovaps_avx2 = x86.ds.vmovaps %ymm1 : (!x86.avx2reg<ymm1>) -> !x86.avx2reg<ymm0>
+// CHECK-NEXT: vmovaps ymm0, ymm1
 x86.ms.vmovapd %rax, %ymm1, 8 : (!x86.reg<rax>, !x86.avx2reg<ymm1>) -> ()
 // CHECK-NEXT: vmovapd [rax+8], ymm1
 %rm_vbroadcastsd_avx20 = x86.dm.vbroadcastsd %1, 0 : (!x86.reg<rdx>) -> !x86.avx2reg<ymm0>
@@ -407,6 +411,8 @@ x86.ms.vmovapd %rax, %ymm1, 8 : (!x86.reg<rax>, !x86.avx2reg<ymm1>) -> ()
 // CHECK: vfmadd231ps zmm5, zmm6, [rdx+1]
 %ds_vmovapd_avx512 = x86.ds.vmovapd %zmm1 : (!x86.avx512reg<zmm1>) -> !x86.avx512reg<zmm0>
 // CHECK-NEXT: vmovapd zmm0, zmm1
+%ds_vmovaps_avx512 = x86.ds.vmovaps %zmm1 : (!x86.avx512reg<zmm1>) -> !x86.avx512reg<zmm0>
+// CHECK-NEXT: vmovaps zmm0, zmm1
 x86.ms.vmovapd %rax, %zmm1, 0 : (!x86.reg<rax>, !x86.avx512reg<zmm1>) -> ()
 // CHECK-NEXT: vmovapd [rax], zmm1
 x86.ms.vmovapd %rax, %zmm1, 8 : (!x86.reg<rax>, !x86.avx512reg<zmm1>) -> ()

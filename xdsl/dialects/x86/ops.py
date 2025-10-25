@@ -1063,6 +1063,46 @@ class RSS_Operation(
         )
 
 
+class DSS_Operation(
+    X86Instruction, X86CustomFormatOperation, ABC, Generic[R1InvT, R2InvT, R3InvT]
+):
+    """
+    A base class for x86 operations that have one destination register and two source
+    registers.
+    """
+
+    destination = result_def(R1InvT)
+    source1 = operand_def(R2InvT)
+    source2 = operand_def(R3InvT)
+
+    def __init__(
+        self,
+        source1: Operation | SSAValue[R2InvT],
+        source2: Operation | SSAValue[R3InvT],
+        *,
+        comment: str | StringAttr | None = None,
+        destination: R1InvT,
+    ):
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            operands=[source1, source2],
+            attributes={
+                "comment": comment,
+            },
+            result_types=[destination],
+        )
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        return self.destination, self.source1, self.source2
+
+    def get_register_constraints(self) -> RegisterConstraints:
+        return RegisterConstraints(
+            (self.source1, self.source2), (self.destination,), ()
+        )
+
+
 class RSM_Operation(
     X86Instruction, X86CustomFormatOperation, ABC, Generic[R1InvT, R2InvT, R4InvT]
 ):
@@ -1374,21 +1414,20 @@ class S_PushOp(X86Instruction, X86CustomFormatOperation):
 
     def __init__(
         self,
-        resp_in: Operation | SSAValue,
+        rsp_in: Operation | SSAValue,
         source: Operation | SSAValue,
         *,
         comment: str | StringAttr | None = None,
-        rsp_out: GeneralRegisterType,
     ):
         if isinstance(comment, str):
             comment = StringAttr(comment)
 
         super().__init__(
-            operands=[resp_in, source],
+            operands=[rsp_in, source],
             attributes={
                 "comment": comment,
             },
-            result_types=[rsp_out],
+            result_types=[RSP],
         )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
@@ -1415,7 +1454,6 @@ class D_PopOp(X86Instruction, X86CustomFormatOperation):
         *,
         comment: str | StringAttr | None = None,
         destination: X86RegisterType,
-        rsp_out: GeneralRegisterType,
     ):
         if isinstance(comment, str):
             comment = StringAttr(comment)
@@ -1425,7 +1463,7 @@ class D_PopOp(X86Instruction, X86CustomFormatOperation):
             attributes={
                 "comment": comment,
             },
-            result_types=[destination, rsp_out],
+            result_types=[destination, RSP],
         )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
@@ -3120,6 +3158,34 @@ class RSM_Vfmadd231psOp(
 
 
 @irdl_op_definition
+class DSS_AddpdOp(
+    DSS_Operation[X86VectorRegisterType, X86VectorRegisterType, X86VectorRegisterType]
+):
+    """
+    Add packed double-precision floating-point elements in s1 and s2 and store the
+    result in d.
+
+    See external [documentation](https://www.felixcloutier.com/x86/addpd).
+    """
+
+    name = "x86.dss.addpd"
+
+
+@irdl_op_definition
+class DSS_AddpsOp(
+    DSS_Operation[X86VectorRegisterType, X86VectorRegisterType, X86VectorRegisterType]
+):
+    """
+    Add packed single-precision floating-point elements in s1 and s2 and store the
+    result in d.
+
+    See external [documentation](https://www.felixcloutier.com/x86/addps).
+    """
+
+    name = "x86.dss.addps"
+
+
+@irdl_op_definition
 class DS_VmovapdOp(DS_Operation[X86VectorRegisterType, X86VectorRegisterType]):
     """
     Move aligned packed double precision floating-point values from zmm1 to zmm2 using
@@ -3129,6 +3195,18 @@ class DS_VmovapdOp(DS_Operation[X86VectorRegisterType, X86VectorRegisterType]):
     """
 
     name = "x86.ds.vmovapd"
+
+
+@irdl_op_definition
+class DS_VmovapsOp(DS_Operation[X86VectorRegisterType, X86VectorRegisterType]):
+    """
+    Move aligned packed single precision floating-point values from zmm1 to zmm2 using
+    writemask k1
+
+    See external [documentation](https://www.felixcloutier.com/x86/movaps).
+    """
+
+    name = "x86.ds.vmovaps"
 
 
 @irdl_op_definition
@@ -3143,9 +3221,31 @@ class MS_VmovapdOp(MS_Operation[GeneralRegisterType, X86VectorRegisterType]):
 
 
 @irdl_op_definition
+class MS_VmovapsOp(MS_Operation[GeneralRegisterType, X86VectorRegisterType]):
+    """
+    Move aligned packed single precision floating-point values from zmm1 to m512 using writemask k1
+
+    See external [documentation](https://www.felixcloutier.com/x86/movaps).
+    """
+
+    name = "x86.ms.vmovaps"
+
+
+@irdl_op_definition
+class MS_VmovupdOp(MS_Operation[GeneralRegisterType, X86VectorRegisterType]):
+    """
+    Move unaligned packed double precision floating-point values from vector register to memory
+
+    See external [documentation](https://www.felixcloutier.com/x86/movupd).
+    """
+
+    name = "x86.ms.vmovupd"
+
+
+@irdl_op_definition
 class MS_VmovupsOp(MS_Operation[GeneralRegisterType, X86VectorRegisterType]):
     """
-    Move aligned packed single precision floating-point values from vector register to memory
+    Move unaligned packed single precision floating-point values from vector register to memory
 
     See external [documentation](https://www.felixcloutier.com/x86/movups).
     """
@@ -3154,9 +3254,46 @@ class MS_VmovupsOp(MS_Operation[GeneralRegisterType, X86VectorRegisterType]):
 
 
 @irdl_op_definition
+class DM_VmovapdOp(DM_Operation[X86VectorRegisterType, GeneralRegisterType]):
+    """
+    Move aligned packed double precision floating-point values from memory to vector
+    register.
+
+    See external [documentation](https://www.felixcloutier.com/x86/movapd).
+    """
+
+    name = "x86.dm.vmovapd"
+
+
+@irdl_op_definition
+class DM_VmovapsOp(DM_Operation[X86VectorRegisterType, GeneralRegisterType]):
+    """
+    Move aligned packed single precision floating-point values from memory to vector
+    register.
+
+    See external [documentation](https://www.felixcloutier.com/x86/movaps).
+    """
+
+    name = "x86.dm.vmovaps"
+
+
+@irdl_op_definition
+class DM_VmovupdOp(DM_Operation[X86VectorRegisterType, GeneralRegisterType]):
+    """
+    Move unaligned packed double precision floating-point values from memory to vector
+    register.
+
+    See external [documentation](https://www.felixcloutier.com/x86/movupd).
+    """
+
+    name = "x86.dm.vmovupd"
+
+
+@irdl_op_definition
 class DM_VmovupsOp(DM_Operation[X86VectorRegisterType, GeneralRegisterType]):
     """
-    Move aligned packed single precision floating-point values from memory to vector register
+    Move unaligned packed single precision floating-point values from memory to vector
+    register.
 
     See external [documentation](https://www.felixcloutier.com/x86/movups).
     """
@@ -3165,14 +3302,29 @@ class DM_VmovupsOp(DM_Operation[X86VectorRegisterType, GeneralRegisterType]):
 
 
 @irdl_op_definition
-class DM_VmovupdOp(DM_Operation[X86VectorRegisterType, GeneralRegisterType]):
+class MS_VmovntpdOp(MS_Operation[GeneralRegisterType, X86VectorRegisterType]):
     """
-    Move aligned packed double precision floating-point values from memory to vector register
+    Moves the packed double precision floating-point values in the source operand to the
+    destination operand using a non-temporal hint to prevent caching of the data during
+    the write to memory.
 
-    See external [documentation](https://www.felixcloutier.com/x86/movupd).
+    See external [documentation](https://www.felixcloutier.com/x86/movntpd).
     """
 
-    name = "x86.dm.vmovupd"
+    name = "x86.ms.vmovntpd"
+
+
+@irdl_op_definition
+class MS_VmovntpsOp(MS_Operation[GeneralRegisterType, X86VectorRegisterType]):
+    """
+    Moves the packed single precision floating-point values in the source operand to the
+    destination operand using a non-temporal hint to prevent caching of the data during
+    the write to memory.
+
+    See external [documentation](https://www.felixcloutier.com/x86/movntps).
+    """
+
+    name = "x86.ms.vmovntps"
 
 
 @irdl_op_definition
