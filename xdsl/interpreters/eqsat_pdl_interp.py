@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import Any, cast
 
@@ -70,7 +69,7 @@ class BacktrackPoint:
 class EqsatPDLInterpFunctions(PDLInterpFunctions):
     """Interpreter functions for PDL patterns operating on e-graphs."""
 
-    analyses: Sequence[SparseForwardDataFlowAnalysis[Lattice[Any]]] = field(
+    analyses: list[SparseForwardDataFlowAnalysis[Lattice[Any]]] = field(
         default_factory=lambda: []
     )
     """The sparse forward analyses to be run during equality saturation."""
