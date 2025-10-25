@@ -10,21 +10,24 @@ from xdsl.dialects.builtin import (
     I64,
     AnyAttr,
     AnyFloat,
+    AnyFloatConstr,
     BoolAttr,
     DenseArrayBase,
     FloatAttr,
     IntegerAttr,
-    IntegerType,
     ShapedType,
+    SignlessIntegerConstraint,
     StringAttr,
     TensorType,
     i1,
 )
 from xdsl.ir import Attribute, Dialect, SSAValue, TypeAttribute
 from xdsl.irdl import (
+    AttrConstraint,
     IRDLOperation,
     ParsePropInAttrDict,
     VarConstraint,
+    eq,
     irdl_op_definition,
     lazy_traits_def,
     operand_def,
@@ -87,20 +90,30 @@ class ClampOp(IRDLOperation):
 
     name = "tosa.clamp"
 
-    min_int = prop_def(IntegerAttr[I64])
-    max_int = prop_def(IntegerAttr[I64])
+    T: ClassVar[VarConstraint] = VarConstraint("T", AnyAttr())
+    VALUE: ClassVar[AttrConstraint] = IntegerAttr.constr(
+        type=SignlessIntegerConstraint & T
+    ) | FloatAttr.constr(type=AnyFloatConstr & T)
 
-    min_fp = prop_def(FloatAttr)
-    max_fp = prop_def(FloatAttr)
+    min_val = prop_def(VALUE)
+    max_val = prop_def(VALUE)
 
     nan_mode = opt_prop_def(StringAttr, default_value=StringAttr("PROPAGATE"))
 
-    input = operand_def(TensorType)
-    output = result_def(TensorType)
+    input = operand_def(TensorType.constr(T))
+    output = result_def(TensorType.constr(T))
 
     irdl_options = [ParsePropInAttrDict()]
 
     assembly_format = "$input attr-dict `:` `(` type($input) `)` `->` type($output)"
+
+
+ROUNDING_MODE_CONSTRAINT = (
+    eq(StringAttr("SINGLE_ROUND"))
+    | eq(StringAttr("INEXACT_ROUND"))
+    | eq(StringAttr("DOUBLE_ROUND"))
+)
+"""Rounding mode for `tosa.rescale`"""
 
 
 @irdl_op_definition
@@ -113,20 +126,25 @@ class RescaleOp(IRDLOperation):
 
     name = "tosa.rescale"
 
-    input_zp = prop_def(IntegerAttr[I32])
-    output_zp = prop_def(IntegerAttr[I32])
-    multiplier = prop_def(DenseArrayBase[IntegerType])
-    shift = prop_def(DenseArrayBase[IntegerType])
     scale32 = prop_def(BoolAttr)
-    double_round = prop_def(BoolAttr)
+    rounding_mode = prop_def(
+        ROUNDING_MODE_CONSTRAINT, default_value=StringAttr("PROPAGATE")
+    )
     per_channel = prop_def(BoolAttr)
+    input_unsigned = prop_def(BoolAttr)
+    output_unsigned = prop_def(BoolAttr)
 
     input = operand_def(TensorType)
+    multiplier = operand_def(TensorType)
+    shift = operand_def(TensorType)
+    input_zp = operand_def(TensorType)
+    output_zp = operand_def(TensorType)
+
     output = result_def(TensorType)
 
     irdl_options = [ParsePropInAttrDict()]
 
-    assembly_format = "$input attr-dict `:` `(` type($input) `)` `->` type($output)"
+    assembly_format = "operands attr-dict `:` functional-type(operands, results)"
 
 
 class ElementwiseOperation(IRDLOperation, ABC):
@@ -285,9 +303,8 @@ class MatMulOp(IRDLOperation):
     a = operand_def(TensorType.constr(T))
     b = operand_def(TensorType.constr(T))
 
-    # TODO: use these operands for MLIR v21
-    # a_zp = operand_def(TensorType.constr(T))
-    # b_zp = operand_def(TensorType.constr(T))
+    a_zp = operand_def(TensorType.constr(T))
+    b_zp = operand_def(TensorType.constr(T))
 
     output = result_def(TensorType.constr(T))
 
@@ -301,16 +318,14 @@ class MatMulOp(IRDLOperation):
         assert isinstance(self.a.type, ShapedType)
         assert isinstance(self.b.type, ShapedType)
 
-        # TODO: uncomment for MLIR v21
-        # assert isinstance(self.a_zp.type, ShapedType)
-        # assert isinstance(self.b_zp.type, ShapedType)
+        assert isinstance(self.a_zp.type, ShapedType)
+        assert isinstance(self.b_zp.type, ShapedType)
 
         sa = self.a.type.get_shape()
         sb = self.b.type.get_shape()
 
-        # TODO: uncomment for MLIR v21
-        # s_az = self.a_zp.type.get_shape()
-        # s_bz = self.b_zp.type.get_shape()
+        s_az = self.a_zp.type.get_shape()
+        s_bz = self.b_zp.type.get_shape()
 
         if len(sa) != 3 or len(sb) != 3:
             raise VerifyException("'tosa.matmul' Expected operand tensors of rank 3")
@@ -327,11 +342,10 @@ class MatMulOp(IRDLOperation):
             )
 
         # check that zero-points are unranked or scalar
-        # TODO: uncomment for MLIR v21
-        # if len(s_az) not in [0, 1] or len(s_bz) not in [0, 1]:
-        #     raise VerifyException(
-        #         "'tosa.matmul' Expected zero-point operands to be unranked or scalar tensors"
-        #     )
+        if len(s_az) not in [0, 1] or len(s_bz) not in [0, 1]:
+            raise VerifyException(
+                "'tosa.matmul' Expected zero-point operands to be unranked or scalar tensors"
+            )
 
 
 @irdl_op_definition
@@ -381,12 +395,15 @@ class AvgPool2DOp(IRDLOperation):
     name = "tosa.avg_pool2d"
 
     input = operand_def(TensorType)
-    output = result_def(TensorType)
+    input_zp = operand_def(TensorType)
+    output_zp = operand_def(TensorType)
 
     kernel = prop_def(DenseArrayBase)
     stride = prop_def(DenseArrayBase)
     pad = prop_def(DenseArrayBase)
     acc_type = prop_def(TypeAttribute)
+
+    output = result_def(TensorType)
 
     irdl_options = [ParsePropInAttrDict()]
 
@@ -532,12 +549,12 @@ class ReduceMinOp(ReductionOperation):
 
 
 @irdl_op_definition
-class ReduceProdOp(ReductionOperation):
+class ReduceProductOp(ReductionOperation):
     """
     Reduce a tensor along the given axis by taking the product of all values
     """
 
-    name = "tosa.reduce_prod"
+    name = "tosa.reduce_product"
 
 
 @irdl_op_definition
@@ -564,7 +581,7 @@ TOSA = Dialect(
         ReduceAnyOp,
         ReduceMaxOp,
         ReduceMinOp,
-        ReduceProdOp,
+        ReduceProductOp,
         ReduceSumOp,
         MatMulOp,
         MaxPool2DOp,
