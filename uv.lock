@@ -3762,7 +3762,7 @@ requires-dist = [
     { name = "immutabledict", specifier = "<4.2.3" },
     { name = "ipykernel", marker = "extra == 'dev'" },
     { name = "lit", marker = "extra == 'dev'", specifier = "<19.0.0" },
-    { name = "marimo", marker = "extra == 'dev'", specifier = "==0.17.2" },
+    { name = "marimo", marker = "extra == 'dev'", specifier = ">=0.17,<0.18" },
     { name = "nbconvert", marker = "extra == 'dev'", specifier = ">=7.7.2,<8.0.0" },
     { name = "nbval", marker = "extra == 'dev'", specifier = "<0.12" },
     { name = "ordered-set", specifier = "==4.1.0" },
