@@ -794,7 +794,6 @@ if __name__ == "__main__":
     arg_parser.add_argument(
         "filename",
         nargs="?",
-        type=argparse.FileType("r"),
         default=sys.stdin,
         help="file to read (defaults to stdin)",
     )
