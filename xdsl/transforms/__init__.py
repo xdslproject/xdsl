@@ -608,7 +608,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
     def get_x86_prologue_epilogue_insertion():
         from xdsl.backend.x86 import prologue_epilogue_insertion
 
-        return prologue_epilogue_insertion.PrologueEpilogueInsertion
+        return prologue_epilogue_insertion.X86PrologueEpilogueInsertion
 
     def get_x86_infer_broadcast():
         from xdsl.transforms import x86_infer_broadcast

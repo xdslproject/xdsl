@@ -18,11 +18,11 @@ from xdsl.dialects.x86.registers import (
 from xdsl.passes import ModulePass
 from xdsl.rewriter import InsertPoint
 
-STACK_SLOT_SIZE = 8
+CALLEE_SAVED_REGISTERS = [RBX, RBP, R12, R13, R14, R15]
 
 
 @dataclass(frozen=True)
-class PrologueEpilogueInsertion(ModulePass):
+class X86PrologueEpilogueInsertion(ModulePass):
     """
     See: https://refspecs.linuxbase.org/elf/x86_64-abi-0.21.pdf
     """
@@ -36,15 +36,7 @@ class PrologueEpilogueInsertion(ModulePass):
             if not isinstance(op, x86.GetRegisterOp | x86.GetAVXRegisterOp)
             for res in op.results
             if isinstance(res.type, GeneralRegisterType)
-            if res.type
-            in [
-                RBX,
-                RBP,
-                R12,
-                R13,
-                R14,
-                R15,
-            ]
+            if res.type in CALLEE_SAVED_REGISTERS
         )
 
         if not used_callee_preserved_registers:
@@ -76,7 +68,7 @@ class PrologueEpilogueInsertion(ModulePass):
             if not isinstance(func, x86_func.FuncOp):
                 continue
 
-            if len(func.body.blocks) == 0:
+            if not func.body.blocks:
                 continue
 
             self._process_function(func)
