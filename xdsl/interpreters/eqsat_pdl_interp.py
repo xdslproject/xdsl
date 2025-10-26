@@ -6,7 +6,9 @@ from typing import Any, cast
 from ordered_set import OrderedSet
 
 from xdsl.analysis.dataflow import (
+    AnalysisState,
     ChangeResult,
+    DataFlowSolver,
     ProgramPoint,
 )
 from xdsl.analysis.sparse_analysis import Lattice, SparseForwardDataFlowAnalysis
@@ -29,6 +31,16 @@ from xdsl.transforms.common_subexpression_elimination import KnownOps
 from xdsl.utils.disjoint_set import DisjointSet
 from xdsl.utils.exceptions import InterpretationError
 from xdsl.utils.scoped_dict import ScopedDict
+
+
+@dataclass
+class NonPropagatingDataFlowSolver(DataFlowSolver):
+    propagate: bool = True
+
+    def propagate_if_changed(self, state: AnalysisState, changed: ChangeResult) -> None:
+        if not self.propagate:
+            return
+        super().propagate_if_changed(state, changed)
 
 
 @dataclass
@@ -72,7 +84,10 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
     analyses: list[SparseForwardDataFlowAnalysis[Lattice[Any]]] = field(
         default_factory=lambda: []
     )
-    """The sparse forward analyses to be run during equality saturation."""
+    """The sparse forward analyses to be run during equality saturation.
+    These must be registered with a NonPropagatingDataFlowSolver where `propagate` is False.
+    This way, state propagation is handled purely by the equality saturation logic.
+    """
 
     backtrack_stack: list[BacktrackPoint] = field(default_factory=list[BacktrackPoint])
     """Stack of backtrack points for exploring multiple matching paths in e-classes."""
@@ -550,9 +565,7 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
                 # set state for op to bottom (store original state)
                 original_state = result.value
                 result._value = result.value_cls()  # pyright: ignore[reportPrivateUsage]
-                analysis.solver._is_running = True  # pyright: ignore[reportPrivateUsage]
                 analysis.visit_operation_impl(op, operands, results)
-                analysis.solver._is_running = False  # pyright: ignore[reportPrivateUsage]
 
                 changed = result.meet(type(result)(result.anchor, original_state))
                 if changed == ChangeResult.CHANGE:
