@@ -1070,10 +1070,10 @@ class RSS_Operation(
 
 class RSSK_Operation(X86Instruction, X86CustomFormatOperation, ABC):
     """
-    A base class for x86 AVX512 operations that have one register that is read and written to,
-    and two source registers, with masking. The z attribute enables zero masking, which sets
-    the elements of the destination register to zero where the corresponding bit in the mask
-    is zero.
+    A base class for x86 AVX512 operations that have one register r that is read and written to,
+    and two source registers s1 and s2, with mask register k. The z attribute enables zero masking,
+    which sets the elements of the destination register to zero where the corresponding
+    bit in the mask is zero.
     """
 
     T: ClassVar[VarConstraint] = VarConstraint("T", base(AVX512RegisterType))
