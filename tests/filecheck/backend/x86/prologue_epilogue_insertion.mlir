@@ -46,14 +46,15 @@ x86_func.func @main() {
 x86_func.func @simple(%0 : !x86.reg<rdi>, %1 : !x86.reg<rsi>) -> !x86.reg<rax> {
   // CHECK-NOT: %{{.*}} = x86.get_register : () -> !x86.reg<rsp>
   // CHECK-NOT: %{{.*}} = x86.s.push %{{.*}}, %{{.*}} : (!x86.reg<rsp>, !x86.reg<{{.*}}>) -> !x86.reg<rsp>
-  // CHECK-NEXT: %{{.*}} = x86.ds.mov %{{.*}} : (!x86.reg<rdi>) -> !x86.reg<r8>
-  // CHECK-NEXT: %{{.*}} = x86.ds.mov %{{.*}} : (!x86.reg<rsi>) -> !x86.reg<r9>
-  // CHECK-NEXT: %{{.*}} = x86.rs.add %{{.*}}, %{{.*}}: (!x86.reg<r8>, !x86.reg<r9>) -> !x86.reg<r10>
-  // CHECK-NEXT: %{{.*}} = x86.ds.mov %{{.*}} : (!x86.reg<r10>) -> !x86.reg<rax>
+  // CHECK-NEXT: %2 = x86.ds.mov %0 : (!x86.reg<rdi>) -> !x86.reg<r8>
+  // CHECK-NEXT: %3 = x86.ds.mov %1 : (!x86.reg<rsi>) -> !x86.reg<r9>
+  // CHECK-NEXT: %4 = x86.rs.add %2, %3 : (!x86.reg<r8>, !x86.reg<r9>) -> !x86.reg<r10>
+  // CHECK-NEXT: %5 = x86.ds.mov %4 : (!x86.reg<r10>) -> !x86.reg<rax>
   %2 = x86.ds.mov %0 : (!x86.reg<rdi>) -> !x86.reg<r8>
   %3 = x86.ds.mov %1 : (!x86.reg<rsi>) -> !x86.reg<r9>
   %4 = x86.rs.add %2,%3: (!x86.reg<r8>, !x86.reg<r9>) -> !x86.reg<r10>
   %5 = x86.ds.mov %4 : (!x86.reg<r10>) -> !x86.reg<rax>
   // CHECK-NOT: %{{.*}}, %{{.*}} = x86.d.pop %{{.*}} : (!x86.reg<rsp>) -> (!x86.reg<{{.*}}>, !x86.reg<rsp>)
+  // CHECK-NEXT: x86_func.ret
   x86_func.ret
 }

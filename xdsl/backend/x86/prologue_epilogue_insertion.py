@@ -18,8 +18,11 @@ from xdsl.dialects.x86.registers import (
 from xdsl.passes import ModulePass
 from xdsl.rewriter import InsertPoint
 
-# See: https://refspecs.linuxbase.org/elf/x86_64-abi-0.21.pdf
 X86_CALLEE_SAVED_REGISTERS = [RBX, RBP, R12, R13, R14, R15]
+"""
+Registers that should be the same after the called function returns to the caller, see
+[external documentation](https://refspecs.linuxbase.org/elf/x86_64-abi-0.21.pdf).
+"""
 
 
 @dataclass(frozen=True)
