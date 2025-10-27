@@ -396,12 +396,6 @@ x86.ms.vmovapd %rax, %ymm1, 8 : (!x86.reg<rax>, !x86.avx2reg<ymm1>) -> ()
 %zmm0 = x86.get_avx_register : () -> !x86.avx512reg<zmm0>
 %zmm1 = x86.get_avx_register : () -> !x86.avx512reg<zmm1>
 %zmm2 = x86.get_avx_register : () -> !x86.avx512reg<zmm2>
-%zmm3 = x86.get_avx_register : () -> !x86.avx512reg<zmm3>
-%zmm4 = x86.get_avx_register : () -> !x86.avx512reg<zmm4>
-%zmm5 = x86.get_avx_register : () -> !x86.avx512reg<zmm5>
-%zmm6 = x86.get_avx_register : () -> !x86.avx512reg<zmm6>
-%zmm7 = x86.get_avx_register : () -> !x86.avx512reg<zmm7>
-%zmm8 = x86.get_avx_register : () -> !x86.avx512reg<zmm8>
 %k1 = x86.get_mask_register: () -> !x86.avx512maskreg<k1>
 
 %rrr_vfmadd231pd_avx512 = x86.rss.vfmadd231pd %zmm0, %zmm1, %zmm2 : (!x86.avx512reg<zmm0>, !x86.avx512reg<zmm1>, !x86.avx512reg<zmm2>) -> !x86.avx512reg<zmm0>
@@ -410,12 +404,12 @@ x86.ms.vmovapd %rax, %ymm1, 8 : (!x86.reg<rax>, !x86.avx2reg<ymm1>) -> ()
 // CHECK: vfmadd231pd zmm0 {k1}, zmm1, zmm2
 %rrrk_vfmadd231pd_avx512_z = x86.rssk.vfmadd231pd %rrrk_vfmadd231pd_avx512_no_z, %zmm1, %zmm2, %k1 {z} : (!x86.avx512reg<zmm0>, !x86.avx512reg<zmm1>, !x86.avx512reg<zmm2>, !x86.avx512maskreg<k1>) -> !x86.avx512reg<zmm0>
 // CHECK: vfmadd231pd zmm0 {k1}{z}, zmm1, zmm2
-%rrm_vfmadd231pd_avx512 = x86.rsm.vfmadd231pd %zmm3, %zmm4, %1, 8 : (!x86.avx512reg<zmm3>, !x86.avx512reg<zmm4>, !x86.reg<rdx>) -> !x86.avx512reg<zmm3>
-// CHECK: vfmadd231pd zmm3, zmm4, [rdx+8]
-%rrm_vfmadd231pd_avx512_no_offset = x86.rsm.vfmadd231pd %zmm5, %zmm6, %1 : (!x86.avx512reg<zmm5>, !x86.avx512reg<zmm6>, !x86.reg<rdx>) -> !x86.avx512reg<zmm5>
-// CHECK: vfmadd231pd zmm5, zmm6, [rdx]
-%rrm_vfmadd231ps_avx512 = x86.rsm.vfmadd231ps %zmm7, %zmm8, %1, 1 : (!x86.avx512reg<zmm7>, !x86.avx512reg<zmm8>, !x86.reg<rdx>) -> !x86.avx512reg<zmm7>
-// CHECK: vfmadd231ps zmm7, zmm8, [rdx+1]
+%rrm_vfmadd231pd_avx512 = x86.rsm.vfmadd231pd %rrrk_vfmadd231pd_avx512_z, %zmm1, %1, 8 : (!x86.avx512reg<zmm0>, !x86.avx512reg<zmm1>, !x86.reg<rdx>) -> !x86.avx512reg<zmm0>
+// CHECK: vfmadd231pd zmm0, zmm1, [rdx+8]
+%rrm_vfmadd231pd_avx512_no_offset = x86.rsm.vfmadd231pd %rrm_vfmadd231pd_avx512, %zmm1, %1 : (!x86.avx512reg<zmm0>, !x86.avx512reg<zmm1>, !x86.reg<rdx>) -> !x86.avx512reg<zmm0>
+// CHECK: vfmadd231pd zmm0, zmm1, [rdx]
+%rrm_vfmadd231ps_avx512 = x86.rsm.vfmadd231ps %rrm_vfmadd231pd_avx512_no_offset, %zmm1, %1, 1 : (!x86.avx512reg<zmm0>, !x86.avx512reg<zmm1>, !x86.reg<rdx>) -> !x86.avx512reg<zmm0>
+// CHECK: vfmadd231ps zmm0, zmm1, [rdx+1]
 %ds_vmovapd_avx512 = x86.ds.vmovapd %zmm1 : (!x86.avx512reg<zmm1>) -> !x86.avx512reg<zmm0>
 // CHECK-NEXT: vmovapd zmm0, zmm1
 x86.ms.vmovapd %rax, %zmm1, 0 : (!x86.reg<rax>, !x86.avx512reg<zmm1>) -> ()
