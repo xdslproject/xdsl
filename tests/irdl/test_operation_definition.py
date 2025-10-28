@@ -222,7 +222,7 @@ def test_constraint_var_fail_non_equal():
     )
     with pytest.raises(
         DiagnosticException,
-        match="Operation does not verify: result at position 0 does not verify",
+        match="Operation does not verify: result 'result' at position 0 does not verify",
     ):
         op.verify()
 
@@ -234,7 +234,7 @@ def test_constraint_var_fail_non_equal():
     )
     with pytest.raises(
         DiagnosticException,
-        match="Operation does not verify: result at position 0 does not verify",
+        match="Operation does not verify: result 'result' at position 0 does not verify",
     ):
         op2.verify()
 
@@ -261,7 +261,7 @@ def test_constraint_var_fail_not_satisfy_constraint():
     )
     with pytest.raises(
         DiagnosticException,
-        match="Operation does not verify: operand at position 0 does not verify",
+        match="Operation does not verify: operand 'operand' at position 0 does not verify",
     ):
         op.verify()
 
@@ -304,7 +304,7 @@ def test_generic_constraint_var_fail_non_equal():
     )
     with pytest.raises(
         DiagnosticException,
-        match="Operation does not verify: result at position 0 does not verify",
+        match="Operation does not verify: result 'result' at position 0 does not verify",
     ):
         op.verify()
 
@@ -316,7 +316,7 @@ def test_generic_constraint_var_fail_non_equal():
     )
     with pytest.raises(
         DiagnosticException,
-        match="Operation does not verify: result at position 0 does not verify",
+        match="Operation does not verify: result 'result' at position 0 does not verify",
     ):
         op2.verify()
 
@@ -343,7 +343,7 @@ def test_generic_constraint_var_fail_not_satisfy_constraint():
     )
     with pytest.raises(
         DiagnosticException,
-        match="Operation does not verify: operand at position 0 does not verify",
+        match="Operation does not verify: operand 'operand' at position 0 does not verify",
     ):
         op.verify()
 
@@ -459,6 +459,16 @@ def test_same_length_op():
         match="incorrect length for range variable:\ninteger 1 expected from int variable 'length', but got 2",
     ):
         op3 = SameLengthOp.create(operands=[operand1], result_types=[i32, i32])
+        op3.verify()
+
+    with pytest.raises(
+        VerifyException,
+        match=(
+            "result 'result' expected at position 0 does not verify:\n"
+            "incorrect length for range variable:\ninteger 1 expected from int variable 'length', but got 0"
+        ),
+    ):
+        op3 = SameLengthOp.create(operands=[operand1], result_types=[])
         op3.verify()
 
 
