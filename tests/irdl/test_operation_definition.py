@@ -466,7 +466,7 @@ def test_same_length_op():
         match=(
             "result 'result' expected at position 0 does not verify:\n"
             "incorrect length for range variable:\ninteger 1 expected from int variable 'length', but got 0"
-            ),
+        ),
     ):
         op3 = SameLengthOp.create(operands=[operand1], result_types=[])
         op3.verify()
