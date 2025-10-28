@@ -16,6 +16,7 @@ Here are the possible mnemonic values and what they stand for:
 
 - `s`: Source register
 - `d`: Destination register
+- `k`: Mask register
 - `r`: Register used both as a source and destination
 - `i`: Immediate value
 - `m`: Memory
