@@ -2109,14 +2109,6 @@ class Block(_IRNode, IRWithUses, IRWithName):
 
         return True
 
-    def __str__(self) -> str:
-        from xdsl.printer import Printer
-
-        res = StringIO()
-        printer = Printer(stream=res)
-        printer.print_block(self)
-        return res.getvalue()
-
 
 @dataclass
 class _RegionBlocksIterator(Iterator[Block]):
