@@ -28,11 +28,11 @@ from xdsl.dialects.riscv import (
     RISCVInstruction,
     RISCVRegisterType,
     RsRsIntegerOperation,
-    SImm12Attr,
-    UImm5Attr,
+    Imm12Attr,
+    Imm5Attr,
     parse_immediate_value,
     print_immediate_value,
-    si12,
+    i12,
 )
 from xdsl.dialects.utils import (
     AbstractYieldOperation,
@@ -113,17 +113,17 @@ class ScfgwiOp(RISCVCustomFormatOperation, RISCVInstruction):
     name = "riscv_snitch.scfgwi"
 
     rs1 = operand_def(IntRegisterType)
-    immediate = attr_def(SImm12Attr)
+    immediate = attr_def(Imm12Attr)
 
     def __init__(
         self,
         rs1: Operation | SSAValue,
-        immediate: int | SImm12Attr,
+        immediate: int | Imm12Attr,
         *,
         comment: str | StringAttr | None = None,
     ):
         if isinstance(immediate, int):
-            immediate = IntegerAttr(immediate, si12)
+            immediate = IntegerAttr(immediate, i12)
         if isinstance(comment, str):
             comment = StringAttr(comment)
         super().__init__(
@@ -140,7 +140,7 @@ class ScfgwiOp(RISCVCustomFormatOperation, RISCVInstruction):
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
-        attributes["immediate"] = parse_immediate_value(parser, si12)
+        attributes["immediate"] = parse_immediate_value(parser, i12)
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> set[str]:
@@ -697,7 +697,7 @@ class DMCopyImmOp(RISCVInstruction):
 
     dest = result_def(riscv.IntRegisterType)
     size = operand_def(riscv.IntRegisterType)
-    config = prop_def(UImm5Attr)
+    config = prop_def(Imm5Attr)
 
     traits = traits_def(
         StaticInsnRepresentation(insn=".insn r 0x2b, 0, 2, {0}, {1}, {2}")
@@ -706,7 +706,7 @@ class DMCopyImmOp(RISCVInstruction):
     def __init__(
         self,
         size: SSAValue | Operation,
-        config: int | UImm5Attr,
+        config: int | Imm5Attr,
         result_type: IntRegisterType = riscv.Registers.UNALLOCATED_INT,
     ):
         if isinstance(config, int):
@@ -751,7 +751,7 @@ class DMStatImmOp(RISCVInstruction):
     name = "riscv_snitch.dmstati"
 
     dest = result_def(riscv.IntRegisterType)
-    status = prop_def(UImm5Attr)
+    status = prop_def(Imm5Attr)
 
     traits = traits_def(
         StaticInsnRepresentation(insn=".insn r 0x2b, 0, 4, {0}, {1}, {2}")
@@ -759,7 +759,7 @@ class DMStatImmOp(RISCVInstruction):
 
     def __init__(
         self,
-        status: int | UImm5Attr,
+        status: int | Imm5Attr,
         result_type: IntRegisterType = riscv.Registers.UNALLOCATED_INT,
     ):
         if isinstance(status, int):

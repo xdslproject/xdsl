@@ -327,15 +327,13 @@ class Registers(ABC):
     FS = (FS0, FS1, FS2, FS3, FS4, FS5, FS6, FS7, FS8, FS9, FS10, FS11)
 
 
-si20 = IntegerType(20, Signedness.SIGNED)
 i5 = IntegerType(5, Signedness.SIGNLESS)
 i12 = IntegerType(12, Signedness.SIGNLESS)
 i20 = IntegerType(20, Signedness.SIGNLESS)
-SImm20Attr = IntegerAttr[Annotated[IntegerType, si20]]
-Imm5Attr = IntegerAttr[Annotated[IntegerType, i5]]
-Imm12Attr = IntegerAttr[Annotated[IntegerType, i12]]
-Imm20Attr = IntegerAttr[Annotated[IntegerType, i20]]
-Imm32Attr = IntegerAttr[Annotated[IntegerType, i32]]
+Imm5Attr: TypeAlias = IntegerAttr[Annotated[IntegerType, i5]]
+Imm12Attr: TypeAlias = IntegerAttr[Annotated[IntegerType, i12]]
+Imm20Attr: TypeAlias = IntegerAttr[Annotated[IntegerType, i20]]
+Imm32Attr: TypeAlias = IntegerAttr[Annotated[IntegerType, i32]]
 
 
 @irdl_attr_definition
@@ -702,17 +700,17 @@ class RdImmJumpOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
     The rd register here is not a register storing the result, rather the register where
     the program counter is stored before jumping.
     """
-    immediate = attr_def(base(SImm20Attr) | base(LabelAttr))
+    immediate = attr_def(base(Imm20Attr) | base(LabelAttr))
 
     def __init__(
         self,
-        immediate: int | SImm20Attr | str | LabelAttr,
+        immediate: int | Imm20Attr | str | LabelAttr,
         *,
         rd: IntRegisterType | None = None,
         comment: str | StringAttr | None = None,
     ):
         if isinstance(immediate, int):
-            immediate = IntegerAttr(immediate, si20)
+            immediate = IntegerAttr(immediate, i20)
         elif isinstance(immediate, str):
             immediate = LabelAttr(immediate)
         if isinstance(comment, str):
@@ -731,7 +729,7 @@ class RdImmJumpOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
-        attributes["immediate"] = parse_immediate_value(parser, si20)
+        attributes["immediate"] = parse_immediate_value(parser, i20)
         if parser.parse_optional_punctuation(","):
             attributes["rd"] = parser.parse_attribute()
         return attributes
@@ -2087,7 +2085,7 @@ class JOp(RdImmJumpOperation):
 
     def __init__(
         self,
-        immediate: int | SImm20Attr | str | LabelAttr,
+        immediate: int | Imm20Attr | str | LabelAttr,
         *,
         comment: str | StringAttr | None = None,
     ):
