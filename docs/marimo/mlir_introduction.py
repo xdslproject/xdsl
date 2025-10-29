@@ -59,8 +59,8 @@ def _(mo, xmo):
         except ParseError as e:
             return mo.md(f"Compilation error: {e}")
 
-    def get_compilation_outputs_with_passes(code_editor: Any, pass_editor: Any, input="rust", result="md") -> list[tuple[str, mo.md]]:
-        if input == "rust":
+    def get_compilation_outputs_with_passes(code_editor: Any, pass_editor: Any, input="rs", result="md") -> list[tuple[str, mo.md]]:
+        if input == "rs":
             module = to_mlir(code_editor.value)
         else:
             module = parse_mlir(code_editor.value)
@@ -81,7 +81,7 @@ def _(mo, xmo):
 
     def execute_and_catch_exceptions(fun: Any) -> Any | tuple[bool, mo.md]:
         """
-        execute a lambda, and return a formatted error if any exception happened. 
+        execute a lambda, and return a formatted error if any exception happened.
         """
         try:
             return fun()
@@ -213,7 +213,7 @@ def _(mo):
 
     example1 = "x * y + z"
 
-    editor_add_expr = mo.ui.code_editor(language="rust", value = example1, max_height=1)
+    editor_add_expr = mo.ui.code_editor(language="rs", value = example1, max_height=1)
     editor_add_expr
     return editor_add_expr, prefix
 
@@ -301,7 +301,7 @@ def _(mo):
 def _(bool_all_check, mo):
     mo.md(
         f"""
-    <br>\n## Boolean Expressions 
+    <br>\n## Boolean Expressions
 
     ### Exercise {bool_all_check}
 
@@ -315,7 +315,7 @@ def _(bool_all_check, mo):
 def _(mo):
     _initial_code = r"""x < y"""
 
-    bool_edit = mo.ui.code_editor(language="rust", value=_initial_code)
+    bool_edit = mo.ui.code_editor(language="rs", value=_initial_code)
     bool_edit
     return (bool_edit,)
 
@@ -503,7 +503,7 @@ def _(mo, reset_button3):
     let x = x + 1;
     x * 2"""
 
-    example_editor3 = mo.ui.code_editor(language="rust", value=_initial_code)
+    example_editor3 = mo.ui.code_editor(language="rs", value=_initial_code)
     example_editor3
     return (example_editor3,)
 
@@ -560,7 +560,7 @@ def _(mo, reset_button5):
     example5 = r"""let x = 5;
     let y = 2;
     if x < y {y + x} else {y}"""
-    editor5 = mo.ui.code_editor(language = "rust", value = example5, disabled = False)
+    editor5 = mo.ui.code_editor(language = "rs", value = example5, disabled = False)
     editor5
     return (editor5,)
 
@@ -889,7 +889,7 @@ def _(
 def _(mo):
     mo.md(
         r"""
-    ## Write non-optimal programs 
+    ## Write non-optimal programs
 
     Can you write, for each pass, a program that would be optimized by it?
     """
@@ -1069,7 +1069,7 @@ def _(mo, reset_button4):
     _default = """%x = arith.constant 0 : i32
     printf.print_format "{}", %x : i32"""
 
-    example_editor4 = mo.ui.code_editor(language="rust", value=_default)
+    example_editor4 = mo.ui.code_editor(language="rs", value=_default)
     pass_editor4 = mo.ui.code_editor(value="dce,cse,constant-fold-interp,dce", max_height=1, label="Passes:")
 
     example_editor4
@@ -1166,7 +1166,7 @@ def _(mo, reset_button7):
     let b = a..10;
     b.len()"""
 
-    example_editor7 = mo.ui.code_editor(language="rust", value=_initial_code, label="MLIR code:")
+    example_editor7 = mo.ui.code_editor(language="rs", value=_initial_code, label="MLIR code:")
 
     example_editor7
     return (example_editor7,)
@@ -1239,7 +1239,7 @@ def _(mo, reset_button20):
     let c = a.map(|x| x + a.len());
     c"""
 
-    example_editor20 = mo.ui.code_editor(language="rust", value=_initial_code)
+    example_editor20 = mo.ui.code_editor(language="rs", value=_initial_code)
     pass_editor20 = mo.ui.code_editor(value="optimize-lists,canonicalize,cse,lower-list-to-tensor,canonicalize,licm,cse", max_height=1)
 
     mo.vstack([example_editor20, pass_editor20])

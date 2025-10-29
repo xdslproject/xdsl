@@ -66,7 +66,7 @@ def apply_eqsat_pdl_interp(
         if not implementations.worklist:
             break
 
-        implementations.rebuild()
+        implementations.rebuild(interpreter)
 
 
 @dataclass(frozen=True)
