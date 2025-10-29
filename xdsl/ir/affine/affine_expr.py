@@ -628,7 +628,7 @@ class SimpleAffineExprFlattener:
 
         A floordiv is thus flattened by introducing a new local variable q, and
         replacing that expression with 'q' while adding the constraints
-        `c * q <= expr <= c * q + c - 1` to local_var_cst (done by
+        `c * q <= expr <= c * q + c - 1` to `local_var_cst` (done by
         `add_local_floor_div_id`).
 
         A ceildiv is similarly flattened:
