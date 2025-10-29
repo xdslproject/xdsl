@@ -11,7 +11,6 @@ from dataclasses import dataclass
 from inspect import get_annotations, isclass
 from types import FunctionType, GenericAlias, UnionType
 from typing import (
-    TYPE_CHECKING,
     Annotated,
     Any,
     Generic,
@@ -25,23 +24,18 @@ from typing import (
     overload,
 )
 
-from typing_extensions import TypeVar, dataclass_transform
-
-from xdsl.ir import AttributeCovT
-from xdsl.utils.classvar import is_const_classvar
-
-if TYPE_CHECKING:
-    from typing_extensions import TypeForm
-
+from typing_extensions import TypeForm, TypeVar, dataclass_transform
 
 from xdsl.ir import (
     Attribute,
+    AttributeCovT,
     AttributeInvT,
     BuiltinAttribute,
     Data,
     ParametrizedAttribute,
     TypedAttribute,
 )
+from xdsl.utils.classvar import is_const_classvar
 from xdsl.utils.exceptions import PyRDLAttrDefinitionError, PyRDLTypeError
 from xdsl.utils.hints import (
     PropertyType,
@@ -74,7 +68,6 @@ from .constraints import (  # noqa: TID251
 _DataElement = TypeVar("_DataElement", bound=Hashable, covariant=True)
 
 
-@dataclass(frozen=True)
 class GenericData(Data[_DataElement], ABC):
     """
     A Data with type parameters.
@@ -409,9 +402,9 @@ IRDLAttrConstraint: TypeAlias = (
     AttrConstraint[AttributeInvT]
     | AttributeInvT
     | type[AttributeInvT]
-    | "TypeForm[AttributeInvT]"
     | type[ConstraintConvertible[AttributeInvT]]
     | ConstraintConvertible[AttributeInvT]
+    | TypeForm[AttributeInvT]
 )
 """
 Attribute constraints represented using the IRDL python frontend. Attribute constraints

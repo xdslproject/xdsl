@@ -939,7 +939,7 @@ def test_op_custom_verify_is_done_last():
     b = CustomVerifyOp.get(a.result)
     with pytest.raises(
         VerifyException,
-        match="operand at position 0 does not verify:\nExpected attribute i64 but got i32",
+        match="operand 'val' at position 0 does not verify:\nExpected attribute i64 but got i32",
     ):
         b.verify()
 

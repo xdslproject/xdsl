@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from typing import Literal, overload
 
 from xdsl.context import Context
-from xdsl.dialect_interfaces import OpAsmDialectInterface
+from xdsl.dialect_interfaces.op_asm import OpAsmDialectInterface
 from xdsl.dialects.builtin import DictionaryAttr, ModuleOp
 from xdsl.ir import (
     Attribute,

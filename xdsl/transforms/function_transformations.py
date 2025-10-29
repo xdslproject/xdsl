@@ -59,7 +59,7 @@ class AddBenchTimersPattern(RewritePattern):
         ):
             return
 
-        ptr = op.body.block.insert_arg(llvm.LLVMPointerType.opaque(), len(op.args))
+        ptr = op.body.block.insert_arg(llvm.LLVMPointerType(), len(op.args))
         start_call = func.CallOp(TIMER_START, [], tuple(self.start_func_t.outputs))
         end_call = func.CallOp(
             TIMER_END, start_call.res, tuple(self.end_func_t.outputs)
