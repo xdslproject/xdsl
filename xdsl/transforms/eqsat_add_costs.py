@@ -2,51 +2,84 @@ import json
 import os
 from dataclasses import dataclass, field
 
-from typing_extensions import TypeVar
-
 from xdsl.context import Context
 from xdsl.dialects import builtin, eqsat
 from xdsl.dialects.builtin import IntAttr
-from xdsl.ir import Block, OpResult, SSAValue
+from xdsl.ir import Block, Operation, OpResult, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.utils.exceptions import DiagnosticException
 from xdsl.utils.hints import isa
 
-_DefaultCostT = TypeVar("_DefaultCostT", bound=int | None)
 
-
-def get_eqsat_cost(
-    value: SSAValue, *, default: _DefaultCostT = None
-) -> int | _DefaultCostT:
+def get_node_base_cost(op: Operation, default_cost: int | None) -> int | None:
     """
-    Calculate or fetch the cost of computing a value.
-
-    If it's a block argument, return 0.
-    If it's an eclass op, take the minimal cost of its arguments.
-    If the cost is none, then return the default value provided, which is `None` by
-    default.
+    Get the base cost of an operation (without considering dependencies).
     """
+    cost_attr = op.attributes.get(eqsat.EQSAT_COST_LABEL)
+    if cost_attr is None:
+        return default_cost
+    if not isa(cost_attr, IntAttr):
+        raise DiagnosticException(
+            f"Unexpected value {cost_attr} for key {eqsat.EQSAT_COST_LABEL} in {op}"
+        )
+    return cost_attr.data
+
+
+def calculate_node_total_cost(
+    value: SSAValue, eclass_costs: dict[OpResult, int], default_cost: int | None
+) -> int | None:
+    """
+    Calculate the total cost of a node: its own cost plus the costs of all its
+    e-class dependencies. This is equivalent to the Rust `node_sum_cost` function.
+
+    Uses dictionary lookup (not recursion) to get child e-class costs.
+    Returns None if any dependency cost is unknown.
+    """
+    # Block arguments are free
     if not isinstance(value, OpResult):
         return 0
-    if isinstance(value.op, eqsat.EClassOp):
-        if (min_cost_index := value.op.min_cost_index) is not None:
-            return get_eqsat_cost(
-                value.op.operands[min_cost_index.data], default=default
+
+    op = value.op
+
+    # For e-classes, return their current best known cost (None if not set)
+    if isinstance(op, eqsat.AnyEClassOp):
+        return eclass_costs.get(value)
+
+    # For regular operations, compute: own cost + sum of dependent e-class costs
+    node_cost = get_node_base_cost(op, default_cost)
+    if node_cost is None:
+        return None
+
+    total = node_cost
+
+    # Add costs of all operands (non-recursive, just dictionary lookup)
+    for operand in op.operands:
+        if isinstance(operand, OpResult) and isinstance(operand.op, eqsat.AnyEClassOp):
+            # Look up the e-class cost from the dictionary
+            operand_cost = eclass_costs.get(operand)
+            if operand_cost is None:
+                return None
+        else:
+            # Block argument or non-eclass operation
+            operand_cost = (
+                0
+                if not isinstance(operand, OpResult)
+                else get_node_base_cost(operand.op, default_cost) or 0
             )
-    cost_attribute = value.op.attributes.get(eqsat.EQSAT_COST_LABEL)
-    if cost_attribute is None:
-        return default
-    if not isa(cost_attribute, IntAttr):
-        raise DiagnosticException(
-            f"Unexpected value {cost_attribute} for key {eqsat.EQSAT_COST_LABEL} in {value.op}"
-        )
-    return cost_attribute.data
+
+        total += operand_cost
+
+    return total
 
 
 def add_eqsat_costs(block: Block, default: int | None, cost_dict: dict[str, int]):
+    """
+    Add costs to all operations and perform bottom-up extraction to find the minimum
+    cost node in each e-class using fixed-point iteration.
+    """
+    # First pass: assign base costs to operations from cost_dict or default
     for op in block.ops:
         if not op.results:
-            # No need to annotate ops without results
             continue
 
         if eqsat.EQSAT_COST_LABEL in op.attributes:
@@ -62,30 +95,58 @@ def add_eqsat_costs(block: Block, default: int | None, cost_dict: dict[str, int]
                 f"results: {op}"
             )
 
-        costs = tuple(get_eqsat_cost(value, default=default) for value in op.operands)
-        if None in costs:
-            continue
+        # For non-eclass operations without explicit costs, use default
+        if not isinstance(op, eqsat.AnyEClassOp):
+            if default is not None:
+                op.attributes[eqsat.EQSAT_COST_LABEL] = IntAttr(default)
 
-        if isinstance(op, eqsat.EClassOp):
-            cost = min(cost for cost in costs if cost is not None)
-            index = costs.index(cost)
-            op.min_cost_index = IntAttr(index)
-        else:
-            # For now, set the cost to the costs of the operands + 1
-            cost = sum(cost for cost in costs if cost is not None) + 1
-            op.attributes[eqsat.EQSAT_COST_LABEL] = IntAttr(cost)
+    # Track the minimum total cost for each e-class
+    eclass_costs: dict[OpResult, int] = {}
+
+    changed = True
+    while changed:
+        changed = False
+
+        # Process all e-class operations
+        for op in block.ops:
+            if not isinstance(op, eqsat.AnyEClassOp):
+                continue
+
+            if not op.results:
+                continue
+
+            eclass_result = op.results[0]
+
+            # For each operand (node) in this e-class, calculate its total cost
+            for idx, operand in enumerate(op.operands):
+                total_cost = calculate_node_total_cost(operand, eclass_costs, default)
+
+                # Skip if cost cannot be determined yet
+                if total_cost is None:
+                    continue
+
+                # Get current best cost for this e-class (None if not set)
+                current_best = eclass_costs.get(eclass_result)
+
+                # Update if this operand has lower cost (or if no cost is set yet)
+                if current_best is None or total_cost < current_best:
+                    eclass_costs[eclass_result] = total_cost
+                    op.min_cost_index = IntAttr(idx)
+                    changed = True
 
 
 @dataclass(frozen=True)
 class EqsatAddCostsPass(ModulePass):
     """
-    Add costs to all operations in blocks that contain eqsat.eclass ops.
-    The cost of an eclass operation is the minimum of all the costs of the operations of
-    the operands, if these are all non-`None`, and `None` otherwise.
-    The cost for all other operations is currently set to the costs of all the
-    operations of the operands + 1, if these are all non-`None`, and `None` otherwise.
-    The cost is stored as an `IntAttr`, and cannot be computed for operations with
-    multiple results.
+    Add costs to all operations in blocks that contain eqsat.eclass ops, and perform
+    bottom-up extraction to find the minimum cost node in each e-class.
+
+    The cost of an eclass operation is determined through fixed-point iteration:
+    - Each operand's total cost is calculated (own cost + dependency costs)
+    - The operand with minimum total cost is selected and stored in min_cost_index
+
+    The cost for non-eclass operations is fetched from the cost_dict or set to the
+    default value. The cost is stored as an IntAttr in the EQSAT_COST_LABEL attribute.
 
     If the cost cannot be calculated, the default value can be provided with the
     `default` optional parameter.
@@ -102,7 +163,7 @@ class EqsatAddCostsPass(ModulePass):
         eclass_parent_blocks = set(
             o.parent
             for o in op.walk()
-            if o.parent is not None and isinstance(o, eqsat.EClassOp)
+            if o.parent is not None and isinstance(o, eqsat.AnyEClassOp)
         )
 
         cost_dict: dict[str, int] = {}
