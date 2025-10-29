@@ -174,7 +174,7 @@ x86_func.func @funcyasm() {
     // CHECK: cmp rax, rdx
 
     x86.c.jmp ^then(%arg : !x86.reg)
-    // CHECK-NEXT: jmp then
+    // CHECK-NOT: jmp
     ^then(%arg : !x86.reg):
     x86.label "then"
     // CHECK-NEXT: then:

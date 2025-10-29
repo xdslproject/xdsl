@@ -2552,10 +2552,14 @@ class C_JmpOp(X86Instruction, X86CustomFormatOperation):
             op.attributes |= attrs.data
         return op
 
-    def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
-        dest_label = self.successor.first_op
+    def assembly_line(self) -> str | None:
+        parent = self.parent
+        dest = self.successor
+        if dest.prev_block is parent:
+            return None
+        dest_label = dest.first_op
         assert isinstance(dest_label, LabelOp)
-        return (dest_label.label,)
+        return AssemblyPrinter.assembly_line("jmp", dest_label.label.data, self.comment)
 
 
 @irdl_op_definition
