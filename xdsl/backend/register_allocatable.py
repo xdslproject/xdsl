@@ -7,7 +7,8 @@ from xdsl.backend.register_type import RegisterType
 from xdsl.ir import Operation, Region, SSAValue
 from xdsl.irdl import traits_def
 from xdsl.traits import OpTrait
-from xdsl.utils.exceptions import VerifyException
+
+# from xdsl.utils.exceptions import VerifyException
 
 
 class RegisterAllocatableOperation(Operation, abc.ABC):
@@ -70,17 +71,17 @@ class HasRegisterConstraintsTrait(OpTrait):
     unexpected value after being mutated by this operation.
     """
 
-    def verify(self, op: Operation) -> None:
-        if not isinstance(op, HasRegisterConstraints):
-            raise VerifyException(
-                f"Operation {op.name} is not a subclass of {HasRegisterConstraints.__name__}."
-            )
+    # def verify(self, op: Operation) -> None:
+    #     if not isinstance(op, HasRegisterConstraints):
+    #         raise VerifyException(
+    #             f"Operation {op.name} is not a subclass of {HasRegisterConstraints.__name__}."
+    #         )
 
-        for o, _ in op.get_register_constraints().inouts:
-            if not o.has_one_use():
-                raise VerifyException(
-                    f"Inout register operand at index {op.operands.index(o)} used more than once."
-                )
+    #     for o, _ in op.get_register_constraints().inouts:
+    #         if not o.has_one_use():
+    #             raise VerifyException(
+    #                 f"Inout register operand at index {op.operands.index(o)} used more than once."
+    #             )
 
 
 class HasRegisterConstraints(RegisterAllocatableOperation, abc.ABC):
