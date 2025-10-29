@@ -1053,6 +1053,7 @@ class GEPOp(IRDLOperation):
     ptr = operand_def(LLVMPointerType)
     ssa_indices = var_operand_def(IntegerType)
     elem_type = prop_def()
+    noWrapFlags = prop_def(IntegerAttr[I32])
 
     result = result_def(LLVMPointerType)
 
@@ -1085,6 +1086,7 @@ class GEPOp(IRDLOperation):
         props: dict[str, Attribute] = {
             "rawConstantIndices": DenseArrayBase.from_list(i32, indices),
             "elem_type": pointee_type,
+            "noWrapFlags": IntegerAttr(0, 32),
         }
 
         props["elem_type"] = pointee_type
