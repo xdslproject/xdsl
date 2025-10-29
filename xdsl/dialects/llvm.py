@@ -7,6 +7,7 @@ from types import EllipsisType
 from typing import ClassVar
 
 from xdsl.dialects.builtin import (
+    I32,
     I64,
     AnyFloatConstr,
     ArrayAttr,
@@ -430,6 +431,31 @@ class OverflowAttr(OverflowAttrBase):
             printer.print_string(" overflow")
             self.print_parameter(printer)
 
+    def to_int(self) -> int:
+        if len(self.data) == 0:
+            return 0
+        if len(self.data) == 2:
+            return 3
+        if self.data[0] == OverflowFlag.NO_SIGNED_WRAP:
+            return 1
+        return 2
+
+    @staticmethod
+    def from_int(i: int) -> OverflowAttr:
+        match i:
+            case 0:
+                return OverflowAttr("none")
+            case 1:
+                return OverflowAttr((OverflowFlag.NO_SIGNED_WRAP,))
+            case 2:
+                return OverflowAttr((OverflowFlag.NO_UNSIGNED_WRAP,))
+            case 3:
+                return OverflowAttr(
+                    (OverflowFlag.NO_SIGNED_WRAP, OverflowFlag.NO_UNSIGNED_WRAP)
+                )
+            case _:
+                raise ValueError("OverflowAttr given out of bounds integer.")
+
 
 class ArithmeticBinOpOverflow(IRDLOperation, ABC):
     """Class for arithmetic binary operations that use overflow flags."""
@@ -439,7 +465,7 @@ class ArithmeticBinOpOverflow(IRDLOperation, ABC):
     lhs = operand_def(T)
     rhs = operand_def(T)
     res = result_def(T)
-    overflowFlags = opt_prop_def(OverflowAttr)
+    overflowFlags = opt_prop_def(IntegerAttr[I32])
 
     traits = traits_def(NoMemoryEffect())
 
@@ -448,8 +474,10 @@ class ArithmeticBinOpOverflow(IRDLOperation, ABC):
         lhs: SSAValue,
         rhs: SSAValue,
         attributes: dict[str, Attribute] = {},
-        overflow: OverflowAttr = OverflowAttr(None),
+        overflow: OverflowAttr | IntegerAttr = IntegerAttr(0, 32),
     ):
+        if isinstance(overflow, OverflowAttr):
+            overflow = IntegerAttr(overflow.to_int(), 32)
         super().__init__(
             operands=[lhs, rhs],
             attributes=attributes,
@@ -477,7 +505,7 @@ class ArithmeticBinOpOverflow(IRDLOperation, ABC):
         printer.print_string(", ")
         printer.print_ssa_value(self.rhs)
         if self.overflowFlags:
-            self.overflowFlags.print(printer)
+            OverflowAttr.from_int(self.overflowFlags.value.data).print(printer)
         printer.print_op_attributes(self.attributes)
         printer.print_string(" : ")
         printer.print_attribute(self.lhs.type)
