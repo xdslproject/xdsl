@@ -327,14 +327,14 @@ class Registers(ABC):
     FS = (FS0, FS1, FS2, FS3, FS4, FS5, FS6, FS7, FS8, FS9, FS10, FS11)
 
 
-ui5 = IntegerType(5, Signedness.UNSIGNED)
 si20 = IntegerType(20, Signedness.SIGNED)
 si12 = IntegerType(12, Signedness.SIGNED)
+i5 = IntegerType(5, Signedness.SIGNLESS)
 i12 = IntegerType(12, Signedness.SIGNLESS)
 i20 = IntegerType(20, Signedness.SIGNLESS)
-UImm5Attr = IntegerAttr[Annotated[IntegerType, ui5]]
 SImm12Attr = IntegerAttr[Annotated[IntegerType, si12]]
 SImm20Attr = IntegerAttr[Annotated[IntegerType, si20]]
+Imm5Attr = IntegerAttr[Annotated[IntegerType, i5]]
 Imm12Attr = IntegerAttr[Annotated[IntegerType, i12]]
 Imm20Attr = IntegerAttr[Annotated[IntegerType, i20]]
 Imm32Attr = IntegerAttr[Annotated[IntegerType, i32]]
@@ -823,18 +823,18 @@ class RdRsImmShiftOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
 
     rd = result_def(IntRegisterType)
     rs1 = operand_def(IntRegisterType)
-    immediate = attr_def(base(UImm5Attr) | base(LabelAttr))
+    immediate = attr_def(base(Imm5Attr) | base(LabelAttr))
 
     def __init__(
         self,
         rs1: Operation | SSAValue,
-        immediate: int | UImm5Attr | str | LabelAttr,
+        immediate: int | Imm5Attr | str | LabelAttr,
         *,
         rd: IntRegisterType = Registers.UNALLOCATED_INT,
         comment: str | StringAttr | None = None,
     ):
         if isinstance(immediate, int):
-            immediate = IntegerAttr(immediate, ui5)
+            immediate = IntegerAttr(immediate, i5)
         elif isinstance(immediate, str):
             immediate = LabelAttr(immediate)
 
@@ -855,7 +855,7 @@ class RdRsImmShiftOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
-        attributes["immediate"] = parse_immediate_value(parser, ui5)
+        attributes["immediate"] = parse_immediate_value(parser, i5)
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
