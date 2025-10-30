@@ -1807,6 +1807,28 @@ class MVOp(RdRsIntegerOperation[IntRegisterType]):
     )
 
 
+@irdl_op_definition
+class SeqzOp(RdRsIntegerOperation[IntRegisterType]):
+    """
+    A pseudo instruction that sets the destination register to 1 if the source register is equal to zero.
+
+    Equivalent to `sltiu rd, rs, 1
+    """
+
+    name = "riscv.seqz"
+
+
+@irdl_op_definition
+class SnezOp(RdRsIntegerOperation[IntRegisterType]):
+    """
+    A pseudo instruction that sets the destination register to 1 if the source register is not equal to zero.
+
+    Equivalent to `sltu rd, x0, rs1 `
+    """
+
+    name = "riscv.snez"
+
+
 class FMVHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
@@ -4787,6 +4809,8 @@ RISCV = Dialect(
         LuiOp,
         AuipcOp,
         MVOp,
+        SeqzOp,
+        SnezOp,
         AddOp,
         SltOp,
         SltuOp,
