@@ -567,8 +567,9 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
                 result._value = result.value_cls()  # pyright: ignore[reportPrivateUsage]
                 analysis.visit_operation_impl(op, operands, results)
 
-                changed = result.meet(type(result)(result.anchor, original_state))
-                if changed == ChangeResult.CHANGE:
+                result.meet(type(result)(result.anchor, original_state))
+
+                if result.value != original_state:
                     assert (op_use := op.results[0].first_use), (
                         "Dataflow analysis currently only supports operations with a single (EClassOp) use"
                     )
