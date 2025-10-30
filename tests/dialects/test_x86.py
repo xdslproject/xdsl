@@ -311,6 +311,43 @@ def test_rm_vops(
     assert op.destination.type == dest
 
 
+@pytest.mark.parametrize(
+    "OpClass, dest, operand1, operand2",
+    [
+        (
+            x86.ops.DSS_AddpdOp,
+            x86.registers.YMM0,
+            x86.registers.YMM1,
+            x86.registers.YMM2,
+        ),
+        (
+            x86.ops.DSS_AddpsOp,
+            x86.registers.YMM0,
+            x86.registers.YMM1,
+            x86.registers.YMM2,
+        ),
+    ],
+)
+def test_dss_vops(
+    OpClass: type[
+        x86.ops.DSS_Operation[
+            x86.registers.X86VectorRegisterType,
+            x86.registers.X86VectorRegisterType,
+            x86.registers.X86VectorRegisterType,
+        ]
+    ],
+    dest: x86.registers.X86VectorRegisterType,
+    operand1: x86.registers.X86VectorRegisterType,
+    operand2: x86.registers.X86VectorRegisterType,
+):
+    param1 = create_ssa_value(operand1)
+    param2 = create_ssa_value(operand2)
+    op = OpClass(param1, param2, destination=dest)
+    assert op.destination.type == dest
+    assert op.source1.type == operand1
+    assert op.source2.type == operand2
+
+
 def test_get_constant_value():
     U = x86.registers.UNALLOCATED_GENERAL
     unknown_value = create_ssa_value(U)
