@@ -400,12 +400,15 @@ class RM_Operation(
         memory_offset: int | IntegerAttr,
         *,
         comment: str | StringAttr | None = None,
-        register_out: R1InvT,
+        register_out: R1InvT | None = None,
     ):
         if isinstance(memory_offset, int):
             memory_offset = IntegerAttr(memory_offset, 64)
         if isinstance(comment, str):
             comment = StringAttr(comment)
+        register_in = SSAValue.get(register_in)
+        if register_out is None:
+            register_out = cast(R1InvT, register_in.type)
 
         super().__init__(
             operands=[register_in, memory],
@@ -569,7 +572,7 @@ class RI_Operation(X86Instruction, X86CustomFormatOperation, ABC, Generic[R1InvT
         immediate: int | IntegerAttr,
         *,
         comment: str | StringAttr | None = None,
-        register_out: R1InvT,
+        register_out: R1InvT | None = None,
     ):
         if isinstance(immediate, int):
             immediate = IntegerAttr(
@@ -577,6 +580,9 @@ class RI_Operation(X86Instruction, X86CustomFormatOperation, ABC, Generic[R1InvT
             )  # the default immediate size is 32 bits
         if isinstance(comment, str):
             comment = StringAttr(comment)
+        register_in = SSAValue.get(register_in)
+        if register_out is None:
+            register_out = cast(R1InvT, register_in.type)
 
         super().__init__(
             operands=[register_in],
@@ -1484,21 +1490,20 @@ class S_PushOp(X86Instruction, X86CustomFormatOperation):
 
     def __init__(
         self,
-        resp_in: Operation | SSAValue,
+        rsp_in: Operation | SSAValue,
         source: Operation | SSAValue,
         *,
         comment: str | StringAttr | None = None,
-        rsp_out: GeneralRegisterType,
     ):
         if isinstance(comment, str):
             comment = StringAttr(comment)
 
         super().__init__(
-            operands=[resp_in, source],
+            operands=[rsp_in, source],
             attributes={
                 "comment": comment,
             },
-            result_types=[rsp_out],
+            result_types=[RSP],
         )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
@@ -1525,7 +1530,6 @@ class D_PopOp(X86Instruction, X86CustomFormatOperation):
         *,
         comment: str | StringAttr | None = None,
         destination: X86RegisterType,
-        rsp_out: GeneralRegisterType,
     ):
         if isinstance(comment, str):
             comment = StringAttr(comment)
@@ -1535,7 +1539,7 @@ class D_PopOp(X86Instruction, X86CustomFormatOperation):
             attributes={
                 "comment": comment,
             },
-            result_types=[rsp_out, destination],
+            result_types=[RSP, destination],
         )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:

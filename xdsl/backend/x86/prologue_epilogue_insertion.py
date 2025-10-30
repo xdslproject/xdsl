@@ -48,9 +48,7 @@ class X86PrologueEpilogueInsertion(ModulePass):
         # Build the prologue at the beginning of the function.
         for reg in used_callee_preserved_registers:
             reg_op = builder.insert(x86.GetRegisterOp(reg))
-            builder.insert(
-                x86.S_PushOp(resp_in=sp_register, source=reg_op, rsp_out=RSP)
-            )
+            builder.insert(x86.S_PushOp(rsp_in=sp_register, source=reg_op))
 
         # Now build the epilogue right before every return operation.
         for block in func.body.blocks:
@@ -59,9 +57,7 @@ class X86PrologueEpilogueInsertion(ModulePass):
                 continue
             builder = Builder(InsertPoint.before(ret_op))
             for reg in reversed(used_callee_preserved_registers):
-                builder.insert(
-                    x86.D_PopOp(rsp_in=sp_register, rsp_out=RSP, destination=reg)
-                )
+                builder.insert(x86.D_PopOp(rsp_in=sp_register, destination=reg))
 
     def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         for func in op.walk():
