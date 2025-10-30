@@ -1,3 +1,5 @@
+from dataclasses import dataclass
+
 from xdsl.context import Context
 from xdsl.dialects import builtin, eqsat
 from xdsl.ir import Block, Operation, OpResult
@@ -5,7 +7,7 @@ from xdsl.passes import ModulePass
 from xdsl.rewriter import Rewriter
 
 
-def eqsat_extract(block: Block):
+def eqsat_extract(block: Block, *, cleanup_costs: bool = True):
     ops_to_erase = set[Operation]()
     for op in reversed(block.ops):
         if isinstance(op, eqsat.AnyEClassOp):
@@ -26,7 +28,10 @@ def eqsat_extract(block: Block):
                         if isinstance(operand, OpResult)
                     )
                 if isinstance(min_cost_operand, OpResult):
-                    if eqsat.EQSAT_COST_LABEL in min_cost_operand.op.attributes:
+                    if (
+                        cleanup_costs
+                        and eqsat.EQSAT_COST_LABEL in min_cost_operand.op.attributes
+                    ):
                         del min_cost_operand.op.attributes[eqsat.EQSAT_COST_LABEL]
                 Rewriter.replace_op(op, (), new_results=(min_cost_operand,))
             continue
@@ -38,12 +43,15 @@ def eqsat_extract(block: Block):
     # assert not ops_to_erase
 
 
+@dataclass(frozen=True)
 class EqsatExtractPass(ModulePass):
     """
     Extracts the subprogram with the lowest cost, as specified by the `min_cost_index`
     """
 
     name = "eqsat-extract"
+
+    cleanup_costs: bool = True
 
     def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         eclass_parent_blocks = set(
@@ -52,4 +60,4 @@ class EqsatExtractPass(ModulePass):
             if o.parent is not None and isinstance(o, eqsat.AnyEClassOp)
         )
         for block in eclass_parent_blocks:
-            eqsat_extract(block)
+            eqsat_extract(block, cleanup_costs=self.cleanup_costs)
