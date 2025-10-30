@@ -273,6 +273,29 @@ def test_op_clone_with_regions():
     assert tuple(name_hints(pd)) == (None, None, None, None)
 
 
+def test_op_clone_graph_region():
+    # Children
+    ca0 = test.TestOp.create(result_types=(i32,))
+    ca0.results[0].name_hint = "a"
+    ca1 = test.TestOp.create(result_types=(i32,))
+    ca1.results[0].name_hint = "b"
+    # Make recursive
+    ca0.operands = (ca1.results[0],)
+    ca1.operands = (ca0.results[0],)
+    # Parent
+    pa = test.TestOp.create(regions=[Region([Block([ca0, ca1])])])
+
+    pb = pa.clone()
+    assert pa is not pb
+
+    cb0, cb1 = pb.regions[0].blocks[0].ops
+
+    assert ca0 is not cb0
+    assert ca1 is not cb1
+    assert ca0.operands != cb0.operands
+    assert ca1.operands != cb1.operands
+
+
 def test_block_branching_to_another_region_wrong():
     """
     Tests that an operation cannot have successors that branch to blocks of
