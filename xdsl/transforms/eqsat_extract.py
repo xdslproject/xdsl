@@ -1,3 +1,5 @@
+from dataclasses import dataclass
+
 from xdsl.context import Context
 from xdsl.dialects import builtin, eqsat
 from xdsl.ir import OpResult
@@ -5,7 +7,7 @@ from xdsl.passes import ModulePass
 from xdsl.rewriter import Rewriter
 
 
-def eqsat_extract(module_op: builtin.ModuleOp):
+def eqsat_extract(module_op: builtin.ModuleOp, cleanup_costs: bool = True):
     eclass_ops = [op for op in module_op.walk() if isinstance(op, eqsat.AnyEClassOp)]
 
     while eclass_ops:
@@ -30,6 +32,7 @@ def eqsat_extract(module_op: builtin.ModuleOp):
             # Delete cost
             if (
                 isinstance(operand, OpResult)
+                and cleanup_costs
                 and eqsat.EQSAT_COST_LABEL in operand.op.attributes
             ):
                 del operand.op.attributes[eqsat.EQSAT_COST_LABEL]
@@ -44,12 +47,15 @@ def eqsat_extract(module_op: builtin.ModuleOp):
     assert not eclass_ops
 
 
+@dataclass(frozen=True)
 class EqsatExtractPass(ModulePass):
     """
     Extracts the subprogram with the lowest cost, as specified by the `min_cost_index`
     """
 
     name = "eqsat-extract"
+
+    cleanup_costs: bool = True
 
     def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         eqsat_extract(op)
