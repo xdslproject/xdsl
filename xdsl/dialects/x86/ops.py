@@ -3286,6 +3286,18 @@ class DS_VmovapdOp(DS_Operation[X86VectorRegisterType, X86VectorRegisterType]):
 
 
 @irdl_op_definition
+class DS_VmovapsOp(DS_Operation[X86VectorRegisterType, X86VectorRegisterType]):
+    """
+    Move aligned packed single precision floating-point values from zmm1 to zmm2 using
+    writemask k1
+
+    See external [documentation](https://www.felixcloutier.com/x86/movaps).
+    """
+
+    name = "x86.ds.vmovaps"
+
+
+@irdl_op_definition
 class MS_VmovapdOp(MS_Operation[GeneralRegisterType, X86VectorRegisterType]):
     """
     Move aligned packed double precision floating-point values from zmm1 to m512 using writemask k1
@@ -3297,9 +3309,31 @@ class MS_VmovapdOp(MS_Operation[GeneralRegisterType, X86VectorRegisterType]):
 
 
 @irdl_op_definition
+class MS_VmovapsOp(MS_Operation[GeneralRegisterType, X86VectorRegisterType]):
+    """
+    Move aligned packed single precision floating-point values from zmm1 to m512 using writemask k1
+
+    See external [documentation](https://www.felixcloutier.com/x86/movaps).
+    """
+
+    name = "x86.ms.vmovaps"
+
+
+@irdl_op_definition
+class MS_VmovupdOp(MS_Operation[GeneralRegisterType, X86VectorRegisterType]):
+    """
+    Move unaligned packed double precision floating-point values from vector register to memory
+
+    See external [documentation](https://www.felixcloutier.com/x86/movupd).
+    """
+
+    name = "x86.ms.vmovupd"
+
+
+@irdl_op_definition
 class MS_VmovupsOp(MS_Operation[GeneralRegisterType, X86VectorRegisterType]):
     """
-    Move aligned packed single precision floating-point values from vector register to memory
+    Move unaligned packed single precision floating-point values from vector register to memory
 
     See external [documentation](https://www.felixcloutier.com/x86/movups).
     """
@@ -3308,9 +3342,46 @@ class MS_VmovupsOp(MS_Operation[GeneralRegisterType, X86VectorRegisterType]):
 
 
 @irdl_op_definition
+class DM_VmovapdOp(DM_Operation[X86VectorRegisterType, GeneralRegisterType]):
+    """
+    Move aligned packed double precision floating-point values from memory to vector
+    register.
+
+    See external [documentation](https://www.felixcloutier.com/x86/movapd).
+    """
+
+    name = "x86.dm.vmovapd"
+
+
+@irdl_op_definition
+class DM_VmovapsOp(DM_Operation[X86VectorRegisterType, GeneralRegisterType]):
+    """
+    Move aligned packed single precision floating-point values from memory to vector
+    register.
+
+    See external [documentation](https://www.felixcloutier.com/x86/movaps).
+    """
+
+    name = "x86.dm.vmovaps"
+
+
+@irdl_op_definition
+class DM_VmovupdOp(DM_Operation[X86VectorRegisterType, GeneralRegisterType]):
+    """
+    Move unaligned packed double precision floating-point values from memory to vector
+    register.
+
+    See external [documentation](https://www.felixcloutier.com/x86/movupd).
+    """
+
+    name = "x86.dm.vmovupd"
+
+
+@irdl_op_definition
 class DM_VmovupsOp(DM_Operation[X86VectorRegisterType, GeneralRegisterType]):
     """
-    Move aligned packed single precision floating-point values from memory to vector register
+    Move unaligned packed single precision floating-point values from memory to vector
+    register.
 
     See external [documentation](https://www.felixcloutier.com/x86/movups).
     """
@@ -3319,14 +3390,29 @@ class DM_VmovupsOp(DM_Operation[X86VectorRegisterType, GeneralRegisterType]):
 
 
 @irdl_op_definition
-class DM_VmovupdOp(DM_Operation[X86VectorRegisterType, GeneralRegisterType]):
+class MS_VmovntpdOp(MS_Operation[GeneralRegisterType, X86VectorRegisterType]):
     """
-    Move aligned packed double precision floating-point values from memory to vector register
+    Moves the packed double precision floating-point values in the source operand to the
+    destination operand using a non-temporal hint to prevent caching of the data during
+    the write to memory.
 
-    See external [documentation](https://www.felixcloutier.com/x86/movupd).
+    See external [documentation](https://www.felixcloutier.com/x86/movntpd).
     """
 
-    name = "x86.dm.vmovupd"
+    name = "x86.ms.vmovntpd"
+
+
+@irdl_op_definition
+class MS_VmovntpsOp(MS_Operation[GeneralRegisterType, X86VectorRegisterType]):
+    """
+    Moves the packed single precision floating-point values in the source operand to the
+    destination operand using a non-temporal hint to prevent caching of the data during
+    the write to memory.
+
+    See external [documentation](https://www.felixcloutier.com/x86/movntps).
+    """
+
+    name = "x86.ms.vmovntps"
 
 
 @irdl_op_definition
