@@ -636,7 +636,7 @@ class PrivateClauseOp(IRDLOperation):
     var_type = prop_def(TypeAttribute, prop_name="type")
     data_sharing_type = prop_def(DataSharingClauseAttr)
 
-    alloc_region = region_def()
+    init_region = region_def()
     copy_region = region_def()
     dealloc_region = region_def()
 
@@ -644,17 +644,11 @@ class PrivateClauseOp(IRDLOperation):
 
     assembly_format = """
         $data_sharing_type $sym_name `:` $type
-        `alloc` $alloc_region
+        (`init` $init_region^)?
         (`copy` $copy_region^)?
         (`dealloc` $dealloc_region^)?
         attr-dict
     """
-
-    def verify_(self) -> None:
-        if len(self.alloc_region.blocks) < 1:
-            raise VerifyException(
-                f"alloc_region of {self.name} has to have at least 1 block"
-            )
 
 
 @irdl_op_definition
