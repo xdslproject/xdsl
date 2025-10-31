@@ -10,6 +10,10 @@
     // CHECK-NEXT: add j_2, zero, j_1
     %mv = riscv.mv %0 : (!riscv.reg<zero>) -> !riscv.reg<j_2>
     // CHECK-NEXT: mv j_2, zero
+    %seqz = riscv.seqz %1 : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
+    // CHECK-NEXT: seqz j_1, j_1
+    %snez = riscv.snez %1 : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
+    // CHECK-NEXT: snez j_1, j_1
 
     // RV32I/RV64I: Integer Computational Instructions (Section 2.4)
     // Integer Register-Immediate Instructions
