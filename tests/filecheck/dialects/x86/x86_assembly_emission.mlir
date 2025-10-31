@@ -1,4 +1,4 @@
-// RUN: xdsl-opt -t x86-asm %s | filecheck %s
+// RUN: xdsl-opt -t x86-asm %s | filecheck --match-full-lines %s
 
 // CHECK-NEXT: .intel_syntax noprefix
 
@@ -173,8 +173,14 @@ x86_func.func @funcyasm() {
     %rflags = x86.ss.cmp %3, %4 : (!x86.reg<rax>, !x86.reg<rdx>) -> !x86.rflags<rflags>
     // CHECK: cmp rax, rdx
 
+    x86.c.jmp ^then_comment() attributes {comment="hello"}
+    // CHECK-NOT: jmp
+    // CHECK-NEXT: # hello
+    ^then_comment:
+    x86.label "then_comment"
+    // CHECK-NEXT: then_comment:
     x86.c.jmp ^then(%arg : !x86.reg)
-    // CHECK-NEXT: jmp then
+    // CHECK-NOT: jmp
     ^then(%arg : !x86.reg):
     x86.label "then"
     // CHECK-NEXT: then:
