@@ -8,6 +8,7 @@ from typing_extensions import TypeVar
 from xdsl.dialects.bufferization import TensorFromMemRefConstraint
 from xdsl.dialects.builtin import (
     IndexType,
+    IntAttr,
     IntAttrConstraint,
     IntegerType,
     MemRefType,
@@ -23,19 +24,22 @@ from xdsl.irdl import (
     AnyAttr,
     AnyInt,
     AnyOf,
+    AtLeast,
+    AtMost,
     AttrConstraint,
     BaseAttr,
     ConstraintContext,
     EqAttrConstraint,
     EqIntConstraint,
     IntTypeVarConstraint,
+    Not,
     ParamAttrConstraint,
     VarConstraint,
     base,
     eq,
     irdl_attr_definition,
 )
-from xdsl.utils.exceptions import PyRDLError
+from xdsl.utils.exceptions import PyRDLError, VerifyException
 
 
 def test_failing_inference():
@@ -375,3 +379,136 @@ def test_mapping_type_vars():
     assert int_attr_constr.mapping_type_vars({_IntT: my_constr}) == IntAttrConstraint(
         my_constr
     )
+
+
+def test_not_constraint_with_variables():
+    """Test that Not constraint validates against containing variables."""
+
+    # Creating a Not constraint with a simple constraint (no variables) should work
+    not_five = Not(EqAttrConstraint(IntAttr(5)))
+
+    # Test that it correctly verifies
+    ctx = ConstraintContext()
+    not_five.verify(IntAttr(3), ctx)  # Should pass - 3 is not 5
+
+    with pytest.raises(VerifyException, match="expected attribute to not satisfy"):
+        not_five.verify(IntAttr(5), ctx)  # Should fail - 5 is 5
+
+    # Creating a Not constraint with a variable constraint should raise an error
+    with pytest.raises(PyRDLError, match="Not constraint cannot contain variables"):
+        Not(VarConstraint("x", IntAttrConstraint(AnyInt())))
+
+    # Test with nested constraint that has variables
+    var_constraint = VarConstraint("y", EqAttrConstraint(IntAttr(10)))
+    with pytest.raises(PyRDLError, match="Not constraint cannot contain variables"):
+        Not(var_constraint)
+
+
+def test_not_constraint_no_side_effects():
+    """
+    Ensure Not does not leak context mutations from inner constraints that set
+    variables before ultimately failing.
+    """
+
+    # Branch 1 (IntAttr): sets 'x' then fails via Eq mismatch
+    branch1 = AllOf(
+        (
+            VarConstraint("x", BaseAttr(IntAttr)),
+            EqAttrConstraint(IntAttr(10)),
+        )
+    )
+
+    # Branch 2 (StringAttr): sets 'y' then fails via Eq mismatch
+    branch2 = AllOf(
+        (
+            VarConstraint("y", BaseAttr(StringAttr)),
+            EqAttrConstraint(StringAttr("abc")),
+        )
+    )
+
+    # Intersection of variables across AnyOf branches is empty, so construction is allowed
+    neg = Not(AnyOf((branch1, branch2)))
+
+    ctx = ConstraintContext()
+
+    # Verifying with IntAttr should select branch1, which fails -> Not succeeds
+    neg.verify(IntAttr(5), ctx)
+    assert ctx.get_variable("x") is None
+
+    # Verifying with StringAttr should select branch2, which fails -> Not succeeds
+    neg.verify(StringAttr("def"), ctx)
+    assert ctx.get_variable("y") is None
+
+
+def test_not_constraint_disallowed_in_anyof_bases():
+    """Not has unknown bases and should not be allowed inside AnyOf."""
+
+    with pytest.raises(
+        PyRDLError,
+        match=r"cannot appear in an `AnyOf` constraint as its bases aren't known",
+    ):
+        AnyOf((Not(EqAttrConstraint(IntAttr(1))), BaseAttr(IntAttr)))
+
+
+def test_constraint_invert_operator():
+    """Test the ~ operator for constraint negation."""
+
+    not_five = ~EqAttrConstraint(IntAttr(5))
+    ctx = ConstraintContext()
+
+    # Should pass (3 != 5)
+    not_five.verify(IntAttr(3), ctx)
+
+    # Should fail (5 == 5)
+    with pytest.raises(VerifyException, match="expected attribute to not satisfy"):
+        not_five.verify(IntAttr(5), ctx)
+
+
+# TODO: separate testcases might be nicer here
+def test_not_constraint_use_cases():
+    """Test some use cases for the Not constraint."""
+
+    # Use case: Exclude a specific range of values using AtLeast/AtMost
+    # "Not between 0 and 10" = "Not (>= 0 AND <= 10)"
+    not_small_positive = Not(
+        AllOf((IntAttrConstraint(AtLeast(0)), IntAttrConstraint(AtMost(10))))
+    )
+    ctx = ConstraintContext()
+
+    # Values outside the range should pass
+    not_small_positive.verify(IntAttr(-1), ctx)  # Negative is fine
+    not_small_positive.verify(IntAttr(11), ctx)  # Above range is fine
+    not_small_positive.verify(IntAttr(100), ctx)  # Much larger is fine
+
+    # Values in the range should fail
+    for i in range(0, 11):
+        with pytest.raises(VerifyException):
+            not_small_positive.verify(IntAttr(i), ctx)
+
+    # Use case: Exclude specific attribute types
+    not_string = Not(BaseAttr(StringAttr))
+
+    # Non-strings should pass
+    not_string.verify(IntAttr(42), ctx)
+    not_string.verify(AttrA(), ctx)
+
+    # Strings should fail
+    with pytest.raises(VerifyException):
+        not_string.verify(StringAttr("hello"), ctx)
+
+    # Use case: Complex logical patterns with AllOf
+    # "Must be an integer but not 0" - useful for division denominators
+    non_zero_int = AllOf((BaseAttr(IntAttr), Not(EqAttrConstraint(IntAttr(0)))))
+
+    # Non-zero integers should pass
+    non_zero_int.verify(IntAttr(1), ctx)
+    non_zero_int.verify(IntAttr(-5), ctx)
+    non_zero_int.verify(IntAttr(100), ctx)
+
+    # Zero should fail
+    with pytest.raises(VerifyException):
+        non_zero_int.verify(IntAttr(0), ctx)
+
+    # Non-integers should also fail
+    with pytest.raises(VerifyException):
+        non_zero_int.verify(StringAttr("not an int"), ctx)
