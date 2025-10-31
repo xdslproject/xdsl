@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.15.2"
+__generated_with = "0.17.2"
 app = marimo.App(width="medium")
 
 
@@ -83,7 +83,7 @@ def _(Parser, ctx, eclass_module, pdl_interp_module_string, xmo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""We then add the costs, which for now is just the number of operations to compute a given result:""")
+    mo.md(r"""We then add the costs. For now we give each operation a cost of `1`. This means the program with the lowest cost will be the program with the least amount of operations. Each e-class now also gets a `min_cost_index` attribute, referring to the value in its operand list with the lowest cost:""")
     return
 
 
@@ -91,8 +91,7 @@ def _(mo):
 def _(ctx, saturated_module, xmo):
     from xdsl.transforms.eqsat_add_costs import EqsatAddCostsPass
 
-    # Use a default cost since the resulting IR is currently recursive and we can't handle that
-    _, cost_module = EqsatAddCostsPass(default=1000).apply_to_clone(ctx, saturated_module)
+    _, cost_module = EqsatAddCostsPass(default=1).apply_to_clone(ctx, saturated_module)
 
     xmo.module_html(cost_module)
     return (cost_module,)

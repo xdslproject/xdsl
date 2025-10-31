@@ -8,7 +8,7 @@ from xdsl.rewriter import Rewriter
 def eqsat_extract(block: Block):
     ops_to_erase = set[Operation]()
     for op in reversed(block.ops):
-        if isinstance(op, eqsat.EClassOp):
+        if isinstance(op, eqsat.AnyEClassOp):
             if (min_cost_index := op.min_cost_index) is not None:
                 min_cost_operand = op.operands[min_cost_index.data]
                 has_uses = bool(op.result.uses)
@@ -49,7 +49,7 @@ class EqsatExtractPass(ModulePass):
         eclass_parent_blocks = set(
             o.parent
             for o in op.walk()
-            if o.parent is not None and isinstance(o, eqsat.EClassOp)
+            if o.parent is not None and isinstance(o, eqsat.AnyEClassOp)
         )
         for block in eclass_parent_blocks:
             eqsat_extract(block)
