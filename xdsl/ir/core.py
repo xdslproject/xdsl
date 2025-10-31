@@ -2596,6 +2596,11 @@ class Region(_IRNode):
                         value_mapper, block_mapper, clone_name_hints=clone_name_hints
                     )
                 )
+            # Handle graph regions, where results may be created after their first use
+            for op, new_op in zip(block.ops, new_block.ops):
+                new_op.operands = tuple(
+                    value_mapper.get(operand, operand) for operand in op.operands
+                )
 
     def walk(
         self, *, reverse: bool = False, region_first: bool = False
