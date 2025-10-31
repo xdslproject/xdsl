@@ -408,6 +408,13 @@ class ConstraintConvertible(Generic[AttributeCovT]):
         """The constraint for this instance."""
 
 
+# Dynamic check due to a regression in Python 3.14, which broke `|` between types and
+# strings, and a bug in Marimo where the correct version of typing_extensions is not
+# installed due to an old (4.11.0) version of typing_extensions already being present in
+# the Pyodide build.
+# When Marimo update their Pyodide we should delete the second branch.
+# We will likely want to support 3.14.0 for a long time, so we can't remove the first
+# branch even if the `|` bug is fixed in a patch update.
 if sys.version_info >= (3, 14, 0):
     IRDLAttrConstraint: TypeAlias = (
         AttrConstraint[AttributeInvT]
