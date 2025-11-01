@@ -1829,6 +1829,51 @@ class SnezOp(RdRsIntegerOperation[IntRegisterType]):
     name = "riscv.snez"
 
 
+@irdl_op_definition
+class ZextBOp(RdRsIntegerOperation[IntRegisterType]):
+    """
+    A pseudo instruction that zero-extends the least-significant byte of the source to XLEN by copying the
+    into all of the bits more significant than 31.
+
+    Equivalent to `andi rd, rs1, 255`
+    """
+
+    name = "riscv.zext.b"
+
+    traits = traits_def(Pure())
+
+
+@irdl_op_definition
+class ZextWOp(RdRsIntegerOperation[IntRegisterType]):
+    """
+    A pseudo instruction that zero-extends the least-significant word of the source to XLEN by inserting 0’s
+    into all of the bits more significant than 31.
+
+    Equivalent to `add.uw rd, rs1, 0`
+
+    See external [documentation](https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-add_uw)
+    """
+
+    name = "riscv.zext.w"
+
+    traits = traits_def(Pure())
+
+
+@irdl_op_definition
+class SextWOp(RdRsIntegerOperation[IntRegisterType]):
+    """
+    A pseudo instruction that writes the sign-extension of the lower 32 bits of register rs1 into register rd.
+
+    Equivalent to `addiw rd, rs, 0 `
+
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/#_addiw).
+    """
+
+    name = "riscv.sext.w"
+
+    traits = traits_def(Pure())
+
+
 class FMVHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
@@ -4811,6 +4856,9 @@ RISCV = Dialect(
         MVOp,
         SeqzOp,
         SnezOp,
+        ZextBOp,
+        ZextWOp,
+        SextWOp,
         AddOp,
         SltOp,
         SltuOp,
