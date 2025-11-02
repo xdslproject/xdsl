@@ -296,6 +296,29 @@ def test_op_clone_graph_region():
     assert ca1.operands != cb1.operands
 
 
+def test_op_clone_wrong_block_order():
+    # Children
+    ca1 = test.TestOp.create(result_types=(i32,))
+    ca1.results[0].name_hint = "b"
+    ca0 = test.TestOp.create(operands=ca1.results, result_types=(i32,))
+    ca0.results[0].name_hint = "a"
+    # Parent
+    pa = test.TestOp.create(regions=[Region([Block([ca0]), Block([ca1])])])
+
+    pb = pa.clone()
+    assert pa is not pb
+
+    (cb0,) = pb.regions[0].blocks[0].ops
+    (cb1,) = pb.regions[0].blocks[1].ops
+
+    assert ca0 is not cb0
+    assert ca1 is not cb1
+    for oa, ob in zip(ca0.operands, cb0.operands, strict=True):
+        assert oa is not ob
+    for oa, ob in zip(ca1.operands, cb1.operands, strict=True):
+        assert oa is not ob
+
+
 def test_block_branching_to_another_region_wrong():
     """
     Tests that an operation cannot have successors that branch to blocks of
