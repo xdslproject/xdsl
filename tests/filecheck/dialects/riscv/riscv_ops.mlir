@@ -36,6 +36,12 @@
     // CHECK: %{{.*}} = riscv.seqz %{{.*}} : (!riscv.reg) -> !riscv.reg
     %snez = riscv.snez %0 : (!riscv.reg) -> !riscv.reg
     // CHECK: %{{.*}} = riscv.snez %{{.*}} : (!riscv.reg) -> !riscv.reg
+    %zextb = riscv.zext.b %0 : (!riscv.reg) -> !riscv.reg
+    // CHECK: %{{.*}} = riscv.zext.b %{{.*}} : (!riscv.reg) -> !riscv.reg
+    %zextw = riscv.zext.w %0 : (!riscv.reg) -> !riscv.reg
+    // CHECK: %{{.*}} = riscv.zext.w %{{.*}} : (!riscv.reg) -> !riscv.reg
+    %sextw = riscv.sext.w %0 : (!riscv.reg) -> !riscv.reg
+    // CHECK: %{{.*}} = riscv.sext.w %{{.*}} : (!riscv.reg) -> !riscv.reg
     %srliw = riscv.srliw %0, 1: (!riscv.reg) -> !riscv.reg
     // CHECK-NEXT: %{{.*}} = riscv.srliw %0, 1 : (!riscv.reg) -> !riscv.reg
     %sraiw = riscv.sraiw %0, 1: (!riscv.reg) -> !riscv.reg
@@ -464,6 +470,9 @@
 // CHECK-GENERIC-NEXT:      %mv = "riscv.mv"(%0) : (!riscv.reg) -> !riscv.reg
 // CHECK-GENERIC-NEXT:      %seqz = "riscv.seqz"(%0) : (!riscv.reg) -> !riscv.reg
 // CHECK-GENERIC-NEXT:      %snez = "riscv.snez"(%0) : (!riscv.reg) -> !riscv.reg
+// CHECK-GENERIC-NEXT:      %zextb = "riscv.zext.b"(%0) : (!riscv.reg) -> !riscv.reg
+// CHECK-GENERIC-NEXT:      %zextw = "riscv.zext.w"(%0) : (!riscv.reg) -> !riscv.reg
+// CHECK-GENERIC-NEXT:      %sextw = "riscv.sext.w"(%0) : (!riscv.reg) -> !riscv.reg
 // CHECK-GENERIC-NEXT:      %srliw = "riscv.srliw"(%0) {immediate = 1 : ui5} : (!riscv.reg) -> !riscv.reg
 // CHECK-GENERIC-NEXT:      %sraiw = "riscv.sraiw"(%0) {immediate = 1 : si12} : (!riscv.reg) -> !riscv.reg
 // CHECK-GENERIC-NEXT:      %add = "riscv.add"(%0, %1) : (!riscv.reg, !riscv.reg) -> !riscv.reg

@@ -14,6 +14,12 @@
     // CHECK-NEXT: seqz j_1, j_1
     %snez = riscv.snez %1 : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
     // CHECK-NEXT: snez j_1, j_1
+    %zextb = riscv.zext.b %1 : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
+    // CHECK-NEXT: zext.b j_1, j_1
+    %zextw = riscv.zext.w %1 : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
+    // CHECK-NEXT: zext.w j_1, j_1
+    %sextw = riscv.sext.w %1 : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
+    // CHECK-NEXT: sext.w j_1, j_1
 
     // RV32I/RV64I: Integer Computational Instructions (Section 2.4)
     // Integer Register-Immediate Instructions
