@@ -571,7 +571,12 @@ class IRUses(Iterable[Use]):
         Returns the number of uses.
         We do not expose it as `__len__` as it is expensive to compute `O(len)`.
         """
-        return len(tuple(self))
+        use = self.ir.first_use
+        count = 0
+        while use is not None:
+            count += 1
+            use = use._next_use  # pyright: ignore[reportPrivateUsage]
+        return count
 
 
 @dataclass(eq=False)
