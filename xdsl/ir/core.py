@@ -547,6 +547,13 @@ class Use:
     def __eq__(self, other: object) -> bool:
         return self is other
 
+    def __repr__(self) -> str:
+        return (
+            f"<{self.__class__.__name__}"
+            f" operation: {self.operation.name},"
+            f" index: {self.index}>"
+        )
+
 
 @dataclass
 class IRUses(Iterable[Use]):
@@ -807,7 +814,7 @@ class OpResult(SSAValue[AttributeCovT], Generic[AttributeCovT]):
             f"<{self.__class__.__name__}[{self.type}]"
             f" index: {self.index},"
             f" operation: {self.op.name},"
-            f" uses: {self.uses.get_length()}>"
+            f" uses: {tuple(self.uses)}>"
         )
 
 
@@ -829,7 +836,7 @@ class BlockArgument(SSAValue[AttributeCovT], Generic[AttributeCovT]):
         return (
             f"<{self.__class__.__name__}[{self.type}]"
             f" index: {self.index},"
-            f" uses: {self.uses.get_length()}>"
+            f" uses: {tuple(self.uses)}>"
         )
 
 

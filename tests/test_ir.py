@@ -1167,3 +1167,23 @@ def test_ssa_get_on_op():
         ValueError, match="SSAValue.get: expected operation with a single result."
     ):
         SSAValue.get(op2)
+
+
+def test_repr_operation():
+    """Test that repr functions on operations with uses do not create excessive recursion."""
+    op1 = test.TestOp(result_types=[i32])
+    op2 = test.TestOp(result_types=[i32])
+    op3 = test.TestOp(result_types=[i32])
+
+    op4 = test.TestOp(operands=[op1, op2, op3] * 1000, result_types=[i64])
+
+    op5 = test.TestOp(operands=[op1, op2, op3, op4])
+
+    # This is not designed to test that the repr takes a particular form.
+    # It just tests that the result is returned without generating maximum recursion depth errors
+    try:
+        result = repr(op5)
+    except RecursionError:
+        pytest.fail("repr method on Operation reaches recursion limit.")
+
+    assert bool(result)
