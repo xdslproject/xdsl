@@ -525,10 +525,10 @@ class Use:
     _index: int
     """The index of the operand using the value in the operation."""
 
-    _prev_use: Use | None = None
+    _prev_use: Use | None = field(default=None, repr=False)
     """The previous use of the value in the use list."""
 
-    _next_use: Use | None = None
+    _next_use: Use | None = field(default=None, repr=False)
     """The next use of the value in the use list."""
 
     @property
@@ -546,13 +546,6 @@ class Use:
 
     def __eq__(self, other: object) -> bool:
         return self is other
-
-    def __repr__(self) -> str:
-        return (
-            f"<{self.__class__.__name__}"
-            f" operation: {self.operation.name},"
-            f" index: {self.index}>"
-        )
 
 
 @dataclass
@@ -814,7 +807,7 @@ class OpResult(SSAValue[AttributeCovT], Generic[AttributeCovT]):
             f"<{self.__class__.__name__}[{self.type}]"
             f" index: {self.index},"
             f" operation: {self.op.name},"
-            f" uses: {tuple(self.uses)}>"
+            f" uses: {self.uses.get_length()}>"
         )
 
 
@@ -836,7 +829,7 @@ class BlockArgument(SSAValue[AttributeCovT], Generic[AttributeCovT]):
         return (
             f"<{self.__class__.__name__}[{self.type}]"
             f" index: {self.index},"
-            f" uses: {tuple(self.uses)}>"
+            f" uses: {self.uses.get_length()}>"
         )
 
 
