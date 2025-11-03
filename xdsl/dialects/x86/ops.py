@@ -989,7 +989,16 @@ class ConditionalJumpOperation(X86Instruction, X86CustomFormatOperation, ABC):
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
         then_label = self.then_block.first_op
         assert isinstance(then_label, LabelOp)
-        return (then_label.label,)
+        then_label_str = then_label.label.data
+        if then_label_str.isdigit():
+            # x86 Assembly: Numeric jump labels must be annotated with a suffix.
+            # Jumping backward in code requires appending 'b' (e.g., "1b"), and
+            # jumping forward requires appending 'f' (e.g., "1f").
+            # Proper support for generating these labels is currently unimplemented.
+            raise NotImplementedError(
+                "Assembly printing for jumps to numeric labels not implemented"
+            )
+        return (then_label_str,)
 
     def print(self, printer: Printer) -> None:
         printer.print_string(" ")
@@ -2555,7 +2564,16 @@ class C_JmpOp(X86Instruction, X86CustomFormatOperation):
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
         dest_label = self.successor.first_op
         assert isinstance(dest_label, LabelOp)
-        return (dest_label.label,)
+        dest_label_str = dest_label.label.data
+        if dest_label_str.isdigit():
+            # x86 Assembly: Numeric jump labels must be annotated with a suffix.
+            # Jumping backward in code requires appending 'b' (e.g., "1b"), and
+            # jumping forward requires appending 'f' (e.g., "1f").
+            # Proper support for generating these labels is currently unimplemented.
+            raise NotImplementedError(
+                "Assembly printing for jumps to numeric labels not implemented"
+            )
+        return (dest_label_str,)
 
 
 @irdl_op_definition
