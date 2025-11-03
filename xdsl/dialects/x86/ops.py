@@ -2559,6 +2559,80 @@ class C_JmpOp(X86Instruction, X86CustomFormatOperation):
 
 
 @irdl_op_definition
+class FallthroughOp(X86AsmOperation, X86CustomFormatOperation):
+    """
+    Continue execution into the next block.
+    The successor of this operation must be immediately after this operation's parent.
+    """
+
+    name = "x86.fallthrough"
+
+    block_values = var_operand_def(X86RegisterType)
+
+    successor = successor_def()
+
+    traits = traits_def(IsTerminator())
+
+    def __init__(
+        self,
+        block_values: Sequence[SSAValue],
+        successor: Successor,
+        *,
+        comment: str | StringAttr | None = None,
+    ):
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            operands=[block_values],
+            attributes={
+                "comment": comment,
+            },
+            successors=(successor,),
+        )
+
+    def verify_(self) -> None:
+        # Types of arguments must match arg types of blocks
+
+        for op_arg, block_arg in zip(self.block_values, self.successor.args):
+            if op_arg.type != block_arg.type:
+                raise VerifyException(
+                    f"Block arg types must match {op_arg.type} {block_arg.type}"
+                )
+
+        if (parent := self.parent) is not None:
+            if parent.next_block is not self.successor:
+                raise VerifyException(
+                    "Fallthrough op successor must immediately follow its parent."
+                )
+
+    def print(self, printer: Printer) -> None:
+        printer.print_string(" ")
+        printer.print_block_name(self.successor)
+        printer.print_string("(")
+        printer.print_list(self.block_values, lambda val: print_type_pair(printer, val))
+        printer.print_string(")")
+        if self.attributes:
+            printer.print_op_attributes(self.attributes, print_keyword=True)
+
+    @classmethod
+    def parse(cls, parser: Parser) -> Self:
+        successor = parser.parse_successor()
+        block_values = parser.parse_comma_separated_list(
+            parser.Delimiter.PAREN, lambda: parse_type_pair(parser)
+        )
+        attrs = parser.parse_optional_attr_dict_with_keyword()
+        op = cls(block_values, successor)
+        if attrs is not None:
+            op.attributes |= attrs.data
+        return op
+
+    def assembly_line(self) -> str | None:
+        # Not printed in assembly
+        return None
+
+
+@irdl_op_definition
 class SS_CmpOp(X86Instruction, X86CustomFormatOperation):
     """
     Compares the first source operand with the second source operand and sets the status
