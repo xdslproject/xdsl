@@ -64,7 +64,7 @@ class AssertOp(IRDLOperation):
     name = "cf.assert"
 
     arg = operand_def(IntegerType(1))
-    msg = attr_def(StringAttr)
+    msg = prop_def(StringAttr)
 
     traits = traits_def(AssertHasCanonicalizationPatterns())
 
