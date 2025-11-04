@@ -10,6 +10,8 @@ from xdsl.passes import ModulePass
 from xdsl.utils.exceptions import DiagnosticException
 from xdsl.utils.hints import isa
 
+TOTAL_COST_LABEL = "eqsat.total_cost"
+
 
 def get_node_base_cost(op: Operation, default_cost: int | None) -> int | None:
     """
@@ -72,10 +74,18 @@ def calculate_node_total_cost(
     return total
 
 
-def add_eqsat_costs(block: Block, default: int | None, cost_dict: dict[str, int]):
+def add_eqsat_costs(
+    block: Block,
+    default: int | None,
+    cost_dict: dict[str, int],
+    add_total_costs: bool = False,
+):
     """
     Add costs to all operations and perform bottom-up extraction to find the minimum
     cost node in each e-class using fixed-point iteration.
+
+    If add_total_costs is True, also add the total cost (base cost + dependency costs)
+    as an attribute to each operation.
     """
     # First pass: assign base costs to operations from cost_dict or default
     for op in block.ops:
@@ -134,6 +144,18 @@ def add_eqsat_costs(block: Block, default: int | None, cost_dict: dict[str, int]
                     op.min_cost_index = IntAttr(idx)
                     changed = True
 
+    # Optionally add total costs to all operations
+    if add_total_costs:
+        for op in block.ops:
+            if not op.results:
+                continue
+
+            # Calculate total cost for each result
+            for result in op.results:
+                total_cost = calculate_node_total_cost(result, eclass_costs, default)
+                if total_cost is not None:
+                    op.attributes[TOTAL_COST_LABEL] = IntAttr(total_cost)
+
 
 @dataclass(frozen=True)
 class EqsatAddCostsPass(ModulePass):
@@ -158,6 +180,8 @@ class EqsatAddCostsPass(ModulePass):
     "Path to JSON file of cost values"
     default: int | None = field(default=None)
     "Default cost to assign if it cannot be calculated."
+    add_total_costs: bool = field(default=False)
+    "Whether to add total costs (base + dependencies) as attributes to operations."
 
     def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         eclass_parent_blocks = set(
@@ -174,4 +198,9 @@ class EqsatAddCostsPass(ModulePass):
                 cost_dict = json.load(file)
 
         for block in eclass_parent_blocks:
-            add_eqsat_costs(block, default=self.default, cost_dict=cost_dict)
+            add_eqsat_costs(
+                block,
+                default=self.default,
+                cost_dict=cost_dict,
+                add_total_costs=self.add_total_costs,
+            )
