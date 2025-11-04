@@ -429,7 +429,7 @@ class PDLInterpFunctions(InterpreterFunctions):
     def call_func(
         self, interpreter: Interpreter, op: pdl_interp.FuncOp, args: tuple[Any, ...]
     ):
-        if op.sym_name.data == "matcher":
+        if "matcher" in op.sym_name.data:
             assert len(args) == 1
             root_op = args[0]
             assert isinstance(root_op, Operation)

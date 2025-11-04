@@ -34,8 +34,6 @@ class PDLInterpRewritePattern(RewritePattern):
         module = matcher.parent_op()
         assert isinstance(module, ModuleOp)
         self.interpreter = interpreter
-        if matcher.sym_name.data != "matcher":
-            raise ValueError("Matcher function name must be 'matcher'")
         self.matcher = matcher
         self.name = name
 
