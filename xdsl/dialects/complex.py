@@ -11,6 +11,7 @@ from xdsl.dialects.builtin import (
     ArrayAttr,
     ArrayOfConstraint,
     ComplexType,
+    FixedBitwidthType,
     FloatAttr,
     IntegerAttr,
     IntegerType,
@@ -258,8 +259,10 @@ class BitcastOp(IRDLOperation):
         if not BitcastOp._have_compatible_types(type_a, type_b):
             return False
         complex_type = type_a if isa(type_a, ComplexType) else type_b
-        arith_type = type_a if not isa(type_a, ComplexType) else type_b
-        return (complex_type.get_element_type().bitwidth << 1) == arith_type.bitwidth
+        arith_type = type_a if isa(type_a, AnyFloat | IntegerType) else type_b
+        return (
+            cast(ComplexType, complex_type).get_element_type().bitwidth << 1
+        ) == cast(FixedBitwidthType, arith_type).bitwidth
 
 
 @irdl_op_definition
@@ -308,15 +311,17 @@ class ConstantOp(IRDLOperation, ConstantLikeInterface):
     ) -> ConstantOp:
         if width == 1 and isa(value, tuple[int, int]):
             result_type = ComplexType(IntegerType(1))
-            value = ArrayAttr([IntegerAttr(value[0], 1), IntegerAttr(value[1], 1)])
+            value_arr = ArrayAttr([IntegerAttr(value[0], 1), IntegerAttr(value[1], 1)])
         elif width > 1:
-            value = ArrayAttr([FloatAttr(value[0], width), FloatAttr(value[1], width)])
-            result_type = ComplexType(value.data[0].type)
+            value_arr = ArrayAttr(
+                [FloatAttr(value[0], width), FloatAttr(value[1], width)]
+            )
+            result_type = ComplexType(value_arr.data[0].type)
         else:
             raise ValueError(
                 f"Not expected 'width'={width} with 'tuple'=[{type(value[0])}, {type(value[1])}"
             )
-        return ConstantOp(value, result_type)
+        return ConstantOp(value_arr, result_type)
 
 
 @irdl_op_definition

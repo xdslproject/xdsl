@@ -5,6 +5,7 @@ from xdsl.dialects.arith import (
     FastMathFlagsAttr,
 )
 from xdsl.dialects.builtin import (
+    AnyFloat,
     ArrayAttr,
     Attribute,
     BoolAttr,
@@ -56,7 +57,7 @@ def test_constant_construction():
             (0, 1),
             1,
             ComplexType(i1),
-            ArrayAttr([BoolAttr(0, 1), BoolAttr(1, 1)]),
+            ArrayAttr([BoolAttr(0, i1), BoolAttr(1, i1)]),
         ),
         (
             (0, 1),
@@ -128,15 +129,15 @@ def test_complex_constant_construct(
             ComplexType(f64),
         ),
         (
-            ArrayAttr([BoolAttr(0, 1), FloatAttr(3.3, 32)]),
+            ArrayAttr([BoolAttr(0, i1), FloatAttr(3.3, 32)]),
             ComplexType(f64),
         ),
         (
-            ArrayAttr([FloatAttr(2, 32), BoolAttr(1, 1)]),
+            ArrayAttr([FloatAttr(2, 32), BoolAttr(1, i1)]),
             ComplexType(i1),
         ),
         (
-            ArrayAttr([BoolAttr(0, 1), BoolAttr(1, 1)]),
+            ArrayAttr([BoolAttr(0, i1), BoolAttr(1, i1)]),
             ComplexType(f16),
         ),
     ],
@@ -276,7 +277,7 @@ class Test_complex_binary_construction:
         (i16, f64, False),
     ],
 )
-def test_create_op(lhs_type: Attribute, rhs_type: Attribute, is_correct: bool):
+def test_create_op(lhs_type: AnyFloat, rhs_type: AnyFloat, is_correct: bool):
     lhs = create_ssa_value(lhs_type)
     rhs = create_ssa_value(rhs_type)
 
