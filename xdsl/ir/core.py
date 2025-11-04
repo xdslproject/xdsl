@@ -2613,7 +2613,8 @@ class Region(_IRNode):
                         clone_operands=False,
                     )
                 )
-        # Handle graph regions, where results may be created after their first use
+        # Handle cases where results may be created after their first use when walking
+        # in lexicographic order.
         if clone_operands:
             for old, new in zip(self.walk(), dest.walk()):
                 new.operands = tuple(
