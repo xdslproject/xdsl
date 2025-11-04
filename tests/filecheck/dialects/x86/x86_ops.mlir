@@ -160,6 +160,12 @@ func.func @funcyasm() {
     %rflags = x86.ss.cmp %3, %4 : (!x86.reg, !x86.reg) -> !x86.rflags<rflags>
     // CHECK: %{{.*}} = x86.ss.cmp %{{.*}}, %{{.*}} : (!x86.reg, !x86.reg) -> !x86.rflags
 
+    x86.fallthrough ^fallthrough()
+    // CHECK-NEXT: x86.fallthrough ^fallthrough()
+    ^fallthrough:
+    // CHECK-NEXT: ^fallthrough:
+    x86.label "fallthrough"
+    // CHECK-NEXT: x86.label "fallthrough"
     x86.c.jmp ^then(%arg : !x86.reg)
     // CHECK-NEXT: x86.c.jmp ^{{.+}}(%arg : !x86.reg)
     ^then(%arg : !x86.reg):
