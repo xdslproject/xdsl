@@ -404,3 +404,34 @@ def test_get_constant_value():
 )
 def test_read_effects(op: type[Operation]):
     assert MemoryReadEffect() in op.traits.traits
+
+
+def test_jmp_numeric_label_not_implemented():
+    label_op = x86.ops.LabelOp("123")
+    op = x86.ops.C_JmpOp(block_values=[], successor=Block([label_op]))
+    with pytest.raises(
+        NotImplementedError,
+        match="Assembly printing for jumps to numeric labels not implemented",
+    ):
+        op.assembly_line_args()
+    label_op.label = x86.attributes.LabelAttr("hello")
+    assert op.assembly_line_args() == ("hello",)
+
+
+def test_conditional_jump_numeric_label_not_implemented():
+    label_op = x86.ops.LabelOp("123")
+    rflags = create_ssa_value(x86.registers.RFLAGS)
+    op = x86.ops.C_JeOp(
+        rflags=rflags,
+        then_values=[],
+        else_values=[],
+        then_block=Block([label_op]),
+        else_block=Block([x86.ops.LabelOp("loop_start")]),
+    )
+    with pytest.raises(
+        NotImplementedError,
+        match="Assembly printing for jumps to numeric labels not implemented",
+    ):
+        op.assembly_line_args()
+    label_op.label = x86.attributes.LabelAttr("hello")
+    assert op.assembly_line_args() == ("hello",)
