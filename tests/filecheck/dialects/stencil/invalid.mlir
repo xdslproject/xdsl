@@ -57,6 +57,18 @@ builtin.module {
 // -----
 
 builtin.module {
+  func.func @buffer_operand_source_1d() {
+    %temp = "test.op"() : () -> !stencil.temp<[0,68]xf64>
+    %outt_buffered = "stencil.buffer"(%temp) : (!stencil.temp<[0,68]xf64>) -> !stencil.temp<[0,68]xf64>
+    "func.return"() : () -> ()
+  }
+}
+
+// CHECK: Expected stencil.buffer operand to be a result of stencil.apply or stencil.combine got test.op
+
+// -----
+
+builtin.module {
   func.func @apply_no_return_1d(%in : !stencil.field<[-4,68]xf64>) {
     %int = "stencil.load"(%in) : (!stencil.field<[-4,68]xf64>) -> !stencil.temp<?xf64>
     "stencil.apply"(%int) <{operandSegmentSizes = array<i32: 1, 0>}> ({
