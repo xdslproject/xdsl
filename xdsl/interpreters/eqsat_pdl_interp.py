@@ -125,6 +125,9 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
     """Keeps track whether the interpreter is currently in a matching context (as opposed to in a rewriting context).
     If it is, finalize behaves differently by backtracking."""
 
+    i: int = 0
+    """Counter for generating unique names for created operations and e-classes."""
+
     def modification_handler(self, op: Operation):
         """
         Keeps `known_ops` up to date.
@@ -442,6 +445,11 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
             eclass_op,
             InsertPoint.after(new_op),
         )
+        eclass_op.result.name_hint = f"c{self.i}"
+        self.i += 1
+        if new_op.results[0].name_hint is None:
+            new_op.results[0].name_hint = f"n{self.i}"
+        self.i += 1
 
         self.known_ops[new_op] = new_op
         self.eclass_union_find.add(eclass_op)
