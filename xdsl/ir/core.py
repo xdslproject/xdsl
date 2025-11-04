@@ -543,9 +543,9 @@ class Use:
 
     def __repr__(self) -> str:
         return (
-            f"<Use {id(self)}(_operation={short_repr(self.operation)}, "
-            f"_index={self.index}, _prev_use={short_repr(self._prev_use)}, "
-            f"_next_use={short_repr(self._next_use)})>"
+            f"<Use {id(self)}(_operation={_short_repr(self.operation)}, "
+            f"_index={self.index}, _prev_use={_short_repr(self._prev_use)}, "
+            f"_next_use={_short_repr(self._next_use)})>"
         )
 
     def __hash__(self) -> int:
@@ -1600,10 +1600,10 @@ class Operation(_IRNode):
         return Dialect.split_name(cls.name)[0]
 
     def __repr__(self) -> str:
-        operands = ", ".join(short_repr(operand) for operand in self.operands)
-        results = ", ".join(short_repr(result) for result in self.results)
-        successors = ", ".join(short_repr(successor) for successor in self.successors)
-        regions = ", ".join(short_repr(region) for region in self.regions)
+        operands = ", ".join(_short_repr(operand) for operand in self.operands)
+        results = ", ".join(_short_repr(result) for result in self.results)
+        successors = ", ".join(_short_repr(successor) for successor in self.successors)
+        regions = ", ".join(_short_repr(region) for region in self.regions)
 
         return (
             f"<{self.__class__.__name__} {id(self)}("
@@ -1613,9 +1613,9 @@ class Operation(_IRNode):
             f"properties={repr(self.properties)}, "
             f"attributes={repr(self.attributes)}, "
             f"regions=[{regions}], "
-            f"parent={short_repr(self.parent)}, "
-            f"_next_op={short_repr(self.next_op)}, "
-            f"_prev_op={short_repr(self._prev_op)}"
+            f"parent={_short_repr(self.parent)}, "
+            f"_next_op={_short_repr(self.next_op)}, "
+            f"_prev_op={_short_repr(self._prev_op)}"
             ")>"
         )
 
@@ -2375,7 +2375,7 @@ class Region(_IRNode):
         return self._last_block
 
     def __repr__(self) -> str:
-        short_reprs = ", ".join(short_repr(block) for block in self.blocks)
+        short_reprs = ", ".join(_short_repr(block) for block in self.blocks)
         return f"Region(blocks=[{short_reprs}])"
 
     @property
@@ -2789,7 +2789,7 @@ class Region(_IRNode):
 IRNode: TypeAlias = Operation | Region | Block
 
 
-def short_repr(value: object) -> str:
+def _short_repr(value: object) -> str:
     """
     Helper function to avoid recursion in reprs.
     """
