@@ -19,7 +19,6 @@ from xdsl.irdl import (
     IRDLOperation,
     Successor,
     VarOperand,
-    attr_def,
     irdl_op_definition,
     operand_def,
     opt_prop_def,
@@ -73,7 +72,7 @@ class AssertOp(IRDLOperation):
             msg = StringAttr(msg)
         super().__init__(
             operands=[arg],
-            attributes={"msg": msg},
+            properties={"msg": msg},
         )
 
     assembly_format = "$arg `,` $msg attr-dict"
