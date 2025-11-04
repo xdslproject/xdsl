@@ -52,7 +52,7 @@ builtin.module {
   }
 }
 
-// CHECK: Expected stencil.buffer operand to be a result of stencil.apply or stencil.combine
+// CHECK: Expected stencil.buffer operand to be a result of stencil.apply or stencil.combine got block argument
 
 // -----
 
