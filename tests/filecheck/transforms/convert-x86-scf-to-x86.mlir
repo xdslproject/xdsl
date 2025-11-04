@@ -7,7 +7,7 @@
 //  CHECK-NEXT:      %forty = x86.di.mov 40 : () -> !x86.reg<r8>
 //  CHECK-NEXT:      %zero_1 = x86.ds.mov %zero : (!x86.reg<rcx>) -> !x86.reg<r9>
 //  CHECK-NEXT:      %0 = x86.ss.cmp %zero_1, %forty : (!x86.reg<r9>, !x86.reg<r8>) -> !x86.rflags<rflags>
-//  CHECK-NEXT:      x86.c.jl %0 : !x86.rflags<rflags>, ^bb0(%zero_1 : !x86.reg<r9>), ^bb1(%zero_1 : !x86.reg<r9>)
+//  CHECK-NEXT:      x86.c.jge %0 : !x86.rflags<rflags>, ^bb0(%zero_1 : !x86.reg<r9>), ^bb1(%zero_1 : !x86.reg<r9>)
 //  CHECK-NEXT:    ^bb1(%offset : !x86.reg<r9>):
 //  CHECK-NEXT:      x86.label "scf_body_0_for"
 //  CHECK-NEXT:      "test.op"(%offset, %src, %dst) : (!x86.reg<r9>, !x86.reg<rax>, !x86.reg<rbx>) -> ()
@@ -38,7 +38,7 @@ x86_func.func @copy10(%src : !x86.reg<rax>, %dst : !x86.reg<rbx>) {
 //  CHECK-NEXT:      %forty_outer = x86.di.mov 40 : () -> !x86.reg<r8>
 //  CHECK-NEXT:      %zero_outer_1 = x86.ds.mov %zero_outer : (!x86.reg<rcx>) -> !x86.reg<r9>
 //  CHECK-NEXT:      %0 = x86.ss.cmp %zero_outer_1, %forty_outer : (!x86.reg<r9>, !x86.reg<r8>) -> !x86.rflags<rflags>
-//  CHECK-NEXT:      x86.c.jl %0 : !x86.rflags<rflags>, ^bb0(%zero_outer_1 : !x86.reg<r9>), ^bb1(%zero_outer_1 : !x86.reg<r9>)
+//  CHECK-NEXT:      x86.c.jge %0 : !x86.rflags<rflags>, ^bb0(%zero_outer_1 : !x86.reg<r9>), ^bb1(%zero_outer_1 : !x86.reg<r9>)
 //  CHECK-NEXT:    ^bb1(%offset_outer : !x86.reg<r9>):
 //  CHECK-NEXT:      x86.label "scf_body_1_for"
 //  CHECK-NEXT:      %zero_inner = x86.di.mov 0 : () -> !x86.reg<r10>
@@ -46,7 +46,7 @@ x86_func.func @copy10(%src : !x86.reg<rax>, %dst : !x86.reg<rbx>) {
 //  CHECK-NEXT:      %forty_inner = x86.di.mov 40 : () -> !x86.reg<r12>
 //  CHECK-NEXT:      %zero_inner_1 = x86.ds.mov %zero_inner : (!x86.reg<r10>) -> !x86.reg<r13>
 //  CHECK-NEXT:      %1 = x86.ss.cmp %zero_inner_1, %forty_inner : (!x86.reg<r13>, !x86.reg<r12>) -> !x86.rflags<rflags>
-//  CHECK-NEXT:      x86.c.jl %1 : !x86.rflags<rflags>, ^bb2(%zero_inner_1 : !x86.reg<r13>), ^bb3(%zero_inner_1 : !x86.reg<r13>)
+//  CHECK-NEXT:      x86.c.jge %1 : !x86.rflags<rflags>, ^bb2(%zero_inner_1 : !x86.reg<r13>), ^bb3(%zero_inner_1 : !x86.reg<r13>)
 //  CHECK-NEXT:    ^bb3(%offset_inner : !x86.reg<r13>):
 //  CHECK-NEXT:      x86.label "scf_body_0_for"
 //  CHECK-NEXT:      "test.op"(%src, %dst, %offset_outer, %offset_inner) : (!x86.reg<rax>, !x86.reg<rbx>, !x86.reg<r9>, !x86.reg<r13>) -> ()

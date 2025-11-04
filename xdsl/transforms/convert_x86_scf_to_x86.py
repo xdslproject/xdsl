@@ -136,7 +136,7 @@ class LowerX86ScfForPattern(RewritePattern):
             (
                 mv_op := x86.ops.DS_MovOp(op.lb, destination=iv_reg),
                 cmp_op := x86.ops.SS_CmpOp(mv_op.destination, op.ub, result=RFLAGS),
-                x86.ops.C_JlOp(
+                x86.ops.C_JgeOp(
                     cmp_op.result,
                     (mv_op.destination, *op.iter_args),
                     (mv_op.destination, *op.iter_args),

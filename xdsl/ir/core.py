@@ -571,7 +571,12 @@ class IRUses(Iterable[Use]):
         Returns the number of uses.
         We do not expose it as `__len__` as it is expensive to compute `O(len)`.
         """
-        return len(tuple(self))
+        use = self.ir.first_use
+        count = 0
+        while use is not None:
+            count += 1
+            use = use._next_use  # pyright: ignore[reportPrivateUsage]
+        return count
 
 
 @dataclass(eq=False)
@@ -1392,16 +1397,19 @@ class Operation(_IRNode):
         block_mapper: dict[Block, Block] | None = None,
         *,
         clone_name_hints: bool = True,
+        clone_operands: bool = True,
     ) -> Self:
         """Clone an operation, with empty regions instead."""
         if value_mapper is None:
             value_mapper = {}
         if block_mapper is None:
             block_mapper = {}
-        operands = [
-            (value_mapper[operand] if operand in value_mapper else operand)
-            for operand in self._operands
-        ]
+        if clone_operands:
+            operands = tuple(
+                value_mapper.get(operand, operand) for operand in self._operands
+            )
+        else:
+            operands = ()
         result_types = self.result_types
         attributes = self.attributes.copy()
         properties = self.properties.copy()
@@ -1432,6 +1440,7 @@ class Operation(_IRNode):
         block_mapper: dict[Block, Block] | None = None,
         *,
         clone_name_hints: bool = True,
+        clone_operands: bool = True,
     ) -> Self:
         """Clone an operation with all its regions and operations in them."""
         if value_mapper is None:
@@ -1439,7 +1448,10 @@ class Operation(_IRNode):
         if block_mapper is None:
             block_mapper = {}
         op = self.clone_without_regions(
-            value_mapper, block_mapper, clone_name_hints=clone_name_hints
+            value_mapper,
+            block_mapper,
+            clone_name_hints=clone_name_hints,
+            clone_operands=False,
         )
         for idx, region in enumerate(self.regions):
             region.clone_into(
@@ -1448,7 +1460,13 @@ class Operation(_IRNode):
                 value_mapper,
                 block_mapper,
                 clone_name_hints=clone_name_hints,
+                clone_operands=False,
             )
+        if clone_operands:
+            for old, new in zip(self.walk(), op.walk()):
+                new.operands = tuple(
+                    value_mapper.get(operand, operand) for operand in old.operands
+                )
         return op
 
     @classmethod
@@ -2559,6 +2577,7 @@ class Region(_IRNode):
         block_mapper: dict[Block, Block] | None = None,
         *,
         clone_name_hints: bool = True,
+        clone_operands: bool = True,
     ):
         """
         Clone all block of this region into `dest` to position `insert_index`
@@ -2593,8 +2612,18 @@ class Region(_IRNode):
             for op in block.ops:
                 new_block.add_op(
                     op.clone(
-                        value_mapper, block_mapper, clone_name_hints=clone_name_hints
+                        value_mapper,
+                        block_mapper,
+                        clone_name_hints=clone_name_hints,
+                        clone_operands=False,
                     )
+                )
+        # Handle cases where results may be created after their first use when walking
+        # in lexicographic order.
+        if clone_operands:
+            for old, new in zip(self.walk(), dest.walk()):
+                new.operands = tuple(
+                    value_mapper.get(operand, operand) for operand in old.operands
                 )
 
     def walk(
