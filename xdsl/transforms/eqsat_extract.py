@@ -1,41 +1,47 @@
 from xdsl.context import Context
 from xdsl.dialects import builtin, eqsat
-from xdsl.ir import Block, Operation, OpResult
+from xdsl.ir import OpResult
 from xdsl.passes import ModulePass
 from xdsl.rewriter import Rewriter
 
 
-def eqsat_extract(block: Block):
-    ops_to_erase = set[Operation]()
-    for op in reversed(block.ops):
-        if isinstance(op, eqsat.EClassOp):
-            if (min_cost_index := op.min_cost_index) is not None:
-                min_cost_operand = op.operands[min_cost_index.data]
-                has_uses = bool(op.result.uses)
-                if has_uses:
-                    ops_to_erase.update(
-                        operand.op
-                        for index, operand in enumerate(op.operands)
-                        if index != min_cost_index.data
-                        and isinstance(operand, OpResult)
-                    )
-                else:
-                    ops_to_erase.update(
-                        operand.op
-                        for operand in op.operands
-                        if isinstance(operand, OpResult)
-                    )
-                if isinstance(min_cost_operand, OpResult):
-                    if eqsat.EQSAT_COST_LABEL in min_cost_operand.op.attributes:
-                        del min_cost_operand.op.attributes[eqsat.EQSAT_COST_LABEL]
-                Rewriter.replace_op(op, (), new_results=(min_cost_operand,))
-            continue
+def eqsat_extract(module_op: builtin.ModuleOp):
+    eclass_ops = [op for op in module_op.walk() if isinstance(op, eqsat.AnyEClassOp)]
 
-        if op in ops_to_erase:
-            ops_to_erase.remove(op)
+    while eclass_ops:
+        op = eclass_ops.pop()
+        if not op.result.uses:
+            # Erase all operands and uses of operands
+            ops_to_erase = [op] + [
+                operand.owner
+                for operand in op.operands
+                if isinstance(operand, OpResult)
+            ]
+        elif (min_cost_index := op.min_cost_index) is not None:
+            # Replace eclass result by operand
+            operand = op.operands[min_cost_index.data]
+            op.result.replace_by_if(operand, lambda use: use.operation is not op)
+            # Erase eclass and all operand ops excluding min cost one
+            ops_to_erase = [op] + [
+                operand.owner
+                for i, operand in enumerate(op.operands)
+                if i != min_cost_index.data and isinstance(operand, OpResult)
+            ]
+            # Delete cost
+            if (
+                isinstance(operand, OpResult)
+                and eqsat.EQSAT_COST_LABEL in operand.op.attributes
+            ):
+                del operand.op.attributes[eqsat.EQSAT_COST_LABEL]
+
+        else:
+            # Don't touch this eclass or its operands
+            ops_to_erase = ()
+
+        for op in ops_to_erase:
             Rewriter.erase_op(op)
 
-    assert not ops_to_erase
+    assert not eclass_ops
 
 
 class EqsatExtractPass(ModulePass):
@@ -46,10 +52,4 @@ class EqsatExtractPass(ModulePass):
     name = "eqsat-extract"
 
     def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
-        eclass_parent_blocks = set(
-            o.parent
-            for o in op.walk()
-            if o.parent is not None and isinstance(o, eqsat.EClassOp)
-        )
-        for block in eclass_parent_blocks:
-            eqsat_extract(block)
+        eqsat_extract(op)
