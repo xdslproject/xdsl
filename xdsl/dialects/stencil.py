@@ -1344,9 +1344,13 @@ class BufferOp(IRDLOperation):
         if isinstance(self.res.type, FieldType):
             return
         if not isinstance(self.temp.owner, ApplyOp | CombineOp):
+            owner = (
+                "block argument"
+                if isinstance(self.temp.owner, Block)
+                else self.temp.owner.name
+            )
             raise VerifyException(
-                f"Expected stencil.buffer to buffer a stencil.apply or stencil.combine's output, got "
-                f"{self.temp.owner}"
+                f"Expected stencil.buffer operand to be a result of stencil.apply or stencil.combine got {owner}"
             )
         if any(not isinstance(use.operation, BufferOp) for use in self.temp.uses):
             raise VerifyException(
