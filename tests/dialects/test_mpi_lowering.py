@@ -137,7 +137,7 @@ def test_lower_mpi_comm_size():
 
 def test_lower_mpi_send():
     buff, size, dtype, dest, tag = CreateTestValsOp.get(
-        llvm.LLVMPointerType.opaque(), i32, mpi.DataType(), i32, i32
+        llvm.LLVMPointerType(), i32, mpi.DataType(), i32, i32
     ).results
 
     ops, result = lower_mpi.LowerMpiSend(info).lower(
@@ -161,7 +161,7 @@ def test_lower_mpi_send():
 
 def test_lower_mpi_isend():
     ptr, count, dtype, dest, tag, req = CreateTestValsOp.get(
-        llvm.LLVMPointerType.opaque(), i32, mpi.DataType(), i32, i32, mpi.RequestType()
+        llvm.LLVMPointerType(), i32, mpi.DataType(), i32, i32, mpi.RequestType()
     ).results
 
     ops, result = lower_mpi.LowerMpiIsend(info).lower(
@@ -193,7 +193,7 @@ def test_lower_mpi_isend():
 
 def test_lower_mpi_recv_no_status():
     buff, count, dtype, source, tag = CreateTestValsOp.get(
-        llvm.LLVMPointerType.opaque(), i32, mpi.DataType(), i32, i32
+        llvm.LLVMPointerType(), i32, mpi.DataType(), i32, i32
     ).results
     """
     int MPI_Recv(void *buf, int count, MPI_Datatype datatype, int source, int tag,
@@ -223,7 +223,7 @@ def test_lower_mpi_recv_no_status():
 
 def test_lower_mpi_recv_with_status():
     buff, count, dtype, source, tag = CreateTestValsOp.get(
-        llvm.LLVMPointerType.opaque(), i32, mpi.DataType(), i32, i32
+        llvm.LLVMPointerType(), i32, mpi.DataType(), i32, i32
     ).results
     """
     int MPI_Recv(void *buf, int count, MPI_Datatype datatype, int source, int tag,
@@ -253,7 +253,7 @@ def test_lower_mpi_recv_with_status():
 
 def test_lower_mpi_irecv():
     ptr, count, dtype, source, tag, req = CreateTestValsOp.get(
-        llvm.LLVMPointerType.opaque(), i32, mpi.DataType(), i32, i32, mpi.RequestType()
+        llvm.LLVMPointerType(), i32, mpi.DataType(), i32, i32, mpi.RequestType()
     ).results
     """
     int MPI_Irecv(void *buf, int count, MPI_Datatype datatype,
@@ -284,7 +284,7 @@ def test_lower_mpi_irecv():
 
 def test_lower_mpi_reduce():
     ptr, count, dtype, root = CreateTestValsOp.get(
-        llvm.LLVMPointerType.opaque(), i32, mpi.DataType(), i32
+        llvm.LLVMPointerType(), i32, mpi.DataType(), i32
     ).results
     """
     int MPI_Reduce(const void *sendbuf, void *recvbuf, int count,
@@ -315,7 +315,7 @@ def test_lower_mpi_reduce():
 
 def test_lower_mpi_all_reduce_no_send_buffer():
     ptr, count, dtype = CreateTestValsOp.get(
-        llvm.LLVMPointerType.opaque(), i32, mpi.DataType()
+        llvm.LLVMPointerType(), i32, mpi.DataType()
     ).results
     """
     int MPI_Allreduce(const void *sendbuf, void *recvbuf, int count,
@@ -345,7 +345,7 @@ def test_lower_mpi_all_reduce_no_send_buffer():
 
 def test_mpi_waitall():
     _, count, _ = CreateTestValsOp.get(
-        llvm.LLVMPointerType.opaque(), i32, mpi.DataType()
+        llvm.LLVMPointerType(), i32, mpi.DataType()
     ).results
 
     dummy = arith.ConstantOp.from_int_and_width(4, 32)
@@ -361,7 +361,7 @@ def test_mpi_waitall():
 
 def test_lower_mpi_bcast():
     ptr, count, dtype, root = CreateTestValsOp.get(
-        llvm.LLVMPointerType.opaque(), i32, mpi.DataType(), i32
+        llvm.LLVMPointerType(), i32, mpi.DataType(), i32
     ).results
     """
     int MPI_Bcast(void *buffer, int count, MPI_Datatype datatype, int root,
@@ -421,7 +421,7 @@ def test_lower_mpi_vec_get():
 
 def test_lower_mpi_gather():
     ptr, count, dtype, root = CreateTestValsOp.get(
-        llvm.LLVMPointerType.opaque(), i32, mpi.DataType(), i32
+        llvm.LLVMPointerType(), i32, mpi.DataType(), i32
     ).results
 
     ops, result = lower_mpi.LowerMpiGatherOp(info).lower(
