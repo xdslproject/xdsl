@@ -1345,8 +1345,7 @@ class BufferOp(IRDLOperation):
             return
         if not isinstance(self.temp.owner, ApplyOp | CombineOp):
             raise VerifyException(
-                f"Expected stencil.buffer to buffer a stencil.apply or stencil.combine's output, got "
-                f"{self.temp.owner}"
+                "Expected stencil.buffer operand to be a result of stencil.apply or stencil.combine"
             )
         if any(not isinstance(use.operation, BufferOp) for use in self.temp.uses):
             raise VerifyException(

@@ -52,7 +52,7 @@ builtin.module {
   }
 }
 
-// CHECK: Expected stencil.buffer to buffer a stencil.apply or stencil.combine's output, got Block(_args=(<BlockArgument[!stencil.temp<[0,68]xf64>] index: 0, uses: 1>,), num_ops=2)
+// CHECK: Expected stencil.buffer operand to be a result of stencil.apply or stencil.combine
 
 // -----
 
