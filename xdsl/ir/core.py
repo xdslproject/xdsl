@@ -515,7 +515,7 @@ class TypedAttribute(ParametrizedAttribute, ABC):
     def print_without_type(self, printer: Printer): ...
 
 
-@dataclass
+@dataclass(repr=False)
 class Use:
     """The use of a SSA value."""
 
@@ -540,6 +540,13 @@ class Use:
     def index(self) -> int:
         """The index of the operand using the value in the operation."""
         return self._index
+
+    def __repr__(self) -> str:
+        return (
+            f"<Use {id(self)}(_operation={short_repr(self.operation)}, "
+            f"_index={self.index}, _prev_use={short_repr(self._prev_use)}, "
+            f"_next_use={short_repr(self._next_use)})>"
+        )
 
     def __hash__(self) -> int:
         return id(self)
@@ -1006,11 +1013,11 @@ class OpTraits(Iterable[OpTrait]):
         return isinstance(value, OpTraits) and self.traits == value.traits
 
 
-@dataclass(eq=False, unsafe_hash=False)
+@dataclass(eq=False, unsafe_hash=False, repr=False)
 class Operation(_IRNode):
     """A generic operation. Operation definitions inherit this class."""
 
-    name: ClassVar[str] = field(repr=False)
+    name: ClassVar[str]
     """The operation name. Should be a static member of the class"""
 
     _operands: SSAValues = field(default=SSAValues())
@@ -1052,13 +1059,13 @@ class Operation(_IRNode):
     regions: tuple[Region, ...] = field(default=())
     """Regions arguments of the operation."""
 
-    parent: Block | None = field(default=None, repr=False)
+    parent: Block | None = field(default=None)
     """The block containing this operation."""
 
-    _next_op: Operation | None = field(default=None, repr=False)
+    _next_op: Operation | None = field(default=None)
     """Next operation in block containing this operation."""
 
-    _prev_op: Operation | None = field(default=None, repr=False)
+    _prev_op: Operation | None = field(default=None)
     """Previous operation in block containing this operation."""
 
     traits: ClassVar[OpTraits]
@@ -1592,6 +1599,26 @@ class Operation(_IRNode):
     def dialect_name(cls) -> str:
         return Dialect.split_name(cls.name)[0]
 
+    def __repr__(self) -> str:
+        operands = ", ".join(short_repr(operand) for operand in self.operands)
+        results = ", ".join(short_repr(result) for result in self.results)
+        successors = ", ".join(short_repr(successor) for successor in self.successors)
+        regions = ", ".join(short_repr(region) for region in self.regions)
+
+        return (
+            f"<{self.__class__.__name__} {id(self)}("
+            f"operands=[{operands}], "
+            f"results=[{results}], "
+            f"successors=[{successors}], "
+            f"properties={repr(self.properties)}, "
+            f"attributes={repr(self.attributes)}, "
+            f"regions=[{regions}], "
+            f"parent={short_repr(self.parent)}, "
+            f"_next_op={short_repr(self.next_op)}, "
+            f"_prev_op={short_repr(self._prev_op)}"
+            ")>"
+        )
+
     def __str__(self) -> str:
         from xdsl.printer import Printer
 
@@ -1768,7 +1795,7 @@ class Block(_IRNode, IRWithUses, IRWithName):
         return self.parent.parent.parent if self.parent and self.parent.parent else None
 
     def __repr__(self) -> str:
-        return f"Block(_args={repr(self._args)}, num_ops={len(self.ops)})"
+        return f"<Block {id(self)}(_args={repr(self._args)}, num_ops={len(self.ops)})>"
 
     @property
     def args(self) -> tuple[BlockArgument, ...]:
@@ -2348,7 +2375,8 @@ class Region(_IRNode):
         return self._last_block
 
     def __repr__(self) -> str:
-        return f"Region(num_blocks={len(self.blocks)})"
+        short_reprs = ", ".join(short_repr(block) for block in self.blocks)
+        return f"Region(blocks=[{short_reprs}])"
 
     @property
     def ops(self) -> BlockOps:
@@ -2759,3 +2787,10 @@ class Region(_IRNode):
 
 
 IRNode: TypeAlias = Operation | Region | Block
+
+
+def short_repr(value: object) -> str:
+    """
+    Helper function to avoid recursion in reprs.
+    """
+    return repr(value) if value is None else f"<{value.__class__.__name__} {id(value)}>"
