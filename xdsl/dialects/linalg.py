@@ -581,6 +581,16 @@ class NamedOperation(IRDLOperation, ABC):
 
         return result
 
+    @classmethod
+    @abstractmethod
+    def get_hidden_region(
+        cls, inputs: Sequence[SSAValue], outputs: Sequence[SSAValue]
+    ) -> Region:
+        """
+        The hidden region for this linalg NamedOperation.
+        """
+        raise NotImplementedError
+
 
 @irdl_op_definition
 class AddOp(NamedOperation):
@@ -604,7 +614,19 @@ class AddOp(NamedOperation):
         else:
             result_types = res
 
-        arg_types = self.body_arg_types((*inputs, *outputs))
+        super().__init__(
+            ins=inputs,
+            outs=outputs,
+            result_types=result_types,
+            attributes=attributes,
+            hidden_region=self.get_hidden_region(inputs, outputs),
+        )
+
+    @classmethod
+    def get_hidden_region(
+        cls, inputs: Sequence[SSAValue], outputs: Sequence[SSAValue]
+    ) -> Region:
+        arg_types = cls.body_arg_types((*inputs, *outputs))
         add = arith.AddfOp if isinstance(arg_types[-1], AnyFloat) else arith.AddiOp
 
         @Builder.implicit_region(arg_types)
@@ -612,13 +634,7 @@ class AddOp(NamedOperation):
             result = add(args[0], args[1])
             YieldOp(result)
 
-        super().__init__(
-            ins=inputs,
-            outs=outputs,
-            result_types=result_types,
-            attributes=attributes,
-            hidden_region=hidden_region,
-        )
+        return hidden_region
 
 
 @irdl_op_definition
@@ -643,7 +659,21 @@ class SubOp(NamedOperation):
         else:
             result_types = res
 
-        arg_types = self.body_arg_types((*inputs, *outputs))
+        self.body_arg_types((*inputs, *outputs))
+
+        super().__init__(
+            ins=inputs,
+            outs=outputs,
+            result_types=result_types,
+            attributes=attributes,
+            hidden_region=self.get_hidden_region(inputs, outputs),
+        )
+
+    @classmethod
+    def get_hidden_region(
+        cls, inputs: Sequence[SSAValue], outputs: Sequence[SSAValue]
+    ) -> Region:
+        arg_types = cls.body_arg_types((*inputs, *outputs))
         sub = arith.SubfOp if isinstance(arg_types[-1], AnyFloat) else arith.SubiOp
 
         @Builder.implicit_region(arg_types)
@@ -651,13 +681,7 @@ class SubOp(NamedOperation):
             result = sub(args[0], args[1])
             YieldOp(result)
 
-        super().__init__(
-            ins=inputs,
-            outs=outputs,
-            result_types=result_types,
-            attributes=attributes,
-            hidden_region=hidden_region,
-        )
+        return hidden_region
 
 
 @irdl_op_definition
@@ -682,20 +706,26 @@ class SelectOp(NamedOperation):
         else:
             result_types = res
 
-        arg_types = self.body_arg_types((*inputs, *outputs))
+        super().__init__(
+            ins=inputs,
+            outs=outputs,
+            result_types=result_types,
+            attributes=attributes,
+            hidden_region=self.get_hidden_region(inputs, outputs),
+        )
+
+    @classmethod
+    def get_hidden_region(
+        cls, inputs: Sequence[SSAValue], outputs: Sequence[SSAValue]
+    ) -> Region:
+        arg_types = cls.body_arg_types((*inputs, *outputs))
 
         @Builder.implicit_region(arg_types)
         def hidden_region(args: tuple[BlockArgument, ...]) -> None:
             result = arith.SelectOp(*args[: len(inputs)])
             YieldOp(result)
 
-        super().__init__(
-            ins=inputs,
-            outs=outputs,
-            result_types=result_types,
-            attributes=attributes,
-            hidden_region=hidden_region,
-        )
+        return hidden_region
 
 
 @irdl_op_definition
@@ -727,18 +757,12 @@ class FillOp(NamedOperation):
         else:
             result_types = res
 
-        arg_types = self.body_arg_types((*inputs, *outputs))
-
-        @Builder.implicit_region(arg_types)
-        def hidden_region(args: tuple[BlockArgument, ...]) -> None:
-            YieldOp(args[0])
-
         super().__init__(
             ins=inputs,
             outs=outputs,
             result_types=result_types,
             attributes=attributes,
-            hidden_region=hidden_region,
+            hidden_region=self.get_hidden_region(inputs, outputs),
         )
 
     def verify_(self) -> None:
@@ -748,6 +772,18 @@ class FillOp(NamedOperation):
                 raise VerifyException(
                     f"Input type is {value.type} but must be an instance of AnyFloat or IntegerType."
                 )
+
+    @classmethod
+    def get_hidden_region(
+        cls, inputs: Sequence[SSAValue], outputs: Sequence[SSAValue]
+    ) -> Region:
+        arg_types = cls.body_arg_types((*inputs, *outputs))
+
+        @Builder.implicit_region(arg_types)
+        def hidden_region(args: tuple[BlockArgument, ...]) -> None:
+            YieldOp(args[0])
+
+        return hidden_region
 
 
 @irdl_op_definition
@@ -777,19 +813,25 @@ class CopyOp(NamedOperation):
         else:
             result_types = res
 
-        arg_types = self.body_arg_types((*inputs, *outputs))
-
-        @Builder.implicit_region(arg_types)
-        def hidden_region(args: tuple[BlockArgument, ...]) -> None:
-            YieldOp(args[0])
-
         super().__init__(
             ins=inputs,
             outs=outputs,
             result_types=result_types,
             attributes=attributes,
-            hidden_region=hidden_region,
+            hidden_region=self.get_hidden_region(inputs, outputs),
         )
+
+    @classmethod
+    def get_hidden_region(
+        cls, inputs: Sequence[SSAValue], outputs: Sequence[SSAValue]
+    ) -> Region:
+        arg_types = cls.body_arg_types((*inputs, *outputs))
+
+        @Builder.implicit_region(arg_types)
+        def hidden_region(args: tuple[BlockArgument, ...]) -> None:
+            YieldOp(args[0])
+
+        return hidden_region
 
 
 @irdl_op_definition
@@ -814,7 +856,19 @@ class MaxOp(NamedOperation):
         else:
             result_types = res
 
-        arg_types = self.body_arg_types((*inputs, *outputs))
+        super().__init__(
+            ins=inputs,
+            outs=outputs,
+            result_types=result_types,
+            attributes=attributes,
+            hidden_region=self.get_hidden_region(inputs, outputs),
+        )
+
+    @classmethod
+    def get_hidden_region(
+        cls, inputs: Sequence[SSAValue], outputs: Sequence[SSAValue]
+    ) -> Region:
+        arg_types = cls.body_arg_types((*inputs, *outputs))
         maxop = (
             arith.MaximumfOp if isinstance(arg_types[-1], AnyFloat) else arith.MaxSIOp
         )
@@ -824,13 +878,7 @@ class MaxOp(NamedOperation):
             result = maxop(args[0], args[1])
             YieldOp(result)
 
-        super().__init__(
-            ins=inputs,
-            outs=outputs,
-            result_types=result_types,
-            attributes=attributes,
-            hidden_region=hidden_region,
-        )
+        return hidden_region
 
 
 @irdl_op_definition
@@ -855,7 +903,19 @@ class MinOp(NamedOperation):
         else:
             result_types = res
 
-        arg_types = self.body_arg_types((*inputs, *outputs))
+        super().__init__(
+            ins=inputs,
+            outs=outputs,
+            result_types=result_types,
+            attributes=attributes,
+            hidden_region=self.get_hidden_region(inputs, outputs),
+        )
+
+    @classmethod
+    def get_hidden_region(
+        cls, inputs: Sequence[SSAValue], outputs: Sequence[SSAValue]
+    ) -> Region:
+        arg_types = cls.body_arg_types((*inputs, *outputs))
         minop = (
             arith.MinimumfOp if isinstance(arg_types[-1], AnyFloat) else arith.MinSIOp
         )
@@ -865,13 +925,7 @@ class MinOp(NamedOperation):
             result = minop(args[0], args[1])
             YieldOp(result)
 
-        super().__init__(
-            ins=inputs,
-            outs=outputs,
-            result_types=result_types,
-            attributes=attributes,
-            hidden_region=hidden_region,
-        )
+        return hidden_region
 
 
 @irdl_op_definition
@@ -896,7 +950,19 @@ class MulOp(NamedOperation):
         else:
             result_types = res
 
-        arg_types = self.body_arg_types((*inputs, *outputs))
+        super().__init__(
+            ins=inputs,
+            outs=outputs,
+            result_types=result_types,
+            attributes=attributes,
+            hidden_region=self.get_hidden_region(inputs, outputs),
+        )
+
+    @classmethod
+    def get_hidden_region(
+        cls, inputs: Sequence[SSAValue], outputs: Sequence[SSAValue]
+    ) -> Region:
+        arg_types = cls.body_arg_types((*inputs, *outputs))
         mul = arith.MulfOp if isinstance(arg_types[-1], AnyFloat) else arith.MuliOp
 
         @Builder.implicit_region(arg_types)
@@ -904,13 +970,7 @@ class MulOp(NamedOperation):
             result = mul(args[0], args[1])
             YieldOp(result)
 
-        super().__init__(
-            ins=inputs,
-            outs=outputs,
-            result_types=result_types,
-            attributes=attributes,
-            hidden_region=hidden_region,
-        )
+        return hidden_region
 
 
 @irdl_op_definition
@@ -1063,19 +1123,6 @@ class MatmulOp(NamedOperation):
         else:
             result_types = res
 
-        arg_types = self.body_arg_types((*inputs, *outputs))
-        add, mul = (
-            (arith.AddfOp, arith.MulfOp)
-            if isinstance(arg_types[-1], AnyFloat)
-            else (arith.AddiOp, arith.MuliOp)
-        )
-
-        @Builder.implicit_region(arg_types)
-        def hidden_region(args: tuple[BlockArgument, ...]) -> None:
-            result = mul(args[0], args[1])
-            mac = add(result, args[2])
-            YieldOp(mac)
-
         # add linalg.memoized_indexing_maps attribute
         properties: dict[str, Attribute] = {
             "indexing_maps": ArrayAttr(
@@ -1093,8 +1140,27 @@ class MatmulOp(NamedOperation):
             result_types=result_types,
             properties=properties,
             attributes=attributes,
-            hidden_region=hidden_region,
+            hidden_region=self.get_hidden_region(inputs, outputs),
         )
+
+    @classmethod
+    def get_hidden_region(
+        cls, inputs: Sequence[SSAValue], outputs: Sequence[SSAValue]
+    ) -> Region:
+        arg_types = cls.body_arg_types((*inputs, *outputs))
+        add, mul = (
+            (arith.AddfOp, arith.MulfOp)
+            if isinstance(arg_types[-1], AnyFloat)
+            else (arith.AddiOp, arith.MuliOp)
+        )
+
+        @Builder.implicit_region(arg_types)
+        def hidden_region(args: tuple[BlockArgument, ...]) -> None:
+            result = mul(args[0], args[1])
+            mac = add(result, args[2])
+            YieldOp(mac)
+
+        return hidden_region
 
 
 @irdl_op_definition
@@ -1125,18 +1191,6 @@ class QuantizedMatmulOp(NamedOperation):
         else:
             result_types = res
 
-        arg_types = self.body_arg_types((*inputs, *outputs))
-
-        @Builder.implicit_region(arg_types)
-        def hidden_region(args: tuple[BlockArgument, ...]) -> None:
-            o1 = arith.ExtSIOp(args[0], IntegerType(32))
-            o2 = arith.SubiOp(o1, args[2])
-            o3 = arith.ExtSIOp(args[1], IntegerType(32))
-            o4 = arith.SubiOp(o3, args[3])
-            o5 = arith.MuliOp(o2, o4)
-            o6 = arith.AddiOp(args[4], o5)
-            YieldOp(o6)
-
         # add linalg.memoized_indexing_maps attribute
         if not attributes:
             attributes = {}
@@ -1156,8 +1210,26 @@ class QuantizedMatmulOp(NamedOperation):
             outs=outputs,
             result_types=result_types,
             attributes=attributes,
-            hidden_region=hidden_region,
+            hidden_region=self.get_hidden_region(inputs, outputs),
         )
+
+    @classmethod
+    def get_hidden_region(
+        cls, inputs: Sequence[SSAValue], outputs: Sequence[SSAValue]
+    ) -> Region:
+        arg_types = cls.body_arg_types((*inputs, *outputs))
+
+        @Builder.implicit_region(arg_types)
+        def hidden_region(args: tuple[BlockArgument, ...]) -> None:
+            o1 = arith.ExtSIOp(args[0], IntegerType(32))
+            o2 = arith.SubiOp(o1, args[2])
+            o3 = arith.ExtSIOp(args[1], IntegerType(32))
+            o4 = arith.SubiOp(o3, args[3])
+            o5 = arith.MuliOp(o2, o4)
+            o6 = arith.AddiOp(args[4], o5)
+            YieldOp(o6)
+
+        return hidden_region
 
 
 class PoolingOperation(NamedOperation, ABC):
@@ -1167,6 +1239,21 @@ class PoolingOperation(NamedOperation, ABC):
 
     strides = attr_def(DenseIntElementsAttr)
     dilations = attr_def(DenseIntElementsAttr)
+
+    def __init__(
+        self,
+        inputs: Sequence[SSAValue],
+        outputs: Sequence[SSAValue] = (),
+        res: Sequence[Attribute] | None = None,
+        attributes: dict[str, Attribute] | None = None,
+    ):
+        super().__init__(
+            ins=inputs,
+            outs=outputs,
+            result_types=res,
+            attributes=attributes,
+            hidden_region=self.get_hidden_region(inputs, outputs),
+        )
 
 
 @irdl_op_definition
@@ -1179,15 +1266,11 @@ class PoolingNchwMaxOp(PoolingOperation):
 
     name = "linalg.pooling_nchw_max"
 
-    def __init__(
-        self,
-        inputs: Sequence[SSAValue],
-        outputs: Sequence[SSAValue] = (),
-        res: Sequence[Attribute] | None = None,
-        attributes: dict[str, Attribute] | None = None,
-    ):
-        arg_types = self.body_arg_types((*inputs, *outputs))
-
+    @classmethod
+    def get_hidden_region(
+        cls, inputs: Sequence[SSAValue], outputs: Sequence[SSAValue]
+    ) -> Region:
+        arg_types = cls.body_arg_types((*inputs, *outputs))
         max_op = (
             arith.MaximumfOp if isinstance(arg_types[-1], AnyFloat) else arith.MaxSIOp
         )
@@ -1197,13 +1280,7 @@ class PoolingNchwMaxOp(PoolingOperation):
             result = max_op(args[0], args[1])
             YieldOp(result)
 
-        super().__init__(
-            ins=inputs,
-            outs=outputs,
-            result_types=res,
-            attributes=attributes,
-            hidden_region=hidden_region,
-        )
+        return hidden_region
 
 
 class ConvOperation(NamedOperation, ABC):
@@ -1221,7 +1298,19 @@ class ConvOperation(NamedOperation, ABC):
         res: Sequence[Attribute] | None = None,
         attributes: dict[str, Attribute] | None = None,
     ):
-        arg_types = self.body_arg_types((*inputs, *outputs))
+        super().__init__(
+            ins=inputs,
+            outs=outputs,
+            attributes=attributes,
+            result_types=res,
+            hidden_region=self.get_hidden_region(inputs, outputs),
+        )
+
+    @classmethod
+    def get_hidden_region(
+        cls, inputs: Sequence[SSAValue], outputs: Sequence[SSAValue]
+    ) -> Region:
+        arg_types = cls.body_arg_types((*inputs, *outputs))
         add, mul = (
             (arith.AddfOp, arith.MulfOp)
             if isinstance(arg_types[-1], AnyFloat)
@@ -1241,13 +1330,7 @@ class ConvOperation(NamedOperation, ABC):
             mac = add(result, args[2])
             YieldOp(mac)
 
-        super().__init__(
-            ins=inputs,
-            outs=outputs,
-            attributes=attributes,
-            result_types=res,
-            hidden_region=hidden_region,
-        )
+        return hidden_region
 
 
 @irdl_op_definition
