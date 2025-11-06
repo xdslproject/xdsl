@@ -391,17 +391,17 @@ class Expm1Op(ComplexUnaryComplexResultOperation):
     name = "complex.expm1"
 
 
-class ReImOpCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
+class ImOpCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.complex import (
-            ReImNegOpPattern,
-            ReImRedundantOpPattern,
+            ImNegOpPattern,
+            ImRedundantOpPattern,
         )
 
         return (
-            ReImRedundantOpPattern(),
-            ReImNegOpPattern(),
+            ImRedundantOpPattern(),
+            ImNegOpPattern(),
         )
 
 
@@ -410,7 +410,7 @@ class ImOp(ComplexUnaryRealResultOperation):
     name = "complex.im"
     traits = traits_def(
         Pure(),
-        ReImOpCanonicalizationPatternsTrait(),
+        ImOpCanonicalizationPatternsTrait(),
     )
 
 
@@ -457,12 +457,26 @@ class PowOp(ComplexBinaryOp):
     name = "complex.pow"
 
 
+class ReOpCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.complex import (
+            ReNegOpPattern,
+            ReRedundantOpPattern,
+        )
+
+        return (
+            ReRedundantOpPattern(),
+            ReNegOpPattern(),
+        )
+
+
 @irdl_op_definition
 class ReOp(ComplexUnaryRealResultOperation):
     name = "complex.re"
     traits = traits_def(
         Pure(),
-        ReImOpCanonicalizationPatternsTrait(),
+        ReOpCanonicalizationPatternsTrait(),
     )
 
 
@@ -486,12 +500,20 @@ class SqrtOp(ComplexUnaryComplexResultOperation):
     name = "complex.sqrt"
 
 
+class SubAddCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.complex import SubAddOpPattern
+
+        return (SubAddOpPattern(),)
+
+
 @irdl_op_definition
 class SubOp(ComplexBinaryOp):
     name = "complex.sub"
     traits = traits_def(
         Pure(),
-        AddSubCanonicalizationPatternsTrait(),
+        SubAddCanonicalizationPatternsTrait(),
         ComplexBinaryOpCanonicalizationPatternsTrait(),
     )
 

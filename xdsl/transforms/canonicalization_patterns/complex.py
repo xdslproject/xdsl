@@ -94,58 +94,76 @@ class RedundantCreateOpPattern(RewritePattern):
             rewriter.replace_matched_op((), (op.real.owner.complex,))
 
 
-class ReImRedundantOpPattern(RewritePattern):
+class ReRedundantOpPattern(RewritePattern):
     """
     %x = (complex.constant [a, b]) | (complex.create %c, %d)
     %y = complex.re %x = (%c | a)
+    """
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: complex.ReOp, rewriter: PatternRewriter):
+        if isinstance(op.complex.owner, complex.ConstantOp) and isa(
+            val := op.complex.owner.value, ArrayAttr[FloatAttr]
+        ):
+            rewriter.replace_matched_op(arith.ConstantOp(val.data[0]))
+            return
+        elif (
+            isinstance(operand := op.complex.owner, complex.CreateOp)
+            and isinstance(l := operand.real.owner, arith.ConstantOp)
+            and isinstance(l.value, FloatAttr)
+        ):
+            rewriter.replace_matched_op((), (operand.real,))
+
+
+class ImRedundantOpPattern(RewritePattern):
+    """
+    %x = (complex.constant [a, b]) | (complex.create %c, %d)
     %y = complex.im %x = (%d | b)
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(
-        self, op: complex.ReOp | complex.ImOp, rewriter: PatternRewriter
-    ):
+    def match_and_rewrite(self, op: complex.ImOp, rewriter: PatternRewriter):
         if isinstance(op.complex.owner, complex.ConstantOp) and isa(
             val := op.complex.owner.value, ArrayAttr[FloatAttr]
         ):
-            index = 0 if isinstance(op, complex.ReOp) else 1
-            rewriter.replace_matched_op(arith.ConstantOp(val.data[index]))
+            rewriter.replace_matched_op(arith.ConstantOp(val.data[1]))
             return
-        elif isinstance(operand := op.complex.owner, complex.CreateOp) and (
-            (
-                isinstance(l := operand.real.owner, arith.ConstantOp)
-                and isinstance(l.value, FloatAttr)
-            )
-            or (
-                isinstance(r := operand.imaginary.owner, arith.ConstantOp)
-                and isinstance(r.value, FloatAttr)
-            )
+        elif (
+            isinstance(operand := op.complex.owner, complex.CreateOp)
+            and isinstance(r := operand.imaginary.owner, arith.ConstantOp)
+            and isinstance(r.value, FloatAttr)
         ):
-            new_ssa_value = (
-                operand.real if isinstance(op, complex.ReOp) else operand.imaginary
-            )
-            rewriter.replace_matched_op((), (new_ssa_value,))
+            rewriter.replace_matched_op((), (operand.imaginary,))
 
 
-class ReImNegOpPattern(RewritePattern):
+class ReNegOpPattern(RewritePattern):
     """
     %x = complex.create %a, %b
     %y = complex.neg %x
     %re = complex.re %y = arith.negf %a
+    """
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: complex.ReOp, rewriter: PatternRewriter):
+        if isinstance(inner_op := op.complex.owner, complex.NegOp) and isinstance(
+            creat_op := inner_op.complex.owner, complex.CreateOp
+        ):
+            rewriter.replace_matched_op(arith.NegfOp(creat_op.real))
+
+
+class ImNegOpPattern(RewritePattern):
+    """
+    %x = complex.create %a, %b
+    %y = complex.neg %x
     %im = complex.im %y = arith.negf %b
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(
-        self, op: complex.ReOp | complex.ImOp, rewriter: PatternRewriter
-    ):
+    def match_and_rewrite(self, op: complex.ImOp, rewriter: PatternRewriter):
         if isinstance(inner_op := op.complex.owner, complex.NegOp) and isinstance(
             creat_op := inner_op.complex.owner, complex.CreateOp
         ):
-            ssa_value = (
-                creat_op.real if isinstance(op, complex.ReOp) else creat_op.imaginary
-            )
-            rewriter.replace_matched_op(arith.NegfOp(ssa_value))
+            rewriter.replace_matched_op(arith.NegfOp(creat_op.imaginary))
 
 
 class RedundantUnaryOpOpPattern(RewritePattern):
@@ -175,31 +193,29 @@ class AddSubOpPattern(RewritePattern):
     """
     %sub = complex.sub %x, %y
     %add = (complex.add %sub, %y) | (complex.add %y, %sub) = %x
-    ------------------------------------------------------------------
+    """
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: complex.AddOp, rewriter: PatternRewriter):
+        if isinstance(lhs_op := op.lhs.owner, complex.SubOp) and (lhs_op.rhs == op.rhs):
+            rewriter.replace_matched_op((), (lhs_op.lhs,))
+            return
+        elif isinstance(rhs_op := op.rhs.owner, complex.SubOp) and (
+            rhs_op.rhs == op.lhs
+        ):
+            rewriter.replace_matched_op((), (rhs_op.lhs,))
+
+
+class SubAddOpPattern(RewritePattern):
+    """
     %add = complex.add %x, %y
     %sub = complex.sub %add, %y = %x
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(
-        self, op: complex.AddOp | complex.SubOp, rewriter: PatternRewriter
-    ):
-        if (
-            isinstance(op, complex.AddOp)
-            and (
-                (
-                    isinstance(inner_op := op.lhs.owner, complex.SubOp)
-                    and (inner_op.rhs == op.rhs)
-                )
-                or (
-                    isinstance(inner_op := op.rhs.owner, complex.SubOp)
-                    and (op.lhs == inner_op.rhs)
-                )
-            )
-        ) or (
-            isinstance(op, complex.SubOp)
-            and isinstance(inner_op := op.lhs.owner, complex.AddOp)
-            and (inner_op.rhs == op.rhs)
+    def match_and_rewrite(self, op: complex.SubOp, rewriter: PatternRewriter):
+        if isinstance(inner_op := op.lhs.owner, complex.AddOp) and (
+            inner_op.rhs == op.rhs
         ):
             rewriter.replace_matched_op((), (inner_op.lhs,))
 
