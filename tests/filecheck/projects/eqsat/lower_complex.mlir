@@ -9,3 +9,7 @@
 %re = complex.re %z : complex<f32>
 "test.op"(%re) : (f32) -> ()
 // CHECK-NEXT: "test.op"(%zr) : (f32) -> ()
+
+%im = complex.im %z : complex<f32>
+"test.op"(%im) : (f32) -> ()
+// CHECK-NEXT: "test.op"(%zi) : (f32) -> ()
