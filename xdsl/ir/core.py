@@ -2785,6 +2785,14 @@ class Region(_IRNode):
             return False
         return True
 
+    def __str__(self) -> str:
+        from xdsl.printer import Printer
+
+        res = StringIO()
+        printer = Printer(stream=res)
+        printer.print_region(self)
+        return res.getvalue()
+
 
 IRNode: TypeAlias = Operation | Region | Block
 
