@@ -8,7 +8,7 @@ from typing import ClassVar, cast
 from typing_extensions import Self
 
 from xdsl.builder import Builder
-from xdsl.dialects import arith
+from xdsl.dialects import arith, math
 from xdsl.dialects.builtin import (
     AffineMapAttr,
     AnyFloat,
@@ -657,6 +657,94 @@ class AddOp(NamedOperation):
 
 
 @irdl_op_definition
+class ExpOp(NamedOperation):
+    """
+    Applies exp(x) elementwise.
+
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Linalg/#linalgexp-linalgexpop).
+    """
+
+    name = "linalg.exp"
+
+    def __init__(
+        self,
+        inputs: Sequence[SSAValue],
+        outputs: Sequence[SSAValue] = (),
+        res: Sequence[Attribute] | None = None,
+        attributes: dict[str, Attribute] | None = None,
+    ):
+        if res is None:
+            result_types = tuple(output.type for output in outputs)
+        else:
+            result_types = res
+
+        super().__init__(
+            ins=inputs,
+            outs=outputs,
+            result_types=result_types,
+            attributes=attributes,
+            hidden_region=self.get_hidden_region(inputs, outputs),
+        )
+
+    @classmethod
+    def get_hidden_region(
+        cls, inputs: Sequence[SSAValue], outputs: Sequence[SSAValue]
+    ) -> Region:
+        arg_types = cls.body_arg_types((*inputs, *outputs))
+
+        @Builder.implicit_region(arg_types)
+        def hidden_region(args: tuple[BlockArgument, ...]) -> None:
+            result = math.ExpOp(args[0])
+            YieldOp(result)
+
+        return hidden_region
+
+
+@irdl_op_definition
+class LogOp(NamedOperation):
+    """
+    Applies log(x) elementwise.
+
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Linalg/#linalglog-linalglogop).
+    """
+
+    name = "linalg.log"
+
+    def __init__(
+        self,
+        inputs: Sequence[SSAValue],
+        outputs: Sequence[SSAValue] = (),
+        res: Sequence[Attribute] | None = None,
+        attributes: dict[str, Attribute] | None = None,
+    ):
+        if res is None:
+            result_types = tuple(output.type for output in outputs)
+        else:
+            result_types = res
+
+        super().__init__(
+            ins=inputs,
+            outs=outputs,
+            result_types=result_types,
+            attributes=attributes,
+            hidden_region=self.get_hidden_region(inputs, outputs),
+        )
+
+    @classmethod
+    def get_hidden_region(
+        cls, inputs: Sequence[SSAValue], outputs: Sequence[SSAValue]
+    ) -> Region:
+        arg_types = cls.body_arg_types((*inputs, *outputs))
+
+        @Builder.implicit_region(arg_types)
+        def hidden_region(args: tuple[BlockArgument, ...]) -> None:
+            result = math.LogOp(args[0])
+            YieldOp(result)
+
+        return hidden_region
+
+
+@irdl_op_definition
 class SubOp(NamedOperation):
     """
     Subtracts two tensors elementwise.
@@ -698,6 +786,50 @@ class SubOp(NamedOperation):
         @Builder.implicit_region(arg_types)
         def hidden_region(args: tuple[BlockArgument, ...]) -> None:
             result = sub(args[0], args[1])
+            YieldOp(result)
+
+        return hidden_region
+
+
+@irdl_op_definition
+class SqrtOp(NamedOperation):
+    """
+    Applies sqrt(x) elementwise.
+
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Linalg/#linalgsqrt-linalgsqrtop).
+    """
+
+    name = "linalg.sqrt"
+
+    def __init__(
+        self,
+        inputs: Sequence[SSAValue],
+        outputs: Sequence[SSAValue] = (),
+        res: Sequence[Attribute] | None = None,
+        attributes: dict[str, Attribute] | None = None,
+    ):
+        if res is None:
+            result_types = tuple(output.type for output in outputs)
+        else:
+            result_types = res
+
+        super().__init__(
+            ins=inputs,
+            outs=outputs,
+            result_types=result_types,
+            attributes=attributes,
+            hidden_region=self.get_hidden_region(inputs, outputs),
+        )
+
+    @classmethod
+    def get_hidden_region(
+        cls, inputs: Sequence[SSAValue], outputs: Sequence[SSAValue]
+    ) -> Region:
+        arg_types = cls.body_arg_types((*inputs, *outputs))
+
+        @Builder.implicit_region(arg_types)
+        def hidden_region(args: tuple[BlockArgument, ...]) -> None:
+            result = math.SqrtOp(args[0])
             YieldOp(result)
 
         return hidden_region
@@ -1638,7 +1770,10 @@ Linalg = Dialect(
         YieldOp,
         IndexOp,
         AddOp,
+        ExpOp,
+        LogOp,
         SubOp,
+        SqrtOp,
         SelectOp,
         FillOp,
         CopyOp,

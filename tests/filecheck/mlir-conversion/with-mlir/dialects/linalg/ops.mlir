@@ -25,6 +25,10 @@ linalg.fill ins(%4 : f32) outs(%1 : memref<1x256xf32>)
 
 %mul = linalg.mul ins(%2, %2 : tensor<2x3xf32>, tensor<2x3xf32>) outs(%3 : tensor<2x3xf32>) -> tensor<2x3xf32>
 
+%exp = linalg.exp ins(%2: tensor<2x3xf32>) outs(%3: tensor<2x3xf32>) -> tensor<2x3xf32>
+%log = linalg.log ins(%2: tensor<2x3xf32>) outs(%3: tensor<2x3xf32>) -> tensor<2x3xf32>
+%sqrt = linalg.sqrt ins(%2: tensor<2x3xf32>) outs(%3: tensor<2x3xf32>) -> tensor<2x3xf32>
+
 %5, %6 = "test.op"() : () -> (tensor<16x64xf32>, tensor<64x16xf32>)
 
 %transposed = linalg.transpose ins(%5 : tensor<16x64xf32>) outs(%6 : tensor<64x16xf32>) permutation = [1, 0]
@@ -161,6 +165,9 @@ linalg.reduce ins(%49:memref<16x64xf32>) outs(%51:memref<16xf32>) dimensions = [
 // CHECK-NEXT:    %{{.*}} = linalg.fill ins(%{{.*}} : f32) outs(%{{.*}} : tensor<2x3xf32>) -> tensor<2x3xf32>
 // CHECK-NEXT:    linalg.fill ins(%{{.*}} : f32) outs(%{{.*}} : memref<1x256xf32>)
 // CHECK-NEXT:    %{{.*}} = linalg.mul ins(%{{.*}}, %{{.*}} : tensor<2x3xf32>, tensor<2x3xf32>) outs(%{{.*}} : tensor<2x3xf32>) -> tensor<2x3xf32>
+// CHECK-NEXT:    %{{.*}} = linalg.exp ins(%{{.*}} : tensor<2x3xf32>) outs(%{{.*}} : tensor<2x3xf32>) -> tensor<2x3xf32>
+// CHECK-NEXT:    %{{.*}} = linalg.log ins(%{{.*}} : tensor<2x3xf32>) outs(%{{.*}} : tensor<2x3xf32>) -> tensor<2x3xf32>
+// CHECK-NEXT:    %{{.*}} = linalg.sqrt ins(%{{.*}} : tensor<2x3xf32>) outs(%{{.*}} : tensor<2x3xf32>) -> tensor<2x3xf32>
 // CHECK-NEXT:    %{{.*}}, %{{.*}} = "test.op"() : () -> (tensor<16x64xf32>, tensor<64x16xf32>)
 // CHECK-NEXT:    %{{.*}} = linalg.transpose ins(%{{.*}}tensor<16x64xf32>) outs(%{{.*}}tensor<64x16xf32>) permutation = [1, 0]
 // CHECK-NEXT:    %{{.*}}, %{{.*}} = "test.op"() : () -> (tensor<64x9216xf32>, tensor<9216x4096xf32>)
