@@ -511,14 +511,31 @@ class NamedOperation(IRDLOperation, ABC):
                 parser.Delimiter.PAREN, parser.parse_attribute
             )
             if res_types is None:
-                res_types = [[parser.parse_attribute()]]
+                res_types = [parser.parse_attribute()]
         else:
             res_types = ()
 
-        return cls(ins, outs, res_types, attrs)
+        prop_names = cls.get_irdl_definition().properties
+
+        properties = {k: v for k, v in attrs.items() if k in prop_names}
+        # Drop the values in properties from attrs
+        for k in properties:
+            if k in attrs:
+                del attrs[k]
+
+        try:
+            return cls.build(
+                operands=(ins, outs),
+                result_types=(res_types,),
+                properties=properties,
+                attributes=attrs,
+                regions=(cls.get_hidden_region(ins, outs),),
+            )
+        except ValueError:
+            parser.raise_error("Could not build linalg op")
 
     def print(self, printer: Printer):
-        extra_attrs = self.attributes.copy()
+        extra_attrs = {**self.attributes, **self.properties}
         if "indexing_maps" in extra_attrs:
             del extra_attrs["indexing_maps"]
         if "linalg.memoized_indexing_maps" in extra_attrs:
@@ -529,6 +546,8 @@ class NamedOperation(IRDLOperation, ABC):
             del extra_attrs["doc"]
         if "library_call" in extra_attrs:
             del extra_attrs["library_call"]
+        if "operandSegmentSizes" in extra_attrs:
+            del extra_attrs["operandSegmentSizes"]
 
         if extra_attrs and self.PRINT_ATTRS_IN_FRONT:
             printer.print_op_attributes(extra_attrs)
@@ -1105,7 +1124,16 @@ class MatmulOp(NamedOperation):
 
     PRINT_ATTRS_IN_FRONT: ClassVar[bool] = True
 
-    indexing_maps = prop_def(ArrayAttr[AffineMapAttr])
+    indexing_maps = prop_def(
+        ArrayAttr[AffineMapAttr],
+        default_value=ArrayAttr(
+            [
+                AffineMapAttr(AffineMap.from_callable(lambda i, _, k: (i, k))),
+                AffineMapAttr(AffineMap.from_callable(lambda _, j, k: (k, j))),
+                AffineMapAttr(AffineMap.from_callable(lambda i, j, _: (i, j))),
+            ]
+        ),
+    )
 
     def __init__(
         self,
@@ -1123,22 +1151,10 @@ class MatmulOp(NamedOperation):
         else:
             result_types = res
 
-        # add linalg.memoized_indexing_maps attribute
-        properties: dict[str, Attribute] = {
-            "indexing_maps": ArrayAttr(
-                [
-                    AffineMapAttr(AffineMap.from_callable(lambda i, _, k: (i, k))),
-                    AffineMapAttr(AffineMap.from_callable(lambda _, j, k: (k, j))),
-                    AffineMapAttr(AffineMap.from_callable(lambda i, j, _: (i, j))),
-                ]
-            )
-        }
-
         super().__init__(
             ins=inputs,
             outs=outputs,
             result_types=result_types,
-            properties=properties,
             attributes=attributes,
             hidden_region=self.get_hidden_region(inputs, outputs),
         )
@@ -1175,6 +1191,20 @@ class QuantizedMatmulOp(NamedOperation):
 
     PRINT_ATTRS_IN_FRONT: ClassVar[bool] = True
 
+    memoized_indexing_maps = attr_def(
+        ArrayAttr[AffineMapAttr],
+        default_value=ArrayAttr(
+            [
+                AffineMapAttr(AffineMap.from_callable(lambda i, _, k: (i, k))),
+                AffineMapAttr(AffineMap.from_callable(lambda _, j, k: (k, j))),
+                AffineMapAttr(AffineMap(3, 0, ())),
+                AffineMapAttr(AffineMap(3, 0, ())),
+                AffineMapAttr(AffineMap.from_callable(lambda i, j, _: (i, j))),
+            ]
+        ),
+        attr_name="linalg.memoized_indexing_maps",
+    )
+
     def __init__(
         self,
         inputs: Sequence[SSAValue],
@@ -1190,20 +1220,6 @@ class QuantizedMatmulOp(NamedOperation):
             )
         else:
             result_types = res
-
-        # add linalg.memoized_indexing_maps attribute
-        if not attributes:
-            attributes = {}
-        if "linalg.memoized_indexing_maps" not in attributes:
-            attributes["linalg.memoized_indexing_maps"] = ArrayAttr(
-                [
-                    AffineMapAttr(AffineMap.from_callable(lambda i, _, k: (i, k))),
-                    AffineMapAttr(AffineMap.from_callable(lambda _, j, k: (k, j))),
-                    AffineMapAttr(AffineMap(3, 0, ())),
-                    AffineMapAttr(AffineMap(3, 0, ())),
-                    AffineMapAttr(AffineMap.from_callable(lambda i, j, _: (i, j))),
-                ]
-            )
 
         super().__init__(
             ins=inputs,
@@ -1237,8 +1253,8 @@ class PoolingOperation(NamedOperation, ABC):
 
     PRINT_ATTRS_IN_FRONT: ClassVar[bool] = True
 
-    strides = attr_def(DenseIntElementsAttr)
-    dilations = attr_def(DenseIntElementsAttr)
+    strides = prop_def(DenseIntElementsAttr)
+    dilations = prop_def(DenseIntElementsAttr)
 
     def __init__(
         self,
@@ -1246,12 +1262,16 @@ class PoolingOperation(NamedOperation, ABC):
         outputs: Sequence[SSAValue] = (),
         res: Sequence[Attribute] | None = None,
         attributes: dict[str, Attribute] | None = None,
+        *,
+        strides: DenseIntElementsAttr,
+        dilations: DenseIntElementsAttr,
     ):
         super().__init__(
             ins=inputs,
             outs=outputs,
             result_types=res,
             attributes=attributes,
+            properties={"strides": strides, "dilations": dilations},
             hidden_region=self.get_hidden_region(inputs, outputs),
         )
 
@@ -1288,8 +1308,8 @@ class ConvOperation(NamedOperation, ABC):
 
     PRINT_ATTRS_IN_FRONT: ClassVar[bool] = True
 
-    strides = attr_def(DenseIntElementsAttr)
-    dilations = attr_def(DenseIntElementsAttr)
+    strides = prop_def(DenseIntElementsAttr)
+    dilations = prop_def(DenseIntElementsAttr)
 
     def __init__(
         self,
@@ -1297,12 +1317,16 @@ class ConvOperation(NamedOperation, ABC):
         outputs: Sequence[SSAValue] = (),
         res: Sequence[Attribute] | None = None,
         attributes: dict[str, Attribute] | None = None,
+        *,
+        strides: DenseIntElementsAttr,
+        dilations: DenseIntElementsAttr,
     ):
         super().__init__(
             ins=inputs,
             outs=outputs,
             attributes=attributes,
             result_types=res,
+            properties={"strides": strides, "dilations": dilations},
             hidden_region=self.get_hidden_region(inputs, outputs),
         )
 
@@ -1385,7 +1409,7 @@ class BroadcastOp(IRDLOperation):
 
     hidden_region = region_def("single_block")
 
-    dimensions = attr_def(DenseArrayBase.constr(i64))
+    dimensions = prop_def(DenseArrayBase.constr(i64))
 
     def __init__(
         self,
@@ -1409,7 +1433,7 @@ class BroadcastOp(IRDLOperation):
             YieldOp(args[0])
 
         super().__init__(
-            attributes={
+            properties={
                 "dimensions": dimensions,
             },
             operands=(input, init),

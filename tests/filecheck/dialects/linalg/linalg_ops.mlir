@@ -194,7 +194,7 @@ linalg.generic {indexing_maps = [affine_map<(d0, d1) -> ()>, affine_map<(d0, d1)
 // CHECK-GENERIC-NEXT:    %{{.*}} %{{.*}} = "test.op"() : () -> (memref<64x9216xf32>, memref<9216x4096xf32>)
 // CHECK-GENERIC-NEXT:    %{{.*}} = "test.op"() : () -> memref<64x4096xf32>
 
-// CHECK-GENERIC-NEXT:    "linalg.matmul"(%{{.*}} %{{.*}} %{{.*}} <{indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d2)>, affine_map<(d0, d1, d2) -> (d2, d1)>, affine_map<(d0, d1, d2) -> (d0, d1)>], operandSegmentSizes = array<i32: 2, 1>}> ({
+// CHECK-GENERIC-NEXT:    "linalg.matmul"(%{{.*}} %{{.*}} %{{.*}} <{operandSegmentSizes = array<i32: 2, 1>, indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d2)>, affine_map<(d0, d1, d2) -> (d2, d1)>, affine_map<(d0, d1, d2) -> (d0, d1)>]}> ({
 // CHECK-GENERIC-NEXT:    ^{{.*}}(%{{.*}} : f32, %{{.*}} : f32, %{{.*}} : f32):
 // CHECK-GENERIC-NEXT:      %{{.*}} = "arith.mulf"(%{{.*}}, %{{.*}} : (f32, f32) -> f32
 // CHECK-GENERIC-NEXT:      %{{.*}} = "arith.addf"(%{{.*}}, %{{.*}} : (f32, f32) -> f32
@@ -204,7 +204,7 @@ linalg.generic {indexing_maps = [affine_map<(d0, d1) -> ()>, affine_map<(d0, d1)
 // CHECK-GENERIC-NEXT:    %{{.*}} %{{.*}} = "test.op"() : () -> (memref<64x9216xi32>, memref<9216x4096xi32>)
 // CHECK-GENERIC-NEXT:    %{{.*}} = "test.op"() : () -> memref<64x4096xi32>
 
-// CHECK-GENERIC-NEXT:    "linalg.matmul"(%{{.*}} %{{.*}} %{{.*}} <{indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d2)>, affine_map<(d0, d1, d2) -> (d2, d1)>, affine_map<(d0, d1, d2) -> (d0, d1)>], operandSegmentSizes = array<i32: 2, 1>}> ({
+// CHECK-GENERIC-NEXT:    "linalg.matmul"(%{{.*}} %{{.*}} %{{.*}} <{operandSegmentSizes = array<i32: 2, 1>, indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d2)>, affine_map<(d0, d1, d2) -> (d2, d1)>, affine_map<(d0, d1, d2) -> (d0, d1)>]}> ({
 // CHECK-GENERIC-NEXT:    ^{{.*}}(%{{.*}} : i32, %{{.*}} : i32, %{{.*}} : i32):
 // CHECK-GENERIC-NEXT:      %{{.*}} = "arith.muli"(%{{.*}}, %{{.*}} : (i32, i32) -> i32
 // CHECK-GENERIC-NEXT:      %{{.*}} = "arith.addi"(%{{.*}}, %{{.*}} : (i32, i32) -> i32
