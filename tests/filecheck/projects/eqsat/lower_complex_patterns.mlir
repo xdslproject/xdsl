@@ -205,7 +205,6 @@ pdl.pattern @mul : benefit(2) {
 
 pdl.pattern @div : benefit(2) {
     %complex_f32_type = pdl.type : complex<f32>
-    %f32_type = pdl.type : f32
 
     // Match real and imaginary parts for both inputs
     %zr = pdl.operand
@@ -222,6 +221,7 @@ pdl.pattern @div : benefit(2) {
     %div_op = pdl.operation "complex.div" (%z_res, %w_res : !pdl.value, !pdl.value) -> (%complex_f32_type : !pdl.type)
 
     pdl.rewrite %div_op {
+        %f32_type = pdl.type : f32
         // temp real numerator: zr*wr + zi*wi
         %zr_wr_op = pdl.operation "arith.mulf" (%zr, %wr : !pdl.value, !pdl.value) -> (%f32_type : !pdl.type)
         %zr_wr = pdl.result 0 of %zr_wr_op
