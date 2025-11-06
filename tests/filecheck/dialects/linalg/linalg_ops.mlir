@@ -264,13 +264,13 @@ linalg.generic {indexing_maps = [affine_map<(d0, d1) -> ()>, affine_map<(d0, d1)
 // CHECK-GENERIC-NEXT:      "linalg.yield"(%{{.*}}) : (f32) -> ()
 // CHECK-GENERIC-NEXT:    }) : (tensor<4x16xf32>, tensor<4x16xf32>, tensor<4x16xf32>) -> tensor<4x16xf32>
 // CHECK-GENERIC-NEXT:    %{{.*}}, %{{.*}} = "test.op"() : () -> (memref<64x10xi32>, memref<i32>)
-// CHECK-GENERIC-NEXT:    "linalg.reduce"(%{{.*}}, %{{.*}}) <{dimensions = array<i64: 0, 1>, operandSegmentSizes = array<i32: 1, 1>}> ({
+// CHECK-GENERIC-NEXT:    "linalg.reduce"(%{{.*}}, %{{.*}}) <{dimensions = array<i64: 0, 1>}> ({
 // CHECK-GENERIC-NEXT:    ^{{.*}}(%{{.*}} : i32, %{{.*}} : i32):
 // CHECK-GENERIC-NEXT:      %{{.*}} = "arith.addi"(%{{.*}}, %{{.*}}) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
 // CHECK-GENERIC-NEXT:      "linalg.yield"(%{{.*}}) : (i32) -> ()
 // CHECK-GENERIC-NEXT:    }) : (memref<64x10xi32>, memref<i32>) -> ()
 // CHECK-GENERIC-NEXT:    %{{.*}}, %{{.*}} = "test.op"() : () -> (tensor<12x20xf32>, tensor<20xf32>)
-// CHECK-GENERIC-NEXT:    %{{.*}} = "linalg.reduce"(%{{.*}}, %{{.*}}) <{dimensions = array<i64: 0>, operandSegmentSizes = array<i32: 1, 1>}> ({
+// CHECK-GENERIC-NEXT:    %{{.*}} = "linalg.reduce"(%{{.*}}, %{{.*}}) <{dimensions = array<i64: 0>}> ({
 // CHECK-GENERIC-NEXT:    ^{{.*}}(%{{.*}} : f32, %{{.*}} : f32):
 // CHECK-GENERIC-NEXT:      %{{.*}} = "arith.addf"(%{{.*}}, %{{.*}}) <{fastmath = #arith.fastmath<none>}> : (f32, f32) -> f32
 // CHECK-GENERIC-NEXT:      "linalg.yield"(%{{.*}}) : (f32) -> ()
