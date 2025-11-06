@@ -46,6 +46,16 @@
 // CHECK-NEXT: %abs = math.sqrt %8 : f32
 // CHECK-NEXT: "test.op"(%abs) : (f32) -> ()
 
-
 // mul
+%mul = complex.mul %z, %w : complex<f32>
+"test.op"(%mul) : (complex<f32>) -> ()
+// CHECK-NEXT: %9 = arith.mulf %zr, %wr : f32
+// CHECK-NEXT: %10 = arith.mulf %zi, %wi : f32
+// CHECK-NEXT: %11 = arith.subf %9, %10 : f32
+// CHECK-NEXT: %12 = arith.mulf %zr, %wi : f32
+// CHECK-NEXT: %13 = arith.mulf %zi, %wr : f32
+// CHECK-NEXT: %14 = arith.addf %12, %13 : f32
+// CHECK-NEXT: %mul = complex.create %11, %14 : complex<f32>
+// CHECK-NEXT: "test.op"(%mul) : (complex<f32>) -> ()
+
 // div

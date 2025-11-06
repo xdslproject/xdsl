@@ -155,3 +155,50 @@ pdl.pattern @abs : benefit(2) {
         pdl.replace %abs_op with %sqrt_op
     }
 }
+
+pdl.pattern @mul : benefit(2) {
+    %complex_f32_type = pdl.type : complex<f32>
+
+    // Match real and imaginary parts for both inputs
+    %zr = pdl.operand
+    %zi = pdl.operand
+    %z_op = pdl.operation "complex.create" (%zr, %zi : !pdl.value, !pdl.value) -> (%complex_f32_type : !pdl.type)
+    %z_res = pdl.result 0 of %z_op
+
+    %wr = pdl.operand
+    %wi = pdl.operand
+    %w_op = pdl.operation "complex.create" (%wr, %wi : !pdl.value, !pdl.value) -> (%complex_f32_type : !pdl.type)
+    %w_res = pdl.result 0 of %w_op
+
+    // Match mul
+    %mul_op = pdl.operation "complex.mul" (%z_res, %w_res : !pdl.value, !pdl.value) -> (%complex_f32_type : !pdl.type)
+
+    pdl.rewrite %mul_op {
+        %f32_type = pdl.type : f32
+        // Compute real and imaginary parts for the product
+        // real = zr*wr - zi*wi
+        %zr_wr_op = pdl.operation "arith.mulf" (%zr, %wr : !pdl.value, !pdl.value) -> (%f32_type : !pdl.type)
+        %zr_wr = pdl.result 0 of %zr_wr_op
+
+        %zi_wi_op = pdl.operation "arith.mulf" (%zi, %wi : !pdl.value, !pdl.value) -> (%f32_type : !pdl.type)
+        %zi_wi = pdl.result 0 of %zi_wi_op
+
+        %real_op = pdl.operation "arith.subf" (%zr_wr, %zi_wi : !pdl.value, !pdl.value) -> (%f32_type : !pdl.type)
+        %real = pdl.result 0 of %real_op
+
+        // imag = zr*wi + zi*wr
+        %zr_wi_op = pdl.operation "arith.mulf" (%zr, %wi : !pdl.value, !pdl.value) -> (%f32_type : !pdl.type)
+        %zr_wi = pdl.result 0 of %zr_wi_op
+
+        %zi_wr_op = pdl.operation "arith.mulf" (%zi, %wr : !pdl.value, !pdl.value) -> (%f32_type : !pdl.type)
+        %zi_wr = pdl.result 0 of %zi_wr_op
+
+        %imag_op = pdl.operation "arith.addf" (%zr_wi, %zi_wr : !pdl.value, !pdl.value) -> (%f32_type : !pdl.type)
+        %imag = pdl.result 0 of %imag_op
+
+        // Reconstruct the complex result
+        %result = pdl.operation "complex.create" (%real, %imag : !pdl.value, !pdl.value) -> (%complex_f32_type : !pdl.type)
+
+        pdl.replace %mul_op with %result
+    }
+}
