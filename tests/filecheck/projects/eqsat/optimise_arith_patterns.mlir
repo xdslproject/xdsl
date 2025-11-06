@@ -1,3 +1,4 @@
+// RUN: true
 
 pdl.pattern : benefit(2) {
     %type = pdl.type
