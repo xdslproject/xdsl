@@ -6,9 +6,11 @@ from xdsl.dialects.arith import AddiOp, ConstantOp
 from xdsl.dialects.builtin import IntegerAttr, i32
 from xdsl.dialects.test import TestOp
 from xdsl.folder import Folder
-from xdsl.ir import Block, OpResult
+from xdsl.ir import Block, Operation, OpResult
+from xdsl.irdl import IRDLOperation, irdl_op_definition, result_def
 from xdsl.pattern_rewriter import PatternRewriter
 from xdsl.rewriter import InsertPoint
+from xdsl.traits import HasFolder
 
 
 def test_try_fold_foldable_operation():
@@ -148,3 +150,35 @@ def test_try_fold_unfoldable_operation():
 
     # Should return None since TestOp doesn't implement folding
     assert result is None
+
+
+def test_fold_dynamic_trait():
+    ctx = Context()
+    from xdsl.dialects import arith
+
+    ctx.load_dialect(arith.Arith)
+
+    @irdl_op_definition
+    class TestFoldOp(IRDLOperation):
+        name = "arith.fold"
+        res = result_def()
+
+    class TestFold(HasFolder):
+        @classmethod
+        def fold(cls, op: Operation):
+            """
+            Attempts to fold the operation. The fold method cannot modify the IR.
+            Returns either an existing SSAValue or an Attribute for each result of the operation.
+            When folding is unsuccessful, returns None.
+            """
+            assert isinstance(op, TestFoldOp)
+            return (IntegerAttr(1, i32),)
+
+    folder = Folder(ctx)
+    op = TestFoldOp(result_types=(i32,))
+
+    assert folder.try_fold(op) is None
+
+    TestFoldOp.traits.add_trait(TestFold())
+
+    assert folder.try_fold(op) is not None

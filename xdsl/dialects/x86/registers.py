@@ -380,3 +380,49 @@ ZMM = tuple(AVX512RegisterType.from_name(f"zmm{i}") for i in range(32))
     ZMM30,
     ZMM31,
 ) = ZMM
+
+
+@irdl_attr_definition
+class AVX512MaskRegisterType(X86RegisterType):
+    """
+    An x86 mask register type for AVX512 instructions.
+    """
+
+    name = "x86.avx512maskreg"
+
+    @classmethod
+    def index_by_name(cls) -> dict[str, int]:
+        return X86AVX512_MASK_INDEX_BY_NAME
+
+    @classmethod
+    def infinite_register_prefix(cls):
+        return "inf_avx512_mask_"
+
+    @classmethod
+    def allocatable_registers(cls):
+        return K
+
+
+X86AVX512_MASK_INDEX_BY_NAME = {
+    "k0": 0,
+    "k1": 1,
+    "k2": 2,
+    "k3": 3,
+    "k4": 4,
+    "k5": 5,
+    "k6": 6,
+    "k7": 7,
+}
+
+UNALLOCATED_AVX512_MASK = AVX512MaskRegisterType.unallocated()
+K = tuple(AVX512MaskRegisterType.from_name(f"k{i}") for i in range(8))
+(
+    K0,
+    K1,
+    K2,
+    K3,
+    K4,
+    K5,
+    K6,
+    K7,
+) = K

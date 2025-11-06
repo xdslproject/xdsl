@@ -8,9 +8,9 @@ from xdsl.dialects import builtin, func, llvm
 from xdsl.dialects.arith import ConstantOp
 from xdsl.dialects.builtin import IndexType, f64, i32
 from xdsl.dialects.experimental.hls import (
-    HLSExtractStencilValueOp,
     HLSStreamOp,
     HLSStreamReadOp,
+    HLSStreamType,
     HLSStreamWriteOp,
     HLSYieldOp,
     PragmaDataflowOp,
@@ -50,7 +50,7 @@ class LowerHLSStreamWrite(RewritePattern):
     def match_and_rewrite(self, op: HLSStreamWriteOp, rewriter: PatternRewriter, /):
         elem = op.element
         elem_type = op.element.type
-        p_elem_type = LLVMPointerType.typed(elem_type)
+        p_elem_type = LLVMPointerType()
         op.operands[0].type
 
         if "duplicate" in op.attributes:
@@ -62,7 +62,7 @@ class LowerHLSStreamWrite(RewritePattern):
                 self.module.body.block.add_op(push_func)
                 self.push_duplicate_declaration = True
 
-            gep = GEPOp(op.stream, [0, 0], result_type=p_elem_type)
+            gep = GEPOp(op.stream, [0, 0], pointee_type=elem_type)
             push_call = func.CallOp("llvm.fpga.fifo.push.duplicate", [elem, gep], [])
 
         else:
@@ -74,7 +74,7 @@ class LowerHLSStreamWrite(RewritePattern):
                 self.module.body.block.add_op(push_func)
                 self.push_stencil_declaration = True
 
-            gep = GEPOp(op.stream, [0, 0], result_type=p_elem_type)
+            gep = GEPOp(op.stream, [0, 0], pointee_type=elem_type)
             push_call = func.CallOp("llvm.fpga.fifo.push.stencil", [elem, gep], [])
 
         rewriter.replace_matched_op([gep, push_call])
@@ -90,14 +90,14 @@ class LowerHLSStreamRead(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: HLSStreamReadOp, rewriter: PatternRewriter, /):
         # The stream is an alloca of a struct of the hls_elem_type. hls_elem_type must be extracted from the struct
-        assert isinstance(op.operands[0].type, llvm.LLVMPointerType)
+        assert isinstance(op.operands[0].type, HLSStreamType)
         p_struct_hls_elem_type = op.operands[0].type
 
-        assert isinstance(p_struct_hls_elem_type.type, llvm.LLVMStructType)
+        assert isinstance(p_struct_hls_elem_type.element_type, llvm.LLVMStructType)
 
-        hls_elem_type = p_struct_hls_elem_type.type.types.data[0]
+        hls_elem_type = p_struct_hls_elem_type.element_type.types.data[0]
 
-        p_hls_elem_type = LLVMPointerType.typed(hls_elem_type)
+        p_hls_elem_type = LLVMPointerType()
 
         if "write_data" in op.attributes:
             if not self.pop_write_data_declaration:
@@ -114,7 +114,7 @@ class LowerHLSStreamRead(RewritePattern):
 
             alloca = AllocaOp(size, hls_elem_type)
 
-            gep = GEPOp(op.stream, [0, 0], result_type=p_hls_elem_type)
+            gep = GEPOp(op.stream, [0, 0], pointee_type=hls_elem_type)
 
             pop_call = func.CallOp(
                 "llvm.fpga.fifo.pop.write_data", [gep], [op.res.type]
@@ -135,7 +135,7 @@ class LowerHLSStreamRead(RewritePattern):
 
             alloca = AllocaOp(size, hls_elem_type)
 
-            gep = GEPOp(op.stream, [0, 0], result_type=p_hls_elem_type)
+            gep = GEPOp(op.stream, [0, 0], pointee_type=hls_elem_type)
 
             pop_call = func.CallOp("llvm.fpga.fifo.pop.stencil", [gep], [op.res.type])
 
@@ -145,7 +145,7 @@ class LowerHLSStreamRead(RewritePattern):
             current_parent = current_parent.parent_op()
 
         store = StoreOp(pop_call, alloca)
-        load = LoadOp(alloca)
+        load = LoadOp(alloca, result_type=hls_elem_type)
 
         # rewriter.insert_op_at_start(alloca, current_parent.body.blocks[0])
         current_parent.body.blocks[0].insert_op_before(
@@ -176,9 +176,7 @@ class LowerHLSStreamToAlloca(RewritePattern):
             uses.append(use)
 
         hls_elem_type = op.elem_type
-        stream_type = LLVMPointerType.typed(
-            LLVMStructType.from_type_list([hls_elem_type])
-        )
+        stream_type = LLVMPointerType()
 
         if not self.set_stream_depth_declaration:
             stream_depth_func = llvm.FuncOp(
@@ -193,7 +191,7 @@ class LowerHLSStreamToAlloca(RewritePattern):
         # As can be seen on the compiled synthetic stream benchmark of the FPL paper
         size = ConstantOp.from_int_and_width(1, i32)
         alloca = AllocaOp(size, LLVMStructType.from_type_list([hls_elem_type]))
-        gep = GEPOp(alloca, [0, 0], result_type=LLVMPointerType.typed(hls_elem_type))
+        gep = GEPOp(alloca, [0, 0], pointee_type=hls_elem_type)
         depth = ConstantOp.from_int_and_width(0, i32)
         depth_call = llvm.CallOp("llvm.fpga.set.stream.depth", gep, depth)
 
@@ -427,50 +425,50 @@ class LowerDataflow(RewritePattern):
         rewriter.erase_matched_op()
 
 
-@dataclass
-class LowerHLSExtractStencilValue(RewritePattern):
-    @op_type_rewrite_pattern
-    def match_and_rewrite(
-        self, op: HLSExtractStencilValueOp, rewriter: PatternRewriter, /
-    ):
-        indices = op.position.get_values()
+# @dataclass
+# class LowerHLSExtractStencilValue(RewritePattern):
+#     @op_type_rewrite_pattern
+#     def match_and_rewrite(
+#         self, op: HLSExtractStencilValueOp, rewriter: PatternRewriter, /
+#     ):
+#         indices = op.position.get_values()
 
-        assert isinstance(op.container, OpResult)
-        assert isinstance(op.container.op, llvm.LoadOp)
-        stencil = op.container.op.ptr
-        # result_hls_read = op.container
-        # p_stencil = op.container.
+#         assert isinstance(op.container, OpResult)
+#         assert isinstance(op.container.op, llvm.LoadOp)
+#         stencil = op.container.op.ptr
+#         # result_hls_read = op.container
+#         # p_stencil = op.container.
 
-        assert isinstance(stencil.type, llvm.LLVMPointerType)
-        assert isinstance(stencil.type.type, llvm.LLVMStructType)
-        struct_types = stencil.type.type.types
-        assert isinstance(struct_types.data[0], llvm.LLVMArrayType)
-        array_type = struct_types.data[0]
-        values = GEPOp(stencil, [0, 0], result_type=LLVMPointerType.typed(array_type))
-        assert isinstance(array_type.type, llvm.LLVMArrayType)
-        first_dim_type = array_type.type
-        assert isinstance(first_dim_type.type, llvm.LLVMArrayType)
-        second_dim_type = first_dim_type.type
-        assert isinstance(second_dim_type.type, builtin.TypeAttribute)
-        third_dim_type = second_dim_type.type
-        first_array = GEPOp(
-            values, [0, indices[1]], result_type=LLVMPointerType.typed(first_dim_type)
-        )
-        second_array = GEPOp(
-            first_array,
-            [0, indices[2]],
-            result_type=LLVMPointerType.typed(second_dim_type),
-        )
-        third_array = GEPOp(
-            second_array,
-            [0, indices[3]],
-            result_type=LLVMPointerType.typed(third_dim_type),
-        )
-        point = LoadOp(third_array)
+#         assert isinstance(stencil.type, llvm.LLVMPointerType)
+#         assert isinstance(stencil.type.type, llvm.LLVMStructType)
+#         struct_types = stencil.type.type.types
+#         assert isinstance(struct_types.data[0], llvm.LLVMArrayType)
+#         array_type = struct_types.data[0]
+#         values = GEPOp(stencil, [0, 0], result_type=LLVMPointerType.typed(array_type))
+#         assert isinstance(array_type.type, llvm.LLVMArrayType)
+#         first_dim_type = array_type.type
+#         assert isinstance(first_dim_type.type, llvm.LLVMArrayType)
+#         second_dim_type = first_dim_type.type
+#         assert isinstance(second_dim_type.type, builtin.TypeAttribute)
+#         third_dim_type = second_dim_type.type
+#         first_array = GEPOp(
+#             values, [0, indices[1]], result_type=LLVMPointerType.typed(first_dim_type)
+#         )
+#         second_array = GEPOp(
+#             first_array,
+#             [0, indices[2]],
+#             result_type=LLVMPointerType.typed(second_dim_type),
+#         )
+#         third_array = GEPOp(
+#             second_array,
+#             [0, indices[3]],
+#             result_type=LLVMPointerType.typed(third_dim_type),
+#         )
+#         point = LoadOp(third_array)
 
-        rewriter.replace_matched_op(
-            [values, first_array, second_array, third_array, point]
-        )
+#         rewriter.replace_matched_op(
+#             [values, first_array, second_array, third_array, point]
+#         )
 
 
 @dataclass
@@ -527,7 +525,7 @@ class LowerHLSPass(ModulePass):
                 LowerHLSStreamToAlloca(op),
                 LowerHLSStreamRead(op),
                 LowerHLSStreamWrite(op),
-                LowerHLSExtractStencilValue(),
+                # LowerHLSExtractStencilValue(),
             ]
         )
 

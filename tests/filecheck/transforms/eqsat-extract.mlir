@@ -65,3 +65,21 @@ func.func @partial_extraction(%a : index, %b : index) -> index {
   %res_eq = eqsat.eclass %a_shift_one, %a_times_two : index
   func.return %res_eq : index
 }
+
+
+// CHECK:         func.func @cycles(%a : i32) -> i32 {
+// CHECK-NEXT:      func.return %a : i32
+// CHECK-NEXT:    }
+func.func @cycles(%a : i32) -> i32 {
+  %two = arith.constant {eqsat_cost = #builtin.int<1>} 2 : i32
+  %two_1 = eqsat.eclass %two {min_cost_index = #builtin.int<0>} : i32
+  %mul = arith.muli %div, %two_1 {eqsat_cost = #builtin.int<1>} : i32
+  %mul_1 = eqsat.eclass %mul {min_cost_index = #builtin.int<0>} : i32
+  %0 = arith.constant {eqsat_cost = #builtin.int<1>} 1 : i32
+  %1 = eqsat.const_eclass %0, %2 (constant = 1 : i32) {min_cost_index = #builtin.int<0>} : i32
+  %2 = arith.divui %two_1, %two_1 {eqsat_cost = #builtin.int<1>} : i32
+  %3 = arith.muli %div, %1 {eqsat_cost = #builtin.int<1>} : i32
+  %div_1 = arith.divui %mul_1, %two_1 {eqsat_cost = #builtin.int<1>} : i32
+  %div = eqsat.eclass %div_1, %3, %a {min_cost_index = #builtin.int<2>} : i32
+  func.return %div : i32
+}

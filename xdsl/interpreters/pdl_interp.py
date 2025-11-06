@@ -1,4 +1,3 @@
-from dataclasses import dataclass, field
 from typing import Any, cast
 
 from xdsl.context import Context
@@ -24,7 +23,6 @@ from xdsl.utils.hints import isa
 
 
 @register_impls
-@dataclass
 class PDLInterpFunctions(InterpreterFunctions):
     """
     Interpreter functions for the pdl_interp dialect.
@@ -50,21 +48,38 @@ class PDLInterpFunctions(InterpreterFunctions):
     Note that the return type of a native constraint must be `tuple[bool, PythonValues]`.
     """
 
-    ctx: Context
+    @staticmethod
+    def get_ctx(interpreter: Interpreter) -> Context:
+        return interpreter.get_data(
+            PDLInterpFunctions,
+            "ctx",
+            lambda: Context(),
+        )
 
-    _rewriter: PatternRewriter | None = field(default=None)
+    @staticmethod
+    def set_ctx(interpreter: Interpreter, ctx: Context) -> None:
+        interpreter.set_data(
+            PDLInterpFunctions,
+            "ctx",
+            ctx,
+        )
 
-    @property
-    def rewriter(self) -> PatternRewriter:
-        assert self._rewriter is not None
-        return self._rewriter
+    @staticmethod
+    def get_rewriter(interpreter: Interpreter) -> PatternRewriter:
+        rewriter: PatternRewriter | None = interpreter.get_data(
+            PDLInterpFunctions, "rewriter", lambda: None
+        )
+        if rewriter is None:
+            raise InterpretationError(
+                "Expected an active rewriter when calling a pdl_interp function."
+            )
+        return rewriter
 
-    @rewriter.setter
-    def rewriter(self, rewriter: PatternRewriter):
-        self._rewriter = rewriter
-
-    def clear_rewriter(self):
-        self._rewriter = None
+    @staticmethod
+    def set_rewriter(
+        interpreter: Interpreter, rewriter: PatternRewriter | None
+    ) -> None:
+        interpreter.set_data(PDLInterpFunctions, "rewriter", rewriter)
 
     @impl(pdl_interp.GetOperandOp)
     def run_get_operand(
@@ -307,7 +322,9 @@ class PDLInterpFunctions(InterpreterFunctions):
                 "Number of replacement values should match number of results"
             )
         # Replace the operation with the replacement values
-        self.rewriter.replace_op(input_op, new_ops=[], new_results=repl_values)
+        self.get_rewriter(interpreter).replace_op(
+            input_op, new_ops=[], new_results=repl_values
+        )
         return ()
 
     @impl(pdl_interp.CreateAttributeOp)
@@ -364,7 +381,8 @@ class PDLInterpFunctions(InterpreterFunctions):
     ) -> tuple[Any, ...]:
         # Get operation name
         op_name = op.constraint_name.data
-        op_type = self.ctx.get_optional_op(op_name)
+        ctx = self.get_ctx(interpreter)
+        op_type = ctx.get_optional_op(op_name)
         if op_type is None:
             raise InterpretationError(
                 f"Could not find op type for name {op_name} in context"
@@ -403,7 +421,7 @@ class PDLInterpFunctions(InterpreterFunctions):
             properties=properties,
         )
 
-        self.rewriter.insert_op_before_matched_op(result_op)
+        self.get_rewriter(interpreter).insert_op_before_matched_op(result_op)
 
         return (result_op,)
 
@@ -411,15 +429,11 @@ class PDLInterpFunctions(InterpreterFunctions):
     def call_func(
         self, interpreter: Interpreter, op: pdl_interp.FuncOp, args: tuple[Any, ...]
     ):
-        if self._rewriter is None:
-            raise InterpretationError(
-                "Expected an active rewriter when calling a pdl_interp function."
-            )
         if op.sym_name.data == "matcher":
             assert len(args) == 1
             root_op = args[0]
             assert isinstance(root_op, Operation)
-            self.rewriter.current_operation = root_op
+            self.get_rewriter(interpreter).current_operation = root_op
 
         return interpreter.run_ssacfg_region(op.body, args, op.sym_name.data)
 
@@ -456,5 +470,5 @@ class PDLInterpFunctions(InterpreterFunctions):
     def run_finalize(
         self, interpreter: Interpreter, op: pdl_interp.FinalizeOp, args: tuple[Any, ...]
     ):
-        self._rewriter = None
+        PDLInterpFunctions.set_rewriter(interpreter, None)
         return ReturnedValues(()), ()

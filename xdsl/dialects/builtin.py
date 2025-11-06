@@ -21,7 +21,7 @@ from typing import (
 from immutabledict import immutabledict
 from typing_extensions import Self, TypeVar, deprecated, override
 
-from xdsl.dialect_interfaces import OpAsmDialectInterface
+from xdsl.dialect_interfaces.op_asm import OpAsmDialectInterface
 from xdsl.ir import (
     Attribute,
     AttributeCovT,
@@ -1122,7 +1122,8 @@ class FloatData(Data[float]):
             return float(parser.parse_number())
 
     def print_parameter(self, printer: Printer) -> None:
-        printer.print_string(f"{self.data}")
+        with printer.in_angle_brackets():
+            printer.print_string(f"{self.data}")
 
     def __eq__(self, other: object):
         # avoid triggering `float('nan') != float('nan')` inequality
@@ -1214,6 +1215,18 @@ class FloatAttr(BuiltinAttribute, TypedAttribute, Generic[_FloatAttrType]):
         Unpack `num` values from the beginning of the buffer.
         """
         return tuple(FloatAttr(value, type) for value in type.unpack(buffer, num))
+
+    @staticmethod
+    def constr(
+        type: IRDLAttrConstraint[_FloatAttrType] = AnyFloatConstr,
+    ) -> AttrConstraint[FloatAttr[_FloatAttrType]]:
+        return ParamAttrConstraint[FloatAttr[_FloatAttrType]](
+            FloatAttr,
+            (
+                None,
+                type,
+            ),
+        )
 
 
 ComplexElementCovT = TypeVar(
@@ -2260,7 +2273,7 @@ class ModuleOp(IRDLOperation):
 
     def __init__(
         self,
-        ops: list[Operation] | Region,
+        ops: Iterable[Operation] | Region,
         attributes: Mapping[str, Attribute] | None = None,
         sym_name: StringAttr | None = None,
     ):

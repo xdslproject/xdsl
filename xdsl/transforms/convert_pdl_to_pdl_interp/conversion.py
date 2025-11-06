@@ -3,35 +3,64 @@ PDL to PDL_interp Transformation
 """
 
 from abc import ABC
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from typing import Optional, cast
 
-from xdsl.dialects import pdl
+from xdsl.builder import Builder
+from xdsl.dialects import pdl, pdl_interp
+from xdsl.dialects.builtin import (
+    ArrayAttr,
+    IntegerAttr,
+    ModuleOp,
+    StringAttr,
+    TypeAttribute,
+)
 from xdsl.ir import (
+    Block,
     Operation,
     OpResult,
+    Region,
     SSAValue,
 )
+from xdsl.rewriter import InsertPoint
 from xdsl.transforms.convert_pdl_to_pdl_interp.predicate import (
     Answer,
+    AttributeAnswer,
+    AttributeConstraintQuestion,
     AttributeLiteralPosition,
     AttributePosition,
     ConstraintPosition,
     ConstraintQuestion,
     EqualToQuestion,
+    ForEachPosition,
+    IsNotNullQuestion,
+    OperandCountAtLeastQuestion,
+    OperandCountQuestion,
     OperandGroupPosition,
     OperandPosition,
+    OperationNameQuestion,
     OperationPosition,
     Position,
     PositionalPredicate,
     Predicate,
     Question,
+    ResultCountAtLeastQuestion,
+    ResultCountQuestion,
+    ResultGroupPosition,
+    ResultPosition,
+    StringAnswer,
+    TrueAnswer,
+    TypeAnswer,
+    TypeConstraintQuestion,
     TypeLiteralPosition,
     TypePosition,
+    UnsignedAnswer,
+    UsersPosition,
     get_position_cost,
     get_question_cost,
 )
+from xdsl.utils.scoped_dict import ScopedDict
 
 # =============================================================================
 # Matcher Tree Nodes
@@ -55,8 +84,6 @@ class BoolNode(MatcherNode):
     failure_node: MatcherNode | None = None
 
     answer: Answer
-
-    success_node: MatcherNode | None = None
 
 
 @dataclass
@@ -659,7 +686,7 @@ def _depends_on(pred_a: OrderedPredicate, pred_b: OrderedPredicate) -> bool:
     return position_depends_on_a(pred_b.position)
 
 
-def _stable_topological_sort(  # pyright: ignore[reportUnusedFunction]
+def _stable_topological_sort(
     predicates: list[OrderedPredicate],
 ) -> list[OrderedPredicate]:
     """Sorts predicates topologically while maintaining stability for independent items."""
@@ -709,6 +736,46 @@ class PredicateTreeBuilder:
         self.analyzer = PatternAnalyzer()
         self._pattern_roots = {}
         self.pattern_value_positions = {}
+
+    def build_predicate_tree(self, patterns: list[pdl.PatternOp]) -> MatcherNode:
+        """Build optimized matcher tree from multiple patterns"""
+
+        # Extract predicates for all patterns
+        all_pattern_predicates: list[
+            tuple[pdl.PatternOp, list[PositionalPredicate]]
+        ] = []
+        for pattern in patterns:
+            predicates, root, inputs = self._extract_pattern_predicates(pattern)
+            all_pattern_predicates.append((pattern, predicates))
+            self._pattern_roots[pattern] = root
+            self.pattern_value_positions[pattern] = inputs
+
+        # Create ordered predicates with frequency analysis
+        ordered_predicates = self._create_ordered_predicates(all_pattern_predicates)
+        # Sort predicates by priority
+        sorted_predicates = sorted(ordered_predicates.values())
+        sorted_predicates = _stable_topological_sort(sorted_predicates)
+
+        # Build matcher tree by propagating patterns
+        root_node = None
+        for pattern, predicates in all_pattern_predicates:
+            if not predicates:
+                continue
+            pattern_predicate_set = {
+                (pred.position, pred.q): pred for pred in predicates
+            }
+            root_node = self._propagate_pattern(
+                root_node, pattern, pattern_predicate_set, sorted_predicates, 0
+            )
+
+        # Add exit node and optimize
+        if root_node is not None:
+            root_node = self._optimize_tree(root_node)
+            root_node = self._insert_exit_node(root_node)
+            return root_node
+        else:
+            # Return a default exit node if no patterns were processed
+            return ExitNode()
 
     def _extract_pattern_predicates(
         self, pattern: pdl.PatternOp
@@ -887,3 +954,479 @@ class PredicateTreeBuilder:
             return bool_node
 
         return root
+
+
+# =============================================================================
+# Code Generation
+# =============================================================================
+
+
+class MatcherGenerator:
+    """Generates PDL interpreter matcher from matcher tree"""
+
+    matcher_func: pdl_interp.FuncOp
+    rewriter_module: ModuleOp
+    rewriter_builder: Builder
+    value_to_position: dict[pdl.PatternOp, dict[SSAValue, Position]]
+    values: ScopedDict[Position, SSAValue]
+    failure_block_stack: list[Block]
+    builder: Builder
+    constraint_op_map: dict[ConstraintQuestion, pdl_interp.ApplyConstraintOp]
+    rewriter_names: dict[str, int]
+
+    def __init__(
+        self,
+        matcher_func: pdl_interp.FuncOp,
+        rewriter_module: ModuleOp,
+        optimize_for_eqsat: bool = False,
+    ) -> None:
+        self.matcher_func = matcher_func
+        self.rewriter_module = rewriter_module
+        self.rewriter_builder = Builder(InsertPoint.at_end(rewriter_module.body.block))
+        self.value_to_position = {}
+        self.values = ScopedDict()
+        self.failure_block_stack = []
+        self.builder = Builder(InsertPoint.at_start(matcher_func.body.block))
+        self.constraint_op_map = {}
+        self.rewriter_names = {}
+
+    def generate_matcher(
+        self, node: MatcherNode, region: Region, block: Block | None = None
+    ) -> Block:
+        """Generate PDL interpreter operations for a matcher node"""
+
+        # Create block if needed
+        if block is None:
+            block = Block()
+            region.add_block(block)
+
+        # Handle exit node - just add finalize
+        if isinstance(node, ExitNode):
+            finalize_op = pdl_interp.FinalizeOp()
+            self.builder.insert_op(finalize_op, InsertPoint.at_end(block))
+            return block
+
+        self.values = ScopedDict(self.values)
+        assert self.values.parent is not None
+
+        # Handle failure node
+        failure_block = None
+        if node.failure_node:
+            failure_block = self.generate_matcher(node.failure_node, region)
+            self.failure_block_stack.append(failure_block)
+        else:
+            assert self.failure_block_stack, "Expected valid failure block"
+            failure_block = self.failure_block_stack[-1]
+
+        # Get value for position if exists
+        current_block = block
+        val = None
+        if node.position:
+            val = self.get_value_at(current_block, node.position)
+
+        # Dispatch based on node type
+        match node:
+            case BoolNode():
+                assert val is not None
+                self.generate_bool_node(node, current_block, val)
+            case SwitchNode():
+                assert val is not None
+                self.generate_switch_node(node, current_block, val)
+            case SuccessNode():
+                raise NotImplementedError()
+            case _:
+                raise NotImplementedError(f"Unhandled node type {type(node)}")
+
+        # Pop failure block if we pushed one
+        if node.failure_node:
+            self.failure_block_stack.pop()
+
+        self.values = self.values.parent  # Pop scope
+        return block
+
+    def get_value_at(self, block: Block, position: Position) -> SSAValue:
+        """Get or create SSA value for a position"""
+
+        # Check cache
+        if position in self.values:
+            return self.values[position]
+
+        # Get parent value if needed
+        parent_val = None
+        if position.parent:
+            parent_val = self.get_value_at(block, position.parent)
+
+        # Create value based on position type
+        self.builder.insertion_point = InsertPoint.at_end(block)
+        value = None
+
+        if isinstance(position, OperationPosition):
+            if position.is_operand_defining_op():
+                assert parent_val is not None
+                # Get defining operation of operand
+                defining_op = pdl_interp.GetDefiningOpOp(parent_val)
+                defining_op.attributes["position"] = StringAttr(position.__repr__())
+                self.builder.insert(defining_op)
+                value = defining_op.input_op
+            else:
+                # Passthrough
+                value = parent_val
+
+        elif isinstance(position, OperandPosition):
+            assert parent_val is not None
+            get_operand_op = pdl_interp.GetOperandOp(
+                position.operand_number, parent_val
+            )
+            self.builder.insert(get_operand_op)
+            value = get_operand_op.value
+
+        elif isinstance(position, OperandGroupPosition):
+            assert parent_val is not None
+            # Get operands (possibly variadic)
+            result_type = (
+                pdl.RangeType(pdl.ValueType())
+                if position.is_variadic
+                else pdl.ValueType()
+            )
+            raise NotImplementedError("pdl_interp.get_operands is not yet implemented")
+            get_operands_op = pdl_interp.GetOperandsOp(
+                position.group_number, parent_val, result_type
+            )
+            self.builder.insert(get_operands_op)
+            value = get_operands_op.value
+
+        elif isinstance(position, ResultPosition):
+            assert parent_val is not None
+            get_result_op = pdl_interp.GetResultOp(position.result_number, parent_val)
+            self.builder.insert(get_result_op)
+            value = get_result_op.value
+
+        elif isinstance(position, ResultGroupPosition):
+            assert parent_val is not None
+            # Get results (possibly variadic)
+            result_type = (
+                pdl.RangeType(pdl.ValueType())
+                if position.is_variadic
+                else pdl.ValueType()
+            )
+            get_results_op = pdl_interp.GetResultsOp(
+                position.group_number, parent_val, result_type
+            )
+            self.builder.insert(get_results_op)
+            value = get_results_op.value
+
+        elif isinstance(position, AttributePosition):
+            assert parent_val is not None
+            get_attr_op = pdl_interp.GetAttributeOp(position.attribute_name, parent_val)
+            self.builder.insert(get_attr_op)
+            value = get_attr_op.value
+
+        elif isinstance(position, AttributeLiteralPosition):
+            # Create a constant attribute
+            create_attr_op = pdl_interp.CreateAttributeOp(position.value)
+            self.builder.insert(create_attr_op)
+            value = create_attr_op.attribute
+
+        elif isinstance(position, TypePosition):
+            assert parent_val is not None
+            # Get type of value or attribute
+            if parent_val.type == pdl.AttributeType():
+                raise NotImplementedError(
+                    "pdl_interp.get_attribute_type is not yet implemented"
+                )
+                get_type_op = pdl_interp.GetAttributeTypeOp(parent_val)
+            else:
+                get_type_op = pdl_interp.GetValueTypeOp(parent_val)
+            self.builder.insert(get_type_op)
+            value = get_type_op.result
+
+        elif isinstance(position, TypeLiteralPosition):
+            # Create a constant type or types
+            raw_type_attr = position.value
+            if isinstance(raw_type_attr, TypeAttribute):
+                create_type_op = pdl_interp.CreateTypeOp(raw_type_attr)
+                self.builder.insert(create_type_op)
+                value = create_type_op.result
+            else:
+                # Assume it's an ArrayAttr of types
+                assert isinstance(raw_type_attr, ArrayAttr)
+                type_attr = cast(ArrayAttr[TypeAttribute], raw_type_attr)
+                create_types_op = pdl_interp.CreateTypesOp(type_attr)
+                self.builder.insert(create_types_op)
+                value = create_types_op.result
+
+        elif isinstance(position, ConstraintPosition):
+            # The constraint op has already been created, find it in the map
+            constraint_op = self.constraint_op_map.get(position.constraint)
+            assert constraint_op is not None
+            value = constraint_op.results[position.result_index]
+
+        elif isinstance(position, UsersPosition):
+            raise NotImplementedError("UsersPosition not implemented in lowering")
+        elif isinstance(position, ForEachPosition):
+            raise NotImplementedError("ForEachPosition not implemented in lowering")
+        else:
+            raise NotImplementedError(f"Unhandled position type {type(position)}")
+
+        # Cache and return
+        assert value is not None
+        self.values[position] = value
+        return value
+
+    def generate_bool_node(self, node: BoolNode, block: Block, val: SSAValue) -> None:
+        """Generate operations for a boolean predicate node"""
+
+        question = node.question
+        answer = node.answer
+        region = block.parent
+        assert region is not None, "Block must be in a region"
+
+        # Handle getValue queries first for constraint questions
+        args: list[SSAValue] = []
+        if isinstance(question, EqualToQuestion):
+            args = [self.get_value_at(block, question.other_position)]
+        elif isinstance(question, ConstraintQuestion):
+            for position in question.arg_positions:
+                args.append(self.get_value_at(block, position))
+
+        # Create success block
+        success_block = Block()
+        region.add_block(success_block)
+        failure_block = self.failure_block_stack[-1]
+
+        # Generate predicate check operation based on question type
+        match question:
+            case IsNotNullQuestion():
+                check_op = pdl_interp.IsNotNullOp(val, success_block, failure_block)
+            case OperationNameQuestion():
+                assert isinstance(answer, StringAnswer)
+                check_op = pdl_interp.CheckOperationNameOp(
+                    answer.value, val, success_block, failure_block
+                )
+            case OperandCountQuestion() | OperandCountAtLeastQuestion():
+                assert isinstance(answer, UnsignedAnswer)
+                compare_at_least = isinstance(question, OperandCountAtLeastQuestion)
+                check_op = pdl_interp.CheckOperandCountOp(
+                    val, answer.value, success_block, failure_block, compare_at_least
+                )
+            case ResultCountQuestion() | ResultCountAtLeastQuestion():
+                assert isinstance(answer, UnsignedAnswer)
+                compare_at_least = isinstance(question, ResultCountAtLeastQuestion)
+                check_op = pdl_interp.CheckResultCountOp(
+                    val, answer.value, success_block, failure_block, compare_at_least
+                )
+            case EqualToQuestion():
+                # Get the other value to compare with
+                other_val = self.get_value_at(block, question.other_position)
+                assert isinstance(answer, TrueAnswer)
+                check_op = pdl_interp.AreEqualOp(
+                    val, other_val, success_block, failure_block
+                )
+            case AttributeConstraintQuestion():
+                assert isinstance(answer, AttributeAnswer)
+                check_op = pdl_interp.CheckAttributeOp(
+                    answer.value, val, success_block, failure_block
+                )
+            case TypeConstraintQuestion():
+                assert isinstance(answer, TypeAnswer)
+                if isinstance(val.type, pdl.RangeType):
+                    # Check multiple types
+                    raise NotImplementedError(
+                        "pdl_interp.check_types is not yet implemented"
+                    )
+                    check_op = pdl_interp.CheckTypesOp(
+                        val, answer.value, success_block, failure_block
+                    )
+                else:
+                    # Check single type
+                    assert isinstance(answer.value, TypeAttribute)
+                    check_op = pdl_interp.CheckTypeOp(
+                        answer.value, val, success_block, failure_block
+                    )
+            case ConstraintQuestion():
+                check_op = pdl_interp.ApplyConstraintOp(
+                    question.name,
+                    args,
+                    success_block,
+                    failure_block,
+                    is_negated=question.is_negated,
+                    res_types=question.result_types,
+                )
+                # Store the constraint op for later result access
+                self.constraint_op_map[question] = check_op
+            case _:
+                raise NotImplementedError(f"Unhandled question type {type(question)}")
+
+        self.builder.insert_op(check_op, InsertPoint.at_end(block))
+
+        # Generate matcher for success node
+        if node.success_node:
+            self.generate_matcher(node.success_node, region, success_block)
+
+    def generate_switch_node(
+        self, node: SwitchNode, block: Block, val: SSAValue
+    ) -> None:
+        """Generate operations for a switch node"""
+
+        question = node.question
+        region = block.parent
+        assert region is not None, "Block must be in a region"
+        default_dest = self.failure_block_stack[-1]
+
+        # Handle at-least questions specially
+        if isinstance(
+            question, OperandCountAtLeastQuestion | ResultCountAtLeastQuestion
+        ):
+            # Sort children in reverse numerical order
+            sorted_children = sorted(
+                node.children.items(),
+                key=lambda x: cast(UnsignedAnswer, x[0]).value,
+                reverse=True,
+            )
+
+            # Push temporary entry to failure block stack
+            self.failure_block_stack.append(default_dest)
+
+            for answer, child_node in sorted_children:
+                if child_node:
+                    success_block = self.generate_matcher(child_node, region)
+                    current_check_block = Block()
+                    region.add_block(current_check_block)
+
+                    self.builder.insertion_point = InsertPoint.at_end(
+                        current_check_block
+                    )
+                    assert isinstance(answer, UnsignedAnswer)
+                    if isinstance(question, OperandCountAtLeastQuestion):
+                        check_op = pdl_interp.CheckOperandCountOp(
+                            val,
+                            answer.value,
+                            success_block,
+                            default_dest,
+                            True,
+                        )
+                    else:
+                        check_op = pdl_interp.CheckResultCountOp(
+                            val,
+                            answer.value,
+                            success_block,
+                            default_dest,
+                            True,
+                        )
+                    self.builder.insert(check_op)
+
+                    # Update failure block stack for next child matcher
+                    self.failure_block_stack[-1] = current_check_block
+
+            # Pop the temporary entry from failure block stack
+            first_predicate_block = self.failure_block_stack.pop()
+
+            # Move ops from the first check block into the main block
+            for op in list(first_predicate_block.ops):
+                op.detach()
+                block.add_op(op)
+            assert first_predicate_block.parent is not None
+            first_predicate_block.parent.detach_block(first_predicate_block)
+            first_predicate_block.erase()
+
+            return
+
+        # Generate child blocks and collect case values
+        case_blocks: list[Block] = []
+        case_values: list[Answer] = []
+
+        for answer, child_node in node.children.items():
+            if child_node:
+                child_block = self.generate_matcher(child_node, region)
+                case_blocks.append(child_block)
+                case_values.append(answer)
+
+        # Position builder at end of current block
+        self.builder.insertion_point = InsertPoint.at_end(block)
+
+        # Create switch operation based on question type
+        match question:
+            case OperationNameQuestion():
+                # Extract string values from StringAnswer objects
+                switch_values = [cast(StringAnswer, ans).value for ans in case_values]
+                switch_attr = ArrayAttr([StringAttr(v) for v in switch_values])
+                switch_op = pdl_interp.SwitchOperationNameOp(
+                    switch_attr, val, default_dest, case_blocks
+                )
+            case OperandCountQuestion():
+                # Extract integer values from UnsignedAnswer objects
+                switch_values = [cast(UnsignedAnswer, ans).value for ans in case_values]
+                switch_attr = ArrayAttr([IntegerAttr(v, 32) for v in switch_values])
+                raise NotImplementedError(
+                    "pdl_interp.switch_operand_count is not yet implemented"
+                )
+                switch_op = pdl_interp.SwitchOperandCountOp(
+                    switch_attr, val, default_dest, case_blocks
+                )
+            case ResultCountQuestion():
+                # Extract integer values from UnsignedAnswer objects
+                switch_values = [cast(UnsignedAnswer, ans).value for ans in case_values]
+                switch_attr = ArrayAttr([IntegerAttr(v, 32) for v in switch_values])
+                raise NotImplementedError(
+                    "pdl_interp.switch_result_count is not yet implemented"
+                )
+                switch_op = pdl_interp.SwitchResultCountOp(
+                    switch_attr, val, default_dest, case_blocks
+                )
+            case TypeConstraintQuestion():
+                # Extract type attributes from TypeAnswer objects
+                switch_values = [cast(TypeAnswer, ans).value for ans in case_values]
+                raise NotImplementedError(
+                    "pdl_interp.switch_types is not yet implemented"
+                )
+                if isinstance(val.type, pdl.RangeType):
+                    switch_attr = ArrayAttr(switch_values)
+
+                    switch_op = pdl_interp.SwitchTypesOp(
+                        switch_attr, val, default_dest, case_blocks
+                    )
+                else:
+                    switch_attr = ArrayAttr(switch_values)
+                    switch_op = pdl_interp.SwitchTypeOp(
+                        switch_attr, val, default_dest, case_blocks
+                    )
+            case AttributeConstraintQuestion():
+                # Extract attribute values from AttributeAnswer objects
+                switch_values = [
+                    cast(AttributeAnswer, ans).value for ans in case_values
+                ]
+                switch_attr = ArrayAttr(switch_values)
+                switch_op = pdl_interp.SwitchAttributeOp(
+                    val, switch_attr, default_dest, case_blocks
+                )
+            case _:
+                raise NotImplementedError(f"Unhandled question type {type(question)}")
+
+        self.builder.insert(switch_op)
+
+    def _generate_rewriter_for_apply_native_rewrite(
+        self,
+        op: pdl.ApplyNativeRewriteOp,
+        rewrite_values: dict[SSAValue, SSAValue],
+        map_rewrite_value: Callable[[SSAValue], SSAValue],
+    ):
+        arguments = [map_rewrite_value(arg) for arg in op.args]
+        result_types = [res.type for res in op.res]
+        raise NotImplementedError("pdl_interp.apply_rewrite is not yet implemented")
+        interp_op = pdl_interp.ApplyRewriteOp(
+            arguments, name=op.constraint_name, result_types=result_types
+        )
+        self.rewriter_builder.insert(interp_op)
+        for old_res, new_res in zip(op.results, interp_op.results, strict=True):
+            rewrite_values[old_res] = new_res
+
+    def _generate_rewriter_for_attribute(
+        self,
+        op: pdl.AttributeOp,
+        rewrite_values: dict[SSAValue, SSAValue],
+        map_rewrite_value: Callable[[SSAValue], SSAValue],
+    ):
+        if op.value is not None:
+            new_attr_op = pdl_interp.CreateAttributeOp(op.value)
+            self.rewriter_builder.insert(new_attr_op)
+            rewrite_values[op.output] = new_attr_op.attribute

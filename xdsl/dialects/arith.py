@@ -4,7 +4,9 @@ import abc
 from collections.abc import Mapping, Sequence
 from typing import ClassVar, Literal, cast
 
-from xdsl.dialect_interfaces import ConstantMaterializationInterface
+from xdsl.dialect_interfaces.constant_materialization import (
+    ConstantMaterializationInterface,
+)
 from xdsl.dialects.builtin import (
     AnyFloat,
     AnyFloatConstr,
@@ -1203,6 +1205,8 @@ class BitcastOp(IRDLOperation):
         )
         | MemRefType.constr(element_type=AnyFloatConstr | SignlessIntegerConstraint)
     )
+
+    traits = traits_def(Pure())
 
     assembly_format = "$input attr-dict `:` type($input) `to` type($result)"
 

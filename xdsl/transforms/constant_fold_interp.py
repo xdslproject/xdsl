@@ -7,7 +7,9 @@ from dataclasses import dataclass
 from typing import Any, cast
 
 from xdsl.context import Context
-from xdsl.dialect_interfaces import ConstantMaterializationInterface
+from xdsl.dialect_interfaces.constant_materialization import (
+    ConstantMaterializationInterface,
+)
 from xdsl.dialects import builtin
 from xdsl.dialects.builtin import IntegerAttr, IntegerType
 from xdsl.interpreter import Interpreter

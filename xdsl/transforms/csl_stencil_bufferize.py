@@ -48,13 +48,13 @@ def tensor_to_memref_type(
     return memref.MemRefType(t.get_element_type(), t.get_shape())
 
 
-def to_memref_op(op: SSAValue) -> bufferization.ToMemRefOp:
+def to_buffer_op(op: SSAValue) -> bufferization.ToBufferOp:
     """Creates a `bufferization.to_memref` operation."""
     assert isa(op.type, AnyTensorType)
     r_type = memref.MemRefType(
         op.type.get_element_type(), op.type.get_shape()
     )  # todo set strided+offset here?
-    return bufferization.ToMemRefOp(operands=[op], result_types=[r_type])
+    return bufferization.ToBufferOp(operands=[op], result_types=[r_type])
 
 
 def to_tensor_op(
@@ -97,14 +97,14 @@ class ApplyOpBufferize(RewritePattern):
 
         # convert args
         buf_args: list[SSAValue] = []
-        to_memrefs: list[Operation] = [buf_iter_arg := to_memref_op(op.accumulator)]
+        to_memrefs: list[Operation] = [buf_iter_arg := to_buffer_op(op.accumulator)]
         # in case of subsequent apply ops accessing this accumulator, replace uses with `bufferization.to_memref`
         op.accumulator.replace_by_if(
             buf_iter_arg.memref, lambda use: use.operation != buf_iter_arg
         )
         for arg in [*op.args_rchunk, *op.args_dexchng]:
             if isa(arg.type, TensorType[Attribute]):
-                to_memrefs.append(new_arg := to_memref_op(arg))
+                to_memrefs.append(new_arg := to_buffer_op(arg))
                 buf_args.append(new_arg.memref)
             else:
                 buf_args.append(arg)
@@ -322,7 +322,7 @@ class YieldOpBufferize(RewritePattern):
         args: list[SSAValue] = []
         for arg in op.arguments:
             if isa(arg.type, TensorType[Attribute]):
-                to_memrefs.append(new_arg := to_memref_op(arg))
+                to_memrefs.append(new_arg := to_buffer_op(arg))
                 args.append(new_arg.memref)
             else:
                 args.append(arg)
@@ -414,7 +414,7 @@ class InjectApplyOutsIntoLinalgOuts(RewritePattern):
         for arg, yld_arg in zip(op.dest, yld.arguments, strict=True):
             if (
                 not isinstance(yld_arg, OpResult)
-                or not isinstance(yld_arg.op, bufferization.ToMemRefOp)
+                or not isinstance(yld_arg.op, bufferization.ToBufferOp)
                 or not isinstance(yld_arg.op.tensor, OpResult)
                 or not isinstance(
                     linalg_op := yld_arg.op.tensor.op,

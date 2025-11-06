@@ -47,15 +47,18 @@ from xdsl.irdl import (
     traits_def,
     var_operand_def,
     var_result_def,
+    var_successor_def,
 )
 from xdsl.traits import (
     AlwaysSpeculatable,
     ConditionallySpeculatable,
     HasAncestor,
     HasParent,
+    IsTerminator,
     MemoryEffectKind,
     OptionalSymbolOpInterface,
     RecursivelySpeculatable,
+    ReturnLike,
     SameOperandsAndResultType,
     SymbolOpInterface,
     SymbolTable,
@@ -1028,3 +1031,38 @@ def test_modify_traits():
 
     with pytest.raises(VerifyException, match="Nope"):
         op.verify()
+
+
+def test_return_like():
+    @irdl_op_definition
+    class TestReturnLikeOp(IRDLOperation):
+        name = "test.return_like"
+
+        traits = traits_def(ReturnLike())
+        my_results = var_result_def()
+        my_successors = var_successor_def()
+
+    terminator = TestReturnLikeOp(result_types=((),), successors=((),))
+
+    with pytest.raises(VerifyException, match="test.return_like is not a terminator"):
+        terminator.verify()
+
+    TestReturnLikeOp.traits.add_trait(IsTerminator())
+    terminator.verify()
+
+    results = TestReturnLikeOp(result_types=((i32,),), successors=((),))
+
+    with pytest.raises(
+        VerifyException, match="test.return_like does not have zero results"
+    ):
+        results.verify()
+
+    _ = Region((a := Block(), b := Block()))
+
+    successors = TestReturnLikeOp(result_types=((),), successors=(b,))
+    a.add_op(successors)
+
+    with pytest.raises(
+        VerifyException, match="test.return_like does not have zero successors"
+    ):
+        successors.verify()

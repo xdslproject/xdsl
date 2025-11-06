@@ -15,14 +15,14 @@ jobs:
   build:
     runs-on: ubuntu-latest
     # https://github.com/xdslproject/llvm-docker/pkgs/container/llvm
-    container: ghcr.io/xdslproject/llvm:20.1.7
+    container: ghcr.io/xdslproject/llvm:21.1.1
     strategy:
       matrix:
-        python-version: ['3.10', '3.11', '3.12', '3.13']
+        python-version: ['3.10', '3.11', '3.12', '3.13', '3.14']
 
     env:
       LLVM_SYMBOLIZER_PATH: /usr/lib/llvm-11/bin/llvm-symbolizer
-      COLLECT_COVERAGE: ${{ matrix.python-version == '3.10' }}
+      COLLECT_COVERAGE: ${{ matrix.python-version == '3.13' }}
     steps:
     - uses: actions/checkout@v5
       with:
@@ -76,7 +76,7 @@ jobs:
         make tests-marimo
 
     - name: Combine coverage data
-      if: matrix.python-version == '3.10'
+      if: matrix.python-version == '3.13'
       run: |
         cd xdsl
         uv run coverage combine --append
@@ -84,14 +84,15 @@ jobs:
         uv run coverage xml
 
     - name: Upload coverage to Codecov
-      if: matrix.python-version == '3.10'
+      if: matrix.python-version == '3.13'
       uses: Wandalen/wretry.action@v3
       with:
         action: codecov/codecov-action@v4
         attempt_delay: 10000
         attempt_limit: 10
         with: |
-          fail_ci_if_error: true
+          # Temporary setting to not fail the CI job while we debug recent codecov issues
+          fail_ci_if_error: false
           verbose: true
           root_dir: xdsl
           files: coverage.xml

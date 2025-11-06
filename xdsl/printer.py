@@ -9,7 +9,7 @@ from typing import Any, cast
 
 from typing_extensions import TypeVar, deprecated
 
-from xdsl.dialect_interfaces import OpAsmDialectInterface
+from xdsl.dialect_interfaces.op_asm import OpAsmDialectInterface
 from xdsl.dialects.builtin import (
     DYNAMIC_INDEX,
     AnyFloat,

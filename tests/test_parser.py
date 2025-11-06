@@ -6,7 +6,7 @@ from typing import cast
 import pytest
 
 from xdsl.context import Context
-from xdsl.dialect_interfaces import OpAsmDialectInterface
+from xdsl.dialect_interfaces.op_asm import OpAsmDialectInterface
 from xdsl.dialects.builtin import (
     DYNAMIC_INDEX,
     ArrayAttr,

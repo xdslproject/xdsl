@@ -384,7 +384,7 @@ class ConstraintQuestion(Question):
 
     name: str
     arg_positions: tuple[Position, ...]
-    result_types: tuple[Attribute, ...]
+    result_types: tuple[pdl.AnyPDLType, ...]
     is_negated: bool
 
 

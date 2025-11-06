@@ -1,51 +1,6 @@
-from abc import ABC, abstractmethod
 from collections.abc import Iterable
-from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
-    from xdsl.ir import Attribute, Operation
-
-
-class DialectInterface:
-    """
-    A base class for dialects' interfaces.
-    They usually define functionality which is dialect specific to some transformation.
-
-    For example DialectInlinerInterface defines which dialect operations can be inlined and how.
-    Dialects will implement this interface and the inlining transformation will query them through the base interface.
-
-    The design logic tries to follow MLIR's dialect interfaces closely
-    https://mlir.llvm.org/docs/Interfaces/#dialect-interfaces
-    """
-
-    pass
-
-
-class ConstantMaterializationInterface(DialectInterface, ABC):
-    """
-    An interface for dialects that support constant materialization.
-
-    A dialect that implements this interface should provide the `materialize_constant` method,
-    which creates a constant operation of the dialect given a value and a type.
-
-    This is useful for transformations that need to create constants in a dialect-specific way.
-    """
-
-    @abstractmethod
-    def materialize_constant(
-        self, value: "Attribute", type: "Attribute"
-    ) -> "Operation | None":
-        """
-        Materializes a constant operation in the dialect.
-
-        Args:
-            value (Attribute): The attribute representing the constant value.
-            type (Attribute): The type of the constant.
-
-        Returns:
-            Operation: The created constant operation.
-        """
-        raise NotImplementedError("Dialect does not implement materialize_constant")
+from xdsl.dialect_interfaces import DialectInterface
 
 
 class OpAsmDialectInterface(DialectInterface):

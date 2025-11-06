@@ -10,7 +10,7 @@ from immutabledict import immutabledict
 
 import xdsl.parser as affine_parser
 from xdsl.context import Context
-from xdsl.dialect_interfaces import OpAsmDialectInterface
+from xdsl.dialect_interfaces.op_asm import OpAsmDialectInterface
 from xdsl.dialects.builtin import (
     DYNAMIC_INDEX,
     AffineMapAttr,

@@ -143,10 +143,7 @@ class StencilExternalLoadToHLSExternalLoad(RewritePattern):
             func_arg = new_op.owner.operands[-1]
             new_op = new_op.owner.operands[0]
 
-        if isa(func_arg.type, LLVMPointerType):
-            func_arg_elem_type = func_arg.type.type
-        else:
-            func_arg_elem_type = func_arg.type
+        func_arg_elem_type = func_arg.type
 
         # add_pragma_interface(func_arg, op.attributes["inout"].data, op.parent_op())
         assert isa(op.attributes["inout"], IntAttr)
@@ -307,12 +304,8 @@ class StencilExternalLoadToHLSExternalLoad(RewritePattern):
             shift_buffer_func = FuncOp.external(
                 "shift_buffer",
                 [
-                    LLVMPointerType.typed(
-                        LLVMStructType.from_type_list([data_stream.elem_type])
-                    ),
-                    LLVMPointerType.typed(
-                        LLVMStructType.from_type_list([stencil_stream.elem_type])
-                    ),
+                    LLVMPointerType(),
+                    LLVMPointerType(),
                     i32,
                     i32,
                     i32,
@@ -465,7 +458,7 @@ def transform_apply_into_loop(
     MAX_Y_SIZE = 16
     max_chunk_length = ConstantOp.from_int_and_width(MAX_Y_SIZE, i32)
 
-    remainder = LoadOp(p_remainder)
+    remainder = LoadOp(p_remainder, result_type=i32)
 
     call_get_chunk_size = CallOp(
         "get_chunk_size",
@@ -652,7 +645,7 @@ class ApplyOpToHLS(RewritePattern):
 
         get_number_chunks = FuncOp.external(
             "get_number_chunks",
-            [builtin.IndexType(), LLVMPointerType.typed(i32)],
+            [builtin.IndexType(), LLVMPointerType()],
             [builtin.IndexType()],
         )
 
@@ -749,17 +742,9 @@ class StencilExternalStoreToHLSWriteData(RewritePattern):
 
         if self.n_args == self.total_args:
             write_data_func_name = f"write_data_{self.total_args}"
-            packed_type = LLVMPointerType.typed(
-                LLVMStructType.from_type_list(
-                    [LLVMArrayType.from_size_and_type(8, f64)]
-                )
-            )
+            packed_type = LLVMPointerType()
             assert isinstance(self.out_data_streams[0], HLSStreamOp)
-            out_data_type = self.out_data_streams[0].elem_type
-            LLVMPointerType.typed(out_data_type)
-            out_data_stream_type = LLVMPointerType.typed(
-                LLVMStructType.from_type_list([out_data_type])
-            )
+            out_data_stream_type = LLVMPointerType()
             write_data_func_args_lst = (
                 self.total_args * [out_data_stream_type]
                 + self.total_args * [packed_type]
@@ -984,11 +969,7 @@ class GroupLoadsUnderSameDataflow(RewritePattern):
                 assert isinstance(self.first_load, CallOp)
                 assert isinstance(self.first_load.arguments[1].type, HLSStreamType)
                 load_data_func_name = f"load_data_{self.n_input}"
-                hls_stream_type = LLVMPointerType.typed(
-                    LLVMStructType.from_type_list(
-                        [self.first_load.arguments[1].type.element_type]
-                    )
-                )
+                hls_stream_type = LLVMPointerType()
                 load_data_args_lst = (
                     self.n_input * [self.first_load.arguments[0].type]
                     + self.n_input * [hls_stream_type]
@@ -1056,11 +1037,7 @@ class PackData(RewritePattern):
         ):
             # TODO: this should be generalised by packaging the original type instead of
             # f64. We would need intrinsics to deal with the different types
-            packed_type = LLVMPointerType.typed(
-                LLVMStructType.from_type_list(
-                    [LLVMArrayType.from_size_and_type(8, f64)]
-                )
-            )
+            packed_type = LLVMPointerType()
             parent_func.replace_argument_type(arg_idx, packed_type, rewriter)
 
             for use in func_arg.uses:
@@ -1110,11 +1087,7 @@ class PackDataInStencilField(RewritePattern):
     def match_and_rewrite(self, op: UndefOp, rewriter: PatternRewriter, /):
         if "replace" in op.attributes:
             # packed_type = LLVMPointerType.typed(LLVMArrayType.from_size_and_type(8, f64))
-            packed_type = LLVMPointerType.typed(
-                LLVMStructType.from_type_list(
-                    [LLVMArrayType.from_size_and_type(8, f64)]
-                )
-            )
+            packed_type = LLVMPointerType()
             assert isinstance(op.res.type, llvm.LLVMStructType)
             field_struct = op.res.type
 
@@ -1227,38 +1200,19 @@ class QualifyInterfacesPass(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: func.FuncOp, rewriter: PatternRewriter, /):
-        bundle_idx = 1
         arg_idx = 0
 
         if "kernel" in op.attributes:
             del op.attributes["kernel"]
 
-            for input_arg in op.function_type.inputs:
-                if isinstance(input_arg, LLVMPointerType) and isinstance(
-                    input_arg.type, LLVMStructType
-                ):
-                    interface_func_name = f"_maxi_gmem{bundle_idx}"
-                    interface_func = func.FuncOp.external(
-                        interface_func_name, [input_arg], []
-                    )
-                    self.module.body.block.add_op(interface_func)
-
-                    call_interface_func = func.CallOp(
-                        interface_func_name, [op.body.blocks[0].args[arg_idx]], []
-                    )
-                    rewriter.insert_op(
-                        call_interface_func, InsertPoint.at_start(op.body.blocks[0])
-                    )
-
-                    bundle_idx += 1
-                else:
-                    call_interface_func = llvm.CallOp(
-                        self.interface_coeff_func_name, op.body.blocks[0].args[arg_idx]
-                    )
-                    rewriter.insert_op(
-                        call_interface_func, InsertPoint.at_start(op.body.blocks[0])
-                    )
-                    self.called_coeff_func = True
+            for _ in op.function_type.inputs:
+                call_interface_func = llvm.CallOp(
+                    self.interface_coeff_func_name, op.body.blocks[0].args[arg_idx]
+                )
+                rewriter.insert_op(
+                    call_interface_func, InsertPoint.at_start(op.body.blocks[0])
+                )
+                self.called_coeff_func = True
 
                 arg_idx += 1
 
