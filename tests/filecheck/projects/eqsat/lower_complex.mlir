@@ -37,7 +37,6 @@
 // CHECK-NEXT: %sub = complex.create %4, %5 : complex<f32>
 // CHECK-NEXT: "test.op"(%sub) : (complex<f32>) -> ()
 
-// abs
 %abs = complex.abs %z : complex<f32>
 "test.op"(%abs) : (f32) -> ()
 // CHECK-NEXT: %6 = arith.mulf %zr, %zr : f32
@@ -46,7 +45,6 @@
 // CHECK-NEXT: %abs = math.sqrt %8 : f32
 // CHECK-NEXT: "test.op"(%abs) : (f32) -> ()
 
-// mul
 %mul = complex.mul %z, %w : complex<f32>
 "test.op"(%mul) : (complex<f32>) -> ()
 // CHECK-NEXT: %9 = arith.mulf %zr, %wr : f32
@@ -58,7 +56,6 @@
 // CHECK-NEXT: %mul = complex.create %11, %14 : complex<f32>
 // CHECK-NEXT: "test.op"(%mul) : (complex<f32>) -> ()
 
-// div
 %div = complex.div %z, %w : complex<f32>
 "test.op"(%div) : (complex<f32>) -> ()
 // CHECK-NEXT: %15 = arith.mulf %zr, %wr : f32
