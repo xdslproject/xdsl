@@ -202,3 +202,67 @@ pdl.pattern @mul : benefit(2) {
         pdl.replace %mul_op with %result
     }
 }
+
+pdl.pattern @div : benefit(2) {
+    %complex_f32_type = pdl.type : complex<f32>
+    %f32_type = pdl.type : f32
+
+    // Match real and imaginary parts for both inputs
+    %zr = pdl.operand
+    %zi = pdl.operand
+    %z_op = pdl.operation "complex.create" (%zr, %zi : !pdl.value, !pdl.value) -> (%complex_f32_type : !pdl.type)
+    %z_res = pdl.result 0 of %z_op
+
+    %wr = pdl.operand
+    %wi = pdl.operand
+    %w_op = pdl.operation "complex.create" (%wr, %wi : !pdl.value, !pdl.value) -> (%complex_f32_type : !pdl.type)
+    %w_res = pdl.result 0 of %w_op
+
+    // Match div
+    %div_op = pdl.operation "complex.div" (%z_res, %w_res : !pdl.value, !pdl.value) -> (%complex_f32_type : !pdl.type)
+
+    pdl.rewrite %div_op {
+        // temp real numerator: zr*wr + zi*wi
+        %zr_wr_op = pdl.operation "arith.mulf" (%zr, %wr : !pdl.value, !pdl.value) -> (%f32_type : !pdl.type)
+        %zr_wr = pdl.result 0 of %zr_wr_op
+
+        %zi_wi_op = pdl.operation "arith.mulf" (%zi, %wi : !pdl.value, !pdl.value) -> (%f32_type : !pdl.type)
+        %zi_wi = pdl.result 0 of %zi_wi_op
+
+        %real_num_op = pdl.operation "arith.addf" (%zr_wr, %zi_wi : !pdl.value, !pdl.value) -> (%f32_type : !pdl.type)
+        %real_num = pdl.result 0 of %real_num_op
+
+        // temp imag numerator: zi*wr - zr*wi
+        %zi_wr_op = pdl.operation "arith.mulf" (%zi, %wr : !pdl.value, !pdl.value) -> (%f32_type : !pdl.type)
+        %zi_wr = pdl.result 0 of %zi_wr_op
+
+        %zr_wi_op = pdl.operation "arith.mulf" (%zr, %wi : !pdl.value, !pdl.value) -> (%f32_type : !pdl.type)
+        %zr_wi = pdl.result 0 of %zr_wi_op
+
+        %imag_num_op = pdl.operation "arith.subf" (%zi_wr, %zr_wi : !pdl.value, !pdl.value) -> (%f32_type : !pdl.type)
+        %imag_num = pdl.result 0 of %imag_num_op
+
+        // denominator: wr*wr + wi*wi
+        %wr_wr_op = pdl.operation "arith.mulf" (%wr, %wr : !pdl.value, !pdl.value) -> (%f32_type : !pdl.type)
+        %wr_wr = pdl.result 0 of %wr_wr_op
+
+        %wi_wi_op = pdl.operation "arith.mulf" (%wi, %wi : !pdl.value, !pdl.value) -> (%f32_type : !pdl.type)
+        %wi_wi = pdl.result 0 of %wi_wi_op
+
+        %denom_op = pdl.operation "arith.addf" (%wr_wr, %wi_wi : !pdl.value, !pdl.value) -> (%f32_type : !pdl.type)
+        %denom = pdl.result 0 of %denom_op
+
+        // real = real_num / denom
+        %real_op = pdl.operation "arith.divf" (%real_num, %denom : !pdl.value, !pdl.value) -> (%f32_type : !pdl.type)
+        %real = pdl.result 0 of %real_op
+
+        // imag = imag_num / denom
+        %imag_op = pdl.operation "arith.divf" (%imag_num, %denom : !pdl.value, !pdl.value) -> (%f32_type : !pdl.type)
+        %imag = pdl.result 0 of %imag_op
+
+        // Reconstruct the complex result
+        %result = pdl.operation "complex.create" (%real, %imag : !pdl.value, !pdl.value) -> (%complex_f32_type : !pdl.type)
+
+        pdl.replace %div_op with %result
+    }
+}

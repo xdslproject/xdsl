@@ -59,3 +59,18 @@
 // CHECK-NEXT: "test.op"(%mul) : (complex<f32>) -> ()
 
 // div
+%div = complex.div %z, %w : complex<f32>
+"test.op"(%div) : (complex<f32>) -> ()
+// CHECK-NEXT: %15 = arith.mulf %zr, %wr : f32
+// CHECK-NEXT: %16 = arith.mulf %zi, %wi : f32
+// CHECK-NEXT: %17 = arith.addf %15, %16 : f32
+// CHECK-NEXT: %18 = arith.mulf %zi, %wr : f32
+// CHECK-NEXT: %19 = arith.mulf %zr, %wi : f32
+// CHECK-NEXT: %20 = arith.subf %18, %19 : f32
+// CHECK-NEXT: %21 = arith.mulf %wr, %wr : f32
+// CHECK-NEXT: %22 = arith.mulf %wi, %wi : f32
+// CHECK-NEXT: %23 = arith.addf %21, %22 : f32
+// CHECK-NEXT: %24 = arith.divf %17, %23 : f32
+// CHECK-NEXT: %25 = arith.divf %20, %23 : f32
+// CHECK-NEXT: %div = complex.create %24, %25 : complex<f32>
+// CHECK-NEXT: "test.op"(%div) : (complex<f32>) -> ()
