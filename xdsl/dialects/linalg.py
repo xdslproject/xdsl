@@ -1506,8 +1506,6 @@ class ReduceOp(IRDLOperation):
 
     dimensions = prop_def(DenseArrayBase.constr(i64))
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
-
     def __init__(
         self,
         input: SSAValue,
