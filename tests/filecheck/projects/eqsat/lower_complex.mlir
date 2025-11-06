@@ -38,6 +38,14 @@
 // CHECK-NEXT: "test.op"(%{{.*}}) : (complex<f32>) -> ()
 
 // abs
+%abs = complex.abs %z : complex<f32>
+"test.op"(%abs) : (f32) -> ()
+// CHECK-NEXT: %{{.*}} = arith.mulf %zr, %zr : f32
+// CHECK-NEXT: %{{.*}} = arith.mulf %zi, %zi : f32
+// CHECK-NEXT: %{{.*}} = arith.addf %{{.*}}, %{{.*}} : f32
+// CHECK-NEXT: %{{.*}} = math.sqrt %{{.*}} : f32
+// CHECK-NEXT: "test.op"(%{{.*}}) : (f32) -> ()
+
 
 // mul
 // div

@@ -124,3 +124,34 @@ pdl.pattern @sub : benefit(2) {
         pdl.replace %sub_op with %result
     }
 }
+
+
+pdl.pattern @abs : benefit(2) {
+    %complex_f32_type = pdl.type : complex<f32>
+    %f32_type = pdl.type : f32
+
+    // Match real and imaginary parts
+    %zr = pdl.operand
+    %zi = pdl.operand
+    %z_op = pdl.operation "complex.create" (%zr, %zi : !pdl.value, !pdl.value) -> (%complex_f32_type : !pdl.type)
+    %z_res = pdl.result 0 of %z_op
+
+    // Match abs
+    %abs_op = pdl.operation "complex.abs" (%z_res : !pdl.value) -> (%f32_type : !pdl.type)
+
+    pdl.rewrite %abs_op {
+        // Compute: sqrt(zr*zr + zi*zi)
+        %zr_sq_op = pdl.operation "arith.mulf" (%zr, %zr : !pdl.value, !pdl.value) -> (%f32_type : !pdl.type)
+        %zr_sq = pdl.result 0 of %zr_sq_op
+
+        %zi_sq_op = pdl.operation "arith.mulf" (%zi, %zi : !pdl.value, !pdl.value) -> (%f32_type : !pdl.type)
+        %zi_sq = pdl.result 0 of %zi_sq_op
+
+        %add_op = pdl.operation "arith.addf" (%zr_sq, %zi_sq : !pdl.value, !pdl.value) -> (%f32_type : !pdl.type)
+        %add_res = pdl.result 0 of %add_op
+
+        %sqrt_op = pdl.operation "math.sqrt" (%add_res : !pdl.value) -> (%f32_type : !pdl.type)
+
+        pdl.replace %abs_op with %sqrt_op
+    }
+}
