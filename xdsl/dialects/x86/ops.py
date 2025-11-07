@@ -344,6 +344,43 @@ class DS_Operation(
         return (self.destination, self.source)
 
 
+class DSK_Operation(X86Instruction, X86CustomFormatOperation, ABC):
+    """
+    A base class for x86 operations that have one destination register and one source
+    register.
+    """
+
+    destination: OpResult[AVX512RegisterType] = result_def(AVX512RegisterType)
+    source = operand_def(AVX512RegisterType)
+    mask_reg = operand_def(AVX512MaskRegisterType)
+    z = opt_attr_def(UnitAttr)
+
+    def __init__(
+        self,
+        source: Operation | SSAValue,
+        mask_reg: Operation | SSAValue,
+        *,
+        z: bool = False,
+        comment: str | StringAttr | None = None,
+        destination: AVX512RegisterType,
+    ):
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            operands=[source, mask_reg],
+            attributes={
+                "z": UnitAttr() if z else None,
+                "comment": comment,
+            },
+            result_types=[destination],
+        )
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        register_out = source_with_mask_str(self.destination, self.mask_reg, self.z)
+        return register_out, self.source
+
+
 class R_Operation(X86Instruction, X86CustomFormatOperation, ABC, Generic[R1InvT]):
     """
     A base class for x86 operations that have one register that is read and written to.
@@ -3365,8 +3402,7 @@ class DSS_AddpsOp(
 @irdl_op_definition
 class DS_VmovapdOp(DS_Operation[X86VectorRegisterType, X86VectorRegisterType]):
     """
-    Move aligned packed double precision floating-point values from zmm1 to zmm2 using
-    writemask k1
+    Move aligned packed double precision floating-point values from zmm1 to zmm2
 
     See external [documentation](https://www.felixcloutier.com/x86/movapd).
     """
@@ -3375,10 +3411,21 @@ class DS_VmovapdOp(DS_Operation[X86VectorRegisterType, X86VectorRegisterType]):
 
 
 @irdl_op_definition
+class DSK_VmovapdOp(DSK_Operation):
+    """
+    Move aligned packed double precision floating-point values from zmm1 to zmm2 using
+    writemask k1
+
+    See external [documentation](https://www.felixcloutier.com/x86/movapd).
+    """
+
+    name = "x86.dsk.vmovapd"
+
+
+@irdl_op_definition
 class DS_VmovapsOp(DS_Operation[X86VectorRegisterType, X86VectorRegisterType]):
     """
-    Move aligned packed single precision floating-point values from zmm1 to zmm2 using
-    writemask k1
+    Move aligned packed single precision floating-point values from zmm1 to zmm2
 
     See external [documentation](https://www.felixcloutier.com/x86/movaps).
     """
@@ -3389,7 +3436,7 @@ class DS_VmovapsOp(DS_Operation[X86VectorRegisterType, X86VectorRegisterType]):
 @irdl_op_definition
 class MS_VmovapdOp(MS_Operation[GeneralRegisterType, X86VectorRegisterType]):
     """
-    Move aligned packed double precision floating-point values from zmm1 to m512 using writemask k1
+    Move aligned packed double precision floating-point values from zmm1 to m512
 
     See external [documentation](https://www.felixcloutier.com/x86/movapd).
     """
@@ -3400,7 +3447,7 @@ class MS_VmovapdOp(MS_Operation[GeneralRegisterType, X86VectorRegisterType]):
 @irdl_op_definition
 class MS_VmovapsOp(MS_Operation[GeneralRegisterType, X86VectorRegisterType]):
     """
-    Move aligned packed single precision floating-point values from zmm1 to m512 using writemask k1
+    Move aligned packed single precision floating-point values from zmm1 to m512
 
     See external [documentation](https://www.felixcloutier.com/x86/movaps).
     """
