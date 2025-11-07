@@ -11,7 +11,6 @@ from xdsl.dialects.builtin import (
     ArrayAttr,
     ArrayOfConstraint,
     ComplexType,
-    FixedBitwidthType,
     FloatAttr,
     IntegerAttr,
     IntegerType,
@@ -276,34 +275,6 @@ class BitcastOp(IRDLOperation):
 
     def __init__(self, operand: SSAValue | Operation, result_type: Attribute):
         super().__init__(operands=[operand], result_types=[result_type])
-
-    def verify_(self) -> None:
-        in_type = self.operand.type
-        res_type = self.result.type
-        if not BitcastOp._are_types_bitcastable(in_type, res_type):
-            raise VerifyException(
-                f"Expected ('{in_type}', '{res_type}') to be bitcast between complex and equal arith types"
-            )
-
-    @staticmethod
-    def _have_compatible_types(type_a: Attribute, type_b: Attribute) -> bool:
-        if (
-            isa(type_a, ComplexType[AnyFloat]) and isa(type_b, AnyFloat | IntegerType)
-        ) or (
-            isa(type_a, AnyFloat | IntegerType) and isa(type_b, ComplexType[AnyFloat])
-        ):
-            return True
-        return False
-
-    @staticmethod
-    def _are_types_bitcastable(type_a: Attribute, type_b: Attribute) -> bool:
-        if not BitcastOp._have_compatible_types(type_a, type_b):
-            return False
-        complex_type = type_a if isa(type_a, ComplexType) else type_b
-        arith_type = type_a if isa(type_a, AnyFloat | IntegerType) else type_b
-        return (
-            cast(ComplexType, complex_type).get_element_type().bitwidth << 1
-        ) == cast(FixedBitwidthType, arith_type).bitwidth
 
 
 @irdl_op_definition
