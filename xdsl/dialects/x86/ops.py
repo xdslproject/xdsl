@@ -95,6 +95,7 @@ from .assembly import (
     parse_type_pair,
     print_immediate_value,
     print_type_pair,
+    source_with_mask_str,
 )
 from .attributes import LabelAttr
 from .registers import (
@@ -1128,11 +1129,7 @@ class RSSK_Operation(X86Instruction, X86CustomFormatOperation, ABC):
         )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
-        register_in = (
-            assembly_arg_str(self.register_in) + " " + assembly_arg_str(self.mask_reg)
-        )
-        if self.z is not None:
-            register_in += "{z}"
+        register_in = source_with_mask_str(self.register_in, self.mask_reg, self.z)
         return register_in, self.source1, self.source2
 
     def get_register_constraints(self) -> RegisterConstraints:
