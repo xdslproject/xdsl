@@ -128,6 +128,18 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
     i: int = 0
     """Counter for generating unique names for created operations and e-classes."""
 
+    num_nodes: int = 0
+    """Counter keeping track of the number of e-nodes (non-eclass operations)."""
+
+    num_classes: int = 0
+    """Counter keeping track of the number of e-classes."""
+
+    max_nodes: int | None = None
+    """Optional maximum number of e-nodes to create. If set, once this number is reached
+    rewriting is aborted. Note that the rebuild procedure can reduce the number of e-nodes
+    again leading to a lower final count than this maximum.
+    """
+
     def modification_handler(self, op: Operation):
         """
         Keeps `known_ops` up to date.
@@ -149,8 +161,10 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
             # Skip eclasses instances
             if not isinstance(op, eqsat.AnyEClassOp):
                 self.known_ops[op] = op
+                self.num_classes += 1
             else:
                 self.eclass_union_find.add(op)
+                self.num_nodes += 1
 
     @impl(pdl_interp.GetResultOp)
     def run_get_result(
@@ -354,6 +368,7 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
 
         rewriter = PDLInterpFunctions.get_rewriter(interpreter)
         rewriter.replace_op(to_replace, new_ops=[], new_results=to_keep.results)
+        self.num_classes -= 1
         return True
 
     @impl(pdl_interp.CreateOperationOp)
@@ -446,9 +461,10 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
             InsertPoint.after(new_op),
         )
         eclass_op.result.name_hint = f"c{self.i}"
-        self.i += 1
+        self.num_classes += 1
         if new_op.results[0].name_hint is None:
             new_op.results[0].name_hint = f"n{self.i}"
+        self.num_nodes += 1
         self.i += 1
 
         self.known_ops[new_op] = new_op
@@ -542,6 +558,7 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
                 # This temporarily breaks the invariant since eclass2 will now contain the result of op2 twice.
                 # Callling `eclass_union` will deduplicate this operand.
                 rewriter.replace_op(op1, new_ops=(), new_results=op2.results)
+                self.num_nodes -= 1
 
                 if eclass1 == eclass2:
                     eclass1.operands = OrderedSet(
@@ -595,6 +612,8 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
         """Execute all pending rewrites that were aggregated during matching."""
         rewriter = PDLInterpFunctions.get_rewriter(interpreter)
         for rewriter_op, root, args in self.pending_rewrites:
+            if self.max_nodes is not None and self.num_nodes >= self.max_nodes:
+                break
             rewriter.current_operation = root
 
             self.is_matching = False
