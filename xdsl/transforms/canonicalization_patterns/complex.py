@@ -1,14 +1,7 @@
 from xdsl.dialects import arith, complex
 from xdsl.dialects.builtin import (
-    AnyFloat,
     ArrayAttr,
-    ComplexType,
-    Float16Type,
-    Float32Type,
-    Float64Type,
     FloatAttr,
-    IndexType,
-    IntegerType,
 )
 from xdsl.irdl import Operation
 from xdsl.pattern_rewriter import (
@@ -192,33 +185,15 @@ class BitcastOpPattern(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: complex.BitcastOp, rewriter: PatternRewriter):
         if isinstance(inner_op := op.operand.owner, complex.BitcastOp):
-            if isinstance(
-                res_type := op.result.type,
-                IntegerType
-                | IndexType
-                | Float16Type
-                | Float32Type
-                | Float64Type
-                | ComplexType,
-            ) and isinstance(
-                operand_type := inner_op.operand.type,
-                IntegerType
-                | IndexType
-                | Float16Type
-                | Float32Type
-                | Float64Type
-                | ComplexType,
-            ):
-                if res_type == operand_type:
-                    rewriter.replace_matched_op((), (inner_op.operand,))
-                else:
-                    rewriter.replace_matched_op(
-                        arith.BitcastOp(inner_op.operand, res_type)
-                    )
+            if op.result.type == inner_op.operand.type:
+                rewriter.replace_matched_op((), (inner_op.operand,))
                 return
-        if isinstance(inner_op := op.operand.owner, arith.BitcastOp) and isinstance(
-            inner_op.input.type, AnyFloat
-        ):
+            else:
+                rewriter.replace_matched_op(
+                    arith.BitcastOp(inner_op.operand, op.result.type)
+                )
+            return
+        if isinstance(inner_op := op.operand.owner, arith.BitcastOp):
             rewriter.replace_matched_op(
                 complex.BitcastOp(inner_op.input, op.result.type)
             )
