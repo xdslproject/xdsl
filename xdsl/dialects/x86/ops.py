@@ -89,13 +89,13 @@ from xdsl.utils.exceptions import VerifyException
 from .assembly import (
     AssemblyInstructionArg,
     assembly_arg_str,
+    masked_source_str,
     memory_access_str,
     parse_immediate_value,
     parse_optional_immediate_value,
     parse_type_pair,
     print_immediate_value,
     print_type_pair,
-    source_with_mask_str,
 )
 from .attributes import LabelAttr
 from .registers import (
@@ -377,7 +377,7 @@ class DSK_Operation(X86Instruction, X86CustomFormatOperation, ABC):
         )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
-        register_out = source_with_mask_str(self.destination, self.mask_reg, self.z)
+        register_out = masked_source_str(self.destination, self.mask_reg, self.z)
         return register_out, self.source
 
 
@@ -1166,7 +1166,7 @@ class RSSK_Operation(X86Instruction, X86CustomFormatOperation, ABC):
         )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
-        register_in = source_with_mask_str(self.register_in, self.mask_reg, self.z)
+        register_in = masked_source_str(self.register_in, self.mask_reg, self.z)
         return register_in, self.source1, self.source2
 
     def get_register_constraints(self) -> RegisterConstraints:
