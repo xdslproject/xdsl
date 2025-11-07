@@ -108,7 +108,7 @@ def parse_type_pair(parser: Parser) -> SSAValue:
     return parser.resolve_operand(unresolved, type)
 
 
-def source_with_mask_str(reg_in: SSAValue, mask: SSAValue, z: UnitAttr | None) -> str:
+def masked_source_str(reg_in: SSAValue, mask: SSAValue, z: UnitAttr | None) -> str:
     register_in = assembly_arg_str(reg_in) + " " + assembly_arg_str(mask)
     if z:
         register_in += "{z}"
