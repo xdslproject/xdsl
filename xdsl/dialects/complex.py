@@ -17,7 +17,7 @@ from xdsl.dialects.builtin import (
     IntegerType,
     ParamAttrConstraint,
 )
-from xdsl.interfaces import ConstantLikeInterface
+from xdsl.interfaces import ConstantLikeInterface, HasFolderInterface
 from xdsl.ir import Attribute, Dialect, Operation, SSAValue
 from xdsl.irdl import (
     AnyOf,
@@ -109,7 +109,7 @@ class ComplexUnaryRealResultOperation(IRDLOperation, abc.ABC):
             )
 
 
-class ComplexBinaryOp(IRDLOperation, abc.ABC):
+class ComplexBinaryOp(IRDLOperation, HasFolderInterface, abc.ABC):
     """Base class for binary operations on complex numbers."""
 
     T: ClassVar = VarConstraint("T", ComplexTypeConstr)
@@ -123,6 +123,41 @@ class ComplexBinaryOp(IRDLOperation, abc.ABC):
     assembly_format = (
         "$lhs `,` $rhs (`fastmath` `` $fastmath^)? attr-dict `:` type($result)"
     )
+
+    @staticmethod
+    def py_operation(
+        lhs: tuple[float, float], rhs: tuple[float, float]
+    ) -> tuple[float, float] | None:
+        """
+        Performs a python function corresponding to this operation.
+
+        If `i := py_operation(lhs, rhs)` is an int, then this operation can be
+        canonicalized to a constant with value `i` when the inputs are constants
+        with values `lhs` and `rhs`.
+        """
+        return None
+
+    def fold(self):
+        lhs = self.get_constant(self.lhs)
+        rhs = self.get_constant(self.rhs)
+        if lhs is not None and rhs is not None:
+            if isa(lhs, ArrayAttr[FloatAttr[AnyFloat]]) and isa(
+                rhs, ArrayAttr[FloatAttr[AnyFloat]]
+            ):
+                assert lhs.data[0].type == rhs.data[0].type
+                assert lhs.data[1].type == rhs.data[1].type
+                re_lhs, im_lhs = lhs.data[0].value.data, lhs.data[1].value.data
+                re_rhs, im_rhs = rhs.data[0].value.data, rhs.data[1].value.data
+                res = self.py_operation((re_lhs, im_lhs), (re_rhs, im_rhs))
+                if res is not None:
+                    return (
+                        ArrayAttr(
+                            [
+                                FloatAttr(res[0], lhs.data[0].type),
+                                FloatAttr(res[1], lhs.data[0].type),
+                            ]
+                        ),
+                    )
 
     def __init__(
         self,
@@ -196,6 +231,12 @@ class AddOp(ComplexBinaryOp):
         AddSubCanonicalizationPatternsTrait(),
         ComplexBinaryOpCanonicalizationPatternsTrait(),
     )
+
+    @staticmethod
+    def py_operation(
+        lhs: tuple[float, float], rhs: tuple[float, float]
+    ) -> tuple[float, float] | None:
+        return (lhs[0] + rhs[0], lhs[1] + rhs[1])
 
 
 @irdl_op_definition
@@ -371,6 +412,26 @@ class DivOp(ComplexBinaryOp):
         ComplexBinaryOpCanonicalizationPatternsTrait(),
     )
 
+    @staticmethod
+    def py_operation(
+        lhs: tuple[float, float], rhs: tuple[float, float]
+    ) -> tuple[float, float] | None:
+        re_lhs, im_lhs = lhs[0], lhs[1]
+        re_rhs, im_rhs = rhs[0], rhs[1]
+        if re_rhs == 0.0 and im_rhs == 0.0:
+            if re_lhs == 0.0:
+                real = float("nan")
+            else:
+                real = float("inf") if re_lhs > 0 else float("-inf")
+            if im_lhs == 0.0:
+                imag = float("nan")
+            else:
+                imag = float("inf") if im_lhs > 0 else float("-inf")
+        else:
+            real = (re_lhs * re_rhs + im_lhs * im_rhs) / (re_rhs**2 + im_rhs**2)
+            imag = (im_lhs * re_rhs - re_lhs * im_rhs) / (re_rhs**2 + im_rhs**2)
+        return (real, imag)
+
 
 @irdl_op_definition
 class EqualOp(ComplexCompareOp):
@@ -436,6 +497,14 @@ class MulOp(ComplexBinaryOp):
         Commutative(),
         ComplexBinaryOpCanonicalizationPatternsTrait(),
     )
+
+    @staticmethod
+    def py_operation(
+        lhs: tuple[float, float], rhs: tuple[float, float]
+    ) -> tuple[float, float] | None:
+        re_lhs, im_lhs = lhs[0], lhs[1]
+        re_rhs, im_rhs = rhs[0], rhs[1]
+        return (re_lhs * re_rhs - im_lhs * im_rhs, re_lhs * im_rhs + im_lhs * re_rhs)
 
 
 @irdl_op_definition
@@ -516,6 +585,12 @@ class SubOp(ComplexBinaryOp):
         SubAddCanonicalizationPatternsTrait(),
         ComplexBinaryOpCanonicalizationPatternsTrait(),
     )
+
+    @staticmethod
+    def py_operation(
+        lhs: tuple[float, float], rhs: tuple[float, float]
+    ) -> tuple[float, float] | None:
+        return (lhs[0] - rhs[0], lhs[1] - rhs[1])
 
 
 @irdl_op_definition
