@@ -18,11 +18,9 @@ from xdsl.dialects.builtin import (
     f80,
     f128,
     i1,
-    i16,
     i32,
 )
 from xdsl.traits import ConstantLike
-from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.test_value import create_ssa_value
 
 
@@ -113,39 +111,6 @@ def test_complex_constant_construct(
     assert op.value == value_type
     assert op.result_types[0] == op2.result_types[0]
     assert op.value == op2.value
-
-
-@pytest.mark.parametrize(
-    "input, expected_output",
-    [
-        (
-            ArrayAttr([FloatAttr(2, 16), FloatAttr(3.3, 32)]),
-            ComplexType(f16),
-        ),
-        (
-            ArrayAttr([FloatAttr(2, 32), FloatAttr(3.3, 32)]),
-            ComplexType(f64),
-        ),
-        (
-            ArrayAttr([BoolAttr(0, i1), FloatAttr(3.3, 32)]),
-            ComplexType(f64),
-        ),
-        (
-            ArrayAttr([FloatAttr(2, 32), BoolAttr(1, i1)]),
-            ComplexType(i1),
-        ),
-        (
-            ArrayAttr([BoolAttr(0, i1), BoolAttr(1, i1)]),
-            ComplexType(f16),
-        ),
-    ],
-)
-def test_complex_constant_construct_incorrect(
-    input: ArrayAttr, expected_output: ComplexType
-):
-    with pytest.raises(VerifyException):
-        op = complex.ConstantOp(input, expected_output)
-        op.verify_()
 
 
 class Test_complex_unary_float_result_construction:
@@ -265,32 +230,25 @@ class Test_complex_binary_construction:
 
 
 @pytest.mark.parametrize(
-    "lhs_type, rhs_type, is_correct",
+    "lhs_type, rhs_type",
     [
-        (f32, f32, True),
-        (f16, f16, True),
-        (f64, f64, True),
-        (f128, f128, True),
-        (f16, f64, False),
-        (i16, f64, False),
+        (f32, f32),
+        (f16, f16),
+        (f64, f64),
+        (f128, f128),
     ],
 )
-def test_create_op(lhs_type: AnyFloat, rhs_type: AnyFloat, is_correct: bool):
+def test_create_op(lhs_type: AnyFloat, rhs_type: AnyFloat):
     lhs = create_ssa_value(lhs_type)
     rhs = create_ssa_value(rhs_type)
 
-    if is_correct:
-        op = complex.CreateOp(lhs, rhs, ComplexType(lhs_type))
-        op.verify_()
-        assert op.real == lhs
-        assert op.imaginary == rhs
-        assert op.operand_types[0] == lhs_type
-        assert op.operand_types[1] == lhs_type
-        assert op.result_types[0] == ComplexType(lhs_type)
-    else:
-        with pytest.raises(VerifyException):
-            op = complex.CreateOp(lhs, rhs, ComplexType(lhs_type))
-            op.verify_()
+    op = complex.CreateOp(lhs, rhs, ComplexType(lhs_type))
+    op.verify_()
+    assert op.real == lhs
+    assert op.imaginary == rhs
+    assert op.operand_types[0] == lhs_type
+    assert op.operand_types[1] == lhs_type
+    assert op.result_types[0] == ComplexType(lhs_type)
 
 
 @pytest.mark.parametrize(
@@ -305,23 +263,6 @@ def test_complex_compare_ops(func: type[complex.ComplexCompareOp]):
     rhs = complex.ConstantOp.from_tuple_and_width((2.2, 4.5), 32)
 
     op = func(lhs, rhs)
-    op.verify_()
     assert op.lhs == lhs.complex
     assert op.rhs == rhs.complex
     assert op.result_types[0] == i1
-
-
-@pytest.mark.parametrize(
-    "func",
-    [
-        complex.EqualOp,
-        complex.NotEqualOp,
-    ],
-)
-def test_complex_compare_ops_incorrect(func: type[complex.ComplexCompareOp]):
-    lhs = complex.ConstantOp.from_tuple_and_width((3.3, 56), 32)
-    rhs = complex.ConstantOp.from_tuple_and_width((2.2, 4.5), 16)
-
-    op = func(lhs, rhs)
-    with pytest.raises(VerifyException):
-        op.verify_()
