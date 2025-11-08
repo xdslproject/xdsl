@@ -98,19 +98,6 @@ func.func @test_create_of_real_and_imag(%cplx: complex<f32>) -> complex<f32> {
 }
 
 
-// CHECK-LABEL: func @test_create_of_real_and_imag2
-func.func @test_create_of_real_and_imag2() -> complex<f32> {
-  %cplx = "test.op"() : () -> (complex<f32>)
-  %real = complex.re %cplx : complex<f32>
-  %imag = complex.im %cplx : complex<f32>
-  %complex = complex.create %real, %imag : complex<f32>
-  return %complex : complex<f32>
-
-  // CHECK:       %[[CPLX:.*]] = "test.op"() : () -> complex<f32>
-  // CHECK-NEXT:  return %[[CPLX]] : complex<f32>
-}
-
-
 // CHECK-LABEL: func @test_create_of_real_and_imag_different_operand
 // CHECK-SAME: (%[[CPLX:.*]] : complex<f32>, %[[CPLX2:.*]] : complex<f32>) -> complex<f32>
 func.func @test_create_of_real_and_imag_different_operand(
@@ -250,41 +237,35 @@ func.func @test_complex_conj_conj() -> complex<f32> {
 
 
 // CHECK-LABEL: func @test_complex_add_sub_lhs
-func.func @test_complex_add_sub_lhs() -> complex<f32> {
-  %complex1 = complex.constant [1.0 : f32, 0.0 : f32] : complex<f32>
-  %complex2 = complex.constant [0.0 : f32, 2.0 : f32] : complex<f32>
+// CHECK-SAME: (%[[COMPLEX1:.*]] : complex<f32>, %[[COMPLEX2:.*]] : complex<f32>) -> complex<f32>
+func.func @test_complex_add_sub_lhs(%complex1 : complex<f32>, %complex2 : complex<f32>) -> complex<f32> {
   %sub = complex.sub %complex1, %complex2 : complex<f32>
   %add = complex.add %sub, %complex2 : complex<f32>
   return %add : complex<f32>
 
-  // CHECK:       %[[ADD:.*]] = complex.constant [1.000000e+00 : f32, 0.000000e+00 : f32] : complex<f32>
-  // CHECK-NEXT:  return %[[ADD]] : complex<f32>
+  // CHECK:  return %[[COMPLEX1]] : complex<f32>
 }
 
 
 // CHECK-LABEL: func @test_complex_add_sub_rhs
-func.func @test_complex_add_sub_rhs() -> complex<f32> {
-  %complex1 = complex.constant [1.0 : f32, 0.0 : f32] : complex<f32>
-  %complex2 = complex.constant [0.0 : f32, 2.0 : f32] : complex<f32>
+// CHECK-SAME: (%[[COMPLEX1:.*]] : complex<f32>, %[[COMPLEX2:.*]] : complex<f32>) -> complex<f32>
+func.func @test_complex_add_sub_rhs(%complex1 : complex<f32>, %complex2 : complex<f32>) -> complex<f32> {
   %sub = complex.sub %complex1, %complex2 : complex<f32>
   %add = complex.add %complex2, %sub : complex<f32>
   return %add : complex<f32>
 
-  // CHECK:       %[[ADD:.*]] = complex.constant [1.000000e+00 : f32, 0.000000e+00 : f32] : complex<f32>
-  // CHECK-NEXT:  return %[[ADD]] : complex<f32>
+  // CHECK:  return %[[COMPLEX1]] : complex<f32>
 }
 
 
 // CHECK-LABEL: func @test_complex_sub_add_lhs
-func.func @test_complex_sub_add_lhs() -> complex<f32> {
-  %complex1 = complex.constant [1.0 : f32, 0.0 : f32] : complex<f32>
-  %complex2 = complex.constant [0.0 : f32, 2.0 : f32] : complex<f32>
+// CHECK-SAME: (%[[COMPLEX1:.*]] : complex<f32>, %[[COMPLEX2:.*]] : complex<f32>) -> complex<f32>
+func.func @test_complex_sub_add_lhs(%complex1 : complex<f32>, %complex2 : complex<f32>) -> complex<f32> {
   %add = complex.add %complex1, %complex2 : complex<f32>
   %sub = complex.sub %add, %complex2 : complex<f32>
   return %sub : complex<f32>
 
-  // CHECK:       %[[SUB:.*]] = complex.constant [1.000000e+00 : f32, 0.000000e+00 : f32] : complex<f32>
-  // CHECK-NEXT:  return %[[SUB]] : complex<f32>
+  // CHECK:  return %[[COMPLEX1]] : complex<f32>
 }
 
 
