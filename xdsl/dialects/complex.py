@@ -130,13 +130,13 @@ class ComplexBinaryOp(IRDLOperation, HasFolderInterface, abc.ABC):
         """
         Performs a python function corresponding to this operation.
 
-        If `i := py_operation(lhs, rhs)` is an int, then this operation can be
+        If `i := py_operation(lhs, rhs)` is an tuple[float, float], then this operation can be
         canonicalized to a constant with value `i` when the inputs are constants
         with values `lhs` and `rhs`.
         """
         return None
 
-    def fold(self):
+    def fold(self) -> tuple[ArrayAttr[FloatAttr[AnyFloat]]] | None:
         lhs = self.get_constant(self.lhs)
         rhs = self.get_constant(self.rhs)
         if lhs is not None and rhs is not None:
