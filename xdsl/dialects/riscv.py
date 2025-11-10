@@ -328,11 +328,13 @@ class Registers(ABC):
 
 
 ui5 = IntegerType(5, Signedness.UNSIGNED)
+ui6 = IntegerType(6, Signedness.UNSIGNED)
 si20 = IntegerType(20, Signedness.SIGNED)
 si12 = IntegerType(12, Signedness.SIGNED)
 i12 = IntegerType(12, Signedness.SIGNLESS)
 i20 = IntegerType(20, Signedness.SIGNLESS)
 UImm5Attr = IntegerAttr[Annotated[IntegerType, ui5]]
+UImm6Attr = IntegerAttr[Annotated[IntegerType, ui6]]
 SImm12Attr = IntegerAttr[Annotated[IntegerType, si12]]
 SImm20Attr = IntegerAttr[Annotated[IntegerType, si20]]
 Imm12Attr = IntegerAttr[Annotated[IntegerType, i12]]
@@ -815,7 +817,7 @@ class RdRsImmShiftOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
     This is called I-Type in the RISC-V specification.
 
     Shifts by a constant are encoded as a specialization of the I-type format.
-    The shift amount is encoded in the lower 5 bits of the I-immediate field for RV32
+    The shift amount is encoded in the lower 6 bits of the I-immediate field for RV64
 
     For RV32I, SLLI, SRLI, and SRAI generate an illegal instruction exception if
     imm[5] 6 != 0 but the shift amount is encoded in the lower 6 bits of the I-immediate field for RV64I.
@@ -823,18 +825,18 @@ class RdRsImmShiftOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
 
     rd = result_def(IntRegisterType)
     rs1 = operand_def(IntRegisterType)
-    immediate = attr_def(base(UImm5Attr) | base(LabelAttr))
+    immediate = attr_def(base(UImm6Attr) | base(LabelAttr))
 
     def __init__(
         self,
         rs1: Operation | SSAValue,
-        immediate: int | UImm5Attr | str | LabelAttr,
+        immediate: int | UImm6Attr | str | LabelAttr,
         *,
         rd: IntRegisterType = Registers.UNALLOCATED_INT,
         comment: str | StringAttr | None = None,
     ):
         if isinstance(immediate, int):
-            immediate = IntegerAttr(immediate, ui5)
+            immediate = IntegerAttr(immediate, ui6)
         elif isinstance(immediate, str):
             immediate = LabelAttr(immediate)
 
@@ -855,7 +857,7 @@ class RdRsImmShiftOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
-        attributes["immediate"] = parse_immediate_value(parser, ui5)
+        attributes["immediate"] = parse_immediate_value(parser, ui6)
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
@@ -1547,7 +1549,7 @@ class SlliOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
 class SlliOp(RdRsImmShiftOperation):
     """
     Performs logical left shift on the value in register rs1 by the shift amount
-    held in the lower 5 bits of the immediate.
+    held in the lower 6 bits of the immediate.
 
     x[rd] = x[rs1] << shamt
 
@@ -1571,7 +1573,7 @@ class SrliOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
 class SrliOp(RdRsImmShiftOperation):
     """
     Performs logical right shift on the value in register rs1 by the shift amount held
-    in the lower 5 bits of the immediate.
+    in the lower 6 bits of the immediate.
 
     x[rd] = x[rs1] >>u shamt
 
@@ -1587,7 +1589,7 @@ class SrliOp(RdRsImmShiftOperation):
 class SraiOp(RdRsImmShiftOperation):
     """
     Performs arithmetic right shift on the value in register rs1 by the shift amount
-    held in the lower 5 bits of the immediate.
+    held in the lower 6 bits of the immediate.
 
     x[rd] = x[rs1] >>s shamt
 
@@ -1618,7 +1620,7 @@ class AddiwOp(RdRsImmIntegerOperation):
 class SlliwOp(RdRsImmShiftOperation):
     """
     Performs logical left shift on the 32-bit of value in register rs1 by the
-    shift amount held in the lower 5 bits of the immediate.
+    shift amount held in the lower 6 bits of the immediate.
     ```
     x[rd] = sext((x[rs1] << shamt)[31:0])
     ```
@@ -1634,7 +1636,7 @@ class SlliwOp(RdRsImmShiftOperation):
 class SrliwOp(RdRsImmShiftOperation):
     """
     Performs logical right shift on the 32-bit of value in register rs1 by the shift amount held in the
-    lower 5 bits of the immediate.
+    lower 6 bits of the immediate.
     ```
     x[rd] = sext(x[rs1][31:0] >>u shamt)
     ```
