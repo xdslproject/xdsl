@@ -462,9 +462,9 @@
 // CHECK-GENERIC-NEXT:      %andi = "riscv.andi"(%0) {immediate = 1 : si12} : (!riscv.reg) -> !riscv.reg
 // CHECK-GENERIC-NEXT:      %ori = "riscv.ori"(%0) {immediate = 1 : si12} : (!riscv.reg) -> !riscv.reg
 // CHECK-GENERIC-NEXT:      %xori = "riscv.xori"(%0) {immediate = 1 : si12} : (!riscv.reg) -> !riscv.reg
-// CHECK-GENERIC-NEXT:      %slli = "riscv.slli"(%0) {immediate = 1 : ui5} : (!riscv.reg) -> !riscv.reg
-// CHECK-GENERIC-NEXT:      %srli = "riscv.srli"(%0) {immediate = 1 : ui5} : (!riscv.reg) -> !riscv.reg
-// CHECK-GENERIC-NEXT:      %srai = "riscv.srai"(%0) {immediate = 1 : ui5} : (!riscv.reg) -> !riscv.reg
+// CHECK-GENERIC-NEXT:      %slli = "riscv.slli"(%0) {immediate = 1 : ui6} : (!riscv.reg) -> !riscv.reg
+// CHECK-GENERIC-NEXT:      %srli = "riscv.srli"(%0) {immediate = 1 : ui6} : (!riscv.reg) -> !riscv.reg
+// CHECK-GENERIC-NEXT:      %srai = "riscv.srai"(%0) {immediate = 1 : ui6} : (!riscv.reg) -> !riscv.reg
 // CHECK-GENERIC-NEXT:      %lui = "riscv.lui"() {immediate = 1 : i20} : () -> !riscv.reg
 // CHECK-GENERIC-NEXT:      %auipc = "riscv.auipc"() {immediate = 1 : i20} : () -> !riscv.reg
 // CHECK-GENERIC-NEXT:      %mv = "riscv.mv"(%0) : (!riscv.reg) -> !riscv.reg
@@ -473,7 +473,7 @@
 // CHECK-GENERIC-NEXT:      %zextb = "riscv.zext.b"(%0) : (!riscv.reg) -> !riscv.reg
 // CHECK-GENERIC-NEXT:      %zextw = "riscv.zext.w"(%0) : (!riscv.reg) -> !riscv.reg
 // CHECK-GENERIC-NEXT:      %sextw = "riscv.sext.w"(%0) : (!riscv.reg) -> !riscv.reg
-// CHECK-GENERIC-NEXT:      %srliw = "riscv.srliw"(%0) {immediate = 1 : ui5} : (!riscv.reg) -> !riscv.reg
+// CHECK-GENERIC-NEXT:      %srliw = "riscv.srliw"(%0) {immediate = 1 : ui6} : (!riscv.reg) -> !riscv.reg
 // CHECK-GENERIC-NEXT:      %sraiw = "riscv.sraiw"(%0) {immediate = 1 : si12} : (!riscv.reg) -> !riscv.reg
 // CHECK-GENERIC-NEXT:      %add = "riscv.add"(%0, %1) : (!riscv.reg, !riscv.reg) -> !riscv.reg
 // CHECK-GENERIC-NEXT:      %slt = "riscv.slt"(%0, %1) : (!riscv.reg, !riscv.reg) -> !riscv.reg
@@ -543,8 +543,8 @@
 // CHECK-GENERIC-NEXT:      %remuw = "riscv.remuw"(%0, %1) : (!riscv.reg, !riscv.reg) -> !riscv.reg
 // CHECK-GENERIC-NEXT:      %rol = "riscv.rol"(%0, %1) : (!riscv.reg, !riscv.reg) -> !riscv.reg
 // CHECK-GENERIC-NEXT:      %ror = "riscv.ror"(%0, %1) : (!riscv.reg, !riscv.reg) -> !riscv.reg
-// CHECK-GENERIC-NEXT:      %rori = "riscv.rori"(%0) {immediate = 1 : ui5} : (!riscv.reg) -> !riscv.reg
-// CHECK-GENERIC-NEXT:      %roriw = "riscv.roriw"(%0) {immediate = 1 : ui5} : (!riscv.reg) -> !riscv.reg
+// CHECK-GENERIC-NEXT:      %rori = "riscv.rori"(%0) {immediate = 1 : ui6} : (!riscv.reg) -> !riscv.reg
+// CHECK-GENERIC-NEXT:      %roriw = "riscv.roriw"(%0) {immediate = 1 : ui6} : (!riscv.reg) -> !riscv.reg
 // CHECK-GENERIC-NEXT:      %rolw = "riscv.rolw"(%0, %1) : (!riscv.reg, !riscv.reg) -> !riscv.reg
 // CHECK-GENERIC-NEXT:      %rorw = "riscv.rorw"(%0, %1) : (!riscv.reg, !riscv.reg) -> !riscv.reg
 // CHECK-GENERIC-NEXT:      %bclr = "riscv.bclr"(%0, %1) : (!riscv.reg, !riscv.reg) -> !riscv.reg
