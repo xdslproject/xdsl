@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import platform
 from collections import Counter
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Iterator
 from dataclasses import dataclass, field
 from typing import (
     IO,
@@ -34,6 +34,10 @@ from xdsl.traits import (
 )
 from xdsl.utils.exceptions import InterpretationError
 from xdsl.utils.scoped_dict import ScopedDict
+
+# Ignore rules that forbid Any as function arguments and return values
+# ruff: noqa: ANN401
+
 
 PythonValues: TypeAlias = tuple[Any, ...]
 """
@@ -514,7 +518,7 @@ class _InterpreterFunctionImpls:
         default_factory=_CALLABLE_IMPL_DICT
     )
 
-    def register_from(self, ft: InterpreterFunctions, /, override: bool):
+    def register_from(self, ft: InterpreterFunctions, /, override: bool) -> None:
         impls = ft._impls()  # pyright: ignore[reportPrivateUsage]
         for op_type, impl in impls:
             if op_type in self._impl_dict and not override:
@@ -685,7 +689,7 @@ class Interpreter:
         """
         return tuple(self._ctx[value] for value in values)
 
-    def set_values(self, pairs: Iterable[tuple[SSAValue, Any]]):
+    def set_values(self, pairs: Iterable[tuple[SSAValue, Any]]) -> None:
         """
         Set values to current scope.
         Raises InterpretationError if len(ssa_values) != len(result_values), or
@@ -865,7 +869,7 @@ class Interpreter:
         functions: type[InterpreterFunctions],
         key: str,
         value: Any,
-    ):
+    ) -> None:
         if functions not in self._impl_data:
             functions_data: dict[str, Any] = {}
             self._impl_data[functions] = functions_data
@@ -873,23 +877,23 @@ class Interpreter:
             functions_data = self._impl_data[functions]
         functions_data[key] = value
 
-    def print(self, *args: Any, **kwargs: Any):
+    def print(self, *args: Any, **kwargs: Any) -> None:
         """Print to current file."""
         print(*args, **kwargs, file=self.file)
 
-    def interpreter_assert(self, condition: bool, message: str | None = None):
+    def interpreter_assert(self, condition: bool, message: str | None = None) -> None:
         """Raise InterpretationError if condition is not satisfied."""
         if not condition:
             self.raise_error(message)
 
-    def scope_names(self):
+    def scope_names(self) -> Iterator[str]:
         ctx = self._ctx
 
         while ctx is not None:
             yield ctx.name or "unknown"
             ctx = ctx.parent
 
-    def raise_error(self, message: str | None = None):
+    def raise_error(self, message: str | None = None) -> None:
         scope_description = "/".join(self.scope_names())
         raise InterpretationError(f"AssertionError: ({scope_description})({message})")
 

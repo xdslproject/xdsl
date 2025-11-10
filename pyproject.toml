@@ -121,12 +121,13 @@ extend-include = ["*.ipynb", "*.pyi"]
 exclude = [".venv", "docs/marimo"]
 
 [tool.ruff.lint]
-select = ["E", "F", "W", "I", "UP", "PT", "TID251", "INP", "PYI"]
+select = ["E", "F", "W", "I", "UP", "PT", "TID251", "INP", "PYI", "ANN"]
 ignore = [
     "E741",   # https://beta.ruff.rs/docs/rules/ambiguous-variable-name/
     "PT006",  # https://beta.ruff.rs/docs/rules/pytest-parametrize-names-wrong-type/
     "PT012",  # https://beta.ruff.rs/docs/rules/pytest-raises-with-multiple-statements/
-    "PYI041", # https://docs.astral.sh/ruff/rules/redundant-numeric-union
+    "PYI041", # https://docs.astral.sh/ruff/rules/redundant-numeric-union,
+    "ANN204", # https://docs.astral.sh/ruff/rules/missing-return-type-special-method/
 ]
 
 [tool.ruff.lint.pycodestyle]
@@ -166,7 +167,7 @@ max-line-length = 130
 "docs/tutorial.ipynb" = ["ALL"]
 "docs/xdsl-introduction.ipynb" = ["ALL"]
 "scripts/**" = ["INP"]
-"tests/*" = ["E501", "INP"]
+"tests/*" = ["E501", "INP", "ANN"]
 "tests/test_declarative_assembly_format.py" = ["F811"]
 "tests/test_frontend_type_conversion.py" = ["PYI042"]  # typealias i32 error
 "xdsl/frontend/pyast/dialects/builtin.py" = ["PYI042"] # typealias i32 error

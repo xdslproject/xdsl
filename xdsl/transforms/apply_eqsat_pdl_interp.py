@@ -28,7 +28,7 @@ class EqsatConstraintFunctions(InterpreterFunctions):
     @impl_external("is_not_unsound")
     def run_is_not_unsound(
         self, interp: Interpreter, _op: Operation, args: PythonValues
-    ):
+    ) -> PythonValues:
         assert isinstance(op := args[0], Operation)
         return "unsound" not in op.attributes, ()
 
@@ -38,7 +38,7 @@ def apply_eqsat_pdl_interp(
     ctx: Context,
     pdl_interp_module: builtin.ModuleOp,
     max_iterations: int = _DEFAULT_MAX_ITERATIONS,
-):
+) -> None:
     matcher = SymbolTable.lookup_symbol(pdl_interp_module, "matcher")
     assert isinstance(matcher, pdl_interp.FuncOp)
     assert matcher is not None, "matcher function not found"

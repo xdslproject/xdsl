@@ -421,7 +421,7 @@ class FuseMultiplyAddD(RewritePattern):
 
 class BitwiseAndByZero(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: riscv.AndOp, rewriter: PatternRewriter):
+    def match_and_rewrite(self, op: riscv.AndOp, rewriter: PatternRewriter) -> None:
         """
         rewrite pattern to optimize bitwise and by 0
         x & 0 = 0
@@ -442,7 +442,7 @@ class BitwiseAndByZero(RewritePattern):
 
 class BitwiseAndBySelf(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: riscv.AndOp, rewriter: PatternRewriter):
+    def match_and_rewrite(self, op: riscv.AndOp, rewriter: PatternRewriter) -> None:
         """
         x & x = x
         """
@@ -453,7 +453,7 @@ class BitwiseAndBySelf(RewritePattern):
 
 class BitwiseOrByZero(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: riscv.OrOp, rewriter: PatternRewriter):
+    def match_and_rewrite(self, op: riscv.OrOp, rewriter: PatternRewriter) -> None:
         """
         x | 0 = x
         """
@@ -473,7 +473,7 @@ class BitwiseOrByZero(RewritePattern):
 
 class BitwiseOrBySelf(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: riscv.OrOp, rewriter: PatternRewriter):
+    def match_and_rewrite(self, op: riscv.OrOp, rewriter: PatternRewriter) -> None:
         """
         x | x = x
         """
@@ -484,7 +484,7 @@ class BitwiseOrBySelf(RewritePattern):
 
 class XorBySelf(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: riscv.XorOp, rewriter: PatternRewriter):
+    def match_and_rewrite(self, op: riscv.XorOp, rewriter: PatternRewriter) -> None:
         """
         x ^ x = 0
         """
@@ -500,7 +500,7 @@ class XorBySelf(RewritePattern):
 
 class BitwiseXorByZero(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: riscv.XorOp, rewriter: PatternRewriter):
+    def match_and_rewrite(self, op: riscv.XorOp, rewriter: PatternRewriter) -> None:
         """
         x ^ 0 = x
         """
