@@ -227,16 +227,16 @@ def test_immediate_pseudo_inst():
 
 
 def test_immediate_shift_inst():
-    # Shift instructions (SLLI, SRLI, SRAI) - 5-bits immediate
+    # Shift instructions (SLLI, SRLI, SRAI) - 6-bits immediate
     a1 = create_ssa_value(riscv.Registers.A1)
 
     with pytest.raises(VerifyException):
-        riscv.SlliOp(a1, 1 << 5, rd=riscv.Registers.A0)
+        riscv.SlliOp(a1, 1 << 6, rd=riscv.Registers.A0)
 
     with pytest.raises(VerifyException):
         riscv.SlliOp(a1, -1, rd=riscv.Registers.A0)
 
-    riscv.SlliOp(a1, (1 << 5) - 1, rd=riscv.Registers.A0)
+    riscv.SlliOp(a1, (1 << 6) - 1, rd=riscv.Registers.A0)
 
 
 def test_float_register():
