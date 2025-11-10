@@ -126,7 +126,7 @@ ignore = [
     "E741",   # https://beta.ruff.rs/docs/rules/ambiguous-variable-name/
     "PT006",  # https://beta.ruff.rs/docs/rules/pytest-parametrize-names-wrong-type/
     "PT012",  # https://beta.ruff.rs/docs/rules/pytest-raises-with-multiple-statements/
-    "PYI041", # https://docs.astral.sh/ruff/rules/redundant-numeric-union,
+    "PYI041", # https://docs.astral.sh/ruff/rules/redundant-numeric-union/
     "ANN204", # https://docs.astral.sh/ruff/rules/missing-return-type-special-method/
 ]
 
