@@ -817,6 +817,7 @@ class OpResult(SSAValue[AttributeCovT], Generic[AttributeCovT]):
     def __repr__(self) -> str:
         return (
             f"<{self.__class__.__name__}[{self.type}]"
+            f" name_hint: {self.name_hint},"
             f" index: {self.index},"
             f" operation: {self.op.name},"
             f" uses: {self.uses.get_length()}>"
@@ -840,6 +841,7 @@ class BlockArgument(SSAValue[AttributeCovT], Generic[AttributeCovT]):
     def __repr__(self) -> str:
         return (
             f"<{self.__class__.__name__}[{self.type}]"
+            f" name_hint: {self.name_hint},"
             f" index: {self.index},"
             f" uses: {self.uses.get_length()}>"
         )
