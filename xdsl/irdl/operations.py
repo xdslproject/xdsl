@@ -82,7 +82,7 @@ IRDLOperationContrT = TypeVar(
 )
 
 
-@dataclass(init=False)
+@dataclass(init=False, repr=False)
 class IRDLOperation(Operation):
     assembly_format: ClassVar[str | None] = None
     custom_directives: ClassVar[tuple[type[CustomDirective], ...]] = ()
@@ -1478,12 +1478,14 @@ def irdl_op_verify_arg_list(
         try:
             arg_def.constr.verify(arg_types, constraint_context)
         except VerifyException as e:
-            if length == 1:
-                pos = f"{idx}"
+            if length == 0:
+                pos = f"expected at position {idx}"
+            elif length == 1:
+                pos = f"at position {idx}"
             else:
-                pos = f"{idx} to {idx + length - 1}"
+                pos = f"at positions {idx} to {idx + length - 1}"
             raise VerifyException(
-                f"{get_construct_name(construct)} at position {pos} does not "
+                f"{get_construct_name(construct)} '{arg_name}' {pos} does not "
                 f"verify:\n{e}"
             ) from e
         idx += length

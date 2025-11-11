@@ -311,6 +311,43 @@ def test_rm_vops(
     assert op.destination.type == dest
 
 
+@pytest.mark.parametrize(
+    "OpClass, dest, operand1, operand2",
+    [
+        (
+            x86.ops.DSS_AddpdOp,
+            x86.registers.YMM0,
+            x86.registers.YMM1,
+            x86.registers.YMM2,
+        ),
+        (
+            x86.ops.DSS_AddpsOp,
+            x86.registers.YMM0,
+            x86.registers.YMM1,
+            x86.registers.YMM2,
+        ),
+    ],
+)
+def test_dss_vops(
+    OpClass: type[
+        x86.ops.DSS_Operation[
+            x86.registers.X86VectorRegisterType,
+            x86.registers.X86VectorRegisterType,
+            x86.registers.X86VectorRegisterType,
+        ]
+    ],
+    dest: x86.registers.X86VectorRegisterType,
+    operand1: x86.registers.X86VectorRegisterType,
+    operand2: x86.registers.X86VectorRegisterType,
+):
+    param1 = create_ssa_value(operand1)
+    param2 = create_ssa_value(operand2)
+    op = OpClass(param1, param2, destination=dest)
+    assert op.destination.type == dest
+    assert op.source1.type == operand1
+    assert op.source2.type == operand2
+
+
 def test_get_constant_value():
     U = x86.registers.UNALLOCATED_GENERAL
     unknown_value = create_ssa_value(U)
@@ -367,3 +404,34 @@ def test_get_constant_value():
 )
 def test_read_effects(op: type[Operation]):
     assert MemoryReadEffect() in op.traits.traits
+
+
+def test_jmp_numeric_label_not_implemented():
+    label_op = x86.ops.LabelOp("123")
+    op = x86.ops.C_JmpOp(block_values=[], successor=Block([label_op]))
+    with pytest.raises(
+        NotImplementedError,
+        match="Assembly printing for jumps to numeric labels not implemented",
+    ):
+        op.assembly_line_args()
+    label_op.label = x86.attributes.LabelAttr("hello")
+    assert op.assembly_line_args() == ("hello",)
+
+
+def test_conditional_jump_numeric_label_not_implemented():
+    label_op = x86.ops.LabelOp("123")
+    rflags = create_ssa_value(x86.registers.RFLAGS)
+    op = x86.ops.C_JeOp(
+        rflags=rflags,
+        then_values=[],
+        else_values=[],
+        then_block=Block([label_op]),
+        else_block=Block([x86.ops.LabelOp("loop_start")]),
+    )
+    with pytest.raises(
+        NotImplementedError,
+        match="Assembly printing for jumps to numeric labels not implemented",
+    ):
+        op.assembly_line_args()
+    label_op.label = x86.attributes.LabelAttr("hello")
+    assert op.assembly_line_args() == ("hello",)
