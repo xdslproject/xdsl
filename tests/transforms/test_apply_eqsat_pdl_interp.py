@@ -21,7 +21,26 @@ def test_callback():
         a000_c = eqsat.EClassOp(a000.result)
         test.TestOp(operands=(a000_c.result,))
 
-    # a + 0 -> a
+    # pattern.mlir
+    # // a + 0 -> a
+    # pdl.pattern : benefit(1) {
+    #     %type = pdl.type : f32
+    #     %a = pdl.operand
+
+    #     // Construct a constant 0.0 of type f32
+    #     %zero_attr = pdl.attribute = 0.000000e+00 : f32
+    #     %zero_op = pdl.operation "arith.constant" {"value"=%zero_attr} -> (%type : !pdl.type)
+    #     %zero_val = pdl.result 0 of %zero_op
+
+    #     // a + 0
+    #     %add_op = pdl.operation "arith.addf" (%a, %zero_val : !pdl.value, !pdl.value) -> (%type : !pdl.type)
+
+    #     pdl.rewrite %add_op {
+    #         pdl.replace %add_op with (%a : !pdl.value)
+    #     }
+    # }
+
+    # xdsl-opt pattern.mlir -p eqsat-pdl-to-pdl-interp
     module_str = """
 builtin.module {
   pdl_interp.func @matcher(%0 : !pdl.operation) {
