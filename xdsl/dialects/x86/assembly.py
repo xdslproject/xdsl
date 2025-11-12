@@ -110,7 +110,7 @@ def parse_type_pair(parser: Parser) -> SSAValue:
 
 def masked_source_str(reg_in: SSAValue, mask: SSAValue, z: UnitAttr | None) -> str:
     """
-    Tests printing format for the register followed by the {k} (and optionally {z})
+    Returns string for asm printing of the register followed by the {k} (and optionally {z})
     specifiers, in AVX512 masked operations
     """
     register_in = assembly_arg_str(reg_in) + " " + assembly_arg_str(mask)
