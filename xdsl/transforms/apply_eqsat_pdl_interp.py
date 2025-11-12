@@ -1,4 +1,5 @@
 import os
+from collections.abc import Callable
 from dataclasses import dataclass
 
 from xdsl.context import Context
@@ -38,6 +39,7 @@ def apply_eqsat_pdl_interp(
     ctx: Context,
     pdl_interp_module: builtin.ModuleOp,
     max_iterations: int = _DEFAULT_MAX_ITERATIONS,
+    callback: Callable[[builtin.ModuleOp], None] | None = None,
 ):
     matcher = SymbolTable.lookup_symbol(pdl_interp_module, "matcher")
     assert isinstance(matcher, pdl_interp.FuncOp)
@@ -67,6 +69,8 @@ def apply_eqsat_pdl_interp(
             break
 
         implementations.rebuild(interpreter)
+        if callback is not None:
+            callback(op)
 
 
 @dataclass(frozen=True)
