@@ -16,7 +16,6 @@ from xdsl.ir import Operation
 from xdsl.parser import Parser
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import PatternRewriterListener, PatternRewriteWalker
-from xdsl.traits import SymbolTable
 from xdsl.transforms.apply_pdl_interp import PDLInterpRewritePattern
 
 _DEFAULT_MAX_ITERATIONS = 20
@@ -41,9 +40,11 @@ def apply_eqsat_pdl_interp(
     max_iterations: int = _DEFAULT_MAX_ITERATIONS,
     callback: Callable[[builtin.ModuleOp], None] | None = None,
 ):
-    matcher = SymbolTable.lookup_symbol(pdl_interp_module, "matcher")
-    assert isinstance(matcher, pdl_interp.FuncOp)
-    assert matcher is not None, "matcher function not found"
+    # matcher = SymbolTable.lookup_symbol(pdl_interp_module, "matcher")
+    matchers = [
+        op for op in pdl_interp_module.body.ops if isinstance(op, pdl_interp.FuncOp)
+    ]
+    assert matchers is not None, "matcher function not found"
 
     # Initialize interpreter and implementations once
     interpreter = Interpreter(pdl_interp_module)
@@ -52,16 +53,22 @@ def apply_eqsat_pdl_interp(
     implementations.populate_known_ops(op)
     interpreter.register_implementations(implementations)
     interpreter.register_implementations(EqsatConstraintFunctions())
-    rewrite_pattern = PDLInterpRewritePattern(matcher, interpreter, implementations)
 
     listener = PatternRewriterListener()
+    rewrite_patterns: list[PDLInterpRewritePattern] = []
     listener.operation_modification_handler.append(implementations.modification_handler)
-    walker = PatternRewriteWalker(rewrite_pattern, apply_recursively=False)
-    walker.listener = listener
+    walkers: list[PatternRewriteWalker] = []
+    for matcher in matchers:
+        rewrite_pattern = PDLInterpRewritePattern(matcher, interpreter, implementations)
+        rewrite_patterns.append(rewrite_pattern)
+        walker = PatternRewriteWalker(rewrite_pattern, apply_recursively=False)
+        walker.listener = listener
+        walkers.append(walker)
 
     for _i in range(max_iterations):
         # Register matches by walking the module
-        walker.rewrite_module(op)
+        for walker in walkers:
+            walker.rewrite_module(op)
         # Execute all pending rewrites that were aggregated during matching
         implementations.execute_pending_rewrites(interpreter)
 
