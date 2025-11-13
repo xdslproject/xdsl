@@ -269,23 +269,23 @@ builtin.module {
 builtin.module {
   %0 = arith.constant 1.000000e+00 : f32
   %1 = eqsat.eclass %0 : f32
-  %2 = arith.constant 2.000000e+00 : f32
-  %3 = eqsat.const_eclass %2, %4 (constant = 2.000000e+00 : f32) : f32
-  %4 = arith.addf %1, %1 : f32
-  %5 = arith.addf %3, %1 : f32
-  %6 = eqsat.eclass %5 : f32
-  "test.op"(%6) : (f32) -> ()
+  %n0 = arith.constant 2.000000e+00 : f32
+  %c0 = eqsat.const_eclass %n0, %2 (constant = 2.000000e+00 : f32) : f32
+  %2 = arith.addf %1, %1 : f32
+  %3 = arith.addf %c0, %1 : f32
+  %4 = eqsat.eclass %3 : f32
+  "test.op"(%4) : (f32) -> ()
 }""",
         """\
 builtin.module {
   %0 = arith.constant 1.000000e+00 : f32
   %1 = eqsat.eclass %0 : f32
-  %2 = arith.constant 2.000000e+00 : f32
-  %3 = eqsat.const_eclass %2, %4 (constant = 2.000000e+00 : f32) : f32
-  %4 = arith.addf %1, %1 : f32
-  %5 = arith.constant 3.000000e+00 : f32
-  %6 = eqsat.const_eclass %5, %7 (constant = 3.000000e+00 : f32) : f32
-  %7 = arith.addf %3, %1 : f32
-  "test.op"(%6) : (f32) -> ()
+  %n0 = arith.constant 2.000000e+00 : f32
+  %c0 = eqsat.const_eclass %n0, %2 (constant = 2.000000e+00 : f32) : f32
+  %2 = arith.addf %1, %1 : f32
+  %n1 = arith.constant 3.000000e+00 : f32
+  %c1 = eqsat.const_eclass %n1, %3 (constant = 3.000000e+00 : f32) : f32
+  %3 = arith.addf %c0, %1 : f32
+  "test.op"(%c1) : (f32) -> ()
 }""",
     ]
