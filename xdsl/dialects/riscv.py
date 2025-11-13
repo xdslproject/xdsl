@@ -19,6 +19,7 @@ from xdsl.backend.register_allocatable import (
 )
 from xdsl.backend.register_type import RegisterAllocatedMemoryEffect, RegisterType
 from xdsl.dialects.builtin import (
+    ArrayAttr,
     IndexType,
     IntegerAttr,
     IntegerType,
@@ -48,12 +49,14 @@ from xdsl.irdl import (
     irdl_op_definition,
     operand_def,
     opt_attr_def,
+    opt_prop_def,
     region_def,
     result_def,
     traits_def,
     var_operand_def,
     var_result_def,
 )
+from xdsl.irdl.operations import ParsePropInAttrDict
 from xdsl.parser import AttrParser, Parser, UnresolvedOperand
 from xdsl.pattern_rewriter import RewritePattern
 from xdsl.printer import Printer
@@ -3855,6 +3858,23 @@ class GetFloatRegisterOp(GetAnyRegisterOperation[FloatRegisterType]):
     name = "riscv.get_float_register"
 
 
+@irdl_op_definition
+class ParallelMovOp(IRDLOperation):
+    name = "riscv.parallel_mov"
+    inputs = var_operand_def(RISCVRegisterType)
+    outputs = var_result_def(RISCVRegisterType)
+
+    attrs = opt_prop_def(ArrayAttr[RISCVRegisterType])
+
+    assembly_format = "$inputs attr-dict `:` functional-type($inputsRISCVRegisterType, $outputs)"
+    irdl_options = [ParsePropInAttrDict()]
+
+    def verify_(self) -> None:
+        if len(self.inputs) != len(self.outputs):
+            raise VerifyException("Input count must match output count. "
+                                  f"Num inputs: {len(self.inputs)}, Num outputs: {len(self.outputs)}")
+
+
 # endregion
 
 # region RV32F: 8 “F” Standard Extension for Single-Precision Floating-Point, Version 2.0
@@ -5002,6 +5022,7 @@ RISCV = Dialect(
         FMvDOp,
         VFAddSOp,
         VFMulSOp,
+        ParallelMovOp,
     ],
     [
         IntRegisterType,
