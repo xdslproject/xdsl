@@ -76,7 +76,7 @@ jobs:
         make tests-marimo
 
     - name: Combine coverage data
-      if: matrix.python-version == '3.13'
+      if: ${{ env.COLLECT_COVERAGE }}
       run: |
         cd xdsl
         uv run coverage combine --append
@@ -84,16 +84,12 @@ jobs:
         uv run coverage xml
 
     - name: Upload coverage to Codecov
-      if: matrix.python-version == '3.13'
-      uses: Wandalen/wretry.action@v3
+      if: ${{ env.COLLECT_COVERAGE }}
+      uses: codecov/codecov-action@v5
       with:
-        action: codecov/codecov-action@v5
-        attempt_delay: 10000
-        attempt_limit: 10
-        with: |
-          fail_ci_if_error: true
-          verbose: true
-          root_dir: xdsl
-          files: coverage.xml
-          codecov_yml_path: codecov.yml
-          token: ${{ secrets.CODECOV_TOKEN }}
+        fail_ci_if_error: true
+        verbose: true
+        root_dir: xdsl
+        files: coverage.xml
+        codecov_yml_path: codecov.yml
+        token: ${{ secrets.CODECOV_TOKEN }}
