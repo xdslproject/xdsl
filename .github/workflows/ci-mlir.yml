@@ -76,7 +76,7 @@ jobs:
         make tests-marimo
 
     - name: Combine coverage data
-      if: ${{ env.COLLECT_COVERAGE == "true" }}
+      if: ${{ env.COLLECT_COVERAGE == 'true' }}
       run: |
         cd xdsl
         uv run coverage combine --append
@@ -84,7 +84,7 @@ jobs:
         uv run coverage xml
 
     - name: Upload coverage to Codecov
-      if: ${{ env.COLLECT_COVERAGE == "true" }}
+      if: ${{ env.COLLECT_COVERAGE == 'true' }}
       uses: codecov/codecov-action@v5
       with:
         fail_ci_if_error: true
