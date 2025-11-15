@@ -3792,9 +3792,7 @@ def test_generate_operation_result_type_rewriter_strategy1_all_resolvable():
 
     # Verify Strategy 1 was used: all types resolved
     assert has_inferred is False
-    assert len(types_list) == 2
-    assert types_list[0] == type1_arg
-    assert types_list[1] == type2_arg
+    assert types_list == [type1_arg, type2_arg]
 
 
 def test_generate_operation_result_type_rewriter_strategy3_from_replace():
@@ -3895,7 +3893,9 @@ def test_generate_operation_result_type_rewriter_strategy4_no_types():
 
     # Verify Strategy 4 was used: no results assumed
     assert has_inferred is False
-    assert len(types_list) == 0
+    assert not types_list
+
+    assert not types_list
 
 
 def test_generate_operation_result_type_rewriter_error_unresolvable():

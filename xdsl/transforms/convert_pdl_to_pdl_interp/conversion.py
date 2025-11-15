@@ -1461,6 +1461,7 @@ class MatcherGenerator:
 
         # Strategy 2: Check if created op has `inferredResultTypes` interface
         # This interface doesn't exist in xDSL, so we don't do this yet.
+        # https://github.com/xdslproject/xdsl/issues/5455
 
         # Strategy 3: Infer from a replaced operation
         for use in op.op.uses:
@@ -1470,19 +1471,12 @@ class MatcherGenerator:
 
             replaced_op_val = user_op.op_value
             replaced_op_def = replaced_op_val.owner
-            if replaced_op_def.parent is rewriter_block:
-                # MLIR has `Operation::isBeforeInBlock` to execute this check more efficiently:
-                is_before = False
-                p = rewriter_block.first_op
-                assert p is not None
-                while p is not replaced_op_def:
-                    if p is op:
-                        is_before = True
-                        break
-                    p = p.next_op
-                    assert p is not None
-                if is_before:
-                    continue
+            assert isinstance(replaced_op_def, Operation)
+            if (
+                replaced_op_def.parent is rewriter_block
+                and not replaced_op_def.is_before_in_block(op)
+            ):
+                continue
 
             mapped_replaced_op = map_rewrite_value(replaced_op_val)
             get_results = pdl_interp.GetResultsOp(
