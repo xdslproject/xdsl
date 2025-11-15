@@ -35,7 +35,7 @@ from xdsl.utils.scoped_dict import ScopedDict
 
 @dataclass
 class NonPropagatingDataFlowSolver(DataFlowSolver):
-    propagate: bool = True
+    propagate: bool = field(default=True)
 
     def propagate_if_changed(self, state: AnalysisState, changed: ChangeResult) -> None:
         if not self.propagate:
@@ -134,15 +134,15 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
         if op not in self.known_ops:
             self.known_ops[op] = op
 
-    def populate_known_ops(self, module: Operation) -> None:
+    def populate_known_ops(self, outer_op: Operation) -> None:
         """
         Populates the known_ops dictionary by traversing the module.
 
         Args:
-            module: The module to traverse
+            outer_op: The operation containing all operations to be added to known_ops.
         """
         # Walk through all operations in the module
-        for op in module.walk():
+        for op in outer_op.walk():
             # Skip eclasses instances
             if not isinstance(op, eqsat.AnyEClassOp):
                 self.known_ops[op] = op
@@ -558,8 +558,7 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
                 results = [analysis.get_lattice_element(r) for r in op.results]
                 if not results:
                     continue
-                assert len(results) == 1
-                result = results[0]
+                (result,) = results
                 # set state for op to bottom (store original state)
                 original_state = result.value
                 result._value = result.value_cls()  # pyright: ignore[reportPrivateUsage]

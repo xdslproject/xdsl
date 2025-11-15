@@ -146,9 +146,9 @@ class DataFlowSolver:
     """
 
     context: Context
-    _analyses: list[DataFlowAnalysis] = field(default_factory=lambda: [])
+    _analyses: list[DataFlowAnalysis] = field(default_factory=list["DataFlowAnalysis"])
     _worklist: collections.deque[tuple[ProgramPoint, DataFlowAnalysis]] = field(
-        default_factory=lambda: collections.deque()
+        default_factory=collections.deque[tuple[ProgramPoint, "DataFlowAnalysis"]]
     )
     _analysis_states: dict[LatticeAnchor, dict[type[AnalysisState], AnalysisState]] = (
         field(default_factory=lambda: collections.defaultdict(dict))
