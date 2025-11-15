@@ -434,9 +434,7 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
                 ]
                 results = [analysis.get_lattice_element(r) for r in x.results]
                 assert len(results) == 1
-                analysis.solver._is_running = True  # pyright: ignore[reportPrivateUsage]
                 analysis.visit_operation_impl(x, operands, results)
-                analysis.solver._is_running = False  # pyright: ignore[reportPrivateUsage]
 
         rewriter.insert_op(
             eclass_op,
