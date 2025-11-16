@@ -5,8 +5,15 @@ from typing import Any, cast
 
 from ordered_set import OrderedSet
 
+from xdsl.analysis.dataflow import (
+    AnalysisState,
+    ChangeResult,
+    DataFlowSolver,
+    ProgramPoint,
+)
+from xdsl.analysis.sparse_analysis import Lattice, SparseForwardDataFlowAnalysis
 from xdsl.dialects import eqsat, eqsat_pdl_interp, pdl_interp
-from xdsl.dialects.builtin import ModuleOp, SymbolRefAttr
+from xdsl.dialects.builtin import SymbolRefAttr
 from xdsl.dialects.pdl import ValueType
 from xdsl.folder import Folder
 from xdsl.interpreter import (
@@ -24,6 +31,16 @@ from xdsl.transforms.common_subexpression_elimination import KnownOps
 from xdsl.utils.disjoint_set import DisjointSet
 from xdsl.utils.exceptions import InterpretationError
 from xdsl.utils.scoped_dict import ScopedDict
+
+
+@dataclass
+class NonPropagatingDataFlowSolver(DataFlowSolver):
+    propagate: bool = field(default=True)
+
+    def propagate_if_changed(self, state: AnalysisState, changed: ChangeResult) -> None:
+        if not self.propagate:
+            return
+        super().propagate_if_changed(state, changed)
 
 
 @dataclass
@@ -63,6 +80,14 @@ class BacktrackPoint:
 @dataclass
 class EqsatPDLInterpFunctions(PDLInterpFunctions):
     """Interpreter functions for PDL patterns operating on e-graphs."""
+
+    analyses: list[SparseForwardDataFlowAnalysis[Lattice[Any]]] = field(
+        default_factory=lambda: []
+    )
+    """The sparse forward analyses to be run during equality saturation.
+    These must be registered with a NonPropagatingDataFlowSolver where `propagate` is False.
+    This way, state propagation is handled purely by the equality saturation logic.
+    """
 
     backtrack_stack: list[BacktrackPoint] = field(default_factory=list[BacktrackPoint])
     """Stack of backtrack points for exploring multiple matching paths in e-classes."""
@@ -109,15 +134,15 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
         if op not in self.known_ops:
             self.known_ops[op] = op
 
-    def populate_known_ops(self, module: ModuleOp) -> None:
+    def populate_known_ops(self, outer_op: Operation) -> None:
         """
         Populates the known_ops dictionary by traversing the module.
 
         Args:
-            module: The module to traverse
+            outer_op: The operation containing all operations to be added to known_ops.
         """
         # Walk through all operations in the module
-        for op in module.walk():
+        for op in outer_op.walk():
             # Skip eclasses instances
             if not isinstance(op, eqsat.AnyEClassOp):
                 self.known_ops[op] = op
@@ -288,6 +313,13 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
 
         if a == b:
             return False
+
+        # Meet the analysis states of the two e-classes
+        for analysis in self.analyses:
+            a_lattice = analysis.get_lattice_element(a.result)
+            b_lattice = analysis.get_lattice_element(b.result)
+            a_lattice.meet(b_lattice)
+
         if isinstance(a, eqsat.ConstantEClassOp):
             if isinstance(b, eqsat.ConstantEClassOp):
                 assert a.value == b.value, (
@@ -394,6 +426,15 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
             eclass_op = eqsat.EClassOp(
                 new_op.results[0],
             )
+        for analysis in self.analyses:
+            for x in (new_op, eclass_op):
+                point = ProgramPoint.before(x)
+                operands = [
+                    analysis.get_lattice_element_for(point, o) for o in x.operands
+                ]
+                results = [analysis.get_lattice_element(r) for r in x.results]
+                assert len(results) == 1
+                analysis.visit_operation_impl(x, operands, results)
 
         rewriter.insert_op(
             eclass_op,
@@ -505,6 +546,31 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
                 self.worklist.append(eclass1)
             else:
                 unique_parents[op1] = op1
+
+        eclass = self.eclass_union_find.find(eclass)
+        for op in OrderedSet(use.operation for use in eclass.result.uses):
+            point = ProgramPoint.before(op)
+            # for every analysis,
+            for analysis in self.analyses:
+                operands = [
+                    analysis.get_lattice_element_for(point, o) for o in op.operands
+                ]
+                results = [analysis.get_lattice_element(r) for r in op.results]
+                if not results:
+                    continue
+                (result,) = results
+                # set state for op to bottom (store original state)
+                original_state = result.value
+                result._value = result.value_cls()  # pyright: ignore[reportPrivateUsage]
+                analysis.visit_operation_impl(op, operands, results)
+
+                changed = result.meet(type(result)(result.anchor, original_state))
+                if changed == ChangeResult.CHANGE:
+                    assert (op_use := op.results[0].first_use), (
+                        "Dataflow analysis currently only supports operations with a single (EClassOp) use"
+                    )
+                    assert isinstance(eclass_op := op_use.operation, eqsat.AnyEClassOp)
+                    self.worklist.append(eclass_op)
 
     def rebuild(self, interpreter: Interpreter):
         while self.worklist:
