@@ -121,7 +121,7 @@ class PDLInterpFunctions(InterpreterFunctions):
         if op.index is not None:
             # get the field name of the result group:
             if op.index.value.data >= len(src_op.result_types):
-                return (None, )
+                return (None,)
             field = op.get_irdl_definition().results[op.index.value.data][0]
             results = getattr(op, field)
         else:
