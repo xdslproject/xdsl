@@ -118,12 +118,20 @@ class PDLInterpFunctions(InterpreterFunctions):
         assert len(args) == 1
         assert isinstance(args[0], Operation)
         src_op = args[0]
-        assert op.index is None, (
-            "TODO: No support yet for getting a specific result group"
-        )
-        if isinstance(op.result_types[0], ValueType) and len(src_op.results) != 1:
-            return (None,)
-        return (src_op.results,)
+        if op.index is not None:
+            # get the field name of the result group:
+            if op.index.value.data >= len(src_op.result_types):
+                return (None, )
+            field = op.get_irdl_definition().results[op.index.value.data][0]
+            results = getattr(op, field)
+        else:
+            results = src_op.results
+
+        if isinstance(op.result_types[0], ValueType):
+            if len(src_op.results) != 1:
+                return (None,)
+            return (src_op.results[0],)
+        return (results,)
 
     @impl(pdl_interp.GetAttributeOp)
     def run_get_attribute(
