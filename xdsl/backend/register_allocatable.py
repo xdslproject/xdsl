@@ -62,6 +62,12 @@ class RegisterConstraints(NamedTuple):
     inouts: Sequence[Sequence[SSAValue]]
 
 
+class OnRegsSideEffect:
+    """
+    Superclass for operations correspoinding to assembly writing on one or more registers.
+    """
+
+
 class HasRegisterConstraintsTrait(OpTrait):
     """
     Trait that verifies that the operation implements HasRegisterConstraints, and that
@@ -76,18 +82,20 @@ class HasRegisterConstraintsTrait(OpTrait):
                 f"Operation {op.name} is not a subclass of {HasRegisterConstraints.__name__}."
             )
 
-        for o, _ in op.get_register_constraints().inouts:
-            if not o.has_one_use():
-                raise VerifyException(
-                    f"Inout register operand at index {op.operands.index(o)} used more than once."
-                )
+        for r, _ in op.get_register_constraints().inouts:
+            for o in r.uses:
+                if o.operation is op:
+                    continue
+                if isinstance(o.operation, OnRegsSideEffect):
+                    raise VerifyException(
+                        f"Inout register operand at index {op.operands.index(r)} used after write."
+                    )
 
 
 class HasRegisterConstraints(RegisterAllocatableOperation, abc.ABC):
     """
     Abstract superclass for operations corresponding to assembly, with registers used
     as in, out, or inout registers.
-    Inout registers must only be used once.
     """
 
     traits = traits_def(HasRegisterConstraintsTrait())

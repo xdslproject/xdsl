@@ -39,6 +39,7 @@ from typing_extensions import Self, TypeVar
 from xdsl.backend.assembly_printer import AssemblyPrinter, OneLineAssemblyPrintable
 from xdsl.backend.register_allocatable import (
     HasRegisterConstraints,
+    OnRegsSideEffect,
     RegisterConstraints,
 )
 from xdsl.backend.register_type import RegisterAllocatedMemoryEffect, RegisterType
@@ -381,7 +382,9 @@ class DSK_Operation(X86Instruction, X86CustomFormatOperation, ABC):
         return register_out, self.source
 
 
-class R_Operation(X86Instruction, X86CustomFormatOperation, ABC, Generic[R1InvT]):
+class R_Operation(
+    X86Instruction, X86CustomFormatOperation, ABC, OnRegsSideEffect, Generic[R1InvT]
+):
     """
     A base class for x86 operations that have one register that is read and written to.
     """
