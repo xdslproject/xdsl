@@ -123,14 +123,16 @@ class PDLInterpFunctions(InterpreterFunctions):
             if op.index.value.data >= len(src_op.result_types):
                 return (None,)
             field = op.get_irdl_definition().results[op.index.value.data][0]
-            results = getattr(op, field)
+            results = getattr(src_op, field)
+            if isa(results, OpResult):
+                results = [results]
         else:
             results = src_op.results
 
         if isinstance(op.result_types[0], ValueType):
-            if len(src_op.results) != 1:
+            if len(results) != 1:
                 return (None,)
-            return (src_op.results[0],)
+            return (results[0],)
         return (results,)
 
     @impl(pdl_interp.GetAttributeOp)
