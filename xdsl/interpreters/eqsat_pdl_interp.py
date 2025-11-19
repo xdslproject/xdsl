@@ -30,6 +30,7 @@ from xdsl.rewriter import InsertPoint
 from xdsl.transforms.common_subexpression_elimination import KnownOps
 from xdsl.utils.disjoint_set import DisjointSet
 from xdsl.utils.exceptions import InterpretationError
+from xdsl.utils.hints import isa
 from xdsl.utils.scoped_dict import ScopedDict
 
 
@@ -269,37 +270,31 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
         assert args
         input_op = args[0]
         assert isinstance(input_op, Operation)
-        assert len(input_op.results) == 1, (
-            "ReplaceOp currently only supports replacing operations that have a single result"
-        )
-
-        it = iter(input_op.results[0].uses)
-        if (first_use := next(it, None)) is None:
-            # The value to be replaced is not part of an eclass anymore. This happens
-            # when the original eclass was merged with a constant eclass which only
-            # keeps the constant operand.
-            return ()
-        original_eclass = first_use.operation
-        if not isinstance(original_eclass, eqsat.AnyEClassOp):
-            raise InterpretationError(
+        for result in input_op.results:
+            assert result.has_one_use(), (
+                "Operation's result can only be used once, by an eclass operation."
+            )
+            assert isinstance(original_eclass := result.first_use, eqsat.AnyEClassOp), (
                 "Replaced operation result must be used by an eclass"
             )
 
-        repl_values = (
-            (args[1],) if isinstance(op.repl_values.types[0], ValueType) else args[1]
-        )
-        assert len(repl_values) == 1, (
-            "pdl_interp.replace currently only a supports replacing with a single e-class result."
-        )
-        repl_value: SSAValue = repl_values[0]
-        repl_eclass = repl_value.owner
-        if not isinstance(repl_eclass, eqsat.AnyEClassOp):
-            raise InterpretationError(
-                "Replacement value must be the result of an eclass"
+            repl_values = (
+                (args[1],)
+                if isinstance(op.repl_values.types[0], ValueType)
+                else args[1]
             )
+            assert len(repl_values) == 1, (
+                "pdl_interp.replace currently only a supports replacing with a single e-class result."
+            )
+            repl_value: SSAValue = repl_values[0]
+            repl_eclass = repl_value.owner
+            if not isinstance(repl_eclass, eqsat.AnyEClassOp):
+                raise InterpretationError(
+                    "Replacement value must be the result of an eclass"
+                )
 
-        if self.eclass_union(interpreter, original_eclass, repl_eclass):
-            self.worklist.append(original_eclass)
+            if self.eclass_union(interpreter, original_eclass, repl_eclass):
+                self.worklist.append(original_eclass)
 
         return ()
 
