@@ -62,12 +62,6 @@ class RegisterConstraints(NamedTuple):
     inouts: Sequence[Sequence[SSAValue]]
 
 
-class OnRegsSideEffect:
-    """
-    Superclass for operations correspoinding to assembly writing on one or more registers.
-    """
-
-
 class HasRegisterConstraintsTrait(OpTrait):
     """
     Trait that verifies that the operation implements HasRegisterConstraints, and that
@@ -81,15 +75,6 @@ class HasRegisterConstraintsTrait(OpTrait):
             raise VerifyException(
                 f"Operation {op.name} is not a subclass of {HasRegisterConstraints.__name__}."
             )
-
-        for r, _ in op.get_register_constraints().inouts:
-            for o in r.uses:
-                if o.operation is op:
-                    continue
-                if isinstance(o.operation, OnRegsSideEffect):
-                    raise VerifyException(
-                        f"Inout register operand at index {op.operands.index(r)} used after write."
-                    )
 
 
 class HasRegisterConstraints(RegisterAllocatableOperation, abc.ABC):

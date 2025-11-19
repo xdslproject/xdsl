@@ -615,6 +615,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return x86_infer_broadcast.X86InferBroadcast
 
+    def get_x86_verify_register_allocation():
+        from xdsl.backend.x86 import verify_register_allocation
+
+        return verify_register_allocation.X86VerifyRegAlloc
+
     # Please insert pass and `get_` function in alphabetical order
 
     return {
@@ -739,4 +744,5 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "x86-allocate-registers": get_x86_allocate_registers,
         "x86-prologue-epilogue-insertion": get_x86_prologue_epilogue_insertion,
         "x86-infer-broadcast": get_x86_infer_broadcast,
+        "x86-verify-register-allocation": get_x86_verify_register_allocation,
     }
