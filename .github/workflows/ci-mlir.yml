@@ -68,11 +68,6 @@ jobs:
         export PATH=$PATH:${GITHUB_WORKSPACE}/llvm-project/build/bin/
         make tests-marimo
 
-    # TODO: install curl in the docker image
-    - name: Install curl
-      if: ${{ env.COLLECT_COVERAGE == 'true' }}
-      run: apt-get update && apt-get install -y curl
-
     - name: Combine coverage data
       if: ${{ env.COLLECT_COVERAGE == 'true' }}
       run: |
@@ -82,10 +77,15 @@ jobs:
 
     - name: Upload coverage to Codecov
       if: ${{ env.COLLECT_COVERAGE == 'true' }}
-      uses: codecov/codecov-action@v5
+      uses: Wandalen/wretry.action@v3
       with:
-        fail_ci_if_error: true
-        verbose: true
-        files: coverage.xml
-        codecov_yml_path: codecov.yml
-        token: ${{ secrets.CODECOV_TOKEN }}
+        action: codecov/codecov-action@v5
+        attempt_delay: 10000
+        attempt_limit: 10
+        with: |
+          # Temporary setting to not fail the CI job while we debug recent codecov issues
+          fail_ci_if_error: false
+          verbose: true
+          files: coverage.xml
+          codecov_yml_path: codecov.yml
+          token: ${{ secrets.CODECOV_TOKEN }}
