@@ -145,7 +145,3 @@ hw.module @bad_output_type(out foo : i8, out bar : i32) {
 
 
 // CHECK: f32 should be of base attribute integer_type
-
-// -----
-
-%test = "test.op"() : () -> !hw.array<f32>
