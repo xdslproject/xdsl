@@ -44,7 +44,7 @@ jobs:
       run: |
         # Change directory so that xdsl-opt can be found during installation.
         cd xdsl
-        make venv
+        uv sync
 
     - name: Test with pytest and generate code coverage
       run: |
