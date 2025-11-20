@@ -11,6 +11,7 @@ from xdsl.dialects.builtin import (
     ArrayAttr,
     ArrayOfConstraint,
     ComplexType,
+    FixedBitwidthType,
     FloatAttr,
     IntegerAttr,
     IntegerType,
@@ -20,6 +21,7 @@ from xdsl.interfaces import ConstantLikeInterface
 from xdsl.ir import Attribute, Dialect, Operation, SSAValue
 from xdsl.irdl import (
     AnyOf,
+    BaseAttr,
     EqIntConstraint,
     IRDLOperation,
     RangeOf,
@@ -33,6 +35,7 @@ from xdsl.irdl import (
 )
 from xdsl.traits import Pure
 from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.hints import isa
 
 ComplexTypeConstr = ComplexType.constr(AnyFloat)
 
@@ -168,9 +171,17 @@ class Atan2Op(ComplexBinaryOp):
 
 @irdl_op_definition
 class BitcastOp(IRDLOperation):
+    """
+    compute between complex and and equal arith types
+    """
+
     name = "complex.bitcast"
-    operand = operand_def()
-    result = result_def()
+    operand = operand_def(
+        ComplexType.constr(AnyFloatConstr) | AnyFloatConstr | BaseAttr(IntegerType)
+    )
+    result = result_def(
+        ComplexType.constr(AnyFloatConstr) | AnyFloatConstr | BaseAttr(IntegerType)
+    )
 
     traits = traits_def(Pure())
 
@@ -178,6 +189,29 @@ class BitcastOp(IRDLOperation):
 
     def __init__(self, operand: SSAValue | Operation, result_type: Attribute):
         super().__init__(operands=[operand], result_types=[result_type])
+
+    def verify_(self) -> None:
+        in_type = self.operand.type
+        res_type = self.result.type
+
+        # We allow this to be legal as it can be folded away
+        if in_type == res_type:
+            return
+
+        if in_complex := isa(in_type, ComplexType[AnyFloat]):
+            in_bitwidth = in_type.element_type.bitwidth * 2
+        else:
+            in_bitwidth = cast(FixedBitwidthType, in_type).bitwidth
+
+        if out_complex := isa(res_type, ComplexType[AnyFloat]):
+            out_bitwidth = res_type.element_type.bitwidth * 2
+        else:
+            out_bitwidth = cast(FixedBitwidthType, res_type).bitwidth
+
+        if not ((in_bitwidth == out_bitwidth) and (in_complex != out_complex)):
+            raise VerifyException(
+                f"Expected ('{in_type}', '{res_type}') to be bitcast between complex and equal arith types"
+            )
 
 
 @irdl_op_definition
@@ -215,6 +249,20 @@ class ConstantOp(IRDLOperation, ConstantLikeInterface):
 
     def get_constant_value(self) -> Attribute:
         return self.value
+
+    @staticmethod
+    def from_floats(value: tuple[float, float], type: AnyFloat) -> ConstantOp:
+        return ConstantOp(
+            ArrayAttr([FloatAttr(value[0], type), FloatAttr(value[1], type)]),
+            ComplexType(type),
+        )
+
+    @staticmethod
+    def from_ints(value: tuple[int, int], type: IntegerType) -> ConstantOp:
+        return ConstantOp(
+            ArrayAttr([IntegerAttr(value[0], type), IntegerAttr(value[1], type)]),
+            ComplexType(type),
+        )
 
 
 @irdl_op_definition

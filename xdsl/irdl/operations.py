@@ -82,7 +82,7 @@ IRDLOperationContrT = TypeVar(
 )
 
 
-@dataclass(init=False)
+@dataclass(init=False, repr=False)
 class IRDLOperation(Operation):
     assembly_format: ClassVar[str | None] = None
     custom_directives: ClassVar[tuple[type[CustomDirective], ...]] = ()

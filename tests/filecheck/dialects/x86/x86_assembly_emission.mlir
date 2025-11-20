@@ -431,6 +431,10 @@ x86_func.func @funcyasm() {
 // CHECK: vmovapd ymm0, ymm1
 %ds_vmovapd_avx512 = x86.ds.vmovapd %zmm1 : (!x86.avx512reg<zmm1>) -> !x86.avx512reg<zmm0>
 // CHECK: vmovapd zmm0, zmm1
+%ds_vmovapd_avx512_mask = x86.dsk.vmovapd %zmm1, %k1 : (!x86.avx512reg<zmm1>, !x86.avx512maskreg<k1>) -> !x86.avx512reg<zmm0>
+// CHECK: vmovapd zmm0 {k1}, zmm1
+%ds_vmovapd_avx512_mask_z = x86.dsk.vmovapd %zmm1, %k1 {z} : (!x86.avx512reg<zmm1>, !x86.avx512maskreg<k1>) -> !x86.avx512reg<zmm0>
+// CHECK-NEXT: vmovapd zmm0 {k1}{z}, zmm1
 
 x86.ms.vmovapd %1, %xmm1, 8 : (!x86.reg<rdx>, !x86.ssereg<xmm1>) -> ()
 // CHECK: vmovapd [rdx+8], xmm1

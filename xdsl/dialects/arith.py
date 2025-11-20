@@ -1206,6 +1206,8 @@ class BitcastOp(IRDLOperation):
         | MemRefType.constr(element_type=AnyFloatConstr | SignlessIntegerConstraint)
     )
 
+    traits = traits_def(Pure())
+
     assembly_format = "$input attr-dict `:` type($input) `to` type($result)"
 
     def __init__(self, in_arg: SSAValue | Operation, target_type: Attribute):
