@@ -10,6 +10,7 @@ import abc
 from collections.abc import Iterable, Iterator, Sequence
 from dataclasses import InitVar, dataclass, field
 from enum import Enum
+from math import ceil, log2
 from typing import NamedTuple, overload
 
 from xdsl.dialects.builtin import (
@@ -40,8 +41,10 @@ from xdsl.irdl import (
     irdl_attr_definition,
     irdl_op_definition,
     lazy_traits_def,
+    operand_def,
     opt_attr_def,
     region_def,
+    result_def,
     traits_def,
     var_operand_def,
     var_result_def,
@@ -58,7 +61,6 @@ from xdsl.traits import (
     SymbolTable,
 )
 from xdsl.utils.exceptions import VerifyException
-from xdsl.utils.hints import isa
 
 
 @dataclass
@@ -622,27 +624,22 @@ class ArrayType(ParametrizedAttribute, TypeAttribute):
     name = "hw.array"
 
     element_type: IntegerType
-    size_attr: ArrayAttr[IntAttr]
+    size_attr: IntAttr
 
     def __init__(
         self,
         element_type: IntegerType,
-        shape: ArrayAttr[IntAttr] | Iterable[int | IntAttr],
+        size_attr: IntAttr | int,
     ):
-        if not isa(shape, ArrayAttr[IntAttr]):
-            shape = ArrayAttr(
-                [IntAttr(dim) if isinstance(dim, int) else dim for dim in shape]
-            )
+        if isinstance(size_attr, int):
+            size_attr = IntAttr(size_attr)
         super().__init__(
-            shape,
+            size_attr,
             element_type,
         )
 
-    def get_num_dims(self) -> int:
-        return len(self.size_attr.data)
-
-    def get_shape(self) -> tuple[int, ...]:
-        return tuple(i.data for i in self.size_attr.data)
+    def get_len(self) -> int:
+        return self.size_attr.data
 
     def get_element_type(self) -> IntegerType:
         return self.element_type
@@ -651,15 +648,16 @@ class ArrayType(ParametrizedAttribute, TypeAttribute):
     def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
         parser.parse_punctuation("<", " in hw.array type")
         size_attr, type = parser.parse_ranked_shape()
-        size_attr = ArrayAttr([IntAttr(dim) for dim in size_attr])
+        if len(size_attr) > 1:
+            parser.raise_error("Expected one size in hw.array type")
+        size_attr = IntAttr(size_attr[0])
         parser.parse_punctuation(">", " in hw.array type")
         return [type, size_attr]
 
     def print_parameters(self, printer: Printer) -> None:
         with printer.in_angle_brackets():
-            printer.print_dimension_list(self.get_shape())
-            if self.get_num_dims() > 0:
-                printer.print_string("x")
+            printer.print_int(self.get_len())
+            printer.print_string("x")
             printer.print_attribute(self.get_element_type())
 
 
@@ -1340,9 +1338,77 @@ class OutputOp(IRDLOperation):
         printer.print_list(self.inputs.types, printer.print_attribute)
 
 
+@irdl_op_definition
+class ArrayCreateOp(IRDLOperation):
+    """
+    Create an array from values.
+    Creates an array from a variable set of values. One or more values must be listed.
+    """
+
+    name = "hw.array_create"
+    inputs = var_operand_def()
+    result = result_def(ArrayType)
+
+    def __init__(self, inputs: Sequence[Operation | SSAValue]):
+        assert len(inputs) > 0, "Expect at least one value"
+        if isinstance(inputs[0], Operation):
+            out_type = inputs[0].result_types[0]
+        else:
+            out_type = inputs[0].type
+        super().__init__(operands=[inputs], result_types=[out_type])
+
+    def verify_(self) -> None:
+        types = self.operand_types
+        try:
+            first = types[0]
+        except IndexError:
+            raise VerifyException("Expect at least one input to the operation")
+        if not all(first == typ for typ in types):
+            raise VerifyException("Expect all input types to be the same")
+
+
+@irdl_op_definition
+class ArrayGetOp(IRDLOperation):
+    """
+    Extract an element from an array
+    Extracts the element at index from the given input array.
+    The index must be exactly ceil(log2(length(input))) bits wide.
+    """
+
+    name = "hw.array_get"
+    input = operand_def(ArrayType)
+    index = operand_def(IntegerType)
+    result = result_def(IntegerType)
+
+    def __init__(self, input: Operation | SSAValue, index: Operation | SSAValue):
+        if isinstance(input, Operation):
+            assert len(input.result_types) == 1, (
+                "expect input to come from a single result"
+            )
+            typ = input.result_types[0]
+        else:
+            typ = input.type
+        assert isinstance(typ, ArrayType)
+        out_type = typ.get_element_type()
+        super().__init__(operands=[input, index], result_types=[out_type])
+
+    def verify_(self) -> None:
+        input_typ = self.input.type
+        index_typ = self.index.type
+        assert isinstance(input_typ, ArrayType), "expect input to be of ArrayType"
+        assert isinstance(index_typ, IntegerType), "expect index to be of IntegerType"
+        index_width = index_typ.bitwidth
+        shape_width = ceil(log2(input_typ.get_len()))
+        if index_width != shape_width:
+            msg = "The index ({} bits wide) must be exactly ceil(log2(length(input))) = {} bits wide"
+            raise VerifyException(msg.format(index_width, shape_width))
+
+
 HW = Dialect(
     "hw",
     [
+        ArrayCreateOp,
+        ArrayGetOp,
         HWModuleExternOp,
         HWModuleOp,
         InstanceOp,

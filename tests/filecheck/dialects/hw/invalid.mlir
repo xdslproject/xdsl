@@ -141,7 +141,29 @@ hw.module @bad_output_type(out foo : i8, out bar : i32) {
 
 // -----
 
-%test = "test.op"() : () -> !hw.array<6x9xf32>
+%test = "test.op"() : () -> !hw.array<6xf32>
 
 
 // CHECK: f32 should be of base attribute integer_type
+
+// -----
+
+%test = "test.op"() : () -> !hw.array<6x9xi32>
+
+// CHECK: Expected one size in hw.array type
+
+// -----
+
+%const = "test.op"() : () -> i19
+%const2 = "test.op"() : () -> i81
+%array = "hw.array_create"(%const, %const2) : (i19, i81) -> !hw.array<2xi19>
+
+// CHECK: Expect all input types to be the same
+
+// -----
+
+%array = "test.op"() : () -> !hw.array<2xi19>
+%index = "test.op"() : () -> i3
+%element = "hw.array_get"(%array, %index) : (!hw.array<2xi19>, i3) -> i19
+
+// CHECK: The index (3 bits wide) must be exactly ceil(log2(length(input))) = 1 bits wide

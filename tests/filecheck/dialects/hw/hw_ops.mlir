@@ -13,6 +13,13 @@
   "test.op"() { "test" = #hw.direction<input> } : () -> ()
   // CHECK-NEXT:  "test.op"() {test = #hw.direction<input>} : () -> ()
 
-  %test = "test.op"() : () -> !hw.array<6x9xi7>
-  // CHECK-NEXT: %{{.*}} = "test.op"() : () -> !hw.array<6x9xi7>
+  %test = "test.op"() : () -> !hw.array<6xi7>
+  // CHECK-NEXT: %{{.*}} = "test.op"() : () -> !hw.array<6xi7>
+
+  %const = "test.op"() : () -> i19
+  %array = "hw.array_create"(%const, %const) : (i19, i19) -> !hw.array<2xi19>
+  %index = "test.op"() : () -> i1
+  %element = "hw.array_get"(%array, %index) : (!hw.array<2xi19>, i1) -> i19
+
+
 }) : () -> ()
