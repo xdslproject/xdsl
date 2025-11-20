@@ -910,7 +910,7 @@ def test_run_get_results():
                 type_val,
             ),
             (op,),
-        )
+        )[0]
 
     # Case 1: Get a Variadic Group (index 0) as a Range
     # Corresponds to 'res1' which has 2 results
