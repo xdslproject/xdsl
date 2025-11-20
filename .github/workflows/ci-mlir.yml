@@ -50,7 +50,7 @@ jobs:
       run: |
         cd xdsl
         if [ "$COLLECT_COVERAGE" = "true" ]; then
-          uv run pytest -W error --cov
+          uv run pytest -W error --cov=xdsl
         else
           uv run pytest -W error
         fi
