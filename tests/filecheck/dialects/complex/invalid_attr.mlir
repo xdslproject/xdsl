@@ -1,8 +1,8 @@
 // RUN: xdsl-opt %s --parsing-diagnostics --split-input-file | filecheck %s --strict-whitespace --match-full-lines
 
 //      CHECK: "test.op"() {attrs = #complex.number<:f32 3.0, 4.0> : complex<f16>}: () -> ()
-// CHECK-NEXT:                                                                   ^
-// CHECK-NEXT:                                                                   Complex number type doesn't match element type
+// CHECK-NEXT:                                                       ^
+// CHECK-NEXT:                                                       Complex number type doesn't match element type
 "test.op"() {attrs = #complex.number<:f32 3.0, 4.0> : complex<f16>}: () -> ()
 
 // -----
@@ -15,8 +15,8 @@
 // -----
 
 //      CHECK: "test.op"() {attrs = #complex.number<:f32 3.0, 4.0> : complex<i32>}: () -> ()
-// CHECK-NEXT:                                                                   ^
-// CHECK-NEXT:                                                                   Complex number type doesn't match element type
+// CHECK-NEXT:                                                       ^
+// CHECK-NEXT:                                                       Complex number type doesn't match element type
 "test.op"() {attrs = #complex.number<:f32 3.0, 4.0> : complex<i32>}: () -> ()
 
 // -----
@@ -36,6 +36,6 @@
 // -----
 
 //      CHECK: "test.op"() {attrs = #complex.number<:f16 3.0, 4.0> : f16}: () -> ()
-// CHECK-NEXT:                                                          ^
-// CHECK-NEXT:                                                          Complex number type doesn't match element type
+// CHECK-NEXT:                                                       ^
+// CHECK-NEXT:                                                       Complex number type doesn't match element type
 "test.op"() {attrs = #complex.number<:f16 3.0, 4.0> : f16}: () -> ()

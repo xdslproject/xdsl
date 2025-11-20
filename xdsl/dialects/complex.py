@@ -71,10 +71,14 @@ class ComplexNumberAttr(ParametrizedAttribute, Generic[_ComplexNumberElementType
 
     def print_parameters(self, printer: Printer) -> None:
         with printer.in_angle_brackets():
-            printer.print_string(
-                f":{self.type.element_type} {self.real.data}, {self.imag.data}"
-            )
-        printer.print_string(f" : {self.type}")
+            printer.print_string(":")
+            printer.print_attribute(self.type.element_type)
+            printer.print_string(" ")
+            printer.print_float(self.real.data, self.type.element_type)
+            printer.print_string(", ")
+            printer.print_float(self.imag.data, self.type.element_type)
+        printer.print_string(" : ")
+        printer.print_attribute(self.type)
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> Sequence[Attribute]:
@@ -94,12 +98,13 @@ class ComplexNumberAttr(ParametrizedAttribute, Generic[_ComplexNumberElementType
             parser.parse_punctuation(",")
             imag = FloatData(parser.parse_float())
         parser.parse_punctuation(":")
+        pos = parser.pos
         complex_type = parser.parse_type()
         if not (
             isa(complex_type, ComplexType[AnyFloat])
             and (complex_type.element_type == element_type)
         ):
-            parser.raise_error("Complex number type doesn't match element type")
+            parser.raise_error("Complex number type doesn't match element type", pos)
         return [
             real,
             imag,
