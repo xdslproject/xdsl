@@ -1497,7 +1497,7 @@ class AndiOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
             AndiImmediate,
         )
 
-        return AndiImmediate()
+        return (AndiImmediate(),)
 
 
 @irdl_op_definition
