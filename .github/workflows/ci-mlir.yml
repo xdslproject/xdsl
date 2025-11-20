@@ -68,6 +68,11 @@ jobs:
         export PATH=$PATH:${GITHUB_WORKSPACE}/llvm-project/build/bin/
         make tests-marimo
 
+    # TODO: install curl in the docker image
+    - name: Install curl
+      if: ${{ env.COLLECT_COVERAGE == 'true' }}
+      run: apt-get update && apt-get install -y curl
+
     - name: Combine coverage data
       if: ${{ env.COLLECT_COVERAGE == 'true' }}
       run: |
