@@ -3,7 +3,7 @@ PDL to PDL_interp Transformation
 """
 
 from abc import ABC
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from typing import Optional, cast
 
@@ -11,6 +11,7 @@ from xdsl.builder import Builder
 from xdsl.dialects import pdl, pdl_interp
 from xdsl.dialects.builtin import (
     ArrayAttr,
+    IntegerAttr,
     ModuleOp,
     StringAttr,
     TypeAttribute,
@@ -19,28 +20,42 @@ from xdsl.ir import (
     Block,
     Operation,
     OpResult,
+    Region,
     SSAValue,
 )
 from xdsl.rewriter import InsertPoint
 from xdsl.transforms.convert_pdl_to_pdl_interp.predicate import (
     Answer,
+    AttributeAnswer,
+    AttributeConstraintQuestion,
     AttributeLiteralPosition,
     AttributePosition,
     ConstraintPosition,
     ConstraintQuestion,
     EqualToQuestion,
     ForEachPosition,
+    IsNotNullQuestion,
+    OperandCountAtLeastQuestion,
+    OperandCountQuestion,
     OperandGroupPosition,
     OperandPosition,
+    OperationNameQuestion,
     OperationPosition,
     Position,
     PositionalPredicate,
     Predicate,
     Question,
+    ResultCountAtLeastQuestion,
+    ResultCountQuestion,
     ResultGroupPosition,
     ResultPosition,
+    StringAnswer,
+    TrueAnswer,
+    TypeAnswer,
+    TypeConstraintQuestion,
     TypeLiteralPosition,
     TypePosition,
+    UnsignedAnswer,
     UsersPosition,
     get_position_cost,
     get_question_cost,
@@ -973,7 +988,61 @@ class MatcherGenerator:
         self.failure_block_stack = []
         self.builder = Builder(InsertPoint.at_start(matcher_func.body.block))
         self.constraint_op_map = {}
-        self.rewriter_names: dict[str, int] = {}
+        self.rewriter_names = {}
+
+    def generate_matcher(
+        self, node: MatcherNode, region: Region, block: Block | None = None
+    ) -> Block:
+        """Generate PDL interpreter operations for a matcher node"""
+
+        # Create block if needed
+        if block is None:
+            block = Block()
+            region.add_block(block)
+
+        # Handle exit node - just add finalize
+        if isinstance(node, ExitNode):
+            finalize_op = pdl_interp.FinalizeOp()
+            self.builder.insert_op(finalize_op, InsertPoint.at_end(block))
+            return block
+
+        self.values = ScopedDict(self.values)
+        assert self.values.parent is not None
+
+        # Handle failure node
+        failure_block = None
+        if node.failure_node:
+            failure_block = self.generate_matcher(node.failure_node, region)
+            self.failure_block_stack.append(failure_block)
+        else:
+            assert self.failure_block_stack, "Expected valid failure block"
+            failure_block = self.failure_block_stack[-1]
+
+        # Get value for position if exists
+        current_block = block
+        val = None
+        if node.position:
+            val = self.get_value_at(current_block, node.position)
+
+        # Dispatch based on node type
+        match node:
+            case BoolNode():
+                assert val is not None
+                self.generate_bool_node(node, current_block, val)
+            case SwitchNode():
+                assert val is not None
+                self.generate_switch_node(node, current_block, val)
+            case SuccessNode():
+                raise NotImplementedError()
+            case _:
+                raise NotImplementedError(f"Unhandled node type {type(node)}")
+
+        # Pop failure block if we pushed one
+        if node.failure_node:
+            self.failure_block_stack.pop()
+
+        self.values = self.values.parent  # Pop scope
+        return block
 
     def get_value_at(self, block: Block, position: Position) -> SSAValue:
         """Get or create SSA value for a position"""
@@ -1103,3 +1172,324 @@ class MatcherGenerator:
         assert value is not None
         self.values[position] = value
         return value
+
+    def generate_bool_node(self, node: BoolNode, block: Block, val: SSAValue) -> None:
+        """Generate operations for a boolean predicate node"""
+
+        question = node.question
+        answer = node.answer
+        region = block.parent
+        assert region is not None, "Block must be in a region"
+
+        # Handle getValue queries first for constraint questions
+        args: list[SSAValue] = []
+        if isinstance(question, EqualToQuestion):
+            args = [self.get_value_at(block, question.other_position)]
+        elif isinstance(question, ConstraintQuestion):
+            for position in question.arg_positions:
+                args.append(self.get_value_at(block, position))
+
+        # Create success block
+        success_block = Block()
+        region.add_block(success_block)
+        failure_block = self.failure_block_stack[-1]
+
+        # Generate predicate check operation based on question type
+        match question:
+            case IsNotNullQuestion():
+                check_op = pdl_interp.IsNotNullOp(val, success_block, failure_block)
+            case OperationNameQuestion():
+                assert isinstance(answer, StringAnswer)
+                check_op = pdl_interp.CheckOperationNameOp(
+                    answer.value, val, success_block, failure_block
+                )
+            case OperandCountQuestion() | OperandCountAtLeastQuestion():
+                assert isinstance(answer, UnsignedAnswer)
+                compare_at_least = isinstance(question, OperandCountAtLeastQuestion)
+                check_op = pdl_interp.CheckOperandCountOp(
+                    val, answer.value, success_block, failure_block, compare_at_least
+                )
+            case ResultCountQuestion() | ResultCountAtLeastQuestion():
+                assert isinstance(answer, UnsignedAnswer)
+                compare_at_least = isinstance(question, ResultCountAtLeastQuestion)
+                check_op = pdl_interp.CheckResultCountOp(
+                    val, answer.value, success_block, failure_block, compare_at_least
+                )
+            case EqualToQuestion():
+                # Get the other value to compare with
+                other_val = self.get_value_at(block, question.other_position)
+                assert isinstance(answer, TrueAnswer)
+                check_op = pdl_interp.AreEqualOp(
+                    val, other_val, success_block, failure_block
+                )
+            case AttributeConstraintQuestion():
+                assert isinstance(answer, AttributeAnswer)
+                check_op = pdl_interp.CheckAttributeOp(
+                    answer.value, val, success_block, failure_block
+                )
+            case TypeConstraintQuestion():
+                assert isinstance(answer, TypeAnswer)
+                if isinstance(val.type, pdl.RangeType):
+                    # Check multiple types
+                    raise NotImplementedError(
+                        "pdl_interp.check_types is not yet implemented"
+                    )
+                    check_op = pdl_interp.CheckTypesOp(
+                        val, answer.value, success_block, failure_block
+                    )
+                else:
+                    # Check single type
+                    assert isinstance(answer.value, TypeAttribute)
+                    check_op = pdl_interp.CheckTypeOp(
+                        answer.value, val, success_block, failure_block
+                    )
+            case ConstraintQuestion():
+                check_op = pdl_interp.ApplyConstraintOp(
+                    question.name,
+                    args,
+                    success_block,
+                    failure_block,
+                    is_negated=question.is_negated,
+                    res_types=question.result_types,
+                )
+                # Store the constraint op for later result access
+                self.constraint_op_map[question] = check_op
+            case _:
+                raise NotImplementedError(f"Unhandled question type {type(question)}")
+
+        self.builder.insert_op(check_op, InsertPoint.at_end(block))
+
+        # Generate matcher for success node
+        if node.success_node:
+            self.generate_matcher(node.success_node, region, success_block)
+
+    def generate_switch_node(
+        self, node: SwitchNode, block: Block, val: SSAValue
+    ) -> None:
+        """Generate operations for a switch node"""
+
+        question = node.question
+        region = block.parent
+        assert region is not None, "Block must be in a region"
+        default_dest = self.failure_block_stack[-1]
+
+        # Handle at-least questions specially
+        if isinstance(
+            question, OperandCountAtLeastQuestion | ResultCountAtLeastQuestion
+        ):
+            # Sort children in reverse numerical order
+            sorted_children = sorted(
+                node.children.items(),
+                key=lambda x: cast(UnsignedAnswer, x[0]).value,
+                reverse=True,
+            )
+
+            # Push temporary entry to failure block stack
+            self.failure_block_stack.append(default_dest)
+
+            for answer, child_node in sorted_children:
+                if child_node:
+                    success_block = self.generate_matcher(child_node, region)
+                    current_check_block = Block()
+                    region.add_block(current_check_block)
+
+                    self.builder.insertion_point = InsertPoint.at_end(
+                        current_check_block
+                    )
+                    assert isinstance(answer, UnsignedAnswer)
+                    if isinstance(question, OperandCountAtLeastQuestion):
+                        check_op = pdl_interp.CheckOperandCountOp(
+                            val,
+                            answer.value,
+                            success_block,
+                            default_dest,
+                            True,
+                        )
+                    else:
+                        check_op = pdl_interp.CheckResultCountOp(
+                            val,
+                            answer.value,
+                            success_block,
+                            default_dest,
+                            True,
+                        )
+                    self.builder.insert(check_op)
+
+                    # Update failure block stack for next child matcher
+                    self.failure_block_stack[-1] = current_check_block
+
+            # Pop the temporary entry from failure block stack
+            first_predicate_block = self.failure_block_stack.pop()
+
+            # Move ops from the first check block into the main block
+            for op in list(first_predicate_block.ops):
+                op.detach()
+                block.add_op(op)
+            assert first_predicate_block.parent is not None
+            first_predicate_block.parent.detach_block(first_predicate_block)
+            first_predicate_block.erase()
+
+            return
+
+        # Generate child blocks and collect case values
+        case_blocks: list[Block] = []
+        case_values: list[Answer] = []
+
+        for answer, child_node in node.children.items():
+            if child_node:
+                child_block = self.generate_matcher(child_node, region)
+                case_blocks.append(child_block)
+                case_values.append(answer)
+
+        # Position builder at end of current block
+        self.builder.insertion_point = InsertPoint.at_end(block)
+
+        # Create switch operation based on question type
+        match question:
+            case OperationNameQuestion():
+                # Extract string values from StringAnswer objects
+                switch_values = [cast(StringAnswer, ans).value for ans in case_values]
+                switch_attr = ArrayAttr([StringAttr(v) for v in switch_values])
+                switch_op = pdl_interp.SwitchOperationNameOp(
+                    switch_attr, val, default_dest, case_blocks
+                )
+            case OperandCountQuestion():
+                # Extract integer values from UnsignedAnswer objects
+                switch_values = [cast(UnsignedAnswer, ans).value for ans in case_values]
+                switch_attr = ArrayAttr([IntegerAttr(v, 32) for v in switch_values])
+                raise NotImplementedError(
+                    "pdl_interp.switch_operand_count is not yet implemented"
+                )
+                switch_op = pdl_interp.SwitchOperandCountOp(
+                    switch_attr, val, default_dest, case_blocks
+                )
+            case ResultCountQuestion():
+                # Extract integer values from UnsignedAnswer objects
+                switch_values = [cast(UnsignedAnswer, ans).value for ans in case_values]
+                switch_attr = ArrayAttr([IntegerAttr(v, 32) for v in switch_values])
+                raise NotImplementedError(
+                    "pdl_interp.switch_result_count is not yet implemented"
+                )
+                switch_op = pdl_interp.SwitchResultCountOp(
+                    switch_attr, val, default_dest, case_blocks
+                )
+            case TypeConstraintQuestion():
+                # Extract type attributes from TypeAnswer objects
+                switch_values = [cast(TypeAnswer, ans).value for ans in case_values]
+                raise NotImplementedError(
+                    "pdl_interp.switch_types is not yet implemented"
+                )
+                if isinstance(val.type, pdl.RangeType):
+                    switch_attr = ArrayAttr(switch_values)
+
+                    switch_op = pdl_interp.SwitchTypesOp(
+                        switch_attr, val, default_dest, case_blocks
+                    )
+                else:
+                    switch_attr = ArrayAttr(switch_values)
+                    switch_op = pdl_interp.SwitchTypeOp(
+                        switch_attr, val, default_dest, case_blocks
+                    )
+            case AttributeConstraintQuestion():
+                # Extract attribute values from AttributeAnswer objects
+                switch_values = [
+                    cast(AttributeAnswer, ans).value for ans in case_values
+                ]
+                switch_attr = ArrayAttr(switch_values)
+                switch_op = pdl_interp.SwitchAttributeOp(
+                    val, switch_attr, default_dest, case_blocks
+                )
+            case _:
+                raise NotImplementedError(f"Unhandled question type {type(question)}")
+
+        self.builder.insert(switch_op)
+
+    def _generate_rewriter_for_apply_native_rewrite(
+        self,
+        op: pdl.ApplyNativeRewriteOp,
+        rewrite_values: dict[SSAValue, SSAValue],
+        map_rewrite_value: Callable[[SSAValue], SSAValue],
+    ):
+        arguments = [map_rewrite_value(arg) for arg in op.args]
+        result_types = [res.type for res in op.res]
+        raise NotImplementedError("pdl_interp.apply_rewrite is not yet implemented")
+        interp_op = pdl_interp.ApplyRewriteOp(
+            arguments, name=op.constraint_name, result_types=result_types
+        )
+        self.rewriter_builder.insert(interp_op)
+        for old_res, new_res in zip(op.results, interp_op.results, strict=True):
+            rewrite_values[old_res] = new_res
+
+    def _generate_rewriter_for_attribute(
+        self,
+        op: pdl.AttributeOp,
+        rewrite_values: dict[SSAValue, SSAValue],
+        map_rewrite_value: Callable[[SSAValue], SSAValue],
+    ):
+        if op.value is not None:
+            new_attr_op = pdl_interp.CreateAttributeOp(op.value)
+            self.rewriter_builder.insert(new_attr_op)
+            rewrite_values[op.output] = new_attr_op.attribute
+
+    def _generate_operation_result_type_rewriter(
+        self,
+        op: pdl.OperationOp,
+        map_rewrite_value: Callable[[SSAValue], SSAValue],
+        types_list: list[SSAValue],
+        rewrite_values: dict[SSAValue, SSAValue],
+    ) -> bool:
+        """Returns `has_inferred_result_types`"""
+        rewriter_block = op.parent
+        assert rewriter_block is not None
+        result_type_values = op.type_values
+
+        # Strategy 1: Resolve all types individually
+        if result_type_values:
+            temp_types: list[SSAValue] = []
+            can_resolve_all = True
+            for result_type in result_type_values:
+                if (val := rewrite_values.get(result_type)) is not None:
+                    temp_types.append(val)
+                elif result_type.owner.parent is not rewriter_block:
+                    temp_types.append(map_rewrite_value(result_type))
+                else:
+                    can_resolve_all = False
+                    break
+            if can_resolve_all:
+                types_list.extend(temp_types)
+                return False
+
+        # Strategy 2: Check if created op has `inferredResultTypes` interface
+        # This interface doesn't exist in xDSL, so we don't do this yet.
+        # https://github.com/xdslproject/xdsl/issues/5455
+
+        # Strategy 3: Infer from a replaced operation
+        for use in op.op.uses:
+            user_op = use.operation
+            if not isinstance(user_op, pdl.ReplaceOp) or use.index == 0:
+                continue
+
+            replaced_op_val = user_op.op_value
+            replaced_op_def = replaced_op_val.owner
+            assert isinstance(replaced_op_def, Operation)
+            if (
+                replaced_op_def.parent is rewriter_block
+                and not replaced_op_def.is_before_in_block(op)
+            ):
+                continue
+
+            mapped_replaced_op = map_rewrite_value(replaced_op_val)
+            get_results = pdl_interp.GetResultsOp(
+                None, mapped_replaced_op, pdl.RangeType(pdl.ValueType())
+            )
+            self.rewriter_builder.insert(get_results)
+            get_type = pdl_interp.GetValueTypeOp(get_results.value)
+            self.rewriter_builder.insert(get_type)
+            types_list.append(get_type.result)
+            return False
+
+        # Strategy 4: If no explicit types, assume no results
+        if not result_type_values:
+            return False
+
+        raise ValueError(f"Unable to infer result types for pdl.operation {op.opName}")

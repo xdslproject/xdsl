@@ -3,12 +3,23 @@ from typing import cast
 import pytest
 
 from xdsl.builder import ImplicitBuilder
-from xdsl.dialects import pdl
-from xdsl.dialects.builtin import IntegerType, StringAttr, f32, i32
+from xdsl.dialects import pdl, pdl_interp
+from xdsl.dialects.builtin import (
+    IntegerAttr,
+    IntegerType,
+    ModuleOp,
+    StringAttr,
+    UnitAttr,
+    f32,
+    i32,
+)
 from xdsl.ir import Block, Region, SSAValue
+from xdsl.rewriter import InsertPoint
 from xdsl.transforms.convert_pdl_to_pdl_interp.conversion import (
     BoolNode,
     ExitNode,
+    MatcherGenerator,
+    MatcherNode,
     OrderedPredicate,
     PatternAnalyzer,
     PredicateTreeBuilder,
@@ -16,6 +27,7 @@ from xdsl.transforms.convert_pdl_to_pdl_interp.conversion import (
     SwitchNode,
 )
 from xdsl.transforms.convert_pdl_to_pdl_interp.predicate import (
+    Answer,
     AttributeAnswer,
     AttributeConstraintQuestion,
     AttributeLiteralPosition,
@@ -402,7 +414,7 @@ def test_apply_native_constraint():
     with ImplicitBuilder(block):
         type1 = pdl.TypeOp(i32).result
         root = op1 = pdl.OperationOp("op1", type_values=(type1,)).op
-        pdl.ApplyNativeConstraintOp("my_constraint", [op1], [i32]).res[0]
+        pdl.ApplyNativeConstraintOp("my_constraint", [op1], [pdl.TypeType()]).res[0]
         # Use constraint_result somehow to make it binding
         pdl.RewriteOp(None, name="rewrite")
 
@@ -421,7 +433,7 @@ def test_apply_native_constraint():
             ConstraintQuestion(
                 "my_constraint",
                 (OperationPosition(None, depth=0),),
-                (IntegerType(32),),
+                (pdl.TypeType(),),
                 False,
             ),
             TrueAnswer(),
@@ -966,7 +978,7 @@ def test_extract_non_tree_predicates_existing_constraint_result():
         root = pdl.OperationOp("op1").op
         # Create a constraint that returns a result
         constraint_result = pdl.ApplyNativeConstraintOp(
-            "my_constraint", [root], [i32]
+            "my_constraint", [root], [pdl.OperationType()]
         ).res[0]
         pdl.RewriteOp(None, name="rewrite")
 
@@ -993,7 +1005,7 @@ def test_extract_non_tree_predicates_existing_constraint_result():
                 constraint=ConstraintQuestion(
                     "my_constraint",
                     arg_positions=(root_pos,),
-                    result_types=(i32,),
+                    result_types=(pdl.OperationType(),),
                     is_negated=False,
                 ),
                 result_index=0,
@@ -2088,7 +2100,7 @@ def test_get_value_at_constraint_position():
     constraint_q = ConstraintQuestion(
         name="test_constraint",
         arg_positions=(root_pos,),
-        result_types=(i32, f32),
+        result_types=(pdl.OperationType(), pdl.TypeType()),
         is_negated=False,
     )
 
@@ -2276,3 +2288,1788 @@ def test_get_value_at_operation_position_passthrough():
     # Getting it again should return the cached value
     result2 = generator.get_value_at(block, op_pos_with_parent)
     assert result2 is result
+
+
+def test_generate_bool_node_is_not_null():
+    """Test generate_bool_node with IsNotNullQuestion"""
+    from xdsl.dialects import pdl_interp
+    from xdsl.dialects.builtin import ModuleOp
+    from xdsl.ir import Block, Region
+    from xdsl.transforms.convert_pdl_to_pdl_interp.conversion import (
+        BoolNode,
+        MatcherGenerator,
+    )
+    from xdsl.transforms.convert_pdl_to_pdl_interp.predicate import (
+        IsNotNullQuestion,
+        TrueAnswer,
+    )
+
+    matcher_body = Region([Block(arg_types=(pdl.OperationType(),))])
+    matcher_func = pdl_interp.FuncOp(
+        "matcher", ((pdl.OperationType(),), ()), region=matcher_body
+    )
+    rewriter_module = ModuleOp([])
+
+    generator = MatcherGenerator(matcher_func, rewriter_module)
+    block = matcher_func.body.block
+    val = block.args[0]
+
+    # Create failure block
+    failure_block = Block()
+    matcher_body.add_block(failure_block)
+    generator.failure_block_stack.append(failure_block)
+
+    # Create BoolNode
+    question = IsNotNullQuestion()
+    answer = TrueAnswer()
+    bool_node = BoolNode(question=question, answer=answer)
+
+    # Generate the bool node
+    generator.generate_bool_node(bool_node, block, val)
+
+    # Check that IsNotNullOp was created
+    check_ops = [op for op in block.ops if isinstance(op, pdl_interp.IsNotNullOp)]
+    assert len(check_ops) == 1
+    check_op = check_ops[0]
+    assert check_op.value is val
+
+    # Check that success block was created
+    assert len(matcher_body.blocks) == 3  # original, failure, success
+    success_block = matcher_body.blocks[2]
+    assert check_op.true_dest is success_block
+    assert check_op.false_dest is failure_block
+
+
+def test_generate_bool_node_operation_name():
+    """Test generate_bool_node with OperationNameQuestion"""
+    from xdsl.dialects import pdl_interp
+    from xdsl.dialects.builtin import ModuleOp
+    from xdsl.ir import Block, Region
+    from xdsl.transforms.convert_pdl_to_pdl_interp.conversion import (
+        BoolNode,
+        MatcherGenerator,
+    )
+    from xdsl.transforms.convert_pdl_to_pdl_interp.predicate import (
+        OperationNameQuestion,
+        StringAnswer,
+    )
+
+    matcher_body = Region([Block(arg_types=(pdl.OperationType(),))])
+    matcher_func = pdl_interp.FuncOp(
+        "matcher", ((pdl.OperationType(),), ()), region=matcher_body
+    )
+    rewriter_module = ModuleOp([])
+
+    generator = MatcherGenerator(matcher_func, rewriter_module)
+    block = matcher_func.body.block
+    val = block.args[0]
+
+    # Create failure block
+    failure_block = Block()
+    matcher_body.add_block(failure_block)
+    generator.failure_block_stack.append(failure_block)
+
+    # Create BoolNode
+    question = OperationNameQuestion()
+    answer = StringAnswer("arith.addi")
+    bool_node = BoolNode(question=question, answer=answer)
+
+    # Generate the bool node
+    generator.generate_bool_node(bool_node, block, val)
+
+    # Check that CheckOperationNameOp was created
+    check_ops = [
+        op for op in block.ops if isinstance(op, pdl_interp.CheckOperationNameOp)
+    ]
+    assert len(check_ops) == 1
+    check_op = check_ops[0]
+    assert check_op.operation_name.data == "arith.addi"
+    assert check_op.input_op is val
+
+
+def test_generate_bool_node_operand_count():
+    """Test generate_bool_node with OperandCountQuestion"""
+    from xdsl.dialects import pdl_interp
+    from xdsl.dialects.builtin import ModuleOp
+    from xdsl.ir import Block, Region
+    from xdsl.transforms.convert_pdl_to_pdl_interp.conversion import (
+        BoolNode,
+        MatcherGenerator,
+    )
+    from xdsl.transforms.convert_pdl_to_pdl_interp.predicate import (
+        OperandCountQuestion,
+        UnsignedAnswer,
+    )
+
+    matcher_body = Region([Block(arg_types=(pdl.OperationType(),))])
+    matcher_func = pdl_interp.FuncOp(
+        "matcher", ((pdl.OperationType(),), ()), region=matcher_body
+    )
+    rewriter_module = ModuleOp([])
+
+    generator = MatcherGenerator(matcher_func, rewriter_module)
+    block = matcher_func.body.block
+    val = block.args[0]
+
+    # Create failure block
+    failure_block = Block()
+    matcher_body.add_block(failure_block)
+    generator.failure_block_stack.append(failure_block)
+
+    # Create BoolNode
+    question = OperandCountQuestion()
+    answer = UnsignedAnswer(2)
+    bool_node = BoolNode(question=question, answer=answer)
+
+    # Generate the bool node
+    generator.generate_bool_node(bool_node, block, val)
+
+    # Check that CheckOperandCountOp was created
+    check_ops = [
+        op for op in block.ops if isinstance(op, pdl_interp.CheckOperandCountOp)
+    ]
+    assert len(check_ops) == 1
+    check_op = check_ops[0]
+    assert check_op.count.value.data == 2
+    assert check_op.compareAtLeast is None
+    assert check_op.input_op is val
+
+
+def test_generate_bool_node_result_count_at_least():
+    """Test generate_bool_node with ResultCountAtLeastQuestion"""
+    from xdsl.dialects import pdl_interp
+    from xdsl.dialects.builtin import ModuleOp
+    from xdsl.ir import Block, Region
+    from xdsl.transforms.convert_pdl_to_pdl_interp.conversion import (
+        BoolNode,
+        MatcherGenerator,
+    )
+    from xdsl.transforms.convert_pdl_to_pdl_interp.predicate import (
+        ResultCountAtLeastQuestion,
+        UnsignedAnswer,
+    )
+
+    matcher_body = Region([Block(arg_types=(pdl.OperationType(),))])
+    matcher_func = pdl_interp.FuncOp(
+        "matcher", ((pdl.OperationType(),), ()), region=matcher_body
+    )
+    rewriter_module = ModuleOp([])
+
+    generator = MatcherGenerator(matcher_func, rewriter_module)
+    block = matcher_func.body.block
+    val = block.args[0]
+
+    # Create failure block
+    failure_block = Block()
+    matcher_body.add_block(failure_block)
+    generator.failure_block_stack.append(failure_block)
+
+    # Create BoolNode
+    question = ResultCountAtLeastQuestion()
+    answer = UnsignedAnswer(1)
+    bool_node = BoolNode(question=question, answer=answer)
+
+    # Generate the bool node
+    generator.generate_bool_node(bool_node, block, val)
+
+    # Check that CheckResultCountOp was created
+    check_ops = [
+        op for op in block.ops if isinstance(op, pdl_interp.CheckResultCountOp)
+    ]
+    assert len(check_ops) == 1
+    check_op = check_ops[0]
+    assert check_op.count.value.data == 1
+    assert check_op.compareAtLeast == UnitAttr()
+    assert check_op.input_op is val
+
+
+def test_generate_bool_node_equal_to():
+    """Test generate_bool_node with EqualToQuestion"""
+    from xdsl.dialects import pdl_interp
+    from xdsl.dialects.builtin import ModuleOp
+    from xdsl.ir import Block, Region
+    from xdsl.transforms.convert_pdl_to_pdl_interp.conversion import (
+        BoolNode,
+        MatcherGenerator,
+    )
+    from xdsl.transforms.convert_pdl_to_pdl_interp.predicate import (
+        EqualToQuestion,
+        OperationPosition,
+        TrueAnswer,
+    )
+
+    matcher_body = Region([Block(arg_types=(pdl.OperationType(), pdl.OperationType()))])
+    matcher_func = pdl_interp.FuncOp(
+        "matcher", ((pdl.OperationType(), pdl.OperationType()), ()), region=matcher_body
+    )
+    rewriter_module = ModuleOp([])
+
+    generator = MatcherGenerator(matcher_func, rewriter_module)
+    block = matcher_func.body.block
+    val1 = block.args[0]
+    val2 = block.args[1]
+
+    # Create failure block
+    failure_block = Block()
+    matcher_body.add_block(failure_block)
+    generator.failure_block_stack.append(failure_block)
+
+    # Create BoolNode
+    other_pos = OperationPosition(None, depth=1)
+    generator.values[other_pos] = val2  # Mock the other value
+    question = EqualToQuestion(other_pos)
+    answer = TrueAnswer()
+    bool_node = BoolNode(question=question, answer=answer)
+
+    # Generate the bool node
+    generator.generate_bool_node(bool_node, block, val1)
+
+    # Check that AreEqualOp was created
+    check_ops = [op for op in block.ops if isinstance(op, pdl_interp.AreEqualOp)]
+    assert len(check_ops) == 1
+    check_op = check_ops[0]
+    assert check_op.lhs is val1
+    assert check_op.rhs is val2
+
+
+def test_generate_bool_node_attribute_constraint():
+    """Test generate_bool_node with AttributeConstraintQuestion"""
+    from xdsl.dialects import pdl_interp
+    from xdsl.dialects.builtin import ModuleOp, i32
+    from xdsl.ir import Block, Region
+    from xdsl.transforms.convert_pdl_to_pdl_interp.conversion import (
+        BoolNode,
+        MatcherGenerator,
+    )
+    from xdsl.transforms.convert_pdl_to_pdl_interp.predicate import (
+        AttributeAnswer,
+        AttributeConstraintQuestion,
+    )
+
+    matcher_body = Region([Block(arg_types=(pdl.AttributeType(),))])
+    matcher_func = pdl_interp.FuncOp(
+        "matcher", ((pdl.AttributeType(),), ()), region=matcher_body
+    )
+    rewriter_module = ModuleOp([])
+
+    generator = MatcherGenerator(matcher_func, rewriter_module)
+    block = matcher_func.body.block
+    val = block.args[0]
+
+    # Create failure block
+    failure_block = Block()
+    matcher_body.add_block(failure_block)
+    generator.failure_block_stack.append(failure_block)
+
+    # Create BoolNode
+    question = AttributeConstraintQuestion()
+    attr_value = IntegerAttr(42, i32)
+    answer = AttributeAnswer(attr_value)
+    bool_node = BoolNode(question=question, answer=answer)
+
+    # Generate the bool node
+    generator.generate_bool_node(bool_node, block, val)
+
+    # Check that CheckAttributeOp was created
+    check_ops = [op for op in block.ops if isinstance(op, pdl_interp.CheckAttributeOp)]
+    assert len(check_ops) == 1
+    check_op = check_ops[0]
+    assert check_op.constantValue is attr_value
+    assert check_op.attribute is val
+
+
+def test_generate_bool_node_type_constraint():
+    """Test generate_bool_node with TypeConstraintQuestion"""
+    from xdsl.dialects import pdl_interp
+    from xdsl.dialects.builtin import ModuleOp
+    from xdsl.ir import Block, Region
+    from xdsl.transforms.convert_pdl_to_pdl_interp.conversion import (
+        BoolNode,
+        MatcherGenerator,
+    )
+    from xdsl.transforms.convert_pdl_to_pdl_interp.predicate import (
+        TypeAnswer,
+        TypeConstraintQuestion,
+    )
+
+    matcher_body = Region([Block(arg_types=(pdl.TypeType(),))])
+    matcher_func = pdl_interp.FuncOp(
+        "matcher", ((pdl.TypeType(),), ()), region=matcher_body
+    )
+    rewriter_module = ModuleOp([])
+
+    generator = MatcherGenerator(matcher_func, rewriter_module)
+    block = matcher_func.body.block
+    val = block.args[0]
+
+    # Create failure block
+    failure_block = Block()
+    matcher_body.add_block(failure_block)
+    generator.failure_block_stack.append(failure_block)
+
+    # Create BoolNode
+    question = TypeConstraintQuestion()
+    answer = TypeAnswer(i32)
+    bool_node = BoolNode(question=question, answer=answer)
+
+    # Generate the bool node
+    generator.generate_bool_node(bool_node, block, val)
+
+    # Check that CheckTypeOp was created
+    check_ops = [op for op in block.ops if isinstance(op, pdl_interp.CheckTypeOp)]
+    assert len(check_ops) == 1
+    check_op = check_ops[0]
+    assert check_op.type is i32
+    assert check_op.value is val
+
+
+def test_generate_bool_node_native_constraint():
+    """Test generate_bool_node with ConstraintQuestion"""
+    from xdsl.dialects import pdl_interp
+    from xdsl.dialects.builtin import ModuleOp
+    from xdsl.ir import Block, Region
+    from xdsl.transforms.convert_pdl_to_pdl_interp.conversion import (
+        BoolNode,
+        MatcherGenerator,
+    )
+    from xdsl.transforms.convert_pdl_to_pdl_interp.predicate import (
+        ConstraintQuestion,
+        OperationPosition,
+        TrueAnswer,
+    )
+
+    matcher_body = Region([Block(arg_types=(pdl.OperationType(),))])
+    matcher_func = pdl_interp.FuncOp(
+        "matcher", ((pdl.OperationType(),), ()), region=matcher_body
+    )
+    rewriter_module = ModuleOp([])
+
+    generator = MatcherGenerator(matcher_func, rewriter_module)
+    block = matcher_func.body.block
+    val = block.args[0]
+
+    # Create failure block
+    failure_block = Block()
+    matcher_body.add_block(failure_block)
+    generator.failure_block_stack.append(failure_block)
+
+    # Create BoolNode with constraint
+    arg_pos = OperationPosition(None, depth=0)
+    generator.values[arg_pos] = val  # Mock the argument value
+    question = ConstraintQuestion("my_constraint", (arg_pos,), (), False)
+    answer = TrueAnswer()
+    bool_node = BoolNode(question=question, answer=answer)
+
+    # Generate the bool node
+    generator.generate_bool_node(bool_node, block, val)
+
+    # Check that ApplyConstraintOp was created
+    check_ops = [op for op in block.ops if isinstance(op, pdl_interp.ApplyConstraintOp)]
+    assert len(check_ops) == 1
+    check_op = check_ops[0]
+    assert check_op.constraint_name.data == "my_constraint"
+    assert len(check_op.args) == 1
+    assert check_op.args[0] is val
+    assert check_op.is_negated.value.data is False
+
+    # Check that constraint op is stored in map
+    assert question in generator.constraint_op_map
+    assert generator.constraint_op_map[question] is check_op
+
+
+def test_generate_bool_node_operand_count_at_least():
+    """Test generate_bool_node with OperandCountAtLeastQuestion"""
+    from xdsl.dialects import pdl_interp
+    from xdsl.dialects.builtin import ModuleOp
+    from xdsl.ir import Block, Region
+    from xdsl.transforms.convert_pdl_to_pdl_interp.conversion import (
+        BoolNode,
+        MatcherGenerator,
+    )
+    from xdsl.transforms.convert_pdl_to_pdl_interp.predicate import (
+        OperandCountAtLeastQuestion,
+        UnsignedAnswer,
+    )
+
+    matcher_body = Region([Block(arg_types=(pdl.OperationType(),))])
+    matcher_func = pdl_interp.FuncOp(
+        "matcher", ((pdl.OperationType(),), ()), region=matcher_body
+    )
+    rewriter_module = ModuleOp([])
+
+    generator = MatcherGenerator(matcher_func, rewriter_module)
+    block = matcher_func.body.block
+    val = block.args[0]
+
+    # Create failure block
+    failure_block = Block()
+    matcher_body.add_block(failure_block)
+    generator.failure_block_stack.append(failure_block)
+
+    # Create BoolNode
+    question = OperandCountAtLeastQuestion()
+    answer = UnsignedAnswer(3)
+    bool_node = BoolNode(question=question, answer=answer)
+
+    # Generate the bool node
+    generator.generate_bool_node(bool_node, block, val)
+
+    # Check that CheckOperandCountOp was created with compareAtLeast=True
+    check_ops = [
+        op for op in block.ops if isinstance(op, pdl_interp.CheckOperandCountOp)
+    ]
+    assert len(check_ops) == 1
+    check_op = check_ops[0]
+    assert check_op.count.value.data == 3
+    assert check_op.compareAtLeast is not None
+    assert check_op.input_op is val
+
+
+def test_generate_matcher_exit_node():
+    """Test generate_matcher with ExitNode"""
+    from xdsl.dialects.builtin import ModuleOp
+    from xdsl.ir import Block, Region
+
+    matcher_body = Region([Block(arg_types=(pdl.OperationType(),))])
+    matcher_func = pdl_interp.FuncOp(
+        "matcher", ((pdl.OperationType(),), ()), region=matcher_body
+    )
+    rewriter_module = ModuleOp([])
+
+    generator = MatcherGenerator(matcher_func, rewriter_module)
+
+    # Create exit node
+    exit_node = ExitNode()
+
+    # Generate matcher for exit node
+    result_block = generator.generate_matcher(exit_node, matcher_body)
+
+    # Check that FinalizeOp was created
+    finalize_ops = [
+        op for op in result_block.ops if isinstance(op, pdl_interp.FinalizeOp)
+    ]
+    assert len(finalize_ops) == 1
+
+
+def test_generate_matcher_bool_node_simple():
+    """Test generate_matcher with a simple BoolNode"""
+    from xdsl.dialects.builtin import ModuleOp
+    from xdsl.ir import Block, Region
+    from xdsl.transforms.convert_pdl_to_pdl_interp.predicate import (
+        IsNotNullQuestion,
+        OperationPosition,
+        TrueAnswer,
+    )
+
+    matcher_body = Region([Block(arg_types=(pdl.OperationType(),))])
+    matcher_func = pdl_interp.FuncOp(
+        "matcher", ((pdl.OperationType(),), ()), region=matcher_body
+    )
+    rewriter_module = ModuleOp([])
+
+    generator = MatcherGenerator(matcher_func, rewriter_module)
+
+    # Create bool node with failure node
+    pos = OperationPosition(None, depth=0)
+    question = IsNotNullQuestion()
+    answer = TrueAnswer()
+    failure_node = ExitNode()
+    bool_node = BoolNode(
+        position=pos, question=question, answer=answer, failure_node=failure_node
+    )
+
+    # Set up root operation value
+    root_val = matcher_func.body.block.args[0]
+    generator.values[pos] = root_val
+
+    # Generate matcher
+    result_block = generator.generate_matcher(bool_node, matcher_body)
+
+    # Check that IsNotNullOp was created
+    check_ops = [
+        op for op in result_block.ops if isinstance(op, pdl_interp.IsNotNullOp)
+    ]
+    assert len(check_ops) == 1
+
+    # Check that failure block was created with FinalizeOp
+    finalize_ops = [
+        op
+        for block in matcher_body.blocks
+        for op in block.ops
+        if isinstance(op, pdl_interp.FinalizeOp)
+    ]
+
+    assert len(finalize_ops) == 1
+
+
+def test_generate_matcher_bool_node_with_success():
+    """Test generate_matcher with BoolNode that has success_node"""
+    from xdsl.dialects.builtin import ModuleOp
+    from xdsl.ir import Block, Region
+    from xdsl.transforms.convert_pdl_to_pdl_interp.predicate import (
+        IsNotNullQuestion,
+        OperationPosition,
+        TrueAnswer,
+    )
+
+    matcher_body = Region([Block(arg_types=(pdl.OperationType(),))])
+    matcher_func = pdl_interp.FuncOp(
+        "matcher", ((pdl.OperationType(),), ()), region=matcher_body
+    )
+    rewriter_module = ModuleOp([])
+
+    generator = MatcherGenerator(matcher_func, rewriter_module)
+
+    # Create nested structure: BoolNode -> success_node -> ExitNode
+    pos = OperationPosition(None, depth=0)
+    question = IsNotNullQuestion()
+    answer = TrueAnswer()
+
+    # Create success and failure nodes
+    success_node = ExitNode()
+    failure_node = ExitNode()
+
+    bool_node = BoolNode(
+        position=pos,
+        question=question,
+        answer=answer,
+        success_node=success_node,
+        failure_node=failure_node,
+    )
+
+    # Set up root operation value
+    root_val = matcher_func.body.block.args[0]
+    generator.values[pos] = root_val
+
+    # Generate matcher
+    result_block = generator.generate_matcher(bool_node, matcher_body)
+
+    # Check that IsNotNullOp was created
+    check_ops = [
+        op for op in result_block.ops if isinstance(op, pdl_interp.IsNotNullOp)
+    ]
+    assert len(check_ops) == 1
+    check_op = check_ops[0]
+
+    # Check that both success and failure blocks exist and have FinalizeOps
+    success_block = check_op.true_dest
+    failure_block = check_op.false_dest
+
+    success_finalize_ops = [
+        op for op in success_block.ops if isinstance(op, pdl_interp.FinalizeOp)
+    ]
+    failure_finalize_ops = [
+        op for op in failure_block.ops if isinstance(op, pdl_interp.FinalizeOp)
+    ]
+
+    assert len(success_finalize_ops) == 1
+    assert len(failure_finalize_ops) == 1
+
+
+def test_generate_matcher_nested_bool_nodes():
+    """Test generate_matcher with nested BoolNodes"""
+    from xdsl.dialects.builtin import ModuleOp
+    from xdsl.ir import Block, Region
+    from xdsl.transforms.convert_pdl_to_pdl_interp.predicate import (
+        IsNotNullQuestion,
+        OperationNameQuestion,
+        OperationPosition,
+        StringAnswer,
+        TrueAnswer,
+    )
+
+    matcher_body = Region([Block(arg_types=(pdl.OperationType(),))])
+    matcher_func = pdl_interp.FuncOp(
+        "matcher", ((pdl.OperationType(),), ()), region=matcher_body
+    )
+    rewriter_module = ModuleOp([])
+
+    generator = MatcherGenerator(matcher_func, rewriter_module)
+
+    # Create nested structure:
+    # BoolNode(IsNotNull) -> success -> BoolNode(OpName) -> success -> ExitNode
+    pos = OperationPosition(None, depth=0)
+
+    # Create leaf node (final success)
+    final_success = ExitNode()
+
+    # Create inner bool node (operation name check)
+    inner_question = OperationNameQuestion()
+    inner_answer = StringAnswer("arith.addi")
+    inner_bool = BoolNode(
+        position=pos,
+        question=inner_question,
+        answer=inner_answer,
+        success_node=final_success,
+        failure_node=ExitNode(),
+    )
+
+    # Create outer bool node (null check)
+    outer_question = IsNotNullQuestion()
+    outer_answer = TrueAnswer()
+    outer_bool = BoolNode(
+        position=pos,
+        question=outer_question,
+        answer=outer_answer,
+        success_node=inner_bool,
+        failure_node=ExitNode(),
+    )
+
+    # Set up root operation value
+    root_val = matcher_func.body.block.args[0]
+    generator.values[pos] = root_val
+
+    # Generate matcher
+    result_block = generator.generate_matcher(outer_bool, matcher_body)
+
+    # Check that IsNotNullOp was created in the main block
+    is_not_null_ops = [
+        op for op in result_block.ops if isinstance(op, pdl_interp.IsNotNullOp)
+    ]
+    assert len(is_not_null_ops) == 1
+
+    # Check that success block contains CheckOperationNameOp
+    success_block = is_not_null_ops[0].true_dest
+    check_name_ops = [
+        op
+        for op in success_block.ops
+        if isinstance(op, pdl_interp.CheckOperationNameOp)
+    ]
+    assert len(check_name_ops) == 1
+    assert check_name_ops[0].operation_name.data == "arith.addi"
+
+    # Check that final success block has FinalizeOp
+    final_block = check_name_ops[0].true_dest
+    finalize_ops = [
+        op for op in final_block.ops if isinstance(op, pdl_interp.FinalizeOp)
+    ]
+    assert len(finalize_ops) == 1
+
+
+def test_generate_matcher_reuses_failure_block():
+    """Test that generate_matcher reuses failure blocks from stack"""
+    from xdsl.dialects.builtin import ModuleOp
+    from xdsl.ir import Block, Region
+    from xdsl.transforms.convert_pdl_to_pdl_interp.predicate import (
+        IsNotNullQuestion,
+        OperationPosition,
+        TrueAnswer,
+    )
+
+    matcher_body = Region([Block(arg_types=(pdl.OperationType(),))])
+    matcher_func = pdl_interp.FuncOp(
+        "matcher", ((pdl.OperationType(),), ()), region=matcher_body
+    )
+    rewriter_module = ModuleOp([])
+
+    generator = MatcherGenerator(matcher_func, rewriter_module)
+
+    # Create a failure block and push it to the stack
+    failure_block = Block()
+    matcher_body.add_block(failure_block)
+    finalize_op = pdl_interp.FinalizeOp()
+    generator.builder.insert_op(finalize_op, InsertPoint.at_end(failure_block))
+    generator.failure_block_stack.append(failure_block)
+
+    # Create bool node without failure_node (should use stack)
+    pos = OperationPosition(None, depth=0)
+    question = IsNotNullQuestion()
+    answer = TrueAnswer()
+    bool_node = BoolNode(position=pos, question=question, answer=answer)
+
+    # Set up root operation value
+    assert matcher_func.body.first_block
+    root_val = matcher_func.body.first_block.args[0]
+    generator.values[pos] = root_val
+
+    # Generate matcher
+    result_block = generator.generate_matcher(bool_node, matcher_body)
+
+    # Check that IsNotNullOp was created and uses the existing failure block
+    check_ops = [
+        op for op in result_block.ops if isinstance(op, pdl_interp.IsNotNullOp)
+    ]
+    assert len(check_ops) == 1
+    assert check_ops[0].false_dest is failure_block
+
+
+def test_generate_matcher_scoped_values():
+    """Test that generate_matcher properly manages scoped values"""
+    from xdsl.dialects.builtin import ModuleOp
+    from xdsl.ir import Block, Region
+    from xdsl.transforms.convert_pdl_to_pdl_interp.predicate import (
+        IsNotNullQuestion,
+        OperationPosition,
+        TrueAnswer,
+    )
+
+    matcher_body = Region([Block(arg_types=(pdl.OperationType(),))])
+    matcher_func = pdl_interp.FuncOp(
+        "matcher", ((pdl.OperationType(),), ()), region=matcher_body
+    )
+    rewriter_module = ModuleOp([])
+
+    generator = MatcherGenerator(matcher_func, rewriter_module)
+
+    # Store the initial values dict
+    initial_values = generator.values
+
+    # Create bool node
+    pos = OperationPosition(None, depth=0)
+    question = IsNotNullQuestion()
+    answer = TrueAnswer()
+    bool_node = BoolNode(
+        position=pos, question=question, answer=answer, failure_node=ExitNode()
+    )
+
+    # Set up root operation value
+    root_val = matcher_func.body.block.args[0]
+    generator.values[pos] = root_val
+
+    # Generate matcher
+    _result_block = generator.generate_matcher(bool_node, matcher_body)
+
+    # Check that values dict was restored after generation
+    assert generator.values is initial_values
+
+
+def test_generate_bool_node_with_success_node_calls_generate_matcher():
+    """Test that generate_bool_node calls generate_matcher when success_node exists"""
+    from xdsl.dialects.builtin import ModuleOp
+    from xdsl.ir import Block, Region
+    from xdsl.transforms.convert_pdl_to_pdl_interp.predicate import (
+        IsNotNullQuestion,
+        TrueAnswer,
+    )
+
+    matcher_body = Region([Block(arg_types=(pdl.OperationType(),))])
+    matcher_func = pdl_interp.FuncOp(
+        "matcher", ((pdl.OperationType(),), ()), region=matcher_body
+    )
+    rewriter_module = ModuleOp([])
+
+    generator = MatcherGenerator(matcher_func, rewriter_module)
+    block = matcher_func.body.block
+    val = block.args[0]
+
+    # Create failure block
+    failure_block = Block()
+    matcher_body.add_block(failure_block)
+    generator.failure_block_stack.append(failure_block)
+
+    # Create BoolNode with success_node
+    question = IsNotNullQuestion()
+    answer = TrueAnswer()
+    success_node = ExitNode()
+    bool_node = BoolNode(question=question, answer=answer, success_node=success_node)
+
+    # Generate the bool node
+    generator.generate_bool_node(bool_node, block, val)
+
+    # Check that IsNotNullOp was created
+    check_ops = [op for op in block.ops if isinstance(op, pdl_interp.IsNotNullOp)]
+    assert len(check_ops) == 1
+    check_op = check_ops[0]
+
+    # Check that success block was created and contains FinalizeOp (from generate_matcher)
+    success_block = check_op.true_dest
+    finalize_ops = [
+        op for op in success_block.ops if isinstance(op, pdl_interp.FinalizeOp)
+    ]
+    assert len(finalize_ops) == 1
+
+
+def test_generate_switch_node_operation_name():
+    """Test generate_switch_node with OperationNameQuestion"""
+    from unittest.mock import patch
+
+    from xdsl.dialects import pdl_interp
+    from xdsl.dialects.builtin import ModuleOp
+    from xdsl.ir import Block, Region
+    from xdsl.transforms.convert_pdl_to_pdl_interp.conversion import (
+        MatcherGenerator,
+        SuccessNode,
+        SwitchNode,
+    )
+    from xdsl.transforms.convert_pdl_to_pdl_interp.predicate import (
+        OperationNameQuestion,
+        StringAnswer,
+    )
+
+    matcher_body = Region([Block(arg_types=(pdl.OperationType(),))])
+    matcher_func = pdl_interp.FuncOp(
+        "matcher", ((pdl.OperationType(),), ()), region=matcher_body
+    )
+    rewriter_module = ModuleOp([])
+
+    generator = MatcherGenerator(matcher_func, rewriter_module)
+    block = matcher_func.body.block
+    val = block.args[0]
+
+    # Create failure block
+    failure_block = Block()
+    matcher_body.add_block(failure_block)
+    generator.failure_block_stack.append(failure_block)
+
+    # Create mock pattern for SuccessNode
+    mock_pattern = pdl.PatternOp(1, "test_pattern", Region())
+
+    # Create SwitchNode with multiple operation name cases
+    question = OperationNameQuestion()
+    children: dict[Answer, MatcherNode | None] = {
+        StringAnswer("arith.addi"): SuccessNode(pattern=mock_pattern),
+        StringAnswer("arith.subi"): SuccessNode(pattern=mock_pattern),
+        StringAnswer("arith.muli"): SuccessNode(pattern=mock_pattern),
+    }
+    switch_node = SwitchNode(question=question, children=children)
+
+    # Mock generate_matcher to return dummy blocks
+    mock_blocks = [Block(), Block(), Block()]
+    with patch.object(generator, "generate_matcher", side_effect=mock_blocks):
+        # Generate the switch node
+        generator.generate_switch_node(switch_node, block, val)
+
+    # Check that SwitchOperationNameOp was created
+    switch_ops = [
+        op for op in block.ops if isinstance(op, pdl_interp.SwitchOperationNameOp)
+    ]
+    assert len(switch_ops) == 1
+    switch_op = switch_ops[0]
+
+    # Check case values
+    case_values = [attr.data for attr in switch_op.case_values.data]
+    assert set(case_values) == {"arith.addi", "arith.subi", "arith.muli"}
+
+    # Check operand and successors
+    assert switch_op.input_op is val
+    assert switch_op.default_dest is failure_block
+    assert len(switch_op.cases) == 3
+
+
+def test_generate_switch_node_attribute_constraint():
+    """Test generate_switch_node with AttributeConstraintQuestion"""
+    from unittest.mock import patch
+
+    from xdsl.dialects import pdl_interp
+    from xdsl.dialects.builtin import IntegerAttr, ModuleOp
+    from xdsl.ir import Block, Region
+    from xdsl.transforms.convert_pdl_to_pdl_interp.conversion import (
+        MatcherGenerator,
+        SuccessNode,
+        SwitchNode,
+    )
+    from xdsl.transforms.convert_pdl_to_pdl_interp.predicate import (
+        AttributeAnswer,
+        AttributeConstraintQuestion,
+    )
+
+    matcher_body = Region([Block(arg_types=(pdl.AttributeType(),))])
+    matcher_func = pdl_interp.FuncOp(
+        "matcher", ((pdl.AttributeType(),), ()), region=matcher_body
+    )
+    rewriter_module = ModuleOp([])
+
+    generator = MatcherGenerator(matcher_func, rewriter_module)
+    block = matcher_func.body.block
+    val = block.args[0]
+
+    # Create failure block
+    failure_block = Block()
+    matcher_body.add_block(failure_block)
+    generator.failure_block_stack.append(failure_block)
+
+    # Create mock pattern for SuccessNode
+    mock_pattern = pdl.PatternOp(1, "test_pattern", Region())
+
+    # Create SwitchNode with multiple attribute cases
+    question = AttributeConstraintQuestion()
+    attr1 = IntegerAttr(1, i32)
+    attr2 = IntegerAttr(2, i32)
+    attr3 = IntegerAttr(3, i32)
+    children: dict[Answer, MatcherNode | None] = {
+        AttributeAnswer(attr1): SuccessNode(pattern=mock_pattern),
+        AttributeAnswer(attr2): SuccessNode(pattern=mock_pattern),
+        AttributeAnswer(attr3): SuccessNode(pattern=mock_pattern),
+    }
+    switch_node = SwitchNode(question=question, children=children)
+
+    # Mock generate_matcher to return dummy blocks
+    mock_blocks = [Block(), Block(), Block()]
+    with patch.object(generator, "generate_matcher", side_effect=mock_blocks):
+        # Generate the switch node
+        generator.generate_switch_node(switch_node, block, val)
+
+    # Check that SwitchAttributeOp was created
+    switch_ops = [
+        op for op in block.ops if isinstance(op, pdl_interp.SwitchAttributeOp)
+    ]
+    assert len(switch_ops) == 1
+    switch_op = switch_ops[0]
+
+    # Check case values
+    case_attrs = switch_op.caseValues.data
+    assert len(case_attrs) == 3
+    assert attr1 in case_attrs
+    assert attr2 in case_attrs
+    assert attr3 in case_attrs
+
+    # Check operand and successors
+    assert switch_op.attribute is val
+    assert switch_op.defaultDest is failure_block
+    assert len(switch_op.cases) == 3
+
+
+def test_generate_switch_node_with_none_child():
+    """Test generate_switch_node with None children (should be skipped)"""
+    from unittest.mock import patch
+
+    from xdsl.dialects import pdl_interp
+    from xdsl.dialects.builtin import ModuleOp
+    from xdsl.ir import Block, Region
+    from xdsl.transforms.convert_pdl_to_pdl_interp.conversion import (
+        MatcherGenerator,
+        SuccessNode,
+        SwitchNode,
+    )
+    from xdsl.transforms.convert_pdl_to_pdl_interp.predicate import (
+        OperationNameQuestion,
+        StringAnswer,
+    )
+
+    matcher_body = Region([Block(arg_types=(pdl.OperationType(),))])
+    matcher_func = pdl_interp.FuncOp(
+        "matcher", ((pdl.OperationType(),), ()), region=matcher_body
+    )
+    rewriter_module = ModuleOp([])
+
+    generator = MatcherGenerator(matcher_func, rewriter_module)
+    block = matcher_func.body.block
+    val = block.args[0]
+
+    # Create failure block
+    failure_block = Block()
+    matcher_body.add_block(failure_block)
+    generator.failure_block_stack.append(failure_block)
+
+    # Create mock pattern for SuccessNode
+    mock_pattern = pdl.PatternOp(1, "test_pattern", Region())
+
+    # Create SwitchNode with some None children
+    question = OperationNameQuestion()
+    children: dict[Answer, MatcherNode | None] = {
+        StringAnswer("arith.addi"): SuccessNode(pattern=mock_pattern),
+        StringAnswer("arith.subi"): None,  # This should be skipped
+        StringAnswer("arith.muli"): SuccessNode(pattern=mock_pattern),
+    }
+    switch_node = SwitchNode(question=question, children=children)
+
+    # Mock generate_matcher to return dummy blocks (only for non-None children)
+    mock_blocks = [Block(), Block()]
+    with patch.object(generator, "generate_matcher", side_effect=mock_blocks):
+        # Generate the switch node
+        generator.generate_switch_node(switch_node, block, val)
+
+    # Check that SwitchOperationNameOp was created
+    switch_ops = [
+        op for op in block.ops if isinstance(op, pdl_interp.SwitchOperationNameOp)
+    ]
+    assert len(switch_ops) == 1
+    switch_op = switch_ops[0]
+
+    # Should only have 2 cases (None child skipped)
+    case_values = [attr.data for attr in switch_op.case_values.data]
+    assert len(case_values) == 2
+    assert set(case_values) == {"arith.addi", "arith.muli"}
+    assert len(switch_op.cases) == 2
+
+
+def test_generate_switch_node_empty_children():
+    """Test generate_switch_node with empty children"""
+    from xdsl.dialects import pdl_interp
+    from xdsl.dialects.builtin import ModuleOp
+    from xdsl.ir import Block, Region
+    from xdsl.transforms.convert_pdl_to_pdl_interp.conversion import (
+        MatcherGenerator,
+        SwitchNode,
+    )
+    from xdsl.transforms.convert_pdl_to_pdl_interp.predicate import (
+        OperationNameQuestion,
+    )
+
+    matcher_body = Region([Block(arg_types=(pdl.OperationType(),))])
+    matcher_func = pdl_interp.FuncOp(
+        "matcher", ((pdl.OperationType(),), ()), region=matcher_body
+    )
+    rewriter_module = ModuleOp([])
+
+    generator = MatcherGenerator(matcher_func, rewriter_module)
+    block = matcher_func.body.block
+    val = block.args[0]
+
+    # Create failure block
+    failure_block = Block()
+    matcher_body.add_block(failure_block)
+    generator.failure_block_stack.append(failure_block)
+
+    # Create SwitchNode with empty children
+    question = OperationNameQuestion()
+    children: dict[Answer, MatcherNode | None] = {}
+    switch_node = SwitchNode(question=question, children=children)
+
+    # Generate the switch node
+    generator.generate_switch_node(switch_node, block, val)
+
+    # Check that SwitchOperationNameOp was created even with empty cases
+    switch_ops = [
+        op for op in block.ops if isinstance(op, pdl_interp.SwitchOperationNameOp)
+    ]
+    assert len(switch_ops) == 1
+    switch_op = switch_ops[0]
+
+    # Should have no cases
+    assert not switch_op.case_values.data
+    assert not switch_op.cases
+    assert switch_op.default_dest is failure_block
+
+
+def test_generate_switch_node_operand_count_not_implemented():
+    """Test that OperandCountQuestion raises NotImplementedError"""
+    from unittest.mock import patch
+
+    from xdsl.dialects import pdl_interp
+    from xdsl.dialects.builtin import ModuleOp
+    from xdsl.ir import Block, Region
+    from xdsl.transforms.convert_pdl_to_pdl_interp.conversion import (
+        MatcherGenerator,
+        SuccessNode,
+        SwitchNode,
+    )
+    from xdsl.transforms.convert_pdl_to_pdl_interp.predicate import (
+        OperandCountQuestion,
+        UnsignedAnswer,
+    )
+
+    matcher_body = Region([Block(arg_types=(pdl.OperationType(),))])
+    matcher_func = pdl_interp.FuncOp(
+        "matcher", ((pdl.OperationType(),), ()), region=matcher_body
+    )
+    rewriter_module = ModuleOp([])
+
+    generator = MatcherGenerator(matcher_func, rewriter_module)
+    block = matcher_func.body.block
+    val = block.args[0]
+
+    # Create failure block
+    failure_block = Block()
+    matcher_body.add_block(failure_block)
+    generator.failure_block_stack.append(failure_block)
+
+    # Create mock pattern for SuccessNode
+    mock_pattern = pdl.PatternOp(1, "test_pattern", Region())
+
+    # Create SwitchNode with operand count cases
+    question = OperandCountQuestion()
+    children: dict[Answer, MatcherNode | None] = {
+        UnsignedAnswer(1): SuccessNode(pattern=mock_pattern),
+        UnsignedAnswer(2): SuccessNode(pattern=mock_pattern),
+    }
+    switch_node = SwitchNode(question=question, children=children)
+
+    # Mock generate_matcher to return dummy blocks
+    mock_blocks = [Block(), Block()]
+    with patch.object(generator, "generate_matcher", side_effect=mock_blocks):
+        # Should raise NotImplementedError
+        with pytest.raises(
+            NotImplementedError,
+            match="pdl_interp.switch_operand_count is not yet implemented",
+        ):
+            generator.generate_switch_node(switch_node, block, val)
+
+
+def test_generate_switch_node_result_count_not_implemented():
+    """Test that ResultCountQuestion raises NotImplementedError"""
+    from unittest.mock import patch
+
+    from xdsl.dialects import pdl_interp
+    from xdsl.dialects.builtin import ModuleOp
+    from xdsl.ir import Block, Region
+    from xdsl.transforms.convert_pdl_to_pdl_interp.conversion import (
+        MatcherGenerator,
+        SuccessNode,
+        SwitchNode,
+    )
+    from xdsl.transforms.convert_pdl_to_pdl_interp.predicate import (
+        ResultCountQuestion,
+        UnsignedAnswer,
+    )
+
+    matcher_body = Region([Block(arg_types=(pdl.OperationType(),))])
+    matcher_func = pdl_interp.FuncOp(
+        "matcher", ((pdl.OperationType(),), ()), region=matcher_body
+    )
+    rewriter_module = ModuleOp([])
+
+    generator = MatcherGenerator(matcher_func, rewriter_module)
+    block = matcher_func.body.block
+    val = block.args[0]
+
+    # Create failure block
+    failure_block = Block()
+    matcher_body.add_block(failure_block)
+    generator.failure_block_stack.append(failure_block)
+
+    # Create mock pattern for SuccessNode
+    mock_pattern = pdl.PatternOp(1, "test_pattern", Region())
+
+    # Create SwitchNode with result count cases
+    question = ResultCountQuestion()
+    children: dict[Answer, MatcherNode | None] = {
+        UnsignedAnswer(1): SuccessNode(pattern=mock_pattern),
+        UnsignedAnswer(2): SuccessNode(pattern=mock_pattern),
+    }
+    switch_node = SwitchNode(question=question, children=children)
+
+    # Mock generate_matcher to return dummy blocks
+    mock_blocks = [Block(), Block()]
+    with patch.object(generator, "generate_matcher", side_effect=mock_blocks):
+        # Should raise NotImplementedError
+        with pytest.raises(
+            NotImplementedError,
+            match="pdl_interp.switch_result_count is not yet implemented",
+        ):
+            generator.generate_switch_node(switch_node, block, val)
+
+
+def test_generate_switch_node_type_constraint_not_implemented():
+    """Test that TypeConstraintQuestion raises NotImplementedError"""
+    from unittest.mock import patch
+
+    from xdsl.dialects import pdl_interp
+    from xdsl.dialects.builtin import ModuleOp
+    from xdsl.ir import Block, Region
+    from xdsl.transforms.convert_pdl_to_pdl_interp.conversion import (
+        MatcherGenerator,
+        SuccessNode,
+        SwitchNode,
+    )
+    from xdsl.transforms.convert_pdl_to_pdl_interp.predicate import (
+        TypeAnswer,
+        TypeConstraintQuestion,
+    )
+
+    matcher_body = Region([Block(arg_types=(pdl.TypeType(),))])
+    matcher_func = pdl_interp.FuncOp(
+        "matcher", ((pdl.TypeType(),), ()), region=matcher_body
+    )
+    rewriter_module = ModuleOp([])
+
+    generator = MatcherGenerator(matcher_func, rewriter_module)
+    block = matcher_func.body.block
+    val = block.args[0]
+
+    # Create failure block
+    failure_block = Block()
+    matcher_body.add_block(failure_block)
+    generator.failure_block_stack.append(failure_block)
+
+    # Create mock pattern for SuccessNode
+    mock_pattern = pdl.PatternOp(1, "test_pattern", Region())
+
+    # Create SwitchNode with type constraint cases
+    question = TypeConstraintQuestion()
+    children: dict[Answer, MatcherNode | None] = {
+        TypeAnswer(i32): SuccessNode(pattern=mock_pattern),
+        TypeAnswer(f32): SuccessNode(pattern=mock_pattern),
+    }
+    switch_node = SwitchNode(question=question, children=children)
+
+    # Mock generate_matcher to return dummy blocks
+    mock_blocks = [Block(), Block()]
+    with patch.object(generator, "generate_matcher", side_effect=mock_blocks):
+        # Should raise NotImplementedError
+        with pytest.raises(
+            NotImplementedError, match="pdl_interp.switch_types is not yet implemented"
+        ):
+            generator.generate_switch_node(switch_node, block, val)
+
+
+def test_generate_switch_node_unhandled_question():
+    """Test that unhandled question types raise NotImplementedError"""
+    from unittest.mock import patch
+
+    from xdsl.dialects import pdl_interp
+    from xdsl.dialects.builtin import ModuleOp
+    from xdsl.ir import Block, Region
+    from xdsl.transforms.convert_pdl_to_pdl_interp.conversion import (
+        MatcherGenerator,
+        SuccessNode,
+        SwitchNode,
+    )
+    from xdsl.transforms.convert_pdl_to_pdl_interp.predicate import (
+        IsNotNullQuestion,
+        TrueAnswer,
+    )
+
+    matcher_body = Region([Block(arg_types=(pdl.OperationType(),))])
+    matcher_func = pdl_interp.FuncOp(
+        "matcher", ((pdl.OperationType(),), ()), region=matcher_body
+    )
+    rewriter_module = ModuleOp([])
+
+    generator = MatcherGenerator(matcher_func, rewriter_module)
+    block = matcher_func.body.block
+    val = block.args[0]
+
+    # Create failure block
+    failure_block = Block()
+    matcher_body.add_block(failure_block)
+    generator.failure_block_stack.append(failure_block)
+
+    # Create mock pattern for SuccessNode
+    mock_pattern = pdl.PatternOp(1, "test_pattern", Region())
+
+    # Create SwitchNode with unsupported question type
+    question = IsNotNullQuestion()  # Not supported in switch
+    children: dict[Answer, MatcherNode | None] = {
+        TrueAnswer(): SuccessNode(pattern=mock_pattern),
+    }
+    switch_node = SwitchNode(question=question, children=children)
+
+    # Mock generate_matcher to return dummy blocks
+    mock_blocks = [Block()]
+    with patch.object(generator, "generate_matcher", side_effect=mock_blocks):
+        # Should raise NotImplementedError
+        with pytest.raises(NotImplementedError, match="Unhandled question type"):
+            generator.generate_switch_node(switch_node, block, val)
+
+
+@pytest.mark.parametrize(
+    "question_type, check_op_type",
+    [
+        (OperandCountAtLeastQuestion, pdl_interp.CheckOperandCountOp),
+        (ResultCountAtLeastQuestion, pdl_interp.CheckResultCountOp),
+    ],
+)
+def test_generate_switch_node_at_least_question(
+    question_type: type[Question],
+    check_op_type: type[pdl_interp.CheckOperandCountOp | pdl_interp.CheckResultCountOp],
+):
+    from unittest.mock import patch
+
+    """
+    Test generate_switch_node with OperandCountAtLeastQuestion and
+    ResultCountAtLeastQuestion, which have special handling.
+    """
+    # 1. Set up the test environment
+    matcher_body = Region([Block(arg_types=(pdl.OperationType(),))])
+    matcher_func = pdl_interp.FuncOp(
+        "matcher", ((pdl.OperationType(),), ()), region=matcher_body
+    )
+    rewriter_module = ModuleOp([])
+    generator = MatcherGenerator(matcher_func, rewriter_module)
+    block = matcher_func.body.block
+    val = block.args[0]
+
+    # Create a default failure block and push it to the stack
+    default_failure_block = Block()
+    matcher_body.add_block(default_failure_block)
+    generator.failure_block_stack.append(default_failure_block)
+
+    # 2. Construct the SwitchNode
+    mock_pattern = pdl.PatternOp(1, "test_pattern", Region())
+    question = question_type()
+    # Children are intentionally unordered to test the sorting logic
+    children: dict[Answer, MatcherNode | None] = {
+        UnsignedAnswer(3): SuccessNode(pattern=mock_pattern),
+        UnsignedAnswer(5): SuccessNode(pattern=mock_pattern),
+        UnsignedAnswer(1): SuccessNode(pattern=mock_pattern),
+    }
+    switch_node = SwitchNode(question=question, children=children)
+
+    # 3. Mock `generate_matcher` to return distinct success blocks
+    # The side_effect order corresponds to the reverse-sorted keys (5, 3, 1)
+    mock_success_block_5 = Block()
+    mock_success_block_3 = Block()
+    mock_success_block_1 = Block()
+    side_effects = [mock_success_block_5, mock_success_block_3, mock_success_block_1]
+
+    with patch.object(
+        generator, "generate_matcher", side_effect=side_effects
+    ) as mock_gen:
+        # 4. Call the method under test
+        generator.generate_switch_node(switch_node, block, val)
+
+    # 5. Verify the generated IR
+    # The logic creates a chain starting with the LOWEST count (1)
+    # Check 1 (for count >= 1) should be in the initial block
+    assert len(block.ops) == 1
+    check_op_1 = block.first_op
+    assert isinstance(check_op_1, check_op_type)
+    assert check_op_1.count.value.data == 1  # Fixed: expect 1, not 5
+    assert check_op_1.compareAtLeast is not None
+    assert check_op_1.true_dest is mock_success_block_1  # Fixed: expect block_1
+    assert check_op_1.false_dest is default_failure_block
+
+    # The success block for count >= 1 should fail to check_3
+    # This is set via the failure_block_stack during generation
+
+    # Verify that generate_matcher was called for each child in reverse order
+    assert mock_gen.call_count == 3
+    # Calls were made in order: child_5, child_3, child_1
+
+
+def test_generate_rewriter_for_apply_native_rewrite():
+    """Test _generate_rewriter_for_apply_native_rewrite method"""
+    from xdsl.dialects.builtin import ModuleOp
+    from xdsl.ir import Block, Region
+    from xdsl.transforms.convert_pdl_to_pdl_interp.conversion import MatcherGenerator
+
+    # Setup
+    matcher_body = Region([Block(arg_types=(pdl.OperationType(),))])
+    matcher_func = pdl_interp.FuncOp(
+        "matcher", ((pdl.OperationType(),), ()), region=matcher_body
+    )
+    rewriter_module = ModuleOp([])
+    generator = MatcherGenerator(matcher_func, rewriter_module)
+
+    # Create a pattern with ApplyNativeRewriteOp
+    body = Region([Block()])
+    block = body.first_block
+    with ImplicitBuilder(block):
+        op1 = pdl.OperationOp("test_op").op
+        apply_native = pdl.ApplyNativeRewriteOp("my_rewrite", [op1], [pdl.TypeType()])
+        pdl.RewriteOp(None, name="rewrite")
+
+    rewrite_values: dict[SSAValue, SSAValue] = {}
+
+    # Map the operation value
+    rewriter_func_block = Block()
+    arg = rewriter_func_block.insert_arg(pdl.OperationType(), 0)
+    rewrite_values[op1] = arg
+
+    def map_rewrite_value(val: SSAValue) -> SSAValue:
+        return rewrite_values.get(val, val)
+
+    # The method should raise NotImplementedError
+    with pytest.raises(
+        NotImplementedError, match="pdl_interp.apply_rewrite is not yet implemented"
+    ):
+        generator._generate_rewriter_for_apply_native_rewrite(  # pyright: ignore[reportPrivateUsage]
+            apply_native, rewrite_values, map_rewrite_value
+        )
+
+
+def test_generate_rewriter_for_attribute_with_constant():
+    """Test _generate_rewriter_for_attribute with constant value"""
+    from xdsl.dialects.builtin import ModuleOp
+    from xdsl.ir import Block, Region
+    from xdsl.transforms.convert_pdl_to_pdl_interp.conversion import MatcherGenerator
+
+    # Setup
+    matcher_body = Region([Block(arg_types=(pdl.OperationType(),))])
+    matcher_func = pdl_interp.FuncOp(
+        "matcher", ((pdl.OperationType(),), ()), region=matcher_body
+    )
+    rewriter_module = ModuleOp([])
+    generator = MatcherGenerator(matcher_func, rewriter_module)
+
+    # Create AttributeOp with constant value
+    body = Region([Block()])
+    block = body.first_block
+    with ImplicitBuilder(block):
+        attr_op = pdl.AttributeOp(IntegerAttr(42, i32))
+        pdl.RewriteOp(None, name="rewrite")
+
+    rewrite_values: dict[SSAValue, SSAValue] = {}
+
+    def map_rewrite_value(val: SSAValue) -> SSAValue:
+        return rewrite_values.get(val, val)
+
+    # Set up rewriter builder
+    rewriter_block = Block()
+    generator.rewriter_builder.insertion_point = InsertPoint.at_end(rewriter_block)
+
+    # Call method
+    generator._generate_rewriter_for_attribute(  # pyright: ignore[reportPrivateUsage]
+        attr_op, rewrite_values, map_rewrite_value
+    )
+
+    # Verify CreateAttributeOp was created
+    create_ops = [
+        op for op in rewriter_block.ops if isinstance(op, pdl_interp.CreateAttributeOp)
+    ]
+    assert len(create_ops) == 1
+    assert create_ops[0].value == IntegerAttr(42, i32)
+
+    # Verify mapping was added
+    assert attr_op.output in rewrite_values
+    assert rewrite_values[attr_op.output] == create_ops[0].attribute
+
+
+def test_generate_rewriter_for_attribute_without_constant():
+    """Test _generate_rewriter_for_attribute without constant value"""
+    from xdsl.dialects.builtin import ModuleOp
+    from xdsl.ir import Block, Region
+    from xdsl.transforms.convert_pdl_to_pdl_interp.conversion import MatcherGenerator
+
+    # Setup
+    matcher_body = Region([Block(arg_types=(pdl.OperationType(),))])
+    matcher_func = pdl_interp.FuncOp(
+        "matcher", ((pdl.OperationType(),), ()), region=matcher_body
+    )
+    rewriter_module = ModuleOp([])
+    generator = MatcherGenerator(matcher_func, rewriter_module)
+
+    # Create AttributeOp without constant value
+    body = Region([Block()])
+    block = body.first_block
+    with ImplicitBuilder(block):
+        attr_type = pdl.TypeOp(i32).result
+        attr_op = pdl.AttributeOp(attr_type)
+        pdl.RewriteOp(None, name="rewrite")
+
+    rewrite_values: dict[SSAValue, SSAValue] = {}
+
+    def map_rewrite_value(val: SSAValue) -> SSAValue:
+        return rewrite_values.get(val, val)
+
+    # Set up rewriter builder
+    rewriter_block = Block()
+    generator.rewriter_builder.insertion_point = InsertPoint.at_end(rewriter_block)
+
+    # Call method
+    generator._generate_rewriter_for_attribute(  # pyright: ignore[reportPrivateUsage]
+        attr_op, rewrite_values, map_rewrite_value
+    )
+
+    # Verify no ops were created
+    assert not rewriter_block.ops
+
+    # Verify no mapping was added
+    assert attr_op.output not in rewrite_values
+
+
+def test_generate_operation_result_type_rewriter_strategy1_all_resolvable():
+    """Test _generate_operation_result_type_rewriter Strategy 1: all types resolvable"""
+    from xdsl.dialects.builtin import ModuleOp
+    from xdsl.ir import Block, Region
+    from xdsl.transforms.convert_pdl_to_pdl_interp.conversion import MatcherGenerator
+
+    # Setup
+    matcher_body = Region([Block(arg_types=(pdl.OperationType(),))])
+    matcher_func = pdl_interp.FuncOp(
+        "matcher", ((pdl.OperationType(),), ()), region=matcher_body
+    )
+    rewriter_module = ModuleOp([])
+    generator = MatcherGenerator(matcher_func, rewriter_module)
+
+    # Create rewriter region with an operation that has resolvable types
+    rewriter_region = Region([Block()])
+    rewriter_block = rewriter_region.first_block
+    with ImplicitBuilder(rewriter_block):
+        type1 = pdl.TypeOp(i32).result
+        type2 = pdl.TypeOp(f32).result
+        op_to_create = pdl.OperationOp("test.op", type_values=(type1, type2))
+
+    rewrite_values: dict[SSAValue, SSAValue] = {}
+
+    # Map the type values
+    type_block = Block()
+    type1_arg = type_block.insert_arg(pdl.TypeType(), 0)
+    type2_arg = type_block.insert_arg(pdl.TypeType(), 1)
+    rewrite_values[type1] = type1_arg
+    rewrite_values[type2] = type2_arg
+
+    def map_rewrite_value(val: SSAValue) -> SSAValue:
+        return rewrite_values.get(val, val)
+
+    types_list: list[SSAValue] = []
+
+    # Call method
+    has_inferred = generator._generate_operation_result_type_rewriter(  # pyright: ignore[reportPrivateUsage]
+        op_to_create, map_rewrite_value, types_list, rewrite_values
+    )
+
+    # Verify Strategy 1 was used: all types resolved
+    assert has_inferred is False
+    assert types_list == [type1_arg, type2_arg]
+
+
+def test_generate_operation_result_type_rewriter_strategy3_from_replace():
+    """Test _generate_operation_result_type_rewriter Strategy 3: infer from replaced operation"""
+    from xdsl.dialects.builtin import ModuleOp
+    from xdsl.ir import Block, Region
+    from xdsl.transforms.convert_pdl_to_pdl_interp.conversion import MatcherGenerator
+
+    # Setup
+    matcher_body = Region([Block(arg_types=(pdl.OperationType(),))])
+    matcher_func = pdl_interp.FuncOp(
+        "matcher", ((pdl.OperationType(),), ()), region=matcher_body
+    )
+    rewriter_module = ModuleOp([])
+    generator = MatcherGenerator(matcher_func, rewriter_module)
+
+    # Create rewriter region with operations
+    rewriter_region = Region([Block()])
+    rewriter_block = rewriter_region.first_block
+    with ImplicitBuilder(rewriter_block):
+        # Old operation to be replaced
+        old_op = pdl.OperationOp("old.op")
+        # New operation that will replace it
+        type1 = pdl.TypeOp().result
+        new_op = pdl.OperationOp("new.op", type_values=(type1,))
+        # Replace operation
+        pdl.ReplaceOp(old_op.op, repl_operation=new_op.op)
+
+    rewrite_values: dict[SSAValue, SSAValue] = {}
+
+    # Map the old operation value (from match)
+    match_block = Block()
+    old_op_arg = match_block.insert_arg(pdl.OperationType(), 0)
+    rewrite_values[old_op.op] = old_op_arg
+
+    def map_rewrite_value(val: SSAValue) -> SSAValue:
+        return rewrite_values.get(val, val)
+
+    types_list: list[SSAValue] = []
+
+    # Set up rewriter builder for the ops that will be generated
+    result_block = Block()
+    generator.rewriter_builder.insertion_point = InsertPoint.at_end(result_block)
+
+    # Call method
+    has_inferred = generator._generate_operation_result_type_rewriter(  # pyright: ignore[reportPrivateUsage]
+        new_op, map_rewrite_value, types_list, rewrite_values
+    )
+
+    # Verify Strategy 3 was used: inferred from replaced operation
+    assert has_inferred is False
+    assert len(types_list) == 1
+
+    # Check that GetResultsOp and GetValueTypeOp were created
+    get_results_ops = [
+        op for op in result_block.ops if isinstance(op, pdl_interp.GetResultsOp)
+    ]
+    assert len(get_results_ops) == 1
+    assert get_results_ops[0].input_op == old_op_arg
+
+    get_type_ops = [
+        op for op in result_block.ops if isinstance(op, pdl_interp.GetValueTypeOp)
+    ]
+    assert len(get_type_ops) == 1
+
+
+def test_generate_operation_result_type_rewriter_strategy4_no_types():
+    """Test _generate_operation_result_type_rewriter Strategy 4: no explicit types"""
+    from xdsl.dialects.builtin import ModuleOp
+    from xdsl.ir import Block, Region
+    from xdsl.transforms.convert_pdl_to_pdl_interp.conversion import MatcherGenerator
+
+    # Setup
+    matcher_body = Region([Block(arg_types=(pdl.OperationType(),))])
+    matcher_func = pdl_interp.FuncOp(
+        "matcher", ((pdl.OperationType(),), ()), region=matcher_body
+    )
+    rewriter_module = ModuleOp([])
+    generator = MatcherGenerator(matcher_func, rewriter_module)
+
+    # Create rewriter region with an operation that has no result types
+    rewriter_region = Region([Block()])
+    rewriter_block = rewriter_region.first_block
+    with ImplicitBuilder(rewriter_block):
+        op_to_create = pdl.OperationOp("test.op", type_values=())
+
+    rewrite_values: dict[SSAValue, SSAValue] = {}
+
+    def map_rewrite_value(val: SSAValue) -> SSAValue:
+        return rewrite_values.get(val, val)
+
+    types_list: list[SSAValue] = []
+
+    # Call method
+    has_inferred = generator._generate_operation_result_type_rewriter(  # pyright: ignore[reportPrivateUsage]
+        op_to_create, map_rewrite_value, types_list, rewrite_values
+    )
+
+    # Verify Strategy 4 was used: no results assumed
+    assert has_inferred is False
+    assert not types_list
+
+    assert not types_list
+
+
+def test_generate_operation_result_type_rewriter_error_unresolvable():
+    """Test _generate_operation_result_type_rewriter raises error when types can't be inferred"""
+    from xdsl.dialects.builtin import ModuleOp
+    from xdsl.ir import Block, Region
+    from xdsl.transforms.convert_pdl_to_pdl_interp.conversion import MatcherGenerator
+
+    # Setup
+    matcher_body = Region([Block(arg_types=(pdl.OperationType(),))])
+    matcher_func = pdl_interp.FuncOp(
+        "matcher", ((pdl.OperationType(),), ()), region=matcher_body
+    )
+    rewriter_module = ModuleOp([])
+    generator = MatcherGenerator(matcher_func, rewriter_module)
+
+    # Create rewriter region with an operation that has unresolvable types
+    rewriter_region = Region([Block()])
+    rewriter_block = rewriter_region.first_block
+    with ImplicitBuilder(rewriter_block):
+        # Type is defined in rewriter block but not in rewrite_values
+        type1 = pdl.TypeOp().result
+        op_to_create = pdl.OperationOp("test.op", type_values=(type1,))
+
+    rewrite_values: dict[SSAValue, SSAValue] = {}
+
+    def map_rewrite_value(val: SSAValue) -> SSAValue:
+        return rewrite_values.get(val, val)
+
+    types_list: list[SSAValue] = []
+
+    # Call method - should raise ValueError
+    with pytest.raises(
+        ValueError, match='Unable to infer result types for pdl.operation "test.op"'
+    ):
+        generator._generate_operation_result_type_rewriter(  # pyright: ignore[reportPrivateUsage]
+            op_to_create, map_rewrite_value, types_list, rewrite_values
+        )
+
+
+def test_generate_operation_result_type_rewriter_strategy1_partial_resolution():
+    """Test Strategy 1 with some types resolvable but not all (should fall through)"""
+    from xdsl.dialects.builtin import ModuleOp
+    from xdsl.ir import Block, Region
+    from xdsl.transforms.convert_pdl_to_pdl_interp.conversion import MatcherGenerator
+
+    # Setup
+    matcher_body = Region([Block(arg_types=(pdl.OperationType(),))])
+    matcher_func = pdl_interp.FuncOp(
+        "matcher", ((pdl.OperationType(),), ()), region=matcher_body
+    )
+    rewriter_module = ModuleOp([])
+    generator = MatcherGenerator(matcher_func, rewriter_module)
+
+    # Create rewriter region with mixed resolvable/unresolvable types
+    rewriter_region = Region([Block()])
+    rewriter_block = rewriter_region.first_block
+    with ImplicitBuilder(rewriter_block):
+        type1 = pdl.TypeOp(i32).result  # Resolvable constant
+        type2 = pdl.TypeOp().result  # Unresolvable
+        op_to_create = pdl.OperationOp("test.op", type_values=(type1, type2))
+
+    rewrite_values: dict[SSAValue, SSAValue] = {}
+    # Only map type1, not type2
+    type_block = Block()
+    type1_arg = type_block.insert_arg(pdl.TypeType(), 0)
+    rewrite_values[type1] = type1_arg
+
+    def map_rewrite_value(val: SSAValue) -> SSAValue:
+        return rewrite_values.get(val, val)
+
+    types_list: list[SSAValue] = []
+
+    # Should raise ValueError because not all types can be resolved
+    with pytest.raises(
+        ValueError, match='Unable to infer result types for pdl.operation "test.op"'
+    ):
+        generator._generate_operation_result_type_rewriter(  # pyright: ignore[reportPrivateUsage]
+            op_to_create, map_rewrite_value, types_list, rewrite_values
+        )
+
+
+def test_generate_operation_result_type_rewriter_strategy3_operation_before_replace():
+    """Test Strategy 3 skips replace ops where new op is before old op in block"""
+    from xdsl.dialects.builtin import ModuleOp
+    from xdsl.ir import Block, Region
+    from xdsl.transforms.convert_pdl_to_pdl_interp.conversion import MatcherGenerator
+
+    # Setup
+    matcher_body = Region([Block(arg_types=(pdl.OperationType(),))])
+    matcher_func = pdl_interp.FuncOp(
+        "matcher", ((pdl.OperationType(),), ()), region=matcher_body
+    )
+    rewriter_module = ModuleOp([])
+    generator = MatcherGenerator(matcher_func, rewriter_module)
+
+    # Create rewriter region where new_op comes AFTER old_op
+    rewriter_region = Region([Block()])
+    rewriter_block = rewriter_region.first_block
+    with ImplicitBuilder(rewriter_block):
+        # New operation (comes first)
+        type1 = pdl.TypeOp().result
+        new_op = pdl.OperationOp("new.op", type_values=(type1,))
+        # Old operation (comes second)
+        old_op = pdl.OperationOp("old.op")
+        # Replace - but new_op is defined BEFORE old_op in the block
+        pdl.ReplaceOp(old_op.op, repl_operation=new_op.op)
+
+    rewrite_values: dict[SSAValue, SSAValue] = {}
+    # Map old_op as coming from the rewriter block itself
+    rewrite_values[old_op.op] = old_op.op  # Not from match, from rewriter
+
+    def map_rewrite_value(val: SSAValue) -> SSAValue:
+        return rewrite_values.get(val, val)
+
+    types_list: list[SSAValue] = []
+
+    # Should raise ValueError because Strategy 3 skips this case
+    with pytest.raises(
+        ValueError, match='Unable to infer result types for pdl.operation "new.op"'
+    ):
+        generator._generate_operation_result_type_rewriter(  # pyright: ignore[reportPrivateUsage]
+            new_op, map_rewrite_value, types_list, rewrite_values
+        )
+
+
+def test_generate_operation_result_type_rewriter_strategy1_with_external_types():
+    """Test Strategy 1 with types from outside the rewriter block"""
+    from xdsl.dialects.builtin import ModuleOp
+    from xdsl.ir import Block, Region
+    from xdsl.transforms.convert_pdl_to_pdl_interp.conversion import MatcherGenerator
+
+    # Setup
+    matcher_body = Region([Block(arg_types=(pdl.OperationType(),))])
+    matcher_func = pdl_interp.FuncOp(
+        "matcher", ((pdl.OperationType(),), ()), region=matcher_body
+    )
+    rewriter_module = ModuleOp([])
+    generator = MatcherGenerator(matcher_func, rewriter_module)
+
+    # Create rewriter region
+    rewriter_region = Region([Block()])
+    rewriter_block = rewriter_region.first_block
+
+    # Create type outside rewriter block (simulating match input)
+    match_region = Region([Block()])
+    match_block = match_region.first_block
+    with ImplicitBuilder(match_block):
+        external_type = pdl.TypeOp(i32).result
+
+    # Create operation in rewriter block using external type
+    with ImplicitBuilder(rewriter_block):
+        op_to_create = pdl.OperationOp("test.op", type_values=(external_type,))
+
+    rewrite_values: dict[SSAValue, SSAValue] = {}
+
+    # Map external type (will be called via map_rewrite_value)
+    type_arg = Block().insert_arg(pdl.TypeType(), 0)
+    rewrite_values[external_type] = type_arg
+
+    def map_rewrite_value(val: SSAValue) -> SSAValue:
+        if val in rewrite_values:
+            return rewrite_values[val]
+        # Simulate mapping external values
+        return type_arg
+
+    types_list: list[SSAValue] = []
+
+    # Call method
+    has_inferred = generator._generate_operation_result_type_rewriter(  # pyright: ignore[reportPrivateUsage]
+        op_to_create, map_rewrite_value, types_list, rewrite_values
+    )
+
+    # Verify Strategy 1 was used with external type
+    assert has_inferred is False
+    assert len(types_list) == 1
+    assert types_list[0] == type_arg

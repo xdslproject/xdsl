@@ -2,14 +2,19 @@ from __future__ import annotations
 
 from typing import TypeAlias
 
-from xdsl.dialects.builtin import IndexType, IntegerAttr, IntegerType
+from xdsl.dialects.builtin import IndexType, IntegerAttr, IntegerType, UnitAttr
 from xdsl.ir import SSAValue
 from xdsl.parser import Parser
 from xdsl.printer import Printer
 from xdsl.utils.hints import isa
 
 from .attributes import LabelAttr
-from .registers import GeneralRegisterType, RFLAGSRegisterType, X86VectorRegisterType
+from .registers import (
+    AVX512MaskRegisterType,
+    GeneralRegisterType,
+    RFLAGSRegisterType,
+    X86VectorRegisterType,
+)
 
 AssemblyInstructionArg: TypeAlias = (
     IntegerAttr | SSAValue | GeneralRegisterType | str | int | LabelAttr
@@ -41,6 +46,9 @@ def assembly_arg_str(arg: AssemblyInstructionArg) -> str:
         elif isinstance(arg.type, X86VectorRegisterType):
             reg = arg.type.register_name
             return reg.data
+        elif isinstance(arg.type, AVX512MaskRegisterType):
+            reg = arg.type.register_name
+            return f"{{{reg.data}}}"
         else:
             raise ValueError(f"Unexpected register type {arg.type}")
 
@@ -98,3 +106,14 @@ def parse_type_pair(parser: Parser) -> SSAValue:
     parser.parse_punctuation(":")
     type = parser.parse_type()
     return parser.resolve_operand(unresolved, type)
+
+
+def masked_source_str(reg_in: SSAValue, mask: SSAValue, z: UnitAttr | None) -> str:
+    """
+    Returns string for asm printing of the register followed by the {k} (and optionally {z})
+    specifiers, in AVX512 masked operations
+    """
+    register_in = assembly_arg_str(reg_in) + " " + assembly_arg_str(mask)
+    if z:
+        register_in += "{z}"
+    return register_in

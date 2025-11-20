@@ -2,9 +2,9 @@
 
 //      CHECK:    func.func @recursive(%a : index) -> index {
 // CHECK-NEXT:      %a_eq = eqsat.eclass %a, %b {min_cost_index = #builtin.int<0>} : index
-// CHECK-NEXT:      %one = arith.constant {eqsat_cost = #builtin.int<1>} 1 : index
+// CHECK-NEXT:      %one = arith.constant {eqsat_cost = #builtin.int<1000>} 1 : index
 // CHECK-NEXT:      %one_eq = eqsat.eclass %one {min_cost_index = #builtin.int<0>} : index
-// CHECK-NEXT:      %b = arith.muli %a_eq, %one_eq {eqsat_cost = #builtin.int<2>} : index
+// CHECK-NEXT:      %b = arith.muli %a_eq, %one_eq {eqsat_cost = #builtin.int<1000>} : index
 // CHECK-NEXT:      func.return %a_eq : index
 // CHECK-NEXT:    }
 

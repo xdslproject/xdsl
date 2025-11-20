@@ -515,7 +515,7 @@ class TypedAttribute(ParametrizedAttribute, ABC):
     def print_without_type(self, printer: Printer): ...
 
 
-@dataclass
+@dataclass(repr=False)
 class Use:
     """The use of a SSA value."""
 
@@ -540,6 +540,13 @@ class Use:
     def index(self) -> int:
         """The index of the operand using the value in the operation."""
         return self._index
+
+    def __repr__(self) -> str:
+        return (
+            f"<Use {id(self)}(_operation={_short_repr(self.operation)}, "
+            f"_index={self.index}, _prev_use={_short_repr(self._prev_use)}, "
+            f"_next_use={_short_repr(self._next_use)})>"
+        )
 
     def __hash__(self) -> int:
         return id(self)
@@ -571,7 +578,12 @@ class IRUses(Iterable[Use]):
         Returns the number of uses.
         We do not expose it as `__len__` as it is expensive to compute `O(len)`.
         """
-        return len(tuple(self))
+        use = self.ir.first_use
+        count = 0
+        while use is not None:
+            count += 1
+            use = use._next_use  # pyright: ignore[reportPrivateUsage]
+        return count
 
 
 @dataclass(eq=False)
@@ -805,6 +817,7 @@ class OpResult(SSAValue[AttributeCovT], Generic[AttributeCovT]):
     def __repr__(self) -> str:
         return (
             f"<{self.__class__.__name__}[{self.type}]"
+            f" name_hint: {self.name_hint},"
             f" index: {self.index},"
             f" operation: {self.op.name},"
             f" uses: {self.uses.get_length()}>"
@@ -828,6 +841,7 @@ class BlockArgument(SSAValue[AttributeCovT], Generic[AttributeCovT]):
     def __repr__(self) -> str:
         return (
             f"<{self.__class__.__name__}[{self.type}]"
+            f" name_hint: {self.name_hint},"
             f" index: {self.index},"
             f" uses: {self.uses.get_length()}>"
         )
@@ -1001,11 +1015,11 @@ class OpTraits(Iterable[OpTrait]):
         return isinstance(value, OpTraits) and self.traits == value.traits
 
 
-@dataclass(eq=False, unsafe_hash=False)
+@dataclass(eq=False, unsafe_hash=False, repr=False)
 class Operation(_IRNode):
     """A generic operation. Operation definitions inherit this class."""
 
-    name: ClassVar[str] = field(repr=False)
+    name: ClassVar[str]
     """The operation name. Should be a static member of the class"""
 
     _operands: SSAValues = field(default=SSAValues())
@@ -1047,13 +1061,13 @@ class Operation(_IRNode):
     regions: tuple[Region, ...] = field(default=())
     """Regions arguments of the operation."""
 
-    parent: Block | None = field(default=None, repr=False)
+    parent: Block | None = field(default=None)
     """The block containing this operation."""
 
-    _next_op: Operation | None = field(default=None, repr=False)
+    _next_op: Operation | None = field(default=None)
     """Next operation in block containing this operation."""
 
-    _prev_op: Operation | None = field(default=None, repr=False)
+    _prev_op: Operation | None = field(default=None)
     """Previous operation in block containing this operation."""
 
     traits: ClassVar[OpTraits]
@@ -1392,16 +1406,19 @@ class Operation(_IRNode):
         block_mapper: dict[Block, Block] | None = None,
         *,
         clone_name_hints: bool = True,
+        clone_operands: bool = True,
     ) -> Self:
         """Clone an operation, with empty regions instead."""
         if value_mapper is None:
             value_mapper = {}
         if block_mapper is None:
             block_mapper = {}
-        operands = [
-            (value_mapper[operand] if operand in value_mapper else operand)
-            for operand in self._operands
-        ]
+        if clone_operands:
+            operands = tuple(
+                value_mapper.get(operand, operand) for operand in self._operands
+            )
+        else:
+            operands = ()
         result_types = self.result_types
         attributes = self.attributes.copy()
         properties = self.properties.copy()
@@ -1432,6 +1449,7 @@ class Operation(_IRNode):
         block_mapper: dict[Block, Block] | None = None,
         *,
         clone_name_hints: bool = True,
+        clone_operands: bool = True,
     ) -> Self:
         """Clone an operation with all its regions and operations in them."""
         if value_mapper is None:
@@ -1439,7 +1457,10 @@ class Operation(_IRNode):
         if block_mapper is None:
             block_mapper = {}
         op = self.clone_without_regions(
-            value_mapper, block_mapper, clone_name_hints=clone_name_hints
+            value_mapper,
+            block_mapper,
+            clone_name_hints=clone_name_hints,
+            clone_operands=False,
         )
         for idx, region in enumerate(self.regions):
             region.clone_into(
@@ -1448,7 +1469,13 @@ class Operation(_IRNode):
                 value_mapper,
                 block_mapper,
                 clone_name_hints=clone_name_hints,
+                clone_operands=False,
             )
+        if clone_operands:
+            for old, new in zip(self.walk(), op.walk()):
+                new.operands = tuple(
+                    value_mapper.get(operand, operand) for operand in old.operands
+                )
         return op
 
     @classmethod
@@ -1573,6 +1600,26 @@ class Operation(_IRNode):
     @classmethod
     def dialect_name(cls) -> str:
         return Dialect.split_name(cls.name)[0]
+
+    def __repr__(self) -> str:
+        operands = ", ".join(_short_repr(operand) for operand in self.operands)
+        results = ", ".join(_short_repr(result) for result in self.results)
+        successors = ", ".join(_short_repr(successor) for successor in self.successors)
+        regions = ", ".join(_short_repr(region) for region in self.regions)
+
+        return (
+            f"<{self.__class__.__name__} {id(self)}("
+            f"operands=[{operands}], "
+            f"results=[{results}], "
+            f"successors=[{successors}], "
+            f"properties={repr(self.properties)}, "
+            f"attributes={repr(self.attributes)}, "
+            f"regions=[{regions}], "
+            f"parent={_short_repr(self.parent)}, "
+            f"_next_op={_short_repr(self.next_op)}, "
+            f"_prev_op={_short_repr(self._prev_op)}"
+            ")>"
+        )
 
     def __str__(self) -> str:
         from xdsl.printer import Printer
@@ -1750,7 +1797,7 @@ class Block(_IRNode, IRWithUses, IRWithName):
         return self.parent.parent.parent if self.parent and self.parent.parent else None
 
     def __repr__(self) -> str:
-        return f"Block(_args={repr(self._args)}, num_ops={len(self.ops)})"
+        return f"<Block {id(self)}(_args={repr(self._args)}, num_ops={len(self.ops)})>"
 
     @property
     def args(self) -> tuple[BlockArgument, ...]:
@@ -2330,7 +2377,8 @@ class Region(_IRNode):
         return self._last_block
 
     def __repr__(self) -> str:
-        return f"Region(num_blocks={len(self.blocks)})"
+        short_reprs = ", ".join(_short_repr(block) for block in self.blocks)
+        return f"Region(blocks=[{short_reprs}])"
 
     @property
     def ops(self) -> BlockOps:
@@ -2559,6 +2607,7 @@ class Region(_IRNode):
         block_mapper: dict[Block, Block] | None = None,
         *,
         clone_name_hints: bool = True,
+        clone_operands: bool = True,
     ):
         """
         Clone all block of this region into `dest` to position `insert_index`
@@ -2593,8 +2642,18 @@ class Region(_IRNode):
             for op in block.ops:
                 new_block.add_op(
                     op.clone(
-                        value_mapper, block_mapper, clone_name_hints=clone_name_hints
+                        value_mapper,
+                        block_mapper,
+                        clone_name_hints=clone_name_hints,
+                        clone_operands=False,
                     )
+                )
+        # Handle cases where results may be created after their first use when walking
+        # in lexicographic order.
+        if clone_operands:
+            for old, new in zip(self.walk(), dest.walk()):
+                new.operands = tuple(
+                    value_mapper.get(operand, operand) for operand in old.operands
                 )
 
     def walk(
@@ -2730,3 +2789,10 @@ class Region(_IRNode):
 
 
 IRNode: TypeAlias = Operation | Region | Block
+
+
+def _short_repr(value: object) -> str:
+    """
+    Helper function to avoid recursion in reprs.
+    """
+    return repr(value) if value is None else f"<{value.__class__.__name__} {id(value)}>"

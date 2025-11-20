@@ -16,7 +16,7 @@ from xdsl.analysis.dataflow import (
 )
 from xdsl.context import Context
 from xdsl.dialects import test
-from xdsl.dialects.builtin import IntegerType, ModuleOp, UnregisteredOp
+from xdsl.dialects.builtin import IntegerType, ModuleOp
 from xdsl.ir import Block, Operation, Region
 from xdsl.utils.test_value import create_ssa_value
 
@@ -80,11 +80,6 @@ def empty_block() -> Block:
     return Block()
 
 
-@pytest.fixture
-def detached_op() -> Operation:
-    return UnregisteredOp.with_name("test.detached")()
-
-
 def test_program_point_before(
     ops_in_block: tuple[Operation, Operation, Operation, Block],
 ):
@@ -107,7 +102,8 @@ def test_program_point_after(
     assert pp_after_op3.entity is block
 
 
-def test_program_point_after_detached(detached_op: Operation):
+def test_program_point_after_detached():
+    detached_op = test.TestOp()
     with pytest.raises(
         ValueError, match="Cannot get ProgramPoint after a detached operation."
     ):
