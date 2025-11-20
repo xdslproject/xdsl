@@ -659,8 +659,9 @@ class ArrayType(ParametrizedAttribute, TypeAttribute):
     def print_parameters(self, printer: Printer) -> None:
         with printer.in_angle_brackets():
             printer.print_dimension_list(self.get_shape())
-            printer.print_string("x")
-            printer.print_attribute(self.element_type)
+            if self.get_num_dims() > 0:
+                printer.print_string("x")
+            printer.print_attribute(self.get_element_type())
 
 
 class HWModuleLike(OpTrait, abc.ABC):
