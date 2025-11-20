@@ -14,7 +14,7 @@ from xdsl.analysis.dataflow import (
 from xdsl.analysis.sparse_analysis import Lattice, SparseForwardDataFlowAnalysis
 from xdsl.dialects import eqsat, eqsat_pdl_interp, pdl_interp
 from xdsl.dialects.builtin import SymbolRefAttr
-from xdsl.dialects.pdl import ValueType
+from xdsl.dialects.pdl import RangeType, ValueType
 from xdsl.folder import Folder
 from xdsl.interpreter import (
     Interpreter,
@@ -270,29 +270,31 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
         assert args
         input_op = args[0]
         assert isinstance(input_op, Operation)
-        for result in input_op.results:
-            if not result.has_one_use():
+        repl_values: list[SSAValue] = []
+        for t, v in zip(op.repl_values.types, args[1:], strict=True):
+            assert isa(t, ValueType | RangeType[ValueType])
+            match t:
+                case ValueType():
+                    assert isa(v, SSAValue)
+                    repl_values.append(v)
+                case RangeType():
+                    assert isa(v, tuple[SSAValue, ...])
+                    repl_values.extend(v)
+        assert len(input_op.results) == len(repl_values)
+        for res, repl in zip(input_op.results, repl_values):
+            if not res.has_one_use():
                 raise InterpretationError(
                     "Operation's result can only be used once, by an eclass operation."
                 )
-            assert result.first_use is not None
+            assert res.first_use is not None
             if not isinstance(
-                original_eclass := result.first_use.operation, eqsat.AnyEClassOp
+                original_eclass := res.first_use.operation, eqsat.AnyEClassOp
             ):
                 raise InterpretationError(
                     "Replaced operation result must be used by an eclass"
                 )
 
-            repl_values = (
-                (args[1],)
-                if isinstance(op.repl_values.types[0], ValueType)
-                else args[1]
-            )
-            assert len(repl_values) == 1, (
-                "pdl_interp.replace currently only a supports replacing with a single e-class result."
-            )
-            repl_value: SSAValue = repl_values[0]
-            repl_eclass = repl_value.owner
+            repl_eclass = repl.owner
             if not isinstance(repl_eclass, eqsat.AnyEClassOp):
                 raise InterpretationError(
                     "Replacement value must be the result of an eclass"

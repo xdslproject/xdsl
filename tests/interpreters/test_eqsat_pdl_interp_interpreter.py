@@ -1264,6 +1264,56 @@ def test_run_replace_no_uses_returns_empty():
         )
 
 
+def test_run_replace_multi_results():
+    """Test that run_replace works with multi-result operations."""
+    interpreter = Interpreter(ModuleOp([]))
+    interp_functions = EqsatPDLInterpFunctions()
+
+    from xdsl.builder import ImplicitBuilder
+    from xdsl.ir import Block, Region
+
+    testmodule = ModuleOp(Region([Block()]))
+    block = testmodule.body.first_block
+    with ImplicitBuilder(block):
+        # Create test operation with multiple results
+        c0 = create_ssa_value(i32)
+        original_op = test.TestOp((c0,), (i32, i64))
+
+        # Create EClass operations for the results
+        eclass1 = eqsat.EClassOp(original_op.results[0], res_type=i32)
+        eclass2 = eqsat.EClassOp(original_op.results[1], res_type=i64)
+
+        # Create replacement operations/eclasses
+        repl1_op = test.TestOp((c0,), (i32,))
+        repl1_eclass = eqsat.EClassOp(repl1_op.results[0], res_type=i32)
+
+        repl2_op = test.TestOp((c0,), (i64,))
+        repl2_eclass = eqsat.EClassOp(repl2_op.results[0], res_type=i64)
+
+    # Add to union find
+    interp_functions.eclass_union_find.add(eclass1)
+    interp_functions.eclass_union_find.add(eclass2)
+    interp_functions.eclass_union_find.add(repl1_eclass)
+    interp_functions.eclass_union_find.add(repl2_eclass)
+
+    rewriter = PatternRewriter(original_op)
+    interp_functions.set_rewriter(interpreter, rewriter)
+
+    # Create ReplaceOp with RangeType to simulate multiple replacement values
+    input_op_val = create_ssa_value(pdl.OperationType())
+    repl_range_val = create_ssa_value(pdl.RangeType(pdl.ValueType()))
+    replace_op = pdl_interp.ReplaceOp(input_op_val, [repl_range_val])
+
+    # Prepare arguments: input op and a tuple of replacement values
+    repl_values = (repl1_eclass.results[0], repl2_eclass.results[0])
+    args = (original_op, repl_values)
+
+    assert interp_functions.run_replace(interpreter, replace_op, args).values == ()
+
+    assert interp_functions.eclass_union_find.connected(eclass1, repl1_eclass)
+    assert interp_functions.eclass_union_find.connected(eclass2, repl2_eclass)
+
+
 def test_run_create_operation_folding():
     """Test that run_create_operation handles folding operations correctly."""
     interpreter = Interpreter(ModuleOp([]))
