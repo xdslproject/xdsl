@@ -19,3 +19,12 @@ x86_func.func @inc2(%ptr : !x86.reg<rax>) {
   %ptr3 = x86.r.inc %ptr : (!x86.reg<rax>) -> !x86.reg<rax>
   x86_func.ret
 }
+
+// -----
+
+// CHECK: ptr should not be read after in/out usage
+x86_func.func @inc3(%ptr : !x86.reg) {
+  %ptr2 = x86.r.inc %ptr : (!x86.reg) -> !x86.reg
+  %ptr3 = x86.r.inc %ptr : (!x86.reg) -> !x86.reg
+  x86_func.ret
+}
