@@ -1,13 +1,22 @@
+from collections.abc import Sequence
 from typing import Any
 
 import pytest
 
+from xdsl.builder import ImplicitBuilder
 from xdsl.context import Context
 from xdsl.dialects import arith, eqsat, eqsat_pdl_interp, func, pdl, pdl_interp, test
 from xdsl.dialects.builtin import ModuleOp, i32, i64
 from xdsl.interpreter import Interpreter
 from xdsl.interpreters.eqsat_pdl_interp import EqsatPDLInterpFunctions
-from xdsl.ir import Operation
+from xdsl.ir import Attribute, Block, Operation, Region, SSAValue
+from xdsl.irdl import (
+    AttrSizedResultSegments,
+    IRDLOperation,
+    irdl_op_definition,
+    result_def,
+    var_result_def,
+)
 from xdsl.pattern_rewriter import PatternRewriter
 from xdsl.utils.exceptions import InterpretationError
 from xdsl.utils.test_value import create_ssa_value
@@ -1312,6 +1321,187 @@ def test_run_replace_multi_results():
 
     assert interp_functions.eclass_union_find.connected(eclass1, repl1_eclass)
     assert interp_functions.eclass_union_find.connected(eclass2, repl2_eclass)
+
+
+def test_run_replace_rangetype_mixed():
+    """
+    Test that run_replace correctly flattens a mix of ValueType and RangeType
+    replacement arguments and aligns them with the operation's results.
+    """
+
+    @irdl_op_definition
+    class MultiResultGroupsOp(IRDLOperation):
+        name = "test.multi_result_group"
+        res1 = var_result_def()
+        res2 = result_def()
+        res3 = var_result_def()
+
+        irdl_options = [AttrSizedResultSegments()]
+
+        def __init__(
+            self,
+            res1: Sequence[Attribute],
+            res2: Attribute,
+            res3: Sequence[Attribute],
+        ) -> None:
+            super().__init__(result_types=[res1, res2, res3])
+
+    interpreter = Interpreter(ModuleOp([]))
+    interp_functions = EqsatPDLInterpFunctions()
+    interpreter.register_implementations(interp_functions)
+
+    testmodule = ModuleOp(Region([Block()]))
+    block = testmodule.body.first_block
+    with ImplicitBuilder(block):
+        # Create the op being replaced.
+        # Total 5 results: 2 in group 1, 1 in group 2, 2 in group 3
+        original_op = MultiResultGroupsOp(
+            res1=[i32, i32],
+            res2=i64,
+            res3=[i32, i64],
+        )
+
+        orig_eclasses = [
+            eqsat.EClassOp(res, res_type=res.type) for res in original_op.results
+        ]
+
+        c0 = create_ssa_value(i32)
+
+        # Generate 5 dummy replacements
+        repl_ops = [test.TestOp((c0,), (r.type,)) for r in original_op.results]
+        repl_eclasses = [
+            eqsat.EClassOp(op.results[0], res_type=op.results[0].type)
+            for op in repl_ops
+        ]
+        repl_values = [e.results[0] for e in repl_eclasses]
+
+    # Register EClasses in UnionFind
+    for e in orig_eclasses + repl_eclasses:
+        interp_functions.eclass_union_find.add(e)
+
+    rewriter = PatternRewriter(original_op)
+    interp_functions.set_rewriter(interpreter, rewriter)
+
+    # Configure ReplaceOp with mixed types:
+    # Structure: [Range (2 items), Value (1 item), Range (2 items)]
+    # This tests the flattening logic: (2 + 1 + 2) == 5 results
+    input_op_val = create_ssa_value(pdl.OperationType())
+
+    types = [
+        pdl.RangeType(pdl.ValueType()),
+        pdl.ValueType(),
+        pdl.RangeType(pdl.ValueType()),
+    ]
+
+    # Create replacement args corresponding to types
+    # Arg 0 (Range): items 0 and 1
+    # Arg 1 (Value): item 2
+    # Arg 2 (Range): items 3 and 4
+    replace_args_values = (
+        (repl_values[0], repl_values[1]),
+        repl_values[2],
+        (repl_values[3], repl_values[4]),
+    )
+
+    # Create SSA values for the ReplaceOp definition (used for type info)
+    repl_ssa_vals: list[SSAValue] = [create_ssa_value(t) for t in types]
+    replace_op = pdl_interp.ReplaceOp(input_op_val, repl_ssa_vals)
+
+    args = (original_op, *replace_args_values)
+    result = interp_functions.run_replace(interpreter, replace_op, args)
+
+    assert result.values == ()
+
+    # Verify that every original EClass is connected to the corresponding replacement EClass
+    # This ensures the flattening of [Range, Value, Range] mapped correctly to [0, 1, 2, 3, 4]
+    for orig_ec, repl_ec in zip(orig_eclasses, repl_eclasses):
+        assert interp_functions.eclass_union_find.connected(orig_ec, repl_ec)
+
+
+def test_run_replace_rangetype_full_coverage():
+    """
+    Test replacing an operation with multiple results using a single RangeType
+    argument containing all replacement values.
+    """
+    interpreter = Interpreter(ModuleOp([]))
+    interp_functions = EqsatPDLInterpFunctions()
+
+    from xdsl.builder import ImplicitBuilder
+
+    testmodule = ModuleOp(Region([Block()]))
+    block = testmodule.body.first_block
+
+    with ImplicitBuilder(block):
+        # Op with 3 results
+        c0 = create_ssa_value(i32)
+        original_op = test.TestOp((c0,), (i32, i32, i32))
+
+        # Wrap originals in EClasses
+        orig_eclasses = [
+            eqsat.EClassOp(res, res_type=i32) for res in original_op.results
+        ]
+
+        # Create replacements
+        repl_ops = [test.TestOp((c0,), (i32,)) for _ in range(3)]
+        repl_eclasses = [eqsat.EClassOp(op.results[0], res_type=i32) for op in repl_ops]
+
+    for e in orig_eclasses + repl_eclasses:
+        interp_functions.eclass_union_find.add(e)
+
+    rewriter = PatternRewriter(original_op)
+    interp_functions.set_rewriter(interpreter, rewriter)
+
+    # ReplaceOp configuration: Single RangeType covering all results
+    input_op_val = create_ssa_value(pdl.OperationType())
+    repl_val_range = create_ssa_value(pdl.RangeType(pdl.ValueType()))
+    replace_op = pdl_interp.ReplaceOp(input_op_val, [repl_val_range])
+
+    # Prepare args: Input Op, and a Tuple of all replacements
+    repl_tuple = tuple(e.results[0] for e in repl_eclasses)
+    args = (original_op, repl_tuple)
+
+    assert interp_functions.run_replace(interpreter, replace_op, args).values == ()
+
+    # Verify all connections
+    for o, r in zip(orig_eclasses, repl_eclasses):
+        assert interp_functions.eclass_union_find.connected(o, r)
+
+
+def test_run_replace_length_mismatch():
+    """
+    Test that run_replace asserts when the flattened number of replacement values
+    does not match the number of operation results.
+    """
+    interpreter = Interpreter(ModuleOp([]))
+    interp_functions = EqsatPDLInterpFunctions()
+
+    from xdsl.builder import ImplicitBuilder
+
+    testmodule = ModuleOp(Region([Block()]))
+    block = testmodule.body.first_block
+
+    with ImplicitBuilder(block):
+        c0 = create_ssa_value(i32)
+        # Op has 2 results
+        original_op = test.TestOp((c0,), (i32, i32))
+
+        # Create EClasses (required to pass early checks in run_replace)
+        eqsat.EClassOp(original_op.results[0], res_type=i32)
+        eqsat.EClassOp(original_op.results[1], res_type=i32)
+
+        # Replacement (only 1 provided)
+        repl_op = test.TestOp((c0,), (i32,))
+        repl_eclass = eqsat.EClassOp(repl_op.results[0], res_type=i32)
+
+    input_op_val = create_ssa_value(pdl.OperationType())
+    repl_val = create_ssa_value(pdl.ValueType())
+    replace_op = pdl_interp.ReplaceOp(input_op_val, [repl_val])
+
+    args = (original_op, repl_eclass.results[0])
+
+    # Should raise assertion error because len(results)=2 != len(repl)=1
+    with pytest.raises(AssertionError):
+        interp_functions.run_replace(interpreter, replace_op, args)
 
 
 def test_run_create_operation_folding():
