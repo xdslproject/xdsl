@@ -19,8 +19,7 @@ class X86VerifyRegAlloc(ModulePass):
                 ins, outs, inouts = op.get_register_constraints()
                 ins = list(ins)
                 outs = list(outs)
-                for inout in inouts:
-                    in_reg, out_reg = inout[0], inout[1]
+                for in_reg, out_reg in inouts:
                     if in_reg in alive:
                         raise DiagnosticException(
                             f"{in_reg.name_hint} should not be read after in/out usage"
