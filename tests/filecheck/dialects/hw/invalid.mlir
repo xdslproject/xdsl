@@ -138,3 +138,10 @@ hw.module @bad_output_type(out foo : i8, out bar : i32) {
 }
 
 // CHECK: output #0 is of unexpected type (expected i8, got i32)
+
+// -----
+
+%test = "test.op"() : () -> !hw.array<6x9xf32>
+
+
+// CHECK: f32 should be of base attribute integer_type

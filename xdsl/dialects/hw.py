@@ -17,6 +17,7 @@ from xdsl.dialects.builtin import (
     FlatSymbolRefAttr,
     FlatSymbolRefAttrConstr,
     IntAttr,
+    IntegerType,
     LocationAttr,
     StringAttr,
     SymbolNameConstraint,
@@ -57,6 +58,7 @@ from xdsl.traits import (
     SymbolTable,
 )
 from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.hints import isa
 
 
 @dataclass
@@ -609,6 +611,56 @@ class ParamDeclAttr(ParametrizedAttribute):
             self.print_free_standing_parameters(
                 printer, print_name_as_string_literal=True
             )
+
+
+@irdl_attr_definition
+class ArrayType(ParametrizedAttribute, TypeAttribute):
+    """
+    Fixed-sized array
+    """
+
+    name = "hw.array"
+
+    element_type: IntegerType
+    size_attr: ArrayAttr[IntAttr]
+
+    def __init__(
+        self,
+        element_type: IntegerType,
+        shape: ArrayAttr[IntAttr] | Iterable[int | IntAttr],
+    ):
+        if not isa(shape, ArrayAttr[IntAttr]):
+            shape = ArrayAttr(
+                [IntAttr(dim) if isinstance(dim, int) else dim for dim in shape]
+            )
+        super().__init__(
+            shape,
+            element_type,
+        )
+
+    def get_num_dims(self) -> int:
+        return len(self.size_attr.data)
+
+    def get_shape(self) -> tuple[int, ...]:
+        return tuple(i.data for i in self.size_attr.data)
+
+    def get_element_type(self) -> IntegerType:
+        return self.element_type
+
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
+        parser.parse_punctuation("<", " in hw.array type")
+        size_attr, type = parser.parse_ranked_shape()
+        size_attr = ArrayAttr([IntAttr(dim) for dim in size_attr])
+        parser.parse_punctuation(">", " in hw.array type")
+        return [type, size_attr]
+
+    def print_parameters(self, printer: Printer) -> None:
+        with printer.in_angle_brackets():
+            printer.print_dimension_list(self.get_shape())
+            if self.get_num_dims() > 0:
+                printer.print_string("x")
+            printer.print_attribute(self.get_element_type())
 
 
 class HWModuleLike(OpTrait, abc.ABC):
@@ -1297,6 +1349,7 @@ HW = Dialect(
         OutputOp,
     ],
     [
+        ArrayType,
         DirectionAttr,
         InnerRefAttr,
         InnerSymPropertiesAttr,
