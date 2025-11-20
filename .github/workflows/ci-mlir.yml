@@ -96,5 +96,5 @@ jobs:
         verbose: true
         root_dir: xdsl
         files: coverage.xml
-        codecov_yml_path: codecov.yml
+        codecov_yml_path: xdsl/codecov.yml
         token: ${{ secrets.CODECOV_TOKEN }}
