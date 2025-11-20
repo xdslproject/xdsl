@@ -1,3 +1,5 @@
+from collections.abc import Sequence
+
 import pytest
 
 from xdsl.builder import ImplicitBuilder
@@ -22,7 +24,14 @@ from xdsl.interpreter import (
     register_impls,
 )
 from xdsl.interpreters.pdl_interp import PDLInterpFunctions
-from xdsl.ir import Block, Operation, Region
+from xdsl.ir import Attribute, Block, Operation, Region
+from xdsl.irdl import (
+    AttrSizedResultSegments,
+    IRDLOperation,
+    irdl_op_definition,
+    result_def,
+    var_result_def,
+)
 from xdsl.pattern_rewriter import PatternRewriter
 from xdsl.utils.exceptions import InterpretationError
 from xdsl.utils.test_value import create_ssa_value
@@ -858,3 +867,89 @@ def test_apply_constraint():
         pdl_interp_functions.run_apply_constraint(
             interpreter, apply_constraint_op_nonexistent, (1,)
         )
+
+
+def test_run_get_results():
+    @irdl_op_definition
+    class MultiResultGroupsOp(IRDLOperation):
+        name = "test.multi_result_group"
+        res1 = var_result_def()
+        res2 = result_def()
+        res3 = var_result_def()
+
+        irdl_options = [AttrSizedResultSegments()]
+
+        def __init__(
+            self,
+            res1: Sequence[Attribute],
+            res2: Attribute,
+            res3: Sequence[Attribute],
+        ) -> None:
+            super().__init__(result_types=[res1, res2, res3])
+
+    # Create an op with 6 results total: 2 in group 0, 1 in group 1, 3 in group 2
+    op = MultiResultGroupsOp(
+        res1=[i32, i64],
+        res2=i32,
+        res3=[i64, i32, i64],
+    )
+
+    interpreter = Interpreter(ModuleOp([]))
+    interpreter.register_implementations(PDLInterpFunctions())
+    pdl_interp_functions = PDLInterpFunctions()
+
+    # Helper to run the op
+    def run_get_results(
+        index: int | None, type_val: pdl.ValueType | pdl.RangeType[pdl.ValueType]
+    ):
+        return pdl_interp_functions.run_get_results(
+            interpreter,
+            pdl_interp.GetResultsOp(
+                index,
+                create_ssa_value(pdl.OperationType()),
+                type_val,
+            ),
+            (op,),
+        )
+
+    # Case 1: Get a Variadic Group (index 0) as a Range
+    # Corresponds to 'res1' which has 2 results
+    res = run_get_results(0, pdl.RangeType(pdl.ValueType()))
+    assert res == ((op.results[0], op.results[1]),)
+
+    # Case 2: Get a Single Group (index 1) as a Range
+    # Corresponds to 'res2' which has 1 result.
+    # Even though it is a single result definition, requesting a RangeType
+    # returns it as a list.
+    res = run_get_results(1, pdl.RangeType(pdl.ValueType()))
+    assert res == ((op.results[2],),)
+
+    # Case 3: Get a Single Group (index 1) as a Value
+    # Corresponds to 'res2'. Requesting ValueType extracts the single item.
+    res = run_get_results(1, pdl.ValueType())
+    assert res == (op.results[2],)
+
+    # Case 4: Get a Variadic Group (index 2) as a Range
+    # Corresponds to 'res3' which has 3 results.
+    res = run_get_results(2, pdl.RangeType(pdl.ValueType()))
+    assert res == ((op.results[3], op.results[4], op.results[5]),)
+
+    # Case 5: Mismatch - Get Variadic Group expecting a Single Value
+    # 'res1' has 2 items, but we ask for ValueType (single). Should return None.
+    res = run_get_results(0, pdl.ValueType())
+    assert res == (None,)
+
+    # Case 6: Index Out of Bounds
+    # Op has groups 0, 1, 2. Requesting 3 should return None.
+    res = run_get_results(3, pdl.RangeType(pdl.ValueType()))
+    assert res == (None,)
+
+    # Case 7: No Index (Get All Results) as Range
+    # Should return all 6 results flattened
+    res = run_get_results(None, pdl.RangeType(pdl.ValueType()))
+    assert res == (op.results,)
+
+    # Case 8: No Index (Get All Results) as Value
+    # All results > 1, but we ask for single ValueType. Should return None.
+    res = run_get_results(None, pdl.ValueType())
+    assert res == (None,)

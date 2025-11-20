@@ -118,14 +118,15 @@ class PDLInterpFunctions(InterpreterFunctions):
         assert len(args) == 1
         assert isinstance(args[0], Operation)
         src_op = args[0]
+        assert isinstance(src_op, IRDLOperation)
         if op.index is not None:
             # get the field name of the result group:
-            if op.index.value.data >= len(src_op.result_types):
+            if op.index.value.data >= len(src_op.get_irdl_definition().results):
                 return (None,)
-            field = op.get_irdl_definition().results[op.index.value.data][0]
+            field = src_op.get_irdl_definition().results[op.index.value.data][0]
             results = getattr(src_op, field)
             if isa(results, OpResult):
-                results = [results]
+                results = (results,)
         else:
             results = src_op.results
 
