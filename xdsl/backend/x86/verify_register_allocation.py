@@ -27,7 +27,7 @@ class X86VerifyRegAlloc(ModulePass):
                     ins.append(in_reg)
                     outs.append(out_reg)
                 alive.difference_update(outs)
-                alive.union_update(ins)
+                alive = alive.union(ins)
 
     def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         for func in op.walk():
