@@ -1224,7 +1224,7 @@ def test_eclass_union_constant_with_regular():
 
 
 def test_run_replace_no_uses_returns_empty():
-    """Test that run_replace returns empty tuple when input_op has no uses."""
+    """Test that run_replace errors when input_op has no uses."""
     interpreter = Interpreter(ModuleOp([]))
     interp_functions = EqsatPDLInterpFunctions()
 
@@ -1254,13 +1254,14 @@ def test_run_replace_no_uses_returns_empty():
     rewriter = PatternRewriter(input_op)
     interp_functions.set_rewriter(interpreter, rewriter)
 
-    # Call run_replace - should return empty tuple since input_op has no uses
-    result = interp_functions.run_replace(
-        interpreter, replace_op, (input_op, replacement_eclass.results[0])
-    )
-
-    # Should return empty tuple
-    assert result.values == ()
+    # Call run_replace - should raise InterpretationError since input_op has no uses
+    with pytest.raises(
+        InterpretationError,
+        match="Operation's result can only be used once, by an eclass operation.",
+    ):
+        interp_functions.run_replace(
+            interpreter, replace_op, (input_op, replacement_eclass.results[0])
+        )
 
 
 def test_run_create_operation_folding():

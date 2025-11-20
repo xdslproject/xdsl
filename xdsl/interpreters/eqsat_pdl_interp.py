@@ -271,12 +271,17 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
         input_op = args[0]
         assert isinstance(input_op, Operation)
         for result in input_op.results:
-            assert result.has_one_use(), (
-                "Operation's result can only be used once, by an eclass operation."
-            )
-            assert isinstance(original_eclass := result.first_use, eqsat.AnyEClassOp), (
-                "Replaced operation result must be used by an eclass"
-            )
+            if not result.has_one_use():
+                raise InterpretationError(
+                    "Operation's result can only be used once, by an eclass operation."
+                )
+            assert result.first_use is not None
+            if not isinstance(
+                original_eclass := result.first_use.operation, eqsat.AnyEClassOp
+            ):
+                raise InterpretationError(
+                    "Replaced operation result must be used by an eclass"
+                )
 
             repl_values = (
                 (args[1],)
