@@ -40,8 +40,10 @@ from xdsl.irdl import (
     irdl_attr_definition,
     irdl_op_definition,
     lazy_traits_def,
+    operand_def,
     opt_attr_def,
     region_def,
+    result_def,
     traits_def,
     var_operand_def,
     var_result_def,
@@ -618,6 +620,7 @@ class ArrayType(ParametrizedAttribute, TypeAttribute):
     """
     Fixed-sized array
     """
+
     name = "hw.array"
 
     element_type: IntegerType
@@ -650,9 +653,7 @@ class ArrayType(ParametrizedAttribute, TypeAttribute):
     def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
         parser.parse_punctuation("<", " in hw.array type")
         size_attr, type = parser.parse_ranked_shape()
-        size_attr = ArrayAttr(
-            [IntAttr(dim) for dim in size_attr]
-        )
+        size_attr = ArrayAttr([IntAttr(dim) for dim in size_attr])
         parser.parse_punctuation(">", " in hw.array type")
         return [type, size_attr]
 
@@ -1058,6 +1059,38 @@ class HWModuleExternOp(IRDLOperation):
 
 
 @irdl_op_definition
+class ArrayCreateOp(IRDLOperation):
+    """
+    Create an array from values.
+    Creates an array from a variable set of values. One or more values must be listed.
+    """
+
+    name = "hw.array_create"
+    inputs = var_operand_def()
+    result = result_def(ArrayType)
+
+    def __init__(self, inputs: Sequence[Operation | SSAValue]):
+        assert len(inputs) > 0, "Expect at least one value"
+        if isinstance(inputs[0], Operation):
+            inputs[0].result_types[0]
+        super().__init__(operands=[inputs], result_types=inputs[0].result_types[0])
+
+    def verify_(self) -> None:
+        pass
+
+
+@irdl_op_definition
+class ArrayGetOp(IRDLOperation):
+    """
+    Extract an element from an array
+    """
+
+    name = "hw.array_get"
+    input = operand_def(ArrayType)
+    result = result_def()
+
+
+@irdl_op_definition
 class InstanceOp(IRDLOperation):
     """
     This represents an instance of a module. The inputs and outputs are the
@@ -1344,6 +1377,8 @@ class OutputOp(IRDLOperation):
 HW = Dialect(
     "hw",
     [
+        ArrayCreateOp,
+        ArrayGetOp,
         HWModuleExternOp,
         HWModuleOp,
         InstanceOp,
