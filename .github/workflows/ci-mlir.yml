@@ -45,7 +45,7 @@ jobs:
     - name: Test with pytest and generate code coverage
       run: |
         if [ "$COLLECT_COVERAGE" = "true" ]; then
-          uv run pytest -W error --cov=xdsl
+          uv run pytest -W error --cov
         else
           uv run pytest -W error
         fi
@@ -67,11 +67,6 @@ jobs:
         # Add mlir-opt to the path
         export PATH=$PATH:${GITHUB_WORKSPACE}/llvm-project/build/bin/
         make tests-marimo
-
-    # TODO: install curl in the docker image
-    - name: Install curl
-      if: ${{ env.COLLECT_COVERAGE == 'true' }}
-      run: apt-get update && apt-get install -y curl
 
     - name: Combine coverage data
       if: ${{ env.COLLECT_COVERAGE == 'true' }}
