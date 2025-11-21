@@ -207,16 +207,18 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
 
         eclass_results: list[OpResult] = []
         for result in results:
-            assert result.has_one_use(), (
-                "pdl_interp.get_results only supports results"
-                " that are used by a single eclass each."
-            )
-            assert isinstance(
+            if not result.has_one_use():
+                raise InterpretationError(
+                    "pdl_interp.get_results only supports results"
+                    " that are used by a single eclass each."
+                )
+            if not isinstance(
                 eclass_op := result.get_user_of_unique_use(), eqsat.AnyEClassOp
-            ), (
-                "pdl_interp.get_results only supports results"
-                " that are used by a single eclass each."
-            )
+            ):
+                raise InterpretationError(
+                    "pdl_interp.get_results only supports results"
+                    " that are used by a single eclass each."
+                )
             eclass_results.append(eclass_op.result)
         if isinstance(op.result_types[0], ValueType):
             return (eclass_results[0],)

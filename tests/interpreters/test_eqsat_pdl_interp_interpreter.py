@@ -128,7 +128,7 @@ def test_run_get_results_error_case():
     # Test GetResultsOp should raise InterpretationError
     with pytest.raises(
         InterpretationError,
-        match="pdl_interp.get_results currently only supports operations with results that are used by a single eclass each.",
+        match="pdl_interp.get_results only supports results that are used by a single eclass each.",
     ):
         interpreter.run_op(
             pdl_interp.GetResultsOp(
