@@ -184,7 +184,7 @@ def test_op_type_rewrite_pattern_method_decorator():
 
     class RewriteConst(RewritePattern):
         @op_type_rewrite_pattern
-        def match_and_rewrite(self, __op__: ConstantOp, rewriter: PatternRewriter):
+        def match_and_rewrite(self, op: ConstantOp, rewriter: PatternRewriter):
             rewriter.replace_matched_op(ConstantOp.from_int_and_width(43, i32))
 
     rewrite_and_compare(
@@ -215,9 +215,7 @@ def test_op_type_rewrite_pattern_union_type():
 
     class Rewrite(RewritePattern):
         @op_type_rewrite_pattern
-        def match_and_rewrite(
-            self, __op__: ConstantOp | AddiOp, rewriter: PatternRewriter
-        ):
+        def match_and_rewrite(self, op: ConstantOp | AddiOp, rewriter: PatternRewriter):
             rewriter.replace_matched_op(ConstantOp.from_int_and_width(42, i32))
 
     rewrite_and_compare(
@@ -332,7 +330,7 @@ def test_greedy_rewrite_pattern_applier():
 
     class ConstantRewrite(RewritePattern):
         @op_type_rewrite_pattern
-        def match_and_rewrite(self, __op__: ConstantOp, rewriter: PatternRewriter):
+        def match_and_rewrite(self, op: ConstantOp, rewriter: PatternRewriter):
             rewriter.replace_matched_op([ConstantOp.from_int_and_width(43, i32)])
 
     class AddiRewrite(RewritePattern):
@@ -545,8 +543,8 @@ def test_operation_deletion():
 
     class Rewrite(RewritePattern):
         @op_type_rewrite_pattern
-        def match_and_rewrite(self, __op__: ConstantOp, rewriter: PatternRewriter):
-            rewriter.erase_op(__op__)
+        def match_and_rewrite(self, op: ConstantOp, rewriter: PatternRewriter):
+            rewriter.erase_op(op)
 
     rewrite_and_compare(prog, expected, PatternRewriteWalker(Rewrite()), op_removed=1)
 
@@ -593,8 +591,8 @@ def test_operation_deletion_failure():
 
     class Rewrite(RewritePattern):
         @op_type_rewrite_pattern
-        def match_and_rewrite(self, __op__: ConstantOp, rewriter: PatternRewriter):
-            rewriter.erase_op(__op__)
+        def match_and_rewrite(self, op: ConstantOp, rewriter: PatternRewriter):
+            rewriter.erase_op(op)
 
     parser = Parser(ctx, prog)
     module = parser.parse_module()
