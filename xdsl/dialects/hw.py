@@ -1410,7 +1410,7 @@ class ArrayGetOp(IRDLOperation):
         input_typ = cast(ArrayType, self.input.type)  # Checked by IRDL
         index_typ = cast(IntegerType, self.index.type)  # Checked by IRDL
         index_width = index_typ.bitwidth
-        shape_width = len(input_typ).bit_length()
+        shape_width = (len(input_typ) - 1).bit_length()
         if index_width != shape_width:
             raise VerifyException(
                 f"The index ({index_width} bits wide) must be exactly ceil(log2(length(input))) = {shape_width} bits wide"
