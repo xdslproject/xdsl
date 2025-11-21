@@ -546,7 +546,7 @@ def test_operation_deletion():
     class Rewrite(RewritePattern):
         @op_type_rewrite_pattern
         def match_and_rewrite(self, __op__: ConstantOp, rewriter: PatternRewriter):
-            rewriter.erase_matched_op()
+            rewriter.erase_op(__op__)
 
     rewrite_and_compare(prog, expected, PatternRewriteWalker(Rewrite()), op_removed=1)
 
@@ -569,7 +569,7 @@ def test_operation_deletion_reversed():
     class EraseAll(RewritePattern):
         def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter):
             if not isinstance(op, ModuleOp):
-                rewriter.erase_matched_op()
+                rewriter.erase_op(op)
 
     rewrite_and_compare(
         prog,
@@ -594,7 +594,7 @@ def test_operation_deletion_failure():
     class Rewrite(RewritePattern):
         @op_type_rewrite_pattern
         def match_and_rewrite(self, __op__: ConstantOp, rewriter: PatternRewriter):
-            rewriter.erase_matched_op()
+            rewriter.erase_op(__op__)
 
     parser = Parser(ctx, prog)
     module = parser.parse_module()
@@ -1233,7 +1233,7 @@ def test_inline_region_before():
                 return
 
             rewriter.inline_region(op.regions[0], BlockInsertPoint.before(op.parent))
-            rewriter.erase_matched_op()
+            rewriter.erase_op(op)
 
     rewrite_and_compare(
         prog,
@@ -1280,7 +1280,7 @@ def test_inline_region_after():
                 return
 
             rewriter.inline_region(op.regions[0], BlockInsertPoint.after(op.parent))
-            rewriter.erase_matched_op()
+            rewriter.erase_op(op)
 
     rewrite_and_compare(
         prog,
@@ -1330,7 +1330,7 @@ def test_inline_region_at_start():
             rewriter.inline_region(
                 op.regions[0], BlockInsertPoint.at_start(parent_region)
             )
-            rewriter.erase_matched_op()
+            rewriter.erase_op(op)
 
     rewrite_and_compare(
         prog,
@@ -1380,7 +1380,7 @@ def test_inline_region_at_end():
             rewriter.inline_region(
                 op.regions[0], BlockInsertPoint.at_end(parent_region)
             )
-            rewriter.erase_matched_op()
+            rewriter.erase_op(op)
 
     rewrite_and_compare(
         prog,
@@ -1413,7 +1413,7 @@ builtin.module {
         @op_type_rewrite_pattern
         def match_and_rewrite(self, op: test.TestOp, rewriter: PatternRewriter):
             if op.results or op.operands:
-                rewriter.erase_matched_op(safe_erase=False)
+                rewriter.erase_op(op, safe_erase=False)
 
     rewrite_and_compare(
         prog,
@@ -1846,7 +1846,7 @@ def test_pattern_rewriter_erase_op_with_region():
             if "error_if_matching" in op.attributes:
                 raise Exception("operation that is supposed to be deleted was matched")
             assert not op.attributes
-            rewriter.erase_matched_op()
+            rewriter.erase_op(op)
 
     rewrite_and_compare(
         prog,

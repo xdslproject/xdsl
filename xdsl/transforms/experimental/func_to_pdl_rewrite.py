@@ -47,7 +47,7 @@ class ReturnOpToPdlRewritePattern(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: func.ReturnOp, rewriter: PatternRewriter):
-        rewriter.erase_matched_op()
+        rewriter.erase_op(op)
 
 
 class FuncToPdlRewrite(ModulePass):

@@ -59,7 +59,7 @@ class SimplifyBrToBlockWithSinglePred(RewritePattern):
             return
 
         br_operands = op.operands
-        rewriter.erase_matched_op()
+        rewriter.erase_op(op)
         rewriter.inline_block(succ, InsertPoint.at_end(parent), br_operands)
 
 

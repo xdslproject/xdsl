@@ -79,7 +79,7 @@ class RemoveUnusedPrivateFunctions(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: toy.FuncOp, rewriter: PatternRewriter):
         if self.should_remove_op(op):
-            rewriter.erase_matched_op()
+            rewriter.erase_op(op)
 
 
 class InlineToyPass(ModulePass):

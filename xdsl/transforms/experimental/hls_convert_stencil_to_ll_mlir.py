@@ -871,14 +871,14 @@ class StencilStoreToSubview(RewritePattern):
 class TrivialStoreOpCleanup(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: stencil.StoreOp, rewriter: PatternRewriter, /):
-        rewriter.erase_matched_op()
+        rewriter.erase_op(op)
 
 
 @dataclass
 class TrivialApplyOpCleanup(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ApplyOp, rewriter: PatternRewriter, /):
-        rewriter.erase_matched_op()
+        rewriter.erase_op(op)
 
 
 @dataclass
@@ -961,7 +961,7 @@ class GroupLoadsUnderSameDataflow(RewritePattern):
                 )  # [operand for operand in op.operands[2:]]
             else:
                 parent_dataflow = typing.cast(PragmaDataflowOp, op.parent_op())
-                rewriter.erase_matched_op()
+                rewriter.erase_op(op)
                 parent_dataflow.detach()
                 parent_dataflow.erase()
 
@@ -1135,7 +1135,7 @@ class GetRepeatedCoefficients(RewritePattern):
                 elif isinstance(use.operation, stencil.ApplyOp):
                     op.results[0].remove_use(use)
 
-            rewriter.erase_matched_op()
+            rewriter.erase_op(op)
 
 
 @dataclass

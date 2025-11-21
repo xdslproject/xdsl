@@ -56,7 +56,7 @@ class ArithToVarithPattern(RewritePattern):
             use_op,
             dest_type(op.lhs, op.rhs, *other_operands),
         )
-        rewriter.erase_matched_op()
+        rewriter.erase_op(op)
 
 
 class VarithToArithPattern(RewritePattern):

@@ -67,7 +67,7 @@ class ScfForLowering(RewritePattern):
             rewriter.insert_op(cast_op)
             res.replace_by_if(result, lambda use: use.operation is not cast_op)
 
-        rewriter.erase_matched_op()
+        rewriter.erase_op(op)
 
 
 @dataclass

@@ -212,7 +212,7 @@ class ReturnOpToMemRef(RewritePattern):
                         store_list.append(store)
 
         rewriter.insert_op_before_matched_op([*store_list])
-        rewriter.erase_matched_op()
+        rewriter.erase_op(op)
 
 
 def assert_subset(field: FieldType[Attribute], temp: TempType[Attribute]):
@@ -321,7 +321,7 @@ class BufferOpToMemRef(RewritePattern):
 
         if not op.res.uses:
             rewriter.insert_op_after_matched_op(dealloc)
-            rewriter.erase_matched_op()
+            rewriter.erase_op(op)
             return
 
         rewriter.insert_op(dealloc, InsertPoint.before(last_op))
@@ -548,7 +548,7 @@ class StencilStoreToSubview(RewritePattern):
         else:
             rewriter.insert_op(subview, InsertPoint.at_start(field.owner))
 
-        rewriter.erase_matched_op()
+        rewriter.erase_op(op)
 
         update_return_target(self.return_targets, field, subview.result)
 
@@ -569,7 +569,7 @@ class TrivialExternalLoadOpCleanup(RewritePattern):
 class TrivialExternalStoreOpCleanup(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ExternalStoreOp, rewriter: PatternRewriter, /):
-        rewriter.erase_matched_op()
+        rewriter.erase_op(op)
 
 
 class CombineOpCleanup(RewritePattern):
@@ -579,7 +579,7 @@ class CombineOpCleanup(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: CombineOp, rewriter: PatternRewriter, /):
-        rewriter.erase_matched_op()
+        rewriter.erase_op(op)
 
 
 def _get_use_target(use: Use) -> SSAValue | None:
