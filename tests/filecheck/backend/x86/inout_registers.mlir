@@ -1,4 +1,4 @@
-// RUN: xdsl-opt -p x86-verify-register-allocation --verify-diagnostics --split-input-file %s | filecheck %s
+// RUN: xdsl-opt -p verify-register-allocation --verify-diagnostics --split-input-file %s | filecheck %s
 
 // CHECK-LABEL:    @inc
 x86_func.func @inc(%ptr: !x86.reg<rax>) {
@@ -67,3 +67,23 @@ x86_func.func @inc4(%ptr : !x86.reg) {
   %ptr3 = x86.r.inc %ptr : (!x86.reg) -> !x86.reg
   x86_func.ret
 }
+
+// -----
+
+// CHECK: ptr should not be read after in/out usage
+x86_func.func @inc5(%ptr : !x86.reg) {
+  x86.c.jmp ^bb2()
+^bb1:
+  x86.label "bb1"
+  "test.op"(%ptr) : (!x86.reg) -> ()
+  x86_func.ret
+^bb2:
+  x86.label "bb2"
+  %ptr3 = x86.r.inc %ptr : (!x86.reg) -> !x86.reg
+  x86.c.jmp ^bb1()
+}
+
+// -----
+
+// CHECK-LABEL:    @inc6
+x86_func.func @inc6(%ptr: !x86.reg<rax>)
