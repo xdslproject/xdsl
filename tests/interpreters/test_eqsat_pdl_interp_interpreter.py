@@ -184,7 +184,7 @@ def test_run_get_results():
     assert res == (None,)
 
 
-def test_run_get_results_error_case():
+def test_run_get_results_error_case_multiple_uses():
     """Test that run_get_results raises error when result is not used by a single EClass."""
     interpreter = Interpreter(ModuleOp([]))
     interpreter.register_implementations(EqsatPDLInterpFunctions())
@@ -196,6 +196,32 @@ def test_run_get_results_error_case():
     # Result 0 is used by an EClassOp AND another op.
     _eclass_user = eqsat.EClassOp(test_op.results[0])
     _extra_user = test.TestOp((test_op.results[0],))
+
+    # Test GetResultsOp should raise InterpretationError due to multiple uses
+    with pytest.raises(
+        InterpretationError,
+        match="pdl_interp.get_results only supports results that are used by a single eclass each.",
+    ):
+        interpreter.run_op(
+            pdl_interp.GetResultsOp(
+                None,
+                create_ssa_value(pdl.OperationType()),
+                pdl.RangeType(pdl.ValueType()),
+            ),
+            (test_op,),
+        )
+
+
+def test_run_get_results_error_case_non_eclass_use():
+    """Test that run_get_results raises error when result is not used by a single EClass."""
+    interpreter = Interpreter(ModuleOp([]))
+    interpreter.register_implementations(EqsatPDLInterpFunctions())
+
+    # Create a test operation with results
+    c0 = create_ssa_value(i32)
+    test_op = test.TestOp((c0,), (i32, i64))
+
+    _non_eclass_user = test.TestOp((test_op.results[0],))
 
     # Test GetResultsOp should raise InterpretationError due to multiple uses
     with pytest.raises(
