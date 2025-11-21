@@ -82,7 +82,7 @@ class HasRegisterConstraints(RegisterAllocatableOperation, abc.ABC):
     Abstract superclass for operations corresponding to assembly, with registers used
     as in, out, or inout registers.
     The use of a register value as inout must be its last use (externally verified,
-    e.g. for x86 see pass x86-verify-register-allocation).
+    e.g. for x86 see pass verify-register-allocation).
     """
 
     traits = traits_def(HasRegisterConstraintsTrait())

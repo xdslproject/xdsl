@@ -618,7 +618,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
     def get_verify_register_allocation():
         from xdsl.transforms import verify_register_allocation
 
-        return verify_register_allocation.VerifyRegAlloc
+        return verify_register_allocation.VerifyRegisterAllocationPass
 
     # Please insert pass and `get_` function in alphabetical order
 

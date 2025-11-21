@@ -6,11 +6,16 @@ from xdsl.dialects import builtin
 from xdsl.ir import Region, SSAValue
 from xdsl.ir.post_order import PostOrderIterator
 from xdsl.passes import ModulePass
-from xdsl.utils.exceptions import DiagnosticException
+from xdsl.utils.exceptions import VerifyException
 
 
 @dataclass(frozen=True)
-class VerifyRegAlloc(ModulePass):
+class VerifyRegisterAllocationPass(ModulePass):
+    """
+    Verify that, assuming the dominance property is respected, the
+    use of a register value as inout is its last use.
+    """
+
     name = "verify-register-allocation"
 
     def _process_region(self, region: Region, alive: set[SSAValue] = set()) -> None:
@@ -28,8 +33,9 @@ class VerifyRegAlloc(ModulePass):
                     _, _, inouts = op.get_register_constraints()
                     for in_reg, _ in inouts:
                         if in_reg in alive:
-                            raise DiagnosticException(
-                                f"{in_reg.name_hint} should not be read after in/out usage"
+                            op.emit_error(
+                                f"{in_reg.name_hint} should not be read after in/out usage",
+                                VerifyException(),
                             )
                 alive.update(op.operands)
                 # Recursive calls on the embedded regions
