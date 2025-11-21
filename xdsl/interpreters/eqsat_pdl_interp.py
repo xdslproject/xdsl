@@ -278,7 +278,6 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
                     assert isa(v, SSAValue)
                     repl_values.append(v)
                 case RangeType():
-                    assert isa(v, tuple[SSAValue, ...])
                     repl_values.extend(v)
         assert len(input_op.results) == len(repl_values)
         for res, repl in zip(input_op.results, repl_values):
