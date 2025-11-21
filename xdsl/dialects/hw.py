@@ -10,8 +10,7 @@ import abc
 from collections.abc import Iterable, Iterator, Sequence
 from dataclasses import InitVar, dataclass, field
 from enum import Enum
-from math import ceil, log2
-from typing import NamedTuple, overload
+from typing import NamedTuple, cast, overload
 
 from xdsl.dialects.builtin import (
     AnySignlessIntegerType,
@@ -1408,14 +1407,10 @@ class ArrayGetOp(IRDLOperation):
         super().__init__(operands=[input, index], result_types=[out_type])
 
     def verify_(self) -> None:
-        input_typ = self.input.type
-        index_typ = self.index.type
-        if not isinstance(input_typ, ArrayType):
-            raise VerifyException("expect input to be of ArrayType")
-        if not isinstance(index_typ, IntegerType):
-            raise VerifyException("expect index to be of IntegerType")
+        input_typ = cast(ArrayType, self.input.type)  # Checked by IRDL
+        index_typ = cast(IntegerType, self.index.type)  # Checked by IRDL
         index_width = index_typ.bitwidth
-        shape_width = ceil(log2(len(input_typ)))
+        shape_width = len(input_typ).bit_length()
         if index_width != shape_width:
             raise VerifyException(
                 f"The index ({index_width} bits wide) must be exactly ceil(log2(length(input))) = {shape_width} bits wide"
