@@ -14,6 +14,7 @@ class VerifyRegAlloc(ModulePass):
     name = "verify-register-allocation"
 
     def _process_region(self, region: Region, alive: set[SSAValue] = set()) -> None:
+        alive_card = len(alive)
         if not region.blocks:
             return
         assert region.first_block
@@ -35,7 +36,8 @@ class VerifyRegAlloc(ModulePass):
                 for r in op.regions:
                     self._process_region(region=r, alive=alive.copy())
             # Handle the block arguments
-            alive.difference(block.args)
+            alive.difference_update(block.args)
+        assert alive_card == len(alive)
 
     def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         self._process_region(op.body)
