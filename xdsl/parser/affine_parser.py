@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 
 from xdsl.ir.affine import (
     AffineConstraintExpr,
@@ -245,3 +245,44 @@ class AffineParser(BaseParser):
         )
         # Create map and return.
         return AffineSet(len(dims), len(syms), tuple(constraints))
+
+    def _get_parse_optional_ssa_value(
+        self,
+    ) -> tuple[Callable[[], AffineExpr | None], dict[str, int]]:
+        """
+        Returns function to parse an affine symbol expr represented by an SSA value
+        identifier, and the dictionary mapping SSA value name to the corresponding
+        symbol index, populated by the function as it encounters new values.
+        """
+        symbol_by_ssa_name: dict[str, int] = {}
+
+        def parse_optional_ssa_value() -> AffineExpr | None:
+            if (
+                ident_token := self._parse_optional_token(MLIRTokenKind.PERCENT_IDENT)
+            ) is not None:
+                ident = ident_token.span.text
+                try:
+                    symbol = symbol_by_ssa_name[ident]
+                except KeyError:
+                    symbol = len(symbol_by_ssa_name)
+                    symbol_by_ssa_name[ident] = symbol
+                return AffineExpr.symbol(symbol)
+
+        return parse_optional_ssa_value, symbol_by_ssa_name
+
+    def parse_affine_map_of_ssa_ids(self) -> tuple[AffineMap, Sequence[str]]:
+        """
+        Parse an affine map where ssa values can be used inside the expressions.
+        ```
+        `[` affine-expr (`,` affine-expr)* `]`
+        ```
+        """
+        parse_optional_bare_id, symbol_by_ssa_name = (
+            self._get_parse_optional_ssa_value()
+        )
+        exprs = self.parse_comma_separated_list(
+            self.Delimiter.SQUARE,
+            lambda: self._parse_affine_expr(parse_optional_bare_id),
+        )
+        syms = tuple(symbol_by_ssa_name)
+        return AffineMap(0, len(syms), tuple(exprs)), syms
