@@ -28,3 +28,15 @@ x86_func.func @inc3(%ptr : !x86.reg) {
   %ptr3 = x86.r.inc %ptr : (!x86.reg) -> !x86.reg
   x86_func.ret
 }
+
+// -----
+
+// CHECK: ptr should not be read after in/out usage
+x86_func.func @inc4(%ptr : !x86.reg) {
+  %init,%bound,%step = "test.op"(): () -> (!x86.reg,!x86.reg,!x86.reg)
+  x86_scf.for %i : !x86.reg  = %init to %bound step %step {
+    %ptr2 = x86.r.inc %ptr : (!x86.reg) -> !x86.reg
+    %ptr3 = x86.r.inc %ptr : (!x86.reg) -> !x86.reg
+  }
+  x86_func.ret
+}

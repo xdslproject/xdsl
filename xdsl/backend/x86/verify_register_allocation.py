@@ -14,7 +14,7 @@ class X86VerifyRegAlloc(ModulePass):
 
     def _process_function(self, func: x86_func.FuncOp) -> None:
         alive: set[SSAValue] = set()
-        for op in reversed(func.body.ops):
+        for op in func.body.walk(reverse=True):
             alive.difference_update(op.results)
             if isinstance(op, HasRegisterConstraints):
                 _, _, inouts = op.get_register_constraints()
