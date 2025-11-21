@@ -37,7 +37,10 @@ from xdsl.ir import (
     TypeAttribute,
 )
 from xdsl.irdl import (
+    AnyAttr,
+    AtLeast,
     IRDLOperation,
+    RangeOf,
     attr_def,
     irdl_attr_definition,
     irdl_op_definition,
@@ -640,7 +643,7 @@ class ArrayType(ParametrizedAttribute, TypeAttribute):
             size_attr,
         )
 
-    def get_len(self) -> int:
+    def __len__(self) -> int:
         return self.size_attr.data
 
     def get_element_type(self) -> IntegerType:
@@ -658,7 +661,7 @@ class ArrayType(ParametrizedAttribute, TypeAttribute):
 
     def print_parameters(self, printer: Printer) -> None:
         with printer.in_angle_brackets():
-            printer.print_int(self.get_len())
+            printer.print_int(len(self))
             printer.print_string("x")
             printer.print_attribute(self.get_element_type())
 
@@ -1348,16 +1351,13 @@ class ArrayCreateOp(IRDLOperation):
     """
 
     name = "hw.array_create"
-    inputs = var_operand_def()
+    inputs = var_operand_def(RangeOf(AnyAttr()).of_length(AtLeast(1)))
     result = result_def(ArrayType)
 
     def __init__(self, inputs: Sequence[Operation | SSAValue]):
         assert len(inputs) > 0, "Expect at least one value"
-        if isinstance(inputs[0], Operation):
-            el_type = inputs[0].result_types[0]
-        else:
-            el_type = inputs[0].type
-        assert isa(el_type, IntegerType)
+        el_type = SSAValue.get(inputs[0]).type
+        assert isa(el_type, AnySignlessIntegerType)
         out_type = ArrayType(el_type, len(inputs))
         super().__init__(operands=[inputs], result_types=[out_type])
 
@@ -1402,13 +1402,7 @@ class ArrayGetOp(IRDLOperation):
     result = result_def(IntegerType)
 
     def __init__(self, input: Operation | SSAValue, index: Operation | SSAValue):
-        if isinstance(input, Operation):
-            assert len(input.result_types) == 1, (
-                "expect input to come from a single result"
-            )
-            typ = input.result_types[0]
-        else:
-            typ = input.type
+        typ = SSAValue.get(input).type
         assert isinstance(typ, ArrayType)
         out_type = typ.get_element_type()
         super().__init__(operands=[input, index], result_types=[out_type])
@@ -1416,13 +1410,16 @@ class ArrayGetOp(IRDLOperation):
     def verify_(self) -> None:
         input_typ = self.input.type
         index_typ = self.index.type
-        assert isinstance(input_typ, ArrayType), "expect input to be of ArrayType"
-        assert isinstance(index_typ, IntegerType), "expect index to be of IntegerType"
+        if not isinstance(input_typ, ArrayType):
+            raise VerifyException("expect input to be of ArrayType")
+        if not isinstance(index_typ, IntegerType):
+            raise VerifyException("expect index to be of IntegerType")
         index_width = index_typ.bitwidth
-        shape_width = ceil(log2(input_typ.get_len()))
+        shape_width = ceil(log2(len(input_typ)))
         if index_width != shape_width:
-            msg = "The index ({} bits wide) must be exactly ceil(log2(length(input))) = {} bits wide"
-            raise VerifyException(msg.format(index_width, shape_width))
+            raise VerifyException(
+                f"The index ({index_width} bits wide) must be exactly ceil(log2(length(input))) = {shape_width} bits wide"
+            )
 
     def print(self, printer: Printer):
         printer.print_string(" ")
