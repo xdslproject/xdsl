@@ -17,9 +17,14 @@
   // CHECK-NEXT: %{{.*}} = "test.op"() : () -> !hw.array<6xi7>
 
   %const = "test.op"() : () -> i19
-  %array = "hw.array_create"(%const, %const) : (i19, i19) -> !hw.array<2xi19>
+  %array = hw.array_create %const, %const : i19 
+
+  // CHECK: %{{.*}} = hw.array_create %const, %const : i19 
+
   %index = "test.op"() : () -> i1
-  %element = "hw.array_get"(%array, %index) : (!hw.array<2xi19>, i1) -> i19
+  %element = hw.array_get %array[%index] : !hw.array<2xi19>, i1
+
+  // CHECK: %{{.*}} = hw.array_get %{{.*}}[%{{.*}}] : !hw.array<2xi19>, i1
 
 
 }) : () -> ()

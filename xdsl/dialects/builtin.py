@@ -2391,22 +2391,22 @@ class MemRefType(
     def get_element_type(self) -> _MemRefTypeElement:
         return self.element_type
 
-    @classmethod
-    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
-        parser.parse_punctuation("<", " in memref attribute")
-        shape = parser.parse_attribute()
-        parser.parse_punctuation(",", " between shape and element type parameters")
-        type = parser.parse_attribute()
-        # If we have a layout or a memory space, parse both of them.
-        if parser.parse_optional_punctuation(",") is None:
-            parser.parse_punctuation(">", " at end of memref attribute")
-            return [shape, type, NoneAttr(), NoneAttr()]
-        layout = parser.parse_attribute()
-        parser.parse_punctuation(",", " between layout and memory space")
-        memory_space = parser.parse_attribute()
-        parser.parse_punctuation(">", " at end of memref attribute")
+    # @classmethod
+    # def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
+    #    parser.parse_punctuation("<", " in memref attribute")
+    #    shape = parser.parse_attribute()
+    #    parser.parse_punctuation(",", " between shape and element type parameters")
+    #    type = parser.parse_attribute()
+    #    # If we have a layout or a memory space, parse both of them.
+    #    if parser.parse_optional_punctuation(",") is None:
+    #        parser.parse_punctuation(">", " at end of memref attribute")
+    #        return [shape, type, NoneAttr(), NoneAttr()]
+    #    layout = parser.parse_attribute()
+    #    parser.parse_punctuation(",", " between layout and memory space")
+    #    memory_space = parser.parse_attribute()
+    #    parser.parse_punctuation(">", " at end of memref attribute")
 
-        return [shape, type, layout, memory_space]
+    #    return [shape, type, layout, memory_space]
 
     def print_parameters(self, printer: Printer) -> None:
         with printer.in_angle_brackets():
