@@ -652,7 +652,7 @@ class ArrayType(ParametrizedAttribute, TypeAttribute):
     def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
         parser.parse_punctuation("<", " in hw.array type")
         size_attr, type = parser.parse_ranked_shape()
-        if len(size_attr) > 1:
+        if len(size_attr) != 1:
             parser.raise_error("Expected one size in hw.array type")
         size_attr = IntAttr(size_attr[0])
         parser.parse_punctuation(">", " in hw.array type")
