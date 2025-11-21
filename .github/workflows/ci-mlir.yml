@@ -69,14 +69,14 @@ jobs:
         make tests-marimo
 
     - name: Combine coverage data
-      if: ${{ env.COLLECT_COVERAGE == 'true' }}
+      if: matrix.python-version == '3.13'
       run: |
         uv run coverage combine --append
         uv run coverage report
         uv run coverage xml
 
     - name: Upload coverage to Codecov
-      if: ${{ env.COLLECT_COVERAGE == 'true' }}
+      if: matrix.python-version == '3.13'
       uses: Wandalen/wretry.action@v3
       with:
         action: codecov/codecov-action@v5
