@@ -14,6 +14,7 @@ from math import ceil, log2
 from typing import NamedTuple, overload
 
 from xdsl.dialects.builtin import (
+    AnySignlessIntegerType,
     ArrayAttr,
     FlatSymbolRefAttr,
     FlatSymbolRefAttrConstr,
@@ -61,6 +62,7 @@ from xdsl.traits import (
     SymbolTable,
 )
 from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.hints import isa
 
 
 @dataclass
@@ -628,14 +630,14 @@ class ArrayType(ParametrizedAttribute, TypeAttribute):
 
     def __init__(
         self,
-        element_type: IntegerType,
+        element_type: AnySignlessIntegerType,
         size_attr: IntAttr | int,
     ):
         if isinstance(size_attr, int):
             size_attr = IntAttr(size_attr)
         super().__init__(
-            size_attr,
             element_type,
+            size_attr,
         )
 
     def get_len(self) -> int:
@@ -1352,9 +1354,11 @@ class ArrayCreateOp(IRDLOperation):
     def __init__(self, inputs: Sequence[Operation | SSAValue]):
         assert len(inputs) > 0, "Expect at least one value"
         if isinstance(inputs[0], Operation):
-            out_type = inputs[0].result_types[0]
+            el_type = inputs[0].result_types[0]
         else:
-            out_type = inputs[0].type
+            el_type = inputs[0].type
+        assert isa(el_type, IntegerType)
+        out_type = ArrayType(el_type, len(inputs))
         super().__init__(operands=[inputs], result_types=[out_type])
 
     def verify_(self) -> None:
@@ -1365,6 +1369,23 @@ class ArrayCreateOp(IRDLOperation):
             raise VerifyException("Expect at least one input to the operation")
         if not all(first == typ for typ in types):
             raise VerifyException("Expect all input types to be the same")
+
+    def print(self, printer: Printer):
+        printer.print_string(" ")
+        printer.print_list(self.inputs, printer.print_operand)
+        printer.print_string(" : ")
+        printer.print_attribute(self.inputs[0].type)
+
+    @classmethod
+    def parse(cls, parser: Parser) -> "ArrayCreateOp":
+        operands = parser.parse_comma_separated_list(
+            parser.Delimiter.NONE, parser.parse_unresolved_operand
+        )
+        parser.parse_punctuation(":")
+        in_type = parser.parse_type()
+        types = [in_type for _ in range(len(operands))]
+        operands = parser.resolve_operands(operands, types, parser.pos)
+        return cls(operands)
 
 
 @irdl_op_definition
@@ -1402,6 +1423,31 @@ class ArrayGetOp(IRDLOperation):
         if index_width != shape_width:
             msg = "The index ({} bits wide) must be exactly ceil(log2(length(input))) = {} bits wide"
             raise VerifyException(msg.format(index_width, shape_width))
+
+    def print(self, printer: Printer):
+        printer.print_string(" ")
+        printer.print_operand(self.input)
+        with printer.in_square_brackets():
+            printer.print_operand(self.index)
+        printer.print_string(" : ")
+        printer.print_attribute(self.input.type)
+        printer.print_string(", ")
+        printer.print_attribute(self.index.type)
+
+    @classmethod
+    def parse(cls, parser: Parser) -> "ArrayGetOp":
+        input = parser.parse_unresolved_operand()
+        parser.parse_punctuation("[")
+        index = parser.parse_unresolved_operand()
+        parser.parse_punctuation("]")
+        parser.parse_punctuation(":")
+        input_type = parser.parse_type()
+        parser.parse_punctuation(",")
+        index_type = parser.parse_type()
+        operands = parser.resolve_operands(
+            [input, index], [input_type, index_type], parser.pos
+        )
+        return cls(operands[0], operands[1])
 
 
 HW = Dialect(
