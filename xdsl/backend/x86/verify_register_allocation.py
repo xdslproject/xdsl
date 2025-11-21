@@ -15,19 +15,15 @@ class X86VerifyRegAlloc(ModulePass):
     def _process_function(self, func: x86_func.FuncOp) -> None:
         alive: set[SSAValue] = set()
         for op in reversed(func.body.ops):
+            alive.difference_update(op.results)
             if isinstance(op, HasRegisterConstraints):
-                ins, outs, inouts = op.get_register_constraints()
-                ins = list(ins)
-                outs = list(outs)
-                for in_reg, out_reg in inouts:
+                _, _, inouts = op.get_register_constraints()
+                for in_reg, _ in inouts:
                     if in_reg in alive:
                         raise DiagnosticException(
                             f"{in_reg.name_hint} should not be read after in/out usage"
                         )
-                    ins.append(in_reg)
-                    outs.append(out_reg)
-                alive.difference_update(outs)
-                alive = alive.union(ins)
+            alive = alive.union(op.operands)
 
     def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         for func in op.walk():
