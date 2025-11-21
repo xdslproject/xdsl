@@ -26,6 +26,7 @@ from xdsl.interpreter import (
 )
 from xdsl.interpreters.pdl_interp import PDLInterpFunctions
 from xdsl.ir import Block, Operation, OpResult, SSAValue, Use
+from xdsl.irdl import IRDLOperation
 from xdsl.rewriter import InsertPoint
 from xdsl.transforms.common_subexpression_elimination import KnownOps
 from xdsl.utils.disjoint_set import DisjointSet
@@ -191,11 +192,12 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
         assert len(args) == 1
         assert isinstance(args[0], Operation)
         src_op = args[0]
+        assert isinstance(src_op, IRDLOperation)
         if op.index is not None:
             # get the field name of the result group:
-            if op.index.value.data >= len(src_op.result_types):
+            if op.index.value.data >= len(src_op.get_irdl_definition().results):
                 return (None,)
-            field = op.get_irdl_definition().results[op.index.value.data][0]
+            field = src_op.get_irdl_definition().results[op.index.value.data][0]
             results = getattr(src_op, field)
             if isa(results, OpResult):
                 results = [results]
@@ -222,7 +224,7 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
             eclass_results.append(eclass_op.result)
         if isinstance(op.result_types[0], ValueType):
             return (eclass_results[0],)
-        return (eclass_results,)
+        return (tuple(eclass_results),)
 
     @impl(pdl_interp.GetDefiningOpOp)
     def run_get_defining_op(

@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from typing import Any
 
 import pytest
@@ -7,7 +8,14 @@ from xdsl.dialects import arith, eqsat, eqsat_pdl_interp, func, pdl, pdl_interp,
 from xdsl.dialects.builtin import ModuleOp, i32, i64
 from xdsl.interpreter import Interpreter
 from xdsl.interpreters.eqsat_pdl_interp import EqsatPDLInterpFunctions
-from xdsl.ir import Operation
+from xdsl.ir import Attribute, Operation
+from xdsl.irdl import (
+    AttrSizedResultSegments,
+    IRDLOperation,
+    irdl_op_definition,
+    result_def,
+    var_result_def,
+)
 from xdsl.pattern_rewriter import PatternRewriter
 from xdsl.utils.exceptions import InterpretationError
 from xdsl.utils.test_value import create_ssa_value
@@ -87,45 +95,109 @@ def test_run_get_result_error_case():
 
 
 def test_run_get_results():
-    """Test that run_get_results handles EClass operations correctly."""
-    interpreter = Interpreter(ModuleOp([]))
-    interpreter.register_implementations(EqsatPDLInterpFunctions())
+    @irdl_op_definition
+    class MultiResultGroupsOp(IRDLOperation):
+        name = "test.multi_result_group"
+        res1 = var_result_def()
+        res2 = result_def()
+        res3 = var_result_def()
 
-    # Create a test operation with multiple results
-    c0 = create_ssa_value(i32)
-    test_op = test.TestOp((c0,), (i32, i64))
+        irdl_options = [AttrSizedResultSegments()]
 
-    # Create EClass operations that use all results
-    eclass_op1 = eqsat.EClassOp(test_op.results[0], res_type=i32)
-    eclass_op2 = eqsat.EClassOp(test_op.results[1], res_type=i64)
+        def __init__(
+            self,
+            res1: Sequence[Attribute],
+            res2: Attribute,
+            res3: Sequence[Attribute],
+        ) -> None:
+            super().__init__(result_types=[res1, res2, res3])
 
-    # Test GetResultsOp with all results wrapped in EClass
-    result = interpreter.run_op(
-        pdl_interp.GetResultsOp(
-            None,
-            create_ssa_value(pdl.OperationType()),
-            pdl.RangeType(pdl.ValueType()),
-        ),
-        (test_op,),
+    # Create an op with 6 results total: 2 in group 0, 1 in group 1, 3 in group 2
+    op = MultiResultGroupsOp(
+        res1=[i32, i64],
+        res2=i32,
+        res3=[i64, i32, i64],
     )
-    expected_results = [eclass_op1.results[0], eclass_op2.results[0]]
-    assert result == (expected_results,)
+
+    interpreter = Interpreter(ModuleOp([]))
+    interpreter.register_implementations(
+        eqsat_pdl_interp_functions := EqsatPDLInterpFunctions()
+    )
+
+    # Create EClass operations that use all results of the op.
+    # The GetResultsOp implementation for EqSat requires that the results
+    # of the matched operation are consumed by EClass operations.
+    eclass_ops = [eqsat.EClassOp(res, res_type=res.type) for res in op.results]
+
+    # Helper to run the op
+    def run_get_results(
+        index: int | None, type_val: pdl.ValueType | pdl.RangeType[pdl.ValueType]
+    ):
+        return eqsat_pdl_interp_functions.run_get_results(
+            interpreter,
+            pdl_interp.GetResultsOp(
+                index,
+                create_ssa_value(pdl.OperationType()),
+                type_val,
+            ),
+            (op,),
+        )[0]
+
+    # Case 1: Get a Variadic Group (index 0) as a Range
+    # Corresponds to 'res1' which has 2 results. Returns the EClass results.
+    res = run_get_results(0, pdl.RangeType(pdl.ValueType()))
+    assert res == (tuple(op.result for op in eclass_ops[0:2]),)
+
+    # Case 2: Get a Single Group (index 1) as a Range
+    # Corresponds to 'res2' which has 1 result.
+    res = run_get_results(1, pdl.RangeType(pdl.ValueType()))
+    assert res == (tuple(op.result for op in eclass_ops[2:3]),)
+
+    # Case 3: Get a Single Group (index 1) as a Value
+    # Corresponds to 'res2'. Requesting ValueType extracts the single item.
+    res = run_get_results(1, pdl.ValueType())
+    assert res == (eclass_ops[2].result,)
+
+    # Case 4: Get a Variadic Group (index 2) as a Range
+    # Corresponds to 'res3' which has 3 results.
+    res = run_get_results(2, pdl.RangeType(pdl.ValueType()))
+    assert res == (tuple(op.result for op in eclass_ops[3:6]),)
+
+    # Case 5: Mismatch - Get Variadic Group expecting a Single Value
+    # 'res1' has 2 items, but we ask for ValueType (single). Should return None.
+    res = run_get_results(0, pdl.ValueType())
+    assert res == (None,)
+
+    # Case 6: Index Out of Bounds
+    # Op has groups 0, 1, 2. Requesting 3 should return None.
+    res = run_get_results(3, pdl.RangeType(pdl.ValueType()))
+    assert res == (None,)
+
+    # Case 7: No Index (Get All Results) as Range
+    # Should return all 6 results flattened (as EClasses)
+    res = run_get_results(None, pdl.RangeType(pdl.ValueType()))
+    assert res == (tuple(op.result for op in eclass_ops),)
+
+    # Case 8: No Index (Get All Results) as Value
+    # All results > 1, but we ask for single ValueType. Should return None.
+    res = run_get_results(None, pdl.ValueType())
+    assert res == (None,)
 
 
 def test_run_get_results_error_case():
-    """Test that run_get_results raises error when result is not used by EClass."""
+    """Test that run_get_results raises error when result is not used by a single EClass."""
     interpreter = Interpreter(ModuleOp([]))
     interpreter.register_implementations(EqsatPDLInterpFunctions())
 
-    # Create a test operation with results that are not used by EClass
+    # Create a test operation with results
     c0 = create_ssa_value(i32)
     test_op = test.TestOp((c0,), (i32, i64))
+
+    # Result 0 is used by an EClassOp AND another op.
     _eclass_user = eqsat.EClassOp(test_op.results[0])
     _extra_user = test.TestOp((test_op.results[0],))
 
-    # Don't create any EClass operations, so results are not used by EClass
-
-    # Test GetResultsOp should raise InterpretationError
+    # Test GetResultsOp should raise InterpretationError due to multiple uses
     with pytest.raises(
         InterpretationError,
         match="pdl_interp.get_results only supports results that are used by a single eclass each.",
