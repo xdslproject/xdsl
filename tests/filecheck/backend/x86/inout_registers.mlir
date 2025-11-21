@@ -13,6 +13,22 @@ x86_func.func @inc(%ptr: !x86.reg<rax>) {
 
 // -----
 
+// CHECK-LABEL:    @inc0
+x86_func.func @inc0(%ptr : !x86.reg) {
+// CHECK-NEXT: %ptr2 = x86.r.inc %ptr : (!x86.reg) -> !x86.reg
+// CHECK-NEXT: x86.fallthrough ^next()
+// CHECK-NEXT: ^next:
+// CHECK-NEXT: %ptr3 = x86.r.inc %ptr2 : (!x86.reg) -> !x86.reg
+// CHECK-NEXT: x86_func.ret
+  %ptr2 = x86.r.inc %ptr : (!x86.reg) -> !x86.reg
+  x86.fallthrough ^next()
+^next:
+  %ptr3 = x86.r.inc %ptr2 : (!x86.reg) -> !x86.reg
+  x86_func.ret
+}
+
+// -----
+
 // CHECK: ptr should not be read after in/out usage
 x86_func.func @inc2(%ptr : !x86.reg<rax>) {
   %ptr2 = x86.r.inc %ptr : (!x86.reg<rax>) -> !x86.reg<rax>
@@ -38,5 +54,16 @@ x86_func.func @inc4(%ptr : !x86.reg) {
     %ptr2 = x86.r.inc %ptr : (!x86.reg) -> !x86.reg
     %ptr3 = x86.r.inc %ptr : (!x86.reg) -> !x86.reg
   }
+  x86_func.ret
+}
+
+// -----
+
+// CHECK: ptr should not be read after in/out usage
+x86_func.func @inc4(%ptr : !x86.reg) {
+  %ptr2 = x86.r.inc %ptr : (!x86.reg) -> !x86.reg
+  x86.fallthrough ^next()
+^next:
+  %ptr3 = x86.r.inc %ptr : (!x86.reg) -> !x86.reg
   x86_func.ret
 }
