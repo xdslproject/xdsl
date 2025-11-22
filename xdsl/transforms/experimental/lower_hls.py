@@ -422,7 +422,7 @@ class LowerDataflow(RewritePattern):
             df_op.detach()
             rewriter.insert_op_after_matched_op(df_op)
 
-        rewriter.erase_matched_op()
+        rewriter.erase_op(op)
 
 
 # @dataclass

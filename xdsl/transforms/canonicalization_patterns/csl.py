@@ -78,7 +78,7 @@ class GetDsdAndLengthFolding(RewritePattern):
                 properties=op.properties.copy(),
             ),
         )
-        rewriter.erase_matched_op()
+        rewriter.erase_op(op)
 
 
 class GetDsdAndStrideFolding(RewritePattern):
@@ -147,7 +147,7 @@ class ChainedDsdOffsetFolding(RewritePattern):
                     ),
                 ],
             )
-            rewriter.erase_matched_op()
+            rewriter.erase_op(op)
 
 
 class ChainedDsdLengthFolding(RewritePattern):

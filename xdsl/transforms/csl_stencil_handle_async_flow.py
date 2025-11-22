@@ -242,7 +242,7 @@ class ConvertForLoopToCallGraphPass(RewritePattern):
         rewriter.insert_op(
             [cond_func, body_func, inc_func, post_func], InsertPoint.after(parent_func)
         )
-        rewriter.erase_matched_op()
+        rewriter.erase_op(op)
 
     @staticmethod
     def _is_inside_wrapper_outside_apply(op: Operation):

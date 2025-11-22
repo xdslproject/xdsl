@@ -74,4 +74,4 @@ class ElideUnusedAlloc(RewritePattern):
     def match_and_rewrite(self, op: memref.AllocOp, rewriter: PatternRewriter, /):
         if isinstance(only_use := op.memref.get_user_of_unique_use(), memref.DeallocOp):
             rewriter.erase_op(only_use)
-            rewriter.erase_matched_op()
+            rewriter.erase_op(op)

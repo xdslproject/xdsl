@@ -310,7 +310,7 @@ def lower_op_to_loops(
     # Replace this operation with the generated alloc.
 
     op.res.replace_by(alloc.memref)
-    rewriter.erase_matched_op()
+    rewriter.erase_op(op)
 
 
 # endregion Helpers

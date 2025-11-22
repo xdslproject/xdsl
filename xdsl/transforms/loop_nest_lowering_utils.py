@@ -291,7 +291,7 @@ def rewrite_generic_to_loops(
         make_body,
     )
 
-    rewriter.erase_matched_op()
+    rewriter.erase_op(rewriter.current_operation)
 
 
 def rewrite_generic_to_imperfect_loops(
@@ -428,4 +428,4 @@ def rewrite_generic_to_imperfect_loops(
         outer_make_body,
     )
 
-    rewriter.erase_matched_op()
+    rewriter.erase_op(rewriter.current_operation)

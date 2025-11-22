@@ -76,18 +76,13 @@ class HasRegisterConstraintsTrait(OpTrait):
                 f"Operation {op.name} is not a subclass of {HasRegisterConstraints.__name__}."
             )
 
-        for o, _ in op.get_register_constraints().inouts:
-            if not o.has_one_use():
-                raise VerifyException(
-                    f"Inout register operand at index {op.operands.index(o)} used more than once."
-                )
-
 
 class HasRegisterConstraints(RegisterAllocatableOperation, abc.ABC):
     """
     Abstract superclass for operations corresponding to assembly, with registers used
     as in, out, or inout registers.
-    Inout registers must only be used once.
+    The use of a register value as inout must be its last use (externally verified,
+    e.g. for x86 see pass verify-register-allocation).
     """
 
     traits = traits_def(HasRegisterConstraintsTrait())
