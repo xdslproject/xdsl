@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from abc import ABC, abstractmethod
 from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
@@ -620,10 +621,143 @@ class SimpleAffineExprFlattener:
         self.operand_expr_stack.append(row)
 
     def visit_div_expr(self, expr: AffineBinaryOpExpr, *, is_ceil: bool) -> None:
-        raise NotImplementedError("Simplifying div expr not yet implemented")
+        """
+        Handles floor and ceil division for affine expressions.
+
+        `t = expr floordiv c   <=> t = q, c * q <= expr <= c * q + c - 1`
+
+        A floordiv is thus flattened by introducing a new local variable q, and
+        replacing that expression with 'q' while adding the constraints
+        `c * q <= expr <= c * q + c - 1` to `local_var_cst` (done by
+        `add_local_floor_div_id`).
+
+        A ceildiv is similarly flattened:
+        `t = expr ceildiv c   <=> t = (expr + c - 1) floordiv c`
+
+        Semi-affine expressions are not yet implemented.
+        """
+        assert len(self.operand_expr_stack) >= 2
+
+        rhs = self.operand_expr_stack.pop()
+        lhs = self.operand_expr_stack.pop()
+
+        # Semi-affine division: rhs is not a constant
+        if not isinstance(expr.rhs, AffineConstantExpr):
+            # Flatten semi-affine division expressions by introducing a local variable
+            # in place of the quotient, and the affine expression is added to
+            # `localExprs`.
+            raise NotImplementedError("Semi-affine map flattening not implemented")
+
+        rhs_const = rhs[self.get_constant_index()]
+        if rhs_const <= 0:
+            raise ValueError(f"RHS of division must be positive, got {rhs_const}")
+
+        # Compute GCD for all of lhs and rhs_const
+        gcd = math.gcd(*(abs(l) for l in lhs), rhs_const)
+
+        # Simplify numerator and divisor by GCD
+        if gcd != 1:
+            lhs = [l // gcd for l in lhs]
+        divisor = rhs_const // gcd
+
+        # If divisor is 1, the division can be omitted
+        if divisor == 1:
+            self.operand_expr_stack.append(lhs)
+            return
+
+        # At this point, need to introduce a local variable for the division result
+        # Find or create a local id for this div expression
+
+        # Build the AffineExpr for lhs and rhs (divisor)
+        a = AffineExpr.from_flat_form(
+            lhs, self.num_dims, self.num_symbols, self.local_exprs
+        )
+        b = AffineExpr.constant(divisor)
+
+        div_expr = a.ceil_div(b) if is_ceil else a // b
+
+        loc = self.find_local_id(div_expr)
+        if loc == -1:
+            if is_ceil:
+                # lhs ceildiv c <=>  (lhs + c - 1) floordiv c
+                dividend = lhs.copy()
+                dividend[-1] += divisor - 1  # Adjust constant term in flat form
+                self.add_local_floordiv_id(dividend, divisor, div_expr)
+            else:
+                dividend = lhs.copy()
+                self.add_local_floordiv_id(dividend, divisor, div_expr)
+            loc = len(self.local_exprs) - 1  # The new local just added
+
+        # Set the expression on stack to the local var introduced to capture the
+        # result of the division (floor or ceil).
+        new_row = [0] * self.get_num_cols()
+        new_row[self.get_local_var_start_index() + loc] = 1
+        self.operand_expr_stack.append(new_row)
 
     def visit_mod_expr(self, expr: AffineBinaryOpExpr) -> None:
-        raise NotImplementedError("Simplifying mod expr not yet implemented")
+        """
+        t = expr mod c   <=>  t = expr - c*q and c*q <= expr <= c*q + c - 1
+
+        A mod expression "expr mod c" is thus flattened by introducing a new local
+        variable q (= expr floordiv c), such that expr mod c is replaced with
+        'expr - c * q' and c * q <= expr <= c * q + c - 1 are added to localVarCst.
+
+        In case of semi-affine modulo expressions, t = expr mod symbolic_expr,
+        introduce a local variable m (= expr mod symbolic_expr), and the affine
+        expression expr mod symbolic_expr is added to `localExprs`.
+        """
+        assert len(self.operand_expr_stack) >= 2
+        rhs = self.operand_expr_stack.pop()
+        lhs = self.operand_expr_stack.pop()
+
+        if not isinstance(expr.rhs, AffineConstantExpr):
+            # Flatten semi affine modulo expressions by introducing a local
+            # variable in place of the modulo value, and the affine expression
+            # corresponding to the quantifier is added to `localExprs`.
+            raise NotImplementedError("Semi-affine map flattening not implemented")
+
+        rhs_const = rhs[self.get_constant_index()]
+        assert rhs_const > 0, (
+            "Cannot simplify expression with negative modulo expression with factor "
+            f"{rhs_const}"
+        )
+
+        # Check if the LHS expression is a multiple of modulo factor.
+        if not any(l % rhs_const for l in lhs):
+            # If yes, module expression here simplifies to zero
+            self.operand_expr_stack.append([0 for _ in lhs])
+            return
+
+        # Add a local variable for the quotient, i.e., expr % c is replaced by
+        # (expr - q * c) where q = expr floordiv c. Do this while canceling out
+        # the GCD of expr and c.
+
+        gcd = math.gcd(*(abs(l) for l in lhs), rhs_const)
+
+        # Simplify the numerator and the denominator.
+        if gcd != 1:
+            floor_dividend = [fd // gcd for fd in lhs]
+        else:
+            floor_dividend = lhs.copy()
+
+        floor_divisor = rhs_const // gcd
+
+        # Construct the AffineExpr form of the floordiv to store in localExprs.
+
+        dividend_expr = AffineExpr.from_flat_form(
+            floor_dividend, self.num_dims, self.num_symbols, self.local_exprs
+        )
+        divisor_expr = AffineExpr.constant(floor_divisor)
+        floor_div_expr = dividend_expr // divisor_expr
+
+        if (loc := self.find_local_id(floor_div_expr)) == -1:
+            self.add_local_floordiv_id(floor_dividend, floor_divisor, floor_div_expr)
+            # Set result at top of stack to `lhs - rhs_const * q``
+            lhs.insert(-1, -rhs_const)
+        else:
+            # Reuse the existing local id
+            lhs[self.get_local_var_start_index() + loc] -= rhs_const
+        self.operand_expr_stack.append(lhs)
 
     def simplify(self, expr: AffineExpr):
         for inner in expr.post_order():
@@ -655,6 +789,33 @@ class SimpleAffineExprFlattener:
             self.num_symbols,
             self.local_exprs,
         )
+
+    def add_local_floordiv_id(
+        self, dividend: list[int], divisor: int, local_expr: AffineExpr
+    ) -> None:
+        """
+        Add a local identifier (needed to flatten a mod, floordiv, ceildiv expr).
+        The local identifier added is always a floordiv of a pure add/mul affine
+        function of other identifiers, coefficients of which are specified in
+        dividend and with respect to a positive constant divisor. local_expr is the
+        simplified tree expression (AffineExpr) corresponding to the quantifier.
+        """
+        assert divisor > 0, "positive constant divisor expected"
+        for sub_expr in self.operand_expr_stack:
+            sub_expr.insert(
+                self.get_local_var_start_index() + len(self.local_exprs),
+                0,
+            )
+        self.local_exprs.append(local_expr)
+
+    def find_local_id(self, local_expr: AffineExpr) -> int:
+        """
+        Returns the index of the `local_expr` in `local_exprs`, or `-1` if not found.
+        """
+        try:
+            return self.local_exprs.index(local_expr)
+        except ValueError:
+            return -1
 
     def get_num_cols(self) -> int:
         return self.num_dims + self.num_symbols + len(self.local_exprs) + 1
