@@ -60,7 +60,7 @@ class VectorSplitLoadExtract(RewritePattern):
             add_op.result.name_hint = name_hint
             load_op.res.name_hint = name_hint
 
-        rewriter.erase_matched_op()
+        rewriter.erase_op(op)
 
 
 @dataclass(frozen=True)

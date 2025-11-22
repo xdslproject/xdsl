@@ -94,7 +94,7 @@ class LowerRiscvScfToLabels(RewritePattern):
         # Extract ops from the body and insert them after the loop header.
         rewriter.inline_block_after_matched_op(body)
 
-        rewriter.erase_matched_op()
+        rewriter.erase_op(op)
 
         self.for_idx += 1
 

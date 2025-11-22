@@ -8,7 +8,7 @@ from functools import wraps
 from types import UnionType
 from typing import Union, final, get_args, get_origin
 
-from typing_extensions import TypeVar
+from typing_extensions import TypeVar, deprecated
 
 from xdsl.builder import Builder, BuilderListener, InsertOpInvT
 from xdsl.dialects.builtin import ArrayAttr, DictionaryAttr, ModuleOp
@@ -116,6 +116,7 @@ class PatternRewriter(Builder, PatternRewriterListener):
         """Insert operations after the matched operation."""
         return self.insert_op(op, InsertPoint.after(self.current_operation))
 
+    @deprecated("Please use `erase_op(op)` instead")
     def erase_matched_op(self, safe_erase: bool = True):
         """
         Erase the operation that was matched to.

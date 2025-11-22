@@ -67,7 +67,7 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
     def match_and_rewrite(self, op: func.FuncOp, rewriter: PatternRewriter, /):
         # erase timer stubs
         if op.is_declaration and op.sym_name.data in [TIMER_START, TIMER_END]:
-            rewriter.erase_matched_op()
+            rewriter.erase_op(op)
             return
         # find csl_stencil.apply ops, abort if there are none
         apply_ops = self.get_csl_stencil_apply_ops(op)

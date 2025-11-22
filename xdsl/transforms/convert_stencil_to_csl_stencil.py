@@ -157,7 +157,7 @@ class ConvertSwapToPrefetchPattern(RewritePattern):
     def match_and_rewrite(self, op: dmp.SwapOp, rewriter: PatternRewriter, /):
         # remove op if it contains no swaps
         if len(op.swaps) == 0:
-            rewriter.erase_matched_op(False)
+            rewriter.erase_op(op, safe_erase=False)
             return
 
         assert all(len(swap.size) == 3 for swap in op.swaps), (
