@@ -26,10 +26,12 @@ from xdsl.interpreter import (
 )
 from xdsl.interpreters.pdl_interp import PDLInterpFunctions
 from xdsl.ir import Block, Operation, OpResult, SSAValue, Use
+from xdsl.irdl import IRDLOperation
 from xdsl.rewriter import InsertPoint
 from xdsl.transforms.common_subexpression_elimination import KnownOps
 from xdsl.utils.disjoint_set import DisjointSet
 from xdsl.utils.exceptions import InterpretationError
+from xdsl.utils.hints import isa
 from xdsl.utils.scoped_dict import ScopedDict
 
 
@@ -187,31 +189,42 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
         op: pdl_interp.GetResultsOp,
         args: tuple[Any, ...],
     ) -> tuple[Any, ...]:
+        assert len(args) == 1
         assert isinstance(args[0], Operation)
         src_op = args[0]
-        assert op.index is None, (
-            "pdl_interp.get_results with index is not yet supported."
-        )
-        if isinstance(op.result_types[0], ValueType) and len(src_op.results) != 1:
+        assert isinstance(src_op, IRDLOperation)
+        if op.index is not None:
+            # get the field name of the result group:
+            if op.index.value.data >= len(src_op.get_irdl_definition().results):
+                return (None,)
+            field = src_op.get_irdl_definition().results[op.index.value.data][0]
+            results = getattr(src_op, field)
+            if isa(results, OpResult):
+                results = [results]
+        else:
+            results = src_op.results
+
+        if isinstance(op.result_types[0], ValueType) and len(results) != 1:
             return (None,)
 
-        results: list[OpResult] = []
-        for result in src_op.results:
-            if result.has_one_use():
-                if isinstance(
-                    eclass_op := result.get_user_of_unique_use(), eqsat.AnyEClassOp
-                ):
-                    assert len(eclass_op.results) == 1
-                    result = eclass_op.results[0]
-            else:
-                for use in result.uses:
-                    if isinstance(use.operation, eqsat.AnyEClassOp):
-                        raise InterpretationError(
-                            "pdl_interp.get_results currently only supports operations with results"
-                            " that are used by a single eclass each."
-                        )
-            results.append(result)
-        return (results,)
+        eclass_results: list[OpResult] = []
+        for result in results:
+            if not result.has_one_use():
+                raise InterpretationError(
+                    "pdl_interp.get_results only supports results"
+                    " that are used by a single eclass each."
+                )
+            if not isinstance(
+                eclass_op := result.get_user_of_unique_use(), eqsat.AnyEClassOp
+            ):
+                raise InterpretationError(
+                    "pdl_interp.get_results only supports results"
+                    " that are used by a single eclass each."
+                )
+            eclass_results.append(eclass_op.result)
+        if isinstance(op.result_types[0], ValueType):
+            return (eclass_results[0],)
+        return (tuple(eclass_results),)
 
     @impl(pdl_interp.GetDefiningOpOp)
     def run_get_defining_op(
