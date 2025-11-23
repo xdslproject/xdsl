@@ -70,7 +70,7 @@ class LowerBinaryFloatVectorOp(RewritePattern):
         new_op = cls(lhs, rhs, rd=riscv.Registers.UNALLOCATED_FLOAT, fastmath=rv_flags)
         cast_op = UnrealizedConversionCastOp.get((new_op.rd,), (op.result.type,))
 
-        rewriter.replace_matched_op((lhs, rhs, new_op, cast_op))
+        rewriter.replace_op(op, (lhs, rhs, new_op, cast_op))
 
 
 lower_arith_addf = LowerBinaryFloatVectorOp(

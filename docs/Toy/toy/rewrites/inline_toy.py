@@ -53,7 +53,7 @@ class InlineFunctions(RewritePattern):
         return_op = op.prev_op
         assert return_op is not None
 
-        rewriter.replace_matched_op([], return_op.operands)
+        rewriter.replace_op(op, [], return_op.operands)
         rewriter.erase_op(return_op)
 
 

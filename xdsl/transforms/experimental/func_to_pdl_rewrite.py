@@ -38,7 +38,7 @@ class FuncOpToPdlRewritePattern(RewritePattern):
                 Block([pdl_root, pdl.RewriteOp(root=rewrite_root, body=func_body)])
             ),
         )
-        rewriter.replace_matched_op(pdl_pattern)
+        rewriter.replace_op(op, pdl_pattern)
 
 
 @dataclass

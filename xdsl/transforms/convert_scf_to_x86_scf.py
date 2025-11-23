@@ -76,8 +76,8 @@ class ScfYieldLowering(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: scf.YieldOp, rewriter: PatternRewriter) -> None:
-        rewriter.replace_matched_op(
-            x86_scf.YieldOp(*self.arch.cast_operands_to_regs(rewriter))
+        rewriter.replace_op(
+            op, x86_scf.YieldOp(*self.arch.cast_operands_to_regs(rewriter))
         )
 
 

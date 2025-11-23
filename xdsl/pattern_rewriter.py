@@ -485,7 +485,7 @@ class TypeConversionPattern(RewritePattern):
                 successors=op.successors,
                 regions=regions,
             )
-            rewriter.replace_matched_op(new_op)
+            rewriter.replace_op(op, new_op)
             for new, old in zip(new_op.results, op.results):
                 new.name_hint = old.name_hint
 

@@ -133,14 +133,15 @@ class FlattenNestedLoopsPattern(RewritePattern):
         rewriter.erase_op(outer_yield_op)
         rewriter.erase_op(inner_loop)
 
-        rewriter.replace_matched_op(
+        rewriter.replace_op(
+            op,
             scf.ForOp(
                 op.lb,
                 new_ub,
                 new_step,
                 op.iter_args,
                 moved_region,
-            )
+            ),
         )
 
 

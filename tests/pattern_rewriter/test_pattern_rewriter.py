@@ -124,7 +124,7 @@ def test_non_recursive_rewrite():
         def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter):
             if isinstance(op, ConstantOp):
                 new_constant = ConstantOp.from_int_and_width(43, i32)
-                rewriter.replace_matched_op([new_constant])
+                rewriter.replace_op(op, [new_constant])
 
     rewrite_and_compare(
         prog,
@@ -154,7 +154,7 @@ def test_non_recursive_rewrite_reversed():
         def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter):
             if isinstance(op, ConstantOp):
                 new_constant = ConstantOp.from_int_and_width(43, i32)
-                rewriter.replace_matched_op([new_constant])
+                rewriter.replace_op(op, [new_constant])
 
     rewrite_and_compare(
         prog,
@@ -185,7 +185,7 @@ def test_op_type_rewrite_pattern_method_decorator():
     class RewriteConst(RewritePattern):
         @op_type_rewrite_pattern
         def match_and_rewrite(self, op: ConstantOp, rewriter: PatternRewriter):
-            rewriter.replace_matched_op(ConstantOp.from_int_and_width(43, i32))
+            rewriter.replace_op(op, ConstantOp.from_int_and_width(43, i32))
 
     rewrite_and_compare(
         prog,
@@ -216,7 +216,7 @@ def test_op_type_rewrite_pattern_union_type():
     class Rewrite(RewritePattern):
         @op_type_rewrite_pattern
         def match_and_rewrite(self, op: ConstantOp | AddiOp, rewriter: PatternRewriter):
-            rewriter.replace_matched_op(ConstantOp.from_int_and_width(42, i32))
+            rewriter.replace_op(op, ConstantOp.from_int_and_width(42, i32))
 
     rewrite_and_compare(
         prog,
@@ -259,7 +259,7 @@ def test_recursive_rewriter():
             constant_op = ConstantOp(IntegerAttr.from_int_and_width(val - 1, 32), i32)
             constant_one = ConstantOp(IntegerAttr.from_int_and_width(1, 32), i32)
             add_op = AddiOp(constant_op, constant_one)
-            rewriter.replace_matched_op([constant_op, constant_one, add_op])
+            rewriter.replace_op(op, [constant_op, constant_one, add_op])
 
     rewrite_and_compare(
         prog,
@@ -302,7 +302,7 @@ def test_recursive_rewriter_reversed():
             constant_op = ConstantOp(IntegerAttr.from_int_and_width(val - 1, 32), i32)
             constant_one = ConstantOp(IntegerAttr.from_int_and_width(1, 32), i32)
             add_op = AddiOp(constant_op, constant_one)
-            rewriter.replace_matched_op([constant_op, constant_one, add_op])
+            rewriter.replace_op(op, [constant_op, constant_one, add_op])
 
     rewrite_and_compare(
         prog,
@@ -331,12 +331,12 @@ def test_greedy_rewrite_pattern_applier():
     class ConstantRewrite(RewritePattern):
         @op_type_rewrite_pattern
         def match_and_rewrite(self, op: ConstantOp, rewriter: PatternRewriter):
-            rewriter.replace_matched_op([ConstantOp.from_int_and_width(43, i32)])
+            rewriter.replace_op(op, [ConstantOp.from_int_and_width(43, i32)])
 
     class AddiRewrite(RewritePattern):
         @op_type_rewrite_pattern
         def match_and_rewrite(self, op: AddiOp, rewriter: PatternRewriter):
-            rewriter.replace_matched_op([MuliOp(op.lhs, op.rhs)])
+            rewriter.replace_op(op, [MuliOp(op.lhs, op.rhs)])
 
     rewrite_and_compare(
         prog,
@@ -1185,7 +1185,7 @@ def test_insert_same_block():
             # Deallocate after last use
             rewriter.insert_op(dealloc, InsertPoint.before(last_op))
             # Init instead of creating, and replace result with allocated value
-            rewriter.replace_matched_op(init, alloc.res)
+            rewriter.replace_op(op, init, alloc.res)
 
     rewrite_and_compare(
         prog,
@@ -1447,8 +1447,8 @@ def test_pattern_rewriter_as_op_builder():
                 return
             with ImplicitBuilder(rewriter):
                 test.TestOp.create(attributes={"inserted": UnitAttr()})
-            rewriter.replace_matched_op(
-                test.TestOp.create(attributes={"replaced": UnitAttr()})
+            rewriter.replace_op(
+                op, test.TestOp.create(attributes={"replaced": UnitAttr()})
             )
 
     rewrite_and_compare(

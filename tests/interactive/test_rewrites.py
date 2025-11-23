@@ -41,7 +41,7 @@ class Rewrite(RewritePattern):
     def match_and_rewrite(self, op: MyTestOp, rewriter: PatternRewriter):
         if op.attributes["label"] != StringAttr("b"):
             return
-        rewriter.replace_matched_op(MyTestOp(attributes={"label": StringAttr("c")}))
+        rewriter.replace_op(op, MyTestOp(attributes={"label": StringAttr("c")}))
 
 
 def test_get_all_possible_rewrites():
@@ -75,8 +75,8 @@ class ReplacePattern(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: MyTestOp, rewriter: PatternRewriter):
         if op.attributes["label"] == StringAttr(self.before):
-            rewriter.replace_matched_op(
-                MyTestOp(attributes={"label": StringAttr(self.after)})
+            rewriter.replace_op(
+                op, MyTestOp(attributes={"label": StringAttr(self.after)})
             )
 
 

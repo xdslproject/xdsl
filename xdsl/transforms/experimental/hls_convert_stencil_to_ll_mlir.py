@@ -679,7 +679,7 @@ class ApplyOpToHLS(RewritePattern):
 
         rewriter.insert_op(operations_to_insert)
 
-        rewriter.replace_matched_op(new_apply_lst[-1])
+        rewriter.replace_op(op, new_apply_lst[-1])
 
 
 def collectComponentOperations(
@@ -830,7 +830,7 @@ class StencilAccessOpToReadBlockOp(RewritePattern):
                 access_idx_array, result_hls_read, f64
             )
 
-            rewriter.replace_matched_op(stencil_value)
+            rewriter.replace_op(op, stencil_value)
 
 
 # Copied from convert_stencil_to_ll_mlir
@@ -1100,7 +1100,7 @@ class PackDataInStencilField(RewritePattern):
 
             new_container_op = UndefOp(struct_new_type)
 
-            rewriter.replace_matched_op(new_container_op)
+            rewriter.replace_op(op, new_container_op)
 
 
 # We create copies for all the coefficients. We create more than one copy where necesssary

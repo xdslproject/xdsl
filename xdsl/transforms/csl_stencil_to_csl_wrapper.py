@@ -174,7 +174,7 @@ class ConvertStencilFuncToModuleWrappedPattern(RewritePattern):
         rewriter.replace_op(func_return, [unblock_call, csl.ReturnOp()])
 
         # replace (now empty) func by module wrapper
-        rewriter.replace_matched_op(module_op)
+        rewriter.replace_op(op, module_op)
 
     def get_csl_stencil_apply_ops(
         self, op: func.FuncOp

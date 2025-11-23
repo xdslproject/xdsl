@@ -183,7 +183,7 @@ class LowerStreamingRegionOp(RewritePattern):
 
         rewriter.inline_block(block, InsertPoint.before(op))
 
-        rewriter.replace_matched_op(snitch.SsrDisableOp())
+        rewriter.replace_op(op, snitch.SsrDisableOp())
 
 
 class ConvertSnitchStreamToSnitch(ModulePass):

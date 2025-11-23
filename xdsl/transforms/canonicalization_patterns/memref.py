@@ -66,7 +66,7 @@ class MemRefSubviewOfSubviewFolding(RewritePattern):
             if new_op.result.type != op.result.type:
                 return
 
-        rewriter.replace_matched_op(new_op)
+        rewriter.replace_op(op, new_op)
 
 
 class ElideUnusedAlloc(RewritePattern):
