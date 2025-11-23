@@ -37,7 +37,7 @@ from xdsl.utils.scoped_dict import ScopedDict
 
 @dataclass
 class NonPropagatingDataFlowSolver(DataFlowSolver):
-    propagate: bool = field(default=True)
+    propagate: bool = field(default=False)
 
     def propagate_if_changed(self, state: AnalysisState, changed: ChangeResult) -> None:
         if not self.propagate:
