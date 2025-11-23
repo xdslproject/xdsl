@@ -1597,66 +1597,57 @@ def test_run_replace_length_mismatch():
         interp_functions.run_replace(interpreter, replace_op, args)
 
 
-def test_run_create_operation_folding():
-    """Test that run_create_operation handles folding operations correctly."""
+def test_run_create_operation_multiple_results():
+    """Test that run_create_operation handles operations with multiple results correctly."""
     interpreter = Interpreter(ModuleOp([]))
     interp_functions = EqsatPDLInterpFunctions()
     ctx = EqsatPDLInterpFunctions.get_ctx(interpreter)
-    ctx.register_dialect("arith", lambda: arith.Arith)
+    ctx.register_dialect("test", lambda: test.Test)
     interpreter.register_implementations(interp_functions)
-
-    from xdsl.builder import ImplicitBuilder
-    from xdsl.dialects.builtin import IntegerAttr
-    from xdsl.ir import Block, Region
-    from xdsl.pattern_rewriter import PatternRewriter
 
     testmodule = ModuleOp(Region([Block()]))
     block = testmodule.body.first_block
     with ImplicitBuilder(block):
         root = test.TestOp()
-
-        # Create constant operations
-        const1 = arith.ConstantOp(IntegerAttr(1, i32))
-        const2 = arith.ConstantOp(IntegerAttr(2, i32))
-
-        # Create constant eclasses
-        const_eclass1 = eqsat.ConstantEClassOp(const1.result)
-        const_eclass2 = eqsat.ConstantEClassOp(const2.result)
+        c0 = create_ssa_value(i32)
+        # Input operand eclass
+        operand_op = test.TestOp((c0,), (i32,))
+        operand_eclass = eqsat.EClassOp(operand_op.results[0], res_type=i32)
 
     rewriter = PatternRewriter(root)
     interp_functions.set_rewriter(interpreter, rewriter)
     interp_functions.populate_known_ops(testmodule)
+    interp_functions.eclass_union_find.add(operand_eclass)
 
-    # Add eclasses to union-find
-    interp_functions.eclass_union_find.add(const_eclass1)
-    interp_functions.eclass_union_find.add(const_eclass2)
-
-    # Create CreateOperationOp for arith.addi
+    # Create CreateOperationOp for "test.op" with 2 results
     create_op = pdl_interp.CreateOperationOp(
-        name="arith.addi",
-        input_operands=[const_eclass1.result, const_eclass2.result],
+        name="test.op",
+        input_operands=[operand_eclass.result],
         input_attributes=[],
-        input_result_types=[create_ssa_value(pdl.TypeType())],
+        input_result_types=[
+            create_ssa_value(pdl.TypeType()),
+            create_ssa_value(pdl.TypeType()),
+        ],
     )
 
-    # Run the create operation - should fold into arith.constant with value=3
+    # Run the create operation
     result = interp_functions.run_create_operation(
-        interpreter, create_op, (const_eclass1.result, const_eclass2.result, i32)
+        interpreter, create_op, (operand_eclass.result, i32, i64)
     )
 
-    # Should return the created operation
     assert len(result.values) == 1
     created_op = result.values[0]
-    assert isinstance(created_op, Operation)
+    assert created_op.name == "test.op"
+    assert len(created_op.results) == 2
+    assert created_op.results[0].type == i32
+    assert created_op.results[1].type == i64
 
-    # The created operation should be wrapped in a new eclass
-    # Check that there's an eclass using this operation
-    eclass_users = [
-        use.operation
-        for use in created_op.results[0].uses
-        if isinstance(use.operation, (eqsat.EClassOp, eqsat.ConstantEClassOp))
-    ]
-    assert len(eclass_users) == 1, "Created operation should be wrapped in an eclass"
+    # Check that both results are wrapped in distinct EClassOps
+    for res in created_op.results:
+        assert res.has_one_use()
+        user = res.first_use.operation
+        assert isinstance(user, eqsat.EClassOp)
+        assert interp_functions.eclass_union_find.find(user) is user
 
 
 def test_run_create_operation_runs_analysis():
