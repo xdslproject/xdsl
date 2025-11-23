@@ -7,6 +7,7 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
+from xdsl.rewriter import InsertPoint
 from xdsl.traits import CallableOpInterface, SymbolTable
 from xdsl.transforms.dead_code_elimination import dce
 
@@ -46,7 +47,7 @@ class InlineFunctions(RewritePattern):
             rewriter.erase_block_argument(impl_block.args[-1])
 
         # Inline function definition before matched op
-        rewriter.inline_block_before_matched_op(impl_block)
+        rewriter.inline_block(impl_block, InsertPoint.before(op))
 
         # Get return from function definition
         return_op = op.prev_op

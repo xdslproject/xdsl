@@ -811,7 +811,9 @@ def test_inline_block_before_matched_op():
         @op_type_rewrite_pattern
         def match_and_rewrite(self, matched_op: test.TestOp, rewriter: PatternRewriter):
             if matched_op.regs and matched_op.regs[0].blocks:
-                rewriter.inline_block_before_matched_op(matched_op.regs[0].blocks[0])
+                rewriter.inline_block(
+                    matched_op.regs[0].blocks[0], InsertPoint.before(matched_op)
+                )
 
     rewrite_and_compare(
         prog,
