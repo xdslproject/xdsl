@@ -101,7 +101,7 @@ class StreamifyGenericOpPattern(RewritePattern):
         )
 
         patterns = ArrayAttr(input_patterns + output_patterns)
-        rewriter.insert_op_before_matched_op(
+        rewriter.insert_op(
             streaming_region_op := memref_stream.StreamingRegionOp(
                 tuple(op.inputs[index] for index, _ in streamed_input_indices),
                 tuple(op.outputs[index] for index, _ in streamable_output_indices),

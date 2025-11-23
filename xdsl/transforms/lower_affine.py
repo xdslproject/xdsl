@@ -86,7 +86,7 @@ class LowerAffineStore(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: affine.StoreOp, rewriter: PatternRewriter):
         ops, indices = insert_affine_map_ops(op.map, op.indices, [])
-        rewriter.insert_op_before_matched_op(ops)
+        rewriter.insert_op(ops)
 
         # TODO: add nontemporal=false once that's added to memref
         # https://github.com/xdslproject/xdsl/issues/1482
@@ -97,7 +97,7 @@ class LowerAffineLoad(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: affine.LoadOp, rewriter: PatternRewriter):
         ops, indices = insert_affine_map_ops(op.map, op.indices, [])
-        rewriter.insert_op_before_matched_op(ops)
+        rewriter.insert_op(ops)
 
         # TODO: add nontemporal=false once that's added to memref
         # https://github.com/xdslproject/xdsl/issues/1482
@@ -112,11 +112,11 @@ class LowerAffineFor(RewritePattern):
         assert len(lb_map.results) == 1, "Affine for lower_bound must have one result"
         assert len(ub_map.results) == 1, "Affine for upper_bound must have one result"
         lb_ops, lb_val = affine_expr_ops(lb_map.results[0], [], [])
-        rewriter.insert_op_before_matched_op(lb_ops)
+        rewriter.insert_op(lb_ops)
         ub_ops, ub_val = affine_expr_ops(ub_map.results[0], [], [])
-        rewriter.insert_op_before_matched_op(ub_ops)
+        rewriter.insert_op(ub_ops)
         step_op = arith.ConstantOp(op.step)
-        rewriter.insert_op_before_matched_op(step_op)
+        rewriter.insert_op(step_op)
         rewriter.replace_matched_op(
             scf.ForOp(
                 lb_val,

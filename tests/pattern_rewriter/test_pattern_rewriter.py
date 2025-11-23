@@ -369,7 +369,7 @@ def test_insert_op_before_matched_op():
         def match_and_rewrite(self, __cst__: ConstantOp, rewriter: PatternRewriter):
             new_cst = ConstantOp.from_int_and_width(42, i32)
 
-            rewriter.insert_op_before_matched_op(new_cst)
+            rewriter.insert_op(new_cst)
 
     rewrite_and_compare(
         prog,
@@ -493,7 +493,7 @@ def test_insert_op_after_matched_op():
         def match_and_rewrite(self, __cst__: ConstantOp, rewriter: PatternRewriter):
             new_cst = ConstantOp.from_int_and_width(42, i32)
 
-            rewriter.insert_op_after_matched_op(new_cst)
+            rewriter.insert_op(new_cst, InsertPoint.after(__cst__))
 
     rewrite_and_compare(
         prog,
@@ -520,7 +520,7 @@ def test_insert_op_after_matched_op_reversed():
         def match_and_rewrite(self, __cst__: ConstantOp, rewriter: PatternRewriter):
             new_cst = ConstantOp.from_int_and_width(42, i32)
 
-            rewriter.insert_op_after_matched_op(new_cst)
+            rewriter.insert_op(new_cst, InsertPoint.after(__cst__))
 
     rewrite_and_compare(
         prog,

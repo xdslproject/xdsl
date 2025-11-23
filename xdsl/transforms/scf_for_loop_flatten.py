@@ -125,7 +125,7 @@ class FlattenNestedLoopsPattern(RewritePattern):
                 builtin.IntegerAttr(factor, builtin.IndexType())
             )
             new_ub_op = arith.MuliOp(op.ub, factor_op.result)
-            rewriter.insert_op_before_matched_op((factor_op, new_ub_op))
+            rewriter.insert_op((factor_op, new_ub_op))
             new_ub = new_ub_op.result
             new_step = op.step
 

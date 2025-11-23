@@ -433,7 +433,8 @@ class PDLInterpFunctions(InterpreterFunctions):
             properties=properties,
         )
 
-        self.get_rewriter(interpreter).insert_op_before_matched_op(result_op)
+        rewriter = self.get_rewriter(interpreter)
+        rewriter.insert_op(result_op, InsertPoint.before(rewriter.current_operation))
 
         return (result_op,)
 

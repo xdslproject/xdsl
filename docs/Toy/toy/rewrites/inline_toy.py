@@ -35,7 +35,7 @@ class InlineFunctions(RewritePattern):
         inputs = [toy.CastOp(operand) for operand in op.operands]
 
         # Insert casts before matched op
-        rewriter.insert_op_before_matched_op(inputs)
+        rewriter.insert_op(inputs)
 
         # Replace block args with operand casts
         for i, arg in zip(inputs, impl_block.args):

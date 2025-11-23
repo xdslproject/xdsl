@@ -56,7 +56,7 @@ class AddHaloExchangeOps(RewritePattern):
     def match_and_rewrite(self, op: stencil.LoadOp, rewriter: PatternRewriter, /):
         swap_op = dmp.SwapOp.get(op.res, self.strategy)
         assert swap_op.swapped_values
-        rewriter.insert_op_after_matched_op(swap_op)
+        rewriter.insert_op(swap_op, InsertPoint.after(op))
         for use in tuple(op.res.uses):
             if use.operation is swap_op:
                 continue

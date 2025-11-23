@@ -72,7 +72,7 @@ class InsertExitSyscallOp(RewritePattern):
             return
 
         EXIT = 93
-        rewriter.insert_op_before_matched_op(riscv_func.SyscallOp(EXIT))
+        rewriter.insert_op(riscv_func.SyscallOp(EXIT))
 
 
 @dataclass(frozen=True)

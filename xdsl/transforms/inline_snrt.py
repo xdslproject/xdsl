@@ -357,7 +357,7 @@ class LowerDMAStart2DWideptr(LowerDMAStart2DBase):
             }
         }
         """
-        rewriter.insert_op_before_matched_op(
+        rewriter.insert_op(
             [
                 dst := self.cast_i64(op.dst),
                 src := self.cast_i64(op.src),
@@ -397,7 +397,7 @@ class LowerDMAStart2D(LowerDMAStart2DBase):
                                              src_stride, repeat);
         }
         """
-        rewriter.insert_op_before_matched_op(
+        rewriter.insert_op(
             [
                 # we use zero register for the ptr_high registers
                 zero := riscv.GetRegisterOp(riscv.Registers.ZERO),

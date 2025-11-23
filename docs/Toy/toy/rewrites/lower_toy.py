@@ -425,7 +425,7 @@ class PrintOpLowering(RewritePattern):
         new_vals: list[SSAValue] = []
 
         for indices in product(*(range(dim) for dim in shape)):
-            rewriter.insert_op_before_matched_op(
+            rewriter.insert_op(
                 load := affine.LoadOp(
                     op.input,
                     (),

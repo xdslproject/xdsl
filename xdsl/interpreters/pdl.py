@@ -352,7 +352,7 @@ class PDLRewriteFunctions(InterpreterFunctions):
         )
 
         # Insert the new operation before the root operation
-        self.rewriter.insert_op_before_matched_op(result_op)
+        self.rewriter.insert_op(result_op)
 
         return (result_op,)
 

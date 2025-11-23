@@ -9,6 +9,7 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
+from xdsl.rewriter import InsertPoint
 from xdsl.utils.hints import isa
 
 AnyNumericType = builtin.AnyFloat | builtin.IntegerType
@@ -216,7 +217,9 @@ class ApplyMPIToExternalLoad(RewritePattern):
         wait_op = mpi.WaitallOp(req_ops, four.results[0])
         mpi_operations += [wait_op]
 
-        rewriter.insert_op_after_matched_op(mpi_operations)
+        rewriter.insert_op(
+            mpi_operations, InsertPoint.after(rewriter.current_operation)
+        )
 
 
 def Apply1DMpi(ctx: Context, module: builtin.ModuleOp):
