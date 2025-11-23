@@ -1,5 +1,5 @@
 from collections.abc import Sequence
-from typing import Any
+from typing import Any, cast
 
 import pytest
 
@@ -8,7 +8,10 @@ from xdsl.context import Context
 from xdsl.dialects import arith, eqsat, eqsat_pdl_interp, func, pdl, pdl_interp, test
 from xdsl.dialects.builtin import ModuleOp, i32, i64
 from xdsl.interpreter import Interpreter
-from xdsl.interpreters.eqsat_pdl_interp import EqsatPDLInterpFunctions
+from xdsl.interpreters.eqsat_pdl_interp import (
+    EqsatPDLInterpFunctions,
+    NonPropagatingDataFlowSolver,
+)
 from xdsl.ir import Attribute, Block, Operation, Region, SSAValue
 from xdsl.irdl import (
     AttrSizedResultSegments,
@@ -1654,3 +1657,136 @@ def test_run_create_operation_folding():
         if isinstance(use.operation, (eqsat.EClassOp, eqsat.ConstantEClassOp))
     ]
     assert len(eclass_users) == 1, "Created operation should be wrapped in an eclass"
+
+
+def test_run_create_operation_runs_analysis():
+    """Test that run_create_operation runs registered analyses on new operations."""
+    from dataclasses import dataclass
+
+    from typing_extensions import Self
+
+    from xdsl.analysis.dataflow import DataFlowSolver
+    from xdsl.analysis.sparse_analysis import (
+        AbstractLatticeValue,
+        Lattice,
+        SparseForwardDataFlowAnalysis,
+    )
+
+    @dataclass(frozen=True)
+    class TestLatticeValue(AbstractLatticeValue):
+        value: int
+
+        @classmethod
+        def initial_value(cls) -> Self:
+            return cls(0)
+
+        def meet(self, other: "TestLatticeValue") -> "TestLatticeValue":
+            return TestLatticeValue(min(self.value, other.value))
+
+        def join(self, other: "TestLatticeValue") -> "TestLatticeValue":
+            return TestLatticeValue(max(self.value, other.value))
+
+    class TestLattice(Lattice[TestLatticeValue]):
+        value_cls = TestLatticeValue
+
+    class TestAnalysis(SparseForwardDataFlowAnalysis[TestLattice]):
+        def __init__(self, solver: DataFlowSolver):
+            super().__init__(solver, TestLattice)
+            self.visited_ops: list[Operation] = []
+
+        def visit_operation_impl(
+            self,
+            op: Operation,
+            operands: list[TestLattice],
+            results: list[TestLattice],
+        ) -> None:
+            self.visited_ops.append(op)
+            # Simple transfer function: result = operand + 1
+            if operands and results:
+                val = operands[0].value.value
+                # If op is EClassOp, it passes through value.
+                # If op is TestOp (the created op), it increments.
+                if isinstance(op, eqsat.EClassOp):
+                    new_val = val
+                else:
+                    new_val = val + 1
+
+                self.join(
+                    results[0],
+                    TestLattice(results[0].anchor, TestLatticeValue(new_val)),
+                )
+
+        def set_to_entry_state(self, lattice: TestLattice) -> None:
+            pass
+
+    # Setup interpreter
+    interpreter = Interpreter(ModuleOp([]))
+    interp_functions = EqsatPDLInterpFunctions()
+    ctx = EqsatPDLInterpFunctions.get_ctx(interpreter)
+    ctx.register_dialect("test", lambda: test.Test)
+    interpreter.register_implementations(interp_functions)
+
+    # Register analysis
+    solver = NonPropagatingDataFlowSolver(ctx)
+    analysis = TestAnalysis(solver)
+    interp_functions.analyses.append(
+        cast(SparseForwardDataFlowAnalysis[Lattice[TestLatticeValue]], analysis)
+    )
+
+    from xdsl.builder import ImplicitBuilder
+    from xdsl.ir import Block, Region
+    from xdsl.pattern_rewriter import PatternRewriter
+
+    testmodule = ModuleOp(Region([Block()]))
+    block = testmodule.body.first_block
+    with ImplicitBuilder(block):
+        root = test.TestOp()
+        c0 = create_ssa_value(i32)
+        # Operand EClass with some state
+        operand_op = test.TestOp((c0,), (i32,))
+        operand_eclass = eqsat.EClassOp(operand_op.results[0], res_type=i32)
+
+    # Initialize lattice state for operand
+    operand_lattice = analysis.get_lattice_element(operand_eclass.result)
+    operand_lattice._value = TestLatticeValue(  # pyright: ignore[reportPrivateUsage]
+        10
+    )  # Set initial value
+
+    rewriter = PatternRewriter(root)
+    interp_functions.set_rewriter(interpreter, rewriter)
+    interp_functions.populate_known_ops(testmodule)
+    interp_functions.eclass_union_find.add(operand_eclass)
+
+    # Create CreateOperationOp
+    create_op = pdl_interp.CreateOperationOp(
+        name="test.op",
+        input_operands=[operand_eclass.result],
+        input_attributes=[],
+        input_result_types=[create_ssa_value(pdl.TypeType())],
+    )
+
+    # Run run_create_operation
+    result = interp_functions.run_create_operation(
+        interpreter, create_op, (operand_eclass.result, i32)
+    )
+
+    created_op = result.values[0]
+    assert isinstance(created_op, Operation)
+
+    # Verify that analysis visited the new operations
+    assert created_op in analysis.visited_ops
+
+    # Find the new EClassOp
+    assert created_op.results[0].first_use
+    new_eclass_op = created_op.results[0].first_use.operation
+    assert isinstance(new_eclass_op, eqsat.EClassOp)
+    assert new_eclass_op in analysis.visited_ops
+
+    # Verify values
+    # created_op result lattice should be operand + 1 = 11
+    res_lattice = analysis.get_lattice_element(created_op.results[0])
+    assert res_lattice.value.value == 11
+
+    # new_eclass_op result lattice should be created_op result (passed through) = 11
+    eclass_lattice = analysis.get_lattice_element(new_eclass_op.result)
+    assert eclass_lattice.value.value == 11
