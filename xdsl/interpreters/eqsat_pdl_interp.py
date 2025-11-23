@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, cast
+from typing import Any
 
 from ordered_set import OrderedSet
 
@@ -15,7 +15,6 @@ from xdsl.analysis.sparse_analysis import Lattice, SparseForwardDataFlowAnalysis
 from xdsl.dialects import eqsat, eqsat_pdl_interp, pdl_interp
 from xdsl.dialects.builtin import SymbolRefAttr
 from xdsl.dialects.pdl import RangeType, ValueType
-from xdsl.folder import Folder
 from xdsl.interpreter import (
     Interpreter,
     ReturnedValues,
@@ -25,7 +24,7 @@ from xdsl.interpreter import (
     register_impls,
 )
 from xdsl.interpreters.pdl_interp import PDLInterpFunctions
-from xdsl.ir import Block, Operation, OpResult, SSAValue, Use
+from xdsl.ir import Block, Operation, OpResult, SSAValue
 from xdsl.irdl import IRDLOperation
 from xdsl.rewriter import InsertPoint
 from xdsl.transforms.common_subexpression_elimination import KnownOps
@@ -379,7 +378,7 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
         updated_operands: list[OpResult] = []
         for arg in args[0 : len(op.input_operands)]:
             assert isinstance(arg, OpResult), (
-                "pdl_interp.create_operation currently only supports creating operations with operands that are OpResult."
+                "pdl_interp.create_operation currently only supports creating operations with operands that are eclass results."
             )
             assert isinstance(arg.owner, eqsat.AnyEClassOp), (
                 "pdl_interp.create_operation currently only supports creating operations with operands that are eclass results."
@@ -387,27 +386,10 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
             updated_operands.append(self.eclass_union_find.find(arg.owner).result)
         args = (*updated_operands, *args[len(op.input_operands) :])
         (new_op,) = super().run_create_operation(interpreter, op, args).values
-        if cast(Operation, new_op).get_attr_or_prop("unsound") is None and (
-            values := Folder(
-                EqsatPDLInterpFunctions.get_ctx(interpreter)
-            ).replace_with_fold(new_op, rewriter)
-        ):
-            assert len(values) == 1, (
-                "pdl_interp.create_operation currently only supports creating operations with a single result."
-            )
-            new_op2 = values[0].owner
-            if isinstance(new_op2, eqsat.AnyEClassOp):
-                # If the folder returned one of the operands of the original new_op,
-                # this operand is an eclass result while we're actually looking for
-                # a non-eclass operation result (e-node).
-                # We take the operation defining the first operand of that e-class as
-                # new_op and create a virtual use that points to it.
-                new_op.results[0].first_use = Use(new_op2, -1)
-                return (new_op,)
-
-            new_op = new_op2
-
         assert isinstance(new_op, Operation)
+        assert new_op.results, (
+            "Creating operations without result values is not supported."
+        )
 
         # Check if an identical operation already exists in our known_ops map
         if existing_op := self.known_ops.get(new_op):
@@ -430,32 +412,40 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
                 self.known_ops.pop(existing_op)
 
         # No existing eclass for this operation yet
-
+        new_eclasses: list[eqsat.AnyEClassOp] = []
         if new_op.has_trait(eqsat.ConstantLike):
-            eclass_op = eqsat.ConstantEClassOp(
-                new_op.results[0],
+            assert len(new_op.results) == 1
+            new_eclasses.append(
+                eqsat.ConstantEClassOp(
+                    new_op.results[0],
+                )
             )
         else:
-            eclass_op = eqsat.EClassOp(
-                new_op.results[0],
-            )
-        for analysis in self.analyses:
-            for x in (new_op, eclass_op):
-                point = ProgramPoint.before(x)
-                operands = [
-                    analysis.get_lattice_element_for(point, o) for o in x.operands
-                ]
-                results = [analysis.get_lattice_element(r) for r in x.results]
-                assert len(results) == 1
-                analysis.visit_operation_impl(x, operands, results)
+            for res in new_op.results:
+                new_eclasses.append(
+                    eqsat.EClassOp(
+                        res,
+                    )
+                )
 
-        rewriter.insert_op(
-            eclass_op,
-            InsertPoint.after(new_op),
-        )
+        for eclass_op in new_eclasses:
+            for analysis in self.analyses:
+                for x in (new_op, eclass_op):
+                    point = ProgramPoint.before(x)
+                    operands = [
+                        analysis.get_lattice_element_for(point, o) for o in x.operands
+                    ]
+                    results = [analysis.get_lattice_element(r) for r in x.results]
+                    assert len(results) == 1
+                    analysis.visit_operation_impl(x, operands, results)
+
+            rewriter.insert_op(
+                eclass_op,
+                InsertPoint.after(new_op),
+            )
+            self.eclass_union_find.add(eclass_op)
 
         self.known_ops[new_op] = new_op
-        self.eclass_union_find.add(eclass_op)
 
         return (new_op,)
 
