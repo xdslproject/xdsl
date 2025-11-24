@@ -26,7 +26,7 @@ class RehoistConstInLoops(RewritePattern):
         for child_op in op.body.ops:
             if child_op.has_trait(ConstantLike):
                 # we only rehoist consts that are not embeded in another region inside the loop
-                rewriter.insert_op((new_const := child_op.clone(),))
+                rewriter.insert_op(new_const := child_op.clone())
                 rewriter.replace_op(child_op, (), new_const.results)
 
 

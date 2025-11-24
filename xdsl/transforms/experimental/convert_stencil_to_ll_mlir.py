@@ -211,7 +211,7 @@ class ReturnOpToMemRef(RewritePattern):
                         store = memref.StoreOp.get(arg, target, index_ops)
                         store_list.append(store)
 
-        rewriter.insert_op([*store_list])
+        rewriter.insert_op(store_list)
         rewriter.erase_op(op)
 
 
