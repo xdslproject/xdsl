@@ -217,9 +217,7 @@ class ApplyMPIToExternalLoad(RewritePattern):
         wait_op = mpi.WaitallOp(req_ops, four.results[0])
         mpi_operations += [wait_op]
 
-        rewriter.insert_op(
-            mpi_operations, InsertPoint.after(rewriter.current_operation)
-        )
+        rewriter.insert_op(mpi_operations, InsertPoint.after(op))
 
 
 def Apply1DMpi(ctx: Context, module: builtin.ModuleOp):
