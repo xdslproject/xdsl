@@ -18,6 +18,7 @@ from xdsl.interpreter import (
 from xdsl.ir import Attribute, Operation, OpResult, SSAValue
 from xdsl.irdl import IRDLOperation
 from xdsl.pattern_rewriter import PatternRewriter
+from xdsl.rewriter import InsertPoint
 from xdsl.utils.exceptions import InterpretationError
 from xdsl.utils.hints import isa
 
@@ -444,7 +445,9 @@ class PDLInterpFunctions(InterpreterFunctions):
             assert len(args) == 1
             root_op = args[0]
             assert isinstance(root_op, Operation)
-            self.get_rewriter(interpreter).current_operation = root_op
+            rewriter = self.get_rewriter(interpreter)
+            rewriter.current_operation = root_op
+            rewriter.insertion_point = InsertPoint.before(root_op)
 
         return interpreter.run_ssacfg_region(op.body, args, op.sym_name.data)
 

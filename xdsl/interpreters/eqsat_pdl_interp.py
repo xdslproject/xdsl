@@ -597,6 +597,7 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
         rewriter = PDLInterpFunctions.get_rewriter(interpreter)
         for rewriter_op, root, args in self.pending_rewrites:
             rewriter.current_operation = root
+            rewriter.insertion_point = InsertPoint.before(root)
 
             self.is_matching = False
             interpreter.call_op(rewriter_op, args)
