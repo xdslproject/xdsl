@@ -15,7 +15,7 @@ class RemoveRedundantDS_Mov(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: x86.DS_MovOp, rewriter: PatternRewriter) -> None:
         if op.destination.type == op.source.type and op.destination.type.is_allocated:
-            rewriter.replace_matched_op((), (op.source,))
+            rewriter.replace_op(op, (), (op.source,))
 
 
 class RS_Add_Zero(RewritePattern):
@@ -25,7 +25,7 @@ class RS_Add_Zero(RewritePattern):
             value := get_constant_value(op.source)
         ) is not None and value.value.data == 0:
             # The register would be updated in-place, so no need to move
-            rewriter.replace_matched_op((), (op.register_in,))
+            rewriter.replace_op(op, (), (op.register_in,))
 
 
 class MS_Operation_ConstantOffset(RewritePattern):
@@ -39,7 +39,7 @@ class MS_Operation_ConstantOffset(RewritePattern):
         ):
             op = cast(x86.ops.MS_Operation[X86RegisterType, X86RegisterType], op)
             new_offset = op.memory_offset.value.data + value.value.data
-            rewriter.replace_matched_op(type(op)(mov_op.source, op.source, new_offset))
+            rewriter.replace_op(op, type(op)(mov_op.source, op.source, new_offset))
 
 
 class DM_Operation_ConstantOffset(RewritePattern):
@@ -53,8 +53,8 @@ class DM_Operation_ConstantOffset(RewritePattern):
         ):
             op = cast(x86.ops.DM_Operation[X86RegisterType, X86RegisterType], op)
             new_offset = op.memory_offset.value.data + value.value.data
-            rewriter.replace_matched_op(
-                type(op)(mov_op.source, new_offset, destination=op.destination.type)
+            rewriter.replace_op(
+                op, type(op)(mov_op.source, new_offset, destination=op.destination.type)
             )
 
 

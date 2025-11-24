@@ -75,7 +75,8 @@ class LowerHaloExchangeToMpi(RewritePattern):
 
         input_type = cast(ContainerType, op.input_stencil.type)
 
-        rewriter.replace_matched_op(
+        rewriter.replace_op(
+            op,
             list(
                 generate_mpi_calls_for(
                     op.input_stencil,

@@ -81,7 +81,7 @@ class CastOpToMemRef(RewritePattern):
 
         cast = memref.CastOp.get(op.field, result_type)
 
-        rewriter.replace_matched_op(cast)
+        rewriter.replace_op(op, cast)
 
 
 # Collect up to 'number' block arguments by walking up the region tree
@@ -255,7 +255,7 @@ class LoadOpToMemRef(RewritePattern):
             op.field, StencilToMemRefType(field), offsets, sizes, strides
         )
 
-        rewriter.replace_matched_op(subview)
+        rewriter.replace_op(op, subview)
         name = None
         if subview.source.name_hint:
             name = subview.source.name_hint + "_loadview"
@@ -325,7 +325,7 @@ class BufferOpToMemRef(RewritePattern):
             return
 
         rewriter.insert_op(dealloc, InsertPoint.before(last_op))
-        rewriter.replace_matched_op([], [alloc.memref])
+        rewriter.replace_op(op, [], [alloc.memref])
 
 
 def field_subview(field: SSAValue):
@@ -346,7 +346,7 @@ class AllocOpToMemRef(RewritePattern):
         alloc = memref.AllocOp(
             [], [], StencilToMemRefType(cast(StencilType[Attribute], op.field.type))
         )
-        rewriter.replace_matched_op(alloc)
+        rewriter.replace_op(op, alloc)
 
 
 @dataclass
@@ -367,8 +367,8 @@ class ApplyOpFieldSubviews(RewritePattern):
             attributes=op.attributes,
             properties=op.properties,
         )
-        rewriter.replace_matched_op(
-            [*(arg for arg in args if isinstance(arg, Operation)), new_apply]
+        rewriter.replace_op(
+            op, [*(arg for arg in args if isinstance(arg, Operation)), new_apply]
         )
 
 
@@ -454,7 +454,7 @@ class ApplyOpToParallel(RewritePattern):
         # Replace with the loop and necessary constants.
         assert isa(boilerplate_ops, list[Operation])
         rewriter.insert_op([*boilerplate_ops, p])
-        rewriter.replace_matched_op([], new_results)
+        rewriter.replace_op(op, [], new_results)
 
 
 @dataclass
@@ -505,7 +505,7 @@ class AccessOpToMemRef(RewritePattern):
         )
 
         rewriter.insert_op(args)
-        rewriter.replace_matched_op([*off_const_ops, load], [load.res])
+        rewriter.replace_op(op, [*off_const_ops, load], [load.res])
 
 
 @dataclass
@@ -562,7 +562,7 @@ class TrivialExternalLoadOpCleanup(RewritePattern):
         )
 
         if op.field.type == op.result.type:
-            rewriter.replace_matched_op([], [op.field])
+            rewriter.replace_op(op, [], [op.field])
         pass
 
 

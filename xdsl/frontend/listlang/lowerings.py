@@ -40,7 +40,7 @@ class LowerLengthOp(RewritePattern):
         dim = rewriter.insert_op(tensor.DimOp(op.li, zero_index))
         cast = arith.IndexCastOp(dim, builtin.i32)
         cast.result.name_hint = op.result.name_hint
-        rewriter.replace_matched_op(cast)
+        rewriter.replace_op(op, cast)
 
 
 class LowerMapOp(RewritePattern):
@@ -104,7 +104,7 @@ class LowerMapOp(RewritePattern):
             for_body,
         )
         for_op.results[0].name_hint = op.result.name_hint
-        rewriter.replace_matched_op(for_op)
+        rewriter.replace_op(op, for_op)
 
 
 class LowerPrintOp(RewritePattern):
@@ -137,7 +137,8 @@ class LowerPrintOp(RewritePattern):
 
         rewriter.insertion_point = rewriter_ip
 
-        rewriter.replace_matched_op(
+        rewriter.replace_op(
+            op,
             (
                 printf.PrintFormatOp("["),
                 scf.ForOp(
@@ -148,7 +149,7 @@ class LowerPrintOp(RewritePattern):
                     for_body,
                 ),
                 printf.PrintFormatOp("]"),
-            )
+            ),
         )
 
 
@@ -206,7 +207,7 @@ class LowerRangeOp(RewritePattern):
             for_body,
         )
         for_op.results[0].name_hint = op.result.name_hint
-        rewriter.replace_matched_op(for_op)
+        rewriter.replace_op(op, for_op)
 
 
 class LowerListToTensor(ModulePass):

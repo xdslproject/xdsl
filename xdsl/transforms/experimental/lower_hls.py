@@ -78,7 +78,7 @@ class LowerHLSStreamWrite(RewritePattern):
             gep = GEPOp(op.stream, [0, 0], pointee_type=elem_type)
             push_call = func.CallOp("llvm.fpga.fifo.push.stencil", [elem, gep], [])
 
-        rewriter.replace_matched_op([gep, push_call])
+        rewriter.replace_op(op, [gep, push_call])
 
 
 @dataclass
@@ -156,8 +156,8 @@ class LowerHLSStreamRead(RewritePattern):
             size, typing.cast(Operation, current_parent.body.blocks[0].first_op)
         )
 
-        # rewriter.replace_matched_op([size, alloca, gep, pop_call, store, load])
-        rewriter.replace_matched_op([gep, pop_call, store, load])
+        # rewriter.replace_op(op, [size, alloca, gep, pop_call, store, load])
+        rewriter.replace_op(op, [gep, pop_call, store, load])
 
 
 @dataclass
@@ -234,7 +234,7 @@ class LowerHLSStreamToAlloca(RewritePattern):
             ],
             InsertPoint.after(op),
         )
-        rewriter.replace_matched_op([size, alloca])
+        rewriter.replace_op(op, [size, alloca])
 
         for use in uses:
             rewriter.replace_value_with_new_type(
@@ -273,7 +273,7 @@ class PragmaPipelineToFunc(RewritePattern):
             self.module.body.block.add_op(func1)
             self.declared_pipeline_names.add(pipeline_func_name)
 
-        rewriter.replace_matched_op(call1)
+        rewriter.replace_op(op, call1)
 
 
 @dataclass
@@ -296,7 +296,7 @@ class PragmaUnrollToFunc(RewritePattern):
 
         self.module.body.block.add_op(func1)
 
-        rewriter.replace_matched_op(call1)
+        rewriter.replace_op(op, call1)
 
 
 # @dataclass
@@ -317,7 +317,7 @@ class PragmaUnrollToFunc(RewritePattern):
 #
 #        self.module.body.block.add_op(func1)
 #
-#        rewriter.replace_matched_op(call1)
+#        rewriter.replace_op(op, call1)
 
 
 @dataclass
@@ -392,7 +392,7 @@ class SCFParallelToHLSPipelinedFor(RewritePattern):
             cast(OpResult, step[0]).op, cast(OpResult, ub[0]).op
         )
 
-        rewriter.replace_matched_op([for_op])
+        rewriter.replace_op(op, [for_op])
 
 
 @dataclass
@@ -468,7 +468,7 @@ class LowerDataflow(RewritePattern):
 #         )
 #         point = LoadOp(third_array)
 
-#         rewriter.replace_matched_op(
+#         rewriter.replace_op(op,
 #             [values, first_array, second_array, third_array, point]
 #         )
 

@@ -58,7 +58,7 @@ class LowerSyscallOp(RewritePattern):
             ops.append(mv)
             new_results = mv.results
 
-        rewriter.replace_matched_op(ops, new_results=new_results)
+        rewriter.replace_op(op, ops, new_results=new_results)
 
 
 class InsertExitSyscallOp(RewritePattern):

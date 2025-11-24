@@ -18,10 +18,11 @@ class DS_VpbroadcastqOpScalarLoad(RewritePattern):
         self, op: x86.DS_VpbroadcastqOp, rewriter: PatternRewriter
     ) -> None:
         if isinstance(mov_op := op.source.owner, x86.ops.DM_MovOp):
-            rewriter.replace_matched_op(
+            rewriter.replace_op(
+                op,
                 x86.DM_VbroadcastsdOp(
                     mov_op.memory, mov_op.memory_offset, destination=op.destination.type
-                )
+                ),
             )
 
 

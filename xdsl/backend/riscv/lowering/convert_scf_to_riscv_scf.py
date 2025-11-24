@@ -30,13 +30,13 @@ class ScfForLowering(RewritePattern):
             new_op.results, op.iter_args.types
         )
 
-        rewriter.replace_matched_op((new_op, *mv_res_ops), res_values)
+        rewriter.replace_op(op, (new_op, *mv_res_ops), res_values)
 
 
 class ScfYieldLowering(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: scf.YieldOp, rewriter: PatternRewriter) -> None:
-        rewriter.replace_matched_op(riscv_scf.YieldOp(*cast_operands_to_regs(rewriter)))
+        rewriter.replace_op(op, riscv_scf.YieldOp(*cast_operands_to_regs(rewriter)))
 
 
 class ConvertScfToRiscvPass(ModulePass):

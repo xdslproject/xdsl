@@ -47,12 +47,12 @@ class SimplifyTrivialLoops(RewritePattern):
             return
 
         if lb == ub:
-            rewriter.replace_matched_op((), op.iter_args)
+            rewriter.replace_op(op, (), op.iter_args)
             return
 
         # If the loop is known to have 0 iterations, remove it.
         if (diff := ub - lb) <= 0:
-            rewriter.replace_matched_op((), op.iter_args)
+            rewriter.replace_op(op, (), op.iter_args)
             return
 
         if (step := const_evaluate_operand(op.step)) is None:

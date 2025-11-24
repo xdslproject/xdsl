@@ -90,7 +90,7 @@ class LowerAffineStore(RewritePattern):
 
         # TODO: add nontemporal=false once that's added to memref
         # https://github.com/xdslproject/xdsl/issues/1482
-        rewriter.replace_matched_op(memref.StoreOp.get(op.value, op.memref, indices))
+        rewriter.replace_op(op, memref.StoreOp.get(op.value, op.memref, indices))
 
 
 class LowerAffineLoad(RewritePattern):
@@ -101,7 +101,7 @@ class LowerAffineLoad(RewritePattern):
 
         # TODO: add nontemporal=false once that's added to memref
         # https://github.com/xdslproject/xdsl/issues/1482
-        rewriter.replace_matched_op(memref.LoadOp.get(op.memref, indices))
+        rewriter.replace_op(op, memref.LoadOp.get(op.memref, indices))
 
 
 class LowerAffineFor(RewritePattern):
@@ -117,21 +117,22 @@ class LowerAffineFor(RewritePattern):
         rewriter.insert_op(ub_ops)
         step_op = arith.ConstantOp(op.step)
         rewriter.insert_op(step_op)
-        rewriter.replace_matched_op(
+        rewriter.replace_op(
+            op,
             scf.ForOp(
                 lb_val,
                 ub_val,
                 step_op.result,
                 op.inits,
                 rewriter.move_region_contents_to_new_regions(op.body),
-            )
+            ),
         )
 
 
 class LowerAffineYield(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: affine.YieldOp, rewriter: PatternRewriter, /):
-        rewriter.replace_matched_op(scf.YieldOp(*op.arguments))
+        rewriter.replace_op(op, scf.YieldOp(*op.arguments))
 
 
 class LowerAffineApply(RewritePattern):
@@ -152,7 +153,7 @@ class LowerAffineApply(RewritePattern):
         ops, val = affine_expr_ops(affine_map.results[0], dims, symbols)
         new_ops.extend(ops)
         new_results.append(val)
-        rewriter.replace_matched_op(new_ops, new_results)
+        rewriter.replace_op(op, new_ops, new_results)
 
 
 class LowerAffinePass(ModulePass):
