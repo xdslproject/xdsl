@@ -260,6 +260,7 @@ class PatternRewriter(Builder, PatternRewriterListener):
         self.has_done_action = True
         Rewriter.inline_block(block, insertion_point, arg_values=arg_values)
 
+    @deprecated("Please use `inline_block(block, InsertPoint.before(op))`")
     def inline_block_before_matched_op(
         self, block: Block, arg_values: Sequence[SSAValue] = ()
     ):
@@ -271,6 +272,7 @@ class PatternRewriter(Builder, PatternRewriterListener):
             block, InsertPoint.before(self.current_operation), arg_values=arg_values
         )
 
+    @deprecated("Please use `inline_block(block, InsertPoint.after(op))`")
     def inline_block_after_matched_op(
         self, block: Block, arg_values: Sequence[SSAValue] = ()
     ):

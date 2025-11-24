@@ -92,7 +92,7 @@ class LowerRiscvScfToLabels(RewritePattern):
             rewriter.insert_op_after_matched_op(get_target_register)
 
         # Extract ops from the body and insert them after the loop header.
-        rewriter.inline_block_after_matched_op(body)
+        rewriter.inline_block(body, InsertPoint.after(op))
 
         rewriter.erase_op(op)
 

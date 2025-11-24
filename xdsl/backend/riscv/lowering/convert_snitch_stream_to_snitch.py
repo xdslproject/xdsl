@@ -183,7 +183,7 @@ class LowerStreamingRegionOp(RewritePattern):
         for arg in reversed(block.args):
             rewriter.erase_block_argument(arg)
 
-        rewriter.inline_block_before_matched_op(block)
+        rewriter.inline_block(block, InsertPoint.before(op))
 
         rewriter.replace_matched_op(snitch.SsrDisableOp())
 
