@@ -64,7 +64,7 @@ class BacktrackPoint:
     scope: ScopedDict[SSAValue, Any]
     """Variable scope to restore when backtracking."""
 
-    cause: pdl_interp.GetDefiningOpOp | eqsat_pdl_interp.ChooseOp
+    cause: eqsat_pdl_interp.GetDefiningOpOp | eqsat_pdl_interp.ChooseOp
     """The GetDefiningOpOp or ChooseOp that created this backtrack point."""
 
     index: int
@@ -150,11 +150,11 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
             else:
                 self.eclass_union_find.add(op)
 
-    @impl(pdl_interp.GetResultOp)
-    def run_get_result(
+    @impl(eqsat_pdl_interp.GetResultOp)
+    def run_eqsat_get_result(
         self,
         interpreter: Interpreter,
-        op: pdl_interp.GetResultOp,
+        op: eqsat_pdl_interp.GetResultOp,
         args: tuple[Any, ...],
     ) -> tuple[Any, ...]:
         assert len(args) == 1
@@ -181,11 +181,11 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
                     )
         return (result,)
 
-    @impl(pdl_interp.GetResultsOp)
-    def run_get_results(
+    @impl(eqsat_pdl_interp.GetResultsOp)
+    def run_eqsat_get_results(
         self,
         interpreter: Interpreter,
-        op: pdl_interp.GetResultsOp,
+        op: eqsat_pdl_interp.GetResultsOp,
         args: tuple[Any, ...],
     ) -> tuple[Any, ...]:
         assert len(args) == 1
@@ -225,11 +225,11 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
             return (eclass_results[0],)
         return (tuple(eclass_results),)
 
-    @impl(pdl_interp.GetDefiningOpOp)
-    def run_get_defining_op(
+    @impl(eqsat_pdl_interp.GetDefiningOpOp)
+    def run_eqsat_get_defining_op(
         self,
         interpreter: Interpreter,
-        op: pdl_interp.GetDefiningOpOp,
+        op: eqsat_pdl_interp.GetDefiningOpOp,
         args: tuple[Any, ...],
     ) -> tuple[Any, ...]:
         assert len(args) == 1
@@ -271,11 +271,11 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
 
         return (defining_op,)
 
-    @impl(pdl_interp.ReplaceOp)
-    def run_replace(
+    @impl(eqsat_pdl_interp.ReplaceOp)
+    def run_eqsat_replace(
         self,
         interpreter: Interpreter,
-        op: pdl_interp.ReplaceOp,
+        op: eqsat_pdl_interp.ReplaceOp,
         args: tuple[Any, ...],
     ) -> tuple[Any, ...]:
         assert args
@@ -365,11 +365,11 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
         rewriter.replace_op(to_replace, new_ops=[], new_results=to_keep.results)
         return True
 
-    @impl(pdl_interp.CreateOperationOp)
-    def run_create_operation(
+    @impl(eqsat_pdl_interp.CreateOperationOp)
+    def run_eqsat_create_operation(
         self,
         interpreter: Interpreter,
-        op: pdl_interp.CreateOperationOp,
+        op: eqsat_pdl_interp.CreateOperationOp,
         args: tuple[Any, ...],
     ) -> tuple[Any, ...]:
         rewriter = PDLInterpFunctions.get_rewriter(interpreter)
@@ -385,7 +385,16 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
             )
             updated_operands.append(self.eclass_union_find.find(arg.owner).result)
         args = (*updated_operands, *args[len(op.input_operands) :])
-        (new_op,) = super().run_create_operation(interpreter, op, args).values
+        non_eqsat_op = pdl_interp.CreateOperationOp(
+            op.constraint_name,
+            op.inferred_result_types,
+            op.input_attribute_names,
+            op.input_operands,
+            op.input_attributes,
+            op.input_result_types,
+        )
+        (new_op,) = super().run_create_operation(interpreter, non_eqsat_op, args).values
+
         assert isinstance(new_op, Operation)
         assert new_op.results, (
             "Creating operations without result values is not supported."
@@ -449,11 +458,11 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
 
         return (new_op,)
 
-    @impl_terminator(pdl_interp.RecordMatchOp)
-    def run_recordmatch(
+    @impl_terminator(eqsat_pdl_interp.RecordMatchOp)
+    def run_eqsat_recordmatch(
         self,
         interpreter: Interpreter,
-        op: pdl_interp.RecordMatchOp,
+        op: eqsat_pdl_interp.RecordMatchOp,
         args: tuple[Any, ...],
     ):
         self.pending_rewrites.append(
@@ -461,9 +470,12 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
         )
         return Successor(op.dest, ()), ()
 
-    @impl_terminator(pdl_interp.FinalizeOp)
-    def run_finalize(
-        self, interpreter: Interpreter, _: pdl_interp.FinalizeOp, args: tuple[Any, ...]
+    @impl_terminator(eqsat_pdl_interp.FinalizeOp)
+    def run_eqsat_finalize(
+        self,
+        interpreter: Interpreter,
+        _: eqsat_pdl_interp.FinalizeOp,
+        args: tuple[Any, ...],
     ):
         if not self.is_matching:
             return ReturnedValues(()), ()
