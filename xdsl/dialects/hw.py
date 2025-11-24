@@ -14,6 +14,7 @@ from typing import NamedTuple, overload
 
 from xdsl.dialects.builtin import (
     ArrayAttr,
+    DictionaryAttr,
     FlatSymbolRefAttr,
     FlatSymbolRefAttrConstr,
     IntAttr,
@@ -36,11 +37,11 @@ from xdsl.ir import (
 )
 from xdsl.irdl import (
     IRDLOperation,
-    attr_def,
     irdl_attr_definition,
     irdl_op_definition,
     lazy_traits_def,
-    opt_attr_def,
+    opt_prop_def,
+    prop_def,
     region_def,
     traits_def,
     var_operand_def,
@@ -864,10 +865,13 @@ class HWModuleOp(IRDLOperation):
 
     name = "hw.module"
 
-    sym_name = attr_def(SymbolNameConstraint())
-    module_type = attr_def(ModuleType)
-    sym_visibility = opt_attr_def(StringAttr)
-    parameters = opt_attr_def(ArrayAttr[ParamDeclAttr])
+    sym_name = prop_def(SymbolNameConstraint())
+    module_type = prop_def(ModuleType)
+    per_port_attrs = opt_prop_def(ArrayAttr[DictionaryAttr])
+    result_locs = opt_prop_def(ArrayAttr[LocationAttr])
+    sym_visibility = opt_prop_def(StringAttr)
+    parameters = opt_prop_def(ArrayAttr[ParamDeclAttr])
+    comment = opt_prop_def(StringAttr)
 
     body = region_def("single_block")
 
@@ -885,22 +889,34 @@ class HWModuleOp(IRDLOperation):
         sym_name: StringAttr,
         module_type: ModuleType,
         body: Region,
+        per_port_attrs: ArrayAttr[DictionaryAttr] | None = None,
+        result_locs: ArrayAttr[LocationAttr] | None = None,
         parameters: ArrayAttr[ParamDeclAttr] = ArrayAttr([]),
+        comment: StringAttr | None = None,
         visibility: str | StringAttr | None = None,
     ):
-        attributes: dict[str, Attribute] = {
+        properties: dict[str, Attribute] = {
             "sym_name": sym_name,
             "module_type": module_type,
             "parameters": parameters,
         }
 
+        if per_port_attrs:
+            properties["per_port_attrs"] = per_port_attrs
+
+        if result_locs:
+            properties["result_locs"] = result_locs
+
+        if comment:
+            properties["comment"] = comment
+
         if visibility:
             if isinstance(visibility, str):
                 visibility = StringAttr(visibility)
-            attributes["sym_visibility"] = visibility
+            properties["sym_visibility"] = visibility
 
         return super().__init__(
-            attributes=attributes,
+            properties=properties,
             regions=[body],
         )
 
@@ -947,7 +963,7 @@ class HWModuleOp(IRDLOperation):
         )
 
         if attrs is not None:
-            module_op.attributes.update(attrs.data)
+            module_op.properties.update(attrs.data)
 
         return module_op
 
@@ -960,10 +976,9 @@ class HWModuleOp(IRDLOperation):
             arg_ssa_iter=self.body.block.args,
             module_type=self.module_type,
         )
-        printer.print_op_attributes(
-            self.attributes,
-            reserved_attr_names=_MODULE_OP_ATTRS_HANDLED_BY_CUSTOM_FORMAT,
-            print_keyword=True,
+        printer._print_op_properties(
+            self.properties,
+            reserved_prop_names=_MODULE_OP_ATTRS_HANDLED_BY_CUSTOM_FORMAT,
         )
         printer.print_string(" ")
         printer.print_region(self.body, print_entry_block_args=False)
@@ -981,11 +996,11 @@ class HWModuleExternOp(IRDLOperation):
 
     name = "hw.module.extern"
 
-    sym_name = attr_def(SymbolNameConstraint())
-    module_type = attr_def(ModuleType)
-    sym_visibility = opt_attr_def(StringAttr)
-    parameters = opt_attr_def(ArrayAttr[ParamDeclAttr])
-    verilog_name = opt_attr_def(StringAttr, attr_name="verilogName")
+    sym_name = prop_def(SymbolNameConstraint())
+    module_type = prop_def(ModuleType)
+    sym_visibility = opt_prop_def(StringAttr)
+    parameters = opt_prop_def(ArrayAttr[ParamDeclAttr])
+    verilog_name = opt_prop_def(StringAttr, prop_name="verilogName")
 
     traits = lazy_traits_def(
         lambda: (
@@ -1001,7 +1016,7 @@ class HWModuleExternOp(IRDLOperation):
         parameters: ArrayAttr[ParamDeclAttr] = ArrayAttr([]),
         visibility: str | StringAttr | None = None,
     ):
-        attributes: dict[str, Attribute] = {
+        properties: dict[str, Attribute] = {
             "sym_name": sym_name,
             "module_type": module_type,
             "parameters": parameters,
@@ -1010,9 +1025,9 @@ class HWModuleExternOp(IRDLOperation):
         if visibility:
             if isinstance(visibility, str):
                 visibility = StringAttr(visibility)
-            attributes["sym_visibility"] = visibility
+            properties["sym_visibility"] = visibility
 
-        return super().__init__(attributes=attributes)
+        return super().__init__(properties=properties)
 
     @classmethod
     def parse(cls, parser: Parser) -> "HWModuleExternOp":
@@ -1030,7 +1045,7 @@ class HWModuleExternOp(IRDLOperation):
         )
 
         if attrs is not None:
-            module_op.attributes.update(attrs.data)
+            module_op.properties.update(attrs.data)
 
         return module_op
 
@@ -1049,9 +1064,9 @@ class HWModuleExternOp(IRDLOperation):
             arg_ssa_iter=arg_ssa_names,
             module_type=self.module_type,
         )
-        printer.print_op_attributes(
-            self.attributes,
-            reserved_attr_names=_MODULE_OP_ATTRS_HANDLED_BY_CUSTOM_FORMAT,
+        printer._print_op_properties(
+            self.properties,
+            reserved_prop_names=_MODULE_OP_ATTRS_HANDLED_BY_CUSTOM_FORMAT,
             print_keyword=True,
         )
 
@@ -1061,18 +1076,19 @@ class InstanceOp(IRDLOperation):
     """
     This represents an instance of a module. The inputs and outputs are the
     referenced module's inputs and outputs. The argNames and resultNames
-    attributes must match the referenced module's input and output names.
+    properties must match the referenced module's input and output names.
     """
 
     name = "hw.instance"
 
-    instance_name = attr_def(StringAttr, attr_name="instanceName")
-    module_name = attr_def(FlatSymbolRefAttrConstr, attr_name="moduleName")
+    instance_name = prop_def(StringAttr, prop_name="instanceName")
+    module_name = prop_def(FlatSymbolRefAttrConstr, prop_name="moduleName")
     inputs = var_operand_def()
     outputs = var_result_def()
-    arg_names = attr_def(ArrayAttr[StringAttr], attr_name="argNames")
-    result_names = attr_def(ArrayAttr[StringAttr], attr_name="resultNames")
-    inner_sym = opt_attr_def(InnerSymAttr)
+    arg_names = prop_def(ArrayAttr[StringAttr], prop_name="argNames")
+    result_names = prop_def(ArrayAttr[StringAttr], prop_name="resultNames")
+    inner_sym = opt_prop_def(InnerSymAttr)
+    parameters = opt_prop_def(ArrayAttr[ParamDeclAttr])
 
     def __init__(
         self,
@@ -1081,21 +1097,23 @@ class InstanceOp(IRDLOperation):
         inputs: Iterable[tuple[str, SSAValue]],
         outputs: Iterable[tuple[str, TypeAttribute]],
         inner_sym: InnerSymAttr | None = None,
+        parameters: ArrayAttr[ParamDeclAttr] | None = None,
     ):
         arg_names = ArrayAttr(StringAttr(port[0]) for port in inputs)
         result_names = ArrayAttr(StringAttr(port[0]) for port in outputs)
-        attributes: dict[str, Attribute] = {
+        properties: dict[str, Attribute] = {
             "instanceName": StringAttr(instance_name),
             "moduleName": module_name,
             "argNames": arg_names,
             "resultNames": result_names,
+            "parameters": parameters,
         }
         if inner_sym is not None:
-            attributes["inner_sym"] = inner_sym
+            properties["inner_sym"] = inner_sym
         super().__init__(
             operands=(tuple(port[1] for port in inputs),),
             result_types=(tuple(port[1] for port in outputs),),
-            attributes=attributes,
+            properties=properties,
         )
 
     def verify_(self) -> None:
@@ -1210,29 +1228,36 @@ class InstanceOp(IRDLOperation):
         output_ports = parser.parse_comma_separated_list(
             Parser.Delimiter.PAREN, parse_output_port, "output port list expected"
         )
-        attributes_attr = parser.parse_optional_attr_dict_with_reserved_attr_names(
-            (
-                "instanceName",
-                "moduleName",
-                "argNames",
-                "resultNames",
-                "inner_sym",
+        attributes_attr, properties_attr = (
+            parser.parse_optional_attr_dict_into_separate_prop_and_attr_dict(
+                (),
+                (
+                    "instanceName",
+                    "moduleName",
+                    "argNames",
+                    "resultNames",
+                    "inner_sym",
+                ),
             )
         )
         attributes = dict(attributes_attr.data) if attributes_attr is not None else {}
+        properties = dict(properties_attr.data) if properties_attr is not None else {}
 
         operands = tuple(port[1] for port in input_ports)
         result_types = tuple(port[1] for port in output_ports)
-        attributes["instanceName"] = StringAttr(instance_name)
-        attributes["moduleName"] = module_name
-        attributes["argNames"] = ArrayAttr(StringAttr(port[0]) for port in input_ports)
-        attributes["resultNames"] = ArrayAttr(
+        properties["instanceName"] = StringAttr(instance_name)
+        properties["moduleName"] = module_name
+        properties["argNames"] = ArrayAttr(StringAttr(port[0]) for port in input_ports)
+        properties["resultNames"] = ArrayAttr(
             StringAttr(port[0]) for port in output_ports
         )
         if inner_sym is not None:
-            attributes["inner_sym"] = inner_sym
+            properties["inner_sym"] = inner_sym
         return cls.create(
-            operands=operands, result_types=result_types, attributes=attributes
+            operands=operands,
+            result_types=result_types,
+            attributes=attributes,
+            properties=properties,
         )
 
     def print(self, printer: Printer) -> None:
@@ -1271,9 +1296,9 @@ class InstanceOp(IRDLOperation):
                 ),
                 lambda x: print_output_port(*x),
             )
-        printer.print_op_attributes(
-            self.attributes,
-            reserved_attr_names=(
+        printer._print_op_properties(
+            self.properties,
+            reserved_prop_names=(
                 "instanceName",
                 "moduleName",
                 "argNames",
