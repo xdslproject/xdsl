@@ -10,9 +10,10 @@ import abc
 from collections.abc import Iterable, Iterator, Sequence
 from dataclasses import InitVar, dataclass, field
 from enum import Enum
-from typing import NamedTuple, overload
+from typing import ClassVar, NamedTuple, cast, overload
 
 from xdsl.dialects.builtin import (
+    AnySignlessIntegerType,
     ArrayAttr,
     FlatSymbolRefAttr,
     FlatSymbolRefAttrConstr,
@@ -35,13 +36,19 @@ from xdsl.ir import (
     TypeAttribute,
 )
 from xdsl.irdl import (
+    AnyAttr,
+    AtLeast,
     IRDLOperation,
+    RangeOf,
+    VarConstraint,
     attr_def,
     irdl_attr_definition,
     irdl_op_definition,
     lazy_traits_def,
+    operand_def,
     opt_attr_def,
     region_def,
+    result_def,
     traits_def,
     var_operand_def,
     var_result_def,
@@ -622,27 +629,22 @@ class ArrayType(ParametrizedAttribute, TypeAttribute):
     name = "hw.array"
 
     element_type: IntegerType
-    size_attr: ArrayAttr[IntAttr]
+    size_attr: IntAttr
 
     def __init__(
         self,
-        element_type: IntegerType,
-        shape: ArrayAttr[IntAttr] | Iterable[int | IntAttr],
+        element_type: AnySignlessIntegerType,
+        size_attr: IntAttr | int,
     ):
-        if not isa(shape, ArrayAttr[IntAttr]):
-            shape = ArrayAttr(
-                [IntAttr(dim) if isinstance(dim, int) else dim for dim in shape]
-            )
+        if isinstance(size_attr, int):
+            size_attr = IntAttr(size_attr)
         super().__init__(
-            shape,
             element_type,
+            size_attr,
         )
 
-    def get_num_dims(self) -> int:
-        return len(self.size_attr.data)
-
-    def get_shape(self) -> tuple[int, ...]:
-        return tuple(i.data for i in self.size_attr.data)
+    def __len__(self) -> int:
+        return self.size_attr.data
 
     def get_element_type(self) -> IntegerType:
         return self.element_type
@@ -651,15 +653,16 @@ class ArrayType(ParametrizedAttribute, TypeAttribute):
     def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
         parser.parse_punctuation("<", " in hw.array type")
         size_attr, type = parser.parse_ranked_shape()
-        size_attr = ArrayAttr([IntAttr(dim) for dim in size_attr])
+        if len(size_attr) != 1:
+            parser.raise_error("Expected one size in hw.array type")
+        size_attr = IntAttr(size_attr[0])
         parser.parse_punctuation(">", " in hw.array type")
         return [type, size_attr]
 
     def print_parameters(self, printer: Printer) -> None:
         with printer.in_angle_brackets():
-            printer.print_dimension_list(self.get_shape())
-            if self.get_num_dims() > 0:
-                printer.print_string("x")
+            printer.print_int(len(self))
+            printer.print_string("x")
             printer.print_attribute(self.get_element_type())
 
 
@@ -1340,9 +1343,106 @@ class OutputOp(IRDLOperation):
         printer.print_list(self.inputs.types, printer.print_attribute)
 
 
+@irdl_op_definition
+class ArrayCreateOp(IRDLOperation):
+    """
+    Create an array from values.
+    Creates an array from a variable set of values. One or more values must be listed.
+    """
+
+    I: ClassVar = VarConstraint("I", AnyAttr())  # Constrain all types to be equal
+
+    name = "hw.array_create"
+    inputs = var_operand_def(RangeOf(I).of_length(AtLeast(1)))
+    result = result_def(ArrayType)
+
+    def __init__(
+        self, first_input: Operation | SSAValue, *other_inputs: Operation | SSAValue
+    ):
+        inputs = (first_input, *other_inputs)
+        el_type = SSAValue.get(first_input).type
+        assert isa(el_type, AnySignlessIntegerType)
+        out_type = ArrayType(el_type, len(inputs))
+        super().__init__(operands=(inputs,), result_types=[out_type])
+
+    def print(self, printer: Printer):
+        printer.print_string(" ")
+        printer.print_list(self.inputs, printer.print_operand)
+        printer.print_string(" : ")
+        printer.print_attribute(self.inputs[0].type)
+
+    @classmethod
+    def parse(cls, parser: Parser) -> "ArrayCreateOp":
+        operands = parser.parse_comma_separated_list(
+            parser.Delimiter.NONE, parser.parse_unresolved_operand
+        )
+        parser.parse_punctuation(":")
+        in_type = parser.parse_type()
+        types = [in_type for _ in range(len(operands))]
+        operands = parser.resolve_operands(operands, types, parser.pos)
+        return cls(*operands)
+
+
+@irdl_op_definition
+class ArrayGetOp(IRDLOperation):
+    """
+    Extract an element from an array
+    Extracts the element at index from the given input array.
+    The index must be exactly ceil(log2(length(input))) bits wide.
+    """
+
+    name = "hw.array_get"
+    input = operand_def(ArrayType)
+    index = operand_def(IntegerType)
+    result = result_def(IntegerType)
+
+    def __init__(self, input: Operation | SSAValue, index: Operation | SSAValue):
+        typ = SSAValue.get(input).type
+        assert isinstance(typ, ArrayType)
+        out_type = typ.get_element_type()
+        super().__init__(operands=[input, index], result_types=[out_type])
+
+    def verify_(self) -> None:
+        input_typ = cast(ArrayType, self.input.type)  # Checked by IRDL
+        index_typ = cast(IntegerType, self.index.type)  # Checked by IRDL
+        index_width = index_typ.bitwidth
+        shape_width = (len(input_typ) - 1).bit_length()
+        if index_width != shape_width:
+            raise VerifyException(
+                f"The index ({index_width} bits wide) must be exactly ceil(log2(length(input))) = {shape_width} bits wide"
+            )
+
+    def print(self, printer: Printer):
+        printer.print_string(" ")
+        printer.print_operand(self.input)
+        with printer.in_square_brackets():
+            printer.print_operand(self.index)
+        printer.print_string(" : ")
+        printer.print_attribute(self.input.type)
+        printer.print_string(", ")
+        printer.print_attribute(self.index.type)
+
+    @classmethod
+    def parse(cls, parser: Parser) -> "ArrayGetOp":
+        input = parser.parse_unresolved_operand()
+        parser.parse_punctuation("[")
+        index = parser.parse_unresolved_operand()
+        parser.parse_punctuation("]")
+        parser.parse_punctuation(":")
+        input_type = parser.parse_type()
+        parser.parse_punctuation(",")
+        index_type = parser.parse_type()
+        operands = parser.resolve_operands(
+            [input, index], [input_type, index_type], parser.pos
+        )
+        return cls(operands[0], operands[1])
+
+
 HW = Dialect(
     "hw",
     [
+        ArrayCreateOp,
+        ArrayGetOp,
         HWModuleExternOp,
         HWModuleOp,
         InstanceOp,
