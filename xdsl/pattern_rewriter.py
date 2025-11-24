@@ -108,12 +108,16 @@ class PatternRewriter(Builder, PatternRewriterListener):
         self.has_done_action = True
         return super().insert_op(op, insertion_point)
 
-    @deprecated("Please use `insert_op(op, InsertPoint.before(other_op))` instead")
+    @deprecated(
+        "Please use `rewriter.insert_op(op, InsertPoint.before(rewriter.current_operation))` instead"
+    )
     def insert_op_before_matched_op(self, op: InsertOpInvT) -> InsertOpInvT:
         """Insert operations before the matched operation."""
         return self.insert_op(op, InsertPoint.before(self.current_operation))
 
-    @deprecated("Please use `insert_op(op, InsertPoint.after(other_op))` instead")
+    @deprecated(
+        "Please use `rewriter.insert_op(op, InsertPoint.after(rewriter.current_operation))` instead"
+    )
     def insert_op_after_matched_op(self, op: InsertOpInvT) -> InsertOpInvT:
         """Insert operations after the matched operation."""
         return self.insert_op(op, InsertPoint.after(self.current_operation))
