@@ -620,7 +620,9 @@ class CreateOperationOp(IRDLOperation):
 
     name = "pdl_interp.create_operation"
     constraint_name = prop_def(StringAttr, prop_name="name")
-    input_attribute_names = prop_def(ArrayAttr, prop_name="inputAttributeNames")
+    input_attribute_names = prop_def(
+        ArrayAttr[StringAttr], prop_name="inputAttributeNames"
+    )
     inferred_result_types = opt_prop_def(UnitAttr, prop_name="inferredResultTypes")
 
     input_operands = var_operand_def(ValueType | RangeType[ValueType])

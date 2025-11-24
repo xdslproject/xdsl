@@ -2,7 +2,6 @@ from typing import Any, cast
 
 from xdsl.context import Context
 from xdsl.dialects import pdl_interp
-from xdsl.dialects.builtin import StringAttr
 from xdsl.dialects.pdl import RangeType, ValueType
 from xdsl.interpreter import (
     Interpreter,
@@ -403,9 +402,7 @@ class PDLInterpFunctions(InterpreterFunctions):
         # Split args into operands, attributes and result types based on operand segments
         operands = list(args[0 : len(op.input_operands)])
 
-        attr_names: list[str] = [
-            cast(StringAttr, name).data for name in op.input_attribute_names.data
-        ]
+        attr_names: list[str] = [name.data for name in op.input_attribute_names.data]
 
         assert issubclass(op_type, IRDLOperation)
         existing_properties = op_type.get_irdl_definition().properties.keys()
