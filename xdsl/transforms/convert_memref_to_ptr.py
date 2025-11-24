@@ -317,7 +317,7 @@ class LowerMemRefFuncReturnPattern(RewritePattern):
         # insert `memref -> ptr` casts for memref return values
         for argument in op.arguments:
             if isinstance(argument.type, memref.MemRefType):
-                rewriter.insert_op_before_matched_op(cast_op := ptr.ToPtrOp(argument))
+                rewriter.insert_op(cast_op := ptr.ToPtrOp(argument))
                 new_arguments.append(cast_op.res)
                 cast_op.res.name_hint = argument.name_hint
             else:
@@ -341,7 +341,7 @@ class LowerMemRefFuncCallPattern(RewritePattern):
         # insert `memref -> ptr` casts for memref arguments values, if necessary
         for argument in op.arguments:
             if isinstance(argument.type, memref.MemRefType):
-                rewriter.insert_op_before_matched_op(cast_op := ptr.ToPtrOp(argument))
+                rewriter.insert_op(cast_op := ptr.ToPtrOp(argument))
                 new_arguments.append(cast_op.res)
                 cast_op.res.name_hint = argument.name_hint
             else:

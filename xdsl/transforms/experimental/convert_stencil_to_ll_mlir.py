@@ -211,7 +211,7 @@ class ReturnOpToMemRef(RewritePattern):
                         store = memref.StoreOp.get(arg, target, index_ops)
                         store_list.append(store)
 
-        rewriter.insert_op_before_matched_op([*store_list])
+        rewriter.insert_op(store_list)
         rewriter.erase_op(op)
 
 
@@ -320,7 +320,7 @@ class BufferOpToMemRef(RewritePattern):
         dealloc = memref.DeallocOp.get(alloc.memref)
 
         if not op.res.uses:
-            rewriter.insert_op_after_matched_op(dealloc)
+            rewriter.insert_op(dealloc, InsertPoint.after(op))
             rewriter.erase_op(op)
             return
 
@@ -453,7 +453,7 @@ class ApplyOpToParallel(RewritePattern):
         new_results = self.return_targets[op] if op in self.return_targets else []
         # Replace with the loop and necessary constants.
         assert isa(boilerplate_ops, list[Operation])
-        rewriter.insert_op_before_matched_op([*boilerplate_ops, p])
+        rewriter.insert_op([*boilerplate_ops, p])
         rewriter.replace_matched_op([], new_results)
 
 
@@ -504,7 +504,7 @@ class AccessOpToMemRef(RewritePattern):
             operands=[op.temp, memref_load_args], result_types=[temp.element_type]
         )
 
-        rewriter.insert_op_before_matched_op(args)
+        rewriter.insert_op(args)
         rewriter.replace_matched_op([*off_const_ops, load], [load.res])
 
 

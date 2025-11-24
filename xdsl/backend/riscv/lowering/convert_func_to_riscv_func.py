@@ -106,7 +106,7 @@ class LowerReturnOp(RewritePattern):
         register_values = cast_to_regs(op.arguments, register_type_for_type, rewriter)
         move_ops, moved_values = move_to_a_regs(register_values, op.arguments.types)
 
-        rewriter.insert_op_before_matched_op(move_ops)
+        rewriter.insert_op(move_ops)
 
         rewriter.replace_matched_op(riscv_func.ReturnOp(*moved_values))
 

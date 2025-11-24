@@ -176,7 +176,7 @@ class ConvertMemRefStoreOp(RewritePattern):
         shape = memref_type.get_shape()
         ops, ptr = get_strided_pointer(mem, indices, memref_type)
 
-        rewriter.insert_op_before_matched_op(ops)
+        rewriter.insert_op(ops)
         match value.type:
             case riscv.IntRegisterType():
                 new_op = riscv.SwOp(
@@ -220,7 +220,7 @@ class ConvertMemRefLoadOp(RewritePattern):
 
         shape = memref_type.get_shape()
         ops, ptr = get_strided_pointer(mem, indices, memref_type)
-        rewriter.insert_op_before_matched_op(ops)
+        rewriter.insert_op(ops)
 
         result_register_type = register_type_for_type(op.res.type)
 

@@ -57,7 +57,7 @@ class LowerFuncOp(RewritePattern):
 
         if op.sym_visibility == StringAttr("public"):
             directive_op = x86.DirectiveOp(".global", op.sym_name)
-            rewriter.insert_op_before_matched_op(directive_op)
+            rewriter.insert_op(directive_op)
 
         num_inputs = len(op.function_type.inputs.data)
         reg_args_types = arg_passing_registers[

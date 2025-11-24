@@ -37,6 +37,7 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
+from xdsl.rewriter import InsertPoint
 
 
 @dataclass
@@ -221,7 +222,7 @@ class LowerHLSStreamToAlloca(RewritePattern):
         start_df_call = CallOp("_start_df_call", [], [i32])
         end_df_call = CallOp("_end_df_call", [], [])
 
-        rewriter.insert_op_after_matched_op(
+        rewriter.insert_op(
             [
                 start_df_call,
                 depth,
@@ -230,7 +231,8 @@ class LowerHLSStreamToAlloca(RewritePattern):
                 stream_size,
                 stream_size_call,
                 end_df_call,
-            ]
+            ],
+            InsertPoint.after(op),
         )
         rewriter.replace_matched_op([size, alloca])
 
@@ -412,15 +414,15 @@ class LowerDataflow(RewritePattern):
         start_df_call = CallOp("_start_df_call", [], [i32])
         end_df_call = CallOp("_end_df_call", [], [])
 
-        rewriter.insert_op_before_matched_op(start_df_call)
-        rewriter.insert_op_after_matched_op(end_df_call)
+        rewriter.insert_op(start_df_call)
+        rewriter.insert_op(end_df_call, InsertPoint.after(op))
 
         dataflow_ops = [
             op for op in op.body.block.ops if not isinstance(op, HLSYieldOp)
         ]
         for df_op in reversed(dataflow_ops):
             df_op.detach()
-            rewriter.insert_op_after_matched_op(df_op)
+            rewriter.insert_op(df_op, InsertPoint.after(op))
 
         rewriter.erase_op(op)
 
@@ -482,7 +484,7 @@ class GetHLSStreamInDataflow(RewritePattern):
             builder.insert(hls_yield)
 
         dataflow = PragmaDataflowOp(empty_region)
-        rewriter.insert_op_before_matched_op(dataflow)
+        rewriter.insert_op(dataflow)
         op.detach()
         dataflow.body.blocks[0].insert_op_before(op, hls_yield)
 

@@ -58,7 +58,7 @@ class FunctionConstantPinning(RewritePattern):
         # generate the function containing pinned value:
         new_func = generate_func_with_pinned_val(func_op, val, rewriter)
         # insert the specialized function after the generic function (the one we matched on)
-        rewriter.insert_op_after_matched_op(new_func)
+        rewriter.insert_op(new_func, InsertPoint.after(func_op))
         # insert a compare to the value we specialize and, and branch on if we are equal
         rewriter.insert_op(
             [

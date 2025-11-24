@@ -148,7 +148,7 @@ def cast_matched_op_results(rewriter: PatternRewriter) -> list[SSAValue]:
             if use.operation != result:
                 use.operation.operands[use.index] = result.results[0]
 
-    rewriter.insert_op_after_matched_op(results)
+    rewriter.insert_op(results, InsertPoint.after(rewriter.current_operation))
     return [result.results[0] for result in results]
 
 
