@@ -120,11 +120,11 @@ class PatternRewriter(Builder, PatternRewriterListener):
 
     def insert_op_before_matched_op(self, op: InsertOpInvT) -> InsertOpInvT:
         """Insert operations before the matched operation."""
-        return self.insert_op(op, InsertPoint.before(self._current_operation))
+        return self.insert_op(op, InsertPoint.before(self.current_operation))
 
     def insert_op_after_matched_op(self, op: InsertOpInvT) -> InsertOpInvT:
         """Insert operations after the matched operation."""
-        return self.insert_op(op, InsertPoint.after(self._current_operation))
+        return self.insert_op(op, InsertPoint.after(self.current_operation))
 
     @deprecated("Please use `erase_op(op)` instead")
     def erase_matched_op(self, safe_erase: bool = True):
@@ -133,7 +133,7 @@ class PatternRewriter(Builder, PatternRewriterListener):
         If safe_erase is True, check that the operation has no uses.
         Otherwise, replace its uses with ErasedSSAValue.
         """
-        self.erase_op(self._current_operation, safe_erase=safe_erase)
+        self.erase_op(self.current_operation, safe_erase=safe_erase)
 
     def erase_op(self, op: Operation, safe_erase: bool = True):
         """
@@ -170,7 +170,7 @@ class PatternRewriter(Builder, PatternRewriterListener):
         Otherwise, replace its uses with ErasedSSAValue.
         """
         self.replace_op(
-            self._current_operation, new_ops, new_results, safe_erase=safe_erase
+            self.current_operation, new_ops, new_results, safe_erase=safe_erase
         )
 
     def replace_op(
@@ -279,7 +279,7 @@ class PatternRewriter(Builder, PatternRewriterListener):
         The block should not be a parent of the operation.
         """
         self.inline_block(
-            block, InsertPoint.before(self._current_operation), arg_values=arg_values
+            block, InsertPoint.before(self.current_operation), arg_values=arg_values
         )
 
     @deprecated("Please use `inline_block(block, InsertPoint.after(op))`")
@@ -291,7 +291,7 @@ class PatternRewriter(Builder, PatternRewriterListener):
         The block should not be a parent of the operation.
         """
         self.inline_block(
-            block, InsertPoint.after(self._current_operation), arg_values=arg_values
+            block, InsertPoint.after(self.current_operation), arg_values=arg_values
         )
 
     def move_region_contents_to_new_regions(self, region: Region) -> Region:
