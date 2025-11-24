@@ -10,7 +10,7 @@ import abc
 from collections.abc import Iterable, Iterator, Sequence
 from dataclasses import InitVar, dataclass, field
 from enum import Enum
-from typing import NamedTuple, cast, overload
+from typing import ClassVar, NamedTuple, cast, overload
 
 from xdsl.dialects.builtin import (
     AnySignlessIntegerType,
@@ -40,6 +40,7 @@ from xdsl.irdl import (
     AtLeast,
     IRDLOperation,
     RangeOf,
+    VarConstraint,
     attr_def,
     irdl_attr_definition,
     irdl_op_definition,
@@ -1349,8 +1350,10 @@ class ArrayCreateOp(IRDLOperation):
     Creates an array from a variable set of values. One or more values must be listed.
     """
 
+    I: ClassVar = VarConstraint("I", AnyAttr())  # Constrain all types to be equal
+
     name = "hw.array_create"
-    inputs = var_operand_def(RangeOf(AnyAttr()).of_length(AtLeast(1)))
+    inputs = var_operand_def(RangeOf(I).of_length(AtLeast(1)))
     result = result_def(ArrayType)
 
     def __init__(
@@ -1361,15 +1364,6 @@ class ArrayCreateOp(IRDLOperation):
         assert isa(el_type, AnySignlessIntegerType)
         out_type = ArrayType(el_type, len(inputs))
         super().__init__(operands=(inputs,), result_types=[out_type])
-
-    def verify_(self) -> None:
-        types = self.operand_types
-        try:
-            first = types[0]
-        except IndexError:
-            raise VerifyException("Expect at least one input to the operation")
-        if not all(first == typ for typ in types):
-            raise VerifyException("Expect all input types to be the same")
 
     def print(self, printer: Printer):
         printer.print_string(" ")

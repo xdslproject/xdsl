@@ -156,9 +156,9 @@ hw.module @bad_output_type(out foo : i8, out bar : i32) {
 
 %const = "test.op"() : () -> i19
 %const2 = "test.op"() : () -> i81
-%array = hw.array_create %const, %const2 : i19
+%array = "hw.array_create"(%const, %const2) : (i19, i81) -> !hw.array<2xi19>
 
-// CHECK : Expect all input types to be the same
+// CHECK : attribute i19 expected from variable 'I', but got i81
 
 // -----
 
@@ -170,6 +170,7 @@ hw.module @bad_output_type(out foo : i8, out bar : i32) {
 
 // -----
 
-%test = "hw.array_get"() : () -> !hw.array<9xi32>
+%test = "hw.array_create"() : () -> !hw.array<9xi32>
 
-// CHECK | Operation does not verify: Expected 2 operands, but got 0
+// CHECK: incorrect length for range variable:
+// CHECK: expected integer >= 1, got 0
