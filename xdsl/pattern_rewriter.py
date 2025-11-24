@@ -88,7 +88,7 @@ class PatternRewriter(Builder, PatternRewriterListener):
     modification to the operation and its children.
     """
 
-    _current_operation: Operation
+    current_operation: Operation
     """The matched operation."""
 
     has_done_action: bool = field(default=False, init=False)
@@ -96,18 +96,8 @@ class PatternRewriter(Builder, PatternRewriterListener):
 
     def __init__(self, current_operation: Operation):
         PatternRewriterListener.__init__(self)
-        self._current_operation = current_operation
+        self.current_operation = current_operation
         Builder.__init__(self, InsertPoint.before(current_operation))
-
-    @property
-    def current_operation(self) -> Operation:
-        """The matched operation."""
-        return self._current_operation
-
-    @current_operation.setter
-    def current_operation(self, new_operation: Operation) -> None:
-        self._current_operation = new_operation
-        self.insertion_point = InsertPoint.before(self._current_operation)
 
     def insert_op(
         self,
@@ -783,6 +773,7 @@ class PatternRewriteWalker:
             # Reset the rewriter on `op`
             rewriter.has_done_action = False
             rewriter.current_operation = op
+            rewriter.insertion_point = InsertPoint.before(op)
             rewriter.name_hint = None
 
             # Apply the pattern on the operation
