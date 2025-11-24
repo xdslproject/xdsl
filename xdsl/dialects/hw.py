@@ -1353,12 +1353,14 @@ class ArrayCreateOp(IRDLOperation):
     inputs = var_operand_def(RangeOf(AnyAttr()).of_length(AtLeast(1)))
     result = result_def(ArrayType)
 
-    def __init__(self, inputs: Sequence[Operation | SSAValue]):
-        assert len(inputs) > 0, "Expect at least one value"
-        el_type = SSAValue.get(inputs[0]).type
+    def __init__(
+        self, first_input: Operation | SSAValue, *other_inputs: Operation | SSAValue
+    ):
+        inputs = (first_input, *other_inputs)
+        el_type = SSAValue.get(first_input).type
         assert isa(el_type, AnySignlessIntegerType)
         out_type = ArrayType(el_type, len(inputs))
-        super().__init__(operands=[inputs], result_types=[out_type])
+        super().__init__(operands=(inputs,), result_types=[out_type])
 
     def verify_(self) -> None:
         types = self.operand_types
@@ -1384,7 +1386,7 @@ class ArrayCreateOp(IRDLOperation):
         in_type = parser.parse_type()
         types = [in_type for _ in range(len(operands))]
         operands = parser.resolve_operands(operands, types, parser.pos)
-        return cls(operands)
+        return cls(*operands)
 
 
 @irdl_op_definition

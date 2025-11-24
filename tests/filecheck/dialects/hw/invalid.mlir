@@ -167,3 +167,9 @@ hw.module @bad_output_type(out foo : i8, out bar : i32) {
 %element = hw.array_get %array[%index] : !hw.array<2xi19>, i3
 
 // CHECK: The index (3 bits wide) must be exactly ceil(log2(length(input))) = 1 bits wide
+
+// -----
+
+%test = "hw.array_get"() : () -> !hw.array<9xi32>
+
+// CHECK | Operation does not verify: Expected 2 operands, but got 0

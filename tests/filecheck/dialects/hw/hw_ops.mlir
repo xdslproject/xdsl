@@ -18,6 +18,7 @@
 
   %const = "test.op"() : () -> i19
   %array = hw.array_create %const, %const : i19 
+  %array1 = hw.array_create %const : i19 
 
   // CHECK: %{{.*}} = hw.array_create %const, %const : i19 
 
