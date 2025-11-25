@@ -122,7 +122,7 @@ class ConstOp(IRDLOperation):
     """
     TOSA const operation.
 
-    See external [documentation](https://mlir.llvm.org/docs/Dialects/TOSA/#tosaconst-mlirtosaconstop)
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/TOSA/#tosaconst-mlirtosaconstop).
     """
 
     name = "tosa.const"
