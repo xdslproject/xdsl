@@ -13,6 +13,7 @@ from xdsl.dialects.builtin import (
     AnyFloatConstr,
     BoolAttr,
     DenseArrayBase,
+    DenseIntOrFPElementsAttr,
     FloatAttr,
     IntegerAttr,
     ShapedType,
@@ -114,6 +115,26 @@ ROUNDING_MODE_CONSTRAINT = (
     | eq(StringAttr("DOUBLE_ROUND"))
 )
 """Rounding mode for `tosa.rescale`"""
+
+
+@irdl_op_definition
+class ConstOp(IRDLOperation):
+    """
+    TOSA const operation
+
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/TOSA/#tosaconst-mlirtosaconstop)
+    """
+
+    name = "tosa.const"
+
+    values = prop_def(DenseIntOrFPElementsAttr)
+
+    output = result_def(TensorType)
+
+    def __init__(self, values: DenseIntOrFPElementsAttr):
+        super().__init__(
+            attributes={"values": values}, result_types=(values.get_type(),)
+        )
 
 
 @irdl_op_definition
@@ -570,6 +591,7 @@ TOSA = Dialect(
     "tosa",
     [
         ClampOp,
+        ConstOp,
         RescaleOp,
         AddOp,
         SubOp,
