@@ -120,7 +120,7 @@ ROUNDING_MODE_CONSTRAINT = (
 @irdl_op_definition
 class ConstOp(IRDLOperation):
     """
-    TOSA const operation
+    TOSA const operation.
 
     See external [documentation](https://mlir.llvm.org/docs/Dialects/TOSA/#tosaconst-mlirtosaconstop)
     """
@@ -133,7 +133,7 @@ class ConstOp(IRDLOperation):
 
     def __init__(self, values: DenseIntOrFPElementsAttr):
         super().__init__(
-            attributes={"values": values}, result_types=(values.get_type(),)
+            properties={"values": values}, result_types=(values.get_type(),)
         )
 
 
