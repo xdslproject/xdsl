@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from typing import cast, overload
+from warnings import deprecated
 
 from xdsl.backend.utils import cast_to_regs
 from xdsl.builder import Builder
@@ -91,12 +92,9 @@ class Arch(StrEnum):
     ) -> list[SSAValue]:
         return cast_to_regs(values, self.register_type_for_type, builder)
 
+    @deprecated("Please use `arch.cast_to_regs(values, rewriter)`")
     def cast_operands_to_regs(self, rewriter: PatternRewriter) -> list[SSAValue]:
-        new_operands = cast_to_regs(
-            rewriter.current_operation.operands,
-            self.register_type_for_type,
-            rewriter,
-        )
+        new_operands = self.cast_to_regs(rewriter.current_operation.operands, rewriter)
         return new_operands
 
     def move_value_to_unallocated(

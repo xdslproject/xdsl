@@ -1,7 +1,10 @@
+import warnings
 from collections import Counter
 from collections.abc import Iterable, Iterator
+from warnings import deprecated
 
 from xdsl.backend.utils import cast_to_regs
+from xdsl.builder import Builder
 from xdsl.dialects import builtin, riscv
 from xdsl.ir import Attribute, Block, Operation, SSAValue
 from xdsl.pattern_rewriter import PatternRewriter
@@ -121,34 +124,48 @@ def move_to_unallocated_regs(
     return new_ops, new_values
 
 
-def cast_operands_to_regs(rewriter: PatternRewriter) -> list[SSAValue]:
+def cast_operands_to_regs(
+    rewriter: PatternRewriter, operation: Operation | None = None
+) -> list[SSAValue]:
     """
     Add cast operations just before the targeted operation
-    if the operands were not already int registers
+    if the operands were not already int registers.
     """
-    return cast_to_regs(
-        rewriter.current_operation.operands, register_type_for_type, rewriter
-    )
+    if operation is None:
+        warnings.warn(
+            "Please provide use `cast_operands_to_regs(rewriter, rewriter.current_operation)`",
+            DeprecationWarning,
+        )
+        operation = rewriter.current_operation
+    return cast_to_regs(operation.operands, register_type_for_type, rewriter)
 
 
+@deprecated("Please use `cast_op_results(rewriter, rewriter.current_operation)`")
 def cast_matched_op_results(rewriter: PatternRewriter) -> list[SSAValue]:
     """
     Add cast operations just after the matched operation, to preserve the type validity of
     arguments of uses of results.
     """
+    return cast_op_results(rewriter, rewriter.current_operation)
 
+
+def cast_op_results(builder: Builder, op: Operation) -> list[SSAValue]:
+    """
+    Add cast operations just after the provided operation, to preserve the type validity
+    of arguments of uses of results.
+    """
     results = [
         builtin.UnrealizedConversionCastOp.get((val,), (val.type,))
-        for val in rewriter.current_operation.results
+        for val in op.results
     ]
 
-    for res, result in zip(rewriter.current_operation.results, results):
+    for res, result in zip(op.results, results):
         for use in set(res.uses):
             # avoid recursion on the casts we just inserted
             if use.operation != result:
                 use.operation.operands[use.index] = result.results[0]
 
-    rewriter.insert_op(results, InsertPoint.after(rewriter.current_operation))
+    builder.insert_op(results, InsertPoint.after(op))
     return [result.results[0] for result in results]
 
 
