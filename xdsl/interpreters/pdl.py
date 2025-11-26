@@ -100,7 +100,7 @@ class PDLMatcher:
 
         index = pdl_op.index.value.data
 
-        if len(original_op.results) <= index:
+        if original_op.type_values and len(original_op.type_values) <= index:
             return False
 
         self.matching_context[ssa_val] = xdsl_op.results[index]
