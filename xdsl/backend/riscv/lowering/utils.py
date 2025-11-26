@@ -1,7 +1,8 @@
 import warnings
 from collections import Counter
 from collections.abc import Iterable, Iterator
-from warnings import deprecated
+
+from typing_extensions import deprecated
 
 from xdsl.backend.utils import cast_to_regs
 from xdsl.builder import Builder

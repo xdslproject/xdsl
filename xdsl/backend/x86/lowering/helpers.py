@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from typing import cast, overload
-from warnings import deprecated
+
+from typing_extensions import deprecated
 
 from xdsl.backend.utils import cast_to_regs
 from xdsl.builder import Builder
