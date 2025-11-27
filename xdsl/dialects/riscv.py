@@ -1490,6 +1490,16 @@ class SltiuOp(RdRsImmIntegerOperation):
     name = "riscv.sltiu"
 
 
+class AndiOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.riscv import (
+            AndiImmediate,
+        )
+
+        return (AndiImmediate(),)
+
+
 @irdl_op_definition
 class AndiOp(RdRsImmIntegerOperation):
     """
@@ -1502,6 +1512,7 @@ class AndiOp(RdRsImmIntegerOperation):
     """
 
     name = "riscv.andi"
+    traits = traits_def(AndiOpHasCanonicalizationPatternsTrait())
 
 
 @irdl_op_definition

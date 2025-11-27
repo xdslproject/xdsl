@@ -72,7 +72,7 @@ class ConstantFoldInterpPattern(RewritePattern):
                 return
             new_ops.append(new_op)
 
-        rewriter.replace_matched_op(new_ops, [new_op.results[0] for new_op in new_ops])
+        rewriter.replace_op(op, new_ops, [new_op.results[0] for new_op in new_ops])
 
     def convert_to_attr(self, value: Any, value_type: Attribute) -> Attribute | None:
         match (value, value_type):

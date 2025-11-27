@@ -91,6 +91,9 @@ builtin.module {
   %sub_add_immediate = riscv.sub %add_rhs_immediate, %i2 : (!riscv.reg<a0>, !riscv.reg) -> !riscv.reg<a0>
   "test.op"(%sub_add_immediate) : (!riscv.reg<a0>) -> ()
 
+  %andi_immediate = riscv.andi %i3, 7 : (!riscv.reg) -> !riscv.reg<a0>
+  "test.op"(%andi_immediate) : (!riscv.reg<a0>) -> ()
+
   %shift_left_immediate = riscv.slli %c2, 4 : (!riscv.reg) -> !riscv.reg<a0>
   "test.op"(%shift_left_immediate) : (!riscv.reg<a0>) -> ()
 
@@ -235,6 +238,9 @@ builtin.module {
 // Optimise out an arithmetic operation
 // CHECK-NEXT:   %sub_add_immediate = riscv.li 2 : !riscv.reg<a0>
 // CHECK-NEXT:   "test.op"(%sub_add_immediate) : (!riscv.reg<a0>) -> ()
+
+// CHECK-NEXT:   %andi_immediate = riscv.li 4 : !riscv.reg<a0>
+// CHECK-NEXT:   "test.op"(%andi_immediate) : (!riscv.reg<a0>) -> ()
 
 // CHECK-NEXT:   %shift_left_immediate = riscv.li 32 : !riscv.reg<a0>
 // CHECK-NEXT:   "test.op"(%shift_left_immediate) : (!riscv.reg<a0>) -> ()

@@ -56,7 +56,7 @@ class ArithToVarithPattern(RewritePattern):
             use_op,
             dest_type(op.lhs, op.rhs, *other_operands),
         )
-        rewriter.erase_matched_op()
+        rewriter.erase_op(op)
 
 
 class VarithToArithPattern(RewritePattern):
@@ -84,7 +84,7 @@ class VarithToArithPattern(RewritePattern):
         first_arg = op.operands[0]
 
         if len(op.operands) == 1:
-            rewriter.replace_matched_op([], new_results=[first_arg])
+            rewriter.replace_op(op, [], new_results=[first_arg])
             return
 
         for i in range(1, len(op.operands)):
@@ -92,7 +92,7 @@ class VarithToArithPattern(RewritePattern):
             arith_ops.append(newop)
             first_arg = newop.result
 
-        rewriter.replace_matched_op(arith_ops)
+        rewriter.replace_op(op, arith_ops)
 
 
 # map (int|float)(add|mul) to an arith op type
@@ -162,7 +162,7 @@ class MergeVarithOpsPattern(RewritePattern):
         # instantiate a new varith op of the same type as the old op:
         # we can ignore the type error as we know that all VarithOps are instantiated
         # with an *arg of their operands
-        rewriter.replace_matched_op(type(op)(*new_operands))
+        rewriter.replace_op(op, type(op)(*new_operands))
 
         # check all ops that may be erased later:
         for old_op in possibly_erased_ops:
@@ -209,7 +209,7 @@ class FuseRepeatedAddArgsPattern(RewritePattern):
                 new_args.append(arg)
         if fusions:
             rewriter.insert_op([*consts, *fusions], InsertPoint.before(op))
-            rewriter.replace_matched_op(varith.VarithAddOp(*new_args))
+            rewriter.replace_op(op, varith.VarithAddOp(*new_args))
 
     @staticmethod
     def fuse(

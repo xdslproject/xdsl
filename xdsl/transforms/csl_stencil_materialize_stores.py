@@ -59,7 +59,7 @@ class MaterializeInApplyDest(RewritePattern):
             InsertPoint.before(op),
         )
 
-        rewriter.replace_matched_op(csl_stencil.YieldOp())
+        rewriter.replace_op(op, csl_stencil.YieldOp())
         rewriter.replace_op(
             apply,
             csl_stencil.ApplyOp(
@@ -121,7 +121,8 @@ class DisableComputeInBorderRegion(RewritePattern):
         )
         rewriter.replace_op(yld, scf.YieldOp())
         rewriter.insert_op(scf.YieldOp(), InsertPoint.at_start(if_op.true_region.block))
-        rewriter.replace_matched_op(
+        rewriter.replace_op(
+            op,
             csl_stencil.ApplyOp(
                 operands=[
                     op.field,
@@ -133,7 +134,7 @@ class DisableComputeInBorderRegion(RewritePattern):
                 regions=[op.detach_region(r) for r in op.regions],
                 properties=op.properties,
                 result_types=op.result_types or [[]],
-            )
+            ),
         )
 
 

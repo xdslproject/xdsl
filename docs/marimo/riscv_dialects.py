@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.13.6"
+__generated_with = "0.14.10"
 app = marimo.App(width="medium")
 
 
@@ -81,7 +81,7 @@ def _(mo):
     Here is a simple C function and its corresponding assembly:
 
     ```C
-    int fused_multiply_add(int a, int b, int c) {
+    int multiply_add(int a, int b, int c) {
         return a + b * c;
     }
     ```
@@ -90,7 +90,7 @@ def _(mo):
     # Label corresponding to the function name
     # Arguments passed in a0, a1, a2 registers
     # Result expected to be stored in a0 register at the end of execution
-    fused_multiply_add:
+    multiply_add:
         # a1 <- a2 * a1
         mul     a1, a2, a1
         # a0 <- a0 + a1
@@ -99,7 +99,7 @@ def _(mo):
         ret
     ```
 
-    ([Compiler Explorer](https://godbolt.org/z/E67a877vG))
+    ([Compiler Explorer](https://godbolt.org/z/vscn4n1oh))
     """
     )
     return
@@ -111,7 +111,7 @@ def _(mo):
         r"""
     A few aspects of assembly make it difficult to reason about directly.
     It doesn't track dependencies explicitly, making it difficult to know what the values in the inputs of an operation are, and whether its results will be used.
-    Control flow is done via jumps to labels, such as the `fused_multiply_add` above.
+    Control flow is done via jumps to labels, such as the `multiply_add` above.
     In order to represent and reason about assembly-level code, we introduce a set of backend dialects: `riscv`, `riscv_func`, and `riscv_cf`.
     """
     )

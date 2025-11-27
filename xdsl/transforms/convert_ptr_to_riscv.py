@@ -38,7 +38,7 @@ class ConvertPtrAddOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ptr.PtrAddOp, rewriter: PatternRewriter, /):
         oper1, oper2 = cast_operands_to_regs(rewriter)
-        rewriter.replace_matched_op(riscv.AddOp(oper1, oper2))
+        rewriter.replace_op(op, riscv.AddOp(oper1, oper2))
 
 
 @dataclass
@@ -76,7 +76,7 @@ class ConvertStoreOp(RewritePattern):
             case _:
                 raise ValueError(f"Unexpected register type {op.value.type}")
 
-        rewriter.replace_matched_op(new_op)
+        rewriter.replace_op(op, new_op)
 
 
 @dataclass
@@ -102,8 +102,9 @@ class ConvertLoadOp(RewritePattern):
                         f"Lowering memref.load op with floating point type {float_type} not yet implemented"
                     )
 
-        rewriter.replace_matched_op(
-            (lw := lw_op, UnrealizedConversionCastOp.get(lw.results, (op.res.type,)))
+        rewriter.replace_op(
+            op,
+            (lw := lw_op, UnrealizedConversionCastOp.get(lw.results, (op.res.type,))),
         )
 
 
@@ -111,10 +112,11 @@ class ConvertLoadOp(RewritePattern):
 class ConvertMemRefToPtrOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ptr.ToPtrOp, rewriter: PatternRewriter, /):
-        rewriter.replace_matched_op(
+        rewriter.replace_op(
+            op,
             UnrealizedConversionCastOp.get(
                 (op.source,), (riscv.Registers.UNALLOCATED_INT,)
-            )
+            ),
         )
 
 

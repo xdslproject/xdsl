@@ -265,7 +265,7 @@ class StencilExternalLoadToHLSExternalLoad(RewritePattern):
 
         ndims = len(field_type.get_shape())
         if inout is IN and ndims == 3:
-            rewriter.insert_op_before_matched_op(
+            rewriter.insert_op(
                 [
                     data_stream,
                     stencil_stream,
@@ -293,7 +293,7 @@ class StencilExternalLoadToHLSExternalLoad(RewritePattern):
             out_data_stream = HLSStreamOp.get(f64)
             out_data_stream.attributes["inout"] = op.attributes["inout"]
             out_data_stream.attributes["data"] = op.attributes["inout"]
-            rewriter.insert_op_before_matched_op(
+            rewriter.insert_op(
                 [
                     out_data_stream,
                 ]
@@ -677,9 +677,9 @@ class ApplyOpToHLS(RewritePattern):
         for i in range(n_components):
             operations_to_insert += boilerplate[i] + [p_dataflow_lst[i]]
 
-        rewriter.insert_op_before_matched_op(operations_to_insert)
+        rewriter.insert_op(operations_to_insert)
 
-        rewriter.replace_matched_op(new_apply_lst[-1])
+        rewriter.replace_op(op, new_apply_lst[-1])
 
 
 def collectComponentOperations(
@@ -793,8 +793,8 @@ class StencilExternalStoreToHLSWriteData(RewritePattern):
 
             write_data_dataflow = PragmaDataflowOp(write_data_df_region)
 
-            rewriter.insert_op_after_matched_op(
-                [shape_x, shape_y, shape_z, write_data_dataflow]
+            rewriter.insert_op(
+                [shape_x, shape_y, shape_z, write_data_dataflow], InsertPoint.after(op)
             )
 
 
@@ -830,7 +830,7 @@ class StencilAccessOpToReadBlockOp(RewritePattern):
                 access_idx_array, result_hls_read, f64
             )
 
-            rewriter.replace_matched_op(stencil_value)
+            rewriter.replace_op(op, stencil_value)
 
 
 # Copied from convert_stencil_to_ll_mlir
@@ -871,14 +871,14 @@ class StencilStoreToSubview(RewritePattern):
 class TrivialStoreOpCleanup(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: stencil.StoreOp, rewriter: PatternRewriter, /):
-        rewriter.erase_matched_op()
+        rewriter.erase_op(op)
 
 
 @dataclass
 class TrivialApplyOpCleanup(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ApplyOp, rewriter: PatternRewriter, /):
-        rewriter.erase_matched_op()
+        rewriter.erase_op(op)
 
 
 @dataclass
@@ -961,7 +961,7 @@ class GroupLoadsUnderSameDataflow(RewritePattern):
                 )  # [operand for operand in op.operands[2:]]
             else:
                 parent_dataflow = typing.cast(PragmaDataflowOp, op.parent_op())
-                rewriter.erase_matched_op()
+                rewriter.erase_op(op)
                 parent_dataflow.detach()
                 parent_dataflow.erase()
 
@@ -1100,7 +1100,7 @@ class PackDataInStencilField(RewritePattern):
 
             new_container_op = UndefOp(struct_new_type)
 
-            rewriter.replace_matched_op(new_container_op)
+            rewriter.replace_op(op, new_container_op)
 
 
 # We create copies for all the coefficients. We create more than one copy where necesssary
@@ -1128,14 +1128,14 @@ class GetRepeatedCoefficients(RewritePattern):
                         return_type=f64, shape=cast_dest_type.shape
                     )
                     use.operation.operands[0] = memref_copy.results[0]
-                    rewriter.insert_op_before_matched_op(memref_copy)
+                    rewriter.insert_op(memref_copy)
 
                     self.original_memref_lst.append(cast)
                     self.clone_memref_lst.append(memref_copy)
                 elif isinstance(use.operation, stencil.ApplyOp):
                     op.results[0].remove_use(use)
 
-            rewriter.erase_matched_op()
+            rewriter.erase_op(op)
 
 
 @dataclass
@@ -1178,7 +1178,7 @@ class MakeLocaCopiesOfCoefficients(RewritePattern):
                 builder.insert(yield_op)
 
             for_local_copies = scf.ForOp(lb, ub, step, [], for_body)
-            rewriter.insert_op_before_matched_op([lb, ub, step, ii, for_local_copies])
+            rewriter.insert_op([lb, ub, step, ii, for_local_copies])
 
             self.inserted_already = True
 

@@ -18,8 +18,8 @@ class LowerPrintFormatOp(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: printf.PrintFormatOp, rewriter: PatternRewriter):
-        rewriter.replace_matched_op(
-            riscv_debug.PrintfOp(op.format_str, cast_operands_to_regs(rewriter))
+        rewriter.replace_op(
+            op, riscv_debug.PrintfOp(op.format_str, cast_operands_to_regs(rewriter))
         )
 
 

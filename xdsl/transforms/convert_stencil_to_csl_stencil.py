@@ -120,13 +120,14 @@ class ConvertAccessOpPattern(RewritePattern):
         else:
             assert isa(op.res.type, AnyTensorType)
             res_type = op.res.type
-        rewriter.replace_matched_op(
+        rewriter.replace_op(
+            op,
             new_access_op := csl_stencil.AccessOp(
                 op=op.temp,
                 offset=op.offset,
                 offset_mapping=op.offset_mapping,
                 result_type=res_type,
-            )
+            ),
         )
 
         # The stencil-tensorize-z-dimension pass inserts tensor.ExtractSliceOps after stencil.access to remove ghost cells.
@@ -157,7 +158,7 @@ class ConvertSwapToPrefetchPattern(RewritePattern):
     def match_and_rewrite(self, op: dmp.SwapOp, rewriter: PatternRewriter, /):
         # remove op if it contains no swaps
         if len(op.swaps) == 0:
-            rewriter.erase_matched_op(False)
+            rewriter.erase_op(op, safe_erase=False)
             return
 
         assert all(len(swap.size) == 3 for swap in op.swaps), (
@@ -202,8 +203,8 @@ class ConvertSwapToPrefetchPattern(RewritePattern):
         # if the rewriter needs a result, use `input_stencil` as a drop-in replacement
         # prefetch_op produces a result that needs to be handled separately
         # note, that only un-bufferized dmp.swaps produce a result
-        rewriter.replace_matched_op(
-            prefetch_op, new_results=[op.input_stencil] if op.swapped_values else []
+        rewriter.replace_op(
+            op, prefetch_op, new_results=[op.input_stencil] if op.swapped_values else []
         )
 
         # uses have to be retrieved *before* the loop because of the rewriting happening inside the loop
@@ -354,11 +355,12 @@ class SplitVarithOpPattern(RewritePattern):
             (others, buf_accesses)[buf in accs and len(accs) == 1].append(arg)
 
         if len(others) > 0 and len(buf_accesses) > 0:
-            rewriter.replace_matched_op(
+            rewriter.replace_op(
+                op,
                 [
                     n_op := type(op)(*buf_accesses),
                     type(op)(n_op, *others),
-                ]
+                ],
             )
 
 
@@ -526,7 +528,8 @@ class ConvertApplyOpPattern(RewritePattern):
             if isinstance(o, stencil.ReturnOp):
                 rewriter.replace_op(o, csl_stencil.YieldOp(*o.operands))
 
-        rewriter.replace_matched_op(
+        rewriter.replace_op(
+            op,
             csl_stencil.ApplyOp(
                 operands=[
                     field_op_arg,
@@ -546,7 +549,7 @@ class ConvertApplyOpPattern(RewritePattern):
                     done_exchange,
                 ],
                 result_types=[op.result_types],
-            )
+            ),
         )
 
         if not prefetch.uses:
@@ -640,7 +643,7 @@ class TransformPrefetch(RewritePattern):
             result_types=[[]],
         )
 
-        rewriter.replace_matched_op([a_buf, apply_op], new_results=[a_buf.tensor])
+        rewriter.replace_op(op, [a_buf, apply_op], new_results=[a_buf.tensor])
 
 
 @dataclass(frozen=True)

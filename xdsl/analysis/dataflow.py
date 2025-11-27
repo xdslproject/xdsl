@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import collections
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Generic, TypeAlias, cast
 
@@ -138,6 +138,7 @@ class AnalysisState(ABC, Generic[AnchorCovT]):
     def __str__(self) -> str: ...
 
 
+@dataclass
 class DataFlowSolver:
     """
     The main dataflow analysis solver. It orchestrates child analyses, runs
@@ -145,17 +146,14 @@ class DataFlowSolver:
     """
 
     context: Context
-    _analyses: list[DataFlowAnalysis]
-    _worklist: collections.deque[tuple[ProgramPoint, DataFlowAnalysis]]
-    _analysis_states: dict[LatticeAnchor, dict[type[AnalysisState], AnalysisState]]
-    _is_running: bool
-
-    def __init__(self, context: Context) -> None:
-        self.context = context
-        self._analyses = []
-        self._worklist = collections.deque()
-        self._analysis_states = collections.defaultdict(dict)
-        self._is_running = False
+    _analyses: list[DataFlowAnalysis] = field(default_factory=list["DataFlowAnalysis"])
+    _worklist: collections.deque[tuple[ProgramPoint, DataFlowAnalysis]] = field(
+        default_factory=collections.deque[tuple[ProgramPoint, "DataFlowAnalysis"]]
+    )
+    _analysis_states: dict[LatticeAnchor, dict[type[AnalysisState], AnalysisState]] = (
+        field(default_factory=lambda: collections.defaultdict(dict))
+    )
+    _is_running: bool = field(default=False)
 
     def load(
         self, analysis_class: type[DataFlowAnalysisInvT], *args: Any

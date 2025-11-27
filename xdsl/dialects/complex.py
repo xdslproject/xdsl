@@ -1,40 +1,115 @@
 from __future__ import annotations
 
 import abc
-from typing import ClassVar, cast
+from collections.abc import Sequence
+from typing import ClassVar, Generic, cast
+
+from typing_extensions import TypeVar
 
 from xdsl.dialects.arith import FastMathFlagsAttr
 from xdsl.dialects.builtin import (
-    AnyAttr,
     AnyFloat,
     AnyFloatConstr,
     ArrayAttr,
     ArrayOfConstraint,
     ComplexType,
+    FixedBitwidthType,
     FloatAttr,
+    FloatData,
     IntegerAttr,
     IntegerType,
-    ParamAttrConstraint,
 )
 from xdsl.interfaces import ConstantLikeInterface
-from xdsl.ir import Attribute, Dialect, Operation, SSAValue
+from xdsl.ir import (
+    Attribute,
+    Dialect,
+    Operation,
+    ParametrizedAttribute,
+    SSAValue,
+)
 from xdsl.irdl import (
+    AnyAttr,
     AnyOf,
+    BaseAttr,
     EqIntConstraint,
     IRDLOperation,
+    ParamAttrConstraint,
     RangeOf,
     VarConstraint,
     base,
+    irdl_attr_definition,
     irdl_op_definition,
     operand_def,
+    param_def,
     prop_def,
     result_def,
     traits_def,
 )
+from xdsl.parser import AttrParser
+from xdsl.printer import Printer
 from xdsl.traits import Pure
 from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.hints import isa
 
 ComplexTypeConstr = ComplexType.constr(AnyFloat)
+
+_ComplexNumberElementType = TypeVar(
+    "_ComplexNumberElementType",
+    bound=AnyFloat,
+    covariant=True,
+    default=AnyFloat,
+)
+
+
+@irdl_attr_definition
+class ComplexNumberAttr(ParametrizedAttribute, Generic[_ComplexNumberElementType]):
+    name = "complex.number"
+
+    real: FloatData = param_def(converter=FloatData.get)
+    imag: FloatData = param_def(converter=FloatData.get)
+    type: ComplexType[_ComplexNumberElementType]
+
+    def print_parameters(self, printer: Printer) -> None:
+        with printer.in_angle_brackets():
+            printer.print_string(":")
+            printer.print_attribute(self.type.element_type)
+            printer.print_string(" ")
+            printer.print_float(self.real.data, self.type.element_type)
+            printer.print_string(", ")
+            printer.print_float(self.imag.data, self.type.element_type)
+        printer.print_string(" : ")
+        printer.print_attribute(self.type)
+
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> Sequence[Attribute]:
+        """
+        Example:
+        ```
+        #complex.number<:f64 1.0, 2.0> : complex<f64>
+        ```
+        """
+        with parser.in_angle_brackets():
+            parser.parse_punctuation(":")
+            pos = parser.pos
+            element_type = parser.parse_type()
+            if not isa(element_type, AnyFloat):
+                parser.raise_error("Invalid element type", pos, parser.pos - 1)
+            real = FloatData(parser.parse_float())
+            parser.parse_punctuation(",")
+            imag = FloatData(parser.parse_float())
+        parser.parse_punctuation(":")
+        pos = parser.pos
+        complex_type = parser.parse_type()
+        if not (
+            isa(complex_type, ComplexType[AnyFloat])
+            and (complex_type.element_type == element_type)
+        ):
+            parser.raise_error("Complex number type doesn't match element type", pos)
+        return [
+            real,
+            imag,
+            ComplexType(element_type),
+        ]
 
 
 class ComplexUnaryComplexResultOperation(IRDLOperation, abc.ABC):
@@ -168,9 +243,17 @@ class Atan2Op(ComplexBinaryOp):
 
 @irdl_op_definition
 class BitcastOp(IRDLOperation):
+    """
+    compute between complex and and equal arith types
+    """
+
     name = "complex.bitcast"
-    operand = operand_def()
-    result = result_def()
+    operand = operand_def(
+        ComplexType.constr(AnyFloatConstr) | AnyFloatConstr | BaseAttr(IntegerType)
+    )
+    result = result_def(
+        ComplexType.constr(AnyFloatConstr) | AnyFloatConstr | BaseAttr(IntegerType)
+    )
 
     traits = traits_def(Pure())
 
@@ -178,6 +261,29 @@ class BitcastOp(IRDLOperation):
 
     def __init__(self, operand: SSAValue | Operation, result_type: Attribute):
         super().__init__(operands=[operand], result_types=[result_type])
+
+    def verify_(self) -> None:
+        in_type = self.operand.type
+        res_type = self.result.type
+
+        # We allow this to be legal as it can be folded away
+        if in_type == res_type:
+            return
+
+        if in_complex := isa(in_type, ComplexType[AnyFloat]):
+            in_bitwidth = in_type.element_type.bitwidth * 2
+        else:
+            in_bitwidth = cast(FixedBitwidthType, in_type).bitwidth
+
+        if out_complex := isa(res_type, ComplexType[AnyFloat]):
+            out_bitwidth = res_type.element_type.bitwidth * 2
+        else:
+            out_bitwidth = cast(FixedBitwidthType, res_type).bitwidth
+
+        if not ((in_bitwidth == out_bitwidth) and (in_complex != out_complex)):
+            raise VerifyException(
+                f"Expected ('{in_type}', '{res_type}') to be bitcast between complex and equal arith types"
+            )
 
 
 @irdl_op_definition
@@ -215,6 +321,20 @@ class ConstantOp(IRDLOperation, ConstantLikeInterface):
 
     def get_constant_value(self) -> Attribute:
         return self.value
+
+    @staticmethod
+    def from_floats(value: tuple[float, float], type: AnyFloat) -> ConstantOp:
+        return ConstantOp(
+            ArrayAttr([FloatAttr(value[0], type), FloatAttr(value[1], type)]),
+            ComplexType(type),
+        )
+
+    @staticmethod
+    def from_ints(value: tuple[int, int], type: IntegerType) -> ConstantOp:
+        return ConstantOp(
+            ArrayAttr([IntegerAttr(value[0], type), IntegerAttr(value[1], type)]),
+            ComplexType(type),
+        )
 
 
 @irdl_op_definition
@@ -369,5 +489,8 @@ Complex = Dialect(
         SubOp,
         TanOp,
         TanhOp,
+    ],
+    [
+        ComplexNumberAttr,
     ],
 )

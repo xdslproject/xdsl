@@ -438,6 +438,10 @@ func.func @funcyasm() {
 // CHECK-NEXT: %ds_vmovapd_avx2 = x86.ds.vmovapd %ymm1 : (!x86.avx2reg) -> !x86.avx2reg
 %ds_vmovapd_avx512 = x86.ds.vmovapd %zmm1 : (!x86.avx512reg) -> !x86.avx512reg
 // CHECK-NEXT: %ds_vmovapd_avx512 = x86.ds.vmovapd %zmm1 : (!x86.avx512reg) -> !x86.avx512reg
+%ds_vmovapd_avx512_mask = x86.dsk.vmovapd %zmm1, %k1 : (!x86.avx512reg, !x86.avx512maskreg) -> !x86.avx512reg
+// CHECK-NEXT: %ds_vmovapd_avx512_mask = x86.dsk.vmovapd %zmm1, %k1 : (!x86.avx512reg, !x86.avx512maskreg) -> !x86.avx512reg
+%ds_vmovapd_avx512_mask_z = x86.dsk.vmovapd %zmm1, %k1 {z} : (!x86.avx512reg, !x86.avx512maskreg) -> !x86.avx512reg
+// CHECK-NEXT: %ds_vmovapd_avx512_mask_z = x86.dsk.vmovapd %zmm1, %k1 {z} : (!x86.avx512reg, !x86.avx512maskreg) -> !x86.avx512reg
 
 x86.ms.vmovapd %1, %xmm1, 8 : (!x86.reg, !x86.ssereg) -> ()
 // CHECK-NEXT: x86.ms.vmovapd %1, %xmm1, 8 : (!x86.reg, !x86.ssereg) -> ()

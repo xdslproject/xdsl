@@ -58,7 +58,7 @@ class StencilStoreResultForwardPattern(RewritePattern):
     def match_and_rewrite(self, op: StoreResultOp, rewriter: PatternRewriter, /):
         if op.arg is None:
             return
-        rewriter.replace_matched_op([], [op.arg])
+        rewriter.replace_op(op, [], [op.arg])
 
 
 class StencilIfResultForwardPattern(RewritePattern):
@@ -74,13 +74,14 @@ class StencilIfResultForwardPattern(RewritePattern):
         ]
         if new_result_types == result_types:
             return
-        rewriter.replace_matched_op(
+        rewriter.replace_op(
+            op,
             scf.IfOp(
                 op.cond,
                 new_result_types,
                 op.detach_region(0),
                 op.detach_region(0),
-            )
+            ),
         )
 
 

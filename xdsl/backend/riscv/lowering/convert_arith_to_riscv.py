@@ -44,7 +44,8 @@ class LowerArithConstant(RewritePattern):
             op_val := op.value, IntegerAttr
         ):
             if op_result_type.width.data <= 32:
-                rewriter.replace_matched_op(
+                rewriter.replace_op(
+                    op,
                     [
                         constant := riscv.LiOp(op_val.value.data),
                         UnrealizedConversionCastOp.get(
@@ -56,7 +57,8 @@ class LowerArithConstant(RewritePattern):
                 raise NotImplementedError("Only 32 bit integers are supported for now")
         elif isinstance(op_val := op.value, FloatAttr):
             if isinstance(op_result_type, Float32Type):
-                rewriter.replace_matched_op(
+                rewriter.replace_op(
+                    op,
                     [
                         lui := riscv.LiOp(
                             convert_f32_to_u32(op_val.value.data),
@@ -75,7 +77,8 @@ class LowerArithConstant(RewritePattern):
                 if (val_data := op_val.value.data).is_integer() and s32_min <= (
                     int_val := int(val_data)
                 ) < s32_max:
-                    rewriter.replace_matched_op(
+                    rewriter.replace_op(
+                        op,
                         [
                             lui := riscv.LiOp(
                                 int_val,
@@ -98,7 +101,8 @@ class LowerArithConstant(RewritePattern):
                     lower, upper = struct.unpack(
                         "<ii", struct.pack("<d", op_val.value.data)
                     )
-                    rewriter.replace_matched_op(
+                    rewriter.replace_op(
+                        op,
                         [
                             sp := riscv.GetRegisterOp(riscv.Registers.SP),
                             li_upper := riscv.LiOp(upper),
@@ -116,7 +120,8 @@ class LowerArithConstant(RewritePattern):
         elif isinstance(op_result_type, IndexType) and isinstance(
             op_val := op.value, IntegerAttr
         ):
-            rewriter.replace_matched_op(
+            rewriter.replace_op(
+                op,
                 [
                     constant := riscv.LiOp(op_val.value.data),
                     UnrealizedConversionCastOp.get(constant.results, (op_result_type,)),
@@ -137,8 +142,8 @@ class LowerArithIndexCast(RewritePattern):
         On a RV32 triple, the index type is 32 bits, so we can just drop the cast.
         """
 
-        rewriter.replace_matched_op(
-            UnrealizedConversionCastOp.get((op.input,), (op.result.type,))
+        rewriter.replace_op(
+            op, UnrealizedConversionCastOp.get((op.input,), (op.result.type,))
         )
 
 
@@ -165,7 +170,7 @@ class LowerBinaryIntegerOp(RewritePattern):
         add = self.riscv_op_cls(lhs, rhs, rd=_INT_REGISTER_TYPE)
         cast = UnrealizedConversionCastOp.get((add.rd,), (op.result.type,))
 
-        rewriter.replace_matched_op((lhs, rhs, add, cast))
+        rewriter.replace_op(op, (lhs, rhs, add, cast))
 
 
 @dataclass
@@ -193,7 +198,7 @@ class LowerBinaryFloatOp(RewritePattern):
         new_op = cls(lhs, rhs, rd=_FLOAT_REGISTER_TYPE, fastmath=rv_flags)
         cast = UnrealizedConversionCastOp.get((new_op.rd,), (op.result.type,))
 
-        rewriter.replace_matched_op((lhs, rhs, new_op, cast))
+        rewriter.replace_op(op, (lhs, rhs, new_op, cast))
 
 
 lower_arith_addi = LowerBinaryIntegerOp(arith.AddiOp, riscv.AddOp)
@@ -267,37 +272,37 @@ class LowerArithCmpi(RewritePattern):
             case 0:
                 xor_op = riscv.XorOp(lhs, rhs)
                 seqz_op = riscv.SltiuOp(xor_op, 1)
-                rewriter.replace_matched_op([xor_op, seqz_op])
+                rewriter.replace_op(op, [xor_op, seqz_op])
             # ne
             case 1:
                 zero = riscv.GetRegisterOp(riscv.Registers.ZERO)
                 xor_op = riscv.XorOp(lhs, rhs)
                 snez_op = riscv.SltuOp(zero, xor_op)
-                rewriter.replace_matched_op([zero, xor_op, snez_op])
+                rewriter.replace_op(op, [zero, xor_op, snez_op])
             # slt
             case 2:
-                rewriter.replace_matched_op([riscv.SltOp(lhs, rhs)])
+                rewriter.replace_op(op, [riscv.SltOp(lhs, rhs)])
             # sle
             case 3:
                 slt = riscv.SltOp(lhs, rhs)
                 xori = riscv.XoriOp(slt, 1)
-                rewriter.replace_matched_op([slt, xori])
+                rewriter.replace_op(op, [slt, xori])
             # ult
             case 4:
-                rewriter.replace_matched_op([riscv.SltuOp(lhs, rhs)])
+                rewriter.replace_op(op, [riscv.SltuOp(lhs, rhs)])
             # ule
             case 5:
                 sltu = riscv.SltuOp(lhs, rhs)
                 xori = riscv.XoriOp(sltu, 1)
-                rewriter.replace_matched_op([sltu, xori])
+                rewriter.replace_op(op, [sltu, xori])
             # ugt
             case 6:
-                rewriter.replace_matched_op([riscv.SltuOp(rhs, lhs)])
+                rewriter.replace_op(op, [riscv.SltuOp(rhs, lhs)])
             # uge
             case 7:
                 sltu = riscv.SltuOp(rhs, lhs)
                 xori = riscv.XoriOp(sltu, 1)
-                rewriter.replace_matched_op([sltu, xori])
+                rewriter.replace_op(op, [sltu, xori])
             case _:
                 raise NotImplementedError("Cmpi predicate not supported")
 
@@ -327,14 +332,15 @@ lower_arith_maxf = LowerBinaryFloatOp(arith.MaximumfOp, riscv.FMaxSOp, riscv.FMa
 class LowerArithNegf(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: arith.NegfOp, rewriter: PatternRewriter) -> None:
-        rewriter.replace_matched_op(
+        rewriter.replace_op(
+            op,
             (
                 operand := UnrealizedConversionCastOp.get(
                     (op.operand,), (_FLOAT_REGISTER_TYPE,)
                 ),
                 negf := riscv.FSgnJNSOp(operand, operand),
                 UnrealizedConversionCastOp.get((negf.rd,), (op.result.type,)),
-            )
+            ),
         )
 
 
@@ -350,79 +356,81 @@ class LowerArithCmpf(RewritePattern):
         match op.predicate.value.data:
             # false
             case 0:
-                rewriter.replace_matched_op([riscv.LiOp(0)])
+                rewriter.replace_op(op, [riscv.LiOp(0)])
             # oeq
             case 1:
-                rewriter.replace_matched_op([riscv.FeqSOp(lhs, rhs, fastmath=fastmath)])
+                rewriter.replace_op(op, [riscv.FeqSOp(lhs, rhs, fastmath=fastmath)])
             # ogt
             case 2:
-                rewriter.replace_matched_op([riscv.FltSOp(rhs, lhs, fastmath=fastmath)])
+                rewriter.replace_op(op, [riscv.FltSOp(rhs, lhs, fastmath=fastmath)])
             # oge
             case 3:
-                rewriter.replace_matched_op([riscv.FleSOp(rhs, lhs, fastmath=fastmath)])
+                rewriter.replace_op(op, [riscv.FleSOp(rhs, lhs, fastmath=fastmath)])
             # olt
             case 4:
-                rewriter.replace_matched_op([riscv.FltSOp(lhs, rhs, fastmath=fastmath)])
+                rewriter.replace_op(op, [riscv.FltSOp(lhs, rhs, fastmath=fastmath)])
             # ole
             case 5:
-                rewriter.replace_matched_op([riscv.FleSOp(lhs, rhs, fastmath=fastmath)])
+                rewriter.replace_op(op, [riscv.FleSOp(lhs, rhs, fastmath=fastmath)])
             # one
             case 6:
                 flt1 = riscv.FltSOp(lhs, rhs, fastmath=fastmath)
                 flt2 = riscv.FltSOp(rhs, lhs, fastmath=fastmath)
-                rewriter.replace_matched_op(
+                rewriter.replace_op(
+                    op,
                     [
                         flt1,
                         flt2,
                         riscv.OrOp(flt2, flt1),
-                    ]
+                    ],
                 )
             # ord
             case 7:
                 feq1 = riscv.FeqSOp(lhs, lhs, fastmath=fastmath)
                 feq2 = riscv.FeqSOp(rhs, rhs, fastmath=fastmath)
-                rewriter.replace_matched_op(
+                rewriter.replace_op(
+                    op,
                     [
                         feq1,
                         feq2,
                         riscv.AndOp(feq2, feq1),
-                    ]
+                    ],
                 )
             # ueq
             case 8:
                 flt1 = riscv.FltSOp(lhs, rhs, fastmath=fastmath)
                 flt2 = riscv.FltSOp(rhs, lhs, fastmath=fastmath)
                 or_ = riscv.OrOp(flt2, flt1)
-                rewriter.replace_matched_op([flt1, flt2, or_, riscv.XoriOp(or_, 1)])
+                rewriter.replace_op(op, [flt1, flt2, or_, riscv.XoriOp(or_, 1)])
             # ugt
             case 9:
                 fle = riscv.FleSOp(lhs, rhs, fastmath=fastmath)
-                rewriter.replace_matched_op([fle, riscv.XoriOp(fle, 1)])
+                rewriter.replace_op(op, [fle, riscv.XoriOp(fle, 1)])
             # uge
             case 10:
                 fle = riscv.FltSOp(lhs, rhs, fastmath=fastmath)
-                rewriter.replace_matched_op([fle, riscv.XoriOp(fle, 1)])
+                rewriter.replace_op(op, [fle, riscv.XoriOp(fle, 1)])
             # ult
             case 11:
                 fle = riscv.FleSOp(rhs, lhs, fastmath=fastmath)
-                rewriter.replace_matched_op([fle, riscv.XoriOp(fle, 1)])
+                rewriter.replace_op(op, [fle, riscv.XoriOp(fle, 1)])
             # ule
             case 12:
                 flt = riscv.FltSOp(rhs, lhs, fastmath=fastmath)
-                rewriter.replace_matched_op([flt, riscv.XoriOp(flt, 1)])
+                rewriter.replace_op(op, [flt, riscv.XoriOp(flt, 1)])
             # une
             case 13:
                 feq = riscv.FeqSOp(lhs, rhs, fastmath=fastmath)
-                rewriter.replace_matched_op([feq, riscv.XoriOp(feq, 1)])
+                rewriter.replace_op(op, [feq, riscv.XoriOp(feq, 1)])
             # uno
             case 14:
                 feq1 = riscv.FeqSOp(lhs, lhs, fastmath=fastmath)
                 feq2 = riscv.FeqSOp(rhs, rhs, fastmath=fastmath)
                 and_ = riscv.AndOp(feq2, feq1)
-                rewriter.replace_matched_op([feq1, feq2, and_, riscv.XoriOp(and_, 1)])
+                rewriter.replace_op(op, [feq1, feq2, and_, riscv.XoriOp(and_, 1)])
             # true
             case 15:
-                rewriter.replace_matched_op([riscv.LiOp(1)])
+                rewriter.replace_op(op, [riscv.LiOp(1)])
             case _:
                 raise NotImplementedError("Cmpf predicate not supported")
 
@@ -438,28 +446,30 @@ class LowerArithSIToFPOp(RewritePattern):
             case _:
                 raise ValueError(f"Unexpected float type {op.result.type}")
 
-        rewriter.replace_matched_op(
+        rewriter.replace_op(
+            op,
             (
                 cast_input := UnrealizedConversionCastOp.get(
                     (op.input,), (_INT_REGISTER_TYPE,)
                 ),
                 new_op := cls(cast_input.results[0]),
                 UnrealizedConversionCastOp.get((new_op.rd,), (op.result.type,)),
-            )
+            ),
         )
 
 
 class LowerArithFPToSIOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: arith.FPToSIOp, rewriter: PatternRewriter) -> None:
-        rewriter.replace_matched_op(
+        rewriter.replace_op(
+            op,
             (
                 cast_input := UnrealizedConversionCastOp.get(
                     (op.input,), (_FLOAT_REGISTER_TYPE,)
                 ),
                 new_op := riscv.FCvtWSOp(cast_input.results[0]),
                 UnrealizedConversionCastOp.get((new_op.rd,), (op.result.type,)),
-            )
+            ),
         )
 
 

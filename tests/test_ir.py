@@ -1240,6 +1240,9 @@ def test_repr():
     value_uses = tuple(use for value in values for use in value.uses)
     assert len(value_uses) == 2
 
+    blocks[0].args[0].name_hint = "bb0arg"
+    ops[1].results[0].name_hint = "op1res"
+
     op_reprs = tuple(repr(op) for op in ops)
     assert op_reprs == (
         f"<TestOp {id(root)}(operands=[], results=[], successors=[], properties={{}}, attributes={{}}, regions=[<Region {id(r)}>], parent=None, _next_op=None, _prev_op=None)>",
@@ -1255,23 +1258,23 @@ def test_repr():
 
     block_reprs = tuple(repr(block) for block in blocks)
     assert block_reprs == (
-        f"<Block {id(blocks[0])}(_args=(<BlockArgument[i32] index: 0, uses: 2>,), num_ops=1)>",
-        f"<Block {id(blocks[1])}(_args=(<BlockArgument[i32] index: 0, uses: 0>,), num_ops=1)>",
-        f"<Block {id(blocks[2])}(_args=(<BlockArgument[i32] index: 0, uses: 0>,), num_ops=1)>",
+        f"<Block {id(blocks[0])}(_args=(<BlockArgument[i32] name_hint: bb0arg, index: 0, uses: 2>,), num_ops=1)>",
+        f"<Block {id(blocks[1])}(_args=(<BlockArgument[i32] name_hint: None, index: 0, uses: 0>,), num_ops=1)>",
+        f"<Block {id(blocks[2])}(_args=(<BlockArgument[i32] name_hint: None, index: 0, uses: 0>,), num_ops=1)>",
     )
 
     op_result_reprs = tuple(repr(result) for result in results)
     assert op_result_reprs == (
-        "<OpResult[i32] index: 0, operation: test.termop, uses: 0>",
-        "<OpResult[i32] index: 0, operation: test.termop, uses: 0>",
-        "<OpResult[i32] index: 0, operation: test.termop, uses: 0>",
+        "<OpResult[i32] name_hint: op1res, index: 0, operation: test.termop, uses: 0>",
+        "<OpResult[i32] name_hint: None, index: 0, operation: test.termop, uses: 0>",
+        "<OpResult[i32] name_hint: None, index: 0, operation: test.termop, uses: 0>",
     )
 
     block_arg_reprs = tuple(repr(arg) for arg in args)
     assert block_arg_reprs == (
-        "<BlockArgument[i32] index: 0, uses: 2>",
-        "<BlockArgument[i32] index: 0, uses: 0>",
-        "<BlockArgument[i32] index: 0, uses: 0>",
+        "<BlockArgument[i32] name_hint: bb0arg, index: 0, uses: 2>",
+        "<BlockArgument[i32] name_hint: None, index: 0, uses: 0>",
+        "<BlockArgument[i32] name_hint: None, index: 0, uses: 0>",
     )
 
     block_use_reprs = tuple(repr(use) for use in block_uses)

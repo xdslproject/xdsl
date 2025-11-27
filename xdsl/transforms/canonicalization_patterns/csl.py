@@ -41,7 +41,8 @@ class GetDsdAndOffsetFolding(RewritePattern):
             )
             if op.tensor_access:
                 tensor_access = tensor_access.compose(op.tensor_access.data)
-            rewriter.replace_matched_op(
+            rewriter.replace_op(
+                op,
                 new_op := csl.GetMemDsdOp.build(
                     operands=[op.base_addr, op.sizes],
                     result_types=op.result_types,
@@ -49,7 +50,7 @@ class GetDsdAndOffsetFolding(RewritePattern):
                         **op.properties,
                         "tensor_access": AffineMapAttr(tensor_access),
                     },
-                )
+                ),
             )
             rewriter.replace_op(offset_op, [], new_results=[new_op.result])
 
@@ -78,7 +79,7 @@ class GetDsdAndLengthFolding(RewritePattern):
                 properties=op.properties.copy(),
             ),
         )
-        rewriter.erase_matched_op()
+        rewriter.erase_op(op)
 
 
 class GetDsdAndStrideFolding(RewritePattern):
@@ -106,7 +107,8 @@ class GetDsdAndStrideFolding(RewritePattern):
             tensor_access = AffineMap.from_callable(
                 lambda x: (x * attr_val.value.data,)
             )
-            rewriter.replace_matched_op(
+            rewriter.replace_op(
+                op,
                 new_op := csl.GetMemDsdOp.build(
                     operands=[op.base_addr, op.sizes],
                     result_types=op.result_types,
@@ -114,7 +116,7 @@ class GetDsdAndStrideFolding(RewritePattern):
                         **op.properties,
                         "tensor_access": AffineMapAttr(tensor_access),
                     },
-                )
+                ),
             )
             rewriter.replace_op(stride_op, [], new_results=[new_op.result])
 
@@ -147,7 +149,7 @@ class ChainedDsdOffsetFolding(RewritePattern):
                     ),
                 ],
             )
-            rewriter.erase_matched_op()
+            rewriter.erase_op(op)
 
 
 class ChainedDsdLengthFolding(RewritePattern):
@@ -166,7 +168,8 @@ class ChainedDsdLengthFolding(RewritePattern):
             return
 
         # check if we can promote arith.const to property
-        rewriter.replace_matched_op(
+        rewriter.replace_op(
+            op,
             rebuilt := csl.SetDsdLengthOp(
                 operands=[op.op, next_op.length],
                 properties=op.properties.copy(),
@@ -192,11 +195,12 @@ class ChainedDsdStrideFolding(RewritePattern):
             return
 
         # check if we can promote arith.const to property
-        rewriter.replace_matched_op(
+        rewriter.replace_op(
+            op,
             rebuilt := csl.SetDsdStrideOp(
                 operands=[op.op, next_op.stride],
                 properties=op.properties.copy(),
                 result_types=op.result_types,
-            )
+            ),
         )
         rewriter.replace_op(next_op, [], new_results=[rebuilt.result])

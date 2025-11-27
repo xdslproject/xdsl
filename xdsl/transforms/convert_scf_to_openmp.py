@@ -112,7 +112,7 @@ class ConvertParallel(RewritePattern):
             rewriter.erase_op(last_op)
         rewriter.insert_op(new_ops, InsertPoint.before(scope_terminator))
 
-        rewriter.replace_matched_op(parallel)
+        rewriter.replace_op(loop, parallel)
 
 
 @dataclass(frozen=True)

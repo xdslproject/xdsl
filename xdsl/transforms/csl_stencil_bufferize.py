@@ -178,7 +178,7 @@ class ApplyOpBufferize(RewritePattern):
         )
 
         # insert new op
-        rewriter.replace_matched_op(new_ops=[*to_memrefs, buf_apply_op])
+        rewriter.replace_op(op, new_ops=[*to_memrefs, buf_apply_op])
 
     @staticmethod
     def _get_empty_bufferized_region(args: Sequence[BlockArgument]) -> Region:
@@ -288,7 +288,7 @@ class AccessOpBufferize(RewritePattern):
 
         # accesses to own data that (after bufferization) have the same input and output type can be safely folded away
         if op.op.type == r_type and all(o == 0 for o in op.offset):
-            rewriter.replace_matched_op(to_tensor_op(op.op))
+            rewriter.replace_op(op, to_tensor_op(op.op))
             return
 
         # accesses to buffers passed in additional args can read directly from memref underlying `to_tensor`
@@ -299,7 +299,8 @@ class AccessOpBufferize(RewritePattern):
             else op.op
         )
 
-        rewriter.replace_matched_op(
+        rewriter.replace_op(
+            op,
             [
                 access := csl_stencil.AccessOp(
                     source,
@@ -308,7 +309,7 @@ class AccessOpBufferize(RewritePattern):
                     op.offset_mapping,
                 ),
                 to_tensor_op(access.result),
-            ]
+            ],
         )
 
 
@@ -330,7 +331,7 @@ class YieldOpBufferize(RewritePattern):
         if len(to_memrefs) == 0:
             return
 
-        rewriter.replace_matched_op([*to_memrefs, csl_stencil.YieldOp(*args)])
+        rewriter.replace_op(op, [*to_memrefs, csl_stencil.YieldOp(*args)])
 
 
 @dataclass(frozen=True)
@@ -361,14 +362,15 @@ class FuncOpBufferize(RewritePattern):
         )
         if function_type == op.function_type:
             return
-        rewriter.replace_matched_op(
+        rewriter.replace_op(
+            op,
             func.FuncOp.build(
                 operands=op.operands,
                 result_types=op.result_types,
                 regions=[op.detach_region(op.body)],
                 properties={**op.properties, "function_type": function_type},
                 attributes=op.attributes.copy(),
-            )
+            ),
         )
 
 
@@ -387,11 +389,12 @@ class ArithConstBufferize(RewritePattern):
         typ = DenseIntOrFPElementsAttr(
             tensor_to_memref_type(op.value.type), op.value.data
         )
-        rewriter.replace_matched_op(
+        rewriter.replace_op(
+            op,
             [
                 c := arith.ConstantOp(typ),
                 to_tensor_op(c.result),
-            ]
+            ],
         )
 
 
@@ -471,7 +474,8 @@ class InjectApplyOutsIntoLinalgOuts(RewritePattern):
             rewriter.replace_op(yld, csl_stencil.YieldOp(*new_yield_args))
             for r in to_remove:
                 rewriter.erase_op(r)
-            rewriter.replace_matched_op(
+            rewriter.replace_op(
+                op,
                 csl_stencil.ApplyOp(
                     operands=[
                         op.field,
@@ -484,7 +488,7 @@ class InjectApplyOutsIntoLinalgOuts(RewritePattern):
                     regions=[op.detach_region(r) for r in op.regions],
                     properties=op.properties,
                     attributes=op.attributes,
-                )
+                ),
             )
 
 
@@ -527,14 +531,15 @@ class ReselectLinalgOutsFromInputs(RewritePattern):
 
         # replace the op with `out` as `output[0]`
         if out:
-            rewriter.replace_matched_op(
+            rewriter.replace_op(
+                op,
                 type(op).build(
                     operands=[op.inputs, [out]],
                     result_types=op.result_types,
                     regions=[op.detach_region(r) for r in op.regions],
                     properties=op.properties,
                     attributes=op.attributes,
-                )
+                ),
             )
 
     @staticmethod

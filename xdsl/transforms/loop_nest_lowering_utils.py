@@ -231,13 +231,13 @@ def rewrite_generic_to_loops(
     bound_constant_ops = tuple(
         arith.ConstantOp(IntegerAttr.from_index_int_value(ub)) for ub in ubs
     )
-    rewriter.insert_op_before_matched_op(bound_constant_ops)
+    rewriter.insert_op(bound_constant_ops)
     bound_constant_values = tuple(op.result for op in bound_constant_ops)
 
     zero_op = arith.ConstantOp(IntegerAttr.from_index_int_value(0))
     one_op = arith.ConstantOp(IntegerAttr.from_index_int_value(1))
     if bound_constant_values:
-        rewriter.insert_op_before_matched_op((zero_op, one_op))
+        rewriter.insert_op((zero_op, one_op))
 
     def make_body(
         rewriter: PatternRewriter,
@@ -291,7 +291,7 @@ def rewrite_generic_to_loops(
         make_body,
     )
 
-    rewriter.erase_matched_op()
+    rewriter.erase_op(rewriter.current_operation)
 
 
 def rewrite_generic_to_imperfect_loops(
@@ -328,7 +328,7 @@ def rewrite_generic_to_imperfect_loops(
     zero_op = arith.ConstantOp(IntegerAttr.from_index_int_value(0))
     one_op = arith.ConstantOp(IntegerAttr.from_index_int_value(1))
     if outer_bound_constant_values or inner_bound_constant_values:
-        rewriter.insert_op_before_matched_op((zero_op, one_op))
+        rewriter.insert_op((zero_op, one_op))
 
     def outer_make_body(
         rewriter: PatternRewriter,
@@ -428,4 +428,4 @@ def rewrite_generic_to_imperfect_loops(
         outer_make_body,
     )
 
-    rewriter.erase_matched_op()
+    rewriter.erase_op(rewriter.current_operation)

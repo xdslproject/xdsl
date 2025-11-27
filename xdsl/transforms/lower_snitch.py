@@ -138,7 +138,8 @@ class LowerSsrSetDimensionBoundOp(RewritePattern):
             value=op.value,
             comment=f"dm {op.dm.data} dim {dim} bound",
         )
-        rewriter.replace_matched_op(
+        rewriter.replace_op(
+            op,
             [*ops],
             [],
         )
@@ -156,7 +157,8 @@ class LowerSsrSetDimensionStrideOp(RewritePattern):
             value=op.value,
             comment=f"dm {op.dm.data} dim {dim} stride",
         )
-        rewriter.replace_matched_op(
+        rewriter.replace_op(
+            op,
             [*ops],
             [],
         )
@@ -174,7 +176,8 @@ class LowerSsrSetDimensionSourceOp(RewritePattern):
             value=op.value,
             comment=f"dm {op.dm.data} dim {dim} source",
         )
-        rewriter.replace_matched_op(
+        rewriter.replace_op(
+            op,
             [*ops],
             [],
         )
@@ -192,7 +195,8 @@ class LowerSsrSetDimensionDestinationOp(RewritePattern):
             value=op.value,
             comment=f"dm {op.dm.data} dim {dim} destination",
         )
-        rewriter.replace_matched_op(
+        rewriter.replace_op(
+            op,
             [*ops],
             [],
         )
@@ -209,7 +213,8 @@ class LowerSsrSetStreamRepetitionOp(RewritePattern):
             value=op.value,
             comment=f"dm {op.dm.data} repeat",
         )
-        rewriter.replace_matched_op(
+        rewriter.replace_op(
+            op,
             [*ops],
             [],
         )
@@ -219,7 +224,8 @@ class LowerSsrEnable(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: snitch.SsrEnableOp, rewriter: PatternRewriter, /):
         get_stream_ops = tuple(riscv_snitch.GetStreamOp(res.type) for res in op.results)
-        rewriter.replace_matched_op(
+        rewriter.replace_op(
+            op,
             [
                 riscv.CsrrsiOp(
                     csr=IntegerAttr(SnitchStreamerMemoryMap.csr, i32),
@@ -236,7 +242,8 @@ class LowerSsrEnable(RewritePattern):
 class LowerSsrDisable(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: snitch.SsrDisableOp, rewriter: PatternRewriter, /):
-        rewriter.replace_matched_op(
+        rewriter.replace_op(
+            op,
             [
                 riscv.CsrrciOp(
                     csr=IntegerAttr(SnitchStreamerMemoryMap.csr, i32),

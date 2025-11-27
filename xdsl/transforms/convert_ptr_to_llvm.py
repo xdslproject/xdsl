@@ -18,13 +18,14 @@ from xdsl.pattern_rewriter import (
 class ConvertStoreOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ptr.StoreOp, rewriter: PatternRewriter, /):
-        rewriter.replace_matched_op(
+        rewriter.replace_op(
+            op,
             (
                 cast_op := builtin.UnrealizedConversionCastOp.get(
                     (op.addr,), (llvm.LLVMPointerType(),)
                 ),
                 llvm.StoreOp(op.value, cast_op.results[0]),
-            )
+            ),
         )
 
 
@@ -32,13 +33,14 @@ class ConvertStoreOp(RewritePattern):
 class ConvertLoadOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ptr.LoadOp, rewriter: PatternRewriter, /):
-        rewriter.replace_matched_op(
+        rewriter.replace_op(
+            op,
             (
                 cast_op := builtin.UnrealizedConversionCastOp.get(
                     [op.addr], [llvm.LLVMPointerType()]
                 ),
                 llvm.LoadOp(cast_op.results[0], op.res.type),
-            )
+            ),
         )
 
 
@@ -46,7 +48,8 @@ class ConvertLoadOp(RewritePattern):
 class ConvertPtrAddOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ptr.PtrAddOp, rewriter: PatternRewriter, /):
-        rewriter.replace_matched_op(
+        rewriter.replace_op(
+            op,
             (
                 cast_addr_op := builtin.UnrealizedConversionCastOp.get(
                     [op.addr],
@@ -65,20 +68,20 @@ class ConvertPtrAddOp(RewritePattern):
                 ),
                 # int -> ptr
                 llvm.IntToPtrOp(add_op.result),
-            )
+            ),
         )
 
 
 class ConvertToPtrOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ptr.ToPtrOp, rewriter: PatternRewriter, /):
-        rewriter.replace_matched_op((), op.operands)
+        rewriter.replace_op(op, (), op.operands)
 
 
 class ConvertFromPtrOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ptr.FromPtrOp, rewriter: PatternRewriter, /):
-        rewriter.replace_matched_op((), op.operands)
+        rewriter.replace_op(op, (), op.operands)
 
 
 class RewritePtrTypes(TypeConversionPattern):

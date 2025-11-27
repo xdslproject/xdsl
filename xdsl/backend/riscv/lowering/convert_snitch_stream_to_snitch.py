@@ -157,7 +157,7 @@ class LowerStreamingRegionOp(RewritePattern):
             )
         )
 
-        rewriter.insert_op_before_matched_op(set_source_ops)
+        rewriter.insert_op(set_source_ops)
 
         set_destination_ops = tuple(
             snitch.SsrSetDimensionDestinationOp(
@@ -169,13 +169,11 @@ class LowerStreamingRegionOp(RewritePattern):
                 op.outputs, patterns[input_count:], dms[input_count:], strict=True
             )
         )
-        rewriter.insert_op_before_matched_op(set_destination_ops)
+        rewriter.insert_op(set_destination_ops)
 
         block = op.body.block
 
-        rewriter.insert_op_before_matched_op(
-            enable_op := snitch.SsrEnableOp(block.arg_types)
-        )
+        rewriter.insert_op(enable_op := snitch.SsrEnableOp(block.arg_types))
 
         for val, arg in zip(enable_op.streams, block.args):
             arg.replace_by(val)
@@ -183,9 +181,9 @@ class LowerStreamingRegionOp(RewritePattern):
         for arg in reversed(block.args):
             rewriter.erase_block_argument(arg)
 
-        rewriter.inline_block_before_matched_op(block)
+        rewriter.inline_block(block, InsertPoint.before(op))
 
-        rewriter.replace_matched_op(snitch.SsrDisableOp())
+        rewriter.replace_op(op, snitch.SsrDisableOp())
 
 
 class ConvertSnitchStreamToSnitch(ModulePass):

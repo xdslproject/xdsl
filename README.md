@@ -62,7 +62,7 @@ For a more comprehensive experience, follow: [xDSL Developer Setup](#xdsl-develo
 
 *Note:* This version of xDSL is validated against a specific MLIR version,
 interoperability with other versions is not guaranteed. The supported
-MLIR version is 20.1.7.
+MLIR version is 21.1.1.
 
 ### Subprojects With Extra Dependencies
 

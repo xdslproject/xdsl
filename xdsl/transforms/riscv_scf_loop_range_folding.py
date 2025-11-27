@@ -39,7 +39,7 @@ class HoistIndexTimesConstantOp(RewritePattern):
             match user:
                 case riscv.AddOp():
                     # All the uses are multiplications by a constant, we can fold
-                    rewriter.insert_op_before_matched_op(
+                    rewriter.insert_op(
                         [
                             shift := riscv.LiOp(constant),
                             new_lb := riscv.AddOp(op.lb, shift),
@@ -48,7 +48,7 @@ class HoistIndexTimesConstantOp(RewritePattern):
                     )
                 case riscv.MulOp():
                     # All the uses are multiplications by a constant, we can fold
-                    rewriter.insert_op_before_matched_op(
+                    rewriter.insert_op(
                         [
                             factor := riscv.LiOp(constant),
                             new_lb := riscv.MulOp(op.lb, factor),

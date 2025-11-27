@@ -118,7 +118,7 @@ class StencilUnrollPattern(RewritePattern):
                 unrolled_block.insert_op_before(o, unrolled_return)
         unrolled_return.unroll = IndexAttr.get(*unroll)
         new_apply = ApplyOp.get(op.args, unrolled_block, res_types)
-        rewriter.replace_matched_op(new_apply)
+        rewriter.replace_op(op, new_apply)
 
 
 @dataclass(frozen=True)

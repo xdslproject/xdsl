@@ -69,7 +69,8 @@ class LowerAccessOp(RewritePattern):
             return
 
         dir_op, neighbor_op = get_dir_and_distance_ops(op)
-        rewriter.replace_matched_op(
+        rewriter.replace_op(
+            op,
             [
                 neighbor_op,
                 dir_op,
@@ -83,7 +84,7 @@ class LowerAccessOp(RewritePattern):
                     ],
                 ),
                 UnrealizedConversionCastOp.get([m_call], op.result_types),
-            ]
+            ],
         )
 
 
@@ -196,8 +197,8 @@ class LowerApplyOp(RewritePattern):
         )
 
         # replace op with api call
-        rewriter.replace_matched_op(
-            [num_chunks, chunk_ref, done_ref, send_buf, api_call], []
+        rewriter.replace_op(
+            op, [num_chunks, chunk_ref, done_ref, send_buf, api_call], []
         )
 
 
@@ -240,7 +241,7 @@ class LowerYieldOp(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: csl_stencil.YieldOp, rewriter: PatternRewriter, /):
-        rewriter.replace_matched_op(csl.ReturnOp())
+        rewriter.replace_op(op, csl.ReturnOp())
 
 
 @dataclass(frozen=True)

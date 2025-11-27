@@ -56,7 +56,7 @@ class VectorBroadcastToX86(RewritePattern):
             broadcast_op.destination, op.vector.type
         )
 
-        rewriter.replace_matched_op([source_cast_op, broadcast_op, dest_cast_op])
+        rewriter.replace_op(op, [source_cast_op, broadcast_op, dest_cast_op])
 
 
 @dataclass
@@ -97,8 +97,8 @@ class VectorFMAToX86(RewritePattern):
         res_cast_op = UnrealizedConversionCastOp.get(
             (fma_op.register_out,), (vect_type,)
         )
-        rewriter.replace_matched_op(
-            [lhs_cast_op, rhs_cast_op, acc_cast_op, fma_op, res_cast_op]
+        rewriter.replace_op(
+            op, [lhs_cast_op, rhs_cast_op, acc_cast_op, fma_op, res_cast_op]
         )
 
 

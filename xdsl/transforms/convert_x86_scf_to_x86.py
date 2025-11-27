@@ -156,7 +156,8 @@ class LowerX86ScfForPattern(RewritePattern):
         )
 
         # Replace operation by arguments to the newly end block.
-        rewriter.replace_matched_op(
+        rewriter.replace_op(
+            op,
             x86.ops.LabelOp(f"scf_body_end_{suffix}"),
             end_block.args[1:],
         )

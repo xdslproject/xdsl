@@ -18,6 +18,7 @@ from xdsl.interpreter import (
 from xdsl.ir import Attribute, Operation, OpResult, SSAValue
 from xdsl.irdl import IRDLOperation
 from xdsl.pattern_rewriter import PatternRewriter
+from xdsl.rewriter import InsertPoint
 from xdsl.utils.exceptions import InterpretationError
 from xdsl.utils.hints import isa
 
@@ -118,12 +119,23 @@ class PDLInterpFunctions(InterpreterFunctions):
         assert len(args) == 1
         assert isinstance(args[0], Operation)
         src_op = args[0]
-        assert op.index is None, (
-            "TODO: No support yet for getting a specific result group"
-        )
-        if isinstance(op.result_types[0], ValueType) and len(src_op.results) != 1:
-            return (None,)
-        return (src_op.results,)
+        assert isinstance(src_op, IRDLOperation)
+        if op.index is not None:
+            # get the field name of the result group:
+            if op.index.value.data >= len(src_op.get_irdl_definition().results):
+                return (None,)
+            field = src_op.get_irdl_definition().results[op.index.value.data][0]
+            results = getattr(src_op, field)
+            if isa(results, OpResult):
+                results = (results,)
+        else:
+            results = src_op.results
+
+        if isinstance(op.result_types[0], ValueType):
+            if len(results) != 1:
+                return (None,)
+            return (results[0],)
+        return (results,)
 
     @impl(pdl_interp.GetAttributeOp)
     def run_get_attribute(
@@ -421,7 +433,8 @@ class PDLInterpFunctions(InterpreterFunctions):
             properties=properties,
         )
 
-        self.get_rewriter(interpreter).insert_op_before_matched_op(result_op)
+        rewriter = self.get_rewriter(interpreter)
+        rewriter.insert_op(result_op)
 
         return (result_op,)
 
@@ -433,7 +446,9 @@ class PDLInterpFunctions(InterpreterFunctions):
             assert len(args) == 1
             root_op = args[0]
             assert isinstance(root_op, Operation)
-            self.get_rewriter(interpreter).current_operation = root_op
+            rewriter = self.get_rewriter(interpreter)
+            rewriter.current_operation = root_op
+            rewriter.insertion_point = InsertPoint.before(root_op)
 
         return interpreter.run_ssacfg_region(op.body, args, op.sym_name.data)
 

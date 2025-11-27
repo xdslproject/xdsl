@@ -138,7 +138,7 @@ class AccessOpTensorize(RewritePattern):
         a = AccessOp.get(op.temp, xy_offsets)
         # this conditional controls if ExtractSliceOps for x/y accesses should be generated
         # if xy_offsets[0] != 0 or xy_offsets[1] != 0:
-        #     rewriter.replace_matched_op(a)
+        #     rewriter.replace_op(op, a)
         #     return
         assert isa(op.temp.type, TempType[Attribute])
         assert is_tensor(element_t := op.temp.type.get_element_type())
@@ -146,7 +146,7 @@ class AccessOpTensorize(RewritePattern):
             a, [z_offset], element_t.get_shape()
         )
         rewriter.insert_op(a, InsertPoint.before(op))
-        rewriter.replace_matched_op(extract)
+        rewriter.replace_op(op, extract)
 
 
 class ArithOpTensorize(RewritePattern):
@@ -165,22 +165,25 @@ class ArithOpTensorize(RewritePattern):
         if is_tensor(op.result.type):
             return
         if is_tensor(op.lhs.type) and is_tensor(op.rhs.type):
-            rewriter.replace_matched_op(
-                type_constructor(op.lhs, op.rhs, flags=None, result_type=op.lhs.type)
+            rewriter.replace_op(
+                op,
+                type_constructor(op.lhs, op.rhs, flags=None, result_type=op.lhs.type),
             )
         elif isa(op.lhs.type, TensorType[AnyFloat]) and is_scalar(op.rhs.type):
             new_rhs = ArithOpTensorize._rewrite_scalar_operand(
                 op.rhs, op.lhs.type, op, rewriter
             )
-            rewriter.replace_matched_op(
-                type_constructor(op.lhs, new_rhs, flags=None, result_type=op.lhs.type)
+            rewriter.replace_op(
+                op,
+                type_constructor(op.lhs, new_rhs, flags=None, result_type=op.lhs.type),
             )
         elif is_scalar(op.lhs.type) and isa(op.rhs.type, TensorType[AnyFloat]):
             new_lhs = ArithOpTensorize._rewrite_scalar_operand(
                 op.lhs, op.rhs.type, op, rewriter
             )
-            rewriter.replace_matched_op(
-                type_constructor(new_lhs, op.rhs, flags=None, result_type=op.rhs.type)
+            rewriter.replace_op(
+                op,
+                type_constructor(new_lhs, op.rhs, flags=None, result_type=op.rhs.type),
             )
 
     @staticmethod
@@ -231,12 +234,13 @@ class ApplyOpTensorize(RewritePattern):
                 op.region.block, InsertPoint.at_start(body), body.args
             )
 
-            rewriter.replace_matched_op(
+            rewriter.replace_op(
+                op,
                 ApplyOp.get(
                     op.args,
                     body,
                     [stencil_temp_to_tensor(r.type) for r in op.res],
-                )
+                ),
             )
 
 
@@ -274,12 +278,13 @@ class LoadOpTensorize(RewritePattern):
     def match_and_rewrite(self, op: LoadOp, rewriter: PatternRewriter, /):
         assert isa(op.res.type, TempType[Attribute])
         assert isinstance(bounds := op.res.type.bounds, StencilBoundsAttr)
-        rewriter.replace_matched_op(
+        rewriter.replace_op(
+            op,
             LoadOp.get(
                 op.field,
                 IndexAttr.get(*[lb for lb in bounds.lb][:-1]),
                 IndexAttr.get(*[ub for ub in bounds.ub][:-1]),
-            )
+            ),
         )
 
 
@@ -291,7 +296,8 @@ class DmpSwapOpTensorize(RewritePattern):
             and op.swapped_values
             and not is_tensorized(op.swapped_values.type)
         ):
-            rewriter.replace_matched_op(
+            rewriter.replace_op(
+                op,
                 dmp.SwapOp.get(op.input_stencil, op.strategy, ArrayAttr(op.swaps.data)),
             )
 
@@ -304,14 +310,15 @@ class StoreOpTensorize(RewritePattern):
             and isinstance(op.field.type, ShapedType)
             and len(op.bounds.lb) != len(op.field.type.get_shape())
         ):
-            rewriter.replace_matched_op(
+            rewriter.replace_op(
+                op,
                 StoreOp.get(
                     op.temp,
                     op.field,
                     StencilBoundsAttr(
                         zip(list(op.bounds.lb.array)[:-1], list(op.bounds.ub)[:-1])
                     ),
-                )
+                ),
             )
 
 
@@ -320,10 +327,11 @@ class AccessOpUpdateShape(RewritePattern):
     def match_and_rewrite(self, op: AccessOp, rewriter: PatternRewriter, /):
         if typ := get_required_result_type(op):
             if needs_update_shape(op.res.type, typ):
-                rewriter.replace_matched_op(
+                rewriter.replace_op(
+                    op,
                     AccessOp.build(
                         operands=[op.temp], attributes=op.attributes, result_types=[typ]
-                    )
+                    ),
                 )
 
 
@@ -339,7 +347,8 @@ class CslStencilAccessOpUpdateShape(RewritePattern):
                 isa(op.op.type, TempType[TensorType[Attribute]])
                 or isa(op.op.type, TensorType[Attribute])
             ):
-                rewriter.replace_matched_op(
+                rewriter.replace_op(
+                    op,
                     csl_stencil.AccessOp(
                         op.op,
                         op.offset,
@@ -349,7 +358,7 @@ class CslStencilAccessOpUpdateShape(RewritePattern):
                             else typ
                         ),
                         op.offset_mapping,
-                    )
+                    ),
                 )
 
 
@@ -358,10 +367,11 @@ class ExtractSliceOpUpdateShape(RewritePattern):
     def match_and_rewrite(self, op: ExtractSliceOp, rewriter: PatternRewriter, /):
         if typ := get_required_result_type(op):
             if needs_update_shape(op.result.type, typ):
-                rewriter.replace_matched_op(
+                rewriter.replace_op(
+                    op,
                     ExtractSliceOp.from_static_parameters(
                         op.source, op.static_offsets.get_values(), typ.get_shape()
-                    )
+                    ),
                 )
 
 
@@ -373,9 +383,7 @@ def arithBinaryOpUpdateShape(
     type_constructor = type(op)
     if typ := get_required_result_type(op):
         if needs_update_shape(op.result.type, typ):
-            rewriter.replace_matched_op(
-                type_constructor(op.lhs, op.rhs, result_type=typ)
-            )
+            rewriter.replace_op(op, type_constructor(op.lhs, op.rhs, result_type=typ))
 
 
 class ArithOpUpdateShape(RewritePattern):
@@ -392,8 +400,8 @@ class VarithOpUpdateShape(RewritePattern):
         type_constructor = type(op)
         if typ := get_required_result_type(op):
             if needs_update_shape(op.result_types[0], typ):
-                rewriter.replace_matched_op(
-                    type_constructor.build(operands=[op.args], result_types=[typ])
+                rewriter.replace_op(
+                    op, type_constructor.build(operands=[op.args], result_types=[typ])
                 )
 
 
@@ -402,7 +410,7 @@ class EmptyOpUpdateShape(RewritePattern):
     def match_and_rewrite(self, op: EmptyOp, rewriter: PatternRewriter, /):
         if typ := get_required_result_type(op):
             if needs_update_shape(op.results[0].type, typ):
-                rewriter.replace_matched_op(EmptyOp((), typ))
+                rewriter.replace_op(op, EmptyOp((), typ))
 
 
 class FillOpUpdateShape(RewritePattern):
@@ -410,8 +418,8 @@ class FillOpUpdateShape(RewritePattern):
     def match_and_rewrite(self, op: FillOp, rewriter: PatternRewriter, /):
         if typ := get_required_result_type(op):
             if needs_update_shape(op.results[0].type, typ):
-                rewriter.replace_matched_op(
-                    FillOp(op.inputs, op.outputs, [typ] * len(op.outputs))
+                rewriter.replace_op(
+                    op, FillOp(op.inputs, op.outputs, [typ] * len(op.outputs))
                 )
 
 
@@ -422,8 +430,8 @@ class ConstOpUpdateShape(RewritePattern):
             if typ := get_required_result_type(op):
                 if needs_update_shape(op.result.type, typ):
                     assert isinstance(op.value, DenseIntOrFPElementsAttr)
-                    rewriter.replace_matched_op(
-                        ConstantOp(DenseIntOrFPElementsAttr(typ, op.value.data))
+                    rewriter.replace_op(
+                        op, ConstantOp(DenseIntOrFPElementsAttr(typ, op.value.data))
                     )
 
 

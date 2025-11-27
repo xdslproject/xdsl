@@ -67,7 +67,7 @@ class ScfForLowering(RewritePattern):
             rewriter.insert_op(cast_op)
             res.replace_by_if(result, lambda use: use.operation is not cast_op)
 
-        rewriter.erase_matched_op()
+        rewriter.erase_op(op)
 
 
 @dataclass
@@ -76,8 +76,8 @@ class ScfYieldLowering(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: scf.YieldOp, rewriter: PatternRewriter) -> None:
-        rewriter.replace_matched_op(
-            x86_scf.YieldOp(*self.arch.cast_operands_to_regs(rewriter))
+        rewriter.replace_op(
+            op, x86_scf.YieldOp(*self.arch.cast_operands_to_regs(rewriter))
         )
 
 
