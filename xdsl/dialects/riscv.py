@@ -3871,7 +3871,7 @@ class ParallelMovOp(IRDLOperation):
     def __init__(self, inputs: Sequence[SSAValue], outputs: Sequence[RISCVRegisterType], free_registers: Sequence[RISCVRegisterType]):
         super().__init__(
             operands=[inputs],
-            result_types=[outputs],
+            result_types=[outputs],  # We could programatically generate the output types from the inputs?
             properties={
                 "free_registers": ArrayAttr(free_registers),  # TODO: Make optional
             },
@@ -3887,13 +3887,16 @@ class ParallelMovOp(IRDLOperation):
 
         # Check type of register type matches for input and output
         for input_type, output_type in zip(input_types, output_types, strict=True):
-            if input_type != output_type:
+            if not (
+                isinstance(input_type, IntRegisterType) and isinstance(output_type, IntRegisterType)
+                or isinstance(input_type, FloatRegisterType) and isinstance(output_type, FloatRegisterType)
+            ):
                 raise VerifyException("Input type must match output type.")
 
         # Check outputs are distinct if allocated
-        for x in self.outputs:
-            if self.outputs.count(x) > 1 and x not in [Registers.UNALLOCATED_INT, Registers.UNALLOCATED_FLOAT, Registers.ZERO]:
-                raise VerifyException("Outputs must be unallocated or distinct")
+        for x in output_types:
+            if output_types.count(x) > 1 and x not in [Registers.UNALLOCATED_INT, Registers.UNALLOCATED_FLOAT, Registers.ZERO]:
+                raise VerifyException(f"Outputs must be unallocated or distinct. Duplicated register: {x}")
 
 
 # endregion
