@@ -207,7 +207,7 @@ class CSEDriver:
         for op in block.ops:
             if op.regions:
                 might_be_isolated = isinstance(op, UnregisteredOp) or (
-                    op.get_trait(IsolatedFromAbove) is not None
+                    op.has_trait(IsolatedFromAbove)
                 )
                 # If we can't be sure the op isn't isolated, we assume it is for safety
                 if might_be_isolated:
