@@ -3863,16 +3863,37 @@ class ParallelMovOp(IRDLOperation):
     name = "riscv.parallel_mov"
     inputs = var_operand_def(RISCVRegisterType)
     outputs = var_result_def(RISCVRegisterType)
+    free_registers = opt_prop_def(ArrayAttr[RISCVRegisterType])
 
-    attrs = opt_prop_def(ArrayAttr[RISCVRegisterType])
-
-    assembly_format = "$inputs attr-dict `:` functional-type($inputsRISCVRegisterType, $outputs)"
+    assembly_format = "$inputs attr-dict `:` functional-type($inputs, $outputs)"
     irdl_options = [ParsePropInAttrDict()]
+
+    def __init__(self, inputs: Sequence[SSAValue], outputs: Sequence[RISCVRegisterType], free_registers: Sequence[RISCVRegisterType]):
+        super().__init__(
+            operands=[inputs],
+            result_types=[outputs],
+            properties={
+                "free_registers": ArrayAttr(free_registers),  # TODO: Make optional
+            },
+        )
 
     def verify_(self) -> None:
         if len(self.inputs) != len(self.outputs):
             raise VerifyException("Input count must match output count. "
                                   f"Num inputs: {len(self.inputs)}, Num outputs: {len(self.outputs)}")
+
+        input_types = self.inputs.types
+        output_types = self.outputs.types
+
+        # Check type of register type matches for input and output
+        for input_type, output_type in zip(input_types, output_types, strict=True):
+            if input_type != output_type:
+                raise VerifyException("Input type must match output type.")
+
+        # Check outputs are distinct if allocated
+        for x in self.outputs:
+            if self.outputs.count(x) > 1 and x not in [Registers.UNALLOCATED_INT, Registers.UNALLOCATED_FLOAT, Registers.ZERO]:
+                raise VerifyException("Outputs must be unallocated or distinct")
 
 
 # endregion
