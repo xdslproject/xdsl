@@ -3894,10 +3894,12 @@ class ParallelMovOp(IRDLOperation):
                 raise VerifyException("Input type must match output type.")
 
         # Check outputs are distinct if allocated
+        allowed_duplicates = [Registers.UNALLOCATED_INT, Registers.UNALLOCATED_FLOAT, Registers.ZERO]
+        seen = set()
         for x in output_types:
-            if output_types.count(x) > 1 and x not in [Registers.UNALLOCATED_INT, Registers.UNALLOCATED_FLOAT, Registers.ZERO]:
+            if x in seen and x not in allowed_duplicates:
                 raise VerifyException(f"Outputs must be unallocated or distinct. Duplicated register: {x}")
-
+            seen.add(x)
 
 # endregion
 
