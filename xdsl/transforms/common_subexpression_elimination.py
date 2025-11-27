@@ -206,8 +206,8 @@ class CSEDriver:
     def _simplify_block(self, block: Block):
         for op in block.ops:
             if op.regions:
-                might_be_isolated = isinstance(op, UnregisteredOp) or (
-                    op.get_trait(IsolatedFromAbove) is not None
+                might_be_isolated = op.has_trait(
+                    IsolatedFromAbove, value_if_unregistered=True
                 )
                 # If we can't be sure the op isn't isolated, we assume it is for safety
                 if might_be_isolated:
