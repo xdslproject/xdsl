@@ -43,6 +43,7 @@ from xdsl.ir import (
 )
 from xdsl.irdl import (
     IRDLOperation,
+    ParsePropInAttrDict,
     attr_def,
     base,
     irdl_attr_definition,
@@ -56,7 +57,6 @@ from xdsl.irdl import (
     var_operand_def,
     var_result_def,
 )
-from xdsl.irdl.operations import ParsePropInAttrDict
 from xdsl.parser import AttrParser, Parser, UnresolvedOperand
 from xdsl.pattern_rewriter import RewritePattern
 from xdsl.printer import Printer
@@ -3871,8 +3871,8 @@ class ParallelMovOp(IRDLOperation):
     def __init__(
         self,
         inputs: Sequence[SSAValue],
-        outputs: Sequence[RISCVRegisterType] | None = None,
-        free_registers: Sequence[RISCVRegisterType] | None = None
+        outputs: Sequence[RISCVRegisterType],
+        free_registers: Sequence[RISCVRegisterType] | None = None,
     ):
         if free_registers is None:
             properties = None
@@ -3887,26 +3887,29 @@ class ParallelMovOp(IRDLOperation):
 
     def verify_(self) -> None:
         if len(self.inputs) != len(self.outputs):
-            raise VerifyException("Input count must match output count. "
-                                  f"Num inputs: {len(self.inputs)}, Num outputs: {len(self.outputs)}")
+            raise VerifyException(
+                "Input count must match output count. "
+                f"Num inputs: {len(self.inputs)}, Num outputs: {len(self.outputs)}"
+            )
 
         input_types = self.inputs.types
         output_types = self.outputs.types
 
         # Check type of register type matches for input and output
         for input_type, output_type in zip(input_types, output_types, strict=True):
-            if type(input_type) != type(output_type):
+            if type(input_type) is not type(output_type):
                 raise VerifyException("Input type must match output type.")
 
         # Check outputs are distinct if allocated and not ZERO
         unallocated_registers = [Registers.UNALLOCATED_INT, Registers.UNALLOCATED_FLOAT]
         filtered_outputs = [
-            i for i in output_types
-            if i not in unallocated_registers
-            and i != Registers.ZERO      # RISC-V has special case of zero register, where writing to it is a noop
-        ]
+            i
+            for i in output_types
+            if i not in unallocated_registers and i != Registers.ZERO
+        ]  # RISC-V has special ZERO register, where writing to it is a noop
         if len(filtered_outputs) != len(set(filtered_outputs)):
-            raise VerifyException(f"Outputs must be unallocated or distinct.")
+            raise VerifyException("Outputs must be unallocated or distinct.")
+
 
 # endregion
 
