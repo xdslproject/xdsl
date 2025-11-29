@@ -3887,10 +3887,7 @@ class ParallelMovOp(IRDLOperation):
 
         # Check type of register type matches for input and output
         for input_type, output_type in zip(input_types, output_types, strict=True):
-            if not (
-                isinstance(input_type, IntRegisterType) and isinstance(output_type, IntRegisterType)
-                or isinstance(input_type, FloatRegisterType) and isinstance(output_type, FloatRegisterType)
-            ):
+            if type(input_type) != type(output_type):
                 raise VerifyException("Input type must match output type.")
 
         # Check outputs are distinct if allocated and not ZERO
