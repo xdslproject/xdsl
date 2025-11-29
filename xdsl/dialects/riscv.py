@@ -3868,13 +3868,21 @@ class ParallelMovOp(IRDLOperation):
     assembly_format = "$inputs attr-dict `:` functional-type($inputs, $outputs)"
     irdl_options = [ParsePropInAttrDict()]
 
-    def __init__(self, inputs: Sequence[SSAValue], outputs: Sequence[RISCVRegisterType], free_registers: Sequence[RISCVRegisterType]):
+    def __init__(
+        self,
+        inputs: Sequence[SSAValue],
+        outputs: Sequence[RISCVRegisterType] | None = None,
+        free_registers: Sequence[RISCVRegisterType] | None = None
+    ):
+        if free_registers is None:
+            properties = None
+        else:
+            properties = {"free_registers": ArrayAttr(free_registers)}
+
         super().__init__(
-            operands=[inputs],
-            result_types=[outputs],  # We could programatically generate the output types from the inputs?
-            properties={
-                "free_registers": ArrayAttr(free_registers),  # TODO: Make optional
-            },
+            operands=(inputs,),
+            result_types=(outputs,),
+            properties=properties,
         )
 
     def verify_(self) -> None:
