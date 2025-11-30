@@ -6,7 +6,7 @@ import pytest
 
 from xdsl.builder import ImplicitBuilder
 from xdsl.context import Context
-from xdsl.dialects import test
+from xdsl.dialects import arith, test
 from xdsl.dialects.arith import AddiOp, Arith, ConstantOp, MuliOp
 from xdsl.dialects.builtin import (
     Builtin,
@@ -349,6 +349,37 @@ def test_greedy_rewrite_pattern_applier():
         op_removed=2,
         op_replaced=2,
         op_modified=2,
+    )
+
+
+def test_greedy_pattern_applier_fold():
+    """Test that folding is applied by the greedy pattern applier."""
+
+    prog = """"builtin.module"() ({
+  %0 = "arith.constant"() <{value = 42 : i32}> : () -> i32
+  %1 = "arith.addi"(%0, %0) : (i32, i32) -> i32
+  "test.op"(%1) : (i32) -> ()
+}) : () -> ()"""
+
+    expected = """"builtin.module"() ({
+  %0 = "arith.constant"() <{value = 42 : i32}> : () -> i32
+  %1 = "arith.constant"() <{value = 84 : i32}> : () -> i32
+  "test.op"(%1) : (i32) -> ()
+}) : () -> ()"""
+
+    ctx = Context()
+    ctx.register_dialect("arith", lambda: arith.Arith)
+    rewrite_and_compare(
+        prog,
+        expected,
+        PatternRewriteWalker(
+            GreedyRewritePatternApplier([], folding_enabled=True, ctx=ctx),
+            apply_recursively=False,
+        ),
+        op_inserted=1,
+        op_removed=1,
+        op_replaced=1,
+        op_modified=1,
     )
 
 
