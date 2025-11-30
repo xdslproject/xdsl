@@ -24,7 +24,6 @@ from xdsl.ir import (
     Operation,
     Region,
     SSAValue,
-    TypeAttribute,
 )
 from xdsl.ir.affine import AffineExpr, AffineMap
 from xdsl.irdl import (
@@ -398,24 +397,19 @@ class VectorLoadOp(IRDLOperation):
 
     def __init__(
         self,
-        memref: SSAValue,
+        memref: SSAValue[MemRefType],
         indices: Sequence[SSAValue],
         map: AffineMapAttr | None = None,
         result_type: Attribute | None = None,
     ):
-        if not isa(memref_type := memref.type, MemRefType[TypeAttribute]):
-            raise ValueError(
-                "affine.vector_load memref operand must be of type MemRefType"
-            )
-
         if map is None:
             # Create identity map for memrefs with at least one dimension or () -> ()
             # for zero-dimensional memrefs.
-            rank = memref_type.get_num_dims()
+            rank = memref.type.get_num_dims()
             map = AffineMapAttr(AffineMap.identity(rank))
 
         if result_type is None:
-            result_type = VectorType(memref_type.get_element_type(), [])
+            result_type = VectorType(memref.type.get_element_type(), [])
 
         super().__init__(
             operands=(memref, indices),
@@ -444,19 +438,15 @@ class VectorStoreOp(IRDLOperation):
 
     def __init__(
         self,
-        value: SSAValue,
-        memref: SSAValue,
+        value: SSAValue[VectorType],
+        memref: SSAValue[MemRefType],
         indices: Sequence[SSAValue],
         map: AffineMapAttr | None = None,
     ):
         if map is None:
             # Create identity map for memrefs with at least one dimension or () -> ()
             # for zero-dimensional memrefs.
-            if not isinstance(memref_type := memref.type, MemRefType):
-                raise ValueError(
-                    "affine.vector_load memref operand must be of type MemRefType"
-                )
-            rank = memref_type.get_num_dims()
+            rank = memref.type.get_num_dims()
             map = AffineMapAttr(AffineMap.identity(rank))
 
         super().__init__(
