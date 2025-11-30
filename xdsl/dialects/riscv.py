@@ -2087,10 +2087,11 @@ class SubOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.riscv import (
             SubAddi,
+            SubBySelf,
             SubImmediates,
         )
 
-        return (SubImmediates(), SubAddi())
+        return (SubImmediates(), SubAddi(), SubBySelf())
 
 
 @irdl_op_definition
