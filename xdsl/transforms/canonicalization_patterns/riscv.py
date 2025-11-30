@@ -190,7 +190,7 @@ class SubImmediates(RewritePattern):
 
 class SubBySelf(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: riscv.SubOp, rewriter: PatternRewriter) -> None:
+    def match_and_rewrite(self, op: riscv.SubOp, rewriter: PatternRewriter):
         """
         x - x = 0
         """
