@@ -189,12 +189,11 @@ class SubImmediates(RewritePattern):
 
 
 class SubBySelf(RewritePattern):
-    """
-    a - a -> 0
-    """
-
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: riscv.SubOp, rewriter: PatternRewriter) -> None:
+        """
+        a - a = 0
+        """
         if op.rs1 == op.rs2:
             rd = cast(riscv.IntRegisterType, op.rd.type)
             rewriter.replace_op(
