@@ -17,6 +17,7 @@ from xdsl.dialects.builtin import SymbolRefAttr
 from xdsl.dialects.pdl import RangeType, ValueType
 from xdsl.interpreter import (
     Interpreter,
+    InterpreterFunctions,
     ReturnedValues,
     Successor,
     impl,
@@ -79,7 +80,7 @@ class BacktrackPoint:
 
 @register_impls
 @dataclass
-class EqsatPDLInterpFunctions(PDLInterpFunctions):
+class EqsatPDLInterpFunctions(InterpreterFunctions):
     """Interpreter functions for PDL patterns operating on e-graphs."""
 
     analyses: list[SparseForwardDataFlowAnalysis[Lattice[Any]]] = field(
@@ -384,7 +385,7 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
             )
             updated_operands.append(self.eclass_union_find.find(arg.owner).result)
         args = (*updated_operands, *args[len(op.input_operands) :])
-        new_op = self._create_operation(
+        new_op = PDLInterpFunctions.create_operation(
             interpreter,
             args,
             op.constraint_name.data,
@@ -398,7 +399,7 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
             "Creating operations without result values is not supported."
         )
 
-        rewriter = self.get_rewriter(interpreter)
+        rewriter = PDLInterpFunctions.get_rewriter(interpreter)
 
         should_insert_new_op = True
         # Check if an identical operation already exists in our known_ops map
@@ -469,7 +470,11 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
         args: tuple[Any, ...],
     ):
         self.pending_rewrites.append(
-            (op.rewriter, self.get_rewriter(interpreter).current_operation, args)
+            (
+                op.rewriter,
+                PDLInterpFunctions.get_rewriter(interpreter).current_operation,
+                args,
+            )
         )
         return Successor(op.dest, ()), ()
 

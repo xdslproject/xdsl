@@ -383,8 +383,8 @@ class PDLInterpFunctions(InterpreterFunctions):
                 return Successor(block, ()), ()
         return Successor(op.defaultDest, ()), ()
 
-    def _create_operation(
-        self,
+    @staticmethod
+    def create_operation(
         interpreter: Interpreter,
         args: tuple[Any, ...],
         op_name: str,
@@ -393,7 +393,7 @@ class PDLInterpFunctions(InterpreterFunctions):
         num_attributes: int,
     ) -> IRDLOperation:
         # Get operation name
-        ctx = self.get_ctx(interpreter)
+        ctx = PDLInterpFunctions.get_ctx(interpreter)
         op_type = ctx.get_optional_op(op_name)
         if op_type is None:
             raise InterpretationError(
@@ -434,7 +434,7 @@ class PDLInterpFunctions(InterpreterFunctions):
         op: pdl_interp.CreateOperationOp,
         args: tuple[Any, ...],
     ) -> tuple[Any, ...]:
-        result_op = self._create_operation(
+        result_op = PDLInterpFunctions.create_operation(
             interpreter,
             args,
             op.constraint_name.data,
