@@ -385,6 +385,32 @@ def test_greedy_pattern_applier_fold():
     )
 
 
+def test_greedy_rewrite_pattern_applier_dead_code():
+    """Test that dead code is removed by the greedy rewrite pattern applier."""
+
+    prog = """"builtin.module"() ({
+  %0 = "arith.constant"() <{value = 42 : i32}> : () -> i32
+  %1 = "arith.addi"(%0, %0) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
+}) : () -> ()"""
+
+    expected = """"builtin.module"() ({
+^bb0:
+}) : () -> ()"""
+
+    rewrite_and_compare(
+        prog,
+        expected,
+        PatternRewriteWalker(
+            GreedyRewritePatternApplier([]),
+            apply_recursively=True,
+        ),
+        op_inserted=0,
+        op_removed=2,
+        op_replaced=0,
+        op_modified=0,
+    )
+
+
 def test_insert_op_before_matched_op():
     """Test rewrites where operations are inserted before the matched operation."""
 
