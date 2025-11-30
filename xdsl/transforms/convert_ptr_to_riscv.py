@@ -37,7 +37,7 @@ class PtrTypeConversion(TypeConversionPattern):
 class ConvertPtrAddOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ptr.PtrAddOp, rewriter: PatternRewriter, /):
-        oper1, oper2 = cast_operands_to_regs(rewriter)
+        oper1, oper2 = cast_operands_to_regs(rewriter, op)
         rewriter.replace_op(op, riscv.AddOp(oper1, oper2))
 
 
@@ -45,7 +45,7 @@ class ConvertPtrAddOp(RewritePattern):
 class ConvertStoreOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ptr.StoreOp, rewriter: PatternRewriter, /):
-        addr, value = cast_operands_to_regs(rewriter)
+        addr, value = cast_operands_to_regs(rewriter, op)
 
         match value.type:
             case riscv.IntRegisterType():
@@ -83,7 +83,7 @@ class ConvertStoreOp(RewritePattern):
 class ConvertLoadOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ptr.LoadOp, rewriter: PatternRewriter, /):
-        casted = cast_operands_to_regs(rewriter)
+        casted = cast_operands_to_regs(rewriter, op)
         addr = casted[0]
 
         result_register_type = register_type_for_type(op.res.type)

@@ -62,7 +62,7 @@ class ArithBinaryToX86(RewritePattern):
             )
         rewriter.name_hint = op.results[0].name_hint
 
-        lhs_x86, rhs_x86 = self.arch.cast_operands_to_regs(rewriter)
+        lhs_x86, rhs_x86 = self.arch.cast_to_regs(op.operands, rewriter)
         moved_rhs = self.arch.move_value_to_unallocated(
             rhs_x86, op.operands[1].type, rewriter
         )

@@ -2,7 +2,7 @@ import struct
 from dataclasses import dataclass
 
 from xdsl.backend.riscv.lowering.utils import (
-    cast_matched_op_results,
+    cast_op_results,
     cast_operands_to_regs,
 )
 from xdsl.context import Context
@@ -264,8 +264,8 @@ class LowerArithCmpi(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: arith.CmpiOp, rewriter: PatternRewriter) -> None:
         # based on https://github.com/llvm/llvm-project/blob/main/llvm/test/CodeGen/RISCV/i32-icmp.ll
-        lhs, rhs = cast_operands_to_regs(rewriter)
-        cast_matched_op_results(rewriter)
+        lhs, rhs = cast_operands_to_regs(rewriter, op)
+        cast_op_results(rewriter, op)
 
         match op.predicate.value.data:
             # eq
@@ -348,8 +348,8 @@ class LowerArithCmpf(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: arith.CmpfOp, rewriter: PatternRewriter) -> None:
         # https://llvm.org/docs/LangRef.html#id309
-        lhs, rhs = cast_operands_to_regs(rewriter)
-        cast_matched_op_results(rewriter)
+        lhs, rhs = cast_operands_to_regs(rewriter, op)
+        cast_op_results(rewriter, op)
 
         fastmath = riscv.FastMathFlagsAttr(op.fastmath.data)
 
