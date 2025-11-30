@@ -12,8 +12,10 @@ from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import Attribute
 from xdsl.passes import ModulePass, PassPipeline
 from xdsl.printer import Printer
+from xdsl.syntax_printer import SyntaxPrinter
 from xdsl.tools.command_line_tool import CommandLineTool
 from xdsl.universe import Universe
+from xdsl.utils.diagnostic import Diagnostic
 from xdsl.utils.exceptions import DiagnosticException, ParseError, ShrinkException
 from xdsl.utils.lexer import Span
 
@@ -65,6 +67,9 @@ class xDSLOptMain(CommandLineTool):
 
         if self.args.disable_verify:
             Attribute.__post_init__ = _empty_post_init
+
+        if self.args.syntax_highlight:
+            Diagnostic.colored = True
 
         self.setup_pipeline()
 
@@ -202,6 +207,13 @@ class xDSLOptMain(CommandLineTool):
         )
 
         arg_parser.add_argument(
+            "--syntax-highlight",
+            default=False,
+            action="store_true",
+            help="Enable printing with syntax highlighting on the terminal.",
+        )
+
+        arg_parser.add_argument(
             "-v",
             "--version",
             action=VersionAction,
@@ -242,7 +254,8 @@ class xDSLOptMain(CommandLineTool):
             print_assembly(prog, output)
 
         def _output_mlir(prog: ModuleOp, output: IO[str]):
-            printer = Printer(
+            cls = SyntaxPrinter if self.args.syntax_highlight else Printer
+            printer = cls(
                 stream=output,
                 print_generic_format=self.args.print_op_generic,
                 print_properties_as_attributes=self.args.print_no_properties,
