@@ -12,7 +12,7 @@ from xdsl.analysis.dataflow import (
     ProgramPoint,
 )
 from xdsl.analysis.sparse_analysis import Lattice, SparseForwardDataFlowAnalysis
-from xdsl.dialects import eqsat, eqsat_pdl_interp, pdl_interp
+from xdsl.dialects import eqsat, eqsat_pdl_interp
 from xdsl.dialects.builtin import SymbolRefAttr
 from xdsl.dialects.pdl import RangeType, ValueType
 from xdsl.interpreter import (
@@ -373,7 +373,6 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
         args: tuple[Any, ...],
     ) -> tuple[Any, ...]:
         rewriter = PDLInterpFunctions.get_rewriter(interpreter)
-        has_done_action_checkpoint = rewriter.has_done_action
 
         updated_operands: list[OpResult] = []
         for arg in args[0 : len(op.input_operands)]:
@@ -385,28 +384,28 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
             )
             updated_operands.append(self.eclass_union_find.find(arg.owner).result)
         args = (*updated_operands, *args[len(op.input_operands) :])
-        non_eqsat_op = pdl_interp.CreateOperationOp(
-            op.constraint_name,
-            op.inferred_result_types,
-            op.input_attribute_names,
-            op.input_operands,
-            op.input_attributes,
-            op.input_result_types,
+        new_op = self._create_operation(
+            interpreter,
+            args,
+            op.constraint_name.data,
+            [name.data for name in op.input_attribute_names.data],
+            len(op.input_operands),
+            len(op.input_attributes),
         )
-        (new_op,) = super().run_create_operation(interpreter, non_eqsat_op, args).values
 
         assert isinstance(new_op, Operation)
         assert new_op.results, (
             "Creating operations without result values is not supported."
         )
 
+        rewriter = self.get_rewriter(interpreter)
+
+        should_insert_new_op = True
         # Check if an identical operation already exists in our known_ops map
         if existing_op := self.known_ops.get(new_op):
             # CSE can have removed the existing operation, here we check if it is still in use:
             assert existing_op.results
-            if existing_op.parent is new_op.parent:
-                rewriter.erase_op(new_op)
-                rewriter.has_done_action = has_done_action_checkpoint
+            if existing_op.parent is rewriter.insertion_point.block:
                 if not any(
                     isinstance(use.operation, eqsat.AnyEClassOp)
                     for use in existing_op.results[0].uses
@@ -414,11 +413,15 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
                     # It is possible that the existing_op was stripped from its eclass when it merged with a constant eclass.
                     # In this case we should wrap it in a new eclass:
                     new_op = existing_op
+                    should_insert_new_op = False
                 else:
+                    new_op.erase()
                     return (existing_op,)
             else:
                 # if CSE has removed the existing operation, we can remove it from our known_ops map:
                 self.known_ops.pop(existing_op)
+        if should_insert_new_op:
+            rewriter.insert_op(new_op)
 
         # No existing eclass for this operation yet
         new_eclasses: list[eqsat.AnyEClassOp] = []
