@@ -321,11 +321,13 @@ def test_greedy_rewrite_pattern_applier():
     prog = """"builtin.module"() ({
   %0 = "arith.constant"() <{value = 42 : i32}> : () -> i32
   %1 = "arith.addi"(%0, %0) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
+  "test.op"(%1) : (i32) -> ()
 }) : () -> ()"""
 
     expected = """"builtin.module"() ({
   %0 = "arith.constant"() <{value = 43 : i32}> : () -> i32
   %1 = "arith.muli"(%0, %0) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
+  "test.op"(%1) : (i32) -> ()
 }) : () -> ()"""
 
     class ConstantRewrite(RewritePattern):
@@ -348,7 +350,7 @@ def test_greedy_rewrite_pattern_applier():
         op_inserted=2,
         op_removed=2,
         op_replaced=2,
-        op_modified=2,
+        op_modified=3,
     )
 
 
