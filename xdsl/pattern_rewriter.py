@@ -546,6 +546,7 @@ class GreedyRewritePatternApplier(RewritePattern):
     Apply a list of patterns in order until one pattern matches,
     and then use this rewrite.
     By default, the applier attempts to fold the operation first.
+    If the operation is trivially dead, it is erased.
     """
 
     rewrite_patterns: list[RewritePattern]
@@ -559,6 +560,12 @@ class GreedyRewritePatternApplier(RewritePattern):
     If this is True, the GreedyRewritePatternApplier must also have a context."""
 
     def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter) -> None:
+        from xdsl.transforms.dead_code_elimination import is_trivially_dead
+
+        if is_trivially_dead(op):
+            rewriter.erase_op(op)
+            return
+
         # Do not fold constant ops. That would lead to an infinite folding loop,
         # as every constant op would be folded to an Attribute and then
         # immediately be rematerialized as a constant op, which is then put
