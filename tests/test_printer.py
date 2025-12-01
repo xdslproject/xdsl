@@ -1180,11 +1180,9 @@ def test_syntax_printer():
     op = test.TestOp(result_types=(IntegerType(32),))
 
     printer.stream = StringIO()
-    with printer.colored(Colors.BLUE):
-        with printer.colored(Colors.RED):
-            printer.print_ssa_value(op.results[0])
+    printer.print_ssa_value(op.results[0])
 
-    assert "\x1b[34m%0\x1b[0m" == printer.stream.getvalue()
+    assert "\x1b[95m%0\x1b[0m" == printer.stream.getvalue()
 
 
 def assert_print_op(
