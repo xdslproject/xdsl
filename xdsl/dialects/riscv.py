@@ -3887,8 +3887,8 @@ class ParallelMovOp(IRDLOperation):
                 f"Num inputs: {len(self.inputs)}, Num outputs: {len(self.outputs)}"
             )
 
-        input_types = self.inputs.types
-        output_types = self.outputs.types
+        input_types: Sequence[RISCVRegisterType] = self.inputs.types
+        output_types: Sequence[RISCVRegisterType] = self.outputs.types
 
         # Check type of register type matches for input and output
         for input_type, output_type in zip(input_types, output_types, strict=True):
@@ -3896,12 +3896,12 @@ class ParallelMovOp(IRDLOperation):
                 raise VerifyException("Input type must match output type.")
 
         # Check outputs are distinct if allocated and not ZERO
-        unallocated_registers = [Registers.UNALLOCATED_INT, Registers.UNALLOCATED_FLOAT]
+        allowed_duplicates = [Registers.ZERO]  # RISC-V has special ZERO register, where writing to it is a noop
         filtered_outputs = tuple(
             i
             for i in output_types
-            if i not in unallocated_registers and i != Registers.ZERO
-        )  # RISC-V has special ZERO register, where writing to it is a noop
+            if (not i.is_allocated) and i not in allowed_duplicates
+        )
         if len(filtered_outputs) != len(set(filtered_outputs)):
             raise VerifyException("Outputs must be unallocated or distinct.")
 
