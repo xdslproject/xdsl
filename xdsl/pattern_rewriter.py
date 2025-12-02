@@ -3,7 +3,7 @@ from __future__ import annotations
 import inspect
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Iterable, Sequence
-from dataclasses import KW_ONLY, dataclass, field
+from dataclasses import dataclass, field
 from functools import wraps
 from types import UnionType
 from typing import Union, final, get_args, get_origin
@@ -554,9 +554,7 @@ class GreedyRewritePatternApplier(RewritePattern):
     ctx: Context | None = field(default=None)
     """Used to materialize constant operations when folding."""
 
-    _: KW_ONLY
-
-    folding_enabled: bool = field(default=False)
+    folding_enabled: bool = field(default=False, kw_only=True)
     """Whether the folders should be invoked.
     If this is True, the GreedyRewritePatternApplier must also have a context."""
 
