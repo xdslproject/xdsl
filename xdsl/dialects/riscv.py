@@ -3899,10 +3899,11 @@ class ParallelMovOp(IRDLOperation):
         allowed_duplicates = [
             Registers.ZERO
         ]  # RISC-V has special ZERO register, where writing to it is a noop
+        print(output_types, [i.is_allocated for i in output_types])
         filtered_outputs = tuple(
             i
             for i in output_types
-            if (not i.is_allocated) and i not in allowed_duplicates
+            if i.is_allocated and i not in allowed_duplicates
         )
         if len(filtered_outputs) != len(set(filtered_outputs)):
             raise VerifyException("Outputs must be unallocated or distinct.")
