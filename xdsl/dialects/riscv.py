@@ -3872,17 +3872,12 @@ class ParallelMovOp(IRDLOperation):
         self,
         inputs: Sequence[SSAValue],
         outputs: Sequence[RISCVRegisterType],
-        free_registers: Sequence[RISCVRegisterType] | None = None,
+        free_registers: ArrayAttr[RISCVRegisterType] | None = None,
     ):
-        if free_registers is None:
-            properties = None
-        else:
-            properties = {"free_registers": ArrayAttr(free_registers)}
-
         super().__init__(
             operands=(inputs,),
             result_types=(outputs,),
-            properties=properties,
+            properties={"free_registers": free_registers},
         )
 
     def verify_(self) -> None:
