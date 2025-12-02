@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from collections.abc import Set as AbstractSet
 from io import StringIO
-from typing import IO, Annotated, Generic, Literal, TypeAlias
+from typing import IO, Annotated, Generic, Literal, TypeAlias, cast
 
 from typing_extensions import Self, TypeVar
 
@@ -3887,8 +3887,8 @@ class ParallelMovOp(IRDLOperation):
                 f"Num inputs: {len(self.inputs)}, Num outputs: {len(self.outputs)}"
             )
 
-        input_types: Sequence[RISCVRegisterType] = self.inputs.types
-        output_types: Sequence[RISCVRegisterType] = self.outputs.types
+        input_types = cast(Sequence[RISCVRegisterType], self.inputs.types)
+        output_types = cast(Sequence[RISCVRegisterType], self.outputs.types)
 
         # Check type of register type matches for input and output
         for input_type, output_type in zip(input_types, output_types, strict=True):
@@ -3896,7 +3896,9 @@ class ParallelMovOp(IRDLOperation):
                 raise VerifyException("Input type must match output type.")
 
         # Check outputs are distinct if allocated and not ZERO
-        allowed_duplicates = [Registers.ZERO]  # RISC-V has special ZERO register, where writing to it is a noop
+        allowed_duplicates = [
+            Registers.ZERO
+        ]  # RISC-V has special ZERO register, where writing to it is a noop
         filtered_outputs = tuple(
             i
             for i in output_types
