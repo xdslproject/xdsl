@@ -559,6 +559,10 @@ class GreedyRewritePatternApplier(RewritePattern):
     If this is True, the GreedyRewritePatternApplier must also have a context."""
 
     def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter) -> None:
+        # Do not fold constant ops. That would lead to an infinite folding loop,
+        # as every constant op would be folded to an Attribute and then
+        # immediately be rematerialized as a constant op, which is then put
+        # back into the worklist.
         if (
             self.folding_enabled
             and op.has_trait(HasFolder, value_if_unregistered=False)
