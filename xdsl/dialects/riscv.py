@@ -3902,11 +3902,11 @@ class ParallelMovOp(IRDLOperation):
 
         # Check outputs are distinct if allocated and not ZERO
         unallocated_registers = [Registers.UNALLOCATED_INT, Registers.UNALLOCATED_FLOAT]
-        filtered_outputs = [
+        filtered_outputs = tuple(
             i
             for i in output_types
             if i not in unallocated_registers and i != Registers.ZERO
-        ]  # RISC-V has special ZERO register, where writing to it is a noop
+        )  # RISC-V has special ZERO register, where writing to it is a noop
         if len(filtered_outputs) != len(set(filtered_outputs)):
             raise VerifyException("Outputs must be unallocated or distinct.")
 
