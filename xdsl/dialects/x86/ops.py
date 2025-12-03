@@ -397,7 +397,7 @@ class DK_Operation(
         source: Operation | SSAValue,
         *,
         comment: str | StringAttr | None = None,
-        destination: AVX512RegisterType,
+        destination: GeneralRegisterType,
     ):
         if isinstance(comment, str):
             comment = StringAttr(comment)
@@ -433,7 +433,7 @@ class KS_Operation(
         source: Operation | SSAValue,
         *,
         comment: str | StringAttr | None = None,
-        destination: AVX512RegisterType,
+        destination: AVX512MaskRegisterType,
     ):
         if isinstance(comment, str):
             comment = StringAttr(comment)
