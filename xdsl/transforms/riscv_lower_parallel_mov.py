@@ -27,7 +27,7 @@ class ParallelMovPattern(RewritePattern):
         )
 
         results = []  # The resulting SSA values to use
-        for src, dst in zip(op.inputs, op.outputs):
+        for src, dst in zip(op.inputs, op.outputs, strict=True):
             if src.type == dst.type:
                 results.append(src)
             else:
