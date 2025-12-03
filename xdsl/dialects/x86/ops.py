@@ -3654,6 +3654,23 @@ class DK_KMovBOp(DK_Operation):
 
     name = "x86.dk.kmovb"
 
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        # There are two sets of `r` registers in x86, `rax` etc, and `r8`, `r9`, ...
+        # When reading 32 bits from the first set, the `e` variant should be used
+        # (`eax` for `rax` etc.) and when reading from the second set a `d` should be
+        # appended (`r8d` for `r8` etc.).
+        dest = self.destination.type
+        if isinstance(dest.index, NoneAttr):
+            raise ValueError("Unallocated register in assembly printing")
+        if 8 <= dest.index.data < 16:
+            dest_str = dest.register_name.data + "d"
+        else:
+            raise NotImplementedError(
+                f"32-bit Registers not yet implemented in x86 ({dest})"
+            )
+
+        return dest_str, self.source
+
 
 @irdl_op_definition
 class KS_KMovBOp(KS_Operation):
@@ -3671,6 +3688,23 @@ class DK_KMovWOp(DK_Operation):
     """
 
     name = "x86.dk.kmovw"
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        # There are two sets of `r` registers in x86, `rax` etc, and `r8`, `r9`, ...
+        # When reading 32 bits from the first set, the `e` variant should be used
+        # (`eax` for `rax` etc.) and when reading from the second set a `d` should be
+        # appended (`r8d` for `r8` etc.).
+        dest = self.destination.type
+        if isinstance(dest.index, NoneAttr):
+            raise ValueError("Unallocated register in assembly printing")
+        if 8 <= dest.index.data < 16:
+            dest_str = dest.register_name.data + "d"
+        else:
+            raise NotImplementedError(
+                f"32-bit Registers not yet implemented in x86 ({dest})"
+            )
+
+        return dest_str, self.source
 
 
 @irdl_op_definition
