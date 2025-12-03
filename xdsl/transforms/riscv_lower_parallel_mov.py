@@ -34,7 +34,7 @@ class ParallelMovPattern(RewritePattern):
             else:
                 raise NotImplementedError
 
-        rewriter.replace_matched_op(tuple(), results)
+        rewriter.replace_matched_op((), results)
 
 
 @dataclass(frozen=True)
