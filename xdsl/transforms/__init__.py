@@ -483,6 +483,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return riscv_allocate_registers.RISCVAllocateRegistersPass
 
+    def get_riscv_lower_parallel_mov():
+        from xdsl.transforms import riscv_lower_parallel_mov
+
+        return riscv_lower_parallel_mov.RISCVLowerParallelMovPass
+
     def get_riscv_prologue_epilogue_insertion():
         from xdsl.backend.riscv import prologue_epilogue_insertion
 
@@ -718,6 +723,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "reconcile-unrealized-casts": get_reconcile_unrealized_casts,
         "replace-incompatible-fpga": get_replace_incompatible_fpga,
         "riscv-allocate-registers": get_riscv_allocate_registers,
+        "riscv-lower-parallel-mov": get_riscv_lower_parallel_mov,
         "riscv-prologue-epilogue-insertion": get_riscv_prologue_epilogue_insertion,
         "riscv-scf-loop-range-folding": get_riscv_scf_loop_range_folding,
         "scf-for-loop-flatten": get_scf_for_loop_flatten,
