@@ -27,7 +27,7 @@ class ParallelMovPattern(RewritePattern):
         ):
             raise PassFailedException("All registers must be allocated")
 
-        results: Sequence[SSAValue] = []
+        results: list[SSAValue] = []
         for src, dst in zip(op.inputs, op.outputs, strict=True):
             if src.type == dst.type:
                 results.append(src)
