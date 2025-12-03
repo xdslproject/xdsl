@@ -12,6 +12,7 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
+from xdsl.utils.exceptions import PassFailedException
 
 
 class ParallelMovPattern(RewritePattern):
@@ -20,12 +21,11 @@ class ParallelMovPattern(RewritePattern):
         input_types = cast(Sequence[riscv.RISCVRegisterType], op.inputs.types)
         output_types = cast(Sequence[riscv.RISCVRegisterType], op.outputs.types)
 
-        assert all(i.is_allocated for i in input_types), (
-            "All registers must be allocated"
-        )
-        assert all(i.is_allocated for i in output_types), (
-            "All registers must be allocated"
-        )
+        if not (
+            all(i.is_allocated for i in input_types)
+            and all(i.is_allocated for i in output_types)
+        ):
+            raise PassFailedException("All registers must be allocated")
 
         results: Sequence[SSAValue] = []
         for src, dst in zip(op.inputs, op.outputs, strict=True):
