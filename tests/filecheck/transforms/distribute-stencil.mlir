@@ -92,6 +92,7 @@
     %47 = stencil.external_load %dyn_mem : memref<?x?x?xf64> -> !stencil.field<?x?x?xf64>
     %48 = stencil.external_load %sta_mem : memref<64x64x64xf64> -> !stencil.field<[-2,62]x[0,64]x[2,66]xf64>
     %casted = stencil.cast %47 : !stencil.field<?x?x?xf64> -> !stencil.field<[-2,62]x[0,64]x[2,66]xf64>
+    "test.op"(%casted) : (!stencil.field<[-2,62]x[0,64]x[2,66]xf64>) -> ()
     func.return
   }
 
@@ -101,6 +102,7 @@
 // SHAPE-NEXT:      %0 = stencil.external_load %dyn_mem : memref<?x?x?xf64> -> !stencil.field<?x?x?xf64>
 // SHAPE-NEXT:      %1 = stencil.external_load %sta_mem : memref<64x64x64xf64> -> !stencil.field<[-2,62]x[0,64]x[2,66]xf64>
 // SHAPE-NEXT:      %casted = stencil.cast %0 : !stencil.field<?x?x?xf64> -> !stencil.field<[-2,62]x[0,64]x[2,66]xf64>
+// SHAPE-NEXT:      "test.op"(%casted) : (!stencil.field<[-2,62]x[0,64]x[2,66]xf64>) -> ()
 // SHAPE-NEXT:      func.return
 // SHAPE-NEXT:    }
 
@@ -156,7 +158,7 @@
 // SHAPE-NEXT:      func.return
 // SHAPE-NEXT:    }
 
-func.func @store_result_lowering(%arg0 : f64) {
+func.func @store_result_lowering(%arg0 : f64) -> (!stencil.temp<[0,7]x[0,7]x[0,7]xf64>, !stencil.temp<[0,7]x[0,7]x[0,7]xf64>) {
     %95, %96 = stencil.apply(%arg1 = %arg0 : f64) -> (!stencil.temp<[0,7]x[0,7]x[0,7]xf64>, !stencil.temp<[0,7]x[0,7]x[0,7]xf64>) {
       %97 = stencil.store_result %arg1 : !stencil.result<f64>
       %98 = stencil.store_result %arg1 : !stencil.result<f64>
@@ -164,10 +166,11 @@ func.func @store_result_lowering(%arg0 : f64) {
     }
     %99 = stencil.buffer %96 : !stencil.temp<[0,7]x[0,7]x[0,7]xf64> -> !stencil.temp<[0,7]x[0,7]x[0,7]xf64>
     %100 = stencil.buffer %95 : !stencil.temp<[0,7]x[0,7]x[0,7]xf64> -> !stencil.temp<[0,7]x[0,7]x[0,7]xf64>
-    func.return
+    //"test.op"(%99, %100) : (!stencil.temp<[0,7]x[0,7]x[0,7]xf64>, !stencil.temp<[0,7]x[0,7]x[0,7]xf64>)
+    func.return %99, %100 : !stencil.temp<[0,7]x[0,7]x[0,7]xf64>, !stencil.temp<[0,7]x[0,7]x[0,7]xf64>
   }
 
-// SHAPE:         func.func @store_result_lowering(%arg0 : f64) {
+// SHAPE:         func.func @store_result_lowering(%arg0 : f64) -> (!stencil.temp<[0,7]x[0,7]x[0,7]xf64>, !stencil.temp<[0,7]x[0,7]x[0,7]xf64>) {
 // SHAPE-NEXT:      %0, %1 = stencil.apply(%arg1 = %arg0 : f64) -> (!stencil.temp<[0,7]x[0,7]x[0,7]xf64>, !stencil.temp<[0,7]x[0,7]x[0,7]xf64>) {
 // SHAPE-NEXT:        %2 = stencil.store_result %arg1 : !stencil.result<f64>
 // SHAPE-NEXT:        %3 = stencil.store_result %arg1 : !stencil.result<f64>
