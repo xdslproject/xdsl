@@ -1,9 +1,10 @@
 from collections.abc import Sequence
 from dataclasses import dataclass
+from typing import cast
 
 from xdsl.context import Context
 from xdsl.dialects import riscv
-from xdsl.dialects.builtin import ModuleOp
+from xdsl.dialects.builtin import ModuleOp, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     PatternRewriter,
@@ -16,8 +17,8 @@ from xdsl.pattern_rewriter import (
 class ParallelMovPattern(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: riscv.ParallelMovOp, rewriter: PatternRewriter):
-        input_types: Sequence[riscv.RISCVRegisterType] = op.inputs.types
-        output_types: Sequence[riscv.RISCVRegisterType] = op.outputs.types
+        input_types = cast(Sequence[riscv.RISCVRegisterType], op.inputs.types)
+        output_types = cast(Sequence[riscv.RISCVRegisterType], op.outputs.types)
 
         assert all(i.is_allocated for i in input_types), (
             "All registers must be allocated"
@@ -26,7 +27,7 @@ class ParallelMovPattern(RewritePattern):
             "All registers must be allocated"
         )
 
-        results = []  # The resulting SSA values to use
+        results: Sequence[SSAValue] = []
         for src, dst in zip(op.inputs, op.outputs, strict=True):
             if src.type == dst.type:
                 results.append(src)
