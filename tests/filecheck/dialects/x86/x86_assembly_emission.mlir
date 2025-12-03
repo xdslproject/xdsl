@@ -530,12 +530,12 @@ x86.ms.vmovntps %1, %zmm1, 8 : (!x86.reg<rdx>, !x86.avx512reg<zmm1>) -> ()
 %ks_kmovb = x86.ks.kmovb %r8 : (!x86.reg<r8>) -> !x86.avx512maskreg<k1>
 // CHECK-NEXT: kmovb k1, r8
 %dk_kmovb = x86.dk.kmovb %ks_kmovb : (!x86.avx512maskreg<k1>) -> !x86.reg<r8>
-// CHECK-NEXT: kmovb r8, k1
+// CHECK-NEXT: kmovb r8d, k1
 
 %ks_kmovw = x86.ks.kmovw %r8 : (!x86.reg<r8>) -> !x86.avx512maskreg<k1>
 // CHECK-NEXT: kmovw k1, r8
 %dk_kmovw = x86.dk.kmovw %ks_kmovw : (!x86.avx512maskreg<k1>) -> !x86.reg<r8>
-// CHECK-NEXT: kmovw r8, k1
+// CHECK-NEXT: kmovw r8d, k1
 
 %ks_kmovd = x86.ks.kmovd %r8 : (!x86.reg<r8>) -> !x86.avx512maskreg<k1>
 // CHECK-NEXT: kmovd k1, r8

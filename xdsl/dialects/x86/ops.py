@@ -3685,17 +3685,18 @@ class KS_KMovBOp(KS_Operation):
         # When reading 32 bits from the first set, the `e` variant should be used
         # (`eax` for `rax` etc.) and when reading from the second set a `d` should be
         # appended (`r8d` for `r8` etc.).
-        dest = self.destination.type
-        if isinstance(dest.index, NoneAttr):
+        source = self.source.type
+        assert isinstance(source, GeneralRegisterType)
+        if isinstance(source.index, NoneAttr):
             raise ValueError("Unallocated register in assembly printing")
-        if 8 <= dest.index.data < 16:
-            dest_str = dest.register_name.data + "d"
+        if 8 <= source.index.data < 16:
+            source_str = source.register_name.data + "d"
         else:
             raise NotImplementedError(
-                f"32-bit Registers not yet implemented in x86 ({dest})"
+                f"32-bit Registers not yet implemented in x86 ({source})"
             )
 
-        return self.source, dest_str
+        return self.destination, source_str
 
 
 @irdl_op_definition
@@ -3737,17 +3738,18 @@ class KS_KMovWOp(KS_Operation):
         # When reading 32 bits from the first set, the `e` variant should be used
         # (`eax` for `rax` etc.) and when reading from the second set a `d` should be
         # appended (`r8d` for `r8` etc.).
-        dest = self.destination.type
-        if isinstance(dest.index, NoneAttr):
+        source = self.source.type
+        assert isinstance(source, GeneralRegisterType)
+        if isinstance(source.index, NoneAttr):
             raise ValueError("Unallocated register in assembly printing")
-        if 8 <= dest.index.data < 16:
-            dest_str = dest.register_name.data + "d"
+        if 8 <= source.index.data < 16:
+            source_str = source.register_name.data + "d"
         else:
             raise NotImplementedError(
-                f"32-bit Registers not yet implemented in x86 ({dest})"
+                f"32-bit Registers not yet implemented in x86 ({source})"
             )
 
-        return self.source, dest_str
+        return self.destination, source_str
 
 
 @irdl_op_definition
@@ -3789,17 +3791,18 @@ class KS_KMovDOp(KS_Operation):
         # When reading 32 bits from the first set, the `e` variant should be used
         # (`eax` for `rax` etc.) and when reading from the second set a `d` should be
         # appended (`r8d` for `r8` etc.).
-        dest = self.destination.type
-        if isinstance(dest.index, NoneAttr):
+        source = self.source.type
+        assert isinstance(source, GeneralRegisterType)
+        if isinstance(source.index, NoneAttr):
             raise ValueError("Unallocated register in assembly printing")
-        if 8 <= dest.index.data < 16:
-            dest_str = dest.register_name.data + "d"
+        if 8 <= source.index.data < 16:
+            source_str = source.register_name.data + "d"
         else:
             raise NotImplementedError(
-                f"32-bit Registers not yet implemented in x86 ({dest})"
+                f"32-bit Registers not yet implemented in x86 ({source})"
             )
 
-        return self.source, dest_str
+        return self.destination, source_str
 
 
 @irdl_op_definition
