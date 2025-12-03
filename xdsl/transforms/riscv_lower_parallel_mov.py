@@ -32,7 +32,7 @@ class ParallelMovPattern(RewritePattern):
             if src.type == dst.type:
                 results.append(src)
             else:
-                raise NotImplementedError
+                raise PassFailedException("Not implemented")
 
         rewriter.replace_matched_op((), results)
 
