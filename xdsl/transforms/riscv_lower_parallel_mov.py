@@ -4,7 +4,7 @@ from typing import cast
 
 from xdsl.context import Context
 from xdsl.dialects import riscv
-from xdsl.dialects.builtin import ModuleOp, SSAValue
+from xdsl.dialects.builtin import ModuleOp, Operation, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     PatternRewriter,
@@ -27,14 +27,34 @@ class ParallelMovPattern(RewritePattern):
         ):
             raise PassFailedException("All registers must be allocated")
 
-        results: list[SSAValue] = []
-        for src, dst in zip(op.inputs, op.outputs, strict=True):
-            if src.type == dst.type:
-                results.append(src)
-            else:
-                raise PassFailedException("Not implemented")
+        num_operands = len(op.operands)
 
-        rewriter.replace_matched_op((), results)
+        new_ops: list[Operation] = []
+        results: list[SSAValue | None] = [None] * num_operands
+
+        dst_to_src: dict[riscv.RegisterType, SSAValue] = {}
+
+        # registers which are outputs but not inputs
+        end_regs: set[riscv.RegisterType, SSAValue] = set(op.outputs.types)
+
+        for idx, src, dst in zip(
+            range(num_operands), op.inputs, op.outputs, strict=True
+        ):
+            end_regs.discard(src.type)
+
+            if src.type == dst.type:
+                results[idx] = src
+            else:
+                dst_to_src[dst.type] = src
+
+        for dst in end_regs:
+            while dst in dst_to_src:
+                src = dst_to_src[dst]
+                new_ops.append(riscv.MVOp(src, rd=dst))
+                results[op.outputs.types.index(dst)] = new_ops[-1].results[0]
+                dst = src.type
+
+        rewriter.replace_matched_op(new_ops, results)
 
 
 @dataclass(frozen=True)
