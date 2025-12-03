@@ -6,51 +6,30 @@ from xdsl.dialects.builtin import IndexType, IntegerAttr, IntegerType, UnitAttr
 from xdsl.ir import SSAValue
 from xdsl.parser import Parser
 from xdsl.printer import Printer
-from xdsl.utils.hints import isa
 
 from .attributes import LabelAttr
-from .registers import (
-    AVX512MaskRegisterType,
-    GeneralRegisterType,
-    RFLAGSRegisterType,
-    X86VectorRegisterType,
-)
+from .registers import X86RegisterType
 
 AssemblyInstructionArg: TypeAlias = (
-    IntegerAttr | SSAValue | GeneralRegisterType | str | int | LabelAttr
+    IntegerAttr | SSAValue | X86RegisterType | str | int | LabelAttr
 )
 
 
 def assembly_arg_str(arg: AssemblyInstructionArg) -> str:
-    if isa(arg, IntegerAttr):
-        return f"{arg.value.data}"
+    if isinstance(arg, X86RegisterType):
+        return arg.register_name.data
+    elif isinstance(arg, SSAValue):
+        if not isinstance(arg.type, X86RegisterType):
+            raise ValueError(f"Unexpected register type {arg.type}")
+        return arg.type.register_name.data
     elif isinstance(arg, int):
         return f"{arg}"
     elif isinstance(arg, str):
         return arg
-    elif isinstance(arg, GeneralRegisterType):
-        return arg.register_name.data
-    elif isinstance(arg, RFLAGSRegisterType):
-        return arg.register_name.data
-    elif isinstance(arg, X86VectorRegisterType):
-        return arg.register_name.data
     elif isinstance(arg, LabelAttr):
         return arg.data
     else:
-        if isinstance(arg.type, GeneralRegisterType):
-            reg = arg.type.register_name
-            return reg.data
-        elif isinstance(arg.type, RFLAGSRegisterType):
-            reg = arg.type.register_name
-            return reg.data
-        elif isinstance(arg.type, X86VectorRegisterType):
-            reg = arg.type.register_name
-            return reg.data
-        elif isinstance(arg.type, AVX512MaskRegisterType):
-            reg = arg.type.register_name
-            return f"{{{reg.data}}}"
-        else:
-            raise ValueError(f"Unexpected register type {arg.type}")
+        return f"{arg.value.data}"
 
 
 def parse_immediate_value(
@@ -113,7 +92,9 @@ def masked_source_str(reg_in: SSAValue, mask: SSAValue, z: UnitAttr | None) -> s
     Returns string for asm printing of the register followed by the {k} (and optionally {z})
     specifiers, in AVX512 masked operations
     """
-    register_in = assembly_arg_str(reg_in) + " " + assembly_arg_str(mask)
+    reg_in_str = assembly_arg_str(reg_in)
+    mask_str = assembly_arg_str(mask)
+    res = f"{reg_in_str} {{{mask_str}}}"
     if z:
-        register_in += "{z}"
-    return register_in
+        res += "{z}"
+    return res
