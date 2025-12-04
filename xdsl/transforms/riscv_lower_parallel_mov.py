@@ -5,6 +5,7 @@ from typing import cast
 from xdsl.context import Context
 from xdsl.dialects import riscv
 from xdsl.dialects.builtin import ModuleOp, Operation, SSAValue
+from xdsl.ir import Attribute
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     PatternRewriter,
@@ -35,7 +36,7 @@ class ParallelMovPattern(RewritePattern):
         dst_to_src: dict[riscv.RegisterType, SSAValue] = {}
 
         # registers which are outputs but not inputs
-        end_regs: set[riscv.RegisterType, SSAValue] = set(op.outputs.types)
+        end_regs: set[Attribute] = set(op.outputs.types)
 
         for idx, src, dst in zip(
             range(num_operands), op.inputs, op.outputs, strict=True
