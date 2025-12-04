@@ -88,9 +88,31 @@ class ParallelMovPattern(RewritePattern):
         # Therefore, all nodes in the cycle will be unprocessed, and their results
         # will still be None
 
-        for x in results:
-            if x is None:
-                raise PassFailedException("Not implemented: cyclic moves")
+        for idx, val in enumerate(results):
+            if val is None:
+                if not op.free_registers:
+                    # free registers is empty or None
+                    raise PassFailedException(
+                        "Cyclic move detected with no free registers."
+                    )
+
+                temp_reg = op.free_registers.data[0]  # get first free register
+                # Break the cycle by using free register
+                # split the current mov
+                cur_input = op.inputs[idx]
+                cur_output = op.outputs[idx]
+                temp_ssa = riscv.MVOp(cur_input, rd=temp_reg)
+                new_ops.append(temp_ssa)
+                # iterate up the chain until we reach the current output
+                dst = cur_input.type
+                while dst != cur_output.type:
+                    src = dst_to_src[dst]
+                    new_ops.append(riscv.MVOp(src, rd=dst))
+                    results[op.outputs.types.index(dst)] = new_ops[-1].results[0]
+                    dst = src.type
+                # finish the split mov
+                new_ops.append(riscv.MVOp(temp_ssa, rd=cur_output.type))
+                results[idx] = new_ops[-1].results[0]
 
         rewriter.replace_matched_op(new_ops, results)
 
