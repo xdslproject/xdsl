@@ -911,7 +911,7 @@ class SSAValues(tuple[SSAValueCovT, ...], Generic[SSAValueCovT]):
     """
 
     @property
-    def types(self):
+    def types(self: tuple[SSAValue[AttributeInvT], ...]) -> tuple[AttributeInvT, ...]:
         return tuple(o.type for o in self)
 
     @overload
