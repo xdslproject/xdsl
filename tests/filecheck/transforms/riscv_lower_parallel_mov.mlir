@@ -21,10 +21,12 @@ builtin.module {
   %4 = riscv.add %2, %3 : (!riscv.reg<s2>, !riscv.reg<s3>) -> !riscv.reg
 }
 
-// CHECK:         %2, %3 = "riscv.parallel_mov"(%0, %1) : (!riscv.reg<s1>, !riscv.reg<s2>) -> (!riscv.reg<s2>, !riscv.reg<s3>)
-// CHECK-NEXT:    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^------------------
-// CHECK-NEXT:    | Error while applying pattern: Not implemented
-// CHECK-NEXT:    -----------------------------------------------
+// CHECK:       builtin.module {
+// CHECK-NEXT:    %0, %1 = "test.op"() : () -> (!riscv.reg<s1>, !riscv.reg<s2>)
+// CHECK-NEXT:    %2 = riscv.mv %1 : (!riscv.reg<s2>) -> !riscv.reg<s3>
+// CHECK-NEXT:    %3 = riscv.mv %0 : (!riscv.reg<s1>) -> !riscv.reg<s2>
+// CHECK-NEXT:    %4 = riscv.add %3, %2 : (!riscv.reg<s2>, !riscv.reg<s3>) -> !riscv.reg
+// CHECK-NEXT:  }
 // -----
 
 // Test cycle case

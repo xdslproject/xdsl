@@ -55,6 +55,10 @@ class ParallelMovPattern(RewritePattern):
                 results[op.outputs.types.index(dst)] = new_ops[-1].results[0]
                 dst = src.type
 
+        for x in results:
+            if x is None:
+                raise PassFailedException("Not implemented: cyclic moves")
+
         rewriter.replace_matched_op(new_ops, results)
 
 
