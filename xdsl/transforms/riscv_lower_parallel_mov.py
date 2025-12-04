@@ -1,3 +1,4 @@
+from collections import Counter
 from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import cast
@@ -33,31 +34,50 @@ class ParallelMovPattern(RewritePattern):
         new_ops: list[Operation] = []
         results: list[SSAValue | None] = [None] * num_operands
 
-        dst_to_src: dict[riscv.RegisterType, SSAValue] = {}
+        # We have a graph with nodes as registers and directed edges as moves,
+        # pointing from source to destination.
+        # Every node has at most 1 in edge since we can't write to a register twice.
+        # Therefore the graph forms a directed pseudoforest, which is a group of
+        # connected components with at most 1 cycle.
 
-        # registers which are outputs but not inputs
-        end_regs: set[Attribute] = set(op.outputs.types)
+        # If we ignore the cycles, we will have a forest.
+        # For each tree, we need to perform each move such that all out edges of a node
+        # are before the in edge.
+        # We can do this by storing processed edges for each node.
+        # Then we iterate up the tree from every leaf, stopping whenever we encounter
+        # a node where all out edges haven't been processed yet.
+
+        # store the back edges of the graph
+        dst_to_src: dict[riscv.RegisterType, SSAValue] = {}
+        leafs: set[Attribute] = set(op.outputs.types)
+        unprocessed_children: dict[SSAValue, int] = Counter()
 
         for idx, src, dst in zip(
             range(num_operands), op.inputs, op.outputs, strict=True
         ):
-            end_regs.discard(src.type)
+            leafs.discard(src.type)
 
             if src.type == dst.type:
+                # Trivial case of moving register to itself.
+                # We can ignore all instances of this
                 results[idx] = src
             else:
                 dst_to_src[dst.type] = src
+                unprocessed_children[src] += 1
 
-        for dst in end_regs:
+        for dst in leafs:
+            # Iterate up the tree by traversing back edges.
             while dst in dst_to_src:
                 src = dst_to_src[dst]
                 new_ops.append(riscv.MVOp(src, rd=dst))
+                # sanity check since we should only have 1 result per output
+                assert results[op.outputs.types.index(dst)] is None
                 results[op.outputs.types.index(dst)] = new_ops[-1].results[0]
+                unprocessed_children[src] -= 1
+                # only continue up the tree if all children were processed
+                if unprocessed_children[src] > 0:
+                    break
                 dst = src.type
-
-        for x in results:
-            if x is None:
-                raise PassFailedException("Not implemented: cyclic moves")
 
         rewriter.replace_matched_op(new_ops, results)
 
