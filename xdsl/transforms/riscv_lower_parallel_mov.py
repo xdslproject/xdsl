@@ -50,7 +50,7 @@ class ParallelMovPattern(RewritePattern):
         # store the back edges of the graph
         dst_to_src: dict[riscv.RegisterType, SSAValue] = {}
         leafs: set[Attribute] = set(op.outputs.types)
-        unprocessed_children: dict[SSAValue, int] = Counter()
+        unprocessed_children: Counter[SSAValue] = Counter()
 
         for idx, src, dst in zip(
             range(num_operands), op.inputs, op.outputs, strict=True
