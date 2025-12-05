@@ -49,14 +49,14 @@ class ParallelMovPattern(RewritePattern):
 
         # store the back edges of the graph
         dst_to_src: dict[riscv.RegisterType, SSAValue] = {}
-        leafs: set[Attribute] = set(op.outputs.types)
+        leaves: set[Attribute] = set(op.outputs.types)
         unprocessed_children: Counter[SSAValue] = Counter()
 
         for idx, src, dst in zip(
             range(num_operands), op.inputs, op.outputs, strict=True
         ):
             # src.type points to something so it can't be a leaf
-            leafs.discard(src.type)
+            leaves.discard(src.type)
 
             if src.type == dst.type:
                 # Trivial case of moving register to itself.
@@ -66,7 +66,7 @@ class ParallelMovPattern(RewritePattern):
                 dst_to_src[dst.type] = src
                 unprocessed_children[src] += 1
 
-        for dst in leafs:
+        for dst in leaves:
             # Iterate up the tree by traversing back edges.
             while dst in dst_to_src:
                 src = dst_to_src[dst]
