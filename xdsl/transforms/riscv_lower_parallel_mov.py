@@ -42,8 +42,8 @@ class ParallelMovPattern(RewritePattern):
 
         # If we ignore the cycles, we will have a forest.
         # For each tree, we need to perform each move such that all out edges of a node
-        # are before the in edge.
-        # We can do this by storing processed edges for each node.
+        # are before the in edge, so a post-order traversal.
+        # We can do this iteratively by storing processed edges for each node.
         # Then we iterate up the tree from every leaf, stopping whenever we encounter
         # a node where all out edges haven't been processed yet.
 
@@ -55,6 +55,7 @@ class ParallelMovPattern(RewritePattern):
         for idx, src, dst in zip(
             range(num_operands), op.inputs, op.outputs, strict=True
         ):
+            # src.type points to something so it can't be a leaf
             leafs.discard(src.type)
 
             if src.type == dst.type:
@@ -78,6 +79,16 @@ class ParallelMovPattern(RewritePattern):
                 if unprocessed_children[src] > 0:
                     break
                 dst = src.type
+
+        # If we have a cycle in the graph, all trees pointing into the cycle cannot
+        # enter the cycle because it will have an unprocessed node from its previous
+        # node in the cycle.
+        # Therefore, all nodes in the cycle will be unprocessed, and their results
+        # will still be None
+
+        for x in results:
+            if x is None:
+                raise PassFailedException("Not implemented: cyclic moves")
 
         rewriter.replace_matched_op(new_ops, results)
 
