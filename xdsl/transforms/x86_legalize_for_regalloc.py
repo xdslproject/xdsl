@@ -9,8 +9,13 @@ from xdsl.rewriter import Rewriter
 
 
 @dataclass(frozen=True)
-class X86SimplifyPass(ModulePass):
-    name = "x86-simplify"
+class X86LegalizeForRegallocPass(ModulePass):
+    """
+    Legalize x86 code before register allocation:
+    - remove copies when they are the last use of a register variable.
+    """
+
+    name = "x86-legalize-for-regalloc"
 
     def _process_region(
         self,
@@ -18,7 +23,7 @@ class X86SimplifyPass(ModulePass):
         to_erase: list[Operation] = [],
         alive: set[SSAValue] = set(),
     ) -> None:
-        alive_card = len(alive)
+        alive_cardinality = len(alive)
         if not region.blocks:
             return
         assert region.first_block
@@ -40,7 +45,7 @@ class X86SimplifyPass(ModulePass):
                     )
             # Handle the block arguments
             alive.difference_update(block.args)
-        assert alive_card == len(alive)
+        assert alive_cardinality == len(alive)
 
     def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         to_erase: list[Operation] = []

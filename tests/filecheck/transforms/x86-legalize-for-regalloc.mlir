@@ -1,4 +1,4 @@
-// RUN: xdsl-opt -p x86-simplify %s --split-input-file | filecheck %s
+// RUN: xdsl-opt -p x86-legalize-for-regalloc %s --split-input-file | filecheck %s
 
 %reg0 = "test.op"() : () -> !x86.reg
 %reg1 = x86.ds.mov %reg0: (!x86.reg) -> !x86.reg
