@@ -11,7 +11,9 @@ from typing import Union, final, get_args, get_origin
 from typing_extensions import TypeVar, deprecated
 
 from xdsl.builder import Builder, BuilderListener, InsertOpInvT
+from xdsl.context import Context
 from xdsl.dialects.builtin import ArrayAttr, DictionaryAttr, ModuleOp
+from xdsl.folder import Folder
 from xdsl.ir import (
     Attribute,
     Block,
@@ -25,6 +27,7 @@ from xdsl.ir import (
 )
 from xdsl.irdl import AttrConstraint, base
 from xdsl.rewriter import BlockInsertPoint, InsertPoint, Rewriter
+from xdsl.traits import ConstantLike, HasFolder
 from xdsl.utils.hints import isa
 
 
@@ -542,12 +545,37 @@ class GreedyRewritePatternApplier(RewritePattern):
     """
     Apply a list of patterns in order until one pattern matches,
     and then use this rewrite.
+    By default, the applier attempts to fold the operation first.
     """
 
     rewrite_patterns: list[RewritePattern]
     """The list of rewrites to apply in order."""
 
+    ctx: Context | None = field(default=None)
+    """Used to materialize constant operations when folding."""
+
+    folding_enabled: bool = field(default=False, kw_only=True)
+    """Whether the folders should be invoked.
+    If this is True, the GreedyRewritePatternApplier must also have a context."""
+
     def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter) -> None:
+        # Do not fold constant ops. That would lead to an infinite folding loop,
+        # as every constant op would be folded to an Attribute and then
+        # immediately be rematerialized as a constant op, which is then put
+        # back into the worklist.
+        if (
+            self.folding_enabled
+            and op.has_trait(HasFolder, value_if_unregistered=False)
+            and not op.has_trait(ConstantLike, value_if_unregistered=True)
+        ):
+            if self.ctx is None:
+                raise ValueError("Context is required for folding")
+            folded = Folder(self.ctx).try_fold(op)
+            if folded is not None:
+                folded_values, folded_ops = folded
+                rewriter.replace_op(op, new_ops=folded_ops, new_results=folded_values)
+                return
+
         for pattern in self.rewrite_patterns:
             pattern.match_and_rewrite(op, rewriter)
             if rewriter.has_done_action:
