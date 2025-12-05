@@ -4,42 +4,54 @@
 builtin.module {
   %0, %1 = "test.op"() : () -> (!riscv.reg<s1>, !riscv.reg<s2>)
   %2, %3 = riscv.parallel_mov %0, %1 : (!riscv.reg<s1>, !riscv.reg<s2>) -> (!riscv.reg<s1>, !riscv.reg<s2>)
-  %4 = riscv.add %2, %3 : (!riscv.reg<s1>, !riscv.reg<s2>) -> !riscv.reg
+  "test.op"(%2, %3) : (!riscv.reg<s1>, !riscv.reg<s2>) -> ()
 }
 
 // CHECK:       builtin.module {
 // CHECK-NEXT:    %0, %1 = "test.op"() : () -> (!riscv.reg<s1>, !riscv.reg<s2>)
-// CHECK-NEXT:    %2 = riscv.add %0, %1 : (!riscv.reg<s1>, !riscv.reg<s2>) -> !riscv.reg
+// CHECK-NEXT:    "test.op"(%0, %1) : (!riscv.reg<s1>, !riscv.reg<s2>) -> ()
 // CHECK-NEXT:  }
 
 // -----
 
-// Test non-cycle case
+// Test chain case:
+//   s1
+//   |
+//   v
+//   s2
+//   |
+//   v
+//   s3
 builtin.module {
   %0, %1 = "test.op"() : () -> (!riscv.reg<s1>, !riscv.reg<s2>)
   %2, %3 = riscv.parallel_mov %0, %1 : (!riscv.reg<s1>, !riscv.reg<s2>) -> (!riscv.reg<s2>, !riscv.reg<s3>)
-  %4 = riscv.add %2, %3 : (!riscv.reg<s2>, !riscv.reg<s3>) -> !riscv.reg
+  "test.op"(%2, %3) : (!riscv.reg<s2>, !riscv.reg<s3>) -> ()
 }
 
 // CHECK:       builtin.module {
 // CHECK-NEXT:    %0, %1 = "test.op"() : () -> (!riscv.reg<s1>, !riscv.reg<s2>)
 // CHECK-NEXT:    %2 = riscv.mv %1 : (!riscv.reg<s2>) -> !riscv.reg<s3>
 // CHECK-NEXT:    %3 = riscv.mv %0 : (!riscv.reg<s1>) -> !riscv.reg<s2>
-// CHECK-NEXT:    %4 = riscv.add %3, %2 : (!riscv.reg<s2>, !riscv.reg<s3>) -> !riscv.reg
+// CHECK-NEXT:    "test.op"(%3, %2) : (!riscv.reg<s2>, !riscv.reg<s3>)
 // CHECK-NEXT:  }
 // -----
 
 // Test cycle case
+//    s1
+//   /  ^
+//   |  |
+//   v  /
+//    s2
 builtin.module {
   %0, %1 = "test.op"() : () -> (!riscv.reg<s1>, !riscv.reg<s2>)
   %2, %3 = riscv.parallel_mov %0, %1 : (!riscv.reg<s1>, !riscv.reg<s2>) -> (!riscv.reg<s2>, !riscv.reg<s1>)
-  %4 = riscv.add %2, %3 : (!riscv.reg<s2>, !riscv.reg<s1>) -> !riscv.reg
+  "test.op"(%2, %3) : (!riscv.reg<s2>, !riscv.reg<s1>) -> ()
 }
 
 // CHECK:         %2, %3 = "riscv.parallel_mov"(%0, %1) : (!riscv.reg<s1>, !riscv.reg<s2>) -> (!riscv.reg<s2>, !riscv.reg<s1>)
-// CHECK-NEXT:    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^------------------
-// CHECK-NEXT:    | Error while applying pattern: Not implemented
-// CHECK-NEXT:    -----------------------------------------------
+// CHECK-NEXT:    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^--------------------------------
+// CHECK-NEXT:    | Error while applying pattern: Not implemented: cyclic moves
+// CHECK-NEXT:    -------------------------------------------------------------
 
 // -----
 
