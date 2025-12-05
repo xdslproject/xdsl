@@ -4,7 +4,7 @@ from typing import cast
 
 from xdsl.builder import Builder
 from xdsl.context import Context
-from xdsl.dialects import builtin, pdl, pdl_interp
+from xdsl.dialects import builtin, eqsat_pdl_interp, pdl, pdl_interp
 from xdsl.dialects.builtin import StringAttr
 from xdsl.interpreter import Interpreter
 from xdsl.interpreters.eqsat_pdl_interp import EqsatPDLInterpFunctions
@@ -15,6 +15,9 @@ from xdsl.rewriter import InsertPoint
 from xdsl.traits import SymbolTable
 from xdsl.transforms.apply_eqsat_pdl_interp import EqsatConstraintFunctions
 from xdsl.transforms.apply_pdl_interp import PDLInterpRewritePattern
+from xdsl.transforms.convert_pdl_interp_to_eqsat_pdl_interp import (
+    ConvertPDLInterpToEqsatPDLInterpPass,
+)
 from xdsl.transforms.mlir_opt import MLIROptPass
 
 
@@ -68,6 +71,7 @@ class ApplyEqsatPDLPass(ModulePass):
             arguments=("--convert-pdl-to-pdl-interp", "-allow-unregistered-dialect")
         )
         pdl_to_pdl_interp.apply(ctx, temp_module)
+        ConvertPDLInterpToEqsatPDLInterpPass().apply(ctx, temp_module)
         return temp_module
 
     def _extract_matcher_and_rewriters(
@@ -116,7 +120,8 @@ class ApplyEqsatPDLPass(ModulePass):
 
             assert matcher.body.last_block is not None
             assert isinstance(
-                recordmatch := matcher.body.last_block.last_op, pdl_interp.RecordMatchOp
+                recordmatch := matcher.body.last_block.last_op,
+                eqsat_pdl_interp.RecordMatchOp,
             )
             name = (
                 pattern_op.sym_name
@@ -170,6 +175,7 @@ class ApplyEqsatPDLPass(ModulePass):
         )
         pdl_to_pdl_interp.apply(ctx, pdl_module)
         pdl_interp_module = pdl_module
+        ConvertPDLInterpToEqsatPDLInterpPass().apply(ctx, pdl_interp_module)
 
         matcher = SymbolTable.lookup_symbol(pdl_interp_module, "matcher")
         assert isinstance(matcher, pdl_interp.FuncOp)

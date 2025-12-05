@@ -35,13 +35,13 @@ func.func @impl() -> i32 {
 }
 
 pdl_interp.func @matcher(%arg0: !pdl.operation) {
-  %0 = pdl_interp.get_result 0 of %arg0
+  %0 = eqsat_pdl_interp.get_result 0 of %arg0
   pdl_interp.is_not_null %0 : !pdl.value -> ^bb2, ^bb1
 ^bb1:  // 16 preds: ^bb0, ^bb2, ^bb3, ^bb4, ^bb5, ^bb6, ^bb7, ^bb8, ^bb9, ^bb10, ^bb11, ^bb12, ^bb13, ^bb14, ^bb15, ^bb16
-  pdl_interp.finalize
+  eqsat_pdl_interp.finalize
 ^bb2:  // pred: ^bb0
   %1 = pdl_interp.get_operand 0 of %arg0
-  %2 = pdl_interp.get_defining_op of %1 : !pdl.value
+  %2 = eqsat_pdl_interp.get_defining_op of %1 : !pdl.value
   pdl_interp.is_not_null %2 : !pdl.operation -> ^bb3, ^bb1
 ^bb3:  // pred: ^bb2
   pdl_interp.check_operation_name of %arg0 is "arith.subi" -> ^bb4, ^bb1
@@ -67,7 +67,7 @@ pdl_interp.func @matcher(%arg0: !pdl.operation) {
   %5 = pdl_interp.get_operand 1 of %2
   pdl_interp.is_not_null %5 : !pdl.value -> ^bb13, ^bb1
 ^bb13:  // pred: ^bb12
-  %6 = pdl_interp.get_result 0 of %2
+  %6 = eqsat_pdl_interp.get_result 0 of %2
   pdl_interp.is_not_null %6 : !pdl.value -> ^bb14, ^bb1
 ^bb14:  // pred: ^bb13
   pdl_interp.are_equal %6, %1 : !pdl.value -> ^bb15, ^bb1
@@ -76,16 +76,16 @@ pdl_interp.func @matcher(%arg0: !pdl.operation) {
   %8 = pdl_interp.get_value_type of %0 : !pdl.type
   pdl_interp.are_equal %7, %8 : !pdl.type -> ^bb16, ^bb1
 ^bb16:  // pred: ^bb15
-  pdl_interp.record_match @rewriters::@pdl_generated_rewriter(%5, %3, %7, %4, %arg0 : !pdl.value, !pdl.value, !pdl.type, !pdl.value, !pdl.operation) : benefit(1), generatedOps(["arith.subi", "arith.addi"]), loc([%2, %arg0]), root("arith.subi") -> ^bb1
+  eqsat_pdl_interp.record_match @rewriters::@pdl_generated_rewriter(%5, %3, %7, %4, %arg0 : !pdl.value, !pdl.value, !pdl.type, !pdl.value, !pdl.operation) : benefit(1), generatedOps(["arith.subi", "arith.addi"]), loc([%2, %arg0]), root("arith.subi") -> ^bb1
 }
 module @rewriters {
   pdl_interp.func @pdl_generated_rewriter(%arg0: !pdl.value, %arg1: !pdl.value, %arg2: !pdl.type, %arg3: !pdl.value, %arg4: !pdl.operation) {
-    %0 = pdl_interp.create_operation "arith.subi"(%arg0, %arg1 : !pdl.value, !pdl.value)  -> (%arg2 : !pdl.type)
-    %1 = pdl_interp.get_result 0 of %0
-    %2 = pdl_interp.create_operation "arith.addi"(%arg3, %1 : !pdl.value, !pdl.value)  -> (%arg2 : !pdl.type)
-    %3 = pdl_interp.get_result 0 of %2
-    %4 = pdl_interp.get_results of %2 : !pdl.range<value>
-    pdl_interp.replace %arg4 with (%4 : !pdl.range<value>)
-    pdl_interp.finalize
+    %0 = eqsat_pdl_interp.create_operation "arith.subi"(%arg0, %arg1 : !pdl.value, !pdl.value)  -> (%arg2 : !pdl.type)
+    %1 = eqsat_pdl_interp.get_result 0 of %0
+    %2 = eqsat_pdl_interp.create_operation "arith.addi"(%arg3, %1 : !pdl.value, !pdl.value)  -> (%arg2 : !pdl.type)
+    %3 = eqsat_pdl_interp.get_result 0 of %2
+    %4 = eqsat_pdl_interp.get_results of %2 : !pdl.range<value>
+    eqsat_pdl_interp.replace %arg4 with (%4 : !pdl.range<value>)
+    eqsat_pdl_interp.finalize
   }
 }
