@@ -76,7 +76,7 @@ class ParallelMovPattern(RewritePattern):
                 results[op.outputs.types.index(dst)] = new_ops[-1].results[0]
                 unprocessed_children[src] -= 1
                 # only continue up the tree if all children were processed
-                if unprocessed_children[src] > 0:
+                if unprocessed_children[src]:
                     break
                 dst = src.type
 
