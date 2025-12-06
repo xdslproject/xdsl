@@ -54,12 +54,11 @@ builtin.module {
 
 // CHECK:       builtin.module {
 // CHECK-NEXT:    %0, %1 = "test.op"() : () -> (!riscv.reg<s1>, !riscv.reg<s2>)
-// CHECK-NEXT:    %2 = riscv.mv %1 : (!riscv.reg<s2>) -> !riscv.reg<s4>
-// CHECK-NEXT:    %3 = riscv.mv %1 : (!riscv.reg<s2>) -> !riscv.reg<s3>
+// CHECK-NEXT:    %2 = riscv.mv %1 : (!riscv.reg<s2>) -> !riscv.reg<s3>
+// CHECK-NEXT:    %3 = riscv.mv %1 : (!riscv.reg<s2>) -> !riscv.reg<s4>
 // CHECK-NEXT:    %4 = riscv.mv %0 : (!riscv.reg<s1>) -> !riscv.reg<s2>
-// CHECK-NEXT:    "test.op"(%4, %3, %2) : (!riscv.reg<s2>, !riscv.reg<s3>, !riscv.reg<s4>) -> ()
+// CHECK-NEXT:    "test.op"(%4, %2, %3) : (!riscv.reg<s2>, !riscv.reg<s3>, !riscv.reg<s4>) -> ()
 // CHECK-NEXT:  }
-
 // -----
 
 // Test two trees case:
@@ -78,11 +77,11 @@ builtin.module {
 
 // CHECK:       builtin.module {
 // CHECK-NEXT:    %0, %1, %2 = "test.op"() : () -> (!riscv.reg<s1>, !riscv.reg<s2>, !riscv.reg<s5>)
-// CHECK-NEXT:    %3 = riscv.mv %1 : (!riscv.reg<s2>) -> !riscv.reg<s4>
-// CHECK-NEXT:    %4 = riscv.mv %2 : (!riscv.reg<s5>) -> !riscv.reg<s6>
-// CHECK-NEXT:    %5 = riscv.mv %1 : (!riscv.reg<s2>) -> !riscv.reg<s3>
-// CHECK-NEXT:    %6 = riscv.mv %0 : (!riscv.reg<s1>) -> !riscv.reg<s2>
-// CHECK-NEXT:    "test.op"(%6, %5, %3, %4) : (!riscv.reg<s2>, !riscv.reg<s3>, !riscv.reg<s4>, !riscv.reg<s6>) -> ()
+// CHECK-NEXT:    %3 = riscv.mv %1 : (!riscv.reg<s2>) -> !riscv.reg<s3>
+// CHECK-NEXT:    %4 = riscv.mv %1 : (!riscv.reg<s2>) -> !riscv.reg<s4>
+// CHECK-NEXT:    %5 = riscv.mv %0 : (!riscv.reg<s1>) -> !riscv.reg<s2>
+// CHECK-NEXT:    %6 = riscv.mv %2 : (!riscv.reg<s5>) -> !riscv.reg<s6>
+// CHECK-NEXT:    "test.op"(%5, %3, %4, %6) : (!riscv.reg<s2>, !riscv.reg<s3>, !riscv.reg<s4>, !riscv.reg<s6>) -> ()
 // CHECK-NEXT:  }
 
 // -----

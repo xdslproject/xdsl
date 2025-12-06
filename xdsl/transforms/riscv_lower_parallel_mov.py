@@ -66,7 +66,9 @@ class ParallelMovPattern(RewritePattern):
                 dst_to_src[dst.type] = src
                 unprocessed_children[src] += 1
 
-        for dst in leaves:
+        for dst in op.outputs.types:
+            if dst not in leaves:
+                continue
             # Iterate up the tree by traversing back edges.
             while dst in dst_to_src:
                 src = dst_to_src[dst]
