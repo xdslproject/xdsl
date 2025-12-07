@@ -15,6 +15,7 @@ from xdsl.dialects.builtin import (
     ModuleOp,
     StringAttr,
     TypeAttribute,
+    UnitAttr,
 )
 from xdsl.ir import (
     Block,
@@ -1430,6 +1431,71 @@ class MatcherGenerator:
             new_attr_op = pdl_interp.CreateAttributeOp(op.value)
             self.rewriter_builder.insert(new_attr_op)
             rewrite_values[op.output] = new_attr_op.attribute
+
+    def _generate_rewriter_for_operation(
+        self,
+        op: pdl.OperationOp,
+        rewrite_values: dict[SSAValue, SSAValue],
+        map_rewrite_value: Callable[[SSAValue], SSAValue],
+    ):
+        operands = [map_rewrite_value(operand) for operand in op.operand_values]
+        attributes = [map_rewrite_value(attr) for attr in op.attribute_values]
+
+        types: list[SSAValue] = []
+        has_inferred_result_types = self._generate_operation_result_type_rewriter(
+            op, map_rewrite_value, types, rewrite_values
+        )
+
+        if op.opName is None:
+            raise ValueError("Cannot create operation without a name.")
+
+        create_op = pdl_interp.CreateOperationOp(
+            op.opName,
+            UnitAttr() if has_inferred_result_types else None,
+            op.attributeValueNames,
+            operands,
+            attributes,
+            types,
+        )
+        self.rewriter_builder.insert(create_op)
+        created_op_val = create_op.result_op
+        rewrite_values[op.op] = created_op_val
+
+        # Generate accesses for any results that have their types constrained.
+        result_types = op.type_values
+        if len(result_types) == 1 and isinstance(result_types[0].type, pdl.RangeType):
+            if result_types[0] not in rewrite_values:
+                get_results = pdl_interp.GetResultsOp(
+                    None, created_op_val, pdl.RangeType(pdl.ValueType())
+                )
+                self.rewriter_builder.insert(get_results)
+                get_type = pdl_interp.GetValueTypeOp(get_results.value)
+                self.rewriter_builder.insert(get_type)
+                rewrite_values[result_types[0]] = get_type.result
+            return
+
+        seen_variable_length = False
+        for i, type_value in enumerate(result_types):
+            if type_value in rewrite_values:
+                continue
+            is_variadic = isinstance(type_value.type, pdl.RangeType)
+            seen_variable_length = seen_variable_length or is_variadic
+
+            result_val: SSAValue
+            if seen_variable_length:
+                get_results = pdl_interp.GetResultsOp(
+                    i, created_op_val, pdl.RangeType(pdl.ValueType())
+                )
+                self.rewriter_builder.insert(get_results)
+                result_val = get_results.value
+            else:
+                get_result = pdl_interp.GetResultOp(i, created_op_val)
+                self.rewriter_builder.insert(get_result)
+                result_val = get_result.value
+
+            get_type = pdl_interp.GetValueTypeOp(result_val)
+            self.rewriter_builder.insert(get_type)
+            rewrite_values[type_value] = get_type.result
 
     def _generate_operation_result_type_rewriter(
         self,
