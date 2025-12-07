@@ -38,7 +38,7 @@ class ParallelMovPattern(RewritePattern):
         # pointing from source to destination.
         # Every node has at most 1 in edge since we can't write to a register twice.
         # Therefore the graph forms a directed pseudoforest, which is a group of
-        # connected components with at most 1 cycle.
+        # connected components with at most 1 cycle each.
 
         # If we ignore the cycles, we will have a forest.
         # For each tree, we need to perform each move such that all out edges of a node
