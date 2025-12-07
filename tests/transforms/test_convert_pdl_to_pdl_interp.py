@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from typing import cast
 
 import pytest
@@ -13,7 +14,7 @@ from xdsl.dialects.builtin import (
     f32,
     i32,
 )
-from xdsl.ir import Block, Region, SSAValue
+from xdsl.ir import Attribute, Block, Region, SSAValue
 from xdsl.rewriter import InsertPoint
 from xdsl.transforms.convert_pdl_to_pdl_interp.conversion import (
     BoolNode,
@@ -4073,3 +4074,257 @@ def test_generate_operation_result_type_rewriter_strategy1_with_external_types()
     assert has_inferred is False
     assert len(types_list) == 1
     assert types_list[0] == type_arg
+
+
+def test_generate_rewriter_for_operation_standard():
+    """Test _generate_rewriter_for_operation with standard configuration"""
+    from xdsl.builder import ImplicitBuilder
+    from xdsl.dialects.builtin import IntegerAttr, ModuleOp, StringAttr, i32
+    from xdsl.ir import Block, Region, SSAValue
+    from xdsl.transforms.convert_pdl_to_pdl_interp.conversion import MatcherGenerator
+
+    # Setup
+    matcher_body = Region([Block(arg_types=(pdl.OperationType(),))])
+    matcher_func = pdl_interp.FuncOp(
+        "matcher", ((pdl.OperationType(),), ()), region=matcher_body
+    )
+    rewriter_module = ModuleOp([])
+    rewriter_block = rewriter_module.body.block
+    generator = MatcherGenerator(matcher_func, rewriter_module)
+
+    # Create operation definition
+    body = Region([Block()])
+    block = body.first_block
+    with ImplicitBuilder(block):
+        operand = pdl.OperandOp().value
+        attr = pdl.AttributeOp(value=IntegerAttr(42, i32)).output
+        res_type = pdl.TypeOp(i32).result
+        op = pdl.OperationOp(
+            "test.op",
+            operand_values=[operand],
+            attribute_values=[attr],
+            attribute_value_names=[StringAttr("attr1")],
+            type_values=[res_type],
+        )
+
+    # Mock mapping
+    rewrite_values: dict[SSAValue, SSAValue] = {}
+
+    # Mock mapped values in rewriter block
+    mapped_operand = rewriter_block.insert_arg(pdl.ValueType(), 0)
+    mapped_attr = rewriter_block.insert_arg(pdl.AttributeType(), 1)
+    mapped_type = rewriter_block.insert_arg(pdl.TypeType(), 2)
+
+    rewrite_values[operand] = mapped_operand
+    rewrite_values[attr] = mapped_attr
+    # We pretend the type is available (Strategy 1 in result type generation will pick it up)
+    rewrite_values[res_type] = mapped_type
+
+    def map_rewrite_value(val: SSAValue) -> SSAValue:
+        return rewrite_values.get(val, val)
+
+    # Execute
+    generator._generate_rewriter_for_operation(  # pyright: ignore[reportPrivateUsage]
+        op, rewrite_values, map_rewrite_value
+    )
+
+    # Verify
+    assert len(rewriter_block.ops) == 1
+    create_op = rewriter_block.first_op
+    assert isinstance(create_op, pdl_interp.CreateOperationOp)
+    assert create_op.constraint_name.data == "test.op"
+    assert len(create_op.input_operands) == 1
+    assert create_op.operands[0] == mapped_operand
+    assert len(create_op.input_attributes) == 1
+    assert create_op.input_attributes[0] == mapped_attr
+    assert create_op.input_result_types[0] == mapped_type
+
+    # Check rewrite_values update
+    assert op.op in rewrite_values
+    assert rewrite_values[op.op] == create_op.result_op
+
+
+def test_generate_rewriter_for_operation_missing_name():
+    """Test _generate_rewriter_for_operation raises ValueError when name is missing"""
+    from xdsl.builder import ImplicitBuilder
+    from xdsl.dialects.builtin import ModuleOp
+    from xdsl.ir import Block, Region
+    from xdsl.transforms.convert_pdl_to_pdl_interp.conversion import MatcherGenerator
+
+    matcher_body = Region([Block(arg_types=(pdl.OperationType(),))])
+    matcher_func = pdl_interp.FuncOp(
+        "matcher", ((pdl.OperationType(),), ()), region=matcher_body
+    )
+    rewriter_module = ModuleOp([])
+    generator = MatcherGenerator(matcher_func, rewriter_module)
+
+    body = Region([Block()])
+    block = body.first_block
+    with ImplicitBuilder(block):
+        op = pdl.OperationOp(None)  # No name
+
+    rewrite_values: dict[SSAValue[Attribute], SSAValue[Attribute]] = {}
+
+    with pytest.raises(ValueError, match="Cannot create operation without a name"):
+        generator._generate_rewriter_for_operation(  # pyright: ignore[reportPrivateUsage]
+            op, rewrite_values, lambda x: x
+        )
+
+
+def test_generate_rewriter_for_operation_single_variadic_result():
+    """Test _generate_rewriter_for_operation with single variadic result"""
+    from unittest.mock import patch
+
+    from xdsl.builder import ImplicitBuilder
+    from xdsl.dialects.builtin import ModuleOp
+    from xdsl.ir import Block, Region, SSAValue
+    from xdsl.transforms.convert_pdl_to_pdl_interp.conversion import MatcherGenerator
+
+    # Setup
+    matcher_body = Region([Block(arg_types=(pdl.OperationType(),))])
+    matcher_func = pdl_interp.FuncOp(
+        "matcher", ((pdl.OperationType(),), ()), region=matcher_body
+    )
+    rewriter_module = ModuleOp([])
+    rewriter_block = rewriter_module.body.block
+    generator = MatcherGenerator(matcher_func, rewriter_module)
+
+    # Create op with single variadic result
+    body = Region([Block()])
+    block = body.first_block
+    with ImplicitBuilder(block):
+        # pdl.TypesOp produces a range type
+        res_type = pdl.TypesOp().result
+        op = pdl.OperationOp("test.op", type_values=[res_type])
+
+    # Setup rewriter
+    rewrite_values: dict[SSAValue, SSAValue] = {}
+
+    # Mock types list population by _generate_operation_result_type_rewriter
+    mock_type = rewriter_block.insert_arg(pdl.RangeType(pdl.TypeType()), 0)
+
+    with patch.object(
+        generator, "_generate_operation_result_type_rewriter", return_value=False
+    ) as mock_type_gen:
+        # We need the side effect of populating the types list
+        def side_effect(
+            op: pdl.OperationOp,
+            map_fn: Callable[[SSAValue], SSAValue],
+            types_list: list[SSAValue],
+            rw_values: dict[SSAValue, SSAValue],
+        ):
+            types_list.append(mock_type)
+            return False
+
+        mock_type_gen.side_effect = side_effect
+
+        # Execute
+        generator._generate_rewriter_for_operation(  # pyright: ignore[reportPrivateUsage]
+            op, rewrite_values, lambda x: x
+        )
+
+    # Verify GetResultsOp created
+    get_results_ops = [
+        op for op in rewriter_block.ops if isinstance(op, pdl_interp.GetResultsOp)
+    ]
+    assert len(get_results_ops) == 1
+    assert get_results_ops[0].index is None  # Single variadic
+
+    # Verify GetValueTypeOp
+    get_type_ops = [
+        op for op in rewriter_block.ops if isinstance(op, pdl_interp.GetValueTypeOp)
+    ]
+    assert len(get_type_ops) == 1
+
+    # Verify mapping updated
+    assert res_type in rewrite_values
+
+
+def test_generate_rewriter_for_operation_mixed_results():
+    """Test _generate_rewriter_for_operation with mixed results"""
+    from unittest.mock import patch
+
+    from xdsl.builder import ImplicitBuilder
+    from xdsl.dialects.builtin import ModuleOp, i32
+    from xdsl.ir import Block, Region, SSAValue
+    from xdsl.transforms.convert_pdl_to_pdl_interp.conversion import MatcherGenerator
+
+    # Setup
+    matcher_body = Region([Block(arg_types=(pdl.OperationType(),))])
+    matcher_func = pdl_interp.FuncOp(
+        "matcher", ((pdl.OperationType(),), ()), region=matcher_body
+    )
+    rewriter_module = ModuleOp([])
+    rewriter_block = rewriter_module.body.block
+    generator = MatcherGenerator(matcher_func, rewriter_module)
+
+    # Create op with mixed results: [Type, Types, Type]
+    body = Region([Block()])
+    block = body.first_block
+    with ImplicitBuilder(block):
+        t1 = pdl.TypeOp(i32).result
+        t2 = pdl.TypesOp().result  # Variadic
+        t3 = pdl.TypeOp(i32).result
+        op = pdl.OperationOp("test.op", type_values=[t1, t2, t3])
+
+    rewrite_values: dict[SSAValue, SSAValue] = {}
+
+    # Mock type generation
+    mock_t1 = rewriter_block.insert_arg(pdl.TypeType(), 0)
+    mock_t2 = rewriter_block.insert_arg(pdl.RangeType(pdl.TypeType()), 1)
+    mock_t3 = rewriter_block.insert_arg(pdl.TypeType(), 2)
+
+    with patch.object(
+        generator, "_generate_operation_result_type_rewriter"
+    ) as mock_gen:
+
+        def side_effect(
+            op: pdl.OperationOp,
+            map_fn: Callable[[SSAValue], SSAValue],
+            types_list: list[SSAValue],
+            rw_values: dict[SSAValue, SSAValue],
+        ):
+            types_list.extend([mock_t1, mock_t2, mock_t3])
+            return False
+
+        mock_gen.side_effect = side_effect
+
+        generator._generate_rewriter_for_operation(  # pyright: ignore[reportPrivateUsage]
+            op, rewrite_values, lambda x: x
+        )
+
+    # Check results extraction
+    # T1: index 0, non-variadic -> GetResultOp
+    # T2: index 1, variadic -> GetResultsOp
+    # T3: index 2, non-variadic, but after variadic -> GetResultsOp
+
+    # Filter ops
+    get_result_ops = [
+        op for op in rewriter_block.ops if isinstance(op, pdl_interp.GetResultOp)
+    ]
+    get_results_ops = [
+        op for op in rewriter_block.ops if isinstance(op, pdl_interp.GetResultsOp)
+    ]
+
+    # Expect 1 GetResultOp for T1
+    assert len(get_result_ops) == 1
+    assert get_result_ops[0].index.value.data == 0
+
+    # Expect 2 GetResultsOp for T2 and T3
+    assert len(get_results_ops) == 2
+
+    # T2 is variadic at index 1
+    # T3 is non-variadic at index 2
+    op_indices = sorted(
+        [
+            op.index.value.data
+            for op in get_results_ops
+            if op.index is not None  # Ensure it has an index
+        ]
+    )
+    assert op_indices == [1, 2]
+
+    # Verify mappings
+    assert t1 in rewrite_values
+    assert t2 in rewrite_values
+    assert t3 in rewrite_values
