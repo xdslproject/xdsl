@@ -4383,3 +4383,185 @@ def test_generate_rewriter_for_erase():
         generator._generate_rewriter_for_erase(  # pyright: ignore[reportPrivateUsage]
             erase_op, {}, lambda x: x
         )
+
+def test_generate_rewriter_for_result():
+    """Test _generate_rewriter_for_result generates GetResultOp"""
+    from xdsl.builder import ImplicitBuilder
+    from xdsl.dialects.builtin import ModuleOp
+    from xdsl.ir import Block, Region, SSAValue
+    from xdsl.transforms.convert_pdl_to_pdl_interp.conversion import MatcherGenerator
+
+    # Setup generator
+    matcher_body = Region([Block(arg_types=(pdl.OperationType(),))])
+    matcher_func = pdl_interp.FuncOp(
+        "matcher", ((pdl.OperationType(),), ()), region=matcher_body
+    )
+    rewriter_module = ModuleOp([])
+    rewriter_block = rewriter_module.body.block
+    generator = MatcherGenerator(matcher_func, rewriter_module)
+
+    # Setup PDL operations
+    body = Region([Block()])
+    with ImplicitBuilder(body.first_block):
+        op = pdl.OperationOp("test.op")
+        result_op = pdl.ResultOp(0, op.op)
+
+    # Mock mapped value for the parent operation
+    mapped_parent = rewriter_block.insert_arg(pdl.OperationType(), 0)
+    rewrite_values: dict[SSAValue, SSAValue] = {op.op: mapped_parent}
+
+    # Execute
+    generator._generate_rewriter_for_result(  # pyright: ignore[reportPrivateUsage]
+        result_op, rewrite_values, lambda x: rewrite_values.get(x, x)
+    )
+
+    # Verify
+    assert len(rewriter_block.ops) == 1
+    get_result = rewriter_block.first_op
+    assert isinstance(get_result, pdl_interp.GetResultOp)
+    assert get_result.index.value.data == 0
+    assert get_result.input_op == mapped_parent
+
+    # Verify rewrite_values updated
+    assert result_op.val in rewrite_values
+    assert rewrite_values[result_op.val] == get_result.value
+
+
+def test_generate_rewriter_for_results():
+    """Test _generate_rewriter_for_results generates GetResultsOp"""
+    from xdsl.builder import ImplicitBuilder
+    from xdsl.dialects.builtin import ModuleOp
+    from xdsl.ir import Block, Region, SSAValue
+    from xdsl.transforms.convert_pdl_to_pdl_interp.conversion import MatcherGenerator
+
+    # Setup generator
+    matcher_body = Region([Block(arg_types=(pdl.OperationType(),))])
+    matcher_func = pdl_interp.FuncOp(
+        "matcher", ((pdl.OperationType(),), ()), region=matcher_body
+    )
+    rewriter_module = ModuleOp([])
+    rewriter_block = rewriter_module.body.block
+    generator = MatcherGenerator(matcher_func, rewriter_module)
+
+    # Setup PDL operations
+    body = Region([Block()])
+    with ImplicitBuilder(body.first_block):
+        op = pdl.OperationOp("test.op")
+        # ResultsOp with specific index
+        results_op = pdl.ResultsOp(op.op, index=1)
+
+    mapped_parent = rewriter_block.insert_arg(pdl.OperationType(), 0)
+    rewrite_values: dict[SSAValue, SSAValue] = {op.op: mapped_parent}
+
+    # Execute
+    generator._generate_rewriter_for_results(  # pyright: ignore[reportPrivateUsage]
+        results_op, rewrite_values, lambda x: rewrite_values.get(x, x)
+    )
+
+    # Verify
+    assert len(rewriter_block.ops) == 1
+    get_results = rewriter_block.first_op
+    assert isinstance(get_results, pdl_interp.GetResultsOp)
+    assert get_results.index is not None
+    assert get_results.index.value.data == 1
+    assert get_results.input_op == mapped_parent
+    # Ensure the type is propagated from the PDL op
+    assert get_results.value.type == results_op.val.type
+
+    # Verify rewrite_values updated
+    assert results_op.val in rewrite_values
+    assert rewrite_values[results_op.val] == get_results.value
+
+
+def test_generate_rewriter_for_type():
+    """Test _generate_rewriter_for_type creates type when constant is present"""
+    from xdsl.builder import ImplicitBuilder
+    from xdsl.dialects.builtin import ModuleOp, i32
+    from xdsl.ir import Block, Region, SSAValue
+    from xdsl.transforms.convert_pdl_to_pdl_interp.conversion import MatcherGenerator
+
+    # Setup generator
+    matcher_body = Region([Block(arg_types=(pdl.OperationType(),))])
+    matcher_func = pdl_interp.FuncOp(
+        "matcher", ((pdl.OperationType(),), ()), region=matcher_body
+    )
+    rewriter_module = ModuleOp([])
+    rewriter_block = rewriter_module.body.block
+    generator = MatcherGenerator(matcher_func, rewriter_module)
+
+    # Setup PDL ops
+    body = Region([Block()])
+    with ImplicitBuilder(body.first_block):
+        # Case 1: Constant type
+        const_type_op = pdl.TypeOp(constant_type=i32)
+        # Case 2: No constant type
+        non_const_type_op = pdl.TypeOp()
+
+    rewrite_values: dict[SSAValue, SSAValue] = {}
+
+    # Execute Case 1
+    generator._generate_rewriter_for_type(  # pyright: ignore[reportPrivateUsage]
+        const_type_op, rewrite_values, lambda x: x
+    )
+
+    assert len(rewriter_block.ops) == 1
+    create_type = rewriter_block.first_op
+    assert isinstance(create_type, pdl_interp.CreateTypeOp)
+    assert create_type.value == i32
+    assert rewrite_values[const_type_op.result] == create_type.result
+
+    # Execute Case 2
+    # Should not generate any op or update rewrite_values
+    generator._generate_rewriter_for_type(  # pyright: ignore[reportPrivateUsage]
+        non_const_type_op, rewrite_values, lambda x: x
+    )
+
+    assert len(rewriter_block.ops) == 1  # No new ops
+    assert non_const_type_op.result not in rewrite_values
+
+
+def test_generate_rewriter_for_types():
+    """Test _generate_rewriter_for_types creates types when constant is present"""
+    from xdsl.builder import ImplicitBuilder
+    from xdsl.dialects.builtin import ArrayAttr, ModuleOp, f32, i32
+    from xdsl.ir import Block, Region, SSAValue
+    from xdsl.transforms.convert_pdl_to_pdl_interp.conversion import MatcherGenerator
+
+    # Setup generator
+    matcher_body = Region([Block(arg_types=(pdl.OperationType(),))])
+    matcher_func = pdl_interp.FuncOp(
+        "matcher", ((pdl.OperationType(),), ()), region=matcher_body
+    )
+    rewriter_module = ModuleOp([])
+    rewriter_block = rewriter_module.body.block
+    generator = MatcherGenerator(matcher_func, rewriter_module)
+
+    # Setup PDL ops
+    body = Region([Block()])
+    with ImplicitBuilder(body.first_block):
+        types_attr = ArrayAttr([i32, f32])
+        # Case 1: Constant types
+        const_types_op = pdl.TypesOp(constant_types=types_attr)
+        # Case 2: No constant types
+        non_const_types_op = pdl.TypesOp()
+
+    rewrite_values: dict[SSAValue, SSAValue] = {}
+
+    # Execute Case 1
+    generator._generate_rewriter_for_types(  # pyright: ignore[reportPrivateUsage]
+        const_types_op, rewrite_values, lambda x: x
+    )
+
+    assert len(rewriter_block.ops) == 1
+    create_types = rewriter_block.first_op
+    assert isinstance(create_types, pdl_interp.CreateTypesOp)
+    assert create_types.value == types_attr
+    assert rewrite_values[const_types_op.result] == create_types.result
+
+    # Execute Case 2
+    generator._generate_rewriter_for_types(  # pyright: ignore[reportPrivateUsage]
+        non_const_types_op, rewrite_values, lambda x: x
+    )
+
+    assert len(rewriter_block.ops) == 1  # No new ops
+    assert non_const_types_op.result not in rewrite_values
