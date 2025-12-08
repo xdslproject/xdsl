@@ -144,6 +144,18 @@ builtin.module {
 
 // -----
 
+// Test moving floats and ints
+builtin.module {
+  %0, %1 = "test.op"() : () -> (!riscv.reg<s1>, !riscv.freg<ft1>)
+  %2, %3 = riscv.parallel_mov %0, %1 : (!riscv.reg<s1>, !riscv.freg<ft1>) -> (!riscv.reg<s2>, !riscv.freg<ft2>)
+}
+// CHECK:         %2, %3 = "riscv.parallel_mov"(%0, %1) : (!riscv.reg<s1>, !riscv.freg<ft1>) -> (!riscv.reg<s2>, !riscv.freg<ft2>)
+// CHECK-NEXT:    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^----------------------------------------
+// CHECK-NEXT:    | Error while applying pattern: Not implemented: only integer support
+// CHECK-NEXT:    ---------------------------------------------------------------------
+
+// -----
+
 // Test no free registers
 //    s1
 //   /  ^

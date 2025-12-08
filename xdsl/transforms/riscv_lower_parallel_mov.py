@@ -29,6 +29,12 @@ class ParallelMovPattern(RewritePattern):
         ):
             raise PassFailedException("All registers must be allocated")
 
+        if not (
+            all(isinstance(i, riscv.IntRegisterType) for i in input_types)
+            and all(isinstance(i, riscv.IntRegisterType) for i in output_types)
+        ):
+            raise PassFailedException("Not implemented: only integer support")
+
         num_operands = len(op.operands)
 
         new_ops: list[Operation] = []
@@ -96,7 +102,15 @@ class ParallelMovPattern(RewritePattern):
                         "Cyclic move detected with no free registers."
                     )
 
-                temp_reg = op.free_registers.data[0]  # get first free register
+                # find a free integer register
+                for reg in op.free_registers:
+                    if isinstance(reg, riscv.IntRegisterType):
+                        temp_reg = reg
+                        break
+                else:
+                    raise PassFailedException(
+                        "Cyclic move detected with no free integer register."
+                    )
                 # Break the cycle by using free register
                 # split the current mov
                 cur_input = op.inputs[idx]
@@ -111,6 +125,8 @@ class ParallelMovPattern(RewritePattern):
                     results[op.outputs.types.index(dst)] = new_ops[-1].results[0]
                     dst = src.type
                 # finish the split mov
+                # this assert is already checked at start, but is used for type checking
+                assert isinstance(cur_output.type, riscv.IntRegisterType)
                 new_ops.append(riscv.MVOp(temp_ssa, rd=cur_output.type))
                 results[idx] = new_ops[-1].results[0]
 
