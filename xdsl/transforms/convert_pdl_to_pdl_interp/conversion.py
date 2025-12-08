@@ -1438,8 +1438,8 @@ class MatcherGenerator:
         rewrite_values: dict[SSAValue, SSAValue],
         map_rewrite_value: Callable[[SSAValue], SSAValue],
     ):
-        operands = [map_rewrite_value(operand) for operand in op.operand_values]
-        attributes = [map_rewrite_value(attr) for attr in op.attribute_values]
+        operands = tuple(map_rewrite_value(operand) for operand in op.operand_values)
+        attributes = tuple(map_rewrite_value(attr) for attr in op.attribute_values)
 
         types: list[SSAValue] = []
         has_inferred_result_types = self._generate_operation_result_type_rewriter(
