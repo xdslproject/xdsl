@@ -4328,3 +4328,58 @@ def test_generate_rewriter_for_operation_mixed_results():
     assert t1 in rewrite_values
     assert t2 in rewrite_values
     assert t3 in rewrite_values
+
+
+def test_generate_rewriter_for_range():
+    """Test _generate_rewriter_for_range raises NotImplementedError"""
+    from xdsl.builder import ImplicitBuilder
+    from xdsl.dialects.builtin import ModuleOp, i32
+    from xdsl.ir import Block, Region
+    from xdsl.transforms.convert_pdl_to_pdl_interp.conversion import MatcherGenerator
+
+    matcher_body = Region([Block(arg_types=(pdl.OperationType(),))])
+    matcher_func = pdl_interp.FuncOp(
+        "matcher", ((pdl.OperationType(),), ()), region=matcher_body
+    )
+    rewriter_module = ModuleOp([])
+    generator = MatcherGenerator(matcher_func, rewriter_module)
+
+    body = Region([Block()])
+    with ImplicitBuilder(body.first_block):
+        # Create a RangeOp (e.g., constructing a range of types)
+        type_val = pdl.TypeOp(i32).result
+        range_op = pdl.RangeOp([type_val], pdl.RangeType(pdl.TypeType()))
+
+    with pytest.raises(
+        NotImplementedError, match="pdl_interp.create_range is not yet implemented"
+    ):
+        generator._generate_rewriter_for_range(  # pyright: ignore[reportPrivateUsage]
+            range_op, {}, lambda x: x
+        )
+
+
+def test_generate_rewriter_for_erase():
+    """Test _generate_rewriter_for_erase raises NotImplementedError"""
+    from xdsl.builder import ImplicitBuilder
+    from xdsl.dialects.builtin import ModuleOp
+    from xdsl.ir import Block, Region
+    from xdsl.transforms.convert_pdl_to_pdl_interp.conversion import MatcherGenerator
+
+    matcher_body = Region([Block(arg_types=(pdl.OperationType(),))])
+    matcher_func = pdl_interp.FuncOp(
+        "matcher", ((pdl.OperationType(),), ()), region=matcher_body
+    )
+    rewriter_module = ModuleOp([])
+    generator = MatcherGenerator(matcher_func, rewriter_module)
+
+    body = Region([Block()])
+    with ImplicitBuilder(body.first_block):
+        op_val = pdl.OperationOp("test.op").op
+        erase_op = pdl.EraseOp(op_val)
+
+    with pytest.raises(
+        NotImplementedError, match="pdl_interp.erase is not yet implemented"
+    ):
+        generator._generate_rewriter_for_erase(  # pyright: ignore[reportPrivateUsage]
+            erase_op, {}, lambda x: x
+        )
