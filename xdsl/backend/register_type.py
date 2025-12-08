@@ -19,7 +19,7 @@ from xdsl.ir import (
 )
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
-from xdsl.traits import EffectInstance, MemoryEffect, MemoryEffectKind
+from xdsl.traits import EffectInstance, MemoryEffect, MemoryEffectKind, Resource
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -191,6 +191,14 @@ class RegisterType(ParametrizedAttribute, TypeAttribute, ABC):
         return res
 
 
+@dataclass(frozen=True)
+class RegisterResource(Resource):
+    register: RegisterType
+
+    def name(self) -> str:
+        return f"<Register {self.register}>"
+
+
 class RegisterAllocatedMemoryEffect(MemoryEffect):
     """
     An assembly operation that only has side-effect if some registers are allocated to
@@ -200,13 +208,14 @@ class RegisterAllocatedMemoryEffect(MemoryEffect):
     @classmethod
     def get_effects(cls, op: Operation) -> set[EffectInstance]:
         effects = set[EffectInstance]()
-        if any(
-            isinstance(r.type, RegisterType) and r.type.is_allocated for r in op.results
-        ):
-            effects.add(EffectInstance(MemoryEffectKind.WRITE))
-        if any(
-            isinstance(r.type, RegisterType) and r.type.is_allocated
-            for r in op.operands
-        ):
-            effects.add(EffectInstance(MemoryEffectKind.READ))
+        for result in op.results:
+            if isinstance(r := result.type, RegisterType) and r.is_allocated:
+                effects.add(
+                    EffectInstance(MemoryEffectKind.WRITE, resource=RegisterResource(r))
+                )
+        for operand in op.operands:
+            if isinstance(r := operand.type, RegisterType) and r.is_allocated:
+                effects.add(
+                    EffectInstance(MemoryEffectKind.READ, resource=RegisterResource(r))
+                )
         return effects
