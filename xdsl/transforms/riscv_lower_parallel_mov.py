@@ -33,7 +33,7 @@ class ParallelMovPattern(RewritePattern):
             all(isinstance(i, riscv.IntRegisterType) for i in input_types)
             and all(isinstance(i, riscv.IntRegisterType) for i in output_types)
         ):
-            raise PassFailedException("Not implemented: only integer support")
+            raise PassFailedException("Not implemented: non-integer support")
 
         num_operands = len(op.operands)
 
@@ -99,7 +99,7 @@ class ParallelMovPattern(RewritePattern):
                 if not op.free_registers:
                     # free registers is empty or None
                     raise PassFailedException(
-                        "Not implemented: cyclic moves without free int registers."
+                        "Not implemented: cyclic moves without free registers."
                     )
 
                 # find a free integer register
@@ -109,7 +109,7 @@ class ParallelMovPattern(RewritePattern):
                         break
                 else:
                     raise PassFailedException(
-                        "Cyclic move detected with no free integer register."
+                        "Not implemented: cyclic moves without free int registers."
                     )
                 # Break the cycle by using free register
                 # split the current mov

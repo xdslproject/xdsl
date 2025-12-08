@@ -150,9 +150,9 @@ builtin.module {
   %2, %3 = riscv.parallel_mov %0, %1 : (!riscv.reg<s1>, !riscv.freg<ft1>) -> (!riscv.reg<s2>, !riscv.freg<ft2>)
 }
 // CHECK:         %2, %3 = "riscv.parallel_mov"(%0, %1) : (!riscv.reg<s1>, !riscv.freg<ft1>) -> (!riscv.reg<s2>, !riscv.freg<ft2>)
-// CHECK-NEXT:    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^----------------------------------------
-// CHECK-NEXT:    | Error while applying pattern: Not implemented: only integer support
-// CHECK-NEXT:    ---------------------------------------------------------------------
+// CHECK-NEXT:    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^---------------------------------------
+// CHECK-NEXT:    | Error while applying pattern: Not implemented: non-integer support
+// CHECK-NEXT:    --------------------------------------------------------------------
 
 // -----
 
@@ -170,7 +170,7 @@ builtin.module {
 
 // CHECK:         %2, %3 = "riscv.parallel_mov"(%0, %1) : (!riscv.reg<s1>, !riscv.reg<s2>) -> (!riscv.reg<s2>, !riscv.reg<s1>)
 // CHECK-NEXT:    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^-----------------------------------------------
-// CHECK-NEXT:    | Error while applying pattern: Not implemented: cyclic moves without free int registers.
+// CHECK-NEXT:    | Error while applying pattern: Not implemented: cyclic moves without free registers.
 // CHECK-NEXT:    ----------------------------------------------------------------------------
 
 // -----
