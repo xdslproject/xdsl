@@ -1561,6 +1561,10 @@ class MatcherGenerator:
             create_types_op = pdl_interp.CreateTypesOp(op.constantTypes)
             self.rewriter_builder.insert(create_types_op)
             rewrite_values[op.result] = create_types_op.result
+        # Else, nothing needs to be created.
+        # A `pdl.type` operation in the rewrite section is
+        # not used as a declarative constraint. If there is
+        # no constantTypes, it is essentially a no-op.
 
     def _generate_operation_result_type_rewriter(
         self,
