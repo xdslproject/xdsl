@@ -99,7 +99,7 @@ class ParallelMovPattern(RewritePattern):
                 if not op.free_registers:
                     # free registers is empty or None
                     raise PassFailedException(
-                        "Cyclic move detected with no free registers."
+                        "Not implemented: cyclic moves without free int registers."
                     )
 
                 # find a free integer register
