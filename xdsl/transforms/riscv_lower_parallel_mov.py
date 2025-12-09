@@ -96,21 +96,20 @@ class ParallelMovPattern(RewritePattern):
 
         for idx, val in enumerate(results):
             if val is None:
-                if not op.free_registers:
-                    # free registers is empty or None
+                # Find a free integer register.
+                # We don't have to modify its value since all the cycles
+                # can use the same register.
+                temp_reg = None
+                if op.free_registers is not None:
+                    for reg in op.free_registers:
+                        if isinstance(reg, riscv.IntRegisterType):
+                            temp_reg = reg
+                            break
+                if temp_reg is None:
                     raise PassFailedException(
-                        "Not implemented: cyclic moves without free registers."
+                        "Not implemented: cyclic moves without free int register."
                     )
 
-                # find a free integer register
-                for reg in op.free_registers:
-                    if isinstance(reg, riscv.IntRegisterType):
-                        temp_reg = reg
-                        break
-                else:
-                    raise PassFailedException(
-                        "Not implemented: cyclic moves without free int registers."
-                    )
                 # Break the cycle by using free register
                 # split the current mov
                 cur_input = op.inputs[idx]
