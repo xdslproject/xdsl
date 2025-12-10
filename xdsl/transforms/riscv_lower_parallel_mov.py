@@ -29,6 +29,12 @@ class ParallelMovPattern(RewritePattern):
         ):
             raise PassFailedException("All registers must be allocated")
 
+        if not (
+            all(isinstance(i, riscv.IntRegisterType) for i in input_types)
+            and all(isinstance(i, riscv.IntRegisterType) for i in output_types)
+        ):
+            raise PassFailedException("Not implemented: non-integer support")
+
         num_operands = len(op.operands)
 
         new_ops: list[Operation] = []
@@ -88,9 +94,40 @@ class ParallelMovPattern(RewritePattern):
         # Therefore, all nodes in the cycle will be unprocessed, and their results
         # will still be None
 
-        for x in results:
-            if x is None:
-                raise PassFailedException("Not implemented: cyclic moves")
+        for idx, val in enumerate(results):
+            if val is None:
+                # Find a free integer register.
+                # We don't have to modify its value since all the cycles
+                # can use the same register.
+                temp_reg = None
+                if op.free_registers is not None:
+                    for reg in op.free_registers:
+                        if isinstance(reg, riscv.IntRegisterType):
+                            temp_reg = reg
+                            break
+                if temp_reg is None:
+                    raise PassFailedException(
+                        "Not implemented: cyclic moves without free int register."
+                    )
+
+                # Break the cycle by using free register
+                # split the current mov
+                cur_input = op.inputs[idx]
+                cur_output = op.outputs[idx]
+                temp_ssa = riscv.MVOp(cur_input, rd=temp_reg)
+                new_ops.append(temp_ssa)
+                # iterate up the chain until we reach the current output
+                dst = cur_input.type
+                while dst != cur_output.type:
+                    src = dst_to_src[dst]
+                    new_ops.append(riscv.MVOp(src, rd=dst))
+                    results[op.outputs.types.index(dst)] = new_ops[-1].results[0]
+                    dst = src.type
+                # finish the split mov
+                # this assert is already checked at start, but is used for type checking
+                assert isinstance(cur_output.type, riscv.IntRegisterType)
+                new_ops.append(riscv.MVOp(temp_ssa, rd=cur_output.type))
+                results[idx] = new_ops[-1].results[0]
 
         rewriter.replace_matched_op(new_ops, results)
 
