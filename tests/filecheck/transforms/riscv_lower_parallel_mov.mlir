@@ -169,9 +169,9 @@ builtin.module {
 }
 
 // CHECK:         %2, %3 = "riscv.parallel_mov"(%0, %1) : (!riscv.reg<s1>, !riscv.reg<s2>) -> (!riscv.reg<s2>, !riscv.reg<s1>)
-// CHECK-NEXT:    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^-----------------------------------------------
-// CHECK-NEXT:    | Error while applying pattern: Not implemented: cyclic moves without free registers.
-// CHECK-NEXT:    ----------------------------------------------------------------------------
+// CHECK-NEXT:    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^-----------------------------------------------------------
+// CHECK-NEXT:    | Error while applying pattern: Not implemented: cyclic moves without free int register.
+// CHECK-NEXT:    ----------------------------------------------------------------------------------------
 
 // -----
 
