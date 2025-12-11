@@ -10,7 +10,7 @@ import abc
 from collections.abc import Iterable, Iterator, Sequence
 from dataclasses import InitVar, dataclass, field
 from enum import Enum
-from typing import ClassVar, Generic, NamedTuple, Self, cast, overload
+from typing import ClassVar, Generic, NamedTuple, cast, overload
 
 from typing_extensions import TypeVar
 
@@ -622,10 +622,7 @@ class ParamDeclAttr(ParametrizedAttribute):
 
 
 _ArrayElement = TypeVar(
-    "_ArrayElement",
-    bound=Attribute,
-    covariant=True,
-    default=Attribute,
+    "_ArrayElement", bound=Attribute, covariant=True, default=AnySignlessIntegerType
 )
 
 
@@ -642,7 +639,7 @@ class ArrayType(ParametrizedAttribute, TypeAttribute, Generic[_ArrayElement]):
 
     def __init__(
         self,
-        element_type: AnySignlessIntegerType | Self,
+        element_type: AnySignlessIntegerType | _ArrayElement,
         size_attr: IntAttr | int,
     ):
         if isinstance(size_attr, int):
