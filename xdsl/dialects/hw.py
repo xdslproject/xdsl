@@ -10,7 +10,9 @@ import abc
 from collections.abc import Iterable, Iterator, Sequence
 from dataclasses import InitVar, dataclass, field
 from enum import Enum
-from typing import ClassVar, NamedTuple, cast, overload
+from typing import ClassVar, Generic, NamedTuple, Self, cast, overload
+
+from typing_extensions import TypeVar
 
 from xdsl.dialects.builtin import (
     AnySignlessIntegerType,
@@ -65,7 +67,6 @@ from xdsl.traits import (
     SymbolTable,
 )
 from xdsl.utils.exceptions import VerifyException
-from xdsl.utils.hints import isa
 
 
 @dataclass
@@ -620,20 +621,28 @@ class ParamDeclAttr(ParametrizedAttribute):
             )
 
 
+_ArrayElement = TypeVar(
+    "_ArrayElement",
+    bound=Attribute,
+    covariant=True,
+    default=Attribute,
+)
+
+
 @irdl_attr_definition
-class ArrayType(ParametrizedAttribute, TypeAttribute):
+class ArrayType(ParametrizedAttribute, TypeAttribute, Generic[_ArrayElement]):
     """
     Fixed-sized array
     """
 
     name = "hw.array"
 
-    element_type: IntegerType
+    element_type: _ArrayElement
     size_attr: IntAttr
 
     def __init__(
         self,
-        element_type: AnySignlessIntegerType,
+        element_type: AnySignlessIntegerType | Self,
         size_attr: IntAttr | int,
     ):
         if isinstance(size_attr, int):
@@ -646,7 +655,7 @@ class ArrayType(ParametrizedAttribute, TypeAttribute):
     def __len__(self) -> int:
         return self.size_attr.data
 
-    def get_element_type(self) -> IntegerType:
+    def get_element_type(self) -> _ArrayElement:
         return self.element_type
 
     @classmethod
@@ -1075,6 +1084,7 @@ class InstanceOp(IRDLOperation):
     outputs = var_result_def()
     arg_names = attr_def(ArrayAttr[StringAttr], attr_name="argNames")
     result_names = attr_def(ArrayAttr[StringAttr], attr_name="resultNames")
+    parameters = attr_def(ArrayAttr[StringAttr], attr_name="parameters")
     inner_sym = opt_attr_def(InnerSymAttr)
 
     def __init__(
@@ -1083,6 +1093,7 @@ class InstanceOp(IRDLOperation):
         module_name: FlatSymbolRefAttr,
         inputs: Iterable[tuple[str, SSAValue]],
         outputs: Iterable[tuple[str, TypeAttribute]],
+        parameters: ArrayAttr[Attribute] = ArrayAttr(()),
         inner_sym: InnerSymAttr | None = None,
     ):
         arg_names = ArrayAttr(StringAttr(port[0]) for port in inputs)
@@ -1092,6 +1103,7 @@ class InstanceOp(IRDLOperation):
             "moduleName": module_name,
             "argNames": arg_names,
             "resultNames": result_names,
+            "parameters": parameters,
         }
         if inner_sym is not None:
             attributes["inner_sym"] = inner_sym
@@ -1282,6 +1294,7 @@ class InstanceOp(IRDLOperation):
                 "argNames",
                 "resultNames",
                 "inner_sym",
+                "parameters",
             ),
         )
 
@@ -1360,8 +1373,9 @@ class ArrayCreateOp(IRDLOperation):
         self, first_input: Operation | SSAValue, *other_inputs: Operation | SSAValue
     ):
         inputs = (first_input, *other_inputs)
-        el_type = SSAValue.get(first_input).type
-        assert isa(el_type, AnySignlessIntegerType)
+        el_type = SSAValue.get(
+            first_input, type=AnySignlessIntegerType | ArrayType
+        ).type
         out_type = ArrayType(el_type, len(inputs))
         super().__init__(operands=(inputs,), result_types=[out_type])
 
@@ -1397,7 +1411,7 @@ class ArrayGetOp(IRDLOperation):
     result = result_def(IntegerType)
 
     def __init__(self, input: Operation | SSAValue, index: Operation | SSAValue):
-        typ = SSAValue.get(input).type
+        typ = SSAValue.get(input, type=ArrayType).type
         assert isinstance(typ, ArrayType)
         out_type = typ.get_element_type()
         super().__init__(operands=[input, index], result_types=[out_type])
