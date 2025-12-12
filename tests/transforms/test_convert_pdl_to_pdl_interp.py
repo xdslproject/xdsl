@@ -4384,6 +4384,7 @@ def test_generate_rewriter_for_erase():
             erase_op, {}, lambda x: x
         )
 
+
 def test_generate_rewriter_for_result():
     """Test _generate_rewriter_for_result generates GetResultOp"""
     from xdsl.builder import ImplicitBuilder
