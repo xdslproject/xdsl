@@ -19,7 +19,8 @@ re-run all the cells.
 This series introduces MLIR IR, and xDSL APIs to traverse it, define your own IR
 constructs, and implement your rewrites.
 
-1. [MLIR IR](mlir_ir.py)
+1. [Introduction](mlir_introduction.py)
+1. [Func, Arith, and SCF Dialects](mlir_ir.py)
 1. [Traversing IR](traversing_ir.py)
 1. [Builders](builders.py)
 1. [IR Generation](ir_gen.py)

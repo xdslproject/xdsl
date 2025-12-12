@@ -83,6 +83,9 @@ builtin.module {
   %sub_immediates = riscv.sub %c2, %c3 : (!riscv.reg, !riscv.reg) -> !riscv.reg<a0>
   "test.op"(%sub_immediates) : (!riscv.reg<a0>) -> ()
 
+  %sub_lhs_rhs = riscv.sub %i1, %i1 : (!riscv.reg<a1>, !riscv.reg<a1>) -> !riscv.reg<a0>
+  "test.op"(%sub_lhs_rhs) : (!riscv.reg<a0>) -> ()
+
   // Unchanged
   %sub_vars = riscv.sub %i0, %i1 : (!riscv.reg<a0>, !riscv.reg<a1>) -> !riscv.reg<a0>
   "test.op"(%add_vars) : (!riscv.reg<a0>) -> ()
@@ -230,6 +233,10 @@ builtin.module {
 
 // CHECK-NEXT:   %sub_immediates = riscv.li -1 : !riscv.reg<a0>
 // CHECK-NEXT:   "test.op"(%sub_immediates) : (!riscv.reg<a0>) -> ()
+
+// CHECK-NEXT:   %sub_lhs_rhs = riscv.get_register : !riscv.reg<zero>
+// CHECK-NEXT:   %sub_lhs_rhs_1 = riscv.mv %sub_lhs_rhs : (!riscv.reg<zero>) -> !riscv.reg<a0>
+// CHECK-NEXT:   "test.op"(%sub_lhs_rhs_1) : (!riscv.reg<a0>) -> ()
 
   // Unchanged
 // CHECK-NEXT:   %sub_vars = riscv.sub %i0, %i1 : (!riscv.reg<a0>, !riscv.reg<a1>) -> !riscv.reg<a0>

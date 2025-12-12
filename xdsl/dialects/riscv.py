@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from collections.abc import Set as AbstractSet
 from io import StringIO
-from typing import IO, Annotated, Generic, Literal, TypeAlias
+from typing import IO, Annotated, Generic, Literal, TypeAlias, cast
 
 from typing_extensions import Self, TypeVar
 
@@ -19,6 +19,7 @@ from xdsl.backend.register_allocatable import (
 )
 from xdsl.backend.register_type import RegisterAllocatedMemoryEffect, RegisterType
 from xdsl.dialects.builtin import (
+    ArrayAttr,
     IndexType,
     IntegerAttr,
     IntegerType,
@@ -42,12 +43,14 @@ from xdsl.ir import (
 )
 from xdsl.irdl import (
     IRDLOperation,
+    ParsePropInAttrDict,
     attr_def,
     base,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
     opt_attr_def,
+    opt_prop_def,
     region_def,
     result_def,
     traits_def,
@@ -2087,10 +2090,11 @@ class SubOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.riscv import (
             SubAddi,
+            SubBySelf,
             SubImmediates,
         )
 
-        return (SubImmediates(), SubAddi())
+        return (SubImmediates(), SubAddi(), SubBySelf())
 
 
 @irdl_op_definition
@@ -3866,6 +3870,51 @@ class GetFloatRegisterOp(GetAnyRegisterOperation[FloatRegisterType]):
     name = "riscv.get_float_register"
 
 
+@irdl_op_definition
+class ParallelMovOp(IRDLOperation):
+    name = "riscv.parallel_mov"
+    inputs = var_operand_def(RISCVRegisterType)
+    outputs = var_result_def(RISCVRegisterType)
+    free_registers = opt_prop_def(ArrayAttr[RISCVRegisterType])
+
+    assembly_format = "$inputs attr-dict `:` functional-type($inputs, $outputs)"
+    irdl_options = [ParsePropInAttrDict()]
+
+    def __init__(
+        self,
+        inputs: Sequence[SSAValue],
+        outputs: Sequence[RISCVRegisterType],
+        free_registers: ArrayAttr[RISCVRegisterType] | None = None,
+    ):
+        super().__init__(
+            operands=(inputs,),
+            result_types=(outputs,),
+            properties={"free_registers": free_registers},
+        )
+
+    def verify_(self) -> None:
+        if len(self.inputs) != len(self.outputs):
+            raise VerifyException(
+                "Input count must match output count. "
+                f"Num inputs: {len(self.inputs)}, Num outputs: {len(self.outputs)}"
+            )
+
+        input_types = cast(Sequence[RISCVRegisterType], self.inputs.types)
+        output_types = cast(Sequence[RISCVRegisterType], self.outputs.types)
+
+        # Check type of register type matches for input and output
+        for input_type, output_type in zip(input_types, output_types, strict=True):
+            if type(input_type) is not type(output_type):
+                raise VerifyException("Input type must match output type.")
+
+        # Check outputs are distinct if allocated and not ZERO
+        filtered_outputs = tuple(
+            i for i in output_types if i.is_allocated and i != Registers.ZERO
+        )
+        if len(filtered_outputs) != len(set(filtered_outputs)):
+            raise VerifyException("Outputs must be unallocated or distinct.")
+
+
 # endregion
 
 # region RV32F: 8 “F” Standard Extension for Single-Precision Floating-Point, Version 2.0
@@ -5013,6 +5062,7 @@ RISCV = Dialect(
         FMvDOp,
         VFAddSOp,
         VFMulSOp,
+        ParallelMovOp,
     ],
     [
         IntRegisterType,

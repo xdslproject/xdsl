@@ -46,6 +46,9 @@ from xdsl.irdl import (
 )
 from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
+from xdsl.syntax_printer import SyntaxPrinter
+from xdsl.utils.color_printer import ColorPrinter
+from xdsl.utils.colors import Colors
 from xdsl.utils.diagnostic import Diagnostic
 from xdsl.utils.exceptions import ParseError
 from xdsl.utils.test_value import create_ssa_value
@@ -1135,6 +1138,51 @@ def test_symbol_printing():
     printer.stream = StringIO()
     printer.print_symbol_name("@symbol")
     assert '@"@symbol"' == printer.stream.getvalue()
+
+
+def test_color_printing():
+    printer = ColorPrinter()
+
+    printer.stream = StringIO()
+    with printer.colored(None):
+        printer.print_string("test")
+    assert "test" == printer.stream.getvalue()
+
+    printer.stream = StringIO()
+    with printer.colored(Colors.BLUE):
+        printer.print_string("test")
+    assert "\x1b[34mtest\x1b[0m" == printer.stream.getvalue()
+
+
+def test_nested_color_printing():
+    printer = ColorPrinter()
+
+    printer.stream = StringIO()
+    with printer.colored(Colors.BLUE):
+        with printer.colored(Colors.RED):
+            printer.print_string("test")
+
+    # Should still be blue
+    assert "\x1b[34mtest\x1b[0m" == printer.stream.getvalue()
+
+    printer.stream = StringIO()
+    with printer.colored(None):
+        with printer.colored(Colors.RED):
+            printer.print_string("test")
+
+    # Should be red
+    assert "\x1b[31mtest\x1b[0m" == printer.stream.getvalue()
+
+
+def test_syntax_printer():
+    printer = SyntaxPrinter()
+
+    op = test.TestOp(result_types=(IntegerType(32),))
+
+    printer.stream = StringIO()
+    printer.print_ssa_value(op.results[0])
+
+    assert "\x1b[95m%0\x1b[0m" == printer.stream.getvalue()
 
 
 def assert_print_op(
