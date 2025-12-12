@@ -222,4 +222,25 @@ builtin.module {
   // CHECK-NEXT:   }
   // CHECK-NEXT:   func.return
   // CHECK-NEXT: }
+
+  func.func @execute_region() {
+    %d = scf.execute_region -> (i32) {
+      %a = arith.constant 0 : i32
+      %b = arith.constant 1 : i32
+      %c = arith.addi %a, %b : i32
+      scf.yield %c : i32
+    }
+    func.return
+  }
+  
+  // CHECK:      func.func @execute_region() {
+  // CHECK-NEXT:   %d = "scf.execute_region"() ({
+  // CHECK-NEXT:     %a = arith.constant 0 : i32
+  // CHECK-NEXT:     %b = arith.constant 1 : i32
+  // CHECK-NEXT:     %c = arith.addi %a, %b : i32
+  // CHECK-NEXT:     scf.yield %c : i32
+  // CHECK-NEXT:   }) : () -> i32
+  // CHECK-NEXT:   func.return
+  // CHECK-NEXT: }
+
 }
