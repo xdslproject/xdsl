@@ -8,6 +8,7 @@ from xdsl.dialects import builtin, eqsat_pdl_interp, pdl, pdl_interp
 from xdsl.dialects.builtin import StringAttr
 from xdsl.interpreter import Interpreter
 from xdsl.interpreters.eqsat_pdl_interp import EqsatPDLInterpFunctions
+from xdsl.interpreters.pdl_interp import PDLInterpFunctions
 from xdsl.parser import Parser
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import PatternRewriterListener, PatternRewriteWalker
@@ -109,8 +110,11 @@ class ApplyEqsatPDLPass(ModulePass):
         rewriters_builder = Builder(InsertPoint.at_end(rewriters_module.body.block))
 
         interpreter = Interpreter(matchers_module)
-        EqsatPDLInterpFunctions.set_ctx(interpreter, ctx)
+        PDLInterpFunctions.set_ctx(interpreter, ctx)
         interpreter.register_implementations(implementations)
+        interpreter.register_implementations(
+            vanilla_pdl_interp_implementations := PDLInterpFunctions()
+        )
         interpreter.register_implementations(EqsatConstraintFunctions())
 
         rewrite_patterns: list[PDLInterpRewritePattern] = []
@@ -139,7 +143,7 @@ class ApplyEqsatPDLPass(ModulePass):
             rewriters_builder.insert_op(rewriter_func)
 
             rewrite_pattern = PDLInterpRewritePattern(
-                matcher, interpreter, implementations, name.data
+                matcher, interpreter, vanilla_pdl_interp_implementations, name.data
             )
             rewrite_patterns.append(rewrite_pattern)
 
@@ -183,28 +187,32 @@ class ApplyEqsatPDLPass(ModulePass):
 
         # Initialize interpreter and implementations
         interpreter = Interpreter(pdl_interp_module)
-        implementations = EqsatPDLInterpFunctions()
-        implementations.set_ctx(interpreter, ctx)
-        implementations.populate_known_ops(op)
-        interpreter.register_implementations(implementations)
+        pdl_interp_functions = PDLInterpFunctions()
+        eqsat_pdl_interp_functions = EqsatPDLInterpFunctions()
+        PDLInterpFunctions.set_ctx(interpreter, ctx)
+        eqsat_pdl_interp_functions.populate_known_ops(op)
+        interpreter.register_implementations(eqsat_pdl_interp_functions)
+        interpreter.register_implementations(pdl_interp_functions)
         interpreter.register_implementations(EqsatConstraintFunctions())
-        rewrite_pattern = PDLInterpRewritePattern(matcher, interpreter, implementations)
+        rewrite_pattern = PDLInterpRewritePattern(
+            matcher, interpreter, pdl_interp_functions
+        )
 
         listener = PatternRewriterListener()
         listener.operation_modification_handler.append(
-            implementations.modification_handler
+            eqsat_pdl_interp_functions.modification_handler
         )
         walker = PatternRewriteWalker(rewrite_pattern, apply_recursively=False)
         walker.listener = listener
 
         for _i in range(self.max_iterations):
             walker.rewrite_module(op)
-            implementations.execute_pending_rewrites(interpreter)
+            eqsat_pdl_interp_functions.execute_pending_rewrites(interpreter)
 
-            if not implementations.worklist:
+            if not eqsat_pdl_interp_functions.worklist:
                 break
 
-            implementations.rebuild(interpreter)
+            eqsat_pdl_interp_functions.rebuild(interpreter)
 
     def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         pdl_module = self._load_pdl_module(ctx, op)
