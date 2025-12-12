@@ -79,6 +79,18 @@ class SimplifyTrivialLoops(RewritePattern):
         # TODO: https://mlir.llvm.org/doxygen/Dialect_2SCF_2IR_2SCF_8cpp_source.html
 
 
+class SingleBlockExecuteInliner(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(
+        self, op: scf.ExecuteRegionOp, rewriter: PatternRewriter
+    ) -> None:
+        assert op.region.first_block is not None
+        op.region.block
+        if op.region.first_block.next_block is not None:
+            return
+        replace_op_with_region(rewriter, op, op.region)
+
+
 def replace_op_with_region(
     rewriter: PatternRewriter,
     op: Operation,

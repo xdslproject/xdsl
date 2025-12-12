@@ -182,6 +182,16 @@ class YieldOp(AbstractYieldOperation[Attribute]):
     )
 
 
+class ExecuteRegionOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.scf import (
+            SingleBlockExecuteInliner,
+        )
+
+        return (SingleBlockExecuteInliner(),)
+
+
 @irdl_op_definition
 class ExecuteRegionOp(IRDLOperation):
     """
@@ -193,6 +203,10 @@ class ExecuteRegionOp(IRDLOperation):
 
     outs = var_result_def()
     region = region_def()
+
+    traits = traits_def(
+        ExecuteRegionOpHasCanonicalizationPatternsTrait(),
+    )
 
     def __init__(
         self,
