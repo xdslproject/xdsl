@@ -85,7 +85,6 @@ class SingleBlockExecuteInliner(RewritePattern):
         self, op: scf.ExecuteRegionOp, rewriter: PatternRewriter
     ) -> None:
         assert op.region.first_block is not None
-        op.region.block
         if op.region.first_block.next_block is not None:
             return
         replace_op_with_region(rewriter, op, op.region)

@@ -88,3 +88,16 @@ func.func @execute_region() -> i32 {
   }
   func.return %d : i32
 }
+
+func.func @execute_region_with_multiple_blocks() -> i32 {
+  %a, %b = "test.op"() : () -> (i32, i32)
+  %d = scf.execute_region -> (i32) {
+      %cond = "test.op"() : () -> (i1)
+      cf.cond_br %cond, ^bb0, ^bb1
+    ^bb0:
+      scf.yield %a : i32
+    ^bb1:
+      scf.yield %b : i32
+  }
+  func.return %d : i32
+}
