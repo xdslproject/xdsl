@@ -176,10 +176,39 @@ class YieldOp(AbstractYieldOperation[Attribute]):
     traits = lazy_traits_def(
         lambda: (
             IsTerminator(),
-            HasParent(ForOp, IfOp, WhileOp, IndexSwitchOp),
+            HasParent(ForOp, IfOp, ExecuteRegionOp, WhileOp, IndexSwitchOp),
             Pure(),
         )
     )
+
+
+@irdl_op_definition
+class ExecuteRegionOp(IRDLOperation):
+    name = "scf.execute_region"
+
+    outs = var_result_def()
+    region = region_def()
+
+    def __init__(
+        self,
+        result_types: Sequence[Attribute],
+        region: Region,
+        attr_dict: dict[str, Attribute] | None = None,
+    ):
+        super().__init__(result_types=result_types, regions=(region,))
+
+    @classmethod
+    def parse(cls, parser: Parser) -> Self:
+        result_types = []
+        if parser.parse_optional_punctuation("->"):
+            result_types = parser.parse_comma_separated_list(
+                parser.Delimiter.PAREN, parser.parse_type
+            )
+
+        region = IfOp.parse_region_with_yield(parser)
+        attr_dict = parser.parse_optional_attr_dict()
+
+        return cls(result_types, region, attr_dict)
 
 
 @irdl_op_definition
@@ -239,8 +268,6 @@ class IfOp(IRDLOperation):
             return_types = parser.parse_comma_separated_list(
                 parser.Delimiter.PAREN, parser.parse_type
             )
-        else:
-            return_types = []
 
         then_region = cls.parse_region_with_yield(parser)
 
@@ -714,6 +741,7 @@ Scf = Dialect(
         IfOp,
         ForOp,
         YieldOp,
+        ExecuteRegionOp,
         ConditionOp,
         ParallelOp,
         ReduceOp,
