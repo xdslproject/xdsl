@@ -210,6 +210,24 @@ class ExecuteRegionOp(IRDLOperation):
 
         return cls(result_types, region, attr_dict)
 
+    def print(self, printer: Printer):
+        print_block_terminators = False
+        if bool(self.outs):
+            printer.print_string(" -> (")
+            printer.print_list(self.outs.types, printer.print_attribute)
+            printer.print_string(")")
+            print_block_terminators = True
+
+        printer.print_string(" ")
+        printer.print_region(
+            self.region,
+            print_entry_block_args=False,
+            print_block_terminators=print_block_terminators,
+        )
+
+        if bool(self.attributes.keys()):
+            printer.print_attr_dict(self.attributes)
+
 
 @irdl_op_definition
 class IfOp(IRDLOperation):
