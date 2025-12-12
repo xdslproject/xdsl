@@ -6,6 +6,8 @@ See [rationale](https://circt.llvm.org/docs/RationaleSymbols/) for symbols.
 See external [documentation](https://circt.llvm.org/docs/Dialects/HW/).
 """
 
+from __future__ import annotations
+
 import abc
 from collections.abc import Iterable, Iterator, Sequence
 from dataclasses import InitVar, dataclass, field
@@ -17,6 +19,7 @@ from typing_extensions import TypeVar
 from xdsl.dialects.builtin import (
     AnySignlessIntegerType,
     ArrayAttr,
+    ContainerType,
     FlatSymbolRefAttr,
     FlatSymbolRefAttrConstr,
     IntAttr,
@@ -40,7 +43,10 @@ from xdsl.ir import (
 from xdsl.irdl import (
     AnyAttr,
     AtLeast,
+    AttrConstraint,
+    IRDLAttrConstraint,
     IRDLOperation,
+    ParamAttrConstraint,
     RangeOf,
     VarConstraint,
     attr_def,
@@ -95,8 +101,8 @@ class InnerSymTarget:
 
     @classmethod
     def get_target_for_subfield(
-        cls, base: "InnerSymTarget", field_id: int
-    ) -> "InnerSymTarget":
+        cls, base: InnerSymTarget, field_id: int
+    ) -> InnerSymTarget:
         """
         Return a target to the specified field within the given base.
         `field_id` is relative to the specified base target.
@@ -123,7 +129,7 @@ class InnerRefAttr(ParametrizedAttribute):
     @classmethod
     def get_from_operation(
         cls, op: Operation, sym_name: StringAttr, module_name: StringAttr
-    ) -> "InnerRefAttr":
+    ) -> InnerRefAttr:
         """Get the InnerRefAttr for an operation and add the sym on it."""
         # NB: declared upstream, but no implementation to be found
         raise NotImplementedError
@@ -239,7 +245,7 @@ class InnerRefUserOpInterfaceTrait(OpTrait):
     other inner symbol related utilities that are either costly or otherwise
     disallowed within a traditional operation."""
 
-    def verify_inner_refs(self, op: Operation, namespace: "InnerRefNamespace"):
+    def verify_inner_refs(self, op: Operation, namespace: InnerRefNamespace):
         """Verify the inner ref uses held by this operation."""
         ...
 
@@ -409,7 +415,7 @@ class InnerSymAttr(
         """Iterator for all the InnerSymPropertiesAttr."""
         return iter(self.props)
 
-    def erase(self, field_id: IntAttr | int) -> "InnerSymAttr":
+    def erase(self, field_id: IntAttr | int) -> InnerSymAttr:
         """Return an InnerSymAttr with the inner symbol for the specified field_id removed."""
         if not isinstance(field_id, IntAttr):
             field_id = IntAttr(field_id)
@@ -456,7 +462,7 @@ class Direction(Enum):
     OUTPUT = 1
 
     @staticmethod
-    def parse_optional(parser: BaseParser, short: bool = False) -> "Direction | None":
+    def parse_optional(parser: BaseParser, short: bool = False) -> Direction | None:
         if parser.parse_optional_keyword("input" if not short else "in"):
             return Direction.INPUT
         elif parser.parse_optional_keyword("output" if not short else "out"):
@@ -465,7 +471,7 @@ class Direction(Enum):
             return None
 
     @staticmethod
-    def parse(parser: BaseParser, short: bool = False) -> "Direction":
+    def parse(parser: BaseParser, short: bool = False) -> Direction:
         if (direction := Direction.parse_optional(parser, short)) is None:
             return parser.raise_error("invalid port direction")
         return direction
@@ -621,25 +627,30 @@ class ParamDeclAttr(ParametrizedAttribute):
             )
 
 
-_ArrayElement = TypeVar(
-    "_ArrayElement", bound=Attribute, covariant=True, default=AnySignlessIntegerType
+ArrayElementCovT = TypeVar(
+    "ArrayElementCovT", bound=Attribute, covariant=True, default=Attribute
 )
 
 
 @irdl_attr_definition
-class ArrayType(ParametrizedAttribute, TypeAttribute, Generic[_ArrayElement]):
+class ArrayType(
+    ParametrizedAttribute,
+    TypeAttribute,
+    ContainerType[ArrayElementCovT],
+    Generic[ArrayElementCovT],
+):
     """
     Fixed-sized array
     """
 
     name = "hw.array"
 
-    element_type: _ArrayElement
+    element_type: ArrayElementCovT
     size_attr: IntAttr
 
     def __init__(
         self,
-        element_type: AnySignlessIntegerType | _ArrayElement,
+        element_type: ArrayElementCovT,
         size_attr: IntAttr | int,
     ):
         if isinstance(size_attr, int):
@@ -652,8 +663,17 @@ class ArrayType(ParametrizedAttribute, TypeAttribute, Generic[_ArrayElement]):
     def __len__(self) -> int:
         return self.size_attr.data
 
-    def get_element_type(self) -> _ArrayElement:
+    def get_element_type(self) -> ArrayElementCovT:
         return self.element_type
+
+    @staticmethod
+    def constr(
+        element_type: IRDLAttrConstraint[ArrayElementCovT],
+        size_attr: IRDLAttrConstraint[IntAttr],
+    ) -> AttrConstraint:
+        return ParamAttrConstraint[ArrayType[ArrayElementCovT]](
+            ArrayType, (element_type, size_attr)
+        )
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
@@ -729,7 +749,7 @@ class ParsedModuleHeader(NamedTuple):
         )
 
     @classmethod
-    def parse(cls, parser: Parser) -> "ParsedModuleHeader":
+    def parse(cls, parser: Parser) -> ParsedModuleHeader:
         def parse_optional_port_name() -> str | None:
             return (
                 parser.parse_optional_identifier()
@@ -936,7 +956,7 @@ class HWModuleOp(IRDLOperation):
             raise VerifyException("too many block arguments in module block")
 
     @classmethod
-    def parse(cls, parser: Parser) -> "HWModuleOp":
+    def parse(cls, parser: Parser) -> HWModuleOp:
         module_header = ParsedModuleHeader.parse(parser)
 
         attrs = parser.parse_optional_attr_dict_with_keyword(
@@ -1024,7 +1044,7 @@ class HWModuleExternOp(IRDLOperation):
         return super().__init__(attributes=attributes)
 
     @classmethod
-    def parse(cls, parser: Parser) -> "HWModuleExternOp":
+    def parse(cls, parser: Parser) -> HWModuleExternOp:
         module_header = ParsedModuleHeader.parse(parser)
 
         attrs = parser.parse_optional_attr_dict_with_keyword(
@@ -1174,7 +1194,7 @@ class InstanceOp(IRDLOperation):
         )
 
     @classmethod
-    def parse(cls, parser: Parser) -> "InstanceOp":
+    def parse(cls, parser: Parser) -> InstanceOp:
         instance_name = parser.parse_str_literal(" (instance name)")
         inner_sym = None
         if parser.parse_optional_keyword("sym") is not None:
@@ -1329,7 +1349,7 @@ class OutputOp(IRDLOperation):
                 )
 
     @classmethod
-    def parse(cls, parser: Parser) -> "OutputOp":
+    def parse(cls, parser: Parser) -> OutputOp:
         operands = parser.parse_optional_undelimited_comma_separated_list(
             parser.parse_optional_unresolved_operand, parser.parse_unresolved_operand
         )
@@ -1383,7 +1403,7 @@ class ArrayCreateOp(IRDLOperation):
         printer.print_attribute(self.inputs[0].type)
 
     @classmethod
-    def parse(cls, parser: Parser) -> "ArrayCreateOp":
+    def parse(cls, parser: Parser) -> ArrayCreateOp:
         operands = parser.parse_comma_separated_list(
             parser.Delimiter.NONE, parser.parse_unresolved_operand
         )
@@ -1434,7 +1454,7 @@ class ArrayGetOp(IRDLOperation):
         printer.print_attribute(self.index.type)
 
     @classmethod
-    def parse(cls, parser: Parser) -> "ArrayGetOp":
+    def parse(cls, parser: Parser) -> ArrayGetOp:
         input = parser.parse_unresolved_operand()
         parser.parse_punctuation("[")
         index = parser.parse_unresolved_operand()
