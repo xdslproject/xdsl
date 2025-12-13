@@ -89,6 +89,19 @@ func.func @execute_region() -> i32 {
   func.return %d : i32
 }
 
+// CHECK:      func.func @execute_region_with_multiple_blocks() -> i32 {
+// CHECK-NEXT:   %a, %b = "test.op"() : () -> (i32, i32)
+// CHECK-NEXT:   %d = scf.execute_region -> (i32) {
+// CHECK-NEXT:     %cond = "test.op"() : () -> i1
+// CHECK-NEXT:     cf.cond_br %cond, ^bb0, ^bb1
+// CHECK-NEXT:   ^bb0:
+// CHECK-NEXT:     scf.yield %a : i32
+// CHECK-NEXT:   ^bb1:
+// CHECK-NEXT:     scf.yield %b : i32
+// CHECK-NEXT:   }
+// CHECK-NEXT:   func.return %d : i32
+// CHECK-NEXT: }
+
 func.func @execute_region_with_multiple_blocks() -> i32 {
   %a, %b = "test.op"() : () -> (i32, i32)
   %d = scf.execute_region -> (i32) {
@@ -100,4 +113,15 @@ func.func @execute_region_with_multiple_blocks() -> i32 {
       scf.yield %b : i32
   }
   func.return %d : i32
+}
+
+// CHECK:      func.func @execute_region_with_empty_block() -> i32 {
+// CHECK-NEXT:   %a, %b = "test.op"() : () -> (i32, i32)
+// CHECK-NEXT:   func.return %a : i32
+// CHECK-NEXT: }
+
+func.func @execute_region_with_empty_block() -> i32 {
+  %a, %b = "test.op"() : () -> (i32, i32)
+  scf.execute_region {}
+  func.return %a : i32
 }
