@@ -401,7 +401,7 @@ class PDLInterpFunctions(InterpreterFunctions):
             )
 
         # Split args into operands, attributes and result types based on operand segments
-        operands = list(args[0:num_operands])
+        operands = list(args[:num_operands])
 
         assert issubclass(op_type, IRDLOperation)
         existing_properties = op_type.get_irdl_definition().properties.keys()
