@@ -79,7 +79,7 @@ class SimplifyTrivialLoops(RewritePattern):
         # TODO: https://mlir.llvm.org/doxygen/Dialect_2SCF_2IR_2SCF_8cpp_source.html
 
 
-class SingleBlockExecuteInliner(RewritePattern):
+class ZeroBlockExecuteRemover(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(
         self, op: scf.ExecuteRegionOp, rewriter: PatternRewriter
@@ -88,6 +88,14 @@ class SingleBlockExecuteInliner(RewritePattern):
             rewriter.erase_op(op)
             return
 
+
+class SingleBlockExecuteInliner(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(
+        self, op: scf.ExecuteRegionOp, rewriter: PatternRewriter
+    ) -> None:
+        if op.region.first_block is None:
+            return
         if op.region.first_block is not op.region.last_block:
             return
         replace_op_with_region(rewriter, op, op.region)
