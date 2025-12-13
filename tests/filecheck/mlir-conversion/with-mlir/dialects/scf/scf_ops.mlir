@@ -21,7 +21,24 @@ builtin.module {
     func.return
   }
   
-  // CHECK:      func.func @execute_region_multiple_blocks() {
+  // CHECK-NEXT: func.func @execute_region_multiple_results() {
+  // CHECK-NEXT:   %0, %1 = scf.execute_region -> (i32, i64) {
+  // CHECK-NEXT:     %2, %3 = "test.op"() : () -> (i32, i64)
+  // CHECK-NEXT:     scf.yield %2, %3 : i32, i64
+  // CHECK-NEXT:   }
+  // CHECK-NEXT:   func.return
+  // CHECK-NEXT: }
+  
+  func.func @execute_region_multiple_results() {
+      %c, %d = scf.execute_region -> (i32, i64) {
+      %a, %b = "test.op"() : () -> (i32, i64)
+      scf.yield %a, %b : i32, i64
+      }
+      func.return
+  }
+
+  
+  // CHECK-NEXT:      func.func @execute_region_multiple_blocks() {
   // CHECK-NEXT:   %0 = scf.execute_region -> (i32) {
   // CHECK-NEXT:     %1 = "test.op"() : () -> i1
   // CHECK-NEXT:     cf.cond_br %1, ^bb0, ^bb1

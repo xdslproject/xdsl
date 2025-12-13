@@ -200,7 +200,7 @@ class ExecuteRegionOp(IRDLOperation):
         region: Region,
         attr_dict: dict[str, Attribute] | None = None,
     ):
-        super().__init__(result_types=result_types, regions=(region,))
+        super().__init__(result_types=(result_types,), regions=(region,))
 
     @classmethod
     def parse(cls, parser: Parser) -> Self:

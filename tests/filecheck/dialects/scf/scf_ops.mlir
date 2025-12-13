@@ -239,6 +239,22 @@ builtin.module {
   // CHECK-NEXT:   func.return
   // CHECK-NEXT: }
 
+    func.func @execute_region_multiple_results() {
+        %c, %d = scf.execute_region -> (i32, i64) {
+        %a, %b = "test.op"() : () -> (i32, i64)
+        scf.yield %a, %b : i32, i64
+        }
+        func.return
+    }
+    
+    // CHECK:      func.func @execute_region_multiple_results() {
+    // CHECK-NEXT:   %c, %d = scf.execute_region -> (i32, i64) {
+    // CHECK-NEXT:     %a, %b = "test.op"() : () -> (i32, i64)
+    // CHECK-NEXT:     scf.yield %a, %b : i32, i64
+    // CHECK-NEXT:   }
+    // CHECK-NEXT:   func.return
+    // CHECK-NEXT: }
+
   func.func @execute_region_multiple_blocks() {
     %c = scf.execute_region -> (i32) {
       %cond = "test.op"() : () -> i1
