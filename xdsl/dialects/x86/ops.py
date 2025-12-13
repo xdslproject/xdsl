@@ -41,7 +41,7 @@ from xdsl.backend.register_allocatable import (
     HasRegisterConstraints,
     RegisterConstraints,
 )
-from xdsl.backend.register_type import RegisterAllocatedMemoryEffect, RegisterType
+from xdsl.backend.register_type import RegisterAllocatedMemoryEffect
 from xdsl.dialects.builtin import (
     I32,
     IntegerAttr,
@@ -129,14 +129,6 @@ class X86AsmOperation(
     @abstractmethod
     def assembly_line(self) -> str | None:
         raise NotImplementedError()
-
-    def iter_used_registers(self):
-        return (
-            val.type
-            for vals in (self.operands, self.results)
-            for val in vals
-            if isinstance(val.type, RegisterType) and val.type.is_allocated
-        )
 
     def get_register_constraints(self) -> RegisterConstraints:
         return RegisterConstraints(self.operands, self.results, ())
