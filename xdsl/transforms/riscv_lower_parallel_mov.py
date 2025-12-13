@@ -35,6 +35,13 @@ class ParallelMovPattern(RewritePattern):
         ):
             raise PassFailedException("Not implemented: non-integer support")
 
+        # make free registers a list so we can add to it later
+        free_registers: list[riscv.IntRegisterType] = []
+        if op.free_registers is not None:
+            free_registers = [
+                i for i in op.free_registers if isinstance(i, riscv.IntRegisterType)
+            ]
+
         num_operands = len(op.operands)
 
         new_ops: list[Operation] = []
@@ -88,6 +95,10 @@ class ParallelMovPattern(RewritePattern):
                     break
                 dst = src.type
 
+            # dst is a register that has no input here. We can therefore use it as a free register.
+            if isinstance(dst, riscv.IntRegisterType):
+                free_registers.append(dst)
+
         # If we have a cycle in the graph, all trees pointing into the cycle cannot
         # enter the cycle because it will have an unprocessed node from its previous
         # node in the cycle.
@@ -99,16 +110,11 @@ class ParallelMovPattern(RewritePattern):
                 # Find a free integer register.
                 # We don't have to modify its value since all the cycles
                 # can use the same register.
-                temp_reg = None
-                if op.free_registers is not None:
-                    for reg in op.free_registers:
-                        if isinstance(reg, riscv.IntRegisterType):
-                            temp_reg = reg
-                            break
-                if temp_reg is None:
+                if not free_registers:
                     raise PassFailedException(
                         "Not implemented: cyclic moves without free int register."
                     )
+                temp_reg = free_registers[0]
 
                 # Break the cycle by using free register
                 # split the current mov
