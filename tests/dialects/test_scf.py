@@ -10,6 +10,7 @@ from xdsl.builder import Builder
 from xdsl.dialects.arith import ConstantOp
 from xdsl.dialects.builtin import IndexType, ModuleOp, i32, i64
 from xdsl.dialects.scf import (
+    ExecuteRegionOp,
     ForOp,
     IfOp,
     ParallelOp,
@@ -20,6 +21,8 @@ from xdsl.dialects.scf import (
 )
 from xdsl.dialects.test import TestTermOp
 from xdsl.ir import Block, BlockArgument, Region
+from xdsl.pattern_rewriter import PatternRewriter
+from xdsl.transforms.canonicalize import CanonicalizationRewritePattern
 from xdsl.utils.exceptions import DiagnosticException, VerifyException
 
 
@@ -430,3 +433,12 @@ def test_while():
     )
     assert (len(while_loop.results)) == 2
     assert (len(while_loop.operands)) == 2
+
+
+def test_execute_region_with_no_blocks_canonicalization():
+    execute_region = ExecuteRegionOp((), Region(()))
+    mod = ModuleOp([execute_region])
+    CanonicalizationRewritePattern().match_and_rewrite(
+        execute_region, PatternRewriter(execute_region)
+    )
+    assert not mod.body.ops
