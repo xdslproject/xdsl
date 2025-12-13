@@ -204,11 +204,14 @@ class ExecuteRegionOp(IRDLOperation):
 
     @classmethod
     def parse(cls, parser: Parser) -> Self:
-        result_types = []
         if parser.parse_optional_punctuation("->"):
-            result_types = parser.parse_comma_separated_list(
+            result_types = parser.parse_optional_comma_separated_list(
                 parser.Delimiter.PAREN, parser.parse_type
             )
+            if result_types is None:
+                result_types = [parser.parse_type()]
+        else:
+            result_types = []
 
         region = IfOp.parse_region_with_yield(parser)
         attr_dict = parser.parse_optional_attr_dict()
