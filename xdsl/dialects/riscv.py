@@ -357,14 +357,21 @@ class LabelAttr(Data[str]):
             printer.print_string_literal(self.data)
 
 
-class RISCVAsmOperation(
-    HasRegisterConstraints, IRDLOperation, OneLineAssemblyPrintable, ABC
-):
+class RISCVAsmOperation(IRDLOperation, OneLineAssemblyPrintable, ABC):
     """
     Base class for operations that can be a part of RISC-V assembly printing.
     """
 
+
+class RISCVRegallocOperation(HasRegisterConstraints, IRDLOperation, ABC):
+    """
+    Base class for operations that can take part in register allocation.
+    """
+
     def get_register_constraints(self) -> RegisterConstraints:
+        # The default register constraints are that all operands are "in", and all
+        # results are "out" registers.
+        # If some registers are "inout" then this function must be overridden.
         return RegisterConstraints(self.operands, self.results, ())
 
 
@@ -453,7 +460,7 @@ AssemblyInstructionArg: TypeAlias = (
 )
 
 
-class RISCVInstruction(RISCVAsmOperation, ABC):
+class RISCVInstruction(RISCVAsmOperation, RISCVRegallocOperation, ABC):
     """
     Base class for operations that can be a part of RISC-V assembly printing. Must
     represent an instruction in the RISC-V instruction set, and have the following format:
@@ -3519,7 +3526,7 @@ class EcallOp(NullaryOperation):
 
 
 @irdl_op_definition
-class LabelOp(RISCVCustomFormatOperation, RISCVAsmOperation):
+class LabelOp(RISCVCustomFormatOperation, RISCVAsmOperation, RISCVRegallocOperation):
     """
     The label operation is used to emit text labels (e.g. loop:) that are used
     as branch, unconditional jump targets and symbol offsets.
@@ -3574,7 +3581,9 @@ class LabelOp(RISCVCustomFormatOperation, RISCVAsmOperation):
 
 
 @irdl_op_definition
-class DirectiveOp(RISCVCustomFormatOperation, RISCVAsmOperation):
+class DirectiveOp(
+    RISCVCustomFormatOperation, RISCVAsmOperation, RISCVRegallocOperation
+):
     """
     The directive operation is used to emit assembler directives (e.g. .word; .equ; etc.)
     without any associated region of assembly code.
@@ -3761,7 +3770,7 @@ class CustomAssemblyInstructionOp(RISCVCustomFormatOperation, RISCVInstruction):
 
 
 @irdl_op_definition
-class CommentOp(RISCVCustomFormatOperation, RISCVAsmOperation):
+class CommentOp(RISCVCustomFormatOperation, RISCVAsmOperation, RISCVRegallocOperation):
     name = "riscv.comment"
     comment = attr_def(StringAttr)
 
@@ -3810,7 +3819,11 @@ class WfiOp(NullaryOperation):
 
 
 class GetAnyRegisterOperation(
-    RISCVCustomFormatOperation, RISCVAsmOperation, ABC, Generic[RDInvT]
+    RISCVCustomFormatOperation,
+    RISCVAsmOperation,
+    RISCVRegallocOperation,
+    ABC,
+    Generic[RDInvT],
 ):
     """
     This instruction allows us to create an SSAValue with for a given register name. This
@@ -3878,7 +3891,7 @@ class ParallelMovOp(IRDLOperation):
     free_registers = opt_prop_def(ArrayAttr[RISCVRegisterType])
 
     assembly_format = "$inputs attr-dict `:` functional-type($inputs, $outputs)"
-    irdl_options = [ParsePropInAttrDict()]
+    irdl_options = (ParsePropInAttrDict(),)
 
     def __init__(
         self,

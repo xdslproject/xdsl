@@ -176,10 +176,71 @@ class YieldOp(AbstractYieldOperation[Attribute]):
     traits = lazy_traits_def(
         lambda: (
             IsTerminator(),
-            HasParent(ForOp, IfOp, WhileOp, IndexSwitchOp),
+            HasParent(ForOp, IfOp, ExecuteRegionOp, WhileOp, IndexSwitchOp),
             Pure(),
         )
     )
+
+
+@irdl_op_definition
+class ExecuteRegionOp(IRDLOperation):
+    """
+    Operation that executes its region exactly once.
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/SCFDialect/#scfexecute_region-scfexecuteregionop).
+    """
+
+    name = "scf.execute_region"
+
+    outs = var_result_def()
+    region = region_def()
+
+    def __init__(
+        self,
+        result_types: Sequence[Attribute],
+        region: Region,
+        attr_dict: dict[str, Attribute] | None = None,
+    ):
+        super().__init__(result_types=(result_types,), regions=(region,))
+
+    @classmethod
+    def parse(cls, parser: Parser) -> Self:
+        if parser.parse_optional_punctuation("->"):
+            result_types = parser.parse_optional_comma_separated_list(
+                parser.Delimiter.PAREN, parser.parse_type
+            )
+            if result_types is None:
+                result_types = [parser.parse_type()]
+        else:
+            result_types = []
+
+        region = parser.parse_region()
+        attr_dict = parser.parse_optional_attr_dict()
+
+        return cls(result_types, region, attr_dict)
+
+    def print(self, printer: Printer):
+        print_block_terminators = False
+        if bool(self.outs):
+            printer.print_string(" -> (")
+            printer.print_list(self.outs.types, printer.print_attribute)
+            printer.print_string(")")
+            print_block_terminators = True
+
+        printer.print_string(" ")
+        printer.print_region(
+            self.region,
+            print_entry_block_args=False,
+            print_block_terminators=print_block_terminators,
+        )
+
+        if bool(self.attributes.keys()):
+            printer.print_attr_dict(self.attributes)
+
+    def verify_(self) -> None:
+        if self.region.first_block is None:
+            raise VerifyException(
+                "scf.execute_region op region needs to have at least one block"
+            )
 
 
 @irdl_op_definition
@@ -239,8 +300,6 @@ class IfOp(IRDLOperation):
             return_types = parser.parse_comma_separated_list(
                 parser.Delimiter.PAREN, parser.parse_type
             )
-        else:
-            return_types = []
 
         then_region = cls.parse_region_with_yield(parser)
 
@@ -414,7 +473,7 @@ class ParallelOp(IRDLOperation):
 
     body = region_def("single_block")
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
     traits = lazy_traits_def(
         lambda: (
@@ -714,6 +773,7 @@ Scf = Dialect(
         IfOp,
         ForOp,
         YieldOp,
+        ExecuteRegionOp,
         ConditionOp,
         ParallelOp,
         ReduceOp,

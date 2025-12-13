@@ -85,7 +85,7 @@ builtin.module {
   pdl_interp.func @matcher(%0 : !pdl.operation) {
     pdl_interp.check_operation_name of %0 is "arith.addf" -> ^bb0, ^bb1
   ^bb1:
-    pdl_interp.finalize
+    eqsat_pdl_interp.finalize
   ^bb0:
     pdl_interp.check_operand_count of %0 is 2 -> ^bb2, ^bb1
   ^bb2:
@@ -94,7 +94,7 @@ builtin.module {
     %1 = pdl_interp.get_operand 0 of %0
     pdl_interp.is_not_null %1 : !pdl.value -> ^bb4, ^bb1
   ^bb4:
-    %2 = pdl_interp.get_result 0 of %0
+    %2 = eqsat_pdl_interp.get_result 0 of %0
     pdl_interp.is_not_null %2 : !pdl.value -> ^bb5, ^bb1
   ^bb5:
     %3 = pdl_interp.get_operand 1 of %0
@@ -102,7 +102,7 @@ builtin.module {
   ^bb7:
     eqsat_pdl_interp.choose from ^bb8 then ^bb1
   ^bb8:
-    %4 = pdl_interp.get_defining_op of %1 : !pdl.value {position = "root.operand[0].defining_op"}
+    %4 = eqsat_pdl_interp.get_defining_op of %1 : !pdl.value {position = "root.operand[0].defining_op"}
     pdl_interp.is_not_null %4 : !pdl.operation -> ^bb9, ^bb1
   ^bb9:
     pdl_interp.check_operation_name of %4 is "arith.constant" -> ^bb10, ^bb1
@@ -116,7 +116,7 @@ builtin.module {
   ^bb13:
     pdl_interp.check_attribute %5 is 1.000000e+00 : f32 -> ^bb14, ^bb1
   ^bb14:
-    %6 = pdl_interp.get_result 0 of %4
+    %6 = eqsat_pdl_interp.get_result 0 of %4
     pdl_interp.is_not_null %6 : !pdl.value -> ^bb15, ^bb1
   ^bb15:
     pdl_interp.are_equal %6, %1 : !pdl.value -> ^bb16, ^bb1
@@ -127,11 +127,11 @@ builtin.module {
   ^bb17:
     pdl_interp.check_type %7 is f32 -> ^bb18, ^bb1
   ^bb18:
-    pdl_interp.record_match @rewriters::@pdl_generated_rewriter(%0 : !pdl.operation) : benefit(1), loc([]), root("arith.addf") -> ^bb1
+    eqsat_pdl_interp.record_match @rewriters::@pdl_generated_rewriter(%0 : !pdl.operation) : benefit(1), loc([]), root("arith.addf") -> ^bb1
   ^bb6:
     eqsat_pdl_interp.choose from ^bb19 then ^bb7
   ^bb19:
-    %9 = pdl_interp.get_defining_op of %1 : !pdl.value {position = "root.operand[0].defining_op"}
+    %9 = eqsat_pdl_interp.get_defining_op of %1 : !pdl.value {position = "root.operand[0].defining_op"}
     pdl_interp.is_not_null %9 : !pdl.operation -> ^bb20, ^bb1
   ^bb20:
     pdl_interp.check_operation_name of %9 is "arith.constant" -> ^bb21, ^bb1
@@ -145,7 +145,7 @@ builtin.module {
   ^bb24:
     pdl_interp.switch_attribute %10 to [2.000000e+00 : f32, 3.000000e+00 : f32](^bb25, ^bb26) -> ^bb1
   ^bb25:
-    %11 = pdl_interp.get_result 0 of %9
+    %11 = eqsat_pdl_interp.get_result 0 of %9
     pdl_interp.is_not_null %11 : !pdl.value -> ^bb27, ^bb1
   ^bb27:
     pdl_interp.are_equal %11, %1 : !pdl.value -> ^bb28, ^bb1
@@ -158,7 +158,7 @@ builtin.module {
   ^bb30:
     eqsat_pdl_interp.choose from ^bb31 then ^bb1
   ^bb31:
-    %14 = pdl_interp.get_defining_op of %3 : !pdl.value {position = "root.operand[1].defining_op"}
+    %14 = eqsat_pdl_interp.get_defining_op of %3 : !pdl.value {position = "root.operand[1].defining_op"}
     pdl_interp.is_not_null %14 : !pdl.operation -> ^bb32, ^bb1
   ^bb32:
     pdl_interp.check_operation_name of %14 is "arith.constant" -> ^bb33, ^bb1
@@ -172,7 +172,7 @@ builtin.module {
   ^bb36:
     pdl_interp.check_attribute %15 is 1.000000e+00 : f32 -> ^bb37, ^bb1
   ^bb37:
-    %16 = pdl_interp.get_result 0 of %14
+    %16 = eqsat_pdl_interp.get_result 0 of %14
     pdl_interp.is_not_null %16 : !pdl.value -> ^bb38, ^bb1
   ^bb38:
     pdl_interp.are_equal %16, %3 : !pdl.value -> ^bb39, ^bb1
@@ -180,9 +180,9 @@ builtin.module {
     %17 = pdl_interp.get_value_type of %16 : !pdl.type
     pdl_interp.are_equal %12, %17 : !pdl.type -> ^bb40, ^bb1
   ^bb40:
-    pdl_interp.record_match @rewriters::@pdl_generated_rewriter_2(%0 : !pdl.operation) : benefit(1), loc([]), root("arith.addf") -> ^bb1
+    eqsat_pdl_interp.record_match @rewriters::@pdl_generated_rewriter_2(%0 : !pdl.operation) : benefit(1), loc([]), root("arith.addf") -> ^bb1
   ^bb26:
-    %18 = pdl_interp.get_result 0 of %9
+    %18 = eqsat_pdl_interp.get_result 0 of %9
     pdl_interp.is_not_null %18 : !pdl.value -> ^bb41, ^bb1
   ^bb41:
     pdl_interp.are_equal %18, %1 : !pdl.value -> ^bb42, ^bb1
@@ -195,7 +195,7 @@ builtin.module {
   ^bb44:
     eqsat_pdl_interp.choose from ^bb45 then ^bb1
   ^bb45:
-    %21 = pdl_interp.get_defining_op of %3 : !pdl.value {position = "root.operand[1].defining_op"}
+    %21 = eqsat_pdl_interp.get_defining_op of %3 : !pdl.value {position = "root.operand[1].defining_op"}
     pdl_interp.is_not_null %21 : !pdl.operation -> ^bb46, ^bb1
   ^bb46:
     pdl_interp.check_operation_name of %21 is "arith.constant" -> ^bb47, ^bb1
@@ -209,7 +209,7 @@ builtin.module {
   ^bb50:
     pdl_interp.check_attribute %22 is 1.000000e+00 : f32 -> ^bb51, ^bb1
   ^bb51:
-    %23 = pdl_interp.get_result 0 of %21
+    %23 = eqsat_pdl_interp.get_result 0 of %21
     pdl_interp.is_not_null %23 : !pdl.value -> ^bb52, ^bb1
   ^bb52:
     pdl_interp.are_equal %23, %3 : !pdl.value -> ^bb53, ^bb1
@@ -217,32 +217,32 @@ builtin.module {
     %24 = pdl_interp.get_value_type of %23 : !pdl.type
     pdl_interp.are_equal %19, %24 : !pdl.type -> ^bb54, ^bb1
   ^bb54:
-    pdl_interp.record_match @rewriters::@pdl_generated_rewriter_3(%0 : !pdl.operation) : benefit(1), loc([]), root("arith.addf") -> ^bb1
+    eqsat_pdl_interp.record_match @rewriters::@pdl_generated_rewriter_3(%0 : !pdl.operation) : benefit(1), loc([]), root("arith.addf") -> ^bb1
   }
   builtin.module @rewriters {
     pdl_interp.func @pdl_generated_rewriter(%0 : !pdl.operation) {
       %1 = pdl_interp.create_attribute 2.000000e+00 : f32
       %2 = pdl_interp.create_type f32
-      %3 = pdl_interp.create_operation "arith.constant" {"value" = %1} -> (%2 : !pdl.type)
-      %4 = pdl_interp.get_results of %3 : !pdl.range<value>
-      pdl_interp.replace %0 with (%4 : !pdl.range<value>)
-      pdl_interp.finalize
+      %3 = eqsat_pdl_interp.create_operation "arith.constant" {"value" = %1} -> (%2 : !pdl.type)
+      %4 = eqsat_pdl_interp.get_results of %3 : !pdl.range<value>
+      eqsat_pdl_interp.replace %0 with (%4 : !pdl.range<value>)
+      eqsat_pdl_interp.finalize
     }
     pdl_interp.func @pdl_generated_rewriter_2(%0 : !pdl.operation) {
       %1 = pdl_interp.create_attribute 3.000000e+00 : f32
       %2 = pdl_interp.create_type f32
-      %3 = pdl_interp.create_operation "arith.constant" {"value" = %1} -> (%2 : !pdl.type)
-      %4 = pdl_interp.get_results of %3 : !pdl.range<value>
-      pdl_interp.replace %0 with (%4 : !pdl.range<value>)
-      pdl_interp.finalize
+      %3 = eqsat_pdl_interp.create_operation "arith.constant" {"value" = %1} -> (%2 : !pdl.type)
+      %4 = eqsat_pdl_interp.get_results of %3 : !pdl.range<value>
+      eqsat_pdl_interp.replace %0 with (%4 : !pdl.range<value>)
+      eqsat_pdl_interp.finalize
     }
     pdl_interp.func @pdl_generated_rewriter_3(%0 : !pdl.operation) {
       %1 = pdl_interp.create_attribute 4.000000e+00 : f32
       %2 = pdl_interp.create_type f32
-      %3 = pdl_interp.create_operation "arith.constant" {"value" = %1} -> (%2 : !pdl.type)
-      %4 = pdl_interp.get_results of %3 : !pdl.range<value>
-      pdl_interp.replace %0 with (%4 : !pdl.range<value>)
-      pdl_interp.finalize
+      %3 = eqsat_pdl_interp.create_operation "arith.constant" {"value" = %1} -> (%2 : !pdl.type)
+      %4 = eqsat_pdl_interp.get_results of %3 : !pdl.range<value>
+      eqsat_pdl_interp.replace %0 with (%4 : !pdl.range<value>)
+      eqsat_pdl_interp.finalize
     }
   }
 }
