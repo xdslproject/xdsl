@@ -184,6 +184,11 @@ class YieldOp(AbstractYieldOperation[Attribute]):
 
 @irdl_op_definition
 class ExecuteRegionOp(IRDLOperation):
+    """
+    Operation that executes its region exactly once.
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/SCFDialect/#scfexecute_region-scfexecuteregionop).
+    """
+
     name = "scf.execute_region"
 
     outs = var_result_def()
