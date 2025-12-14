@@ -99,6 +99,37 @@ class ParallelMovPattern(RewritePattern):
             if dst not in dst_to_src and isinstance(dst, riscv.IntRegisterType):
                 free_registers.append(dst)
 
+        def add_swap(
+            a: SSAValue[riscv.IntRegisterType], b: SSAValue[riscv.IntRegisterType]
+        ):
+            """Add xor swap to new operations, returns SSAValue for (b, a)."""
+            new_ops.append(riscv.XorOp(a, b, rd=a.type))
+            new_ops.append(riscv.XorOp(new_ops[-1], b, rd=b.type))
+            new_ops.append(riscv.XorOp(new_ops[-2], new_ops[-1], rd=a.type))
+            return new_ops[-2], new_ops[-1]
+
+        def cycle_by_xor(idx: int):
+            """Handle a cycle using swaps by xor."""
+            # If the registers are all integers, we can use the xor swapping
+            # trick to repeatedly swap values to perform the cyclic move.
+
+            # we don't take op.inputs[idx] -> op.outputs[idx] since we need
+            # the SSAValue for both input and output
+            out = op.inputs[idx]
+            inp = dst_to_src[out.type]
+
+            while inp.type != out.type:
+                nw_out, nw_inp = add_swap(inp, out)
+                # after the swap, the input is in the right place, the input's input
+                # needs to be moved to the new output
+                results[op.outputs.types.index(nw_inp.result_types[0])] = (
+                    nw_inp.results[0]
+                )
+                inp = dst_to_src[inp.type]
+                out = nw_out.results[0]
+
+            results[op.outputs.types.index(op.inputs.types[idx])] = out
+
         # If we have a cycle in the graph, all trees pointing into the cycle cannot
         # enter the cycle because it will have an unprocessed node from its previous
         # node in the cycle.
@@ -111,9 +142,8 @@ class ParallelMovPattern(RewritePattern):
                 # We don't have to modify its value since all the cycles
                 # can use the same register.
                 if not free_registers:
-                    raise PassFailedException(
-                        "Not implemented: cyclic moves without free int register."
-                    )
+                    cycle_by_xor(idx)
+                    continue
                 temp_reg = free_registers[0]
 
                 # Break the cycle by using free register
