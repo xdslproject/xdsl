@@ -116,9 +116,14 @@ class ParallelMovPattern(RewritePattern):
             # we don't take op.inputs[idx] -> op.outputs[idx] since we need
             # the SSAValue for both input and output
             out = op.inputs[idx]
+            assert isinstance(out.type, riscv.IntRegisterType)  # for type checker
             inp = dst_to_src[out.type]
 
             while inp.type != out.type:
+                # for type checker, is guaranteed by checks before function call
+                assert isinstance(inp.type, riscv.IntRegisterType)
+                assert isinstance(out.type, riscv.IntRegisterType)
+
                 nw_out, nw_inp = add_swap(inp, out)
                 # after the swap, the input is in the right place, the input's input
                 # needs to be moved to the new output
