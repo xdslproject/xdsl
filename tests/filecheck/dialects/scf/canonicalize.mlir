@@ -114,14 +114,3 @@ func.func @execute_region_with_multiple_blocks() -> i32 {
   }
   func.return %d : i32
 }
-
-// CHECK:      func.func @execute_region_with_empty_block() -> i32 {
-// CHECK-NEXT:   %a, %b = "test.op"() : () -> (i32, i32)
-// CHECK-NEXT:   func.return %a : i32
-// CHECK-NEXT: }
-
-func.func @execute_region_with_empty_block() -> i32 {
-  %a, %b = "test.op"() : () -> (i32, i32)
-  scf.execute_region {}
-  func.return %a : i32
-}

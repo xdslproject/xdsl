@@ -94,8 +94,7 @@ class SingleBlockExecuteInliner(RewritePattern):
     def match_and_rewrite(
         self, op: scf.ExecuteRegionOp, rewriter: PatternRewriter
     ) -> None:
-        if op.region.first_block is None:
-            return
+        assert op.region.first_block is not None
         if op.region.first_block is not op.region.last_block:
             return
         replace_op_with_region(rewriter, op, op.region)
