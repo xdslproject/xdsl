@@ -95,8 +95,8 @@ class ParallelMovPattern(RewritePattern):
                     break
                 dst = src.type
 
-            # dst is a register that has no input here. We can therefore use it as a free register.
-            if isinstance(dst, riscv.IntRegisterType):
+            # if dst is a register that has no input, we can use it as a free register.
+            if dst not in dst_to_src and isinstance(dst, riscv.IntRegisterType):
                 free_registers.append(dst)
 
         # If we have a cycle in the graph, all trees pointing into the cycle cannot
