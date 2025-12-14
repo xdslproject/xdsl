@@ -213,7 +213,7 @@ class ExecuteRegionOp(IRDLOperation):
         else:
             result_types = []
 
-        region = IfOp.parse_region_with_yield(parser)
+        region = parser.parse_region()
         attr_dict = parser.parse_optional_attr_dict()
 
         return cls(result_types, region, attr_dict)
@@ -235,6 +235,12 @@ class ExecuteRegionOp(IRDLOperation):
 
         if bool(self.attributes.keys()):
             printer.print_attr_dict(self.attributes)
+
+    def verify_(self) -> None:
+        if self.region.first_block is None:
+            raise VerifyException(
+                "scf.execute_region op region needs to have at least one block"
+            )
 
 
 @irdl_op_definition
