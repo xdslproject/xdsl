@@ -14,7 +14,7 @@ from dataclasses import InitVar, dataclass, field
 from enum import Enum
 from typing import ClassVar, Generic, NamedTuple, cast, overload
 
-from typing_extensions import Any, TypeVar
+from typing_extensions import TypeVar
 
 from xdsl.dialects.builtin import (
     AnySignlessIntegerType,
@@ -71,6 +71,7 @@ from xdsl.traits import (
     SymbolTable,
 )
 from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.hints import isa
 
 
 @dataclass
@@ -682,11 +683,10 @@ class ArrayType(
 
     def _verify(self):
         typ = self.get_element_type()
-        if isinstance(typ, ArrayType):
-            cast(ArrayType, typ.get_element_type())._verify()
-        elif isinstance(typ, IntegerType):
-            int_type = cast(IntegerType[int, Any], typ)
-            if int_type.signedness.data != Signedness.SIGNLESS:
+        if isa(typ, ArrayType):
+            typ.get_element_type()._verify()
+        elif isa(typ, IntegerType):
+            if typ.signedness.data != Signedness.SIGNLESS:
                 raise VerifyException(f"{self} -> {typ} must be a signless integer")
         else:
             raise VerifyException(
