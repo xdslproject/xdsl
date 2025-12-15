@@ -14,7 +14,7 @@ from dataclasses import InitVar, dataclass, field
 from enum import Enum
 from typing import ClassVar, Generic, NamedTuple, cast, overload
 
-from typing_extensions import TypeVar
+from typing_extensions import Any, TypeVar
 
 from xdsl.dialects.builtin import (
     AnySignlessIntegerType,
@@ -25,6 +25,7 @@ from xdsl.dialects.builtin import (
     IntAttr,
     IntegerType,
     LocationAttr,
+    Signedness,
     StringAttr,
     SymbolNameConstraint,
     SymbolRefAttr,
@@ -43,10 +44,7 @@ from xdsl.ir import (
 from xdsl.irdl import (
     AnyAttr,
     AtLeast,
-    AttrConstraint,
-    IRDLAttrConstraint,
     IRDLOperation,
-    ParamAttrConstraint,
     RangeOf,
     VarConstraint,
     attr_def,
@@ -645,7 +643,7 @@ class ArrayType(
 
     name = "hw.array"
 
-    element_type: ArrayElementCovT
+    _element_type: ArrayElementCovT
     size_attr: IntAttr
 
     def __init__(
@@ -664,16 +662,12 @@ class ArrayType(
         return self.size_attr.data
 
     def get_element_type(self) -> ArrayElementCovT:
-        return self.element_type
+        return self._element_type
 
-    @staticmethod
-    def constr(
-        element_type: IRDLAttrConstraint[ArrayElementCovT],
-        size_attr: IRDLAttrConstraint[IntAttr],
-    ) -> AttrConstraint:
-        return ParamAttrConstraint[ArrayType[ArrayElementCovT]](
-            ArrayType, (element_type, size_attr)
-        )
+    @property
+    # FIXME: This is not using container_type in the proper way?
+    def element_type(self) -> ArrayType | AnySignlessIntegerType:
+        return cast(ArrayType | AnySignlessIntegerType, self.get_element_type())
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
@@ -690,6 +684,22 @@ class ArrayType(
             printer.print_int(len(self))
             printer.print_string("x")
             printer.print_attribute(self.get_element_type())
+
+    def _verify(self):
+        def verify_type(typ: Any):
+            if isinstance(typ, ArrayType):
+                verify_type(typ.get_element_type())
+            elif isinstance(typ, IntegerType):
+                int_type = cast(IntegerType[int, Any], typ)
+                if int_type.signedness.data != Signedness.SIGNLESS:
+                    raise VerifyException(f"{self} -> {typ} must be a signless integer")
+            else:
+                raise VerifyException(
+                    f"{self} -> {typ} is not a hw.array or a signless integer"
+                )
+
+        verify_type(self.get_element_type())
+        return
 
 
 class HWModuleLike(OpTrait, abc.ABC):
