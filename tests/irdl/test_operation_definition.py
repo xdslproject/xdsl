@@ -163,6 +163,20 @@ def test_invalid_irdl_options():
         irdl_op_definition(InvalidIRDLOpts)
 
 
+class MutableIRDLOpts(IRDLOperation):
+    name = "test.mutable_irdl_options_field"
+    irdl_options = [AttrSizedRegionSegments()]
+
+
+def test_list_irdl_options():
+    """Check that irdl_options given as a list produces a warning"""
+    with pytest.warns(
+        DeprecationWarning,
+        match="Defining irdl_options as a `list` is deprecated, please use a `tuple`.",
+    ):
+        irdl_op_definition(MutableIRDLOpts)
+
+
 ################################################################################
 #                                  Verifiers                                   #
 ################################################################################
