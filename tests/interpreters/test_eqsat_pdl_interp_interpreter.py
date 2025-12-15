@@ -110,7 +110,7 @@ def test_run_get_results():
         res2 = result_def()
         res3 = var_result_def()
 
-        irdl_options = [AttrSizedResultSegments()]
+        irdl_options = (AttrSizedResultSegments(),)
 
         def __init__(
             self,
@@ -1440,7 +1440,7 @@ def test_run_replace_rangetype_mixed():
         res2 = result_def()
         res3 = var_result_def()
 
-        irdl_options = [AttrSizedResultSegments()]
+        irdl_options = (AttrSizedResultSegments(),)
 
         def __init__(
             self,

@@ -189,7 +189,7 @@ class ApplyNativeConstraintOp(IRDLOperation):
     args = var_operand_def(AnyPDLTypeConstr)
     res = var_result_def(AnyPDLTypeConstr)
 
-    irdl_options = [ParsePropInAttrDict()]
+    irdl_options = (ParsePropInAttrDict(),)
 
     assembly_format = (
         "$name (`(` $args^ `:` type($args) `)`)? (`:` type($res)^)? attr-dict"
@@ -370,9 +370,7 @@ class OperationOp(IRDLOperation):
     type_values = var_operand_def(base(TypeType) | base(RangeType[TypeType]))
     op = result_def(OperationType)
 
-    irdl_options = [
-        AttrSizedOperandSegments(as_property=True),
-    ]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
     def __init__(
         self,
@@ -689,7 +687,7 @@ class ReplaceOp(IRDLOperation):
     repl_operation = opt_operand_def(OperationType)
     repl_values = var_operand_def(base(ValueType) | base(ArrayAttr[ValueType]))
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
     assembly_format = (
         "$op_value `with` ` ` "
@@ -809,7 +807,7 @@ class RewriteOp(IRDLOperation):
     # body of inline rewriter function
     body = region_def()
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
     traits = traits_def(HasParent(PatternOp), NoTerminator(), IsTerminator())
 

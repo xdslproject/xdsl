@@ -38,10 +38,7 @@ class TestAllocatableOp(irdl.IRDLOperation):
 
     traits = irdl.traits_def(RegisterAllocatedMemoryEffect())
 
-    irdl_options = [
-        irdl.AttrSizedOperandSegments(),
-        irdl.AttrSizedResultSegments(),
-    ]
+    irdl_options = (irdl.AttrSizedOperandSegments(), irdl.AttrSizedResultSegments())
 
     def __init__(
         self,

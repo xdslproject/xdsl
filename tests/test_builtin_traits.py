@@ -280,7 +280,7 @@ class HasSingleBlockImplicitTerminatorOp(IRDLOperation):
 
     name = "test.has_single_block_implicit_terminator"
 
-    irdl_options = [AttrSizedRegionSegments()]
+    irdl_options = (AttrSizedRegionSegments(),)
 
     region = region_def()
     opt_region = opt_region_def()
@@ -304,7 +304,7 @@ class HasSingleBlockImplicitTerminatorWrongCreationOp(IRDLOperation):
 
     name = "test.has_single_block_implicit_terminator_wrong_creation"
 
-    irdl_options = [AttrSizedRegionSegments()]
+    irdl_options = (AttrSizedRegionSegments(),)
 
     region = region_def()
     opt_region = opt_region_def()
@@ -327,7 +327,7 @@ class HasSingleBlockImplicitTerminatorWrongCreation2Op(IRDLOperation):
 
     name = "test.has_single_block_implicit_terminator_wrong_creation2"
 
-    irdl_options = [AttrSizedRegionSegments()]
+    irdl_options = (AttrSizedRegionSegments(),)
 
     region = region_def()
     opt_region = opt_region_def()

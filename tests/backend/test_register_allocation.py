@@ -54,7 +54,7 @@ class TestAllocatableOp(IRDLOperation, HasRegisterConstraints):
     out_results = var_result_def()
     inout_results = var_result_def()
 
-    irdl_options = [AttrSizedOperandSegments(), AttrSizedResultSegments()]
+    irdl_options = (AttrSizedOperandSegments(), AttrSizedResultSegments())
 
     def __init__(
         self,

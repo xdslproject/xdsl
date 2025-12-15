@@ -304,7 +304,7 @@ def test_attr_dict_prop_fallback(program: str, generic_program: str):
     class PropOp(IRDLOperation):
         name = "test.prop"
         prop = opt_prop_def()
-        irdl_options = [ParsePropInAttrDict()]
+        irdl_options = (ParsePropInAttrDict(),)
         assembly_format = "attr-dict"
 
     ctx = Context()
@@ -333,7 +333,7 @@ def test_partial_attr_dict_prop_fallback(program: str, generic_program: str):
         name = "test.prop"
         prop1 = prop_def()
         prop2 = opt_prop_def()
-        irdl_options = [ParsePropInAttrDict()]
+        irdl_options = (ParsePropInAttrDict(),)
         assembly_format = "$prop1 attr-dict"
 
     ctx = Context()
@@ -1171,7 +1171,7 @@ def test_multiple_variadic_operands(
         args1 = var_operand_def()
         args2 = var_operand_def()
 
-        irdl_options = [AttrSizedOperandSegments(as_property=as_property)]
+        irdl_options = (AttrSizedOperandSegments(as_property=as_property),)
 
         assembly_format = (
             "`(` $args1 `:` type($args1) `)` `[` $args2 `:` type($args2) `]` attr-dict"
@@ -1208,7 +1208,7 @@ def test_multiple_optional_operands(program: str, generic_program: str):
         arg1 = opt_operand_def()
         arg2 = opt_operand_def()
 
-        irdl_options = [AttrSizedOperandSegments()]
+        irdl_options = (AttrSizedOperandSegments(),)
 
         assembly_format = (
             "`(` $arg1 `:` type($arg1) `)` `[` $arg2 `:` type($arg2) `]` attr-dict"
@@ -1337,7 +1337,7 @@ def test_operands_directive_fails_with_two_var():
             op1 = var_operand_def()
             op2 = var_operand_def()
 
-            irdl_options = [AttrSizedOperandSegments()]
+            irdl_options = (AttrSizedOperandSegments(),)
 
             assembly_format = "operands attr-dict `:` type(operands)"
 
@@ -1363,7 +1363,7 @@ def test_operands_directive_works_with_two_var_and_option(program: str):
         res1 = var_operand_def()
         res2 = var_operand_def()
 
-        irdl_options = [SameVariadicOperandSize()]
+        irdl_options = (SameVariadicOperandSize(),)
 
         assembly_format = "operands attr-dict  `:` type(operands)"
 
@@ -1394,7 +1394,7 @@ def test_operands_directive_works_with_two_opt_and_option(program: str):
         res1 = var_operand_def()
         res2 = var_operand_def()
 
-        irdl_options = [SameVariadicOperandSize()]
+        irdl_options = (SameVariadicOperandSize(),)
 
         assembly_format = "operands attr-dict `:` type(operands)"
 
@@ -1761,7 +1761,7 @@ def test_variadic_result_failure():
 
             res = var_result_def(IndexType())
 
-            irdl_options = [AttrSizedResultSegments()]
+            irdl_options = (AttrSizedResultSegments(),)
 
             assembly_format = "attr-dict"
 
@@ -1886,7 +1886,7 @@ def test_results_directive_fails_with_two_var():
             res1 = var_result_def()
             res2 = var_result_def()
 
-            irdl_options = [AttrSizedResultSegments()]
+            irdl_options = (AttrSizedResultSegments(),)
 
             assembly_format = "attr-dict `:` type(results)"
 
@@ -1912,7 +1912,7 @@ def test_results_directive_works_with_two_var_and_option(program: str):
         res1 = var_result_def()
         res2 = var_result_def()
 
-        irdl_options = [SameVariadicResultSize()]
+        irdl_options = (SameVariadicResultSize(),)
 
         assembly_format = "attr-dict `:` type(results)"
 
@@ -1943,7 +1943,7 @@ def test_results_directive_works_with_two_opt_and_option(program: str):
         res1 = var_result_def()
         res2 = var_result_def()
 
-        irdl_options = [SameVariadicResultSize()]
+        irdl_options = (SameVariadicResultSize(),)
 
         assembly_format = "attr-dict `:` type(results)"
 
@@ -2411,7 +2411,7 @@ def test_multiple_optional_regions():
         @irdl_op_definition
         class OptionalRegionsOp(IRDLOperation):  # pyright: ignore[reportUnusedClass]
             name = "test.optional_regions"
-            irdl_options = [AttrSizedRegionSegments()]
+            irdl_options = (AttrSizedRegionSegments(),)
             region1 = opt_region_def()
             region2 = opt_region_def()
 
@@ -3046,7 +3046,10 @@ def test_chained_variadic_types_safeguard(
             variadic_two = variadic_def_two()
             assembly_format = format
 
-            irdl_options = [AttrSizedOperandSegments(), AttrSizedResultSegments()]
+            irdl_options = (
+                AttrSizedOperandSegments(),
+                AttrSizedResultSegments(),
+            )
 
 
 @pytest.mark.parametrize("variadic_def_one", [var_operand_def, opt_operand_def])
@@ -3068,7 +3071,7 @@ def test_chained_variadic_operands_safeguard(
             variadic_two = variadic_def_two()
             assembly_format = "$variadic_one $variadic_two `:` type($variadic_one) `<` type($variadic_two) `>` attr-dict"
 
-            irdl_options = [AttrSizedOperandSegments()]
+            irdl_options = (AttrSizedOperandSegments(),)
 
 
 @pytest.mark.parametrize(
@@ -3607,7 +3610,7 @@ def test_default_property_in_attr_dict(program: str, generic: str):
 
         attr = attr_def(BoolAttr, default_value=BoolAttr.from_bool(False))
 
-        irdl_options = [ParsePropInAttrDict()]
+        irdl_options = (ParsePropInAttrDict(),)
 
         assembly_format = "attr-dict"
 

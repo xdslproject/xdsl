@@ -186,7 +186,7 @@ class GenericOp(LinalgOperation):
     doc = opt_prop_def(StringAttr)
     library_call = opt_prop_def(StringAttr)
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
     def __init__(
         self,
@@ -436,7 +436,10 @@ class NamedOperation(IRDLOperation, ABC):
 
     hidden_region = region_def("single_block")
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True), ParsePropInAttrDict()]
+    irdl_options = (
+        AttrSizedOperandSegments(as_property=True),
+        ParsePropInAttrDict(),
+    )
 
     PRINT_ATTRS_IN_FRONT: ClassVar[bool] = False
 

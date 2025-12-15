@@ -414,7 +414,7 @@ class ParallelOp(IRDLOperation):
 
     body = region_def("single_block")
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
     traits = lazy_traits_def(
         lambda: (
