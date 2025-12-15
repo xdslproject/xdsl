@@ -170,7 +170,7 @@ class CreateOperationOp(IRDLOperation):
 
     result_op = result_def(OperationType)
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
     # assembly_format = (
     #     "$name (`(` $input_operands^ `:` type($input_operands) `)`)?"
@@ -342,7 +342,7 @@ class RecordMatchOp(IRDLOperation):
 
     dest = successor_def()
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
     assembly_format = (
         "$rewriter (`(` $inputs^ `:` type($inputs) `)`)? `:` `benefit` `(` $benefit `)` `,`"
