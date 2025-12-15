@@ -1111,7 +1111,6 @@ class InstanceOp(IRDLOperation):
     outputs = var_result_def()
     arg_names = attr_def(ArrayAttr[StringAttr], attr_name="argNames")
     result_names = attr_def(ArrayAttr[StringAttr], attr_name="resultNames")
-    parameters = attr_def(ArrayAttr[StringAttr], attr_name="parameters")
     inner_sym = opt_attr_def(InnerSymAttr)
 
     def __init__(
@@ -1120,7 +1119,6 @@ class InstanceOp(IRDLOperation):
         module_name: FlatSymbolRefAttr,
         inputs: Iterable[tuple[str, SSAValue]],
         outputs: Iterable[tuple[str, TypeAttribute]],
-        parameters: ArrayAttr[Attribute] = ArrayAttr(()),
         inner_sym: InnerSymAttr | None = None,
     ):
         arg_names = ArrayAttr(StringAttr(port[0]) for port in inputs)
@@ -1130,7 +1128,6 @@ class InstanceOp(IRDLOperation):
             "moduleName": module_name,
             "argNames": arg_names,
             "resultNames": result_names,
-            "parameters": parameters,
         }
         if inner_sym is not None:
             attributes["inner_sym"] = inner_sym
@@ -1321,7 +1318,6 @@ class InstanceOp(IRDLOperation):
                 "argNames",
                 "resultNames",
                 "inner_sym",
-                "parameters",
             ),
         )
 
