@@ -643,7 +643,7 @@ class ArrayType(
 
     name = "hw.array"
 
-    _element_type: ArrayElementCovT
+    element_type: ArrayElementCovT
     size_attr: IntAttr
 
     def __init__(
@@ -662,12 +662,7 @@ class ArrayType(
         return self.size_attr.data
 
     def get_element_type(self) -> ArrayElementCovT:
-        return self._element_type
-
-    @property
-    # FIXME: This is not using container_type in the proper way?
-    def element_type(self) -> ArrayType | AnySignlessIntegerType:
-        return cast(ArrayType | AnySignlessIntegerType, self.get_element_type())
+        return self.element_type
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
@@ -686,19 +681,17 @@ class ArrayType(
             printer.print_attribute(self.get_element_type())
 
     def _verify(self):
-        def verify_type(typ: Any):
-            if isinstance(typ, ArrayType):
-                verify_type(typ.get_element_type())
-            elif isinstance(typ, IntegerType):
-                int_type = cast(IntegerType[int, Any], typ)
-                if int_type.signedness.data != Signedness.SIGNLESS:
-                    raise VerifyException(f"{self} -> {typ} must be a signless integer")
-            else:
-                raise VerifyException(
-                    f"{self} -> {typ} is not a hw.array or a signless integer"
-                )
-
-        verify_type(self.get_element_type())
+        typ = self.get_element_type()
+        if isinstance(typ, ArrayType):
+            cast(ArrayType, typ.get_element_type())._verify()
+        elif isinstance(typ, IntegerType):
+            int_type = cast(IntegerType[int, Any], typ)
+            if int_type.signedness.data != Signedness.SIGNLESS:
+                raise VerifyException(f"{self} -> {typ} must be a signless integer")
+        else:
+            raise VerifyException(
+                f"{self} -> {typ} is not a hw.array or a signless integer"
+            )
         return
 
 
