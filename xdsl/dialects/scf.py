@@ -187,13 +187,9 @@ class ExecuteRegionOpHasCanonicalizationPatternsTrait(HasCanonicalizationPattern
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.scf import (
             SingleBlockExecuteInliner,
-            ZeroBlockExecuteRemover,
         )
 
-        return (
-            ZeroBlockExecuteRemover(),
-            SingleBlockExecuteInliner(),
-        )
+        return (SingleBlockExecuteInliner(),)
 
 
 @irdl_op_definition
