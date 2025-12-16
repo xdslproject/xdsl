@@ -4080,7 +4080,7 @@ def test_generate_rewriter_for_operation_standard():
     """Test _generate_rewriter_for_operation with standard configuration"""
     from xdsl.builder import ImplicitBuilder
     from xdsl.dialects.builtin import IntegerAttr, ModuleOp, StringAttr, i32
-    from xdsl.ir import Block, Region, SSAValue
+    from xdsl.ir import Block, Region
     from xdsl.transforms.convert_pdl_to_pdl_interp.conversion import MatcherGenerator
 
     # Setup
@@ -4177,7 +4177,7 @@ def test_generate_rewriter_for_operation_single_variadic_result():
 
     from xdsl.builder import ImplicitBuilder
     from xdsl.dialects.builtin import ModuleOp
-    from xdsl.ir import Block, Region, SSAValue
+    from xdsl.ir import Block, Region
     from xdsl.transforms.convert_pdl_to_pdl_interp.conversion import MatcherGenerator
 
     # Setup
@@ -4246,7 +4246,7 @@ def test_generate_rewriter_for_operation_mixed_results():
 
     from xdsl.builder import ImplicitBuilder
     from xdsl.dialects.builtin import ModuleOp, i32
-    from xdsl.ir import Block, Region, SSAValue
+    from xdsl.ir import Block, Region
     from xdsl.transforms.convert_pdl_to_pdl_interp.conversion import MatcherGenerator
 
     # Setup
@@ -4389,7 +4389,7 @@ def test_generate_rewriter_for_result():
     """Test _generate_rewriter_for_result generates GetResultOp"""
     from xdsl.builder import ImplicitBuilder
     from xdsl.dialects.builtin import ModuleOp
-    from xdsl.ir import Block, Region, SSAValue
+    from xdsl.ir import Block, Region
     from xdsl.transforms.convert_pdl_to_pdl_interp.conversion import MatcherGenerator
 
     # Setup generator
@@ -4432,7 +4432,7 @@ def test_generate_rewriter_for_results():
     """Test _generate_rewriter_for_results generates GetResultsOp"""
     from xdsl.builder import ImplicitBuilder
     from xdsl.dialects.builtin import ModuleOp
-    from xdsl.ir import Block, Region, SSAValue
+    from xdsl.ir import Block, Region
     from xdsl.transforms.convert_pdl_to_pdl_interp.conversion import MatcherGenerator
 
     # Setup generator
@@ -4478,7 +4478,7 @@ def test_generate_rewriter_for_type():
     """Test _generate_rewriter_for_type creates type when constant is present"""
     from xdsl.builder import ImplicitBuilder
     from xdsl.dialects.builtin import ModuleOp, i32
-    from xdsl.ir import Block, Region, SSAValue
+    from xdsl.ir import Block, Region
     from xdsl.transforms.convert_pdl_to_pdl_interp.conversion import MatcherGenerator
 
     # Setup generator
@@ -4525,7 +4525,7 @@ def test_generate_rewriter_for_types():
     """Test _generate_rewriter_for_types creates types when constant is present"""
     from xdsl.builder import ImplicitBuilder
     from xdsl.dialects.builtin import ArrayAttr, ModuleOp, f32, i32
-    from xdsl.ir import Block, Region, SSAValue
+    from xdsl.ir import Block, Region
     from xdsl.transforms.convert_pdl_to_pdl_interp.conversion import MatcherGenerator
 
     # Setup generator
