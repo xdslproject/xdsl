@@ -285,10 +285,10 @@ dump_dialect_pyfile(
 # CHECK-NEXT:      variadic = var_operand_def(BaseAttr(Test_SingletonAType))
 # CHECK-NEXT:      required = operand_def(BaseAttr(Test_SingletonCType))
 # CHECK-EMPTY:
-# CHECK-NEXT:      irdl_options = [
+# CHECK-NEXT:      irdl_options = (
 # CHECK-NEXT:          SameVariadicOperandSize(),
 # CHECK-NEXT:          AttrSizedOperandSegments(as_property=False),
-# CHECK-NEXT:      ]
+# CHECK-NEXT:      )
 
 # CHECK:       @irdl_op_definition
 # CHECK-NEXT:  class Test_PropertiesOp(IRDLOperation):

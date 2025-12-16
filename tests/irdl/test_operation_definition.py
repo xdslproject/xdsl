@@ -74,7 +74,7 @@ from xdsl.utils.test_value import create_ssa_value
 class OpDefTestOp(IRDLOperation):
     name = "test.op_def_test"
 
-    irdl_options = [AttrSizedOperandSegments()]
+    irdl_options = (AttrSizedOperandSegments(),)
 
     operand = operand_def()
     result = result_def()
@@ -108,7 +108,7 @@ def test_get_definition():
 class PropOptionOp(IRDLOperation):
     name = "test.prop_option_test"
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
 
 def test_property_option():
@@ -151,7 +151,7 @@ def test_invalid_field():
 
 class InvalidIRDLOpts(IRDLOperation):
     name = "test.invalid_field"
-    irdl_options = [42]
+    irdl_options = (42,)
 
 
 def test_invalid_irdl_options():
@@ -161,6 +161,20 @@ def test_invalid_irdl_options():
         match="All values in irdl_options should inherit IRDLOption",
     ):
         irdl_op_definition(InvalidIRDLOpts)
+
+
+class MutableIRDLOpts(IRDLOperation):
+    name = "test.mutable_irdl_options_field"
+    irdl_options = [AttrSizedRegionSegments()]
+
+
+def test_list_irdl_options():
+    """Check that irdl_options given as a list produces a warning"""
+    with pytest.warns(
+        DeprecationWarning,
+        match="Defining irdl_options as a `list` is deprecated, please use a `tuple`.",
+    ):
+        irdl_op_definition(MutableIRDLOpts)
 
 
 ################################################################################
@@ -497,7 +511,7 @@ def test_unknown_property():
 class RegionOp(IRDLOperation):
     name = "test.region_op"
 
-    irdl_options = [AttrSizedRegionSegments()]
+    irdl_options = (AttrSizedRegionSegments(),)
 
     region = region_def()
     opt_region = opt_region_def()
@@ -529,7 +543,7 @@ def test_region_accessors():
 class OperandOp(IRDLOperation):
     name = "test.operand_op"
 
-    irdl_options = [AttrSizedOperandSegments()]
+    irdl_options = (AttrSizedOperandSegments(),)
 
     operand = operand_def()
     opt_operand = opt_operand_def()
@@ -559,7 +573,7 @@ def test_operand_accessors():
 class OpResultOp(IRDLOperation):
     name = "test.op_result_op"
 
-    irdl_options = [AttrSizedResultSegments()]
+    irdl_options = (AttrSizedResultSegments(),)
 
     result = result_def()
     opt_result = opt_result_def()

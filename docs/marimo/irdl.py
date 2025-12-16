@@ -770,7 +770,7 @@ def _(
         ops2 = var_operand_def(i32)
         res = result_def(i32)
 
-        irdl_options = [AttrSizedOperandSegments()]
+        irdl_options = (AttrSizedOperandSegments(),)
 
 
     i32_ssa_var_c = ConstantOp(IntegerAttr.from_int_and_width(62, 32), i32)

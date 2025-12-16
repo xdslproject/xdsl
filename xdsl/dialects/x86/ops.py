@@ -956,7 +956,7 @@ class ConditionalJumpOperation(X86Instruction, X86CustomFormatOperation, ABC):
     then_values = var_operand_def(X86RegisterType)
     else_values = var_operand_def(X86RegisterType)
 
-    irdl_options = [AttrSizedOperandSegments()]
+    irdl_options = (AttrSizedOperandSegments(),)
 
     then_block = successor_def()
     else_block = successor_def()
