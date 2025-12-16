@@ -26,6 +26,7 @@ from xdsl.dialects.riscv import (
     RISCVAsmOperation,
     RISCVCustomFormatOperation,
     RISCVInstruction,
+    RISCVRegallocOperation,
     RISCVRegisterType,
     RsRsIntegerOperation,
     SImm12Attr,
@@ -150,7 +151,9 @@ class ScfgwiOp(RISCVCustomFormatOperation, RISCVInstruction):
 
 
 @irdl_op_definition
-class FrepYieldOp(AbstractYieldOperation[Attribute], RISCVAsmOperation):
+class FrepYieldOp(
+    AbstractYieldOperation[Attribute], RISCVAsmOperation, RISCVRegallocOperation
+):
     name = "riscv_snitch.frep_yield"
 
     traits = lazy_traits_def(
@@ -162,7 +165,7 @@ class FrepYieldOp(AbstractYieldOperation[Attribute], RISCVAsmOperation):
 
 
 @irdl_op_definition
-class ReadOp(RISCVAsmOperation):
+class ReadOp(RISCVAsmOperation, RISCVRegallocOperation):
     name = "riscv_snitch.read"
 
     T: ClassVar = VarConstraint("T", AnyAttr())
@@ -191,7 +194,7 @@ class ReadOp(RISCVAsmOperation):
 
 
 @irdl_op_definition
-class WriteOp(RISCVAsmOperation):
+class WriteOp(RISCVAsmOperation, RISCVRegallocOperation):
     name = "riscv_snitch.write"
 
     T: ClassVar = VarConstraint("T", AnyAttr())
@@ -542,7 +545,7 @@ class FrepInnerOp(FRepOperation):
 
 
 @irdl_op_definition
-class GetStreamOp(RISCVAsmOperation):
+class GetStreamOp(RISCVAsmOperation, RISCVRegallocOperation):
     name = "riscv_snitch.get_stream"
 
     stream = result_def(
