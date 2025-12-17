@@ -167,18 +167,6 @@ builtin.module {
 
 // -----
 
-// Test moving floats and ints
-builtin.module {
-  %0, %1 = "test.op"() : () -> (!riscv.reg<s1>, !riscv.freg<ft1>)
-  %2, %3 = riscv.parallel_mov %0, %1 : (!riscv.reg<s1>, !riscv.freg<ft1>) -> (!riscv.reg<s2>, !riscv.freg<ft2>)
-}
-// CHECK:         %2, %3 = "riscv.parallel_mov"(%0, %1) : (!riscv.reg<s1>, !riscv.freg<ft1>) -> (!riscv.reg<s2>, !riscv.freg<ft2>)
-// CHECK-NEXT:    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^---------------------------------------
-// CHECK-NEXT:    | Error while applying pattern: Not implemented: non-integer support
-// CHECK-NEXT:    --------------------------------------------------------------------
-
-// -----
-
 // Test no free registers
 //    s1
 //   /  ^
@@ -191,10 +179,99 @@ builtin.module {
   "test.op"(%2, %3) : (!riscv.reg<s2>, !riscv.reg<s1>) -> ()
 }
 
-// CHECK:         %2, %3 = "riscv.parallel_mov"(%0, %1) : (!riscv.reg<s1>, !riscv.reg<s2>) -> (!riscv.reg<s2>, !riscv.reg<s1>)
-// CHECK-NEXT:    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^-----------------------------------------------------------
-// CHECK-NEXT:    | Error while applying pattern: Not implemented: cyclic moves without free int register.
-// CHECK-NEXT:    ----------------------------------------------------------------------------------------
+// CHECK:       builtin.module {
+// CHECK-NEXT:    %0, %1 = "test.op"() : () -> (!riscv.reg<s1>, !riscv.reg<s2>)
+// CHECK-NEXT:    %2 = riscv.xor %1, %0 : (!riscv.reg<s2>, !riscv.reg<s1>) -> !riscv.reg<s2>
+// CHECK-NEXT:    %3 = riscv.xor %2, %0 : (!riscv.reg<s2>, !riscv.reg<s1>) -> !riscv.reg<s1>
+// CHECK-NEXT:    %4 = riscv.xor %2, %3 : (!riscv.reg<s2>, !riscv.reg<s1>) -> !riscv.reg<s2>
+// CHECK-NEXT:    "test.op"(%4, %3) : (!riscv.reg<s2>, !riscv.reg<s1>) -> ()
+// CHECK-NEXT:  }
+
+// -----
+
+// Test no free registers, multiple cycles
+//    s1         s3 --> s4
+//   /  ^        ^      |
+//   |  |        |      |
+//   v  /        |      v
+//    s2         s6 <-- s5
+builtin.module {
+  %0, %1, %2, %3, %5, %6 = "test.op"() : () -> (!riscv.reg<s1>, !riscv.reg<s2>, !riscv.reg<s3>, !riscv.reg<s4>, !riscv.reg<s5>, !riscv.reg<s6>)
+  %7, %8, %9, %10, %11, %12 = riscv.parallel_mov %0, %1, %2, %3, %5, %6 : (!riscv.reg<s1>, !riscv.reg<s2>, !riscv.reg<s3>, !riscv.reg<s4>, !riscv.reg<s5>, !riscv.reg<s6>) -> (!riscv.reg<s2>, !riscv.reg<s1>, !riscv.reg<s4>, !riscv.reg<s5>, !riscv.reg<s6>, !riscv.reg<s3>)
+  "test.op"(%7, %8, %9, %10, %11, %12) : (!riscv.reg<s2>, !riscv.reg<s1>, !riscv.reg<s4>, !riscv.reg<s5>, !riscv.reg<s6>, !riscv.reg<s3>) -> ()
+}
+
+// CHECK:       builtin.module {
+// CHECK-NEXT:    %0, %1, %2, %3, %4, %5 = "test.op"() : () -> (!riscv.reg<s1>, !riscv.reg<s2>, !riscv.reg<s3>, !riscv.reg<s4>, !riscv.reg<s5>, !riscv.reg<s6>)
+// CHECK-NEXT:    %6 = riscv.xor %1, %0 : (!riscv.reg<s2>, !riscv.reg<s1>) -> !riscv.reg<s2>
+// CHECK-NEXT:    %7 = riscv.xor %6, %0 : (!riscv.reg<s2>, !riscv.reg<s1>) -> !riscv.reg<s1>
+// CHECK-NEXT:    %8 = riscv.xor %6, %7 : (!riscv.reg<s2>, !riscv.reg<s1>) -> !riscv.reg<s2>
+// CHECK-NEXT:    %9 = riscv.xor %5, %2 : (!riscv.reg<s6>, !riscv.reg<s3>) -> !riscv.reg<s6>
+// CHECK-NEXT:    %10 = riscv.xor %9, %2 : (!riscv.reg<s6>, !riscv.reg<s3>) -> !riscv.reg<s3>
+// CHECK-NEXT:    %11 = riscv.xor %9, %10 : (!riscv.reg<s6>, !riscv.reg<s3>) -> !riscv.reg<s6>
+// CHECK-NEXT:    %12 = riscv.xor %4, %10 : (!riscv.reg<s5>, !riscv.reg<s3>) -> !riscv.reg<s5>
+// CHECK-NEXT:    %13 = riscv.xor %12, %10 : (!riscv.reg<s5>, !riscv.reg<s3>) -> !riscv.reg<s3>
+// CHECK-NEXT:    %14 = riscv.xor %12, %13 : (!riscv.reg<s5>, !riscv.reg<s3>) -> !riscv.reg<s5>
+// CHECK-NEXT:    %15 = riscv.xor %3, %13 : (!riscv.reg<s4>, !riscv.reg<s3>) -> !riscv.reg<s4>
+// CHECK-NEXT:    %16 = riscv.xor %15, %13 : (!riscv.reg<s4>, !riscv.reg<s3>) -> !riscv.reg<s3>
+// CHECK-NEXT:    %17 = riscv.xor %15, %16 : (!riscv.reg<s4>, !riscv.reg<s3>) -> !riscv.reg<s4>
+// CHECK-NEXT:    "test.op"(%8, %7, %17, %14, %11, %16) : (!riscv.reg<s2>, !riscv.reg<s1>, !riscv.reg<s4>, !riscv.reg<s5>, !riscv.reg<s6>, !riscv.reg<s3>) -> ()
+// CHECK-NEXT:  }
+
+// -----
+
+// Test moving floats and ints
+// s1  -->  s2
+// fs1 -->  fs2
+builtin.module {
+  %0, %1 = "test.op"() : () -> (!riscv.reg<s1>, !riscv.freg<fs1>)
+  %2, %3 = riscv.parallel_mov %0, %1 : (!riscv.reg<s1>, !riscv.freg<fs1>) -> (!riscv.reg<s2>, !riscv.freg<fs2>)
+  "test.op"(%2, %3) : (!riscv.reg<s2>, !riscv.freg<fs2>) -> ()
+}
+// CHECK:       builtin.module {
+// CHECK-NEXT:    %0, %1 = "test.op"() : () -> (!riscv.reg<s1>, !riscv.freg<fs1>)
+// CHECK-NEXT:    %2 = riscv.mv %0 : (!riscv.reg<s1>) -> !riscv.reg<s2>
+// CHECK-NEXT:    %3 = riscv.fmv.s %1 : (!riscv.freg<fs1>) -> !riscv.freg<fs2>
+// CHECK-NEXT:    "test.op"(%2, %3) : (!riscv.reg<s2>, !riscv.freg<fs2>) -> ()
+// CHECK-NEXT:  }
+
+// -----
+
+// Test cyclic floats and ints
+//    s1       fs1
+//   /  ^     /  ^
+//   |  |     |  |
+//   v  /     v  /
+//    s2       fs2
+builtin.module {
+  %0, %1, %2, %3 = "test.op"() : () -> (!riscv.reg<s1>, !riscv.reg<s2>, !riscv.freg<fs1>, !riscv.freg<fs2>)
+  %4, %5, %6, %7 = riscv.parallel_mov %0, %1, %2, %3 {free_registers = [!riscv.reg<s10>, !riscv.freg<fs10>]} : (!riscv.reg<s1>, !riscv.reg<s2>, !riscv.freg<fs1>, !riscv.freg<fs2>) -> (!riscv.reg<s2>, !riscv.reg<s1>, !riscv.freg<fs2>, !riscv.freg<fs1>)
+  "test.op"(%4, %5, %6, %7) : (!riscv.reg<s2>, !riscv.reg<s1>, !riscv.freg<fs2>, !riscv.freg<fs1>) -> ()
+}
+// CHECK:       builtin.module {
+// CHECK-NEXT:    %0, %1, %2, %3 = "test.op"() : () -> (!riscv.reg<s1>, !riscv.reg<s2>, !riscv.freg<fs1>, !riscv.freg<fs2>)
+// CHECK-NEXT:    %4 = riscv.mv %0 : (!riscv.reg<s1>) -> !riscv.reg<s10>
+// CHECK-NEXT:    %5 = riscv.mv %1 : (!riscv.reg<s2>) -> !riscv.reg<s1>
+// CHECK-NEXT:    %6 = riscv.mv %4 : (!riscv.reg<s10>) -> !riscv.reg<s2>
+// CHECK-NEXT:    %7 = riscv.fmv.s %2 : (!riscv.freg<fs1>) -> !riscv.freg<fs10>
+// CHECK-NEXT:    %8 = riscv.fmv.s %3 : (!riscv.freg<fs2>) -> !riscv.freg<fs1>
+// CHECK-NEXT:    %9 = riscv.fmv.s %7 : (!riscv.freg<fs10>) -> !riscv.freg<fs2>
+// CHECK-NEXT:    "test.op"(%6, %5, %9, %8) : (!riscv.reg<s2>, !riscv.reg<s1>, !riscv.freg<fs2>, !riscv.freg<fs1>) -> ()
+// CHECK-NEXT:  }
+
+// -----
+
+// Test no free registers for float cycle
+builtin.module {
+  %0, %1 = "test.op"() : () -> (!riscv.freg<fs1>, !riscv.freg<fs2>)
+  %2, %3 = riscv.parallel_mov %0, %1 : (!riscv.freg<fs1>, !riscv.freg<fs2>) -> (!riscv.freg<fs2>, !riscv.freg<fs1>)
+  "test.op"(%2, %3) : (!riscv.freg<fs2>, !riscv.freg<fs1>) -> ()
+}
+
+// CHECK:         %2, %3 = "riscv.parallel_mov"(%0, %1) : (!riscv.freg<fs1>, !riscv.freg<fs2>) -> (!riscv.freg<fs2>, !riscv.freg<fs1>)
+// CHECK-NEXT:    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^------------------------------------------
+// CHECK-NEXT:    | Error while applying pattern: Float cyclic move without free register
+// CHECK-NEXT:    -----------------------------------------------------------------------
 
 // -----
 
