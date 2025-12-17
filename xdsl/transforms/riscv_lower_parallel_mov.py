@@ -1,7 +1,9 @@
-from collections import Counter
+from collections import Counter, defaultdict
 from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import cast
+
+from typing_extensions import TypeVar
 
 from xdsl.context import Context
 from xdsl.dialects import riscv
@@ -15,6 +17,17 @@ from xdsl.pattern_rewriter import (
     op_type_rewrite_pattern,
 )
 from xdsl.utils.exceptions import PassFailedException
+
+T = TypeVar("T", bound=riscv.RISCVRegisterType)
+
+
+def _create_mv_op(src: SSAValue[T], dst: T):
+    if isinstance(dst, riscv.IntRegisterType):
+        return riscv.MVOp(src, rd=dst)
+    if isinstance(dst, riscv.FloatRegisterType):
+        return riscv.FMVOp(src, rd=dst)
+    # This should never be raised since it is checked in op.verify_()
+    raise PassFailedException("Invalid type: registers must be int or float.")
 
 
 def _add_swap(
@@ -44,18 +57,13 @@ class ParallelMovPattern(RewritePattern):
         ):
             raise PassFailedException("All registers must be allocated")
 
-        if not (
-            all(isinstance(i, riscv.IntRegisterType) for i in input_types)
-            and all(isinstance(i, riscv.IntRegisterType) for i in output_types)
-        ):
-            raise PassFailedException("Not implemented: non-integer support")
-
-        # make free registers a list so we can add to it later
-        free_registers: list[riscv.IntRegisterType] = []
+        # make a list of free registers for each type so we can add to it later
+        free_registers: dict[
+            type[riscv.RISCVRegisterType], list[riscv.RISCVRegisterType]
+        ] = defaultdict(list)
         if op.free_registers is not None:
-            free_registers = [
-                i for i in op.free_registers if isinstance(i, riscv.IntRegisterType)
-            ]
+            for reg in op.free_registers:
+                free_registers[type(reg)].append(reg)
 
         num_operands = len(op.operands)
 
@@ -99,7 +107,7 @@ class ParallelMovPattern(RewritePattern):
             # Iterate up the tree by traversing back edges.
             while dst in dst_to_src:
                 src = dst_to_src[dst]
-                mvop = riscv.MVOp(src, rd=dst)
+                mvop = _create_mv_op(src, dst)
                 rewriter.insert_op(mvop)
                 # sanity check since we should only have 1 result per output
                 assert results[op.outputs.types.index(dst)] is None
@@ -111,8 +119,8 @@ class ParallelMovPattern(RewritePattern):
                 dst = src.type
 
             # if dst is a register that has no input, we can use it as a free register.
-            if dst not in dst_to_src and isinstance(dst, riscv.IntRegisterType):
-                free_registers.append(dst)
+            if dst not in dst_to_src:
+                free_registers[type(dst)].append(dst)
 
         # If we have a cycle in the graph, all trees pointing into the cycle cannot
         # enter the cycle because it will have an unprocessed node from its previous
@@ -122,11 +130,17 @@ class ParallelMovPattern(RewritePattern):
 
         for idx, val in enumerate(results):
             if val is None:
-                # Find a free integer register.
+                reg_type = type(op.outputs[idx].type)
+                # Find a free register.
                 # We don't have to modify its value since all the cycles
                 # can use the same register.
-                if not free_registers:
-                    # If the registers are all integers, we can use the xor swapping
+                if not free_registers[reg_type]:
+                    if reg_type != riscv.IntRegisterType:
+                        raise PassFailedException(
+                            "Float cyclic move without free register"
+                        )
+
+                    # Otherwise if the registers are all integers, we can use the xor swapping
                     # trick to repeatedly swap values to perform the cyclic move.
 
                     # we don't take op.inputs[idx] -> op.outputs[idx] since we need
@@ -153,26 +167,26 @@ class ParallelMovPattern(RewritePattern):
 
                     results[op.outputs.types.index(op.inputs.types[idx])] = out
                     continue
-                temp_reg = free_registers[0]
 
                 # Break the cycle by using free register
+                temp_reg = free_registers[reg_type][0]
                 # split the current mov
                 cur_input = op.inputs[idx]
                 cur_output = op.outputs[idx]
-                temp_ssa = riscv.MVOp(cur_input, rd=temp_reg)
+                temp_ssa = _create_mv_op(cur_input, temp_reg)
                 rewriter.insert_op(temp_ssa)
                 # iterate up the chain until we reach the current output
                 dst = cur_input.type
                 while dst != cur_output.type:
                     src = dst_to_src[dst]
-                    mvop = riscv.MVOp(src, rd=dst)
+                    mvop = _create_mv_op(src, dst)
                     rewriter.insert_op(mvop)
                     results[op.outputs.types.index(dst)] = mvop.results[0]
                     dst = src.type
                 # finish the split mov
                 # this assert is already checked at start, but is used for type checking
                 assert isinstance(cur_output.type, riscv.IntRegisterType)
-                mvop = riscv.MVOp(temp_ssa, rd=cur_output.type)
+                mvop = _create_mv_op(temp_ssa, cur_output.type)
                 rewriter.insert_op(mvop)
                 results[idx] = mvop.results[0]
 
