@@ -25,6 +25,9 @@ X86_INDEX_BY_NAME = {
     "rdi": 7,
     # Currently don't support 32-bit registers
     # https://github.com/xdslproject/xdsl/issues/4737
+    # Note that the kmov ops need a `d` suffix when moving 32 bits from a 64-bit
+    # register such as `r8`. We currently unconditionally add it, but when `e` registers
+    # are added back we need to insert logic to handle this.
     # "eax": 0,
     # "ecx": 1,
     # "edx": 2,
