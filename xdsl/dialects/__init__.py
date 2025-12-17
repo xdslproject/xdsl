@@ -248,6 +248,16 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
 
         return RISCV
 
+    def get_riscv32():
+        from xdsl.dialects.riscv32 import RISCV32
+
+        return RISCV32
+    
+    def get_riscv64():
+        from xdsl.dialects.riscv64 import RISCV64
+
+        return RISCV64
+
     def get_riscv_func():
         from xdsl.dialects.riscv_func import RISCV_Func
 
@@ -411,6 +421,8 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "printf": get_printf,
         "ptr_xdsl": get_ptr_xdsl,
         "riscv": get_riscv,
+        "riscv32": get_riscv32,
+        "riscv64": get_riscv64,
         "riscv_debug": get_riscv_debug,
         "riscv_func": get_riscv_func,
         "riscv_scf": get_riscv_scf,
