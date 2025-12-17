@@ -683,6 +683,18 @@ class FromElementsOp(IRDLOperation):
     result = result_def(TensorType.constr(ELEMENT_TYPE))
     assembly_format = "$elements attr-dict `:` type($result)"
 
+    traits = traits_def(NoMemoryEffect())
+
+    def __init__(self, *elements: SSAValue, result_type: Attribute | None = None):
+        if len(elements) == 0:
+            raise ValueError("Tried to call tensor.from_elements on empty list")
+
+        if result_type is None:
+            elem_type = elements[0].type
+            result_type = TensorType(elem_type, (len(elements),))
+
+        super().__init__(operands=[elements], result_types=[result_type])
+
 
 @irdl_op_definition
 class SplatOp(IRDLOperation):
