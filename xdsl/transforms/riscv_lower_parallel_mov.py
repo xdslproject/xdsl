@@ -3,8 +3,6 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import cast
 
-from typing_extensions import TypeVar
-
 from xdsl.context import Context
 from xdsl.dialects import riscv
 from xdsl.dialects.builtin import ModuleOp
@@ -18,10 +16,8 @@ from xdsl.pattern_rewriter import (
 )
 from xdsl.utils.exceptions import PassFailedException
 
-T = TypeVar("T", bound=riscv.RISCVRegisterType)
 
-
-def _create_mv_op(src: SSAValue[T], dst: T):
+def _create_mv_op(src: SSAValue | Operation, dst: riscv.RISCVRegisterType):
     if isinstance(dst, riscv.IntRegisterType):
         return riscv.MVOp(src, rd=dst)
     # This should never be raised since it is checked in op.verify_()
