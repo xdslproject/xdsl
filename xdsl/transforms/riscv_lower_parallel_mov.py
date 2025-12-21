@@ -25,6 +25,7 @@ def _replace_result(
 ):
     """Replace one result of a parallel move, determined by mv_op's output type."""
     rewriter.insert_op(mv_op, InsertPoint.before(rewriter.current_operation))
+    # TODO: may want to replace this linear search
     for x in parallel_mv_op.outputs:
         if x.type == mv_op.result_types[0]:
             rewriter.replace_all_uses_with(x, mv_op.results[0])
