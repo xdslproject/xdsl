@@ -6,8 +6,7 @@ from typing import cast
 from xdsl.context import Context
 from xdsl.dialects import riscv
 from xdsl.dialects.builtin import ModuleOp, SSAValue
-from xdsl.ir import Attribute
-from xdsl.irdl import VarOpResult
+from xdsl.ir import Attribute, Operation
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     PatternRewriter,
@@ -19,14 +18,21 @@ from xdsl.rewriter import InsertPoint
 from xdsl.utils.exceptions import PassFailedException
 
 
-def _find_ssa_from_reg_type(
-    outputs: VarOpResult[riscv.RISCVRegisterType], reg: riscv.RISCVRegisterType
+def _replace_result(
+    rewriter: PatternRewriter,
+    parallel_mv_op: riscv.ParallelMovOp,
+    mv_op: Operation,
 ):
-    for x in outputs:
-        if x.type == reg:
-            return x
-    # something has gone drastically wrong to get here
-    raise ValueError(f"No output with given register type: cannot find {reg}.")
+    """Replace one result of a parallel move, determined by mv_op's output type."""
+    rewriter.insert_op(mv_op, InsertPoint.before(rewriter.current_operation))
+    for x in parallel_mv_op.outputs:
+        if x.type == mv_op.result_types[0]:
+            rewriter.replace_all_uses_with(x, mv_op.results[0])
+            return
+    # Otherwise, we have passed an invalid output type
+    raise ValueError(
+        f"No output with given register type: cannot find {mv_op.results[0]}."
+    )
 
 
 class ParallelMovPattern(RewritePattern):
@@ -94,12 +100,7 @@ class ParallelMovPattern(RewritePattern):
             # Iterate up the tree by traversing back edges.
             while dst in dst_to_src:
                 src = dst_to_src[dst]
-                mvop = riscv.MVOp(src, rd=dst)
-                rewriter.insert_op(mvop, InsertPoint.before(rewriter.current_operation))
-                # sanity check since we should only have 1 result per output
-                rewriter.replace_all_uses_with(
-                    _find_ssa_from_reg_type(op.outputs, dst), mvop.results[0]
-                )
+                _replace_result(rewriter, op, riscv.MVOp(src, rd=dst))
                 unprocessed_children[src] -= 1
                 # only continue up the tree if all children were processed
                 if unprocessed_children[src]:
@@ -141,24 +142,14 @@ class ParallelMovPattern(RewritePattern):
                     src = dst_to_src[dst]
                     if src.type == node.type:
                         break
-                    mvop = riscv.MVOp(src, rd=dst)
-                    rewriter.insert_op(
-                        mvop, InsertPoint.before(rewriter.current_operation)
-                    )
-                    rewriter.replace_all_uses_with(
-                        _find_ssa_from_reg_type(op.outputs, dst), mvop.results[0]
-                    )
+                    _replace_result(rewriter, op, riscv.MVOp(src, rd=dst))
                     unprocessed_children[src] -= 1
                     assert (
                         unprocessed_children[src] == 0
                     )  # nodes should only have 1 child
                     dst = src.type
                 # finish the split mov
-                mvop = riscv.MVOp(temp_ssa, rd=dst)
-                rewriter.insert_op(mvop, InsertPoint.before(rewriter.current_operation))
-                rewriter.replace_all_uses_with(
-                    _find_ssa_from_reg_type(op.outputs, dst), mvop.results[0]
-                )
+                _replace_result(rewriter, op, riscv.MVOp(temp_ssa, rd=dst))
         rewriter.erase_op(op)
 
 
