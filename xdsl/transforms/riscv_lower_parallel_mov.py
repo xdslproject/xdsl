@@ -60,8 +60,6 @@ class ParallelMovPattern(RewritePattern):
                 i for i in op.free_registers if isinstance(i, riscv.IntRegisterType)
             ]
 
-        num_operands = len(op.operands)
-
         # We have a graph with nodes as registers and directed edges as moves,
         # pointing from source to destination.
         # Every node has at most 1 in edge since we can't write to a register twice.
@@ -80,9 +78,7 @@ class ParallelMovPattern(RewritePattern):
         leaves: set[Attribute] = set(op.outputs.types)
         unprocessed_children: Counter[SSAValue] = Counter()
 
-        for idx, src, dst in zip(
-            range(num_operands), op.inputs, op.outputs, strict=True
-        ):
+        for src, dst in zip(op.inputs, op.outputs, strict=True):
             # src.type points to something so it can't be a leaf
             leaves.discard(src.type)
 
