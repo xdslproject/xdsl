@@ -132,20 +132,23 @@ class ParallelMovPattern(RewritePattern):
                 # the temp reg as the root
                 unprocessed_children[node] -= 1
 
-                dst = node.type
+                dst = node
                 # iterate up the chain until we reach the current output
                 while True:
-                    src = dst_to_src[dst]
+                    # Type checking assert
+                    assert isinstance(dst.type, riscv.RISCVRegisterType)
+
+                    src = dst_to_src[dst.type]
                     if src.type == node.type:
                         break
-                    _replace_result(rewriter, op, riscv.MVOp(src, rd=dst))
+                    _replace_result(rewriter, op, riscv.MVOp(src, rd=dst.type))
                     unprocessed_children[src] -= 1
                     assert (
                         unprocessed_children[src] == 0
                     )  # nodes should only have 1 child
-                    dst = src.type
+                    dst = src
                 # finish the split mov
-                _replace_result(rewriter, op, riscv.MVOp(temp_ssa, rd=dst))
+                _replace_result(rewriter, op, riscv.MVOp(temp_ssa, rd=dst.type))
         rewriter.erase_op(op)
 
 
