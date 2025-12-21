@@ -7,6 +7,7 @@ from xdsl.context import Context
 from xdsl.dialects import riscv
 from xdsl.dialects.builtin import ModuleOp, SSAValue
 from xdsl.ir import Attribute
+from xdsl.irdl import VarOpResult
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     PatternRewriter,
@@ -16,6 +17,16 @@ from xdsl.pattern_rewriter import (
 )
 from xdsl.rewriter import InsertPoint
 from xdsl.utils.exceptions import PassFailedException
+
+
+def _find_ssa_from_reg_type(
+    outputs: VarOpResult[riscv.RISCVRegisterType], reg: riscv.RISCVRegisterType
+):
+    for x in outputs:
+        if x.type == reg:
+            return x
+    # something has gone drastically wrong to get here
+    raise ValueError(f"No output with given register type: cannot find {reg}.")
 
 
 class ParallelMovPattern(RewritePattern):
@@ -45,8 +56,6 @@ class ParallelMovPattern(RewritePattern):
 
         num_operands = len(op.operands)
 
-        results: list[SSAValue | None] = [None] * num_operands
-
         # We have a graph with nodes as registers and directed edges as moves,
         # pointing from source to destination.
         # Every node has at most 1 in edge since we can't write to a register twice.
@@ -74,7 +83,7 @@ class ParallelMovPattern(RewritePattern):
             if src.type == dst.type:
                 # Trivial case of moving register to itself.
                 # We can ignore all instances of this
-                results[idx] = src
+                rewriter.replace_all_uses_with(dst, src)
             else:
                 dst_to_src[dst.type] = src
                 unprocessed_children[src] += 1
@@ -88,8 +97,9 @@ class ParallelMovPattern(RewritePattern):
                 mvop = riscv.MVOp(src, rd=dst)
                 rewriter.insert_op(mvop, InsertPoint.before(rewriter.current_operation))
                 # sanity check since we should only have 1 result per output
-                assert results[op.outputs.types.index(dst)] is None
-                results[op.outputs.types.index(dst)] = mvop.results[0]
+                rewriter.replace_all_uses_with(
+                    _find_ssa_from_reg_type(op.outputs, dst), mvop.results[0]
+                )
                 unprocessed_children[src] -= 1
                 # only continue up the tree if all children were processed
                 if unprocessed_children[src]:
@@ -101,13 +111,11 @@ class ParallelMovPattern(RewritePattern):
                 free_registers.append(dst)
 
         # If we have a cycle in the graph, all trees pointing into the cycle cannot
-        # enter the cycle because it will have an unprocessed node from its previous
+        # enter the cycle because it will have an unprocessed child from its previous
         # node in the cycle.
-        # Therefore, all nodes in the cycle will be unprocessed, and their results
-        # will still be None
-
-        for idx, val in enumerate(results):
-            if val is None:
+        # Therefore, all nodes in the cycle will have one unprocessed child
+        for node, children in unprocessed_children.items():
+            if children != 0:
                 # Find a free integer register.
                 # We don't have to modify its value since all the cycles
                 # can use the same register.
@@ -118,31 +126,40 @@ class ParallelMovPattern(RewritePattern):
                 temp_reg = free_registers[0]
 
                 # Break the cycle by using free register
-                # split the current mov
-                cur_input = op.inputs[idx]
-                cur_output = op.outputs[idx]
-                temp_ssa = riscv.MVOp(cur_input, rd=temp_reg)
+                # move node into the free register
+                temp_ssa = riscv.MVOp(node, rd=temp_reg)
                 rewriter.insert_op(
                     temp_ssa, InsertPoint.before(rewriter.current_operation)
                 )
+                # we have now created a new chain, with node as the leaf and
+                # the temp reg as the root
+                unprocessed_children[node] -= 1
+
+                dst = node.type
                 # iterate up the chain until we reach the current output
-                dst = cur_input.type
-                while dst != cur_output.type:
+                while True:
                     src = dst_to_src[dst]
+                    if src.type == node.type:
+                        break
                     mvop = riscv.MVOp(src, rd=dst)
                     rewriter.insert_op(
                         mvop, InsertPoint.before(rewriter.current_operation)
                     )
-                    results[op.outputs.types.index(dst)] = mvop.results[0]
+                    rewriter.replace_all_uses_with(
+                        _find_ssa_from_reg_type(op.outputs, dst), mvop.results[0]
+                    )
+                    unprocessed_children[src] -= 1
+                    assert (
+                        unprocessed_children[src] == 0
+                    )  # nodes should only have 1 child
                     dst = src.type
                 # finish the split mov
-                # this assert is already checked at start, but is used for type checking
-                assert isinstance(cur_output.type, riscv.IntRegisterType)
-                mvop = riscv.MVOp(temp_ssa, rd=cur_output.type)
+                mvop = riscv.MVOp(temp_ssa, rd=dst)
                 rewriter.insert_op(mvop, InsertPoint.before(rewriter.current_operation))
-                results[idx] = mvop.results[0]
-
-        rewriter.replace_matched_op([], results)
+                rewriter.replace_all_uses_with(
+                    _find_ssa_from_reg_type(op.outputs, dst), mvop.results[0]
+                )
+        rewriter.erase_op(op)
 
 
 @dataclass(frozen=True)
