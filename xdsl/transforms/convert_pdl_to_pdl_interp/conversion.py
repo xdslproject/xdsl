@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 from typing import Optional, cast
 
 from xdsl.builder import Builder
+from xdsl.context import Context
 from xdsl.dialects import pdl, pdl_interp
 from xdsl.dialects.builtin import (
     ArrayAttr,
@@ -26,7 +27,8 @@ from xdsl.ir import (
     Region,
     SSAValue,
 )
-from xdsl.rewriter import InsertPoint
+from xdsl.passes import ModulePass
+from xdsl.rewriter import InsertPoint, Rewriter
 from xdsl.transforms.convert_pdl_to_pdl_interp.predicate import (
     Answer,
     AttributeAnswer,
@@ -64,6 +66,56 @@ from xdsl.transforms.convert_pdl_to_pdl_interp.predicate import (
     get_question_cost,
 )
 from xdsl.utils.scoped_dict import ScopedDict
+
+
+@dataclass(frozen=True)
+class ConvertPDLToPDLInterpPass(ModulePass):
+    """
+    Pass to convert PDL operations to PDL interpreter operations.
+    This is a somewhat faithful port of the implementation in MLIR, but it may not generate the same exact results.
+    """
+
+    name = "convert-pdl-to-pdl-interp"
+
+    optimize_for_eqsat: bool = True
+    process_individually: bool = False
+
+    def apply(self, ctx: Context, op: ModuleOp) -> None:
+        patterns = [
+            pattern for pattern in op.body.ops if isinstance(pattern, pdl.PatternOp)
+        ]
+        if not patterns:
+            return
+
+        rewriter_module = ModuleOp([], sym_name=StringAttr("rewriters"))
+
+        if self.process_individually:
+            for i, pattern in enumerate(patterns):
+                name = (
+                    f"matcher_{pattern.sym_name.data}"
+                    if pattern.sym_name
+                    else f"matcher_{i}"
+                )
+                matcher_func = pdl_interp.FuncOp(name, ((pdl.OperationType(),), ()))
+                generator = MatcherGenerator(
+                    matcher_func, rewriter_module, self.optimize_for_eqsat
+                )
+                generator.lower([pattern])
+                op.body.block.add_op(matcher_func)
+        else:
+            matcher_func = pdl_interp.FuncOp("matcher", ((pdl.OperationType(),), ()))
+            generator = MatcherGenerator(
+                matcher_func, rewriter_module, self.optimize_for_eqsat
+            )
+            generator.lower(patterns)
+            op.body.block.add_op(matcher_func)
+
+        # Replace all pattern ops with the matcher func and rewriter module
+        rewriter = Rewriter()
+        for pattern in patterns:
+            rewriter.erase_op(pattern)
+        op.body.block.add_op(rewriter_module)
+
 
 # =============================================================================
 # Matcher Tree Nodes
@@ -990,8 +1042,24 @@ class MatcherGenerator:
         self.values = ScopedDict()
         self.failure_block_stack = []
         self.builder = Builder(InsertPoint.at_start(matcher_func.body.block))
-        self.constraint_op_map = {}
-        self.rewriter_names = {}
+
+    def lower(self, patterns: list[pdl.PatternOp]) -> None:
+        """Lower PDL patterns to PDL interpreter"""
+
+        # Build the predicate tree
+        tree_builder = PredicateTreeBuilder()
+        root = tree_builder.build_predicate_tree(patterns)
+        self.value_to_position = tree_builder.pattern_value_positions
+
+        # Get the entry block and add root operation argument
+        entry_block = self.matcher_func.body.block
+
+        # The first argument is the root operation
+        root_pos = OperationPosition(depth=0)
+        self.values[root_pos] = entry_block.args[0]
+
+        # Generate the matcher
+        _ = self.generate_matcher(root, self.matcher_func.body, block=entry_block)
 
     def generate_matcher(
         self, node: MatcherNode, region: Region, block: Block | None = None
@@ -1798,4 +1866,20 @@ class MatcherGenerator:
         if not result_type_values:
             return False
 
-        raise ValueError(f"Unable to infer result types for pdl.operation {op.opName}")
+        raise ValueError(f"Unable to infer result types for pdl.operation {op.opName}'")
+
+
+def lower_pdl_to_pdl_interp(
+    module: ModuleOp,
+    matcher_func: pdl_interp.FuncOp,
+    rewriter_module: ModuleOp,
+    optimize_for_eqsat: bool = False,
+) -> None:
+    """Main entry point to lower PDL patterns to PDL interpreter"""
+
+    # Collect all patterns
+    patterns = [op for op in module.body.ops if isinstance(op, pdl.PatternOp)]
+
+    # Create generator and lower
+    generator = MatcherGenerator(matcher_func, rewriter_module, optimize_for_eqsat)
+    generator.lower(patterns)
