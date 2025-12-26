@@ -1518,6 +1518,38 @@ class MatcherGenerator:
         self.rewriter_builder.insert(create_range_op)
         rewrite_values[op.result] = create_range_op.range
 
+    def _generate_rewriter_for_replace(
+        self,
+        op: pdl.ReplaceOp,
+        rewrite_values: dict[SSAValue, SSAValue],
+        map_rewrite_value: Callable[[SSAValue], SSAValue],
+    ):
+        repl_operands = ()
+        if op.repl_operation:
+            op_op_def = op.op_value.owner
+            has_results = not (
+                isinstance(op_op_def, pdl.OperationOp) and not op_op_def.type_values
+            )
+            if has_results:
+                get_results = pdl_interp.GetResultsOp(
+                    None,
+                    map_rewrite_value(op.repl_operation),
+                    pdl.RangeType(pdl.ValueType()),
+                )
+                self.rewriter_builder.insert(get_results)
+                repl_operands = (get_results.value,)
+        else:
+            repl_operands = tuple(map_rewrite_value(val) for val in op.repl_values)
+
+        mapped_op_value = map_rewrite_value(op.op_value)
+        if not repl_operands:
+            raise NotImplementedError("pdl_interp.erase is not yet implemented")
+            self.rewriter_builder.insert(pdl_interp.EraseOp(mapped_op_value))
+        else:
+            self.rewriter_builder.insert(
+                pdl_interp.ReplaceOp(mapped_op_value, repl_operands)
+            )
+
     def _generate_rewriter_for_result(
         self,
         op: pdl.ResultOp,
