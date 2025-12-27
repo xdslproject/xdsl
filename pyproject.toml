@@ -112,7 +112,7 @@ reportUnnecessaryCast = true
 reportUnnecessaryIsInstance = true
 reportUnnecessaryTypeIgnoreComment = true
 typeCheckingMode = "strict"
-extraPaths = ["tests", "typings"]
+extraPaths = ["tests"]
 "include" = ["docs", "xdsl", "tests", "benchmarks"]
 "exclude" = ["docs/marimo"]
 

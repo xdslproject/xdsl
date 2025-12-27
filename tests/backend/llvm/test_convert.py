@@ -4,7 +4,7 @@ from xdsl.dialects.builtin import ModuleOp
 from xdsl.dialects.test import TestOp
 
 ir = pytest.importorskip("llvmlite.ir")
-from xdsl.backend.llvmlite.convert import convert_module  # noqa: E402
+from xdsl.backend.llvm.convert import convert_module  # noqa: E402
 
 
 def test_convert_empty_module():
