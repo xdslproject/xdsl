@@ -63,8 +63,8 @@ Here are some examples of first PRs from existing contributors:
 The first step is finding a missing optimisation pattern.
 You're welcome to come up with your own, or do one of the following:
 
-- `ori %r, i -> li (%r or i)` when `%r` is defined by an immediate
-- `xori %r, i -> li (%r xor i)` when `%r` is defined by an immediate
+- `slt %x, %x` to `li 0` (always false), where `%x` is is defined by an immediate
+- `sltu %x, %x` to `li 0` (always false), where `%x` is is defined by an immediate
 
 The patterns are defined in
 [xdsl/transforms/canonicalization_patterns/riscv.py](https://github.com/xdslproject/xdsl/blob/main/xdsl/transforms/canonicalization_patterns/riscv.py).
