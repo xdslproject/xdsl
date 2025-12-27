@@ -157,6 +157,7 @@ max-line-length = 130
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F403"]
+"__init__.pyi" = ["F403"]
 "**/filecheck/*" = ["F811", "F841", "E501"]
 "docs/database_example.ipynb" = ["ALL"]
 "docs/irdl.ipynb" = ["ALL"]

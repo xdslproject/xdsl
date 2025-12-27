@@ -140,7 +140,6 @@ precommit: uv-installed
 .PHONY: pyright
 pyright: uv-installed
 	uv run xdsl-stubgen
-	uv run pyright --createstub llvmlite
 	uv run pyright $(shell git diff --staged --name-only  -- '*.py')
 
 # run coverage over all tests and combine data files
