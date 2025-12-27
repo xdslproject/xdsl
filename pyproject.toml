@@ -62,6 +62,7 @@ docs = [
     "riscemu==2.2.7",
     "micropip>=0.7",
 ]
+llvmlite = ["llvmlite==0.46.0"]
 
 [project.urls]
 Homepage = "https://xdsl.dev/"
