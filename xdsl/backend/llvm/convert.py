@@ -1,4 +1,4 @@
-import llvmlite.ir as ir
+import llvmlite.ir as ir  # pyright: ignore[reportMissingTypeStubs]
 
 from xdsl.dialects.builtin import ModuleOp
 
