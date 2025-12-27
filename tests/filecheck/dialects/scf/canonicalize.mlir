@@ -114,3 +114,129 @@ func.func @execute_region_with_multiple_blocks() -> i32 {
   }
   func.return %d : i32
 }
+
+// CHECK-LABEL: func.func @test_true
+// CHECK-NOT: scf.if
+// CHECK: %{{.*}} = arith.constant 1 : i32
+func.func @test_true() -> i32 {
+  %true = arith.constant true
+  %0 = scf.if %true -> (i32) {
+    %1 = arith.constant 1 : i32
+    scf.yield %1 : i32
+  } else {
+    %2 = arith.constant 2 : i32
+    scf.yield %2 : i32
+  }
+  func.return %0 : i32
+}
+
+// CHECK-LABEL: func.func @test_false
+// CHECK-NOT: scf.if
+// CHECK: %{{.*}} = arith.constant 2 : i32
+func.func @test_false() -> i32 {
+  %false = arith.constant false
+  %0 = scf.if %false -> (i32) {
+    %1 = arith.constant 1 : i32
+    scf.yield %1 : i32
+  } else {
+    %2 = arith.constant 2 : i32
+    scf.yield %2 : i32
+  }
+  func.return %0 : i32
+}
+
+// CHECK-LABEL: func.func @test_true_void_both_branches
+// CHECK-NOT: scf.if
+// CHECK: "test.op"() {then = true} : () -> ()
+// CHECK-NOT: "test.op"() {else = true}
+// CHECK-NEXT: func.return
+func.func @test_true_void_both_branches() {
+  %true = arith.constant true
+  scf.if %true {
+    "test.op"() {"then" = true} : () -> ()
+  } else {
+    "test.op"() {"else" = true} : () -> ()
+  }
+  func.return
+}
+
+// CHECK-LABEL: func.func @test_false_void_both_branches
+// CHECK-NOT: scf.if
+// CHECK: "test.op"() {else = true} : () -> ()
+// CHECK-NOT: "test.op"() {then = true}
+// CHECK-NEXT: func.return
+func.func @test_false_void_both_branches() {
+  %false = arith.constant false
+  scf.if %false {
+    "test.op"() {"then" = true} : () -> ()
+  } else {
+    "test.op"() {"else" = true} : () -> ()
+  }
+  func.return
+}
+
+// CHECK-LABEL: func.func @test_if_true_no_else
+// CHECK-NOT: scf.if
+// CHECK: "test.op"() {value = 10 : i32} : () -> ()
+// CHECK-NEXT: func.return
+func.func @test_if_true_no_else() {
+  %true = arith.constant true
+  scf.if %true {
+    "test.op"() {"value" = 10 : i32} : () -> ()
+  }
+  func.return
+}
+
+// CHECK-LABEL: func.func @test_if_false_no_else
+// CHECK-NOT: scf.if
+// CHECK-NEXT: func.return
+// CHECK-NOT: test.op
+func.func @test_if_false_no_else() {
+  %false = arith.constant false
+  scf.if %false {
+    "test.op"() {"value" = 99 : i32} : () -> ()
+  }
+  func.return
+}
+
+// CHECK-LABEL: func.func @test_empty_then_region_true
+// CHECK-NOT: scf.if
+// CHECK-NEXT: func.return
+func.func @test_empty_then_region_true() {
+  %true = arith.constant true
+  scf.if %true {
+  }
+  func.return
+}
+
+// CHECK-LABEL: func.func @test_empty_then_region_false
+// CHECK-NOT: scf.if
+// CHECK-NEXT: func.return
+func.func @test_empty_then_region_false() {
+  %false = arith.constant false
+  scf.if %false {
+  }
+  func.return
+}
+
+// CHECK-LABEL: func.func @test_both_empty_regions_true
+// CHECK-NOT: scf.if
+// CHECK-NEXT: func.return
+func.func @test_both_empty_regions_true() {
+  %true = arith.constant true
+  scf.if %true {
+  } else {
+  }
+  func.return
+}
+
+// CHECK-LABEL: func.func @test_both_empty_regions_false
+// CHECK-NOT: scf.if
+// CHECK-NEXT: func.return
+func.func @test_both_empty_regions_false() {
+  %false = arith.constant false
+  scf.if %false {
+  } else {
+  }
+  func.return
+}
