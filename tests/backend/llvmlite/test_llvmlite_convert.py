@@ -1,9 +1,10 @@
-import llvmlite.ir as ir
 import pytest
 
 from xdsl.backend.llvmlite.convert import convert_module
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.dialects.test import TestOp
+
+ir = pytest.importorskip("llvmlite.ir")
 
 
 def test_convert_empty_module():
