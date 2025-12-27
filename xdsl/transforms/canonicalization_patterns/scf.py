@@ -79,6 +79,26 @@ class SimplifyTrivialLoops(RewritePattern):
         # TODO: https://mlir.llvm.org/doxygen/Dialect_2SCF_2IR_2SCF_8cpp_source.html
 
 
+class IfPropagateConstantCondition(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: scf.IfOp, rewriter: PatternRewriter) -> None:
+        if (cond := const_evaluate_operand(op.cond)) is None:
+            return
+
+        # condition -> inline the 'then' region
+        if cond:
+            replace_op_with_region(rewriter, op, op.true_region)
+            return
+
+        # !condition -> inline the 'else' region (or drop the op if there is none)
+        if not op.false_region.blocks:
+            if not op.results:
+                rewriter.erase_op(op)
+            return
+
+        replace_op_with_region(rewriter, op, op.false_region)
+
+
 class SingleBlockExecuteInliner(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(

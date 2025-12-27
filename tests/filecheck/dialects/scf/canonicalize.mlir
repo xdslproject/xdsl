@@ -114,3 +114,55 @@ func.func @execute_region_with_multiple_blocks() -> i32 {
   }
   func.return %d : i32
 }
+
+// CHECK-LABEL: func.func @test_true
+// CHECK: %{{.*}} = arith.constant 1 : i32
+func.func @test_true() -> i32 {
+  %true = arith.constant true
+  %0 = scf.if %true -> (i32) {
+    %1 = arith.constant 1 : i32
+    scf.yield %1 : i32
+  } else {
+    %2 = arith.constant 2 : i32
+    scf.yield %2 : i32
+  }
+  func.return %0 : i32
+}
+
+// CHECK-LABEL: func.func @test_false
+// CHECK: %{{.*}} = arith.constant 2 : i32
+func.func @test_false() -> i32 {
+  %false = arith.constant false
+  %0 = scf.if %false -> (i32) {
+    %1 = arith.constant 1 : i32
+    scf.yield %1 : i32
+  } else {
+    %2 = arith.constant 2 : i32
+    scf.yield %2 : i32
+  }
+  func.return %0 : i32
+}
+
+// CHECK-LABEL: func.func @test_empty_else_true
+// CHECK: %{{.*}} = arith.constant 42 : i32
+func.func @test_empty_else_true() -> i32 {
+  %true = arith.constant true
+  %res = scf.if %true -> (i32) {
+    %val = arith.constant 42 : i32
+    scf.yield %val : i32
+  } else {
+     %dummy = arith.constant 0 : i32
+     scf.yield %dummy : i32
+  }
+  func.return %res : i32
+}
+
+// CHECK-LABEL: func.func @test_empty_else_false
+// CHECK-NOT: arith.constant 42
+func.func @test_empty_else_false() {
+  %false = arith.constant false
+  scf.if %false {
+    %val = arith.constant 42 : i32
+  }
+  func.return
+}
