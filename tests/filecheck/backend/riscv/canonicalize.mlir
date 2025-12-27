@@ -144,6 +144,12 @@ builtin.module {
   %xor_bitwise_zero_r0 = riscv.xor %c0, %c1 : (!riscv.reg, !riscv.reg) -> !riscv.reg<a0>
   "test.op"(%xor_bitwise_zero_r0) : (!riscv.reg<a0>) -> ()
 
+  %ori_immediate = riscv.ori %i3, 7 : (!riscv.reg) -> !riscv.reg<a0>
+  "test.op"(%ori_immediate) : (!riscv.reg<a0>) -> ()
+
+  %xori_immediate = riscv.xori %i3, 7 : (!riscv.reg) -> !riscv.reg<a0>
+  "test.op"(%xori_immediate) : (!riscv.reg<a0>) -> ()
+
   %shift_left_zero_r0 = riscv.slli %i2, 0 : (!riscv.reg) -> !riscv.reg<a0>
   "test.op"(%shift_left_zero_r0) : (!riscv.reg<a0>) -> ()
 
@@ -293,6 +299,12 @@ builtin.module {
 
 // CHECK-NEXT:   %xor_bitwise_zero_r0 = riscv.mv %c1 : (!riscv.reg) -> !riscv.reg<a0>
 // CHECK-NEXT:   "test.op"(%xor_bitwise_zero_r0) : (!riscv.reg<a0>) -> ()
+
+// CHECK-NEXT:   %ori_immediate = riscv.li 103 : !riscv.reg<a0>
+// CHECK-NEXT:   "test.op"(%ori_immediate) : (!riscv.reg<a0>) -> ()
+
+// CHECK-NEXT:   %xori_immediate = riscv.li 99 : !riscv.reg<a0>
+// CHECK-NEXT:   "test.op"(%xori_immediate) : (!riscv.reg<a0>) -> ()
 
 // CHECK-NEXT:   %shift_left_zero_r0 = riscv.mv %i2 : (!riscv.reg) -> !riscv.reg<a0>
 // CHECK-NEXT:   "test.op"(%shift_left_zero_r0) : (!riscv.reg<a0>) -> ()

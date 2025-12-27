@@ -1525,6 +1525,16 @@ class AndiOp(RdRsImmIntegerOperation):
     traits = traits_def(AndiOpHasCanonicalizationPatternsTrait())
 
 
+class OriOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.riscv import (
+            OriImmediate,
+        )
+
+        return (OriImmediate(),)
+
+
 @irdl_op_definition
 class OriOp(RdRsImmIntegerOperation):
     """
@@ -1537,6 +1547,17 @@ class OriOp(RdRsImmIntegerOperation):
     """
 
     name = "riscv.ori"
+    traits = traits_def(OriOpHasCanonicalizationPatternsTrait())
+
+
+class XoriOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.riscv import (
+            XoriImmediate,
+        )
+
+        return (XoriImmediate(),)
 
 
 @irdl_op_definition
@@ -1551,6 +1572,7 @@ class XoriOp(RdRsImmIntegerOperation):
     """
 
     name = "riscv.xori"
+    traits = traits_def(XoriOpHasCanonicalizationPatternsTrait())
 
 
 class SlliOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
