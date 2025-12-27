@@ -84,19 +84,8 @@ class IfPropagateConstantCondition(RewritePattern):
     def match_and_rewrite(self, op: scf.IfOp, rewriter: PatternRewriter) -> None:
         if (cond := const_evaluate_operand(op.cond)) is None:
             return
-
-        # condition -> inline the 'then' region
-        if cond:
-            replace_op_with_region(rewriter, op, op.true_region)
-            return
-
-        # !condition -> inline the 'else' region (or drop the op if there is none)
-        if not op.false_region.blocks:
-            if not op.results:
-                rewriter.erase_op(op)
-            return
-
-        replace_op_with_region(rewriter, op, op.false_region)
+        region = op.true_region if cond else op.false_region
+        replace_op_with_region(rewriter, op, region)
 
 
 class SingleBlockExecuteInliner(RewritePattern):
@@ -120,6 +109,9 @@ def replace_op_with_region(
     Replaces the given op with the contents of the given single-block region, using the
     operands of the block terminator to replace operation results.
     """
+    if not region.blocks:
+        rewriter.erase_op(op)
+        return
 
     block = region.block
     terminator = block.last_op
