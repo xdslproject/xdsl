@@ -3781,7 +3781,7 @@ docs = [
     { name = "pymdown-extensions" },
     { name = "riscemu" },
 ]
-llvmlite = [
+llvm = [
     { name = "llvmlite" },
 ]
 
@@ -3838,7 +3838,7 @@ docs = [
     { name = "pymdown-extensions", specifier = ">=10.7" },
     { name = "riscemu", specifier = "==2.2.7" },
 ]
-llvmlite = [{ name = "llvmlite", specifier = "==0.46.0" }]
+llvm = [{ name = "llvmlite", specifier = "~=0.46.0" }]
 
 [[package]]
 name = "yarl"
