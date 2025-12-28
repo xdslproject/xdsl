@@ -1,4 +1,5 @@
 import argparse
+import subprocess
 import sys
 from collections.abc import Callable, Sequence
 from contextlib import redirect_stdout
@@ -309,6 +310,37 @@ class xDSLOptMain(CommandLineTool):
                     printer = WGSLPrinter(stream=output)
                     printer.print(op)
 
+        def _output_llvm(prog: ModuleOp, output: IO[str]):
+            mlir_text = str(prog)
+            mlir_opt_passes = [
+                "mlir-opt",
+                "--convert-scf-to-cf",
+                "--convert-cf-to-llvm",
+                "--convert-func-to-llvm",
+                "--convert-arith-to-llvm",
+                "--expand-strided-metadata",
+                "--normalize-memrefs",
+                "--memref-expand",
+                "--fold-memref-alias-ops",
+                "--finalize-memref-to-llvm",
+                "--reconcile-unrealized-casts",
+                "-",
+            ]
+            mlir_opt = subprocess.Popen(
+                mlir_opt_passes, stdin=subprocess.PIPE, stdout=subprocess.PIPE
+            )
+            mlir_translate = subprocess.Popen(
+                ["mlir-translate", "--mlir-to-llvmir", "-"],
+                stdin=mlir_opt.stdout,
+                stdout=subprocess.PIPE,
+            )
+            mlir_opt.stdin.write(mlir_text.encode())
+            mlir_opt.stdin.close()
+            llvm_ir_bytes, _ = mlir_translate.communicate()
+            llvm_ir = llvm_ir_bytes.decode()
+
+            print(llvm_ir, file=output)
+
         self.available_targets["arm-asm"] = _output_arm_asm
         self.available_targets["csl"] = _output_csl
         self.available_targets["mlir"] = _output_mlir
@@ -317,6 +349,7 @@ class xDSLOptMain(CommandLineTool):
         self.available_targets["wat"] = _output_wat
         self.available_targets["wgsl"] = _output_wgsl
         self.available_targets["x86-asm"] = _output_x86_asm
+        self.available_targets["llvm"] = _output_llvm
 
     def setup_pipeline(self):
         """
