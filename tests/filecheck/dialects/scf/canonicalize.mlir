@@ -240,3 +240,112 @@ func.func @test_both_empty_regions_false() {
   }
   func.return
 }
+
+// CHECK-LABEL: func.func @test_true_multiple_args
+// CHECK-NOT: scf.if
+// CHECK: %{{.*}} = arith.constant 1 : i32
+// CHECK: %{{.*}} = arith.constant 3 : i32
+func.func @test_true_multiple_args() -> (i32, i32) {
+  %true = arith.constant true
+  %0, %1 = scf.if %true -> (i32, i32) {
+    %val1 = arith.constant 1 : i32
+    %val2 = arith.constant 3 : i32
+    scf.yield %val1, %val2 : i32, i32
+  } else {
+    %val3 = arith.constant 2 : i32
+    %val4 = arith.constant 4 : i32
+    scf.yield %val3, %val4 : i32, i32
+  }
+  func.return %0, %1 : i32, i32
+}
+
+// CHECK-LABEL: func.func @test_false_multiple_args
+// CHECK-NOT: scf.if
+// CHECK: %{{.*}} = arith.constant 2 : i32
+// CHECK: %{{.*}} = arith.constant 4 : i32
+func.func @test_false_multiple_args() -> (i32, i32) {
+  %false = arith.constant false
+  %0, %1 = scf.if %false -> (i32, i32) {
+    %val1 = arith.constant 1 : i32
+    %val2 = arith.constant 3 : i32
+    scf.yield %val1, %val2 : i32, i32
+  } else {
+    %val3 = arith.constant 2 : i32
+    %val4 = arith.constant 4 : i32
+    scf.yield %val3, %val4 : i32, i32
+  }
+  func.return %0, %1 : i32, i32
+}
+
+// CHECK-LABEL: func.func @test_true_args_from_outside
+// CHECK-NOT: scf.if
+// CHECK-NEXT: return %arg0
+func.func @test_true_args_from_outside(%arg0: i32, %arg1: i32) -> i32 {
+  %true = arith.constant true
+  %0 = scf.if %true -> (i32) {
+    scf.yield %arg0 : i32
+  } else {
+    scf.yield %arg1 : i32
+  }
+  func.return %0 : i32
+}
+
+// CHECK-LABEL: func.func @test_false_args_from_outside
+// CHECK-NOT: scf.if
+// CHECK-NEXT: return %arg1
+func.func @test_false_args_from_outside(%arg0: i32, %arg1: i32) -> i32 {
+  %false = arith.constant false
+  %0 = scf.if %false -> (i32) {
+    scf.yield %arg0 : i32
+  } else {
+    scf.yield %arg1 : i32
+  }
+  func.return %0 : i32
+}
+
+// CHECK-LABEL: func.func @test_true_capture_ops
+// CHECK-NOT: scf.if
+// CHECK: %[[VAL0:.*]] = "test.op"() : () -> i32
+// CHECK: "test.op"(%[[VAL0]]) : (i32) -> ()
+func.func @test_true_capture_ops() {
+  %true = arith.constant true
+  %0 = "test.op"() : () -> i32
+  scf.if %true {
+    "test.op"(%0) : (i32) -> ()
+  } else {
+    "test.op"() {"else" = true} : () -> ()
+  }
+  func.return
+}
+
+// CHECK-LABEL: func.func @test_false_capture_ops
+// CHECK-NOT: scf.if
+// CHECK: %[[VAL0:.*]] = "test.op"() : () -> i32
+// CHECK: "test.op"() {else = true} : () -> ()
+func.func @test_false_capture_ops() {
+  %false = arith.constant false
+  %0 = "test.op"() : () -> i32
+  scf.if %false {
+    "test.op"(%0) : (i32) -> ()
+  } else {
+    "test.op"() {"else" = true} : () -> ()
+  }
+  func.return
+}
+
+// CHECK-LABEL: func.func @test_true_capture_and_yield
+// CHECK-NOT: scf.if
+// CHECK: %[[VAL0:.*]] = "test.op"() : () -> i32
+// CHECK: %[[VAL1:.*]] = arith.addi %[[VAL0]], %[[VAL0]] : i32
+// CHECK: return %[[VAL1]] : i32
+func.func @test_true_capture_and_yield() -> i32 {
+  %true = arith.constant true
+  %0 = "test.op"() : () -> i32
+  %res = scf.if %true -> (i32) {
+    %1 = arith.addi %0, %0 : i32
+    scf.yield %1 : i32
+  } else {
+    scf.yield %0 : i32
+  }
+  func.return %res : i32
+}
