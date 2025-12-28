@@ -74,7 +74,7 @@ class MultiplyImmediateOne(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: riscv.MulOp, rewriter: PatternRewriter) -> None:
         if (rs2 := get_constant_value(op.rs2)) is not None and rs2.value.data == 1:
-            rd_type = op.rd.type
+            rd_type = cast(riscv.IntRegisterType, op.rd.type)
 
             move_op = riscv.MVOp(
                 op.rs1,
