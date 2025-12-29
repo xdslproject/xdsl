@@ -86,7 +86,7 @@ class ParallelMovPattern(RewritePattern):
             while dst in dst_to_src:
                 src = dst_to_src[dst]
                 mvop = riscv.MVOp(src, rd=dst)
-                rewriter.insert_op(mvop, InsertPoint.before(rewriter.current_operation))
+                rewriter.insert_op(mvop)
                 # sanity check since we should only have 1 result per output
                 assert results[op.outputs.types.index(dst)] is None
                 results[op.outputs.types.index(dst)] = mvop.results[0]
@@ -123,7 +123,7 @@ class ParallelMovPattern(RewritePattern):
                 cur_output = op.outputs[idx]
                 temp_ssa = riscv.MVOp(cur_input, rd=temp_reg)
                 rewriter.insert_op(
-                    temp_ssa, InsertPoint.before(rewriter.current_operation)
+                    temp_ssa
                 )
                 # iterate up the chain until we reach the current output
                 dst = cur_input.type
@@ -131,7 +131,7 @@ class ParallelMovPattern(RewritePattern):
                     src = dst_to_src[dst]
                     mvop = riscv.MVOp(src, rd=dst)
                     rewriter.insert_op(
-                        mvop, InsertPoint.before(rewriter.current_operation)
+                        mvop
                     )
                     results[op.outputs.types.index(dst)] = mvop.results[0]
                     dst = src.type
@@ -139,7 +139,7 @@ class ParallelMovPattern(RewritePattern):
                 # this assert is already checked at start, but is used for type checking
                 assert isinstance(cur_output.type, riscv.IntRegisterType)
                 mvop = riscv.MVOp(temp_ssa, rd=cur_output.type)
-                rewriter.insert_op(mvop, InsertPoint.before(rewriter.current_operation))
+                rewriter.insert_op(mvop)
                 results[idx] = mvop.results[0]
 
         rewriter.replace_matched_op((), results)
