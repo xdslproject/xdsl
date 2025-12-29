@@ -7,6 +7,7 @@ def convert_module(module: ModuleOp) -> ir.Module:
     # TODO: map xDSL llvm dialect to llvmlite IR
     # see: https://llvmlite.readthedocs.io/en/latest/user-guide/ir/index.html
     # see: https://gist.github.com/sueszli/6aea9f54e7305e9e7dfdb31fd999b68e
+    # demo: $ echo '"test.op"() : () -> ()' > /tmp/params.mlir && uv run xdsl-opt -t llvm /tmp/params.mlir
 
     llvm_module = ir.Module()
 
