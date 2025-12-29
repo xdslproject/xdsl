@@ -142,7 +142,7 @@ class ParallelMovPattern(RewritePattern):
                 rewriter.insert_op(mvop, InsertPoint.before(rewriter.current_operation))
                 results[idx] = mvop.results[0]
 
-        rewriter.replace_matched_op([], results)
+        rewriter.replace_matched_op((), results)
 
 
 @dataclass(frozen=True)
