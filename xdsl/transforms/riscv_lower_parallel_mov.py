@@ -14,7 +14,6 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
-from xdsl.rewriter import InsertPoint
 from xdsl.utils.exceptions import PassFailedException
 
 
@@ -122,17 +121,13 @@ class ParallelMovPattern(RewritePattern):
                 cur_input = op.inputs[idx]
                 cur_output = op.outputs[idx]
                 temp_ssa = riscv.MVOp(cur_input, rd=temp_reg)
-                rewriter.insert_op(
-                    temp_ssa
-                )
+                rewriter.insert_op(temp_ssa)
                 # iterate up the chain until we reach the current output
                 dst = cur_input.type
                 while dst != cur_output.type:
                     src = dst_to_src[dst]
                     mvop = riscv.MVOp(src, rd=dst)
-                    rewriter.insert_op(
-                        mvop
-                    )
+                    rewriter.insert_op(mvop)
                     results[op.outputs.types.index(dst)] = mvop.results[0]
                     dst = src.type
                 # finish the split mov
