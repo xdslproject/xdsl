@@ -658,6 +658,39 @@ class EmitC_VariableOp(IRDLOperation):
         return True
 
 
+@irdl_op_definition
+class EmitC_AssignOp(IRDLOperation):
+    """
+    The `emitc.assign` operation stores an SSA value to the location designated by an
+    EmitC variable. This operation doesn't return any value. The assigned value
+    must be of the same type as the variable being assigned. The operation is
+    emitted as a C/C++ '=' operator.
+    """
+
+    name = "emitc.assign"
+
+    var = operand_def(EmitC_LValueType)
+    value = operand_def(EmitCIntegerType | EmitCFloatType)
+    res = var_result_def()
+
+    #assemblyFormat = "$value `:` type($value) `to` $var `:` type($var) attr-dict"
+
+    def __init__(
+        self,
+        var: SSAValue,
+        value: SSAValue,
+    ):
+        super().__init__(
+            operands=[var, value],
+            result_types=[]
+        )
+
+    def verify_(self) -> None:
+        #print("var: ", self.var, " value: ", self.value)
+        if self.var.type != EmitC_LValueType(self.value.type): # self.value.type:
+            raise VerifyException("'emitc.assign' op operands var and value must have the same type")
+
+
 EmitC = Dialect(
     "emitc",
     [
@@ -665,7 +698,8 @@ EmitC = Dialect(
         EmitC_ApplyOp,
         EmitC_CallOpaqueOp,
         EmitC_ConstantOp,
-        EmitC_VariableOp
+        EmitC_VariableOp,
+        EmitC_AssignOp
     ],
     [
         EmitC_ArrayType,
