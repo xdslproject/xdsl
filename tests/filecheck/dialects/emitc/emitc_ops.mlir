@@ -43,3 +43,23 @@ emitc.call_opaque "test" ()  : () -> ()
 %add_tensor = emitc.add %tensor_lhs, %tensor_rhs : (tensor<3x4xi32>, tensor<3x4xi32>) -> tensor<3x4xi32>
 // CHECK: %add_tensor = emitc.add %tensor_lhs, %tensor_rhs : (tensor<3x4xi32>, tensor<3x4xi32>) -> tensor<3x4xi32>
 // CHECK-GENERIC: %add_tensor = "emitc.add"(%tensor_lhs, %tensor_rhs) : (tensor<3x4xi32>, tensor<3x4xi32>) -> tensor<3x4xi32>
+
+//===----------------------------------------------------------------------===//
+// ConstantOp
+//===----------------------------------------------------------------------===//
+
+%cons_int = "emitc.constant"() {value = 42 : i32} : () -> i32
+// CHECK %cons_int = "emitc.constant"() {value = 42 : i32} : () -> i32
+// CHECK-GENERIC %cons_int = "emitc.constant"() {value = 42 : i32} : () -> i32
+
+%cons_sizet = "emitc.constant"(){value = 42 : index} : () -> !emitc.size_t
+// CHECK %cons_ind = "emitc.constant"(){value = 42 : index} : () -> !emitc.size_t
+// CHECK-GENERIC %cons_ind = "emitc.constant"(){value = 42 : index} : () -> !emitc.size_t
+
+%cons_ssizet = "emitc.constant"(){value = 42 : index} : () -> !emitc.ssize_t
+// CHECK %cons_ssizet = "emitc.constant"(){value = 42 : index} : () -> !emitc.ssize_t
+// CHECK-GENERIC %cons_ssizet = "emitc.constant"(){value = 42 : index} : () -> !emitc.ssize_t
+
+%cons_ptr = "emitc.constant"(){value = 42 : index} : () -> !emitc.ptrdiff_t
+// CHECK %cons_ptr = "emitc.constant"(){value = 42 : index} : () -> !emitc.ptrdiff_t
+// CHECK-GENERIC %cons_ptr = "emitc.constant"(){value = 42 : index} : () -> !emitc.ptrdiff_t
