@@ -17,6 +17,20 @@ from xdsl.pattern_rewriter import (
 from xdsl.utils.exceptions import PassFailedException
 
 
+def add_swap(
+    rewriter: PatternRewriter,
+    a: SSAValue[riscv.IntRegisterType],
+    b: SSAValue[riscv.IntRegisterType],
+):
+    op1 = riscv.XorOp(a, b, rd=a.type)
+    op2 = riscv.XorOp(op1, b, rd=b.type)
+    op3 = riscv.XorOp(op1, op2, rd=a.type)
+    rewriter.insert_op(op1)
+    rewriter.insert_op(op2)
+    rewriter.insert_op(op3)
+    return op2, op3
+
+
 class ParallelMovPattern(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: riscv.ParallelMovOp, rewriter: PatternRewriter):
@@ -99,15 +113,6 @@ class ParallelMovPattern(RewritePattern):
             if dst not in dst_to_src and isinstance(dst, riscv.IntRegisterType):
                 free_registers.append(dst)
 
-        def add_swap(
-            a: SSAValue[riscv.IntRegisterType], b: SSAValue[riscv.IntRegisterType]
-        ):
-            """Add xor swap to new operations, returns SSAValue for (b, a)."""
-            new_ops.append(riscv.XorOp(a, b, rd=a.type))
-            new_ops.append(riscv.XorOp(new_ops[-1], b, rd=b.type))
-            new_ops.append(riscv.XorOp(new_ops[-2], new_ops[-1], rd=a.type))
-            return new_ops[-2], new_ops[-1]
-
         def cycle_by_xor(idx: int):
             """Handle a cycle using swaps by xor."""
             # If the registers are all integers, we can use the xor swapping
@@ -124,7 +129,7 @@ class ParallelMovPattern(RewritePattern):
                 assert isinstance(inp.type, riscv.IntRegisterType)
                 assert isinstance(out.type, riscv.IntRegisterType)
 
-                nw_out, nw_inp = add_swap(inp, out)
+                nw_out, nw_inp = add_swap(rewriter, inp, out)
                 # after the swap, the input is in the right place, the input's input
                 # needs to be moved to the new output
                 results[op.outputs.types.index(nw_inp.result_types[0])] = (
