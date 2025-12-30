@@ -309,8 +309,15 @@ class xDSLOptMain(CommandLineTool):
                     printer = WGSLPrinter(stream=output)
                     printer.print(op)
 
+        def _output_liveness(prog: ModuleOp, output: IO[str]):
+            from xdsl.transforms.experimental.liveness import print_liveness
+
+            print_liveness(prog, output)
+            _output_mlir(prog, output)
+
         self.available_targets["arm-asm"] = _output_arm_asm
         self.available_targets["csl"] = _output_csl
+        self.available_targets["liveness"] = _output_liveness
         self.available_targets["mlir"] = _output_mlir
         self.available_targets["riscemu"] = _emulate_riscv
         self.available_targets["riscv-asm"] = _output_riscv_asm
