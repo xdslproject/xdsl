@@ -632,7 +632,7 @@ class EmitC_VariableOp(IRDLOperation):
     value = prop_def(EmitC_OpaqueOrTypedAttr)
     result = result_def(EmitC_ArrayType | EmitC_LValueType)
 
-    assembly_format = " attr-dict $value `:` type(results)"
+    #assembly_format = " attr-dict $value `:` type(results)"
 
     def __init__(
         self,

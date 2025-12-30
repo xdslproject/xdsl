@@ -63,3 +63,11 @@ emitc.call_opaque "test" ()  : () -> ()
 %cons_ptr = "emitc.constant"(){value = 42 : index} : () -> !emitc.ptrdiff_t
 // CHECK %cons_ptr = "emitc.constant"(){value = 42 : index} : () -> !emitc.ptrdiff_t
 // CHECK-GENERIC %cons_ptr = "emitc.constant"(){value = 42 : index} : () -> !emitc.ptrdiff_t
+
+//===----------------------------------------------------------------------===//
+// VariableOp
+//===----------------------------------------------------------------------===//
+
+%variable = "emitc.variable"() <{value = #emitc.opaque<"">}> : () -> !emitc.lvalue<i32>
+// CHECK: %variable = "emitc.variable"() <{value = #emitc.opaque<"">}> : () -> !emitc.lvalue<i32>
+// CHECK-GENERIC: %variable = "emitc.variable"() <{value = #emitc.opaque<"">}> : () -> !emitc.lvalue<i32>
