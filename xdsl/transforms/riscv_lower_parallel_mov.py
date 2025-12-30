@@ -5,7 +5,7 @@ from typing import cast
 
 from xdsl.context import Context
 from xdsl.dialects import riscv
-from xdsl.dialects.builtin import ModuleOp, Operation, SSAValue
+from xdsl.dialects.builtin import ModuleOp, SSAValue
 from xdsl.ir import Attribute
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
@@ -44,7 +44,6 @@ class ParallelMovPattern(RewritePattern):
 
         num_operands = len(op.operands)
 
-        new_ops: list[Operation] = []
         results: list[SSAValue | None] = [None] * num_operands
 
         # We have a graph with nodes as registers and directed edges as moves,
@@ -85,10 +84,11 @@ class ParallelMovPattern(RewritePattern):
             # Iterate up the tree by traversing back edges.
             while dst in dst_to_src:
                 src = dst_to_src[dst]
-                new_ops.append(riscv.MVOp(src, rd=dst))
+                mvop = riscv.MVOp(src, rd=dst)
+                rewriter.insert_op(mvop)
                 # sanity check since we should only have 1 result per output
                 assert results[op.outputs.types.index(dst)] is None
-                results[op.outputs.types.index(dst)] = new_ops[-1].results[0]
+                results[op.outputs.types.index(dst)] = mvop.results[0]
                 unprocessed_children[src] -= 1
                 # only continue up the tree if all children were processed
                 if unprocessed_children[src]:
@@ -121,21 +121,23 @@ class ParallelMovPattern(RewritePattern):
                 cur_input = op.inputs[idx]
                 cur_output = op.outputs[idx]
                 temp_ssa = riscv.MVOp(cur_input, rd=temp_reg)
-                new_ops.append(temp_ssa)
+                rewriter.insert_op(temp_ssa)
                 # iterate up the chain until we reach the current output
                 dst = cur_input.type
                 while dst != cur_output.type:
                     src = dst_to_src[dst]
-                    new_ops.append(riscv.MVOp(src, rd=dst))
-                    results[op.outputs.types.index(dst)] = new_ops[-1].results[0]
+                    mvop = riscv.MVOp(src, rd=dst)
+                    rewriter.insert_op(mvop)
+                    results[op.outputs.types.index(dst)] = mvop.results[0]
                     dst = src.type
                 # finish the split mov
                 # this assert is already checked at start, but is used for type checking
                 assert isinstance(cur_output.type, riscv.IntRegisterType)
-                new_ops.append(riscv.MVOp(temp_ssa, rd=cur_output.type))
-                results[idx] = new_ops[-1].results[0]
+                mvop = riscv.MVOp(temp_ssa, rd=cur_output.type)
+                rewriter.insert_op(mvop)
+                results[idx] = mvop.results[0]
 
-        rewriter.replace_matched_op(new_ops, results)
+        rewriter.replace_matched_op((), results)
 
 
 @dataclass(frozen=True)
