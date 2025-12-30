@@ -28,7 +28,6 @@ from xdsl.dialects.builtin import (
     ShapedType,
     StaticShapeArrayConstr,
     StringAttr,
-    
     TensorType,
     TupleType,
     TypedAttribute
@@ -512,6 +511,7 @@ EmitC_OpaqueOrTypedAttr = EmitC_OpaqueAttr | TypedAttribute
 def isPointerWideType(type : TypeAttribute):
     return isa(type, EmitC_SignedSizeT | EmitC_SizeT | EmitC_PtrDiffT)
 
+
 @irdl_attr_definition
 class EmitCType(ParametrizedAttribute, TypeAttribute):
     """
@@ -522,13 +522,13 @@ class EmitCType(ParametrizedAttribute, TypeAttribute):
 
 # Check that the type of the initial value is compatible with the operations
 # result type.
-def verifyInitializationAttribute(op: IRDLOperation, value: Attribute) -> bool:
+def verifyInitializationAttribute(op: IRDLOperation, value: Attribute) -> None:
     assert len(op.results) == 1 and "operation must have 1 result"
 
     if isa(value, EmitC_OpaqueAttr):
-        return True
+        return
 
-    if isa(value, StringAttr):
+    if isa(value, StringAttr) or isinstance(value, StringAttr):
         raise VerifyException("string attributes are not supported, use #emitc.opaque instead")
 
     resultType = op.results[0].type
@@ -538,12 +538,12 @@ def verifyInitializationAttribute(op: IRDLOperation, value: Attribute) -> bool:
     attrType = cast(TypedAttribute, value).get_type()
 
     if isPointerWideType(cast(TypeAttribute, resultType)):
-        return True
+        return
 
     if resultType != attrType:
-        return op.emit_error("requires attribute to either be an #emitc.opaque attribute or it's type (" + str(attrType)+") to match the op's result type (" + str(resultType) + ")", Exception())
+        raise VerifyException("requires attribute to either be an #emitc.opaque attribute or it's type (" + str(attrType)+") to match the op's result type (" + str(resultType) + ")")
 
-    return True
+    return
 
 
 @irdl_op_definition
@@ -560,17 +560,22 @@ class EmitC_ConstantOp(IRDLOperation):
     name = "emitc.constant"
 
     value = prop_def(EmitC_OpaqueOrTypedAttr)
-    result = result_def(EmitC_OpaqueType)
+    result = result_def(EmitCTypeConstr)
+
+    assembly_format = " attr-dict $value `:` type(results)"
+
+    irdl_options = (ParsePropInAttrDict(), )
 
     def __init__(
         self,
-        value: EmitC_OpaqueOrTypedAttr
+        value: EmitC_OpaqueOrTypedAttr | int
     ):
+        res_type = ""
         if isinstance(value, int):
             value = IntegerAttr(value, IntegerType(32))
-            res_type  = IntegerType(32)
+            res_type  = value.type
         else:
-            res_type = EmitC_OpaqueType(StringAttr(value))
+            res_type = EmitC_OpaqueType(StringAttr(str(value)))
         super().__init__(
             properties={
                 "value": value
@@ -581,11 +586,21 @@ class EmitC_ConstantOp(IRDLOperation):
     def verify_(self) -> None:
         value = self.value
 
+        # value je ili IntegerAttr ili EmitCOpaqueType
+        if isinstance(value, IntegerAttr):
+            return # ok
+
+        if isa(value, EmitC_OpaqueType): #StringAttr
+            raise VerifyException("string attributes are not supported, use #emitc.opaque instead")
+
         verifyInitializationAttribute(self, value)
 
+        if not value:
+            raise VerifyException("value must not be empty")
         if isinstance(value, EmitC_OpaqueType):
             if not value.value.data:
                 raise VerifyException("value must not be empty")
+
 
     def has_side_effects(self) -> bool:
         """Return True if the operation has side effects."""
