@@ -586,11 +586,7 @@ class EmitC_ConstantOp(IRDLOperation):
     def verify_(self) -> None:
         value = self.value
 
-        # value je ili IntegerAttr ili EmitCOpaqueType
-        if isinstance(value, IntegerAttr):
-            return # ok
-
-        if isa(value, EmitC_OpaqueType): #StringAttr
+        if isa(value, StringAttr):
             raise VerifyException("string attributes are not supported, use #emitc.opaque instead")
 
         verifyInitializationAttribute(self, value)
@@ -619,13 +615,57 @@ class EmitC_ConstantOp(IRDLOperation):
     '''
 
 
+@irdl_op_definition
+class EmitC_VariableOp(IRDLOperation):
+    """
+    The `emitc.variable` operation produces an SSA value equal to some value
+    specified by an attribute. This can be used to form simple integer and
+    floating point variables, as well as more exotic things like tensor
+    variables. The `emitc.variable` operation also supports the EmitC opaque
+    attribute and the EmitC opaque type. If further supports the EmitC
+    pointer type, whereas folding is not supported.
+    The `emitc.variable` is emitted as a C/C++ local variable.
+    """
+
+    name = "emitc.variable"
+
+    value = prop_def(EmitC_OpaqueOrTypedAttr)
+    result = result_def(EmitC_ArrayType | EmitC_LValueType)
+
+    assembly_format = " attr-dict $value `:` type(results)"
+
+    def __init__(
+        self,
+        value: EmitC_OpaqueOrTypedAttr,
+        result_types : Attribute
+    ):
+        super().__init__(
+            properties={
+                "value": value
+            },
+            result_types=[result_types]
+        )
+
+    def verify_(self) -> None:
+        value = self.value
+        if not value:
+            raise VerifyException("'emitc.variable' op requires attribute 'value'")
+
+        if value and not isa(value, EmitC_OpaqueOrTypedAttr):
+            raise VerifyException("'emitc.variable' op attribute 'value' failed to satisfy constraint: An opaque attribute or TypedAttr instance")
+
+    def has_side_effects(self) -> bool:
+        return True
+
+
 EmitC = Dialect(
     "emitc",
     [
         EmitC_AddOp,
         EmitC_ApplyOp,
         EmitC_CallOpaqueOp,
-        EmitC_ConstantOp
+        EmitC_ConstantOp,
+        EmitC_VariableOp
     ],
     [
         EmitC_ArrayType,
