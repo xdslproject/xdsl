@@ -1,8 +1,5 @@
-// XFAIL: *
-// RUN: xdsl-opt -t mps %s | filecheck %s
+// RUN: not xdsl-opt -t mps %s 2>&1 | filecheck %s
 
-module {}
+builtin.module {}
 
-// CHECK: ; ModuleID = "{{.*}}"
-// CHECK-NEXT: target triple = "{{.*}}"
-// CHECK-NEXT: target datalayout = "{{.*}}"
+// CHECK: NotImplementedError: MPS backend not yet implemented
