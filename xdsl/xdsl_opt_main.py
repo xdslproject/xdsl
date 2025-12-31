@@ -313,6 +313,7 @@ class xDSLOptMain(CommandLineTool):
             from xdsl.backend.mps.print_mps import print_to_mps
 
             print_to_mps(prog, output)
+
         def _output_llvm(prog: ModuleOp, output: IO[str]):
             from xdsl.backend.llvm.convert import convert_module
 
