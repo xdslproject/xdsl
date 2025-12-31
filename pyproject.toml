@@ -37,6 +37,7 @@ dev = [
     "sympy==1.14.0",
 ]
 gui = ["textual>=6,<7", "pyclip==0.7"]
+llvm = ["llvmlite~=0.46.0"]
 
 [dependency-groups]
 dev = ["xdsl[dev,gui]", "my_plugin"]
@@ -62,7 +63,7 @@ docs = [
     "riscemu==2.2.7",
     "micropip>=0.7",
 ]
-llvm = ["llvmlite~=0.46.0"]
+
 
 [project.urls]
 Homepage = "https://xdsl.dev/"
