@@ -17,11 +17,12 @@ from xdsl.pattern_rewriter import (
 from xdsl.utils.exceptions import PassFailedException
 
 
-def add_swap(
+def _add_swap(
     rewriter: PatternRewriter,
     a: SSAValue[riscv.IntRegisterType],
     b: SSAValue[riscv.IntRegisterType],
 ):
+    """Add swap using xors. returns the new SSAValue."""
     op1 = riscv.XorOp(a, b, rd=a.type)
     op2 = riscv.XorOp(op1, b, rd=b.type)
     op3 = riscv.XorOp(op1, op2, rd=a.type)
@@ -141,7 +142,7 @@ class ParallelMovPattern(RewritePattern):
                         assert isinstance(inp.type, riscv.IntRegisterType)
                         assert isinstance(out.type, riscv.IntRegisterType)
 
-                        nw_out, nw_inp = add_swap(rewriter, inp, out)
+                        nw_out, nw_inp = _add_swap(rewriter, inp, out)
                         # after the swap, the input is in the right place, the input's input
                         # needs to be moved to the new output
                         results[op.outputs.types.index(nw_inp.result_types[0])] = (
