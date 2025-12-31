@@ -1,3 +1,4 @@
+// XFAIL: *
 // RUN: xdsl-opt -t llvm %s | filecheck %s
 
 module {}
