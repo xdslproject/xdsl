@@ -2,6 +2,7 @@
 
 module {}
 
-// CHECK: ; ModuleID = "{{.*}}"
-// CHECK-NEXT: target triple = "{{.*}}"
-// CHECK-NEXT: target datalayout = "{{.*}}"
+// CHECK: ; ModuleID = ""
+// Target triple is architecture dependent.
+// CHECK-NEXT: target triple = "{{[a-zA-Z0-9_.-]+}}"
+// CHECK-NEXT: target datalayout = ""
