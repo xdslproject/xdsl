@@ -309,6 +309,11 @@ class xDSLOptMain(CommandLineTool):
                     printer = WGSLPrinter(stream=output)
                     printer.print(op)
 
+        def _output_air(prog: ModuleOp, output: IO[str]):
+            from xdsl.backend.mps.print_mps import print_to_mps
+
+            print_to_mps(prog, output)
+
         self.available_targets["arm-asm"] = _output_arm_asm
         self.available_targets["csl"] = _output_csl
         self.available_targets["mlir"] = _output_mlir
@@ -316,6 +321,7 @@ class xDSLOptMain(CommandLineTool):
         self.available_targets["riscv-asm"] = _output_riscv_asm
         self.available_targets["wat"] = _output_wat
         self.available_targets["wgsl"] = _output_wgsl
+        self.available_targets["mps"] = _output_air
         self.available_targets["x86-asm"] = _output_x86_asm
 
     def setup_pipeline(self):
