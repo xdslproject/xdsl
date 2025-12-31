@@ -113,33 +113,6 @@ class ParallelMovPattern(RewritePattern):
             if dst not in dst_to_src and isinstance(dst, riscv.IntRegisterType):
                 free_registers.append(dst)
 
-        def cycle_by_xor(idx: int):
-            """Handle a cycle using swaps by xor."""
-            # If the registers are all integers, we can use the xor swapping
-            # trick to repeatedly swap values to perform the cyclic move.
-
-            # we don't take op.inputs[idx] -> op.outputs[idx] since we need
-            # the SSAValue for both input and output
-            out = op.inputs[idx]
-            assert isinstance(out.type, riscv.IntRegisterType)  # for type checker
-            inp = dst_to_src[out.type]
-
-            while inp.type != out.type:
-                # for type checker, is guaranteed by checks before function call
-                assert isinstance(inp.type, riscv.IntRegisterType)
-                assert isinstance(out.type, riscv.IntRegisterType)
-
-                nw_out, nw_inp = add_swap(rewriter, inp, out)
-                # after the swap, the input is in the right place, the input's input
-                # needs to be moved to the new output
-                results[op.outputs.types.index(nw_inp.result_types[0])] = (
-                    nw_inp.results[0]
-                )
-                inp = dst_to_src[inp.type]
-                out = nw_out.results[0]
-
-            results[op.outputs.types.index(op.inputs.types[idx])] = out
-
         # If we have a cycle in the graph, all trees pointing into the cycle cannot
         # enter the cycle because it will have an unprocessed node from its previous
         # node in the cycle.
@@ -152,7 +125,32 @@ class ParallelMovPattern(RewritePattern):
                 # We don't have to modify its value since all the cycles
                 # can use the same register.
                 if not free_registers:
-                    cycle_by_xor(idx)
+                    # If the registers are all integers, we can use the xor swapping
+                    # trick to repeatedly swap values to perform the cyclic move.
+
+                    # we don't take op.inputs[idx] -> op.outputs[idx] since we need
+                    # the SSAValue for both input and output
+                    out = op.inputs[idx]
+                    assert isinstance(
+                        out.type, riscv.IntRegisterType
+                    )  # for type checker
+                    inp = dst_to_src[out.type]
+
+                    while inp.type != out.type:
+                        # for type checker, is guaranteed by checks before function call
+                        assert isinstance(inp.type, riscv.IntRegisterType)
+                        assert isinstance(out.type, riscv.IntRegisterType)
+
+                        nw_out, nw_inp = add_swap(rewriter, inp, out)
+                        # after the swap, the input is in the right place, the input's input
+                        # needs to be moved to the new output
+                        results[op.outputs.types.index(nw_inp.result_types[0])] = (
+                            nw_inp.results[0]
+                        )
+                        inp = dst_to_src[inp.type]
+                        out = nw_out.results[0]
+
+                    results[op.outputs.types.index(op.inputs.types[idx])] = out
                     continue
                 temp_reg = free_registers[0]
 
