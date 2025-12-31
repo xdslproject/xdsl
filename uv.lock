@@ -3767,7 +3767,7 @@ bench = [
 ]
 dev = [
     { name = "my-plugin" },
-    { name = "xdsl", extra = ["dev", "gui"] },
+    { name = "xdsl", extra = ["dev", "gui", "llvm"] },
 ]
 docs = [
     { name = "lzstring2" },
@@ -3824,7 +3824,7 @@ bench = [
 ]
 dev = [
     { name = "my-plugin", directory = "tests/my_plugin" },
-    { name = "xdsl", extras = ["dev", "gui"] },
+    { name = "xdsl", extras = ["dev", "gui", "llvm"] },
 ]
 docs = [
     { name = "lzstring2", git = "https://github.com/superlopuh/lz-string.git" },
