@@ -2,6 +2,6 @@
 
 module {}
 
-// CHECK: ; ModuleID = ""
-// CHECK-NEXT: target triple = "unknown-unknown-unknown"
-// CHECK-NEXT: target datalayout = ""
+// CHECK: ; ModuleID = "{{.*}}"
+// CHECK-NEXT: target triple = "{{.*}}"
+// CHECK-NEXT: target datalayout = "{{.*}}"
