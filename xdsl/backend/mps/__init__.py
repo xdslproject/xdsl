@@ -8,20 +8,20 @@ It functions as the final code generation stage in an MLIR-based pipeline,
 serving as a "native" GPU backend for Apple Silicon (M-series) processors,
 analogous to NVPTX for NVIDIA or AMDGPU for AMD.
 
-## 1. Architecture: Direct-to-Binary
+## 1. Architecture: The MPS Dialect
 
-Unlike standard approaches that transpile MLIR to high-level Metal Shading
-Language (MSL) source code, this backend lowers directly to the binary format
-consumed by the metal driver.
+Unlike standard approaches, this backend introduces a dedicated **MPS Dialect**
+that acts as a structured, in-memory representation of Apple's proprietary IR.
 
     [ High-Level MLIR ]   (Linalg, GPU, Vector)
             |
             v
-    [  LLVM Dialect  ]    (with Apple-specific intrinsics)
+    [   MPS Dialect   ]   (Reverse-Engineered AIR Model)
             |
             v
-    [  AIR Bitcode   ]    (LLVM IR + Metadata)
-            |
+    [  AIR Bitcode   ]    (Serialized LLVM IR + Metadata)
+            .
+            . (External Linkage via xcrun)
             v
     [  Metallib      ]    (Standard Metal Library Resource)
 
@@ -42,8 +42,11 @@ directly, this backend reclaims control:
 
 ## 3. The Target: Apple Intermediate Representation (AIR)
 
-AIR is an undocumented format based on LLVM IR. It differs from standard LLVM
-in three critical ways:
+AIR is an undocumented format based on LLVM IR. The backend emits this bitcode
+directly. The user is responsible for packaging it into a `.metallib` using
+Apple's command-line tools: `xcrun metallib` or `xcrun metal`.
+
+It differs from standard LLVM in three critical ways:
 
 *   (1) Intrinsics: It relies heavily on `llvm.air.*` intrinsics for GPU-specific operations.
 *   (2) Metadata: It uses a complex schema of named metadata nodes to describe kernel
