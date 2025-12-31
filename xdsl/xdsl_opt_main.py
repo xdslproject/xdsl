@@ -313,6 +313,11 @@ class xDSLOptMain(CommandLineTool):
             from xdsl.backend.mps.print_mps import print_to_mps
 
             print_to_mps(prog, output)
+        def _output_llvm(prog: ModuleOp, output: IO[str]):
+            from xdsl.backend.llvm.convert import convert_module
+
+            llvm_module = convert_module(prog)
+            print(llvm_module, file=output)
 
         self.available_targets["arm-asm"] = _output_arm_asm
         self.available_targets["csl"] = _output_csl
@@ -323,6 +328,7 @@ class xDSLOptMain(CommandLineTool):
         self.available_targets["wgsl"] = _output_wgsl
         self.available_targets["mps"] = _output_air
         self.available_targets["x86-asm"] = _output_x86_asm
+        self.available_targets["llvm"] = _output_llvm
 
     def setup_pipeline(self):
         """
