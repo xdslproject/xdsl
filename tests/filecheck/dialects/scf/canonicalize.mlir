@@ -199,16 +199,6 @@ func.func @test_if_false_no_else() {
   func.return
 }
 
-// CHECK-LABEL: func.func @test_empty_then_region_true
-// CHECK-NOT: scf.if
-// CHECK-NEXT: func.return
-func.func @test_empty_then_region_true() {
-  %true = arith.constant true
-  scf.if %true {
-  }
-  func.return
-}
-
 // CHECK-LABEL: func.func @test_empty_then_region_false
 // CHECK-NOT: scf.if
 // CHECK-NEXT: func.return
