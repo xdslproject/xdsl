@@ -6,7 +6,7 @@ from typing import cast
 from xdsl.context import Context
 from xdsl.dialects import riscv
 from xdsl.dialects.builtin import ModuleOp, SSAValue
-from xdsl.ir import Attribute
+from xdsl.ir import Attribute, Operation
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     PatternRewriter,
@@ -180,8 +180,6 @@ class ParallelMovPattern(RewritePattern):
                     results[op.outputs.types.index(dst)] = mvop.results[0]
                     dst = src.type
                 # finish the split mov
-                # this assert is already checked at start, but is used for type checking
-                assert isinstance(cur_output.type, riscv.IntRegisterType)
                 mvop = _create_mv_op(temp_ssa, cur_output.type)
                 rewriter.insert_op(mvop)
                 results[idx] = mvop.results[0]
