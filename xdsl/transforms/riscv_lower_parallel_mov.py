@@ -1,7 +1,5 @@
 from collections import Counter, defaultdict
-from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import cast
 
 from xdsl.context import Context
 from xdsl.dialects import riscv
@@ -44,12 +42,13 @@ def _add_swap(
 class ParallelMovPattern(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: riscv.ParallelMovOp, rewriter: PatternRewriter):
-        input_types = cast(Sequence[riscv.RISCVRegisterType], op.inputs.types)
-        output_types = cast(Sequence[riscv.RISCVRegisterType], op.outputs.types)
-
+        # isinstance for inputs is for typing
         if not (
-            all(i.is_allocated for i in input_types)
-            and all(i.is_allocated for i in output_types)
+            all(
+                isinstance(i, riscv.RISCVRegisterType) and i.is_allocated
+                for i in op.inputs.types
+            )
+            and all(i.is_allocated for i in op.outputs.types)
         ):
             raise PassFailedException("All registers must be allocated")
 
