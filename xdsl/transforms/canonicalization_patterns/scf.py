@@ -90,10 +90,6 @@ class IfPropagateConstantCondition(RewritePattern):
             rewriter.erase_op(op)
             return
 
-        if cond and len(op.true_region.ops) == 1 and not op.results:
-            rewriter.erase_op(op)
-            return
-
         replace_op_with_region(rewriter, op, region)
 
 
