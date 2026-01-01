@@ -61,6 +61,12 @@ class ParallelMovPattern(RewritePattern):
 
         results: list[SSAValue | None] = [None] * num_operands
 
+        # cache the indices from output register type to the index in the outputs array
+        # this is typed as Attribute to ensure we can index by input type
+        output_index: dict[Attribute, int] = {
+            register: idx for idx, register in enumerate(op.outputs.types)
+        }
+
         # We have a graph with nodes as registers and directed edges as moves,
         # pointing from source to destination.
         # Every node has at most 1 in edge since we can't write to a register twice.
@@ -102,8 +108,8 @@ class ParallelMovPattern(RewritePattern):
                 mvop = riscv.MVOp(src, rd=dst)
                 rewriter.insert_op(mvop)
                 # sanity check since we should only have 1 result per output
-                assert results[op.outputs.types.index(dst)] is None
-                results[op.outputs.types.index(dst)] = mvop.results[0]
+                assert results[output_index[dst]] is None
+                results[output_index[dst]] = mvop.results[0]
                 unprocessed_children[src] -= 1
                 # only continue up the tree if all children were processed
                 if unprocessed_children[src]:
@@ -145,13 +151,13 @@ class ParallelMovPattern(RewritePattern):
                         nw_out, nw_inp = _add_swap(rewriter, inp, out)
                         # after the swap, the input is in the right place, the input's input
                         # needs to be moved to the new output
-                        results[op.outputs.types.index(nw_inp.result_types[0])] = (
-                            nw_inp.results[0]
-                        )
+                        results[output_index[nw_inp.result_types[0]]] = nw_inp.results[
+                            0
+                        ]
                         inp = dst_to_src[inp.type]
                         out = nw_out.results[0]
 
-                    results[op.outputs.types.index(op.inputs.types[idx])] = out
+                    results[output_index[op.inputs.types[idx]]] = out
                     continue
                 temp_reg = free_registers[0]
 
@@ -167,7 +173,7 @@ class ParallelMovPattern(RewritePattern):
                     src = dst_to_src[dst]
                     mvop = riscv.MVOp(src, rd=dst)
                     rewriter.insert_op(mvop)
-                    results[op.outputs.types.index(dst)] = mvop.results[0]
+                    results[output_index[dst]] = mvop.results[0]
                     dst = src.type
                 # finish the split mov
                 # this assert is already checked at start, but is used for type checking
