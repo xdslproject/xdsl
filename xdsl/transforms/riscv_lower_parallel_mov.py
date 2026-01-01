@@ -50,19 +50,16 @@ def _insert_swap_ops(
 class ParallelMovPattern(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: riscv.ParallelMovOp, rewriter: PatternRewriter):
-        input_types = cast(Sequence[riscv.RISCVRegisterType], op.inputs.types)
-        output_types = op.outputs.types
-
-        if not (
-            all(i.is_allocated for i in input_types)
-            and all(i.is_allocated for i in output_types)
-        ):
-            raise PassFailedException("All registers must be allocated")
-
         srcs = cast(SSAValues[SSAValue[riscv.RISCVRegisterType]], op.inputs)
         dsts = cast(SSAValues[SSAValue[riscv.RISCVRegisterType]], op.outputs)
-        src_types = input_types
-        dst_types = output_types
+        src_types = cast(Sequence[riscv.RISCVRegisterType], op.inputs.types)
+        dst_types = cast(Sequence[riscv.RISCVRegisterType], op.outputs.types)
+
+        if not (
+            all(i.is_allocated for i in src_types)
+            and all(i.is_allocated for i in dst_types)
+        ):
+            raise PassFailedException("All registers must be allocated")
 
         # make a list of free registers for each type so we can add to it later
         free_registers: dict[
