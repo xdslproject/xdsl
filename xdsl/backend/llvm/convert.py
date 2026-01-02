@@ -1,19 +1,28 @@
 import llvmlite.ir as ir  # pyright: ignore[reportMissingTypeStubs]
 
-from xdsl.dialects.builtin import Float64Type, ModuleOp
+from xdsl.dialects.builtin import Float64Type, IntegerType, ModuleOp
 from xdsl.dialects.llvm import FAddOp, FuncOp, LLVMVoidType, ReturnOp
 from xdsl.ir import Attribute, Operation, SSAValue
 
-MLIR_TO_LLVM_TYPE: dict[type[Attribute], ir.Type] = {
-    Float64Type: ir.DoubleType(),
-    LLVMVoidType: ir.VoidType(),
-}
+
+class LLVMTranslationException(Exception):
+    pass
+
+
+def convert_type(type_attr: Attribute) -> ir.Type:
+    match type_attr:
+        case IntegerType():
+            return ir.IntType(type_attr.bitwidth)  # pyright: ignore[reportUnknownVariableType]
+        case Float64Type():
+            return ir.DoubleType()
+        case LLVMVoidType():
+            return ir.VoidType()
+        case _:
+            raise LLVMTranslationException(f"Type not supported: {type_attr}")
 
 
 def _convert_op(
-    op: Operation,
-    builder: ir.IRBuilder,
-    val_map: dict[SSAValue, ir.Value],
+    op: Operation, builder: ir.IRBuilder, val_map: dict[SSAValue, ir.Value]
 ):
     match op:
         case FAddOp():
@@ -32,8 +41,8 @@ def _convert_op(
 
 def _convert_func(func_op: FuncOp, llvm_module: ir.Module):
     func_type_attr = func_op.function_type
-    ret_type = MLIR_TO_LLVM_TYPE[type(func_type_attr.output)]
-    arg_types = [MLIR_TO_LLVM_TYPE[type(t)] for t in func_type_attr.inputs]
+    ret_type = convert_type(func_type_attr.output)
+    arg_types = [convert_type(t) for t in func_type_attr.inputs]
     func_type = ir.FunctionType(ret_type, arg_types)
     func = ir.Function(llvm_module, func_type, name=func_op.sym_name.data)
 
