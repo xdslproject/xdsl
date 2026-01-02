@@ -84,12 +84,11 @@ class IfPropagateConstantCondition(RewritePattern):
     def match_and_rewrite(self, op: scf.IfOp, rewriter: PatternRewriter) -> None:
         if (cond := const_evaluate_operand(op.cond)) is None:
             return
-        region = op.true_region if cond else op.false_region
-
         if not cond and not op.false_region.blocks:
+            # Cannot use helper below as false region is not single-block
             rewriter.erase_op(op)
             return
-
+        region = op.true_region if cond else op.false_region
         replace_op_with_region(rewriter, op, region)
 
 
