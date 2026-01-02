@@ -4566,3 +4566,257 @@ def test_generate_rewriter_for_types():
 
     assert len(rewriter_block.ops) == 1  # No new ops
     assert non_const_types_op.result not in rewrite_values
+
+
+def test_generate_rewriter_for_replace_with_repl_operation():
+    """Test replace with a replacement operation"""
+    rewriter_block = Block()
+    matcher_func = pdl_interp.FuncOp("matcher", ((pdl.OperationType(),), ()))
+    rewriter_module = ModuleOp([])
+
+    generator = MatcherGenerator(matcher_func, rewriter_module)
+    generator.rewriter_builder.insertion_point = InsertPoint.at_end(rewriter_block)
+
+    # Create PDL operations for replace with operation
+    # old_op must have type_values for has_results to be True
+    with ImplicitBuilder(Block()):
+        type_op = pdl.TypeOp(i32).result
+        old_op = pdl.OperationOp("old_op", type_values=(type_op,)).op
+        new_op = pdl.OperationOp("new_op").op
+        replace_op = pdl.ReplaceOp(old_op, repl_operation=new_op)
+
+    # Map values to rewriter space
+    rewrite_values: dict[SSAValue, SSAValue] = {}
+    old_op_val = rewriter_block.insert_arg(pdl.OperationType(), 0)
+    new_op_val = rewriter_block.insert_arg(pdl.OperationType(), 1)
+    rewrite_values[old_op] = old_op_val
+    rewrite_values[new_op] = new_op_val
+
+    # Execute the generation
+    generator._generate_rewriter_for_replace(  # pyright: ignore[reportPrivateUsage]
+        replace_op, rewrite_values, lambda x: rewrite_values.get(x, x)
+    )
+
+    # Check that GetResultsOp and ReplaceOp were created
+    ops = list(rewriter_block.ops)
+    assert len(ops) == 2
+    assert isinstance(ops[0], pdl_interp.GetResultsOp)
+    assert isinstance(ops[1], pdl_interp.ReplaceOp)
+    replace_interp_op = ops[1]
+    assert replace_interp_op.input_op is old_op_val
+    assert len(replace_interp_op.repl_values) == 1
+
+
+def test_generate_rewriter_for_replace_with_repl_values():
+    """Test replace with explicit replacement values"""
+    rewriter_block = Block()
+    matcher_func = pdl_interp.FuncOp("matcher", ((pdl.OperationType(),), ()))
+    rewriter_module = ModuleOp([])
+
+    generator = MatcherGenerator(matcher_func, rewriter_module)
+    generator.rewriter_builder.insertion_point = InsertPoint.at_end(rewriter_block)
+
+    # Create PDL operations for replace with values
+    with ImplicitBuilder(Block()):
+        old_op = pdl.OperationOp("old_op").op
+        val1 = pdl.OperandOp().value
+        val2 = pdl.OperandOp().value
+        replace_op = pdl.ReplaceOp(old_op, repl_values=[val1, val2])
+
+    # Map values to rewriter space
+    rewrite_values: dict[SSAValue, SSAValue] = {}
+    old_op_val = rewriter_block.insert_arg(pdl.OperationType(), 0)
+    rewrite_values[old_op] = old_op_val
+
+    repl_val1 = rewriter_block.insert_arg(pdl.ValueType(), 1)
+    repl_val2 = rewriter_block.insert_arg(pdl.ValueType(), 2)
+    rewrite_values[val1] = repl_val1
+    rewrite_values[val2] = repl_val2
+
+    # Execute the generation
+    generator._generate_rewriter_for_replace(  # pyright: ignore[reportPrivateUsage]
+        replace_op, rewrite_values, lambda x: rewrite_values.get(x, x)
+    )
+
+    # Check that ReplaceOp was created directly (no GetResultsOp)
+    ops = list(rewriter_block.ops)
+    assert len(ops) == 1
+    assert isinstance(ops[0], pdl_interp.ReplaceOp)
+    replace_interp_op = ops[0]
+    assert replace_interp_op.input_op is old_op_val
+    assert len(replace_interp_op.repl_values) == 2
+    assert replace_interp_op.repl_values[0] is repl_val1
+    assert replace_interp_op.repl_values[1] is repl_val2
+
+
+def test_generate_rewriter_for_replace_erase():
+    """Test replace with no replacement values (erase case)"""
+    rewriter_block = Block()
+    matcher_func = pdl_interp.FuncOp("matcher", ((pdl.OperationType(),), ()))
+    rewriter_module = ModuleOp([])
+
+    generator = MatcherGenerator(matcher_func, rewriter_module)
+    generator.rewriter_builder.insertion_point = InsertPoint.at_end(rewriter_block)
+
+    # Create PDL operations for replace with no replacements
+    with ImplicitBuilder(Block()):
+        old_op = pdl.OperationOp("old_op").op
+        replace_op = pdl.ReplaceOp(old_op, repl_values=[])
+
+    # Map values to rewriter space
+    rewrite_values: dict[SSAValue, SSAValue] = {}
+    old_op_val = rewriter_block.insert_arg(pdl.OperationType(), 0)
+    rewrite_values[old_op] = old_op_val
+
+    # Execute the generation (should raise NotImplementedError for erase)
+    with pytest.raises(NotImplementedError, match="pdl_interp.erase"):
+        generator._generate_rewriter_for_replace(  # pyright: ignore[reportPrivateUsage]
+            replace_op, rewrite_values, lambda x: rewrite_values.get(x, x)
+        )
+
+
+def test_generate_rewriter_for_replace_with_operation_no_results():
+    """Test replace with operation that has no results (erase case)"""
+    rewriter_block = Block()
+    matcher_func = pdl_interp.FuncOp("matcher", ((pdl.OperationType(),), ()))
+    rewriter_module = ModuleOp([])
+
+    generator = MatcherGenerator(matcher_func, rewriter_module)
+    generator.rewriter_builder.insertion_point = InsertPoint.at_end(rewriter_block)
+
+    # Create PDL operations for replace with operation (no type_values = no results)
+    # In this case, old_op must also have no type_values for has_results to be False
+    with ImplicitBuilder(Block()):
+        old_op = pdl.OperationOp("old_op", type_values=()).op
+        new_op = pdl.OperationOp("new_op", type_values=()).op
+        replace_op = pdl.ReplaceOp(old_op, repl_operation=new_op)
+
+    # Map values to rewriter space
+    rewrite_values: dict[SSAValue, SSAValue] = {}
+    old_op_val = rewriter_block.insert_arg(pdl.OperationType(), 0)
+    new_op_val = rewriter_block.insert_arg(pdl.OperationType(), 1)
+    rewrite_values[old_op] = old_op_val
+    rewrite_values[new_op] = new_op_val
+
+    # Execute the generation (should raise NotImplementedError for erase)
+    with pytest.raises(NotImplementedError, match="pdl_interp.erase"):
+        generator._generate_rewriter_for_replace(  # pyright: ignore[reportPrivateUsage]
+            replace_op, rewrite_values, lambda x: rewrite_values.get(x, x)
+        )
+
+
+def test_generate_rewriter_for_replace_multiple_values():
+    """Test replace with multiple replacement values"""
+    rewriter_block = Block()
+    matcher_func = pdl_interp.FuncOp("matcher", ((pdl.OperationType(),), ()))
+    rewriter_module = ModuleOp([])
+
+    generator = MatcherGenerator(matcher_func, rewriter_module)
+    generator.rewriter_builder.insertion_point = InsertPoint.at_end(rewriter_block)
+
+    # Create PDL operations with 3 values
+    with ImplicitBuilder(Block()):
+        old_op = pdl.OperationOp("old_op").op
+        val1 = pdl.OperandOp().value
+        val2 = pdl.OperandOp().value
+        val3 = pdl.OperandOp().value
+        replace_op = pdl.ReplaceOp(old_op, repl_values=[val1, val2, val3])
+
+    # Map values to rewriter space
+    rewrite_values: dict[SSAValue, SSAValue] = {}
+    old_op_val = rewriter_block.insert_arg(pdl.OperationType(), 0)
+    rewrite_values[old_op] = old_op_val
+
+    repl_vals = [rewriter_block.insert_arg(pdl.ValueType(), i) for i in range(1, 4)]
+    rewrite_values[val1] = repl_vals[0]
+    rewrite_values[val2] = repl_vals[1]
+    rewrite_values[val3] = repl_vals[2]
+
+    # Execute the generation
+    generator._generate_rewriter_for_replace(  # pyright: ignore[reportPrivateUsage]
+        replace_op, rewrite_values, lambda x: rewrite_values.get(x, x)
+    )
+
+    # Check that ReplaceOp was created with all values
+    ops = list(rewriter_block.ops)
+    assert len(ops) == 1
+    replace_interp_op = ops[0]
+    assert isinstance(replace_interp_op, pdl_interp.ReplaceOp)
+    assert len(replace_interp_op.repl_values) == 3
+    for i, repl_val in enumerate(repl_vals):
+        assert replace_interp_op.repl_values[i] is repl_val
+
+
+def test_generate_rewriter_for_replace_with_operation_multiple_results():
+    """Test replace with operation that has multiple results"""
+    rewriter_block = Block()
+    matcher_func = pdl_interp.FuncOp("matcher", ((pdl.OperationType(),), ()))
+    rewriter_module = ModuleOp([])
+
+    generator = MatcherGenerator(matcher_func, rewriter_module)
+    generator.rewriter_builder.insertion_point = InsertPoint.at_end(rewriter_block)
+
+    # Create PDL operations where new_op has multiple result types
+    with ImplicitBuilder(Block()):
+        type1 = pdl.TypeOp(i32).result
+        type2 = pdl.TypeOp(f32).result
+        old_op = pdl.OperationOp("old_op", type_values=(type1,)).op
+        new_op = pdl.OperationOp("new_op", type_values=(type1, type2)).op
+        replace_op = pdl.ReplaceOp(old_op, repl_operation=new_op)
+
+    # Map values to rewriter space
+    rewrite_values: dict[SSAValue, SSAValue] = {}
+    old_op_val = rewriter_block.insert_arg(pdl.OperationType(), 0)
+    new_op_val = rewriter_block.insert_arg(pdl.OperationType(), 1)
+    rewrite_values[old_op] = old_op_val
+    rewrite_values[new_op] = new_op_val
+
+    # Execute the generation
+    generator._generate_rewriter_for_replace(  # pyright: ignore[reportPrivateUsage]
+        replace_op, rewrite_values, lambda x: rewrite_values.get(x, x)
+    )
+
+    # Check that GetResultsOp and ReplaceOp were created
+    ops = list(rewriter_block.ops)
+    assert len(ops) == 2
+    assert isinstance(ops[0], pdl_interp.GetResultsOp)
+    assert isinstance(ops[1], pdl_interp.ReplaceOp)
+    # GetResultsOp should pass None for index (all results)
+    assert ops[0].input_op is new_op_val
+    assert ops[1].input_op is old_op_val
+
+
+def test_generate_rewriter_for_replace_single_value():
+    """Test replace with a single replacement value"""
+    rewriter_block = Block()
+    matcher_func = pdl_interp.FuncOp("matcher", ((pdl.OperationType(),), ()))
+    rewriter_module = ModuleOp([])
+
+    generator = MatcherGenerator(matcher_func, rewriter_module)
+    generator.rewriter_builder.insertion_point = InsertPoint.at_end(rewriter_block)
+
+    # Create PDL operations with 1 value
+    with ImplicitBuilder(Block()):
+        old_op = pdl.OperationOp("old_op").op
+        val = pdl.OperandOp().value
+        replace_op = pdl.ReplaceOp(old_op, repl_values=[val])
+
+    # Map values to rewriter space
+    rewrite_values: dict[SSAValue, SSAValue] = {}
+    old_op_val = rewriter_block.insert_arg(pdl.OperationType(), 0)
+    repl_val = rewriter_block.insert_arg(pdl.ValueType(), 1)
+    rewrite_values[old_op] = old_op_val
+    rewrite_values[val] = repl_val
+
+    # Execute the generation
+    generator._generate_rewriter_for_replace(  # pyright: ignore[reportPrivateUsage]
+        replace_op, rewrite_values, lambda x: rewrite_values.get(x, x)
+    )
+
+    # Check that ReplaceOp was created with the single value
+    ops = list(rewriter_block.ops)
+    assert len(ops) == 1
+    replace_interp_op = ops[0]
+    assert isinstance(replace_interp_op, pdl_interp.ReplaceOp)
+    assert len(replace_interp_op.repl_values) == 1
+    assert replace_interp_op.repl_values[0] is repl_val
