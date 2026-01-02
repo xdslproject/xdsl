@@ -1,5 +1,5 @@
 from collections import Counter
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from typing import cast
 
@@ -18,10 +18,14 @@ from xdsl.utils.exceptions import PassFailedException
 
 
 def _create_mv_op(src: SSAValue | Operation, dst: riscv.RISCVRegisterType):
-    if isinstance(dst, riscv.IntRegisterType):
-        return riscv.MVOp(src, rd=dst)
-    # This should never be raised since it is checked in op.verify_()
-    raise PassFailedException("Invalid type: registers must be int or float.")
+    type_to_op: dict[type[riscv.RISCVRegisterType], Callable[..., Operation]] = {
+        riscv.IntRegisterType: riscv.MVOp,
+    }
+    if type(dst) not in type_to_op:
+        # This should never be raised since it is checked in op.verify_()
+        raise PassFailedException("Invalid type: registers must be int or float.")
+    Op = type_to_op[type(dst)]
+    return Op(src, rd=dst)
 
 
 def _add_swap(
