@@ -1,6 +1,6 @@
 from collections.abc import Callable
 from functools import cache
-from typing import Any
+from typing import Any, cast
 
 import llvmlite.ir as ir  # pyright: ignore[reportMissingTypeStubs]
 
@@ -26,10 +26,6 @@ from xdsl.dialects.llvm import (
 )
 from xdsl.ir import Attribute
 from xdsl.utils.exceptions import LLVMTranslationException
-
-
-def _convert_integer_type(type_attr: IntegerType) -> ir.Type:
-    return ir.IntType(type_attr.bitwidth)  # pyright: ignore[reportUnknownVariableType]
 
 
 def _convert_pointer_type(type_attr: LLVMPointerType) -> ir.Type:
@@ -84,8 +80,8 @@ def _convert_llvm_function_type(type_attr: LLVMFunctionType) -> ir.Type:
 
 
 _TYPE_CONVERTERS: dict[type[Attribute], Callable[[Any], ir.Type]] = {
-    IntegerType: _convert_integer_type,
-    IndexType: lambda _: ir.IntType(64),  # pyright: ignore[reportUnknownLambdaType]
+    IntegerType: lambda type_attr: cast(ir.Type, ir.IntType(type_attr.bitwidth)),
+    IndexType: lambda _: cast(ir.Type, ir.IntType(64)),
     Float16Type: lambda _: ir.HalfType(),
     Float32Type: lambda _: ir.FloatType(),
     Float64Type: lambda _: ir.DoubleType(),
@@ -123,6 +119,8 @@ def convert_type(type_attr: Attribute) -> ir.Type:
             - Multi-dimensional vectors (vectors with more than one dimension)
             - Any other unsupported type attribute
     """
-    if converter := _TYPE_CONVERTERS.get(type(type_attr)):
+    try:
+        converter = _TYPE_CONVERTERS[type(type_attr)]
         return converter(type_attr)
-    raise LLVMTranslationException(f"Type not supported: {type_attr}")
+    except KeyError:
+        raise LLVMTranslationException(f"Type not supported: {type_attr}")
