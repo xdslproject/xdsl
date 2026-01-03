@@ -23,14 +23,30 @@ from xdsl.dialects.llvm import (
     LLVMVoidType,
 )
 from xdsl.ir import Attribute
-
-
-class LLVMTranslationException(Exception):
-    pass
+from xdsl.utils.exceptions import LLVMTranslationException
 
 
 @cache
 def convert_type(type_attr: Attribute) -> ir.Type:
+    """
+    Convert an xDSL type attribute to an LLVM IR type.
+
+    This function handles the conversion of various xDSL type attributes (integers, floats,
+    pointers, vectors, arrays, structs, tuples, and functions) to their corresponding
+    llvmlite IR type representations.
+
+    Args:
+        type_attr: The xDSL type attribute to convert.
+
+    Returns:
+        The corresponding llvmlite IR type.
+
+    Raises:
+        LLVMTranslationException: If the type is not supported, including:
+            - Scalable vectors (vectors with scalable dimensions)
+            - Multi-dimensional vectors (vectors with more than one dimension)
+            - Any other unsupported type attribute
+    """
     match type_attr:
         # Integers
         case IntegerType():
