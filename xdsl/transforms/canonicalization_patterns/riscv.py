@@ -1,5 +1,3 @@
-from typing import cast
-
 from xdsl.dialects import riscv, riscv_snitch
 from xdsl.dialects.builtin import IntegerAttr
 from xdsl.dialects.utils import FastMathFlag
@@ -43,7 +41,7 @@ class MultiplyImmediates(RewritePattern):
         if (rs2 := get_constant_value(op.rs2)) is not None:
             rhs = rs2.value.data
 
-        rd = cast(riscv.IntRegisterType, op.rd.type)
+        rd = op.rd.type
 
         match (lhs, rhs):
             case int(), None:
@@ -75,7 +73,7 @@ class DivideByOneIdentity(RewritePattern):
     def match_and_rewrite(self, op: riscv.DivOp, rewriter: PatternRewriter) -> None:
         # Check if rs2 is a constant 1
         if (rs2 := get_constant_value(op.rs2)) is not None and rs2.value.data == 1:
-            rd_type = cast(riscv.IntRegisterType, op.rd.type)
+            rd_type = op.rd.type
 
             # Replace the DivOp with a copy/move of rs1 to rd
             move_op = riscv.MVOp(
@@ -97,7 +95,7 @@ class AddImmediates(RewritePattern):
         if (rs2 := get_constant_value(op.rs2)) is not None:
             rhs = rs2.value.data
 
-        rd = cast(riscv.IntRegisterType, op.rd.type)
+        rd = op.rd.type
 
         match (lhs, rhs):
             case int(), None:
@@ -164,7 +162,7 @@ class SubImmediates(RewritePattern):
         if (rs2 := get_constant_value(op.rs2)) is not None:
             rhs = rs2.value.data
 
-        rd = cast(riscv.IntRegisterType, op.rd.type)
+        rd = op.rd.type
 
         match (lhs, rhs):
             case int(), None:
@@ -195,7 +193,7 @@ class SubBySelf(RewritePattern):
         x - x = 0
         """
         if op.rs1 == op.rs2:
-            rd = cast(riscv.IntRegisterType, op.rd.type)
+            rd = op.rd.type
             rewriter.replace_op(
                 op,
                 (
@@ -218,7 +216,7 @@ class SubAddi(RewritePattern):
             and isinstance(op.rs1.op.immediate, IntegerAttr)
             and op.rs2 == op.rs1.op.rs1
         ):
-            rd = cast(riscv.IntRegisterType, op.rd.type)
+            rd = op.rd.type
             rewriter.replace_op(op, riscv.LiOp(op.rs1.op.immediate.value.data, rd=rd))
 
 
@@ -439,7 +437,7 @@ class AdditionOfSameVariablesToMultiplyByTwo(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: riscv.AddOp, rewriter: PatternRewriter) -> None:
         if op.rs1 == op.rs2:
-            rd = cast(riscv.IntRegisterType, op.rd.type)
+            rd = op.rd.type
             rewriter.replace_op(
                 op,
                 [
@@ -510,13 +508,13 @@ class BitwiseAndByZero(RewritePattern):
         # check if the first operand is 0
         if (rs1 := get_constant_value(op.rs1)) is not None and rs1.value.data == 0:
             # if the first operand is 0, set the destination to 0
-            rd = cast(riscv.IntRegisterType, op.rd.type)
+            rd = op.rd.type
             rewriter.replace_op(op, riscv.MVOp(op.rs1, rd=rd))
 
         # check if the second operand is 0
         if (rs2 := get_constant_value(op.rs2)) is not None and rs2.value.data == 0:
             # if the second operand is 0, set the destination to 0
-            rd = cast(riscv.IntRegisterType, op.rd.type)
+            rd = op.rd.type
             rewriter.replace_op(op, riscv.MVOp(op.rs2, rd=rd))
 
 
@@ -527,7 +525,7 @@ class BitwiseAndBySelf(RewritePattern):
         x & x = x
         """
         if op.rs1 == op.rs2:
-            rd = cast(riscv.IntRegisterType, op.rd.type)
+            rd = op.rd.type
             rewriter.replace_op(op, riscv.MVOp(op.rs1, rd=rd, comment=op.comment))
 
 
@@ -541,13 +539,13 @@ class BitwiseOrByZero(RewritePattern):
         # check if the first operand is 0
         if (rs1 := get_constant_value(op.rs1)) is not None and rs1.value.data == 0:
             # if the first operand is 0, set the destination to the second operand
-            rd = cast(riscv.IntRegisterType, op.rd.type)
+            rd = op.rd.type
             rewriter.replace_op(op, riscv.MVOp(op.rs2, rd=rd))
 
         # check if the second operand is 0
         elif (rs2 := get_constant_value(op.rs2)) is not None and rs2.value.data == 0:
             # if the second operand is 0, set the destination to first operand
-            rd = cast(riscv.IntRegisterType, op.rd.type)
+            rd = op.rd.type
             rewriter.replace_op(op, riscv.MVOp(op.rs1, rd=rd))
 
 
@@ -558,7 +556,7 @@ class BitwiseOrBySelf(RewritePattern):
         x | x = x
         """
         if op.rs1 == op.rs2:
-            rd = cast(riscv.IntRegisterType, op.rd.type)
+            rd = op.rd.type
             rewriter.replace_op(op, riscv.MVOp(op.rs1, rd=rd, comment=op.comment))
 
 
@@ -569,7 +567,7 @@ class XorBySelf(RewritePattern):
         x ^ x = 0
         """
         if op.rs1 == op.rs2:
-            rd = cast(riscv.IntRegisterType, op.rd.type)
+            rd = op.rd.type
             rewriter.replace_op(
                 op,
                 (
@@ -586,11 +584,11 @@ class BitwiseXorByZero(RewritePattern):
         x ^ 0 = x
         """
         if (rs1 := get_constant_value(op.rs1)) is not None and rs1.value.data == 0:
-            rd = cast(riscv.IntRegisterType, op.rd.type)
+            rd = op.rd.type
             rewriter.replace_op(op, riscv.MVOp(op.rs2, rd=rd))
 
         if (rs2 := get_constant_value(op.rs2)) is not None and rs2.value.data == 0:
-            rd = cast(riscv.IntRegisterType, op.rd.type)
+            rd = op.rd.type
             rewriter.replace_op(op, riscv.MVOp(op.rs1, rd=rd))
 
 
