@@ -94,7 +94,7 @@ class LoadOp(IRDLOperation):
 
     traits = traits_def(MemoryReadEffect())
 
-    irdl_options = [ParsePropInAttrDict()]
+    irdl_options = (ParsePropInAttrDict(),)
     assembly_format = "$memref `[` $indices `]` attr-dict `:` type($memref)"
 
     # TODO varargs for indexing, which must match the memref dimensions
@@ -133,7 +133,7 @@ class StoreOp(IRDLOperation):
 
     traits = traits_def(MemoryWriteEffect())
 
-    irdl_options = [ParsePropInAttrDict()]
+    irdl_options = (ParsePropInAttrDict(),)
     assembly_format = "$value `,` $memref `[` $indices `]` attr-dict `:` type($memref)"
 
     def verify_(self):
@@ -175,7 +175,7 @@ class AllocOp(IRDLOperation):
     # TODO how to constraint the IntegerAttr type?
     alignment = opt_prop_def(IntegerAttr)
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
     traits = traits_def(AllocOpHasCanonicalizationPatterns(), MemoryAllocEffect())
 
@@ -328,7 +328,7 @@ class AllocaOp(IRDLOperation):
 
     traits = traits_def(MemoryAllocEffect())
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
     @staticmethod
     def get(
@@ -556,7 +556,7 @@ class ExtractStridedMetaDataOp(IRDLOperation):
 
     traits = traits_def(NoMemoryEffect())
 
-    irdl_options = [SameVariadicResultSize()]
+    irdl_options = (SameVariadicResultSize(),)
 
     assembly_format = "$source `:` type($source) `->` type(results) attr-dict"
 
@@ -622,7 +622,7 @@ class SubviewOp(IRDLOperation):
     static_strides = prop_def(DenseArrayBase.constr(i64))
     result = result_def(MemRefType)
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
     traits = lazy_traits_def(
         lambda: (MemRefHasCanonicalizationPatternsTrait(), NoMemoryEffect())
@@ -846,7 +846,7 @@ class ReinterpretCastOp(IRDLOperation):
 
     traits = traits_def(NoMemoryEffect())
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
     assembly_format = (
         "$source `to` `offset` `` `:`"
@@ -977,7 +977,7 @@ class DmaStartOp(IRDLOperation):
 
     traits = traits_def(MemoryWriteEffect(), MemoryReadEffect())
 
-    irdl_options = [AttrSizedOperandSegments()]
+    irdl_options = (AttrSizedOperandSegments(),)
 
     @staticmethod
     def get(

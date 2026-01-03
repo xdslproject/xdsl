@@ -123,6 +123,13 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return convert_ml_program_to_memref.ConvertMlProgramToMemRefPass
 
+    def get_convert_pdl_interp_to_eqsat_pdl_interp():
+        from xdsl.transforms import convert_pdl_interp_to_eqsat_pdl_interp
+
+        return (
+            convert_pdl_interp_to_eqsat_pdl_interp.ConvertPDLInterpToEqsatPDLInterpPass
+        )
+
     def get_convert_print_format_to_riscv_debug():
         from xdsl.backend.riscv.lowering import convert_print_format_to_riscv_debug
 
@@ -483,6 +490,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return riscv_allocate_registers.RISCVAllocateRegistersPass
 
+    def get_riscv_lower_parallel_mov():
+        from xdsl.transforms import riscv_lower_parallel_mov
+
+        return riscv_lower_parallel_mov.RISCVLowerParallelMovPass
+
     def get_riscv_prologue_epilogue_insertion():
         from xdsl.backend.riscv import prologue_epilogue_insertion
 
@@ -610,6 +622,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return prologue_epilogue_insertion.X86PrologueEpilogueInsertion
 
+    def get_x86_legalize_for_regalloc():
+        from xdsl.transforms import x86_legalize_for_regalloc
+
+        return x86_legalize_for_regalloc.X86LegalizeForRegallocPass
+
     def get_x86_infer_broadcast():
         from xdsl.transforms import x86_infer_broadcast
 
@@ -646,6 +663,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "convert-memref-to-ptr": get_convert_memref_to_ptr,
         "convert-memref-to-riscv": get_convert_memref_to_riscv,
         "convert-ml-program-to-memref": get_convert_ml_program_to_memref,
+        "convert-pdl-interp-to-eqsat-pdl-interp": get_convert_pdl_interp_to_eqsat_pdl_interp,
         "convert-print-format-to-riscv-debug": get_convert_print_format_to_riscv_debug,
         "convert-ptr-to-llvm": get_convert_ptr_to_llvm,
         "convert-ptr-to-riscv": get_convert_ptr_to_riscv,
@@ -718,6 +736,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "reconcile-unrealized-casts": get_reconcile_unrealized_casts,
         "replace-incompatible-fpga": get_replace_incompatible_fpga,
         "riscv-allocate-registers": get_riscv_allocate_registers,
+        "riscv-lower-parallel-mov": get_riscv_lower_parallel_mov,
         "riscv-prologue-epilogue-insertion": get_riscv_prologue_epilogue_insertion,
         "riscv-scf-loop-range-folding": get_riscv_scf_loop_range_folding,
         "scf-for-loop-flatten": get_scf_for_loop_flatten,
@@ -743,6 +762,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "vector-split-load-extract": get_vector_split_load_extract,
         "x86-allocate-registers": get_x86_allocate_registers,
         "x86-prologue-epilogue-insertion": get_x86_prologue_epilogue_insertion,
+        "x86-legalize-for-regalloc": get_x86_legalize_for_regalloc,
         "x86-infer-broadcast": get_x86_infer_broadcast,
         "verify-register-allocation": get_verify_register_allocation,
     }

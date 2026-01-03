@@ -34,7 +34,7 @@ class BinaryOp(IRDLOperation, ABC):
     output = result_def(T)
     modulus = prop_def(IntegerAttr)
 
-    irdl_options = [ParsePropInAttrDict()]
+    irdl_options = (ParsePropInAttrDict(),)
 
     assembly_format = "$lhs `,` $rhs attr-dict `:` type($output)"
     traits = traits_def(Pure())

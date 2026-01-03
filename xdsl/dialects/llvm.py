@@ -1764,7 +1764,7 @@ class CallIntrinsicOp(IRDLOperation):
     op_bundle_operands = var_operand_def()
     ress = opt_result_def()
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
     def __init__(
         self,
@@ -1807,7 +1807,7 @@ class CallOp(IRDLOperation):
     )
     returned = opt_result_def()
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
     def __init__(
         self,
@@ -1905,7 +1905,7 @@ class AbstractFloatArithOp(IRDLOperation, ABC):
 
     assembly_format = "$lhs `,` $rhs attr-dict `:` type($lhs)"
 
-    irdl_options = [ParsePropInAttrDict()]
+    irdl_options = (ParsePropInAttrDict(),)
 
     def __init__(
         self,

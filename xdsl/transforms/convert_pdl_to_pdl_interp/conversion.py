@@ -15,6 +15,7 @@ from xdsl.dialects.builtin import (
     ModuleOp,
     StringAttr,
     TypeAttribute,
+    UnitAttr,
 )
 from xdsl.ir import (
     Block,
@@ -1430,6 +1431,140 @@ class MatcherGenerator:
             new_attr_op = pdl_interp.CreateAttributeOp(op.value)
             self.rewriter_builder.insert(new_attr_op)
             rewrite_values[op.output] = new_attr_op.attribute
+
+    def _generate_rewriter_for_erase(
+        self,
+        op: pdl.EraseOp,
+        rewrite_values: dict[SSAValue, SSAValue],
+        map_rewrite_value: Callable[[SSAValue], SSAValue],
+    ) -> None:
+        raise NotImplementedError("pdl_interp.erase is not yet implemented")
+        self.rewriter_builder.insert(pdl_interp.EraseOp(map_rewrite_value(op.op_value)))
+
+    def _generate_rewriter_for_operation(
+        self,
+        op: pdl.OperationOp,
+        rewrite_values: dict[SSAValue, SSAValue],
+        map_rewrite_value: Callable[[SSAValue], SSAValue],
+    ):
+        operands = tuple(map_rewrite_value(operand) for operand in op.operand_values)
+        attributes = tuple(map_rewrite_value(attr) for attr in op.attribute_values)
+
+        types: list[SSAValue] = []
+        has_inferred_result_types = self._generate_operation_result_type_rewriter(
+            op, map_rewrite_value, types, rewrite_values
+        )
+
+        if op.opName is None:
+            raise ValueError("Cannot create operation without a name.")
+
+        create_op = pdl_interp.CreateOperationOp(
+            op.opName,
+            UnitAttr() if has_inferred_result_types else None,
+            op.attributeValueNames,
+            operands,
+            attributes,
+            types,
+        )
+        self.rewriter_builder.insert(create_op)
+        created_op_val = create_op.result_op
+        rewrite_values[op.op] = created_op_val
+
+        # Generate accesses for any results that have their types constrained.
+        result_types = op.type_values
+        if len(result_types) == 1 and isinstance(result_types[0].type, pdl.RangeType):
+            if result_types[0] not in rewrite_values:
+                get_results = pdl_interp.GetResultsOp(
+                    None, created_op_val, pdl.RangeType(pdl.ValueType())
+                )
+                self.rewriter_builder.insert(get_results)
+                get_type = pdl_interp.GetValueTypeOp(get_results.value)
+                self.rewriter_builder.insert(get_type)
+                rewrite_values[result_types[0]] = get_type.result
+            return
+
+        seen_variable_length = False
+        for i, type_value in enumerate(result_types):
+            if type_value in rewrite_values:
+                continue
+            is_variadic = isinstance(type_value.type, pdl.RangeType)
+            seen_variable_length = seen_variable_length or is_variadic
+
+            result_val: SSAValue
+            if seen_variable_length:
+                get_results = pdl_interp.GetResultsOp(
+                    i, created_op_val, pdl.RangeType(pdl.ValueType())
+                )
+                self.rewriter_builder.insert(get_results)
+                result_val = get_results.value
+            else:
+                get_result = pdl_interp.GetResultOp(i, created_op_val)
+                self.rewriter_builder.insert(get_result)
+                result_val = get_result.value
+
+            get_type = pdl_interp.GetValueTypeOp(result_val)
+            self.rewriter_builder.insert(get_type)
+            rewrite_values[type_value] = get_type.result
+
+    def _generate_rewriter_for_range(
+        self,
+        op: pdl.RangeOp,
+        rewrite_values: dict[SSAValue, SSAValue],
+        map_rewrite_value: Callable[[SSAValue], SSAValue],
+    ) -> None:
+        args = [map_rewrite_value(arg) for arg in op.arguments]
+        raise NotImplementedError("pdl_interp.create_range is not yet implemented")
+        create_range_op = pdl_interp.CreateRangeOp(args, op.result.type)
+        self.rewriter_builder.insert(create_range_op)
+        rewrite_values[op.result] = create_range_op.range
+
+    def _generate_rewriter_for_result(
+        self,
+        op: pdl.ResultOp,
+        rewrite_values: dict[SSAValue, SSAValue],
+        map_rewrite_value: Callable[[SSAValue], SSAValue],
+    ):
+        get_result_op = pdl_interp.GetResultOp(op.index, map_rewrite_value(op.parent_))
+        self.rewriter_builder.insert(get_result_op)
+        rewrite_values[op.val] = get_result_op.value
+
+    def _generate_rewriter_for_results(
+        self,
+        op: pdl.ResultsOp,
+        rewrite_values: dict[SSAValue, SSAValue],
+        map_rewrite_value: Callable[[SSAValue], SSAValue],
+    ):
+        get_results_op = pdl_interp.GetResultsOp(
+            op.index, map_rewrite_value(op.parent_), op.val.type
+        )
+        self.rewriter_builder.insert(get_results_op)
+        rewrite_values[op.val] = get_results_op.value
+
+    def _generate_rewriter_for_type(
+        self,
+        op: pdl.TypeOp,
+        rewrite_values: dict[SSAValue, SSAValue],
+        map_rewrite_value: Callable[[SSAValue], SSAValue],
+    ):
+        if op.constantType:
+            create_type_op = pdl_interp.CreateTypeOp(op.constantType)
+            self.rewriter_builder.insert(create_type_op)
+            rewrite_values[op.result] = create_type_op.result
+
+    def _generate_rewriter_for_types(
+        self,
+        op: pdl.TypesOp,
+        rewrite_values: dict[SSAValue, SSAValue],
+        map_rewrite_value: Callable[[SSAValue], SSAValue],
+    ):
+        if op.constantTypes:
+            create_types_op = pdl_interp.CreateTypesOp(op.constantTypes)
+            self.rewriter_builder.insert(create_types_op)
+            rewrite_values[op.result] = create_types_op.result
+        # Else, nothing needs to be created.
+        # A `pdl.type` operation in the rewrite section is
+        # not used as a declarative constraint. If there is
+        # no constantTypes, it is essentially a no-op.
 
     def _generate_operation_result_type_rewriter(
         self,

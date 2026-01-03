@@ -12,6 +12,7 @@ from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import Attribute
 from xdsl.passes import ModulePass, PassPipeline
 from xdsl.printer import Printer
+from xdsl.syntax_printer import SyntaxPrinter
 from xdsl.tools.command_line_tool import CommandLineTool
 from xdsl.universe import Universe
 from xdsl.utils.exceptions import DiagnosticException, ParseError, ShrinkException
@@ -202,6 +203,13 @@ class xDSLOptMain(CommandLineTool):
         )
 
         arg_parser.add_argument(
+            "--syntax-highlight",
+            default=False,
+            action="store_true",
+            help="Enable printing with syntax highlighting on the terminal.",
+        )
+
+        arg_parser.add_argument(
             "-v",
             "--version",
             action=VersionAction,
@@ -242,7 +250,8 @@ class xDSLOptMain(CommandLineTool):
             print_assembly(prog, output)
 
         def _output_mlir(prog: ModuleOp, output: IO[str]):
-            printer = Printer(
+            cls = SyntaxPrinter if self.args.syntax_highlight else Printer
+            printer = cls(
                 stream=output,
                 print_generic_format=self.args.print_op_generic,
                 print_properties_as_attributes=self.args.print_no_properties,
@@ -300,6 +309,17 @@ class xDSLOptMain(CommandLineTool):
                     printer = WGSLPrinter(stream=output)
                     printer.print(op)
 
+        def _output_air(prog: ModuleOp, output: IO[str]):
+            from xdsl.backend.mps.print_mps import print_to_mps
+
+            print_to_mps(prog, output)
+
+        def _output_llvm(prog: ModuleOp, output: IO[str]):
+            from xdsl.backend.llvm.convert import convert_module
+
+            llvm_module = convert_module(prog)
+            print(llvm_module, file=output)
+
         self.available_targets["arm-asm"] = _output_arm_asm
         self.available_targets["csl"] = _output_csl
         self.available_targets["mlir"] = _output_mlir
@@ -307,7 +327,9 @@ class xDSLOptMain(CommandLineTool):
         self.available_targets["riscv-asm"] = _output_riscv_asm
         self.available_targets["wat"] = _output_wat
         self.available_targets["wgsl"] = _output_wgsl
+        self.available_targets["mps"] = _output_air
         self.available_targets["x86-asm"] = _output_x86_asm
+        self.available_targets["llvm"] = _output_llvm
 
     def setup_pipeline(self):
         """

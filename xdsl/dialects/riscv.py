@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from collections.abc import Set as AbstractSet
 from io import StringIO
-from typing import IO, Annotated, Generic, Literal, TypeAlias
+from typing import IO, Annotated, Generic, Literal, TypeAlias, cast
 
 from typing_extensions import Self, TypeVar
 
@@ -19,6 +19,7 @@ from xdsl.backend.register_allocatable import (
 )
 from xdsl.backend.register_type import RegisterAllocatedMemoryEffect, RegisterType
 from xdsl.dialects.builtin import (
+    ArrayAttr,
     IndexType,
     IntegerAttr,
     IntegerType,
@@ -42,12 +43,14 @@ from xdsl.ir import (
 )
 from xdsl.irdl import (
     IRDLOperation,
+    ParsePropInAttrDict,
     attr_def,
     base,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
     opt_attr_def,
+    opt_prop_def,
     region_def,
     result_def,
     traits_def,
@@ -354,14 +357,21 @@ class LabelAttr(Data[str]):
             printer.print_string_literal(self.data)
 
 
-class RISCVAsmOperation(
-    HasRegisterConstraints, IRDLOperation, OneLineAssemblyPrintable, ABC
-):
+class RISCVAsmOperation(IRDLOperation, OneLineAssemblyPrintable, ABC):
     """
     Base class for operations that can be a part of RISC-V assembly printing.
     """
 
+
+class RISCVRegallocOperation(HasRegisterConstraints, IRDLOperation, ABC):
+    """
+    Base class for operations that can take part in register allocation.
+    """
+
     def get_register_constraints(self) -> RegisterConstraints:
+        # The default register constraints are that all operands are "in", and all
+        # results are "out" registers.
+        # If some registers are "inout" then this function must be overridden.
         return RegisterConstraints(self.operands, self.results, ())
 
 
@@ -450,7 +460,7 @@ AssemblyInstructionArg: TypeAlias = (
 )
 
 
-class RISCVInstruction(RISCVAsmOperation, ABC):
+class RISCVInstruction(RISCVAsmOperation, RISCVRegallocOperation, ABC):
     """
     Base class for operations that can be a part of RISC-V assembly printing. Must
     represent an instruction in the RISC-V instruction set, and have the following format:
@@ -1515,6 +1525,16 @@ class AndiOp(RdRsImmIntegerOperation):
     traits = traits_def(AndiOpHasCanonicalizationPatternsTrait())
 
 
+class OriOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.riscv import (
+            OriImmediate,
+        )
+
+        return (OriImmediate(),)
+
+
 @irdl_op_definition
 class OriOp(RdRsImmIntegerOperation):
     """
@@ -1527,6 +1547,17 @@ class OriOp(RdRsImmIntegerOperation):
     """
 
     name = "riscv.ori"
+    traits = traits_def(OriOpHasCanonicalizationPatternsTrait())
+
+
+class XoriOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.riscv import (
+            XoriImmediate,
+        )
+
+        return (XoriImmediate(),)
 
 
 @irdl_op_definition
@@ -1541,6 +1572,7 @@ class XoriOp(RdRsImmIntegerOperation):
     """
 
     name = "riscv.xori"
+    traits = traits_def(XoriOpHasCanonicalizationPatternsTrait())
 
 
 class SlliOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
@@ -3516,7 +3548,7 @@ class EcallOp(NullaryOperation):
 
 
 @irdl_op_definition
-class LabelOp(RISCVCustomFormatOperation, RISCVAsmOperation):
+class LabelOp(RISCVCustomFormatOperation, RISCVAsmOperation, RISCVRegallocOperation):
     """
     The label operation is used to emit text labels (e.g. loop:) that are used
     as branch, unconditional jump targets and symbol offsets.
@@ -3571,7 +3603,9 @@ class LabelOp(RISCVCustomFormatOperation, RISCVAsmOperation):
 
 
 @irdl_op_definition
-class DirectiveOp(RISCVCustomFormatOperation, RISCVAsmOperation):
+class DirectiveOp(
+    RISCVCustomFormatOperation, RISCVAsmOperation, RISCVRegallocOperation
+):
     """
     The directive operation is used to emit assembler directives (e.g. .word; .equ; etc.)
     without any associated region of assembly code.
@@ -3758,7 +3792,7 @@ class CustomAssemblyInstructionOp(RISCVCustomFormatOperation, RISCVInstruction):
 
 
 @irdl_op_definition
-class CommentOp(RISCVCustomFormatOperation, RISCVAsmOperation):
+class CommentOp(RISCVCustomFormatOperation, RISCVAsmOperation, RISCVRegallocOperation):
     name = "riscv.comment"
     comment = attr_def(StringAttr)
 
@@ -3807,7 +3841,11 @@ class WfiOp(NullaryOperation):
 
 
 class GetAnyRegisterOperation(
-    RISCVCustomFormatOperation, RISCVAsmOperation, ABC, Generic[RDInvT]
+    RISCVCustomFormatOperation,
+    RISCVAsmOperation,
+    RISCVRegallocOperation,
+    ABC,
+    Generic[RDInvT],
 ):
     """
     This instruction allows us to create an SSAValue with for a given register name. This
@@ -3865,6 +3903,51 @@ class GetRegisterOp(GetAnyRegisterOperation[IntRegisterType]):
 @irdl_op_definition
 class GetFloatRegisterOp(GetAnyRegisterOperation[FloatRegisterType]):
     name = "riscv.get_float_register"
+
+
+@irdl_op_definition
+class ParallelMovOp(IRDLOperation):
+    name = "riscv.parallel_mov"
+    inputs = var_operand_def(RISCVRegisterType)
+    outputs = var_result_def(RISCVRegisterType)
+    free_registers = opt_prop_def(ArrayAttr[RISCVRegisterType])
+
+    assembly_format = "$inputs attr-dict `:` functional-type($inputs, $outputs)"
+    irdl_options = (ParsePropInAttrDict(),)
+
+    def __init__(
+        self,
+        inputs: Sequence[SSAValue],
+        outputs: Sequence[RISCVRegisterType],
+        free_registers: ArrayAttr[RISCVRegisterType] | None = None,
+    ):
+        super().__init__(
+            operands=(inputs,),
+            result_types=(outputs,),
+            properties={"free_registers": free_registers},
+        )
+
+    def verify_(self) -> None:
+        if len(self.inputs) != len(self.outputs):
+            raise VerifyException(
+                "Input count must match output count. "
+                f"Num inputs: {len(self.inputs)}, Num outputs: {len(self.outputs)}"
+            )
+
+        input_types = cast(Sequence[RISCVRegisterType], self.inputs.types)
+        output_types = cast(Sequence[RISCVRegisterType], self.outputs.types)
+
+        # Check type of register type matches for input and output
+        for input_type, output_type in zip(input_types, output_types, strict=True):
+            if type(input_type) is not type(output_type):
+                raise VerifyException("Input type must match output type.")
+
+        # Check outputs are distinct if allocated and not ZERO
+        filtered_outputs = tuple(
+            i for i in output_types if i.is_allocated and i != Registers.ZERO
+        )
+        if len(filtered_outputs) != len(set(filtered_outputs)):
+            raise VerifyException("Outputs must be unallocated or distinct.")
 
 
 # endregion
@@ -5014,6 +5097,7 @@ RISCV = Dialect(
         FMvDOp,
         VFAddSOp,
         VFMulSOp,
+        ParallelMovOp,
     ],
     [
         IntRegisterType,

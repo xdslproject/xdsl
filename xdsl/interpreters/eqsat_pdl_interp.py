@@ -12,11 +12,12 @@ from xdsl.analysis.dataflow import (
     ProgramPoint,
 )
 from xdsl.analysis.sparse_analysis import Lattice, SparseForwardDataFlowAnalysis
-from xdsl.dialects import eqsat, eqsat_pdl_interp, pdl_interp
+from xdsl.dialects import eqsat, eqsat_pdl_interp
 from xdsl.dialects.builtin import SymbolRefAttr
 from xdsl.dialects.pdl import RangeType, ValueType
 from xdsl.interpreter import (
     Interpreter,
+    InterpreterFunctions,
     ReturnedValues,
     Successor,
     impl,
@@ -64,7 +65,7 @@ class BacktrackPoint:
     scope: ScopedDict[SSAValue, Any]
     """Variable scope to restore when backtracking."""
 
-    cause: pdl_interp.GetDefiningOpOp | eqsat_pdl_interp.ChooseOp
+    cause: eqsat_pdl_interp.GetDefiningOpOp | eqsat_pdl_interp.ChooseOp
     """The GetDefiningOpOp or ChooseOp that created this backtrack point."""
 
     index: int
@@ -79,7 +80,7 @@ class BacktrackPoint:
 
 @register_impls
 @dataclass
-class EqsatPDLInterpFunctions(PDLInterpFunctions):
+class EqsatPDLInterpFunctions(InterpreterFunctions):
     """Interpreter functions for PDL patterns operating on e-graphs."""
 
     analyses: list[SparseForwardDataFlowAnalysis[Lattice[Any]]] = field(
@@ -150,11 +151,11 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
             else:
                 self.eclass_union_find.add(op)
 
-    @impl(pdl_interp.GetResultOp)
-    def run_get_result(
+    @impl(eqsat_pdl_interp.GetResultOp)
+    def run_eqsat_get_result(
         self,
         interpreter: Interpreter,
-        op: pdl_interp.GetResultOp,
+        op: eqsat_pdl_interp.GetResultOp,
         args: tuple[Any, ...],
     ) -> tuple[Any, ...]:
         assert len(args) == 1
@@ -181,11 +182,11 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
                     )
         return (result,)
 
-    @impl(pdl_interp.GetResultsOp)
-    def run_get_results(
+    @impl(eqsat_pdl_interp.GetResultsOp)
+    def run_eqsat_get_results(
         self,
         interpreter: Interpreter,
-        op: pdl_interp.GetResultsOp,
+        op: eqsat_pdl_interp.GetResultsOp,
         args: tuple[Any, ...],
     ) -> tuple[Any, ...]:
         assert len(args) == 1
@@ -225,11 +226,11 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
             return (eclass_results[0],)
         return (tuple(eclass_results),)
 
-    @impl(pdl_interp.GetDefiningOpOp)
-    def run_get_defining_op(
+    @impl(eqsat_pdl_interp.GetDefiningOpOp)
+    def run_eqsat_get_defining_op(
         self,
         interpreter: Interpreter,
-        op: pdl_interp.GetDefiningOpOp,
+        op: eqsat_pdl_interp.GetDefiningOpOp,
         args: tuple[Any, ...],
     ) -> tuple[Any, ...]:
         assert len(args) == 1
@@ -271,11 +272,11 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
 
         return (defining_op,)
 
-    @impl(pdl_interp.ReplaceOp)
-    def run_replace(
+    @impl(eqsat_pdl_interp.ReplaceOp)
+    def run_eqsat_replace(
         self,
         interpreter: Interpreter,
-        op: pdl_interp.ReplaceOp,
+        op: eqsat_pdl_interp.ReplaceOp,
         args: tuple[Any, ...],
     ) -> tuple[Any, ...]:
         assert args
@@ -365,15 +366,14 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
         rewriter.replace_op(to_replace, new_ops=[], new_results=to_keep.results)
         return True
 
-    @impl(pdl_interp.CreateOperationOp)
-    def run_create_operation(
+    @impl(eqsat_pdl_interp.CreateOperationOp)
+    def run_eqsat_create_operation(
         self,
         interpreter: Interpreter,
-        op: pdl_interp.CreateOperationOp,
+        op: eqsat_pdl_interp.CreateOperationOp,
         args: tuple[Any, ...],
     ) -> tuple[Any, ...]:
         rewriter = PDLInterpFunctions.get_rewriter(interpreter)
-        has_done_action_checkpoint = rewriter.has_done_action
 
         updated_operands: list[OpResult] = []
         for arg in args[0 : len(op.input_operands)]:
@@ -385,19 +385,28 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
             )
             updated_operands.append(self.eclass_union_find.find(arg.owner).result)
         args = (*updated_operands, *args[len(op.input_operands) :])
-        (new_op,) = super().run_create_operation(interpreter, op, args).values
+        new_op = PDLInterpFunctions.create_operation(
+            interpreter,
+            args,
+            op.constraint_name.data,
+            [name.data for name in op.input_attribute_names.data],
+            len(op.input_operands),
+            len(op.input_attributes),
+        )
+
         assert isinstance(new_op, Operation)
         assert new_op.results, (
             "Creating operations without result values is not supported."
         )
 
+        rewriter = PDLInterpFunctions.get_rewriter(interpreter)
+
+        should_insert_new_op = True
         # Check if an identical operation already exists in our known_ops map
         if existing_op := self.known_ops.get(new_op):
             # CSE can have removed the existing operation, here we check if it is still in use:
             assert existing_op.results
-            if existing_op.parent is new_op.parent:
-                rewriter.erase_op(new_op)
-                rewriter.has_done_action = has_done_action_checkpoint
+            if existing_op.parent is rewriter.insertion_point.block:
                 if not any(
                     isinstance(use.operation, eqsat.AnyEClassOp)
                     for use in existing_op.results[0].uses
@@ -405,11 +414,15 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
                     # It is possible that the existing_op was stripped from its eclass when it merged with a constant eclass.
                     # In this case we should wrap it in a new eclass:
                     new_op = existing_op
+                    should_insert_new_op = False
                 else:
+                    new_op.erase()
                     return (existing_op,)
             else:
                 # if CSE has removed the existing operation, we can remove it from our known_ops map:
                 self.known_ops.pop(existing_op)
+        if should_insert_new_op:
+            rewriter.insert_op(new_op)
 
         # No existing eclass for this operation yet
         new_eclasses: list[eqsat.AnyEClassOp] = []
@@ -449,21 +462,28 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
 
         return (new_op,)
 
-    @impl_terminator(pdl_interp.RecordMatchOp)
-    def run_recordmatch(
+    @impl_terminator(eqsat_pdl_interp.RecordMatchOp)
+    def run_eqsat_recordmatch(
         self,
         interpreter: Interpreter,
-        op: pdl_interp.RecordMatchOp,
+        op: eqsat_pdl_interp.RecordMatchOp,
         args: tuple[Any, ...],
     ):
         self.pending_rewrites.append(
-            (op.rewriter, self.get_rewriter(interpreter).current_operation, args)
+            (
+                op.rewriter,
+                PDLInterpFunctions.get_rewriter(interpreter).current_operation,
+                args,
+            )
         )
         return Successor(op.dest, ()), ()
 
-    @impl_terminator(pdl_interp.FinalizeOp)
-    def run_finalize(
-        self, interpreter: Interpreter, _: pdl_interp.FinalizeOp, args: tuple[Any, ...]
+    @impl_terminator(eqsat_pdl_interp.FinalizeOp)
+    def run_eqsat_finalize(
+        self,
+        interpreter: Interpreter,
+        _: eqsat_pdl_interp.FinalizeOp,
+        args: tuple[Any, ...],
     ):
         if not self.is_matching:
             return ReturnedValues(()), ()

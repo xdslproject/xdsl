@@ -15,13 +15,13 @@ from xdsl.irdl import (
 from .registers import IntRegisterType
 
 
-class ARMOperation(IRDLOperation, OneLineAssemblyPrintable, ABC):
+class ARMAsmOperation(IRDLOperation, OneLineAssemblyPrintable, ABC):
     """
     Base class for operations that can be a part of ARM assembly printing.
     """
 
 
-class ARMInstruction(ARMOperation, ABC):
+class ARMInstruction(ARMAsmOperation, ABC):
     """
     Base class for operations that can be a part of x86 assembly printing. Must
     represent an instruction in the x86 instruction set.
@@ -92,7 +92,7 @@ class DSMovOp(ARMInstruction):
 
 
 @irdl_op_definition
-class GetRegisterOp(ARMOperation):
+class GetRegisterOp(ARMAsmOperation):
     """
     This instruction allows us to create an SSAValue for a given register name.
     """
@@ -150,7 +150,7 @@ class DSSMulOp(ARMInstruction):
 
 
 @irdl_op_definition
-class LabelOp(ARMOperation):
+class LabelOp(ARMAsmOperation):
     """
     The label operation is used to emit text labels (e.g. loop:) that are used
     as branch, unconditional jump targets and symbol offsets.

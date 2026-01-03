@@ -16,6 +16,10 @@
   %test = "test.op"() : () -> !hw.array<6xi7>
   // CHECK-NEXT: %{{.*}} = "test.op"() : () -> !hw.array<6xi7>
 
+
+  %test_nested = "test.op"() : () -> !hw.array<6x!hw.array<9xi42>>
+  // CHECK-NEXT: %{{.*}} = "test.op"() : () -> !hw.array<6x!hw.array<9xi42>>
+
   %const = "test.op"() : () -> i19
   %array = hw.array_create %const, %const : i19 
   %array1 = hw.array_create %const : i19 

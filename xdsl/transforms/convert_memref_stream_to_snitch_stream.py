@@ -161,7 +161,7 @@ class StreamOpLowering(RewritePattern):
         )
         if len(set(stride_patterns)) == 1:
             stride_patterns = (stride_patterns[0],)
-        new_operands = cast_operands_to_regs(rewriter)
+        new_operands = cast_operands_to_regs(rewriter, op)
         new_inputs = new_operands[: len(op.inputs)]
         new_outputs = new_operands[len(op.inputs) :]
         freg = riscv.Registers.UNALLOCATED_FLOAT

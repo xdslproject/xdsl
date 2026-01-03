@@ -41,7 +41,7 @@ from xdsl.backend.register_allocatable import (
     HasRegisterConstraints,
     RegisterConstraints,
 )
-from xdsl.backend.register_type import RegisterAllocatedMemoryEffect, RegisterType
+from xdsl.backend.register_type import RegisterAllocatedMemoryEffect
 from xdsl.dialects.builtin import (
     I32,
     IntegerAttr,
@@ -117,28 +117,23 @@ R3InvT = TypeVar("R3InvT", bound=X86RegisterType)
 R4InvT = TypeVar("R4InvT", bound=X86RegisterType)
 
 
-class X86AsmOperation(
-    IRDLOperation, HasRegisterConstraints, OneLineAssemblyPrintable, ABC
-):
+class X86AsmOperation(IRDLOperation, OneLineAssemblyPrintable, ABC):
     """
     Base class for operations that can be a part of x86 assembly printing.
     """
 
+
+class X86RegallocOperation(IRDLOperation, HasRegisterConstraints, ABC):
+    """
+    Base class for operations that can take part in register allocation.
+    """
+
     traits = traits_def(RegisterAllocatedMemoryEffect())
 
-    @abstractmethod
-    def assembly_line(self) -> str | None:
-        raise NotImplementedError()
-
-    def iter_used_registers(self):
-        return (
-            val.type
-            for vals in (self.operands, self.results)
-            for val in vals
-            if isinstance(val.type, RegisterType) and val.type.is_allocated
-        )
-
     def get_register_constraints(self) -> RegisterConstraints:
+        # The default register constraints are that all operands are "in", and all
+        # results are "out" registers.
+        # If some registers are "inout" then this function must be overridden.
         return RegisterConstraints(self.operands, self.results, ())
 
 
@@ -226,7 +221,7 @@ class X86CustomFormatOperation(IRDLOperation, ABC):
         printer.print_operation_type(self)
 
 
-class X86Instruction(X86AsmOperation):
+class X86Instruction(X86AsmOperation, X86RegallocOperation):
     """
     Base class for operations that can be a part of x86 assembly printing. Must
     represent an instruction in the x86 instruction set.
@@ -961,7 +956,7 @@ class ConditionalJumpOperation(X86Instruction, X86CustomFormatOperation, ABC):
     then_values = var_operand_def(X86RegisterType)
     else_values = var_operand_def(X86RegisterType)
 
-    irdl_options = [AttrSizedOperandSegments()]
+    irdl_options = (AttrSizedOperandSegments(),)
 
     then_block = successor_def()
     else_block = successor_def()
@@ -2407,7 +2402,7 @@ class M_ImulOp(X86Instruction, X86CustomFormatOperation):
 
 
 @irdl_op_definition
-class LabelOp(X86AsmOperation, X86CustomFormatOperation):
+class LabelOp(X86AsmOperation, X86RegallocOperation, X86CustomFormatOperation):
     """
     The label operation is used to emit text labels (e.g. loop:) that are used
     as branch, unconditional jump targets and symbol offsets.
@@ -2460,7 +2455,7 @@ class LabelOp(X86AsmOperation, X86CustomFormatOperation):
 
 
 @irdl_op_definition
-class DirectiveOp(X86AsmOperation, X86CustomFormatOperation):
+class DirectiveOp(X86AsmOperation, X86RegallocOperation, X86CustomFormatOperation):
     """
     The directive operation is used to represent a directive in the assembly code. (e.g. .globl; .type etc)
     """
@@ -2611,7 +2606,7 @@ class C_JmpOp(X86Instruction, X86CustomFormatOperation):
 
 
 @irdl_op_definition
-class FallthroughOp(X86AsmOperation, X86CustomFormatOperation):
+class FallthroughOp(X86AsmOperation, X86RegallocOperation, X86CustomFormatOperation):
     """
     Continue execution into the next block.
     The successor of this operation must be immediately after this operation's parent.
@@ -3596,7 +3591,11 @@ class DSSI_ShufpsOp(
 
 
 class GetAnyRegisterOperation(
-    X86AsmOperation, X86CustomFormatOperation, ABC, Generic[R1InvT]
+    X86AsmOperation,
+    X86RegallocOperation,
+    X86CustomFormatOperation,
+    ABC,
+    Generic[R1InvT],
 ):
     """
     This instruction allows us to create an SSAValue for a given register name.

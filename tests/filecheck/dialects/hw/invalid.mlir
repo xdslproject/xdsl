@@ -144,7 +144,7 @@ hw.module @bad_output_type(out foo : i8, out bar : i32) {
 %test = "test.op"() : () -> !hw.array<6xf32>
 
 
-// CHECK: f32 should be of base attribute integer_type
+// CHECK: !hw.array<6xf32> -> f32 is not a hw.array or a signless integer
 
 // -----
 

@@ -438,7 +438,7 @@ class ApplyConstraintOp(IRDLOperation):
     results_ = var_result_def(AnyPDLTypeConstr)
     true_dest = successor_def()
     false_dest = successor_def()
-    irdl_options = [ParsePropInAttrDict()]
+    irdl_options = (ParsePropInAttrDict(),)
 
     assembly_format = "$name `(` $args `:` type($args) `)` (`:` type($results_)^)? attr-dict `->` $true_dest `,` $false_dest"
 
@@ -486,7 +486,7 @@ class RecordMatchOp(IRDLOperation):
 
     dest = successor_def()
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
     assembly_format = (
         "$rewriter (`(` $inputs^ `:` type($inputs) `)`)? `:` `benefit` `(` $benefit `)` `,`"
@@ -620,7 +620,9 @@ class CreateOperationOp(IRDLOperation):
 
     name = "pdl_interp.create_operation"
     constraint_name = prop_def(StringAttr, prop_name="name")
-    input_attribute_names = prop_def(ArrayAttr, prop_name="inputAttributeNames")
+    input_attribute_names = prop_def(
+        ArrayAttr[StringAttr], prop_name="inputAttributeNames"
+    )
     inferred_result_types = opt_prop_def(UnitAttr, prop_name="inferredResultTypes")
 
     input_operands = var_operand_def(ValueType | RangeType[ValueType])
@@ -629,7 +631,7 @@ class CreateOperationOp(IRDLOperation):
 
     result_op = result_def(OperationType)
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
     # assembly_format = (
     #     "$name (`(` $input_operands^ `:` type($input_operands) `)`)?"
