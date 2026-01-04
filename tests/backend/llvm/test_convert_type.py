@@ -59,7 +59,7 @@ def test_convert_vector():
     ):
         convert_type(scalable_vec)
 
-    # Multi-dimensional vector (raises)
+    # Multi-dim vector (raises)
     nd_vec = builtin.VectorType(builtin.i32, [2, 2])
     with pytest.raises(
         LLVMTranslationException, match="Multi-dimensional vectors not supported"
