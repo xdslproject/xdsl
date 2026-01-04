@@ -1526,8 +1526,11 @@ class MatcherGenerator:
     ):
         if op.repl_operation:
             op_op_def = op.op_value.owner
-            has_results = not (
-                isinstance(op_op_def, pdl.OperationOp) and not op_op_def.type_values
+            # either we statically know the operation return types, or we
+            # don't, in which case we assume there are results such that
+            # we don't incorrectly erase the operation instead of replacing it.
+            has_results = (
+                not isinstance(op_op_def, pdl.OperationOp) or op_op_def.type_values
             )
             if has_results:
                 get_results = pdl_interp.GetResultsOp(
