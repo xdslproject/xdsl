@@ -38,6 +38,7 @@ from xdsl.ir import (
     Data,
     Dialect,
     Operation,
+    OpResult,
     Region,
     SSAValue,
 )
@@ -545,7 +546,7 @@ class RdRsRsOperation(
     This is called R-Type in the RISC-V specification.
     """
 
-    rd = result_def(RDInvT)
+    rd: OpResult[RDInvT] = result_def(RDInvT)
     rs1 = operand_def(RS1InvT)
     rs2 = operand_def(RS2InvT)
 
