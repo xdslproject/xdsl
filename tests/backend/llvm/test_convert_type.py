@@ -10,6 +10,7 @@ from xdsl.dialects.llvm import (
     LLVMStructType,
     LLVMVoidType,
 )
+from xdsl.ir import Attribute
 from xdsl.utils.exceptions import LLVMTranslationException
 
 
@@ -40,11 +41,8 @@ def test_convert_int():
         ),
     ],
 )
-def test_convert_type(
-    type,  # pyright: ignore[reportUnknownParameterType, reportMissingParameterType]
-    expected,  # pyright: ignore[reportUnknownParameterType, reportMissingParameterType]
-):
-    assert convert_type(type) == expected  # pyright: ignore[reportUnknownArgumentType]
+def test_convert_type(type: Attribute, expected: ir.Type):
+    assert convert_type(type) == expected
 
 
 def test_convert_vector():
