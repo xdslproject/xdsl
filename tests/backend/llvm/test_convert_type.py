@@ -24,22 +24,27 @@ def test_convert_int():
         convert_type(builtin.IndexType())
 
 
-def test_convert_float():
-    assert convert_type(builtin.Float16Type()) == ir.HalfType()
-    assert convert_type(builtin.Float32Type()) == ir.FloatType()
-    assert convert_type(builtin.Float64Type()) == ir.DoubleType()
-
-
-def test_convert_void():
-    assert convert_type(builtin.NoneType()) == ir.VoidType()
-    assert convert_type(LLVMVoidType()) == ir.VoidType()
-
-
-def test_convert_pointer():
-    # Test pointer without address space
-    assert convert_type(LLVMPointerType()) == ir.PointerType()
-    # Test with address space
-    assert convert_type(LLVMPointerType(builtin.IntAttr(1))) == ir.PointerType(1)
+@pytest.mark.parametrize(
+    "type, expected",
+    [
+        (builtin.Float16Type(), ir.HalfType()),
+        (builtin.Float32Type(), ir.FloatType()),
+        (builtin.Float64Type(), ir.DoubleType()),
+        (builtin.NoneType(), ir.VoidType()),
+        (LLVMVoidType(), ir.VoidType()),
+        (LLVMPointerType(), ir.PointerType()),
+        (LLVMPointerType(builtin.IntAttr(1)), ir.PointerType(1)),
+        (
+            builtin.ComplexType(builtin.f32),
+            ir.LiteralStructType([ir.FloatType(), ir.FloatType()]),
+        ),
+    ],
+)
+def test_convert_type(
+    type,  # pyright: ignore[reportUnknownParameterType, reportMissingParameterType]
+    expected,  # pyright: ignore[reportUnknownParameterType, reportMissingParameterType]
+):
+    assert convert_type(type) == expected  # pyright: ignore[reportUnknownArgumentType]
 
 
 def test_convert_vector():
@@ -75,11 +80,6 @@ def test_convert_struct():
     struct_type = LLVMStructType.from_type_list([builtin.i32, builtin.f32])
     with pytest.raises(NotImplementedError):
         convert_type(struct_type)
-
-    # Complex type -> struct { elem, elem }
-    complex_type = builtin.ComplexType(builtin.f32)
-    expected_complex = ir.LiteralStructType([ir.FloatType(), ir.FloatType()])
-    assert convert_type(complex_type) == expected_complex
 
     # Tuple type -> struct
     tuple_type = builtin.TupleType(builtin.ArrayAttr([builtin.i32, builtin.f32]))
