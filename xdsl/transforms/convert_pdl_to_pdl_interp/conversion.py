@@ -1524,7 +1524,6 @@ class MatcherGenerator:
         rewrite_values: dict[SSAValue, SSAValue],
         map_rewrite_value: Callable[[SSAValue], SSAValue],
     ):
-        repl_operands = ()
         if op.repl_operation:
             op_op_def = op.op_value.owner
             has_results = not (
@@ -1538,6 +1537,9 @@ class MatcherGenerator:
                 )
                 self.rewriter_builder.insert(get_results)
                 repl_operands = (get_results.value,)
+            else:
+                # The new operation has no results to replace with
+                repl_operands = ()
         else:
             repl_operands = tuple(map_rewrite_value(val) for val in op.repl_values)
 
