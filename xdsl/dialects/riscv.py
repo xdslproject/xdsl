@@ -45,6 +45,7 @@ from xdsl.ir import (
 from xdsl.irdl import (
     IRDLOperation,
     ParsePropInAttrDict,
+    VarOpResult,
     attr_def,
     base,
     irdl_attr_definition,
@@ -3910,7 +3911,7 @@ class GetFloatRegisterOp(GetAnyRegisterOperation[FloatRegisterType]):
 class ParallelMovOp(IRDLOperation):
     name = "riscv.parallel_mov"
     inputs = var_operand_def(RISCVRegisterType)
-    outputs = var_result_def(RISCVRegisterType)
+    outputs: VarOpResult[RISCVRegisterType] = var_result_def(RISCVRegisterType)
     free_registers = opt_prop_def(ArrayAttr[RISCVRegisterType])
 
     assembly_format = "$inputs attr-dict `:` functional-type($inputs, $outputs)"
