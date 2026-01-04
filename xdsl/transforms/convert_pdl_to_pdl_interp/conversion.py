@@ -1543,6 +1543,8 @@ class MatcherGenerator:
 
         mapped_op_value = map_rewrite_value(op.op_value)
         if not repl_operands:
+            # In case there are no new values to replace the op with,
+            # a replacement is the same as just erasing the op.
             raise NotImplementedError("pdl_interp.erase is not yet implemented")
             self.rewriter_builder.insert(pdl_interp.EraseOp(mapped_op_value))
         else:
