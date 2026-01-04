@@ -257,6 +257,16 @@ class ExecuteRegionOp(IRDLOperation):
             )
 
 
+class IfOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.scf import (
+            IfPropagateConstantCondition,
+        )
+
+        return (IfPropagateConstantCondition(),)
+
+
 @irdl_op_definition
 class IfOp(IRDLOperation):
     name = "scf.if"
@@ -271,6 +281,7 @@ class IfOp(IRDLOperation):
         SingleBlockImplicitTerminator(YieldOp),
         RecursiveMemoryEffect(),
         RecursivelySpeculatable(),
+        IfOpHasCanonicalizationPatternsTrait(),
     )
 
     def __init__(

@@ -17,6 +17,21 @@ from xdsl.pattern_rewriter import (
 from xdsl.utils.exceptions import PassFailedException
 
 
+def _add_swap(
+    rewriter: PatternRewriter,
+    a: SSAValue[riscv.IntRegisterType],
+    b: SSAValue[riscv.IntRegisterType],
+):
+    """Add swap using xors. returns the new SSAValue."""
+    op1 = riscv.XorOp(a, b, rd=a.type)
+    op2 = riscv.XorOp(op1, b, rd=b.type)
+    op3 = riscv.XorOp(op1, op2, rd=a.type)
+    rewriter.insert_op(op1)
+    rewriter.insert_op(op2)
+    rewriter.insert_op(op3)
+    return op2, op3
+
+
 class ParallelMovPattern(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: riscv.ParallelMovOp, rewriter: PatternRewriter):
@@ -45,6 +60,12 @@ class ParallelMovPattern(RewritePattern):
         num_operands = len(op.operands)
 
         results: list[SSAValue | None] = [None] * num_operands
+
+        # cache the indices from output register type to the index in the outputs array
+        # this is typed as Attribute to ensure we can index by input type
+        output_index: dict[Attribute, int] = {
+            register: idx for idx, register in enumerate(op.outputs.types)
+        }
 
         # We have a graph with nodes as registers and directed edges as moves,
         # pointing from source to destination.
@@ -87,8 +108,8 @@ class ParallelMovPattern(RewritePattern):
                 mvop = riscv.MVOp(src, rd=dst)
                 rewriter.insert_op(mvop)
                 # sanity check since we should only have 1 result per output
-                assert results[op.outputs.types.index(dst)] is None
-                results[op.outputs.types.index(dst)] = mvop.results[0]
+                assert results[output_index[dst]] is None
+                results[output_index[dst]] = mvop.results[0]
                 unprocessed_children[src] -= 1
                 # only continue up the tree if all children were processed
                 if unprocessed_children[src]:
@@ -111,9 +132,33 @@ class ParallelMovPattern(RewritePattern):
                 # We don't have to modify its value since all the cycles
                 # can use the same register.
                 if not free_registers:
-                    raise PassFailedException(
-                        "Not implemented: cyclic moves without free int register."
-                    )
+                    # If the registers are all integers, we can use the xor swapping
+                    # trick to repeatedly swap values to perform the cyclic move.
+
+                    # we don't take op.inputs[idx] -> op.outputs[idx] since we need
+                    # the SSAValue for both input and output
+                    out = op.inputs[idx]
+                    assert isinstance(
+                        out.type, riscv.IntRegisterType
+                    )  # for type checker
+                    inp = dst_to_src[out.type]
+
+                    while inp.type != out.type:
+                        # for type checker, is guaranteed by checks before function call
+                        assert isinstance(inp.type, riscv.IntRegisterType)
+                        assert isinstance(out.type, riscv.IntRegisterType)
+
+                        nw_out, nw_inp = _add_swap(rewriter, inp, out)
+                        # after the swap, the input is in the right place, the input's input
+                        # needs to be moved to the new output
+                        results[output_index[nw_inp.result_types[0]]] = nw_inp.results[
+                            0
+                        ]
+                        inp = dst_to_src[inp.type]
+                        out = nw_out.results[0]
+
+                    results[output_index[op.inputs.types[idx]]] = out
+                    continue
                 temp_reg = free_registers[0]
 
                 # Break the cycle by using free register
@@ -128,7 +173,7 @@ class ParallelMovPattern(RewritePattern):
                     src = dst_to_src[dst]
                     mvop = riscv.MVOp(src, rd=dst)
                     rewriter.insert_op(mvop)
-                    results[op.outputs.types.index(dst)] = mvop.results[0]
+                    results[output_index[dst]] = mvop.results[0]
                     dst = src.type
                 # finish the split mov
                 # this assert is already checked at start, but is used for type checking
