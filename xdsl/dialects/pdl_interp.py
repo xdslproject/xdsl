@@ -592,7 +592,7 @@ class ReplaceOp(IRDLOperation):
         "$input_op `with` ` ` `(` ($repl_values^ `:` type($repl_values))? `)` attr-dict"
     )
 
-    def __init__(self, input_op: SSAValue, repl_values: list[SSAValue]) -> None:
+    def __init__(self, input_op: SSAValue, repl_values: Sequence[SSAValue]) -> None:
         super().__init__(operands=[input_op, repl_values])
 
 

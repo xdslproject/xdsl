@@ -1518,6 +1518,47 @@ class MatcherGenerator:
         self.rewriter_builder.insert(create_range_op)
         rewrite_values[op.result] = create_range_op.range
 
+    def _generate_rewriter_for_replace(
+        self,
+        op: pdl.ReplaceOp,
+        rewrite_values: dict[SSAValue, SSAValue],
+        map_rewrite_value: Callable[[SSAValue], SSAValue],
+    ):
+        if op.repl_operation:
+            op_op_def = op.op_value.owner
+            # either we statically know the operation return types, or we
+            # don't, in which case we assume there are results such that
+            # we don't incorrectly erase the operation instead of replacing it.
+            has_results = (
+                not isinstance(op_op_def, pdl.OperationOp) or op_op_def.type_values
+            )
+            if has_results:
+                get_results = pdl_interp.GetResultsOp(
+                    None,
+                    map_rewrite_value(op.repl_operation),
+                    pdl.RangeType(pdl.ValueType()),
+                )
+                self.rewriter_builder.insert(get_results)
+                repl_operands = (get_results.value,)
+            else:
+                # The new operation has no results to replace with
+                repl_operands = ()
+        else:
+            repl_operands = tuple(map_rewrite_value(val) for val in op.repl_values)
+
+        mapped_op_value = map_rewrite_value(op.op_value)
+        if not repl_operands:
+            # Note that if an operation is replaced by a new one, the new operation
+            # will already have been inserted during `pdl_interp.create_operation`.
+            # In case there are no new values to replace the op with,
+            # a replacement is the same as just erasing the op.
+            raise NotImplementedError("pdl_interp.erase is not yet implemented")
+            self.rewriter_builder.insert(pdl_interp.EraseOp(mapped_op_value))
+        else:
+            self.rewriter_builder.insert(
+                pdl_interp.ReplaceOp(mapped_op_value, repl_operands)
+            )
+
     def _generate_rewriter_for_result(
         self,
         op: pdl.ResultOp,
