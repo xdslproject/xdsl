@@ -143,3 +143,11 @@ class PassPipelineParseError(BaseException):
             "Error parsing pass pipeline specification:\n"
             + token.span.print_with_context(msg)
         )
+
+
+class LLVMTranslationException(Exception):
+    """
+    Exception raised during LLVM translation.
+    """
+
+    pass
