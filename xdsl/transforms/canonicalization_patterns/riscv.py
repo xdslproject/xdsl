@@ -301,6 +301,24 @@ class ShiftLeftbyZero(RewritePattern):
             rewriter.replace_op(op, riscv.MVOp(op.rs1, rd=op.rd.type))
 
 
+class ShiftRightImmediate(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: riscv.SrliOp, rewriter: PatternRewriter) -> None:
+        if (
+            isinstance(op.rs1, OpResult)
+            and isinstance(op.rs1.op, riscv.LiOp)
+            and isinstance(op.rs1.op.immediate, IntegerAttr)
+            and isinstance(op.immediate, IntegerAttr)
+        ):
+            rd = op.rd.type
+            rewriter.replace_op(
+                op,
+                riscv.LiOp(
+                    op.rs1.op.immediate.value.data >> op.immediate.value.data, rd=rd
+                ),
+            )
+
+
 class ShiftRightbyZero(RewritePattern):
     """
     x >> 0 -> x
