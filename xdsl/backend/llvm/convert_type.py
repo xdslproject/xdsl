@@ -1,6 +1,6 @@
 from collections.abc import Callable
 from functools import cache
-from typing import Any, cast
+from typing import Any
 
 import llvmlite.ir as ir  # pyright: ignore[reportMissingTypeStubs]
 
@@ -79,9 +79,13 @@ def _convert_llvm_function_type(type_attr: LLVMFunctionType) -> ir.Type:
     )
 
 
+def _raise_not_implemented(_: Any) -> ir.Type:
+    raise NotImplementedError()
+
+
 _TYPE_CONVERTERS: dict[type[Attribute], Callable[[Any], ir.Type]] = {
-    IntegerType: lambda type_attr: cast(ir.Type, ir.IntType(type_attr.bitwidth)),
-    IndexType: lambda _: cast(ir.Type, ir.IntType(64)),
+    IntegerType: _raise_not_implemented,
+    IndexType: _raise_not_implemented,
     Float16Type: lambda _: ir.HalfType(),
     Float32Type: lambda _: ir.FloatType(),
     Float64Type: lambda _: ir.DoubleType(),
