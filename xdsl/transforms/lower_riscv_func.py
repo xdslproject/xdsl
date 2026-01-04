@@ -6,7 +6,6 @@ from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import Operation
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
-    GreedyRewritePatternApplier,
     PatternRewriter,
     PatternRewriteWalker,
     RewritePattern,
@@ -86,10 +85,4 @@ class LowerRISCVFunc(ModulePass):
             PatternRewriteWalker(
                 InsertExitSyscallOp(), apply_recursively=False
             ).rewrite_module(op)
-        PatternRewriteWalker(
-            GreedyRewritePatternApplier(
-                [
-                    LowerSyscallOp(),
-                ]
-            )
-        ).rewrite_module(op)
+        PatternRewriteWalker(LowerSyscallOp()).rewrite_module(op)

@@ -35,7 +35,7 @@ func.func public @foo(%arg0: memref<8xf64>, %arg1: memref<8xf64>, %arg2: memref<
 // -----
 
 // multiple non-overlapping load-store pair hoisting
-func.func public @foo(%arg0: memref<8xf64>, %arg1: memref<8xf64>, %arg2: memref<f64>, %arg3: memref<f64>) -> memref<f64> {
+func.func public @foo(%arg0: memref<8xf64>, %arg1: memref<8xf64>, %arg2: memref<f64>, %arg3: memref<f64>, %arg4: memref<f64>) -> memref<f64> {
   %c0 = arith.constant 0 : index
   %c8 = arith.constant 8 : index
   %c1 = arith.constant 1 : index
@@ -49,11 +49,12 @@ func.func public @foo(%arg0: memref<8xf64>, %arg1: memref<8xf64>, %arg2: memref<
     %6 = arith.addf %2, %5 : f64
     memref.store %4, %arg2[] : memref<f64>
     memref.store %5, %arg3[] : memref<f64>
+    memref.store %6, %arg4[] : memref<f64>
   }
   return %arg2 : memref<f64>
 }
 
-// CHECK:         func.func public @foo(%arg0 : memref<8xf64>, %arg1 : memref<8xf64>, %arg2 : memref<f64>, %arg3 : memref<f64>) -> memref<f64> {
+// CHECK:         func.func public @foo(%arg0 : memref<8xf64>, %arg1 : memref<8xf64>, %arg2 : memref<f64>, %arg3 : memref<f64>, %arg4 : memref<f64>) -> memref<f64> {
 // CHECK-NEXT:      %c0 = arith.constant 0 : index
 // CHECK-NEXT:      %c8 = arith.constant 8 : index
 // CHECK-NEXT:      %c1 = arith.constant 1 : index
@@ -65,6 +66,7 @@ func.func public @foo(%arg0: memref<8xf64>, %arg1: memref<8xf64>, %arg2: memref<
 // CHECK-NEXT:        %8 = arith.mulf %6, %7 : f64
 // CHECK-NEXT:        %9 = arith.addf %5, %8 : f64
 // CHECK-NEXT:        %10 = arith.addf %4, %9 : f64
+// CHECK-NEXT:        memref.store %10, %arg4[] : memref<f64>
 // CHECK-NEXT:        scf.yield %8, %9 : f64, f64
 // CHECK-NEXT:      }
 // CHECK-NEXT:      memref.store %2, %arg2[] : memref<f64>
@@ -75,7 +77,7 @@ func.func public @foo(%arg0: memref<8xf64>, %arg1: memref<8xf64>, %arg2: memref<
 // -----
 
 // multiple overlapping load-store pair hoisting
-func.func public @foo(%arg0: memref<8xf64>, %arg1: memref<8xf64>, %arg2: memref<f64>, %arg3: memref<f64>) -> memref<f64> {
+func.func public @foo(%arg0: memref<8xf64>, %arg1: memref<8xf64>, %arg2: memref<f64>, %arg3: memref<f64>, %arg4: memref<f64>) -> memref<f64> {
   %c0 = arith.constant 0 : index
   %c8 = arith.constant 8 : index
   %c1 = arith.constant 1 : index
@@ -89,11 +91,12 @@ func.func public @foo(%arg0: memref<8xf64>, %arg1: memref<8xf64>, %arg2: memref<
     %6 = arith.addf %2, %5 : f64
     memref.store %5, %arg3[] : memref<f64>
     memref.store %4, %arg2[] : memref<f64>
+    memref.store %6, %arg4[] : memref<f64>
   }
   return %arg2 : memref<f64>
 }
 
-// CHECK:         func.func public @foo(%arg0 : memref<8xf64>, %arg1 : memref<8xf64>, %arg2 : memref<f64>, %arg3 : memref<f64>) -> memref<f64> {
+// CHECK:         func.func public @foo(%arg0 : memref<8xf64>, %arg1 : memref<8xf64>, %arg2 : memref<f64>, %arg3 : memref<f64>, %arg4 : memref<f64>) -> memref<f64> {
 // CHECK-NEXT:      %c0 = arith.constant 0 : index
 // CHECK-NEXT:      %c8 = arith.constant 8 : index
 // CHECK-NEXT:      %c1 = arith.constant 1 : index
@@ -105,6 +108,7 @@ func.func public @foo(%arg0: memref<8xf64>, %arg1: memref<8xf64>, %arg2: memref<
 // CHECK-NEXT:        %8 = arith.mulf %6, %7 : f64
 // CHECK-NEXT:        %9 = arith.addf %5, %8 : f64
 // CHECK-NEXT:        %10 = arith.addf %4, %9 : f64
+// CHECK-NEXT:        memref.store %10, %arg4[] : memref<f64>
 // CHECK-NEXT:        scf.yield %8, %9 : f64, f64
 // CHECK-NEXT:      }
 // CHECK-NEXT:      memref.store %2, %arg2[] : memref<f64>
