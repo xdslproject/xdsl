@@ -15,6 +15,7 @@ from xdsl.printer import Printer
 from xdsl.syntax_printer import SyntaxPrinter
 from xdsl.tools.command_line_tool import CommandLineTool
 from xdsl.universe import Universe
+from xdsl.utils.diagnostic import Diagnostic
 from xdsl.utils.exceptions import DiagnosticException, ParseError, ShrinkException
 from xdsl.utils.lexer import Span
 
@@ -66,6 +67,9 @@ class xDSLOptMain(CommandLineTool):
 
         if self.args.disable_verify:
             Attribute.__post_init__ = _empty_post_init
+
+        if self.args.syntax_highlight:
+            Diagnostic.colored = True
 
         self.setup_pipeline()
 
