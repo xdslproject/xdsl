@@ -1451,7 +1451,7 @@ class MatcherGenerator:
             elif isinstance(old_op, pdl.TypesOp) and old_op.constantTypes:
                 new_val_op = pdl_interp.CreateTypesOp(old_op.constantTypes)
 
-            if new_val_op:
+            if new_val_op is not None:
                 self.rewriter_builder.insert(new_val_op)
                 new_value = new_val_op.results[0]
                 rewrite_values[old_value] = new_value

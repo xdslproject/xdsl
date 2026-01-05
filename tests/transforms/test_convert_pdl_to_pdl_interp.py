@@ -4887,7 +4887,7 @@ def test_generate_rewriter_simple_pattern():
 
     # Should have at least one operation (FinalizeOp at the end)
     ops = list(entry_block.ops)
-    assert len(ops) > 0
+    assert ops
 
     # Last operation should be FinalizeOp
     last_op = ops[-1]
