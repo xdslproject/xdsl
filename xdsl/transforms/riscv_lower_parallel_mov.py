@@ -155,7 +155,7 @@ class ParallelMovPattern(RewritePattern):
                 # Break the cycle by using free register
                 # split the current mov
                 cur_input = srcs[idx]
-                cur_output = op.outputs[idx]
+                cur_output = dsts[idx]
                 temp_ssa = riscv.MVOp(cur_input, rd=temp_reg)
                 rewriter.insert_op(temp_ssa)
                 # iterate up the chain until we reach the current output
@@ -167,8 +167,6 @@ class ParallelMovPattern(RewritePattern):
                     results[output_index[dst_type]] = mvop.results[0]
                     dst_type = src.type
                 # finish the split mov
-                # this assert is already checked at start, but is used for type checking
-                assert isinstance(cur_output.type, riscv.IntRegisterType)
                 mvop = riscv.MVOp(temp_ssa, rd=cur_output.type)
                 rewriter.insert_op(mvop)
                 results[idx] = mvop.results[0]
