@@ -6,10 +6,12 @@ import pytest
 from xdsl.builder import ImplicitBuilder
 from xdsl.dialects import pdl, pdl_interp
 from xdsl.dialects.builtin import (
+    FunctionType,
     IntegerAttr,
     IntegerType,
     ModuleOp,
     StringAttr,
+    SymbolRefAttr,
     UnitAttr,
     f32,
     i32,
@@ -4820,3 +4822,78 @@ def test_generate_rewriter_for_replace_single_value():
     assert isinstance(replace_interp_op, pdl_interp.ReplaceOp)
     assert len(replace_interp_op.repl_values) == 1
     assert replace_interp_op.repl_values[0] is repl_val
+
+
+def test_generate_rewriter_simple_pattern():
+    """Test generate_rewriter with a simple pattern and replace operation"""
+    # Create a matcher and rewriter module
+    matcher_func = pdl_interp.FuncOp("matcher", ((pdl.OperationType(),), ()))
+    rewriter_module = ModuleOp([])
+
+    generator = MatcherGenerator(matcher_func, rewriter_module)
+    generator.rewriter_names = {}
+
+    # Create a simple PDL pattern with a rewrite body
+    pattern_body = Region([Block()])
+    pattern_block = pattern_body.first_block
+    with ImplicitBuilder(pattern_block):
+        # Pattern matches an operation with result types
+        root_type = pdl.TypeOp(i32).result
+        root = pdl.OperationOp("test_op", type_values=(root_type,)).op
+
+        # Create a rewrite body with a replace operation
+        rewrite_body = Region([Block()])
+        rewrite_block = rewrite_body.first_block
+        with ImplicitBuilder(rewrite_block):
+            # Simple replace with an operation that has result types
+            type_op = pdl.TypeOp(f32).result
+            new_op = pdl.OperationOp("new_op", type_values=(type_op,)).op
+            pdl.ReplaceOp(root, repl_operation=new_op)
+
+        # Use None for name_ so it's treated as a DAG rewriter, not a custom rewriter
+        pdl.RewriteOp(root, body=rewrite_body)
+
+    pattern = pdl.PatternOp(1, "test_pattern", pattern_body)
+
+    # Build the predicate tree first to populate value_to_position
+    predicate_tree_builder = PredicateTreeBuilder()
+    _predicates, _pattern_root, inputs = (
+        predicate_tree_builder._extract_pattern_predicates(pattern)  # pyright: ignore[reportPrivateUsage]
+    )
+    generator.value_to_position[pattern] = inputs
+
+    # Call generate_rewriter
+    used_match_positions: list[Position] = [OperationPosition(depth=0)]
+    rewriter_ref = generator.generate_rewriter(pattern, used_match_positions)
+
+    # Verify rewriter function was created
+    assert isinstance(rewriter_ref, SymbolRefAttr)
+    assert rewriter_ref.root_reference.data == "rewriters"
+    assert len(rewriter_ref.nested_references.data) == 1
+
+    # Check that the rewriter function was added to the module
+    rewriter_funcs = [
+        op for op in rewriter_module.body.block.ops if isinstance(op, pdl_interp.FuncOp)
+    ]
+    assert len(rewriter_funcs) == 1
+    rewriter_func = rewriter_funcs[0]
+
+    # Verify function name matches the reference
+    assert rewriter_func.sym_name.data == rewriter_ref.nested_references.data[0].data
+
+    # Verify function has correct structure
+    assert len(rewriter_func.body.blocks) == 1
+    entry_block = rewriter_func.body.block
+
+    # Should have at least one operation (FinalizeOp at the end)
+    ops = list(entry_block.ops)
+    assert len(ops) > 0
+
+    # Last operation should be FinalizeOp
+    last_op = ops[-1]
+    assert isinstance(last_op, pdl_interp.FinalizeOp)
+
+    # Function type should be updated based on arguments added
+    assert rewriter_func.function_type == FunctionType.from_lists(
+        [pdl.OperationType()], []
+    )
