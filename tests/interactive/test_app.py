@@ -1,4 +1,5 @@
 from typing import Any, cast
+from unittest.mock import patch
 
 import pytest
 from textual.screen import Screen
@@ -16,7 +17,6 @@ from xdsl.dialects.builtin import (
     ModuleOp,
     UnrealizedConversionCastOp,
 )
-from xdsl.interactive import _pasteboard
 from xdsl.interactive.add_arguments_screen import AddArguments
 from xdsl.interactive.app import InputApp
 from xdsl.interactive.passes import get_condensed_pass_list, get_new_registered_context
@@ -197,13 +197,11 @@ builtin.module {
         )
 
         # Test that the current pipeline command is correctly copied
-        def callback(x: str):
-            assert (
-                x == "xdsl-opt -p 'convert-func-to-riscv-func,convert-arith-to-riscv'"
+        with patch("xdsl.interactive.app.pyclip_copy") as mock_copy:
+            await pilot.click("#copy_query_button")
+            mock_copy.assert_called_once_with(
+                "xdsl-opt -p 'convert-func-to-riscv-func,convert-arith-to-riscv'"
             )
-
-        _pasteboard._test_pyclip_callback = callback  # pyright: ignore[reportPrivateUsage]
-        await pilot.click("#copy_query_button")
 
         current_pipeline = app.pass_pipeline
         # press "Remove Last Pass" button
