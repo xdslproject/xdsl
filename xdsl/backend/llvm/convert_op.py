@@ -78,13 +78,6 @@ def convert_op(
         val_map[op.results[0]] = target_func(val_map[op.operands[0]])
         return
 
-    # mapping:
-    #     "llvm.call": "call",
-    #     "llvm.func": "function",
-    #     "llvm.getelementptr": "gep",
-    #     "llvm.icmp": "icmp_signed",
-    #
-
     match op:
         # Memory Ops
         case llvm.AllocaOp():
