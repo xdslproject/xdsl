@@ -89,6 +89,16 @@ def test_print_op_location():
 
     assert_print_op(add, expected, print_debuginfo=True)
 
+    add.location = UnknownLoc()
+
+    assert_print_op(add, expected, print_debuginfo=True)
+
+    add.location = FileLineColLoc(StringAttr("one"), IntAttr(2), IntAttr(3))
+
+    expected = """%0 = "test.op"() : () -> i32 loc("one":2:3)"""
+
+    assert_print_op(add, expected, print_debuginfo=True)
+
 
 @irdl_op_definition
 class UnitAttrOp(IRDLOperation):
@@ -452,14 +462,21 @@ def test_print_block_argument():
 
 def test_print_block_argument_location():
     """Print a block argument with location."""
-    block = Block(arg_types=[i32, i32])
+    block = Block(arg_types=[i32, i32, i32])
 
+    block.args[1].location = UnknownLoc()
+    block.args[2].location = FileLineColLoc(StringAttr("one"), IntAttr(2), IntAttr(3))
     io = StringIO()
     p = Printer(stream=io, print_debuginfo=True)
     p.print_block_argument(block.args[0])
     p.print_string(", ")
     p.print_block_argument(block.args[1])
-    assert io.getvalue() == """%0 : i32 loc(unknown), %1 : i32 loc(unknown)"""
+    p.print_string(", ")
+    p.print_block_argument(block.args[2])
+    assert (
+        io.getvalue()
+        == """%0 : i32 loc(unknown), %1 : i32 loc(unknown), %2 : i32 loc("one":2:3)"""
+    )
 
 
 def test_print_block():

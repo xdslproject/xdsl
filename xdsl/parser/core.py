@@ -207,10 +207,12 @@ class Parser(AttrParser):
             ).span
             self.parse_punctuation(":")
             arg_type = self.parse_attribute()
-            self.parse_optional_location()
+            location = self.parse_optional_location()
 
             # Insert the block argument in the block, and register it in the parser
             block_arg = block.insert_arg(arg_type, len(block.args))
+            if location:
+                block_arg.location = location
             self._register_ssa_definition(arg_name.text[1:], (block_arg,), arg_name)
 
         self.parse_comma_separated_list(self.Delimiter.PAREN, parse_argument)
@@ -883,7 +885,7 @@ class Parser(AttrParser):
         # Parse function type
         func_type = self.parse_function_type()
 
-        self.parse_optional_location()
+        location = self.parse_optional_location()
 
         operands = self.resolve_operands(args, func_type.inputs.data, func_type_pos)
 
@@ -895,7 +897,7 @@ class Parser(AttrParser):
                 if property_name in attributes and property_name not in properties:
                     properties[property_name] = attributes.pop(property_name)
 
-        return op_type.create(
+        operation = op_type.create(
             operands=operands,
             result_types=func_type.outputs.data,
             properties=properties,
@@ -903,6 +905,11 @@ class Parser(AttrParser):
             successors=successors,
             regions=regions,
         )
+
+        if location:
+            operation.location = location
+
+        return operation
 
     def parse_optional_successor(self) -> Block | None:
         """

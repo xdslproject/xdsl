@@ -843,6 +843,9 @@ class BlockArgument(SSAValue[AttributeCovT], Generic[AttributeCovT]):
     index: int
     """The index of the variable in the block arguments."""
 
+    location: Attribute | None = None
+    """Location attached to the block argument"""
+
     @property
     def owner(self) -> Block:
         return self.block
@@ -1069,6 +1072,9 @@ class Operation(_IRNode):
 
     regions: tuple[Region, ...] = field(default=())
     """Regions arguments of the operation."""
+
+    location: Attribute | None = field(default=None)
+    """Location attached to the operation"""
 
     parent: Block | None = field(default=None)
     """The block containing this operation."""
