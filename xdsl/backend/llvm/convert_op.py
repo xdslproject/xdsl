@@ -6,32 +6,6 @@ from xdsl.backend.llvm.convert_type import convert_type
 from xdsl.dialects import llvm
 from xdsl.ir import Operation, SSAValue
 
-# mapping:
-#     "llvm.alloca": "alloca",
-#     "llvm.bitcast": "bitcast",
-#     "llvm.call": "call",
-#     "llvm.extractvalue": "extract_value",
-#     "llvm.fpext": "fpext",
-#     "llvm.func": "function",
-#     "llvm.getelementptr": "gep",
-#     "llvm.icmp": "icmp_signed",
-#     "llvm.inline_asm": "asm",
-#     "llvm.insertvalue": "insert_value",
-#     "llvm.load": "load",
-#     "llvm.return": "ret",
-#     "llvm.store": "store",
-#     "llvm.unreachable": "unreachable",
-#
-#  cant find a mapping:
-#     "llvm.call_intrinsic": null,
-#     "llvm.mlir.addressof": null,
-#     "llvm.mlir.constant": null,
-#     "llvm.mlir.global": null,
-#     "llvm.mlir.null": null,
-#     "llvm.mlir.undef": null,
-#     "llvm.mlir.zero": null,
-
-
 _BINARY_OP_MAP: dict[
     type[Operation], Callable[[ir.IRBuilder], Callable[[ir.Value, ir.Value], ir.Value]]
 ] = {
@@ -63,6 +37,8 @@ _CAST_OP_MAP: dict[
     llvm.SExtOp: lambda b: b.sext,
     llvm.PtrToIntOp: lambda b: b.ptrtoint,
     llvm.IntToPtrOp: lambda b: b.inttoptr,
+    llvm.BitcastOp: lambda b: b.bitcast,
+    llvm.FPExtOp: lambda b: b.fpext,
 }
 
 
@@ -72,13 +48,10 @@ def convert_op(
     val_map: dict[SSAValue, ir.Value],
 ):
     """
-    Convert an xDSL operation to LLVM IR.
+    Convert an xDSL operation to an llvmlite LLVM IR.
 
-    This function has side effects. It mutates val_map by adding entries for the operation's results.
-
-    See:
-        https://mlir.llvm.org/docs/Dialects/LLVM/
-        https://llvmlite.readthedocs.io/en/latest/user-guide/ir/values.html
+    Side effects:
+        Mutates val_map by adding entries for the operation's results.
 
     Args:
         op: The xDSL operation to convert
@@ -105,8 +78,11 @@ def convert_op(
         val_map[op.results[0]] = target_func(val_map[op.operands[0]])
         return
 
-    #
-    # ...
+    # mapping:
+    #     "llvm.call": "call",
+    #     "llvm.func": "function",
+    #     "llvm.getelementptr": "gep",
+    #     "llvm.icmp": "icmp_signed",
     #
 
     match op:
@@ -134,7 +110,6 @@ def convert_op(
             val_map[op.results[0]] = builder.gep(
                 casted_ptr, indices, inbounds=op.inbounds is not None
             )
-
         case llvm.ExtractValueOp():
             val_map[op.results[0]] = builder.extract_value(
                 val_map[op.container], [i for i in op.position.iter_values()]
@@ -180,6 +155,20 @@ def convert_op(
             res = builder.call(asm, args)
             if op.res:
                 val_map[op.results[0]] = res
+
+        case llvm.ICmpOp():
+            predicate = op.predicate.value.data
+            flag = llvm.ICmpPredicateFlag.from_int(predicate)
+            pred_str = str(flag)
+            if pred_str in ("eq", "ne", "slt", "sle", "sgt", "sge"):
+                val_map[op.results[0]] = builder.icmp_signed(
+                    pred_str, val_map[op.lhs], val_map[op.rhs]
+                )
+            else:
+                val_map[op.results[0]] = builder.icmp_unsigned(
+                    pred_str, val_map[op.lhs], val_map[op.rhs]
+                )
+
         case llvm.UnreachableOp():
             builder.unreachable()
 
