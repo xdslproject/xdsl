@@ -344,7 +344,7 @@ class EmitC_UnaryOperation(IRDLOperation, abc.ABC):
 
     def __init__(
         self,
-        operand : SSAValue,
+        operand: SSAValue,
         result_type: Attribute
     ):
         super().__init__(
@@ -837,6 +837,84 @@ class EmitC_DivOp(EmitC_BinaryOperation):
 
 
 @irdl_op_definition
+class EmitC_LogicalAndOp(EmitC_BinaryOperation):
+    """
+    Logical and operation.
+
+    With the `emitc.logical_and` operation the logical operator && (and) can
+    be applied.
+
+    Example:
+
+    ```mlir
+    %0 = emitc.logical_and %arg0, %arg1 : i32, i32
+    ```
+    ```c++
+    // Code emitted for the operation above.
+    bool v3 = v1 && v2;
+    ```
+    """
+
+    name = "emitc.logical_and"
+
+    result = result_def(IntegerType(1))
+
+    assembly_format = "operands attr-dict `:` type(operands)"
+
+
+@irdl_op_definition
+class EmitC_LogicalNotOp(EmitC_UnaryOperation):
+    """
+    Logical not operation.
+
+    With the `emitc.logical_not` operation the logical operator ! (negation) can
+    be applied.
+
+    Example:
+
+    ```mlir
+    %0 = emitc.logical_not %arg0 : i32
+    ```
+    ```c++
+    // Code emitted for the operation above.
+    bool v2 = !v1;
+    ```
+    """
+
+    name = "emitc.logical_not"
+
+    result = result_def(IntegerType(1))
+
+    assembly_format = "operands attr-dict `:` type(operands)"
+
+
+@irdl_op_definition
+class EmitC_LogicalOrOp(EmitC_BinaryOperation):
+    """
+    Logical or operation.
+
+    With the `emitc.logical_or` operation the logical operator || (inclusive or)
+    can be applied.
+
+    Example:
+
+    ```mlir
+    %0 = emitc.logical_or %arg0, %arg1 : i32, i32
+    ```
+    ```c++
+    // Code emitted for the operation above.
+    bool v3 = v1 || v2;
+    ```
+    """
+
+    name = "emitc.logical_or"
+
+    result = result_def(IntegerType(1))
+
+    assembly_format = "operands attr-dict `:` type(operands)"
+
+
+@irdl_op_definition
 class EmitC_MulOp(EmitC_BinaryOperation):
     """
     Multiplication operation.
@@ -974,10 +1052,19 @@ EmitC = Dialect(
     [
         EmitC_AddOp,
         EmitC_ApplyOp,
+        EmitC_AssignOp,
+        EmitC_BitwiseAndOp,
+        EmitC_BitwiseLeftShiftOp,
+        EmitC_BitwiseNotOp,
+        EmitC_BitwiseOrOp,
+        EmitC_BitwiseRightShiftOp,
+        EmitC_BitwiseXorOp,
         EmitC_CallOpaqueOp,
         EmitC_ConstantOp,
-        EmitC_VariableOp,
-        EmitC_AssignOp
+        EmitC_DivOp,
+        EmitC_MulOp,
+        EmitC_SubOp,
+        EmitC_VariableOp
     ],
     [
         EmitC_ArrayType,
