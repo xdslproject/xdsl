@@ -382,137 +382,6 @@ class EmitC_AddOp(EmitC_BinaryOperation):
 
 
 @irdl_op_definition
-class EmitC_SubOp(EmitC_BinaryOperation):
-    """
-    Subtraction operation.
-
-    With the `emitc.sub` operation the arithmetic operator - (subtraction) can
-    be applied.
-
-    Example:
-
-    ```mlir
-    // Custom form of the subtraction operation.
-    %0 = emitc.sub %arg0, %arg1 : (i32, i32) -> i32
-    %1 = emitc.sub %arg2, %arg3 : (!emitc.ptr<f32>, i32) -> !emitc.ptr<f32>
-    %2 = emitc.sub %arg4, %arg5 : (!emitc.ptr<i32>, !emitc.ptr<i32>)
-        -> !emitc.ptrdiff_t
-    ```
-    ```c++
-    // Code emitted for the operations above.
-    int32_t v7 = v1 - v2;
-    float* v8 = v3 - v4;
-    ptrdiff_t v9 = v5 - v6;
-    ```
-    """
-
-    name = "emitc.sub"
-
-    def verify_(self) -> None:
-        lhs_type = self.lhs.type
-        rhs_type = self.rhs.type
-
-        if isa(lhs_type, EmitC_PointerType) and isa(rhs_type, EmitC_PointerType):
-            raise VerifyException(
-                "emitc.sub requires that at most one operand is a pointer"
-            )
-
-        if (
-            isa(lhs_type, EmitC_PointerType)
-            and not isa(rhs_type, IntegerType | EmitC_OpaqueType)
-        ) or (
-            isa(rhs_type, EmitC_PointerType)
-            and not isa(lhs_type, IntegerType | EmitC_OpaqueType)
-        ):
-            raise VerifyException(
-                "emitc.sub requires that one operand is an integer or of opaque "
-                "type if the other is a pointer"
-            )
-
-
-@irdl_op_definition
-class EmitC_MulOp(EmitC_BinaryOperation):
-    """
-    Multiplication operation.
-
-    With the `emitc.mul` operation the arithmetic operator * (multiplication) can
-    be applied.
-
-    Example:
-
-    ```mlir
-    // Custom form of the multiplication operation.
-    %0 = emitc.mul %arg0, %arg1 : (i32, i32) -> i32
-    %1 = emitc.mul %arg2, %arg3 : (f32, f32) -> f32
-    ```
-    ```c++
-    // Code emitted for the operations above.
-    int32_t v5 = v1 * v2;
-    float v6 = v3 * v4;
-    ```
-    """
-
-    name = "emitc.mul"
-
-    lhs = operand_def(EmitCFloatType | EmitCIntegerType | IndexType | EmitC_OpaqueType)
-    rhs = operand_def(EmitCFloatType | EmitCIntegerType | IndexType | EmitC_OpaqueType)
-    result = result_def(EmitCFloatType | EmitCIntegerType | IndexType | EmitC_OpaqueType)
-
-    def __init__(
-        self,
-        lhs: SSAValue,
-        rhs: SSAValue,
-        result_type: Attribute
-    ):
-        super().__init__(
-            lhs,
-            rhs,
-            result_type
-        )
-
-
-@irdl_op_definition
-class EmitC_DivOp(EmitC_BinaryOperation):
-    """
-    Division operation.
-
-    With the `emitc.div` operation the arithmetic operator / (division) can
-    be applied.
-
-    Example:
-
-    ```mlir
-    // Custom form of the division operation.
-    %0 = emitc.div %arg0, %arg1 : (i32, i32) -> i32
-    %1 = emitc.div %arg2, %arg3 : (f32, f32) -> f32
-    ```
-    ```c++
-    // Code emitted for the operations above.
-    int32_t v5 = v1 / v2;
-    float v6 = v3 / v4;
-    ```
-    """
-
-    name = "emitc.div"
-
-    lhs = operand_def(EmitCFloatType | EmitCIntegerType | IndexType | EmitC_OpaqueType)
-    rhs = operand_def(EmitCFloatType | EmitCIntegerType | IndexType | EmitC_OpaqueType)
-    result = result_def(EmitCFloatType | EmitCIntegerType | IndexType | EmitC_OpaqueType)
-
-    def __init__(
-        self,
-        lhs: SSAValue,
-        rhs: SSAValue,
-        result_type: Attribute
-    ):
-        super().__init__(
-            lhs,
-            rhs,
-            result_type
-        )
-
-
-@irdl_op_definition
 class EmitC_ApplyOp(IRDLOperation):
     """Apply operation"""
 
@@ -557,6 +426,145 @@ class EmitC_ApplyOp(IRDLOperation):
     def has_side_effects(self) -> bool:
         """Return True if the operation has side effects."""
         return self.applicableOperator.data == "*"
+
+
+@irdl_op_definition
+class EmitC_AssignOp(IRDLOperation):
+    """
+    The `emitc.assign` operation stores an SSA value to the location designated by an
+    EmitC variable. This operation doesn't return any value. The assigned value
+    must be of the same type as the variable being assigned. The operation is
+    emitted as a C/C++ '=' operator.
+    """
+
+    name = "emitc.assign"
+
+    var = operand_def(EmitC_LValueType)
+    value = operand_def(EmitCIntegerType | EmitCFloatType)
+
+    def __init__(
+        self,
+        var: SSAValue,
+        value: SSAValue,
+    ):
+        super().__init__(
+            operands=[var, value],
+            result_types=[]
+        )
+
+    def verify_(self) -> None:
+        if self.var.type != EmitC_LValueType(self.value.type):
+            raise VerifyException("'emitc.assign' op operands var and value must have the same type")
+
+
+@irdl_op_definition
+class EmitC_BitwiseAndOp(EmitC_BinaryOperation):
+    """
+    Bitwise and operation.
+
+    With the `emitc.bitwise_and` operation the bitwise operator & (and) can
+    be applied.
+
+    Example:
+
+    ```mlir
+    %0 = emitc.bitwise_and %arg0, %arg1 : (i32, i32) -> i32
+    ```
+    ```c++
+    // Code emitted for the operation above.
+    int32_t v3 = v1 & v2;
+    ```
+    """
+
+    name = "emitc.bitwise_and"
+
+
+@irdl_op_definition
+class EmitC_BitwiseLeftShiftOp(EmitC_BinaryOperation):
+    """
+    Bitwise left shift operation.
+
+    With the `emitc.bitwise_left_shift` operation the bitwise operator <<
+    (left shift) can be applied.
+
+    Example:
+
+    ```mlir
+    %0 = emitc.bitwise_left_shift %arg0, %arg1 : (i32, i32) -> i32
+    ```
+    ```c++
+    // Code emitted for the operation above.
+    int32_t v3 = v1 << v2;
+    ```
+    """
+
+    name = "emitc.bitwise_left_shift"
+
+
+@irdl_op_definition
+class EmitC_BitwiseOrOp(EmitC_BinaryOperation):
+    """
+    Bitwise or operation.
+
+    With the `emitc.bitwise_or` operation the bitwise operator | (or)
+    can be applied.
+
+    Example:
+
+    ```mlir
+    %0 = emitc.bitwise_or %arg0, %arg1 : (i32, i32) -> i32
+    ```
+    ```c++
+    // Code emitted for the operation above.
+    int32_t v3 = v1 | v2;
+    ```
+    """
+
+    name = "emitc.bitwise_or"
+
+
+@irdl_op_definition
+class EmitC_BitwiseRightShiftOp(EmitC_BinaryOperation):
+    """
+    Bitwise right shift operation.
+
+    With the `emitc.bitwise_right_shift` operation the bitwise operator >>
+    (right shift) can be applied.
+
+    Example:
+
+    ```mlir
+    %0 = emitc.bitwise_right_shift %arg0, %arg1 : (i32, i32) -> i32
+    ```
+    ```c++
+    // Code emitted for the operation above.
+    int32_t v3 = v1 >> v2;
+    ```
+    """
+
+    name = "emitc.bitwise_right_shift"
+
+
+@irdl_op_definition
+class EmitC_BitwiseXorOp(EmitC_BinaryOperation):
+    """
+    Bitwise xor operation.
+
+    With the `emitc.bitwise_xor` operation the bitwise operator ^ (xor)
+    can be applied.
+
+    Example:
+
+    ```mlir
+    %0 = emitc.bitwise_xor %arg0, %arg1 : (i32, i32) -> i32
+    ```
+    ```c++
+    // Code emitted for the operation above.
+    int32_t v3 = v1 ^ v2;
+    ```
+    """
+
+    name = "emitc.bitwise_xor"
 
 
 @irdl_op_definition
@@ -747,6 +755,137 @@ class EmitC_ConstantOp(IRDLOperation):
 
 
 @irdl_op_definition
+class EmitC_DivOp(EmitC_BinaryOperation):
+    """
+    Division operation.
+
+    With the `emitc.div` operation the arithmetic operator / (division) can
+    be applied.
+
+    Example:
+
+    ```mlir
+    // Custom form of the division operation.
+    %0 = emitc.div %arg0, %arg1 : (i32, i32) -> i32
+    %1 = emitc.div %arg2, %arg3 : (f32, f32) -> f32
+    ```
+    ```c++
+    // Code emitted for the operations above.
+    int32_t v5 = v1 / v2;
+    float v6 = v3 / v4;
+    ```
+    """
+
+    name = "emitc.div"
+
+    lhs = operand_def(EmitCFloatType | EmitCIntegerType | IndexType | EmitC_OpaqueType)
+    rhs = operand_def(EmitCFloatType | EmitCIntegerType | IndexType | EmitC_OpaqueType)
+    result = result_def(EmitCFloatType | EmitCIntegerType | IndexType | EmitC_OpaqueType)
+
+    def __init__(
+        self,
+        lhs: SSAValue,
+        rhs: SSAValue,
+        result_type: Attribute
+    ):
+        super().__init__(
+            lhs,
+            rhs,
+            result_type
+        )
+
+
+@irdl_op_definition
+class EmitC_MulOp(EmitC_BinaryOperation):
+    """
+    Multiplication operation.
+
+    With the `emitc.mul` operation the arithmetic operator * (multiplication) can
+    be applied.
+
+    Example:
+
+    ```mlir
+    // Custom form of the multiplication operation.
+    %0 = emitc.mul %arg0, %arg1 : (i32, i32) -> i32
+    %1 = emitc.mul %arg2, %arg3 : (f32, f32) -> f32
+    ```
+    ```c++
+    // Code emitted for the operations above.
+    int32_t v5 = v1 * v2;
+    float v6 = v3 * v4;
+    ```
+    """
+
+    name = "emitc.mul"
+
+    lhs = operand_def(EmitCFloatType | EmitCIntegerType | IndexType | EmitC_OpaqueType)
+    rhs = operand_def(EmitCFloatType | EmitCIntegerType | IndexType | EmitC_OpaqueType)
+    result = result_def(EmitCFloatType | EmitCIntegerType | IndexType | EmitC_OpaqueType)
+
+    def __init__(
+        self,
+        lhs: SSAValue,
+        rhs: SSAValue,
+        result_type: Attribute
+    ):
+        super().__init__(
+            lhs,
+            rhs,
+            result_type
+        )
+
+
+@irdl_op_definition
+class EmitC_SubOp(EmitC_BinaryOperation):
+    """
+    Subtraction operation.
+
+    With the `emitc.sub` operation the arithmetic operator - (subtraction) can
+    be applied.
+
+    Example:
+
+    ```mlir
+    // Custom form of the subtraction operation.
+    %0 = emitc.sub %arg0, %arg1 : (i32, i32) -> i32
+    %1 = emitc.sub %arg2, %arg3 : (!emitc.ptr<f32>, i32) -> !emitc.ptr<f32>
+    %2 = emitc.sub %arg4, %arg5 : (!emitc.ptr<i32>, !emitc.ptr<i32>)
+        -> !emitc.ptrdiff_t
+    ```
+    ```c++
+    // Code emitted for the operations above.
+    int32_t v7 = v1 - v2;
+    float* v8 = v3 - v4;
+    ptrdiff_t v9 = v5 - v6;
+    ```
+    """
+
+    name = "emitc.sub"
+
+    def verify_(self) -> None:
+        lhs_type = self.lhs.type
+        rhs_type = self.rhs.type
+
+        if isa(lhs_type, EmitC_PointerType) and isa(rhs_type, EmitC_PointerType):
+            raise VerifyException(
+                "emitc.sub requires that at most one operand is a pointer"
+            )
+
+        if (
+            isa(lhs_type, EmitC_PointerType)
+            and not isa(rhs_type, IntegerType | EmitC_OpaqueType)
+        ) or (
+            isa(rhs_type, EmitC_PointerType)
+            and not isa(lhs_type, IntegerType | EmitC_OpaqueType)
+        ):
+            raise VerifyException(
+                "emitc.sub requires that one operand is an integer or of opaque "
+                "type if the other is a pointer"
+            )
+
+
+@irdl_op_definition
 class EmitC_VariableOp(IRDLOperation):
     """
     The `emitc.variable` operation produces an SSA value equal to some value
@@ -787,38 +926,6 @@ class EmitC_VariableOp(IRDLOperation):
 
     def has_side_effects(self) -> bool:
         return True
-
-
-@irdl_op_definition
-class EmitC_AssignOp(IRDLOperation):
-    """
-    The `emitc.assign` operation stores an SSA value to the location designated by an
-    EmitC variable. This operation doesn't return any value. The assigned value
-    must be of the same type as the variable being assigned. The operation is
-    emitted as a C/C++ '=' operator.
-    """
-
-    name = "emitc.assign"
-
-    var = operand_def(EmitC_LValueType)
-    value = operand_def(EmitCIntegerType | EmitCFloatType)
-    #res = var_result_def()
-
-    #assemblyFormat = "$value `:` type($value) `to` $var `:` type($var) attr-dict"
-
-    def __init__(
-        self,
-        var: SSAValue,
-        value: SSAValue,
-    ):
-        super().__init__(
-            operands=[var, value],
-            result_types=[]
-        )
-
-    def verify_(self) -> None:
-        if self.var.type != EmitC_LValueType(self.value.type):
-            raise VerifyException("'emitc.assign' op operands var and value must have the same type")
 
 
 EmitC = Dialect(
