@@ -671,7 +671,7 @@ class EmitC_AssignOp(IRDLOperation):
 
     var = operand_def(EmitC_LValueType)
     value = operand_def(EmitCIntegerType | EmitCFloatType)
-    res = var_result_def()
+    #res = var_result_def()
 
     #assemblyFormat = "$value `:` type($value) `to` $var `:` type($var) attr-dict"
 
@@ -686,8 +686,7 @@ class EmitC_AssignOp(IRDLOperation):
         )
 
     def verify_(self) -> None:
-        #print("var: ", self.var, " value: ", self.value)
-        if self.var.type != EmitC_LValueType(self.value.type): # self.value.type:
+        if self.var.type != EmitC_LValueType(self.value.type):
             raise VerifyException("'emitc.assign' op operands var and value must have the same type")
 
 
