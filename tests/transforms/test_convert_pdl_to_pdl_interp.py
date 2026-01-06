@@ -3644,14 +3644,10 @@ def test_generate_rewriter_for_apply_native_rewrite():
     block = body.first_block
     with ImplicitBuilder(block):
         op1 = pdl.OperationOp("test_op").op
-
-        # Rewrite body with ApplyNativeRewriteOp
-        rewrite_body = Region([Block()])
-        rewrite_block = rewrite_body.first_block
-        with ImplicitBuilder(rewrite_block):
-            pdl.ApplyNativeRewriteOp("my_rewrite", [op1], [pdl.TypeType()])
-
-        pdl.RewriteOp(op1, body=rewrite_body, name="rewrite")
+        attr1 = pdl.AttributeOp(IntegerAttr(10, i32)).output
+        type1 = pdl.TypeOp(i32).result
+        types1 = pdl.TypesOp([i32, f32]).result
+        pdl.RewriteOp(op1, name="myRewrite", external_args=[op1, attr1, type1, types1])
 
     pattern = pdl.PatternOp(1, "test_pattern", body)
 
