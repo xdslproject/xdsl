@@ -3,6 +3,8 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import cast
 
+from typing_extensions import TypeVar
+
 from xdsl.context import Context
 from xdsl.dialects import riscv
 from xdsl.dialects.builtin import ModuleOp
@@ -15,6 +17,15 @@ from xdsl.pattern_rewriter import (
     op_type_rewrite_pattern,
 )
 from xdsl.utils.exceptions import PassFailedException
+
+T = TypeVar("T", bound=riscv.RISCVRegisterType)
+
+
+def _create_mv_op(src: SSAValue[T], dst: T):
+    if isinstance(dst, riscv.IntRegisterType):
+        return riscv.MVOp(src, rd=dst)
+    # This should never be raised since it is checked in op.verify_()
+    raise PassFailedException("Invalid type: registers must be int or float.")
 
 
 def _add_swap(
@@ -105,7 +116,7 @@ class ParallelMovPattern(RewritePattern):
             # Iterate up the tree by traversing back edges.
             while dst_type in src_by_dst_type:
                 src = src_by_dst_type[dst_type]
-                mvop = riscv.MVOp(src, rd=dst_type)
+                mvop = _create_mv_op(src, dst_type)
                 rewriter.insert_op(mvop)
                 # sanity check since we should only have 1 result per output
                 assert results[output_index[dst_type]] is None
@@ -156,18 +167,18 @@ class ParallelMovPattern(RewritePattern):
                 # split the current mov
                 cur_input = srcs[idx]
                 cur_output = dsts[idx]
-                temp_ssa = riscv.MVOp(cur_input, rd=temp_reg)
+                temp_ssa = _create_mv_op(cur_input, temp_reg)
                 rewriter.insert_op(temp_ssa)
                 # iterate up the chain until we reach the current output
                 dst_type = cur_input.type
                 while dst_type != cur_output.type:
                     src = src_by_dst_type[dst_type]
-                    mvop = riscv.MVOp(src, rd=dst_type)
+                    mvop = _create_mv_op(src, dst_type)
                     rewriter.insert_op(mvop)
                     results[output_index[dst_type]] = mvop.results[0]
                     dst_type = src.type
                 # finish the split mov
-                mvop = riscv.MVOp(temp_ssa, rd=cur_output.type)
+                mvop = _create_mv_op(temp_ssa, cur_output.type)
                 rewriter.insert_op(mvop)
                 results[idx] = mvop.results[0]
 
