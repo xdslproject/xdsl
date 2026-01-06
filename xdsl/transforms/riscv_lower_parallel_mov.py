@@ -59,12 +59,6 @@ class ParallelMovPattern(RewritePattern):
         ):
             raise PassFailedException("All registers must be allocated")
 
-        if not (
-            all(isinstance(i, riscv.IntRegisterType) for i in input_types)
-            and all(isinstance(i, riscv.IntRegisterType) for i in output_types)
-        ):
-            raise PassFailedException("Not implemented: non-integer support")
-
         srcs = cast(SSAValues[SSAValue[riscv.IntRegisterType]], op.inputs)
         dsts = cast(SSAValues[SSAValue[riscv.IntRegisterType]], op.outputs)
         src_types = cast(Sequence[riscv.IntRegisterType], input_types)
