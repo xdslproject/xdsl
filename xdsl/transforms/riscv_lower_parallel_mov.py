@@ -59,10 +59,10 @@ class ParallelMovPattern(RewritePattern):
         ):
             raise PassFailedException("All registers must be allocated")
 
-        srcs = cast(SSAValues[SSAValue[riscv.IntRegisterType]], op.inputs)
-        dsts = cast(SSAValues[SSAValue[riscv.IntRegisterType]], op.outputs)
-        src_types = cast(Sequence[riscv.IntRegisterType], input_types)
-        dst_types = cast(Sequence[riscv.IntRegisterType], output_types)
+        srcs = cast(SSAValues[SSAValue[riscv.RISCVRegisterType]], op.inputs)
+        dsts = cast(SSAValues[SSAValue[riscv.RISCVRegisterType]], op.outputs)
+        src_types = input_types
+        dst_types = output_types
 
         # make a list of free registers for each type so we can add to it later
         free_registers: dict[
@@ -95,7 +95,7 @@ class ParallelMovPattern(RewritePattern):
 
         # store the back edges of the graph
         src_by_dst_type: dict[
-            riscv.IntRegisterType, SSAValue[riscv.IntRegisterType]
+            riscv.RISCVRegisterType, SSAValue[riscv.RISCVRegisterType]
         ] = {}
         leaves = set(dst_types)
         unprocessed_children = Counter[SSAValue]()
@@ -159,6 +159,9 @@ class ParallelMovPattern(RewritePattern):
                     inp = src_by_dst_type[out.type]
 
                     while inp.type != out.type:
+                        # we know these are ints since input and output are of the same type
+                        inp = cast(SSAValue[riscv.IntRegisterType], inp)
+                        out = cast(SSAValue[riscv.IntRegisterType], out)
                         nw_out, nw_inp = _insert_swap_ops(rewriter, inp, out)
                         # after the swap, the input is in the right place, the input's input
                         # needs to be moved to the new output
