@@ -34,7 +34,7 @@ def _insert_mv_op(
         raise PassFailedException("Invalid type: registers must be int or float.")
 
 
-def _add_swap(
+def _insert_swap_ops(
     rewriter: PatternRewriter,
     a: SSAValue[riscv.IntRegisterType],
     b: SSAValue[riscv.IntRegisterType],
@@ -157,7 +157,7 @@ class ParallelMovPattern(RewritePattern):
                     inp = src_by_dst_type[out.type]
 
                     while inp.type != out.type:
-                        nw_out, nw_inp = _add_swap(rewriter, inp, out)
+                        nw_out, nw_inp = _insert_swap_ops(rewriter, inp, out)
                         # after the swap, the input is in the right place, the input's input
                         # needs to be moved to the new output
                         results[output_index[nw_inp.type]] = nw_inp
