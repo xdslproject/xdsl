@@ -1004,6 +1004,51 @@ class EmitC_SubOp(EmitC_BinaryOperation):
             )
 
 
+# ovde dodaj ove dve ops...
+@irdl_op_definition
+class EmitC_UnaryMinusOp(EmitC_UnaryOperation):
+    """
+    Unary minus operation.
+
+    With the `emitc.unary_minus` operation the unary operator - (minus) can be
+    applied.
+
+    Example:
+
+    ```mlir
+    %0 = emitc.unary_minus %arg0 : (i32) -> i32
+    ```
+    ```c++
+    // Code emitted for the operation above.
+    int32_t v2 = -v1;
+    ```
+    """
+
+    name = "emitc.unary_minus"
+
+
+@irdl_op_definition
+class EmitC_UnaryPlusOp(EmitC_UnaryOperation):
+    """
+    Unary plus operation.
+
+    With the `emitc.unary_plus` operation the unary operator + (plus) can be
+    applied.
+
+    Example:
+
+    ```mlir
+    %0 = emitc.unary_plus %arg0 : (i32) -> i32
+    ```
+    ```c++
+    // Code emitted for the operation above.
+    int32_t v2 = +v1;
+    ```
+    """
+
+    name = "emitc.unary_plus"
+
+
 @irdl_op_definition
 class EmitC_VariableOp(IRDLOperation):
     """
@@ -1062,8 +1107,13 @@ EmitC = Dialect(
         EmitC_CallOpaqueOp,
         EmitC_ConstantOp,
         EmitC_DivOp,
+        EmitC_LogicalAndOp,
+        EmitC_LogicalNotOp,
+        EmitC_LogicalOrOp,
         EmitC_MulOp,
         EmitC_SubOp,
+        EmitC_UnaryMinusOp,
+        EmitC_UnaryPlusOp,
         EmitC_VariableOp
     ],
     [
