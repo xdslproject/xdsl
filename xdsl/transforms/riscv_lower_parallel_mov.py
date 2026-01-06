@@ -146,7 +146,7 @@ class ParallelMovPattern(RewritePattern):
 
         for idx, val in enumerate(results):
             if val is None:
-                reg_type = type(op.outputs[idx].type)
+                reg_type = type(dst_types[idx])
                 # Find a free register.
                 # We don't have to modify its value since all the cycles
                 # can use the same register.
@@ -159,7 +159,7 @@ class ParallelMovPattern(RewritePattern):
                     # Otherwise if the registers are all integers, we can use the xor swapping
                     # trick to repeatedly swap values to perform the cyclic move.
 
-                    # we don't take op.inputs[idx] -> op.outputs[idx] since we need
+                    # we don't take srcs[idx] -> dsts[idx] since we need
                     # the SSAValue for both input and output
                     out = srcs[idx]
                     inp = src_by_dst_type[out.type]
