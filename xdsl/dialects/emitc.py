@@ -334,6 +334,25 @@ class EmitC_BinaryOperation(IRDLOperation, abc.ABC):
         )
 
 
+class EmitC_UnaryOperation(IRDLOperation, abc.ABC):
+    """Base class for EmitC unary operations."""
+
+    operand = operand_def(EmitCTypeConstr)
+    result = result_def(EmitCTypeConstr)
+
+    assembly_format = "operands attr-dict `:` functional-type(operands, results)"
+
+    def __init__(
+        self,
+        operand : SSAValue,
+        result_type: Attribute
+    ):
+        super().__init__(
+            operands=[operand],
+            result_types=[result_type]
+        )
+
+
 @irdl_op_definition
 class EmitC_AddOp(EmitC_BinaryOperation):
     """
@@ -499,6 +518,28 @@ class EmitC_BitwiseLeftShiftOp(EmitC_BinaryOperation):
     """
 
     name = "emitc.bitwise_left_shift"
+
+
+@irdl_op_definition
+class EmitC_BitwiseNotOp(EmitC_UnaryOperation):
+    """
+    Bitwise not operation.
+
+    With the `emitc.bitwise_not` operation the bitwise operator ~ (not) can
+    be applied.
+
+    Example:
+
+    ```mlir
+    %0 = emitc.bitwise_not %arg0 : (i32) -> i32
+    ```
+    ```c++
+    // Code emitted for the operation above.
+    int32_t v2 = ~v1;
+    ```
+    """
+
+    name = "emitc.bitwise_not"
 
 
 @irdl_op_definition
