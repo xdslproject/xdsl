@@ -1,4 +1,4 @@
-from collections import Counter
+from collections import Counter, defaultdict
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from typing import cast
@@ -20,6 +20,7 @@ _MV_OP_BY_REGISTER_TYPE: dict[
     type[riscv.RISCVRegisterType], Callable[..., Operation]
 ] = {
     riscv.IntRegisterType: riscv.MVOp,
+    riscv.FloatRegisterType: riscv.FMVOp,
 }
 
 
@@ -69,12 +70,13 @@ class ParallelMovPattern(RewritePattern):
         src_types = cast(Sequence[riscv.IntRegisterType], input_types)
         dst_types = cast(Sequence[riscv.IntRegisterType], output_types)
 
-        # make free registers a list so we can add to it later
-        free_registers: list[riscv.IntRegisterType] = []
+        # make a list of free registers for each type so we can add to it later
+        free_registers: dict[
+            type[riscv.RISCVRegisterType], list[riscv.RISCVRegisterType]
+        ] = defaultdict(list)
         if op.free_registers is not None:
-            free_registers = [
-                i for i in op.free_registers if isinstance(i, riscv.IntRegisterType)
-            ]
+            for reg in op.free_registers:
+                free_registers[type(reg)].append(reg)
 
         num_operands = len(op.operands)
 
@@ -134,7 +136,7 @@ class ParallelMovPattern(RewritePattern):
 
             # if dst is a register that has no input, we can use it as a free register.
             if dst_type not in src_by_dst_type:
-                free_registers.append(dst_type)
+                free_registers[type(dst_type)].append(dst_type)
 
         # If we have a cycle in the graph, all trees pointing into the cycle cannot
         # enter the cycle because it will have an unprocessed node from its previous
@@ -144,11 +146,17 @@ class ParallelMovPattern(RewritePattern):
 
         for idx, val in enumerate(results):
             if val is None:
-                # Find a free integer register.
+                reg_type = type(op.outputs[idx].type)
+                # Find a free register.
                 # We don't have to modify its value since all the cycles
                 # can use the same register.
-                if not free_registers:
-                    # If the registers are all integers, we can use the xor swapping
+                if not free_registers[reg_type]:
+                    if reg_type != riscv.IntRegisterType:
+                        raise PassFailedException(
+                            "Float cyclic move without free register"
+                        )
+
+                    # Otherwise if the registers are all integers, we can use the xor swapping
                     # trick to repeatedly swap values to perform the cyclic move.
 
                     # we don't take op.inputs[idx] -> op.outputs[idx] since we need
@@ -166,9 +174,9 @@ class ParallelMovPattern(RewritePattern):
 
                     results[output_index[src_types[idx]]] = out
                     continue
-                temp_reg = free_registers[0]
 
                 # Break the cycle by using free register
+                temp_reg = free_registers[reg_type][0]
                 # split the current mov
                 cur_input = srcs[idx]
                 cur_output = dsts[idx]
