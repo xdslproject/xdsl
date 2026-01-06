@@ -5132,3 +5132,202 @@ def test_generate_rewriter_simple_pattern():
     assert rewriter_func.function_type == FunctionType.from_lists(
         [pdl.OperationType()], []
     )
+
+
+def test_generate_rewriter_map_rewrite_value_with_attribute_constant():
+    """Test map_rewrite_value early return for AttributeOp with constant value"""
+    from xdsl.builder import ImplicitBuilder
+    from xdsl.dialects.builtin import ModuleOp
+    from xdsl.ir import Block, Region
+    from xdsl.transforms.convert_pdl_to_pdl_interp.conversion import (
+        MatcherGenerator,
+        PredicateTreeBuilder,
+    )
+    from xdsl.transforms.convert_pdl_to_pdl_interp.predicate import OperationPosition
+
+    # Setup generator
+    matcher_body = Region([Block(arg_types=(pdl.OperationType(),))])
+    matcher_func = pdl_interp.FuncOp(
+        "matcher", ((pdl.OperationType(),), ()), region=matcher_body
+    )
+    rewriter_module = ModuleOp([])
+    generator = MatcherGenerator(matcher_func, rewriter_module)
+    generator.rewriter_names = {}
+
+    # Create a pattern with AttributeOp with constant value in rewrite body
+    body = Region([Block()])
+    block = body.first_block
+    with ImplicitBuilder(block):
+        root = pdl.OperationOp("test.op").op
+
+        # Rewrite body with AttributeOp with constant value
+        rewrite_body = Region([Block()])
+        rewrite_block = rewrite_body.first_block
+        with ImplicitBuilder(rewrite_block):
+            # Just create an AttributeOp with constant - don't use it yet
+            pdl.AttributeOp(IntegerAttr(123, i32))
+
+        pdl.RewriteOp(root, body=rewrite_body)
+
+    pattern = pdl.PatternOp(1, "test_pattern", body)
+
+    # Extract pattern predicates to populate value_to_position
+    predicate_tree_builder = PredicateTreeBuilder()
+    _predicates, _pattern_root, inputs = (
+        predicate_tree_builder._extract_pattern_predicates(pattern)  # pyright: ignore[reportPrivateUsage]
+    )
+    generator.value_to_position[pattern] = inputs
+
+    # Call generate_rewriter
+    generator.generate_rewriter(pattern, [OperationPosition(None, depth=0)])
+
+    # Verify rewriter function was created
+    rewriter_funcs = [
+        op for op in rewriter_module.body.block.ops if isinstance(op, pdl_interp.FuncOp)
+    ]
+    assert len(rewriter_funcs) == 1
+    rewriter_func = rewriter_funcs[0]
+
+    # Verify CreateAttributeOp was created in the rewriter for the constant attribute
+    create_attr_ops = [
+        op
+        for op in rewriter_func.body.block.ops
+        if isinstance(op, pdl_interp.CreateAttributeOp)
+    ]
+    assert len(create_attr_ops) >= 1
+    # Check that the created attribute matches the constant
+    assert any(op.value == IntegerAttr(123, i32) for op in create_attr_ops)
+
+
+def test_generate_rewriter_map_rewrite_value_with_type_constant():
+    """Test map_rewrite_value early return for TypeOp with constant type"""
+    from xdsl.builder import ImplicitBuilder
+    from xdsl.dialects.builtin import ModuleOp
+    from xdsl.ir import Block, Region
+    from xdsl.transforms.convert_pdl_to_pdl_interp.conversion import (
+        MatcherGenerator,
+        PredicateTreeBuilder,
+    )
+    from xdsl.transforms.convert_pdl_to_pdl_interp.predicate import OperationPosition
+
+    # Setup generator
+    matcher_body = Region([Block(arg_types=(pdl.OperationType(),))])
+    matcher_func = pdl_interp.FuncOp(
+        "matcher", ((pdl.OperationType(),), ()), region=matcher_body
+    )
+    rewriter_module = ModuleOp([])
+    generator = MatcherGenerator(matcher_func, rewriter_module)
+    generator.rewriter_names = {}
+
+    # Create a pattern with TypeOp with constant type in rewrite body
+    body = Region([Block()])
+    block = body.first_block
+    with ImplicitBuilder(block):
+        root_type = pdl.TypeOp(i32).result
+        root = pdl.OperationOp("test.op", type_values=(root_type,)).op
+
+        # Rewrite body with TypeOp with constant type
+        rewrite_body = Region([Block()])
+        rewrite_block = rewrite_body.first_block
+        with ImplicitBuilder(rewrite_block):
+            # Just create a TypeOp with constant - don't use it yet
+            pdl.TypeOp(constant_type=f32)
+
+        pdl.RewriteOp(root, body=rewrite_body)
+
+    pattern = pdl.PatternOp(1, "test_pattern", body)
+
+    # Extract pattern predicates to populate value_to_position
+    predicate_tree_builder = PredicateTreeBuilder()
+    _predicates, _pattern_root, inputs = (
+        predicate_tree_builder._extract_pattern_predicates(pattern)  # pyright: ignore[reportPrivateUsage]
+    )
+    generator.value_to_position[pattern] = inputs
+
+    # Call generate_rewriter
+    generator.generate_rewriter(pattern, [OperationPosition(None, depth=0)])
+
+    # Verify rewriter function was created
+    rewriter_funcs = [
+        op for op in rewriter_module.body.block.ops if isinstance(op, pdl_interp.FuncOp)
+    ]
+    assert len(rewriter_funcs) == 1
+    rewriter_func = rewriter_funcs[0]
+
+    # Verify CreateTypeOp was created in the rewriter for the constant type
+    create_type_ops = [
+        op
+        for op in rewriter_func.body.block.ops
+        if isinstance(op, pdl_interp.CreateTypeOp)
+    ]
+    assert len(create_type_ops) >= 1
+    # Check that the created type matches the constant
+    assert any(op.value == f32 for op in create_type_ops)
+
+
+def test_generate_rewriter_map_rewrite_value_with_types_constant():
+    """Test map_rewrite_value early return for TypesOp with constant types"""
+    from xdsl.builder import ImplicitBuilder
+    from xdsl.dialects.builtin import ArrayAttr, ModuleOp
+    from xdsl.ir import Block, Region
+    from xdsl.transforms.convert_pdl_to_pdl_interp.conversion import (
+        MatcherGenerator,
+        PredicateTreeBuilder,
+    )
+    from xdsl.transforms.convert_pdl_to_pdl_interp.predicate import OperationPosition
+
+    # Setup generator
+    matcher_body = Region([Block(arg_types=(pdl.OperationType(),))])
+    matcher_func = pdl_interp.FuncOp(
+        "matcher", ((pdl.OperationType(),), ()), region=matcher_body
+    )
+    rewriter_module = ModuleOp([])
+    generator = MatcherGenerator(matcher_func, rewriter_module)
+    generator.rewriter_names = {}
+
+    # Create a pattern with TypesOp with constant types in rewrite body
+    body = Region([Block()])
+    block = body.first_block
+    with ImplicitBuilder(block):
+        root_type = pdl.TypeOp(i32).result
+        root = pdl.OperationOp("test.op", type_values=(root_type,)).op
+
+        # Rewrite body with TypesOp with constant types
+        rewrite_body = Region([Block()])
+        rewrite_block = rewrite_body.first_block
+        with ImplicitBuilder(rewrite_block):
+            # Just create a TypesOp with constant - don't use it yet
+            types_attr = ArrayAttr([f32, i32])
+            pdl.TypesOp(constant_types=types_attr)
+
+        pdl.RewriteOp(root, body=rewrite_body)
+
+    pattern = pdl.PatternOp(1, "test_pattern", body)
+
+    # Extract pattern predicates to populate value_to_position
+    predicate_tree_builder = PredicateTreeBuilder()
+    _predicates, _pattern_root, inputs = (
+        predicate_tree_builder._extract_pattern_predicates(pattern)  # pyright: ignore[reportPrivateUsage]
+    )
+    generator.value_to_position[pattern] = inputs
+
+    # Call generate_rewriter
+    generator.generate_rewriter(pattern, [OperationPosition(None, depth=0)])
+
+    # Verify rewriter function was created
+    rewriter_funcs = [
+        op for op in rewriter_module.body.block.ops if isinstance(op, pdl_interp.FuncOp)
+    ]
+    assert len(rewriter_funcs) == 1
+    rewriter_func = rewriter_funcs[0]
+
+    # Verify CreateTypesOp was created in the rewriter for the constant types
+    create_types_ops = [
+        op
+        for op in rewriter_func.body.block.ops
+        if isinstance(op, pdl_interp.CreateTypesOp)
+    ]
+    assert len(create_types_ops) >= 1
+    # Check that the created types match the constant
+    expected_types = ArrayAttr([f32, i32])
+    assert any(op.value == expected_types for op in create_types_ops)
