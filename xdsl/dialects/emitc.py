@@ -472,6 +472,47 @@ class EmitC_MulOp(EmitC_BinaryOperation):
 
 
 @irdl_op_definition
+class EmitC_DivOp(EmitC_BinaryOperation):
+    """
+    Division operation.
+
+    With the `emitc.div` operation the arithmetic operator / (division) can
+    be applied.
+
+    Example:
+
+    ```mlir
+    // Custom form of the division operation.
+    %0 = emitc.div %arg0, %arg1 : (i32, i32) -> i32
+    %1 = emitc.div %arg2, %arg3 : (f32, f32) -> f32
+    ```
+    ```c++
+    // Code emitted for the operations above.
+    int32_t v5 = v1 / v2;
+    float v6 = v3 / v4;
+    ```
+    """
+
+    name = "emitc.div"
+
+    lhs = operand_def(EmitCFloatType | EmitCIntegerType | IndexType | EmitC_OpaqueType)
+    rhs = operand_def(EmitCFloatType | EmitCIntegerType | IndexType | EmitC_OpaqueType)
+    result = result_def(EmitCFloatType | EmitCIntegerType | IndexType | EmitC_OpaqueType)
+
+    def __init__(
+        self,
+        lhs: SSAValue,
+        rhs: SSAValue,
+        result_type: Attribute
+    ):
+        super().__init__(
+            lhs,
+            rhs,
+            result_type
+        )
+
+
+@irdl_op_definition
 class EmitC_ApplyOp(IRDLOperation):
     """Apply operation"""
 
