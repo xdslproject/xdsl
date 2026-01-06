@@ -31,7 +31,6 @@ def _insert_mv_op(
         rewriter.insert_op(op)
         return op
     except KeyError:
-        # This should never be raised since it is checked in op.verify_()
         raise PassFailedException("Invalid type: registers must be int or float.")
 
 
