@@ -431,6 +431,47 @@ class EmitC_SubOp(EmitC_BinaryOperation):
 
 
 @irdl_op_definition
+class EmitC_MulOp(EmitC_BinaryOperation):
+    """
+    Multiplication operation.
+
+    With the `emitc.mul` operation the arithmetic operator * (multiplication) can
+    be applied.
+
+    Example:
+
+    ```mlir
+    // Custom form of the multiplication operation.
+    %0 = emitc.mul %arg0, %arg1 : (i32, i32) -> i32
+    %1 = emitc.mul %arg2, %arg3 : (f32, f32) -> f32
+    ```
+    ```c++
+    // Code emitted for the operations above.
+    int32_t v5 = v1 * v2;
+    float v6 = v3 * v4;
+    ```
+    """
+
+    name = "emitc.mul"
+
+    lhs = operand_def(EmitCFloatType | EmitCIntegerType | IndexType | EmitC_OpaqueType)
+    rhs = operand_def(EmitCFloatType | EmitCIntegerType | IndexType | EmitC_OpaqueType)
+    result = result_def(EmitCFloatType | EmitCIntegerType | IndexType | EmitC_OpaqueType)
+
+    def __init__(
+        self,
+        lhs: SSAValue,
+        rhs: SSAValue,
+        result_type: Attribute
+    ):
+        super().__init__(
+            lhs,
+            rhs,
+            result_type
+        )
+
+
+@irdl_op_definition
 class EmitC_ApplyOp(IRDLOperation):
     """Apply operation"""
 
