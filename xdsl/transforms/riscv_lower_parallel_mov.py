@@ -16,17 +16,20 @@ from xdsl.pattern_rewriter import (
 )
 from xdsl.utils.exceptions import PassFailedException
 
+_MV_OP_BY_REGISTER_TYPE: dict[
+    type[riscv.RISCVRegisterType], Callable[..., Operation]
+] = {
+    riscv.IntRegisterType: riscv.MVOp,
+}
+
 
 def _insert_mv_op(
     rewriter: PatternRewriter, src: SSAValue | Operation, dst: riscv.RISCVRegisterType
 ):
-    type_to_op: dict[type[riscv.RISCVRegisterType], Callable[..., Operation]] = {
-        riscv.IntRegisterType: riscv.MVOp,
-    }
-    if type(dst) not in type_to_op:
+    if type(dst) not in _MV_OP_BY_REGISTER_TYPE:
         # This should never be raised since it is checked in op.verify_()
         raise PassFailedException("Invalid type: registers must be int or float.")
-    op = type_to_op[type(dst)](src, rd=dst)
+    op = _MV_OP_BY_REGISTER_TYPE[type(dst)](src, rd=dst)
     rewriter.insert_op(op)
     return op
 
