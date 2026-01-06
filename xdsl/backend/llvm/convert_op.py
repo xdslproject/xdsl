@@ -1,58 +1,115 @@
+from collections.abc import Callable
+
 from llvmlite import ir
 
 from xdsl.backend.llvm.convert_type import convert_type
-from xdsl.dialects import cf, llvm
-from xdsl.dialects import vector as xvector
-from xdsl.ir import Block, Operation, SSAValue
+from xdsl.dialects import llvm
+from xdsl.ir import Operation, SSAValue
+
+# mapping:
+#     "llvm.alloca": "alloca",
+#     "llvm.bitcast": "bitcast",
+#     "llvm.call": "call",
+#     "llvm.extractvalue": "extract_value",
+#     "llvm.fpext": "fpext",
+#     "llvm.func": "function",
+#     "llvm.getelementptr": "gep",
+#     "llvm.icmp": "icmp_signed",
+#     "llvm.inline_asm": "asm",
+#     "llvm.insertvalue": "insert_value",
+#     "llvm.load": "load",
+#     "llvm.return": "ret",
+#     "llvm.store": "store",
+#     "llvm.unreachable": "unreachable",
+#
+#  cant find a mapping:
+#     "llvm.call_intrinsic": null,
+#     "llvm.mlir.addressof": null,
+#     "llvm.mlir.constant": null,
+#     "llvm.mlir.global": null,
+#     "llvm.mlir.null": null,
+#     "llvm.mlir.undef": null,
+#     "llvm.mlir.zero": null,
+
+
+_BINARY_OP_MAP: dict[
+    type[Operation], Callable[[ir.IRBuilder], Callable[[ir.Value, ir.Value], ir.Value]]
+] = {
+    llvm.AddOp: lambda b: b.add,
+    llvm.FAddOp: lambda b: b.fadd,
+    llvm.SubOp: lambda b: b.sub,
+    llvm.FSubOp: lambda b: b.fsub,
+    llvm.MulOp: lambda b: b.mul,
+    llvm.FMulOp: lambda b: b.fmul,
+    llvm.UDivOp: lambda b: b.udiv,
+    llvm.SDivOp: lambda b: b.sdiv,
+    llvm.FDivOp: lambda b: b.fdiv,
+    llvm.URemOp: lambda b: b.urem,
+    llvm.SRemOp: lambda b: b.srem,
+    llvm.FRemOp: lambda b: b.frem,
+    llvm.ShlOp: lambda b: b.shl,
+    llvm.LShrOp: lambda b: b.lshr,
+    llvm.AShrOp: lambda b: b.ashr,
+    llvm.AndOp: lambda b: b.and_,
+    llvm.OrOp: lambda b: b.or_,
+    llvm.XOrOp: lambda b: b.xor,
+}
+
+_CAST_OP_MAP: dict[
+    type[Operation], Callable[[ir.IRBuilder], Callable[[ir.Value], ir.Value]]
+] = {
+    llvm.TruncOp: lambda b: b.trunc,
+    llvm.ZExtOp: lambda b: b.zext,
+    llvm.SExtOp: lambda b: b.sext,
+    llvm.PtrToIntOp: lambda b: b.ptrtoint,
+    llvm.IntToPtrOp: lambda b: b.inttoptr,
+}
 
 
 def convert_op(
     op: Operation,
     builder: ir.IRBuilder,
     val_map: dict[SSAValue, ir.Value],
-    block_map: dict[Block, ir.Block] | None = None,
 ):
+    """
+    Convert an xDSL operation to LLVM IR.
+
+    This function has side effects. It mutates val_map by adding entries for the operation's results.
+
+    See:
+        https://mlir.llvm.org/docs/Dialects/LLVM/
+        https://llvmlite.readthedocs.io/en/latest/user-guide/ir/values.html
+
+    Args:
+        op: The xDSL operation to convert
+        builder: The LLVM IR builder for constructing instructions
+        val_map: The Mapping from xDSL SSA values to LLVM IR values.
+                 This dictionary is mutated to store the LLVM IR value produced by this operation for
+                 use by subsequent operations.
+
+    Raises:
+        NotImplementedError: If the operation is not supported.
+
+    """
+    is_binary_op = type(op) in _BINARY_OP_MAP
+    if is_binary_op:
+        target_func = _BINARY_OP_MAP[type(op)](builder)
+        val_map[op.results[0]] = target_func(
+            val_map[op.operands[0]], val_map[op.operands[1]]
+        )
+        return
+
+    is_cast_op = type(op) in _CAST_OP_MAP
+    if is_cast_op:
+        target_func = _CAST_OP_MAP[type(op)](builder)
+        val_map[op.results[0]] = target_func(val_map[op.operands[0]])
+        return
+
+    #
+    # ...
+    #
+
     match op:
-        # Arithmetic Ops
-        case llvm.AddOp():
-            val_map[op.results[0]] = builder.add(val_map[op.lhs], val_map[op.rhs])
-        case llvm.FAddOp():
-            val_map[op.results[0]] = builder.fadd(val_map[op.lhs], val_map[op.rhs])
-        case llvm.SubOp():
-            val_map[op.results[0]] = builder.sub(val_map[op.lhs], val_map[op.rhs])
-        case llvm.FSubOp():
-            val_map[op.results[0]] = builder.fsub(val_map[op.lhs], val_map[op.rhs])
-        case llvm.MulOp():
-            val_map[op.results[0]] = builder.mul(val_map[op.lhs], val_map[op.rhs])
-        case llvm.FMulOp():
-            val_map[op.results[0]] = builder.fmul(val_map[op.lhs], val_map[op.rhs])
-        case llvm.UDivOp():
-            val_map[op.results[0]] = builder.udiv(val_map[op.lhs], val_map[op.rhs])
-        case llvm.SDivOp():
-            val_map[op.results[0]] = builder.sdiv(val_map[op.lhs], val_map[op.rhs])
-        case llvm.FDivOp():
-            val_map[op.results[0]] = builder.fdiv(val_map[op.lhs], val_map[op.rhs])
-        case llvm.URemOp():
-            val_map[op.results[0]] = builder.urem(val_map[op.lhs], val_map[op.rhs])
-        case llvm.SRemOp():
-            val_map[op.results[0]] = builder.srem(val_map[op.lhs], val_map[op.rhs])
-        case llvm.FRemOp():
-            val_map[op.results[0]] = builder.frem(val_map[op.lhs], val_map[op.rhs])
-
-        # Bitwise Ops
-        case llvm.ShlOp():
-            val_map[op.results[0]] = builder.shl(val_map[op.lhs], val_map[op.rhs])
-        case llvm.LShrOp():
-            val_map[op.results[0]] = builder.lshr(val_map[op.lhs], val_map[op.rhs])
-        case llvm.AShrOp():
-            val_map[op.results[0]] = builder.ashr(val_map[op.lhs], val_map[op.rhs])
-        case llvm.AndOp():
-            val_map[op.results[0]] = builder.and_(val_map[op.lhs], val_map[op.rhs])
-        case llvm.OrOp():
-            val_map[op.results[0]] = builder.or_(val_map[op.lhs], val_map[op.rhs])
-        case llvm.XOrOp():
-            val_map[op.results[0]] = builder.xor(val_map[op.lhs], val_map[op.rhs])
-
         # Memory Ops
         case llvm.AllocaOp():
             ptr = builder.alloca(convert_type(op.elem_type), size=val_map[op.size])
@@ -88,69 +145,7 @@ def convert_op(
                 val_map[op.value],
                 [i for i in op.position.iter_values()],
             )
-
-        # Casts
-        case llvm.TruncOp():
-            val_map[op.results[0]] = builder.trunc(
-                val_map[op.arg], convert_type(op.results[0].type)
-            )
-        case llvm.ZExtOp():
-            val_map[op.results[0]] = builder.zext(
-                val_map[op.arg], convert_type(op.results[0].type)
-            )
-        case llvm.SExtOp():
-            val_map[op.results[0]] = builder.sext(
-                val_map[op.arg], convert_type(op.results[0].type)
-            )
-
-        case llvm.PtrToIntOp():
-            val_map[op.results[0]] = builder.ptrtoint(
-                val_map[op.input], convert_type(op.results[0].type)
-            )
-        case llvm.IntToPtrOp():
-            val_map[op.results[0]] = builder.inttoptr(
-                val_map[op.input], convert_type(op.results[0].type)
-            )
-
-        # Vector Ops
-        case xvector.ExtractElementOp():
-            val_map[op.results[0]] = builder.extract_element(
-                val_map[op.vector], val_map[op.position]
-            )
-        case xvector.InsertElementOp():
-            val_map[op.results[0]] = builder.insert_element(
-                val_map[op.dest], val_map[op.source], val_map[op.position]
-            )
-        case xvector.ShuffleOp():
-            mask_list = [int(x) for x in op.mask.iter_values()]
-            mask_ty = ir.VectorType(ir.IntType(32), len(mask_list))
-            mask_val = ir.Constant(mask_ty, mask_list)
-            val_map[op.results[0]] = builder.shuffle_vector(
-                val_map[op.v1], val_map[op.v2], mask_val
-            )
-        case xvector.BitcastOp():
-            val_map[op.results[0]] = builder.bitcast(
-                val_map[op.source], convert_type(op.results[0].type)
-            )
-        case xvector.FMAOp():
-            val_map[op.results[0]] = builder.fma(
-                val_map[op.lhs], val_map[op.rhs], val_map[op.acc]
-            )
-
         # Control Flow
-        case cf.BranchOp():
-            if block_map and op.successor in block_map:
-                builder.branch(block_map[op.successor])
-        case cf.ConditionalBranchOp():
-            if block_map:
-                builder.cbranch(
-                    val_map[op.cond], block_map[op.then_block], block_map[op.else_block]
-                )
-        case cf.SwitchOp():
-            if block_map:
-                switch = builder.switch(val_map[op.flag], block_map[op.default_block])
-                for val, block in zip(op.case_values.iter_values(), op.case_blocks):
-                    switch.add_case(val, block_map[block])
         case llvm.ReturnOp() | _ if op.name == "llvm.return":
             if op.operands:
                 builder.ret(val_map[op.operands[0]])
