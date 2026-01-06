@@ -26,12 +26,13 @@ _MV_OP_BY_REGISTER_TYPE: dict[
 def _insert_mv_op(
     rewriter: PatternRewriter, src: SSAValue | Operation, dst: riscv.RISCVRegisterType
 ):
-    if type(dst) not in _MV_OP_BY_REGISTER_TYPE:
+    try:
+        op = _MV_OP_BY_REGISTER_TYPE[type(dst)](src, rd=dst)
+        rewriter.insert_op(op)
+        return op
+    except KeyError:
         # This should never be raised since it is checked in op.verify_()
         raise PassFailedException("Invalid type: registers must be int or float.")
-    op = _MV_OP_BY_REGISTER_TYPE[type(dst)](src, rd=dst)
-    rewriter.insert_op(op)
-    return op
 
 
 def _add_swap(
