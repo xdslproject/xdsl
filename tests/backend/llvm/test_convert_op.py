@@ -22,7 +22,7 @@ def _convert_and_verify(
     block = func.append_basic_block(name="entry")
     builder = ir.IRBuilder(block)
 
-    val_map = val_map_setup or {}
+    val_map = val_map_setup.copy() if val_map_setup else {}
 
     convert_op(op, builder, val_map)
 
