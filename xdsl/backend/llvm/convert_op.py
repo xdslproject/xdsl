@@ -47,10 +47,9 @@ def _convert_gep(
 ):
     # GEPOp mixes static and dynamic indices
     indices: list[ir.Value] = []
-    ssa_indices_iter = iter(op.ssa_indices)
     for idx in op.rawConstantIndices.iter_values():
         if idx == llvm.GEP_USE_SSA_VAL:
-            indices.append(val_map[next(ssa_indices_iter)])
+            indices.append(val_map[next(iter(op.ssa_indices))])
         else:
             indices.append(ir.Constant(ir.IntType(32), idx))
 
@@ -111,6 +110,7 @@ def _convert_icmp(
     flag = llvm.ICmpPredicateFlag.from_int(predicate)
     pred_str = flag.value
     llvm_pred, is_signed = icmp_pred_map[pred_str]
+
     target_func = builder.icmp_signed if is_signed else builder.icmp_unsigned
     val_map[op.results[0]] = target_func(llvm_pred, val_map[op.lhs], val_map[op.rhs])
 
