@@ -956,6 +956,45 @@ class EmitC_MulOp(EmitC_BinaryOperation):
 
 
 @irdl_op_definition
+class EmitC_RemOp(EmitC_BinaryOperation):
+    """
+    Remainder operation.
+
+    With the `emitc.rem` operation the arithmetic operator % (remainder) can
+    be applied.
+
+    Example:
+
+    ```mlir
+    // Custom form of the remainder operation.
+    %0 = emitc.rem %arg0, %arg1 : (i32, i32) -> i32
+    ```
+    ```c++
+    // Code emitted for the operation above.
+    int32_t v5 = v1 % v2;
+    ```
+    """
+
+    name = "emitc.rem"
+
+    lhs = operand_def(EmitCIntegerType | IndexType | EmitC_OpaqueType)
+    rhs = operand_def(EmitCIntegerType | IndexType | EmitC_OpaqueType)
+    result = result_def(EmitCIntegerType | IndexType | EmitC_OpaqueType)
+
+    def __init__(
+        self,
+        lhs: SSAValue,
+        rhs: SSAValue,
+        result_type: Attribute
+    ):
+        super().__init__(
+            lhs,
+            rhs,
+            result_type
+        )
+
+
+@irdl_op_definition
 class EmitC_SubOp(EmitC_BinaryOperation):
     """
     Subtraction operation.
@@ -1004,7 +1043,6 @@ class EmitC_SubOp(EmitC_BinaryOperation):
             )
 
 
-# ovde dodaj ove dve ops...
 @irdl_op_definition
 class EmitC_UnaryMinusOp(EmitC_UnaryOperation):
     """
@@ -1111,6 +1149,7 @@ EmitC = Dialect(
         EmitC_LogicalNotOp,
         EmitC_LogicalOrOp,
         EmitC_MulOp,
+        EmitC_RemOp,
         EmitC_SubOp,
         EmitC_UnaryMinusOp,
         EmitC_UnaryPlusOp,
