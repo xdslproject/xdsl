@@ -6,6 +6,10 @@ from xdsl.dialects import llvm
 from xdsl.dialects.builtin import DenseArrayBase, Float32Type, Float64Type, IntegerAttr
 from xdsl.ir import Operation, SSAValue
 
+#
+# common
+#
+
 
 def _convert_and_verify(
     op: Operation,
@@ -22,7 +26,7 @@ def _convert_and_verify(
 
     convert_op(op, builder, val_map)
 
-    # verify the generated instruction
+    assert len(block.instructions) == 1
     inst_str = str(block.instructions[-1]).strip()
     if "=" in inst_str and "=" not in expected_ir:
         assert inst_str.split(" = ", 1)[1].strip() == expected_ir.strip()
@@ -37,7 +41,6 @@ def _create_ssa_value(typ):
     return TestOp(result_types=[typ]).results[0]
 
 
-# Common reusable values
 i32 = llvm.i32
 i64 = llvm.i64
 f32 = Float32Type()
@@ -53,7 +56,6 @@ mock_i64 = ir.Constant(ir.IntType(64), 2)
 mock_f32 = ir.Constant(ir.FloatType(), 3.0)
 mock_ptr = ir.Constant(ir.IntType(32).as_pointer(), 0)
 
-# avoid dependence on convert_type
 default_val_map = {
     val_i32: mock_i32,
     val_i64: mock_i64,
@@ -64,6 +66,11 @@ default_val_map = {
 val_a = val_i32
 val_b = _create_ssa_value(i32)
 default_val_map[val_b] = ir.Constant(ir.IntType(32), 2)
+
+
+#
+# tests
+#
 
 
 @pytest.mark.parametrize(
@@ -120,11 +127,14 @@ def test_load_op():
     builder = ir.IRBuilder(block)
 
     val_map = {val_i32: mock_i32}
+
+    count_before = len(block.instructions)
     convert_op(op_alloca, builder, val_map)
     convert_op(op, builder, val_map)
 
+    assert len(block.instructions) == count_before + 2
+
     inst_str = str(block.instructions[-1]).strip()
-    # Expect: %... = load i32, i32* %...
     assert " = load i32, i32* %" in inst_str
 
 
@@ -139,8 +149,12 @@ def test_store_op():
     builder = ir.IRBuilder(block)
 
     val_map = {val_i32: mock_i32}
+
+    count_before = len(block.instructions)
     convert_op(op_alloca, builder, val_map)
     convert_op(op, builder, val_map)
+
+    assert len(block.instructions) == count_before + 2
 
     inst_str = str(block.instructions[-1]).strip()
     assert inst_str.startswith("store i32 1, i32* %")
@@ -166,8 +180,13 @@ def test_gep_op(inbounds: bool):
     builder = ir.IRBuilder(block)
 
     val_map = {val_i32: mock_i32, val_a: mock_i32}
+
+    count_before = len(block.instructions)
     convert_op(op_alloca, builder, val_map)
     convert_op(op, builder, val_map)
+
+    # GEP might add bitcast + gep, or just gep. At least 2 ops total (alloca, + gep stuff)
+    assert len(block.instructions) >= count_before + 2
 
     inbounds_str = "inbounds " if inbounds else ""
     inst_str = str(block.instructions[-1]).strip()
@@ -187,8 +206,12 @@ def test_ptrtoint_op():
     builder = ir.IRBuilder(block)
 
     val_map = {val_i32: mock_i32}
+
+    count_before = len(block.instructions)
     convert_op(op_alloca, builder, val_map)
     convert_op(op, builder, val_map)
+
+    assert len(block.instructions) == count_before + 2
 
     inst_str = str(block.instructions[-1]).strip()
     assert " = ptrtoint i32* %" in inst_str
@@ -204,8 +227,10 @@ def test_fpext_op():
     block = func.append_basic_block("entry")
     builder = ir.IRBuilder(block)
 
-    _count_before = len(block.instructions)
+    count_before = len(block.instructions)
     convert_op(op, builder, default_val_map)
+
+    assert len(block.instructions) == count_before + 1
     inst_str = str(block.instructions[-1]).strip()
 
     assert "fpext float" in inst_str
@@ -255,13 +280,14 @@ def test_call_op_void():
 
     module = ir.Module()
     func_ty = ir.FunctionType(ir.VoidType(), [])
-    _callee = ir.Function(module, func_ty, "my_func")
+    callee = ir.Function(module, func_ty, "my_func")
 
     main_func = ir.Function(module, func_ty, "main")
     block = main_func.append_basic_block("entry")
     builder = ir.IRBuilder(block)
 
     convert_op(op, builder, {})
+    assert block.instructions[-1].operands[0] == callee
     assert str(block.instructions[-1]).strip() == 'call void @"my_func"()'
 
 
@@ -270,7 +296,7 @@ def test_call_op_val():
 
     module = ir.Module()
     func_ty = ir.FunctionType(ir.IntType(32), [ir.IntType(32)])
-    _callee = ir.Function(module, func_ty, "my_func")
+    callee = ir.Function(module, func_ty, "my_func")
 
     main_func = ir.Function(module, ir.FunctionType(ir.VoidType(), []), "main")
     block = main_func.append_basic_block("entry")
@@ -279,6 +305,7 @@ def test_call_op_val():
     val_map = {val_a: mock_i32}
     convert_op(op, builder, val_map)
 
+    assert block.instructions[-1].operands[0] == callee
     inst_str = str(block.instructions[-1]).strip()
     assert inst_str.split(" = ", 1)[1].strip() == 'call i32 @"my_func"(i32 1)'
 
