@@ -42,18 +42,77 @@ _CAST_OP_MAP: dict[
 }
 
 
-_ICMP_PRED_MAP = {
-    "eq": "==",
-    "ne": "!=",
-    "slt": "<",
-    "sle": "<=",
-    "sgt": ">",
-    "sge": ">=",
-    "ult": "<",
-    "ule": "<=",
-    "ugt": ">",
-    "uge": ">=",
-}
+def _convert_gep(
+    op: llvm.GEPOp, builder: ir.IRBuilder, val_map: dict[SSAValue, ir.Value]
+):
+    # GEPOp mixes static and dynamic indices
+    indices: list[ir.Value] = []
+    ssa_indices_iter = iter(op.ssa_indices)
+    for idx in op.rawConstantIndices.iter_values():
+        if idx == llvm.GEP_USE_SSA_VAL:
+            indices.append(val_map[next(ssa_indices_iter)])
+        else:
+            indices.append(ir.Constant(ir.IntType(32), idx))
+
+    typed_ptr_ty = convert_type(op.elem_type).as_pointer()
+    casted_ptr = builder.bitcast(val_map[op.ptr], typed_ptr_ty)
+
+    val_map[op.results[0]] = builder.gep(
+        casted_ptr, indices, inbounds=op.inbounds is not None
+    )
+
+
+def _convert_call(
+    op: llvm.CallOp, builder: ir.IRBuilder, val_map: dict[SSAValue, ir.Value]
+):
+    args = [val_map[arg] for arg in op.args]
+    if op.callee is None:
+        raise NotImplementedError("Indirect calls not yet implemented")
+    callee = builder.module.get_global(op.callee.string_value())
+    res = builder.call(callee, args)
+    if op.returned:
+        val_map[op.returned] = res
+
+
+def _convert_inline_asm(
+    op: llvm.InlineAsmOp, builder: ir.IRBuilder, val_map: dict[SSAValue, ir.Value]
+):
+    input_types = [convert_type(arg.type) for arg in op.operands_]
+    ret_type = convert_type(op.res.type) if op.res else ir.VoidType()
+    ftype = ir.FunctionType(ret_type, input_types)
+    asm = ir.InlineAsm(
+        ftype,
+        op.asm_string.data,
+        op.constraints.data,
+        side_effect=op.has_side_effects is not None,
+    )
+    args = [val_map[arg] for arg in op.operands_]
+    res = builder.call(asm, args)
+    if op.res:
+        val_map[op.results[0]] = res
+
+
+def _convert_icmp(
+    op: llvm.ICmpOp, builder: ir.IRBuilder, val_map: dict[SSAValue, ir.Value]
+):
+    icmp_pred_map: dict[str, tuple[str, bool]] = {
+        "eq": ("==", True),
+        "ne": ("!=", True),
+        "slt": ("<", True),
+        "sle": ("<=", True),
+        "sgt": (">", True),
+        "sge": (">=", True),
+        "ult": ("<", False),
+        "ule": ("<=", False),
+        "ugt": (">", False),
+        "uge": (">=", False),
+    }
+    predicate = op.predicate.value.data
+    flag = llvm.ICmpPredicateFlag.from_int(predicate)
+    pred_str = flag.value
+    llvm_pred, is_signed = icmp_pred_map[pred_str]
+    target_func = builder.icmp_signed if is_signed else builder.icmp_unsigned
+    val_map[op.results[0]] = target_func(llvm_pred, val_map[op.lhs], val_map[op.rhs])
 
 
 def convert_op(
@@ -77,16 +136,14 @@ def convert_op(
     Raises:
         NotImplementedError: If the operation is not supported.
     """
-    is_binary_op = type(op) in _BINARY_OP_MAP
-    if is_binary_op:
+    if type(op) in _BINARY_OP_MAP:
         target_func = _BINARY_OP_MAP[type(op)](builder)
         val_map[op.results[0]] = target_func(
             val_map[op.operands[0]], val_map[op.operands[1]]
         )
         return
 
-    is_cast_op = type(op) in _CAST_OP_MAP
-    if is_cast_op:
+    if type(op) in _CAST_OP_MAP:
         target_func = _CAST_OP_MAP[type(op)](builder)
         val_map[op.results[0]] = target_func(
             val_map[op.operands[0]], convert_type(op.results[0].type)
@@ -94,30 +151,16 @@ def convert_op(
         return
 
     match op:
-        # Memory Ops
         case llvm.AllocaOp():
-            ptr = builder.alloca(convert_type(op.elem_type), size=val_map[op.size])
-            val_map[op.results[0]] = ptr
+            val_map[op.results[0]] = builder.alloca(
+                convert_type(op.elem_type), size=val_map[op.size]
+            )
         case llvm.LoadOp():
             val_map[op.results[0]] = builder.load(val_map[op.ptr])
         case llvm.StoreOp():
             builder.store(val_map[op.value], val_map[op.ptr])
         case llvm.GEPOp():
-            # GEPOp mixes static and dynamic indices
-            indices = []
-            ssa_indices_iter = iter(op.ssa_indices)
-            for idx in op.rawConstantIndices.iter_values():
-                if idx == llvm.GEP_USE_SSA_VAL:
-                    indices.append(val_map[next(ssa_indices_iter)])
-                else:
-                    indices.append(ir.Constant(ir.IntType(32), idx))
-
-            typed_ptr_ty = convert_type(op.elem_type).as_pointer()
-            casted_ptr = builder.bitcast(val_map[op.ptr], typed_ptr_ty)
-
-            val_map[op.results[0]] = builder.gep(
-                casted_ptr, indices, inbounds=op.inbounds is not None
-            )
+            _convert_gep(op, builder, val_map)
         case llvm.ExtractValueOp():
             val_map[op.results[0]] = builder.extract_value(
                 val_map[op.container], [i for i in op.position.iter_values()]
@@ -128,58 +171,15 @@ def convert_op(
                 val_map[op.value],
                 [i for i in op.position.iter_values()],
             )
-        # Control Flow
         case llvm.ReturnOp() | _ if op.name == "llvm.return":
-            if op.operands:
-                builder.ret(val_map[op.operands[0]])
-            else:
-                builder.ret_void()
+            builder.ret(val_map[op.operands[0]]) if op.operands else builder.ret_void()
         case llvm.CallOp():
-            args = [val_map[arg] for arg in op.args]
-            if op.callee:
-                callee = builder.module.get_global(op.callee.string_value())
-                res = builder.call(callee, args)
-            else:
-                raise NotImplementedError("Indirect calls not yet implemented")
-
-            if op.returned:
-                val_map[op.returned] = res
-
+            _convert_call(op, builder, val_map)
         case llvm.InlineAsmOp():
-            input_types = [convert_type(arg.type) for arg in op.operands_]
-            if op.res:
-                ret_type = convert_type(op.res.type)
-            else:
-                ret_type = ir.VoidType()
-
-            ftype = ir.FunctionType(ret_type, input_types)
-            asm = ir.InlineAsm(
-                ftype,
-                op.asm_string.data,
-                op.constraints.data,
-                side_effect=op.has_side_effects is not None,
-            )
-            args = [val_map[arg] for arg in op.operands_]
-            res = builder.call(asm, args)
-            if op.res:
-                val_map[op.results[0]] = res
-
+            _convert_inline_asm(op, builder, val_map)
         case llvm.ICmpOp():
-            predicate = op.predicate.value.data
-            flag = llvm.ICmpPredicateFlag.from_int(predicate)
-            pred_str = flag.value
-            llvm_pred = _ICMP_PRED_MAP[pred_str]
-            if pred_str in ("eq", "ne", "slt", "sle", "sgt", "sge"):
-                val_map[op.results[0]] = builder.icmp_signed(
-                    llvm_pred, val_map[op.lhs], val_map[op.rhs]
-                )
-            else:
-                val_map[op.results[0]] = builder.icmp_unsigned(
-                    llvm_pred, val_map[op.lhs], val_map[op.rhs]
-                )
-
+            _convert_icmp(op, builder, val_map)
         case llvm.UnreachableOp():
             builder.unreachable()
-
         case _:
             raise NotImplementedError(f"Conversion not implemented for op: {op.name}")
