@@ -195,6 +195,30 @@ def test_gep_op(inbounds: bool):
     assert inst_str.endswith(", i32 1")
 
 
+def test_gep_constant_idx():
+    op_alloca = llvm.AllocaOp(val_i32, elem_type=i32)
+    ptr_val = op_alloca.results[0]
+
+    op = llvm.GEPOp(
+        ptr_val,
+        indices=[0],
+        pointee_type=i32,
+        result_type=ptr_ty,
+    )
+
+    module = ir.Module()
+    func = ir.Function(module, ir.FunctionType(ir.VoidType(), []), "main")
+    block = func.append_basic_block("entry")
+    builder = ir.IRBuilder(block)
+
+    val_map = {val_i32: mock_i32}
+    convert_op(op_alloca, builder, val_map)
+    convert_op(op, builder, val_map)
+
+    inst_str = str(block.instructions[-1]).strip()
+    assert inst_str.endswith(", i32 0")
+
+
 def test_ptrtoint_op():
     op_alloca = llvm.AllocaOp(val_i32, elem_type=i32)
     ptr_val = op_alloca.results[0]
@@ -314,6 +338,12 @@ def test_inline_asm_op():
     _convert_and_verify(op, expected, default_val_map)
 
 
+def test_inline_asm_void():
+    op = llvm.InlineAsmOp("nop", "", [val_a], [], has_side_effects=True)
+    expected = 'call void asm sideeffect "nop", ""(i32 1)'
+    _convert_and_verify(op, expected, default_val_map)
+
+
 @pytest.mark.parametrize(
     "predicate, expected_cond",
     [
@@ -354,3 +384,19 @@ def test_unreachable_op():
     op = llvm.UnreachableOp()
     expected = "unreachable"
     _convert_and_verify(op, expected)
+
+
+def test_unsupported_op():
+    class UnknownOp(Operation):
+        name = "llvm.unknown"
+
+    op = UnknownOp()
+    module = ir.Module()
+    func = ir.Function(module, ir.FunctionType(ir.VoidType(), []), "main")
+    block = func.append_basic_block("entry")
+    builder = ir.IRBuilder(block)
+
+    with pytest.raises(
+        NotImplementedError, match="Conversion not implemented for op: llvm.unknown"
+    ):
+        convert_op(op, builder, {})
