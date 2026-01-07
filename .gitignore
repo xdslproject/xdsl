@@ -157,8 +157,8 @@ docs/out.mlir
 docs/ret.xdsl
 
 # Type stubs
-# These are generated type stubs, we do not otherwise use type stubs in the project
 *.pyi
+!typings/**/*.pyi
 
 # asv
 .asv
