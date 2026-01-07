@@ -682,6 +682,38 @@ class EmitC_CallOpaqueOp(IRDLOperation):
                 raise VerifyException("cannot return array type")
 
 
+@irdl_op_definition
+class EmitC_CastOp(IRDLOperation):
+    """
+    Cast operation.
+
+    The `emitc.cast` operation performs an explicit type conversion and is emitted
+    as a C-style cast expression. It can be applied to integer, float, index
+    and EmitC types.
+
+    Example:
+
+    ```mlir
+    // Cast from `int32_t` to `float`
+    %0 = emitc.cast %arg0: i32 to f32
+
+    // Cast from `void` to `int32_t` pointer
+    %1 = emitc.cast %arg1 :
+        !emitc.ptr<!emitc.opaque<"void">> to !emitc.ptr<i32>
+    ```
+    """
+
+    name = "emitc.cast"
+
+    assemblyFormat = "$source attr-dict `:` type($source) `to` type($dest)"
+
+    source = operand_def(EmitCTypeConstr)
+    dest = result_def(EmitCTypeConstr)
+
+    def has_side_effects(self) -> bool:
+        return False;
+
+
 # ===----------------------------------------------------------------------===
 # ConstantOp
 # ===----------------------------------------------------------------------===
@@ -1143,6 +1175,7 @@ EmitC = Dialect(
         EmitC_BitwiseRightShiftOp,
         EmitC_BitwiseXorOp,
         EmitC_CallOpaqueOp,
+        EmitC_CastOp,
         EmitC_ConstantOp,
         EmitC_DivOp,
         EmitC_LogicalAndOp,
