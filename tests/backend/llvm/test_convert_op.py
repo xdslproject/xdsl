@@ -34,7 +34,7 @@ def _convert_and_verify(
         assert inst_str == expected_ir.strip()
 
 
-def _create_ssa_value(typ):
+def _create_ssa_value(typ: ir.Type) -> SSAValue:
     class TestOp(Operation):
         name = "test.op"
 
