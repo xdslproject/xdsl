@@ -42,6 +42,20 @@ _CAST_OP_MAP: dict[
 }
 
 
+_ICMP_PRED_MAP = {
+    "eq": "==",
+    "ne": "!=",
+    "slt": "<",
+    "sle": "<=",
+    "sgt": ">",
+    "sge": ">=",
+    "ult": "<",
+    "ule": "<=",
+    "ugt": ">",
+    "uge": ">=",
+}
+
+
 def convert_op(
     op: Operation,
     builder: ir.IRBuilder,
@@ -75,7 +89,9 @@ def convert_op(
     is_cast_op = type(op) in _CAST_OP_MAP
     if is_cast_op:
         target_func = _CAST_OP_MAP[type(op)](builder)
-        val_map[op.results[0]] = target_func(val_map[op.operands[0]])
+        val_map[op.results[0]] = target_func(
+            val_map[op.operands[0]], convert_type(op.results[0].type)
+        )
         return
 
     match op:
@@ -152,14 +168,15 @@ def convert_op(
         case llvm.ICmpOp():
             predicate = op.predicate.value.data
             flag = llvm.ICmpPredicateFlag.from_int(predicate)
-            pred_str = str(flag)
+            pred_str = flag.value
+            llvm_pred = _ICMP_PRED_MAP[pred_str]
             if pred_str in ("eq", "ne", "slt", "sle", "sgt", "sge"):
                 val_map[op.results[0]] = builder.icmp_signed(
-                    pred_str, val_map[op.lhs], val_map[op.rhs]
+                    llvm_pred, val_map[op.lhs], val_map[op.rhs]
                 )
             else:
                 val_map[op.results[0]] = builder.icmp_unsigned(
-                    pred_str, val_map[op.lhs], val_map[op.rhs]
+                    llvm_pred, val_map[op.lhs], val_map[op.rhs]
                 )
 
         case llvm.UnreachableOp():

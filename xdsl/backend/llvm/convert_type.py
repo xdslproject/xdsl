@@ -79,13 +79,21 @@ def _convert_llvm_function_type(type_attr: LLVMFunctionType) -> ir.Type:
     )
 
 
+def _convert_integer_type(type_attr: IntegerType) -> ir.Type:
+    return ir.IntType(type_attr.width.data)
+
+
+def _convert_index_type(type_attr: IndexType) -> ir.Type:
+    return ir.IntType(64)
+
+
 def _raise_not_implemented(_: Any) -> ir.Type:
     raise NotImplementedError()
 
 
 _TYPE_CONVERTERS: dict[type[Attribute], Callable[[Any], ir.Type]] = {
-    IntegerType: _raise_not_implemented,
-    IndexType: _raise_not_implemented,
+    IntegerType: _convert_integer_type,
+    IndexType: _convert_index_type,
     Float16Type: lambda _: ir.HalfType(),
     Float32Type: lambda _: ir.FloatType(),
     Float64Type: lambda _: ir.DoubleType(),
