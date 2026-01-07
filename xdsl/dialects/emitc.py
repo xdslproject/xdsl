@@ -947,6 +947,43 @@ class EmitC_LogicalOrOp(EmitC_BinaryOperation):
 
 
 @irdl_op_definition
+class EmitC_MemberOp(IRDLOperation):
+    """
+    Member operation.
+
+    With the `emitc.member` operation the member access operator `.` can be
+    applied.
+
+    Example:
+
+    ```mlir
+    %0 = "emitc.member" (%arg0) {member = "a"}
+        : (!emitc.lvalue<!emitc.opaque<"mystruct">>) -> !emitc.lvalue<i32>
+    %1 = "emitc.member" (%arg0) {member = "b"}
+        : (!emitc.lvalue<!emitc.opaque<"mystruct">>) -> !emitc.array<2xi32>
+    ```
+    """
+
+    name = "emitc.member"
+
+    member = prop_def(StringAttr)
+    operand = operand_def(EmitC_LValueType)
+    result = result_def(EmitC_ArrayType | EmitC_LValueType)
+
+    def __init__(
+          self,
+          operand: SSAValue,
+          member: str,
+          result_type: Attribute
+    ):
+        super().__init__(
+            operands=[operand],
+            properties={"member" : StringAttr(member)},
+            result_types=[result_type]
+        )
+
+
+@irdl_op_definition
 class EmitC_MulOp(EmitC_BinaryOperation):
     """
     Multiplication operation.
@@ -1253,6 +1290,7 @@ EmitC = Dialect(
         EmitC_LogicalAndOp,
         EmitC_LogicalNotOp,
         EmitC_LogicalOrOp,
+        EmitC_MemberOp,
         EmitC_MulOp,
         EmitC_RemOp,
         EmitC_SubOp,
