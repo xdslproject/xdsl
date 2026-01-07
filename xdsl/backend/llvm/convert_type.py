@@ -1,8 +1,10 @@
+# pyright: reportMissingTypeStubs=false, reportUnknownVariableType=false
+
 from collections.abc import Callable
 from functools import cache
 from typing import Any
 
-import llvmlite.ir as ir  # pyright: ignore[reportMissingTypeStubs]
+import llvmlite.ir as ir
 
 from xdsl.dialects.builtin import (
     ComplexType,
@@ -26,6 +28,14 @@ from xdsl.dialects.llvm import (
 )
 from xdsl.ir import Attribute
 from xdsl.utils.exceptions import LLVMTranslationException
+
+
+def _convert_integer_type(type_attr: IntegerType) -> ir.Type:
+    return ir.IntType(type_attr.width.data)
+
+
+def _convert_index_type(type_attr: IndexType) -> ir.Type:
+    return ir.IntType(64)
 
 
 def _convert_pointer_type(type_attr: LLVMPointerType) -> ir.Type:
@@ -77,18 +87,6 @@ def _convert_llvm_function_type(type_attr: LLVMFunctionType) -> ir.Type:
         [convert_type(t) for t in type_attr.inputs.data],
         var_arg=type_attr.is_variadic,
     )
-
-
-def _convert_integer_type(type_attr: IntegerType) -> ir.Type:
-    return ir.IntType(type_attr.width.data)
-
-
-def _convert_index_type(type_attr: IndexType) -> ir.Type:
-    return ir.IntType(64)
-
-
-def _raise_not_implemented(_: Any) -> ir.Type:
-    raise NotImplementedError()
 
 
 _TYPE_CONVERTERS: dict[type[Attribute], Callable[[Any], ir.Type]] = {

@@ -1,4 +1,6 @@
-import llvmlite.ir as ir  # pyright: ignore[reportMissingTypeStubs]
+# pyright: reportMissingTypeStubs=false, reportUnknownMemberType=false, reportUnnecessaryTypeIgnoreComment=false
+
+import llvmlite.ir as ir
 import pytest
 
 from xdsl.backend.llvm.convert_type import convert_type
@@ -15,14 +17,10 @@ from xdsl.utils.exceptions import LLVMTranslationException
 
 
 def test_convert_int():
-    with pytest.raises(NotImplementedError):
-        convert_type(builtin.IntegerType(1))
-    with pytest.raises(NotImplementedError):
-        convert_type(builtin.IntegerType(32))
-    with pytest.raises(NotImplementedError):
-        convert_type(builtin.IntegerType(64))
-    with pytest.raises(NotImplementedError):
-        convert_type(builtin.IndexType())
+    assert convert_type(builtin.IntegerType(1)) == ir.IntType(1)
+    assert convert_type(builtin.IntegerType(32)) == ir.IntType(32)
+    assert convert_type(builtin.IntegerType(64)) == ir.IntType(64)
+    assert convert_type(builtin.IndexType()) == ir.IntType(64)
 
 
 @pytest.mark.parametrize(
@@ -48,8 +46,10 @@ def test_convert_type(type: Attribute, expected: ir.Type):
 def test_convert_vector():
     # 1D vector
     vec_type = builtin.VectorType(builtin.i32, [4])
-    with pytest.raises(NotImplementedError):
-        convert_type(vec_type)
+    result = convert_type(vec_type)
+    assert isinstance(result, ir.VectorType)
+    assert result.count == 4
+    assert result.element == ir.IntType(32)
 
     # Scalable vector (raises)
     scalable_dims = builtin.ArrayAttr([builtin.IntegerAttr.from_bool(True)])
@@ -69,20 +69,24 @@ def test_convert_vector():
 
 def test_convert_array():
     arr_type = LLVMArrayType.from_size_and_type(10, builtin.i32)
-    with pytest.raises(NotImplementedError):
-        convert_type(arr_type)
+    result = convert_type(arr_type)
+    assert isinstance(result, ir.ArrayType)
+    assert result.count == 10
+    assert result.element == ir.IntType(32)
 
 
 def test_convert_struct():
     # Literal struct
     struct_type = LLVMStructType.from_type_list([builtin.i32, builtin.f32])
-    with pytest.raises(NotImplementedError):
-        convert_type(struct_type)
+    result = convert_type(struct_type)
+    assert isinstance(result, ir.LiteralStructType)
+    assert result.elements == (ir.IntType(32), ir.FloatType())
 
     # Tuple type -> struct
     tuple_type = builtin.TupleType(builtin.ArrayAttr([builtin.i32, builtin.f32]))
-    with pytest.raises(NotImplementedError):
-        convert_type(tuple_type)
+    result = convert_type(tuple_type)
+    assert isinstance(result, ir.LiteralStructType)
+    assert result.elements == (ir.IntType(32), ir.FloatType())
 
 
 def test_convert_function():
@@ -90,23 +94,33 @@ def test_convert_function():
     func_type = builtin.FunctionType.from_lists(
         [builtin.i32, builtin.f32], [builtin.i64]
     )
-    with pytest.raises(NotImplementedError):
-        convert_type(func_type)
+    result = convert_type(func_type)
+    assert isinstance(result, ir.FunctionType)
+    assert result.return_type == ir.IntType(64)
+    assert result.args == (ir.IntType(32), ir.FloatType())
 
     # Void return
     func_void = builtin.FunctionType.from_lists([builtin.i32], [])
-    with pytest.raises(NotImplementedError):
-        convert_type(func_void)
+    result = convert_type(func_void)
+    assert isinstance(result, ir.FunctionType)
+    assert result.return_type == ir.VoidType()
+    assert result.args == (ir.IntType(32),)
 
     # LLVMFunctionType
     llvm_func = LLVMFunctionType([builtin.i32, builtin.f32], builtin.i64)
-    with pytest.raises(NotImplementedError):
-        convert_type(llvm_func)
+    result = convert_type(llvm_func)
+    assert isinstance(result, ir.FunctionType)
+    assert result.return_type == ir.IntType(64)
+    assert result.args == (ir.IntType(32), ir.FloatType())
+    assert result.var_arg is False
 
     # Variadic LLVMFunction
     llvm_func_var = LLVMFunctionType([builtin.i32], builtin.i64, is_variadic=True)
-    with pytest.raises(NotImplementedError):
-        convert_type(llvm_func_var)
+    result = convert_type(llvm_func_var)
+    assert isinstance(result, ir.FunctionType)
+    assert result.return_type == ir.IntType(64)
+    assert result.args == (ir.IntType(32),)
+    assert result.var_arg is True
 
 
 def test_unsupported_type():

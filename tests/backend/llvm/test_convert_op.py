@@ -1,5 +1,7 @@
+# pyright: reportMissingTypeStubs=false, reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false, reportUnknownParameterType=false, reportMissingParameterType=false, reportArgumentType=false, reportCallIssue=false, reportUnusedVariable=false, reportUnnecessaryTypeIgnoreComment=false
+
+import llvmlite.ir as ir  # pyright: ignore[reportMissingTypeStubs]
 import pytest
-from llvmlite import ir
 
 from xdsl.backend.llvm.convert_op import convert_op
 from xdsl.dialects import llvm

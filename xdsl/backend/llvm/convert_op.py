@@ -1,3 +1,5 @@
+# pyright: reportMissingTypeStubs=false, reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false, reportUnknownLambdaType=false, reportAttributeAccessIssue=false, reportCallIssue=false, reportArgumentType=false, reportAssignmentType=false, reportUnnecessaryTypeIgnoreComment=false
+
 from collections.abc import Callable
 
 from llvmlite import ir
@@ -42,9 +44,9 @@ _CAST_OP_MAP: dict[
 }
 
 
-def _convert_gep(
+def _convert_getelementptr(
     op: llvm.GEPOp, builder: ir.IRBuilder, val_map: dict[SSAValue, ir.Value]
-):
+) -> None:
     # GEPOp mixes static and dynamic indices
     indices: list[ir.Value] = []
     for idx in op.rawConstantIndices.iter_values():
@@ -170,7 +172,7 @@ def convert_op(
         case llvm.StoreOp():
             builder.store(val_map[op.value], val_map[op.ptr])
         case llvm.GEPOp():
-            _convert_gep(op, builder, val_map)
+            _convert_getelementptr(op, builder, val_map)
         case llvm.ExtractValueOp():
             val_map[op.results[0]] = builder.extract_value(
                 val_map[op.container], list(op.position.iter_values())
