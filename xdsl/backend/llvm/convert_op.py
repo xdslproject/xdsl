@@ -1,11 +1,3 @@
-"""Convert xDSL operations to LLVM IR using llvmlite.
-
-This module uses a multi-strategy approach for operation conversion:
-- Dictionary-based dispatch for simple, patterned operations (binary ops, casts)
-- Helper functions for complex operations requiring custom logic (GEP, call, inline asm, icmp)
-- Pattern matching for operations with unique characteristics
-"""
-
 from collections.abc import Callable
 
 from llvmlite import ir
