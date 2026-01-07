@@ -5128,3 +5128,88 @@ def test_generate_rewriter_simple_pattern():
     assert rewriter_func.function_type == FunctionType.from_lists(
         [pdl.OperationType()], []
     )
+
+
+def test_generate_rewriter_multiple_patterns_without_names():
+    """Test generate_rewriter with multiple patterns without sym_name"""
+    from xdsl.dialects.builtin import ModuleOp
+    from xdsl.ir import Block, Region
+    from xdsl.transforms.convert_pdl_to_pdl_interp.conversion import (
+        MatcherGenerator,
+        PredicateTreeBuilder,
+    )
+    from xdsl.transforms.convert_pdl_to_pdl_interp.predicate import OperationPosition
+
+    # Setup
+    matcher_body = Region([Block(arg_types=(pdl.OperationType(),))])
+    matcher_func = pdl_interp.FuncOp(
+        "matcher", ((pdl.OperationType(),), ()), region=matcher_body
+    )
+    rewriter_module = ModuleOp([])
+    generator = MatcherGenerator(matcher_func, rewriter_module)
+
+    # Create first pattern without sym_name
+    body1 = Region([Block()])
+    block1 = body1.first_block
+    with ImplicitBuilder(block1):
+        root1 = pdl.OperationOp("op1").op
+        pdl.RewriteOp(root1)
+
+    pattern1 = pdl.PatternOp(1, None, body1)
+
+    # Create second pattern without sym_name
+    body2 = Region([Block()])
+    block2 = body2.first_block
+    with ImplicitBuilder(block2):
+        root2 = pdl.OperationOp("op2").op
+        pdl.RewriteOp(root2)
+
+    pattern2 = pdl.PatternOp(1, None, body2)
+
+    # Create third pattern without sym_name
+    body3 = Region([Block()])
+    block3 = body3.first_block
+    with ImplicitBuilder(block3):
+        root3 = pdl.OperationOp("op3").op
+        pdl.RewriteOp(root3)
+
+    pattern3 = pdl.PatternOp(1, None, body3)
+
+    # Extract pattern predicates to populate value_to_position
+    predicate_tree_builder = PredicateTreeBuilder()
+
+    root_pos = OperationPosition(None, depth=0)
+    _pred1, _, inputs1 = predicate_tree_builder._extract_pattern_predicates(pattern1)  # pyright: ignore[reportPrivateUsage]
+    generator.value_to_position[pattern1] = inputs1
+
+    _pred2, _, inputs2 = predicate_tree_builder._extract_pattern_predicates(pattern2)  # pyright: ignore[reportPrivateUsage]
+    generator.value_to_position[pattern2] = inputs2
+
+    _pred3, _, inputs3 = predicate_tree_builder._extract_pattern_predicates(pattern3)  # pyright: ignore[reportPrivateUsage]
+    generator.value_to_position[pattern3] = inputs3
+
+    # Call generate_rewriter for each pattern
+    rewriter_ref1 = generator.generate_rewriter(pattern1, [root_pos])
+    rewriter_ref2 = generator.generate_rewriter(pattern2, [root_pos])
+    rewriter_ref3 = generator.generate_rewriter(pattern3, [root_pos])
+
+    # Verify all rewriter functions were created with different names
+    rewriter_funcs = [
+        op for op in rewriter_module.body.block.ops if isinstance(op, pdl_interp.FuncOp)
+    ]
+    assert len(rewriter_funcs) == 3, "Should have created 3 rewriter functions"
+
+    # Extract names from the rewriter references
+    names = [
+        ref.nested_references.data[0].data
+        for ref in [rewriter_ref1, rewriter_ref2, rewriter_ref3]
+    ]
+
+    # Verify names follow the expected pattern for unnamed patterns
+    # The first unnamed rewriter doesn't get a suffix, subsequent ones do
+    expected_names = [
+        "pdl_generated_rewriter",
+        "pdl_generated_rewriter_2",
+        "pdl_generated_rewriter_3",
+    ]
+    assert names == expected_names, f"Expected {expected_names}, got {names}"
