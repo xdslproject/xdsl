@@ -1,3 +1,11 @@
+"""Convert xDSL operations to LLVM IR using llvmlite.
+
+This module uses a multi-strategy approach for operation conversion:
+- Dictionary-based dispatch for simple, patterned operations (binary ops, casts)
+- Helper functions for complex operations requiring custom logic (GEP, call, inline asm, icmp)
+- Pattern matching for operations with unique characteristics
+"""
+
 from collections.abc import Callable
 
 from llvmlite import ir
@@ -73,6 +81,15 @@ def _convert_call(
         val_map[op.returned] = res
 
 
+def _convert_return(
+    op: llvm.ReturnOp, builder: ir.IRBuilder, val_map: dict[SSAValue, ir.Value]
+):
+    if op.operands:
+        builder.ret(val_map[op.operands[0]])
+    else:
+        builder.ret_void()
+
+
 def _convert_inline_asm(
     op: llvm.InlineAsmOp, builder: ir.IRBuilder, val_map: dict[SSAValue, ir.Value]
 ):
@@ -106,6 +123,7 @@ def _convert_icmp(
         "ugt": (">", False),
         "uge": (">=", False),
     }
+
     predicate = op.predicate.value.data
     flag = llvm.ICmpPredicateFlag.from_int(predicate)
     pred_str = flag.value
@@ -163,18 +181,18 @@ def convert_op(
             _convert_gep(op, builder, val_map)
         case llvm.ExtractValueOp():
             val_map[op.results[0]] = builder.extract_value(
-                val_map[op.container], [i for i in op.position.iter_values()]
+                val_map[op.container], list(op.position.iter_values())
             )
         case llvm.InsertValueOp():
             val_map[op.results[0]] = builder.insert_value(
                 val_map[op.container],
                 val_map[op.value],
-                [i for i in op.position.iter_values()],
+                list(op.position.iter_values()),
             )
-        case llvm.ReturnOp() | _ if op.name == "llvm.return":
-            builder.ret(val_map[op.operands[0]]) if op.operands else builder.ret_void()
         case llvm.CallOp():
             _convert_call(op, builder, val_map)
+        case llvm.ReturnOp() | _ if op.name == "llvm.return":
+            _convert_return(op, builder, val_map)
         case llvm.InlineAsmOp():
             _convert_inline_asm(op, builder, val_map)
         case llvm.ICmpOp():
