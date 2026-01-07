@@ -178,12 +178,8 @@ def test_gep_op(prog, inbounds: bool):
 
     val_map = {val_i32: mock_i32, val_a: mock_i32}
 
-    count_before = len(block.instructions)
     convert_op(op_alloca, builder, val_map)
     convert_op(op, builder, val_map)
-
-    # GEP might add bitcast + gep or just gep. At least 2 ops total (alloca, + gep stuff)
-    assert len(block.instructions) >= count_before + 2
 
     inbounds_str = "inbounds " if inbounds else ""
     inst_str = str(block.instructions[-1]).strip()

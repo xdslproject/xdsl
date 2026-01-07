@@ -76,7 +76,6 @@ def convert_op(
 
     Raises:
         NotImplementedError: If the operation is not supported.
-
     """
     is_binary_op = type(op) in _BINARY_OP_MAP
     if is_binary_op:
