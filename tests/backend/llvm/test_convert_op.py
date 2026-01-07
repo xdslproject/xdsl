@@ -116,15 +116,20 @@ def test_sext_op():
     _convert_and_verify(op, "sext i32 1 to i64", default_val_map)
 
 
-def test_load_op():
-    op_alloca = llvm.AllocaOp(val_i32, elem_type=i32)
-    ptr_val = op_alloca.results[0]
-    op = llvm.LoadOp(ptr_val, i32)
-
+@pytest.fixture
+def prog():
     module = ir.Module()
     func = ir.Function(module, ir.FunctionType(ir.VoidType(), []), "main")
     block = func.append_basic_block("entry")
     builder = ir.IRBuilder(block)
+    return module, builder, block
+
+
+def test_load_op(prog):
+    module, builder, block = prog
+    op_alloca = llvm.AllocaOp(val_i32, elem_type=i32)
+    ptr_val = op_alloca.results[0]
+    op = llvm.LoadOp(ptr_val, i32)
 
     val_map = {val_i32: mock_i32}
 
@@ -138,15 +143,11 @@ def test_load_op():
     assert " = load i32, i32* %" in inst_str
 
 
-def test_store_op():
+def test_store_op(prog):
+    module, builder, block = prog
     op_alloca = llvm.AllocaOp(val_i32, elem_type=i32)
     ptr_val = op_alloca.results[0]
     op = llvm.StoreOp(val_i32, ptr_val)
-
-    module = ir.Module()
-    func = ir.Function(module, ir.FunctionType(ir.VoidType(), []), "main")
-    block = func.append_basic_block("entry")
-    builder = ir.IRBuilder(block)
 
     val_map = {val_i32: mock_i32}
 
@@ -161,7 +162,8 @@ def test_store_op():
 
 
 @pytest.mark.parametrize("inbounds", [False, True])
-def test_gep_op(inbounds: bool):
+def test_gep_op(prog, inbounds: bool):
+    module, builder, block = prog
     op_alloca = llvm.AllocaOp(val_i32, elem_type=i32)
     ptr_val = op_alloca.results[0]
 
@@ -173,11 +175,6 @@ def test_gep_op(inbounds: bool):
         result_type=ptr_ty,
         inbounds=inbounds,
     )
-
-    module = ir.Module()
-    func = ir.Function(module, ir.FunctionType(ir.VoidType(), []), "main")
-    block = func.append_basic_block("entry")
-    builder = ir.IRBuilder(block)
 
     val_map = {val_i32: mock_i32, val_a: mock_i32}
 
@@ -195,7 +192,8 @@ def test_gep_op(inbounds: bool):
     assert inst_str.endswith(", i32 1")
 
 
-def test_gep_constant_idx():
+def test_gep_constant_idx(prog):
+    module, builder, block = prog
     op_alloca = llvm.AllocaOp(val_i32, elem_type=i32)
     ptr_val = op_alloca.results[0]
 
@@ -206,11 +204,6 @@ def test_gep_constant_idx():
         result_type=ptr_ty,
     )
 
-    module = ir.Module()
-    func = ir.Function(module, ir.FunctionType(ir.VoidType(), []), "main")
-    block = func.append_basic_block("entry")
-    builder = ir.IRBuilder(block)
-
     val_map = {val_i32: mock_i32}
     convert_op(op_alloca, builder, val_map)
     convert_op(op, builder, val_map)
@@ -219,15 +212,11 @@ def test_gep_constant_idx():
     assert inst_str.endswith(", i32 0")
 
 
-def test_ptrtoint_op():
+def test_ptrtoint_op(prog):
+    module, builder, block = prog
     op_alloca = llvm.AllocaOp(val_i32, elem_type=i32)
     ptr_val = op_alloca.results[0]
     op = llvm.PtrToIntOp(ptr_val, i64)
-
-    module = ir.Module()
-    func = ir.Function(module, ir.FunctionType(ir.VoidType(), []), "main")
-    block = func.append_basic_block("entry")
-    builder = ir.IRBuilder(block)
 
     val_map = {val_i32: mock_i32}
 
@@ -242,15 +231,12 @@ def test_ptrtoint_op():
     assert inst_str.endswith(" to i64")
 
 
-def test_fpext_op():
+def test_fpext_op(prog):
+    module, builder, block = prog
     op = llvm.FPExtOp(val_f32, Float64Type())
-    module = ir.Module()
-    func = ir.Function(module, ir.FunctionType(ir.VoidType(), []), "main")
-    block = func.append_basic_block("entry")
-    builder = ir.IRBuilder(block)
 
     count_before = len(block.instructions)
-    convert_op(op, builder, default_val_map)
+    convert_op(op, builder, default_val_map.copy())
 
     assert len(block.instructions) == count_before + 1
     inst_str = str(block.instructions[-1]).strip()
@@ -386,15 +372,13 @@ def test_unreachable_op():
     _convert_and_verify(op, expected)
 
 
-def test_unsupported_op():
+def test_unsupported_op(prog):
+    module, builder, block = prog
+
     class UnknownOp(Operation):
         name = "llvm.unknown"
 
     op = UnknownOp()
-    module = ir.Module()
-    func = ir.Function(module, ir.FunctionType(ir.VoidType(), []), "main")
-    block = func.append_basic_block("entry")
-    builder = ir.IRBuilder(block)
 
     with pytest.raises(
         NotImplementedError, match="Conversion not implemented for op: llvm.unknown"
