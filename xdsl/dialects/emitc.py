@@ -947,6 +947,48 @@ class EmitC_LogicalOrOp(EmitC_BinaryOperation):
 
 
 @irdl_op_definition
+class EmitC_MemberOfPtrOp(IRDLOperation):
+    """
+    Member of pointer operation.
+
+    With the `emitc.member_of_ptr` operation the member access operator `->`
+    can be applied.
+
+    Example:
+
+    ```mlir
+    %0 = "emitc.member_of_ptr" (%arg0) {member = "a"}
+        : (!emitc.lvalue<!emitc.ptr<!emitc.opaque<"mystruct">>>)
+        -> !emitc.lvalue<i32>
+    %1 = "emitc.member_of_ptr" (%arg0) {member = "b"}
+        : (!emitc.lvalue<!emitc.ptr<!emitc.opaque<"mystruct">>>)
+        -> !emitc.array<2xi32>
+    ```
+    """
+
+    name = "emitc.member_of_ptr"
+
+    member = prop_def(StringAttr)
+    operand = operand_def(EmitC_LValueType)
+    result = result_def(EmitC_ArrayType | EmitC_LValueType)
+
+    def __init__(
+          self,
+          operand: SSAValue,
+          member: str,
+          result_type: Attribute
+    ):
+        if not isinstance(operand.type, EmitC_OpaqueAttr | EmitC_PointerType):
+            raise VerifyException("emitc.member_of_ptr expects an opaque or pointer operand type")
+
+        super().__init__(
+            operands=[operand],
+            properties={"member" : StringAttr(member)},
+            result_types=[result_type]
+        )
+
+
+@irdl_op_definition
 class EmitC_MemberOp(IRDLOperation):
     """
     Member operation.
@@ -976,6 +1018,9 @@ class EmitC_MemberOp(IRDLOperation):
           member: str,
           result_type: Attribute
     ):
+        if not isinstance(operand.type, EmitC_OpaqueAttr):
+            raise VerifyException("emitc.member expects an opaque operand type")
+
         super().__init__(
             operands=[operand],
             properties={"member" : StringAttr(member)},
@@ -1290,6 +1335,7 @@ EmitC = Dialect(
         EmitC_LogicalAndOp,
         EmitC_LogicalNotOp,
         EmitC_LogicalOrOp,
+        EmitC_MemberOfPtrOp,
         EmitC_MemberOp,
         EmitC_MulOp,
         EmitC_RemOp,
