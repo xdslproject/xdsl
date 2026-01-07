@@ -7,4 +7,4 @@ import pyclip
 
 
 def pyclip_copy(text: str) -> None:
-    pyclip.copy(text)  # pyright: ignore[reportUnknownMemberType]
+    pyclip.copy(text)
