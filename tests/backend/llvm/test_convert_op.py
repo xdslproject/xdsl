@@ -185,7 +185,7 @@ def test_gep_op(inbounds: bool):
     convert_op(op_alloca, builder, val_map)
     convert_op(op, builder, val_map)
 
-    # GEP might add bitcast + gep, or just gep. At least 2 ops total (alloca, + gep stuff)
+    # GEP might add bitcast + gep or just gep. At least 2 ops total (alloca, + gep stuff)
     assert len(block.instructions) >= count_before + 2
 
     inbounds_str = "inbounds " if inbounds else ""
@@ -220,8 +220,6 @@ def test_ptrtoint_op():
 
 def test_fpext_op():
     op = llvm.FPExtOp(val_f32, Float64Type())
-    # Match fuzzy or exact string that llvmlite produces
-    # llvmlite might produce 3.000000e+00
     module = ir.Module()
     func = ir.Function(module, ir.FunctionType(ir.VoidType(), []), "main")
     block = func.append_basic_block("entry")
