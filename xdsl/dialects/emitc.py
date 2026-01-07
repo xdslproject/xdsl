@@ -711,7 +711,7 @@ class EmitC_CastOp(IRDLOperation):
     dest = result_def(EmitCTypeConstr)
 
     def has_side_effects(self) -> bool:
-        return False;
+        return False
 
 
 # ===----------------------------------------------------------------------===
@@ -1076,6 +1076,78 @@ class EmitC_SubOp(EmitC_BinaryOperation):
 
 
 @irdl_op_definition
+class EmitC_SubscriptOp(IRDLOperation):
+    """
+    Subscript operation.
+
+    With the `emitc.subscript` operation the subscript operator `[]` can be applied
+    to variables or arguments of array, pointer and opaque type.
+
+    Example:
+
+    ```mlir
+    %i = index.constant 1
+    %j = index.constant 7
+    %0 = emitc.subscript %arg0[%i, %j] : (!emitc.array<4x8xf32>, index, index)
+           -> !emitc.lvalue<f32>
+    %1 = emitc.subscript %arg1[%i] : (!emitc.ptr<i32>, index)
+           -> !emitc.lvalue<i32>
+    ```
+    """
+
+    name = "emitc.subscript"
+
+    value = operand_def(EmitC_ArrayType | EmitC_OpaqueType | EmitC_PointerType)
+    indices = var_operand_def(EmitCTypeConstr)
+    result = result_def(EmitC_LValueType)
+
+    assemblyFormat = "$value `[` $indices `]` attr-dict `:` functional-type(operands, results)"
+
+    def __init__(
+        self,
+        value: SSAValue,
+        indices: Sequence[SSAValue]
+    ):
+        # array[i]
+        if isinstance(value.type, EmitC_ArrayType):
+            res_type = EmitC_LValueType(value.type.element_type) # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType]
+
+        # ptr[i]
+        elif isinstance(value.type, EmitC_PointerType):
+            res_type = EmitC_LValueType(value.type.pointee_type)
+
+        # opaque
+        elif isinstance(value.type, EmitC_OpaqueType):
+            res_type = value.type
+
+        else:
+            raise VerifyException(f"Unsupported type for emitc.subscript: {value.type}")
+
+        super().__init__(
+            operands=[value, *indices],
+            result_types=[res_type]
+        )
+
+    def verify_(self) -> None:
+        val_type = self.value.type
+
+        # array[i]
+        if isinstance(val_type, EmitC_ArrayType):
+            if len(self.indices) != val_type.shape:
+                raise VerifyException(f"Array subscript expects {val_type.shape} indices, got {len(self.indices)}")
+
+        # ptr[i]
+        if isinstance(val_type, EmitC_PointerType):
+            if len(self.indices) != 1:
+                raise VerifyException(f"Pointer subscript expects exactly one index")
+
+        # opaque
+        if isinstance(val_type, EmitC_OpaqueType):
+            if len(self.indices) == 0:
+                raise VerifyException("Opaque subscript expects at least one index")
+
+
+@irdl_op_definition
 class EmitC_UnaryMinusOp(EmitC_UnaryOperation):
     """
     Unary minus operation.
@@ -1184,6 +1256,7 @@ EmitC = Dialect(
         EmitC_MulOp,
         EmitC_RemOp,
         EmitC_SubOp,
+        EmitC_SubscriptOp,
         EmitC_UnaryMinusOp,
         EmitC_UnaryPlusOp,
         EmitC_VariableOp
