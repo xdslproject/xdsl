@@ -9,6 +9,7 @@ See external [documentation](https://mlir.llvm.org/docs/Dialects/EmitC/).
 
 import abc
 from collections.abc import Iterable, Mapping, Sequence
+from enum import IntEnum
 from typing import Generic, Literal
 
 from typing_extensions import TypeVar, cast
@@ -63,6 +64,7 @@ from xdsl.parser import AttrParser
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
+
 
 
 @irdl_attr_definition
@@ -773,6 +775,69 @@ class EmitC_ClassOp(IRDLOperation):
             return self.body.block
 
 
+class EmitC_CmpPredicateValue(IntEnum):
+    eq = 0
+    ne = 1
+    lt = 2
+    le = 3
+    gt = 4
+    ge = 5
+    three_way = 6
+@irdl_attr_definition
+class EmitC_CmpPredicateAttr(ParametrizedAttribute):
+    """
+    A cmp predicate attribute.
+    """
+
+    name = "emitc.cmp_predicate"
+    value: EmitC_CmpPredicateValue
+
+
+@irdl_op_definition
+class EmitC_CmpOp(EmitC_BinaryOperation):
+    """
+    Comparison operation.
+
+    With the `emitc.cmp` operation the comparison operators ==, !=, <, <=, >, >=, <=>
+    can be applied.
+
+    Its first argument is an attribute that defines the comparison operator:
+
+    - equal to (mnemonic: `"eq"`; integer value: `0`)
+    - not equal to (mnemonic: `"ne"`; integer value: `1`)
+    - less than (mnemonic: `"lt"`; integer value: `2`)
+    - less than or equal to (mnemonic: `"le"`; integer value: `3`)
+    - greater than (mnemonic: `"gt"`; integer value: `4`)
+    - greater than or equal to (mnemonic: `"ge"`; integer value: `5`)
+    - three-way-comparison (mnemonic: `"three_way"`; integer value: `6`)
+
+    Example:
+    ```mlir
+    // Custom form of the cmp operation.
+    %0 = emitc.cmp eq, %arg0, %arg1 : (i32, i32) -> i1
+    %1 = emitc.cmp lt, %arg2, %arg3 :
+        (
+          !emitc.opaque<"std::valarray<float>">,
+          !emitc.opaque<"std::valarray<float>">
+        ) -> !emitc.opaque<"std::valarray<bool>">
+    ```
+    ```c++
+    // Code emitted for the operations above.
+    bool v5 = v1 == v2;
+    std::valarray<bool> v6 = v3 < v4;
+    ```
+    """
+
+    name = "emitc.cmp"
+
+    predicate = prop_def(EmitC_CmpPredicateAttr)
+    lhs = operand_def(EmitCTypeConstr)
+    rhs = operand_def(EmitCTypeConstr)
+    result = result_def(EmitCTypeConstr)
+
+    assembly_format = "$predicate `,` operands attr-dict `:` functional-type(operands, results)"
+
+
 @irdl_op_definition
 class EmitC_ConditionalOp(IRDLOperation):
     """
@@ -1430,6 +1495,7 @@ EmitC = Dialect(
         EmitC_CallOpaqueOp,
         EmitC_CastOp,
         EmitC_ClassOp,
+        EmitC_CmpOp,
         EmitC_ConditionalOp,
         EmitC_ConstantOp,
         EmitC_DivOp,
