@@ -352,6 +352,10 @@ class EmitC_UnaryOperation(IRDLOperation, abc.ABC):
             result_types=[result_type]
         )
 
+    def has_side_effects(self) -> bool:
+        """If operand is fundamental type, the operation is pure."""
+        return not isa(self.operand.type, EmitCFundamentalType)
+
 
 @irdl_op_definition
 class EmitC_AddOp(EmitC_BinaryOperation):
@@ -450,6 +454,8 @@ class EmitC_ApplyOp(IRDLOperation):
 @irdl_op_definition
 class EmitC_AssignOp(IRDLOperation):
     """
+    Assign operation.
+
     The `emitc.assign` operation stores an SSA value to the location designated by an
     EmitC variable. This operation doesn't return any value. The assigned value
     must be of the same type as the variable being assigned. The operation is
@@ -459,7 +465,9 @@ class EmitC_AssignOp(IRDLOperation):
     name = "emitc.assign"
 
     var = operand_def(EmitC_LValueType)
-    value = operand_def(EmitCIntegerType | EmitCFloatType)
+    value = operand_def(EmitCTypeConstr)
+
+    assembly_format = "$value `:` type($value) `to` $var `:` type($var) attr-dict"
 
     def __init__(
         self,
@@ -705,7 +713,7 @@ class EmitC_CastOp(IRDLOperation):
 
     name = "emitc.cast"
 
-    assemblyFormat = "$source attr-dict `:` type($source) `to` type($dest)"
+    assembly_format = "$source attr-dict `:` type($source) `to` type($dest)"
 
     source = operand_def(EmitCTypeConstr)
     dest = result_def(EmitCTypeConstr)
@@ -756,6 +764,46 @@ def verifyInitializationAttribute(op: IRDLOperation, value: Attribute) -> None:
         raise VerifyException("requires attribute to either be an #emitc.opaque attribute or it's type (" + str(attrType)+") to match the op's result type (" + str(resultType) + ")")
 
     return
+
+
+@irdl_op_definition
+class EmitC_ConditionalOp(IRDLOperation):
+    """
+    Conditional (ternary) operation.
+
+    With the `emitc.conditional` operation the ternary conditional operator can
+    be applied.
+
+    Example:
+
+    ```mlir
+    %0 = emitc.cmp gt, %arg0, %arg1 : (i32, i32) -> i1
+
+    %c0 = "emitc.constant"() {value = 10 : i32} : () -> i32
+    %c1 = "emitc.constant"() {value = 11 : i32} : () -> i32
+
+    %1 = emitc.conditional %0, %c0, %c1 : i32
+    ```
+    ```c++
+    // Code emitted for the operations above.
+    bool v3 = v1 > v2;
+    int32_t v4 = 10;
+    int32_t v5 = 11;
+    int32_t v6 = v3 ? v4 : v5;
+    ```
+    """
+
+    name = "emitc.conditional"
+
+    condition = operand_def(IntegerType(1))
+    true_value = operand_def(EmitCTypeConstr)
+    false_value = operand_def(EmitCTypeConstr)
+    result = result_def(EmitCTypeConstr)
+
+    assembly_format = "operands attr-dict `:` type($result)"
+
+    def has_side_effects(self) -> bool:
+        return False
 
 
 @irdl_op_definition
@@ -1183,7 +1231,7 @@ class EmitC_SubscriptOp(IRDLOperation):
     indices = var_operand_def(EmitCTypeConstr)
     result = result_def(EmitC_LValueType)
 
-    assemblyFormat = "$value `[` $indices `]` attr-dict `:` functional-type(operands, results)"
+    assembly_format = "$value `[` $indices `]` attr-dict `:` functional-type(operands, results)"
 
     def __init__(
         self,
@@ -1276,6 +1324,8 @@ class EmitC_UnaryPlusOp(EmitC_UnaryOperation):
 @irdl_op_definition
 class EmitC_VariableOp(IRDLOperation):
     """
+    Variable operation.
+
     The `emitc.variable` operation produces an SSA value equal to some value
     specified by an attribute. This can be used to form simple integer and
     floating point variables, as well as more exotic things like tensor
@@ -1289,8 +1339,6 @@ class EmitC_VariableOp(IRDLOperation):
 
     value = prop_def(EmitC_OpaqueOrTypedAttr)
     result = result_def(EmitC_ArrayType | EmitC_LValueType)
-
-    #assembly_format = " attr-dict $value `:` type(results)"
 
     def __init__(
         self,
@@ -1330,6 +1378,7 @@ EmitC = Dialect(
         EmitC_BitwiseXorOp,
         EmitC_CallOpaqueOp,
         EmitC_CastOp,
+        EmitC_ConditionalOp,
         EmitC_ConstantOp,
         EmitC_DivOp,
         EmitC_LogicalAndOp,
