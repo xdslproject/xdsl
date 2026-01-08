@@ -157,7 +157,7 @@ docs/out.mlir
 docs/ret.xdsl
 
 # Auto-generated type stubs
-xdsl/dialects/
+xdsl/dialects/*.pyi
 
 # asv
 .asv
