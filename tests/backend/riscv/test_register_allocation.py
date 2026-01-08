@@ -141,3 +141,23 @@ def test_count_reg_types():
         "riscv.reg": {"a0", "a1"},
         "riscv.freg": {"fa0"},
     }
+
+
+def test_multiple_outputs():
+    class AllocatableTestOp(TestOp, riscv.RISCVRegallocOperation):
+        pass
+
+    available_registers = RiscvRegisterStack(allow_infinite=True)
+    register_allocator = RegisterAllocatorLivenessBlockNaive(available_registers)
+
+    op = AllocatableTestOp(
+        result_types=(
+            riscv.IntRegisterType.unallocated(),
+            riscv.IntRegisterType.unallocated(),
+        )
+    )
+
+    op.allocate_registers(register_allocator)
+
+    # Check allocated registers are unique
+    assert len(op.result_types) == len(set(op.result_types))
