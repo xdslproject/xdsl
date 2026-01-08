@@ -1033,6 +1033,38 @@ class EmitC_DivOp(EmitC_BinaryOperation):
 
 
 @irdl_op_definition
+class EmitC_LiteralOp(IRDLOperation):
+    """
+    Literal operation.
+
+    The `emitc.literal` operation produces an SSA value equal to some constant
+    specified by an attribute.
+
+    Example:
+
+    ```mlir
+    %p0 = emitc.literal "M_PI" : f32
+    %1 = "emitc.add" (%arg0, %p0) : (f32, f32) -> f32
+    ```
+    ```c++
+    // Code emitted for the operation above.
+    float v2 = v1 + M_PI;
+    ```
+    """
+
+    name = "emitc.literal"
+
+    value = prop_def(StringAttr)
+    result = result_def(EmitCTypeConstr)
+
+    assembly_format = "$value attr-dict `:` type($result)"
+
+    def verify_(self):
+        if self.value.data == "":
+            raise VerifyException("value must not be empty")
+
+
+@irdl_op_definition
 class EmitC_LogicalAndOp(EmitC_BinaryOperation):
     """
     Logical and operation.
@@ -1499,6 +1531,7 @@ EmitC = Dialect(
         EmitC_ConditionalOp,
         EmitC_ConstantOp,
         EmitC_DivOp,
+        EmitC_LiteralOp,
         EmitC_LogicalAndOp,
         EmitC_LogicalNotOp,
         EmitC_LogicalOrOp,
@@ -1506,6 +1539,7 @@ EmitC = Dialect(
         EmitC_MemberOp,
         EmitC_MulOp,
         EmitC_RemOp,
+        #EmitC_ReturnOp,
         EmitC_SubOp,
         EmitC_SubscriptOp,
         EmitC_UnaryMinusOp,
