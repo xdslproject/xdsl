@@ -1065,6 +1065,45 @@ class EmitC_LiteralOp(IRDLOperation):
 
 
 @irdl_op_definition
+class EmitC_LoadOp(IRDLOperation):
+    """
+    Load an lvalue into an SSA value.
+
+    This operation loads the content of a modifiable lvalue into an SSA value.
+    Modifications of the lvalue executed after the load are not observable on
+    the produced value.
+
+    Example:
+
+    ```mlir
+    %1 = emitc.load %0 : !emitc.lvalue<i32>
+    ```
+    ```c++
+    // Code emitted for the operation above.
+    int32_t v2 = v1;
+    ```
+    """
+
+    name = "emitc.load"
+
+    operand = operand_def(EmitC_LValueType)
+    result = result_def(EmitCTypeConstr)
+
+    assembly_format = "$operand attr-dict `:` type($operand)"
+
+    def verify_(self):
+        op_type = self.operand.type
+        res_type = self.result.type
+
+        assert isinstance(op_type, EmitC_LValueType)
+
+        val_type = op_type.value_type
+
+        if val_type != res_type:
+            raise VerifyException("result type does not match the value type of operand")
+
+
+@irdl_op_definition
 class EmitC_LogicalAndOp(EmitC_BinaryOperation):
     """
     Logical and operation.
@@ -1532,6 +1571,7 @@ EmitC = Dialect(
         EmitC_ConstantOp,
         EmitC_DivOp,
         EmitC_LiteralOp,
+        EmitC_LoadOp,
         EmitC_LogicalAndOp,
         EmitC_LogicalNotOp,
         EmitC_LogicalOrOp,
