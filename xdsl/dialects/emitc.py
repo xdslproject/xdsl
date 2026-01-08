@@ -30,7 +30,8 @@ from xdsl.dialects.builtin import (
     StringAttr,
     TensorType,
     TupleType,
-    TypedAttribute
+    TypedAttribute,
+    UnitAttr
 )
 from xdsl.ir import (
     Attribute,
@@ -53,6 +54,7 @@ from xdsl.irdl import (
     opt_prop_def,
     param_def,
     prop_def,
+    region_def,
     result_def,
     var_operand_def,
     var_result_def,
@@ -722,6 +724,95 @@ class EmitC_CastOp(IRDLOperation):
         return False
 
 
+@irdl_op_definition
+class EmitC_ClassOp(IRDLOperation):
+    """
+    Represents a C++ class definition, encapsulating fields and methods.
+
+    The `emitc.class` operation defines a C++ class, acting as a container
+    for its data fields (`emitc.field`) and methods (`emitc.func`).
+    It creates a distinct scope, isolating its contents from the surrounding
+    MLIR region, similar to how C++ classes encapsulate their internals.
+
+    Example:
+
+    ```mlir
+    emitc.class @modelClass {
+      emitc.field @fieldName0 : !emitc.array<1xf32> = {emitc.opaque = "input_tensor"}
+      emitc.func @execute() {
+        %0 = "emitc.constant"() <{value = 0 : index}> : () -> !emitc.size_t
+        %1 = get_field @fieldName0 : !emitc.array<1xf32>
+        %2 = subscript %1[%0] : (!emitc.array<1xf32>, !emitc.size_t) -> !emitc.lvalue<f32>
+        return
+      }
+    }
+    // Class with a final specifer
+    emitc.class final @modelClass {
+      emitc.field @fieldName0 : !emitc.array<1xf32> = {emitc.opaque = "input_tensor"}
+      emitc.func @execute() {
+        %0 = "emitc.constant"() <{value = 0 : index}> : () -> !emitc.size_t
+        %1 = get_field @fieldName0 : !emitc.array<1xf32>
+        %2 = subscript %1[%0] : (!emitc.array<1xf32>, !emitc.size_t) -> !emitc.lvalue<f32>
+        return
+      }
+    }
+    ```
+    """
+
+    name = "emitc.class"
+
+    assembly_format = "[{ (`final` $final_specifier^)? $sym_name attr-dict-with-keyword $body }]"
+
+    sym_name = prop_def(StringAttr)
+    final_specifier = prop_def(UnitAttr)
+
+    body = region_def()
+
+    def get_block(self):
+        if self.body.block:
+            return self.body.block
+
+
+@irdl_op_definition
+class EmitC_ConditionalOp(IRDLOperation):
+    """
+    Conditional (ternary) operation.
+
+    With the `emitc.conditional` operation the ternary conditional operator can
+    be applied.
+
+    Example:
+
+    ```mlir
+    %0 = emitc.cmp gt, %arg0, %arg1 : (i32, i32) -> i1
+
+    %c0 = "emitc.constant"() {value = 10 : i32} : () -> i32
+    %c1 = "emitc.constant"() {value = 11 : i32} : () -> i32
+
+    %1 = emitc.conditional %0, %c0, %c1 : i32
+    ```
+    ```c++
+    // Code emitted for the operations above.
+    bool v3 = v1 > v2;
+    int32_t v4 = 10;
+    int32_t v5 = 11;
+    int32_t v6 = v3 ? v4 : v5;
+    ```
+    """
+
+    name = "emitc.conditional"
+
+    condition = operand_def(IntegerType(1))
+    true_value = operand_def(EmitCTypeConstr)
+    false_value = operand_def(EmitCTypeConstr)
+    result = result_def(EmitCTypeConstr)
+
+    assembly_format = "operands attr-dict `:` type($result)"
+
+    def has_side_effects(self) -> bool:
+        return False
+
+
 # ===----------------------------------------------------------------------===
 # ConstantOp
 # ===----------------------------------------------------------------------===
@@ -764,46 +855,6 @@ def verifyInitializationAttribute(op: IRDLOperation, value: Attribute) -> None:
         raise VerifyException("requires attribute to either be an #emitc.opaque attribute or it's type (" + str(attrType)+") to match the op's result type (" + str(resultType) + ")")
 
     return
-
-
-@irdl_op_definition
-class EmitC_ConditionalOp(IRDLOperation):
-    """
-    Conditional (ternary) operation.
-
-    With the `emitc.conditional` operation the ternary conditional operator can
-    be applied.
-
-    Example:
-
-    ```mlir
-    %0 = emitc.cmp gt, %arg0, %arg1 : (i32, i32) -> i1
-
-    %c0 = "emitc.constant"() {value = 10 : i32} : () -> i32
-    %c1 = "emitc.constant"() {value = 11 : i32} : () -> i32
-
-    %1 = emitc.conditional %0, %c0, %c1 : i32
-    ```
-    ```c++
-    // Code emitted for the operations above.
-    bool v3 = v1 > v2;
-    int32_t v4 = 10;
-    int32_t v5 = 11;
-    int32_t v6 = v3 ? v4 : v5;
-    ```
-    """
-
-    name = "emitc.conditional"
-
-    condition = operand_def(IntegerType(1))
-    true_value = operand_def(EmitCTypeConstr)
-    false_value = operand_def(EmitCTypeConstr)
-    result = result_def(EmitCTypeConstr)
-
-    assembly_format = "operands attr-dict `:` type($result)"
-
-    def has_side_effects(self) -> bool:
-        return False
 
 
 @irdl_op_definition
@@ -1378,6 +1429,7 @@ EmitC = Dialect(
         EmitC_BitwiseXorOp,
         EmitC_CallOpaqueOp,
         EmitC_CastOp,
+        EmitC_ClassOp,
         EmitC_ConditionalOp,
         EmitC_ConstantOp,
         EmitC_DivOp,
