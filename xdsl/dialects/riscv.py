@@ -1607,9 +1607,12 @@ class SlliOp(RdRsImmShiftOperation):
 class SrliOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.transforms.canonicalization_patterns.riscv import ShiftRightbyZero
+        from xdsl.transforms.canonicalization_patterns.riscv import (
+            ShiftRightbyZero,
+            ShiftRightImmediate,
+        )
 
-        return (ShiftRightbyZero(),)
+        return (ShiftRightbyZero(), ShiftRightImmediate())
 
 
 @irdl_op_definition

@@ -100,6 +100,9 @@ builtin.module {
   %shift_left_immediate = riscv.slli %c2, 4 : (!riscv.reg) -> !riscv.reg<a0>
   "test.op"(%shift_left_immediate) : (!riscv.reg<a0>) -> ()
 
+  %shift_right_immediate = riscv.srli %shift_left_immediate, 3 : (!riscv.reg<a0>) -> !riscv.reg<a0>
+  "test.op"(%shift_right_immediate) : (!riscv.reg<a0>) -> ()
+
   %load_float_ptr = riscv.addi %i2, 8 : (!riscv.reg) -> !riscv.reg
   %load_float_known_offset = riscv.flw %load_float_ptr, 4 : (!riscv.reg) -> !riscv.freg<fa0>
   "test.op"(%load_float_known_offset) : (!riscv.freg<fa0>) -> ()
@@ -257,6 +260,9 @@ builtin.module {
 
 // CHECK-NEXT:   %shift_left_immediate = riscv.li 32 : !riscv.reg<a0>
 // CHECK-NEXT:   "test.op"(%shift_left_immediate) : (!riscv.reg<a0>) -> ()
+
+// CHECK-NEXT:   %shift_right_immediate = riscv.li 4 : !riscv.reg<a0>
+// CHECK-NEXT:   "test.op"(%shift_right_immediate) : (!riscv.reg<a0>) -> ()
 
 // CHECK-NEXT:   %load_float_known_offset = riscv.flw %i2, 12 : (!riscv.reg) -> !riscv.freg<fa0>
 // CHECK-NEXT:   "test.op"(%load_float_known_offset) : (!riscv.freg<fa0>) -> ()

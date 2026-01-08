@@ -614,11 +614,13 @@ class DMDestinationOp(RISCVCustomFormatOperation, RISCVInstruction):
 
 
 @irdl_op_definition
-class DMStrideOp(RISCVCustomFormatOperation, RISCVInstruction):
+class DMStrideOp(RISCVInstruction):
     name = "riscv_snitch.dmstr"
 
     srcstrd = operand_def(riscv.IntRegisterType)
     dststrd = operand_def(riscv.IntRegisterType)
+
+    assembly_format = "$srcstrd `,` $dststrd attr-dict `:` `(` type($srcstrd) `,` type($dststrd) `)` `->` `(` `)`"
 
     traits = traits_def(
         StaticInsnRepresentation(insn=".insn r 0x2b, 0, 6, x0, {0}, {1}")
