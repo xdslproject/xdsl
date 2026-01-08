@@ -53,12 +53,10 @@ def test_build_rewrite():
     assert r.name_ == StringAttr("r")
     assert r.external_args == (type_val, attr_val)
     assert len(r.results) == 0
-    assert r.body is not None
     assert r.body.is_structurally_equivalent(Region(Block()))
 
     r1 = pdl.RewriteOp(name="r", root=None, external_args=[type_val, attr_val])
 
-    assert r1.body is not None
     assert r1.body.is_structurally_equivalent(Region(Block()))
 
 

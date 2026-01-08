@@ -35,7 +35,6 @@ from xdsl.irdl import (
     operand_def,
     opt_operand_def,
     opt_prop_def,
-    opt_region_def,
     prop_def,
     region_def,
     result_def,
@@ -806,7 +805,7 @@ class RewriteOp(IRDLOperation):
     # parameters of external rewriter function
     external_args = var_operand_def(AnyPDLTypeConstr)
     # body of inline rewriter function
-    body = opt_region_def()
+    body = region_def()
 
     irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
