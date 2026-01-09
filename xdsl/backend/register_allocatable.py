@@ -103,10 +103,14 @@ class HasRegisterConstraints(RegisterAllocatableOperation, abc.ABC):
         for operand_group in inouts:
             allocator.allocate_values_same_reg(operand_group)
 
+        new_outs: list[SSAValue] = []
         for result in outs:
             # Allocate registers to result if not already allocated
             if (new_result := allocator.allocate_value(result)) is not None:
                 result = new_result
+            new_outs.append(result)
+
+        for result in new_outs:
             allocator.free_value(result)
 
         # Allocate registers to operands since they are defined further up

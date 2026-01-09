@@ -11,9 +11,11 @@ from xdsl.builder import Builder
 from xdsl.dialects import pdl, pdl_interp
 from xdsl.dialects.builtin import (
     ArrayAttr,
+    FunctionType,
     IntegerAttr,
     ModuleOp,
     StringAttr,
+    SymbolRefAttr,
     TypeAttribute,
     UnitAttr,
 )
@@ -1404,6 +1406,134 @@ class MatcherGenerator:
                 raise NotImplementedError(f"Unhandled question type {type(question)}")
 
         self.builder.insert(switch_op)
+
+    def generate_rewriter(
+        self, pattern: pdl.PatternOp, used_match_positions: list[Position]
+    ) -> SymbolRefAttr:
+        """
+        Generate a rewriter function for the given pattern, and return a
+        reference to that function.
+        """
+        rewriter_op = pattern.body.block.last_op
+        assert isinstance(rewriter_op, pdl.RewriteOp)
+
+        if pattern.sym_name:
+            rewriter_name = pattern.sym_name.data
+        else:
+            rewriter_name = "pdl_generated_rewriter"
+        if rewriter_name in self.rewriter_names:
+            self.rewriter_names[rewriter_name] += 1
+            rewriter_name = f"{rewriter_name}_{self.rewriter_names[rewriter_name]}"
+        else:
+            self.rewriter_names[rewriter_name] = 1
+
+        # Create the rewriter function
+        rewriter_func = pdl_interp.FuncOp(rewriter_name, ([], []))
+
+        self.rewriter_module.body.block.add_op(rewriter_func)
+        entry_block = rewriter_func.body.block
+        self.rewriter_builder.insertion_point = InsertPoint.at_end(entry_block)
+
+        rewrite_values: dict[SSAValue, SSAValue] = {}
+        pattern_value_positions = self.value_to_position[pattern]
+
+        def map_rewrite_value(old_value: SSAValue) -> SSAValue:
+            if new_value := rewrite_values.get(old_value):
+                return new_value
+
+            # Prefer materializing constants directly when possible.
+            old_op = old_value.owner
+            new_val_op: Operation | None = None
+            if isinstance(old_op, pdl.AttributeOp) and old_op.value:
+                new_val_op = pdl_interp.CreateAttributeOp(old_op.value)
+            elif isinstance(old_op, pdl.TypeOp) and old_op.constantType:
+                new_val_op = pdl_interp.CreateTypeOp(old_op.constantType)
+            elif isinstance(old_op, pdl.TypesOp) and old_op.constantTypes:
+                new_val_op = pdl_interp.CreateTypesOp(old_op.constantTypes)
+
+            if new_val_op is not None:
+                self.rewriter_builder.insert(new_val_op)
+                new_value = new_val_op.results[0]
+                rewrite_values[old_value] = new_value
+                return new_value
+
+            # Otherwise, it's an input from the matcher.
+            input_pos = pattern_value_positions.get(old_value)
+            assert input_pos is not None, "Expected value to be a pattern input"
+            if input_pos not in used_match_positions:
+                used_match_positions.append(input_pos)
+
+            arg = entry_block.insert_arg(old_value.type, len(entry_block.args))
+            rewrite_values[old_value] = arg
+            return arg
+
+        # If this is a custom rewriter, dispatch to the registered method.
+        if rewriter_op.name_:
+            args: list[SSAValue] = []
+            if rewriter_op.root:
+                args.append(map_rewrite_value(rewriter_op.root))
+            args.extend(map_rewrite_value(arg) for arg in rewriter_op.external_args)
+            raise NotImplementedError("pdl_interp.apply_rewrite is not yet implemented")
+            apply_op = pdl_interp.ApplyRewriteOp(args, name=rewriter_op.name)
+            self.rewriter_builder.insert(apply_op)
+        else:
+            # Otherwise, this is a DAG rewriter defined using PDL operations.
+            assert rewriter_op.body is not None
+            for op in rewriter_op.body.ops:
+                match op:
+                    case pdl.ApplyNativeRewriteOp():
+                        self._generate_rewriter_for_apply_native_rewrite(
+                            op, rewrite_values, map_rewrite_value
+                        )
+                    case pdl.AttributeOp():
+                        self._generate_rewriter_for_attribute(
+                            op, rewrite_values, map_rewrite_value
+                        )
+                    case pdl.EraseOp():
+                        self._generate_rewriter_for_erase(
+                            op, rewrite_values, map_rewrite_value
+                        )
+                    case pdl.OperationOp():
+                        self._generate_rewriter_for_operation(
+                            op, rewrite_values, map_rewrite_value
+                        )
+                    case pdl.RangeOp():
+                        self._generate_rewriter_for_range(
+                            op, rewrite_values, map_rewrite_value
+                        )
+                    case pdl.ReplaceOp():
+                        self._generate_rewriter_for_replace(
+                            op, rewrite_values, map_rewrite_value
+                        )
+                    case pdl.ResultOp():
+                        self._generate_rewriter_for_result(
+                            op, rewrite_values, map_rewrite_value
+                        )
+                    case pdl.ResultsOp():
+                        self._generate_rewriter_for_results(
+                            op, rewrite_values, map_rewrite_value
+                        )
+                    case pdl.TypeOp():
+                        self._generate_rewriter_for_type(
+                            op, rewrite_values, map_rewrite_value
+                        )
+                    case pdl.TypesOp():
+                        self._generate_rewriter_for_types(
+                            op, rewrite_values, map_rewrite_value
+                        )
+                    case _:
+                        raise TypeError(f"Unexpected op type: {type(op)}")
+
+        # Update the signature of the rewrite function.
+        rewriter_func.function_type = FunctionType.from_lists(entry_block.arg_types, ())
+
+        self.rewriter_builder.insert(pdl_interp.FinalizeOp())
+        return SymbolRefAttr(
+            "rewriters",
+            [
+                StringAttr(rewriter_name),
+            ],
+        )
 
     def _generate_rewriter_for_apply_native_rewrite(
         self,

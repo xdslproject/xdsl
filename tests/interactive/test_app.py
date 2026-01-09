@@ -197,7 +197,7 @@ builtin.module {
         )
 
         # Test that the current pipeline command is correctly copied
-        with patch("xdsl.interactive.app.pyclip_copy") as mock_copy:
+        with patch("pyclip.copy") as mock_copy:
             await pilot.click("#copy_query_button")
             mock_copy.assert_called_once_with(
                 "xdsl-opt -p 'convert-func-to-riscv-func,convert-arith-to-riscv'"
