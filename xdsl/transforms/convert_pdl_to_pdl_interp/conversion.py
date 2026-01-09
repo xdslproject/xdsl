@@ -84,8 +84,6 @@ class ConvertPDLToPDLInterpPass(ModulePass):
         patterns = [
             pattern for pattern in op.body.ops if isinstance(pattern, pdl.PatternOp)
         ]
-        if not patterns:
-            return
 
         rewriter_module = ModuleOp([], sym_name=StringAttr("rewriters"))
 
@@ -1042,6 +1040,8 @@ class MatcherGenerator:
         self.values = ScopedDict()
         self.failure_block_stack = []
         self.builder = Builder(InsertPoint.at_start(matcher_func.body.block))
+        self.constraint_op_map = {}
+        self.rewriter_names = {}
 
     def lower(self, patterns: list[pdl.PatternOp]) -> None:
         """Lower PDL patterns to PDL interpreter"""
