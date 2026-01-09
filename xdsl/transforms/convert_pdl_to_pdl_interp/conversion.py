@@ -1541,8 +1541,8 @@ class MatcherGenerator:
             if rewriter_op.root:
                 args.append(map_rewrite_value(rewriter_op.root))
             args.extend(map_rewrite_value(arg) for arg in rewriter_op.external_args)
-            raise NotImplementedError("pdl_interp.apply_rewrite is not yet implemented")
-            apply_op = pdl_interp.ApplyRewriteOp(args, name=rewriter_op.name)
+
+            apply_op = pdl_interp.ApplyRewriteOp(rewriter_op.name, args)
             self.rewriter_builder.insert(apply_op)
         else:
             # Otherwise, this is a DAG rewriter defined using PDL operations.

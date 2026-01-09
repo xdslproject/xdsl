@@ -3658,11 +3658,21 @@ def test_generate_rewriter_for_apply_native_rewrite():
     )
     generator.value_to_position[pattern] = inputs
 
-    # The method should raise NotImplementedError
-    with pytest.raises(
-        NotImplementedError, match="pdl_interp.apply_rewrite is not yet implemented"
-    ):
-        generator.generate_rewriter(pattern, [OperationPosition(None, depth=0)])
+    # Generate the rewriter
+    rewriter_name = generator.generate_rewriter(
+        pattern, [OperationPosition(None, depth=0)]
+    )
+
+    # Verify that a rewriter was created
+    assert rewriter_name is not None
+    # Verify that the rewriter module contains an ApplyRewriteOp
+    rewriter_func = rewriter_module.body.ops.first
+    assert isinstance(rewriter_func, pdl_interp.FuncOp)
+    apply_rewrite_ops = [
+        op for op in rewriter_func.body.ops if isinstance(op, pdl_interp.ApplyRewriteOp)
+    ]
+    assert len(apply_rewrite_ops) == 1
+    assert apply_rewrite_ops[0].rewrite_name.data == "myRewrite"
 
 
 def test_generate_rewriter_for_attribute_with_constant():
@@ -5458,8 +5468,8 @@ def test_generate_rewriter_unexpected_op_type():
         generator.generate_rewriter(pattern, [root_pos])
 
 
-def test_generate_rewriter_with_custom_rewriter_not_implemented():
-    """Test that generate_rewriter raises NotImplementedError for custom rewriter (pdl.RewriteOp with name_)"""
+def test_generate_rewriter_with_custom_rewriter():
+    """Test that generate_rewriter correctly handles custom rewriter (pdl.RewriteOp with name_)"""
     # Setup matcher function
     matcher_body = Region([Block(arg_types=(pdl.OperationType(),))])
     matcher_func = pdl_interp.FuncOp(
@@ -5485,11 +5495,19 @@ def test_generate_rewriter_with_custom_rewriter_not_implemented():
     }
     generator.value_to_position[pattern] = inputs
 
-    # generate_rewriter should raise NotImplementedError for custom rewriters
-    with pytest.raises(
-        NotImplementedError, match="pdl_interp.apply_rewrite is not yet implemented"
-    ):
-        generator.generate_rewriter(pattern, [root_pos])
+    # Generate the rewriter
+    rewriter_name = generator.generate_rewriter(pattern, [root_pos])
+
+    # Verify that a rewriter was created
+    assert rewriter_name is not None
+    # Verify that the rewriter module contains an ApplyRewriteOp
+    rewriter_func = rewriter_module.body.ops.first
+    assert isinstance(rewriter_func, pdl_interp.FuncOp)
+    apply_rewrite_ops = [
+        op for op in rewriter_func.body.ops if isinstance(op, pdl_interp.ApplyRewriteOp)
+    ]
+    assert len(apply_rewrite_ops) == 1
+    assert apply_rewrite_ops[0].rewrite_name.data == "custom_rewriter"
 
 
 def test_generate_rewriter_unsupported_operation_in_rewrite_body():
