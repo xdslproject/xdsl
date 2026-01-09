@@ -629,6 +629,7 @@ class PatternAnalyzer:
                         parent_pos = inputs.get(op.parent_.owner.op)
                         if parent_pos and isinstance(parent_pos, OperationPosition):
                             result_pos = parent_pos.get_result(op.index.value.data)
+                            inputs[op.val] = result_pos
                             is_not_null = Predicate.get_is_not_null()
                             predicates.append(
                                 PositionalPredicate(
@@ -647,6 +648,7 @@ class PatternAnalyzer:
                             is_variadic = isinstance(op.val.type, pdl.RangeType)
                             index = op.index.value.data if op.index else None
                             result_pos = parent_pos.get_result_group(index, is_variadic)
+                            inputs[op.val] = result_pos
                             if index is not None:
                                 is_not_null = Predicate.get_is_not_null()
                                 predicates.append(
