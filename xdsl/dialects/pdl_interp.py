@@ -558,7 +558,7 @@ class ApplyConstraintOp(IRDLOperation):
         if isinstance(is_negated, bool):
             is_negated = BoolAttr.from_bool(is_negated)
         super().__init__(
-            operands=args,
+            operands=[args],
             properties={
                 "name": constraint_name,
                 "isNegated": is_negated,
@@ -595,7 +595,7 @@ class ApplyRewriteOp(IRDLOperation):
         if isinstance(rewrite_name, str):
             rewrite_name = StringAttr(rewrite_name)
         super().__init__(
-            operands=args,
+            operands=[args],
             properties={
                 "name": rewrite_name,
             },
