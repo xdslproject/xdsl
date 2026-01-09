@@ -1593,7 +1593,7 @@ class MatcherGenerator:
                 args.append(map_rewrite_value(rewriter_op.root))
             args.extend(map_rewrite_value(arg) for arg in rewriter_op.external_args)
 
-            apply_op = pdl_interp.ApplyRewriteOp(rewriter_op.name, args)
+            apply_op = pdl_interp.ApplyRewriteOp(rewriter_op.name_.data, args)
             self.rewriter_builder.insert(apply_op)
         else:
             # Otherwise, this is a DAG rewriter defined using PDL operations.
