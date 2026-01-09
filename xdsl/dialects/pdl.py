@@ -186,14 +186,12 @@ class ApplyNativeConstraintOp(IRDLOperation):
     is_negated = prop_def(
         BoolAttr, prop_name="isNegated", default_value=BoolAttr.from_bool(False)
     )
-    args = var_operand_def(AnyPDLTypeConstr)
-    res = var_result_def(AnyPDLTypeConstr)
+    args = var_operand_def(AnyPDLTypeConstr | base(RangeType[AnyPDLType]))
+    res = var_result_def(AnyPDLTypeConstr | base(RangeType[AnyPDLType]))
 
     irdl_options = (ParsePropInAttrDict(),)
 
-    assembly_format = (
-        "$name (`(` $args^ `:` type($args) `)`)? (`:` type($res)^)? attr-dict"
-    )
+    assembly_format = "$name `(` $args `:` type($args) `)` (`:` type($res)^)? attr-dict"
 
     def __init__(
         self,
@@ -219,8 +217,8 @@ class ApplyNativeRewriteOp(IRDLOperation):
 
     name = "pdl.apply_native_rewrite"
     constraint_name = prop_def(StringAttr, prop_name="name")
-    args = var_operand_def(AnyPDLTypeConstr)
-    res = var_result_def(AnyPDLTypeConstr)
+    args = var_operand_def(AnyPDLTypeConstr | base(RangeType[AnyPDLType]))
+    res = var_result_def(AnyPDLTypeConstr | base(RangeType[AnyPDLType]))
 
     def __init__(
         self,
