@@ -5,7 +5,7 @@ import pytest
 
 from xdsl.builder import ImplicitBuilder
 from xdsl.context import Context
-from xdsl.dialects import arith, eqsat, eqsat_pdl_interp, func, pdl, test
+from xdsl.dialects import arith, eqsat_pdl_interp, equivalence, func, pdl, test
 from xdsl.dialects.builtin import ModuleOp, i32, i64
 from xdsl.interpreter import Interpreter
 from xdsl.interpreters.eqsat_pdl_interp import (
@@ -30,7 +30,7 @@ def test_populate_known_ops():
     """Test that populate_known_ops correctly categorizes operations."""
     # Create test operations
     regular_op = test.TestOp(result_types=[i32])
-    eclass_op = eqsat.EClassOp(create_ssa_value(i32), res_type=i32)
+    eclass_op = equivalence.ClassOp(create_ssa_value(i32), res_type=i32)
 
     # Create module containing both types of operations
     module = ModuleOp([regular_op, eclass_op])
@@ -60,8 +60,8 @@ def test_run_get_result():
     test_op = test.TestOp((c0,), (i32, i64))
 
     # Create EClass operations that use both results
-    eclass_op1 = eqsat.EClassOp(test_op.results[0], res_type=i32)
-    eclass_op2 = eqsat.EClassOp(test_op.results[1], res_type=i64)
+    eclass_op1 = equivalence.ClassOp(test_op.results[0], res_type=i32)
+    eclass_op2 = equivalence.ClassOp(test_op.results[1], res_type=i64)
 
     # Test GetResultOp for first result wrapped in EClass - should return EClass result
     result = interpreter.run_op(
@@ -86,7 +86,7 @@ def test_run_get_result_error_case():
     # Create a test operation with result that is not used by EClass
     c0 = create_ssa_value(i32)
     test_op = test.TestOp((c0,), (i32,))
-    _eclass_user = eqsat.EClassOp(test_op.results[0])
+    _eclass_user = equivalence.ClassOp(test_op.results[0])
     _extra_user = test.TestOp((test_op.results[0],))
 
     # Don't create any EClass operations, so result is not used by EClass
@@ -135,7 +135,7 @@ def test_run_get_results():
     # Create EClass operations that use all results of the op.
     # The GetResultsOp implementation for EqSat requires that the results
     # of the matched operation are consumed by EClass operations.
-    eclass_ops = [eqsat.EClassOp(res, res_type=res.type) for res in op.results]
+    eclass_ops = [equivalence.ClassOp(res, res_type=res.type) for res in op.results]
 
     # Helper to run the op
     def run_get_results(
@@ -202,7 +202,7 @@ def test_run_get_results_error_case_multiple_uses():
     test_op = test.TestOp((c0,), (i32, i64))
 
     # Result 0 is used by an EClassOp AND another op.
-    _eclass_user = eqsat.EClassOp(test_op.results[0])
+    _eclass_user = equivalence.ClassOp(test_op.results[0])
     _extra_user = test.TestOp((test_op.results[0],))
 
     # Test GetResultsOp should raise InterpretationError due to multiple uses
@@ -337,7 +337,7 @@ def test_run_get_defining_op_eclass_not_visited():
     # Create test operations
     c0 = create_ssa_value(i32)
     test_op = test.TestOp((c0,), (i32,))
-    eclass_op = eqsat.EClassOp(test_op.results[0], res_type=i32)
+    eclass_op = equivalence.ClassOp(test_op.results[0], res_type=i32)
 
     # Create GetDefiningOpOp
     gdo_op = eqsat_pdl_interp.GetDefiningOpOp(create_ssa_value(pdl.OperationType()))
@@ -372,7 +372,9 @@ def test_run_get_defining_op_eclass_visited():
     c1 = create_ssa_value(i32)
     test_op1 = test.TestOp((c0,), (i32,))
     test_op2 = test.TestOp((c1,), (i32,))
-    eclass_op = eqsat.EClassOp(test_op1.results[0], test_op2.results[0], res_type=i32)
+    eclass_op = equivalence.ClassOp(
+        test_op1.results[0], test_op2.results[0], res_type=i32
+    )
 
     # Create a block and add the GetDefiningOpOp to it
     from xdsl.ir import Block
@@ -409,7 +411,7 @@ def test_run_get_defining_op_eclass_error_multiple_gdo():
     # Create test operations
     c0 = create_ssa_value(i32)
     test_op = test.TestOp((c0,), (i32,))
-    eclass_op = eqsat.EClassOp(test_op.results[0], res_type=i32)
+    eclass_op = equivalence.ClassOp(test_op.results[0], res_type=i32)
 
     # Create two different GetDefiningOpOp operations
     gdo_op1 = eqsat_pdl_interp.GetDefiningOpOp(create_ssa_value(pdl.OperationType()))
@@ -451,7 +453,7 @@ def test_run_create_operation_new_operation():
     block = testmodule.body.first_block
     with ImplicitBuilder(block):
         root = test.TestOp()
-        operand = eqsat.EClassOp(create_ssa_value(i32), res_type=i32).result
+        operand = equivalence.ClassOp(create_ssa_value(i32), res_type=i32).result
     rewriter = PatternRewriter(root)
     PDLInterpFunctions.set_rewriter(interpreter, rewriter)
 
@@ -485,7 +487,7 @@ def test_run_create_operation_new_operation():
     # The EClass should be created and inserted after the operation
     assert len(interp_functions.eclass_union_find._values) == 2  # pyright: ignore[reportPrivateUsage]
     eclass_op = interp_functions.eclass_union_find._values[1]  # pyright: ignore[reportPrivateUsage]
-    assert isinstance(eclass_op, eqsat.EClassOp)
+    assert isinstance(eclass_op, equivalence.ClassOp)
 
 
 def test_run_create_operation_existing_operation_in_use_by_eclass():
@@ -505,11 +507,11 @@ def test_run_create_operation_existing_operation_in_use_by_eclass():
     block = testmodule.body.first_block
     with ImplicitBuilder(block):
         root = test.TestOp()
-        operand = eqsat.EClassOp(create_ssa_value(i32), res_type=i32).result
+        operand = equivalence.ClassOp(create_ssa_value(i32), res_type=i32).result
         # Create an existing operation that's identical to what we'll create
         existing_op = test.TestOp((operand,), (i32,))
         _user_op = test.TestOp((existing_op.results[0],), (i32,))
-        _eclass_user = eqsat.EClassOp(existing_op.results[0])
+        _eclass_user = equivalence.ClassOp(existing_op.results[0])
 
     rewriter = PatternRewriter(root)
     PDLInterpFunctions.set_rewriter(interpreter, rewriter)
@@ -559,7 +561,7 @@ def test_run_create_operation_existing_operation_in_use():
     block = testmodule.body.first_block
     with ImplicitBuilder(block):
         root = test.TestOp()
-        operand = eqsat.EClassOp(create_ssa_value(i32), res_type=i32).result
+        operand = equivalence.ClassOp(create_ssa_value(i32), res_type=i32).result
         # Create an existing operation that's identical to what we'll create
         existing_op = test.TestOp((operand,), (i32,))
         _user_op = test.TestOp((existing_op.results[0],), (i32,))
@@ -590,7 +592,8 @@ def test_run_create_operation_existing_operation_in_use():
     assert returned_op is existing_op
 
     assert any(
-        isinstance(use.operation, eqsat.EClassOp) for use in returned_op.results[0].uses
+        isinstance(use.operation, equivalence.ClassOp)
+        for use in returned_op.results[0].uses
     )
 
     assert rewriter.has_done_action  # create a new EClassOp
@@ -614,7 +617,7 @@ def test_run_create_operation_existing_operation_not_in_use():
     block = testmodule.body.first_block
     with ImplicitBuilder(block):
         root = test.TestOp()
-        operand = eqsat.EClassOp(create_ssa_value(i32), res_type=i32).result
+        operand = equivalence.ClassOp(create_ssa_value(i32), res_type=i32).result
         # Create an existing operation with no result uses
         existing_op = test.TestOp((operand,), (i32,))
     rewriter = PatternRewriter(root)
@@ -647,7 +650,7 @@ def test_run_create_operation_existing_operation_not_in_use():
     assert created_op is existing_op
 
     assert existing_op.results[0].first_use, "Existing operation result have a use now"
-    assert isinstance(existing_op.results[0].first_use.operation, eqsat.EClassOp)
+    assert isinstance(existing_op.results[0].first_use.operation, equivalence.ClassOp)
 
 
 def test_run_finalize_empty_stack():
@@ -761,8 +764,10 @@ def test_run_replace():
         replacement_op = test.TestOp((c0,), (i32,))
 
         # Create EClass operations for both
-        original_eclass = eqsat.EClassOp(original_op.results[0], res_type=i32)
-        replacement_eclass = eqsat.EClassOp(replacement_op.results[0], res_type=i32)
+        original_eclass = equivalence.ClassOp(original_op.results[0], res_type=i32)
+        replacement_eclass = equivalence.ClassOp(
+            replacement_op.results[0], res_type=i32
+        )
 
     # Add both EClass operations to union-find
     interp_functions.eclass_union_find.add(original_eclass)
@@ -807,7 +812,7 @@ def test_run_replace_same_eclass():
     test_op = test.TestOp((c0,), (i32,))
 
     # Create EClass operation
-    eclass_op = eqsat.EClassOp(test_op.results[0], res_type=i32)
+    eclass_op = equivalence.ClassOp(test_op.results[0], res_type=i32)
 
     # Add EClass operation to union-find
     interp_functions.eclass_union_find.add(eclass_op)
@@ -843,7 +848,7 @@ def test_run_replace_error_not_eclass_original():
 
     # Create replacement EClass
     replacement_op = test.TestOp((c0,), (i32,))
-    replacement_eclass = eqsat.EClassOp(replacement_op.results[0], res_type=i32)
+    replacement_eclass = equivalence.ClassOp(replacement_op.results[0], res_type=i32)
 
     # Create a ReplaceOp for testing
     input_op_value = create_ssa_value(pdl.OperationType())
@@ -868,7 +873,7 @@ def test_run_replace_error_not_eclass_replacement():
     # Create test operation with EClass usage
     c0 = create_ssa_value(i32)
     original_op = test.TestOp((c0,), (i32,))
-    _original_eclass = eqsat.EClassOp(original_op.results[0], res_type=i32)
+    _original_eclass = equivalence.ClassOp(original_op.results[0], res_type=i32)
 
     # Create replacement operation without EClass
     replacement_op = test.TestOp((c0,), (i32,))
@@ -899,15 +904,15 @@ def test_rebuilding():
         b = create_ssa_value(i32)
         x = create_ssa_value(i32)
 
-        c_a = eqsat.EClassOp(a, res_type=i32).result
-        c_b = eqsat.EClassOp(b, res_type=i32).result
-        c_x = eqsat.EClassOp(x, res_type=i32).result
+        c_a = equivalence.ClassOp(a, res_type=i32).result
+        c_b = equivalence.ClassOp(b, res_type=i32).result
+        c_x = equivalence.ClassOp(x, res_type=i32).result
 
         c = arith.MuliOp(c_a, c_a).result
-        c_c = eqsat.EClassOp(c, res_type=i32).result
+        c_c = equivalence.ClassOp(c, res_type=i32).result
 
         d = arith.MuliOp(c_b, c_b).result
-        c_d = eqsat.EClassOp(d, res_type=i32).result
+        c_d = equivalence.ClassOp(d, res_type=i32).result
     a.name_hint = "a"
     b.name_hint = "b"
     x.name_hint = "x"
@@ -921,7 +926,7 @@ def test_rebuilding():
 
     ctx = Context()
     ctx.register_dialect("func", lambda: func.Func)
-    ctx.register_dialect("eqsat", lambda: eqsat.EqSat)
+    ctx.register_dialect("eqsat", lambda: equivalence.Equivalence)
     ctx.register_dialect("arith", lambda: arith.Arith)
     rewriter = PatternRewriter(c_b.owner)
 
@@ -932,10 +937,10 @@ def test_rebuilding():
 
     interp_functions.populate_known_ops(testmodule)
 
-    assert isinstance(c_x.owner, eqsat.EClassOp)
-    assert isinstance(c_a.owner, eqsat.EClassOp)
-    assert isinstance(c_b.owner, eqsat.EClassOp)
-    assert isinstance(c_d.owner, eqsat.EClassOp)
+    assert isinstance(c_x.owner, equivalence.ClassOp)
+    assert isinstance(c_a.owner, equivalence.ClassOp)
+    assert isinstance(c_b.owner, equivalence.ClassOp)
+    assert isinstance(c_d.owner, equivalence.ClassOp)
 
     interp_functions.eclass_union(interpreter, c_x.owner, c_d.owner)
     interp_functions.worklist.append(c_x.owner)
@@ -951,8 +956,8 @@ def test_rebuilding():
   %a = "test.op"() : () -> i32
   %b = "test.op"() : () -> i32
   %x = "test.op"() : () -> i32
-  %c_b = eqsat.eclass %b, %a : i32
-  %c_x = eqsat.eclass %x, %c : i32
+  %c_b = equivalence.class %b, %a : i32
+  %c_x = equivalence.class %x, %c : i32
   %c = arith.muli %c_b, %c_b : i32
 }"""
     )
@@ -962,18 +967,18 @@ def test_rebuilding_parents_already_equivalent():
     """
     Take for example:
     ```
-    %c_x = eqsat.eclass(%x)
-    %c_y = eqsat.eclass(%y)
+    %c_x = equivalence.class(%x)
+    %c_y = equivalence.class(%y)
     %a = f(%c_x)
     %b = f(%c_y)
-    eqsat.eclass(%a, %b)
+    equivalence.class(%a, %b)
     ```
     When `%x` and `%y` become equivalent, this becomes:
     ```
-    %c_xy = eqsat.eclass(%x, %y)
+    %c_xy = equivalence.class(%x, %y)
     %a = f(%x)
     %b = f(%x)
-    eqsat.eclass(%a, %b)
+    equivalence.class(%a, %b)
     ```
     The rebuilding procedure has to deduplicate `%a` and `%b`, and the eclass should only contain `%c_xy`.
     """
@@ -986,13 +991,13 @@ def test_rebuilding_parents_already_equivalent():
         x = create_ssa_value(i32)
         y = create_ssa_value(i32)
 
-        c_x = eqsat.EClassOp(x, res_type=i32).result
-        c_y = eqsat.EClassOp(y, res_type=i32).result
+        c_x = equivalence.ClassOp(x, res_type=i32).result
+        c_y = equivalence.ClassOp(y, res_type=i32).result
 
         a = test.TestOp((c_x,), result_types=(i32,)).results[0]
         b = test.TestOp((c_y,), result_types=(i32,)).results[0]
 
-        c_ab = eqsat.EClassOp(a, b, res_type=i32).result
+        c_ab = equivalence.ClassOp(a, b, res_type=i32).result
     x.name_hint = "x"
     y.name_hint = "y"
     c_x.name_hint = "c_x"
@@ -1007,15 +1012,15 @@ def test_rebuilding_parents_already_equivalent():
     interp_functions = EqsatPDLInterpFunctions()
     ctx = PDLInterpFunctions.get_ctx(interpreter)
     ctx.register_dialect("func", lambda: func.Func)
-    ctx.register_dialect("eqsat", lambda: eqsat.EqSat)
+    ctx.register_dialect("eqsat", lambda: equivalence.Equivalence)
     ctx.register_dialect("test", lambda: test.Test)
 
     PDLInterpFunctions.set_rewriter(interpreter, rewriter)
 
     interp_functions.populate_known_ops(testmodule)
 
-    assert isinstance(c_x.owner, eqsat.EClassOp)
-    assert isinstance(c_y.owner, eqsat.EClassOp)
+    assert isinstance(c_x.owner, equivalence.ClassOp)
+    assert isinstance(c_y.owner, equivalence.ClassOp)
 
     interp_functions.eclass_union(interpreter, c_x.owner, c_y.owner)
     interp_functions.worklist.append(c_x.owner)
@@ -1027,9 +1032,9 @@ def test_rebuilding_parents_already_equivalent():
         == """builtin.module {
   %x = "test.op"() : () -> i32
   %y = "test.op"() : () -> i32
-  %c_x = eqsat.eclass %x, %y : i32
+  %c_x = equivalence.class %x, %y : i32
   %b = "test.op"(%c_x) : (i32) -> i32
-  %c_ab = eqsat.eclass %b : i32
+  %c_ab = equivalence.class %b : i32
 }"""
     )
 
@@ -1063,7 +1068,7 @@ def test_run_get_defining_op_block_argument():
         gdo := eqsat_pdl_interp.GetDefiningOpOp(create_ssa_value(pdl.OperationType()))
     )
 
-    eclass_result = eqsat.EClassOp(block_arg, res_type=i32).result
+    eclass_result = equivalence.ClassOp(block_arg, res_type=i32).result
 
     # set dummy value
     interpreter.push_scope()
@@ -1259,9 +1264,9 @@ def test_eclass_union_different_constants_fails():
         const2 = arith.ConstantOp(IntegerAttr(2, i32))
 
         # Create ConstantEClassOp for both
-        const_eclass1 = eqsat.ConstantEClassOp(const1.result)
+        const_eclass1 = equivalence.ConstantClassOp(const1.result)
         const_eclass1.value = IntegerAttr(1, i32)
-        const_eclass2 = eqsat.ConstantEClassOp(const2.result)
+        const_eclass2 = equivalence.ConstantClassOp(const2.result)
         const_eclass2.value = IntegerAttr(2, i32)
 
     # Add both to union-find
@@ -1293,11 +1298,11 @@ def test_eclass_union_constant_with_regular():
         regular_op = test.TestOp(result_types=[i32])
 
         # Create ConstantEClassOp
-        const_eclass = eqsat.ConstantEClassOp(const_op.result)
+        const_eclass = equivalence.ConstantClassOp(const_op.result)
         const_eclass.value = IntegerAttr(1, i32)
 
         # Create regular EClassOp with the regular operation's result
-        regular_eclass = eqsat.EClassOp(regular_op.results[0], res_type=i32)
+        regular_eclass = equivalence.ClassOp(regular_op.results[0], res_type=i32)
 
     rewriter = PatternRewriter(const_op)
     interpreter = Interpreter(ModuleOp(()))
@@ -1314,7 +1319,7 @@ def test_eclass_union_constant_with_regular():
     canonical = interp_functions.eclass_union_find.find(const_eclass)
 
     # Verify that the canonical is a ConstantEClassOp
-    assert isinstance(canonical, eqsat.ConstantEClassOp), (
+    assert isinstance(canonical, equivalence.ConstantClassOp), (
         "Result should be a ConstantEClassOp"
     )
 
@@ -1352,7 +1357,9 @@ def test_run_replace_no_uses_returns_empty():
 
         # Create replacement eclass
         replacement_op = test.TestOp((c0,), (i32,))
-        replacement_eclass = eqsat.EClassOp(replacement_op.results[0], res_type=i32)
+        replacement_eclass = equivalence.ClassOp(
+            replacement_op.results[0], res_type=i32
+        )
 
     # Add replacement eclass to union-find
     interp_functions.eclass_union_find.add(replacement_eclass)
@@ -1391,15 +1398,15 @@ def test_run_replace_multi_results():
         original_op = test.TestOp((c0,), (i32, i64))
 
         # Create EClass operations for the results
-        eclass1 = eqsat.EClassOp(original_op.results[0], res_type=i32)
-        eclass2 = eqsat.EClassOp(original_op.results[1], res_type=i64)
+        eclass1 = equivalence.ClassOp(original_op.results[0], res_type=i32)
+        eclass2 = equivalence.ClassOp(original_op.results[1], res_type=i64)
 
         # Create replacement operations/eclasses
         repl1_op = test.TestOp((c0,), (i32,))
-        repl1_eclass = eqsat.EClassOp(repl1_op.results[0], res_type=i32)
+        repl1_eclass = equivalence.ClassOp(repl1_op.results[0], res_type=i32)
 
         repl2_op = test.TestOp((c0,), (i64,))
-        repl2_eclass = eqsat.EClassOp(repl2_op.results[0], res_type=i64)
+        repl2_eclass = equivalence.ClassOp(repl2_op.results[0], res_type=i64)
 
     # Add to union find
     interp_functions.eclass_union_find.add(eclass1)
@@ -1466,7 +1473,7 @@ def test_run_replace_rangetype_mixed():
         )
 
         orig_eclasses = [
-            eqsat.EClassOp(res, res_type=res.type) for res in original_op.results
+            equivalence.ClassOp(res, res_type=res.type) for res in original_op.results
         ]
 
         c0 = create_ssa_value(i32)
@@ -1474,7 +1481,7 @@ def test_run_replace_rangetype_mixed():
         # Generate 5 dummy replacements
         repl_ops = [test.TestOp((c0,), (r.type,)) for r in original_op.results]
         repl_eclasses = [
-            eqsat.EClassOp(op.results[0], res_type=op.results[0].type)
+            equivalence.ClassOp(op.results[0], res_type=op.results[0].type)
             for op in repl_ops
         ]
         repl_values = [e.results[0] for e in repl_eclasses]
@@ -1542,12 +1549,14 @@ def test_run_replace_rangetype_full_coverage():
 
         # Wrap originals in EClasses
         orig_eclasses = [
-            eqsat.EClassOp(res, res_type=i32) for res in original_op.results
+            equivalence.ClassOp(res, res_type=i32) for res in original_op.results
         ]
 
         # Create replacements
         repl_ops = [test.TestOp((c0,), (i32,)) for _ in range(3)]
-        repl_eclasses = [eqsat.EClassOp(op.results[0], res_type=i32) for op in repl_ops]
+        repl_eclasses = [
+            equivalence.ClassOp(op.results[0], res_type=i32) for op in repl_ops
+        ]
 
     for e in orig_eclasses + repl_eclasses:
         interp_functions.eclass_union_find.add(e)
@@ -1592,12 +1601,12 @@ def test_run_replace_length_mismatch():
         original_op = test.TestOp((c0,), (i32, i32))
 
         # Create EClasses (required to pass early checks in run_replace)
-        eqsat.EClassOp(original_op.results[0], res_type=i32)
-        eqsat.EClassOp(original_op.results[1], res_type=i32)
+        equivalence.ClassOp(original_op.results[0], res_type=i32)
+        equivalence.ClassOp(original_op.results[1], res_type=i32)
 
         # Replacement (only 1 provided)
         repl_op = test.TestOp((c0,), (i32,))
-        repl_eclass = eqsat.EClassOp(repl_op.results[0], res_type=i32)
+        repl_eclass = equivalence.ClassOp(repl_op.results[0], res_type=i32)
 
     input_op_val = create_ssa_value(pdl.OperationType())
     repl_val = create_ssa_value(pdl.ValueType())
@@ -1625,7 +1634,7 @@ def test_run_create_operation_multiple_results():
         c0 = create_ssa_value(i32)
         # Input operand eclass
         operand_op = test.TestOp((c0,), (i32,))
-        operand_eclass = eqsat.EClassOp(operand_op.results[0], res_type=i32)
+        operand_eclass = equivalence.ClassOp(operand_op.results[0], res_type=i32)
 
     rewriter = PatternRewriter(root)
     PDLInterpFunctions.set_rewriter(interpreter, rewriter)
@@ -1659,7 +1668,7 @@ def test_run_create_operation_multiple_results():
     for res in created_op.results:
         assert res.has_one_use()
         user = res.first_use.operation
-        assert isinstance(user, eqsat.EClassOp)
+        assert isinstance(user, equivalence.ClassOp)
         assert interp_functions.eclass_union_find.find(user) is user
 
 
@@ -1710,7 +1719,7 @@ def test_run_create_operation_runs_analysis():
                 val = operands[0].value.value
                 # If op is EClassOp, it passes through value.
                 # If op is TestOp (the created op), it increments.
-                if isinstance(op, eqsat.EClassOp):
+                if isinstance(op, equivalence.ClassOp):
                     new_val = val
                 else:
                     new_val = val + 1
@@ -1748,7 +1757,7 @@ def test_run_create_operation_runs_analysis():
         c0 = create_ssa_value(i32)
         # Operand EClass with some state
         operand_op = test.TestOp((c0,), (i32,))
-        operand_eclass = eqsat.EClassOp(operand_op.results[0], res_type=i32)
+        operand_eclass = equivalence.ClassOp(operand_op.results[0], res_type=i32)
 
     # Initialize lattice state for operand
     operand_lattice = analysis.get_lattice_element(operand_eclass.result)
@@ -1783,7 +1792,7 @@ def test_run_create_operation_runs_analysis():
     # Find the new EClassOp
     assert created_op.results[0].first_use
     new_eclass_op = created_op.results[0].first_use.operation
-    assert isinstance(new_eclass_op, eqsat.EClassOp)
+    assert isinstance(new_eclass_op, equivalence.ClassOp)
     assert new_eclass_op in analysis.visited_ops
 
     # Verify values
