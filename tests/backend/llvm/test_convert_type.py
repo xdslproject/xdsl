@@ -1,4 +1,4 @@
-import llvmlite.ir as ir  # pyright: ignore[reportMissingTypeStubs]
+import llvmlite.ir as ir
 import pytest
 
 from xdsl.backend.llvm.convert_type import convert_type

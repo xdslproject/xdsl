@@ -2,7 +2,7 @@ from collections.abc import Callable
 from functools import cache
 from typing import Any
 
-import llvmlite.ir as ir  # pyright: ignore[reportMissingTypeStubs]
+import llvmlite.ir as ir
 
 from xdsl.dialects.builtin import (
     ComplexType,
