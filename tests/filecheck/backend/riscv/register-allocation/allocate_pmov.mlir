@@ -10,8 +10,8 @@ riscv_func.func @main() {
 
 // CHECK:       builtin.module {
 // CHECK-NEXT:    riscv_func.func @main() {
-// CHECK-NEXT:      %0, %1, %2 = "test.op"() : () -> (!riscv.reg<t2>, !riscv.reg<t1>, !riscv.reg<t0>)
-// CHECK-NEXT:      %3, %4, %5 = riscv.parallel_mov %0, %1, %2 : (!riscv.reg<t2>, !riscv.reg<t1>, !riscv.reg<t0>) -> (!riscv.reg<t0>, !riscv.reg<t1>, !riscv.reg<t2>)
+// CHECK-NEXT:      %0, %1, %2 = "test.op"() : () -> (!riscv.reg<t0>, !riscv.reg<t1>, !riscv.reg<t2>)
+// CHECK-NEXT:      %3, %4, %5 = riscv.parallel_mov %0, %1, %2 : (!riscv.reg<t0>, !riscv.reg<t1>, !riscv.reg<t2>) -> (!riscv.reg<t0>, !riscv.reg<t1>, !riscv.reg<t2>)
 // CHECK-NEXT:      "test.op"(%3, %4, %5) : (!riscv.reg<t0>, !riscv.reg<t1>, !riscv.reg<t2>) -> ()
 // CHECK-NEXT:      riscv_func.return
 // CHECK-NEXT:    }
