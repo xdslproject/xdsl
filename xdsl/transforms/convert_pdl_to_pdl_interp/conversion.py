@@ -65,6 +65,7 @@ from xdsl.transforms.convert_pdl_to_pdl_interp.predicate import (
     get_position_cost,
     get_question_cost,
 )
+from xdsl.utils.hints import isa
 from xdsl.utils.scoped_dict import ScopedDict
 
 
@@ -1161,7 +1162,6 @@ class MatcherGenerator:
                 if position.is_variadic
                 else pdl.ValueType()
             )
-            raise NotImplementedError("pdl_interp.get_operands is not yet implemented")
             get_operands_op = pdl_interp.GetOperandsOp(
                 position.group_number, parent_val, result_type
             )
@@ -1204,9 +1204,6 @@ class MatcherGenerator:
             assert parent_val is not None
             # Get type of value or attribute
             if parent_val.type == pdl.AttributeType():
-                raise NotImplementedError(
-                    "pdl_interp.get_attribute_type is not yet implemented"
-                )
                 get_type_op = pdl_interp.GetAttributeTypeOp(parent_val)
             else:
                 get_type_op = pdl_interp.GetValueTypeOp(parent_val)
@@ -1304,11 +1301,9 @@ class MatcherGenerator:
                 assert isinstance(answer, TypeAnswer)
                 if isinstance(val.type, pdl.RangeType):
                     # Check multiple types
-                    raise NotImplementedError(
-                        "pdl_interp.check_types is not yet implemented"
-                    )
+                    assert isinstance(answer.value, ArrayAttr)
                     check_op = pdl_interp.CheckTypesOp(
-                        val, answer.value, success_block, failure_block
+                        answer.value, val, success_block, failure_block
                     )
                 else:
                     # Check single type
@@ -1364,8 +1359,7 @@ class MatcherGenerator:
                 if child_node:
                     success_block = self.generate_matcher(child_node, region)
                     current_check_block = Block()
-                    region.add_block(current_check_block)
-
+                    region.insert_block_before(current_check_block, success_block)
                     self.builder.insertion_point = InsertPoint.at_end(
                         current_check_block
                     )
@@ -1449,16 +1443,15 @@ class MatcherGenerator:
             case TypeConstraintQuestion():
                 # Extract type attributes from TypeAnswer objects
                 switch_values = [cast(TypeAnswer, ans).value for ans in case_values]
-                raise NotImplementedError(
-                    "pdl_interp.switch_types is not yet implemented"
-                )
                 if isinstance(val.type, pdl.RangeType):
+                    assert isa(switch_values, list[ArrayAttr[TypeAttribute]])
                     switch_attr = ArrayAttr(switch_values)
 
                     switch_op = pdl_interp.SwitchTypesOp(
                         switch_attr, val, default_dest, case_blocks
                     )
                 else:
+                    assert isa(switch_values, list[TypeAttribute])
                     switch_attr = ArrayAttr(switch_values)
                     switch_op = pdl_interp.SwitchTypeOp(
                         switch_attr, val, default_dest, case_blocks
@@ -1542,7 +1535,7 @@ class MatcherGenerator:
             rewriter_name = "pdl_generated_rewriter"
         if rewriter_name in self.rewriter_names:
             self.rewriter_names[rewriter_name] += 1
-            rewriter_name = f"{rewriter_name}_{self.rewriter_names[rewriter_name]}"
+            rewriter_name = f"{rewriter_name}_{self.rewriter_names[rewriter_name] - 2}"
         else:
             self.rewriter_names[rewriter_name] = 1
 
@@ -1762,10 +1755,9 @@ class MatcherGenerator:
         map_rewrite_value: Callable[[SSAValue], SSAValue],
     ) -> None:
         args = [map_rewrite_value(arg) for arg in op.arguments]
-        raise NotImplementedError("pdl_interp.create_range is not yet implemented")
         create_range_op = pdl_interp.CreateRangeOp(args, op.result.type)
         self.rewriter_builder.insert(create_range_op)
-        rewrite_values[op.result] = create_range_op.range
+        rewrite_values[op.result] = create_range_op.result
 
     def _generate_rewriter_for_replace(
         self,
@@ -1801,7 +1793,6 @@ class MatcherGenerator:
             # will already have been inserted during `pdl_interp.create_operation`.
             # In case there are no new values to replace the op with,
             # a replacement is the same as just erasing the op.
-            raise NotImplementedError("pdl_interp.erase is not yet implemented")
             self.rewriter_builder.insert(pdl_interp.EraseOp(mapped_op_value))
         else:
             self.rewriter_builder.insert(
