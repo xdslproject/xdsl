@@ -42,10 +42,8 @@ ctx.register_function(erase_op, pdl.EraseOp)
 
 
 @ctx.parse_program
-def constant_replace(matched_operation: arith.ConstantOp) -> arith.ConstantOp:
+def constant_replace(matched_operation: arith.ConstantOp):
     erase_op(matched_operation)
-    # NOTE: A value is returned due to limitations of PyAST's current function implementation
-    return matched_operation
 
 
 # Check that the DSL correctly rewrites on the xDSL data structures
