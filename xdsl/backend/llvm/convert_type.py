@@ -116,10 +116,7 @@ def convert_type(type_attr: Attribute) -> ir.Type:
         The corresponding llvmlite IR type.
 
     Raises:
-        LLVMTranslationException: If the type is not supported, including:
-            - Scalable vectors (vectors with scalable dimensions)
-            - Multi-dimensional vectors (vectors with more than one dimension)
-            - Any other unsupported type attribute
+        LLVMTranslationException: If the type is not supported
     """
     try:
         converter = _TYPE_CONVERTERS[type(type_attr)]
