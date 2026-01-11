@@ -44,7 +44,6 @@ ctx.register_function(erase_op, pdl.EraseOp)
 @ctx.parse_program
 def constant_replace(matched_operation: arith.ConstantOp):
     erase_op(matched_operation)
-    return
 
 
 # Check that the DSL correctly rewrites on the xDSL data structures
