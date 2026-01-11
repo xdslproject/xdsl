@@ -18,7 +18,6 @@ def test_convert_int():
     assert convert_type(builtin.IntegerType(1)) == ir.IntType(1)
     assert convert_type(builtin.IntegerType(32)) == ir.IntType(32)
     assert convert_type(builtin.IntegerType(64)) == ir.IntType(64)
-    assert convert_type(builtin.IndexType()) == ir.IntType(64)
 
 
 @pytest.mark.parametrize(
@@ -110,3 +109,6 @@ def test_convert_function():
 def test_unsupported_type():
     with pytest.raises(LLVMTranslationException, match="Type not supported"):
         convert_type(builtin.StringAttr("foo"))
+
+    with pytest.raises(LLVMTranslationException, match="Type not supported"):
+        convert_type(builtin.IndexType())

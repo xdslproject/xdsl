@@ -10,7 +10,6 @@ from xdsl.dialects.builtin import (
     Float32Type,
     Float64Type,
     FunctionType,
-    IndexType,
     IntAttr,
     IntegerType,
     NoneType,
@@ -30,10 +29,6 @@ from xdsl.utils.exceptions import LLVMTranslationException
 
 def _convert_integer_type(type_attr: IntegerType) -> ir.Type:
     return ir.IntType(type_attr.width.data)
-
-
-def _convert_index_type(_: IndexType) -> ir.Type:
-    return ir.IntType(64)
 
 
 def _convert_pointer_type(type_attr: LLVMPointerType) -> ir.Type:
@@ -89,7 +84,6 @@ def _convert_llvm_function_type(type_attr: LLVMFunctionType) -> ir.Type:
 
 _TYPE_CONVERTERS: dict[type[Attribute], Callable[[Any], ir.Type]] = {
     IntegerType: _convert_integer_type,
-    IndexType: _convert_index_type,
     Float16Type: lambda _: ir.HalfType(),
     Float32Type: lambda _: ir.FloatType(),
     Float64Type: lambda _: ir.DoubleType(),
