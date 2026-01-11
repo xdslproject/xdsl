@@ -42,8 +42,7 @@ builtin.module {
 // CHECK-NEXT:        %{{.*}} = riscv.mv %{{.*}} : (!riscv.reg) -> !riscv.reg<a0>
 // CHECK-NEXT:        %{{.*}} = riscv.fmv.s %{{.*}} : (!riscv.freg) -> !riscv.freg<fa0>
 // CHECK-NEXT:        %{{.*}}, %{{.*}} = riscv_func.call @foo(%{{.*}}, %{{.*}}) : (!riscv.reg<a0>, !riscv.freg<fa0>) -> (!riscv.reg<a0>, !riscv.freg<fa0>)
-// CHECK-NEXT:        %{{.*}} = riscv.mv %{{.*}} : (!riscv.reg<a0>) -> !riscv.reg
-// CHECK-NEXT:        %{{.*}} = riscv.fmv.d %{{.*}} : (!riscv.freg<fa0>) -> !riscv.freg
+// CHECK-NEXT:        %{{.*}}, %{{.*}} = riscv.parallel_mov %{{.*}}, %{{.*}} : (!riscv.reg<a0>, !riscv.freg<fa0>) -> (!riscv.reg, !riscv.freg)
 // CHECK-NEXT:        %{{.*}} = builtin.unrealized_conversion_cast %{{.*}} : !riscv.reg to i64
 // CHECK-NEXT:        %{{.*}} = builtin.unrealized_conversion_cast %{{.*}} : !riscv.freg to f64
 // CHECK-NEXT:        riscv_func.return

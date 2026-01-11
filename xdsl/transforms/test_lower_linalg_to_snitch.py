@@ -30,6 +30,7 @@ from xdsl.transforms import (
     memref_streamify,
     reconcile_unrealized_casts,
     riscv_allocate_registers,
+    riscv_lower_parallel_mov,
     riscv_scf_loop_range_folding,
     scf_for_loop_flatten,
     snitch_allocate_registers,
@@ -83,6 +84,8 @@ TEST_LOWER_LINALG_TO_SNITCH_PASSES: tuple[ModulePass, ...] = (
     *OPTIMISE_MEMREF_STREAM_PASSES,
     *LOWER_MEMREF_STREAM_TO_SNITCH_STREAM_PASSES,
     *LOWER_SNITCH_STREAM_TO_ASM_PASSES,
+    riscv_lower_parallel_mov.RISCVLowerParallelMovPass(),
+    canonicalize.CanonicalizePass(),
 )
 
 
