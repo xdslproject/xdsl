@@ -62,6 +62,27 @@ pdl_interp.func @matcher(%arg0: !pdl.operation) {
 ^bb23:
   %11 = pdl_interp.apply_rewrite "myRewriter"(%arg0, %0 : !pdl.operation, !pdl.value) : !pdl.attribute
   pdl_interp.finalize
+^bb24:
+  pdl_interp.erase %arg0
+  pdl_interp.finalize
+^bb25:
+  pdl_interp.get_operands of %arg0: !pdl.range<value>
+  pdl_interp.finalize
+^bb26:
+  pdl_interp.get_attribute_type of %attr_val
+  pdl_interp.finalize
+^bb27:
+  %types = pdl_interp.create_range %7, %8 : !pdl.type, !pdl.type
+  pdl_interp.check_types %types are [i32, i64] -> ^bb1, ^bb1
+^bb28:
+  pdl_interp.switch_operand_count of %arg0 to dense<[10, 2]> : vector<2xi32>(^bb1, ^bb1) -> ^bb1
+^bb29:
+  pdl_interp.switch_result_count of %arg0 to dense<[1, 2]> : vector<2xi32>(^bb1, ^bb1) -> ^bb1
+^bb30:
+  pdl_interp.switch_types %types to [[i32, i64], [i64]](^bb1, ^bb1) -> ^bb1
+^bb31:
+  %moretypes = pdl_interp.apply_rewrite "rewrite_in_matcher"(%arg0 : !pdl.operation) : !pdl.range<type>
+  pdl_interp.finalize
 }
 module @rewriters {
   pdl_interp.func @pdl_generated_rewriter(%arg0: !pdl.value, %arg1: !pdl.value, %arg2: !pdl.type, %arg3: !pdl.value, %arg4: !pdl.operation) {
@@ -141,6 +162,27 @@ module @rewriters {
 // CHECK-NEXT:       pdl_interp.finalize
 // CHECK-NEXT:     ^bb22:
 // CHECK-NEXT:       %12 = pdl_interp.apply_rewrite "myRewriter"([[arg0]], %0 : !pdl.operation, !pdl.value) : !pdl.attribute
+// CHECK-NEXT:       pdl_interp.finalize
+// CHECK-NEXT:     ^bb23:
+// CHECK-NEXT:       pdl_interp.erase [[arg0]]
+// CHECK-NEXT:       pdl_interp.finalize
+// CHECK-NEXT:     ^bb24:
+// CHECK-NEXT:       %13 = pdl_interp.get_operands of [[arg0]] : !pdl.range<value>
+// CHECK-NEXT:       pdl_interp.finalize
+// CHECK-NEXT:     ^bb25:
+// CHECK-NEXT:       %14 = pdl_interp.get_attribute_type of %9
+// CHECK-NEXT:       pdl_interp.finalize
+// CHECK-NEXT:     ^bb26:
+// CHECK-NEXT:       %15 = pdl_interp.create_range %7, %8 : !pdl.type, !pdl.type
+// CHECK-NEXT:       pdl_interp.check_types %15 are [i32, i64] -> ^bb1, ^bb1
+// CHECK-NEXT:     ^bb27:
+// CHECK-NEXT:       pdl_interp.switch_operand_count of [[arg0]] to dense<[10, 2]> : vector<2xi32>(^bb1, ^bb1) -> ^bb1
+// CHECK-NEXT:     ^bb28:
+// CHECK-NEXT:       pdl_interp.switch_result_count of [[arg0]] to dense<[1, 2]> : vector<2xi32>(^bb1, ^bb1) -> ^bb1
+// CHECK-NEXT:     ^bb29:
+// CHECK-NEXT:       pdl_interp.switch_types %15 to {{\[}}[i32, i64], [i64]{{\]}}(^bb1, ^bb1) -> ^bb1
+// CHECK-NEXT:     ^bb30:
+// CHECK-NEXT:       %16 = pdl_interp.apply_rewrite "rewrite_in_matcher"([[arg0]] : !pdl.operation) : !pdl.range<type>
 // CHECK-NEXT:       pdl_interp.finalize
 // CHECK-NEXT:     }
 // CHECK-NEXT:     builtin.module @rewriters {
