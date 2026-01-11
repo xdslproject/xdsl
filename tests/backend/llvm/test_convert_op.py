@@ -1,10 +1,13 @@
+from collections.abc import Mapping
+from typing import Protocol
+
 import llvmlite.ir as ir
 import pytest
 
 from xdsl.backend.llvm.convert_op import convert_op
 from xdsl.dialects import llvm
 from xdsl.dialects.builtin import DenseArrayBase, Float32Type, Float64Type, IntegerAttr
-from xdsl.ir import Operation, SSAValue
+from xdsl.ir import Attribute, Operation, SSAValue
 
 #
 # common
@@ -14,7 +17,7 @@ from xdsl.ir import Operation, SSAValue
 def _convert_and_verify(
     op: Operation,
     expected_ir: str,
-    val_map_setup: dict[SSAValue, ir.Value] | None = None,
+    val_map_setup: Mapping[SSAValue, ir.Value] | None = None,
 ) -> None:
     module = ir.Module(name="test_module")
     func_type = ir.FunctionType(ir.VoidType(), [])
@@ -22,7 +25,7 @@ def _convert_and_verify(
     block = func.append_basic_block(name="entry")
     builder = ir.IRBuilder(block)
 
-    val_map = val_map_setup.copy() if val_map_setup else {}
+    val_map = dict(val_map_setup) if val_map_setup else {}
 
     convert_op(op, builder, val_map)
 
@@ -34,7 +37,7 @@ def _convert_and_verify(
         assert inst_str == expected_ir.strip()
 
 
-def _create_ssa_value(typ: ir.Type) -> SSAValue:
+def _create_ssa_value(typ: Attribute) -> SSAValue:
     class TestOp(Operation):
         name = "test.op"
 
@@ -56,7 +59,7 @@ mock_i64 = ir.Constant(ir.IntType(64), 2)
 mock_f32 = ir.Constant(ir.FloatType(), 3.0)
 mock_ptr = ir.Constant(ir.IntType(32).as_pointer(), 0)
 
-default_val_map = {
+default_val_map: dict[SSAValue, ir.Value] = {
     val_i32: mock_i32,
     val_i64: mock_i64,
     val_f32: mock_f32,
@@ -71,6 +74,10 @@ default_val_map[val_b] = ir.Constant(ir.IntType(32), 2)
 #
 # tests
 #
+
+
+class BinaryOpCtor(Protocol):
+    def __call__(self, lhs: SSAValue, rhs: SSAValue, /) -> Operation: ...
 
 
 @pytest.mark.parametrize(
@@ -96,7 +103,7 @@ default_val_map[val_b] = ir.Constant(ir.IntType(32), 2)
         (llvm.XOrOp, "xor i32 1, 2"),
     ],
 )
-def test_binary_ops(op_type: type[Operation], expected_inst: str):
+def test_binary_ops(op_type: BinaryOpCtor, expected_inst: str):
     op = op_type(val_a, val_b)
     _convert_and_verify(op, expected_inst, default_val_map)
 
@@ -117,23 +124,22 @@ def test_sext_op():
 
 
 @pytest.fixture
-def prog():
+def prog() -> tuple[ir.IRBuilder, ir.Block]:
     module = ir.Module()
     func = ir.Function(module, ir.FunctionType(ir.VoidType(), []), "main")
     block = func.append_basic_block("entry")
     builder = ir.IRBuilder(block)
-    return module, builder, block
+    return builder, block
 
 
-def test_load_op(prog):
-    module, builder, block = prog
+def test_load_op(prog: tuple[ir.IRBuilder, ir.Block]):
+    builder, block = prog
     op_alloca = llvm.AllocaOp(val_i32, elem_type=i32)
     ptr_val = op_alloca.results[0]
     op = llvm.LoadOp(ptr_val, i32)
 
-    val_map = {val_i32: mock_i32}
-
     count_before = len(block.instructions)
+    val_map: dict[SSAValue, ir.Value] = {val_i32: mock_i32}
     convert_op(op_alloca, builder, val_map)
     convert_op(op, builder, val_map)
 
@@ -143,15 +149,14 @@ def test_load_op(prog):
     assert " = load i32, i32* %" in inst_str
 
 
-def test_store_op(prog):
-    module, builder, block = prog
+def test_store_op(prog: tuple[ir.IRBuilder, ir.Block]):
+    builder, block = prog
     op_alloca = llvm.AllocaOp(val_i32, elem_type=i32)
     ptr_val = op_alloca.results[0]
     op = llvm.StoreOp(val_i32, ptr_val)
 
-    val_map = {val_i32: mock_i32}
-
     count_before = len(block.instructions)
+    val_map: dict[SSAValue, ir.Value] = {val_i32: mock_i32}
     convert_op(op_alloca, builder, val_map)
     convert_op(op, builder, val_map)
 
@@ -162,8 +167,8 @@ def test_store_op(prog):
 
 
 @pytest.mark.parametrize("inbounds", [False, True])
-def test_gep_op(prog, inbounds: bool):
-    module, builder, block = prog
+def test_gep_op(prog: tuple[ir.IRBuilder, ir.Block], inbounds: bool):
+    builder, block = prog
     op_alloca = llvm.AllocaOp(val_i32, elem_type=i32)
     ptr_val = op_alloca.results[0]
 
@@ -176,8 +181,7 @@ def test_gep_op(prog, inbounds: bool):
         inbounds=inbounds,
     )
 
-    val_map = {val_i32: mock_i32, val_a: mock_i32}
-
+    val_map: dict[SSAValue, ir.Value] = {val_i32: mock_i32, val_a: mock_i32}
     convert_op(op_alloca, builder, val_map)
     convert_op(op, builder, val_map)
 
@@ -188,8 +192,8 @@ def test_gep_op(prog, inbounds: bool):
     assert inst_str.endswith(", i32 1")
 
 
-def test_gep_constant_idx(prog):
-    module, builder, block = prog
+def test_gep_constant_idx(prog: tuple[ir.IRBuilder, ir.Block]):
+    builder, block = prog
     op_alloca = llvm.AllocaOp(val_i32, elem_type=i32)
     ptr_val = op_alloca.results[0]
 
@@ -200,7 +204,7 @@ def test_gep_constant_idx(prog):
         result_type=ptr_ty,
     )
 
-    val_map = {val_i32: mock_i32}
+    val_map: dict[SSAValue, ir.Value] = {val_i32: mock_i32}
     convert_op(op_alloca, builder, val_map)
     convert_op(op, builder, val_map)
 
@@ -208,15 +212,14 @@ def test_gep_constant_idx(prog):
     assert inst_str.endswith(", i32 0")
 
 
-def test_ptrtoint_op(prog):
-    module, builder, block = prog
+def test_ptrtoint_op(prog: tuple[ir.IRBuilder, ir.Block]):
+    builder, block = prog
     op_alloca = llvm.AllocaOp(val_i32, elem_type=i32)
     ptr_val = op_alloca.results[0]
     op = llvm.PtrToIntOp(ptr_val, i64)
 
-    val_map = {val_i32: mock_i32}
-
     count_before = len(block.instructions)
+    val_map: dict[SSAValue, ir.Value] = {val_i32: mock_i32}
     convert_op(op_alloca, builder, val_map)
     convert_op(op, builder, val_map)
 
@@ -227,8 +230,8 @@ def test_ptrtoint_op(prog):
     assert inst_str.endswith(" to i64")
 
 
-def test_fpext_op(prog):
-    module, builder, block = prog
+def test_fpext_op(prog: tuple[ir.IRBuilder, ir.Block]):
+    builder, block = prog
     op = llvm.FPExtOp(val_f32, Float64Type())
 
     count_before = len(block.instructions)
@@ -290,7 +293,8 @@ def test_call_op_void():
     block = main_func.append_basic_block("entry")
     builder = ir.IRBuilder(block)
 
-    convert_op(op, builder, {})
+    val_map: dict[SSAValue, ir.Value] = {}
+    convert_op(op, builder, val_map)
     assert block.instructions[-1].operands[0] == callee
     assert str(block.instructions[-1]).strip() == 'call void @"my_func"()'
 
@@ -306,7 +310,7 @@ def test_call_op_val():
     block = main_func.append_basic_block("entry")
     builder = ir.IRBuilder(block)
 
-    val_map = {val_a: mock_i32}
+    val_map: dict[SSAValue, ir.Value] = {val_a: mock_i32}
     convert_op(op, builder, val_map)
 
     assert block.instructions[-1].operands[0] == callee
@@ -368,8 +372,8 @@ def test_unreachable_op():
     _convert_and_verify(op, expected)
 
 
-def test_unsupported_op(prog):
-    module, builder, block = prog
+def test_unsupported_op(prog: tuple[ir.IRBuilder, ir.Block]):
+    builder, _ = prog
 
     class UnknownOp(Operation):
         name = "llvm.unknown"

@@ -30,7 +30,7 @@ _BINARY_OP_MAP: dict[
 }
 
 _CAST_OP_MAP: dict[
-    type[Operation], Callable[[ir.IRBuilder], Callable[[ir.Value], ir.Value]]
+    type[Operation], Callable[[ir.IRBuilder], Callable[[ir.Value, ir.Type], ir.Value]]
 ] = {
     llvm.TruncOp: lambda b: b.trunc,
     llvm.ZExtOp: lambda b: b.zext,
@@ -47,6 +47,7 @@ def _convert_getelementptr(
 ) -> None:
     # GEPOp mixes static and dynamic indices
     indices: list[ir.Value] = []
+
     for idx in op.rawConstantIndices.iter_values():
         if idx == llvm.GEP_USE_SSA_VAL:
             indices.append(val_map[next(iter(op.ssa_indices))])
@@ -74,7 +75,7 @@ def _convert_call(
 
 
 def _convert_return(
-    op: llvm.ReturnOp, builder: ir.IRBuilder, val_map: dict[SSAValue, ir.Value]
+    op: Operation, builder: ir.IRBuilder, val_map: dict[SSAValue, ir.Value]
 ):
     if op.operands:
         builder.ret(val_map[op.operands[0]])
