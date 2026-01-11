@@ -1057,7 +1057,7 @@ class GEPOp(IRDLOperation):
 
     result = result_def(LLVMPointerType)
 
-    rawConstantIndices = prop_def(DenseArrayBase)
+    rawConstantIndices = prop_def(DenseArrayBase.constr(i32))
     inbounds = opt_prop_def(UnitAttr)
 
     traits = traits_def(NoMemoryEffect())
