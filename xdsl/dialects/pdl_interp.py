@@ -285,7 +285,7 @@ class IsNotNullOp(IRDLOperation):
 
     name = "pdl_interp.is_not_null"
     traits = traits_def(IsTerminator())
-    value = operand_def(AnyPDLTypeConstr)
+    value = operand_def(AnyPDLTypeConstr | base(RangeType[AnyPDLType]))
     true_dest = successor_def()
     false_dest = successor_def()
 
@@ -508,7 +508,7 @@ class AreEqualOp(IRDLOperation):
 
     name = "pdl_interp.are_equal"
     traits = traits_def(IsTerminator())
-    T: ClassVar = VarConstraint("T", AnyPDLTypeConstr)
+    T: ClassVar = VarConstraint("T", AnyPDLTypeConstr | base(RangeType[AnyPDLType]))
     lhs = operand_def(T)
     rhs = operand_def(T)
     true_dest = successor_def()
@@ -536,8 +536,8 @@ class ApplyConstraintOp(IRDLOperation):
     is_negated = prop_def(
         BoolAttr, prop_name="isNegated", default_value=BoolAttr.from_bool(False)
     )
-    args = var_operand_def(AnyPDLTypeConstr)
-    results_ = var_result_def(AnyPDLTypeConstr)
+    args = var_operand_def(AnyPDLTypeConstr | base(RangeType[AnyPDLType]))
+    results_ = var_result_def(AnyPDLTypeConstr | base(RangeType[AnyPDLType]))
     true_dest = successor_def()
     false_dest = successor_def()
     irdl_options = (ParsePropInAttrDict(),)
@@ -550,7 +550,7 @@ class ApplyConstraintOp(IRDLOperation):
         args: Sequence[SSAValue],
         true_dest: Block,
         false_dest: Block,
-        res_types: Sequence[AnyPDLType] = (),
+        res_types: Sequence[AnyPDLType | RangeType[AnyPDLType]] = (),
         is_negated: bool | BoolAttr = False,
     ) -> None:
         if isinstance(constraint_name, str):
@@ -578,8 +578,8 @@ class ApplyRewriteOp(IRDLOperation):
 
     name = "pdl_interp.apply_rewrite"
     rewrite_name = prop_def(StringAttr, prop_name="name")
-    args = var_operand_def(AnyPDLTypeConstr)
-    results_ = var_result_def(AnyPDLTypeConstr)
+    args = var_operand_def(AnyPDLTypeConstr | base(RangeType[AnyPDLType]))
+    results_ = var_result_def(AnyPDLTypeConstr | base(RangeType[AnyPDLType]))
     irdl_options = (ParsePropInAttrDict(),)
 
     assembly_format = (
@@ -590,7 +590,7 @@ class ApplyRewriteOp(IRDLOperation):
         self,
         rewrite_name: str | StringAttr,
         args: Sequence[SSAValue],
-        res_types: Sequence[AnyPDLType] = (),
+        res_types: Sequence[AnyPDLType | RangeType[AnyPDLType]] = (),
     ) -> None:
         if isinstance(rewrite_name, str):
             rewrite_name = StringAttr(rewrite_name)
@@ -618,7 +618,7 @@ class RecordMatchOp(IRDLOperation):
     generatedOps = opt_prop_def(ArrayAttr[StringAttr])
     benefit = prop_def(IntegerAttr[I16])
 
-    inputs = var_operand_def(AnyPDLTypeConstr)
+    inputs = var_operand_def(AnyPDLTypeConstr | base(RangeType[AnyPDLType]))
     matched_ops = var_operand_def(OperationType)
 
     dest = successor_def()
