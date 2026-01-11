@@ -111,18 +111,12 @@ def move_to_unallocated_regs(
     Return move operations to unallocated registers.
     """
 
-    new_ops = list[Operation]()
-    new_values = list[SSAValue]()
+    outputs = (register_type_for_type(value.type).unallocated() for value in values)
 
-    for value, value_type in zip(values, value_types, strict=True):
-        register_type = register_type_for_type(value.type)
-        move_op, new_value = move_ops_for_value(
-            value, value_type, register_type.unallocated()
-        )
-        new_ops.append(move_op)
-        new_values.append(new_value)
+    new_op = riscv.ParallelMovOp(tuple(values), tuple(outputs))
+    new_values = new_op.results
 
-    return new_ops, new_values
+    return [new_op], list(new_values)
 
 
 def cast_operands_to_regs(
