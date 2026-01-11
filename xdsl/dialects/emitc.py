@@ -39,7 +39,7 @@ from xdsl.ir import (
     Dialect,
     ParametrizedAttribute,
     SSAValue,
-    TypeAttribute,
+    TypeAttribute
 )
 from xdsl.irdl import (
     AnyAttr,
@@ -406,6 +406,25 @@ class EmitC_AddOp(EmitC_BinaryOperation):
                 "emitc.add requires that one operand is an integer or of opaque "
                 "type if the other is a pointer"
             )
+
+
+@irdl_op_definition
+class EmitC_AddressOfOp(IRDLOperation):
+    name = "emitc.address_of"
+    operand = operand_def(EmitC_LValueType)
+    result = result_def(EmitCTypeConstr)
+
+    def verify_(self) -> None:
+        if not isinstance(self.operand.type, EmitC_LValueType):
+            raise VerifyException(
+                "operand type must be an lvalue when applying `&`"
+            )
+        if not isinstance(self.result.type, EmitC_PointerType):
+            raise VerifyException("result type must be a pointer when applying `&`")
+
+    def has_side_effects(self) -> bool:
+        """Return True if the operation has side effects."""
+        return False
 
 
 @irdl_op_definition
@@ -992,6 +1011,23 @@ class EmitC_ConstantOp(IRDLOperation):
 
 
 @irdl_op_definition
+class DereferenceOp(IRDLOperation):
+    name = "emitc.dereference"
+    operand = operand_def(AnyAttr)
+    result = result_def(EmitC_LValueType)
+
+    def verify_(self) -> None:
+        if not isinstance(self.operand.type, EmitC_PointerType):
+            raise VerifyException(
+                "operand type must be a pointer when applying `*`"
+            )
+
+    def has_side_effects(self) -> bool:
+        """Return True if the operation has side effects."""
+        return True
+
+
+@irdl_op_definition
 class EmitC_DivOp(EmitC_BinaryOperation):
     """
     Division operation.
@@ -1555,6 +1591,7 @@ EmitC = Dialect(
     "emitc",
     [
         EmitC_AddOp,
+        EmitC_AddressOfOp,
         EmitC_ApplyOp,
         EmitC_AssignOp,
         EmitC_BitwiseAndOp,
@@ -1579,7 +1616,6 @@ EmitC = Dialect(
         EmitC_MemberOp,
         EmitC_MulOp,
         EmitC_RemOp,
-        #EmitC_ReturnOp,
         EmitC_SubOp,
         EmitC_SubscriptOp,
         EmitC_UnaryMinusOp,
