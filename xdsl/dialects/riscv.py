@@ -3911,7 +3911,7 @@ class GetFloatRegisterOp(GetAnyRegisterOperation[FloatRegisterType]):
 
 
 @irdl_op_definition
-class ParallelMovOp(IRDLOperation):
+class ParallelMovOp(RISCVRegallocOperation):
     name = "riscv.parallel_mov"
     inputs = var_operand_def(RISCVRegisterType)
     outputs: VarOpResult[RISCVRegisterType] = var_result_def(RISCVRegisterType)

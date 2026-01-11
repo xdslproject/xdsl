@@ -110,7 +110,9 @@ class HasRegisterConstraints(RegisterAllocatableOperation, abc.ABC):
                 result = new_result
             new_outs.append(result)
 
-        for result in new_outs:
+        # reverse new_outs to have more optimal allocation in trivial pmov case
+        # if all registers are unallocated, this is optimal allocation for pmov
+        for result in reversed(new_outs):
             allocator.free_value(result)
 
         # Allocate registers to operands since they are defined further up
