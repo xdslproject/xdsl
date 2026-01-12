@@ -782,7 +782,7 @@ class EmitC_ClassOp(IRDLOperation):
 
     name = "emitc.class"
 
-    assembly_format = "[{ (`final` $final_specifier^)? $sym_name attr-dict-with-keyword $body }]"
+    assembly_format = "(`final` $final_specifier^)? $sym_name attr-dict-with-keyword $body"
 
     sym_name = prop_def(StringAttr)
     final_specifier = prop_def(UnitAttr)
@@ -802,15 +802,10 @@ class EmitC_CmpPredicateValue(IntEnum):
     gt = 4
     ge = 5
     three_way = 6
-@irdl_attr_definition
-class EmitC_CmpPredicateAttr(ParametrizedAttribute):
-    """
-    A cmp predicate attribute.
-    """
 
-    name = "emitc.cmp_predicate"
-    value: EmitC_CmpPredicateValue
-
+    @classmethod
+    def has_value(cls, val) -> bool:
+        return val in cls._value2member_map_
 
 @irdl_op_definition
 class EmitC_CmpOp(EmitC_BinaryOperation):
@@ -849,12 +844,29 @@ class EmitC_CmpOp(EmitC_BinaryOperation):
 
     name = "emitc.cmp"
 
-    predicate = prop_def(EmitC_CmpPredicateAttr)
+    predicate = prop_def(EmitCIntegerType)
     lhs = operand_def(EmitCTypeConstr)
     rhs = operand_def(EmitCTypeConstr)
     result = result_def(EmitCTypeConstr)
 
     assembly_format = "$predicate `,` operands attr-dict `:` functional-type(operands, results)"
+
+    def __init__(
+        self,
+        pred,
+        lhs,
+        rhs,
+        result_type
+    ):
+        if not EmitC_CmpPredicateValue.has_value(pred):
+            raise VerifyException(f"Got nonexistent predicate value: {pred}")
+
+        super.__init__(
+            lhs,
+            rhs,
+            result_type,
+            properties={pred}
+        )
 
 
 @irdl_op_definition
@@ -891,7 +903,7 @@ class EmitC_ConditionalOp(IRDLOperation):
     false_value = operand_def(EmitCTypeConstr)
     result = result_def(EmitCTypeConstr)
 
-    assembly_format = "operands attr-dict `:` type($result)"
+    #assembly_format = "operands attr-dict `:` type($result)"
 
     def has_side_effects(self) -> bool:
         return False
@@ -1011,9 +1023,9 @@ class EmitC_ConstantOp(IRDLOperation):
 
 
 @irdl_op_definition
-class DereferenceOp(IRDLOperation):
+class EmitC_DereferenceOp(IRDLOperation):
     name = "emitc.dereference"
-    operand = operand_def(AnyAttr)
+    operand = operand_def(EmitC_PointerType)
     result = result_def(EmitC_LValueType)
 
     def verify_(self) -> None:
@@ -1125,7 +1137,7 @@ class EmitC_LoadOp(IRDLOperation):
     operand = operand_def(EmitC_LValueType)
     result = result_def(EmitCTypeConstr)
 
-    assembly_format = "$operand attr-dict `:` type($operand)"
+    #assembly_format = "$operand attr-dict `:` type($operand)"
 
     def verify_(self):
         op_type = self.operand.type
@@ -1606,6 +1618,7 @@ EmitC = Dialect(
         EmitC_CmpOp,
         EmitC_ConditionalOp,
         EmitC_ConstantOp,
+        EmitC_DereferenceOp,
         EmitC_DivOp,
         EmitC_LiteralOp,
         EmitC_LoadOp,
