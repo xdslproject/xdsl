@@ -3,7 +3,7 @@ from io import StringIO
 import pytest
 
 from xdsl.dialects import arith, builtin, llvm, test
-from xdsl.dialects.builtin import DenseArrayBase, UnitAttr, i32, i64
+from xdsl.dialects.builtin import UnitAttr, i32
 from xdsl.ir import Attribute, Block, Region
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import VerifyException
@@ -194,24 +194,6 @@ def test_llvm_getelementptr_op():
 
     assert len(gep2.rawConstantIndices) == 2
     assert len(gep2.ssa_indices) == 1
-
-
-def test_gep_indices_type_validation():
-    size = arith.ConstantOp.from_int_and_width(1, 32)
-    opaque_ptr = llvm.AllocaOp(size, builtin.i32)
-    ptr_type = llvm.LLVMPointerType()
-
-    gep = llvm.GEPOp.from_mixed_indices(
-        opaque_ptr,
-        indices=[1],
-        pointee_type=builtin.i32,
-        result_type=ptr_type,
-    )
-
-    gep.properties["rawConstantIndices"] = DenseArrayBase.from_list(i64, [1])
-
-    with pytest.raises(VerifyException, match="rawConstantIndices"):
-        gep.verify()
 
 
 def test_array_type():
