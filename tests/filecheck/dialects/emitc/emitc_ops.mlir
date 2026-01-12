@@ -2,6 +2,7 @@
 // RUN: XDSL_GENERIC_ROUNDTRIP
 
 %i32_lhs, %i32_rhs = "test.op"() : () -> (i32, i32)
+%f32_lhs, %f32_rhs = "test.op"() : () -> (f32, f32)
 %ptr_f32, %i32_offset = "test.op"() : () -> (!emitc.ptr<f32>, i32)
 %opaque_uint = "test.op"() : () -> !emitc.opaque<"unsigned int">
 %tensor_lhs, %tensor_rhs = "test.op"() : () -> (tensor<3x4xi32>, tensor<3x4xi32>)
@@ -107,6 +108,10 @@ emitc.assign %cons_int : i32 to %variable : !emitc.lvalue<i32>
 // CHECK: %mul_int = emitc.mul %i32_lhs, %i32_rhs : (i32, i32) -> i32
 // CHECK-GENERIC: %mul_int = "emitc.mul"(%i32_lhs, %i32_rhs) : (i32, i32) -> i32
 
+%mul_float = emitc.mul %f32_lhs, %f32_rhs : (f32, f32) -> f32
+// CHECK: %mul_float = emitc.mul %f32_lhs, %f32_rhs : (f32, f32) -> f32
+// CHECK-GENERIC: %mul_float = "emitc.mul"(%f32_lhs, %f32_rhs) : (f32, f32) -> f32
+
 //===----------------------------------------------------------------------===//
 // DivOp
 //===----------------------------------------------------------------------===//
@@ -114,6 +119,10 @@ emitc.assign %cons_int : i32 to %variable : !emitc.lvalue<i32>
 %div_int = emitc.div %i32_lhs, %i32_rhs : (i32, i32) -> i32
 // CHECK: %div_int = emitc.div %i32_lhs, %i32_rhs : (i32, i32) -> i32
 // CHECK-GENERIC: %div_int = "emitc.div"(%i32_lhs, %i32_rhs) : (i32, i32) -> i32
+
+%div_float = emitc.div %f32_lhs, %f32_rhs : (f32, f32) -> f32
+// CHECK: %div_float = emitc.div %f32_lhs, %f32_rhs : (f32, f32) -> f32
+// CHECK-GENERIC: %div_float = "emitc.div"(%f32_lhs, %f32_rhs) : (f32, f32) -> f32
 
 //===----------------------------------------------------------------------===//
 // RemOp
