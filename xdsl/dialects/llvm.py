@@ -1700,8 +1700,8 @@ class ReturnOp(IRDLOperation):
 
     traits = traits_def(IsTerminator(), NoMemoryEffect())
 
-    def __init__(self, value: Attribute | None = None):
-        super().__init__(attributes={"value": value})
+    def __init__(self, value: SSAValue | None = None):
+        super().__init__(operands=[value])
 
 
 @irdl_op_definition
