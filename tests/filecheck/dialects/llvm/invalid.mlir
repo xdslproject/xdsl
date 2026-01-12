@@ -33,3 +33,12 @@ func.func public @main() {
 }
 
 // CHECK: Expected attribute i64 but got i32
+
+// -----
+
+func.func @gep_indices_type_validation() {
+  %size = arith.constant 1 : i32
+  %ptr = llvm.alloca %size x i32 : (i32) -> !llvm.ptr
+  // expected-error @+1 {{'rawConstantIndices' expected data of type builtin.i32, but got builtin.i64}}
+  %gep = "llvm.getelementptr"(%ptr) <{elem_type = i32, noWrapFlags = 0 : i32, rawConstantIndices = array<i64: 1>}> : (!llvm.ptr) -> !llvm.ptr
+}
