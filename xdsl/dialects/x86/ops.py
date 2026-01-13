@@ -44,6 +44,7 @@ from xdsl.backend.register_allocatable import (
 from xdsl.backend.register_type import RegisterAllocatedMemoryEffect
 from xdsl.dialects.builtin import (
     I32,
+    ArrayAttr,
     IntegerAttr,
     IntegerType,
     ModuleOp,
@@ -62,17 +63,21 @@ from xdsl.ir import (
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
+    ParsePropInAttrDict,
     Successor,
     VarConstraint,
+    VarOpResult,
     attr_def,
     base,
     irdl_op_definition,
     operand_def,
     opt_attr_def,
+    opt_prop_def,
     result_def,
     successor_def,
     traits_def,
     var_operand_def,
+    var_result_def,
 )
 from xdsl.parser import Parser, UnresolvedOperand
 from xdsl.pattern_rewriter import RewritePattern
@@ -3626,6 +3631,49 @@ class GetAVXRegisterOp(GetAnyRegisterOperation[X86VectorRegisterType]):
 @irdl_op_definition
 class GetMaskRegisterOp(GetAnyRegisterOperation[AVX512MaskRegisterType]):
     name = "x86.get_mask_register"
+
+
+@irdl_op_definition
+class ParallelMovOp(X86RegallocOperation):
+    name = "x86.parallel_mov"
+    inputs = var_operand_def(X86RegisterType)
+    outputs: VarOpResult[X86RegisterType] = var_result_def(X86RegisterType)
+    free_registers = opt_prop_def(ArrayAttr[X86RegisterType])
+
+    assembly_format = "$inputs attr-dict `:` functional-type($inputs, $outputs)"
+    irdl_options = (ParsePropInAttrDict(),)
+
+    def __init__(
+        self,
+        inputs: Sequence[SSAValue],
+        outputs: Sequence[X86RegisterType],
+        free_registers: ArrayAttr[X86RegisterType] | None = None,
+    ):
+        super().__init__(
+            operands=(inputs,),
+            result_types=(outputs,),
+            properties={"free_registers": free_registers},
+        )
+
+    def verify_(self) -> None:
+        if len(self.inputs) != len(self.outputs):
+            raise VerifyException(
+                "Input count must match output count. "
+                f"Num inputs: {len(self.inputs)}, Num outputs: {len(self.outputs)}"
+            )
+
+        input_types = cast(Sequence[X86RegisterType], self.inputs.types)
+        output_types = cast(Sequence[X86RegisterType], self.outputs.types)
+
+        # Check type of register type matches for input and output
+        for input_type, output_type in zip(input_types, output_types, strict=True):
+            if type(input_type) is not type(output_type):
+                raise VerifyException("Input type must match output type.")
+
+        # Check outputs are distinct if allocated
+        filtered_outputs = tuple(i for i in output_types if i.is_allocated)
+        if len(filtered_outputs) != len(set(filtered_outputs)):
+            raise VerifyException("Outputs must be unallocated or distinct.")
 
 
 def print_assembly(module: ModuleOp, output: IO[str]) -> None:
