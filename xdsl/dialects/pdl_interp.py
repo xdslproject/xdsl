@@ -982,7 +982,7 @@ class RangeTypeDirective(CustomDirective):
         arg_types = self.arguments_type.get(op)
         if not arg_types:
             # Print `: result_type` only when no arguments
-            printer.print_string(": ")
+            printer.print_string(" : ")
             result_types = self.result_type.get(op)
             printer.print_attribute(result_types[0])
 
