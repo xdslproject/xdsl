@@ -3,6 +3,7 @@ from xdsl.dialects.stencil import IndexAttr
 from xdsl.dialects.tensor import ExtractSliceOp, FromElementsOp, InsertSliceOp
 from xdsl.dialects.test import TestOp
 from xdsl.utils.test_value import create_ssa_value
+import pytest
 
 
 def test_extract_slice_static():
@@ -174,11 +175,9 @@ def test_from_elements_type_consistency():
 def test_from_elements_empty_list():
     """Test FromElementsOp with an empty list."""
     # Empty lists should raise a TypeError since we can't infer element type
-    try:
+    
+    with pytest.raises(TypeError):
         FromElementsOp()
-    except TypeError:
-        return
-    assert False
 
 
 def test_from_elements_large_tensor():
