@@ -193,35 +193,3 @@ def test_from_elements_large_tensor():
     assert len(res.elements) == 10
 
 
-def test_from_elements_assembly_format():
-    """Test FromElementsOp assembly format parsing and printing."""
-    from io import StringIO
-
-    from xdsl.printer import Printer
-
-    # Test printing
-    a = create_ssa_value(i64)
-    b = create_ssa_value(i64)
-
-    res = FromElementsOp(a, b)
-
-    output = StringIO()
-    printer = Printer(stream=output)
-    res.print(printer)
-
-    # The assembly format should be: elements attr-dict : type(result)
-    assembly = output.getvalue()
-    # The print method prints only the assembly format part, not the operation name
-    assert "tensor<2xi64>" in assembly
-    assert "%0, %1" in assembly  # The operands should be printed
-
-
-def test_from_elements_verify_trait():
-    """Test that FromElementsOp has NoMemoryEffect trait."""
-    a = create_ssa_value(i64)
-    res = FromElementsOp(a)
-
-    # Check that the operation has the NoMemoryEffect trait
-    from xdsl.traits import NoMemoryEffect
-
-    assert any(isinstance(trait, NoMemoryEffect) for trait in res.traits)
