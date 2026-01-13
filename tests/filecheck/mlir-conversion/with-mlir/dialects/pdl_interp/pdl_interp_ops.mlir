@@ -67,12 +67,15 @@ pdl_interp.func @matcher(%arg0: !pdl.operation) {
   pdl_interp.finalize
 ^bb25:
   pdl_interp.get_operands of %arg0: !pdl.range<value>
+  pdl_interp.get_operands 1 of %arg0: !pdl.range<value>
   pdl_interp.finalize
 ^bb26:
   pdl_interp.get_attribute_type of %attr_val
   pdl_interp.finalize
 ^bb27:
   %types = pdl_interp.create_range %7, %8 : !pdl.type, !pdl.type
+  %types_start_with_range = pdl_interp.create_range %types, %8 : !pdl.range<type>, !pdl.type
+  %empty_create_range = pdl_interp.create_range : !pdl.range<value>
   pdl_interp.check_types %types are [i32, i64] -> ^bb1, ^bb1
 ^bb28:
   pdl_interp.switch_operand_count of %arg0 to dense<[10, 2]> : vector<2xi32>(^bb1, ^bb1) -> ^bb1
@@ -168,21 +171,24 @@ module @rewriters {
 // CHECK-NEXT:       pdl_interp.finalize
 // CHECK-NEXT:     ^bb24:
 // CHECK-NEXT:       %13 = pdl_interp.get_operands of [[arg0]] : !pdl.range<value>
+// CHECK-NEXT:       %14 = pdl_interp.get_operands 1 of [[arg0]] : !pdl.range<value>
 // CHECK-NEXT:       pdl_interp.finalize
 // CHECK-NEXT:     ^bb25:
-// CHECK-NEXT:       %14 = pdl_interp.get_attribute_type of %9
+// CHECK-NEXT:       %15 = pdl_interp.get_attribute_type of %9
 // CHECK-NEXT:       pdl_interp.finalize
 // CHECK-NEXT:     ^bb26:
-// CHECK-NEXT:       %15 = pdl_interp.create_range %7, %8 : !pdl.type, !pdl.type
-// CHECK-NEXT:       pdl_interp.check_types %15 are [i32, i64] -> ^bb1, ^bb1
+// CHECK-NEXT:       %16 = pdl_interp.create_range %7, %8 : !pdl.type, !pdl.type
+// CHECK-NEXT:       %17 = pdl_interp.create_range %16, %8 : !pdl.range<type>, !pdl.type
+// CHECK-NEXT:       %18 = pdl_interp.create_range : !pdl.range<value>
+// CHECK-NEXT:       pdl_interp.check_types %16 are [i32, i64] -> ^bb1, ^bb1
 // CHECK-NEXT:     ^bb27:
 // CHECK-NEXT:       pdl_interp.switch_operand_count of [[arg0]] to dense<[10, 2]> : vector<2xi32>(^bb1, ^bb1) -> ^bb1
 // CHECK-NEXT:     ^bb28:
 // CHECK-NEXT:       pdl_interp.switch_result_count of [[arg0]] to dense<[1, 2]> : vector<2xi32>(^bb1, ^bb1) -> ^bb1
 // CHECK-NEXT:     ^bb29:
-// CHECK-NEXT:       pdl_interp.switch_types %15 to {{\[}}[i32, i64], [i64]{{\]}}(^bb1, ^bb1) -> ^bb1
+// CHECK-NEXT:       pdl_interp.switch_types %16 to {{\[}}[i32, i64], [i64]{{\]}}(^bb1, ^bb1) -> ^bb1
 // CHECK-NEXT:     ^bb30:
-// CHECK-NEXT:       %16 = pdl_interp.apply_rewrite "rewrite_in_matcher"([[arg0]] : !pdl.operation) : !pdl.range<type>
+// CHECK-NEXT:       %19 = pdl_interp.apply_rewrite "rewrite_in_matcher"([[arg0]] : !pdl.operation) : !pdl.range<type>
 // CHECK-NEXT:       pdl_interp.finalize
 // CHECK-NEXT:     }
 // CHECK-NEXT:     builtin.module @rewriters {

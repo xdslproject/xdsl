@@ -67,12 +67,15 @@ pdl_interp.func @matcher(%arg0: !pdl.operation) {
   pdl_interp.finalize
 ^bb25:
   pdl_interp.get_operands of %arg0: !pdl.range<value>
+  pdl_interp.get_operands 1 of %arg0: !pdl.range<value>
   pdl_interp.finalize
 ^bb26:
   pdl_interp.get_attribute_type of %attr_val
   pdl_interp.finalize
 ^bb27:
   %types = pdl_interp.create_range %7, %8 : !pdl.type, !pdl.type
+  %types_start_with_range = pdl_interp.create_range %types, %8 : !pdl.range<type>, !pdl.type
+  %empty_create_range = pdl_interp.create_range : !pdl.range<value>
   pdl_interp.check_types %types are [i32, i64] -> ^bb1, ^bb1
 ^bb28:
   pdl_interp.switch_operand_count of %arg0 to dense<[10, 2]> : vector<2xi32>(^bb1, ^bb1) -> ^bb1
@@ -168,12 +171,15 @@ module @rewriters {
 // CHECK-NEXT:       pdl_interp.finalize
 // CHECK-NEXT:     ^bb24:
 // CHECK-NEXT:       %12 = pdl_interp.get_operands of %arg0 : !pdl.range<value>
+// CHECK-NEXT:       %13 = pdl_interp.get_operands 1 of %arg0 : !pdl.range<value>
 // CHECK-NEXT:       pdl_interp.finalize
 // CHECK-NEXT:     ^bb25:
-// CHECK-NEXT:       %13 = pdl_interp.get_attribute_type of %attr_val
+// CHECK-NEXT:       %14 = pdl_interp.get_attribute_type of %attr_val
 // CHECK-NEXT:       pdl_interp.finalize
 // CHECK-NEXT:     ^bb26:
 // CHECK-NEXT:       %types = pdl_interp.create_range %7, %8 : !pdl.type, !pdl.type
+// CHECK-NEXT:       %types_start_with_range = pdl_interp.create_range %types, %8 : !pdl.range<type>, !pdl.type
+// CHECK-NEXT:       %empty_create_range = pdl_interp.create_range : !pdl.range<value>
 // CHECK-NEXT:       pdl_interp.check_types %types are [i32, i64] -> ^bb1, ^bb1
 // CHECK-NEXT:     ^bb27:
 // CHECK-NEXT:       pdl_interp.switch_operand_count of %arg0 to dense<[10, 2]> : vector<2xi32>(^bb1, ^bb1) -> ^bb1
@@ -271,12 +277,15 @@ module @rewriters {
 // CHECK-GENERIC-NEXT:       "pdl_interp.finalize"() : () -> ()
 // CHECK-GENERIC-NEXT:     ^bb25:
 // CHECK-GENERIC-NEXT:       %12 = "pdl_interp.get_operands"(%arg0) : (!pdl.operation) -> !pdl.range<value>
+// CHECK-GENERIC-NEXT:       %13 = "pdl_interp.get_operands"(%arg0) <{index = 1 : i32}> : (!pdl.operation) -> !pdl.range<value>
 // CHECK-GENERIC-NEXT:       "pdl_interp.finalize"() : () -> ()
 // CHECK-GENERIC-NEXT:     ^bb26:
-// CHECK-GENERIC-NEXT:       %13 = "pdl_interp.get_attribute_type"(%attr_val) : (!pdl.attribute) -> !pdl.type
+// CHECK-GENERIC-NEXT:       %14 = "pdl_interp.get_attribute_type"(%attr_val) : (!pdl.attribute) -> !pdl.type
 // CHECK-GENERIC-NEXT:       "pdl_interp.finalize"() : () -> ()
 // CHECK-GENERIC-NEXT:     ^bb27:
 // CHECK-GENERIC-NEXT:       %types = "pdl_interp.create_range"(%7, %8) : (!pdl.type, !pdl.type) -> !pdl.range<type>
+// CHECK-GENERIC-NEXT:       %types_start_with_range = "pdl_interp.create_range"(%types, %8) : (!pdl.range<type>, !pdl.type) -> !pdl.range<type>
+// CHECK-GENERIC-NEXT:       %empty_create_range = "pdl_interp.create_range"() : () -> !pdl.range<value>
 // CHECK-GENERIC-NEXT:       "pdl_interp.check_types"(%types) [^bb2, ^bb2] <{types = [i32, i64]}> : (!pdl.range<type>) -> ()
 // CHECK-GENERIC-NEXT:     ^bb28:
 // CHECK-GENERIC-NEXT:       "pdl_interp.switch_operand_count"(%arg0) [^bb2, ^bb2, ^bb2] <{caseValues = dense<[10, 2]> : vector<2xi32>}> : (!pdl.operation) -> ()
