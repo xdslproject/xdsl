@@ -683,8 +683,6 @@ class FromElementsOp(IRDLOperation):
     result = result_def(TensorType.constr(ELEMENT_TYPE))
     assembly_format = "$elements attr-dict `:` type($result)"
 
-    traits = traits_def(NoMemoryEffect())
-
     def __init__(
         self,
         element_0: SSAValue,
