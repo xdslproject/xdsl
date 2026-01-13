@@ -685,15 +685,17 @@ class FromElementsOp(IRDLOperation):
 
     traits = traits_def(NoMemoryEffect())
 
-    def __init__(self, *elements: SSAValue, result_type: Attribute | None = None):
-        if len(elements) == 0:
-            raise ValueError("Tried to call tensor.from_elements on empty list")
-
+    def __init__(
+        self,
+        element_0: SSAValue,
+        *elements: SSAValue,
+        result_type: Attribute | None = None,
+    ):
         if result_type is None:
-            elem_type = elements[0].type
-            result_type = TensorType(elem_type, (len(elements),))
+            elem_type = element_0.type
+            result_type = TensorType(elem_type, (len(elements) + 1,))
 
-        super().__init__(operands=[elements], result_types=[result_type])
+        super().__init__(operands=[(element_0,) + elements], result_types=[result_type])
 
 
 @irdl_op_definition

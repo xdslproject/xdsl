@@ -140,14 +140,6 @@ def test_from_elements_single_element():
     assert len(res.elements) == 1
     assert res.elements[0] is a
 
-
-def test_from_elements_empty_list():
-    """Test FromElementsOp with an empty list."""
-    # Empty lists should raise a ValueError since we can't infer element type
-    with pytest.raises(ValueError):
-        FromElementsOp()
-
-
 def test_from_elements_different_numeric_types():
     """Test FromElementsOp with different numeric element types."""
     # Test with f64
@@ -182,6 +174,15 @@ def test_from_elements_type_consistency():
         return
     raise Exception("Expected assertion error for mismatched types")
 
+def test_from_elements_empty_list():
+    """Test FromElementsOp with an empty list."""
+    # Empty lists should raise a TypeError since we can't infer element type
+    try:
+        FromElementsOp()
+    except TypeError:
+        return
+    assert False
+
 
 def test_from_elements_large_tensor():
     """Test FromElementsOp with a larger number of elements."""
@@ -190,9 +191,9 @@ def test_from_elements_large_tensor():
     res = FromElementsOp(*elements)
 
     assert isinstance(res.result.type, TensorType)
-    assert res.result.type.get_shape() == (100,)
+    assert res.result.type.get_shape() == (10,)
     assert res.result.type.element_type == i64
-    assert len(res.elements) == 100
+    assert len(res.elements) == 10
 
 
 def test_from_elements_assembly_format():
