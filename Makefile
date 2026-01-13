@@ -21,6 +21,24 @@ LIT_OPTIONS ?= -v --order=smart
 # make tasks run all commands in a single shell
 .ONESHELL:
 
+define print_help
+	@C="\033[$${1}32m"; R='\033[0m'; \
+	 printf "%b" "Usage: make $${C}<target>$${R}\n\n"; \
+	 printf "Available targets:\n"; \
+	 grep -E '^[a-zA-Z_-]+:.*?##' $(MAKEFILE_LIST) | \
+	   sort | \
+	   awk "BEGIN {FS = \":.*?## \"}; {printf \"  $${C}%-$(2)s$${R} %s\n\", \$$1, \$$2}"
+endef
+
+HELP_COLOR := 1;32 # bright green
+HELP_COLUMN_WIDTH := 25
+
+.DEFAULT_GOAL := help
+
+.PHONY: help
+help: ## show this help message
+	$(call print_help,$(HELP_COLOR),$(HELP_COLUMN_WIDTH))
+
 .PHONY: uv-installed
 uv-installed:
 	@command -v uv &> /dev/null ||\
@@ -35,33 +53,28 @@ ${VENV_DIR}/: uv-installed
 		ln -sf $(XDSL_MLIR_OPT_PATH) ${VENV_DIR}/bin/mlir-opt; \
 	fi
 
-# make sure `make venv` also works correctly
 .PHONY: venv
-venv: ${VENV_DIR}/
+venv: ${VENV_DIR}/ ## make sure `make venv` also works correctly
 
-# remove all caches
 .PHONY: clean-caches
-clean-caches: coverage-clean asv-clean
+clean-caches: coverage-clean asv-clean ## remove all caches
 	rm -rf .pytest_cache *.egg-info
 
-# remove all caches and the venv
+
 .PHONY: clean
-clean: clean-caches
+clean: clean-caches ## remove all caches and the venv
 	rm -rf ${VENV_DIR}
 
-# run filecheck tests
 .PHONY: filecheck
-filecheck: uv-installed
+filecheck: uv-installed ## run filecheck tests
 	uv run lit $(LIT_OPTIONS) tests/filecheck
 
-# run pytest tests
 .PHONY: pytest
-pytest: uv-installed
+pytest: uv-installed ## run pytest tests
 	uv run pytest tests -W error -vv
 
-# run tests for Toy tutorial
 .PHONY: filecheck-toy
-filecheck-toy: uv-installed
+filecheck-toy: uv-installed ## run tests for Toy tutorial
 	uv run lit $(LIT_OPTIONS) docs/Toy/examples
 
 .PHONY: pytest-toy-nb
@@ -105,75 +118,62 @@ tests-marimo: uv-installed
 			echo -e "\n\nAll marimo tests passed successfully."; \
 		fi'
 
-
-# run all tests
 .PHONY: tests-functional
-tests-functional: pytest tests-toy filecheck tests-marimo
+tests-functional: pytest tests-toy filecheck tests-marimo ## run functional tests
 	@echo All functional tests done.
 
-# run all tests
 .PHONY: tests
-tests: tests-functional pyright
+tests: tests-functional pyright ## run all tests
 	@echo All tests done.
 
-# re-generate the output from all jupyter notebooks in the docs directory
+
 .PHONY: rerun-notebooks
-rerun-notebooks: uv-installed
+rerun-notebooks: uv-installed ## re-generate the output from all jupyter notebooks in the docs directory
 	uv run jupyter nbconvert \
 		--ClearMetadataPreprocessor.enabled=True \
 		--inplace \
 		--to notebook \
 		--execute docs/*.ipynb docs/Toy/*.ipynb
 
-# set up all precommit hooks
 .PHONY: precommit-install
-precommit-install: uv-installed
+precommit-install: uv-installed ## set up all precommit hooks
 	uv run pre-commit install
 
-# run all precommit hooks and apply them
 .PHONY: precommit
-precommit: uv-installed
+precommit: uv-installed ## run all precommit hooks and apply them
 	uv run pre-commit run --all
 
-# run pyright on all files in the current git commit
-# make sure to generate the python typing stubs before running pyright
 .PHONY: pyright
-pyright: uv-installed
+pyright: uv-installed ## run pyright on all files in the current git commit, make sure to generate the python typing stubs before running pyright
 	uv run xdsl-stubgen
 	uv run pyright $(shell git diff --staged --name-only  -- '*.py')
 
-# run coverage over all tests and combine data files
 .PHONY: coverage
-coverage: coverage-tests coverage-filecheck-tests
+coverage: coverage-tests coverage-filecheck-tests ## run coverage over all tests and combine data files
 	uv run coverage combine --append
 
-# use different coverage data file per coverage run, otherwise combine complains
 .PHONY: coverage-tests
-coverage-tests: uv-installed
+coverage-tests: uv-installed ## use different coverage data file per coverage run, otherwise combine complains
 	COVERAGE_FILE="${COVERAGE_FILE}.$@" uv run pytest -W error --cov
 
-# run coverage over filecheck tests
 .PHONY: coverage-filecheck-tests
-coverage-filecheck-tests: uv-installed
+coverage-filecheck-tests: uv-installed ## run coverage over filecheck tests
 	uv run lit $(LIT_OPTIONS) tests/filecheck/ -DCOVERAGE
 
-# generate html coverage report
 .PHONY: coverage-report-html
-coverage-report-html: uv-installed
+coverage-report-html: uv-installed ## generate html coverage report
 	uv run coverage html
 
-# generate coverage report
 .PHONY: coverage-report
-coverage-report: uv-installed
+coverage-report: uv-installed ## generate coverage report
 	uv run coverage report
 
 .PHONY: coverage-clean
 coverage-clean: uv-installed
 	uv run coverage erase
 
-# generate asv benchmark regression website
 .PHONY: asv
-asv: uv-installed
+asv: uv-installed ## generate asv benchmark regression website
 	uv run asv run
 
 .PHONY: asv-html

@@ -14,6 +14,7 @@ from xdsl.backend.register_allocator import ValueAllocator
 from xdsl.backend.register_stack import OutOfRegisters, RegisterStack
 from xdsl.backend.register_type import RegisterType
 from xdsl.builder import Builder
+from xdsl.dialects.test import TestOp
 from xdsl.ir import Attribute, Block, SSAValue
 from xdsl.irdl import (
     AttrSizedOperandSegments,
@@ -334,6 +335,29 @@ def test_allocate_values_same_reg():
         allocator.allocate_values_same_reg(
             (op0.results[0], op0.results[1], op1.results[0])
         )
+
+
+def test_multiple_outputs():
+    class AllocatableTestOp(TestOp, HasRegisterConstraints):
+        def get_register_constraints(self) -> RegisterConstraints:
+            # The default register constraints are that all operands are "in", and all
+            # results are "out" registers.
+            return RegisterConstraints(self.operands, self.results, ())
+
+    available_registers = RegisterStack(allow_infinite=True)
+    register_allocator = BlockNaiveAllocator(available_registers, TestRegister)
+
+    op = AllocatableTestOp(
+        result_types=(
+            TestRegister.unallocated(),
+            TestRegister.unallocated(),
+        )
+    )
+
+    op.allocate_registers(register_allocator)
+
+    # Check allocated registers are unique
+    assert len(op.result_types) == len(set(op.result_types))
 
 
 def test_fail_error_message():

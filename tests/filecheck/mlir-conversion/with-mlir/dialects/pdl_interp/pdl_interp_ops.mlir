@@ -53,6 +53,15 @@ pdl_interp.func @matcher(%arg0: !pdl.operation) {
   pdl_interp.switch_attribute %attr_val to [42 : i32, true](^bb20, ^bb1) -> ^bb1
 ^bb20:
   %9 = pdl_interp.apply_constraint "myConstraint"(%attr_val : !pdl.attribute) : !pdl.operation {isNegated = true} -> ^bb16, ^bb1
+^bb21:
+  pdl_interp.apply_rewrite "myRewriter"(%arg0 : !pdl.operation)
+  pdl_interp.finalize
+^bb22:
+  %10 = pdl_interp.apply_rewrite "myRewriter"(%arg0 : !pdl.operation) : !pdl.operation
+  pdl_interp.finalize
+^bb23:
+  %11 = pdl_interp.apply_rewrite "myRewriter"(%arg0, %0 : !pdl.operation, !pdl.value) : !pdl.attribute
+  pdl_interp.finalize
 }
 module @rewriters {
   pdl_interp.func @pdl_generated_rewriter(%arg0: !pdl.value, %arg1: !pdl.value, %arg2: !pdl.type, %arg3: !pdl.value, %arg4: !pdl.operation) {
@@ -124,6 +133,15 @@ module @rewriters {
 // CHECK-NEXT:       pdl_interp.switch_attribute %9 to [42 : i32, true](^bb19, ^bb1) -> ^bb1
 // CHECK-NEXT:     ^bb19:
 // CHECK-NEXT:       %10 = pdl_interp.apply_constraint "myConstraint"(%9 : !pdl.attribute) : !pdl.operation {isNegated = true} -> ^bb15, ^bb1
+// CHECK-NEXT:     ^bb20:
+// CHECK-NEXT:       pdl_interp.apply_rewrite "myRewriter"([[arg0]] : !pdl.operation)
+// CHECK-NEXT:       pdl_interp.finalize
+// CHECK-NEXT:     ^bb21:
+// CHECK-NEXT:       %11 = pdl_interp.apply_rewrite "myRewriter"([[arg0]] : !pdl.operation) : !pdl.operation
+// CHECK-NEXT:       pdl_interp.finalize
+// CHECK-NEXT:     ^bb22:
+// CHECK-NEXT:       %12 = pdl_interp.apply_rewrite "myRewriter"([[arg0]], %0 : !pdl.operation, !pdl.value) : !pdl.attribute
+// CHECK-NEXT:       pdl_interp.finalize
 // CHECK-NEXT:     }
 // CHECK-NEXT:     builtin.module @rewriters {
 // CHECK-NEXT:       pdl_interp.func @pdl_generated_rewriter(%arg0 : !pdl.value, %arg1 : !pdl.value, %arg2 : !pdl.type, %arg3 : !pdl.value, %arg4 : !pdl.operation) {

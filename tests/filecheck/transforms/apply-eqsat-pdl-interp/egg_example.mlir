@@ -2,34 +2,34 @@
 
 func.func @impl() -> i32 {
   %two   = arith.constant 2  : i32
-  %twoc = eqsat.eclass %two : i32
+  %twoc = equivalence.class %two : i32
 
   %a   = arith.constant 5 : i32
-  %ac = eqsat.eclass %a  : i32
+  %ac = equivalence.class %a  : i32
 
   // a * 2
   %mul   = arith.muli %ac, %twoc : i32
-  %mulc = eqsat.eclass %mul       : i32
-  
+  %mulc = equivalence.class %mul       : i32
+
   // (a * 2) / 2
   %div   = arith.divui %mulc, %twoc : i32
-  %divc = eqsat.eclass %div : i32
-  
+  %divc = equivalence.class %div : i32
+
   func.return %divc : i32
 }
 
 // CHECK:     func.func @impl() -> i32 {
 // CHECK-NEXT:  %two = arith.constant 2 : i32
-// CHECK-NEXT:  %twoc = eqsat.eclass %two : i32
+// CHECK-NEXT:  %twoc = equivalence.class %two : i32
 // CHECK-NEXT:  %a = arith.constant 5 : i32
 // CHECK-NEXT:  %mul = arith.muli %divc, %twoc : i32
-// CHECK-NEXT:  %mulc = eqsat.eclass %mul : i32
+// CHECK-NEXT:  %mulc = equivalence.class %mul : i32
 // CHECK-NEXT:  %0 = arith.constant 1 : i32
-// CHECK-NEXT:  %1 = eqsat.const_eclass %0, %2 (constant = 1 : i32) : i32
+// CHECK-NEXT:  %1 = equivalence.const_class %0, %2 (constant = 1 : i32) : i32
 // CHECK-NEXT:  %2 = arith.divui %twoc, %twoc : i32
 // CHECK-NEXT:  %3 = arith.muli %divc, %1 : i32
 // CHECK-NEXT:  %div = arith.divui %mulc, %twoc : i32
-// CHECK-NEXT:  %divc = eqsat.eclass %div, %3, %a : i32
+// CHECK-NEXT:  %divc = equivalence.class %div, %3, %a : i32
 // CHECK-NEXT:  func.return %divc : i32
 // CHECK-NEXT: }
 

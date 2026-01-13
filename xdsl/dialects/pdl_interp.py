@@ -469,6 +469,41 @@ class ApplyConstraintOp(IRDLOperation):
 
 
 @irdl_op_definition
+class ApplyRewriteOp(IRDLOperation):
+    """
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interpapply_rewrite-pdl_interpapplyrewriteop).
+    """
+
+    name = "pdl_interp.apply_rewrite"
+    rewrite_name = prop_def(StringAttr, prop_name="name")
+    args = var_operand_def(AnyPDLTypeConstr)
+    results_ = var_result_def(AnyPDLTypeConstr)
+    irdl_options = (ParsePropInAttrDict(),)
+
+    assembly_format = (
+        "$name (`(` $args^ `:` type($args) `)`)? (`:` type($results_)^)? attr-dict"
+    )
+
+    def __init__(
+        self,
+        rewrite_name: str | StringAttr,
+        args: Sequence[SSAValue],
+        res_types: Sequence[AnyPDLType] = (),
+    ) -> None:
+        if isinstance(rewrite_name, str):
+            rewrite_name = StringAttr(rewrite_name)
+        super().__init__(
+            operands=args,
+            properties={
+                "name": rewrite_name,
+            },
+            result_types=[
+                res_types,
+            ],
+        )
+
+
+@irdl_op_definition
 class RecordMatchOp(IRDLOperation):
     """
     See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interprecord_match-pdl_interprecordmatchop).
@@ -592,7 +627,7 @@ class ReplaceOp(IRDLOperation):
         "$input_op `with` ` ` `(` ($repl_values^ `:` type($repl_values))? `)` attr-dict"
     )
 
-    def __init__(self, input_op: SSAValue, repl_values: list[SSAValue]) -> None:
+    def __init__(self, input_op: SSAValue, repl_values: Sequence[SSAValue]) -> None:
         super().__init__(operands=[input_op, repl_values])
 
 
@@ -1027,6 +1062,7 @@ PDLInterp = Dialect(
         CheckAttributeOp,
         AreEqualOp,
         ApplyConstraintOp,
+        ApplyRewriteOp,
         RecordMatchOp,
         GetValueTypeOp,
         ReplaceOp,

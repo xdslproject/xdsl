@@ -578,11 +578,13 @@ class GetStreamOp(RISCVAsmOperation, RISCVRegallocOperation):
 
 
 @irdl_op_definition
-class DMSourceOp(RISCVCustomFormatOperation, RISCVInstruction):
+class DMSourceOp(RISCVInstruction):
     name = "riscv_snitch.dmsrc"
 
     ptrlo = operand_def(riscv.IntRegisterType)
     ptrhi = operand_def(riscv.IntRegisterType)
+
+    assembly_format = "$ptrlo `,` $ptrhi attr-dict `:` `(` type($ptrlo) `,` type($ptrhi) `)` `->` `(` `)`"
 
     traits = traits_def(
         StaticInsnRepresentation(insn=".insn r 0x2b, 0, 0, x0, {0}, {1}")
@@ -596,11 +598,13 @@ class DMSourceOp(RISCVCustomFormatOperation, RISCVInstruction):
 
 
 @irdl_op_definition
-class DMDestinationOp(RISCVCustomFormatOperation, RISCVInstruction):
+class DMDestinationOp(RISCVInstruction):
     name = "riscv_snitch.dmdst"
 
     ptrlo = operand_def(riscv.IntRegisterType)
     ptrhi = operand_def(riscv.IntRegisterType)
+
+    assembly_format = "$ptrlo `,` $ptrhi attr-dict `:` `(` type($ptrlo) `,` type($ptrhi) `)` `->` `(` `)`"
 
     traits = traits_def(
         StaticInsnRepresentation(insn=".insn r 0x2b, 0, 1, x0, {0}, {1}")
@@ -614,11 +618,13 @@ class DMDestinationOp(RISCVCustomFormatOperation, RISCVInstruction):
 
 
 @irdl_op_definition
-class DMStrideOp(RISCVCustomFormatOperation, RISCVInstruction):
+class DMStrideOp(RISCVInstruction):
     name = "riscv_snitch.dmstr"
 
     srcstrd = operand_def(riscv.IntRegisterType)
     dststrd = operand_def(riscv.IntRegisterType)
+
+    assembly_format = "$srcstrd `,` $dststrd attr-dict `:` `(` type($srcstrd) `,` type($dststrd) `)` `->` `(` `)`"
 
     traits = traits_def(
         StaticInsnRepresentation(insn=".insn r 0x2b, 0, 6, x0, {0}, {1}")
@@ -632,10 +638,12 @@ class DMStrideOp(RISCVCustomFormatOperation, RISCVInstruction):
 
 
 @irdl_op_definition
-class DMRepOp(RISCVCustomFormatOperation, RISCVInstruction):
+class DMRepOp(RISCVInstruction):
     name = "riscv_snitch.dmrep"
 
     reps = operand_def(riscv.IntRegisterType)
+
+    assembly_format = "$reps attr-dict `:` `(` type($reps) `)` `->` `(` `)`"
 
     traits = traits_def(
         StaticInsnRepresentation(insn=".insn r 0x2b, 0, 7, x0, {0}, x0")
@@ -649,12 +657,16 @@ class DMRepOp(RISCVCustomFormatOperation, RISCVInstruction):
 
 
 @irdl_op_definition
-class DMCopyOp(RISCVCustomFormatOperation, RISCVInstruction):
+class DMCopyOp(RISCVInstruction):
     name = "riscv_snitch.dmcpy"
 
     dest = result_def(riscv.IntRegisterType)
     size = operand_def(riscv.IntRegisterType)
     config = operand_def(riscv.IntRegisterType)
+
+    assembly_format = (
+        "$size `,` $config attr-dict `:` functional-type(operands, results)"
+    )
 
     traits = traits_def(
         StaticInsnRepresentation(insn=".insn r 0x2b, 0, 3, {0}, {1}, {2}")
@@ -673,11 +685,13 @@ class DMCopyOp(RISCVCustomFormatOperation, RISCVInstruction):
 
 
 @irdl_op_definition
-class DMStatOp(RISCVCustomFormatOperation, RISCVInstruction):
+class DMStatOp(RISCVInstruction):
     name = "riscv_snitch.dmstat"
 
     dest = result_def(riscv.IntRegisterType)
     status = operand_def(riscv.IntRegisterType)
+
+    assembly_format = "$status attr-dict `:` functional-type(operands, results)"
 
     traits = traits_def(
         StaticInsnRepresentation(insn=".insn r 0x2b, 0, 5, {0}, {1}, {2}")
@@ -702,6 +716,10 @@ class DMCopyImmOp(RISCVInstruction):
     size = operand_def(riscv.IntRegisterType)
     config = prop_def(UImm5Attr)
 
+    assembly_format = (
+        "$size `,` $config attr-dict `:` functional-type(operands, results)"
+    )
+
     traits = traits_def(
         StaticInsnRepresentation(insn=".insn r 0x2b, 0, 2, {0}, {1}, {2}")
     )
@@ -723,31 +741,6 @@ class DMCopyImmOp(RISCVInstruction):
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
         return self.dest, self.size, self.config
 
-    def print(self, printer: Printer) -> None:
-        printer.print_string(" ")
-        printer.print_operand(self.size)
-        printer.print_string(", ")
-        self.config.print_without_type(printer)
-        if self.attributes:
-            printer.print_string(" ")
-            printer.print_attr_dict(self.attributes)
-        printer.print_string(" : ")
-        printer.print_operation_type(self)
-
-    @classmethod
-    def parse(cls, parser: Parser) -> Self:
-        size = parser.parse_operand()
-        parser.parse_punctuation(",")
-        config = parser.parse_integer()
-        attrs = parser.parse_optional_attr_dict()
-        parser.parse_punctuation(":")
-        signature = parser.parse_function_type()
-        result_type, *_ = signature.outputs
-        op = cls(size, config, cast(IntRegisterType, result_type))
-        if attrs:
-            op.attributes.update(attrs)
-        return op
-
 
 @irdl_op_definition
 class DMStatImmOp(RISCVInstruction):
@@ -755,6 +748,8 @@ class DMStatImmOp(RISCVInstruction):
 
     dest = result_def(riscv.IntRegisterType)
     status = prop_def(UImm5Attr)
+
+    assembly_format = "$status attr-dict `:` `(` `)` `->` type($dest)"
 
     traits = traits_def(
         StaticInsnRepresentation(insn=".insn r 0x2b, 0, 4, {0}, {1}, {2}")
@@ -774,27 +769,6 @@ class DMStatImmOp(RISCVInstruction):
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
         return self.dest, self.status
-
-    def print(self, printer: Printer) -> None:
-        printer.print_string(" ")
-        self.status.print_without_type(printer)
-        if self.attributes:
-            printer.print_string(" ")
-            printer.print_attr_dict(self.attributes)
-        printer.print_string(" : ")
-        printer.print_operation_type(self)
-
-    @classmethod
-    def parse(cls, parser: Parser) -> Self:
-        status = parser.parse_integer()
-        attrs = parser.parse_optional_attr_dict()
-        parser.parse_punctuation(":")
-        signature = parser.parse_function_type()
-        result_type, *_ = signature.outputs
-        op = cls(status, cast(IntRegisterType, result_type))
-        if attrs:
-            op.attributes.update(attrs)
-        return op
 
 
 # endregion

@@ -38,12 +38,14 @@ from xdsl.ir import (
     Data,
     Dialect,
     Operation,
+    OpResult,
     Region,
     SSAValue,
 )
 from xdsl.irdl import (
     IRDLOperation,
     ParsePropInAttrDict,
+    VarOpResult,
     attr_def,
     base,
     irdl_attr_definition,
@@ -545,7 +547,7 @@ class RdRsRsOperation(
     This is called R-Type in the RISC-V specification.
     """
 
-    rd = result_def(RDInvT)
+    rd: OpResult[RDInvT] = result_def(RDInvT)
     rs1 = operand_def(RS1InvT)
     rs2 = operand_def(RS2InvT)
 
@@ -1605,9 +1607,12 @@ class SlliOp(RdRsImmShiftOperation):
 class SrliOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.transforms.canonicalization_patterns.riscv import ShiftRightbyZero
+        from xdsl.transforms.canonicalization_patterns.riscv import (
+            ShiftRightbyZero,
+            ShiftRightImmediate,
+        )
 
-        return (ShiftRightbyZero(),)
+        return (ShiftRightbyZero(), ShiftRightImmediate())
 
 
 @irdl_op_definition
@@ -3906,10 +3911,10 @@ class GetFloatRegisterOp(GetAnyRegisterOperation[FloatRegisterType]):
 
 
 @irdl_op_definition
-class ParallelMovOp(IRDLOperation):
+class ParallelMovOp(RISCVRegallocOperation):
     name = "riscv.parallel_mov"
     inputs = var_operand_def(RISCVRegisterType)
-    outputs = var_result_def(RISCVRegisterType)
+    outputs: VarOpResult[RISCVRegisterType] = var_result_def(RISCVRegisterType)
     free_registers = opt_prop_def(ArrayAttr[RISCVRegisterType])
 
     assembly_format = "$inputs attr-dict `:` functional-type($inputs, $outputs)"

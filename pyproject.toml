@@ -172,6 +172,8 @@ max-line-length = 130
 "tests/test_declarative_assembly_format.py" = ["F811"]
 "tests/test_frontend_type_conversion.py" = ["PYI042"]  # typealias i32 error
 "xdsl/frontend/pyast/dialects/builtin.py" = ["PYI042"] # typealias i32 error
+"xdsl/dialects/*.pyi" = ["PYI021"]  # auto-generated stubs have docstrings
+"typings/**/*.pyi" = ["PYI021", "PYI048", "F821", "F403"]
 
 [tool.ruff.lint.mccabe]
 max-complexity = 10

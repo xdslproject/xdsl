@@ -1,6 +1,6 @@
 from xdsl.builder import ImplicitBuilder
 from xdsl.context import Context
-from xdsl.dialects import arith, eqsat, eqsat_pdl_interp, pdl, pdl_interp, test
+from xdsl.dialects import arith, eqsat_pdl_interp, equivalence, pdl, pdl_interp, test
 from xdsl.dialects.builtin import Builtin, FloatAttr, ModuleOp, f32
 from xdsl.ir import Block, Region
 from xdsl.parser import Parser
@@ -13,11 +13,11 @@ def test_callback():
     op = ModuleOp(Region(Block()))
     with ImplicitBuilder(op.body):
         c1 = arith.ConstantOp(FloatAttr(1, f32))
-        c1_c = eqsat.EClassOp(c1.result)
+        c1_c = equivalence.ClassOp(c1.result)
         add = arith.AddfOp(c1_c, c1_c)
-        add_c = eqsat.EClassOp(add.result)
+        add_c = equivalence.ClassOp(add.result)
         add2 = arith.AddfOp(add_c, c1_c)
-        add2_c = eqsat.EClassOp(add2.result)
+        add2_c = equivalence.ClassOp(add2.result)
         test.TestOp(operands=(add2_c.result,))
 
     # pattern.mlir
@@ -250,7 +250,7 @@ builtin.module {
     ctx = Context()
     ctx.load_dialect(pdl_interp.PDLInterp)
     ctx.load_dialect(arith.Arith)
-    ctx.load_dialect(eqsat.EqSat)
+    ctx.load_dialect(equivalence.Equivalence)
     ctx.load_dialect(pdl.PDL)
     ctx.load_dialect(eqsat_pdl_interp.EqSatPDLInterp)
     ctx.load_dialect(Builtin)
@@ -268,23 +268,23 @@ builtin.module {
         """\
 builtin.module {
   %0 = arith.constant 1.000000e+00 : f32
-  %1 = eqsat.eclass %0 : f32
+  %1 = equivalence.class %0 : f32
   %2 = arith.constant 2.000000e+00 : f32
-  %3 = eqsat.const_eclass %2, %4 (constant = 2.000000e+00 : f32) : f32
+  %3 = equivalence.const_class %2, %4 (constant = 2.000000e+00 : f32) : f32
   %4 = arith.addf %1, %1 : f32
   %5 = arith.addf %3, %1 : f32
-  %6 = eqsat.eclass %5 : f32
+  %6 = equivalence.class %5 : f32
   "test.op"(%6) : (f32) -> ()
 }""",
         """\
 builtin.module {
   %0 = arith.constant 1.000000e+00 : f32
-  %1 = eqsat.eclass %0 : f32
+  %1 = equivalence.class %0 : f32
   %2 = arith.constant 2.000000e+00 : f32
-  %3 = eqsat.const_eclass %2, %4 (constant = 2.000000e+00 : f32) : f32
+  %3 = equivalence.const_class %2, %4 (constant = 2.000000e+00 : f32) : f32
   %4 = arith.addf %1, %1 : f32
   %5 = arith.constant 3.000000e+00 : f32
-  %6 = eqsat.const_eclass %5, %7 (constant = 3.000000e+00 : f32) : f32
+  %6 = equivalence.const_class %5, %7 (constant = 3.000000e+00 : f32) : f32
   %7 = arith.addf %3, %1 : f32
   "test.op"(%6) : (f32) -> ()
 }""",

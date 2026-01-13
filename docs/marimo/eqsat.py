@@ -26,8 +26,8 @@ def _(mo):
 def _(mo):
     mo.md(
         r"""
-    This notebook presents the `eqsat` dialect with examples.
-    The `eqsat` dialect refers to [e-graph](https://egraphs-good.github.io/), a graph representation of multiple functionally equivalent programs.
+    This notebook presents the `equivalence` dialect with examples.
+    The `equivalence` dialect refers to [e-graph](https://egraphs-good.github.io/), a graph representation of multiple functionally equivalent programs.
 
     Here is an MLIR module with an input function and three rewrites lowered to the [pdl_interp dialect](https://mlir.llvm.org/docs/Dialects/PDLInterpOps/):
     """
@@ -48,7 +48,7 @@ def _(ctx, input_module_string, xmo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""We start by adding eclass ops, which represent a union of multiple ways of calculating the same value:""")
+    mo.md(r"""We start by adding e-class ops, which represent a union of multiple ways of calculating the same value:""")
     return
 
 
@@ -116,9 +116,9 @@ def _(cost_module, ctx, xmo):
 @app.cell
 def _(extracted_module):
     def test_no_eclass():
-        from xdsl.dialects.eqsat import EClassOp
-        "Test that the extracted module doesn't contain eclass ops"
-        eclass_ops = tuple(op for op in extracted_module.walk() if isinstance(op, EClassOp))
+        from xdsl.dialects.equivalence import ClassOp
+        "Test that the extracted module doesn't contain e-class ops"
+        eclass_ops = tuple(op for op in extracted_module.walk() if isinstance(op, ClassOp))
         assert not eclass_ops
     return
 
