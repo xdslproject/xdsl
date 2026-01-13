@@ -1,9 +1,10 @@
+import pytest
+
 from xdsl.dialects.builtin import DYNAMIC_INDEX, DenseArrayBase, TensorType, f64, i64
 from xdsl.dialects.stencil import IndexAttr
 from xdsl.dialects.tensor import ExtractSliceOp, FromElementsOp, InsertSliceOp
 from xdsl.dialects.test import TestOp
 from xdsl.utils.test_value import create_ssa_value
-import pytest
 
 
 def test_extract_slice_static():
@@ -141,6 +142,7 @@ def test_from_elements_single_element():
     assert len(res.elements) == 1
     assert res.elements[0] is a
 
+
 def test_from_elements_different_numeric_types():
     """Test FromElementsOp with different numeric element types."""
     # Test with f64
@@ -172,10 +174,11 @@ def test_from_elements_type_consistency():
     with pytest.raises(VerifyException):
         res.verify()
 
+
 def test_from_elements_empty_list():
     """Test FromElementsOp with an empty list."""
     # Empty lists should raise a TypeError since we can't infer element type
-    
+
     with pytest.raises(TypeError):
         FromElementsOp()
 
@@ -190,5 +193,3 @@ def test_from_elements_large_tensor():
     assert res.result.type.get_shape() == (10,)
     assert res.result.type.element_type == i64
     assert len(res.elements) == 10
-
-
