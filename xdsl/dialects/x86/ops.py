@@ -47,6 +47,7 @@ from xdsl.dialects.builtin import (
     IntegerAttr,
     IntegerType,
     ModuleOp,
+    NoneAttr,
     Signedness,
     StringAttr,
     UnitAttr,
@@ -374,6 +375,78 @@ class DSK_Operation(X86Instruction, X86CustomFormatOperation, ABC):
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
         register_out = masked_source_str(self.destination, self.mask_reg, self.z)
         return register_out, self.source
+
+
+class DK_Operation(
+    X86Instruction, X86CustomFormatOperation, HasRegisterConstraints, ABC
+):
+    """
+    A base class for x86 operations that have one general purpose destination register
+    and one writemask source register.
+    """
+
+    destination: OpResult[GeneralRegisterType] = result_def(GeneralRegisterType)
+    source = operand_def(AVX512MaskRegisterType)
+
+    def __init__(
+        self,
+        source: Operation | SSAValue,
+        *,
+        comment: str | StringAttr | None = None,
+        destination: GeneralRegisterType,
+    ):
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            operands=(source,),
+            attributes={
+                "comment": comment,
+            },
+            result_types=(destination,),
+        )
+
+    def get_register_constraints(self) -> RegisterConstraints:
+        return RegisterConstraints((self.source,), (self.destination,), ())
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        return self.destination, self.source
+
+
+class KS_Operation(
+    X86Instruction, X86CustomFormatOperation, HasRegisterConstraints, ABC
+):
+    """
+    A base class for x86 operations that have one general purpose destination register
+    and one writemask source register.
+    """
+
+    destination: OpResult[AVX512MaskRegisterType] = result_def(AVX512MaskRegisterType)
+    source = operand_def(GeneralRegisterType)
+
+    def __init__(
+        self,
+        source: Operation | SSAValue,
+        *,
+        comment: str | StringAttr | None = None,
+        destination: AVX512MaskRegisterType,
+    ):
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            operands=(source,),
+            attributes={
+                "comment": comment,
+            },
+            result_types=(destination,),
+        )
+
+    def get_register_constraints(self) -> RegisterConstraints:
+        return RegisterConstraints((self.source,), (self.destination,), ())
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        return self.destination, self.source
 
 
 class R_Operation(X86Instruction, X86CustomFormatOperation, ABC, Generic[R1InvT]):
@@ -3566,6 +3639,183 @@ class DM_VbroadcastssOp(DM_Operation[X86VectorRegisterType, GeneralRegisterType]
     """
 
     name = "x86.dm.vbroadcastss"
+
+
+@irdl_op_definition
+class DK_KMovBOp(DK_Operation):
+    """
+    Move 8 bits mask from source mask register to general-purpose register.
+    """
+
+    name = "x86.dk.kmovb"
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        # There are two sets of `r` registers in x86, `rax` etc, and `r8`, `r9`, ...
+        # When reading 32 bits from the first set, the `e` variant should be used
+        # (`eax` for `rax` etc.) and when reading from the second set a `d` should be
+        # appended (`r8d` for `r8` etc.).
+        dest = self.destination.type
+        if isinstance(dest.index, NoneAttr):
+            raise ValueError("Unallocated register in assembly printing")
+        if 8 <= dest.index.data < 16:
+            dest_str = dest.register_name.data + "d"
+        else:
+            raise NotImplementedError(
+                f"32-bit Registers not yet implemented in x86 ({dest})"
+            )
+
+        return dest_str, self.source
+
+
+@irdl_op_definition
+class KS_KMovBOp(KS_Operation):
+    """
+    Move 8 bits mask from general-purpose register to destination mask register.
+    """
+
+    name = "x86.ks.kmovb"
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        # There are two sets of `r` registers in x86, `rax` etc, and `r8`, `r9`, ...
+        # When reading 32 bits from the first set, the `e` variant should be used
+        # (`eax` for `rax` etc.) and when reading from the second set a `d` should be
+        # appended (`r8d` for `r8` etc.).
+        source = self.source.type
+        assert isinstance(source, GeneralRegisterType)
+        if isinstance(source.index, NoneAttr):
+            raise ValueError("Unallocated register in assembly printing")
+        if 8 <= source.index.data < 16:
+            source_str = source.register_name.data + "d"
+        else:
+            raise NotImplementedError(
+                f"32-bit Registers not yet implemented in x86 ({source})"
+            )
+
+        return self.destination, source_str
+
+
+@irdl_op_definition
+class DK_KMovWOp(DK_Operation):
+    """
+    Move 16 bits mask from source mask register to general-purpose register.
+    """
+
+    name = "x86.dk.kmovw"
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        # There are two sets of `r` registers in x86, `rax` etc, and `r8`, `r9`, ...
+        # When reading 32 bits from the first set, the `e` variant should be used
+        # (`eax` for `rax` etc.) and when reading from the second set a `d` should be
+        # appended (`r8d` for `r8` etc.).
+        dest = self.destination.type
+        if isinstance(dest.index, NoneAttr):
+            raise ValueError("Unallocated register in assembly printing")
+        if 8 <= dest.index.data < 16:
+            dest_str = dest.register_name.data + "d"
+        else:
+            raise NotImplementedError(
+                f"32-bit Registers not yet implemented in x86 ({dest})"
+            )
+
+        return dest_str, self.source
+
+
+@irdl_op_definition
+class KS_KMovWOp(KS_Operation):
+    """
+    Move 16 bits mask from general-purpose register to destination mask register.
+    """
+
+    name = "x86.ks.kmovw"
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        # There are two sets of `r` registers in x86, `rax` etc, and `r8`, `r9`, ...
+        # When reading 32 bits from the first set, the `e` variant should be used
+        # (`eax` for `rax` etc.) and when reading from the second set a `d` should be
+        # appended (`r8d` for `r8` etc.).
+        source = self.source.type
+        assert isinstance(source, GeneralRegisterType)
+        if isinstance(source.index, NoneAttr):
+            raise ValueError("Unallocated register in assembly printing")
+        if 8 <= source.index.data < 16:
+            source_str = source.register_name.data + "d"
+        else:
+            raise NotImplementedError(
+                f"32-bit Registers not yet implemented in x86 ({source})"
+            )
+
+        return self.destination, source_str
+
+
+@irdl_op_definition
+class DK_KMovDOp(DK_Operation):
+    """
+    Move 32 bits mask from source mask register to general-purpose register.
+    """
+
+    name = "x86.dk.kmovd"
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        # There are two sets of `r` registers in x86, `rax` etc, and `r8`, `r9`, ...
+        # When reading 32 bits from the first set, the `e` variant should be used
+        # (`eax` for `rax` etc.) and when reading from the second set a `d` should be
+        # appended (`r8d` for `r8` etc.).
+        dest = self.destination.type
+        if isinstance(dest.index, NoneAttr):
+            raise ValueError("Unallocated register in assembly printing")
+        if 8 <= dest.index.data < 16:
+            dest_str = dest.register_name.data + "d"
+        else:
+            raise NotImplementedError(
+                f"32-bit Registers not yet implemented in x86 ({dest})"
+            )
+
+        return dest_str, self.source
+
+
+@irdl_op_definition
+class KS_KMovDOp(KS_Operation):
+    """
+    Move 32 bits mask from general-purpose register to destination mask register.
+    """
+
+    name = "x86.ks.kmovd"
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        # There are two sets of `r` registers in x86, `rax` etc, and `r8`, `r9`, ...
+        # When reading 32 bits from the first set, the `e` variant should be used
+        # (`eax` for `rax` etc.) and when reading from the second set a `d` should be
+        # appended (`r8d` for `r8` etc.).
+        source = self.source.type
+        assert isinstance(source, GeneralRegisterType)
+        if isinstance(source.index, NoneAttr):
+            raise ValueError("Unallocated register in assembly printing")
+        if 8 <= source.index.data < 16:
+            source_str = source.register_name.data + "d"
+        else:
+            raise NotImplementedError(
+                f"32-bit Registers not yet implemented in x86 ({source})"
+            )
+
+        return self.destination, source_str
+
+
+@irdl_op_definition
+class DK_KMovQOp(DK_Operation):
+    """
+    Move 64 bits mask from source mask register to general-purpose register.
+    """
+
+    name = "x86.dk.kmovq"
+
+
+@irdl_op_definition
+class KS_KMovQOp(KS_Operation):
+    """
+    Move 64 bits mask from general-purpose register to destination mask register.
+    """
+
+    name = "x86.ks.kmovq"
 
 
 @irdl_op_definition
