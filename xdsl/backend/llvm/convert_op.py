@@ -58,7 +58,10 @@ def _convert_getelementptr(
     casted_ptr = builder.bitcast(val_map[op.ptr], typed_ptr_ty)
 
     val_map[op.results[0]] = builder.gep(
-        casted_ptr, indices, inbounds=op.inbounds is not None
+        casted_ptr,
+        indices,
+        inbounds=op.inbounds is not None,
+        source_etype=convert_type(op.elem_type),
     )
 
 
