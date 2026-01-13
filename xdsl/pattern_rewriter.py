@@ -556,13 +556,21 @@ class GreedyRewritePatternApplier(RewritePattern):
     """Used to materialize constant operations when folding."""
 
     folding_enabled: bool = field(default=False, kw_only=True)
-    """Whether the folders should be invoked.
-    If this is True, the GreedyRewritePatternApplier must also have a context."""
+    """
+    Whether the folders should be invoked.
+    If this is True, the GreedyRewritePatternApplier must also have a context.
+    """
+
+    dce_enabled: bool = field(default=True, kw_only=True)
+    """
+    Whether trivial dead code elimination should be run on all operations before
+    attempting to rewrite them.
+    """
 
     def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter) -> None:
         from xdsl.transforms.dead_code_elimination import is_trivially_dead
 
-        if is_trivially_dead(op):
+        if self.dce_enabled and is_trivially_dead(op):
             rewriter.erase_op(op)
             return
 

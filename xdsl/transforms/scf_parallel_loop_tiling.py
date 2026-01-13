@@ -7,7 +7,6 @@ from xdsl.dialects.scf import ParallelOp, ReduceOp
 from xdsl.ir import Block, Operation, Region, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
-    GreedyRewritePatternApplier,
     PatternRewriter,
     PatternRewriteWalker,
     RewritePattern,
@@ -140,9 +139,7 @@ class ScfParallelLoopTilingPass(ModulePass):
 
     def apply(self, ctx: Context, op: ModuleOp) -> None:
         walker = PatternRewriteWalker(
-            GreedyRewritePatternApplier(
-                [ScfParallelLoopTilingPattern(tuple(self.parallel_loop_tile_sizes))]
-            ),
+            ScfParallelLoopTilingPattern(tuple(self.parallel_loop_tile_sizes)),
             walk_regions_first=True,
             apply_recursively=False,
         )

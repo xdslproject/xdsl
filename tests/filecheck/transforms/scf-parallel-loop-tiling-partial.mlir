@@ -8,8 +8,8 @@ func.func @tile_partial() {
   %size = arith.constant 64 : index
     "scf.parallel"(%zero, %zero, %zero, %size, %size, %size, %one, %one, %one) <{operandSegmentSizes = array<i32: 3, 3, 3, 0>}> ({
     ^bb5(%arg2_2 : index, %arg3_2 : index, %arg4_2 : index):
-    "test.op"() : () -> ()
-    scf.reduce
+      "test.op"() : () -> ()
+      scf.reduce
     }) : (index, index, index, index, index, index, index, index, index) -> ()
   func.return
 }
@@ -56,6 +56,7 @@ func.func @tile_partial() {
 // CHECK-FIRST-NEXT:     ^{{.*}}(%{{.*}} : index, %{{.*}} : index, %{{.*}} : index):
 // CHECK-FIRST-NEXT:       %{{.*}} = arith.addi %{{.*}}, %{{.*}} : index
 // CHECK-FIRST-NEXT:       %{{.*}} = arith.addi %{{.*}}, %{{.*}} : index
+// CHECK-FIRST-NEXT:       "test.op"() : () -> ()
 // CHECK-FIRST-NEXT:       scf.reduce
 // CHECK-FIRST-NEXT:     }) : (index, index, index, index, index, index, index, index, index) -> ()
 // CHECK-FIRST-NEXT:     scf.reduce
@@ -80,6 +81,7 @@ func.func @tile_partial() {
 // CHECK-LAST-NEXT:     ^{{.*}}(%{{.*}} : index, %{{.*}} : index, %{{.*}} : index):
 // CHECK-LAST-NEXT:       %{{.*}} = arith.addi %{{.*}}, %{{.*}} : index
 // CHECK-LAST-NEXT:       %{{.*}} = arith.addi %{{.*}}, %{{.*}} : index
+// CHECK-LAST-NEXT:       "test.op"() : () -> ()
 // CHECK-LAST-NEXT:       scf.reduce
 // CHECK-LAST-NEXT:     }) : (index, index, index, index, index, index, index, index, index) -> ()
 // CHECK-LAST-NEXT:     scf.reduce
@@ -127,6 +129,7 @@ func.func @tile_partial_1d() {
 // CHECK-FIRST-NEXT:      %size = arith.constant 64 : index
 // CHECK-FIRST-NEXT:      "scf.parallel"(%zero, %size, %one) <{operandSegmentSizes = array<i32: 1, 1, 1, 0>}> ({
 // CHECK-FIRST-NEXT:      ^bb0(%arg1 : index):
+// CHECK-FIRST-NEXT:       "test.op"() : () -> ()
 // CHECK-FIRST-NEXT:        scf.reduce
 // CHECK-FIRST-NEXT:      }) : (index, index, index) -> ()
 // CHECK-FIRST-NEXT:      func.return
@@ -146,6 +149,7 @@ func.func @tile_partial_1d() {
 // CHECK-LAST-NEXT:        "scf.parallel"(%0, %4, %one) <{operandSegmentSizes = array<i32: 1, 1, 1, 0>}> ({
 // CHECK-LAST-NEXT:        ^bb1(%arg1 : index):
 // CHECK-LAST-NEXT:          %5 = arith.addi %3, %arg1 : index
+// CHECK-LAST-NEXT:         "test.op"() : () -> ()
 // CHECK-LAST-NEXT:          scf.reduce
 // CHECK-LAST-NEXT:        }) : (index, index, index) -> ()
 // CHECK-LAST-NEXT:        scf.reduce
