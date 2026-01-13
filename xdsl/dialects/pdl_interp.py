@@ -70,6 +70,14 @@ from xdsl.irdl import (
     var_result_def,
     var_successor_def,
 )
+from xdsl.irdl.declarative_assembly_format import (
+    CustomDirective,
+    ParsingState,
+    PrintingState,
+    TypeDirective,
+    VariadicOperandVariable,
+    irdl_custom_directive,
+)
 from xdsl.parser import Parser
 from xdsl.printer import Printer
 from xdsl.traits import (
@@ -937,6 +945,48 @@ class CreateOperationOp(IRDLOperation):
             CreateOperationOp._print_input_list(printer, self.input_result_types)
 
 
+@irdl_custom_directive
+class RangeTypeDirective(CustomDirective):
+    """
+    Custom directive for parsing/printing range types in CreateRangeOp.
+    """
+
+    arguments_type: TypeDirective
+    result_type: TypeDirective
+
+    def parse(self, parser: Parser, state: ParsingState) -> bool:
+        args_inner = self.arguments_type.inner
+        assert isinstance(args_inner, VariadicOperandVariable)
+
+        arg_types = state.operand_types[args_inner.index]
+
+        if arg_types:
+            # Infer result type from first argument (getRangeElementTypeOrSelf)
+            first_type = arg_types[0]
+            if isa(first_type, RangeType[AnyPDLType]):
+                element_type = first_type.element_type
+            else:
+                assert isinstance(first_type, AnyPDLType)
+                element_type = first_type
+            result_type = RangeType(element_type)
+            self.result_type.set(state, (result_type,))
+            return False  # No input consumed during inference
+        else:
+            # Parse `: type` for result when no arguments
+            parser.parse_punctuation(":")
+            result_type = parser.parse_type()
+            self.result_type.set(state, (result_type,))
+            return True
+
+    def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
+        arg_types = self.arguments_type.get(op)
+        if not arg_types:
+            # Print `: result_type` only when no arguments
+            printer.print_string(": ")
+            result_types = self.result_type.get(op)
+            printer.print_attribute(result_types[0])
+
+
 @irdl_op_definition
 class CreateRangeOp(IRDLOperation):
     """
@@ -947,6 +997,14 @@ class CreateRangeOp(IRDLOperation):
     arguments = var_operand_def(AnyPDLTypeConstr | base(RangeType[AnyPDLType]))
     result = result_def(RangeType[AnyPDLType])
 
+    custom_directives = (RangeTypeDirective,)
+
+    assembly_format = (
+        "($arguments^ `:` type($arguments))?"
+        "custom<RangeTypeDirective>(ref(type($arguments)), type($result))"
+        "attr-dict"
+    )
+
     def __init__(
         self,
         arguments: Sequence[SSAValue],
@@ -956,69 +1014,6 @@ class CreateRangeOp(IRDLOperation):
             operands=[arguments],
             result_types=[result_type],
         )
-
-    @classmethod
-    def parse(cls, parser: Parser) -> CreateRangeOp:
-        operands: list[SSAValue] = []
-        operand = parser.parse_optional_operand()
-        if operand is not None:
-            operands.append(operand)
-            while parser.parse_optional_punctuation(","):
-                operands.append(parser.parse_operand())
-
-        if operands:
-            parser.parse_punctuation(":")
-            types = parser.parse_comma_separated_list(
-                delimiter=Parser.Delimiter.NONE, parse=parser.parse_type
-            )
-            first_type = types[0]
-            if isa(first_type, RangeType[AnyPDLType]):
-                element_type = first_type.element_type
-            else:
-                assert isinstance(first_type, AnyPDLType)
-                element_type = first_type
-            result_type = RangeType(element_type)
-        else:
-            parser.parse_punctuation(":")
-            result_type = parser.parse_type()
-
-        attributes = parser.parse_optional_attr_dict()
-
-        op = CreateRangeOp(operands, cast(RangeType[AnyPDLType], result_type))
-        if attributes:
-            op.attributes = attributes
-        return op
-
-    def print(self, printer: Printer):
-        if self.arguments:
-            printer.print_string(" ", indent=0)
-            printer.print_list(self.arguments, printer.print_operand)
-            printer.print_string(" : ", indent=0)
-            printer.print_list(
-                [arg.type for arg in self.arguments], printer.print_attribute
-            )
-        else:
-            printer.print_string(" : ", indent=0)
-            printer.print_attribute(self.result.type)
-
-        printer.print_op_attributes(self.attributes)
-
-    def verify(self, verify_nested_ops: bool = True) -> None:
-        element_type = self.result.type.element_type
-
-        for operand in self.arguments:
-            op_type = operand.type
-            # Logic: pdl::getRangeElementTypeOrSelf(operandType)
-            if isa(op_type, RangeType[AnyPDLType]):
-                op_element_type = op_type.element_type
-            else:
-                op_element_type = op_type
-
-            if op_element_type != element_type:
-                raise VerifyException(
-                    f"Expected operand to have element type {element_type}, "
-                    f"but got {op_element_type}"
-                )
 
 
 @irdl_op_definition
