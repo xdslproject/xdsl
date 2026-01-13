@@ -167,12 +167,9 @@ def test_from_elements_type_consistency():
     from xdsl.utils.exceptions import VerifyException
 
     # This should raise an assertion error due to type mismatch
-    try:
-        FromElementsOp(a_i64, b_f64).verify()
-    except VerifyException:
-        # This is expected
-        return
-    raise Exception("Expected assertion error for mismatched types")
+    res = FromElementsOp(a_i64, b_f64)
+    with pytest.raises(VerifyException):
+        res.verify()
 
 def test_from_elements_empty_list():
     """Test FromElementsOp with an empty list."""
