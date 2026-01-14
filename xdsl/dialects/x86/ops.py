@@ -267,9 +267,7 @@ class X86Instruction(X86AsmOperation, X86RegallocOperation):
 # region: Operation Base Classes
 
 
-class RS_Operation(
-    X86Instruction, X86CustomFormatOperation, ABC, Generic[R1InvT, R2InvT]
-):
+class RS_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT]):
     """
     A base class for x86 operations that have one register that is read and written to,
     and one source register.
@@ -279,6 +277,11 @@ class RS_Operation(
     register_out = result_def(R1InvT)
 
     source = operand_def(R2InvT)
+
+    assembly_format = (
+        "$register_in `,` $source attr-dict `:` "
+        "`(` type($register_in) `,` type($source) `)` `->` type($register_out)"
+    )
 
     def __init__(
         self,
@@ -311,9 +314,7 @@ class RS_Operation(
         )
 
 
-class DS_Operation(
-    X86Instruction, X86CustomFormatOperation, ABC, Generic[R1InvT, R2InvT]
-):
+class DS_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT]):
     """
     A base class for x86 operations that have one destination register and one source
     register.
@@ -321,6 +322,10 @@ class DS_Operation(
 
     destination: OpResult[R1InvT] = result_def(R1InvT)
     source = operand_def(R2InvT)
+
+    assembly_format = (
+        "$source attr-dict `:` `(` type($source) `)` `->` type($destination)"
+    )
 
     def __init__(
         self,
@@ -344,7 +349,7 @@ class DS_Operation(
         return (self.destination, self.source)
 
 
-class DSK_Operation(X86Instruction, X86CustomFormatOperation, ABC):
+class DSK_Operation(X86Instruction, ABC):
     """
     A base class for x86 operations that have one destination register and one source
     register.
@@ -354,6 +359,11 @@ class DSK_Operation(X86Instruction, X86CustomFormatOperation, ABC):
     source = operand_def(AVX512RegisterType)
     mask_reg = operand_def(AVX512MaskRegisterType)
     z = opt_attr_def(UnitAttr)
+
+    assembly_format = (
+        "$source `,` $mask_reg attr-dict `:` "
+        "`(` type($source) `,` type($mask_reg) `)` `->` type($destination)"
+    )
 
     def __init__(
         self,
@@ -381,13 +391,17 @@ class DSK_Operation(X86Instruction, X86CustomFormatOperation, ABC):
         return register_out, self.source
 
 
-class R_Operation(X86Instruction, X86CustomFormatOperation, ABC, Generic[R1InvT]):
+class R_Operation(X86Instruction, ABC, Generic[R1InvT]):
     """
     A base class for x86 operations that have one register that is read and written to.
     """
 
     register_in = operand_def(R1InvT)
     register_out = result_def(R1InvT)
+
+    assembly_format = (
+        "$register_in attr-dict `:` `(` type($register_in) `)` `->` type($register_out)"
+    )
 
     def __init__(
         self,
@@ -1077,9 +1091,7 @@ class ConditionalJumpOperation(X86Instruction, X86CustomFormatOperation, ABC):
         return op
 
 
-class RSS_Operation(
-    X86Instruction, X86CustomFormatOperation, ABC, Generic[R1InvT, R2InvT, R3InvT]
-):
+class RSS_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT, R3InvT]):
     """
     A base class for x86 operations that have one register that is read and written to,
     and two source registers.
@@ -1089,6 +1101,11 @@ class RSS_Operation(
     register_out = result_def(R1InvT)
     source1 = operand_def(R2InvT)
     source2 = operand_def(R3InvT)
+
+    assembly_format = (
+        "$register_in `,` $source1 `,` $source2 attr-dict `:` "
+        "`(` type($register_in) `,` type($source1) `,` type($source2) `)` `->` type($register_out)"
+    )
 
     def __init__(
         self,
@@ -1122,7 +1139,7 @@ class RSS_Operation(
         )
 
 
-class RSSK_Operation(X86Instruction, X86CustomFormatOperation, ABC):
+class RSSK_Operation(X86Instruction, ABC):
     """
     A base class for x86 AVX512 operations that have one register r that is read and written to,
     and two source registers s1 and s2, with mask register k. The z attribute enables zero masking,
@@ -1138,6 +1155,11 @@ class RSSK_Operation(X86Instruction, X86CustomFormatOperation, ABC):
     source2 = operand_def(AVX512RegisterType)
     mask_reg = operand_def(AVX512MaskRegisterType)
     z = opt_attr_def(UnitAttr)
+
+    assembly_format = (
+        "$register_in `,` $source1 `,` $source2 `,` $mask_reg attr-dict `:` "
+        "`(` type($register_in) `,` type($source1) `,` type($source2) `,` type($mask_reg) `)` `->` type($register_out)"
+    )
 
     def __init__(
         self,
@@ -1177,9 +1199,7 @@ class RSSK_Operation(X86Instruction, X86CustomFormatOperation, ABC):
         )
 
 
-class DSS_Operation(
-    X86Instruction, X86CustomFormatOperation, ABC, Generic[R1InvT, R2InvT, R3InvT]
-):
+class DSS_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT, R3InvT]):
     """
     A base class for x86 operations that have one destination register and two source
     registers.
@@ -1188,6 +1208,11 @@ class DSS_Operation(
     destination = result_def(R1InvT)
     source1 = operand_def(R2InvT)
     source2 = operand_def(R3InvT)
+
+    assembly_format = (
+        "$source1 `,` $source2 attr-dict `:` "
+        "`(` type($source1) `,` type($source2) `)` `->` type($destination)"
+    )
 
     def __init__(
         self,
