@@ -2004,6 +2004,7 @@ LLVM = Dialect(
         MulOp,
         NullOp,
         OrOp,
+        PtrToIntOp,
         ReturnOp,
         SDivOp,
         SExtOp,
