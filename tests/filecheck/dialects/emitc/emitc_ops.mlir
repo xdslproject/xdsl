@@ -132,3 +132,50 @@ emitc.assign %cons_int : i32 to %variable : !emitc.lvalue<i32>
 // CHECK: %rem_int = emitc.rem %i32_lhs, %i32_rhs : (i32, i32) -> i32
 // CHECK-GENERIC: %rem_int = "emitc.rem"(%i32_lhs, %i32_rhs) : (i32, i32) -> i32
 
+//===----------------------------------------------------------------------===//
+// BitwiseAndOp
+//===----------------------------------------------------------------------===//
+
+%and_int = emitc.bitwise_and %i32_lhs, %i32_rhs : (i32, i32) -> i32
+// CHECK: %and_int = emitc.bitwise_and %i32_lhs, %i32_rhs : (i32, i32) -> i32
+// CHECK-GENERIC: %and_int = "emitc.bitwise_and"(%i32_lhs, %i32_rhs) : (i32, i32) -> i32
+
+//===----------------------------------------------------------------------===//
+// BitwiseLeftShiftOp
+//===----------------------------------------------------------------------===//
+
+%left_shift_int = emitc.bitwise_left_shift %i32_lhs, %i32_rhs : (i32, i32) -> i32
+// CHECK: %left_shift_int = emitc.bitwise_left_shift %i32_lhs, %i32_rhs : (i32, i32) -> i32
+// CHECK-GENERIC: %left_shift_int = "emitc.bitwise_left_shift"(%i32_lhs, %i32_rhs) : (i32, i32) -> i32
+
+//===----------------------------------------------------------------------===//
+// BitwiseNotOp
+//===----------------------------------------------------------------------===//
+
+%not_int = emitc.bitwise_not %i32_lhs : (i32) -> i32
+// CHECK: %not_int = emitc.bitwise_not %i32_lhs : (i32) -> i32
+// CHECK-GENERIC: %not_int = "emitc.bitwise_not"(%i32_lhs) : (i32) -> i32
+
+//===----------------------------------------------------------------------===//
+// BitwiseOrOp
+//===----------------------------------------------------------------------===//
+
+%or_int = emitc.bitwise_or %i32_lhs, %i32_rhs : (i32, i32) -> i32
+// CHECK: %or_int = emitc.bitwise_or %i32_lhs, %i32_rhs : (i32, i32) -> i32
+// CHECK-GENERIC: %or_int = "emitc.bitwise_or"(%i32_lhs, %i32_rhs) : (i32, i32) -> i32
+
+//===----------------------------------------------------------------------===//
+// BitwiseRightShiftOp
+//===----------------------------------------------------------------------===//
+
+%right_shift_int = emitc.bitwise_right_shift %i32_lhs, %i32_rhs : (i32, i32) -> i32
+// CHECK: %right_shift_int = emitc.bitwise_right_shift %i32_lhs, %i32_rhs : (i32, i32) -> i32
+// CHECK-GENERIC: %right_shift_int = "emitc.bitwise_right_shift"(%i32_lhs, %i32_rhs) : (i32, i32) -> i32
+
+//===----------------------------------------------------------------------===//
+// BitwiseXorOp
+//===----------------------------------------------------------------------===//
+
+%xor_int = emitc.bitwise_xor %i32_lhs, %i32_rhs : (i32, i32) -> i32
+// CHECK: %xor_int = emitc.bitwise_xor %i32_lhs, %i32_rhs : (i32, i32) -> i32
+// CHECK-GENERIC: %xor_int = "emitc.bitwise_xor"(%i32_lhs, %i32_rhs) : (i32, i32) -> i32
