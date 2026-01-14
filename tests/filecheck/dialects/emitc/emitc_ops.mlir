@@ -1,12 +1,16 @@
 // RUN: XDSL_ROUNDTRIP
 // RUN: XDSL_GENERIC_ROUNDTRIP
 
-%i32_lhs, %i32_rhs = "test.op"() : () -> (i32, i32)
 %i32_val = "test.op"() : () -> (i32)
+%i32_lhs, %i32_rhs = "test.op"() : () -> (i32, i32)
 %f32_lhs, %f32_rhs = "test.op"() : () -> (f32, f32)
+%ptr_i32 = "test.op"() : () -> !emitc.ptr<i32>
 %ptr_f32, %i32_offset = "test.op"() : () -> (!emitc.ptr<f32>, i32)
 %opaque_uint = "test.op"() : () -> !emitc.opaque<"unsigned int">
 %tensor_lhs, %tensor_rhs = "test.op"() : () -> (tensor<3x4xi32>, tensor<3x4xi32>)
+%arr0 = "test.op"() : () -> !emitc.array<2x3xf32>
+%idx0, %idx1, %idx2 = "test.op"() : () -> (index, i32, !emitc.opaque<"char">)
+%opaque_map = "test.op"() : () -> !emitc.opaque<"std::map<char, int>">
 
 //===----------------------------------------------------------------------===//
 // CallOpaqueOp
@@ -220,3 +224,19 @@ emitc.assign %cons_int : i32 to %variable : !emitc.lvalue<i32>
 %un_minus = emitc.unary_minus %i32_val : (i32) -> i32
 // CHECK: %un_minus = emitc.unary_minus %i32_val : (i32) -> i32
 // CHECK-GENERIC: %un_minus = "emitc.unary_minus"(%i32_val) : (i32) -> i32
+
+//===----------------------------------------------------------------------===//
+// SubscriptOp
+//===----------------------------------------------------------------------===//
+
+%subscript_array = emitc.subscript %arr0[%idx0, %idx1] : (!emitc.array<2x3xf32>, index, i32) -> !emitc.lvalue<f32>
+// CHECK: %subscript_array = emitc.subscript %arr0[%idx0, %idx1] : (!emitc.array<2x3xf32>, index, i32) -> !emitc.lvalue<f32>
+// CHECK-GENERIC: %subscript_array = "emitc.subscript"(%arr0, %idx0, %idx1) : (!emitc.array<2x3xf32>, index, i32) -> !emitc.lvalue<f32>
+
+%subscript_ptr = emitc.subscript %ptr_i32[%idx0] : (!emitc.ptr<i32>, index) -> !emitc.lvalue<i32>
+// CHECK: %subscript_ptr = emitc.subscript %ptr_i32[%idx0] : (!emitc.ptr<i32>, index) -> !emitc.lvalue<i32>
+// CHECK-GENERIC: %subscript_ptr = "emitc.subscript"(%ptr_i32, %idx0) : (!emitc.ptr<i32>, index) -> !emitc.lvalue<i32>
+
+%subscript_opaque = emitc.subscript %opaque_map[%idx2] : (!emitc.opaque<"std::map<char, int>">, !emitc.opaque<"char">) -> !emitc.lvalue<!emitc.opaque<"int">>
+// CHECK: %subscript_opaque = emitc.subscript %opaque_map[%idx2] : (!emitc.opaque<"std::map<char, int>">, !emitc.opaque<"char">) -> !emitc.lvalue<!emitc.opaque<"int">>
+// CHECK-GENERIC: %subscript_opaque = "emitc.subscript"(%opaque_map, %idx2) : (!emitc.opaque<"std::map<char, int>">, !emitc.opaque<"char">) -> !emitc.lvalue<!emitc.opaque<"int">>
