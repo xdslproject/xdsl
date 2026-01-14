@@ -1498,8 +1498,8 @@ class EmitC_SubscriptOp(IRDLOperation):
 
         # array[i]
         if isinstance(val_type, EmitC_ArrayType):
-            if len(self.indices) != val_type.shape:
-                raise VerifyException(f"Array subscript expects {val_type.shape} indices, got {len(self.indices)}")
+            if len(self.indices) != len(val_type.shape):
+                raise VerifyException(f"Array subscript expects {len(val_type.shape)} indices, got {len(self.indices)}")
 
         # ptr[i]
         if isinstance(val_type, EmitC_PointerType):
