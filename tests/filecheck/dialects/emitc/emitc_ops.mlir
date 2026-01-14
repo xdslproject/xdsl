@@ -2,6 +2,7 @@
 // RUN: XDSL_GENERIC_ROUNDTRIP
 
 %i32_lhs, %i32_rhs = "test.op"() : () -> (i32, i32)
+%i32_val = "test.op"() : () -> (i32)
 %f32_lhs, %f32_rhs = "test.op"() : () -> (f32, f32)
 %ptr_f32, %i32_offset = "test.op"() : () -> (!emitc.ptr<f32>, i32)
 %opaque_uint = "test.op"() : () -> !emitc.opaque<"unsigned int">
@@ -203,3 +204,19 @@ emitc.assign %cons_int : i32 to %variable : !emitc.lvalue<i32>
 %log_or = emitc.logical_or %i32_lhs, %i32_rhs : i32, i32
 // CHECK: %log_or = emitc.logical_or %i32_lhs, %i32_rhs : i32, i32
 // CHECK-GENERIC: %log_or = "emitc.logical_or"(%i32_lhs, %i32_rhs) : (i32, i32)
+
+//===----------------------------------------------------------------------===//
+// UnaryPlusOp
+//===----------------------------------------------------------------------===//
+
+%un_plus = emitc.unary_plus %i32_val : (i32) -> i32
+// CHECK: %un_plus = emitc.unary_plus %i32_val : (i32) -> i32
+// CHECK-GENERIC: %un_plus = "emitc.unary_plus"(%i32_val) : (i32) -> i32
+
+//===----------------------------------------------------------------------===//
+// UnaryMinusOp
+//===----------------------------------------------------------------------===//
+
+%un_minus = emitc.unary_minus %i32_val : (i32) -> i32
+// CHECK: %un_minus = emitc.unary_minus %i32_val : (i32) -> i32
+// CHECK-GENERIC: %un_minus = "emitc.unary_minus"(%i32_val) : (i32) -> i32
