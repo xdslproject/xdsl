@@ -179,3 +179,27 @@ emitc.assign %cons_int : i32 to %variable : !emitc.lvalue<i32>
 %xor_int = emitc.bitwise_xor %i32_lhs, %i32_rhs : (i32, i32) -> i32
 // CHECK: %xor_int = emitc.bitwise_xor %i32_lhs, %i32_rhs : (i32, i32) -> i32
 // CHECK-GENERIC: %xor_int = "emitc.bitwise_xor"(%i32_lhs, %i32_rhs) : (i32, i32) -> i32
+
+//===----------------------------------------------------------------------===//
+// LogicalAndOp
+//===----------------------------------------------------------------------===//
+
+%log_and = emitc.logical_and %i32_lhs, %i32_rhs : i32, i32
+// CHECK: %log_and = emitc.logical_and %i32_lhs, %i32_rhs : i32, i32
+// CHECK-GENERIC: %log_and = "emitc.logical_and"(%i32_lhs, %i32_rhs) : (i32, i32)
+
+//===----------------------------------------------------------------------===//
+// LogicalNotOp
+//===----------------------------------------------------------------------===//
+
+%log_not = emitc.logical_not %i32_lhs : i32
+// CHECK: %log_not = emitc.logical_not %i32_lhs : i32
+// CHECK-GENERIC: %log_not = "emitc.logical_not"(%i32_lhs) : (i32)
+
+//===----------------------------------------------------------------------===//
+// LogicalOrOp
+//===----------------------------------------------------------------------===//
+
+%log_or = emitc.logical_or %i32_lhs, %i32_rhs : i32, i32
+// CHECK: %log_or = emitc.logical_or %i32_lhs, %i32_rhs : i32, i32
+// CHECK-GENERIC: %log_or = "emitc.logical_or"(%i32_lhs, %i32_rhs) : (i32, i32)
