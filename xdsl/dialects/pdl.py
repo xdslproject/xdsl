@@ -683,7 +683,7 @@ class ReplaceOp(IRDLOperation):
     name = "pdl.replace"
     op_value = operand_def(OperationType)
     repl_operation = opt_operand_def(OperationType)
-    repl_values = var_operand_def(base(ValueType) | base(ArrayAttr[ValueType]))
+    repl_values = var_operand_def(base(ValueType) | base(RangeType[ValueType]))
 
     irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
