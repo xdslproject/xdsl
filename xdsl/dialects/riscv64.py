@@ -46,6 +46,7 @@ from xdsl.dialects.riscv import (
 ui6 = IntegerType(6, Signedness.UNSIGNED)
 UImm6Attr = IntegerAttr[Annotated[IntegerType, ui6]]
 
+
 class RdRsImmShiftOperationRV64(RISCVCustomFormatOperation, RISCVInstruction, ABC):
     """Base class for RISC-V 64-bit shift immediate operations with rd, rs1 and imm6."""
 
@@ -90,7 +91,8 @@ class RdRsImmShiftOperationRV64(RISCVCustomFormatOperation, RISCVInstruction, AB
         printer.print_string(", ")
         print_immediate_value(printer, self.immediate)
         return {"immediate"}
-    
+
+
 @irdl_op_definition
 class SlliRV64Op(RdRsImmShiftOperationRV64):
     name = "riscv64.slli"
@@ -122,33 +124,33 @@ class SrliwRV64Op(RdRsImmShiftOperationRV64):
     name = "riscv64.srliw"
 
     traits = traits_def(Pure())
-    
+
 
 @irdl_op_definition
 class RoriRV64Op(RdRsImmShiftOperationRV64):
     name = "riscv64.rori"
-    
+
     traits = traits_def(Pure())
-    
+
 
 @irdl_op_definition
 class RoriwRV64Op(RdRsImmShiftOperationRV64):
     name = "riscv64.roriw"
-    
+
     traits = traits_def(Pure())
 
 
 @irdl_op_definition
 class SlliUwRV64Op(RdRsImmShiftOperationRV64):
     name = "riscv64.slli.uw"
-    
+
     traits = traits_def(Pure())
 
 
 @irdl_op_definition
 class BclrIRV64Op(RdRsImmShiftOperationRV64):
     name = "riscv64.bclri"
-    
+
     traits = traits_def(Pure())
 
 
@@ -160,7 +162,7 @@ class BextIRV64Op(RdRsImmShiftOperationRV64):
 @irdl_op_definition
 class BinvIRV64Op(RdRsImmShiftOperationRV64):
     name = "riscv64.binvi"
-    
+
     traits = traits_def(Pure())
 
 

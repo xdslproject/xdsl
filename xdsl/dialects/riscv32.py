@@ -43,6 +43,7 @@ from xdsl.dialects.riscv import (
     ui5,
 )
 
+
 class RdRsImmShiftOperationRV32(RISCVCustomFormatOperation, RISCVInstruction, ABC):
     """Base class for RISC-V 32-bit shift immediate operations with rd, rs1 and imm5."""
 
@@ -87,8 +88,8 @@ class RdRsImmShiftOperationRV32(RISCVCustomFormatOperation, RISCVInstruction, AB
         printer.print_string(", ")
         print_immediate_value(printer, self.immediate)
         return {"immediate"}
-    
-    
+
+
 @irdl_op_definition
 class SlliRV32Op(RdRsImmShiftOperationRV32):
     name = "riscv32.slli"
@@ -120,33 +121,33 @@ class SrliwRV32Op(RdRsImmShiftOperationRV32):
     name = "riscv32.srliw"
 
     traits = traits_def(Pure())
-    
+
 
 @irdl_op_definition
 class RoriRV32Op(RdRsImmShiftOperationRV32):
     name = "riscv32.rori"
-    
+
     traits = traits_def(Pure())
-    
+
 
 @irdl_op_definition
 class RoriwRV32Op(RdRsImmShiftOperationRV32):
     name = "riscv32.roriw"
-    
+
     traits = traits_def(Pure())
 
 
 @irdl_op_definition
 class SlliUwRV32Op(RdRsImmShiftOperationRV32):
     name = "riscv32.slli.uw"
-    
+
     traits = traits_def(Pure())
 
 
 @irdl_op_definition
 class BclrIRV32Op(RdRsImmShiftOperationRV32):
     name = "riscv32.bclri"
-    
+
     traits = traits_def(Pure())
 
 
@@ -158,7 +159,7 @@ class BextIRV32Op(RdRsImmShiftOperationRV32):
 @irdl_op_definition
 class BinvIRV32Op(RdRsImmShiftOperationRV32):
     name = "riscv32.binvi"
-    
+
     traits = traits_def(Pure())
 
 

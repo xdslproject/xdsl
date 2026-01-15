@@ -252,7 +252,7 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         from xdsl.dialects.riscv32 import RISCV32
 
         return RISCV32
-    
+
     def get_riscv64():
         from xdsl.dialects.riscv64 import RISCV64
 
