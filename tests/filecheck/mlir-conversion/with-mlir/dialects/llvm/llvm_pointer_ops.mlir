@@ -3,7 +3,6 @@
 "builtin.module"() ({
   %0 = "arith.constant"() {"value" = 0 : i64} : () -> i64
   %1 = "llvm.inttoptr"(%0) : (i64) -> !llvm.ptr
-
   %3 = "llvm.mlir.null"() : () -> !llvm.ptr
   %4 = "llvm.alloca"(%0) {"alignment" = 32 : i64, "elem_type" = i64} : (i64) -> !llvm.ptr
   %6 = "llvm.alloca"(%0) {"alignment" = 32 : i64, "elem_type" = i32} : (i64) -> !llvm.ptr
