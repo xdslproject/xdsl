@@ -49,6 +49,7 @@ from xdsl.irdl import (
     attr_def,
     base,
     irdl_attr_definition,
+    irdl_op_definition,
     operand_def,
     opt_attr_def,
     opt_prop_def,
@@ -58,7 +59,6 @@ from xdsl.irdl import (
     var_operand_def,
     var_result_def,
 )
-from xdsl.irdl.operations import irdl_op_definition
 from xdsl.parser import AttrParser, Parser, UnresolvedOperand
 from xdsl.pattern_rewriter import RewritePattern
 from xdsl.printer import Printer
@@ -143,6 +143,7 @@ _RV32I_ABI_INDEX_BY_NAME = {
 }
 _RV32I_X_INDEX_BY_NAME = {f"x{i}": i for i in range(32)}
 RV32I_INDEX_BY_NAME = _RV32I_X_INDEX_BY_NAME | _RV32I_ABI_INDEX_BY_NAME
+
 
 @irdl_attr_definition
 class IntRegisterType(RISCVRegisterType):
@@ -873,7 +874,7 @@ class RdRsImmShiftOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
         printer.print_string(", ")
         print_immediate_value(printer, self.immediate)
         return {"immediate"}
-    
+
 
 class RdRsImmJumpOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
     """
@@ -1456,6 +1457,8 @@ class AddiOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
             AddImmediateConstant(),
         )
 
+
+
 class AddiOp(RdRsImmIntegerOperation):
     """
     Adds the sign-extended 12-bit immediate to register rs1.
@@ -1466,7 +1469,10 @@ class AddiOp(RdRsImmIntegerOperation):
     See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#addi).
     """
 
+    name = "riscv.addi"
+
     traits = traits_def(Pure(), AddiOpHasCanonicalizationPatternsTrait())
+
 
 
 class SltiOp(RdRsImmIntegerOperation):
@@ -1478,7 +1484,9 @@ class SltiOp(RdRsImmIntegerOperation):
 
     See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#slti).
     """
-    pass
+
+    name = "riscv.slti"
+
 
 
 class SltiuOp(RdRsImmIntegerOperation):
@@ -1490,7 +1498,6 @@ class SltiuOp(RdRsImmIntegerOperation):
 
     See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#sltiu).
     """
-    pass
 
     name = "riscv.sltiu"
 
@@ -1503,6 +1510,7 @@ class AndiOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
         )
 
         return (AndiImmediate(),)
+
 
 
 class AndiOp(RdRsImmIntegerOperation):
@@ -1528,6 +1536,8 @@ class OriOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
 
         return (OriImmediate(),)
 
+
+
 class OriOp(RdRsImmIntegerOperation):
     """
     Performs bitwise OR on register rs1 and the sign-extended 12-bit immediate and place
@@ -1550,6 +1560,8 @@ class XoriOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
         )
 
         return (XoriImmediate(),)
+
+
 
 class XoriOp(RdRsImmIntegerOperation):
     """
@@ -1575,6 +1587,8 @@ class SlliOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
 
         return (ShiftLeftImmediate(), ShiftLeftbyZero())
 
+
+
 class SlliOp(RdRsImmShiftOperation):
     """
     Performs logical left shift on the value in register rs1 by the shift amount
@@ -1589,6 +1603,7 @@ class SlliOp(RdRsImmShiftOperation):
 
     traits = traits_def(SlliOpHasCanonicalizationPatternsTrait())
 
+
 class SrliOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
@@ -1598,6 +1613,7 @@ class SrliOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
         )
 
         return (ShiftRightbyZero(), ShiftRightImmediate())
+
 
 
 class SrliOp(RdRsImmShiftOperation):
@@ -1615,6 +1631,7 @@ class SrliOp(RdRsImmShiftOperation):
     traits = traits_def(SrliOpHasCanonicalizationPatternsTrait())
 
 
+
 class SraiOp(RdRsImmShiftOperation):
     """
     Performs arithmetic right shift on the value in register rs1 by the shift amount
@@ -1628,6 +1645,7 @@ class SraiOp(RdRsImmShiftOperation):
     name = "riscv.srai"
 
 
+
 class AddiwOp(RdRsImmIntegerOperation):
     """
     Adds the sign-extended 12-bit immediate to register rs1 and produces the proper sign-extension of a 32-bit result in rd.
@@ -1639,7 +1657,10 @@ class AddiwOp(RdRsImmIntegerOperation):
     See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rv64i.html#addiw).
     """
 
+    name = "riscv.addiw"
+
     traits = traits_def(Pure())
+
 
 
 class SlliwOp(RdRsImmShiftOperation):
@@ -1652,7 +1673,10 @@ class SlliwOp(RdRsImmShiftOperation):
     See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#slliw).
     """
 
+    name = "riscv.slliw"
+
     traits = traits_def(Pure())
+
 
 
 class SrliwOp(RdRsImmShiftOperation):
@@ -1666,7 +1690,10 @@ class SrliwOp(RdRsImmShiftOperation):
     See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#srliw).
     """
 
+    name = "riscv.srliw"
+
     traits = traits_def(Pure())
+
 
 
 class SraiwOp(RdRsImmIntegerOperation):
@@ -1680,7 +1707,10 @@ class SraiwOp(RdRsImmIntegerOperation):
     See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#sraiw).
     """
 
+    name = "riscv.sraiw"
+
     traits = traits_def(Pure())
+
 
 
 class AddwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
@@ -1695,7 +1725,10 @@ class AddwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#addw).
     """
 
+    name = "riscv.addw"
+
     traits = traits_def(Pure())
+
 
 
 class SubwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
@@ -1710,7 +1743,10 @@ class SubwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#subw).
     """
 
+    name = "riscv.subw"
+
     traits = traits_def(Pure())
+
 
 
 class SllwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
@@ -1724,7 +1760,10 @@ class SllwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#sllw).
     """
 
+    name = "riscv.sllw"
+
     traits = traits_def(Pure())
+
 
 
 class SrlwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
@@ -1739,7 +1778,10 @@ class SrlwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#srlw).
     """
 
+    name = "riscv.srlw"
+
     traits = traits_def(Pure())
+
 
 
 class SrawOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
@@ -1753,7 +1795,10 @@ class SrawOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#sraw).
     """
 
+    name = "riscv.sraw"
+
     traits = traits_def(Pure())
+
 
 
 class LuiOp(RdImmIntegerOperation):
@@ -1766,6 +1811,9 @@ class LuiOp(RdImmIntegerOperation):
     See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#lui).
     """
 
+    name = "riscv.lui"
+
+
 
 class AuipcOp(RdImmIntegerOperation):
     """
@@ -1777,6 +1825,8 @@ class AuipcOp(RdImmIntegerOperation):
 
     See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#auipc).
     """
+
+    name = "riscv.auipc"
 
 
 class MVHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
@@ -1805,12 +1855,16 @@ class MVOp(RdRsIntegerOperation[IntRegisterType]):
     )
 
 
+
 class SeqzOp(RdRsIntegerOperation[IntRegisterType]):
     """
     A pseudo instruction that sets the destination register to 1 if the source register is equal to zero.
 
     Equivalent to `sltiu rd, rs, 1
     """
+
+    name = "riscv.seqz"
+
 
 
 class SnezOp(RdRsIntegerOperation[IntRegisterType]):
@@ -1819,6 +1873,9 @@ class SnezOp(RdRsIntegerOperation[IntRegisterType]):
 
     Equivalent to `sltu rd, x0, rs1 `
     """
+
+    name = "riscv.snez"
+
 
 
 class ZextBOp(RdRsIntegerOperation[IntRegisterType]):
@@ -1829,7 +1886,10 @@ class ZextBOp(RdRsIntegerOperation[IntRegisterType]):
     Equivalent to `andi rd, rs1, 255`
     """
 
+    name = "riscv.zext.b"
+
     traits = traits_def(Pure())
+
 
 
 class ZextWOp(RdRsIntegerOperation[IntRegisterType]):
@@ -1841,9 +1901,11 @@ class ZextWOp(RdRsIntegerOperation[IntRegisterType]):
 
     See external [documentation](https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-add_uw)
     """
-    
+
+    name = "riscv.zext.w"
 
     traits = traits_def(Pure())
+
 
 
 class SextWOp(RdRsIntegerOperation[IntRegisterType]):
@@ -1854,6 +1916,8 @@ class SextWOp(RdRsIntegerOperation[IntRegisterType]):
 
     See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/#_addiw).
     """
+
+    name = "riscv.sext.w"
 
     traits = traits_def(Pure())
 
@@ -1900,6 +1964,7 @@ class AddOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
         return (AddImmediates(), AdditionOfSameVariablesToMultiplyByTwo())
 
 
+
 class AddOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     Adds the registers rs1 and rs2 and stores the result in rd.
@@ -1912,10 +1977,13 @@ class AddOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#add).
     """
 
+    name = "riscv.add"
+
     traits = traits_def(
         Pure(),
         AddOpHasCanonicalizationPatternsTrait(),
     )
+
 
 
 class SltOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
@@ -1928,6 +1996,9 @@ class SltOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#slt).
     """
 
+    name = "riscv.slt"
+
+
 
 class SltuOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
@@ -1938,6 +2009,8 @@ class SltuOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
 
     See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#sltu).
     """
+
+    name = "riscv.sltu"
 
 
 class BitwiseAndHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
@@ -1951,6 +2024,7 @@ class BitwiseAndHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrai
         return (BitwiseAndByZero(), BitwiseAndBySelf())
 
 
+
 class AndOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     Performs bitwise AND on registers rs1 and rs2 and place the result in rd.
@@ -1959,6 +2033,8 @@ class AndOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
 
     See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#and).
     """
+
+    name = "riscv.and"
 
     traits = traits_def(BitwiseAndHasCanonicalizationPatternsTrait())
 
@@ -1974,6 +2050,7 @@ class BitwiseOrHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait
         return (BitwiseOrByZero(), BitwiseOrBySelf())
 
 
+
 class OrOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     Performs bitwise OR on registers rs1 and rs2 and place the result in rd.
@@ -1982,6 +2059,8 @@ class OrOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
 
     See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#or).
     """
+
+    name = "riscv.or"
 
     traits = traits_def(BitwiseOrHasCanonicalizationPatternsTrait())
 
@@ -1997,6 +2076,7 @@ class BitwiseXorHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrai
         return (XorBySelf(), BitwiseXorByZero())
 
 
+
 class XorOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     Performs bitwise XOR on registers rs1 and rs2 and place the result in rd.
@@ -2006,7 +2086,10 @@ class XorOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#xor).
     """
 
+    name = "riscv.xor"
+
     traits = traits_def(BitwiseXorHasCanonicalizationPatternsTrait())
+
 
 
 class SllOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
@@ -2019,6 +2102,9 @@ class SllOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#sll).
     """
 
+    name = "riscv.sll"
+
+
 
 class SrlOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
@@ -2029,6 +2115,8 @@ class SrlOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
 
     See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#srl).
     """
+
+    name = "riscv.srl"
 
 
 class SubOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
@@ -2043,6 +2131,7 @@ class SubOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
         return (SubImmediates(), SubAddi(), SubBySelf())
 
 
+
 class SubOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     Subtracts the registers rs1 and rs2 and stores the result in rd.
@@ -2053,7 +2142,10 @@ class SubOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#sub).
     """
 
+    name = "riscv.sub"
+
     traits = traits_def(SubOpHasCanonicalizationPatternsTrait())
+
 
 
 class SraOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
@@ -2066,6 +2158,9 @@ class SraOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#sub).
     """
 
+    name = "riscv.sra"
+
+
 
 class NopOp(NullaryOperation):
     """
@@ -2073,12 +2168,15 @@ class NopOp(NullaryOperation):
     Canonical nop is encoded as addi x0, x0, 0.
     """
 
+    name = "riscv.nop"
+
 
 # endregion
 
 # region RV32I/RV64I: 2.5 Control Transfer Instructions
 
 # Unconditional jumps
+
 
 
 class JalOp(RdImmJumpOperation):
@@ -2092,6 +2190,9 @@ class JalOp(RdImmJumpOperation):
     See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#jal).
     """
 
+    name = "riscv.jal"
+
+
 
 class JOp(RdImmJumpOperation):
     """
@@ -2099,6 +2200,8 @@ class JOp(RdImmJumpOperation):
     Is equivalent to JalOp with `rd` = `x0`.
     Used to be a part of the spec, removed in 2.0.
     """
+
+    name = "riscv.j"
 
     def __init__(
         self,
@@ -2111,6 +2214,7 @@ class JOp(RdImmJumpOperation):
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
         # J op is a special case of JalOp with zero return register
         return (self.immediate,)
+
 
 
 class JalrOp(RdRsImmJumpOperation):
@@ -2126,6 +2230,9 @@ class JalrOp(RdRsImmJumpOperation):
     See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#jalr).
     """
 
+    name = "riscv.jalr"
+
+
 
 class ReturnOp(NullaryOperation):
     """
@@ -2134,10 +2241,13 @@ class ReturnOp(NullaryOperation):
     Equivalent to `jalr x0, x1, 0`
     """
 
+    name = "riscv.ret"
+
     traits = traits_def(IsTerminator())
 
 
 # Conditional Branches
+
 
 
 class BeqOp(RsRsOffIntegerOperation):
@@ -2151,6 +2261,9 @@ class BeqOp(RsRsOffIntegerOperation):
     See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#beq).
     """
 
+    name = "riscv.beq"
+
+
 
 class BneOp(RsRsOffIntegerOperation):
     """
@@ -2162,6 +2275,9 @@ class BneOp(RsRsOffIntegerOperation):
 
     See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#bne).
     """
+
+    name = "riscv.bne"
+
 
 
 class BltOp(RsRsOffIntegerOperation):
@@ -2175,6 +2291,9 @@ class BltOp(RsRsOffIntegerOperation):
     See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#blt).
     """
 
+    name = "riscv.blt"
+
+
 
 class BgeOp(RsRsOffIntegerOperation):
     """
@@ -2186,6 +2305,9 @@ class BgeOp(RsRsOffIntegerOperation):
 
     See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#bge).
     """
+
+    name = "riscv.bge"
+
 
 
 class BltuOp(RsRsOffIntegerOperation):
@@ -2199,6 +2321,9 @@ class BltuOp(RsRsOffIntegerOperation):
     See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#bltu).
     """
 
+    name = "riscv.bltu"
+
+
 
 class BgeuOp(RsRsOffIntegerOperation):
     """
@@ -2211,10 +2336,13 @@ class BgeuOp(RsRsOffIntegerOperation):
     See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#bgeu).
     """
 
+    name = "riscv.bgeu"
+
 
 # endregion
 
 # region RV32I/RV64I: 2.6 Load and Store Instructions
+
 
 
 class LbOp(RdRsImmIntegerOperation):
@@ -2229,6 +2357,9 @@ class LbOp(RdRsImmIntegerOperation):
     See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#lb).
     """
 
+    name = "riscv.lb"
+
+
 
 class LbuOp(RdRsImmIntegerOperation):
     """
@@ -2241,6 +2372,9 @@ class LbuOp(RdRsImmIntegerOperation):
 
     See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#lbu).
     """
+
+    name = "riscv.lbu"
+
 
 
 class LhOp(RdRsImmIntegerOperation):
@@ -2255,6 +2389,9 @@ class LhOp(RdRsImmIntegerOperation):
     See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#lh).
     """
 
+    name = "riscv.lh"
+
+
 
 class LhuOp(RdRsImmIntegerOperation):
     """
@@ -2268,6 +2405,8 @@ class LhuOp(RdRsImmIntegerOperation):
     See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#lhu).
     """
 
+    name = "riscv.lhu"
+
 
 class LwOpHasCanonicalizationPatternTrait(HasCanonicalizationPatternsTrait):
     @classmethod
@@ -2277,6 +2416,7 @@ class LwOpHasCanonicalizationPatternTrait(HasCanonicalizationPatternsTrait):
         )
 
         return (LoadWordWithKnownOffset(),)
+
 
 
 class LwOp(RdRsImmIntegerOperation):
@@ -2291,6 +2431,8 @@ class LwOp(RdRsImmIntegerOperation):
     See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#lw).
     """
 
+    name = "riscv.lw"
+
     traits = traits_def(LwOpHasCanonicalizationPatternTrait())
 
     def assembly_line(self) -> str | None:
@@ -2303,6 +2445,7 @@ class LwOp(RdRsImmIntegerOperation):
         )
 
 
+
 class SbOp(RsRsImmIntegerOperation):
     """
     Store 8-bit, values from the low bits of register rs2 to memory.
@@ -2313,6 +2456,9 @@ class SbOp(RsRsImmIntegerOperation):
 
     See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#sb).
     """
+
+    name = "riscv.sb"
+
 
 
 class ShOp(RsRsImmIntegerOperation):
@@ -2327,6 +2473,8 @@ class ShOp(RsRsImmIntegerOperation):
 
     """
 
+    name = "riscv.sh"
+
 
 class SwOpHasCanonicalizationPatternTrait(HasCanonicalizationPatternsTrait):
     @classmethod
@@ -2336,6 +2484,7 @@ class SwOpHasCanonicalizationPatternTrait(HasCanonicalizationPatternsTrait):
         )
 
         return (StoreWordWithKnownOffset(),)
+
 
 
 class SwOp(RsRsImmIntegerOperation):
@@ -2348,6 +2497,8 @@ class SwOp(RsRsImmIntegerOperation):
 
     See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#sw).
     """
+
+    name = "riscv.sw"
 
     traits = traits_def(SwOpHasCanonicalizationPatternTrait())
 
@@ -2366,6 +2517,7 @@ class SwOp(RsRsImmIntegerOperation):
 # region RV32I/RV64I: 2.8 Control and Status Register Instructions
 
 
+
 class CsrrwOp(CsrReadWriteOperation):
     """
     Atomically swaps values in the CSRs and integer registers.
@@ -2379,6 +2531,9 @@ class CsrrwOp(CsrReadWriteOperation):
 
     See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#csrrw).
     """
+
+    name = "riscv.csrrw"
+
 
 
 class CsrrsOp(CsrBitwiseOperation):
@@ -2402,6 +2557,9 @@ class CsrrsOp(CsrBitwiseOperation):
     See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#csrrs).
     """
 
+    name = "riscv.csrrs"
+
+
 
 class CsrrcOp(CsrBitwiseOperation):
     """
@@ -2424,6 +2582,9 @@ class CsrrcOp(CsrBitwiseOperation):
     See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#csrrc).
     """
 
+    name = "riscv.csrrc"
+
+
 
 class CsrrwiOp(CsrReadWriteImmOperation):
     """
@@ -2437,6 +2598,9 @@ class CsrrwiOp(CsrReadWriteImmOperation):
 
     See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#csrrwi).
     """
+
+    name = "riscv.csrrwi"
+
 
 
 class CsrrsiOp(CsrBitwiseImmOperation):
@@ -2458,6 +2622,9 @@ class CsrrsiOp(CsrBitwiseImmOperation):
     See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#csrrsi).
     """
 
+    name = "riscv.csrrsi"
+
+
 
 class CsrrciOp(CsrBitwiseImmOperation):
     """
@@ -2478,6 +2645,8 @@ class CsrrciOp(CsrBitwiseImmOperation):
     See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#csrrci).
     """
 
+    name = "riscv.csrrci"
+
 
 # endregion
 
@@ -2496,6 +2665,7 @@ class MulOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
         return (MultiplyImmediates(),)
 
 
+
 class MulOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     Performs an XLEN-bit × XLEN-bit multiplication of signed rs1 by signed rs2
@@ -2505,7 +2675,10 @@ class MulOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#add).
     """
 
+    name = "riscv.mul"
+
     traits = traits_def(MulOpHasCanonicalizationPatternsTrait(), Pure())
+
 
 
 class MulhOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
@@ -2517,6 +2690,9 @@ class MulhOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvm.html#mulh).
     """
 
+    name = "riscv.mulh"
+
+
 
 class MulhsuOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
@@ -2526,6 +2702,9 @@ class MulhsuOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
 
     See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvm.html#mulhsu).
     """
+
+    name = "riscv.mulhsu"
+
 
 
 class MulhuOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
@@ -2537,6 +2716,9 @@ class MulhuOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvm.html#mulhu).
     """
 
+    name = "riscv.mulhu"
+
+
 
 class MulwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
@@ -2547,6 +2729,8 @@ class MulwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
 
     See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvm.html#mulw).
     """
+
+    name = "riscv.mulw"
 
 
 class DivOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
@@ -2560,6 +2744,7 @@ class DivOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
 
 
 ## Division Operations
+
 class DivOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     Perform an XLEN bits by XLEN bits signed integer division of rs1 by rs2,
@@ -2568,7 +2753,10 @@ class DivOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
 
     See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvm.html#div).
     """
+
+    name = "riscv.div"
     traits = traits_def(DivOpHasCanonicalizationPatternsTrait(), Pure())
+
 
 
 class DivuOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
@@ -2579,6 +2767,9 @@ class DivuOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
 
     See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvm.html#divu).
     """
+
+    name = "riscv.divu"
+
 
 
 class DivuwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
@@ -2591,6 +2782,9 @@ class DivuwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rv64m.html#divuw).
     """
 
+    name = "riscv.divuw"
+
+
 
 class DivwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
@@ -2602,6 +2796,9 @@ class DivwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvm.html#divw).
     """
 
+    name = "riscv.divw"
+
+
 
 class RemOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
@@ -2611,6 +2808,9 @@ class RemOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvm.html#rem).
     """
 
+    name = "riscv.rem"
+
+
 
 class RemuOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
@@ -2619,6 +2819,9 @@ class RemuOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
 
     See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvm.html#remu).
     """
+
+    name = "riscv.remu"
+
 
 
 class RemuwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
@@ -2630,6 +2833,9 @@ class RemuwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rv64m.html#remuw).
     """
 
+    name = "riscv.remuw"
+
+
 
 class RemwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
@@ -2640,12 +2846,15 @@ class RemwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rv64m.html#remw).
     """
 
+    name = "riscv.remw"
+
 
 # endregion
 
 # region RV32B/RV64B: "B" Extension for Bit Manipulation, Version 1.0.0
 
 ## ZBB extension for Basic Bit-Manipulation. (not complete: population count missing)
+
 
 
 class RolOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
@@ -2661,7 +2870,10 @@ class RolOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     See external [documentation](https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-rol).
     """
 
+    name = "riscv.rol"
+
     traits = traits_def(Pure())
+
 
 
 class RorOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
@@ -2677,7 +2889,10 @@ class RorOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     See external [documentation](https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-ror).
     """
 
+    name = "riscv.ror"
+
     traits = traits_def(Pure())
+
 
 
 class SextHOp(RdRsIntegerOperation[IntRegisterType]):
@@ -2690,7 +2905,10 @@ class SextHOp(RdRsIntegerOperation[IntRegisterType]):
     See external [documentation](https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-sext_h).
     """
 
+    name = "riscv.sext.h"
+
     traits = traits_def(Pure())
+
 
 
 class ZextHOp(RdRsIntegerOperation[IntRegisterType]):
@@ -2703,7 +2921,10 @@ class ZextHOp(RdRsIntegerOperation[IntRegisterType]):
     See external [documentation](https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-zext_h).
     """
 
+    name = "riscv.zext.h"
+
     traits = traits_def(Pure())
+
 
 
 class SextBOp(RdRsIntegerOperation[IntRegisterType]):
@@ -2716,7 +2937,10 @@ class SextBOp(RdRsIntegerOperation[IntRegisterType]):
     See external [documentation](https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-sext_b).
     """
 
+    name = "riscv.sext.b"
+
     traits = traits_def(Pure())
+
 
 
 class BclrOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
@@ -2730,7 +2954,10 @@ class BclrOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     See external [documentation](https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-bclr).
     """
 
+    name = "riscv.bclr"
+
     traits = traits_def(Pure())
+
 
 
 class BclrIOp(RdRsImmShiftOperation):
@@ -2745,7 +2972,10 @@ class BclrIOp(RdRsImmShiftOperation):
     See external [documentation](https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-bclri).
     """
 
+    name = "riscv.bclri"
+
     traits = traits_def(Pure())
+
 
 
 class BextOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
@@ -2759,7 +2989,10 @@ class BextOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     See external [documentation](https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-bext).
     """
 
+    name = "riscv.bext"
+
     traits = traits_def(Pure())
+
 
 
 class BextIOp(RdRsImmShiftOperation):
@@ -2774,7 +3007,10 @@ class BextIOp(RdRsImmShiftOperation):
     See external [documentation](https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-bexti).
     """
 
+    name = "riscv.bexti"
+
     traits = traits_def(Pure())
+
 
 
 class BinvOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
@@ -2789,7 +3025,10 @@ class BinvOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     See external [documentation](https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-binvi).
     """
 
+    name = "riscv.binv"
+
     traits = traits_def(Pure())
+
 
 
 class BinvIOp(RdRsImmShiftOperation):
@@ -2809,6 +3048,7 @@ class BinvIOp(RdRsImmShiftOperation):
     traits = traits_def(Pure())
 
 
+
 class BsetOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     This instruction returns rs1 with a single bit set at the index specified in rs2.
@@ -2820,7 +3060,10 @@ class BsetOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     See external [documentation](https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-bset).
     """
 
+    name = "riscv.bset"
+
     traits = traits_def(Pure())
+
 
 
 class BsetIOp(RdRsImmShiftOperation):
@@ -2840,6 +3083,7 @@ class BsetIOp(RdRsImmShiftOperation):
     traits = traits_def(Pure())
 
 
+
 class RolwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     This instruction performs a rotate left on the least-significant word of rs1 by the amount in
@@ -2854,7 +3098,10 @@ class RolwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     See external [documentation](https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-rolw).
     """
 
+    name = "riscv.rolw"
+
     traits = traits_def(Pure())
+
 
 
 class RorwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
@@ -2871,7 +3118,10 @@ class RorwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     See external [documentation](https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-rorw).
     """
 
+    name = "riscv.rorw"
+
     traits = traits_def(Pure())
+
 
 
 class RoriOp(RdRsImmShiftOperation):
@@ -2893,6 +3143,7 @@ class RoriOp(RdRsImmShiftOperation):
     traits = traits_def(Pure())
 
 
+
 class RoriwOp(RdRsImmShiftOperation):
     """
     This instruction performs a rotate right on the least-significant word of rs1 by the amount in
@@ -2911,6 +3162,7 @@ class RoriwOp(RdRsImmShiftOperation):
     traits = traits_def(Pure())
 
 
+
 class AddUwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     This instruction performs an XLEN-wide addition between rs2 and the zero-extended least-significant
@@ -2923,7 +3175,10 @@ class AddUwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     See external [documentation](https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-add_uw).
     """
 
+    name = "riscv.add.uw"
+
     traits = traits_def(Pure())
+
 
 
 class Sh1addOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
@@ -2935,7 +3190,10 @@ class Sh1addOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     See external [documentation](https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-sh1add).
     """
 
+    name = "riscv.sh1add"
+
     traits = traits_def(Pure())
+
 
 
 class Sh2addOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
@@ -2947,7 +3205,10 @@ class Sh2addOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     See external [documentation](https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-sh2add).
     """
 
+    name = "riscv.sh2add"
+
     traits = traits_def(Pure())
+
 
 
 class Sh3addOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
@@ -2959,7 +3220,10 @@ class Sh3addOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     See external [documentation](https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-sh3add).
     """
 
+    name = "riscv.sh3add"
+
     traits = traits_def(Pure())
+
 
 
 class Sh1addUwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
@@ -2976,7 +3240,10 @@ class Sh1addUwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     See external [documentation](https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-sh1add_uw).
     """
 
+    name = "riscv.sh1add.uw"
+
     traits = traits_def(Pure())
+
 
 
 class Sh2addUwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
@@ -2992,7 +3259,10 @@ class Sh2addUwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     See external [documentation](https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-sh2add_uw).
     """
 
+    name = "riscv.sh2add.uw"
+
     traits = traits_def(Pure())
+
 
 
 class Sh3addUwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
@@ -3009,7 +3279,10 @@ class Sh3addUwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     See external [documentation](https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-sh3add_uw).
     """
 
+    name = "riscv.sh3add.uw"
+
     traits = traits_def(Pure())
+
 
 
 class SlliUwOp(RdRsImmShiftOperation):
@@ -3027,6 +3300,7 @@ class SlliUwOp(RdRsImmShiftOperation):
     traits = traits_def(Pure())
 
 
+
 class AndnOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     This instruction performs the bitwise logical AND operation between rs1 and the bitwise inversion of rs2.
@@ -3036,7 +3310,10 @@ class AndnOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     See external [documentation](https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-andn).
     """
 
+    name = "riscv.andn"
+
     traits = traits_def(Pure())
+
 
 
 class OrnOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
@@ -3048,7 +3325,10 @@ class OrnOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     See external [documentation](https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-orn).
     """
 
+    name = "riscv.orn"
+
     traits = traits_def(Pure())
+
 
 
 class XnorOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
@@ -3060,7 +3340,10 @@ class XnorOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     See external [documentation](https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-xnor).
     """
 
+    name = "riscv.xnor"
+
     traits = traits_def(Pure())
+
 
 
 class MaxOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
@@ -3078,7 +3361,10 @@ class MaxOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     See external [documentation](https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-max).
     """
 
+    name = "riscv.max"
+
     traits = traits_def(Pure())
+
 
 
 class MaxUOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
@@ -3095,7 +3381,10 @@ class MaxUOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     See external [documentation](https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-maxu).
     """
 
+    name = "riscv.maxu"
+
     traits = traits_def(Pure())
+
 
 
 class MinOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
@@ -3112,7 +3401,10 @@ class MinOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     See external [documentation](https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-min).
     """
 
+    name = "riscv.min"
+
     traits = traits_def(Pure())
+
 
 
 class MinUOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
@@ -3129,6 +3421,8 @@ class MinUOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     See external [documentation](https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-minu).
     """
 
+    name = "riscv.minu"
+
     traits = traits_def(Pure())
 
 
@@ -3136,12 +3430,16 @@ class MinUOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
 
 
 # region "ZiCond" Conditional" operations extension
+
 class CZeroEqzOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     Moves zero to a register rd, if the condition rs2 is equal to zero, otherwise moves rs1 to rd.
 
     See external [documentation](https://github.com/riscvarchive/riscv-zicond/blob/main/zicondops.adoc).
     """
+
+    name = "riscv.czero.eqz"
+
 
 
 class CZeroNezOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
@@ -3150,6 +3448,8 @@ class CZeroNezOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
 
     See external [documentation](https://github.com/riscvarchive/riscv-zicond/blob/main/zicondops.adoc).
     """
+
+    name = "riscv.czero.nez"
 
 
 # endregion
@@ -3168,6 +3468,7 @@ class LiOpHasCanonicalizationPatternTrait(HasCanonicalizationPatternsTrait):
         return (LoadImmediate0(),)
 
 
+
 class LiOp(RISCVCustomFormatOperation, RISCVInstruction, ConstantLikeInterface, ABC):
     """
     Loads a 32-bit immediate into rd.
@@ -3176,6 +3477,8 @@ class LiOp(RISCVCustomFormatOperation, RISCVInstruction, ConstantLikeInterface, 
 
     See external [documentation](https://github.com/riscv-non-isa/riscv-asm-manual/blob/master/riscv-asm.md#load-immediate).
     """
+
+    name = "riscv.li"
 
     rd = result_def(IntRegisterType)
     immediate = attr_def(base(Imm32Attr) | base(LabelAttr))
@@ -3234,6 +3537,7 @@ class LiOp(RISCVCustomFormatOperation, RISCVInstruction, ConstantLikeInterface, 
         printer.print_attribute(self.rd.type)
 
 
+
 class EcallOp(NullaryOperation):
     """
     The ECALL instruction is used to make a request to the supporting execution
@@ -3245,6 +3549,8 @@ class EcallOp(NullaryOperation):
     See external [documentation](https://github.com/riscv/riscv-isa-manual/releases/download/Ratified-IMAFDQC/riscv-spec-20191213.pdf).
     """
 
+    name = "riscv.ecall"
+
 
 
 class LabelOp(RISCVCustomFormatOperation, RISCVAsmOperation, RISCVRegallocOperation):
@@ -3254,6 +3560,8 @@ class LabelOp(RISCVCustomFormatOperation, RISCVAsmOperation, RISCVRegallocOperat
 
     See external [documentation](https://github.com/riscv-non-isa/riscv-asm-manual/blob/master/riscv-asm.md#labels).
     """
+
+    name = "riscv.label"
     label = attr_def(LabelAttr)
     comment = opt_attr_def(StringAttr)
 
@@ -3299,6 +3607,7 @@ class LabelOp(RISCVCustomFormatOperation, RISCVAsmOperation, RISCVRegallocOperat
         return (), ()
 
 
+
 class DirectiveOp(
     RISCVCustomFormatOperation, RISCVAsmOperation, RISCVRegallocOperation
 ):
@@ -3309,6 +3618,8 @@ class DirectiveOp(
 
     See external [documentation](https://github.com/riscv-non-isa/riscv-asm-manual/blob/master/riscv-asm.md#pseudo-ops).
     """
+
+    name = "riscv.directive"
     directive = attr_def(StringAttr)
     value = opt_attr_def(StringAttr)
 
@@ -3367,6 +3678,7 @@ class DirectiveOp(
         return (), ()
 
 
+
 class AssemblySectionOp(IRDLOperation, AssemblyPrintable):
     """
     The directive operation is used to emit assembler directives (e.g. .text; .data; etc.)
@@ -3378,6 +3690,8 @@ class AssemblySectionOp(IRDLOperation, AssemblyPrintable):
 
     This operation can have nested operations, corresponding to a section of the assembly.
     """
+
+    name = "riscv.assembly_section"
     directive = attr_def(StringAttr)
     data = region_def("single_block")
 
@@ -3428,6 +3742,7 @@ class AssemblySectionOp(IRDLOperation, AssemblyPrintable):
         printer.emit_section(self.directive.data)
 
 
+
 class CustomAssemblyInstructionOp(RISCVCustomFormatOperation, RISCVInstruction):
     """
     An instruction with unspecified semantics, that can be printed during assembly
@@ -3445,6 +3760,8 @@ class CustomAssemblyInstructionOp(RISCVCustomFormatOperation, RISCVInstruction):
     op.assembly_line()   # "my_instr s2, s3, s0, s1"
     ```
     """
+
+    name = "riscv.custom_assembly_instruction"
     inputs = var_operand_def()
     outputs = var_result_def()
     instruction_name = attr_def(StringAttr)
@@ -3498,6 +3815,7 @@ class CommentOp(RISCVCustomFormatOperation, RISCVAsmOperation, RISCVRegallocOper
         return f"    # {self.comment.data}"
 
 
+
 class EbreakOp(NullaryOperation):
     """
     The EBREAK instruction is used by debuggers to cause control to be
@@ -3505,6 +3823,9 @@ class EbreakOp(NullaryOperation):
 
     See external [documentation](https://github.com/riscv/riscv-isa-manual/releases/download/Ratified-IMAFDQC/riscv-spec-20191213.pdf).
     """
+
+    name = "riscv.ebreak"
+
 
 
 class WfiOp(NullaryOperation):
@@ -3515,6 +3836,8 @@ class WfiOp(NullaryOperation):
 
     See external [documentation](https://github.com/riscv/riscv-isa-manual/releases/download/Priv-v1.12/riscv-privileged-20211203.pdf).
     """
+
+    name = "riscv.wfi"
 
 
 # endregion
@@ -4619,7 +4942,120 @@ def print_immediate_value(printer: Printer, immediate: IntegerAttr | LabelAttr):
 RISCV = Dialect(
     "riscv",
     [
+        AddiOp,
+        SltiOp,
+        SltiuOp,
+        AndiOp,
+        OriOp,
+        XoriOp,
+        SlliOp,
+        SrliOp,
+        SraiOp,
+        LuiOp,
+        AuipcOp,
         MVOp,
+        SeqzOp,
+        SnezOp,
+        ZextBOp,
+        ZextWOp,
+        SextWOp,
+        AddOp,
+        SltOp,
+        SltuOp,
+        AndOp,
+        OrOp,
+        XorOp,
+        SllOp,
+        SrlOp,
+        SubOp,
+        SraOp,
+        NopOp,
+        JalOp,
+        JOp,
+        JalrOp,
+        ReturnOp,
+        BeqOp,
+        BneOp,
+        BltOp,
+        BgeOp,
+        BltuOp,
+        BgeuOp,
+        LbOp,
+        LbuOp,
+        LhOp,
+        LhuOp,
+        LwOp,
+        SbOp,
+        ShOp,
+        SwOp,
+        CsrrwOp,
+        CsrrsOp,
+        CsrrcOp,
+        CsrrwiOp,
+        CsrrsiOp,
+        CsrrciOp,
+        MulOp,
+        MulhOp,
+        MulhsuOp,
+        MulhuOp,
+        DivOp,
+        DivuOp,
+        RemOp,
+        RemuOp,
+        LiOp,
+        RolOp,
+        RorOp,
+        RemuwOp,
+        SrliwOp,
+        SraiwOp,
+        AddwOp,
+        SubwOp,
+        SllwOp,
+        SrlwOp,
+        SrawOp,
+        RemwOp,
+        MulwOp,
+        DivwOp,
+        DivuwOp,
+        CZeroEqzOp,
+        CZeroNezOp,
+        BclrOp,
+        BextOp,
+        BinvOp,
+        BsetOp,
+        RolwOp,
+        RorwOp,
+        AddUwOp,
+        Sh1addOp,
+        Sh2addOp,
+        Sh3addOp,
+        Sh1addUwOp,
+        Sh2addUwOp,
+        Sh3addUwOp,
+        SextBOp,
+        SextHOp,
+        ZextHOp,
+        AndnOp,
+        OrnOp,
+        XnorOp,
+        MaxOp,
+        MaxUOp,
+        MinOp,
+        MinUOp,
+        BclrIOp,
+        BextIOp,
+        BsetIOp,
+        BinvIOp,
+        RoriOp,
+        RoriwOp,
+        SlliUwOp,
+        EcallOp,
+        LabelOp,
+        DirectiveOp,
+        AssemblySectionOp,
+        EbreakOp,
+        WfiOp,
+        CustomAssemblyInstructionOp,
         CommentOp,
         GetRegisterOp,
         GetFloatRegisterOp,
