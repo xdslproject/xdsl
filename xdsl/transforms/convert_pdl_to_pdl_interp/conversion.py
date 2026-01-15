@@ -78,7 +78,6 @@ class ConvertPDLToPDLInterpPass(ModulePass):
     name = "convert-pdl-to-pdl-interp"
 
     optimize_for_eqsat: bool = True
-    process_individually: bool = False
 
     def apply(self, ctx: Context, op: ModuleOp) -> None:
         patterns = [
@@ -87,26 +86,12 @@ class ConvertPDLToPDLInterpPass(ModulePass):
 
         rewriter_module = ModuleOp([], sym_name=StringAttr("rewriters"))
 
-        if self.process_individually:
-            for i, pattern in enumerate(patterns):
-                name = (
-                    f"matcher_{pattern.sym_name.data}"
-                    if pattern.sym_name
-                    else f"matcher_{i}"
-                )
-                matcher_func = pdl_interp.FuncOp(name, ((pdl.OperationType(),), ()))
-                generator = MatcherGenerator(
-                    matcher_func, rewriter_module, self.optimize_for_eqsat
-                )
-                generator.lower([pattern])
-                op.body.block.add_op(matcher_func)
-        else:
-            matcher_func = pdl_interp.FuncOp("matcher", ((pdl.OperationType(),), ()))
-            generator = MatcherGenerator(
-                matcher_func, rewriter_module, self.optimize_for_eqsat
-            )
-            generator.lower(patterns)
-            op.body.block.add_op(matcher_func)
+        matcher_func = pdl_interp.FuncOp("matcher", ((pdl.OperationType(),), ()))
+        generator = MatcherGenerator(
+            matcher_func, rewriter_module, self.optimize_for_eqsat
+        )
+        generator.lower(patterns)
+        op.body.block.add_op(matcher_func)
 
         # Replace all pattern ops with the matcher func and rewriter module
         rewriter = Rewriter()
