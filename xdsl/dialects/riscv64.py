@@ -10,6 +10,18 @@ from xdsl.dialects.builtin import (
     Signedness,
     StringAttr,
 )
+from xdsl.dialects.riscv import (
+    AssemblyInstructionArg,
+    IntRegisterType,
+    LabelAttr,
+    Registers,
+    RISCVCustomFormatOperation,
+    RISCVInstruction,
+    SlliOpHasCanonicalizationPatternsTrait,
+    SrliOpHasCanonicalizationPatternsTrait,
+    parse_immediate_value,
+    print_immediate_value,
+)
 from xdsl.ir import (
     Attribute,
     Dialect,
@@ -19,28 +31,15 @@ from xdsl.ir import (
 from xdsl.irdl import (
     attr_def,
     base,
+    irdl_op_definition,
     operand_def,
     result_def,
     traits_def,
 )
-from xdsl.irdl.operations import irdl_op_definition
 from xdsl.parser import Parser
 from xdsl.printer import Printer
 from xdsl.traits import (
     Pure,
-)
-
-from xdsl.dialects.riscv import (
-    AssemblyInstructionArg,
-    LabelAttr,
-    RISCVCustomFormatOperation,
-    RISCVInstruction,
-    IntRegisterType,
-    Registers,
-    SlliOpHasCanonicalizationPatternsTrait,
-    SrliOpHasCanonicalizationPatternsTrait,
-    parse_immediate_value,
-    print_immediate_value,
 )
 
 ui6 = IntegerType(6, Signedness.UNSIGNED)
