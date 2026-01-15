@@ -1883,19 +1883,3 @@ class MatcherGenerator:
             return False
 
         raise ValueError(f"Unable to infer result types for pdl.operation {op.opName}'")
-
-
-def lower_pdl_to_pdl_interp(
-    module: ModuleOp,
-    matcher_func: pdl_interp.FuncOp,
-    rewriter_module: ModuleOp,
-    optimize_for_eqsat: bool = False,
-) -> None:
-    """Main entry point to lower PDL patterns to PDL interpreter"""
-
-    # Collect all patterns
-    patterns = [op for op in module.body.ops if isinstance(op, pdl.PatternOp)]
-
-    # Create generator and lower
-    generator = MatcherGenerator(matcher_func, rewriter_module, optimize_for_eqsat)
-    generator.lower(patterns)
