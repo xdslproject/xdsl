@@ -126,6 +126,10 @@ class GetOperandsOp(IRDLOperation):
     input_op = operand_def(OperationType)
     value = result_def(ValueType | RangeType[ValueType])
 
+    # TODO: assembly format doesn't work due to a bug:
+    # https://github.com/xdslproject/xdsl/issues/5562
+    # assembly_format = "($index^)? `of` $input_op `:` type($value) attr-dict"
+
     def __init__(
         self,
         index: int | IntegerAttr[I32] | None,
