@@ -1057,7 +1057,7 @@ class GEPOp(IRDLOperation):
 
     result = result_def(LLVMPointerType)
 
-    rawConstantIndices = prop_def(DenseArrayBase)
+    rawConstantIndices = prop_def(DenseArrayBase.constr(i32))
     inbounds = opt_prop_def(UnitAttr)
 
     traits = traits_def(NoMemoryEffect())
@@ -1700,8 +1700,8 @@ class ReturnOp(IRDLOperation):
 
     traits = traits_def(IsTerminator(), NoMemoryEffect())
 
-    def __init__(self, value: Attribute | None = None):
-        super().__init__(attributes={"value": value})
+    def __init__(self, value: SSAValue | None = None):
+        super().__init__(operands=[value])
 
 
 @irdl_op_definition

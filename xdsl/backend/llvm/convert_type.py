@@ -2,7 +2,7 @@ from collections.abc import Callable
 from functools import cache
 from typing import Any
 
-import llvmlite.ir as ir  # pyright: ignore[reportMissingTypeStubs]
+import llvmlite.ir as ir
 
 from xdsl.dialects.builtin import (
     ComplexType,
@@ -10,7 +10,6 @@ from xdsl.dialects.builtin import (
     Float32Type,
     Float64Type,
     FunctionType,
-    IndexType,
     IntAttr,
     IntegerType,
     NoneType,
@@ -26,6 +25,10 @@ from xdsl.dialects.llvm import (
 )
 from xdsl.ir import Attribute
 from xdsl.utils.exceptions import LLVMTranslationException
+
+
+def _convert_integer_type(type_attr: IntegerType) -> ir.Type:
+    return ir.IntType(type_attr.width.data)
 
 
 def _convert_pointer_type(type_attr: LLVMPointerType) -> ir.Type:
@@ -79,13 +82,8 @@ def _convert_llvm_function_type(type_attr: LLVMFunctionType) -> ir.Type:
     )
 
 
-def _raise_not_implemented(_: Any) -> ir.Type:
-    raise NotImplementedError()
-
-
 _TYPE_CONVERTERS: dict[type[Attribute], Callable[[Any], ir.Type]] = {
-    IntegerType: _raise_not_implemented,
-    IndexType: _raise_not_implemented,
+    IntegerType: _convert_integer_type,
     Float16Type: lambda _: ir.HalfType(),
     Float32Type: lambda _: ir.FloatType(),
     Float64Type: lambda _: ir.DoubleType(),

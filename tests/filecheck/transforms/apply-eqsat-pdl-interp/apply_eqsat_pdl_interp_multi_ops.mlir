@@ -2,35 +2,35 @@
 
 // CHECK:      func.func @impl() -> i32 {
 // CHECK-NEXT:   %a = arith.constant 3 : i32
-// CHECK-NEXT:   %a_1 = eqsat.eclass %a : i32
+// CHECK-NEXT:   %a_1 = equivalence.class %a : i32
 // CHECK-NEXT:   %b = arith.constant 5 : i32
-// CHECK-NEXT:   %b_1 = eqsat.eclass %b : i32
+// CHECK-NEXT:   %b_1 = equivalence.class %b : i32
 // CHECK-NEXT:   %c = arith.constant 7 : i32
-// CHECK-NEXT:   %c_1 = eqsat.eclass %c : i32
+// CHECK-NEXT:   %c_1 = equivalence.class %c : i32
 // CHECK-NEXT:   %sum = arith.constant 8 : i32
 // CHECK-NEXT:   %d = arith.addi %a_1, %b_1 : i32
-// CHECK-NEXT:   %d_1 = eqsat.eclass %sum, %d : i32
+// CHECK-NEXT:   %d_1 = equivalence.class %sum, %d : i32
 // CHECK-NEXT:   %0 = arith.subi %b_1, %c_1 : i32
-// CHECK-NEXT:   %1 = eqsat.eclass %0 : i32
+// CHECK-NEXT:   %1 = equivalence.class %0 : i32
 // CHECK-NEXT:   %2 = arith.addi %a_1, %1 : i32
 // CHECK-NEXT:   %e = arith.subi %d_1, %c_1 : i32
-// CHECK-NEXT:   %e_1 = eqsat.eclass %e, %2 : i32
+// CHECK-NEXT:   %e_1 = equivalence.class %e, %2 : i32
 // CHECK-NEXT:   func.return %e_1 : i32
 // CHECK-NEXT: }
 
 
 func.func @impl() -> i32 {
   %a = arith.constant 3 : i32
-  %a_1 = eqsat.eclass %a : i32
+  %a_1 = equivalence.class %a : i32
   %b = arith.constant 5 : i32
-  %b_1 = eqsat.eclass %b : i32
+  %b_1 = equivalence.class %b : i32
   %c = arith.constant 7 : i32
-  %c_1 = eqsat.eclass %c : i32
+  %c_1 = equivalence.class %c : i32
   %sum = arith.constant 8 : i32
   %d = arith.addi %a_1, %b_1 : i32
-  %d_1 = eqsat.eclass %sum, %d : i32
+  %d_1 = equivalence.class %sum, %d : i32
   %e = arith.subi %d_1, %c_1 : i32
-  %e_1 = eqsat.eclass %e : i32
+  %e_1 = equivalence.class %e : i32
   func.return %e_1 : i32
 }
 
