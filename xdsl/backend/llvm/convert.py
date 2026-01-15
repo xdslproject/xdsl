@@ -3,7 +3,6 @@ import llvmlite.ir as ir
 from xdsl.backend.llvm.convert_type import convert_type
 from xdsl.dialects import llvm
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.ir import Block, SSAValue
 
 
 def _convert_func(op: llvm.FuncOp, llvm_module: ir.Module):
@@ -12,30 +11,10 @@ def _convert_func(op: llvm.FuncOp, llvm_module: ir.Module):
     func_type = ir.FunctionType(ret_type, arg_types)
     func_name = op.sym_name.data
 
-    func = ir.Function(llvm_module, func_type, name=func_name)
+    ir.Function(llvm_module, func_type, name=func_name)
 
-    if not op.body.blocks:
-        return
-
-    entry_block, *other_blocks = op.body.blocks
-    block_map: dict[Block, ir.Block] = {}
-    val_map: dict[SSAValue, ir.Value] = {}
-
-    # entry block
-    llvm_entry = func.append_basic_block(name="entry")
-    block_map[entry_block] = llvm_entry
-    for arg, llvm_arg in zip(entry_block.args, func.args):
-        val_map[arg] = llvm_arg
-
-    # other blocks
-    for i, block in enumerate(other_blocks, start=1):
-        llvm_block = func.append_basic_block(name=f"block{i}")
-        block_map[block] = llvm_block
-        for arg, llvm_arg in zip(block.args, llvm_block.args):
-            val_map[arg] = llvm_arg
-
-    # convert ops
-    raise NotImplementedError("Conversion not implemented for non-empty blocks")
+    if op.body.blocks:
+        raise NotImplementedError("Function definitions are not supported yet")
 
 
 def convert_module(module: ModuleOp) -> ir.Module:
