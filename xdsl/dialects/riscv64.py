@@ -87,7 +87,7 @@ from xdsl.dialects.riscv import (
     print_immediate_value,
 )
 
-ui6 = IntegerType(5, Signedness.UNSIGNED)
+ui6 = IntegerType(6, Signedness.UNSIGNED)
 UImm6Attr = IntegerAttr[Annotated[IntegerType, ui6]]
 
 class RdRsImmShiftOperationRV64(RISCVCustomFormatOperation, RISCVInstruction, ABC):
