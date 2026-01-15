@@ -2,6 +2,7 @@
 // RUN: XDSL_GENERIC_ROUNDTRIP
 
 %i32_lhs, %i32_rhs = "test.op"() : () -> (i32, i32)
+%f32_lhs, %f32_rhs = "test.op"() : () -> (f32, f32)
 %ptr_f32, %i32_offset = "test.op"() : () -> (!emitc.ptr<f32>, i32)
 %opaque_uint = "test.op"() : () -> !emitc.opaque<"unsigned int">
 %tensor_lhs, %tensor_rhs = "test.op"() : () -> (tensor<3x4xi32>, tensor<3x4xi32>)
@@ -76,5 +77,105 @@ emitc.call_opaque "test" ()  : () -> ()
 // AssignOp
 //===----------------------------------------------------------------------===//
 
-"emitc.assign"(%variable, %cons_int) : (!emitc.lvalue<i32>, i32) -> ()
-// CHECK: "emitc.assign"(%variable, %cons_int) : (!emitc.lvalue<i32>, i32) -> ()
+emitc.assign %cons_int : i32 to %variable : !emitc.lvalue<i32>
+// CHECK: emitc.assign %cons_int : i32 to %variable : !emitc.lvalue<i32>
+
+//===----------------------------------------------------------------------===//
+// SubOp
+//===----------------------------------------------------------------------===//
+
+%sub_int = emitc.sub %i32_lhs, %i32_rhs : (i32, i32) -> i32
+// CHECK: %sub_int = emitc.sub %i32_lhs, %i32_rhs : (i32, i32) -> i32
+// CHECK-GENERIC: %sub_int = "emitc.sub"(%i32_lhs, %i32_rhs) : (i32, i32) -> i32
+
+%sub_ptr_int = emitc.sub %ptr_f32, %i32_offset : (!emitc.ptr<f32>, i32) -> !emitc.ptr<f32>
+// CHECK: %sub_ptr_int = emitc.sub %ptr_f32, %i32_offset : (!emitc.ptr<f32>, i32) -> !emitc.ptr<f32>
+// CHECK-GENERIC: %sub_ptr_int = "emitc.sub"(%ptr_f32, %i32_offset) : (!emitc.ptr<f32>, i32) -> !emitc.ptr<f32>
+
+%sub_ptr_opaque = emitc.sub %ptr_f32, %opaque_uint : (!emitc.ptr<f32>, !emitc.opaque<"unsigned int">) -> !emitc.ptr<f32>
+// CHECK: %sub_ptr_opaque = emitc.sub %ptr_f32, %opaque_uint : (!emitc.ptr<f32>, !emitc.opaque<"unsigned int">) -> !emitc.ptr<f32>
+// CHECK-GENERIC: %sub_ptr_opaque = "emitc.sub"(%ptr_f32, %opaque_uint) : (!emitc.ptr<f32>, !emitc.opaque<"unsigned int">) -> !emitc.ptr<f32>
+
+%sub_tensor = emitc.sub %tensor_lhs, %tensor_rhs : (tensor<3x4xi32>, tensor<3x4xi32>) -> tensor<3x4xi32>
+// CHECK: %sub_tensor = emitc.sub %tensor_lhs, %tensor_rhs : (tensor<3x4xi32>, tensor<3x4xi32>) -> tensor<3x4xi32>
+// CHECK-GENERIC: %sub_tensor = "emitc.sub"(%tensor_lhs, %tensor_rhs) : (tensor<3x4xi32>, tensor<3x4xi32>) -> tensor<3x4xi32>
+
+//===----------------------------------------------------------------------===//
+// MulOp
+//===----------------------------------------------------------------------===//
+
+%mul_int = emitc.mul %i32_lhs, %i32_rhs : (i32, i32) -> i32
+// CHECK: %mul_int = emitc.mul %i32_lhs, %i32_rhs : (i32, i32) -> i32
+// CHECK-GENERIC: %mul_int = "emitc.mul"(%i32_lhs, %i32_rhs) : (i32, i32) -> i32
+
+%mul_float = emitc.mul %f32_lhs, %f32_rhs : (f32, f32) -> f32
+// CHECK: %mul_float = emitc.mul %f32_lhs, %f32_rhs : (f32, f32) -> f32
+// CHECK-GENERIC: %mul_float = "emitc.mul"(%f32_lhs, %f32_rhs) : (f32, f32) -> f32
+
+//===----------------------------------------------------------------------===//
+// DivOp
+//===----------------------------------------------------------------------===//
+
+%div_int = emitc.div %i32_lhs, %i32_rhs : (i32, i32) -> i32
+// CHECK: %div_int = emitc.div %i32_lhs, %i32_rhs : (i32, i32) -> i32
+// CHECK-GENERIC: %div_int = "emitc.div"(%i32_lhs, %i32_rhs) : (i32, i32) -> i32
+
+%div_float = emitc.div %f32_lhs, %f32_rhs : (f32, f32) -> f32
+// CHECK: %div_float = emitc.div %f32_lhs, %f32_rhs : (f32, f32) -> f32
+// CHECK-GENERIC: %div_float = "emitc.div"(%f32_lhs, %f32_rhs) : (f32, f32) -> f32
+
+//===----------------------------------------------------------------------===//
+// RemOp
+//===----------------------------------------------------------------------===//
+
+%rem_int = emitc.rem %i32_lhs, %i32_rhs : (i32, i32) -> i32
+// CHECK: %rem_int = emitc.rem %i32_lhs, %i32_rhs : (i32, i32) -> i32
+// CHECK-GENERIC: %rem_int = "emitc.rem"(%i32_lhs, %i32_rhs) : (i32, i32) -> i32
+
+//===----------------------------------------------------------------------===//
+// BitwiseAndOp
+//===----------------------------------------------------------------------===//
+
+%and_int = emitc.bitwise_and %i32_lhs, %i32_rhs : (i32, i32) -> i32
+// CHECK: %and_int = emitc.bitwise_and %i32_lhs, %i32_rhs : (i32, i32) -> i32
+// CHECK-GENERIC: %and_int = "emitc.bitwise_and"(%i32_lhs, %i32_rhs) : (i32, i32) -> i32
+
+//===----------------------------------------------------------------------===//
+// BitwiseLeftShiftOp
+//===----------------------------------------------------------------------===//
+
+%left_shift_int = emitc.bitwise_left_shift %i32_lhs, %i32_rhs : (i32, i32) -> i32
+// CHECK: %left_shift_int = emitc.bitwise_left_shift %i32_lhs, %i32_rhs : (i32, i32) -> i32
+// CHECK-GENERIC: %left_shift_int = "emitc.bitwise_left_shift"(%i32_lhs, %i32_rhs) : (i32, i32) -> i32
+
+//===----------------------------------------------------------------------===//
+// BitwiseNotOp
+//===----------------------------------------------------------------------===//
+
+%not_int = emitc.bitwise_not %i32_lhs : (i32) -> i32
+// CHECK: %not_int = emitc.bitwise_not %i32_lhs : (i32) -> i32
+// CHECK-GENERIC: %not_int = "emitc.bitwise_not"(%i32_lhs) : (i32) -> i32
+
+//===----------------------------------------------------------------------===//
+// BitwiseOrOp
+//===----------------------------------------------------------------------===//
+
+%or_int = emitc.bitwise_or %i32_lhs, %i32_rhs : (i32, i32) -> i32
+// CHECK: %or_int = emitc.bitwise_or %i32_lhs, %i32_rhs : (i32, i32) -> i32
+// CHECK-GENERIC: %or_int = "emitc.bitwise_or"(%i32_lhs, %i32_rhs) : (i32, i32) -> i32
+
+//===----------------------------------------------------------------------===//
+// BitwiseRightShiftOp
+//===----------------------------------------------------------------------===//
+
+%right_shift_int = emitc.bitwise_right_shift %i32_lhs, %i32_rhs : (i32, i32) -> i32
+// CHECK: %right_shift_int = emitc.bitwise_right_shift %i32_lhs, %i32_rhs : (i32, i32) -> i32
+// CHECK-GENERIC: %right_shift_int = "emitc.bitwise_right_shift"(%i32_lhs, %i32_rhs) : (i32, i32) -> i32
+
+//===----------------------------------------------------------------------===//
+// BitwiseXorOp
+//===----------------------------------------------------------------------===//
+
+%xor_int = emitc.bitwise_xor %i32_lhs, %i32_rhs : (i32, i32) -> i32
+// CHECK: %xor_int = emitc.bitwise_xor %i32_lhs, %i32_rhs : (i32, i32) -> i32
+// CHECK-GENERIC: %xor_int = "emitc.bitwise_xor"(%i32_lhs, %i32_rhs) : (i32, i32) -> i32

@@ -9,6 +9,7 @@ See external [documentation](https://mlir.llvm.org/docs/Dialects/EmitC/).
 
 import abc
 from collections.abc import Iterable, Mapping, Sequence
+from enum import IntEnum
 from typing import Generic, Literal
 
 from typing_extensions import TypeVar, cast
@@ -30,14 +31,15 @@ from xdsl.dialects.builtin import (
     StringAttr,
     TensorType,
     TupleType,
-    TypedAttribute
+    TypedAttribute,
+    UnitAttr
 )
 from xdsl.ir import (
     Attribute,
     Dialect,
     ParametrizedAttribute,
     SSAValue,
-    TypeAttribute,
+    TypeAttribute
 )
 from xdsl.irdl import (
     AnyAttr,
@@ -53,6 +55,7 @@ from xdsl.irdl import (
     opt_prop_def,
     param_def,
     prop_def,
+    region_def,
     result_def,
     var_operand_def,
     var_result_def,
@@ -61,6 +64,7 @@ from xdsl.parser import AttrParser
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
+
 
 
 @irdl_attr_definition
@@ -334,6 +338,29 @@ class EmitC_BinaryOperation(IRDLOperation, abc.ABC):
         )
 
 
+class EmitC_UnaryOperation(IRDLOperation, abc.ABC):
+    """Base class for EmitC unary operations."""
+
+    operand = operand_def(EmitCTypeConstr)
+    result = result_def(EmitCTypeConstr)
+
+    assembly_format = "operands attr-dict `:` functional-type(operands, results)"
+
+    def __init__(
+        self,
+        operand: SSAValue,
+        result_type: Attribute
+    ):
+        super().__init__(
+            operands=[operand],
+            result_types=[result_type]
+        )
+
+    def has_side_effects(self) -> bool:
+        """If operand is fundamental type, the operation is pure."""
+        return not isa(self.operand.type, EmitCFundamentalType)
+
+
 @irdl_op_definition
 class EmitC_AddOp(EmitC_BinaryOperation):
     """
@@ -382,6 +409,25 @@ class EmitC_AddOp(EmitC_BinaryOperation):
 
 
 @irdl_op_definition
+class EmitC_AddressOfOp(IRDLOperation):
+    name = "emitc.address_of"
+    operand = operand_def(EmitC_LValueType)
+    result = result_def(EmitCTypeConstr)
+
+    def verify_(self) -> None:
+        if not isinstance(self.operand.type, EmitC_LValueType):
+            raise VerifyException(
+                "operand type must be an lvalue when applying `&`"
+            )
+        if not isinstance(self.result.type, EmitC_PointerType):
+            raise VerifyException("result type must be a pointer when applying `&`")
+
+    def has_side_effects(self) -> bool:
+        """Return True if the operation has side effects."""
+        return False
+
+
+@irdl_op_definition
 class EmitC_ApplyOp(IRDLOperation):
     """Apply operation"""
 
@@ -426,6 +472,171 @@ class EmitC_ApplyOp(IRDLOperation):
     def has_side_effects(self) -> bool:
         """Return True if the operation has side effects."""
         return self.applicableOperator.data == "*"
+
+
+@irdl_op_definition
+class EmitC_AssignOp(IRDLOperation):
+    """
+    Assign operation.
+
+    The `emitc.assign` operation stores an SSA value to the location designated by an
+    EmitC variable. This operation doesn't return any value. The assigned value
+    must be of the same type as the variable being assigned. The operation is
+    emitted as a C/C++ '=' operator.
+    """
+
+    name = "emitc.assign"
+
+    var = operand_def(EmitC_LValueType)
+    value = operand_def(EmitCTypeConstr)
+
+    assembly_format = "$value `:` type($value) `to` $var `:` type($var) attr-dict"
+
+    def __init__(
+        self,
+        var: SSAValue,
+        value: SSAValue,
+    ):
+        super().__init__(
+            operands=[var, value],
+            result_types=[]
+        )
+
+    def verify_(self) -> None:
+        if self.var.type != EmitC_LValueType(self.value.type):
+            raise VerifyException("'emitc.assign' op operands var and value must have the same type")
+
+
+@irdl_op_definition
+class EmitC_BitwiseAndOp(EmitC_BinaryOperation):
+    """
+    Bitwise and operation.
+
+    With the `emitc.bitwise_and` operation the bitwise operator & (and) can
+    be applied.
+
+    Example:
+
+    ```mlir
+    %0 = emitc.bitwise_and %arg0, %arg1 : (i32, i32) -> i32
+    ```
+    ```c++
+    // Code emitted for the operation above.
+    int32_t v3 = v1 & v2;
+    ```
+    """
+
+    name = "emitc.bitwise_and"
+
+
+@irdl_op_definition
+class EmitC_BitwiseLeftShiftOp(EmitC_BinaryOperation):
+    """
+    Bitwise left shift operation.
+
+    With the `emitc.bitwise_left_shift` operation the bitwise operator <<
+    (left shift) can be applied.
+
+    Example:
+
+    ```mlir
+    %0 = emitc.bitwise_left_shift %arg0, %arg1 : (i32, i32) -> i32
+    ```
+    ```c++
+    // Code emitted for the operation above.
+    int32_t v3 = v1 << v2;
+    ```
+    """
+
+    name = "emitc.bitwise_left_shift"
+
+
+@irdl_op_definition
+class EmitC_BitwiseNotOp(EmitC_UnaryOperation):
+    """
+    Bitwise not operation.
+
+    With the `emitc.bitwise_not` operation the bitwise operator ~ (not) can
+    be applied.
+
+    Example:
+
+    ```mlir
+    %0 = emitc.bitwise_not %arg0 : (i32) -> i32
+    ```
+    ```c++
+    // Code emitted for the operation above.
+    int32_t v2 = ~v1;
+    ```
+    """
+
+    name = "emitc.bitwise_not"
+
+
+@irdl_op_definition
+class EmitC_BitwiseOrOp(EmitC_BinaryOperation):
+    """
+    Bitwise or operation.
+
+    With the `emitc.bitwise_or` operation the bitwise operator | (or)
+    can be applied.
+
+    Example:
+
+    ```mlir
+    %0 = emitc.bitwise_or %arg0, %arg1 : (i32, i32) -> i32
+    ```
+    ```c++
+    // Code emitted for the operation above.
+    int32_t v3 = v1 | v2;
+    ```
+    """
+
+    name = "emitc.bitwise_or"
+
+
+@irdl_op_definition
+class EmitC_BitwiseRightShiftOp(EmitC_BinaryOperation):
+    """
+    Bitwise right shift operation.
+
+    With the `emitc.bitwise_right_shift` operation the bitwise operator >>
+    (right shift) can be applied.
+
+    Example:
+
+    ```mlir
+    %0 = emitc.bitwise_right_shift %arg0, %arg1 : (i32, i32) -> i32
+    ```
+    ```c++
+    // Code emitted for the operation above.
+    int32_t v3 = v1 >> v2;
+    ```
+    """
+
+    name = "emitc.bitwise_right_shift"
+
+
+@irdl_op_definition
+class EmitC_BitwiseXorOp(EmitC_BinaryOperation):
+    """
+    Bitwise xor operation.
+
+    With the `emitc.bitwise_xor` operation the bitwise operator ^ (xor)
+    can be applied.
+
+    Example:
+
+    ```mlir
+    %0 = emitc.bitwise_xor %arg0, %arg1 : (i32, i32) -> i32
+    ```
+    ```c++
+    // Code emitted for the operation above.
+    int32_t v3 = v1 ^ v2;
+    ```
+    """
+
+    name = "emitc.bitwise_xor"
 
 
 @irdl_op_definition
@@ -500,6 +711,202 @@ class EmitC_CallOpaqueOp(IRDLOperation):
         for res_type in self.res.types:
             if isinstance(res_type, EmitC_ArrayType):
                 raise VerifyException("cannot return array type")
+
+
+@irdl_op_definition
+class EmitC_CastOp(IRDLOperation):
+    """
+    Cast operation.
+
+    The `emitc.cast` operation performs an explicit type conversion and is emitted
+    as a C-style cast expression. It can be applied to integer, float, index
+    and EmitC types.
+
+    Example:
+
+    ```mlir
+    // Cast from `int32_t` to `float`
+    %0 = emitc.cast %arg0: i32 to f32
+
+    // Cast from `void` to `int32_t` pointer
+    %1 = emitc.cast %arg1 :
+        !emitc.ptr<!emitc.opaque<"void">> to !emitc.ptr<i32>
+    ```
+    """
+
+    name = "emitc.cast"
+
+    assembly_format = "$source attr-dict `:` type($source) `to` type($dest)"
+
+    source = operand_def(EmitCTypeConstr)
+    dest = result_def(EmitCTypeConstr)
+
+    def has_side_effects(self) -> bool:
+        return False
+
+
+@irdl_op_definition
+class EmitC_ClassOp(IRDLOperation):
+    """
+    Represents a C++ class definition, encapsulating fields and methods.
+
+    The `emitc.class` operation defines a C++ class, acting as a container
+    for its data fields (`emitc.field`) and methods (`emitc.func`).
+    It creates a distinct scope, isolating its contents from the surrounding
+    MLIR region, similar to how C++ classes encapsulate their internals.
+
+    Example:
+
+    ```mlir
+    emitc.class @modelClass {
+      emitc.field @fieldName0 : !emitc.array<1xf32> = {emitc.opaque = "input_tensor"}
+      emitc.func @execute() {
+        %0 = "emitc.constant"() <{value = 0 : index}> : () -> !emitc.size_t
+        %1 = get_field @fieldName0 : !emitc.array<1xf32>
+        %2 = subscript %1[%0] : (!emitc.array<1xf32>, !emitc.size_t) -> !emitc.lvalue<f32>
+        return
+      }
+    }
+    // Class with a final specifer
+    emitc.class final @modelClass {
+      emitc.field @fieldName0 : !emitc.array<1xf32> = {emitc.opaque = "input_tensor"}
+      emitc.func @execute() {
+        %0 = "emitc.constant"() <{value = 0 : index}> : () -> !emitc.size_t
+        %1 = get_field @fieldName0 : !emitc.array<1xf32>
+        %2 = subscript %1[%0] : (!emitc.array<1xf32>, !emitc.size_t) -> !emitc.lvalue<f32>
+        return
+      }
+    }
+    ```
+    """
+
+    name = "emitc.class"
+
+    assembly_format = "(`final` $final_specifier^)? $sym_name attr-dict-with-keyword $body"
+
+    sym_name = prop_def(StringAttr)
+    final_specifier = prop_def(UnitAttr)
+
+    body = region_def()
+
+    def get_block(self):
+        if self.body.block:
+            return self.body.block
+
+
+class EmitC_CmpPredicateValue(IntEnum):
+    eq = 0
+    ne = 1
+    lt = 2
+    le = 3
+    gt = 4
+    ge = 5
+    three_way = 6
+
+    @classmethod
+    def has_value(cls, val) -> bool:
+        return val in cls._value2member_map_
+
+@irdl_op_definition
+class EmitC_CmpOp(EmitC_BinaryOperation):
+    """
+    Comparison operation.
+
+    With the `emitc.cmp` operation the comparison operators ==, !=, <, <=, >, >=, <=>
+    can be applied.
+
+    Its first argument is an attribute that defines the comparison operator:
+
+    - equal to (mnemonic: `"eq"`; integer value: `0`)
+    - not equal to (mnemonic: `"ne"`; integer value: `1`)
+    - less than (mnemonic: `"lt"`; integer value: `2`)
+    - less than or equal to (mnemonic: `"le"`; integer value: `3`)
+    - greater than (mnemonic: `"gt"`; integer value: `4`)
+    - greater than or equal to (mnemonic: `"ge"`; integer value: `5`)
+    - three-way-comparison (mnemonic: `"three_way"`; integer value: `6`)
+
+    Example:
+    ```mlir
+    // Custom form of the cmp operation.
+    %0 = emitc.cmp eq, %arg0, %arg1 : (i32, i32) -> i1
+    %1 = emitc.cmp lt, %arg2, %arg3 :
+        (
+          !emitc.opaque<"std::valarray<float>">,
+          !emitc.opaque<"std::valarray<float>">
+        ) -> !emitc.opaque<"std::valarray<bool>">
+    ```
+    ```c++
+    // Code emitted for the operations above.
+    bool v5 = v1 == v2;
+    std::valarray<bool> v6 = v3 < v4;
+    ```
+    """
+
+    name = "emitc.cmp"
+
+    predicate = prop_def(EmitCIntegerType)
+    lhs = operand_def(EmitCTypeConstr)
+    rhs = operand_def(EmitCTypeConstr)
+    result = result_def(EmitCTypeConstr)
+
+    assembly_format = "$predicate `,` operands attr-dict `:` functional-type(operands, results)"
+
+    def __init__(
+        self,
+        pred,
+        lhs,
+        rhs,
+        result_type
+    ):
+        if not EmitC_CmpPredicateValue.has_value(pred):
+            raise VerifyException(f"Got nonexistent predicate value: {pred}")
+
+        super.__init__(
+            lhs,
+            rhs,
+            result_type,
+            properties={pred}
+        )
+
+
+@irdl_op_definition
+class EmitC_ConditionalOp(IRDLOperation):
+    """
+    Conditional (ternary) operation.
+
+    With the `emitc.conditional` operation the ternary conditional operator can
+    be applied.
+
+    Example:
+
+    ```mlir
+    %0 = emitc.cmp gt, %arg0, %arg1 : (i32, i32) -> i1
+
+    %c0 = "emitc.constant"() {value = 10 : i32} : () -> i32
+    %c1 = "emitc.constant"() {value = 11 : i32} : () -> i32
+
+    %1 = emitc.conditional %0, %c0, %c1 : i32
+    ```
+    ```c++
+    // Code emitted for the operations above.
+    bool v3 = v1 > v2;
+    int32_t v4 = 10;
+    int32_t v5 = 11;
+    int32_t v6 = v3 ? v4 : v5;
+    ```
+    """
+
+    name = "emitc.conditional"
+
+    condition = operand_def(IntegerType(1))
+    true_value = operand_def(EmitCTypeConstr)
+    false_value = operand_def(EmitCTypeConstr)
+    result = result_def(EmitCTypeConstr)
+
+    #assembly_format = "operands attr-dict `:` type($result)"
+
+    def has_side_effects(self) -> bool:
+        return False
 
 
 # ===----------------------------------------------------------------------===
@@ -616,8 +1023,544 @@ class EmitC_ConstantOp(IRDLOperation):
 
 
 @irdl_op_definition
+class EmitC_DereferenceOp(IRDLOperation):
+    name = "emitc.dereference"
+    operand = operand_def(EmitC_PointerType)
+    result = result_def(EmitC_LValueType)
+
+    def verify_(self) -> None:
+        if not isinstance(self.operand.type, EmitC_PointerType):
+            raise VerifyException(
+                "operand type must be a pointer when applying `*`"
+            )
+
+    def has_side_effects(self) -> bool:
+        """Return True if the operation has side effects."""
+        return True
+
+
+@irdl_op_definition
+class EmitC_DivOp(EmitC_BinaryOperation):
+    """
+    Division operation.
+
+    With the `emitc.div` operation the arithmetic operator / (division) can
+    be applied.
+
+    Example:
+
+    ```mlir
+    // Custom form of the division operation.
+    %0 = emitc.div %arg0, %arg1 : (i32, i32) -> i32
+    %1 = emitc.div %arg2, %arg3 : (f32, f32) -> f32
+    ```
+    ```c++
+    // Code emitted for the operations above.
+    int32_t v5 = v1 / v2;
+    float v6 = v3 / v4;
+    ```
+    """
+
+    name = "emitc.div"
+
+    lhs = operand_def(EmitCFloatType | EmitCIntegerType | IndexType | EmitC_OpaqueType)
+    rhs = operand_def(EmitCFloatType | EmitCIntegerType | IndexType | EmitC_OpaqueType)
+    result = result_def(EmitCFloatType | EmitCIntegerType | IndexType | EmitC_OpaqueType)
+
+    def __init__(
+        self,
+        lhs: SSAValue,
+        rhs: SSAValue,
+        result_type: Attribute
+    ):
+        super().__init__(
+            lhs,
+            rhs,
+            result_type
+        )
+
+
+@irdl_op_definition
+class EmitC_LiteralOp(IRDLOperation):
+    """
+    Literal operation.
+
+    The `emitc.literal` operation produces an SSA value equal to some constant
+    specified by an attribute.
+
+    Example:
+
+    ```mlir
+    %p0 = emitc.literal "M_PI" : f32
+    %1 = "emitc.add" (%arg0, %p0) : (f32, f32) -> f32
+    ```
+    ```c++
+    // Code emitted for the operation above.
+    float v2 = v1 + M_PI;
+    ```
+    """
+
+    name = "emitc.literal"
+
+    value = prop_def(StringAttr)
+    result = result_def(EmitCTypeConstr)
+
+    assembly_format = "$value attr-dict `:` type($result)"
+
+    def verify_(self):
+        if self.value.data == "":
+            raise VerifyException("value must not be empty")
+
+
+@irdl_op_definition
+class EmitC_LoadOp(IRDLOperation):
+    """
+    Load an lvalue into an SSA value.
+
+    This operation loads the content of a modifiable lvalue into an SSA value.
+    Modifications of the lvalue executed after the load are not observable on
+    the produced value.
+
+    Example:
+
+    ```mlir
+    %1 = emitc.load %0 : !emitc.lvalue<i32>
+    ```
+    ```c++
+    // Code emitted for the operation above.
+    int32_t v2 = v1;
+    ```
+    """
+
+    name = "emitc.load"
+
+    operand = operand_def(EmitC_LValueType)
+    result = result_def(EmitCTypeConstr)
+
+    #assembly_format = "$operand attr-dict `:` type($operand)"
+
+    def verify_(self):
+        op_type = self.operand.type
+        res_type = self.result.type
+
+        assert isinstance(op_type, EmitC_LValueType)
+
+        val_type = op_type.value_type
+
+        if val_type != res_type:
+            raise VerifyException("result type does not match the value type of operand")
+
+
+@irdl_op_definition
+class EmitC_LogicalAndOp(EmitC_BinaryOperation):
+    """
+    Logical and operation.
+
+    With the `emitc.logical_and` operation the logical operator && (and) can
+    be applied.
+
+    Example:
+
+    ```mlir
+    %0 = emitc.logical_and %arg0, %arg1 : i32, i32
+    ```
+    ```c++
+    // Code emitted for the operation above.
+    bool v3 = v1 && v2;
+    ```
+    """
+
+    name = "emitc.logical_and"
+
+    result = result_def(IntegerType(1))
+
+    assembly_format = "operands attr-dict `:` type(operands)"
+
+
+@irdl_op_definition
+class EmitC_LogicalNotOp(EmitC_UnaryOperation):
+    """
+    Logical not operation.
+
+    With the `emitc.logical_not` operation the logical operator ! (negation) can
+    be applied.
+
+    Example:
+
+    ```mlir
+    %0 = emitc.logical_not %arg0 : i32
+    ```
+    ```c++
+    // Code emitted for the operation above.
+    bool v2 = !v1;
+    ```
+    """
+
+    name = "emitc.logical_not"
+
+    result = result_def(IntegerType(1))
+
+    assembly_format = "operands attr-dict `:` type(operands)"
+
+
+@irdl_op_definition
+class EmitC_LogicalOrOp(EmitC_BinaryOperation):
+    """
+    Logical or operation.
+
+    With the `emitc.logical_or` operation the logical operator || (inclusive or)
+    can be applied.
+
+    Example:
+
+    ```mlir
+    %0 = emitc.logical_or %arg0, %arg1 : i32, i32
+    ```
+    ```c++
+    // Code emitted for the operation above.
+    bool v3 = v1 || v2;
+    ```
+    """
+
+    name = "emitc.logical_or"
+
+    result = result_def(IntegerType(1))
+
+    assembly_format = "operands attr-dict `:` type(operands)"
+
+
+@irdl_op_definition
+class EmitC_MemberOfPtrOp(IRDLOperation):
+    """
+    Member of pointer operation.
+
+    With the `emitc.member_of_ptr` operation the member access operator `->`
+    can be applied.
+
+    Example:
+
+    ```mlir
+    %0 = "emitc.member_of_ptr" (%arg0) {member = "a"}
+        : (!emitc.lvalue<!emitc.ptr<!emitc.opaque<"mystruct">>>)
+        -> !emitc.lvalue<i32>
+    %1 = "emitc.member_of_ptr" (%arg0) {member = "b"}
+        : (!emitc.lvalue<!emitc.ptr<!emitc.opaque<"mystruct">>>)
+        -> !emitc.array<2xi32>
+    ```
+    """
+
+    name = "emitc.member_of_ptr"
+
+    member = prop_def(StringAttr)
+    operand = operand_def(EmitC_LValueType)
+    result = result_def(EmitC_ArrayType | EmitC_LValueType)
+
+    def __init__(
+          self,
+          operand: SSAValue,
+          member: str,
+          result_type: Attribute
+    ):
+        if not isinstance(operand.type, EmitC_OpaqueAttr | EmitC_PointerType):
+            raise VerifyException("emitc.member_of_ptr expects an opaque or pointer operand type")
+
+        super().__init__(
+            operands=[operand],
+            properties={"member" : StringAttr(member)},
+            result_types=[result_type]
+        )
+
+
+@irdl_op_definition
+class EmitC_MemberOp(IRDLOperation):
+    """
+    Member operation.
+
+    With the `emitc.member` operation the member access operator `.` can be
+    applied.
+
+    Example:
+
+    ```mlir
+    %0 = "emitc.member" (%arg0) {member = "a"}
+        : (!emitc.lvalue<!emitc.opaque<"mystruct">>) -> !emitc.lvalue<i32>
+    %1 = "emitc.member" (%arg0) {member = "b"}
+        : (!emitc.lvalue<!emitc.opaque<"mystruct">>) -> !emitc.array<2xi32>
+    ```
+    """
+
+    name = "emitc.member"
+
+    member = prop_def(StringAttr)
+    operand = operand_def(EmitC_LValueType)
+    result = result_def(EmitC_ArrayType | EmitC_LValueType)
+
+    def __init__(
+          self,
+          operand: SSAValue,
+          member: str,
+          result_type: Attribute
+    ):
+        if not isinstance(operand.type, EmitC_OpaqueAttr):
+            raise VerifyException("emitc.member expects an opaque operand type")
+
+        super().__init__(
+            operands=[operand],
+            properties={"member" : StringAttr(member)},
+            result_types=[result_type]
+        )
+
+
+@irdl_op_definition
+class EmitC_MulOp(EmitC_BinaryOperation):
+    """
+    Multiplication operation.
+
+    With the `emitc.mul` operation the arithmetic operator * (multiplication) can
+    be applied.
+
+    Example:
+
+    ```mlir
+    // Custom form of the multiplication operation.
+    %0 = emitc.mul %arg0, %arg1 : (i32, i32) -> i32
+    %1 = emitc.mul %arg2, %arg3 : (f32, f32) -> f32
+    ```
+    ```c++
+    // Code emitted for the operations above.
+    int32_t v5 = v1 * v2;
+    float v6 = v3 * v4;
+    ```
+    """
+
+    name = "emitc.mul"
+
+    lhs = operand_def(EmitCFloatType | EmitCIntegerType | IndexType | EmitC_OpaqueType)
+    rhs = operand_def(EmitCFloatType | EmitCIntegerType | IndexType | EmitC_OpaqueType)
+    result = result_def(EmitCFloatType | EmitCIntegerType | IndexType | EmitC_OpaqueType)
+
+    def __init__(
+        self,
+        lhs: SSAValue,
+        rhs: SSAValue,
+        result_type: Attribute
+    ):
+        super().__init__(
+            lhs,
+            rhs,
+            result_type
+        )
+
+
+@irdl_op_definition
+class EmitC_RemOp(EmitC_BinaryOperation):
+    """
+    Remainder operation.
+
+    With the `emitc.rem` operation the arithmetic operator % (remainder) can
+    be applied.
+
+    Example:
+
+    ```mlir
+    // Custom form of the remainder operation.
+    %0 = emitc.rem %arg0, %arg1 : (i32, i32) -> i32
+    ```
+    ```c++
+    // Code emitted for the operation above.
+    int32_t v5 = v1 % v2;
+    ```
+    """
+
+    name = "emitc.rem"
+
+    lhs = operand_def(EmitCIntegerType | IndexType | EmitC_OpaqueType)
+    rhs = operand_def(EmitCIntegerType | IndexType | EmitC_OpaqueType)
+    result = result_def(EmitCIntegerType | IndexType | EmitC_OpaqueType)
+
+    def __init__(
+        self,
+        lhs: SSAValue,
+        rhs: SSAValue,
+        result_type: Attribute
+    ):
+        super().__init__(
+            lhs,
+            rhs,
+            result_type
+        )
+
+
+@irdl_op_definition
+class EmitC_SubOp(EmitC_BinaryOperation):
+    """
+    Subtraction operation.
+
+    With the `emitc.sub` operation the arithmetic operator - (subtraction) can
+    be applied.
+
+    Example:
+
+    ```mlir
+    // Custom form of the subtraction operation.
+    %0 = emitc.sub %arg0, %arg1 : (i32, i32) -> i32
+    %1 = emitc.sub %arg2, %arg3 : (!emitc.ptr<f32>, i32) -> !emitc.ptr<f32>
+    %2 = emitc.sub %arg4, %arg5 : (!emitc.ptr<i32>, !emitc.ptr<i32>)
+        -> !emitc.ptrdiff_t
+    ```
+    ```c++
+    // Code emitted for the operations above.
+    int32_t v7 = v1 - v2;
+    float* v8 = v3 - v4;
+    ptrdiff_t v9 = v5 - v6;
+    ```
+    """
+
+    name = "emitc.sub"
+
+    def verify_(self) -> None:
+        lhs_type = self.lhs.type
+        rhs_type = self.rhs.type
+
+        if isa(lhs_type, EmitC_PointerType) and isa(rhs_type, EmitC_PointerType):
+            raise VerifyException(
+                "emitc.sub requires that at most one operand is a pointer"
+            )
+
+        if (
+            isa(lhs_type, EmitC_PointerType)
+            and not isa(rhs_type, IntegerType | EmitC_OpaqueType)
+        ) or (
+            isa(rhs_type, EmitC_PointerType)
+            and not isa(lhs_type, IntegerType | EmitC_OpaqueType)
+        ):
+            raise VerifyException(
+                "emitc.sub requires that one operand is an integer or of opaque "
+                "type if the other is a pointer"
+            )
+
+
+@irdl_op_definition
+class EmitC_SubscriptOp(IRDLOperation):
+    """
+    Subscript operation.
+
+    With the `emitc.subscript` operation the subscript operator `[]` can be applied
+    to variables or arguments of array, pointer and opaque type.
+
+    Example:
+
+    ```mlir
+    %i = index.constant 1
+    %j = index.constant 7
+    %0 = emitc.subscript %arg0[%i, %j] : (!emitc.array<4x8xf32>, index, index)
+           -> !emitc.lvalue<f32>
+    %1 = emitc.subscript %arg1[%i] : (!emitc.ptr<i32>, index)
+           -> !emitc.lvalue<i32>
+    ```
+    """
+
+    name = "emitc.subscript"
+
+    value = operand_def(EmitC_ArrayType | EmitC_OpaqueType | EmitC_PointerType)
+    indices = var_operand_def(EmitCTypeConstr)
+    result = result_def(EmitC_LValueType)
+
+    assembly_format = "$value `[` $indices `]` attr-dict `:` functional-type(operands, results)"
+
+    def __init__(
+        self,
+        value: SSAValue,
+        indices: Sequence[SSAValue]
+    ):
+        # array[i]
+        if isinstance(value.type, EmitC_ArrayType):
+            res_type = EmitC_LValueType(value.type.element_type) # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType]
+
+        # ptr[i]
+        elif isinstance(value.type, EmitC_PointerType):
+            res_type = EmitC_LValueType(value.type.pointee_type)
+
+        # opaque
+        elif isinstance(value.type, EmitC_OpaqueType):
+            res_type = value.type
+
+        else:
+            raise VerifyException(f"Unsupported type for emitc.subscript: {value.type}")
+
+        super().__init__(
+            operands=[value, *indices],
+            result_types=[res_type]
+        )
+
+    def verify_(self) -> None:
+        val_type = self.value.type
+
+        # array[i]
+        if isinstance(val_type, EmitC_ArrayType):
+            if len(self.indices) != val_type.shape:
+                raise VerifyException(f"Array subscript expects {val_type.shape} indices, got {len(self.indices)}")
+
+        # ptr[i]
+        if isinstance(val_type, EmitC_PointerType):
+            if len(self.indices) != 1:
+                raise VerifyException(f"Pointer subscript expects exactly one index")
+
+        # opaque
+        if isinstance(val_type, EmitC_OpaqueType):
+            if len(self.indices) == 0:
+                raise VerifyException("Opaque subscript expects at least one index")
+
+
+@irdl_op_definition
+class EmitC_UnaryMinusOp(EmitC_UnaryOperation):
+    """
+    Unary minus operation.
+
+    With the `emitc.unary_minus` operation the unary operator - (minus) can be
+    applied.
+
+    Example:
+
+    ```mlir
+    %0 = emitc.unary_minus %arg0 : (i32) -> i32
+    ```
+    ```c++
+    // Code emitted for the operation above.
+    int32_t v2 = -v1;
+    ```
+    """
+
+    name = "emitc.unary_minus"
+
+
+@irdl_op_definition
+class EmitC_UnaryPlusOp(EmitC_UnaryOperation):
+    """
+    Unary plus operation.
+
+    With the `emitc.unary_plus` operation the unary operator + (plus) can be
+    applied.
+
+    Example:
+
+    ```mlir
+    %0 = emitc.unary_plus %arg0 : (i32) -> i32
+    ```
+    ```c++
+    // Code emitted for the operation above.
+    int32_t v2 = +v1;
+    ```
+    """
+
+    name = "emitc.unary_plus"
+
+
+@irdl_op_definition
 class EmitC_VariableOp(IRDLOperation):
     """
+    Variable operation.
+
     The `emitc.variable` operation produces an SSA value equal to some value
     specified by an attribute. This can be used to form simple integer and
     floating point variables, as well as more exotic things like tensor
@@ -631,8 +1574,6 @@ class EmitC_VariableOp(IRDLOperation):
 
     value = prop_def(EmitC_OpaqueOrTypedAttr)
     result = result_def(EmitC_ArrayType | EmitC_LValueType)
-
-    #assembly_format = " attr-dict $value `:` type(results)"
 
     def __init__(
         self,
@@ -658,48 +1599,41 @@ class EmitC_VariableOp(IRDLOperation):
         return True
 
 
-@irdl_op_definition
-class EmitC_AssignOp(IRDLOperation):
-    """
-    The `emitc.assign` operation stores an SSA value to the location designated by an
-    EmitC variable. This operation doesn't return any value. The assigned value
-    must be of the same type as the variable being assigned. The operation is
-    emitted as a C/C++ '=' operator.
-    """
-
-    name = "emitc.assign"
-
-    var = operand_def(EmitC_LValueType)
-    value = operand_def(EmitCIntegerType | EmitCFloatType)
-    res = var_result_def()
-
-    #assemblyFormat = "$value `:` type($value) `to` $var `:` type($var) attr-dict"
-
-    def __init__(
-        self,
-        var: SSAValue,
-        value: SSAValue,
-    ):
-        super().__init__(
-            operands=[var, value],
-            result_types=[]
-        )
-
-    def verify_(self) -> None:
-        #print("var: ", self.var, " value: ", self.value)
-        if self.var.type != EmitC_LValueType(self.value.type): # self.value.type:
-            raise VerifyException("'emitc.assign' op operands var and value must have the same type")
-
-
 EmitC = Dialect(
     "emitc",
     [
         EmitC_AddOp,
+        EmitC_AddressOfOp,
         EmitC_ApplyOp,
+        EmitC_AssignOp,
+        EmitC_BitwiseAndOp,
+        EmitC_BitwiseLeftShiftOp,
+        EmitC_BitwiseNotOp,
+        EmitC_BitwiseOrOp,
+        EmitC_BitwiseRightShiftOp,
+        EmitC_BitwiseXorOp,
         EmitC_CallOpaqueOp,
+        EmitC_CastOp,
+        EmitC_ClassOp,
+        EmitC_CmpOp,
+        EmitC_ConditionalOp,
         EmitC_ConstantOp,
-        EmitC_VariableOp,
-        EmitC_AssignOp
+        EmitC_DereferenceOp,
+        EmitC_DivOp,
+        EmitC_LiteralOp,
+        EmitC_LoadOp,
+        EmitC_LogicalAndOp,
+        EmitC_LogicalNotOp,
+        EmitC_LogicalOrOp,
+        EmitC_MemberOfPtrOp,
+        EmitC_MemberOp,
+        EmitC_MulOp,
+        EmitC_RemOp,
+        EmitC_SubOp,
+        EmitC_SubscriptOp,
+        EmitC_UnaryMinusOp,
+        EmitC_UnaryPlusOp,
+        EmitC_VariableOp
     ],
     [
         EmitC_ArrayType,
