@@ -38,12 +38,14 @@ from xdsl.ir import (
     Data,
     Dialect,
     Operation,
+    OpResult,
     Region,
     SSAValue,
 )
 from xdsl.irdl import (
     IRDLOperation,
     ParsePropInAttrDict,
+    VarOpResult,
     attr_def,
     base,
     irdl_attr_definition,
@@ -357,14 +359,21 @@ class LabelAttr(Data[str]):
             printer.print_string_literal(self.data)
 
 
-class RISCVAsmOperation(
-    HasRegisterConstraints, IRDLOperation, OneLineAssemblyPrintable, ABC
-):
+class RISCVAsmOperation(IRDLOperation, OneLineAssemblyPrintable, ABC):
     """
     Base class for operations that can be a part of RISC-V assembly printing.
     """
 
+
+class RISCVRegallocOperation(HasRegisterConstraints, IRDLOperation, ABC):
+    """
+    Base class for operations that can take part in register allocation.
+    """
+
     def get_register_constraints(self) -> RegisterConstraints:
+        # The default register constraints are that all operands are "in", and all
+        # results are "out" registers.
+        # If some registers are "inout" then this function must be overridden.
         return RegisterConstraints(self.operands, self.results, ())
 
 
@@ -453,7 +462,7 @@ AssemblyInstructionArg: TypeAlias = (
 )
 
 
-class RISCVInstruction(RISCVAsmOperation, ABC):
+class RISCVInstruction(RISCVAsmOperation, RISCVRegallocOperation, ABC):
     """
     Base class for operations that can be a part of RISC-V assembly printing. Must
     represent an instruction in the RISC-V instruction set, and have the following format:
@@ -538,7 +547,7 @@ class RdRsRsOperation(
     This is called R-Type in the RISC-V specification.
     """
 
-    rd = result_def(RDInvT)
+    rd: OpResult[RDInvT] = result_def(RDInvT)
     rs1 = operand_def(RS1InvT)
     rs2 = operand_def(RS2InvT)
 
@@ -1518,6 +1527,16 @@ class AndiOp(RdRsImmIntegerOperation):
     traits = traits_def(AndiOpHasCanonicalizationPatternsTrait())
 
 
+class OriOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.riscv import (
+            OriImmediate,
+        )
+
+        return (OriImmediate(),)
+
+
 @irdl_op_definition
 class OriOp(RdRsImmIntegerOperation):
     """
@@ -1530,6 +1549,17 @@ class OriOp(RdRsImmIntegerOperation):
     """
 
     name = "riscv.ori"
+    traits = traits_def(OriOpHasCanonicalizationPatternsTrait())
+
+
+class XoriOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.riscv import (
+            XoriImmediate,
+        )
+
+        return (XoriImmediate(),)
 
 
 @irdl_op_definition
@@ -1544,6 +1574,7 @@ class XoriOp(RdRsImmIntegerOperation):
     """
 
     name = "riscv.xori"
+    traits = traits_def(XoriOpHasCanonicalizationPatternsTrait())
 
 
 class SlliOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
@@ -1576,9 +1607,12 @@ class SlliOp(RdRsImmShiftOperation):
 class SrliOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.transforms.canonicalization_patterns.riscv import ShiftRightbyZero
+        from xdsl.transforms.canonicalization_patterns.riscv import (
+            ShiftRightbyZero,
+            ShiftRightImmediate,
+        )
 
-        return (ShiftRightbyZero(),)
+        return (ShiftRightbyZero(), ShiftRightImmediate())
 
 
 @irdl_op_definition
@@ -3519,7 +3553,7 @@ class EcallOp(NullaryOperation):
 
 
 @irdl_op_definition
-class LabelOp(RISCVCustomFormatOperation, RISCVAsmOperation):
+class LabelOp(RISCVCustomFormatOperation, RISCVAsmOperation, RISCVRegallocOperation):
     """
     The label operation is used to emit text labels (e.g. loop:) that are used
     as branch, unconditional jump targets and symbol offsets.
@@ -3574,7 +3608,9 @@ class LabelOp(RISCVCustomFormatOperation, RISCVAsmOperation):
 
 
 @irdl_op_definition
-class DirectiveOp(RISCVCustomFormatOperation, RISCVAsmOperation):
+class DirectiveOp(
+    RISCVCustomFormatOperation, RISCVAsmOperation, RISCVRegallocOperation
+):
     """
     The directive operation is used to emit assembler directives (e.g. .word; .equ; etc.)
     without any associated region of assembly code.
@@ -3761,7 +3797,7 @@ class CustomAssemblyInstructionOp(RISCVCustomFormatOperation, RISCVInstruction):
 
 
 @irdl_op_definition
-class CommentOp(RISCVCustomFormatOperation, RISCVAsmOperation):
+class CommentOp(RISCVCustomFormatOperation, RISCVAsmOperation, RISCVRegallocOperation):
     name = "riscv.comment"
     comment = attr_def(StringAttr)
 
@@ -3810,7 +3846,11 @@ class WfiOp(NullaryOperation):
 
 
 class GetAnyRegisterOperation(
-    RISCVCustomFormatOperation, RISCVAsmOperation, ABC, Generic[RDInvT]
+    RISCVCustomFormatOperation,
+    RISCVAsmOperation,
+    RISCVRegallocOperation,
+    ABC,
+    Generic[RDInvT],
 ):
     """
     This instruction allows us to create an SSAValue with for a given register name. This
@@ -3871,14 +3911,14 @@ class GetFloatRegisterOp(GetAnyRegisterOperation[FloatRegisterType]):
 
 
 @irdl_op_definition
-class ParallelMovOp(IRDLOperation):
+class ParallelMovOp(RISCVRegallocOperation):
     name = "riscv.parallel_mov"
     inputs = var_operand_def(RISCVRegisterType)
-    outputs = var_result_def(RISCVRegisterType)
+    outputs: VarOpResult[RISCVRegisterType] = var_result_def(RISCVRegisterType)
     free_registers = opt_prop_def(ArrayAttr[RISCVRegisterType])
 
     assembly_format = "$inputs attr-dict `:` functional-type($inputs, $outputs)"
-    irdl_options = [ParsePropInAttrDict()]
+    irdl_options = (ParsePropInAttrDict(),)
 
     def __init__(
         self,
