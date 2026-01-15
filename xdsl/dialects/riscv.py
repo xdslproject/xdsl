@@ -38,14 +38,12 @@ from xdsl.ir import (
     Data,
     Dialect,
     Operation,
-    OpResult,
     Region,
     SSAValue,
 )
 from xdsl.irdl import (
     IRDLOperation,
     ParsePropInAttrDict,
-    VarOpResult,
     attr_def,
     base,
     irdl_attr_definition,
@@ -359,21 +357,14 @@ class LabelAttr(Data[str]):
             printer.print_string_literal(self.data)
 
 
-class RISCVAsmOperation(IRDLOperation, OneLineAssemblyPrintable, ABC):
+class RISCVAsmOperation(
+    HasRegisterConstraints, IRDLOperation, OneLineAssemblyPrintable, ABC
+):
     """
     Base class for operations that can be a part of RISC-V assembly printing.
     """
 
-
-class RISCVRegallocOperation(HasRegisterConstraints, IRDLOperation, ABC):
-    """
-    Base class for operations that can take part in register allocation.
-    """
-
     def get_register_constraints(self) -> RegisterConstraints:
-        # The default register constraints are that all operands are "in", and all
-        # results are "out" registers.
-        # If some registers are "inout" then this function must be overridden.
         return RegisterConstraints(self.operands, self.results, ())
 
 
@@ -462,7 +453,7 @@ AssemblyInstructionArg: TypeAlias = (
 )
 
 
-class RISCVInstruction(RISCVAsmOperation, RISCVRegallocOperation, ABC):
+class RISCVInstruction(RISCVAsmOperation, ABC):
     """
     Base class for operations that can be a part of RISC-V assembly printing. Must
     represent an instruction in the RISC-V instruction set, and have the following format:
@@ -547,7 +538,7 @@ class RdRsRsOperation(
     This is called R-Type in the RISC-V specification.
     """
 
-    rd: OpResult[RDInvT] = result_def(RDInvT)
+    rd = result_def(RDInvT)
     rs1 = operand_def(RS1InvT)
     rs2 = operand_def(RS2InvT)
 
@@ -1458,7 +1449,7 @@ class AddiOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
         )
 
 
-
+@irdl_op_definition
 class AddiOp(RdRsImmIntegerOperation):
     """
     Adds the sign-extended 12-bit immediate to register rs1.
@@ -1474,7 +1465,7 @@ class AddiOp(RdRsImmIntegerOperation):
     traits = traits_def(Pure(), AddiOpHasCanonicalizationPatternsTrait())
 
 
-
+@irdl_op_definition
 class SltiOp(RdRsImmIntegerOperation):
     """
     Place the value 1 in register rd if register rs1 is less than the sign-extended
@@ -1488,7 +1479,7 @@ class SltiOp(RdRsImmIntegerOperation):
     name = "riscv.slti"
 
 
-
+@irdl_op_definition
 class SltiuOp(RdRsImmIntegerOperation):
     """
     Place the value 1 in register rd if register rs1 is less than the immediate when
@@ -1512,7 +1503,7 @@ class AndiOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
         return (AndiImmediate(),)
 
 
-
+@irdl_op_definition
 class AndiOp(RdRsImmIntegerOperation):
     """
     Performs bitwise AND on register rs1 and the sign-extended 12-bit
@@ -1527,17 +1518,7 @@ class AndiOp(RdRsImmIntegerOperation):
     traits = traits_def(AndiOpHasCanonicalizationPatternsTrait())
 
 
-class OriOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
-    @classmethod
-    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.transforms.canonicalization_patterns.riscv import (
-            OriImmediate,
-        )
-
-        return (OriImmediate(),)
-
-
-
+@irdl_op_definition
 class OriOp(RdRsImmIntegerOperation):
     """
     Performs bitwise OR on register rs1 and the sign-extended 12-bit immediate and place
@@ -1549,20 +1530,9 @@ class OriOp(RdRsImmIntegerOperation):
     """
 
     name = "riscv.ori"
-    traits = traits_def(OriOpHasCanonicalizationPatternsTrait())
 
 
-class XoriOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
-    @classmethod
-    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.transforms.canonicalization_patterns.riscv import (
-            XoriImmediate,
-        )
-
-        return (XoriImmediate(),)
-
-
-
+@irdl_op_definition
 class XoriOp(RdRsImmIntegerOperation):
     """
     Performs bitwise XOR on register rs1 and the sign-extended 12-bit immediate and place
@@ -1574,7 +1544,6 @@ class XoriOp(RdRsImmIntegerOperation):
     """
 
     name = "riscv.xori"
-    traits = traits_def(XoriOpHasCanonicalizationPatternsTrait())
 
 
 class SlliOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
@@ -1588,7 +1557,7 @@ class SlliOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
         return (ShiftLeftImmediate(), ShiftLeftbyZero())
 
 
-
+@irdl_op_definition
 class SlliOp(RdRsImmShiftOperation):
     """
     Performs logical left shift on the value in register rs1 by the shift amount
@@ -1607,15 +1576,12 @@ class SlliOp(RdRsImmShiftOperation):
 class SrliOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.transforms.canonicalization_patterns.riscv import (
-            ShiftRightbyZero,
-            ShiftRightImmediate,
-        )
+        from xdsl.transforms.canonicalization_patterns.riscv import ShiftRightbyZero
 
-        return (ShiftRightbyZero(), ShiftRightImmediate())
+        return (ShiftRightbyZero(),)
 
 
-
+@irdl_op_definition
 class SrliOp(RdRsImmShiftOperation):
     """
     Performs logical right shift on the value in register rs1 by the shift amount held
@@ -1631,7 +1597,7 @@ class SrliOp(RdRsImmShiftOperation):
     traits = traits_def(SrliOpHasCanonicalizationPatternsTrait())
 
 
-
+@irdl_op_definition
 class SraiOp(RdRsImmShiftOperation):
     """
     Performs arithmetic right shift on the value in register rs1 by the shift amount
@@ -1645,7 +1611,7 @@ class SraiOp(RdRsImmShiftOperation):
     name = "riscv.srai"
 
 
-
+@irdl_op_definition
 class AddiwOp(RdRsImmIntegerOperation):
     """
     Adds the sign-extended 12-bit immediate to register rs1 and produces the proper sign-extension of a 32-bit result in rd.
@@ -1662,7 +1628,7 @@ class AddiwOp(RdRsImmIntegerOperation):
     traits = traits_def(Pure())
 
 
-
+@irdl_op_definition
 class SlliwOp(RdRsImmShiftOperation):
     """
     Performs logical left shift on the 32-bit of value in register rs1 by the
@@ -1678,7 +1644,7 @@ class SlliwOp(RdRsImmShiftOperation):
     traits = traits_def(Pure())
 
 
-
+@irdl_op_definition
 class SrliwOp(RdRsImmShiftOperation):
     """
     Performs logical right shift on the 32-bit of value in register rs1 by the shift amount held in the
@@ -1695,7 +1661,7 @@ class SrliwOp(RdRsImmShiftOperation):
     traits = traits_def(Pure())
 
 
-
+@irdl_op_definition
 class SraiwOp(RdRsImmIntegerOperation):
     """
     Performs arithmetic right shift on the 32-bit of value in register rs1 by the shift amount held
@@ -1712,7 +1678,7 @@ class SraiwOp(RdRsImmIntegerOperation):
     traits = traits_def(Pure())
 
 
-
+@irdl_op_definition
 class AddwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     Adds the 32-bit of registers rs1 and 32-bit of register rs2 and stores the result in rd.
@@ -1730,7 +1696,7 @@ class AddwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     traits = traits_def(Pure())
 
 
-
+@irdl_op_definition
 class SubwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     Subtract the 32-bit of registers rs1 and 32-bit of register rs2 and stores the result in rd.
@@ -1748,7 +1714,7 @@ class SubwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     traits = traits_def(Pure())
 
 
-
+@irdl_op_definition
 class SllwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     Performs logical left shift on the low 32-bits value in register rs1 by the shift amount held
@@ -1765,7 +1731,7 @@ class SllwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     traits = traits_def(Pure())
 
 
-
+@irdl_op_definition
 class SrlwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     Performs logical right shift on the low 32-bits value in register rs1 by the shift amount held
@@ -1783,7 +1749,7 @@ class SrlwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     traits = traits_def(Pure())
 
 
-
+@irdl_op_definition
 class SrawOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     Performs arithmetic right shift on the low 32-bits value in register rs1 by the shift amount held in the lower
@@ -1800,7 +1766,7 @@ class SrawOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     traits = traits_def(Pure())
 
 
-
+@irdl_op_definition
 class LuiOp(RdImmIntegerOperation):
     """
     Build 32-bit constants and uses the U-type format. LUI places the U-immediate value
@@ -1814,7 +1780,7 @@ class LuiOp(RdImmIntegerOperation):
     name = "riscv.lui"
 
 
-
+@irdl_op_definition
 class AuipcOp(RdImmIntegerOperation):
     """
     Build pc-relative addresses and uses the U-type format. AUIPC forms a 32-bit offset
@@ -1855,7 +1821,7 @@ class MVOp(RdRsIntegerOperation[IntRegisterType]):
     )
 
 
-
+@irdl_op_definition
 class SeqzOp(RdRsIntegerOperation[IntRegisterType]):
     """
     A pseudo instruction that sets the destination register to 1 if the source register is equal to zero.
@@ -1866,7 +1832,7 @@ class SeqzOp(RdRsIntegerOperation[IntRegisterType]):
     name = "riscv.seqz"
 
 
-
+@irdl_op_definition
 class SnezOp(RdRsIntegerOperation[IntRegisterType]):
     """
     A pseudo instruction that sets the destination register to 1 if the source register is not equal to zero.
@@ -1877,7 +1843,7 @@ class SnezOp(RdRsIntegerOperation[IntRegisterType]):
     name = "riscv.snez"
 
 
-
+@irdl_op_definition
 class ZextBOp(RdRsIntegerOperation[IntRegisterType]):
     """
     A pseudo instruction that zero-extends the least-significant byte of the source to XLEN by copying the
@@ -1891,7 +1857,7 @@ class ZextBOp(RdRsIntegerOperation[IntRegisterType]):
     traits = traits_def(Pure())
 
 
-
+@irdl_op_definition
 class ZextWOp(RdRsIntegerOperation[IntRegisterType]):
     """
     A pseudo instruction that zero-extends the least-significant word of the source to XLEN by inserting 0’s
@@ -1907,7 +1873,7 @@ class ZextWOp(RdRsIntegerOperation[IntRegisterType]):
     traits = traits_def(Pure())
 
 
-
+@irdl_op_definition
 class SextWOp(RdRsIntegerOperation[IntRegisterType]):
     """
     A pseudo instruction that writes the sign-extension of the lower 32 bits of register rs1 into register rd.
@@ -1964,7 +1930,7 @@ class AddOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
         return (AddImmediates(), AdditionOfSameVariablesToMultiplyByTwo())
 
 
-
+@irdl_op_definition
 class AddOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     Adds the registers rs1 and rs2 and stores the result in rd.
@@ -1985,7 +1951,7 @@ class AddOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     )
 
 
-
+@irdl_op_definition
 class SltOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     Place the value 1 in register rd if register rs1 is less than register rs2 when both
@@ -1999,7 +1965,7 @@ class SltOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     name = "riscv.slt"
 
 
-
+@irdl_op_definition
 class SltuOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     Place the value 1 in register rd if register rs1 is less than register rs2 when both
@@ -2024,7 +1990,7 @@ class BitwiseAndHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrai
         return (BitwiseAndByZero(), BitwiseAndBySelf())
 
 
-
+@irdl_op_definition
 class AndOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     Performs bitwise AND on registers rs1 and rs2 and place the result in rd.
@@ -2050,7 +2016,7 @@ class BitwiseOrHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait
         return (BitwiseOrByZero(), BitwiseOrBySelf())
 
 
-
+@irdl_op_definition
 class OrOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     Performs bitwise OR on registers rs1 and rs2 and place the result in rd.
@@ -2076,7 +2042,7 @@ class BitwiseXorHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrai
         return (XorBySelf(), BitwiseXorByZero())
 
 
-
+@irdl_op_definition
 class XorOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     Performs bitwise XOR on registers rs1 and rs2 and place the result in rd.
@@ -2091,7 +2057,7 @@ class XorOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     traits = traits_def(BitwiseXorHasCanonicalizationPatternsTrait())
 
 
-
+@irdl_op_definition
 class SllOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     Performs logical left shift on the value in register rs1 by the shift amount
@@ -2105,7 +2071,7 @@ class SllOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     name = "riscv.sll"
 
 
-
+@irdl_op_definition
 class SrlOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     Logical right shift on the value in register rs1 by the shift amount held
@@ -2131,7 +2097,7 @@ class SubOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
         return (SubImmediates(), SubAddi(), SubBySelf())
 
 
-
+@irdl_op_definition
 class SubOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     Subtracts the registers rs1 and rs2 and stores the result in rd.
@@ -2147,7 +2113,7 @@ class SubOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     traits = traits_def(SubOpHasCanonicalizationPatternsTrait())
 
 
-
+@irdl_op_definition
 class SraOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     Performs arithmetic right shift on the value in register rs1 by the shift amount held
@@ -2161,7 +2127,7 @@ class SraOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     name = "riscv.sra"
 
 
-
+@irdl_op_definition
 class NopOp(NullaryOperation):
     """
     Does not change any user-visible state, except for advancing the pc register.
@@ -2178,7 +2144,7 @@ class NopOp(NullaryOperation):
 # Unconditional jumps
 
 
-
+@irdl_op_definition
 class JalOp(RdImmJumpOperation):
     """
     Jump to address and place return address in rd.
@@ -2193,7 +2159,7 @@ class JalOp(RdImmJumpOperation):
     name = "riscv.jal"
 
 
-
+@irdl_op_definition
 class JOp(RdImmJumpOperation):
     """
     A pseudo-instruction, for unconditional jumps you don't expect to return from.
@@ -2216,7 +2182,7 @@ class JOp(RdImmJumpOperation):
         return (self.immediate,)
 
 
-
+@irdl_op_definition
 class JalrOp(RdRsImmJumpOperation):
     """
     Jump to address and place return address in rd.
@@ -2233,7 +2199,7 @@ class JalrOp(RdRsImmJumpOperation):
     name = "riscv.jalr"
 
 
-
+@irdl_op_definition
 class ReturnOp(NullaryOperation):
     """
     Pseudo-op for returning from subroutine.
@@ -2249,7 +2215,7 @@ class ReturnOp(NullaryOperation):
 # Conditional Branches
 
 
-
+@irdl_op_definition
 class BeqOp(RsRsOffIntegerOperation):
     """
     Take the branch if registers rs1 and rs2 are equal.
@@ -2264,7 +2230,7 @@ class BeqOp(RsRsOffIntegerOperation):
     name = "riscv.beq"
 
 
-
+@irdl_op_definition
 class BneOp(RsRsOffIntegerOperation):
     """
     Take the branch if registers rs1 and rs2 are not equal.
@@ -2279,7 +2245,7 @@ class BneOp(RsRsOffIntegerOperation):
     name = "riscv.bne"
 
 
-
+@irdl_op_definition
 class BltOp(RsRsOffIntegerOperation):
     """
     Take the branch if registers rs1 is less than rs2, using signed comparison.
@@ -2294,7 +2260,7 @@ class BltOp(RsRsOffIntegerOperation):
     name = "riscv.blt"
 
 
-
+@irdl_op_definition
 class BgeOp(RsRsOffIntegerOperation):
     """
     Take the branch if registers rs1 is greater than or equal to rs2, using signed comparison.
@@ -2309,7 +2275,7 @@ class BgeOp(RsRsOffIntegerOperation):
     name = "riscv.bge"
 
 
-
+@irdl_op_definition
 class BltuOp(RsRsOffIntegerOperation):
     """
     Take the branch if registers rs1 is less than rs2, using unsigned comparison.
@@ -2324,7 +2290,7 @@ class BltuOp(RsRsOffIntegerOperation):
     name = "riscv.bltu"
 
 
-
+@irdl_op_definition
 class BgeuOp(RsRsOffIntegerOperation):
     """
     Take the branch if registers rs1 is greater than or equal to rs2, using unsigned comparison.
@@ -2344,7 +2310,7 @@ class BgeuOp(RsRsOffIntegerOperation):
 # region RV32I/RV64I: 2.6 Load and Store Instructions
 
 
-
+@irdl_op_definition
 class LbOp(RdRsImmIntegerOperation):
     """
     Loads a 8-bit value from memory and sign-extends this to XLEN bits before
@@ -2360,7 +2326,7 @@ class LbOp(RdRsImmIntegerOperation):
     name = "riscv.lb"
 
 
-
+@irdl_op_definition
 class LbuOp(RdRsImmIntegerOperation):
     """
     Loads a 8-bit value from memory and zero-extends this to XLEN bits before
@@ -2376,7 +2342,7 @@ class LbuOp(RdRsImmIntegerOperation):
     name = "riscv.lbu"
 
 
-
+@irdl_op_definition
 class LhOp(RdRsImmIntegerOperation):
     """
     Loads a 16-bit value from memory and sign-extends this to XLEN bits before
@@ -2392,7 +2358,7 @@ class LhOp(RdRsImmIntegerOperation):
     name = "riscv.lh"
 
 
-
+@irdl_op_definition
 class LhuOp(RdRsImmIntegerOperation):
     """
     Loads a 16-bit value from memory and zero-extends this to XLEN bits before
@@ -2418,7 +2384,7 @@ class LwOpHasCanonicalizationPatternTrait(HasCanonicalizationPatternsTrait):
         return (LoadWordWithKnownOffset(),)
 
 
-
+@irdl_op_definition
 class LwOp(RdRsImmIntegerOperation):
     """
     Loads a 32-bit value from memory and sign-extends this to XLEN bits before
@@ -2445,7 +2411,7 @@ class LwOp(RdRsImmIntegerOperation):
         )
 
 
-
+@irdl_op_definition
 class SbOp(RsRsImmIntegerOperation):
     """
     Store 8-bit, values from the low bits of register rs2 to memory.
@@ -2460,7 +2426,7 @@ class SbOp(RsRsImmIntegerOperation):
     name = "riscv.sb"
 
 
-
+@irdl_op_definition
 class ShOp(RsRsImmIntegerOperation):
     """
     Store 16-bit, values from the low bits of register rs2 to memory.
@@ -2486,7 +2452,7 @@ class SwOpHasCanonicalizationPatternTrait(HasCanonicalizationPatternsTrait):
         return (StoreWordWithKnownOffset(),)
 
 
-
+@irdl_op_definition
 class SwOp(RsRsImmIntegerOperation):
     """
     Store 32-bit, values from the low bits of register rs2 to memory.
@@ -2517,7 +2483,7 @@ class SwOp(RsRsImmIntegerOperation):
 # region RV32I/RV64I: 2.8 Control and Status Register Instructions
 
 
-
+@irdl_op_definition
 class CsrrwOp(CsrReadWriteOperation):
     """
     Atomically swaps values in the CSRs and integer registers.
@@ -2535,7 +2501,7 @@ class CsrrwOp(CsrReadWriteOperation):
     name = "riscv.csrrw"
 
 
-
+@irdl_op_definition
 class CsrrsOp(CsrBitwiseOperation):
     """
     Reads the value of the CSR, zero-extends the value to XLEN bits, and writes
@@ -2560,7 +2526,7 @@ class CsrrsOp(CsrBitwiseOperation):
     name = "riscv.csrrs"
 
 
-
+@irdl_op_definition
 class CsrrcOp(CsrBitwiseOperation):
     """
     Reads the value of the CSR, zero-extends the value to XLEN bits, and writes
@@ -2585,7 +2551,7 @@ class CsrrcOp(CsrBitwiseOperation):
     name = "riscv.csrrc"
 
 
-
+@irdl_op_definition
 class CsrrwiOp(CsrReadWriteImmOperation):
     """
     Update the CSR using an XLEN-bit value obtained by zero-extending the
@@ -2602,7 +2568,7 @@ class CsrrwiOp(CsrReadWriteImmOperation):
     name = "riscv.csrrwi"
 
 
-
+@irdl_op_definition
 class CsrrsiOp(CsrBitwiseImmOperation):
     """
     Reads the value of the CSR, zero-extends the value to XLEN bits, and writes
@@ -2625,7 +2591,7 @@ class CsrrsiOp(CsrBitwiseImmOperation):
     name = "riscv.csrrsi"
 
 
-
+@irdl_op_definition
 class CsrrciOp(CsrBitwiseImmOperation):
     """
     Reads the value of the CSR, zero-extends the value to XLEN bits, and writes
@@ -2665,7 +2631,7 @@ class MulOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
         return (MultiplyImmediates(),)
 
 
-
+@irdl_op_definition
 class MulOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     Performs an XLEN-bit × XLEN-bit multiplication of signed rs1 by signed rs2
@@ -2680,7 +2646,7 @@ class MulOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     traits = traits_def(MulOpHasCanonicalizationPatternsTrait(), Pure())
 
 
-
+@irdl_op_definition
 class MulhOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     Performs an XLEN-bit × XLEN-bit multiplication of signed rs1 by signed rs2
@@ -2693,7 +2659,7 @@ class MulhOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     name = "riscv.mulh"
 
 
-
+@irdl_op_definition
 class MulhsuOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     Performs an XLEN-bit × XLEN-bit multiplication of signed rs1 by unsigned rs2
@@ -2706,7 +2672,7 @@ class MulhsuOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     name = "riscv.mulhsu"
 
 
-
+@irdl_op_definition
 class MulhuOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     Performs an XLEN-bit × XLEN-bit multiplication of unsigned rs1 by unsigned rs2
@@ -2719,7 +2685,7 @@ class MulhuOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     name = "riscv.mulhu"
 
 
-
+@irdl_op_definition
 class MulwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     Performs an 32-bit × 32-bit multiplication of signed rs1 by signed rs2.
@@ -2744,7 +2710,7 @@ class DivOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
 
 
 ## Division Operations
-
+@irdl_op_definition
 class DivOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     Perform an XLEN bits by XLEN bits signed integer division of rs1 by rs2,
@@ -2758,7 +2724,7 @@ class DivOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     traits = traits_def(DivOpHasCanonicalizationPatternsTrait(), Pure())
 
 
-
+@irdl_op_definition
 class DivuOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     Perform an XLEN bits by XLEN bits unsigned integer division of rs1 by rs2,
@@ -2771,7 +2737,7 @@ class DivuOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     name = "riscv.divu"
 
 
-
+@irdl_op_definition
 class DivuwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     Perform an 32 bits by 32 bits unsigned integer division of rs1 by rs2.
@@ -2785,7 +2751,7 @@ class DivuwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     name = "riscv.divuw"
 
 
-
+@irdl_op_definition
 class DivwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     Perform an 32 bits by 32 bits signed integer division of rs1 by rs2.
@@ -2799,7 +2765,7 @@ class DivwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     name = "riscv.divw"
 
 
-
+@irdl_op_definition
 class RemOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     Perform an XLEN bits by XLEN bits signed integer reminder of rs1 by rs2.
@@ -2811,7 +2777,7 @@ class RemOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     name = "riscv.rem"
 
 
-
+@irdl_op_definition
 class RemuOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     Perform an XLEN bits by XLEN bits unsigned integer reminder of rs1 by rs2.
@@ -2823,7 +2789,7 @@ class RemuOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     name = "riscv.remu"
 
 
-
+@irdl_op_definition
 class RemuwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     Perform an 32 bits by 32 bits unsigned integer reminder of rs1 by rs2.
@@ -2836,7 +2802,7 @@ class RemuwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     name = "riscv.remuw"
 
 
-
+@irdl_op_definition
 class RemwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     Perform an 32 bits by 32 bits signed integer reminder of rs1 by rs2.
@@ -2856,7 +2822,7 @@ class RemwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
 ## ZBB extension for Basic Bit-Manipulation. (not complete: population count missing)
 
 
-
+@irdl_op_definition
 class RolOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     Performs a rotate left of rs1 by the amount in least-significant log2(XLEN) bits of rs2.
@@ -2875,7 +2841,7 @@ class RolOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     traits = traits_def(Pure())
 
 
-
+@irdl_op_definition
 class RorOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     Performs a rotate right of rs1 by the amount in least-significant log2(XLEN) bits of rs2.
@@ -2894,7 +2860,7 @@ class RorOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     traits = traits_def(Pure())
 
 
-
+@irdl_op_definition
 class SextHOp(RdRsIntegerOperation[IntRegisterType]):
     """
     This instruction sign-extends the least-significant halfword in rs to XLEN by copying the
@@ -2910,7 +2876,7 @@ class SextHOp(RdRsIntegerOperation[IntRegisterType]):
     traits = traits_def(Pure())
 
 
-
+@irdl_op_definition
 class ZextHOp(RdRsIntegerOperation[IntRegisterType]):
     """
     This instruction zero-extends the least-significant halfword of the source to XLEN by inserting
@@ -2926,7 +2892,7 @@ class ZextHOp(RdRsIntegerOperation[IntRegisterType]):
     traits = traits_def(Pure())
 
 
-
+@irdl_op_definition
 class SextBOp(RdRsIntegerOperation[IntRegisterType]):
     """
     This instruction sign-extends the least-significant byte in the source to XLEN by copying
@@ -2942,7 +2908,7 @@ class SextBOp(RdRsIntegerOperation[IntRegisterType]):
     traits = traits_def(Pure())
 
 
-
+@irdl_op_definition
 class BclrOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     This instruction returns rs1 with a single bit cleared at the index specified in rs2.
@@ -2959,7 +2925,7 @@ class BclrOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     traits = traits_def(Pure())
 
 
-
+@irdl_op_definition
 class BclrIOp(RdRsImmShiftOperation):
     """
     This instruction returns rs1 with a single bit cleared at the index specified in shamt.
@@ -2977,7 +2943,7 @@ class BclrIOp(RdRsImmShiftOperation):
     traits = traits_def(Pure())
 
 
-
+@irdl_op_definition
 class BextOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     This instruction returns a single bit extracted from rs1 at the index specified in rs2.
@@ -2994,7 +2960,7 @@ class BextOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     traits = traits_def(Pure())
 
 
-
+@irdl_op_definition
 class BextIOp(RdRsImmShiftOperation):
     """
     This instruction returns a single bit extracted from rs1 at the index specified in rs2.
@@ -3012,7 +2978,7 @@ class BextIOp(RdRsImmShiftOperation):
     traits = traits_def(Pure())
 
 
-
+@irdl_op_definition
 class BinvOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     This instruction returns rs1 with a single bit inverted at the index specified in shamt.
@@ -3030,7 +2996,7 @@ class BinvOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     traits = traits_def(Pure())
 
 
-
+@irdl_op_definition
 class BinvIOp(RdRsImmShiftOperation):
     """
     This instruction returns rs1 with a single bit cleared at the index specified in shamt. The index
@@ -3048,7 +3014,7 @@ class BinvIOp(RdRsImmShiftOperation):
     traits = traits_def(Pure())
 
 
-
+@irdl_op_definition
 class BsetOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     This instruction returns rs1 with a single bit set at the index specified in rs2.
@@ -3065,7 +3031,7 @@ class BsetOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     traits = traits_def(Pure())
 
 
-
+@irdl_op_definition
 class BsetIOp(RdRsImmShiftOperation):
     """
     This instruction returns rs1 with a single bit set at the index specified in shamt. The index is read
@@ -3083,7 +3049,7 @@ class BsetIOp(RdRsImmShiftOperation):
     traits = traits_def(Pure())
 
 
-
+@irdl_op_definition
 class RolwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     This instruction performs a rotate left on the least-significant word of rs1 by the amount in
@@ -3103,7 +3069,7 @@ class RolwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     traits = traits_def(Pure())
 
 
-
+@irdl_op_definition
 class RorwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     This instruction performs a rotate right on the least-significant word of rs1 by the amount in
@@ -3123,7 +3089,7 @@ class RorwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     traits = traits_def(Pure())
 
 
-
+@irdl_op_definition
 class RoriOp(RdRsImmShiftOperation):
     """
     This instruction performs a rotate right of rs1 by the amount in the least-significant
@@ -3143,7 +3109,7 @@ class RoriOp(RdRsImmShiftOperation):
     traits = traits_def(Pure())
 
 
-
+@irdl_op_definition
 class RoriwOp(RdRsImmShiftOperation):
     """
     This instruction performs a rotate right on the least-significant word of rs1 by the amount in
@@ -3162,7 +3128,7 @@ class RoriwOp(RdRsImmShiftOperation):
     traits = traits_def(Pure())
 
 
-
+@irdl_op_definition
 class AddUwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     This instruction performs an XLEN-wide addition between rs2 and the zero-extended least-significant
@@ -3180,7 +3146,7 @@ class AddUwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     traits = traits_def(Pure())
 
 
-
+@irdl_op_definition
 class Sh1addOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     This instruction shifts rs1 to the left by 1 bit and adds it to rs2.
@@ -3195,7 +3161,7 @@ class Sh1addOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     traits = traits_def(Pure())
 
 
-
+@irdl_op_definition
 class Sh2addOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     This instruction shifts rs1 to the left by 2 places and adds it to rs2.
@@ -3210,7 +3176,7 @@ class Sh2addOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     traits = traits_def(Pure())
 
 
-
+@irdl_op_definition
 class Sh3addOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     This instruction shifts rs1 to the left by 2 places and adds it to rs2.
@@ -3225,7 +3191,7 @@ class Sh3addOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     traits = traits_def(Pure())
 
 
-
+@irdl_op_definition
 class Sh1addUwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     This instruction performs an XLEN-wide addition of two addends. The first addend is rs2.
@@ -3245,7 +3211,7 @@ class Sh1addUwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     traits = traits_def(Pure())
 
 
-
+@irdl_op_definition
 class Sh2addUwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     This instruction performs an XLEN-wide addition of two addends. The first addend is rs2.
@@ -3264,7 +3230,7 @@ class Sh2addUwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     traits = traits_def(Pure())
 
 
-
+@irdl_op_definition
 class Sh3addUwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     This instruction performs an XLEN-wide addition of two addends. The first addend is rs2.
@@ -3284,7 +3250,7 @@ class Sh3addUwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     traits = traits_def(Pure())
 
 
-
+@irdl_op_definition
 class SlliUwOp(RdRsImmShiftOperation):
     """
     This instruction takes the least-significant word of rs1, zero-extends it,
@@ -3300,7 +3266,7 @@ class SlliUwOp(RdRsImmShiftOperation):
     traits = traits_def(Pure())
 
 
-
+@irdl_op_definition
 class AndnOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     This instruction performs the bitwise logical AND operation between rs1 and the bitwise inversion of rs2.
@@ -3315,7 +3281,7 @@ class AndnOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     traits = traits_def(Pure())
 
 
-
+@irdl_op_definition
 class OrnOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     This instruction performs the bitwise logical OR operation between rs1 and the bitwise inversion of rs2.
@@ -3330,7 +3296,7 @@ class OrnOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     traits = traits_def(Pure())
 
 
-
+@irdl_op_definition
 class XnorOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     This instruction performs the bit-wise exclusive-NOR operation on rs1 and rs2.
@@ -3345,7 +3311,7 @@ class XnorOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     traits = traits_def(Pure())
 
 
-
+@irdl_op_definition
 class MaxOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     This instruction returns the larger of two signed integers.
@@ -3366,7 +3332,7 @@ class MaxOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     traits = traits_def(Pure())
 
 
-
+@irdl_op_definition
 class MaxUOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     This instruction returns the larger of two unsigned integers.
@@ -3386,7 +3352,7 @@ class MaxUOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     traits = traits_def(Pure())
 
 
-
+@irdl_op_definition
 class MinOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     This instruction returns the smaller of two signed integers.
@@ -3406,7 +3372,7 @@ class MinOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     traits = traits_def(Pure())
 
 
-
+@irdl_op_definition
 class MinUOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     This instruction returns the smaller of two unsigned integers.
@@ -3430,7 +3396,7 @@ class MinUOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
 
 
 # region "ZiCond" Conditional" operations extension
-
+@irdl_op_definition
 class CZeroEqzOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     Moves zero to a register rd, if the condition rs2 is equal to zero, otherwise moves rs1 to rd.
@@ -3441,7 +3407,7 @@ class CZeroEqzOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     name = "riscv.czero.eqz"
 
 
-
+@irdl_op_definition
 class CZeroNezOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     Moves zero to a register rd, if the condition rs2 is nonzero, otherwise moves rs1 to rd.
@@ -3468,7 +3434,7 @@ class LiOpHasCanonicalizationPatternTrait(HasCanonicalizationPatternsTrait):
         return (LoadImmediate0(),)
 
 
-
+@irdl_op_definition
 class LiOp(RISCVCustomFormatOperation, RISCVInstruction, ConstantLikeInterface, ABC):
     """
     Loads a 32-bit immediate into rd.
@@ -3537,7 +3503,7 @@ class LiOp(RISCVCustomFormatOperation, RISCVInstruction, ConstantLikeInterface, 
         printer.print_attribute(self.rd.type)
 
 
-
+@irdl_op_definition
 class EcallOp(NullaryOperation):
     """
     The ECALL instruction is used to make a request to the supporting execution
@@ -3552,8 +3518,8 @@ class EcallOp(NullaryOperation):
     name = "riscv.ecall"
 
 
-
-class LabelOp(RISCVCustomFormatOperation, RISCVAsmOperation, RISCVRegallocOperation):
+@irdl_op_definition
+class LabelOp(RISCVCustomFormatOperation, RISCVAsmOperation):
     """
     The label operation is used to emit text labels (e.g. loop:) that are used
     as branch, unconditional jump targets and symbol offsets.
@@ -3607,10 +3573,8 @@ class LabelOp(RISCVCustomFormatOperation, RISCVAsmOperation, RISCVRegallocOperat
         return (), ()
 
 
-
-class DirectiveOp(
-    RISCVCustomFormatOperation, RISCVAsmOperation, RISCVRegallocOperation
-):
+@irdl_op_definition
+class DirectiveOp(RISCVCustomFormatOperation, RISCVAsmOperation):
     """
     The directive operation is used to emit assembler directives (e.g. .word; .equ; etc.)
     without any associated region of assembly code.
@@ -3678,7 +3642,7 @@ class DirectiveOp(
         return (), ()
 
 
-
+@irdl_op_definition
 class AssemblySectionOp(IRDLOperation, AssemblyPrintable):
     """
     The directive operation is used to emit assembler directives (e.g. .text; .data; etc.)
@@ -3742,7 +3706,7 @@ class AssemblySectionOp(IRDLOperation, AssemblyPrintable):
         printer.emit_section(self.directive.data)
 
 
-
+@irdl_op_definition
 class CustomAssemblyInstructionOp(RISCVCustomFormatOperation, RISCVInstruction):
     """
     An instruction with unspecified semantics, that can be printed during assembly
@@ -3797,7 +3761,7 @@ class CustomAssemblyInstructionOp(RISCVCustomFormatOperation, RISCVInstruction):
 
 
 @irdl_op_definition
-class CommentOp(RISCVCustomFormatOperation, RISCVAsmOperation, RISCVRegallocOperation):
+class CommentOp(RISCVCustomFormatOperation, RISCVAsmOperation):
     name = "riscv.comment"
     comment = attr_def(StringAttr)
 
@@ -3815,7 +3779,7 @@ class CommentOp(RISCVCustomFormatOperation, RISCVAsmOperation, RISCVRegallocOper
         return f"    # {self.comment.data}"
 
 
-
+@irdl_op_definition
 class EbreakOp(NullaryOperation):
     """
     The EBREAK instruction is used by debuggers to cause control to be
@@ -3827,7 +3791,7 @@ class EbreakOp(NullaryOperation):
     name = "riscv.ebreak"
 
 
-
+@irdl_op_definition
 class WfiOp(NullaryOperation):
     """
     The Wait for Interrupt instruction (WFI) provides a hint to the
@@ -3846,11 +3810,7 @@ class WfiOp(NullaryOperation):
 
 
 class GetAnyRegisterOperation(
-    RISCVCustomFormatOperation,
-    RISCVAsmOperation,
-    RISCVRegallocOperation,
-    ABC,
-    Generic[RDInvT],
+    RISCVCustomFormatOperation, RISCVAsmOperation, ABC, Generic[RDInvT]
 ):
     """
     This instruction allows us to create an SSAValue with for a given register name. This
@@ -3911,14 +3871,14 @@ class GetFloatRegisterOp(GetAnyRegisterOperation[FloatRegisterType]):
 
 
 @irdl_op_definition
-class ParallelMovOp(RISCVRegallocOperation):
+class ParallelMovOp(IRDLOperation):
     name = "riscv.parallel_mov"
     inputs = var_operand_def(RISCVRegisterType)
-    outputs: VarOpResult[RISCVRegisterType] = var_result_def(RISCVRegisterType)
+    outputs = var_result_def(RISCVRegisterType)
     free_registers = opt_prop_def(ArrayAttr[RISCVRegisterType])
 
     assembly_format = "$inputs attr-dict `:` functional-type($inputs, $outputs)"
-    irdl_options = (ParsePropInAttrDict(),)
+    irdl_options = [ParsePropInAttrDict()]
 
     def __init__(
         self,
@@ -4942,7 +4902,120 @@ def print_immediate_value(printer: Printer, immediate: IntegerAttr | LabelAttr):
 RISCV = Dialect(
     "riscv",
     [
+        AddiOp,
+        SltiOp,
+        SltiuOp,
+        AndiOp,
+        OriOp,
+        XoriOp,
+        SlliOp,
+        SrliOp,
+        SraiOp,
+        LuiOp,
+        AuipcOp,
         MVOp,
+        SeqzOp,
+        SnezOp,
+        ZextBOp,
+        ZextWOp,
+        SextWOp,
+        AddOp,
+        SltOp,
+        SltuOp,
+        AndOp,
+        OrOp,
+        XorOp,
+        SllOp,
+        SrlOp,
+        SubOp,
+        SraOp,
+        NopOp,
+        JalOp,
+        JOp,
+        JalrOp,
+        ReturnOp,
+        BeqOp,
+        BneOp,
+        BltOp,
+        BgeOp,
+        BltuOp,
+        BgeuOp,
+        LbOp,
+        LbuOp,
+        LhOp,
+        LhuOp,
+        LwOp,
+        SbOp,
+        ShOp,
+        SwOp,
+        CsrrwOp,
+        CsrrsOp,
+        CsrrcOp,
+        CsrrwiOp,
+        CsrrsiOp,
+        CsrrciOp,
+        MulOp,
+        MulhOp,
+        MulhsuOp,
+        MulhuOp,
+        DivOp,
+        DivuOp,
+        RemOp,
+        RemuOp,
+        LiOp,
+        RolOp,
+        RorOp,
+        RemuwOp,
+        SrliwOp,
+        SraiwOp,
+        AddwOp,
+        SubwOp,
+        SllwOp,
+        SrlwOp,
+        SrawOp,
+        RemwOp,
+        MulwOp,
+        DivwOp,
+        DivuwOp,
+        CZeroEqzOp,
+        CZeroNezOp,
+        BclrOp,
+        BextOp,
+        BinvOp,
+        BsetOp,
+        RolwOp,
+        RorwOp,
+        AddUwOp,
+        Sh1addOp,
+        Sh2addOp,
+        Sh3addOp,
+        Sh1addUwOp,
+        Sh2addUwOp,
+        Sh3addUwOp,
+        SextBOp,
+        SextHOp,
+        ZextHOp,
+        AndnOp,
+        OrnOp,
+        XnorOp,
+        MaxOp,
+        MaxUOp,
+        MinOp,
+        MinUOp,
+        BclrIOp,
+        BextIOp,
+        BsetIOp,
+        BinvIOp,
+        RoriOp,
+        RoriwOp,
+        SlliUwOp,
+        EcallOp,
+        LabelOp,
+        DirectiveOp,
+        AssemblySectionOp,
+        EbreakOp,
+        WfiOp,
+        CustomAssemblyInstructionOp,
         CommentOp,
         GetRegisterOp,
         GetFloatRegisterOp,
