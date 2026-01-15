@@ -969,7 +969,7 @@ class EmitC_ConstantOp(IRDLOperation):
     value = prop_def(EmitC_OpaqueOrTypedAttr)
     result = result_def(EmitCTypeConstr)
 
-    assembly_format = " attr-dict $value `:` type(results)"
+    #assembly_format = " attr-dict $value `:` type(results)"
 
     irdl_options = (ParsePropInAttrDict(), )
 
@@ -1078,6 +1078,35 @@ class EmitC_DivOp(EmitC_BinaryOperation):
             rhs,
             result_type
         )
+
+
+@irdl_op_definition
+class EmitC_IncludeOp(IRDLOperation):
+    """
+    Include operation.
+
+    The `emitc.include` operation allows to define a source file inclusion via the
+    `#include` directive.
+
+    Example:
+
+    ```mlir
+    // Custom form defining the inclusion of `<myheader>`.
+    emitc.include <"myheader.h">
+
+    // Generic form of the same operation.
+    "emitc.include" (){include = "myheader.h", is_standard_include} : () -> ()
+
+    // Custom form defining the inclusion of `"myheader"`.
+    emitc.include "myheader.h"
+
+    // Generic form of the same operation.
+    "emitc.include" (){include = "myheader.h"} : () -> ()
+    ```
+    """
+
+    name = "emitc.include"
+    include = prop_def(StringAttr)
 
 
 @irdl_op_definition
@@ -1575,6 +1604,8 @@ class EmitC_VariableOp(IRDLOperation):
     value = prop_def(EmitC_OpaqueOrTypedAttr)
     result = result_def(EmitC_ArrayType | EmitC_LValueType)
 
+    #assembly_format = " attr-dict $value `:` type(results)"
+
     def __init__(
         self,
         value: EmitC_OpaqueOrTypedAttr,
@@ -1620,6 +1651,7 @@ EmitC = Dialect(
         EmitC_ConstantOp,
         EmitC_DereferenceOp,
         EmitC_DivOp,
+        EmitC_IncludeOp,
         EmitC_LiteralOp,
         EmitC_LoadOp,
         EmitC_LogicalAndOp,
