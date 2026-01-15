@@ -93,80 +93,80 @@ class RdRsImmShiftOperationRV64(RISCVCustomFormatOperation, RISCVInstruction, AB
     
 @irdl_op_definition
 class SlliRV64Op(RdRsImmShiftOperationRV64):
-    name = "riscv32.slli"
+    name = "riscv64.slli"
 
     traits = traits_def(SlliOpHasCanonicalizationPatternsTrait())
 
 
 @irdl_op_definition
 class SrliRV64Op(RdRsImmShiftOperationRV64):
-    name = "riscv32.srli"
+    name = "riscv64.srli"
 
     traits = traits_def(SrliOpHasCanonicalizationPatternsTrait())
 
 
 @irdl_op_definition
 class SraiRV64Op(RdRsImmShiftOperationRV64):
-    name = "riscv32.srai"
+    name = "riscv64.srai"
 
 
 @irdl_op_definition
 class SlliwRV64Op(RdRsImmShiftOperationRV64):
-    name = "riscv32.slliw"
+    name = "riscv64.slliw"
 
     traits = traits_def(Pure())
 
 
 @irdl_op_definition
 class SrliwRV64Op(RdRsImmShiftOperationRV64):
-    name = "riscv32.srliw"
+    name = "riscv64.srliw"
 
     traits = traits_def(Pure())
     
 
 @irdl_op_definition
 class RoriRV64Op(RdRsImmShiftOperationRV64):
-    name = "riscv32.rori"
+    name = "riscv64.rori"
     
     traits = traits_def(Pure())
     
 
 @irdl_op_definition
 class RoriwRV64Op(RdRsImmShiftOperationRV64):
-    name = "riscv32.roriw"
+    name = "riscv64.roriw"
     
     traits = traits_def(Pure())
 
 
 @irdl_op_definition
 class SlliUwRV64Op(RdRsImmShiftOperationRV64):
-    name = "riscv32.slli.uw"
+    name = "riscv64.slli.uw"
     
     traits = traits_def(Pure())
 
 
 @irdl_op_definition
 class BclrIRV64Op(RdRsImmShiftOperationRV64):
-    name = "riscv32.bclri"
+    name = "riscv64.bclri"
     
     traits = traits_def(Pure())
 
 
 @irdl_op_definition
 class BextIRV64Op(RdRsImmShiftOperationRV64):
-    name = "riscv32.bexti"
+    name = "riscv64.bexti"
 
 
 @irdl_op_definition
 class BinvIRV64Op(RdRsImmShiftOperationRV64):
-    name = "riscv32.binvi"
+    name = "riscv64.binvi"
     
     traits = traits_def(Pure())
 
 
 @irdl_op_definition
 class BsetIRV64Op(RdRsImmShiftOperationRV64):
-    name = "riscv32.bseti"
+    name = "riscv64.bseti"
 
     traits = traits_def(Pure())
 
