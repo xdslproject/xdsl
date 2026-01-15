@@ -168,6 +168,15 @@ def test_llvm_ptr_to_int_to_ptr():
     assert int_val.output.type.width.data == 64
 
 
+def test_ptr_to_int_op():
+    ptr_type = llvm.LLVMPointerType()
+    ptr = create_ssa_value(ptr_type)
+    op = llvm.PtrToIntOp(ptr, builtin.i32)
+
+    assert op.input == ptr
+    assert op.output.type == builtin.i32
+
+
 def test_llvm_getelementptr_op():
     size = arith.ConstantOp.from_int_and_width(1, 32)
     ptr = llvm.AllocaOp(size, builtin.i32)

@@ -12,6 +12,7 @@
   %5 = "llvm.load"(%4) : (!llvm.ptr) -> i64
   %8 = "llvm.load"(%4) <{"alignment" = 16 : i64}> : (!llvm.ptr) -> i32
   %9 = "llvm.load"(%4) <{"alignment" = 32 : i64, "ordering" = 1 : i64}> : (!llvm.ptr) -> i32
+  %ptr_int = "llvm.ptrtoint"(%1) : (!llvm.ptr) -> i64
 }) : () -> ()
 
 // CHECK:       "builtin.module"() ({
@@ -26,4 +27,5 @@
 // CHECK-NEXT:    %6 = "llvm.load"(%3) <{ordering = 0 : i64}> : (!llvm.ptr) -> i64
 // CHECK-NEXT:    %8 = "llvm.load"(%3) <{alignment = 16 : i64, ordering = 0 : i64}> : (!llvm.ptr) -> i32
 // CHECK-NEXT:    %9 = "llvm.load"(%3) <{alignment = 32 : i64, ordering = 1 : i64}> : (!llvm.ptr) -> i32
+// CHECK-NEXT:    %10 = "llvm.ptrtoint"(%1) : (!llvm.ptr) -> i64
 // CHECK-NEXT:  }) : () -> ()
