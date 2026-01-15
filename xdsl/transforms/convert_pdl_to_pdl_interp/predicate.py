@@ -319,7 +319,7 @@ class Predicate:
     def get_constraint(
         name: str,
         arg_positions: tuple[Position, ...],
-        result_types: tuple[pdl.AnyPDLType, ...],
+        result_types: tuple[pdl.AnyPDLType | pdl.RangeType[pdl.AnyPDLType], ...],
         is_negated: bool = False,
     ) -> "Predicate":
         """Get predicate for a native constraint"""
@@ -384,7 +384,7 @@ class ConstraintQuestion(Question):
 
     name: str
     arg_positions: tuple[Position, ...]
-    result_types: tuple[pdl.AnyPDLType, ...]
+    result_types: tuple[pdl.AnyPDLType | pdl.RangeType[pdl.AnyPDLType], ...]
     is_negated: bool
 
 
