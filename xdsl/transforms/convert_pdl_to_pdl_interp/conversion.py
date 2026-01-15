@@ -13,7 +13,6 @@ from xdsl.dialects import pdl, pdl_interp
 from xdsl.dialects.builtin import (
     ArrayAttr,
     FunctionType,
-    IntegerAttr,
     ModuleOp,
     StringAttr,
     SymbolRefAttr,
@@ -1423,22 +1422,14 @@ class MatcherGenerator:
             case OperandCountQuestion():
                 # Extract integer values from UnsignedAnswer objects
                 switch_values = [cast(UnsignedAnswer, ans).value for ans in case_values]
-                switch_attr = ArrayAttr([IntegerAttr(v, 32) for v in switch_values])
-                raise NotImplementedError(
-                    "pdl_interp.switch_operand_count is not yet implemented"
-                )
                 switch_op = pdl_interp.SwitchOperandCountOp(
-                    switch_attr, val, default_dest, case_blocks
+                    switch_values, val, default_dest, case_blocks
                 )
             case ResultCountQuestion():
                 # Extract integer values from UnsignedAnswer objects
                 switch_values = [cast(UnsignedAnswer, ans).value for ans in case_values]
-                switch_attr = ArrayAttr([IntegerAttr(v, 32) for v in switch_values])
-                raise NotImplementedError(
-                    "pdl_interp.switch_result_count is not yet implemented"
-                )
                 switch_op = pdl_interp.SwitchResultCountOp(
-                    switch_attr, val, default_dest, case_blocks
+                    switch_values, val, default_dest, case_blocks
                 )
             case TypeConstraintQuestion():
                 # Extract type attributes from TypeAnswer objects
@@ -1655,9 +1646,8 @@ class MatcherGenerator:
     ):
         arguments = [map_rewrite_value(arg) for arg in op.args]
         result_types = [res.type for res in op.res]
-        raise NotImplementedError("pdl_interp.apply_rewrite is not yet implemented")
         interp_op = pdl_interp.ApplyRewriteOp(
-            arguments, name=op.constraint_name, result_types=result_types
+            op.constraint_name, arguments, result_types
         )
         self.rewriter_builder.insert(interp_op)
         for old_res, new_res in zip(op.results, interp_op.results, strict=True):
@@ -1680,7 +1670,6 @@ class MatcherGenerator:
         rewrite_values: dict[SSAValue, SSAValue],
         map_rewrite_value: Callable[[SSAValue], SSAValue],
     ) -> None:
-        raise NotImplementedError("pdl_interp.erase is not yet implemented")
         self.rewriter_builder.insert(pdl_interp.EraseOp(map_rewrite_value(op.op_value)))
 
     def _generate_rewriter_for_operation(
