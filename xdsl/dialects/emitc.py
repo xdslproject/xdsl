@@ -57,11 +57,15 @@ from xdsl.irdl import (
     prop_def,
     region_def,
     result_def,
+    traits_def,
     var_operand_def,
     var_result_def,
 )
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
+from xdsl.traits import (
+    Pure
+)
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
@@ -970,7 +974,7 @@ class EmitC_ConstantOp(IRDLOperation):
 
     #assembly_format = " attr-dict $value `:` type(results)"
 
-    irdl_options = (ParsePropInAttrDict(), )
+    #irdl_options = (ParsePropInAttrDict(), )
 
     def __init__(
         self,
@@ -1150,6 +1154,8 @@ class EmitC_LiteralOp(IRDLOperation):
 
     value = prop_def(StringAttr)
     result = result_def(EmitCTypeConstr)
+
+    traits = traits_def(Pure())
 
     assembly_format = "$value attr-dict `:` type($result)"
 

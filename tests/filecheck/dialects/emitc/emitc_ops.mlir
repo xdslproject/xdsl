@@ -252,3 +252,10 @@ emitc.assign %cons_int : i32 to %variable : !emitc.lvalue<i32>
 // CHECK: %subscript_opaque = emitc.subscript %opaque_map[%idx2] : (!emitc.opaque<"std::map<char, int>">, !emitc.opaque<"char">) -> !emitc.lvalue<!emitc.opaque<"int">>
 // CHECK-GENERIC: %subscript_opaque = "emitc.subscript"(%opaque_map, %idx2) : (!emitc.opaque<"std::map<char, int>">, !emitc.opaque<"char">) -> !emitc.lvalue<!emitc.opaque<"int">>
 
+//===----------------------------------------------------------------------===//
+// LiteralOp
+//===----------------------------------------------------------------------===//
+
+%lit = emitc.literal "1" : i32
+// CHECK: %lit = emitc.literal "1" : i32
+// CHECK-GENERIC: %lit = "emitc.literal"() <{value = "1"}> : () -> i32
