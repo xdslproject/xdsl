@@ -10,7 +10,7 @@ See external [documentation](https://mlir.llvm.org/docs/Dialects/EmitC/).
 import abc
 from collections.abc import Iterable, Mapping, Sequence
 from enum import IntEnum
-from typing import Generic, Literal
+from typing import Generic, Literal, Optional
 
 from typing_extensions import TypeVar, cast
 
@@ -804,7 +804,7 @@ class EmitC_CmpPredicateValue(IntEnum):
     three_way = 6
 
     @classmethod
-    def has_value(cls, val) -> bool:
+    def has_value(cls, val: int) -> bool:
         return val in cls._value2member_map_
 
 @irdl_op_definition
@@ -853,20 +853,19 @@ class EmitC_CmpOp(EmitC_BinaryOperation):
 
     def __init__(
         self,
-        pred,
-        lhs,
-        rhs,
-        result_type
+        pred : int,
+        lhs : SSAValue,
+        rhs : SSAValue,
+        result_type : Attribute
     ):
         if not EmitC_CmpPredicateValue.has_value(pred):
             raise VerifyException(f"Got nonexistent predicate value: {pred}")
 
-        super.__init__(
-            lhs,
-            rhs,
-            result_type,
-            properties={pred}
-        )
+        '''super.__init__(
+            operands=[lhs, rhs],
+            result_types=[result_type],
+            properties={"predicate" : pred}
+        )'''
 
 
 @irdl_op_definition
@@ -1107,6 +1106,24 @@ class EmitC_IncludeOp(IRDLOperation):
 
     name = "emitc.include"
     include = prop_def(StringAttr)
+    is_standard_include = opt_prop_def(UnitAttr)
+
+    irdl_options = (ParsePropInAttrDict(), )
+
+    assembly_format = "attr-dict ` `(`<` $is_standard_include^)? $include `>`"
+
+    def __init__(
+        self,
+        include : StringAttr,
+        is_standard_include : Optional[UnitAttr] = None
+    ):
+        super().__init__(
+            operands=[],
+            properties={
+                "include": include,
+                "is_standard_include" : is_standard_include
+            }
+        )
 
 
 @irdl_op_definition

@@ -12,6 +12,17 @@
 %idx0, %idx1, %idx2 = "test.op"() : () -> (index, i32, !emitc.opaque<"char">)
 %opaque_map = "test.op"() : () -> !emitc.opaque<"std::map<char, int>">
 
+
+//===----------------------------------------------------------------------===//
+// IncludeOp
+//===----------------------------------------------------------------------===//
+
+// CHECK: emitc.include <"test.h">
+emitc.include <"test.h">
+
+// CHECK: emitc.include "test.h"
+emitc.include "test.h"
+
 //===----------------------------------------------------------------------===//
 // CallOpaqueOp
 //===----------------------------------------------------------------------===//
@@ -240,3 +251,4 @@ emitc.assign %cons_int : i32 to %variable : !emitc.lvalue<i32>
 %subscript_opaque = emitc.subscript %opaque_map[%idx2] : (!emitc.opaque<"std::map<char, int>">, !emitc.opaque<"char">) -> !emitc.lvalue<!emitc.opaque<"int">>
 // CHECK: %subscript_opaque = emitc.subscript %opaque_map[%idx2] : (!emitc.opaque<"std::map<char, int>">, !emitc.opaque<"char">) -> !emitc.lvalue<!emitc.opaque<"int">>
 // CHECK-GENERIC: %subscript_opaque = "emitc.subscript"(%opaque_map, %idx2) : (!emitc.opaque<"std::map<char, int>">, !emitc.opaque<"char">) -> !emitc.lvalue<!emitc.opaque<"int">>
+
