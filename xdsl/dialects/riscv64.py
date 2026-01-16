@@ -93,80 +93,80 @@ class RdRsImmShiftOperationRV64(RISCVCustomFormatOperation, RISCVInstruction, AB
 
 
 @irdl_op_definition
-class SlliRV64Op(RdRsImmShiftOperationRV64):
+class SlliOp(RdRsImmShiftOperationRV64):
     name = "riscv64.slli"
 
     traits = traits_def(SlliOpHasCanonicalizationPatternsTrait())
 
 
 @irdl_op_definition
-class SrliRV64Op(RdRsImmShiftOperationRV64):
+class SrliOp(RdRsImmShiftOperationRV64):
     name = "riscv64.srli"
 
     traits = traits_def(SrliOpHasCanonicalizationPatternsTrait())
 
 
 @irdl_op_definition
-class SraiRV64Op(RdRsImmShiftOperationRV64):
+class SraiOp(RdRsImmShiftOperationRV64):
     name = "riscv64.srai"
 
 
 @irdl_op_definition
-class SlliwRV64Op(RdRsImmShiftOperationRV64):
+class SlliwOp(RdRsImmShiftOperationRV64):
     name = "riscv64.slliw"
 
     traits = traits_def(Pure())
 
 
 @irdl_op_definition
-class SrliwRV64Op(RdRsImmShiftOperationRV64):
+class SrliwOp(RdRsImmShiftOperationRV64):
     name = "riscv64.srliw"
 
     traits = traits_def(Pure())
 
 
 @irdl_op_definition
-class RoriRV64Op(RdRsImmShiftOperationRV64):
+class RoriOp(RdRsImmShiftOperationRV64):
     name = "riscv64.rori"
 
     traits = traits_def(Pure())
 
 
 @irdl_op_definition
-class RoriwRV64Op(RdRsImmShiftOperationRV64):
+class RoriwOp(RdRsImmShiftOperationRV64):
     name = "riscv64.roriw"
 
     traits = traits_def(Pure())
 
 
 @irdl_op_definition
-class SlliUwRV64Op(RdRsImmShiftOperationRV64):
+class SlliUwOp(RdRsImmShiftOperationRV64):
     name = "riscv64.slli.uw"
 
     traits = traits_def(Pure())
 
 
 @irdl_op_definition
-class BclrIRV64Op(RdRsImmShiftOperationRV64):
+class BclrIOp(RdRsImmShiftOperationRV64):
     name = "riscv64.bclri"
 
     traits = traits_def(Pure())
 
 
 @irdl_op_definition
-class BextIRV64Op(RdRsImmShiftOperationRV64):
+class BextIOp(RdRsImmShiftOperationRV64):
     name = "riscv64.bexti"
 
 
 @irdl_op_definition
-class BinvIRV64Op(RdRsImmShiftOperationRV64):
+class BinvIOp(RdRsImmShiftOperationRV64):
     name = "riscv64.binvi"
 
     traits = traits_def(Pure())
 
 
 @irdl_op_definition
-class BsetIRV64Op(RdRsImmShiftOperationRV64):
+class BsetIOp(RdRsImmShiftOperationRV64):
     name = "riscv64.bseti"
 
     traits = traits_def(Pure())
@@ -175,14 +175,14 @@ class BsetIRV64Op(RdRsImmShiftOperationRV64):
 RISCV64 = Dialect(
     "riscv64",
     [
-        SlliRV64Op,
-        SrliRV64Op,
-        SraiRV64Op,
+        SlliOp,
+        SrliOp,
+        SraiOp,
         # Bit Manipulation Operations
-        BclrIRV64Op,
-        BextIRV64Op,
-        BinvIRV64Op,
-        BsetIRV64Op,
+        BclrIOp,
+        BextIOp,
+        BinvIOp,
+        BsetIOp,
     ],
     [],
 )
