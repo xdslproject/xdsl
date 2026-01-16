@@ -1469,8 +1469,6 @@ class ForEachOp(IRDLOperation):
             raise VerifyException("Region must have exactly one argument")
 
         arg_type = block.args[0].type
-        if not isinstance(self.values.type, RangeType):
-            raise VerifyException("Operand must be a RangeType")
 
         assert isa(self.values, SSAValue[RangeType[AnyPDLType]])
         if self.values.type.element_type != arg_type:
