@@ -1510,6 +1510,7 @@ class MatcherGenerator:
         else:
             rewriter_name = "pdl_generated_rewriter"
         if rewriter_name in self.rewriter_names:
+            # duplicate names get a numeric suffix starting from 0 (foo, foo_0, foo_1, ...)
             self.rewriter_names[rewriter_name] += 1
             rewriter_name = f"{rewriter_name}_{self.rewriter_names[rewriter_name] - 2}"
         else:
@@ -1882,4 +1883,4 @@ class MatcherGenerator:
         if not result_type_values:
             return False
 
-        raise ValueError(f"Unable to infer result types for pdl.operation {op.opName}'")
+        raise ValueError(f"Unable to infer result types for pdl.operation {op.opName}")

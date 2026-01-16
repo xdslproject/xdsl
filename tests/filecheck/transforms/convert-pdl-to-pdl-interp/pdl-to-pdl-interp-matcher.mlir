@@ -1,6 +1,7 @@
 // RUN: xdsl-opt --split-input-file -p convert-pdl-to-pdl-interp %s | filecheck %s
 
 // copied from mlir/test/Conversion/PDLToPDLInterp/pdl-to-pdl-interp-matcher.mlir
+// TODO: https://github.com/xdslproject/xdsl/issues/5567
 // basic block numbering is slightly different, the following perl one-liner gets us far:
 // `perl -pe 's/\bbb(\d+)/"bb".($1==2 ? 0 : $1>2 ? $1-1 : $1)/ge'` (replace bb2 with bb0, and decrement all bb numbers > 2)
 // The argument list of functions also contains an extra space in xDSL compared to MLIR.
