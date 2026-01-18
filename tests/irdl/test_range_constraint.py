@@ -121,3 +121,8 @@ def test_mapping_type_vars():
     assert range_constr.mapping_type_vars({_IntT: my_constr}) == RangeLengthConstraint(
         AnyRangeConstraint(), my_constr
     )
+
+
+def test_init_irdl_constraint():
+    range_constr = RangeOf(Attribute)
+    assert range_constr.constr == AnyAttr()
