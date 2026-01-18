@@ -31,7 +31,7 @@ def _convert_func(op: llvm.FuncOp, llvm_module: ir.Module):
     val_map: dict[SSAValue, ir.Value] = {}
 
     # entry block
-    llvm_entry = func.append_basic_block(name="entry")
+    llvm_entry = func.append_basic_block(name=entry_block.name_hint or "")
     block_map[entry_block] = llvm_entry
     for arg, llvm_arg in zip(entry_block.args, func.args):
         val_map[arg] = llvm_arg

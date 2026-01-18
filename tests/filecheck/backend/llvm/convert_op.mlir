@@ -13,6 +13,40 @@ builtin.module {
   // CHECK: declare void @"declaration"()
 
   "llvm.func"() <{
+    sym_name = "named_entry",
+    function_type = !llvm.func<void ()>,
+    CConv = #llvm.cconv<ccc>,
+    linkage = #llvm.linkage<external>,
+    visibility_ = 0 : i64
+  }> ({
+  ^entry:
+    "llvm.return"() : () -> ()
+  }) : () -> ()
+
+  // CHECK: define void @"named_entry"()
+  // CHECK-NEXT: {
+  // CHECK-NEXT: entry:
+  // CHECK-NEXT:   ret void
+  // CHECK-NEXT: }
+
+  "llvm.func"() <{
+    sym_name = "custom_name",
+    function_type = !llvm.func<void ()>,
+    CConv = #llvm.cconv<ccc>,
+    linkage = #llvm.linkage<external>,
+    visibility_ = 0 : i64
+  }> ({
+  ^my_block:
+    "llvm.return"() : () -> ()
+  }) : () -> ()
+
+  // CHECK: define void @"custom_name"()
+  // CHECK-NEXT: {
+  // CHECK-NEXT: my_block:
+  // CHECK-NEXT:   ret void
+  // CHECK-NEXT: }
+
+  "llvm.func"() <{
     sym_name = "return_void",
     function_type = !llvm.func<void ()>,
     CConv = #llvm.cconv<ccc>,
@@ -24,7 +58,7 @@ builtin.module {
 
   // CHECK: define void @"return_void"()
   // CHECK-NEXT: {
-  // CHECK-NEXT: entry:
+  // CHECK-NEXT: {{.[0-9]+}}:
   // CHECK-NEXT:   ret void
   // CHECK-NEXT: }
 
@@ -41,7 +75,7 @@ builtin.module {
 
   // CHECK: define i32 @"return_arg"(i32 %".1")
   // CHECK-NEXT: {
-  // CHECK-NEXT: entry:
+  // CHECK-NEXT: {{.[0-9]+}}:
   // CHECK-NEXT:   ret i32 %".1"
   // CHECK-NEXT: }
 }
