@@ -424,7 +424,8 @@ class ConvertMemRefToRiscvPass(ModulePass):
                     ConvertMemRefGlobalOp(xlen=self.xlen),
                     ConvertMemRefGetGlobalOp(),
                     ConvertMemRefSubviewOp(),
-                ]
+                ],
+                dce_enabled=False,
             )
         ).rewrite_module(op)
         if contains_malloc:

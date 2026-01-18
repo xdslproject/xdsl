@@ -18,20 +18,25 @@
 %is_compute_core = "snrt.is_compute_core"() : () -> i1
 %is_dm_core = "snrt.is_dm_core"() : () -> i1
 
+"test.op"(%global_core_base_hartid, %global_core_idx, %global_core_num, %gcluster_core_idx, %cluster_core_num, %cluster_compute_core_num, %cluster_dm_core_num, %cluster_idx, %cluster_num, %is_compute_core, %is_dm_core) : (i32, i32, i32, i32, i32, i32, i32, i32, i32, i1, i1) -> ()
+
 "snrt.cluster_hw_barrier"() : () -> ()
 "snrt.ssr_disable"() : () -> ()
 
 %dst, %src, %size = "test.op"() : () -> (i32, i32, i32)
 %tx_id = "snrt.dma_start_1d"(%dst, %src, %size) : (i32, i32, i32) -> i32
+"test.op"(%tx_id) : (i32) -> ()
 
 %dst_wide, %src_wide = "test.op"() : () -> (i64, i64)
 %tx_id2 = "snrt.dma_start_1d_wideptr"(%dst_wide, %src_wide, %size) : (i64, i64, i32) -> i32
-
+"test.op"(%tx_id2) : (i32) -> ()
 
 %dst_stride, %src_stride, %repeat = "test.op"() : () -> (i32, i32, i32)
 %tx_id3 = "snrt.dma_start_2d_wideptr"(%dst_wide, %src_wide, %dst_stride, %src_stride, %size, %repeat) : (i64, i64, i32, i32, i32, i32) -> i32
+"test.op"(%tx_id3) : (i32) -> ()
 
 %tx_id4 = "snrt.dma_start_2d"(%dst, %src, %dst_stride, %src_stride, %size, %repeat) : (i32, i32, i32, i32, i32, i32) -> i32
+"test.op"(%tx_id4) : (i32) -> ()
 
 
 // CHECK-NEXT: builtin.module {
@@ -79,6 +84,9 @@
 // CHECK-NEXT:   %is_dm_core_7 = arith.constant 8 : i32
 // CHECK-NEXT:   %is_dm_core_8 = arith.cmpi sge, %is_dm_core_6, %is_dm_core_7 : i32
 
+// CHECK-NEXT:   "test.op"(%global_core_base_hartid, %global_core_idx_4, %global_core_num, %gcluster_core_idx_6, %cluster_core_num, %cluster_compute_core_num, %cluster_dm_core_num, %cluster_idx_6, %cluster_num, %is_compute_core_8, %is_dm_core_8) : (i32, i32, i32, i32, i32, i32, i32, i32, i32, i1, i1) -> ()
+
+
                  // Lowering of cluster_hw_barrier
 // CHECK-NEXT:   %0 = riscv.get_register : !riscv.reg<zero>
 // CHECK-NEXT:   %1 = riscv.csrrs %0, 1986 : (!riscv.reg<zero>) -> !riscv.reg<zero>
@@ -97,6 +105,8 @@
 // CHECK-NEXT:   %tx_id_4 = riscv_snitch.dmcpyi %tx_id_3, 0 : (!riscv.reg) -> !riscv.reg
 // CHECK-NEXT:   %tx_id_5 = builtin.unrealized_conversion_cast %tx_id_4 : !riscv.reg to i32
 
+// CHECK-NEXT:   "test.op"(%tx_id_5) : (i32) -> ()
+
 // CHECK-NEXT:   %dst_wide, %src_wide = "test.op"() : () -> (i64, i64)
 
                  // Lowering of dma_start_1d_wideptr
@@ -107,6 +117,8 @@
 // CHECK-NEXT:   riscv_snitch.dmdst %tx_id2, %tx_id2_1 : (!riscv.reg, !riscv.reg) -> ()
 // CHECK-NEXT:   %tx_id2_5 = riscv_snitch.dmcpyi %tx_id2_4, 0 : (!riscv.reg) -> !riscv.reg
 // CHECK-NEXT:   %tx_id2_6 = builtin.unrealized_conversion_cast %tx_id2_5 : !riscv.reg to i32
+
+// CHECK-NEXT:   "test.op"(%tx_id2_6) : (i32) -> ()
 
 // CHECK-NEXT:   %dst_stride, %src_stride, %repeat = "test.op"() : () -> (i32, i32, i32)
 
@@ -124,6 +136,8 @@
 // CHECK-NEXT:   %tx_id3 = riscv_snitch.dmcpyi %9, 2 : (!riscv.reg) -> !riscv.reg
 // CHECK-NEXT:   %tx_id3_1 = builtin.unrealized_conversion_cast %tx_id3 : !riscv.reg to i32
 
+// CHECK-NEXT:   "test.op"(%tx_id3_1) : (i32) -> ()
+
                  // Lowering for dma_start_2d
 // CHECK-NEXT:   %11 = riscv.get_register : !riscv.reg<zero>
 // CHECK-NEXT:   %12 = builtin.unrealized_conversion_cast %dst : i32 to !riscv.reg
@@ -138,4 +152,5 @@
 // CHECK-NEXT:   riscv_snitch.dmrep %17 : (!riscv.reg) -> ()
 // CHECK-NEXT:   %tx_id4 = riscv_snitch.dmcpyi %16, 2 : (!riscv.reg) -> !riscv.reg
 // CHECK-NEXT:   %tx_id4_1 = builtin.unrealized_conversion_cast %tx_id4 : !riscv.reg to i32
+// CHECK-NEXT:   "test.op"(%tx_id4_1) : (i32) -> ()
 // CHECK-NEXT: }
