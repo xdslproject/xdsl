@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from collections.abc import Set as AbstractSet
 from io import StringIO
-from typing import IO, Annotated, Generic, Literal, TypeAlias, cast
+from typing import IO, Annotated, ClassVar, Generic, Literal, TypeAlias, cast
 
 from typing_extensions import Self, TypeVar
 
@@ -43,8 +43,11 @@ from xdsl.ir import (
     SSAValue,
 )
 from xdsl.irdl import (
+    AnyInt,
+    IntVarConstraint,
     IRDLOperation,
     ParsePropInAttrDict,
+    RangeOf,
     VarOpResult,
     attr_def,
     base,
@@ -3912,9 +3915,13 @@ class GetFloatRegisterOp(GetAnyRegisterOperation[FloatRegisterType]):
 
 @irdl_op_definition
 class ParallelMovOp(RISCVRegallocOperation):
+    _L: ClassVar = IntVarConstraint("L", AnyInt())
+
     name = "riscv.parallel_mov"
-    inputs = var_operand_def(RISCVRegisterType)
-    outputs: VarOpResult[RISCVRegisterType] = var_result_def(RISCVRegisterType)
+    inputs = var_operand_def(RangeOf(RISCVRegisterType).of_length(_L))
+    outputs: VarOpResult[RISCVRegisterType] = var_result_def(
+        RangeOf(RISCVRegisterType).of_length(_L)
+    )
     free_registers = opt_prop_def(ArrayAttr[RISCVRegisterType])
 
     assembly_format = "$inputs attr-dict `:` functional-type($inputs, $outputs)"
@@ -3933,12 +3940,6 @@ class ParallelMovOp(RISCVRegallocOperation):
         )
 
     def verify_(self) -> None:
-        if len(self.inputs) != len(self.outputs):
-            raise VerifyException(
-                "Input count must match output count. "
-                f"Num inputs: {len(self.inputs)}, Num outputs: {len(self.outputs)}"
-            )
-
         input_types = cast(Sequence[RISCVRegisterType], self.inputs.types)
         output_types = cast(Sequence[RISCVRegisterType], self.outputs.types)
 
