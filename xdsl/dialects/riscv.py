@@ -3944,12 +3944,6 @@ class ParallelMovOp(RISCVRegallocOperation):
         )
 
     def verify_(self) -> None:
-        if len(self.inputs) != len(self.outputs):
-            raise VerifyException(
-                "Input count must match output count. "
-                f"Num inputs: {len(self.inputs)}, Num outputs: {len(self.outputs)}"
-            )
-
         input_types = cast(Sequence[RISCVRegisterType], self.inputs.types)
         output_types = cast(Sequence[RISCVRegisterType], self.outputs.types)
 
