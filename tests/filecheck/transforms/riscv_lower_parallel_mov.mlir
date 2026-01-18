@@ -261,6 +261,21 @@ builtin.module {
 
 // -----
 
+// Test different float types
+builtin.module {
+  %0, %1 = "test.op"() : () -> (!riscv.freg<fs1>, !riscv.freg<fs2>)
+  %2, %3 = riscv.parallel_mov %0, %1 {input_types = [f32, f64]} : (!riscv.freg<fs1>, !riscv.freg<fs2>) -> (!riscv.freg<fs3>, !riscv.freg<fs4>)
+  "test.op"(%2, %3) : (!riscv.freg<fs3>, !riscv.freg<fs4>) -> ()
+}
+// CHECK:       builtin.module {
+// CHECK-NEXT:    %0, %1 = "test.op"() : () -> (!riscv.freg<fs1>, !riscv.freg<fs2>)
+// CHECK-NEXT:    %2 = riscv.fmv.s %0 : (!riscv.freg<fs1>) -> !riscv.freg<fs3>
+// CHECK-NEXT:    %3 = riscv.fmv.d %1 : (!riscv.freg<fs2>) -> !riscv.freg<fs4>
+// CHECK-NEXT:    "test.op"(%2, %3) : (!riscv.freg<fs3>, !riscv.freg<fs4>) -> ()
+// CHECK-NEXT:  }
+
+// -----
+
 // Test no free registers for float cycle
 builtin.module {
   %0, %1 = "test.op"() : () -> (!riscv.freg<fs1>, !riscv.freg<fs2>)
