@@ -377,17 +377,21 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                 )
             argument_types.append(xdsl_type)
 
+        returns = node.returns
         return_types: list[Attribute] = []
-        if node.returns is not None:
+        if not (
+            returns is None
+            or (isinstance(returns, ast.Constant) and returns.value is None)
+        ):
             xdsl_type = self.type_converter.type_registry.resolve_attribute(
-                ast.unparse(node.returns), self.type_converter.globals
+                ast.unparse(returns), self.type_converter.globals
             )
             if xdsl_type is None:
                 raise CodeGenerationException(
                     self.file,
                     node.lineno,
                     node.col_offset,
-                    f"Unsupported function return type: '{ast.unparse(node.returns)}'",
+                    f"Unsupported function return type: '{ast.unparse(returns)}'",
                 )
             return_types.append(xdsl_type)
 
@@ -491,22 +495,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         self.inserter.insert_op(fetch_op)
 
     def visit_Pass(self, node: ast.Pass) -> None:
-        parent_op = self.inserter.insertion_point.parent_op()
-
-        # We might have to add an explicit return statement in this case. Make sure to
-        # check the type signature.
-        if parent_op is not None and isinstance(parent_op, func.FuncOp):
-            return_types = parent_op.function_type.outputs.data
-
-            if len(return_types) != 0:
-                function_name = parent_op.sym_name.data
-                raise CodeGenerationException(
-                    self.file,
-                    node.lineno,
-                    node.col_offset,
-                    f"Expected '{function_name}' to return a type.",
-                )
-            self.inserter.insert_op(func.ReturnOp())
+        pass
 
     def visit_Return(self, node: ast.Return) -> None:
         # First of all, we should only be able to return if the statement is directly
@@ -532,9 +521,10 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         callee = parent_op.sym_name.data
         func_return_types = parent_op.function_type.outputs.data
 
-        if node.value is None:
+        value = node.value
+        if value is None or (isinstance(value, ast.Constant) and value.value is None):
             # Return nothing, check function signature matches.
-            if len(func_return_types) != 0:
+            if func_return_types:
                 raise CodeGenerationException(
                     self.file,
                     node.lineno,
@@ -546,10 +536,10 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         else:
             # Return some type, check function signature matches as well.
             # TODO: Support multiple return values if we allow multiple assignemnts.
-            self.visit(node.value)
+            self.visit(value)
             operands = [self.inserter.get_operand()]
 
-            if len(func_return_types) == 0:
+            if not func_return_types:
                 raise CodeGenerationException(
                     self.file,
                     node.lineno,
