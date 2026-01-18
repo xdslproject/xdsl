@@ -86,6 +86,10 @@ pdl_interp.func @matcher(%arg0: !pdl.operation) {
 ^bb31:
   %moretypes = pdl_interp.apply_rewrite "rewrite_in_matcher"(%arg0 : !pdl.operation) : !pdl.range<type>
   pdl_interp.finalize
+^bb32:
+  pdl_interp.foreach %op : !pdl.type in %types {
+    pdl_interp.continue
+  } -> ^bb1
 }
 module @rewriters {
   pdl_interp.func @pdl_generated_rewriter(%arg0: !pdl.value, %arg1: !pdl.value, %arg2: !pdl.type, %arg3: !pdl.value, %arg4: !pdl.operation) {
@@ -190,6 +194,10 @@ module @rewriters {
 // CHECK-NEXT:     ^bb30:
 // CHECK-NEXT:       %moretypes = pdl_interp.apply_rewrite "rewrite_in_matcher"(%arg0 : !pdl.operation) : !pdl.range<type>
 // CHECK-NEXT:       pdl_interp.finalize
+// CHECK-NEXT:     ^bb31:
+// CHECK-NEXT:       pdl_interp.foreach %op : !pdl.type in %types {
+// CHECK-NEXT:         pdl_interp.continue
+// CHECK-NEXT:       } -> ^bb1
 // CHECK-NEXT:     }
 // CHECK-NEXT:     builtin.module @rewriters {
 // CHECK-NEXT:       pdl_interp.func @pdl_generated_rewriter(%arg0 : !pdl.value, %arg1 : !pdl.value, %arg2 : !pdl.type, %arg3 : !pdl.value, %arg4 : !pdl.operation) {
@@ -296,6 +304,11 @@ module @rewriters {
 // CHECK-GENERIC-NEXT:     ^bb31:
 // CHECK-GENERIC-NEXT:       %moretypes = "pdl_interp.apply_rewrite"(%arg0) <{name = "rewrite_in_matcher"}> : (!pdl.operation) -> !pdl.range<type>
 // CHECK-GENERIC-NEXT:       "pdl_interp.finalize"() : () -> ()
+// CHECK-GENERIC-NEXT:     ^bb32:
+// CHECK-GENERIC-NEXT:       "pdl_interp.foreach"(%types) [^bb2] ({
+// CHECK-GENERIC-NEXT:       ^bb33(%op : !pdl.type):
+// CHECK-GENERIC-NEXT:         "pdl_interp.continue"() : () -> ()
+// CHECK-GENERIC-NEXT:       }) : (!pdl.range<type>) -> ()
 // CHECK-GENERIC-NEXT:     }) : () -> ()
 // CHECK-GENERIC-NEXT:     "builtin.module"() <{sym_name = "rewriters"}> ({
 // CHECK-GENERIC-NEXT:       "pdl_interp.func"() <{sym_name = "pdl_generated_rewriter", function_type = (!pdl.value, !pdl.value, !pdl.type, !pdl.value, !pdl.operation) -> ()}> ({
