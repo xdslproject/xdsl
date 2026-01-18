@@ -6,8 +6,7 @@
 %0, %1, %2 = "test.op"() : () -> (!riscv.reg<s0>, !riscv.reg<s1>, !riscv.reg<s2>)
 riscv.parallel_mov %0, %1, %2 : (!riscv.reg<s0>, !riscv.reg<s1>, !riscv.reg<s2>) -> (!riscv.reg<s3>, !riscv.reg<s4>)
 
-// CHECK: %0, %1, %2 = "test.op"() : () -> (!riscv.reg<s0>, !riscv.reg<s1>, !riscv.reg<s2>)
-// CHECK: Input count must match output count. Num inputs: 3, Num outputs: 2
+// CHECK: incorrect length
 
 // -----
 
