@@ -21,14 +21,10 @@ def _convert_func(op: llvm.FuncOp, llvm_module: ir.Module):
     if len(op.body.blocks) > 1:
         raise NotImplementedError("Only single-block functions are supported")
 
-    entry_block = op.body.blocks[0]
-    if len(entry_block.args) > 1:
-        raise NotImplementedError(
-            "Only functions with at most one argument are supported"
-        )
-
     block_map: dict[Block, ir.Block] = {}
     val_map: dict[SSAValue, ir.Value] = {}
+
+    entry_block = op.body.blocks[0]
 
     # entry block
     llvm_entry = func.append_basic_block(name=entry_block.name_hint or "")

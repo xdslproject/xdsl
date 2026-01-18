@@ -78,4 +78,21 @@ builtin.module {
   // CHECK-NEXT: {{.[0-9]+}}:
   // CHECK-NEXT:   ret i32 %".1"
   // CHECK-NEXT: }
+
+  "llvm.func"() <{
+    sym_name = "return_second_arg",
+    function_type = !llvm.func<i32 (i32, i32)>,
+    CConv = #llvm.cconv<ccc>,
+    linkage = #llvm.linkage<external>,
+    visibility_ = 0 : i64
+  }> ({
+  ^bb0(%arg0 : i32, %arg1 : i32):
+    "llvm.return"(%arg1) : (i32) -> ()
+  }) : () -> ()
+
+  // CHECK: define i32 @"return_second_arg"(i32 %".1", i32 %".2")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT:   ret i32 %".2"
+  // CHECK-NEXT: }
 }
