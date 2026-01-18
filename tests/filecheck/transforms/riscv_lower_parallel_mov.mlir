@@ -3,7 +3,7 @@
 // Test no-op case
 builtin.module {
   %0, %1 = "test.op"() : () -> (!riscv.reg<s1>, !riscv.reg<s2>)
-  %2, %3 = riscv.parallel_mov %0, %1 : (!riscv.reg<s1>, !riscv.reg<s2>) -> (!riscv.reg<s1>, !riscv.reg<s2>)
+  %2, %3 = riscv.parallel_mov %0, %1 {input_types = [i32, i32]}  : (!riscv.reg<s1>, !riscv.reg<s2>) -> (!riscv.reg<s1>, !riscv.reg<s2>)
   "test.op"(%2, %3) : (!riscv.reg<s1>, !riscv.reg<s2>) -> ()
 }
 
@@ -24,7 +24,7 @@ builtin.module {
 //   s3
 builtin.module {
   %0, %1 = "test.op"() : () -> (!riscv.reg<s1>, !riscv.reg<s2>)
-  %2, %3 = riscv.parallel_mov %0, %1 : (!riscv.reg<s1>, !riscv.reg<s2>) -> (!riscv.reg<s2>, !riscv.reg<s3>)
+  %2, %3 = riscv.parallel_mov %0, %1 {input_types = [i32, i32]} : (!riscv.reg<s1>, !riscv.reg<s2>) -> (!riscv.reg<s2>, !riscv.reg<s3>)
   "test.op"(%2, %3) : (!riscv.reg<s2>, !riscv.reg<s3>) -> ()
 }
 
@@ -48,7 +48,7 @@ builtin.module {
 // s3    s4
 builtin.module {
   %0, %1 = "test.op"() : () -> (!riscv.reg<s1>, !riscv.reg<s2>)
-  %2, %3, %4 = riscv.parallel_mov %0, %1, %1 : (!riscv.reg<s1>, !riscv.reg<s2>, !riscv.reg<s2>) -> (!riscv.reg<s2>, !riscv.reg<s3>, !riscv.reg<s4>)
+  %2, %3, %4 = riscv.parallel_mov %0, %1, %1 {input_types = [i32, i32, i32]} : (!riscv.reg<s1>, !riscv.reg<s2>, !riscv.reg<s2>) -> (!riscv.reg<s2>, !riscv.reg<s3>, !riscv.reg<s4>)
   "test.op"(%2, %3, %4) : (!riscv.reg<s2>, !riscv.reg<s3>, !riscv.reg<s4>) -> ()
 }
 
@@ -71,7 +71,7 @@ builtin.module {
 // s3    s4
 builtin.module {
   %0, %1, %2 = "test.op"() : () -> (!riscv.reg<s1>, !riscv.reg<s2>, !riscv.reg<s5>)
-  %3, %4, %5, %6 = riscv.parallel_mov %0, %1, %1, %2 : (!riscv.reg<s1>, !riscv.reg<s2>, !riscv.reg<s2>, !riscv.reg<s5>) -> (!riscv.reg<s2>, !riscv.reg<s3>, !riscv.reg<s4>, !riscv.reg<s6>)
+  %3, %4, %5, %6 = riscv.parallel_mov %0, %1, %1, %2 {input_types = [i32, i32, i32, i32]} : (!riscv.reg<s1>, !riscv.reg<s2>, !riscv.reg<s2>, !riscv.reg<s5>) -> (!riscv.reg<s2>, !riscv.reg<s3>, !riscv.reg<s4>, !riscv.reg<s6>)
   "test.op"(%3, %4, %5, %6) : (!riscv.reg<s2>, !riscv.reg<s3>, !riscv.reg<s4>, !riscv.reg<s6>) -> ()
 }
 
@@ -94,7 +94,7 @@ builtin.module {
 //    s2
 builtin.module {
   %0, %1 = "test.op"() : () -> (!riscv.reg<s1>, !riscv.reg<s2>)
-  %2, %3 = riscv.parallel_mov %0, %1 {free_registers = [!riscv.reg<s10>]} : (!riscv.reg<s1>, !riscv.reg<s2>) -> (!riscv.reg<s2>, !riscv.reg<s1>)
+  %2, %3 = riscv.parallel_mov %0, %1 {input_types = [i32, i32], free_registers = [!riscv.reg<s10>]} : (!riscv.reg<s1>, !riscv.reg<s2>) -> (!riscv.reg<s2>, !riscv.reg<s1>)
   "test.op"(%2, %3) : (!riscv.reg<s2>, !riscv.reg<s1>) -> ()
 }
 
@@ -116,7 +116,7 @@ builtin.module {
 //    s2
 builtin.module {
   %0, %1, %2 = "test.op"() : () -> (!riscv.reg<s1>, !riscv.reg<s2>, !riscv.reg<s3>)
-  %3, %4, %5 = riscv.parallel_mov %0, %1, %2 : (!riscv.reg<s1>, !riscv.reg<s2>, !riscv.reg<s3>) -> (!riscv.reg<s2>, !riscv.reg<s1>, !riscv.reg<s4>)
+  %3, %4, %5 = riscv.parallel_mov %0, %1, %2 {input_types = [i32, i32, i32]} : (!riscv.reg<s1>, !riscv.reg<s2>, !riscv.reg<s3>) -> (!riscv.reg<s2>, !riscv.reg<s1>, !riscv.reg<s4>)
   "test.op"(%3, %4, %5) : (!riscv.reg<s2>, !riscv.reg<s1>, !riscv.reg<s4>) -> ()
 }
 
@@ -145,7 +145,7 @@ builtin.module {
 //
 builtin.module {
   %0, %1, %2, %3, %4 = "test.op"() : () -> (!riscv.reg<s1>, !riscv.reg<s2>, !riscv.reg<s3>, !riscv.reg<s7>, !riscv.reg<s8>)
-  %5, %6, %7, %8, %9, %10, %11, %12, %13, %14 = riscv.parallel_mov %2, %0, %1, %0, %1, %2, %4, %3, %3, %3 {free_registers = [!riscv.reg<s11>]} : (!riscv.reg<s3>, !riscv.reg<s1>, !riscv.reg<s2>, !riscv.reg<s1>, !riscv.reg<s2>, !riscv.reg<s3>, !riscv.reg<s8>, !riscv.reg<s7>, !riscv.reg<s7>, !riscv.reg<s7>) -> (!riscv.reg<s1>, !riscv.reg<s2>, !riscv.reg<s3>, !riscv.reg<s4>, !riscv.reg<s5>, !riscv.reg<s6>, !riscv.reg<s7>, !riscv.reg<s8>, !riscv.reg<s9>, !riscv.reg<s10>)
+  %5, %6, %7, %8, %9, %10, %11, %12, %13, %14 = riscv.parallel_mov %2, %0, %1, %0, %1, %2, %4, %3, %3, %3 {input_types = [i32, i32, i32, i32, i32, i32, i32, i32, i32, i32], free_registers = [!riscv.reg<s11>]} : (!riscv.reg<s3>, !riscv.reg<s1>, !riscv.reg<s2>, !riscv.reg<s1>, !riscv.reg<s2>, !riscv.reg<s3>, !riscv.reg<s8>, !riscv.reg<s7>, !riscv.reg<s7>, !riscv.reg<s7>) -> (!riscv.reg<s1>, !riscv.reg<s2>, !riscv.reg<s3>, !riscv.reg<s4>, !riscv.reg<s5>, !riscv.reg<s6>, !riscv.reg<s7>, !riscv.reg<s8>, !riscv.reg<s9>, !riscv.reg<s10>)
   "test.op"(%5, %6, %7, %8, %9, %10, %11, %12, %13, %14) : (!riscv.reg<s1>, !riscv.reg<s2>, !riscv.reg<s3>, !riscv.reg<s4>, !riscv.reg<s5>, !riscv.reg<s6>, !riscv.reg<s7>, !riscv.reg<s8>, !riscv.reg<s9>, !riscv.reg<s10>) -> ()
 }
 // CHECK:       builtin.module {
@@ -175,7 +175,7 @@ builtin.module {
 //    s2
 builtin.module {
   %0, %1 = "test.op"() : () -> (!riscv.reg<s1>, !riscv.reg<s2>)
-  %2, %3 = riscv.parallel_mov %0, %1 : (!riscv.reg<s1>, !riscv.reg<s2>) -> (!riscv.reg<s2>, !riscv.reg<s1>)
+  %2, %3 = riscv.parallel_mov %0, %1 {input_types = [i32, i32]} : (!riscv.reg<s1>, !riscv.reg<s2>) -> (!riscv.reg<s2>, !riscv.reg<s1>)
   "test.op"(%2, %3) : (!riscv.reg<s2>, !riscv.reg<s1>) -> ()
 }
 
@@ -197,7 +197,7 @@ builtin.module {
 //    s2         s6 <-- s5
 builtin.module {
   %0, %1, %2, %3, %5, %6 = "test.op"() : () -> (!riscv.reg<s1>, !riscv.reg<s2>, !riscv.reg<s3>, !riscv.reg<s4>, !riscv.reg<s5>, !riscv.reg<s6>)
-  %7, %8, %9, %10, %11, %12 = riscv.parallel_mov %0, %1, %2, %3, %5, %6 : (!riscv.reg<s1>, !riscv.reg<s2>, !riscv.reg<s3>, !riscv.reg<s4>, !riscv.reg<s5>, !riscv.reg<s6>) -> (!riscv.reg<s2>, !riscv.reg<s1>, !riscv.reg<s4>, !riscv.reg<s5>, !riscv.reg<s6>, !riscv.reg<s3>)
+  %7, %8, %9, %10, %11, %12 = riscv.parallel_mov %0, %1, %2, %3, %5, %6 {input_types = [i32, i32, i32, i32, i32, i32]} : (!riscv.reg<s1>, !riscv.reg<s2>, !riscv.reg<s3>, !riscv.reg<s4>, !riscv.reg<s5>, !riscv.reg<s6>) -> (!riscv.reg<s2>, !riscv.reg<s1>, !riscv.reg<s4>, !riscv.reg<s5>, !riscv.reg<s6>, !riscv.reg<s3>)
   "test.op"(%7, %8, %9, %10, %11, %12) : (!riscv.reg<s2>, !riscv.reg<s1>, !riscv.reg<s4>, !riscv.reg<s5>, !riscv.reg<s6>, !riscv.reg<s3>) -> ()
 }
 
@@ -225,7 +225,7 @@ builtin.module {
 // fs1 -->  fs2
 builtin.module {
   %0, %1 = "test.op"() : () -> (!riscv.reg<s1>, !riscv.freg<fs1>)
-  %2, %3 = riscv.parallel_mov %0, %1 : (!riscv.reg<s1>, !riscv.freg<fs1>) -> (!riscv.reg<s2>, !riscv.freg<fs2>)
+  %2, %3 = riscv.parallel_mov %0, %1 {input_types = [i32, f32]} : (!riscv.reg<s1>, !riscv.freg<fs1>) -> (!riscv.reg<s2>, !riscv.freg<fs2>)
   "test.op"(%2, %3) : (!riscv.reg<s2>, !riscv.freg<fs2>) -> ()
 }
 // CHECK:       builtin.module {
@@ -245,7 +245,7 @@ builtin.module {
 //    s2       fs2
 builtin.module {
   %0, %1, %2, %3 = "test.op"() : () -> (!riscv.reg<s1>, !riscv.reg<s2>, !riscv.freg<fs1>, !riscv.freg<fs2>)
-  %4, %5, %6, %7 = riscv.parallel_mov %0, %1, %2, %3 {free_registers = [!riscv.reg<s10>, !riscv.freg<fs10>]} : (!riscv.reg<s1>, !riscv.reg<s2>, !riscv.freg<fs1>, !riscv.freg<fs2>) -> (!riscv.reg<s2>, !riscv.reg<s1>, !riscv.freg<fs2>, !riscv.freg<fs1>)
+  %4, %5, %6, %7 = riscv.parallel_mov %0, %1, %2, %3 {input_types = [i32, i32, f32, f32], free_registers = [!riscv.reg<s10>, !riscv.freg<fs10>]} : (!riscv.reg<s1>, !riscv.reg<s2>, !riscv.freg<fs1>, !riscv.freg<fs2>) -> (!riscv.reg<s2>, !riscv.reg<s1>, !riscv.freg<fs2>, !riscv.freg<fs1>)
   "test.op"(%4, %5, %6, %7) : (!riscv.reg<s2>, !riscv.reg<s1>, !riscv.freg<fs2>, !riscv.freg<fs1>) -> ()
 }
 // CHECK:       builtin.module {
@@ -264,11 +264,11 @@ builtin.module {
 // Test no free registers for float cycle
 builtin.module {
   %0, %1 = "test.op"() : () -> (!riscv.freg<fs1>, !riscv.freg<fs2>)
-  %2, %3 = riscv.parallel_mov %0, %1 : (!riscv.freg<fs1>, !riscv.freg<fs2>) -> (!riscv.freg<fs2>, !riscv.freg<fs1>)
+  %2, %3 = riscv.parallel_mov %0, %1 {input_types = [f32, f32]} : (!riscv.freg<fs1>, !riscv.freg<fs2>) -> (!riscv.freg<fs2>, !riscv.freg<fs1>)
   "test.op"(%2, %3) : (!riscv.freg<fs2>, !riscv.freg<fs1>) -> ()
 }
 
-// CHECK:         %2, %3 = "riscv.parallel_mov"(%0, %1) : (!riscv.freg<fs1>, !riscv.freg<fs2>) -> (!riscv.freg<fs2>, !riscv.freg<fs1>)
+// CHECK:         %2, %3 = "riscv.parallel_mov"(%0, %1) <{input_types = [f32, f32]}> : (!riscv.freg<fs1>, !riscv.freg<fs2>) -> (!riscv.freg<fs2>, !riscv.freg<fs1>)
 // CHECK-NEXT:    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^------------------------------------------
 // CHECK-NEXT:    | Error while applying pattern: Float cyclic move without free register
 // CHECK-NEXT:    -----------------------------------------------------------------------
@@ -278,10 +278,10 @@ builtin.module {
 // Test unallocated inputs
 builtin.module {
   %0, %1 = "test.op"() : () -> (!riscv.reg<s1>, !riscv.reg<s2>)
-  %2, %3 = riscv.parallel_mov %0, %1 : (!riscv.reg<s1>, !riscv.reg<s2>) -> (!riscv.reg, !riscv.reg<s2>)
+  %2, %3 = riscv.parallel_mov %0, %1 {input_types = [i32, i32]} : (!riscv.reg<s1>, !riscv.reg<s2>) -> (!riscv.reg, !riscv.reg<s2>)
 }
 
-// CHECK:         %2, %3 = "riscv.parallel_mov"(%0, %1) : (!riscv.reg<s1>, !riscv.reg<s2>) -> (!riscv.reg, !riscv.reg<s2>)
+// CHECK:         %2, %3 = "riscv.parallel_mov"(%0, %1) <{input_types = [i32, i32]}> : (!riscv.reg<s1>, !riscv.reg<s2>) -> (!riscv.reg, !riscv.reg<s2>)
 // CHECK-NEXT:    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^----------------------------------
 // CHECK-NEXT:    | Error while applying pattern: All registers must be allocated
 // CHECK-NEXT:    ---------------------------------------------------------------
@@ -290,9 +290,9 @@ builtin.module {
 
 builtin.module {
   %0, %1 = "test.op"() : () -> (!riscv.reg<s1>, !riscv.reg)
-  %2, %3 = riscv.parallel_mov %0, %1 : (!riscv.reg<s1>, !riscv.reg) -> (!riscv.reg<s1>, !riscv.reg<s2>)
+  %2, %3 = riscv.parallel_mov %0, %1 {input_types = [i32, i32]} : (!riscv.reg<s1>, !riscv.reg) -> (!riscv.reg<s1>, !riscv.reg<s2>)
 }
-// CHECK:         %2, %3 = "riscv.parallel_mov"(%0, %1) : (!riscv.reg<s1>, !riscv.reg) -> (!riscv.reg<s1>, !riscv.reg<s2>)
+// CHECK:         %2, %3 = "riscv.parallel_mov"(%0, %1) <{input_types = [i32, i32]}> : (!riscv.reg<s1>, !riscv.reg) -> (!riscv.reg<s1>, !riscv.reg<s2>)
 // CHECK-NEXT:    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^----------------------------------
 // CHECK-NEXT:    | Error while applying pattern: All registers must be allocated
 // CHECK-NEXT:    ---------------------------------------------------------------

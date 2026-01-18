@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from collections.abc import Set as AbstractSet
 from io import StringIO
-from typing import IO, Annotated, Generic, Literal, TypeAlias, cast
+from typing import IO, Annotated, ClassVar, Generic, Literal, TypeAlias, cast
 
 from typing_extensions import Self, TypeVar
 
@@ -43,8 +43,12 @@ from xdsl.ir import (
     SSAValue,
 )
 from xdsl.irdl import (
+    AnyAttr,
+    AnyInt,
+    IntVarConstraint,
     IRDLOperation,
     ParsePropInAttrDict,
+    RangeOf,
     VarOpResult,
     attr_def,
     base,
@@ -53,6 +57,7 @@ from xdsl.irdl import (
     operand_def,
     opt_attr_def,
     opt_prop_def,
+    prop_def,
     region_def,
     result_def,
     traits_def,
@@ -3912,9 +3917,14 @@ class GetFloatRegisterOp(GetAnyRegisterOperation[FloatRegisterType]):
 
 @irdl_op_definition
 class ParallelMovOp(RISCVRegallocOperation):
+    _L: ClassVar = IntVarConstraint("L", AnyInt())
+
     name = "riscv.parallel_mov"
-    inputs = var_operand_def(RISCVRegisterType)
-    outputs: VarOpResult[RISCVRegisterType] = var_result_def(RISCVRegisterType)
+    inputs = var_operand_def(RangeOf(RISCVRegisterType).of_length(_L))
+    outputs: VarOpResult[RISCVRegisterType] = var_result_def(
+        RangeOf(RISCVRegisterType).of_length(_L)
+    )
+    input_types = prop_def(ArrayAttr.constr(RangeOf(AnyAttr()).of_length(_L)))
     free_registers = opt_prop_def(ArrayAttr[RISCVRegisterType])
 
     assembly_format = "$inputs attr-dict `:` functional-type($inputs, $outputs)"
@@ -3924,12 +3934,13 @@ class ParallelMovOp(RISCVRegallocOperation):
         self,
         inputs: Sequence[SSAValue],
         outputs: Sequence[RISCVRegisterType],
+        input_types: ArrayAttr[Attribute],
         free_registers: ArrayAttr[RISCVRegisterType] | None = None,
     ):
         super().__init__(
             operands=(inputs,),
             result_types=(outputs,),
-            properties={"free_registers": free_registers},
+            properties={"input_types": input_types, "free_registers": free_registers},
         )
 
     def verify_(self) -> None:
