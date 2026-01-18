@@ -15,7 +15,6 @@ riscv.parallel_mov %0, %1 {input_types = [i32, i32, i32]} : (!riscv.reg<s0>, !ri
 
 // CHECK: incorrect length
 
-
 // -----
 
 // Moving from int register to float register
