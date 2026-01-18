@@ -35,7 +35,7 @@ def convert_op(
         NotImplementedError: If the operation is not supported.
     """
     match op:
-        case llvm.ReturnOp() | _ if op.name == "llvm.return":
+        case llvm.ReturnOp():
             _convert_return(op, builder, val_map)
         case _:
             raise NotImplementedError(f"Conversion not implemented for op: {op.name}")

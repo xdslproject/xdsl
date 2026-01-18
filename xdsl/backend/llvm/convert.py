@@ -15,7 +15,10 @@ def _convert_func(op: llvm.FuncOp, llvm_module: ir.Module):
 
     func = ir.Function(llvm_module, func_type, name=func_name)
 
-    if len(op.body.blocks) != 1:
+    if not op.body.blocks:
+        return
+
+    if len(op.body.blocks) > 1:
         raise NotImplementedError("Only single-block functions are supported")
 
     entry_block = op.body.blocks[0]

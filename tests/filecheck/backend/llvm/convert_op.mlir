@@ -2,6 +2,17 @@
 
 builtin.module {
   "llvm.func"() <{
+    sym_name = "declaration",
+    function_type = !llvm.func<void ()>,
+    CConv = #llvm.cconv<ccc>,
+    linkage = #llvm.linkage<external>,
+    visibility_ = 0 : i64
+  }> ({
+  }) : () -> ()
+
+  // CHECK: declare void @"declaration"()
+
+  "llvm.func"() <{
     sym_name = "return_void",
     function_type = !llvm.func<void ()>,
     CConv = #llvm.cconv<ccc>,
