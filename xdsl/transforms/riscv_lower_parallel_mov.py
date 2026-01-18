@@ -1,12 +1,13 @@
 from collections import Counter, defaultdict
-from collections.abc import Callable, Sequence
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import cast
 
+from xdsl.backend.riscv.lowering.utils import move_ops_for_value
 from xdsl.context import Context
 from xdsl.dialects import riscv
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.ir import Operation, SSAValue, SSAValues
+from xdsl.ir import Attribute, Operation, SSAValue, SSAValues
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     PatternRewriter,
@@ -16,23 +17,18 @@ from xdsl.pattern_rewriter import (
 )
 from xdsl.utils.exceptions import PassFailedException
 
-_MV_OP_BY_REGISTER_TYPE: dict[
-    type[riscv.RISCVRegisterType], Callable[..., Operation]
-] = {
-    riscv.IntRegisterType: riscv.MVOp,
-    riscv.FloatRegisterType: riscv.FMVOp,
-}
-
 
 def _insert_mv_op(
-    rewriter: PatternRewriter, src: SSAValue | Operation, dst: riscv.RISCVRegisterType
+    rewriter: PatternRewriter,
+    src: SSAValue | Operation,
+    dst: riscv.RISCVRegisterType,
+    src_type: Attribute,
 ):
-    try:
-        op = _MV_OP_BY_REGISTER_TYPE[type(dst)](src, rd=dst)
-        rewriter.insert_op(op)
-        return op
-    except KeyError:
-        raise PassFailedException("Invalid type: registers must be int or float.")
+    if isinstance(src, Operation):
+        src = SSAValue.get(src)
+    op, _ = move_ops_for_value(src, src_type, dst)
+    rewriter.insert_op(op)
+    return op
 
 
 def _insert_swap_ops(
@@ -77,6 +73,10 @@ class ParallelMovPattern(RewritePattern):
         # this is typed as Attribute to ensure we can index by input type
         output_index = {register: idx for idx, register in enumerate(dst_types)}
 
+        src_type_by_src = {
+            src: src_type for src, src_type in zip(srcs, op.input_types, strict=True)
+        }
+
         # We have a graph with nodes as registers and directed edges as moves,
         # pointing from source to destination.
         # Every node has at most 1 in edge since we can't write to a register twice.
@@ -115,7 +115,7 @@ class ParallelMovPattern(RewritePattern):
             # Iterate up the tree by traversing back edges.
             while dst_type in src_by_dst_type:
                 src = src_by_dst_type[dst_type]
-                mvop = _insert_mv_op(rewriter, src, dst_type)
+                mvop = _insert_mv_op(rewriter, src, dst_type, src_type_by_src[src])
                 # sanity check since we should only have 1 result per output
                 assert results[output_index[dst_type]] is None
                 results[output_index[dst_type]] = mvop.results[0]
@@ -174,16 +174,17 @@ class ParallelMovPattern(RewritePattern):
                 # split the current mov
                 cur_input = srcs[idx]
                 cur_output = dsts[idx]
-                temp_ssa = _insert_mv_op(rewriter, cur_input, temp_reg)
+                temp_ssa_type = op.input_types.data[idx]
+                temp_ssa = _insert_mv_op(rewriter, cur_input, temp_reg, temp_ssa_type)
                 # iterate up the chain until we reach the current output
                 dst_type = cur_input.type
                 while dst_type != cur_output.type:
                     src = src_by_dst_type[dst_type]
-                    mvop = _insert_mv_op(rewriter, src, dst_type)
+                    mvop = _insert_mv_op(rewriter, src, dst_type, src_type_by_src[src])
                     results[output_index[dst_type]] = mvop.results[0]
                     dst_type = src.type
                 # finish the split mov
-                mvop = _insert_mv_op(rewriter, temp_ssa, cur_output.type)
+                mvop = _insert_mv_op(rewriter, temp_ssa, cur_output.type, temp_ssa_type)
                 results[idx] = mvop.results[0]
 
         rewriter.replace_matched_op((), results)
