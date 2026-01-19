@@ -60,18 +60,19 @@ def move_to_regs(
     """
     Return move operations to `a` registers (a0, a1, ... | fa0, fa1, ...).
     """
+    # We only care about bitwidths for floats for now, so default to 32 for non floats
+    widths = tuple(
+        i.bitwidth if isinstance(i, builtin.AnyFloat) else 32 for i in value_types
+    )
 
-    new_ops = list[Operation]()
-    new_values = list[SSAValue]()
+    new_op = riscv.ParallelMovOp(
+        tuple(values),
+        tuple(reg_types),
+        builtin.DenseArrayBase.from_list(builtin.i32, widths),
+    )
+    new_values = new_op.results
 
-    for value, value_type, register_type in zip(
-        values, value_types, reg_types, strict=True
-    ):
-        move_op, new_value = move_ops_for_value(value, value_type, register_type)
-        new_ops.append(move_op)
-        new_values.append(new_value)
-
-    return new_ops, new_values
+    return [new_op], list(new_values)
 
 
 def a_regs_for_types(types: Iterable[Attribute]) -> Iterator[riscv.RISCVRegisterType]:
