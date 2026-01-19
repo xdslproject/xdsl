@@ -64,12 +64,20 @@ from xdsl.irdl import (
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
 from xdsl.traits import (
-    Pure
+    IsolatedFromAbove,
+    NoTerminator,
+    MemoryAllocEffect,
+    Pure,
+    SymbolTable,
+    #SymbolUserOpInterface
 )
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
-
+'''
+[AutomaticAllocationScope, IsolatedFromAbove,
+                         OpAsmOpInterface, SymbolTable,
+                         Symbol]#GraphRegionNoTerminator.traits'''
 
 @irdl_attr_definition
 class EmitC_OpaqueType(ParametrizedAttribute, TypeAttribute):
@@ -793,6 +801,13 @@ class EmitC_ClassOp(IRDLOperation):
 
     body = region_def()
 
+    traits = traits_def(
+        SymbolTable(),
+        IsolatedFromAbove(),
+        NoTerminator(),
+        MemoryAllocEffect()
+    )
+
     def get_block(self):
         if self.body.block:
             return self.body.block
@@ -982,7 +997,15 @@ class EmitC_ConstantOp(IRDLOperation):
     ):
         res_type = ""
         if isinstance(value, int):
-            value = IntegerAttr(value, IntegerType(32))
+            if value < 2**8:
+                int_type = IntegerType(8)
+            elif value < 2**16:
+                int_type = IntegerType(16)
+            elif value < 2**32:
+                int_type = IntegerType(32)
+            else:
+                int_type = IntegerType(64)
+            value = IntegerAttr(value, int_type)
             res_type  = value.type
         else:
             res_type = EmitC_OpaqueType(StringAttr(str(value)))
