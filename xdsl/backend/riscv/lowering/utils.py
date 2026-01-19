@@ -113,7 +113,16 @@ def move_to_unallocated_regs(
 
     outputs = (register_type_for_type(value.type).unallocated() for value in values)
 
-    new_op = riscv.ParallelMovOp(tuple(values), tuple(outputs))
+    # We only care about bitwidths for floats for now, so default to 32 for non floats
+    widths = tuple(
+        i.bitwidth if isinstance(i, builtin.AnyFloat) else 32 for i in value_types
+    )
+
+    new_op = riscv.ParallelMovOp(
+        tuple(values),
+        tuple(outputs),
+        builtin.DenseArrayBase.from_list(builtin.i32, widths),
+    )
     new_values = new_op.results
 
     return [new_op], list(new_values)
