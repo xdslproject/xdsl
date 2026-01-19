@@ -17,6 +17,8 @@ from xdsl.pattern_rewriter import (
 )
 from xdsl.utils.exceptions import PassFailedException
 
+ALLOWED_INT_WIDTHS = [32, 64]
+
 
 def _insert_mv_op(
     rewriter: PatternRewriter,
@@ -37,7 +39,12 @@ def _insert_mv_op(
             case 64:
                 src_type = builtin.Float64Type()
             case _:
-                pass
+                raise PassFailedException(f"Unsupported bit width: f{src_width}")
+    elif isinstance(src.type, riscv.IntRegisterType):
+        if src_width not in ALLOWED_INT_WIDTHS:
+            raise PassFailedException(f"Unsupported bit width: i{src_width}")
+    else:
+        raise PassFailedException(f"Unknown register type: {type(src.type)}")
 
     op, _ = move_ops_for_value(src, src_type, dst)
     rewriter.insert_op(op)

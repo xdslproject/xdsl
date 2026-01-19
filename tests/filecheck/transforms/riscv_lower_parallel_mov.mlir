@@ -311,3 +311,15 @@ builtin.module {
 // CHECK-NEXT:    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^----------------------------------
 // CHECK-NEXT:    | Error while applying pattern: All registers must be allocated
 // CHECK-NEXT:    ---------------------------------------------------------------
+
+// -----
+
+// Test invalid bit width
+builtin.module {
+  %0, %1 = "test.op"() : () -> (!riscv.freg<fs1>, !riscv.reg<s1>)
+  %2, %3 = riscv.parallel_mov %0, %1 [40, 32] : (!riscv.freg<fs1>, !riscv.reg<s1>) -> (!riscv.freg<fs2>, !riscv.reg<s2>)
+}
+// CHECK:         %2, %3 = "riscv.parallel_mov"(%0, %1) <{input_widths = array<i32: 40, 32>}> : (!riscv.freg<fs1>, !riscv.reg<s1>) -> (!riscv.freg<fs2>, !riscv.reg<s2>)
+// CHECK-NEXT:    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^-----------------------------
+// CHECK-NEXT:    | Error while applying pattern: Unsupported bit width: f40
+// CHECK-NEXT:    ----------------------------------------------------------
