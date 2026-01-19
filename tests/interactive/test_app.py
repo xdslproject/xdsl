@@ -436,7 +436,6 @@ async def test_passes():
 
         assert isinstance(app.current_module, ModuleOp)
         # Assert that the current module has been changed accordingly
-        print(app.current_module)
         assert app.current_module.is_structurally_equivalent(expected_module)
 
 
