@@ -5,9 +5,9 @@ from typing import cast
 
 from xdsl.backend.riscv.lowering.utils import move_ops_for_value
 from xdsl.context import Context
-from xdsl.dialects import riscv
+from xdsl.dialects import builtin, riscv
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.ir import Attribute, Operation, SSAValue, SSAValues
+from xdsl.ir import Operation, SSAValue, SSAValues
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     PatternRewriter,
@@ -22,10 +22,23 @@ def _insert_mv_op(
     rewriter: PatternRewriter,
     src: SSAValue | Operation,
     dst: riscv.RISCVRegisterType,
-    src_type: Attribute,
+    src_width: int,
 ):
     if isinstance(src, Operation):
         src = SSAValue.get(src)
+
+    # We only need to specify the type in case of floats
+    # otherwise, the type is ignored, so we just pass an arbitrary attribute here
+    src_type = builtin.IntegerAttr(0, 1)
+    if isinstance(src.type, riscv.FloatRegisterType):
+        match src_width:
+            case 32:
+                src_type = builtin.Float32Type()
+            case 64:
+                src_type = builtin.Float64Type()
+            case _:
+                pass
+
     op, _ = move_ops_for_value(src, src_type, dst)
     rewriter.insert_op(op)
     return op
@@ -74,7 +87,8 @@ class ParallelMovPattern(RewritePattern):
         output_index = {register: idx for idx, register in enumerate(dst_types)}
 
         src_type_by_src = {
-            src: src_type for src, src_type in zip(srcs, op.input_types, strict=True)
+            src: src_type
+            for src, src_type in zip(srcs, op.input_widths.iter_values(), strict=True)
         }
 
         # We have a graph with nodes as registers and directed edges as moves,
@@ -174,7 +188,7 @@ class ParallelMovPattern(RewritePattern):
                 # split the current mov
                 cur_input = srcs[idx]
                 cur_output = dsts[idx]
-                temp_ssa_type = op.input_types.data[idx]
+                temp_ssa_type = op.input_widths.get_values()[idx]
                 temp_ssa = _insert_mv_op(rewriter, cur_input, temp_reg, temp_ssa_type)
                 # iterate up the chain until we reach the current output
                 dst_type = cur_input.type

@@ -4,14 +4,14 @@
 
 // Mismatched input and output counts
 %0, %1, %2 = "test.op"() : () -> (!riscv.reg<s0>, !riscv.reg<s1>, !riscv.reg<s2>)
-riscv.parallel_mov %0, %1, %2 {input_types = [i32, i32, i32]} : (!riscv.reg<s0>, !riscv.reg<s1>, !riscv.reg<s2>) -> (!riscv.reg<s3>, !riscv.reg<s4>)
+riscv.parallel_mov %0, %1, %2 [32, 32, 32] : (!riscv.reg<s0>, !riscv.reg<s1>, !riscv.reg<s2>) -> (!riscv.reg<s3>, !riscv.reg<s4>)
 
 // CHECK: incorrect length
 
 // -----
 // Input types property has incorrect length
 %0, %1 = "test.op"() : () -> (!riscv.reg<s0>, !riscv.reg<s1>)
-riscv.parallel_mov %0, %1 {input_types = [i32, i32, i32]} : (!riscv.reg<s0>, !riscv.reg<s1>) -> (!riscv.reg<s3>, !riscv.reg<s4>)
+riscv.parallel_mov %0, %1 [32, 32, 32] : (!riscv.reg<s0>, !riscv.reg<s1>) -> (!riscv.reg<s3>, !riscv.reg<s4>)
 
 // CHECK: incorrect length
 
@@ -19,7 +19,7 @@ riscv.parallel_mov %0, %1 {input_types = [i32, i32, i32]} : (!riscv.reg<s0>, !ri
 
 // Moving from int register to float register
 %0, %1 = "test.op"() : () -> (!riscv.reg<s0>, !riscv.reg<s1>)
-riscv.parallel_mov %0, %1 {input_types = [i32, i32]} : (!riscv.reg<s0>, !riscv.reg<s1>) -> (!riscv.freg<f0>, !riscv.freg<f1>)
+riscv.parallel_mov %0, %1 [32, 32] : (!riscv.reg<s0>, !riscv.reg<s1>) -> (!riscv.freg<f0>, !riscv.freg<f1>)
 
 // CHECK: %0, %1 = "test.op"() : () -> (!riscv.reg<s0>, !riscv.reg<s1>)
 // CHECK: Input type must match output type.
@@ -28,7 +28,7 @@ riscv.parallel_mov %0, %1 {input_types = [i32, i32]} : (!riscv.reg<s0>, !riscv.r
 
 // Duplicated output registers
 %0, %1 = "test.op"() : () -> (!riscv.reg<s0>, !riscv.reg<s1>)
-riscv.parallel_mov %0, %1 {input_types = [i32, i32]} : (!riscv.reg<s0>, !riscv.reg<s1>) -> (!riscv.reg<s5>, !riscv.reg<s5>)
+riscv.parallel_mov %0, %1 [32, 32] : (!riscv.reg<s0>, !riscv.reg<s1>) -> (!riscv.reg<s5>, !riscv.reg<s5>)
 
 // CHECK: %0, %1 = "test.op"() : () -> (!riscv.reg<s0>, !riscv.reg<s1>)
 // CHECK: Outputs must be unallocated or distinct.

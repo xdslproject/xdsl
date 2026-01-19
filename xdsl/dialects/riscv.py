@@ -19,7 +19,9 @@ from xdsl.backend.register_allocatable import (
 )
 from xdsl.backend.register_type import RegisterAllocatedMemoryEffect, RegisterType
 from xdsl.dialects.builtin import (
+    I32,
     ArrayAttr,
+    DenseArrayBase,
     IndexType,
     IntegerAttr,
     IntegerType,
@@ -43,7 +45,6 @@ from xdsl.ir import (
     SSAValue,
 )
 from xdsl.irdl import (
-    AnyAttr,
     AnyInt,
     IntVarConstraint,
     IRDLOperation,
@@ -3924,23 +3925,25 @@ class ParallelMovOp(RISCVRegallocOperation):
     outputs: VarOpResult[RISCVRegisterType] = var_result_def(
         RangeOf(RISCVRegisterType).of_length(_L)
     )
-    input_types = prop_def(ArrayAttr.constr(RangeOf(AnyAttr()).of_length(_L)))
+    input_widths = prop_def(DenseArrayBase.constr(i32))
     free_registers = opt_prop_def(ArrayAttr[RISCVRegisterType])
 
-    assembly_format = "$inputs attr-dict `:` functional-type($inputs, $outputs)"
+    assembly_format = (
+        "$inputs $input_widths attr-dict `:` functional-type($inputs, $outputs)"
+    )
     irdl_options = (ParsePropInAttrDict(),)
 
     def __init__(
         self,
         inputs: Sequence[SSAValue],
         outputs: Sequence[RISCVRegisterType],
-        input_types: ArrayAttr[Attribute],
+        input_widths: DenseArrayBase[I32],
         free_registers: ArrayAttr[RISCVRegisterType] | None = None,
     ):
         super().__init__(
             operands=(inputs,),
             result_types=(outputs,),
-            properties={"input_types": input_types, "free_registers": free_registers},
+            properties={"input_widths": input_widths, "free_registers": free_registers},
         )
 
     def verify_(self) -> None:
