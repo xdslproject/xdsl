@@ -39,12 +39,12 @@ builtin.module {
 // CHECK-NEXT:        %0, %1 = "test.op"() : () -> (i32, f32)
 // CHECK-NEXT:        %{{.*}} = builtin.unrealized_conversion_cast %0 : i32 to !riscv.reg
 // CHECK-NEXT:        %{{.*}} = builtin.unrealized_conversion_cast %1 : f32 to !riscv.freg
-// CHECK-NEXT:        %{{.*}} = riscv.mv %{{.*}} : (!riscv.reg) -> !riscv.reg<a0>
-// CHECK-NEXT:        %{{.*}} = riscv.fmv.s %{{.*}} : (!riscv.freg) -> !riscv.freg<fa0>
+// CHECK-NEXT:        %{{.*}}, %{{.*}} = riscv.parallel_mov %{{.*}}, %{{.*}} [32, 32] : (!riscv.reg, !riscv.freg) -> (!riscv.reg<a0>, !riscv.freg<fa0>)
 // CHECK-NEXT:        %{{.*}}, %{{.*}} = riscv_func.call @foo(%{{.*}}, %{{.*}}) : (!riscv.reg<a0>, !riscv.freg<fa0>) -> (!riscv.reg<a0>, !riscv.freg<fa0>)
 // CHECK-NEXT:        %{{.*}}, %{{.*}} = riscv.parallel_mov %{{.*}}, %{{.*}} : (!riscv.reg<a0>, !riscv.freg<fa0>) -> (!riscv.reg, !riscv.freg)
 // CHECK-NEXT:        %{{.*}} = builtin.unrealized_conversion_cast %{{.*}} : !riscv.reg to i64
 // CHECK-NEXT:        %{{.*}} = builtin.unrealized_conversion_cast %{{.*}} : !riscv.freg to f64
+// CHECK-NEXT:        riscv.parallel_mov [] : () -> ()
 // CHECK-NEXT:        riscv_func.return
 // CHECK-NEXT:    }
 // CHECK-NEXT:    riscv_func.func public @foo(%arg0 : !riscv.reg<a0>, %arg1 : !riscv.freg<fa0>) -> (!riscv.reg<a0>, !riscv.freg<fa0>) attributes {p2align = 2 : i8} {
@@ -55,8 +55,7 @@ builtin.module {
 // CHECK-NEXT:      %res0, %res1 = "test.op"(%arg0_1, %arg1_1) : (i32, f32) -> (i64, f64)
 // CHECK-NEXT:      %{{.*}} = builtin.unrealized_conversion_cast %res0 : i64 to !riscv.reg
 // CHECK-NEXT:      %{{.*}} = builtin.unrealized_conversion_cast %res1 : f64 to !riscv.freg
-// CHECK-NEXT:      %{{.*}} = riscv.mv %{{.*}} : (!riscv.reg) -> !riscv.reg<a0>
-// CHECK-NEXT:      %{{.*}} = riscv.fmv.d %{{.*}} : (!riscv.freg) -> !riscv.freg<fa0>
+// CHECK-NEXT:      %{{.*}}, %{{.*}} = riscv.parallel_mov %{{.*}}, %{{.*}} [32, 64] : (!riscv.reg, !riscv.freg) -> (!riscv.reg<a0>, !riscv.freg<fa0>)
 // CHECK-NEXT:      riscv_func.return %{{.*}}, %{{.*}} : !riscv.reg<a0>, !riscv.freg<fa0>
 // CHECK-NEXT:    }
 // CHECK-NEXT:    riscv_func.func public @foo_float(%farg0 : !riscv.freg<fa0>, %farg1 : !riscv.freg<fa1>) -> (!riscv.freg<fa0>, !riscv.freg<fa1>) attributes {p2align = 2 : i8} {
@@ -67,8 +66,7 @@ builtin.module {
 // CHECK-NEXT:      %fres0, %fres1 = "test.op"(%farg0_1, %farg1_1) : (f32, f32) -> (f32, f32)
 // CHECK-NEXT:      %{{.*}} = builtin.unrealized_conversion_cast %fres0 : f32 to !riscv.freg
 // CHECK-NEXT:      %{{.*}} = builtin.unrealized_conversion_cast %fres1 : f32 to !riscv.freg
-// CHECK-NEXT:      %{{.*}} = riscv.fmv.s %{{.*}} : (!riscv.freg) -> !riscv.freg<fa0>
-// CHECK-NEXT:      %{{.*}} = riscv.fmv.s %{{.*}} : (!riscv.freg) -> !riscv.freg<fa1>
+// CHECK-NEXT:      %{{.*}}, %{{.*}} = riscv.parallel_mov %{{.*}}, %{{.*}} [32, 32] : (!riscv.freg, !riscv.freg) -> (!riscv.freg<fa0>, !riscv.freg<fa1>)
 // CHECK-NEXT:      riscv_func.return %{{.*}}, %{{.*}} : !riscv.freg<fa0>, !riscv.freg<fa1>
 // CHECK-NEXT:    }
 // CHECK-NEXT:    riscv_func.func public @foo_int_float(%arg0 : !riscv.reg<a0>, %farg0 : !riscv.freg<fa0>) -> (!riscv.freg<fa0>, !riscv.reg<a0>) attributes {p2align = 2 : i8} {
@@ -79,8 +77,7 @@ builtin.module {
 // CHECK-NEXT:      %fres0, %res0 = "test.op"(%arg0_1, %farg0_1) : (i32, f32) -> (f32, i32)
 // CHECK-NEXT:      %{{.*}} = builtin.unrealized_conversion_cast %fres0 : f32 to !riscv.freg
 // CHECK-NEXT:      %{{.*}} = builtin.unrealized_conversion_cast %res0 : i32 to !riscv.reg
-// CHECK-NEXT:      %{{.*}} = riscv.fmv.s %{{.*}} : (!riscv.freg) -> !riscv.freg<fa0>
-// CHECK-NEXT:      %{{.*}} = riscv.mv %{{.*}} : (!riscv.reg) -> !riscv.reg<a0>
+// CHECK-NEXT:      %{{.*}}, %{{.*}} = riscv.parallel_mov %{{.*}}, %{{.*}} [32, 32] : (!riscv.freg, !riscv.reg) -> (!riscv.freg<fa0>, !riscv.reg<a0>)
 // CHECK-NEXT:      riscv_func.return %{{.*}}, %{{.*}} : !riscv.freg<fa0>, !riscv.reg<a0>
 // CHECK-NEXT:    }
 // CHECK-NEXT:    riscv_func.func public @foo_int_double(%arg0 : !riscv.reg<a0>, %farg0 : !riscv.freg<fa0>) -> (!riscv.freg<fa0>, !riscv.reg<a0>) attributes {p2align = 2 : i8} {
@@ -91,11 +88,11 @@ builtin.module {
 // CHECK-NEXT:      %{{.*}}, %{{.*}} = "test.op"(%{{.*}}, %{{.*}}) : (i32, f64) -> (f64, i32)
 // CHECK-NEXT:      %{{.*}} = builtin.unrealized_conversion_cast %{{.*}} : f64 to !riscv.freg
 // CHECK-NEXT:      %{{.*}} = builtin.unrealized_conversion_cast %{{.*}} : i32 to !riscv.reg
-// CHECK-NEXT:      %{{.*}} = riscv.fmv.d %{{.*}} : (!riscv.freg) -> !riscv.freg<fa0>
-// CHECK-NEXT:      %{{.*}} = riscv.mv %{{.*}} : (!riscv.reg) -> !riscv.reg<a0>
+// CHECK-NEXT:      %{{.*}}, %{{.*}} = riscv.parallel_mov %{{.*}}, %{{.*}} [64, 32] : (!riscv.freg, !riscv.reg) -> (!riscv.freg<fa0>, !riscv.reg<a0>)
 // CHECK-NEXT:      riscv_func.return %{{.*}}, %{{.*}} : !riscv.freg<fa0>, !riscv.reg<a0>
 // CHECK-NEXT:    }
 // CHECK-NEXT:    riscv_func.func private @private_func() attributes {p2align = 2 : i8} {
+// CHECK-NEXT:      riscv.parallel_mov [] : () -> ()
 // CHECK-NEXT:      riscv_func.return
 // CHECK-NEXT:    }
 // CHECK-NEXT:    riscv_func.func public @external(!riscv.reg<a0>, !riscv.freg<fa0>) -> (!riscv.freg<fa0>, !riscv.reg<a0>) attributes {p2align = 2 : i8}

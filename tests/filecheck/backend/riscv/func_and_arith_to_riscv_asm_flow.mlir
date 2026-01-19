@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s -p convert-func-to-riscv-func,inline-snrt{cluster-num=2},convert-arith-to-riscv,reconcile-unrealized-casts,riscv-allocate-registers -t riscv-asm | filecheck %s
+// RUN: xdsl-opt %s -p convert-func-to-riscv-func,inline-snrt{cluster-num=2},convert-arith-to-riscv,reconcile-unrealized-casts,riscv-allocate-registers,riscv-lower-parallel-mov -t riscv-asm | filecheck %s
 
 
 func.func @test(%dst: i32, %src: i32) -> i32 {
