@@ -205,7 +205,7 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
     }
 
 
-// CHECK-NEXT:  # Regalloc stats: {"preallocated_float": ["ft0", "ft1", "ft2"], "preallocated_int": ["a0", "a1", "a2", "zero"], "allocated_float": ["ft0", "ft1", "ft2"], "allocated_int": ["a0", "a1", "a2", "t0", "t1", "t2", "t3", "zero"]}
+// CHECK-NEXT:  # Regalloc stats: {"preallocated_float": ["ft0", "ft1", "ft2"], "preallocated_int": ["a0", "a1", "a2", "zero"], "allocated_float": ["ft0", "ft1", "ft2", "ft3"], "allocated_int": ["a0", "a1", "a2", "t0", "t1", "t2", "t3", "zero"]}
 // CHECK-NEXT:  .globl dsum
 // CHECK-NEXT:  .p2align 2
 // CHECK-NEXT:  dsum:
@@ -222,8 +222,9 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
 // CHECK-NEXT:      scfgwi t0, 898                               # dm 2 dim 0 destination
 // CHECK-NEXT:      csrrsi zero, 1984, 1                         # SSR enable
 // CHECK-NEXT:      li t0, 127
-// CHECK-NEXT:      frep.o t0, 1, 0, 0
-// CHECK-NEXT:      fadd.d ft2, ft0, ft1
+// CHECK-NEXT:      frep.o t0, 2, 0, 0
+// CHECK-NEXT:      fadd.d ft3, ft0, ft1
+// CHECK-NEXT:      fmv.d ft2, ft3
 // CHECK-NEXT:      csrrci zero, 1984, 1                         # SSR disable
 // CHECK-NEXT:      ret
 
@@ -508,7 +509,7 @@ func.func public @pooling_nchw_max_d1_s2_3x3(
   }
 
 
-// CHECK-NEXT:  # Regalloc stats: {"preallocated_float": ["ft0", "ft1", "ft2"], "preallocated_int": ["a0", "a1", "zero"], "allocated_float": ["ft0", "ft1", "ft3"], "allocated_int": ["a0", "a1", "t0", "t1", "t2", "zero"]}
+// CHECK:        # Regalloc stats: {"preallocated_float": ["ft0", "ft1", "ft2"], "preallocated_int": ["a0", "a1", "zero"], "allocated_float": ["ft0", "ft1", "ft3", "ft4"], "allocated_int": ["a0", "a1", "t0", "t1", "t2", "zero"]}
 // CHECK-NEXT:  .globl reluf64
 // CHECK-NEXT:  .p2align 2
 // CHECK-NEXT:  reluf64:
@@ -524,8 +525,9 @@ func.func public @pooling_nchw_max_d1_s2_3x3(
 // CHECK-NEXT:      scfgwi t0, 897                               # dm 1 dim 0 destination
 // CHECK-NEXT:      csrrsi zero, 1984, 1                         # SSR enable
 // CHECK-NEXT:      li t0, 255
-// CHECK-NEXT:      frep.o t0, 1, 0, 0
-// CHECK-NEXT:      fmax.d ft1, ft0, ft3
+// CHECK-NEXT:      frep.o t0, 2, 0, 0
+// CHECK-NEXT:      fmax.d ft4, ft0, ft3
+// CHECK-NEXT:      fmv.d ft1, ft4
 // CHECK-NEXT:      csrrci zero, 1984, 1                         # SSR disable
 // CHECK-NEXT:      ret
 
