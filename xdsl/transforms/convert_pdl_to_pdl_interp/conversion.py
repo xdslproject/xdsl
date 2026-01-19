@@ -3,6 +3,7 @@ PDL to PDL_interp Transformation
 """
 
 from abc import ABC
+from collections import defaultdict
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from typing import Optional, cast
@@ -129,6 +130,15 @@ class SwitchNode(MatcherNode):
     """Multi-way switch node"""
 
     children: dict[Answer, MatcherNode | None] = field(default_factory=lambda: {})
+
+
+@dataclass(kw_only=True)
+class ChooseNode(MatcherNode):
+    """Similar to a SwitchNode, but tries all choices by backtracking upon finalization."""
+
+    parent: MatcherNode
+
+    choices: dict[OperationPosition, MatcherNode] = field(default_factory=lambda: {})
 
 
 @dataclass(kw_only=True)
@@ -765,17 +775,268 @@ def _stable_topological_sort(
     return sorted_list
 
 
+@dataclass
+class PredicateSplit:
+    splits: list[
+        tuple[OperationPosition, list["OrderedPredicate | PredicateSplit"]]
+    ] = field(default_factory=lambda: [])
+
+
+@dataclass
+class OperationPositionTree:
+    """Node in the tree representing an OperationPosition."""
+
+    operation: OperationPosition
+    covered_patterns: set[int] = field(default_factory=lambda: set())
+    children: list["OperationPositionTree"] = field(default_factory=lambda: [])
+
+    @staticmethod
+    def build_operation_position_tree(
+        pattern_predicates: list[list[PositionalPredicate]],
+    ) -> tuple[
+        "OperationPositionTree",
+        list[list[int]],
+        list[dict[tuple[Position, Question], set[OperationPosition]]],
+    ]:
+        """
+        Build a tree representing all operation positions from multiple patterns,
+        computing operation dependencies for each predicate.
+
+        Args:
+            pattern_predicates: List of predicate lists, one per pattern
+
+        Returns:
+            - Root of the operation position tree
+            - Pattern paths (indices for each pattern)
+            - Predicate dependencies (one dict per pattern mapping predicates to their operation dependencies)
+        """
+
+        # Extract operation position dependencies per predicate
+        predicate_dependencies: list[
+            dict[tuple[Position, Question], set[OperationPosition]]
+        ] = []
+
+        for predicates in pattern_predicates:
+            # PositionalPredicates aren't hashable so we use a tuple of (Position, Question) as key
+            pattern_pred_deps: dict[
+                tuple[Position, Question], set[OperationPosition]
+            ] = {}
+            for pred in predicates:
+                deps = OperationPositionTree.get_predicate_operation_dependencies(pred)
+                pattern_pred_deps[(pred.position, pred.q)] = deps
+            predicate_dependencies.append(pattern_pred_deps)
+
+        # Build pattern_operations by taking union of all predicate dependencies
+        pattern_operations: list[set[OperationPosition]] = []
+        for pattern_pred_deps in predicate_dependencies:
+            operations: set[OperationPosition] = set()
+            for deps in pattern_pred_deps.values():
+                operations.update(deps)
+            pattern_operations.append(operations)
+
+        # Find root operation
+        all_ops = set[OperationPosition]().union(*pattern_operations)
+        roots = [op for op in all_ops if op.is_root()]
+        if len(roots) != 1:
+            raise ValueError(f"Did not find exactly one root operation, found: {roots}")
+
+        root = OperationPositionTree(operation=roots[0])
+        pattern_paths: list[list[int]] = [[] for _ in pattern_operations]
+
+        # Build tree recursively
+        def build_subtree(
+            node: OperationPositionTree,
+            prefix: set[OperationPosition],
+            remaining_indices: list[int],
+            current_paths: dict[int, list[int]],
+        ):
+            if not remaining_indices:
+                return
+
+            # Split patterns into covered and remaining
+            covered: list[int] = []
+            still_needed: list[int] = []
+            for i in remaining_indices:
+                uncovered = pattern_operations[i] - prefix
+                if not uncovered:
+                    covered.append(i)
+                else:
+                    still_needed.append(i)
+
+            node.covered_patterns.update(covered)
+
+            if not still_needed:
+                return
+
+            # Group patterns by next operation
+            next_ops: dict[OperationPosition, list[int]] = defaultdict(list)
+            for i in still_needed:
+                candidates = pattern_operations[i] - prefix
+                if candidates:
+                    # Pick operation with highest score (appears in most patterns, shallow depth)
+                    best_op = max(
+                        candidates,
+                        key=lambda op: (
+                            sum(1 for j in still_needed if op in pattern_operations[j]),
+                            -op.get_operation_depth(),
+                        ),
+                    )
+                    next_ops[best_op].append(i)
+
+            # Create children
+            for child_index, (op, indices) in enumerate(next_ops.items()):
+                child = OperationPositionTree(operation=op)
+                node.children.append(child)
+
+                child_paths: dict[int, list[int]] = {}
+                for idx in indices:
+                    child_paths[idx] = current_paths.get(idx, []) + [child_index]
+                    pattern_paths[idx] = child_paths[idx]
+                build_subtree(child, prefix | {op}, indices, child_paths)
+
+        build_subtree(root, {roots[0]}, list(range(len(pattern_operations))), {})
+        return root, pattern_paths, predicate_dependencies
+
+    def build_predicate_tree_from_operation_tree(
+        self,
+        ordered_predicates: dict[tuple[Position, Question], OrderedPredicate],
+        pattern_predicates: list[list[PositionalPredicate]],
+        predicate_dependencies: list[
+            dict[tuple[Position, Question], set[OperationPosition]]
+        ],
+    ) -> list[OrderedPredicate | PredicateSplit]:
+        """
+        Build a predicate tree structure with PredicateSplits based on the operation position tree.
+
+        Args:
+            op_tree: The operation position tree
+            ordered_predicates: Map from (position, question) to OrderedPredicate
+            pattern_predicates: List of predicates per pattern
+            predicate_dependencies: List of dependency maps per pattern
+
+        Returns:
+            List of predicates with PredicateSplits representing the tree structure
+        """
+
+        def build_predicate_subtree(
+            node: OperationPositionTree,
+            prefix: set[OperationPosition],
+            parent_prefix: set[OperationPosition],
+        ) -> list[OrderedPredicate | PredicateSplit]:
+            """Build predicate tree for a subtree of the operation position tree."""
+
+            # Collect predicates whose dependencies are satisfied by current prefix
+            # but weren't satisfied by parent prefix (newly satisfied)
+            node_predicates: dict[tuple[Position, Question], OrderedPredicate] = {}
+
+            for pattern_preds, pred_deps in zip(
+                pattern_predicates, predicate_dependencies, strict=False
+            ):
+                for pred in pattern_preds:
+                    deps = pred_deps.get((pred.position, pred.q))
+                    if deps is None:
+                        continue  # Skip if no dependencies recorded
+                    # Check if all dependencies are satisfied by current prefix
+                    # but not all were satisfied by parent prefix
+                    if deps.issubset(prefix) and not deps.issubset(parent_prefix):
+                        key = (pred.position, pred.q)
+                        if key in ordered_predicates:
+                            node_predicates[key] = ordered_predicates[key]
+
+            # Sort predicates for this node
+            sorted_node_preds = cast(
+                list[OrderedPredicate | PredicateSplit],
+                sorted(node_predicates.values()),
+            )
+
+            # If there are children, create a PredicateSplit
+            if node.children:
+                splits: list[
+                    tuple[OperationPosition, list[OrderedPredicate | PredicateSplit]]
+                ] = []
+
+                for child in node.children:
+                    # Recursively build predicate tree for child
+                    child_preds = build_predicate_subtree(
+                        child, prefix | {child.operation}, prefix
+                    )
+                    splits.append((child.operation, child_preds))
+
+                sorted_node_preds.append(PredicateSplit(splits))
+
+            return sorted_node_preds
+
+        # Start building from root
+        root_prefix = {self.operation}
+        return build_predicate_subtree(self, root_prefix, set())
+
+    @staticmethod
+    def get_predicate_operation_dependencies(
+        pred: PositionalPredicate,
+    ) -> set[OperationPosition]:
+        """Get all operation position dependencies for a predicate."""
+
+        def get_position_dependencies(pos: Position) -> set[OperationPosition]:
+            """Get all operation position dependencies for a position."""
+            operations: set[OperationPosition] = set()
+            worklist: list[Position] = [pos]
+            visited: set[Position] = set()
+
+            while worklist:
+                current = worklist.pop(0)
+                if current in visited:
+                    continue
+                visited.add(current)
+
+                # If this is a ConstraintPosition, add its argument positions
+                if isinstance(current, ConstraintPosition):
+                    worklist.extend(current.constraint.arg_positions)
+
+                # Get the base operation and all ancestors
+                op = current.get_base_operation()
+                while op:
+                    operations.add(op)
+                    if op.parent:
+                        parent_op = op.parent.get_base_operation()
+                        if parent_op:
+                            op = parent_op
+                        else:
+                            break
+                    else:
+                        break
+
+            return operations
+
+        deps: set[OperationPosition] = set()
+
+        # Add dependencies from the predicate position
+        deps.update(get_position_dependencies(pred.position))
+
+        # Handle EqualToQuestion - add the other position
+        if isinstance(pred.q, EqualToQuestion):
+            deps.update(get_position_dependencies(pred.q.other_position))
+
+        # Handle ConstraintQuestion - add all argument positions
+        if isinstance(pred.q, ConstraintQuestion):
+            for arg_pos in pred.q.arg_positions:
+                deps.update(get_position_dependencies(arg_pos))
+
+        return deps
+
+
 class PredicateTreeBuilder:
     """Builds optimized predicate matching trees"""
 
     analyzer: PatternAnalyzer
     _pattern_roots: dict[pdl.PatternOp, SSAValue]
     pattern_value_positions: dict[pdl.PatternOp, dict[SSAValue, Position]]
+    optimize_for_eqsat: bool = False
 
-    def __init__(self):
+    def __init__(self, optimize_for_eqsat: bool = False):
         self.analyzer = PatternAnalyzer()
         self._pattern_roots = {}
         self.pattern_value_positions = {}
+        self.optimize_for_eqsat = optimize_for_eqsat
 
     def build_predicate_tree(self, patterns: list[pdl.PatternOp]) -> MatcherNode:
         """Build optimized matcher tree from multiple patterns"""
@@ -792,21 +1053,56 @@ class PredicateTreeBuilder:
 
         # Create ordered predicates with frequency analysis
         ordered_predicates = self._create_ordered_predicates(all_pattern_predicates)
-        # Sort predicates by priority
-        sorted_predicates = sorted(ordered_predicates.values())
-        sorted_predicates = _stable_topological_sort(sorted_predicates)
-
-        # Build matcher tree by propagating patterns
-        root_node = None
-        for pattern, predicates in all_pattern_predicates:
-            if not predicates:
-                continue
-            pattern_predicate_set = {
-                (pred.position, pred.q): pred for pred in predicates
-            }
-            root_node = self._propagate_pattern(
-                root_node, pattern, pattern_predicate_set, sorted_predicates, 0
+        if self.optimize_for_eqsat:
+            # Build operation position tree and compute predicate dependencies
+            op_pos_tree, pattern_paths, predicate_dependencies = (
+                OperationPositionTree.build_operation_position_tree(
+                    [predicates for (_, predicates) in all_pattern_predicates]
+                )
             )
+
+            # Build the predicate tree with PredicateSplits based on operation dependencies
+            sorted_predicates = op_pos_tree.build_predicate_tree_from_operation_tree(
+                ordered_predicates,
+                [predicates for (_, predicates) in all_pattern_predicates],
+                predicate_dependencies,
+            )
+
+            # Build matcher tree by propagating patterns through the predicate structure
+            root_node = None
+            for (pattern, predicates), path in zip(
+                all_pattern_predicates, pattern_paths, strict=False
+            ):
+                pattern_predicate_set = {
+                    (pred.position, pred.q): pred for pred in predicates
+                }
+                root_node = self._propagate_pattern(
+                    root_node,
+                    pattern,
+                    pattern_predicate_set,
+                    sorted_predicates,
+                    0,
+                    path,
+                )
+        else:
+            # Sort predicates by priority
+            sorted_predicates = sorted(ordered_predicates.values())
+            sorted_predicates = _stable_topological_sort(sorted_predicates)
+            sorted_predicates = cast(
+                list[OrderedPredicate | PredicateSplit], sorted_predicates
+            )
+
+            # Build matcher tree by propagating patterns
+            root_node = None
+            for pattern, predicates in all_pattern_predicates:
+                if not predicates:
+                    continue
+                pattern_predicate_set = {
+                    (pred.position, pred.q): pred for pred in predicates
+                }
+                root_node = self._propagate_pattern(
+                    root_node, pattern, pattern_predicate_set, sorted_predicates, 0
+                )
 
         # Add exit node and optimize
         if root_node is not None:
@@ -894,8 +1190,10 @@ class PredicateTreeBuilder:
         node: MatcherNode | None,
         pattern: pdl.PatternOp,
         pattern_predicates: dict[tuple[Position, Question], PositionalPredicate],
-        sorted_predicates: list[OrderedPredicate],
+        sorted_predicates: list[OrderedPredicate | PredicateSplit],
         predicate_index: int,
+        path: list[int] = [],
+        parent: MatcherNode | None = None,
     ) -> MatcherNode:
         """Propagate a pattern through the predicate tree"""
 
@@ -905,6 +1203,41 @@ class PredicateTreeBuilder:
             return SuccessNode(pattern=pattern, root=root_val, failure_node=node)
 
         current_predicate = sorted_predicates[predicate_index]
+
+        if isinstance(current_predicate, PredicateSplit):
+            if not path:
+                root_val = self._pattern_roots.get(pattern)
+                return SuccessNode(pattern=pattern, root=root_val, failure_node=node)
+            assert parent is not None
+            if node is None:
+                node = ChooseNode(parent=parent)
+            if isinstance(node, ChooseNode):
+                choice = path[0]
+                path = path[1:]
+                position, predicates = current_predicate.splits[choice]
+                node.choices[position] = self._propagate_pattern(
+                    node.choices.get(position),
+                    pattern,
+                    pattern_predicates,
+                    predicates,
+                    0,
+                    path,
+                    parent=node,
+                )
+            else:
+                assert isinstance(node, SwitchNode)
+                node.failure_node = self._propagate_pattern(
+                    node.failure_node,
+                    pattern,
+                    pattern_predicates,
+                    sorted_predicates,
+                    predicate_index,
+                    path,
+                    parent=node,
+                )
+            return node
+
+        assert isinstance(current_predicate, OrderedPredicate)
         pred_key = (current_predicate.position, current_predicate.question)
 
         # Skip predicates not in this pattern
@@ -915,6 +1248,8 @@ class PredicateTreeBuilder:
                 pattern_predicates,
                 sorted_predicates,
                 predicate_index + 1,
+                path,
+                parent,
             )
 
         # Create or match existing node
@@ -938,6 +1273,8 @@ class PredicateTreeBuilder:
                     pattern_predicates,
                     sorted_predicates,
                     predicate_index + 1,
+                    path,
+                    parent=node,
                 )
 
         else:
@@ -948,6 +1285,8 @@ class PredicateTreeBuilder:
                 pattern_predicates,
                 sorted_predicates,
                 predicate_index,
+                path,
+                parent=node,
             )
 
         return node
@@ -1013,6 +1352,7 @@ class MatcherGenerator:
     builder: Builder
     constraint_op_map: dict[ConstraintQuestion, pdl_interp.ApplyConstraintOp]
     rewriter_names: dict[str, int]
+    optimize_for_eqsat: bool = False
 
     def __init__(
         self,
@@ -1029,12 +1369,13 @@ class MatcherGenerator:
         self.builder = Builder(InsertPoint.at_start(matcher_func.body.block))
         self.constraint_op_map = {}
         self.rewriter_names = {}
+        self.optimize_for_eqsat = optimize_for_eqsat
 
     def lower(self, patterns: list[pdl.PatternOp]) -> None:
         """Lower PDL patterns to PDL interpreter"""
 
         # Build the predicate tree
-        tree_builder = PredicateTreeBuilder()
+        tree_builder = PredicateTreeBuilder(self.optimize_for_eqsat)
         root = tree_builder.build_predicate_tree(patterns)
         self.value_to_position = tree_builder.pattern_value_positions
 
@@ -1092,6 +1433,8 @@ class MatcherGenerator:
                 self.generate_switch_node(node, current_block, val)
             case SuccessNode():
                 self.generate_success_node(node, current_block)
+            case ChooseNode():
+                self.generate_choose_node(node, current_block)
             case _:
                 raise NotImplementedError(f"Unhandled node type {type(node)}")
 
@@ -1493,6 +1836,43 @@ class MatcherGenerator:
             self.failure_block_stack[-1],
         )
         _ = self.builder.insert(record_op)
+
+    def generate_choose_node(self, node: ChooseNode, block: Block) -> None:
+        """Generate operations for a choose node"""
+        region = block.parent
+        assert region is not None, "Block must be in a region"
+
+        # Get the current failure destination (for when all choices are exhausted)
+        default_dest = (
+            self.failure_block_stack[-1] if self.failure_block_stack else None
+        )
+
+        # Push the finalize block as the failure destination.
+        # When a choice fails, finalize should be called and the backtrack stack is incremented.
+        self.failure_block_stack.append(self.failure_block_stack[0])
+
+        # Generate blocks for each non-None choice
+        choice_blocks: list[Block] = []
+        for choice in node.choices.values():
+            choice_block = self.generate_matcher(choice, region)
+            choice_blocks.append(choice_block)
+
+        # It seems like a ChooseNode only ever has one choice:
+        assert len(choice_blocks) == 1
+
+        # Pop the failure destination we pushed
+        _ = self.failure_block_stack.pop()
+
+        # Set insertion point and create the eqsat.choose operation as a terminator
+        self.builder.insertion_point = InsertPoint.at_end(block)
+        if choice_blocks:
+            assert default_dest is not None
+            # choose_op = eqsat_pdl_interp.ChooseOp(choice_blocks, default_dest)
+            # _ = self.builder.insert(choose_op)
+        else:
+            # If no choices, use finalize as fallback
+            finalize_op = pdl_interp.FinalizeOp()
+            _ = self.builder.insert(finalize_op)
 
     def generate_rewriter(
         self, pattern: pdl.PatternOp, used_match_positions: list[Position]
