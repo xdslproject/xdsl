@@ -1,7 +1,32 @@
+from collections.abc import Callable
+
 from llvmlite import ir
 
 from xdsl.dialects import llvm
 from xdsl.ir import Operation, SSAValue
+
+_BINARY_OP_MAP: dict[
+    type[Operation], Callable[[ir.IRBuilder], Callable[[ir.Value, ir.Value], ir.Value]]
+] = {
+    llvm.AddOp: lambda b: b.add,
+    llvm.FAddOp: lambda b: b.fadd,
+    llvm.SubOp: lambda b: b.sub,
+    llvm.FSubOp: lambda b: b.fsub,
+    llvm.MulOp: lambda b: b.mul,
+    llvm.FMulOp: lambda b: b.fmul,
+    llvm.UDivOp: lambda b: b.udiv,
+    llvm.SDivOp: lambda b: b.sdiv,
+    llvm.FDivOp: lambda b: b.fdiv,
+    llvm.URemOp: lambda b: b.urem,
+    llvm.SRemOp: lambda b: b.srem,
+    llvm.FRemOp: lambda b: b.frem,
+    llvm.ShlOp: lambda b: b.shl,
+    llvm.LShrOp: lambda b: b.lshr,
+    llvm.AShrOp: lambda b: b.ashr,
+    llvm.AndOp: lambda b: b.and_,
+    llvm.OrOp: lambda b: b.or_,
+    llvm.XOrOp: lambda b: b.xor,
+}
 
 
 def _convert_return(
@@ -34,6 +59,13 @@ def convert_op(
     Raises:
         NotImplementedError: If the operation is not supported.
     """
+    if type(op) in _BINARY_OP_MAP:
+        target_func = _BINARY_OP_MAP[type(op)](builder)
+        val_map[op.results[0]] = target_func(
+            val_map[op.operands[0]], val_map[op.operands[1]]
+        )
+        return
+
     match op:
         case llvm.ReturnOp():
             _convert_return(op, builder, val_map)
