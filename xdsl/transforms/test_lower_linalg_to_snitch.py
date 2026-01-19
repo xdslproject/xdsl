@@ -75,6 +75,8 @@ LOWER_SNITCH_STREAM_TO_ASM_PASSES: tuple[ModulePass, ...] = (
     canonicalize.CanonicalizePass(),
     convert_riscv_scf_to_riscv_cf.ConvertRiscvScfToRiscvCfPass(),
     canonicalize.CanonicalizePass(),
+    riscv_lower_parallel_mov.RISCVLowerParallelMovPass(),
+    canonicalize.CanonicalizePass(),
 )
 
 TEST_LOWER_LINALG_TO_SNITCH_PASSES: tuple[ModulePass, ...] = (
@@ -84,8 +86,6 @@ TEST_LOWER_LINALG_TO_SNITCH_PASSES: tuple[ModulePass, ...] = (
     *OPTIMISE_MEMREF_STREAM_PASSES,
     *LOWER_MEMREF_STREAM_TO_SNITCH_STREAM_PASSES,
     *LOWER_SNITCH_STREAM_TO_ASM_PASSES,
-    riscv_lower_parallel_mov.RISCVLowerParallelMovPass(),
-    canonicalize.CanonicalizePass(),
 )
 
 
