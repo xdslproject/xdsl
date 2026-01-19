@@ -995,16 +995,13 @@ class EmitC_ConstantOp(IRDLOperation):
         self,
         value: EmitC_OpaqueOrTypedAttr | int
     ):
-        res_type = ""
         if isinstance(value, int):
-            if value < 2**8:
-                int_type = IntegerType(8)
-            elif value < 2**16:
-                int_type = IntegerType(16)
-            elif value < 2**32:
-                int_type = IntegerType(32)
-            else:
-                int_type = IntegerType(64)
+            dec_len = len(str(abs(value)))
+            int_type = IntegerType(64)
+            for width in (8, 16, 32, 64):
+                if 10**dec_len - 1 < 2**width:
+                    int_type = IntegerType(width)
+                    break
             value = IntegerAttr(value, int_type)
             res_type  = value.type
         else:
