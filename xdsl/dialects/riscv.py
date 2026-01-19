@@ -3947,6 +3947,12 @@ class ParallelMovOp(RISCVRegallocOperation):
         )
 
     def verify_(self) -> None:
+        if len(self.inputs) != len(self.input_widths):
+            raise VerifyException(
+                "incorrect length for input_widths. "
+                "Expected {len(self.inputs)}, found {len(self.input_widths)}."
+            )
+
         input_types = cast(Sequence[RISCVRegisterType], self.inputs.types)
         output_types = cast(Sequence[RISCVRegisterType], self.outputs.types)
 
