@@ -1075,7 +1075,7 @@ class PredicateTreeBuilder:
             # Build matcher tree by propagating patterns through the predicate structure
             root_node = None
             for (pattern, predicates), path in zip(
-                all_pattern_predicates, pattern_paths, strict=False
+                all_pattern_predicates, pattern_paths, strict=True
             ):
                 pattern_predicate_set = {
                     (pred.position, pred.q): pred for pred in predicates
