@@ -1256,6 +1256,30 @@ class PredicateTreeBuilder:
                 parent,
             )
 
+        if isinstance(node, ChooseNode):
+            # It's not possible to insert a new predicate below a ChooseNode since a
+            # ChooseNode needs to be the last node before a new split. Instead, we find
+            # the parent SwitchNode (`parent`) that leads to the ChooseNode and insert the
+            # predicate as a new node (`replacement_node`) in place of the ChooseNode.
+            # The failure path of the new node then points to the ChooseNode.
+            assert isinstance(parent := node.parent, SwitchNode)
+            replacement_node = SwitchNode(
+                position=current_predicate.position,
+                question=current_predicate.question,
+                failure_node=node,
+            )
+            node.parent = replacement_node
+            if parent.failure_node == node:
+                parent.failure_node = replacement_node
+            else:
+                replaced = False
+                for answer, child in parent.children.items():
+                    if child == node:
+                        parent.children[answer] = replacement_node
+                        replaced = True
+                assert replaced
+            node = replacement_node
+
         # Create or match existing node
         if node is None:
             # Create new switch node
