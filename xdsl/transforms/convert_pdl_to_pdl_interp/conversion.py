@@ -1313,6 +1313,14 @@ class PredicateTreeBuilder:
                 child_node = root.children[answer]
                 if child_node is not None:
                     root.children[answer] = self._optimize_tree(child_node)
+        elif isinstance(root, ChooseNode):
+            choices: dict[OperationPosition, MatcherNode] = {}
+            for position, choice in root.choices.items():
+                choices[position] = self._optimize_tree(choice)
+            return ChooseNode(
+                parent=root.parent,
+                choices=choices,
+            )
         elif isinstance(root, BoolNode):
             if root.success_node is not None:
                 root.success_node = self._optimize_tree(root.success_node)
