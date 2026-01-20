@@ -169,7 +169,7 @@ class BsetIOp(RdRsImmShiftOperationRV32):
 
 
 RISCV32 = Dialect(
-    "riscv32",
+    "rv32",
     [
         SlliOp,
         SrliOp,
