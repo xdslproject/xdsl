@@ -987,30 +987,17 @@ class EmitC_ConstantOp(IRDLOperation):
     value = prop_def(EmitC_OpaqueOrTypedAttr)
     result = result_def(EmitCTypeConstr)
 
-    #assembly_format = " attr-dict $value `:` type(results)"
-
-    #irdl_options = (ParsePropInAttrDict(), )
-
     def __init__(
         self,
-        value: EmitC_OpaqueOrTypedAttr | int
+        value: EmitC_OpaqueOrTypedAttr | IntegerAttr
     ):
-        if isinstance(value, int):
-            dec_len = len(str(abs(value)))
-            int_type = IntegerType(64)
-            for width in (8, 16, 32, 64):
-                if 10**dec_len - 1 < 2**width:
-                    int_type = IntegerType(width)
-                    break
-            value = IntegerAttr(value, int_type)
-            res_type  = value.type
+        if isinstance(value, IntegerAttr):
+            res_type = value.type # pyright: ignore[reportUnknownVariableType, reportUnknownMemberType]
         else:
             res_type = EmitC_OpaqueType(StringAttr(str(value)))
         super().__init__(
-            properties={
-                "value": value
-            },
-            result_types=[res_type]
+            properties={ "value": value }, # pyright: ignore[reportUnknownArgumentType]
+            result_types=[res_type] # pyright: ignore[reportUnknownArgumentType]
         )
 
     def verify_(self) -> None:
@@ -1673,6 +1660,71 @@ class EmitC_VariableOp(IRDLOperation):
         return True
 
 
+@irdl_op_definition
+class EmitC_VerbatimOp(IRDLOperation):
+    """
+    Verbatim operation.
+
+    The `emitc.verbatim` operation produces no results and the value is emitted as is
+    followed by a line break  ('\n' character) during translation.
+
+    Note: Use with caution. This operation can have arbitrary effects on the
+    semantics of the emitted code. Use semantically more meaningful operations
+    whenever possible. Additionally this op is *NOT* intended to be used to
+    inject large snippets of code.
+
+    This operation can be used in situations where a more suitable operation is
+    not yet implemented in the dialect or where preprocessor directives
+    interfere with the structure of the code. One example of this is to declare
+    the linkage of external symbols to make the generated code usable in both C
+    and C++ contexts:
+
+    ```c++
+    #ifdef __cplusplus
+    extern "C" {
+    #endif
+
+    ...
+
+    #ifdef __cplusplus
+    }
+    #endif
+    ```
+
+    If the `emitc.verbatim` op has operands, then the `value` is interpreted as
+    format string, where `{}` is a placeholder for an operand in their order.
+    For example, `emitc.verbatim "#pragma my src={} dst={}" %src, %dest : i32, i32`
+    would be emitted as `#pragma my src=a dst=b` if `%src` became `a` and
+    `%dest` became `b` in the C code.
+    `{{` in the format string is interpreted as a single `{` and doesn't introduce
+    a placeholder.
+
+    Example:
+
+    ```mlir
+    emitc.verbatim "typedef float f32;"
+    emitc.verbatim "#pragma my var={} property" args %arg : f32
+    ```
+    ```c++
+    // Code emitted for the operation above.
+    typedef float f32;
+    #pragma my var=v1 property
+    ```
+    """
+
+    name = "emitc.verbatim"
+
+    value = prop_def(StringAttr)
+    fmtArgs = var_operand_def(AnyAttr())
+
+    assembly_format = "$value (`args` $fmtArgs^ `:` type($fmtArgs))? attr-dict"
+
+    def verify_(self) -> None:
+        value = self.value
+        if not value:
+            raise VerifyException("'emitc.verbatim' op requires attribute 'value'")
+
+
 EmitC = Dialect(
     "emitc",
     [
@@ -1708,7 +1760,8 @@ EmitC = Dialect(
         EmitC_SubscriptOp,
         EmitC_UnaryMinusOp,
         EmitC_UnaryPlusOp,
-        EmitC_VariableOp
+        EmitC_VariableOp,
+        EmitC_VerbatimOp
     ],
     [
         EmitC_ArrayType,
