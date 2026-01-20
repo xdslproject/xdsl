@@ -19,7 +19,9 @@ from xdsl.backend.register_allocatable import (
 )
 from xdsl.backend.register_type import RegisterAllocatedMemoryEffect, RegisterType
 from xdsl.dialects.builtin import (
+    I32,
     ArrayAttr,
+    DenseArrayBase,
     IndexType,
     IntegerAttr,
     IntegerType,
@@ -56,6 +58,7 @@ from xdsl.irdl import (
     operand_def,
     opt_attr_def,
     opt_prop_def,
+    prop_def,
     region_def,
     result_def,
     traits_def,
@@ -3922,24 +3925,34 @@ class ParallelMovOp(RISCVRegallocOperation):
     outputs: VarOpResult[RISCVRegisterType] = var_result_def(
         RangeOf(RISCVRegisterType).of_length(_L)
     )
+    input_widths = prop_def(DenseArrayBase.constr(i32))
     free_registers = opt_prop_def(ArrayAttr[RISCVRegisterType])
 
-    assembly_format = "$inputs attr-dict `:` functional-type($inputs, $outputs)"
+    assembly_format = (
+        "$inputs $input_widths attr-dict `:` functional-type($inputs, $outputs)"
+    )
     irdl_options = (ParsePropInAttrDict(),)
 
     def __init__(
         self,
         inputs: Sequence[SSAValue],
         outputs: Sequence[RISCVRegisterType],
+        input_widths: DenseArrayBase[I32],
         free_registers: ArrayAttr[RISCVRegisterType] | None = None,
     ):
         super().__init__(
             operands=(inputs,),
             result_types=(outputs,),
-            properties={"free_registers": free_registers},
+            properties={"input_widths": input_widths, "free_registers": free_registers},
         )
 
     def verify_(self) -> None:
+        if len(self.inputs) != len(self.input_widths):
+            raise VerifyException(
+                "incorrect length for input_widths. "
+                "Expected {len(self.inputs)}, found {len(self.input_widths)}."
+            )
+
         input_types = cast(Sequence[RISCVRegisterType], self.inputs.types)
         output_types = cast(Sequence[RISCVRegisterType], self.outputs.types)
 
