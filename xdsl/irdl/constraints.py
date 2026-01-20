@@ -1268,6 +1268,11 @@ class RangeOf(RangeConstraint[AttributeCovT]):
 
     constr: AttrConstraint[AttributeCovT]
 
+    def __init__(self, constr: IRDLAttrConstraint[AttributeCovT]):
+        from xdsl.irdl import irdl_to_attr_constraint
+
+        object.__setattr__(self, "constr", irdl_to_attr_constraint(constr))
+
     def verify(
         self,
         attrs: Sequence[Attribute],

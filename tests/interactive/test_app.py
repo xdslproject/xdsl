@@ -12,15 +12,17 @@ from xdsl.backend.riscv.lowering import (
 from xdsl.builder import ImplicitBuilder
 from xdsl.dialects import arith, func, get_all_dialects, riscv, riscv_func
 from xdsl.dialects.builtin import (
+    DenseArrayBase,
     IndexType,
     IntegerAttr,
     ModuleOp,
     UnrealizedConversionCastOp,
+    i32,
 )
 from xdsl.interactive.add_arguments_screen import AddArguments
 from xdsl.interactive.app import InputApp
 from xdsl.interactive.passes import get_condensed_pass_list, get_new_registered_context
-from xdsl.ir import Block, Region
+from xdsl.ir import Block, Region, SSAValue
 from xdsl.transforms import (
     get_all_passes,
     individual_rewrite,
@@ -189,7 +191,7 @@ builtin.module {
     %res_2 = riscv.mul %res, %res_1 : (!riscv.reg, !riscv.reg) -> !riscv.reg
     %res_3 = builtin.unrealized_conversion_cast %res_2 : !riscv.reg to index
     %res_4 = builtin.unrealized_conversion_cast %res_3 : index to !riscv.reg
-    %1 = riscv.mv %res_4 : (!riscv.reg) -> !riscv.reg<a0>
+    %1 = riscv.parallel_mov %res_4 [32] : (!riscv.reg) -> !riscv.reg<a0>
     riscv_func.return %1 : !riscv.reg<a0>
   }
 }
@@ -220,7 +222,7 @@ builtin.module {
     %two = arith.constant 2 : index
     %res = arith.muli %n_1, %two : index
     %res_1 = builtin.unrealized_conversion_cast %res : index to !riscv.reg
-    %1 = riscv.mv %res_1 : (!riscv.reg) -> !riscv.reg<a0>
+    %1 = riscv.parallel_mov %res_1 [32] : (!riscv.reg) -> !riscv.reg<a0>
     riscv_func.return %1 : !riscv.reg<a0>
   }
 }
@@ -400,7 +402,7 @@ async def test_passes():
     %two = arith.constant 2 : index
     %res = arith.muli %n_1, %two : index
     %res_1 = builtin.unrealized_conversion_cast %res : index to !riscv.reg
-    %1 = riscv.mv %res_1 : (!riscv.reg) -> !riscv.reg<a0>
+    %1 = riscv.parallel_mov %res_1 [32] : (!riscv.reg) -> !riscv.reg<a0>
     riscv_func.return %1 : !riscv.reg<a0>
   }
 }
@@ -425,7 +427,11 @@ async def test_passes():
                 one = UnrealizedConversionCastOp.get(
                     [res.result], [riscv.Registers.UNALLOCATED_INT]
                 )
-                two_two = riscv.MVOp(one, rd=riscv.Registers.A0)
+                two_two = riscv.ParallelMovOp(
+                    [SSAValue.get(one)],
+                    [riscv.Registers.A0],
+                    DenseArrayBase.from_list(i32, [32]),
+                )
                 riscv_func.ReturnOp(two_two)
 
         assert isinstance(app.current_module, ModuleOp)
