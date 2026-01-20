@@ -79,6 +79,7 @@ class ConvertPDLToPDLInterpPass(ModulePass):
     name = "convert-pdl-to-pdl-interp"
 
     optimize_for_eqsat: bool = True
+    print_debug_info: bool = False
 
     def apply(self, ctx: Context, op: ModuleOp) -> None:
         patterns = [
@@ -89,7 +90,10 @@ class ConvertPDLToPDLInterpPass(ModulePass):
 
         matcher_func = pdl_interp.FuncOp("matcher", ((pdl.OperationType(),), ()))
         generator = MatcherGenerator(
-            matcher_func, rewriter_module, self.optimize_for_eqsat
+            matcher_func,
+            rewriter_module,
+            self.optimize_for_eqsat,
+            self.print_debug_info,
         )
         generator.lower(patterns)
         op.body.block.add_op(matcher_func)
@@ -1361,12 +1365,14 @@ class MatcherGenerator:
     constraint_op_map: dict[ConstraintQuestion, pdl_interp.ApplyConstraintOp]
     rewriter_names: dict[str, int]
     optimize_for_eqsat: bool = False
+    print_debug_info: bool = False
 
     def __init__(
         self,
         matcher_func: pdl_interp.FuncOp,
         rewriter_module: ModuleOp,
         optimize_for_eqsat: bool = False,
+        print_debug_info: bool = False,
     ) -> None:
         self.matcher_func = matcher_func
         self.rewriter_module = rewriter_module
@@ -1378,6 +1384,7 @@ class MatcherGenerator:
         self.constraint_op_map = {}
         self.rewriter_names = {}
         self.optimize_for_eqsat = optimize_for_eqsat
+        self.print_debug_info = print_debug_info
 
     def lower(self, patterns: list[pdl.PatternOp]) -> None:
         """Lower PDL patterns to PDL interpreter"""
@@ -1385,6 +1392,10 @@ class MatcherGenerator:
         # Build the predicate tree
         tree_builder = PredicateTreeBuilder(self.optimize_for_eqsat)
         root = tree_builder.build_predicate_tree(patterns)
+
+        if self.print_debug_info:
+            print(visualize_matcher_tree(root))
+
         self.value_to_position = tree_builder.pattern_value_positions
 
         # Get the entry block and add root operation argument
@@ -2324,3 +2335,73 @@ class MatcherGenerator:
             return False
 
         raise ValueError(f"Unable to infer result types for pdl.operation {op.opName}")
+
+
+def visualize_matcher_tree(
+    node: MatcherNode, indent: str = "", is_last: bool = True, prefix: str = ""
+) -> str:
+    """Generate ASCII art visualization of the matcher tree."""
+    lines: list[str] = []
+
+    # Determine connector
+    connector = "└── " if is_last else "├── "
+
+    # Build node label
+    match node:
+        case ExitNode():
+            label = "EXIT"
+        case SuccessNode():
+            pattern_name = (
+                node.pattern.sym_name.data if node.pattern.sym_name else "anonymous"
+            )
+            label = f"SUCCESS({pattern_name})"
+        case BoolNode():
+            label = f"Bool[{node.position}] {node.question.__class__.__name__} -> {node.answer}"
+        case SwitchNode():
+            label = f"Switch[{node.position}] {node.question.__class__.__name__}"
+        case ChooseNode():
+            label = "CHOOSE"
+        case _:
+            label = f"Unknown({type(node).__name__})"
+
+    lines.append(f"{prefix}{connector if prefix else ''}{label}")
+
+    # Calculate new prefix for children
+    new_prefix = prefix + ("    " if is_last else "│   ") if prefix else ""
+
+    # Collect children
+    children: list[tuple[str, MatcherNode | None]] = []
+
+    match node:
+        case BoolNode():
+            if node.success_node:
+                children.append(("success", node.success_node))
+            if node.failure_node:
+                children.append(("failure", node.failure_node))
+        case SwitchNode():
+            for answer, child in node.children.items():
+                if child:
+                    children.append((f"case {answer}", child))
+            if node.failure_node:
+                children.append(("default", node.failure_node))
+        case ChooseNode():
+            for pos, choice in node.choices.items():
+                children.append((f"choice[{pos}]", choice))
+        case SuccessNode():
+            if node.failure_node:
+                children.append(("next", node.failure_node))
+        case _:
+            if node.failure_node:
+                children.append(("failure", node.failure_node))
+
+    # Render children
+    for i, (child_label, child_node) in enumerate(children):
+        is_last_child = i == len(children) - 1
+        child_connector = "└── " if is_last_child else "├── "
+        lines.append(f"{new_prefix}{child_connector}{child_label}:")
+
+        child_prefix = new_prefix + ("    " if is_last_child else "│   ")
+        if child_node:
+            lines.append(visualize_matcher_tree(child_node, "", True, child_prefix))
+
+    return "\n".join(lines)
