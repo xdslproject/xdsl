@@ -1,3 +1,9 @@
+"""
+RISC-V 32-bit (RV32) dialect operations and types.
+
+This module defines the RV32-specific variant of RISC-V operations.
+"""
+
 from __future__ import annotations
 
 from abc import ABC

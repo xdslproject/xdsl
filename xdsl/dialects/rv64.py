@@ -1,3 +1,9 @@
+"""
+RISC-V 64-bit (RV64) dialect operations and types.
+
+This module defines the RV64-specific variant of RISC-V operations.
+"""
+
 from __future__ import annotations
 
 from abc import ABC
