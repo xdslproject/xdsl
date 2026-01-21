@@ -90,85 +90,85 @@ class RdRsImmShiftOperationRV32(RISCVCustomFormatOperation, RISCVInstruction, AB
 
 @irdl_op_definition
 class SlliOp(RdRsImmShiftOperationRV32):
-    name = "riscv32.slli"
+    name = "rv32.slli"
 
     traits = traits_def(SlliOpHasCanonicalizationPatternsTrait())
 
 
 @irdl_op_definition
 class SrliOp(RdRsImmShiftOperationRV32):
-    name = "riscv32.srli"
+    name = "rv32.srli"
 
     traits = traits_def(SrliOpHasCanonicalizationPatternsTrait())
 
 
 @irdl_op_definition
 class SraiOp(RdRsImmShiftOperationRV32):
-    name = "riscv32.srai"
+    name = "rv32.srai"
 
 
 @irdl_op_definition
 class SlliwOp(RdRsImmShiftOperationRV32):
-    name = "riscv32.slliw"
+    name = "rv32.slliw"
 
     traits = traits_def(Pure())
 
 
 @irdl_op_definition
 class SrliwOp(RdRsImmShiftOperationRV32):
-    name = "riscv32.srliw"
+    name = "rv32.srliw"
 
     traits = traits_def(Pure())
 
 
 @irdl_op_definition
 class RoriOp(RdRsImmShiftOperationRV32):
-    name = "riscv32.rori"
+    name = "rv32.rori"
 
     traits = traits_def(Pure())
 
 
 @irdl_op_definition
 class RoriwOp(RdRsImmShiftOperationRV32):
-    name = "riscv32.roriw"
+    name = "rv32.roriw"
 
     traits = traits_def(Pure())
 
 
 @irdl_op_definition
 class SlliUwOp(RdRsImmShiftOperationRV32):
-    name = "riscv32.slli.uw"
+    name = "rv32.slli.uw"
 
     traits = traits_def(Pure())
 
 
 @irdl_op_definition
 class BclrIOp(RdRsImmShiftOperationRV32):
-    name = "riscv32.bclri"
+    name = "rv32.bclri"
 
     traits = traits_def(Pure())
 
 
 @irdl_op_definition
 class BextIOp(RdRsImmShiftOperationRV32):
-    name = "riscv32.bexti"
+    name = "rv32.bexti"
 
 
 @irdl_op_definition
 class BinvIOp(RdRsImmShiftOperationRV32):
-    name = "riscv32.binvi"
+    name = "rv32.binvi"
 
     traits = traits_def(Pure())
 
 
 @irdl_op_definition
 class BsetIOp(RdRsImmShiftOperationRV32):
-    name = "riscv32.bseti"
+    name = "rv32.bseti"
 
     traits = traits_def(Pure())
 
 
-RISCV32 = Dialect(
+RV32 = Dialect(
     "rv32",
     [
         SlliOp,
