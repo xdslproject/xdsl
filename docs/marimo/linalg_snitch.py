@@ -224,7 +224,6 @@ def _(mo):
 
 @app.cell
 def _(
-    CanonicalizePass,
     PassPipeline,
     convert_arith_to_riscv,
     convert_func_to_riscv_func,
@@ -244,7 +243,6 @@ def _(
             convert_arith_to_riscv.ConvertArithToRiscvPass(),
             convert_scf_to_riscv_scf.ConvertScfToRiscvPass(),
             reconcile_unrealized_casts.ReconcileUnrealizedCastsPass(),
-            CanonicalizePass(),
         ]
     )
 
