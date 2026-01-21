@@ -27,12 +27,15 @@ class Position(ABC):
     def get_operation_depth(self) -> int:
         """Returns depth of first ancestor operation position"""
         op = self.get_base_operation()
+        if op is None:
+            return 0
         return op.depth
 
-    def get_base_operation(self) -> "OperationPosition":
+    def get_base_operation(self) -> "OperationPosition|None":
         pos = self
         while not isinstance(pos, OperationPosition):
-            assert pos.parent is not None
+            if pos.parent is None:
+                return None
             pos = pos.parent
         return pos
 

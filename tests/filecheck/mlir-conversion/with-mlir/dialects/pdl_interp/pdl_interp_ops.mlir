@@ -86,6 +86,10 @@ pdl_interp.func @matcher(%arg0: !pdl.operation) {
 ^bb31:
   %moretypes = pdl_interp.apply_rewrite "rewrite_in_matcher"(%arg0 : !pdl.operation) : !pdl.range<type>
   pdl_interp.finalize
+^bb32:
+  pdl_interp.foreach %op : !pdl.type in %types {
+    pdl_interp.continue
+  } -> ^bb1
 }
 module @rewriters {
   pdl_interp.func @pdl_generated_rewriter(%arg0: !pdl.value, %arg1: !pdl.value, %arg2: !pdl.type, %arg3: !pdl.value, %arg4: !pdl.operation) {
@@ -190,6 +194,10 @@ module @rewriters {
 // CHECK-NEXT:     ^bb30:
 // CHECK-NEXT:       %19 = pdl_interp.apply_rewrite "rewrite_in_matcher"([[arg0]] : !pdl.operation) : !pdl.range<type>
 // CHECK-NEXT:       pdl_interp.finalize
+// CHECK-NEXT:     ^bb31:
+// CHECK-NEXT:       pdl_interp.foreach [[arg1:%arg.]] : !pdl.type in %16 {
+// CHECK-NEXT:         pdl_interp.continue
+// CHECK-NEXT:       } -> ^bb1
 // CHECK-NEXT:     }
 // CHECK-NEXT:     builtin.module @rewriters {
 // CHECK-NEXT:       pdl_interp.func @pdl_generated_rewriter(%arg0 : !pdl.value, %arg1 : !pdl.value, %arg2 : !pdl.type, %arg3 : !pdl.value, %arg4 : !pdl.operation) {
