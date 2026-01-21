@@ -1465,13 +1465,16 @@ class MatcherGenerator:
         # Collect generated op names from DAG rewriter
         rewriter_op = pattern.body.block.last_op
         assert isinstance(rewriter_op, pdl.RewriteOp)
-        generated_op_names: list[str] = []
         if not rewriter_op.name:
-            assert rewriter_op.body is not None
-            for op in rewriter_op.body.walk():
-                if isinstance(op, pdl.OperationOp) and op.opName:
-                    generated_op_names.append(op.opName.data)
-
+            generated_op_names = ArrayAttr(
+                [
+                    op.opName
+                    for op in rewriter_op.body.walk()
+                    if isinstance(op, pdl.OperationOp) and op.opName
+                ]
+            )
+        else:
+            generated_op_names = None
         # Get root kind if present
         root_kind: StringAttr | None = None
         if root:
@@ -1483,11 +1486,7 @@ class MatcherGenerator:
         record_op = pdl_interp.RecordMatchOp(
             rewriter_func_ref,
             root_kind,
-            (
-                ArrayAttr([StringAttr(s) for s in generated_op_names])
-                if generated_op_names
-                else None
-            ),
+            generated_op_names,
             pattern.benefit,
             mapped_match_values,
             [],
