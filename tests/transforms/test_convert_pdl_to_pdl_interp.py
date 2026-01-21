@@ -2196,7 +2196,7 @@ def test_get_value_at_unimplemented_positions():
 
 
 def test_get_value_at_operand_group_position():
-    """Test that get_value_at raises NotImplementedError for OperandGroupPosition"""
+    """Test get_value_at with OperandGroupPosition (variadic and non-variadic)"""
     from xdsl.dialects import pdl_interp
     from xdsl.dialects.builtin import ModuleOp
     from xdsl.ir import Block, Region
@@ -2216,11 +2216,31 @@ def test_get_value_at_operand_group_position():
     root_val = block.args[0]
     generator.values[root_pos] = root_val
 
-    # Get operand group
+    # Test variadic operand group
     operand_group_pos = root_pos.get_operand_group(0, is_variadic=True)
+    result = generator.get_value_at(block, operand_group_pos)
 
-    with pytest.raises(NotImplementedError, match="pdl_interp.get_operands"):
-        generator.get_value_at(block, operand_group_pos)
+    # Should create GetOperandsOp
+    get_operands_ops = [
+        op for op in block.ops if isinstance(op, pdl_interp.GetOperandsOp)
+    ]
+    assert len(get_operands_ops) == 1
+    assert get_operands_ops[0].index is not None
+    assert get_operands_ops[0].index.value.data == 0
+    assert get_operands_ops[0].input_op is root_val
+    assert isinstance(result.type, pdl.RangeType)
+
+    # Test non-variadic operand group
+    operand_group_pos2 = root_pos.get_operand_group(1, is_variadic=False)
+    result2 = generator.get_value_at(block, operand_group_pos2)
+
+    get_operands_ops = [
+        op for op in block.ops if isinstance(op, pdl_interp.GetOperandsOp)
+    ]
+    assert len(get_operands_ops) == 2
+    assert get_operands_ops[1].index is not None
+    assert get_operands_ops[1].index.value.data == 1
+    assert result2.type == pdl.ValueType()
 
 
 def test_get_value_at_operation_position_passthrough():
@@ -3335,7 +3355,7 @@ def test_generate_switch_node_empty_children():
 
 
 def test_generate_switch_node_operand_count_not_implemented():
-    """Test that OperandCountQuestion raises NotImplementedError"""
+    """Test generate_switch_node with OperandCountQuestion"""
     from unittest.mock import patch
 
     from xdsl.dialects import pdl_interp
@@ -3380,16 +3400,28 @@ def test_generate_switch_node_operand_count_not_implemented():
     # Mock generate_matcher to return dummy blocks
     mock_blocks = [Block(), Block()]
     with patch.object(generator, "generate_matcher", side_effect=mock_blocks):
-        # Should raise NotImplementedError
-        with pytest.raises(
-            NotImplementedError,
-            match="pdl_interp.switch_operand_count is not yet implemented",
-        ):
-            generator.generate_switch_node(switch_node, block, val)
+        # Generate the switch node
+        generator.generate_switch_node(switch_node, block, val)
+
+    # Check that SwitchOperandCountOp was created
+    switch_ops = [
+        op for op in block.ops if isinstance(op, pdl_interp.SwitchOperandCountOp)
+    ]
+    assert len(switch_ops) == 1
+    switch_op = switch_ops[0]
+
+    # Check case values
+    case_values = switch_op.case_values.get_values()
+    assert set(case_values) == {1, 2}
+
+    # Check operand and successors
+    assert switch_op.input_op is val
+    assert switch_op.default_dest is failure_block
+    assert len(switch_op.cases) == 2
 
 
 def test_generate_switch_node_result_count_not_implemented():
-    """Test that ResultCountQuestion raises NotImplementedError"""
+    """Test generate_switch_node with ResultCountQuestion"""
     from unittest.mock import patch
 
     from xdsl.dialects import pdl_interp
@@ -3434,16 +3466,28 @@ def test_generate_switch_node_result_count_not_implemented():
     # Mock generate_matcher to return dummy blocks
     mock_blocks = [Block(), Block()]
     with patch.object(generator, "generate_matcher", side_effect=mock_blocks):
-        # Should raise NotImplementedError
-        with pytest.raises(
-            NotImplementedError,
-            match="pdl_interp.switch_result_count is not yet implemented",
-        ):
-            generator.generate_switch_node(switch_node, block, val)
+        # Generate the switch node
+        generator.generate_switch_node(switch_node, block, val)
+
+    # Check that SwitchResultCountOp was created
+    switch_ops = [
+        op for op in block.ops if isinstance(op, pdl_interp.SwitchResultCountOp)
+    ]
+    assert len(switch_ops) == 1
+    switch_op = switch_ops[0]
+
+    # Check case values
+    case_values = switch_op.case_values.get_values()
+    assert set(case_values) == {1, 2}
+
+    # Check operand and successors
+    assert switch_op.input_op is val
+    assert switch_op.default_dest is failure_block
+    assert len(switch_op.cases) == 2
 
 
 def test_generate_switch_node_type_constraint_not_implemented():
-    """Test that TypeConstraintQuestion raises NotImplementedError"""
+    """Test generate_switch_node with TypeConstraintQuestion"""
     from unittest.mock import patch
 
     from xdsl.dialects import pdl_interp
@@ -3488,11 +3532,22 @@ def test_generate_switch_node_type_constraint_not_implemented():
     # Mock generate_matcher to return dummy blocks
     mock_blocks = [Block(), Block()]
     with patch.object(generator, "generate_matcher", side_effect=mock_blocks):
-        # Should raise NotImplementedError
-        with pytest.raises(
-            NotImplementedError, match="pdl_interp.switch_types is not yet implemented"
-        ):
-            generator.generate_switch_node(switch_node, block, val)
+        # Generate the switch node
+        generator.generate_switch_node(switch_node, block, val)
+
+    # Check that SwitchTypeOp was created (val.type is pdl.TypeType, not RangeType)
+    switch_ops = [op for op in block.ops if isinstance(op, pdl_interp.SwitchTypeOp)]
+    assert len(switch_ops) == 1
+    switch_op = switch_ops[0]
+
+    # Check case values
+    case_values = list(switch_op.case_values.data)
+    assert case_values == [i32, f32]
+
+    # Check operand and successors
+    assert switch_op.value is val
+    assert switch_op.default_dest is failure_block
+    assert len(switch_op.cases) == 2
 
 
 def test_generate_switch_node_unhandled_question():
@@ -3556,8 +3611,6 @@ def test_generate_switch_node_at_least_question(
     question_type: type[Question],
     check_op_type: type[pdl_interp.CheckOperandCountOp | pdl_interp.CheckResultCountOp],
 ):
-    from unittest.mock import patch
-
     """
     Test generate_switch_node with OperandCountAtLeastQuestion and
     ResultCountAtLeastQuestion, which have special handling.
@@ -3577,47 +3630,40 @@ def test_generate_switch_node_at_least_question(
     matcher_body.add_block(default_failure_block)
     generator.failure_block_stack.append(default_failure_block)
 
-    # 2. Construct the SwitchNode
-    mock_pattern = pdl.PatternOp(1, "test_pattern", Region())
+    # 2. Construct the SwitchNode with ExitNode children to avoid real matcher generation
     question = question_type()
     # Children are intentionally unordered to test the sorting logic
     children: dict[Answer, MatcherNode | None] = {
-        UnsignedAnswer(3): SuccessNode(pattern=mock_pattern),
-        UnsignedAnswer(5): SuccessNode(pattern=mock_pattern),
-        UnsignedAnswer(1): SuccessNode(pattern=mock_pattern),
+        UnsignedAnswer(3): ExitNode(),
+        UnsignedAnswer(5): ExitNode(),
+        UnsignedAnswer(1): ExitNode(),
     }
     switch_node = SwitchNode(question=question, children=children)
 
-    # 3. Mock `generate_matcher` to return distinct success blocks
-    # The side_effect order corresponds to the reverse-sorted keys (5, 3, 1)
-    mock_success_block_5 = Block()
-    mock_success_block_3 = Block()
-    mock_success_block_1 = Block()
-    side_effects = [mock_success_block_5, mock_success_block_3, mock_success_block_1]
+    # 3. Call the method under test
+    generator.generate_switch_node(switch_node, block, val)
 
-    with patch.object(
-        generator, "generate_matcher", side_effect=side_effects
-    ) as mock_gen:
-        # 4. Call the method under test
-        generator.generate_switch_node(switch_node, block, val)
-
-    # 5. Verify the generated IR
+    # 4. Verify the generated IR
     # The logic creates a chain starting with the LOWEST count (1)
     # Check 1 (for count >= 1) should be in the initial block
     assert len(block.ops) == 1
     check_op_1 = block.first_op
     assert isinstance(check_op_1, check_op_type)
-    assert check_op_1.count.value.data == 1  # Fixed: expect 1, not 5
+    assert check_op_1.count.value.data == 1
     assert check_op_1.compareAtLeast is not None
-    assert check_op_1.true_dest is mock_success_block_1  # Fixed: expect block_1
     assert check_op_1.false_dest is default_failure_block
+    assert check_op_1.true_dest is not None
+    assert check_op_1.true_dest.parent is matcher_body
 
-    # The success block for count >= 1 should fail to check_3
-    # This is set via the failure_block_stack during generation
-
-    # Verify that generate_matcher was called for each child in reverse order
-    assert mock_gen.call_count == 3
-    # Calls were made in order: child_5, child_3, child_1
+    # The success block for count >= 1 should have at least one block chained through it
+    _success_block_1 = check_op_1.true_dest
+    # Verify that there are Check ops for the other counts in the chain
+    check_ops = [op for op in matcher_body.walk() if isinstance(op, check_op_type)]
+    # We should have check ops for each count: 1, 3, 5
+    assert len(check_ops) == 3
+    # Check that they're checking for the right counts
+    check_counts = sorted([op.count.value.data for op in check_ops])
+    assert check_counts == [1, 3, 5]
 
 
 def test_generate_rewriter_for_apply_native_rewrite():
@@ -3658,11 +3704,21 @@ def test_generate_rewriter_for_apply_native_rewrite():
     )
     generator.value_to_position[pattern] = inputs
 
-    # The method should raise NotImplementedError
-    with pytest.raises(
-        NotImplementedError, match="pdl_interp.apply_rewrite is not yet implemented"
-    ):
-        generator.generate_rewriter(pattern, [OperationPosition(None, depth=0)])
+    # Generate the rewriter
+    rewriter_name = generator.generate_rewriter(
+        pattern, [OperationPosition(None, depth=0)]
+    )
+
+    # Verify that a rewriter was created
+    assert rewriter_name is not None
+    # Verify that the rewriter module contains an ApplyRewriteOp
+    rewriter_func = rewriter_module.body.ops.first
+    assert isinstance(rewriter_func, pdl_interp.FuncOp)
+    apply_rewrite_ops = [
+        op for op in rewriter_func.body.ops if isinstance(op, pdl_interp.ApplyRewriteOp)
+    ]
+    assert len(apply_rewrite_ops) == 1
+    assert apply_rewrite_ops[0].rewrite_name.data == "myRewrite"
 
 
 def test_generate_rewriter_for_attribute_with_constant():
@@ -4316,7 +4372,7 @@ def test_generate_rewriter_for_operation_mixed_results():
 
 
 def test_generate_rewriter_for_range():
-    """Test generate_rewriter with RangeOp raises NotImplementedError"""
+    """Test generate_rewriter with RangeOp generates CreateRangeOp"""
     from xdsl.builder import ImplicitBuilder
     from xdsl.dialects.builtin import ModuleOp, i32
     from xdsl.ir import Block, Region
@@ -4358,14 +4414,25 @@ def test_generate_rewriter_for_range():
     )
     generator.value_to_position[pattern] = inputs
 
-    with pytest.raises(
-        NotImplementedError, match="pdl_interp.create_range is not yet implemented"
-    ):
-        generator.generate_rewriter(pattern, [OperationPosition(None, depth=0)])
+    # Execute
+    generator.generate_rewriter(pattern, [OperationPosition(None, depth=0)])
+
+    # Verify CreateRangeOp was created in the rewriter
+    rewriter_func = rewriter_module.body.block.first_op
+    assert isinstance(rewriter_func, pdl_interp.FuncOp)
+
+    create_range_ops = [
+        op
+        for op in rewriter_func.body.block.ops
+        if isinstance(op, pdl_interp.CreateRangeOp)
+    ]
+    assert len(create_range_ops) == 1
+    create_range_op = create_range_ops[0]
+    assert isinstance(create_range_op.result.type, pdl.RangeType)
 
 
 def test_generate_rewriter_for_erase():
-    """Test generate_rewriter with EraseOp raises NotImplementedError"""
+    """Test generate_rewriter with EraseOp generates EraseOp"""
     from xdsl.builder import ImplicitBuilder
     from xdsl.dialects.builtin import ModuleOp
     from xdsl.ir import Block, Region
@@ -4406,10 +4473,17 @@ def test_generate_rewriter_for_erase():
     )
     generator.value_to_position[pattern] = inputs
 
-    with pytest.raises(
-        NotImplementedError, match="pdl_interp.erase is not yet implemented"
-    ):
-        generator.generate_rewriter(pattern, [OperationPosition(None, depth=0)])
+    # Execute
+    generator.generate_rewriter(pattern, [OperationPosition(None, depth=0)])
+
+    # Verify EraseOp was created in the rewriter
+    rewriter_func = rewriter_module.body.block.first_op
+    assert isinstance(rewriter_func, pdl_interp.FuncOp)
+
+    erase_ops = [
+        op for op in rewriter_func.body.block.ops if isinstance(op, pdl_interp.EraseOp)
+    ]
+    assert len(erase_ops) == 1
 
 
 def test_generate_rewriter_for_result():
@@ -4817,9 +4891,17 @@ def test_generate_rewriter_for_replace_erase():
     )
     generator.value_to_position[pattern] = inputs
 
-    # Execute the generation (should raise NotImplementedError for erase)
-    with pytest.raises(NotImplementedError, match="pdl_interp.erase"):
-        generator.generate_rewriter(pattern, [OperationPosition(None, depth=0)])
+    # Execute the generation (should generate EraseOp since no replacement values)
+    generator.generate_rewriter(pattern, [OperationPosition(None, depth=0)])
+
+    # Verify EraseOp was created in the rewriter
+    rewriter_func = rewriter_module.body.block.first_op
+    assert isinstance(rewriter_func, pdl_interp.FuncOp)
+
+    erase_ops = [
+        op for op in rewriter_func.body.block.ops if isinstance(op, pdl_interp.EraseOp)
+    ]
+    assert len(erase_ops) == 1
 
 
 def test_generate_rewriter_for_replace_with_operation_no_results():
@@ -4863,9 +4945,17 @@ def test_generate_rewriter_for_replace_with_operation_no_results():
     )
     generator.value_to_position[pattern] = inputs
 
-    # Execute the generation (should raise NotImplementedError for erase)
-    with pytest.raises(NotImplementedError, match="pdl_interp.erase"):
-        generator.generate_rewriter(pattern, [OperationPosition(None, depth=0)])
+    # Execute the generation (should generate EraseOp since operation has no results)
+    generator.generate_rewriter(pattern, [OperationPosition(None, depth=0)])
+
+    # Verify EraseOp was created in the rewriter (since the replacement has no results)
+    rewriter_func = rewriter_module.body.block.first_op
+    assert isinstance(rewriter_func, pdl_interp.FuncOp)
+
+    erase_ops = [
+        op for op in rewriter_func.body.block.ops if isinstance(op, pdl_interp.EraseOp)
+    ]
+    assert len(erase_ops) == 1
 
 
 def test_generate_rewriter_for_replace_multiple_values():
@@ -5206,11 +5296,11 @@ def test_generate_rewriter_multiple_patterns_without_names():
     ]
 
     # Verify names follow the expected pattern for unnamed patterns
-    # The first unnamed rewriter doesn't get a suffix, subsequent ones do
+    # The first unnamed rewriter doesn't get a suffix, subsequent ones use indices starting from 0
     expected_names = [
         "pdl_generated_rewriter",
-        "pdl_generated_rewriter_2",
-        "pdl_generated_rewriter_3",
+        "pdl_generated_rewriter_0",
+        "pdl_generated_rewriter_1",
     ]
     assert names == expected_names, f"Expected {expected_names}, got {names}"
 
@@ -5256,11 +5346,31 @@ def test_generate_rewriter_for_apply_native_rewrite_with_arguments():
     }
     generator.value_to_position[pattern] = inputs
 
-    # generate_rewriter should raise NotImplementedError
-    with pytest.raises(
-        NotImplementedError, match="pdl_interp.apply_rewrite is not yet implemented"
-    ):
-        generator.generate_rewriter(pattern, [root_pos])
+    # generate_rewriter should create ApplyRewriteOp
+    rewriter_ref = generator.generate_rewriter(pattern, [root_pos])
+
+    # Verify rewriter function was created
+    assert rewriter_ref is not None
+
+    # Get the created rewriter function
+    rewriter_funcs = [
+        op for op in rewriter_module.body.block.ops if isinstance(op, pdl_interp.FuncOp)
+    ]
+    assert len(rewriter_funcs) == 1, "Should have created 1 rewriter function"
+
+    rewriter_func = rewriter_funcs[0]
+
+    # Verify the rewriter contains ApplyRewriteOp with correct constraint name and arguments
+    apply_rewrite_ops = [
+        op
+        for op in rewriter_func.body.block.ops
+        if isinstance(op, pdl_interp.ApplyRewriteOp)
+    ]
+    assert len(apply_rewrite_ops) == 1, "Should have exactly one ApplyRewriteOp"
+
+    apply_op = apply_rewrite_ops[0]
+    assert apply_op.rewrite_name.data == "test_rewrite"
+    assert len(apply_op.args) == 3, "Should have 3 arguments"
 
 
 # =============================================================================
@@ -5458,8 +5568,8 @@ def test_generate_rewriter_unexpected_op_type():
         generator.generate_rewriter(pattern, [root_pos])
 
 
-def test_generate_rewriter_with_custom_rewriter_not_implemented():
-    """Test that generate_rewriter raises NotImplementedError for custom rewriter (pdl.RewriteOp with name_)"""
+def test_generate_rewriter_with_custom_rewriter():
+    """Test that generate_rewriter correctly handles custom rewriter (pdl.RewriteOp with name_)"""
     # Setup matcher function
     matcher_body = Region([Block(arg_types=(pdl.OperationType(),))])
     matcher_func = pdl_interp.FuncOp(
@@ -5485,11 +5595,19 @@ def test_generate_rewriter_with_custom_rewriter_not_implemented():
     }
     generator.value_to_position[pattern] = inputs
 
-    # generate_rewriter should raise NotImplementedError for custom rewriters
-    with pytest.raises(
-        NotImplementedError, match="pdl_interp.apply_rewrite is not yet implemented"
-    ):
-        generator.generate_rewriter(pattern, [root_pos])
+    # Generate the rewriter
+    rewriter_name = generator.generate_rewriter(pattern, [root_pos])
+
+    # Verify that a rewriter was created
+    assert rewriter_name is not None
+    # Verify that the rewriter module contains an ApplyRewriteOp
+    rewriter_func = rewriter_module.body.ops.first
+    assert isinstance(rewriter_func, pdl_interp.FuncOp)
+    apply_rewrite_ops = [
+        op for op in rewriter_func.body.ops if isinstance(op, pdl_interp.ApplyRewriteOp)
+    ]
+    assert len(apply_rewrite_ops) == 1
+    assert apply_rewrite_ops[0].rewrite_name.data == "custom_rewriter"
 
 
 def test_generate_rewriter_unsupported_operation_in_rewrite_body():

@@ -8,11 +8,11 @@ from dataclasses import dataclass, field
 from typing import Optional, cast
 
 from xdsl.builder import Builder
+from xdsl.context import Context
 from xdsl.dialects import pdl, pdl_interp
 from xdsl.dialects.builtin import (
     ArrayAttr,
     FunctionType,
-    IntegerAttr,
     ModuleOp,
     StringAttr,
     SymbolRefAttr,
@@ -26,7 +26,8 @@ from xdsl.ir import (
     Region,
     SSAValue,
 )
-from xdsl.rewriter import InsertPoint
+from xdsl.passes import ModulePass
+from xdsl.rewriter import InsertPoint, Rewriter
 from xdsl.transforms.convert_pdl_to_pdl_interp.predicate import (
     Answer,
     AttributeAnswer,
@@ -63,7 +64,41 @@ from xdsl.transforms.convert_pdl_to_pdl_interp.predicate import (
     get_position_cost,
     get_question_cost,
 )
+from xdsl.utils.hints import isa
 from xdsl.utils.scoped_dict import ScopedDict
+
+
+@dataclass(frozen=True)
+class ConvertPDLToPDLInterpPass(ModulePass):
+    """
+    Pass to convert PDL operations to PDL interpreter operations.
+    This is a somewhat faithful port of the implementation in MLIR, but it may not generate the same exact results.
+    """
+
+    name = "convert-pdl-to-pdl-interp"
+
+    optimize_for_eqsat: bool = True
+
+    def apply(self, ctx: Context, op: ModuleOp) -> None:
+        patterns = [
+            pattern for pattern in op.body.ops if isinstance(pattern, pdl.PatternOp)
+        ]
+
+        rewriter_module = ModuleOp([], sym_name=StringAttr("rewriters"))
+
+        matcher_func = pdl_interp.FuncOp("matcher", ((pdl.OperationType(),), ()))
+        generator = MatcherGenerator(
+            matcher_func, rewriter_module, self.optimize_for_eqsat
+        )
+        generator.lower(patterns)
+        op.body.block.add_op(matcher_func)
+
+        # Replace all pattern ops with the matcher func and rewriter module
+        rewriter = Rewriter()
+        for pattern in patterns:
+            rewriter.erase_op(pattern)
+        op.body.block.add_op(rewriter_module)
+
 
 # =============================================================================
 # Matcher Tree Nodes
@@ -579,6 +614,7 @@ class PatternAnalyzer:
                         parent_pos = inputs.get(op.parent_.owner.op)
                         if parent_pos and isinstance(parent_pos, OperationPosition):
                             result_pos = parent_pos.get_result(op.index.value.data)
+                            inputs[op.val] = result_pos
                             is_not_null = Predicate.get_is_not_null()
                             predicates.append(
                                 PositionalPredicate(
@@ -597,6 +633,7 @@ class PatternAnalyzer:
                             is_variadic = isinstance(op.val.type, pdl.RangeType)
                             index = op.index.value.data if op.index else None
                             result_pos = parent_pos.get_result_group(index, is_variadic)
+                            inputs[op.val] = result_pos
                             if index is not None:
                                 is_not_null = Predicate.get_is_not_null()
                                 predicates.append(
@@ -993,6 +1030,24 @@ class MatcherGenerator:
         self.constraint_op_map = {}
         self.rewriter_names = {}
 
+    def lower(self, patterns: list[pdl.PatternOp]) -> None:
+        """Lower PDL patterns to PDL interpreter"""
+
+        # Build the predicate tree
+        tree_builder = PredicateTreeBuilder()
+        root = tree_builder.build_predicate_tree(patterns)
+        self.value_to_position = tree_builder.pattern_value_positions
+
+        # Get the entry block and add root operation argument
+        entry_block = self.matcher_func.body.block
+
+        # The first argument is the root operation
+        root_pos = OperationPosition(depth=0)
+        self.values[root_pos] = entry_block.args[0]
+
+        # Generate the matcher
+        _ = self.generate_matcher(root, self.matcher_func.body, block=entry_block)
+
     def generate_matcher(
         self, node: MatcherNode, region: Region, block: Block | None = None
     ) -> Block:
@@ -1036,7 +1091,7 @@ class MatcherGenerator:
                 assert val is not None
                 self.generate_switch_node(node, current_block, val)
             case SuccessNode():
-                raise NotImplementedError()
+                self.generate_success_node(node, current_block)
             case _:
                 raise NotImplementedError(f"Unhandled node type {type(node)}")
 
@@ -1091,7 +1146,6 @@ class MatcherGenerator:
                 if position.is_variadic
                 else pdl.ValueType()
             )
-            raise NotImplementedError("pdl_interp.get_operands is not yet implemented")
             get_operands_op = pdl_interp.GetOperandsOp(
                 position.group_number, parent_val, result_type
             )
@@ -1134,9 +1188,6 @@ class MatcherGenerator:
             assert parent_val is not None
             # Get type of value or attribute
             if parent_val.type == pdl.AttributeType():
-                raise NotImplementedError(
-                    "pdl_interp.get_attribute_type is not yet implemented"
-                )
                 get_type_op = pdl_interp.GetAttributeTypeOp(parent_val)
             else:
                 get_type_op = pdl_interp.GetValueTypeOp(parent_val)
@@ -1234,11 +1285,9 @@ class MatcherGenerator:
                 assert isinstance(answer, TypeAnswer)
                 if isinstance(val.type, pdl.RangeType):
                     # Check multiple types
-                    raise NotImplementedError(
-                        "pdl_interp.check_types is not yet implemented"
-                    )
+                    assert isinstance(answer.value, ArrayAttr)
                     check_op = pdl_interp.CheckTypesOp(
-                        val, answer.value, success_block, failure_block
+                        answer.value, val, success_block, failure_block
                     )
                 else:
                     # Check single type
@@ -1294,8 +1343,7 @@ class MatcherGenerator:
                 if child_node:
                     success_block = self.generate_matcher(child_node, region)
                     current_check_block = Block()
-                    region.add_block(current_check_block)
-
+                    region.insert_block_before(current_check_block, success_block)
                     self.builder.insertion_point = InsertPoint.at_end(
                         current_check_block
                     )
@@ -1359,36 +1407,27 @@ class MatcherGenerator:
             case OperandCountQuestion():
                 # Extract integer values from UnsignedAnswer objects
                 switch_values = [cast(UnsignedAnswer, ans).value for ans in case_values]
-                switch_attr = ArrayAttr([IntegerAttr(v, 32) for v in switch_values])
-                raise NotImplementedError(
-                    "pdl_interp.switch_operand_count is not yet implemented"
-                )
                 switch_op = pdl_interp.SwitchOperandCountOp(
-                    switch_attr, val, default_dest, case_blocks
+                    switch_values, val, default_dest, case_blocks
                 )
             case ResultCountQuestion():
                 # Extract integer values from UnsignedAnswer objects
                 switch_values = [cast(UnsignedAnswer, ans).value for ans in case_values]
-                switch_attr = ArrayAttr([IntegerAttr(v, 32) for v in switch_values])
-                raise NotImplementedError(
-                    "pdl_interp.switch_result_count is not yet implemented"
-                )
                 switch_op = pdl_interp.SwitchResultCountOp(
-                    switch_attr, val, default_dest, case_blocks
+                    switch_values, val, default_dest, case_blocks
                 )
             case TypeConstraintQuestion():
                 # Extract type attributes from TypeAnswer objects
                 switch_values = [cast(TypeAnswer, ans).value for ans in case_values]
-                raise NotImplementedError(
-                    "pdl_interp.switch_types is not yet implemented"
-                )
                 if isinstance(val.type, pdl.RangeType):
+                    assert isa(switch_values, list[ArrayAttr[TypeAttribute]])
                     switch_attr = ArrayAttr(switch_values)
 
                     switch_op = pdl_interp.SwitchTypesOp(
                         switch_attr, val, default_dest, case_blocks
                     )
                 else:
+                    assert isa(switch_values, list[TypeAttribute])
                     switch_attr = ArrayAttr(switch_values)
                     switch_op = pdl_interp.SwitchTypeOp(
                         switch_attr, val, default_dest, case_blocks
@@ -1407,6 +1446,54 @@ class MatcherGenerator:
 
         self.builder.insert(switch_op)
 
+    def generate_success_node(self, node: SuccessNode, block: Block) -> None:
+        """Generate operations for a successful match"""
+        self.builder.insertion_point = InsertPoint.at_end(block)
+
+        pattern = node.pattern
+        root = node.root
+
+        # Generate a rewriter for the pattern
+        used_match_positions: list[Position] = []
+        rewriter_func_ref = self.generate_rewriter(pattern, used_match_positions)
+
+        # Process values used in the rewrite that are defined in the match
+        mapped_match_values = [
+            self.get_value_at(block, pos) for pos in used_match_positions
+        ]
+
+        # Collect generated op names from DAG rewriter
+        rewriter_op = pattern.body.block.last_op
+        assert isinstance(rewriter_op, pdl.RewriteOp)
+        if not rewriter_op.name:
+            generated_op_names = ArrayAttr(
+                [
+                    op.opName
+                    for op in rewriter_op.body.walk()
+                    if isinstance(op, pdl.OperationOp) and op.opName
+                ]
+            )
+        else:
+            generated_op_names = None
+        # Get root kind if present
+        root_kind: StringAttr | None = None
+        if root:
+            defining_op = root.owner
+            if isinstance(defining_op, pdl.OperationOp) and defining_op.opName:
+                root_kind = StringAttr(defining_op.opName.data)
+
+        # Create the RecordMatchOp
+        record_op = pdl_interp.RecordMatchOp(
+            rewriter_func_ref,
+            root_kind,
+            generated_op_names,
+            pattern.benefit,
+            mapped_match_values,
+            [],
+            self.failure_block_stack[-1],
+        )
+        _ = self.builder.insert(record_op)
+
     def generate_rewriter(
         self, pattern: pdl.PatternOp, used_match_positions: list[Position]
     ) -> SymbolRefAttr:
@@ -1422,8 +1509,9 @@ class MatcherGenerator:
         else:
             rewriter_name = "pdl_generated_rewriter"
         if rewriter_name in self.rewriter_names:
+            # duplicate names get a numeric suffix starting from 0 (foo, foo_0, foo_1, ...)
             self.rewriter_names[rewriter_name] += 1
-            rewriter_name = f"{rewriter_name}_{self.rewriter_names[rewriter_name]}"
+            rewriter_name = f"{rewriter_name}_{self.rewriter_names[rewriter_name] - 2}"
         else:
             self.rewriter_names[rewriter_name] = 1
 
@@ -1473,8 +1561,8 @@ class MatcherGenerator:
             if rewriter_op.root:
                 args.append(map_rewrite_value(rewriter_op.root))
             args.extend(map_rewrite_value(arg) for arg in rewriter_op.external_args)
-            raise NotImplementedError("pdl_interp.apply_rewrite is not yet implemented")
-            apply_op = pdl_interp.ApplyRewriteOp(args, name=rewriter_op.name)
+
+            apply_op = pdl_interp.ApplyRewriteOp(rewriter_op.name_.data, args)
             self.rewriter_builder.insert(apply_op)
         else:
             # Otherwise, this is a DAG rewriter defined using PDL operations.
@@ -1543,9 +1631,8 @@ class MatcherGenerator:
     ):
         arguments = [map_rewrite_value(arg) for arg in op.args]
         result_types = [res.type for res in op.res]
-        raise NotImplementedError("pdl_interp.apply_rewrite is not yet implemented")
         interp_op = pdl_interp.ApplyRewriteOp(
-            arguments, name=op.constraint_name, result_types=result_types
+            op.constraint_name, arguments, result_types
         )
         self.rewriter_builder.insert(interp_op)
         for old_res, new_res in zip(op.results, interp_op.results, strict=True):
@@ -1568,7 +1655,6 @@ class MatcherGenerator:
         rewrite_values: dict[SSAValue, SSAValue],
         map_rewrite_value: Callable[[SSAValue], SSAValue],
     ) -> None:
-        raise NotImplementedError("pdl_interp.erase is not yet implemented")
         self.rewriter_builder.insert(pdl_interp.EraseOp(map_rewrite_value(op.op_value)))
 
     def _generate_rewriter_for_operation(
@@ -1643,10 +1729,9 @@ class MatcherGenerator:
         map_rewrite_value: Callable[[SSAValue], SSAValue],
     ) -> None:
         args = [map_rewrite_value(arg) for arg in op.arguments]
-        raise NotImplementedError("pdl_interp.create_range is not yet implemented")
         create_range_op = pdl_interp.CreateRangeOp(args, op.result.type)
         self.rewriter_builder.insert(create_range_op)
-        rewrite_values[op.result] = create_range_op.range
+        rewrite_values[op.result] = create_range_op.result
 
     def _generate_rewriter_for_replace(
         self,
@@ -1682,7 +1767,6 @@ class MatcherGenerator:
             # will already have been inserted during `pdl_interp.create_operation`.
             # In case there are no new values to replace the op with,
             # a replacement is the same as just erasing the op.
-            raise NotImplementedError("pdl_interp.erase is not yet implemented")
             self.rewriter_builder.insert(pdl_interp.EraseOp(mapped_op_value))
         else:
             self.rewriter_builder.insert(
