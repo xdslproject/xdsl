@@ -2,12 +2,9 @@ from __future__ import annotations
 
 from abc import ABC
 from collections.abc import Set as AbstractSet
-from typing import Annotated
 
 from xdsl.dialects.builtin import (
     IntegerAttr,
-    IntegerType,
-    Signedness,
     StringAttr,
 )
 from xdsl.dialects.riscv import (
@@ -19,8 +16,10 @@ from xdsl.dialects.riscv import (
     RISCVInstruction,
     SlliOpHasCanonicalizationPatternsTrait,
     SrliOpHasCanonicalizationPatternsTrait,
+    UImm5Attr,
     parse_immediate_value,
     print_immediate_value,
+    ui5,
 )
 from xdsl.ir import (
     Attribute,
@@ -42,27 +41,24 @@ from xdsl.traits import (
     Pure,
 )
 
-ui6 = IntegerType(6, Signedness.UNSIGNED)
-UImm6Attr = IntegerAttr[Annotated[IntegerType, ui6]]
 
-
-class RdRsImmShiftOperationRV64(RISCVCustomFormatOperation, RISCVInstruction, ABC):
-    """Base class for RISC-V 64-bit shift immediate operations with rd, rs1 and imm6."""
+class RdRsImmShiftOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
+    """Base class for RISC-V 32-bit shift immediate operations with rd, rs1 and imm5."""
 
     rd = result_def(IntRegisterType)
     rs1 = operand_def(IntRegisterType)
-    immediate = attr_def(base(UImm6Attr) | base(LabelAttr))
+    immediate = attr_def(base(UImm5Attr) | base(LabelAttr))
 
     def __init__(
         self,
         rs1: Operation | SSAValue,
-        immediate: int | UImm6Attr | str | LabelAttr,
+        immediate: int | UImm5Attr | str | LabelAttr,
         *,
         rd: IntRegisterType = Registers.UNALLOCATED_INT,
         comment: str | StringAttr | None = None,
     ):
         if isinstance(immediate, int):
-            immediate = IntegerAttr(immediate, ui6)
+            immediate = IntegerAttr(immediate, ui5)
         elif isinstance(immediate, str):
             immediate = LabelAttr(immediate)
 
@@ -83,7 +79,7 @@ class RdRsImmShiftOperationRV64(RISCVCustomFormatOperation, RISCVInstruction, AB
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
-        attributes["immediate"] = parse_immediate_value(parser, ui6)
+        attributes["immediate"] = parse_immediate_value(parser, ui5)
         return attributes
 
     def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
@@ -93,87 +89,87 @@ class RdRsImmShiftOperationRV64(RISCVCustomFormatOperation, RISCVInstruction, AB
 
 
 @irdl_op_definition
-class SlliOp(RdRsImmShiftOperationRV64):
-    name = "rv64.slli"
+class SlliOp(RdRsImmShiftOperation):
+    name = "rv32.slli"
 
     traits = traits_def(SlliOpHasCanonicalizationPatternsTrait())
 
 
 @irdl_op_definition
-class SrliOp(RdRsImmShiftOperationRV64):
-    name = "rv64.srli"
+class SrliOp(RdRsImmShiftOperation):
+    name = "rv32.srli"
 
     traits = traits_def(SrliOpHasCanonicalizationPatternsTrait())
 
 
 @irdl_op_definition
-class SraiOp(RdRsImmShiftOperationRV64):
-    name = "rv64.srai"
+class SraiOp(RdRsImmShiftOperation):
+    name = "rv32.srai"
 
 
 @irdl_op_definition
-class SlliwOp(RdRsImmShiftOperationRV64):
-    name = "rv64.slliw"
+class SlliwOp(RdRsImmShiftOperation):
+    name = "rv32.slliw"
 
     traits = traits_def(Pure())
 
 
 @irdl_op_definition
-class SrliwOp(RdRsImmShiftOperationRV64):
-    name = "rv64.srliw"
+class SrliwOp(RdRsImmShiftOperation):
+    name = "rv32.srliw"
 
     traits = traits_def(Pure())
 
 
 @irdl_op_definition
-class RoriOp(RdRsImmShiftOperationRV64):
-    name = "rv64.rori"
+class RoriOp(RdRsImmShiftOperation):
+    name = "rv32.rori"
 
     traits = traits_def(Pure())
 
 
 @irdl_op_definition
-class RoriwOp(RdRsImmShiftOperationRV64):
-    name = "rv64.roriw"
+class RoriwOp(RdRsImmShiftOperation):
+    name = "rv32.roriw"
 
     traits = traits_def(Pure())
 
 
 @irdl_op_definition
-class SlliUwOp(RdRsImmShiftOperationRV64):
-    name = "rv64.slli.uw"
+class SlliUwOp(RdRsImmShiftOperation):
+    name = "rv32.slli.uw"
 
     traits = traits_def(Pure())
 
 
 @irdl_op_definition
-class BclrIOp(RdRsImmShiftOperationRV64):
-    name = "rv64.bclri"
+class BclrIOp(RdRsImmShiftOperation):
+    name = "rv32.bclri"
 
     traits = traits_def(Pure())
 
 
 @irdl_op_definition
-class BextIOp(RdRsImmShiftOperationRV64):
-    name = "rv64.bexti"
+class BextIOp(RdRsImmShiftOperation):
+    name = "rv32.bexti"
 
 
 @irdl_op_definition
-class BinvIOp(RdRsImmShiftOperationRV64):
-    name = "rv64.binvi"
+class BinvIOp(RdRsImmShiftOperation):
+    name = "rv32.binvi"
 
     traits = traits_def(Pure())
 
 
 @irdl_op_definition
-class BsetIOp(RdRsImmShiftOperationRV64):
-    name = "rv64.bseti"
+class BsetIOp(RdRsImmShiftOperation):
+    name = "rv32.bseti"
 
     traits = traits_def(Pure())
 
 
-RV64 = Dialect(
-    "rv64",
+RV32 = Dialect(
+    "rv32",
     [
         SlliOp,
         SrliOp,
