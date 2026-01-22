@@ -1938,34 +1938,20 @@ class MatcherGenerator:
         region = block.parent
         assert region is not None, "Block must be in a region"
 
-        # Get the current failure destination (for when all choices are exhausted)
-        default_dest = (
-            self.failure_block_stack[-1] if self.failure_block_stack else None
-        )
-
-        # Push the finalize block as the failure destination.
-        # When a choice fails, finalize should be called and the backtrack stack is incremented.
-        self.failure_block_stack.append(self.failure_block_stack[0])
-
         # Generate blocks for each non-None choice
         choice_blocks: list[Block] = []
+        next_choice_block = block
         for choice in node.choices.values():
-            choice_block = self.generate_matcher(choice, region)
+            choice_block = self.generate_matcher(choice, region, next_choice_block)
             choice_blocks.append(choice_block)
+            next_choice_block = None  # Only the first choice reuses the current block
 
         # It seems like a ChooseNode only ever has one choice:
         assert len(choice_blocks) == 1
 
-        # Pop the failure destination we pushed
-        _ = self.failure_block_stack.pop()
-
         # Set insertion point and create the eqsat.choose operation as a terminator
         self.builder.insertion_point = InsertPoint.at_end(block)
-        if choice_blocks:
-            assert default_dest is not None
-            # choose_op = eqsat_pdl_interp.ChooseOp(choice_blocks, default_dest)
-            # _ = self.builder.insert(choose_op)
-        else:
+        if not choice_blocks:
             # If no choices, use finalize as fallback
             finalize_op = pdl_interp.FinalizeOp()
             _ = self.builder.insert(finalize_op)
