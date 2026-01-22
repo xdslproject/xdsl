@@ -90,6 +90,8 @@ pdl_interp.func @matcher(%arg0: !pdl.operation) {
   pdl_interp.foreach %op : !pdl.type in %types {
     pdl_interp.continue
   } -> ^bb1
+^bb33:
+  pdl_interp.branch ^bb1
 }
 module @rewriters {
   pdl_interp.func @pdl_generated_rewriter(%arg0: !pdl.value, %arg1: !pdl.value, %arg2: !pdl.type, %arg3: !pdl.value, %arg4: !pdl.operation) {
@@ -198,6 +200,8 @@ module @rewriters {
 // CHECK-NEXT:       pdl_interp.foreach [[arg1:%arg.]] : !pdl.type in %16 {
 // CHECK-NEXT:         pdl_interp.continue
 // CHECK-NEXT:       } -> ^bb1
+// CHECK-NEXT:     ^bb32:
+// CHECK-NEXT:       pdl_interp.branch ^bb1
 // CHECK-NEXT:     }
 // CHECK-NEXT:     builtin.module @rewriters {
 // CHECK-NEXT:       pdl_interp.func @pdl_generated_rewriter(%arg0 : !pdl.value, %arg1 : !pdl.value, %arg2 : !pdl.type, %arg3 : !pdl.value, %arg4 : !pdl.operation) {

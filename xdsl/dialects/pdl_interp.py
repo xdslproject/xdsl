@@ -803,7 +803,7 @@ class CreateOperationOp(IRDLOperation):
     #     "custom<CreateOperationOpResults>($inputResultTypes, type($inputResultTypes), $inferredResultTypes)"
     #     "attr-dict"
     # )
-    # TODO: this assebly format is unsupported in xDSL because of the `custom` directives.
+    # TODO: this assembly format is unsupported in xDSL because of the `custom` directives.
 
     def __init__(
         self,
@@ -1478,6 +1478,23 @@ class ForEachOp(IRDLOperation):
             )
 
 
+@irdl_op_definition
+class BranchOp(IRDLOperation):
+    """
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interpbranch-pdl_interpbranchop).
+    """
+
+    name = "pdl_interp.branch"
+    traits = traits_def(IsTerminator())
+
+    dest = successor_def()
+
+    assembly_format = "$dest attr-dict"
+
+    def __init__(self, dest: Block) -> None:
+        super().__init__(successors=[dest])
+
+
 PDLInterp = Dialect(
     "pdl_interp",
     [
@@ -1517,5 +1534,6 @@ PDLInterp = Dialect(
         GetDefiningOpOp,
         ForEachOp,
         ContinueOp,
+        BranchOp,
     ],
 )
