@@ -1,7 +1,8 @@
 """
 RISC-V 32-bit (RV32) dialect operations and types.
 
-This module defines the RV32-specific variant of RISC-V operations.
+This module defines the RV32-specific variant of RISC-V operations,
+using 5-bit shift immediates for 32-bit architectures.
 """
 
 from __future__ import annotations

@@ -1,7 +1,8 @@
 """
 RISC-V 64-bit (RV64) dialect operations and types.
 
-This module defines the RV64-specific variant of RISC-V operations.
+This module defines the RV64-specific variant of RISC-V operations,
+using 6-bit shift immediates for 64-bit architectures.
 """
 
 from __future__ import annotations
