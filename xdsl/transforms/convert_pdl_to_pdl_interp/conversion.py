@@ -1578,6 +1578,12 @@ class MatcherGenerator:
             get_result_op = pdl_interp.GetResultOp(position.result_number, parent_val)
             self.builder.insert(get_result_op)
             value = get_result_op.value
+            if self.optimize_for_eqsat:
+                eq_vals_op = pdl_interp.ApplyRewriteOp(
+                    "get_class_result", (value,), (value.type,)
+                )
+                self.builder.insert(eq_vals_op)
+                value = eq_vals_op.results[0]
 
         elif isinstance(position, ResultGroupPosition):
             assert parent_val is not None
