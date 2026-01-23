@@ -2152,6 +2152,14 @@ class MatcherGenerator:
         )
         self.rewriter_builder.insert(create_op)
         created_op_val = create_op.result_op
+        if self.optimize_for_eqsat:
+            dedup_op = pdl_interp.ApplyRewriteOp(
+                "dedup",
+                (created_op_val,),
+                (pdl.OperationType(),),
+            )
+            self.rewriter_builder.insert(dedup_op)
+            created_op_val = dedup_op.results[0]
         rewrite_values[op.op] = created_op_val
 
         # Generate accesses for any results that have their types constrained.
