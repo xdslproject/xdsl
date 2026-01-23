@@ -25,7 +25,7 @@ from xdsl.dialects.builtin import (
     UnrealizedConversionCastOp,
     VectorType,
 )
-from xdsl.ir import Attribute, AttributeCovT
+from xdsl.ir import Attribute, AttributeCovT, Operation
 from xdsl.ir.affine import AffineMap
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
@@ -118,10 +118,17 @@ class WriteOpLowering(RewritePattern):
             (op.stream,), (snitch.WritableStreamType(register_type),)
         )
         cast_op = UnrealizedConversionCastOp.get((op.value,), (register_type,))
-        move_ops = (
-            riscv.FMvDOp(cast_op.results[0], rd=riscv.Registers.UNALLOCATED_FLOAT),
-        )
-        new_values = move_ops[0].results
+        if isinstance(defining_op := op.value.owner, Operation) and (
+            defining_op.parent_region() is op.parent_region()
+            and not isinstance(defining_op, memref_stream.ReadOp)
+        ):
+            move_ops = ()
+            new_values = cast_op.results
+        else:
+            move_ops = (
+                riscv.FMvDOp(cast_op.results[0], rd=riscv.Registers.UNALLOCATED_FLOAT),
+            )
+            new_values = move_ops[0].results
         new_write = riscv_snitch.WriteOp(new_values[0], new_stream.results[0])
 
         rewriter.replace_op(
