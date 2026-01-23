@@ -10,7 +10,7 @@ See external [documentation](https://mlir.llvm.org/docs/Dialects/EmitC/).
 import abc
 from collections.abc import Iterable, Mapping, Sequence
 from enum import IntEnum
-from typing import Generic, Literal
+from typing import Generic, Literal, Optional
 
 from typing_extensions import TypeVar, cast
 
@@ -57,15 +57,27 @@ from xdsl.irdl import (
     prop_def,
     region_def,
     result_def,
+    traits_def,
     var_operand_def,
     var_result_def,
 )
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
+from xdsl.traits import (
+    IsolatedFromAbove,
+    NoTerminator,
+    MemoryAllocEffect,
+    Pure,
+    SymbolTable,
+    #SymbolUserOpInterface
+)
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
-
+'''
+[AutomaticAllocationScope, IsolatedFromAbove,
+                         OpAsmOpInterface, SymbolTable,
+                         Symbol]#GraphRegionNoTerminator.traits'''
 
 @irdl_attr_definition
 class EmitC_OpaqueType(ParametrizedAttribute, TypeAttribute):
@@ -789,6 +801,13 @@ class EmitC_ClassOp(IRDLOperation):
 
     body = region_def()
 
+    traits = traits_def(
+        SymbolTable(),
+        IsolatedFromAbove(),
+        NoTerminator(),
+        MemoryAllocEffect()
+    )
+
     def get_block(self):
         if self.body.block:
             return self.body.block
@@ -804,7 +823,7 @@ class EmitC_CmpPredicateValue(IntEnum):
     three_way = 6
 
     @classmethod
-    def has_value(cls, val) -> bool:
+    def has_value(cls, val: int) -> bool:
         return val in cls._value2member_map_
 
 @irdl_op_definition
@@ -853,20 +872,19 @@ class EmitC_CmpOp(EmitC_BinaryOperation):
 
     def __init__(
         self,
-        pred,
-        lhs,
-        rhs,
-        result_type
+        pred : int,
+        lhs : SSAValue,
+        rhs : SSAValue,
+        result_type : Attribute
     ):
         if not EmitC_CmpPredicateValue.has_value(pred):
             raise VerifyException(f"Got nonexistent predicate value: {pred}")
 
-        super.__init__(
-            lhs,
-            rhs,
-            result_type,
-            properties={pred}
-        )
+        '''super.__init__(
+            operands=[lhs, rhs],
+            result_types=[result_type],
+            properties={"predicate" : pred}
+        )'''
 
 
 @irdl_op_definition
@@ -969,25 +987,17 @@ class EmitC_ConstantOp(IRDLOperation):
     value = prop_def(EmitC_OpaqueOrTypedAttr)
     result = result_def(EmitCTypeConstr)
 
-    assembly_format = " attr-dict $value `:` type(results)"
-
-    irdl_options = (ParsePropInAttrDict(), )
-
     def __init__(
         self,
-        value: EmitC_OpaqueOrTypedAttr | int
+        value: EmitC_OpaqueOrTypedAttr | IntegerAttr
     ):
-        res_type = ""
-        if isinstance(value, int):
-            value = IntegerAttr(value, IntegerType(32))
-            res_type  = value.type
+        if isinstance(value, IntegerAttr):
+            res_type = value.type # pyright: ignore[reportUnknownVariableType, reportUnknownMemberType]
         else:
-            res_type = EmitC_OpaqueType(StringAttr(str(value)))
+            res_type = EmitC_OpaqueType(StringAttr("std::string"))
         super().__init__(
-            properties={
-                "value": value
-            },
-            result_types=[res_type]
+            properties={ "value": value }, # pyright: ignore[reportUnknownArgumentType]
+            result_types=[res_type] # pyright: ignore[reportUnknownArgumentType]
         )
 
     def verify_(self) -> None:
@@ -1081,6 +1091,53 @@ class EmitC_DivOp(EmitC_BinaryOperation):
 
 
 @irdl_op_definition
+class EmitC_IncludeOp(IRDLOperation):
+    """
+    Include operation.
+
+    The `emitc.include` operation allows to define a source file inclusion via the
+    `#include` directive.
+
+    Example:
+
+    ```mlir
+    // Custom form defining the inclusion of `<myheader>`.
+    emitc.include <"myheader.h">
+
+    // Generic form of the same operation.
+    "emitc.include" (){include = "myheader.h", is_standard_include} : () -> ()
+
+    // Custom form defining the inclusion of `"myheader"`.
+    emitc.include "myheader.h"
+
+    // Generic form of the same operation.
+    "emitc.include" (){include = "myheader.h"} : () -> ()
+    ```
+    """
+
+    name = "emitc.include"
+    include = prop_def(StringAttr)
+    is_standard_include = opt_prop_def(UnitAttr)
+
+    irdl_options = (ParsePropInAttrDict(), )
+
+    assembly_format = "attr-dict ` `(`<` $is_standard_include^)? $include `>`"
+
+    def __init__(
+        self,
+        include : StringAttr,
+        is_standard_include : Optional[UnitAttr] = None
+    ):
+        super().__init__(
+            operands=[],
+            properties={
+                "include": include,
+                "is_standard_include" : is_standard_include
+            }
+        )
+
+
+@irdl_op_definition
 class EmitC_LiteralOp(IRDLOperation):
     """
     Literal operation.
@@ -1104,6 +1161,8 @@ class EmitC_LiteralOp(IRDLOperation):
 
     value = prop_def(StringAttr)
     result = result_def(EmitCTypeConstr)
+
+    traits = traits_def(Pure())
 
     assembly_format = "$value attr-dict `:` type($result)"
 
@@ -1498,8 +1557,8 @@ class EmitC_SubscriptOp(IRDLOperation):
 
         # array[i]
         if isinstance(val_type, EmitC_ArrayType):
-            if len(self.indices) != val_type.shape:
-                raise VerifyException(f"Array subscript expects {val_type.shape} indices, got {len(self.indices)}")
+            if len(self.indices) != len(val_type.shape):
+                raise VerifyException(f"Array subscript expects {len(val_type.shape)} indices, got {len(self.indices)}")
 
         # ptr[i]
         if isinstance(val_type, EmitC_PointerType):
@@ -1575,9 +1634,11 @@ class EmitC_VariableOp(IRDLOperation):
     value = prop_def(EmitC_OpaqueOrTypedAttr)
     result = result_def(EmitC_ArrayType | EmitC_LValueType)
 
+    #assembly_format = " attr-dict $value `:` type(results)"
+
     def __init__(
         self,
-        value: EmitC_OpaqueOrTypedAttr,
+        value: EmitC_OpaqueOrTypedAttr | IntegerAttr,
         result_types : Attribute
     ):
         super().__init__(
@@ -1597,6 +1658,82 @@ class EmitC_VariableOp(IRDLOperation):
 
     def has_side_effects(self) -> bool:
         return True
+
+
+@irdl_op_definition
+class EmitC_VerbatimOp(IRDLOperation):
+    """
+    Verbatim operation.
+
+    The `emitc.verbatim` operation produces no results and the value is emitted as is
+    followed by a line break  ('\n' character) during translation.
+
+    Note: Use with caution. This operation can have arbitrary effects on the
+    semantics of the emitted code. Use semantically more meaningful operations
+    whenever possible. Additionally this op is *NOT* intended to be used to
+    inject large snippets of code.
+
+    This operation can be used in situations where a more suitable operation is
+    not yet implemented in the dialect or where preprocessor directives
+    interfere with the structure of the code. One example of this is to declare
+    the linkage of external symbols to make the generated code usable in both C
+    and C++ contexts:
+
+    ```c++
+    #ifdef __cplusplus
+    extern "C" {
+    #endif
+
+    ...
+
+    #ifdef __cplusplus
+    }
+    #endif
+    ```
+
+    If the `emitc.verbatim` op has operands, then the `value` is interpreted as
+    format string, where `{}` is a placeholder for an operand in their order.
+    For example, `emitc.verbatim "#pragma my src={} dst={}" %src, %dest : i32, i32`
+    would be emitted as `#pragma my src=a dst=b` if `%src` became `a` and
+    `%dest` became `b` in the C code.
+    `{{` in the format string is interpreted as a single `{` and doesn't introduce
+    a placeholder.
+
+    Example:
+
+    ```mlir
+    emitc.verbatim "typedef float f32;"
+    emitc.verbatim "#pragma my var={} property" args %arg : f32
+    ```
+    ```c++
+    // Code emitted for the operation above.
+    typedef float f32;
+    #pragma my var=v1 property
+    ```
+    """
+
+    name = "emitc.verbatim"
+
+    value = prop_def(StringAttr)
+    fmtArgs = var_operand_def(AnyAttr())
+
+    assembly_format = "$value (`args` $fmtArgs^ `:` type($fmtArgs))? attr-dict"
+
+    def __init__(self,
+        value: StringAttr,
+        operands: AnyAttr,
+    ):
+        super().__init__(
+            operands=operands, # pyright: ignore[reportArgumentType]
+            properties={
+                "value" : value
+            }
+        )
+
+    def verify_(self) -> None:
+        value = self.value
+        if not value:
+            raise VerifyException("'emitc.verbatim' op requires attribute 'value'")
 
 
 EmitC = Dialect(
@@ -1620,6 +1757,7 @@ EmitC = Dialect(
         EmitC_ConstantOp,
         EmitC_DereferenceOp,
         EmitC_DivOp,
+        EmitC_IncludeOp,
         EmitC_LiteralOp,
         EmitC_LoadOp,
         EmitC_LogicalAndOp,
@@ -1633,7 +1771,8 @@ EmitC = Dialect(
         EmitC_SubscriptOp,
         EmitC_UnaryMinusOp,
         EmitC_UnaryPlusOp,
-        EmitC_VariableOp
+        EmitC_VariableOp,
+        EmitC_VerbatimOp
     ],
     [
         EmitC_ArrayType,
