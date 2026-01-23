@@ -104,24 +104,24 @@ builtin.module {
     visibility_ = 0 : i64
   }> ({
   ^bb0(%arg0 : i32, %arg1 : i32, %arg2 : f32, %arg3 : f32):
-    %0 = "llvm.add"(%arg0, %arg1) : (i32, i32) -> i32
-    %1 = "llvm.fadd"(%arg2, %arg3) : (f32, f32) -> f32
-    %2 = "llvm.sub"(%arg0, %arg1) : (i32, i32) -> i32
-    %3 = "llvm.fsub"(%arg2, %arg3) : (f32, f32) -> f32
-    %4 = "llvm.mul"(%arg0, %arg1) : (i32, i32) -> i32
-    %5 = "llvm.fmul"(%arg2, %arg3) : (f32, f32) -> f32
-    %6 = "llvm.udiv"(%arg0, %arg1) : (i32, i32) -> i32
-    %7 = "llvm.sdiv"(%arg0, %arg1) : (i32, i32) -> i32
-    %8 = "llvm.fdiv"(%arg2, %arg3) : (f32, f32) -> f32
-    %9 = "llvm.urem"(%arg0, %arg1) : (i32, i32) -> i32
-    %10 = "llvm.srem"(%arg0, %arg1) : (i32, i32) -> i32
-    %11 = "llvm.frem"(%arg2, %arg3) : (f32, f32) -> f32
-    %12 = "llvm.shl"(%arg0, %arg1) : (i32, i32) -> i32
-    %13 = "llvm.lshr"(%arg0, %arg1) : (i32, i32) -> i32
-    %14 = "llvm.ashr"(%arg0, %arg1) : (i32, i32) -> i32
-    %15 = "llvm.and"(%arg0, %arg1) : (i32, i32) -> i32
-    %16 = "llvm.or"(%arg0, %arg1) : (i32, i32) -> i32
-    %17 = "llvm.xor"(%arg0, %arg1) : (i32, i32) -> i32
+    %0 = llvm.add %arg0, %arg1 : i32
+    %1 = llvm.fadd %arg2, %arg3 : f32
+    %2 = llvm.sub %arg0, %arg1 : i32
+    %3 = llvm.fsub %arg2, %arg3 : f32
+    %4 = llvm.mul %arg0, %arg1 : i32
+    %5 = llvm.fmul %arg2, %arg3 : f32
+    %6 = llvm.udiv %arg0, %arg1 : i32
+    %7 = llvm.sdiv %arg0, %arg1 : i32
+    %8 = llvm.fdiv %arg2, %arg3 : f32
+    %9 = llvm.urem %arg0, %arg1 : i32
+    %10 = llvm.srem %arg0, %arg1 : i32
+    %11 = llvm.frem %arg2, %arg3 : f32
+    %12 = llvm.shl %arg0, %arg1 : i32
+    %13 = llvm.lshr %arg0, %arg1 : i32
+    %14 = llvm.ashr %arg0, %arg1 : i32
+    %15 = llvm.and %arg0, %arg1 : i32
+    %16 = llvm.or %arg0, %arg1 : i32
+    %17 = llvm.xor %arg0, %arg1 : i32
     "llvm.return"() : () -> ()
   }) : () -> ()
 
