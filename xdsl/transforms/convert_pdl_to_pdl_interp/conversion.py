@@ -2230,24 +2230,43 @@ class MatcherGenerator:
                     pdl.RangeType(pdl.ValueType()),
                 )
                 self.rewriter_builder.insert(get_results)
-                repl_operands = (get_results.value,)
+                repl_operands = get_results.value
             else:
                 # The new operation has no results to replace with
-                repl_operands = ()
+                repl_operands = None
         else:
-            repl_operands = tuple(map_rewrite_value(val) for val in op.repl_values)
+            repl_operands = (
+                tuple(map_rewrite_value(val) for val in op.repl_values)
+                if op.repl_values
+                else None
+            )
 
         mapped_op_value = map_rewrite_value(op.op_value)
-        if not repl_operands:
-            # Note that if an operation is replaced by a new one, the new operation
-            # will already have been inserted during `pdl_interp.create_operation`.
-            # In case there are no new values to replace the op with,
-            # a replacement is the same as just erasing the op.
-            self.rewriter_builder.insert(pdl_interp.EraseOp(mapped_op_value))
+        if repl_operands is None:
+            if not self.optimize_for_eqsat:  # don't erase ops in eqsat
+                # Note that if an operation is replaced by a new one, the new operation
+                # will already have been inserted during `pdl_interp.create_operation`.
+                # In case there are no new values to replace the op with,
+                # a replacement is the same as just erasing the op.
+                self.rewriter_builder.insert(pdl_interp.EraseOp(mapped_op_value))
         else:
-            self.rewriter_builder.insert(
-                pdl_interp.ReplaceOp(mapped_op_value, repl_operands)
-            )
+            if self.optimize_for_eqsat:
+                if isinstance(repl_operands, tuple):
+                    repl_operands = self.rewriter_builder.insert(
+                        pdl_interp.CreateRangeOp(
+                            repl_operands, pdl.RangeType(pdl.ValueType())
+                        )
+                    ).result
+                assert isinstance(repl_operands.type, pdl.RangeType)
+                replace_op = pdl_interp.ApplyRewriteOp(
+                    "union",
+                    (mapped_op_value, repl_operands),
+                )
+            else:
+                if not isinstance(repl_operands, tuple):
+                    repl_operands = (repl_operands,)
+                replace_op = pdl_interp.ReplaceOp(mapped_op_value, repl_operands)
+            self.rewriter_builder.insert(replace_op)
 
     def _generate_rewriter_for_result(
         self,
