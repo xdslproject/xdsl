@@ -994,7 +994,7 @@ class EmitC_ConstantOp(IRDLOperation):
         if isinstance(value, IntegerAttr):
             res_type = value.type # pyright: ignore[reportUnknownVariableType, reportUnknownMemberType]
         else:
-            res_type = EmitC_OpaqueType(StringAttr(str(value)))
+            res_type = EmitC_OpaqueType(StringAttr("std::string"))
         super().__init__(
             properties={ "value": value }, # pyright: ignore[reportUnknownArgumentType]
             result_types=[res_type] # pyright: ignore[reportUnknownArgumentType]
@@ -1638,7 +1638,7 @@ class EmitC_VariableOp(IRDLOperation):
 
     def __init__(
         self,
-        value: EmitC_OpaqueOrTypedAttr,
+        value: EmitC_OpaqueOrTypedAttr | IntegerAttr,
         result_types : Attribute
     ):
         super().__init__(
@@ -1718,6 +1718,17 @@ class EmitC_VerbatimOp(IRDLOperation):
     fmtArgs = var_operand_def(AnyAttr())
 
     assembly_format = "$value (`args` $fmtArgs^ `:` type($fmtArgs))? attr-dict"
+
+    def __init__(self,
+        value: StringAttr,
+        operands: AnyAttr,
+    ):
+        super().__init__(
+            operands=operands, # pyright: ignore[reportArgumentType]
+            properties={
+                "value" : value
+            }
+        )
 
     def verify_(self) -> None:
         value = self.value
