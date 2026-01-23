@@ -59,9 +59,8 @@ def convert_op(
     Raises:
         NotImplementedError: If the operation is not supported.
     """
-    if type(op) in _BINARY_OP_MAP:
-        target_func = _BINARY_OP_MAP[type(op)](builder)
-        val_map[op.results[0]] = target_func(
+    if (op_builder := _BINARY_OP_MAP.get(type(op))) is not None:
+        val_map[op.results[0]] = op_builder(builder)(
             val_map[op.operands[0]], val_map[op.operands[1]]
         )
         return
