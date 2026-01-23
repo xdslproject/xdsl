@@ -803,7 +803,7 @@ class CreateOperationOp(IRDLOperation):
     #     "custom<CreateOperationOpResults>($inputResultTypes, type($inputResultTypes), $inferredResultTypes)"
     #     "attr-dict"
     # )
-    # TODO: this assebly format is unsupported in xDSL because of the `custom` directives.
+    # TODO: this assembly format is unsupported in xDSL because of the `custom` directives.
 
     def __init__(
         self,
@@ -1400,6 +1400,101 @@ class CreateTypesOp(IRDLOperation):
         )
 
 
+@irdl_op_definition
+class ContinueOp(IRDLOperation):
+    """
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interpcontinue-pdl_interpcontinueop).
+    """
+
+    name = "pdl_interp.continue"
+    traits = traits_def(IsTerminator())
+
+    assembly_format = "attr-dict"
+
+    def __init__(self) -> None:
+        super().__init__()
+
+
+@irdl_op_definition
+class ForEachOp(IRDLOperation):
+    """
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interpforeach-pdl_interpforeachop).
+    """
+
+    name = "pdl_interp.foreach"
+    traits = traits_def(IsTerminator())
+
+    values = operand_def(RangeType[AnyPDLType])
+    region = region_def()
+    successor = successor_def()
+
+    def __init__(self, values: SSAValue, successor: Block, region: Region) -> None:
+        super().__init__(operands=[values], successors=[successor], regions=[region])
+
+    @classmethod
+    def parse(cls, parser: Parser) -> ForEachOp:
+        arg = parser.parse_argument()
+        parser.parse_characters("in")
+        values = parser.parse_operand()
+        region = parser.parse_region(arguments=[arg])
+        parser.parse_punctuation("->")
+        successor = parser.parse_successor()
+        attrs = parser.parse_optional_attr_dict()
+
+        op = ForEachOp(values, successor, region)
+        if attrs:
+            op.attributes = attrs
+        return op
+
+    def print(self, printer: Printer):
+        loop_var = self.region.blocks[0].args[0]
+        printer.print_string(" ")
+        printer.print_ssa_value(loop_var)
+        printer.print_string(" : ")
+        printer.print_attribute(loop_var.type)
+        printer.print_string(" in ")
+        printer.print_operand(self.values)
+        printer.print_string(" ")
+        printer.print_region(self.region, print_entry_block_args=False)
+        printer.print_string(" -> ")
+        printer.print_block_name(self.successor)
+        printer.print_op_attributes(self.attributes)
+
+    def verify_(self) -> None:
+        if not self.region.blocks:
+            raise VerifyException("Region must not be empty")
+
+        block = self.region.blocks[0]
+        if len(block.args) != 1:
+            raise VerifyException("Region must have exactly one argument")
+
+        arg_type = block.args[0].type
+
+        assert isa(self.values, SSAValue[RangeType[AnyPDLType]])
+        if self.values.type.element_type != arg_type:
+            raise VerifyException(
+                f"Region argument type {arg_type} does not match "
+                f"range element type {self.values.type.element_type}"
+            )
+
+
+@irdl_op_definition
+class BranchOp(IRDLOperation):
+    """
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interpbranch-pdl_interpbranchop).
+    """
+
+    name = "pdl_interp.branch"
+    traits = traits_def(IsTerminator())
+
+    dest = successor_def()
+
+    assembly_format = "$dest attr-dict"
+
+    def __init__(self, dest: Block) -> None:
+        super().__init__(successors=[dest])
+
+
 PDLInterp = Dialect(
     "pdl_interp",
     [
@@ -1437,5 +1532,8 @@ PDLInterp = Dialect(
         CreateTypesOp,
         FuncOp,
         GetDefiningOpOp,
+        ForEachOp,
+        ContinueOp,
+        BranchOp,
     ],
 )
