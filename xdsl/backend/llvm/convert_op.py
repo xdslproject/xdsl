@@ -29,6 +29,18 @@ _BINARY_OP_MAP: dict[
 }
 
 
+def _convert_call(
+    op: llvm.CallOp, builder: ir.IRBuilder, val_map: dict[SSAValue, ir.Value]
+):
+    args = [val_map[arg] for arg in op.args]
+    if op.callee is None:
+        raise NotImplementedError("Indirect calls not yet implemented")
+    callee = builder.module.get_global(op.callee.string_value())
+    res = builder.call(callee, args)
+    if op.returned:
+        val_map[op.returned] = res
+
+
 def _convert_return(
     op: Operation, builder: ir.IRBuilder, val_map: dict[SSAValue, ir.Value]
 ):
@@ -66,6 +78,8 @@ def convert_op(
         return
 
     match op:
+        case llvm.CallOp():
+            _convert_call(op, builder, val_map)
         case llvm.ReturnOp():
             _convert_return(op, builder, val_map)
         case _:
