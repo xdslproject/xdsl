@@ -158,12 +158,16 @@ builtin.module {
   }> ({
   ^bb0(%arg0 : i32, %arg1 : i32, %arg2 : f32, %arg3 : f32):
     %0 = llvm.add %arg0, %arg1 overflow<nsw> : i32
-    %1 = llvm.sub %arg0, %arg1 overflow<nuw> : i32
-    %2 = llvm.mul %arg0, %arg1 overflow<nsw, nuw> : i32
-    %3 = llvm.shl %arg0, %arg1 overflow<nsw> : i32
+    %1 = llvm.add %arg0, %arg1 overflow<nuw> : i32
+    %2 = llvm.add %arg0, %arg1 overflow<nsw, nuw> : i32
+    %3 = llvm.fadd %arg2, %arg3 {fastmathFlags = #llvm.fastmath<reassoc>} : f32
     %4 = llvm.fadd %arg2, %arg3 {fastmathFlags = #llvm.fastmath<nnan>} : f32
-    %5 = llvm.fmul %arg2, %arg3 {fastmathFlags = #llvm.fastmath<fast>} : f32
-    %6 = llvm.fsub %arg2, %arg3 {fastmathFlags = #llvm.fastmath<reassoc, nsz>} : f32
+    %5 = llvm.fadd %arg2, %arg3 {fastmathFlags = #llvm.fastmath<ninf>} : f32
+    %6 = llvm.fadd %arg2, %arg3 {fastmathFlags = #llvm.fastmath<nsz>} : f32
+    %7 = llvm.fadd %arg2, %arg3 {fastmathFlags = #llvm.fastmath<arcp>} : f32
+    %8 = llvm.fadd %arg2, %arg3 {fastmathFlags = #llvm.fastmath<contract>} : f32
+    %9 = llvm.fadd %arg2, %arg3 {fastmathFlags = #llvm.fastmath<afn>} : f32
+    %10 = llvm.fadd %arg2, %arg3 {fastmathFlags = #llvm.fastmath<fast>} : f32
     "llvm.return"() : () -> ()
   }) : () -> ()
 
@@ -171,12 +175,16 @@ builtin.module {
   // CHECK-NEXT: {
   // CHECK-NEXT: {{.[0-9]+}}:
   // CHECK-NEXT:   {{%.+}} = add nsw i32 %".1", %".2"
-  // CHECK-NEXT:   {{%.+}} = sub nuw i32 %".1", %".2"
-  // CHECK-NEXT:   {{%.+}} = mul {{.*}} i32 %".1", %".2"
-  // CHECK-NEXT:   {{%.+}} = shl nsw i32 %".1", %".2"
+  // CHECK-NEXT:   {{%.+}} = add nuw i32 %".1", %".2"
+  // CHECK-NEXT:   {{%.+}} = add {{.*}} i32 %".1", %".2"
+  // CHECK-NEXT:   {{%.+}} = fadd reassoc float %".3", %".4"
   // CHECK-NEXT:   {{%.+}} = fadd nnan float %".3", %".4"
-  // CHECK-NEXT:   {{%.+}} = fmul {{.*}} float %".3", %".4"
-  // CHECK-NEXT:   {{%.+}} = fsub {{.*}} float %".3", %".4"
+  // CHECK-NEXT:   {{%.+}} = fadd ninf float %".3", %".4"
+  // CHECK-NEXT:   {{%.+}} = fadd nsz float %".3", %".4"
+  // CHECK-NEXT:   {{%.+}} = fadd arcp float %".3", %".4"
+  // CHECK-NEXT:   {{%.+}} = fadd contract float %".3", %".4"
+  // CHECK-NEXT:   {{%.+}} = fadd afn float %".3", %".4"
+  // CHECK-NEXT:   {{%.+}} = fadd {{.*}} float %".3", %".4"
   // CHECK-NEXT:   ret void
   // CHECK-NEXT: }
 }

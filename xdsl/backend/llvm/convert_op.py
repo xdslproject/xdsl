@@ -80,9 +80,9 @@ def convert_op(
         NotImplementedError: If the operation is not supported.
     """
     match op:
-        case llvm.ReturnOp():
-            _convert_return(op, builder, val_map)
         case op if type(op) in _BINARY_OP_MAP:
             _convert_binop(op, builder, val_map)
+        case llvm.ReturnOp():
+            _convert_return(op, builder, val_map)
         case _:
             raise NotImplementedError(f"Conversion not implemented for op: {op.name}")
