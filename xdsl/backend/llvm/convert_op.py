@@ -3,6 +3,7 @@ from collections.abc import Callable
 from llvmlite import ir
 
 from xdsl.dialects import llvm
+from xdsl.dialects.builtin import IntegerAttr
 from xdsl.ir import Operation, SSAValue
 
 _BINARY_OP_MAP: dict[
@@ -27,6 +28,25 @@ _BINARY_OP_MAP: dict[
     llvm.OrOp: lambda b: b.or_,
     llvm.XOrOp: lambda b: b.xor,
 }
+
+
+def _convert_binop(
+    op: Operation, builder: ir.IRBuilder, val_map: dict[SSAValue, ir.Value]
+):
+    kwargs = {}
+    fastmath = op.properties.get("fastmathFlags")
+    if isinstance(fastmath, llvm.FastMathAttr):
+        kwargs["flags"] = [f.value for f in fastmath.data]
+
+    overflow = op.properties.get("overflowFlags")
+    if isinstance(overflow, IntegerAttr):
+        overflow_attr = llvm.OverflowAttr.from_int(overflow.value.data)
+        kwargs["flags"] = [f.value for f in overflow_attr.data]
+
+    op_builder = _BINARY_OP_MAP[type(op)]
+    val_map[op.results[0]] = op_builder(builder)(
+        val_map[op.operands[0]], val_map[op.operands[1]], **kwargs
+    )
 
 
 def _convert_return(
@@ -59,14 +79,10 @@ def convert_op(
     Raises:
         NotImplementedError: If the operation is not supported.
     """
-    if (op_builder := _BINARY_OP_MAP.get(type(op))) is not None:
-        val_map[op.results[0]] = op_builder(builder)(
-            val_map[op.operands[0]], val_map[op.operands[1]]
-        )
-        return
-
     match op:
         case llvm.ReturnOp():
             _convert_return(op, builder, val_map)
+        case op if type(op) in _BINARY_OP_MAP:
+            _convert_binop(op, builder, val_map)
         case _:
             raise NotImplementedError(f"Conversion not implemented for op: {op.name}")

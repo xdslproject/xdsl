@@ -148,4 +148,35 @@ builtin.module {
   // CHECK-NEXT:   {{%.+}} = xor i32 %".1", %".2"
   // CHECK-NEXT:   ret void
   // CHECK-NEXT: }
+
+  "llvm.func"() <{
+    sym_name = "binops_flags",
+    function_type = !llvm.func<void (i32, i32, f32, f32)>,
+    CConv = #llvm.cconv<ccc>,
+    linkage = #llvm.linkage<external>,
+    visibility_ = 0 : i64
+  }> ({
+  ^bb0(%arg0 : i32, %arg1 : i32, %arg2 : f32, %arg3 : f32):
+    %0 = llvm.add %arg0, %arg1 overflow<nsw> : i32
+    %1 = llvm.sub %arg0, %arg1 overflow<nuw> : i32
+    %2 = llvm.mul %arg0, %arg1 overflow<nsw, nuw> : i32
+    %3 = llvm.shl %arg0, %arg1 overflow<nsw> : i32
+    %4 = llvm.fadd %arg2, %arg3 {fastmathFlags = #llvm.fastmath<nnan>} : f32
+    %5 = llvm.fmul %arg2, %arg3 {fastmathFlags = #llvm.fastmath<fast>} : f32
+    %6 = llvm.fsub %arg2, %arg3 {fastmathFlags = #llvm.fastmath<reassoc, nsz>} : f32
+    "llvm.return"() : () -> ()
+  }) : () -> ()
+
+  // CHECK: define void @"binops_flags"(i32 %".1", i32 %".2", float %".3", float %".4")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT:   {{%.+}} = add nsw i32 %".1", %".2"
+  // CHECK-NEXT:   {{%.+}} = sub nuw i32 %".1", %".2"
+  // CHECK-NEXT:   {{%.+}} = mul {{.*}} i32 %".1", %".2"
+  // CHECK-NEXT:   {{%.+}} = shl nsw i32 %".1", %".2"
+  // CHECK-NEXT:   {{%.+}} = fadd nnan float %".3", %".4"
+  // CHECK-NEXT:   {{%.+}} = fmul {{.*}} float %".3", %".4"
+  // CHECK-NEXT:   {{%.+}} = fsub {{.*}} float %".3", %".4"
+  // CHECK-NEXT:   ret void
+  // CHECK-NEXT: }
 }
