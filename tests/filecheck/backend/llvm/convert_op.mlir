@@ -148,4 +148,116 @@ builtin.module {
   // CHECK-NEXT:   {{%.+}} = xor i32 %".1", %".2"
   // CHECK-NEXT:   ret void
   // CHECK-NEXT: }
+
+  "llvm.func"() <{
+    sym_name = "alloca_op",
+    function_type = !llvm.func<void (i32)>,
+    CConv = #llvm.cconv<ccc>,
+    linkage = #llvm.linkage<external>,
+    visibility_ = 0 : i64
+  }> ({
+  ^bb0(%arg0 : i32):
+    %0 = "llvm.alloca"(%arg0) <{elem_type = i32}> : (i32) -> !llvm.ptr
+    "llvm.return"() : () -> ()
+  }) : () -> ()
+
+  // CHECK: define void @"alloca_op"(i32 %".1")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT:   {{%.+}} = alloca i32, i32 %".1"
+  // CHECK-NEXT:   ret void
+  // CHECK-NEXT: }
+
+  "llvm.func"() <{
+    sym_name = "load_op",
+    function_type = !llvm.func<void (!llvm.ptr)>,
+    CConv = #llvm.cconv<ccc>,
+    linkage = #llvm.linkage<external>,
+    visibility_ = 0 : i64
+  }> ({
+  ^bb0(%arg0 : !llvm.ptr):
+    %0 = "llvm.load"(%arg0) : (!llvm.ptr) -> i32
+    "llvm.return"() : () -> ()
+  }) : () -> ()
+
+  // CHECK: define void @"load_op"(ptr %".1")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT:   {{%.+}} = load i32, ptr %".1"
+  // CHECK-NEXT:   ret void
+  // CHECK-NEXT: }
+
+  "llvm.func"() <{
+    sym_name = "store_op",
+    function_type = !llvm.func<void (i32, !llvm.ptr)>,
+    CConv = #llvm.cconv<ccc>,
+    linkage = #llvm.linkage<external>,
+    visibility_ = 0 : i64
+  }> ({
+  ^bb0(%arg0 : i32, %arg1 : !llvm.ptr):
+    "llvm.store"(%arg0, %arg1) : (i32, !llvm.ptr) -> ()
+    "llvm.return"() : () -> ()
+  }) : () -> ()
+
+  // CHECK: define void @"store_op"(i32 %".1", ptr %".2")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT:   store i32 %".1", ptr %".2"
+  // CHECK-NEXT:   ret void
+  // CHECK-NEXT: }
+
+  "llvm.func"() <{
+    sym_name = "extract_op",
+    function_type = !llvm.func<void (!llvm.struct<(i32, f32)>)>,
+    CConv = #llvm.cconv<ccc>,
+    linkage = #llvm.linkage<external>,
+    visibility_ = 0 : i64
+  }> ({
+  ^bb0(%arg0 : !llvm.struct<(i32, f32)>):
+    %0 = "llvm.extractvalue"(%arg0) <{position = array<i64: 0>}> : (!llvm.struct<(i32, f32)>) -> i32
+    "llvm.return"() : () -> ()
+  }) : () -> ()
+
+  // CHECK: define void @"extract_op"({i32, float} %".1")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT:   {{%.+}} = extractvalue {i32, float} %".1", 0
+  // CHECK-NEXT:   ret void
+  // CHECK-NEXT: }
+
+  "llvm.func"() <{
+    sym_name = "insert_op",
+    function_type = !llvm.func<void (!llvm.struct<(i32, f32)>, i32)>,
+    CConv = #llvm.cconv<ccc>,
+    linkage = #llvm.linkage<external>,
+    visibility_ = 0 : i64
+  }> ({
+  ^bb0(%arg0 : !llvm.struct<(i32, f32)>, %arg1 : i32):
+    %0 = "llvm.insertvalue"(%arg0, %arg1) <{position = array<i64: 0>}> : (!llvm.struct<(i32, f32)>, i32) -> !llvm.struct<(i32, f32)>
+    "llvm.return"() : () -> ()
+  }) : () -> ()
+
+  // CHECK: define void @"insert_op"({i32, float} %".1", i32 %".2")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT:   {{%.+}} = insertvalue {i32, float} %".1", i32 %".2", 0
+  // CHECK-NEXT:   ret void
+  // CHECK-NEXT: }
+
+  "llvm.func"() <{
+    sym_name = "unreachable_op",
+    function_type = !llvm.func<void ()>,
+    CConv = #llvm.cconv<ccc>,
+    linkage = #llvm.linkage<external>,
+    visibility_ = 0 : i64
+  }> ({
+  ^bb0:
+    llvm.unreachable
+  }) : () -> ()
+
+  // CHECK: define void @"unreachable_op"()
+  // CHECK-NEXT: {
+  // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT:   unreachable
+  // CHECK-NEXT: }
 }
