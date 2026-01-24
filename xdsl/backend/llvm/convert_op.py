@@ -2,6 +2,7 @@ from collections.abc import Callable
 
 from llvmlite import ir
 
+from xdsl.backend.llvm.convert_type import convert_type
 from xdsl.dialects import llvm
 from xdsl.ir import Operation, SSAValue
 
@@ -27,6 +28,24 @@ _BINARY_OP_MAP: dict[
     llvm.OrOp: lambda b: b.or_,
     llvm.XOrOp: lambda b: b.xor,
 }
+
+
+def _convert_inline_asm(
+    op: llvm.InlineAsmOp, builder: ir.IRBuilder, val_map: dict[SSAValue, ir.Value]
+):
+    input_types = [convert_type(arg.type) for arg in op.operands_]
+    ret_type = convert_type(op.res.type) if op.res else ir.VoidType()
+    ftype = ir.FunctionType(ret_type, input_types)
+    asm = ir.InlineAsm(
+        ftype,
+        op.asm_string.data,
+        op.constraints.data,
+        side_effect=op.has_side_effects is not None,
+    )
+    args = [val_map[arg] for arg in op.operands_]
+    res = builder.call(asm, args)
+    if op.res:
+        val_map[op.results[0]] = res
 
 
 def _convert_return(
@@ -66,6 +85,8 @@ def convert_op(
         return
 
     match op:
+        case llvm.InlineAsmOp():
+            _convert_inline_asm(op, builder, val_map)
         case llvm.ReturnOp():
             _convert_return(op, builder, val_map)
         case _:
