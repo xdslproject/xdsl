@@ -158,8 +158,8 @@ builtin.module {
   }> ({
   ^bb0(%arg0: i32):
     "llvm.inline_asm"(%arg0) <{
-      asm_string = "assembly",
-      constraints = "constraints",
+      asm_string = "add $0, 1",
+      constraints = "r",
       has_side_effects
     }> : (i32) -> ()
     "llvm.return"() : () -> ()
@@ -168,7 +168,7 @@ builtin.module {
   // CHECK: define void @"inline_asm"(i32 %".1")
   // CHECK-NEXT: {
   // CHECK-NEXT: {{.[0-9]+}}:
-  // CHECK-NEXT:   call void asm sideeffect "assembly", "constraints"(i32 %".1") // "assembly" as placeholder for instructions (e.g. mov, add) 
+  // CHECK-NEXT:   call void asm sideeffect "add $0, 1", "r"(i32 %".1")
   // CHECK-NEXT:   ret void
   // CHECK-NEXT: }
 }
