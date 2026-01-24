@@ -50,7 +50,6 @@ def _convert_binop(
     )
 
 
-
 def _convert_inline_asm(
     op: llvm.InlineAsmOp, builder: ir.IRBuilder, val_map: dict[SSAValue, ir.Value]
 ):
@@ -67,7 +66,6 @@ def _convert_inline_asm(
     res = builder.call(asm, args)
     if op.res:
         val_map[op.results[0]] = res
-
 
 
 def _convert_return(

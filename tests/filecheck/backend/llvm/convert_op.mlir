@@ -185,6 +185,7 @@ builtin.module {
   // CHECK-NEXT:   {{%.+}} = fadd contract float %".3", %".4"
   // CHECK-NEXT:   {{%.+}} = fadd afn float %".3", %".4"
   // CHECK-NEXT:   {{%.+}} = fadd {{.*}} float %".3", %".4"
+<<<<<<< HEAD
   // CHECK-NEXT:   ret void
   // CHECK-NEXT: }
 
@@ -208,6 +209,8 @@ builtin.module {
   // CHECK-NEXT: {
   // CHECK-NEXT: {{.[0-9]+}}:
   // CHECK-NEXT:   call void asm sideeffect "add $0, 1", "r"(i32 %".1")
+=======
+>>>>>>> b711a27c8 (cover more flags, refactor)
   // CHECK-NEXT:   ret void
   // CHECK-NEXT: }
 }
