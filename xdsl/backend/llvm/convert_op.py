@@ -2,6 +2,7 @@ from collections.abc import Callable
 
 from llvmlite import ir
 
+from xdsl.backend.llvm.convert_type import convert_type
 from xdsl.dialects import llvm
 from xdsl.ir import Operation, SSAValue
 
@@ -66,6 +67,28 @@ def convert_op(
         return
 
     match op:
+        case llvm.AllocaOp():
+            val_map[op.results[0]] = builder.alloca(
+                convert_type(op.elem_type), size=val_map[op.size]
+            )
+        case llvm.LoadOp():
+            val_map[op.results[0]] = builder.load(
+                val_map[op.ptr], typ=convert_type(op.results[0].type)
+            )
+        case llvm.StoreOp():
+            builder.store(val_map[op.value], val_map[op.ptr])
+        case llvm.ExtractValueOp():
+            val_map[op.results[0]] = builder.extract_value(
+                val_map[op.container], list(op.position.iter_values())
+            )
+        case llvm.InsertValueOp():
+            val_map[op.results[0]] = builder.insert_value(
+                val_map[op.container],
+                val_map[op.value],
+                list(op.position.iter_values()),
+            )
+        case llvm.UnreachableOp():
+            builder.unreachable()
         case llvm.ReturnOp():
             _convert_return(op, builder, val_map)
         case _:
