@@ -29,6 +29,31 @@ _BINARY_OP_MAP: dict[
 }
 
 
+def _convert_icmp(
+    op: llvm.ICmpOp, builder: ir.IRBuilder, val_map: dict[SSAValue, ir.Value]
+):
+    icmp_pred_map: dict[str, tuple[str, bool]] = {
+        "eq": ("==", True),
+        "ne": ("!=", True),
+        "slt": ("<", True),
+        "sle": ("<=", True),
+        "ult": ("<", False),
+        "ule": ("<=", False),
+        "sgt": (">", True),
+        "sge": (">=", True),
+        "ugt": (">", False),
+        "uge": (">=", False),
+    }
+
+    predicate = op.predicate.value.data
+    flag = llvm.ICmpPredicateFlag.from_int(predicate)
+    pred_str = flag.value
+    llvm_pred, is_signed = icmp_pred_map[pred_str]
+
+    target_func = builder.icmp_signed if is_signed else builder.icmp_unsigned
+    val_map[op.results[0]] = target_func(llvm_pred, val_map[op.lhs], val_map[op.rhs])
+
+
 def _convert_return(
     op: Operation, builder: ir.IRBuilder, val_map: dict[SSAValue, ir.Value]
 ):
@@ -66,6 +91,8 @@ def convert_op(
         return
 
     match op:
+        case llvm.ICmpOp():
+            _convert_icmp(op, builder, val_map)
         case llvm.ReturnOp():
             _convert_return(op, builder, val_map)
         case _:
