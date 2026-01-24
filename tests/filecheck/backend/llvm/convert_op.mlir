@@ -148,4 +148,27 @@ builtin.module {
   // CHECK-NEXT:   {{%.+}} = xor i32 %".1", %".2"
   // CHECK-NEXT:   ret void
   // CHECK-NEXT: }
+
+  "llvm.func"() <{
+    sym_name = "inline_asm",
+    function_type = !llvm.func<void (i32)>,
+    CConv = #llvm.cconv<ccc>,
+    linkage = #llvm.linkage<external>,
+    visibility_ = 0 : i64
+  }> ({
+  ^bb0(%arg0: i32):
+    "llvm.inline_asm"(%arg0) <{
+      asm_string = "add $0, 1",
+      constraints = "r",
+      has_side_effects
+    }> : (i32) -> ()
+    "llvm.return"() : () -> ()
+  }) : () -> ()
+
+  // CHECK: define void @"inline_asm"(i32 %".1")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT:   call void asm sideeffect "add $0, 1", "r"(i32 %".1")
+  // CHECK-NEXT:   ret void
+  // CHECK-NEXT: }
 }
