@@ -2,6 +2,7 @@ from collections.abc import Callable
 
 from llvmlite import ir
 
+from xdsl.backend.llvm.convert_type import convert_type
 from xdsl.dialects import llvm
 from xdsl.ir import Operation, SSAValue
 
@@ -26,6 +27,18 @@ _BINARY_OP_MAP: dict[
     llvm.AndOp: lambda b: b.and_,
     llvm.OrOp: lambda b: b.or_,
     llvm.XOrOp: lambda b: b.xor,
+}
+
+_CAST_OP_MAP: dict[
+    type[Operation], Callable[[ir.IRBuilder], Callable[[ir.Value, ir.Type], ir.Value]]
+] = {
+    llvm.TruncOp: lambda b: b.trunc,
+    llvm.ZExtOp: lambda b: b.zext,
+    llvm.SExtOp: lambda b: b.sext,
+    llvm.PtrToIntOp: lambda b: b.ptrtoint,
+    llvm.IntToPtrOp: lambda b: b.inttoptr,
+    llvm.BitcastOp: lambda b: b.bitcast,
+    llvm.FPExtOp: lambda b: b.fpext,
 }
 
 
@@ -62,6 +75,12 @@ def convert_op(
     if (op_builder := _BINARY_OP_MAP.get(type(op))) is not None:
         val_map[op.results[0]] = op_builder(builder)(
             val_map[op.operands[0]], val_map[op.operands[1]]
+        )
+        return
+
+    if (op_builder := _CAST_OP_MAP.get(type(op))) is not None:
+        val_map[op.results[0]] = op_builder(builder)(
+            val_map[op.operands[0]], convert_type(op.results[0].type)
         )
         return
 
