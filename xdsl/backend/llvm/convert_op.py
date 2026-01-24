@@ -4,6 +4,7 @@ from llvmlite import ir
 
 from xdsl.backend.llvm.convert_type import convert_type
 from xdsl.dialects import llvm
+from xdsl.dialects.builtin import IntegerAttr
 from xdsl.ir import Operation, SSAValue
 
 _BINARY_OP_MAP: dict[
@@ -30,6 +31,26 @@ _BINARY_OP_MAP: dict[
 }
 
 
+def _convert_binop(
+    op: Operation, builder: ir.IRBuilder, val_map: dict[SSAValue, ir.Value]
+):
+    kwargs = {}
+    fastmath = op.properties.get("fastmathFlags")
+    if isinstance(fastmath, llvm.FastMathAttr):
+        kwargs["flags"] = [f.value for f in fastmath.data]
+
+    overflow = op.properties.get("overflowFlags")
+    if isinstance(overflow, IntegerAttr):
+        overflow_attr = llvm.OverflowAttr.from_int(overflow.value.data)
+        kwargs["flags"] = [f.value for f in overflow_attr.data]
+
+    op_builder = _BINARY_OP_MAP[type(op)]
+    val_map[op.results[0]] = op_builder(builder)(
+        val_map[op.operands[0]], val_map[op.operands[1]], **kwargs
+    )
+
+
+
 def _convert_inline_asm(
     op: llvm.InlineAsmOp, builder: ir.IRBuilder, val_map: dict[SSAValue, ir.Value]
 ):
@@ -46,6 +67,7 @@ def _convert_inline_asm(
     res = builder.call(asm, args)
     if op.res:
         val_map[op.results[0]] = res
+
 
 
 def _convert_return(
@@ -78,13 +100,9 @@ def convert_op(
     Raises:
         NotImplementedError: If the operation is not supported.
     """
-    if (op_builder := _BINARY_OP_MAP.get(type(op))) is not None:
-        val_map[op.results[0]] = op_builder(builder)(
-            val_map[op.operands[0]], val_map[op.operands[1]]
-        )
-        return
-
     match op:
+        case op if type(op) in _BINARY_OP_MAP:
+            _convert_binop(op, builder, val_map)
         case llvm.InlineAsmOp():
             _convert_inline_asm(op, builder, val_map)
         case llvm.ReturnOp():

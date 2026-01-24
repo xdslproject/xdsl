@@ -122,7 +122,7 @@ builtin.module {
     %15 = llvm.and %arg0, %arg1 : i32
     %16 = llvm.or %arg0, %arg1 : i32
     %17 = llvm.xor %arg0, %arg1 : i32
-    llvm.return
+    "llvm.return"() : () -> ()
   }) : () -> ()
 
   // CHECK: define void @"binops"(i32 %".1", i32 %".2", float %".3", float %".4")
@@ -146,6 +146,45 @@ builtin.module {
   // CHECK-NEXT:   {{%.+}} = and i32 %".1", %".2"
   // CHECK-NEXT:   {{%.+}} = or i32 %".1", %".2"
   // CHECK-NEXT:   {{%.+}} = xor i32 %".1", %".2"
+  // CHECK-NEXT:   ret void
+  // CHECK-NEXT: }
+
+  "llvm.func"() <{
+    sym_name = "binops_flags",
+    function_type = !llvm.func<void (i32, i32, f32, f32)>,
+    CConv = #llvm.cconv<ccc>,
+    linkage = #llvm.linkage<external>,
+    visibility_ = 0 : i64
+  }> ({
+  ^bb0(%arg0 : i32, %arg1 : i32, %arg2 : f32, %arg3 : f32):
+    %0 = llvm.add %arg0, %arg1 overflow<nsw> : i32
+    %1 = llvm.add %arg0, %arg1 overflow<nuw> : i32
+    %2 = llvm.add %arg0, %arg1 overflow<nsw, nuw> : i32
+    %3 = llvm.fadd %arg2, %arg3 {fastmathFlags = #llvm.fastmath<reassoc>} : f32
+    %4 = llvm.fadd %arg2, %arg3 {fastmathFlags = #llvm.fastmath<nnan>} : f32
+    %5 = llvm.fadd %arg2, %arg3 {fastmathFlags = #llvm.fastmath<ninf>} : f32
+    %6 = llvm.fadd %arg2, %arg3 {fastmathFlags = #llvm.fastmath<nsz>} : f32
+    %7 = llvm.fadd %arg2, %arg3 {fastmathFlags = #llvm.fastmath<arcp>} : f32
+    %8 = llvm.fadd %arg2, %arg3 {fastmathFlags = #llvm.fastmath<contract>} : f32
+    %9 = llvm.fadd %arg2, %arg3 {fastmathFlags = #llvm.fastmath<afn>} : f32
+    %10 = llvm.fadd %arg2, %arg3 {fastmathFlags = #llvm.fastmath<fast>} : f32
+    "llvm.return"() : () -> ()
+  }) : () -> ()
+
+  // CHECK: define void @"binops_flags"(i32 %".1", i32 %".2", float %".3", float %".4")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT:   {{%.+}} = add nsw i32 %".1", %".2"
+  // CHECK-NEXT:   {{%.+}} = add nuw i32 %".1", %".2"
+  // CHECK-NEXT:   {{%.+}} = add {{.*}} i32 %".1", %".2"
+  // CHECK-NEXT:   {{%.+}} = fadd reassoc float %".3", %".4"
+  // CHECK-NEXT:   {{%.+}} = fadd nnan float %".3", %".4"
+  // CHECK-NEXT:   {{%.+}} = fadd ninf float %".3", %".4"
+  // CHECK-NEXT:   {{%.+}} = fadd nsz float %".3", %".4"
+  // CHECK-NEXT:   {{%.+}} = fadd arcp float %".3", %".4"
+  // CHECK-NEXT:   {{%.+}} = fadd contract float %".3", %".4"
+  // CHECK-NEXT:   {{%.+}} = fadd afn float %".3", %".4"
+  // CHECK-NEXT:   {{%.+}} = fadd {{.*}} float %".3", %".4"
   // CHECK-NEXT:   ret void
   // CHECK-NEXT: }
 
