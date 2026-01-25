@@ -1515,7 +1515,7 @@ class MatcherGenerator:
                 assert parent_val is not None
                 # Get defining operation of operand
                 eq_vals_op = pdl_interp.ApplyRewriteOp(
-                    "get_eq_vals", (parent_val,), (pdl.RangeType(pdl.ValueType()),)
+                    "get_class_vals", (parent_val,), (pdl.RangeType(pdl.ValueType()),)
                 )
                 self.builder.insert(eq_vals_op)
                 eq_vals = eq_vals_op.results[0]
@@ -1579,9 +1579,21 @@ class MatcherGenerator:
             self.builder.insert(get_result_op)
             value = get_result_op.value
             if self.optimize_for_eqsat:
+                current_block = self.builder.insertion_point.block
+                class_result_block = Block()
+                self.builder.insert(
+                    pdl_interp.IsNotNullOp(
+                        value, class_result_block, self.failure_block_stack[-1]
+                    )
+                )
+                assert current_block.parent is not None
+                current_block.parent.insert_block_after(
+                    class_result_block, current_block
+                )
                 eq_vals_op = pdl_interp.ApplyRewriteOp(
                     "get_class_result", (value,), (value.type,)
                 )
+                self.builder.insertion_point = InsertPoint.at_end(class_result_block)
                 self.builder.insert(eq_vals_op)
                 value = eq_vals_op.results[0]
 
@@ -1598,6 +1610,24 @@ class MatcherGenerator:
             )
             self.builder.insert(get_results_op)
             value = get_results_op.value
+            if self.optimize_for_eqsat:
+                current_block = self.builder.insertion_point.block
+                class_result_block = Block()
+                self.builder.insert(
+                    pdl_interp.IsNotNullOp(
+                        value, class_result_block, self.failure_block_stack[-1]
+                    )
+                )
+                assert current_block.parent is not None
+                current_block.parent.insert_block_after(
+                    class_result_block, current_block
+                )
+                eq_vals_op = pdl_interp.ApplyRewriteOp(
+                    "get_class_results", (value,), (value.type,)
+                )
+                self.builder.insertion_point = InsertPoint.at_end(class_result_block)
+                self.builder.insert(eq_vals_op)
+                value = eq_vals_op.results[0]
 
         elif isinstance(position, AttributePosition):
             assert parent_val is not None
@@ -2231,6 +2261,13 @@ class MatcherGenerator:
                 )
                 self.rewriter_builder.insert(get_results)
                 repl_operands = get_results.value
+                if self.optimize_for_eqsat:
+                    eq_vals_op = pdl_interp.ApplyRewriteOp(
+                        "get_class_results", (repl_operands,), (repl_operands.type,)
+                    )
+                    self.rewriter_builder.insert(eq_vals_op)
+                    repl_operands = eq_vals_op.results[0]
+
             else:
                 # The new operation has no results to replace with
                 repl_operands = None
@@ -2276,7 +2313,14 @@ class MatcherGenerator:
     ):
         get_result_op = pdl_interp.GetResultOp(op.index, map_rewrite_value(op.parent_))
         self.rewriter_builder.insert(get_result_op)
-        rewrite_values[op.val] = get_result_op.value
+        result_val = get_result_op.value
+        if self.optimize_for_eqsat:
+            eq_vals_op = pdl_interp.ApplyRewriteOp(
+                "get_class_result", (result_val,), (result_val.type,)
+            )
+            self.rewriter_builder.insert(eq_vals_op)
+            result_val = eq_vals_op.results[0]
+        rewrite_values[op.val] = result_val
 
     def _generate_rewriter_for_results(
         self,
@@ -2288,7 +2332,15 @@ class MatcherGenerator:
             op.index, map_rewrite_value(op.parent_), op.val.type
         )
         self.rewriter_builder.insert(get_results_op)
-        rewrite_values[op.val] = get_results_op.value
+        results_val = get_results_op.value
+        if self.optimize_for_eqsat:
+            eq_vals_op = pdl_interp.ApplyRewriteOp(
+                "get_class_results", (results_val,), (results_val.type,)
+            )
+            self.rewriter_builder.insert(eq_vals_op)
+            results_val = eq_vals_op.results[0]
+
+        rewrite_values[op.val] = results_val
 
     def _generate_rewriter_for_type(
         self,
