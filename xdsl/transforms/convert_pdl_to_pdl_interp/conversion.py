@@ -1979,6 +1979,7 @@ class MatcherGenerator:
         next_choice_block = block
         for choice in node.choices.values():
             choice_block = self.generate_matcher(choice, region, next_choice_block)
+            self.failure_block_stack.pop()
             choice_blocks.append(choice_block)
             next_choice_block = None  # Only the first choice reuses the current block
 
