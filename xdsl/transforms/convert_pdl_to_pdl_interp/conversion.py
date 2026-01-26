@@ -78,7 +78,7 @@ class ConvertPDLToPDLInterpPass(ModulePass):
 
     name = "convert-pdl-to-pdl-interp"
 
-    optimize_for_eqsat: bool = True
+    optimize_for_eqsat: bool = False
     print_debug_info: bool = False
 
     def apply(self, ctx: Context, op: ModuleOp) -> None:
@@ -1514,36 +1514,40 @@ class MatcherGenerator:
             if position.is_operand_defining_op():
                 assert parent_val is not None
                 # Get defining operation of operand
-                eq_vals_op = pdl_interp.ApplyRewriteOp(
-                    "get_class_vals", (parent_val,), (pdl.RangeType(pdl.ValueType()),)
-                )
-                self.builder.insert(eq_vals_op)
-                eq_vals = eq_vals_op.results[0]
+                if self.optimize_for_eqsat:
+                    eq_vals_op = pdl_interp.ApplyRewriteOp(
+                        "get_class_vals",
+                        (parent_val,),
+                        (pdl.RangeType(pdl.ValueType()),),
+                    )
+                    self.builder.insert(eq_vals_op)
+                    eq_vals = eq_vals_op.results[0]
 
-                body_block = Block(arg_types=(pdl.ValueType(),))
-                body = Region((body_block,))
+                    body_block = Block(arg_types=(pdl.ValueType(),))
+                    body = Region((body_block,))
 
-                assert self.failure_block_stack
-                foreach_op = pdl_interp.ForEachOp(
-                    eq_vals, self.failure_block_stack[-1], body
-                )
-                self.builder.insert(foreach_op)
+                    assert self.failure_block_stack
+                    foreach_op = pdl_interp.ForEachOp(
+                        eq_vals, self.failure_block_stack[-1], body
+                    )
+                    self.builder.insert(foreach_op)
 
-                # Create a continue block for failed matches within this foreach
-                # This replaces the current failure destination for nested operations
-                continue_block = Block()
-                body.add_block(continue_block)
-                self.builder.insertion_point = InsertPoint.at_end(continue_block)
-                self.builder.insert(pdl_interp.ContinueOp())
+                    # Create a continue block for failed matches within this foreach
+                    # This replaces the current failure destination for nested operations
+                    continue_block = Block()
+                    body.add_block(continue_block)
+                    self.builder.insertion_point = InsertPoint.at_end(continue_block)
+                    self.builder.insert(pdl_interp.ContinueOp())
 
-                # Push the continue block as the new failure destination
-                # Failed matches inside the foreach should continue to next iteration
-                self.failure_block_stack.append(continue_block)
+                    # Push the continue block as the new failure destination
+                    # Failed matches inside the foreach should continue to next iteration
+                    self.failure_block_stack.append(continue_block)
 
-                # Update insertion point to end of body block
-                self.builder.insertion_point = InsertPoint.at_end(body_block)
+                    # Update insertion point to end of body block
+                    self.builder.insertion_point = InsertPoint.at_end(body_block)
+                    parent_val = body_block.args[0]
 
-                defining_op = pdl_interp.GetDefiningOpOp(body_block.args[0])
+                defining_op = pdl_interp.GetDefiningOpOp(parent_val)
                 defining_op.attributes["position"] = StringAttr(position.__repr__())
                 self.builder.insert(defining_op)
                 value = defining_op.input_op
