@@ -115,7 +115,8 @@ class ConvertVectorToX86Pass(ModulePass):
                 [
                     VectorFMAToX86(arch),
                     VectorBroadcastToX86(arch),
-                ]
+                ],
+                dce_enabled=False,
             ),
             apply_recursively=False,
         ).rewrite_module(op)
