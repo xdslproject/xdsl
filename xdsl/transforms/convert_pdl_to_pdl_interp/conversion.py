@@ -913,7 +913,6 @@ class OperationPositionTree:
         Build a predicate tree structure with PredicateSplits based on the operation position tree.
 
         Args:
-            op_tree: The operation position tree
             ordered_predicates: Map from (position, question) to OrderedPredicate
             pattern_predicates: List of predicates per pattern
             predicate_dependencies: List of dependency maps per pattern
