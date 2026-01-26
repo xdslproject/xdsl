@@ -209,28 +209,32 @@ kindly supported by community hosting from [Zulip](https://zulip.com/).
 
 ### Citing xDSL
 
-xDSL itself has been published as [xDSL: Sidekick Compilation for SSA-Based Compilers](https://2025.cgo.org/details/cgo-2025-papers/32/xDSL-Sidekick-Compilation-for-SSA-Based-Compilers) at CGO 2025, which is the paper that should be cited when referencing xDSL the tool:
+xDSL itself has been published as
+[xDSL: Sidekick Compilation for SSA-Based Compilers](https://2025.cgo.org/details/cgo-2025-papers/32/xDSL-Sidekick-Compilation-for-SSA-Based-Compilers)
+at CGO 2025, which is the paper that should be cited when referencing xDSL the
+tool:
 
 ```bibtex
 @inproceedings{fehr_xdsl_2025,
-	address = {Las Vegas NV USA},
-	title = {{xDSL}: {Sidekick} {Compilation} for {SSA}-{Based} {Compilers}},
-	isbn = {979-8-4007-1275-3},
-	shorttitle = {{xDSL}},
-	url = {https://dl.acm.org/doi/10.1145/3696443.3708945},
-	doi = {10.1145/3696443.3708945},
-	language = {en},
-	urldate = {2026-01-26},
-	booktitle = {Proceedings of the 23rd {ACM}/{IEEE} {International} {Symposium} on {Code} {Generation} and {Optimization}},
-	publisher = {ACM},
-	author = {Fehr, Mathieu and Weber, Michel and Ulmann, Christian and Lopoukhine, Alexandre and Lücke, Martin Paul and Degioanni, Théo and Vasiladiotis, Christos and Steuwer, Michel and Grosser, Tobias},
-	month = mar,
-	year = {2025},
-	pages = {179--192},
+  address = {Las Vegas NV USA},
+  title = {{xDSL}: {Sidekick} {Compilation} for {SSA}-{Based} {Compilers}},
+  isbn = {979-8-4007-1275-3},
+  shorttitle = {{xDSL}},
+  url = {https://dl.acm.org/doi/10.1145/3696443.3708945},
+  doi = {10.1145/3696443.3708945},
+  language = {en},
+  urldate = {2026-01-26},
+  booktitle = {Proceedings of the 23rd {ACM}/{IEEE} {International} {Symposium} on {Code} {Generation} and {Optimization}},
+  publisher = {ACM},
+  author = {Fehr, Mathieu and Weber, Michel and Ulmann, Christian and Lopoukhine, Alexandre and Lücke, Martin Paul and Degioanni, Théo and Vasiladiotis, Christos and Steuwer, Michel and Grosser, Tobias},
+  month = mar,
+  year = {2025},
+  pages = {179--192},
 }
 ```
 
-Other published works that use xDSL internally (feel free to open a PR to extend this list):
+Other published works that use xDSL internally (feel free to open a PR to extend
+this list):
 
 - [Stencil-HMLS: A multi-layered approach to the automatic optimisation of stencil codes on FPGA](https://dl.acm.org/doi/abs/10.1145/3624062.3624543)
 - [Fortran performance optimisation and auto-parallelisation by leveraging MLIR-based domain specific abstractions in Flang](https://dl.acm.org/doi/abs/10.1145/3624062.3624167)
