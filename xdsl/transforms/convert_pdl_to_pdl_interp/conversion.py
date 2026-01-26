@@ -1932,6 +1932,26 @@ class MatcherGenerator:
         # Process values used in the rewrite that are defined in the match
         # (may change insertion point)
         mapped_match_values = [self.get_value_at(pos) for pos in used_match_positions]
+        if self.optimize_for_eqsat:
+            for i, match_val in enumerate(mapped_match_values):
+                if match_val.type == pdl.ValueType():
+                    if isinstance(match_val.owner, pdl_interp.GetOperandOp):
+                        class_representative_op = pdl_interp.ApplyRewriteOp(
+                            "get_class_representative", (match_val,), (pdl.ValueType(),)
+                        )
+                        self.builder.insert(class_representative_op)
+                        mapped_match_values[i] = class_representative_op.results[0]
+                    elif (
+                        isinstance(
+                            rewrite_op := match_val.owner, pdl_interp.ApplyRewriteOp
+                        )
+                        and rewrite_op.rewrite_name.data == "get_class_result"
+                    ):
+                        mapped_match_values[i] = rewrite_op.args[0]
+                    else:
+                        raise NotImplementedError(
+                            "Optimization for eqsat not implemented for this value type"
+                        )
 
         # Collect generated op names from DAG rewriter
         rewriter_op = pattern.body.block.last_op
@@ -2051,6 +2071,18 @@ class MatcherGenerator:
                 used_match_positions.append(input_pos)
 
             arg = entry_block.insert_arg(old_value.type, len(entry_block.args))
+            if self.optimize_for_eqsat:
+                match arg.type:
+                    case pdl.ValueType():
+                        class_representative_op = pdl_interp.ApplyRewriteOp(
+                            "get_class_result", (arg,), (pdl.ValueType(),)
+                        )
+                        self.rewriter_builder.insert(class_representative_op)
+                        arg = class_representative_op.results[0]
+                    case pdl.RangeType(pdl.ValueType()):
+                        raise NotImplementedError()
+                    case _:
+                        pass
             rewrite_values[old_value] = arg
             return arg
 
