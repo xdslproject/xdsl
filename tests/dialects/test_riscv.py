@@ -1,7 +1,7 @@
 import pytest
 
 from xdsl.context import Context
-from xdsl.dialects import riscv
+from xdsl.dialects import riscv, rv32
 from xdsl.dialects.builtin import (
     IntAttr,
     IntegerAttr,
@@ -231,12 +231,12 @@ def test_immediate_shift_inst():
     a1 = create_ssa_value(riscv.Registers.A1)
 
     with pytest.raises(VerifyException):
-        riscv.SlliOp(a1, 1 << 5, rd=riscv.Registers.A0)
+        rv32.SlliOp(a1, 1 << 5, rd=riscv.Registers.A0)
 
     with pytest.raises(VerifyException):
-        riscv.SlliOp(a1, -1, rd=riscv.Registers.A0)
+        rv32.SlliOp(a1, -1, rd=riscv.Registers.A0)
 
-    riscv.SlliOp(a1, (1 << 5) - 1, rd=riscv.Registers.A0)
+    rv32.SlliOp(a1, (1 << 5) - 1, rd=riscv.Registers.A0)
 
 
 def test_float_register():

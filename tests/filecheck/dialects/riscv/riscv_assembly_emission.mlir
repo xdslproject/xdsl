@@ -35,11 +35,11 @@
     // CHECK-NEXT: ori j_1, j_1, 1
     %xori = riscv.xori %1, 1 : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
     // CHECK-NEXT: xori j_1, j_1, 1
-    %slli = riscv.slli %1, 1 : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
+    %slli = rv32.slli %1, 1 : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
     // CHECK-NEXT: slli j_1, j_1, 1
-    %srli = riscv.srli %1, 1 : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
+    %srli = rv32.srli %1, 1 : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
     // CHECK-NEXT: srli j_1, j_1, 1
-    %srai = riscv.srai %1, 1 : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
+    %srai = rv32.srai %1, 1 : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
     // CHECK-NEXT: srai j_1, j_1, 1
     %lui = riscv.lui 1: () -> !riscv.reg<j_0>
     // CHECK-NEXT: lui j_0, 1
@@ -209,15 +209,15 @@
     // CHECK-NEXT: rolw j_2, j_2, j_1
     %rorw = riscv.rorw %2, %1 : (!riscv.reg<j_2>, !riscv.reg<j_1>) -> !riscv.reg<j_2>
     // CHECK-NEXT: rorw j_2, j_2, j_1
-    %rori = riscv.rori %1, 1 : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
+    %rori = rv32.rori %1, 1 : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
     // CHECK-NEXT: rori j_1, j_1, 1
-    %roriw = riscv.roriw %1, 1 : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
+    %roriw = rv32.roriw %1, 1 : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
     // CHECK-NEXT: roriw j_1, j_1, 1
     %bclr = riscv.bclr %2, %1 : (!riscv.reg<j_2>, !riscv.reg<j_1>) -> !riscv.reg<j_2>
     // CHECK-NEXT: bclr j_2, j_2, j_1
-    %bclri = riscv.bclri %1, 1 : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
+    %bclri = rv32.bclri %1, 1 : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
     // CHECK-NEXT: bclri j_1, j_1, 1
-    %bseti = riscv.bseti %1, 1 : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
+    %bseti = rv32.bseti %1, 1 : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
     // CHECK-NEXT: bseti j_1, j_1, 1
     %adduw = riscv.add.uw %2, %1 : (!riscv.reg<j_2>, !riscv.reg<j_1>) -> !riscv.reg<j_2>
     // CHECK-NEXT: add.uw j_2, j_2, j_1
@@ -233,7 +233,7 @@
     // CHECK-NEXT: sh2add.uw j_2, j_2, j_1
     %sh3adduw = riscv.sh3add.uw %2, %1 : (!riscv.reg<j_2>, !riscv.reg<j_1>) -> !riscv.reg<j_2>
     // CHECK-NEXT: sh3add.uw j_2, j_2, j_1
-    %slliuw = riscv.slli.uw %1, 1 : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
+    %slliuw = rv32.slli.uw %1, 1 : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
     // CHECK-NEXT: slli.uw j_1, j_1, 1
     %andn = riscv.andn %2, %1 : (!riscv.reg<j_2>, !riscv.reg<j_1>) -> !riscv.reg<j_2>
     // CHECK-NEXT: andn j_2, j_2, j_1
