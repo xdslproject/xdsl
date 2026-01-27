@@ -97,10 +97,10 @@ builtin.module {
   %andi_immediate = riscv.andi %i3, 7 : (!riscv.reg) -> !riscv.reg<a0>
   "test.op"(%andi_immediate) : (!riscv.reg<a0>) -> ()
 
-  %shift_left_immediate = riscv.slli %c2, 4 : (!riscv.reg) -> !riscv.reg<a0>
+  %shift_left_immediate = rv32.slli %c2, 4 : (!riscv.reg) -> !riscv.reg<a0>
   "test.op"(%shift_left_immediate) : (!riscv.reg<a0>) -> ()
 
-  %shift_right_immediate = riscv.srli %shift_left_immediate, 3 : (!riscv.reg<a0>) -> !riscv.reg<a0>
+  %shift_right_immediate = rv32.srli %shift_left_immediate, 3 : (!riscv.reg<a0>) -> !riscv.reg<a0>
   "test.op"(%shift_right_immediate) : (!riscv.reg<a0>) -> ()
 
   %load_float_ptr = riscv.addi %i2, 8 : (!riscv.reg) -> !riscv.reg
@@ -153,10 +153,10 @@ builtin.module {
   %xori_immediate = riscv.xori %i3, 7 : (!riscv.reg) -> !riscv.reg<a0>
   "test.op"(%xori_immediate) : (!riscv.reg<a0>) -> ()
 
-  %shift_left_zero_r0 = riscv.slli %i2, 0 : (!riscv.reg) -> !riscv.reg<a0>
+  %shift_left_zero_r0 = rv32.slli %i2, 0 : (!riscv.reg) -> !riscv.reg<a0>
   "test.op"(%shift_left_zero_r0) : (!riscv.reg<a0>) -> ()
 
-  %shift_right_zero_r0 = riscv.srli %i2, 0 : (!riscv.reg) -> !riscv.reg<a0>
+  %shift_right_zero_r0 = rv32.srli %i2, 0 : (!riscv.reg) -> !riscv.reg<a0>
   "test.op"(%shift_right_zero_r0) : (!riscv.reg<a0>) -> ()
 
   // scfgw immediates

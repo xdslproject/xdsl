@@ -5,7 +5,7 @@ from typing import Any, TypeAlias, cast
 
 from typing_extensions import TypeVar
 
-from xdsl.dialects import builtin, riscv
+from xdsl.dialects import builtin, riscv, rv32
 from xdsl.dialects.builtin import (
     DenseIntOrFPElementsAttr,
     IndexType,
@@ -309,11 +309,11 @@ class RiscvFunctions(InterpreterFunctions):
         results = (args[0] - args[1],)
         return RiscvFunctions.set_reg_values(interpreter, op.results, results)
 
-    @impl(riscv.SlliOp)
+    @impl(rv32.SlliOp)
     def run_shift_left_i(
         self,
         interpreter: Interpreter,
-        op: riscv.SlliOp,
+        op: rv32.SlliOp,
         args: tuple[Any, ...],
     ):
         args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
