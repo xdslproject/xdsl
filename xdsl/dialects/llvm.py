@@ -299,6 +299,21 @@ class LLVMFunctionType(ParametrizedAttribute, TypeAttribute):
         return [ArrayAttr(inputs), output, is_varargs]
 
 
+LINKAGE_OPTIONS = [
+    "private",
+    "internal",
+    "available_externally",
+    "linkonce",
+    "weak",
+    "common",
+    "appending",
+    "extern_weak",
+    "linkonce_odr",
+    "weak_odr",
+    "external",
+]
+
+
 @irdl_attr_definition
 class LinkageAttr(ParametrizedAttribute):
     name = "llvm.linkage"
@@ -329,20 +344,7 @@ class LinkageAttr(ParametrizedAttribute):
         return [linkage]
 
     def verify(self):
-        allowed_linkage = [
-            "private",
-            "internal",
-            "available_externally",
-            "linkonce",
-            "weak",
-            "common",
-            "appending",
-            "extern_weak",
-            "linkonce_odr",
-            "weak_odr",
-            "external",
-        ]
-        if self.linkage.data not in allowed_linkage:
+        if self.linkage.data not in LINKAGE_OPTIONS:
             raise VerifyException(f"Specified linkage '{self.linkage.data}' is unknown")
 
 
@@ -1637,6 +1639,27 @@ class TargetFeaturesAttr(ParametrizedAttribute):
                 raise VerifyException("target features must start with '+' or '-'")
 
 
+FUNC_OP_PARSE_RESERVED_ATTR_NAMES = (
+    "sym_name",
+    "function_type",
+    "sym_visibility",
+    "linkage",
+    "CConv",
+    "visibility_",
+)
+
+FUNC_OP_PRINT_RESERVED_ATTR_NAMES = (
+    "sym_name",
+    "function_type",
+    "sym_visibility",
+    "arg_attrs",
+    "res_attrs",
+    "linkage",
+    "CConv",
+    "visibility_",
+)
+
+
 @irdl_op_definition
 class FuncOp(IRDLOperation):
     name = "llvm.func"
@@ -1702,21 +1725,8 @@ class FuncOp(IRDLOperation):
     @classmethod
     def parse(cls, parser: Parser) -> FuncOp:
         visibility = parser.parse_optional_visibility_keyword()
-        linkage_options = [
-            "private",
-            "internal",
-            "available_externally",
-            "linkonce",
-            "weak",
-            "common",
-            "appending",
-            "extern_weak",
-            "linkonce_odr",
-            "weak_odr",
-            "external",
-        ]
         linkage = None
-        for l in linkage_options:
+        for l in LINKAGE_OPTIONS:
             if parser.parse_optional_keyword(l):
                 linkage = l
                 break
@@ -1737,14 +1747,7 @@ class FuncOp(IRDLOperation):
             res_attrs,
         ) = parse_func_op_like(
             parser,
-            reserved_attr_names=(
-                "sym_name",
-                "function_type",
-                "sym_visibility",
-                "linkage",
-                "CConv",
-                "visibility_",
-            ),
+            reserved_attr_names=FUNC_OP_PARSE_RESERVED_ATTR_NAMES,
         )
 
         return_type: Attribute
@@ -1816,16 +1819,7 @@ class FuncOp(IRDLOperation):
                 printer.print_attribute(self.function_type.output)
             printer.print_op_attributes(
                 self.attributes,
-                reserved_attr_names=(
-                    "sym_name",
-                    "function_type",
-                    "sym_visibility",
-                    "arg_attrs",
-                    "res_attrs",
-                    "linkage",
-                    "CConv",
-                    "visibility_",
-                ),
+                reserved_attr_names=FUNC_OP_PRINT_RESERVED_ATTR_NAMES,
                 print_keyword=True,
             )
             return
@@ -1838,16 +1832,7 @@ class FuncOp(IRDLOperation):
             self.attributes,
             arg_attrs=self.arg_attrs,
             res_attrs=self.res_attrs,
-            reserved_attr_names=(
-                "sym_name",
-                "function_type",
-                "sym_visibility",
-                "arg_attrs",
-                "res_attrs",
-                "linkage",
-                "CConv",
-                "visibility_",
-            ),
+            reserved_attr_names=FUNC_OP_PRINT_RESERVED_ATTR_NAMES,
         )
 
 
