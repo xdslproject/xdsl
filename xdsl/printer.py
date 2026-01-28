@@ -607,8 +607,12 @@ class Printer(BasePrinter):
         if isinstance(op, UnregisteredOp):
             self.print_string(f'"{op.op_name.data}"')
         # If we print with the generic format, or the operation does not have a custom
-        # format
-        elif self.print_generic_format or Operation.print is type(op).print:
+        # format, or the operation signals it wants generic format
+        elif (
+            self.print_generic_format
+            or Operation.print is type(op).print
+            or not op.should_use_custom_format()
+        ):
             self.print_string(f'"{op.name}"')
         else:
             self.print_string(op.name)

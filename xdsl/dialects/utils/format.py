@@ -1,10 +1,9 @@
 from collections.abc import Sequence
-from typing import Generic
+from typing import Any, Generic, Protocol, runtime_checkable
 
 from xdsl.dialects.builtin import (
     ArrayAttr,
     DictionaryAttr,
-    FunctionType,
     StringAttr,
 )
 from xdsl.ir import (
@@ -181,10 +180,16 @@ def parse_for_op_like(
     return lower_bound, upper_bound, step, iter_arg_operands, body
 
 
+@runtime_checkable
+class FunctionTypeLike(Protocol):
+    @property
+    def outputs(self) -> Any: ...
+
+
 def print_func_op_like(
     printer: Printer,
     sym_name: StringAttr,
-    function_type: FunctionType,
+    function_type: Attribute,
     body: Region,
     attributes: dict[str, Attribute],
     *,
@@ -195,6 +200,7 @@ def print_func_op_like(
     printer.print_string(" ")
     printer.print_symbol_name(sym_name.data)
     if body.blocks:
+        assert isinstance(function_type, FunctionTypeLike)
         with printer.in_parens():
             if arg_attrs is not None:
                 printer.print_list(
