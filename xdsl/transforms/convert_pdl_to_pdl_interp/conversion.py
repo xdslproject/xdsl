@@ -1058,10 +1058,12 @@ class MatcherGenerator:
             block = Block()
             region.add_block(block)
 
+        # Set insertion point to end of this block
+        self.builder.insertion_point = InsertPoint.at_end(block)
+
         # Handle exit node - just add finalize
         if isinstance(node, ExitNode):
-            finalize_op = pdl_interp.FinalizeOp()
-            self.builder.insert_op(finalize_op, InsertPoint.at_end(block))
+            self.builder.insert(pdl_interp.FinalizeOp())
             return block
 
         self.values = ScopedDict(self.values)
@@ -1072,26 +1074,27 @@ class MatcherGenerator:
         if node.failure_node:
             failure_block = self.generate_matcher(node.failure_node, region)
             self.failure_block_stack.append(failure_block)
+            # Restore insertion point after generating failure node
+            self.builder.insertion_point = InsertPoint.at_end(block)
         else:
             assert self.failure_block_stack, "Expected valid failure block"
             failure_block = self.failure_block_stack[-1]
 
-        # Get value for position if exists
-        current_block = block
+        # Get value for position if exists (may change insertion point)
         val = None
         if node.position:
-            val = self.get_value_at(current_block, node.position)
+            val = self.get_value_at(node.position)
 
         # Dispatch based on node type
         match node:
             case BoolNode():
                 assert val is not None
-                self.generate_bool_node(node, current_block, val)
+                self.generate_bool_node(node, val)
             case SwitchNode():
                 assert val is not None
-                self.generate_switch_node(node, current_block, val)
+                self.generate_switch_node(node, val)
             case SuccessNode():
-                self.generate_success_node(node, current_block)
+                self.generate_success_node(node)
             case _:
                 raise NotImplementedError(f"Unhandled node type {type(node)}")
 
@@ -1102,20 +1105,23 @@ class MatcherGenerator:
         self.values = self.values.parent  # Pop scope
         return block
 
-    def get_value_at(self, block: Block, position: Position) -> SSAValue:
-        """Get or create SSA value for a position"""
+    def get_value_at(self, position: Position) -> SSAValue:
+        """Get or create SSA value for a position.
+
+        Assumes self.builder.insertion_point is correctly set.
+        May modify the insertion point (e.g., when creating foreach loops).
+        """
 
         # Check cache
         if position in self.values:
             return self.values[position]
 
-        # Get parent value if needed
+        # Get parent value if needed (may change insertion point)
         parent_val = None
         if position.parent:
-            parent_val = self.get_value_at(block, position.parent)
+            parent_val = self.get_value_at(position.parent)
 
         # Create value based on position type
-        self.builder.insertion_point = InsertPoint.at_end(block)
         value = None
 
         if isinstance(position, OperationPosition):
@@ -1227,21 +1233,30 @@ class MatcherGenerator:
         self.values[position] = value
         return value
 
-    def generate_bool_node(self, node: BoolNode, block: Block, val: SSAValue) -> None:
-        """Generate operations for a boolean predicate node"""
+    def generate_bool_node(self, node: BoolNode, val: SSAValue) -> None:
+        """Generate operations for a boolean predicate node.
+
+        Assumes self.builder.insertion_point is correctly set.
+        """
 
         question = node.question
         answer = node.answer
+        block = self.builder.insertion_point.block
         region = block.parent
         assert region is not None, "Block must be in a region"
 
-        # Handle getValue queries first for constraint questions
+        # Handle getValue queries first for constraint questions (may change insertion point)
         args: list[SSAValue] = []
         if isinstance(question, EqualToQuestion):
-            args = [self.get_value_at(block, question.other_position)]
+            args = [self.get_value_at(question.other_position)]
         elif isinstance(question, ConstraintQuestion):
             for position in question.arg_positions:
-                args.append(self.get_value_at(block, position))
+                args.append(self.get_value_at(position))
+
+        # Get the current block after potentially changed insertion point
+        block = self.builder.insertion_point.block
+        region = block.parent
+        assert region is not None, "Block must be in a region"
 
         # Create success block
         success_block = Block()
@@ -1271,7 +1286,9 @@ class MatcherGenerator:
                 )
             case EqualToQuestion():
                 # Get the other value to compare with
-                other_val = self.get_value_at(block, question.other_position)
+                other_val = self.get_value_at(question.other_position)
+                # Update block reference after potential insertion point change
+                block = self.builder.insertion_point.block
                 assert isinstance(answer, TrueAnswer)
                 check_op = pdl_interp.AreEqualOp(
                     val, other_val, success_block, failure_block
@@ -1309,18 +1326,20 @@ class MatcherGenerator:
             case _:
                 raise NotImplementedError(f"Unhandled question type {type(question)}")
 
-        self.builder.insert_op(check_op, InsertPoint.at_end(block))
+        self.builder.insert(check_op)
 
         # Generate matcher for success node
         if node.success_node:
             self.generate_matcher(node.success_node, region, success_block)
 
-    def generate_switch_node(
-        self, node: SwitchNode, block: Block, val: SSAValue
-    ) -> None:
-        """Generate operations for a switch node"""
+    def generate_switch_node(self, node: SwitchNode, val: SSAValue) -> None:
+        """Generate operations for a switch node.
+
+        Assumes self.builder.insertion_point is correctly set.
+        """
 
         question = node.question
+        block = self.builder.insertion_point.block
         region = block.parent
         assert region is not None, "Block must be in a region"
         default_dest = self.failure_block_stack[-1]
@@ -1392,7 +1411,7 @@ class MatcherGenerator:
                 case_blocks.append(child_block)
                 case_values.append(answer)
 
-        # Position builder at end of current block
+        # Restore insertion point after generating child matchers
         self.builder.insertion_point = InsertPoint.at_end(block)
 
         # Create switch operation based on question type
@@ -1446,9 +1465,11 @@ class MatcherGenerator:
 
         self.builder.insert(switch_op)
 
-    def generate_success_node(self, node: SuccessNode, block: Block) -> None:
-        """Generate operations for a successful match"""
-        self.builder.insertion_point = InsertPoint.at_end(block)
+    def generate_success_node(self, node: SuccessNode) -> None:
+        """Generate operations for a successful match.
+
+        Assumes self.builder.insertion_point is correctly set.
+        """
 
         pattern = node.pattern
         root = node.root
@@ -1458,9 +1479,8 @@ class MatcherGenerator:
         rewriter_func_ref = self.generate_rewriter(pattern, used_match_positions)
 
         # Process values used in the rewrite that are defined in the match
-        mapped_match_values = [
-            self.get_value_at(block, pos) for pos in used_match_positions
-        ]
+        # (may change insertion point)
+        mapped_match_values = [self.get_value_at(pos) for pos in used_match_positions]
 
         # Collect generated op names from DAG rewriter
         rewriter_op = pattern.body.block.last_op
@@ -1492,7 +1512,7 @@ class MatcherGenerator:
             [],
             self.failure_block_stack[-1],
         )
-        _ = self.builder.insert(record_op)
+        self.builder.insert(record_op)
 
     def generate_rewriter(
         self, pattern: pdl.PatternOp, used_match_positions: list[Position]
