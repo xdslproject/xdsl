@@ -490,6 +490,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return replace_incompatible_fpga.ReplaceIncompatibleFPGA
 
+    def get_riscv_allocate_infinite_registers():
+        from xdsl.transforms import riscv_allocate_infinite_registers
+
+        return riscv_allocate_infinite_registers.RISCVAllocateInfiniteRegistersPass
+
     def get_riscv_allocate_registers():
         from xdsl.transforms import riscv_allocate_registers
 
@@ -741,6 +746,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "printf-to-putchar": get_printf_to_putchar,
         "reconcile-unrealized-casts": get_reconcile_unrealized_casts,
         "replace-incompatible-fpga": get_replace_incompatible_fpga,
+        "riscv-allocate-infinite-registers": get_riscv_allocate_infinite_registers,
         "riscv-allocate-registers": get_riscv_allocate_registers,
         "riscv-lower-parallel-mov": get_riscv_lower_parallel_mov,
         "riscv-prologue-epilogue-insertion": get_riscv_prologue_epilogue_insertion,
