@@ -1721,10 +1721,10 @@ class EmitC_VerbatimOp(IRDLOperation):
 
     def __init__(self,
         value: StringAttr,
-        operands: AnyAttr,
+        operands: Sequence[AnyAttr],
     ):
         super().__init__(
-            operands=operands, # pyright: ignore[reportArgumentType]
+            operands=[operands], # pyright: ignore[reportArgumentType]
             properties={
                 "value" : value
             }
