@@ -3,7 +3,7 @@ PDL to PDL_interp Transformation
 """
 
 from abc import ABC
-from collections import defaultdict
+from collections import defaultdict, deque
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from typing import Optional, cast
@@ -982,11 +982,11 @@ class OperationPositionTree:
         def get_position_dependencies(pos: Position) -> set[OperationPosition]:
             """Get all operation position dependencies for a position."""
             operations: set[OperationPosition] = set()
-            worklist: list[Position] = [pos]
+            worklist: deque[Position] = deque([pos])
             visited: set[Position] = set()
 
             while worklist:
-                current = worklist.pop(0)
+                current = worklist.popleft()
                 if current in visited:
                     continue
                 visited.add(current)
