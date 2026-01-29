@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+from xdsl.backend.register_allocatable import RegisterAllocatableOperation
 from xdsl.backend.riscv.register_stack import RiscvRegisterStack
 from xdsl.context import Context
 from xdsl.dialects import builtin, riscv, riscv_func
@@ -19,6 +20,13 @@ class RISCVAllocateInfiniteRegistersPass(ModulePass):
     def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         for func_op in (i for i in op.walk() if isinstance(i, riscv_func.FuncOp)):
             register_stack = RiscvRegisterStack.get()
+
+            # remove registers from stack that are already used in body
+            for reg in RegisterAllocatableOperation.iter_all_used_registers(
+                func_op.body
+            ):
+                register_stack.exclude_register(reg)
+
             phys_reg_by_inf_reg: dict[
                 riscv.RISCVRegisterType, riscv.RISCVRegisterType
             ] = {}
