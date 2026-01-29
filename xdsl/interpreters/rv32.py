@@ -43,7 +43,7 @@ STACK_KEY = "stack"
 
 
 @register_impls
-class RiscvFunctions(InterpreterFunctions):
+class Rv32Functions(InterpreterFunctions):
     custom_instructions: dict[str, CustomInstructionFn] = {}
     bitwidth: int
 
@@ -69,7 +69,7 @@ class RiscvFunctions(InterpreterFunctions):
 
         name = attr.register_name
 
-        registers = RiscvFunctions.registers(interpreter)
+        registers = Rv32Functions.registers(interpreter)
 
         if name not in registers:
             raise InterpretationError(f"Value not found for register name {name.data}")
@@ -97,7 +97,7 @@ class RiscvFunctions(InterpreterFunctions):
             # Values assigned to ZERO are erased
             return 0
 
-        registers = RiscvFunctions.registers(interpreter)
+        registers = Rv32Functions.registers(interpreter)
 
         registers[name] = value
 
@@ -111,7 +111,7 @@ class RiscvFunctions(InterpreterFunctions):
     ) -> tuple[Any, ...]:
         assert len(ssa_values) == len(python_values)
         return tuple(
-            RiscvFunctions.get_reg_value(interpreter, ssa_value.type, python_value)
+            Rv32Functions.get_reg_value(interpreter, ssa_value.type, python_value)
             for ssa_value, python_value in zip(ssa_values, python_values)
         )
 
@@ -120,7 +120,7 @@ class RiscvFunctions(InterpreterFunctions):
         interpreter: Interpreter, results: Sequence[SSAValue], values: tuple[Any, ...]
     ) -> tuple[Any, ...]:
         return tuple(
-            RiscvFunctions.set_reg_value(interpreter, result.type, value)
+            Rv32Functions.set_reg_value(interpreter, result.type, value)
             for result, value in zip(results, values, strict=True)
         )
 
@@ -131,26 +131,26 @@ class RiscvFunctions(InterpreterFunctions):
         values: tuple[Any, ...],
     ) -> tuple[Any, ...]:
         return tuple(
-            RiscvFunctions.set_reg_value(interpreter, result_type, value)
+            Rv32Functions.set_reg_value(interpreter, result_type, value)
             for result_type, value in zip(result_types, values, strict=True)
         )
 
     @staticmethod
     def data(interpreter: Interpreter) -> dict[str, Any]:
         return interpreter.get_data(
-            RiscvFunctions,
+            Rv32Functions,
             _DATA_KEY,
-            lambda: RiscvFunctions.get_data(interpreter.module),
+            lambda: Rv32Functions.get_data(interpreter.module),
         )
 
     @staticmethod
     def registers(interpreter: Interpreter) -> dict[StringAttr, Any]:
         return interpreter.get_data(
-            RiscvFunctions,
+            Rv32Functions,
             REGISTERS_KEY,
             lambda: {
                 riscv.Registers.ZERO.register_name: 0,
-                riscv.Registers.SP.register_name: RiscvFunctions.stack(interpreter),
+                riscv.Registers.SP.register_name: Rv32Functions.stack(interpreter),
             },
         )
 
@@ -161,7 +161,7 @@ class RiscvFunctions(InterpreterFunctions):
         """
         stack_size = 1 << 20
         return interpreter.get_data(
-            RiscvFunctions,
+            Rv32Functions,
             STACK_KEY,
             lambda: ptr.RawPtr(bytearray(stack_size), offset=stack_size),
         )
@@ -225,8 +225,8 @@ class RiscvFunctions(InterpreterFunctions):
         op: rv32.SlliOp,
         args: tuple[Any, ...],
     ):
-        args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
+        args = Rv32Functions.get_reg_values(interpreter, op.operands, args)
         imm = self.get_immediate_value(interpreter, op.immediate)
         assert isinstance(imm, int)
         results = (args[0] << imm,)
-        return RiscvFunctions.set_reg_values(interpreter, op.results, results)
+        return Rv32Functions.set_reg_values(interpreter, op.results, results)

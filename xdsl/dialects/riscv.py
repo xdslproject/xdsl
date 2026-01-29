@@ -1526,28 +1526,6 @@ class XoriOp(RdRsImmIntegerOperation):
     traits = traits_def(XoriOpHasCanonicalizationPatternsTrait())
 
 
-class SlliOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
-    @classmethod
-    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.transforms.canonicalization_patterns.riscv import (
-            ShiftLeftbyZero,
-            ShiftLeftImmediate,
-        )
-
-        return (ShiftLeftImmediate(), ShiftLeftbyZero())
-
-
-class SrliOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
-    @classmethod
-    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.transforms.canonicalization_patterns.riscv import (
-            ShiftRightbyZero,
-            ShiftRightImmediate,
-        )
-
-        return (ShiftRightbyZero(), ShiftRightImmediate())
-
-
 @irdl_op_definition
 class AddiwOp(RdRsImmIntegerOperation):
     """

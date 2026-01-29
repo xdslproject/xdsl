@@ -24,8 +24,6 @@ from xdsl.dialects.riscv import (
     Registers,
     RISCVCustomFormatOperation,
     RISCVInstruction,
-    SlliOpHasCanonicalizationPatternsTrait,
-    SrliOpHasCanonicalizationPatternsTrait,
     parse_immediate_value,
     print_immediate_value,
 )
@@ -44,8 +42,10 @@ from xdsl.irdl import (
     traits_def,
 )
 from xdsl.parser import Parser
+from xdsl.pattern_rewriter import RewritePattern
 from xdsl.printer import Printer
 from xdsl.traits import (
+    HasCanonicalizationPatternsTrait,
     Pure,
 )
 
@@ -99,11 +99,33 @@ class RdRsImmShiftOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
         return {"immediate"}
 
 
+class SlliOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.rv64 import (
+            ShiftLeftbyZero,
+            ShiftLeftImmediate,
+        )
+
+        return (ShiftLeftImmediate(), ShiftLeftbyZero())
+
+
 @irdl_op_definition
 class SlliOp(RdRsImmShiftOperation):
     name = "rv64.slli"
 
     traits = traits_def(SlliOpHasCanonicalizationPatternsTrait())
+
+
+class SrliOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.rv64 import (
+            ShiftRightbyZero,
+            ShiftRightImmediate,
+        )
+
+        return (ShiftRightbyZero(), ShiftRightImmediate())
 
 
 @irdl_op_definition
