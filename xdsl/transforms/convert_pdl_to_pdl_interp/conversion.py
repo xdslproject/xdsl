@@ -786,6 +786,38 @@ class PredicateSplit:
     ] = field(default_factory=lambda: [])
 
 
+def _get_position_operation_dependencies(pos: Position) -> set[OperationPosition]:
+    """Get all operation position dependencies for a position."""
+    operations: set[OperationPosition] = set()
+    worklist: deque[Position] = deque([pos])
+    visited: set[Position] = set()
+
+    while worklist:
+        current = worklist.popleft()
+        if current in visited:
+            continue
+        visited.add(current)
+
+        # If this is a ConstraintPosition, add its argument positions
+        if isinstance(current, ConstraintPosition):
+            worklist.extend(current.constraint.arg_positions)
+
+        # Get the base operation and all ancestors
+        op = current.get_base_operation()
+        while op:
+            operations.add(op)
+            if op.parent:
+                parent_op = op.parent.get_base_operation()
+                if parent_op:
+                    op = parent_op
+                else:
+                    break
+            else:
+                break
+
+    return operations
+
+
 @dataclass
 class OperationPositionTree:
     """Node in the tree representing an OperationPosition."""
@@ -847,59 +879,78 @@ class OperationPositionTree:
         root = OperationPositionTree(operation=roots[0])
         pattern_paths: list[list[int]] = [[] for _ in pattern_operations]
 
-        # Build tree recursively
-        def build_subtree(
-            node: OperationPositionTree,
-            prefix: set[OperationPosition],
-            remaining_indices: list[int],
-            current_paths: dict[int, list[int]],
-        ):
-            if not remaining_indices:
-                return
+        # Build tree using the helper method
+        OperationPositionTree._build_subtree(
+            root,
+            {roots[0]},
+            list(range(len(pattern_operations))),
+            {},
+            pattern_operations,
+            pattern_paths,
+        )
 
-            # Split patterns into covered and remaining
-            covered: list[int] = []
-            still_needed: list[int] = []
-            for i in remaining_indices:
-                uncovered = pattern_operations[i] - prefix
-                if not uncovered:
-                    covered.append(i)
-                else:
-                    still_needed.append(i)
-
-            node.covered_patterns.update(covered)
-
-            if not still_needed:
-                return
-
-            # Group patterns by next operation
-            next_ops: dict[OperationPosition, list[int]] = defaultdict(list)
-            for i in still_needed:
-                candidates = pattern_operations[i] - prefix
-                if candidates:
-                    # Pick operation with highest score (appears in most patterns, shallow depth)
-                    best_op = max(
-                        candidates,
-                        key=lambda op: (
-                            sum(1 for j in still_needed if op in pattern_operations[j]),
-                            -op.get_operation_depth(),
-                        ),
-                    )
-                    next_ops[best_op].append(i)
-
-            # Create children
-            for child_index, (op, indices) in enumerate(next_ops.items()):
-                child = OperationPositionTree(operation=op)
-                node.children.append(child)
-
-                child_paths: dict[int, list[int]] = {}
-                for idx in indices:
-                    child_paths[idx] = current_paths.get(idx, []) + [child_index]
-                    pattern_paths[idx] = child_paths[idx]
-                build_subtree(child, prefix | {op}, indices, child_paths)
-
-        build_subtree(root, {roots[0]}, list(range(len(pattern_operations))), {})
         return root, pattern_paths, predicate_dependencies
+
+    @staticmethod
+    def _build_subtree(
+        node: "OperationPositionTree",
+        prefix: set[OperationPosition],
+        remaining_indices: list[int],
+        current_paths: dict[int, list[int]],
+        pattern_operations: list[set[OperationPosition]],
+        pattern_paths: list[list[int]],
+    ) -> None:
+        """Helper method to recursively build the operation position tree."""
+        if not remaining_indices:
+            return
+
+        # Split patterns into covered and remaining
+        covered: list[int] = []
+        still_needed: list[int] = []
+        for i in remaining_indices:
+            uncovered = pattern_operations[i] - prefix
+            if not uncovered:
+                covered.append(i)
+            else:
+                still_needed.append(i)
+
+        node.covered_patterns.update(covered)
+
+        if not still_needed:
+            return
+
+        # Group patterns by next operation
+        next_ops: dict[OperationPosition, list[int]] = defaultdict(list)
+        for i in still_needed:
+            candidates = pattern_operations[i] - prefix
+            if candidates:
+                # Pick operation with highest score (appears in most patterns, shallow depth)
+                best_op = max(
+                    candidates,
+                    key=lambda op: (
+                        sum(1 for j in still_needed if op in pattern_operations[j]),
+                        -op.get_operation_depth(),
+                    ),
+                )
+                next_ops[best_op].append(i)
+
+        # Create children
+        for child_index, (op, indices) in enumerate(next_ops.items()):
+            child = OperationPositionTree(operation=op)
+            node.children.append(child)
+
+            child_paths: dict[int, list[int]] = {}
+            for idx in indices:
+                child_paths[idx] = current_paths.get(idx, []) + [child_index]
+                pattern_paths[idx] = child_paths[idx]
+            OperationPositionTree._build_subtree(
+                child,
+                prefix | {op},
+                indices,
+                child_paths,
+                pattern_operations,
+                pattern_paths,
+            )
 
     def build_predicate_tree_from_operation_tree(
         self,
@@ -920,109 +971,94 @@ class OperationPositionTree:
         Returns:
             List of predicates with PredicateSplits representing the tree structure
         """
-
-        def build_predicate_subtree(
-            node: OperationPositionTree,
-            prefix: set[OperationPosition],
-            parent_prefix: set[OperationPosition],
-        ) -> list[OrderedPredicate | PredicateSplit]:
-            """Build predicate tree for a subtree of the operation position tree."""
-
-            # Collect predicates whose dependencies are satisfied by current prefix
-            # but weren't satisfied by parent prefix (newly satisfied)
-            node_predicates: dict[tuple[Position, Question], OrderedPredicate] = {}
-
-            for pattern_preds, pred_deps in zip(
-                pattern_predicates, predicate_dependencies, strict=False
-            ):
-                for pred in pattern_preds:
-                    deps = pred_deps.get((pred.position, pred.q))
-                    if deps is None:
-                        continue  # Skip if no dependencies recorded
-                    # Check if all dependencies are satisfied by current prefix
-                    # but not all were satisfied by parent prefix
-                    if deps.issubset(prefix) and not deps.issubset(parent_prefix):
-                        key = (pred.position, pred.q)
-                        if key in ordered_predicates:
-                            node_predicates[key] = ordered_predicates[key]
-
-            # Sort predicates for this node
-            sorted_node_preds = cast(
-                list[OrderedPredicate | PredicateSplit],
-                sorted(node_predicates.values()),
-            )
-
-            # If there are children, create a PredicateSplit
-            if node.children:
-                splits: list[
-                    tuple[OperationPosition, list[OrderedPredicate | PredicateSplit]]
-                ] = []
-
-                for child in node.children:
-                    # Recursively build predicate tree for child
-                    child_preds = build_predicate_subtree(
-                        child, prefix | {child.operation}, prefix
-                    )
-                    splits.append((child.operation, child_preds))
-
-                sorted_node_preds.append(PredicateSplit(splits))
-
-            return sorted_node_preds
-
         # Start building from root
         root_prefix = {self.operation}
-        return build_predicate_subtree(self, root_prefix, set())
+        return self._build_predicate_subtree(
+            self,
+            root_prefix,
+            set(),
+            ordered_predicates,
+            pattern_predicates,
+            predicate_dependencies,
+        )
+
+    @staticmethod
+    def _build_predicate_subtree(
+        node: "OperationPositionTree",
+        prefix: set[OperationPosition],
+        parent_prefix: set[OperationPosition],
+        ordered_predicates: dict[tuple[Position, Question], OrderedPredicate],
+        pattern_predicates: list[list[PositionalPredicate]],
+        predicate_dependencies: list[
+            dict[tuple[Position, Question], set[OperationPosition]]
+        ],
+    ) -> list[OrderedPredicate | PredicateSplit]:
+        """Build predicate tree for a subtree of the operation position tree."""
+
+        # Collect predicates whose dependencies are satisfied by current prefix
+        # but weren't satisfied by parent prefix (newly satisfied)
+        node_predicates: dict[tuple[Position, Question], OrderedPredicate] = {}
+
+        for pattern_preds, pred_deps in zip(
+            pattern_predicates, predicate_dependencies, strict=False
+        ):
+            for pred in pattern_preds:
+                deps = pred_deps.get((pred.position, pred.q))
+                if deps is None:
+                    continue  # Skip if no dependencies recorded
+                # Check if all dependencies are satisfied by current prefix
+                # but not all were satisfied by parent prefix
+                if deps.issubset(prefix) and not deps.issubset(parent_prefix):
+                    key = (pred.position, pred.q)
+                    if key in ordered_predicates:
+                        node_predicates[key] = ordered_predicates[key]
+
+        # Sort predicates for this node
+        sorted_node_preds = cast(
+            list[OrderedPredicate | PredicateSplit],
+            sorted(node_predicates.values()),
+        )
+
+        # If there are children, create a PredicateSplit
+        if node.children:
+            splits: list[
+                tuple[OperationPosition, list[OrderedPredicate | PredicateSplit]]
+            ] = []
+
+            for child in node.children:
+                # Recursively build predicate tree for child
+                child_preds = OperationPositionTree._build_predicate_subtree(
+                    child,
+                    prefix | {child.operation},
+                    prefix,
+                    ordered_predicates,
+                    pattern_predicates,
+                    predicate_dependencies,
+                )
+                splits.append((child.operation, child_preds))
+
+            sorted_node_preds.append(PredicateSplit(splits))
+
+        return sorted_node_preds
 
     @staticmethod
     def get_predicate_operation_dependencies(
         pred: PositionalPredicate,
     ) -> set[OperationPosition]:
         """Get all operation position dependencies for a predicate."""
-
-        def get_position_dependencies(pos: Position) -> set[OperationPosition]:
-            """Get all operation position dependencies for a position."""
-            operations: set[OperationPosition] = set()
-            worklist: deque[Position] = deque([pos])
-            visited: set[Position] = set()
-
-            while worklist:
-                current = worklist.popleft()
-                if current in visited:
-                    continue
-                visited.add(current)
-
-                # If this is a ConstraintPosition, add its argument positions
-                if isinstance(current, ConstraintPosition):
-                    worklist.extend(current.constraint.arg_positions)
-
-                # Get the base operation and all ancestors
-                op = current.get_base_operation()
-                while op:
-                    operations.add(op)
-                    if op.parent:
-                        parent_op = op.parent.get_base_operation()
-                        if parent_op:
-                            op = parent_op
-                        else:
-                            break
-                    else:
-                        break
-
-            return operations
-
         deps: set[OperationPosition] = set()
 
         # Add dependencies from the predicate position
-        deps.update(get_position_dependencies(pred.position))
+        deps.update(_get_position_operation_dependencies(pred.position))
 
         # Handle EqualToQuestion - add the other position
         if isinstance(pred.q, EqualToQuestion):
-            deps.update(get_position_dependencies(pred.q.other_position))
+            deps.update(_get_position_operation_dependencies(pred.q.other_position))
 
         # Handle ConstraintQuestion - add all argument positions
         if isinstance(pred.q, ConstraintQuestion):
             for arg_pos in pred.q.arg_positions:
-                deps.update(get_position_dependencies(arg_pos))
+                deps.update(_get_position_operation_dependencies(arg_pos))
 
         return deps
 
