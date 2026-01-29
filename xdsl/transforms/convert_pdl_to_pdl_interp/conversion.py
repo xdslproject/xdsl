@@ -1033,7 +1033,7 @@ class PredicateTreeBuilder:
     analyzer: PatternAnalyzer
     _pattern_roots: dict[pdl.PatternOp, SSAValue]
     pattern_value_positions: dict[pdl.PatternOp, dict[SSAValue, Position]]
-    optimize_for_eqsat: bool = False
+    optimize_for_eqsat: bool
 
     def __init__(self, optimize_for_eqsat: bool = False):
         self.analyzer = PatternAnalyzer()
