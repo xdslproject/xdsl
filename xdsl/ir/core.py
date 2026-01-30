@@ -1396,7 +1396,6 @@ class Operation(_IRNode):
     def parse(cls, parser: Parser) -> Self:
         parser.raise_error(f"Operation {cls.name} does not have a custom format.")
 
-    # mirrors https://github.com/llvm/llvm-project/blob/main/mlir/include/mlir/TableGen/AttrOrTypeDef.h#L197
     def should_use_custom_format(self) -> bool:
         return True
 
