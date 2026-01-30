@@ -13,11 +13,12 @@ from xdsl.dialects import riscv, snitch
 from xdsl.dialects.builtin import (
     IntegerAttr,
     IntegerType,
-    Signedness,
     StringAttr,
     UnrealizedConversionCastOp,
 )
 from xdsl.dialects.riscv import (
+    SI12,
+    UI5,
     AssemblyInstructionArg,
     FastMathFlagsAttr,
     FloatRegisterType,
@@ -29,11 +30,10 @@ from xdsl.dialects.riscv import (
     RISCVRegallocOperation,
     RISCVRegisterType,
     RsRsIntegerOperation,
-    SImm12Attr,
-    UImm5Attr,
     parse_immediate_value,
     print_immediate_value,
     si12,
+    ui5,
 )
 from xdsl.dialects.utils import (
     AbstractYieldOperation,
@@ -114,12 +114,12 @@ class ScfgwiOp(RISCVCustomFormatOperation, RISCVInstruction):
     name = "riscv_snitch.scfgwi"
 
     rs1 = operand_def(IntRegisterType)
-    immediate = attr_def(SImm12Attr)
+    immediate = attr_def(IntegerAttr[SI12])
 
     def __init__(
         self,
         rs1: Operation | SSAValue,
-        immediate: int | SImm12Attr,
+        immediate: int | IntegerAttr[SI12],
         *,
         comment: str | StringAttr | None = None,
     ):
@@ -714,7 +714,7 @@ class DMCopyImmOp(RISCVInstruction):
 
     dest = result_def(riscv.IntRegisterType)
     size = operand_def(riscv.IntRegisterType)
-    config = prop_def(UImm5Attr)
+    config = prop_def(IntegerAttr[UI5])
 
     assembly_format = (
         "$size `,` $config attr-dict `:` functional-type(operands, results)"
@@ -727,11 +727,11 @@ class DMCopyImmOp(RISCVInstruction):
     def __init__(
         self,
         size: SSAValue | Operation,
-        config: int | UImm5Attr,
+        config: int | IntegerAttr[UI5],
         result_type: IntRegisterType = riscv.Registers.UNALLOCATED_INT,
     ):
         if isinstance(config, int):
-            config = IntegerAttr(config, IntegerType(5, signedness=Signedness.UNSIGNED))
+            config = IntegerAttr(config, ui5)
         super().__init__(
             operands=[size],
             properties={"config": config},
@@ -747,7 +747,7 @@ class DMStatImmOp(RISCVInstruction):
     name = "riscv_snitch.dmstati"
 
     dest = result_def(riscv.IntRegisterType)
-    status = prop_def(UImm5Attr)
+    status = prop_def(IntegerAttr[UI5])
 
     assembly_format = "$status attr-dict `:` `(` `)` `->` type($dest)"
 
@@ -757,11 +757,11 @@ class DMStatImmOp(RISCVInstruction):
 
     def __init__(
         self,
-        status: int | UImm5Attr,
+        status: int | IntegerAttr[UI5],
         result_type: IntRegisterType = riscv.Registers.UNALLOCATED_INT,
     ):
         if isinstance(status, int):
-            status = IntegerAttr(status, IntegerType(5, signedness=Signedness.UNSIGNED))
+            status = IntegerAttr(status, ui5)
         super().__init__(
             properties={"status": status},
             result_types=[result_type],
