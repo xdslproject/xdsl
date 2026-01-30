@@ -12,6 +12,8 @@ builtin.module {
     %res = arith.addi %idx, %i_acc : index
     scf.yield %res, %f32_acc, %f64_acc : index, f32, f64
   }
+
+  "test.op"(%i_out, %f32_out, %f64_out) : (index, f32, f64) -> ()
 }
 
 // CHECK:      builtin.module {
@@ -45,4 +47,5 @@ builtin.module {
 // CHECK-NEXT:   %{{.*}} = builtin.unrealized_conversion_cast %{{.*}} : !riscv.reg to index
 // CHECK-NEXT:   %{{.*}} = builtin.unrealized_conversion_cast %{{.*}} : !riscv.freg to f32
 // CHECK-NEXT:   %{{.*}} = builtin.unrealized_conversion_cast %{{.*}} : !riscv.freg to f64
+// CHECK-NEXT:   "test.op"(%6, %7, %8) : (index, f32, f64) -> ()
 // CHECK-NEXT: }

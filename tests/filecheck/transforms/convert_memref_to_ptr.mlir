@@ -110,6 +110,8 @@ memref.store %fv4, %mstr4[%idx4] {"nontemporal" = false} : memref<2xf32, strided
 // CHECK-NEXT:  %subview2d = ptr_xdsl.from_ptr %offset_pointer_9 : !ptr_xdsl.ptr -> memref<5x4xi32>
 
 
+"test.op"(%lv, %lv2, %flv, %flv2, %flv3, %subview1d, %subview2d) : (i32, i32, f64, f64, f64, memref<5xi32>, memref<5x4xi32>) -> ()
+
 // -----
 
 %fv, %idx, %mstr = "test.op"() : () -> (f64, index, memref<2xf64, strided<[?]>>)

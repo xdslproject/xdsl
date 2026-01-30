@@ -44,6 +44,7 @@ func.func @static_loop_with_step() {
   %6 = arith.constant 24 : index
   "scf.parallel"(%3, %3, %5, %6, %4, %4) <{operandSegmentSizes = array<i32: 2, 2, 2, 0>}> ({
   ^bb1(%arg0_1 : index, %arg1_1 : index):
+    "test.op"() : () -> ()
     scf.reduce
   }) : (index, index, index, index, index, index) -> ()
   func.return
@@ -63,6 +64,7 @@ func.func @static_loop_with_step() {
 // CHECK:           ^{{.*}}({{%.*}} : index, {{%.*}} : index):
 // CHECK:             "scf.parallel"({{%.*}}, {{%.*}}, {{%.*}}, {{%.*}}, {{%.*}}, {{%.*}}) <{operandSegmentSizes = array<i32: 2, 2, 2, 0>}> ({
 // CHECK:             ^{{.*}}({{%.*}} : index, {{%.*}} : index):
+// CHECK:               "test.op"() : () -> ()
 // CHECK:               scf.reduce
 // CHECK:             })
 // CHECK:           })
@@ -78,12 +80,14 @@ func.func @tile_nested_innermost() {
   ^bb2(%arg0_2 : index, %arg1_2 : index):
     "scf.parallel"(%8, %8, %7, %7, %9, %9) <{operandSegmentSizes = array<i32: 2, 2, 2, 0>}> ({
     ^bb3(%arg2_1 : index, %arg3_1 : index):
+      "test.op"() : () -> ()
       scf.reduce
     }) : (index, index, index, index, index, index) -> ()
     scf.reduce
   }) : (index, index, index, index, index, index) -> ()
   "scf.parallel"(%8, %8, %7, %7, %9, %9) <{operandSegmentSizes = array<i32: 2, 2, 2, 0>}> ({
   ^bb4(%arg0_3 : index, %arg1_3 : index):
+    "test.op"() : () -> ()
     scf.reduce
   }) : (index, index, index, index, index, index) -> ()
   func.return
@@ -104,6 +108,7 @@ func.func @tile_nested_innermost() {
 // CHECK:               "scf.parallel"(%{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}) <{operandSegmentSizes = array<i32: 2, 2, 2, 0>}> ({
 // CHECK:                 = arith.addi %{{.*}}, %{{.*}} : index
 // CHECK:                 = arith.addi %{{.*}}, %{{.*}} : index
+// CHEC:                  "test.op"() : () -> ()
 // CHECK:               })
 // CHECK:             })
 // CHECK:           })
@@ -117,6 +122,7 @@ func.func @tile_nested_innermost() {
 // CHECK:             "scf.parallel"(%{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}) <{operandSegmentSizes = array<i32: 2, 2, 2, 0>}> ({
 // CHECK:               = arith.addi %{{.*}}, %{{.*}} : index
 // CHECK:               = arith.addi %{{.*}}, %{{.*}} : index
+// CHECK:               "test.op"() : () -> ()
 // CHECK:             })
 // CHECK:           })
 // CHECK:           return
@@ -132,6 +138,7 @@ func.func @tile_nested_in_non_ploop() {
     scf.for %arg1_4 = %10 to %12 step %11 {
       "scf.parallel"(%10, %10, %12, %12, %11, %11) <{operandSegmentSizes = array<i32: 2, 2, 2, 0>}> ({
       ^bb5(%arg2_2 : index, %arg3_2 : index):
+        "test.op"() : () -> ()
         scf.reduce
       }) : (index, index, index, index, index, index) -> ()
     }
@@ -144,6 +151,7 @@ func.func @tile_nested_in_non_ploop() {
 // CHECK:           scf.for
 // CHECK:             "scf.parallel"
 // CHECK:               "scf.parallel"
+// CHECK:                 "test.op"() : () -> ()
 // CHECK:               })
 // CHECK:             })
 // CHECK:           }
