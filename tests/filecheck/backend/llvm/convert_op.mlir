@@ -20,7 +20,7 @@ builtin.module {
     visibility_ = 0 : i64
   }> ({
   ^entry:
-    "llvm.return"() : () -> ()
+    llvm.return
   }) : () -> ()
 
   // CHECK: define void @"named_entry"()
@@ -37,7 +37,7 @@ builtin.module {
     visibility_ = 0 : i64
   }> ({
   ^my_block:
-    "llvm.return"() : () -> ()
+    llvm.return
   }) : () -> ()
 
   // CHECK: define void @"custom_name"()
@@ -53,7 +53,7 @@ builtin.module {
     linkage = #llvm.linkage<external>,
     visibility_ = 0 : i64
   }> ({
-    "llvm.return"() : () -> ()
+    llvm.return
   }) : () -> ()
 
   // CHECK: define void @"return_void"()
@@ -70,7 +70,7 @@ builtin.module {
     visibility_ = 0 : i64
   }> ({
   ^bb0(%arg0 : i32):
-    "llvm.return"(%arg0) : (i32) -> ()
+    llvm.return %arg0 : i32
   }) : () -> ()
 
   // CHECK: define i32 @"return_arg"(i32 %".1")
@@ -87,7 +87,7 @@ builtin.module {
     visibility_ = 0 : i64
   }> ({
   ^bb0(%arg0 : i32, %arg1 : i32):
-    "llvm.return"(%arg1) : (i32) -> ()
+    llvm.return %arg1 : i32
   }) : () -> ()
 
   // CHECK: define i32 @"return_second_arg"(i32 %".1", i32 %".2")
@@ -122,7 +122,7 @@ builtin.module {
     %15 = llvm.and %arg0, %arg1 : i32
     %16 = llvm.or %arg0, %arg1 : i32
     %17 = llvm.xor %arg0, %arg1 : i32
-    "llvm.return"() : () -> ()
+    llvm.return
   }) : () -> ()
 
   // CHECK: define void @"binops"(i32 %".1", i32 %".2", float %".3", float %".4")
@@ -162,7 +162,7 @@ builtin.module {
       constraints = "r",
       has_side_effects
     }> : (i32) -> ()
-    "llvm.return"() : () -> ()
+    llvm.return
   }) : () -> ()
 
   // CHECK: define void @"inline_asm"(i32 %".1")

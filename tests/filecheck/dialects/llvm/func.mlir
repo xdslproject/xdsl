@@ -44,7 +44,7 @@
 // CHECK:            visibility_ = 0 : i64
 // CHECK:         }> ({
 // CHECK-NEXT:    ^bb0(%arg0 : i32, %arg1 : i32):
-// CHECK-NEXT:      "llvm.return"(%arg0) : (i32) -> ()
+// CHECK-NEXT:      llvm.return %arg0 : i32
 // CHECK-NEXT:    }) : () -> ()
 
 // Checks support for custom format
@@ -54,27 +54,27 @@ llvm.func @external_func(i64)
 // CHECK: llvm.func @external_func(i64)
 
 llvm.func @void_func(%arg0: i64) {
-  "llvm.return"() : () -> ()
+  llvm.return
 }
 
 // CHECK: llvm.func @void_func(%{{.*}} : i64) {
-// CHECK-NEXT:   "llvm.return"() : () -> ()
+// CHECK-NEXT:   llvm.return
 // CHECK-NEXT: }
 
 llvm.func @complex_func(%arg0: i64, %arg1: !llvm.ptr) -> i64 {
   %0 = llvm.add %arg0, %arg0 : i64
-  "llvm.return"(%0) : (i64) -> ()
+  llvm.return %0 : i64
 }
 
 // CHECK: llvm.func @complex_func(%{{.*}} : i64, %{{.*}} : !llvm.ptr) -> i64 {
 // CHECK-NEXT:   %{{.*}} = llvm.add %{{.*}}, %{{.*}} : i64
-// CHECK-NEXT:   "llvm.return"(%{{.*}}) : (i64) -> ()
+// CHECK-NEXT:   llvm.return %{{.*}} : i64
 // CHECK-NEXT: }
 
 llvm.func internal @internal_func() {
-  "llvm.return"() : () -> ()
+  llvm.return
 }
 
 // CHECK: llvm.func internal @internal_func() {
-// CHECK-NEXT:   "llvm.return"() : () -> ()
+// CHECK-NEXT:   llvm.return
 // CHECK-NEXT: }
