@@ -20,12 +20,12 @@
     // CHECK-NEXT: %{{.*}} = riscv.ori %0, 1 : (!riscv.reg) -> !riscv.reg
     %xori = riscv.xori %0, 1: (!riscv.reg) -> !riscv.reg
     // CHECK-NEXT: %{{.*}} = riscv.xori %0, 1 : (!riscv.reg) -> !riscv.reg
-    %slli = riscv.slli %0, 1: (!riscv.reg) -> !riscv.reg
-    // CHECK-NEXT: %{{.*}} = riscv.slli %0, 1 : (!riscv.reg) -> !riscv.reg
-    %srli = riscv.srli %0, 1: (!riscv.reg) -> !riscv.reg
-    // CHECK-NEXT: %{{.*}} = riscv.srli %0, 1 : (!riscv.reg) -> !riscv.reg
-    %srai = riscv.srai %0, 1: (!riscv.reg) -> !riscv.reg
-    // CHECK-NEXT: %{{.*}} = riscv.srai %0, 1 : (!riscv.reg) -> !riscv.reg
+    %slli = rv32.slli %0, 1: (!riscv.reg) -> !riscv.reg
+    // CHECK-NEXT: %{{.*}} = rv32.slli %0, 1 : (!riscv.reg) -> !riscv.reg
+    %srli = rv32.srli %0, 1: (!riscv.reg) -> !riscv.reg
+    // CHECK-NEXT: %{{.*}} = rv32.srli %0, 1 : (!riscv.reg) -> !riscv.reg
+    %srai = rv32.srai %0, 1: (!riscv.reg) -> !riscv.reg
+    // CHECK-NEXT: %{{.*}} = rv32.srai %0, 1 : (!riscv.reg) -> !riscv.reg
     %lui = riscv.lui 1 : () -> !riscv.reg
     // CHECK-NEXT: %{{.*}} = riscv.lui 1 : () -> !riscv.reg
     %auipc = riscv.auipc 1 : () -> !riscv.reg
@@ -42,8 +42,8 @@
     // CHECK: %{{.*}} = riscv.zext.w %{{.*}} : (!riscv.reg) -> !riscv.reg
     %sextw = riscv.sext.w %0 : (!riscv.reg) -> !riscv.reg
     // CHECK: %{{.*}} = riscv.sext.w %{{.*}} : (!riscv.reg) -> !riscv.reg
-    %srliw = riscv.srliw %0, 1: (!riscv.reg) -> !riscv.reg
-    // CHECK-NEXT: %{{.*}} = riscv.srliw %0, 1 : (!riscv.reg) -> !riscv.reg
+    %srliw = rv32.srliw %0, 1: (!riscv.reg) -> !riscv.reg
+    // CHECK-NEXT: %{{.*}} = rv32.srliw %0, 1 : (!riscv.reg) -> !riscv.reg
     %sraiw = riscv.sraiw %0, 1: (!riscv.reg) -> !riscv.reg
     // CHECK-NEXT: %{{.*}} = riscv.sraiw %0, 1 : (!riscv.reg) -> !riscv.reg
 
@@ -212,10 +212,10 @@
     // CHECK-NEXT: %{{.*}} = riscv.rol %{{.*}}, %{{.*}} : (!riscv.reg, !riscv.reg) -> !riscv.reg
     %ror = riscv.ror %0, %1 : (!riscv.reg, !riscv.reg) -> !riscv.reg
     // CHECK-NEXT: %{{.*}} = riscv.ror %{{.*}}, %{{.*}} : (!riscv.reg, !riscv.reg) -> !riscv.reg
-    %rori = riscv.rori %0, 1 : (!riscv.reg) -> !riscv.reg
-    // CHECK-NEXT: %{{.*}} = riscv.rori %{{.*}}, 1 : (!riscv.reg) -> !riscv.reg
-    %roriw = riscv.roriw %0, 1 : (!riscv.reg) -> !riscv.reg
-    // CHECK-NEXT: %{{.*}} = riscv.roriw %{{.*}}, 1 : (!riscv.reg) -> !riscv.reg
+    %rori = rv32.rori %0, 1 : (!riscv.reg) -> !riscv.reg
+    // CHECK-NEXT: %{{.*}} = rv32.rori %{{.*}}, 1 : (!riscv.reg) -> !riscv.reg
+    %roriw = rv32.roriw %0, 1 : (!riscv.reg) -> !riscv.reg
+    // CHECK-NEXT: %{{.*}} = rv32.roriw %{{.*}}, 1 : (!riscv.reg) -> !riscv.reg
     %rolw = riscv.rolw %0, %1 : (!riscv.reg, !riscv.reg) -> !riscv.reg
     // CHECK-NEXT: %{{.*}} = riscv.rolw %{{.*}}, %{{.*}} : (!riscv.reg, !riscv.reg) -> !riscv.reg
     %rorw = riscv.rorw %0, %1 : (!riscv.reg, !riscv.reg) -> !riscv.reg
@@ -465,9 +465,9 @@
 // CHECK-GENERIC-NEXT:      %andi = "riscv.andi"(%0) {immediate = 1 : si12} : (!riscv.reg) -> !riscv.reg
 // CHECK-GENERIC-NEXT:      %ori = "riscv.ori"(%0) {immediate = 1 : si12} : (!riscv.reg) -> !riscv.reg
 // CHECK-GENERIC-NEXT:      %xori = "riscv.xori"(%0) {immediate = 1 : si12} : (!riscv.reg) -> !riscv.reg
-// CHECK-GENERIC-NEXT:      %slli = "riscv.slli"(%0) {immediate = 1 : ui5} : (!riscv.reg) -> !riscv.reg
-// CHECK-GENERIC-NEXT:      %srli = "riscv.srli"(%0) {immediate = 1 : ui5} : (!riscv.reg) -> !riscv.reg
-// CHECK-GENERIC-NEXT:      %srai = "riscv.srai"(%0) {immediate = 1 : ui5} : (!riscv.reg) -> !riscv.reg
+// CHECK-GENERIC-NEXT:      %slli = "rv32.slli"(%0) {immediate = 1 : ui5} : (!riscv.reg) -> !riscv.reg
+// CHECK-GENERIC-NEXT:      %srli = "rv32.srli"(%0) {immediate = 1 : ui5} : (!riscv.reg) -> !riscv.reg
+// CHECK-GENERIC-NEXT:      %srai = "rv32.srai"(%0) {immediate = 1 : ui5} : (!riscv.reg) -> !riscv.reg
 // CHECK-GENERIC-NEXT:      %lui = "riscv.lui"() {immediate = 1 : i20} : () -> !riscv.reg
 // CHECK-GENERIC-NEXT:      %auipc = "riscv.auipc"() {immediate = 1 : i20} : () -> !riscv.reg
 // CHECK-GENERIC-NEXT:      %mv = "riscv.mv"(%0) : (!riscv.reg) -> !riscv.reg
@@ -476,7 +476,7 @@
 // CHECK-GENERIC-NEXT:      %zextb = "riscv.zext.b"(%0) : (!riscv.reg) -> !riscv.reg
 // CHECK-GENERIC-NEXT:      %zextw = "riscv.zext.w"(%0) : (!riscv.reg) -> !riscv.reg
 // CHECK-GENERIC-NEXT:      %sextw = "riscv.sext.w"(%0) : (!riscv.reg) -> !riscv.reg
-// CHECK-GENERIC-NEXT:      %srliw = "riscv.srliw"(%0) {immediate = 1 : ui5} : (!riscv.reg) -> !riscv.reg
+// CHECK-GENERIC-NEXT:      %srliw = "rv32.srliw"(%0) {immediate = 1 : ui5} : (!riscv.reg) -> !riscv.reg
 // CHECK-GENERIC-NEXT:      %sraiw = "riscv.sraiw"(%0) {immediate = 1 : si12} : (!riscv.reg) -> !riscv.reg
 // CHECK-GENERIC-NEXT:      %add = "riscv.add"(%0, %1) : (!riscv.reg, !riscv.reg) -> !riscv.reg
 // CHECK-GENERIC-NEXT:      %slt = "riscv.slt"(%0, %1) : (!riscv.reg, !riscv.reg) -> !riscv.reg
@@ -546,8 +546,8 @@
 // CHECK-GENERIC-NEXT:      %remuw = "riscv.remuw"(%0, %1) : (!riscv.reg, !riscv.reg) -> !riscv.reg
 // CHECK-GENERIC-NEXT:      %rol = "riscv.rol"(%0, %1) : (!riscv.reg, !riscv.reg) -> !riscv.reg
 // CHECK-GENERIC-NEXT:      %ror = "riscv.ror"(%0, %1) : (!riscv.reg, !riscv.reg) -> !riscv.reg
-// CHECK-GENERIC-NEXT:      %rori = "riscv.rori"(%0) {immediate = 1 : ui5} : (!riscv.reg) -> !riscv.reg
-// CHECK-GENERIC-NEXT:      %roriw = "riscv.roriw"(%0) {immediate = 1 : ui5} : (!riscv.reg) -> !riscv.reg
+// CHECK-GENERIC-NEXT:      %rori = "rv32.rori"(%0) {immediate = 1 : ui5} : (!riscv.reg) -> !riscv.reg
+// CHECK-GENERIC-NEXT:      %roriw = "rv32.roriw"(%0) {immediate = 1 : ui5} : (!riscv.reg) -> !riscv.reg
 // CHECK-GENERIC-NEXT:      %rolw = "riscv.rolw"(%0, %1) : (!riscv.reg, !riscv.reg) -> !riscv.reg
 // CHECK-GENERIC-NEXT:      %rorw = "riscv.rorw"(%0, %1) : (!riscv.reg, !riscv.reg) -> !riscv.reg
 // CHECK-GENERIC-NEXT:      %bclr = "riscv.bclr"(%0, %1) : (!riscv.reg, !riscv.reg) -> !riscv.reg
