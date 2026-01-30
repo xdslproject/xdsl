@@ -1,5 +1,5 @@
 from collections.abc import Sequence
-from typing import Any, Generic, Protocol, runtime_checkable
+from typing import Generic
 
 from xdsl.dialects.builtin import (
     ArrayAttr,
@@ -180,16 +180,10 @@ def parse_for_op_like(
     return lower_bound, upper_bound, step, iter_arg_operands, body
 
 
-@runtime_checkable
-class FunctionTypeLike(Protocol):
-    @property
-    def outputs(self) -> Any: ...
-
-
 def print_func_op_like(
     printer: Printer,
     sym_name: StringAttr,
-    function_type: Attribute,
+    function_type: Attribute | tuple[Sequence[Attribute], Sequence[Attribute]],
     body: Region,
     attributes: dict[str, Attribute],
     *,
@@ -197,10 +191,15 @@ def print_func_op_like(
     res_attrs: ArrayAttr[DictionaryAttr] | None = None,
     reserved_attr_names: Sequence[str],
 ):
+    outputs = (
+        function_type[1]
+        if isinstance(function_type, tuple)
+        else getattr(function_type, "outputs")
+    )
+
     printer.print_string(" ")
     printer.print_symbol_name(sym_name.data)
     if body.blocks:
-        assert isinstance(function_type, FunctionTypeLike)
         with printer.in_parens():
             if arg_attrs is not None:
                 printer.print_list(
@@ -212,23 +211,25 @@ def print_func_op_like(
             else:
                 printer.print_list(body.blocks[0].args, printer.print_block_argument)
 
-        if function_type.outputs:
+        if outputs:
             printer.print_string(" -> ")
-            if len(function_type.outputs) > 1 or res_attrs is not None:
+            if len(outputs) > 1 or res_attrs is not None:
                 printer.print_string("(")
             if res_attrs is not None:
                 printer.print_list(
-                    zip(function_type.outputs, res_attrs),
+                    zip(outputs, res_attrs),
                     lambda arg_with_attrs: print_func_output(
                         printer, arg_with_attrs[0], arg_with_attrs[1]
                     ),
                 )
             else:
-                printer.print_list(function_type.outputs, printer.print_attribute)
-            if len(function_type.outputs) > 1 or res_attrs is not None:
+                printer.print_list(outputs, printer.print_attribute)
+            if len(outputs) > 1 or res_attrs is not None:
                 printer.print_string(")")
     else:
+        assert not isinstance(function_type, tuple)
         printer.print_attribute(function_type)
+
     printer.print_op_attributes(
         attributes, reserved_attr_names=reserved_attr_names, print_keyword=True
     )
