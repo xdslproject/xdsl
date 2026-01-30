@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from collections.abc import Set as AbstractSet
 from io import StringIO
-from typing import IO, Annotated, Generic, Literal, TypeAlias, cast
+from typing import IO, Annotated, ClassVar, Generic, Literal, TypeAlias, cast
 
 from typing_extensions import Self, TypeVar
 
@@ -19,7 +19,9 @@ from xdsl.backend.register_allocatable import (
 )
 from xdsl.backend.register_type import RegisterAllocatedMemoryEffect, RegisterType
 from xdsl.dialects.builtin import (
+    I32,
     ArrayAttr,
+    DenseArrayBase,
     IndexType,
     IntegerAttr,
     IntegerType,
@@ -43,8 +45,11 @@ from xdsl.ir import (
     SSAValue,
 )
 from xdsl.irdl import (
+    AnyInt,
+    IntVarConstraint,
     IRDLOperation,
     ParsePropInAttrDict,
+    RangeOf,
     VarOpResult,
     attr_def,
     base,
@@ -53,6 +58,7 @@ from xdsl.irdl import (
     operand_def,
     opt_attr_def,
     opt_prop_def,
+    prop_def,
     region_def,
     result_def,
     traits_def,
@@ -3912,31 +3918,39 @@ class GetFloatRegisterOp(GetAnyRegisterOperation[FloatRegisterType]):
 
 @irdl_op_definition
 class ParallelMovOp(RISCVRegallocOperation):
+    _L: ClassVar = IntVarConstraint("L", AnyInt())
+
     name = "riscv.parallel_mov"
-    inputs = var_operand_def(RISCVRegisterType)
-    outputs: VarOpResult[RISCVRegisterType] = var_result_def(RISCVRegisterType)
+    inputs = var_operand_def(RangeOf(RISCVRegisterType).of_length(_L))
+    outputs: VarOpResult[RISCVRegisterType] = var_result_def(
+        RangeOf(RISCVRegisterType).of_length(_L)
+    )
+    input_widths = prop_def(DenseArrayBase.constr(i32))
     free_registers = opt_prop_def(ArrayAttr[RISCVRegisterType])
 
-    assembly_format = "$inputs attr-dict `:` functional-type($inputs, $outputs)"
+    assembly_format = (
+        "$inputs $input_widths attr-dict `:` functional-type($inputs, $outputs)"
+    )
     irdl_options = (ParsePropInAttrDict(),)
 
     def __init__(
         self,
         inputs: Sequence[SSAValue],
         outputs: Sequence[RISCVRegisterType],
+        input_widths: DenseArrayBase[I32],
         free_registers: ArrayAttr[RISCVRegisterType] | None = None,
     ):
         super().__init__(
             operands=(inputs,),
             result_types=(outputs,),
-            properties={"free_registers": free_registers},
+            properties={"input_widths": input_widths, "free_registers": free_registers},
         )
 
     def verify_(self) -> None:
-        if len(self.inputs) != len(self.outputs):
+        if len(self.inputs) != len(self.input_widths):
             raise VerifyException(
-                "Input count must match output count. "
-                f"Num inputs: {len(self.inputs)}, Num outputs: {len(self.outputs)}"
+                "incorrect length for input_widths. "
+                "Expected {len(self.inputs)}, found {len(self.input_widths)}."
             )
 
         input_types = cast(Sequence[RISCVRegisterType], self.inputs.types)

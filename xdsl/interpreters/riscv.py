@@ -623,6 +623,17 @@ class RiscvFunctions(InterpreterFunctions):
         results = self.custom_instructions[instr](interpreter, op, args)
         return RiscvFunctions.set_reg_values(interpreter, op.results, results)
 
+    @impl(riscv.ParallelMovOp)
+    def run_parallel_mov(
+        self,
+        interpreter: Interpreter,
+        op: riscv.ParallelMovOp,
+        args: tuple[Any, ...],
+    ):
+        args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
+        results = args
+        return RiscvFunctions.set_reg_values(interpreter, op.results, results)
+
     @impl_cast(riscv.FloatRegisterType, builtin.Float64Type)
     def cast_float_reg_to_float(
         self,
