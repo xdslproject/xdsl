@@ -362,3 +362,253 @@ def test_inline_assembly_op():
         has_side_effects=True,
     )
     op.verify()
+
+
+def test_overflow_attr_from_int_to_int():
+    attr0 = llvm.OverflowAttr.from_int(0)
+    assert attr0.to_int() == 0
+
+    attr1 = llvm.OverflowAttr.from_int(1)
+    assert attr1.to_int() == 1
+
+    attr2 = llvm.OverflowAttr.from_int(2)
+    assert attr2.to_int() == 2
+
+    attr3 = llvm.OverflowAttr.from_int(3)
+    assert attr3.to_int() == 3
+
+    with pytest.raises(ValueError, match="OverflowAttr given out of bounds integer."):
+        llvm.OverflowAttr.from_int(4)
+
+
+def test_target_features_attr_verify():
+    valid_attr = llvm.TargetFeaturesAttr(
+        builtin.ArrayAttr([builtin.StringAttr("+mmx"), builtin.StringAttr("-sse")])
+    )
+    valid_attr.verify()
+
+    empty_attr = llvm.TargetFeaturesAttr(builtin.ArrayAttr([]))
+    empty_attr.verify()
+
+    with pytest.raises(VerifyException, match="target features must start with"):
+        llvm.TargetFeaturesAttr(builtin.ArrayAttr([builtin.StringAttr("mmx")]))
+
+
+def test_global_op_with_flags():
+    global_dso = llvm.GlobalOp(
+        builtin.i32,
+        "dso_symbol",
+        "internal",
+        dso_local=True,
+    )
+    assert global_dso.dso_local is not None
+
+    global_thread = llvm.GlobalOp(
+        builtin.i32,
+        "thread_symbol",
+        "internal",
+        thread_local_=True,
+    )
+    assert global_thread.thread_local_ is not None
+
+    global_both = llvm.GlobalOp(
+        builtin.i32,
+        "both_symbol",
+        "internal",
+        dso_local=True,
+        thread_local_=True,
+    )
+    assert global_both.dso_local is not None
+    assert global_both.thread_local_ is not None
+
+
+def test_icmp_op():
+    lhs = create_ssa_value(builtin.i32)
+    rhs = create_ssa_value(builtin.i32)
+
+    predicate = builtin.IntegerAttr.from_int_and_width(0, 64)  # eq
+    icmp = llvm.ICmpOp(lhs, rhs, predicate)
+
+    assert icmp.lhs == lhs
+    assert icmp.rhs == rhs
+    icmp.verify()
+
+
+def test_gep_op_with_inbounds():
+    size = arith.ConstantOp.from_int_and_width(1, 32)
+    ptr = llvm.AllocaOp(size, builtin.i32)
+    ptr_type = llvm.LLVMPointerType()
+
+    gep_inbounds = llvm.GEPOp.from_mixed_indices(
+        ptr,
+        indices=[0],
+        pointee_type=builtin.i32,
+        result_type=ptr_type,
+        inbounds=True,
+    )
+
+    assert gep_inbounds.inbounds is not None
+
+
+def test_call_op_variadic():
+    arg1 = create_ssa_value(builtin.i64)
+
+    call = llvm.CallOp(
+        "printf",
+        arg1,
+        return_type=None,
+        variadic_args=0,
+    )
+
+    assert call.callee is not None
+
+
+def test_constant_op():
+    int_value = builtin.IntegerAttr(42, 32)
+    const = llvm.ConstantOp(int_value, builtin.i32)
+
+    assert const.value == int_value
+    assert const.result.type == builtin.i32
+
+
+def test_extract_value_op():
+    struct_type = llvm.LLVMStructType.from_type_list([builtin.i32, builtin.i64])
+    container = create_ssa_value(struct_type)
+    position = builtin.DenseArrayBase.from_list(builtin.i64, [0])
+
+    op = llvm.ExtractValueOp(position, container, builtin.i32)
+
+    assert op.container == container
+
+
+def test_insert_value_op():
+    struct_type = llvm.LLVMStructType.from_type_list([builtin.i32, builtin.i64])
+    container = create_ssa_value(struct_type)
+    value = create_ssa_value(builtin.i32)
+    position = builtin.DenseArrayBase.from_list(builtin.i64, [0])
+
+    op = llvm.InsertValueOp(position, container, value)
+
+    assert op.container == container
+    assert op.value == value
+
+
+def test_undef_op():
+    undef = llvm.UndefOp(builtin.i32)
+
+    assert undef.res.type == builtin.i32
+
+
+def test_trunc_op():
+    arg = create_ssa_value(builtin.i64)
+
+    trunc = llvm.TruncOp(arg, builtin.i32)
+    trunc.verify()
+
+    arg_small = create_ssa_value(builtin.i32)
+    trunc_invalid = llvm.TruncOp(arg_small, builtin.i64)
+    with pytest.raises(VerifyException, match="invalid cast opcode"):
+        trunc_invalid.verify()
+
+
+def test_zext_op():
+    arg = create_ssa_value(builtin.i32)
+
+    zext = llvm.ZExtOp(arg, builtin.i64)
+    zext.verify()
+
+    arg_large = create_ssa_value(builtin.i64)
+    zext_invalid = llvm.ZExtOp(arg_large, builtin.i32)
+    with pytest.raises(VerifyException, match="invalid cast opcode"):
+        zext_invalid.verify()
+
+
+def test_sext_op():
+    arg = create_ssa_value(builtin.i32)
+
+    sext = llvm.SExtOp(arg, builtin.i64)
+    sext.verify()
+
+    arg_large = create_ssa_value(builtin.i64)
+    sext_invalid = llvm.SExtOp(arg_large, builtin.i32)
+    with pytest.raises(VerifyException, match="invalid cast opcode"):
+        sext_invalid.verify()
+
+
+def test_float_arith_ops():
+    lhs = create_ssa_value(builtin.f32)
+    rhs = create_ssa_value(builtin.f32)
+
+    fadd = llvm.FAddOp(lhs, rhs)
+    assert fadd.lhs == lhs
+    assert fadd.rhs == rhs
+
+    fmul = llvm.FMulOp(lhs, rhs)
+    assert fmul.lhs == lhs
+
+    fdiv = llvm.FDivOp(lhs, rhs)
+    assert fdiv.lhs == lhs
+
+    fsub = llvm.FSubOp(lhs, rhs)
+    assert fsub.lhs == lhs
+
+    frem = llvm.FRemOp(lhs, rhs)
+    assert frem.lhs == lhs
+
+
+def test_llvm_function_type_variadic():
+    func_type = llvm.LLVMFunctionType([builtin.i32], is_variadic=True)
+    assert func_type.is_variadic is True
+
+    func_type_no_var = llvm.LLVMFunctionType([builtin.i32], is_variadic=False)
+    assert func_type_no_var.is_variadic is False
+
+
+def test_llvm_pointer_type_with_addr_space():
+    ptr_type = llvm.LLVMPointerType(builtin.IntAttr(1))
+
+    assert isinstance(ptr_type.addr_space, builtin.IntAttr)
+    assert ptr_type.addr_space.data == 1
+
+
+def test_llvm_array_type_from_size_and_type():
+    array_type = llvm.LLVMArrayType.from_size_and_type(builtin.IntAttr(5), builtin.i32)
+    assert array_type.size.data == 5
+    assert array_type.type == builtin.i32
+
+
+def test_func_op():
+    func_type = llvm.LLVMFunctionType([builtin.i32], builtin.i32)
+    func = llvm.FuncOp(
+        "test_func",
+        func_type,
+        linkage=llvm.LinkageAttr("internal"),
+        cconv=llvm.CallingConventionAttr("ccc"),
+    )
+
+    assert func.sym_name.data == "test_func"
+    assert func.function_type == func_type
+
+
+def test_bitcast_op():
+    val = create_ssa_value(builtin.i32)
+    bitcast = llvm.BitcastOp(val, builtin.f32)
+
+    assert bitcast.arg == val
+    assert bitcast.result.type == builtin.f32
+
+
+def test_sitofp_op():
+    val = create_ssa_value(builtin.i32)
+    sitofp = llvm.SIToFPOp(val, builtin.f32)
+
+    assert sitofp.arg == val
+    assert sitofp.result.type == builtin.f32
+
+
+def test_fpext_op():
+    val = create_ssa_value(builtin.f32)
+    fpext = llvm.FPExtOp(val, builtin.f64)
+
+    assert fpext.arg == val
+    assert fpext.result.type == builtin.f64
