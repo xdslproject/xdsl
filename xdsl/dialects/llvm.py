@@ -241,12 +241,6 @@ class LLVMFunctionType(ParametrizedAttribute, TypeAttribute):
     def is_variadic(self) -> bool:
         return isinstance(self.variadic, UnitAttr)
 
-    @property
-    def outputs(self) -> Sequence[Attribute]:
-        if isinstance(self.output, LLVMVoidType):
-            return []
-        return [self.output]
-
     def print_parameters(self, printer: Printer) -> None:
         with printer.in_angle_brackets():
             if isinstance(self.output, LLVMVoidType):
@@ -1808,10 +1802,16 @@ class FuncOp(IRDLOperation):
             )
             return
 
+        outputs = (
+            []
+            if isinstance(self.function_type.output, LLVMVoidType)
+            else [self.function_type.output]
+        )
+
         print_func_op_like(
             printer,
             self.sym_name,
-            self.function_type,
+            (self.function_type.inputs.data, outputs),
             self.body,
             attrs,
             arg_attrs=self.arg_attrs,
