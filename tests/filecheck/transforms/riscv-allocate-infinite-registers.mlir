@@ -27,3 +27,13 @@ builtin.module {
 // CHECK-NEXT:      riscv_func.return
 // CHECK-NEXT:    }
 // CHECK-NEXT:  }
+
+// -----
+// Check non-register values are rejected
+builtin.module {
+  riscv_func.func @main() {
+    %int = "test.op"() : () -> i32
+    riscv_func.return
+  }
+}
+// CHECK: Operand type not a register
