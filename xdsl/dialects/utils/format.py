@@ -4,6 +4,7 @@ from typing import Generic, Literal, TypeAlias, overload
 from xdsl.dialects.builtin import (
     ArrayAttr,
     DictionaryAttr,
+    FunctionType,
     StringAttr,
 )
 from xdsl.ir import (
@@ -183,7 +184,7 @@ def parse_for_op_like(
 def print_func_op_like(
     printer: Printer,
     sym_name: StringAttr,
-    function_type: Attribute | tuple[Sequence[Attribute], Sequence[Attribute]],
+    function_type: FunctionType | tuple[Sequence[Attribute], Sequence[Attribute]],
     body: Region,
     attributes: dict[str, Attribute],
     *,
