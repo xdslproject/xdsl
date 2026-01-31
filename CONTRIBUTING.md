@@ -1,4 +1,4 @@
-# Quality Guidelines
+# Code Style Guidelines
 
 Follow these rules for all code changes in this repository:
 
