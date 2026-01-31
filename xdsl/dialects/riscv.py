@@ -1536,9 +1536,10 @@ class OriOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.riscv import (
             OriImmediate,
+            OriImmediateZero,
         )
 
-        return (OriImmediate(),)
+        return (OriImmediate(), OriImmediateZero())
 
 
 @irdl_op_definition
