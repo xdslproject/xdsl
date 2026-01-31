@@ -103,6 +103,11 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
 
         return DMP
 
+    def get_ematch():
+        from xdsl.dialects.ematch import EMatch
+
+        return EMatch
+
     def get_emitc():
         from xdsl.dialects.emitc import EmitC
 
@@ -383,6 +388,7 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "csl_wrapper": get_csl_wrapper,
         "dlti": get_dlti,
         "dmp": get_dmp,
+        "ematch": get_ematch,
         "emitc": get_emitc,
         "equivalence": get_equivalence,
         "eqsat_pdl_interp": get_eqsat_pdl_interp,
