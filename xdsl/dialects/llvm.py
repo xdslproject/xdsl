@@ -1639,16 +1639,7 @@ class TargetFeaturesAttr(ParametrizedAttribute):
                 raise VerifyException("target features must start with '+' or '-'")
 
 
-FUNC_OP_PARSE_RESERVED_ATTR_NAMES = (
-    "sym_name",
-    "function_type",
-    "sym_visibility",
-    "linkage",
-    "CConv",
-    "visibility_",
-)
-
-FUNC_OP_PRINT_RESERVED_ATTR_NAMES = (
+FUNC_OP_RESERVED_ATTR_NAMES = (
     "sym_name",
     "function_type",
     "sym_visibility",
@@ -1745,9 +1736,11 @@ class FuncOp(IRDLOperation):
             extra_attrs,
             arg_attrs,
             res_attrs,
+            is_variadic,
         ) = parse_func_op_like(
             parser,
-            reserved_attr_names=FUNC_OP_PARSE_RESERVED_ATTR_NAMES,
+            reserved_attr_names=FUNC_OP_RESERVED_ATTR_NAMES,
+            allow_variadic=True,
         )
 
         return_type: Attribute
@@ -1762,7 +1755,7 @@ class FuncOp(IRDLOperation):
                 parser.pos,
             )
 
-        function_type = LLVMFunctionType(input_types, return_type)
+        function_type = LLVMFunctionType(input_types, return_type, is_variadic)
 
         return FuncOp(
             name,
@@ -1779,21 +1772,6 @@ class FuncOp(IRDLOperation):
             },
         )
 
-    def should_use_custom_format(self) -> bool:
-        has_unsupported_attr = (
-            self.frame_pointer
-            or self.no_inline
-            or self.no_unwind
-            or self.optimize_none
-            or self.passthrough
-            or self.target_cpu
-            or self.target_features
-            or self.tune_cpu
-            or self.unnamed_addr
-        )
-        is_variadic = self.function_type.is_variadic
-        return not (has_unsupported_attr or is_variadic)
-
     def print(self, printer: Printer):
         if self.sym_visibility:
             visibility = self.sym_visibility.data
@@ -1808,18 +1786,24 @@ class FuncOp(IRDLOperation):
             printer.print_string(" ")
             printer.print_string(self.CConv.convention.data)
 
+        attrs = {**self.attributes, **self.properties}
+
         if not self.body.blocks:
             printer.print_string(" ")
             printer.print_symbol_name(self.sym_name.data)
             printer.print_string("(")
             printer.print_list(self.function_type.inputs, printer.print_attribute)
+            if self.function_type.is_variadic:
+                if self.function_type.inputs:
+                    printer.print_string(", ")
+                printer.print_string("...")
             printer.print_string(")")
             if not isinstance(self.function_type.output, LLVMVoidType):
                 printer.print_string(" -> ")
                 printer.print_attribute(self.function_type.output)
             printer.print_op_attributes(
-                self.attributes,
-                reserved_attr_names=FUNC_OP_PRINT_RESERVED_ATTR_NAMES,
+                attrs,
+                reserved_attr_names=FUNC_OP_RESERVED_ATTR_NAMES,
                 print_keyword=True,
             )
             return
@@ -1829,10 +1813,11 @@ class FuncOp(IRDLOperation):
             self.sym_name,
             self.function_type,
             self.body,
-            self.attributes,
+            attrs,
             arg_attrs=self.arg_attrs,
             res_attrs=self.res_attrs,
-            reserved_attr_names=FUNC_OP_PRINT_RESERVED_ATTR_NAMES,
+            reserved_attr_names=FUNC_OP_RESERVED_ATTR_NAMES,
+            is_variadic=self.function_type.is_variadic,
         )
 
 

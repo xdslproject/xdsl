@@ -1396,9 +1396,6 @@ class Operation(_IRNode):
     def parse(cls, parser: Parser) -> Self:
         parser.raise_error(f"Operation {cls.name} does not have a custom format.")
 
-    def should_use_custom_format(self) -> bool:
-        return True
-
     def print(self, printer: Printer):
         return printer.print_op_with_default_format(self)
 
