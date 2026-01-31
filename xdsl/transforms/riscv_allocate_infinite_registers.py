@@ -40,7 +40,6 @@ class RISCVAllocateInfiniteRegistersPass(ModulePass):
                         isinstance(result_reg.index, builtin.IntAttr)
                         and result_reg.index.data < 0
                     ):
-                        # We are an infinite reg
                         if result_reg in phys_reg_by_inf_reg:
                             # use previously allocated phys reg for this value
                             phys_reg = phys_reg_by_inf_reg[result_reg]
