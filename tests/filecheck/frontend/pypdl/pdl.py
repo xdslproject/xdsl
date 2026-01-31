@@ -27,23 +27,16 @@ pdl.pattern : benefit(2) {
 
 from xdsl.dialects import arith, builtin, pdl
 from xdsl.frontend import pypdl
-from xdsl.ir import Operation
 from xdsl.rewriter import Rewriter
-
-
-def erase_op(operation: Operation) -> None:
-    """Shim to avoid `Expr` AST node required for methods."""
-    return Rewriter.erase_op(operation)
-
 
 ctx = pypdl.PyPDLContext()
 ctx.register_type(arith.ConstantOp, pdl.OperationType())
-ctx.register_function(erase_op, pdl.EraseOp)
+ctx.register_function(Rewriter.erase_op, pdl.EraseOp)
 
 
 @ctx.parse_program
 def constant_replace(matched_operation: arith.ConstantOp):
-    erase_op(matched_operation)
+    Rewriter.erase_op(matched_operation)
 
 
 # Check that the DSL correctly rewrites on the xDSL data structures
