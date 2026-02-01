@@ -1,4 +1,6 @@
-# Code Style Guidelines
+# Contributing Guidelines
+
+## Code Style
 
 We aim to follow these rules for all changes in this repository:
 
@@ -13,13 +15,13 @@ We aim to follow these rules for all changes in this repository:
 - Guard-First Logic: Handle edge cases, invalid inputs and errors at the start of
   functions. Return early to keep the "happy path" at the lowest indentation level.
 - Flat Structure: Keep if/else blocks small. Avoid nesting beyond two levels if possible.
-- Centralize Control Flow: Branching logic belongs in parents. leaf functions should be
+- Centralize Control Flow: Branching logic belongs in parents. Leaf functions should be
   pure logic.
 - Fail Fast: Detect unexpected conditions immediately. Raise Exceptions rather than
   corrupt state.
-- [Ask for forgiveness not permission](https://docs.python.org/2/glossary.html#term-eafp):
+- [Ask for forgiveness not permission](https://docs.python.org/3/glossary.html#term-eafp):
   assume the existence of valid keys or attributes and catch exceptions if the assumption
-  proves false. Use try and except statements.
+  proves false. Use try-except blocks.
 
   ```Python
   # Good
@@ -34,6 +36,17 @@ We aim to follow these rules for all changes in this repository:
   return default_value
   ```
 
+## Linting
+
+We use the following tools to ensure code quality. Configuration for these tools can be
+found in `pyproject.toml`.
+
+- Ruff: Used for linting and formatting. Configured in `[tool.ruff]`.
+- Pyright: Used for static type checking. Configured in `[tool.pyright]`.
+  Run with `make pyright`.
+
+## Testing
+
 The test and validation suite consists of:
 
 - Unit tests (pytest): Python tests in `tests/` (excluding `tests/filecheck`) for testing
@@ -42,10 +55,16 @@ The test and validation suite consists of:
 - Integration tests (lit): File-based tests in `tests/filecheck` using `FileCheck` to
   verify tool output. Preferred for compiler passes and round-tripping. Run with
   `make filecheck`.
-- Static type checking (pyright): Type checking of Python files to ensure type safety.
-  Configured in `pyproject.toml`. Run with `make pyright`.
 
-Before committing, make sure the following commands run successfully:
+## Pre-commit Checklist
 
-- `make tests`
-- `make precommit`
+To ensure code quality, please set up the git hooks to run checks automatically:
+
+```bash
+make precommit-install
+```
+
+If you prefer to run checks manually, or to verify before committing, run:
+
+- `make precommit` (for linting and formatting)
+- `make tests` (for logic and type safety)
