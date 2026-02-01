@@ -181,6 +181,28 @@ def parse_for_op_like(
     return lower_bound, upper_bound, step, iter_arg_operands, body
 
 
+def _print_func_outputs(
+    printer: Printer,
+    outputs: Sequence[Attribute],
+    res_attrs: ArrayAttr[DictionaryAttr] | None,
+):
+    if not outputs:
+        return
+    printer.print_string(" -> ")
+    needs_parens = len(outputs) > 1 or res_attrs is not None
+    if needs_parens:
+        printer.print_string("(")
+    if res_attrs is not None:
+        printer.print_list(
+            zip(outputs, res_attrs),
+            lambda t: print_func_output(printer, t[0], t[1]),
+        )
+    else:
+        printer.print_list(outputs, printer.print_attribute)
+    if needs_parens:
+        printer.print_string(")")
+
+
 def print_func_op_like(
     printer: Printer,
     sym_name: StringAttr,
@@ -195,48 +217,44 @@ def print_func_op_like(
 ):
     printer.print_string(" ")
     printer.print_symbol_name(sym_name.data)
-    if body.blocks:
-        with printer.in_parens():
-            block_args = body.blocks[0].args
-            if arg_attrs is not None:
-                printer.print_list(
-                    zip(block_args, arg_attrs),
-                    lambda arg_with_attrs: print_func_argument(
-                        printer, arg_with_attrs[0], arg_with_attrs[1]
-                    ),
-                )
-            else:
-                printer.print_list(block_args, printer.print_block_argument)
-            if is_variadic:
-                if block_args:
-                    printer.print_string(", ")
-                printer.print_string("...")
 
-        if function_type.outputs:
-            printer.print_string(" -> ")
-            if len(function_type.outputs) > 1 or res_attrs is not None:
-                printer.print_string("(")
-            if res_attrs is not None:
-                printer.print_list(
-                    zip(function_type.outputs, res_attrs),
-                    lambda arg_with_attrs: print_func_output(
-                        printer, arg_with_attrs[0], arg_with_attrs[1]
-                    ),
-                )
-            else:
-                printer.print_list(function_type.outputs, printer.print_attribute)
-            if len(function_type.outputs) > 1 or res_attrs is not None:
-                printer.print_string(")")
-    else:
-        assert not isinstance(function_type, tuple)
+    # Non-variadic declaration
+    if not body.blocks and not is_variadic:
         printer.print_attribute(function_type)
+        printer.print_op_attributes(
+            attributes, reserved_attr_names=reserved_attr_names, print_keyword=True
+        )
+        return
 
+    # Definition or variadic declaration
+    printer.print_string("(")
+    if body.blocks:
+        block_args = body.blocks[0].args
+        if arg_attrs is not None:
+            printer.print_list(
+                zip(block_args, arg_attrs),
+                lambda t: print_func_argument(printer, t[0], t[1]),
+            )
+        else:
+            printer.print_list(block_args, printer.print_block_argument)
+        has_args = bool(block_args)
+    else:
+        printer.print_list(function_type.inputs, printer.print_attribute)
+        has_args = bool(function_type.inputs)
+
+    if is_variadic:
+        if has_args:
+            printer.print_string(", ")
+        printer.print_string("...")
+    printer.print_string(")")
+
+    _print_func_outputs(printer, function_type.outputs.data, res_attrs)
     printer.print_op_attributes(
         attributes, reserved_attr_names=reserved_attr_names, print_keyword=True
     )
-    printer.print_string(" ", indent=0)
 
     if body.blocks:
+        printer.print_string(" ", indent=0)
         printer.print_region(body, False, False)
 
 

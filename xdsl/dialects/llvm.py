@@ -1785,33 +1785,12 @@ class FuncOp(IRDLOperation):
             printer.print_string(" ")
             printer.print_string(self.CConv.convention.data)
 
-        attrs = {**self.attributes, **self.properties}
-
-        if not self.body.blocks:
-            printer.print_string(" ")
-            printer.print_symbol_name(self.sym_name.data)
-            printer.print_string("(")
-            printer.print_list(self.function_type.inputs, printer.print_attribute)
-            if self.function_type.is_variadic:
-                if self.function_type.inputs:
-                    printer.print_string(", ")
-                printer.print_string("...")
-            printer.print_string(")")
-            if not isinstance(self.function_type.output, LLVMVoidType):
-                printer.print_string(" -> ")
-                printer.print_attribute(self.function_type.output)
-            printer.print_op_attributes(
-                attrs,
-                reserved_attr_names=FUNC_OP_RESERVED_ATTR_NAMES,
-                print_keyword=True,
-            )
-            return
-
         outputs = (
             []
             if isinstance(self.function_type.output, LLVMVoidType)
             else [self.function_type.output]
         )
+        attrs = {**self.attributes, **self.properties}
 
         print_func_op_like(
             printer,
