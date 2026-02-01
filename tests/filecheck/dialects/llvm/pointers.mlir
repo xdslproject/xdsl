@@ -11,10 +11,8 @@ builtin.module {
   %8 = "llvm.load"(%4) <{"alignment" = 16 : i64}> : (!llvm.ptr) -> index
   %9 = "llvm.load"(%4) <{"alignment" = 32 : i64, "ordering" = 1 : i64}> : (!llvm.ptr) -> index
 
-  // Test GEP with inbounds flag
   %10 = "llvm.getelementptr"(%4) <{elem_type = i32, noWrapFlags = 0 : i32, rawConstantIndices = array<i32: 0>, inbounds}> : (!llvm.ptr) -> !llvm.ptr
 
-  // Test pointer with address space
   %ptr_addrspace = "llvm.alloca"(%0) {"alignment" = 8 : i64} : (i64) -> !llvm.ptr<1>
 }
 

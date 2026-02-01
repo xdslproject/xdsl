@@ -1858,7 +1858,7 @@ class ConstantOp(IRDLOperation):
         attr = parser.parse_optional_attribute()
         if attr:
             return attr
-        return IntegerAttr(parser.parse_integer(), 64)
+        return parser.parse_attribute()
 
     @classmethod
     def parse(cls, parser: Parser):

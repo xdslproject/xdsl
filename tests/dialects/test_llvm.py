@@ -2,11 +2,14 @@ from io import StringIO
 
 import pytest
 
+from xdsl.context import Context
 from xdsl.dialects import arith, builtin, llvm, test
 from xdsl.dialects.builtin import UnitAttr, i32
+from xdsl.dialects.llvm import parse_optional_llvm_type
 from xdsl.ir import Attribute, Block, Region
+from xdsl.parser import Parser
 from xdsl.printer import Printer
-from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.exceptions import ParseError, VerifyException
 from xdsl.utils.test_value import create_ssa_value
 
 
@@ -612,3 +615,329 @@ def test_fpext_op():
 
     assert fpext.arg == val
     assert fpext.result.type == builtin.f64
+
+
+def test_gep_op_defaults():
+    size = arith.ConstantOp.from_int_and_width(1, 32)
+    ptr = llvm.AllocaOp(size, builtin.i32)
+    ptr_type = llvm.LLVMPointerType()
+
+    op = llvm.GEPOp(ptr, indices=[0], pointee_type=builtin.i32, result_type=ptr_type)
+    assert len(op.ssa_indices) == 0
+
+
+def test_null_op_defaults():
+    op = llvm.NullOp()
+    assert isinstance(op.nullptr.type, llvm.LLVMPointerType)
+
+
+def test_global_op_str_args():
+    op = llvm.GlobalOp(builtin.i32, "my_global", "external", section=".text.custom")
+    assert op.sym_name.data == "my_global"
+    assert op.linkage.linkage.data == "external"
+    assert op.section.data == ".text.custom"
+
+
+def test_addressof_op_str_arg():
+    op = llvm.AddressOfOp("my_global", llvm.LLVMPointerType())
+    assert op.global_name.root_reference.data == "my_global"
+
+
+def test_func_op_conversions():
+    func_type = llvm.LLVMFunctionType([builtin.i32], builtin.i32)
+    op = llvm.FuncOp("my_func", func_type, visibility=1, sym_visibility="nested")
+    assert op.sym_name.data == "my_func"
+    assert op.visibility_.value.data == 1
+    assert op.properties["sym_visibility"].data == "nested"
+
+    op.verify()
+    op.print(Printer())
+
+
+def test_call_intrinsic_op_str():
+    op = llvm.CallIntrinsicOp(
+        "llvm.intr",
+        [],
+        [builtin.i32],
+        op_bundle_sizes=builtin.DenseArrayBase.from_list(builtin.i32, []),
+    )
+    assert op.intrin.data == "llvm.intr"
+
+
+def test_call_op_defaults():
+    op = llvm.CallOp("my_func", return_type=builtin.i32)
+    assert op.callee.root_reference.data == "my_func"
+
+    op_void = llvm.CallOp("void_func")
+    if op_void.returned is not None:
+        assert isinstance(op_void.returned.type, llvm.LLVMVoidType)
+    else:
+        assert len(op_void.results) == 0
+
+
+def test_float_arith_fastmath_str():
+    lhs = create_ssa_value(builtin.f32)
+    rhs = create_ssa_value(builtin.f32)
+    lhs = create_ssa_value(builtin.f32)
+    rhs = create_ssa_value(builtin.f32)
+    op = llvm.FAddOp(
+        lhs, rhs, fast_math=llvm.FastMathAttr((llvm.FastMathFlag.NO_NANS,))
+    )
+    assert op.fastmathFlags.data == (llvm.FastMathFlag.NO_NANS,)
+
+
+def test_parse_bare_llvm_types():
+    ctx = Context()
+    ctx.load_dialect(llvm.LLVM)
+
+    parser = Parser(ctx, "!llvm.struct<(ptr, array<2 x i32>, void)>")
+    t = parser.parse_attribute()
+
+    assert isinstance(t, llvm.LLVMStructType)
+    assert len(t.types.data) == 3
+    assert isinstance(t.types.data[0], llvm.LLVMPointerType)
+    assert isinstance(t.types.data[1], llvm.LLVMArrayType)
+    assert isinstance(t.types.data[2], llvm.LLVMVoidType)
+
+
+def test_integer_conversion_overflow_print():
+    arg = create_ssa_value(builtin.i64)
+    res_type = builtin.i32
+
+    res_type = builtin.i32
+    op = llvm.TruncOp(arg, res_type, overflow=llvm.OverflowAttr.from_int(1))
+
+    printer = Printer()
+    op.print(printer)
+    assert op.overflowFlags is not None
+
+
+def test_frame_pointer_kind_attr():
+    attr = llvm.FramePointerKindAttr(llvm.FramePointerKind.ALL)
+    assert attr.data == llvm.FramePointerKind.ALL
+
+    io = StringIO()
+    p = Printer(stream=io)
+    p.print_attribute(attr)
+    assert io.getvalue() == "#llvm.framePointerKind<all>"
+
+
+def test_tail_call_kind_attr():
+    attr = llvm.TailCallKindAttr(llvm.TailCallKind.TAIL)
+    assert attr.data == llvm.TailCallKind.TAIL
+
+    io = StringIO()
+    p = Printer(stream=io)
+    p.print_attribute(attr)
+    assert io.getvalue() == "#llvm.tailcallkind<tail>"
+
+
+def test_linkage_attr_parsing():
+    ctx = Context()
+    ctx.load_dialect(llvm.LLVM)
+
+    parser = Parser(ctx, "<external>")
+    attr = llvm.LinkageAttr.parse_parameters(parser)
+    assert attr[0].data == "external"
+
+    parser = Parser(ctx, '<"external">')
+    attr = llvm.LinkageAttr.parse_parameters(parser)
+    assert attr[0].data == "external"
+
+
+def test_fastmath_attr():
+    ctx = Context()
+    ctx.load_dialect(llvm.LLVM)
+
+    parser = Parser(ctx, "#llvm.fastmath<none>")
+    attr = parser.parse_attribute()
+    assert isinstance(attr, llvm.FastMathAttr)
+    assert attr.data == ()
+
+    parser = Parser(ctx, "#llvm.fastmath<fast>")
+    attr = parser.parse_attribute()
+    assert isinstance(attr, llvm.FastMathAttr)
+    assert len(attr.data) == len(llvm.FastMathFlag)
+
+    parser = Parser(ctx, "#llvm.fastmath<nnan, ninf>")
+    attr = parser.parse_attribute()
+    assert isinstance(attr, llvm.FastMathAttr)
+    assert llvm.FastMathFlag.NO_NANS in attr.data
+    assert llvm.FastMathFlag.NO_INFS in attr.data
+
+
+def test_zero_op():
+    op = llvm.ZeroOp(result_types=[llvm.LLVMPointerType()])
+    assert isinstance(op.res.type, llvm.LLVMPointerType)
+
+    io = StringIO()
+    p = Printer(stream=io)
+    op.print(p)
+    io = StringIO()
+    p = Printer(stream=io)
+    op.print(p)
+    op.verify()
+
+    assert op.name == "llvm.mlir.zero"
+
+
+def test_inline_asm_op_attributes():
+    op = llvm.InlineAsmOp(
+        "nop",
+        "",
+        [],
+        asm_dialect=1,
+        is_align_stack=True,
+        tail_call_kind=llvm.TailCallKindAttr(llvm.TailCallKind.TAIL),
+    )
+    assert op.asm_dialect.value.data == 1
+    assert op.is_align_stack is not None
+    assert op.tail_call_kind.data == llvm.TailCallKind.TAIL
+    op.verify()
+
+
+def test_llvm_type_parsing_fallback():
+    ctx = Context()
+    ctx.load_dialect(llvm.LLVM)
+
+    parser = Parser(ctx, "<(i32)>")
+    t = llvm.LLVMStructType.parse_parameters(parser)
+    assert t[1].data[0] == builtin.i32
+
+
+def test_llvm_function_type_init_array_attr():
+    inputs = builtin.ArrayAttr([builtin.i32])
+    output = builtin.i32
+    ft = llvm.LLVMFunctionType(inputs, output)
+    assert ft.inputs == inputs
+    assert ft.output == output
+
+
+def test_linkage_attr_string_attr_init():
+    s = builtin.StringAttr("external")
+    l = llvm.LinkageAttr(s)
+    assert l.linkage == s
+
+
+def test_null_op_explicit_ptr_type():
+    t = llvm.LLVMPointerType()
+    op = llvm.NullOp(ptr_type=t)
+    assert op.nullptr.type == t
+
+
+def test_global_op_explicit_attrs_init():
+    t = builtin.i32
+    sym = builtin.StringAttr("my_glob")
+    link = llvm.LinkageAttr("external")
+    sec = builtin.StringAttr(".text")
+
+    op = llvm.GlobalOp(global_type=t, sym_name=sym, linkage=link, section=sec)
+    assert op.sym_name == sym
+    assert op.linkage == link
+    assert op.section == sec
+
+
+def test_address_of_op_symbol_ref_init():
+    ref = builtin.SymbolRefAttr("my_glob")
+    res_t = llvm.LLVMPointerType()
+    op = llvm.AddressOfOp(global_name=ref, result_type=res_t)
+    assert op.global_name == ref
+
+
+def test_func_op_explicit_attrs_init():
+    ft = llvm.LLVMFunctionType([], llvm.LLVMVoidType())
+    sym = builtin.StringAttr("my_func")
+    vis = builtin.IntegerAttr(1, 64)
+    sym_vis = builtin.StringAttr("nested")
+
+    op = llvm.FuncOp(
+        sym_name=sym, function_type=ft, visibility=vis, sym_visibility=sym_vis
+    )
+    assert op.sym_name == sym
+    assert op.visibility_ == vis
+    assert op.sym_visibility == sym_vis
+
+
+def test_call_intrinsic_op_string_attr_init():
+    intr = builtin.StringAttr("llvm.intr")
+    op = llvm.CallIntrinsicOp(
+        intrin=intr,
+        args=[],
+        result_types=[],
+        op_bundle_sizes=builtin.DenseArrayBase.from_list(builtin.i32, []),
+    )
+    assert op.intrin == intr
+
+
+def test_call_op_symbol_ref_init():
+    callee = builtin.SymbolRefAttr("my_func")
+    op = llvm.CallOp(callee=callee)
+    assert op.callee == callee
+
+
+def test_constant_op_parsing_int():
+    ctx = Context()
+    ctx.load_dialect(llvm.LLVM)
+
+    parser = Parser(ctx, "(42) : i64")
+    op = llvm.ConstantOp.parse(parser)
+    assert isinstance(op.value, builtin.IntegerAttr)
+    assert op.value.value.data == 42
+
+
+def test_trunc_op_printing_no_overflow():
+    op = llvm.TruncOp(
+        create_ssa_value(builtin.i64), builtin.i32, overflow=llvm.OverflowAttr("none")
+    )
+
+    io = StringIO()
+    p = Printer(stream=io)
+    op.print(p)
+
+
+def test_explicit_parse_optional_llvm_type():
+    ctx = Context()
+
+    # Test valid LLVM type
+    p = Parser(ctx, "ptr")
+    res = parse_optional_llvm_type(p)
+    assert isinstance(res, llvm.LLVMPointerType)
+
+    # Test fallback to standard attribute
+    p = Parser(ctx, "i32")
+    res = parse_optional_llvm_type(p)
+    assert res == builtin.i32
+
+    # Test failure case
+    p = Parser(ctx, "")
+    res = parse_optional_llvm_type(p)
+    assert res is None
+
+
+def test_constant_op_missing_error():
+    ctx = Context()
+    ctx.load_dialect(llvm.LLVM)
+
+    parser = Parser(ctx, "() : i64")
+
+    with pytest.raises(ParseError):
+        llvm.ConstantOp.parse(parser)
+
+
+def test_trunc_op_property_missing_printing():
+    # Create Op with default properties
+    op = llvm.TruncOp(create_ssa_value(builtin.i64), builtin.i32)
+    if "overflowFlags" in op.properties:
+        del op.properties["overflowFlags"]
+
+    io = StringIO()
+    p = Printer(stream=io)
+    op.print(p)
+    assert "overflow" not in io.getvalue()
+
+    ctx = Context()
+    ctx.load_dialect(llvm.LLVM)
+
+    with pytest.raises(Exception, match="llvm.func only supports a single return type"):
+        parser = Parser(ctx, "@test() -> (i32, i32) { llvm.return }")
+        llvm.FuncOp.parse(parser)
