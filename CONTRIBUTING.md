@@ -52,8 +52,11 @@ The test and validation suite consists of:
 - Unit tests (pytest): Python tests in `tests/` (excluding `tests/filecheck`) for testing
   APIs and logic. Run with `make pytest`. Coverage can be checked with
   `make coverage && make coverage-report`.
-- Integration tests (lit): File-based tests in `tests/filecheck` using `FileCheck` to
-  verify tool output. Preferred for compiler passes and round-tripping. Run with
+- IR and Transformation tests (lit): File-based tests in `tests/filecheck` using
+  `filecheck` (a Python reimplementation of LLVM's FileCheck) to verify tool output.
+  These tests rely on the textual format to represent and construct IR. They are used to
+  test that custom format implementations print and parse in the expected way, and to
+  verify transformations such as pattern rewrites or passes. Run with
   `make filecheck`.
 
 ## Pre-commit Checklist
