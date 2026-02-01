@@ -16,7 +16,7 @@ def _():
     return (xmo,)
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo, xmo):
     from typing import Any
     from io import StringIO
@@ -171,7 +171,13 @@ def _(interact_x, interact_y, mo):
     challenge = mo.md(f"<br>\n### Exercise &nbsp; &nbsp;{check}\nAdjust the sliders such that: `10 * (x + y) = x * y`" +
                      f", &nbsp;&nbsp;&nbsp; {10*result_add} = {result_mul} &nbsp;&nbsp; {check}")
 
-    mo.vstack([code_examples, challenge])
+    hint = mo.md("""
+    /// details | Need a hint?
+
+    Set y to 30 (to the very right). Then play with the left slider.
+    """)
+
+    mo.vstack([code_examples, challenge, hint])
     return
 
 
@@ -266,7 +272,12 @@ def _():
 def _(arithmetic_module, lmo, mo):
     exp_output = lmo.interp(arithmetic_module)
     exp_check = "✅ " if exp_output == "38" else "❌"
-    mo.md(f"Interpreting the IR yields: {exp_output}\n### Exercise &nbsp;&nbsp; {exp_check} \nChange the expression to compute 38. &nbsp;&nbsp; {exp_check}")
+    exp_hint = """\n
+    /// details | Need a hint?
+
+        Set output to `y * z`. The interpreter will yield 35? Which value do you need to add to get to 38?
+        """
+    mo.md(f"Interpreting the IR yields: {exp_output}\n### Exercise &nbsp;&nbsp; {exp_check} \nChange the expression to compute 38. &nbsp;&nbsp; {exp_check}" + exp_hint)
     return
 
 
