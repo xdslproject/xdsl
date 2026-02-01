@@ -184,7 +184,7 @@ def parse_for_op_like(
 def print_func_op_like(
     printer: Printer,
     sym_name: StringAttr,
-    function_type: FunctionType | tuple[Sequence[Attribute], Sequence[Attribute]],
+    function_type: FunctionType,
     body: Region,
     attributes: dict[str, Attribute],
     *,
@@ -193,12 +193,6 @@ def print_func_op_like(
     reserved_attr_names: Sequence[str],
     is_variadic: bool = False,
 ):
-    outputs = (
-        function_type[1]
-        if isinstance(function_type, tuple)
-        else getattr(function_type, "outputs")
-    )
-
     printer.print_string(" ")
     printer.print_symbol_name(sym_name.data)
     if body.blocks:
@@ -218,20 +212,20 @@ def print_func_op_like(
                     printer.print_string(", ")
                 printer.print_string("...")
 
-        if outputs:
+        if function_type.outputs:
             printer.print_string(" -> ")
-            if len(outputs) > 1 or res_attrs is not None:
+            if len(function_type.outputs) > 1 or res_attrs is not None:
                 printer.print_string("(")
             if res_attrs is not None:
                 printer.print_list(
-                    zip(outputs, res_attrs),
+                    zip(function_type.outputs, res_attrs),
                     lambda arg_with_attrs: print_func_output(
                         printer, arg_with_attrs[0], arg_with_attrs[1]
                     ),
                 )
             else:
-                printer.print_list(outputs, printer.print_attribute)
-            if len(outputs) > 1 or res_attrs is not None:
+                printer.print_list(function_type.outputs, printer.print_attribute)
+            if len(function_type.outputs) > 1 or res_attrs is not None:
                 printer.print_string(")")
     else:
         assert not isinstance(function_type, tuple)

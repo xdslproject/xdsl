@@ -14,6 +14,7 @@ from xdsl.dialects.builtin import (
     ArrayAttr,
     DenseArrayBase,
     DictionaryAttr,
+    FunctionType,
     IntAttr,
     IntegerAttr,
     IntegerType,
@@ -1815,7 +1816,7 @@ class FuncOp(IRDLOperation):
         print_func_op_like(
             printer,
             self.sym_name,
-            (self.function_type.inputs.data, outputs),
+            FunctionType.from_lists(self.function_type.inputs.data, outputs),
             self.body,
             attrs,
             arg_attrs=self.arg_attrs,
