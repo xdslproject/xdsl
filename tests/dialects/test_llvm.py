@@ -635,6 +635,7 @@ def test_global_op_str_args():
     op = llvm.GlobalOp(builtin.i32, "my_global", "external", section=".text.custom")
     assert op.sym_name.data == "my_global"
     assert op.linkage.linkage.data == "external"
+    assert op.section is not None
     assert op.section.data == ".text.custom"
 
 
@@ -648,7 +649,9 @@ def test_func_op_conversions():
     op = llvm.FuncOp("my_func", func_type, visibility=1, sym_visibility="nested")
     assert op.sym_name.data == "my_func"
     assert op.visibility_.value.data == 1
-    assert op.properties["sym_visibility"].data == "nested"
+    sym_vis = op.properties["sym_visibility"]
+    assert isinstance(sym_vis, builtin.StringAttr)
+    assert sym_vis.data == "nested"
 
     op.verify()
     op.print(Printer())
@@ -666,6 +669,7 @@ def test_call_intrinsic_op_str():
 
 def test_call_op_defaults():
     op = llvm.CallOp("my_func", return_type=builtin.i32)
+    assert op.callee is not None
     assert op.callee.root_reference.data == "my_func"
 
     op_void = llvm.CallOp("void_func")
@@ -738,10 +742,12 @@ def test_linkage_attr_parsing():
 
     parser = Parser(ctx, "<external>")
     attr = llvm.LinkageAttr.parse_parameters(parser)
+    assert isinstance(attr[0], builtin.StringAttr)
     assert attr[0].data == "external"
 
     parser = Parser(ctx, '<"external">')
     attr = llvm.LinkageAttr.parse_parameters(parser)
+    assert isinstance(attr[0], builtin.StringAttr)
     assert attr[0].data == "external"
 
 
@@ -790,6 +796,7 @@ def test_inline_asm_op_attributes():
         is_align_stack=True,
         tail_call_kind=llvm.TailCallKindAttr(llvm.TailCallKind.TAIL),
     )
+    assert op.asm_dialect is not None
     assert op.asm_dialect.value.data == 1
     assert op.is_align_stack is not None
     assert op.tail_call_kind.data == llvm.TailCallKind.TAIL
@@ -881,8 +888,9 @@ def test_constant_op_parsing_int():
 
     parser = Parser(ctx, "(42) : i64")
     op = llvm.ConstantOp.parse(parser)
-    assert isinstance(op.value, builtin.IntegerAttr)
-    assert op.value.value.data == 42
+    op_value = op.value
+    assert isinstance(op_value, builtin.IntegerAttr)
+    assert op_value.value.data == 42
 
 
 def test_trunc_op_printing_no_overflow():
@@ -925,7 +933,6 @@ def test_constant_op_missing_error():
 
 
 def test_trunc_op_property_missing_printing():
-    # Create Op with default properties
     op = llvm.TruncOp(create_ssa_value(builtin.i64), builtin.i32)
     if "overflowFlags" in op.properties:
         del op.properties["overflowFlags"]
