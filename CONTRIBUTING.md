@@ -19,10 +19,19 @@ Follow these rules for all code changes in this repository:
   corrupt state.
 - Ask for forgiveness than permission: assume the existence of valid keys or attributes
   and catch exceptions if the assumption proves false. Use try and except statements.
-- Testing: Every new feature must be accompanied by unit tests.
+
+The test and validation suite consists of:
+
+- Unit tests (pytest): Python tests in `tests/` (excluding `tests/filecheck`) for testing
+  APIs and logic. Run with `make pytest`. Coverage can be checked with
+  `make coverage && make coverage-report`.
+- Integration tests (lit): File-based tests in `tests/filecheck` using `FileCheck` to
+  verify tool output. Preferred for compiler passes and round-tripping. Run with
+  `make filecheck`.
+- Static type checking (pyright): Type checking of Python files to ensure type safety.
+  Configured in `pyproject.toml`. Run with `make pyright`.
 
 Before committing, make sure the following commands run successfully:
 
-- `make precommit`
 - `make tests`
-- `make coverage && make coverage-report`
+- `make precommit`
