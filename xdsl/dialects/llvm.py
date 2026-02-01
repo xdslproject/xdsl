@@ -1751,6 +1751,14 @@ class FuncOp(IRDLOperation):
 
         function_type = LLVMFunctionType(input_types, return_type, is_variadic)
 
+        other_props: dict[str, Attribute | None] = {
+            **(extra_attrs.data if extra_attrs else {}),
+        }
+        if arg_attrs is not None:
+            other_props["arg_attrs"] = arg_attrs
+        if res_attrs is not None:
+            other_props["res_attrs"] = res_attrs
+
         return FuncOp(
             name,
             function_type,
@@ -1759,11 +1767,7 @@ class FuncOp(IRDLOperation):
             visibility=0,
             sym_visibility=visibility,
             body=region,
-            other_props={
-                **(extra_attrs.data if extra_attrs else {}),
-                "arg_attrs": arg_attrs,
-                "res_attrs": res_attrs,
-            },
+            other_props=other_props,
         )
 
     def print(self, printer: Printer):

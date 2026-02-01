@@ -948,3 +948,14 @@ def test_trunc_op_property_missing_printing():
     with pytest.raises(Exception, match="llvm.func only supports a single return type"):
         parser = Parser(ctx, "@test() -> (i32, i32) { llvm.return }")
         llvm.FuncOp.parse(parser)
+
+
+def test_func_op_parse_no_none_attrs():
+    ctx = Context()
+    ctx.load_dialect(llvm.LLVM)
+
+    parser = Parser(ctx, "@simple_func() { llvm.return }")
+    op = llvm.FuncOp.parse(parser)
+
+    assert "arg_attrs" not in op.properties
+    assert "res_attrs" not in op.properties
