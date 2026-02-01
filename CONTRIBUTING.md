@@ -17,7 +17,7 @@ We aim to follow these rules for all changes in this repository:
   pure logic.
 - Fail Fast: Detect unexpected conditions immediately. Raise Exceptions rather than
   corrupt state.
-- [Ask for forgiveness than permission](https://docs.python.org/2/glossary.html#term-eafp):
+- [Ask for forgiveness not permission](https://docs.python.org/2/glossary.html#term-eafp):
   assume the existence of valid keys or attributes and catch exceptions if the assumption
   proves false. Use try and except statements.
 
