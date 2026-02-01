@@ -20,6 +20,18 @@ We aim to follow these rules for all changes in this repository:
 - [Ask for forgiveness than permission](https://docs.python.org/2/glossary.html#term-eafp):
   assume the existence of valid keys or attributes and catch exceptions if the assumption
   proves false. Use try and except statements.
+  ```Python
+  # Good
+  try:
+      return mapping[key]
+  except KeyError:
+      return default_value
+
+  # Bad
+  if key in mapping:
+      return mapping[key]
+  return default_value
+  ```
 
 The test and validation suite consists of:
 
