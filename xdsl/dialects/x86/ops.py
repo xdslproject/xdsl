@@ -32,7 +32,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from collections.abc import Set as AbstractSet
 from io import StringIO
-from typing import IO, ClassVar, Generic, Literal, cast
+from typing import IO, ClassVar, Generic, Literal, TypeAlias, cast
 
 from typing_extensions import Self, TypeVar
 
@@ -43,7 +43,6 @@ from xdsl.backend.register_allocatable import (
 )
 from xdsl.backend.register_type import RegisterAllocatedMemoryEffect
 from xdsl.dialects.builtin import (
-    I32,
     ArrayAttr,
     IntegerAttr,
     IntegerType,
@@ -51,8 +50,6 @@ from xdsl.dialects.builtin import (
     Signedness,
     StringAttr,
     UnitAttr,
-    i32,
-    i64,
 )
 from xdsl.ir import (
     Attribute,
@@ -121,6 +118,14 @@ R2InvT = TypeVar("R2InvT", bound=X86RegisterType)
 R3InvT = TypeVar("R3InvT", bound=X86RegisterType)
 R4InvT = TypeVar("R4InvT", bound=X86RegisterType)
 
+SI64: TypeAlias = IntegerType[Literal[64], Literal[Signedness.SIGNED]]
+SI32: TypeAlias = IntegerType[Literal[32], Literal[Signedness.SIGNED]]
+si64: SI64 = IntegerType(64, Signedness.SIGNED)
+si32: SI32 = IntegerType(32, Signedness.SIGNED)
+
+UI8: TypeAlias = IntegerType[Literal[8], Literal[Signedness.UNSIGNED]]
+ui8: UI8 = IntegerType(8, Signedness.UNSIGNED)
+
 
 class X86AsmOperation(IRDLOperation, OneLineAssemblyPrintable, ABC):
     """
@@ -163,7 +168,7 @@ class X86CustomFormatOperation(IRDLOperation, ABC):
 
     @classmethod
     def parse_optional_memory_access_offset(
-        cls, parser: Parser, integer_type: IntegerType = i64
+        cls, parser: Parser, integer_type: IntegerType = si64
     ) -> Attribute | None:
         return parse_optional_immediate_value(
             parser,
@@ -565,20 +570,20 @@ class DI_Operation(X86Instruction, X86CustomFormatOperation, ABC, Generic[R1InvT
     value.
     """
 
-    immediate = attr_def(IntegerAttr)
+    # In the future, we should look into the legal bitwidths in the binary
+    # representation.
+    immediate = attr_def(IntegerAttr[SI32])
     destination = result_def(R1InvT)
 
     def __init__(
         self,
-        immediate: int | IntegerAttr,
+        immediate: int | IntegerAttr[SI32],
         *,
         comment: str | StringAttr | None = None,
         destination: R1InvT,
     ):
         if isinstance(immediate, int):
-            immediate = IntegerAttr(
-                immediate, 32
-            )  # the default immediate size is 32 bits
+            immediate = IntegerAttr(immediate, si32)
         if isinstance(comment, str):
             comment = StringAttr(comment)
 
@@ -595,11 +600,7 @@ class DI_Operation(X86Instruction, X86CustomFormatOperation, ABC, Generic[R1InvT
 
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
-        return {
-            "immediate": parse_immediate_value(
-                parser, IntegerType(32, Signedness.SIGNED)
-            )
-        }
+        return {"immediate": parse_immediate_value(parser, si32)}
 
     def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
         printer.print_string(" ", indent=0)
@@ -616,20 +617,20 @@ class RI_Operation(X86Instruction, X86CustomFormatOperation, ABC, Generic[R1InvT
     register_in = operand_def(R1InvT)
     register_out = result_def(R1InvT)
 
-    immediate = attr_def(IntegerAttr)
+    # In the future, we should look into the legal bitwidths in the binary
+    # representation.
+    immediate = attr_def(IntegerAttr[SI32])
 
     def __init__(
         self,
         register_in: Operation | SSAValue,
-        immediate: int | IntegerAttr,
+        immediate: int | IntegerAttr[SI32],
         *,
         comment: str | StringAttr | None = None,
         register_out: R1InvT | None = None,
     ):
         if isinstance(immediate, int):
-            immediate = IntegerAttr(
-                immediate, 32
-            )  # the default immediate size is 32 bits
+            immediate = IntegerAttr(immediate, si32)
         if isinstance(comment, str):
             comment = StringAttr(comment)
         register_in = SSAValue.get(register_in)
@@ -651,9 +652,7 @@ class RI_Operation(X86Instruction, X86CustomFormatOperation, ABC, Generic[R1InvT
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
-        temp = parse_optional_immediate_value(
-            parser, IntegerType(32, Signedness.SIGNED)
-        )
+        temp = parse_optional_immediate_value(parser, si32)
         if temp is not None:
             attributes["immediate"] = temp
         return attributes
@@ -741,25 +740,25 @@ class MI_Operation(X86Instruction, X86CustomFormatOperation, ABC, Generic[R1InvT
     """
 
     memory = operand_def(R1InvT)
-    memory_offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
-    immediate = attr_def(IntegerAttr)
+    # In the future, we should look into the legal bitwidths in the binary
+    # representation.
+    memory_offset = attr_def(IntegerAttr[SI64], default_value=IntegerAttr(0, si64))
+    immediate = attr_def(IntegerAttr[SI32])
 
     traits = traits_def(MemoryReadEffect(), MemoryWriteEffect())
 
     def __init__(
         self,
         memory: Operation | SSAValue,
-        memory_offset: int | IntegerAttr,
-        immediate: int | IntegerAttr,
+        memory_offset: int | IntegerAttr[SI64],
+        immediate: int | IntegerAttr[SI32],
         *,
         comment: str | StringAttr | None = None,
     ):
         if isinstance(immediate, int):
-            immediate = IntegerAttr(
-                immediate, 32
-            )  # the default immediate size is 32 bits
+            immediate = IntegerAttr(immediate, si32)
         if isinstance(memory_offset, int):
-            memory_offset = IntegerAttr(memory_offset, 64)
+            memory_offset = IntegerAttr(memory_offset, si64)
         if isinstance(comment, str):
             comment = StringAttr(comment)
 
@@ -781,7 +780,7 @@ class MI_Operation(X86Instruction, X86CustomFormatOperation, ABC, Generic[R1InvT
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
-        temp = parse_immediate_value(parser, IntegerType(64, Signedness.SIGNED))
+        temp = parse_immediate_value(parser, si32)
         attributes["immediate"] = temp
         if parser.parse_optional_punctuation(",") is not None:
             if offset := cls.parse_optional_memory_access_offset(parser):
@@ -807,20 +806,20 @@ class DSI_Operation(
 
     destination = result_def(R1InvT)
     source = operand_def(R2InvT)
-    immediate = attr_def(IntegerAttr)
+    # In the future, we should look into the legal bitwidths in the binary
+    # representation.
+    immediate = attr_def(IntegerAttr[SI32])
 
     def __init__(
         self,
         source: Operation | SSAValue,
-        immediate: int | IntegerAttr,
+        immediate: int | IntegerAttr[SI32],
         *,
         comment: str | StringAttr | None = None,
         destination: R1InvT,
     ):
         if isinstance(immediate, int):
-            immediate = IntegerAttr(
-                immediate, 32
-            )  # the default immediate size is 32 bits
+            immediate = IntegerAttr(immediate, si32)
         if isinstance(comment, str):
             comment = StringAttr(comment)
 
@@ -839,7 +838,7 @@ class DSI_Operation(
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
-        temp = parse_immediate_value(parser, IntegerType(32, Signedness.SIGNED))
+        temp = parse_immediate_value(parser, si32)
         attributes["immediate"] = temp
         return attributes
 
@@ -859,25 +858,25 @@ class DMI_Operation(
 
     destination = result_def(R1InvT)
     memory = operand_def(R2InvT)
-    memory_offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
-    immediate = attr_def(IntegerAttr)
+    # In the future, we should look into the legal bitwidths in the binary
+    # representation.
+    memory_offset = attr_def(IntegerAttr[SI64], default_value=IntegerAttr(0, si64))
+    immediate = attr_def(IntegerAttr[SI32])
     traits = traits_def(MemoryReadEffect())
 
     def __init__(
         self,
         memory: Operation | SSAValue,
-        immediate: int | IntegerAttr,
-        memory_offset: int | IntegerAttr,
+        immediate: int | IntegerAttr[SI32],
+        memory_offset: int | IntegerAttr[SI64],
         *,
         comment: str | StringAttr | None = None,
         destination: R1InvT,
     ):
         if isinstance(immediate, int):
-            immediate = IntegerAttr(
-                immediate, 32
-            )  # the default immediate size is 32 bits
+            immediate = IntegerAttr(immediate, si32)
         if isinstance(memory_offset, int):
-            memory_offset = IntegerAttr(memory_offset, 64)
+            memory_offset = IntegerAttr(memory_offset, si64)
         if isinstance(comment, str):
             comment = StringAttr(comment)
 
@@ -900,7 +899,7 @@ class DMI_Operation(
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
-        temp = parse_immediate_value(parser, IntegerType(64, Signedness.SIGNED))
+        temp = parse_immediate_value(parser, si32)
         attributes["immediate"] = temp
         if parser.parse_optional_punctuation(",") is not None:
             if offset := cls.parse_optional_memory_access_offset(parser):
@@ -922,20 +921,20 @@ class M_Operation(X86Instruction, X86CustomFormatOperation, ABC, Generic[R1InvT]
     """
 
     memory = operand_def(R1InvT)
-    memory_offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
+    memory_offset = attr_def(IntegerAttr[SI64], default_value=IntegerAttr(0, si64))
     traits = traits_def(MemoryWriteEffect(), MemoryReadEffect())
 
     def __init__(
         self,
         memory: Operation | SSAValue,
-        memory_offset: int | IntegerAttr,
+        memory_offset: int | IntegerAttr[SI64],
         *,
         comment: str | StringAttr | None = None,
     ):
         if isinstance(comment, str):
             comment = StringAttr(comment)
         if isinstance(memory_offset, int):
-            memory_offset = IntegerAttr(memory_offset, 64)
+            memory_offset = IntegerAttr(memory_offset, si64)
 
         super().__init__(
             operands=[memory],
@@ -1254,7 +1253,7 @@ class RSM_Operation(
     register_out = result_def(R1InvT)
     source1 = operand_def(R2InvT)
     memory = operand_def(R4InvT)
-    memory_offset = attr_def(IntegerAttr[I32], default_value=IntegerAttr(0, 32))
+    memory_offset = attr_def(IntegerAttr[SI64], default_value=IntegerAttr(0, si64))
 
     traits = traits_def(MemoryReadEffect())
 
@@ -1263,13 +1262,13 @@ class RSM_Operation(
         register_in: SSAValue[R1InvT],
         source1: Operation | SSAValue,
         memory: Operation | SSAValue,
-        memory_offset: int | IntegerAttr[I32],
+        memory_offset: int | IntegerAttr[SI64],
         *,
         comment: str | StringAttr | None = None,
         register_out: R1InvT | None = None,
     ):
         if isinstance(memory_offset, int):
-            memory_offset = IntegerAttr[I32](memory_offset, 32)
+            memory_offset = IntegerAttr(memory_offset, si64)
         if isinstance(comment, str):
             comment = StringAttr(comment)
 
@@ -1294,7 +1293,7 @@ class RSM_Operation(
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
-        if offset := cls.parse_optional_memory_access_offset(parser, i32):
+        if offset := cls.parse_optional_memory_access_offset(parser):
             attributes["memory_offset"] = offset
         return attributes
 
@@ -1320,22 +1319,19 @@ class DSSI_Operation(
     destination = result_def(R1InvT)
     source0 = operand_def(R2InvT)
     source1 = operand_def(R3InvT)
-    immediate = attr_def(IntegerAttr[IntegerType[8]])
+    immediate = attr_def(IntegerAttr[UI8])
 
     def __init__(
         self,
         source0: Operation | SSAValue,
         source1: Operation | SSAValue,
-        immediate: int
-        | IntegerAttr[IntegerType[Literal[8], Literal[Signedness.UNSIGNED]]],
+        immediate: int | IntegerAttr[UI8],
         *,
         comment: str | StringAttr | None = None,
         destination: R1InvT,
     ):
         if isinstance(immediate, int):
-            immediate = IntegerAttr(
-                immediate, IntegerType[8, Signedness.UNSIGNED](8, Signedness.UNSIGNED)
-            )
+            immediate = IntegerAttr(immediate, ui8)
         if isinstance(comment, str):
             comment = StringAttr(comment)
 
@@ -1354,7 +1350,7 @@ class DSSI_Operation(
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
-        temp = parse_immediate_value(parser, IntegerType(8, Signedness.UNSIGNED))
+        temp = parse_immediate_value(parser, ui8)
         attributes["immediate"] = temp
         return attributes
 
@@ -2240,9 +2236,7 @@ class M_PopOp(X86Instruction, X86CustomFormatOperation):
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
-        temp = parse_optional_immediate_value(
-            parser, IntegerType(64, Signedness.SIGNED)
-        )
+        temp = parse_optional_immediate_value(parser, si64)
         if temp is not None:
             attributes["memory_offset"] = temp
         return attributes
@@ -2418,9 +2412,7 @@ class M_ImulOp(X86Instruction, X86CustomFormatOperation):
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
-        temp = parse_optional_immediate_value(
-            parser, IntegerType(64, Signedness.SIGNED)
-        )
+        temp = parse_optional_immediate_value(parser, si64)
         if temp is not None:
             attributes["memory_offset"] = temp
         return attributes
@@ -2797,9 +2789,7 @@ class SM_CmpOp(X86Instruction, X86CustomFormatOperation):
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
-        temp = parse_optional_immediate_value(
-            parser, IntegerType(64, Signedness.SIGNED)
-        )
+        temp = parse_optional_immediate_value(parser, si64)
         if temp is not None:
             attributes["memory_offset"] = temp
         return attributes
@@ -2822,19 +2812,19 @@ class SI_CmpOp(X86Instruction, X86CustomFormatOperation):
     name = "x86.si.cmp"
 
     source = operand_def(GeneralRegisterType)
-    immediate = attr_def(IntegerAttr)
+    immediate = attr_def(IntegerAttr[SI32])
 
     result = result_def(RFLAGS)
 
     def __init__(
         self,
         source: Operation | SSAValue,
-        immediate: int | IntegerAttr,
+        immediate: int | IntegerAttr[SI32],
         *,
         comment: str | StringAttr | None = None,
     ):
         if isinstance(immediate, int):
-            immediate = IntegerAttr(immediate, 32)
+            immediate = IntegerAttr(immediate, si32)
         if isinstance(comment, str):
             comment = StringAttr(comment)
 
@@ -2853,7 +2843,7 @@ class SI_CmpOp(X86Instruction, X86CustomFormatOperation):
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
-        temp = parse_immediate_value(parser, IntegerType(32, Signedness.SIGNED))
+        temp = parse_immediate_value(parser, si32)
         attributes["immediate"] = temp
         return attributes
 
@@ -2912,9 +2902,7 @@ class MS_CmpOp(X86Instruction, X86CustomFormatOperation):
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
-        temp = parse_optional_immediate_value(
-            parser, IntegerType(64, Signedness.SIGNED)
-        )
+        temp = parse_optional_immediate_value(parser, si64)
         if temp is not None:
             attributes["memory_offset"] = temp
         return attributes
@@ -2937,8 +2925,8 @@ class MI_CmpOp(X86Instruction, X86CustomFormatOperation):
     name = "x86.mi.cmp"
 
     memory = operand_def(GeneralRegisterType)
-    memory_offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
-    immediate = attr_def(IntegerAttr)
+    memory_offset = attr_def(IntegerAttr[SI64], default_value=IntegerAttr(0, si64))
+    immediate = attr_def(IntegerAttr[SI32])
 
     result = result_def(RFLAGSRegisterType)
 
@@ -2947,18 +2935,16 @@ class MI_CmpOp(X86Instruction, X86CustomFormatOperation):
     def __init__(
         self,
         memory: Operation | SSAValue,
-        memory_offset: int | IntegerAttr,
-        immediate: int | IntegerAttr,
+        memory_offset: int | IntegerAttr[SI64],
+        immediate: int | IntegerAttr[SI32],
         *,
         comment: str | StringAttr | None = None,
         result: RFLAGSRegisterType,
     ):
         if isinstance(immediate, int):
-            immediate = IntegerAttr(
-                immediate, 32
-            )  # the default immediate size is 32 bits
+            immediate = IntegerAttr(immediate, si32)
         if isinstance(memory_offset, int):
-            memory_offset = IntegerAttr(memory_offset, 64)
+            memory_offset = IntegerAttr(memory_offset, si64)
         if isinstance(comment, str):
             comment = StringAttr(comment)
 
@@ -2980,12 +2966,10 @@ class MI_CmpOp(X86Instruction, X86CustomFormatOperation):
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
         attributes = dict[str, Attribute]()
-        temp = parse_immediate_value(parser, IntegerType(64, Signedness.SIGNED))
+        temp = parse_immediate_value(parser, si32)
         attributes["immediate"] = temp
         if parser.parse_optional_punctuation(",") is not None:
-            temp2 = parse_optional_immediate_value(
-                parser, IntegerType(32, Signedness.SIGNED)
-            )
+            temp2 = parse_optional_immediate_value(parser, si64)
             if temp2 is not None:
                 attributes["memory_offset"] = temp2
         return attributes
