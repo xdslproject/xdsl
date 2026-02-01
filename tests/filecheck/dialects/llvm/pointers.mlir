@@ -10,6 +10,10 @@ builtin.module {
   %5 = "llvm.load"(%4) : (!llvm.ptr) -> index
   %8 = "llvm.load"(%4) <{"alignment" = 16 : i64}> : (!llvm.ptr) -> index
   %9 = "llvm.load"(%4) <{"alignment" = 32 : i64, "ordering" = 1 : i64}> : (!llvm.ptr) -> index
+
+  %10 = "llvm.getelementptr"(%4) <{elem_type = i32, noWrapFlags = 0 : i32, rawConstantIndices = array<i32: 0>, inbounds}> : (!llvm.ptr) -> !llvm.ptr
+
+  %ptr_addrspace = "llvm.alloca"(%0) {"alignment" = 8 : i64} : (i64) -> !llvm.ptr<1>
 }
 
 // CHECK:       builtin.module {
@@ -23,4 +27,6 @@ builtin.module {
 // CHECK-NEXT:    %7 = "llvm.load"(%3) <{ordering = 0 : i64}> : (!llvm.ptr) -> index
 // CHECK-NEXT:    %8 = "llvm.load"(%3) <{alignment = 16 : i64, ordering = 0 : i64}> : (!llvm.ptr) -> index
 // CHECK-NEXT:    %9 = "llvm.load"(%3) <{alignment = 32 : i64, ordering = 1 : i64}> : (!llvm.ptr) -> index
+// CHECK-NEXT:    %10 = "llvm.getelementptr"(%3) <{elem_type = i32, noWrapFlags = 0 : i32, rawConstantIndices = array<i32: 0>, inbounds}> : (!llvm.ptr) -> !llvm.ptr
+// CHECK-NEXT:    %ptr_addrspace = "llvm.alloca"(%0) <{alignment = 8 : i64}> : (i64) -> !llvm.ptr<1>
 // CHECK-NEXT:  }

@@ -14,6 +14,7 @@ from xdsl.dialects.builtin import (
     ArrayAttr,
     DenseArrayBase,
     DictionaryAttr,
+    FunctionType,
     IntAttr,
     IntegerAttr,
     IntegerType,
@@ -28,7 +29,12 @@ from xdsl.dialects.builtin import (
     i32,
     i64,
 )
-from xdsl.dialects.utils import FastMathAttrBase, FastMathFlag
+from xdsl.dialects.utils import (
+    FastMathAttrBase,
+    FastMathFlag,
+    parse_func_op_like,
+    print_func_op_like,
+)
 from xdsl.ir import (
     Attribute,
     BitEnumAttribute,
@@ -288,6 +294,21 @@ class LLVMFunctionType(ParametrizedAttribute, TypeAttribute):
         return [ArrayAttr(inputs), output, is_varargs]
 
 
+LINKAGE_OPTIONS = [
+    "private",
+    "internal",
+    "available_externally",
+    "linkonce",
+    "weak",
+    "common",
+    "appending",
+    "extern_weak",
+    "linkonce_odr",
+    "weak_odr",
+    "external",
+]
+
+
 @irdl_attr_definition
 class LinkageAttr(ParametrizedAttribute):
     name = "llvm.linkage"
@@ -318,20 +339,7 @@ class LinkageAttr(ParametrizedAttribute):
         return [linkage]
 
     def verify(self):
-        allowed_linkage = [
-            "private",
-            "internal",
-            "available_externally",
-            "linkonce",
-            "weak",
-            "common",
-            "appending",
-            "extern_weak",
-            "linkonce_odr",
-            "weak_odr",
-            "external",
-        ]
-        if self.linkage.data not in allowed_linkage:
+        if self.linkage.data not in LINKAGE_OPTIONS:
             raise VerifyException(f"Specified linkage '{self.linkage.data}' is unknown")
 
 
@@ -1626,6 +1634,18 @@ class TargetFeaturesAttr(ParametrizedAttribute):
                 raise VerifyException("target features must start with '+' or '-'")
 
 
+FUNC_OP_RESERVED_ATTR_NAMES = (
+    "sym_name",
+    "function_type",
+    "sym_visibility",
+    "arg_attrs",
+    "res_attrs",
+    "linkage",
+    "CConv",
+    "visibility_",
+)
+
+
 @irdl_op_definition
 class FuncOp(IRDLOperation):
     name = "llvm.func"
@@ -1641,6 +1661,7 @@ class FuncOp(IRDLOperation):
     # The following properties are not yet verified by the xDSL verifier, but
     # are verified to at least allow the IR to be parsed and printed correctly.
     arg_attrs = opt_prop_def(ArrayAttr[DictionaryAttr])
+    res_attrs = opt_prop_def(ArrayAttr[DictionaryAttr])
     frame_pointer = opt_prop_def(FramePointerKindAttr)
     no_inline = opt_prop_def(UnitAttr)
     no_unwind = opt_prop_def(UnitAttr)
@@ -1687,6 +1708,102 @@ class FuncOp(IRDLOperation):
             properties=properties,
         )
 
+    @classmethod
+    def parse(cls, parser: Parser) -> FuncOp:
+        visibility = parser.parse_optional_visibility_keyword()
+        linkage = None
+        for l in LINKAGE_OPTIONS:
+            if parser.parse_optional_keyword(l):
+                linkage = l
+                break
+
+        cconv = None
+        for c in LLVM_CALLING_CONVS:
+            if parser.parse_optional_keyword(c):
+                cconv = c
+                break
+
+        (
+            name,
+            input_types,
+            return_types,
+            region,
+            extra_attrs,
+            arg_attrs,
+            res_attrs,
+            is_variadic,
+        ) = parse_func_op_like(
+            parser,
+            reserved_attr_names=FUNC_OP_RESERVED_ATTR_NAMES,
+            allow_variadic=True,
+        )
+
+        return_type: Attribute
+        if len(return_types) == 0:
+            return_type = LLVMVoidType()
+        elif len(return_types) == 1:
+            return_type = return_types[0]
+        else:
+            parser.raise_error(
+                "llvm.func only supports a single return type (or void)",
+                parser.pos,
+                parser.pos,
+            )
+
+        function_type = LLVMFunctionType(input_types, return_type, is_variadic)
+
+        other_props: dict[str, Attribute | None] = {
+            **(extra_attrs.data if extra_attrs else {}),
+        }
+        if arg_attrs is not None:
+            other_props["arg_attrs"] = arg_attrs
+        if res_attrs is not None:
+            other_props["res_attrs"] = res_attrs
+
+        return FuncOp(
+            name,
+            function_type,
+            LinkageAttr(linkage) if linkage else LinkageAttr("external"),
+            CallingConventionAttr(cconv) if cconv else CallingConventionAttr("ccc"),
+            visibility=0,
+            sym_visibility=visibility,
+            body=region,
+            other_props=other_props,
+        )
+
+    def print(self, printer: Printer):
+        if self.sym_visibility:
+            visibility = self.sym_visibility.data
+            printer.print_string(" ")
+            printer.print_string(visibility)
+
+        if self.linkage.linkage.data != "external":
+            printer.print_string(" ")
+            printer.print_string(self.linkage.linkage.data)
+
+        if self.CConv.convention.data != "ccc":
+            printer.print_string(" ")
+            printer.print_string(self.CConv.convention.data)
+
+        outputs = (
+            []
+            if isinstance(self.function_type.output, LLVMVoidType)
+            else [self.function_type.output]
+        )
+        attrs = {**self.attributes, **self.properties}
+
+        print_func_op_like(
+            printer,
+            self.sym_name,
+            FunctionType.from_lists(self.function_type.inputs.data, outputs),
+            self.body,
+            attrs,
+            arg_attrs=self.arg_attrs,
+            res_attrs=self.res_attrs,
+            reserved_attr_names=FUNC_OP_RESERVED_ATTR_NAMES,
+            is_variadic=self.function_type.is_variadic,
+        )
+
 
 @irdl_op_definition
 class ReturnOp(IRDLOperation):
@@ -1695,6 +1812,8 @@ class ReturnOp(IRDLOperation):
     """
 
     name = "llvm.return"
+
+    assembly_format = "($arg^ `:` type($arg))? attr-dict"
 
     arg = opt_operand_def(Attribute)
 
@@ -1723,7 +1842,7 @@ class ConstantOp(IRDLOperation):
         attr = parser.parse_optional_attribute()
         if attr:
             return attr
-        return IntegerAttr(parser.parse_integer(), 64)
+        return parser.parse_attribute()
 
     @classmethod
     def parse(cls, parser: Parser):
