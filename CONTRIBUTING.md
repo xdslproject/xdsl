@@ -1,6 +1,6 @@
 # Code Style Guidelines
 
-Follow these rules for all code changes in this repository:
+We aim to follow these rules for all changes in this repository:
 
 - Match existing code style and architectural patterns.
 - Zero Technical Debt: Fix issues immediately. Never rely on future refactoring.
