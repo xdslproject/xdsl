@@ -1204,9 +1204,10 @@ class EmitC_LoadOp(IRDLOperation):
         ):
         op_type = op.type
         assert(isinstance(op_type, EmitC_LValueType))
+        res_type = op_type.value_type
         super().__init__(
             operands=[op],
-            result_types=[op_type]
+            result_types=[res_type]
             )
 
 
