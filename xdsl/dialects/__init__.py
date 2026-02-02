@@ -104,9 +104,9 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         return DMP
 
     def get_ematch():
-        from xdsl.dialects.ematch import EMatch
+        from xdsl.dialects.ematch import Ematch
 
-        return EMatch
+        return Ematch
 
     def get_emitc():
         from xdsl.dialects.emitc import EmitC

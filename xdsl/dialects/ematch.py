@@ -140,7 +140,7 @@ class DedupOp(IRDLOperation):
         )
 
 
-EMatch = Dialect(
+Ematch = Dialect(
     "ematch",
     [
         GetClassValsOp,
