@@ -1195,18 +1195,19 @@ class EmitC_LoadOp(IRDLOperation):
     operand = operand_def(EmitC_LValueType)
     result = result_def(EmitCTypeConstr)
 
+    irdl_options = (ParsePropInAttrDict(),)
+
     #assembly_format = "$operand attr-dict `:` type($operand)"
 
-    def verify_(self):
-        op_type = self.operand.type
-        res_type = self.result.type
-
-        assert isinstance(op_type, EmitC_LValueType)
-
-        val_type = op_type.value_type
-
-        if val_type != res_type:
-            raise VerifyException("result type does not match the value type of operand")
+    def __init__(self,
+        op: SSAValue
+        ):
+        op_type = op.type
+        assert(isinstance(op_type, EmitC_LValueType))
+        super().__init__(
+            operands=[op],
+            result_types=[op_type]
+            )
 
 
 @irdl_op_definition
