@@ -315,6 +315,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return eqsat_extract.EqsatExtractPass
 
+    def get_approximate_math_with_bitcast():
+        from xdsl.transforms import approximate_math_with_bitcast
+
+        return approximate_math_with_bitcast.BitcastApproximation
+
     def get_frontend_desymrefy():
         from xdsl.transforms.desymref import FrontendDesymrefyPass
 
@@ -655,6 +660,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "apply-eqsat-pdl-interp": get_apply_eqsat_pdl_interp,
         "apply-pdl": get_apply_pdl,
         "apply-pdl-interp": get_apply_pdl_interp,
+        "approximate-math-with-bitcast": get_approximate_math_with_bitcast,
         "arith-add-fastmath": get_arith_add_fastmath,
         "canonicalize-dmp": get_canonicalize_dmp,
         "canonicalize": get_canonicalize,
