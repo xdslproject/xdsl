@@ -804,14 +804,10 @@ def _get_position_operation_dependencies(pos: Position) -> set[OperationPosition
 
         # Get the base operation and all ancestors
         op = current.get_base_operation()
-        while op:
+        while op is not None:
             operations.add(op)
-            if op.parent:
-                parent_op = op.parent.get_base_operation()
-                if parent_op:
-                    op = parent_op
-                else:
-                    break
+            if op.parent is not None:
+                op = op.parent.get_base_operation()
             else:
                 break
 
@@ -863,12 +859,10 @@ class OperationPositionTree:
             predicate_dependencies.append(pattern_pred_deps)
 
         # Build pattern_operations by taking union of all predicate dependencies
-        pattern_operations: list[set[OperationPosition]] = []
-        for pattern_pred_deps in predicate_dependencies:
-            operations: set[OperationPosition] = set()
-            for deps in pattern_pred_deps.values():
-                operations.update(deps)
-            pattern_operations.append(operations)
+        pattern_operations = [
+            set[OperationPosition].union(*pattern_pred_deps.values())
+            for pattern_pred_deps in predicate_dependencies
+        ]
 
         # Find root operation
         all_ops = set[OperationPosition]().union(*pattern_operations)
@@ -939,9 +933,9 @@ class OperationPositionTree:
             child = OperationPositionTree(operation=op)
             node.children.append(child)
 
-            child_paths: dict[int, list[int]] = {}
+            child_paths: defaultdict[int, list[int]] = defaultdict(list[int])
             for idx in indices:
-                child_paths[idx] = current_paths.get(idx, []) + [child_index]
+                current_paths[idx].append(child_index)
                 pattern_paths[idx] = child_paths[idx]
             OperationPositionTree._build_subtree(
                 child,
@@ -1018,6 +1012,9 @@ class OperationPositionTree:
             list[OrderedPredicate | PredicateSplit],
             sorted(node_predicates.values()),
         )
+        # Sort predicates for this node
+        sorted_node_preds: list[OrderedPredicate | PredicateSplit] = []
+        sorted_node_preds.extend(sorted(node_predicates.values()))
 
         # If there are children, create a PredicateSplit
         if node.children:
@@ -1125,11 +1122,8 @@ class PredicateTreeBuilder:
                 )
         else:
             # Sort predicates by priority
-            sorted_predicates = sorted(ordered_predicates.values())
-            sorted_predicates = _stable_topological_sort(sorted_predicates)
-            sorted_predicates = cast(
-                list[OrderedPredicate | PredicateSplit], sorted_predicates
-            )
+            sorted_predicates: list[OrderedPredicate | PredicateSplit] = []
+            sorted_predicates.extend(sorted(ordered_predicates.values()))
 
             # Build matcher tree by propagating patterns
             root_node = None
@@ -1231,10 +1225,13 @@ class PredicateTreeBuilder:
         pattern_predicates: dict[tuple[Position, Question], PositionalPredicate],
         sorted_predicates: list[OrderedPredicate | PredicateSplit],
         predicate_index: int,
-        path: list[int] = [],
+        path: list[int] | None = None,
         parent: MatcherNode | None = None,
     ) -> MatcherNode:
         """Propagate a pattern through the predicate tree"""
+
+        if path is None:
+            path = []
 
         # Base case: reached end of predicates
         if predicate_index >= len(sorted_predicates):
