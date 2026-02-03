@@ -844,19 +844,17 @@ class OperationPositionTree:
         """
 
         # Extract operation position dependencies per predicate
-        predicate_dependencies: list[
-            dict[tuple[Position, Question], set[OperationPosition]]
-        ] = []
-
-        for predicates in pattern_predicates:
-            # PositionalPredicates aren't hashable so we use a tuple of (Position, Question) as key
-            pattern_pred_deps: dict[
-                tuple[Position, Question], set[OperationPosition]
-            ] = {}
-            for pred in predicates:
-                deps = OperationPositionTree.get_predicate_operation_dependencies(pred)
-                pattern_pred_deps[(pred.position, pred.q)] = deps
-            predicate_dependencies.append(pattern_pred_deps)
+        predicate_dependencies = [
+            {
+                # PositionalPredicates aren't hashable so we use a tuple of (Position, Question) as key
+                (
+                    pred.position,
+                    pred.q,
+                ): OperationPositionTree.get_predicate_operation_dependencies(pred)
+                for pred in predicates
+            }
+            for predicates in pattern_predicates
+        ]
 
         # Build pattern_operations by taking union of all predicate dependencies
         pattern_operations = [
