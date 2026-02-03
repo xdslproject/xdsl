@@ -2,7 +2,6 @@ from typing import Any, cast
 
 from xdsl.context import Context
 from xdsl.dialects import pdl_interp
-from xdsl.dialects.builtin import StringAttr
 from xdsl.dialects.pdl import RangeType, ValueType
 from xdsl.interpreter import (
     Interpreter,
@@ -18,6 +17,7 @@ from xdsl.interpreter import (
 from xdsl.ir import Attribute, Operation, OpResult, SSAValue
 from xdsl.irdl import IRDLOperation
 from xdsl.pattern_rewriter import PatternRewriter
+from xdsl.rewriter import InsertPoint
 from xdsl.utils.exceptions import InterpretationError
 from xdsl.utils.hints import isa
 
@@ -118,12 +118,23 @@ class PDLInterpFunctions(InterpreterFunctions):
         assert len(args) == 1
         assert isinstance(args[0], Operation)
         src_op = args[0]
-        assert op.index is None, (
-            "TODO: No support yet for getting a specific result group"
-        )
-        if isinstance(op.result_types[0], ValueType) and len(src_op.results) != 1:
-            return (None,)
-        return (src_op.results,)
+        assert isinstance(src_op, IRDLOperation)
+        if op.index is not None:
+            # get the field name of the result group:
+            if op.index.value.data >= len(src_op.get_irdl_definition().results):
+                return (None,)
+            field = src_op.get_irdl_definition().results[op.index.value.data][0]
+            results = getattr(src_op, field)
+            if isa(results, OpResult):
+                results = (results,)
+        else:
+            results = src_op.results
+
+        if isinstance(op.result_types[0], ValueType):
+            if len(results) != 1:
+                return (None,)
+            return (results[0],)
+        return (results,)
 
     @impl(pdl_interp.GetAttributeOp)
     def run_get_attribute(
@@ -372,16 +383,17 @@ class PDLInterpFunctions(InterpreterFunctions):
                 return Successor(block, ()), ()
         return Successor(op.defaultDest, ()), ()
 
-    @impl(pdl_interp.CreateOperationOp)
-    def run_create_operation(
-        self,
+    @staticmethod
+    def create_operation(
         interpreter: Interpreter,
-        op: pdl_interp.CreateOperationOp,
         args: tuple[Any, ...],
-    ) -> tuple[Any, ...]:
+        op_name: str,
+        attr_names: list[str],
+        num_operands: int,
+        num_attributes: int,
+    ) -> IRDLOperation:
         # Get operation name
-        op_name = op.constraint_name.data
-        ctx = self.get_ctx(interpreter)
+        ctx = PDLInterpFunctions.get_ctx(interpreter)
         op_type = ctx.get_optional_op(op_name)
         if op_type is None:
             raise InterpretationError(
@@ -389,11 +401,7 @@ class PDLInterpFunctions(InterpreterFunctions):
             )
 
         # Split args into operands, attributes and result types based on operand segments
-        operands = list(args[0 : len(op.input_operands)])
-
-        attr_names: list[str] = [
-            cast(StringAttr, name).data for name in op.input_attribute_names.data
-        ]
+        operands = list(args[:num_operands])
 
         assert issubclass(op_type, IRDLOperation)
         existing_properties = op_type.get_irdl_definition().properties.keys()
@@ -402,16 +410,13 @@ class PDLInterpFunctions(InterpreterFunctions):
         properties: dict[str, Attribute] = {}
         for name, prop_or_attr in zip(
             attr_names,
-            args[
-                len(op.input_operands) : len(op.input_operands)
-                + len(op.input_attributes)
-            ],
+            args[num_operands : num_operands + num_attributes],
         ):
             if name in existing_properties:
                 properties[name] = prop_or_attr
             else:
                 attributes[name] = prop_or_attr
-        result_types = list(args[len(op.input_operands) + len(op.input_attributes) :])
+        result_types = list(args[num_operands + num_attributes :])
 
         # Create the new operation
         result_op = op_type.create(
@@ -420,8 +425,26 @@ class PDLInterpFunctions(InterpreterFunctions):
             attributes=attributes,
             properties=properties,
         )
+        return result_op
 
-        self.get_rewriter(interpreter).insert_op_before_matched_op(result_op)
+    @impl(pdl_interp.CreateOperationOp)
+    def run_create_operation(
+        self,
+        interpreter: Interpreter,
+        op: pdl_interp.CreateOperationOp,
+        args: tuple[Any, ...],
+    ) -> tuple[Any, ...]:
+        result_op = PDLInterpFunctions.create_operation(
+            interpreter,
+            args,
+            op.constraint_name.data,
+            [name.data for name in op.input_attribute_names.data],
+            len(op.input_operands),
+            len(op.input_attributes),
+        )
+
+        rewriter = self.get_rewriter(interpreter)
+        rewriter.insert_op(result_op)
 
         return (result_op,)
 
@@ -433,7 +456,9 @@ class PDLInterpFunctions(InterpreterFunctions):
             assert len(args) == 1
             root_op = args[0]
             assert isinstance(root_op, Operation)
-            self.get_rewriter(interpreter).current_operation = root_op
+            rewriter = self.get_rewriter(interpreter)
+            rewriter.current_operation = root_op
+            rewriter.insertion_point = InsertPoint.before(root_op)
 
         return interpreter.run_ssacfg_region(op.body, args, op.sym_name.data)
 

@@ -57,7 +57,7 @@ class LowerFuncOp(RewritePattern):
 
         if op.sym_visibility == StringAttr("public"):
             directive_op = x86.DirectiveOp(".global", op.sym_name)
-            rewriter.insert_op_before_matched_op(directive_op)
+            rewriter.insert_op(directive_op)
 
         num_inputs = len(op.function_type.inputs.data)
         reg_args_types = arg_passing_registers[
@@ -120,14 +120,14 @@ class LowerFuncOp(RewritePattern):
             visibility=op.sym_visibility,
         )
 
-        rewriter.replace_matched_op(new_func)
+        rewriter.replace_op(op, new_func)
 
 
 class LowerReturnOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: func.ReturnOp, rewriter: PatternRewriter):
         if not op.arguments:
-            rewriter.replace_matched_op([x86_func.RetOp()])
+            rewriter.replace_op(op, [x86_func.RetOp()])
             return
         elif len(op.arguments) > 1:
             raise DiagnosticException(
@@ -154,7 +154,7 @@ class LowerReturnOp(RewritePattern):
         mov_op = x86.ops.DS_MovOp(cast_op, destination=return_passing_register)
         ret_op = x86_func.RetOp()
 
-        rewriter.replace_matched_op([cast_op, mov_op, ret_op])
+        rewriter.replace_op(op, [cast_op, mov_op, ret_op])
 
 
 class ConvertFuncToX86FuncPass(ModulePass):

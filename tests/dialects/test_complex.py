@@ -6,6 +6,7 @@ from xdsl.dialects.builtin import (
     ArrayAttr,
     ComplexType,
     FloatAttr,
+    FloatData,
     IntAttr,
     IntegerAttr,
     IntegerType,
@@ -61,3 +62,21 @@ class Test_constant_op_helper_constructors:
         assert cst.value.data[0].type == type
         assert cst.value == ArrayAttr([FloatAttr(real, type), FloatAttr(imag, type)])
         assert cst.result_types[0] == ComplexType(type)
+
+
+@pytest.mark.parametrize(
+    "real, imag, type",
+    [
+        (2.1, -20, f16),
+        (-1.2, 2.5, f32),
+        (3, 1, f64),
+    ],
+)
+def test_complex_number_attr(real: float, imag: float, type: AnyFloat):
+    attr1 = complex.ComplexNumberAttr(real, imag, ComplexType(type))
+    attr2 = complex.ComplexNumberAttr[type](
+        FloatData(real), FloatData(imag), ComplexType(type)
+    )
+    assert attr1.real == attr2.real
+    assert attr1.imag == attr2.imag
+    assert attr1.type == attr2.type

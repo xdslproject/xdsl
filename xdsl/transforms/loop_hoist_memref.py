@@ -5,7 +5,6 @@ from xdsl.ir import Block, Operation, Region, SSAValue
 from xdsl.irdl import Operand
 from xdsl.passes import Context, ModulePass
 from xdsl.pattern_rewriter import (
-    GreedyRewritePatternApplier,
     PatternRewriter,
     PatternRewriteWalker,
     RewritePattern,
@@ -195,11 +194,7 @@ class LoopHoistMemRefPass(ModulePass):
 
     def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         PatternRewriteWalker(
-            GreedyRewritePatternApplier(
-                [
-                    LoopHoistMemRef(),
-                ]
-            ),
+            LoopHoistMemRef(),
             walk_regions_first=True,
             apply_recursively=True,
         ).rewrite_module(op)

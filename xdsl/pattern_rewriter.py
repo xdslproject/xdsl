@@ -8,10 +8,12 @@ from functools import wraps
 from types import UnionType
 from typing import Union, final, get_args, get_origin
 
-from typing_extensions import TypeVar
+from typing_extensions import TypeVar, deprecated
 
 from xdsl.builder import Builder, BuilderListener, InsertOpInvT
+from xdsl.context import Context
 from xdsl.dialects.builtin import ArrayAttr, DictionaryAttr, ModuleOp
+from xdsl.folder import Folder
 from xdsl.ir import (
     Attribute,
     Block,
@@ -25,6 +27,7 @@ from xdsl.ir import (
 )
 from xdsl.irdl import AttrConstraint, base
 from xdsl.rewriter import BlockInsertPoint, InsertPoint, Rewriter
+from xdsl.traits import ConstantLike, HasFolder
 from xdsl.utils.hints import isa
 
 
@@ -108,14 +111,21 @@ class PatternRewriter(Builder, PatternRewriterListener):
         self.has_done_action = True
         return super().insert_op(op, insertion_point)
 
+    @deprecated(
+        "Please use `rewriter.insert_op(op, InsertPoint.before(rewriter.current_operation))` instead"
+    )
     def insert_op_before_matched_op(self, op: InsertOpInvT) -> InsertOpInvT:
         """Insert operations before the matched operation."""
         return self.insert_op(op, InsertPoint.before(self.current_operation))
 
+    @deprecated(
+        "Please use `rewriter.insert_op(op, InsertPoint.after(rewriter.current_operation))` instead"
+    )
     def insert_op_after_matched_op(self, op: InsertOpInvT) -> InsertOpInvT:
         """Insert operations after the matched operation."""
         return self.insert_op(op, InsertPoint.after(self.current_operation))
 
+    @deprecated("Please use `erase_op(op)` instead")
     def erase_matched_op(self, safe_erase: bool = True):
         """
         Erase the operation that was matched to.
@@ -259,6 +269,7 @@ class PatternRewriter(Builder, PatternRewriterListener):
         self.has_done_action = True
         Rewriter.inline_block(block, insertion_point, arg_values=arg_values)
 
+    @deprecated("Please use `inline_block(block, InsertPoint.before(op))`")
     def inline_block_before_matched_op(
         self, block: Block, arg_values: Sequence[SSAValue] = ()
     ):
@@ -270,6 +281,7 @@ class PatternRewriter(Builder, PatternRewriterListener):
             block, InsertPoint.before(self.current_operation), arg_values=arg_values
         )
 
+    @deprecated("Please use `inline_block(block, InsertPoint.after(op))`")
     def inline_block_after_matched_op(
         self, block: Block, arg_values: Sequence[SSAValue] = ()
     ):
@@ -476,7 +488,7 @@ class TypeConversionPattern(RewritePattern):
                 successors=op.successors,
                 regions=regions,
             )
-            rewriter.replace_matched_op(new_op)
+            rewriter.replace_op(op, new_op)
             for new, old in zip(new_op.results, op.results):
                 new.name_hint = old.name_hint
 
@@ -533,12 +545,37 @@ class GreedyRewritePatternApplier(RewritePattern):
     """
     Apply a list of patterns in order until one pattern matches,
     and then use this rewrite.
+    By default, the applier attempts to fold the operation first.
     """
 
     rewrite_patterns: list[RewritePattern]
     """The list of rewrites to apply in order."""
 
+    ctx: Context | None = field(default=None)
+    """Used to materialize constant operations when folding."""
+
+    folding_enabled: bool = field(default=False, kw_only=True)
+    """Whether the folders should be invoked.
+    If this is True, the GreedyRewritePatternApplier must also have a context."""
+
     def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter) -> None:
+        # Do not fold constant ops. That would lead to an infinite folding loop,
+        # as every constant op would be folded to an Attribute and then
+        # immediately be rematerialized as a constant op, which is then put
+        # back into the worklist.
+        if (
+            self.folding_enabled
+            and op.has_trait(HasFolder, value_if_unregistered=False)
+            and not op.has_trait(ConstantLike, value_if_unregistered=True)
+        ):
+            if self.ctx is None:
+                raise ValueError("Context is required for folding")
+            folded = Folder(self.ctx).try_fold(op)
+            if folded is not None:
+                folded_values, folded_ops = folded
+                rewriter.replace_op(op, new_ops=folded_ops, new_results=folded_values)
+                return
+
         for pattern in self.rewrite_patterns:
             pattern.match_and_rewrite(op, rewriter)
             if rewriter.has_done_action:

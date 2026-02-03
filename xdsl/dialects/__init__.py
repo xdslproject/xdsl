@@ -103,15 +103,20 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
 
         return DMP
 
+    def get_ematch():
+        from xdsl.dialects.ematch import Ematch
+
+        return Ematch
+
     def get_emitc():
         from xdsl.dialects.emitc import EmitC
 
         return EmitC
 
-    def get_eqsat():
-        from xdsl.dialects.eqsat import EqSat
+    def get_equivalence():
+        from xdsl.dialects.equivalence import Equivalence
 
-        return EqSat
+        return Equivalence
 
     def get_eqsat_pdl_interp():
         from xdsl.dialects.eqsat_pdl_interp import EqSatPDLInterp
@@ -383,8 +388,9 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "csl_wrapper": get_csl_wrapper,
         "dlti": get_dlti,
         "dmp": get_dmp,
+        "ematch": get_ematch,
         "emitc": get_emitc,
-        "eqsat": get_eqsat,
+        "equivalence": get_equivalence,
         "eqsat_pdl_interp": get_eqsat_pdl_interp,
         "fir": get_fir,
         "fsm": get_fsm,

@@ -88,6 +88,7 @@ from .ops import (
     MS_VmovupdOp,
     MS_VmovupsOp,
     MS_XorOp,
+    ParallelMovOp,
     R_DecOp,
     R_IncOp,
     R_NegOp,
@@ -255,6 +256,7 @@ X86 = Dialect(
         SI_CmpOp,
         SM_CmpOp,
         SS_CmpOp,
+        ParallelMovOp,
     ],
     [
         GeneralRegisterType,

@@ -624,27 +624,26 @@ def test_from_flat_form():
         # Deeply nested expressions
         ((d0 + (AffineExpr.constant(1) + 2)), d0 + 3),
         (((d0 + 2) + (d0 + 3)), 2 * d0 + 5),
-        # To be added in upcoming PRs adding div and mod support
-        # # Exact multiples of floordiv are cancelled out
-        # ((2 * d0 + 4 * s1) // 2, d0 + 2 * s1),
-        # # Exact multiples of ceildiv are cancelled out
-        # ((2 * d0 + 4 * s1).ceil_div(2), d0 + 2 * s1),
-        # # Greatest common denominators of floordiv are cancelled out
-        # ((2 * d0 + 4 * s1) // 6, (d0 + 2 * s1) // 3),
-        # # Greatest common denominators of ceildiv are cancelled out
-        # ((2 * d0 + 4 * s1).ceil_div(6), (d0 + 2 * s1).ceil_div(3)),
-        # # Division is aggregated
-        # (d0 // 2 + d0 // 2, d0 // 2 * 2),
-        # # Factors and modulo cancel
-        # ((2 * d0 + 4 * s1) % 2, AffineExpr.constant(0)),
-        # # Modulo is converted into the manual computation (x % k == x - (x // k * k))
-        # ((2 * d0 + 4 * s1) % 3, (2 * d0 + 4 * s1) + ((2 * d0 + 4 * s1) // 3 * -3)),
-        # # This sometimes cancels out
-        # (d0 % 3 + d0 // 3 * 3, d0),
-        # # GCD cancel in the fraction
-        # ((2 * d0 + 4 * s1) % 6, (2 * d0 + 4 * s1) + ((d0 + 2 * s1) // 3 * -6)),
-        # # Modulos with same expressions are aggregated
-        # (d0 % 2 - d0 % 2, AffineExpr.constant(0)),
+        # Exact multiples of floordiv are cancelled out
+        ((2 * d0 + 4 * s1) // 2, d0 + 2 * s1),
+        # Exact multiples of ceildiv are cancelled out
+        ((2 * d0 + 4 * s1).ceil_div(2), d0 + 2 * s1),
+        # Greatest common denominators of floordiv are cancelled out
+        ((2 * d0 + 4 * s1) // 6, (d0 + 2 * s1) // 3),
+        # Greatest common denominators of ceildiv are cancelled out
+        ((2 * d0 + 4 * s1).ceil_div(6), (d0 + 2 * s1).ceil_div(3)),
+        # Division is aggregated
+        (d0 // 2 + d0 // 2, d0 // 2 * 2),
+        # Factors and modulo cancel
+        ((2 * d0 + 4 * s1) % 2, AffineExpr.constant(0)),
+        # Modulo is converted into the manual computation (x % k == x - (x // k * k))
+        ((2 * d0 + 4 * s1) % 3, (2 * d0 + 4 * s1) + ((2 * d0 + 4 * s1) // 3 * -3)),
+        # This sometimes cancels out
+        (d0 % 3 + d0 // 3 * 3, d0),
+        # GCD cancel in the fraction
+        ((2 * d0 + 4 * s1) % 6, (2 * d0 + 4 * s1) + ((d0 + 2 * s1) // 3 * -6)),
+        # Modulos with same expressions are aggregated
+        (d0 % 2 - d0 % 2, AffineExpr.constant(0)),
     ],
 )
 def test_affine_expr_simplify(expr: AffineExpr, expected: AffineExpr):
@@ -659,9 +658,8 @@ def test_affine_expr_simplify(expr: AffineExpr, expected: AffineExpr):
     "expr",
     [
         (lambda: AffineBinaryOpExpr(AffineBinaryOpKind.Mul, d0, s0)),
-        # To be added in upcoming PRs adding div and mod support
-        # (lambda: AffineBinaryOpExpr(AffineBinaryOpKind.FloorDiv, d0, s0)),
-        # (lambda: AffineBinaryOpExpr(AffineBinaryOpKind.Mod, d0, s0)),
+        (lambda: AffineBinaryOpExpr(AffineBinaryOpKind.FloorDiv, d0, s0)),
+        (lambda: AffineBinaryOpExpr(AffineBinaryOpKind.Mod, d0, s0)),
     ],
 )
 def test_affine_expr_simplify_semi_affine_raises(expr: Callable[[], AffineExpr]):
@@ -675,3 +673,8 @@ def test_affine_expr_simplify_semi_affine_raises(expr: Callable[[], AffineExpr])
         match="Semi-affine map flattening not implemented",
     ):
         SimpleAffineExprFlattener(3, 3).simplify(expr())
+
+
+def test_simplify_division_negative_divisor():
+    with pytest.raises(ValueError, match="RHS of division must be positive, got -2"):
+        (AffineExpr.dimension(0) // -2).simplify(3, 3)

@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 
-from xdsl.backend.riscv.lowering.utils import cast_matched_op_results
+from xdsl.backend.riscv.lowering.utils import cast_op_results
 from xdsl.backend.x86.lowering.helpers import Arch
 from xdsl.context import Context
 from xdsl.dialects import builtin, scf, x86_scf
@@ -42,7 +42,7 @@ class ScfForLowering(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: scf.ForOp, rewriter: PatternRewriter) -> None:
-        lb, ub, step, *args = self.arch.cast_operands_to_regs(rewriter)
+        lb, ub, step, *args = self.arch.cast_to_regs(op.operands, rewriter)
         new_region = rewriter.move_region_contents_to_new_regions(op.body)
         cast_block_args_to_regs(new_region.block, self.arch, rewriter)
 
@@ -51,7 +51,7 @@ class ScfForLowering(RewritePattern):
             for value, value_type in zip(args, op.iter_args.types)
         )
 
-        cast_matched_op_results(rewriter)
+        cast_op_results(rewriter, op)
 
         new_op = rewriter.insert_op(x86_scf.ForOp(lb, ub, step, values, new_region))
         rewriter.insertion_point = InsertPoint.after(op)
@@ -61,13 +61,11 @@ class ScfForLowering(RewritePattern):
             for res_value, res_value_type in zip(new_op.results, op.results.types)
         )
 
-        for res, (cast_op, result) in zip(
-            rewriter.current_operation.results, res_values
-        ):
+        for res, (cast_op, result) in zip(op.results, res_values):
             rewriter.insert_op(cast_op)
             res.replace_by_if(result, lambda use: use.operation is not cast_op)
 
-        rewriter.erase_matched_op()
+        rewriter.erase_op(op)
 
 
 @dataclass
@@ -76,8 +74,8 @@ class ScfYieldLowering(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: scf.YieldOp, rewriter: PatternRewriter) -> None:
-        rewriter.replace_matched_op(
-            x86_scf.YieldOp(*self.arch.cast_operands_to_regs(rewriter))
+        rewriter.replace_op(
+            op, x86_scf.YieldOp(*self.arch.cast_to_regs(op.operands, rewriter))
         )
 
 

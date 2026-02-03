@@ -721,7 +721,7 @@ def _(arith):
                 op.rhs.op, arith.ConstantOp
             ):
                 # transform: replace the operation by calculating the sum of the constants at compile time
-                return rewriter.replace_matched_op(
+                return rewriter.replace_op(op,
                     arith.ConstantOp.from_int_and_width(
                         op.lhs.op.value.value.data + op.rhs.op.value.value.data,
                         op.lhs.op.value.type.width.data,
@@ -781,7 +781,7 @@ def _(
         @op_type_rewrite_pattern
         def match_and_rewrite(self, op: arith.ConstantOp, rewriter: PatternRewriter):
             if not op.result.uses:
-                rewriter.erase_matched_op()
+                rewriter.erase_op(op)
 
 
     walker2 = PatternRewriteWalker(

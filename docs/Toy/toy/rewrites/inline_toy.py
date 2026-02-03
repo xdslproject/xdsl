@@ -7,6 +7,7 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
+from xdsl.rewriter import InsertPoint
 from xdsl.traits import CallableOpInterface, SymbolTable
 from xdsl.transforms.dead_code_elimination import dce
 
@@ -34,7 +35,7 @@ class InlineFunctions(RewritePattern):
         inputs = [toy.CastOp(operand) for operand in op.operands]
 
         # Insert casts before matched op
-        rewriter.insert_op_before_matched_op(inputs)
+        rewriter.insert_op(inputs)
 
         # Replace block args with operand casts
         for i, arg in zip(inputs, impl_block.args):
@@ -46,13 +47,13 @@ class InlineFunctions(RewritePattern):
             rewriter.erase_block_argument(impl_block.args[-1])
 
         # Inline function definition before matched op
-        rewriter.inline_block_before_matched_op(impl_block)
+        rewriter.inline_block(impl_block, InsertPoint.before(op))
 
         # Get return from function definition
         return_op = op.prev_op
         assert return_op is not None
 
-        rewriter.replace_matched_op([], return_op.operands)
+        rewriter.replace_op(op, [], return_op.operands)
         rewriter.erase_op(return_op)
 
 
@@ -79,7 +80,7 @@ class RemoveUnusedPrivateFunctions(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: toy.FuncOp, rewriter: PatternRewriter):
         if self.should_remove_op(op):
-            rewriter.erase_matched_op()
+            rewriter.erase_op(op)
 
 
 class InlineToyPass(ModulePass):

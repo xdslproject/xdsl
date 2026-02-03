@@ -168,6 +168,15 @@ def test_llvm_ptr_to_int_to_ptr():
     assert int_val.output.type.width.data == 64
 
 
+def test_ptr_to_int_op():
+    ptr_type = llvm.LLVMPointerType()
+    ptr = create_ssa_value(ptr_type)
+    op = llvm.PtrToIntOp(ptr, builtin.i32)
+
+    assert op.input == ptr
+    assert op.output.type == builtin.i32
+
+
 def test_llvm_getelementptr_op():
     size = arith.ConstantOp.from_int_and_width(1, 32)
     ptr = llvm.AllocaOp(size, builtin.i32)
@@ -271,6 +280,29 @@ def test_implicit_void_func_return():
     func_type = llvm.LLVMFunctionType([])
 
     assert isinstance(func_type.output, llvm.LLVMVoidType)
+
+
+def test_return_op_with_value():
+    const = arith.ConstantOp.from_int_and_width(42, 32)
+    val = const.result
+
+    op = llvm.ReturnOp(val)
+
+    assert op.arg == val
+    assert op.operands[0] == val
+    assert len(op.operands) == 1
+
+
+def test_return_op_with_none():
+    op_none = llvm.ReturnOp(None)
+    assert op_none.arg is None
+    assert len(op_none.operands) == 0
+
+
+def test_return_op_empty():
+    op_empty = llvm.ReturnOp()
+    assert op_empty.arg is None
+    assert len(op_empty.operands) == 0
 
 
 def test_calling_conv():

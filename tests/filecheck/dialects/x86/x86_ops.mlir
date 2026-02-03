@@ -532,3 +532,8 @@ x86.ms.vmovntps %1, %zmm1, 8 : (!x86.reg, !x86.avx512reg) -> ()
 
 %shuf_res = x86.dssi.shufps %zmm1, %zmm2, 170 : (!x86.avx512reg, !x86.avx512reg) -> !x86.avx512reg
 // CHECK: %shuf_res = x86.dssi.shufps %zmm1, %zmm2, 170 : (!x86.avx512reg, !x86.avx512reg) -> !x86.avx512reg
+
+// ---- pmov ----
+
+%mov_int_a, %mov_int_b, %mov_sse_a, %mov_sse_b = x86.parallel_mov %0, %1, %xmm0, %xmm1 : (!x86.reg, !x86.reg, !x86.ssereg, !x86.ssereg) -> (!x86.reg, !x86.reg, !x86.ssereg, !x86.ssereg)
+// CHECK-NEXT: %mov_int_a, %mov_int_b, %mov_sse_a, %mov_sse_b = x86.parallel_mov %0, %1, %xmm0, %xmm1 : (!x86.reg, !x86.reg, !x86.ssereg, !x86.ssereg) -> (!x86.reg, !x86.reg, !x86.ssereg, !x86.ssereg)

@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from collections.abc import Set as AbstractSet
 from io import StringIO
-from typing import IO, Annotated, Generic, Literal, TypeAlias
+from typing import IO, ClassVar, Generic, Literal, TypeAlias, cast
 
 from typing_extensions import Self, TypeVar
 
@@ -19,6 +19,9 @@ from xdsl.backend.register_allocatable import (
 )
 from xdsl.backend.register_type import RegisterAllocatedMemoryEffect, RegisterType
 from xdsl.dialects.builtin import (
+    I32,
+    ArrayAttr,
+    DenseArrayBase,
     IndexType,
     IntegerAttr,
     IntegerType,
@@ -37,17 +40,24 @@ from xdsl.ir import (
     Data,
     Dialect,
     Operation,
+    OpResult,
     Region,
     SSAValue,
 )
 from xdsl.irdl import (
+    AnyInt,
+    IntVarConstraint,
     IRDLOperation,
+    ParsePropInAttrDict,
+    RangeOf,
+    VarOpResult,
     attr_def,
-    base,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
     opt_attr_def,
+    opt_prop_def,
+    prop_def,
     region_def,
     result_def,
     traits_def,
@@ -327,17 +337,16 @@ class Registers(ABC):
     FS = (FS0, FS1, FS2, FS3, FS4, FS5, FS6, FS7, FS8, FS9, FS10, FS11)
 
 
-ui5 = IntegerType(5, Signedness.UNSIGNED)
-si20 = IntegerType(20, Signedness.SIGNED)
-si12 = IntegerType(12, Signedness.SIGNED)
-i12 = IntegerType(12, Signedness.SIGNLESS)
-i20 = IntegerType(20, Signedness.SIGNLESS)
-UImm5Attr = IntegerAttr[Annotated[IntegerType, ui5]]
-SImm12Attr = IntegerAttr[Annotated[IntegerType, si12]]
-SImm20Attr = IntegerAttr[Annotated[IntegerType, si20]]
-Imm12Attr = IntegerAttr[Annotated[IntegerType, i12]]
-Imm20Attr = IntegerAttr[Annotated[IntegerType, i20]]
-Imm32Attr = IntegerAttr[Annotated[IntegerType, i32]]
+UI5: TypeAlias = IntegerType[Literal[5], Literal[Signedness.UNSIGNED]]
+SI20: TypeAlias = IntegerType[Literal[20], Literal[Signedness.SIGNED]]
+SI12: TypeAlias = IntegerType[Literal[12], Literal[Signedness.SIGNED]]
+I12: TypeAlias = IntegerType[Literal[12], Literal[Signedness.SIGNLESS]]
+I20: TypeAlias = IntegerType[Literal[20], Literal[Signedness.SIGNLESS]]
+ui5: UI5 = IntegerType(5, Signedness.UNSIGNED)
+si20: SI20 = IntegerType(20, Signedness.SIGNED)
+si12: SI12 = IntegerType(12, Signedness.SIGNED)
+i12: I12 = IntegerType(12, Signedness.SIGNLESS)
+i20: I20 = IntegerType(20, Signedness.SIGNLESS)
 
 
 @irdl_attr_definition
@@ -354,14 +363,21 @@ class LabelAttr(Data[str]):
             printer.print_string_literal(self.data)
 
 
-class RISCVAsmOperation(
-    HasRegisterConstraints, IRDLOperation, OneLineAssemblyPrintable, ABC
-):
+class RISCVAsmOperation(IRDLOperation, OneLineAssemblyPrintable, ABC):
     """
     Base class for operations that can be a part of RISC-V assembly printing.
     """
 
+
+class RISCVRegallocOperation(HasRegisterConstraints, IRDLOperation, ABC):
+    """
+    Base class for operations that can take part in register allocation.
+    """
+
     def get_register_constraints(self) -> RegisterConstraints:
+        # The default register constraints are that all operands are "in", and all
+        # results are "out" registers.
+        # If some registers are "inout" then this function must be overridden.
         return RegisterConstraints(self.operands, self.results, ())
 
 
@@ -450,7 +466,7 @@ AssemblyInstructionArg: TypeAlias = (
 )
 
 
-class RISCVInstruction(RISCVAsmOperation, ABC):
+class RISCVInstruction(RISCVAsmOperation, RISCVRegallocOperation, ABC):
     """
     Base class for operations that can be a part of RISC-V assembly printing. Must
     represent an instruction in the RISC-V instruction set, and have the following format:
@@ -535,7 +551,7 @@ class RdRsRsOperation(
     This is called R-Type in the RISC-V specification.
     """
 
-    rd = result_def(RDInvT)
+    rd: OpResult[RDInvT] = result_def(RDInvT)
     rs1 = operand_def(RS1InvT)
     rs2 = operand_def(RS2InvT)
 
@@ -652,7 +668,7 @@ class RdImmIntegerOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
     """
 
     rd = result_def(IntRegisterType)
-    immediate = attr_def(base(Imm20Attr) | base(LabelAttr))
+    immediate = attr_def(IntegerAttr[I20] | LabelAttr)
 
     def __init__(
         self,
@@ -704,11 +720,11 @@ class RdImmJumpOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
     The rd register here is not a register storing the result, rather the register where
     the program counter is stored before jumping.
     """
-    immediate = attr_def(base(SImm20Attr) | base(LabelAttr))
+    immediate = attr_def(IntegerAttr[SI20] | LabelAttr)
 
     def __init__(
         self,
-        immediate: int | SImm20Attr | str | LabelAttr,
+        immediate: int | IntegerAttr[SI20] | str | LabelAttr,
         *,
         rd: IntRegisterType | None = None,
         comment: str | StringAttr | None = None,
@@ -766,12 +782,12 @@ class RdRsImmIntegerOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC)
 
     rd = result_def(IntRegisterType)
     rs1 = operand_def(IntRegisterType)
-    immediate = attr_def(base(SImm12Attr) | base(LabelAttr))
+    immediate = attr_def(IntegerAttr[SI12] | LabelAttr)
 
     def __init__(
         self,
         rs1: Operation | SSAValue,
-        immediate: int | SImm12Attr | str | LabelAttr,
+        immediate: int | IntegerAttr[SI12] | str | LabelAttr,
         *,
         rd: IntRegisterType = Registers.UNALLOCATED_INT,
         comment: str | StringAttr | None = None,
@@ -823,12 +839,12 @@ class RdRsImmShiftOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
 
     rd = result_def(IntRegisterType)
     rs1 = operand_def(IntRegisterType)
-    immediate = attr_def(base(UImm5Attr) | base(LabelAttr))
+    immediate = attr_def(IntegerAttr[UI5] | LabelAttr)
 
     def __init__(
         self,
         rs1: Operation | SSAValue,
-        immediate: int | UImm5Attr | str | LabelAttr,
+        immediate: int | IntegerAttr[UI5] | str | LabelAttr,
         *,
         rd: IntRegisterType = Registers.UNALLOCATED_INT,
         comment: str | StringAttr | None = None,
@@ -883,12 +899,12 @@ class RdRsImmJumpOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
     The rd register here is not a register storing the result, rather the register where
     the program counter is stored before jumping.
     """
-    immediate = attr_def(base(SImm12Attr) | base(LabelAttr))
+    immediate = attr_def(IntegerAttr[SI12] | LabelAttr)
 
     def __init__(
         self,
         rs1: Operation | SSAValue,
-        immediate: int | SImm12Attr | str | LabelAttr,
+        immediate: int | IntegerAttr[SI12] | str | LabelAttr,
         *,
         rd: IntRegisterType | None = None,
         comment: str | StringAttr | None = None,
@@ -996,13 +1012,13 @@ class RsRsOffIntegerOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC)
 
     rs1 = operand_def(IntRegisterType)
     rs2 = operand_def(IntRegisterType)
-    offset = attr_def(base(SImm12Attr) | base(LabelAttr))
+    offset = attr_def(IntegerAttr[SI12] | LabelAttr)
 
     def __init__(
         self,
         rs1: Operation | SSAValue,
         rs2: Operation | SSAValue,
-        offset: int | SImm12Attr | LabelAttr,
+        offset: int | IntegerAttr[SI12] | LabelAttr,
         *,
         comment: str | StringAttr | None = None,
     ):
@@ -1046,13 +1062,13 @@ class RsRsImmIntegerOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC)
 
     rs1 = operand_def(IntRegisterType)
     rs2 = operand_def(IntRegisterType)
-    immediate = attr_def(SImm12Attr)
+    immediate = attr_def(IntegerAttr[SI12])
 
     def __init__(
         self,
         rs1: Operation | SSAValue,
         rs2: Operation | SSAValue,
-        immediate: int | Imm12Attr | str | LabelAttr,
+        immediate: int | IntegerAttr[SI12] | str | LabelAttr,
         *,
         comment: str | StringAttr | None = None,
     ):
@@ -1515,6 +1531,16 @@ class AndiOp(RdRsImmIntegerOperation):
     traits = traits_def(AndiOpHasCanonicalizationPatternsTrait())
 
 
+class OriOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.riscv import (
+            OriImmediate,
+        )
+
+        return (OriImmediate(),)
+
+
 @irdl_op_definition
 class OriOp(RdRsImmIntegerOperation):
     """
@@ -1527,6 +1553,17 @@ class OriOp(RdRsImmIntegerOperation):
     """
 
     name = "riscv.ori"
+    traits = traits_def(OriOpHasCanonicalizationPatternsTrait())
+
+
+class XoriOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.riscv import (
+            XoriImmediate,
+        )
+
+        return (XoriImmediate(),)
 
 
 @irdl_op_definition
@@ -1541,6 +1578,7 @@ class XoriOp(RdRsImmIntegerOperation):
     """
 
     name = "riscv.xori"
+    traits = traits_def(XoriOpHasCanonicalizationPatternsTrait())
 
 
 class SlliOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
@@ -1573,9 +1611,12 @@ class SlliOp(RdRsImmShiftOperation):
 class SrliOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.transforms.canonicalization_patterns.riscv import ShiftRightbyZero
+        from xdsl.transforms.canonicalization_patterns.riscv import (
+            ShiftRightbyZero,
+            ShiftRightImmediate,
+        )
 
-        return (ShiftRightbyZero(),)
+        return (ShiftRightbyZero(), ShiftRightImmediate())
 
 
 @irdl_op_definition
@@ -2087,10 +2128,11 @@ class SubOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.riscv import (
             SubAddi,
+            SubBySelf,
             SubImmediates,
         )
 
-        return (SubImmediates(), SubAddi())
+        return (SubImmediates(), SubAddi(), SubBySelf())
 
 
 @irdl_op_definition
@@ -2167,7 +2209,7 @@ class JOp(RdImmJumpOperation):
 
     def __init__(
         self,
-        immediate: int | SImm20Attr | str | LabelAttr,
+        immediate: int | IntegerAttr[SI20] | str | LabelAttr,
         *,
         comment: str | StringAttr | None = None,
     ):
@@ -3443,13 +3485,13 @@ class LiOp(RISCVCustomFormatOperation, RISCVInstruction, ConstantLikeInterface, 
     name = "riscv.li"
 
     rd = result_def(IntRegisterType)
-    immediate = attr_def(base(Imm32Attr) | base(LabelAttr))
+    immediate = attr_def(IntegerAttr[I32] | LabelAttr)
 
     traits = traits_def(Pure(), LiOpHasCanonicalizationPatternTrait())
 
     def __init__(
         self,
-        immediate: int | Imm32Attr | str | LabelAttr,
+        immediate: int | IntegerAttr[I32] | str | LabelAttr,
         *,
         rd: IntRegisterType = Registers.UNALLOCATED_INT,
         comment: str | StringAttr | None = None,
@@ -3515,7 +3557,7 @@ class EcallOp(NullaryOperation):
 
 
 @irdl_op_definition
-class LabelOp(RISCVCustomFormatOperation, RISCVAsmOperation):
+class LabelOp(RISCVCustomFormatOperation, RISCVAsmOperation, RISCVRegallocOperation):
     """
     The label operation is used to emit text labels (e.g. loop:) that are used
     as branch, unconditional jump targets and symbol offsets.
@@ -3570,7 +3612,9 @@ class LabelOp(RISCVCustomFormatOperation, RISCVAsmOperation):
 
 
 @irdl_op_definition
-class DirectiveOp(RISCVCustomFormatOperation, RISCVAsmOperation):
+class DirectiveOp(
+    RISCVCustomFormatOperation, RISCVAsmOperation, RISCVRegallocOperation
+):
     """
     The directive operation is used to emit assembler directives (e.g. .word; .equ; etc.)
     without any associated region of assembly code.
@@ -3757,7 +3801,7 @@ class CustomAssemblyInstructionOp(RISCVCustomFormatOperation, RISCVInstruction):
 
 
 @irdl_op_definition
-class CommentOp(RISCVCustomFormatOperation, RISCVAsmOperation):
+class CommentOp(RISCVCustomFormatOperation, RISCVAsmOperation, RISCVRegallocOperation):
     name = "riscv.comment"
     comment = attr_def(StringAttr)
 
@@ -3806,7 +3850,11 @@ class WfiOp(NullaryOperation):
 
 
 class GetAnyRegisterOperation(
-    RISCVCustomFormatOperation, RISCVAsmOperation, ABC, Generic[RDInvT]
+    RISCVCustomFormatOperation,
+    RISCVAsmOperation,
+    RISCVRegallocOperation,
+    ABC,
+    Generic[RDInvT],
 ):
     """
     This instruction allows us to create an SSAValue with for a given register name. This
@@ -3864,6 +3912,59 @@ class GetRegisterOp(GetAnyRegisterOperation[IntRegisterType]):
 @irdl_op_definition
 class GetFloatRegisterOp(GetAnyRegisterOperation[FloatRegisterType]):
     name = "riscv.get_float_register"
+
+
+@irdl_op_definition
+class ParallelMovOp(RISCVRegallocOperation):
+    _L: ClassVar = IntVarConstraint("L", AnyInt())
+
+    name = "riscv.parallel_mov"
+    inputs = var_operand_def(RangeOf(RISCVRegisterType).of_length(_L))
+    outputs: VarOpResult[RISCVRegisterType] = var_result_def(
+        RangeOf(RISCVRegisterType).of_length(_L)
+    )
+    input_widths = prop_def(DenseArrayBase.constr(i32))
+    free_registers = opt_prop_def(ArrayAttr[RISCVRegisterType])
+
+    assembly_format = (
+        "$inputs $input_widths attr-dict `:` functional-type($inputs, $outputs)"
+    )
+    irdl_options = (ParsePropInAttrDict(),)
+
+    def __init__(
+        self,
+        inputs: Sequence[SSAValue],
+        outputs: Sequence[RISCVRegisterType],
+        input_widths: DenseArrayBase[I32],
+        free_registers: ArrayAttr[RISCVRegisterType] | None = None,
+    ):
+        super().__init__(
+            operands=(inputs,),
+            result_types=(outputs,),
+            properties={"input_widths": input_widths, "free_registers": free_registers},
+        )
+
+    def verify_(self) -> None:
+        if len(self.inputs) != len(self.input_widths):
+            raise VerifyException(
+                "incorrect length for input_widths. "
+                "Expected {len(self.inputs)}, found {len(self.input_widths)}."
+            )
+
+        input_types = cast(Sequence[RISCVRegisterType], self.inputs.types)
+        output_types = cast(Sequence[RISCVRegisterType], self.outputs.types)
+
+        # Check type of register type matches for input and output
+        for input_type, output_type in zip(input_types, output_types, strict=True):
+            if type(input_type) is not type(output_type):
+                raise VerifyException("Input type must match output type.")
+
+        # Check outputs are distinct if allocated and not ZERO
+        filtered_outputs = tuple(
+            i for i in output_types if i.is_allocated and i != Registers.ZERO
+        )
+        if len(filtered_outputs) != len(set(filtered_outputs)):
+            raise VerifyException("Outputs must be unallocated or distinct.")
 
 
 # endregion
@@ -3972,13 +4073,13 @@ class RsRsImmFloatOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
 
     rs1 = operand_def(IntRegisterType)
     rs2 = operand_def(FloatRegisterType)
-    immediate = attr_def(Imm12Attr)
+    immediate = attr_def(IntegerAttr[I12])
 
     def __init__(
         self,
         rs1: Operation | SSAValue,
         rs2: Operation | SSAValue,
-        immediate: int | Imm12Attr | str | LabelAttr,
+        immediate: int | IntegerAttr[I12] | str | LabelAttr,
         *,
         comment: str | StringAttr | None = None,
     ):
@@ -4021,12 +4122,12 @@ class RdRsImmFloatOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
 
     rd = result_def(FloatRegisterType)
     rs1 = operand_def(IntRegisterType)
-    immediate = attr_def(base(Imm12Attr) | base(LabelAttr))
+    immediate = attr_def(IntegerAttr[I12] | LabelAttr)
 
     def __init__(
         self,
         rs1: Operation | SSAValue,
-        immediate: int | Imm12Attr | str | LabelAttr,
+        immediate: int | IntegerAttr[I12] | str | LabelAttr,
         *,
         rd: FloatRegisterType = Registers.UNALLOCATED_FLOAT,
         comment: str | StringAttr | None = None,
@@ -5013,6 +5114,7 @@ RISCV = Dialect(
         FMvDOp,
         VFAddSOp,
         VFMulSOp,
+        ParallelMovOp,
     ],
     [
         IntRegisterType,

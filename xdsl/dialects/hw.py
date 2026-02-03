@@ -6,18 +6,26 @@ See [rationale](https://circt.llvm.org/docs/RationaleSymbols/) for symbols.
 See external [documentation](https://circt.llvm.org/docs/Dialects/HW/).
 """
 
+from __future__ import annotations
+
 import abc
 from collections.abc import Iterable, Iterator, Sequence
 from dataclasses import InitVar, dataclass, field
 from enum import Enum
-from typing import NamedTuple, overload
+from typing import ClassVar, Generic, NamedTuple, cast, overload
+
+from typing_extensions import TypeVar
 
 from xdsl.dialects.builtin import (
+    AnySignlessIntegerType,
     ArrayAttr,
+    ContainerType,
     FlatSymbolRefAttr,
     FlatSymbolRefAttrConstr,
     IntAttr,
+    IntegerType,
     LocationAttr,
+    Signedness,
     StringAttr,
     SymbolNameConstraint,
     SymbolRefAttr,
@@ -34,13 +42,19 @@ from xdsl.ir import (
     TypeAttribute,
 )
 from xdsl.irdl import (
+    AnyAttr,
+    AtLeast,
     IRDLOperation,
+    RangeOf,
+    VarConstraint,
     attr_def,
     irdl_attr_definition,
     irdl_op_definition,
     lazy_traits_def,
+    operand_def,
     opt_attr_def,
     region_def,
+    result_def,
     traits_def,
     var_operand_def,
     var_result_def,
@@ -57,6 +71,7 @@ from xdsl.traits import (
     SymbolTable,
 )
 from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.hints import isa
 
 
 @dataclass
@@ -85,8 +100,8 @@ class InnerSymTarget:
 
     @classmethod
     def get_target_for_subfield(
-        cls, base: "InnerSymTarget", field_id: int
-    ) -> "InnerSymTarget":
+        cls, base: InnerSymTarget, field_id: int
+    ) -> InnerSymTarget:
         """
         Return a target to the specified field within the given base.
         `field_id` is relative to the specified base target.
@@ -113,7 +128,7 @@ class InnerRefAttr(ParametrizedAttribute):
     @classmethod
     def get_from_operation(
         cls, op: Operation, sym_name: StringAttr, module_name: StringAttr
-    ) -> "InnerRefAttr":
+    ) -> InnerRefAttr:
         """Get the InnerRefAttr for an operation and add the sym on it."""
         # NB: declared upstream, but no implementation to be found
         raise NotImplementedError
@@ -229,7 +244,7 @@ class InnerRefUserOpInterfaceTrait(OpTrait):
     other inner symbol related utilities that are either costly or otherwise
     disallowed within a traditional operation."""
 
-    def verify_inner_refs(self, op: Operation, namespace: "InnerRefNamespace"):
+    def verify_inner_refs(self, op: Operation, namespace: InnerRefNamespace):
         """Verify the inner ref uses held by this operation."""
         ...
 
@@ -399,7 +414,7 @@ class InnerSymAttr(
         """Iterator for all the InnerSymPropertiesAttr."""
         return iter(self.props)
 
-    def erase(self, field_id: IntAttr | int) -> "InnerSymAttr":
+    def erase(self, field_id: IntAttr | int) -> InnerSymAttr:
         """Return an InnerSymAttr with the inner symbol for the specified field_id removed."""
         if not isinstance(field_id, IntAttr):
             field_id = IntAttr(field_id)
@@ -446,7 +461,7 @@ class Direction(Enum):
     OUTPUT = 1
 
     @staticmethod
-    def parse_optional(parser: BaseParser, short: bool = False) -> "Direction | None":
+    def parse_optional(parser: BaseParser, short: bool = False) -> Direction | None:
         if parser.parse_optional_keyword("input" if not short else "in"):
             return Direction.INPUT
         elif parser.parse_optional_keyword("output" if not short else "out"):
@@ -455,7 +470,7 @@ class Direction(Enum):
             return None
 
     @staticmethod
-    def parse(parser: BaseParser, short: bool = False) -> "Direction":
+    def parse(parser: BaseParser, short: bool = False) -> Direction:
         if (direction := Direction.parse_optional(parser, short)) is None:
             return parser.raise_error("invalid port direction")
         return direction
@@ -611,6 +626,75 @@ class ParamDeclAttr(ParametrizedAttribute):
             )
 
 
+ArrayElementCovT = TypeVar(
+    "ArrayElementCovT", bound=Attribute, covariant=True, default=Attribute
+)
+
+
+@irdl_attr_definition
+class ArrayType(
+    ParametrizedAttribute,
+    TypeAttribute,
+    ContainerType[ArrayElementCovT],
+    Generic[ArrayElementCovT],
+):
+    """
+    Fixed-sized array
+    """
+
+    name = "hw.array"
+
+    element_type: ArrayElementCovT
+    size_attr: IntAttr
+
+    def __init__(
+        self,
+        element_type: ArrayElementCovT,
+        size_attr: IntAttr | int,
+    ):
+        if isinstance(size_attr, int):
+            size_attr = IntAttr(size_attr)
+        super().__init__(
+            element_type,
+            size_attr,
+        )
+
+    def __len__(self) -> int:
+        return self.size_attr.data
+
+    def get_element_type(self) -> ArrayElementCovT:
+        return self.element_type
+
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
+        parser.parse_punctuation("<", " in hw.array type")
+        size_attr, type = parser.parse_ranked_shape()
+        if len(size_attr) != 1:
+            parser.raise_error("Expected one size in hw.array type")
+        size_attr = IntAttr(size_attr[0])
+        parser.parse_punctuation(">", " in hw.array type")
+        return [type, size_attr]
+
+    def print_parameters(self, printer: Printer) -> None:
+        with printer.in_angle_brackets():
+            printer.print_int(len(self))
+            printer.print_string("x")
+            printer.print_attribute(self.get_element_type())
+
+    def _verify(self):
+        typ = self.get_element_type()
+        if isa(typ, ArrayType):
+            typ.get_element_type()._verify()
+        elif isa(typ, IntegerType):
+            if typ.signedness.data != Signedness.SIGNLESS:
+                raise VerifyException(f"{self} -> {typ} must be a signless integer")
+        else:
+            raise VerifyException(
+                f"{self} -> {typ} is not a hw.array or a signless integer"
+            )
+        return
+
+
 class HWModuleLike(OpTrait, abc.ABC):
     """
     Represents an operation that can be interpreted as a hardware module.
@@ -668,7 +752,7 @@ class ParsedModuleHeader(NamedTuple):
         )
 
     @classmethod
-    def parse(cls, parser: Parser) -> "ParsedModuleHeader":
+    def parse(cls, parser: Parser) -> ParsedModuleHeader:
         def parse_optional_port_name() -> str | None:
             return (
                 parser.parse_optional_identifier()
@@ -875,7 +959,7 @@ class HWModuleOp(IRDLOperation):
             raise VerifyException("too many block arguments in module block")
 
     @classmethod
-    def parse(cls, parser: Parser) -> "HWModuleOp":
+    def parse(cls, parser: Parser) -> HWModuleOp:
         module_header = ParsedModuleHeader.parse(parser)
 
         attrs = parser.parse_optional_attr_dict_with_keyword(
@@ -963,7 +1047,7 @@ class HWModuleExternOp(IRDLOperation):
         return super().__init__(attributes=attributes)
 
     @classmethod
-    def parse(cls, parser: Parser) -> "HWModuleExternOp":
+    def parse(cls, parser: Parser) -> HWModuleExternOp:
         module_header = ParsedModuleHeader.parse(parser)
 
         attrs = parser.parse_optional_attr_dict_with_keyword(
@@ -1110,7 +1194,7 @@ class InstanceOp(IRDLOperation):
         )
 
     @classmethod
-    def parse(cls, parser: Parser) -> "InstanceOp":
+    def parse(cls, parser: Parser) -> InstanceOp:
         instance_name = parser.parse_str_literal(" (instance name)")
         inner_sym = None
         if parser.parse_optional_keyword("sym") is not None:
@@ -1264,7 +1348,7 @@ class OutputOp(IRDLOperation):
                 )
 
     @classmethod
-    def parse(cls, parser: Parser) -> "OutputOp":
+    def parse(cls, parser: Parser) -> OutputOp:
         operands = parser.parse_optional_undelimited_comma_separated_list(
             parser.parse_optional_unresolved_operand, parser.parse_unresolved_operand
         )
@@ -1288,15 +1372,114 @@ class OutputOp(IRDLOperation):
         printer.print_list(self.inputs.types, printer.print_attribute)
 
 
+@irdl_op_definition
+class ArrayCreateOp(IRDLOperation):
+    """
+    Create an array from values.
+    Creates an array from a variable set of values. One or more values must be listed.
+    """
+
+    I: ClassVar = VarConstraint("I", AnyAttr())  # Constrain all types to be equal
+
+    name = "hw.array_create"
+    inputs = var_operand_def(RangeOf(I).of_length(AtLeast(1)))
+    result = result_def(ArrayType)
+
+    def __init__(
+        self, first_input: Operation | SSAValue, *other_inputs: Operation | SSAValue
+    ):
+        inputs = (first_input, *other_inputs)
+        el_type = SSAValue.get(
+            first_input, type=AnySignlessIntegerType | ArrayType
+        ).type
+        out_type = ArrayType(el_type, len(inputs))
+        super().__init__(operands=(inputs,), result_types=[out_type])
+
+    def print(self, printer: Printer):
+        printer.print_string(" ")
+        printer.print_list(self.inputs, printer.print_operand)
+        printer.print_string(" : ")
+        printer.print_attribute(self.inputs[0].type)
+
+    @classmethod
+    def parse(cls, parser: Parser) -> ArrayCreateOp:
+        operands = parser.parse_comma_separated_list(
+            parser.Delimiter.NONE, parser.parse_unresolved_operand
+        )
+        parser.parse_punctuation(":")
+        in_type = parser.parse_type()
+        types = [in_type for _ in range(len(operands))]
+        operands = parser.resolve_operands(operands, types, parser.pos)
+        return cls(*operands)
+
+
+@irdl_op_definition
+class ArrayGetOp(IRDLOperation):
+    """
+    Extract an element from an array
+    Extracts the element at index from the given input array.
+    The index must be exactly ceil(log2(length(input))) bits wide.
+    """
+
+    name = "hw.array_get"
+    input = operand_def(ArrayType)
+    index = operand_def(IntegerType)
+    result = result_def(IntegerType)
+
+    def __init__(self, input: Operation | SSAValue, index: Operation | SSAValue):
+        typ = SSAValue.get(input, type=ArrayType).type
+        assert isinstance(typ, ArrayType)
+        out_type = typ.get_element_type()
+        super().__init__(operands=[input, index], result_types=[out_type])
+
+    def verify_(self) -> None:
+        input_typ = cast(ArrayType, self.input.type)  # Checked by IRDL
+        index_typ = cast(IntegerType, self.index.type)  # Checked by IRDL
+        index_width = index_typ.bitwidth
+        shape_width = (len(input_typ) - 1).bit_length()
+        if index_width != shape_width:
+            raise VerifyException(
+                f"The index ({index_width} bits wide) must be exactly ceil(log2(length(input))) = {shape_width} bits wide"
+            )
+
+    def print(self, printer: Printer):
+        printer.print_string(" ")
+        printer.print_operand(self.input)
+        with printer.in_square_brackets():
+            printer.print_operand(self.index)
+        printer.print_string(" : ")
+        printer.print_attribute(self.input.type)
+        printer.print_string(", ")
+        printer.print_attribute(self.index.type)
+
+    @classmethod
+    def parse(cls, parser: Parser) -> ArrayGetOp:
+        input = parser.parse_unresolved_operand()
+        parser.parse_punctuation("[")
+        index = parser.parse_unresolved_operand()
+        parser.parse_punctuation("]")
+        parser.parse_punctuation(":")
+        input_type = parser.parse_type()
+        parser.parse_punctuation(",")
+        index_type = parser.parse_type()
+        operands = parser.resolve_operands(
+            [input, index], [input_type, index_type], parser.pos
+        )
+        return cls(operands[0], operands[1])
+
+
 HW = Dialect(
     "hw",
     [
+        ArrayCreateOp,
+        ArrayGetOp,
         HWModuleExternOp,
         HWModuleOp,
         InstanceOp,
         OutputOp,
     ],
     [
+        ArrayType,
         DirectionAttr,
         InnerRefAttr,
         InnerSymPropertiesAttr,

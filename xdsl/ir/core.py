@@ -20,7 +20,6 @@ from typing import (
     ClassVar,
     Generic,
     NoReturn,
-    Protocol,
     TypeAlias,
     cast,
     get_args,
@@ -912,7 +911,7 @@ class SSAValues(tuple[SSAValueCovT, ...], Generic[SSAValueCovT]):
     """
 
     @property
-    def types(self):
+    def types(self: tuple[SSAValue[AttributeInvT], ...]) -> tuple[AttributeInvT, ...]:
         return tuple(o.type for o in self)
 
     @overload
@@ -1803,9 +1802,6 @@ class Block(_IRNode, IRWithUses, IRWithName):
     def args(self) -> tuple[BlockArgument, ...]:
         """Returns the block arguments."""
         return self._args
-
-    class BlockCallback(Protocol):
-        def __call__(self, *args: BlockArgument) -> list[Operation]: ...
 
     def insert_arg(self, arg_type: Attribute, index: int) -> BlockArgument:
         """

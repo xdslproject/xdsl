@@ -13,6 +13,7 @@ from xdsl.dialects.builtin import (
     AnyFloatConstr,
     BoolAttr,
     DenseArrayBase,
+    DenseIntOrFPElementsAttr,
     FloatAttr,
     IntegerAttr,
     ShapedType,
@@ -103,7 +104,7 @@ class ClampOp(IRDLOperation):
     input = operand_def(TensorType.constr(T))
     output = result_def(TensorType.constr(T))
 
-    irdl_options = [ParsePropInAttrDict()]
+    irdl_options = (ParsePropInAttrDict(),)
 
     assembly_format = "$input attr-dict `:` `(` type($input) `)` `->` type($output)"
 
@@ -114,6 +115,26 @@ ROUNDING_MODE_CONSTRAINT = (
     | eq(StringAttr("DOUBLE_ROUND"))
 )
 """Rounding mode for `tosa.rescale`"""
+
+
+@irdl_op_definition
+class ConstOp(IRDLOperation):
+    """
+    TOSA const operation.
+
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/TOSA/#tosaconst-mlirtosaconstop).
+    """
+
+    name = "tosa.const"
+
+    values = prop_def(DenseIntOrFPElementsAttr)
+
+    output = result_def(TensorType)
+
+    def __init__(self, values: DenseIntOrFPElementsAttr):
+        super().__init__(
+            properties={"values": values}, result_types=(values.get_type(),)
+        )
 
 
 @irdl_op_definition
@@ -142,7 +163,7 @@ class RescaleOp(IRDLOperation):
 
     output = result_def(TensorType)
 
-    irdl_options = [ParsePropInAttrDict()]
+    irdl_options = (ParsePropInAttrDict(),)
 
     assembly_format = "operands attr-dict `:` functional-type(operands, results)"
 
@@ -367,7 +388,7 @@ class MaxPool2DOp(IRDLOperation):
     pad = prop_def(DenseArrayBase[I64])
     nan_mode = opt_prop_def(StringAttr, default_value=StringAttr("PROPAGATE"))
 
-    irdl_options = [ParsePropInAttrDict()]
+    irdl_options = (ParsePropInAttrDict(),)
 
     assembly_format = "operands attr-dict `:` functional-type(operands, results)"
 
@@ -405,7 +426,7 @@ class AvgPool2DOp(IRDLOperation):
 
     output = result_def(TensorType)
 
-    irdl_options = [ParsePropInAttrDict()]
+    irdl_options = (ParsePropInAttrDict(),)
 
     assembly_format = "operands attr-dict `:` functional-type(operands, results)"
 
@@ -433,7 +454,7 @@ class ConcatOp(IRDLOperation):
             result_types=[output_type],
         )
 
-    irdl_options = [ParsePropInAttrDict()]
+    irdl_options = (ParsePropInAttrDict(),)
 
     assembly_format = "$tensors attr-dict `:` `(` type($tensors) `)` `->` type($output)"
 
@@ -505,7 +526,7 @@ class ReductionOperation(IRDLOperation, ABC):
 
     assembly_format = "$input attr-dict `:` functional-type(operands, results)"
 
-    irdl_options = [ParsePropInAttrDict()]
+    irdl_options = (ParsePropInAttrDict(),)
 
 
 @irdl_op_definition
@@ -570,6 +591,7 @@ TOSA = Dialect(
     "tosa",
     [
         ClampOp,
+        ConstOp,
         RescaleOp,
         AddOp,
         SubOp,

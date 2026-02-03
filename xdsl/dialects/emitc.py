@@ -444,7 +444,7 @@ class EmitC_CallOpaqueOp(IRDLOperation):
     call_args = var_operand_def()
     res = var_result_def()
 
-    irdl_options = [ParsePropInAttrDict()]
+    irdl_options = (ParsePropInAttrDict(),)
     assembly_format = (
         "$callee `(` $call_args `)` attr-dict `:` functional-type(operands, results)"
     )

@@ -399,7 +399,7 @@ class ShardingOp(IRDLOperation):
 
     result = result_def(ShardingType)
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
     traits = traits_def(
         Pure(),

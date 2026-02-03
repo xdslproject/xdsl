@@ -34,7 +34,7 @@ class ArithConstantToX86(RewritePattern):
         cast_op, _ = UnrealizedConversionCastOp.cast_one(
             mov_op.destination, op.result.type
         )
-        rewriter.replace_matched_op([mov_op, cast_op])
+        rewriter.replace_op(op, [mov_op, cast_op])
 
 
 X86_OP_BY_ARITH_BINARY_OP = {
@@ -62,7 +62,7 @@ class ArithBinaryToX86(RewritePattern):
             )
         rewriter.name_hint = op.results[0].name_hint
 
-        lhs_x86, rhs_x86 = self.arch.cast_operands_to_regs(rewriter)
+        lhs_x86, rhs_x86 = self.arch.cast_to_regs(op.operands, rewriter)
         moved_rhs = self.arch.move_value_to_unallocated(
             rhs_x86, op.operands[1].type, rewriter
         )
@@ -70,7 +70,7 @@ class ArithBinaryToX86(RewritePattern):
         result_cast_op, _ = UnrealizedConversionCastOp.cast_one(
             add_op.register_out, lhs.type
         )
-        rewriter.replace_matched_op([add_op, result_cast_op])
+        rewriter.replace_op(op, [add_op, result_cast_op])
 
 
 @dataclass(frozen=True)

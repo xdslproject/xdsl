@@ -8,13 +8,16 @@ from dataclasses import dataclass, field
 from typing import Optional, cast
 
 from xdsl.builder import Builder
+from xdsl.context import Context
 from xdsl.dialects import pdl, pdl_interp
 from xdsl.dialects.builtin import (
     ArrayAttr,
-    IntegerAttr,
+    FunctionType,
     ModuleOp,
     StringAttr,
+    SymbolRefAttr,
     TypeAttribute,
+    UnitAttr,
 )
 from xdsl.ir import (
     Block,
@@ -23,7 +26,8 @@ from xdsl.ir import (
     Region,
     SSAValue,
 )
-from xdsl.rewriter import InsertPoint
+from xdsl.passes import ModulePass
+from xdsl.rewriter import InsertPoint, Rewriter
 from xdsl.transforms.convert_pdl_to_pdl_interp.predicate import (
     Answer,
     AttributeAnswer,
@@ -60,7 +64,41 @@ from xdsl.transforms.convert_pdl_to_pdl_interp.predicate import (
     get_position_cost,
     get_question_cost,
 )
+from xdsl.utils.hints import isa
 from xdsl.utils.scoped_dict import ScopedDict
+
+
+@dataclass(frozen=True)
+class ConvertPDLToPDLInterpPass(ModulePass):
+    """
+    Pass to convert PDL operations to PDL interpreter operations.
+    This is a somewhat faithful port of the implementation in MLIR, but it may not generate the same exact results.
+    """
+
+    name = "convert-pdl-to-pdl-interp"
+
+    optimize_for_eqsat: bool = True
+
+    def apply(self, ctx: Context, op: ModuleOp) -> None:
+        patterns = [
+            pattern for pattern in op.body.ops if isinstance(pattern, pdl.PatternOp)
+        ]
+
+        rewriter_module = ModuleOp([], sym_name=StringAttr("rewriters"))
+
+        matcher_func = pdl_interp.FuncOp("matcher", ((pdl.OperationType(),), ()))
+        generator = MatcherGenerator(
+            matcher_func, rewriter_module, self.optimize_for_eqsat
+        )
+        generator.lower(patterns)
+        op.body.block.add_op(matcher_func)
+
+        # Replace all pattern ops with the matcher func and rewriter module
+        rewriter = Rewriter()
+        for pattern in patterns:
+            rewriter.erase_op(pattern)
+        op.body.block.add_op(rewriter_module)
+
 
 # =============================================================================
 # Matcher Tree Nodes
@@ -576,6 +614,7 @@ class PatternAnalyzer:
                         parent_pos = inputs.get(op.parent_.owner.op)
                         if parent_pos and isinstance(parent_pos, OperationPosition):
                             result_pos = parent_pos.get_result(op.index.value.data)
+                            inputs[op.val] = result_pos
                             is_not_null = Predicate.get_is_not_null()
                             predicates.append(
                                 PositionalPredicate(
@@ -594,6 +633,7 @@ class PatternAnalyzer:
                             is_variadic = isinstance(op.val.type, pdl.RangeType)
                             index = op.index.value.data if op.index else None
                             result_pos = parent_pos.get_result_group(index, is_variadic)
+                            inputs[op.val] = result_pos
                             if index is not None:
                                 is_not_null = Predicate.get_is_not_null()
                                 predicates.append(
@@ -990,6 +1030,24 @@ class MatcherGenerator:
         self.constraint_op_map = {}
         self.rewriter_names = {}
 
+    def lower(self, patterns: list[pdl.PatternOp]) -> None:
+        """Lower PDL patterns to PDL interpreter"""
+
+        # Build the predicate tree
+        tree_builder = PredicateTreeBuilder()
+        root = tree_builder.build_predicate_tree(patterns)
+        self.value_to_position = tree_builder.pattern_value_positions
+
+        # Get the entry block and add root operation argument
+        entry_block = self.matcher_func.body.block
+
+        # The first argument is the root operation
+        root_pos = OperationPosition(depth=0)
+        self.values[root_pos] = entry_block.args[0]
+
+        # Generate the matcher
+        _ = self.generate_matcher(root, self.matcher_func.body, block=entry_block)
+
     def generate_matcher(
         self, node: MatcherNode, region: Region, block: Block | None = None
     ) -> Block:
@@ -1000,10 +1058,12 @@ class MatcherGenerator:
             block = Block()
             region.add_block(block)
 
+        # Set insertion point to end of this block
+        self.builder.insertion_point = InsertPoint.at_end(block)
+
         # Handle exit node - just add finalize
         if isinstance(node, ExitNode):
-            finalize_op = pdl_interp.FinalizeOp()
-            self.builder.insert_op(finalize_op, InsertPoint.at_end(block))
+            self.builder.insert(pdl_interp.FinalizeOp())
             return block
 
         self.values = ScopedDict(self.values)
@@ -1014,26 +1074,27 @@ class MatcherGenerator:
         if node.failure_node:
             failure_block = self.generate_matcher(node.failure_node, region)
             self.failure_block_stack.append(failure_block)
+            # Restore insertion point after generating failure node
+            self.builder.insertion_point = InsertPoint.at_end(block)
         else:
             assert self.failure_block_stack, "Expected valid failure block"
             failure_block = self.failure_block_stack[-1]
 
-        # Get value for position if exists
-        current_block = block
+        # Get value for position if exists (may change insertion point)
         val = None
         if node.position:
-            val = self.get_value_at(current_block, node.position)
+            val = self.get_value_at(node.position)
 
         # Dispatch based on node type
         match node:
             case BoolNode():
                 assert val is not None
-                self.generate_bool_node(node, current_block, val)
+                self.generate_bool_node(node, val)
             case SwitchNode():
                 assert val is not None
-                self.generate_switch_node(node, current_block, val)
+                self.generate_switch_node(node, val)
             case SuccessNode():
-                raise NotImplementedError()
+                self.generate_success_node(node)
             case _:
                 raise NotImplementedError(f"Unhandled node type {type(node)}")
 
@@ -1044,20 +1105,23 @@ class MatcherGenerator:
         self.values = self.values.parent  # Pop scope
         return block
 
-    def get_value_at(self, block: Block, position: Position) -> SSAValue:
-        """Get or create SSA value for a position"""
+    def get_value_at(self, position: Position) -> SSAValue:
+        """Get or create SSA value for a position.
+
+        Assumes self.builder.insertion_point is correctly set.
+        May modify the insertion point (e.g., when creating foreach loops).
+        """
 
         # Check cache
         if position in self.values:
             return self.values[position]
 
-        # Get parent value if needed
+        # Get parent value if needed (may change insertion point)
         parent_val = None
         if position.parent:
-            parent_val = self.get_value_at(block, position.parent)
+            parent_val = self.get_value_at(position.parent)
 
         # Create value based on position type
-        self.builder.insertion_point = InsertPoint.at_end(block)
         value = None
 
         if isinstance(position, OperationPosition):
@@ -1088,7 +1152,6 @@ class MatcherGenerator:
                 if position.is_variadic
                 else pdl.ValueType()
             )
-            raise NotImplementedError("pdl_interp.get_operands is not yet implemented")
             get_operands_op = pdl_interp.GetOperandsOp(
                 position.group_number, parent_val, result_type
             )
@@ -1131,9 +1194,6 @@ class MatcherGenerator:
             assert parent_val is not None
             # Get type of value or attribute
             if parent_val.type == pdl.AttributeType():
-                raise NotImplementedError(
-                    "pdl_interp.get_attribute_type is not yet implemented"
-                )
                 get_type_op = pdl_interp.GetAttributeTypeOp(parent_val)
             else:
                 get_type_op = pdl_interp.GetValueTypeOp(parent_val)
@@ -1173,21 +1233,30 @@ class MatcherGenerator:
         self.values[position] = value
         return value
 
-    def generate_bool_node(self, node: BoolNode, block: Block, val: SSAValue) -> None:
-        """Generate operations for a boolean predicate node"""
+    def generate_bool_node(self, node: BoolNode, val: SSAValue) -> None:
+        """Generate operations for a boolean predicate node.
+
+        Assumes self.builder.insertion_point is correctly set.
+        """
 
         question = node.question
         answer = node.answer
+        block = self.builder.insertion_point.block
         region = block.parent
         assert region is not None, "Block must be in a region"
 
-        # Handle getValue queries first for constraint questions
+        # Handle getValue queries first for constraint questions (may change insertion point)
         args: list[SSAValue] = []
         if isinstance(question, EqualToQuestion):
-            args = [self.get_value_at(block, question.other_position)]
+            args = [self.get_value_at(question.other_position)]
         elif isinstance(question, ConstraintQuestion):
             for position in question.arg_positions:
-                args.append(self.get_value_at(block, position))
+                args.append(self.get_value_at(position))
+
+        # Get the current block after potentially changed insertion point
+        block = self.builder.insertion_point.block
+        region = block.parent
+        assert region is not None, "Block must be in a region"
 
         # Create success block
         success_block = Block()
@@ -1217,7 +1286,9 @@ class MatcherGenerator:
                 )
             case EqualToQuestion():
                 # Get the other value to compare with
-                other_val = self.get_value_at(block, question.other_position)
+                other_val = self.get_value_at(question.other_position)
+                # Update block reference after potential insertion point change
+                block = self.builder.insertion_point.block
                 assert isinstance(answer, TrueAnswer)
                 check_op = pdl_interp.AreEqualOp(
                     val, other_val, success_block, failure_block
@@ -1231,11 +1302,9 @@ class MatcherGenerator:
                 assert isinstance(answer, TypeAnswer)
                 if isinstance(val.type, pdl.RangeType):
                     # Check multiple types
-                    raise NotImplementedError(
-                        "pdl_interp.check_types is not yet implemented"
-                    )
+                    assert isinstance(answer.value, ArrayAttr)
                     check_op = pdl_interp.CheckTypesOp(
-                        val, answer.value, success_block, failure_block
+                        answer.value, val, success_block, failure_block
                     )
                 else:
                     # Check single type
@@ -1257,18 +1326,20 @@ class MatcherGenerator:
             case _:
                 raise NotImplementedError(f"Unhandled question type {type(question)}")
 
-        self.builder.insert_op(check_op, InsertPoint.at_end(block))
+        self.builder.insert(check_op)
 
         # Generate matcher for success node
         if node.success_node:
             self.generate_matcher(node.success_node, region, success_block)
 
-    def generate_switch_node(
-        self, node: SwitchNode, block: Block, val: SSAValue
-    ) -> None:
-        """Generate operations for a switch node"""
+    def generate_switch_node(self, node: SwitchNode, val: SSAValue) -> None:
+        """Generate operations for a switch node.
+
+        Assumes self.builder.insertion_point is correctly set.
+        """
 
         question = node.question
+        block = self.builder.insertion_point.block
         region = block.parent
         assert region is not None, "Block must be in a region"
         default_dest = self.failure_block_stack[-1]
@@ -1291,8 +1362,7 @@ class MatcherGenerator:
                 if child_node:
                     success_block = self.generate_matcher(child_node, region)
                     current_check_block = Block()
-                    region.add_block(current_check_block)
-
+                    region.insert_block_before(current_check_block, success_block)
                     self.builder.insertion_point = InsertPoint.at_end(
                         current_check_block
                     )
@@ -1341,7 +1411,7 @@ class MatcherGenerator:
                 case_blocks.append(child_block)
                 case_values.append(answer)
 
-        # Position builder at end of current block
+        # Restore insertion point after generating child matchers
         self.builder.insertion_point = InsertPoint.at_end(block)
 
         # Create switch operation based on question type
@@ -1356,36 +1426,27 @@ class MatcherGenerator:
             case OperandCountQuestion():
                 # Extract integer values from UnsignedAnswer objects
                 switch_values = [cast(UnsignedAnswer, ans).value for ans in case_values]
-                switch_attr = ArrayAttr([IntegerAttr(v, 32) for v in switch_values])
-                raise NotImplementedError(
-                    "pdl_interp.switch_operand_count is not yet implemented"
-                )
                 switch_op = pdl_interp.SwitchOperandCountOp(
-                    switch_attr, val, default_dest, case_blocks
+                    switch_values, val, default_dest, case_blocks
                 )
             case ResultCountQuestion():
                 # Extract integer values from UnsignedAnswer objects
                 switch_values = [cast(UnsignedAnswer, ans).value for ans in case_values]
-                switch_attr = ArrayAttr([IntegerAttr(v, 32) for v in switch_values])
-                raise NotImplementedError(
-                    "pdl_interp.switch_result_count is not yet implemented"
-                )
                 switch_op = pdl_interp.SwitchResultCountOp(
-                    switch_attr, val, default_dest, case_blocks
+                    switch_values, val, default_dest, case_blocks
                 )
             case TypeConstraintQuestion():
                 # Extract type attributes from TypeAnswer objects
                 switch_values = [cast(TypeAnswer, ans).value for ans in case_values]
-                raise NotImplementedError(
-                    "pdl_interp.switch_types is not yet implemented"
-                )
                 if isinstance(val.type, pdl.RangeType):
+                    assert isa(switch_values, list[ArrayAttr[TypeAttribute]])
                     switch_attr = ArrayAttr(switch_values)
 
                     switch_op = pdl_interp.SwitchTypesOp(
                         switch_attr, val, default_dest, case_blocks
                     )
                 else:
+                    assert isa(switch_values, list[TypeAttribute])
                     switch_attr = ArrayAttr(switch_values)
                     switch_op = pdl_interp.SwitchTypeOp(
                         switch_attr, val, default_dest, case_blocks
@@ -1404,6 +1465,184 @@ class MatcherGenerator:
 
         self.builder.insert(switch_op)
 
+    def generate_success_node(self, node: SuccessNode) -> None:
+        """Generate operations for a successful match.
+
+        Assumes self.builder.insertion_point is correctly set.
+        """
+
+        pattern = node.pattern
+        root = node.root
+
+        # Generate a rewriter for the pattern
+        used_match_positions: list[Position] = []
+        rewriter_func_ref = self.generate_rewriter(pattern, used_match_positions)
+
+        # Process values used in the rewrite that are defined in the match
+        # (may change insertion point)
+        mapped_match_values = [self.get_value_at(pos) for pos in used_match_positions]
+
+        # Collect generated op names from DAG rewriter
+        rewriter_op = pattern.body.block.last_op
+        assert isinstance(rewriter_op, pdl.RewriteOp)
+        if not rewriter_op.name:
+            generated_op_names = ArrayAttr(
+                [
+                    op.opName
+                    for op in rewriter_op.body.walk()
+                    if isinstance(op, pdl.OperationOp) and op.opName
+                ]
+            )
+        else:
+            generated_op_names = None
+        # Get root kind if present
+        root_kind: StringAttr | None = None
+        if root:
+            defining_op = root.owner
+            if isinstance(defining_op, pdl.OperationOp) and defining_op.opName:
+                root_kind = StringAttr(defining_op.opName.data)
+
+        # Create the RecordMatchOp
+        record_op = pdl_interp.RecordMatchOp(
+            rewriter_func_ref,
+            root_kind,
+            generated_op_names,
+            pattern.benefit,
+            mapped_match_values,
+            [],
+            self.failure_block_stack[-1],
+        )
+        self.builder.insert(record_op)
+
+    def generate_rewriter(
+        self, pattern: pdl.PatternOp, used_match_positions: list[Position]
+    ) -> SymbolRefAttr:
+        """
+        Generate a rewriter function for the given pattern, and return a
+        reference to that function.
+        """
+        rewriter_op = pattern.body.block.last_op
+        assert isinstance(rewriter_op, pdl.RewriteOp)
+
+        if pattern.sym_name:
+            rewriter_name = pattern.sym_name.data
+        else:
+            rewriter_name = "pdl_generated_rewriter"
+        if rewriter_name in self.rewriter_names:
+            # duplicate names get a numeric suffix starting from 0 (foo, foo_0, foo_1, ...)
+            self.rewriter_names[rewriter_name] += 1
+            rewriter_name = f"{rewriter_name}_{self.rewriter_names[rewriter_name] - 2}"
+        else:
+            self.rewriter_names[rewriter_name] = 1
+
+        # Create the rewriter function
+        rewriter_func = pdl_interp.FuncOp(rewriter_name, ([], []))
+
+        self.rewriter_module.body.block.add_op(rewriter_func)
+        entry_block = rewriter_func.body.block
+        self.rewriter_builder.insertion_point = InsertPoint.at_end(entry_block)
+
+        rewrite_values: dict[SSAValue, SSAValue] = {}
+        pattern_value_positions = self.value_to_position[pattern]
+
+        def map_rewrite_value(old_value: SSAValue) -> SSAValue:
+            if new_value := rewrite_values.get(old_value):
+                return new_value
+
+            # Prefer materializing constants directly when possible.
+            old_op = old_value.owner
+            new_val_op: Operation | None = None
+            if isinstance(old_op, pdl.AttributeOp) and old_op.value:
+                new_val_op = pdl_interp.CreateAttributeOp(old_op.value)
+            elif isinstance(old_op, pdl.TypeOp) and old_op.constantType:
+                new_val_op = pdl_interp.CreateTypeOp(old_op.constantType)
+            elif isinstance(old_op, pdl.TypesOp) and old_op.constantTypes:
+                new_val_op = pdl_interp.CreateTypesOp(old_op.constantTypes)
+
+            if new_val_op is not None:
+                self.rewriter_builder.insert(new_val_op)
+                new_value = new_val_op.results[0]
+                rewrite_values[old_value] = new_value
+                return new_value
+
+            # Otherwise, it's an input from the matcher.
+            input_pos = pattern_value_positions.get(old_value)
+            assert input_pos is not None, "Expected value to be a pattern input"
+            if input_pos not in used_match_positions:
+                used_match_positions.append(input_pos)
+
+            arg = entry_block.insert_arg(old_value.type, len(entry_block.args))
+            rewrite_values[old_value] = arg
+            return arg
+
+        # If this is a custom rewriter, dispatch to the registered method.
+        if rewriter_op.name_:
+            args: list[SSAValue] = []
+            if rewriter_op.root:
+                args.append(map_rewrite_value(rewriter_op.root))
+            args.extend(map_rewrite_value(arg) for arg in rewriter_op.external_args)
+
+            apply_op = pdl_interp.ApplyRewriteOp(rewriter_op.name_.data, args)
+            self.rewriter_builder.insert(apply_op)
+        else:
+            # Otherwise, this is a DAG rewriter defined using PDL operations.
+            assert rewriter_op.body is not None
+            for op in rewriter_op.body.ops:
+                match op:
+                    case pdl.ApplyNativeRewriteOp():
+                        self._generate_rewriter_for_apply_native_rewrite(
+                            op, rewrite_values, map_rewrite_value
+                        )
+                    case pdl.AttributeOp():
+                        self._generate_rewriter_for_attribute(
+                            op, rewrite_values, map_rewrite_value
+                        )
+                    case pdl.EraseOp():
+                        self._generate_rewriter_for_erase(
+                            op, rewrite_values, map_rewrite_value
+                        )
+                    case pdl.OperationOp():
+                        self._generate_rewriter_for_operation(
+                            op, rewrite_values, map_rewrite_value
+                        )
+                    case pdl.RangeOp():
+                        self._generate_rewriter_for_range(
+                            op, rewrite_values, map_rewrite_value
+                        )
+                    case pdl.ReplaceOp():
+                        self._generate_rewriter_for_replace(
+                            op, rewrite_values, map_rewrite_value
+                        )
+                    case pdl.ResultOp():
+                        self._generate_rewriter_for_result(
+                            op, rewrite_values, map_rewrite_value
+                        )
+                    case pdl.ResultsOp():
+                        self._generate_rewriter_for_results(
+                            op, rewrite_values, map_rewrite_value
+                        )
+                    case pdl.TypeOp():
+                        self._generate_rewriter_for_type(
+                            op, rewrite_values, map_rewrite_value
+                        )
+                    case pdl.TypesOp():
+                        self._generate_rewriter_for_types(
+                            op, rewrite_values, map_rewrite_value
+                        )
+                    case _:
+                        raise TypeError(f"Unexpected op type: {type(op)}")
+
+        # Update the signature of the rewrite function.
+        rewriter_func.function_type = FunctionType.from_lists(entry_block.arg_types, ())
+
+        self.rewriter_builder.insert(pdl_interp.FinalizeOp())
+        return SymbolRefAttr(
+            "rewriters",
+            [
+                StringAttr(rewriter_name),
+            ],
+        )
+
     def _generate_rewriter_for_apply_native_rewrite(
         self,
         op: pdl.ApplyNativeRewriteOp,
@@ -1412,9 +1651,8 @@ class MatcherGenerator:
     ):
         arguments = [map_rewrite_value(arg) for arg in op.args]
         result_types = [res.type for res in op.res]
-        raise NotImplementedError("pdl_interp.apply_rewrite is not yet implemented")
         interp_op = pdl_interp.ApplyRewriteOp(
-            arguments, name=op.constraint_name, result_types=result_types
+            op.constraint_name, arguments, result_types
         )
         self.rewriter_builder.insert(interp_op)
         for old_res, new_res in zip(op.results, interp_op.results, strict=True):
@@ -1430,6 +1668,178 @@ class MatcherGenerator:
             new_attr_op = pdl_interp.CreateAttributeOp(op.value)
             self.rewriter_builder.insert(new_attr_op)
             rewrite_values[op.output] = new_attr_op.attribute
+
+    def _generate_rewriter_for_erase(
+        self,
+        op: pdl.EraseOp,
+        rewrite_values: dict[SSAValue, SSAValue],
+        map_rewrite_value: Callable[[SSAValue], SSAValue],
+    ) -> None:
+        self.rewriter_builder.insert(pdl_interp.EraseOp(map_rewrite_value(op.op_value)))
+
+    def _generate_rewriter_for_operation(
+        self,
+        op: pdl.OperationOp,
+        rewrite_values: dict[SSAValue, SSAValue],
+        map_rewrite_value: Callable[[SSAValue], SSAValue],
+    ):
+        operands = tuple(map_rewrite_value(operand) for operand in op.operand_values)
+        attributes = tuple(map_rewrite_value(attr) for attr in op.attribute_values)
+
+        types: list[SSAValue] = []
+        has_inferred_result_types = self._generate_operation_result_type_rewriter(
+            op, map_rewrite_value, types, rewrite_values
+        )
+
+        if op.opName is None:
+            raise ValueError("Cannot create operation without a name.")
+
+        create_op = pdl_interp.CreateOperationOp(
+            op.opName,
+            UnitAttr() if has_inferred_result_types else None,
+            op.attributeValueNames,
+            operands,
+            attributes,
+            types,
+        )
+        self.rewriter_builder.insert(create_op)
+        created_op_val = create_op.result_op
+        rewrite_values[op.op] = created_op_val
+
+        # Generate accesses for any results that have their types constrained.
+        result_types = op.type_values
+        if len(result_types) == 1 and isinstance(result_types[0].type, pdl.RangeType):
+            if result_types[0] not in rewrite_values:
+                get_results = pdl_interp.GetResultsOp(
+                    None, created_op_val, pdl.RangeType(pdl.ValueType())
+                )
+                self.rewriter_builder.insert(get_results)
+                get_type = pdl_interp.GetValueTypeOp(get_results.value)
+                self.rewriter_builder.insert(get_type)
+                rewrite_values[result_types[0]] = get_type.result
+            return
+
+        seen_variable_length = False
+        for i, type_value in enumerate(result_types):
+            if type_value in rewrite_values:
+                continue
+            is_variadic = isinstance(type_value.type, pdl.RangeType)
+            seen_variable_length = seen_variable_length or is_variadic
+
+            result_val: SSAValue
+            if seen_variable_length:
+                get_results = pdl_interp.GetResultsOp(
+                    i, created_op_val, pdl.RangeType(pdl.ValueType())
+                )
+                self.rewriter_builder.insert(get_results)
+                result_val = get_results.value
+            else:
+                get_result = pdl_interp.GetResultOp(i, created_op_val)
+                self.rewriter_builder.insert(get_result)
+                result_val = get_result.value
+
+            get_type = pdl_interp.GetValueTypeOp(result_val)
+            self.rewriter_builder.insert(get_type)
+            rewrite_values[type_value] = get_type.result
+
+    def _generate_rewriter_for_range(
+        self,
+        op: pdl.RangeOp,
+        rewrite_values: dict[SSAValue, SSAValue],
+        map_rewrite_value: Callable[[SSAValue], SSAValue],
+    ) -> None:
+        args = [map_rewrite_value(arg) for arg in op.arguments]
+        create_range_op = pdl_interp.CreateRangeOp(args, op.result.type)
+        self.rewriter_builder.insert(create_range_op)
+        rewrite_values[op.result] = create_range_op.result
+
+    def _generate_rewriter_for_replace(
+        self,
+        op: pdl.ReplaceOp,
+        rewrite_values: dict[SSAValue, SSAValue],
+        map_rewrite_value: Callable[[SSAValue], SSAValue],
+    ):
+        if op.repl_operation:
+            op_op_def = op.op_value.owner
+            # either we statically know the operation return types, or we
+            # don't, in which case we assume there are results such that
+            # we don't incorrectly erase the operation instead of replacing it.
+            has_results = (
+                not isinstance(op_op_def, pdl.OperationOp) or op_op_def.type_values
+            )
+            if has_results:
+                get_results = pdl_interp.GetResultsOp(
+                    None,
+                    map_rewrite_value(op.repl_operation),
+                    pdl.RangeType(pdl.ValueType()),
+                )
+                self.rewriter_builder.insert(get_results)
+                repl_operands = (get_results.value,)
+            else:
+                # The new operation has no results to replace with
+                repl_operands = ()
+        else:
+            repl_operands = tuple(map_rewrite_value(val) for val in op.repl_values)
+
+        mapped_op_value = map_rewrite_value(op.op_value)
+        if not repl_operands:
+            # Note that if an operation is replaced by a new one, the new operation
+            # will already have been inserted during `pdl_interp.create_operation`.
+            # In case there are no new values to replace the op with,
+            # a replacement is the same as just erasing the op.
+            self.rewriter_builder.insert(pdl_interp.EraseOp(mapped_op_value))
+        else:
+            self.rewriter_builder.insert(
+                pdl_interp.ReplaceOp(mapped_op_value, repl_operands)
+            )
+
+    def _generate_rewriter_for_result(
+        self,
+        op: pdl.ResultOp,
+        rewrite_values: dict[SSAValue, SSAValue],
+        map_rewrite_value: Callable[[SSAValue], SSAValue],
+    ):
+        get_result_op = pdl_interp.GetResultOp(op.index, map_rewrite_value(op.parent_))
+        self.rewriter_builder.insert(get_result_op)
+        rewrite_values[op.val] = get_result_op.value
+
+    def _generate_rewriter_for_results(
+        self,
+        op: pdl.ResultsOp,
+        rewrite_values: dict[SSAValue, SSAValue],
+        map_rewrite_value: Callable[[SSAValue], SSAValue],
+    ):
+        get_results_op = pdl_interp.GetResultsOp(
+            op.index, map_rewrite_value(op.parent_), op.val.type
+        )
+        self.rewriter_builder.insert(get_results_op)
+        rewrite_values[op.val] = get_results_op.value
+
+    def _generate_rewriter_for_type(
+        self,
+        op: pdl.TypeOp,
+        rewrite_values: dict[SSAValue, SSAValue],
+        map_rewrite_value: Callable[[SSAValue], SSAValue],
+    ):
+        if op.constantType:
+            create_type_op = pdl_interp.CreateTypeOp(op.constantType)
+            self.rewriter_builder.insert(create_type_op)
+            rewrite_values[op.result] = create_type_op.result
+
+    def _generate_rewriter_for_types(
+        self,
+        op: pdl.TypesOp,
+        rewrite_values: dict[SSAValue, SSAValue],
+        map_rewrite_value: Callable[[SSAValue], SSAValue],
+    ):
+        if op.constantTypes:
+            create_types_op = pdl_interp.CreateTypesOp(op.constantTypes)
+            self.rewriter_builder.insert(create_types_op)
+            rewrite_values[op.result] = create_types_op.result
+        # Else, nothing needs to be created.
+        # A `pdl.type` operation in the rewrite section is
+        # not used as a declarative constraint. If there is
+        # no constantTypes, it is essentially a no-op.
 
     def _generate_operation_result_type_rewriter(
         self,

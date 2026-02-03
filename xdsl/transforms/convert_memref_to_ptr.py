@@ -165,7 +165,7 @@ class ConvertStorePattern(RewritePattern):
     def match_and_rewrite(self, op: memref.StoreOp, rewriter: PatternRewriter, /):
         assert isa(memref_type := op.memref.type, memref.MemRefType)
         target_ptr = get_target_ptr(op.memref, memref_type, op.indices, rewriter)
-        rewriter.replace_matched_op(ptr.StoreOp(target_ptr, op.value))
+        rewriter.replace_op(op, ptr.StoreOp(target_ptr, op.value))
 
 
 @dataclass
@@ -174,7 +174,7 @@ class ConvertLoadPattern(RewritePattern):
     def match_and_rewrite(self, op: memref.LoadOp, rewriter: PatternRewriter, /):
         assert isa(memref_type := op.memref.type, memref.MemRefType)
         target_ptr = get_target_ptr(op.memref, memref_type, op.indices, rewriter)
-        rewriter.replace_matched_op(ptr.LoadOp(target_ptr, memref_type.element_type))
+        rewriter.replace_op(op, ptr.LoadOp(target_ptr, memref_type.element_type))
 
 
 class ConvertSubviewPattern(RewritePattern):
@@ -253,7 +253,7 @@ class ConvertSubviewPattern(RewritePattern):
             offset = get_bytes_offset(head, element_type, rewriter)
             pointer = get_offset_pointer(pointer, offset, rewriter)
 
-        rewriter.replace_matched_op(ptr.FromPtrOp(pointer, result_type))
+        rewriter.replace_op(op, ptr.FromPtrOp(pointer, result_type))
 
 
 @dataclass
@@ -317,13 +317,13 @@ class LowerMemRefFuncReturnPattern(RewritePattern):
         # insert `memref -> ptr` casts for memref return values
         for argument in op.arguments:
             if isinstance(argument.type, memref.MemRefType):
-                rewriter.insert_op_before_matched_op(cast_op := ptr.ToPtrOp(argument))
+                rewriter.insert_op(cast_op := ptr.ToPtrOp(argument))
                 new_arguments.append(cast_op.res)
                 cast_op.res.name_hint = argument.name_hint
             else:
                 new_arguments.append(argument)
 
-        rewriter.replace_matched_op(func.ReturnOp(*new_arguments))
+        rewriter.replace_op(op, func.ReturnOp(*new_arguments))
 
 
 @dataclass
@@ -341,7 +341,7 @@ class LowerMemRefFuncCallPattern(RewritePattern):
         # insert `memref -> ptr` casts for memref arguments values, if necessary
         for argument in op.arguments:
             if isinstance(argument.type, memref.MemRefType):
-                rewriter.insert_op_before_matched_op(cast_op := ptr.ToPtrOp(argument))
+                rewriter.insert_op(cast_op := ptr.ToPtrOp(argument))
                 new_arguments.append(cast_op.res)
                 cast_op.res.name_hint = argument.name_hint
             else:
@@ -364,7 +364,7 @@ class LowerMemRefFuncCallPattern(RewritePattern):
                 new_ops.append(cast_op := ptr.FromPtrOp(new_result, old_result.type))
                 new_results[i] = cast_op.res
 
-        rewriter.replace_matched_op(new_ops, new_results)
+        rewriter.replace_op(op, new_ops, new_results)
 
 
 @dataclass(frozen=True)

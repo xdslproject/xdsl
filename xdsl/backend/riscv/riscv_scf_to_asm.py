@@ -53,7 +53,7 @@ class LowerRiscvScfToLabels(RewritePattern):
 
         # This is the loop header, responsible for comparing the loop counter to the
         # upper bound and branching to the loop body if the condition is met.
-        rewriter.insert_op_before_matched_op(
+        rewriter.insert_op(
             [
                 get_loop_var := riscv.MVOp(op.lb, rd=loop_var_reg),
                 riscv.LabelOp(scf_cond),
@@ -89,12 +89,12 @@ class LowerRiscvScfToLabels(RewritePattern):
 
         # Also replace the loop results directly with the registers bound to them.
         for get_target_register in get_register_ops_from_values(op.results):
-            rewriter.insert_op_after_matched_op(get_target_register)
+            rewriter.insert_op(get_target_register, InsertPoint.after(op))
 
         # Extract ops from the body and insert them after the loop header.
-        rewriter.inline_block_after_matched_op(body)
+        rewriter.inline_block(body, InsertPoint.after(op))
 
-        rewriter.erase_matched_op()
+        rewriter.erase_op(op)
 
         self.for_idx += 1
 

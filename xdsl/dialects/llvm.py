@@ -1057,7 +1057,7 @@ class GEPOp(IRDLOperation):
 
     result = result_def(LLVMPointerType)
 
-    rawConstantIndices = prop_def(DenseArrayBase)
+    rawConstantIndices = prop_def(DenseArrayBase.constr(i32))
     inbounds = opt_prop_def(UnitAttr)
 
     traits = traits_def(NoMemoryEffect())
@@ -1696,12 +1696,14 @@ class ReturnOp(IRDLOperation):
 
     name = "llvm.return"
 
+    assembly_format = "($arg^ `:` type($arg))? attr-dict"
+
     arg = opt_operand_def(Attribute)
 
     traits = traits_def(IsTerminator(), NoMemoryEffect())
 
-    def __init__(self, value: Attribute | None = None):
-        super().__init__(attributes={"value": value})
+    def __init__(self, value: SSAValue | None = None):
+        super().__init__(operands=[value])
 
 
 @irdl_op_definition
@@ -1764,7 +1766,7 @@ class CallIntrinsicOp(IRDLOperation):
     op_bundle_operands = var_operand_def()
     ress = opt_result_def()
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
     def __init__(
         self,
@@ -1807,7 +1809,7 @@ class CallOp(IRDLOperation):
     )
     returned = opt_result_def()
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
     def __init__(
         self,
@@ -1905,7 +1907,7 @@ class AbstractFloatArithOp(IRDLOperation, ABC):
 
     assembly_format = "$lhs `,` $rhs attr-dict `:` type($lhs)"
 
-    irdl_options = [ParsePropInAttrDict()]
+    irdl_options = (ParsePropInAttrDict(),)
 
     def __init__(
         self,
@@ -2004,6 +2006,7 @@ LLVM = Dialect(
         MulOp,
         NullOp,
         OrOp,
+        PtrToIntOp,
         ReturnOp,
         SDivOp,
         SExtOp,
