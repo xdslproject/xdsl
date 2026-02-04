@@ -24,6 +24,7 @@ from xdsl.ir import (
     ParametrizedAttribute,
     Region,
     SSAValue,
+    Use,
 )
 from xdsl.irdl import AttrConstraint, base
 from xdsl.rewriter import BlockInsertPoint, InsertPoint, Rewriter
@@ -153,6 +154,22 @@ class PatternRewriter(Builder, PatternRewriterListener):
             from_.erase(safe_erase=safe_erase)
         else:
             from_.replace_by(to)
+        for op in modified_ops:
+            self.handle_operation_modification(op)
+
+    def replace_uses_with_if(
+        self,
+        from_: SSAValue,
+        to: SSAValue,
+        predicate: Callable[[Use], bool],
+    ):
+        """Find uses of from and replace them with to if the predicate returns true."""
+        uses_to_replace = [use for use in from_.uses if predicate(use)]
+        modified_ops = [use.operation for use in uses_to_replace]
+
+        for use in uses_to_replace:
+            use.operation.operands[use.index] = to
+
         for op in modified_ops:
             self.handle_operation_modification(op)
 
