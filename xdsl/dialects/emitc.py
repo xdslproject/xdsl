@@ -9,7 +9,7 @@ See external [documentation](https://mlir.llvm.org/docs/Dialects/EmitC/).
 
 import abc
 from collections.abc import Iterable, Mapping, Sequence
-from enum import IntEnum
+from enum import StrEnum
 from typing import Generic, Literal, Optional
 
 from typing_extensions import TypeVar, cast
@@ -37,6 +37,7 @@ from xdsl.dialects.builtin import (
 from xdsl.ir import (
     Attribute,
     Dialect,
+    EnumAttribute,
     ParametrizedAttribute,
     SSAValue,
     TypeAttribute
@@ -69,7 +70,6 @@ from xdsl.traits import (
     MemoryAllocEffect,
     Pure,
     SymbolTable,
-    #SymbolUserOpInterface
 )
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
@@ -813,18 +813,21 @@ class EmitC_ClassOp(IRDLOperation):
             return self.body.block
 
 
-class EmitC_CmpPredicateValue(IntEnum):
-    eq = 0
-    ne = 1
-    lt = 2
-    le = 3
-    gt = 4
-    ge = 5
-    three_way = 6
+class CmpPredicate(StrEnum):
+    eq = "eq"
+    ne = "ne"
+    lt = "lt"
+    le = "le"
+    gt = 'gt'
+    ge = "ge"
+    three_way = "three_way"
 
-    @classmethod
-    def has_value(cls, val: int) -> bool:
-        return val in cls._value2member_map_
+@irdl_attr_definition
+class EmitC_CmpPredicateAttr(
+        EnumAttribute[CmpPredicate] # pyright: ignore[reportInvalidTypeArguments]
+    ):
+    name = "emitc.cmp_predicate"
+
 
 @irdl_op_definition
 class EmitC_CmpOp(EmitC_BinaryOperation):
@@ -863,7 +866,7 @@ class EmitC_CmpOp(EmitC_BinaryOperation):
 
     name = "emitc.cmp"
 
-    predicate = prop_def(EmitCIntegerType)
+    predicate = prop_def(EmitC_CmpPredicateAttr)
     lhs = operand_def(EmitCTypeConstr)
     rhs = operand_def(EmitCTypeConstr)
     result = result_def(EmitCTypeConstr)
@@ -877,14 +880,10 @@ class EmitC_CmpOp(EmitC_BinaryOperation):
         rhs : SSAValue,
         result_type : Attribute
     ):
-        if not EmitC_CmpPredicateValue.has_value(pred):
-            raise VerifyException(f"Got nonexistent predicate value: {pred}")
-
-        '''super.__init__(
-            operands=[lhs, rhs],
-            result_types=[result_type],
-            properties={"predicate" : pred}
-        )'''
+        super().__init__(
+            lhs, rhs, result_type,
+        )
+        self.predicate = EmitC_CmpPredicateAttr(CmpPredicate.gt)
 
 
 @irdl_op_definition
@@ -1196,18 +1195,20 @@ class EmitC_LoadOp(IRDLOperation):
     operand = operand_def(EmitC_LValueType)
     result = result_def(EmitCTypeConstr)
 
+    irdl_options = (ParsePropInAttrDict(),)
+
     #assembly_format = "$operand attr-dict `:` type($operand)"
 
-    def verify_(self):
-        op_type = self.operand.type
-        res_type = self.result.type
-
-        assert isinstance(op_type, EmitC_LValueType)
-
-        val_type = op_type.value_type
-
-        if val_type != res_type:
-            raise VerifyException("result type does not match the value type of operand")
+    def __init__(self,
+        op: SSAValue
+        ):
+        op_type = op.type
+        assert(isinstance(op_type, EmitC_LValueType))
+        res_type = op_type.value_type
+        super().__init__(
+            operands=[op],
+            result_types=[res_type]
+            )
 
 
 @irdl_op_definition

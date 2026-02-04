@@ -259,3 +259,11 @@ emitc.assign %cons_int : i32 to %variable : !emitc.lvalue<i32>
 %lit = emitc.literal "1" : i32
 // CHECK: %lit = emitc.literal "1" : i32
 // CHECK-GENERIC: %lit = "emitc.literal"() <{value = "1"}> : () -> i32
+
+//===----------------------------------------------------------------------===//
+// LoadOp
+//===----------------------------------------------------------------------===//
+
+%loaded_var = "emitc.load"(%variable) : (!emitc.lvalue<i32>) -> i32
+// CHECK: %loaded_var = "emitc.load"(%variable) : (!emitc.lvalue<i32>) -> i32
+// CHECK-GENERIC: %loaded_var = "emitc.load"(%variable) : (!emitc.lvalue<i32>) -> i32
