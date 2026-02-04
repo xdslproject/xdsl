@@ -963,6 +963,16 @@ def test_run_get_results():
 )
 def test_foreach(num_ops: int):
     """Test that ForEachOp correctly iterates over ranges of different sizes."""
+
+    @register_impls
+    class CountConstraintImpl(InterpreterFunctions):
+        i = 0
+
+        @impl_external("count")
+        def run_count(self, interp: Interpreter, op: Operation, args: PythonValues):
+            self.i += 1
+            return True, ()
+
     ctx = Context()
     ctx.register_dialect("test", lambda: test.Test)
 
@@ -972,36 +982,30 @@ def test_foreach(num_ops: int):
         for i in range(num_ops)
     )
 
-    # Create a pdl_interp.FuncOp with a ForEachOp
+    module_op = ModuleOp(())
     entry_block = Block(arg_types=[pdl.RangeType(pdl.OperationType())])
-
     exit_block = Block()
-    exit_block.add_op(pdl_interp.FinalizeOp())
+    with ImplicitBuilder(module_op.body):
+        with ImplicitBuilder(entry_block):
+            foreach_op = pdl_interp.ForEachOp(entry_block.args[0], exit_block)
+            continue_block = Block()
+            with ImplicitBuilder(foreach_op.region):
+                pdl_interp.ApplyConstraintOp(
+                    "count", (), continue_block, continue_block
+                )
+            with ImplicitBuilder(continue_block):
+                pdl_interp.ContinueOp()
+        with ImplicitBuilder(exit_block):
+            pdl_interp.FinalizeOp()
 
-    foreach_body_block = Block(arg_types=[pdl.OperationType()])
-    foreach_body_block.add_op(pdl_interp.ContinueOp())
-    foreach_body_region = Region([foreach_body_block])
-
-    foreach_op = pdl_interp.ForEachOp(
-        entry_block.args[0],
-        exit_block,
-        foreach_body_region,
-    )
-    entry_block.add_op(foreach_op)
-
-    func_region = Region([entry_block, exit_block])
-    func_op = pdl_interp.FuncOp(
-        "test_foreach",
-        ([pdl.RangeType(pdl.OperationType())], []),
-        region=func_region,
-    )
-
-    module = ModuleOp([func_op])
+    module = ModuleOp([module_op])
 
     # Set up interpreter
     interpreter = Interpreter(module)
     pdl_funcs = PDLInterpFunctions()
+    constraint_funcs = CountConstraintImpl()
     interpreter.register_implementations(pdl_funcs)
+    interpreter.register_implementations(constraint_funcs)
 
     # Create a mock rewriter (required by PDLInterpFunctions)
     dummy_op = test.TestOp()
@@ -1011,4 +1015,5 @@ def test_foreach(num_ops: int):
     PDLInterpFunctions.set_ctx(interpreter, ctx)
 
     # Run the function with the range of operations
-    interpreter.call_op("test_foreach", (ops_range,))
+    interpreter.run_op(foreach_op, (ops_range,))
+    assert constraint_funcs.i == num_ops
