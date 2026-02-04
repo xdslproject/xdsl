@@ -31,5 +31,7 @@
 
   // CHECK: %{{.*}} = hw.array_get %{{.*}}[%{{.*}}] : !hw.array<2xi19>, i1
 
+  %ic = hw.bitcast %test : (!hw.array<6xi7>) -> !hw.array<7xi6>
+  // CHECK: %ic = hw.bitcast %test : (!hw.array<6xi7>) -> !hw.array<7xi6>
 
 }) : () -> ()
