@@ -10,7 +10,7 @@ from typing import Optional, cast
 
 from xdsl.builder import Builder
 from xdsl.context import Context
-from xdsl.dialects import pdl, pdl_interp
+from xdsl.dialects import ematch, pdl, pdl_interp
 from xdsl.dialects.builtin import (
     ArrayAttr,
     FunctionType,
@@ -1545,11 +1545,7 @@ class MatcherGenerator:
                 assert parent_val is not None
                 # Get defining operation of operand
                 if self.optimize_for_eqsat:
-                    eq_vals_op = pdl_interp.ApplyRewriteOp(
-                        "get_class_vals",
-                        (parent_val,),
-                        (pdl.RangeType(pdl.ValueType()),),
-                    )
+                    eq_vals_op = ematch.GetClassValsOp(parent_val)
                     self.builder.insert(eq_vals_op)
                     eq_vals = eq_vals_op.results[0]
 
@@ -1624,9 +1620,7 @@ class MatcherGenerator:
                 current_block.parent.insert_block_after(
                     class_result_block, current_block
                 )
-                eq_vals_op = pdl_interp.ApplyRewriteOp(
-                    "get_class_result", (value,), (value.type,)
-                )
+                eq_vals_op = ematch.GetClassResultOp(value)
                 self.builder.insertion_point = InsertPoint.at_end(class_result_block)
                 self.builder.insert(eq_vals_op)
                 value = eq_vals_op.results[0]
@@ -1656,9 +1650,7 @@ class MatcherGenerator:
                 current_block.parent.insert_block_after(
                     class_result_block, current_block
                 )
-                eq_vals_op = pdl_interp.ApplyRewriteOp(
-                    "get_class_results", (value,), (value.type,)
-                )
+                eq_vals_op = ematch.GetClassResultsOp(value)
                 self.builder.insertion_point = InsertPoint.at_end(class_result_block)
                 self.builder.insert(eq_vals_op)
                 value = eq_vals_op.results[0]
@@ -1970,8 +1962,8 @@ class MatcherGenerator:
             for i, match_val in enumerate(mapped_match_values):
                 if match_val.type == pdl.ValueType():
                     if isinstance(match_val.owner, pdl_interp.GetOperandOp):
-                        class_representative_op = pdl_interp.ApplyRewriteOp(
-                            "get_class_representative", (match_val,), (pdl.ValueType(),)
+                        class_representative_op = ematch.GetClassRepresentativeOp(
+                            match_val
                         )
                         self.builder.insert(class_representative_op)
                         mapped_match_values[i] = class_representative_op.results[0]
@@ -2108,9 +2100,7 @@ class MatcherGenerator:
             if self.optimize_for_eqsat:
                 match arg.type:
                     case pdl.ValueType():
-                        class_representative_op = pdl_interp.ApplyRewriteOp(
-                            "get_class_result", (arg,), (pdl.ValueType(),)
-                        )
+                        class_representative_op = ematch.GetClassResultOp(arg)
                         self.rewriter_builder.insert(class_representative_op)
                         arg = class_representative_op.results[0]
                     case pdl.RangeType(pdl.ValueType()):
@@ -2250,11 +2240,7 @@ class MatcherGenerator:
         self.rewriter_builder.insert(create_op)
         created_op_val = create_op.result_op
         if self.optimize_for_eqsat:
-            dedup_op = pdl_interp.ApplyRewriteOp(
-                "dedup",
-                (created_op_val,),
-                (pdl.OperationType(),),
-            )
+            dedup_op = ematch.DedupOp(created_op_val)
             self.rewriter_builder.insert(dedup_op)
             created_op_val = dedup_op.results[0]
         rewrite_values[op.op] = created_op_val
@@ -2329,9 +2315,7 @@ class MatcherGenerator:
                 self.rewriter_builder.insert(get_results)
                 repl_operands = get_results.value
                 if self.optimize_for_eqsat:
-                    eq_vals_op = pdl_interp.ApplyRewriteOp(
-                        "get_class_results", (repl_operands,), (repl_operands.type,)
-                    )
+                    eq_vals_op = ematch.GetClassResultsOp(repl_operands)
                     self.rewriter_builder.insert(eq_vals_op)
                     repl_operands = eq_vals_op.results[0]
 
@@ -2362,10 +2346,7 @@ class MatcherGenerator:
                         )
                     ).result
                 assert isinstance(repl_operands.type, pdl.RangeType)
-                replace_op = pdl_interp.ApplyRewriteOp(
-                    "union",
-                    (mapped_op_value, repl_operands),
-                )
+                replace_op = ematch.UnionOp(mapped_op_value, repl_operands)
             else:
                 if not isinstance(repl_operands, tuple):
                     repl_operands = (repl_operands,)
@@ -2382,9 +2363,7 @@ class MatcherGenerator:
         self.rewriter_builder.insert(get_result_op)
         result_val = get_result_op.value
         if self.optimize_for_eqsat:
-            eq_vals_op = pdl_interp.ApplyRewriteOp(
-                "get_class_result", (result_val,), (result_val.type,)
-            )
+            eq_vals_op = ematch.GetClassResultOp(result_val)
             self.rewriter_builder.insert(eq_vals_op)
             result_val = eq_vals_op.results[0]
         rewrite_values[op.val] = result_val
@@ -2401,9 +2380,7 @@ class MatcherGenerator:
         self.rewriter_builder.insert(get_results_op)
         results_val = get_results_op.value
         if self.optimize_for_eqsat:
-            eq_vals_op = pdl_interp.ApplyRewriteOp(
-                "get_class_results", (results_val,), (results_val.type,)
-            )
+            eq_vals_op = ematch.GetClassResultsOp(results_val)
             self.rewriter_builder.insert(eq_vals_op)
             results_val = eq_vals_op.results[0]
 
