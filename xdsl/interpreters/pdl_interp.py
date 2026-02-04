@@ -469,7 +469,6 @@ class PDLInterpFunctions(InterpreterFunctions):
         op: pdl_interp.ApplyConstraintOp,
         args: tuple[Any, ...],
     ) -> tuple[Successor, PythonValues]:
-        assert len(args) == 1
         constraint_name = op.constraint_name.data
 
         passed, results = interpreter.call_external(constraint_name, op, args)
