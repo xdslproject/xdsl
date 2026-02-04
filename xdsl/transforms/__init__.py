@@ -130,6 +130,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
             convert_pdl_interp_to_eqsat_pdl_interp.ConvertPDLInterpToEqsatPDLInterpPass
         )
 
+    def get_convert_pdl_to_pdl_interp():
+        from xdsl.transforms.convert_pdl_to_pdl_interp import conversion
+
+        return conversion.ConvertPDLToPDLInterpPass
+
     def get_convert_print_format_to_riscv_debug():
         from xdsl.backend.riscv.lowering import convert_print_format_to_riscv_debug
 
@@ -310,6 +315,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return eqsat_extract.EqsatExtractPass
 
+    def get_approximate_math_with_bitcast():
+        from xdsl.transforms import approximate_math_with_bitcast
+
+        return approximate_math_with_bitcast.BitcastApproximation
+
     def get_frontend_desymrefy():
         from xdsl.transforms.desymref import FrontendDesymrefyPass
 
@@ -485,6 +495,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return replace_incompatible_fpga.ReplaceIncompatibleFPGA
 
+    def get_riscv_allocate_infinite_registers():
+        from xdsl.transforms import riscv_allocate_infinite_registers
+
+        return riscv_allocate_infinite_registers.RISCVAllocateInfiniteRegistersPass
+
     def get_riscv_allocate_registers():
         from xdsl.transforms import riscv_allocate_registers
 
@@ -645,6 +660,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "apply-eqsat-pdl-interp": get_apply_eqsat_pdl_interp,
         "apply-pdl": get_apply_pdl,
         "apply-pdl-interp": get_apply_pdl_interp,
+        "approximate-math-with-bitcast": get_approximate_math_with_bitcast,
         "arith-add-fastmath": get_arith_add_fastmath,
         "canonicalize-dmp": get_canonicalize_dmp,
         "canonicalize": get_canonicalize,
@@ -664,6 +680,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "convert-memref-to-riscv": get_convert_memref_to_riscv,
         "convert-ml-program-to-memref": get_convert_ml_program_to_memref,
         "convert-pdl-interp-to-eqsat-pdl-interp": get_convert_pdl_interp_to_eqsat_pdl_interp,
+        "convert-pdl-to-pdl-interp": get_convert_pdl_to_pdl_interp,
         "convert-print-format-to-riscv-debug": get_convert_print_format_to_riscv_debug,
         "convert-ptr-to-llvm": get_convert_ptr_to_llvm,
         "convert-ptr-to-riscv": get_convert_ptr_to_riscv,
@@ -735,6 +752,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "printf-to-putchar": get_printf_to_putchar,
         "reconcile-unrealized-casts": get_reconcile_unrealized_casts,
         "replace-incompatible-fpga": get_replace_incompatible_fpga,
+        "riscv-allocate-infinite-registers": get_riscv_allocate_infinite_registers,
         "riscv-allocate-registers": get_riscv_allocate_registers,
         "riscv-lower-parallel-mov": get_riscv_lower_parallel_mov,
         "riscv-prologue-epilogue-insertion": get_riscv_prologue_epilogue_insertion,

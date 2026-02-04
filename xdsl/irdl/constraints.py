@@ -1225,7 +1225,7 @@ class RangeVarConstraint(RangeConstraint[AttributeCovT]):
     ) -> None:
         ctx_attrs = constraint_context.get_range_variable(self.name)
         if ctx_attrs is not None:
-            if attrs != ctx_attrs:
+            if tuple(attrs) != ctx_attrs:
                 raise VerifyException(
                     f"attributes {tuple(str(x) for x in ctx_attrs)} expected from range variable "
                     f"'{self.name}', but got {tuple(str(x) for x in attrs)}"
@@ -1267,6 +1267,11 @@ class RangeOf(RangeConstraint[AttributeCovT]):
     """
 
     constr: AttrConstraint[AttributeCovT]
+
+    def __init__(self, constr: IRDLAttrConstraint[AttributeCovT]):
+        from xdsl.irdl import irdl_to_attr_constraint
+
+        object.__setattr__(self, "constr", irdl_to_attr_constraint(constr))
 
     def verify(
         self,

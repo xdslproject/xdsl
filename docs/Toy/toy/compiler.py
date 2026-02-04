@@ -31,6 +31,7 @@ from xdsl.transforms.lower_affine import LowerAffinePass
 from xdsl.transforms.lower_riscv_func import LowerRISCVFunc
 from xdsl.transforms.reconcile_unrealized_casts import ReconcileUnrealizedCastsPass
 from xdsl.transforms.riscv_allocate_registers import RISCVAllocateRegistersPass
+from xdsl.transforms.riscv_lower_parallel_mov import RISCVLowerParallelMovPass
 from xdsl.transforms.riscv_scf_loop_range_folding import RiscvScfLoopRangeFoldingPass
 from xdsl.transforms.shape_inference import ShapeInferencePass
 
@@ -103,6 +104,7 @@ def transform(
     ConvertPrintFormatToRiscvDebugPass().apply(ctx, module_op)
     ConvertArithToRiscvPass().apply(ctx, module_op)
     ConvertScfToRiscvPass().apply(ctx, module_op)
+    RISCVLowerParallelMovPass().apply(ctx, module_op)
     DeadCodeElimination().apply(ctx, module_op)
     ReconcileUnrealizedCastsPass().apply(ctx, module_op)
 

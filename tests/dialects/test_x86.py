@@ -1,7 +1,7 @@
 import pytest
 
 from xdsl.dialects import x86
-from xdsl.dialects.builtin import IntegerAttr, i32
+from xdsl.dialects.builtin import IntegerAttr
 from xdsl.dialects.x86.ops import (
     DM_LeaOp,
     DM_MovOp,
@@ -37,6 +37,7 @@ from xdsl.dialects.x86.ops import (
     RM_SubOp,
     RM_XorOp,
     SM_CmpOp,
+    si32,
 )
 from xdsl.ir import Block, Operation
 from xdsl.traits import MemoryReadEffect
@@ -353,11 +354,11 @@ def test_get_constant_value():
     unknown_value = create_ssa_value(U)
     assert get_constant_value(unknown_value) is None
     known_value = x86.DI_MovOp(42, destination=U).destination
-    assert get_constant_value(known_value) == IntegerAttr(42, i32)
+    assert get_constant_value(known_value) == IntegerAttr(42, si32)
     moved_once = x86.DS_MovOp(known_value, destination=U).destination
-    assert get_constant_value(moved_once) == IntegerAttr(42, i32)
+    assert get_constant_value(moved_once) == IntegerAttr(42, si32)
     moved_twice = x86.DS_MovOp(known_value, destination=U).destination
-    assert get_constant_value(moved_twice) == IntegerAttr(42, i32)
+    assert get_constant_value(moved_twice) == IntegerAttr(42, si32)
 
     block = Block(arg_types=(U,))
     assert get_constant_value(block.args[0]) is None
