@@ -1,6 +1,7 @@
 import ast
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import cast
+from typing import Any, cast
 
 import xdsl.dialects.builtin as builtin
 import xdsl.dialects.cf as cf
@@ -193,26 +194,28 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         )
 
     def visit_Call(self, node: ast.Call) -> None:
-        # Resolve function
-        assert isinstance(node.func, ast.Name)
-        func_name = node.func.id
-        source_func = self.type_converter.globals.get(func_name, None)
-        if source_func is None:
-            raise CodeGenerationException(
-                self.file,
-                node.lineno,
-                node.col_offset,
-                f"Function '{func_name}' is not defined in scope.",
-            )
-        ir_op = self.type_converter.function_registry.get_operation_constructor(
-            source_func
-        )
+        match node.func:
+            case ast.Name():
+                source_kind = "function"
+                source, source_name = self._call_source_function(node)
+            case ast.Attribute():
+                source_kind = "classmethod"
+                source, source_name = self._call_source_classmethod(node)
+            case _:
+                raise CodeGenerationException(
+                    self.file,
+                    node.lineno,
+                    node.col_offset,
+                    "Unsupported call expression.",
+                )
+
+        ir_op = self.type_converter.function_registry.get_operation_constructor(source)
         if ir_op is None:
             raise CodeGenerationException(
                 self.file,
                 node.lineno,
                 node.col_offset,
-                f"Function '{func_name}' is not registered.",
+                f"{source_kind.capitalize()} '{source_name}' is not registered.",
             )
 
         # Resolve arguments
@@ -224,7 +227,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                     self.file,
                     node.lineno,
                     node.col_offset,
-                    "Function arguments must be declared variables.",
+                    f"{source_kind.capitalize()} arguments must be declared variables.",
                 )
             args.append(arg_op := symref.FetchOp(arg.id, self.symbol_table[arg.id]))
             self.inserter.insert_op(arg_op)
@@ -240,7 +243,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                     self.file,
                     node.lineno,
                     node.col_offset,
-                    "Function arguments must be declared variables.",
+                    f"{source_kind.capitalize()} arguments must be declared variables.",
                 )
             assert keyword.arg is not None
             kwargs[keyword.arg] = symref.FetchOp(
@@ -249,6 +252,50 @@ class CodeGenerationVisitor(ast.NodeVisitor):
             self.inserter.insert_op(kwargs[keyword.arg])
 
         self.inserter.insert_op(ir_op(*args, **kwargs))
+
+    # Get called function for a call expression.
+    def _call_source_function(self, node: ast.Call) -> tuple[Callable[..., Any], str]:
+        assert isinstance(node.func, ast.Name)
+
+        func_name = node.func.id
+        func = self.type_converter.globals.get(func_name, None)
+        if func is None:
+            raise CodeGenerationException(
+                self.file,
+                node.lineno,
+                node.col_offset,
+                f"Function '{func_name}' is not defined in scope.",
+            )
+        return func, func_name
+
+    # Get called classmethod for a call expression.
+    def _call_source_classmethod(
+        self, node: ast.Call
+    ) -> tuple[Callable[..., Any], str]:
+        assert isinstance(node.func, ast.Attribute)
+        assert isinstance(node.func.value, ast.Name)
+
+        class_name = node.func.value.id
+        method_name = node.func.attr
+        classmethod_name = f"{class_name}.{method_name}"
+
+        source_class = self.type_converter.globals.get(class_name, None)
+        if source_class is None:
+            raise CodeGenerationException(
+                self.file,
+                node.lineno,
+                node.col_offset,
+                f"Class '{class_name}' is not defined in scope.",
+            )
+        classmethod_ = getattr(source_class, method_name, None)
+        if classmethod_ is None:
+            raise CodeGenerationException(
+                self.file,
+                node.lineno,
+                node.col_offset,
+                f"Method '{method_name}' is not defined on class '{class_name}'.",
+            )
+        return classmethod_, classmethod_name
 
     def visit_Compare(self, node: ast.Compare) -> None:
         # Allow a single comparison only.
