@@ -464,10 +464,15 @@ def _(lmo, mo):
 
 
 @app.cell
-def _(mo, to_mlir, write_editor, write_listlang):
+def _(mo, parse_mlir, to_mlir, write_editor, write_listlang):
     write_mlir = to_mlir(write_listlang)
 
-    write_check = "✅ " if str(write_mlir) == str(write_editor.value) else "❌"
+    try:
+        user = parse_mlir(write_editor.value)
+    except:
+        user = ""
+
+    write_check = "✅ " if str(write_mlir) == str(user) else "❌"
 
     write_hint = """/// details | Need a hint?
     * Make sure the names are correct
