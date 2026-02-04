@@ -84,6 +84,18 @@ class PatternRewriterListener(BuilderListener):
             )
 
 
+class _TrackingPredicate:
+    def __init__(self, predicate: Callable[[Use], bool]):
+        self.predicate = predicate
+        self.modified_ops: list[Operation] = []
+
+    def __call__(self, use: Use) -> bool:
+        if self.predicate(use):
+            self.modified_ops.append(use.operation)
+            return True
+        return False
+
+
 @dataclass(eq=False, init=False)
 class PatternRewriter(Builder, PatternRewriterListener):
     """
@@ -164,13 +176,10 @@ class PatternRewriter(Builder, PatternRewriterListener):
         predicate: Callable[[Use], bool],
     ):
         """Find uses of from and replace them with to if the predicate returns true."""
-        uses_to_replace = [use for use in from_.uses if predicate(use)]
-        modified_ops = [use.operation for use in uses_to_replace]
+        tracking = _TrackingPredicate(predicate)
+        from_.replace_by_if(to, tracking)
 
-        for use in uses_to_replace:
-            use.operation.operands[use.index] = to
-
-        for op in modified_ops:
+        for op in tracking.modified_ops:
             self.handle_operation_modification(op)
 
     def replace_matched_op(
