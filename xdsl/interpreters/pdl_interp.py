@@ -1,7 +1,9 @@
+from dataclasses import dataclass, field
 from typing import Any, cast
 
 from xdsl.context import Context
 from xdsl.dialects import pdl_interp
+from xdsl.dialects.builtin import SymbolRefAttr
 from xdsl.dialects.pdl import RangeType, ValueType
 from xdsl.interpreter import (
     Interpreter,
@@ -23,6 +25,7 @@ from xdsl.utils.hints import isa
 
 
 @register_impls
+@dataclass
 class PDLInterpFunctions(InterpreterFunctions):
     """
     Interpreter functions for the pdl_interp dialect.
@@ -47,6 +50,11 @@ class PDLInterpFunctions(InterpreterFunctions):
 
     Note that the return type of a native constraint must be `tuple[bool, PythonValues]`.
     """
+
+    pending_rewrites: list[tuple[SymbolRefAttr, Operation, tuple[Any, ...]]] = field(
+        default_factory=lambda: []
+    )
+    """List of pending rewrites to be executed. Each entry is a tuple of (rewriter, root, args)."""
 
     @staticmethod
     def get_ctx(interpreter: Interpreter) -> Context:
@@ -487,14 +495,19 @@ class PDLInterpFunctions(InterpreterFunctions):
         op: pdl_interp.RecordMatchOp,
         args: tuple[Any, ...],
     ):
-        interpreter.call_op(op.rewriter, args)
+        self.pending_rewrites.append(
+            (
+                op.rewriter,
+                PDLInterpFunctions.get_rewriter(interpreter).current_operation,
+                args,
+            )
+        )
         return Successor(op.dest, ()), ()
 
     @impl_terminator(pdl_interp.FinalizeOp)
     def run_finalize(
         self, interpreter: Interpreter, op: pdl_interp.FinalizeOp, args: tuple[Any, ...]
     ):
-        PDLInterpFunctions.set_rewriter(interpreter, None)
         return ReturnedValues(()), ()
 
     @impl_terminator(pdl_interp.ForEachOp)
@@ -518,3 +531,13 @@ class PDLInterpFunctions(InterpreterFunctions):
         self, interpreter: Interpreter, op: pdl_interp.ContinueOp, args: tuple[Any, ...]
     ):
         return ReturnedValues(args), ()
+
+
+    def apply_pending_rewrites(self, interpreter: Interpreter):
+        rewriter = PDLInterpFunctions.get_rewriter(interpreter)
+        for rewriter_op, root, args in self.pending_rewrites:
+            rewriter.current_operation = root
+            rewriter.insertion_point = InsertPoint.before(root)
+
+            interpreter.call_op(rewriter_op, args)
+        self.pending_rewrites.clear()
