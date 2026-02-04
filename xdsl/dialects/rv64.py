@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from abc import ABC
 from collections.abc import Set as AbstractSet
-from typing import Annotated
+from typing import Literal, TypeAlias
 
 from xdsl.dialects.builtin import (
     IntegerAttr,
@@ -35,7 +35,6 @@ from xdsl.ir import (
 )
 from xdsl.irdl import (
     attr_def,
-    base,
     irdl_op_definition,
     operand_def,
     result_def,
@@ -49,8 +48,8 @@ from xdsl.traits import (
     Pure,
 )
 
-ui6 = IntegerType(6, Signedness.UNSIGNED)
-UImm6Attr = IntegerAttr[Annotated[IntegerType, ui6]]
+UI6: TypeAlias = IntegerType[Literal[6], Literal[Signedness.UNSIGNED]]
+ui6: UI6 = IntegerType(6, Signedness.UNSIGNED)
 
 
 class RdRsImmShiftOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
@@ -58,12 +57,12 @@ class RdRsImmShiftOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
 
     rd = result_def(IntRegisterType)
     rs1 = operand_def(IntRegisterType)
-    immediate = attr_def(base(UImm6Attr) | base(LabelAttr))
+    immediate = attr_def(IntegerAttr[UI6] | LabelAttr)
 
     def __init__(
         self,
         rs1: Operation | SSAValue,
-        immediate: int | UImm6Attr | str | LabelAttr,
+        immediate: int | IntegerAttr[UI6] | str | LabelAttr,
         *,
         rd: IntRegisterType = Registers.UNALLOCATED_INT,
         comment: str | StringAttr | None = None,

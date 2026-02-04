@@ -15,13 +15,13 @@ from xdsl.dialects.builtin import (
     StringAttr,
 )
 from xdsl.dialects.riscv import (
+    UI5,
     AssemblyInstructionArg,
     IntRegisterType,
     LabelAttr,
     Registers,
     RISCVCustomFormatOperation,
     RISCVInstruction,
-    UImm5Attr,
     parse_immediate_value,
     print_immediate_value,
     ui5,
@@ -34,7 +34,6 @@ from xdsl.ir import (
 )
 from xdsl.irdl import (
     attr_def,
-    base,
     irdl_op_definition,
     operand_def,
     result_def,
@@ -54,12 +53,12 @@ class RdRsImmShiftOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
 
     rd = result_def(IntRegisterType)
     rs1 = operand_def(IntRegisterType)
-    immediate = attr_def(base(UImm5Attr) | base(LabelAttr))
+    immediate = attr_def(IntegerAttr[UI5] | LabelAttr)
 
     def __init__(
         self,
         rs1: Operation | SSAValue,
-        immediate: int | UImm5Attr | str | LabelAttr,
+        immediate: int | IntegerAttr[UI5] | str | LabelAttr,
         *,
         rd: IntRegisterType = Registers.UNALLOCATED_INT,
         comment: str | StringAttr | None = None,
