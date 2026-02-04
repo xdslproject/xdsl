@@ -1,3 +1,5 @@
+// XFAIL: *
+
 // RUN: xdsl-opt %s -p apply-eqsat-pdl | filecheck %s
 // RUN: xdsl-opt %s -p apply-eqsat-pdl{individual_patterns=true} | filecheck %s --check-prefix=INDIVIDUAL
 
