@@ -1428,7 +1428,17 @@ class ForEachOp(IRDLOperation):
     region = region_def()
     successor = successor_def()
 
-    def __init__(self, values: SSAValue, successor: Block, region: Region) -> None:
+    def __init__(
+        self,
+        values: SSAValue,
+        successor: Block,
+        region: Region | type[Region.DEFAULT] = Region.DEFAULT,
+    ) -> None:
+        if not isinstance(region, Region):
+            assert isa(values.type, RangeType[AnyPDLType])
+            val_type = values.type.element_type
+            region = Region(Block(arg_types=(val_type,)))
+
         super().__init__(operands=[values], successors=[successor], regions=[region])
 
     @classmethod
