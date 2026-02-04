@@ -137,11 +137,11 @@ rerun-notebooks: uv-installed ## re-generate the output from all jupyter noteboo
 
 .PHONY: precommit-install
 precommit-install: uv-installed ## set up all precommit hooks
-	uv run pre-commit install
+	uv run prek install
 
 .PHONY: precommit
 precommit: uv-installed ## run all precommit hooks and apply them
-	uv run pre-commit run --all
+	uv run prek run --all-files
 
 .PHONY: pyright
 pyright: uv-installed ## run pyright on all files in the current git commit, make sure to generate the python typing stubs before running pyright

@@ -469,7 +469,6 @@ class PDLInterpFunctions(InterpreterFunctions):
         op: pdl_interp.ApplyConstraintOp,
         args: tuple[Any, ...],
     ) -> tuple[Successor, PythonValues]:
-        assert len(args) == 1
         constraint_name = op.constraint_name.data
 
         passed, results = interpreter.call_external(constraint_name, op, args)
@@ -497,3 +496,25 @@ class PDLInterpFunctions(InterpreterFunctions):
     ):
         PDLInterpFunctions.set_rewriter(interpreter, None)
         return ReturnedValues(()), ()
+
+    @impl_terminator(pdl_interp.ForEachOp)
+    def run_foreach(
+        self,
+        interpreter: Interpreter,
+        op: pdl_interp.ForEachOp,
+        args: tuple[Any, ...],
+    ) -> tuple[Any, ...]:
+        assert len(args) == 1
+        values = args[0]
+
+        # Iterate over each value in the range
+        for value in values:
+            interpreter.run_ssacfg_region(op.region, (value,), "foreach")
+
+        return Successor(op.successor, ()), ()
+
+    @impl_terminator(pdl_interp.ContinueOp)
+    def run_continue(
+        self, interpreter: Interpreter, op: pdl_interp.ContinueOp, args: tuple[Any, ...]
+    ):
+        return ReturnedValues(args), ()

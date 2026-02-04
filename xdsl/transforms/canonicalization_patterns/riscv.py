@@ -1,5 +1,5 @@
-from xdsl.dialects import riscv, riscv_snitch
-from xdsl.dialects.builtin import IntegerAttr
+from xdsl.dialects import riscv, riscv_snitch, rv32
+from xdsl.dialects.builtin import I32, IntegerAttr, i32
 from xdsl.dialects.utils import FastMathFlag
 from xdsl.ir import OpResult, SSAValue
 from xdsl.pattern_rewriter import (
@@ -63,7 +63,7 @@ class MultiplyImmediates(RewritePattern):
                 else:
                     return
             case int(), int():
-                rewriter.replace_op(op, riscv.LiOp(lhs * rhs, rd=rd))
+                rewriter.replace_op(op, rv32.LiOp(lhs * rhs, rd=rd))
             case _:
                 return
 
@@ -119,9 +119,7 @@ class AddImmediates(RewritePattern):
                     ),
                 )
             case int(), int():
-                rewriter.replace_op(
-                    op, riscv.LiOp(lhs + rhs, rd=rd, comment=op.comment)
-                )
+                rewriter.replace_op(op, rv32.LiOp(lhs + rhs, rd=rd, comment=op.comment))
             case _:
                 pass
 
@@ -143,7 +141,7 @@ class AddImmediateConstant(RewritePattern):
             rd = op.rd.type
             rewriter.replace_op(
                 op,
-                riscv.LiOp(
+                rv32.LiOp(
                     rs1.value.data + op.immediate.value.data,
                     rd=rd,
                     comment=op.comment,
@@ -179,9 +177,7 @@ class SubImmediates(RewritePattern):
                     ),
                 )
             case int(), int():
-                rewriter.replace_op(
-                    op, riscv.LiOp(lhs - rhs, rd=rd, comment=op.comment)
-                )
+                rewriter.replace_op(op, rv32.LiOp(lhs - rhs, rd=rd, comment=op.comment))
             case _:
                 pass
 
@@ -217,7 +213,7 @@ class SubAddi(RewritePattern):
             and op.rs2 == op.rs1.op.rs1
         ):
             rd = op.rd.type
-            rewriter.replace_op(op, riscv.LiOp(op.rs1.op.immediate.value.data, rd=rd))
+            rewriter.replace_op(op, rv32.LiOp(op.rs1.op.immediate.value.data, rd=rd))
 
 
 class AndiImmediate(RewritePattern):
@@ -225,13 +221,13 @@ class AndiImmediate(RewritePattern):
     def match_and_rewrite(self, op: riscv.AndiOp, rewriter: PatternRewriter) -> None:
         if (
             isinstance(op.rs1, OpResult)
-            and isinstance(op.rs1.op, riscv.LiOp)
+            and isinstance(op.rs1.op, rv32.LiOp)
             and isinstance(op.rs1.op.immediate, IntegerAttr)
             and isinstance(op.immediate, IntegerAttr)
         ):
             rd = op.rd.type
             rewriter.replace_matched_op(
-                riscv.LiOp(
+                rv32.LiOp(
                     op.rs1.op.immediate.value.data & op.immediate.value.data, rd=rd
                 )
             )
@@ -242,13 +238,13 @@ class OriImmediate(RewritePattern):
     def match_and_rewrite(self, op: riscv.OriOp, rewriter: PatternRewriter) -> None:
         if (
             isinstance(op.rs1, OpResult)
-            and isinstance(op.rs1.op, riscv.LiOp)
+            and isinstance(op.rs1.op, rv32.LiOp)
             and isinstance(op.rs1.op.immediate, IntegerAttr)
             and isinstance(op.immediate, IntegerAttr)
         ):
             rd = op.rd.type
             rewriter.replace_matched_op(
-                riscv.LiOp(
+                rv32.LiOp(
                     op.rs1.op.immediate.value.data | op.immediate.value.data, rd=rd
                 )
             )
@@ -259,13 +255,13 @@ class XoriImmediate(RewritePattern):
     def match_and_rewrite(self, op: riscv.XoriOp, rewriter: PatternRewriter) -> None:
         if (
             isinstance(op.rs1, OpResult)
-            and isinstance(op.rs1.op, riscv.LiOp)
+            and isinstance(op.rs1.op, rv32.LiOp)
             and isinstance(op.rs1.op.immediate, IntegerAttr)
             and isinstance(op.immediate, IntegerAttr)
         ):
             rd = op.rd.type
             rewriter.replace_matched_op(
-                riscv.LiOp(
+                rv32.LiOp(
                     op.rs1.op.immediate.value.data ^ op.immediate.value.data, rd=rd
                 )
             )
@@ -276,14 +272,14 @@ class ShiftLeftImmediate(RewritePattern):
     def match_and_rewrite(self, op: riscv.SlliOp, rewriter: PatternRewriter) -> None:
         if (
             isinstance(op.rs1, OpResult)
-            and isinstance(op.rs1.op, riscv.LiOp)
+            and isinstance(op.rs1.op, rv32.LiOp)
             and isinstance(op.rs1.op.immediate, IntegerAttr)
             and isinstance(op.immediate, IntegerAttr)
         ):
             rd = op.rd.type
             rewriter.replace_op(
                 op,
-                riscv.LiOp(
+                rv32.LiOp(
                     op.rs1.op.immediate.value.data << op.immediate.value.data, rd=rd
                 ),
             )
@@ -306,14 +302,14 @@ class ShiftRightImmediate(RewritePattern):
     def match_and_rewrite(self, op: riscv.SrliOp, rewriter: PatternRewriter) -> None:
         if (
             isinstance(op.rs1, OpResult)
-            and isinstance(op.rs1.op, riscv.LiOp)
+            and isinstance(op.rs1.op, rv32.LiOp)
             and isinstance(op.rs1.op.immediate, IntegerAttr)
             and isinstance(op.immediate, IntegerAttr)
         ):
             rd = op.rd.type
             rewriter.replace_op(
                 op,
-                riscv.LiOp(
+                rv32.LiOp(
                     op.rs1.op.immediate.value.data >> op.immediate.value.data, rd=rd
                 ),
             )
@@ -459,7 +455,7 @@ class AdditionOfSameVariablesToMultiplyByTwo(RewritePattern):
             rewriter.replace_op(
                 op,
                 [
-                    li_op := riscv.LiOp(2),
+                    li_op := rv32.LiOp(2),
                     riscv.MulOp(
                         op.rs1,
                         li_op,
@@ -632,7 +628,7 @@ class LoadImmediate0(RewritePattern):
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: riscv.LiOp, rewriter: PatternRewriter) -> None:
+    def match_and_rewrite(self, op: rv32.LiOp, rewriter: PatternRewriter) -> None:
         if not (isinstance(op.immediate, IntegerAttr) and op.immediate.value.data == 0):
             return
 
@@ -649,9 +645,9 @@ class LoadImmediate0(RewritePattern):
             )
 
 
-def get_constant_value(value: SSAValue) -> riscv.Imm32Attr | None:
+def get_constant_value(value: SSAValue) -> IntegerAttr[I32] | None:
     if value.type == riscv.Registers.ZERO:
-        return IntegerAttr.from_int_and_width(0, 32)
+        return IntegerAttr(0, i32)
 
     if not isinstance(value, OpResult):
         return
@@ -659,5 +655,5 @@ def get_constant_value(value: SSAValue) -> riscv.Imm32Attr | None:
     if isinstance(value.op, riscv.MVOp):
         return get_constant_value(value.op.rs)
 
-    if isinstance(value.op, riscv.LiOp) and isinstance(value.op.immediate, IntegerAttr):
+    if isinstance(value.op, rv32.LiOp) and isinstance(value.op.immediate, IntegerAttr):
         return value.op.immediate

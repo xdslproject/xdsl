@@ -321,11 +321,13 @@ def test_greedy_rewrite_pattern_applier():
     prog = """"builtin.module"() ({
   %0 = "arith.constant"() <{value = 42 : i32}> : () -> i32
   %1 = "arith.addi"(%0, %0) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
+  "test.op"(%1) : (i32) -> ()
 }) : () -> ()"""
 
     expected = """"builtin.module"() ({
   %0 = "arith.constant"() <{value = 43 : i32}> : () -> i32
   %1 = "arith.muli"(%0, %0) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
+  "test.op"(%1) : (i32) -> ()
 }) : () -> ()"""
 
     class ConstantRewrite(RewritePattern):
@@ -348,7 +350,7 @@ def test_greedy_rewrite_pattern_applier():
         op_inserted=2,
         op_removed=2,
         op_replaced=2,
-        op_modified=2,
+        op_modified=3,
     )
 
 
@@ -380,6 +382,32 @@ def test_greedy_pattern_applier_fold():
         op_removed=1,
         op_replaced=1,
         op_modified=1,
+    )
+
+
+def test_greedy_rewrite_pattern_applier_dead_code():
+    """Test that dead code is removed by the greedy rewrite pattern applier."""
+
+    prog = """"builtin.module"() ({
+  %0 = "arith.constant"() <{value = 42 : i32}> : () -> i32
+  %1 = "arith.addi"(%0, %0) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
+}) : () -> ()"""
+
+    expected = """"builtin.module"() ({
+^bb0:
+}) : () -> ()"""
+
+    rewrite_and_compare(
+        prog,
+        expected,
+        PatternRewriteWalker(
+            GreedyRewritePatternApplier([]),
+            apply_recursively=True,
+        ),
+        op_inserted=0,
+        op_removed=2,
+        op_replaced=0,
+        op_modified=0,
     )
 
 
@@ -698,6 +726,53 @@ def test_replace_inner_op():
         op_inserted=1,
         op_removed=1,
         op_replaced=1,
+    )
+
+
+def test_replace_uses_with_if():
+    """Test rewrites where an operation inside a region of the matched op is deleted."""
+
+    prog = """"builtin.module"() ({
+  "test.op"() ({
+    %0 = "arith.constant"() <{value = 5 : i32}> : () -> i32
+    %1 = "arith.constant"() <{value = 42 : i32}> : () -> i32
+    %2 = "arith.addi"(%0, %0) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
+    %3 = "arith.addi"(%0, %0) <{overflowFlags = #arith.overflow<none>}> {dont_replace} : (i32, i32) -> i32
+  }) : () -> ()
+}) : () -> ()"""
+
+    expected = """"builtin.module"() ({
+  "test.op"() ({
+    %0 = "arith.constant"() <{value = 5 : i32}> : () -> i32
+    %1 = "arith.constant"() <{value = 42 : i32}> : () -> i32
+    %2 = "arith.addi"(%1, %1) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
+    %3 = "arith.addi"(%0, %0) <{overflowFlags = #arith.overflow<none>}> {dont_replace} : (i32, i32) -> i32
+  }) : () -> ()
+}) : () -> ()"""
+
+    class Rewrite(RewritePattern):
+        @op_type_rewrite_pattern
+        def match_and_rewrite(self, op: test.TestOp, rewriter: PatternRewriter):
+            first_op = op.regions[0].block.ops.first
+            assert first_op is not None
+            second_op = first_op.next_op
+            assert second_op is not None
+
+            val = first_op.results[0]
+            newval = second_op.results[0]
+            rewriter.replace_uses_with_if(
+                val,
+                newval,
+                lambda use: use.operation.attributes.get("dont_replace") is None,
+            )
+
+    rewrite_and_compare(
+        prog,
+        expected,
+        PatternRewriteWalker(Rewrite(), apply_recursively=False),
+        # This counts each use individually:
+        op_modified=2,
+        expect_rewrite=False,
     )
 
 
