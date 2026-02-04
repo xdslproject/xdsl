@@ -931,9 +931,9 @@ class OperationPositionTree:
             child = OperationPositionTree(operation=op)
             node.children.append(child)
 
-            child_paths: defaultdict[int, list[int]] = defaultdict(list[int])
+            child_paths: dict[int, list[int]] = {}
             for idx in indices:
-                current_paths[idx].append(child_index)
+                child_paths[idx] = current_paths.get(idx, []) + [child_index]
                 pattern_paths[idx] = child_paths[idx]
             OperationPositionTree._build_subtree(
                 child,
