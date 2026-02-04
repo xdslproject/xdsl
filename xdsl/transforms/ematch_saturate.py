@@ -9,7 +9,11 @@ from xdsl.interpreters.ematch import EmatchFunctions
 from xdsl.interpreters.pdl_interp import PDLInterpFunctions
 from xdsl.parser import Parser
 from xdsl.passes import ModulePass
-from xdsl.pattern_rewriter import PatternRewriterListener, PatternRewriteWalker
+from xdsl.pattern_rewriter import (
+    PatternRewriter,
+    PatternRewriterListener,
+    PatternRewriteWalker,
+)
 from xdsl.traits import SymbolTable
 from xdsl.transforms.apply_pdl_interp import PDLInterpRewritePattern
 
@@ -85,9 +89,19 @@ class EmatchSaturatePass(ModulePass):
         walker = PatternRewriteWalker(rewrite_pattern, apply_recursively=False)
         walker.listener = listener
 
+        if not op.ops.first:
+            return
+
+        rewriter = PatternRewriter(op.ops.first)
+        rewriter.operation_modification_handler.append(
+            ematch_functions.modification_handler
+        )
+        pdl_interp_functions.set_rewriter(interpreter, rewriter)
         for _i in range(self.max_iterations):
-            walker.rewrite_module(op)
-            ematch_functions.execute_pending_rewrites(interpreter)
+            for root in op.body.walk():
+                rewriter.current_operation = root
+                interpreter.call_op(matcher, (root,))
+            pdl_interp_functions.apply_pending_rewrites(interpreter)
 
             if not ematch_functions.worklist:
                 break
