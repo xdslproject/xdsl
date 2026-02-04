@@ -1,7 +1,7 @@
 from typing import Any, cast
 
 from xdsl.context import Context
-from xdsl.dialects import pdl_interp
+from xdsl.dialects import pdl, pdl_interp
 from xdsl.dialects.builtin import SymbolRefAttr
 from xdsl.dialects.pdl import RangeType, ValueType
 from xdsl.interpreter import (
@@ -537,6 +537,21 @@ class PDLInterpFunctions(InterpreterFunctions):
         self, interpreter: Interpreter, op: pdl_interp.ContinueOp, args: tuple[Any, ...]
     ):
         return ReturnedValues(args), ()
+
+    @impl(pdl_interp.CreateRangeOp)
+    def run_create_range(
+        self,
+        interpreter: Interpreter,
+        op: pdl_interp.CreateRangeOp,
+        args: tuple[Any, ...],
+    ) -> tuple[Any, ...]:
+        result: list[Any] = []
+        for val, arg in zip(args, op.arguments):
+            if isinstance(arg.type, pdl.RangeType):
+                result.extend(val)
+            else:
+                result.append(val)
+        return (result,)
 
     def apply_pending_rewrites(self, interpreter: Interpreter):
         rewriter = PDLInterpFunctions.get_rewriter(interpreter)
