@@ -3,6 +3,7 @@ from collections.abc import Sequence
 import pytest
 
 from xdsl.builder import ImplicitBuilder
+from xdsl.context import Context
 from xdsl.dialects import pdl, pdl_interp, test
 from xdsl.dialects.builtin import (
     ArrayAttr,
@@ -953,3 +954,61 @@ def test_run_get_results():
     # All results > 1, but we ask for single ValueType. Should return None.
     res = run_get_results(None, pdl.ValueType())
     assert res == (None,)
+
+
+@pytest.mark.parametrize(
+    "num_ops",
+    [0, 1, 3],
+    ids=["empty_range", "single_element", "multiple_elements"],
+)
+def test_foreach(num_ops: int):
+    """Test that ForEachOp correctly iterates over ranges of different sizes."""
+    ctx = Context()
+    ctx.register_dialect("test", lambda: test.Test)
+
+    # Create test operations to iterate over
+    ops_range = tuple(
+        test.TestOp.create(properties={"attr": StringAttr(f"op_{i}")})
+        for i in range(num_ops)
+    )
+
+    # Create a pdl_interp.FuncOp with a ForEachOp
+    entry_block = Block(arg_types=[pdl.RangeType(pdl.OperationType())])
+
+    exit_block = Block()
+    exit_block.add_op(pdl_interp.FinalizeOp())
+
+    foreach_body_block = Block(arg_types=[pdl.OperationType()])
+    foreach_body_block.add_op(pdl_interp.ContinueOp())
+    foreach_body_region = Region([foreach_body_block])
+
+    foreach_op = pdl_interp.ForEachOp(
+        entry_block.args[0],
+        exit_block,
+        foreach_body_region,
+    )
+    entry_block.add_op(foreach_op)
+
+    func_region = Region([entry_block, exit_block])
+    func_op = pdl_interp.FuncOp(
+        "test_foreach",
+        ([pdl.RangeType(pdl.OperationType())], []),
+        region=func_region,
+    )
+
+    module = ModuleOp([func_op])
+
+    # Set up interpreter
+    interpreter = Interpreter(module)
+    pdl_funcs = PDLInterpFunctions()
+    interpreter.register_implementations(pdl_funcs)
+
+    # Create a mock rewriter (required by PDLInterpFunctions)
+    dummy_op = test.TestOp()
+    entry_block.add_op(dummy_op)
+    rewriter = PatternRewriter(dummy_op)
+    PDLInterpFunctions.set_rewriter(interpreter, rewriter)
+    PDLInterpFunctions.set_ctx(interpreter, ctx)
+
+    # Run the function with the range of operations
+    interpreter.call_op("test_foreach", (ops_range,))
