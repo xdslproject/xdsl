@@ -505,6 +505,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return riscv_allocate_registers.RISCVAllocateRegistersPass
 
+    def get_test_riscv_allocate_registers():
+        from xdsl.transforms import test_riscv_allocate_registers
+
+        return test_riscv_allocate_registers.TestRiscvAllocateRegistersPass
+
     def get_riscv_lower_parallel_mov():
         from xdsl.transforms import riscv_lower_parallel_mov
 
@@ -772,6 +777,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "test-add-timers-to-top-level-funcs": get_test_add_timers_to_top_level_funcs,
         "test-constant-folding": get_test_constant_folding,
         "test-lower-linalg-to-snitch": get_test_lower_linalg_to_snitch,
+        "test-riscv-allocate-registers": get_test_riscv_allocate_registers,
         "test-specialised-constant-folding": get_test_specialised_constant_folding,
         "test-transform-dialect-erase-schedule": get_test_transform_dialect_erase_schedule,
         "test-vectorize-matmul": get_test_vectorize_matmul,
