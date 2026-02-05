@@ -206,7 +206,7 @@ def test_llvm_getelementptr_op():
 
 
 def test_array_type():
-    array_type = llvm.LLVMArrayType.from_size_and_type(10, builtin.i32)
+    array_type = llvm.LLVMArrayType(10, builtin.i32)
 
     assert isinstance(array_type.size, builtin.IntAttr)
     assert array_type.size.data == 10
