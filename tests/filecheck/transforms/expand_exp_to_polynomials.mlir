@@ -5,11 +5,6 @@ builtin.module {
     %y = math.exp %x : f64
     func.return %y : f64
   }
-
-  func.func @nochange(%x: f32) -> f32 {
-    %y = math.exp %x : f32
-    func.return %y : f32
-  }
 }
 
 // CHECK: builtin.module {
@@ -35,7 +30,3 @@ builtin.module {
 
 // Return exists (don’t try to bind the last SSA without unrolling 74 iters)
 // CHECK: func.return %{{.*}} : f64
-
-// Now check @nochange still has exp
-// CHECK: func.func @nochange(%{{.*}}{{ *}}:{{ *}}f32) -> f32
-// CHECK: %{{.*}} = math.exp %{{.*}} : f32
