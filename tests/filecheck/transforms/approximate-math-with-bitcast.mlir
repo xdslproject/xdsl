@@ -16,6 +16,23 @@ func.func @test_log (%x: f32) -> f32 {
 //CHECK-NEXT: return %a_7 : f32
 }
 
+// CHECK-LABEL: @test_log1p
+func.func @test_log1p (%x: f32) -> f32 {
+  %a = math.log1p %x : f32
+// CHECK:      %a = arith.constant 1.000000e+00 : f32
+// CHECK-NEXT: %a_1 = arith.addf %a, %x : f32
+// CHECK-NEXT: %a_2 = arith.constant 0.693147182 : f32
+// CHECK-NEXT: %a_3 = arith.constant 0x4B000000 : f32
+// CHECK-NEXT: %a_4 = arith.constant 1.06497574e+09 : f32
+// CHECK-NEXT: %a_5 = arith.mulf %a_3, %a_1 : f32
+// CHECK-NEXT: %a_6 = arith.addf %a_4, %a_5 : f32
+// CHECK-NEXT: %a_7 = arith.fptosi %a_6 : f32 to i32
+// CHECK-NEXT: %a_8 = arith.bitcast %a_7 : i32 to f32
+// CHECK-NEXT: %a_9 = arith.mulf %a_2, %a_8 : f32
+  return %a : f32
+// CHECK-NEXT: func.return %a_9 : f32
+}
+
 //CHECK-LABEL: @test_exp
 func.func @test_exp (%x: f32) -> f32 {
   %b = math.exp %x fastmath<fast>: f32
