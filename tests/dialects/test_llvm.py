@@ -392,8 +392,8 @@ def test_parse_optional_llvm_type_direct():
     t2 = parse_helper("i32")
     assert t2 == builtin.i32
 
-    t3 = parse_helper("")
-    assert t3 is None
+    assert parse_helper("") is None
+    assert parse_helper("bla") is None
 
 
 def test_linkage_attr_init_str():
