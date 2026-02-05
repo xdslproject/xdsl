@@ -16,15 +16,13 @@ from xdsl.utils.exceptions import PassFailedException
 f64 = Float64Type()
 
 
+@dataclass
 class ExpandExp(RewritePattern):
     """
     Replace `math.exp` operations with a polynomial expansion.
     """
 
-    def __init__(self, terms: int):
-        self.terms = terms
-
-    # terms: int
+    terms: int
     """Number of terms to use when expanding `math.exp`."""
 
     @op_type_rewrite_pattern
@@ -43,7 +41,7 @@ def expand_exp(op: math.ExpOp, rewriter: PatternRewriter, terms: int) -> Operati
         terms = 75
         result = 1.0
         term = 1.0
-        for i in range(1, terms):
+        for i in range(1, terms): # loop will be unrolled by the rewriter
             term *= x / i
             result += term
         return result
@@ -66,9 +64,13 @@ def expand_exp(op: math.ExpOp, rewriter: PatternRewriter, terms: int) -> Operati
 
 
 @dataclass(frozen=True)
-class ExpToTaylorPass(ModulePass):
-    name = "expand-exp-to-polynomials"
+class MathToPolynomialsPass(ModulePass):
+    """This pass expands `math.exp` operations to a polynomial expansion using the Taylor series."""
+
+    name = "expand-math-to-polynomials"
+
     terms = 75
+    """Number of terms to use when expanding `math.exp`."""
 
     def apply(self, ctx: Context, op: ModuleOp) -> None:
         PatternRewriteWalker(

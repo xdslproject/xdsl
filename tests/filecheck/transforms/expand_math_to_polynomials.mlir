@@ -1,4 +1,4 @@
-// RUN: xdsl-opt -p expand-exp-to-polynomials %s | filecheck %s
+// RUN: xdsl-opt -p expand-math-to-polynomials %s | filecheck %s
 
 builtin.module {
   func.func @test(%x: f64) -> f64 {
