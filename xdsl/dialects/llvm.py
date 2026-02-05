@@ -1696,6 +1696,8 @@ class ReturnOp(IRDLOperation):
 
     name = "llvm.return"
 
+    assembly_format = "($arg^ `:` type($arg))? attr-dict"
+
     arg = opt_operand_def(Attribute)
 
     traits = traits_def(IsTerminator(), NoMemoryEffect())
