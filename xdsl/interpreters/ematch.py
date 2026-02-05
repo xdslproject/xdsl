@@ -428,6 +428,7 @@ class EmatchFunctions(InterpreterFunctions):
 
             # Replace op1 with op2's results
             rewriter.replace_op(op1, new_ops=(), new_results=op2.results)
+            self.known_ops[op2] = op2
 
             # Process each eclass pair
             for eclass1, eclass2 in eclass_pairs:
