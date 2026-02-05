@@ -12,9 +12,7 @@ from xdsl.dialects.builtin import (
     I32,
     ArrayAttr,
     DenseArrayBase,
-    IndexType,
     IntegerAttr,
-    IntegerType,
     StringAttr,
     i32,
 )
@@ -85,6 +83,8 @@ from .abstract_ops import (
     RsRsImmIntegerOperation,
     RsRsOffIntegerOperation,
     assembly_arg_str,
+    parse_immediate_value,
+    print_immediate_value,
 )
 from .attrs import (
     SI20,
@@ -3325,39 +3325,6 @@ class VFMulSOp(RdRsRsFloatOperation[FloatRegisterType, FloatRegisterType]):
 
 
 # endregion
-
-
-def _parse_optional_immediate_value(
-    parser: Parser, integer_type: IntegerType | IndexType
-) -> IntegerAttr[IntegerType | IndexType] | LabelAttr | None:
-    """
-    Parse an optional immediate value. If an integer is parsed, an integer attr with the specified type is created.
-    """
-    pos = parser.pos
-    if (immediate := parser.parse_optional_integer()) is not None:
-        try:
-            return IntegerAttr(immediate, integer_type)
-        except VerifyException as e:
-            parser.raise_error(e.args[0], pos)
-    if (immediate := parser.parse_optional_str_literal()) is not None:
-        return LabelAttr(immediate)
-
-
-def parse_immediate_value(
-    parser: Parser, integer_type: IntegerType | IndexType
-) -> IntegerAttr[IntegerType | IndexType] | LabelAttr:
-    return parser.expect(
-        lambda: _parse_optional_immediate_value(parser, integer_type),
-        "Expected immediate",
-    )
-
-
-def print_immediate_value(printer: Printer, immediate: IntegerAttr | LabelAttr):
-    match immediate:
-        case IntegerAttr():
-            immediate.print_without_type(printer)
-        case LabelAttr():
-            printer.print_string_literal(immediate.data)
 
 
 RISCV = Dialect(

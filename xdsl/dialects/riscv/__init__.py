@@ -47,6 +47,12 @@ from .attrs import (
 )
 from .attrs import FastMathFlagsAttr
 from .attrs import (
+    parse_immediate_value as parse_immediate_value,
+)
+from .attrs import (
+    print_immediate_value as print_immediate_value,
+)
+from .attrs import (
     si12 as si12,
 )
 from .attrs import (
@@ -215,12 +221,6 @@ from .ops import (
     ZextBOp,
     ZextHOp,
     ZextWOp,
-)
-from .ops import (
-    parse_immediate_value as parse_immediate_value,
-)
-from .ops import (
-    print_immediate_value as print_immediate_value,
 )
 from .registers import (
     FloatRegisterType,

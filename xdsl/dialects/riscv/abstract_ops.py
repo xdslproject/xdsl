@@ -21,7 +21,6 @@ from xdsl.dialects.builtin import (
     StringAttr,
     UnitAttr,
 )
-from xdsl.dialects.riscv import parse_immediate_value, print_immediate_value
 from xdsl.ir import (
     Attribute,
     Dialect,
@@ -52,6 +51,8 @@ from .attrs import (
     LabelAttr,
     i12,
     i20,
+    parse_immediate_value,
+    print_immediate_value,
     si12,
     si20,
     ui5,

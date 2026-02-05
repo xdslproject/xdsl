@@ -3,12 +3,13 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Literal, TypeAlias
 
-from xdsl.dialects.builtin import IntegerType, Signedness
+from xdsl.dialects.builtin import IndexType, IntegerAttr, IntegerType, Signedness
 from xdsl.dialects.utils import FastMathAttrBase, FastMathFlag
 from xdsl.ir import Data
 from xdsl.irdl import irdl_attr_definition
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
+from xdsl.utils.exceptions import VerifyException
 
 
 @irdl_attr_definition
@@ -49,3 +50,36 @@ class LabelAttr(Data[str]):
     def print_parameter(self, printer: Printer) -> None:
         with printer.in_angle_brackets():
             printer.print_string_literal(self.data)
+
+
+def _parse_optional_immediate_value(
+    parser: AttrParser, integer_type: IntegerType | IndexType
+) -> IntegerAttr[IntegerType | IndexType] | LabelAttr | None:
+    """
+    Parse an optional immediate value. If an integer is parsed, an integer attr with the specified type is created.
+    """
+    pos = parser.pos
+    if (immediate := parser.parse_optional_integer()) is not None:
+        try:
+            return IntegerAttr(immediate, integer_type)
+        except VerifyException as e:
+            parser.raise_error(e.args[0], pos)
+    if (immediate := parser.parse_optional_str_literal()) is not None:
+        return LabelAttr(immediate)
+
+
+def parse_immediate_value(
+    parser: AttrParser, integer_type: IntegerType | IndexType
+) -> IntegerAttr[IntegerType | IndexType] | LabelAttr:
+    return parser.expect(
+        lambda: _parse_optional_immediate_value(parser, integer_type),
+        "Expected immediate",
+    )
+
+
+def print_immediate_value(printer: Printer, immediate: IntegerAttr | LabelAttr):
+    match immediate:
+        case IntegerAttr():
+            immediate.print_without_type(printer)
+        case LabelAttr():
+            printer.print_string_literal(immediate.data)
