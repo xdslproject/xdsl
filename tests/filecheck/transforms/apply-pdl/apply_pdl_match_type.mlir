@@ -2,6 +2,7 @@
 
 %x = arith.constant 42: i32
 %y = arith.constant 84: i64
+"test.op"(%y) : (i64) -> ()
 
 pdl.pattern : benefit(1) {
     %in_type = pdl.type: i32
@@ -14,6 +15,7 @@ pdl.pattern : benefit(1) {
 
 // CHECK:       builtin.module {
 // CHECK-NEXT:    %y = arith.constant 84 : i64
+// CHECK-NEXT:    "test.op"(%y) : (i64) -> ()
 // CHECK-NEXT:    pdl.pattern : benefit(1) {
 // CHECK-NEXT:      %in_type = pdl.type : i32
 // CHECK-NEXT:      %value = pdl.attribute : %in_type
@@ -23,4 +25,3 @@ pdl.pattern : benefit(1) {
 // CHECK-NEXT:      }
 // CHECK-NEXT:    }
 // CHECK-NEXT:  }
-// CHECK-NEXT:  
