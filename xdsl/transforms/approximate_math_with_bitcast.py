@@ -35,8 +35,8 @@ class MakeBase2(RewritePattern):
                 rewriter.replace_matched_op(
                     [
                         c := arith.ConstantOp(ln2),
-                        newlog := math.Log2Op(op.operand),
-                        mul := arith.MulfOp(c, newlog),
+                        newlog := math.Log2Op(op.operand, op.fastmath),
+                        mul := arith.MulfOp(c, newlog, op.fastmath),
                     ],
                     mul.results,
                 )
@@ -46,8 +46,8 @@ class MakeBase2(RewritePattern):
                 rewriter.replace_matched_op(
                     [
                         c := arith.ConstantOp(log2e),
-                        inner := arith.MulfOp(c, op.operand),
-                        e := math.Exp2Op(inner),
+                        inner := arith.MulfOp(c, op.operand, op.fastmath),
+                        e := math.Exp2Op(inner, op.fastmath),
                     ],
                     e.results,
                 )
@@ -90,8 +90,8 @@ class MakeApprox(RewritePattern):
                     [
                         a := arith.ConstantOp(builtin.FloatAttr(L, t)),
                         b := arith.ConstantOp(builtin.FloatAttr(L * (B - 0.045), t)),
-                        ax := arith.MulfOp(a, x),
-                        axpb := arith.AddfOp(b, ax),
+                        ax := arith.MulfOp(a, x, op.fastmath),
+                        axpb := arith.AddfOp(b, ax, op.fastmath),
                         asint := arith.FPToSIOp(axpb, int_t),
                         res := arith.BitcastOp(asint, t),
                     ],
@@ -105,8 +105,8 @@ class MakeApprox(RewritePattern):
                         b := arith.ConstantOp(builtin.FloatAttr(-B + 0.045, t)),
                         xi := arith.BitcastOp(x, int_t),
                         xif := arith.SIToFPOp(xi, t),
-                        ax := arith.MulfOp(a, xif),
-                        axpb := arith.AddfOp(b, ax),
+                        ax := arith.MulfOp(a, xif, op.fastmath),
+                        axpb := arith.AddfOp(b, ax, op.fastmath),
                     ],
                     axpb.results,
                 )
