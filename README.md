@@ -170,8 +170,9 @@ submodule at your feature branch to benchmark.
 All Python code used in xDSL uses [ruff](https://docs.astral.sh/ruff/formatter/) to
 format the code in a uniform manner.
 
-To automate the formatting, we use pre-commit hooks from the
-[pre-commit](https://pypi.org/project/pre-commit/) package.
+To automate the formatting, we use pre-commit hooks from
+[prek](https://github.com/j178/prek), a drop-in replacement for
+[pre-commit](https://pypi.org/project/pre-commit/).
 
 ```bash
 # Install the pre-commit on your `.git` folder
