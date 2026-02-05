@@ -2,64 +2,9 @@
 
 ## Contents
 
-- [Installation](#installation)
-- [Getting Started](#getting-started)
-- [xDSL Developer Setup](#xdsl-developer-setup)
-  - [Developer Installation](#developer-installation)
-  - [Testing and benchmarking](#testing-and-benchmarking)
-  - [Formatting and Typechecking](#formatting-and-typechecking)
-
-## Installation
-
-To use xDSL as part of a larger project for developing your own compiler,
-just install [xDSL via pip](https://pypi.org/project/xdsl/):
-
-```bash
-pip install xdsl
-```
-
-To quickly install xDSL for development and contribution purposes, use:
-
-``` bash
-pip install xdsl[dev]
-```
-
-This may be useful for projects wanting to replicate the xDSL testing setup.
-For a more comprehensive experience, follow: [xDSL Developer Setup](#xdsl-developer-setup)
-
-*Note:* This version of xDSL is validated against a specific MLIR version,
-interoperability with other versions is not guaranteed. The supported
-MLIR version is 21.1.1.
-
-### Subprojects With Extra Dependencies
-
-xDSL has a number of subprojects, some of which require extra dependencies.
-To keep the set of dependencies to a minimum, these extra dependencies have to
-be specified explicitly, e.g. by using:
-
-``` bash
-pip install xdsl[gui] # or [jax], [riscv]
-```
-
-## Getting Started
-
-Check out the dedicated [Getting Started guide](https://xdsl.readthedocs.io/stable/)
-for a comprehensive tutorial.
-
-To get familiar with xDSL, we recommend starting with our Jupyter notebooks. The
-notebooks provide hands-on examples and documentation of xDSL's core concepts: data
-structures, the Python-embedded abstraction definition language, and end-to-end custom
-compilers construction, like a database compiler.
-There also exists a small documentation showing how to connect xDSL with MLIR
-for users interested in that use case.
-
-- [A Database example](https://xdsl.dev/xdsl/lab/index.html?path=database_example.ipynb)
-- [A simple introduction](https://xdsl.dev/xdsl/lab/index.html?path=tutorial.ipynb)
-- [A DSL for defining new IRs](https://xdsl.dev/xdsl/lab/index.html?path=irdl.ipynb)
-- [Connecting xDSL with MLIR](docs/guides/mlir_interoperation.md)
-
-We provide a [Makefile](https://github.com/xdslproject/xdsl/blob/main/Makefile)
-containing a lot of common tasks, which might provide an overview of common actions.
+- [Developer Installation](#developer-installation)
+- [Testing and benchmarking](#testing-and-benchmarking)
+- [Formatting and Typechecking](#formatting-and-typechecking)
 
 ## xDSL Developer Setup
 
