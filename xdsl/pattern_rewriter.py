@@ -170,26 +170,26 @@ class PatternRewriter(Builder, PatternRewriterListener):
         Rewriter.erase_op(op, safe_erase=safe_erase)
 
     def replace_all_uses_with(
-        self, from_: SSAValue, to: SSAValue | None, safe_erase: bool = True
+        self, old: SSAValue, new: SSAValue | None, safe_erase: bool = True
     ):
-        """Replace all uses of an SSA value with another SSA value."""
-        modified_ops = [use.operation for use in from_.uses]
-        if to is None:
-            from_.erase(safe_erase=safe_erase)
+        """Replace all uses of `old` with `new`."""
+        modified_ops = [use.operation for use in old.uses]
+        if new is None:
+            old.erase(safe_erase=safe_erase)
         else:
-            from_.replace_by(to)
+            old.replace_by(new)
         for op in modified_ops:
             self.handle_operation_modification(op)
 
     def replace_uses_with_if(
         self,
-        from_: SSAValue,
-        to: SSAValue,
+        old: SSAValue,
+        new: SSAValue,
         predicate: Callable[[Use], bool],
     ):
-        """Find uses of from and replace them with to if the predicate returns true."""
+        """Replace uses of `old` satisfying `predicate` with `new`."""
         tracking = _TrackingPredicate(predicate)
-        from_.replace_by_if(to, tracking)
+        old.replace_by_if(new, tracking)
 
         for op in tracking.modified_ops:
             self.handle_operation_modification(op)
