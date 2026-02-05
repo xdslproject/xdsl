@@ -763,13 +763,13 @@ class SSAValue(IRWithUses, IRWithName, ABC, Generic[AttributeCovT]):
             value.name_hint = self.name_hint
         assert self.first_use is None, "unexpected error in xdsl"
 
-    def replace_by_if(self, value: SSAValue, test: Callable[[Use], bool]):
+    def replace_by_if(self, value: SSAValue, predicate: Callable[[Use], bool]):
         """
         Replace the value by another value in all its uses that pass the given test
         function.
         """
         for use in tuple(self.uses):
-            if test(use):
+            if predicate(use):
                 use.operation.operands[use.index] = value
         # carry over name if possible
         if value.name_hint is None:
