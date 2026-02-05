@@ -3607,7 +3607,6 @@ class DSSI_ShufpsOp(
 class GetAnyRegisterOperation(
     X86AsmOperation,
     X86RegallocOperation,
-    X86CustomFormatOperation,
     ABC,
     Generic[R1InvT],
 ):
@@ -3616,6 +3615,8 @@ class GetAnyRegisterOperation(
     """
 
     result: OpResult[R1InvT] = result_def(R1InvT)
+
+    assembly_format = "attr-dict `:` type($result)"
 
     def __init__(
         self,
