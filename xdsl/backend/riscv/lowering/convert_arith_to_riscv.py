@@ -528,7 +528,8 @@ class ConvertArithToRiscvPass(ModulePass):
                     LowerArithTruncFOp(),
                     lower_arith_minf,
                     lower_arith_maxf,
-                ]
+                ],
+                dce_enabled=False,
             ),
             apply_recursively=False,
         )
