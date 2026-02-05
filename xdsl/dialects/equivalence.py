@@ -12,7 +12,7 @@ from typing import ClassVar
 
 from xdsl.dialects.builtin import IntAttr
 from xdsl.interfaces import ConstantLikeInterface
-from xdsl.ir import Attribute, Dialect, OpResult, Region, SSAValue
+from xdsl.ir import Attribute, Block, Dialect, OpResult, Region, SSAValue
 from xdsl.irdl import (
     AnyAttr,
     IRDLOperation,
@@ -53,7 +53,8 @@ class ConstantClassOp(IRDLOperation, ConstantLikeInterface):
     name = "equivalence.const_class"
 
     assembly_format = (
-        "$arguments ` ` `(` `constant` `=` $value `)` attr-dict `:` type($result)"
+        "$arguments ` ` `(` `constant` `=` $value (`, ` `min_cost_index` `=` $min_cost_index^)? `)`"
+        "attr-dict `:` type($result)"
     )
     traits = traits_def(Pure())
 
@@ -93,7 +94,7 @@ class ClassOp(IRDLOperation):
     min_cost_index = opt_attr_def(IntAttr)
     traits = traits_def(Pure())
 
-    assembly_format = "$arguments attr-dict `:` type($result)"
+    assembly_format = "$arguments (` ` `(` `min_cost_index` `=` $min_cost_index^ `)` )? attr-dict `:` type($result)"
 
     def __init__(
         self,
@@ -152,16 +153,20 @@ class GraphOp(IRDLOperation):
 
     traits = lazy_traits_def(lambda: (SingleBlockImplicitTerminator(YieldOp),))
 
-    assembly_format = (
-        "($inputs^ `:` type($inputs))? `->` type($outputs) $body attr-dict"
-    )
+    assembly_format = "$inputs attr-dict `:` functional-type($inputs, results) $body"
 
     def __init__(
         self,
-        result_types: Sequence[Attribute] | None,
-        body: Region,
+        inputs: Sequence[SSAValue] | None = None,
+        result_types: Sequence[Attribute] | None = None,
+        body: Region | type[Region.DEFAULT] = Region.DEFAULT,
     ):
+        if inputs is None:
+            inputs = []
+        if not isinstance(body, Region):
+            body = Region(Block(arg_types=[input.type for input in inputs]))
         super().__init__(
+            operands=(inputs,),
             result_types=(result_types,),
             regions=[body],
         )
@@ -174,7 +179,7 @@ class YieldOp(IRDLOperation):
 
     traits = traits_def(HasParent(GraphOp), IsTerminator())
 
-    assembly_format = "$values `:` type($values) attr-dict"
+    assembly_format = "attr-dict ($values^ `:` type($values))?"
 
     def __init__(
         self,
