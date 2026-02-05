@@ -20,21 +20,6 @@ CustomInstructionFn: TypeAlias = Callable[
 
 @register_impls
 class Rv32Functions(InterpreterFunctions):
-    custom_instructions: dict[str, CustomInstructionFn] = {}
-    bitwidth: int
-
-    def __init__(
-        self,
-        *,
-        bitwidth: int = 32,
-        custom_instructions: dict[str, CustomInstructionFn] | None = None,
-    ):
-        super().__init__()
-        self.bitwidth = bitwidth
-        if custom_instructions is None:
-            custom_instructions = {}
-        self.custom_instructions = custom_instructions
-
     @impl(rv32.SlliOp)
     def run_shift_left_i(
         self,
