@@ -146,12 +146,15 @@ or a [constant e-class operation][xdsl.dialects.equivalence.ConstantClassOp].
 class GraphOp(IRDLOperation):
     name = "equivalence.graph"
 
+    inputs = var_operand_def()
     outputs = var_result_def()
     body = region_def()
 
     traits = lazy_traits_def(lambda: (SingleBlockImplicitTerminator(YieldOp),))
 
-    assembly_format = "`->` type($outputs) $body attr-dict"
+    assembly_format = (
+        "($inputs^ `:` type($inputs))? `->` type($outputs) $body attr-dict"
+    )
 
     def __init__(
         self,
