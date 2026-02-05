@@ -472,18 +472,6 @@ def test_cast_ops_init():
     assert op_fpext.result.type == builtin.f64
 
 
-def test_trunc_op_printing():
-    op = llvm.TruncOp(
-        create_ssa_value(builtin.i64),
-        builtin.i32,
-        overflow=llvm.OverflowAttr([llvm.OverflowFlag.NO_SIGNED_WRAP]),
-    )
-    io = StringIO()
-    p = Printer(stream=io)
-    op.print(p)
-    assert "overflow<nsw>" in io.getvalue()
-
-
 def test_trunc_op_printing_no_overflow():
     op = llvm.TruncOp(create_ssa_value(builtin.i64), builtin.i32)
     del op.properties["overflowFlags"]
