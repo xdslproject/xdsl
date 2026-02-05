@@ -87,7 +87,7 @@ def insert_egraph_op(f: func.FuncOp):
 
     # Create the egraph operation with the types of yielded values
     yielded_types = [val.type for val in values_to_yield]
-    egraph_op = equivalence.GraphOp(yielded_types, egraph_body)
+    egraph_op = equivalence.GraphOp(result_types=yielded_types, body=egraph_body)
 
     for i, val in enumerate(values_to_yield):
         val.replace_by_if(
