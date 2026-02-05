@@ -114,36 +114,8 @@ class SraiOp(RdRsImmShiftOperation):
 
 
 @irdl_op_definition
-class SlliwOp(RdRsImmShiftOperation):
-    name = "rv32.slliw"
-
-    traits = traits_def(Pure())
-
-
-@irdl_op_definition
-class SrliwOp(RdRsImmShiftOperation):
-    name = "rv32.srliw"
-
-    traits = traits_def(Pure())
-
-
-@irdl_op_definition
 class RoriOp(RdRsImmShiftOperation):
     name = "rv32.rori"
-
-    traits = traits_def(Pure())
-
-
-@irdl_op_definition
-class RoriwOp(RdRsImmShiftOperation):
-    name = "rv32.roriw"
-
-    traits = traits_def(Pure())
-
-
-@irdl_op_definition
-class SlliUwOp(RdRsImmShiftOperation):
-    name = "rv32.slli.uw"
 
     traits = traits_def(Pure())
 
@@ -182,11 +154,7 @@ RV32 = Dialect(
         SlliOp,
         SrliOp,
         SraiOp,
-        SlliwOp,
-        SrliwOp,
         RoriOp,
-        RoriwOp,
-        SlliUwOp,
         # Bit Manipulation Operations
         BclrIOp,
         BextIOp,
