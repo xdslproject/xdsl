@@ -15,13 +15,13 @@
 %r2 = equivalence.const_class %v3 (constant = -7.000000e+00 : f32) : f32
 
 
-// CHECK-NEXT:    %egraph = equivalence.graph -> index {
+// CHECK-NEXT:    %egraph = equivalence.graph : () -> index {
 // CHECK-NEXT:      %c = equivalence.class %r3 : index
 // CHECK-NEXT:      %r3 = "test.op"(%r1) : (index) -> index
 // CHECK-NEXT:      equivalence.yield %c : index
 // CHECK-NEXT:    }
 
-%egraph = equivalence.graph -> index {
+%egraph = equivalence.graph : () -> index {
     %c = equivalence.class %r3 : index
     %r3 = "test.op"(%r1) : (index) -> index
     equivalence.yield %c : index
