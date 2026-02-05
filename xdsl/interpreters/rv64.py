@@ -1,9 +1,7 @@
 from __future__ import annotations
 
-from collections.abc import Callable, Iterator
+from collections.abc import Callable
 from typing import Any, TypeAlias
-
-from typing_extensions import TypeVar
 
 from xdsl.dialects import riscv, rv64
 from xdsl.interpreter import (
@@ -15,24 +13,9 @@ from xdsl.interpreter import (
 )
 from xdsl.interpreters.riscv import RiscvFunctions
 
-_T = TypeVar("_T")
-
-
-def pairs(els: list[_T]) -> Iterator[tuple[_T, _T]]:
-    count = len(els)
-    assert not count % 2
-    for i in range(0, count, 2):
-        yield els[i], els[i + 1]
-
-
 CustomInstructionFn: TypeAlias = Callable[
     [Interpreter, riscv.CustomAssemblyInstructionOp, PythonValues], PythonValues
 ]
-
-
-_DATA_KEY = "data"
-REGISTERS_KEY = "registers"
-STACK_KEY = "stack"
 
 
 @register_impls
