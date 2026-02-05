@@ -85,6 +85,18 @@ class PatternRewriterListener(BuilderListener):
 
 
 class _TrackingPredicate:
+    """
+    A callable class which is used as a predicate in `replace_uses_with_if`.
+    The class takes a predicate and tracks all operations for which the predicate
+    returned true.
+    """
+
+    predicate: Callable[[Use], bool]
+    """The original predicate to call."""
+
+    modified_ops: list[Operation]
+    """The operations for which the predicate returned true."""
+
     def __init__(self, predicate: Callable[[Use], bool]):
         self.predicate = predicate
         self.modified_ops: list[Operation] = []
