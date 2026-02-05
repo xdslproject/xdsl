@@ -472,7 +472,8 @@ def test_cast_ops_init():
     assert op_fpext.result.type == builtin.f64
 
 
-def test_trunc_op_printing_no_overflow():
+def test_trunc_op_prints_without_missing_overflow_property():
+    # ensure printer handles absent overflowFlags gracefully
     op = llvm.TruncOp(create_ssa_value(builtin.i64), builtin.i32)
     del op.properties["overflowFlags"]
     io = StringIO()
@@ -513,7 +514,8 @@ def test_insert_value_op_init():
     assert op.value == val
 
 
-def test_global_op_more_coverage():
+def test_global_op_optional_properties():
+    # verify dso_local, thread_local_, unnamed_addr and section properties
     op = llvm.GlobalOp(
         builtin.i32,
         "my_global",
@@ -539,7 +541,8 @@ def test_addressof_op_str_name():
     assert op.global_name.root_reference.data == "my_global"
 
 
-def test_func_op_coverage():
+def test_func_op_visibility_properties():
+    # verify visibility_ and sym_visibility optional properties
     ft = llvm.LLVMFunctionType([])
     op = llvm.FuncOp("my_func", ft, visibility=1, sym_visibility="public")
     assert op.sym_name.data == "my_func"
@@ -550,7 +553,8 @@ def test_func_op_coverage():
     assert len(op.body.blocks) == 0  # Region is created empty
 
 
-def test_call_op_coverage():
+def test_call_op_variadic_args():
+    # verify regular call and variadic function call with var_callee_type
     op = llvm.CallOp("my_callee", return_type=builtin.i32)
     assert isinstance(op.callee, builtin.SymbolRefAttr)
     assert op.callee.root_reference.data == "my_callee"
@@ -570,7 +574,8 @@ def test_call_intrinsic_op_str():
     assert op.intrin.data == "llvm.intr"
 
 
-def test_init_branches_coverage():
+def test_constructors_accept_prebuilt_attrs():
+    # verify constructors accept both raw values and pre-wrapped attribute types
     assert (
         llvm.LLVMArrayType.from_size_and_type(builtin.IntAttr(5), builtin.i32).size.data
         == 5
