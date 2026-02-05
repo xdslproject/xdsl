@@ -1,21 +1,15 @@
 from __future__ import annotations
 
-from collections.abc import Callable
-from typing import Any, TypeAlias
+from typing import Any
 
-from xdsl.dialects import riscv, rv32
+from xdsl.dialects import rv32
 from xdsl.interpreter import (
     Interpreter,
     InterpreterFunctions,
-    PythonValues,
     impl,
     register_impls,
 )
 from xdsl.interpreters.riscv import RiscvFunctions
-
-CustomInstructionFn: TypeAlias = Callable[
-    [Interpreter, riscv.CustomAssemblyInstructionOp, PythonValues], PythonValues
-]
 
 
 @register_impls
