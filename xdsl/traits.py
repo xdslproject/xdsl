@@ -307,13 +307,19 @@ class SymbolUserOpInterface(OpTrait, abc.ABC):
         raise NotImplementedError()
 
 
+@dataclass(frozen=True)
 class SymbolTable(OpTrait):
     """
     SymbolTable operations are containers for Symbol operations. They offer lookup
     functionality for Symbols, and enforce unique symbols amongst its children.
 
     A SymbolTable operation is constrained to have a single single-block region.
+
+    A SymbolTable may be transparent, which means it does not shadow the symbols
+    defined above
     """
+
+    transparent: bool = False
 
     def verify(self, op: Operation):
         # import builtin here to avoid circular import
@@ -365,6 +371,13 @@ class SymbolTable(OpTrait):
                 nested_root, *nested_references = name.nested_references.data
                 nested_name = SymbolRefAttr(nested_root, nested_references)
                 return SymbolTable.lookup_symbol(o, nested_name)
+
+        trait = anchor.get_trait(SymbolTable)
+        assert trait is not None
+        parent = anchor.parent_op()
+        if trait.transparent and parent is not None:
+            return SymbolTable.lookup_symbol(parent, name)
+
         return None
 
     @staticmethod
