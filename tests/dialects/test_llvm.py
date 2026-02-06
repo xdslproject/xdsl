@@ -484,6 +484,7 @@ def test_null_op_with_address_space():
     ptr_type = llvm.LLVMPointerType(addr_space=builtin.IntAttr(1))
     op = llvm.NullOp(ptr_type)
     assert op.nullptr.type == ptr_type
+    assert isinstance(ptr_type.addr_space, builtin.IntAttr)
     assert ptr_type.addr_space.data == 1  # verify address space is actually set
 
 
