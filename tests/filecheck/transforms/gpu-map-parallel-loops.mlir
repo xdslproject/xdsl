@@ -8,6 +8,7 @@ func.func @parallel_loop(%arg0 : index, %arg1 : index, %arg2 : index, %arg3 : in
   ^bb0(%arg4 : index, %arg5 : index):
     "scf.parallel"(%0, %0, %2, %2, %1, %1) <{operandSegmentSizes = array<i32: 2, 2, 2, 0>}> ({
     ^bb1(%arg6 : index, %arg7 : index):
+      "test.op"() : () -> ()
       scf.reduce
     }) : (index, index, index, index, index, index) -> ()
     scf.reduce
@@ -35,6 +36,7 @@ func.func @parallel_loop_4d(%arg0_1 : index, %arg1_1 : index, %arg2_1 : index, %
     ^bb3(%arg8 : index, %arg9 : index, %arg10 : index, %arg11 : index):
       "scf.parallel"(%3, %3, %3, %3, %5, %5, %5, %5, %4, %4, %4, %4) <{operandSegmentSizes = array<i32: 4, 4, 4, 0>}> ({
       ^bb4(%arg12 : index, %arg13 : index, %arg14 : index, %arg15 : index):
+        "test.op"() : () -> ()
         scf.reduce
       }) : (index, index, index, index, index, index, index, index, index, index, index, index) -> ()
       scf.reduce
