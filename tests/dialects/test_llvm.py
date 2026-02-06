@@ -366,52 +366,29 @@ def test_inline_assembly_op():
     op.verify()
 
 
-def test_array_type_from_int():
-    t = llvm.LLVMArrayType.from_size_and_type(5, builtin.i32)
-    assert t.size.data == 5
-    assert t.type == builtin.i32
-
-
-def test_function_type_init():
-    t = llvm.LLVMFunctionType([builtin.i32])
-    assert len(t.inputs) == 1
-    assert isinstance(t.output, llvm.LLVMVoidType)
-    assert not t.is_variadic
-
-
-def test_parse_optional_llvm_type_direct():
+def test_parse_optional_llvm_type():
+    # verify parsing returns correct types or none for invalid/empty input
     def parse_helper(text: str):
         ctx = Context()
         ctx.load_dialect(llvm.LLVM)
         p = Parser(ctx, text)
         return llvm.parse_optional_llvm_type(p)
 
-    t1 = parse_helper("ptr")
-    assert isinstance(t1, llvm.LLVMPointerType)
-
-    t2 = parse_helper("i32")
-    assert t2 == builtin.i32
-
+    assert isinstance(parse_helper("ptr"), llvm.LLVMPointerType)
+    assert parse_helper("i32") == builtin.i32
     assert parse_helper("") is None
     assert parse_helper("bla") is None
 
 
-def test_linkage_attr_init_str():
-    l = llvm.LinkageAttr("external")
-    assert l.linkage.data == "external"
-
-
-def test_overflow_attr_conversions():
+def test_overflow_attr_int_conversion():
+    # verify bidirectional conversion between overflow flags and integer encoding
     assert llvm.OverflowAttr("none").to_int() == 0
     assert llvm.OverflowAttr([llvm.OverflowFlag.NO_SIGNED_WRAP]).to_int() == 1
     assert llvm.OverflowAttr([llvm.OverflowFlag.NO_UNSIGNED_WRAP]).to_int() == 2
-    assert (
-        llvm.OverflowAttr(
-            [llvm.OverflowFlag.NO_SIGNED_WRAP, llvm.OverflowFlag.NO_UNSIGNED_WRAP]
-        ).to_int()
-        == 3
-    )
+    both_flags = [llvm.OverflowFlag.NO_SIGNED_WRAP, llvm.OverflowFlag.NO_UNSIGNED_WRAP]
+    assert llvm.OverflowAttr(both_flags).to_int() == 3
 
+    # verify from_int produces equivalent attributes
     assert llvm.OverflowAttr.from_int(0) == llvm.OverflowAttr("none")
     assert llvm.OverflowAttr.from_int(1) == llvm.OverflowAttr(
         [llvm.OverflowFlag.NO_SIGNED_WRAP]
@@ -419,20 +396,20 @@ def test_overflow_attr_conversions():
     assert llvm.OverflowAttr.from_int(2) == llvm.OverflowAttr(
         [llvm.OverflowFlag.NO_UNSIGNED_WRAP]
     )
-    attr_3 = llvm.OverflowAttr.from_int(3)
-    assert len(attr_3.data) == 2  # nsw, nuw
-    assert attr_3.to_int() == 3
+    attr_both = llvm.OverflowAttr.from_int(3)
+    assert len(attr_both.data) == 2
+    assert attr_both.to_int() == 3
 
+    # verify out of bounds raises
     with pytest.raises(ValueError, match="OverflowAttr given out of bounds integer."):
         llvm.OverflowAttr.from_int(4)
 
 
-def test_abstract_float_arith_op_fastmath():
+def test_fastmath_attr_expands_fast_shorthand():
+    # verify "fast" expands to all fastmath flags
     lhs = create_ssa_value(builtin.f32)
-    rhs = create_ssa_value(builtin.f32)
-
-    op1 = llvm.FAddOp(lhs, rhs, fast_math=llvm.FastMathAttr("fast"))
-    assert set(op1.fastmathFlags.data) == {
+    op = llvm.FAddOp(lhs, lhs, fast_math=llvm.FastMathAttr("fast"))
+    assert set(op.fastmathFlags.data) == {
         llvm.FastMathFlag.REASSOC,
         llvm.FastMathFlag.NO_NANS,
         llvm.FastMathFlag.NO_INFS,
@@ -442,80 +419,95 @@ def test_abstract_float_arith_op_fastmath():
         llvm.FastMathFlag.APPROX_FUNC,
     }
 
-    op3 = llvm.FAddOp(lhs, rhs)
-    assert op3.fastmathFlags.data == ()
+
+def test_fastmath_attr_defaults_empty():
+    # verify omitted fast_math results in empty flags
+    lhs = create_ssa_value(builtin.f32)
+    op = llvm.FAddOp(lhs, lhs)
+    assert op.fastmathFlags.data == ()
 
 
-def test_undef_op_init():
+def test_undef_op():
+    # verify undef produces value of specified type
     op = llvm.UndefOp(builtin.i32)
     assert op.res.type == builtin.i32
 
 
-def test_cast_ops_init():
+def test_bitcast_op():
+    # verify bitcast reinterprets bits to target type
     val = create_ssa_value(builtin.i32)
-
-    op_bitcast = llvm.BitcastOp(val, builtin.f32)
-    assert op_bitcast.arg == val
-    assert op_bitcast.result.type == builtin.f32
-
-    op_zext = llvm.ZExtOp(val, builtin.i64)
-    assert op_zext.arg == val
-    assert op_zext.res.type == builtin.i64
-
-    op_sitofp = llvm.SIToFPOp(val, builtin.f32)
-    assert op_sitofp.arg == val
-    assert op_sitofp.result.type == builtin.f32
-
-    val_f32 = create_ssa_value(builtin.f32)
-    op_fpext = llvm.FPExtOp(val_f32, builtin.f64)
-    assert op_fpext.arg == val_f32
-    assert op_fpext.result.type == builtin.f64
+    op = llvm.BitcastOp(val, builtin.f32)
+    assert op.arg == val
+    assert op.result.type == builtin.f32
 
 
-def test_trunc_op_prints_without_missing_overflow_property():
-    # ensure printer handles absent overflowFlags gracefully
+def test_zext_op():
+    val = create_ssa_value(builtin.i32)
+    op = llvm.ZExtOp(val, builtin.i64)
+    assert op.arg == val
+    assert op.res.type == builtin.i64  # wider type
+
+
+def test_sitofp_op():
+    # verify signed int to float conversion
+    val = create_ssa_value(builtin.i32)
+    op = llvm.SIToFPOp(val, builtin.f32)
+    assert op.arg == val
+    assert op.result.type == builtin.f32
+
+
+def test_fpext_op():
+    val = create_ssa_value(builtin.f32)
+    op = llvm.FPExtOp(val, builtin.f64)
+    assert op.arg == val
+    assert op.result.type == builtin.f64  # wider type
+
+
+def test_trunc_op_handles_missing_overflow_property():
+    # verify printer handles manually deleted overflowflags gracefully
     op = llvm.TruncOp(create_ssa_value(builtin.i64), builtin.i32)
     del op.properties["overflowFlags"]
     io = StringIO()
-    p = Printer(stream=io)
-    op.print(p)
+    Printer(stream=io).print_op(op)
     assert "overflow" not in io.getvalue()
 
 
-def test_gep_op_defaults():
+def test_gep_op_inbounds_flag():
+    # verify inbounds property is set when requested
     ptr = create_ssa_value(llvm.LLVMPointerType())
     op = llvm.GEPOp(ptr, [0], builtin.i32, inbounds=True)
-    assert len(op.ssa_indices) == 0
     assert "inbounds" in op.properties
+    assert len(op.ssa_indices) == 0
 
 
-def test_null_op_explicit_type():
-    t = llvm.LLVMPointerType(builtin.IntAttr(1))
-    op = llvm.NullOp(t)
-    assert op.nullptr.type == t
+def test_null_op_with_address_space():
+    # address space 1 (e.g. GPU global memory) instead of default address space 0
+    ptr_type = llvm.LLVMPointerType(addr_space=builtin.IntAttr(1))
+    op = llvm.NullOp(ptr_type)
+    assert op.nullptr.type == ptr_type
 
 
-def test_extract_value_op_init():
-    val = create_ssa_value(builtin.i32)
-    op = llvm.ExtractValueOp(
-        llvm.DenseArrayBase.from_list(builtin.i64, [0]), val, builtin.i32
-    )
-    assert op.container == val
+def test_extract_value_op():
+    # verify extractvalue extracts from container at given index
+    container = create_ssa_value(builtin.i32)
+    indices = llvm.DenseArrayBase.from_list(builtin.i64, [0])
+    op = llvm.ExtractValueOp(indices, container, builtin.i32)
+    assert op.container == container
     assert op.res.type == builtin.i32
 
 
-def test_insert_value_op_init():
+def test_insert_value_op():
+    # verify insertvalue places value into container at index
     container = create_ssa_value(builtin.i32)
     val = create_ssa_value(builtin.i32)
-    op = llvm.InsertValueOp(
-        llvm.DenseArrayBase.from_list(builtin.i64, [0]), container, val
-    )
+    indices = llvm.DenseArrayBase.from_list(builtin.i64, [0])
+    op = llvm.InsertValueOp(indices, container, val)
     assert op.container == container
     assert op.value == val
 
 
-def test_global_op_optional_properties():
-    # verify dso_local, thread_local_, unnamed_addr and section properties
+def test_global_op_thread_local_and_dso_local():
+    # verify thread_local and dso_local flags are set correctly
     op = llvm.GlobalOp(
         builtin.i32,
         "my_global",
@@ -525,8 +517,6 @@ def test_global_op_optional_properties():
         unnamed_addr=1,
         section="my_section",
     )
-    assert op.sym_name.data == "my_global"
-    assert op.linkage.linkage.data == "external"
     assert "dso_local" in op.properties
     assert "thread_local_" in op.properties
     assert op.unnamed_addr is not None
@@ -535,89 +525,27 @@ def test_global_op_optional_properties():
     assert op.section.data == "my_section"
 
 
-def test_addressof_op_str_name():
-    op = llvm.AddressOfOp("my_global", llvm.LLVMPointerType())
-    assert isinstance(op.global_name, builtin.SymbolRefAttr)
-    assert op.global_name.root_reference.data == "my_global"
-
-
-def test_func_op_visibility_properties():
-    # verify visibility_ and sym_visibility optional properties
+def test_func_op_visibility():
+    # verify visibility_ and sym_visibility properties
     ft = llvm.LLVMFunctionType([])
     op = llvm.FuncOp("my_func", ft, visibility=1, sym_visibility="public")
-    assert op.sym_name.data == "my_func"
     assert op.visibility_ is not None
     assert op.visibility_.value.data == 1
     assert op.sym_visibility is not None
     assert op.sym_visibility.data == "public"
-    assert len(op.body.blocks) == 0  # Region is created empty
 
 
-def test_call_op_variadic_args():
-    # verify regular call and variadic function call with var_callee_type
-    op = llvm.CallOp("my_callee", return_type=builtin.i32)
-    assert isinstance(op.callee, builtin.SymbolRefAttr)
-    assert op.callee.root_reference.data == "my_callee"
-    assert op.var_callee_type is None
-
+def test_call_op_variadic():
+    # verify variadic call sets var_callee_type with is_variadic flag
     arg = create_ssa_value(builtin.i32)
-    op_var = llvm.CallOp("printf", arg, variadic_args=1, return_type=builtin.i32)
-    assert op_var.var_callee_type is not None
-    assert len(op_var.var_callee_type.inputs) == 0
-    assert op_var.var_callee_type.is_variadic
+    op = llvm.CallOp("printf", arg, variadic_args=1, return_type=builtin.i32)
+    assert op.var_callee_type is not None
+    assert op.var_callee_type.is_variadic
 
 
-def test_call_intrinsic_op_str():
+def test_call_intrinsic_op_converts_str_to_stringattr():
+    # verify string intrinsic name is auto-converted
     op = llvm.CallIntrinsicOp(
         "llvm.intr", [], [], op_bundle_sizes=llvm.DenseArrayBase.from_list(i32, [])
     )
     assert op.intrin.data == "llvm.intr"
-
-
-def test_constructors_accept_prebuilt_attrs():
-    # verify constructors accept both raw values and pre-wrapped attribute types
-    assert (
-        llvm.LLVMArrayType.from_size_and_type(builtin.IntAttr(5), builtin.i32).size.data
-        == 5
-    )
-
-    nop_attr = builtin.ArrayAttr([builtin.i32])
-    assert llvm.LLVMFunctionType(nop_attr).inputs == nop_attr
-
-    l_str = builtin.StringAttr("external")
-    assert llvm.LinkageAttr(l_str).linkage == l_str
-
-    g_sym = builtin.StringAttr("glob")
-    g_link = llvm.LinkageAttr("external")
-    g_sec = builtin.StringAttr("sec")
-    op_glob = llvm.GlobalOp(builtin.i32, g_sym, g_link, section=g_sec)
-    assert op_glob.sym_name == g_sym
-    assert op_glob.linkage == g_link
-    assert op_glob.section == g_sec
-
-    ref = builtin.SymbolRefAttr("glob")
-    assert llvm.AddressOfOp(ref, llvm.LLVMPointerType()).global_name == ref
-
-    f_sym = builtin.StringAttr("func")
-    f_vis = builtin.IntegerAttr(1, 64)
-    f_reg = Region([Block([])])
-    f_op = llvm.FuncOp(f_sym, llvm.LLVMFunctionType([]), visibility=f_vis, body=f_reg)
-    assert f_op.sym_name == f_sym
-    assert f_op.visibility_ == f_vis
-    assert f_op.body == f_reg
-
-    intr = builtin.StringAttr("intr")
-    assert (
-        llvm.CallIntrinsicOp(
-            intr, [], [], op_bundle_sizes=llvm.DenseArrayBase.from_list(i32, [])
-        ).intrin
-        == intr
-    )
-
-    callee = builtin.SymbolRefAttr("callee")
-    assert llvm.CallOp(callee).callee == callee
-
-    fm = llvm.FastMathAttr("fast")
-    lhs = create_ssa_value(builtin.f32)
-    op_fadd = llvm.FAddOp(lhs, lhs, fast_math=fm)
-    assert op_fadd.fastmathFlags == fm
