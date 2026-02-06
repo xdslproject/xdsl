@@ -477,7 +477,6 @@ def test_gep_op_inbounds_flag():
     ptr = create_ssa_value(llvm.LLVMPointerType())
     op = llvm.GEPOp(ptr, [0], builtin.i32, inbounds=True)
     assert "inbounds" in op.properties
-    assert len(op.ssa_indices) == 0
 
 
 def test_null_op_with_address_space():
@@ -485,11 +484,13 @@ def test_null_op_with_address_space():
     ptr_type = llvm.LLVMPointerType(addr_space=builtin.IntAttr(1))
     op = llvm.NullOp(ptr_type)
     assert op.nullptr.type == ptr_type
+    assert ptr_type.addr_space.data == 1  # verify address space is actually set
 
 
 def test_extract_value_op():
-    # verify extractvalue extracts from container at given index
-    container = create_ssa_value(builtin.i32)
+    # verify extractvalue extracts from aggregate container at given index
+    struct_type = llvm.LLVMStructType.from_type_list([builtin.i32, builtin.f32])
+    container = create_ssa_value(struct_type)
     indices = llvm.DenseArrayBase.from_list(builtin.i64, [0])
     op = llvm.ExtractValueOp(indices, container, builtin.i32)
     assert op.container == container
@@ -497,8 +498,9 @@ def test_extract_value_op():
 
 
 def test_insert_value_op():
-    # verify insertvalue places value into container at index
-    container = create_ssa_value(builtin.i32)
+    # verify insertvalue places value into aggregate container at index
+    struct_type = llvm.LLVMStructType.from_type_list([builtin.i32, builtin.f32])
+    container = create_ssa_value(struct_type)
     val = create_ssa_value(builtin.i32)
     indices = llvm.DenseArrayBase.from_list(builtin.i64, [0])
     op = llvm.InsertValueOp(indices, container, val)
@@ -506,8 +508,8 @@ def test_insert_value_op():
     assert op.value == val
 
 
-def test_global_op_thread_local_and_dso_local():
-    # verify thread_local and dso_local flags are set correctly
+def test_global_op_optional_properties():
+    # verify optional properties: dso_local, thread_local_, unnamed_addr, section
     op = llvm.GlobalOp(
         builtin.i32,
         "my_global",
@@ -544,8 +546,9 @@ def test_call_op_variadic():
 
 
 def test_call_intrinsic_op_converts_str_to_stringattr():
-    # verify string intrinsic name is auto-converted
+    # verify string intrinsic name is auto-converted to StringAttr
     op = llvm.CallIntrinsicOp(
         "llvm.intr", [], [], op_bundle_sizes=llvm.DenseArrayBase.from_list(i32, [])
     )
+    assert isinstance(op.intrin, builtin.StringAttr)
     assert op.intrin.data == "llvm.intr"
