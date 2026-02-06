@@ -41,7 +41,7 @@ In short, xDSL makes it possible to:
 
 ## Installation
 
-For contributions, follow the [xDSL Developer Setup Guide](CONTRIBUTING.md).
+To contribute to xDSL, follow the [xDSL Developer Setup Guide](CONTRIBUTING.md).
 
 To use xDSL as part of a larger project for developing your own compiler,
 just install [xDSL via pip](https://pypi.org/project/xdsl/):
