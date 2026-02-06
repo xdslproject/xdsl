@@ -7,6 +7,7 @@ from xdsl.interpreter import Interpreter
 from xdsl.interpreters.func import FuncFunctions
 from xdsl.interpreters.riscv import RiscvFunctions
 from xdsl.interpreters.riscv_scf import RiscvScfFunctions
+from xdsl.interpreters.rv32 import Rv32Functions
 from xdsl.ir import BlockArgument
 
 index = IndexType()
@@ -90,6 +91,7 @@ def interp(module_op: ModuleOp, func_name: str, n: int) -> int:
     interpreter = Interpreter(module_op)
     interpreter.register_implementations(RiscvScfFunctions())
     interpreter.register_implementations(RiscvFunctions())
+    interpreter.register_implementations(Rv32Functions())
     interpreter.register_implementations(FuncFunctions())
     (result,) = interpreter.call_op(func_name, (n,))
     return result
