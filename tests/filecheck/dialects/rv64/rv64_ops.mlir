@@ -1,5 +1,7 @@
 // RUN: XDSL_ROUNDTRIP
 // RUN: XDSL_GENERIC_ROUNDTRIP
+ 
+// TODO: Operations will be replaced with rv64 variant-specific counterparts
 
 "builtin.module"() ({
   riscv_func.func @main() {
@@ -271,6 +273,10 @@
     %czeronezop = riscv.czero.nez %0, %1 : (!riscv.reg, !riscv.reg) -> !riscv.reg
     // CHECK-NEXT: %{{.*}} = riscv.czero.nez %{{.*}}, %{{.*}} : (!riscv.reg, !riscv.reg) -> !riscv.reg
 
+    // Assembler pseudo-instructions
+
+    %li = rv64.li 1 : !riscv.reg
+    // CHECK-NEXT: %{{.*}} = rv64.li 1 : !riscv.reg
     // Environment Call and Breakpoints
     riscv.ecall
     // CHECK-NEXT: riscv.ecall
@@ -280,6 +286,19 @@
     // CHECK-NEXT: riscv.directive ".bss"
     riscv.directive ".align" "2"
     // CHECK-NEXT: riscv.directive ".align" "2"
+    riscv.assembly_section ".text" attributes {"foo" = i64} {
+      %nested_li = rv64.li 1 : !riscv.reg
+    }
+    // CHECK-NEXT:  riscv.assembly_section ".text" attributes {foo = i64} {
+    // CHECK-NEXT:    %{{.*}} = rv64.li 1 : !riscv.reg
+    // CHECK-NEXT:  }
+
+    riscv.assembly_section ".text" {
+      %nested_li = rv64.li 1 : !riscv.reg
+    }
+    // CHECK-NEXT:  riscv.assembly_section ".text" {
+    // CHECK-NEXT:    %{{.*}} = rv64.li 1 : !riscv.reg
+    // CHECK-NEXT:  }
 
     // Custom instruction
     %custom0, %custom1 = riscv.custom_assembly_instruction %0, %1 {"instruction_name" = "hello"} : (!riscv.reg, !riscv.reg) -> (!riscv.reg, !riscv.reg)
@@ -556,10 +575,17 @@
 // CHECK-GENERIC-NEXT:      %minu = "riscv.minu"(%0, %1) : (!riscv.reg, !riscv.reg) -> !riscv.reg
 // CHECK-GENERIC-NEXT:      %czeroeqzop = "riscv.czero.eqz"(%0, %1) : (!riscv.reg, !riscv.reg) -> !riscv.reg
 // CHECK-GENERIC-NEXT:      %czeronezop = "riscv.czero.nez"(%0, %1) : (!riscv.reg, !riscv.reg) -> !riscv.reg
+// CHECK-GENERIC-NEXT:      %li = "rv64.li"() {immediate = 1 : i64} : () -> !riscv.reg
 // CHECK-GENERIC-NEXT:      "riscv.ecall"() : () -> ()
 // CHECK-GENERIC-NEXT:      "riscv.ebreak"() : () -> ()
 // CHECK-GENERIC-NEXT:      "riscv.directive"() {directive = ".bss"} : () -> ()
 // CHECK-GENERIC-NEXT:      "riscv.directive"() {directive = ".align", value = "2"} : () -> ()
+// CHECK-GENERIC-NEXT:      "riscv.assembly_section"() ({
+// CHECK-GENERIC-NEXT:        %nested_li = "rv64.li"() {immediate = 1 : i64} : () -> !riscv.reg
+// CHECK-GENERIC-NEXT:      }) {directive = ".text", foo = i64} : () -> ()
+// CHECK-GENERIC-NEXT:      "riscv.assembly_section"() ({
+// CHECK-GENERIC-NEXT:        %nested_li = "rv64.li"() {immediate = 1 : i64} : () -> !riscv.reg
+// CHECK-GENERIC-NEXT:      }) {directive = ".text"} : () -> ()
 // CHECK-GENERIC-NEXT:      %custom0, %custom1 = "riscv.custom_assembly_instruction"(%0, %1) {instruction_name = "hello"} : (!riscv.reg, !riscv.reg) -> (!riscv.reg, !riscv.reg)
 // CHECK-GENERIC-NEXT:      %f0 = "riscv.get_float_register"() : () -> !riscv.freg
 // CHECK-GENERIC-NEXT:      %f1 = "riscv.get_float_register"() : () -> !riscv.freg

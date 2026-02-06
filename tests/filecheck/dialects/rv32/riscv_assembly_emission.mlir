@@ -1,5 +1,7 @@
 // RUN: xdsl-opt -t riscv-asm %s | filecheck %s
 
+// TODO: Operations will be replaced with rv32 variant-specific counterparts
+
 "builtin.module"() ({
   riscv_func.func @main() {
     %0 = rv32.li 6 : !riscv.reg<zero>
@@ -156,6 +158,9 @@
     %csrrwi_w = riscv.csrrwi 1024, 8, "w" : () -> !riscv.reg<zero>
     // CHECK-NEXT: csrrwi zero, 1024, 8
 
+    // Assembler pseudo-instructions
+    %li = rv32.li 1: !riscv.reg<j_0>
+    // CHECK-NEXT: li j_0, 1
     // Environment Call and Breakpoints
     riscv.ecall
     // CHECK-NEXT: ecall
