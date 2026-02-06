@@ -290,7 +290,7 @@ class Atan2Op(ComplexBinaryOp):
 
 
 @irdl_op_definition
-class BitcastOp(IRDLOperation, HasFolderInterface):
+class BitcastOp(IRDLOperation):
     """
     compute between complex and and equal arith types
     """
@@ -362,7 +362,7 @@ class ConstantOp(IRDLOperation, HasFolderInterface):
 
     assembly_format = "$value attr-dict `:` type($complex)"
 
-    def __init__(self, value: ArrayAttr | ComplexNumberAttr, result_type: ComplexType):
+    def __init__(self, value: ArrayAttr, result_type: ComplexType):
         super().__init__(properties={"value": value}, result_types=[result_type])
 
     def fold(self) -> tuple[Attribute]:
