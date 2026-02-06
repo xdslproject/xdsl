@@ -2,9 +2,9 @@
 
 "builtin.module"() ({
   riscv_func.func @main() {
-    %0 = riscv.li 6 : !riscv.reg<zero>
+    %0 = rv32.li 6 : !riscv.reg<zero>
     // CHECK:      li zero, 6
-    %1 = riscv.li 5 : !riscv.reg<j_1>
+    %1 = rv32.li 5 : !riscv.reg<j_1>
     // CHECK-NEXT: li j_1, 5
     %2 = riscv.add %0, %1 : (!riscv.reg<zero>, !riscv.reg<j_1>) -> !riscv.reg<j_2>
     // CHECK-NEXT: add j_2, zero, j_1
@@ -157,7 +157,7 @@
     // CHECK-NEXT: csrrwi zero, 1024, 8
 
     // Assembler pseudo-instructions
-    %li = riscv.li 1: !riscv.reg<j_0>
+    %li = rv32.li 1: !riscv.reg<j_0>
     // CHECK-NEXT: li j_0, 1
     // Environment Call and Breakpoints
     riscv.ecall
@@ -171,7 +171,7 @@
     riscv.directive ".align" "2"
     // CHECK-NEXT: .align 2
     riscv.assembly_section ".text" {
-      %inner = riscv.li 5 : !riscv.reg<j_1>
+      %inner = rv32.li 5 : !riscv.reg<j_1>
       %nested_addi = riscv.addi %inner, 1 : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
     }
     // CHECK-NEXT:  li j_1, 5

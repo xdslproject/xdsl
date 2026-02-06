@@ -1,5 +1,5 @@
 from xdsl.builder import Builder, ImplicitBuilder
-from xdsl.dialects import func, riscv, riscv_snitch, snitch
+from xdsl.dialects import func, riscv, riscv_snitch, rv32, snitch
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.interpreter import Interpreter
 from xdsl.interpreters.func import FuncFunctions
@@ -67,7 +67,7 @@ def test_frep_carried_vars():
         with ImplicitBuilder(
             func.FuncOp("sum_to", ((float_register,), (float_register,))).body
         ) as (count,):
-            one = riscv.LiOp(1).rd
+            one = rv32.LiOp(1).rd
             initial = riscv.FCvtDWOp(one, rd=acc_reg_type).rd
 
             @Builder.implicit_region((float_register,))

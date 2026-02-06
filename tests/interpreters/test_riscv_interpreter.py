@@ -3,7 +3,7 @@ import struct
 import pytest
 
 from xdsl.builder import Builder, ImplicitBuilder
-from xdsl.dialects import riscv
+from xdsl.dialects import riscv, rv32
 from xdsl.dialects.builtin import (
     DenseIntOrFPElementsAttr,
     IntegerAttr,
@@ -55,10 +55,10 @@ def test_riscv_interpreter():
     interpreter = Interpreter(module_op)
     interpreter.register_implementations(riscv_functions)
 
-    assert interpreter.run_op(riscv.LiOp("label0"), ()) == (
+    assert interpreter.run_op(rv32.LiOp("label0"), ()) == (
         TypedPtr.new_int32((42,)).raw,
     )
-    assert interpreter.run_op(riscv.LiOp("label1"), ()) == (
+    assert interpreter.run_op(rv32.LiOp("label1"), ()) == (
         TypedPtr.new_int32((59,)).raw,
     )
     assert interpreter.run_op(riscv.MVOp(create_ssa_value(register)), (42,)) == (42,)

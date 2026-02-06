@@ -1,7 +1,7 @@
 import pytest
 
 from xdsl.builder import Builder, ImplicitBuilder
-from xdsl.dialects import func, riscv, riscv_scf
+from xdsl.dialects import func, riscv, riscv_scf, rv32
 from xdsl.dialects.builtin import IndexType, ModuleOp
 from xdsl.interpreter import Interpreter
 from xdsl.interpreters.func import FuncFunctions
@@ -29,9 +29,9 @@ def sum_to_for_op():
     with ImplicitBuilder(func.FuncOp("sum_to", ((register,), (register,))).body) as (
         ub,
     ):
-        lb = riscv.LiOp(0)
-        step = riscv.LiOp(1)
-        initial = riscv.LiOp(0)
+        lb = rv32.LiOp(0)
+        step = rv32.LiOp(1)
+        initial = rv32.LiOp(0)
 
         @Builder.implicit_region((register, register))
         def for_loop_region(args: tuple[BlockArgument, ...]):
@@ -59,9 +59,9 @@ def sum_to_while_op():
     with ImplicitBuilder(func.FuncOp("sum_to", ((register,), (register,))).body) as (
         ub,
     ):
-        lb = riscv.LiOp(0)
-        step = riscv.LiOp(1)
-        initial = riscv.LiOp(0)
+        lb = rv32.LiOp(0)
+        step = rv32.LiOp(1)
+        initial = rv32.LiOp(0)
 
         @Builder.implicit_region((register, register, register, register))
         def before_region(args: tuple[BlockArgument, ...]):

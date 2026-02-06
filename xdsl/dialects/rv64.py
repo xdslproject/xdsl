@@ -16,13 +16,13 @@ from xdsl.dialects.riscv import (
     AssemblyInstructionArg,
     IntRegisterType,
     LabelAttr,
-    LiOpHasCanonicalizationPatternTrait,
     Registers,
     RISCVCustomFormatOperation,
     RISCVInstruction,
     parse_immediate_value,
     print_immediate_value,
 )
+from xdsl.dialects.riscv.ops import LiOpHasCanonicalizationPatternTrait
 from xdsl.interfaces import ConstantLikeInterface
 from xdsl.ir import (
     Attribute,

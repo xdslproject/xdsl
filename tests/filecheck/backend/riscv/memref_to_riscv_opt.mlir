@@ -10,8 +10,8 @@ builtin.module {
     %mf = builtin.unrealized_conversion_cast %mf_reg : !riscv.reg to memref<3x2xf32>
     %md = builtin.unrealized_conversion_cast %md_reg : !riscv.reg to memref<3x2xf64>
     %mi = builtin.unrealized_conversion_cast %mi_reg : !riscv.reg to memref<3x2xi32>
-    %r_reg = riscv.li 1 : !riscv.reg
-    %c_reg = riscv.li 1 : !riscv.reg
+    %r_reg = rv32.li 1 : !riscv.reg
+    %c_reg = rv32.li 1 : !riscv.reg
     %r = builtin.unrealized_conversion_cast %r_reg : !riscv.reg to index
     %c = builtin.unrealized_conversion_cast %c_reg : !riscv.reg to index
     "memref.store"(%vf, %mf, %r, %c) {"nontemporal" = false} : (f32, memref<3x2xf32>, index, index) -> ()

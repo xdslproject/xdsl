@@ -16,7 +16,6 @@ from xdsl.dialects.builtin import (
     StringAttr,
     i32,
 )
-from xdsl.interfaces import ConstantLikeInterface
 from xdsl.ir import (
     Attribute,
     Block,
@@ -37,7 +36,6 @@ from xdsl.irdl import (
     opt_prop_def,
     prop_def,
     region_def,
-    result_def,
     traits_def,
     var_operand_def,
     var_result_def,
@@ -83,8 +81,6 @@ from .abstract_ops import (
     RsRsImmIntegerOperation,
     RsRsOffIntegerOperation,
     assembly_arg_str,
-    parse_immediate_value,
-    print_immediate_value,
 )
 from .attrs import (
     SI20,
@@ -2128,75 +2124,6 @@ class LiOpHasCanonicalizationPatternTrait(HasCanonicalizationPatternsTrait):
 
 
 @irdl_op_definition
-class LiOp(RISCVCustomFormatOperation, RISCVInstruction, ConstantLikeInterface):
-    """
-    Loads a 32-bit immediate into rd.
-
-    This is an assembler pseudo-instruction.
-
-    See external [documentation](https://github.com/riscv-non-isa/riscv-asm-manual/blob/master/riscv-asm.md#load-immediate).
-    """
-
-    name = "riscv.li"
-
-    rd = result_def(IntRegisterType)
-    immediate = attr_def(IntegerAttr[I32] | LabelAttr)
-
-    traits = traits_def(Pure(), LiOpHasCanonicalizationPatternTrait())
-
-    def __init__(
-        self,
-        immediate: int | IntegerAttr[I32] | str | LabelAttr,
-        *,
-        rd: IntRegisterType = Registers.UNALLOCATED_INT,
-        comment: str | StringAttr | None = None,
-    ):
-        if isinstance(immediate, int):
-            immediate = IntegerAttr(immediate, i32)
-        elif isinstance(immediate, str):
-            immediate = LabelAttr(immediate)
-        if isinstance(comment, str):
-            comment = StringAttr(comment)
-
-        super().__init__(
-            result_types=[rd],
-            attributes={
-                "immediate": immediate,
-                "comment": comment,
-            },
-        )
-
-    def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
-        return self.rd, self.immediate
-
-    def get_constant_value(self):
-        return self.immediate
-
-    @classmethod
-    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
-        attributes = dict[str, Attribute]()
-        attributes["immediate"] = parse_immediate_value(parser, i32)
-        return attributes
-
-    def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
-        printer.print_string(" ")
-        print_immediate_value(printer, self.immediate)
-        return {"immediate", "fastmath"}
-
-    @classmethod
-    def parse_op_type(
-        cls, parser: Parser
-    ) -> tuple[Sequence[Attribute], Sequence[Attribute]]:
-        parser.parse_punctuation(":")
-        res_type = parser.parse_attribute()
-        return (), (res_type,)
-
-    def print_op_type(self, printer: Printer) -> None:
-        printer.print_string(" : ")
-        printer.print_attribute(self.rd.type)
-
-
-@irdl_op_definition
 class EcallOp(NullaryOperation):
     """
     The ECALL instruction is used to make a request to the supporting execution
@@ -3390,7 +3317,6 @@ RISCV = Dialect(
         DivuOp,
         RemOp,
         RemuOp,
-        LiOp,
         RolOp,
         RorOp,
         RemuwOp,

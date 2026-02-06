@@ -229,16 +229,6 @@ class RiscvFunctions(InterpreterFunctions):
                 data = RiscvFunctions.get_data_value(interpreter, imm.data)
                 return data
 
-    @impl(riscv.LiOp)
-    def run_li(
-        self,
-        interpreter: Interpreter,
-        op: riscv.LiOp,
-        args: tuple[Any, ...],
-    ):
-        results = (RiscvFunctions.get_immediate_value(interpreter, op.immediate),)
-        return RiscvFunctions.set_reg_values(interpreter, op.results, results)
-
     @impl(riscv.MVOp)
     def run_mv(
         self,

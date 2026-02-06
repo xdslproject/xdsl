@@ -273,8 +273,8 @@
 
     // Assembler pseudo-instructions
 
-    %li = riscv.li 1 : !riscv.reg
-    // CHECK-NEXT: %{{.*}} = riscv.li 1 : !riscv.reg
+    %li = rv32.li 1 : !riscv.reg
+    // CHECK-NEXT: %{{.*}} = rv32.li 1 : !riscv.reg
     // Environment Call and Breakpoints
     riscv.ecall
     // CHECK-NEXT: riscv.ecall
@@ -285,17 +285,17 @@
     riscv.directive ".align" "2"
     // CHECK-NEXT: riscv.directive ".align" "2"
     riscv.assembly_section ".text" attributes {"foo" = i32} {
-      %nested_li = riscv.li 1 : !riscv.reg
+      %nested_li = rv32.li 1 : !riscv.reg
     }
     // CHECK-NEXT:  riscv.assembly_section ".text" attributes {foo = i32} {
-    // CHECK-NEXT:    %{{.*}} = riscv.li 1 : !riscv.reg
+    // CHECK-NEXT:    %{{.*}} = rv32.li 1 : !riscv.reg
     // CHECK-NEXT:  }
 
     riscv.assembly_section ".text" {
-      %nested_li = riscv.li 1 : !riscv.reg
+      %nested_li = rv32.li 1 : !riscv.reg
     }
     // CHECK-NEXT:  riscv.assembly_section ".text" {
-    // CHECK-NEXT:    %{{.*}} = riscv.li 1 : !riscv.reg
+    // CHECK-NEXT:    %{{.*}} = rv32.li 1 : !riscv.reg
     // CHECK-NEXT:  }
 
     // Custom instruction
@@ -573,16 +573,16 @@
 // CHECK-GENERIC-NEXT:      %minu = "riscv.minu"(%0, %1) : (!riscv.reg, !riscv.reg) -> !riscv.reg
 // CHECK-GENERIC-NEXT:      %czeroeqzop = "riscv.czero.eqz"(%0, %1) : (!riscv.reg, !riscv.reg) -> !riscv.reg
 // CHECK-GENERIC-NEXT:      %czeronezop = "riscv.czero.nez"(%0, %1) : (!riscv.reg, !riscv.reg) -> !riscv.reg
-// CHECK-GENERIC-NEXT:      %li = "riscv.li"() {immediate = 1 : i32} : () -> !riscv.reg
+// CHECK-GENERIC-NEXT:      %li = "rv32.li"() {immediate = 1 : i32} : () -> !riscv.reg
 // CHECK-GENERIC-NEXT:      "riscv.ecall"() : () -> ()
 // CHECK-GENERIC-NEXT:      "riscv.ebreak"() : () -> ()
 // CHECK-GENERIC-NEXT:      "riscv.directive"() {directive = ".bss"} : () -> ()
 // CHECK-GENERIC-NEXT:      "riscv.directive"() {directive = ".align", value = "2"} : () -> ()
 // CHECK-GENERIC-NEXT:      "riscv.assembly_section"() ({
-// CHECK-GENERIC-NEXT:        %nested_li = "riscv.li"() {immediate = 1 : i32} : () -> !riscv.reg
+// CHECK-GENERIC-NEXT:        %nested_li = "rv32.li"() {immediate = 1 : i32} : () -> !riscv.reg
 // CHECK-GENERIC-NEXT:      }) {directive = ".text", foo = i32} : () -> ()
 // CHECK-GENERIC-NEXT:      "riscv.assembly_section"() ({
-// CHECK-GENERIC-NEXT:        %nested_li = "riscv.li"() {immediate = 1 : i32} : () -> !riscv.reg
+// CHECK-GENERIC-NEXT:        %nested_li = "rv32.li"() {immediate = 1 : i32} : () -> !riscv.reg
 // CHECK-GENERIC-NEXT:      }) {directive = ".text"} : () -> ()
 // CHECK-GENERIC-NEXT:      %custom0, %custom1 = "riscv.custom_assembly_instruction"(%0, %1) {instruction_name = "hello"} : (!riscv.reg, !riscv.reg) -> (!riscv.reg, !riscv.reg)
 // CHECK-GENERIC-NEXT:      %f0 = "riscv.get_float_register"() : () -> !riscv.freg

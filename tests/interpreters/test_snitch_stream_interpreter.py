@@ -1,7 +1,7 @@
 import pytest
 
 from xdsl.builder import ImplicitBuilder
-from xdsl.dialects import riscv, riscv_snitch, snitch, snitch_stream
+from xdsl.dialects import riscv, riscv_snitch, rv32, snitch, snitch_stream
 from xdsl.dialects.builtin import ArrayAttr, ModuleOp
 from xdsl.interpreter import Interpreter
 from xdsl.interpreters.riscv import RiscvFunctions
@@ -79,7 +79,7 @@ def test_snitch_stream_interpreter():
     )
 
     with ImplicitBuilder(streaming_region_body) as (a_stream, b_stream, c_stream):
-        count_reg = riscv.LiOp(5).rd
+        count_reg = rv32.LiOp(5).rd
 
         frep_body = Region(Block())
 
