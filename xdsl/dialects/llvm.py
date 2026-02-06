@@ -6,6 +6,8 @@ from dataclasses import dataclass
 from types import EllipsisType
 from typing import ClassVar
 
+from typing_extensions import deprecated
+
 from xdsl.dialects.builtin import (
     I1,
     I32,
@@ -52,6 +54,7 @@ from xdsl.irdl import (
     opt_operand_def,
     opt_prop_def,
     opt_result_def,
+    param_def,
     prop_def,
     region_def,
     result_def,
@@ -176,7 +179,7 @@ class LLVMPointerType(ParametrizedAttribute, TypeAttribute):
 class LLVMArrayType(ParametrizedAttribute, TypeAttribute):
     name = "llvm.array"
 
-    size: IntAttr
+    size: IntAttr = param_def(converter=IntAttr.get)
     type: Attribute
 
     def print_parameters(self, printer: Printer) -> None:
@@ -193,10 +196,9 @@ class LLVMArrayType(ParametrizedAttribute, TypeAttribute):
             type = parse_llvm_type(parser)
         return (size, type)
 
+    @deprecated("Please use LLVMArrayType(size, type)")
     @staticmethod
     def from_size_and_type(size: int | IntAttr, type: Attribute):
-        if isinstance(size, int):
-            size = IntAttr(size)
         return LLVMArrayType(size, type)
 
 
