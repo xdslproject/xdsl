@@ -41,6 +41,8 @@ In short, xDSL makes it possible to:
 
 ## Installation
 
+For contributions, follow the [xDSL Developer Setup Guide](CONTRIBUTING.md).
+
 To use xDSL as part of a larger project for developing your own compiler,
 just install [xDSL via pip](https://pypi.org/project/xdsl/):
 
@@ -55,7 +57,6 @@ pip install xdsl[dev]
 ```
 
 This may be useful for projects wanting to replicate the xDSL testing setup.
-For a more comprehensive experience, follow: [xDSL Developer Setup](CONTRIBUTING.md#xdsl-developer-setup)
 
 *Note:* This version of xDSL is validated against a specific MLIR version,
 interoperability with other versions is not guaranteed. The supported
