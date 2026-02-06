@@ -50,7 +50,7 @@ def insert_egraph_op(f: func.FuncOp):
         egraph_block.add_op(eclass_op)
         new_val = eclass_op.results[0]
         egraph_values.add(new_val)
-        val.replace_by_if(new_val, lambda u: u.operation is not eclass_op)
+        val.replace_uses_with_if(new_val, lambda u: u.operation is not eclass_op)
         return new_val
 
     for arg in f.body.block.args:
@@ -90,7 +90,7 @@ def insert_egraph_op(f: func.FuncOp):
     egraph_op = equivalence.GraphOp(yielded_types, egraph_body)
 
     for i, val in enumerate(values_to_yield):
-        val.replace_by_if(
+        val.replace_uses_with_if(
             egraph_op.results[i], lambda u: u.operation.parent != egraph_block
         )
 

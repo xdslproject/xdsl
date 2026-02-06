@@ -1071,7 +1071,7 @@ def test_replace_by_if():
     assert set(u.operation for u in a.uses) == {b, c}
 
     d = create_ssa_value(i32)
-    a.replace_by_if(d, lambda u: u.operation is not c)
+    a.replace_uses_with_if(d, lambda u: u.operation is not c)
 
     assert set(u.operation for u in a.uses) == {c}
     assert set(u.operation for u in d.uses) == {b}

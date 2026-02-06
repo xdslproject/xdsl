@@ -258,7 +258,7 @@ def rewrite_generic_to_loops(
         )
 
         for i, val in loaded_values:
-            block.args[i].replace_by(val)
+            block.args[i].replace_all_uses_with(val)
 
         yield_op = block.last_op
         assert yield_op is not None
@@ -373,11 +373,11 @@ def rewrite_generic_to_imperfect_loops(
                 inner_iter_args,
                 strict=True,
             ):
-                block.args[i].replace_by(arg)
+                block.args[i].replace_all_uses_with(arg)
 
             # Replace block argument use with load op results
             for i, val in inner_loaded_values:
-                block.args[i].replace_by(val)
+                block.args[i].replace_all_uses_with(val)
 
             yield_op = block.last_op
             assert yield_op is not None

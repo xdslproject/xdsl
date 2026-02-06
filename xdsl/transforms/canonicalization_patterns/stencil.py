@@ -39,7 +39,7 @@ class ApplyRedundantOperands(RewritePattern):
         for i, a in enumerate(bbargs):
             if rbargs[i] == i:
                 continue
-            a.replace_by(bbargs[rbargs[i]])
+            a.replace_all_uses_with(bbargs[rbargs[i]])
 
         cse(op.region.block, rewriter)
 
