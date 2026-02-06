@@ -65,12 +65,16 @@ def expand_exp(op: math.ExpOp, rewriter: PatternRewriter, terms: int) -> Operati
 
 @dataclass(frozen=True)
 class MathToPolynomialsPass(ModulePass):
-    """This pass expands `math.exp` operations to a polynomial expansion using the Taylor series."""
+    """
+    This pass expands `math` operations to a polynomial expansion using the Taylor series.
+
+    Currently only expands `math.exp` operations.
+    """
 
     name = "expand-math-to-polynomials"
 
     terms = 75
-    """Number of terms to use when expanding `math.exp`."""
+    """Number of terms in the resulting polynomial expansion."""
 
     def apply(self, ctx: Context, op: ModuleOp) -> None:
         PatternRewriteWalker(
