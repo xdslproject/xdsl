@@ -108,8 +108,8 @@ def test_get_diff_operation_count():
         ("builtin.unrealized_conversion_cast", 4, "+4"),
         ("func.func", 1, "="),
         ("func.return", 1, "="),
-        ("rv32.li", 1, "+1"),
         ("riscv.mul", 1, "+1"),
+        ("rv32.li", 1, "+1"),
     )
 
     assert expected_diff_res == get_diff_operation_count(
