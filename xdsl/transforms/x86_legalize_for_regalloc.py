@@ -35,7 +35,7 @@ class X86LegalizeForRegallocPass(ModulePass):
                 alive.difference_update(op.results)
                 if isinstance(op, x86.DS_MovOp):
                     if op.source not in alive:
-                        op.destination.replace_by(op.source)
+                        op.destination.replace_all_uses_with(op.source)
                         to_erase.append(op)
                 alive.update(op.operands)
                 # Recursive calls on the embedded regions

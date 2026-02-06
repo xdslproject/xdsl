@@ -27,7 +27,7 @@ from typing import (
     overload,
 )
 
-from typing_extensions import Self, TypeVar
+from typing_extensions import Self, TypeVar, deprecated
 
 from xdsl.dialect_interfaces import DialectInterface
 from xdsl.traits import IsTerminator, NoTerminator, OpTrait, OpTraitInvT
@@ -754,7 +754,11 @@ class SSAValue(IRWithUses, IRWithName, ABC, Generic[AttributeCovT]):
                     "SSAValue.get: expected operation with a single result."
                 )
 
+    @deprecated("Please use `self.replace_all_uses_with(value)`")
     def replace_by(self, value: SSAValue) -> None:
+        return self.replace_all_uses_with(value)
+
+    def replace_all_uses_with(self, value: SSAValue) -> None:
         """Replace the value by another value in all its uses."""
         for use in tuple(self.uses):
             use.operation.operands[use.index] = value
@@ -763,7 +767,13 @@ class SSAValue(IRWithUses, IRWithName, ABC, Generic[AttributeCovT]):
             value.name_hint = self.name_hint
         assert self.first_use is None, "unexpected error in xdsl"
 
-    def replace_by_if(self, value: SSAValue, predicate: Callable[[Use], bool]):
+    @deprecated(
+        "Please use `self.replace_uses_with_if(value, lambda use: True)` (or `rewriter.replace_uses_if` if applicable)."
+    )
+    def replace_by_if(self, value: SSAValue, test: Callable[[Use], bool]) -> None:
+        return self.replace_uses_with_if(value, test)
+
+    def replace_uses_with_if(self, value: SSAValue, predicate: Callable[[Use], bool]):
         """
         Replace the value by another value in all its uses that pass the given test
         function.
@@ -786,7 +796,7 @@ class SSAValue(IRWithUses, IRWithName, ABC, Generic[AttributeCovT]):
                 "Attempting to delete SSA value that still has uses of result "
                 f"of operation:\n{self.owner}"
             )
-        self.replace_by(ErasedSSAValue(self.type, self))
+        self.replace_all_uses_with(ErasedSSAValue(self.type, self))
 
     def __hash__(self):
         """
