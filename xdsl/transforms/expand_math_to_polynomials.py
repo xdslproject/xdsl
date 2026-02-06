@@ -64,7 +64,7 @@ def expand_exp(op: math.ExpOp, rewriter: PatternRewriter, terms: int) -> Operati
 
 
 @dataclass(frozen=True)
-class MathToPolynomialsPass(ModulePass):
+class ExpandMathToPolynomialsPass(ModulePass):
     """
     This pass expands `math` operations to a polynomial expansion using the Taylor series.
 
