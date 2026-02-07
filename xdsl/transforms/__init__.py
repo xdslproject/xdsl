@@ -89,7 +89,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
     def get_expand_math_to_polynomials():
         from xdsl.transforms import expand_math_to_polynomials
 
-        return expand_math_to_polynomials.MathToPolynomialsPass
+        return expand_math_to_polynomials.ExpandMathToPolynomialsPass
 
     def get_convert_linalg_to_loops():
         from xdsl.transforms import convert_linalg_to_loops
