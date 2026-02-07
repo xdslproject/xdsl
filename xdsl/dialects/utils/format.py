@@ -217,40 +217,6 @@ def _print_func_outputs(
         printer.print_string(")")
 
 
-def _parse_func_outputs(
-    parser: Parser,
-) -> tuple[list[TypeAttribute], ArrayAttr[DictionaryAttr] | None]:
-    """
-    Inverse of `_print_func_outputs`.
-
-    Returns a tuple of (return_types, res_attrs). If there are no return types,
-    returns ([], None).
-    """
-    # no arrow implies no return types
-    if not parser.parse_optional_punctuation("->"):
-        return [], None
-
-    # attrs only supported with parens
-    results = parser.parse_optional_comma_separated_list(
-        parser.Delimiter.PAREN,
-        lambda: (parser.parse_type(), parser.parse_optional_dictionary_attr_dict()),
-    )
-
-    # no parens implies single type without attrs
-    if results is None:
-        return [parser.parse_type()], None
-
-    # empty parens: -> ()
-    if not results:
-        return [], None
-
-    # unpack types and attrs, wrap attrs in ArrayAttr
-    types, attrs_raw = zip(*results)
-    has_attrs = any(attrs_raw)
-    res_attrs = ArrayAttr(DictionaryAttr(a) for a in attrs_raw) if has_attrs else None
-    return list(types), res_attrs
-
-
 def print_func_op_like(
     printer: Printer,
     sym_name: StringAttr,
@@ -286,6 +252,40 @@ def print_func_op_like(
 
     if body.blocks:
         printer.print_region(body, False, False)
+
+
+def _parse_func_outputs(
+    parser: Parser,
+) -> tuple[list[TypeAttribute], ArrayAttr[DictionaryAttr] | None]:
+    """
+    Inverse of `_print_func_outputs`.
+
+    Returns a tuple of (return_types, res_attrs). If there are no return types,
+    returns ([], None).
+    """
+    # no arrow implies no return types
+    if not parser.parse_optional_punctuation("->"):
+        return [], None
+
+    # attrs only supported with parens
+    results = parser.parse_optional_comma_separated_list(
+        parser.Delimiter.PAREN,
+        lambda: (parser.parse_type(), parser.parse_optional_dictionary_attr_dict()),
+    )
+
+    # no parens implies single type without attrs
+    if results is None:
+        return [parser.parse_type()], None
+
+    # empty parens
+    if not results:
+        return [], None
+
+    # unpack types and attrs, wrap attrs in ArrayAttr
+    types, attrs_raw = zip(*results)
+    has_attrs = any(attrs_raw)
+    res_attrs = ArrayAttr(DictionaryAttr(a) for a in attrs_raw) if has_attrs else None
+    return list(types), res_attrs
 
 
 def parse_func_op_like(
