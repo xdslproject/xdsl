@@ -33,3 +33,10 @@ We aim to follow these rules for all changes in this repository:
       return mapping[key]
   return default_value
   ```
+
+Finally, please make sure that the following commands pass before pushing your changes:
+
+```sh
+make tests
+make precommit
+```
