@@ -36,7 +36,7 @@ make precommit-install
 make tests
 ```
 
-Please take a look at the [Makefile](https://github.com/xdslproject/xdsl/blob/main/Makefile)
+Please take a look at the [Makefile](./Makefile)
 for the available commands such as running specific tests,
 running the documentation website locally, and others.
 
