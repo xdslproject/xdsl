@@ -1,4 +1,4 @@
-## Code Style
+# Code Style
 
 We aim to follow these rules for all changes in this repository:
 
