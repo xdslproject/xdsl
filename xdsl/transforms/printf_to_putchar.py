@@ -29,7 +29,7 @@ class LowerPrintCharToPutchar(RewritePattern):
         func_call = func.CallOp("putchar", [cast_op], [i32])
         # Add empty new_results, since a result is necessary for linking
         # putchar, but the result does not exist anywhere.
-        rewriter.replace_matched_op([cast_op, func_call], new_results=[])
+        rewriter.replace_op(op, [cast_op, func_call], new_results=[])
 
 
 class ConvertPrintIntToItoa(RewritePattern):
@@ -41,7 +41,7 @@ class ConvertPrintIntToItoa(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: PrintIntOp, rewriter: PatternRewriter, /):
         func_call = func.CallOp("mlir_itoa", [op.int], [])
-        rewriter.replace_matched_op(func_call)
+        rewriter.replace_op(op, func_call)
 
 
 def get_mlir_itoa():

@@ -22,7 +22,7 @@
         visibility_ = 0 : i64
     }> ({
   ^bb0(%arg0: i32, %arg1: i32):
-    "llvm.return"(%arg0) : (i32) -> ()
+    llvm.return %arg0 : i32
 }) : () -> ()
 
 // CHECK:       builtin.module {
@@ -44,6 +44,6 @@
 // CHECK:            visibility_ = 0 : i64
 // CHECK:         }> ({
 // CHECK-NEXT:    ^bb0(%arg0 : i32, %arg1 : i32):
-// CHECK-NEXT:      "llvm.return"(%arg0) : (i32) -> ()
+// CHECK-NEXT:      llvm.return %arg0 : i32
 // CHECK-NEXT:    }) : () -> ()
 // CHECK-NEXT:  }

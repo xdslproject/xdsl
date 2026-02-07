@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from typing import Literal, overload
 
 from xdsl.context import Context
-from xdsl.dialect_interfaces import OpAsmDialectInterface
+from xdsl.dialect_interfaces.op_asm import OpAsmDialectInterface
 from xdsl.dialects.builtin import DictionaryAttr, ModuleOp
 from xdsl.ir import (
     Attribute,
@@ -412,7 +412,7 @@ class Parser(AttrParser):
                         f"type {result.type}, but used with type {value.type}",
                         span,
                     )
-                value.replace_by(result)
+                value.replace_all_uses_with(result)
 
         if SSAValue.is_valid_name(name):
             for val in values:

@@ -1,5 +1,5 @@
 site_name: xDSL
-site_url: https://xdsl.readthedocs.io/
+site_url: https://xdsl.dev/
 site_description: xDSL -- a Python-native compiler framework
 site_author: xDSL developers
 copyright: Copyright &copy xDSL developers
@@ -57,6 +57,7 @@ plugins:
           show_root_heading: true
           show_root_full_path: false
           show_signature_annotations: true
+          show_if_no_docstring: true
 - mkdocs-simple-hooks:
     hooks:
       on_post_build: "scripts.hooks:build_xdsl_wheel"

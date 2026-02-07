@@ -7,7 +7,7 @@ license = { text = "Apache License v2.0 with LLVM Exceptions" }
 authors = [{ name = "Mathieu Fehr", email = "mathieu.fehr@ed.ac.uk" }]
 classifiers = ["Programming Language :: Python :: 3"]
 dependencies = [
-    "immutabledict<4.2.2",
+    "immutabledict<4.2.3",
     "typing-extensions>=4.7,<5",
     "ordered-set==4.1.0",
 ]
@@ -27,20 +27,20 @@ dev = [
     "nbval<0.12",
     "filecheck==1.0.3",
     "lit<19.0.0",
-    "marimo==0.15.2",
-    "pre-commit>=4.0.0,<5.0.0",
-    "ruff==0.12.12",
+    "marimo>=0.17,<0.18",
+    "prek~=0.3.1",
+    "ruff==0.14.7",
     "nbconvert>=7.7.2,<8.0.0",
-    "textual-dev==1.7.0",
-    "pytest-asyncio==1.1.0",
-    "pyright==1.1.405",
+    "textual-dev==1.8.0",
+    "pytest-asyncio==1.2.0",
+    "pyright==1.1.407",
     "sympy==1.14.0",
 ]
 gui = ["textual>=6,<7", "pyclip==0.7"]
-jax = ["jax==0.6.0", "numpy==2.2.6"]
+llvm = ["llvmlite~=0.46.0"]
 
 [dependency-groups]
-dev = ["xdsl[dev,gui]", "my_plugin"]
+dev = ["xdsl[dev,gui,llvm]", "my_plugin"]
 bench = [
     "asv>=0.6.4",
     "snakeviz>=2.2.2",
@@ -63,6 +63,7 @@ docs = [
     "riscemu==2.2.7",
     "micropip>=0.7",
 ]
+
 
 [project.urls]
 Homepage = "https://xdsl.dev/"
@@ -171,6 +172,8 @@ max-line-length = 130
 "tests/test_declarative_assembly_format.py" = ["F811"]
 "tests/test_frontend_type_conversion.py" = ["PYI042"]  # typealias i32 error
 "xdsl/frontend/pyast/dialects/builtin.py" = ["PYI042"] # typealias i32 error
+"xdsl/dialects/*.pyi" = ["PYI021"]  # auto-generated stubs have docstrings
+"typings/**/*.pyi" = ["PYI021", "PYI048", "F821", "F403"]
 
 [tool.ruff.lint.mccabe]
 max-complexity = 10

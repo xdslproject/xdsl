@@ -7,13 +7,14 @@ from xdsl.backend.register_type import RegisterType
 from xdsl.dialects import riscv
 from xdsl.dialects.builtin import (
     I8,
+    I32,
     FunctionType,
     IntegerAttr,
-    IntegerType,
     StringAttr,
     SymbolNameConstraint,
     SymbolRefAttr,
     i8,
+    i32,
 )
 from xdsl.dialects.utils import (
     parse_func_op_like,
@@ -38,6 +39,7 @@ from xdsl.traits import (
     HasParent,
     IsolatedFromAbove,
     IsTerminator,
+    ReturnLike,
     SymbolOpInterface,
 )
 from xdsl.utils.exceptions import DiagnosticException, VerifyException
@@ -47,17 +49,17 @@ from xdsl.utils.exceptions import DiagnosticException, VerifyException
 class SyscallOp(IRDLOperation):
     name = "riscv_func.syscall"
     args = var_operand_def(riscv.IntRegisterType)
-    syscall_num = attr_def(IntegerAttr[IntegerType])
+    syscall_num = attr_def(IntegerAttr[I32])
     result = opt_result_def(riscv.IntRegisterType)
 
     def __init__(
         self,
-        num: int | IntegerAttr,
+        num: int | IntegerAttr[I32],
         has_result: bool = False,
         operands: list[SSAValue | Operation] = [],
     ):
         if isinstance(num, int):
-            num = IntegerAttr.from_int_and_width(num, 32)
+            num = IntegerAttr(num, i32)
         super().__init__(
             operands=[operands],
             attributes={"syscall_num": num},
@@ -253,7 +255,7 @@ class ReturnOp(riscv.RISCVInstruction):
     values = var_operand_def(riscv.RISCVRegisterType)
     comment = opt_attr_def(StringAttr)
 
-    traits = traits_def(IsTerminator(), HasParent(FuncOp))
+    traits = traits_def(IsTerminator(), HasParent(FuncOp), ReturnLike())
 
     assembly_format = "attr-dict ($values^ `:` type($values))?"
 

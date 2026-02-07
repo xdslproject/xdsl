@@ -2,6 +2,7 @@
 
 // CHECK: %val = arith.constant 1 : i32
 %val = arith.constant 0 : i32
+"test.op"(%val) : (i32) -> ()
 
 pdl.pattern : benefit(2) {
   %0 = pdl.type

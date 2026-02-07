@@ -31,7 +31,6 @@ from xdsl.irdl import (
     traits_def,
 )
 from xdsl.traits import (
-    ConstantLike,
     Pure,
 )
 from xdsl.utils.dialect_codegen import dump_dialect_pyfile, generate_dynamic_attr_class
@@ -176,7 +175,7 @@ ops = [
         "Test_TraitsOp",
         OpDef(
             name="test.traits",
-            traits=traits_def(ConstantLike(), Pure()),
+            traits=traits_def(Pure()),
         ),
     ),
     (
@@ -286,10 +285,10 @@ dump_dialect_pyfile(
 # CHECK-NEXT:      variadic = var_operand_def(BaseAttr(Test_SingletonAType))
 # CHECK-NEXT:      required = operand_def(BaseAttr(Test_SingletonCType))
 # CHECK-EMPTY:
-# CHECK-NEXT:      irdl_options = [
+# CHECK-NEXT:      irdl_options = (
 # CHECK-NEXT:          SameVariadicOperandSize(),
 # CHECK-NEXT:          AttrSizedOperandSegments(as_property=False),
-# CHECK-NEXT:      ]
+# CHECK-NEXT:      )
 
 # CHECK:       @irdl_op_definition
 # CHECK-NEXT:  class Test_PropertiesOp(IRDLOperation):
@@ -306,7 +305,7 @@ dump_dialect_pyfile(
 # CHECK-NEXT:  class Test_TraitsOp(IRDLOperation):
 # CHECK-NEXT:      name = "test.traits"
 # CHECK-EMPTY:
-# CHECK-NEXT:      traits = traits_def(ConstantLike(), Pure())
+# CHECK-NEXT:      traits = traits_def(Pure())
 
 # CHECK:       @irdl_op_definition
 # CHECK-NEXT:  class Test_AttributesOp(IRDLOperation):

@@ -8,6 +8,7 @@ from typing_extensions import TypeVar
 
 from xdsl.dialects.arith import ConstantOp
 from xdsl.dialects.builtin import (
+    DYNAMIC_INDEX,
     AnyFloat,
     ArrayAttr,
     ArrayOfConstraint,
@@ -27,6 +28,7 @@ from xdsl.dialects.builtin import (
     NoneAttr,
     ShapedType,
     Signedness,
+    StaticShapeArrayConstr,
     StridedLayoutAttr,
     SymbolRefAttr,
     TensorType,
@@ -53,6 +55,7 @@ from xdsl.irdl import (
     AtMost,
     BaseAttr,
     ConstraintContext,
+    NotEqualIntConstraint,
     RangeLengthConstraint,
     RangeOf,
     RangeVarConstraint,
@@ -916,21 +919,21 @@ def test_shaped_type_has_static_shape():
     scalar_tensor = TensorType(f64, [])
     assert scalar_tensor.has_static_shape() is True
 
-    dynamic_tensor = TensorType(f32, [3, -1])
+    dynamic_tensor = TensorType(f32, [3, DYNAMIC_INDEX])
     assert dynamic_tensor.has_static_shape() is False
 
     # Test VectorType
     static_vector = VectorType(i32, [8])
     assert static_vector.has_static_shape() is True
 
-    dynamic_vector = VectorType(f32, [4, -1])
+    dynamic_vector = VectorType(f32, [4, DYNAMIC_INDEX])
     assert dynamic_vector.has_static_shape() is False
 
     # Test MemRefType
     static_memref = MemRefType(i64, [8, 16])
     assert static_memref.has_static_shape() is True
 
-    dynamic_memref = MemRefType(i32, [-1])
+    dynamic_memref = MemRefType(i32, [DYNAMIC_INDEX])
     assert dynamic_memref.has_static_shape() is False
 
 
@@ -965,3 +968,31 @@ def test_array_of_constraint():
     assert container_constraint.mapping_type_vars({_A: BaseAttr(B)}) == ContainerOf(
         BaseAttr(B)
     )
+
+
+################################################################################
+# NotEqualIntConstraint
+################################################################################
+def test_not_equal_int_constraint():
+    constraint = NotEqualIntConstraint(5)
+
+    # Test with integer attribute not equal to 5
+    constraint.verify(3, ConstraintContext())
+
+    # Test with integer attribute equal to 5
+    with pytest.raises(VerifyException, match="expected integer != 5"):
+        constraint.verify(5, ConstraintContext())
+
+
+################################################################################
+# StaticShapeArrayConstraint
+################################################################################
+def test_static_shape_array_constraint():
+    static_shape = ArrayAttr([IntAttr(1), IntAttr(2), IntAttr(3)])
+    StaticShapeArrayConstr.verify(static_shape, ConstraintContext())
+
+    dynamic_shape = ArrayAttr([IntAttr(1), IntAttr(DYNAMIC_INDEX), IntAttr(3)])
+    with pytest.raises(
+        VerifyException, match="expected static shape, but got dynamic dimension"
+    ):
+        StaticShapeArrayConstr.verify(dynamic_shape, ConstraintContext())

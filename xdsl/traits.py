@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import abc
-from collections.abc import Iterator
+from collections.abc import Iterator, Sequence
 from dataclasses import dataclass, field
 from enum import Enum, auto
 from typing import TYPE_CHECKING
@@ -33,12 +33,39 @@ class OpTrait:
 OpTraitInvT = TypeVar("OpTraitInvT", bound=OpTrait)
 
 
-class ConstantLike(OpTrait):
+class ConstantLike(OpTrait, abc.ABC):
     """
     Operation known to be constant-like.
 
     See external [documentation](https://mlir.llvm.org/doxygen/classmlir_1_1OpTrait_1_1ConstantLike.html).
     """
+
+    @classmethod
+    @abc.abstractmethod
+    def get_constant_value(cls, op: Operation) -> Attribute:
+        """
+        Get the constant value from this constant-like operation.
+
+        Returns:
+            The constant value as an Attribute, or None if the value cannot be determined.
+        """
+        raise NotImplementedError()
+
+
+class HasFolder(OpTrait):
+    """
+    Operation known to support folding.
+    """
+
+    @classmethod
+    @abc.abstractmethod
+    def fold(cls, op: Operation) -> Sequence[SSAValue | Attribute] | None:
+        """
+        Attempts to fold the operation. The fold method cannot modify the IR.
+        Returns either an existing SSAValue or an Attribute for each result of the operation.
+        When folding is unsuccessful, returns None.
+        """
+        raise NotImplementedError()
 
 
 @dataclass(frozen=True)
@@ -115,6 +142,23 @@ class IsTerminator(OpTrait):
             raise VerifyException(
                 f"'{op.name}' must be the last operation in its parent block"
             )
+
+
+class ReturnLike(OpTrait):
+    """
+    This trait indicates that a terminator operation is "return-like". This
+    means that it exits its current region and forwards its operands as "exit"
+    values to the parent region. Operations with this trait are not permitted to
+    contain successors or produce results.
+    """
+
+    def verify(self, op: Operation) -> None:
+        if not op.has_trait(IsTerminator):
+            raise VerifyException(f"{op.name} is not a terminator")
+        if op.results:
+            raise VerifyException(f"{op.name} does not have zero results")
+        if op.successors:
+            raise VerifyException(f"{op.name} does not have zero successors")
 
 
 class NoTerminator(OpTrait):
@@ -525,6 +569,27 @@ class MemoryEffectKind(Enum):
 
 
 @dataclass(frozen=True)
+class Resource(abc.ABC):
+    """
+    This class represents a specific resource that an effect applies to.
+    """
+
+    @abc.abstractmethod
+    def name(self) -> str:
+        raise NotImplementedError
+
+
+@dataclass(frozen=True)
+class DefaultResource(Resource):
+    """
+    A conservative default resource kind.
+    """
+
+    def name(self) -> str:
+        return "<Default>"
+
+
+@dataclass(frozen=True)
 class EffectInstance:
     """
     An instance of a side effect.
@@ -538,6 +603,11 @@ class EffectInstance:
     value: SSAValue | SymbolRefAttr | None = field(default=None)
     """
     The value or symbol that is affected by the side effect, if known.
+    """
+
+    resource: Resource = field(default=DefaultResource())
+    """
+    The resource that the effect applies to.
     """
 
 

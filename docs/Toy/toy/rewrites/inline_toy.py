@@ -7,46 +7,39 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
+from xdsl.rewriter import InsertPoint
+from xdsl.traits import CallableOpInterface, SymbolTable
 from xdsl.transforms.dead_code_elimination import dce
 
 from ..dialects import toy
 
 
 class InlineFunctions(RewritePattern):
-    _func_op_by_name: dict[str, toy.FuncOp] | None = None
-
-    def lookup_func_op(self, module: ModuleOp, name: str) -> toy.FuncOp:
-        if self._func_op_by_name is None:
-            self._func_op_by_name = {
-                op.sym_name.data: op for op in module.ops if isinstance(op, toy.FuncOp)
-            }
-        return self._func_op_by_name[name]
-
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: toy.GenericCallOp, rewriter: PatternRewriter):
         """
         For each generic call, find the function that it calls, and inline it.
         """
 
-        # Get module
-        parent = op.parent_op()
-        assert isinstance(parent, toy.FuncOp)
-        module = parent.parent_op()
-        assert isinstance(module, ModuleOp)
+        callee = SymbolTable.lookup_symbol(op, op.callee)
+        assert callee is not None
+        callable_interface = callee.get_trait(CallableOpInterface)
+        assert callable_interface is not None
 
-        # Clone called function
-        impl = self.lookup_func_op(module, op.callee.string_value()).clone()
-        impl_block = impl.body.block
+        impl_body = callable_interface.get_callable_region(callee)
+        assert len(impl_body.blocks) == 1
+        # Clone called function body
+        impl_block = impl_body.clone().block
 
         # Cast operands to unranked
         inputs = [toy.CastOp(operand) for operand in op.operands]
 
         # Insert casts before matched op
-        rewriter.insert_op_before_matched_op(inputs)
+        rewriter.insert_op(inputs)
 
         # Replace block args with operand casts
         for i, arg in zip(inputs, impl_block.args):
-            arg.replace_by(i.res)
+            arg.replace_all_uses_with(i.res)
 
         # remove block args
         while len(impl_block.args):
@@ -54,13 +47,13 @@ class InlineFunctions(RewritePattern):
             rewriter.erase_block_argument(impl_block.args[-1])
 
         # Inline function definition before matched op
-        rewriter.inline_block_before_matched_op(impl_block)
+        rewriter.inline_block(impl_block, InsertPoint.before(op))
 
         # Get return from function definition
         return_op = op.prev_op
         assert return_op is not None
 
-        rewriter.replace_matched_op([], return_op.operands)
+        rewriter.replace_op(op, [], return_op.operands)
         rewriter.erase_op(return_op)
 
 
@@ -87,7 +80,7 @@ class RemoveUnusedPrivateFunctions(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: toy.FuncOp, rewriter: PatternRewriter):
         if self.should_remove_op(op):
-            rewriter.erase_matched_op()
+            rewriter.erase_op(op)
 
 
 class InlineToyPass(ModulePass):

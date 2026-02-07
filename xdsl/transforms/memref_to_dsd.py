@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from xdsl.context import Context
 from xdsl.dialects import arith, builtin, csl, memref
 from xdsl.dialects.builtin import (
+    DYNAMIC_INDEX,
     AffineMapAttr,
     ArrayAttr,
     Float16Type,
@@ -70,7 +71,7 @@ class LowerAllocOpPass(RewritePattern):
             for s in shape:
                 s.result.name_hint = f"{op.memref.name_hint}_size"
 
-        rewriter.replace_matched_op([zeros_op, *shape, dsd_op])
+        rewriter.replace_op(op, [zeros_op, *shape, dsd_op])
 
 
 class FixGetDsdOnGetDsd(RewritePattern):
@@ -86,13 +87,14 @@ class FixGetDsdOnGetDsd(RewritePattern):
             if isinstance(op.base_addr, OpResult) and isinstance(
                 op.base_addr.op, csl.GetMemDsdOp
             ):
-                rewriter.replace_matched_op(
+                rewriter.replace_op(
+                    op,
                     csl.GetMemDsdOp.build(
                         operands=[op.base_addr.op.base_addr, op.sizes],
                         properties=op.properties,
                         attributes=op.attributes,
                         result_types=op.result_types,
-                    )
+                    ),
                 )
             else:
                 raise ValueError("Failed to resolve GetMemDsdOp called on dsd type")
@@ -109,8 +111,8 @@ class FixMemRefLoadOnGetDsd(RewritePattern):
             if isinstance(op.memref, OpResult) and isinstance(
                 op.memref.op, csl.GetMemDsdOp
             ):
-                rewriter.replace_matched_op(
-                    memref.LoadOp.get(op.memref.op.base_addr, op.indices)
+                rewriter.replace_op(
+                    op, memref.LoadOp.get(op.memref.op.base_addr, op.indices)
                 )
             else:
                 raise ValueError("Failed to resolve memref.load called on dsd type")
@@ -142,7 +144,7 @@ class LowerSubviewOpPass(RewritePattern):
             )
 
             amap: list[AffineExpr] = [
-                AffineConstantExpr(o if o != memref.SubviewOp.DYNAMIC_INDEX else 0)
+                AffineConstantExpr(o if o != DYNAMIC_INDEX else 0)
                 for o in op.static_offsets.get_values()
             ]
             amap[sizes.index(size)] += AffineDimExpr(0)
@@ -156,7 +158,7 @@ class LowerSubviewOpPass(RewritePattern):
                 result_types=[csl.DsdType(csl.DsdKind.mem1d_dsd)],
             )
             offset_ops = self._update_offsets(op, dsd_op) if op.offsets else []
-            rewriter.replace_matched_op([size_op, dsd_op, *offset_ops])
+            rewriter.replace_op(op, [size_op, dsd_op, *offset_ops])
             return
 
         assert len(op.static_sizes) == 1, "not implemented"
@@ -174,10 +176,10 @@ class LowerSubviewOpPass(RewritePattern):
 
         new_ops = [*size_ops, *stride_ops, *offset_ops]
         if new_ops:
-            rewriter.replace_matched_op([*size_ops, *stride_ops, *offset_ops])
+            rewriter.replace_op(op, [*size_ops, *stride_ops, *offset_ops])
         else:
             # subview has no effect (todo: this could be canonicalized away)
-            rewriter.replace_matched_op([], new_results=[op.source])
+            rewriter.replace_op(op, [], new_results=[op.source])
 
     @staticmethod
     def _update_sizes(
@@ -188,7 +190,7 @@ class LowerSubviewOpPass(RewritePattern):
 
         static_sizes = subview.static_sizes.get_values()
 
-        if static_sizes[0] == memref.SubviewOp.DYNAMIC_INDEX:
+        if static_sizes[0] == DYNAMIC_INDEX:
             ops.append(cast_op := arith.IndexCastOp(subview.sizes[0], i16))
             ops.append(
                 curr_op := csl.SetDsdLengthOp.build(
@@ -221,7 +223,7 @@ class LowerSubviewOpPass(RewritePattern):
 
         static_strides = subview.static_strides.get_values()
 
-        if static_strides[0] == memref.SubviewOp.DYNAMIC_INDEX:
+        if static_strides[0] == DYNAMIC_INDEX:
             ops.append(cast_op := arith.IndexCastOp(subview.strides[0], i8))
             ops.append(
                 csl.SetDsdStrideOp.build(
@@ -307,7 +309,7 @@ class LowerCopyOpPass(RewritePattern):
             case _:
                 raise ValueError("unsupported value")
 
-        rewriter.replace_matched_op(func(operands=[[op.destination, op.source]]))
+        rewriter.replace_op(op, func(operands=[[op.destination, op.source]]))
 
 
 class LowerUnrealizedConversionCastOpPass(RewritePattern):
@@ -322,7 +324,7 @@ class LowerUnrealizedConversionCastOpPass(RewritePattern):
         if all(isa(t, csl.DsdType) for t in op.inputs.types) and all(
             isa(t, MemRefType) for t in op.outputs.types
         ):
-            rewriter.replace_matched_op([], new_results=op.inputs)
+            rewriter.replace_op(op, [], new_results=op.inputs)
 
 
 class DsdOpUpdateType(RewritePattern):
@@ -335,13 +337,14 @@ class DsdOpUpdateType(RewritePattern):
         rewriter: PatternRewriter,
         /,
     ):
-        rewriter.replace_matched_op(
+        rewriter.replace_op(
+            op,
             type(op).build(
                 operands=op.operands,
                 properties=op.properties,
                 attributes=op.attributes,
                 result_types=[op.op.type],
-            )
+            ),
         )
 
 
@@ -353,10 +356,11 @@ class RetainAddressOfOpPass(RewritePattern):
         if isinstance(op.value.type, csl.DsdType) and isinstance(
             op.value.owner, csl.GetMemDsdOp
         ):
-            rewriter.replace_matched_op(
+            rewriter.replace_op(
+                op,
                 csl.AddressOfOp.build(
                     operands=[op.value.owner.base_addr], result_types=op.result_types
-                )
+                ),
             )
 
 
@@ -370,7 +374,7 @@ class CslVarUpdate(RewritePattern):
         dsd_t = csl.DsdType(
             csl.DsdKind.mem1d_dsd if len(elem_t.shape) == 1 else csl.DsdKind.mem4d_dsd
         )
-        rewriter.replace_matched_op(csl.VariableOp.from_type(dsd_t))
+        rewriter.replace_op(op, csl.VariableOp.from_type(dsd_t))
 
 
 class CslVarLoad(RewritePattern):
@@ -384,7 +388,7 @@ class CslVarLoad(RewritePattern):
             or not isa(op.var.type.get_element_type(), csl.DsdType)
         ):
             return
-        rewriter.replace_matched_op(csl.LoadVarOp(op.var))
+        rewriter.replace_op(op, csl.LoadVarOp(op.var))
 
 
 @dataclass(frozen=True)

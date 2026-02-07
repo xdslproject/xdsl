@@ -14,6 +14,7 @@ from dataclasses import fields
 from io import StringIO
 from typing import Any, ClassVar
 
+import pyclip
 from textual import events, on
 from textual.app import App, ComposeResult
 from textual.containers import Horizontal, ScrollableContainer, Vertical
@@ -48,8 +49,6 @@ from xdsl.passes import ModulePass, PassPipeline
 from xdsl.printer import Printer
 from xdsl.transforms import get_all_passes
 
-from ._pasteboard import pyclip_copy
-
 
 class OutputTextArea(TextArea):
     """Used to prevent users from being able to alter the Output TextArea."""
@@ -78,12 +77,11 @@ class InputApp(App[None]):
     A dictionary that maps names on to Screen objects.
     """
 
-    INITIAL_IR_TEXT = """
-        func.func @hello(%n : i32) -> i32 {
-          %two = arith.constant 0 : i32
-          %res = arith.addi %two, %n : i32
-          func.return %res : i32
-        }
+    INITIAL_IR_TEXT = """func.func @hello(%n : i32) -> i32 {
+    %two = arith.constant 0 : i32
+    %res = arith.addi %two, %n : i32
+    func.return %res : i32
+}
         """
 
     all_dialects: tuple[tuple[str, Callable[[], Dialect]], ...]
@@ -229,6 +227,9 @@ class InputApp(App[None]):
                 label=n,
                 data=module_pass,
             )
+
+        # Expand the root node to show all passes on initialization
+        self.passes_tree.root.expand()
 
         # initialize GUI with either specified input text or default example
         self.input_text_area.load_text(self.pre_loaded_input_text)
@@ -612,12 +613,12 @@ class InputApp(App[None]):
     @on(Button.Pressed, "#copy_output_button")
     def copy_output(self, event: Button.Pressed) -> None:
         """Output TextArea is copied when "Copy Output" button is pressed."""
-        pyclip_copy(self.output_text_area.text)
+        pyclip.copy(self.output_text_area.text)
 
     @on(Button.Pressed, "#copy_query_button")
     def copy_query(self, event: Button.Pressed) -> None:
         """Selected passes/query Label is copied when "Copy Query" button is pressed."""
-        pyclip_copy(self.get_query_string())
+        pyclip.copy(self.get_query_string())
 
     @on(Button.Pressed, "#clear_passes_button")
     def clear_passes(self, event: Button.Pressed) -> None:

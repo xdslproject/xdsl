@@ -111,9 +111,7 @@ class ApplyBufferizePattern(RewritePattern):
             properties={"bounds": bounds},
         )
 
-        rewriter.replace_matched_op(
-            [*(o for o in args if isinstance(o, Operation)), new]
-        )
+        rewriter.replace_op(op, [*(o for o in args if isinstance(o, Operation)), new])
 
 
 def walk_from(a: Operation) -> Generator[Operation, Any, None]:
@@ -222,7 +220,7 @@ class LoadBufferFoldPattern(RewritePattern):
         if effecting:
             return
 
-        rewriter.replace_matched_op(new_ops=[], new_results=[underlying])
+        rewriter.replace_op(op, new_ops=[], new_results=[underlying])
 
 
 class ApplyStoreFoldPattern(RewritePattern):
@@ -326,7 +324,8 @@ class ApplyStoreFoldPattern(RewritePattern):
             # Create a load of a destination, for any other user of the result
             load = LoadOp.get(stores[0].field, bounds.lb, bounds.ub)
 
-            rewriter.replace_matched_op(
+            rewriter.replace_op(
+                op,
                 [new_apply, load],
                 new_apply.results[:temp_index]
                 + (load.res,)
@@ -364,7 +363,7 @@ class UpdateApplyArgs(RewritePattern):
             op.region.block, InsertPoint.at_start(new_block), new_block.args
         )
 
-        rewriter.replace_matched_op(new_apply)
+        rewriter.replace_op(op, new_apply)
 
 
 @dataclass(frozen=True)
@@ -407,11 +406,12 @@ class BufferAlloc(RewritePattern):
         alloc = AllocOp(result_types=[field_from_temp(temp_t)])
         rewriter.insert_op(alloc, InsertPoint.at_start(cast(Block, op.parent)))
 
-        rewriter.replace_matched_op(
+        rewriter.replace_op(
+            op,
             new_ops=[
                 StoreOp.get(op.temp, alloc.field, temp_t.bounds),
                 LoadOp.get(alloc.field, temp_t.bounds.lb, temp_t.bounds.ub),
-            ]
+            ],
         )
 
 
@@ -528,7 +528,8 @@ class CombineStoreFold(RewritePattern):
                 attributes=op.attributes.copy(),
                 properties=op.properties.copy(),
             )
-            rewriter.replace_matched_op(
+            rewriter.replace_op(
+                op,
                 new_combine,
                 new_results=new_combine.results[:i] + (None,) + new_combine.results[i:],
             )
@@ -561,7 +562,8 @@ class SwapBufferize(RewritePattern):
         new_swap.swaps = op.swaps
         load = LoadOp(operands=[buffer.res], result_types=[temp_t])
 
-        rewriter.replace_matched_op(
+        rewriter.replace_op(
+            op,
             new_ops=[buffer, new_swap, load],
         )
 

@@ -1,5 +1,5 @@
 import re
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 
 import pytest
 from typing_extensions import TypeVar
@@ -9,6 +9,7 @@ from xdsl.ir.affine import (
     AffineBinaryOpKind,
     AffineExpr,
     AffineMap,
+    SimpleAffineExprFlattener,
 )
 
 
@@ -471,3 +472,209 @@ def test_apply_permutation_map(
     permutation_map: AffineMap, inputs: Sequence[_T], expected: tuple[_T, ...]
 ):
     assert permutation_map.apply_permutation(inputs) == expected
+
+
+d0 = AffineExpr.dimension(0)
+d1 = AffineExpr.dimension(1)
+s0 = AffineExpr.symbol(0)
+c2 = AffineExpr.constant(2)
+c3 = AffineExpr.constant(3)
+
+
+@pytest.mark.parametrize(
+    "expr, expected",
+    [
+        # Pure affine: only addition, multiplication by constant, dimensions, symbols, constants
+        (d0 + d1, True),  # d0 + d1 is pure affine
+        (c2 * d0 + c3 * d1, True),  # 2 * d0 + 3 * d1 is pure affine
+        (d0 * 2 + d1 * 3, True),  # d0 * 2 + d1 * 3 is pure affine
+        (d0 + s0, True),  # d0 + s0 is pure affine
+        (d0 + 5, True),  # d0 + 5 is pure affine
+        (d0 // 2, True),  # d0 // 2 is pure affine (floordiv by constant)
+        ((d0 + d1) // 3, True),  # (d0 + d1) // 3 is pure affine
+        (d0 % 4, True),  # d0 % 4 is pure affine (mod by constant)
+        ((d0 + d1) % 5, True),  # (d0 + d1) % 5 is pure affine
+        (d0.ceil_div(7), True),  # d0.ceil_div(7) is pure affine (ceildiv by constant)
+        ((d0 + d1).ceil_div(2), True),  # (d0 + d1).ceil_div(2) is pure affine
+        # Not pure affine: multiplication by symbol
+        (AffineBinaryOpExpr(AffineBinaryOpKind.Mul, d0, s0), False),
+        # Not pure affine: multiplication by dimension
+        (AffineBinaryOpExpr(AffineBinaryOpKind.Mul, d0, d1), False),
+        # Not pure affine: floordiv by symbol
+        (AffineBinaryOpExpr(AffineBinaryOpKind.FloorDiv, d0, s0), False),
+        # Not pure affine: mod by symbol
+        (AffineBinaryOpExpr(AffineBinaryOpKind.Mod, d0, s0), False),
+        # Not pure affine: ceildiv by symbol
+        (AffineBinaryOpExpr(AffineBinaryOpKind.CeilDiv, d0, s0), False),
+    ],
+)
+def test_is_pure_affine(expr: AffineExpr, expected: bool):
+    assert expr.is_pure_affine() is expected
+
+
+def test_traversal():
+    #    6
+    #  4 + 5
+    # 0+1 2+3
+    nodes = [AffineExpr.dimension(i) for i in range(4)]
+    nodes.append(nodes[0] + nodes[1])
+    nodes.append(nodes[2] + nodes[3])
+    nodes.append(nodes[4] + nodes[5])
+
+    root = nodes[-1]
+
+    dfs = tuple(root.dfs())
+    assert len(dfs) == 7
+    dfs_indices = [6, 4, 0, 1, 5, 2, 3]
+    for i, node in zip(dfs_indices, dfs):
+        assert nodes[i] is node
+
+    post_order = tuple(root.post_order())
+    post_order_indices = [0, 1, 4, 2, 3, 5, 6]
+    assert len(post_order) == 7
+    for i, node in zip(post_order_indices, post_order):
+        assert nodes[i] is node
+
+
+d0, d1, d2 = (AffineExpr.dimension(i) for i in range(3))
+s0, s1, s2 = (AffineExpr.symbol(i) for i in range(3))
+
+
+def test_from_flat_form():
+    # Empty case
+    assert AffineExpr.from_flat_form([0], 0, 0, []) == AffineExpr.constant(0)
+    # One dimension
+    assert AffineExpr.from_flat_form([1, 0], 1, 0, []) == d0
+    # One symbol
+    assert AffineExpr.from_flat_form([1, 0], 0, 1, []) == s0
+    # Factors
+    assert (
+        AffineExpr.from_flat_form(
+            [
+                0,  # d0 * 0
+                1,  # d1 * 1
+                2,  # d2 * 2
+                0,  # s0 * 0
+                1,  # s1 * 1
+                2,  # s2 * 2
+                0,  # d0 * 0
+                2,  # s0 * 2
+                1,  # c1
+            ],
+            3,
+            3,
+            [d0, s0],
+        )
+        == d1 + d2 * 2 + s1 + s2 * 2 + s0 * 2 + 1
+    )
+
+
+@pytest.mark.parametrize(
+    "expr,expected",
+    [
+        # Simple cases: constants, dimensions, symbols
+        (AffineExpr.constant(0), AffineExpr.constant(0)),
+        (AffineExpr.constant(42), AffineExpr.constant(42)),
+        (d0, d0),
+        (d1, d1),
+        (s0, s0),
+        (s2, s2),
+        # Already-simplified sums
+        (d0 + 3, d0 + 3),
+        (2 * d1 + s0, 2 * d1 + s0),
+        # Expressions with redundant zeros
+        (d0 * 0, AffineExpr.constant(0)),
+        (0 * s1, AffineExpr.constant(0)),
+        (AffineExpr.constant(0) + d1, d1),
+        (d0 + 0, d0),
+        (0 + d2, d2),
+        # Combining constants
+        (
+            AffineBinaryOpExpr(
+                AffineBinaryOpKind.Add, AffineExpr.constant(2), AffineExpr.constant(3)
+            ),
+            AffineExpr.constant(5),
+        ),
+        (
+            AffineBinaryOpExpr(
+                AffineBinaryOpKind.Mul,
+                AffineBinaryOpExpr(
+                    AffineBinaryOpKind.Add,
+                    AffineExpr.constant(1),
+                    AffineExpr.constant(2),
+                ),
+                AffineExpr.constant(3),
+            ),
+            AffineExpr.constant(9),
+        ),
+        ((d0 + 2) + 3, d0 + 5),
+        # Multiplying by 1 or 0
+        (d1 * 1, d1),
+        (1 * s0, s0),
+        ((d1 + 2) * 1, d1 + 2),
+        ((d2 + 7) * 0, AffineExpr.constant(0)),
+        # Grouping like terms (if supported by simplify)
+        (d0 + d0, 2 * d0),
+        (2 * d0 + 3 * d0, 5 * d0),
+        (d0 + s1 + d0, 2 * d0 + s1),
+        # More complex: terms cancel
+        (d0 - d0, AffineExpr.constant(0)),
+        (2 * d1 - d1, d1),
+        ((d0 + 2) - 2, d0),
+        # Deeply nested expressions
+        ((d0 + (AffineExpr.constant(1) + 2)), d0 + 3),
+        (((d0 + 2) + (d0 + 3)), 2 * d0 + 5),
+        # Exact multiples of floordiv are cancelled out
+        ((2 * d0 + 4 * s1) // 2, d0 + 2 * s1),
+        # Exact multiples of ceildiv are cancelled out
+        ((2 * d0 + 4 * s1).ceil_div(2), d0 + 2 * s1),
+        # Greatest common denominators of floordiv are cancelled out
+        ((2 * d0 + 4 * s1) // 6, (d0 + 2 * s1) // 3),
+        # Greatest common denominators of ceildiv are cancelled out
+        ((2 * d0 + 4 * s1).ceil_div(6), (d0 + 2 * s1).ceil_div(3)),
+        # Division is aggregated
+        (d0 // 2 + d0 // 2, d0 // 2 * 2),
+        # Factors and modulo cancel
+        ((2 * d0 + 4 * s1) % 2, AffineExpr.constant(0)),
+        # Modulo is converted into the manual computation (x % k == x - (x // k * k))
+        ((2 * d0 + 4 * s1) % 3, (2 * d0 + 4 * s1) + ((2 * d0 + 4 * s1) // 3 * -3)),
+        # This sometimes cancels out
+        (d0 % 3 + d0 // 3 * 3, d0),
+        # GCD cancel in the fraction
+        ((2 * d0 + 4 * s1) % 6, (2 * d0 + 4 * s1) + ((d0 + 2 * s1) // 3 * -6)),
+        # Modulos with same expressions are aggregated
+        (d0 % 2 - d0 % 2, AffineExpr.constant(0)),
+    ],
+)
+def test_affine_expr_simplify(expr: AffineExpr, expected: AffineExpr):
+    assert str(expr.simplify(3, 3)) == str(expected)
+    assert expr.simplify(3, 3) == expected
+    # Eval on some numbers to catch errors in simplification test
+    assert expr.eval((1, 2, 3), (5, 7, 11)) == expected.eval((1, 2, 3), (5, 7, 11))
+    assert expr.eval((11, 7, 5), (3, 2, 1)) == expected.eval((11, 7, 5), (3, 2, 1))
+
+
+@pytest.mark.parametrize(
+    "expr",
+    [
+        (lambda: AffineBinaryOpExpr(AffineBinaryOpKind.Mul, d0, s0)),
+        (lambda: AffineBinaryOpExpr(AffineBinaryOpKind.FloorDiv, d0, s0)),
+        (lambda: AffineBinaryOpExpr(AffineBinaryOpKind.Mod, d0, s0)),
+    ],
+)
+def test_affine_expr_simplify_semi_affine_raises(expr: Callable[[], AffineExpr]):
+    with pytest.raises(
+        NotImplementedError,
+        match="Simplification of semi-affine expressions is not implemented yet.",
+    ):
+        expr().simplify(num_dims=3, num_symbols=3)
+    with pytest.raises(
+        NotImplementedError,
+        match="Semi-affine map flattening not implemented",
+    ):
+        SimpleAffineExprFlattener(3, 3).simplify(expr())
+
+
+def test_simplify_division_negative_divisor():
+    with pytest.raises(ValueError, match="RHS of division must be positive, got -2"):
+        (AffineExpr.dimension(0) // -2).simplify(3, 3)

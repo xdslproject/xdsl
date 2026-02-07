@@ -14,23 +14,23 @@ jobs:
   code-formatting:
 
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ['3.10']
 
     steps:
     - uses: actions/checkout@v5
 
     - name: Install uv
-      uses: astral-sh/setup-uv@v6
+      uses: astral-sh/setup-uv@v7
       with:
         enable-cache: true
         cache-dependency-glob: "uv.lock"
 
-    - name: Set up Python ${{ matrix.python-version }}
+    - name: Set up Python 3.13
       uses: actions/setup-python@v6
       with:
-        python-version: ${{ matrix.python-version }}
+        python-version: '3.13'
 
-    - name: Run code formatting checks with pre-commit
-      uses: pre-commit/action@v3.0.1
+    - name: Generate Python type stubs
+      run: uv run xdsl-stubgen
+
+    - name: Run code formatting checks with prek
+      uses: j178/prek-action@v1

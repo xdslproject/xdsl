@@ -29,12 +29,12 @@ class ArithConstantToX86(RewritePattern):
                 "Lowering of arith.constant is only implemented for integers"
             )
         mov_op = x86.DI_MovOp(
-            immediate=op.value.value.data, destination=x86.register.UNALLOCATED_GENERAL
+            immediate=op.value.value.data, destination=x86.registers.UNALLOCATED_GENERAL
         )
         cast_op, _ = UnrealizedConversionCastOp.cast_one(
             mov_op.destination, op.result.type
         )
-        rewriter.replace_matched_op([mov_op, cast_op])
+        rewriter.replace_op(op, [mov_op, cast_op])
 
 
 X86_OP_BY_ARITH_BINARY_OP = {
@@ -60,15 +60,17 @@ class ArithBinaryToX86(RewritePattern):
             raise DiagnosticException(
                 f"Lowering of {op.name} not implemented for ShapedType"
             )
-        lhs_x86, rhs_x86 = self.arch.cast_operands_to_regs(rewriter)
-        rhs_copy_op = x86.DS_MovOp(
-            source=rhs_x86, destination=x86.register.UNALLOCATED_GENERAL
+        rewriter.name_hint = op.results[0].name_hint
+
+        lhs_x86, rhs_x86 = self.arch.cast_to_regs(op.operands, rewriter)
+        moved_rhs = self.arch.move_value_to_unallocated(
+            rhs_x86, op.operands[1].type, rewriter
         )
-        add_op = new_type(source=lhs_x86, register_in=rhs_copy_op.destination)
+        add_op = new_type(source=lhs_x86, register_in=moved_rhs)
         result_cast_op, _ = UnrealizedConversionCastOp.cast_one(
             add_op.register_out, lhs.type
         )
-        rewriter.replace_matched_op([rhs_copy_op, add_op, result_cast_op])
+        rewriter.replace_op(op, [add_op, result_cast_op])
 
 
 @dataclass(frozen=True)
@@ -82,7 +84,8 @@ class ConvertArithToX86Pass(ModulePass):
                 [
                     ArithBinaryToX86(arch),
                     ArithConstantToX86(),
-                ]
+                ],
+                dce_enabled=False,
             ),
             apply_recursively=False,
         ).rewrite_module(op)

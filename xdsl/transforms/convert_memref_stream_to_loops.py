@@ -48,7 +48,7 @@ class LowerGenericOpPattern(RewritePattern):
     ) -> None:
         if memref_stream.IteratorTypeAttr.interleaved() in op.iterator_types:
             interleave_factor = op.bounds.data[-1].value.data
-            rewriter.insert_op_before_matched_op(
+            rewriter.insert_op(
                 interleaved_index_ops := tuple(
                     arith.ConstantOp(IntegerAttr.from_index_int_value(i))
                     for i in range(interleave_factor)

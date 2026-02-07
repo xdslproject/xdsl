@@ -14,15 +14,15 @@ from xdsl.rewriter import InsertPoint
 from xdsl.utils.exceptions import DiagnosticException
 
 arg_passing_registers = [
-    x86.register.RDI,
-    x86.register.RSI,
-    x86.register.RDX,
-    x86.register.RCX,
-    x86.register.R8,
-    x86.register.R9,
+    x86.registers.RDI,
+    x86.registers.RSI,
+    x86.registers.RDX,
+    x86.registers.RCX,
+    x86.registers.R8,
+    x86.registers.R9,
 ]
 
-return_passing_register = x86.register.RAX
+return_passing_register = x86.registers.RAX
 
 
 # According to x86 calling conventions, the maximum number of
@@ -57,7 +57,7 @@ class LowerFuncOp(RewritePattern):
 
         if op.sym_visibility == StringAttr("public"):
             directive_op = x86.DirectiveOp(".global", op.sym_name)
-            rewriter.insert_op_before_matched_op(directive_op)
+            rewriter.insert_op(directive_op)
 
         num_inputs = len(op.function_type.inputs.data)
         reg_args_types = arg_passing_registers[
@@ -75,18 +75,18 @@ class LowerFuncOp(RewritePattern):
             arg = first_block.args[i]
             register = first_block.insert_arg(register_type, i)
             mov_op = x86.DS_MovOp(
-                source=register, destination=x86.register.UNALLOCATED_GENERAL
+                source=register, destination=x86.registers.UNALLOCATED_GENERAL
             )
             cast_op, parameter = builtin.UnrealizedConversionCastOp.cast_one(
                 mov_op.destination, arg.type
             )
             rewriter.insert_op([mov_op, cast_op], insertion_point)
-            arg.replace_by(parameter)
+            arg.replace_all_uses_with(parameter)
             first_block.erase_arg(arg)
 
         # The last argument of the basic block should be the stack pointer
         sp = first_block.insert_arg(
-            x86.register.RSP, min(num_inputs, MAX_REG_PASSING_INPUTS)
+            x86.registers.RSP, min(num_inputs, MAX_REG_PASSING_INPUTS)
         )
 
         # If needed, load the stack-carried parameters by iteratively
@@ -99,14 +99,14 @@ class LowerFuncOp(RewritePattern):
             mov_op = x86.DM_MovOp(
                 memory=sp,
                 memory_offset=STACK_SLOT_SIZE_BYTES * (i + 1),
-                destination=x86.register.UNALLOCATED_GENERAL,
+                destination=x86.registers.UNALLOCATED_GENERAL,
                 comment=f"Load the {i + MAX_REG_PASSING_INPUTS + 1}th argument of the function",
             )
             cast_op = builtin.UnrealizedConversionCastOp.get(
                 (mov_op.destination,), (arg.type,)
             )
             rewriter.insert_op([mov_op, cast_op], insertion_point)
-            arg.replace_by(cast_op.results[0])
+            arg.replace_all_uses_with(cast_op.results[0])
             first_block.erase_arg(arg)
 
         outputs_types: list[Attribute] = []
@@ -116,18 +116,18 @@ class LowerFuncOp(RewritePattern):
         new_func = x86_func.FuncOp(
             op.sym_name.data,
             new_region,
-            (reg_args_types + [x86.register.RSP], outputs_types),
+            (reg_args_types + [x86.registers.RSP], outputs_types),
             visibility=op.sym_visibility,
         )
 
-        rewriter.replace_matched_op(new_func)
+        rewriter.replace_op(op, new_func)
 
 
 class LowerReturnOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: func.ReturnOp, rewriter: PatternRewriter):
         if not op.arguments:
-            rewriter.replace_matched_op([x86_func.RetOp()])
+            rewriter.replace_op(op, [x86_func.RetOp()])
             return
         elif len(op.arguments) > 1:
             raise DiagnosticException(
@@ -149,12 +149,12 @@ class LowerReturnOp(RewritePattern):
             )
 
         cast_op = builtin.UnrealizedConversionCastOp.get(
-            (return_value,), (x86.register.UNALLOCATED_GENERAL,)
+            (return_value,), (x86.registers.UNALLOCATED_GENERAL,)
         )
         mov_op = x86.ops.DS_MovOp(cast_op, destination=return_passing_register)
         ret_op = x86_func.RetOp()
 
-        rewriter.replace_matched_op([cast_op, mov_op, ret_op])
+        rewriter.replace_op(op, [cast_op, mov_op, ret_op])
 
 
 class ConvertFuncToX86FuncPass(ModulePass):

@@ -154,6 +154,50 @@ def test_ops_accessor_III():
         region0.detach_block(1)
 
 
+def test_detach_block_clears_pointers():
+    """Test that detach_block clears the block's prev/next pointers."""
+    a = ConstantOp.from_int_and_width(1, i32)
+    b = ConstantOp.from_int_and_width(2, i32)
+    c = ConstantOp.from_int_and_width(3, i32)
+
+    block0 = Block([a])
+    block1 = Block([b])
+    block2 = Block([c])
+
+    region = Region([block0, block1, block2])
+
+    # Verify initial state
+    assert block0.next_block is block1
+    assert block1.prev_block is block0
+    assert block1.next_block is block2
+    assert block2.prev_block is block1
+
+    # Detach middle block
+    detached_block = region.detach_block(block1)
+
+    # Verify detached block's pointers are cleared
+    assert detached_block._prev_block is None  # pyright: ignore[reportPrivateUsage]
+    assert detached_block._next_block is None  # pyright: ignore[reportPrivateUsage]
+    assert detached_block.parent is None
+
+    # Verify region's blocks are properly linked
+    assert block0.next_block is block2
+    assert block2.prev_block is block0
+    assert list(region.blocks) == [block0, block2]
+
+    # Test detaching first block
+    detached_first = region.detach_block(block0)
+    assert detached_first._prev_block is None  # pyright: ignore[reportPrivateUsage]
+    assert detached_first._next_block is None  # pyright: ignore[reportPrivateUsage]
+    assert list(region.blocks) == [block2]
+
+    # Test detaching last (and only) remaining block
+    detached_last = region.detach_block(block2)
+    assert detached_last._prev_block is None  # pyright: ignore[reportPrivateUsage]
+    assert detached_last._next_block is None  # pyright: ignore[reportPrivateUsage]
+    assert list(region.blocks) == []
+
+
 def test_op_operands_assign():
     """Test that we can directly assign `op.operands`."""
     val1, val2 = create_ssa_value(i32), create_ssa_value(i32)
@@ -271,6 +315,52 @@ def test_op_clone_with_regions():
     assert tuple(name_hints(pb)) == ("ca0", "ca1", "a", "b")
     assert tuple(name_hints(pc)) == ("ca0", "ca1", "a", "b")
     assert tuple(name_hints(pd)) == (None, None, None, None)
+
+
+def test_op_clone_graph_region():
+    # Children
+    ca0 = test.TestOp.create(result_types=(i32,))
+    ca0.results[0].name_hint = "a"
+    ca1 = test.TestOp.create(result_types=(i32,))
+    ca1.results[0].name_hint = "b"
+    # Make recursive
+    ca0.operands = (ca1.results[0],)
+    ca1.operands = (ca0.results[0],)
+    # Parent
+    pa = test.TestOp.create(regions=[Region([Block([ca0, ca1])])])
+
+    pb = pa.clone()
+    assert pa is not pb
+
+    cb0, cb1 = pb.regions[0].blocks[0].ops
+
+    assert ca0 is not cb0
+    assert ca1 is not cb1
+    assert ca0.operands != cb0.operands
+    assert ca1.operands != cb1.operands
+
+
+def test_op_clone_wrong_block_order():
+    # Children
+    ca1 = test.TestOp.create(result_types=(i32,))
+    ca1.results[0].name_hint = "b"
+    ca0 = test.TestOp.create(operands=ca1.results, result_types=(i32,))
+    ca0.results[0].name_hint = "a"
+    # Parent
+    pa = test.TestOp.create(regions=[Region([Block([ca0]), Block([ca1])])])
+
+    pb = pa.clone()
+    assert pa is not pb
+
+    (cb0,) = pb.regions[0].blocks[0].ops
+    (cb1,) = pb.regions[0].blocks[1].ops
+
+    assert ca0 is not cb0
+    assert ca1 is not cb1
+    for oa, ob in zip(ca0.operands, cb0.operands, strict=True):
+        assert oa is not ob
+    for oa, ob in zip(ca1.operands, cb1.operands, strict=True):
+        assert oa is not ob
 
 
 def test_block_branching_to_another_region_wrong():
@@ -939,7 +1029,7 @@ def test_op_custom_verify_is_done_last():
     b = CustomVerifyOp.get(a.result)
     with pytest.raises(
         VerifyException,
-        match="operand at position 0 does not verify:\nExpected attribute i64 but got i32",
+        match="operand 'val' at position 0 does not verify:\nExpected attribute i64 but got i32",
     ):
         b.verify()
 
@@ -1025,7 +1115,7 @@ def test_replace_by_if():
     assert set(u.operation for u in a.uses) == {b, c}
 
     d = create_ssa_value(i32)
-    a.replace_by_if(d, lambda u: u.operation is not c)
+    a.replace_uses_with_if(d, lambda u: u.operation is not c)
 
     assert set(u.operation for u in a.uses) == {c}
     assert set(u.operation for u in d.uses) == {b}
@@ -1167,3 +1257,79 @@ def test_ssa_get_on_op():
         ValueError, match="SSAValue.get: expected operation with a single result."
     ):
         SSAValue.get(op2)
+
+
+def test_repr():
+    bb = tuple(Block(arg_types=(i32,)) for _ in range(3))
+    bb[0].add_op(test.TestTermOp(result_types=(i32,), successors=bb[1:]))
+    bb[1].add_op(
+        test.TestTermOp(operands=bb[0].args, result_types=(i32,), successors=bb[2:])
+    )
+    bb[2].add_op(test.TestTermOp(operands=bb[0].args, result_types=(i32,)))
+    root = test.TestOp(regions=(r := Region(bb),))
+
+    ops = tuple(root.walk())
+    assert len(ops) == 4
+    regions = tuple(region for op in ops for region in op.regions)
+    assert len(regions) == 1
+    blocks = tuple(block for region in regions for block in region.blocks)
+    assert len(blocks) == 3
+    results = tuple(result for op in ops for result in op.results)
+    assert len(results) == 3
+    args = tuple(arg for block in blocks for arg in block.args)
+    assert len(args) == 3
+    values = (*results, *args)
+    block_uses = tuple(use for block in blocks for use in block.uses)
+    assert len(block_uses) == 3
+    value_uses = tuple(use for value in values for use in value.uses)
+    assert len(value_uses) == 2
+
+    blocks[0].args[0].name_hint = "bb0arg"
+    ops[1].results[0].name_hint = "op1res"
+
+    op_reprs = tuple(repr(op) for op in ops)
+    assert op_reprs == (
+        f"<TestOp {id(root)}(operands=[], results=[], successors=[], properties={{}}, attributes={{}}, regions=[<Region {id(r)}>], parent=None, _next_op=None, _prev_op=None)>",
+        f"<TestTermOp {id(ops[1])}(operands=[], results=[<OpResult {id(results[0])}>], successors=[<Block {id(bb[1])}>, <Block {id(bb[2])}>], properties={{}}, attributes={{}}, regions=[], parent=<Block {id(bb[0])}>, _next_op=None, _prev_op=None)>",
+        f"<TestTermOp {id(ops[2])}(operands=[<BlockArgument {id(args[0])}>], results=[<OpResult {id(results[1])}>], successors=[<Block {id(bb[2])}>], properties={{}}, attributes={{}}, regions=[], parent=<Block {id(bb[1])}>, _next_op=None, _prev_op=None)>",
+        f"<TestTermOp {id(ops[3])}(operands=[<BlockArgument {id(args[0])}>], results=[<OpResult {id(results[2])}>], successors=[], properties={{}}, attributes={{}}, regions=[], parent=<Block {id(bb[2])}>, _next_op=None, _prev_op=None)>",
+    )
+
+    region_reprs = tuple(repr(region) for region in regions)
+    assert region_reprs == (
+        f"Region(blocks=[<Block {id(blocks[0])}>, <Block {id(blocks[1])}>, <Block {id(blocks[2])}>])",
+    )
+
+    block_reprs = tuple(repr(block) for block in blocks)
+    assert block_reprs == (
+        f"<Block {id(blocks[0])}(_args=(<BlockArgument[i32] name_hint: bb0arg, index: 0, uses: 2>,), num_ops=1)>",
+        f"<Block {id(blocks[1])}(_args=(<BlockArgument[i32] name_hint: None, index: 0, uses: 0>,), num_ops=1)>",
+        f"<Block {id(blocks[2])}(_args=(<BlockArgument[i32] name_hint: None, index: 0, uses: 0>,), num_ops=1)>",
+    )
+
+    op_result_reprs = tuple(repr(result) for result in results)
+    assert op_result_reprs == (
+        "<OpResult[i32] name_hint: op1res, index: 0, operation: test.termop, uses: 0>",
+        "<OpResult[i32] name_hint: None, index: 0, operation: test.termop, uses: 0>",
+        "<OpResult[i32] name_hint: None, index: 0, operation: test.termop, uses: 0>",
+    )
+
+    block_arg_reprs = tuple(repr(arg) for arg in args)
+    assert block_arg_reprs == (
+        "<BlockArgument[i32] name_hint: bb0arg, index: 0, uses: 2>",
+        "<BlockArgument[i32] name_hint: None, index: 0, uses: 0>",
+        "<BlockArgument[i32] name_hint: None, index: 0, uses: 0>",
+    )
+
+    block_use_reprs = tuple(repr(use) for use in block_uses)
+    assert block_use_reprs == (
+        f"<Use {id(block_uses[0])}(_operation=<TestTermOp {id(ops[1])}>, _index=0, _prev_use=None, _next_use=None)>",
+        f"<Use {id(block_uses[1])}(_operation=<TestTermOp {id(ops[2])}>, _index=0, _prev_use=None, _next_use=<Use {id(block_uses[2])}>)>",
+        f"<Use {id(block_uses[2])}(_operation=<TestTermOp {id(ops[1])}>, _index=1, _prev_use=<Use {id(block_uses[1])}>, _next_use=None)>",
+    )
+
+    value_use_reprs = tuple(repr(use) for use in value_uses)
+    assert value_use_reprs == (
+        f"<Use {id(value_uses[0])}(_operation=<TestTermOp {id(ops[3])}>, _index=0, _prev_use=None, _next_use=<Use {id(value_uses[1])}>)>",
+        f"<Use {id(value_uses[1])}(_operation=<TestTermOp {id(ops[2])}>, _index=0, _prev_use=<Use {id(value_uses[0])}>, _next_use=None)>",
+    )

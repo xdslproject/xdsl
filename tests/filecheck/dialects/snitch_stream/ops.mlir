@@ -46,5 +46,5 @@ snitch_stream.streaming_region {
 // CHECK-GENERIC-NEXT:        %c = "riscv.fadd.d"(%a, %b) {fastmath = #riscv.fastmath<none>} : (!riscv.freg<ft0>, !riscv.freg<ft1>) -> !riscv.freg<ft2>
 // CHECK-GENERIC-NEXT:        "riscv_snitch.write"(%c, %c_stream) : (!riscv.freg<ft2>, !snitch.writable<!riscv.freg<ft2>>) -> ()
 // CHECK-GENERIC-NEXT:        "riscv_snitch.frep_yield"() : () -> ()
-// CHECK-GENERIC-NEXT:      }) {stagger_mask = #builtin.int<0>, stagger_count = #builtin.int<0>} : (!riscv.reg) -> ()
+// CHECK-GENERIC-NEXT:      }) {stagger_mask = 0 : i4, stagger_count = 0 : i3} : (!riscv.reg) -> ()
 // CHECK-GENERIC-NEXT:    }) : (!riscv.reg, !riscv.reg, !riscv.reg) -> ()

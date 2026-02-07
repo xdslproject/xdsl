@@ -11,6 +11,7 @@ from xdsl.builder import ImplicitBuilder
 from xdsl.context import Context
 from xdsl.dialects import memref, riscv, riscv_func
 from xdsl.dialects.builtin import (
+    DYNAMIC_INDEX,
     AnyFloat,
     DenseArrayBase,
     DenseIntOrFPElementsAttr,
@@ -47,7 +48,8 @@ class ConvertMemRefAllocOp(RewritePattern):
         assert isinstance(op_memref_type.element_type, FixedBitwidthType)
         width_in_bytes = op_memref_type.element_type.size
         size = prod(op_memref_type.get_shape()) * width_in_bytes
-        rewriter.replace_matched_op(
+        rewriter.replace_op(
+            op,
             (
                 size_op := riscv.LiOp(size, comment="memref alloc size"),
                 move_op := riscv.MVOp(size_op.rd, rd=riscv.Registers.A0),
@@ -58,7 +60,7 @@ class ConvertMemRefAllocOp(RewritePattern):
                 ),
                 move_op := riscv.MVOp(call.ress[0], rd=riscv.Registers.UNALLOCATED_INT),
                 UnrealizedConversionCastOp.get((move_op.rd,), (op.memref.type,)),
-            )
+            ),
         )
 
 
@@ -67,7 +69,8 @@ class ConvertMemRefDeallocOp(RewritePattern):
     def match_and_rewrite(
         self, op: memref.DeallocOp, rewriter: PatternRewriter
     ) -> None:
-        rewriter.replace_matched_op(
+        rewriter.replace_op(
+            op,
             (
                 ptr := UnrealizedConversionCastOp.get(
                     (op.memref,), (riscv.Registers.UNALLOCATED_INT,)
@@ -78,7 +81,7 @@ class ConvertMemRefDeallocOp(RewritePattern):
                     (move_op.rd,),
                     (),
                 ),
-            )
+            ),
         )
 
 
@@ -170,12 +173,12 @@ class ConvertMemRefStoreOp(RewritePattern):
         assert isinstance(op_memref_type := op.memref.type, memref.MemRefType)
         memref_type = cast(memref.MemRefType[Any], op_memref_type)
 
-        value, mem, *indices = cast_operands_to_regs(rewriter)
+        value, mem, *indices = cast_operands_to_regs(rewriter, op)
 
         shape = memref_type.get_shape()
         ops, ptr = get_strided_pointer(mem, indices, memref_type)
 
-        rewriter.insert_op_before_matched_op(ops)
+        rewriter.insert_op(ops)
         match value.type:
             case riscv.IntRegisterType():
                 new_op = riscv.SwOp(
@@ -204,7 +207,7 @@ class ConvertMemRefStoreOp(RewritePattern):
             case _:
                 raise ValueError(f"Unexpected register type {value.type}")
 
-        rewriter.replace_matched_op(new_op)
+        rewriter.replace_op(op, new_op)
 
 
 class ConvertMemRefLoadOp(RewritePattern):
@@ -215,11 +218,11 @@ class ConvertMemRefLoadOp(RewritePattern):
         )
         memref_type = cast(memref.MemRefType[Any], op_memref_type)
 
-        mem, *indices = cast_operands_to_regs(rewriter)
+        mem, *indices = cast_operands_to_regs(rewriter, op)
 
         shape = memref_type.get_shape()
         ops, ptr = get_strided_pointer(mem, indices, memref_type)
-        rewriter.insert_op_before_matched_op(ops)
+        rewriter.insert_op(ops)
 
         result_register_type = register_type_for_type(op.res.type)
 
@@ -245,7 +248,8 @@ class ConvertMemRefLoadOp(RewritePattern):
             case _:
                 raise ValueError(f"Unexpected register type {result_register_type}")
 
-        rewriter.replace_matched_op(
+        rewriter.replace_op(
+            op,
             [
                 lw := lw_op,
                 UnrealizedConversionCastOp.get(lw.results, (op.res.type,)),
@@ -280,17 +284,18 @@ class ConvertMemRefGlobalOp(RewritePattern):
             riscv.LabelOp(op.sym_name.data)
             riscv.DirectiveOp(".word", text)
 
-        rewriter.replace_matched_op(section)
+        rewriter.replace_op(op, section)
 
 
 class ConvertMemRefGetGlobalOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: memref.GetGlobalOp, rewriter: PatternRewriter):
-        rewriter.replace_matched_op(
+        rewriter.replace_op(
+            op,
             [
                 ptr := riscv.LiOp(op.name_.string_value()),
                 UnrealizedConversionCastOp.get((ptr,), (op.memref.type,)),
-            ]
+            ],
         )
 
 
@@ -330,8 +335,8 @@ class ConvertMemRefSubviewOp(RewritePattern):
         if isinstance(result_layout_attr, NoneAttr):
             # When a subview has no layout attr, the result is a perfect subview at offset
             # 0.
-            rewriter.replace_matched_op(
-                UnrealizedConversionCastOp.get((source,), (result_type,))
+            rewriter.replace_op(
+                op, UnrealizedConversionCastOp.get((source,), (result_type,))
             )
             return
 
@@ -344,8 +349,8 @@ class ConvertMemRefSubviewOp(RewritePattern):
         factor = result_type.element_type.size
 
         if offset == 0:
-            rewriter.replace_matched_op(
-                UnrealizedConversionCastOp.get((source,), (result_type,))
+            rewriter.replace_op(
+                op, UnrealizedConversionCastOp.get((source,), (result_type,))
             )
             return
 
@@ -361,7 +366,7 @@ class ConvertMemRefSubviewOp(RewritePattern):
             dynamic_offset_index = 0
             for static_offset in op.static_offsets.iter_values():
                 assert isinstance(static_offset, int)
-                if static_offset == memref.SubviewOp.DYNAMIC_INDEX:
+                if static_offset == DYNAMIC_INDEX:
                     index_ops.append(
                         cast_index_op := UnrealizedConversionCastOp.get(
                             (op.offsets[dynamic_offset_index],),
@@ -387,13 +392,14 @@ class ConvertMemRefSubviewOp(RewritePattern):
             offset_ops = (factor_op,)
             offset_rd = factor_op.rd
 
-        rewriter.replace_matched_op(
+        rewriter.replace_op(
+            op,
             (
                 src,
                 *index_ops,
                 *offset_ops,
                 UnrealizedConversionCastOp.get((offset_rd,), (result_type,)),
-            )
+            ),
         )
 
 
@@ -418,7 +424,8 @@ class ConvertMemRefToRiscvPass(ModulePass):
                     ConvertMemRefGlobalOp(xlen=self.xlen),
                     ConvertMemRefGetGlobalOp(),
                     ConvertMemRefSubviewOp(),
-                ]
+                ],
+                dce_enabled=False,
             )
         ).rewrite_module(op)
         if contains_malloc:

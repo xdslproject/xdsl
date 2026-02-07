@@ -31,7 +31,7 @@ class ReplaceCopySignOpByXilinxMath(RewritePattern):
 
         call = CallOp("llvm.copysign.f64", [op.lhs, op.rhs], [f64])
 
-        rewriter.replace_matched_op([call])
+        rewriter.replace_op(op, [call])
 
 
 @dataclass
@@ -49,7 +49,7 @@ class ReplaceMaximumfByXilinxMath(RewritePattern):
 
         call = CallOp("llvm.maxnum.f64", [op.lhs, op.rhs], [f64])
 
-        rewriter.replace_matched_op([call])
+        rewriter.replace_op(op, [call])
 
 
 @dataclass
@@ -67,7 +67,7 @@ class ReplaceAbsOpByXilinxMath(RewritePattern):
 
         call = CallOp("llvm.fabs.f64", [op.operand], [f64])
 
-        rewriter.replace_matched_op([call])
+        rewriter.replace_op(op, [call])
 
 
 @dataclass(frozen=True)

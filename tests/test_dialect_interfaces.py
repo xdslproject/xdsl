@@ -1,6 +1,7 @@
 import pytest
 
-from xdsl.dialect_interfaces import DialectInterface, OpAsmDialectInterface
+from xdsl.dialect_interfaces import DialectInterface
+from xdsl.dialect_interfaces.op_asm import OpAsmDialectInterface
 from xdsl.ir import Dialect
 
 

@@ -23,6 +23,7 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
+from xdsl.utils.op_selector import OpSelector
 
 
 def factors(num: int) -> tuple[int, ...]:
@@ -83,7 +84,9 @@ class IndexAndFactor(NamedTuple):
 
 @dataclass(frozen=True)
 class PipelineGenericPattern(RewritePattern):
-    pipeline_depth: int = field()
+    pipeline_depth: int
+    iterator_index: int | None = field(default=None)
+    unroll_factor: int | None = field(default=None)
 
     @staticmethod
     def indices_and_factors(
@@ -93,6 +96,9 @@ class PipelineGenericPattern(RewritePattern):
         Given a `memref_stream.generic` operation, returns all the possible options for
         unrolling.
         """
+        if memref_stream.IteratorTypeAttr.interleaved() in op.iterator_types:
+            # Already interleaved
+            return ()
         parallel_indices = tuple(
             index
             for index, iterator_type in enumerate(op.iterator_types)
@@ -119,15 +125,21 @@ class PipelineGenericPattern(RewritePattern):
             # No reduction
             return
 
-        indices_and_factors = self.indices_and_factors(op)
-        if not indices_and_factors:
-            return
+        assert (self.iterator_index is None) == (self.unroll_factor is None)
 
-        t = IndexAndFactor.choose(indices_and_factors, self.pipeline_depth)
-        if t is None:
-            return
+        if self.iterator_index is not None and self.unroll_factor is not None:
+            interleave_bound_index = self.iterator_index
+            interleave_factor = self.unroll_factor
+        else:
+            indices_and_factors = self.indices_and_factors(op)
+            if not indices_and_factors:
+                return
 
-        interleave_bound_index, interleave_factor = t
+            t = IndexAndFactor.choose(indices_and_factors, self.pipeline_depth)
+            if t is None:
+                return
+
+            interleave_bound_index, interleave_factor = t
 
         if interleave_factor == 1:
             # If unroll factor is 1, rewrite is a no-op
@@ -200,7 +212,8 @@ class PipelineGenericPattern(RewritePattern):
             interleave_bound // interleave_factor
         )
 
-        rewriter.replace_matched_op(
+        rewriter.replace_op(
+            op,
             memref_stream.GenericOp(
                 op.inputs,
                 op.outputs,
@@ -215,7 +228,7 @@ class PipelineGenericPattern(RewritePattern):
                 op.init_indices,
                 op.doc,
                 op.library_call,
-            )
+            ),
         )
 
 
@@ -237,9 +250,34 @@ class MemRefStreamInterleavePass(ModulePass):
     name = "memref-stream-interleave"
 
     pipeline_depth: int = field(default=4)
+    op_index: int | None = field(default=None)
+    iterator_index: int | None = field(default=None)
+    unroll_factor: int | None = field(default=None)
 
     def apply(self, ctx: Context, op: ModuleOp) -> None:
-        PatternRewriteWalker(
-            PipelineGenericPattern(self.pipeline_depth),
-            apply_recursively=False,
-        ).rewrite_module(op)
+        pattern = PipelineGenericPattern(
+            self.pipeline_depth,
+            self.iterator_index,
+            self.unroll_factor,
+        )
+        if self.op_index is not None:
+            matched_op = OpSelector(self.op_index, "memref_stream.generic").get_op(op)
+            pattern.match_and_rewrite(matched_op, PatternRewriter(matched_op))
+            return
+
+        PatternRewriteWalker(pattern, apply_recursively=False).rewrite_module(op)
+
+    @classmethod
+    def schedule_space(cls, ctx: Context, module_op: ModuleOp):
+        return tuple(
+            MemRefStreamInterleavePass(
+                op_index=op_idx,
+                iterator_index=iterator_index,
+                unroll_factor=unroll_factor,
+            )
+            for op_idx, matched_op in enumerate(module_op.walk())
+            if isinstance(matched_op, memref_stream.GenericOp)
+            for iterator_index, unroll_factor in PipelineGenericPattern.indices_and_factors(
+                matched_op
+            )
+        )

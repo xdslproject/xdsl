@@ -11,6 +11,7 @@ from typing_extensions import TypeVar
 
 from xdsl.dialects import builtin, memref
 from xdsl.dialects.builtin import (
+    DYNAMIC_INDEX,
     ArrayAttr,
     IndexType,
     IntAttr,
@@ -251,11 +252,11 @@ class StencilBoundsAttr(ParametrizedAttribute):
 
 @dataclass(frozen=True, init=False)
 class StencilType(
-    Generic[_FieldTypeElement],
     ParametrizedAttribute,
     TypeAttribute,
     builtin.ShapedType,
     builtin.ContainerType[_FieldTypeElement],
+    Generic[_FieldTypeElement],
 ):
     name = "stencil.type"
     bounds: StencilBoundsAttr | IntAttr
@@ -275,7 +276,7 @@ class StencilType(
 
     def get_shape(self) -> tuple[int, ...]:
         if isinstance(self.bounds, IntAttr):
-            return (-1,) * self.bounds.data
+            return (DYNAMIC_INDEX,) * self.bounds.data
         else:
             return tuple(self.bounds.ub - self.bounds.lb)
 
@@ -286,7 +287,7 @@ class StencilType(
     def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
         def parse_interval() -> tuple[int, int] | int:
             if parser.parse_optional_punctuation("?"):
-                return -1
+                return DYNAMIC_INDEX
             parser.parse_punctuation("[")
             l = parser.parse_integer(allow_boolean=False)
             parser.parse_punctuation(",")
@@ -370,10 +371,10 @@ class StencilType(
 
 @irdl_attr_definition(init=False)
 class FieldType(
-    Generic[_FieldTypeElement],
     StencilType[_FieldTypeElement],
     ParametrizedAttribute,
     TypeAttribute,
+    Generic[_FieldTypeElement],
 ):
     """
     stencil.field represents memory from which stencil input values will be loaded,
@@ -387,10 +388,10 @@ class FieldType(
 
 @irdl_attr_definition(init=False)
 class TempType(
-    Generic[_FieldTypeElement],
     StencilType[_FieldTypeElement],
     ParametrizedAttribute,
     TypeAttribute,
+    Generic[_FieldTypeElement],
 ):
     """
     stencil.temp represents stencil values, and is the type on which stencil.apply operates.
@@ -484,7 +485,7 @@ class ApplyOp(IRDLOperation):
         ApplyMemoryEffect(),
     )
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
     def print(self, printer: Printer):
         def print_assign_argument(args: tuple[BlockArgument, SSAValue, Attribute]):
@@ -824,10 +825,7 @@ class CombineOp(IRDLOperation):
 
     assembly_format = "$dim `at` $index `lower` `=` `(` $lower `:` type($lower) `)` `upper` `=` `(` $upper `:` type($upper) `)` (`lowerext` `=` $lowerext^ `:` type($lowerext))? (`upperext` `=` $upperext^ `:` type($upperext))? attr-dict-with-keyword `:` type($results_)"  # noqa: E501
 
-    irdl_options = [
-        AttrSizedOperandSegments(),
-        Pure(),
-    ]
+    irdl_options = (AttrSizedOperandSegments(),)
 
 
 class DynAccessOpHasShapeInferencePatternsTrait(HasShapeInferencePatternsTrait):
@@ -1346,9 +1344,13 @@ class BufferOp(IRDLOperation):
         if isinstance(self.res.type, FieldType):
             return
         if not isinstance(self.temp.owner, ApplyOp | CombineOp):
+            owner = (
+                "block argument"
+                if isinstance(self.temp.owner, Block)
+                else self.temp.owner.name
+            )
             raise VerifyException(
-                f"Expected stencil.buffer to buffer a stencil.apply or stencil.combine's output, got "
-                f"{self.temp.owner}"
+                f"Expected stencil.buffer operand to be a result of stencil.apply or stencil.combine got {owner}"
             )
         if any(not isinstance(use.operation, BufferOp) for use in self.temp.uses):
             raise VerifyException(

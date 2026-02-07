@@ -14,20 +14,20 @@ def subview_module():
     assert isa(input.memref.type, memref.MemRefType)
 
     subview = memref.SubviewOp.from_static_parameters(
-        input, input.memref.type, [1, 2, 3, 4], [90, 95, 1, 80], [3, 4, 1, 2]
+        input, input.memref.type, [1, 2, 3, 4], [30, 95, 1, 80], [3, 2, 1, 4]
     )
     assert isa(subview.result.type, memref.MemRefType)
 
     memref.SubviewOp.from_static_parameters(
-        subview, subview.result.type, [2, 5, 6, 1], [70, 1, 20, 64], [1, 5, 3, 2]
+        subview, subview.result.type, [2, 5, 0, 6], [20, 15, 1, 20], [1, 5, 1, 3]
     )
 
     subview_reduced = memref.SubviewOp.from_static_parameters(
         input,
         input.memref.type,
         [1, 2, 3, 4],
-        [90, 95, 1, 80],
-        [3, 4, 1, 2],
+        [30, 95, 1, 80],
+        [3, 2, 1, 4],
         reduce_rank=True,
     )
     assert isa(subview_reduced.result.type, memref.MemRefType)
@@ -36,7 +36,7 @@ def subview_module():
         subview_reduced,
         subview_reduced.result.type,
         [2, 5, 6],
-        [70, 1, 20],
+        [20, 1, 20],
         [1, 5, 3],
         reduce_rank=True,
     )
@@ -46,5 +46,5 @@ p = Printer()
 p.print_op(subview_module)
 
 # Check the rank-reduced output more than just MLIR verification, cause MLIR verification is a bit more flexible here than desired by the constructor
-# CHECK:      %subview_1 = memref.subview %alloc[1, 2, 3, 4] [90, 95, 1, 80] [3, 4, 1, 2] : memref<100x200x300x400xf32> to memref<90x95x80xf32, strided<[72000000, 480000, 2], offset: 24241204>>
-# CHECK-NEXT: %subview_2 = memref.subview %subview_1[2, 5, 6] [70, 1, 20] [1, 5, 3] : memref<90x95x80xf32, strided<[72000000, 480000, 2], offset: 24241204>> to memref<70x20xf32, strided<[72000000, 6], offset: 170641216>>
+# CHECK:      %subview_1 = memref.subview %alloc[1, 2, 3, 4] [30, 95, 1, 80] [3, 2, 1, 4] : memref<100x200x300x400xf32> to memref<30x95x80xf32, strided<[72000000, 240000, 4], offset: 24241204>>
+# CHECK-NEXT: %subview_2 = memref.subview %subview_1[2, 5, 6] [20, 1, 20] [1, 5, 3] : memref<30x95x80xf32, strided<[72000000, 240000, 4], offset: 24241204>> to memref<20x20xf32, strided<[72000000, 12], offset: 169441228>>

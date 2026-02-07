@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.15.2"
+__generated_with = "0.17.2"
 app = marimo.App(width="medium")
 
 
@@ -26,8 +26,8 @@ def _(mo):
 def _(mo):
     mo.md(
         r"""
-    This notebook presents the `eqsat` dialect with examples.
-    The `eqsat` dialect refers to [e-graph](https://egraphs-good.github.io/), a graph representation of multiple functionally equivalent programs.
+    This notebook presents the `equivalence` dialect with examples.
+    The `equivalence` dialect refers to [e-graph](https://egraphs-good.github.io/), a graph representation of multiple functionally equivalent programs.
 
     Here is an MLIR module with an input function and three rewrites lowered to the [pdl_interp dialect](https://mlir.llvm.org/docs/Dialects/PDLInterpOps/):
     """
@@ -48,7 +48,7 @@ def _(ctx, input_module_string, xmo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""We start by adding eclass ops, which represent a union of multiple ways of calculating the same value:""")
+    mo.md(r"""We start by adding e-class ops, which represent a union of multiple ways of calculating the same value:""")
     return
 
 
@@ -83,7 +83,7 @@ def _(Parser, ctx, eclass_module, pdl_interp_module_string, xmo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""We then add the costs, which for now is just the number of operations to compute a given result:""")
+    mo.md(r"""We then add the costs. For now we give each operation a cost of `1`. This means the program with the lowest cost will be the program with the least amount of operations. Each e-class now also gets a `min_cost_index` attribute, referring to the value in its operand list with the lowest cost:""")
     return
 
 
@@ -91,8 +91,7 @@ def _(mo):
 def _(ctx, saturated_module, xmo):
     from xdsl.transforms.eqsat_add_costs import EqsatAddCostsPass
 
-    # Use a default cost since the resulting IR is currently recursive and we can't handle that
-    _, cost_module = EqsatAddCostsPass(default=1000).apply_to_clone(ctx, saturated_module)
+    _, cost_module = EqsatAddCostsPass(default=1).apply_to_clone(ctx, saturated_module)
 
     xmo.module_html(cost_module)
     return (cost_module,)
@@ -117,9 +116,9 @@ def _(cost_module, ctx, xmo):
 @app.cell
 def _(extracted_module):
     def test_no_eclass():
-        from xdsl.dialects.eqsat import EClassOp
-        "Test that the extracted module doesn't contain eclass ops"
-        eclass_ops = tuple(op for op in extracted_module.walk() if isinstance(op, EClassOp))
+        from xdsl.dialects.equivalence import ClassOp
+        "Test that the extracted module doesn't contain e-class ops"
+        eclass_ops = tuple(op for op in extracted_module.walk() if isinstance(op, ClassOp))
         assert not eclass_ops
     return
 
@@ -138,10 +137,10 @@ def _():
     pdl_interp_module_string = """
 
     pdl_interp.func @matcher(%arg0: !pdl.operation) {
-      %0 = pdl_interp.get_result 0 of %arg0
+      %0 = eqsat_pdl_interp.get_result 0 of %arg0
       pdl_interp.is_not_null %0 : !pdl.value -> ^bb2, ^bb1
     ^bb1:  // 21 preds: ^bb0, ^bb2, ^bb3, ^bb4, ^bb5, ^bb7, ^bb8, ^bb19, ^bb20, ^bb21, ^bb22, ^bb23, ^bb24, ^bb25, ^bb26, ^bb27, ^bb28, ^bb29, ^bb30, ^bb31, ^bb32
-      pdl_interp.finalize
+      eqsat_pdl_interp.finalize
     ^bb2:  // pred: ^bb0
       // "pdl_interp.switch_operation_name"(%arg0)[^bb1, ^bb3, ^bb19] <{caseValues = ["arith.divui", "arith.muli"]}> : (!pdl.operation) -> ()
       pdl_interp.switch_operation_name of %arg0 to ["arith.divui", "arith.muli"](^bb3, ^bb19) -> ^bb1
@@ -160,9 +159,9 @@ def _():
       pdl_interp.are_equal %1, %3 : !pdl.value -> ^bb8, ^bb1
     ^bb8:  // pred: ^bb7
       %4 = pdl_interp.get_value_type of %0 : !pdl.type
-      pdl_interp.record_match @rewriters::@pdl_generated_rewriter(%4, %arg0 : !pdl.type, !pdl.operation) : benefit(1), generatedOps(["arith.constant"]), loc([%arg0]), root("arith.divui") -> ^bb1
+      eqsat_pdl_interp.record_match @rewriters::@pdl_generated_rewriter(%4, %arg0 : !pdl.type, !pdl.operation) : benefit(1), generatedOps(["arith.constant"]), loc([%arg0]), root("arith.divui") -> ^bb1
     ^bb9:  // pred: ^bb6
-      %5 = pdl_interp.get_defining_op of %1 : !pdl.value
+      %5 = eqsat_pdl_interp.get_defining_op of %1 : !pdl.value
       pdl_interp.is_not_null %5 : !pdl.operation -> ^bb10, ^bb7
     ^bb10:  // pred: ^bb9
       pdl_interp.check_operation_name of %5 is "arith.muli" -> ^bb11, ^bb7
@@ -177,7 +176,7 @@ def _():
       %7 = pdl_interp.get_operand 1 of %5
       pdl_interp.is_not_null %7 : !pdl.value -> ^bb15, ^bb7
     ^bb15:  // pred: ^bb14
-      %8 = pdl_interp.get_result 0 of %5
+      %8 = eqsat_pdl_interp.get_result 0 of %5
       pdl_interp.is_not_null %8 : !pdl.value -> ^bb16, ^bb7
     ^bb16:  // pred: ^bb15
       pdl_interp.are_equal %8, %1 : !pdl.value -> ^bb17, ^bb7
@@ -186,7 +185,7 @@ def _():
       %10 = pdl_interp.get_value_type of %0 : !pdl.type
       pdl_interp.are_equal %9, %10 : !pdl.type -> ^bb18, ^bb7
     ^bb18:  // pred: ^bb17
-      pdl_interp.record_match @rewriters::@pdl_generated_rewriter_0(%7, %2, %9, %6, %arg0 : !pdl.value, !pdl.value, !pdl.type, !pdl.value, !pdl.operation) : benefit(1), generatedOps(["arith.divui", "arith.muli"]), loc([%arg0, %5]), root("arith.divui") -> ^bb7
+      eqsat_pdl_interp.record_match @rewriters::@pdl_generated_rewriter_0(%7, %2, %9, %6, %arg0 : !pdl.value, !pdl.value, !pdl.type, !pdl.value, !pdl.operation) : benefit(1), generatedOps(["arith.divui", "arith.muli"]), loc([%arg0, %5]), root("arith.divui") -> ^bb7
     ^bb19:  // pred: ^bb2
       pdl_interp.check_operand_count of %arg0 is 2 -> ^bb20, ^bb1
     ^bb20:  // pred: ^bb19
@@ -198,7 +197,7 @@ def _():
       %12 = pdl_interp.get_operand 1 of %arg0
       pdl_interp.is_not_null %12 : !pdl.value -> ^bb23, ^bb1
     ^bb23:  // pred: ^bb22
-      %13 = pdl_interp.get_defining_op of %12 : !pdl.value
+      %13 = eqsat_pdl_interp.get_defining_op of %12 : !pdl.value
       pdl_interp.is_not_null %13 : !pdl.operation -> ^bb24, ^bb1
     ^bb24:  // pred: ^bb23
       pdl_interp.check_operation_name of %13 is "arith.constant" -> ^bb25, ^bb1
@@ -212,7 +211,7 @@ def _():
     ^bb28:  // pred: ^bb27
       pdl_interp.check_attribute %14 is 1 : i32 -> ^bb29, ^bb1
     ^bb29:  // pred: ^bb28
-      %15 = pdl_interp.get_result 0 of %13
+      %15 = eqsat_pdl_interp.get_result 0 of %13
       pdl_interp.is_not_null %15 : !pdl.value -> ^bb30, ^bb1
     ^bb30:  // pred: ^bb29
       pdl_interp.are_equal %15, %12 : !pdl.value -> ^bb31, ^bb1
@@ -221,28 +220,28 @@ def _():
       %17 = pdl_interp.get_value_type of %0 : !pdl.type
       pdl_interp.are_equal %16, %17 : !pdl.type -> ^bb32, ^bb1
     ^bb32:  // pred: ^bb31
-      pdl_interp.record_match @rewriters::@pdl_generated_rewriter_1(%11, %arg0 : !pdl.value, !pdl.operation) : benefit(1), loc([%arg0, %13]), root("arith.muli") -> ^bb1
+      eqsat_pdl_interp.record_match @rewriters::@pdl_generated_rewriter_1(%11, %arg0 : !pdl.value, !pdl.operation) : benefit(1), loc([%arg0, %13]), root("arith.muli") -> ^bb1
     }
     module @rewriters {
       pdl_interp.func @pdl_generated_rewriter(%arg0: !pdl.type, %arg1: !pdl.operation) {
         %0 = pdl_interp.create_attribute 1 : i32
-        %1 = pdl_interp.create_operation "arith.constant" {"value" = %0}  -> (%arg0 : !pdl.type)
-        %2 = pdl_interp.get_results of %1 : !pdl.range<value>
-        pdl_interp.replace %arg1 with (%2 : !pdl.range<value>)
-        pdl_interp.finalize
+        %1 = eqsat_pdl_interp.create_operation "arith.constant" {"value" = %0}  -> (%arg0 : !pdl.type)
+        %2 = eqsat_pdl_interp.get_results of %1 : !pdl.range<value>
+        eqsat_pdl_interp.replace %arg1 with (%2 : !pdl.range<value>)
+        eqsat_pdl_interp.finalize
       }
       pdl_interp.func @pdl_generated_rewriter_0(%arg0: !pdl.value, %arg1: !pdl.value, %arg2: !pdl.type, %arg3: !pdl.value, %arg4: !pdl.operation) {
-        %0 = pdl_interp.create_operation "arith.divui"(%arg0, %arg1 : !pdl.value, !pdl.value)  -> (%arg2 : !pdl.type)
-        %1 = pdl_interp.get_result 0 of %0
-        %2 = pdl_interp.create_operation "arith.muli"(%arg3, %1 : !pdl.value, !pdl.value)  -> (%arg2 : !pdl.type)
-        %3 = pdl_interp.get_result 0 of %2
-        %4 = pdl_interp.get_results of %2 : !pdl.range<value>
-        pdl_interp.replace %arg4 with (%4 : !pdl.range<value>)
-        pdl_interp.finalize
+        %0 = eqsat_pdl_interp.create_operation "arith.divui"(%arg0, %arg1 : !pdl.value, !pdl.value)  -> (%arg2 : !pdl.type)
+        %1 = eqsat_pdl_interp.get_result 0 of %0
+        %2 = eqsat_pdl_interp.create_operation "arith.muli"(%arg3, %1 : !pdl.value, !pdl.value)  -> (%arg2 : !pdl.type)
+        %3 = eqsat_pdl_interp.get_result 0 of %2
+        %4 = eqsat_pdl_interp.get_results of %2 : !pdl.range<value>
+        eqsat_pdl_interp.replace %arg4 with (%4 : !pdl.range<value>)
+        eqsat_pdl_interp.finalize
       }
       pdl_interp.func @pdl_generated_rewriter_1(%arg0: !pdl.value, %arg1: !pdl.operation) {
-        pdl_interp.replace %arg1 with (%arg0 : !pdl.value)
-        pdl_interp.finalize
+        eqsat_pdl_interp.replace %arg1 with (%arg0 : !pdl.value)
+        eqsat_pdl_interp.finalize
       }
     }
     """

@@ -22,9 +22,9 @@ class SignlessIntegerBinaryOperationZeroOrUnitRight(RewritePattern):
         if (rhs := const_evaluate_operand_attribute(op.rhs)) is None:
             return
         if op.is_right_zero(rhs):
-            rewriter.replace_matched_op((), (op.rhs,))
+            rewriter.replace_op(op, (), (op.rhs,))
         elif op.is_right_unit(rhs):
-            rewriter.replace_matched_op((), (op.lhs,))
+            rewriter.replace_op(op, (), (op.lhs,))
 
 
 class SignlessIntegerBinaryOperationConstantProp(RewritePattern):
@@ -37,15 +37,18 @@ class SignlessIntegerBinaryOperationConstantProp(RewritePattern):
         if (rhs := const_evaluate_operand(op.rhs)) is None:
             # Swap inputs if lhs is constant and rhs is not
             if op.has_trait(Commutative):
-                rewriter.replace_matched_op(op.__class__(op.rhs, op.lhs))
+                rewriter.replace_op(op, op.__class__(op.rhs, op.lhs))
             return
 
         if (res := op.py_operation(lhs, rhs)) is None:
             return
         assert isinstance(op.result.type, IntegerType | IndexType)
 
-        rewriter.replace_matched_op(
-            arith.ConstantOp.from_int_and_width(res, op.result.type, truncate_bits=True)
+        rewriter.replace_op(
+            op,
+            arith.ConstantOp.from_int_and_width(
+                res, op.result.type, truncate_bits=True
+            ),
         )
 
 
@@ -93,7 +96,7 @@ class FoldConstConstOp(RewritePattern):
             and isa(r := op.rhs.owner.value, builtin.FloatAttr)
             and (cnst := _fold_const_operation(type(op), l, r))
         ):
-            rewriter.replace_matched_op(cnst)
+            rewriter.replace_op(op, cnst)
 
 
 class FoldConstsByReassociation(RewritePattern):
@@ -132,7 +135,7 @@ class FoldConstsByReassociation(RewritePattern):
         if cnsts := _fold_const_operation(type(op), c1, c2):
             flags = arith.FastMathFlagsAttr(list(op.fastmath.flags | u.fastmath.flags))
             rebuild = type(op)(cnsts, val, flags)
-            rewriter.replace_matched_op([cnsts, rebuild])
+            rewriter.replace_op(op, [cnsts, rebuild])
             rewriter.replace_op(u, [], [rebuild.result])
 
 
@@ -150,7 +153,7 @@ class SelectConstPattern(RewritePattern):
             return
 
         new_results = (op.lhs,) if const_value else (op.rhs,)
-        rewriter.replace_matched_op((), new_results)
+        rewriter.replace_op(op, (), new_results)
 
 
 class SelectTrueFalsePattern(RewritePattern):
@@ -170,10 +173,10 @@ class SelectTrueFalsePattern(RewritePattern):
             return
 
         if lhs and not rhs:
-            rewriter.replace_matched_op((), (op.cond,))
+            rewriter.replace_op(op, (), (op.cond,))
 
         if not lhs and rhs:
-            rewriter.replace_matched_op(arith.XOrIOp(op.cond, op.rhs))
+            rewriter.replace_op(op, arith.XOrIOp(op.cond, op.rhs))
 
 
 class SelectSamePattern(RewritePattern):
@@ -184,7 +187,7 @@ class SelectSamePattern(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: arith.SelectOp, rewriter: PatternRewriter):
         if op.lhs == op.rhs:
-            rewriter.replace_matched_op((), (op.lhs,))
+            rewriter.replace_op(op, (), (op.lhs,))
 
 
 class SelectFoldCmpfPattern(RewritePattern):
@@ -217,7 +220,7 @@ class SelectFoldCmpfPattern(RewritePattern):
                 target = arith.MinimumfOp
             case _:
                 return
-        rewriter.replace_matched_op(target(op.lhs, op.rhs, cmpf.fastmath))
+        rewriter.replace_op(op, target(op.lhs, op.rhs, cmpf.fastmath))
 
 
 class ApplyCmpiPredicateToEqualOperands(RewritePattern):
@@ -226,4 +229,4 @@ class ApplyCmpiPredicateToEqualOperands(RewritePattern):
         if op.lhs != op.rhs:
             return
         val = op.predicate.value.data in (0, 3, 5, 7, 9)
-        rewriter.replace_matched_op(arith.ConstantOp(BoolAttr.from_bool(val)))
+        rewriter.replace_op(op, arith.ConstantOp(BoolAttr.from_bool(val)))

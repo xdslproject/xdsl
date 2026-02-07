@@ -4,6 +4,9 @@ import abc
 from collections.abc import Mapping, Sequence
 from typing import ClassVar, Literal, cast
 
+from xdsl.dialect_interfaces.constant_materialization import (
+    ConstantMaterializationInterface,
+)
 from xdsl.dialects.builtin import (
     AnyFloat,
     AnyFloatConstr,
@@ -27,7 +30,14 @@ from xdsl.dialects.builtin import (
     VectorType,
 )
 from xdsl.dialects.utils import FastMathAttrBase, FastMathFlag
-from xdsl.ir import Attribute, BitEnumAttribute, Dialect, Operation, SSAValue
+from xdsl.interfaces import ConstantLikeInterface, HasFolderInterface
+from xdsl.ir import (
+    Attribute,
+    BitEnumAttribute,
+    Dialect,
+    Operation,
+    SSAValue,
+)
 from xdsl.irdl import (
     AnyAttr,
     AnyOf,
@@ -48,7 +58,6 @@ from xdsl.printer import Printer
 from xdsl.traits import (
     Commutative,
     ConditionallySpeculatable,
-    ConstantLike,
     HasCanonicalizationPatternsTrait,
     NoMemoryEffect,
     Pure,
@@ -128,7 +137,7 @@ class IntegerOverflowAttr(BitEnumAttribute[IntegerOverflowFlag]):
 
 
 @irdl_op_definition
-class ConstantOp(IRDLOperation):
+class ConstantOp(IRDLOperation, ConstantLikeInterface):
     name = "arith.constant"
     _T: ClassVar = VarConstraint("T", AnyAttr())
     result = result_def(_T)
@@ -139,7 +148,7 @@ class ConstantOp(IRDLOperation):
         | ParamAttrConstraint(DenseResourceAttr, (AnyAttr(), _T))
     )
 
-    traits = traits_def(ConstantLike(), Pure())
+    traits = traits_def(Pure())
 
     assembly_format = "attr-dict $value"
 
@@ -171,8 +180,11 @@ class ConstantOp(IRDLOperation):
             },
         )
 
+    def get_constant_value(self) -> Attribute:
+        return self.value
 
-class SignlessIntegerBinaryOperation(IRDLOperation, abc.ABC):
+
+class SignlessIntegerBinaryOperation(IRDLOperation, HasFolderInterface, abc.ABC):
     """A generic base class for arith's binary operations on signless integers."""
 
     T: ClassVar = VarConstraint("T", signlessIntegerLike)
@@ -214,6 +226,22 @@ class SignlessIntegerBinaryOperation(IRDLOperation, abc.ABC):
         See external [documentation](https://en.wikipedia.org/wiki/Identity_element).
         """
         return False
+
+    def fold(self):
+        lhs = self.get_constant(self.lhs)
+        rhs = self.get_constant(self.rhs)
+        if lhs is not None and rhs is not None:
+            if isa(lhs, IntegerAttr) and isa(rhs, IntegerAttr):
+                assert lhs.type == rhs.type
+                result = self.py_operation(lhs.value.data, rhs.value.data)
+                if result is not None:
+                    return (IntegerAttr(result, lhs.type),)
+        if isa(rhs, IntegerAttr) and self.is_right_unit(rhs):
+            return (self.lhs,)
+        if not self.has_trait(Commutative):
+            return None
+        if isa(lhs, IntegerAttr) and self.is_right_unit(lhs):
+            return (self.rhs,)
 
     def __init__(
         self,
@@ -1178,6 +1206,8 @@ class BitcastOp(IRDLOperation):
         | MemRefType.constr(element_type=AnyFloatConstr | SignlessIntegerConstraint)
     )
 
+    traits = traits_def(Pure())
+
     assembly_format = "$input attr-dict `:` type($input) `to` type($result)"
 
     def __init__(self, in_arg: SSAValue | Operation, target_type: Attribute):
@@ -1373,6 +1403,14 @@ class ExtUIOp(IRDLOperation):
     traits = traits_def(Pure())
 
 
+class ArithConstantMaterializationInterface(ConstantMaterializationInterface):
+    def materialize_constant(self, value: Attribute, type: Attribute) -> Operation:
+        return cast(
+            Operation,
+            ConstantOp.build(properties={"value": value}, result_types=(type,)),
+        )
+
+
 Arith = Dialect(
     "arith",
     [
@@ -1434,5 +1472,8 @@ Arith = Dialect(
     [
         FastMathFlagsAttr,
         IntegerOverflowAttr,
+    ],
+    [
+        ArithConstantMaterializationInterface(),
     ],
 )

@@ -161,6 +161,52 @@ class ArithFunctions(InterpreterFunctions):
                     f"arith.cmpi predicate {op.predicate} mot implemented yet."
                 )
 
+    @impl(arith.CmpfOp)
+    def run_cmpf(self, interpreter: Interpreter, op: arith.CmpfOp, args: PythonValues):
+        x = args[0]
+        y = args[1]
+
+        o = not isnan(x) and not isnan(y)
+        u = isnan(x) or isnan(y)
+
+        match op.predicate.value.data:
+            case 0:
+                return (False,)
+            case 1:
+                return ((x == y) and o,)
+            case 2:
+                return ((x > y) and o,)
+            case 3:
+                return ((x >= y) and o,)
+            case 4:
+                return ((x < y) and o,)
+            case 5:
+                return ((x <= y) and o,)
+            case 6:
+                return ((x != y) and o,)
+            case 7:
+                return (o,)
+            case 8:
+                return ((x == y) or u,)
+            case 9:
+                return ((x > y) or u,)
+            case 10:
+                return ((x >= y) or u,)
+            case 11:
+                return ((x < y) or u,)
+            case 12:
+                return ((x <= y) or u,)
+            case 13:
+                return ((x != y) or u,)
+            case 14:
+                return (u,)
+            case 15:
+                return (True,)
+            case _:
+                raise InterpretationError(
+                    f"arith.cmpf predicate {op.predicate} mot implemented yet."
+                )
+
     @impl(arith.ShLIOp)
     def run_shlsi(self, interpreter: Interpreter, op: arith.ShLIOp, args: PythonValues):
         lhs: int

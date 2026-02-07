@@ -28,7 +28,7 @@ class VectorBroadcastToX86(RewritePattern):
     def match_and_rewrite(self, op: vector.BroadcastOp, rewriter: PatternRewriter):
         # Get the register to be broadcasted
         source_cast_op, source_x86 = UnrealizedConversionCastOp.cast_one(
-            op.source, x86.register.UNALLOCATED_GENERAL
+            op.source, x86.registers.UNALLOCATED_GENERAL
         )
         # Actually broadcast the register
         element_type = op.source.type
@@ -56,7 +56,7 @@ class VectorBroadcastToX86(RewritePattern):
             broadcast_op.destination, op.vector.type
         )
 
-        rewriter.replace_matched_op([source_cast_op, broadcast_op, dest_cast_op])
+        rewriter.replace_op(op, [source_cast_op, broadcast_op, dest_cast_op])
 
 
 @dataclass
@@ -97,8 +97,8 @@ class VectorFMAToX86(RewritePattern):
         res_cast_op = UnrealizedConversionCastOp.get(
             (fma_op.register_out,), (vect_type,)
         )
-        rewriter.replace_matched_op(
-            [lhs_cast_op, rhs_cast_op, acc_cast_op, fma_op, res_cast_op]
+        rewriter.replace_op(
+            op, [lhs_cast_op, rhs_cast_op, acc_cast_op, fma_op, res_cast_op]
         )
 
 
@@ -115,7 +115,8 @@ class ConvertVectorToX86Pass(ModulePass):
                 [
                     VectorFMAToX86(arch),
                     VectorBroadcastToX86(arch),
-                ]
+                ],
+                dce_enabled=False,
             ),
             apply_recursively=False,
         ).rewrite_module(op)

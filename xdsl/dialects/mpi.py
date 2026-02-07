@@ -115,7 +115,7 @@ _VectorT = TypeVar("_VectorT", bound=VectorWrappable, default=VectorWrappable)
 
 
 @irdl_attr_definition
-class VectorType(Generic[_VectorT], ParametrizedAttribute, TypeAttribute):
+class VectorType(ParametrizedAttribute, TypeAttribute, Generic[_VectorT]):
     """
     This type holds multiple MPI types
     """
@@ -676,7 +676,7 @@ class UnwrapMemRefOp(MPIBaseOp):
     def __init__(self, ref: SSAValue | Operation):
         return super().__init__(
             operands=[ref],
-            result_types=[llvm.LLVMPointerType.opaque(), i32, DataType()],
+            result_types=[llvm.LLVMPointerType(), i32, DataType()],
         )
 
 

@@ -9,29 +9,35 @@ def test_simple():
     table[1] = 2
 
     assert table[1] == 2
+    assert table.local_scope == {1: 2}
 
     table[2] = 3
 
     assert table[2] == 3
+    assert table.local_scope == {1: 2, 2: 3}
 
-    with pytest.raises(ValueError, match="Cannot overwrite value 3 for key 2"):
-        table[2] = 4
+    table[2] = 4
+    assert table.local_scope == {1: 2, 2: 4}
 
     with pytest.raises(KeyError):
         table[3]
 
     inner = ScopedDict(table, name="inner")
 
-    inner[2] = 4
+    inner[2] = 5
 
-    assert inner[2] == 4
-    assert table[2] == 3
+    assert inner[2] == 5
+    assert table[2] == 4
+    assert table.local_scope == {1: 2, 2: 4}
+    assert inner.local_scope == {2: 5}
 
-    inner[3] = 5
+    inner[3] = 6
 
     assert 3 not in table
     assert 3 in inner
     assert 4 not in inner
+    assert table.local_scope == {1: 2, 2: 4}
+    assert inner.local_scope == {2: 5, 3: 6}
 
 
 def test_get():

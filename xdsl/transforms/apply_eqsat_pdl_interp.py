@@ -1,10 +1,19 @@
 import os
+from collections.abc import Callable
 from dataclasses import dataclass
 
 from xdsl.context import Context
 from xdsl.dialects import builtin, pdl_interp
-from xdsl.interpreter import Interpreter
+from xdsl.interpreter import (
+    Interpreter,
+    InterpreterFunctions,
+    PythonValues,
+    impl_external,
+    register_impls,
+)
 from xdsl.interpreters.eqsat_pdl_interp import EqsatPDLInterpFunctions
+from xdsl.interpreters.pdl_interp import PDLInterpFunctions
+from xdsl.ir import Operation
 from xdsl.parser import Parser
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import PatternRewriterListener, PatternRewriteWalker
@@ -15,11 +24,23 @@ _DEFAULT_MAX_ITERATIONS = 20
 """Default number of times to iterate over the module."""
 
 
+# TODO: remove the constraint functions here (https://github.com/xdslproject/xdsl/issues/5391)
+@register_impls
+class EqsatConstraintFunctions(InterpreterFunctions):
+    @impl_external("is_not_unsound")
+    def run_is_not_unsound(
+        self, interp: Interpreter, _op: Operation, args: PythonValues
+    ):
+        assert isinstance(op := args[0], Operation)
+        return "unsound" not in op.attributes, ()
+
+
 def apply_eqsat_pdl_interp(
     op: builtin.ModuleOp,
     ctx: Context,
     pdl_interp_module: builtin.ModuleOp,
     max_iterations: int = _DEFAULT_MAX_ITERATIONS,
+    callback: Callable[[builtin.ModuleOp], None] | None = None,
 ):
     matcher = SymbolTable.lookup_symbol(pdl_interp_module, "matcher")
     assert isinstance(matcher, pdl_interp.FuncOp)
@@ -27,13 +48,21 @@ def apply_eqsat_pdl_interp(
 
     # Initialize interpreter and implementations once
     interpreter = Interpreter(pdl_interp_module)
-    implementations = EqsatPDLInterpFunctions(ctx)
-    implementations.populate_known_ops(op)
-    interpreter.register_implementations(implementations)
-    rewrite_pattern = PDLInterpRewritePattern(matcher, interpreter, implementations)
+    pdl_interp_functions = PDLInterpFunctions()
+    eqsat_pdl_interp_functions = EqsatPDLInterpFunctions()
+    PDLInterpFunctions.set_ctx(interpreter, ctx)
+    eqsat_pdl_interp_functions.populate_known_ops(op)
+    interpreter.register_implementations(eqsat_pdl_interp_functions)
+    interpreter.register_implementations(pdl_interp_functions)
+    interpreter.register_implementations(EqsatConstraintFunctions())
+    rewrite_pattern = PDLInterpRewritePattern(
+        matcher, interpreter, pdl_interp_functions
+    )
 
     listener = PatternRewriterListener()
-    listener.operation_modification_handler.append(implementations.modification_handler)
+    listener.operation_modification_handler.append(
+        eqsat_pdl_interp_functions.modification_handler
+    )
     walker = PatternRewriteWalker(rewrite_pattern, apply_recursively=False)
     walker.listener = listener
 
@@ -41,12 +70,14 @@ def apply_eqsat_pdl_interp(
         # Register matches by walking the module
         walker.rewrite_module(op)
         # Execute all pending rewrites that were aggregated during matching
-        implementations.execute_pending_rewrites(interpreter)
+        eqsat_pdl_interp_functions.execute_pending_rewrites(interpreter)
 
-        if not implementations.worklist:
+        if not eqsat_pdl_interp_functions.worklist:
             break
 
-        implementations.rebuild()
+        eqsat_pdl_interp_functions.rebuild(interpreter)
+        if callback is not None:
+            callback(op)
 
 
 @dataclass(frozen=True)

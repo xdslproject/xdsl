@@ -13,6 +13,7 @@ from xdsl.dialects.builtin import (
     ArrayAttr,
     BoolAttr,
     ContainerOf,
+    DenseIntElementsAttr,
     DictionaryAttr,
     Float16Type,
     Float32Type,
@@ -25,6 +26,7 @@ from xdsl.dialects.builtin import (
     SymbolNameConstraint,
     SymbolRefAttr,
     UnitAttr,
+    VectorType,
 )
 from xdsl.dialects.pdl import (
     AnyPDLType,
@@ -68,6 +70,14 @@ from xdsl.irdl import (
     var_result_def,
     var_successor_def,
 )
+from xdsl.irdl.declarative_assembly_format import (
+    CustomDirective,
+    ParsingState,
+    PrintingState,
+    TypeDirective,
+    VariadicOperandVariable,
+    irdl_custom_directive,
+)
 from xdsl.parser import Parser
 from xdsl.printer import Printer
 from xdsl.traits import (
@@ -103,6 +113,60 @@ class GetOperandOp(IRDLOperation):
         super().__init__(
             operands=[input_op], properties={"index": index}, result_types=[ValueType()]
         )
+
+
+@irdl_op_definition
+class GetOperandsOp(IRDLOperation):
+    """
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interpget_operands-pdl_interpgetoperandsop).
+    """
+
+    name = "pdl_interp.get_operands"
+    index = opt_prop_def(IntegerAttr[I32])
+    input_op = operand_def(OperationType)
+    value = result_def(ValueType | RangeType[ValueType])
+
+    # TODO: assembly format doesn't work due to a bug:
+    # https://github.com/xdslproject/xdsl/issues/5562
+    # assembly_format = "($index^)? `of` $input_op `:` type($value) attr-dict"
+
+    def __init__(
+        self,
+        index: int | IntegerAttr[I32] | None,
+        input_op: SSAValue,
+        result_type: ValueType | RangeType[ValueType],
+    ) -> None:
+        if isinstance(index, int):
+            index = IntegerAttr.from_int_and_width(index, 32)
+        super().__init__(
+            operands=[input_op],
+            properties={"index": index},
+            result_types=[result_type],
+        )
+
+    @classmethod
+    def parse(cls, parser: Parser) -> GetOperandsOp:
+        index = parser.parse_optional_integer()
+        if index is not None:
+            index = IntegerAttr.from_int_and_width(index, 32)
+        parser.parse_characters("of")
+        input_op = parser.parse_operand()
+        parser.parse_punctuation(":")
+        result_type = parser.parse_type()
+        return GetOperandsOp.build(
+            operands=(input_op,),
+            properties={"index": index},
+            result_types=(result_type,),
+        )
+
+    def print(self, printer: Printer):
+        if self.index is not None:
+            printer.print_string(" ", indent=0)
+            self.index.print_without_type(printer)
+        printer.print_string(" of ", indent=0)
+        printer.print_operand(self.input_op)
+        printer.print_string(" : ", indent=0)
+        printer.print_attribute(self.value.type)
 
 
 @irdl_op_definition
@@ -233,7 +297,7 @@ class IsNotNullOp(IRDLOperation):
 
     name = "pdl_interp.is_not_null"
     traits = traits_def(IsTerminator())
-    value = operand_def(AnyPDLTypeConstr)
+    value = operand_def(AnyPDLTypeConstr | base(RangeType[AnyPDLType]))
     true_dest = successor_def()
     false_dest = successor_def()
 
@@ -343,6 +407,25 @@ class GetAttributeOp(IRDLOperation):
 
 
 @irdl_op_definition
+class GetAttributeTypeOp(IRDLOperation):
+    """
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interpget_attribute_type-pdl_interpgetattributetypeop).
+    """
+
+    name = "pdl_interp.get_attribute_type"
+    value = operand_def(AttributeType)
+    result = result_def(TypeType)
+
+    assembly_format = "`of` $value attr-dict"
+
+    def __init__(self, value: SSAValue) -> None:
+        super().__init__(
+            operands=[value],
+            result_types=[TypeType()],
+        )
+
+
+@irdl_op_definition
 class CheckAttributeOp(IRDLOperation):
     """
     See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interpcheck_attribute-pdl_interpcheckattributeop).
@@ -399,6 +482,37 @@ class CheckTypeOp(IRDLOperation):
 
 
 @irdl_op_definition
+class CheckTypesOp(IRDLOperation):
+    """
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interpcheck_types-pdl_interpchecktypesop).
+    """
+
+    name = "pdl_interp.check_types"
+    traits = traits_def(IsTerminator())
+    types = prop_def(ArrayAttr[TypeAttribute])
+    value = operand_def(RangeType[TypeType])
+    true_dest = successor_def()
+    false_dest = successor_def()
+
+    assembly_format = "$value `are` $types attr-dict `->` $true_dest `, ` $false_dest"
+
+    def __init__(
+        self,
+        types: ArrayAttr[TypeAttribute] | Sequence[TypeAttribute],
+        value: SSAValue,
+        trueDest: Block,
+        falseDest: Block,
+    ) -> None:
+        if not isinstance(types, ArrayAttr):
+            types = ArrayAttr(types)
+        super().__init__(
+            operands=[value],
+            properties={"types": types},
+            successors=[trueDest, falseDest],
+        )
+
+
+@irdl_op_definition
 class AreEqualOp(IRDLOperation):
     """
     See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interpare_equal-pdl_interpareequalop).
@@ -406,7 +520,7 @@ class AreEqualOp(IRDLOperation):
 
     name = "pdl_interp.are_equal"
     traits = traits_def(IsTerminator())
-    T: ClassVar = VarConstraint("T", AnyPDLTypeConstr)
+    T: ClassVar = VarConstraint("T", AnyPDLTypeConstr | base(RangeType[AnyPDLType]))
     lhs = operand_def(T)
     rhs = operand_def(T)
     true_dest = successor_def()
@@ -434,11 +548,11 @@ class ApplyConstraintOp(IRDLOperation):
     is_negated = prop_def(
         BoolAttr, prop_name="isNegated", default_value=BoolAttr.from_bool(False)
     )
-    args = var_operand_def(AnyPDLTypeConstr)
-    results_ = var_result_def(AnyPDLTypeConstr)
+    args = var_operand_def(AnyPDLTypeConstr | base(RangeType[AnyPDLType]))
+    results_ = var_result_def(AnyPDLTypeConstr | base(RangeType[AnyPDLType]))
     true_dest = successor_def()
     false_dest = successor_def()
-    irdl_options = [ParsePropInAttrDict()]
+    irdl_options = (ParsePropInAttrDict(),)
 
     assembly_format = "$name `(` $args `:` type($args) `)` (`:` type($results_)^)? attr-dict `->` $true_dest `,` $false_dest"
 
@@ -448,7 +562,7 @@ class ApplyConstraintOp(IRDLOperation):
         args: Sequence[SSAValue],
         true_dest: Block,
         false_dest: Block,
-        res_types: Sequence[AnyPDLType] = (),
+        res_types: Sequence[AnyPDLType | RangeType[AnyPDLType]] = (),
         is_negated: bool | BoolAttr = False,
     ) -> None:
         if isinstance(constraint_name, str):
@@ -456,13 +570,50 @@ class ApplyConstraintOp(IRDLOperation):
         if isinstance(is_negated, bool):
             is_negated = BoolAttr.from_bool(is_negated)
         super().__init__(
-            operands=args,
+            operands=[args],
             properties={
                 "name": constraint_name,
                 "isNegated": is_negated,
             },
-            result_types=res_types,
+            result_types=[
+                res_types,
+            ],
             successors=[true_dest, false_dest],
+        )
+
+
+@irdl_op_definition
+class ApplyRewriteOp(IRDLOperation):
+    """
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interpapply_rewrite-pdl_interpapplyrewriteop).
+    """
+
+    name = "pdl_interp.apply_rewrite"
+    rewrite_name = prop_def(StringAttr, prop_name="name")
+    args = var_operand_def(AnyPDLTypeConstr | base(RangeType[AnyPDLType]))
+    results_ = var_result_def(AnyPDLTypeConstr | base(RangeType[AnyPDLType]))
+    irdl_options = (ParsePropInAttrDict(),)
+
+    assembly_format = (
+        "$name (`(` $args^ `:` type($args) `)`)? (`:` type($results_)^)? attr-dict"
+    )
+
+    def __init__(
+        self,
+        rewrite_name: str | StringAttr,
+        args: Sequence[SSAValue],
+        res_types: Sequence[AnyPDLType | RangeType[AnyPDLType]] = (),
+    ) -> None:
+        if isinstance(rewrite_name, str):
+            rewrite_name = StringAttr(rewrite_name)
+        super().__init__(
+            operands=[args],
+            properties={
+                "name": rewrite_name,
+            },
+            result_types=[
+                res_types,
+            ],
         )
 
 
@@ -479,12 +630,12 @@ class RecordMatchOp(IRDLOperation):
     generatedOps = opt_prop_def(ArrayAttr[StringAttr])
     benefit = prop_def(IntegerAttr[I16])
 
-    inputs = var_operand_def(AnyPDLTypeConstr)
+    inputs = var_operand_def(AnyPDLTypeConstr | base(RangeType[AnyPDLType]))
     matched_ops = var_operand_def(OperationType)
 
     dest = successor_def()
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
     assembly_format = (
         "$rewriter (`(` $inputs^ `:` type($inputs) `)`)? `:` `benefit` `(` $benefit `)` `,`"
@@ -590,8 +741,23 @@ class ReplaceOp(IRDLOperation):
         "$input_op `with` ` ` `(` ($repl_values^ `:` type($repl_values))? `)` attr-dict"
     )
 
-    def __init__(self, input_op: SSAValue, repl_values: list[SSAValue]) -> None:
+    def __init__(self, input_op: SSAValue, repl_values: Sequence[SSAValue]) -> None:
         super().__init__(operands=[input_op, repl_values])
+
+
+@irdl_op_definition
+class EraseOp(IRDLOperation):
+    """
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interperase-pdl_interpreaseop).
+    """
+
+    name = "pdl_interp.erase"
+    input_op = operand_def(OperationType)
+
+    assembly_format = "$input_op attr-dict"
+
+    def __init__(self, input_op: SSAValue) -> None:
+        super().__init__(operands=[input_op])
 
 
 @irdl_op_definition
@@ -618,7 +784,9 @@ class CreateOperationOp(IRDLOperation):
 
     name = "pdl_interp.create_operation"
     constraint_name = prop_def(StringAttr, prop_name="name")
-    input_attribute_names = prop_def(ArrayAttr, prop_name="inputAttributeNames")
+    input_attribute_names = prop_def(
+        ArrayAttr[StringAttr], prop_name="inputAttributeNames"
+    )
     inferred_result_types = opt_prop_def(UnitAttr, prop_name="inferredResultTypes")
 
     input_operands = var_operand_def(ValueType | RangeType[ValueType])
@@ -627,7 +795,7 @@ class CreateOperationOp(IRDLOperation):
 
     result_op = result_def(OperationType)
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
     # assembly_format = (
     #     "$name (`(` $input_operands^ `:` type($input_operands) `)`)?"
@@ -635,7 +803,7 @@ class CreateOperationOp(IRDLOperation):
     #     "custom<CreateOperationOpResults>($inputResultTypes, type($inputResultTypes), $inferredResultTypes)"
     #     "attr-dict"
     # )
-    # TODO: this assebly format is unsupported in xDSL because of the `custom` directives.
+    # TODO: this assembly format is unsupported in xDSL because of the `custom` directives.
 
     def __init__(
         self,
@@ -781,6 +949,77 @@ class CreateOperationOp(IRDLOperation):
             CreateOperationOp._print_input_list(printer, self.input_result_types)
 
 
+@irdl_custom_directive
+class RangeTypeDirective(CustomDirective):
+    """
+    Custom directive for parsing/printing range types in CreateRangeOp.
+    """
+
+    arguments_type: TypeDirective
+    result_type: TypeDirective
+
+    def parse(self, parser: Parser, state: ParsingState) -> bool:
+        args_inner = self.arguments_type.inner
+        assert isinstance(args_inner, VariadicOperandVariable)
+
+        arg_types = state.operand_types[args_inner.index]
+
+        if arg_types:
+            # Infer result type from first argument (getRangeElementTypeOrSelf)
+            first_type = arg_types[0]
+            if isa(first_type, RangeType[AnyPDLType]):
+                element_type = first_type.element_type
+            else:
+                assert isinstance(first_type, AnyPDLType)
+                element_type = first_type
+            result_type = RangeType(element_type)
+            self.result_type.set(state, (result_type,))
+            return False  # No input consumed during inference
+        else:
+            # Parse `: type` for result when no arguments
+            parser.parse_punctuation(":")
+            result_type = parser.parse_type()
+            self.result_type.set(state, (result_type,))
+            return True
+
+    def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
+        arg_types = self.arguments_type.get(op)
+        if not arg_types:
+            # Print `: result_type` only when no arguments
+            printer.print_string(" : ")
+            result_types = self.result_type.get(op)
+            printer.print_attribute(result_types[0])
+
+
+@irdl_op_definition
+class CreateRangeOp(IRDLOperation):
+    """
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interpcreate_range-pdl_interpcreaterangeop).
+    """
+
+    name = "pdl_interp.create_range"
+    arguments = var_operand_def(AnyPDLTypeConstr | base(RangeType[AnyPDLType]))
+    result = result_def(RangeType[AnyPDLType])
+
+    custom_directives = (RangeTypeDirective,)
+
+    assembly_format = (
+        "($arguments^ `:` type($arguments))?"
+        "custom<RangeTypeDirective>(ref(type($arguments)), type($result))"
+        "attr-dict"
+    )
+
+    def __init__(
+        self,
+        arguments: Sequence[SSAValue],
+        result_type: RangeType[AnyPDLType],
+    ) -> None:
+        super().__init__(
+            operands=[arguments],
+            result_types=[result_type],
+        )
+
+
 @irdl_op_definition
 class GetDefiningOpOp(IRDLOperation):
     """
@@ -827,6 +1066,160 @@ class SwitchOperationNameOp(IRDLOperation):
         case_values = ArrayAttr(case_values)
         super().__init__(
             operands=[input_op],
+            properties={"caseValues": case_values},
+            successors=[default_dest, cases],
+        )
+
+
+@irdl_op_definition
+class SwitchOperandCountOp(IRDLOperation):
+    """
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interpswitch_operand_count-pdl_interpswitchoperandcountop).
+    """
+
+    name = "pdl_interp.switch_operand_count"
+
+    case_values = prop_def(DenseIntElementsAttr, prop_name="caseValues")
+
+    input_op = operand_def(OperationType)
+
+    default_dest = successor_def()
+    cases = var_successor_def()
+
+    traits = traits_def(IsTerminator())
+    assembly_format = (
+        "`of` $input_op `to` $caseValues `(` $cases `)` attr-dict `->` $default_dest"
+    )
+
+    def __init__(
+        self,
+        case_values: DenseIntElementsAttr | Sequence[int],
+        input_op: SSAValue,
+        default_dest: Block,
+        cases: Sequence[Block],
+    ) -> None:
+        if not isa(case_values, DenseIntElementsAttr):
+            assert isinstance(case_values, Sequence)
+            case_values = DenseIntElementsAttr.from_list(
+                VectorType(IntegerType(32), (len(case_values),)), case_values
+            )
+
+        super().__init__(
+            operands=[input_op],
+            properties={"caseValues": case_values},
+            successors=[default_dest, cases],
+        )
+
+
+@irdl_op_definition
+class SwitchResultCountOp(IRDLOperation):
+    """
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interpswitch_result_count-pdl_interpswitchresultcountop).
+    """
+
+    name = "pdl_interp.switch_result_count"
+
+    case_values = prop_def(DenseIntElementsAttr, prop_name="caseValues")
+
+    input_op = operand_def(OperationType)
+
+    default_dest = successor_def()
+    cases = var_successor_def()
+
+    traits = traits_def(IsTerminator())
+    assembly_format = (
+        "`of` $input_op `to` $caseValues `(` $cases `)` attr-dict `->` $default_dest"
+    )
+
+    def __init__(
+        self,
+        case_values: DenseIntElementsAttr | Sequence[int],
+        input_op: SSAValue,
+        default_dest: Block,
+        cases: Sequence[Block],
+    ) -> None:
+        if not isa(case_values, DenseIntElementsAttr):
+            assert isinstance(case_values, Sequence)
+            case_values = DenseIntElementsAttr.from_list(
+                VectorType(IntegerType(32), (len(case_values),)), case_values
+            )
+        super().__init__(
+            operands=[input_op],
+            properties={"caseValues": case_values},
+            successors=[default_dest, cases],
+        )
+
+
+@irdl_op_definition
+class SwitchTypeOp(IRDLOperation):
+    """
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interpswitch_type-pdl_interpswitchtypeop).
+    """
+
+    name = "pdl_interp.switch_type"
+
+    case_values = prop_def(ArrayAttr[TypeAttribute], prop_name="caseValues")
+
+    value = operand_def(TypeType)
+
+    default_dest = successor_def()
+    cases = var_successor_def()
+
+    traits = traits_def(IsTerminator())
+    assembly_format = (
+        "$value `to` $caseValues `(` $cases `)` attr-dict `->` $default_dest"
+    )
+
+    def __init__(
+        self,
+        case_values: ArrayAttr[TypeAttribute] | Sequence[TypeAttribute],
+        value: SSAValue,
+        default_dest: Block,
+        cases: Sequence[Block],
+    ) -> None:
+        if not isinstance(case_values, ArrayAttr):
+            case_values = ArrayAttr(case_values)
+        super().__init__(
+            operands=[value],
+            properties={"caseValues": case_values},
+            successors=[default_dest, cases],
+        )
+
+
+@irdl_op_definition
+class SwitchTypesOp(IRDLOperation):
+    """
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interpswitch_types-pdl_interpswitchtypesop).
+    """
+
+    name = "pdl_interp.switch_types"
+
+    case_values = prop_def(ArrayAttr[ArrayAttr[TypeAttribute]], prop_name="caseValues")
+
+    value = operand_def(RangeType[TypeType])
+
+    default_dest = successor_def()
+    cases = var_successor_def()
+
+    traits = traits_def(IsTerminator())
+    assembly_format = (
+        "$value `to` $caseValues `(` $cases `)` attr-dict `->` $default_dest"
+    )
+
+    def __init__(
+        self,
+        case_values: ArrayAttr[ArrayAttr[TypeAttribute]]
+        | Sequence[ArrayAttr[TypeAttribute] | Sequence[TypeAttribute]],
+        value: SSAValue,
+        default_dest: Block,
+        cases: Sequence[Block],
+    ) -> None:
+        if not isinstance(case_values, ArrayAttr):
+            case_values = ArrayAttr(
+                [v if isinstance(v, ArrayAttr) else ArrayAttr(v) for v in case_values]
+            )
+        super().__init__(
+            operands=[value],
             properties={"caseValues": case_values},
             successors=[default_dest, cases],
         )
@@ -1007,32 +1400,150 @@ class CreateTypesOp(IRDLOperation):
         )
 
 
+@irdl_op_definition
+class ContinueOp(IRDLOperation):
+    """
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interpcontinue-pdl_interpcontinueop).
+    """
+
+    name = "pdl_interp.continue"
+    traits = traits_def(IsTerminator())
+
+    assembly_format = "attr-dict"
+
+    def __init__(self) -> None:
+        super().__init__()
+
+
+@irdl_op_definition
+class ForEachOp(IRDLOperation):
+    """
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interpforeach-pdl_interpforeachop).
+    """
+
+    name = "pdl_interp.foreach"
+    traits = traits_def(IsTerminator())
+
+    values = operand_def(RangeType[AnyPDLType])
+    region = region_def()
+    successor = successor_def()
+
+    def __init__(
+        self,
+        values: SSAValue,
+        successor: Block,
+        region: Region | type[Region.DEFAULT] = Region.DEFAULT,
+    ) -> None:
+        if not isinstance(region, Region):
+            assert isa(values.type, RangeType[AnyPDLType])
+            val_type = values.type.element_type
+            region = Region(Block(arg_types=(val_type,)))
+
+        super().__init__(operands=[values], successors=[successor], regions=[region])
+
+    @classmethod
+    def parse(cls, parser: Parser) -> ForEachOp:
+        arg = parser.parse_argument()
+        parser.parse_characters("in")
+        values = parser.parse_operand()
+        region = parser.parse_region(arguments=[arg])
+        parser.parse_punctuation("->")
+        successor = parser.parse_successor()
+        attrs = parser.parse_optional_attr_dict()
+
+        op = ForEachOp(values, successor, region)
+        if attrs:
+            op.attributes = attrs
+        return op
+
+    def print(self, printer: Printer):
+        loop_var = self.region.blocks[0].args[0]
+        printer.print_string(" ")
+        printer.print_ssa_value(loop_var)
+        printer.print_string(" : ")
+        printer.print_attribute(loop_var.type)
+        printer.print_string(" in ")
+        printer.print_operand(self.values)
+        printer.print_string(" ")
+        printer.print_region(self.region, print_entry_block_args=False)
+        printer.print_string(" -> ")
+        printer.print_block_name(self.successor)
+        printer.print_op_attributes(self.attributes)
+
+    def verify_(self) -> None:
+        if not self.region.blocks:
+            raise VerifyException("Region must not be empty")
+
+        block = self.region.blocks[0]
+        if len(block.args) != 1:
+            raise VerifyException("Region must have exactly one argument")
+
+        arg_type = block.args[0].type
+
+        assert isa(self.values, SSAValue[RangeType[AnyPDLType]])
+        if self.values.type.element_type != arg_type:
+            raise VerifyException(
+                f"Region argument type {arg_type} does not match "
+                f"range element type {self.values.type.element_type}"
+            )
+
+
+@irdl_op_definition
+class BranchOp(IRDLOperation):
+    """
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interpbranch-pdl_interpbranchop).
+    """
+
+    name = "pdl_interp.branch"
+    traits = traits_def(IsTerminator())
+
+    dest = successor_def()
+
+    assembly_format = "$dest attr-dict"
+
+    def __init__(self, dest: Block) -> None:
+        super().__init__(successors=[dest])
+
+
 PDLInterp = Dialect(
     "pdl_interp",
     [
         GetOperandOp,
+        GetOperandsOp,
         FinalizeOp,
         CheckOperationNameOp,
         CheckOperandCountOp,
         CheckResultCountOp,
         CheckTypeOp,
+        CheckTypesOp,
         IsNotNullOp,
         GetResultOp,
         GetResultsOp,
         GetAttributeOp,
+        GetAttributeTypeOp,
         CheckAttributeOp,
         AreEqualOp,
         ApplyConstraintOp,
+        ApplyRewriteOp,
         RecordMatchOp,
         GetValueTypeOp,
         ReplaceOp,
+        EraseOp,
         CreateAttributeOp,
         CreateOperationOp,
+        CreateRangeOp,
         SwitchOperationNameOp,
+        SwitchOperandCountOp,
+        SwitchResultCountOp,
+        SwitchTypeOp,
+        SwitchTypesOp,
         SwitchAttributeOp,
         CreateTypeOp,
         CreateTypesOp,
         FuncOp,
         GetDefiningOpOp,
+        ForEachOp,
+        ContinueOp,
+        BranchOp,
     ],
 )

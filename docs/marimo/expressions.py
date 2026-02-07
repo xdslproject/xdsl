@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.15.2"
+__generated_with = "0.15.3"
 app = marimo.App(width="medium")
 
 
@@ -105,6 +105,7 @@ def _(mo, slider, slider_choices):
 def _(mo, pass_list, res, slider, xmo):
     from xdsl.passes import PassPipeline
     from xdsl.transforms import get_all_passes
+    from xdsl.dialects import get_all_dialects
     from xdsl.context import Context
 
     module = res.clone()
@@ -117,7 +118,12 @@ def _(mo, pass_list, res, slider, xmo):
 
     pipeline = PassPipeline.parse_spec(get_all_passes(), ",".join(pass_list), callback)
 
-    pipeline.apply(Context(), module)
+    ctx = Context()
+    for name, func in get_all_dialects().items():
+        ctx.register_dialect(name, func)
+
+
+    pipeline.apply(ctx, module)
     module_list.append(module.clone())
 
     res_str_0 = xmo.module_md(module_list[slider.value]).text.replace("\n", "<br>")

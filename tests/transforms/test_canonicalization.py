@@ -9,7 +9,7 @@ from xdsl.transforms.canonicalize import CanonicalizePass
 
 class Pattern(RewritePattern):
     def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter, /):
-        rewriter.erase_matched_op()
+        rewriter.erase_op(op)
 
 
 class HasCanonicalizationPatternsTrait1(HasCanonicalizationPatternsTrait):

@@ -30,6 +30,7 @@ from xdsl.dialects.builtin import (
     i32,
 )
 from xdsl.dialects.test import Test, TestType
+from xdsl.dialects.utils import DynamicIndexList
 from xdsl.ir import (
     Attribute,
     Operation,
@@ -303,7 +304,7 @@ def test_attr_dict_prop_fallback(program: str, generic_program: str):
     class PropOp(IRDLOperation):
         name = "test.prop"
         prop = opt_prop_def()
-        irdl_options = [ParsePropInAttrDict()]
+        irdl_options = (ParsePropInAttrDict(),)
         assembly_format = "attr-dict"
 
     ctx = Context()
@@ -332,7 +333,7 @@ def test_partial_attr_dict_prop_fallback(program: str, generic_program: str):
         name = "test.prop"
         prop1 = prop_def()
         prop2 = opt_prop_def()
-        irdl_options = [ParsePropInAttrDict()]
+        irdl_options = (ParsePropInAttrDict(),)
         assembly_format = "$prop1 attr-dict"
 
     ctx = Context()
@@ -1170,7 +1171,7 @@ def test_multiple_variadic_operands(
         args1 = var_operand_def()
         args2 = var_operand_def()
 
-        irdl_options = [AttrSizedOperandSegments(as_property=as_property)]
+        irdl_options = (AttrSizedOperandSegments(as_property=as_property),)
 
         assembly_format = (
             "`(` $args1 `:` type($args1) `)` `[` $args2 `:` type($args2) `]` attr-dict"
@@ -1207,7 +1208,7 @@ def test_multiple_optional_operands(program: str, generic_program: str):
         arg1 = opt_operand_def()
         arg2 = opt_operand_def()
 
-        irdl_options = [AttrSizedOperandSegments()]
+        irdl_options = (AttrSizedOperandSegments(),)
 
         assembly_format = (
             "`(` $arg1 `:` type($arg1) `)` `[` $arg2 `:` type($arg2) `]` attr-dict"
@@ -1336,7 +1337,7 @@ def test_operands_directive_fails_with_two_var():
             op1 = var_operand_def()
             op2 = var_operand_def()
 
-            irdl_options = [AttrSizedOperandSegments()]
+            irdl_options = (AttrSizedOperandSegments(),)
 
             assembly_format = "operands attr-dict `:` type(operands)"
 
@@ -1362,7 +1363,7 @@ def test_operands_directive_works_with_two_var_and_option(program: str):
         res1 = var_operand_def()
         res2 = var_operand_def()
 
-        irdl_options = [SameVariadicOperandSize()]
+        irdl_options = (SameVariadicOperandSize(),)
 
         assembly_format = "operands attr-dict  `:` type(operands)"
 
@@ -1393,7 +1394,7 @@ def test_operands_directive_works_with_two_opt_and_option(program: str):
         res1 = var_operand_def()
         res2 = var_operand_def()
 
-        irdl_options = [SameVariadicOperandSize()]
+        irdl_options = (SameVariadicOperandSize(),)
 
         assembly_format = "operands attr-dict `:` type(operands)"
 
@@ -1760,7 +1761,7 @@ def test_variadic_result_failure():
 
             res = var_result_def(IndexType())
 
-            irdl_options = [AttrSizedResultSegments()]
+            irdl_options = (AttrSizedResultSegments(),)
 
             assembly_format = "attr-dict"
 
@@ -1885,7 +1886,7 @@ def test_results_directive_fails_with_two_var():
             res1 = var_result_def()
             res2 = var_result_def()
 
-            irdl_options = [AttrSizedResultSegments()]
+            irdl_options = (AttrSizedResultSegments(),)
 
             assembly_format = "attr-dict `:` type(results)"
 
@@ -1911,7 +1912,7 @@ def test_results_directive_works_with_two_var_and_option(program: str):
         res1 = var_result_def()
         res2 = var_result_def()
 
-        irdl_options = [SameVariadicResultSize()]
+        irdl_options = (SameVariadicResultSize(),)
 
         assembly_format = "attr-dict `:` type(results)"
 
@@ -1942,7 +1943,7 @@ def test_results_directive_works_with_two_opt_and_option(program: str):
         res1 = var_result_def()
         res2 = var_result_def()
 
-        irdl_options = [SameVariadicResultSize()]
+        irdl_options = (SameVariadicResultSize(),)
 
         assembly_format = "attr-dict `:` type(results)"
 
@@ -2255,6 +2256,16 @@ def test_attr_dict_directly_before_region_variable():
             'test.region_attr_dict {a = 2 : i32}, {\n  "test.op"() : () -> ()\n}',
             '"test.region_attr_dict"() ({  "test.op"() : () -> ()}) {a = 2 : i32} : () -> ()',
         ),
+        (
+            "($region^)? attr-dict-with-keyword",
+            "test.region_attr_dict attributes {a = 2 : i32}",
+            '"test.region_attr_dict"() ({}) {a = 2 : i32} : () -> ()',
+        ),
+        (
+            "($region^)? attr-dict-with-keyword",
+            'test.region_attr_dict {\n  "test.op"() : () -> ()\n} attributes {a = 2 : i32}',
+            '"test.region_attr_dict"() ({\n  "test.op"() : () -> ()\n}) {a = 2 : i32} : () -> ()',
+        ),
     ],
 )
 def test_regions_with_attr_dict(format: str, program: str, generic_program: str):
@@ -2400,7 +2411,7 @@ def test_multiple_optional_regions():
         @irdl_op_definition
         class OptionalRegionsOp(IRDLOperation):  # pyright: ignore[reportUnusedClass]
             name = "test.optional_regions"
-            irdl_options = [AttrSizedRegionSegments()]
+            irdl_options = (AttrSizedRegionSegments(),)
             region1 = opt_region_def()
             region2 = opt_region_def()
 
@@ -2410,16 +2421,6 @@ def test_multiple_optional_regions():
 @pytest.mark.parametrize(
     "format, program, generic_program",
     [
-        (
-            "($opt_region^ `keyword`)? attr-dict",
-            "test.optional_region_group",
-            '"test.optional_region_group"() : () -> ()',
-        ),
-        (
-            "($opt_region^ `keyword`)? attr-dict",
-            'test.optional_region_group {\n  "test.op"() : () -> ()\n} keyword',
-            '"test.optional_region_group"() ({"test.op"() : () -> ()}) : () -> ()',
-        ),
         (
             "(`keyword` $opt_region^)? attr-dict",
             "test.optional_region_group",
@@ -2438,7 +2439,6 @@ def test_optional_groups_regions(format: str, program: str, generic_program: str
     @irdl_op_definition
     class OptionalRegionOp(IRDLOperation):
         name = "test.optional_region_group"
-        irdl_options = [AttrSizedRegionSegments]
         opt_region = opt_region_def()
 
         assembly_format = format
@@ -2484,6 +2484,21 @@ def test_optional_groups_empty_regions(program: str, generic_program: str):
 
     check_roundtrip(program, ctx)
     check_equivalence(program, generic_program, ctx)
+
+
+def test_attr_dict_directly_after_optional_group_with_first_region_variable():
+    """Test that regions require an 'attr-dict' directive."""
+    with pytest.raises(
+        PyRDLOpDefinitionError,
+        match="An optional group with a region as a first element cannot be followed by a `attr-dict' directive as it is ambiguous.",
+    ):
+
+        @irdl_op_definition
+        class RegionAttrDictWrongOp(IRDLOperation):  # pyright: ignore[reportUnusedClass]
+            name = "test.region_op_ambiguous_optional_group"
+            region = region_def()
+
+            assembly_format = "($region^)? attr-dict"
 
 
 ################################################################################
@@ -3031,7 +3046,10 @@ def test_chained_variadic_types_safeguard(
             variadic_two = variadic_def_two()
             assembly_format = format
 
-            irdl_options = [AttrSizedOperandSegments(), AttrSizedResultSegments()]
+            irdl_options = (
+                AttrSizedOperandSegments(),
+                AttrSizedResultSegments(),
+            )
 
 
 @pytest.mark.parametrize("variadic_def_one", [var_operand_def, opt_operand_def])
@@ -3053,7 +3071,7 @@ def test_chained_variadic_operands_safeguard(
             variadic_two = variadic_def_two()
             assembly_format = "$variadic_one $variadic_two `:` type($variadic_one) `<` type($variadic_two) `>` attr-dict"
 
-            irdl_options = [AttrSizedOperandSegments()]
+            irdl_options = (AttrSizedOperandSegments(),)
 
 
 @pytest.mark.parametrize(
@@ -3592,7 +3610,7 @@ def test_default_property_in_attr_dict(program: str, generic: str):
 
         attr = attr_def(BoolAttr, default_value=BoolAttr.from_bool(False))
 
-        irdl_options = [ParsePropInAttrDict()]
+        irdl_options = (ParsePropInAttrDict(),)
 
         assembly_format = "attr-dict"
 
@@ -4071,3 +4089,46 @@ def test_ref_directives():
     ctx.load_op(RefDirectivesOp)
     ctx.load_dialect(Test)
     check_roundtrip("%0 = test.ref_directives %1 i1 i2 i3 i4 {\n} ^bb0", ctx)
+
+
+@pytest.mark.parametrize(
+    "program, generic_program",
+    [
+        (
+            "test.dyn_index_list",
+            '"test.dyn_index_list"() <{static_indices = array<i64>}> : () -> ()',
+        ),
+        (
+            '%0 = "test.op"() : () -> i64\ntest.dyn_index_list keyword [%0]',
+            '%0 = "test.op"() : () -> i64\n'
+            '"test.dyn_index_list"(%0) <{static_indices = array<i64: -9223372036854775808>}> : (i64) -> ()',
+        ),
+        (
+            "test.dyn_index_list keyword [3, 5, 7, 9]",
+            '"test.dyn_index_list"() <{static_indices = array<i64: 3, 5, 7 ,9>}> : () -> ()',
+        ),
+        (
+            '%0 = "test.op"() : () -> i64\ntest.dyn_index_list keyword [%0, 5, %0, 9]',
+            '%0 = "test.op"() : () -> i64\n'
+            '"test.dyn_index_list"(%0, %0) <{static_indices = array<i64: -9223372036854775808, 5, -9223372036854775808, 9>}> : (i64, i64) -> ()',
+        ),
+    ],
+)
+def test_optional_anchor_dynamic_index_list(program: str, generic_program: str):
+    @irdl_op_definition
+    class DynIndexListOp(IRDLOperation):
+        name = "test.dyn_index_list"
+
+        dynamic_indices = var_operand_def(I64)
+        static_indices = prop_def(DenseArrayBase[I64])
+
+        assembly_format = "(`keyword` custom<DynamicIndexList>($dynamic_indices, $static_indices)^)? attr-dict"
+
+        custom_directives = (DynamicIndexList,)
+
+    ctx = Context()
+    ctx.load_op(DynIndexListOp)
+    ctx.load_dialect(Test)
+
+    check_roundtrip(program, ctx)
+    check_equivalence(program, generic_program, ctx)

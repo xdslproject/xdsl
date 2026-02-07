@@ -176,7 +176,8 @@ class MemRefStreamGenericLegalize(RewritePattern):
         # Legalize payload
         _legalize_block(new_body.block, to_be_legalized, rewriter)
 
-        rewriter.replace_matched_op(
+        rewriter.replace_op(
+            op,
             memref_stream.GenericOp(
                 op.inputs,
                 op.outputs,
@@ -186,7 +187,7 @@ class MemRefStreamGenericLegalize(RewritePattern):
                 op.iterator_types,
                 ArrayAttr(new_bounds),
                 op.init_indices,
-            )
+            ),
         )
 
 

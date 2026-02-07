@@ -7,6 +7,7 @@ from typing import ClassVar, cast
 from typing_extensions import Self
 
 from xdsl.dialects.builtin import (
+    DYNAMIC_INDEX,
     I64,
     AnyFloatConstr,
     ArrayAttr,
@@ -93,7 +94,7 @@ class LoadOp(IRDLOperation):
 
     traits = traits_def(MemoryReadEffect())
 
-    irdl_options = [ParsePropInAttrDict()]
+    irdl_options = (ParsePropInAttrDict(),)
     assembly_format = "$memref `[` $indices `]` attr-dict `:` type($memref)"
 
     # TODO varargs for indexing, which must match the memref dimensions
@@ -132,7 +133,7 @@ class StoreOp(IRDLOperation):
 
     traits = traits_def(MemoryWriteEffect())
 
-    irdl_options = [ParsePropInAttrDict()]
+    irdl_options = (ParsePropInAttrDict(),)
     assembly_format = "$value `,` $memref `[` $indices `]` attr-dict `:` type($memref)"
 
     def verify_(self):
@@ -174,7 +175,7 @@ class AllocOp(IRDLOperation):
     # TODO how to constraint the IntegerAttr type?
     alignment = opt_prop_def(IntegerAttr)
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
     traits = traits_def(AllocOpHasCanonicalizationPatterns(), MemoryAllocEffect())
 
@@ -220,7 +221,7 @@ class AllocOp(IRDLOperation):
     def verify_(self) -> None:
         memref_type = self.memref.type
 
-        dyn_dims = [x for x in memref_type.shape.data if x.data == -1]
+        dyn_dims = [x for x in memref_type.shape.data if x.data == DYNAMIC_INDEX]
         if len(dyn_dims) != len(self.dynamic_sizes):
             raise VerifyException(
                 "op dimension operand count does not equal memref dynamic dimension count."
@@ -327,7 +328,7 @@ class AllocaOp(IRDLOperation):
 
     traits = traits_def(MemoryAllocEffect())
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
     @staticmethod
     def get(
@@ -358,7 +359,7 @@ class AllocaOp(IRDLOperation):
     def verify_(self) -> None:
         memref_type = self.memref.type
 
-        dyn_dims = [x for x in memref_type.shape.data if x.data == -1]
+        dyn_dims = [x for x in memref_type.shape.data if x.data == DYNAMIC_INDEX]
         if len(dyn_dims) != len(self.dynamic_sizes):
             raise VerifyException(
                 "op dimension operand count does not equal memref dynamic dimension count."
@@ -555,7 +556,9 @@ class ExtractStridedMetaDataOp(IRDLOperation):
 
     traits = traits_def(NoMemoryEffect())
 
-    irdl_options = [SameVariadicResultSize()]
+    irdl_options = (SameVariadicResultSize(),)
+
+    assembly_format = "$source `:` type($source) `->` type(results) attr-dict"
 
     def __init__(self, source: SSAValue | Operation):
         """
@@ -608,12 +611,6 @@ class MemRefHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
 
 @irdl_op_definition
 class SubviewOp(IRDLOperation):
-    DYNAMIC_INDEX: ClassVar[int] = -9223372036854775808
-    """
-    Constant value used to denote dynamic indices in offsets, sizes, and strides.
-    Same constant as in MLIR.
-    """
-
     name = "memref.subview"
 
     source = operand_def(MemRefType)
@@ -625,7 +622,7 @@ class SubviewOp(IRDLOperation):
     static_strides = prop_def(DenseArrayBase.constr(i64))
     result = result_def(MemRefType)
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
     traits = lazy_traits_def(
         lambda: (MemRefHasCanonicalizationPatternsTrait(), NoMemoryEffect())
@@ -646,13 +643,13 @@ class SubviewOp(IRDLOperation):
         static_sizes = self.static_sizes.get_values()
         static_strides = self.static_strides.get_values()
         verify_dynamic_index_list(
-            static_sizes, self.sizes, self.DYNAMIC_INDEX, " in the size arguments"
+            static_sizes, self.sizes, DYNAMIC_INDEX, " in the size arguments"
         )
         verify_dynamic_index_list(
-            static_offsets, self.offsets, self.DYNAMIC_INDEX, " in the offset arguments"
+            static_offsets, self.offsets, DYNAMIC_INDEX, " in the offset arguments"
         )
         verify_dynamic_index_list(
-            static_strides, self.strides, self.DYNAMIC_INDEX, " in the stride arguments"
+            static_strides, self.strides, DYNAMIC_INDEX, " in the stride arguments"
         )
 
     def __init__(
@@ -690,15 +687,9 @@ class SubviewOp(IRDLOperation):
         strides: Sequence[SSAValue | int],
         result_type: Attribute,
     ) -> SubviewOp:
-        static_offsets, dyn_offsets = split_dynamic_index_list(
-            offsets, SubviewOp.DYNAMIC_INDEX
-        )
-        static_sizes, dyn_sizes = split_dynamic_index_list(
-            sizes, SubviewOp.DYNAMIC_INDEX
-        )
-        static_strides, dyn_strides = split_dynamic_index_list(
-            strides, SubviewOp.DYNAMIC_INDEX
-        )
+        static_offsets, dyn_offsets = split_dynamic_index_list(offsets, DYNAMIC_INDEX)
+        static_sizes, dyn_sizes = split_dynamic_index_list(sizes, DYNAMIC_INDEX)
+        static_strides, dyn_strides = split_dynamic_index_list(strides, DYNAMIC_INDEX)
 
         return SubviewOp(
             source,
@@ -855,7 +846,7 @@ class ReinterpretCastOp(IRDLOperation):
 
     traits = traits_def(NoMemoryEffect())
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
     assembly_format = (
         "$source `to` `offset` `` `:`"
@@ -959,7 +950,7 @@ class ReinterpretCastOp(IRDLOperation):
                 strict=True,
             )
         ):
-            if expected == ReinterpretCastOp.DYNAMIC_INDEX and actual != -1:
+            if expected == ReinterpretCastOp.DYNAMIC_INDEX and actual != DYNAMIC_INDEX:
                 raise VerifyException(
                     f"Expected result type with dynamic size instead of {actual} in dim = {dim}"
                 )
@@ -986,7 +977,7 @@ class DmaStartOp(IRDLOperation):
 
     traits = traits_def(MemoryWriteEffect(), MemoryReadEffect())
 
-    irdl_options = [AttrSizedOperandSegments()]
+    irdl_options = (AttrSizedOperandSegments(),)
 
     @staticmethod
     def get(

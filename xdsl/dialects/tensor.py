@@ -6,8 +6,8 @@ from typing import ClassVar, cast
 
 from typing_extensions import Self
 
-from xdsl.dialects import memref
 from xdsl.dialects.builtin import (
+    DYNAMIC_INDEX,
     AnySignlessIntegerOrIndexType,
     ArrayAttr,
     DenseArrayBase,
@@ -111,6 +111,8 @@ class DimOp(IRDLOperation):
 
     traits = traits_def(Pure())
 
+    assembly_format = "attr-dict $source `,` $index `:` type($source)"
+
     def __init__(
         self,
         source: SSAValue | Operation,
@@ -120,25 +122,6 @@ class DimOp(IRDLOperation):
         super().__init__(
             operands=(source, index), result_types=(IndexType(),), attributes=attributes
         )
-
-    def print(self, printer: Printer):
-        printer.print_op_attributes(self.attributes)
-        printer.print_string(" ")
-        printer.print_ssa_value(self.source)
-        printer.print_string(", ")
-        printer.print_ssa_value(self.index)
-        printer.print_string(" : ")
-        printer.print_attribute(self.source.type)
-
-    @classmethod
-    def parse(cls, parser: Parser) -> Self:
-        attributes = parser.parse_optional_attr_dict()
-        source = parser.parse_operand()
-        parser.parse_punctuation(",")
-        index = parser.parse_operand()
-        parser.parse_punctuation(":")
-        parser.parse_type()
-        return cls(source, index, attributes)
 
     def verify_(self):
         if isinstance((source_type := self.source.type), TensorType):
@@ -248,6 +231,7 @@ class ReshapeOp(IRDLOperation):
     source = operand_def(TensorType[Attribute])
     shape = operand_def(TensorType[AnySignlessIntegerOrIndexType])
     result = result_def(TensorType[Attribute])
+    assembly_format = "attr-dict $source `(` $shape `)` `:` `(` type($source) `,` type($shape) `)` `->` type($result)"
 
     traits = traits_def(NoMemoryEffect())
 
@@ -259,43 +243,6 @@ class ReshapeOp(IRDLOperation):
             ),
             result_types=(result_type,),
         )
-
-    def print(self, printer: Printer):
-        printer.print_string(" ")
-        printer.print_ssa_value(self.source)
-        printer.print_string("(")
-        printer.print_ssa_value(self.shape)
-        printer.print_string(")")
-        printer.print_string(" : ")
-        printer.print_string("(")
-        printer.print_attribute(self.source.type)
-        printer.print_string(", ")
-        printer.print_attribute(self.shape.type)
-        printer.print_string(")")
-        printer.print_string(" -> ")
-        printer.print_attribute(self.result.type)
-
-    @classmethod
-    def parse(cls, parser: Parser) -> Self:
-        attrs = parser.parse_optional_attr_dict()
-        source = parser.parse_operand()
-        parser.parse_punctuation("(")
-        shape = parser.parse_operand()
-        parser.parse_punctuation(")")
-        parser.parse_punctuation(":")
-        parser.parse_punctuation("(")
-        parser.parse_comma_separated_list(Parser.Delimiter.NONE, parser.parse_type)
-        parser.parse_punctuation(")")
-        parser.parse_optional_punctuation("->")
-        result_type = parser.parse_attribute()
-
-        reshape = cls(
-            source,
-            shape,
-            result_type,
-        )
-        reshape.attributes |= attrs
-        return reshape
 
     def verify_(self) -> None:
         if not isinstance(
@@ -474,7 +421,7 @@ class ExtractSliceOp(IRDLOperation):
     static_strides = prop_def(DenseArrayBase.constr(i64))
     result = result_def(TensorType)
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
     traits = traits_def(NoMemoryEffect())
 
@@ -533,7 +480,7 @@ class InsertSliceOp(IRDLOperation):
     static_strides = prop_def(DenseArrayBase.constr(i64))
     result = result_def(TensorType)
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
     traits = traits_def(NoMemoryEffect())
 
@@ -554,11 +501,11 @@ class InsertSliceOp(IRDLOperation):
         sizes = [] if sizes is None else sizes
         strides = [] if strides is None else strides
         if not static_offsets:
-            static_offsets = [memref.SubviewOp.DYNAMIC_INDEX] * len(offsets) + (
+            static_offsets = [DYNAMIC_INDEX] * len(offsets) + (
                 [0] * (dims - len(offsets))
             )
         if not static_strides:
-            static_strides = [memref.SubviewOp.DYNAMIC_INDEX] * len(strides) + (
+            static_strides = [DYNAMIC_INDEX] * len(strides) + (
                 [1] * (dims - len(strides))
             )
         return InsertSliceOp.build(
@@ -769,7 +716,7 @@ class SplatOp(IRDLOperation):
         super().__init__(operands=(input, dynamicSizes), result_types=(result_type,))
 
     def verify_(self):
-        if self.result.type.get_shape().count(-1) != len(self.dynamicSizes):
+        if self.result.type.get_shape().count(DYNAMIC_INDEX) != len(self.dynamicSizes):
             raise VerifyException(
                 "number of dynamic sizes must equal number of unknown dimensions in result tensor"
             )

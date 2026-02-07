@@ -32,6 +32,16 @@
     // CHECK-NEXT: %{{.*}} = riscv.auipc 1 : () -> !riscv.reg
     %mv = riscv.mv %0 : (!riscv.reg) -> !riscv.reg
     // CHECK: %{{.*}} = riscv.mv %{{.*}} : (!riscv.reg) -> !riscv.reg
+    %seqz = riscv.seqz %0 : (!riscv.reg) -> !riscv.reg
+    // CHECK: %{{.*}} = riscv.seqz %{{.*}} : (!riscv.reg) -> !riscv.reg
+    %snez = riscv.snez %0 : (!riscv.reg) -> !riscv.reg
+    // CHECK: %{{.*}} = riscv.snez %{{.*}} : (!riscv.reg) -> !riscv.reg
+    %zextb = riscv.zext.b %0 : (!riscv.reg) -> !riscv.reg
+    // CHECK: %{{.*}} = riscv.zext.b %{{.*}} : (!riscv.reg) -> !riscv.reg
+    %zextw = riscv.zext.w %0 : (!riscv.reg) -> !riscv.reg
+    // CHECK: %{{.*}} = riscv.zext.w %{{.*}} : (!riscv.reg) -> !riscv.reg
+    %sextw = riscv.sext.w %0 : (!riscv.reg) -> !riscv.reg
+    // CHECK: %{{.*}} = riscv.sext.w %{{.*}} : (!riscv.reg) -> !riscv.reg
     %srliw = riscv.srliw %0, 1: (!riscv.reg) -> !riscv.reg
     // CHECK-NEXT: %{{.*}} = riscv.srliw %0, 1 : (!riscv.reg) -> !riscv.reg
     %sraiw = riscv.sraiw %0, 1: (!riscv.reg) -> !riscv.reg
@@ -195,7 +205,7 @@
     // CHECK-NEXT: %{{.*}} = riscv.remw %{{.*}}, %{{.*}} : (!riscv.reg, !riscv.reg) -> !riscv.reg
     %remuw = riscv.remuw %0, %1 : (!riscv.reg, !riscv.reg) -> !riscv.reg
     // CHECK-NEXT: %{{.*}} = riscv.remuw %{{.*}}, %{{.*}} : (!riscv.reg, !riscv.reg) -> !riscv.reg
-    
+
     // RV32B/RV64B:  “B” Standard Extension for Bit Manipulation
 
     %rol = riscv.rol %0, %1 : (!riscv.reg, !riscv.reg) -> !riscv.reg
@@ -254,13 +264,13 @@
     // CHECK-NEXT: %{{.*}} = riscv.minu %{{.*}}, %{{.*}} : (!riscv.reg, !riscv.reg) -> !riscv.reg
 
 
-    // RV32/RV64 Zicond extension for conditional operations 
+    // RV32/RV64 Zicond extension for conditional operations
 
     %czeroeqzop = riscv.czero.eqz %0, %1 : (!riscv.reg, !riscv.reg) -> !riscv.reg
     // CHECK-NEXT: %{{.*}} = riscv.czero.eqz %{{.*}}, %{{.*}} : (!riscv.reg, !riscv.reg) -> !riscv.reg
     %czeronezop = riscv.czero.nez %0, %1 : (!riscv.reg, !riscv.reg) -> !riscv.reg
     // CHECK-NEXT: %{{.*}} = riscv.czero.nez %{{.*}}, %{{.*}} : (!riscv.reg, !riscv.reg) -> !riscv.reg
-    
+
     // Assembler pseudo-instructions
 
     %li = riscv.li 1 : !riscv.reg
@@ -437,6 +447,9 @@
     %fcvt_d_wu = riscv.fcvt.d.wu %0 : (!riscv.reg) -> !riscv.freg
     // CHECK-NEXT: %{{.*}} = riscv.fcvt.d.wu %{{.*}} : (!riscv.reg) -> !riscv.freg
 
+    %mov_int_a, %mov_int_b, %mov_f_a, %mov_f_b = riscv.parallel_mov %0, %1, %f0, %f1 [64, 32, 64, 32] : (!riscv.reg, !riscv.reg, !riscv.freg, !riscv.freg) -> (!riscv.reg, !riscv.reg, !riscv.freg, !riscv.freg)
+    // CHECK-NEXT: %mov_int_a, %mov_int_b, %mov_f_a, %mov_f_b = riscv.parallel_mov %0, %1, %f0, %f1 [64, 32, 64, 32] : (!riscv.reg, !riscv.reg, !riscv.freg, !riscv.freg) -> (!riscv.reg, !riscv.reg, !riscv.freg, !riscv.freg)
+
     // Terminate block
     riscv_func.return
   }
@@ -458,6 +471,11 @@
 // CHECK-GENERIC-NEXT:      %lui = "riscv.lui"() {immediate = 1 : i20} : () -> !riscv.reg
 // CHECK-GENERIC-NEXT:      %auipc = "riscv.auipc"() {immediate = 1 : i20} : () -> !riscv.reg
 // CHECK-GENERIC-NEXT:      %mv = "riscv.mv"(%0) : (!riscv.reg) -> !riscv.reg
+// CHECK-GENERIC-NEXT:      %seqz = "riscv.seqz"(%0) : (!riscv.reg) -> !riscv.reg
+// CHECK-GENERIC-NEXT:      %snez = "riscv.snez"(%0) : (!riscv.reg) -> !riscv.reg
+// CHECK-GENERIC-NEXT:      %zextb = "riscv.zext.b"(%0) : (!riscv.reg) -> !riscv.reg
+// CHECK-GENERIC-NEXT:      %zextw = "riscv.zext.w"(%0) : (!riscv.reg) -> !riscv.reg
+// CHECK-GENERIC-NEXT:      %sextw = "riscv.sext.w"(%0) : (!riscv.reg) -> !riscv.reg
 // CHECK-GENERIC-NEXT:      %srliw = "riscv.srliw"(%0) {immediate = 1 : ui5} : (!riscv.reg) -> !riscv.reg
 // CHECK-GENERIC-NEXT:      %sraiw = "riscv.sraiw"(%0) {immediate = 1 : si12} : (!riscv.reg) -> !riscv.reg
 // CHECK-GENERIC-NEXT:      %add = "riscv.add"(%0, %1) : (!riscv.reg, !riscv.reg) -> !riscv.reg
@@ -627,6 +645,7 @@
 // CHECK-GENERIC-NEXT:      %fmax_d_fm = "riscv.fmax.d"(%f0, %f1) {fastmath = #riscv.fastmath<fast>} : (!riscv.freg, !riscv.freg) -> !riscv.freg
 // CHECK-GENERIC-NEXT:      %fcvt_d_w = "riscv.fcvt.d.w"(%0) : (!riscv.reg) -> !riscv.freg
 // CHECK-GENERIC-NEXT:      %fcvt_d_wu = "riscv.fcvt.d.wu"(%0) : (!riscv.reg) -> !riscv.freg
+// CHECK-GENERIC-NEXT:      %mov_int_a, %mov_int_b, %mov_f_a, %mov_f_b = "riscv.parallel_mov"(%0, %1, %f0, %f1) <{input_widths = array<i32: 64, 32, 64, 32>}> : (!riscv.reg, !riscv.reg, !riscv.freg, !riscv.freg) -> (!riscv.reg, !riscv.reg, !riscv.freg, !riscv.freg)
 // CHECK-GENERIC-NEXT:      "riscv_func.return"() : () -> ()
 // CHECK-GENERIC-NEXT:    }) {sym_name = "main", function_type = () -> ()} : () -> ()
 // CHECK-GENERIC-NEXT:  }) : () -> ()

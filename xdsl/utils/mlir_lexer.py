@@ -303,7 +303,7 @@ class MLIRLexer(Lexer[MLIRTokenKind]):
         """
         Return a token with the given kind, and the start position.
         """
-        return MLIRToken(kind, Span(start_pos, self.pos, self.input))
+        return Token(kind, Span(start_pos, self.pos, self.input))
 
     def lex(self) -> MLIRToken:
         """
@@ -499,19 +499,19 @@ class MLIRLexer(Lexer[MLIRTokenKind]):
         lit = StringLiteral(start_pos, self.pos, self.input)
 
         if lit.text == '""':
-            return MLIRToken(MLIRTokenKind.STRING_LIT, lit)  # empty string literal
+            return Token(MLIRTokenKind.STRING_LIT, lit)  # empty string literal
 
         if "\\" not in lit.text:
             # If there are no escape sequences, directly return a STRING_LIT
-            return MLIRToken(MLIRTokenKind.STRING_LIT, lit)
+            return Token(MLIRTokenKind.STRING_LIT, lit)
 
         bytes_contents = lit.bytes_contents
 
         if bytes_contents.isascii():
             # If the bytes contents are ASCII, return a STRING_LIT
-            return MLIRToken(MLIRTokenKind.STRING_LIT, lit)
+            return Token(MLIRTokenKind.STRING_LIT, lit)
 
-        return MLIRToken(MLIRTokenKind.BYTES_LIT, lit)
+        return Token(MLIRTokenKind.BYTES_LIT, lit)
 
     _hexdigits_star_regex = re.compile(r"[0-9a-fA-F]*")
     _digits_star_regex = re.compile(r"[0-9]*")

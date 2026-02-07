@@ -498,7 +498,9 @@ class LoopNestOp(IRDLOperation):
 
     body = region_def("single_block")
 
-    irdl_options = [SameVariadicOperandSize(), RecursiveMemoryEffect()]
+    irdl_options = (SameVariadicOperandSize(),)
+
+    traits = traits_def(RecursiveMemoryEffect())
 
 
 @irdl_op_definition
@@ -535,7 +537,7 @@ class WsLoopOp(BlockArgOpenMPOperation):
 
     body = region_def("single_block")
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
     traits = traits_def(LoopWrapper(), RecursiveMemoryEffect())
 
@@ -577,7 +579,7 @@ class ParallelOp(BlockArgOpenMPOperation):
     reduction_byref = opt_prop_def(DenseArrayBase[i1])
     reduction_syms = opt_prop_def(ArrayAttr[SymbolRefAttr])
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
     traits = traits_def(RecursiveMemoryEffect())
 
@@ -634,7 +636,7 @@ class PrivateClauseOp(IRDLOperation):
     var_type = prop_def(TypeAttribute, prop_name="type")
     data_sharing_type = prop_def(DataSharingClauseAttr)
 
-    alloc_region = region_def()
+    init_region = region_def()
     copy_region = region_def()
     dealloc_region = region_def()
 
@@ -642,17 +644,11 @@ class PrivateClauseOp(IRDLOperation):
 
     assembly_format = """
         $data_sharing_type $sym_name `:` $type
-        `alloc` $alloc_region
+        (`init` $init_region^)?
         (`copy` $copy_region^)?
         (`dealloc` $dealloc_region^)?
         attr-dict
     """
-
-    def verify_(self) -> None:
-        if len(self.alloc_region.blocks) < 1:
-            raise VerifyException(
-                f"alloc_region of {self.name} has to have at least 1 block"
-            )
 
 
 @irdl_op_definition
@@ -722,7 +718,7 @@ class TargetOp(BlockArgOpenMPOperation):
 
     region = region_def()
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
     traits = traits_def(IsolatedFromAbove())
 
     def num_block_args(self) -> int:
@@ -761,7 +757,7 @@ class MapBoundsOp(IRDLOperation):
 
     res = result_def(MapBoundsType)
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
     traits = traits_def(NoMemoryEffect())
 
 
@@ -791,7 +787,7 @@ class MapInfoOp(IRDLOperation):
 
     omp_ptr = result_def()  # TODO: OpenMP_PointerLikeTypeInterface
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
     def verify_(self) -> None:
         verify_map_vars(self.members, self.name)
@@ -836,7 +832,7 @@ class SimdOp(BlockArgOpenMPOperation):
 
     body = region_def("single_block")
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
     traits = traits_def(RecursiveMemoryEffect(), LoopWrapper())
 
@@ -877,7 +873,7 @@ class TeamsOp(BlockArgOpenMPOperation):
 
     body = region_def()
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
     traits = traits_def(RecursiveMemoryEffect())
 
     def num_block_args(self) -> int:
@@ -903,7 +899,7 @@ class DistributeOp(BlockArgOpenMPOperation):
     order_mod = opt_prop_def(OrderModifierAttr)
     private_syms = opt_prop_def(ArrayAttr[SymbolRefAttr])
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
     body = region_def("single_block")
 
@@ -942,7 +938,7 @@ class TargetTaskBasedDataOp(IRDLOperation):
     )
     nowait = opt_prop_def(UnitAttr)
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
 
 @irdl_op_definition
@@ -1029,7 +1025,7 @@ class TargetDataOp(BlockArgOpenMPOperation):
 
     region = region_def()
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
     def num_block_args(self) -> int:
         # NOTE: Unlike TargetOp `mapped_vars` are not passed as block args.

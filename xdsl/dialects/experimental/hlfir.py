@@ -156,7 +156,7 @@ class DeclareOp(IRDLOperation):
     result = result_def()
     result2 = result_def()
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
 
 @irdl_op_definition
@@ -207,7 +207,7 @@ class DesignateOp(IRDLOperation):
     fortran_attrs = opt_prop_def(FortranVariableFlagsAttr)
     result = result_def()
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
 
 @irdl_op_definition
@@ -287,7 +287,7 @@ class ParentComponentOp(IRDLOperation):
     typeparams = var_operand_def()
     result = result_def()
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
 
 @irdl_op_definition
@@ -302,7 +302,7 @@ class ConcatOp(IRDLOperation):
     strings = var_operand_def()
     length = operand_def()
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
 
 @irdl_op_definition
@@ -366,7 +366,7 @@ class MaxvalOp(IRDLOperation):
     fastmath = opt_prop_def(FastMathFlagsAttr)
     result = result_def()
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
 
 @irdl_op_definition
@@ -386,7 +386,7 @@ class MinvalOp(IRDLOperation):
     fastmath = opt_prop_def(FastMathFlagsAttr)
     result = result_def()
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
 
 @irdl_op_definition
@@ -405,7 +405,7 @@ class ProductOp(IRDLOperation):
     fastmath = opt_prop_def(FastMathFlagsAttr)
     result = result_def()
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
 
 @irdl_op_definition
@@ -452,7 +452,7 @@ class SumOp(IRDLOperation):
     fastmath = opt_prop_def(FastMathFlagsAttr)
     result = result_def()
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
 
 @irdl_op_definition
@@ -531,7 +531,7 @@ class AssociateOp(IRDLOperation):
     fortran_attrs = opt_prop_def(FortranVariableFlagsAttr)
     result = var_result_def()
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
 
 @irdl_op_definition
@@ -632,7 +632,7 @@ class ElementalOp(IRDLOperation):
     regs = var_region_def()
     result = result_def()
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
 
 @irdl_op_definition
@@ -677,7 +677,7 @@ class ApplyOp(IRDLOperation):
     typeparams = var_operand_def()
     result = result_def()
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
 
 @irdl_op_definition
@@ -920,7 +920,7 @@ class ElementalAddrOp(IRDLOperation):
     body = region_def()
     cleanup = region_def()
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
 
 @irdl_op_definition
@@ -1109,7 +1109,7 @@ class CharExtremumOp(IRDLOperation):
     strings = var_operand_def()
     result = result_def()
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
 
 HLFIR = Dialect(

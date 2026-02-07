@@ -74,7 +74,7 @@ from xdsl.utils.test_value import create_ssa_value
 class OpDefTestOp(IRDLOperation):
     name = "test.op_def_test"
 
-    irdl_options = [AttrSizedOperandSegments()]
+    irdl_options = (AttrSizedOperandSegments(),)
 
     operand = operand_def()
     result = result_def()
@@ -108,7 +108,7 @@ def test_get_definition():
 class PropOptionOp(IRDLOperation):
     name = "test.prop_option_test"
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
 
 def test_property_option():
@@ -147,6 +147,34 @@ def test_invalid_field():
     """Check that untyped fields are not allowed"""
     with pytest.raises(PyRDLOpDefinitionError):
         irdl_op_definition(InvalidFieldTestOp)
+
+
+class InvalidIRDLOpts(IRDLOperation):
+    name = "test.invalid_field"
+    irdl_options = (42,)
+
+
+def test_invalid_irdl_options():
+    """Check that irdl_options only contains IRDLOptions"""
+    with pytest.raises(
+        PyRDLOpDefinitionError,
+        match="All values in irdl_options should inherit IRDLOption",
+    ):
+        irdl_op_definition(InvalidIRDLOpts)
+
+
+class MutableIRDLOpts(IRDLOperation):
+    name = "test.mutable_irdl_options_field"
+    irdl_options = [AttrSizedRegionSegments()]
+
+
+def test_list_irdl_options():
+    """Check that irdl_options given as a list produces a warning"""
+    with pytest.warns(
+        DeprecationWarning,
+        match="Defining irdl_options as a `list` is deprecated, please use a `tuple`.",
+    ):
+        irdl_op_definition(MutableIRDLOpts)
 
 
 ################################################################################
@@ -208,7 +236,7 @@ def test_constraint_var_fail_non_equal():
     )
     with pytest.raises(
         DiagnosticException,
-        match="Operation does not verify: result at position 0 does not verify",
+        match="Operation does not verify: result 'result' at position 0 does not verify",
     ):
         op.verify()
 
@@ -220,7 +248,7 @@ def test_constraint_var_fail_non_equal():
     )
     with pytest.raises(
         DiagnosticException,
-        match="Operation does not verify: result at position 0 does not verify",
+        match="Operation does not verify: result 'result' at position 0 does not verify",
     ):
         op2.verify()
 
@@ -247,7 +275,7 @@ def test_constraint_var_fail_not_satisfy_constraint():
     )
     with pytest.raises(
         DiagnosticException,
-        match="Operation does not verify: operand at position 0 does not verify",
+        match="Operation does not verify: operand 'operand' at position 0 does not verify",
     ):
         op.verify()
 
@@ -290,7 +318,7 @@ def test_generic_constraint_var_fail_non_equal():
     )
     with pytest.raises(
         DiagnosticException,
-        match="Operation does not verify: result at position 0 does not verify",
+        match="Operation does not verify: result 'result' at position 0 does not verify",
     ):
         op.verify()
 
@@ -302,7 +330,7 @@ def test_generic_constraint_var_fail_non_equal():
     )
     with pytest.raises(
         DiagnosticException,
-        match="Operation does not verify: result at position 0 does not verify",
+        match="Operation does not verify: result 'result' at position 0 does not verify",
     ):
         op2.verify()
 
@@ -329,7 +357,7 @@ def test_generic_constraint_var_fail_not_satisfy_constraint():
     )
     with pytest.raises(
         DiagnosticException,
-        match="Operation does not verify: operand at position 0 does not verify",
+        match="Operation does not verify: operand 'operand' at position 0 does not verify",
     ):
         op.verify()
 
@@ -447,6 +475,16 @@ def test_same_length_op():
         op3 = SameLengthOp.create(operands=[operand1], result_types=[i32, i32])
         op3.verify()
 
+    with pytest.raises(
+        VerifyException,
+        match=(
+            "result 'result' expected at position 0 does not verify:\n"
+            "incorrect length for range variable:\ninteger 1 expected from int variable 'length', but got 0"
+        ),
+    ):
+        op3 = SameLengthOp.create(operands=[operand1], result_types=[])
+        op3.verify()
+
 
 @irdl_op_definition
 class WithoutPropOp(IRDLOperation):
@@ -473,7 +511,7 @@ def test_unknown_property():
 class RegionOp(IRDLOperation):
     name = "test.region_op"
 
-    irdl_options = [AttrSizedRegionSegments()]
+    irdl_options = (AttrSizedRegionSegments(),)
 
     region = region_def()
     opt_region = opt_region_def()
@@ -505,7 +543,7 @@ def test_region_accessors():
 class OperandOp(IRDLOperation):
     name = "test.operand_op"
 
-    irdl_options = [AttrSizedOperandSegments()]
+    irdl_options = (AttrSizedOperandSegments(),)
 
     operand = operand_def()
     opt_operand = opt_operand_def()
@@ -535,7 +573,7 @@ def test_operand_accessors():
 class OpResultOp(IRDLOperation):
     name = "test.op_result_op"
 
-    irdl_options = [AttrSizedResultSegments()]
+    irdl_options = (AttrSizedResultSegments(),)
 
     result = result_def()
     opt_result = opt_result_def()
@@ -798,7 +836,7 @@ _Operand = TypeVar("_Operand", bound=TestType)
 _Result = TypeVar("_Result", bound=TestType)
 
 
-class GenericOp(Generic[_Attr, _Operand, _Result], IRDLOperation):
+class GenericOp(IRDLOperation, Generic[_Attr, _Operand, _Result]):
     name = "test.string_or_int_generic"
 
     attr: _Attr = attr_def(_Attr)
@@ -811,7 +849,7 @@ class StringFooOp(GenericOp[StringAttr, FooType, FooType]):
     name = "test.string_specialized"
 
 
-class Generic2Op(Generic[_Operand], GenericOp[StringAttr, _Operand, FooType]): ...
+class Generic2Op(GenericOp[StringAttr, _Operand, FooType], Generic[_Operand]): ...
 
 
 @irdl_op_definition
