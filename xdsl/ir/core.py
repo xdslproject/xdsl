@@ -2587,6 +2587,10 @@ class Region(_IRNode):
                 block.prev_block
             )
 
+        # Detach linked list from block
+        block._prev_block = None  # pyright: ignore[reportPrivateUsage]
+        block._next_block = None  # pyright: ignore[reportPrivateUsage]
+
         return block
 
     def erase_block(self, block: int | Block, safe_erase: bool = True) -> None:
