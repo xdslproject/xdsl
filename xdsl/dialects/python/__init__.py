@@ -19,7 +19,7 @@ def print_python_source(module: ModuleOp, output: IO[str]) -> None:
 
 
 Python = Dialect(
-    "python",
+    "py",
     [
         PyBinOp,
         PyConstOp,
