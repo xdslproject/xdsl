@@ -1,26 +1,23 @@
 import abc
-from contextlib import contextmanager
-from dataclasses import dataclass, field
-from typing import Any
+from dataclasses import dataclass
+from typing import IO
+
+from xdsl.dialects.builtin import ModuleOp
 
 
 @dataclass(eq=False, repr=False)
 class PythonPrinter:
-    stream: Any | None = field(default=None)
+    stream: IO[str]
 
-    def print_string(self, text: str) -> None:
-        print(text, end="", file=self.stream)
+    def print_module(self, module: ModuleOp) -> None:
+        from .encoding import PythonSourceEncodingContext
+        from .ops import PyOperation
 
-    @contextmanager
-    def in_parens(self):
-        self.print_string("(")
-        try:
-            yield
-        finally:
-            self.print_string(")")
+        ctx = PythonSourceEncodingContext("xdsl-generated")
+        for op in module.body.ops:
+            assert isinstance(op, PyOperation), f"{op}"
+            self.stream.write("".join(op.encode(ctx)))
 
 
 class PythonPrintable(abc.ABC):
-    @abc.abstractmethod
-    def print_python(self, printer: PythonPrinter) -> None:
-        raise NotImplementedError()
+    pass

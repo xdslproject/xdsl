@@ -252,6 +252,11 @@ class xDSLOptMain(CommandLineTool):
             printer.print_metadata(self.ctx.loaded_dialects)
             print("\n", file=output)
 
+        def _output_python(prog: ModuleOp, output: IO[str]):
+            from xdsl.dialects.python import print_python_source
+
+            print_python_source(prog, output)
+
         def _output_riscv_asm(prog: ModuleOp, output: IO[str]):
             from xdsl.dialects.riscv import print_assembly
 
@@ -303,6 +308,7 @@ class xDSLOptMain(CommandLineTool):
         self.available_targets["arm-asm"] = _output_arm_asm
         self.available_targets["csl"] = _output_csl
         self.available_targets["mlir"] = _output_mlir
+        self.available_targets["python-source"] = _output_python
         self.available_targets["riscemu"] = _emulate_riscv
         self.available_targets["riscv-asm"] = _output_riscv_asm
         self.available_targets["wat"] = _output_wat

@@ -1,25 +1,35 @@
+from typing import IO
+
+from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import Dialect
 
 from .attrs import ObjectType
 from .ops import (
-    BinaryOpOp,
-    LoadConstOp,
-    PythonFunctionOp,
-    ReturnValueOp,
+    PyBinOp,
+    PyConstOp,
+    PyFunctionOp,
+    PyReturnOp,
 )
+from .print import PythonPrinter
+
+
+def print_python_source(module: ModuleOp, output: IO[str]) -> None:
+    printer = PythonPrinter(stream=output)
+    printer.print_module(module)
+
 
 Python = Dialect(
     "python",
     [
-        PythonFunctionOp,
-        LoadConstOp,
-        BinaryOpOp,
-        ReturnValueOp,
+        PyBinOp,
+        PyConstOp,
+        PyFunctionOp,
+        PyReturnOp,
     ],
     [
         ObjectType,
     ],
 )
 """
-The Python Bytecode dialect.
+The Python AST dialect.
 """

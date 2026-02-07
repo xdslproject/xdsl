@@ -403,6 +403,7 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "pdl_interp": get_pdl_interp,
         "printf": get_printf,
         "ptr_xdsl": get_ptr_xdsl,
+        "py": get_python,
         "riscv": get_riscv,
         "riscv_debug": get_riscv_debug,
         "riscv_func": get_riscv_func,
@@ -428,7 +429,6 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "x86": get_x86,
         "x86_func": get_x86_func,
         "transform": get_transform,
-        "python": get_python,
     }
 
 

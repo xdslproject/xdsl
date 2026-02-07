@@ -1,12 +1,7 @@
 """
-This file contains the definition of the WebAssembly (wasm) dialect.
+This file contains the definition of the Python Abstract Syntax Tree (AST) dialect.
 
-The purpose of this dialect is to model WebAssembly modules, as per the
-WebAssembly Specification 2.0.
-
-The paragraphs prefixed by `wasm>` in the documentation of this dialect are
-excerpts from the WebAssembly Specification, which is licensed under the terms
-at the bottom of this file.
+The purpose of this dialect is to model Python AST modules.
 """
 
 from collections.abc import Sequence
@@ -71,9 +66,9 @@ class PyModuleOp(PyOperation):
     For example if you have the following MLIR:
 
     py.func @add_two() -> PyObject {
-        %0 = py.const 0 : PyObject
-        %1 = py.const 1 : PyObject
-        %2 = py.binop add %0 %1 : PyObject
+        %0 = py.const 0
+        %1 = py.const 1
+        %2 = py.binop "add" %0 %1 : PyObject
         py.return %2
     }
 
@@ -99,6 +94,7 @@ class PyFunctionOp(PyOperation):
     name = "py.func"
     sym_name = attr_def(SymbolNameConstraint())
     body = region_def()
+    # TODO support parameters later.
     function_type = attr_def(FunctionType)
 
     def __init__(
@@ -144,9 +140,11 @@ class PyFunctionOp(PyOperation):
 
     def encode(self, ctx: PythonSourceEncodingContext) -> list[str]:
         source: list[str] = []
-        for op in self.body.ops:
-            if isinstance(op, PyOperation):
-                source.extend(op.encode(ctx))
+        source.append(ctx.with_indent(f"def {self.sym_name.data}():\n"))
+        with ctx.block():
+            for op in self.body.ops:
+                if isinstance(op, PyOperation):
+                    source.extend(op.encode(ctx))
         return source
 
 
@@ -167,7 +165,7 @@ class PyConstOp(PyOperation):
         super().__init__(properties={"const": const})
 
     def encode(self, ctx: PythonSourceEncodingContext) -> list[str]:
-        return [f"{ctx.get_id()} = {self.const}"]
+        return [ctx.with_indent(f"{ctx.get_id()} = {self.const.value.data}\n")]
 
 
 @irdl_op_definition
@@ -191,14 +189,18 @@ class PyBinOp(PyOperation):
     def encode(self, ctx: PythonSourceEncodingContext) -> list[str]:
         match self.op.data:
             case "add":
-                op = "+"
+                kind = "+"
             case _:
                 raise NotImplementedError(f"Binop {self.op.data} is not implemented")
         res: list[str] = []
         for op in self.operands:
             if isinstance(op, PyOperation):
                 res.extend(op.encode(ctx))
-        return res + [f"{ctx.peek_id(2)} {op} {ctx.peek_id(1)}"]
+        return res + [
+            ctx.with_indent(
+                f"{ctx.get_id()} = {ctx.peek_id(3)} {kind} {ctx.peek_id(2)}\n"
+            )
+        ]
 
 
 @irdl_op_definition
@@ -219,4 +221,4 @@ class PyReturnOp(PyOperation):
         super().__init__()
 
     def encode(self, ctx: PythonSourceEncodingContext) -> list[str]:
-        return [f"return {ctx.peek_id(1)}"]
+        return [ctx.with_indent(f"return {ctx.peek_id(1)}\n")]
