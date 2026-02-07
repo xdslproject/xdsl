@@ -5,6 +5,7 @@
 - [Developer Installation](#developer-installation)
 - [Testing and benchmarking](#testing-and-benchmarking)
 - [Formatting and Typechecking](#formatting-and-typechecking)
+- [Discussion](#discussion)
 
 ## xDSL Developer Setup
 
@@ -115,7 +116,7 @@ makefile using `make pyright`.
 > enableExperimentalFeatures = true
 > ```
 
-### Discussion
+## Discussion
 
 You can also join the discussion at our [Zulip chat room](https://xdsl.zulipchat.com),
 kindly supported by community hosting from [Zulip](https://zulip.com/).
