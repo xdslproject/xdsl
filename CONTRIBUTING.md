@@ -26,6 +26,7 @@ Then, here are the commands to locally set up your development repository:
 # Clone repo
 git clone https://github.com/xdslproject/xdsl.git
 cd xdsl
+
 # Set up local environment with all optional and dev dependencies
 # Creates a virtual environment called `.venv`
 make venv
@@ -56,19 +57,40 @@ about missing dependencies, so run `make tests-functional` instead of
 
 ## Testing and benchmarking
 
-The xDSL project uses pytest unit tests and LLVM-style filecheck tests. They can
-be executed from the root directory:
+The xDSL project uses pytest unit tests, LLVM-style filecheck tests and performance
+benchmarks. They can be executed from the root directory.
+
+### Unit Tests
+
+Python tests in `tests/` (excluding `tests/filecheck`) for testing APIs and logic:
 
 ```bash
-# Executes pytests which are located in tests/
+# Run unit tests
 uv run pytest
 
-# Executes filecheck tests
+# or via makefile
+make pytest
+
+# Check coverage
+make coverage && make coverage-report
+```
+
+### FileCheck Tests
+
+File-based tests in `tests/filecheck` using `filecheck` (a Python reimplementation of
+LLVM's FileCheck) to verify tool output. These tests rely on the textual format to
+represent and construct IR. They are used to test that custom format implementations
+print and parse in the expected way, and to verify transformations such as pattern
+rewrites or passes:
+
+```bash
 uv run lit tests/filecheck
 
-# run all tests using makefile
-make tests
+# or via makefile
+make filecheck
 ```
+
+### Benchmarks
 
 Benchmarks for the project are tracked in the
 <https://github.com/xdslproject/xdsl-bench> repository.
