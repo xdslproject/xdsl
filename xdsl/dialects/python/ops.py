@@ -65,10 +65,10 @@ class PyModuleOp(PyOperation):
 
     For example if you have the following MLIR:
 
-    py.func @add_two() -> PyObject {
+    py.func @add_two() {
         %0 = py.const 0
         %1 = py.const 1
-        %2 = py.binop "add" %0 %1 : PyObject
+        %2 = py.binop "add" %0 %1
         py.return %2
     }
 
