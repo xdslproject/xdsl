@@ -144,3 +144,8 @@ make precommit-install
 # Run the hooks
 make precommit
 ```
+
+## Discussion
+
+You can also join the discussion at our [Zulip chat room](https://xdsl.zulipchat.com),
+kindly supported by community hosting from [Zulip](https://zulip.com/).
