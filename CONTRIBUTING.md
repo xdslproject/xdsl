@@ -67,7 +67,6 @@ Python tests in `tests/` (excluding `tests/filecheck`) for testing APIs and logi
 ```bash
 # Run unit tests
 uv run pytest
-
 # or via makefile
 make pytest
 
@@ -84,8 +83,8 @@ print and parse in the expected way, and to verify transformations such as patte
 rewrites or passes:
 
 ```bash
+# Run filecheck tests
 uv run lit tests/filecheck
-
 # or via makefile
 make filecheck
 ```
@@ -100,30 +99,27 @@ submodule at your feature branch to benchmark.
 
 ## Formatting and Typechecking
 
-All Python code used in xDSL uses [ruff](https://docs.astral.sh/ruff/formatter/) to
-format the code in a uniform manner.
+Configuration for linting and formatting is found in `pyproject.toml`.
 
-To automate the formatting, we use pre-commit hooks from
-[prek](https://github.com/j178/prek), a drop-in replacement for
-[pre-commit](https://pypi.org/project/pre-commit/).
+[Ruff](https://github.com/astral-sh/ruff) is used for linting and formatting.
+Configured in `[tool.ruff]`.
+
+[Pyright](https://github.com/microsoft/pyright) is used for static type checking.
+Configured in `[tool.pyright]`.
 
 ```bash
-# Install the pre-commit on your `.git` folder
-make precommit-install
-# to run the hooks:
-make precommit
-# alternatively, run ruff directly:
+# Format code
 uv run ruff format
-```
 
-When commiting to xDSL, try to pass all Python code through
-[pyright](https://github.com/microsoft/pyright) without errors.
-Pyright checks all staged files through the
-makefile using `make pyright`.
+# Type check code
+uv run pyright
+# or via makefile
+make pyright
+```
 
 > [!IMPORTANT]
 >
-> #### Experimental Pyright Features
+> ### Experimental Pyright Features
 >
 > xDSL currently relies on an experimental feature of Pyright called TypeForm.
 > TypeForm is [in discussion](https://discuss.python.org/t/pep-747-typeexpr-type-hint-for-a-type-expression/55984)
@@ -136,7 +132,15 @@ makefile using `make pyright`.
 > enableExperimentalFeatures = true
 > ```
 
-## Discussion
+### Pre-commit Hooks
 
-You can also join the discussion at our [Zulip chat room](https://xdsl.zulipchat.com),
-kindly supported by community hosting from [Zulip](https://zulip.com/).
+To automate the formatting and type checking, we use pre-commit hooks from the
+[prek](https://github.com/j178/prek) package, a drop-in replacement for
+[pre-commit](https://pypi.org/project/pre-commit/).
+
+```bash
+# Install the pre-commit on your `.git` folder
+make precommit-install
+# Run the hooks
+make precommit
+```
