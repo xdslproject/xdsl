@@ -1,16 +1,15 @@
 # Contributing to xDSL
 
+To contribute to the development of xDSL follow the subsequent steps.
+
 ## Contents
 
 - [Developer Installation](#developer-installation)
 - [Testing and benchmarking](#testing-and-benchmarking)
 - [Formatting and Typechecking](#formatting-and-typechecking)
+- [Discussion](#discussion)
 
-## xDSL Developer Setup
-
-To contribute to the development of xDSL follow the subsequent steps.
-
-### Developer Installation
+## Developer Installation
 
 We use [uv](https://docs.astral.sh/uv/) for dependency management of xDSL.
 See uv's [getting started page](https://docs.astral.sh/uv/getting-started/) for more
@@ -55,7 +54,7 @@ This can be done with `uv sync`. Note that Pyright will then complain
 about missing dependencies, so run `make tests-functional` instead of
 `make tests` to test the functionality of xDSL.
 
-### Testing and benchmarking
+## Testing and benchmarking
 
 The xDSL project uses pytest unit tests and LLVM-style filecheck tests. They can
 be executed from the root directory:
@@ -77,7 +76,7 @@ These run automatically every day on the main branch, reporting their results to
 However, they can also be ran manually by cloning the repository and pointing the
 submodule at your feature branch to benchmark.
 
-### Formatting and Typechecking
+## Formatting and Typechecking
 
 All Python code used in xDSL uses [ruff](https://docs.astral.sh/ruff/formatter/) to
 format the code in a uniform manner.
@@ -115,7 +114,7 @@ makefile using `make pyright`.
 > enableExperimentalFeatures = true
 > ```
 
-### Discussion
+## Discussion
 
 You can also join the discussion at our [Zulip chat room](https://xdsl.zulipchat.com),
 kindly supported by community hosting from [Zulip](https://zulip.com/).
