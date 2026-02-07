@@ -18,7 +18,7 @@ details.
 
 ```sh
 # Ensure uv is installed
-uv -v
+uv --version
 ```
 
 Then, here are the commands to locally set up your development repository:
