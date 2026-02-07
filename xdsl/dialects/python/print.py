@@ -5,7 +5,7 @@ from typing import Any
 
 
 @dataclass(eq=False, repr=False)
-class BytecodePrinter:
+class PythonPrinter:
     stream: Any | None = field(default=None)
 
     def print_string(self, text: str) -> None:
@@ -20,7 +20,7 @@ class BytecodePrinter:
             self.print_string(")")
 
 
-class BytecodePrintable(abc.ABC):
+class PythonPrintable(abc.ABC):
     @abc.abstractmethod
-    def print_python(self, printer: BytecodePrinter) -> None:
+    def print_python(self, printer: PythonPrinter) -> None:
         raise NotImplementedError()
