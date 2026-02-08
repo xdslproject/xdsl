@@ -1,6 +1,7 @@
 # Contributing to xDSL
 
-To contribute to the development of xDSL follow the subsequent steps.
+This document describes the steps needed to clone, install, and test the repository,
+as well as a description of our coding and contributing conventions.
 
 ## Contents
 
