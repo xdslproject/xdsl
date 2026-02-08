@@ -280,6 +280,19 @@
     // CHECK-NEXT: riscv.directive ".bss"
     riscv.directive ".align" "2"
     // CHECK-NEXT: riscv.directive ".align" "2"
+    riscv.assembly_section ".text" attributes {"foo" = i32} {
+      riscv.nop
+    }
+    // CHECK-NEXT:  riscv.assembly_section ".text" attributes {foo = i32} {
+    // CHECK-NEXT:    riscv.nop
+    // CHECK-NEXT:  }
+
+    riscv.assembly_section ".text" {
+      riscv.nop
+    }
+    // CHECK-NEXT:  riscv.assembly_section ".text" {
+    // CHECK-NEXT:    riscv.nop
+    // CHECK-NEXT:  }
 
     // Custom instruction
     %custom0, %custom1 = riscv.custom_assembly_instruction %0, %1 {"instruction_name" = "hello"} : (!riscv.reg, !riscv.reg) -> (!riscv.reg, !riscv.reg)
@@ -560,6 +573,12 @@
 // CHECK-GENERIC-NEXT:      "riscv.ebreak"() : () -> ()
 // CHECK-GENERIC-NEXT:      "riscv.directive"() {directive = ".bss"} : () -> ()
 // CHECK-GENERIC-NEXT:      "riscv.directive"() {directive = ".align", value = "2"} : () -> ()
+// CHECK-GENERIC-NEXT:      "riscv.assembly_section"() ({
+// CHECK-GENERIC-NEXT:        "riscv.nop"() : () -> ()
+// CHECK-GENERIC-NEXT:      }) {directive = ".text", foo = i32} : () -> ()
+// CHECK-GENERIC-NEXT:      "riscv.assembly_section"() ({
+// CHECK-GENERIC-NEXT:        "riscv.nop"() : () -> ()
+// CHECK-GENERIC-NEXT:      }) {directive = ".text"} : () -> ()
 // CHECK-GENERIC-NEXT:      %custom0, %custom1 = "riscv.custom_assembly_instruction"(%0, %1) {instruction_name = "hello"} : (!riscv.reg, !riscv.reg) -> (!riscv.reg, !riscv.reg)
 // CHECK-GENERIC-NEXT:      %f0 = "riscv.get_float_register"() : () -> !riscv.freg
 // CHECK-GENERIC-NEXT:      %f1 = "riscv.get_float_register"() : () -> !riscv.freg
