@@ -167,50 +167,6 @@ make precommit-install
 make precommit
 ```
 
-## Code Style
-
-We aim to follow these rules for all changes in this repository:
-
-- We aim for consistency in the code style and architectural patterns throughout the
-  codebase in order to make it as easy as possible to understand and modify any part of
-  xDSL.
-- We fix issues immediately rather than relying on future refactoring, as technical debt
-  tends to accumulate and become harder to address over time.
-- We prefer simplicity: no code is better than obvious code, which is better than clever
-  code. Premature abstraction often adds complexity without clear benefit.
-- We prioritize code locality over DRY (Don't Repeat Yourself). Keeping related logic close
-  together - even if it results in slight duplication - makes it easier to understand
-  code in isolation. We prefer lambdas and inline logic over tiny single-use functions
-  (<5 LoC), and we minimize variable scope.
-- We write self-describing code by using descriptive variable names and constant
-  intermediary variables rather than relying heavily on comments.
-- We use guard-first logic, handling edge cases, invalid inputs and errors at the start
-  of functions. Returning early keeps the "happy path" at the lowest indentation level,
-  making the main logic easier to follow.
-- We keep if/else blocks small and avoid nesting beyond two levels when possible, as
-  flat structures are easier to read and reason about.
-- We centralize control flow in parent functions, keeping leaf functions as pure logic.
-  This separation makes the codebase more predictable and testable.
-- We fail fast by detecting unexpected conditions immediately and raising exceptions
-  rather than corrupting state, as this makes debugging easier.
-- We follow the Python philosophy of
-  "[ask for forgiveness not permission](https://docs.python.org/3/glossary.html#term-eafp)":
-  we assume valid keys or attributes exist and catch exceptions if the assumption proves
-  false. This leads to cleaner, more Pythonic code:
-
-  ```python
-  # Good
-  try:
-      return mapping[key]
-  except KeyError:
-      return default_value
-
-  # Bad
-  if key in mapping:
-      return mapping[key]
-  return default_value
-  ```
-
 ## Discussion
 
 You can also join the discussion at our [Zulip chat room](https://xdsl.zulipchat.com),
