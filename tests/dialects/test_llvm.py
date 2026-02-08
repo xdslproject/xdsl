@@ -544,7 +544,6 @@ def test_func_op_res_attrs():
         [builtin.DictionaryAttr({"llvm.noundef": UnitAttr()})]
     )  # ret val as undefined
     op = llvm.FuncOp("my_func", ft, other_props={"res_attrs": res_attrs})
-    assert op.res_attrs is not None
     assert op.res_attrs == res_attrs
 
 
