@@ -8,7 +8,6 @@ as well as a description of our coding and contributing conventions.
 - [Developer Installation](#developer-installation)
 - [Testing and benchmarking](#testing-and-benchmarking)
 - [Formatting and Typechecking](#formatting-and-typechecking)
-- [Code Style](#code-style)
 - [Discussion](#discussion)
 
 ## Developer Installation
