@@ -60,7 +60,8 @@ about missing dependencies, so run `make tests-functional` instead of
 ## Testing and benchmarking
 
 The xDSL project uses pytest unit tests, LLVM-style filecheck tests and performance
-benchmarks. They can be executed from the root directory.
+benchmarks. They can be executed from the root directory with `make tests` (which runs
+everything except benchmarks and also runs pyright for type checking).
 
 ### Unit Tests
 
@@ -71,9 +72,6 @@ Python tests in `tests/` (excluding `tests/filecheck`) for testing APIs and logi
 uv run pytest
 # or via makefile
 make pytest
-
-# Check coverage
-make coverage && make coverage-report
 ```
 
 ### FileCheck Tests
@@ -89,6 +87,28 @@ rewrites or passes:
 uv run lit tests/filecheck
 # or via makefile
 make filecheck
+```
+
+### Coverage Tests
+
+To generate coverage reports for both unit tests and filecheck tests:
+
+```bash
+# Run coverage for unit tests and filecheck tests, then combine data files
+make coverage
+# Generate a coverage report
+make coverage-report
+# Or generate an HTML coverage report
+make coverage-report-html
+```
+
+You can also run coverage for each test type individually:
+
+```bash
+# Run coverage for unit tests only
+make coverage-tests
+# Run coverage for filecheck tests only
+make coverage-filecheck-tests
 ```
 
 ### Benchmarks
