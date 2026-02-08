@@ -1,7 +1,9 @@
 import pytest
 
+from xdsl.backend.assembly_printer import reg
 from xdsl.dialects import x86
 from xdsl.dialects.builtin import IntegerAttr
+from xdsl.dialects.x86.attributes import VectorRegisterWidth
 from xdsl.dialects.x86.ops import (
     DM_LeaOp,
     DM_MovOp,
@@ -436,3 +438,56 @@ def test_conditional_jump_numeric_label_not_implemented():
         op.assembly_line_args()
     label_op.label = x86.attributes.LabelAttr("hello")
     assert op.assembly_line_args() == ("hello",)
+
+
+def test_vector_register_width():
+    # Test enum values
+    assert x86.attributes.VectorRegisterWidth.B128.value == "b128"
+    assert x86.attributes.VectorRegisterWidth.B256.value == "b256"
+    assert x86.attributes.VectorRegisterWidth.B512.value == "b512"
+
+    # Test bitwidth property
+    assert x86.attributes.VectorRegisterWidth.B128.bitwidth == 128
+    assert x86.attributes.VectorRegisterWidth.B256.bitwidth == 256
+    assert x86.attributes.VectorRegisterWidth.B512.bitwidth == 512
+
+    # Test from_bitwidth
+    assert (
+        x86.attributes.VectorRegisterWidth.from_bitwidth(128)
+        == x86.attributes.VectorRegisterWidth.B128
+    )
+    assert (
+        x86.attributes.VectorRegisterWidth.from_bitwidth(256)
+        == x86.attributes.VectorRegisterWidth.B256
+    )
+    assert (
+        x86.attributes.VectorRegisterWidth.from_bitwidth(512)
+        == x86.attributes.VectorRegisterWidth.B512
+    )
+
+    with pytest.raises(ValueError, match="No vector register size for bitwidth 1024."):
+        x86.attributes.VectorRegisterWidth.from_bitwidth(1024)
+
+
+@pytest.mark.parametrize(
+    "bitwidth,register_type,index,expected",
+    [
+        (128, x86.registers.SSERegisterType, 0, "xmm0"),
+        (128, x86.registers.SSERegisterType, 1, "xmm1"),
+        (256, x86.registers.AVX2RegisterType, 0, "ymm0"),
+        (256, x86.registers.AVX2RegisterType, 1, "ymm1"),
+        (512, x86.registers.AVX512RegisterType, 0, "zmm0"),
+        (512, x86.registers.AVX512RegisterType, 1, "zmm1"),
+    ],
+)
+def test_vector_register_printing(
+    bitwidth: int,
+    register_type: type[x86.registers.X86VectorRegisterType],
+    index: int,
+    expected: str,
+):
+    reg_val = create_ssa_value(register_type.from_index(index))
+    reg_width = x86.attributes.VectorRegisterWidthAttr(
+        VectorRegisterWidth.from_bitwidth(bitwidth)
+    )
+    assert reg(reg_val, reg_width) == expected

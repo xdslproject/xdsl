@@ -3,6 +3,11 @@ from __future__ import annotations
 from abc import ABC
 
 from xdsl.backend.register_type import RegisterType
+from xdsl.dialects.x86.attributes import (
+    AVX2_NAMES,
+    AVX512_NAMES,
+    SSE_NAMES,
+)
 from xdsl.irdl import (
     irdl_attr_definition,
 )
@@ -153,24 +158,7 @@ class X86VectorRegisterType(X86RegisterType):
     """
 
 
-SSE_INDEX_BY_NAME = {
-    "xmm0": 0,
-    "xmm1": 1,
-    "xmm2": 2,
-    "xmm3": 3,
-    "xmm4": 4,
-    "xmm5": 5,
-    "xmm6": 6,
-    "xmm7": 7,
-    "xmm8": 8,
-    "xmm9": 9,
-    "xmm10": 10,
-    "xmm11": 11,
-    "xmm12": 12,
-    "xmm13": 13,
-    "xmm14": 14,
-    "xmm15": 15,
-}
+SSE_INDEX_BY_NAME = {name: i for i, name in enumerate(SSE_NAMES)}
 """
 Mapping of SSE register names to their indices.
 
@@ -196,7 +184,7 @@ class SSERegisterType(X86VectorRegisterType):
 
 
 UNALLOCATED_SSE = SSERegisterType.unallocated()
-XMM = tuple(SSERegisterType.from_name(f"xmm{i}") for i in range(16))
+XMM = tuple(SSERegisterType.from_name(name) for name in SSE_INDEX_BY_NAME)
 (
     XMM0,
     XMM1,
@@ -217,24 +205,7 @@ XMM = tuple(SSERegisterType.from_name(f"xmm{i}") for i in range(16))
 ) = XMM
 
 
-AVX2_INDEX_BY_NAME = {
-    "ymm0": 0,
-    "ymm1": 1,
-    "ymm2": 2,
-    "ymm3": 3,
-    "ymm4": 4,
-    "ymm5": 5,
-    "ymm6": 6,
-    "ymm7": 7,
-    "ymm8": 8,
-    "ymm9": 9,
-    "ymm10": 10,
-    "ymm11": 11,
-    "ymm12": 12,
-    "ymm13": 13,
-    "ymm14": 14,
-    "ymm15": 15,
-}
+AVX2_INDEX_BY_NAME = {name: i for i, name in enumerate(AVX2_NAMES)}
 """
 Mapping of AVX2 register names to their indices.
 
@@ -264,7 +235,7 @@ class AVX2RegisterType(X86VectorRegisterType):
 
 
 UNALLOCATED_AVX2 = AVX2RegisterType.unallocated()
-YMM = tuple(AVX2RegisterType.from_name(f"ymm{i}") for i in range(16))
+YMM = tuple(AVX2RegisterType.from_name(name) for name in AVX2_INDEX_BY_NAME)
 (
     YMM0,
     YMM1,
@@ -285,40 +256,7 @@ YMM = tuple(AVX2RegisterType.from_name(f"ymm{i}") for i in range(16))
 ) = YMM
 
 
-X86AVX512_INDEX_BY_NAME = {
-    "zmm0": 0,
-    "zmm1": 1,
-    "zmm2": 2,
-    "zmm3": 3,
-    "zmm4": 4,
-    "zmm5": 5,
-    "zmm6": 6,
-    "zmm7": 7,
-    "zmm8": 8,
-    "zmm9": 9,
-    "zmm10": 10,
-    "zmm11": 11,
-    "zmm12": 12,
-    "zmm13": 13,
-    "zmm14": 14,
-    "zmm15": 15,
-    "zmm16": 16,
-    "zmm17": 17,
-    "zmm18": 18,
-    "zmm19": 19,
-    "zmm20": 20,
-    "zmm21": 21,
-    "zmm22": 22,
-    "zmm23": 23,
-    "zmm24": 24,
-    "zmm25": 25,
-    "zmm26": 26,
-    "zmm27": 27,
-    "zmm28": 28,
-    "zmm29": 29,
-    "zmm30": 30,
-    "zmm31": 31,
-}
+AVX512_INDEX_BY_NAME = {name: i for i, name in enumerate(AVX512_NAMES)}
 """
 Mapping of AVX512 register names to their indices.
 
@@ -336,7 +274,7 @@ class AVX512RegisterType(X86VectorRegisterType):
 
     @classmethod
     def index_by_name(cls) -> dict[str, int]:
-        return X86AVX512_INDEX_BY_NAME
+        return AVX512_INDEX_BY_NAME
 
     @classmethod
     def infinite_register_prefix(cls):
@@ -348,7 +286,7 @@ class AVX512RegisterType(X86VectorRegisterType):
 
 
 UNALLOCATED_AVX512 = AVX512RegisterType.unallocated()
-ZMM = tuple(AVX512RegisterType.from_name(f"zmm{i}") for i in range(32))
+ZMM = tuple(AVX512RegisterType.from_name(name) for name in AVX512_INDEX_BY_NAME)
 (
     ZMM0,
     ZMM1,
