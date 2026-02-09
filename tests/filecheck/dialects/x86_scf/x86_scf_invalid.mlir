@@ -2,10 +2,10 @@
 
 
 
-%lb = "riscv.li"() {"immediate" = 0: i32} : () -> !riscv.reg
-%ub = "riscv.li"() {"immediate" = 100: i32} : () -> !riscv.reg
-%step = "riscv.li"() {"immediate" = 1: i32} : () -> !riscv.reg
-%acc = "riscv.li"() {"immediate" = 0 : i32} : () -> !riscv.reg<t0>
+%lb = "rv32.li"() {"immediate" = 0: i32} : () -> !riscv.reg
+%ub = "rv32.li"() {"immediate" = 100: i32} : () -> !riscv.reg
+%step = "rv32.li"() {"immediate" = 1: i32} : () -> !riscv.reg
+%acc = "rv32.li"() {"immediate" = 0 : i32} : () -> !riscv.reg<t0>
 
 %i_last, %ub_last, %step_last = riscv_scf.while (%i0 = %lb, %step_arg0 = %step) : (!riscv.reg, !riscv.reg, !riscv.reg) -> (!riscv.reg, !riscv.reg, !riscv.reg) {
     %cond = riscv.slt %i0, %ub_arg0 : (!riscv.reg, !riscv.reg) -> !riscv.reg

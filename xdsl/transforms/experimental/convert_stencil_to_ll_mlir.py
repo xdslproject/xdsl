@@ -284,7 +284,7 @@ def prepare_apply_body(op: ApplyOp):
     entry = op.region.block
 
     for operand, arg in zip(op.operands, entry.args):
-        arg.replace_by(operand)
+        arg.replace_all_uses_with(operand)
         entry.erase_arg(arg)
     entry.add_op(scf.ReduceOp())
     for _ in range(op.get_rank()):

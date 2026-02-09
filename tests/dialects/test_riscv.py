@@ -217,13 +217,13 @@ def test_immediate_pseudo_inst():
 
     # Pseudo-Instruction with custom handling
     with pytest.raises(VerifyException):
-        riscv.LiOp(ub, rd=riscv.Registers.A0)
+        rv32.LiOp(ub, rd=riscv.Registers.A0)
 
     with pytest.raises(VerifyException):
-        riscv.LiOp(lb - 1, rd=riscv.Registers.A0)
+        rv32.LiOp(lb - 1, rd=riscv.Registers.A0)
 
-    riscv.LiOp(ub - 1, rd=riscv.Registers.A0)
-    riscv.LiOp(lb, rd=riscv.Registers.A0)
+    rv32.LiOp(ub - 1, rd=riscv.Registers.A0)
+    rv32.LiOp(lb, rd=riscv.Registers.A0)
 
 
 def test_immediate_shift_inst():
@@ -275,7 +275,7 @@ def test_asm_section():
 
 
 def test_get_constant_value():
-    li_op = riscv.LiOp(1)
+    li_op = rv32.LiOp(1)
     li_val = get_constant_value(li_op.rd)
     assert li_val == IntegerAttr.from_int_and_width(1, 32)
     # LiOp implements ConstantLikeInterface so it also has a get_constant_value method:

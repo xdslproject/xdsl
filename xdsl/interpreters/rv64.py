@@ -26,3 +26,13 @@ class Rv64Functions(InterpreterFunctions):
         assert isinstance(imm, int)
         results = (args[0] << imm,)
         return RiscvFunctions.set_reg_values(interpreter, op.results, results)
+
+    @impl(rv64.LiOp)
+    def run_li(
+        self,
+        interpreter: Interpreter,
+        op: rv64.LiOp,
+        args: tuple[Any, ...],
+    ):
+        results = (RiscvFunctions.get_immediate_value(interpreter, op.immediate),)
+        return RiscvFunctions.set_reg_values(interpreter, op.results, results)

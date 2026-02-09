@@ -2,18 +2,16 @@
 RISC-V 32-bit (RV32) dialect operations and types.
 
 This module defines the RV32-specific variant of RISC-V operations,
-using 5-bit shift immediates for 32-bit architectures.
+using 5-bit immediates for 32-bit architectures.
 """
 
 from __future__ import annotations
 
 from abc import ABC
+from collections.abc import Sequence
 from collections.abc import Set as AbstractSet
 
-from xdsl.dialects.builtin import (
-    IntegerAttr,
-    StringAttr,
-)
+from xdsl.dialects.builtin import I32, IntegerAttr, StringAttr, i32
 from xdsl.dialects.riscv import (
     SI12,
     UI5,
@@ -28,6 +26,8 @@ from xdsl.dialects.riscv import (
     si12,
     ui5,
 )
+from xdsl.dialects.riscv.ops import LiOpHasCanonicalizationPatternTrait
+from xdsl.interfaces import ConstantLikeInterface
 from xdsl.ir import (
     Attribute,
     Dialect,
@@ -446,6 +446,75 @@ class LwOp(RdRsImmIntegerOperation):
     traits = traits_def(LwOpHasCanonicalizationPatternTrait())
 
 
+@irdl_op_definition
+class LiOp(RISCVCustomFormatOperation, RISCVInstruction, ConstantLikeInterface, ABC):
+    """
+    Loads a 32-bit immediate into rd.
+
+    This is an assembler pseudo-instruction.
+
+    See external [documentation](https://github.com/riscv-non-isa/riscv-asm-manual/blob/main/src/asm-manual.adoc).
+    """
+
+    name = "rv32.li"
+
+    rd = result_def(IntRegisterType)
+    immediate = attr_def(IntegerAttr[I32] | LabelAttr)
+
+    traits = traits_def(Pure(), LiOpHasCanonicalizationPatternTrait())
+
+    def __init__(
+        self,
+        immediate: int | IntegerAttr[I32] | str | LabelAttr,
+        *,
+        rd: IntRegisterType = Registers.UNALLOCATED_INT,
+        comment: str | StringAttr | None = None,
+    ):
+        if isinstance(immediate, int):
+            immediate = IntegerAttr(immediate, i32)
+        elif isinstance(immediate, str):
+            immediate = LabelAttr(immediate)
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            result_types=[rd],
+            attributes={
+                "immediate": immediate,
+                "comment": comment,
+            },
+        )
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
+        return self.rd, self.immediate
+
+    def get_constant_value(self):
+        return self.immediate
+
+    @classmethod
+    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
+        attributes = dict[str, Attribute]()
+        attributes["immediate"] = parse_immediate_value(parser, i32)
+        return attributes
+
+    def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
+        printer.print_string(" ")
+        print_immediate_value(printer, self.immediate)
+        return {"immediate", "fastmath"}
+
+    @classmethod
+    def parse_op_type(
+        cls, parser: Parser
+    ) -> tuple[Sequence[Attribute], Sequence[Attribute]]:
+        parser.parse_punctuation(":")
+        res_type = parser.parse_attribute()
+        return (), (res_type,)
+
+    def print_op_type(self, printer: Printer) -> None:
+        printer.print_string(" : ")
+        printer.print_attribute(self.rd.type)
+
+
 RV32 = Dialect(
     "rv32",
     [
@@ -470,6 +539,7 @@ RV32 = Dialect(
         LhOp,
         LhuOp,
         LwOp,
+        LiOp,
     ],
     [],
 )

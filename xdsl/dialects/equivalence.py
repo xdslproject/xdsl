@@ -2,7 +2,7 @@
 An embedding of equivalence classes in IR, for use in equality saturation with
 non-destructive rewrites.
 
-See the overview [notebook](https://xdsl.readthedocs.io/stable/marimo/equivalence.html).
+See the overview [notebook](https://docs.xdsl.dev/marimo/equivalence.html).
 """
 
 from __future__ import annotations

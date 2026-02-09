@@ -24,6 +24,7 @@ from xdsl.ir import (
     ParametrizedAttribute,
     Region,
     SSAValue,
+    Use,
 )
 from xdsl.irdl import AttrConstraint, base
 from xdsl.rewriter import BlockInsertPoint, InsertPoint, Rewriter
@@ -81,6 +82,30 @@ class PatternRewriterListener(BuilderListener):
             self.operation_replacement_handler.extend(
                 listener.operation_replacement_handler
             )
+
+
+class _TrackingPredicate:
+    """
+    A callable class which is used as a predicate in `replace_uses_with_if`.
+    The class takes a predicate and tracks all operations for which the predicate
+    returned true.
+    """
+
+    predicate: Callable[[Use], bool]
+    """The original predicate to call."""
+
+    modified_ops: list[Operation]
+    """The operations for which the predicate returned true."""
+
+    def __init__(self, predicate: Callable[[Use], bool]):
+        self.predicate = predicate
+        self.modified_ops: list[Operation] = []
+
+    def __call__(self, use: Use) -> bool:
+        if self.predicate(use):
+            self.modified_ops.append(use.operation)
+            return True
+        return False
 
 
 @dataclass(eq=False, init=False)
@@ -145,15 +170,28 @@ class PatternRewriter(Builder, PatternRewriterListener):
         Rewriter.erase_op(op, safe_erase=safe_erase)
 
     def replace_all_uses_with(
-        self, from_: SSAValue, to: SSAValue | None, safe_erase: bool = True
+        self, from_value: SSAValue, to_value: SSAValue | None, safe_erase: bool = True
     ):
-        """Replace all uses of an SSA value with another SSA value."""
-        modified_ops = [use.operation for use in from_.uses]
-        if to is None:
-            from_.erase(safe_erase=safe_erase)
+        """Replace all uses of `old` with `new`."""
+        modified_ops = [use.operation for use in from_value.uses]
+        if to_value is None:
+            from_value.erase(safe_erase=safe_erase)
         else:
-            from_.replace_by(to)
+            from_value.replace_all_uses_with(to_value)
         for op in modified_ops:
+            self.handle_operation_modification(op)
+
+    def replace_uses_with_if(
+        self,
+        from_value: SSAValue,
+        to_value: SSAValue,
+        predicate: Callable[[Use], bool],
+    ):
+        """Replace uses of `old` satisfying `predicate` with `new`."""
+        tracking = _TrackingPredicate(predicate)
+        from_value.replace_uses_with_if(to_value, tracking)
+
+        for op in tracking.modified_ops:
             self.handle_operation_modification(op)
 
     def replace_matched_op(
