@@ -1,22 +1,20 @@
 from __future__ import annotations
 
-from collections.abc import Callable, Sequence
+from collections.abc import Sequence
 from dataclasses import dataclass, field
+
+from ordered_set import OrderedSet
 
 from xdsl.builder import Builder, InsertOpInvT
 from xdsl.dialects import equivalence
 from xdsl.ir import (
-    Attribute,
     Block,
-    BlockArgument,
     Operation,
     OpResult,
-    Region,
     SSAValue,
-    Use,
 )
 from xdsl.pattern_rewriter import PatternRewriterListener
-from xdsl.rewriter import BlockInsertPoint, InsertPoint, Rewriter
+from xdsl.rewriter import InsertPoint, Rewriter
 from xdsl.transforms.common_subexpression_elimination import KnownOps
 from xdsl.utils.disjoint_set import DisjointSet
 
@@ -39,37 +37,16 @@ class EquivalencePatternRewriter(Builder, PatternRewriterListener):
     )
     """Union-find structure tracking which e-classes are equivalent and should be merged."""
 
+    worklist: list[equivalence.AnyClassOp] = field(
+        default_factory=list[equivalence.AnyClassOp]
+    )
+    """Worklist of e-classes that need to be processed for matching."""
+
     current_operation: Operation
     """The matched operation."""
 
     has_done_action: bool = field(default=False, init=False)
     """Has the rewriter done any action during the current match."""
-
-    def get_or_create_class(self, op: InsertOpInvT) -> equivalence.AnyClassOp:
-        """
-        Get the equivalence class for a value, creating one if it doesn't exist.
-        """
-        # op is already a ClassOp
-        if isinstance(op, equivalence.AnyClassOp):
-            return self.eclass_union_find.find(op)
-
-        # op is not a ClassOp, create a ClassOp wrapper for it and check if there exist equivalent ClassOps
-        # – if so, union the new ClassOp with the existing one, otherwise, add the new ClassOp to the union-find structure
-        eclass_op = equivalence.ClassOp(
-            op.results[0]
-        )  # creeate a ClassOp wrapper for the operation result
-        if op not in self.known_ops:
-            self.known_ops[op] = (
-                op  # update the known_ops to indicate that we have seen this operation
-            )
-            self.eclass_union_find.add(
-                eclass_op
-            )  # add the new ClassOp to the union-find structure
-            return eclass_op
-        else:  # op has been seen before, so there must exist a ClassOp wrapper already, so we union
-            eclass_op = equivalence.ClassOp(op.results[0])
-            self.eclass_union_find.find(eclass_op)
-            return eclass_op
 
     def __init__(self, current_operation: Operation):
         PatternRewriterListener.__init__(self)
@@ -84,11 +61,15 @@ class EquivalencePatternRewriter(Builder, PatternRewriterListener):
         insertion_point: InsertPoint | None = None,
     ) -> InsertOpInvT:
         """Insert operations at a certain location in a block."""
-        eclass_op = self.get_or_create_class(op)
-        self.has_done_action = True
-        return super().insert_op(eclass_op, insertion_point)
+        if op in self.known_ops:
+            return op
 
-    # do i need to edit this?
+        # op not in known_ops
+        self.known_ops.add(op)
+        self.has_done_action = True
+        return super().insert_op(op, insertion_point)
+
+    # do i need to remove op from known_ops when op is erased, in case it is used nowhere else?
     def erase_op(self, op: Operation, safe_erase: bool = True):
         """
         Erase an operation.
@@ -99,54 +80,6 @@ class EquivalencePatternRewriter(Builder, PatternRewriterListener):
         self.handle_operation_removal(op)
         Rewriter.erase_op(op, safe_erase=safe_erase)
 
-    def replace_all_uses_with(
-        self, from_: SSAValue, to: SSAValue | None, safe_erase: bool = True
-    ):
-        """Replace all uses of an SSA value with another SSA value."""
-        modified_ops = [use.operation for use in from_.uses]
-        if to is None:
-            from_.erase(safe_erase=safe_erase)
-        else:
-            from_.replace_by(to)
-        for op in modified_ops:
-            self.handle_operation_modification(op)
-
-    def replace_uses_with_if(
-        self,
-        from_: SSAValue,
-        to: SSAValue,
-        predicate: Callable[[Use], bool],
-    ):
-        """Find uses of from and replace them with to if the predicate returns true."""
-        uses_to_replace = [use for use in from_.uses if predicate(use)]
-        modified_ops = [use.operation for use in uses_to_replace]
-
-        for use in uses_to_replace:
-            use.operation.operands[use.index] = to
-
-        for op in modified_ops:
-            self.handle_operation_modification(op)
-
-    def replace_matched_op(
-        self,
-        new_ops: Operation | Sequence[Operation],
-        new_results: Sequence[SSAValue | None] | None = None,
-        safe_erase: bool = True,
-    ):
-        """
-        Replace the matched operation with new operations.
-        Also, optionally specify SSA values to replace the operation results.
-        If safe_erase is True, check that the operation has no uses.
-        Otherwise, replace its uses with ErasedSSAValue.
-        """
-        self.replace_op(
-            self.current_operation, new_ops, new_results, safe_erase=safe_erase
-        )
-
-    # do not remove the operation.
-    # If both the current operation and new operation do not have an eclass yet, create on,
-    # otherwise, add the new operation to the existing eqclass/ union the operation with its eclass
-    # replace current operation with the eclass.
     def replace_op(
         self,
         op: Operation,
@@ -167,7 +100,7 @@ class EquivalencePatternRewriter(Builder, PatternRewriterListener):
 
         # First, insert the new operations before the matched operation
         self.insert_op(new_ops, InsertPoint.before(op))
-
+        # If new results are not specified, use the results of the last new operation by default
         if new_results is None:
             new_results = new_ops[-1].results if new_ops else []
 
@@ -176,88 +109,94 @@ class EquivalencePatternRewriter(Builder, PatternRewriterListener):
                 f"Expected {len(op.results)} new results, but got {len(new_results)}"
             )
 
-        # Then, replace the results with new ones
+        # Then, union the results with new ones
         self.handle_operation_replacement(op, new_results)
         for old_result, new_result in zip(op.results, new_results):
-            self.replace_all_uses_with(old_result, new_result, safe_erase=safe_erase)
+            self.union_val(old_result, new_result)
 
-            # Preserve name hints for ops with multiple results
-            if new_result is not None and not new_result.name_hint:
-                new_result.name_hint = old_result.name_hint
-
-        # Add name hints for existing ops, only if there is a single new result
-        if (
-            len(new_results) == 1
-            and (only_result := new_results[0]) is not None
-            and (name_hint := only_result.name_hint) is not None
-        ):
-            for new_op in new_ops:
-                for res in new_op.results:
-                    if not res.name_hint:
-                        res.name_hint = name_hint
-
-        # Then, erase the original operation
-        self.erase_op(op, safe_erase=safe_erase)
-
-    def replace_value_with_new_type(
-        self, val: SSAValue, new_type: Attribute
-    ) -> SSAValue:
+    def union_val(self, a: SSAValue, b: SSAValue) -> None:
         """
-        Replace a value with a value of a new type, and return the new value.
-        This will insert the new value in the operation or block, and remove the existing
-        value.
+        Union two values into the same equivalence class.
         """
-        self.has_done_action = True
+        if a == b:
+            return
+
+        eclass_a = self.get_or_create_class(a)
+        eclass_b = self.get_or_create_class(b)
+
+        if self.eclass_union(eclass_a, eclass_b):
+            self.worklist.append(eclass_a)
+
+    def get_or_create_class(self, val: SSAValue) -> equivalence.AnyClassOp:
+        """
+        Get the equivalence class for a value, creating one if it doesn't exist.
+        """
         if isinstance(val, OpResult):
-            self.handle_operation_modification(val.op)
-        if isinstance(val, BlockArgument):
-            if (op := val.block.parent_op()) is not None:
-                self.handle_operation_modification(op)
-        return Rewriter.replace_value_with_new_type(val, new_type)
+            # If val is defined by a ClassOp, return it
+            if isinstance(val.owner, equivalence.AnyClassOp):
+                return self.eclass_union_find.find(val.owner)
+        else:
+            assert isinstance(val.owner, Block)
 
-    def insert_block_argument(
-        self, block: Block, index: int, arg_type: Attribute
-    ) -> BlockArgument:
-        """Insert a new block argument."""
-        self.has_done_action = True
-        return block.insert_arg(arg_type, index)
+        # If val has one use and it's a ClassOp, return it
+        if (user := val.get_user_of_unique_use()) is not None:
+            if isinstance(user, equivalence.AnyClassOp):
+                return user
 
-    def erase_block_argument(self, arg: BlockArgument, safe_erase: bool = True) -> None:
-        """
-        Erase a new block argument.
-        If safe_erase is true, then raise an exception if the block argument has still
-        uses, otherwise, replace it with an ErasedSSAValue.
-        """
-        self.has_done_action = True
-        self.replace_all_uses_with(arg, None, safe_erase=safe_erase)
-        arg.block.erase_arg(arg, safe_erase)
+        # If the value is not part of an eclass yet, create one
+        eclass_op = equivalence.ClassOp(val)
+        self.eclass_union_find.add(eclass_op)
 
-    def inline_block(
+        # Do I need to replace all uses of val with the eclass result here?
+
+        return eclass_op
+
+    def eclass_union(
         self,
-        block: Block,
-        insertion_point: InsertPoint,
-        arg_values: Sequence[SSAValue] = (),
-    ):
-        """
-        Move the block operations to the specified insertion point.
-        """
-        self.has_done_action = True
-        Rewriter.inline_block(block, insertion_point, arg_values=arg_values)
+        a: equivalence.AnyClassOp,
+        b: equivalence.AnyClassOp,
+    ) -> bool:
+        """Unions two eclasses, merging their operands and results.
+        Returns True if the eclasses were merged, False if they were already the same."""
+        a = self.eclass_union_find.find(a)
+        b = self.eclass_union_find.find(b)
 
-    def move_region_contents_to_new_regions(self, region: Region) -> Region:
-        """Move the region blocks to a new region."""
-        self.has_done_action = True
-        return Rewriter.move_region_contents_to_new_regions(region)
+        if a == b:
+            return False
 
-    def inline_region(self, region: Region, insertion_point: BlockInsertPoint) -> None:
-        """Move the region blocks to the specified insertion point."""
-        self.has_done_action = True
-        Rewriter.inline_region(region, insertion_point)
+        # Meet the analysis states of the two e-classes
+        for analysis in self.analyses:
+            a_lattice = analysis.get_lattice_element(a.result)
+            b_lattice = analysis.get_lattice_element(b.result)
+            a_lattice.meet(b_lattice)
 
-    def notify_op_modified(self, op: Operation) -> None:
-        """
-        Notify the rewriter that an operation was modified in the pattern.
-        This will correctly update the rewriter state.
-        """
-        self.has_done_action = True
-        self.handle_operation_modification(op)
+        if isinstance(a, equivalence.ConstantClassOp):
+            if isinstance(b, equivalence.ConstantClassOp):
+                assert a.value == b.value, (
+                    "Trying to union two different constant eclasses.",
+                )
+            to_keep, to_replace = a, b
+            self.eclass_union_find.union_left(to_keep, to_replace)
+        elif isinstance(b, equivalence.ConstantClassOp):
+            to_keep, to_replace = b, a
+            self.eclass_union_find.union_left(to_keep, to_replace)
+        else:
+            self.eclass_union_find.union(
+                a,
+                b,
+            )
+            to_keep = self.eclass_union_find.find(a)
+            to_replace = b if to_keep is a else a
+        # Operands need to be deduplicated because it can happen the same operand was
+        # used by different parent eclasses after their children were merged:
+        new_operands = OrderedSet(to_keep.operands)
+        new_operands.update(to_replace.operands)
+        to_keep.operands = new_operands
+
+        for use in to_replace.result.uses:
+            # uses are removed from the hashcons before the replacement is carried out.
+            # (because the replacement changes the operations which means we cannot find them in the hashcons anymore)
+            if use.operation in self.known_ops:
+                self.known_ops.pop(use.operation)
+
+        return True
