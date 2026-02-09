@@ -13,14 +13,14 @@ class ShiftLeftImmediate(RewritePattern):
     def match_and_rewrite(self, op: rv32.SlliOp, rewriter: PatternRewriter) -> None:
         if (
             isinstance(op.rs1, OpResult)
-            and isinstance(op.rs1.op, riscv.LiOp)
+            and isinstance(op.rs1.op, rv32.LiOp)
             and isinstance(op.rs1.op.immediate, IntegerAttr)
             and isinstance(op.immediate, IntegerAttr)
         ):
             rd = op.rd.type
             rewriter.replace_op(
                 op,
-                riscv.LiOp(
+                rv32.LiOp(
                     op.rs1.op.immediate.value.data << op.immediate.value.data, rd=rd
                 ),
             )
@@ -43,14 +43,14 @@ class ShiftRightImmediate(RewritePattern):
     def match_and_rewrite(self, op: rv32.SrliOp, rewriter: PatternRewriter) -> None:
         if (
             isinstance(op.rs1, OpResult)
-            and isinstance(op.rs1.op, riscv.LiOp)
+            and isinstance(op.rs1.op, rv32.LiOp)
             and isinstance(op.rs1.op.immediate, IntegerAttr)
             and isinstance(op.immediate, IntegerAttr)
         ):
             rd = op.rd.type
             rewriter.replace_op(
                 op,
-                riscv.LiOp(
+                rv32.LiOp(
                     op.rs1.op.immediate.value.data >> op.immediate.value.data, rd=rd
                 ),
             )
@@ -85,7 +85,7 @@ class AddImmediateConstant(RewritePattern):
             rd = op.rd.type
             rewriter.replace_op(
                 op,
-                riscv.LiOp(
+                rv32.LiOp(
                     rs1.value.data + op.immediate.value.data,
                     rd=rd,
                     comment=op.comment,
@@ -98,13 +98,13 @@ class AndiImmediate(RewritePattern):
     def match_and_rewrite(self, op: rv32.AndiOp, rewriter: PatternRewriter) -> None:
         if (
             isinstance(op.rs1, OpResult)
-            and isinstance(op.rs1.op, riscv.LiOp)
+            and isinstance(op.rs1.op, rv32.LiOp)
             and isinstance(op.rs1.op.immediate, IntegerAttr)
             and isinstance(op.immediate, IntegerAttr)
         ):
             rd = op.rd.type
             rewriter.replace_matched_op(
-                riscv.LiOp(
+                rv32.LiOp(
                     op.rs1.op.immediate.value.data & op.immediate.value.data, rd=rd
                 )
             )
@@ -115,13 +115,13 @@ class OriImmediate(RewritePattern):
     def match_and_rewrite(self, op: rv32.OriOp, rewriter: PatternRewriter) -> None:
         if (
             isinstance(op.rs1, OpResult)
-            and isinstance(op.rs1.op, riscv.LiOp)
+            and isinstance(op.rs1.op, rv32.LiOp)
             and isinstance(op.rs1.op.immediate, IntegerAttr)
             and isinstance(op.immediate, IntegerAttr)
         ):
             rd = op.rd.type
             rewriter.replace_matched_op(
-                riscv.LiOp(
+                rv32.LiOp(
                     op.rs1.op.immediate.value.data | op.immediate.value.data, rd=rd
                 )
             )
@@ -132,13 +132,13 @@ class XoriImmediate(RewritePattern):
     def match_and_rewrite(self, op: rv32.XoriOp, rewriter: PatternRewriter) -> None:
         if (
             isinstance(op.rs1, OpResult)
-            and isinstance(op.rs1.op, riscv.LiOp)
+            and isinstance(op.rs1.op, rv32.LiOp)
             and isinstance(op.rs1.op.immediate, IntegerAttr)
             and isinstance(op.immediate, IntegerAttr)
         ):
             rd = op.rd.type
             rewriter.replace_matched_op(
-                riscv.LiOp(
+                rv32.LiOp(
                     op.rs1.op.immediate.value.data ^ op.immediate.value.data, rd=rd
                 )
             )
@@ -175,5 +175,5 @@ def get_constant_value(value: SSAValue) -> IntegerAttr[I32] | None:
     if isinstance(value.op, riscv.MVOp):
         return get_constant_value(value.op.rs)
 
-    if isinstance(value.op, riscv.LiOp) and isinstance(value.op.immediate, IntegerAttr):
+    if isinstance(value.op, rv32.LiOp) and isinstance(value.op.immediate, IntegerAttr):
         return value.op.immediate
