@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 
-from xdsl.backend.register_type import RegisterType
+from xdsl.backend.register_type import NamedRegisterType, RegisterType
 from xdsl.dialects.builtin import IntAttr, ModuleOp, StringAttr
 from xdsl.ir import Operation, SSAValue
 from xdsl.utils.base_printer import BasePrinter
@@ -103,6 +103,7 @@ def reg(value: SSAValue, spec: RegisterNameSpec | None = None) -> str:
 
     assert isinstance(value.type, RegisterType)
     if spec is None:
+        assert isinstance(value.type, NamedRegisterType)
         name = value.type.register_name.data
     else:
         index = value.type.index

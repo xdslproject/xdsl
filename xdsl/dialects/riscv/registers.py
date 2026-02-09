@@ -4,12 +4,12 @@ from abc import ABC, abstractmethod
 
 from typing_extensions import Self, TypeVar
 
-from xdsl.backend.register_type import RegisterType
+from xdsl.backend.register_type import NamedRegisterType
 from xdsl.dialects.builtin import NoneAttr
 from xdsl.irdl import irdl_attr_definition
 
 
-class RISCVRegisterType(RegisterType, ABC):
+class RISCVRegisterType(NamedRegisterType, ABC):
     """
     A RISC-V register type.
     """

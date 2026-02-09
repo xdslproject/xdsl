@@ -76,7 +76,7 @@ def test_reserve_register():
     with pytest.raises(
         AssertionError,
         match=re.escape(
-            f"Cannot pop a reserved register ({reg.register_name.data}), it must have been reserved while available."
+            f"Cannot pop a reserved register ({reg}), it must have been reserved while available."
         ),
     ):
         register_stack.pop(riscv.IntRegisterType)

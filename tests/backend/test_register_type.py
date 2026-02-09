@@ -2,9 +2,9 @@ from collections.abc import Sequence
 
 from xdsl import ir, irdl
 from xdsl.backend.register_type import (
+    NamedRegisterType,
     RegisterAllocatedMemoryEffect,
     RegisterResource,
-    RegisterType,
 )
 from xdsl.traits import (
     EffectInstance,
@@ -15,7 +15,7 @@ from xdsl.traits import (
 
 
 @irdl.irdl_attr_definition
-class TestRegister(RegisterType):
+class TestRegister(NamedRegisterType):
     name = "test.reg"
 
     @classmethod
@@ -55,9 +55,9 @@ class TestAllocatableOp(irdl.IRDLOperation):
 
 def test_register_resource_name():
     """Test that RegisterResource returns a descriptive name."""
-    reg = TestRegister.from_name("x0")
+    reg = TestRegister.from_name("a0")
     resource = RegisterResource(reg)
-    assert "<Register !test.reg<x0>>" == resource.name()
+    assert "<Register !test.reg<a0>>" == resource.name()
 
 
 def test_no_effects_for_unallocated_registers():

@@ -223,11 +223,12 @@ def test_immediate_shift_inst():
 
 def test_float_register():
     with pytest.raises(
-        VerifyException, match="Invalid register name ft9 for register type riscv.reg."
+        ValueError,
+        match="Invalid register name ft9 for register type riscv.reg.",
     ):
         riscv.IntRegisterType.from_name("ft9")
     with pytest.raises(
-        VerifyException, match="Invalid register name a0 for register type riscv.freg."
+        ValueError, match="Invalid register name a0 for register type riscv.freg."
     ):
         riscv.FloatRegisterType.from_name("a0")
 
@@ -299,7 +300,9 @@ def test_int_from_index():
     assert riscv.IntRegisterType.from_index(20) == riscv.Registers.S4
     assert riscv.IntRegisterType.from_index(30) == riscv.Registers.T5
 
-    with pytest.raises(KeyError):
+    with pytest.raises(
+        ValueError, match="Invalid index 40 for register class riscv.reg"
+    ):
         riscv.IntRegisterType.from_index(40)
 
     assert riscv.IntRegisterType.from_index(
@@ -350,7 +353,9 @@ def test_float_from_index():
     assert riscv.FloatRegisterType.from_index(20) == riscv.Registers.FS4
     assert riscv.FloatRegisterType.from_index(30) == riscv.Registers.FT10
 
-    with pytest.raises(KeyError):
+    with pytest.raises(
+        ValueError, match="Invalid index 40 for register class riscv.freg"
+    ):
         riscv.FloatRegisterType.from_index(40)
 
     assert riscv.FloatRegisterType.from_index(

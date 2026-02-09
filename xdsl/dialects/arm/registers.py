@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import abc
 
-from xdsl.backend.register_type import RegisterType
+from xdsl.backend.register_type import NamedRegisterType
 from xdsl.irdl import irdl_attr_definition
 
 
-class ARMRegisterType(RegisterType, abc.ABC):
+class ARMRegisterType(NamedRegisterType, abc.ABC):
     """
     The abstract class for all ARM register types.
     """

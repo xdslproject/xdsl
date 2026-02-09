@@ -12,7 +12,7 @@ from xdsl.backend.register_allocatable import (
 )
 from xdsl.backend.register_allocator import ValueAllocator
 from xdsl.backend.register_stack import OutOfRegisters, RegisterStack
-from xdsl.backend.register_type import RegisterType
+from xdsl.backend.register_type import NamedRegisterType, RegisterType
 from xdsl.builder import Builder
 from xdsl.dialects.test import TestOp
 from xdsl.ir import Attribute, Block, SSAValue
@@ -34,7 +34,7 @@ from xdsl.utils.test_value import create_ssa_value
 
 
 @irdl_attr_definition
-class TestRegister(RegisterType):
+class TestRegister(NamedRegisterType):
     name = "test.reg"
 
     @classmethod

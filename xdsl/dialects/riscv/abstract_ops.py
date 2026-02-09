@@ -13,7 +13,7 @@ from xdsl.backend.register_allocatable import (
     HasRegisterConstraints,
     RegisterConstraints,
 )
-from xdsl.backend.register_type import RegisterAllocatedMemoryEffect, RegisterType
+from xdsl.backend.register_type import NamedRegisterType, RegisterAllocatedMemoryEffect
 from xdsl.dialects.builtin import (
     I32,
     IntegerAttr,
@@ -170,7 +170,7 @@ class RISCVCustomFormatOperation(IRDLOperation, ABC):
 
 
 AssemblyInstructionArg: TypeAlias = (
-    IntegerAttr | LabelAttr | SSAValue | RegisterType | str
+    IntegerAttr | LabelAttr | SSAValue | NamedRegisterType | str
 )
 
 
@@ -220,14 +220,14 @@ class RISCVInstruction(RISCVAsmOperation, RISCVRegallocOperation, ABC):
 
 def assembly_arg_str(arg: AssemblyInstructionArg) -> str:
     if isinstance(arg, SSAValue):
-        if not isinstance(t := arg.type, RegisterType):
+        if not isinstance(t := arg.type, NamedRegisterType):
             raise ValueError(f"Unexpected register type {t}")
         return t.register_name.data
     elif isinstance(arg, IntegerAttr):
         return f"{arg.value.data}"
     elif isinstance(arg, LabelAttr):
         return arg.data
-    elif isinstance(arg, RegisterType):
+    elif isinstance(arg, NamedRegisterType):
         return arg.register_name.data
 
     return arg
