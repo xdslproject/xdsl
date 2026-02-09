@@ -169,6 +169,15 @@ class SlliOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
 
 @irdl_op_definition
 class SlliOp(RdRsImmShiftOperation):
+    """
+    Performs logical left shift on the value in register rs1 by the shift amount
+    held in the immediate.
+
+    x[rd] = x[rs1] << shamt
+
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#slli).
+    """
+
     name = "rv64.slli"
 
     traits = traits_def(SlliOpHasCanonicalizationPatternsTrait())
@@ -187,6 +196,15 @@ class SrliOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
 
 @irdl_op_definition
 class SrliOp(RdRsImmShiftOperation):
+    """
+    Performs logical right shift on the value in register rs1 by the shift amount held
+    in the immediate.
+
+    x[rd] = x[rs1] >>u shamt
+
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#srli).
+    """
+
     name = "rv64.srli"
 
     traits = traits_def(SrliOpHasCanonicalizationPatternsTrait())
@@ -194,11 +212,31 @@ class SrliOp(RdRsImmShiftOperation):
 
 @irdl_op_definition
 class SraiOp(RdRsImmShiftOperation):
+    """
+    Performs arithmetic right shift on the value in register rs1 by the shift amount
+    held in the immediate.
+
+    x[rd] = x[rs1] >>s shamt
+
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#srai).
+    """
+
     name = "rv64.srai"
 
 
 @irdl_op_definition
 class SlliwOp(RdRsImmShiftOperation):
+    """
+    Performs logical left shift on the lower 32 bits of the value in register rs1
+    by the shift amount held in the immediate (RV64-only instruction).
+    The result is sign-extended to 64 bits.
+    ```
+    x[rd] = sext((x[rs1] << shamt)[31:0])
+    ```
+
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rv64i.html#slliw).
+    """
+
     name = "rv64.slliw"
 
     traits = traits_def(Pure())
@@ -206,6 +244,17 @@ class SlliwOp(RdRsImmShiftOperation):
 
 @irdl_op_definition
 class SrliwOp(RdRsImmShiftOperation):
+    """
+    Performs arithmetic right shift on the 32-bit of value in register rs1
+    by the shift amount held in the lower 5 bits of the immediate. (RV64-only instruction).
+    The result is sign-extended to 64 bits.
+    ```
+    x[rd] = sext((x[rs1] << shamt)[31:0])
+    ```
+
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rv64i.html#srliw).
+    """
+
     name = "rv64.srliw"
 
     traits = traits_def(Pure())
@@ -213,6 +262,19 @@ class SrliwOp(RdRsImmShiftOperation):
 
 @irdl_op_definition
 class RoriOp(RdRsImmShiftOperation):
+    """
+    This instruction performs a rotate right of rs1 by the amount in the least-significant
+    log2(XLEN) bits of shamt.
+    ```
+    let shamt = if   xlen == 32
+                    then shamt[4..0]
+                    else shamt[5..0];
+    let result = (X(rs1) >> shamt) | (X(rs2) << (xlen - shamt));
+    X(rd) = result;
+    ```
+    See external [documentation](https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-rori).
+    """
+
     name = "rv64.rori"
 
     traits = traits_def(Pure())
@@ -220,6 +282,18 @@ class RoriOp(RdRsImmShiftOperation):
 
 @irdl_op_definition
 class RoriwOp(RdRsImmShiftOperation):
+    """
+    This instruction performs a rotate right on the least-significant word of rs1 by the amount in
+    the least-significant log2(XLEN) bits of shamt. The resulting word value is sign-extended by
+    copying bit 31 to all of the more-significant bits.
+    ```
+    let rs1 = EXTZ(X(rs1)[31..0];
+    let result = (rs1 >> shamt[4..0]) | (X(rs1) << (32 - shamt[4..0]));
+    X(rd) = EXTS(result[31..0]);
+    ```
+    See external [documentation](https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-roriw).
+    """
+
     name = "rv64.roriw"
 
     traits = traits_def(Pure())
@@ -227,6 +301,15 @@ class RoriwOp(RdRsImmShiftOperation):
 
 @irdl_op_definition
 class SlliUwOp(RdRsImmShiftOperation):
+    """
+    This instruction takes the least-significant word of rs1, zero-extends it,
+    and shifts it left by the immediate.
+    ```
+    x[rd] = (EXTZ(x[rs][31..0]) << shamt);
+    ```
+    See external [documentation](https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-slli_uw).
+    """
+
     name = "rv64.slli.uw"
 
     traits = traits_def(Pure())
@@ -234,6 +317,16 @@ class SlliUwOp(RdRsImmShiftOperation):
 
 @irdl_op_definition
 class BclrIOp(RdRsImmShiftOperation):
+    """
+    This instruction returns rs1 with a single bit cleared at the index specified in shamt.
+    The index is read from the lower log2(XLEN) bits of shamt.
+    ```
+    let index = shamt & (XLEN - 1);
+    X(rd) = X(rs1) & ~(1 << index)
+    ```
+    See external [documentation](https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-bclri).
+    """
+
     name = "rv64.bclri"
 
     traits = traits_def(Pure())
@@ -241,11 +334,31 @@ class BclrIOp(RdRsImmShiftOperation):
 
 @irdl_op_definition
 class BextIOp(RdRsImmShiftOperation):
+    """
+    This instruction returns a single bit extracted from rs1 at the index specified in rs2.
+    The index is read from the lower log2(XLEN) bits of shamt.
+    ```
+    let index = shamt & (XLEN - 1);
+    X(rd) = (X(rs1) >> index) & 1;
+    ```
+    See external [documentation](https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-bexti).
+    """
+
     name = "rv64.bexti"
 
 
 @irdl_op_definition
 class BinvIOp(RdRsImmShiftOperation):
+    """
+    This instruction returns rs1 with a single bit cleared at the index specified in shamt. The index
+    is read from the lower log2(XLEN) bits of shamt.
+    ```
+    let index = shamt & (XLEN - 1);
+    x[rd] = x[rs1] & ~(1 << index)
+    ```
+    See external [documentation](https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-binvi).
+    """
+
     name = "rv64.binvi"
 
     traits = traits_def(Pure())
@@ -253,6 +366,16 @@ class BinvIOp(RdRsImmShiftOperation):
 
 @irdl_op_definition
 class BsetIOp(RdRsImmShiftOperation):
+    """
+    This instruction returns rs1 with a single bit set at the index specified in shamt. The index is read
+    from the lower log2(XLEN) bits of shamt.
+    ```
+    let index = shamt & (XLEN - 1);
+    x[rd] = x[rs1] | (1 << index)
+    ```
+    See external [documentation](https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-bseti).
+    """
+
     name = "rv64.bseti"
 
     traits = traits_def(Pure())
