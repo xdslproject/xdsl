@@ -123,7 +123,7 @@ def param_def(
     converter: Callable[[Any], AttributeInvT] | None = None,
     init: Literal[True] = True,
 ) -> AttributeInvT:
-    """Defines a property of an operation."""
+    """Defines a parameter of a ParametrizedAttribute."""
     return cast(AttributeInvT, _ParameterDef(constraint, converter))
 
 

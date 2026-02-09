@@ -7,6 +7,7 @@
     <{
         CConv = #llvm.cconv<ccc>,
         arg_attrs = [{llvm.noundef}, {llvm.noundef}],
+        res_attrs = [{llvm.noundef}],
         frame_pointer = #llvm.framePointerKind<"non-leaf">,
         function_type = !llvm.func<i32 (i32, i32)>,
         linkage = #llvm.linkage<external>,
@@ -36,6 +37,7 @@
 // CHECK-SAME:            no_unwind,
 // CHECK-SAME:            optimize_none,
 // CHECK-SAME:            passthrough = [["no-trapping-math", "true"]],
+// CHECK-SAME:            res_attrs = [{llvm.noundef}],
 // CHECK-SAME:            sym_name = "add",
 // CHECK-SAME:            target_cpu = "x86-64",
 // CHECK-SAME:            target_features = #llvm.target_features<["+mmx"]>,

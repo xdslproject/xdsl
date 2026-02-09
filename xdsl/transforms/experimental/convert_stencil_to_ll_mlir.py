@@ -154,6 +154,21 @@ class ReturnOpToMemRef(RewritePattern):
         for j in range(n_res):
             if len(apply.res) > 0:
                 target = self.return_target[apply][j]
+                # Insert pending subview if it was created but not yet inserted
+                # (StencilStoreToSubview defers insertion to avoid dead code elimination)
+                if (
+                    target is not None
+                    and isinstance(target.owner, memref.SubviewOp)
+                    and target.owner.parent_block() is None
+                ):
+                    subview_op = target.owner
+                    field = subview_op.source
+                    if isinstance(field.owner, Operation):
+                        rewriter.insert_op(subview_op, InsertPoint.after(field.owner))
+                    else:
+                        rewriter.insert_op(
+                            subview_op, InsertPoint.at_start(field.owner)
+                        )
             else:
                 target = apply.dest[j]
                 rewriter.insert_op(
@@ -269,7 +284,7 @@ def prepare_apply_body(op: ApplyOp):
     entry = op.region.block
 
     for operand, arg in zip(op.operands, entry.args):
-        arg.replace_by(operand)
+        arg.replace_all_uses_with(operand)
         entry.erase_arg(arg)
     entry.add_op(scf.ReduceOp())
     for _ in range(op.get_rank()):
@@ -543,10 +558,11 @@ class StencilStoreToSubview(RewritePattern):
         if subview.source.name_hint:
             name = subview.source.name_hint + "_storeview"
         subview.result.name_hint = name
-        if isinstance(field.owner, Operation):
-            rewriter.insert_op(subview, InsertPoint.after(field.owner))
-        else:
-            rewriter.insert_op(subview, InsertPoint.at_start(field.owner))
+
+        # Don't insert the subview here - defer insertion to ReturnOpToMemRef
+        # to avoid the subview being eliminated as dead code before it gets users.
+        # The subview will be inserted when ReturnOpToMemRef processes the
+        # corresponding return operation and needs this target.
 
         rewriter.erase_op(op)
 

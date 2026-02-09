@@ -29,31 +29,42 @@ class MakeBase2(RewritePattern):
 
         match op:
             # rewrite ln(A) -> log2(A) * ln(2)
-            case math.LogOp() if self.log:
+            case math.LogOp(operand=x, fastmath=ff) if self.log:
                 ln2 = builtin.FloatAttr(pmath.log(2), t)
 
                 rewriter.replace_matched_op(
                     [
                         c := arith.ConstantOp(ln2),
-                        newlog := math.Log2Op(op.operand),
-                        mul := arith.MulfOp(c, newlog),
+                        newlog := math.Log2Op(x, ff),
+                        mul := arith.MulfOp(c, newlog, ff),
                     ],
                     mul.results,
                 )
-            # rewrite eexp(%a) to exp2(%a * log2(e))
-            case math.ExpOp() if self.exp:
+            # rewrite log1p(A) -> ln(A + 1)
+            case math.Log1pOp(operand=x, fastmath=ff) if self.log and isa(
+                x.type, builtin.AnyFloat
+            ):
+                rewriter.replace_matched_op(
+                    [
+                        one := arith.ConstantOp(builtin.FloatAttr(1.0, x.type)),
+                        xp1 := arith.AddfOp(one, x, ff),
+                        res := math.LogOp(xp1, ff),
+                    ],
+                    res.results,
+                )
+            # rewrite expe(%a) to exp2(%a * log2(e))
+            case math.ExpOp(operand=x, fastmath=ff) if self.exp:
                 log2e = builtin.FloatAttr(pmath.log2(pmath.e), t)
                 rewriter.replace_matched_op(
                     [
                         c := arith.ConstantOp(log2e),
-                        inner := arith.MulfOp(c, op.operand),
-                        e := math.Exp2Op(inner),
+                        inner := arith.MulfOp(c, x, ff),
+                        e := math.Exp2Op(inner, ff),
                     ],
                     e.results,
                 )
             # TODO: math.powf
             # TODO: math.log10
-            # TODO: math.log1p
             # TODO: math.fpowi?
             case _:
                 pass
@@ -85,19 +96,19 @@ class MakeApprox(RewritePattern):
 
         match op:
             # log2(%a) -> fp(L * (B - eps + A))
-            case math.Log2Op(operand=x) if self.log:
+            case math.Log2Op(operand=x, fastmath=ff) if self.log:
                 rewriter.replace_matched_op(
                     [
                         a := arith.ConstantOp(builtin.FloatAttr(L, t)),
                         b := arith.ConstantOp(builtin.FloatAttr(L * (B - 0.045), t)),
-                        ax := arith.MulfOp(a, x),
-                        axpb := arith.AddfOp(b, ax),
+                        ax := arith.MulfOp(a, x, ff),
+                        axpb := arith.AddfOp(b, ax, ff),
                         asint := arith.FPToSIOp(axpb, int_t),
                         res := arith.BitcastOp(asint, t),
                     ],
                     res.results,
                 )
-            case math.Exp2Op(operand=x) if self.exp:
+            case math.Exp2Op(operand=x, fastmath=ff) if self.exp:
                 # 2^%x -> int(%x) * 1/L - B + eps
                 rewriter.replace_matched_op(
                     [
@@ -105,8 +116,8 @@ class MakeApprox(RewritePattern):
                         b := arith.ConstantOp(builtin.FloatAttr(-B + 0.045, t)),
                         xi := arith.BitcastOp(x, int_t),
                         xif := arith.SIToFPOp(xi, t),
-                        ax := arith.MulfOp(a, xif),
-                        axpb := arith.AddfOp(b, ax),
+                        ax := arith.MulfOp(a, xif, ff),
+                        axpb := arith.AddfOp(b, ax, ff),
                     ],
                     axpb.results,
                 )
@@ -115,7 +126,7 @@ class MakeApprox(RewritePattern):
 
 
 @dataclass(frozen=True)
-class BitcastApproximation(ModulePass):
+class ApproximateMathWithBitcastPass(ModulePass):
     r"""
     This pass applies approximations for some math operations (currently log and exp)
     and converts them to bitcasting-based approximations.

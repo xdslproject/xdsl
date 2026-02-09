@@ -1468,11 +1468,28 @@ class ArrayGetOp(IRDLOperation):
         return cls(operands[0], operands[1])
 
 
+@irdl_op_definition
+class BitcastOp(IRDLOperation):
+    name = "hw.bitcast"
+
+    input = operand_def()
+    result = result_def()
+
+    assembly_format = "$input attr-dict `:` functional-type($input, $result)"
+
+    def __init__(self, inp: SSAValue | Operation, out_t: Attribute):
+        super().__init__(
+            operands=[SSAValue.get(inp)],
+            result_types=[out_t],
+        )
+
+
 HW = Dialect(
     "hw",
     [
         ArrayCreateOp,
         ArrayGetOp,
+        BitcastOp,
         HWModuleExternOp,
         HWModuleOp,
         InstanceOp,
@@ -1482,8 +1499,8 @@ HW = Dialect(
         ArrayType,
         DirectionAttr,
         InnerRefAttr,
-        InnerSymPropertiesAttr,
         InnerSymAttr,
+        InnerSymPropertiesAttr,
         ModulePort,
         ModuleType,
         ParamDeclAttr,

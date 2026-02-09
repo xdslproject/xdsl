@@ -15,7 +15,6 @@ async def _():
         url_parsed = urlparse(url)
         scheme = url_parsed.scheme
         netloc = url_parsed.netloc
-        path = url_parsed.path
 
         print(f"DEBUG: notebook url (parsed): {url_parsed}")
 
@@ -28,8 +27,6 @@ async def _():
 
         if buildnumber != url:
             new_url = new_url + "/" + buildnumber + "/"
-        elif netloc == "xdsl.readthedocs.io":
-            new_url = new_url + "/" + (path.split("/")[1])
 
         print(f"DEBUG: notebook url (trimmed): {new_url}")
 

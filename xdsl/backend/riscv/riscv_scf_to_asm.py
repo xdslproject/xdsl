@@ -31,7 +31,7 @@ def get_register_ops_from_values(
             else riscv.GetFloatRegisterOp(value.type)
         )
 
-        value.replace_by(get_target_register.res)
+        value.replace_all_uses_with(get_target_register.res)
         yield get_target_register
 
 
