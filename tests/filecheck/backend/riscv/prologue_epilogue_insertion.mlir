@@ -60,7 +60,7 @@ riscv_func.func @simple(%0 : !riscv.reg<a0>, %1 : !riscv.reg<a1>) -> !riscv.reg<
   // CHECK-SAME: (!riscv.reg<a0>) -> !riscv.reg<t0>
   %2 = riscv.mv %0 : (!riscv.reg<a0>) -> !riscv.reg<t0>
   %3 = riscv.mv %1 : (!riscv.reg<a1>) -> !riscv.reg<t2>
-  %4 = riscv.li 10 : !riscv.reg<t1>
+  %4 = rv32.li 10 : !riscv.reg<t1>
   %5 = riscv.add %2, %3 : (!riscv.reg<t0>, !riscv.reg<t2>) -> !riscv.reg<t0>
   %6 = riscv.add %5, %4 : (!riscv.reg<t0>, !riscv.reg<t1>) -> !riscv.reg<t0>
   %7 = riscv.mv %6 : (!riscv.reg<t0>) -> !riscv.reg<a0>

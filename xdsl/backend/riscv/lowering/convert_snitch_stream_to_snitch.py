@@ -2,6 +2,7 @@ from xdsl.context import Context
 from xdsl.dialects import (
     builtin,
     riscv,
+    rv32,
     snitch,
     snitch_stream,
 )
@@ -66,7 +67,7 @@ def insert_stride_pattern_ops(
 
     ints = tuple(builtin.IntAttr(i) for i in range(rank))
 
-    b_ops = tuple(riscv.LiOp(b.data) for b in reversed(ub.data))
+    b_ops = tuple(rv32.LiOp(b.data) for b in reversed(ub.data))
     new_b_ops = tuple(riscv.AddiOp(b_op.rd, -1) for b_op in b_ops)
     set_bound_ops = tuple(
         snitch.SsrSetDimensionBoundOp(new_b_op, dm, i)
@@ -75,14 +76,14 @@ def insert_stride_pattern_ops(
     interleaved_b_set_bound_ops = tuple(
         x for t in zip(new_b_ops, set_bound_ops) for x in t
     )
-    s_ops = tuple(riscv.LiOp(s.data) for s in reversed(strides.data))
+    s_ops = tuple(rv32.LiOp(s.data) for s in reversed(strides.data))
 
     new_ops: list[Operation] = [
         *b_ops,
         *interleaved_b_set_bound_ops,
         *s_ops,
         snitch.SsrSetDimensionStrideOp(s_ops[0], dm, ints[0]),
-        a_op := riscv.LiOp(0),
+        a_op := rv32.LiOp(0),
     ]
 
     for i in range(1, rank):
@@ -96,7 +97,7 @@ def insert_stride_pattern_ops(
     # Always reset the repetition count, even if it's the default
     new_ops.extend(
         (
-            repeat_op := riscv.LiOp(repeat.data - 1),
+            repeat_op := rv32.LiOp(repeat.data - 1),
             snitch.SsrSetStreamRepetitionOp(repeat_op.rd, dm),
         )
     )

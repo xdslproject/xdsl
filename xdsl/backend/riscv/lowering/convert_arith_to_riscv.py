@@ -6,7 +6,7 @@ from xdsl.backend.riscv.lowering.utils import (
     cast_operands_to_regs,
 )
 from xdsl.context import Context
-from xdsl.dialects import arith, riscv
+from xdsl.dialects import arith, riscv, rv32
 from xdsl.dialects.builtin import (
     Float32Type,
     Float64Type,
@@ -47,7 +47,7 @@ class LowerArithConstant(RewritePattern):
                 rewriter.replace_op(
                     op,
                     [
-                        constant := riscv.LiOp(op_val.value.data),
+                        constant := rv32.LiOp(op_val.value.data),
                         UnrealizedConversionCastOp.get(
                             constant.results, (op_result_type,)
                         ),
@@ -60,7 +60,7 @@ class LowerArithConstant(RewritePattern):
                 rewriter.replace_op(
                     op,
                     [
-                        lui := riscv.LiOp(
+                        lui := rv32.LiOp(
                             convert_f32_to_u32(op_val.value.data),
                             rd=_INT_REGISTER_TYPE,
                         ),
@@ -80,7 +80,7 @@ class LowerArithConstant(RewritePattern):
                     rewriter.replace_op(
                         op,
                         [
-                            lui := riscv.LiOp(
+                            lui := rv32.LiOp(
                                 int_val,
                                 rd=_INT_REGISTER_TYPE,
                             ),
@@ -105,9 +105,9 @@ class LowerArithConstant(RewritePattern):
                         op,
                         [
                             sp := riscv.GetRegisterOp(riscv.Registers.SP),
-                            li_upper := riscv.LiOp(upper),
+                            li_upper := rv32.LiOp(upper),
                             riscv.SwOp(sp, li_upper, -4),
-                            li_lower := riscv.LiOp(lower),
+                            li_lower := rv32.LiOp(lower),
                             riscv.SwOp(sp, li_lower, -8),
                             fld := riscv.FLdOp(sp, -8, rd=_FLOAT_REGISTER_TYPE),
                             UnrealizedConversionCastOp.get(
@@ -123,7 +123,7 @@ class LowerArithConstant(RewritePattern):
             rewriter.replace_op(
                 op,
                 [
-                    constant := riscv.LiOp(op_val.value.data),
+                    constant := rv32.LiOp(op_val.value.data),
                     UnrealizedConversionCastOp.get(constant.results, (op_result_type,)),
                 ],
             )
@@ -356,7 +356,7 @@ class LowerArithCmpf(RewritePattern):
         match op.predicate.value.data:
             # false
             case 0:
-                rewriter.replace_op(op, [riscv.LiOp(0)])
+                rewriter.replace_op(op, [rv32.LiOp(0)])
             # oeq
             case 1:
                 rewriter.replace_op(op, [riscv.FeqSOp(lhs, rhs, fastmath=fastmath)])
@@ -430,7 +430,7 @@ class LowerArithCmpf(RewritePattern):
                 rewriter.replace_op(op, [feq1, feq2, and_, riscv.XoriOp(and_, 1)])
             # true
             case 15:
-                rewriter.replace_op(op, [riscv.LiOp(1)])
+                rewriter.replace_op(op, [rv32.LiOp(1)])
             case _:
                 raise NotImplementedError("Cmpf predicate not supported")
 
