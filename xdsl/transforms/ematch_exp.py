@@ -1,8 +1,7 @@
 from dataclasses import dataclass
 
-from xdsl.builder import Builder
 from xdsl.context import Context
-from xdsl.dialects import arith, equivalence, math
+from xdsl.dialects import arith, math
 from xdsl.dialects.builtin import Float64Type, FloatAttr, ModuleOp
 from xdsl.ir import Operation
 from xdsl.passes import ModulePass
@@ -13,7 +12,6 @@ from xdsl.pattern_rewriter import (
     op_type_rewrite_pattern,
 )
 from xdsl.pattern_rewriter_eq import EquivalencePatternRewriter
-from xdsl.rewriter import InsertPoint
 
 f64 = Float64Type()
 
@@ -33,9 +31,9 @@ class ExpandExp(RewritePattern):
 
         expanded: Operation = expand_exp(op, rewriter, self.terms)
 
-        eq_class = equivalence.ClassOp(op.results[0], expanded.results[0], res_type=f64)
-
-        rewriter.replace_op(op, eq_class, ())
+        rewriter.replace_op(
+            op, expanded, ()
+        )  # replace will create an equivalence class to union op and expanded internally
 
 
 def expand_exp(op: math.ExpOp, rewriter: PatternRewriter, terms: int) -> Operation:
@@ -50,18 +48,16 @@ def expand_exp(op: math.ExpOp, rewriter: PatternRewriter, terms: int) -> Operati
             result += term
         return result
     """
-    builder = Builder(InsertPoint.before(op))
-
     x = op.operands[0]
 
-    res = builder.insert(arith.ConstantOp(FloatAttr(1.0, f64)))
-    term = builder.insert(arith.ConstantOp(FloatAttr(1.0, f64)))
+    res = rewriter.insert(arith.ConstantOp(FloatAttr(1.0, f64)))
+    term = rewriter.insert(arith.ConstantOp(FloatAttr(1.0, f64)))
 
     for i in range(1, terms):
-        i_val = builder.insert(arith.ConstantOp(FloatAttr(float(i), f64)))
-        frac = builder.insert(arith.DivfOp(x, i_val.result))
-        mul = builder.insert(arith.MulfOp(frac.result, term.result))
-        add = builder.insert(arith.AddfOp(res.result, mul.result))
+        i_val = rewriter.insert(arith.ConstantOp(FloatAttr(float(i), f64)))
+        frac = rewriter.insert(arith.DivfOp(x, i_val.result))
+        mul = rewriter.insert(arith.MulfOp(frac.result, term.result))
+        add = rewriter.insert(arith.AddfOp(res.result, mul.result))
 
         term = mul
         res = add
@@ -84,5 +80,6 @@ class EmatchExpPass(ModulePass):
         PatternRewriteWalker(
             ExpandExp(self.terms),
             apply_recursively=False,
+            # this does nothing so far, need to change function signature of PatternRewriteWalker
             rewriter=EquivalencePatternRewriter(),
         ).rewrite_module(op)
