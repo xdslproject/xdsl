@@ -1643,6 +1643,7 @@ class FuncOp(IRDLOperation):
     # The following properties are not yet verified by the xDSL verifier, but
     # are verified to at least allow the IR to be parsed and printed correctly.
     arg_attrs = opt_prop_def(ArrayAttr[DictionaryAttr])
+    res_attrs = opt_prop_def(ArrayAttr[DictionaryAttr])
     frame_pointer = opt_prop_def(FramePointerKindAttr)
     no_inline = opt_prop_def(UnitAttr)
     no_unwind = opt_prop_def(UnitAttr)
