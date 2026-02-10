@@ -857,7 +857,7 @@ class PatternRewriteWalker:
 
         # Create a rewriter on the first operation
         rewriter = self.rewriter_ctor(op)
-        self.rewriter.extend_from_listener(listener)
+        rewriter.extend_from_listener(listener)
 
         # do/while loop
         while True:
@@ -875,7 +875,7 @@ class PatternRewriteWalker:
                     f"Error while applying pattern: {err}",
                     underlying_error=err,
                 )
-            rewriter_has_done_action |= self.rewriter.has_done_action
+            rewriter_has_done_action |= rewriter.has_done_action
 
             # If the worklist is empty, we are done
             op = self._worklist.pop()
