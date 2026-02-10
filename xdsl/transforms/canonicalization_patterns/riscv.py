@@ -1,5 +1,7 @@
+from typing import cast
+
 from xdsl.dialects import riscv, riscv_snitch, rv32
-from xdsl.dialects.builtin import I32, IntegerAttr, i32
+from xdsl.dialects.builtin import I32, I64, IntegerAttr, i32
 from xdsl.dialects.utils import FastMathFlag
 from xdsl.ir import OpResult, SSAValue
 from xdsl.pattern_rewriter import (
@@ -7,6 +9,7 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
+from xdsl.traits import ConstantLike
 
 
 class RemoveRedundantMv(RewritePattern):
@@ -620,7 +623,7 @@ class LoadImmediate0(RewritePattern):
             )
 
 
-def get_constant_value(value: SSAValue) -> IntegerAttr[I32] | None:
+def get_constant_value(value: SSAValue) -> IntegerAttr[I32] | IntegerAttr[I64] | None:
     if value.type == riscv.Registers.ZERO:
         return IntegerAttr(0, i32)
 
@@ -630,5 +633,8 @@ def get_constant_value(value: SSAValue) -> IntegerAttr[I32] | None:
     if isinstance(value.op, riscv.MVOp):
         return get_constant_value(value.op.rs)
 
-    if isinstance(value.op, rv32.LiOp) and isinstance(value.op.immediate, IntegerAttr):
-        return value.op.immediate
+    constant_like = value.op.get_trait(ConstantLike)
+    if constant_like is not None:
+        result = constant_like.get_constant_value(value.op)
+        if isinstance(result, IntegerAttr):
+            return cast(IntegerAttr[I32] | IntegerAttr[I64], result)
