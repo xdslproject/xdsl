@@ -11,7 +11,6 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
-from xdsl.pattern_rewriter_eq import EquivalencePatternRewriter
 
 f64 = Float64Type()
 
@@ -80,6 +79,6 @@ class EmatchExpPass(ModulePass):
         PatternRewriteWalker(
             ExpandExp(self.terms),
             apply_recursively=False,
-            # this does nothing so far, need to change function signature of PatternRewriteWalker
-            rewriter=EquivalencePatternRewriter(),
+            # we want to use the equivalence rewriter
+            eq_rewriter=True,
         ).rewrite_module(op)

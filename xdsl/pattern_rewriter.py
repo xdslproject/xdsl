@@ -27,6 +27,7 @@ from xdsl.ir import (
     Use,
 )
 from xdsl.irdl import AttrConstraint, base
+from xdsl.pattern_rewriter_eq import EquivalencePatternRewriter
 from xdsl.rewriter import BlockInsertPoint, InsertPoint, Rewriter
 from xdsl.traits import ConstantLike, HasFolder
 from xdsl.utils.hints import isa
@@ -716,10 +717,8 @@ class PatternRewriteWalker:
     Walk the regions and blocks in reverse order.
     That way, all uses are replaced before the definitions.
     """
-    # constructor that will be used to create the rewriter of type PatternRewriter or EquivalencePatternRewriter
-    rewriter_ctor: Callable[[Operation], PatternRewriterListener] = field(
-        default=PatternRewriter
-    )
+    eq_rewriter: bool = field(default=False)
+    """Whether to use the equivalence rewriter."""
 
     post_walk_func: Callable[[Region, PatternRewriterListener], bool] | None = field(
         default=None
@@ -856,7 +855,9 @@ class PatternRewriteWalker:
             return rewriter_has_done_action
 
         # Create a rewriter on the first operation
-        rewriter = self.rewriter_ctor(op)
+        rewriter = (
+            EquivalencePatternRewriter(op) if self.eq_rewriter else PatternRewriter(op)
+        )
         rewriter.extend_from_listener(listener)
 
         # do/while loop
