@@ -6,7 +6,7 @@ from xdsl.dialects.builtin import (
     Signedness,
 )
 from xdsl.traits import ConstantLike
-from xdsl.transforms.canonicalization_patterns.riscv import get_constant_value
+from xdsl.transforms.canonicalization_patterns.rv64 import get_constant_value
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.test_value import create_ssa_value
 
