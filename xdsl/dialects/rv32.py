@@ -165,7 +165,7 @@ class SraiOp(RdRsImmShiftOperation):
 @irdl_op_definition
 class RoriOp(RdRsImmShiftOperation):
     """
-    This instruction performs a rotate right of rs1 by the amount in the least-significant
+    Right rotation of rs1 by the amount in the least-significant
     log2(XLEN) bits of shamt. For RV32, the encodings corresponding to shamt[5]=1 are reserved.
     ```
     let shamt = if   xlen == 32
