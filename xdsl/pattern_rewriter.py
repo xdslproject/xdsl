@@ -716,8 +716,10 @@ class PatternRewriteWalker:
     Walk the regions and blocks in reverse order.
     That way, all uses are replaced before the definitions.
     """
-
-    rewriter: PatternRewriter = field(default=PatternRewriter)
+    # constructor that will be used to create the rewriter of type PatternRewriter or EquivalencePatternRewriter
+    rewriter_ctor: Callable[[Operation], PatternRewriterListener] = field(
+        default=PatternRewriter
+    )
 
     post_walk_func: Callable[[Region, PatternRewriterListener], bool] | None = field(
         default=None
@@ -854,20 +856,20 @@ class PatternRewriteWalker:
             return rewriter_has_done_action
 
         # Create a rewriter on the first operation
-        self.rewriter(op)
+        rewriter = self.rewriter_ctor(op)
         self.rewriter.extend_from_listener(listener)
 
         # do/while loop
         while True:
             # Reset the rewriter on `op`
-            self.rewriter.has_done_action = False
-            self.rewriter.current_operation = op
-            self.rewriter.insertion_point = InsertPoint.before(op)
-            self.rewriter.name_hint = None
+            rewriter.has_done_action = False
+            rewriter.current_operation = op
+            rewriter.insertion_point = InsertPoint.before(op)
+            rewriter.name_hint = None
 
             # Apply the pattern on the operation
             try:
-                self.pattern.match_and_rewrite(op, self.rewriter)
+                self.pattern.match_and_rewrite(op, rewriter)
             except Exception as err:
                 op.emit_error(
                     f"Error while applying pattern: {err}",
