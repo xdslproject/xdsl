@@ -219,69 +219,49 @@ class SubAddi(RewritePattern):
 class AndiImmediate(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: riscv.AndiOp, rewriter: PatternRewriter) -> None:
-        if (
-            isinstance(op.rs1, OpResult)
-            and isinstance(op.rs1.op, rv32.LiOp)
-            and isinstance(op.rs1.op.immediate, IntegerAttr)
-            and isinstance(op.immediate, IntegerAttr)
+        if (rs1 := get_constant_value(op.rs1)) is not None and isinstance(
+            op.immediate, IntegerAttr
         ):
             rd = op.rd.type
             rewriter.replace_matched_op(
-                rv32.LiOp(
-                    op.rs1.op.immediate.value.data & op.immediate.value.data, rd=rd
-                )
+                rv32.LiOp(rs1.value.data & op.immediate.value.data, rd=rd)
             )
 
 
 class OriImmediate(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: riscv.OriOp, rewriter: PatternRewriter) -> None:
-        if (
-            isinstance(op.rs1, OpResult)
-            and isinstance(op.rs1.op, rv32.LiOp)
-            and isinstance(op.rs1.op.immediate, IntegerAttr)
-            and isinstance(op.immediate, IntegerAttr)
+        if (rs1 := get_constant_value(op.rs1)) is not None and isinstance(
+            op.immediate, IntegerAttr
         ):
             rd = op.rd.type
             rewriter.replace_matched_op(
-                rv32.LiOp(
-                    op.rs1.op.immediate.value.data | op.immediate.value.data, rd=rd
-                )
+                rv32.LiOp(rs1.value.data | op.immediate.value.data, rd=rd)
             )
 
 
 class XoriImmediate(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: riscv.XoriOp, rewriter: PatternRewriter) -> None:
-        if (
-            isinstance(op.rs1, OpResult)
-            and isinstance(op.rs1.op, rv32.LiOp)
-            and isinstance(op.rs1.op.immediate, IntegerAttr)
-            and isinstance(op.immediate, IntegerAttr)
+        if (rs1 := get_constant_value(op.rs1)) is not None and isinstance(
+            op.immediate, IntegerAttr
         ):
             rd = op.rd.type
             rewriter.replace_matched_op(
-                rv32.LiOp(
-                    op.rs1.op.immediate.value.data ^ op.immediate.value.data, rd=rd
-                )
+                rv32.LiOp(rs1.value.data ^ op.immediate.value.data, rd=rd)
             )
 
 
 class ShiftLeftImmediate(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: riscv.SlliOp, rewriter: PatternRewriter) -> None:
-        if (
-            isinstance(op.rs1, OpResult)
-            and isinstance(op.rs1.op, rv32.LiOp)
-            and isinstance(op.rs1.op.immediate, IntegerAttr)
-            and isinstance(op.immediate, IntegerAttr)
+        if (rs1 := get_constant_value(op.rs1)) is not None and isinstance(
+            op.immediate, IntegerAttr
         ):
             rd = op.rd.type
             rewriter.replace_op(
                 op,
-                rv32.LiOp(
-                    op.rs1.op.immediate.value.data << op.immediate.value.data, rd=rd
-                ),
+                rv32.LiOp(rs1.value.data << op.immediate.value.data, rd=rd),
             )
 
 
@@ -300,18 +280,13 @@ class ShiftLeftbyZero(RewritePattern):
 class ShiftRightImmediate(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: riscv.SrliOp, rewriter: PatternRewriter) -> None:
-        if (
-            isinstance(op.rs1, OpResult)
-            and isinstance(op.rs1.op, rv32.LiOp)
-            and isinstance(op.rs1.op.immediate, IntegerAttr)
-            and isinstance(op.immediate, IntegerAttr)
+        if (rs1 := get_constant_value(op.rs1)) is not None and isinstance(
+            op.immediate, IntegerAttr
         ):
             rd = op.rd.type
             rewriter.replace_op(
                 op,
-                rv32.LiOp(
-                    op.rs1.op.immediate.value.data >> op.immediate.value.data, rd=rd
-                ),
+                rv32.LiOp(rs1.value.data >> op.immediate.value.data, rd=rd),
             )
 
 
