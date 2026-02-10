@@ -1633,7 +1633,7 @@ class FuncOp(IRDLOperation):
     """
     LLVM function operation.
 
-    Note on attribute behavior in mlir-opt:
+    Note on property behavior:
 
         - visibility_: always defaults to 0.
         - unnamed_addr: always defaults to 0 in custom format. Only printed if explicitly set in generic format.
