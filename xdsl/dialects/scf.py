@@ -84,17 +84,17 @@ class WhileOp(IRDLOperation):
     # TODO verify dependencies between scf.condition, scf.yield and the regions
     def verify_(self):
         for idx, arg in enumerate(self.arguments):
-            if self.before_region.block.args[idx].type != arg.type:
+            if self.before_region.blocks[0].args[idx].type != arg.type:
                 raise Exception(
                     f"Block arguments with wrong type, expected {arg.type}, "
-                    f"got {self.before_region.block.args[idx].type}"
+                    f"got {self.before_region.blocks[0].args[idx].type}"
                 )
 
         for idx, res in enumerate(self.res):
-            if self.after_region.block.args[idx].type != res.type:
+            if self.after_region.blocks[0].args[idx].type != res.type:
                 raise Exception(
                     f"Block arguments with wrong type, expected {res.type}, "
-                    f"got {self.after_region.block.args[idx].type}"
+                    f"got {self.after_region.blocks[0].args[idx].type}"
                 )
 
     @staticmethod
@@ -105,7 +105,7 @@ class WhileOp(IRDLOperation):
 
     def print(self, printer: Printer):
         printer.print_string(" (")
-        block_args = self.before_region.block.args
+        block_args = self.before_region.blocks[0].args
         printer.print_list(
             zip(block_args, self.arguments, strict=True),
             lambda pair: self._print_pair(printer, pair),

@@ -133,6 +133,46 @@ builtin.module {
   // CHECK-NEXT:    func.return
   // CHECK-NEXT:  }
 
+  func.func @while_multiblock(%arg0: i32) {
+    %res = scf.while (%arg1 = %arg0) : (i32) -> i32 {
+      %cond = "test.op"() : () -> i1
+      "test.termop"(%cond) [^bb1, ^bb2] : (i1) -> ()
+    ^bb1:
+      scf.condition(%cond) %arg1 : i32
+    ^bb2:
+      scf.condition(%cond) %arg1 : i32
+    } do {
+    ^bb0(%arg2: i32):
+      %cond2 = "test.op"() : () -> i1
+      "test.termop"(%cond2) [^bb1, ^bb2] : (i1) -> ()
+    ^bb1:
+      scf.yield %arg2 : i32
+    ^bb2:
+      scf.yield %arg2 : i32
+    }
+    func.return
+  }
+
+  // CHECK:      func.func @while_multiblock(%{{.*}}: i32) {
+  // CHECK-NEXT:   %{{.*}} = scf.while (%{{.*}} = %{{.*}}) : (i32) -> i32 {
+  // CHECK-NEXT:     %{{.*}} = "test.op"() : () -> i1
+  // CHECK-NEXT:     "test.termop"(%{{.*}}) [^bb{{\d+}}, ^bb{{\d+}}] : (i1) -> ()
+  // CHECK-NEXT:   ^bb{{\d+}}:
+  // CHECK-NEXT:     scf.condition(%{{.*}}) %{{.*}} : i32
+  // CHECK-NEXT:   ^bb{{\d+}}:
+  // CHECK-NEXT:     scf.condition(%{{.*}}) %{{.*}} : i32
+  // CHECK-NEXT:   } do {
+  // CHECK-NEXT:   ^bb{{\d+}}(%{{.*}} : i32):
+  // CHECK-NEXT:     %{{.*}} = "test.op"() : () -> i1
+  // CHECK-NEXT:     "test.termop"(%{{.*}}) [^bb{{\d+}}, ^bb{{\d+}}] : (i1) -> ()
+  // CHECK-NEXT:   ^bb{{\d+}}:
+  // CHECK-NEXT:     scf.yield %{{.*}} : i32
+  // CHECK-NEXT:   ^bb{{\d+}}:
+  // CHECK-NEXT:     scf.yield %{{.*}} : i32
+  // CHECK-NEXT:   }
+  // CHECK-NEXT:   func.return
+  // CHECK-NEXT: }
+
   func.func @for() {
     %lb = arith.constant 0 : index
     %ub = arith.constant 42 : index
