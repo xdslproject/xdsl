@@ -118,7 +118,7 @@ class SlliOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
 class SlliOp(RdRsImmShiftOperation):
     """
     Performs logical left shift on the value in register rs1 by the shift amount
-    held in the immediate.
+    held in the 6-bit immediate.
 
     x[rd] = x[rs1] << shamt
 
@@ -145,7 +145,7 @@ class SrliOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
 class SrliOp(RdRsImmShiftOperation):
     """
     Performs logical right shift on the value in register rs1 by the shift amount held
-    in the immediate.
+    in the 6-bit immediate.
 
     x[rd] = x[rs1] >>u shamt
 
@@ -161,7 +161,7 @@ class SrliOp(RdRsImmShiftOperation):
 class SraiOp(RdRsImmShiftOperation):
     """
     Performs arithmetic right shift on the value in register rs1 by the shift amount
-    held in the immediate.
+    held in the 6-bit immediate.
 
     x[rd] = x[rs1] >>s shamt
 
@@ -210,7 +210,7 @@ class SrliwOp(RdRsImmShiftOperation):
 @irdl_op_definition
 class RoriOp(RdRsImmShiftOperation):
     """
-    This instruction performs a rotate right of rs1 by the amount in the least-significant
+    Right rotation of rs1 by the amount in the least-significant
     log2(XLEN) bits of shamt.
     ```
     let shamt = if   xlen == 32
@@ -230,7 +230,7 @@ class RoriOp(RdRsImmShiftOperation):
 @irdl_op_definition
 class RoriwOp(RdRsImmShiftOperation):
     """
-    This instruction performs a rotate right on the least-significant word of rs1 by the amount in
+    Right rotation on the least-significant word of rs1 by the amount in
     the least-significant log2(XLEN) bits of shamt. The resulting word value is sign-extended by
     copying bit 31 to all of the more-significant bits.
     ```
