@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 
 from ordered_set import OrderedSet
 
-from xdsl.builder import Builder, InsertOpInvT
+from xdsl.builder import InsertOpInvT
 from xdsl.dialects import equivalence
 from xdsl.ir import (
     Block,
@@ -14,14 +14,14 @@ from xdsl.ir import (
     SSAValue,
     Use,
 )
-from xdsl.pattern_rewriter import PatternRewriterListener, _TrackingPredicate
+from xdsl.pattern_rewriter import PatternRewriter, _TrackingPredicate
 from xdsl.rewriter import InsertPoint, Rewriter
 from xdsl.transforms.common_subexpression_elimination import KnownOps
 from xdsl.utils.disjoint_set import DisjointSet
 
 
 @dataclass(eq=False, init=False)
-class EquivalencePatternRewriter(Builder, PatternRewriterListener):
+class EquivalencePatternRewriter(PatternRewriter):
     """
     A rewriter used during pattern matching.
     Once an operation is matched, this rewriter is used to apply
@@ -43,16 +43,8 @@ class EquivalencePatternRewriter(Builder, PatternRewriterListener):
     )
     """Worklist of e-classes that need to be processed for matching."""
 
-    current_operation: Operation
-    """The matched operation."""
-
-    has_done_action: bool = field(default=False, init=False)
-    """Has the rewriter done any action during the current match."""
-
     def __init__(self, current_operation: Operation):
-        PatternRewriterListener.__init__(self)
-        self.current_operation = current_operation
-        Builder.__init__(self, InsertPoint.before(current_operation))
+        super().__init__(current_operation)
         self.populate_known_ops(current_operation)
 
     # checks, if operand to be inserted is already known, if so reuse instead of inserting a new one
