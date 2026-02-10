@@ -1827,7 +1827,7 @@ class FuncOp(IRDLOperation):
             case 2:
                 printer.print_string(" protected")
             case _:
-                raise VerifyException("Invalid visibility value")
+                raise AssertionError("Invalid visibility value")
 
     @staticmethod
     def _print_llvm_unnamed_addr(printer: Printer, unnamed_addr: int | None):
@@ -1839,7 +1839,7 @@ class FuncOp(IRDLOperation):
             case 2:
                 printer.print_string(" unnamed_addr")
             case _:
-                raise VerifyException("Invalid unnamed_addr value")
+                raise AssertionError("Invalid unnamed_addr value")
 
     def print(self, printer: Printer):
         if self.sym_visibility:
