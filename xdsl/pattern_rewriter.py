@@ -716,6 +716,7 @@ class PatternRewriteWalker:
     Walk the regions and blocks in reverse order.
     That way, all uses are replaced before the definitions.
     """
+    rewriter_factory: type[PatternRewriter] = PatternRewriter
 
     post_walk_func: Callable[[Region, PatternRewriterListener], bool] | None = field(
         default=None
@@ -852,7 +853,7 @@ class PatternRewriteWalker:
             return rewriter_has_done_action
 
         # Create a rewriter on the first operation
-        rewriter = PatternRewriter(op)
+        rewriter = self.rewriter_factory(op)
         rewriter.extend_from_listener(listener)
 
         # do/while loop
