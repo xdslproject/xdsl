@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 
 from ordered_set import OrderedSet
@@ -12,8 +12,9 @@ from xdsl.ir import (
     Operation,
     OpResult,
     SSAValue,
+    Use,
 )
-from xdsl.pattern_rewriter import PatternRewriterListener
+from xdsl.pattern_rewriter import PatternRewriterListener, _TrackingPredicate
 from xdsl.rewriter import InsertPoint, Rewriter
 from xdsl.transforms.common_subexpression_elimination import KnownOps
 from xdsl.utils.disjoint_set import DisjointSet
@@ -52,9 +53,9 @@ class EquivalencePatternRewriter(Builder, PatternRewriterListener):
         PatternRewriterListener.__init__(self)
         self.current_operation = current_operation
         Builder.__init__(self, InsertPoint.before(current_operation))
+        self.populate_known_ops(current_operation)
 
-    # change this to insert eq class & deduplicate operation
-    # check if an eclass for the operation already exists, if so resues it, if not create one
+    # checks, if operand to be inserted is already known, if so reuse instead of inserting a new one
     def insert_op(
         self,
         op: InsertOpInvT,
@@ -110,6 +111,7 @@ class EquivalencePatternRewriter(Builder, PatternRewriterListener):
             )
 
         # Then, union the results with new ones
+        # Why do I not have to union the operations?
         self.handle_operation_replacement(op, new_results)
         for old_result, new_result in zip(op.results, new_results):
             self.union_val(old_result, new_result)
@@ -125,7 +127,9 @@ class EquivalencePatternRewriter(Builder, PatternRewriterListener):
         eclass_b = self.get_or_create_class(b)
 
         if self.eclass_union(eclass_a, eclass_b):
-            self.worklist.append(eclass_a)
+            self.worklist.append(
+                eclass_a
+            )  # what is happening with this worklist? where is it ever used?
 
     def get_or_create_class(self, val: SSAValue) -> equivalence.AnyClassOp:
         """
@@ -148,6 +152,9 @@ class EquivalencePatternRewriter(Builder, PatternRewriterListener):
         self.eclass_union_find.add(eclass_op)
 
         # Do I need to replace all uses of val with the eclass result here?
+        self.replace_uses_with_if(
+            val, eclass_op.result, lambda use: use.operation is not eclass_op
+        )
 
         return eclass_op
 
@@ -200,3 +207,31 @@ class EquivalencePatternRewriter(Builder, PatternRewriterListener):
                 self.known_ops.pop(use.operation)
 
         return True
+
+    def replace_uses_with_if(
+        self,
+        from_value: SSAValue,
+        to_value: SSAValue,
+        predicate: Callable[[Use], bool],
+    ):
+        """Replace uses of `old` satisfying `predicate` with `new`."""
+        tracking = _TrackingPredicate(predicate)
+        from_value.replace_uses_with_if(to_value, tracking)
+
+        for op in tracking.modified_ops:
+            self.handle_operation_modification(op)
+
+    def populate_known_ops(self, outer_op: Operation) -> None:
+        """
+        Populates the known_ops dictionary by traversing the module.
+
+        Args:
+            outer_op: The operation containing all operations to be added to known_ops.
+        """
+        # Walk through all operations in the module
+        for op in outer_op.walk():
+            # Skip eclasses instances
+            if not isinstance(op, equivalence.AnyClassOp):
+                self.known_ops[op] = op
+            else:
+                self.eclass_union_find.add(op)
