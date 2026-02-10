@@ -1724,34 +1724,34 @@ class FuncOp(IRDLOperation):
         )
 
     @staticmethod
-    def _parse_linkage(parser: Parser) -> str | None:
+    def _parse_linkage(parser: Parser) -> LinkageAttr:
         for l in _LINKAGE_OPTIONS:
             if parser.parse_optional_keyword(l):
-                return l
-        return None
+                return LinkageAttr(l)
+        return LinkageAttr("external")
 
     @staticmethod
-    def _parse_cconv(parser: Parser) -> str | None:
+    def _parse_cconv(parser: Parser) -> CallingConventionAttr:
         for c in LLVM_CALLING_CONVS:
             if parser.parse_optional_keyword(c):
-                return c
-        return None
+                return CallingConventionAttr(c)
+        return CallingConventionAttr("ccc")
 
     @staticmethod
-    def _parse_llvm_visibility(parser: Parser) -> int:
+    def _parse_llvm_visibility(parser: Parser) -> IntegerAttr[IntegerType]:
         if parser.parse_optional_keyword("hidden"):
-            return 1
+            return IntegerAttr.from_int_and_width(1, 64)
         elif parser.parse_optional_keyword("protected"):
-            return 2
-        return 0
+            return IntegerAttr.from_int_and_width(2, 64)
+        return IntegerAttr.from_int_and_width(0, 64)
 
     @staticmethod
-    def _parse_llvm_unnamed_addr(parser: Parser) -> int:
+    def _parse_llvm_unnamed_addr(parser: Parser) -> IntegerAttr[IntegerType]:
         if parser.parse_optional_keyword("local_unnamed_addr"):
-            return 1
+            return IntegerAttr.from_int_and_width(1, 64)
         elif parser.parse_optional_keyword("unnamed_addr"):
-            return 2
-        return 0
+            return IntegerAttr.from_int_and_width(2, 64)
+        return IntegerAttr.from_int_and_width(0, 64)
 
     @staticmethod
     def _get_return_type(
@@ -1771,28 +1771,23 @@ class FuncOp(IRDLOperation):
     def _get_other_props(
         arg_attrs: ArrayAttr[DictionaryAttr] | None,
         res_attrs: ArrayAttr[DictionaryAttr] | None,
-        llvm_unnamed_addr: int | None,
+        llvm_unnamed_addr: IntegerAttr[IntegerType],
     ) -> dict[str, Attribute | None]:
         other_props: dict[str, Attribute | None] = {}
         if arg_attrs:
             other_props["arg_attrs"] = arg_attrs
         if res_attrs:
             other_props["res_attrs"] = res_attrs
-
-        if llvm_unnamed_addr is not None:
-            other_props["unnamed_addr"] = IntegerAttr.from_int_and_width(
-                llvm_unnamed_addr, 64
-            )
+        other_props["unnamed_addr"] = llvm_unnamed_addr
         return other_props
 
     @classmethod
     def parse(cls, parser: Parser) -> FuncOp:
-        visibility = parser.parse_optional_visibility_keyword()
+        sym_visibility = parser.parse_optional_visibility_keyword()
         linkage = cls._parse_linkage(parser)
         cconv = cls._parse_cconv(parser)
-        llvm_visibility = cls._parse_llvm_visibility(parser)
+        visibility = cls._parse_llvm_visibility(parser)
         llvm_unnamed_addr = cls._parse_llvm_unnamed_addr(parser)
-
         (
             name,
             input_types,
@@ -1807,19 +1802,16 @@ class FuncOp(IRDLOperation):
             reserved_attr_names=_FUNC_OP_RESERVED_ATTR_NAMES,
             allow_variadic=True,
         )
-
         return_type = cls._get_return_type(parser, return_types)
         other_props = cls._get_other_props(arg_attrs, res_attrs, llvm_unnamed_addr)
 
         return FuncOp(
             sym_name=name,
             function_type=LLVMFunctionType(input_types, return_type, is_variadic),
-            linkage=LinkageAttr(linkage) if linkage else LinkageAttr("external"),
-            cconv=CallingConventionAttr(cconv)
-            if cconv
-            else CallingConventionAttr("ccc"),
-            visibility=llvm_visibility,
-            sym_visibility=visibility,
+            linkage=linkage,
+            cconv=cconv,
+            visibility=visibility,
+            sym_visibility=sym_visibility,
             body=region,
             other_props=other_props,
             extra_attrs=dict(extra_attrs.data) if extra_attrs else None,
