@@ -21,6 +21,7 @@ from xdsl.dialects.builtin import (
     StringAttr,
     UnitAttr,
 )
+from xdsl.interfaces import HasFolderInterface
 from xdsl.ir import (
     Attribute,
     Dialect,
@@ -720,7 +721,9 @@ class RdRsImmIntegerOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC)
         return {"immediate"}
 
 
-class RdRsImmShiftOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
+class RdRsImmShiftOperation(
+    RISCVCustomFormatOperation, RISCVInstruction, HasFolderInterface, ABC
+):
     """
     A base class for RISC-V operations that have one destination register, one source
     register and one immediate operand.
@@ -775,6 +778,26 @@ class RdRsImmShiftOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
         printer.print_string(", ")
         print_immediate_value(printer, self.immediate)
         return {"immediate"}
+
+    @staticmethod
+    def py_operation(lhs: int, rhs: int) -> int | None:
+        """
+        Performs a python function corresponding to this operation.
+
+        If `i := py_operation(lhs, rhs)` is an int, then this operation can be
+        canonicalized to a constant with value `i` when the inputs are constants
+        with values `lhs` and `rhs`.
+        """
+        return None
+
+    def fold(self) -> Sequence[SSAValue | Attribute] | None:
+        if not isinstance(self.immediate, IntegerAttr):
+            return None
+        rs1 = self.get_constant(self.rs1)
+        if isinstance(rs1, IntegerAttr):
+            result = self.py_operation(rs1.value.data, self.immediate.value.data)
+            if result is not None:
+                return (IntegerAttr(result, IntegerType(32)),)
 
 
 class RdRsImmJumpOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):

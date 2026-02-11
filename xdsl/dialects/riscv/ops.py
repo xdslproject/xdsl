@@ -16,6 +16,7 @@ from xdsl.dialects.builtin import (
     StringAttr,
     i32,
 )
+from xdsl.interfaces import HasFolderInterface
 from xdsl.ir import (
     Attribute,
     Block,
@@ -232,19 +233,8 @@ class XoriOp(RdRsImmIntegerOperation):
     traits = traits_def(XoriOpHasCanonicalizationPatternsTrait())
 
 
-class SlliOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
-    @classmethod
-    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.transforms.canonicalization_patterns.riscv import (
-            ShiftLeftbyZero,
-            ShiftLeftImmediate,
-        )
-
-        return (ShiftLeftImmediate(), ShiftLeftbyZero())
-
-
 @irdl_op_definition
-class SlliOp(RdRsImmShiftOperation):
+class SlliOp(RdRsImmShiftOperation, HasFolderInterface):
     """
     Performs logical left shift on the value in register rs1 by the shift amount
     held in the lower 5 bits of the immediate.
@@ -256,7 +246,17 @@ class SlliOp(RdRsImmShiftOperation):
 
     name = "riscv.slli"
 
-    traits = traits_def(SlliOpHasCanonicalizationPatternsTrait())
+    def fold(self) -> tuple[SSAValue | Attribute] | None:
+        # x << 0 -> x
+        if isinstance(self.immediate, IntegerAttr) and self.immediate.value.data == 0:
+            return (self.rs1,)
+
+        # constant folding
+        if (rs1 := self.get_constant(self.rs1)) is not None and isinstance(
+            self.immediate, IntegerAttr
+        ):
+            if isinstance(rs1, IntegerAttr):
+                return (IntegerAttr(rs1.value.data << self.immediate.value.data, i32),)
 
 
 class SrliOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
