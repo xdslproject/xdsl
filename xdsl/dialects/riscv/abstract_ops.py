@@ -791,7 +791,6 @@ class RdRsImmShiftOperation(
         return None
 
     def fold(self) -> Sequence[SSAValue | Attribute] | None:
-        print("osman")
         # shift_op (x, 0) -> x
         if isinstance(self.immediate, IntegerAttr) and self.immediate.value.data == 0:
             return (self.rs1,)
