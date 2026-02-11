@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 from typing import Any, cast
 
 from xdsl.context import Context
