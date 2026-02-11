@@ -11,11 +11,10 @@ from xdsl.interpreters.eqsat_pdl_interp import EqsatPDLInterpFunctions
 from xdsl.interpreters.pdl_interp import PDLInterpFunctions
 from xdsl.parser import Parser
 from xdsl.passes import ModulePass
-from xdsl.pattern_rewriter import PatternRewriterListener, PatternRewriteWalker
+from xdsl.pattern_rewriter import PatternRewriter
 from xdsl.rewriter import InsertPoint
 from xdsl.traits import SymbolTable
 from xdsl.transforms.apply_eqsat_pdl_interp import EqsatConstraintFunctions
-from xdsl.transforms.apply_pdl_interp import PDLInterpRewritePattern
 from xdsl.transforms.convert_pdl_interp_to_eqsat_pdl_interp import (
     ConvertPDLInterpToEqsatPDLInterpPass,
 )
@@ -117,7 +116,7 @@ class ApplyEqsatPDLPass(ModulePass):
         )
         interpreter.register_implementations(EqsatConstraintFunctions())
 
-        rewrite_patterns: list[PDLInterpRewritePattern] = []
+        matchers: list[pdl_interp.FuncOp] = []
         for pattern_op in patterns:
             temp_module = self._convert_single_pattern(ctx, pattern_op)
             matcher, rewriter_func = self._extract_matcher_and_rewriters(temp_module)
@@ -130,7 +129,7 @@ class ApplyEqsatPDLPass(ModulePass):
             name = (
                 pattern_op.sym_name
                 if pattern_op.sym_name
-                else StringAttr(f"pattern_{len(rewrite_patterns)}")
+                else StringAttr(f"pattern_{len(matchers)}")
             )
             recordmatch.rewriter = builtin.SymbolRefAttr("rewriters", (name,))
             rewriter_func.sym_name = name
@@ -142,25 +141,24 @@ class ApplyEqsatPDLPass(ModulePass):
             rewriter_func.detach()
             rewriters_builder.insert_op(rewriter_func)
 
-            rewrite_pattern = PDLInterpRewritePattern(
-                matcher, interpreter, vanilla_pdl_interp_implementations, name.data
-            )
-            rewrite_patterns.append(rewrite_pattern)
+            matchers.append(matcher)
 
-        # Initialize listener
-        listener = PatternRewriterListener()
-        listener.operation_modification_handler.append(
+        if not op.ops.first:
+            return
+
+        rewriter = PatternRewriter(op.ops.first)
+        rewriter.operation_modification_handler.append(
             implementations.modification_handler
         )
+        vanilla_pdl_interp_implementations.set_rewriter(interpreter, rewriter)
 
         # Main iteration loop
         for _i in range(self.max_iterations):
             # Apply each pattern individually
-            for rewrite_pattern in rewrite_patterns:
-                assert rewrite_pattern.matcher is not None
-                walker = PatternRewriteWalker(rewrite_pattern, apply_recursively=False)
-                walker.listener = listener
-                walker.rewrite_module(op)
+            for matcher in matchers:
+                for root in op.body.walk():
+                    rewriter.current_operation = root
+                    interpreter.call_op(matcher, (root,))
 
             # Execute all pending rewrites
             implementations.execute_pending_rewrites(interpreter)
@@ -194,19 +192,20 @@ class ApplyEqsatPDLPass(ModulePass):
         interpreter.register_implementations(eqsat_pdl_interp_functions)
         interpreter.register_implementations(pdl_interp_functions)
         interpreter.register_implementations(EqsatConstraintFunctions())
-        rewrite_pattern = PDLInterpRewritePattern(
-            matcher, interpreter, pdl_interp_functions
-        )
 
-        listener = PatternRewriterListener()
-        listener.operation_modification_handler.append(
+        if not op.ops.first:
+            return
+
+        rewriter = PatternRewriter(op.ops.first)
+        rewriter.operation_modification_handler.append(
             eqsat_pdl_interp_functions.modification_handler
         )
-        walker = PatternRewriteWalker(rewrite_pattern, apply_recursively=False)
-        walker.listener = listener
+        pdl_interp_functions.set_rewriter(interpreter, rewriter)
 
         for _i in range(self.max_iterations):
-            walker.rewrite_module(op)
+            for root in op.body.walk():
+                rewriter.current_operation = root
+                interpreter.call_op(matcher, (root,))
             eqsat_pdl_interp_functions.execute_pending_rewrites(interpreter)
 
             if not eqsat_pdl_interp_functions.worklist:
