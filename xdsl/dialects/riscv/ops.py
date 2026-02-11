@@ -233,17 +233,6 @@ class XoriOp(RdRsImmIntegerOperation):
     traits = traits_def(XoriOpHasCanonicalizationPatternsTrait())
 
 
-class SlliOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
-    @classmethod
-    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.transforms.canonicalization_patterns.riscv import (
-            ShiftLeftbyZero,
-            ShiftLeftImmediate,
-        )
-
-        return (ShiftLeftImmediate(), ShiftLeftbyZero())
-
-
 @irdl_op_definition
 class SlliOp(RdRsImmShiftOperation):
     """
@@ -257,22 +246,9 @@ class SlliOp(RdRsImmShiftOperation):
 
     name = "riscv.slli"
 
-    traits = traits_def(SlliOpHasCanonicalizationPatternsTrait())
-
     @staticmethod
     def py_operation(lhs: int, rhs: int) -> int | None:
         return lhs << rhs
-
-
-class SrliOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
-    @classmethod
-    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.transforms.canonicalization_patterns.riscv import (
-            ShiftRightbyZero,
-            ShiftRightImmediate,
-        )
-
-        return (ShiftRightbyZero(), ShiftRightImmediate())
 
 
 @irdl_op_definition
@@ -287,8 +263,6 @@ class SrliOp(RdRsImmShiftOperation):
     """
 
     name = "riscv.srli"
-
-    traits = traits_def(SrliOpHasCanonicalizationPatternsTrait())
 
     @staticmethod
     def py_operation(lhs: int, rhs: int) -> int | None:
