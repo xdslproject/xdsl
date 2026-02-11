@@ -240,10 +240,10 @@ builtin.module {
 // CHECK-NEXT:   %add_immediate_constant = rv32.li 3 : !riscv.reg<a0>
 // CHECK-NEXT:   "test.op"(%add_immediate_constant) : (!riscv.reg<a0>) -> ()
 
-// CHECK-NEXT:   %multiply_immediate_immediate = rv64.li 10 : !riscv.reg
+// CHECK-NEXT:   %multiply_immediate_immediate = rv32.li 10 : !riscv.reg
 // CHECK-NEXT:   "test.op"(%multiply_immediate_immediate) : (!riscv.reg) -> ()
 
-// CHECK-NEXT:   %sub_immediate_immediate = rv64.li 3 : !riscv.reg
+// CHECK-NEXT:   %sub_immediate_immediate = rv32.li 3 : !riscv.reg
 // CHECK-NEXT:   "test.op"(%sub_immediate_immediate) : (!riscv.reg) -> ()
 
   // Unchanged
