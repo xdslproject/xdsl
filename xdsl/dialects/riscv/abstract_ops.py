@@ -791,6 +791,7 @@ class RdRsImmShiftOperation(
         return None
 
     def fold(self) -> Sequence[SSAValue | Attribute] | None:
+        print("osman")
         # shift_op (x, 0) -> x
         if isinstance(self.immediate, IntegerAttr) and self.immediate.value.data == 0:
             return (self.rs1,)
@@ -801,9 +802,9 @@ class RdRsImmBitManipOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC
     A base class for RISC-V operations that have one destination register, one source
     register and one immediate operand.
 
-    This is called Bit Manipulation a, b, c, and s extensions (Zba, Zbb, Zbc, and Zbs).
+    These operations are from the Zba, Zbb, and Zbs extensions.
 
-    The bit index is encoded in the lower 5 bits of the immediate field for RV32
+    The immediate value is encoded in the lower 5 bits of the immediate field for RV32
     and the lower 6 bits for RV64.
 
     See external [documentation](https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#).
