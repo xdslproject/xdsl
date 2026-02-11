@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from types import EllipsisType
 from typing import ClassVar
@@ -1630,6 +1630,15 @@ class TargetFeaturesAttr(ParametrizedAttribute):
 
 @irdl_op_definition
 class FuncOp(IRDLOperation):
+    """
+    LLVM function operation.
+
+    Note on property behavior:
+
+        - visibility_: always defaults to 0.
+        - unnamed_addr: always defaults to 0 in custom format. Only printed if explicitly set in generic format.
+    """
+
     name = "llvm.func"
 
     body = region_def()
@@ -1638,7 +1647,7 @@ class FuncOp(IRDLOperation):
     CConv = prop_def(CallingConventionAttr)
     linkage = prop_def(LinkageAttr)
     sym_visibility = opt_prop_def(StringAttr)
-    visibility_ = prop_def(IntegerAttr[IntegerType])
+    visibility_ = prop_def(IntegerAttr[IntegerType], default_value=IntegerAttr(0, 64))
 
     # The following properties are not yet verified by the xDSL verifier, but
     # are verified to at least allow the IR to be parsed and printed correctly.
@@ -1664,6 +1673,7 @@ class FuncOp(IRDLOperation):
         sym_visibility: str | StringAttr | None = None,
         body: Region | None = None,
         other_props: dict[str, Attribute | None] | None = None,
+        extra_attrs: Mapping[str, Attribute] | None = None,
     ):
         if isinstance(sym_name, str):
             sym_name = StringAttr(sym_name)
@@ -1688,6 +1698,7 @@ class FuncOp(IRDLOperation):
             operands=[],
             regions=[body],
             properties=properties,
+            attributes=extra_attrs if extra_attrs else {},
         )
 
 

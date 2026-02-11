@@ -16,7 +16,7 @@ compatibility with [MLIR](https://mlir.llvm.org/) from the LLVM project.
 
 Inspired by MLIR, xDSL enables smooth translation of programs and abstractions
 between frameworks. This lets users prototype compilers entirely in Python,
-while still accessing MLIR’s powerful optimization and code generation pipeline.
+while still accessing MLIR's powerful optimization and code generation pipeline.
 All IRs in xDSL employ a unified SSA-based data structure, with regions and basic blocks,
 making it easy to write generic analyses and transformation passes.
 
