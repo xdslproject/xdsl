@@ -25,7 +25,6 @@ from xdsl.utils.hints import isa
 
 
 @register_impls
-@dataclass
 class PDLInterpFunctions(InterpreterFunctions):
     """
     Interpreter functions for the pdl_interp dialect.
