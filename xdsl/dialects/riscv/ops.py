@@ -259,6 +259,10 @@ class SlliOp(RdRsImmShiftOperation):
 
     traits = traits_def(SlliOpHasCanonicalizationPatternsTrait())
 
+    @staticmethod
+    def py_operation(lhs: int, rhs: int) -> int | None:
+        return lhs << rhs
+
 
 class SrliOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     @classmethod
@@ -285,6 +289,10 @@ class SrliOp(RdRsImmShiftOperation):
     name = "riscv.srli"
 
     traits = traits_def(SrliOpHasCanonicalizationPatternsTrait())
+
+    @staticmethod
+    def py_operation(lhs: int, rhs: int) -> int | None:
+        return lhs >> rhs
 
 
 @irdl_op_definition

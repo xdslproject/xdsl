@@ -795,6 +795,14 @@ class RdRsImmShiftOperation(
         if isinstance(self.immediate, IntegerAttr) and self.immediate.value.data == 0:
             return (self.rs1,)
 
+        rs1_value = self.get_constant(self.rs1)
+        if isinstance(rs1_value, IntegerAttr) and isinstance(
+            self.immediate, IntegerAttr
+        ):
+            result = self.py_operation(rs1_value.value.data, self.immediate.value.data)
+            if result is not None:
+                return (IntegerAttr(result, IntegerType(32)),)
+
 
 class RdRsImmBitManipOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
     """
