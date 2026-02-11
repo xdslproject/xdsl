@@ -153,6 +153,16 @@ builtin.module {
   %xori_immediate = riscv.xori %i3, 7 : (!riscv.reg) -> !riscv.reg<a0>
   "test.op"(%xori_immediate) : (!riscv.reg<a0>) -> ()
 
+  // (x ^ a) ^ a -> x, intermediate has one use
+  %xori_tmp = riscv.xori %i2, 42 : (!riscv.reg) -> !riscv.reg
+  %xori_self_inverse = riscv.xori %xori_tmp, 42 : (!riscv.reg) -> !riscv.reg<a0>
+  "test.op"(%xori_self_inverse) : (!riscv.reg<a0>) -> ()
+
+  // (x ^ a) ^ a -> x, intermediate preserved when it has other uses
+  %xori_tmp_multi = riscv.xori %i2, 42 : (!riscv.reg) -> !riscv.reg
+  %xori_self_inverse_multi = riscv.xori %xori_tmp_multi, 42 : (!riscv.reg) -> !riscv.reg<a0>
+  "test.op"(%xori_tmp_multi, %xori_self_inverse_multi) : (!riscv.reg, !riscv.reg<a0>) -> ()
+
   %shift_left_zero_r0 = riscv.slli %i2, 0 : (!riscv.reg) -> !riscv.reg<a0>
   "test.op"(%shift_left_zero_r0) : (!riscv.reg<a0>) -> ()
 
@@ -311,6 +321,13 @@ builtin.module {
 
 // CHECK-NEXT:   %xori_immediate = rv32.li 99 : !riscv.reg<a0>
 // CHECK-NEXT:   "test.op"(%xori_immediate) : (!riscv.reg<a0>) -> ()
+
+// CHECK-NEXT:   %xori_self_inverse = riscv.mv %i2 : (!riscv.reg) -> !riscv.reg<a0>
+// CHECK-NEXT:   "test.op"(%xori_self_inverse) : (!riscv.reg<a0>) -> ()
+
+// CHECK-NEXT:   %xori_tmp_multi = riscv.xori %i2, 42 : (!riscv.reg) -> !riscv.reg
+// CHECK-NEXT:   %xori_self_inverse_multi = riscv.mv %i2 : (!riscv.reg) -> !riscv.reg<a0>
+// CHECK-NEXT:   "test.op"(%xori_tmp_multi, %xori_self_inverse_multi) : (!riscv.reg, !riscv.reg<a0>) -> ()
 
 // CHECK-NEXT:   %shift_left_zero_r0 = riscv.mv %i2 : (!riscv.reg) -> !riscv.reg<a0>
 // CHECK-NEXT:   "test.op"(%shift_left_zero_r0) : (!riscv.reg<a0>) -> ()
