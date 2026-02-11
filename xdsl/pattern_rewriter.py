@@ -730,6 +730,8 @@ class PatternRewriteWalker:
     _worklist: Worklist = field(default_factory=Worklist, init=False)
     """The worklist of operations to walk over."""
 
+    rewriter_factory: type[PatternRewriter] = PatternRewriter
+
     def _add_operands_to_worklist(self, operands: Iterable[SSAValue]) -> None:
         """
         Add defining operations of SSA values to the worklist if they have only
@@ -852,7 +854,7 @@ class PatternRewriteWalker:
             return rewriter_has_done_action
 
         # Create a rewriter on the first operation
-        rewriter = PatternRewriter(op)
+        rewriter = self.rewriter_factory(op)
         rewriter.extend_from_listener(listener)
 
         # do/while loop
