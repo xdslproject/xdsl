@@ -1121,7 +1121,9 @@ class PredicateTreeBuilder:
         else:
             # Sort predicates by priority
             sorted_predicates: list[OrderedPredicate | PredicateSplit] = []
-            sorted_predicates.extend(sorted(ordered_predicates.values()))
+            sorted_predicates.extend(
+                _stable_topological_sort(sorted(ordered_predicates.values()))
+            )
 
             # Build matcher tree by propagating patterns
             root_node = None
