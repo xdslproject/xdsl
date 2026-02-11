@@ -66,8 +66,11 @@ class MultiplyImmediates(RewritePattern):
                 else:
                     return
             case int(), int():
-                li_cls = rv64.LiOp if rs1.type == i64 or rs2.type == i64 else rv32.LiOp
-                rewriter.replace_op(op, li_cls(lhs * rhs, rd=rd))
+                if rs1 is not None and rs2 is not None:
+                    li_cls = (
+                        rv64.LiOp if rs1.type == i64 or rs2.type == i64 else rv32.LiOp
+                    )
+                    rewriter.replace_op(op, li_cls(lhs * rhs, rd=rd))
             case _:
                 return
 
@@ -123,8 +126,13 @@ class AddImmediates(RewritePattern):
                     ),
                 )
             case int(), int():
-                li_cls = rv64.LiOp if rs1.type == i64 or rs2.type == i64 else rv32.LiOp
-                rewriter.replace_op(op, li_cls(lhs + rhs, rd=rd, comment=op.comment))
+                if rs1 is not None and rs2 is not None:
+                    li_cls = (
+                        rv64.LiOp if rs1.type == i64 or rs2.type == i64 else rv32.LiOp
+                    )
+                    rewriter.replace_op(
+                        op, li_cls(lhs + rhs, rd=rd, comment=op.comment)
+                    )
             case _:
                 pass
 
@@ -183,8 +191,13 @@ class SubImmediates(RewritePattern):
                     ),
                 )
             case int(), int():
-                li_cls = rv64.LiOp if rs1.type == i64 or rs2.type == i64 else rv32.LiOp
-                rewriter.replace_op(op, li_cls(lhs - rhs, rd=rd, comment=op.comment))
+                if rs1 is not None and rs2 is not None:
+                    li_cls = (
+                        rv64.LiOp if rs1.type == i64 or rs2.type == i64 else rv32.LiOp
+                    )
+                    rewriter.replace_op(
+                        op, li_cls(lhs - rhs, rd=rd, comment=op.comment)
+                    )
             case _:
                 pass
 
