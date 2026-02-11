@@ -237,10 +237,11 @@ class SlliOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.riscv import (
+            ShiftLeftbyZero,
             ShiftLeftImmediate,
         )
 
-        return (ShiftLeftImmediate(),)
+        return (ShiftLeftImmediate(), ShiftLeftbyZero())
 
 
 @irdl_op_definition
@@ -263,10 +264,11 @@ class SrliOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.riscv import (
+            ShiftRightbyZero,
             ShiftRightImmediate,
         )
 
-        return (ShiftRightImmediate(),)
+        return (ShiftRightbyZero(), ShiftRightImmediate())
 
 
 @irdl_op_definition
