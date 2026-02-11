@@ -144,9 +144,10 @@ class AddImmediateConstant(RewritePattern):
             op.immediate, IntegerAttr
         ):
             rd = op.rd.type
+            li_cls = rv64.LiOp if rs1.type == i64 else rv32.LiOp
             rewriter.replace_op(
                 op,
-                rv32.LiOp(
+                li_cls(
                     rs1.value.data + op.immediate.value.data,
                     rd=rd,
                     comment=op.comment,
@@ -182,7 +183,8 @@ class SubImmediates(RewritePattern):
                     ),
                 )
             case int(), int():
-                rewriter.replace_op(op, rv32.LiOp(lhs - rhs, rd=rd, comment=op.comment))
+                li_cls = rv64.LiOp if rs1.type == i64 or rs2.type == i64 else rv32.LiOp
+                rewriter.replace_op(op, li_cls(lhs - rhs, rd=rd, comment=op.comment))
             case _:
                 pass
 
@@ -218,7 +220,10 @@ class SubAddi(RewritePattern):
             and op.rs2 == op.rs1.op.rs1
         ):
             rd = op.rd.type
-            rewriter.replace_op(op, rv32.LiOp(op.rs1.op.immediate.value.data, rd=rd))
+            li_cls = (
+                rv64.LiOp if op.rs1.type == i64 or op.rs2.type == i64 else rv32.LiOp
+            )
+            rewriter.replace_op(op, li_cls(op.rs1.op.immediate.value.data, rd=rd))
 
 
 class AndiImmediate(RewritePattern):
@@ -228,8 +233,9 @@ class AndiImmediate(RewritePattern):
             op.immediate, IntegerAttr
         ):
             rd = op.rd.type
+            li_cls = rv64.LiOp if rs1.type == i64 else rv32.LiOp
             rewriter.replace_matched_op(
-                rv32.LiOp(rs1.value.data & op.immediate.value.data, rd=rd)
+                li_cls(rs1.value.data & op.immediate.value.data, rd=rd)
             )
 
 
@@ -240,8 +246,9 @@ class OriImmediate(RewritePattern):
             op.immediate, IntegerAttr
         ):
             rd = op.rd.type
+            li_cls = rv64.LiOp if rs1.type == i64 else rv32.LiOp
             rewriter.replace_matched_op(
-                rv32.LiOp(rs1.value.data | op.immediate.value.data, rd=rd)
+                li_cls(rs1.value.data | op.immediate.value.data, rd=rd)
             )
 
 
@@ -252,8 +259,9 @@ class XoriImmediate(RewritePattern):
             op.immediate, IntegerAttr
         ):
             rd = op.rd.type
+            li_cls = rv64.LiOp if rs1.type == i64 else rv32.LiOp
             rewriter.replace_matched_op(
-                rv32.LiOp(rs1.value.data ^ op.immediate.value.data, rd=rd)
+                li_cls(rs1.value.data ^ op.immediate.value.data, rd=rd)
             )
 
 
@@ -264,9 +272,10 @@ class ShiftLeftImmediate(RewritePattern):
             op.immediate, IntegerAttr
         ):
             rd = op.rd.type
+            li_cls = rv64.LiOp if rs1.type == i64 else rv32.LiOp
             rewriter.replace_op(
                 op,
-                rv32.LiOp(rs1.value.data << op.immediate.value.data, rd=rd),
+                li_cls(rs1.value.data << op.immediate.value.data, rd=rd),
             )
 
 
@@ -289,9 +298,10 @@ class ShiftRightImmediate(RewritePattern):
             op.immediate, IntegerAttr
         ):
             rd = op.rd.type
+            li_cls = rv64.LiOp if rs1.type == i64 else rv32.LiOp
             rewriter.replace_op(
                 op,
-                rv32.LiOp(rs1.value.data >> op.immediate.value.data, rd=rd),
+                li_cls(rs1.value.data >> op.immediate.value.data, rd=rd),
             )
 
 
@@ -432,10 +442,11 @@ class AdditionOfSameVariablesToMultiplyByTwo(RewritePattern):
     def match_and_rewrite(self, op: riscv.AddOp, rewriter: PatternRewriter) -> None:
         if op.rs1 == op.rs2:
             rd = op.rd.type
+            li_cls = rv64.LiOp if op.rs1.type == i64 else rv32.LiOp
             rewriter.replace_op(
                 op,
                 [
-                    li_op := rv32.LiOp(2),
+                    li_op := li_cls(2),
                     riscv.MulOp(
                         op.rs1,
                         li_op,
