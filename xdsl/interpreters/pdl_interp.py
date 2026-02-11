@@ -2,7 +2,6 @@ from typing import Any, cast
 
 from xdsl.context import Context
 from xdsl.dialects import pdl_interp
-from xdsl.dialects.builtin import StringAttr
 from xdsl.dialects.pdl import RangeType, ValueType
 from xdsl.interpreter import (
     Interpreter,
@@ -384,16 +383,17 @@ class PDLInterpFunctions(InterpreterFunctions):
                 return Successor(block, ()), ()
         return Successor(op.defaultDest, ()), ()
 
-    @impl(pdl_interp.CreateOperationOp)
-    def run_create_operation(
-        self,
+    @staticmethod
+    def create_operation(
         interpreter: Interpreter,
-        op: pdl_interp.CreateOperationOp,
         args: tuple[Any, ...],
-    ) -> tuple[Any, ...]:
+        op_name: str,
+        attr_names: list[str],
+        num_operands: int,
+        num_attributes: int,
+    ) -> IRDLOperation:
         # Get operation name
-        op_name = op.constraint_name.data
-        ctx = self.get_ctx(interpreter)
+        ctx = PDLInterpFunctions.get_ctx(interpreter)
         op_type = ctx.get_optional_op(op_name)
         if op_type is None:
             raise InterpretationError(
@@ -401,11 +401,7 @@ class PDLInterpFunctions(InterpreterFunctions):
             )
 
         # Split args into operands, attributes and result types based on operand segments
-        operands = list(args[0 : len(op.input_operands)])
-
-        attr_names: list[str] = [
-            cast(StringAttr, name).data for name in op.input_attribute_names.data
-        ]
+        operands = list(args[:num_operands])
 
         assert issubclass(op_type, IRDLOperation)
         existing_properties = op_type.get_irdl_definition().properties.keys()
@@ -414,16 +410,13 @@ class PDLInterpFunctions(InterpreterFunctions):
         properties: dict[str, Attribute] = {}
         for name, prop_or_attr in zip(
             attr_names,
-            args[
-                len(op.input_operands) : len(op.input_operands)
-                + len(op.input_attributes)
-            ],
+            args[num_operands : num_operands + num_attributes],
         ):
             if name in existing_properties:
                 properties[name] = prop_or_attr
             else:
                 attributes[name] = prop_or_attr
-        result_types = list(args[len(op.input_operands) + len(op.input_attributes) :])
+        result_types = list(args[num_operands + num_attributes :])
 
         # Create the new operation
         result_op = op_type.create(
@@ -431,6 +424,23 @@ class PDLInterpFunctions(InterpreterFunctions):
             result_types=result_types,
             attributes=attributes,
             properties=properties,
+        )
+        return result_op
+
+    @impl(pdl_interp.CreateOperationOp)
+    def run_create_operation(
+        self,
+        interpreter: Interpreter,
+        op: pdl_interp.CreateOperationOp,
+        args: tuple[Any, ...],
+    ) -> tuple[Any, ...]:
+        result_op = PDLInterpFunctions.create_operation(
+            interpreter,
+            args,
+            op.constraint_name.data,
+            [name.data for name in op.input_attribute_names.data],
+            len(op.input_operands),
+            len(op.input_attributes),
         )
 
         rewriter = self.get_rewriter(interpreter)
@@ -459,7 +469,6 @@ class PDLInterpFunctions(InterpreterFunctions):
         op: pdl_interp.ApplyConstraintOp,
         args: tuple[Any, ...],
     ) -> tuple[Successor, PythonValues]:
-        assert len(args) == 1
         constraint_name = op.constraint_name.data
 
         passed, results = interpreter.call_external(constraint_name, op, args)
@@ -487,3 +496,25 @@ class PDLInterpFunctions(InterpreterFunctions):
     ):
         PDLInterpFunctions.set_rewriter(interpreter, None)
         return ReturnedValues(()), ()
+
+    @impl_terminator(pdl_interp.ForEachOp)
+    def run_foreach(
+        self,
+        interpreter: Interpreter,
+        op: pdl_interp.ForEachOp,
+        args: tuple[Any, ...],
+    ) -> tuple[Any, ...]:
+        assert len(args) == 1
+        values = args[0]
+
+        # Iterate over each value in the range
+        for value in values:
+            interpreter.run_ssacfg_region(op.region, (value,), "foreach")
+
+        return Successor(op.successor, ()), ()
+
+    @impl_terminator(pdl_interp.ContinueOp)
+    def run_continue(
+        self, interpreter: Interpreter, op: pdl_interp.ContinueOp, args: tuple[Any, ...]
+    ):
+        return ReturnedValues(args), ()

@@ -14,6 +14,7 @@ from dataclasses import fields
 from io import StringIO
 from typing import Any, ClassVar
 
+import pyclip
 from textual import events, on
 from textual.app import App, ComposeResult
 from textual.containers import Horizontal, ScrollableContainer, Vertical
@@ -47,8 +48,6 @@ from xdsl.parser import Parser
 from xdsl.passes import ModulePass, PassPipeline
 from xdsl.printer import Printer
 from xdsl.transforms import get_all_passes
-
-from ._pasteboard import pyclip_copy
 
 
 class OutputTextArea(TextArea):
@@ -614,12 +613,12 @@ class InputApp(App[None]):
     @on(Button.Pressed, "#copy_output_button")
     def copy_output(self, event: Button.Pressed) -> None:
         """Output TextArea is copied when "Copy Output" button is pressed."""
-        pyclip_copy(self.output_text_area.text)
+        pyclip.copy(self.output_text_area.text)
 
     @on(Button.Pressed, "#copy_query_button")
     def copy_query(self, event: Button.Pressed) -> None:
         """Selected passes/query Label is copied when "Copy Query" button is pressed."""
-        pyclip_copy(self.get_query_string())
+        pyclip.copy(self.get_query_string())
 
     @on(Button.Pressed, "#clear_passes_button")
     def clear_passes(self, event: Button.Pressed) -> None:

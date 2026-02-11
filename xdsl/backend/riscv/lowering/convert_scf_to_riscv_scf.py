@@ -2,10 +2,13 @@ from xdsl.backend.riscv.lowering.utils import (
     cast_block_args_to_regs,
     cast_op_results,
     cast_operands_to_regs,
+    move_ops_for_value,
     move_to_unallocated_regs,
+    register_type_for_type,
 )
 from xdsl.context import Context
 from xdsl.dialects import builtin, riscv_scf, scf
+from xdsl.ir import Operation, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -26,9 +29,19 @@ class ScfForLowering(RewritePattern):
         rewriter.insert_op(mv_ops)
         cast_op_results(rewriter, op)
         new_op = riscv_scf.ForOp(lb, ub, step, values, new_region)
-        mv_res_ops, res_values = move_to_unallocated_regs(
-            new_op.results, op.iter_args.types
-        )
+
+        new_ops = list[Operation]()
+        new_values = list[SSAValue]()
+
+        for value, value_type in zip(new_op.results, op.iter_args.types, strict=True):
+            register_type = register_type_for_type(value.type)
+            move_op, new_value = move_ops_for_value(
+                value, value_type, register_type.unallocated()
+            )
+            new_ops.append(move_op)
+            new_values.append(new_value)
+
+        mv_res_ops, res_values = new_ops, new_values
 
         rewriter.replace_op(op, (new_op, *mv_res_ops), res_values)
 

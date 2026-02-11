@@ -227,7 +227,6 @@
 // CHECK-NEXT:        csl_stencil.yield %arg7 : memref<510xf32>
 // CHECK-NEXT:      }, {
 // CHECK-NEXT:      ^bb5(%arg5_1 : memref<512xf32>, %arg6_1 : memref<510xf32>):
-// CHECK-NEXT:        %55 = arith.constant 1.666600e-01 : f32
 // CHECK-NEXT:        "csl.call"() <{callee = @step0}> : () -> ()
 // CHECK-NEXT:        csl_stencil.yield %arg6_1 : memref<510xf32>
 // CHECK-NEXT:      }) to <[0, 0], [1, 1]>
@@ -239,7 +238,6 @@
 // CHECK-NEXT:        csl_stencil.yield %arg7 : memref<510xf32>
 // CHECK-NEXT:      }, {
 // CHECK-NEXT:      ^bb5(%arg5_1 : memref<512xf32>, %arg6_1 : memref<510xf32>):
-// CHECK-NEXT:        %55 = arith.constant 0.123456702 : f32
 // CHECK-NEXT:        "csl.call"() <{callee = @step1}> : () -> ()
 // CHECK-NEXT:        csl_stencil.yield %arg6_1 : memref<510xf32>
 // CHECK-NEXT:      }) to <[0, 0], [1, 1]>

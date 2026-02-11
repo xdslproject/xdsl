@@ -109,7 +109,7 @@ class StencilUnrollPattern(RewritePattern):
         assert unrolled_return is not None
         for block in offsetted_blocks[1:]:
             for marg, arg in zip(unrolled_block.args, block.args):
-                arg.replace_by(marg)
+                arg.replace_all_uses_with(marg)
             for o in block.ops:
                 if o is block.last_op:
                     unrolled_return.operands = [*unrolled_return.operands, *o.operands]

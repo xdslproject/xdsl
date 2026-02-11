@@ -271,10 +271,6 @@
     %czeronezop = riscv.czero.nez %0, %1 : (!riscv.reg, !riscv.reg) -> !riscv.reg
     // CHECK-NEXT: %{{.*}} = riscv.czero.nez %{{.*}}, %{{.*}} : (!riscv.reg, !riscv.reg) -> !riscv.reg
 
-    // Assembler pseudo-instructions
-
-    %li = riscv.li 1 : !riscv.reg
-    // CHECK-NEXT: %{{.*}} = riscv.li 1 : !riscv.reg
     // Environment Call and Breakpoints
     riscv.ecall
     // CHECK-NEXT: riscv.ecall
@@ -285,17 +281,17 @@
     riscv.directive ".align" "2"
     // CHECK-NEXT: riscv.directive ".align" "2"
     riscv.assembly_section ".text" attributes {"foo" = i32} {
-      %nested_li = riscv.li 1 : !riscv.reg
+      riscv.nop
     }
     // CHECK-NEXT:  riscv.assembly_section ".text" attributes {foo = i32} {
-    // CHECK-NEXT:    %{{.*}} = riscv.li 1 : !riscv.reg
+    // CHECK-NEXT:    riscv.nop
     // CHECK-NEXT:  }
 
     riscv.assembly_section ".text" {
-      %nested_li = riscv.li 1 : !riscv.reg
+      riscv.nop
     }
     // CHECK-NEXT:  riscv.assembly_section ".text" {
-    // CHECK-NEXT:    %{{.*}} = riscv.li 1 : !riscv.reg
+    // CHECK-NEXT:    riscv.nop
     // CHECK-NEXT:  }
 
     // Custom instruction
@@ -447,8 +443,8 @@
     %fcvt_d_wu = riscv.fcvt.d.wu %0 : (!riscv.reg) -> !riscv.freg
     // CHECK-NEXT: %{{.*}} = riscv.fcvt.d.wu %{{.*}} : (!riscv.reg) -> !riscv.freg
 
-    %mov_int_a, %mov_int_b, %mov_f_a, %mov_f_b = riscv.parallel_mov %0, %1, %f0, %f1 : (!riscv.reg, !riscv.reg, !riscv.freg, !riscv.freg) -> (!riscv.reg, !riscv.reg, !riscv.freg, !riscv.freg)
-    // CHECK-NEXT: %mov_int_a, %mov_int_b, %mov_f_a, %mov_f_b = riscv.parallel_mov %0, %1, %f0, %f1 : (!riscv.reg, !riscv.reg, !riscv.freg, !riscv.freg) -> (!riscv.reg, !riscv.reg, !riscv.freg, !riscv.freg)
+    %mov_int_a, %mov_int_b, %mov_f_a, %mov_f_b = riscv.parallel_mov %0, %1, %f0, %f1 [64, 32, 64, 32] : (!riscv.reg, !riscv.reg, !riscv.freg, !riscv.freg) -> (!riscv.reg, !riscv.reg, !riscv.freg, !riscv.freg)
+    // CHECK-NEXT: %mov_int_a, %mov_int_b, %mov_f_a, %mov_f_b = riscv.parallel_mov %0, %1, %f0, %f1 [64, 32, 64, 32] : (!riscv.reg, !riscv.reg, !riscv.freg, !riscv.freg) -> (!riscv.reg, !riscv.reg, !riscv.freg, !riscv.freg)
 
     // Terminate block
     riscv_func.return
@@ -573,16 +569,15 @@
 // CHECK-GENERIC-NEXT:      %minu = "riscv.minu"(%0, %1) : (!riscv.reg, !riscv.reg) -> !riscv.reg
 // CHECK-GENERIC-NEXT:      %czeroeqzop = "riscv.czero.eqz"(%0, %1) : (!riscv.reg, !riscv.reg) -> !riscv.reg
 // CHECK-GENERIC-NEXT:      %czeronezop = "riscv.czero.nez"(%0, %1) : (!riscv.reg, !riscv.reg) -> !riscv.reg
-// CHECK-GENERIC-NEXT:      %li = "riscv.li"() {immediate = 1 : i32} : () -> !riscv.reg
 // CHECK-GENERIC-NEXT:      "riscv.ecall"() : () -> ()
 // CHECK-GENERIC-NEXT:      "riscv.ebreak"() : () -> ()
 // CHECK-GENERIC-NEXT:      "riscv.directive"() {directive = ".bss"} : () -> ()
 // CHECK-GENERIC-NEXT:      "riscv.directive"() {directive = ".align", value = "2"} : () -> ()
 // CHECK-GENERIC-NEXT:      "riscv.assembly_section"() ({
-// CHECK-GENERIC-NEXT:        %nested_li = "riscv.li"() {immediate = 1 : i32} : () -> !riscv.reg
+// CHECK-GENERIC-NEXT:        "riscv.nop"() : () -> ()
 // CHECK-GENERIC-NEXT:      }) {directive = ".text", foo = i32} : () -> ()
 // CHECK-GENERIC-NEXT:      "riscv.assembly_section"() ({
-// CHECK-GENERIC-NEXT:        %nested_li = "riscv.li"() {immediate = 1 : i32} : () -> !riscv.reg
+// CHECK-GENERIC-NEXT:        "riscv.nop"() : () -> ()
 // CHECK-GENERIC-NEXT:      }) {directive = ".text"} : () -> ()
 // CHECK-GENERIC-NEXT:      %custom0, %custom1 = "riscv.custom_assembly_instruction"(%0, %1) {instruction_name = "hello"} : (!riscv.reg, !riscv.reg) -> (!riscv.reg, !riscv.reg)
 // CHECK-GENERIC-NEXT:      %f0 = "riscv.get_float_register"() : () -> !riscv.freg
@@ -645,7 +640,7 @@
 // CHECK-GENERIC-NEXT:      %fmax_d_fm = "riscv.fmax.d"(%f0, %f1) {fastmath = #riscv.fastmath<fast>} : (!riscv.freg, !riscv.freg) -> !riscv.freg
 // CHECK-GENERIC-NEXT:      %fcvt_d_w = "riscv.fcvt.d.w"(%0) : (!riscv.reg) -> !riscv.freg
 // CHECK-GENERIC-NEXT:      %fcvt_d_wu = "riscv.fcvt.d.wu"(%0) : (!riscv.reg) -> !riscv.freg
-// CHECK-GENERIC-NEXT:      %mov_int_a, %mov_int_b, %mov_f_a, %mov_f_b = "riscv.parallel_mov"(%0, %1, %f0, %f1) : (!riscv.reg, !riscv.reg, !riscv.freg, !riscv.freg) -> (!riscv.reg, !riscv.reg, !riscv.freg, !riscv.freg)
+// CHECK-GENERIC-NEXT:      %mov_int_a, %mov_int_b, %mov_f_a, %mov_f_b = "riscv.parallel_mov"(%0, %1, %f0, %f1) <{input_widths = array<i32: 64, 32, 64, 32>}> : (!riscv.reg, !riscv.reg, !riscv.freg, !riscv.freg) -> (!riscv.reg, !riscv.reg, !riscv.freg, !riscv.freg)
 // CHECK-GENERIC-NEXT:      "riscv_func.return"() : () -> ()
 // CHECK-GENERIC-NEXT:    }) {sym_name = "main", function_type = () -> ()} : () -> ()
 // CHECK-GENERIC-NEXT:  }) : () -> ()

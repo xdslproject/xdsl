@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 from abc import ABC
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from types import EllipsisType
 from typing import ClassVar
+
+from typing_extensions import deprecated
 
 from xdsl.dialects.builtin import (
     I1,
@@ -52,6 +54,7 @@ from xdsl.irdl import (
     opt_operand_def,
     opt_prop_def,
     opt_result_def,
+    param_def,
     prop_def,
     region_def,
     result_def,
@@ -176,7 +179,7 @@ class LLVMPointerType(ParametrizedAttribute, TypeAttribute):
 class LLVMArrayType(ParametrizedAttribute, TypeAttribute):
     name = "llvm.array"
 
-    size: IntAttr
+    size: IntAttr = param_def(converter=IntAttr.get)
     type: Attribute
 
     def print_parameters(self, printer: Printer) -> None:
@@ -193,10 +196,9 @@ class LLVMArrayType(ParametrizedAttribute, TypeAttribute):
             type = parse_llvm_type(parser)
         return (size, type)
 
+    @deprecated("Please use LLVMArrayType(size, type)")
     @staticmethod
     def from_size_and_type(size: int | IntAttr, type: Attribute):
-        if isinstance(size, int):
-            size = IntAttr(size)
         return LLVMArrayType(size, type)
 
 
@@ -1057,7 +1059,7 @@ class GEPOp(IRDLOperation):
 
     result = result_def(LLVMPointerType)
 
-    rawConstantIndices = prop_def(DenseArrayBase)
+    rawConstantIndices = prop_def(DenseArrayBase.constr(i32))
     inbounds = opt_prop_def(UnitAttr)
 
     traits = traits_def(NoMemoryEffect())
@@ -1628,6 +1630,15 @@ class TargetFeaturesAttr(ParametrizedAttribute):
 
 @irdl_op_definition
 class FuncOp(IRDLOperation):
+    """
+    LLVM function operation.
+
+    Note on property behavior:
+
+        - visibility_: always defaults to 0.
+        - unnamed_addr: always defaults to 0 in custom format. Only printed if explicitly set in generic format.
+    """
+
     name = "llvm.func"
 
     body = region_def()
@@ -1636,11 +1647,12 @@ class FuncOp(IRDLOperation):
     CConv = prop_def(CallingConventionAttr)
     linkage = prop_def(LinkageAttr)
     sym_visibility = opt_prop_def(StringAttr)
-    visibility_ = prop_def(IntegerAttr[IntegerType])
+    visibility_ = prop_def(IntegerAttr[IntegerType], default_value=IntegerAttr(0, 64))
 
     # The following properties are not yet verified by the xDSL verifier, but
     # are verified to at least allow the IR to be parsed and printed correctly.
     arg_attrs = opt_prop_def(ArrayAttr[DictionaryAttr])
+    res_attrs = opt_prop_def(ArrayAttr[DictionaryAttr])
     frame_pointer = opt_prop_def(FramePointerKindAttr)
     no_inline = opt_prop_def(UnitAttr)
     no_unwind = opt_prop_def(UnitAttr)
@@ -1661,6 +1673,7 @@ class FuncOp(IRDLOperation):
         sym_visibility: str | StringAttr | None = None,
         body: Region | None = None,
         other_props: dict[str, Attribute | None] | None = None,
+        extra_attrs: Mapping[str, Attribute] | None = None,
     ):
         if isinstance(sym_name, str):
             sym_name = StringAttr(sym_name)
@@ -1685,6 +1698,7 @@ class FuncOp(IRDLOperation):
             operands=[],
             regions=[body],
             properties=properties,
+            attributes=extra_attrs if extra_attrs else {},
         )
 
 
@@ -1696,12 +1710,14 @@ class ReturnOp(IRDLOperation):
 
     name = "llvm.return"
 
+    assembly_format = "($arg^ `:` type($arg))? attr-dict"
+
     arg = opt_operand_def(Attribute)
 
     traits = traits_def(IsTerminator(), NoMemoryEffect())
 
-    def __init__(self, value: Attribute | None = None):
-        super().__init__(attributes={"value": value})
+    def __init__(self, value: SSAValue | None = None):
+        super().__init__(operands=[value])
 
 
 @irdl_op_definition
@@ -1764,7 +1780,7 @@ class CallIntrinsicOp(IRDLOperation):
     op_bundle_operands = var_operand_def()
     ress = opt_result_def()
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
     def __init__(
         self,
@@ -1807,7 +1823,7 @@ class CallOp(IRDLOperation):
     )
     returned = opt_result_def()
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
     def __init__(
         self,
@@ -1905,7 +1921,7 @@ class AbstractFloatArithOp(IRDLOperation, ABC):
 
     assembly_format = "$lhs `,` $rhs attr-dict `:` type($lhs)"
 
-    irdl_options = [ParsePropInAttrDict()]
+    irdl_options = (ParsePropInAttrDict(),)
 
     def __init__(
         self,
@@ -2004,6 +2020,7 @@ LLVM = Dialect(
         MulOp,
         NullOp,
         OrOp,
+        PtrToIntOp,
         ReturnOp,
         SDivOp,
         SExtOp,

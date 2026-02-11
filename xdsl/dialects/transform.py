@@ -559,7 +559,7 @@ class SequenceOp(IRDLOperation):
     root = var_operand_def(AnyOpType)
     extra_bindings = var_operand_def(TransformHandleType)
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
     traits = traits_def(IsolatedFromAbove())
 
     def __init__(
@@ -666,7 +666,7 @@ class TileToForallOp(IRDLOperation):
     forall_op = result_def(TransformHandleType)
     tiled_op = result_def(TransformHandleType)
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
     def __init__(
         self,

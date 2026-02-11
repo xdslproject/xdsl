@@ -7,6 +7,7 @@
     <{
         CConv = #llvm.cconv<ccc>,
         arg_attrs = [{llvm.noundef}, {llvm.noundef}],
+        res_attrs = [{llvm.noundef}],
         frame_pointer = #llvm.framePointerKind<"non-leaf">,
         function_type = !llvm.func<i32 (i32, i32)>,
         linkage = #llvm.linkage<external>,
@@ -22,13 +23,14 @@
         visibility_ = 0 : i64
     }> ({
   ^bb0(%arg0: i32, %arg1: i32):
-    "llvm.return"(%arg0) : (i32) -> ()
+    llvm.return %arg0 : i32
 }) : () -> ()
 
 // CHECK:       builtin.module {
 // CHECK-NEXT:    "llvm.func"() <{
 // CHECK:            CConv = #llvm.cconv<ccc>,
 // CHECK:            arg_attrs = [{llvm.noundef}, {llvm.noundef}],
+// CHECK:            res_attrs = [{llvm.noundef}],
 // CHECK:            frame_pointer = #llvm.framePointerKind<"non-leaf">,
 // CHECK:            function_type = !llvm.func<i32 (i32, i32)>,
 // CHECK:            linkage = #llvm.linkage<"external">,
@@ -44,6 +46,6 @@
 // CHECK:            visibility_ = 0 : i64
 // CHECK:         }> ({
 // CHECK-NEXT:    ^bb0(%arg0 : i32, %arg1 : i32):
-// CHECK-NEXT:      "llvm.return"(%arg0) : (i32) -> ()
+// CHECK-NEXT:      llvm.return %arg0 : i32
 // CHECK-NEXT:    }) : () -> ()
 // CHECK-NEXT:  }

@@ -1,14 +1,14 @@
 from ordered_set import OrderedSet
 
 from xdsl.context import Context
-from xdsl.dialects import builtin, eqsat, func
+from xdsl.dialects import builtin, equivalence, func
 from xdsl.ir import Block, OpResult, Region, SSAValue
 from xdsl.passes import ModulePass
 
 
 class EqsatCreateEgraphsPass(ModulePass):
     """
-    Create an egraph from a function by inserting an `eqsat.egraph` operation.
+    Create an egraph from a function by inserting an `equivalence.graph` operation.
 
     Input example:
     ```
@@ -20,12 +20,12 @@ class EqsatCreateEgraphsPass(ModulePass):
     Output example:
     ```
     func.func @test(%a : index, %b : index) -> index {
-        %c = eqsat.egraph -> index {
-            %a_1 = eqsat.eclass %a : index
-            %b_1 = eqsat.eclass %b : index
+        %c = equivalence.graph -> index {
+            %a_1 = equivalence.class %a : index
+            %b_1 = equivalence.class %b : index
             %c_1 = arith.addi %a_1, %b_1 : index
-            %c_2 = eqsat.eclass %c_1 : index
-            eqsat.yield %c_2 : index
+            %c_2 = equivalence.class %c_1 : index
+            equivalence.yield %c_2 : index
         }
         func.return %c : index
     }
@@ -46,11 +46,11 @@ def insert_egraph_op(f: func.FuncOp):
     egraph_values: OrderedSet[OpResult] = OrderedSet(())
 
     def create_eclass(val: SSAValue):
-        eclass_op = eqsat.EClassOp(val)
+        eclass_op = equivalence.ClassOp(val)
         egraph_block.add_op(eclass_op)
         new_val = eclass_op.results[0]
         egraph_values.add(new_val)
-        val.replace_by_if(new_val, lambda u: u.operation is not eclass_op)
+        val.replace_uses_with_if(new_val, lambda u: u.operation is not eclass_op)
         return new_val
 
     for arg in f.body.block.args:
@@ -83,14 +83,14 @@ def insert_egraph_op(f: func.FuncOp):
 
     # Each value in the egraph block that has a use outside the egraph body should be yielded by the egraph op.
     # Next, these outside uses need to be replaced by the results of the egraph op.
-    egraph_block.add_op(eqsat.YieldOp(*values_to_yield))
+    egraph_block.add_op(equivalence.YieldOp(*values_to_yield))
 
     # Create the egraph operation with the types of yielded values
     yielded_types = [val.type for val in values_to_yield]
-    egraph_op = eqsat.EGraphOp(yielded_types, egraph_body)
+    egraph_op = equivalence.GraphOp(yielded_types, egraph_body)
 
     for i, val in enumerate(values_to_yield):
-        val.replace_by_if(
+        val.replace_uses_with_if(
             egraph_op.results[i], lambda u: u.operation.parent != egraph_block
         )
 

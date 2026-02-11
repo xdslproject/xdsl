@@ -421,7 +421,7 @@ class ExtractSliceOp(IRDLOperation):
     static_strides = prop_def(DenseArrayBase.constr(i64))
     result = result_def(TensorType)
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
     traits = traits_def(NoMemoryEffect())
 
@@ -480,7 +480,7 @@ class InsertSliceOp(IRDLOperation):
     static_strides = prop_def(DenseArrayBase.constr(i64))
     result = result_def(TensorType)
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
     traits = traits_def(NoMemoryEffect())
 

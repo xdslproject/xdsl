@@ -211,31 +211,23 @@ class RiscvFunctions(InterpreterFunctions):
                                 )
         return data
 
-    def get_data_value(self, interpreter: Interpreter, key: str) -> Any:
-        data = self.data(interpreter)
+    @staticmethod
+    def get_data_value(interpreter: Interpreter, key: str) -> Any:
+        data = RiscvFunctions.data(interpreter)
         if key not in data:
             raise InterpretationError(f"No data found for key ({key})")
         return data[key]
 
+    @staticmethod
     def get_immediate_value(
-        self, interpreter: Interpreter, imm: IntegerAttr | riscv.LabelAttr
+        interpreter: Interpreter, imm: IntegerAttr | riscv.LabelAttr
     ) -> int | ptr.RawPtr:
         match imm:
             case IntegerAttr():
                 return imm.value.data
             case riscv.LabelAttr():
-                data = self.get_data_value(interpreter, imm.data)
+                data = RiscvFunctions.get_data_value(interpreter, imm.data)
                 return data
-
-    @impl(riscv.LiOp)
-    def run_li(
-        self,
-        interpreter: Interpreter,
-        op: riscv.LiOp,
-        args: tuple[Any, ...],
-    ):
-        results = (self.get_immediate_value(interpreter, op.immediate),)
-        return RiscvFunctions.set_reg_values(interpreter, op.results, results)
 
     @impl(riscv.MVOp)
     def run_mv(
@@ -257,7 +249,7 @@ class RiscvFunctions(InterpreterFunctions):
     ):
         args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
         unsigned_lhs = to_unsigned(args[0], self.bitwidth)
-        imm = self.get_immediate_value(interpreter, op.immediate)
+        imm = RiscvFunctions.get_immediate_value(interpreter, op.immediate)
         if isinstance(imm, ptr.RawPtr):
             raise NotImplementedError("Cannot compare pointer in interpreter")
         unsigned_imm = to_unsigned(imm, self.bitwidth)
@@ -317,7 +309,7 @@ class RiscvFunctions(InterpreterFunctions):
         args: tuple[Any, ...],
     ):
         args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
-        imm = self.get_immediate_value(interpreter, op.immediate)
+        imm = RiscvFunctions.get_immediate_value(interpreter, op.immediate)
         assert isinstance(imm, int)
         results = (args[0] << imm,)
         return RiscvFunctions.set_reg_values(interpreter, op.results, results)
@@ -380,7 +372,7 @@ class RiscvFunctions(InterpreterFunctions):
         args: tuple[Any, ...],
     ):
         args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
-        offset = self.get_immediate_value(interpreter, op.immediate)
+        offset = RiscvFunctions.get_immediate_value(interpreter, op.immediate)
         assert isinstance(offset, int)
         results = ((args[0] + offset).int32[0],)
         return RiscvFunctions.set_reg_values(interpreter, op.results, results)
@@ -437,7 +429,7 @@ class RiscvFunctions(InterpreterFunctions):
         args: tuple[Any, ...],
     ):
         args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
-        offset = self.get_immediate_value(interpreter, op.immediate)
+        offset = RiscvFunctions.get_immediate_value(interpreter, op.immediate)
         assert isinstance(offset, int)
         results = ((args[0] + offset).float32[0],)
         return RiscvFunctions.set_reg_values(interpreter, op.results, results)
@@ -565,7 +557,7 @@ class RiscvFunctions(InterpreterFunctions):
         args: tuple[Any, ...],
     ):
         args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
-        offset = self.get_immediate_value(interpreter, op.immediate)
+        offset = RiscvFunctions.get_immediate_value(interpreter, op.immediate)
         assert isinstance(offset, int)
         results = ((args[0] + offset).float64[0],)
         return RiscvFunctions.set_reg_values(interpreter, op.results, results)
@@ -621,6 +613,17 @@ class RiscvFunctions(InterpreterFunctions):
             )
 
         results = self.custom_instructions[instr](interpreter, op, args)
+        return RiscvFunctions.set_reg_values(interpreter, op.results, results)
+
+    @impl(riscv.ParallelMovOp)
+    def run_parallel_mov(
+        self,
+        interpreter: Interpreter,
+        op: riscv.ParallelMovOp,
+        args: tuple[Any, ...],
+    ):
+        args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
+        results = args
         return RiscvFunctions.set_reg_values(interpreter, op.results, results)
 
     @impl_cast(riscv.FloatRegisterType, builtin.Float64Type)

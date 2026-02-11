@@ -569,6 +569,27 @@ class MemoryEffectKind(Enum):
 
 
 @dataclass(frozen=True)
+class Resource(abc.ABC):
+    """
+    This class represents a specific resource that an effect applies to.
+    """
+
+    @abc.abstractmethod
+    def name(self) -> str:
+        raise NotImplementedError
+
+
+@dataclass(frozen=True)
+class DefaultResource(Resource):
+    """
+    A conservative default resource kind.
+    """
+
+    def name(self) -> str:
+        return "<Default>"
+
+
+@dataclass(frozen=True)
 class EffectInstance:
     """
     An instance of a side effect.
@@ -582,6 +603,11 @@ class EffectInstance:
     value: SSAValue | SymbolRefAttr | None = field(default=None)
     """
     The value or symbol that is affected by the side effect, if known.
+    """
+
+    resource: Resource = field(default=DefaultResource())
+    """
+    The resource that the effect applies to.
     """
 
 
