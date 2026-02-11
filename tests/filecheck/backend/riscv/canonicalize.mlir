@@ -26,6 +26,8 @@ builtin.module {
   %c1 = rv32.li 1 : !riscv.reg
   %c2 = rv32.li 2 : !riscv.reg
   %c3 = rv32.li 3 : !riscv.reg
+  %c0_64 = rv64.li 2 : !riscv.reg
+  %c1_64 = rv64.li 5 : !riscv.reg
 
   // Don't optimise out unused immediates
   "test.op"(%zero, %c0, %c1, %c2, %c3) : (!riscv.reg<zero>, !riscv.reg, !riscv.reg, !riscv.reg, !riscv.reg) -> ()
@@ -71,6 +73,9 @@ builtin.module {
 
   %add_immediate_constant = riscv.addi %c2, 1 : (!riscv.reg) -> !riscv.reg<a0>
   "test.op"(%add_immediate_constant) : (!riscv.reg<a0>) -> ()
+
+  %multiply_immediate_immediate_64 = riscv.mul %c0_64, %c1_64 : (!riscv.reg, !riscv.reg) -> !riscv.reg
+  "test.op"(%multiply_immediate_immediate_64) : (!riscv.reg) -> ()
 
   // Unchanged
   %sub_lhs_immediate = riscv.sub %c2, %i2 : (!riscv.reg, !riscv.reg) -> !riscv.reg<a0>

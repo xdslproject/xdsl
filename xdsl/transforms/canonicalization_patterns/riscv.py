@@ -1,7 +1,7 @@
 from typing import cast
 
-from xdsl.dialects import riscv, riscv_snitch, rv32
-from xdsl.dialects.builtin import I32, I64, IntegerAttr, i32
+from xdsl.dialects import riscv, riscv_snitch, rv32, rv64
+from xdsl.dialects.builtin import I32, I64, IntegerAttr, i32, i64
 from xdsl.dialects.utils import FastMathFlag
 from xdsl.ir import OpResult, SSAValue
 from xdsl.pattern_rewriter import (
@@ -66,7 +66,8 @@ class MultiplyImmediates(RewritePattern):
                 else:
                     return
             case int(), int():
-                rewriter.replace_op(op, rv32.LiOp(lhs * rhs, rd=rd))
+                li_cls = rv64.LiOp if rs1.type == i64 or rs2.type == i64 else rv32.LiOp
+                rewriter.replace_op(op, li_cls(lhs * rhs, rd=rd))
             case _:
                 return
 
@@ -122,7 +123,8 @@ class AddImmediates(RewritePattern):
                     ),
                 )
             case int(), int():
-                rewriter.replace_op(op, rv32.LiOp(lhs + rhs, rd=rd, comment=op.comment))
+                li_cls = rv64.LiOp if rs1.type == i64 or rs2.type == i64 else rv32.LiOp
+                rewriter.replace_op(op, li_cls(lhs + rhs, rd=rd, comment=op.comment))
             case _:
                 pass
 
