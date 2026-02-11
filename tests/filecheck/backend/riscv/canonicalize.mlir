@@ -167,6 +167,9 @@ builtin.module {
   %shift_right_zero_r0 = riscv.srli %i2, 0 : (!riscv.reg) -> !riscv.reg<a0>
   "test.op"(%shift_right_zero_r0) : (!riscv.reg<a0>) -> ()
 
+  %ori_immediate_zero = riscv.ori %i2, 0 : (!riscv.reg) -> !riscv.reg<a0>
+  "test.op"(%ori_immediate_zero) : (!riscv.reg<a0>) -> ()
+
   // scfgw immediates
   riscv_snitch.scfgw %i1, %c1 : (!riscv.reg<a1>, !riscv.reg) -> ()
 }
@@ -331,6 +334,9 @@ builtin.module {
 
 // CHECK-NEXT:   %shift_right_zero_r0 = riscv.mv %i2 : (!riscv.reg) -> !riscv.reg<a0>
 // CHECK-NEXT:   "test.op"(%shift_right_zero_r0) : (!riscv.reg<a0>) -> ()
+
+// CHECK-NEXT:   %ori_immediate_zero = riscv.mv %i2 : (!riscv.reg) -> !riscv.reg<a0>
+// CHECK-NEXT:   "test.op"(%ori_immediate_zero) : (!riscv.reg<a0>) -> ()
 
 // CHECK-NEXT:   riscv_snitch.scfgwi %i1, 1 : (!riscv.reg<a1>) -> ()
 
