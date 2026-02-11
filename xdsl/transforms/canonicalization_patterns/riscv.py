@@ -302,6 +302,20 @@ class ShiftRightbyZero(RewritePattern):
             rewriter.replace_op(op, riscv.MVOp(op.rs1, rd=op.rd.type))
 
 
+class ShiftbyZero(RewritePattern):
+    """
+    shift(x, 0) -> x
+    """
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(
+        self, op: riscv.SlliOp | riscv.SrliOp | riscv.SraiOp, rewriter: PatternRewriter
+    ) -> None:
+        # check if the shift amount is zero
+        if isinstance(op.immediate, IntegerAttr) and op.immediate.value.data == 0:
+            rewriter.replace_op(op, riscv.MVOp(op.rs1, rd=op.rd.type))
+
+
 class LoadWordWithKnownOffset(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: riscv.LwOp, rewriter: PatternRewriter) -> None:

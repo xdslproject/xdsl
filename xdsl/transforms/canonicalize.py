@@ -37,8 +37,6 @@ class CanonicalizePass(ModulePass):
 
     def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         pattern = GreedyRewritePatternApplier(
-            [RemoveUnusedOperations(), CanonicalizationRewritePattern()],
-            folding_enabled=True,
-            ctx=ctx,
+            [RemoveUnusedOperations(), CanonicalizationRewritePattern()]
         )
         PatternRewriteWalker(pattern, post_walk_func=region_dce).rewrite_module(op)

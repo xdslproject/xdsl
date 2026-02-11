@@ -21,7 +21,6 @@ from xdsl.dialects.builtin import (
     StringAttr,
     UnitAttr,
 )
-from xdsl.interfaces import HasFolderInterface
 from xdsl.ir import (
     Attribute,
     Dialect,
@@ -38,8 +37,9 @@ from xdsl.irdl import (
     traits_def,
 )
 from xdsl.parser import Parser, UnresolvedOperand
+from xdsl.pattern_rewriter import RewritePattern
 from xdsl.printer import Printer
-from xdsl.traits import Pure
+from xdsl.traits import HasCanonicalizationPatternsTrait, Pure
 from xdsl.utils.exceptions import VerifyException
 
 from .attrs import (
@@ -721,9 +721,17 @@ class RdRsImmIntegerOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC)
         return {"immediate"}
 
 
-class RdRsImmShiftOperation(
-    RISCVCustomFormatOperation, RISCVInstruction, HasFolderInterface, ABC
-):
+class ImmShiftOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.riscv import (
+            ShiftbyZero,
+        )
+
+        return (ShiftbyZero(),)
+
+
+class RdRsImmShiftOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
     """
     A base class for RISC-V operations that have one destination register, one source
     register and one immediate operand.
@@ -740,6 +748,7 @@ class RdRsImmShiftOperation(
     rd = result_def(IntRegisterType)
     rs1 = operand_def(IntRegisterType)
     immediate = attr_def(IntegerAttr[UI5] | LabelAttr)
+    traits = traits_def(ImmShiftOpHasCanonicalizationPatternsTrait())
 
     def __init__(
         self,
@@ -778,30 +787,6 @@ class RdRsImmShiftOperation(
         printer.print_string(", ")
         print_immediate_value(printer, self.immediate)
         return {"immediate"}
-
-    @staticmethod
-    def py_operation(lhs: int, rhs: int) -> int | None:
-        """
-        Performs a python function corresponding to this operation.
-
-        If `i := py_operation(lhs, rhs)` is an int, then this operation can be
-        canonicalized to a constant with value `i` when the inputs are constants
-        with values `lhs` and `rhs`.
-        """
-        return None
-
-    def fold(self) -> Sequence[SSAValue | Attribute] | None:
-        # shift_op (x, 0) -> x
-        if isinstance(self.immediate, IntegerAttr) and self.immediate.value.data == 0:
-            return (self.rs1,)
-
-        rs1_value = self.get_constant(self.rs1)
-        if isinstance(rs1_value, IntegerAttr) and isinstance(
-            self.immediate, IntegerAttr
-        ):
-            result = self.py_operation(rs1_value.value.data, self.immediate.value.data)
-            if result is not None:
-                return (IntegerAttr(result, IntegerType(32)),)
 
 
 class RdRsImmBitManipOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
