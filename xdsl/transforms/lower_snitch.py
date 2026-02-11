@@ -6,7 +6,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 
 from xdsl.context import Context
-from xdsl.dialects import builtin, riscv, riscv_snitch, snitch
+from xdsl.dialects import builtin, riscv, riscv_snitch, rv32, snitch
 from xdsl.dialects.builtin import IntegerAttr, i32
 from xdsl.ir import Operation
 from xdsl.irdl import Operand
@@ -121,7 +121,7 @@ def write_ssr_config_ops(
     ```
     """
     return [
-        address := riscv.LiOp(immediate=IntegerAttr(dm | reg << 5, i32)),
+        address := rv32.LiOp(immediate=IntegerAttr(dm | reg << 5, i32)),
         riscv_snitch.ScfgwOp(rs1=value, rs2=address, comment=comment),
     ]
 

@@ -21,7 +21,6 @@ func.func @test(%dst: i32, %src: i32) -> i32 {
 // CHECK-NEXT:     mv t3, a1
 // CHECK-NEXT:     li t1, 128
 // CHECK-NEXT:     li t0, 512
-// CHECK-NEXT:     li t4, 64
 // CHECK-NEXT:     dmsrc t3, zero
 // CHECK-NEXT:     dmdst t2, zero
 // CHECK-NEXT:     dmstr t1, t1

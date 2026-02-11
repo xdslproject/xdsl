@@ -28,7 +28,7 @@ dev = [
     "filecheck==1.0.3",
     "lit<19.0.0",
     "marimo>=0.17,<0.18",
-    "pre-commit>=4.0.0,<5.0.0",
+    "prek~=0.3.1",
     "ruff==0.14.7",
     "nbconvert>=7.7.2,<8.0.0",
     "textual-dev==1.8.0",

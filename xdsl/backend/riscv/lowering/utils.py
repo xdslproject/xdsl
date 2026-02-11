@@ -195,7 +195,9 @@ def cast_block_args_from_a_regs(block: Block, rewriter: PatternRewriter):
         new_ops.append(cast_op)
 
         index = counter[register_type]
-        arg.replace_by_if(cast_op.results[0], lambda use: use.operation != move_op)
+        rewriter.replace_uses_with_if(
+            arg, cast_op.results[0], lambda use: use.operation != move_op
+        )
         rewriter.replace_value_with_new_type(arg, register_type.a_register(index))
         counter[register_type] += 1
 
@@ -218,5 +220,7 @@ def cast_block_args_to_regs(block: Block, rewriter: PatternRewriter):
         new_val = cast_op.results[0]
 
         new_type = register_type_for_type(arg.type).unallocated()
-        arg.replace_by_if(new_val, lambda use: use.operation != cast_op)
+        rewriter.replace_uses_with_if(
+            arg, new_val, lambda use: use.operation != cast_op
+        )
         rewriter.replace_value_with_new_type(arg, new_type)

@@ -169,9 +169,9 @@ func.func public @pooling_nchw_max_d1_s2_3x3(
         ]
       } ins(%X_1 : !riscv.reg) outs(%Y_1 : !riscv.reg) {
       ^bb0(%x : !snitch.readable<!riscv.freg<ft0>>, %0 : !snitch.writable<!riscv.freg<ft1>>):
-        %c128 = riscv.li 128 : !riscv.reg
-        %c0 = riscv.li 0 : !riscv.reg
-        %c1 = riscv.li 1 : !riscv.reg
+        %c128 = rv32.li 128 : !riscv.reg
+        %c0 = rv32.li 0 : !riscv.reg
+        %c1 = rv32.li 1 : !riscv.reg
         riscv_scf.for %i : !riscv.reg = %c0 to %c128 step %c1 {
           %x_1 = riscv_snitch.read from %x : !riscv.freg<ft0>
           %y = riscv_snitch.vfmax.s %x_1, %zero_vector : (!riscv.freg<ft0>, !riscv.freg) -> !riscv.freg<ft1>

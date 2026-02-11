@@ -154,11 +154,9 @@ class StencilExternalLoadToHLSExternalLoad(RewritePattern):
 
         stencil_type = LLVMStructType.from_type_list(
             [
-                LLVMArrayType.from_size_and_type(
+                LLVMArrayType(
                     3,
-                    LLVMArrayType.from_size_and_type(
-                        3, LLVMArrayType.from_size_and_type(3, f64)
-                    ),
+                    LLVMArrayType(3, LLVMArrayType(3, f64)),
                 )
             ]
         )
