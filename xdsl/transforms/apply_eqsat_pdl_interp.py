@@ -16,9 +16,7 @@ from xdsl.interpreters.pdl_interp import PDLInterpFunctions
 from xdsl.ir import Operation
 from xdsl.parser import Parser
 from xdsl.passes import ModulePass
-from xdsl.pattern_rewriter import (
-    PatternRewriter,
-)
+from xdsl.pattern_rewriter import PatternRewriter
 from xdsl.traits import SymbolTable
 
 _DEFAULT_MAX_ITERATIONS = 20
