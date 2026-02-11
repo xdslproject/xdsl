@@ -1,27 +1,14 @@
 // RUN: xdsl-opt -t llvm %s | filecheck %s
 
 builtin.module {
-  "llvm.func"() <{
-    sym_name = "declaration",
-    function_type = !llvm.func<void ()>,
-    CConv = #llvm.cconv<ccc>,
-    linkage = #llvm.linkage<external>,
-    visibility_ = 0 : i64
-  }> ({
-  }) : () -> ()
+  llvm.func @declaration()
 
   // CHECK: declare void @"declaration"()
 
-  "llvm.func"() <{
-    sym_name = "named_entry",
-    function_type = !llvm.func<void ()>,
-    CConv = #llvm.cconv<ccc>,
-    linkage = #llvm.linkage<external>,
-    visibility_ = 0 : i64
-  }> ({
+  llvm.func @named_entry() {
   ^entry:
     llvm.return
-  }) : () -> ()
+  }
 
   // CHECK: define void @"named_entry"()
   // CHECK-NEXT: {
@@ -29,16 +16,10 @@ builtin.module {
   // CHECK-NEXT:   ret void
   // CHECK-NEXT: }
 
-  "llvm.func"() <{
-    sym_name = "custom_name",
-    function_type = !llvm.func<void ()>,
-    CConv = #llvm.cconv<ccc>,
-    linkage = #llvm.linkage<external>,
-    visibility_ = 0 : i64
-  }> ({
+  llvm.func @custom_name() {
   ^my_block:
     llvm.return
-  }) : () -> ()
+  }
 
   // CHECK: define void @"custom_name"()
   // CHECK-NEXT: {
@@ -46,15 +27,9 @@ builtin.module {
   // CHECK-NEXT:   ret void
   // CHECK-NEXT: }
 
-  "llvm.func"() <{
-    sym_name = "return_void",
-    function_type = !llvm.func<void ()>,
-    CConv = #llvm.cconv<ccc>,
-    linkage = #llvm.linkage<external>,
-    visibility_ = 0 : i64
-  }> ({
+  llvm.func @return_void() {
     llvm.return
-  }) : () -> ()
+  }
 
   // CHECK: define void @"return_void"()
   // CHECK-NEXT: {
@@ -62,16 +37,9 @@ builtin.module {
   // CHECK-NEXT:   ret void
   // CHECK-NEXT: }
 
-  "llvm.func"() <{
-    sym_name = "return_arg",
-    function_type = !llvm.func<i32 (i32)>,
-    CConv = #llvm.cconv<ccc>,
-    linkage = #llvm.linkage<external>,
-    visibility_ = 0 : i64
-  }> ({
-  ^bb0(%arg0 : i32):
+  llvm.func @return_arg(%arg0: i32) -> i32 {
     llvm.return %arg0 : i32
-  }) : () -> ()
+  }
 
   // CHECK: define i32 @"return_arg"(i32 %".1")
   // CHECK-NEXT: {
@@ -79,16 +47,9 @@ builtin.module {
   // CHECK-NEXT:   ret i32 %".1"
   // CHECK-NEXT: }
 
-  "llvm.func"() <{
-    sym_name = "return_second_arg",
-    function_type = !llvm.func<i32 (i32, i32)>,
-    CConv = #llvm.cconv<ccc>,
-    linkage = #llvm.linkage<external>,
-    visibility_ = 0 : i64
-  }> ({
-  ^bb0(%arg0 : i32, %arg1 : i32):
+  llvm.func @return_second_arg(%arg0: i32, %arg1: i32) -> i32 {
     llvm.return %arg1 : i32
-  }) : () -> ()
+  }
 
   // CHECK: define i32 @"return_second_arg"(i32 %".1", i32 %".2")
   // CHECK-NEXT: {
@@ -96,14 +57,7 @@ builtin.module {
   // CHECK-NEXT:   ret i32 %".2"
   // CHECK-NEXT: }
 
-  "llvm.func"() <{
-    sym_name = "binops",
-    function_type = !llvm.func<void (i32, i32, f32, f32)>,
-    CConv = #llvm.cconv<ccc>,
-    linkage = #llvm.linkage<external>,
-    visibility_ = 0 : i64
-  }> ({
-  ^bb0(%arg0 : i32, %arg1 : i32, %arg2 : f32, %arg3 : f32):
+  llvm.func @binops(%arg0: i32, %arg1: i32, %arg2: f32, %arg3: f32) {
     %0 = llvm.add %arg0, %arg1 : i32
     %1 = llvm.fadd %arg2, %arg3 : f32
     %2 = llvm.sub %arg0, %arg1 : i32
@@ -122,8 +76,8 @@ builtin.module {
     %15 = llvm.and %arg0, %arg1 : i32
     %16 = llvm.or %arg0, %arg1 : i32
     %17 = llvm.xor %arg0, %arg1 : i32
-    "llvm.return"() : () -> ()
-  }) : () -> ()
+    llvm.return
+  }
 
   // CHECK: define void @"binops"(i32 %".1", i32 %".2", float %".3", float %".4")
   // CHECK-NEXT: {
@@ -149,14 +103,7 @@ builtin.module {
   // CHECK-NEXT:   ret void
   // CHECK-NEXT: }
 
-  "llvm.func"() <{
-    sym_name = "binops_flags",
-    function_type = !llvm.func<void (i32, i32, f32, f32)>,
-    CConv = #llvm.cconv<ccc>,
-    linkage = #llvm.linkage<external>,
-    visibility_ = 0 : i64
-  }> ({
-  ^bb0(%arg0 : i32, %arg1 : i32, %arg2 : f32, %arg3 : f32):
+  llvm.func @binops_flags(%arg0: i32, %arg1: i32, %arg2: f32, %arg3: f32) {
     %0 = llvm.add %arg0, %arg1 overflow<nsw> : i32
     %1 = llvm.add %arg0, %arg1 overflow<nuw> : i32
     %2 = llvm.add %arg0, %arg1 overflow<nsw, nuw> : i32
@@ -168,8 +115,8 @@ builtin.module {
     %8 = llvm.fadd %arg2, %arg3 {fastmathFlags = #llvm.fastmath<contract>} : f32
     %9 = llvm.fadd %arg2, %arg3 {fastmathFlags = #llvm.fastmath<afn>} : f32
     %10 = llvm.fadd %arg2, %arg3 {fastmathFlags = #llvm.fastmath<fast>} : f32
-    "llvm.return"() : () -> ()
-  }) : () -> ()
+    llvm.return
+  }
 
   // CHECK: define void @"binops_flags"(i32 %".1", i32 %".2", float %".3", float %".4")
   // CHECK-NEXT: {
@@ -188,21 +135,14 @@ builtin.module {
   // CHECK-NEXT:   ret void
   // CHECK-NEXT: }
 
-  "llvm.func"() <{
-    sym_name = "inline_asm",
-    function_type = !llvm.func<void (i32)>,
-    CConv = #llvm.cconv<ccc>,
-    linkage = #llvm.linkage<external>,
-    visibility_ = 0 : i64
-  }> ({
-  ^bb0(%arg0: i32):
+  llvm.func @inline_asm(%arg0: i32) {
     "llvm.inline_asm"(%arg0) <{
       asm_string = "add $0, 1",
       constraints = "r",
       has_side_effects
     }> : (i32) -> ()
     llvm.return
-  }) : () -> ()
+  }
 
   // CHECK: define void @"inline_asm"(i32 %".1")
   // CHECK-NEXT: {
