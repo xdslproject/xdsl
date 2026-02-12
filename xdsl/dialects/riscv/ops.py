@@ -270,7 +270,7 @@ class SrliOp(RdRsImmShiftOperation):
     def py_operation(
         self, arg0: IntegerAttr[I32], arg1: IntegerAttr[I32]
     ) -> IntegerAttr[I32]:
-        return IntegerAttr(arg0.value.data >> arg1.value.data, i32)
+        return IntegerAttr((arg0.value.data % 0x100000000) >> arg1.value.data, i32)
 
 
 @irdl_op_definition
@@ -285,6 +285,11 @@ class SraiOp(RdRsImmShiftOperation):
     """
 
     name = "riscv.srai"
+
+    def py_operation(
+        self, arg0: IntegerAttr[I32], arg1: IntegerAttr[I32]
+    ) -> IntegerAttr[I32]:
+        return IntegerAttr(arg0.value.data >> arg1.value.data, i32)
 
 
 @irdl_op_definition
