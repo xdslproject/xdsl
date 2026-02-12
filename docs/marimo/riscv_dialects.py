@@ -10,7 +10,7 @@ def _():
     from xdsl.utils import marimo as xmo
     from xdsl.ir import Block, Region
     from xdsl.builder import Builder, InsertPoint
-    from xdsl.dialects import builtin, riscv, riscv_cf, riscv_func
+    from xdsl.dialects import builtin, riscv, riscv_cf, riscv_func, rv32
     from xdsl.printer import Printer
     from xdsl.parser import Parser
     from xdsl.context import Context
@@ -28,6 +28,7 @@ def _():
         riscv,
         riscv_cf,
         riscv_func,
+        rv32,
         xmo,
     )
 
