@@ -104,26 +104,138 @@ builtin.module {
   // CHECK-NEXT: }
 
   llvm.func @binops_flags(%arg0: i32, %arg1: i32, %arg2: f32, %arg3: f32) {
-    %0 = llvm.add %arg0, %arg1 overflow<nsw> : i32
-    %1 = llvm.add %arg0, %arg1 overflow<nuw> : i32
-    %2 = llvm.add %arg0, %arg1 overflow<nsw, nuw> : i32
-    %3 = llvm.fadd %arg2, %arg3 {fastmathFlags = #llvm.fastmath<reassoc>} : f32
-    %4 = llvm.fadd %arg2, %arg3 {fastmathFlags = #llvm.fastmath<nnan>} : f32
-    %5 = llvm.fadd %arg2, %arg3 {fastmathFlags = #llvm.fastmath<ninf>} : f32
-    %6 = llvm.fadd %arg2, %arg3 {fastmathFlags = #llvm.fastmath<nsz>} : f32
-    %7 = llvm.fadd %arg2, %arg3 {fastmathFlags = #llvm.fastmath<arcp>} : f32
-    %8 = llvm.fadd %arg2, %arg3 {fastmathFlags = #llvm.fastmath<contract>} : f32
-    %9 = llvm.fadd %arg2, %arg3 {fastmathFlags = #llvm.fastmath<afn>} : f32
-    %10 = llvm.fadd %arg2, %arg3 {fastmathFlags = #llvm.fastmath<fast>} : f32
+    // llvm.add
+    %add_none = llvm.add %arg0, %arg1 : i32
+    %add_nsw = llvm.add %arg0, %arg1 overflow<nsw> : i32
+    %add_nuw = llvm.add %arg0, %arg1 overflow<nuw> : i32
+    %add_nsw_nuw = llvm.add %arg0, %arg1 overflow<nsw, nuw> : i32
+
+    // llvm.sub
+    %sub_none = llvm.sub %arg0, %arg1 : i32
+    %sub_nsw = llvm.sub %arg0, %arg1 overflow<nsw> : i32
+    %sub_nuw = llvm.sub %arg0, %arg1 overflow<nuw> : i32
+    %sub_nsw_nuw = llvm.sub %arg0, %arg1 overflow<nsw, nuw> : i32
+
+    // llvm.mul
+    %mul_none = llvm.mul %arg0, %arg1 : i32
+    %mul_nsw = llvm.mul %arg0, %arg1 overflow<nsw> : i32
+    %mul_nuw = llvm.mul %arg0, %arg1 overflow<nuw> : i32
+    %mul_nsw_nuw = llvm.mul %arg0, %arg1 overflow<nsw, nuw> : i32
+
+    // llvm.shl
+    %shl_none = llvm.shl %arg0, %arg1 : i32
+    %shl_nsw = llvm.shl %arg0, %arg1 overflow<nsw> : i32
+    %shl_nuw = llvm.shl %arg0, %arg1 overflow<nuw> : i32
+    %shl_nsw_nuw = llvm.shl %arg0, %arg1 overflow<nsw, nuw> : i32
+
+    // llvm.udiv
+    %udiv_none = llvm.udiv %arg0, %arg1 : i32
+    %udiv_exact = llvm.udiv exact %arg0, %arg1 : i32
+
+    // llvm.sdiv
+    %sdiv_none = llvm.sdiv %arg0, %arg1 : i32
+    %sdiv_exact = llvm.sdiv exact %arg0, %arg1 : i32
+
+    // llvm.lshr
+    %lshr_none = llvm.lshr %arg0, %arg1 : i32
+    %lshr_exact = llvm.lshr exact %arg0, %arg1 : i32
+
+    // llvm.ashr
+    %ashr_none = llvm.ashr %arg0, %arg1 : i32
+    %ashr_exact = llvm.ashr exact %arg0, %arg1 : i32
+
+    // llvm.or
+    %or_none = llvm.or %arg0, %arg1 : i32
+    %or_disjoint = llvm.or disjoint %arg0, %arg1 : i32
+
+    // llvm.fadd
+    %fadd_none = llvm.fadd %arg2, %arg3 : f32
+    %fadd_reassoc = llvm.fadd %arg2, %arg3 {fastmathFlags = #llvm.fastmath<reassoc>} : f32
+    %fadd_nnan = llvm.fadd %arg2, %arg3 {fastmathFlags = #llvm.fastmath<nnan>} : f32
+    %fadd_ninf = llvm.fadd %arg2, %arg3 {fastmathFlags = #llvm.fastmath<ninf>} : f32
+    %fadd_nsz = llvm.fadd %arg2, %arg3 {fastmathFlags = #llvm.fastmath<nsz>} : f32
+    %fadd_arcp = llvm.fadd %arg2, %arg3 {fastmathFlags = #llvm.fastmath<arcp>} : f32
+    %fadd_contract = llvm.fadd %arg2, %arg3 {fastmathFlags = #llvm.fastmath<contract>} : f32
+    %fadd_afn = llvm.fadd %arg2, %arg3 {fastmathFlags = #llvm.fastmath<afn>} : f32
+    %fadd_fast = llvm.fadd %arg2, %arg3 {fastmathFlags = #llvm.fastmath<fast>} : f32
+
+    // llvm.fsub
+    %fsub_none = llvm.fsub %arg2, %arg3 : f32
+    %fsub_reassoc = llvm.fsub %arg2, %arg3 {fastmathFlags = #llvm.fastmath<reassoc>} : f32
+    %fsub_nnan = llvm.fsub %arg2, %arg3 {fastmathFlags = #llvm.fastmath<nnan>} : f32
+    %fsub_ninf = llvm.fsub %arg2, %arg3 {fastmathFlags = #llvm.fastmath<ninf>} : f32
+    %fsub_nsz = llvm.fsub %arg2, %arg3 {fastmathFlags = #llvm.fastmath<nsz>} : f32
+    %fsub_arcp = llvm.fsub %arg2, %arg3 {fastmathFlags = #llvm.fastmath<arcp>} : f32
+    %fsub_contract = llvm.fsub %arg2, %arg3 {fastmathFlags = #llvm.fastmath<contract>} : f32
+    %fsub_afn = llvm.fsub %arg2, %arg3 {fastmathFlags = #llvm.fastmath<afn>} : f32
+    %fsub_fast = llvm.fsub %arg2, %arg3 {fastmathFlags = #llvm.fastmath<fast>} : f32
+
+    // llvm.fmul
+    %fmul_none = llvm.fmul %arg2, %arg3 : f32
+    %fmul_reassoc = llvm.fmul %arg2, %arg3 {fastmathFlags = #llvm.fastmath<reassoc>} : f32
+    %fmul_nnan = llvm.fmul %arg2, %arg3 {fastmathFlags = #llvm.fastmath<nnan>} : f32
+    %fmul_ninf = llvm.fmul %arg2, %arg3 {fastmathFlags = #llvm.fastmath<ninf>} : f32
+    %fmul_nsz = llvm.fmul %arg2, %arg3 {fastmathFlags = #llvm.fastmath<nsz>} : f32
+    %fmul_arcp = llvm.fmul %arg2, %arg3 {fastmathFlags = #llvm.fastmath<arcp>} : f32
+    %fmul_contract = llvm.fmul %arg2, %arg3 {fastmathFlags = #llvm.fastmath<contract>} : f32
+    %fmul_afn = llvm.fmul %arg2, %arg3 {fastmathFlags = #llvm.fastmath<afn>} : f32
+    %fmul_fast = llvm.fmul %arg2, %arg3 {fastmathFlags = #llvm.fastmath<fast>} : f32
+
+    // llvm.fdiv
+    %fdiv_none = llvm.fdiv %arg2, %arg3 : f32
+    %fdiv_reassoc = llvm.fdiv %arg2, %arg3 {fastmathFlags = #llvm.fastmath<reassoc>} : f32
+    %fdiv_nnan = llvm.fdiv %arg2, %arg3 {fastmathFlags = #llvm.fastmath<nnan>} : f32
+    %fdiv_ninf = llvm.fdiv %arg2, %arg3 {fastmathFlags = #llvm.fastmath<ninf>} : f32
+    %fdiv_nsz = llvm.fdiv %arg2, %arg3 {fastmathFlags = #llvm.fastmath<nsz>} : f32
+    %fdiv_arcp = llvm.fdiv %arg2, %arg3 {fastmathFlags = #llvm.fastmath<arcp>} : f32
+    %fdiv_contract = llvm.fdiv %arg2, %arg3 {fastmathFlags = #llvm.fastmath<contract>} : f32
+    %fdiv_afn = llvm.fdiv %arg2, %arg3 {fastmathFlags = #llvm.fastmath<afn>} : f32
+    %fdiv_fast = llvm.fdiv %arg2, %arg3 {fastmathFlags = #llvm.fastmath<fast>} : f32
+
+    // llvm.frem
+    %frem_none = llvm.frem %arg2, %arg3 : f32
+    %frem_reassoc = llvm.frem %arg2, %arg3 {fastmathFlags = #llvm.fastmath<reassoc>} : f32
+    %frem_nnan = llvm.frem %arg2, %arg3 {fastmathFlags = #llvm.fastmath<nnan>} : f32
+    %frem_ninf = llvm.frem %arg2, %arg3 {fastmathFlags = #llvm.fastmath<ninf>} : f32
+    %frem_nsz = llvm.frem %arg2, %arg3 {fastmathFlags = #llvm.fastmath<nsz>} : f32
+    %frem_arcp = llvm.frem %arg2, %arg3 {fastmathFlags = #llvm.fastmath<arcp>} : f32
+    %frem_contract = llvm.frem %arg2, %arg3 {fastmathFlags = #llvm.fastmath<contract>} : f32
+    %frem_afn = llvm.frem %arg2, %arg3 {fastmathFlags = #llvm.fastmath<afn>} : f32
+    %frem_fast = llvm.frem %arg2, %arg3 {fastmathFlags = #llvm.fastmath<fast>} : f32
+
     llvm.return
   }
 
   // CHECK: define void @"binops_flags"(i32 %".1", i32 %".2", float %".3", float %".4")
   // CHECK-NEXT: {
   // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT:   {{%.+}} = add i32 %".1", %".2"
   // CHECK-NEXT:   {{%.+}} = add nsw i32 %".1", %".2"
   // CHECK-NEXT:   {{%.+}} = add nuw i32 %".1", %".2"
-  // CHECK-NEXT:   {{%.+}} = add {{.*}} i32 %".1", %".2"
+  // CHECK-NEXT:   {{%.+}} = add nuw nsw i32 %".1", %".2"
+  // CHECK-NEXT:   {{%.+}} = sub i32 %".1", %".2"
+  // CHECK-NEXT:   {{%.+}} = sub nsw i32 %".1", %".2"
+  // CHECK-NEXT:   {{%.+}} = sub nuw i32 %".1", %".2"
+  // CHECK-NEXT:   {{%.+}} = sub nuw nsw i32 %".1", %".2"
+  // CHECK-NEXT:   {{%.+}} = mul i32 %".1", %".2"
+  // CHECK-NEXT:   {{%.+}} = mul nsw i32 %".1", %".2"
+  // CHECK-NEXT:   {{%.+}} = mul nuw i32 %".1", %".2"
+  // CHECK-NEXT:   {{%.+}} = mul nuw nsw i32 %".1", %".2"
+  // CHECK-NEXT:   {{%.+}} = shl i32 %".1", %".2"
+  // CHECK-NEXT:   {{%.+}} = shl nsw i32 %".1", %".2"
+  // CHECK-NEXT:   {{%.+}} = shl nuw i32 %".1", %".2"
+  // CHECK-NEXT:   {{%.+}} = shl nuw nsw i32 %".1", %".2"
+  // CHECK-NEXT:   {{%.+}} = udiv i32 %".1", %".2"
+  // CHECK-NEXT:   {{%.+}} = udiv exact i32 %".1", %".2"
+  // CHECK-NEXT:   {{%.+}} = sdiv i32 %".1", %".2"
+  // CHECK-NEXT:   {{%.+}} = sdiv exact i32 %".1", %".2"
+  // CHECK-NEXT:   {{%.+}} = lshr i32 %".1", %".2"
+  // CHECK-NEXT:   {{%.+}} = lshr exact i32 %".1", %".2"
+  // CHECK-NEXT:   {{%.+}} = ashr i32 %".1", %".2"
+  // CHECK-NEXT:   {{%.+}} = ashr exact i32 %".1", %".2"
+  // CHECK-NEXT:   {{%.+}} = or i32 %".1", %".2"
+  // CHECK-NEXT:   {{%.+}} = or disjoint i32 %".1", %".2"
+  // CHECK-NEXT:   {{%.+}} = fadd float %".3", %".4"
   // CHECK-NEXT:   {{%.+}} = fadd reassoc float %".3", %".4"
   // CHECK-NEXT:   {{%.+}} = fadd nnan float %".3", %".4"
   // CHECK-NEXT:   {{%.+}} = fadd ninf float %".3", %".4"
@@ -132,6 +244,42 @@ builtin.module {
   // CHECK-NEXT:   {{%.+}} = fadd contract float %".3", %".4"
   // CHECK-NEXT:   {{%.+}} = fadd afn float %".3", %".4"
   // CHECK-NEXT:   {{%.+}} = fadd {{.*}} float %".3", %".4"
+  // CHECK-NEXT:   {{%.+}} = fsub float %".3", %".4"
+  // CHECK-NEXT:   {{%.+}} = fsub reassoc float %".3", %".4"
+  // CHECK-NEXT:   {{%.+}} = fsub nnan float %".3", %".4"
+  // CHECK-NEXT:   {{%.+}} = fsub ninf float %".3", %".4"
+  // CHECK-NEXT:   {{%.+}} = fsub nsz float %".3", %".4"
+  // CHECK-NEXT:   {{%.+}} = fsub arcp float %".3", %".4"
+  // CHECK-NEXT:   {{%.+}} = fsub contract float %".3", %".4"
+  // CHECK-NEXT:   {{%.+}} = fsub afn float %".3", %".4"
+  // CHECK-NEXT:   {{%.+}} = fsub {{.*}} float %".3", %".4"
+  // CHECK-NEXT:   {{%.+}} = fmul float %".3", %".4"
+  // CHECK-NEXT:   {{%.+}} = fmul reassoc float %".3", %".4"
+  // CHECK-NEXT:   {{%.+}} = fmul nnan float %".3", %".4"
+  // CHECK-NEXT:   {{%.+}} = fmul ninf float %".3", %".4"
+  // CHECK-NEXT:   {{%.+}} = fmul nsz float %".3", %".4"
+  // CHECK-NEXT:   {{%.+}} = fmul arcp float %".3", %".4"
+  // CHECK-NEXT:   {{%.+}} = fmul contract float %".3", %".4"
+  // CHECK-NEXT:   {{%.+}} = fmul afn float %".3", %".4"
+  // CHECK-NEXT:   {{%.+}} = fmul {{.*}} float %".3", %".4"
+  // CHECK-NEXT:   {{%.+}} = fdiv float %".3", %".4"
+  // CHECK-NEXT:   {{%.+}} = fdiv reassoc float %".3", %".4"
+  // CHECK-NEXT:   {{%.+}} = fdiv nnan float %".3", %".4"
+  // CHECK-NEXT:   {{%.+}} = fdiv ninf float %".3", %".4"
+  // CHECK-NEXT:   {{%.+}} = fdiv nsz float %".3", %".4"
+  // CHECK-NEXT:   {{%.+}} = fdiv arcp float %".3", %".4"
+  // CHECK-NEXT:   {{%.+}} = fdiv contract float %".3", %".4"
+  // CHECK-NEXT:   {{%.+}} = fdiv afn float %".3", %".4"
+  // CHECK-NEXT:   {{%.+}} = fdiv {{.*}} float %".3", %".4"
+  // CHECK-NEXT:   {{%.+}} = frem float %".3", %".4"
+  // CHECK-NEXT:   {{%.+}} = frem reassoc float %".3", %".4"
+  // CHECK-NEXT:   {{%.+}} = frem nnan float %".3", %".4"
+  // CHECK-NEXT:   {{%.+}} = frem ninf float %".3", %".4"
+  // CHECK-NEXT:   {{%.+}} = frem nsz float %".3", %".4"
+  // CHECK-NEXT:   {{%.+}} = frem arcp float %".3", %".4"
+  // CHECK-NEXT:   {{%.+}} = frem contract float %".3", %".4"
+  // CHECK-NEXT:   {{%.+}} = frem afn float %".3", %".4"
+  // CHECK-NEXT:   {{%.+}} = frem {{.*}} float %".3", %".4"
   // CHECK-NEXT:   ret void
   // CHECK-NEXT: }
 
