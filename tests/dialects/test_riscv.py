@@ -1,7 +1,7 @@
 import pytest
 
 from xdsl.context import Context
-from xdsl.dialects import riscv, rv32
+from xdsl.dialects import riscv, rv32, rv64
 from xdsl.dialects.builtin import (
     IntAttr,
     IntegerAttr,
@@ -275,6 +275,7 @@ def test_asm_section():
 
 
 def test_get_constant_value():
+    # Test 32-bit LiOp
     li_op = rv32.LiOp(1)
     li_val = get_constant_value(li_op.rd)
     assert li_val == IntegerAttr.from_int_and_width(1, 32)
@@ -284,6 +285,17 @@ def test_get_constant_value():
     assert constantlike.get_constant_value(li_op) == IntegerAttr.from_int_and_width(
         1, 32
     )
+
+    # Test 64-bit LiOp
+    li_op_64 = rv64.LiOp(1)
+    li_val_64 = get_constant_value(li_op_64.rd)
+    assert li_val_64 == IntegerAttr.from_int_and_width(1, 64)
+    constantlike = li_op_64.get_trait(ConstantLike)
+    assert constantlike is not None
+    assert constantlike.get_constant_value(li_op_64) == IntegerAttr.from_int_and_width(
+        1, 64
+    )
+
     zero_op = riscv.GetRegisterOp(riscv.Registers.ZERO)
     zero_val = get_constant_value(zero_op.res)
     assert zero_val == IntegerAttr.from_int_and_width(0, 32)

@@ -37,8 +37,9 @@ from xdsl.irdl import (
     traits_def,
 )
 from xdsl.parser import Parser, UnresolvedOperand
+from xdsl.pattern_rewriter import RewritePattern
 from xdsl.printer import Printer
-from xdsl.traits import Pure
+from xdsl.traits import HasCanonicalizationPatternsTrait, Pure
 from xdsl.utils.exceptions import VerifyException
 
 from .attrs import (
@@ -720,6 +721,16 @@ class RdRsImmIntegerOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC)
         return {"immediate"}
 
 
+class ImmShiftOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.riscv import (
+            ShiftbyZero,
+        )
+
+        return (ShiftbyZero(),)
+
+
 class RdRsImmShiftOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
     """
     A base class for RISC-V operations that have one destination register, one source
@@ -732,6 +743,63 @@ class RdRsImmShiftOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
 
     For RV32I, SLLI, SRLI, and SRAI generate an illegal instruction exception if
     imm[5] 6 != 0 but the shift amount is encoded in the lower 6 bits of the I-immediate field for RV64I.
+    """
+
+    rd = result_def(IntRegisterType)
+    rs1 = operand_def(IntRegisterType)
+    immediate = attr_def(IntegerAttr[UI5] | LabelAttr)
+    traits = traits_def(ImmShiftOpHasCanonicalizationPatternsTrait())
+
+    def __init__(
+        self,
+        rs1: Operation | SSAValue,
+        immediate: int | IntegerAttr[UI5] | str | LabelAttr,
+        *,
+        rd: IntRegisterType = Registers.UNALLOCATED_INT,
+        comment: str | StringAttr | None = None,
+    ):
+        if isinstance(immediate, int):
+            immediate = IntegerAttr(immediate, ui5)
+        elif isinstance(immediate, str):
+            immediate = LabelAttr(immediate)
+
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+        super().__init__(
+            operands=[rs1],
+            result_types=[rd],
+            attributes={
+                "immediate": immediate,
+                "comment": comment,
+            },
+        )
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
+        return self.rd, self.rs1, self.immediate
+
+    @classmethod
+    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
+        attributes = dict[str, Attribute]()
+        attributes["immediate"] = parse_immediate_value(parser, ui5)
+        return attributes
+
+    def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
+        printer.print_string(", ")
+        print_immediate_value(printer, self.immediate)
+        return {"immediate"}
+
+
+class RdRsImmBitManipOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
+    """
+    A base class for RISC-V operations that have one destination register, one source
+    register and one immediate operand.
+
+    These operations are from the Zba, Zbb, and Zbs extensions.
+
+    The immediate value is encoded in the lower 5 bits of the immediate field for RV32
+    and the lower 6 bits for RV64.
+
+    See external [documentation](https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#).
     """
 
     rd = result_def(IntRegisterType)
