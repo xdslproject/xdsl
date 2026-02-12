@@ -562,3 +562,17 @@ def test_call_intrinsic_op_converts_str_to_stringattr():
     )
     assert isinstance(op.intrin, builtin.StringAttr)
     assert op.intrin.data == "llvm.intr"
+
+
+def test_func_op_visibility_default():
+    ft = llvm.LLVMFunctionType([])
+    op = llvm.FuncOp("my_func", ft)
+    assert op.visibility_ is not None
+    assert op.visibility_.value.data == 0
+
+
+def test_func_op_extra_attrs():
+    ft = llvm.LLVMFunctionType([])
+    op = llvm.FuncOp("my_func", ft, extra_attrs={"goofy": builtin.StringAttr("goober")})
+    assert "goofy" in op.attributes
+    assert op.attributes["goofy"] == builtin.StringAttr("goober")

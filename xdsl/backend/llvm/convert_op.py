@@ -30,6 +30,34 @@ _BINARY_OP_MAP: dict[
 }
 
 
+def _convert_binop(
+    op: Operation, builder: ir.IRBuilder, val_map: dict[SSAValue, ir.Value]
+):
+    kwargs = {}
+    op_builder = _BINARY_OP_MAP[type(op)]
+
+    match op:
+        case llvm.ArithmeticBinOpOverflow():
+            if op.overflowFlags:
+                overflow_attr = llvm.OverflowAttr.from_int(op.overflowFlags.value.data)
+                kwargs["flags"] = [f.value for f in overflow_attr.data]
+        case llvm.AbstractFloatArithOp():
+            if op.fastmathFlags:
+                kwargs["flags"] = [f.value for f in op.fastmathFlags.data]
+        case llvm.ArithmeticBinOpExact():
+            if op.is_exact:
+                kwargs["flags"] = ["exact"]
+        case llvm.ArithmeticBinOpDisjoint():
+            if op.is_disjoint:
+                kwargs["flags"] = ["disjoint"]
+        case _:
+            pass
+
+    val_map[op.results[0]] = op_builder(builder)(
+        val_map[op.operands[0]], val_map[op.operands[1]], **kwargs
+    )
+
+
 def _convert_inline_asm(
     op: llvm.InlineAsmOp, builder: ir.IRBuilder, val_map: dict[SSAValue, ir.Value]
 ):
@@ -78,13 +106,9 @@ def convert_op(
     Raises:
         NotImplementedError: If the operation is not supported.
     """
-    if (op_builder := _BINARY_OP_MAP.get(type(op))) is not None:
-        val_map[op.results[0]] = op_builder(builder)(
-            val_map[op.operands[0]], val_map[op.operands[1]]
-        )
-        return
-
     match op:
+        case op if type(op) in _BINARY_OP_MAP:
+            _convert_binop(op, builder, val_map)
         case llvm.InlineAsmOp():
             _convert_inline_asm(op, builder, val_map)
         case llvm.ReturnOp():
