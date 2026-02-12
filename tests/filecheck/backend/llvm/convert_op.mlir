@@ -298,14 +298,7 @@ builtin.module {
   // CHECK-NEXT:   ret void
   // CHECK-NEXT: }
 
-  "llvm.func"() <{
-    sym_name = "casts",
-    function_type = !llvm.func<void (i32, i64, !llvm.ptr, f32)>,
-    CConv = #llvm.cconv<ccc>,
-    linkage = #llvm.linkage<external>,
-    visibility_ = 0 : i64
-  }> ({
-  ^bb0(%arg0 : i32, %arg1 : i64, %arg2 : !llvm.ptr, %arg3 : f32):
+  llvm.func @casts(%arg0 : i32, %arg1 : i64, %arg2 : !llvm.ptr, %arg3 : f32) {
     %0 = llvm.trunc %arg1 : i64 to i32
     %1 = llvm.zext %arg0 : i32 to i64
     %2 = llvm.sext %arg0 : i32 to i64
@@ -313,8 +306,8 @@ builtin.module {
     %4 = "llvm.inttoptr"(%arg1) : (i64) -> !llvm.ptr
     %5 = llvm.bitcast %arg1 : i64 to f64
     %6 = llvm.fpext %arg3 : f32 to f64
-    "llvm.return"() : () -> ()
-  }) : () -> ()
+    llvm.return
+  }
 
   // CHECK: define void @"casts"(i32 %".1", i64 %".2", ptr %".3", float %".4")
   // CHECK-NEXT: {
