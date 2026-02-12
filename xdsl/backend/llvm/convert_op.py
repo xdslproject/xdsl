@@ -58,6 +58,28 @@ def _convert_binop(
     )
 
 
+_CAST_OP_MAP: dict[
+    type[Operation], Callable[[ir.IRBuilder], Callable[[ir.Value, ir.Type], ir.Value]]
+] = {
+    llvm.TruncOp: lambda b: b.trunc,
+    llvm.ZExtOp: lambda b: b.zext,
+    llvm.SExtOp: lambda b: b.sext,
+    llvm.PtrToIntOp: lambda b: b.ptrtoint,
+    llvm.IntToPtrOp: lambda b: b.inttoptr,
+    llvm.BitcastOp: lambda b: b.bitcast,
+    llvm.FPExtOp: lambda b: b.fpext,
+}
+
+
+def _convert_cast(
+    op: Operation, builder: ir.IRBuilder, val_map: dict[SSAValue, ir.Value]
+):
+    op_builder = _CAST_OP_MAP[type(op)]
+    val_map[op.results[0]] = op_builder(builder)(
+        val_map[op.operands[0]], convert_type(op.results[0].type)
+    )
+
+
 def _convert_inline_asm(
     op: llvm.InlineAsmOp, builder: ir.IRBuilder, val_map: dict[SSAValue, ir.Value]
 ):
@@ -109,6 +131,8 @@ def convert_op(
     match op:
         case op if type(op) in _BINARY_OP_MAP:
             _convert_binop(op, builder, val_map)
+        case op if type(op) in _CAST_OP_MAP:
+            _convert_cast(op, builder, val_map)
         case llvm.InlineAsmOp():
             _convert_inline_asm(op, builder, val_map)
         case llvm.ReturnOp():
