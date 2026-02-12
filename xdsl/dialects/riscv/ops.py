@@ -63,6 +63,7 @@ from .abstract_ops import (
     RdImmIntegerOperation,
     RdImmJumpOperation,
     RdRsFloatOperation,
+    RdRsImmBitManipOperation,
     RdRsImmFloatOperation,
     RdRsImmIntegerOperation,
     RdRsImmJumpOperation,
@@ -238,11 +239,10 @@ class SlliOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.riscv import (
-            ShiftLeftbyZero,
             ShiftLeftImmediate,
         )
 
-        return (ShiftLeftImmediate(), ShiftLeftbyZero())
+        return (ShiftLeftImmediate(),)
 
 
 @irdl_op_definition
@@ -265,11 +265,10 @@ class SrliOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.riscv import (
-            ShiftRightbyZero,
             ShiftRightImmediate,
         )
 
-        return (ShiftRightbyZero(), ShiftRightImmediate())
+        return (ShiftRightImmediate(),)
 
 
 @irdl_op_definition
@@ -1617,7 +1616,7 @@ class BclrOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
 
 
 @irdl_op_definition
-class BclrIOp(RdRsImmShiftOperation):
+class BclrIOp(RdRsImmBitManipOperation):
     """
     This instruction returns rs1 with a single bit cleared at the index specified in shamt.
     The index is read from the lower log2(XLEN) bits of shamt. For RV32, the encodings corresponding
@@ -1652,7 +1651,7 @@ class BextOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
 
 
 @irdl_op_definition
-class BextIOp(RdRsImmShiftOperation):
+class BextIOp(RdRsImmBitManipOperation):
     """
     This instruction returns a single bit extracted from rs1 at the index specified in rs2.
     The index is read from the lower log2(XLEN) bits of shamt. For RV32, the encodings corresponding
@@ -1688,7 +1687,7 @@ class BinvOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
 
 
 @irdl_op_definition
-class BinvIOp(RdRsImmShiftOperation):
+class BinvIOp(RdRsImmBitManipOperation):
     """
     This instruction returns rs1 with a single bit cleared at the index specified in shamt. The index
     is read from the lower log2(XLEN) bits of shamt. For RV32, the encodings corresponding
@@ -1723,7 +1722,7 @@ class BsetOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
 
 
 @irdl_op_definition
-class BsetIOp(RdRsImmShiftOperation):
+class BsetIOp(RdRsImmBitManipOperation):
     """
     This instruction returns rs1 with a single bit set at the index specified in shamt. The index is read
     from the lower log2(XLEN) bits of shamt. For RV32, the encodings corresponding
@@ -1781,7 +1780,7 @@ class RorwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
 
 
 @irdl_op_definition
-class RoriOp(RdRsImmShiftOperation):
+class RoriOp(RdRsImmBitManipOperation):
     """
     This instruction performs a rotate right of rs1 by the amount in the least-significant
     log2(XLEN) bits of shamt. For RV32, the encodings corresponding to shamt[5]=1 are reserved.
@@ -1801,7 +1800,7 @@ class RoriOp(RdRsImmShiftOperation):
 
 
 @irdl_op_definition
-class RoriwOp(RdRsImmShiftOperation):
+class RoriwOp(RdRsImmBitManipOperation):
     """
     This instruction performs a rotate right on the least-significant word of rs1 by the amount in
     the least-significant log2(XLEN) bits of shamt. The resulting word value is sign-extended by
@@ -1942,7 +1941,7 @@ class Sh3addUwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
 
 
 @irdl_op_definition
-class SlliUwOp(RdRsImmShiftOperation):
+class SlliUwOp(RdRsImmBitManipOperation):
     """
     This instruction takes the least-significant word of rs1, zero-extends it,
     and shifts it left by the immediate.
