@@ -297,7 +297,7 @@ def test_get_constant_value():
     )
 
     # Test 32-bit zero register
-    zero_op = riscv.GetRegisterOp(riscv.Registers.ZERO)
+    zero_op = rv32.GetRegisterOp(riscv.Registers.ZERO)
     zero_val = get_constant_value(zero_op.res)
     assert zero_val == IntegerAttr.from_int_and_width(0, 32)
 

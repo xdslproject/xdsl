@@ -26,7 +26,7 @@ builtin.module {
     // CHECK-NEXT: %lhsf64_reg, %rhsf64_reg = "test.op"() : () -> (!riscv.freg, !riscv.freg)
 
     %f64 = "arith.constant"() {value = 1234.5678 : f64} : () -> f64
-    // CHECK-NEXT: %{{.*}} = riscv.get_register : !riscv.reg<sp>
+    // CHECK-NEXT: %{{.*}} = rv32.get_register : !riscv.reg<sp>
     // CHECK-NEXT: %{{.*}} = rv32.li 1083394629 : !riscv.reg
     // CHECK-NEXT: riscv.sw %{{.*}}, %{{.*}}, -4 : (!riscv.reg<sp>, !riscv.reg) -> ()
     // CHECK-NEXT: %{{.*}} = rv32.li 1834810029 : !riscv.reg
@@ -76,7 +76,7 @@ builtin.module {
     // CHECK-NEXT: %{{.*}} = riscv.xor %lhsi32, %rhsi32 : (!riscv.reg, !riscv.reg) -> !riscv.reg
     // CHECK-NEXT: %{{.*}} = riscv.sltiu %cmpi0, 1 : (!riscv.reg) -> !riscv.reg
     %cmpi1 = "arith.cmpi"(%lhsi32, %rhsi32) {"predicate" = 1 : i32} : (i32, i32) -> i1
-    // CHECK-NEXT: %{{.*}} = riscv.get_register : !riscv.reg<zero>
+    // CHECK-NEXT: %{{.*}} = rv32.get_register : !riscv.reg<zero>
     // CHECK-NEXT: %{{.*}}= riscv.xor %lhsi32, %rhsi32 : (!riscv.reg, !riscv.reg) -> !riscv.reg
     // CHECK-NEXT: %{{.*}} = riscv.sltu %cmpi1, %cmpi1_1 : (!riscv.reg<zero>, !riscv.reg) -> !riscv.reg
     %cmpi2 = "arith.cmpi"(%lhsi32, %rhsi32) {"predicate" = 2 : i32} : (i32, i32) -> i1

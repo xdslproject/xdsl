@@ -49,7 +49,7 @@ class LowerSyscallOp(RewritePattern):
             # The result will be stored to a0, move to register that will be used
             ecall = riscv.EcallOp()
             ops.append(ecall)
-            gr = riscv.GetRegisterOp(riscv.Registers.A0)
+            gr = rv32.GetRegisterOp(riscv.Registers.A0)
             ops.append(gr)
             res = gr.res
 

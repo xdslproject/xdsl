@@ -196,7 +196,7 @@ class SubBySelf(RewritePattern):
             rewriter.replace_op(
                 op,
                 (
-                    zero := riscv.GetRegisterOp(riscv.Registers.ZERO),
+                    zero := rv32.GetRegisterOp(riscv.Registers.ZERO),
                     riscv.MVOp(zero.res, rd=rd, comment=op.comment),
                 ),
             )
@@ -585,7 +585,7 @@ class XorBySelf(RewritePattern):
             rewriter.replace_op(
                 op,
                 (
-                    zero := riscv.GetRegisterOp(riscv.Registers.ZERO),
+                    zero := rv32.GetRegisterOp(riscv.Registers.ZERO),
                     riscv.MVOp(zero.res, rd=rd, comment=op.comment),
                 ),
             )
@@ -634,12 +634,12 @@ class LoadImmediate0(RewritePattern):
 
         rd = op.rd.type
         if rd == riscv.Registers.ZERO:
-            rewriter.replace_op(op, riscv.GetRegisterOp(riscv.Registers.ZERO))
+            rewriter.replace_op(op, rv32.GetRegisterOp(riscv.Registers.ZERO))
         else:
             rewriter.replace_op(
                 op,
                 (
-                    zero := riscv.GetRegisterOp(riscv.Registers.ZERO),
+                    zero := rv32.GetRegisterOp(riscv.Registers.ZERO),
                     riscv.MVOp(zero.res, rd=rd, comment=op.comment),
                 ),
             )
@@ -650,7 +650,7 @@ def get_constant_value(value: SSAValue) -> IntegerAttr[I32] | IntegerAttr[I64] |
         return
 
     if value.type == riscv.Registers.ZERO:
-        if isinstance(value.op, riscv.GetRegisterOp):
+        if isinstance(value.op, rv32.GetRegisterOp):
             return IntegerAttr(0, i32)
         elif isinstance(value.op, rv64.GetRegisterOp):
             return IntegerAttr(0, i64)

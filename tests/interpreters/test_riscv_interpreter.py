@@ -299,9 +299,9 @@ def test_riscv_interpreter():
     test_buffer.float32[3] = 6.0
     assert buffer == test_buffer
 
-    assert interpreter.run_op(riscv.GetRegisterOp(riscv.Registers.ZERO), ()) == (0,)
+    assert interpreter.run_op(rv32.GetRegisterOp(riscv.Registers.ZERO), ()) == (0,)
 
-    get_non_zero = riscv.GetRegisterOp(riscv.Registers.UNALLOCATED_INT)
+    get_non_zero = rv32.GetRegisterOp(riscv.Registers.UNALLOCATED_INT)
     with pytest.raises(
         InterpretationError,
         match="Cannot get value for unallocated register !riscv.reg",
@@ -340,8 +340,10 @@ def test_register_contents():
     module_op = ModuleOp([])
 
     riscv_functions = RiscvFunctions()
+    rv32_functions = Rv32Functions()
     interpreter = Interpreter(module_op)
     interpreter.register_implementations(riscv_functions)
+    interpreter.register_implementations(rv32_functions)
 
     assert RiscvFunctions.registers(interpreter) == {
         riscv.Registers.ZERO.register_name: 0,
@@ -381,8 +383,8 @@ def test_register_contents():
     ):
         RiscvFunctions.get_reg_value(interpreter, riscv.Registers.T0, 2)
 
-    assert interpreter.run_op(riscv.GetRegisterOp(riscv.Registers.ZERO), ()) == (0,)
-    assert interpreter.run_op(riscv.GetRegisterOp(riscv.Registers.T0), ()) == (1,)
+    assert interpreter.run_op(rv32.GetRegisterOp(riscv.Registers.ZERO), ()) == (0,)
+    assert interpreter.run_op(rv32.GetRegisterOp(riscv.Registers.T0), ()) == (1,)
 
 
 def test_values():

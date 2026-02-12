@@ -314,7 +314,7 @@ def _(mo):
 def _(Parser, ctx, xmo):
     switch_ir = """\
     riscv_func.func @switch(%a : !riscv.reg<a0>, %b : !riscv.reg<a1>, %c : !riscv.reg<a2>) -> !riscv.reg<a0> {
-      %zero = riscv.get_register : !riscv.reg<zero>
+      %zero = rv32.get_register : !riscv.reg<zero>
       riscv_cf.beq %a : !riscv.reg<a0>, %zero : !riscv.reg<zero>, ^bb2(), ^bb1()
     ^bb1():
       %res_b = riscv.mv %b : (!riscv.reg<a1>) -> !riscv.reg<a0>
@@ -435,7 +435,7 @@ def _(comment_only_line, fib_text):
 def _(mo):
     fib_editor = mo.ui.code_editor("""\
     riscv_func.func @fib(%num : !riscv.reg<a0>) -> !riscv.reg<a0> {
-      %zero = riscv.get_register : !riscv.reg<zero>
+      %zero = rv32.get_register : !riscv.reg<zero>
       riscv_cf.bge %zero: !riscv.reg<zero>, %num :!riscv.reg<a0>, ^bb4(), ^bb1()
     ^bb1():
       %a_init = rv32.li 1 : !riscv.reg<a2>
@@ -501,7 +501,7 @@ def _():
 
     _ = """\
     riscv_func.func @fib(%num : !riscv.reg<a0>) -> !riscv.reg<a0> {
-      %zero = riscv.get_register : !riscv.reg<zero>
+      %zero = rv32.get_register : !riscv.reg<zero>
       riscv_cf.bge %zero: !riscv.reg<zero>, %num :!riscv.reg<a0>, ^bb4(), ^bb1()
     ^bb1():
       %a_init = rv32.li 1 : !riscv.reg<a2>
