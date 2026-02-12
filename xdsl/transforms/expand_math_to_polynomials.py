@@ -1,9 +1,16 @@
 from dataclasses import dataclass
+from typing import cast
 
 from xdsl.context import Context
 from xdsl.dialects import arith, math
-from xdsl.dialects.builtin import Float64Type, FloatAttr, ModuleOp
-from xdsl.ir import Operation
+from xdsl.dialects.builtin import (
+    AnyFloat,
+    DenseIntOrFPElementsAttr,
+    FloatAttr,
+    ModuleOp,
+    VectorType,
+)
+from xdsl.ir import Attribute, Operation
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     PatternRewriter,
@@ -11,9 +18,7 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
-from xdsl.utils.exceptions import PassFailedException
-
-f64 = Float64Type()
+from xdsl.utils.type import get_element_type_or_self
 
 
 @dataclass
@@ -27,11 +32,24 @@ class ExpandExp(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: math.ExpOp, rewriter: PatternRewriter) -> None:
-        if op.operands[0].type != f64:
-            raise PassFailedException("Expansion implemented only for f64.")
-
         expanded: Operation = expand_exp(op, rewriter, self.terms)
         rewriter.replace_op(op, (), (expanded.results[0],))
+
+
+def _float_constant(
+    value: float, tp: Attribute, rewriter: PatternRewriter
+) -> arith.ConstantOp:
+    """Create and insert a float constant (arith.ConstantOp) for a given float value, handling both scalar and vector types."""
+    elem_type = get_element_type_or_self(tp)
+    assert isinstance(elem_type, AnyFloat)
+    if isinstance(tp, VectorType):
+        vec_tp = cast(VectorType[AnyFloat], tp)
+        attr: FloatAttr[AnyFloat] | DenseIntOrFPElementsAttr[AnyFloat] = (
+            DenseIntOrFPElementsAttr.from_list(vec_tp, [value])
+        )
+    else:
+        attr = FloatAttr(value, elem_type)
+    return rewriter.insert(arith.ConstantOp(attr))
 
 
 def expand_exp(op: math.ExpOp, rewriter: PatternRewriter, terms: int) -> Operation:
@@ -47,12 +65,13 @@ def expand_exp(op: math.ExpOp, rewriter: PatternRewriter, terms: int) -> Operati
         return result
     """
     x = op.operands[0]
+    tp = x.type
 
-    res = rewriter.insert(arith.ConstantOp(FloatAttr(1.0, f64)))
-    term = rewriter.insert(arith.ConstantOp(FloatAttr(1.0, f64)))
+    res = _float_constant(1.0, tp, rewriter)
+    term = _float_constant(1.0, tp, rewriter)
 
     for i in range(1, terms):
-        i_val = rewriter.insert(arith.ConstantOp(FloatAttr(float(i), f64)))
+        i_val = _float_constant(float(i), tp, rewriter)
         frac = rewriter.insert(arith.DivfOp(x, i_val.result))
         mul = rewriter.insert(arith.MulfOp(frac.result, term.result))
         add = rewriter.insert(arith.AddfOp(res.result, mul.result))
@@ -73,7 +92,7 @@ class ExpandMathToPolynomialsPass(ModulePass):
 
     name = "expand-math-to-polynomials"
 
-    terms = 75
+    terms: int = 4
     """Number of terms in the resulting polynomial expansion."""
 
     def apply(self, ctx: Context, op: ModuleOp) -> None:
