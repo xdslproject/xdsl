@@ -301,19 +301,6 @@ class RiscvFunctions(InterpreterFunctions):
         results = (args[0] - args[1],)
         return RiscvFunctions.set_reg_values(interpreter, op.results, results)
 
-    @impl(riscv.SlliOp)
-    def run_shift_left_i(
-        self,
-        interpreter: Interpreter,
-        op: riscv.SlliOp,
-        args: tuple[Any, ...],
-    ):
-        args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
-        imm = RiscvFunctions.get_immediate_value(interpreter, op.immediate)
-        assert isinstance(imm, int)
-        results = (args[0] << imm,)
-        return RiscvFunctions.set_reg_values(interpreter, op.results, results)
-
     @impl(riscv.SllOp)
     def run_shift_left(
         self,
