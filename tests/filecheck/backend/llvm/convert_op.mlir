@@ -327,21 +327,14 @@ builtin.module {
   // void gep_ssa(int* ptr, int index) {
   //   int* result = &ptr[index];
   // }
-  "llvm.func"() <{
-    sym_name = "gep_ssa",
-    function_type = !llvm.func<void (!llvm.ptr, i32)>,
-    CConv = #llvm.cconv<ccc>,
-    linkage = #llvm.linkage<external>,
-    visibility_ = 0 : i64
-  }> ({
-  ^bb0(%arg0 : !llvm.ptr, %arg1 : i32):
+  llvm.func @gep_ssa(%arg0 : !llvm.ptr, %arg1 : i32) {
     %0 = "llvm.getelementptr"(%arg0, %arg1) <{
       elem_type = i32,
       rawConstantIndices = array<i32: -2147483648>, // magic constant 0x80000000 (placeholder for ssa value)
       noWrapFlags = 0 : i32
     }> : (!llvm.ptr, i32) -> !llvm.ptr
-    "llvm.return"() : () -> ()
-  }) : () -> ()
+    llvm.return
+  }
 
   // CHECK: define void @"gep_ssa"(ptr %".1", i32 %".2")
   // CHECK-NEXT: {
@@ -354,21 +347,14 @@ builtin.module {
   //   // e.g. ptr[1].some_array[i].some_struct[2].some_data[j]
   //   int* result = &ptr[1][i][2][j];
   // }
-  "llvm.func"() <{
-    sym_name = "gep_mixed",
-    function_type = !llvm.func<void (!llvm.ptr, i32, i32)>,
-    CConv = #llvm.cconv<ccc>,
-    linkage = #llvm.linkage<external>,
-    visibility_ = 0 : i64
-  }> ({
-  ^bb0(%arg0 : !llvm.ptr, %arg1 : i32, %arg2 : i32):
+  llvm.func @gep_mixed(%arg0 : !llvm.ptr, %arg1 : i32, %arg2 : i32) {
     %0 = "llvm.getelementptr"(%arg0, %arg1, %arg2) <{
       elem_type = i32,
       rawConstantIndices = array<i32: 1, -2147483648, 2, -2147483648>,
       noWrapFlags = 0 : i32
     }> : (!llvm.ptr, i32, i32) -> !llvm.ptr
-    "llvm.return"() : () -> ()
-  }) : () -> ()
+    llvm.return
+  }
 
   // CHECK: define void @"gep_mixed"(ptr %".1", i32 %".2", i32 %".3")
   // CHECK-NEXT: {
@@ -381,22 +367,15 @@ builtin.module {
   //   // same as gep_ssa, but we assume that 'ptr + idx' stays within the same 'object'
   //   int* result = &ptr[idx]; 
   // }
-  "llvm.func"() <{
-    sym_name = "gep_inbounds",
-    function_type = !llvm.func<void (!llvm.ptr, i32)>,
-    CConv = #llvm.cconv<ccc>,
-    linkage = #llvm.linkage<external>,
-    visibility_ = 0 : i64
-  }> ({
-  ^bb0(%arg0 : !llvm.ptr, %arg1 : i32):
+  llvm.func @gep_inbounds(%arg0 : !llvm.ptr, %arg1 : i32) {
     %0 = "llvm.getelementptr"(%arg0, %arg1) <{
       elem_type = i32,
       rawConstantIndices = array<i32: -2147483648>,
       inbounds,
       noWrapFlags = 0 : i32
     }> : (!llvm.ptr, i32) -> !llvm.ptr
-    "llvm.return"() : () -> ()
-  }) : () -> ()
+    llvm.return
+  }
 
   // CHECK: define void @"gep_inbounds"(ptr %".1", i32 %".2")
   // CHECK-NEXT: {
