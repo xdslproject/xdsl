@@ -11,6 +11,7 @@
 %arr0 = "test.op"() : () -> !emitc.array<2x3xf32>
 %idx0, %idx1, %idx2 = "test.op"() : () -> (index, i32, !emitc.opaque<"char">)
 %opaque_map = "test.op"() : () -> !emitc.opaque<"std::map<char, int>">
+%bool_val = "test.op"() : () -> (i1)
 
 
 //===----------------------------------------------------------------------===//
@@ -267,3 +268,13 @@ emitc.assign %cons_int : i32 to %variable : !emitc.lvalue<i32>
 %loaded_var = "emitc.load"(%variable) : (!emitc.lvalue<i32>) -> i32
 // CHECK: %loaded_var = "emitc.load"(%variable) : (!emitc.lvalue<i32>) -> i32
 // CHECK-GENERIC: %loaded_var = "emitc.load"(%variable) : (!emitc.lvalue<i32>) -> i32
+
+
+//===----------------------------------------------------------------------===//
+// IfOp
+//===----------------------------------------------------------------------===//
+emitc.if %bool_val {
+  %if_val = emitc.literal "1" : i32
+} else {
+  %if_val = emitc.literal "2" : i32
+}
