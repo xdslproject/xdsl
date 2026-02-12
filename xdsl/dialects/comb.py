@@ -133,6 +133,7 @@ class BinCombOperation(TwoStateOperation, ABC):
         printer.print_ssa_value(self.lhs)
         printer.print_string(", ")
         printer.print_ssa_value(self.rhs)
+        printer.print_op_attributes(self.attributes, reserved_attr_names="twoState")
         printer.print_string(" : ")
         printer.print_attribute(self.result.type)
 
@@ -189,6 +190,7 @@ class VariadicCombOperation(TwoStateOperation, ABC):
         self.print_optional_two_state_keyword(printer)
         printer.print_string(" ")
         printer.print_list(self.inputs, printer.print_ssa_value)
+        printer.print_op_attributes(self.attributes, reserved_attr_names="twoState")
         printer.print_string(" : ")
         printer.print_attribute(self.result.type)
 
@@ -379,6 +381,9 @@ class ICmpOp(TwoStateOperation, ABC):
         printer.print_operand(self.lhs)
         printer.print_string(", ")
         printer.print_operand(self.rhs)
+        printer.print_op_attributes(
+            self.attributes, reserved_attr_names=["twoState", "predicate"]
+        )
         printer.print_string(" : ")
         printer.print_attribute(self.lhs.type)
 
@@ -417,6 +422,7 @@ class ParityOp(TwoStateOperation):
         self.print_optional_two_state_keyword(printer)
         printer.print_string(" ")
         printer.print_ssa_value(self.input)
+        printer.print_op_attributes(self.attributes, reserved_attr_names="twoState")
         printer.print_string(" : ")
         printer.print_attribute(self.result.type)
 
@@ -487,7 +493,9 @@ class ExtractOp(IRDLOperation):
     def print(self, printer: Printer):
         printer.print_string(" ")
         printer.print_ssa_value(self.input)
-        printer.print_string(f" from {self.low_bit.value.data} : ")
+        printer.print_string(f" from {self.low_bit.value.data}")
+        printer.print_op_attributes(self.attributes)
+        printer.print_string(" :  ")
         printer.print_function_type([self.input.type], [self.result.type])
 
 
@@ -558,6 +566,7 @@ class ConcatOp(IRDLOperation):
     def print(self, printer: Printer):
         printer.print_string(" ")
         printer.print_list(self.inputs, printer.print_ssa_value)
+        printer.print_op_attributes(self.attributes)
         printer.print_string(" : ")
         printer.print_list(self.inputs.types, printer.print_attribute)
 
@@ -587,6 +596,7 @@ class ReplicateOp(IRDLOperation):
     def print(self, printer: Printer):
         printer.print_string(" ")
         printer.print_ssa_value(self.input)
+        printer.print_op_attributes(self.attributes)
         printer.print_string(" : ")
         printer.print_function_type((self.input.type,), (self.result.type,))
 
@@ -645,6 +655,7 @@ class MuxOp(TwoStateOperation):
         printer.print_operand(self.true_value)
         printer.print_string(", ")
         printer.print_operand(self.false_value)
+        printer.print_op_attributes(self.attributes, reserved_attr_names="twoState")
         printer.print_string(" : ")
         printer.print_attribute(self.result.type)
 
