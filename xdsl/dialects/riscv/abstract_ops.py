@@ -15,6 +15,7 @@ from xdsl.backend.register_allocatable import (
 )
 from xdsl.backend.register_type import RegisterAllocatedMemoryEffect, RegisterType
 from xdsl.dialects.builtin import (
+    I32,
     IntegerAttr,
     IntegerType,
     ModuleOp,
@@ -787,6 +788,19 @@ class RdRsImmShiftOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
         printer.print_string(", ")
         print_immediate_value(printer, self.immediate)
         return {"immediate"}
+
+    @staticmethod
+    def py_operation(
+        arg0: IntegerAttr[I32], arg1: IntegerAttr[I32]
+    ) -> IntegerAttr[I32] | None:
+        """
+        Performs a python function corresponding to this operation.
+
+        If `i := py_operation(arg0, arg1)` is an IntegerAttr[I32], then this operation can be
+        canonicalized to a constant with value `i` when the inputs are constants
+        with values `arg0` and `arg1`.
+        """
+        return None
 
 
 class RdRsImmBitManipOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
