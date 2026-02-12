@@ -23,13 +23,16 @@ from xdsl.dialects.builtin import (
     FlatSymbolRefAttr,
     FlatSymbolRefAttrConstr,
     IntAttr,
+    IntegerAttr,
     IntegerType,
     LocationAttr,
     Signedness,
+    SignlessIntegerConstraint,
     StringAttr,
     SymbolNameConstraint,
     SymbolRefAttr,
 )
+from xdsl.interfaces import ConstantLikeInterface
 from xdsl.ir import (
     Attribute,
     Data,
@@ -1484,6 +1487,47 @@ class BitcastOp(IRDLOperation):
         )
 
 
+@irdl_op_definition
+class ConstantOp(IRDLOperation, ConstantLikeInterface):
+    name = "hw.constant"
+    _T: ClassVar = VarConstraint("T", AnyAttr())
+    result = result_def(_T)
+    value = attr_def(IntegerAttr.constr((SignlessIntegerConstraint) & _T))
+
+    assembly_format = "attr-dict $value"
+
+    def __init__(
+        self,
+        value: IntegerAttr,
+        value_type: Attribute | None = None,
+    ):
+        if value_type is None:
+            value_type = value.get_type()
+
+        super().__init__(
+            operands=[], result_types=[value_type], attributes={"value": value}
+        )
+
+    @staticmethod
+    def from_int_and_width(
+        value: int | IntAttr,
+        value_type: int | IntegerType,
+        *,
+        truncate_bits: bool = False,
+    ) -> ConstantOp:
+        if isinstance(value_type, int):
+            value_type = IntegerType(value_type)
+        return ConstantOp.create(
+            result_types=[value_type],
+            properties={
+                "value": IntegerAttr(value, value_type, truncate_bits=truncate_bits)
+            },
+        )
+
+    def get_constant_value(self) -> Attribute:
+        return self.value
+
+
 HW = Dialect(
     "hw",
     [
@@ -1493,6 +1537,7 @@ HW = Dialect(
         HWModuleExternOp,
         HWModuleOp,
         InstanceOp,
+        ConstantOp,
         OutputOp,
     ],
     [
