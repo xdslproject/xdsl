@@ -81,7 +81,7 @@ class LowerFuncOp(RewritePattern):
                 mov_op.destination, arg.type
             )
             rewriter.insert_op([mov_op, cast_op], insertion_point)
-            arg.replace_by(parameter)
+            arg.replace_all_uses_with(parameter)
             first_block.erase_arg(arg)
 
         # The last argument of the basic block should be the stack pointer
@@ -106,7 +106,7 @@ class LowerFuncOp(RewritePattern):
                 (mov_op.destination,), (arg.type,)
             )
             rewriter.insert_op([mov_op, cast_op], insertion_point)
-            arg.replace_by(cast_op.results[0])
+            arg.replace_all_uses_with(cast_op.results[0])
             first_block.erase_arg(arg)
 
         outputs_types: list[Attribute] = []

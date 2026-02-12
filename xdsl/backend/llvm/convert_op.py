@@ -2,6 +2,7 @@ from collections.abc import Callable
 
 from llvmlite import ir
 
+from xdsl.backend.llvm.convert_type import convert_type
 from xdsl.dialects import llvm
 from xdsl.ir import Operation, SSAValue
 
@@ -29,6 +30,34 @@ _BINARY_OP_MAP: dict[
 }
 
 
+def _convert_binop(
+    op: Operation, builder: ir.IRBuilder, val_map: dict[SSAValue, ir.Value]
+):
+    kwargs = {}
+    op_builder = _BINARY_OP_MAP[type(op)]
+
+    match op:
+        case llvm.ArithmeticBinOpOverflow():
+            if op.overflowFlags:
+                overflow_attr = llvm.OverflowAttr.from_int(op.overflowFlags.value.data)
+                kwargs["flags"] = [f.value for f in overflow_attr.data]
+        case llvm.AbstractFloatArithOp():
+            if op.fastmathFlags:
+                kwargs["flags"] = [f.value for f in op.fastmathFlags.data]
+        case llvm.ArithmeticBinOpExact():
+            if op.is_exact:
+                kwargs["flags"] = ["exact"]
+        case llvm.ArithmeticBinOpDisjoint():
+            if op.is_disjoint:
+                kwargs["flags"] = ["disjoint"]
+        case _:
+            pass
+
+    val_map[op.results[0]] = op_builder(builder)(
+        val_map[op.operands[0]], val_map[op.operands[1]], **kwargs
+    )
+
+
 def _convert_call(
     op: llvm.CallOp, builder: ir.IRBuilder, val_map: dict[SSAValue, ir.Value]
 ):
@@ -36,9 +65,33 @@ def _convert_call(
     if op.callee is None:
         raise NotImplementedError("Indirect calls not yet implemented")
     callee = builder.module.get_global(op.callee.string_value())
-    res = builder.call(callee, args)
+    instruction = builder.call(
+        callee,
+        args,
+        cconv=op.CConv.cconv_name,
+        tail=op.TailCallKind.data != "none",
+        fastmath=[f.value for f in op.fastmathFlags.data],
+    )
     if op.returned:
-        val_map[op.returned] = res
+        val_map[op.returned] = instruction
+
+
+def _convert_inline_asm(
+    op: llvm.InlineAsmOp, builder: ir.IRBuilder, val_map: dict[SSAValue, ir.Value]
+):
+    input_types = [convert_type(arg.type) for arg in op.operands_]
+    ret_type = convert_type(op.res.type) if op.res else ir.VoidType()
+    ftype = ir.FunctionType(ret_type, input_types)
+    asm = ir.InlineAsm(
+        ftype,
+        op.asm_string.data,
+        op.constraints.data,
+        side_effect=op.has_side_effects is not None,
+    )
+    args = [val_map[arg] for arg in op.operands_]
+    res = builder.call(asm, args)
+    if op.res:
+        val_map[op.results[0]] = res
 
 
 def _convert_return(
@@ -71,15 +124,13 @@ def convert_op(
     Raises:
         NotImplementedError: If the operation is not supported.
     """
-    if (op_builder := _BINARY_OP_MAP.get(type(op))) is not None:
-        val_map[op.results[0]] = op_builder(builder)(
-            val_map[op.operands[0]], val_map[op.operands[1]]
-        )
-        return
-
     match op:
+        case op if type(op) in _BINARY_OP_MAP:
+            _convert_binop(op, builder, val_map)
         case llvm.CallOp():
             _convert_call(op, builder, val_map)
+        case llvm.InlineAsmOp():
+            _convert_inline_asm(op, builder, val_map)
         case llvm.ReturnOp():
             _convert_return(op, builder, val_map)
         case _:

@@ -84,7 +84,8 @@ class ConvertArithToX86Pass(ModulePass):
                 [
                     ArithBinaryToX86(arch),
                     ArithConstantToX86(),
-                ]
+                ],
+                dce_enabled=False,
             ),
             apply_recursively=False,
         ).rewrite_module(op)

@@ -62,7 +62,7 @@ def test_convert_vector():
 
 
 def test_convert_array():
-    arr_type = LLVMArrayType.from_size_and_type(10, builtin.i32)
+    arr_type = LLVMArrayType(10, builtin.i32)
     assert convert_type(arr_type) == ir.ArrayType(ir.IntType(32), 10)
 
 
