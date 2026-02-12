@@ -727,9 +727,10 @@ class ImmShiftOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrai
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.riscv import (
             ShiftbyZero,
+            ShiftConstantFolding,
         )
 
-        return (ShiftbyZero(),)
+        return (ShiftbyZero(), ShiftConstantFolding())
 
 
 class RdRsImmShiftOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
@@ -789,10 +790,10 @@ class RdRsImmShiftOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
         print_immediate_value(printer, self.immediate)
         return {"immediate"}
 
-    @staticmethod
+    @abstractmethod
     def py_operation(
-        arg0: IntegerAttr[I32], arg1: IntegerAttr[I32]
-    ) -> IntegerAttr[I32] | None:
+        self, arg0: IntegerAttr[I32], arg1: IntegerAttr[I32]
+    ) -> IntegerAttr[I32]:
         """
         Performs a python function corresponding to this operation.
 
@@ -800,7 +801,10 @@ class RdRsImmShiftOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
         canonicalized to a constant with value `i` when the inputs are constants
         with values `arg0` and `arg1`.
         """
-        return None
+
+        raise NotImplementedError(
+            "RdRsImmShiftOperation py_operation is not yet implemented"
+        )
 
 
 class RdRsImmBitManipOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
