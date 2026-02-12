@@ -12,9 +12,15 @@
 
   %add = comb.add %lhsi32, %rhsi32 : i32
   // CHECK: %add = comb.add %lhsi32, %rhsi32 : i32
+ 
+  %add_bin = comb.add bin %lhsi32, %rhsi32 : i32
+  // CHECK: %add_bin = comb.add bin %lhsi32, %rhsi32 : i32
 
-  %mul =  comb.mul %lhsi32, %rhsi32 : i32
-  // CHECK-NEXT: %mul =  comb.mul %lhsi32, %rhsi32 : i32
+  %mul = comb.mul %lhsi32, %rhsi32 : i32
+  // CHECK-NEXT: %mul = comb.mul %lhsi32, %rhsi32 : i32
+  //
+  %mul_bin = comb.mul bin %lhsi32, %rhsi32 : i32
+  // CHECK-NEXT: %mul_bin = comb.mul bin %lhsi32, %rhsi32 : i32
 
   %divu = comb.divu %lhsi32, %rhsi32 : i32
   // CHECK-NEXT: %divu = comb.divu %lhsi32, %rhsi32 : i32
@@ -78,6 +84,9 @@
 
   %mux_exotic = comb.mux %lhsi1, %lhstest, %rhstest : !test.type<"test">
   // CHECK-NEXT: %mux_exotic = comb.mux %lhsi1, %lhstest, %rhstest : !test.type<"test">
+ 
+  %mux_exotic_bin = comb.mux bin %lhsi1, %lhstest, %rhstest : !test.type<"test">
+  // CHECK-NEXT: %mux_exotic_bin = comb.mux bin %lhsi1, %lhstest, %rhstest : !test.type<"test">
 
   %replicate = comb.replicate %lhsi32 : (i32) -> i64
   // CHECK-NEXT: %replicate = comb.replicate %lhsi32 : (i32) -> i64

@@ -9,8 +9,10 @@ Up to date as of CIRCT commit `2e23cda6c2cbedb118b92fab755f1e36d80b13f5`.
 See external [documentation](https://circt.llvm.org/docs/Dialects/Comb/).
 """
 
+from __future__ import annotations
+
 from abc import ABC
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from typing import ClassVar
 
 from xdsl.dialects.builtin import (
@@ -51,7 +53,43 @@ ICMP_COMPARISON_OPERATIONS = [
 ]
 
 
-class BinCombOperation(IRDLOperation, ABC):
+class TwoStateOperation(IRDLOperation, ABC):
+    """
+    "All operations are defined in the expected way for 2-state (binary) logic. However, comb is
+    used for operations which have extended truth table for non-2-state logic for various target
+    languages. The two_state variable describes if we are using 2-state (binary) logic or not."
+    """
+
+    two_state = opt_attr_def(UnitAttr, attr_name="twoState")
+
+    def __init__(
+        self: TwoStateOperation,
+        *,
+        operands: (
+            Sequence[SSAValue | Operation | Sequence[SSAValue | Operation] | None]
+            | None
+        ) = None,
+        result_types: Sequence[Attribute | Sequence[Attribute] | None] | None = None,
+        attributes: Mapping[str, Attribute | None] | None = None,
+        has_two_state_semantics: bool = False,
+    ):
+        attrs: dict[str, Attribute | None] = {}
+        if attributes is not None:
+            attrs.update(attributes)
+        if has_two_state_semantics:
+            attrs["twoState"] = UnitAttr()
+        super().__init__(operands=operands, result_types=result_types, attributes=attrs)
+
+    def print_optional_two_state_keyword(self, printer: Printer):
+        if self.two_state is not None:
+            printer.print_string(" bin")
+
+    @classmethod
+    def parse_optional_two_state_keyword(cls, parser: Parser) -> bool:
+        return parser.parse_optional_keyword("bin") is not None
+
+
+class BinCombOperation(TwoStateOperation, ABC):
     """
     A binary comb operation. It has two operands and one
     result, all of the same integer type.
@@ -62,34 +100,35 @@ class BinCombOperation(IRDLOperation, ABC):
     lhs = operand_def(T)
     rhs = operand_def(T)
     result = result_def(T)
-    """
-    "All operations are defined in the expected way for 2-state (binary) logic. However, comb is
-    used for operations which have extended truth table for non-2-state logic for various target
-    languages. The two_state variable describes if we are using 2-state (binary) logic or not."
-    """
-    two_state = opt_attr_def(UnitAttr)
 
     def __init__(
         self,
         operand1: Operation | SSAValue,
         operand2: Operation | SSAValue,
         result_type: Attribute | None = None,
+        has_two_state_semantics: bool = False,
     ):
         if result_type is None:
             result_type = SSAValue.get(operand1).type
-        super().__init__(operands=[operand1, operand2], result_types=[result_type])
+        super().__init__(
+            operands=[operand1, operand2],
+            result_types=[result_type],
+            has_two_state_semantics=has_two_state_semantics,
+        )
 
     @classmethod
     def parse(cls, parser: Parser):
+        has_two_state_semantics = cls.parse_optional_two_state_keyword(parser)
         lhs = parser.parse_unresolved_operand()
         parser.parse_punctuation(",")
         rhs = parser.parse_unresolved_operand()
         parser.parse_punctuation(":")
         result_type = parser.parse_type()
         (lhs, rhs) = parser.resolve_operands([lhs, rhs], 2 * [result_type], parser.pos)
-        return cls(lhs, rhs, result_type)
+        return cls(lhs, rhs, result_type, has_two_state_semantics)
 
     def print(self, printer: Printer):
+        self.print_optional_two_state_keyword(printer)
         printer.print_string(" ")
         printer.print_ssa_value(self.lhs)
         printer.print_string(", ")
@@ -98,7 +137,7 @@ class BinCombOperation(IRDLOperation, ABC):
         printer.print_attribute(self.result.type)
 
 
-class VariadicCombOperation(IRDLOperation, ABC):
+class VariadicCombOperation(TwoStateOperation, ABC):
     """
     A variadic comb operation. It has a variadic number of operands, and a single
     result, all of the same integer type.
@@ -108,23 +147,22 @@ class VariadicCombOperation(IRDLOperation, ABC):
 
     inputs = var_operand_def(T)
     result = result_def(T)
-    """
-    "All operations are defined in the expected way for 2-state (binary) logic. However, comb is
-    used for operations which have extended truth table for non-2-state logic for various target
-    languages. The two_state variable describes if we are using 2-state (binary) logic or not."
-    """
-    two_state = opt_attr_def(UnitAttr)
 
     def __init__(
         self,
         input_list: Sequence[Operation | SSAValue],
         result_type: Attribute | None = None,
+        has_two_state_semantics: bool = False,
     ):
         if result_type is None:
             if len(input_list) == 0:
                 raise ValueError("cannot infer type from zero inputs")
             result_type = SSAValue.get(input_list[0]).type
-        super().__init__(operands=[input_list], result_types=[result_type])
+        super().__init__(
+            operands=[input_list],
+            result_types=[result_type],
+            has_two_state_semantics=has_two_state_semantics,
+        )
 
     def verify_(self) -> None:
         if len(self.inputs) == 0:
@@ -132,6 +170,7 @@ class VariadicCombOperation(IRDLOperation, ABC):
 
     @classmethod
     def parse(cls, parser: Parser):
+        has_two_state_semantics = cls.parse_optional_two_state_keyword(parser)
         inputs = parser.parse_comma_separated_list(
             parser.Delimiter.NONE, parser.parse_unresolved_operand
         )
@@ -140,9 +179,14 @@ class VariadicCombOperation(IRDLOperation, ABC):
         inputs = parser.resolve_operands(
             inputs, len(inputs) * [result_type], parser.pos
         )
-        return cls.create(operands=inputs, result_types=[result_type])
+        return cls(
+            input_list=inputs,
+            result_type=result_type,
+            has_two_state_semantics=has_two_state_semantics,
+        )
 
     def print(self, printer: Printer):
+        self.print_optional_two_state_keyword(printer)
         printer.print_string(" ")
         printer.print_list(self.inputs, printer.print_ssa_value)
         printer.print_string(" : ")
@@ -241,7 +285,7 @@ class XorOp(VariadicCombOperation):
 
 
 @irdl_op_definition
-class ICmpOp(IRDLOperation, ABC):
+class ICmpOp(TwoStateOperation, ABC):
     """Integer comparison: A generic comparison operation, operation definitions inherit this class.
 
     The first argument to these comparison operations is the type of comparison
@@ -267,8 +311,6 @@ class ICmpOp(IRDLOperation, ABC):
     lhs = operand_def(T)
     rhs = operand_def(T)
     result = result_def(IntegerType(1))
-
-    two_state = opt_attr_def(UnitAttr, attr_name="twoState")
 
     @staticmethod
     def _get_comparison_predicate(
@@ -307,18 +349,17 @@ class ICmpOp(IRDLOperation, ABC):
             arg = IntegerAttr.from_int_and_width(arg, 64)
 
         attrs: dict[str, Attribute] = {"predicate": arg}
-        if has_two_state_semantics:
-            attrs["twoState"] = UnitAttr()
 
         return super().__init__(
             operands=[operand1, operand2],
             result_types=[IntegerType(1)],
             attributes=attrs,
+            has_two_state_semantics=has_two_state_semantics,
         )
 
     @classmethod
     def parse(cls, parser: Parser):
-        has_two_state_semantics = parser.parse_optional_keyword("bin") is not None
+        has_two_state_semantics = cls.parse_optional_two_state_keyword(parser)
         arg = parser.parse_identifier()
         operand1 = parser.parse_unresolved_operand()
         parser.parse_punctuation(",")
@@ -328,13 +369,11 @@ class ICmpOp(IRDLOperation, ABC):
         (operand1, operand2) = parser.resolve_operands(
             [operand1, operand2], 2 * [input_type], parser.pos
         )
-
         return cls(operand1, operand2, arg, has_two_state_semantics)
 
     def print(self, printer: Printer):
+        self.print_optional_two_state_keyword(printer)
         printer.print_string(" ")
-        if self.two_state is not None:
-            printer.print_string("bin ")
         printer.print_string(ICMP_COMPARISON_OPERATIONS[self.predicate.value.data])
         printer.print_string(" ")
         printer.print_operand(self.lhs)
@@ -345,7 +384,7 @@ class ICmpOp(IRDLOperation, ABC):
 
 
 @irdl_op_definition
-class ParityOp(IRDLOperation):
+class ParityOp(TwoStateOperation):
     """Parity"""
 
     name = "comb.parity"
@@ -353,33 +392,30 @@ class ParityOp(IRDLOperation):
     input = operand_def(IntegerType)
     result = result_def(IntegerType(1))
 
-    two_state = opt_attr_def(UnitAttr, attr_name="twoState")
-
     def __init__(
-        self, operand: Operation | SSAValue, two_state: UnitAttr | None = None
+        self,
+        operand: Operation | SSAValue,
+        has_two_state_semantics: bool = False,
     ):
         operand = SSAValue.get(operand)
         return super().__init__(
-            attributes={"twoState": two_state},
             operands=[operand],
             result_types=[operand.type],
+            has_two_state_semantics=has_two_state_semantics,
         )
 
     @classmethod
     def parse(cls, parser: Parser):
-        two_state = None
-        if parser.parse_optional_keyword("bin") is not None:
-            two_state = UnitAttr()
+        has_two_state_semantics = cls.parse_optional_two_state_keyword(parser)
         op = parser.parse_unresolved_operand()
         parser.parse_punctuation(":")
         result_type = parser.parse_type()
         op = parser.resolve_operand(op, result_type)
-        return cls(op, two_state)
+        return cls(op, has_two_state_semantics)
 
     def print(self, printer: Printer):
+        self.print_optional_two_state_keyword(printer)
         printer.print_string(" ")
-        if self.two_state is not None:
-            printer.print_string("bin ")
         printer.print_ssa_value(self.input)
         printer.print_string(" : ")
         printer.print_attribute(self.result.type)
@@ -483,7 +519,7 @@ class ConcatOp(IRDLOperation):
         return super().__init__(operands=[ops], result_types=[target_type])
 
     @staticmethod
-    def from_int_values(inputs: Sequence[SSAValue]) -> "ConcatOp | None":
+    def from_int_values(inputs: Sequence[SSAValue]) -> ConcatOp | None:
         """
         Concatenates the provided values, in order. Returns None if the provided
         values are not integers.
@@ -556,7 +592,7 @@ class ReplicateOp(IRDLOperation):
 
 
 @irdl_op_definition
-class MuxOp(IRDLOperation):
+class MuxOp(TwoStateOperation):
     """
     Select between two values based on a condition.
     """
@@ -575,14 +611,18 @@ class MuxOp(IRDLOperation):
         condition: Operation | SSAValue,
         true_val: Operation | SSAValue,
         false_val: Operation | SSAValue,
+        has_two_state_semantics: bool = False,
     ):
         operand2 = SSAValue.get(true_val)
         return super().__init__(
-            operands=[condition, true_val, false_val], result_types=[operand2.type]
+            operands=[condition, true_val, false_val],
+            result_types=[operand2.type],
+            has_two_state_semantics=has_two_state_semantics,
         )
 
     @classmethod
     def parse(cls, parser: Parser):
+        has_two_state_semantics = cls.parse_optional_two_state_keyword(parser)
         condition = parser.parse_unresolved_operand()
         parser.parse_punctuation(",")
         true_val = parser.parse_unresolved_operand()
@@ -595,9 +635,10 @@ class MuxOp(IRDLOperation):
             [IntegerType(1), result_type, result_type],
             parser.pos,
         )
-        return cls(condition, true_val, false_val)
+        return cls(condition, true_val, false_val, has_two_state_semantics)
 
     def print(self, printer: Printer):
+        self.print_optional_two_state_keyword(printer)
         printer.print_string(" ")
         printer.print_operand(self.cond)
         printer.print_string(", ")
