@@ -107,6 +107,7 @@ class BinCombOperation(TwoStateOperation, ABC):
         operand2: Operation | SSAValue,
         result_type: Attribute | None = None,
         has_two_state_semantics: bool = False,
+        attr_dict: dict[str, Attribute] | None = None,
     ):
         if result_type is None:
             result_type = SSAValue.get(operand1).type
@@ -114,6 +115,7 @@ class BinCombOperation(TwoStateOperation, ABC):
             operands=[operand1, operand2],
             result_types=[result_type],
             has_two_state_semantics=has_two_state_semantics,
+            attributes=attr_dict,
         )
 
     @classmethod
@@ -122,10 +124,11 @@ class BinCombOperation(TwoStateOperation, ABC):
         lhs = parser.parse_unresolved_operand()
         parser.parse_punctuation(",")
         rhs = parser.parse_unresolved_operand()
+        attr_dict = parser.parse_optional_attr_dict()
         parser.parse_punctuation(":")
         result_type = parser.parse_type()
         (lhs, rhs) = parser.resolve_operands([lhs, rhs], 2 * [result_type], parser.pos)
-        return cls(lhs, rhs, result_type, has_two_state_semantics)
+        return cls(lhs, rhs, result_type, has_two_state_semantics, attr_dict)
 
     def print(self, printer: Printer):
         self.print_optional_two_state_keyword(printer)
@@ -154,6 +157,7 @@ class VariadicCombOperation(TwoStateOperation, ABC):
         input_list: Sequence[Operation | SSAValue],
         result_type: Attribute | None = None,
         has_two_state_semantics: bool = False,
+        attr_dict: dict[str, Attribute] | None = None,
     ):
         if result_type is None:
             if len(input_list) == 0:
@@ -163,6 +167,7 @@ class VariadicCombOperation(TwoStateOperation, ABC):
             operands=[input_list],
             result_types=[result_type],
             has_two_state_semantics=has_two_state_semantics,
+            attributes=attr_dict,
         )
 
     def verify_(self) -> None:
@@ -175,6 +180,7 @@ class VariadicCombOperation(TwoStateOperation, ABC):
         inputs = parser.parse_comma_separated_list(
             parser.Delimiter.NONE, parser.parse_unresolved_operand
         )
+        attr_dict = parser.parse_optional_attr_dict()
         parser.parse_punctuation(":")
         result_type = parser.parse_type()
         inputs = parser.resolve_operands(
@@ -184,6 +190,7 @@ class VariadicCombOperation(TwoStateOperation, ABC):
             input_list=inputs,
             result_type=result_type,
             has_two_state_semantics=has_two_state_semantics,
+            attr_dict=attr_dict,
         )
 
     def print(self, printer: Printer):
@@ -329,6 +336,7 @@ class ICmpOp(TwoStateOperation, ABC):
         operand2: Operation | SSAValue,
         arg: int | str | IntegerAttr[IntegerType],
         has_two_state_semantics: bool = False,
+        attr_dict: dict[str, Attribute] | None = None,
     ):
         operand1 = SSAValue.get(operand1)
         operand2 = SSAValue.get(operand2)
@@ -350,8 +358,10 @@ class ICmpOp(TwoStateOperation, ABC):
         if not isinstance(arg, IntegerAttr):
             arg = IntegerAttr.from_int_and_width(arg, 64)
 
-        attrs: dict[str, Attribute] = {"predicate": arg}
-
+        attrs: dict[str, Attribute] = {}
+        if attr_dict is not None:
+            attrs.update(attr_dict)
+        attrs["predicate"] = arg
         return super().__init__(
             operands=[operand1, operand2],
             result_types=[IntegerType(1)],
@@ -401,22 +411,25 @@ class ParityOp(TwoStateOperation):
         self,
         operand: Operation | SSAValue,
         has_two_state_semantics: bool = False,
+        attr_dict: dict[str, Attribute] | None = None,
     ):
         operand = SSAValue.get(operand)
         return super().__init__(
             operands=[operand],
             result_types=[operand.type],
             has_two_state_semantics=has_two_state_semantics,
+            attributes=attr_dict,
         )
 
     @classmethod
     def parse(cls, parser: Parser):
         has_two_state_semantics = cls.parse_optional_two_state_keyword(parser)
         op = parser.parse_unresolved_operand()
+        attr_dict = parser.parse_optional_attr_dict()
         parser.parse_punctuation(":")
         result_type = parser.parse_type()
         op = parser.resolve_operand(op, result_type)
-        return cls(op, has_two_state_semantics)
+        return cls(op, has_two_state_semantics, attr_dict)
 
     def print(self, printer: Printer):
         self.print_optional_two_state_keyword(printer)
@@ -450,10 +463,15 @@ class ExtractOp(IRDLOperation):
         operand: Operation | SSAValue,
         low_bit: IntegerAttr[IntegerType],
         result_type: IntegerType,
+        attr_dict: dict[str, Attribute] | None = None,
     ):
+        attrs: dict[str, Attribute] = {}
+        if attr_dict is not None:
+            attrs.update(attr_dict)
+        attrs["lowBit"] = low_bit
         operand = SSAValue.get(operand)
         return super().__init__(
-            attributes={"lowBit": low_bit},
+            attributes=attrs,
             operands=[operand],
             result_types=[result_type],
         )
@@ -477,6 +495,7 @@ class ExtractOp(IRDLOperation):
         op = parser.parse_unresolved_operand()
         parser.parse_keyword("from")
         bit = parser.parse_integer()
+        attr_dict = parser.parse_optional_attr_dict()
         parser.parse_punctuation(":")
         result_type = parser.parse_function_type()
         if len(result_type.inputs.data) != 1 or len(result_type.outputs.data) != 1:
@@ -488,13 +507,15 @@ class ExtractOp(IRDLOperation):
                 f"expected output to be an integer type, got '{result_type.outputs.data[0]}'"
             )
         (op,) = parser.resolve_operands([op], result_type.inputs.data, parser.pos)
-        return cls(op, IntegerAttr(bit, 32), result_type.outputs.data[0])
+        return cls(
+            op, IntegerAttr(bit, 32), result_type.outputs.data[0], attr_dict=attr_dict
+        )
 
     def print(self, printer: Printer):
         printer.print_string(" ")
         printer.print_ssa_value(self.input)
         printer.print_string(f" from {self.low_bit.value.data}")
-        printer.print_op_attributes(self.attributes)
+        printer.print_op_attributes(self.attributes, reserved_attr_names="lowBit")
         printer.print_string(" :  ")
         printer.print_function_type([self.input.type], [self.result.type])
 
@@ -523,8 +544,15 @@ class ConcatOp(IRDLOperation):
     inputs = var_operand_def(IntegerType)
     result = result_def(IntegerType)
 
-    def __init__(self, ops: Sequence[SSAValue | Operation], target_type: IntegerType):
-        return super().__init__(operands=[ops], result_types=[target_type])
+    def __init__(
+        self,
+        ops: Sequence[SSAValue | Operation],
+        target_type: IntegerType,
+        attr_dict: dict[str, Attribute] | None = None,
+    ):
+        return super().__init__(
+            operands=[ops], result_types=[target_type], attributes=attr_dict
+        )
 
     @staticmethod
     def from_int_values(inputs: Sequence[SSAValue]) -> ConcatOp | None:
@@ -553,6 +581,7 @@ class ConcatOp(IRDLOperation):
         inputs = parser.parse_comma_separated_list(
             parser.Delimiter.NONE, parser.parse_unresolved_operand
         )
+        attr_dict = parser.parse_optional_attr_dict()
         parser.parse_punctuation(":")
         input_types = parser.parse_comma_separated_list(
             parser.Delimiter.NONE, parser.parse_type
@@ -561,7 +590,11 @@ class ConcatOp(IRDLOperation):
         if sum_of_width is None:
             parser.raise_error("expected only integer types as input")
         inputs = parser.resolve_operands(inputs, input_types, parser.pos)
-        return cls.create(operands=inputs, result_types=[IntegerType(sum_of_width)])
+        return cls.create(
+            operands=inputs,
+            result_types=[IntegerType(sum_of_width)],
+            attributes=attr_dict,
+        )
 
     def print(self, printer: Printer):
         printer.print_string(" ")
@@ -582,16 +615,26 @@ class ReplicateOp(IRDLOperation):
     input = operand_def(IntegerType)
     result = result_def(IntegerType)
 
-    def __init__(self, op: SSAValue | Operation, target_type: IntegerType):
-        return super().__init__(operands=[op], result_types=[target_type])
+    def __init__(
+        self,
+        op: SSAValue | Operation,
+        target_type: IntegerType,
+        attr_dict: dict[str, Attribute] | None = None,
+    ):
+        return super().__init__(
+            operands=[op], result_types=[target_type], attributes=attr_dict
+        )
 
     @classmethod
     def parse(cls, parser: Parser):
         op = parser.parse_unresolved_operand()
+        attr_dict = parser.parse_optional_attr_dict()
         parser.parse_punctuation(":")
         fun_type = parser.parse_function_type()
         operands = parser.resolve_operands([op], fun_type.inputs.data, parser.pos)
-        return cls.create(operands=operands, result_types=fun_type.outputs.data)
+        return cls.create(
+            operands=operands, result_types=fun_type.outputs.data, attributes=attr_dict
+        )
 
     def print(self, printer: Printer):
         printer.print_string(" ")
@@ -622,12 +665,14 @@ class MuxOp(TwoStateOperation):
         true_val: Operation | SSAValue,
         false_val: Operation | SSAValue,
         has_two_state_semantics: bool = False,
+        attr_dict: dict[str, Attribute] | None = None,
     ):
         operand2 = SSAValue.get(true_val)
         return super().__init__(
             operands=[condition, true_val, false_val],
             result_types=[operand2.type],
             has_two_state_semantics=has_two_state_semantics,
+            attributes=attr_dict,
         )
 
     @classmethod
@@ -638,6 +683,7 @@ class MuxOp(TwoStateOperation):
         true_val = parser.parse_unresolved_operand()
         parser.parse_punctuation(",")
         false_val = parser.parse_unresolved_operand()
+        attr_dict = parser.parse_optional_attr_dict()
         parser.parse_punctuation(":")
         result_type = parser.parse_type()
         (condition, true_val, false_val) = parser.resolve_operands(
@@ -645,7 +691,7 @@ class MuxOp(TwoStateOperation):
             [IntegerType(1), result_type, result_type],
             parser.pos,
         )
-        return cls(condition, true_val, false_val, has_two_state_semantics)
+        return cls(condition, true_val, false_val, has_two_state_semantics, attr_dict)
 
     def print(self, printer: Printer):
         self.print_optional_two_state_keyword(printer)
