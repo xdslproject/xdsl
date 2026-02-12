@@ -297,4 +297,34 @@ builtin.module {
   // CHECK-NEXT:   call void asm sideeffect "add $0, 1", "r"(i32 %".1")
   // CHECK-NEXT:   ret void
   // CHECK-NEXT: }
+
+  llvm.func @comparisons(%arg0: i32, %arg1: i32) {
+    %0 = llvm.icmp "eq" %arg0, %arg1 : i32
+    %1 = llvm.icmp "ne" %arg0, %arg1 : i32
+    %2 = llvm.icmp "slt" %arg0, %arg1 : i32
+    %3 = llvm.icmp "sle" %arg0, %arg1 : i32
+    %4 = llvm.icmp "ult" %arg0, %arg1 : i32
+    %5 = llvm.icmp "ule" %arg0, %arg1 : i32
+    %6 = llvm.icmp "sgt" %arg0, %arg1 : i32
+    %7 = llvm.icmp "sge" %arg0, %arg1 : i32
+    %8 = llvm.icmp "ugt" %arg0, %arg1 : i32
+    %9 = llvm.icmp "uge" %arg0, %arg1 : i32
+    llvm.return
+  }
+
+  // CHECK: define void @"comparisons"(i32 %".1", i32 %".2")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT:   {{%.+}} = icmp eq i32 %".1", %".2"
+  // CHECK-NEXT:   {{%.+}} = icmp ne i32 %".1", %".2"
+  // CHECK-NEXT:   {{%.+}} = icmp slt i32 %".1", %".2"
+  // CHECK-NEXT:   {{%.+}} = icmp sle i32 %".1", %".2"
+  // CHECK-NEXT:   {{%.+}} = icmp ult i32 %".1", %".2"
+  // CHECK-NEXT:   {{%.+}} = icmp ule i32 %".1", %".2"
+  // CHECK-NEXT:   {{%.+}} = icmp sgt i32 %".1", %".2"
+  // CHECK-NEXT:   {{%.+}} = icmp sge i32 %".1", %".2"
+  // CHECK-NEXT:   {{%.+}} = icmp ugt i32 %".1", %".2"
+  // CHECK-NEXT:   {{%.+}} = icmp uge i32 %".1", %".2"
+  // CHECK-NEXT:   ret void
+  // CHECK-NEXT: }
 }
