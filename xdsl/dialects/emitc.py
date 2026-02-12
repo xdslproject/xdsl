@@ -36,9 +36,12 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.ir import (
     Attribute,
+    Block,
     Dialect,
     EnumAttribute,
+    Operation,
     ParametrizedAttribute,
+    Region,
     SSAValue,
     TypeAttribute
 )
@@ -69,6 +72,8 @@ from xdsl.traits import (
     NoTerminator,
     MemoryAllocEffect,
     Pure,
+    RecursiveMemoryEffect,
+    #SingleBlockImplicitTerminator,
     SymbolTable,
 )
 from xdsl.utils.exceptions import VerifyException
@@ -1088,6 +1093,82 @@ class EmitC_DivOp(EmitC_BinaryOperation):
             result_type
         )
 
+class EmitC_YieldOp(IRDLOperation):
+    """
+    The `emitc.yield` terminates its parent EmitC op's region, optionally yielding
+    an SSA value. The semantics of how the values are yielded is defined by the
+    parent operation.
+    If `emitc.yield` has an operand, the operand must match the parent operation's
+    result. If the parent operation defines no values, then the `emitc.yield`
+    may be left out in the custom syntax and the builders will insert one
+    implicitly. Otherwise, it has to be present in the syntax to indicate which
+    value is yielded.
+    """
+
+    name = "emitc.yield"
+
+    result = result_def(EmitCTypeConstr)
+
+    assembly_format = "[{ attr-dict ($result^ `:` type($result))? }]"
+
+    def verify_(self) -> None:
+        pass
+
+
+@irdl_op_definition
+class EmitC_IfOp(IRDLOperation):
+    """
+    If-then-else operation.
+
+    The `emitc.if` operation represents an if-then-else construct for
+    conditionally executing two regions of code. The operand to an if operation
+    is a boolean value. For example:
+
+    ```mlir
+    emitc.if %b  {
+      ...
+    } else {
+      ...
+    }
+    ```
+
+    The "then" region has exactly 1 block. The "else" region may have 0 or 1
+    blocks. The blocks are always terminated with `emitc.yield`, which can be
+    left out to be inserted implicitly. This operation doesn't produce any
+    results.
+    """
+
+    name = "emitc.if"
+    condition = operand_def(IntegerType(1))
+    thenRegion = region_def("single_block")
+    elseRegion = region_def()
+
+    traits = traits_def(
+        RecursiveMemoryEffect(), NoTerminator()
+    )
+
+    def __init__(
+        self,
+        cond: SSAValue | Operation,
+        thenRegion: Region | Sequence[Block] | Sequence[Operation],
+        elseRegion: Region | Sequence[Block] | Sequence[Operation] | None = None,
+        attr_dict: dict[str, Attribute] | None = None,
+    ):
+        if elseRegion is None:
+            elseRegion = Region()
+
+        super().__init__(
+            operands=[cond],
+            result_types=[],
+            regions=[thenRegion, elseRegion],
+            attributes=attr_dict
+        )
+
+    irdl_options = (ParsePropInAttrDict(), )
+    assembly_format = "attr-dict `if` $condition  $thenRegion (`else` $elseRegion^)?"
+
+    #assembly_format = "attr-dict `if` $condition  $thenRegion (`else` $elseRegion $has_else_region^)?"
+
 
 @irdl_op_definition
 class EmitC_IncludeOp(IRDLOperation):
@@ -1758,6 +1839,7 @@ EmitC = Dialect(
         EmitC_ConstantOp,
         EmitC_DereferenceOp,
         EmitC_DivOp,
+        EmitC_IfOp,
         EmitC_IncludeOp,
         EmitC_LiteralOp,
         EmitC_LoadOp,
@@ -1773,7 +1855,8 @@ EmitC = Dialect(
         EmitC_UnaryMinusOp,
         EmitC_UnaryPlusOp,
         EmitC_VariableOp,
-        EmitC_VerbatimOp
+        EmitC_VerbatimOp,
+        EmitC_YieldOp
     ],
     [
         EmitC_ArrayType,
