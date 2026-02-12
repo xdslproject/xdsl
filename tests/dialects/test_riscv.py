@@ -296,9 +296,15 @@ def test_get_constant_value():
         1, 64
     )
 
+    # Test 32-bit zero register
     zero_op = riscv.GetRegisterOp(riscv.Registers.ZERO)
     zero_val = get_constant_value(zero_op.res)
     assert zero_val == IntegerAttr.from_int_and_width(0, 32)
+
+    # Test 64-bit zero register
+    zero_op_64 = rv64.GetRegisterOp(riscv.Registers.ZERO)
+    zero_val_64 = get_constant_value(zero_op_64.res)
+    assert zero_val_64 == IntegerAttr.from_int_and_width(0, 64)
 
 
 def test_int_abi_name_by_index():
