@@ -8,7 +8,7 @@ from xdsl.irdl import (
 
 
 @irdl_attr_definition
-class ObjectType(ParametrizedAttribute, TypeAttribute):
+class PyObjectType(ParametrizedAttribute, TypeAttribute):
     """Python opaque type"""
 
     name = "python.object"
