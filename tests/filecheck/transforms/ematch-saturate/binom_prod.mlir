@@ -1,7 +1,7 @@
 // RUN: xdsl-opt -p 'ematch-saturate{max_iterations=4 pdl_file="%p/binom_prod_pdl_interp.mlir"}' %s
 
 func.func @product_of_binomials(%0 : f32) -> f32 {
-    %res = equivalence.graph %0 : f32 -> f32 {
+    %res = equivalence.graph %0 : (f32) -> f32 {
     ^bb0(%a: f32):
         %2 = arith.constant 3.000000e+00 : f32
         %4 = arith.addf %a, %2 : f32
@@ -15,7 +15,7 @@ func.func @product_of_binomials(%0 : f32) -> f32 {
 
 
 // CHECK:      func.func @product_of_binomials(%0 : f32) -> f32 {
-// CHECK-NEXT:   %res = equivalence.graph %0 : f32 -> f32 {
+// CHECK-NEXT:   %res = equivalence.graph %0 : (f32) -> f32 {
 // CHECK-NEXT:   ^bb0(%a : f32):
 // CHECK-NEXT:     %1 = arith.constant 3.000000e+00 : f32
 // CHECK-NEXT:     %2 = arith.addf %1, %3 : f32

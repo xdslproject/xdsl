@@ -323,7 +323,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
     def get_approximate_math_with_bitcast():
         from xdsl.transforms import approximate_math_with_bitcast
 
-        return approximate_math_with_bitcast.BitcastApproximation
+        return approximate_math_with_bitcast.ApproximateMathWithBitcastPass
 
     def get_frontend_desymrefy():
         from xdsl.transforms.desymref import FrontendDesymrefyPass

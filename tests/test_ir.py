@@ -154,6 +154,50 @@ def test_ops_accessor_III():
         region0.detach_block(1)
 
 
+def test_detach_block_clears_pointers():
+    """Test that detach_block clears the block's prev/next pointers."""
+    a = ConstantOp.from_int_and_width(1, i32)
+    b = ConstantOp.from_int_and_width(2, i32)
+    c = ConstantOp.from_int_and_width(3, i32)
+
+    block0 = Block([a])
+    block1 = Block([b])
+    block2 = Block([c])
+
+    region = Region([block0, block1, block2])
+
+    # Verify initial state
+    assert block0.next_block is block1
+    assert block1.prev_block is block0
+    assert block1.next_block is block2
+    assert block2.prev_block is block1
+
+    # Detach middle block
+    detached_block = region.detach_block(block1)
+
+    # Verify detached block's pointers are cleared
+    assert detached_block._prev_block is None  # pyright: ignore[reportPrivateUsage]
+    assert detached_block._next_block is None  # pyright: ignore[reportPrivateUsage]
+    assert detached_block.parent is None
+
+    # Verify region's blocks are properly linked
+    assert block0.next_block is block2
+    assert block2.prev_block is block0
+    assert list(region.blocks) == [block0, block2]
+
+    # Test detaching first block
+    detached_first = region.detach_block(block0)
+    assert detached_first._prev_block is None  # pyright: ignore[reportPrivateUsage]
+    assert detached_first._next_block is None  # pyright: ignore[reportPrivateUsage]
+    assert list(region.blocks) == [block2]
+
+    # Test detaching last (and only) remaining block
+    detached_last = region.detach_block(block2)
+    assert detached_last._prev_block is None  # pyright: ignore[reportPrivateUsage]
+    assert detached_last._next_block is None  # pyright: ignore[reportPrivateUsage]
+    assert list(region.blocks) == []
+
+
 def test_op_operands_assign():
     """Test that we can directly assign `op.operands`."""
     val1, val2 = create_ssa_value(i32), create_ssa_value(i32)
@@ -1071,7 +1115,7 @@ def test_replace_by_if():
     assert set(u.operation for u in a.uses) == {b, c}
 
     d = create_ssa_value(i32)
-    a.replace_by_if(d, lambda u: u.operation is not c)
+    a.replace_uses_with_if(d, lambda u: u.operation is not c)
 
     assert set(u.operation for u in a.uses) == {c}
     assert set(u.operation for u in d.uses) == {b}

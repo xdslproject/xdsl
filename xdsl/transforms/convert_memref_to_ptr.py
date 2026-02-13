@@ -298,7 +298,11 @@ class LowerMemRefFuncOpPattern(RewritePattern):
                 cast_op := ptr.FromPtrOp(arg, old_type),
                 insert_point,
             )
-            arg.replace_by_if(cast_op.res, lambda x: x.operation is not cast_op)
+            rewriter.replace_uses_with_if(
+                arg,
+                cast_op.res,
+                lambda x: x.operation is not cast_op,
+            )
 
 
 @dataclass

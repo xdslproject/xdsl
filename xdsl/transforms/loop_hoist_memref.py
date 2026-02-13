@@ -158,7 +158,7 @@ class LoopHoistMemRef(RewritePattern):
         toerase_ops: list[Operation] = []
         for new_block_arg, load in zip(new_block_args, load_store_pairs.keys()):
             interim_load = load_map[load]
-            interim_load.res.replace_by(new_block_arg)
+            interim_load.res.replace_all_uses_with(new_block_arg)
             toerase_ops.append(interim_load)
 
         new_yield_vals: list[Operand] = []

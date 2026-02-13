@@ -385,8 +385,6 @@ class EmatchFunctions(InterpreterFunctions):
         2. Identifies structurally equivalent operations among them
         3. Merges equivalent operations by unioning their result e-classes
         4. Updates dataflow analysis states
-
-        Based on the C++ implementation which properly handles multi-result operations.
         """
         rewriter = PDLInterpFunctions.get_rewriter(interpreter)
         eclass = self.eclass_union_find.find(eclass)

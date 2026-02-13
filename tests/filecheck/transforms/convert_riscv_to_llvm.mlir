@@ -2,8 +2,8 @@
 // RUN: xdsl-opt %s -p convert-riscv-to-llvm,reconcile-unrealized-casts,dce | filecheck %s --check-prefix COMPACT
 
 
-%reg = riscv.li 0 : !riscv.reg
-%a0 = riscv.li 0 : !riscv.reg<a0>
+%reg = rv32.li 0 : !riscv.reg
+%a0 = rv32.li 0 : !riscv.reg<a0>
 %x0 = riscv.get_register : !riscv.reg<zero>
 
 // CHECK: builtin.module {
@@ -15,7 +15,7 @@
 
 // standard risc-v instructions
 
-%li = riscv.li 0 : !riscv.reg
+%li = rv32.li 0 : !riscv.reg
 // CHECK-NEXT:  %li = "llvm.inline_asm"() <{asm_string = "li $0, 0", constraints = "=r", asm_dialect = 0 : i64, tail_call_kind = #llvm.tailcallkind<none>}> : () -> i32
 // CHECK-NEXT:  %li_1 = builtin.unrealized_conversion_cast %li : i32 to !riscv.reg
 
@@ -33,7 +33,7 @@
 
 // named riscv registers:
 
-%li_named = riscv.li 0 : !riscv.reg<a0>
+%li_named = rv32.li 0 : !riscv.reg<a0>
 // CHECK-NEXT:  %li_named = "llvm.inline_asm"() <{asm_string = "li $0, 0", constraints = "=r", asm_dialect = 0 : i64, tail_call_kind = #llvm.tailcallkind<none>}> : () -> i32
 // CHECK-NEXT:  %li_named_1 = builtin.unrealized_conversion_cast %li_named : i32 to !riscv.reg<a0>
 

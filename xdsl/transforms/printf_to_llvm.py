@@ -99,7 +99,7 @@ class PrintlnOpToPrintfCall(RewritePattern):
         t_type = builtin.TensorType(i8, [len(data)])
 
         return llvm.GlobalOp(
-            llvm.LLVMArrayType.from_size_and_type(len(data), i8),
+            llvm.LLVMArrayType(len(data), i8),
             _key_from_str(val),
             constant=True,
             linkage="internal",

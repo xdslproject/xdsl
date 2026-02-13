@@ -2,23 +2,23 @@
 
 // CHECK: func @main
 x86_func.func @main() {
-  // CHECK-NEXT: %{{.*}} = x86.get_register : () -> !x86.reg<rsp>
-  // CHECK-NEXT: %{{.*}} = x86.get_register : () -> !x86.reg<r14>
+  // CHECK-NEXT: %{{.*}} = x86.get_register : !x86.reg<rsp>
+  // CHECK-NEXT: %{{.*}} = x86.get_register : !x86.reg<r14>
   // CHECK-NEXT: %{{.*}} = x86.s.push %{{.*}}, %{{.*}} : (!x86.reg<rsp>, !x86.reg<r14>) -> !x86.reg<rsp>
-  // CHECK-NEXT: %{{.*}} = x86.get_register : () -> !x86.reg<r15>
+  // CHECK-NEXT: %{{.*}} = x86.get_register : !x86.reg<r15>
   // CHECK-NEXT: %{{.*}} = x86.s.push %{{.*}}, %{{.*}} : (!x86.reg<rsp>, !x86.reg<r15>) -> !x86.reg<rsp>
 
-  // CHECK-NEXT: %r12 = x86.get_register : () -> !x86.reg<r12>
-  // CHECK-NEXT: %r13 = x86.get_register : () -> !x86.reg<r13>
+  // CHECK-NEXT: %r12 = x86.get_register : !x86.reg<r12>
+  // CHECK-NEXT: %r13 = x86.get_register : !x86.reg<r13>
   // CHECK-NEXT: %r14 = x86.rs.add %r12, %r13 : (!x86.reg<r12>, !x86.reg<r13>) -> !x86.reg<r14>
-  // CHECK-NEXT: %r8 = x86.get_register : () -> !x86.reg<r8>
+  // CHECK-NEXT: %r8 = x86.get_register : !x86.reg<r8>
   // CHECK-NEXT: %r15 = x86.ds.mov %r8 : (!x86.reg<r8>) -> !x86.reg<r15>
   // CHECK-NEXT: %rflags = x86.ss.cmp %r8, %r15 : (!x86.reg<r8>, !x86.reg<r15>) -> !x86.rflags<rflags>
   // CHECK-NEXT: x86.c.jne %rflags : !x86.rflags<rflags>, ^then(%r8 : !x86.reg<r8>), ^else(%r15 : !x86.reg<r15>)
-  %r12 = x86.get_register() : () -> !x86.reg<r12>
-  %r13 = x86.get_register() : () -> !x86.reg<r13>
+  %r12 = x86.get_register : !x86.reg<r12>
+  %r13 = x86.get_register : !x86.reg<r13>
   %r14 = x86.rs.add %r12,%r13: (!x86.reg<r12>, !x86.reg<r13>) -> !x86.reg<r14>
-  %r8 = x86.get_register() : () -> !x86.reg<r8>
+  %r8 = x86.get_register : !x86.reg<r8>
   %r15 = x86.ds.mov %r8 : (!x86.reg<r8>) -> !x86.reg<r15>
   %rflags = x86.ss.cmp %r8, %r15 : (!x86.reg<r8>, !x86.reg<r15>) -> !x86.rflags<rflags>
   x86.c.jne %rflags : !x86.rflags<rflags>, ^then(%r8 : !x86.reg<r8>), ^else(%r15 : !x86.reg<r15>)
@@ -44,7 +44,7 @@ x86_func.func @main() {
 
 // CHECK: func @simple
 x86_func.func @simple(%0 : !x86.reg<rdi>, %1 : !x86.reg<rsi>) -> !x86.reg<rax> {
-  // CHECK-NOT: %{{.*}} = x86.get_register : () -> !x86.reg<rsp>
+  // CHECK-NOT: %{{.*}} = x86.get_register : !x86.reg<rsp>
   // CHECK-NOT: %{{.*}} = x86.s.push %{{.*}}, %{{.*}} : (!x86.reg<rsp>, !x86.reg<{{.*}}>) -> !x86.reg<rsp>
   // CHECK-NEXT: %2 = x86.ds.mov %0 : (!x86.reg<rdi>) -> !x86.reg<r8>
   // CHECK-NEXT: %3 = x86.ds.mov %1 : (!x86.reg<rsi>) -> !x86.reg<r9>

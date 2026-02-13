@@ -4,8 +4,8 @@
 
 builtin.module {
     riscv_func.func @foo(%0 : !riscv.reg<a0>, %1 : !riscv.reg<a1>) {
-        %2 = riscv.li 1 : !riscv.reg<a2>
-        %3 = riscv.li 0 : !riscv.reg<a3>
+        %2 = rv32.li 1 : !riscv.reg<a2>
+        %3 = rv32.li 0 : !riscv.reg<a3>
         %4 = riscv_scf.for %5 : !riscv.reg<a4> = %0 to %1 step %2 iter_args(%6 = %3) -> (!riscv.reg<a3>) {
             %7 = riscv.add %5, %6 : (!riscv.reg<a4>, !riscv.reg<a3>) -> !riscv.reg<a3>
             "riscv_scf.yield"(%7) : (!riscv.reg<a3>) -> ()
@@ -17,8 +17,8 @@ builtin.module {
 
 // CHECK:       builtin.module {
 // CHECK-NEXT:    riscv_func.func @foo(%0 : !riscv.reg<a0>, %1 : !riscv.reg<a1>) {
-// CHECK-NEXT:      %2 = riscv.li 1 : !riscv.reg<a2>
-// CHECK-NEXT:      %3 = riscv.li 0 : !riscv.reg<a3>
+// CHECK-NEXT:      %2 = rv32.li 1 : !riscv.reg<a2>
+// CHECK-NEXT:      %3 = rv32.li 0 : !riscv.reg<a3>
 // CHECK-NEXT:      %4 = riscv.mv %0 : (!riscv.reg<a0>) -> !riscv.reg<a4>
 // CHECK-NEXT:      riscv.label "scf_cond_0_for"
 // CHECK-NEXT:      riscv.bge %4, %1, "scf_body_end_0_for" : (!riscv.reg<a4>, !riscv.reg<a1>) -> ()
@@ -40,8 +40,8 @@ builtin.module {
 
   builtin.module {
     riscv_func.func @foo(%0 : !riscv.reg<a0>, %1 : !riscv.reg<a1>) {
-        %2 = riscv.li 1 : !riscv.reg<a2>
-        %3 = riscv.li 0 : !riscv.reg<a3>
+        %2 = rv32.li 1 : !riscv.reg<a2>
+        %3 = rv32.li 0 : !riscv.reg<a3>
         %4 = riscv.fcvt.s.w %3 : (!riscv.reg<a3>) -> !riscv.freg<fa0>
         %5 = riscv_scf.for %6 : !riscv.reg<a0> = %0 to %1 step %2 iter_args(%7 = %4) -> (!riscv.freg<fa0>) {
             %8 = riscv.fcvt.s.w %6 : (!riscv.reg<a0>) -> !riscv.freg<fa1>
@@ -55,8 +55,8 @@ builtin.module {
 
 // CHECK:       builtin.module {
 // CHECK-NEXT:    riscv_func.func @foo(%0 : !riscv.reg<a0>, %1 : !riscv.reg<a1>) {
-// CHECK-NEXT:      %2 = riscv.li 1 : !riscv.reg<a2>
-// CHECK-NEXT:      %3 = riscv.li 0 : !riscv.reg<a3>
+// CHECK-NEXT:      %2 = rv32.li 1 : !riscv.reg<a2>
+// CHECK-NEXT:      %3 = rv32.li 0 : !riscv.reg<a3>
 // CHECK-NEXT:      %4 = riscv.fcvt.s.w %3 : (!riscv.reg<a3>) -> !riscv.freg<fa0>
 // CHECK-NEXT:      %5 = riscv.mv %0 : (!riscv.reg<a0>) -> !riscv.reg<a0>
 // CHECK-NEXT:      riscv.label "scf_cond_0_for"
@@ -79,12 +79,12 @@ builtin.module {
 
 builtin.module {
     riscv_func.func @foo(%arg0 : !riscv.reg<a0>) {
-        %0 = riscv.li 0 : !riscv.reg<a1>
-        %1 = riscv.li 0 : !riscv.reg<a2>
-        %2 = riscv.li 1 : !riscv.reg<a3>
+        %0 = rv32.li 0 : !riscv.reg<a1>
+        %1 = rv32.li 0 : !riscv.reg<a2>
+        %2 = rv32.li 1 : !riscv.reg<a3>
         %3 = riscv_scf.for %arg1 : !riscv.reg<a2> = %1 to %arg0 step %2 iter_args(%arg2 = %0) -> (!riscv.reg<a1>) {
-            %4 = riscv.li 0 : !riscv.reg<a4>
-            %5 = riscv.li 1 : !riscv.reg<a5>
+            %4 = rv32.li 0 : !riscv.reg<a4>
+            %5 = rv32.li 1 : !riscv.reg<a5>
             %6 = riscv_scf.for %arg3 : !riscv.reg<a4> = %4 to %arg0 step %5 iter_args(%arg4 = %arg2) -> (!riscv.reg<a1>) {
                 %7 = riscv.add %arg1, %arg3 : (!riscv.reg<a2>, !riscv.reg<a4>) -> !riscv.reg<a0>
                 %8 = riscv.add %arg4, %7 : (!riscv.reg<a1>, !riscv.reg<a0>) -> !riscv.reg<a1>
@@ -98,17 +98,17 @@ builtin.module {
 
 // CHECK:       builtin.module {
 // CHECK-NEXT:    riscv_func.func @foo(%arg0 : !riscv.reg<a0>) {
-// CHECK-NEXT:      %0 = riscv.li 0 : !riscv.reg<a1>
-// CHECK-NEXT:      %1 = riscv.li 0 : !riscv.reg<a2>
-// CHECK-NEXT:      %2 = riscv.li 1 : !riscv.reg<a3>
+// CHECK-NEXT:      %0 = rv32.li 0 : !riscv.reg<a1>
+// CHECK-NEXT:      %1 = rv32.li 0 : !riscv.reg<a2>
+// CHECK-NEXT:      %2 = rv32.li 1 : !riscv.reg<a3>
 // CHECK-NEXT:      %3 = riscv.mv %1 : (!riscv.reg<a2>) -> !riscv.reg<a2>
 // CHECK-NEXT:      riscv.label "scf_cond_0_for"
 // CHECK-NEXT:      riscv.bge %3, %arg0, "scf_body_end_0_for" : (!riscv.reg<a2>, !riscv.reg<a0>) -> ()
 // CHECK-NEXT:      riscv.label "scf_body_0_for"
 // CHECK-NEXT:      %arg2 = riscv.get_register : !riscv.reg<a1>
 // CHECK-NEXT:      %arg1 = riscv.get_register : !riscv.reg<a2>
-// CHECK-NEXT:      %4 = riscv.li 0 : !riscv.reg<a4>
-// CHECK-NEXT:      %5 = riscv.li 1 : !riscv.reg<a5>
+// CHECK-NEXT:      %4 = rv32.li 0 : !riscv.reg<a4>
+// CHECK-NEXT:      %5 = rv32.li 1 : !riscv.reg<a5>
 // CHECK-NEXT:      %6 = riscv.mv %4 : (!riscv.reg<a4>) -> !riscv.reg<a4>
 // CHECK-NEXT:      riscv.label "scf_cond_1_for"
 // CHECK-NEXT:      riscv.bge %6, %arg0, "scf_body_end_1_for" : (!riscv.reg<a4>, !riscv.reg<a0>) -> ()

@@ -2,11 +2,11 @@
 
 // CHECK-NEXT: .intel_syntax noprefix
 
-%0 = x86.get_register : () -> !x86.reg<rax>
-%1 = x86.get_register : () -> !x86.reg<rdx>
-%2 = x86.get_register : () -> !x86.reg<rcx>
-%rsp = x86.get_register : () -> !x86.reg<rsp>
-%rax = x86.get_register : () -> !x86.reg<rax>
+%0 = x86.get_register : !x86.reg<rax>
+%1 = x86.get_register : !x86.reg<rdx>
+%2 = x86.get_register : !x86.reg<rcx>
+%rsp = x86.get_register : !x86.reg<rsp>
+%rax = x86.get_register : !x86.reg<rax>
 
 %rs_add = x86.rs.add %0, %1 : (!x86.reg<rax>, !x86.reg<rdx>) -> !x86.reg<rax>
 // CHECK-NEXT: add rax, rdx
@@ -168,8 +168,8 @@ x86.label "label"
 // CHECK-NEXT: label:
 
 x86_func.func @funcyasm() {
-    %3 = x86.get_register : () -> !x86.reg<rax>
-    %4 = x86.get_register : () -> !x86.reg<rdx>
+    %3 = x86.get_register : !x86.reg<rax>
+    %4 = x86.get_register : !x86.reg<rdx>
     %rflags = x86.ss.cmp %3, %4 : (!x86.reg<rax>, !x86.reg<rdx>) -> !x86.rflags<rflags>
     // CHECK: cmp rax, rdx
 
@@ -338,9 +338,9 @@ x86_func.func @funcyasm() {
     // CHECK-NEXT: jmp then
 }
 
-%xmm0 = x86.get_avx_register : () -> !x86.ssereg<xmm0>
-%xmm1 = x86.get_avx_register : () -> !x86.ssereg<xmm1>
-%xmm2 = x86.get_avx_register : () -> !x86.ssereg<xmm2>
+%xmm0 = x86.get_avx_register : !x86.ssereg<xmm0>
+%xmm1 = x86.get_avx_register : !x86.ssereg<xmm1>
+%xmm2 = x86.get_avx_register : !x86.ssereg<xmm2>
 
 %rrr_vfmadd231pd_sse = x86.rss.vfmadd231pd %xmm0, %xmm1, %xmm2 : (!x86.ssereg<xmm0>, !x86.ssereg<xmm1>, !x86.ssereg<xmm2>) -> !x86.ssereg<xmm0>
 // CHECK: vfmadd231pd xmm0, xmm1, xmm2
@@ -359,9 +359,9 @@ x86_func.func @funcyasm() {
 %rm_vbroadcastsd_sse = x86.dm.vbroadcastsd %1, 8 : (!x86.reg<rdx>) -> !x86.ssereg<xmm0>
 // CHECK-NEXT: vbroadcastsd xmm0, [rdx+8]
 
-%ymm0 = x86.get_avx_register : () -> !x86.avx2reg<ymm0>
-%ymm1 = x86.get_avx_register : () -> !x86.avx2reg<ymm1>
-%ymm2 = x86.get_avx_register : () -> !x86.avx2reg<ymm2>
+%ymm0 = x86.get_avx_register : !x86.avx2reg<ymm0>
+%ymm1 = x86.get_avx_register : !x86.avx2reg<ymm1>
+%ymm2 = x86.get_avx_register : !x86.avx2reg<ymm2>
 
 %rrr_vfmadd231pd_avx2 = x86.rss.vfmadd231pd %ymm0, %ymm1, %ymm2 : (!x86.avx2reg<ymm0>, !x86.avx2reg<ymm1>, !x86.avx2reg<ymm2>) -> !x86.avx2reg<ymm0>
 // CHECK: vfmadd231pd ymm0, ymm1, ymm2
@@ -384,10 +384,10 @@ x86_func.func @funcyasm() {
 %ds_vpbroadcastq_avx2 = x86.ds.vpbroadcastq %rax : (!x86.reg<rax>) -> !x86.avx2reg<ymm0>
 // CHECK-NEXT: vpbroadcastq ymm0, rax
 
-%zmm0 = x86.get_avx_register : () -> !x86.avx512reg<zmm0>
-%zmm1 = x86.get_avx_register : () -> !x86.avx512reg<zmm1>
-%zmm2 = x86.get_avx_register : () -> !x86.avx512reg<zmm2>
-%k1 = x86.get_mask_register: () -> !x86.avx512maskreg<k1>
+%zmm0 = x86.get_avx_register : !x86.avx512reg<zmm0>
+%zmm1 = x86.get_avx_register : !x86.avx512reg<zmm1>
+%zmm2 = x86.get_avx_register : !x86.avx512reg<zmm2>
+%k1 = x86.get_mask_register: !x86.avx512maskreg<k1>
 
 %rrr_vfmadd231pd_avx512 = x86.rss.vfmadd231pd %zmm0, %zmm1, %zmm2 : (!x86.avx512reg<zmm0>, !x86.avx512reg<zmm1>, !x86.avx512reg<zmm2>) -> !x86.avx512reg<zmm0>
 // CHECK: vfmadd231pd zmm0, zmm1, zmm2
