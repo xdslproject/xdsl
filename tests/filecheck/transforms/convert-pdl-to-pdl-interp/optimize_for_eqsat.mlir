@@ -1,4 +1,5 @@
 // RUN: xdsl-opt %s -p convert-pdl-to-pdl-interp{optimize_for_eqsat=true} | filecheck %s
+// RUN: xdsl-opt %s -p convert-pdl-to-pdl-interp{optimize_for_eqsat=false} | filecheck %s --check-prefix=NOOPT
 
 
 // CHECK:      pdl_interp.func @matcher(%0 : !pdl.operation) {
@@ -143,6 +144,115 @@
 // CHECK-NEXT:     pdl_interp.finalize
 // CHECK-NEXT:   }
 // CHECK-NEXT: }
+
+// NOOPT: pdl_interp.func @matcher(%0 : !pdl.operation) {
+// NOOPT-NEXT:   %1 = pdl_interp.get_result 0 of %0
+// NOOPT-NEXT:   pdl_interp.is_not_null %1 : !pdl.value -> ^bb0, ^bb1
+// NOOPT-NEXT: ^bb1:
+// NOOPT-NEXT:   pdl_interp.finalize
+// NOOPT-NEXT: ^bb0:
+// NOOPT-NEXT:   pdl_interp.switch_operation_name of %0 to ["arith.divui", "arith.muli"](^bb2, ^bb3) -> ^bb1
+// NOOPT-NEXT: ^bb2:
+// NOOPT-NEXT:   pdl_interp.check_operand_count of %0 is 2 -> ^bb4, ^bb1
+// NOOPT-NEXT: ^bb4:
+// NOOPT-NEXT:   pdl_interp.check_result_count of %0 is 1 -> ^bb5, ^bb1
+// NOOPT-NEXT: ^bb5:
+// NOOPT-NEXT:   %2 = pdl_interp.get_operand 0 of %0
+// NOOPT-NEXT:   pdl_interp.is_not_null %2 : !pdl.value -> ^bb6, ^bb1
+// NOOPT-NEXT: ^bb6:
+// NOOPT-NEXT:   %3 = pdl_interp.get_operand 1 of %0
+// NOOPT-NEXT:   pdl_interp.is_not_null %3 : !pdl.value -> ^bb7, ^bb8
+// NOOPT-NEXT: ^bb8:
+// NOOPT-NEXT:   %4 = pdl_interp.get_operand 1 of %0
+// NOOPT-NEXT:   pdl_interp.are_equal %2, %4 : !pdl.value -> ^bb9, ^bb1
+// NOOPT-NEXT: ^bb9:
+// NOOPT-NEXT:   %5 = pdl_interp.get_value_type of %1 : !pdl.type
+// NOOPT-NEXT:   pdl_interp.record_match @rewriters::@pdl_generated_rewriter(%5, %0 : !pdl.type, !pdl.operation) : benefit(1), loc([]), root("arith.divui") -> ^bb1
+// NOOPT-NEXT: ^bb7:
+// NOOPT-NEXT:   %6 = pdl_interp.get_defining_op of %2 : !pdl.value {position = "root.operand[0].defining_op"}
+// NOOPT-NEXT:   pdl_interp.is_not_null %6 : !pdl.operation -> ^bb10, ^bb8
+// NOOPT-NEXT: ^bb10:
+// NOOPT-NEXT:   pdl_interp.check_operation_name of %6 is "arith.muli" -> ^bb11, ^bb8
+// NOOPT-NEXT: ^bb11:
+// NOOPT-NEXT:   pdl_interp.check_operand_count of %6 is 2 -> ^bb12, ^bb8
+// NOOPT-NEXT: ^bb12:
+// NOOPT-NEXT:   pdl_interp.check_result_count of %6 is 1 -> ^bb13, ^bb8
+// NOOPT-NEXT: ^bb13:
+// NOOPT-NEXT:   %7 = pdl_interp.get_operand 0 of %6
+// NOOPT-NEXT:   pdl_interp.is_not_null %7 : !pdl.value -> ^bb14, ^bb8
+// NOOPT-NEXT: ^bb14:
+// NOOPT-NEXT:   %8 = pdl_interp.get_operand 1 of %6
+// NOOPT-NEXT:   pdl_interp.is_not_null %8 : !pdl.value -> ^bb15, ^bb8
+// NOOPT-NEXT: ^bb15:
+// NOOPT-NEXT:   %9 = pdl_interp.get_result 0 of %6
+// NOOPT-NEXT:   pdl_interp.is_not_null %9 : !pdl.value -> ^bb16, ^bb8
+// NOOPT-NEXT: ^bb16:
+// NOOPT-NEXT:   pdl_interp.are_equal %9, %2 : !pdl.value -> ^bb17, ^bb8
+// NOOPT-NEXT: ^bb17:
+// NOOPT-NEXT:   %10 = pdl_interp.get_value_type of %9 : !pdl.type
+// NOOPT-NEXT:   %11 = pdl_interp.get_value_type of %1 : !pdl.type
+// NOOPT-NEXT:   pdl_interp.are_equal %10, %11 : !pdl.type -> ^bb18, ^bb8
+// NOOPT-NEXT: ^bb18:
+// NOOPT-NEXT:   pdl_interp.record_match @rewriters::@pdl_generated_rewriter_0(%8, %3, %10, %7, %0 : !pdl.value, !pdl.value, !pdl.type, !pdl.value, !pdl.operation) : benefit(1), loc([]), root("arith.divui") -> ^bb8
+// NOOPT-NEXT: ^bb3:
+// NOOPT-NEXT:   pdl_interp.check_operand_count of %0 is 2 -> ^bb19, ^bb1
+// NOOPT-NEXT: ^bb19:
+// NOOPT-NEXT:   pdl_interp.check_result_count of %0 is 1 -> ^bb20, ^bb1
+// NOOPT-NEXT: ^bb20:
+// NOOPT-NEXT:   %12 = pdl_interp.get_operand 0 of %0
+// NOOPT-NEXT:   pdl_interp.is_not_null %12 : !pdl.value -> ^bb21, ^bb1
+// NOOPT-NEXT: ^bb21:
+// NOOPT-NEXT:   %13 = pdl_interp.get_operand 1 of %0
+// NOOPT-NEXT:   pdl_interp.is_not_null %13 : !pdl.value -> ^bb22, ^bb1
+// NOOPT-NEXT: ^bb22:
+// NOOPT-NEXT:   %14 = pdl_interp.get_defining_op of %13 : !pdl.value {position = "root.operand[1].defining_op"}
+// NOOPT-NEXT:   pdl_interp.is_not_null %14 : !pdl.operation -> ^bb23, ^bb1
+// NOOPT-NEXT: ^bb23:
+// NOOPT-NEXT:   pdl_interp.check_operation_name of %14 is "arith.constant" -> ^bb24, ^bb1
+// NOOPT-NEXT: ^bb24:
+// NOOPT-NEXT:   pdl_interp.check_operand_count of %14 is 0 -> ^bb25, ^bb1
+// NOOPT-NEXT: ^bb25:
+// NOOPT-NEXT:   pdl_interp.check_result_count of %14 is 1 -> ^bb26, ^bb1
+// NOOPT-NEXT: ^bb26:
+// NOOPT-NEXT:   %15 = pdl_interp.get_attribute "value" of %14
+// NOOPT-NEXT:   pdl_interp.is_not_null %15 : !pdl.attribute -> ^bb27, ^bb1
+// NOOPT-NEXT: ^bb27:
+// NOOPT-NEXT:   pdl_interp.check_attribute %15 is 1 : i32 -> ^bb28, ^bb1
+// NOOPT-NEXT: ^bb28:
+// NOOPT-NEXT:   %16 = pdl_interp.get_result 0 of %14
+// NOOPT-NEXT:   pdl_interp.is_not_null %16 : !pdl.value -> ^bb29, ^bb1
+// NOOPT-NEXT: ^bb29:
+// NOOPT-NEXT:   pdl_interp.are_equal %16, %13 : !pdl.value -> ^bb30, ^bb1
+// NOOPT-NEXT: ^bb30:
+// NOOPT-NEXT:   %17 = pdl_interp.get_value_type of %16 : !pdl.type
+// NOOPT-NEXT:   %18 = pdl_interp.get_value_type of %1 : !pdl.type
+// NOOPT-NEXT:   pdl_interp.are_equal %17, %18 : !pdl.type -> ^bb31, ^bb1
+// NOOPT-NEXT: ^bb31:
+// NOOPT-NEXT:   pdl_interp.record_match @rewriters::@pdl_generated_rewriter_1(%12, %0 : !pdl.value, !pdl.operation) : benefit(1), loc([]), root("arith.muli") -> ^bb1
+// NOOPT-NEXT: }
+// NOOPT-NEXT: builtin.module @rewriters {
+// NOOPT-NEXT:   pdl_interp.func @pdl_generated_rewriter(%0 : !pdl.type, %1 : !pdl.operation) {
+// NOOPT-NEXT:     %2 = pdl_interp.create_attribute 1 : i32
+// NOOPT-NEXT:     %3 = pdl_interp.create_operation "arith.constant" {"value" = %2} -> (%0 : !pdl.type)
+// NOOPT-NEXT:     %4 = pdl_interp.get_results of %3 : !pdl.range<value>
+// NOOPT-NEXT:     pdl_interp.replace %1 with (%4 : !pdl.range<value>)
+// NOOPT-NEXT:     pdl_interp.finalize
+// NOOPT-NEXT:   }
+// NOOPT-NEXT:   pdl_interp.func @pdl_generated_rewriter_0(%0 : !pdl.value, %1 : !pdl.value, %2 : !pdl.type, %3 : !pdl.value, %4 : !pdl.operation) {
+// NOOPT-NEXT:     %5 = pdl_interp.create_operation "arith.divui"(%0, %1 : !pdl.value, !pdl.value) -> (%2 : !pdl.type)
+// NOOPT-NEXT:     %6 = pdl_interp.get_result 0 of %5
+// NOOPT-NEXT:     %7 = pdl_interp.create_operation "arith.muli"(%3, %6 : !pdl.value, !pdl.value) -> (%2 : !pdl.type)
+// NOOPT-NEXT:     %8 = pdl_interp.get_result 0 of %7
+// NOOPT-NEXT:     %9 = pdl_interp.get_results of %7 : !pdl.range<value>
+// NOOPT-NEXT:     pdl_interp.replace %4 with (%9 : !pdl.range<value>)
+// NOOPT-NEXT:     pdl_interp.finalize
+// NOOPT-NEXT:   }
+// NOOPT-NEXT:   pdl_interp.func @pdl_generated_rewriter_1(%0 : !pdl.value, %1 : !pdl.operation) {
+// NOOPT-NEXT:     pdl_interp.replace %1 with (%0 : !pdl.value)
+// NOOPT-NEXT:     pdl_interp.finalize
+// NOOPT-NEXT:   }
+// NOOPT-NEXT: }
+
 
 // (x * y) / z -> x * (y/z)
 pdl.pattern : benefit(1) {
