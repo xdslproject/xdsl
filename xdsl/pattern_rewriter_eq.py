@@ -34,6 +34,9 @@ class EquivalencePatternRewriter(PatternRewriter):
 
             return super().insert_op(op, insertion_point)
 
+        raise NotImplementedError(
+            "Inserting a sequence of operations is not supported in EquivalencePatternRewriter yet."
+        )
         # op is of type Sequence[Operation] -> still need to work on this
         # for o in op:
         #    if o not in self.eqsat_bookkeeping.known_ops:
