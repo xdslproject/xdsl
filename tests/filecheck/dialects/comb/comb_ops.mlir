@@ -12,9 +12,15 @@
 
   %add = comb.add %lhsi32, %rhsi32 : i32
   // CHECK: %add = comb.add %lhsi32, %rhsi32 : i32
+ 
+  %add_bin = comb.add bin %lhsi32, %rhsi32 : i32
+  // CHECK: %add_bin = comb.add bin %lhsi32, %rhsi32 : i32
 
-  %mul =  comb.mul %lhsi32, %rhsi32 : i32
-  // CHECK-NEXT: %mul =  comb.mul %lhsi32, %rhsi32 : i32
+  %mul = comb.mul %lhsi32, %rhsi32 : i32
+  // CHECK-NEXT: %mul = comb.mul %lhsi32, %rhsi32 : i32
+  //
+  %mul_bin = comb.mul bin %lhsi32, %rhsi32 : i32
+  // CHECK-NEXT: %mul_bin = comb.mul bin %lhsi32, %rhsi32 : i32
 
   %divu = comb.divu %lhsi32, %rhsi32 : i32
   // CHECK-NEXT: %divu = comb.divu %lhsi32, %rhsi32 : i32
@@ -42,12 +48,18 @@
 
   %and = comb.and %lhsi32, %rhsi32 : i32
   // CHECK-NEXT: %and = comb.and %lhsi32, %rhsi32 : i32
+ 
+  %and_attr = comb.and %lhsi32, %rhsi32 {yerAWizard} : i32
+  // CHECK-NEXT: %and_attr = comb.and %lhsi32, %rhsi32 {yerAWizard} : i32
 
   %or = comb.or %lhsi32, %rhsi32 : i32
   // CHECK-NEXT: %or = comb.or %lhsi32, %rhsi32 : i32
 
   %xor = comb.xor %lhsi32, %rhsi32 : i32
   // CHECK-NEXT: %xor = comb.xor %lhsi32, %rhsi32 : i32
+  
+  %xor_attr = comb.xor %lhsi32, %rhsi32 {someUnitAttribute} : i32
+  // CHECK-NEXT: %xor_attr = comb.xor %lhsi32, %rhsi32 {someUnitAttribute} : i32
 
   %icmp = "comb.icmp"(%lhsi1, %rhsi1) {"predicate" = 2 : i64, "twoState"} : (i1, i1) -> i1
   // CHECK-NEXT: %icmp = comb.icmp bin slt %lhsi1, %rhsi1 : i1
@@ -63,22 +75,40 @@
 
   %parity_bin = comb.parity bin %lhsi1 : i1
   // CHECK-NEXT: %parity_bin = comb.parity bin %lhsi1 : i1
+  
+  %parity_bin_attr = comb.parity bin %lhsi1 {thisWorks} : i1
+  // CHECK-NEXT: %parity_bin_attr = comb.parity bin %lhsi1 {thisWorks} : i1
 
   %extract = comb.extract %lhsi32 from 1 : (i32) -> i3
   // CHECK-NEXT: %extract = comb.extract %lhsi32 from 1 : (i32) -> i3
+ 
+  %extract_attr = comb.extract %lhsi32 from 1 {josse = "cool"}: (i32) -> i3
+  // CHECK-NEXT: %extract_attr = comb.extract %lhsi32 from 1 {josse = "cool"} : (i32) -> i3
 
   %extract_generic = "comb.extract"(%lhsi32) {"lowBit" = 1 : i32} : (i32) -> i3
   // CHECK-NEXT: %extract_generic = comb.extract %lhsi32 from 1 : (i32) -> i3
 
   %concat = comb.concat %lhsi32, %rhsi32 : i32, i32
   // CHECK-NEXT: %concat = comb.concat %lhsi32, %rhsi32 : i32, i32
+ 
+  %concat_attr = comb.concat %lhsi32, %rhsi32 {test} : i32, i32
+  // CHECK-NEXT: %concat_attr = comb.concat %lhsi32, %rhsi32 {test} : i32, i32
 
   %mux = comb.mux %lhsi1, %lhsi32, %rhsi32 : i32
   // CHECK-NEXT: %mux = comb.mux %lhsi1, %lhsi32, %rhsi32 : i32
 
   %mux_exotic = comb.mux %lhsi1, %lhstest, %rhstest : !test.type<"test">
   // CHECK-NEXT: %mux_exotic = comb.mux %lhsi1, %lhstest, %rhstest : !test.type<"test">
+ 
+  %mux_exotic_bin = comb.mux bin %lhsi1, %lhstest, %rhstest : !test.type<"test">
+  // CHECK-NEXT: %mux_exotic_bin = comb.mux bin %lhsi1, %lhstest, %rhstest : !test.type<"test">
+  
+  %mux_exotic_bin_attr = comb.mux bin %lhsi1, %lhstest, %rhstest {actualSystemVerilog} : !test.type<"test">
+  // CHECK-NEXT: %mux_exotic_bin_attr = comb.mux bin %lhsi1, %lhstest, %rhstest {actualSystemVerilog} : !test.type<"test">
 
   %replicate = comb.replicate %lhsi32 : (i32) -> i64
   // CHECK-NEXT: %replicate = comb.replicate %lhsi32 : (i32) -> i64
+  
+  %replicate_attr = comb.replicate %lhsi32 {myFavoriteAttr} : (i32) -> i64
+  // CHECK-NEXT: %replicate_attr = comb.replicate %lhsi32 {myFavoriteAttr} : (i32) -> i64
 }) : () -> ()
