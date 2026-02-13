@@ -37,19 +37,30 @@ class ConstantLike(OpTrait, abc.ABC):
     """
     Operation known to be constant-like.
 
+    To participate in constant folding and other generic mechanisms implement
+    `HasFolder` or `HasFolderInterface` for your operation.
+
     See external [documentation](https://mlir.llvm.org/doxygen/classmlir_1_1OpTrait_1_1ConstantLike.html).
     """
 
-    @classmethod
-    @abc.abstractmethod
-    def get_constant_value(cls, op: Operation) -> Attribute:
+    @staticmethod
+    def get_constant_value(ssa_value: SSAValue) -> Attribute | None:
         """
-        Get the constant value from this constant-like operation.
+        If the value is the result of a `ConstantLike` operation that implements
+        `HasFolderInterface`, return the attribute returned by `fold` corresponding to
+        the value's index in the list of results.
+        """
+        from xdsl.ir import Attribute, OpResult
 
-        Returns:
-            The constant value as an Attribute, or None if the value cannot be determined.
-        """
-        raise NotImplementedError()
+        if (
+            isinstance(ssa_value, OpResult)
+            and (op := ssa_value.owner)
+            and op.has_trait(ConstantLike)
+            and (t := op.get_trait(HasFolder)) is not None
+            and (values := t.fold(op)) is not None
+            and isinstance(value := values[ssa_value.index], Attribute)
+        ):
+            return value
 
 
 class HasFolder(OpTrait):
