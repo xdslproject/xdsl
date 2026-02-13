@@ -73,7 +73,6 @@ from xdsl.traits import (
     MemoryAllocEffect,
     Pure,
     RecursiveMemoryEffect,
-    #SingleBlockImplicitTerminator,
     SymbolTable,
 )
 from xdsl.utils.exceptions import VerifyException
@@ -1165,9 +1164,7 @@ class EmitC_IfOp(IRDLOperation):
         )
 
     irdl_options = (ParsePropInAttrDict(), )
-    assembly_format = "attr-dict `if` $condition  $thenRegion (`else` $elseRegion^)?"
-
-    #assembly_format = "attr-dict `if` $condition  $thenRegion (`else` $elseRegion $has_else_region^)?"
+    assembly_format = "attr-dict $condition  $thenRegion (`else` $elseRegion^)?"
 
 
 @irdl_op_definition
