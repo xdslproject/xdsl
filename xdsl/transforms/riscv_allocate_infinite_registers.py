@@ -1,9 +1,10 @@
+import itertools
 from dataclasses import dataclass
 
 from xdsl.backend.register_allocatable import RegisterAllocatableOperation
 from xdsl.backend.riscv.register_stack import RiscvRegisterStack
 from xdsl.context import Context
-from xdsl.dialects import builtin, riscv, riscv_func
+from xdsl.dialects import builtin, riscv, riscv_func, riscv_scf
 from xdsl.passes import ModulePass
 from xdsl.rewriter import Rewriter
 from xdsl.utils.exceptions import PassFailedException
@@ -31,7 +32,10 @@ class RISCVAllocateInfiniteRegistersPass(ModulePass):
                 riscv.RISCVRegisterType, riscv.RISCVRegisterType
             ] = {}
             for inner_op in func_op.walk():
-                for result in inner_op.results:
+                values = itertools.chain(inner_op.operands, inner_op.results)
+                if isinstance(inner_op, riscv_scf.ForRofOperation):
+                    values = itertools.chain(values, inner_op.body.block.args)
+                for result in values:
                     result_reg = result.type
                     if not isinstance(result_reg, riscv.RISCVRegisterType):
                         raise PassFailedException("Operand type not a register")
