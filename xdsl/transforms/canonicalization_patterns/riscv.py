@@ -294,7 +294,7 @@ class ShiftbyZero(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(
-        self, op: riscv.SlliOp | riscv.SrliOp | riscv.SraiOp, rewriter: PatternRewriter
+        self, op: riscv.RdRsImmShiftOperation, rewriter: PatternRewriter
     ) -> None:
         # check if the shift amount is zero
         if isinstance(op.immediate, IntegerAttr) and op.immediate.value.data == 0:
@@ -308,23 +308,15 @@ class ShiftConstantFolding(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(
-        self, op: riscv.SlliOp | riscv.SrliOp | riscv.SraiOp, rewriter: PatternRewriter
+        self, op: riscv.RdRsImmShiftOperation, rewriter: PatternRewriter
     ) -> None:
         if (rs1 := get_constant_value(op.rs1)) is not None and isinstance(
             op.immediate, IntegerAttr
         ):
-            val = rs1.value.data
-            shamt = op.immediate.value.data
             rd = op.rd.type
-
-            if isinstance(op, riscv.SlliOp):
-                result = val << shamt
-            elif isinstance(op, riscv.SrliOp):
-                result = (val % 0x100000000) >> shamt
-            else:
-                # if SraiOp
-                result = val >> shamt
-
+            val = cast(IntegerAttr[I32], rs1)
+            shamt = cast(IntegerAttr[I32], op.immediate)
+            result = op.py_operation(val, shamt)
             rewriter.replace_op(op, rv32.LiOp(result, rd=rd))
 
 

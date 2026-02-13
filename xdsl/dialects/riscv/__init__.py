@@ -13,6 +13,9 @@ from .abstract_ops import (
     AssemblyInstructionArg as AssemblyInstructionArg,
 )
 from .abstract_ops import (
+    RdRsImmShiftOperation as RdRsImmShiftOperation,
+)
+from .abstract_ops import (
     RdRsRsFloatOperationWithFastMath as RdRsRsFloatOperationWithFastMath,
 )
 from .abstract_ops import (
