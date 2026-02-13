@@ -285,6 +285,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return stencil_global_to_local.DmpToMpiPass
 
+    def get_ematch_exp():
+        from xdsl.transforms import ematch_exp
+
+        return ematch_exp.EmatchExpPass
+
     def get_ematch_saturate():
         from xdsl.transforms import ematch_saturate
 
@@ -716,6 +721,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "dce": get_dce,
         "distribute-stencil": get_distribute_stencil,
         "dmp-to-mpi": get_dmp_to_mpi,
+        "ematch-exp": get_ematch_exp,
         "ematch-saturate": get_ematch_saturate,
         "empty-tensor-to-alloc-tensor": get_empty_tensor_to_alloc_tensor,
         "eqsat-add-costs": get_eqsat_add_costs,

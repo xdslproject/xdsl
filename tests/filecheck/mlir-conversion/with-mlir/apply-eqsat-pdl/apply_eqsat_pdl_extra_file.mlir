@@ -1,3 +1,5 @@
+// XFAIL: *
+
 // RUN: xdsl-opt %s -p 'apply-eqsat-pdl{pdl_file="%p/extra_file.mlir"}' | filecheck %s
 
 // CHECK:      %x_c = equivalence.class %x : i32

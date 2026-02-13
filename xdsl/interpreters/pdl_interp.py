@@ -1,3 +1,4 @@
+from dataclasses import dataclass, field
 from typing import Any, cast
 
 from xdsl.context import Context
@@ -24,6 +25,7 @@ from xdsl.utils.hints import isa
 
 
 @register_impls
+@dataclass
 class PDLInterpFunctions(InterpreterFunctions):
     """
     Interpreter functions for the pdl_interp dialect.
@@ -48,6 +50,11 @@ class PDLInterpFunctions(InterpreterFunctions):
 
     Note that the return type of a native constraint must be `tuple[bool, PythonValues]`.
     """
+
+    pending_rewrites: list[tuple[SymbolRefAttr, Operation, tuple[Any, ...]]] = field(
+        default_factory=lambda: []
+    )
+    """List of pending rewrites to be executed. Each entry is a tuple of (rewriter, root, args)."""
 
     @staticmethod
     def get_ctx(interpreter: Interpreter) -> Context:

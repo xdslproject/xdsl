@@ -24,6 +24,7 @@ from xdsl.transforms.convert_pdl_to_pdl_interp.conversion import (
     MatcherNode,
     OrderedPredicate,
     PatternAnalyzer,
+    PredicateSplit,
     PredicateTreeBuilder,
     SuccessNode,
     SwitchNode,
@@ -1252,7 +1253,7 @@ def test_propagate_pattern():
         pattern_preds: dict[tuple[Position, Question], PositionalPredicate] = {
             (pos1, q1): pred1
         }
-        sorted_preds = [ordered_pred1]
+        sorted_preds: list[OrderedPredicate | PredicateSplit] = [ordered_pred1]
 
         tree = builder._propagate_pattern(  # pyright: ignore[reportPrivateUsage]
             None, pattern1, pattern_preds, sorted_preds, 0
@@ -1277,7 +1278,10 @@ def test_propagate_pattern():
             (pos1, q1): pred1,
             (pos2, q2): pred3,
         }
-        sorted_preds = [ordered_pred1, ordered_pred2]
+        sorted_preds: list[OrderedPredicate | PredicateSplit] = [
+            ordered_pred1,
+            ordered_pred2,
+        ]
 
         tree = builder._propagate_pattern(  # pyright: ignore[reportPrivateUsage]
             None, pattern1, pattern_preds, sorted_preds, 0
@@ -1306,7 +1310,7 @@ def test_propagate_pattern():
         pattern2_preds: dict[tuple[Position, Question], PositionalPredicate] = {
             (pos1, q1): pred2
         }
-        sorted_preds = [ordered_pred1]
+        sorted_preds: list[OrderedPredicate | PredicateSplit] = [ordered_pred1]
 
         tree = builder._propagate_pattern(  # pyright: ignore[reportPrivateUsage]
             None, pattern1, pattern1_preds, sorted_preds, 0
@@ -1334,7 +1338,10 @@ def test_propagate_pattern():
         pattern_preds: dict[tuple[Position, Question], PositionalPredicate] = {
             (pos1, q1): pred1
         }
-        sorted_preds = [ordered_pred2, ordered_pred1]
+        sorted_preds: list[OrderedPredicate | PredicateSplit] = [
+            ordered_pred2,
+            ordered_pred1,
+        ]
 
         tree = builder._propagate_pattern(  # pyright: ignore[reportPrivateUsage]
             None, pattern1, pattern_preds, sorted_preds, 0
@@ -1359,7 +1366,10 @@ def test_propagate_pattern():
         pattern2_preds: dict[tuple[Position, Question], PositionalPredicate] = {
             (pos2, q2): pred3
         }
-        sorted_preds = [ordered_pred1, ordered_pred2]
+        sorted_preds: list[OrderedPredicate | PredicateSplit] = [
+            ordered_pred1,
+            ordered_pred2,
+        ]
 
         tree = builder._propagate_pattern(  # pyright: ignore[reportPrivateUsage]
             None, pattern1, pattern1_preds, sorted_preds, 0
@@ -1398,7 +1408,10 @@ def test_propagate_pattern():
             (pos1, q1): pred1,
             (pos2, q2): pred3,
         }
-        sorted_preds = [ordered_pred1, ordered_pred2]
+        sorted_preds: list[OrderedPredicate | PredicateSplit] = [
+            ordered_pred1,
+            ordered_pred2,
+        ]
 
         tree = builder._propagate_pattern(  # pyright: ignore[reportPrivateUsage]
             None, pattern2, pattern2_preds, sorted_preds, 0
