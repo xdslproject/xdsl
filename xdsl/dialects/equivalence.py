@@ -11,7 +11,7 @@ from collections.abc import Sequence
 from typing import ClassVar
 
 from xdsl.dialects.builtin import IntAttr
-from xdsl.interfaces import ConstantLikeInterface
+from xdsl.interfaces import HasFolderInterface
 from xdsl.ir import Attribute, Dialect, OpResult, Region, SSAValue
 from xdsl.irdl import (
     AnyAttr,
@@ -43,7 +43,7 @@ Key used to store the cost of computing the result of an operation.
 
 
 @irdl_op_definition
-class ConstantClassOp(IRDLOperation, ConstantLikeInterface):
+class ConstantClassOp(IRDLOperation, HasFolderInterface):
     """An e-class representing a known constant value.
     For non-constant e-classes, use [ClassOp][xdsl.dialects.equivalence.ClassOp].
     """
@@ -55,22 +55,22 @@ class ConstantClassOp(IRDLOperation, ConstantLikeInterface):
     assembly_format = (
         "$arguments ` ` `(` `constant` `=` $value `)` attr-dict `:` type($result)"
     )
-    traits = traits_def(Pure())
+    traits = traits_def(Pure(), ConstantLike())
 
     arguments = var_operand_def(T)
     result = result_def(T)
     value = prop_def()
     min_cost_index = opt_attr_def(IntAttr)
 
-    def get_constant_value(self):
-        return self.value
+    def fold(self) -> tuple[Attribute]:
+        return (self.value,)
 
     def __init__(self, const_arg: OpResult):
-        if (trait := const_arg.owner.get_trait(ConstantLike)) is None:
+        if (value := ConstantLike.get_constant_value(const_arg)) is None:
             raise DiagnosticException(
-                "The argument of a ConstantClass must be a constant-like operation."
+                "The argument of a ConstantClass must be a `ConstantLike` operation implementing `HasFolderInterface`."
             )
-        value = trait.get_constant_value(const_arg.owner)
+
         super().__init__(
             operands=[const_arg],
             result_types=[const_arg.type],
