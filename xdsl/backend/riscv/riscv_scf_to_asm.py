@@ -1,7 +1,7 @@
 from collections.abc import Iterator, Sequence
 
 from xdsl.context import Context
-from xdsl.dialects import builtin, riscv, riscv_scf
+from xdsl.dialects import builtin, riscv, riscv_scf, rv32
 from xdsl.ir import SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
@@ -15,7 +15,7 @@ from xdsl.rewriter import InsertPoint
 
 def get_register_ops_from_values(
     values: Sequence[SSAValue],
-) -> Iterator[riscv.GetRegisterOp | riscv.GetFloatRegisterOp]:
+) -> Iterator[rv32.GetRegisterOp | riscv.GetFloatRegisterOp]:
     """
     Returns an iterator of GetRegisterOp or GetFloatRegisterOp ops
     for each register backing the given values and replace them
@@ -26,7 +26,7 @@ def get_register_ops_from_values(
         assert isinstance(value.type, riscv.IntRegisterType | riscv.FloatRegisterType)
 
         get_target_register = (
-            riscv.GetRegisterOp(value.type)
+            rv32.GetRegisterOp(value.type)
             if isinstance(value.type, riscv.IntRegisterType)
             else riscv.GetFloatRegisterOp(value.type)
         )

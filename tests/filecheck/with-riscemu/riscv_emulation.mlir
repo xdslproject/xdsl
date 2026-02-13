@@ -40,9 +40,9 @@ builtin.module {
   riscv_func.func @muladd(%x : !riscv.reg<a0>, %y : !riscv.reg<a1>, %z : !riscv.reg<a2>) {
     "riscv.comment"() {"comment" = "a0 <- a0 * a1 + a2"} : () -> ()
     "riscv.comment"() {"comment" = "prologue"} : () -> ()
-    %12 = riscv.get_register : !riscv.reg<sp>
-    %13 = riscv.get_register : !riscv.reg<s0>
-    %14 = riscv.get_register : !riscv.reg<ra>
+    %12 = rv32.get_register : !riscv.reg<sp>
+    %13 = rv32.get_register : !riscv.reg<s0>
+    %14 = rv32.get_register : !riscv.reg<ra>
     "riscv.comment"() {"comment" = "decrement stack pointer by number of register values we need to store for later"} : () -> ()
     %15 = riscv.addi %12, -8 : (!riscv.reg<sp>) -> !riscv.reg<sp>
     "riscv.comment"() {"comment" = "save the s registers we'll use on the stack"} : () -> ()

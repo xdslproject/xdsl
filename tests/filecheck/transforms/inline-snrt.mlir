@@ -41,13 +41,13 @@
 
 // CHECK-NEXT: builtin.module {
 // CHECK-NEXT:   %global_core_base_hartid = arith.constant 0 : i32
-// CHECK-NEXT:   %global_core_idx = riscv.get_register : !riscv.reg<zero>
+// CHECK-NEXT:   %global_core_idx = rv32.get_register : !riscv.reg<zero>
 // CHECK-NEXT:   %global_core_idx_1 = riscv.csrrs %global_core_idx, -236, "r" : (!riscv.reg<zero>) -> !riscv.reg
 // CHECK-NEXT:   %global_core_idx_2 = builtin.unrealized_conversion_cast %global_core_idx_1 : !riscv.reg to i32
 // CHECK-NEXT:   %global_core_idx_3 = arith.constant 0 : i32
 // CHECK-NEXT:   %global_core_idx_4 = arith.subi %global_core_idx_2, %global_core_idx_3 : i32
 // CHECK-NEXT:   %global_core_num = arith.constant 18 : i32
-// CHECK-NEXT:   %gcluster_core_idx = riscv.get_register : !riscv.reg<zero>
+// CHECK-NEXT:   %gcluster_core_idx = rv32.get_register : !riscv.reg<zero>
 // CHECK-NEXT:   %gcluster_core_idx_1 = riscv.csrrs %gcluster_core_idx, -236, "r" : (!riscv.reg<zero>) -> !riscv.reg
 // CHECK-NEXT:   %gcluster_core_idx_2 = builtin.unrealized_conversion_cast %gcluster_core_idx_1 : !riscv.reg to i32
 // CHECK-NEXT:   %gcluster_core_idx_3 = arith.constant 0 : i32
@@ -58,14 +58,14 @@
 // CHECK-NEXT:   %cluster_compute_core_num = arith.constant 8 : i32
 // CHECK-NEXT:   %cluster_dm_core_num = arith.constant 1 : i32
 // CHECK-NEXT:   %cluster_idx = arith.constant 9 : i32
-// CHECK-NEXT:   %cluster_idx_1 = riscv.get_register : !riscv.reg<zero>
+// CHECK-NEXT:   %cluster_idx_1 = rv32.get_register : !riscv.reg<zero>
 // CHECK-NEXT:   %cluster_idx_2 = riscv.csrrs %cluster_idx_1, -236, "r" : (!riscv.reg<zero>) -> !riscv.reg
 // CHECK-NEXT:   %cluster_idx_3 = builtin.unrealized_conversion_cast %cluster_idx_2 : !riscv.reg to i32
 // CHECK-NEXT:   %cluster_idx_4 = arith.constant 0 : i32
 // CHECK-NEXT:   %cluster_idx_5 = arith.subi %cluster_idx_3, %cluster_idx_4 : i32
 // CHECK-NEXT:   %cluster_idx_6 = arith.divsi %cluster_idx_5, %cluster_idx : i32
 // CHECK-NEXT:   %cluster_num = arith.constant 2 : i32
-// CHECK-NEXT:   %is_compute_core = riscv.get_register : !riscv.reg<zero>
+// CHECK-NEXT:   %is_compute_core = rv32.get_register : !riscv.reg<zero>
 // CHECK-NEXT:   %is_compute_core_1 = riscv.csrrs %is_compute_core, -236, "r" : (!riscv.reg<zero>) -> !riscv.reg
 // CHECK-NEXT:   %is_compute_core_2 = builtin.unrealized_conversion_cast %is_compute_core_1 : !riscv.reg to i32
 // CHECK-NEXT:   %is_compute_core_3 = arith.constant 0 : i32
@@ -74,7 +74,7 @@
 // CHECK-NEXT:   %is_compute_core_6 = arith.remsi %is_compute_core_4, %is_compute_core_5 : i32
 // CHECK-NEXT:   %is_compute_core_7 = arith.constant 8 : i32
 // CHECK-NEXT:   %is_compute_core_8 = arith.cmpi slt, %is_compute_core_6, %is_compute_core_7 : i32
-// CHECK-NEXT:   %is_dm_core = riscv.get_register : !riscv.reg<zero>
+// CHECK-NEXT:   %is_dm_core = rv32.get_register : !riscv.reg<zero>
 // CHECK-NEXT:   %is_dm_core_1 = riscv.csrrs %is_dm_core, -236, "r" : (!riscv.reg<zero>) -> !riscv.reg
 // CHECK-NEXT:   %is_dm_core_2 = builtin.unrealized_conversion_cast %is_dm_core_1 : !riscv.reg to i32
 // CHECK-NEXT:   %is_dm_core_3 = arith.constant 0 : i32
@@ -88,7 +88,7 @@
 
 
                  // Lowering of cluster_hw_barrier
-// CHECK-NEXT:   %0 = riscv.get_register : !riscv.reg<zero>
+// CHECK-NEXT:   %0 = rv32.get_register : !riscv.reg<zero>
 // CHECK-NEXT:   %1 = riscv.csrrs %0, 1986 : (!riscv.reg<zero>) -> !riscv.reg<zero>
 
                  // Lowering of ssr_disable
@@ -96,7 +96,7 @@
 // CHECK-NEXT:   %dst, %src, %size = "test.op"() : () -> (i32, i32, i32)
 
                  // Lowering for dma_start_1d
-// CHECK-NEXT:   %tx_id = riscv.get_register : !riscv.reg<zero>
+// CHECK-NEXT:   %tx_id = rv32.get_register : !riscv.reg<zero>
 // CHECK-NEXT:   %tx_id_1 = builtin.unrealized_conversion_cast %dst : i32 to !riscv.reg
 // CHECK-NEXT:   %tx_id_2 = builtin.unrealized_conversion_cast %src : i32 to !riscv.reg
 // CHECK-NEXT:   %tx_id_3 = builtin.unrealized_conversion_cast %size : i32 to !riscv.reg
@@ -139,7 +139,7 @@
 // CHECK-NEXT:   "test.op"(%tx_id3_1) : (i32) -> ()
 
                  // Lowering for dma_start_2d
-// CHECK-NEXT:   %11 = riscv.get_register : !riscv.reg<zero>
+// CHECK-NEXT:   %11 = rv32.get_register : !riscv.reg<zero>
 // CHECK-NEXT:   %12 = builtin.unrealized_conversion_cast %dst : i32 to !riscv.reg
 // CHECK-NEXT:   %13 = builtin.unrealized_conversion_cast %src : i32 to !riscv.reg
 // CHECK-NEXT:   %14 = builtin.unrealized_conversion_cast %src_stride : i32 to !riscv.reg

@@ -4,14 +4,14 @@
 
 %reg = rv32.li 0 : !riscv.reg
 %a0 = rv32.li 0 : !riscv.reg<a0>
-%x0 = riscv.get_register : !riscv.reg<zero>
+%x0 = rv32.get_register : !riscv.reg<zero>
 
 // CHECK: builtin.module {
 // CHECK-NEXT:  %reg = "llvm.inline_asm"() <{asm_string = "li $0, 0", constraints = "=r", asm_dialect = 0 : i64, tail_call_kind = #llvm.tailcallkind<none>}> : () -> i32
 // CHECK-NEXT:  %reg_1 = builtin.unrealized_conversion_cast %reg : i32 to !riscv.reg
 // CHECK-NEXT:  %a0 = "llvm.inline_asm"() <{asm_string = "li $0, 0", constraints = "=r", asm_dialect = 0 : i64, tail_call_kind = #llvm.tailcallkind<none>}> : () -> i32
 // CHECK-NEXT:  %a0_1 = builtin.unrealized_conversion_cast %a0 : i32 to !riscv.reg<a0>
-// CHECK-NEXT:  %x0 = riscv.get_register : !riscv.reg<zero>
+// CHECK-NEXT:  %x0 = rv32.get_register : !riscv.reg<zero>
 
 // standard risc-v instructions
 
@@ -57,7 +57,7 @@
 // CHECK-NEXT:  %csrss_1 = builtin.unrealized_conversion_cast %csrss : i32 to !riscv.reg
 
 %csrrs = riscv.csrrs %x0, 1986 : (!riscv.reg<zero>) -> !riscv.reg<zero>
-// CHECK-NEXT:  %csrrs = riscv.get_register : !riscv.reg<zero>
+// CHECK-NEXT:  %csrrs = rv32.get_register : !riscv.reg<zero>
 // CHECK-NEXT:  "llvm.inline_asm"() <{asm_string = "csrrs x0, 1986, x0", constraints = "", asm_dialect = 0 : i64, tail_call_kind = #llvm.tailcallkind<none>}> : () -> ()
 
 %csrrci = riscv.csrrci 1984, 1 : () -> !riscv.reg

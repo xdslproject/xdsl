@@ -12,7 +12,7 @@ builtin.module {
   riscv_func.func public @main() attributes {p2align = 2 : i8} {
     %A = rv32.li "a" : !riscv.reg
     %B = rv32.li "b" : !riscv.reg
-    %zero = riscv.get_register : !riscv.reg<sp>
+    %zero = rv32.get_register : !riscv.reg<sp>
     %zero_1 = rv32.li 0 : !riscv.reg
     riscv.sw %zero, %zero_1, -4 : (!riscv.reg<sp>, !riscv.reg) -> ()
     %zero_2 = rv32.li 0 : !riscv.reg

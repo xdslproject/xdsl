@@ -160,7 +160,7 @@ func.func public @pooling_nchw_max_d1_s2_3x3(
     riscv_func.func public @reluf32(%X : !riscv.reg<a0>, %Y : !riscv.reg<a1>) attributes {p2align = 2 : i8} {
       %X_1 = riscv.mv %X : (!riscv.reg<a0>) -> !riscv.reg
       %Y_1 = riscv.mv %Y : (!riscv.reg<a1>) -> !riscv.reg
-      %zero = riscv.get_register : !riscv.reg<zero>
+      %zero = rv32.get_register : !riscv.reg<zero>
       %zero_float = riscv.fcvt.d.w %zero : (!riscv.reg<zero>) -> !riscv.freg
       %zero_vector = riscv_snitch.vfcpka.s.s %zero_float, %zero_float : (!riscv.freg, !riscv.freg) -> !riscv.freg
       snitch_stream.streaming_region {

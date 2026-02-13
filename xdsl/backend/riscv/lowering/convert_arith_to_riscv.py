@@ -104,7 +104,7 @@ class LowerArithConstant(RewritePattern):
                     rewriter.replace_op(
                         op,
                         [
-                            sp := riscv.GetRegisterOp(riscv.Registers.SP),
+                            sp := rv32.GetRegisterOp(riscv.Registers.SP),
                             li_upper := rv32.LiOp(upper),
                             riscv.SwOp(sp, li_upper, -4),
                             li_lower := rv32.LiOp(lower),
@@ -275,7 +275,7 @@ class LowerArithCmpi(RewritePattern):
                 rewriter.replace_op(op, [xor_op, seqz_op])
             # ne
             case 1:
-                zero = riscv.GetRegisterOp(riscv.Registers.ZERO)
+                zero = rv32.GetRegisterOp(riscv.Registers.ZERO)
                 xor_op = riscv.XorOp(lhs, rhs)
                 snez_op = riscv.SltuOp(zero, xor_op)
                 rewriter.replace_op(op, [zero, xor_op, snez_op])

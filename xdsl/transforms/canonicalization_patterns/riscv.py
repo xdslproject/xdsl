@@ -1,7 +1,7 @@
 from typing import cast
 
-from xdsl.dialects import riscv, riscv_snitch, rv32
-from xdsl.dialects.builtin import I32, I64, IntegerAttr, i32
+from xdsl.dialects import riscv, riscv_snitch, rv32, rv64
+from xdsl.dialects.builtin import I32, I64, IntegerAttr, i32, i64
 from xdsl.dialects.utils import FastMathFlag
 from xdsl.ir import OpResult, SSAValue
 from xdsl.pattern_rewriter import (
@@ -196,7 +196,7 @@ class SubBySelf(RewritePattern):
             rewriter.replace_op(
                 op,
                 (
-                    zero := riscv.GetRegisterOp(riscv.Registers.ZERO),
+                    zero := rv32.GetRegisterOp(riscv.Registers.ZERO),
                     riscv.MVOp(zero.res, rd=rd, comment=op.comment),
                 ),
             )
@@ -585,7 +585,7 @@ class XorBySelf(RewritePattern):
             rewriter.replace_op(
                 op,
                 (
-                    zero := riscv.GetRegisterOp(riscv.Registers.ZERO),
+                    zero := rv32.GetRegisterOp(riscv.Registers.ZERO),
                     riscv.MVOp(zero.res, rd=rd, comment=op.comment),
                 ),
             )
@@ -634,23 +634,26 @@ class LoadImmediate0(RewritePattern):
 
         rd = op.rd.type
         if rd == riscv.Registers.ZERO:
-            rewriter.replace_op(op, riscv.GetRegisterOp(riscv.Registers.ZERO))
+            rewriter.replace_op(op, rv32.GetRegisterOp(riscv.Registers.ZERO))
         else:
             rewriter.replace_op(
                 op,
                 (
-                    zero := riscv.GetRegisterOp(riscv.Registers.ZERO),
+                    zero := rv32.GetRegisterOp(riscv.Registers.ZERO),
                     riscv.MVOp(zero.res, rd=rd, comment=op.comment),
                 ),
             )
 
 
 def get_constant_value(value: SSAValue) -> IntegerAttr[I32] | IntegerAttr[I64] | None:
-    if value.type == riscv.Registers.ZERO:
-        return IntegerAttr(0, i32)
-
     if not isinstance(value, OpResult):
         return
+
+    if value.type == riscv.Registers.ZERO:
+        if isinstance(value.op, rv32.GetRegisterOp):
+            return IntegerAttr(0, i32)
+        elif isinstance(value.op, rv64.GetRegisterOp):
+            return IntegerAttr(0, i64)
 
     if isinstance(value.op, riscv.MVOp):
         return get_constant_value(value.op.rs)

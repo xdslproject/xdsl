@@ -3,8 +3,8 @@
 
 "builtin.module"() ({
   riscv_func.func @main() {
-    %0 = riscv.get_register : !riscv.reg
-    %1 = riscv.get_register : !riscv.reg
+    %0 = rv32.get_register : !riscv.reg
+    %1 = rv32.get_register : !riscv.reg
     // RV32I/RV64I: 2.4 Integer Computational Instructions
 
     // Integer Register-Immediate Instructions
@@ -453,8 +453,8 @@
 
 // CHECK-GENERIC:       "builtin.module"() ({
 // CHECK-GENERIC-NEXT:    "riscv_func.func"() ({
-// CHECK-GENERIC-NEXT:      %0 = "riscv.get_register"() : () -> !riscv.reg
-// CHECK-GENERIC-NEXT:      %1 = "riscv.get_register"() : () -> !riscv.reg
+// CHECK-GENERIC-NEXT:      %0 = "rv32.get_register"() : () -> !riscv.reg
+// CHECK-GENERIC-NEXT:      %1 = "rv32.get_register"() : () -> !riscv.reg
 // CHECK-GENERIC-NEXT:      %addi = "riscv.addi"(%0) {immediate = 1 : si12} : (!riscv.reg) -> !riscv.reg
 // CHECK-GENERIC-NEXT:      %slti = "riscv.slti"(%0) {immediate = 1 : si12} : (!riscv.reg) -> !riscv.reg
 // CHECK-GENERIC-NEXT:      %sltiu = "riscv.sltiu"(%0) {immediate = 1 : si12} : (!riscv.reg) -> !riscv.reg
