@@ -68,13 +68,12 @@ def expand_exp(op: math.ExpOp, rewriter: PatternRewriter, terms: int) -> Operati
 @dataclass(frozen=True)
 class EmatchExpPass(ModulePass):
     """
-    A pass that expands `math` operations to a Taylor series polynomial expansion equality saturation.
-
-    Currently only expands `math.exp` operations.
+    Matches `math.exp` operations and adds their Taylor series polynomial
+    expansion as equivalent representations in the e-graph.
     """
 
-    name = "expand-exp-to-polynomials"
-    terms = 75
+    name = "ematch-exp"
+    terms = 3
 
     def apply(self, ctx: Context, op: ModuleOp) -> None:
         PatternRewriteWalker(

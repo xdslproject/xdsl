@@ -2,6 +2,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 
 from xdsl.builder import InsertOpInvT
+from xdsl.dialects import equivalence
 from xdsl.eqsat_bookkeeper import Eqsat_Bookkeeper
 from xdsl.ir import Operation, SSAValue
 from xdsl.pattern_rewriter import PatternRewriter
@@ -27,12 +28,15 @@ class EquivalencePatternRewriter(PatternRewriter):
         # Only perform hash-consing for single operations, not sequences
         if isinstance(op, Operation):
             if op in self.eqsat_bookkeeping.known_ops:
-                return op  # type: ignore
+                return self.eqsat_bookkeeping.known_ops[op]  # type: ignore
 
             # op not in known_ops
             self.eqsat_bookkeeping.known_ops[op] = op
 
             return super().insert_op(op, insertion_point)
+
+        if op == []:
+            return op  # If op is an empty sequence, do nothing
 
         raise NotImplementedError(
             "Inserting a sequence of operations is not supported in EquivalencePatternRewriter yet."
@@ -62,14 +66,20 @@ class EquivalencePatternRewriter(PatternRewriter):
         """
         self.has_done_action = True
 
-        if isinstance(new_ops, Operation):
-            new_ops = (new_ops,)
+        if isinstance(op, equivalence.AnyClassOp):
+            # if the old operator is itself an e-class, we want to erase this eclass and replace it with a merged one.
+            # this is called in eclass_union so new_ops is already the merged eclass
+            super().replace_op(op, new_ops, new_results, safe_erase)
+            return
 
         # First, insert the new operations before the matched operation
         self.insert_op(new_ops, InsertPoint.before(op))
 
+        if isinstance(new_ops, Operation):
+            new_ops = (new_ops,)
+
         # If new results are not specified, use the results of the last new operation by default
-        if new_results is None:
+        if new_results is None or len(new_results) == 0:
             new_results = new_ops[-1].results if new_ops else ()
 
         if len(op.results) != len(new_results):
