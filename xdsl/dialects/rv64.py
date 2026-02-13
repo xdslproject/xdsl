@@ -118,6 +118,9 @@ class GetRegisterOp(GetAnyRegisterOperation[IntRegisterType]):
 
 RV64 = Dialect(
     "rv64",
-    [LiOp, GetRegisterOp,],
+    [
+        LiOp,
+        GetRegisterOp,
+    ],
     [],
 )
