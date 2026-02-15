@@ -306,6 +306,7 @@ builtin.module {
     %4 = "llvm.inttoptr"(%arg1) : (i64) -> !llvm.ptr
     %5 = llvm.bitcast %arg1 : i64 to f64
     %6 = llvm.fpext %arg3 : f32 to f64
+    %7 = llvm.sitofp %arg0 : i32 to f32
     llvm.return
   }
 
@@ -319,6 +320,33 @@ builtin.module {
   // CHECK-NEXT:   {{%.+}} = inttoptr i64 %".2" to ptr
   // CHECK-NEXT:   {{%.+}} = bitcast i64 %".2" to double
   // CHECK-NEXT:   {{%.+}} = fpext float %".4" to double
+  // CHECK-NEXT:   {{%.+}} = sitofp i32 %".1" to float
+  // CHECK-NEXT:   ret void
+  // CHECK-NEXT: }
+
+  llvm.func @casts_with_flags(%arg0 : i32, %arg1 : i64) {
+    // llvm.TruncOp with overflow flags (IntegerConversionOpOverflow)
+    %trunc_none = llvm.trunc %arg1 : i64 to i32
+    %trunc_nsw = llvm.trunc %arg1 overflow<nsw> : i64 to i32
+    %trunc_nuw = llvm.trunc %arg1 overflow<nuw> : i64 to i32
+    %trunc_both = llvm.trunc %arg1 overflow<nsw, nuw> : i64 to i32
+
+    // llvm.ZExtOp with nneg flag (IntegerConversionOpNNeg)
+    %zext_none = llvm.zext %arg0 : i32 to i64
+    %zext_nneg = llvm.zext nneg %arg0 : i32 to i64
+
+    llvm.return
+  }
+
+  // CHECK: define void @"casts_with_flags"(i32 %".1", i64 %".2")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT:   {{%.+}} = trunc i64 %".2" to i32
+  // CHECK-NEXT:   {{%.+}} = trunc nsw i64 %".2" to i32
+  // CHECK-NEXT:   {{%.+}} = trunc nuw i64 %".2" to i32
+  // CHECK-NEXT:   {{%.+}} = trunc {{(nsw nuw|nuw nsw)}} i64 %".2" to i32
+  // CHECK-NEXT:   {{%.+}} = zext i32 %".1" to i64
+  // CHECK-NEXT:   {{%.+}} = zext nneg i32 %".1" to i64
   // CHECK-NEXT:   ret void
   // CHECK-NEXT: }
 

@@ -13,6 +13,7 @@ from llvmlite.ir.instructions import (
     GEPInstr,
     ICMPInstr,
     InsertValue,
+    Instruction,
     LoadInstr,
     Ret,
     StoreInstr,
@@ -83,6 +84,10 @@ class IRBuilder:
 
     def remove(self, instr):  # -> None:
         """Remove the given instruction."""
+        ...
+
+    def _insert(self, instr: Instruction) -> None:
+        """Insert an instruction into the current block (internal method)."""
         ...
 
     @contextlib.contextmanager
@@ -476,7 +481,7 @@ class IRBuilder:
         ...
 
     @_castop("sitofp")
-    def sitofp(self, value, typ, name=...):  # -> None:
+    def sitofp(self, value: Value, typ: Type, name: str = ...) -> Value:
         """
         Convert signed integer to floating-point:
             name = (typ) value

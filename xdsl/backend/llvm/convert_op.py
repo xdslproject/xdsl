@@ -1,10 +1,61 @@
 from collections.abc import Callable
 
 from llvmlite import ir
+from llvmlite.ir import instructions
+from llvmlite.ir.types import Type
+from llvmlite.ir.values import Block, Value
 
 from xdsl.backend.llvm.convert_type import convert_type
 from xdsl.dialects import llvm
 from xdsl.ir import Operation, SSAValue
+
+
+class CastInstrWithFlags(instructions.CastInstr):
+    """
+    Custom CastInstr that supports flags (workaround for llvmlite limitation).
+    llvmlite's CastInstr doesn't accept or output flags, but we need them for
+    operations like 'trunc nsw' and 'zext nneg'.
+    """
+
+    def __init__(
+        self,
+        parent: Block,
+        op: str,
+        val: Value,
+        typ: Type,
+        name: str = "",
+        flags: tuple[str, ...] | list[str] = (),
+    ):
+        # Call parent's parent (Instruction) to bypass CastInstr's __init__
+        instructions.Instruction.__init__(
+            self, parent, typ, op, [val], name=name, flags=flags
+        )
+
+    def descr(self, buf: list[str]) -> None:
+        """Override descr to include flags in output (like base Instruction)."""
+        opname = self.opname
+        if self.flags:
+            opname = " ".join([opname] + list(self.flags))
+        operand = self.operands[0]
+        metadata = self._stringify_metadata(leading_comma=True)
+        buf.append(
+            f"{opname} {operand.type} {operand.get_reference()} to {self.type}{metadata}\n"
+        )
+
+
+def _create_cast_with_flags(
+    builder: ir.IRBuilder, opname: str, val: ir.Value, typ: ir.Type, flags: list[str]
+) -> ir.Value:
+    """
+    Create a cast instruction with flags.
+
+    This is a workaround for llvmlite's limitation where the builder's
+    cast methods don't support flags.
+    """
+    instr = CastInstrWithFlags(builder.block, opname, val, typ, name="", flags=flags)
+    builder._insert(instr)
+    return instr
+
 
 _BINARY_OP_MAP: dict[
     type[Operation], Callable[[ir.IRBuilder], Callable[[ir.Value, ir.Value], ir.Value]]
@@ -68,16 +119,55 @@ _CAST_OP_MAP: dict[
     llvm.IntToPtrOp: lambda b: b.inttoptr,
     llvm.BitcastOp: lambda b: b.bitcast,
     llvm.FPExtOp: lambda b: b.fpext,
+    llvm.SIToFPOp: lambda b: b.sitofp,
+}
+
+_CAST_OP_NAMES: dict[type[Operation], str] = {
+    llvm.TruncOp: "trunc",
+    llvm.ZExtOp: "zext",
+    llvm.SExtOp: "sext",
+    llvm.PtrToIntOp: "ptrtoint",
+    llvm.IntToPtrOp: "inttoptr",
+    llvm.BitcastOp: "bitcast",
+    llvm.FPExtOp: "fpext",
+    llvm.SIToFPOp: "sitofp",
 }
 
 
 def _convert_cast(
     op: Operation, builder: ir.IRBuilder, val_map: dict[SSAValue, ir.Value]
 ):
-    op_builder = _CAST_OP_MAP[type(op)]
-    val_map[op.results[0]] = op_builder(builder)(
-        val_map[op.operands[0]], convert_type(op.results[0].type)
-    )
+    """
+    Convert a cast operation, handling flags/properties similar to _convert_binop.
+    """
+    source_val = val_map[op.operands[0]]
+    result_type = convert_type(op.results[0].type)
+    flags = []
+
+    # Extract flags based on operation type (mirror _convert_binop pattern)
+    match op:
+        case llvm.IntegerConversionOpOverflow():  # TruncOp
+            if op.overflowFlags:
+                # Note: IntegerConversionOpOverflow has overflowFlags as OverflowAttr directly,
+                # unlike ArithmeticBinOpOverflow which has IntegerAttr[I32]
+                flags = [f.value for f in op.overflowFlags.data]
+        case llvm.IntegerConversionOpNNeg():  # ZExtOp
+            if op.non_neg:
+                flags = ["nneg"]
+        case _:
+            pass
+
+    # Create instruction with or without flags
+    if flags:
+        # Use custom instruction creator for operations with flags
+        opname = _CAST_OP_NAMES[type(op)]
+        val_map[op.results[0]] = _create_cast_with_flags(
+            builder, opname, source_val, result_type, flags
+        )
+    else:
+        # Use standard builder method for operations without flags
+        op_builder = _CAST_OP_MAP[type(op)]
+        val_map[op.results[0]] = op_builder(builder)(source_val, result_type)
 
 
 _ICMP_PRED_MAP: dict[str, tuple[str, bool]] = {
