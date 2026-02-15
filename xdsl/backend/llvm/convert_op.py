@@ -113,5 +113,30 @@ def convert_op(
             _convert_inline_asm(op, builder, val_map)
         case llvm.ReturnOp():
             _convert_return(op, builder, val_map)
+        case llvm.AllocaOp():
+            # TODO: handle alignment
+            val_map[op.results[0]] = builder.alloca(
+                convert_type(op.elem_type), size=val_map[op.size]
+            )
+        case llvm.LoadOp():
+            # TODO: handle alignment
+            val_map[op.results[0]] = builder.load(
+                val_map[op.ptr], typ=convert_type(op.results[0].type)
+            )
+        case llvm.StoreOp():
+            # TODO: handle alignment
+            builder.store(val_map[op.value], val_map[op.ptr])
+        case llvm.ExtractValueOp():
+            val_map[op.results[0]] = builder.extract_value(
+                val_map[op.container], list(op.position.iter_values())
+            )
+        case llvm.InsertValueOp():
+            val_map[op.results[0]] = builder.insert_value(
+                val_map[op.container],
+                val_map[op.value],
+                list(op.position.iter_values()),
+            )
+        case llvm.UnreachableOp():
+            builder.unreachable()
         case _:
             raise NotImplementedError(f"Conversion not implemented for op: {op.name}")
