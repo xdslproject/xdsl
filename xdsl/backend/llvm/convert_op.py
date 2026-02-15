@@ -58,6 +58,32 @@ def _convert_binop(
     )
 
 
+_ICMP_PRED_MAP: dict[str, tuple[str, bool]] = {
+    "eq": ("==", True),
+    "ne": ("!=", True),
+    "slt": ("<", True),
+    "sle": ("<=", True),
+    "ult": ("<", False),
+    "ule": ("<=", False),
+    "sgt": (">", True),
+    "sge": (">=", True),
+    "ugt": (">", False),
+    "uge": (">=", False),
+}
+
+
+def _convert_icmp(
+    op: llvm.ICmpOp, builder: ir.IRBuilder, val_map: dict[SSAValue, ir.Value]
+):
+    predicate = op.predicate.value.data
+    flag = llvm.ICmpPredicateFlag.from_int(predicate)
+    pred_str = flag.value
+    llvm_pred, is_signed = _ICMP_PRED_MAP[pred_str]
+
+    target_func = builder.icmp_signed if is_signed else builder.icmp_unsigned
+    val_map[op.results[0]] = target_func(llvm_pred, val_map[op.lhs], val_map[op.rhs])
+
+
 def _convert_inline_asm(
     op: llvm.InlineAsmOp, builder: ir.IRBuilder, val_map: dict[SSAValue, ir.Value]
 ):
@@ -109,6 +135,8 @@ def convert_op(
     match op:
         case op if type(op) in _BINARY_OP_MAP:
             _convert_binop(op, builder, val_map)
+        case llvm.ICmpOp():
+            _convert_icmp(op, builder, val_map)
         case llvm.InlineAsmOp():
             _convert_inline_asm(op, builder, val_map)
         case llvm.ReturnOp():

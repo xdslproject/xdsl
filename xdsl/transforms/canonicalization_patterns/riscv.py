@@ -1,9 +1,10 @@
-from typing import cast
+from typing import Literal, cast
 
 from xdsl.dialects import riscv, riscv_snitch, rv32
-from xdsl.dialects.builtin import I32, I64, IntegerAttr, i32
+from xdsl.dialects.builtin import I32, I64, IntegerAttr, IntegerType, Signedness, i32
 from xdsl.dialects.utils import FastMathFlag
 from xdsl.ir import OpResult, SSAValue
+from xdsl.irdl import irdl_to_attr_constraint
 from xdsl.pattern_rewriter import (
     PatternRewriter,
     RewritePattern,
@@ -645,7 +646,14 @@ class LoadImmediate0(RewritePattern):
             )
 
 
-def get_constant_value(value: SSAValue) -> IntegerAttr[I32] | IntegerAttr[I64] | None:
+_I32_I64_CONSTRAINT = irdl_to_attr_constraint(
+    IntegerAttr[IntegerType[Literal[32, 64], Literal[Signedness.SIGNLESS]]]
+)
+
+
+def get_constant_value(
+    value: SSAValue,
+) -> IntegerAttr[I32] | IntegerAttr[I64] | None:
     if value.type == riscv.Registers.ZERO:
         return IntegerAttr(0, i32)
 
@@ -655,8 +663,7 @@ def get_constant_value(value: SSAValue) -> IntegerAttr[I32] | IntegerAttr[I64] |
     if isinstance(value.op, riscv.MVOp):
         return get_constant_value(value.op.rs)
 
-    constant_like = value.op.get_trait(ConstantLike)
-    if constant_like is not None:
-        result = constant_like.get_constant_value(value.op)
-        if isinstance(result, IntegerAttr):
-            return cast(IntegerAttr[I32] | IntegerAttr[I64], result)
+    if (
+        result := ConstantLike.get_constant_value(value)
+    ) is not None and _I32_I64_CONSTRAINT.verifies(result):
+        return cast(IntegerAttr[I32] | IntegerAttr[I64], result)
