@@ -118,26 +118,22 @@ class CastInstrWithFlags(instructions.CastInstr):
         opname = (
             " ".join([self.opname] + list(self.flags)) if self.flags else self.opname
         )
-        operand = self.operands[0]
-        metadata = self._stringify_metadata(leading_comma=True)
+        op = self.operands[0]
         buf.append(
-            f"{opname} {operand.type} {operand.get_reference()} to {self.type}{metadata}\n"
+            f"{opname} {op.type} {op.get_reference()} to {self.type}{self._stringify_metadata(leading_comma=True)}\n"
         )
 
 
 def _convert_cast(
     op: Operation, builder: ir.IRBuilder, val_map: dict[SSAValue, ir.Value]
 ):
-    flags: list[str] = []
     match op:
-        case llvm.IntegerConversionOpOverflow():
-            if op.overflowFlags:
-                flags = [f.value for f in op.overflowFlags.data]
-        case llvm.IntegerConversionOpNNeg():
-            if op.non_neg:
-                flags = ["nneg"]
+        case llvm.IntegerConversionOpOverflow() if op.overflowFlags:
+            flags = [f.value for f in op.overflowFlags.data]
+        case llvm.IntegerConversionOpNNeg() if op.non_neg:
+            flags = ["nneg"]
         case _:
-            pass
+            flags = []
 
     instr = CastInstrWithFlags(
         builder.block,
