@@ -301,21 +301,14 @@ builtin.module {
   // void gep_constant(int* ptr) {
   //   int* result = &ptr[1][2];
   // }
-  "llvm.func"() <{
-    sym_name = "gep_constant",
-    function_type = !llvm.func<void (!llvm.ptr)>,
-    CConv = #llvm.cconv<ccc>,
-    linkage = #llvm.linkage<external>,
-    visibility_ = 0 : i64
-  }> ({
-  ^bb0(%arg0 : !llvm.ptr):
+  llvm.func @gep_constant(%arg0 : !llvm.ptr) {
     %0 = "llvm.getelementptr"(%arg0) <{
       elem_type = i32,
       rawConstantIndices = array<i32: 1, 2>,
       noWrapFlags = 0 : i32
     }> : (!llvm.ptr) -> !llvm.ptr
-    "llvm.return"() : () -> ()
-  }) : () -> ()
+    llvm.return
+  }
 
   // CHECK: define void @"gep_constant"(ptr %".1")
   // CHECK-NEXT: {
