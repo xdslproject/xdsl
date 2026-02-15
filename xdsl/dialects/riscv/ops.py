@@ -248,10 +248,9 @@ class SlliOp(RdRsImmShiftOperation):
 
     name = "riscv.slli"
 
-    def py_operation(
-        self, arg0: IntegerAttr[I32], arg1: IntegerAttr[I32]
-    ) -> IntegerAttr[I32]:
-        return IntegerAttr(arg0.value.data << arg1.value.data, i32)
+    def py_operation(self, rs1: IntegerAttr[I32]) -> IntegerAttr[I32] | None:
+        if isinstance(self.immediate, IntegerAttr):
+            return IntegerAttr(rs1.value.data << self.immediate.value.data, i32)
 
 
 @irdl_op_definition
@@ -267,10 +266,11 @@ class SrliOp(RdRsImmShiftOperation):
 
     name = "riscv.srli"
 
-    def py_operation(
-        self, arg0: IntegerAttr[I32], arg1: IntegerAttr[I32]
-    ) -> IntegerAttr[I32]:
-        return IntegerAttr((arg0.value.data % 0x100000000) >> arg1.value.data, i32)
+    def py_operation(self, rs1: IntegerAttr[I32]) -> IntegerAttr[I32] | None:
+        if isinstance(self.immediate, IntegerAttr):
+            return IntegerAttr(
+                (rs1.value.data % 0x100000000) >> self.immediate.value.data, i32
+            )
 
 
 @irdl_op_definition
@@ -286,10 +286,9 @@ class SraiOp(RdRsImmShiftOperation):
 
     name = "riscv.srai"
 
-    def py_operation(
-        self, arg0: IntegerAttr[I32], arg1: IntegerAttr[I32]
-    ) -> IntegerAttr[I32]:
-        return IntegerAttr(arg0.value.data >> arg1.value.data, i32)
+    def py_operation(self, rs1: IntegerAttr[I32]) -> IntegerAttr[I32] | None:
+        if isinstance(self.immediate, IntegerAttr):
+            return IntegerAttr(rs1.value.data >> self.immediate.value.data, i32)
 
 
 @irdl_op_definition

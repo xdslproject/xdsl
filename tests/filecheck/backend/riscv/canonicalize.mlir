@@ -111,6 +111,9 @@ builtin.module {
   %srai_neg = riscv.srai %c_neg1, 1 : (!riscv.reg) -> !riscv.reg<a0>
   "test.op"(%srai_neg) : (!riscv.reg<a0>) -> ()
 
+  %slli_neg = riscv.slli %c_neg1, 1 : (!riscv.reg) -> !riscv.reg<a0>
+  "test.op"(%slli_neg) : (!riscv.reg<a0>) -> ()
+
   %load_float_ptr = riscv.addi %i2, 8 : (!riscv.reg) -> !riscv.reg
   %load_float_known_offset = riscv.flw %load_float_ptr, 4 : (!riscv.reg) -> !riscv.freg<fa0>
   "test.op"(%load_float_known_offset) : (!riscv.freg<fa0>) -> ()
@@ -291,6 +294,9 @@ builtin.module {
 
 // CHECK-NEXT:   %srai_neg = rv32.li -1 : !riscv.reg<a0>
 // CHECK-NEXT:   "test.op"(%srai_neg) : (!riscv.reg<a0>) -> ()
+
+// CHECK-NEXT:   %slli_neg = rv32.li -2 : !riscv.reg<a0>
+// CHECK-NEXT:   "test.op"(%slli_neg) : (!riscv.reg<a0>) -> ()
 
 // CHECK-NEXT:   %load_float_known_offset = riscv.flw %i2, 12 : (!riscv.reg) -> !riscv.freg<fa0>
 // CHECK-NEXT:   "test.op"(%load_float_known_offset) : (!riscv.freg<fa0>) -> ()

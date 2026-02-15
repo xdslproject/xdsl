@@ -791,15 +791,13 @@ class RdRsImmShiftOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
         return {"immediate"}
 
     @abstractmethod
-    def py_operation(
-        self, arg0: IntegerAttr[I32], arg1: IntegerAttr[I32]
-    ) -> IntegerAttr[I32]:
+    def py_operation(self, rs1: IntegerAttr[I32]) -> IntegerAttr[I32] | None:
         """
         Performs a python function corresponding to this operation.
 
-        If `i := py_operation(arg0, arg1)` is an IntegerAttr[I32], then this operation can be
+        If `i := py_operation(rs1)` is an IntegerAttr[I32], then this operation can be
         canonicalized to a constant with value `i` when the inputs are constants
-        with values `arg0` and `arg1`.
+        with values `rs1`. The immediate value is retrieved from the `immediate` attribute of the operation.
         """
 
         raise NotImplementedError(
