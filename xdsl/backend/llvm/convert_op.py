@@ -114,18 +114,23 @@ def convert_op(
         case llvm.ReturnOp():
             _convert_return(op, builder, val_map)
         case llvm.AllocaOp():
-            # TODO: handle alignment
-            val_map[op.results[0]] = builder.alloca(
+            alloca_instr = builder.alloca(
                 convert_type(op.elem_type), size=val_map[op.size]
             )
+            if op.alignment:
+                alloca_instr.align = op.alignment.value.data
+            val_map[op.results[0]] = alloca_instr
         case llvm.LoadOp():
-            # TODO: handle alignment
-            val_map[op.results[0]] = builder.load(
+            load_instr = builder.load(
                 val_map[op.ptr], typ=convert_type(op.results[0].type)
             )
+            if op.alignment:
+                load_instr.align = op.alignment.value.data
+            val_map[op.results[0]] = load_instr
         case llvm.StoreOp():
-            # TODO: handle alignment
-            builder.store(val_map[op.value], val_map[op.ptr])
+            store_instr = builder.store(val_map[op.value], val_map[op.ptr])
+            if op.alignment:
+                store_instr.align = op.alignment.value.data
         case llvm.ExtractValueOp():
             val_map[op.results[0]] = builder.extract_value(
                 val_map[op.container], list(op.position.iter_values())

@@ -306,6 +306,18 @@ builtin.module {
   // CHECK: define void @"alloca_op"(i32 %".1")
   // CHECK-NEXT: {
   // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT:   {{%.+}} = alloca i32, i32 %".1", align 32
+  // CHECK-NEXT:   ret void
+  // CHECK-NEXT: }
+
+  llvm.func @alloca_op_no_alignment(%arg0: i32) {
+    %0 = "llvm.alloca"(%arg0) <{elem_type = i32}> : (i32) -> !llvm.ptr
+    llvm.return
+  }
+
+  // CHECK: define void @"alloca_op_no_alignment"(i32 %".1")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: {{.[0-9]+}}:
   // CHECK-NEXT:   {{%.+}} = alloca i32, i32 %".1"
   // CHECK-NEXT:   ret void
   // CHECK-NEXT: }
@@ -322,6 +334,18 @@ builtin.module {
   // CHECK-NEXT:   ret void
   // CHECK-NEXT: }
 
+  llvm.func @load_op_with_alignment(%arg0: !llvm.ptr) {
+    %0 = "llvm.load"(%arg0) <{ordering = 0 : i64, alignment = 16 : i64}> : (!llvm.ptr) -> i32
+    llvm.return
+  }
+
+  // CHECK: define void @"load_op_with_alignment"(ptr %".1")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT:   {{%.+}} = load i32, ptr %".1", align 16
+  // CHECK-NEXT:   ret void
+  // CHECK-NEXT: }
+
   llvm.func @store_op(%arg0: i32, %arg1: !llvm.ptr) {
     "llvm.store"(%arg0, %arg1) <{ordering = 0 : i64}> : (i32, !llvm.ptr) -> ()
     llvm.return
@@ -331,6 +355,18 @@ builtin.module {
   // CHECK-NEXT: {
   // CHECK-NEXT: {{.[0-9]+}}:
   // CHECK-NEXT:   store i32 %".1", ptr %".2"
+  // CHECK-NEXT:   ret void
+  // CHECK-NEXT: }
+
+  llvm.func @store_op_with_alignment(%arg0: i32, %arg1: !llvm.ptr) {
+    "llvm.store"(%arg0, %arg1) <{ordering = 0 : i64, alignment = 8 : i64}> : (i32, !llvm.ptr) -> ()
+    llvm.return
+  }
+
+  // CHECK: define void @"store_op_with_alignment"(i32 %".1", ptr %".2")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT:   store i32 %".1", ptr %".2", align 8
   // CHECK-NEXT:   ret void
   // CHECK-NEXT: }
 
