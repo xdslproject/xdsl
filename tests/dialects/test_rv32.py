@@ -34,7 +34,7 @@ def test_get_constant_value():
     # LiOp implements ConstantLikeInterface so it also has a get_constant_value method:
     constantlike = li_op.get_trait(ConstantLike)
     assert constantlike is not None
-    assert constantlike.get_constant_value(li_op) == IntegerAttr.from_int_and_width(
+    assert constantlike.get_constant_value(li_op.rd) == IntegerAttr.from_int_and_width(
         1, 32
     )
 

@@ -662,9 +662,6 @@ _I32_I64_CONSTRAINT = irdl_to_attr_constraint(
 def get_constant_value(
     value: SSAValue,
 ) -> IntegerAttr[I32] | IntegerAttr[I64] | None:
-    if value.type == riscv.Registers.ZERO:
-        return IntegerAttr(0, i32)
-
     if not isinstance(value, OpResult):
         return
 
