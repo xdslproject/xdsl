@@ -3,8 +3,8 @@ This file contains the definition of `BaseParser`, a recursive descent parser
 that is inherited from the different parsers used in xDSL.
 """
 
-from collections.abc import Callable, Iterable
-from contextlib import contextmanager
+from collections.abc import Callable, Iterable, Iterator
+from contextlib import AbstractContextManager, contextmanager
 from dataclasses import dataclass
 from enum import Enum
 from typing import Generic, NoReturn, overload
@@ -302,19 +302,19 @@ class GenericParser(Generic[TokenKindT]):
         self.raise_error(f"'{text}' expected" + context_msg)
 
     @contextmanager
-    def delimited(self, start: str, end: str):
+    def delimited(self, start: str, end: str) -> Iterator[None]:
         self.parse_characters(start)
         yield
         self.parse_characters(end)
 
-    def in_angle_brackets(self):
+    def in_angle_brackets(self) -> AbstractContextManager[None]:
         return self.delimited("<", ">")
 
-    def in_square_brackets(self):
+    def in_square_brackets(self) -> AbstractContextManager[None]:
         return self.delimited("[", "]")
 
-    def in_parens(self):
+    def in_parens(self) -> AbstractContextManager[None]:
         return self.delimited("(", ")")
 
-    def in_braces(self):
+    def in_braces(self) -> AbstractContextManager[None]:
         return self.delimited("{", "}")

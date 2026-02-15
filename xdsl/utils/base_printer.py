@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from collections.abc import Callable, Iterable
-from contextlib import contextmanager
+from collections.abc import Callable, Iterable, Iterator
+from contextlib import AbstractContextManager, contextmanager
 from dataclasses import dataclass, field
 from typing import IO, Any
 
@@ -69,21 +69,21 @@ class BasePrinter:
             print_fn(elem)
 
     @contextmanager
-    def delimited(self, start: str, end: str):
+    def delimited(self, start: str, end: str) -> Iterator[None]:
         self.print_string(start)
         yield
         self.print_string(end)
 
-    def in_angle_brackets(self):
+    def in_angle_brackets(self) -> AbstractContextManager[None]:
         return self.delimited("<", ">")
 
-    def in_braces(self):
+    def in_braces(self) -> AbstractContextManager[None]:
         return self.delimited("{", "}")
 
-    def in_parens(self):
+    def in_parens(self) -> AbstractContextManager[None]:
         return self.delimited("(", ")")
 
-    def in_square_brackets(self):
+    def in_square_brackets(self) -> AbstractContextManager[None]:
         return self.delimited("[", "]")
 
     def _print_new_line(
