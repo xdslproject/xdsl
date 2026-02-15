@@ -529,12 +529,13 @@ def _():
 
 
 @app.cell(hide_code=True)
-def _(Context, builtin, riscv, riscv_cf, riscv_func):
+def _(Context, builtin, riscv, riscv_cf, riscv_func, rv32):
     ctx = Context()
     ctx.load_dialect(builtin.Builtin)
     ctx.load_dialect(riscv.RISCV)
     ctx.load_dialect(riscv_cf.RISCV_Cf)
     ctx.load_dialect(riscv_func.RISCV_Func)
+    ctx.load_dialect(rv32.RV32)
     return (ctx,)
 
 
