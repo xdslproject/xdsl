@@ -100,12 +100,7 @@ _CAST_OP_NAMES: dict[type[Operation], str] = {
 
 
 class CastInstrWithFlags(instructions.CastInstr):
-    """
-    Custom CastInstr that supports flags (workaround for llvmlite limitation).
-    llvmlite's CastInstr doesn't accept or output flags, but we need them for
-    operations like 'trunc nsw' and 'zext nneg'.
-    """
-
+    # workaround: llvmlite's CastInstr doesn't support flags like 'trunc nsw' or 'zext nneg'
     def __init__(
         self,
         parent: Block,
@@ -115,16 +110,14 @@ class CastInstrWithFlags(instructions.CastInstr):
         name: str = "",
         flags: tuple[str, ...] | list[str] = (),
     ):
-        # Call parent's parent (Instruction) to bypass CastInstr's __init__
         instructions.Instruction.__init__(
             self, parent, typ, op, [val], name=name, flags=flags
         )
 
     def descr(self, buf: list[str]) -> None:
-        """Override descr to include flags in output (like base Instruction)."""
-        opname = self.opname
-        if self.flags:
-            opname = " ".join([opname] + list(self.flags))
+        opname = (
+            " ".join([self.opname] + list(self.flags)) if self.flags else self.opname
+        )
         operand = self.operands[0]
         metadata = self._stringify_metadata(leading_comma=True)
         buf.append(
@@ -132,25 +125,10 @@ class CastInstrWithFlags(instructions.CastInstr):
         )
 
 
-def _create_cast_with_flags(
-    builder: ir.IRBuilder, opname: str, val: ir.Value, typ: ir.Type, flags: list[str]
-) -> ir.Value:
-    """
-    Create a cast instruction with flags.
-
-    This is a workaround for llvmlite's limitation where the builder's
-    cast methods don't support flags.
-    """
-    instr = CastInstrWithFlags(builder.block, opname, val, typ, name="", flags=flags)
-    builder._insert(instr)
-    return instr
-
-
 def _convert_cast(
     op: Operation, builder: ir.IRBuilder, val_map: dict[SSAValue, ir.Value]
 ):
     flags: list[str] = []
-
     match op:
         case llvm.IntegerConversionOpOverflow():
             if op.overflowFlags:
@@ -161,13 +139,15 @@ def _convert_cast(
         case _:
             pass
 
-    val_map[op.results[0]] = _create_cast_with_flags(
-        builder,
+    instr = CastInstrWithFlags(
+        builder.block,
         _CAST_OP_NAMES[type(op)],
         val_map[op.operands[0]],
         convert_type(op.results[0].type),
-        flags,
+        flags=flags,
     )
+    builder._insert(instr)
+    val_map[op.results[0]] = instr
 
 
 def _convert_call(
