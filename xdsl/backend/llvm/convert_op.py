@@ -58,6 +58,32 @@ def _convert_binop(
     )
 
 
+def _convert_alloca(
+    op: llvm.AllocaOp, builder: ir.IRBuilder, val_map: dict[SSAValue, ir.Value]
+):
+    alloca_instr = builder.alloca(convert_type(op.elem_type), size=val_map[op.size])
+    if op.alignment:
+        alloca_instr.align = op.alignment.value.data
+    val_map[op.results[0]] = alloca_instr
+
+
+def _convert_load(
+    op: llvm.LoadOp, builder: ir.IRBuilder, val_map: dict[SSAValue, ir.Value]
+):
+    load_instr = builder.load(val_map[op.ptr], typ=convert_type(op.results[0].type))
+    if op.alignment:
+        load_instr.align = op.alignment.value.data
+    val_map[op.results[0]] = load_instr
+
+
+def _convert_store(
+    op: llvm.StoreOp, builder: ir.IRBuilder, val_map: dict[SSAValue, ir.Value]
+):
+    store_instr = builder.store(val_map[op.value], val_map[op.ptr])
+    if op.alignment:
+        store_instr.align = op.alignment.value.data
+
+
 def _convert_inline_asm(
     op: llvm.InlineAsmOp, builder: ir.IRBuilder, val_map: dict[SSAValue, ir.Value]
 ):
@@ -109,28 +135,12 @@ def convert_op(
     match op:
         case op if type(op) in _BINARY_OP_MAP:
             _convert_binop(op, builder, val_map)
-        case llvm.InlineAsmOp():
-            _convert_inline_asm(op, builder, val_map)
-        case llvm.ReturnOp():
-            _convert_return(op, builder, val_map)
         case llvm.AllocaOp():
-            alloca_instr = builder.alloca(
-                convert_type(op.elem_type), size=val_map[op.size]
-            )
-            if op.alignment:
-                alloca_instr.align = op.alignment.value.data
-            val_map[op.results[0]] = alloca_instr
+            _convert_alloca(op, builder, val_map)
         case llvm.LoadOp():
-            load_instr = builder.load(
-                val_map[op.ptr], typ=convert_type(op.results[0].type)
-            )
-            if op.alignment:
-                load_instr.align = op.alignment.value.data
-            val_map[op.results[0]] = load_instr
+            _convert_load(op, builder, val_map)
         case llvm.StoreOp():
-            store_instr = builder.store(val_map[op.value], val_map[op.ptr])
-            if op.alignment:
-                store_instr.align = op.alignment.value.data
+            _convert_store(op, builder, val_map)
         case llvm.ExtractValueOp():
             val_map[op.results[0]] = builder.extract_value(
                 val_map[op.container], list(op.position.iter_values())
@@ -141,7 +151,11 @@ def convert_op(
                 val_map[op.value],
                 list(op.position.iter_values()),
             )
+        case llvm.InlineAsmOp():
+            _convert_inline_asm(op, builder, val_map)
         case llvm.UnreachableOp():
             builder.unreachable()
+        case llvm.ReturnOp():
+            _convert_return(op, builder, val_map)
         case _:
             raise NotImplementedError(f"Conversion not implemented for op: {op.name}")

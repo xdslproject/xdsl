@@ -299,26 +299,26 @@ builtin.module {
   // CHECK-NEXT: }
 
   llvm.func @alloca_op(%arg0: i32) {
-    %0 = "llvm.alloca"(%arg0) <{alignment = 32 : i64, elem_type = i32}> : (i32) -> !llvm.ptr
+    %0 = "llvm.alloca"(%arg0) <{elem_type = i32}> : (i32) -> !llvm.ptr
     llvm.return
   }
 
   // CHECK: define void @"alloca_op"(i32 %".1")
   // CHECK-NEXT: {
   // CHECK-NEXT: {{.[0-9]+}}:
-  // CHECK-NEXT:   {{%.+}} = alloca i32, i32 %".1", align 32
+  // CHECK-NEXT:   {{%.+}} = alloca i32, i32 %".1"
   // CHECK-NEXT:   ret void
   // CHECK-NEXT: }
 
-  llvm.func @alloca_op_no_alignment(%arg0: i32) {
-    %0 = "llvm.alloca"(%arg0) <{elem_type = i32}> : (i32) -> !llvm.ptr
+  llvm.func @alloca_op_with_alignment(%arg0: i32) {
+    %0 = "llvm.alloca"(%arg0) <{alignment = 32 : i64, elem_type = i32}> : (i32) -> !llvm.ptr
     llvm.return
   }
 
-  // CHECK: define void @"alloca_op_no_alignment"(i32 %".1")
+  // CHECK: define void @"alloca_op_with_alignment"(i32 %".1")
   // CHECK-NEXT: {
   // CHECK-NEXT: {{.[0-9]+}}:
-  // CHECK-NEXT:   {{%.+}} = alloca i32, i32 %".1"
+  // CHECK-NEXT:   {{%.+}} = alloca i32, i32 %".1", align 32
   // CHECK-NEXT:   ret void
   // CHECK-NEXT: }
 
