@@ -30,6 +30,101 @@ _BINARY_OP_MAP: dict[
 }
 
 
+def _convert_binop(
+    op: Operation, builder: ir.IRBuilder, val_map: dict[SSAValue, ir.Value]
+):
+    kwargs = {}
+    op_builder = _BINARY_OP_MAP[type(op)]
+
+    match op:
+        case llvm.ArithmeticBinOpOverflow():
+            if op.overflowFlags:
+                overflow_attr = llvm.OverflowAttr.from_int(op.overflowFlags.value.data)
+                kwargs["flags"] = [f.value for f in overflow_attr.data]
+        case llvm.AbstractFloatArithOp():
+            if op.fastmathFlags:
+                kwargs["flags"] = [f.value for f in op.fastmathFlags.data]
+        case llvm.ArithmeticBinOpExact():
+            if op.is_exact:
+                kwargs["flags"] = ["exact"]
+        case llvm.ArithmeticBinOpDisjoint():
+            if op.is_disjoint:
+                kwargs["flags"] = ["disjoint"]
+        case _:
+            pass
+
+    val_map[op.results[0]] = op_builder(builder)(
+        val_map[op.operands[0]], val_map[op.operands[1]], **kwargs
+    )
+
+
+_ICMP_PRED_MAP: dict[str, tuple[str, bool]] = {
+    "eq": ("==", True),
+    "ne": ("!=", True),
+    "slt": ("<", True),
+    "sle": ("<=", True),
+    "ult": ("<", False),
+    "ule": ("<=", False),
+    "sgt": (">", True),
+    "sge": (">=", True),
+    "ugt": (">", False),
+    "uge": (">=", False),
+}
+
+
+def _convert_icmp(
+    op: llvm.ICmpOp, builder: ir.IRBuilder, val_map: dict[SSAValue, ir.Value]
+):
+    predicate = op.predicate.value.data
+    flag = llvm.ICmpPredicateFlag.from_int(predicate)
+    pred_str = flag.value
+    llvm_pred, is_signed = _ICMP_PRED_MAP[pred_str]
+
+    target_func = builder.icmp_signed if is_signed else builder.icmp_unsigned
+    val_map[op.results[0]] = target_func(llvm_pred, val_map[op.lhs], val_map[op.rhs])
+
+
+def _convert_call(
+    op: llvm.CallOp, builder: ir.IRBuilder, val_map: dict[SSAValue, ir.Value]
+):
+    args = [val_map[arg] for arg in op.args]
+    if op.callee is None:
+        raise NotImplementedError("Indirect calls not yet implemented")
+    callee = builder.module.get_global(op.callee.string_value())
+    instruction = builder.call(
+        callee,
+        args,
+        cconv=op.CConv.cconv_name,
+        tail=op.TailCallKind.data != "none",
+        fastmath=[f.value for f in op.fastmathFlags.data],
+    )
+    if op.returned:
+        val_map[op.returned] = instruction
+
+
+def _convert_getelementptr(
+    op: llvm.GEPOp, builder: ir.IRBuilder, val_map: dict[SSAValue, ir.Value]
+) -> None:
+    # GEPOp mixes static and dynamic indices (placeholder for SSA values)
+    typed_ptr_ty = convert_type(op.elem_type).as_pointer()
+    casted_ptr = builder.bitcast(val_map[op.ptr], typed_ptr_ty)
+
+    ssa_indices = iter(op.ssa_indices)
+    indices = [
+        val_map[next(ssa_indices)]
+        if idx == llvm.GEP_USE_SSA_VAL
+        else ir.Constant(ir.IntType(32), idx)
+        for idx in op.rawConstantIndices.iter_values()
+    ]
+
+    val_map[op.results[0]] = builder.gep(
+        casted_ptr,
+        indices,
+        inbounds=op.inbounds is not None,
+        source_etype=convert_type(op.elem_type),
+    )
+
+
 def _convert_inline_asm(
     op: llvm.InlineAsmOp, builder: ir.IRBuilder, val_map: dict[SSAValue, ir.Value]
 ):
@@ -78,13 +173,15 @@ def convert_op(
     Raises:
         NotImplementedError: If the operation is not supported.
     """
-    if (op_builder := _BINARY_OP_MAP.get(type(op))) is not None:
-        val_map[op.results[0]] = op_builder(builder)(
-            val_map[op.operands[0]], val_map[op.operands[1]]
-        )
-        return
-
     match op:
+        case op if type(op) in _BINARY_OP_MAP:
+            _convert_binop(op, builder, val_map)
+        case llvm.ICmpOp():
+            _convert_icmp(op, builder, val_map)
+        case llvm.CallOp():
+            _convert_call(op, builder, val_map)
+        case llvm.GEPOp():
+            _convert_getelementptr(op, builder, val_map)
         case llvm.InlineAsmOp():
             _convert_inline_asm(op, builder, val_map)
         case llvm.ReturnOp():

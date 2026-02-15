@@ -1,9 +1,18 @@
-from typing import cast
+from typing import Literal, cast
 
-from xdsl.dialects import riscv, riscv_snitch, rv32
-from xdsl.dialects.builtin import I32, I64, IntegerAttr, i32
+from xdsl.dialects import riscv, riscv_snitch, rv32, rv64
+from xdsl.dialects.builtin import (
+    I32,
+    I64,
+    IntegerAttr,
+    IntegerType,
+    Signedness,
+    i32,
+    i64,
+)
 from xdsl.dialects.utils import FastMathFlag
 from xdsl.ir import OpResult, SSAValue
+from xdsl.irdl import irdl_to_attr_constraint
 from xdsl.pattern_rewriter import (
     PatternRewriter,
     RewritePattern,
@@ -196,7 +205,7 @@ class SubBySelf(RewritePattern):
             rewriter.replace_op(
                 op,
                 (
-                    zero := riscv.GetRegisterOp(riscv.Registers.ZERO),
+                    zero := rv32.GetRegisterOp(riscv.Registers.ZERO),
                     riscv.MVOp(zero.res, rd=rd, comment=op.comment),
                 ),
             )
@@ -578,7 +587,7 @@ class XorBySelf(RewritePattern):
             rewriter.replace_op(
                 op,
                 (
-                    zero := riscv.GetRegisterOp(riscv.Registers.ZERO),
+                    zero := rv32.GetRegisterOp(riscv.Registers.ZERO),
                     riscv.MVOp(zero.res, rd=rd, comment=op.comment),
                 ),
             )
@@ -627,29 +636,38 @@ class LoadImmediate0(RewritePattern):
 
         rd = op.rd.type
         if rd == riscv.Registers.ZERO:
-            rewriter.replace_op(op, riscv.GetRegisterOp(riscv.Registers.ZERO))
+            rewriter.replace_op(op, rv32.GetRegisterOp(riscv.Registers.ZERO))
         else:
             rewriter.replace_op(
                 op,
                 (
-                    zero := riscv.GetRegisterOp(riscv.Registers.ZERO),
+                    zero := rv32.GetRegisterOp(riscv.Registers.ZERO),
                     riscv.MVOp(zero.res, rd=rd, comment=op.comment),
                 ),
             )
 
 
-def get_constant_value(value: SSAValue) -> IntegerAttr[I32] | IntegerAttr[I64] | None:
-    if value.type == riscv.Registers.ZERO:
-        return IntegerAttr(0, i32)
+_I32_I64_CONSTRAINT = irdl_to_attr_constraint(
+    IntegerAttr[IntegerType[Literal[32, 64], Literal[Signedness.SIGNLESS]]]
+)
 
+
+def get_constant_value(
+    value: SSAValue,
+) -> IntegerAttr[I32] | IntegerAttr[I64] | None:
     if not isinstance(value, OpResult):
         return
+
+    if value.type == riscv.Registers.ZERO:
+        if isinstance(value.op, rv32.GetRegisterOp):
+            return IntegerAttr(0, i32)
+        elif isinstance(value.op, rv64.GetRegisterOp):
+            return IntegerAttr(0, i64)
 
     if isinstance(value.op, riscv.MVOp):
         return get_constant_value(value.op.rs)
 
-    constant_like = value.op.get_trait(ConstantLike)
-    if constant_like is not None:
-        result = constant_like.get_constant_value(value.op)
-        if isinstance(result, IntegerAttr):
-            return cast(IntegerAttr[I32] | IntegerAttr[I64], result)
+    if (
+        result := ConstantLike.get_constant_value(value)
+    ) is not None and _I32_I64_CONSTRAINT.verifies(result):
+        return cast(IntegerAttr[I32] | IntegerAttr[I64], result)

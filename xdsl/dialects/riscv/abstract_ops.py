@@ -1443,9 +1443,9 @@ class GetAnyRegisterOperation(
     One needs to do the following:
 
     ``` python
-    rhs = riscv.GetRegisterOp(Registers.s0).res
+    rhs = rv32.GetRegisterOp(Registers.s0).res
     riscv.JalOp("my_func")
-    lhs = riscv.GetRegisterOp(Registers.A0).res
+    lhs = rv32.GetRegisterOp(Registers.A0).res
     sum = riscv.AddOp(lhs, rhs, Registers.A0).rd
     ```
     """

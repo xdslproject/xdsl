@@ -575,28 +575,6 @@ class RiscvFunctions(InterpreterFunctions):
 
     # endregion
 
-    @impl(riscv.GetRegisterOp)
-    def run_get_register(
-        self, interpreter: Interpreter, op: riscv.GetRegisterOp, args: PythonValues
-    ) -> PythonValues:
-        attr = op.res.type
-
-        if not attr.is_allocated:
-            raise InterpretationError(
-                f"Cannot get value for unallocated register {attr}"
-            )
-
-        name = attr.register_name
-
-        registers = RiscvFunctions.registers(interpreter)
-
-        if name not in registers:
-            raise InterpretationError(f"Value not found for register name {name.data}")
-
-        stored_value = registers[name]
-
-        return (stored_value,)
-
     @impl(riscv.CustomAssemblyInstructionOp)
     def run_custom_instruction(
         self,

@@ -2328,8 +2328,8 @@ class CustomAssemblyInstructionOp(RISCVCustomFormatOperation, RISCVInstruction):
     During assembly emission, the results are printed before the operands:
 
     ``` python
-    s0 = riscv.GetRegisterOp(Registers.s0).res
-    s1 = riscv.GetRegisterOp(Registers.s1).res
+    s0 = rv32.GetRegisterOp(Registers.s0).res
+    s1 = rv32.GetRegisterOp(Registers.s1).res
     rs2 = riscv.Registers.s2
     rs3 = riscv.Registers.s3
     op = CustomAssemblyInstructionOp("my_instr", (s0, s1), (rs2, rs3))
@@ -2420,11 +2420,6 @@ class WfiOp(NullaryOperation):
 # endregion
 
 # region RISC-V SSA Helpers
-
-
-@irdl_op_definition
-class GetRegisterOp(GetAnyRegisterOperation[IntRegisterType]):
-    name = "riscv.get_register"
 
 
 @irdl_op_definition
@@ -3362,7 +3357,6 @@ RISCV = Dialect(
         WfiOp,
         CustomAssemblyInstructionOp,
         CommentOp,
-        GetRegisterOp,
         GetFloatRegisterOp,
         # Floating point
         FMVOp,
