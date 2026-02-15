@@ -15,6 +15,7 @@ from xdsl.backend.register_allocatable import (
 )
 from xdsl.backend.register_type import RegisterAllocatedMemoryEffect, RegisterType
 from xdsl.dialects.builtin import (
+    I32,
     IntegerAttr,
     IntegerType,
     ModuleOp,
@@ -726,9 +727,10 @@ class ImmShiftOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrai
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.riscv import (
             ShiftbyZero,
+            ShiftConstantFolding,
         )
 
-        return (ShiftbyZero(),)
+        return (ShiftbyZero(), ShiftConstantFolding())
 
 
 class RdRsImmShiftOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
@@ -787,6 +789,20 @@ class RdRsImmShiftOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
         printer.print_string(", ")
         print_immediate_value(printer, self.immediate)
         return {"immediate"}
+
+    @abstractmethod
+    def py_operation(self, rs1: IntegerAttr[I32]) -> IntegerAttr[I32] | None:
+        """
+        Performs a python function corresponding to this operation.
+
+        If `i := py_operation(rs1)` is an IntegerAttr[I32], then this operation can be
+        canonicalized to a constant with value `i` when the inputs are constants
+        with values `rs1`. The immediate value is retrieved from the `immediate` attribute of the operation.
+        """
+
+        raise NotImplementedError(
+            "RdRsImmShiftOperation py_operation is not yet implemented"
+        )
 
 
 class RdRsImmBitManipOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
