@@ -79,6 +79,49 @@ def _convert_cast(
         val_map[op.operands[0]], convert_type(op.results[0].type)
     )
 
+_ICMP_PRED_MAP: dict[str, tuple[str, bool]] = {
+    "eq": ("==", True),
+    "ne": ("!=", True),
+    "slt": ("<", True),
+    "sle": ("<=", True),
+    "ult": ("<", False),
+    "ule": ("<=", False),
+    "sgt": (">", True),
+    "sge": (">=", True),
+    "ugt": (">", False),
+    "uge": (">=", False),
+}
+
+
+def _convert_icmp(
+    op: llvm.ICmpOp, builder: ir.IRBuilder, val_map: dict[SSAValue, ir.Value]
+):
+    predicate = op.predicate.value.data
+    flag = llvm.ICmpPredicateFlag.from_int(predicate)
+    pred_str = flag.value
+    llvm_pred, is_signed = _ICMP_PRED_MAP[pred_str]
+
+    target_func = builder.icmp_signed if is_signed else builder.icmp_unsigned
+    val_map[op.results[0]] = target_func(llvm_pred, val_map[op.lhs], val_map[op.rhs])
+
+
+def _convert_call(
+    op: llvm.CallOp, builder: ir.IRBuilder, val_map: dict[SSAValue, ir.Value]
+):
+    args = [val_map[arg] for arg in op.args]
+    if op.callee is None:
+        raise NotImplementedError("Indirect calls not yet implemented")
+    callee = builder.module.get_global(op.callee.string_value())
+    instruction = builder.call(
+        callee,
+        args,
+        cconv=op.CConv.cconv_name,
+        tail=op.TailCallKind.data != "none",
+        fastmath=[f.value for f in op.fastmathFlags.data],
+    )
+    if op.returned:
+        val_map[op.returned] = instruction
+
 
 def _convert_inline_asm(
     op: llvm.InlineAsmOp, builder: ir.IRBuilder, val_map: dict[SSAValue, ir.Value]
@@ -133,6 +176,10 @@ def convert_op(
             _convert_binop(op, builder, val_map)
         case op if type(op) in _CAST_OP_MAP:
             _convert_cast(op, builder, val_map)
+        case llvm.ICmpOp():
+            _convert_icmp(op, builder, val_map)
+        case llvm.CallOp():
+            _convert_call(op, builder, val_map)
         case llvm.InlineAsmOp():
             _convert_inline_asm(op, builder, val_map)
         case llvm.ReturnOp():
