@@ -102,6 +102,29 @@ def _convert_call(
         val_map[op.returned] = instruction
 
 
+def _convert_getelementptr(
+    op: llvm.GEPOp, builder: ir.IRBuilder, val_map: dict[SSAValue, ir.Value]
+) -> None:
+    # GEPOp mixes static and dynamic indices (placeholder for SSA values)
+    typed_ptr_ty = convert_type(op.elem_type).as_pointer()
+    casted_ptr = builder.bitcast(val_map[op.ptr], typed_ptr_ty)
+
+    ssa_indices = iter(op.ssa_indices)
+    indices = [
+        val_map[next(ssa_indices)]
+        if idx == llvm.GEP_USE_SSA_VAL
+        else ir.Constant(ir.IntType(32), idx)
+        for idx in op.rawConstantIndices.iter_values()
+    ]
+
+    val_map[op.results[0]] = builder.gep(
+        casted_ptr,
+        indices,
+        inbounds=op.inbounds is not None,
+        source_etype=convert_type(op.elem_type),
+    )
+
+
 def _convert_inline_asm(
     op: llvm.InlineAsmOp, builder: ir.IRBuilder, val_map: dict[SSAValue, ir.Value]
 ):
@@ -157,6 +180,8 @@ def convert_op(
             _convert_icmp(op, builder, val_map)
         case llvm.CallOp():
             _convert_call(op, builder, val_map)
+        case llvm.GEPOp():
+            _convert_getelementptr(op, builder, val_map)
         case llvm.InlineAsmOp():
             _convert_inline_asm(op, builder, val_map)
         case llvm.ReturnOp():
