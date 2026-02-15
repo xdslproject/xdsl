@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Callable, Iterable, Iterator
+from collections.abc import Callable, Generator, Iterable
 from contextlib import AbstractContextManager, contextmanager
 from dataclasses import dataclass, field
 from typing import IO, Any
@@ -69,7 +69,7 @@ class BasePrinter:
             print_fn(elem)
 
     @contextmanager
-    def delimited(self, start: str, end: str) -> Iterator[None]:
+    def delimited(self, start: str, end: str) -> Generator[None, None, None]:
         self.print_string(start)
         yield
         self.print_string(end)
