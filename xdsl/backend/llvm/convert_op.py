@@ -79,6 +79,7 @@ def _convert_cast(
         val_map[op.operands[0]], convert_type(op.results[0].type)
     )
 
+
 _ICMP_PRED_MAP: dict[str, tuple[str, bool]] = {
     "eq": ("==", True),
     "ne": ("!=", True),
