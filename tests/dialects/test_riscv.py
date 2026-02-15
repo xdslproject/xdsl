@@ -276,25 +276,18 @@ def test_asm_section():
 
 def test_get_constant_value():
     # Test 32-bit LiOp
-    li_op = rv32.LiOp(1)
-    li_val = get_constant_value(li_op.rd)
-    assert li_val == IntegerAttr.from_int_and_width(1, 32)
-    # LiOp implements ConstantLikeInterface so it also has a get_constant_value method:
-    constantlike = li_op.get_trait(ConstantLike)
-    assert constantlike is not None
-    assert constantlike.get_constant_value(li_op) == IntegerAttr.from_int_and_width(
-        1, 32
-    )
+    one_32 = IntegerAttr.from_int_and_width(1, 32)
+    li_op_32 = rv32.LiOp(1)
+    li_val_32 = get_constant_value(li_op_32.rd)
+    assert li_val_32 == one_32
+    assert ConstantLike.get_constant_value(li_op_32.rd) == one_32
 
     # Test 64-bit LiOp
-    li_op_64 = rv64.LiOp(1)
-    li_val_64 = get_constant_value(li_op_64.rd)
-    assert li_val_64 == IntegerAttr.from_int_and_width(1, 64)
-    constantlike = li_op_64.get_trait(ConstantLike)
-    assert constantlike is not None
-    assert constantlike.get_constant_value(li_op_64) == IntegerAttr.from_int_and_width(
-        1, 64
-    )
+    one_rv64 = IntegerAttr.from_int_and_width(1, 64)
+    li_op_rv64 = rv64.LiOp(1)
+    li_val_rv64 = get_constant_value(li_op_rv64.rd)
+    assert li_val_rv64 == one_rv64
+    assert ConstantLike.get_constant_value(li_op_rv64.rd) == one_rv64
 
     zero_op = riscv.GetRegisterOp(riscv.Registers.ZERO)
     zero_val = get_constant_value(zero_op.res)
