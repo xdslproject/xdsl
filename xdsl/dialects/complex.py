@@ -19,7 +19,7 @@ from xdsl.dialects.builtin import (
     IntegerAttr,
     IntegerType,
 )
-from xdsl.interfaces import ConstantLikeInterface
+from xdsl.interfaces import HasFolderInterface
 from xdsl.ir import (
     Attribute,
     Dialect,
@@ -47,7 +47,7 @@ from xdsl.irdl import (
 )
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
-from xdsl.traits import Pure
+from xdsl.traits import ConstantLike, Pure
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
@@ -292,7 +292,7 @@ class ConjOp(ComplexUnaryComplexResultOperation):
 
 
 @irdl_op_definition
-class ConstantOp(IRDLOperation, ConstantLikeInterface):
+class ConstantOp(IRDLOperation, HasFolderInterface):
     name = "complex.constant"
     T: ClassVar = VarConstraint("T", AnyFloatConstr | base(IntegerType))
     value = prop_def(
@@ -312,15 +312,15 @@ class ConstantOp(IRDLOperation, ConstantLikeInterface):
     # have any complex result type, not just floating point:
     complex = result_def(ComplexType.constr(T))
 
-    traits = traits_def(Pure())
+    traits = traits_def(Pure(), ConstantLike())
 
     assembly_format = "$value attr-dict `:` type($complex)"
 
     def __init__(self, value: ArrayAttr, result_type: ComplexType):
         super().__init__(properties={"value": value}, result_types=[result_type])
 
-    def get_constant_value(self) -> Attribute:
-        return self.value
+    def fold(self) -> tuple[Attribute]:
+        return (self.value,)
 
     @staticmethod
     def from_floats(value: tuple[float, float], type: AnyFloat) -> ConstantOp:

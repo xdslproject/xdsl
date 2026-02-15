@@ -30,7 +30,7 @@ from xdsl.dialects.builtin import (
     VectorType,
 )
 from xdsl.dialects.utils import FastMathAttrBase, FastMathFlag
-from xdsl.interfaces import ConstantLikeInterface, HasFolderInterface
+from xdsl.interfaces import HasFolderInterface
 from xdsl.ir import (
     Attribute,
     BitEnumAttribute,
@@ -58,6 +58,7 @@ from xdsl.printer import Printer
 from xdsl.traits import (
     Commutative,
     ConditionallySpeculatable,
+    ConstantLike,
     HasCanonicalizationPatternsTrait,
     NoMemoryEffect,
     Pure,
@@ -137,7 +138,7 @@ class IntegerOverflowAttr(BitEnumAttribute[IntegerOverflowFlag]):
 
 
 @irdl_op_definition
-class ConstantOp(IRDLOperation, ConstantLikeInterface):
+class ConstantOp(IRDLOperation, HasFolderInterface):
     name = "arith.constant"
     _T: ClassVar = VarConstraint("T", AnyAttr())
     result = result_def(_T)
@@ -148,7 +149,7 @@ class ConstantOp(IRDLOperation, ConstantLikeInterface):
         | ParamAttrConstraint(DenseResourceAttr, (AnyAttr(), _T))
     )
 
-    traits = traits_def(Pure())
+    traits = traits_def(Pure(), ConstantLike())
 
     assembly_format = "attr-dict $value"
 
@@ -180,8 +181,8 @@ class ConstantOp(IRDLOperation, ConstantLikeInterface):
             },
         )
 
-    def get_constant_value(self) -> Attribute:
-        return self.value
+    def fold(self) -> Sequence[SSAValue | Attribute] | None:
+        return (self.value,)
 
 
 class SignlessIntegerBinaryOperation(IRDLOperation, HasFolderInterface, abc.ABC):
@@ -228,8 +229,8 @@ class SignlessIntegerBinaryOperation(IRDLOperation, HasFolderInterface, abc.ABC)
         return False
 
     def fold(self):
-        lhs = self.get_constant(self.lhs)
-        rhs = self.get_constant(self.rhs)
+        lhs = ConstantLike.get_constant_value(self.lhs)
+        rhs = ConstantLike.get_constant_value(self.rhs)
         if lhs is not None and rhs is not None:
             if isa(lhs, IntegerAttr) and isa(rhs, IntegerAttr):
                 assert lhs.type == rhs.type
