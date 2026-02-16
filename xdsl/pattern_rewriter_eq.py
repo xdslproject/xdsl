@@ -2,7 +2,8 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 
 from xdsl.builder import InsertOpInvT
-from xdsl.dialects import equivalence
+
+# from xdsl.dialects import equivalence
 from xdsl.eqsat_bookkeeper import Eqsat_Bookkeeper
 from xdsl.ir import Operation, SSAValue
 from xdsl.pattern_rewriter import PatternRewriter
@@ -38,17 +39,25 @@ class EquivalencePatternRewriter(PatternRewriter):
         if op == []:
             return op  # If op is an empty sequence, do nothing
 
-        raise NotImplementedError(
-            "Inserting a sequence of operations is not supported in EquivalencePatternRewriter yet."
-        )
+        # raise NotImplementedError(
+        #     "Inserting a sequence of operations is not supported in EquivalencePatternRewriter yet."
+        # )
         # op is of type Sequence[Operation] -> still need to work on this
-        # for o in op:
-        #    if o not in self.eqsat_bookkeeping.known_ops:
-        #        self.eqsat_bookkeeping.known_ops[o] = o
-        #        super().insert_op(o, insertion_point)
-        #    # if o is already known ignore it
-
-        # return op
+        for o in op:
+            if o not in self.eqsat_bookkeeping.known_ops:
+                self.eqsat_bookkeeping.known_ops[o] = o
+                super().insert_op(o, insertion_point)
+            # if o is already known
+            # if op uses an operand that was recently added to the known_ops, then replace the operand with the class result
+            for idx, m in enumerate(o.operands):
+                if (
+                    isinstance(m.owner, Operation)
+                    and m.owner in self.eqsat_bookkeeping.known_ops
+                ):
+                    class_res = self.eqsat_bookkeeping.run_get_class_result(m)
+                    if class_res is not None:
+                        o.operands[idx] = class_res
+        return op
         return super().insert_op(op, insertion_point)  # uncomment this later
 
     def replace_op(
@@ -65,12 +74,6 @@ class EquivalencePatternRewriter(PatternRewriter):
         Otherwise, replace its uses with ErasedSSAValue.
         """
         self.has_done_action = True
-
-        if isinstance(op, equivalence.AnyClassOp):
-            # if the old operator is itself an e-class, we want to erase this eclass and replace it with a merged one.
-            # this is called in eclass_union so new_ops is already the merged eclass
-            super().replace_op(op, new_ops, new_results, safe_erase)
-            return
 
         # First, insert the new operations before the matched operation
         self.insert_op(new_ops, InsertPoint.before(op))

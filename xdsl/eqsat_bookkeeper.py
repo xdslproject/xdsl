@@ -203,7 +203,9 @@ class Eqsat_Bookkeeper:
         eclass_a = self.get_or_create_class(rewriter, a)
         eclass_b = self.get_or_create_class(rewriter, b)
 
-        if self.eclass_union(rewriter, eclass_a, eclass_b):
+        if self.eclass_union(
+            PatternRewriter(rewriter.current_operation), eclass_a, eclass_b
+        ):
             self.worklist.append(eclass_a)
 
     def run_union(
