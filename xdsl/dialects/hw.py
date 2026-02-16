@@ -56,6 +56,7 @@ from xdsl.irdl import (
     lazy_traits_def,
     operand_def,
     opt_attr_def,
+    prop_def,
     region_def,
     result_def,
     traits_def,
@@ -1492,32 +1493,21 @@ class ConstantOp(IRDLOperation, ConstantLikeInterface):
     name = "hw.constant"
     _T: ClassVar = VarConstraint("T", AnyAttr())
     result = result_def(_T)
-    value = attr_def(IntegerAttr.constr((SignlessIntegerConstraint) & _T))
+    value = prop_def(IntegerAttr.constr((SignlessIntegerConstraint) & _T))
 
     assembly_format = "attr-dict $value"
 
     def __init__(
         self,
-        value: IntegerAttr,
-        value_type: Attribute | None = None,
-    ):
-        if value_type is None:
-            value_type = value.get_type()
-
-        super().__init__(
-            operands=[], result_types=[value_type], attributes={"value": value}
-        )
-
-    @staticmethod
-    def from_int_and_width(
         value: int | IntAttr,
         value_type: int | IntegerType,
         *,
         truncate_bits: bool = False,
-    ) -> ConstantOp:
+    ):
         if isinstance(value_type, int):
             value_type = IntegerType(value_type)
-        return ConstantOp.create(
+
+        super().__init__(
             result_types=[value_type],
             properties={
                 "value": IntegerAttr(value, value_type, truncate_bits=truncate_bits)
