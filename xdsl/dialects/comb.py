@@ -26,11 +26,11 @@ from xdsl.ir import Attribute, Dialect, Operation, SSAValue, TypeAttribute
 from xdsl.irdl import (
     IRDLOperation,
     VarConstraint,
-    attr_def,
     base,
     irdl_op_definition,
     operand_def,
-    opt_attr_def,
+    opt_prop_def,
+    prop_def,
     result_def,
     var_operand_def,
 )
@@ -60,7 +60,7 @@ class TwoStateOperation(IRDLOperation, ABC):
     languages. The two_state variable describes if we are using 2-state (binary) logic or not."
     """
 
-    two_state = opt_attr_def(UnitAttr, attr_name="twoState")
+    two_state = opt_prop_def(UnitAttr, prop_name="twoState")
 
     def __init__(
         self: TwoStateOperation,
@@ -71,14 +71,18 @@ class TwoStateOperation(IRDLOperation, ABC):
         ) = None,
         result_types: Sequence[Attribute | Sequence[Attribute] | None] | None = None,
         attributes: Mapping[str, Attribute | None] | None = None,
+        properties: Mapping[str, Attribute | None] | None = None,
         has_two_state_semantics: bool = False,
     ):
-        attrs: dict[str, Attribute | None] = {}
-        if attributes is not None:
-            attrs.update(attributes)
+        local_properties = dict(properties) if properties is not None else {}
         if has_two_state_semantics:
-            attrs["twoState"] = UnitAttr()
-        super().__init__(operands=operands, result_types=result_types, attributes=attrs)
+            local_properties.update({"twoState": UnitAttr()})
+        super().__init__(
+            operands=operands,
+            result_types=result_types,
+            attributes=attributes,
+            properties=local_properties,
+        )
 
     def print_optional_two_state_keyword(self, printer: Printer):
         if self.two_state is not None:
@@ -136,7 +140,7 @@ class BinCombOperation(TwoStateOperation, ABC):
         printer.print_ssa_value(self.lhs)
         printer.print_string(", ")
         printer.print_ssa_value(self.rhs)
-        printer.print_op_attributes(self.attributes, reserved_attr_names="twoState")
+        printer.print_op_attributes(self.attributes)
         printer.print_string(" : ")
         printer.print_attribute(self.result.type)
 
@@ -316,7 +320,7 @@ class ICmpOp(TwoStateOperation, ABC):
 
     T: ClassVar = VarConstraint("T", base(IntegerType))
 
-    predicate = attr_def(IntegerAttr[I64])
+    predicate = prop_def(IntegerAttr[I64])
     lhs = operand_def(T)
     rhs = operand_def(T)
     result = result_def(IntegerType(1))
@@ -358,14 +362,11 @@ class ICmpOp(TwoStateOperation, ABC):
         if not isinstance(arg, IntegerAttr):
             arg = IntegerAttr.from_int_and_width(arg, 64)
 
-        attrs: dict[str, Attribute] = {}
-        if attr_dict is not None:
-            attrs.update(attr_dict)
-        attrs["predicate"] = arg
         return super().__init__(
             operands=[operand1, operand2],
             result_types=[IntegerType(1)],
-            attributes=attrs,
+            attributes=attr_dict,
+            properties={"predicate": arg},
             has_two_state_semantics=has_two_state_semantics,
         )
 
@@ -391,9 +392,7 @@ class ICmpOp(TwoStateOperation, ABC):
         printer.print_operand(self.lhs)
         printer.print_string(", ")
         printer.print_operand(self.rhs)
-        printer.print_op_attributes(
-            self.attributes, reserved_attr_names=["twoState", "predicate"]
-        )
+        printer.print_op_attributes(self.attributes)
         printer.print_string(" : ")
         printer.print_attribute(self.lhs.type)
 
@@ -435,7 +434,7 @@ class ParityOp(TwoStateOperation):
         self.print_optional_two_state_keyword(printer)
         printer.print_string(" ")
         printer.print_ssa_value(self.input)
-        printer.print_op_attributes(self.attributes, reserved_attr_names="twoState")
+        printer.print_op_attributes(self.attributes)
         printer.print_string(" : ")
         printer.print_attribute(self.result.type)
 
@@ -455,7 +454,7 @@ class ExtractOp(IRDLOperation):
     name = "comb.extract"
 
     input = operand_def(IntegerType)
-    low_bit = attr_def(IntegerAttr[I32], attr_name="lowBit")
+    low_bit = prop_def(IntegerAttr[I32], prop_name="lowBit")
     result = result_def(IntegerType)
 
     def __init__(
@@ -465,15 +464,12 @@ class ExtractOp(IRDLOperation):
         result_type: IntegerType,
         attr_dict: dict[str, Attribute] | None = None,
     ):
-        attrs: dict[str, Attribute] = {}
-        if attr_dict is not None:
-            attrs.update(attr_dict)
-        attrs["lowBit"] = low_bit
         operand = SSAValue.get(operand)
         return super().__init__(
-            attributes=attrs,
             operands=[operand],
             result_types=[result_type],
+            properties={"lowBit": low_bit},
+            attributes=attr_dict,
         )
 
     def verify_(self) -> None:
@@ -515,7 +511,7 @@ class ExtractOp(IRDLOperation):
         printer.print_string(" ")
         printer.print_ssa_value(self.input)
         printer.print_string(f" from {self.low_bit.value.data}")
-        printer.print_op_attributes(self.attributes, reserved_attr_names="lowBit")
+        printer.print_op_attributes(self.attributes)
         printer.print_string(" :  ")
         printer.print_function_type([self.input.type], [self.result.type])
 
@@ -701,7 +697,7 @@ class MuxOp(TwoStateOperation):
         printer.print_operand(self.true_value)
         printer.print_string(", ")
         printer.print_operand(self.false_value)
-        printer.print_op_attributes(self.attributes, reserved_attr_names="twoState")
+        printer.print_op_attributes(self.attributes)
         printer.print_string(" : ")
         printer.print_attribute(self.result.type)
 
