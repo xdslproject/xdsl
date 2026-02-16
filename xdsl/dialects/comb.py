@@ -201,7 +201,7 @@ class VariadicCombOperation(TwoStateOperation, ABC):
         self.print_optional_two_state_keyword(printer)
         printer.print_string(" ")
         printer.print_list(self.inputs, printer.print_ssa_value)
-        printer.print_op_attributes(self.attributes, reserved_attr_names="twoState")
+        printer.print_op_attributes(self.attributes)
         printer.print_string(" : ")
         printer.print_attribute(self.result.type)
 
