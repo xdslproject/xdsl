@@ -32,7 +32,7 @@ from xdsl.dialects.builtin import (
     SymbolNameConstraint,
     SymbolRefAttr,
 )
-from xdsl.interfaces import ConstantLikeInterface
+from xdsl.interfaces import HasFolderInterface
 from xdsl.ir import (
     Attribute,
     Data,
@@ -66,10 +66,12 @@ from xdsl.irdl import (
 from xdsl.parser import AttrParser, BaseParser, Parser
 from xdsl.printer import Printer
 from xdsl.traits import (
+    ConstantLike,
     HasParent,
     IsolatedFromAbove,
     IsTerminator,
     OpTrait,
+    Pure,
     SingleBlockImplicitTerminator,
     SymbolOpInterface,
     SymbolTable,
@@ -1489,13 +1491,15 @@ class BitcastOp(IRDLOperation):
 
 
 @irdl_op_definition
-class ConstantOp(IRDLOperation, ConstantLikeInterface):
+class ConstantOp(IRDLOperation, HasFolderInterface):
     name = "hw.constant"
     _T: ClassVar = VarConstraint("T", AnyAttr())
     result = result_def(_T)
     value = prop_def(IntegerAttr.constr((SignlessIntegerConstraint) & _T))
 
     assembly_format = "attr-dict $value"
+
+    traits = traits_def(Pure(), ConstantLike())
 
     def __init__(
         self,
@@ -1514,8 +1518,8 @@ class ConstantOp(IRDLOperation, ConstantLikeInterface):
             },
         )
 
-    def get_constant_value(self) -> Attribute:
-        return self.value
+    def fold(self) -> tuple[Attribute]:
+        return (self.value,)
 
 
 HW = Dialect(
