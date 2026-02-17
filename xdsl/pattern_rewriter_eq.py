@@ -2,8 +2,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 
 from xdsl.builder import InsertOpInvT
-
-# from xdsl.dialects import equivalence
+from xdsl.dialects import equivalence
 from xdsl.eqsat_bookkeeper import Eqsat_Bookkeeper
 from xdsl.ir import Operation, SSAValue
 from xdsl.pattern_rewriter import PatternRewriter
@@ -25,40 +24,31 @@ class EquivalencePatternRewriter(PatternRewriter):
         insertion_point: InsertPoint | None = None,
     ) -> InsertOpInvT:
         """Insert operations at a certain location in a block."""
+        ops = [op] if isinstance(op, Operation) else op
 
-        # Only perform hash-consing for single operations, not sequences
-        if isinstance(op, Operation):
-            if op in self.eqsat_bookkeeping.known_ops:
-                return self.eqsat_bookkeeping.known_ops[op]  # type: ignore
+        for o in ops:
+            # before we just insert this operation, we need to check for each of its operands,
+            # if it already has an e-class, use that one if it exists
+            if not isinstance(o, equivalence.AnyClassOp):
+                for i, operand in enumerate(tuple(o.operands)):
+                    new_operand = self.eqsat_bookkeeping.run_get_class_result(operand)
+                    if new_operand is not None and new_operand != operand:
+                        o.operands[i] = new_operand
 
-            # op not in known_ops
-            self.eqsat_bookkeeping.known_ops[op] = op
-
-            return super().insert_op(op, insertion_point)
-
-        if op == []:
-            return op  # If op is an empty sequence, do nothing
-
-        # raise NotImplementedError(
-        #     "Inserting a sequence of operations is not supported in EquivalencePatternRewriter yet."
-        # )
-        # op is of type Sequence[Operation] -> still need to work on this
-        for o in op:
             if o not in self.eqsat_bookkeeping.known_ops:
                 self.eqsat_bookkeeping.known_ops[o] = o
                 super().insert_op(o, insertion_point)
-            # if o is already known
-            # if op uses an operand that was recently added to the known_ops, then replace the operand with the class result
-            for idx, m in enumerate(o.operands):
-                if (
-                    isinstance(m.owner, Operation)
-                    and m.owner in self.eqsat_bookkeeping.known_ops
+            else:  # o is already known, do not insert it
+                for old, new in zip(
+                    o.results, self.eqsat_bookkeeping.known_ops[o].results
                 ):
-                    class_res = self.eqsat_bookkeeping.run_get_class_result(m)
-                    if class_res is not None:
-                        o.operands[idx] = class_res
-        return op
-        return super().insert_op(op, insertion_point)  # uncomment this later
+                    new = self.eqsat_bookkeeping.run_get_class_result(new)
+                    if old != new:
+                        super().replace_all_uses_with(old, new)
+
+        if isinstance(op, Operation):
+            return self.eqsat_bookkeeping.known_ops[op]
+        return [self.eqsat_bookkeeping.known_ops[op] for op in ops]  # pyright: ignore[reportReturnType]
 
     def replace_op(
         self,

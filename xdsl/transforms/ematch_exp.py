@@ -38,12 +38,12 @@ class ExpandExp(RewritePattern):
 
 def expand_exp(op: math.ExpOp, rewriter: PatternRewriter, terms: int) -> Operation:
     """
-    Expand exp(x) using the Taylor-series loop from the C code:
+    Expand exp(x) using the Taylor-series loop from the pseudo code:
 
         terms = 75
         result = 1.0
         term = 1.0
-        for i = 1 .. terms-1:
+        for i in range(1, terms):
             term *= x / i
             result += term
         return result

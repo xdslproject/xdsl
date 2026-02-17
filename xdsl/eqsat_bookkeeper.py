@@ -131,6 +131,10 @@ class Eqsat_Bookkeeper:
                 leader = self.eclass_union_find.find(user)
                 return leader.result
 
+        for use in val.uses:
+            if isinstance(use.operation, equivalence.AnyClassOp):
+                leader = self.eclass_union_find.find(use.operation)
+                return leader.result
         return val
 
     def run_get_class_results(
