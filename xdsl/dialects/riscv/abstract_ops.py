@@ -733,7 +733,7 @@ class ImmShiftOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrai
         return (ShiftbyZero(), ShiftConstantFolding())
 
 
-class RdRsImmShiftOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
+class RdRsImmShiftOperation(RISCVInstruction, ABC):
     """
     A base class for RISC-V operations that have one destination register, one source
     register and one immediate operand.
@@ -749,21 +749,23 @@ class RdRsImmShiftOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
 
     rd = result_def(IntRegisterType)
     rs1 = operand_def(IntRegisterType)
-    immediate = attr_def(IntegerAttr[UI5] | LabelAttr)
+    immediate = attr_def(IntegerAttr[UI5])
     traits = traits_def(ImmShiftOpHasCanonicalizationPatternsTrait())
+
+    assembly_format = (
+        "$rs1 `,` $immediate attr-dict `:` `(` type($rs1) `)` `->` type($rd)"
+    )
 
     def __init__(
         self,
         rs1: Operation | SSAValue,
-        immediate: int | IntegerAttr[UI5] | str | LabelAttr,
+        immediate: int | IntegerAttr[UI5],
         *,
         rd: IntRegisterType = Registers.UNALLOCATED_INT,
         comment: str | StringAttr | None = None,
     ):
         if isinstance(immediate, int):
             immediate = IntegerAttr(immediate, ui5)
-        elif isinstance(immediate, str):
-            immediate = LabelAttr(immediate)
 
         if isinstance(comment, str):
             comment = StringAttr(comment)
@@ -778,17 +780,6 @@ class RdRsImmShiftOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
         return self.rd, self.rs1, self.immediate
-
-    @classmethod
-    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
-        attributes = dict[str, Attribute]()
-        attributes["immediate"] = parse_immediate_value(parser, ui5)
-        return attributes
-
-    def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
-        printer.print_string(", ")
-        print_immediate_value(printer, self.immediate)
-        return {"immediate"}
 
     @abstractmethod
     def py_operation(self, rs1: IntegerAttr[I32]) -> IntegerAttr[I32] | None:

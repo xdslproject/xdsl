@@ -306,7 +306,7 @@ class ShiftbyZero(RewritePattern):
         self, op: riscv.RdRsImmShiftOperation, rewriter: PatternRewriter
     ) -> None:
         # check if the shift amount is zero
-        if isinstance(op.immediate, IntegerAttr) and op.immediate.value.data == 0:
+        if op.immediate.value.data == 0:
             rewriter.replace_op(op, riscv.MVOp(op.rs1, rd=op.rd.type))
 
 

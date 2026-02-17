@@ -23,13 +23,16 @@ from xdsl.dialects.builtin import (
     FlatSymbolRefAttr,
     FlatSymbolRefAttrConstr,
     IntAttr,
+    IntegerAttr,
     IntegerType,
     LocationAttr,
     Signedness,
+    SignlessIntegerConstraint,
     StringAttr,
     SymbolNameConstraint,
     SymbolRefAttr,
 )
+from xdsl.interfaces import HasFolderInterface
 from xdsl.ir import (
     Attribute,
     Data,
@@ -53,6 +56,7 @@ from xdsl.irdl import (
     lazy_traits_def,
     operand_def,
     opt_attr_def,
+    prop_def,
     region_def,
     result_def,
     traits_def,
@@ -62,10 +66,12 @@ from xdsl.irdl import (
 from xdsl.parser import AttrParser, BaseParser, Parser
 from xdsl.printer import Printer
 from xdsl.traits import (
+    ConstantLike,
     HasParent,
     IsolatedFromAbove,
     IsTerminator,
     OpTrait,
+    Pure,
     SingleBlockImplicitTerminator,
     SymbolOpInterface,
     SymbolTable,
@@ -1484,6 +1490,38 @@ class BitcastOp(IRDLOperation):
         )
 
 
+@irdl_op_definition
+class ConstantOp(IRDLOperation, HasFolderInterface):
+    name = "hw.constant"
+    _T: ClassVar = VarConstraint("T", AnyAttr())
+    result = result_def(_T)
+    value = prop_def(IntegerAttr.constr((SignlessIntegerConstraint) & _T))
+
+    assembly_format = "attr-dict $value"
+
+    traits = traits_def(Pure(), ConstantLike())
+
+    def __init__(
+        self,
+        value: int | IntAttr,
+        value_type: int | IntegerType,
+        *,
+        truncate_bits: bool = False,
+    ):
+        if isinstance(value_type, int):
+            value_type = IntegerType(value_type)
+
+        super().__init__(
+            result_types=[value_type],
+            properties={
+                "value": IntegerAttr(value, value_type, truncate_bits=truncate_bits)
+            },
+        )
+
+    def fold(self) -> tuple[Attribute]:
+        return (self.value,)
+
+
 HW = Dialect(
     "hw",
     [
@@ -1493,6 +1531,7 @@ HW = Dialect(
         HWModuleExternOp,
         HWModuleOp,
         InstanceOp,
+        ConstantOp,
         OutputOp,
     ],
     [
