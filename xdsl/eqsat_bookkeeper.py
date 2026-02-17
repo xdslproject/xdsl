@@ -124,12 +124,14 @@ class Eqsat_Bookkeeper:
             return val
 
         assert isa(val, SSAValue)
-
+        # ---
+        # this statement is redundant
         if val.has_one_use():
             user = val.get_user_of_unique_use()
             if isinstance(user, equivalence.AnyClassOp):
                 leader = self.eclass_union_find.find(user)
                 return leader.result
+        # ---
 
         for use in val.uses:
             if isinstance(use.operation, equivalence.AnyClassOp):
