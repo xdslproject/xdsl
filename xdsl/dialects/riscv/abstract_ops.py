@@ -782,7 +782,7 @@ class RdRsImmShiftOperation(RISCVInstruction, ABC):
         return self.rd, self.rs1, self.immediate
 
     @abstractmethod
-    def py_operation(self, rs1: IntegerAttr[I32]) -> IntegerAttr[I32] | None:
+    def py_operation(self, rs1: IntegerAttr[I32]) -> IntegerAttr[I32]:
         """
         Performs a python function corresponding to this operation.
 

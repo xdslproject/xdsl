@@ -323,8 +323,7 @@ class ShiftConstantFolding(RewritePattern):
             rd = op.rd.type
             val = cast(IntegerAttr[I32], rs1)
             result = op.py_operation(val)
-            if result is not None:
-                rewriter.replace_op(op, rv32.LiOp(result, rd=rd))
+            rewriter.replace_op(op, rv32.LiOp(result, rd=rd))
 
 
 class LoadWordWithKnownOffset(RewritePattern):
