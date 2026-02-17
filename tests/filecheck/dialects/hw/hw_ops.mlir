@@ -33,5 +33,7 @@
 
   %ic = hw.bitcast %test : (!hw.array<6xi7>) -> !hw.array<7xi6>
   // CHECK: %ic = hw.bitcast %test : (!hw.array<6xi7>) -> !hw.array<7xi6>
-
+  
+  %constant = hw.constant 32 : i32
+  // CHECK: %constant = hw.constant 32 : i32
 }) : () -> ()
