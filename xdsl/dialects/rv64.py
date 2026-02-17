@@ -22,6 +22,7 @@ from xdsl.dialects.riscv import (
     parse_immediate_value,
     print_immediate_value,
 )
+from xdsl.dialects.riscv.abstract_ops import GetAnyRegisterOperation
 from xdsl.dialects.riscv.ops import LiOpHasCanonicalizationPatternTrait
 from xdsl.interfaces import HasFolderInterface
 from xdsl.ir import (
@@ -111,8 +112,16 @@ class LiOp(RISCVCustomFormatOperation, RISCVInstruction, HasFolderInterface, ABC
         printer.print_attribute(self.rd.type)
 
 
+@irdl_op_definition
+class GetRegisterOp(GetAnyRegisterOperation[IntRegisterType]):
+    name = "rv64.get_register"
+
+
 RV64 = Dialect(
     "rv64",
-    [LiOp],
+    [
+        LiOp,
+        GetRegisterOp,
+    ],
     [],
 )

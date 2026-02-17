@@ -347,6 +347,82 @@ builtin.module {
   // CHECK-NEXT:   {{%.+}} = trunc {{(nsw nuw|nuw nsw)}} i64 %".2" to i32
   // CHECK-NEXT:   {{%.+}} = zext i32 %".1" to i64
   // CHECK-NEXT:   {{%.+}} = zext nneg i32 %".1" to i64
+  // void gep_constant(int* ptr) {
+  //   int* result = &ptr[1][2];
+  // }
+  llvm.func @gep_constant(%arg0 : !llvm.ptr) {
+    %0 = "llvm.getelementptr"(%arg0) <{
+      elem_type = i32,
+      rawConstantIndices = array<i32: 1, 2>,
+      noWrapFlags = 0 : i32
+    }> : (!llvm.ptr) -> !llvm.ptr
+    llvm.return
+  }
+
+  // CHECK: define void @"gep_constant"(ptr %".1")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT:   {{%.+}} = getelementptr i32, ptr %".1", i32 1, i32 2
+  // CHECK-NEXT:   ret void
+  // CHECK-NEXT: }
+
+  // void gep_ssa(int* ptr, int index) {
+  //   int* result = &ptr[index];
+  // }
+  llvm.func @gep_ssa(%arg0 : !llvm.ptr, %arg1 : i32) {
+    %0 = "llvm.getelementptr"(%arg0, %arg1) <{
+      elem_type = i32,
+      rawConstantIndices = array<i32: -2147483648>, // magic constant 0x80000000 (placeholder for ssa value)
+      noWrapFlags = 0 : i32
+    }> : (!llvm.ptr, i32) -> !llvm.ptr
+    llvm.return
+  }
+
+  // CHECK: define void @"gep_ssa"(ptr %".1", i32 %".2")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT:   {{%.+}} = getelementptr i32, ptr %".1", i32 %".2"
+  // CHECK-NEXT:   ret void
+  // CHECK-NEXT: }
+
+  // void gep_mixed(int* ptr, int i, int j) {
+  //   // e.g. ptr[1].some_array[i].some_struct[2].some_data[j]
+  //   int* result = &ptr[1][i][2][j];
+  // }
+  llvm.func @gep_mixed(%arg0 : !llvm.ptr, %arg1 : i32, %arg2 : i32) {
+    %0 = "llvm.getelementptr"(%arg0, %arg1, %arg2) <{
+      elem_type = i32,
+      rawConstantIndices = array<i32: 1, -2147483648, 2, -2147483648>,
+      noWrapFlags = 0 : i32
+    }> : (!llvm.ptr, i32, i32) -> !llvm.ptr
+    llvm.return
+  }
+
+  // CHECK: define void @"gep_mixed"(ptr %".1", i32 %".2", i32 %".3")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT:   {{%.+}} = getelementptr i32, ptr %".1", i32 1, i32 %".2", i32 2, i32 %".3"
+  // CHECK-NEXT:   ret void
+  // CHECK-NEXT: }
+
+  // void gep_inbounds(int* ptr, int idx) {
+  //   // same as gep_ssa, but we assume that 'ptr + idx' stays within the same 'object'
+  //   int* result = &ptr[idx]; 
+  // }
+  llvm.func @gep_inbounds(%arg0 : !llvm.ptr, %arg1 : i32) {
+    %0 = "llvm.getelementptr"(%arg0, %arg1) <{
+      elem_type = i32,
+      rawConstantIndices = array<i32: -2147483648>,
+      inbounds,
+      noWrapFlags = 0 : i32
+    }> : (!llvm.ptr, i32) -> !llvm.ptr
+    llvm.return
+  }
+
+  // CHECK: define void @"gep_inbounds"(ptr %".1", i32 %".2")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT:   {{%.+}} = getelementptr inbounds i32, ptr %".1", i32 %".2"
   // CHECK-NEXT:   ret void
   // CHECK-NEXT: }
 
