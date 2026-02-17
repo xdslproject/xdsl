@@ -319,9 +319,7 @@ class ShiftConstantFolding(RewritePattern):
     def match_and_rewrite(
         self, op: riscv.RdRsImmShiftOperation, rewriter: PatternRewriter
     ) -> None:
-        if (rs1 := get_constant_value(op.rs1)) is not None and isinstance(
-            op.immediate, IntegerAttr
-        ):
+        if (rs1 := get_constant_value(op.rs1)) is not None:
             rd = op.rd.type
             val = cast(IntegerAttr[I32], rs1)
             result = op.py_operation(val)
