@@ -887,7 +887,7 @@ class CmpiOp(ComparisonOperation):
         super().__init__(
             operands=[operand1, operand2],
             result_types=[IntegerType(1)],
-            properties={"predicate": IntegerAttr.from_int_and_width(arg, 64)},
+            properties={"predicate": IntegerAttr(arg, 64)},
         )
 
     @classmethod
@@ -989,7 +989,7 @@ class CmpfOp(ComparisonOperation):
             operands=[operand1, operand2],
             result_types=[IntegerType(1)],
             properties={
-                "predicate": IntegerAttr.from_int_and_width(arg, 64),
+                "predicate": IntegerAttr(arg, 64),
                 "fastmath": fastmath,
             },
         )

@@ -108,7 +108,7 @@ def test_build_pattern():
 
     pattern = pdl.PatternOp(1, "pattern", body)
 
-    assert pattern.benefit == IntegerAttr.from_int_and_width(1, 16)
+    assert pattern.benefit == IntegerAttr(1, 16)
     assert pattern.sym_name == StringAttr("pattern")
     assert pattern.body is body
 
@@ -142,9 +142,9 @@ def test_build_pattern():
 
 
 def test_build_result():
-    res = pdl.ResultOp(IntegerAttr.from_int_and_width(1, 32), parent=op_val)
+    res = pdl.ResultOp(IntegerAttr(1, 32), parent=op_val)
 
-    assert res.index == IntegerAttr.from_int_and_width(1, 32)
+    assert res.index == IntegerAttr(1, 32)
     assert res.parent_ == op_val
 
 
@@ -157,18 +157,18 @@ def test_build_resultS():
 
 
 def test_build_results_with_index():
-    res = pdl.ResultsOp(op_val, IntegerAttr.from_int_and_width(1, 32))
+    res = pdl.ResultsOp(op_val, IntegerAttr(1, 32))
 
     assert res.parent_ == op_val
-    assert res.index == IntegerAttr.from_int_and_width(1, 32)
+    assert res.index == IntegerAttr(1, 32)
     assert res.val.type == pdl.RangeType(pdl.ValueType())
 
 
 def test_build_results_with_index_and_type():
-    res = pdl.ResultsOp(op_val, IntegerAttr.from_int_and_width(1, 32), pdl.ValueType())
+    res = pdl.ResultsOp(op_val, IntegerAttr(1, 32), pdl.ValueType())
 
     assert res.parent_ == op_val
-    assert res.index == IntegerAttr.from_int_and_width(1, 32)
+    assert res.index == IntegerAttr(1, 32)
     assert res.val.type == pdl.ValueType()
 
 

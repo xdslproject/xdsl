@@ -304,7 +304,7 @@ class ICmpOp(IRDLOperation, ABC):
             }
             arg = ICmpOp._get_comparison_predicate(arg, cmpi_comparison_operations)
         if not isinstance(arg, IntegerAttr):
-            arg = IntegerAttr.from_int_and_width(arg, 64)
+            arg = IntegerAttr(arg, 64)
 
         attrs: dict[str, Attribute] = {"predicate": arg}
         if has_two_state_semantics:

@@ -15,6 +15,8 @@ from xdsl.dialects.builtin import (
     StringAttr,
     SymbolRefAttr,
     UnitAttr,
+    i16,
+    i32,
 )
 from xdsl.dialects.pdl import (
     AnyPDLTypeConstr,
@@ -58,7 +60,7 @@ class GetResultOp(IRDLOperation):
 
     def __init__(self, index: int | IntegerAttr[I32], input_op: SSAValue) -> None:
         if isinstance(index, int):
-            index = IntegerAttr.from_int_and_width(index, 32)
+            index = IntegerAttr(index, i32)
         super().__init__(
             operands=[input_op], properties={"index": index}, result_types=[ValueType()]
         )
@@ -85,7 +87,7 @@ class GetResultsOp(IRDLOperation):
         result_type: ValueType | RangeType[ValueType],
     ) -> None:
         if isinstance(index, int):
-            index = IntegerAttr.from_int_and_width(index, 32)
+            index = IntegerAttr(index, i32)
         super().__init__(
             operands=[input_op],
             properties={"index": index},
@@ -96,7 +98,7 @@ class GetResultsOp(IRDLOperation):
     def parse(cls, parser: Parser) -> GetResultsOp:
         index = parser.parse_optional_integer()
         if index is not None:
-            index = IntegerAttr.from_int_and_width(index, 32)
+            index = IntegerAttr(index, 32)
         parser.parse_characters("of")
         input_op = parser.parse_operand()
         parser.parse_punctuation(":")
@@ -365,7 +367,7 @@ class RecordMatchOp(IRDLOperation):
         if isinstance(root_kind, str):
             root_kind = StringAttr(root_kind)
         if isinstance(benefit, int):
-            benefit = IntegerAttr.from_int_and_width(benefit, 16)
+            benefit = IntegerAttr(benefit, i16)
         super().__init__(
             operands=[inputs, matched_ops],
             properties={
