@@ -3,7 +3,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 
 from xdsl.context import Context
-from xdsl.dialects import arith, builtin, riscv, riscv_snitch, snitch_runtime
+from xdsl.dialects import arith, builtin, riscv, riscv_snitch, rv32, snitch_runtime
 from xdsl.dialects.builtin import IntegerAttr
 from xdsl.ir import Operation, SSAValue
 from xdsl.passes import ModulePass
@@ -57,7 +57,7 @@ class LowerClusterHWBarrier(RewritePattern):
         rewriter.replace_op(
             op,
             [
-                zero := riscv.GetRegisterOp(riscv.Registers.ZERO),
+                zero := rv32.GetRegisterOp(riscv.Registers.ZERO),
                 riscv.CsrrsOp(
                     rd=riscv.Registers.ZERO,
                     rs1=zero,
@@ -115,7 +115,7 @@ class LowerDMAStart1D(RewritePattern):
         rewriter.replace_op(
             op,
             [
-                zero := riscv.GetRegisterOp(riscv.Registers.ZERO),
+                zero := rv32.GetRegisterOp(riscv.Registers.ZERO),
                 # "Take a void* (assumed 32bit) and make it a 32 bit-wide RISC-V register"
                 i32_dst := builtin.UnrealizedConversionCastOp.get(
                     [op.dst],
@@ -405,7 +405,7 @@ class LowerDMAStart2D(LowerDMAStart2DBase):
         rewriter.insert_op(
             [
                 # we use zero register for the ptr_high registers
-                zero := riscv.GetRegisterOp(riscv.Registers.ZERO),
+                zero := rv32.GetRegisterOp(riscv.Registers.ZERO),
                 dst := self.cast_i32(op.dst),
                 src := self.cast_i32(op.src),
                 src_stride := self.cast_i32(op.src_stride),
@@ -644,7 +644,7 @@ class LowerGlobalCoreIdx(RewritePattern):
         rewriter.replace_op(
             op,
             [
-                zero := riscv.GetRegisterOp(riscv.Registers.ZERO),
+                zero := rv32.GetRegisterOp(riscv.Registers.ZERO),
                 hartid := riscv.CsrrsOp(zero, IntegerAttr(0xF14, 12), readonly=True),
                 hartid_i32 := builtin.UnrealizedConversionCastOp.get(
                     [hartid], [builtin.i32]

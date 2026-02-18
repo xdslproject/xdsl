@@ -10,7 +10,7 @@ def _():
     from xdsl.utils import marimo as xmo
     from xdsl.ir import Block, Region
     from xdsl.builder import Builder, InsertPoint
-    from xdsl.dialects import builtin, riscv, riscv_cf, riscv_func
+    from xdsl.dialects import builtin, riscv, riscv_cf, riscv_func, rv32
     from xdsl.printer import Printer
     from xdsl.parser import Parser
     from xdsl.context import Context
@@ -28,6 +28,7 @@ def _():
         riscv,
         riscv_cf,
         riscv_func,
+        rv32,
         xmo,
     )
 
@@ -314,7 +315,7 @@ def _(mo):
 def _(Parser, ctx, xmo):
     switch_ir = """\
     riscv_func.func @switch(%a : !riscv.reg<a0>, %b : !riscv.reg<a1>, %c : !riscv.reg<a2>) -> !riscv.reg<a0> {
-      %zero = riscv.get_register : !riscv.reg<zero>
+      %zero = rv32.get_register : !riscv.reg<zero>
       riscv_cf.beq %a : !riscv.reg<a0>, %zero : !riscv.reg<zero>, ^bb2(), ^bb1()
     ^bb1():
       %res_b = riscv.mv %b : (!riscv.reg<a1>) -> !riscv.reg<a0>
@@ -435,7 +436,7 @@ def _(comment_only_line, fib_text):
 def _(mo):
     fib_editor = mo.ui.code_editor("""\
     riscv_func.func @fib(%num : !riscv.reg<a0>) -> !riscv.reg<a0> {
-      %zero = riscv.get_register : !riscv.reg<zero>
+      %zero = rv32.get_register : !riscv.reg<zero>
       riscv_cf.bge %zero: !riscv.reg<zero>, %num :!riscv.reg<a0>, ^bb4(), ^bb1()
     ^bb1():
       %a_init = rv32.li 1 : !riscv.reg<a2>
@@ -501,7 +502,7 @@ def _():
 
     _ = """\
     riscv_func.func @fib(%num : !riscv.reg<a0>) -> !riscv.reg<a0> {
-      %zero = riscv.get_register : !riscv.reg<zero>
+      %zero = rv32.get_register : !riscv.reg<zero>
       riscv_cf.bge %zero: !riscv.reg<zero>, %num :!riscv.reg<a0>, ^bb4(), ^bb1()
     ^bb1():
       %a_init = rv32.li 1 : !riscv.reg<a2>
@@ -528,12 +529,13 @@ def _():
 
 
 @app.cell(hide_code=True)
-def _(Context, builtin, riscv, riscv_cf, riscv_func):
+def _(Context, builtin, riscv, riscv_cf, riscv_func, rv32):
     ctx = Context()
     ctx.load_dialect(builtin.Builtin)
     ctx.load_dialect(riscv.RISCV)
     ctx.load_dialect(riscv_cf.RISCV_Cf)
     ctx.load_dialect(riscv_func.RISCV_Func)
+    ctx.load_dialect(rv32.RV32)
     return (ctx,)
 
 

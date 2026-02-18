@@ -87,6 +87,10 @@ class IRBuilder:
         """Remove the given instruction."""
         ...
 
+    def _insert(self, instr: Instruction) -> None:
+        """Insert an instruction into the current block (internal method)."""
+        ...
+
     @contextlib.contextmanager
     def goto_block(self, block):  # -> Generator[None, Any, None]:
         """
@@ -478,7 +482,7 @@ class IRBuilder:
         ...
 
     @_castop("sitofp")
-    def sitofp(self, value, typ, name=...):  # -> None:
+    def sitofp(self, value: Value, typ: Type, name: str = ...) -> Value:
         """
         Convert signed integer to floating-point:
             name = (typ) value
