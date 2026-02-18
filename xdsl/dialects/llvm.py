@@ -1868,6 +1868,7 @@ class FuncOp(IRDLOperation):
             res_attrs=self.res_attrs,
             reserved_attr_names=_FUNC_OP_RESERVED_ATTR_NAMES,
             is_variadic=self.function_type.is_variadic,
+            print_empty_outputs=False,
         )
 
 

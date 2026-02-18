@@ -228,16 +228,20 @@ def print_func_op_like(
     res_attrs: ArrayAttr[DictionaryAttr] | None = None,
     reserved_attr_names: Sequence[str],
     is_variadic: bool = False,
+    print_empty_outputs: bool = True,
 ):
     printer.print_string(" ")
     printer.print_symbol_name(sym_name.data)
 
     # Non-variadic declaration
     if not body.blocks and not is_variadic:
-        printer.print_string("(")
-        printer.print_list(function_type.inputs, printer.print_attribute)
-        printer.print_string(")")
-        _print_func_outputs(printer, function_type.outputs.data, res_attrs)
+        if print_empty_outputs:
+            printer.print_attribute(function_type)
+        else:
+            printer.print_string("(")
+            printer.print_list(function_type.inputs, printer.print_attribute)
+            printer.print_string(")")
+            _print_func_outputs(printer, function_type.outputs.data, res_attrs)
         printer.print_op_attributes(
             attributes, reserved_attr_names=reserved_attr_names, print_keyword=True
         )
