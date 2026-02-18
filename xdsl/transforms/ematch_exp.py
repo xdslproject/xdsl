@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from xdsl.context import Context
 from xdsl.dialects import arith, math
 from xdsl.dialects.builtin import Float64Type, FloatAttr, ModuleOp
-from xdsl.ir import Operation
+from xdsl.ir import Operation, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     PatternRewriter,
@@ -48,6 +48,19 @@ def expand_exp(op: math.ExpOp, rewriter: PatternRewriter, terms: int) -> Operati
             result += term
         return result
     """
+
+    def gcr(val: SSAValue) -> SSAValue:
+        """
+        If EquivalencePatternRewriter ist used get the class result for a value,
+        with a non-optional return type, else do nothing
+        """
+        if isinstance(rewriter, EquivalencePatternRewriter):
+            result = rewriter.eqsat_bookkeeping.run_get_class_result(val)
+            if result is not None:
+                return result
+
+        return val
+
     x = op.operands[0]
 
     res = rewriter.insert(arith.ConstantOp(FloatAttr(1.0, f64)))
@@ -55,9 +68,9 @@ def expand_exp(op: math.ExpOp, rewriter: PatternRewriter, terms: int) -> Operati
 
     for i in range(1, terms):
         i_val = rewriter.insert(arith.ConstantOp(FloatAttr(float(i), f64)))
-        frac = rewriter.insert(arith.DivfOp(x, i_val.result))
-        mul = rewriter.insert(arith.MulfOp(frac.result, term.result))
-        add = rewriter.insert(arith.AddfOp(res.result, mul.result))
+        frac = rewriter.insert(arith.DivfOp(gcr(x), gcr(i_val.result)))
+        mul = rewriter.insert(arith.MulfOp(gcr(frac.result), gcr(term.result)))
+        add = rewriter.insert(arith.AddfOp(gcr(res.result), gcr(mul.result)))
 
         term = mul
         res = add
@@ -79,6 +92,5 @@ class EmatchExpPass(ModulePass):
         PatternRewriteWalker(
             ExpandExp(self.terms),
             apply_recursively=False,
-            # we want to use the equivalence rewriter
-            rewriter_factory=EquivalencePatternRewriter,
+            rewriter_factory=EquivalencePatternRewriter,  # we want to use the equivalence rewriter
         ).rewrite_module(op)

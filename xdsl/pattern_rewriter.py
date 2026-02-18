@@ -731,7 +731,7 @@ class PatternRewriteWalker:
     """The worklist of operations to walk over."""
 
     rewriter_factory: type[PatternRewriter] = PatternRewriter
-    """Factory method that takes an operation and returns a PatternRewriter"""
+    """Factory that takes an operation and returns a PatternRewriter for it."""
 
     def _add_operands_to_worklist(self, operands: Iterable[SSAValue]) -> None:
         """
