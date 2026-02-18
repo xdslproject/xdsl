@@ -13,6 +13,7 @@ from llvmlite.ir.instructions import (
     GEPInstr,
     ICMPInstr,
     InsertValue,
+    Instruction,
     LoadInstr,
     Ret,
     StoreInstr,
@@ -81,6 +82,7 @@ class IRBuilder:
         """
         ...
 
+    def _insert(self, instr: Instruction) -> None: ...
     def remove(self, instr):  # -> None:
         """Remove the given instruction."""
         ...

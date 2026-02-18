@@ -317,6 +317,9 @@ class Value:
     The base class for all values.
     """
 
+    type: Type
+    def get_reference(self) -> str: ...
+
 class _Undefined:
     """
     'undef': a value for undefined values.

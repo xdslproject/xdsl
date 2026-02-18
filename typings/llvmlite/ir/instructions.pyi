@@ -13,6 +13,9 @@ Implementation of LLVM IR instructions.
 """
 
 class Instruction(NamedValue, _HasMetadata):
+    opname: str
+    flags: list[str]
+    type: Type
     def __init__(
         self,
         parent: Block,
@@ -20,7 +23,7 @@ class Instruction(NamedValue, _HasMetadata):
         opname: str,
         operands: list[Value],
         name: str = ...,
-        flags: list[str] = ...,
+        flags: list[str] | tuple[str, ...] = ...,
     ) -> None: ...
     @property
     def function(self): ...
