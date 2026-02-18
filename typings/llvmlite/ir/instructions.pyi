@@ -20,12 +20,16 @@ class Instruction(NamedValue, _HasMetadata):
         opname: str,
         operands: list[Value],
         name: str = ...,
-        flags: list[str] = ...,
+        flags: list[str] | tuple[str, ...] = ...,
     ) -> None: ...
     @property
     def function(self): ...
     @property
     def operands(self) -> list[Value]: ...
+    @property
+    def opname(self) -> str: ...
+    @property
+    def flags(self) -> list[str] | tuple[str, ...]: ...
     @property
     def module(self): ...
     def descr(self, buf):  # -> None:
@@ -181,7 +185,13 @@ class FCMPInstr(CompareInstr):
 
 class CastInstr(Instruction):
     def __init__(
-        self, parent: Block, op: str, val: Value, typ: Type, name: str = ...
+        self,
+        parent: Block,
+        op: str,
+        val: Value,
+        typ: Type,
+        name: str = ...,
+        flags: list[str] | tuple[str, ...] = ...,
     ) -> None: ...
     def descr(self, buf):  # -> None:
         ...

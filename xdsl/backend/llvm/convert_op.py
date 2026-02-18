@@ -1,6 +1,9 @@
 from collections.abc import Callable
 
 from llvmlite import ir
+from llvmlite.ir import instructions
+from llvmlite.ir.types import Type
+from llvmlite.ir.values import Block, Value
 
 from xdsl.backend.llvm.convert_type import convert_type
 from xdsl.dialects import llvm
@@ -82,6 +85,65 @@ def _convert_icmp(
 
     target_func = builder.icmp_signed if is_signed else builder.icmp_unsigned
     val_map[op.results[0]] = target_func(llvm_pred, val_map[op.lhs], val_map[op.rhs])
+
+
+_CAST_OP_NAMES: dict[type[Operation], str] = {
+    llvm.TruncOp: "trunc",
+    llvm.ZExtOp: "zext",
+    llvm.SExtOp: "sext",
+    llvm.PtrToIntOp: "ptrtoint",
+    llvm.IntToPtrOp: "inttoptr",
+    llvm.BitcastOp: "bitcast",
+    llvm.FPExtOp: "fpext",
+    llvm.SIToFPOp: "sitofp",
+}
+
+
+class CastInstrWithFlags(instructions.CastInstr):
+    # workaround: llvmlite's CastInstr doesn't support flags like 'trunc nsw' or 'zext nneg'
+    def __init__(
+        self,
+        parent: Block,
+        op: str,
+        val: Value,
+        typ: Type,
+        name: str = "",
+        flags: tuple[str, ...] | list[str] = (),
+    ):
+        instructions.Instruction.__init__(
+            self, parent, typ, op, [val], name=name, flags=flags
+        )
+
+    def descr(self, buf: list[str]) -> None:
+        opname = (
+            " ".join([self.opname] + list(self.flags)) if self.flags else self.opname
+        )
+        op = self.operands[0]
+        buf.append(
+            f"{opname} {op.type} {op.get_reference()} to {self.type}{self._stringify_metadata(leading_comma=True)}\n"
+        )
+
+
+def _convert_cast(
+    op: Operation, builder: ir.IRBuilder, val_map: dict[SSAValue, ir.Value]
+):
+    match op:
+        case llvm.IntegerConversionOpOverflow() if op.overflowFlags:
+            flags = [f.value for f in op.overflowFlags.data]
+        case llvm.IntegerConversionOpNNeg() if op.non_neg:
+            flags = ["nneg"]
+        case _:
+            flags = []
+
+    instr = CastInstrWithFlags(
+        builder.block,
+        _CAST_OP_NAMES[type(op)],
+        val_map[op.operands[0]],
+        convert_type(op.results[0].type),
+        flags=flags,
+    )
+    builder._insert(instr)
+    val_map[op.results[0]] = instr
 
 
 def _convert_call(
@@ -178,6 +240,8 @@ def convert_op(
             _convert_binop(op, builder, val_map)
         case llvm.ICmpOp():
             _convert_icmp(op, builder, val_map)
+        case op if type(op) in _CAST_OP_NAMES:
+            _convert_cast(op, builder, val_map)
         case llvm.CallOp():
             _convert_call(op, builder, val_map)
         case llvm.GEPOp():
