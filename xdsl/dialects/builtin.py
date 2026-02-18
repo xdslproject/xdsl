@@ -924,6 +924,7 @@ class IntegerAttr(
                 value = normalized_value
         super().__init__(IntAttr(value), value_type)
 
+    @deprecated("Please use IntegerAttr(value, width) instead")
     @staticmethod
     def from_int_and_width(
         value: int, width: IntCovT

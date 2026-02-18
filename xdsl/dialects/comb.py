@@ -360,7 +360,7 @@ class ICmpOp(TwoStateOperation, ABC):
             }
             arg = ICmpOp._get_comparison_predicate(arg, cmpi_comparison_operations)
         if not isinstance(arg, IntegerAttr):
-            arg = IntegerAttr.from_int_and_width(arg, 64)
+            arg = IntegerAttr(arg, 64)
 
         return super().__init__(
             operands=[operand1, operand2],
