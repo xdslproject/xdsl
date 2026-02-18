@@ -1780,7 +1780,6 @@ class FuncOp(IRDLOperation):
 
     @classmethod
     def parse(cls, parser: Parser) -> FuncOp:
-        # sym_visibility = parser.parse_optional_visibility_keyword()
         linkage = cls._parse_linkage(parser)
         cconv = cls._parse_cconv(parser)
         visibility = cls._parse_llvm_visibility(parser)
