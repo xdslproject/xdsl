@@ -317,7 +317,8 @@ class Value:
     The base class for all values.
     """
 
-    type: Type
+    @property
+    def type(self) -> Type: ...
     def get_reference(self) -> str: ...
 
 class _Undefined:
