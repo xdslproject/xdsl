@@ -209,7 +209,7 @@ class AllocOp(IRDLOperation):
             dynamic_sizes = []
 
         if isinstance(alignment, int):
-            alignment = IntegerAttr.from_int_and_width(alignment, 64)
+            alignment = IntegerAttr(alignment, 64)
 
         return cls(
             tuple(SSAValue.get(ds) for ds in dynamic_sizes),
@@ -346,7 +346,7 @@ class AllocaOp(IRDLOperation):
             dynamic_sizes = []
 
         if isinstance(alignment, int):
-            alignment = IntegerAttr.from_int_and_width(alignment, 64)
+            alignment = IntegerAttr(alignment, 64)
 
         return AllocaOp.build(
             operands=[dynamic_sizes, []],
@@ -448,7 +448,7 @@ class GlobalOp(IRDLOperation):
         alignment: int | IntegerAttr[IntegerType] | None = None,
     ) -> GlobalOp:
         if isinstance(alignment, int):
-            alignment = IntegerAttr.from_int_and_width(alignment, 64)
+            alignment = IntegerAttr(alignment, 64)
 
         return GlobalOp.build(
             properties={

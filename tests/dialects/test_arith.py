@@ -495,9 +495,9 @@ def test_extui_incorrect_bitwidth():
 def test_constant_materialization():
     interface = Arith.get_interface(ConstantMaterializationInterface)
     assert interface is not None
-    const = interface.materialize_constant(IntegerAttr.from_int_and_width(42, 32), i32)
+    const = interface.materialize_constant(IntegerAttr(42, 32), i32)
     assert isinstance(const, ConstantOp)
-    assert const.value == IntegerAttr.from_int_and_width(42, 32)
+    assert const.value == IntegerAttr(42, 32)
     assert const.result_types[0] == i32
 
     const = interface.materialize_constant(FloatAttr(42.0, f64), f64)

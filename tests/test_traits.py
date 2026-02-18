@@ -324,9 +324,7 @@ def test_symbol_op_interface():
         sym_name = attr_def(IntegerAttr)
         traits = traits_def(SymbolOpInterface())
 
-    op1 = SymNameWrongTypeOp(
-        attributes={"sym_name": IntegerAttr.from_int_and_width(1, 32)}
-    )
+    op1 = SymNameWrongTypeOp(attributes={"sym_name": IntegerAttr(1, 32)})
 
     with pytest.raises(
         VerifyException,

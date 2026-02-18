@@ -298,6 +298,112 @@ builtin.module {
   // CHECK-NEXT:   ret void
   // CHECK-NEXT: }
 
+  llvm.func @alloca_op(%arg0: i32) {
+    %0 = "llvm.alloca"(%arg0) <{elem_type = i32}> : (i32) -> !llvm.ptr
+    llvm.return
+  }
+
+  // CHECK: define void @"alloca_op"(i32 %".1")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT:   {{%.+}} = alloca i32, i32 %".1"
+  // CHECK-NEXT:   ret void
+  // CHECK-NEXT: }
+
+  llvm.func @alloca_op_with_alignment(%arg0: i32) {
+    %0 = "llvm.alloca"(%arg0) <{alignment = 32 : i64, elem_type = i32}> : (i32) -> !llvm.ptr
+    llvm.return
+  }
+
+  // CHECK: define void @"alloca_op_with_alignment"(i32 %".1")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT:   {{%.+}} = alloca i32, i32 %".1", align 32
+  // CHECK-NEXT:   ret void
+  // CHECK-NEXT: }
+
+  llvm.func @load_op(%arg0: !llvm.ptr) {
+    %0 = "llvm.load"(%arg0) <{ordering = 0 : i64}> : (!llvm.ptr) -> i32
+    llvm.return
+  }
+
+  // CHECK: define void @"load_op"(ptr %".1")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT:   {{%.+}} = load i32, ptr %".1"
+  // CHECK-NEXT:   ret void
+  // CHECK-NEXT: }
+
+  llvm.func @load_op_with_alignment(%arg0: !llvm.ptr) {
+    %0 = "llvm.load"(%arg0) <{ordering = 0 : i64, alignment = 16 : i64}> : (!llvm.ptr) -> i32
+    llvm.return
+  }
+
+  // CHECK: define void @"load_op_with_alignment"(ptr %".1")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT:   {{%.+}} = load i32, ptr %".1", align 16
+  // CHECK-NEXT:   ret void
+  // CHECK-NEXT: }
+
+  llvm.func @store_op(%arg0: i32, %arg1: !llvm.ptr) {
+    "llvm.store"(%arg0, %arg1) <{ordering = 0 : i64}> : (i32, !llvm.ptr) -> ()
+    llvm.return
+  }
+
+  // CHECK: define void @"store_op"(i32 %".1", ptr %".2")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT:   store i32 %".1", ptr %".2"
+  // CHECK-NEXT:   ret void
+  // CHECK-NEXT: }
+
+  llvm.func @store_op_with_alignment(%arg0: i32, %arg1: !llvm.ptr) {
+    "llvm.store"(%arg0, %arg1) <{ordering = 0 : i64, alignment = 8 : i64}> : (i32, !llvm.ptr) -> ()
+    llvm.return
+  }
+
+  // CHECK: define void @"store_op_with_alignment"(i32 %".1", ptr %".2")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT:   store i32 %".1", ptr %".2", align 8
+  // CHECK-NEXT:   ret void
+  // CHECK-NEXT: }
+
+  llvm.func @extract_op(%arg0: !llvm.struct<(i32, f32)>) {
+    %0 = "llvm.extractvalue"(%arg0) <{position = array<i64: 0>}> : (!llvm.struct<(i32, f32)>) -> i32
+    llvm.return
+  }
+
+  // CHECK: define void @"extract_op"({i32, float} %".1")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT:   {{%.+}} = extractvalue {i32, float} %".1", 0
+  // CHECK-NEXT:   ret void
+  // CHECK-NEXT: }
+
+  llvm.func @insert_op(%arg0: !llvm.struct<(i32, f32)>, %arg1: i32) {
+    %0 = "llvm.insertvalue"(%arg0, %arg1) <{position = array<i64: 0>}> : (!llvm.struct<(i32, f32)>, i32) -> !llvm.struct<(i32, f32)>
+    llvm.return
+  }
+
+  // CHECK: define void @"insert_op"({i32, float} %".1", i32 %".2")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT:   {{%.+}} = insertvalue {i32, float} %".1", i32 %".2", 0
+  // CHECK-NEXT:   ret void
+  // CHECK-NEXT: }
+
+  llvm.func @unreachable_op() {
+    llvm.unreachable
+  }
+
+  // CHECK: define void @"unreachable_op"()
+  // CHECK-NEXT: {
+  // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT:   unreachable
+  // CHECK-NEXT: }
+
   llvm.func @casts(%arg0 : i32, %arg1 : i64, %arg2 : !llvm.ptr, %arg3 : f32) {
     %0 = llvm.trunc %arg1 : i64 to i32
     %1 = llvm.zext %arg0 : i32 to i64
@@ -347,6 +453,7 @@ builtin.module {
   // CHECK-NEXT:   {{%.+}} = trunc {{(nsw nuw|nuw nsw)}} i64 %".2" to i32
   // CHECK-NEXT:   {{%.+}} = zext i32 %".1" to i64
   // CHECK-NEXT:   {{%.+}} = zext nneg i32 %".1" to i64
+
   // void gep_constant(int* ptr) {
   //   int* result = &ptr[1][2];
   // }
@@ -482,4 +589,5 @@ builtin.module {
   // CHECK-NEXT: {{.[0-9]+}}:
   // CHECK-NEXT:   {{%.+}} = tail call ninf nnan fastcc i32 @"helper"(i32 %".1")
   // CHECK-NEXT:   ret i32 {{%.+}}
+  // CHECK-NEXT: }
 }

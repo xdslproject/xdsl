@@ -13,6 +13,9 @@ Implementation of LLVM IR instructions.
 """
 
 class Instruction(NamedValue, _HasMetadata):
+    opname: str
+    flags: list[str]
+    type: Type
     def __init__(
         self,
         parent: Block,
@@ -197,6 +200,7 @@ class CastInstr(Instruction):
         ...
 
 class LoadInstr(Instruction):
+    align: int | None
     def __init__(
         self, parent: Block, ptr: Value, name: str = ..., typ: Type | None = ...
     ) -> None: ...
@@ -204,6 +208,7 @@ class LoadInstr(Instruction):
         ...
 
 class StoreInstr(Instruction):
+    align: int | None
     def __init__(self, parent: Block, val: Value, ptr: Value) -> None: ...
     def descr(self, buf):  # -> None:
         ...
@@ -219,6 +224,7 @@ class StoreAtomicInstr(Instruction):
         ...
 
 class AllocaInstr(Instruction):
+    align: int | None
     def __init__(
         self, parent: Block, typ: Type, count: Value | int, name: str
     ) -> None: ...

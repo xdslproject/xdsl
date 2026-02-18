@@ -1161,9 +1161,7 @@ class AllocaOp(IRDLOperation):
         elem_type: Attribute,
         alignment: int = 32,
     ):
-        props: dict[str, Attribute] = {
-            "alignment": IntegerAttr.from_int_and_width(alignment, 64)
-        }
+        props: dict[str, Attribute] = {"alignment": IntegerAttr(alignment, 64)}
         ptr_type = LLVMPointerType()
         props["elem_type"] = elem_type
 
@@ -1251,7 +1249,7 @@ class InlineAsmOp(IRDLOperation):
         props: dict[str, Attribute | None] = {
             "asm_string": StringAttr(asm_string),
             "constraints": StringAttr(constraints),
-            "asm_dialect": IntegerAttr.from_int_and_width(asm_dialect, 64),
+            "asm_dialect": IntegerAttr(asm_dialect, 64),
             "has_side_effects": UnitAttr() if has_side_effects else None,
             "is_align_stack": UnitAttr() if is_align_stack else None,
             "tail_call_kind": tail_call_kind,
@@ -1700,7 +1698,7 @@ class FuncOp(IRDLOperation):
         if isinstance(sym_name, str):
             sym_name = StringAttr(sym_name)
         if isinstance(visibility, int):
-            visibility = IntegerAttr.from_int_and_width(visibility, 64)
+            visibility = IntegerAttr(visibility, 64)
         if body is None:
             body = Region([])
         if isinstance(sym_visibility, str):
@@ -1740,18 +1738,18 @@ class FuncOp(IRDLOperation):
     @staticmethod
     def _parse_llvm_visibility(parser: Parser) -> IntegerAttr[IntegerType]:
         if parser.parse_optional_keyword("hidden"):
-            return IntegerAttr.from_int_and_width(1, 64)
+            return IntegerAttr(1, 64)
         elif parser.parse_optional_keyword("protected"):
-            return IntegerAttr.from_int_and_width(2, 64)
-        return IntegerAttr.from_int_and_width(0, 64)
+            return IntegerAttr(2, 64)
+        return IntegerAttr(0, 64)
 
     @staticmethod
     def _parse_llvm_unnamed_addr(parser: Parser) -> IntegerAttr[IntegerType]:
         if parser.parse_optional_keyword("local_unnamed_addr"):
-            return IntegerAttr.from_int_and_width(1, 64)
+            return IntegerAttr(1, 64)
         elif parser.parse_optional_keyword("unnamed_addr"):
-            return IntegerAttr.from_int_and_width(2, 64)
-        return IntegerAttr.from_int_and_width(0, 64)
+            return IntegerAttr(2, 64)
+        return IntegerAttr(0, 64)
 
     @staticmethod
     def _get_return_type(

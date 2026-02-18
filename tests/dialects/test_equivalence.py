@@ -7,7 +7,7 @@ from xdsl.utils.exceptions import DiagnosticException
 
 
 def test_const_class_construction():
-    value = IntegerAttr.from_int_and_width(42, 64)
+    value = IntegerAttr(42, 64)
     constant_op = arith.ConstantOp(value)
 
     const_class = equivalence.ConstantClassOp(constant_op.result)
