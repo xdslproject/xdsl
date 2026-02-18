@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from types import EllipsisType
 from typing import ClassVar
@@ -16,6 +16,7 @@ from xdsl.dialects.builtin import (
     ArrayAttr,
     DenseArrayBase,
     DictionaryAttr,
+    FunctionType,
     IntAttr,
     IntegerAttr,
     IntegerType,
@@ -30,7 +31,12 @@ from xdsl.dialects.builtin import (
     i32,
     i64,
 )
-from xdsl.dialects.utils import FastMathAttrBase, FastMathFlag
+from xdsl.dialects.utils import (
+    FastMathAttrBase,
+    FastMathFlag,
+    parse_func_op_like,
+    print_func_op_like,
+)
 from xdsl.ir import (
     Attribute,
     BitEnumAttribute,
@@ -290,6 +296,22 @@ class LLVMFunctionType(ParametrizedAttribute, TypeAttribute):
         return [ArrayAttr(inputs), output, is_varargs]
 
 
+# Valid llvm linkage types for symbol visibility and linking behavior.
+_LINKAGE_OPTIONS = [
+    "private",
+    "internal",
+    "available_externally",
+    "linkonce",
+    "weak",
+    "common",
+    "appending",
+    "extern_weak",
+    "linkonce_odr",
+    "weak_odr",
+    "external",
+]
+
+
 @irdl_attr_definition
 class LinkageAttr(ParametrizedAttribute):
     name = "llvm.linkage"
@@ -320,20 +342,7 @@ class LinkageAttr(ParametrizedAttribute):
         return [linkage]
 
     def verify(self):
-        allowed_linkage = [
-            "private",
-            "internal",
-            "available_externally",
-            "linkonce",
-            "weak",
-            "common",
-            "appending",
-            "extern_weak",
-            "linkonce_odr",
-            "weak_odr",
-            "external",
-        ]
-        if self.linkage.data not in allowed_linkage:
+        if self.linkage.data not in _LINKAGE_OPTIONS:
             raise VerifyException(f"Specified linkage '{self.linkage.data}' is unknown")
 
 
@@ -1152,9 +1161,7 @@ class AllocaOp(IRDLOperation):
         elem_type: Attribute,
         alignment: int = 32,
     ):
-        props: dict[str, Attribute] = {
-            "alignment": IntegerAttr.from_int_and_width(alignment, 64)
-        }
+        props: dict[str, Attribute] = {"alignment": IntegerAttr(alignment, 64)}
         ptr_type = LLVMPointerType()
         props["elem_type"] = elem_type
 
@@ -1242,7 +1249,7 @@ class InlineAsmOp(IRDLOperation):
         props: dict[str, Attribute | None] = {
             "asm_string": StringAttr(asm_string),
             "constraints": StringAttr(constraints),
-            "asm_dialect": IntegerAttr.from_int_and_width(asm_dialect, 64),
+            "asm_dialect": IntegerAttr(asm_dialect, 64),
             "has_side_effects": UnitAttr() if has_side_effects else None,
             "is_align_stack": UnitAttr() if is_align_stack else None,
             "tail_call_kind": tail_call_kind,
@@ -1628,8 +1635,30 @@ class TargetFeaturesAttr(ParametrizedAttribute):
                 raise VerifyException("target features must start with '+' or '-'")
 
 
+_FUNC_OP_RESERVED_ATTR_NAMES = (
+    "sym_name",
+    "function_type",
+    "sym_visibility",
+    "arg_attrs",
+    "res_attrs",
+    "linkage",
+    "CConv",
+    "visibility_",
+    "unnamed_addr",
+)
+
+
 @irdl_op_definition
 class FuncOp(IRDLOperation):
+    """
+    LLVM function operation.
+
+    Note on property behavior:
+
+        - visibility_: always defaults to 0.
+        - unnamed_addr: always defaults to 0 in custom format. Only printed if explicitly set in generic format.
+    """
+
     name = "llvm.func"
 
     body = region_def()
@@ -1638,11 +1667,12 @@ class FuncOp(IRDLOperation):
     CConv = prop_def(CallingConventionAttr)
     linkage = prop_def(LinkageAttr)
     sym_visibility = opt_prop_def(StringAttr)
-    visibility_ = prop_def(IntegerAttr[IntegerType])
+    visibility_ = prop_def(IntegerAttr[IntegerType], default_value=IntegerAttr(0, 64))
 
     # The following properties are not yet verified by the xDSL verifier, but
     # are verified to at least allow the IR to be parsed and printed correctly.
     arg_attrs = opt_prop_def(ArrayAttr[DictionaryAttr])
+    res_attrs = opt_prop_def(ArrayAttr[DictionaryAttr])
     frame_pointer = opt_prop_def(FramePointerKindAttr)
     no_inline = opt_prop_def(UnitAttr)
     no_unwind = opt_prop_def(UnitAttr)
@@ -1663,11 +1693,12 @@ class FuncOp(IRDLOperation):
         sym_visibility: str | StringAttr | None = None,
         body: Region | None = None,
         other_props: dict[str, Attribute | None] | None = None,
+        extra_attrs: Mapping[str, Attribute] | None = None,
     ):
         if isinstance(sym_name, str):
             sym_name = StringAttr(sym_name)
         if isinstance(visibility, int):
-            visibility = IntegerAttr.from_int_and_width(visibility, 64)
+            visibility = IntegerAttr(visibility, 64)
         if body is None:
             body = Region([])
         if isinstance(sym_visibility, str):
@@ -1687,6 +1718,163 @@ class FuncOp(IRDLOperation):
             operands=[],
             regions=[body],
             properties=properties,
+            attributes=extra_attrs if extra_attrs else {},
+        )
+
+    @staticmethod
+    def _parse_linkage(parser: Parser) -> LinkageAttr:
+        for l in _LINKAGE_OPTIONS:
+            if parser.parse_optional_keyword(l):
+                return LinkageAttr(l)
+        return LinkageAttr("external")
+
+    @staticmethod
+    def _parse_cconv(parser: Parser) -> CallingConventionAttr:
+        for c in LLVM_CALLING_CONVS:
+            if parser.parse_optional_keyword(c):
+                return CallingConventionAttr(c)
+        return CallingConventionAttr("ccc")
+
+    @staticmethod
+    def _parse_llvm_visibility(parser: Parser) -> IntegerAttr[IntegerType]:
+        if parser.parse_optional_keyword("hidden"):
+            return IntegerAttr(1, 64)
+        elif parser.parse_optional_keyword("protected"):
+            return IntegerAttr(2, 64)
+        return IntegerAttr(0, 64)
+
+    @staticmethod
+    def _parse_llvm_unnamed_addr(parser: Parser) -> IntegerAttr[IntegerType]:
+        if parser.parse_optional_keyword("local_unnamed_addr"):
+            return IntegerAttr(1, 64)
+        elif parser.parse_optional_keyword("unnamed_addr"):
+            return IntegerAttr(2, 64)
+        return IntegerAttr(0, 64)
+
+    @staticmethod
+    def _get_return_type(
+        parser: Parser, return_types: Sequence[Attribute]
+    ) -> Attribute:
+        if len(return_types) == 0:
+            return LLVMVoidType()
+        if len(return_types) == 1:
+            return return_types[0]
+        parser.raise_error(
+            "llvm.func only supports a single return type (or void)",
+            parser.pos,
+            parser.pos,
+        )
+
+    @staticmethod
+    def _get_other_props(
+        arg_attrs: ArrayAttr[DictionaryAttr] | None,
+        res_attrs: ArrayAttr[DictionaryAttr] | None,
+        llvm_unnamed_addr: IntegerAttr[IntegerType],
+    ) -> dict[str, Attribute | None]:
+        other_props: dict[str, Attribute | None] = {}
+        if arg_attrs:
+            other_props["arg_attrs"] = arg_attrs
+        if res_attrs:
+            other_props["res_attrs"] = res_attrs
+        other_props["unnamed_addr"] = llvm_unnamed_addr
+        return other_props
+
+    @classmethod
+    def parse(cls, parser: Parser) -> FuncOp:
+        sym_visibility = parser.parse_optional_visibility_keyword()
+        linkage = cls._parse_linkage(parser)
+        cconv = cls._parse_cconv(parser)
+        visibility = cls._parse_llvm_visibility(parser)
+        llvm_unnamed_addr = cls._parse_llvm_unnamed_addr(parser)
+        (
+            name,
+            input_types,
+            return_types,
+            region,
+            extra_attrs,
+            arg_attrs,
+            res_attrs,
+            is_variadic,
+        ) = parse_func_op_like(
+            parser,
+            reserved_attr_names=_FUNC_OP_RESERVED_ATTR_NAMES,
+            allow_variadic=True,
+        )
+        return_type = cls._get_return_type(parser, return_types)
+        other_props = cls._get_other_props(arg_attrs, res_attrs, llvm_unnamed_addr)
+
+        return FuncOp(
+            sym_name=name,
+            function_type=LLVMFunctionType(input_types, return_type, is_variadic),
+            linkage=linkage,
+            cconv=cconv,
+            visibility=visibility,
+            sym_visibility=sym_visibility,
+            body=region,
+            other_props=other_props,
+            extra_attrs=dict(extra_attrs.data) if extra_attrs else None,
+        )
+
+    @staticmethod
+    def _print_llvm_visibility(printer: Printer, visibility: int):
+        match visibility:
+            case 0:
+                pass
+            case 1:
+                printer.print_string(" hidden")
+            case 2:
+                printer.print_string(" protected")
+            case _:
+                raise AssertionError("Invalid visibility value")
+
+    @staticmethod
+    def _print_llvm_unnamed_addr(printer: Printer, unnamed_addr: int | None):
+        match unnamed_addr:
+            case 0 | None:
+                pass
+            case 1:
+                printer.print_string(" local_unnamed_addr")
+            case 2:
+                printer.print_string(" unnamed_addr")
+            case _:
+                raise AssertionError("Invalid unnamed_addr value")
+
+    def print(self, printer: Printer):
+        if self.sym_visibility:
+            visibility = self.sym_visibility.data
+            printer.print_string(" ")
+            printer.print_string(visibility)
+
+        if self.linkage.linkage.data != "external":
+            printer.print_string(" ")
+            printer.print_string(self.linkage.linkage.data)
+
+        if self.CConv.convention.data != "ccc":
+            printer.print_string(" ")
+            printer.print_string(self.CConv.convention.data)
+
+        self._print_llvm_visibility(printer, self.visibility_.value.data)
+
+        unnamed_addr_val = self.unnamed_addr.value.data if self.unnamed_addr else None
+        self._print_llvm_unnamed_addr(printer, unnamed_addr_val)
+
+        outputs = (
+            []
+            if isinstance(self.function_type.output, LLVMVoidType)
+            else [self.function_type.output]
+        )
+        attrs = {**self.attributes, **self.properties}
+
+        print_func_op_like(
+            printer,
+            self.sym_name,
+            FunctionType.from_lists(self.function_type.inputs.data, outputs),
+            self.body,
+            attrs,
+            arg_attrs=self.arg_attrs,
+            res_attrs=self.res_attrs,
+            reserved_attr_names=_FUNC_OP_RESERVED_ATTR_NAMES,
+            is_variadic=self.function_type.is_variadic,
         )
 
 

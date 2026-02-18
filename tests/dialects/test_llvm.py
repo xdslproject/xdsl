@@ -538,6 +538,15 @@ def test_func_op_visibility():
     assert op.sym_visibility.data == "public"
 
 
+def test_func_op_res_attrs():
+    ft = llvm.LLVMFunctionType([], builtin.i32)  # () -> i32
+    res_attrs = builtin.ArrayAttr(
+        [builtin.DictionaryAttr({"llvm.noundef": UnitAttr()})]
+    )  # ret val as undefined
+    op = llvm.FuncOp("my_func", ft, other_props={"res_attrs": res_attrs})
+    assert op.res_attrs == res_attrs
+
+
 def test_call_op_variadic():
     # verify variadic call sets var_callee_type with is_variadic flag
     arg = create_ssa_value(builtin.i32)
@@ -553,3 +562,17 @@ def test_call_intrinsic_op_converts_str_to_stringattr():
     )
     assert isinstance(op.intrin, builtin.StringAttr)
     assert op.intrin.data == "llvm.intr"
+
+
+def test_func_op_visibility_default():
+    ft = llvm.LLVMFunctionType([])
+    op = llvm.FuncOp("my_func", ft)
+    assert op.visibility_ is not None
+    assert op.visibility_.value.data == 0
+
+
+def test_func_op_extra_attrs():
+    ft = llvm.LLVMFunctionType([])
+    op = llvm.FuncOp("my_func", ft, extra_attrs={"goofy": builtin.StringAttr("goober")})
+    assert "goofy" in op.attributes
+    assert op.attributes["goofy"] == builtin.StringAttr("goober")

@@ -13,6 +13,9 @@ Implementation of LLVM IR instructions.
 """
 
 class Instruction(NamedValue, _HasMetadata):
+    opname: str
+    flags: list[str]
+    type: Type
     def __init__(
         self,
         parent: Block,
@@ -20,12 +23,16 @@ class Instruction(NamedValue, _HasMetadata):
         opname: str,
         operands: list[Value],
         name: str = ...,
-        flags: list[str] = ...,
+        flags: list[str] | tuple[str, ...] = ...,
     ) -> None: ...
     @property
     def function(self): ...
     @property
     def operands(self) -> list[Value]: ...
+    @property
+    def opname(self) -> str: ...
+    @property
+    def flags(self) -> list[str] | tuple[str, ...]: ...
     @property
     def module(self): ...
     def descr(self, buf):  # -> None:
@@ -181,12 +188,19 @@ class FCMPInstr(CompareInstr):
 
 class CastInstr(Instruction):
     def __init__(
-        self, parent: Block, op: str, val: Value, typ: Type, name: str = ...
+        self,
+        parent: Block,
+        op: str,
+        val: Value,
+        typ: Type,
+        name: str = ...,
+        flags: list[str] | tuple[str, ...] = ...,
     ) -> None: ...
     def descr(self, buf):  # -> None:
         ...
 
 class LoadInstr(Instruction):
+    align: int | None
     def __init__(
         self, parent: Block, ptr: Value, name: str = ..., typ: Type | None = ...
     ) -> None: ...
@@ -194,6 +208,7 @@ class LoadInstr(Instruction):
         ...
 
 class StoreInstr(Instruction):
+    align: int | None
     def __init__(self, parent: Block, val: Value, ptr: Value) -> None: ...
     def descr(self, buf):  # -> None:
         ...
@@ -209,6 +224,7 @@ class StoreAtomicInstr(Instruction):
         ...
 
 class AllocaInstr(Instruction):
+    align: int | None
     def __init__(
         self, parent: Block, typ: Type, count: Value | int, name: str
     ) -> None: ...

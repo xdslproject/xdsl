@@ -1285,6 +1285,11 @@ class Operation(_IRNode):
         self.parent = None
         for operand, use in zip(self._operands, self._operand_uses):
             operand.remove_use(use)
+        self._operand_uses = ()
+        for successor, use in zip(self._successors, self._successor_uses):
+            successor.remove_use(use)
+        self._successor_uses = ()
+        self._successors = ()
         for region in self.regions:
             region.drop_all_references()
 

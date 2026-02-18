@@ -64,7 +64,7 @@ The first step is finding a missing optimisation pattern.
 You're welcome to come up with your own, or do one of the following:
 
 - `andi %x, 0` to `li 0` (always false)
-- `ori %x, 0`  to `mv %x` (always x)
+- `xori %x, 0`  to `mv %x` (always x)
 
 The patterns are defined in
 [xdsl/transforms/canonicalization_patterns/riscv.py](https://github.com/xdslproject/xdsl/blob/main/xdsl/transforms/canonicalization_patterns/riscv.py).

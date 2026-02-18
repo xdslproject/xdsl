@@ -10,7 +10,7 @@ def _():
     from xdsl.utils import marimo as xmo
     from xdsl.ir import Block, Region
     from xdsl.builder import Builder, InsertPoint
-    from xdsl.dialects import builtin, riscv, riscv_cf, riscv_func
+    from xdsl.dialects import builtin, riscv, riscv_cf, riscv_func, rv32
     from xdsl.printer import Printer
     from xdsl.parser import Parser
     from xdsl.context import Context
@@ -28,6 +28,7 @@ def _():
         riscv,
         riscv_cf,
         riscv_func,
+        rv32,
         xmo,
     )
 
@@ -314,7 +315,7 @@ def _(mo):
 def _(Parser, ctx, xmo):
     switch_ir = """\
     riscv_func.func @switch(%a : !riscv.reg<a0>, %b : !riscv.reg<a1>, %c : !riscv.reg<a2>) -> !riscv.reg<a0> {
-      %zero = riscv.get_register : !riscv.reg<zero>
+      %zero = rv32.get_register : !riscv.reg<zero>
       riscv_cf.beq %a : !riscv.reg<a0>, %zero : !riscv.reg<zero>, ^bb2(), ^bb1()
     ^bb1():
       %res_b = riscv.mv %b : (!riscv.reg<a1>) -> !riscv.reg<a0>
@@ -435,26 +436,26 @@ def _(comment_only_line, fib_text):
 def _(mo):
     fib_editor = mo.ui.code_editor("""\
     riscv_func.func @fib(%num : !riscv.reg<a0>) -> !riscv.reg<a0> {
-      %zero = riscv.get_register : !riscv.reg<zero>
+      %zero = rv32.get_register : !riscv.reg<zero>
       riscv_cf.bge %zero: !riscv.reg<zero>, %num :!riscv.reg<a0>, ^bb4(), ^bb1()
     ^bb1():
-      %a_init = riscv.li 1 : !riscv.reg<a2>
-      %b_init = riscv.li 1 : !riscv.reg<a3>
+      %a_init = rv32.li 1 : !riscv.reg<a2>
+      %b_init = rv32.li 1 : !riscv.reg<a3>
       riscv_cf.branch ^bb2 (%num : !riscv.reg<a0>, %a_init : !riscv.reg<a2>, %b_init : !riscv.reg<a3>)
     ^bb2(%i : !riscv.reg<a0>, %a_in : !riscv.reg<a2>, %b_in : !riscv.reg<a3>):
       riscv.label ".LBB1_2"
-      %sum = riscv.li 2 : !riscv.reg<a4>
-      %i_next = riscv.li 3 : !riscv.reg<a0>
-      %temp = riscv.li 4 : !riscv.reg<a1>
-      %a_next = riscv.li 5 : !riscv.reg<a2>
-      %b_next = riscv.li 6 : !riscv.reg<a3>
+      %sum = rv32.li 2 : !riscv.reg<a4>
+      %i_next = rv32.li 3 : !riscv.reg<a0>
+      %temp = rv32.li 4 : !riscv.reg<a1>
+      %a_next = rv32.li 5 : !riscv.reg<a2>
+      %b_next = rv32.li 6 : !riscv.reg<a3>
       riscv_cf.bne %zero: !riscv.reg<zero>, %i_next : !riscv.reg<a0>, ^bb2(%i_next : !riscv.reg<a0>, %a_next : !riscv.reg<a2>, %b_next : !riscv.reg<a3>), ^bb3()
     ^bb3():
       %res = riscv.mv %temp : (!riscv.reg<a1>) -> !riscv.reg<a0>
       riscv_func.return %num : !riscv.reg<a0>
     ^bb4():
       riscv.label ".LBB1_4"
-      %res_early = riscv.li 1 : !riscv.reg<a0>
+      %res_early = rv32.li 1 : !riscv.reg<a0>
       riscv_func.return %res_early : !riscv.reg<a0>
     }""", language="javascript")
     return (fib_editor,)
@@ -501,11 +502,11 @@ def _():
 
     _ = """\
     riscv_func.func @fib(%num : !riscv.reg<a0>) -> !riscv.reg<a0> {
-      %zero = riscv.get_register : !riscv.reg<zero>
+      %zero = rv32.get_register : !riscv.reg<zero>
       riscv_cf.bge %zero: !riscv.reg<zero>, %num :!riscv.reg<a0>, ^bb4(), ^bb1()
     ^bb1():
-      %a_init = riscv.li 1 : !riscv.reg<a2>
-      %b_init = riscv.li 1 : !riscv.reg<a3>
+      %a_init = rv32.li 1 : !riscv.reg<a2>
+      %b_init = rv32.li 1 : !riscv.reg<a3>
       riscv_cf.branch ^bb2 (%num : !riscv.reg<a0>, %a_init : !riscv.reg<a2>, %b_init : !riscv.reg<a3>)
     ^bb2(%i : !riscv.reg<a0>, %a_in : !riscv.reg<a2>, %b_in : !riscv.reg<a3>):
       riscv.label ".LBB1_2"
@@ -520,7 +521,7 @@ def _():
       riscv_func.return %num : !riscv.reg<a0>
     ^bb4():
       riscv.label ".LBB1_4"
-      %res_early = riscv.li 1 : !riscv.reg<a0>
+      %res_early = rv32.li 1 : !riscv.reg<a0>
       riscv_func.return %res_early : !riscv.reg<a0>
     }
     """
@@ -528,12 +529,13 @@ def _():
 
 
 @app.cell(hide_code=True)
-def _(Context, builtin, riscv, riscv_cf, riscv_func):
+def _(Context, builtin, riscv, riscv_cf, riscv_func, rv32):
     ctx = Context()
     ctx.load_dialect(builtin.Builtin)
     ctx.load_dialect(riscv.RISCV)
     ctx.load_dialect(riscv_cf.RISCV_Cf)
     ctx.load_dialect(riscv_func.RISCV_Func)
+    ctx.load_dialect(rv32.RV32)
     return (ctx,)
 
 

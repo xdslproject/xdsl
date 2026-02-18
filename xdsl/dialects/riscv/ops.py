@@ -16,7 +16,6 @@ from xdsl.dialects.builtin import (
     StringAttr,
     i32,
 )
-from xdsl.interfaces import ConstantLikeInterface
 from xdsl.ir import (
     Attribute,
     Block,
@@ -37,7 +36,6 @@ from xdsl.irdl import (
     opt_prop_def,
     prop_def,
     region_def,
-    result_def,
     traits_def,
     var_operand_def,
     var_result_def,
@@ -65,6 +63,7 @@ from .abstract_ops import (
     RdImmIntegerOperation,
     RdImmJumpOperation,
     RdRsFloatOperation,
+    RdRsImmBitManipOperation,
     RdRsImmFloatOperation,
     RdRsImmIntegerOperation,
     RdRsImmJumpOperation,
@@ -83,8 +82,6 @@ from .abstract_ops import (
     RsRsImmIntegerOperation,
     RsRsOffIntegerOperation,
     assembly_arg_str,
-    parse_immediate_value,
-    print_immediate_value,
 )
 from .attrs import (
     SI20,
@@ -191,9 +188,10 @@ class OriOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.riscv import (
             OriImmediate,
+            OriImmediateZero,
         )
 
-        return (OriImmediate(),)
+        return (OriImmediate(), OriImmediateZero())
 
 
 @irdl_op_definition
@@ -216,9 +214,10 @@ class XoriOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.riscv import (
             XoriImmediate,
+            XoriSelfInverse,
         )
 
-        return (XoriImmediate(),)
+        return (XoriSelfInverse(), XoriImmediate())
 
 
 @irdl_op_definition
@@ -240,11 +239,10 @@ class SlliOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.riscv import (
-            ShiftLeftbyZero,
             ShiftLeftImmediate,
         )
 
-        return (ShiftLeftImmediate(), ShiftLeftbyZero())
+        return (ShiftLeftImmediate(),)
 
 
 @irdl_op_definition
@@ -267,11 +265,10 @@ class SrliOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.riscv import (
-            ShiftRightbyZero,
             ShiftRightImmediate,
         )
 
-        return (ShiftRightbyZero(), ShiftRightImmediate())
+        return (ShiftRightImmediate(),)
 
 
 @irdl_op_definition
@@ -1619,7 +1616,7 @@ class BclrOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
 
 
 @irdl_op_definition
-class BclrIOp(RdRsImmShiftOperation):
+class BclrIOp(RdRsImmBitManipOperation):
     """
     This instruction returns rs1 with a single bit cleared at the index specified in shamt.
     The index is read from the lower log2(XLEN) bits of shamt. For RV32, the encodings corresponding
@@ -1654,7 +1651,7 @@ class BextOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
 
 
 @irdl_op_definition
-class BextIOp(RdRsImmShiftOperation):
+class BextIOp(RdRsImmBitManipOperation):
     """
     This instruction returns a single bit extracted from rs1 at the index specified in rs2.
     The index is read from the lower log2(XLEN) bits of shamt. For RV32, the encodings corresponding
@@ -1690,7 +1687,7 @@ class BinvOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
 
 
 @irdl_op_definition
-class BinvIOp(RdRsImmShiftOperation):
+class BinvIOp(RdRsImmBitManipOperation):
     """
     This instruction returns rs1 with a single bit cleared at the index specified in shamt. The index
     is read from the lower log2(XLEN) bits of shamt. For RV32, the encodings corresponding
@@ -1725,7 +1722,7 @@ class BsetOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
 
 
 @irdl_op_definition
-class BsetIOp(RdRsImmShiftOperation):
+class BsetIOp(RdRsImmBitManipOperation):
     """
     This instruction returns rs1 with a single bit set at the index specified in shamt. The index is read
     from the lower log2(XLEN) bits of shamt. For RV32, the encodings corresponding
@@ -1783,7 +1780,7 @@ class RorwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
 
 
 @irdl_op_definition
-class RoriOp(RdRsImmShiftOperation):
+class RoriOp(RdRsImmBitManipOperation):
     """
     This instruction performs a rotate right of rs1 by the amount in the least-significant
     log2(XLEN) bits of shamt. For RV32, the encodings corresponding to shamt[5]=1 are reserved.
@@ -1803,7 +1800,7 @@ class RoriOp(RdRsImmShiftOperation):
 
 
 @irdl_op_definition
-class RoriwOp(RdRsImmShiftOperation):
+class RoriwOp(RdRsImmBitManipOperation):
     """
     This instruction performs a rotate right on the least-significant word of rs1 by the amount in
     the least-significant log2(XLEN) bits of shamt. The resulting word value is sign-extended by
@@ -1944,7 +1941,7 @@ class Sh3addUwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
 
 
 @irdl_op_definition
-class SlliUwOp(RdRsImmShiftOperation):
+class SlliUwOp(RdRsImmBitManipOperation):
     """
     This instruction takes the least-significant word of rs1, zero-extends it,
     and shifts it left by the immediate.
@@ -2125,75 +2122,6 @@ class LiOpHasCanonicalizationPatternTrait(HasCanonicalizationPatternsTrait):
         )
 
         return (LoadImmediate0(),)
-
-
-@irdl_op_definition
-class LiOp(RISCVCustomFormatOperation, RISCVInstruction, ConstantLikeInterface):
-    """
-    Loads a 32-bit immediate into rd.
-
-    This is an assembler pseudo-instruction.
-
-    See external [documentation](https://github.com/riscv-non-isa/riscv-asm-manual/blob/master/riscv-asm.md#load-immediate).
-    """
-
-    name = "riscv.li"
-
-    rd = result_def(IntRegisterType)
-    immediate = attr_def(IntegerAttr[I32] | LabelAttr)
-
-    traits = traits_def(Pure(), LiOpHasCanonicalizationPatternTrait())
-
-    def __init__(
-        self,
-        immediate: int | IntegerAttr[I32] | str | LabelAttr,
-        *,
-        rd: IntRegisterType = Registers.UNALLOCATED_INT,
-        comment: str | StringAttr | None = None,
-    ):
-        if isinstance(immediate, int):
-            immediate = IntegerAttr(immediate, i32)
-        elif isinstance(immediate, str):
-            immediate = LabelAttr(immediate)
-        if isinstance(comment, str):
-            comment = StringAttr(comment)
-
-        super().__init__(
-            result_types=[rd],
-            attributes={
-                "immediate": immediate,
-                "comment": comment,
-            },
-        )
-
-    def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
-        return self.rd, self.immediate
-
-    def get_constant_value(self):
-        return self.immediate
-
-    @classmethod
-    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
-        attributes = dict[str, Attribute]()
-        attributes["immediate"] = parse_immediate_value(parser, i32)
-        return attributes
-
-    def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
-        printer.print_string(" ")
-        print_immediate_value(printer, self.immediate)
-        return {"immediate", "fastmath"}
-
-    @classmethod
-    def parse_op_type(
-        cls, parser: Parser
-    ) -> tuple[Sequence[Attribute], Sequence[Attribute]]:
-        parser.parse_punctuation(":")
-        res_type = parser.parse_attribute()
-        return (), (res_type,)
-
-    def print_op_type(self, printer: Printer) -> None:
-        printer.print_string(" : ")
-        printer.print_attribute(self.rd.type)
 
 
 @irdl_op_definition
@@ -2410,8 +2338,8 @@ class CustomAssemblyInstructionOp(RISCVCustomFormatOperation, RISCVInstruction):
     During assembly emission, the results are printed before the operands:
 
     ``` python
-    s0 = riscv.GetRegisterOp(Registers.s0).res
-    s1 = riscv.GetRegisterOp(Registers.s1).res
+    s0 = rv32.GetRegisterOp(Registers.s0).res
+    s1 = rv32.GetRegisterOp(Registers.s1).res
     rs2 = riscv.Registers.s2
     rs3 = riscv.Registers.s3
     op = CustomAssemblyInstructionOp("my_instr", (s0, s1), (rs2, rs3))
@@ -2502,11 +2430,6 @@ class WfiOp(NullaryOperation):
 # endregion
 
 # region RISC-V SSA Helpers
-
-
-@irdl_op_definition
-class GetRegisterOp(GetAnyRegisterOperation[IntRegisterType]):
-    name = "riscv.get_register"
 
 
 @irdl_op_definition
@@ -3390,7 +3313,6 @@ RISCV = Dialect(
         DivuOp,
         RemOp,
         RemuOp,
-        LiOp,
         RolOp,
         RorOp,
         RemuwOp,
@@ -3445,7 +3367,6 @@ RISCV = Dialect(
         WfiOp,
         CustomAssemblyInstructionOp,
         CommentOp,
-        GetRegisterOp,
         GetFloatRegisterOp,
         # Floating point
         FMVOp,

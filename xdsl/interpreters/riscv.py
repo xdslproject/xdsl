@@ -229,16 +229,6 @@ class RiscvFunctions(InterpreterFunctions):
                 data = RiscvFunctions.get_data_value(interpreter, imm.data)
                 return data
 
-    @impl(riscv.LiOp)
-    def run_li(
-        self,
-        interpreter: Interpreter,
-        op: riscv.LiOp,
-        args: tuple[Any, ...],
-    ):
-        results = (RiscvFunctions.get_immediate_value(interpreter, op.immediate),)
-        return RiscvFunctions.set_reg_values(interpreter, op.results, results)
-
     @impl(riscv.MVOp)
     def run_mv(
         self,
@@ -584,28 +574,6 @@ class RiscvFunctions(InterpreterFunctions):
         return RiscvFunctions.set_reg_values(interpreter, op.results, results)
 
     # endregion
-
-    @impl(riscv.GetRegisterOp)
-    def run_get_register(
-        self, interpreter: Interpreter, op: riscv.GetRegisterOp, args: PythonValues
-    ) -> PythonValues:
-        attr = op.res.type
-
-        if not attr.is_allocated:
-            raise InterpretationError(
-                f"Cannot get value for unallocated register {attr}"
-            )
-
-        name = attr.register_name
-
-        registers = RiscvFunctions.registers(interpreter)
-
-        if name not in registers:
-            raise InterpretationError(f"Value not found for register name {name.data}")
-
-        stored_value = registers[name]
-
-        return (stored_value,)
 
     @impl(riscv.CustomAssemblyInstructionOp)
     def run_custom_instruction(

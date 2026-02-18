@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 
 from xdsl.context import Context
-from xdsl.dialects import riscv, riscv_func
+from xdsl.dialects import riscv, riscv_func, rv32
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import Operation
 from xdsl.passes import ModulePass
@@ -40,7 +40,7 @@ class LowerSyscallOp(RewritePattern):
                 )
             )
 
-        ops.append(riscv.LiOp(immediate=op.syscall_num, rd=riscv.Registers.A7))
+        ops.append(rv32.LiOp(immediate=op.syscall_num, rd=riscv.Registers.A7))
 
         if op.result is None:
             ops.append(riscv.EcallOp())
@@ -49,7 +49,7 @@ class LowerSyscallOp(RewritePattern):
             # The result will be stored to a0, move to register that will be used
             ecall = riscv.EcallOp()
             ops.append(ecall)
-            gr = riscv.GetRegisterOp(riscv.Registers.A0)
+            gr = rv32.GetRegisterOp(riscv.Registers.A0)
             ops.append(gr)
             res = gr.res
 

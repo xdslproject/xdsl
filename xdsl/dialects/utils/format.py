@@ -1,5 +1,5 @@
 from collections.abc import Sequence
-from typing import Generic
+from typing import Generic, Literal, TypeAlias, overload
 
 from xdsl.dialects.builtin import (
     ArrayAttr,
@@ -181,6 +181,42 @@ def parse_for_op_like(
     return lower_bound, upper_bound, step, iter_arg_operands, body
 
 
+def _print_func_outputs(
+    printer: Printer,
+    outputs: Sequence[Attribute],
+    res_attrs: ArrayAttr[DictionaryAttr] | None,
+):
+    """
+    Print function output types with optional result attributes.
+
+    Supports the following syntax:
+        - `-> type` for a single result without attributes
+        - `-> (type1, type2, ...)` for multiple results
+        - `-> (type {attr = value}, ...)` for results with attributes
+    """
+    if not outputs:
+        return
+
+    printer.print_string(" -> ")
+
+    # parens for multiple outputs or attrs
+    needs_parens = len(outputs) > 1 or res_attrs is not None
+    if needs_parens:
+        printer.print_string("(")
+
+    # print types, optionally paired with their attributes
+    if res_attrs is None:
+        printer.print_list(outputs, printer.print_attribute)
+    else:
+        printer.print_list(
+            zip(outputs, res_attrs),
+            lambda t: print_func_output(printer, t[0], t[1]),
+        )
+
+    if needs_parens:
+        printer.print_string(")")
+
+
 def print_func_op_like(
     printer: Printer,
     sym_name: StringAttr,
@@ -191,50 +227,86 @@ def print_func_op_like(
     arg_attrs: ArrayAttr[DictionaryAttr] | None = None,
     res_attrs: ArrayAttr[DictionaryAttr] | None = None,
     reserved_attr_names: Sequence[str],
+    is_variadic: bool = False,
 ):
     printer.print_string(" ")
     printer.print_symbol_name(sym_name.data)
-    if body.blocks:
-        with printer.in_parens():
-            if arg_attrs is not None:
-                printer.print_list(
-                    zip(body.blocks[0].args, arg_attrs),
-                    lambda arg_with_attrs: print_func_argument(
-                        printer, arg_with_attrs[0], arg_with_attrs[1]
-                    ),
-                )
-            else:
-                printer.print_list(body.blocks[0].args, printer.print_block_argument)
 
-        if function_type.outputs:
-            printer.print_string(" -> ")
-            if len(function_type.outputs) > 1 or res_attrs is not None:
-                printer.print_string("(")
-            if res_attrs is not None:
-                printer.print_list(
-                    zip(function_type.outputs, res_attrs),
-                    lambda arg_with_attrs: print_func_output(
-                        printer, arg_with_attrs[0], arg_with_attrs[1]
-                    ),
-                )
-            else:
-                printer.print_list(function_type.outputs, printer.print_attribute)
-            if len(function_type.outputs) > 1 or res_attrs is not None:
-                printer.print_string(")")
-    else:
+    # Non-variadic declaration
+    if not body.blocks and not is_variadic:
         printer.print_attribute(function_type)
+        printer.print_op_attributes(
+            attributes, reserved_attr_names=reserved_attr_names, print_keyword=True
+        )
+        return
+
+    # Definition or variadic declaration
+    printer.print_string("(")
+    if body.blocks:
+        block_args = body.blocks[0].args
+        if arg_attrs is not None:
+            printer.print_list(
+                zip(block_args, arg_attrs),
+                lambda t: print_func_argument(printer, t[0], t[1]),
+            )
+        else:
+            printer.print_list(block_args, printer.print_block_argument)
+        has_args = bool(block_args)
+    else:
+        printer.print_list(function_type.inputs, printer.print_attribute)
+        has_args = bool(function_type.inputs)
+
+    if is_variadic:
+        if has_args:
+            printer.print_string(", ")
+        printer.print_string("...")
+    printer.print_string(")")
+
+    _print_func_outputs(printer, function_type.outputs.data, res_attrs)
     printer.print_op_attributes(
         attributes, reserved_attr_names=reserved_attr_names, print_keyword=True
     )
-    printer.print_string(" ", indent=0)
 
     if body.blocks:
+        printer.print_string(" ", indent=0)
         printer.print_region(body, False, False)
 
 
-def parse_func_op_like(
-    parser: Parser, *, reserved_attr_names: Sequence[str]
-) -> tuple[
+def _parse_func_outputs(
+    parser: Parser,
+) -> tuple[list[TypeAttribute], ArrayAttr[DictionaryAttr] | None]:
+    """
+    Inverse of `_print_func_outputs`.
+
+    Returns a tuple of (return_types, res_attrs). If there are no return types,
+    returns ([], None).
+    """
+    # no arrow implies no return types
+    if not parser.parse_optional_punctuation("->"):
+        return [], None
+
+    # attrs only supported with parens
+    results = parser.parse_optional_comma_separated_list(
+        parser.Delimiter.PAREN,
+        lambda: (parser.parse_type(), parser.parse_optional_dictionary_attr_dict()),
+    )
+
+    # no parens implies single type without attrs
+    if results is None:
+        return [parser.parse_type()], None
+
+    # empty parens
+    if not results:
+        return [], None
+
+    # unpack types and attrs, wrap attrs in ArrayAttr
+    types, attrs_raw = zip(*results)
+    has_attrs = any(attrs_raw)
+    res_attrs = ArrayAttr(DictionaryAttr(a) for a in attrs_raw) if has_attrs else None
+    return list(types), res_attrs
+
+
+FuncOpLikeParseResult: TypeAlias = tuple[
     str,
     Sequence[Attribute],
     Sequence[Attribute],
@@ -242,14 +314,61 @@ def parse_func_op_like(
     DictionaryAttr | None,
     ArrayAttr[DictionaryAttr] | None,
     ArrayAttr[DictionaryAttr] | None,
-]:
+]
+
+FuncOpLikeParseResultWithVariadic: TypeAlias = tuple[
+    str,
+    Sequence[Attribute],
+    Sequence[Attribute],
+    Region,
+    DictionaryAttr | None,
+    ArrayAttr[DictionaryAttr] | None,
+    ArrayAttr[DictionaryAttr] | None,
+    bool,
+]
+
+
+@overload
+def parse_func_op_like(
+    parser: Parser,
+    *,
+    reserved_attr_names: Sequence[str],
+    allow_variadic: Literal[False] = False,
+) -> FuncOpLikeParseResult: ...
+
+
+@overload
+def parse_func_op_like(
+    parser: Parser,
+    *,
+    reserved_attr_names: Sequence[str],
+    allow_variadic: Literal[True],
+) -> FuncOpLikeParseResultWithVariadic: ...
+
+
+def parse_func_op_like(
+    parser: Parser,
+    *,
+    reserved_attr_names: Sequence[str],
+    allow_variadic: bool = False,
+) -> FuncOpLikeParseResult | FuncOpLikeParseResultWithVariadic:
     """
     Returns the function name, argument types, return types, body, extra args, arg_attrs and res_attrs.
+    If allow_variadic=True, also returns is_variadic as the 8th element.
     """
     # Parse function name
     name = parser.parse_symbol_name().data
 
-    def parse_fun_input() -> Attribute | tuple[Parser.Argument, dict[str, Attribute]]:
+    # Track variadic state if enabled
+    is_variadic = False
+
+    def parse_fun_input() -> (
+        Attribute | tuple[Parser.Argument, dict[str, Attribute]] | None
+    ):
+        nonlocal is_variadic
+        if allow_variadic and parser.parse_optional_characters("...") is not None:
+            is_variadic = True
+            return None
         arg = parser.parse_optional_argument()
         if arg is None:
             ret = parser.parse_optional_type()
@@ -260,18 +379,13 @@ def parse_func_op_like(
             ret = (arg, arg_attr_dict)
         return ret
 
-    def parse_fun_output() -> tuple[TypeAttribute, dict[str, Attribute]]:
-        arg_type = parser.parse_optional_type()
-        if arg_type is None:
-            parser.raise_error("Return type should be specified")
-        arg_attr_dict = parser.parse_optional_dictionary_attr_dict()
-        return (arg_type, arg_attr_dict)
-
     # Parse function arguments
-    args = parser.parse_comma_separated_list(
+    args_raw = parser.parse_comma_separated_list(
         parser.Delimiter.PAREN,
         parse_fun_input,
     )
+    args: list[Attribute | tuple[Parser.Argument, dict[str, Attribute]]]
+    args = [arg for arg in args_raw if arg is not None]
 
     entry_arg_tuples: list[tuple[Parser.Argument, dict[str, Attribute]]] = []
     input_types: list[Attribute] = []
@@ -298,26 +412,8 @@ def parse_func_op_like(
     else:
         arg_attrs = None
 
-    # Parse return type
-    return_types: list[TypeAttribute] = []
-    res_attrs_raw: list[dict[str, Attribute]] | None = []
-    if parser.parse_optional_punctuation("->"):
-        return_attributes = parser.parse_optional_comma_separated_list(
-            parser.Delimiter.PAREN, parse_fun_output
-        )
-        if return_attributes is None:
-            # output attributes are supported only if return results are enclosed in brackets (...)
-            return_types, res_attrs_raw = [parser.parse_type()], None
-        else:
-            return_types, res_attrs_raw = (
-                [el[0] for el in return_attributes],
-                [el[1] for el in return_attributes],
-            )
-
-    if res_attrs_raw is not None and any(res_attrs_raw):
-        res_attrs = ArrayAttr(DictionaryAttr(attrs) for attrs in res_attrs_raw)
-    else:
-        res_attrs = None
+    # Parse return types
+    return_types, res_attrs = _parse_func_outputs(parser)
 
     extra_attributes = parser.parse_optional_attr_dict_with_keyword(reserved_attr_names)
 
@@ -326,6 +422,17 @@ def parse_func_op_like(
     if region is None:
         region = Region()
 
+    if allow_variadic:
+        return (
+            name,
+            input_types,
+            return_types,
+            region,
+            extra_attributes,
+            arg_attrs,
+            res_attrs,
+            is_variadic,
+        )
     return (
         name,
         input_types,
