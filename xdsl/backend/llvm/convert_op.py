@@ -164,6 +164,32 @@ def _convert_call(
         val_map[op.returned] = instruction
 
 
+def _convert_alloca(
+    op: llvm.AllocaOp, builder: ir.IRBuilder, val_map: dict[SSAValue, ir.Value]
+):
+    alloca_instr = builder.alloca(convert_type(op.elem_type), size=val_map[op.size])
+    if op.alignment:
+        alloca_instr.align = op.alignment.value.data
+    val_map[op.results[0]] = alloca_instr
+
+
+def _convert_load(
+    op: llvm.LoadOp, builder: ir.IRBuilder, val_map: dict[SSAValue, ir.Value]
+):
+    load_instr = builder.load(val_map[op.ptr], typ=convert_type(op.results[0].type))
+    if op.alignment:
+        load_instr.align = op.alignment.value.data
+    val_map[op.results[0]] = load_instr
+
+
+def _convert_store(
+    op: llvm.StoreOp, builder: ir.IRBuilder, val_map: dict[SSAValue, ir.Value]
+):
+    store_instr = builder.store(val_map[op.value], val_map[op.ptr])
+    if op.alignment:
+        store_instr.align = op.alignment.value.data
+
+
 def _convert_getelementptr(
     op: llvm.GEPOp, builder: ir.IRBuilder, val_map: dict[SSAValue, ir.Value]
 ) -> None:
@@ -244,10 +270,28 @@ def convert_op(
             _convert_cast(op, builder, val_map)
         case llvm.CallOp():
             _convert_call(op, builder, val_map)
+        case llvm.AllocaOp():
+            _convert_alloca(op, builder, val_map)
+        case llvm.LoadOp():
+            _convert_load(op, builder, val_map)
+        case llvm.StoreOp():
+            _convert_store(op, builder, val_map)
+        case llvm.ExtractValueOp():
+            val_map[op.results[0]] = builder.extract_value(
+                val_map[op.container], list(op.position.iter_values())
+            )
+        case llvm.InsertValueOp():
+            val_map[op.results[0]] = builder.insert_value(
+                val_map[op.container],
+                val_map[op.value],
+                list(op.position.iter_values()),
+            )
         case llvm.GEPOp():
             _convert_getelementptr(op, builder, val_map)
         case llvm.InlineAsmOp():
             _convert_inline_asm(op, builder, val_map)
+        case llvm.UnreachableOp():
+            builder.unreachable()
         case llvm.ReturnOp():
             _convert_return(op, builder, val_map)
         case _:
