@@ -6,6 +6,7 @@ from xdsl.dialects.builtin import Float64Type, FloatAttr, ModuleOp
 from xdsl.ir import Operation, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
+    InsertPoint,
     PatternRewriter,
     PatternRewriteWalker,
     RewritePattern,
@@ -89,8 +90,24 @@ class EmatchExpPass(ModulePass):
     terms = 3
 
     def apply(self, ctx: Context, op: ModuleOp) -> None:
+        if op.body.block.first_op is None:
+            return  # if the module is empty we just don't do anything
+        rewriter = EquivalencePatternRewriter(
+            op.body.block.first_op
+        )  # this already calls populate_known_ops in its constructor
+
+        def reset(cur_op: Operation):
+            """Resets the necessary fields of the rewriter, while keeping the eqsat_bookkeeper unchanged."""
+            rewriter.has_done_action = False
+            rewriter.current_operation = cur_op
+            rewriter.insertion_point = InsertPoint.before(cur_op)
+            rewriter.name_hint = None
+            return rewriter
+
         PatternRewriteWalker(
             ExpandExp(self.terms),
             apply_recursively=False,
-            rewriter_factory=EquivalencePatternRewriter,  # we want to use the equivalence rewriter
+            rewriter_factory=reset,
+            # we want to use the equivalence rewriter
+            # reset rewriter and then return it, do not reset the stat of the bookkeeping
         ).rewrite_module(op)
