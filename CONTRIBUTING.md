@@ -194,20 +194,24 @@ We aim to follow these rules for all changes in this repository:
   rather than corrupting state, as this makes debugging easier.
 - We follow the Python philosophy of
   "[ask for forgiveness not permission](https://docs.python.org/3/glossary.html#term-EAFP)":
-  we assume valid keys or attributes exist and catch exceptions if the assumption proves
-  false. This leads to cleaner, more Pythonic code:
+  assume keys and attributes exist and catch exceptions when they don't. For single-value
+  lookups, prefer the walrus operator to avoid a double lookup:
 
   ```python
-  # Good
+  # Good: single lookup
+  if (value := mapping.get(key)) is None:
+      raise MyException()
+
+  # Good: EAFP, when no sentinel is available
   try:
       return mapping[key]
   except KeyError:
       return default_value
 
-  # Bad
-  if key in mapping:
-      return mapping[key]
-  return default_value
+  # Bad: LBYL, double lookup
+  if key not in mapping:
+      raise MyException()
+  return mapping[key]
   ```
 
 ## Discussion
