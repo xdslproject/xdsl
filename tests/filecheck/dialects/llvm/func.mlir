@@ -66,3 +66,18 @@ llvm.func @func_with_attrs() attributes {hello = "world"} {
 // CHECK: llvm.func @func_with_attrs() attributes {hello = "world"} {
 // CHECK-NEXT:   llvm.return
 // CHECK-NEXT: }
+
+llvm.func private @wrapped_function(%arg0: i32, %arg1: i32) attributes {llvm.emit_c_interface, sym_visibility = "private"} {
+   "llvm.call"(%arg0, %arg1) <{CConv = #llvm.cconv<ccc>, TailCallKind = #llvm.tailcallkind<none>, callee = @_mlir_ciface_wrapped_function, fastmathFlags = #llvm.fastmath<none>, op_bundle_sizes = array<i32>, operandSegmentSizes = array<i32: 2, 0>}> : (i32, i32) -> ()
+   //llvm.call @_mlir_ciface_wrapped_function(%arg0, %arg1) : (i32, i32) -> ()
+   llvm.return
+}
+
+llvm.func @_mlir_ciface_wrapped_function(i32, i32) attributes {llvm.emit_c_interface, sym_visibility = "private"}
+
+// CHECK:  llvm.func private @wrapped_function(%arg0_4 : i32, %arg1_2 : i32) attributes {llvm.emit_c_interface, sym_visibility = "private"} {
+// CHECK-NEXT:    "llvm.call"(%arg0_4, %arg1_2) <{CConv = #llvm.cconv<ccc>, TailCallKind = #llvm.tailcallkind<none>, callee = @_mlir_ciface_wrapped_function, fastmathFlags = #llvm.fastmath<none>, op_bundle_sizes = array<i32>, operandSegmentSizes = array<i32: 2, 0>}> : (i32, i32) -> ()
+//     llvm.call @_mlir_ciface_wrapped_function(%arg0, %arg1) : (i32, i32) -> ()
+// CHECK-NEXT:    llvm.return
+// CHECK-NEXT:  }
+// CHECK-NEXT:  llvm.func @_mlir_ciface_wrapped_function(i32, i32) attributes {llvm.emit_c_interface, sym_visibility = "private"}

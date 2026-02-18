@@ -234,7 +234,10 @@ def print_func_op_like(
 
     # Non-variadic declaration
     if not body.blocks and not is_variadic:
-        printer.print_attribute(function_type)
+        printer.print_string("(")
+        printer.print_list(function_type.inputs, printer.print_attribute)
+        printer.print_string(")")
+        _print_func_outputs(printer, function_type.outputs.data, res_attrs)
         printer.print_op_attributes(
             attributes, reserved_attr_names=reserved_attr_names, print_keyword=True
         )

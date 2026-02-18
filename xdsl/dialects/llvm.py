@@ -1638,7 +1638,6 @@ class TargetFeaturesAttr(ParametrizedAttribute):
 _FUNC_OP_RESERVED_ATTR_NAMES = (
     "sym_name",
     "function_type",
-    "sym_visibility",
     "arg_attrs",
     "res_attrs",
     "linkage",
@@ -1781,7 +1780,7 @@ class FuncOp(IRDLOperation):
 
     @classmethod
     def parse(cls, parser: Parser) -> FuncOp:
-        sym_visibility = parser.parse_optional_visibility_keyword()
+        # sym_visibility = parser.parse_optional_visibility_keyword()
         linkage = cls._parse_linkage(parser)
         cconv = cls._parse_cconv(parser)
         visibility = cls._parse_llvm_visibility(parser)
@@ -1809,7 +1808,6 @@ class FuncOp(IRDLOperation):
             linkage=linkage,
             cconv=cconv,
             visibility=visibility,
-            sym_visibility=sym_visibility,
             body=region,
             other_props=other_props,
             extra_attrs=dict(extra_attrs.data) if extra_attrs else None,
@@ -1840,11 +1838,6 @@ class FuncOp(IRDLOperation):
                 raise AssertionError("Invalid unnamed_addr value")
 
     def print(self, printer: Printer):
-        if self.sym_visibility:
-            visibility = self.sym_visibility.data
-            printer.print_string(" ")
-            printer.print_string(visibility)
-
         if self.linkage.linkage.data != "external":
             printer.print_string(" ")
             printer.print_string(self.linkage.linkage.data)
