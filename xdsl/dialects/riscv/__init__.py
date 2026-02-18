@@ -141,7 +141,6 @@ from .ops import (
     FSubSOp,
     FSwOp,
     GetFloatRegisterOp,
-    GetRegisterOp,
     JalOp,
     JalrOp,
     JOp,
@@ -352,7 +351,6 @@ RISCV = Dialect(
         WfiOp,
         CustomAssemblyInstructionOp,
         CommentOp,
-        GetRegisterOp,
         GetFloatRegisterOp,
         # Floating point
         FMVOp,

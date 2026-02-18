@@ -317,6 +317,10 @@ class Value:
     The base class for all values.
     """
 
+    @property
+    def type(self) -> Type: ...
+    def get_reference(self) -> str: ...
+
 class _Undefined:
     """
     'undef': a value for undefined values.

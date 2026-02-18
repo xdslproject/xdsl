@@ -9,7 +9,7 @@
 // CHECK-NEXT:     %{{.+}} = riscv.mv %{{.+}} : (!riscv.reg<s0>) -> !riscv.reg<a0>
 // CHECK-NEXT:     %{{.+}} = rv32.li 64 : !riscv.reg<a7>
 // CHECK-NEXT:     riscv.ecall
-// CHECK-NEXT:     %{{.+}} = riscv.get_register : !riscv.reg<a0>
+// CHECK-NEXT:     %{{.+}} = rv32.get_register : !riscv.reg<a0>
 // CHECK-NEXT:     %{{.+}} = riscv.mv %{{.+}} : (!riscv.reg<a0>) -> !riscv.reg<s1>
 
 

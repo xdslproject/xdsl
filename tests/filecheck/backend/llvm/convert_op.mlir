@@ -298,6 +298,134 @@ builtin.module {
   // CHECK-NEXT:   ret void
   // CHECK-NEXT: }
 
+  llvm.func @casts(%arg0 : i32, %arg1 : i64, %arg2 : !llvm.ptr, %arg3 : f32) {
+    %0 = llvm.trunc %arg1 : i64 to i32
+    %1 = llvm.zext %arg0 : i32 to i64
+    %2 = llvm.sext %arg0 : i32 to i64
+    %3 = "llvm.ptrtoint"(%arg2) : (!llvm.ptr) -> i64
+    %4 = "llvm.inttoptr"(%arg1) : (i64) -> !llvm.ptr
+    %5 = llvm.bitcast %arg1 : i64 to f64
+    %6 = llvm.fpext %arg3 : f32 to f64
+    %7 = llvm.sitofp %arg0 : i32 to f32
+    llvm.return
+  }
+
+  // CHECK: define void @"casts"(i32 %".1", i64 %".2", ptr %".3", float %".4")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT:   {{%.+}} = trunc i64 %".2" to i32
+  // CHECK-NEXT:   {{%.+}} = zext i32 %".1" to i64
+  // CHECK-NEXT:   {{%.+}} = sext i32 %".1" to i64
+  // CHECK-NEXT:   {{%.+}} = ptrtoint ptr %".3" to i64
+  // CHECK-NEXT:   {{%.+}} = inttoptr i64 %".2" to ptr
+  // CHECK-NEXT:   {{%.+}} = bitcast i64 %".2" to double
+  // CHECK-NEXT:   {{%.+}} = fpext float %".4" to double
+  // CHECK-NEXT:   {{%.+}} = sitofp i32 %".1" to float
+  // CHECK-NEXT:   ret void
+  // CHECK-NEXT: }
+
+  llvm.func @casts_with_flags(%arg0 : i32, %arg1 : i64) {
+    // llvm.TruncOp with overflow flags (IntegerConversionOpOverflow)
+    %trunc_none = llvm.trunc %arg1 : i64 to i32
+    %trunc_nsw = llvm.trunc %arg1 overflow<nsw> : i64 to i32
+    %trunc_nuw = llvm.trunc %arg1 overflow<nuw> : i64 to i32
+    %trunc_both = llvm.trunc %arg1 overflow<nsw, nuw> : i64 to i32
+
+    // llvm.ZExtOp with nneg flag (IntegerConversionOpNNeg)
+    %zext_none = llvm.zext %arg0 : i32 to i64
+    %zext_nneg = llvm.zext nneg %arg0 : i32 to i64
+
+    llvm.return
+  }
+
+  // CHECK: define void @"casts_with_flags"(i32 %".1", i64 %".2")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT:   {{%.+}} = trunc i64 %".2" to i32
+  // CHECK-NEXT:   {{%.+}} = trunc nsw i64 %".2" to i32
+  // CHECK-NEXT:   {{%.+}} = trunc nuw i64 %".2" to i32
+  // CHECK-NEXT:   {{%.+}} = trunc {{(nsw nuw|nuw nsw)}} i64 %".2" to i32
+  // CHECK-NEXT:   {{%.+}} = zext i32 %".1" to i64
+  // CHECK-NEXT:   {{%.+}} = zext nneg i32 %".1" to i64
+  // void gep_constant(int* ptr) {
+  //   int* result = &ptr[1][2];
+  // }
+  llvm.func @gep_constant(%arg0 : !llvm.ptr) {
+    %0 = "llvm.getelementptr"(%arg0) <{
+      elem_type = i32,
+      rawConstantIndices = array<i32: 1, 2>,
+      noWrapFlags = 0 : i32
+    }> : (!llvm.ptr) -> !llvm.ptr
+    llvm.return
+  }
+
+  // CHECK: define void @"gep_constant"(ptr %".1")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT:   {{%.+}} = getelementptr i32, ptr %".1", i32 1, i32 2
+  // CHECK-NEXT:   ret void
+  // CHECK-NEXT: }
+
+  // void gep_ssa(int* ptr, int index) {
+  //   int* result = &ptr[index];
+  // }
+  llvm.func @gep_ssa(%arg0 : !llvm.ptr, %arg1 : i32) {
+    %0 = "llvm.getelementptr"(%arg0, %arg1) <{
+      elem_type = i32,
+      rawConstantIndices = array<i32: -2147483648>, // magic constant 0x80000000 (placeholder for ssa value)
+      noWrapFlags = 0 : i32
+    }> : (!llvm.ptr, i32) -> !llvm.ptr
+    llvm.return
+  }
+
+  // CHECK: define void @"gep_ssa"(ptr %".1", i32 %".2")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT:   {{%.+}} = getelementptr i32, ptr %".1", i32 %".2"
+  // CHECK-NEXT:   ret void
+  // CHECK-NEXT: }
+
+  // void gep_mixed(int* ptr, int i, int j) {
+  //   // e.g. ptr[1].some_array[i].some_struct[2].some_data[j]
+  //   int* result = &ptr[1][i][2][j];
+  // }
+  llvm.func @gep_mixed(%arg0 : !llvm.ptr, %arg1 : i32, %arg2 : i32) {
+    %0 = "llvm.getelementptr"(%arg0, %arg1, %arg2) <{
+      elem_type = i32,
+      rawConstantIndices = array<i32: 1, -2147483648, 2, -2147483648>,
+      noWrapFlags = 0 : i32
+    }> : (!llvm.ptr, i32, i32) -> !llvm.ptr
+    llvm.return
+  }
+
+  // CHECK: define void @"gep_mixed"(ptr %".1", i32 %".2", i32 %".3")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT:   {{%.+}} = getelementptr i32, ptr %".1", i32 1, i32 %".2", i32 2, i32 %".3"
+  // CHECK-NEXT:   ret void
+  // CHECK-NEXT: }
+
+  // void gep_inbounds(int* ptr, int idx) {
+  //   // same as gep_ssa, but we assume that 'ptr + idx' stays within the same 'object'
+  //   int* result = &ptr[idx]; 
+  // }
+  llvm.func @gep_inbounds(%arg0 : !llvm.ptr, %arg1 : i32) {
+    %0 = "llvm.getelementptr"(%arg0, %arg1) <{
+      elem_type = i32,
+      rawConstantIndices = array<i32: -2147483648>,
+      inbounds,
+      noWrapFlags = 0 : i32
+    }> : (!llvm.ptr, i32) -> !llvm.ptr
+    llvm.return
+  }
+
+  // CHECK: define void @"gep_inbounds"(ptr %".1", i32 %".2")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT:   {{%.+}} = getelementptr inbounds i32, ptr %".1", i32 %".2"
+  // CHECK-NEXT:   ret void
+  // CHECK-NEXT: }
+
   llvm.func @comparisons(%arg0: i32, %arg1: i32) {
     %0 = llvm.icmp "eq" %arg0, %arg1 : i32
     %1 = llvm.icmp "ne" %arg0, %arg1 : i32
@@ -327,4 +455,31 @@ builtin.module {
   // CHECK-NEXT:   {{%.+}} = icmp uge i32 %".1", %".2"
   // CHECK-NEXT:   ret void
   // CHECK-NEXT: }
+
+  llvm.func @helper(%arg0: i32) -> i32 {
+    llvm.return %arg0 : i32
+  }
+
+  // CHECK: define i32 @"helper"(i32 %".1")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT:   ret i32 %".1"
+  // CHECK-NEXT: }
+
+  llvm.func @call_op(%arg0: i32) -> i32 {
+    %0 = "llvm.call"(%arg0) <{
+      callee = @helper,
+      fastmathFlags = #llvm.fastmath<nnan, ninf>,
+      CConv = #llvm.cconv<fastcc>,
+      TailCallKind = #llvm.tailcallkind<tail>,
+      operandSegmentSizes = array<i32: 1, 0>
+    }> : (i32) -> i32
+    llvm.return %0 : i32
+  }
+
+  // CHECK: define i32 @"call_op"(i32 %".1")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT:   {{%.+}} = tail call ninf nnan fastcc i32 @"helper"(i32 %".1")
+  // CHECK-NEXT:   ret i32 {{%.+}}
 }

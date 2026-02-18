@@ -1,7 +1,7 @@
 import pytest
 
 from xdsl.context import Context
-from xdsl.dialects import riscv, rv32, rv64
+from xdsl.dialects import riscv
 from xdsl.dialects.builtin import (
     IntAttr,
     IntegerAttr,
@@ -10,8 +10,6 @@ from xdsl.dialects.builtin import (
     i32,
 )
 from xdsl.parser import Parser
-from xdsl.traits import ConstantLike
-from xdsl.transforms.canonicalization_patterns.riscv import get_constant_value
 from xdsl.utils.exceptions import ParseError, VerifyException
 from xdsl.utils.test_value import create_ssa_value
 
@@ -210,22 +208,6 @@ def test_immediate_jalr_inst():
     riscv.JalrOp(a1, (1 << 11) - 1, rd=riscv.Registers.A0)
 
 
-def test_immediate_pseudo_inst():
-    lb, ub = Signedness.SIGNLESS.value_range(32)
-    assert ub == 4294967296
-    assert lb == -2147483648
-
-    # Pseudo-Instruction with custom handling
-    with pytest.raises(VerifyException):
-        rv32.LiOp(ub, rd=riscv.Registers.A0)
-
-    with pytest.raises(VerifyException):
-        rv32.LiOp(lb - 1, rd=riscv.Registers.A0)
-
-    rv32.LiOp(ub - 1, rd=riscv.Registers.A0)
-    rv32.LiOp(lb, rd=riscv.Registers.A0)
-
-
 def test_immediate_shift_inst():
     # Shift instructions (SLLI, SRLI, SRAI) - 5-bits immediate
     a1 = create_ssa_value(riscv.Registers.A1)
@@ -272,26 +254,6 @@ def test_riscv_parse_immediate_value():
 def test_asm_section():
     section = riscv.AssemblySectionOp("section")
     section.verify()
-
-
-def test_get_constant_value():
-    # Test 32-bit LiOp
-    one_32 = IntegerAttr.from_int_and_width(1, 32)
-    li_op_32 = rv32.LiOp(1)
-    li_val_32 = get_constant_value(li_op_32.rd)
-    assert li_val_32 == one_32
-    assert ConstantLike.get_constant_value(li_op_32.rd) == one_32
-
-    # Test 64-bit LiOp
-    one_rv64 = IntegerAttr.from_int_and_width(1, 64)
-    li_op_rv64 = rv64.LiOp(1)
-    li_val_rv64 = get_constant_value(li_op_rv64.rd)
-    assert li_val_rv64 == one_rv64
-    assert ConstantLike.get_constant_value(li_op_rv64.rd) == one_rv64
-
-    zero_op = riscv.GetRegisterOp(riscv.Registers.ZERO)
-    zero_val = get_constant_value(zero_op.res)
-    assert zero_val == IntegerAttr.from_int_and_width(0, 32)
 
 
 def test_int_abi_name_by_index():

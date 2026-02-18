@@ -1,8 +1,8 @@
 // RUN: xdsl-opt -p convert-riscv-scf-for-to-frep %s | filecheck %s
 
-%i0 = riscv.get_register : !riscv.reg
-%i1 = riscv.get_register : !riscv.reg
-%i2 = riscv.get_register : !riscv.reg
+%i0 = rv32.get_register : !riscv.reg
+%i1 = rv32.get_register : !riscv.reg
+%i2 = rv32.get_register : !riscv.reg
 
 %c1 = rv32.li 1 : !riscv.reg
 %c2 = rv32.li 2 : !riscv.reg
