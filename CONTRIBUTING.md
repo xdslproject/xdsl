@@ -180,8 +180,7 @@ We aim to follow these rules for all changes in this repository:
   code. Premature abstraction often adds complexity without clear benefit.
 - We prioritize code locality over DRY (Don't Repeat Yourself). Keeping related logic close
   together - even if it results in slight duplication - makes it easier to understand
-  code in isolation. We prefer lambdas and inline logic over tiny single-use functions
-  (<5 LoC), and we minimize variable scope.
+  code in isolation. We minimize variable scope.
 - We write self-describing code by using descriptive variable names and constant
   intermediary variables rather than relying heavily on comments.
 - We use guard-first logic, handling edge cases, invalid inputs and errors at the start
