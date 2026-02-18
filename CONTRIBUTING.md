@@ -193,7 +193,7 @@ We aim to follow these rules for all changes in this repository:
 - We fail fast by detecting unexpected conditions immediately and raising exceptions
   rather than corrupting state, as this makes debugging easier.
 - We follow the Python philosophy of
-  "[ask for forgiveness not permission](https://docs.python.org/3/glossary.html#term-eafp)":
+  "[ask for forgiveness not permission](https://docs.python.org/3/glossary.html#term-EAFP)":
   we assume valid keys or attributes exist and catch exceptions if the assumption proves
   false. This leads to cleaner, more Pythonic code:
 
