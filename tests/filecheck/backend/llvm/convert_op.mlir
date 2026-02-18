@@ -298,6 +298,34 @@ builtin.module {
   // CHECK-NEXT:   ret void
   // CHECK-NEXT: }
 
+  llvm.func @helper(%arg0: i32) -> i32 {
+    llvm.return %arg0 : i32
+  }
+
+  // CHECK: define i32 @"helper"(i32 %".1")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT:   ret i32 %".1"
+  // CHECK-NEXT: }
+
+  llvm.func @call_op(%arg0: i32) -> i32 {
+    %0 = "llvm.call"(%arg0) <{
+      callee = @helper,
+      fastmathFlags = #llvm.fastmath<nnan, ninf>,
+      CConv = #llvm.cconv<fastcc>,
+      TailCallKind = #llvm.tailcallkind<tail>,
+      operandSegmentSizes = array<i32: 1, 0>
+    }> : (i32) -> i32
+    llvm.return %0 : i32
+  }
+
+  // CHECK: define i32 @"call_op"(i32 %".1")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT:   {{%.+}} = tail call ninf nnan fastcc i32 @"helper"(i32 %".1")
+  // CHECK-NEXT:   ret i32 {{%.+}}
+  // CHECK-NEXT: }
+
   llvm.func @alloca_op(%arg0: i32) {
     %0 = "llvm.alloca"(%arg0) <{elem_type = i32}> : (i32) -> !llvm.ptr
     llvm.return
@@ -565,31 +593,4 @@ builtin.module {
   // CHECK-NEXT:   ret void
   // CHECK-NEXT: }
 
-  llvm.func @helper(%arg0: i32) -> i32 {
-    llvm.return %arg0 : i32
-  }
-
-  // CHECK: define i32 @"helper"(i32 %".1")
-  // CHECK-NEXT: {
-  // CHECK-NEXT: {{.[0-9]+}}:
-  // CHECK-NEXT:   ret i32 %".1"
-  // CHECK-NEXT: }
-
-  llvm.func @call_op(%arg0: i32) -> i32 {
-    %0 = "llvm.call"(%arg0) <{
-      callee = @helper,
-      fastmathFlags = #llvm.fastmath<nnan, ninf>,
-      CConv = #llvm.cconv<fastcc>,
-      TailCallKind = #llvm.tailcallkind<tail>,
-      operandSegmentSizes = array<i32: 1, 0>
-    }> : (i32) -> i32
-    llvm.return %0 : i32
-  }
-
-  // CHECK: define i32 @"call_op"(i32 %".1")
-  // CHECK-NEXT: {
-  // CHECK-NEXT: {{.[0-9]+}}:
-  // CHECK-NEXT:   {{%.+}} = tail call ninf nnan fastcc i32 @"helper"(i32 %".1")
-  // CHECK-NEXT:   ret i32 {{%.+}}
-  // CHECK-NEXT: }
 }

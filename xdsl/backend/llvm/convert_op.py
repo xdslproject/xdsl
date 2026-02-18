@@ -270,10 +270,6 @@ def convert_op(
             _convert_cast(op, builder, val_map)
         case llvm.CallOp():
             _convert_call(op, builder, val_map)
-        case llvm.InlineAsmOp():
-            _convert_inline_asm(op, builder, val_map)
-        case llvm.ReturnOp():
-            _convert_return(op, builder, val_map)
         case llvm.AllocaOp():
             _convert_alloca(op, builder, val_map)
         case llvm.LoadOp():
