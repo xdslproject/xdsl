@@ -36,7 +36,7 @@ from xdsl.irdl import (
 class PyObjectType(ParametrizedAttribute, TypeAttribute):
     """Python opaque type"""
 
-    name = "python.object"
+    name = "py.object"
 
 
 ##==------------------------------------------------------------------------==##
@@ -120,5 +120,7 @@ Py = Dialect(
         PyBinOp,
         PyConstOp,
     ],
-    [],
+    [
+        PyObjectType,
+    ],
 )
