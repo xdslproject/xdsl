@@ -69,6 +69,9 @@
 
   %icmp_bin = comb.icmp bin eq %lhsi1, %rhsi1 : i1
   // CHECK-NEXT: %icmp_bin = comb.icmp bin eq %lhsi1, %rhsi1 : i1
+ 
+  %icmp_bin_attr = comb.icmp bin eq %lhsi1, %rhsi1 {anotherAttr} : i1
+  // CHECK-NEXT: %icmp_bin_attr = comb.icmp bin eq %lhsi1, %rhsi1 {anotherAttr} : i1
 
   %parity = comb.parity %lhsi1 : i1
   // CHECK-NEXT: %parity = comb.parity %lhsi1 : i1

@@ -377,12 +377,13 @@ class ICmpOp(TwoStateOperation, ABC):
         operand1 = parser.parse_unresolved_operand()
         parser.parse_punctuation(",")
         operand2 = parser.parse_unresolved_operand()
+        attr_dict = parser.parse_optional_attr_dict()
         parser.parse_punctuation(":")
         input_type = parser.parse_type()
         (operand1, operand2) = parser.resolve_operands(
             [operand1, operand2], 2 * [input_type], parser.pos
         )
-        return cls(operand1, operand2, arg, has_two_state_semantics)
+        return cls(operand1, operand2, arg, has_two_state_semantics, attr_dict)
 
     def print(self, printer: Printer):
         self.print_optional_two_state_keyword(printer)
