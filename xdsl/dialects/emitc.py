@@ -817,6 +817,72 @@ class EmitC_ClassOp(IRDLOperation):
             return self.body.block
 
 
+@irdl_op_definition
+class EmitC_FieldOp(IRDLOperation):
+    """
+    A field within a class.
+
+    The `emitc.field` operation declares a named field within an `emitc.class`
+    operation. The field's type must be an EmitC type.
+
+    Example:
+
+    ```mlir
+    // Example with an attribute:
+    emitc.field @fieldName0 : !emitc.array<1xf32>  {emitc.opaque = "another_feature"}
+    // Example with no attribute:
+    emitc.field @fieldName0 : !emitc.array<1xf32>
+    // Example with an initial value:
+    emitc.field @fieldName0 : !emitc.array<1xf32> = dense<0.0>
+    // Example with an initial value and attributes:
+    emitc.field @fieldName0 : !emitc.array<1xf32> = dense<0.0> {
+      emitc.opaque = "input_tensor"}
+    """
+
+    name = "emitc.field"
+
+    sym_name = prop_def(StringAttr)
+    type = prop_def(TypeAttribute)
+    initial_value = opt_prop_def(EmitC_OpaqueAttr | TypedAttribute)
+
+    assembly_format = "$sym_name `:` custom<EmitCFieldOpTypeAndInitialValue>($type, $initial_value) attr-dict"
+
+    def verify_(self) -> None:
+        parentOp = self.parent_op()
+        if not parentOp or not isinstance(parentOp, EmitC_ClassOp):
+            raise VerifyException("field must be nested within an emitc.class operation")
+        name = self.sym_name
+        if not name or name.data == "":
+            raise VerifyException("field must have a non-empty symbol name")
+
+
+@irdl_op_definition
+class EmitC_GetFieldOp(IRDLOperation):
+    """
+    Obtain access to a field within a class instance.
+
+    The `emitc.get_field` operation retrieves the lvalue of a
+     named field from a given class instance.
+
+     Example:
+
+     ```mlir
+     %0 = get_field @fieldName0 : !emitc.array<1xf32>
+     ```
+    """
+
+    name = "emitc.get_field"
+
+    field_name = prop_def(StringAttr)
+    result = result_def(EmitCTypeConstr)
+    assembly_format = "$field_name `:` type($result) attr-dict"
+
+    def verify_(self) -> None:
+        parentOp = self.parent_op()
+        if not parentOp or not isinstance(parentOp, EmitC_ClassOp):
+            raise VerifyException(" must be nested within an emitc.class operation")
+
+
 class CmpPredicate(StrEnum):
     eq = "eq"
     ne = "ne"
@@ -1831,6 +1897,8 @@ EmitC = Dialect(
         EmitC_CallOpaqueOp,
         EmitC_CastOp,
         EmitC_ClassOp,
+        EmitC_FieldOp,
+        EmitC_GetFieldOp,
         EmitC_CmpOp,
         EmitC_ConditionalOp,
         EmitC_ConstantOp,
