@@ -120,3 +120,35 @@ builtin.module {
 %s = "test.op"() : () -> (f32)
 // CHECK: operand is used with type i32, but has been previously used or defined with type f32
 %v = tensor.splat %s : tensor<8xi32>
+
+// -----
+%pval, %ptensor, %dim1, %dim2 = "test.op"() : () -> (f32, tensor<12x20x20xf32>, index, index) 
+// CHECK: number of dynamic sizes (2) must equal number of unknown dimensions in result tensor (1)
+%padded = tensor.pad %ptensor low[1, %dim1, 2] high[%dim2, %dim2, 3] {
+  ^bb0(%arg0 : index, %arg1 : index, %arg2 : index):
+    tensor.yield %pval : f32
+  } : tensor<12x20x20xf32> to tensor<?x20x25xf32>
+
+// -----
+%pval, %ptensor, %dim1, %dim2 = "test.op"() : () -> (f32, tensor<12x20x20xf32>, index, index) 
+// CHECK: low and high pad sizes must have an equal number of dimensions
+%padded = tensor.pad %ptensor low[1, %dim1] high[%dim2, %dim2, 3] {
+  ^bb0(%arg0 : index, %arg1 : index, %arg2 : index):
+    tensor.yield %pval : f32
+  } : tensor<12x20x20xf32> to tensor<?x20x25xf32>
+
+// -----
+%pval, %ptensor, %dim1, %dim2 = "test.op"() : () -> (f32, tensor<12x20x20xf32>, index, index) 
+// CHECK: number of pad sizes must equal number of dimensions in source tensor
+%padded = tensor.pad %ptensor low[1, %dim1] high[2, %dim2] {
+  ^bb0(%arg0 : index, %arg1 : index, %arg2 : index):
+    tensor.yield %pval : f32
+  } : tensor<12x20x20xf32> to tensor<?x20x25xf32>
+
+// -----
+%pval, %ptensor, %dim1, %dim2 = "test.op"() : () -> (f32, tensor<12x20x20xf32>, index, index) 
+// CHECK: region must have an arg for each dimension of the source tensor
+%padded = tensor.pad %ptensor low[1, %dim1, 2] high[%dim2, %dim2, 3] {
+  ^bb0(%arg0 : index, %arg1 : index):
+    tensor.yield %pval : f32
+  } : tensor<12x20x20xf32> to tensor<?x?x25xf32>
