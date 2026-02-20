@@ -3,7 +3,7 @@
 import abc
 from collections.abc import Sequence
 
-from xdsl.dialects.builtin import IntAttr, f64, i1
+from xdsl.dialects.builtin import IntAttr, IntegerType, f64, i1
 from xdsl.ir import (
     Attribute,
     Dialect,
@@ -97,6 +97,24 @@ class ConstantOp(IRDLOperation):
 
     def fold(self) -> Sequence[SSAValue | Attribute] | None:
         return (self.value,)
+
+
+@irdl_op_definition
+class TruncateToIntOp(IRDLOperation):
+    name = "bigint.truncate_to_int"
+    result = result_def(IntegerType)
+    value = operand_def(bigint)
+
+    traits = traits_def(Pure())
+
+    assembly_format = "attr-dict $value `:` type($result)"
+
+    def __init__(
+        self,
+        value: Operation | SSAValue,
+        type: IntegerType = IntegerType(64),
+    ):
+        super().__init__(operands=[value], result_types=[type])
 
 
 @irdl_op_definition
@@ -354,6 +372,7 @@ BigInt = Dialect(
     "bigint",
     [
         ConstantOp,
+        TruncateToIntOp,
         AddOp,
         SubOp,
         MulOp,

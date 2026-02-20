@@ -18,6 +18,11 @@
 %cwithdict = bigint.constant 1 {my_attr}
 
 
+// CHECK-NEXT:  %trunc1 = bigint.truncate_to_int %a : i32
+// CHECK-NEXT:  %trunc2 = bigint.truncate_to_int {my_attr} %a : i64
+%trunc1 = bigint.truncate_to_int %a : i32
+%trunc2 = bigint.truncate_to_int {my_attr} %a : i64
+
 // CHECK-NEXT:   %sum = bigint.add %a, %b : !bigint.bigint
 // CHECK-NEXT:   %diff = bigint.sub %a, %b : !bigint.bigint
 // CHECK-NEXT:   %prod = bigint.mul %a, %b : !bigint.bigint
