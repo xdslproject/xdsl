@@ -718,6 +718,8 @@ class Parser(AttrParser):
             self._parser_state.dialect_stack.append(dialect_name)
             op = op_type.parse(self)
             self._parser_state.dialect_stack.pop()
+            if (location := self.parse_optional_location()) is not None:
+                op.location = location
         else:
             # Generic operation format
             op_name = self.expect(
@@ -883,7 +885,7 @@ class Parser(AttrParser):
         # Parse function type
         func_type = self.parse_function_type()
 
-        self.parse_optional_location()
+        location = self.parse_optional_location()
 
         operands = self.resolve_operands(args, func_type.inputs.data, func_type_pos)
 
@@ -900,6 +902,7 @@ class Parser(AttrParser):
             result_types=func_type.outputs.data,
             properties=properties,
             attributes=attributes,
+            location=location,
             successors=successors,
             regions=regions,
         )

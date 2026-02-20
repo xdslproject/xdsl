@@ -585,7 +585,7 @@ class Printer(BasePrinter):
         self.print_function_type(op.operand_types, op.result_types)
         if self.print_debuginfo:
             self.print_string(" ")
-            self.print_attribute(UnknownLoc())
+            self.print_attribute(op.location or UnknownLoc())
 
     def enter_scope(self) -> None:
         self._next_valid_name_id.append(self._next_valid_name_id[-1])

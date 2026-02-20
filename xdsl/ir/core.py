@@ -1067,6 +1067,9 @@ class Operation(_IRNode):
     attributes: dict[str, Attribute] = field(default_factory=dict[str, Attribute])
     """The attributes attached to the operation."""
 
+    location: Attribute | None = field(default=None)
+    """The optional source location attached to this operation."""
+
     regions: tuple[Region, ...] = field(default=())
     """Regions arguments of the operation."""
 
@@ -1202,6 +1205,7 @@ class Operation(_IRNode):
         result_types: Sequence[Attribute] = (),
         properties: Mapping[str, Attribute] = {},
         attributes: Mapping[str, Attribute] = {},
+        location: Attribute | None = None,
         successors: Sequence[Block] = (),
         regions: Sequence[Region] = (),
     ) -> None:
@@ -1216,6 +1220,7 @@ class Operation(_IRNode):
         )
         self.properties = dict(properties)
         self.attributes = dict(attributes)
+        self.location = location
         self.successors = list(successors)
         self.regions = ()
         for region in regions:
@@ -1231,6 +1236,7 @@ class Operation(_IRNode):
         result_types: Sequence[Attribute] = (),
         properties: Mapping[str, Attribute] = {},
         attributes: Mapping[str, Attribute] = {},
+        location: Attribute | None = None,
         successors: Sequence[Block] = (),
         regions: Sequence[Region] = (),
     ) -> Self:
@@ -1241,6 +1247,7 @@ class Operation(_IRNode):
             result_types=result_types,
             properties=properties,
             attributes=attributes,
+            location=location,
             successors=successors,
             regions=regions,
         )
@@ -1446,6 +1453,7 @@ class Operation(_IRNode):
             result_types=result_types,
             attributes=attributes,
             properties=properties,
+            location=self.location,
             successors=successors,
             regions=regions,
         )

@@ -1004,6 +1004,15 @@ def test_parse_location():
         Parser(ctx, "loc(1)").parse_optional_location()
 
 
+def test_parse_generic_op_location_is_preserved_on_operation():
+    ctx = Context()
+    ctx.load_dialect(Test)
+
+    op = Parser(ctx, '"test.op"() : () -> () loc("one":2:3)').parse_op()
+
+    assert op.location == FileLineColLoc(StringAttr("one"), IntAttr(2), IntAttr(3))
+
+
 @pytest.mark.parametrize(
     "keyword,expected",
     [
