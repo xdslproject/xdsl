@@ -1,9 +1,11 @@
 """Dialect for unlimited precision integers with Python `int` semantics."""
 
 import abc
+from collections.abc import Sequence
 
-from xdsl.dialects.builtin import f64, i1
+from xdsl.dialects.builtin import IntAttr, f64, i1
 from xdsl.ir import (
+    Attribute,
     Dialect,
     Operation,
     ParametrizedAttribute,
@@ -15,10 +17,19 @@ from xdsl.irdl import (
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
+    prop_def,
     result_def,
     traits_def,
 )
-from xdsl.traits import Commutative, Pure, SameOperandsAndResultType
+from xdsl.parser import Parser
+from xdsl.printer import Printer
+from xdsl.traits import (
+    Commutative,
+    ConstantLike,
+    HasFolder,
+    Pure,
+    SameOperandsAndResultType,
+)
 
 
 @irdl_attr_definition
@@ -46,6 +57,46 @@ class BinaryOperation(IRDLOperation, abc.ABC):
         operand2: Operation | SSAValue,
     ):
         super().__init__(operands=[operand1, operand2], result_types=[bigint])
+
+
+@irdl_op_definition
+class ConstantOp(IRDLOperation):
+    name = "bigint.constant"
+    result = result_def(bigint)
+    value = prop_def(IntAttr)
+
+    traits = traits_def(ConstantLike(), HasFolder(), Pure())
+
+    @classmethod
+    def parse(cls, parser: Parser):
+        integer = parser.parse_integer()
+        attrDict = parser.parse_optional_attr_dict()
+        return cls(value=IntAttr(integer), attrs=attrDict)
+
+    def print(self, printer: Printer):
+        printer.print_string(" ")
+        printer.print_int(self.value.data)
+        if self.attributes:
+            printer.print_string(" ")
+            printer.print_attr_dict(self.attributes)
+
+    def __init__(
+        self,
+        value: IntAttr | int,
+        attrs: dict[str, Attribute] | None = None,
+    ):
+        if isinstance(value, int):
+            value = IntAttr(value)
+
+        super().__init__(
+            operands=[],
+            result_types=[bigint],
+            properties={"value": value},
+            attributes=attrs,
+        )
+
+    def fold(self) -> Sequence[SSAValue | Attribute] | None:
+        return (self.value,)
 
 
 @irdl_op_definition
@@ -302,6 +353,7 @@ class LteOp(ComparisonOperation):
 BigInt = Dialect(
     "bigint",
     [
+        ConstantOp,
         AddOp,
         SubOp,
         MulOp,
