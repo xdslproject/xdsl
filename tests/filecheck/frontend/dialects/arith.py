@@ -212,6 +212,66 @@ def test_mulf_overload_f64(a: float, b: float) -> float:
 print(test_mulf_overload_f64.module)
 
 
+# CHECK: arith.constant 0.000000e+00 : f64
+@ctx.parse_program
+def test_constant_float() -> float:
+    return 0.0
+
+
+print(test_constant_float.module)
+
+
+# CHECK: arith.constant 1.500000e+00 : f64
+@ctx.parse_program
+def test_constant_float_nonzero() -> float:
+    return 1.5
+
+
+print(test_constant_float_nonzero.module)
+
+
+# CHECK: arith.constant false
+@ctx.parse_program
+def test_constant_bool() -> bool:
+    return False
+
+
+print(test_constant_bool.module)
+
+
+# CHECK: arith.constant true
+@ctx.parse_program
+def test_constant_bool_true() -> bool:
+    return True
+
+
+print(test_constant_bool_true.module)
+
+
+# CHECK: Unsupported constant 'some_string' of type 'str'.
+@ctx.parse_program
+def test_constant_unsupported() -> float:
+    return "some_string"  # pyright: ignore[reportReturnType]
+
+
+try:
+    test_constant_unsupported.module
+except CodeGenerationException as e:
+    print(e.msg)
+
+
+# CHECK: Type signature and the type of the return value do not match at position 0: expected f32, got f64.
+@ctx.parse_program
+def test_constant_float_wrong_return_type_f32() -> c_float:
+    return 0.0  # pyright: ignore[reportReturnType]
+
+
+try:
+    test_constant_float_wrong_return_type_f32.module
+except CodeGenerationException as e:
+    print(e.msg)
+
+
 # CHECK: Binary operation 'FloorDiv' is not supported by type 'float' which does not overload '__floordiv__'.
 @ctx.parse_program
 def test_missing_floordiv_overload_f64(a: float, b: float) -> float:
