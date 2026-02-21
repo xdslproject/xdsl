@@ -14,9 +14,18 @@ from xdsl.dialects.builtin import (
     IntegerType,
     ShapedType,
     StringAttr,
+    VectorType,
 )
 from xdsl.dialects.memref import MemRefType
-from xdsl.ir import Attribute, Block, Dialect, Operation, Region, SSAValue
+from xdsl.ir import (
+    Attribute,
+    Block,
+    Dialect,
+    Operation,
+    Region,
+    SSAValue,
+    TypeAttribute,
+)
 from xdsl.ir.affine import AffineExpr, AffineMap
 from xdsl.irdl import (
     AnyAttr,
@@ -368,6 +377,94 @@ class YieldOp(IRDLOperation):
         return YieldOp.create(operands=[SSAValue.get(operand) for operand in operands])
 
 
+@irdl_op_definition
+class VectorLoadOp(IRDLOperation):
+    """
+    Reads a slice from a MemRef into a vector.
+
+    See [external documentation](https://mlir.llvm.org/docs/Dialects/Affine/#affinevector_load-affineaffinevectorloadop).
+    """
+
+    name = "affine.vector_load"
+
+    T: ClassVar = VarConstraint("T", AnyAttr())
+
+    memref = operand_def(MemRefType.constr(T))
+    indices = var_operand_def(IndexType)
+
+    result = result_def(VectorType.constr(T))
+
+    map = opt_prop_def(AffineMapAttr)
+
+    def __init__(
+        self,
+        memref: SSAValue,
+        indices: Sequence[SSAValue],
+        map: AffineMapAttr | None = None,
+        result_type: Attribute | None = None,
+    ):
+        if not isa(memref_type := memref.type, MemRefType[TypeAttribute]):
+            raise ValueError(
+                "affine.vector_load memref operand must be of type MemRefType"
+            )
+
+        if map is None:
+            # Create identity map for memrefs with at least one dimension or () -> ()
+            # for zero-dimensional memrefs.
+            rank = memref_type.get_num_dims()
+            map = AffineMapAttr(AffineMap.identity(rank))
+
+        if result_type is None:
+            result_type = VectorType(memref_type.get_element_type(), [])
+
+        super().__init__(
+            operands=(memref, indices),
+            properties={"map": map},
+            result_types=[result_type],
+        )
+
+
+@irdl_op_definition
+class VectorStoreOp(IRDLOperation):
+    """
+    Writes a vector into a slice within a MemRef.
+
+    See [external documentation](https://mlir.llvm.org/docs/Dialects/Affine/#affinevector_store-affineaffinevectorstoreop).
+    """
+
+    name = "affine.vector_store"
+
+    T: ClassVar = VarConstraint("T", AnyAttr())
+
+    value = operand_def(VectorType.constr(T))
+    memref = operand_def(MemRefType.constr(T))
+    indices = var_operand_def(IndexType)
+
+    map = opt_prop_def(AffineMapAttr)
+
+    def __init__(
+        self,
+        value: SSAValue,
+        memref: SSAValue,
+        indices: Sequence[SSAValue],
+        map: AffineMapAttr | None = None,
+    ):
+        if map is None:
+            # Create identity map for memrefs with at least one dimension or () -> ()
+            # for zero-dimensional memrefs.
+            if not isinstance(memref_type := memref.type, MemRefType):
+                raise ValueError(
+                    "affine.vector_load memref operand must be of type MemRefType"
+                )
+            rank = memref_type.get_num_dims()
+            map = AffineMapAttr(AffineMap.identity(rank))
+
+        super().__init__(
+            operands=(value, memref, indices),
+            properties={"map": map},
+        )
+
+
 Affine = Dialect(
     "affine",
     [
@@ -379,6 +476,8 @@ Affine = Dialect(
         LoadOp,
         MinOp,
         YieldOp,
+        VectorLoadOp,
+        VectorStoreOp,
     ],
     [],
 )
