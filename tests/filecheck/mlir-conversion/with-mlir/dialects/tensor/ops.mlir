@@ -27,6 +27,11 @@
 %v = tensor.splat %s : tensor<8xf32>
 %v2 = tensor.splat %s[%index, %index1] : tensor<?x8x?xf32>
 
+%pval, %ptensor = "test.op"() : () -> (f32, tensor<12x20x20xf32>) 
+%padded = tensor.pad %ptensor nofold low[1, %dim1, 2] high[%dim2, 3, 3] {
+ ^bb0(%arg0 : index, %arg1 : index, %arg2 : index):
+   tensor.yield %pval : f32
+ } : tensor<12x20x20xf32> to tensor<?x?x25xf32>
 
 // CHECK:       module {
 // CHECK-NEXT:  %0 = tensor.empty() :  tensor<2x3xf32>
@@ -54,4 +59,9 @@
 // CHECK-NEXT:  %8 = "test.op"() : () -> f32
 // CHECK-NEXT:  %{{.*}} = tensor.splat %8 : tensor<8xf32>
 // CHECK-NEXT:  %{{.*}} = tensor.splat %8[%7#0, %7#1] : tensor<?x8x?xf32>
+// CHECK-NEXT:  %9:2 = "test.op"() : () -> (f32, tensor<12x20x20xf32>)
+// CHECK-NEXT:  %padded = tensor.pad %9#1 nofold low[1, %dim, 2] high[%dim_0, 3, 3] {
+// CHECK-NEXT:   ^bb0(%arg0: index, %arg1: index, %arg2: index):
+// CHECK-NEXT:     tensor.yield %9#0 : f32
+// CHECK-NEXT:   } : tensor<12x20x20xf32> to tensor<?x?x25xf32>
 // CHECK-NEXT: }

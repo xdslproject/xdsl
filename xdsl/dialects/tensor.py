@@ -13,12 +13,18 @@ from xdsl.dialects.builtin import (
     DenseArrayBase,
     IndexType,
     IntegerAttr,
+    Region,
     ShapedType,
     TensorType,
+    UnitAttr,
     UnrankedTensorType,
     i64,
 )
+from xdsl.dialects.utils import (
+    AbstractYieldOperation,
+)
 from xdsl.dialects.utils.dynamic_index_list import (
+    DynamicIndexList,
     parse_dynamic_index_list_without_types,
     print_dynamic_index_list,
 )
@@ -36,14 +42,16 @@ from xdsl.irdl import (
     base,
     irdl_op_definition,
     operand_def,
+    opt_prop_def,
     prop_def,
+    region_def,
     result_def,
     traits_def,
     var_operand_def,
 )
 from xdsl.parser import Parser
 from xdsl.printer import Printer
-from xdsl.traits import NoMemoryEffect, Pure
+from xdsl.traits import AlwaysSpeculatable, IsTerminator, NoMemoryEffect, Pure
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -722,6 +730,111 @@ class SplatOp(IRDLOperation):
             )
 
 
+@irdl_op_definition
+class PadOp(IRDLOperation):
+    """
+    Tensor pad operation.
+
+    tensor.pad is an operation that pads the source tensor with given low and high padding config.
+
+    https://mlir.llvm.org/docs/Dialects/TensorOps/#tensorpad-tensorpadop
+    """
+
+    name = "tensor.pad"
+
+    source = operand_def(base(TensorType[Attribute]))
+    low = var_operand_def(IndexType)
+    high = var_operand_def(IndexType)
+    static_low = prop_def(DenseArrayBase.constr(i64))
+    static_high = prop_def(DenseArrayBase.constr(i64))
+    nofold = opt_prop_def(UnitAttr)
+    region = region_def("single_block")
+    result = result_def(TensorType[Attribute])
+
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
+
+    assembly_format = (
+        "$source "
+        "(`nofold` $nofold^)? "
+        "`low` `` custom<DynamicIndexList>($low, $static_low) "
+        "`high` `` custom<DynamicIndexList>($high, $static_high) "
+        "$region attr-dict `:` type($source) `to` type($result)"
+    )
+
+    custom_directives = (DynamicIndexList,)
+    traits = traits_def(NoMemoryEffect(), AlwaysSpeculatable())
+
+    def __init__(
+        self,
+        source: SSAValue | Operation,
+        low: Sequence[SSAValue],
+        high: Sequence[SSAValue],
+        region: Region,
+        static_low: Sequence[int] | DenseArrayBase,
+        static_high: Sequence[int] | DenseArrayBase,
+        nofold: UnitAttr,
+        result_type: TensorType[Attribute],
+        attributes: dict[str, Attribute] | None = None,
+    ):
+        if not isinstance(static_low, DenseArrayBase):
+            static_low = DenseArrayBase.from_list(i64, static_low)
+
+        if not isinstance(static_high, DenseArrayBase):
+            static_high = DenseArrayBase.from_list(i64, static_high)
+
+        super().__init__(
+            operands=[source, low, high],
+            result_types=[result_type],
+            properties={
+                "static_low": static_low,
+                "static_high": static_high,
+                "nofold": nofold,
+            },
+            attributes=attributes,
+            regions=[region],
+        )
+
+    def verify_(self):
+        if len(self.static_low) != len(self.static_high):
+            raise VerifyException(
+                "low and high pad sizes must have an equal number of dimensions"
+            )
+        source_type = self.source.type
+        if isinstance(source_type, TensorType) and len(self.static_low) != len(
+            source_type.get_shape()
+        ):
+            raise VerifyException(
+                "number of pad sizes must equal number of dimensions in source tensor"
+            )
+
+        dynamic_dims = [
+            l == DYNAMIC_INDEX or h == DYNAMIC_INDEX
+            for l, h in zip(self.static_low.get_values(), self.static_high.get_values())
+        ]
+        result_dynamic_dims = [s == DYNAMIC_INDEX for s in self.result.type.get_shape()]
+
+        if sum(result_dynamic_dims) != sum(dynamic_dims):
+            raise VerifyException(
+                f"number of dynamic sizes ({sum(dynamic_dims)})"
+                f" must equal number of unknown dimensions in result tensor ({sum(result_dynamic_dims)})"
+            )
+        if result_dynamic_dims != dynamic_dims:
+            raise VerifyException(
+                "dynamic dimensions must correspond with dynamic dimensions in the result tensor"
+            )
+        if len(self.region.block.args) != len(self.static_low):
+            raise VerifyException(
+                "region must have an arg for each dimension of the source tensor"
+            )
+
+
+@irdl_op_definition
+class YieldOp(AbstractYieldOperation[Attribute]):
+    name = "tensor.yield"
+
+    traits = traits_def(IsTerminator())
+
+
 Tensor = Dialect(
     "tensor",
     [
@@ -737,6 +850,8 @@ Tensor = Dialect(
         InsertSliceOp,
         ReshapeOp,
         SplatOp,
+        PadOp,
+        YieldOp,
     ],
     [],
 )
