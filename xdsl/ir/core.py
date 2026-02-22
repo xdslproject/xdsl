@@ -1824,7 +1824,10 @@ class Block(_IRNode, IRWithUses, IRWithName):
         Returns the new argument.
         """
         if index < 0 or index > len(self._args):
-            raise ValueError("Unexpected index")
+            raise ValueError(
+                f"Cannot insert block argument at index {index}, index must be in "
+                f"range [0, {len(self._args)}]."
+            )
         new_arg = BlockArgument(arg_type, self, index)
         for arg in self._args[index:]:
             arg.index += 1

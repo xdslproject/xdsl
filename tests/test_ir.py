@@ -1376,9 +1376,15 @@ def test_repr():
 def test_insert_arg_unexpected_index():
     """Test that insert_arg raises ValueError for out-of-range index."""
     block = Block(arg_types=[i32])
-    with pytest.raises(ValueError, match="Unexpected index"):
+    with pytest.raises(
+        ValueError,
+        match=r"Cannot insert block argument at index -1, index must be in range \[0, 1\]\.",
+    ):
         block.insert_arg(i32, -1)
-    with pytest.raises(ValueError, match="Unexpected index"):
+    with pytest.raises(
+        ValueError,
+        match=r"Cannot insert block argument at index 5, index must be in range \[0, 1\]\.",
+    ):
         block.insert_arg(i32, 5)
 
 
