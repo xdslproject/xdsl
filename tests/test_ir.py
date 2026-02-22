@@ -993,6 +993,30 @@ def test_detach_region():
     assert op.get_region_index(region2) == 0
 
 
+def test_detach_toplevel_opration():
+    a = ConstantOp.from_int_and_width(1, 32)
+    assert a.parent is None
+    with pytest.raises(ValueError, match="Cannot detach a toplevel operation."):
+        a.detach()
+
+
+def test_add_already_attached_region():
+    """Adding a region that is already attached to an operation should raise."""
+    a = ConstantOp.from_int_and_width(1, 32)
+    b = ConstantOp.from_int_and_width(2, 32)
+    region1 = Region([Block([a])])
+    region2 = Region([Block([b])])
+    op1 = MultipleRegionsOp.build(regions=[[region1]])
+    op2 = MultipleRegionsOp.build(regions=[[region2]])
+
+    assert region2.parent is op2
+
+    with pytest.raises(
+        ValueError, match="Cannot add region that is already attached on an operation."
+    ):
+        op1.add_region(region2)
+
+
 def test_region_hashable():
     a = Region()
     b = Region()
@@ -1031,6 +1055,20 @@ def test_op_custom_verify_is_done_last():
         VerifyException,
         match="operand 'val' at position 0 does not verify:\nExpected attribute i64 but got i32",
     ):
+        b.verify()
+
+
+def test_verify_erased_ssa_value():
+    """Verify that an operation using an ErasedSSAValue raises on verify."""
+    a = ConstantOp.from_int_and_width(1, i64)
+    b = AddiOp(a, a)
+    region = Region([Block([a, b])])
+
+    # Erase a, replacing its uses with ErasedSSAValue (unsafe erase)
+    region.block.erase_op(a, safe_erase=False)
+
+    assert isinstance(b.operands[0], ErasedSSAValue)
+    with pytest.raises(ValueError, match="Erased SSA value is used by the operation"):
         b.verify()
 
 
