@@ -1013,6 +1013,14 @@ def test_parse_generic_op_location_is_preserved_on_operation():
     assert op.location == FileLineColLoc(StringAttr("one"), IntAttr(2), IntAttr(3))
 
 
+def test_parse_unregistered_generic_op_location_is_preserved_on_operation():
+    ctx = Context(allow_unregistered=True)
+
+    op = Parser(ctx, '"foo.unknown"() : () -> () loc("one":2:3)').parse_op()
+
+    assert op.location == FileLineColLoc(StringAttr("one"), IntAttr(2), IntAttr(3))
+
+
 @pytest.mark.parametrize(
     "keyword,expected",
     [
