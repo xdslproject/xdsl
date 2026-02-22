@@ -1371,3 +1371,67 @@ def test_repr():
         f"<Use {id(value_uses[0])}(_operation=<TestTermOp {id(ops[3])}>, _index=0, _prev_use=None, _next_use=<Use {id(value_uses[1])}>)>",
         f"<Use {id(value_uses[1])}(_operation=<TestTermOp {id(ops[2])}>, _index=0, _prev_use=<Use {id(value_uses[0])}>, _next_use=None)>",
     )
+
+
+def test_insert_arg_unexpected_index():
+    """Test that insert_arg raises ValueError for out-of-range index."""
+    block = Block(arg_types=[i32])
+    with pytest.raises(ValueError, match="Unexpected index"):
+        block.insert_arg(i32, -1)
+    with pytest.raises(ValueError, match="Unexpected index"):
+        block.insert_arg(i32, 5)
+
+
+def test_erase_arg_wrong_block():
+    """Test that erase_arg raises ValueError when arg belongs to another block."""
+    block1 = Block(arg_types=[i32])
+    block2 = Block(arg_types=[i32])
+    with pytest.raises(
+        ValueError, match="Attempting to delete an argument of the wrong block"
+    ):
+        block1.erase_arg(block2.args[0])
+
+
+def test_get_operation_index_not_child():
+    """Test that get_operation_index raises ValueError for non-child op."""
+    op = test.TestOp.create()
+    block = Block([test.TestOp.create()])
+    with pytest.raises(ValueError, match="Operation is not a child of the block."):
+        block.get_operation_index(op)
+
+
+def test_detach_op_different_block():
+    """Test that detach_op raises ValueError for op in a different block."""
+    op = test.TestOp.create()
+    Block([op])
+    block2 = Block()
+    with pytest.raises(
+        ValueError, match="Cannot detach operation from a different block."
+    ):
+        block2.detach_op(op)
+
+
+def test_block_verify_parent_pointer_mismatch():
+    """Test that Block.verify raises ValueError when op parent is wrong."""
+    op = test.TestOp.create()
+    block = Block([op])
+    # Corrupt the parent pointer
+    op.parent = Block()
+    with pytest.raises(
+        ValueError,
+        match="Parent pointer of operation does not refer to containing region",
+    ):
+        block.verify()
+
+
+def test_region_verify_block_parent_pointer_mismatch():
+    """Test that Region.verify raises ValueError when block parent is wrong."""
+    block = Block([test.TestOp.create()])
+    region = Region([block])
+    # Corrupt the parent pointer
+    block.parent = Region()
+    with pytest.raises(
+        ValueError,
+        match="Parent pointer of block does not refer to containing region",
+    ):
+        region.verify()
