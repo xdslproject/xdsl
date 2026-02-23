@@ -499,42 +499,16 @@ class PDLInterpFunctions(InterpreterFunctions):
                 attributes[name] = prop_or_attr
         result_types = list(args[num_operands + num_attributes :])
 
-        # TODO Region is seen as an operand up until this point, while it works, it's not that logical nor easy to understand
-        filtered_regions = [x for x in operands if isinstance(x, Region)]
+        # Seperate the regions and operands
+        filtered_regions = [x.clone() for x in operands if isinstance(x, Region)]
         filtered_operands = [x for x in operands if not isinstance(x, Region)]
-
-        # remove parent
-        # set parent of first operation in region to parent of region
-        for region in filtered_regions:
-            region.parent = None
-
-        old_to_new_map = {}
-
-        new_operations = []
-        for op in filtered_regions[0].walk():
-            new_op = op.clone()
-            new_op.parent = None
-            new_operations.append(new_op)
-
-            old_to_new_map.update({op: new_op})
-
-            if isinstance(op, YieldOp):
-                yield_return_result = op.operands[0]
-                original_operation = yield_return_result.op
-                cloned_operation = old_to_new_map[original_operation]
-
-                new_op.operands = [cloned_operation.results[0]]
-
-        block = Block(new_operations)
-        region = Region(block)
-
         # Create the new operation
         result_op = op_type.create(
             operands=filtered_operands,
             result_types=result_types,
             attributes=attributes,
             properties=properties,
-            regions=[region],
+            regions=filtered_regions,
         )
 
         return result_op
