@@ -55,6 +55,7 @@ class InlineRegionOp(IRDLOperation):
     name = "pdl_interp_region.inline_region"
     input_op = operand_def(OperationType)
     repl_values = var_operand_def(RegionType)
+    value = result_def(ValueType)
 
     assembly_format = (
         "$input_op `with` ` ` `(` ($repl_values^ `:` type($repl_values))? `)` attr-dict"
