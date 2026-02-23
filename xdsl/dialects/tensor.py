@@ -797,34 +797,45 @@ class PadOp(IRDLOperation):
     def verify_(self):
         if len(self.static_low) != len(self.static_high):
             raise VerifyException(
-                "low and high pad sizes must have an equal number of dimensions"
+                f"pad sizes low ({len(self.static_low)}) and high ({len(self.static_high)})"
+                " must have an equal number of dimensions"
             )
         source_type = self.source.type
         if isinstance(source_type, TensorType) and len(self.static_low) != len(
             source_type.get_shape()
         ):
             raise VerifyException(
-                "number of pad sizes must equal number of dimensions in source tensor"
+                f"number of pad sizes ({len(self.static_low)}) must equal number of dimensions"
+                f" in source tensor ({len(source_type.get_shape())})"
             )
-
-        dynamic_dims = [
-            l == DYNAMIC_INDEX or h == DYNAMIC_INDEX
-            for l, h in zip(self.static_low.get_values(), self.static_high.get_values())
-        ]
-        result_dynamic_dims = [s == DYNAMIC_INDEX for s in self.result.type.get_shape()]
-
-        if sum(result_dynamic_dims) != sum(dynamic_dims):
+        dynamic_dims = tuple(
+            i
+            for i, (l, h) in enumerate(
+                zip(
+                    self.static_low.get_values(),
+                    self.static_high.get_values(),
+                    strict=True,
+                )
+            )
+            if l == DYNAMIC_INDEX or h == DYNAMIC_INDEX
+        )
+        result_dynamic_dims = tuple(
+            i for i, s in enumerate(self.result.type.get_shape()) if s == DYNAMIC_INDEX
+        )
+        if len(result_dynamic_dims) != len(dynamic_dims):
             raise VerifyException(
-                f"number of dynamic sizes ({sum(dynamic_dims)})"
-                f" must equal number of unknown dimensions in result tensor ({sum(result_dynamic_dims)})"
+                f"number of dynamic sizes ({len(dynamic_dims)})"
+                f" must equal number of unknown dimensions in result tensor ({len(result_dynamic_dims)})"
             )
         if result_dynamic_dims != dynamic_dims:
             raise VerifyException(
-                "dynamic dimensions must correspond with dynamic dimensions in the result tensor"
+                f"dynamic dimensions {dynamic_dims} don't correspond"
+                f" with dynamic dimensions in the result tensor {result_dynamic_dims}"
             )
         if len(self.region.block.args) != len(self.static_low):
             raise VerifyException(
                 "region must have an arg for each dimension of the source tensor"
+                f" ({len(self.static_low)}) but region has ({len(self.region.block.args)})"
             )
 
 
