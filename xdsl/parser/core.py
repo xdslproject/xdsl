@@ -207,10 +207,10 @@ class Parser(AttrParser):
             ).span
             self.parse_punctuation(":")
             arg_type = self.parse_attribute()
-            self.parse_optional_location()
+            location = self.parse_optional_location()
 
             # Insert the block argument in the block, and register it in the parser
-            block_arg = block.insert_arg(arg_type, len(block.args))
+            block_arg = block.insert_arg(arg_type, len(block.args), location)
             self._register_ssa_definition(arg_name.text[1:], (block_arg,), arg_name)
 
         self.parse_comma_separated_list(self.Delimiter.PAREN, parse_argument)

@@ -843,6 +843,9 @@ class BlockArgument(SSAValue[AttributeCovT], Generic[AttributeCovT]):
     index: int
     """The index of the variable in the block arguments."""
 
+    location: Attribute | None = None
+    """Optional source location attached to this block argument."""
+
     @property
     def owner(self) -> Block:
         return self.block
@@ -1826,7 +1829,12 @@ class Block(_IRNode, IRWithUses, IRWithName):
         """Returns the block arguments."""
         return self._args
 
-    def insert_arg(self, arg_type: Attribute, index: int) -> BlockArgument:
+    def insert_arg(
+        self,
+        arg_type: Attribute,
+        index: int,
+        location: Attribute | None = None,
+    ) -> BlockArgument:
         """
         Insert a new argument with a given type to the arguments list at a specific index.
         Returns the new argument.
@@ -1836,7 +1844,7 @@ class Block(_IRNode, IRWithUses, IRWithName):
                 f"Cannot insert block argument at index {index}, index must be in "
                 f"range [0, {len(self._args)}]."
             )
-        new_arg = BlockArgument(arg_type, self, index)
+        new_arg = BlockArgument(arg_type, self, index, location)
         for arg in self._args[index:]:
             arg.index += 1
         self._args = tuple(chain(self._args[:index], [new_arg], self._args[index:]))
@@ -2660,7 +2668,7 @@ class Region(_IRNode):
         # Populate the blocks with the cloned operations
         for block, new_block in zip(self.blocks, new_blocks):
             for idx, block_arg in enumerate(block.args):
-                new_block.insert_arg(block_arg.type, idx)
+                new_block.insert_arg(block_arg.type, idx, block_arg.location)
                 new_arg = new_block.args[idx]
                 value_mapper[block_arg] = new_arg
                 if clone_name_hints:

@@ -456,13 +456,16 @@ def test_print_block_argument():
 def test_print_block_argument_location():
     """Print a block argument with location."""
     block = Block(arg_types=[i32, i32])
+    block.args[0].location = FileLineColLoc(
+        StringAttr("model.mlir"), IntAttr(3), IntAttr(5)
+    )
 
     io = StringIO()
     p = Printer(stream=io, print_debuginfo=True)
     p.print_block_argument(block.args[0])
     p.print_string(", ")
     p.print_block_argument(block.args[1])
-    assert io.getvalue() == """%0 : i32 loc(unknown), %1 : i32 loc(unknown)"""
+    assert io.getvalue() == """%0 : i32 loc("model.mlir":3:5), %1 : i32 loc(unknown)"""
 
 
 def test_print_block():

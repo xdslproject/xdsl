@@ -1021,6 +1021,20 @@ def test_parse_unregistered_generic_op_location_is_preserved_on_operation():
     assert op.location == FileLineColLoc(StringAttr("one"), IntAttr(2), IntAttr(3))
 
 
+def test_parse_block_argument_location_is_preserved():
+    ctx = Context(allow_unregistered=True)
+
+    op = Parser(
+        ctx,
+        '"foo.with_region"() ({^bb0(%arg0: i32 loc("one":2:3)): "foo.term"() : () -> ()}) : () -> ()',
+    ).parse_op()
+
+    block = op.regions[0].blocks[0]
+    assert block.args[0].location == FileLineColLoc(
+        StringAttr("one"), IntAttr(2), IntAttr(3)
+    )
+
+
 @pytest.mark.parametrize(
     "keyword,expected",
     [
