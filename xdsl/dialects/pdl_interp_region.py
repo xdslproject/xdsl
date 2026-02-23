@@ -28,7 +28,7 @@ from xdsl.irdl import (
 
 @irdl_op_definition
 class GetRegionOp(IRDLOperation):
-    name = "pdl_interp.get_region"
+    name = "pdl_interp_region.get_region"
     input_op = operand_def(OperationType)
     index = prop_def(IntegerAttr[I32])
     value = result_def(RegionType)
@@ -47,7 +47,7 @@ class GetRegionOp(IRDLOperation):
 
 @irdl_op_definition
 class InlineRegionOp(IRDLOperation):
-    name = "pdl_interp.inline_region"
+    name = "pdl_interp_region.inline_region"
     input_op = operand_def(OperationType)
     repl_values = var_operand_def(RegionType)
 
@@ -61,7 +61,7 @@ class InlineRegionOp(IRDLOperation):
 
 @irdl_op_definition
 class ValueOfYieldOp(IRDLOperation):
-    name = "pdl_interp.value_of_yield"
+    name = "pdl_interp_region.value_of_yield"
     input_op = operand_def(RegionType)
     value = result_def(ValueType)
 
@@ -76,7 +76,7 @@ class ValueOfYieldOp(IRDLOperation):
 
 @irdl_op_definition
 class DebugPrintStatement(IRDLOperation):
-    name = "pdl_interp.debug_print"
+    name = "pdl_interp_region.debug_print"
     message = prop_def(StringAttr)
 
     assembly_format = "`message` `(` $message `)` attr-dict"
@@ -87,8 +87,8 @@ class DebugPrintStatement(IRDLOperation):
         super().__init__(properties={"message": message})
 
 
-PDLInterp = Dialect(
-    "pdl_interp",
+PDLInterpRegion = Dialect(
+    "pdl_interp_region",
     [
         GetRegionOp,
         InlineRegionOp,

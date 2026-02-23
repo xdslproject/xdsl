@@ -562,3 +562,17 @@ class PDLInterpFunctions(InterpreterFunctions):
 
             interpreter.call_op(rewriter_op, args)
         pending_rewrites.clear()
+
+    @impl(pdl_interp.GetRegionOp)
+    def run_get_region(
+        self,
+        interpreter: Interpreter,
+        op: pdl_interp.GetRegionOp,
+        args: tuple[Any, ...],
+    ) -> tuple[Any, ...]:
+        assert len(args) == 1
+        assert isinstance(args[0], Operation)
+        if len(args[0].regions) == 0 or op.index.value.data >= len(args[0].regions):
+            return (None,)
+
+        return (args[0].regions[op.index.value.data],)
