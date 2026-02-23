@@ -1,5 +1,13 @@
 // RUN: xdsl-opt %s -p apply-pdl-interp | filecheck %s
 
+// CHECK:       func.func @impl() -> i32 {
+// CHECK-NEXT:    %cond = arith.constant true
+// CHECK-NEXT:    %ifelse = arith.constant 1 : i32
+// CHECK-NEXT:    %0 = arith.constant 2 : i32
+// CHECK-NEXT:    %1 = arith.constant 3 : i32
+// CHECK-NEXT:    func.return %ifelse : i32
+// CHECK-NEXT:  }
+
 func.func @impl() -> i32 {
   // true
   %cond = arith.constant 1  : i1
