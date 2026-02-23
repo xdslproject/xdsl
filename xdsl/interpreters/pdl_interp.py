@@ -1,7 +1,7 @@
 from typing import Any, cast
 
 from xdsl.context import Context
-from xdsl.dialects import pdl, pdl_interp
+from xdsl.dialects import pdl, pdl_interp, pdl_region, pdl_interp_region
 from xdsl.dialects.builtin import SymbolRefAttr
 from xdsl.dialects.pdl import RangeType, ValueType
 from xdsl.interpreter import (
@@ -15,7 +15,7 @@ from xdsl.interpreter import (
     impl_terminator,
     register_impls,
 )
-from xdsl.ir import Attribute, Operation, OpResult, SSAValue
+from xdsl.ir import Attribute, Operation, OpResult, SSAValue, Region
 from xdsl.irdl import IRDLOperation
 from xdsl.pattern_rewriter import PatternRewriter
 from xdsl.rewriter import InsertPoint
@@ -563,11 +563,11 @@ class PDLInterpFunctions(InterpreterFunctions):
             interpreter.call_op(rewriter_op, args)
         pending_rewrites.clear()
 
-    @impl(pdl_interp.GetRegionOp)
+    @impl(pdl_interp_region.GetRegionOp)
     def run_get_region(
         self,
         interpreter: Interpreter,
-        op: pdl_interp.GetRegionOp,
+        op: pdl_interp_region.GetRegionOp,
         args: tuple[Any, ...],
     ) -> tuple[Any, ...]:
         assert len(args) == 1
@@ -576,3 +576,49 @@ class PDLInterpFunctions(InterpreterFunctions):
             return (None,)
 
         return (args[0].regions[op.index.value.data],)
+
+    @impl(pdl_interp_region.InlineRegionOp)
+    def run_inline_region(
+        self,
+        interpreter: Interpreter,
+        op: pdl_interp_region.InlineRegionOp,
+        args: tuple[Any, ...],
+    ) -> tuple[Any, ...]:
+        assert args
+        input_op = args[0]
+        assert isinstance(input_op, Operation)
+
+        # Get the operations and their results
+        region_operations = [x.clone() for x in args[1].walk()]
+        region_operations.pop()  # remove the final yield op
+
+        for x in region_operations:
+            self.get_rewriter(interpreter).insert_op(x, InsertPoint.before(input_op))
+
+        return ()
+
+    @impl(pdl_interp_region.DebugPrintStatement)
+    def run_debug_statement(
+        self,
+        interpreter: Interpreter,
+        op: pdl_interp_region.DebugPrintStatement,
+        args: tuple[Any, ...],
+    ) -> tuple[Any, ...]:
+        print("PDL Interpreter Debug:", op.message.data)
+        return ()
+
+    @impl(pdl_interp_region.ValueOfYieldOp)
+    def run_get_value_of_yield(
+        self,
+        interpreter: Interpreter,
+        op: pdl_interp_region.ValueOfYieldOp,
+        args: tuple[Any, ...],
+    ) -> tuple[Any, ...]:
+        assert len(args) == 1
+        assert isinstance(args[0], Region)
+
+        # Get the final yield operation in the region
+        operations = [x for x in args[0].walk()]
+        yield_operation = operations.pop()
+
+        return (yield_operation.operands[0],)
