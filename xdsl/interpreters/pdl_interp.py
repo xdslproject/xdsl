@@ -662,21 +662,27 @@ class PDLInterpFunctions(InterpreterFunctions):
         input_op = args[0]
         assert isinstance(input_op, Operation)
 
-        # Get the operations and their results
-        old_to_new = {}
-        region_operations = []
-        for x in args[1].walk():
-            x_clone = x.clone()
-            old_to_new.update({x: x_clone})
-            region_operations.append(x_clone)
+        region = args[1]
+        assert isinstance(region, Region)
 
-        # region_operations = [x.clone() for x in args[1].walk()]
+        map_old_ops_to_new = {}
+        region_operations = []
+        for op in region.walk():
+            op_clone = op.clone()
+            map_old_ops_to_new.update({op: op_clone})
+            region_operations.append(op_clone)
+
         yield_op = region_operations.pop()  # remove the final yield op
 
-        for x in region_operations:
-            self.get_rewriter(interpreter).insert_op(x, InsertPoint.before(input_op))
+        for op in region_operations:
+            self.get_rewriter(interpreter).insert_op(op, InsertPoint.before(input_op))
 
-        return (old_to_new[yield_op.operands[0].op].results[0],)
+        result_of_yield = yield_op.operands[0]
+        defining_op = result_of_yield.op
+        newly_created_op = map_old_ops_to_new[defining_op]
+        result_of_newly_created_op = newly_created_op.results[0]
+
+        return (result_of_newly_created_op,)
 
     @impl(pdl_interp_region.DebugPrintStatement)
     def run_debug_statement(
