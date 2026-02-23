@@ -17,7 +17,7 @@ from xdsl.irdl import (
 
 @irdl_op_definition
 class RegionOp(IRDLOperation):
-    name = "pdl.region"
+    name = "pdl_region.region"
     value_type = opt_operand_def(TypeType)
     value = result_def(ValueType)
 
@@ -26,7 +26,7 @@ class RegionOp(IRDLOperation):
 
 @irdl_attr_definition
 class RegionType(ParametrizedAttribute, TypeAttribute):
-    name = "pdl.region"
+    name = "pdl_region.region"
 
 
 PDL_Region = Dialect(

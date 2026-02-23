@@ -4,6 +4,7 @@ from xdsl.context import Context
 from xdsl.dialects import pdl, pdl_interp, pdl_region, pdl_interp_region
 from xdsl.dialects.builtin import SymbolRefAttr
 from xdsl.dialects.pdl import RangeType, ValueType
+from xdsl.dialects.scf import YieldOp
 from xdsl.interpreter import (
     Interpreter,
     InterpreterFunctions,
@@ -15,7 +16,7 @@ from xdsl.interpreter import (
     impl_terminator,
     register_impls,
 )
-from xdsl.ir import Attribute, Operation, OpResult, SSAValue, Region
+from xdsl.ir import Attribute, Operation, OpResult, SSAValue, Region, Block
 from xdsl.irdl import IRDLOperation
 from xdsl.pattern_rewriter import PatternRewriter
 from xdsl.rewriter import InsertPoint
@@ -461,6 +462,105 @@ class PDLInterpFunctions(InterpreterFunctions):
         rewriter.insert_op(result_op)
 
         return (result_op,)
+
+    @staticmethod
+    def create_operation_with_region(
+        interpreter: Interpreter,
+        args: tuple[Any, ...],
+        op_name: str,
+        attr_names: list[str],
+        num_operands: int,
+        num_attributes: int,
+        num_regions: int,
+    ) -> IRDLOperation:
+        # Get operation name
+        ctx = PDLInterpFunctions.get_ctx(interpreter)
+        op_type = ctx.get_optional_op(op_name)
+        if op_type is None:
+            raise InterpretationError(
+                f"Could not find op type for name {op_name} in context"
+            )
+
+        # Split args into operands, attributes and result types based on operand segments
+        operands = list(args[:num_operands])
+
+        assert issubclass(op_type, IRDLOperation)
+        existing_properties = op_type.get_irdl_definition().properties.keys()
+
+        attributes: dict[str, Attribute] = {}
+        properties: dict[str, Attribute] = {}
+        for name, prop_or_attr in zip(
+            attr_names,
+            args[num_operands : num_operands + num_attributes],
+        ):
+            if name in existing_properties:
+                properties[name] = prop_or_attr
+            else:
+                attributes[name] = prop_or_attr
+        result_types = list(args[num_operands + num_attributes :])
+
+        # TODO Region is seen as an operand up until this point, while it works, it's not that logical nor easy to understand
+        filtered_regions = [x for x in operands if isinstance(x, Region)]
+        filtered_operands = [x for x in operands if not isinstance(x, Region)]
+
+        # remove parent
+        # set parent of first operation in region to parent of region
+        for region in filtered_regions:
+            region.parent = None
+
+        old_to_new_map = {}
+
+        new_operations = []
+        for op in filtered_regions[0].walk():
+            new_op = op.clone()
+            new_op.parent = None
+            new_operations.append(new_op)
+
+            old_to_new_map.update({op: new_op})
+
+            if isinstance(op, YieldOp):
+                yield_return_result = op.operands[0]
+                original_operation = yield_return_result.op
+                cloned_operation = old_to_new_map[original_operation]
+
+                new_op.operands = [cloned_operation.results[0]]
+
+        block = Block(new_operations)
+        region = Region(block)
+
+        # Create the new operation
+        result_op = op_type.create(
+            operands=filtered_operands,
+            result_types=result_types,
+            attributes=attributes,
+            properties=properties,
+            regions=[region],
+        )
+
+        return result_op
+
+    @impl(pdl_interp_region.CreateOperationRegionOp)
+    def run_create_operation_with_region(
+        self,
+        interpreter: Interpreter,
+        op: pdl_interp_region.CreateOperationRegionOp,
+        args: tuple[Any, ...],
+    ) -> tuple[Any, ...]:
+        result_op = PDLInterpFunctions.create_operation_with_region(
+            interpreter,
+            args,
+            op.constraint_name.data,
+            [name.data for name in op.input_attribute_names.data],
+            len(op.input_operands),
+            len(op.input_attributes),
+            1
+        )
+
+        rewriter = self.get_rewriter(interpreter)
+        rewriter.insert_op(result_op)
+
+        return (result_op,)
+
 
     @impl_callable(pdl_interp.FuncOp)
     def call_func(
