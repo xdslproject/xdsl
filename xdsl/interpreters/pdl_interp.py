@@ -683,29 +683,3 @@ class PDLInterpFunctions(InterpreterFunctions):
         result_of_newly_created_op = newly_created_op.results[0]
 
         return (result_of_newly_created_op,)
-
-    @impl(pdl_interp_region.DebugPrintStatement)
-    def run_debug_statement(
-        self,
-        interpreter: Interpreter,
-        op: pdl_interp_region.DebugPrintStatement,
-        args: tuple[Any, ...],
-    ) -> tuple[Any, ...]:
-        print("PDL Interpreter Debug:", op.message.data)
-        return ()
-
-    @impl(pdl_interp_region.ValueOfYieldOp)
-    def run_get_value_of_yield(
-        self,
-        interpreter: Interpreter,
-        op: pdl_interp_region.ValueOfYieldOp,
-        args: tuple[Any, ...],
-    ) -> tuple[Any, ...]:
-        assert len(args) == 1
-        assert isinstance(args[0], Region)
-
-        # Get the final yield operation in the region
-        operations = [x for x in args[0].walk()]
-        yield_operation = operations.pop()
-
-        return (yield_operation.operands[0],)

@@ -66,34 +66,6 @@ class InlineRegionOp(IRDLOperation):
 
 
 @irdl_op_definition
-class ValueOfYieldOp(IRDLOperation):
-    name = "pdl_interp_region.value_of_yield"
-    input_op = operand_def(RegionType)
-    value = result_def(ValueType)
-
-    assembly_format = "$input_op attr-dict"
-
-    def __init__(self, input_op: SSAValue) -> None:
-        super().__init__(
-            operands=[input_op],
-            result_types=[ValueType],
-        )
-
-
-@irdl_op_definition
-class DebugPrintStatement(IRDLOperation):
-    name = "pdl_interp_region.debug_print"
-    message = prop_def(StringAttr)
-
-    assembly_format = "`message` `(` $message `)` attr-dict"
-
-    def __init__(self, message: str | StringAttr) -> None:
-        if isinstance(message, str):
-            message = StringAttr(message)
-        super().__init__(properties={"message": message})
-
-
-@irdl_op_definition
 class CreateOperationRegionOp(IRDLOperation):
     """
     See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interpcreate_operation-pdl_interpcreateoperationop).
@@ -261,8 +233,6 @@ PDLInterpRegion = Dialect(
     [
         GetRegionOp,
         InlineRegionOp,
-        DebugPrintStatement,
-        ValueOfYieldOp,
         CreateOperationRegionOp,
     ],
 )
