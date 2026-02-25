@@ -61,6 +61,7 @@ from .constraints import (  # noqa: TID251
 )
 
 if TYPE_CHECKING:
+    from xdsl.dialects.builtin import LocationAttr
     from xdsl.irdl.declarative_assembly_format import CustomDirective
     from xdsl.parser import Parser
     from xdsl.printer import Printer
@@ -108,6 +109,7 @@ class IRDLOperation(Operation):
             ]
             | None
         ) = None,
+        location: LocationAttr | None = None,
     ):
         if operands is None:
             operands = []
@@ -130,6 +132,7 @@ class IRDLOperation(Operation):
             attributes=attributes,
             successors=successors,
             regions=regions,
+            location=location,
         )
 
     def __post_init__(self):
@@ -176,6 +179,7 @@ class IRDLOperation(Operation):
             ]
             | None
         ) = None,
+        location: LocationAttr | None = None,
     ) -> Self:
         """Create a new operation using builders."""
         op = cls.__new__(cls)
@@ -187,6 +191,7 @@ class IRDLOperation(Operation):
             attributes=attributes,
             successors=successors,
             regions=regions,
+            location=location,
         )
         return op
 
@@ -1658,6 +1663,7 @@ def irdl_op_init(
         | Sequence[Region | Sequence[Operation] | Sequence[Block]]
         | None
     ],
+    location: LocationAttr | None = None,
 ):
     """Builder for an irdl operation."""
 
@@ -1775,6 +1781,7 @@ def irdl_op_init(
         attributes=built_attributes,
         successors=built_successors,
         regions=built_regions,
+        location=location,
     )
 
 

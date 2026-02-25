@@ -835,6 +835,20 @@ class FileLineColLoc(ParametrizedAttribute, BuiltinAttribute):
     line: IntAttr = param_def()
     column: IntAttr = param_def()
 
+    def __init__(
+        self,
+        filename: str | StringAttr,
+        line: int | IntAttr,
+        column: int | IntAttr,
+    ):
+        if isinstance(filename, str):
+            filename = StringAttr(filename)
+        if isinstance(line, int):
+            line = IntAttr(line)
+        if isinstance(column, int):
+            column = IntAttr(column)
+        super().__init__(filename, line, column)
+
     def print_builtin(self, printer: Printer) -> None:
         printer.print_string("loc")
         with printer.in_parens():
@@ -845,7 +859,409 @@ class FileLineColLoc(ParametrizedAttribute, BuiltinAttribute):
             printer.print_int(self.column.data)
 
 
-LocationAttr: TypeAlias = UnknownLoc | FileLineColLoc
+@irdl_attr_definition
+class FileLineColRange(ParametrizedAttribute, BuiltinAttribute):
+    """
+    Syntax:
+
+    ```
+    filelinecol-range-location ::= string-literal ':' integer-literal ':' integer-literal
+                                   ('to' (integer-literal '?') ':' integer-literal '?')?
+    ```
+
+    An instance of this location represents a tuple of file, start and end line
+    number, and start and end column number. It allows for the following
+    configurations:
+
+    *   A single file line location: `file:line`
+    *   A single file line col location: `file:line:column`
+    *   A single line range: `file:line:column to :column`
+    *   A single file range: `file:line:column to line:column`
+
+    Example:
+
+    ```mlir
+    loc("mysource.cc":10:8 to 12:18)
+    ```
+    """
+
+    name = "file_line_range"
+
+    filename: StringAttr = param_def()
+    start_line: IntAttr = param_def()
+    start_column: IntAttr = param_def()
+    end_line: IntAttr = param_def()
+    end_column: IntAttr = param_def()
+
+    def __init__(
+        self,
+        filename: str | StringAttr,
+        start_line: int | IntAttr,
+        start_column: int | IntAttr | None = None,
+        end_line: int | IntAttr | None = None,
+        end_column: int | IntAttr | None = None,
+    ):
+        if isinstance(filename, str):
+            filename = StringAttr(filename)
+        if isinstance(start_line, int):
+            start_line = IntAttr(start_line)
+        if start_column is None:
+            start_column = IntAttr(0)
+        elif isinstance(start_column, int):
+            start_column = IntAttr(start_column)
+        if end_line is None:
+            end_line = start_line
+        elif isinstance(end_line, int):
+            end_line = IntAttr(end_line)
+        if end_column is None:
+            end_column = start_column
+        elif isinstance(end_column, int):
+            end_column = IntAttr(end_column)
+
+        super().__init__(
+            filename,
+            start_line,
+            start_column,
+            end_line,
+            end_column,
+        )
+
+    def print_builtin(self, printer: Printer) -> None:
+        printer.print_string("loc")
+        with printer.in_parens():
+            printer.print_string_literal(self.filename.data)
+            printer.print_string(":")
+            printer.print_int(self.start_line.data)
+
+            # Print start column if different from 0
+            if (
+                self.start_column.data != 0
+                or self.end_column.data != self.start_column.data
+            ):
+                printer.print_string(":")
+                printer.print_int(self.start_column.data)
+
+            # Print range if end differs from start
+            if (
+                self.end_line.data != self.start_line.data
+                or self.end_column.data != self.start_column.data
+            ):
+                printer.print_string(" to ")
+                if self.end_line.data != self.start_line.data:
+                    printer.print_int(self.end_line.data)
+                    printer.print_string(":")
+                else:
+                    printer.print_string(":")
+                printer.print_int(self.end_column.data)
+
+
+@irdl_attr_definition
+class NameLoc(ParametrizedAttribute, BuiltinAttribute):
+    """
+    Syntax:
+
+    ```
+    name-location ::= string-literal ('(' location ')')?
+    ```
+
+    An instance of this location allows for attaching a name to a child location.
+    This can be useful for representing the locations of variable, or node,
+    definitions.
+
+    Example:
+
+    ```mlir
+    loc("CSE"("mysource.cc":10:8))
+    ```
+    """
+
+    name = "name_loc"
+
+    name_attr: StringAttr = param_def()
+    child_loc: Attribute = param_def()
+
+    def __init__(
+        self,
+        name: str | StringAttr,
+        child_loc: LocationAttr | None = None,
+    ):
+        if isinstance(name, str):
+            name = StringAttr(name)
+        if child_loc is None:
+            child_loc = UnknownLoc()
+        super().__init__(name, child_loc)
+
+    def verify(self) -> None:
+        from xdsl.dialects.builtin import LocationAttr
+
+        if not isinstance(self.child_loc, LocationAttr):
+            raise VerifyException(
+                f"NameLoc.child_loc must be a LocationAttr, got {type(self.child_loc)}"
+            )
+
+    def print_builtin(self, printer: Printer) -> None:
+        printer.print_string("loc")
+        with printer.in_parens():
+            printer.print_string_literal(self.name_attr.data)
+            if not isinstance(self.child_loc, UnknownLoc):
+                printer.print_string("(")
+                printer.print_attribute(self.child_loc)
+                printer.print_string(")")
+
+
+@irdl_attr_definition
+class CallSiteLoc(ParametrizedAttribute, BuiltinAttribute):
+    """
+    Syntax:
+
+    ```
+    callsite-location ::= `callsite` `(` location `at` location `)`
+    ```
+
+    An instance of this location allows for representing a directed stack of
+    location usages. This connects a location of a `callee` with the location
+    of a `caller`.
+
+    Example:
+
+    ```mlir
+    loc(callsite("foo" at "mysource.cc":10:8))
+    ```
+    """
+
+    name = "call_site_loc"
+
+    callee: Attribute = param_def()
+    caller: Attribute = param_def()
+
+    def __init__(
+        self,
+        callee: LocationAttr,
+        caller: LocationAttr,
+    ):
+        super().__init__(callee, caller)
+
+    def verify(self) -> None:
+        from xdsl.dialects.builtin import LocationAttr
+
+        if not isinstance(self.callee, LocationAttr):
+            raise VerifyException(
+                f"CallSiteLoc.callee must be a LocationAttr, got {type(self.callee)}"
+            )
+        if not isinstance(self.caller, LocationAttr):
+            raise VerifyException(
+                f"CallSiteLoc.caller must be a LocationAttr, got {type(self.caller)}"
+            )
+
+    def print_builtin(self, printer: Printer) -> None:
+        printer.print_string("loc")
+        with printer.in_parens():
+            printer.print_string("callsite(")
+            printer.print_attribute(self.callee)
+            printer.print_string(" at ")
+            printer.print_attribute(self.caller)
+            printer.print_string(")")
+
+
+@irdl_attr_definition
+class FusedLoc(ParametrizedAttribute, BuiltinAttribute):
+    """
+    Syntax:
+
+    ```
+    fusion-metadata ::= `<` attribute-value `>`
+    fused-location ::= `fused` fusion-metadata? `[` (location (`,` location)*)? `]`
+    ```
+
+    An instance of a `fused` location represents a grouping of several other
+    source locations, with optional metadata that describes the context of the
+    fusion.
+
+    Example:
+
+    ```mlir
+    loc(fused["mysource.cc":10:8, "mysource.cc":22:8])
+    loc(fused<"CSE">["mysource.cc":10:8, "mysource.cc":22:8])
+    ```
+    """
+
+    name = "fused_loc"
+
+    locations: ArrayAttr[Attribute] = param_def()
+    metadata: Attribute = param_def()
+
+    def __init__(
+        self,
+        locations: ArrayAttr[LocationAttr] | list[LocationAttr],
+        metadata: Attribute | None = None,
+    ):
+        if isinstance(locations, list):
+            locations = ArrayAttr(locations)
+        if metadata is None:
+            metadata = NoneAttr()
+        super().__init__(locations, metadata)
+
+    def verify(self) -> None:
+        from xdsl.dialects.builtin import LocationAttr
+
+        for loc in self.locations.data:
+            if not isinstance(loc, LocationAttr):
+                raise VerifyException(
+                    f"FusedLoc.locations must contain only LocationAttr, got {type(loc)}"
+                )
+
+    @classmethod
+    def create(
+        cls,
+        locations: ArrayAttr[LocationAttr] | list[LocationAttr],
+        metadata: Attribute | None = None,
+    ) -> LocationAttr:
+        """
+        Factory method with fusion logic:
+        1. Unwrap nested FusedLoc with same metadata
+        2. Remove UnknownLoc
+        3. Simplify if single location without metadata
+        """
+        if isinstance(locations, list):
+            locations_list = list(locations)
+        else:
+            locations_list = list(locations.data)
+
+        # Fusion logic: unwrap nested FusedLoc with same metadata
+        fused_locations: list[LocationAttr] = []
+        for loc in locations_list:
+            if isinstance(loc, FusedLoc) and loc.metadata == metadata:
+                # Cast to LocationAttr since we verified it's a FusedLoc
+                for nested_loc in loc.locations.data:
+                    fused_locations.append(cast("LocationAttr", nested_loc))
+            elif not isinstance(loc, UnknownLoc):
+                fused_locations.append(loc)
+
+        # Simplify
+        if not fused_locations and metadata is None:
+            return UnknownLoc()
+        if len(fused_locations) == 1 and metadata is None:
+            return fused_locations[0]
+
+        return cls(fused_locations, metadata)
+
+    def print_builtin(self, printer: Printer) -> None:
+        printer.print_string("loc")
+        with printer.in_parens():
+            printer.print_string("fused")
+            if not isinstance(self.metadata, NoneAttr):
+                printer.print_string("<")
+                printer.print_attribute(self.metadata)
+                printer.print_string(">")
+            printer.print_string("[")
+            printer.print_list(self.locations.data, printer.print_attribute)
+            printer.print_string("]")
+
+
+@irdl_attr_definition
+class OpaqueLoc(ParametrizedAttribute, BuiltinAttribute):
+    """
+    Syntax:
+
+    ```
+    opaque-location ::= string-literal
+    ```
+
+    An instance of this location essentially contains a pointer to some data
+    structure that is external to MLIR and an optional location that can be used
+    if the first one is not suitable. Since it contains an external structure,
+    only the optional location is used during serialization.
+
+    Note: The underlying_location field is a Python object that won't be serialized
+    through normal attribute mechanisms. Only the fallback_location is serialized.
+
+    Example:
+
+    ```mlir
+    %0 = "example.operation"() : () -> i32 loc("mysource")
+    ```
+    """
+
+    name = "opaque_loc"
+
+    # Note: underlying_location is stored as a StringAttr for serialization purposes
+    # The actual Python object reference cannot be stored in IR
+    underlying_location_str: StringAttr = param_def()
+    fallback_location: Attribute = param_def()
+
+    def __init__(
+        self,
+        underlying_location: object | None = None,
+        fallback_location: LocationAttr | None = None,
+    ):
+        if fallback_location is None:
+            fallback_location = UnknownLoc()
+        # Store object reference by id for runtime use
+        if underlying_location is not None:
+            obj_id = id(underlying_location)
+            OpaqueLoc._underlying_location_map[obj_id] = underlying_location
+            underlying_str = StringAttr(f"opaque_{obj_id}")
+        else:
+            underlying_str = StringAttr("opaque_null")
+        super().__init__(underlying_str, fallback_location)
+
+    def verify(self) -> None:
+        from xdsl.dialects.builtin import LocationAttr
+
+        if not isinstance(self.fallback_location, LocationAttr):
+            raise VerifyException(
+                f"OpaqueLoc.fallback_location must be a LocationAttr, got {type(self.fallback_location)}"
+            )
+
+    @classmethod
+    def create(
+        cls,
+        underlying: object | None = None,
+        fallback: LocationAttr | None = None,
+    ) -> OpaqueLoc:
+        return cls(underlying, fallback)
+
+    @classmethod
+    def get_underlying_location(cls, loc: Attribute) -> object | None:
+        """Extract underlying location if this is an OpaqueLoc."""
+        if not isinstance(loc, cls):
+            return None
+        # Extract object id from string
+        underlying_str = loc.underlying_location_str.data
+        if underlying_str == "opaque_null":
+            return None
+        try:
+            obj_id = int(underlying_str.split("_")[1])
+            return cls._underlying_location_map.get(obj_id)
+        except (ValueError, IndexError):
+            return None
+
+    def print_builtin(self, printer: Printer) -> None:
+        # Only print fallback location (underlying pointer is not serialized)
+        # Print the fallback directly without the outer loc() wrapper
+        if isinstance(self.fallback_location, FileLineColLoc):
+            printer.print_string_literal(self.fallback_location.filename.data)
+        elif isinstance(self.fallback_location, UnknownLoc):
+            printer.print_string("unknown")
+        else:
+            # For other location types, print them normally
+            printer.print_attribute(self.fallback_location)
+
+
+# Runtime storage for OpaqueLoc Python object references (not serialized)
+OpaqueLoc._underlying_location_map = {}  # type: ignore
+
+
+# Type alias for all location types
+LocationAttr: TypeAlias = (
+    UnknownLoc
+    | FileLineColLoc
+    | FileLineColRange
+    | NameLoc
+    | CallSiteLoc
+    | FusedLoc
+    | OpaqueLoc
+)
 
 
 @irdl_attr_definition
@@ -2148,6 +2564,7 @@ class UnregisteredOp(Operation, ABC):
                 attributes: Mapping[str, Attribute] = {},
                 successors: Sequence[Block] = (),
                 regions: Sequence[Region] = (),
+                location: LocationAttr | None = None,
             ):
                 op = super().create(
                     operands=operands,
@@ -2156,6 +2573,7 @@ class UnregisteredOp(Operation, ABC):
                     attributes=attributes,
                     successors=successors,
                     regions=regions,
+                    location=location,
                 )
                 op.attributes["op_name__"] = StringAttr(name)
                 return op

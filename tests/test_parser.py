@@ -11,12 +11,16 @@ from xdsl.dialects.builtin import (
     DYNAMIC_INDEX,
     ArrayAttr,
     Builtin,
+    CallSiteLoc,
     DictionaryAttr,
     FileLineColLoc,
+    FileLineColRange,
     FloatAttr,
+    FusedLoc,
     IntAttr,
     IntegerAttr,
     IntegerType,
+    NameLoc,
     StringAttr,
     SymbolRefAttr,
     UnknownLoc,
@@ -969,13 +973,48 @@ def test_properties_retrocompatibility():
 
 
 def test_parse_location():
+    """Test parsing all location types."""
     ctx = Context()
+
+    # UnknownLoc
     attr = Parser(ctx, "loc(unknown)").parse_optional_location()
     assert attr == UnknownLoc()
 
+    # FileLineColLoc
     attr = Parser(ctx, 'loc("one":2:3)').parse_optional_location()
     assert attr == FileLineColLoc(StringAttr("one"), IntAttr(2), IntAttr(3))
 
+    # FileLineColRange
+    attr = Parser(ctx, 'loc("test.cpp":10:8 to 12:18)').parse_optional_location()
+    assert isinstance(attr, FileLineColRange)
+
+    # NameLoc without child
+    attr = Parser(ctx, 'loc("CSE")').parse_optional_location()
+    assert isinstance(attr, NameLoc)
+
+    # NameLoc with child
+    attr = Parser(ctx, 'loc("CSE"(loc("test.cpp":10:8)))').parse_optional_location()
+    assert isinstance(attr, NameLoc)
+
+    # CallSiteLoc
+    attr = Parser(
+        ctx, 'loc(callsite(loc(unknown) at loc("main.cpp":10:8)))'
+    ).parse_optional_location()
+    assert isinstance(attr, CallSiteLoc)
+
+    # FusedLoc without metadata
+    attr = Parser(
+        ctx, 'loc(fused[loc("a.cpp":1:1), loc("b.cpp":2:2)])'
+    ).parse_optional_location()
+    assert isinstance(attr, FusedLoc)
+
+    # FusedLoc with metadata
+    attr = Parser(
+        ctx, 'loc(fused<"CSE">[loc("a.cpp":1:1), loc("b.cpp":2:2)])'
+    ).parse_optional_location()
+    assert isinstance(attr, FusedLoc)
+
+    # Invalid location syntax
     with pytest.raises(ParseError, match="Unexpected location syntax."):
         Parser(ctx, "loc(unexpected)").parse_optional_location()
 

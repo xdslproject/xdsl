@@ -20,6 +20,7 @@ from xdsl.dialects.builtin import (
     IntAttr,
     IntegerAttr,
     IntegerType,
+    LocationAttr,
     NoneAttr,
     SignlessIntegerConstraint,
     StringAttr,
@@ -1693,6 +1694,7 @@ class FuncOp(IRDLOperation):
         body: Region | None = None,
         other_props: dict[str, Attribute | None] | None = None,
         extra_attrs: Mapping[str, Attribute] | None = None,
+        location: LocationAttr | None = None,
     ):
         if isinstance(sym_name, str):
             sym_name = StringAttr(sym_name)
@@ -1718,6 +1720,7 @@ class FuncOp(IRDLOperation):
             regions=[body],
             properties=properties,
             attributes=extra_attrs if extra_attrs else {},
+            location=location,
         )
 
     @staticmethod
@@ -1793,6 +1796,7 @@ class FuncOp(IRDLOperation):
             arg_attrs,
             res_attrs,
             is_variadic,
+            location,
         ) = parse_func_op_like(
             parser,
             reserved_attr_names=_FUNC_OP_RESERVED_ATTR_NAMES,
@@ -1810,6 +1814,7 @@ class FuncOp(IRDLOperation):
             body=region,
             other_props=other_props,
             extra_attrs=dict(extra_attrs.data) if extra_attrs else None,
+            location=location,
         )
 
     @staticmethod
@@ -1868,6 +1873,7 @@ class FuncOp(IRDLOperation):
             reserved_attr_names=_FUNC_OP_RESERVED_ATTR_NAMES,
             is_variadic=self.function_type.is_variadic,
             print_empty_outputs=False,
+            location=self.get_loc(),
         )
 
 

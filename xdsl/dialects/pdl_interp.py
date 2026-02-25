@@ -1272,16 +1272,19 @@ class FuncOp(IRDLOperation):
             extra_attrs,
             arg_attrs,
             res_attrs,
+            location,
         ) = parse_func_op_like(
             parser, reserved_attr_names=("sym_name", "function_type")
         )
-        func = FuncOp(
+        func = cls(
             sym_name=name,
             function_type=(input_types, return_types),
             region=region,
             arg_attrs=arg_attrs,
             res_attrs=res_attrs,
         )
+        if location is not None:
+            func.set_loc(location)
         if extra_attrs is not None:
             func.attributes |= extra_attrs.data
         return func
@@ -1300,6 +1303,7 @@ class FuncOp(IRDLOperation):
                 "function_type",
                 "arg_attrs",
             ),
+            location=self.get_loc(),
         )
 
     def __init__(

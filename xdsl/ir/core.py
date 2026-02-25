@@ -38,6 +38,7 @@ from xdsl.utils.str_enum import StrEnum
 if TYPE_CHECKING:
     from typing_extensions import TypeForm
 
+    from xdsl.dialects.builtin import LocationAttr
     from xdsl.irdl import ParamAttrDef
     from xdsl.parser import AttrParser, Parser
     from xdsl.printer import Printer
@@ -843,9 +844,49 @@ class BlockArgument(SSAValue[AttributeCovT], Generic[AttributeCovT]):
     index: int
     """The index of the variable in the block arguments."""
 
+    _location: LocationAttr = field(repr=False)
+    """The source location of this block argument."""
+
+    def __init__(
+        self,
+        arg_type: AttributeCovT,
+        block: Block,
+        index: int,
+        location: LocationAttr | None = None,
+    ):
+        self.block = block
+        self.index = index
+        # Set location - None defaults to UnknownLoc
+        if location is None:
+            # Lazy import to avoid circular dependency
+            from xdsl.dialects.builtin import UnknownLoc
+
+            self._location = UnknownLoc()
+        else:
+            self._location = location
+        super().__init__(arg_type)
+
     @property
     def owner(self) -> Block:
         return self.block
+
+    def get_loc(self) -> LocationAttr:
+        """
+        Get the source location of this block argument.
+
+        Returns:
+            LocationAttr: The source location.
+        """
+        return self._location
+
+    def set_loc(self, loc: LocationAttr) -> None:
+        """
+        Set the source location of this block argument.
+
+        Args:
+            loc (LocationAttr): The source location to set.
+        """
+        self._location = loc
 
     def __repr__(self) -> str:
         return (
@@ -1073,6 +1114,9 @@ class Operation(_IRNode):
     parent: Block | None = field(default=None)
     """The block containing this operation."""
 
+    _location: LocationAttr = field(default=None)  # type: ignore
+    """The source location the operation was defined or derived from."""
+
     _next_op: Operation | None = field(default=None)
     """Next operation in block containing this operation."""
 
@@ -1110,6 +1154,24 @@ class Operation(_IRNode):
 
     def parent_block(self) -> Block | None:
         return self.parent
+
+    def get_loc(self) -> LocationAttr:
+        """
+        Get the source location of this operation.
+
+        Returns:
+            LocationAttr: The source location.
+        """
+        return self._location
+
+    def set_loc(self, loc: LocationAttr) -> None:
+        """
+        Set the source location of this operation.
+
+        Args:
+            loc (LocationAttr): The source location to set.
+        """
+        self._location = loc
 
     @property
     def next_op(self) -> Operation | None:
@@ -1204,6 +1266,7 @@ class Operation(_IRNode):
         attributes: Mapping[str, Attribute] = {},
         successors: Sequence[Block] = (),
         regions: Sequence[Region] = (),
+        location: LocationAttr | None = None,
     ) -> None:
         super().__init__()
 
@@ -1221,6 +1284,15 @@ class Operation(_IRNode):
         for region in regions:
             self.add_region(region)
 
+        # Set location - None defaults to UnknownLoc
+        if location is None:
+            # Lazy import to avoid circular dependency
+            from xdsl.dialects.builtin import UnknownLoc
+
+            self._location = UnknownLoc()
+        else:
+            self._location = location
+
         self.__post_init__()
 
     @classmethod
@@ -1233,6 +1305,7 @@ class Operation(_IRNode):
         attributes: Mapping[str, Attribute] = {},
         successors: Sequence[Block] = (),
         regions: Sequence[Region] = (),
+        location: LocationAttr | None = None,
     ) -> Self:
         op = cls.__new__(cls)
         Operation.__init__(
@@ -1243,6 +1316,7 @@ class Operation(_IRNode):
             attributes=attributes,
             successors=successors,
             regions=regions,
+            location=location,
         )
         return op
 
@@ -1762,12 +1836,28 @@ class Block(_IRNode, IRWithUses, IRWithName):
         ops: Iterable[Operation] = (),
         *,
         arg_types: Iterable[Attribute] = (),
+        arg_locations: Sequence[LocationAttr | None] | None = None,
     ):
         super().__init__()
-        self._args = tuple(
-            BlockArgument(arg_type, self, index)
-            for index, arg_type in enumerate(arg_types)
-        )
+        arg_types_list = list(arg_types)
+
+        if arg_locations is not None:
+            if len(arg_locations) != len(arg_types_list):
+                raise ValueError(
+                    f"Number of arg_locations ({len(arg_locations)}) must match "
+                    f"number of arg_types ({len(arg_types_list)})"
+                )
+            self._args = tuple(
+                BlockArgument(arg_type, self, index, location=loc)
+                for index, (arg_type, loc) in enumerate(
+                    zip(arg_types_list, arg_locations)
+                )
+            )
+        else:
+            self._args = tuple(
+                BlockArgument(arg_type, self, index)
+                for index, arg_type in enumerate(arg_types_list)
+            )
         self._first_op = None
         self._last_op = None
 
@@ -1818,21 +1908,82 @@ class Block(_IRNode, IRWithUses, IRWithName):
         """Returns the block arguments."""
         return self._args
 
-    def insert_arg(self, arg_type: Attribute, index: int) -> BlockArgument:
+    def insert_arg(
+        self,
+        arg_type: Attribute,
+        index: int,
+        location: LocationAttr | None = None,
+    ) -> BlockArgument:
         """
         Insert a new argument with a given type to the arguments list at a specific index.
         Returns the new argument.
+
+        Args:
+            arg_type (Attribute): The type of the argument.
+            index (int): The index at which to insert the argument.
+            location (LocationAttr | None): The source location of the argument (optional).
+
+        Returns:
+            BlockArgument: The new argument.
         """
         if index < 0 or index > len(self._args):
             raise ValueError(
                 f"Cannot insert block argument at index {index}, index must be in "
                 f"range [0, {len(self._args)}]."
             )
-        new_arg = BlockArgument(arg_type, self, index)
+        new_arg = BlockArgument(arg_type, self, index, location=location)
         for arg in self._args[index:]:
             arg.index += 1
         self._args = tuple(chain(self._args[:index], [new_arg], self._args[index:]))
         return new_arg
+
+    def add_arg(
+        self,
+        arg_type: Attribute,
+        location: LocationAttr | None = None,
+    ) -> BlockArgument:
+        """
+        Add a new argument with a given type to the end of the arguments list.
+        Returns the new argument.
+
+        Args:
+            arg_type (Attribute): The type of the argument.
+            location (LocationAttr | None): The source location of the argument (optional).
+
+        Returns:
+            BlockArgument: The new argument.
+        """
+        return self.insert_arg(arg_type, len(self._args), location=location)
+
+    def add_args(
+        self,
+        arg_types: Sequence[Attribute],
+        locations: Sequence[LocationAttr] | None = None,
+    ) -> tuple[BlockArgument, ...]:
+        """
+        Add new arguments with the given types.
+
+        Args:
+            arg_types (Sequence[Attribute]): The types of the arguments.
+            locations (Sequence[LocationAttr] | None): The source locations of the arguments (optional).
+                      If provided, must have the same length as arg_types.
+
+        Returns:
+            tuple[BlockArgument, ...]: A tuple of the new arguments.
+        """
+        if locations is not None and len(locations) != len(arg_types):
+            raise ValueError(
+                f"Number of locations ({len(locations)}) must match "
+                f"number of types ({len(arg_types)})"
+            )
+
+        if locations is None:
+            return tuple(self.add_arg(arg_type) for arg_type in arg_types)
+        else:
+            return tuple(
+                self.add_arg(arg_type, location=loc)
+                for arg_type, loc in zip(arg_types, locations)
+            )
 
     def erase_arg(self, arg: BlockArgument, safe_erase: bool = True) -> None:
         """
@@ -2350,6 +2501,22 @@ class Region(_IRNode):
 
     def parent_op(self) -> Operation | None:
         return self.parent
+
+    def get_loc(self) -> LocationAttr:
+        """
+        Get the source location of this region.
+
+        The region's location is inherited from its parent operation.
+        This is consistent with MLIR C++ design.
+
+        Returns:
+            LocationAttr: The location of the parent operation.
+        """
+        if self.parent is None:
+            from xdsl.dialects.builtin import UnknownLoc
+
+            return UnknownLoc()
+        return self.parent.get_loc()
 
     def parent_region(self) -> Region | None:
         return (

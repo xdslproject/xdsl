@@ -10,6 +10,7 @@ from xdsl.dialects.builtin import (
     FunctionType,
     IntegerAttr,
     IntegerType,
+    LocationAttr,
     StringAttr,
     SymbolNameConstraint,
     SymbolRefAttr,
@@ -756,6 +757,7 @@ class NamedSequenceOp(IRDLOperation):
         sym_visibility: str | StringAttr | None = None,
         arg_attrs: Sequence[DictionaryAttr] | ArrayAttr[DictionaryAttr] | None = None,
         res_attrs: Sequence[DictionaryAttr] | ArrayAttr[DictionaryAttr] | None = None,
+        location: LocationAttr | None = None,
     ):
         if isinstance(sym_name, str):
             sym_name = StringAttr(sym_name)
@@ -777,6 +779,7 @@ class NamedSequenceOp(IRDLOperation):
                 "res_attrs": res_attrs,
             },
             regions=[body],
+            location=location,
         )
 
     @classmethod
@@ -791,6 +794,7 @@ class NamedSequenceOp(IRDLOperation):
             extra_attrs,
             arg_attrs,
             res_attrs,
+            location,
         ) = parse_func_op_like(
             parser, reserved_attr_names=("sym_name", "function_type", "sym_visibility")
         )
@@ -801,6 +805,7 @@ class NamedSequenceOp(IRDLOperation):
             sym_visibility=visibility,
             arg_attrs=arg_attrs,
             res_attrs=res_attrs,
+            location=location,
         )
         if extra_attrs is not None:
             named_sequence.attributes |= extra_attrs.data
@@ -826,6 +831,7 @@ class NamedSequenceOp(IRDLOperation):
                 "sym_visibility",
                 "arg_attrs",
             ),
+            location=self.get_loc(),
         )
 
 

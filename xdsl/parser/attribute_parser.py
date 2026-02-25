@@ -23,12 +23,14 @@ from xdsl.dialects.builtin import (
     ArrayAttr,
     BoolAttr,
     BytesAttr,
+    CallSiteLoc,
     ComplexType,
     DenseArrayBase,
     DenseIntOrFPElementsAttr,
     DenseResourceAttr,
     DictionaryAttr,
     FileLineColLoc,
+    FileLineColRange,
     Float16Type,
     Float32Type,
     Float64Type,
@@ -36,6 +38,7 @@ from xdsl.dialects.builtin import (
     Float128Type,
     FloatAttr,
     FunctionType,
+    FusedLoc,
     IndexType,
     IntAttr,
     IntegerAttr,
@@ -43,6 +46,7 @@ from xdsl.dialects.builtin import (
     LocationAttr,
     MemRefLayoutAttr,
     MemRefType,
+    NameLoc,
     NoneAttr,
     NoneType,
     OpaqueAttr,
@@ -1300,23 +1304,180 @@ class AttrParser(BaseParser):
     def parse_optional_location(self) -> LocationAttr | None:
         """
         Parse a location attribute, if present.
-          location ::= `loc` `(` `unknown` `)`
+
+        Syntax:
+            location ::= `loc` `(` location-content `)`
+            location-content ::= `unknown`
+                               | `callsite` `(` location `at` location `)`
+                               | `fused` `<` attribute `>`? `[` location-list `]`
+                               | `fused` `[` location-list `]`
+                               | string-literal `(` location `)`
+                               | string-literal `)`
+                               | string-literal `:` integer `:` integer (`to` ...)? `)`
         """
         if not self.parse_optional_characters("loc"):
             return None
 
-        with self.in_parens():
-            if self.parse_optional_keyword("unknown"):
+        self.parse_punctuation("(")
+        result = self._parse_location_content()
+        self.parse_punctuation(")")
+        return result
+
+    def _parse_location_content(self) -> LocationAttr:
+        """
+        Parse the content inside loc(...).
+        Assumes the opening '(' has already been consumed.
+        """
+        # Check for keyword-based locations
+        if self._current_token.kind == MLIRTokenKind.BARE_IDENT:
+            keyword = self._current_token.text
+
+            if keyword == "unknown":
+                self._consume_token()
                 return UnknownLoc()
 
-            if (filename := self.parse_optional_str_literal()) is not None:
-                self.parse_punctuation(":")
-                line = self.parse_integer(False, False)
-                self.parse_punctuation(":")
-                col = self.parse_integer(False, False)
-                return FileLineColLoc(StringAttr(filename), IntAttr(line), IntAttr(col))
+            if keyword == "callsite":
+                return self._parse_callsite_location()
 
-            self.raise_error("Unexpected location syntax.")
+            if keyword == "fused":
+                return self._parse_fused_location()
+
+        # Check for string-based locations (NameLoc, FileLineColLoc, FileLineColRange)
+        if self._current_token.kind == MLIRTokenKind.STRING_LIT:
+            return self._parse_string_based_location()
+
+        return self.raise_error("Unexpected location syntax.")
+
+    def _parse_callsite_location(self) -> CallSiteLoc:
+        """
+        Parse a callsite location: callsite(callee at caller)
+        Assumes 'callsite' keyword has been consumed.
+        """
+        self._consume_token()  # consume 'callsite'
+        self.parse_punctuation("(")
+        callee = self.parse_location()
+        self.parse_keyword("at")
+        caller = self.parse_location()
+        self.parse_punctuation(")")
+        return CallSiteLoc(callee, caller)
+
+    def _parse_fused_location(self) -> LocationAttr:
+        """
+        Parse a fused location: fused<"metadata">[loc1, loc2, ...] or fused[loc1, loc2, ...]
+        Assumes 'fused' keyword has been consumed.
+
+        Returns a FusedLoc, or a simplified location if fusion logic reduces it.
+        """
+        self._consume_token()  # consume 'fused'
+
+        # Parse optional metadata
+        metadata = None
+        if self.parse_optional_punctuation("<"):
+            metadata = self.parse_attribute()
+            self.parse_punctuation(">")
+
+        # Parse location list
+        self.parse_punctuation("[")
+        # Check for empty list
+        if self.parse_optional_punctuation("]"):
+            locations = []
+        else:
+            locations = self.parse_comma_separated_list(
+                self.Delimiter.NONE, self.parse_location
+            )
+            self.parse_punctuation("]")
+
+        return FusedLoc.create(locations, metadata)
+
+    def _parse_string_based_location(self) -> LocationAttr:
+        """
+        Parse a string-based location (NameLoc, FileLineColLoc, or FileLineColRange).
+        Assumes the string literal has been verified to be present.
+
+        Syntax:
+            name-location ::= string-literal `(` location `)`
+                            | string-literal
+            filelinecol-location ::= string-literal `:` integer `:` integer
+            filelinecol-range-location ::= string-literal `:` integer `:` integer `to` ...
+        """
+        name_or_filename = self.parse_str_literal()
+
+        # Check what follows the string
+        if self.parse_optional_punctuation("("):
+            # NameLoc with child location: "name"(child_loc)
+            child_loc = self.parse_location()
+            self.parse_punctuation(")")
+            return NameLoc(StringAttr(name_or_filename), child_loc)
+
+        if self._current_token.kind == MLIRTokenKind.COLON:
+            # FileLineColLoc or FileLineColRange
+            return self._parse_file_line_col_location(name_or_filename)
+
+        # NameLoc without child location: "name"
+        return NameLoc(StringAttr(name_or_filename), UnknownLoc())
+
+    def _parse_file_line_col_location(self, filename: str) -> LocationAttr:
+        """
+        Parse a FileLineColLoc or FileLineColRange.
+        Assumes filename has been parsed.
+
+        Syntax:
+            filelinecol-location ::= `:` integer `:` integer
+            filelinecol-range-location ::= `:` integer `:` integer `to` ...
+        """
+        self.parse_punctuation(":")
+        start_line = self.parse_integer(False, False)
+
+        # Check for column
+        if self._current_token.kind != MLIRTokenKind.COLON:
+            # Just file:line
+            return FileLineColRange(
+                StringAttr(filename),
+                IntAttr(start_line),
+                IntAttr(0),
+                IntAttr(start_line),
+                IntAttr(0),
+            )
+
+        self.parse_punctuation(":")
+        start_column = self.parse_integer(False, False)
+
+        # Check for range
+        if not self.parse_optional_keyword("to"):
+            # FileLineColLoc
+            return FileLineColLoc(
+                StringAttr(filename), IntAttr(start_line), IntAttr(start_column)
+            )
+
+        # FileLineColRange
+        if self.parse_optional_punctuation(":"):
+            # Same line, different column: to :end_col
+            end_line = start_line
+            end_column = self.parse_integer(False, False)
+        else:
+            # Different line: to end_line:end_column
+            end_line = self.parse_integer(False, False)
+            self.parse_punctuation(":")
+            end_column = self.parse_integer(False, False)
+
+        return FileLineColRange(
+            StringAttr(filename),
+            IntAttr(start_line),
+            IntAttr(start_column),
+            IntAttr(end_line),
+            IntAttr(end_column),
+        )
+
+    def parse_location(self) -> LocationAttr:
+        """
+        Parse a location attribute.
+
+        Syntax:
+            location ::= `loc` `(` location-content `)`
+        """
+        return self.expect(
+            self.parse_optional_location, "Expected location in format loc(...)"
+        )
 
     def parse_optional_builtin_int_or_float_attr(
         self,

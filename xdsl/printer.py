@@ -5,7 +5,7 @@ import math
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from itertools import chain
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from typing_extensions import TypeVar, deprecated
 
@@ -22,7 +22,6 @@ from xdsl.dialects.builtin import (
     IndexType,
     IntegerType,
     UnitAttr,
-    UnknownLoc,
     UnregisteredOp,
     i1,
 )
@@ -50,6 +49,9 @@ from xdsl.utils.bitwise_casts import (
 from xdsl.utils.diagnostic import Diagnostic
 from xdsl.utils.hints import isa
 from xdsl.utils.mlir_lexer import MLIRLexer
+
+if TYPE_CHECKING:
+    from xdsl.dialects.builtin import LocationAttr
 
 
 @dataclass(eq=False, repr=False)
@@ -234,16 +236,19 @@ class Printer(BasePrinter):
 
     def print_block_argument(self, arg: BlockArgument, print_type: bool = True) -> None:
         """
-        Print a block argument with its type, e.g. `%arg : i32`
+        Print a block argument with its type and optional location, e.g. `%arg : i32 loc("file.mlir":1:1)`
         Optionally, do not print the type.
         """
         self.print_ssa_value(arg)
         if print_type:
             self.print_string(" : ")
             self.print_attribute(arg.type)
-            if self.print_debuginfo:
-                self.print_string(" ")
-                self.print_attribute(UnknownLoc())
+
+        # Print location if not UnknownLoc or if debuginfo is enabled
+        loc = arg.get_loc()
+        if self.print_debuginfo:
+            self.print_string(" ")
+            self.print_location(loc)
 
     def print_region(
         self,
@@ -426,6 +431,12 @@ class Printer(BasePrinter):
             "x",
         )
 
+    def print_location(self, loc: LocationAttr) -> None:
+        """
+        Print a location attribute.
+        """
+        self.print_attribute(loc)
+
     def print_attribute(self, attribute: Attribute) -> None:
         # Print builtin attributes
         if isinstance(attribute, BuiltinAttribute):
@@ -581,9 +592,11 @@ class Printer(BasePrinter):
 
     def print_operation_type(self, op: Operation) -> None:
         self.print_function_type(op.operand_types, op.result_types)
+        # Print location if not UnknownLoc or if debuginfo is enabled
+        loc = op.get_loc()
         if self.print_debuginfo:
             self.print_string(" ")
-            self.print_attribute(UnknownLoc())
+            self.print_location(loc)
 
     def enter_scope(self) -> None:
         self._next_valid_name_id.append(self._next_valid_name_id[-1])

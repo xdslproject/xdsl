@@ -83,6 +83,61 @@ def test_print_op_location():
     assert_print_op(add, expected, print_debuginfo=True)
 
 
+def test_print_location_types():
+    """Test printing all location types."""
+    from xdsl.dialects.builtin import (
+        CallSiteLoc,
+        FileLineColLoc,
+        FileLineColRange,
+        FusedLoc,
+        NameLoc,
+        StringAttr,
+        UnknownLoc,
+    )
+
+    # FileLineColLoc
+    loc = FileLineColLoc("test.cpp", 10, 8)
+    stream = StringIO()
+    Printer(stream).print_location(loc)
+    assert stream.getvalue() == 'loc("test.cpp":10:8)'
+
+    # FileLineColRange
+    loc = FileLineColRange("test.cpp", 10, 8, 12, 18)
+    stream = StringIO()
+    Printer(stream).print_location(loc)
+    assert stream.getvalue() == 'loc("test.cpp":10:8 to 12:18)'
+
+    # NameLoc without child
+    loc = NameLoc("CSE")
+    stream = StringIO()
+    Printer(stream).print_location(loc)
+    assert stream.getvalue() == 'loc("CSE")'
+
+    # NameLoc with child
+    loc = NameLoc("CSE", FileLineColLoc("test.cpp", 10, 8))
+    stream = StringIO()
+    Printer(stream).print_location(loc)
+    assert stream.getvalue() == 'loc("CSE"(loc("test.cpp":10:8)))'
+
+    # CallSiteLoc
+    loc = CallSiteLoc(UnknownLoc(), FileLineColLoc("main.cpp", 10, 8))
+    stream = StringIO()
+    Printer(stream).print_location(loc)
+    assert stream.getvalue() == 'loc(callsite(loc(unknown) at loc("main.cpp":10:8)))'
+
+    # FusedLoc without metadata
+    loc = FusedLoc([FileLineColLoc("a.cpp", 1, 1), FileLineColLoc("b.cpp", 2, 2)])
+    stream = StringIO()
+    Printer(stream).print_location(loc)
+    assert stream.getvalue() == 'loc(fused[loc("a.cpp":1:1), loc("b.cpp":2:2)])'
+
+    # FusedLoc with metadata
+    loc = FusedLoc([FileLineColLoc("a.cpp", 1, 1)], StringAttr("CSE"))
+    stream = StringIO()
+    Printer(stream).print_location(loc)
+    assert stream.getvalue() == 'loc(fused<"CSE">[loc("a.cpp":1:1)])'
+
+
 @irdl_op_definition
 class UnitAttrOp(IRDLOperation):
     name = "unit_attr_op"
@@ -417,6 +472,7 @@ def test_print_block_argument_location():
     p.print_block_argument(block.args[0])
     p.print_string(", ")
     p.print_block_argument(block.args[1])
+    # Block arguments default to UnknownLoc, which is printed with debuginfo
     assert io.getvalue() == """%0 : i32 loc(unknown), %1 : i32 loc(unknown)"""
 
 

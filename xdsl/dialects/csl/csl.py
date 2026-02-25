@@ -27,6 +27,7 @@ from xdsl.dialects.builtin import (
     FunctionType,
     IntegerAttr,
     IntegerType,
+    LocationAttr,
     MemRefType,
     ModuleOp,
     Signedness,
@@ -771,11 +772,12 @@ class FuncOp(_FuncBase):
         *,
         arg_attrs: ArrayAttr[DictionaryAttr] | None = None,
         res_attrs: ArrayAttr[DictionaryAttr] | None = None,
+        location: LocationAttr | None = None,
     ):
         properties, region = self._props_region(
             name, function_type, region, arg_attrs=arg_attrs, res_attrs=res_attrs
         )
-        super().__init__(properties=properties, regions=[region])
+        super().__init__(properties=properties, regions=[region], location=location)
 
     def verify_(self) -> None:
         _FuncBase._verify(self)
@@ -790,6 +792,7 @@ class FuncOp(_FuncBase):
             extra_attrs,
             arg_attrs,
             res_attrs,
+            location,
         ) = parse_func_op_like(
             parser,
             reserved_attr_names=("sym_name", "function_type", "sym_visibility"),
@@ -807,6 +810,7 @@ class FuncOp(_FuncBase):
             function_type=(input_types, return_types[0] if return_types else None),
             region=region,
             arg_attrs=arg_attrs,
+            location=location,
         )
         if extra_attrs is not None:
             func.attributes |= extra_attrs.data
@@ -845,6 +849,7 @@ class TaskOp(_FuncBase):
         arg_attrs: ArrayAttr[DictionaryAttr] | None = None,
         res_attrs: ArrayAttr[DictionaryAttr] | None = None,
         id: ColorIdAttr | int | None,
+        location: LocationAttr | None = None,
     ):
         properties, region = self._props_region(
             name, function_type, region, arg_attrs=arg_attrs, res_attrs=res_attrs
@@ -864,7 +869,7 @@ class TaskOp(_FuncBase):
             "kind": task_kind,
             "id": id,
         }
-        super().__init__(properties=properties, regions=[region])
+        super().__init__(properties=properties, regions=[region], location=location)
 
     def verify_(self) -> None:
         _FuncBase._verify(self)
@@ -905,6 +910,7 @@ class TaskOp(_FuncBase):
             extra_attrs,
             arg_attrs,
             res_attrs,
+            location,
         ) = parse_func_op_like(
             parser,
             reserved_attr_names=("sym_name", "function_type", "sym_visibility"),
@@ -936,6 +942,7 @@ class TaskOp(_FuncBase):
             arg_attrs=arg_attrs,
             task_kind=kind,
             id=id,
+            location=location,
         )
         return task
 

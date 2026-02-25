@@ -7,6 +7,7 @@ from xdsl.dialects.builtin import (
     DictionaryAttr,
     FlatSymbolRefAttrConstr,
     FunctionType,
+    LocationAttr,
     StringAttr,
     SymbolNameConstraint,
     SymbolRefAttr,
@@ -130,6 +131,7 @@ class FuncOp(IRDLOperation):
         *,
         arg_attrs: ArrayAttr[DictionaryAttr] | None = None,
         res_attrs: ArrayAttr[DictionaryAttr] | None = None,
+        location: LocationAttr | None = None,
     ):
         if isinstance(visibility, str):
             visibility = StringAttr(visibility)
@@ -145,7 +147,7 @@ class FuncOp(IRDLOperation):
             "arg_attrs": arg_attrs,
             "res_attrs": res_attrs,
         }
-        super().__init__(properties=properties, regions=[region])
+        super().__init__(properties=properties, regions=[region], location=location)
 
     def verify_(self) -> None:
         # If this is an empty region (external function), then return
@@ -173,6 +175,7 @@ class FuncOp(IRDLOperation):
             extra_attrs,
             arg_attrs,
             res_attrs,
+            location,
         ) = parse_func_op_like(
             parser, reserved_attr_names=("sym_name", "function_type", "sym_visibility")
         )
@@ -183,6 +186,7 @@ class FuncOp(IRDLOperation):
             visibility=visibility,
             arg_attrs=arg_attrs,
             res_attrs=res_attrs,
+            location=location,
         )
         if extra_attrs is not None:
             func.attributes |= extra_attrs.data
@@ -208,6 +212,7 @@ class FuncOp(IRDLOperation):
                 "sym_visibility",
                 "arg_attrs",
             ),
+            location=self.get_loc(),
         )
 
     @staticmethod

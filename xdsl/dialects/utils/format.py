@@ -5,6 +5,7 @@ from xdsl.dialects.builtin import (
     ArrayAttr,
     DictionaryAttr,
     FunctionType,
+    LocationAttr,
     StringAttr,
 )
 from xdsl.ir import (
@@ -229,6 +230,7 @@ def print_func_op_like(
     reserved_attr_names: Sequence[str],
     is_variadic: bool = False,
     print_empty_outputs: bool = True,
+    location: "LocationAttr | None" = None,
 ):
     printer.print_string(" ")
     printer.print_symbol_name(sym_name.data)
@@ -245,6 +247,9 @@ def print_func_op_like(
         printer.print_op_attributes(
             attributes, reserved_attr_names=reserved_attr_names, print_keyword=True
         )
+        if printer.print_debuginfo and location is not None:
+            printer.print_string(" ")
+            printer.print_location(location)
         return
 
     # Definition or variadic declaration
@@ -273,6 +278,10 @@ def print_func_op_like(
     printer.print_op_attributes(
         attributes, reserved_attr_names=reserved_attr_names, print_keyword=True
     )
+
+    if printer.print_debuginfo and location is not None:
+        printer.print_string(" ")
+        printer.print_location(location)
 
     if body.blocks:
         printer.print_string(" ", indent=0)
@@ -321,6 +330,7 @@ FuncOpLikeParseResult: TypeAlias = tuple[
     DictionaryAttr | None,
     ArrayAttr[DictionaryAttr] | None,
     ArrayAttr[DictionaryAttr] | None,
+    "LocationAttr | None",
 ]
 
 FuncOpLikeParseResultWithVariadic: TypeAlias = tuple[
@@ -332,6 +342,7 @@ FuncOpLikeParseResultWithVariadic: TypeAlias = tuple[
     ArrayAttr[DictionaryAttr] | None,
     ArrayAttr[DictionaryAttr] | None,
     bool,
+    "LocationAttr | None",
 ]
 
 
@@ -424,6 +435,9 @@ def parse_func_op_like(
 
     extra_attributes = parser.parse_optional_attr_dict_with_keyword(reserved_attr_names)
 
+    # Parse operation location (before body)
+    location = parser.parse_optional_location()
+
     # Parse body
     region = parser.parse_optional_region(entry_args)
     if region is None:
@@ -439,6 +453,7 @@ def parse_func_op_like(
             arg_attrs,
             res_attrs,
             is_variadic,
+            location,
         )
     return (
         name,
@@ -448,6 +463,7 @@ def parse_func_op_like(
         extra_attributes,
         arg_attrs,
         res_attrs,
+        location,
     )
 
 

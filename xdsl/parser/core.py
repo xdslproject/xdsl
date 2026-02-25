@@ -5,7 +5,7 @@ import re
 from collections import defaultdict
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
-from typing import Literal, overload
+from typing import TYPE_CHECKING, Literal, overload
 
 from xdsl.context import Context
 from xdsl.dialect_interfaces.op_asm import OpAsmDialectInterface
@@ -24,6 +24,9 @@ from xdsl.utils.mlir_lexer import MLIRLexer, MLIRTokenKind
 
 from .attribute_parser import AttrParser  # noqa: TID251
 from .generic_parser import ParserState, Position  # noqa: TID251
+
+if TYPE_CHECKING:
+    from xdsl.dialects.builtin import LocationAttr
 
 
 @dataclass(eq=False)
@@ -428,8 +431,11 @@ class Parser(AttrParser):
         name: Span
         """The name as displayed in the assembly."""
 
+        location: LocationAttr | None = None
+        """The source location of the argument (optional)."""
+
         def resolve(self, type: Attribute) -> Parser.Argument:
-            return Parser.Argument(self.name, type)
+            return Parser.Argument(self.name, type, self.location)
 
     @dataclass
     class Argument:
@@ -443,6 +449,9 @@ class Parser(AttrParser):
 
         type: Attribute
         """The type of the argument, if any."""
+
+        location: LocationAttr | None = None
+        """The source location of the argument (optional)."""
 
     @overload
     def parse_optional_argument(
@@ -464,7 +473,7 @@ class Parser(AttrParser):
     ) -> UnresolvedArgument | Argument | None:
         """
         Parse a block argument, if present, with format:
-          arg ::= percent-id `:` type
+          arg ::= percent-id `:` type location?
         if `expect_type` is False, the type is not parsed.
         """
 
@@ -477,9 +486,13 @@ class Parser(AttrParser):
         if expect_type:
             self.parse_punctuation(":", " after block argument name!")
             type = self.parse_type()
-            return self.Argument(name_token.span, type)
+            # Parse optional location
+            location = self.parse_optional_location()
+            return self.Argument(name_token.span, type, location)
         else:
-            return self.UnresolvedArgument(name_token.span)
+            # Parse optional location even without type
+            location = self.parse_optional_location()
+            return self.UnresolvedArgument(name_token.span, location)
 
     @overload
     def parse_argument(self, *, expect_type: Literal[True] = True) -> Argument: ...
@@ -537,6 +550,7 @@ class Parser(AttrParser):
         if arguments is not None:
             # Check that the provided arguments have types.
             arg_types = [arg.type for arg in arguments]
+            arg_locations = [arg.location for arg in arguments]
 
             # Check that the entry block has no label.
             # Since a multi-block region block must have a terminator, there isn't a
@@ -545,7 +559,7 @@ class Parser(AttrParser):
                 self.raise_error("invalid block name in region with named arguments")
 
             # Set the block arguments in the context
-            entry_block = Block(arg_types=arg_types)
+            entry_block = Block(arg_types=arg_types, arg_locations=arg_locations)
             for block_arg, arg in zip(entry_block.args, arguments):
                 self._register_ssa_definition(arg.name.text[1:], (block_arg,), arg.name)
 
@@ -883,7 +897,8 @@ class Parser(AttrParser):
         # Parse function type
         func_type = self.parse_function_type()
 
-        self.parse_optional_location()
+        # Parse location and attach to operation
+        location = self.parse_optional_location()
 
         operands = self.resolve_operands(args, func_type.inputs.data, func_type_pos)
 
@@ -902,6 +917,7 @@ class Parser(AttrParser):
             attributes=attributes,
             successors=successors,
             regions=regions,
+            location=location,
         )
 
     def parse_optional_successor(self) -> Block | None:

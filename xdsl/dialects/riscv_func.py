@@ -10,6 +10,7 @@ from xdsl.dialects.builtin import (
     I32,
     FunctionType,
     IntegerAttr,
+    LocationAttr,
     StringAttr,
     SymbolNameConstraint,
     SymbolRefAttr,
@@ -174,6 +175,7 @@ class FuncOp(IRDLOperation, AssemblyPrintable):
         function_type: FunctionType | tuple[Sequence[Attribute], Sequence[Attribute]],
         visibility: StringAttr | str | None = None,
         p2align: int | IntegerAttr[I8] | None = None,
+        location: LocationAttr | None = None,
     ):
         if isinstance(function_type, tuple):
             inputs, outputs = function_type
@@ -189,22 +191,31 @@ class FuncOp(IRDLOperation, AssemblyPrintable):
             "p2align": p2align,
         }
 
-        super().__init__(attributes=attributes, regions=[region])
+        super().__init__(attributes=attributes, regions=[region], location=location)
 
     @classmethod
     def parse(cls, parser: Parser) -> FuncOp:
         visibility = parser.parse_optional_visibility_keyword()
-        (name, input_types, return_types, region, extra_attrs, arg_attrs, res_attrs) = (
-            parse_func_op_like(
-                parser,
-                reserved_attr_names=("sym_name", "function_type", "sym_visibility"),
-            )
+        (
+            name,
+            input_types,
+            return_types,
+            region,
+            extra_attrs,
+            arg_attrs,
+            res_attrs,
+            location,
+        ) = parse_func_op_like(
+            parser,
+            reserved_attr_names=("sym_name", "function_type", "sym_visibility"),
         )
         if arg_attrs:
             raise NotImplementedError("arg_attrs not implemented in riscv_func")
         if res_attrs:
             raise NotImplementedError("res_attrs not implemented in riscv_func")
-        func = FuncOp(name, region, (input_types, return_types), visibility)
+        func = FuncOp(
+            name, region, (input_types, return_types), visibility, location=location
+        )
         if extra_attrs is not None:
             func.attributes |= extra_attrs.data
         return func
@@ -222,6 +233,7 @@ class FuncOp(IRDLOperation, AssemblyPrintable):
             self.body,
             self.attributes,
             reserved_attr_names=("sym_name", "function_type", "sym_visibility"),
+            location=self.get_loc(),
         )
 
     def print_assembly(self, printer: AssemblyPrinter) -> None:
