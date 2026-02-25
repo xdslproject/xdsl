@@ -1,7 +1,17 @@
-from xdsl.dialects.builtin import DYNAMIC_INDEX, DenseArrayBase, TensorType, f64, i64
+from xdsl.dialects.builtin import (
+    DYNAMIC_INDEX,
+    DenseArrayBase,
+    IndexType,
+    TensorType,
+    UnitAttr,
+    f32,
+    f64,
+    i64,
+)
 from xdsl.dialects.stencil import IndexAttr
-from xdsl.dialects.tensor import ExtractSliceOp, InsertSliceOp
+from xdsl.dialects.tensor import ExtractSliceOp, InsertSliceOp, PadOp, YieldOp
 from xdsl.dialects.test import TestOp
+from xdsl.ir import Block, Region
 from xdsl.utils.test_value import create_ssa_value
 
 
@@ -93,3 +103,70 @@ def test_insert_slice_dynamic():
     assert insert_slice.static_strides == DenseArrayBase.from_list(
         i64, 2 * [DYNAMIC_INDEX]
     )
+
+
+def test_pad_op_static():
+    source_t = TensorType(f32, [2, 3])
+    source_v = TestOp(result_types=[source_t]).res[0]
+    pval_v = TestOp(result_types=[f32]).res[0]
+
+    yield_op = YieldOp(pval_v)
+    block = Block(arg_types=[IndexType(), IndexType()])
+    block.add_op(yield_op)
+    region = Region([block])
+
+    result_t = TensorType(f32, [6, 9])
+    pad_op = PadOp(source_v, [], [], region, [1, 2], [3, 4], None, result_t)
+
+    assert pad_op.source is source_v
+    assert pad_op.static_low == DenseArrayBase.from_list(i64, [1, 2])
+    assert pad_op.static_high == DenseArrayBase.from_list(i64, [3, 4])
+    assert pad_op.low == ()
+    assert pad_op.high == ()
+    assert pad_op.nofold is None
+    assert pad_op.result.type == result_t
+
+
+def test_pad_op_dynamic():
+    source_t = TensorType(f32, [2, 3])
+    source_v = TestOp(result_types=[source_t]).res[0]
+    pval_v = TestOp(result_types=[f32]).res[0]
+    low_dyn = create_ssa_value(IndexType())
+    high_dyn = create_ssa_value(IndexType())
+
+    yield_op = YieldOp(pval_v)
+    block = Block(arg_types=[IndexType(), IndexType()])
+    block.add_op(yield_op)
+    region = Region([block])
+
+    result_t = TensorType(f32, [DYNAMIC_INDEX, 9])
+    pad_op = PadOp(
+        source_v,
+        [low_dyn],
+        [high_dyn],
+        region,
+        [DYNAMIC_INDEX, 2],
+        [3, DYNAMIC_INDEX],
+        UnitAttr(),
+        result_t,
+    )
+
+    assert pad_op.source is source_v
+    assert pad_op.static_low == DenseArrayBase.from_list(i64, [DYNAMIC_INDEX, 2])
+    assert pad_op.static_high == DenseArrayBase.from_list(i64, [3, DYNAMIC_INDEX])
+    assert len(pad_op.low) == 1
+    assert len(pad_op.high) == 1
+    assert pad_op.low[0] is low_dyn
+    assert pad_op.high[0] is high_dyn
+    assert pad_op.nofold == UnitAttr()
+    assert pad_op.result.type == result_t
+
+
+def test_yield_op():
+    pval_v = TestOp(result_types=[f32]).res[0]
+
+    yield_op = YieldOp(pval_v)
+
+    assert yield_op.name == "tensor.yield"
+    assert len(yield_op.arguments) == 1
+    assert yield_op.arguments[0] is pval_v
