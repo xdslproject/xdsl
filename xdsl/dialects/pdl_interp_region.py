@@ -71,7 +71,7 @@ class CreateOperationRegionOp(IRDLOperation):
     See external [documentation](https://mlir.llvm.org/docs/Dialects/PDLInterpOps/#pdl_interpcreate_operation-pdl_interpcreateoperationop).
     """
 
-    name = "pdl_interp_region.create_operation"
+    name = "pdl_interp_region.create_operation_with_region"
     constraint_name = prop_def(StringAttr, prop_name="name")
     input_attribute_names = prop_def(ArrayAttr, prop_name="inputAttributeNames")
     inferred_result_types = opt_prop_def(UnitAttr, prop_name="inferredResultTypes")

@@ -53,7 +53,7 @@ pdl_interp.func @matcher(%arg0: !pdl.operation) {
 module @rewriters {
     pdl_interp.func @pdl_generated_rewriter_1(%arg0: !pdl.operation, %arg1 : !pdl.type) {
       %0 = pdl_interp_region.get_region 0 of %arg0 : !pdl_region.region
-      %1 = pdl_interp_region.create_operation "scf.execute_region"(%0 : !pdl_region.region) -> (%arg1 : !pdl.type)
+      %1 = pdl_interp_region.create_operation_with_region "scf.execute_region"(%0 : !pdl_region.region) -> (%arg1 : !pdl.type)
       %2 = pdl_interp.get_result 0 of %1
       pdl_interp.replace %arg0 with (%2 : !pdl.value)
       pdl_interp.finalize
