@@ -941,6 +941,8 @@ information that can be attached to operations, covering unknown locations,
 file/line/column positions, call-site chains, named locations, and fused
 (multi-location) aggregates.
 """
+LocationAttr: TypeAlias = UnknownLoc | FileLineColLoc
+UNKNOWN_LOC: LocationAttr = UnknownLoc()
 
 
 @irdl_attr_definition
@@ -2241,7 +2243,7 @@ class UnregisteredOp(Operation, ABC):
                 result_types: Sequence[Attribute] = (),
                 properties: Mapping[str, Attribute] = {},
                 attributes: Mapping[str, Attribute] = {},
-                location: Attribute | None = None,
+                location: LocationAttr | None = None,
                 successors: Sequence[Block] = (),
                 regions: Sequence[Region] = (),
             ):
