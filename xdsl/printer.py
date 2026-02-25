@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import math
-from collections.abc import Callable, Iterable, Mapping, Sequence
+from collections.abc import Callable, Generator, Iterable, Mapping, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from itertools import chain
@@ -697,7 +697,7 @@ class Printer(BasePrinter):
         self.print_identifier_or_string_literal(sym_name)
 
     @contextmanager
-    def in_location(self):
+    def in_location(self) -> Generator[None, None, None]:
         """
         Provides a context for printing locations. As some locations are
         recursive and only the top-level location should be wrapped in `loc()`,

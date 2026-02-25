@@ -787,7 +787,7 @@ class LocationConstraint(AttrConstraint):
     """
 
     def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
-        if is_location_attr(attr) or isinstance(attr, NoneAttr):
+        if isinstance(attr, LocationAttr) or isinstance(attr, NoneAttr):
             return
         raise VerifyException(f"{attr} is not a location attribute")
 
@@ -937,10 +937,12 @@ class NameLoc(ParametrizedAttribute, BuiltinAttribute):
 
 
 LocationAttr: TypeAlias = UnknownLoc | FileLineColLoc | CallSiteLoc | NameLoc | FusedLoc
-
-
-def is_location_attr(attr: Attribute):
-    return isinstance(attr, LocationAttr)
+"""
+Union of all MLIR location attribute types. Represents source location
+information that can be attached to operations, covering unknown locations,
+file/line/column positions, call-site chains, named locations, and fused
+(multi-location) aggregates.
+"""
 
 
 @irdl_attr_definition

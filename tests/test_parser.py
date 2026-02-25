@@ -997,6 +997,9 @@ def test_parse_location():
     attr = Parser(ctx, "loc(fused[unknown, unknown])").parse_optional_location()
     assert attr == FusedLoc((UnknownLoc(), UnknownLoc()), NoneAttr())
 
+    with pytest.raises(ParseError, match="Unsupported location type."):
+        Parser(ctx, "loc(unexpected)").parse_optional_location()
+
     with pytest.raises(ParseError, match="Unexpected location syntax."):
         Parser(ctx, "loc(1)").parse_optional_location()
 
