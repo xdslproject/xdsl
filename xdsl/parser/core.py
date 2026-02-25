@@ -680,6 +680,7 @@ class Parser(AttrParser):
             region-list           ::= `(` region (`,` region)* `)`
             dictionary-attribute  ::= `{` (attribute-entry (`,` attribute-entry)*)? `}`
             properties            ::= `<` dictionary-attribute `>`
+            location              ::= `loc` `(` location-id `)`
         """
         if self._current_token.kind not in (
             MLIRTokenKind.PERCENT_IDENT,
@@ -704,6 +705,7 @@ class Parser(AttrParser):
             region-list           ::= `(` region (`,` region)* `)`
             dictionary-attribute  ::= `{` (attribute-entry (`,` attribute-entry)*)? `}`
             properties            ::= `<` dictionary-attribute `>`
+            location              ::= `loc` `(` location-id `)`
         """
         # Parse the operation results
         op_loc = self._current_token.span
@@ -860,6 +862,7 @@ class Parser(AttrParser):
             region-list           ::= `(` region (`,` region)* `)`
             dictionary-attribute  ::= `{` (attribute-entry (`,` attribute-entry)*)? `}`
             properties            ::= `<` dictionary-attribute `>`
+            location              ::= `loc` `(` location-id `)`
         """
         # Parse arguments
         args = self.parse_op_args_list()
