@@ -28,6 +28,7 @@ from xdsl.dialects.builtin import (
     SymbolRefAttr,
     UnitAttr,
     UnrankedMemRefType,
+    i8,
     i32,
     i64,
 )
@@ -961,6 +962,75 @@ class ReinterpretCastOp(IRDLOperation):
 
 
 @irdl_op_definition
+class ViewOp(IRDLOperation):
+    """
+    memref view operation.
+
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/MemRef/#memrefview-memrefviewop).
+    """
+
+    name = "memref.view"
+
+    source = operand_def(MemRefType[i8])
+    byte_shift = operand_def(IndexType)
+    sizes = var_operand_def(IndexType)
+
+    result = result_def(MemRefType)
+
+    traits = traits_def(NoMemoryEffect())
+
+    assembly_format = (
+        "$source `[` $byte_shift `]` `` `[` $sizes `]` attr-dict "
+        "`:` type($source) `to` type($result)"
+    )
+
+    def verify_(self) -> None:
+        # Source must be a 1-D memref of i8.
+        src_type = cast(MemRefType[IntegerType], self.source.type)
+
+        if len(src_type.shape.data) != 1:
+            raise VerifyException("memref.view source must be a 1-D memref of i8")
+
+        # Enforce empty layout map on source and result (identity layout, offset 0).
+        if not isinstance(src_type.layout, NoneAttr):
+            raise VerifyException(
+                "memref.view source must have identity layout (no layout map)"
+            )
+
+        res_type = cast(MemRefType[IntegerType], self.result.type)
+
+        if not isinstance(res_type.layout, NoneAttr):
+            raise VerifyException(
+                "memref.view result must have identity layout (no layout map)"
+            )
+
+        # Memory spaces must match between source and result.
+        if src_type.memory_space != res_type.memory_space:
+            raise VerifyException(
+                "different memory spaces specified for base memref type "
+                f"'{src_type}' and view memref type '{res_type}'"
+            )
+
+        # A dynamic size operand must be provided for each dynamic dim in result.
+        dyn_dims = sum(1 for d in res_type.shape.data if d.data == DYNAMIC_INDEX)
+        if dyn_dims != len(self.sizes):
+            raise VerifyException(
+                "number of size operands must match number of dynamic dims in result type"
+            )
+
+    @staticmethod
+    def get(
+        source: SSAValue | Operation,
+        byte_shift: SSAValue | Operation,
+        sizes: Sequence[SSAValue | Operation],
+        result_type: MemRefType,
+    ) -> ViewOp:
+        return ViewOp.build(
+            operands=[source, byte_shift, sizes], result_types=[result_type]
+        )
+
+
+@irdl_op_definition
 class DmaStartOp(IRDLOperation):
     name = "memref.dma_start"
 
@@ -1109,6 +1179,7 @@ MemRef = Dialect(
         ExtractStridedMetaDataOp,
         ExtractAlignedPointerAsIndexOp,
         SubviewOp,
+        ViewOp,
         CastOp,
         MemorySpaceCastOp,
         ReinterpretCastOp,
