@@ -51,7 +51,12 @@ from xdsl.irdl import (
 )
 from xdsl.parser import Parser
 from xdsl.printer import Printer
-from xdsl.traits import AlwaysSpeculatable, IsTerminator, NoMemoryEffect, Pure
+from xdsl.traits import (
+    IsTerminator,
+    NoMemoryEffect,
+    Pure,
+    SingleBlockImplicitTerminator,
+)
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -77,7 +82,7 @@ class CastOp(IRDLOperation):
 
     assembly_format = "$source attr-dict `:` type($source) `to` type($dest)"
 
-    traits = traits_def(NoMemoryEffect())
+    traits = traits_def(Pure())
 
     def __init__(self, source: SSAValue | Operation, dest: TensorType[Attribute]):
         super().__init__(operands=(source,), result_types=(dest,))
@@ -117,7 +122,7 @@ class DimOp(IRDLOperation):
     index = operand_def(IndexType)
     result = result_def(IndexType)
 
-    traits = traits_def(Pure())
+    traits = traits_def(NoMemoryEffect())
 
     assembly_format = "attr-dict $source `,` $index `:` type($source)"
 
@@ -219,7 +224,7 @@ class CollapseShapeOp(IRDLOperation):
         "$src $reassociation attr-dict `:` type($src) `into` type($result)"
     )
 
-    traits = traits_def(NoMemoryEffect())
+    traits = traits_def(Pure())
 
 
 @irdl_op_definition
@@ -241,7 +246,7 @@ class ReshapeOp(IRDLOperation):
     result = result_def(TensorType[Attribute])
     assembly_format = "attr-dict $source `(` $shape `)` `:` `(` type($source) `,` type($shape) `)` `->` type($result)"
 
-    traits = traits_def(NoMemoryEffect())
+    traits = traits_def(Pure())
 
     def __init__(self, source: SSAValue, shape: SSAValue, result_type: Attribute):
         super().__init__(
@@ -314,6 +319,8 @@ class ExpandShapeOp(IRDLOperation):
     static_output_shape = prop_def(DenseArrayBase.constr(i64))
 
     result = result_def(TensorType[Attribute])
+
+    traits = traits_def(Pure())
 
     def __init__(
         self,
@@ -431,7 +438,7 @@ class ExtractSliceOp(IRDLOperation):
 
     irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
-    traits = traits_def(NoMemoryEffect())
+    traits = traits_def(Pure())
 
     @staticmethod
     def from_static_parameters(
@@ -490,7 +497,7 @@ class InsertSliceOp(IRDLOperation):
 
     irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
-    traits = traits_def(NoMemoryEffect())
+    traits = traits_def(Pure())
 
     @staticmethod
     def get(
@@ -585,6 +592,7 @@ class ExtractOp(IRDLOperation):
     indices = var_operand_def(IndexType)
     result = result_def(Attribute)
     # assembly_format = "$tensor `[` $indices `]` attr-dict `:` type($tensor)"
+    traits = traits_def(Pure())
 
     def __init__(
         self,
@@ -636,6 +644,7 @@ class InsertOp(IRDLOperation):
     indices = var_operand_def(IndexType)
     result = result_def(TensorType)
     # assembly_format = "$scalar `into` $dest `[` $indices `]` attr-dict `:` type($dest)"
+    traits = traits_def(Pure())
 
     def __init__(
         self,
@@ -690,6 +699,7 @@ class FromElementsOp(IRDLOperation):
     elements = var_operand_def(ELEMENT_TYPE)
     result = result_def(TensorType.constr(ELEMENT_TYPE))
     assembly_format = "$elements attr-dict `:` type($result)"
+    traits = traits_def(Pure())
 
 
 @irdl_op_definition
@@ -713,7 +723,7 @@ class SplatOp(IRDLOperation):
     result = result_def(TensorType.constr(SPLAT_TYPE))
     assembly_format = "$input (`[` $dynamicSizes^ `]`)? attr-dict `:` type($result)"
 
-    traits = traits_def(NoMemoryEffect())
+    traits = traits_def(Pure())
 
     def __init__(
         self,
@@ -728,6 +738,13 @@ class SplatOp(IRDLOperation):
             raise VerifyException(
                 "number of dynamic sizes must equal number of unknown dimensions in result tensor"
             )
+
+
+@irdl_op_definition
+class YieldOp(AbstractYieldOperation[Attribute]):
+    name = "tensor.yield"
+
+    traits = traits_def(IsTerminator())
 
 
 @irdl_op_definition
@@ -762,7 +779,7 @@ class PadOp(IRDLOperation):
     )
 
     custom_directives = (DynamicIndexList,)
-    traits = traits_def(NoMemoryEffect(), AlwaysSpeculatable())
+    traits = traits_def(Pure(), SingleBlockImplicitTerminator(YieldOp))
 
     def __init__(
         self,
@@ -837,13 +854,6 @@ class PadOp(IRDLOperation):
                 "region must have an arg for each dimension of the source tensor"
                 f" ({len(self.static_low)}) but region has ({len(self.region.block.args)})"
             )
-
-
-@irdl_op_definition
-class YieldOp(AbstractYieldOperation[Attribute]):
-    name = "tensor.yield"
-
-    traits = traits_def(IsTerminator())
 
 
 Tensor = Dialect(
