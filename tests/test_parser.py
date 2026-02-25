@@ -11,12 +11,16 @@ from xdsl.dialects.builtin import (
     DYNAMIC_INDEX,
     ArrayAttr,
     Builtin,
+    CallSiteLoc,
     DictionaryAttr,
     FileLineColLoc,
     FloatAttr,
+    FusedLoc,
     IntAttr,
     IntegerAttr,
     IntegerType,
+    NameLoc,
+    NoneAttr,
     StringAttr,
     SymbolRefAttr,
     UnknownLoc,
@@ -976,8 +980,25 @@ def test_parse_location():
     attr = Parser(ctx, 'loc("one":2:3)').parse_optional_location()
     assert attr == FileLineColLoc(StringAttr("one"), IntAttr(2), IntAttr(3))
 
+    attr = Parser(ctx, 'loc("abc")').parse_optional_location()
+    assert attr == NameLoc(StringAttr("abc"), NoneAttr())
+
+    attr = Parser(ctx, 'loc("abc"("def"))').parse_optional_location()
+    assert attr == NameLoc(StringAttr("abc"), NameLoc(StringAttr("def"), NoneAttr()))
+
+    attr = Parser(
+        ctx, """loc(callsite("callee" at "caller"))"""
+    ).parse_optional_location()
+    assert attr == CallSiteLoc(
+        NameLoc(StringAttr("callee"), NoneAttr()),
+        NameLoc(StringAttr("caller"), NoneAttr()),
+    )
+
+    attr = Parser(ctx, "loc(fused[unknown, unknown])").parse_optional_location()
+    assert attr == FusedLoc((UnknownLoc(), UnknownLoc()), NoneAttr())
+
     with pytest.raises(ParseError, match="Unexpected location syntax."):
-        Parser(ctx, "loc(unexpected)").parse_optional_location()
+        Parser(ctx, "loc(1)").parse_optional_location()
 
 
 @pytest.mark.parametrize(

@@ -23,6 +23,7 @@ from xdsl.dialects.builtin import (
     ArrayAttr,
     BoolAttr,
     BytesAttr,
+    CallSiteLoc,
     ComplexType,
     DenseArrayBase,
     DenseIntOrFPElementsAttr,
@@ -36,6 +37,7 @@ from xdsl.dialects.builtin import (
     Float128Type,
     FloatAttr,
     FunctionType,
+    FusedLoc,
     IndexType,
     IntAttr,
     IntegerAttr,
@@ -43,6 +45,7 @@ from xdsl.dialects.builtin import (
     LocationAttr,
     MemRefLayoutAttr,
     MemRefType,
+    NameLoc,
     NoneAttr,
     NoneType,
     OpaqueAttr,
@@ -1297,6 +1300,41 @@ class AttrParser(BaseParser):
 
         return SymbolRefAttr(sym_root, ArrayAttr(refs))
 
+    def _parse_location(self) -> LocationAttr:
+        if self.parse_optional_keyword("unknown"):
+            return UnknownLoc()
+
+        if (filename := self.parse_optional_str_literal()) is not None:
+            if self.parse_optional_punctuation(":") is None:
+                if self._current_token.kind == MLIRTokenKind.L_PAREN:
+                    with self.in_parens():
+                        nested_loc = self._parse_location()
+                else:
+                    nested_loc = NoneAttr()
+                return NameLoc(StringAttr(filename), nested_loc)
+            line = self.parse_integer(False, False)
+            self.parse_punctuation(":")
+            col = self.parse_integer(False, False)
+            return FileLineColLoc(StringAttr(filename), IntAttr(line), IntAttr(col))
+
+        if (identifier := self.parse_optional_identifier()) is not None:
+            match identifier:
+                case "callsite":
+                    with self.in_parens():
+                        callee = self._parse_location()
+                        self.parse_identifier("at")
+                        caller = self._parse_location()
+                        return CallSiteLoc(callee, caller)
+                case "fused":
+                    locs = self.parse_comma_separated_list(
+                        self.Delimiter.SQUARE, lambda: self._parse_location()
+                    )
+                    return FusedLoc(tuple(locs), NoneAttr())
+                case _:
+                    self.raise_error("Unsupported location type.")
+
+        self.raise_error("Unexpected location syntax.")
+
     def parse_optional_location(self) -> LocationAttr | None:
         """
         Parse a location attribute, if present.
@@ -1306,17 +1344,7 @@ class AttrParser(BaseParser):
             return None
 
         with self.in_parens():
-            if self.parse_optional_keyword("unknown"):
-                return UnknownLoc()
-
-            if (filename := self.parse_optional_str_literal()) is not None:
-                self.parse_punctuation(":")
-                line = self.parse_integer(False, False)
-                self.parse_punctuation(":")
-                col = self.parse_integer(False, False)
-                return FileLineColLoc(StringAttr(filename), IntAttr(line), IntAttr(col))
-
-            self.raise_error("Unexpected location syntax.")
+            return self._parse_location()
 
     def parse_optional_builtin_int_or_float_attr(
         self,

@@ -781,6 +781,46 @@ class UnitAttr(ParametrizedAttribute, BuiltinAttribute):
         printer.print_string("unit")
 
 
+class LocationConstraint(AttrConstraint):
+    """
+    Check if an attribute is one of the supported location types.
+    """
+
+    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
+        if is_location_attr(attr) or isinstance(attr, NoneAttr):
+            return
+        raise VerifyException(f"{attr} is not a location attribute")
+
+    def mapping_type_vars(
+        self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
+    ) -> AttrConstraint:
+        # No type variables to map in this constraint
+        return self
+
+
+class LocationsArrayConstraint(AttrConstraint):
+    """
+    Check if an attribute is one of the supported location types.
+    """
+
+    def __init__(self):
+        self.location_constraint = LocationConstraint()
+
+    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
+        if not isinstance(attr, ArrayAttr):
+            raise VerifyException(f"{attr} is not a locations array attribute")
+        array = cast(ArrayAttr[Attribute], attr)
+        element: Attribute
+        for element in array:
+            self.location_constraint.verify(element, constraint_context)
+
+    def mapping_type_vars(
+        self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
+    ) -> AttrConstraint:
+        # No type variables to map in this constraint
+        return self
+
+
 @irdl_attr_definition
 class UnknownLoc(ParametrizedAttribute, BuiltinAttribute):
     """
@@ -805,7 +845,8 @@ class UnknownLoc(ParametrizedAttribute, BuiltinAttribute):
     name = "unknown_loc"
 
     def print_builtin(self, printer: Printer) -> None:
-        printer.print_string("loc(unknown)")
+        with printer.in_location():
+            printer.print_string("unknown")
 
 
 @irdl_attr_definition
@@ -836,8 +877,7 @@ class FileLineColLoc(ParametrizedAttribute, BuiltinAttribute):
     column: IntAttr = param_def()
 
     def print_builtin(self, printer: Printer) -> None:
-        printer.print_string("loc")
-        with printer.in_parens():
+        with printer.in_location():
             printer.print_string_literal(self.filename.data)
             printer.print_string(":")
             printer.print_int(self.line.data)
@@ -845,7 +885,62 @@ class FileLineColLoc(ParametrizedAttribute, BuiltinAttribute):
             printer.print_int(self.column.data)
 
 
-LocationAttr: TypeAlias = UnknownLoc | FileLineColLoc
+@irdl_attr_definition
+class CallSiteLoc(ParametrizedAttribute, BuiltinAttribute):
+    name = "builtin.callsite_loc"
+
+    callee: Attribute = param_def(LocationConstraint())
+    caller: Attribute = param_def(LocationConstraint())
+
+    def print_builtin(self, printer: Printer) -> None:
+        with printer.in_location():
+            printer.print_string("callsite(")
+            printer.print_attribute(self.callee)
+            printer.print_string(" at ")
+            printer.print_attribute(self.caller)
+            printer.print_string(")")
+
+
+@irdl_attr_definition
+class FusedLoc(ParametrizedAttribute, BuiltinAttribute):
+    name = "builtin.fused_loc"
+
+    locations: Attribute = param_def(
+        constraint=LocationsArrayConstraint(), converter=ArrayAttr[Attribute].get
+    )
+    metadata: Attribute = param_def()
+
+    def print_builtin(self, printer: Printer) -> None:
+        with printer.in_location():
+            printer.print_string("fused")
+            if not isinstance(self.metadata, NoneAttr):
+                printer.print_string("<")
+                printer.print_attribute(self.metadata)
+                printer.print_string(">")
+            printer.print_attribute(self.locations)
+
+
+@irdl_attr_definition
+class NameLoc(ParametrizedAttribute, BuiltinAttribute):
+    name = "builtin.name_loc"
+
+    desc: StringAttr = param_def()
+    location: Attribute = param_def(LocationConstraint())
+
+    def print_builtin(self, printer: Printer) -> None:
+        with printer.in_location():
+            printer.print_attribute(self.desc)
+            if not isinstance(self.location, NoneAttr):
+                printer.print_string("(")
+                printer.print_attribute(self.location)
+                printer.print_string(")")
+
+
+LocationAttr: TypeAlias = UnknownLoc | FileLineColLoc | CallSiteLoc | NameLoc | FusedLoc
+
+
+def is_location_attr(attr: Attribute):
+    return isinstance(attr, LocationAttr)
 
 
 @irdl_attr_definition
