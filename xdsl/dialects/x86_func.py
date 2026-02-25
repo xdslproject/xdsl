@@ -3,7 +3,12 @@ from __future__ import annotations
 from collections.abc import Sequence
 
 from xdsl.backend.assembly_printer import AssemblyPrintable, AssemblyPrinter
-from xdsl.dialects.builtin import FunctionType, StringAttr, SymbolNameConstraint
+from xdsl.dialects.builtin import (
+    FunctionType,
+    LocationAttr,
+    StringAttr,
+    SymbolNameConstraint,
+)
 from xdsl.dialects.utils import (
     parse_func_op_like,
     print_func_op_like,
@@ -69,6 +74,7 @@ class FuncOp(IRDLOperation, AssemblyPrintable):
         region: Region,
         function_type: FunctionType | tuple[Sequence[Attribute], Sequence[Attribute]],
         visibility: StringAttr | str | None = None,
+        location: LocationAttr | None = None,
     ):
         if isinstance(function_type, tuple):
             inputs, outputs = function_type
@@ -81,22 +87,31 @@ class FuncOp(IRDLOperation, AssemblyPrintable):
             "sym_visibility": visibility,
         }
 
-        super().__init__(attributes=attributes, regions=[region])
+        super().__init__(attributes=attributes, regions=[region], location=location)
 
     @classmethod
     def parse(cls, parser: Parser) -> FuncOp:
         visibility = parser.parse_optional_visibility_keyword()
-        (name, input_types, return_types, region, extra_attrs, arg_attrs, res_attrs) = (
-            parse_func_op_like(
-                parser,
-                reserved_attr_names=("sym_name", "function_type", "sym_visibility"),
-            )
+        (
+            name,
+            input_types,
+            return_types,
+            region,
+            extra_attrs,
+            arg_attrs,
+            res_attrs,
+            location,
+        ) = parse_func_op_like(
+            parser,
+            reserved_attr_names=("sym_name", "function_type", "sym_visibility"),
         )
         if arg_attrs:
             raise NotImplementedError("arg_attrs not implemented in x86_func")
         if res_attrs:
             raise NotImplementedError("res_attrs not implemented in x86_func")
-        func = FuncOp(name, region, (input_types, return_types), visibility)
+        func = FuncOp(
+            name, region, (input_types, return_types), visibility, location=location
+        )
         if extra_attrs is not None:
             func.attributes |= extra_attrs.data
         return func
@@ -113,6 +128,7 @@ class FuncOp(IRDLOperation, AssemblyPrintable):
             self.body,
             self.attributes,
             reserved_attr_names=("sym_name", "function_type", "sym_visibility"),
+            location=self.get_loc(),
         )
 
     def print_assembly(self, printer: AssemblyPrinter) -> None:
