@@ -984,6 +984,17 @@ class ViewOp(IRDLOperation):
         "`:` type($source) `to` type($result)"
     )
 
+    def __init__(
+        self,
+        source: SSAValue | Operation,
+        byte_shift: SSAValue | Operation,
+        sizes: Sequence[SSAValue | Operation],
+        result_type: MemRefType,
+    ):
+        super().__init__(
+            operands=[source, byte_shift, sizes], result_types=[result_type]
+        )
+
     def verify_(self) -> None:
         # Source must be a 1-D memref of i8.
         src_type = cast(MemRefType[IntegerType], self.source.type)
@@ -1017,17 +1028,6 @@ class ViewOp(IRDLOperation):
             raise VerifyException(
                 "number of size operands must match number of dynamic dims in result type"
             )
-
-    @staticmethod
-    def get(
-        source: SSAValue | Operation,
-        byte_shift: SSAValue | Operation,
-        sizes: Sequence[SSAValue | Operation],
-        result_type: MemRefType,
-    ) -> ViewOp:
-        return ViewOp.build(
-            operands=[source, byte_shift, sizes], result_types=[result_type]
-        )
 
 
 @irdl_op_definition
