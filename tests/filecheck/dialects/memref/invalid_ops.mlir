@@ -134,11 +134,9 @@ builtin.module {
 
 // memref.view source element type must be i8
 
-"builtin.module"() ({
-  %src = "test.op"() : () -> memref<2048xi32>
-  %off = "test.op"() : () -> index
-  %v = "memref.view"(%src, %off) : (memref<2048xi32>, index) -> memref<64x4xf32>
-}) : () -> ()
+%src = "test.op"() : () -> memref<2048xi32>
+%off = "test.op"() : () -> index
+%v = memref.view %src[%off][] : memref<2048xi32> to memref<64x4xf32>
 
 // CHECK: Expected attribute i8 but got i32
 
@@ -146,11 +144,9 @@ builtin.module {
 
 // memref.view source must be 1-D
 
-"builtin.module"() ({
-  %src = "test.op"() : () -> memref<64x32xi8>
-  %off = "test.op"() : () -> index
-  %v = "memref.view"(%src, %off) : (memref<64x32xi8>, index) -> memref<64x4xf32>
-}) : () -> ()
+%src = "test.op"() : () -> memref<64x32xi8>
+%off = "test.op"() : () -> index
+%v = memref.view %src[%off][] : memref<64x32xi8> to memref<64x4xf32>
 
 // CHECK: memref.view source must be a 1-D memref of i8
 
@@ -158,11 +154,9 @@ builtin.module {
 
 // memref.view source must have identity layout
 
-"builtin.module"() ({
-  %src = "test.op"() : () -> memref<2048xi8, strided<[1], offset: 0>>
-  %off = "test.op"() : () -> index
-  %v = "memref.view"(%src, %off) : (memref<2048xi8, strided<[1], offset: 0>>, index) -> memref<64x4xf32>
-}) : () -> ()
+%src = "test.op"() : () -> memref<2048xi8, strided<[1], offset: 0>>
+%off = "test.op"() : () -> index
+%v = memref.view %src[%off][] : memref<2048xi8, strided<[1], offset: 0>> to memref<64x4xf32>
 
 // CHECK: memref.view source must have identity layout (no layout map)
 
@@ -170,11 +164,9 @@ builtin.module {
 
 // memref.view memory spaces must match
 
-"builtin.module"() ({
-  %src = "test.op"() : () -> memref<2048xi8>
-  %off = "test.op"() : () -> index
-  %v = "memref.view"(%src, %off) : (memref<2048xi8>, index) -> memref<64x4xf32, 1 : i32>
-}) : () -> ()
+%src = "test.op"() : () -> memref<2048xi8>
+%off = "test.op"() : () -> index
+%v = memref.view %src[%off][] : memref<2048xi8> to memref<64x4xf32, 1 : i32>
 
 // CHECK: different memory spaces specified for base memref type
 
@@ -182,11 +174,9 @@ builtin.module {
 
 // memref.view dynamic size count must match
 
-"builtin.module"() ({
-  %src = "test.op"() : () -> memref<2048xi8>
-  %off = "test.op"() : () -> index
-  %d0 = "test.op"() : () -> index
-  %v = "memref.view"(%src, %off, %d0) : (memref<2048xi8>, index, index) -> memref<64x4xf32>
-}) : () -> ()
+%src = "test.op"() : () -> memref<2048xi8>
+%off = "test.op"() : () -> index
+%d0 = "test.op"() : () -> index
+%v = memref.view %src[%off][%d0] : memref<2048xi8> to memref<64x4xf32>
 
 // CHECK: number of size operands must match number of dynamic dims
