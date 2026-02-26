@@ -117,6 +117,25 @@
 // CHECK-NEXT:      func.return %{{.*}} : f32
 // CHECK-NEXT:    }
 
+
+  func.func @affine_vector_load() -> vector<8xf32> {
+    %0 = "test.op"() : () -> memref<100x100xf32>
+    // CHECK: %{{.*}} = "test.op"() : () -> memref<100x100xf32>
+    %1 = "affine.vector_load"(%0) <{map = affine_map<() -> (1, 2)>}> : (memref<100x100xf32>) -> vector<8xf32>
+    // CHECK-NEXT: %{{.*}} = "affine.vector_load"(%{{.*}}) <{map = affine_map<() -> (1, 2)>}> : (memref<100x100xf32>) -> vector<8xf32>
+    func.return %1 : vector<8xf32>
+  }
+
+  func.func @affine_vector_store() -> vector<8xf32> {
+      %0 = "test.op"() : () -> memref<100x100xf32>
+      // CHECK: %{{.*}} = "test.op"() : () -> memref<100x100xf32>
+      %1 = "test.op"() : () -> vector<8xf32>
+      // CHECK-NEXT: %{{.*}} = "test.op"() : () -> vector<8xf32>
+      "affine.vector_store"(%1, %0) <{map = affine_map<() -> (1, 2)>}> : (vector<8xf32>, memref<100x100xf32>) -> ()
+      // CHECK-NEXT: "affine.vector_store"(%{{.*}}, %{{.*}}) <{map = affine_map<() -> (1, 2)>}> : (vector<8xf32>, memref<100x100xf32>) -> ()
+      func.return %1 : vector<8xf32>
+  }
+
   // Check that an affine.apply with an affine map is printed correctly.
 
   %c0 = arith.constant 2 : index
