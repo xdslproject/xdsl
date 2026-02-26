@@ -1,12 +1,12 @@
 // RUN: xdsl-opt -t riscv-asm %s | filecheck %s --match-full-lines
 
 riscv_func.func @main() {
-    %0 = riscv.get_register : !riscv.reg<a0>
-    %1 = riscv.get_register : !riscv.reg<a1>
-    %2 = riscv.get_register : !riscv.reg<a2>
-    %3 = riscv.get_register : !riscv.reg<a3>
-    %4 = riscv.get_register : !riscv.reg<a2>
-    %5 = riscv.get_register : !riscv.reg<a3>
+    %0 = rv32.get_register : !riscv.reg<a0>
+    %1 = rv32.get_register : !riscv.reg<a1>
+    %2 = rv32.get_register : !riscv.reg<a2>
+    %3 = rv32.get_register : !riscv.reg<a3>
+    %4 = rv32.get_register : !riscv.reg<a2>
+    %5 = rv32.get_register : !riscv.reg<a3>
 
     riscv_cf.beq %0 : !riscv.reg<a0>, %1 : !riscv.reg<a1>, ^then(%2 : !riscv.reg<a2>, %3 : !riscv.reg<a3>), ^else0(%4 : !riscv.reg<a2>, %5 : !riscv.reg<a3>)
   ^else0(%e00 : !riscv.reg<a2>, %e01 : !riscv.reg<a3>):

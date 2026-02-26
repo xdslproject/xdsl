@@ -47,7 +47,7 @@ def test_native_constraint():
     def pdl_module():
         with ImplicitBuilder(pdl.PatternOp(42, None).body):
             attr = pdl.AttributeOp().output
-            pdl.ApplyNativeConstraintOp("even_length_string", [attr])
+            pdl.ApplyNativeConstraintOp("even_length_string", [attr], [])
             op = pdl.OperationOp(
                 op_name=None,
                 attribute_value_names=ArrayAttr([StringAttr("attr")]),
@@ -297,6 +297,34 @@ def test_match_result():
         type_op.result: i32,
     }
 
+    # Index out of range for op with multiple results
+    # If the operation has multiple results, we should not match results at indices
+    # greater than the number of results
+    n_results = 3
+    invalid_index = 4
+    multi_out_of_range_xdsl_op = test.TestOp(result_types=(i64,) * n_results)
+    multi_out_of_range_type_op = pdl.TypeOp(i64)
+    multi_out_of_range_operation_op = pdl.OperationOp(
+        op_name=None, type_values=(multi_out_of_range_type_op.result,) * n_results
+    )
+    multi_out_of_range_result_op = pdl.ResultOp(
+        index=invalid_index, parent=multi_out_of_range_operation_op.op
+    )
+    for xval in multi_out_of_range_xdsl_op.res:
+        assert not matcher.match_result(
+            multi_out_of_range_result_op.val,
+            multi_out_of_range_result_op,
+            xval,
+        )
+    assert matcher.matching_context == {
+        result_op.val: xdsl_value,
+        operation_op.op: xdsl_op,
+        type_op.result: i32,
+        # Updated keys for matched op and type
+        multi_out_of_range_operation_op.op: multi_out_of_range_xdsl_op,
+        multi_out_of_range_type_op.result: i64,
+    }
+
 
 def test_match_trivial_operation():
     matcher = PDLMatcher()
@@ -486,7 +514,7 @@ def test_native_constraint_constant_parameter():
         with ImplicitBuilder(pdl.PatternOp(42, None).body):
             attr = pdl.AttributeOp().output
             four = pdl.AttributeOp(IntegerAttr(4, i32)).output
-            pdl.ApplyNativeConstraintOp("length_string", [attr, four])
+            pdl.ApplyNativeConstraintOp("length_string", [attr, four], [])
             op = pdl.OperationOp(
                 op_name=None,
                 attribute_value_names=ArrayAttr([StringAttr("attr")]),

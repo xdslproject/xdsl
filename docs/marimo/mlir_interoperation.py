@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.13.6"
+__generated_with = "0.14.17"
 app = marimo.App(width="medium")
 
 
@@ -58,14 +58,14 @@ def _():
     from xdsl.ir import Block, Region
 
     # Define two integer constants
-    a = ConstantOp(IntegerAttr.from_int_and_width(1, 32), i32)
-    b = ConstantOp(IntegerAttr.from_int_and_width(2, 32), i32)
+    a = ConstantOp(IntegerAttr(1, 32), i32)
+    b = ConstantOp(IntegerAttr(2, 32), i32)
 
     # Operations on these constants
     c = AddiOp(a, b)
     d = AddiOp(a, b)
     e = AddiOp(c, d)
-    f = PrintOp.get(e)
+    f = PrintOp(e)
 
     # Create Block from operations and Region from blocks
     block0 = Block([a, b, c, d, e, f])

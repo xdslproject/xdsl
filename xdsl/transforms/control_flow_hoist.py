@@ -27,13 +27,13 @@ def hoist_all(
     if value_mapper is None:
         value_mapper = {}
     for o in ops:
-        if o.get_trait(IsTerminator):
+        if o.has_trait(IsTerminator, value_if_unregistered=False):
             continue
         new_op = o.clone(value_mapper=value_mapper)
         value_mapper |= {
             old: new for old, new in zip(o.results, new_op.results, strict=True)
         }
-        rewriter.insert_op(new_op, at)
+        rewriter.insert(new_op, at)
         rewriter.replace_op(o, [], new_op.results)
 
 

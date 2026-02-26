@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from collections.abc import Set as AbstractSet
 from dataclasses import dataclass
 from typing import ClassVar
@@ -23,6 +23,7 @@ from xdsl.irdl import (
     AttrConstraint,
     AttrSizedOperandSegments,
     ConstraintContext,
+    IntConstraint,
     IRDLOperation,
     VarConstraint,
     irdl_op_definition,
@@ -89,7 +90,7 @@ class TensorFromMemRefConstraint(
         return {TensorType, UnrankedTensorType}
 
     def mapping_type_vars(
-        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+        self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
     ) -> TensorFromMemRefConstraint:
         return TensorFromMemRefConstraint(
             self.memref_constraint.mapping_type_vars(type_var_mapping)
@@ -142,7 +143,7 @@ class AllocTensorOp(IRDLOperation):
 
     tensor = result_def(T)
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
     assembly_format = "`(` $dynamic_sizes `)` ( `copy` `(` $copy^ `)`)? (`size_hint` `=` $size_hint^)? attr-dict `:` type($tensor)"  # noqa E501
 
@@ -209,8 +210,8 @@ class ToTensorOp(IRDLOperation):
 
 
 @irdl_op_definition
-class ToMemRefOp(IRDLOperation):
-    name = "bufferization.to_memref"
+class ToBufferOp(IRDLOperation):
+    name = "bufferization.to_buffer"
 
     T: ClassVar = VarConstraint("T", MemRefType.constr() | AnyUnrankedMemRefTypeConstr)
     tensor = operand_def(TensorFromMemRefConstraint(T))
@@ -242,7 +243,7 @@ Bufferization = Dialect(
         AllocTensorOp,
         CloneOp,
         ToTensorOp,
-        ToMemRefOp,
+        ToBufferOp,
         MaterializeInDestinationOp,
     ],
     [],

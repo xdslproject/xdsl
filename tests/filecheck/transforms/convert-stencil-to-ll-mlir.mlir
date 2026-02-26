@@ -111,65 +111,77 @@ builtin.module {
 // CHECK-NEXT:      func.return
 // CHECK-NEXT:    }
 
-  func.func @copy_2d(%13 : !stencil.field<?x?xf64>) {
-    %14 = stencil.cast %13 : !stencil.field<?x?xf64> -> !stencil.field<[-4,68]x[-4,68]xf64>
-    %15 = stencil.load %14 : !stencil.field<[-4,68]x[-4,68]xf64> -> !stencil.temp<[-1,64]x[0,68]xf64>
-    %16 = stencil.apply(%17 = %15 : !stencil.temp<[-1,64]x[0,68]xf64>) -> (!stencil.temp<[0,64]x[0,68]xf64>) {
-      %18 = stencil.access %17[-1, 0] : !stencil.temp<[-1,64]x[0,68]xf64>
-      stencil.return %18 : f64
+  func.func @copy_2d(%src : !stencil.field<?x?xf64>, %dst : !stencil.field<?x?xf64>) {
+    %src_casted = stencil.cast %src : !stencil.field<?x?xf64> -> !stencil.field<[-4,68]x[-4,68]xf64>
+    %dst_casted = stencil.cast %dst : !stencil.field<?x?xf64> -> !stencil.field<[0,64]x[0,68]xf64>
+
+    %temp_in = stencil.load %src_casted : !stencil.field<[-4,68]x[-4,68]xf64> -> !stencil.temp<[-1,64]x[0,68]xf64>
+
+    %temp_out = stencil.apply(%arg_temp = %temp_in : !stencil.temp<[-1,64]x[0,68]xf64>) -> (!stencil.temp<[0,64]x[0,68]xf64>) {
+      %val = stencil.access %arg_temp[-1, 0] : !stencil.temp<[-1,64]x[0,68]xf64>
+      stencil.return %val : f64
     }
+    stencil.store %temp_out to %dst_casted(<[0, 0], [65, 68]>) : !stencil.temp<[0,64]x[0,68]xf64> to !stencil.field<[0,64]x[0,68]xf64>
     func.return
   }
 
-// CHECK:         func.func @copy_2d(%0 : memref<?x?xf64>) {
-// CHECK-NEXT:      %1 = "memref.cast"(%0) : (memref<?x?xf64>) -> memref<72x72xf64>
-// CHECK-NEXT:      %2 = memref.subview %1[4, 4] [65, 68] [1, 1] : memref<72x72xf64> to memref<65x68xf64, strided<[72, 1], offset: 292>>
-// CHECK-NEXT:      %3 = arith.constant 0 : index
-// CHECK-NEXT:      %4 = arith.constant 0 : index
+// CHECK:      func.func @copy_2d(%src : memref<?x?xf64>, %dst : memref<?x?xf64>) {
+// CHECK-NEXT:   %src_casted = "memref.cast"(%src) : (memref<?x?xf64>) -> memref<72x72xf64>
+// CHECK-NEXT:   %dst_casted = "memref.cast"(%dst) : (memref<?x?xf64>) -> memref<64x68xf64>
+// CHECK-NEXT:   %dst_casted_storeview = memref.subview %dst_casted[0, 0] [64, 68] [1, 1] : memref<64x68xf64> to memref<64x68xf64, strided<[68, 1]>>
+// CHECK-NEXT:   %src_casted_loadview = memref.subview %src_casted[4, 4] [65, 68] [1, 1] : memref<72x72xf64> to memref<65x68xf64, strided<[72, 1], offset: 292>>
+// CHECK-NEXT:   %0 = arith.constant 0 : index
+// CHECK-NEXT:   %1 = arith.constant 0 : index
+// CHECK-NEXT:   %2 = arith.constant 1 : index
+// CHECK-NEXT:   %3 = arith.constant 1 : index
+// CHECK-NEXT:   %4 = arith.constant 64 : index
+// CHECK-NEXT:   %5 = arith.constant 68 : index
+// CHECK-NEXT:   "scf.parallel"(%0, %1, %4, %5, %2, %3) <{operandSegmentSizes = array<i32: 2, 2, 2, 0>}> ({
+// CHECK-NEXT:   ^bb0(%6 : index, %7 : index):
+// CHECK-NEXT:     %val = arith.constant -1 : index
+// CHECK-NEXT:     %val_1 = arith.addi %6, %val : index
+// CHECK-NEXT:     %val_2 = memref.load %src_casted_loadview[%val_1, %7] : memref<65x68xf64, strided<[72, 1], offset: 292>>
+// CHECK-NEXT:     memref.store %val_2, %dst_casted_storeview[%6, %7] : memref<64x68xf64, strided<[68, 1]>>
+// CHECK-NEXT:     scf.reduce
+// CHECK-NEXT:   }) : (index, index, index, index, index, index) -> ()
+// CHECK-NEXT:   func.return
+// CHECK-NEXT: }
+
+
+  func.func @copy_3d(%src : !stencil.field<?x?x?xf64>, %dst : !stencil.field<?x?x?xf64>) {
+    %src_casted = stencil.cast %src : !stencil.field<?x?x?xf64> -> !stencil.field<[-4,68]x[-4,70]x[-4,72]xf64>
+    %dst_casted = stencil.cast %dst : !stencil.field<?x?x?xf64> -> !stencil.field<[0,64]x[0,64]x[0,68]xf64>
+    %temp_in = stencil.load %src_casted : !stencil.field<[-4,68]x[-4,70]x[-4,72]xf64> -> !stencil.temp<[-1,64]x[0,64]x[0,69]xf64>
+    %temp_out = stencil.apply(%arg_temp = %temp_in : !stencil.temp<[-1,64]x[0,64]x[0,69]xf64>) -> (!stencil.temp<[0,64]x[0,64]x[0,68]xf64>) {
+      %val = stencil.access %arg_temp[-1, 0, 1] : !stencil.temp<[-1,64]x[0,64]x[0,69]xf64>
+      stencil.return %val : f64
+    }
+    stencil.store %temp_out to %dst_casted(<[0, 0, 0], [64, 64, 68]>) : !stencil.temp<[0,64]x[0,64]x[0,68]xf64> to !stencil.field<[0,64]x[0,64]x[0,68]xf64>
+    func.return
+  }
+
+// CHECK:         func.func @copy_3d(%src : memref<?x?x?xf64>, %dst : memref<?x?x?xf64>) {
+// CHECK-NEXT:      %src_casted = "memref.cast"(%src) : (memref<?x?x?xf64>) -> memref<72x74x76xf64>
+// CHECK-NEXT:      %dst_casted = "memref.cast"(%dst) : (memref<?x?x?xf64>) -> memref<64x64x68xf64>
+// CHECK-NEXT:      %dst_casted_storeview = memref.subview %dst_casted[0, 0, 0] [64, 64, 68] [1, 1, 1] : memref<64x64x68xf64> to memref<64x64x68xf64, strided<[4352, 68, 1]>>
+// CHECK-NEXT:      %src_casted_loadview = memref.subview %src_casted[4, 4, 4] [65, 64, 69] [1, 1, 1] : memref<72x74x76xf64> to memref<65x64x69xf64, strided<[5624, 76, 1], offset: 22804>>
+// CHECK-NEXT:      %0 = arith.constant 0 : index
+// CHECK-NEXT:      %1 = arith.constant 0 : index
+// CHECK-NEXT:      %2 = arith.constant 0 : index
+// CHECK-NEXT:      %3 = arith.constant 1 : index
+// CHECK-NEXT:      %4 = arith.constant 1 : index
 // CHECK-NEXT:      %5 = arith.constant 1 : index
-// CHECK-NEXT:      %6 = arith.constant 1 : index
+// CHECK-NEXT:      %6 = arith.constant 64 : index
 // CHECK-NEXT:      %7 = arith.constant 64 : index
 // CHECK-NEXT:      %8 = arith.constant 68 : index
-// CHECK-NEXT:      "scf.parallel"(%3, %4, %7, %8, %5, %6) <{operandSegmentSizes = array<i32: 2, 2, 2, 0>}> ({
-// CHECK-NEXT:      ^bb0(%9 : index, %10 : index):
-// CHECK-NEXT:        %11 = arith.constant -1 : index
-// CHECK-NEXT:        %12 = arith.addi %9, %11 : index
-// CHECK-NEXT:        %13 = memref.load %2[%12, %10] : memref<65x68xf64, strided<[72, 1], offset: 292>>
-// CHECK-NEXT:        scf.reduce
-// CHECK-NEXT:      }) : (index, index, index, index, index, index) -> ()
-// CHECK-NEXT:      func.return
-// CHECK-NEXT:    }
-
-
-  func.func @copy_3d(%19 : !stencil.field<?x?x?xf64>) {
-    %20 = stencil.cast %19 : !stencil.field<?x?x?xf64> -> !stencil.field<[-4,68]x[-4,70]x[-4,72]xf64>
-    %21 = stencil.load %20 : !stencil.field<[-4,68]x[-4,70]x[-4,72]xf64> -> !stencil.temp<[-1,64]x[0,64]x[0,69]xf64>
-    %22 = stencil.apply(%23 = %21 : !stencil.temp<[-1,64]x[0,64]x[0,69]xf64>) -> (!stencil.temp<[0,64]x[0,64]x[0,68]xf64>) {
-      %24 = stencil.access %23[-1, 0, 1] : !stencil.temp<[-1,64]x[0,64]x[0,69]xf64>
-      stencil.return %24 : f64
-    }
-    func.return
-  }
-
-// CHECK:         func.func @copy_3d(%0 : memref<?x?x?xf64>) {
-// CHECK-NEXT:      %1 = "memref.cast"(%0) : (memref<?x?x?xf64>) -> memref<72x74x76xf64>
-// CHECK-NEXT:      %2 = memref.subview %1[4, 4, 4] [65, 64, 69] [1, 1, 1] : memref<72x74x76xf64> to memref<65x64x69xf64, strided<[5624, 76, 1], offset: 22804>>
-// CHECK-NEXT:      %3 = arith.constant 0 : index
-// CHECK-NEXT:      %4 = arith.constant 0 : index
-// CHECK-NEXT:      %5 = arith.constant 0 : index
-// CHECK-NEXT:      %6 = arith.constant 1 : index
-// CHECK-NEXT:      %7 = arith.constant 1 : index
-// CHECK-NEXT:      %8 = arith.constant 1 : index
-// CHECK-NEXT:      %9 = arith.constant 64 : index
-// CHECK-NEXT:      %10 = arith.constant 64 : index
-// CHECK-NEXT:      %11 = arith.constant 68 : index
-// CHECK-NEXT:      "scf.parallel"(%3, %4, %5, %9, %10, %11, %6, %7, %8) <{operandSegmentSizes = array<i32: 3, 3, 3, 0>}> ({
-// CHECK-NEXT:      ^bb0(%12 : index, %13 : index, %14 : index):
-// CHECK-NEXT:        %15 = arith.constant -1 : index
-// CHECK-NEXT:        %16 = arith.addi %12, %15 : index
-// CHECK-NEXT:        %17 = arith.constant 1 : index
-// CHECK-NEXT:        %18 = arith.addi %14, %17 : index
-// CHECK-NEXT:        %19 = memref.load %2[%16, %13, %18] : memref<65x64x69xf64, strided<[5624, 76, 1], offset: 22804>>
+// CHECK-NEXT:      "scf.parallel"(%0, %1, %2, %6, %7, %8, %3, %4, %5) <{operandSegmentSizes = array<i32: 3, 3, 3, 0>}> ({
+// CHECK-NEXT:      ^bb0(%9 : index, %10 : index, %11 : index):
+// CHECK-NEXT:        %val = arith.constant -1 : index
+// CHECK-NEXT:        %val_1 = arith.addi %9, %val : index
+// CHECK-NEXT:        %val_2 = arith.constant 1 : index
+// CHECK-NEXT:        %val_3 = arith.addi %11, %val_2 : index
+// CHECK-NEXT:        %val_4 = memref.load %src_casted_loadview[%val_1, %10, %val_3] : memref<65x64x69xf64, strided<[5624, 76, 1], offset: 22804>>
+// CHECK-NEXT:        memref.store %val_4, %dst_casted_storeview[%9, %10, %11] : memref<64x64x68xf64, strided<[4352, 68, 1]>>
 // CHECK-NEXT:        scf.reduce
 // CHECK-NEXT:      }) : (index, index, index, index, index, index, index, index, index) -> ()
 // CHECK-NEXT:      func.return
@@ -215,39 +227,38 @@ builtin.module {
 // CHECK-NEXT:      %3 = "memref.cast"(%0) : (memref<?x?x?xf64>) -> memref<72x72x72xf64>
 // CHECK-NEXT:      %4 = "memref.cast"(%1) : (memref<?x?x?xf64>) -> memref<72x72x72xf64>
 // CHECK-NEXT:      %5 = memref.subview %4[4, 4, 4] [64, 64, 64] [1, 1, 1] : memref<72x72x72xf64> to memref<64x64x64xf64, strided<[5184, 72, 1], offset: 21028>>
-// CHECK-NEXT:      %6 = "memref.cast"(%2) : (memref<?x?x?xf64>) -> memref<72x72x72xf64>
-// CHECK-NEXT:      %7 = memref.subview %3[4, 4, 4] [66, 66, 64] [1, 1, 1] : memref<72x72x72xf64> to memref<66x66x64xf64, strided<[5184, 72, 1], offset: 21028>>
+// CHECK-NEXT:      %6 = memref.subview %3[4, 4, 4] [66, 66, 64] [1, 1, 1] : memref<72x72x72xf64> to memref<66x66x64xf64, strided<[5184, 72, 1], offset: 21028>>
+// CHECK-NEXT:      %7 = arith.constant 0 : index
 // CHECK-NEXT:      %8 = arith.constant 0 : index
 // CHECK-NEXT:      %9 = arith.constant 0 : index
-// CHECK-NEXT:      %10 = arith.constant 0 : index
+// CHECK-NEXT:      %10 = arith.constant 1 : index
 // CHECK-NEXT:      %11 = arith.constant 1 : index
 // CHECK-NEXT:      %12 = arith.constant 1 : index
-// CHECK-NEXT:      %13 = arith.constant 1 : index
+// CHECK-NEXT:      %13 = arith.constant 64 : index
 // CHECK-NEXT:      %14 = arith.constant 64 : index
 // CHECK-NEXT:      %15 = arith.constant 64 : index
-// CHECK-NEXT:      %16 = arith.constant 64 : index
-// CHECK-NEXT:      "scf.parallel"(%8, %9, %10, %14, %15, %16, %11, %12, %13) <{operandSegmentSizes = array<i32: 3, 3, 3, 0>}> ({
-// CHECK-NEXT:      ^bb0(%17 : index, %18 : index, %19 : index):
-// CHECK-NEXT:        %20 = arith.constant -1 : index
-// CHECK-NEXT:        %21 = arith.addi %17, %20 : index
-// CHECK-NEXT:        %22 = memref.load %7[%21, %18, %19] : memref<66x66x64xf64, strided<[5184, 72, 1], offset: 21028>>
-// CHECK-NEXT:        %23 = arith.constant 1 : index
-// CHECK-NEXT:        %24 = arith.addi %17, %23 : index
-// CHECK-NEXT:        %25 = memref.load %7[%24, %18, %19] : memref<66x66x64xf64, strided<[5184, 72, 1], offset: 21028>>
-// CHECK-NEXT:        %26 = arith.constant 1 : index
-// CHECK-NEXT:        %27 = arith.addi %18, %26 : index
-// CHECK-NEXT:        %28 = memref.load %7[%17, %27, %19] : memref<66x66x64xf64, strided<[5184, 72, 1], offset: 21028>>
-// CHECK-NEXT:        %29 = arith.constant -1 : index
-// CHECK-NEXT:        %30 = arith.addi %18, %29 : index
-// CHECK-NEXT:        %31 = memref.load %7[%17, %30, %19] : memref<66x66x64xf64, strided<[5184, 72, 1], offset: 21028>>
-// CHECK-NEXT:        %32 = memref.load %7[%17, %18, %19] : memref<66x66x64xf64, strided<[5184, 72, 1], offset: 21028>>
-// CHECK-NEXT:        %33 = arith.addf %22, %25 : f64
-// CHECK-NEXT:        %34 = arith.addf %28, %31 : f64
-// CHECK-NEXT:        %35 = arith.addf %33, %34 : f64
+// CHECK-NEXT:      "scf.parallel"(%7, %8, %9, %13, %14, %15, %10, %11, %12) <{operandSegmentSizes = array<i32: 3, 3, 3, 0>}> ({
+// CHECK-NEXT:      ^bb0(%16 : index, %17 : index, %18 : index):
+// CHECK-NEXT:        %19 = arith.constant -1 : index
+// CHECK-NEXT:        %20 = arith.addi %16, %19 : index
+// CHECK-NEXT:        %21 = memref.load %6[%20, %17, %18] : memref<66x66x64xf64, strided<[5184, 72, 1], offset: 21028>>
+// CHECK-NEXT:        %22 = arith.constant 1 : index
+// CHECK-NEXT:        %23 = arith.addi %16, %22 : index
+// CHECK-NEXT:        %24 = memref.load %6[%23, %17, %18] : memref<66x66x64xf64, strided<[5184, 72, 1], offset: 21028>>
+// CHECK-NEXT:        %25 = arith.constant 1 : index
+// CHECK-NEXT:        %26 = arith.addi %17, %25 : index
+// CHECK-NEXT:        %27 = memref.load %6[%16, %26, %18] : memref<66x66x64xf64, strided<[5184, 72, 1], offset: 21028>>
+// CHECK-NEXT:        %28 = arith.constant -1 : index
+// CHECK-NEXT:        %29 = arith.addi %17, %28 : index
+// CHECK-NEXT:        %30 = memref.load %6[%16, %29, %18] : memref<66x66x64xf64, strided<[5184, 72, 1], offset: 21028>>
+// CHECK-NEXT:        %31 = memref.load %6[%16, %17, %18] : memref<66x66x64xf64, strided<[5184, 72, 1], offset: 21028>>
+// CHECK-NEXT:        %32 = arith.addf %21, %24 : f64
+// CHECK-NEXT:        %33 = arith.addf %27, %30 : f64
+// CHECK-NEXT:        %34 = arith.addf %32, %33 : f64
 // CHECK-NEXT:        %cst = arith.constant -4.000000e+00 : f64
-// CHECK-NEXT:        %36 = arith.mulf %32, %cst : f64
-// CHECK-NEXT:        %37 = arith.addf %36, %35 : f64
-// CHECK-NEXT:        memref.store %37, %5[%17, %18, %19] : memref<64x64x64xf64, strided<[5184, 72, 1], offset: 21028>>
+// CHECK-NEXT:        %35 = arith.mulf %31, %cst : f64
+// CHECK-NEXT:        %36 = arith.addf %35, %34 : f64
+// CHECK-NEXT:        memref.store %36, %5[%16, %17, %18] : memref<64x64x64xf64, strided<[5184, 72, 1], offset: 21028>>
 // CHECK-NEXT:        scf.reduce
 // CHECK-NEXT:      }) : (index, index, index, index, index, index, index, index, index) -> ()
 // CHECK-NEXT:      func.return
@@ -263,7 +274,6 @@ builtin.module {
   }
 
 // CHECK:         func.func @trivial_externals(%dyn_mem : memref<?x?x?xf64>, %sta_mem : memref<64x64x64xf64>, %dyn_field : memref<?x?x?xf64>, %sta_field : memref<64x64x64xf64>) {
-// CHECK-NEXT:      %casted = "memref.cast"(%dyn_mem) : (memref<?x?x?xf64>) -> memref<64x64x64xf64>
 // CHECK-NEXT:      func.return
 // CHECK-NEXT:    }
 
@@ -593,6 +603,7 @@ func.func @store_result_lowering(%arg0 : f64) {
     }
     %99 = stencil.buffer %96 : !stencil.temp<[0,7]x[0,7]x[0,7]xf64> -> !stencil.temp<[0,7]x[0,7]x[0,7]xf64>
     %100 = stencil.buffer %95 : !stencil.temp<[0,7]x[0,7]x[0,7]xf64> -> !stencil.temp<[0,7]x[0,7]x[0,7]xf64>
+    "test.op"(%99, %100) : (!stencil.temp<[0,7]x[0,7]x[0,7]xf64>, !stencil.temp<[0,7]x[0,7]x[0,7]xf64>) -> ()
     func.return
   }
 
@@ -614,8 +625,9 @@ func.func @store_result_lowering(%arg0 : f64) {
 // CHECK-NEXT:        memref.store %arg0, %0[%11, %12, %13] : memref<7x7x7xf64, strided<[49, 7, 1]>>
 // CHECK-NEXT:        scf.reduce
 // CHECK-NEXT:      }) : (index, index, index, index, index, index, index, index, index) -> ()
-// CHECK-NEXT:      memref.dealloc %0 : memref<7x7x7xf64, strided<[49, 7, 1]>>
+// CHECK-NEXT:      "test.op"(%0, %1) : (memref<7x7x7xf64, strided<[49, 7, 1]>>, memref<7x7x7xf64, strided<[49, 7, 1]>>) -> ()
 // CHECK-NEXT:      memref.dealloc %1 : memref<7x7x7xf64, strided<[49, 7, 1]>>
+// CHECK-NEXT:      memref.dealloc %0 : memref<7x7x7xf64, strided<[49, 7, 1]>>
 // CHECK-NEXT:      func.return
 // CHECK-NEXT:    }
 
@@ -638,8 +650,8 @@ func.func @if_lowering(%arg0_1 : f64, %b0 : !stencil.field<[0,7]x[0,7]x[0,7]xf64
   }
 
 // CHECK:         func.func @if_lowering(%arg0 : f64, %b0 : memref<7x7x7xf64>, %b1 : memref<7x7x7xf64>)  attributes {stencil.program} {
-// CHECK-NEXT:      %b0_storeview = memref.subview %b0[0, 0, 0] [7, 7, 7] [1, 1, 1] : memref<7x7x7xf64> to memref<7x7x7xf64, strided<[49, 7, 1]>>
 // CHECK-NEXT:      %b1_storeview = memref.subview %b1[0, 0, 0] [7, 7, 7] [1, 1, 1] : memref<7x7x7xf64> to memref<7x7x7xf64, strided<[49, 7, 1]>>
+// CHECK-NEXT:      %b0_storeview = memref.subview %b0[0, 0, 0] [7, 7, 7] [1, 1, 1] : memref<7x7x7xf64> to memref<7x7x7xf64, strided<[49, 7, 1]>>
 // CHECK-NEXT:      %0 = arith.constant 0 : index
 // CHECK-NEXT:      %1 = arith.constant 0 : index
 // CHECK-NEXT:      %2 = arith.constant 0 : index

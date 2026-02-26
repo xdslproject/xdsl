@@ -37,7 +37,7 @@ def _insert_load(
         op = memref_stream.ReadOp(source)
     else:
         return source
-    rewriter.insert_op(op, insertion_point)
+    rewriter.insert(op, insertion_point)
     return op.res
 
 
@@ -48,7 +48,7 @@ class LowerGenericOpPattern(RewritePattern):
     ) -> None:
         if memref_stream.IteratorTypeAttr.interleaved() in op.iterator_types:
             interleave_factor = op.bounds.data[-1].value.data
-            rewriter.insert_op_before_matched_op(
+            rewriter.insert(
                 interleaved_index_ops := tuple(
                     arith.ConstantOp(IntegerAttr.from_index_int_value(i))
                     for i in range(interleave_factor)
@@ -164,7 +164,7 @@ class LowerGenericOpPattern(RewritePattern):
                 store_op = memref.StoreOp.get(value, destination, indices)
             else:
                 store_op = memref_stream.WriteOp(value, destination)
-            rewriter.insert_op(store_op, insertion_point)
+            rewriter.insert(store_op, insertion_point)
             return store_op
 
         outer_ubs, inner_ubs = op.get_static_loop_ranges()

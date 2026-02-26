@@ -206,7 +206,7 @@ builtin.module {
 // CHECK-NEXT:      func.return
 // CHECK-NEXT:    }
 
-  func.func @reduction1(%arg0_1 : index, %arg1_1 : index, %arg2_1 : index, %arg3_1 : index, %arg4_1 : index) {
+  func.func @reduction1(%arg0_1 : index, %arg1_1 : index, %arg2_1 : index, %arg3_1 : index, %arg4_1 : index) -> f32 {
     %0 = arith.constant 1 : index
     %1 = arith.constant 0.000000e+00 : f32
     %2 = "scf.parallel"(%arg0_1, %arg1_1, %arg2_1, %arg3_1, %arg4_1, %0, %1) <{operandSegmentSizes = array<i32: 2, 2, 2, 1>}> ({
@@ -218,11 +218,11 @@ builtin.module {
         scf.reduce.return %4 : f32
       }
     }) : (index, index, index, index, index, index, f32) -> f32
-    func.return
+    func.return %2 : f32
   }
 
 // Check that the pass doesn't crash on reductions, but just safely ignores them for now.
-// CHECK:         func.func @reduction1(%{{.*}} : index, %{{.*}} : index, %{{.*}} : index, %{{.*}} : index, %{{.*}} : index) {
+// CHECK:         func.func @reduction1(%{{.*}} : index, %{{.*}} : index, %{{.*}} : index, %{{.*}} : index, %{{.*}} : index) -> f32 {
 // CHECK-NEXT:      %{{.*}} = arith.constant 1 : index
 // CHECK-NEXT:      %{{.*}} = arith.constant 0.000000e+00 : f32
 // CHECK-NEXT:      %{{.*}} = "scf.parallel"(%{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}) <{operandSegmentSizes = array<i32: 2, 2, 2, 1>}> ({
@@ -234,7 +234,7 @@ builtin.module {
 // CHECK-NEXT:          scf.reduce.return %{{.*}} : f32
 // CHECK-NEXT:        }
 // CHECK-NEXT:      }) : (index, index, index, index, index, index, f32) -> f32
-// CHECK-NEXT:      func.return
+// CHECK-NEXT:      func.return %{{.*}} : f32
 // CHECK-NEXT:    }
 // CHECK-NEXT:  }
 }

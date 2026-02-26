@@ -37,15 +37,15 @@ class PtrTypeConversion(TypeConversionPattern):
 class ConvertPtrAddOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ptr.PtrAddOp, rewriter: PatternRewriter, /):
-        oper1, oper2 = cast_operands_to_regs(rewriter)
-        rewriter.replace_matched_op(riscv.AddOp(oper1, oper2))
+        oper1, oper2 = cast_operands_to_regs(rewriter, op)
+        rewriter.replace_op(op, riscv.AddOp(oper1, oper2))
 
 
 @dataclass
 class ConvertStoreOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ptr.StoreOp, rewriter: PatternRewriter, /):
-        addr, value = cast_operands_to_regs(rewriter)
+        addr, value = cast_operands_to_regs(rewriter, op)
 
         match value.type:
             case riscv.IntRegisterType():
@@ -76,14 +76,14 @@ class ConvertStoreOp(RewritePattern):
             case _:
                 raise ValueError(f"Unexpected register type {op.value.type}")
 
-        rewriter.replace_matched_op(new_op)
+        rewriter.replace_op(op, new_op)
 
 
 @dataclass
 class ConvertLoadOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ptr.LoadOp, rewriter: PatternRewriter, /):
-        casted = cast_operands_to_regs(rewriter)
+        casted = cast_operands_to_regs(rewriter, op)
         addr = casted[0]
 
         result_register_type = register_type_for_type(op.res.type)
@@ -102,8 +102,9 @@ class ConvertLoadOp(RewritePattern):
                         f"Lowering memref.load op with floating point type {float_type} not yet implemented"
                     )
 
-        rewriter.replace_matched_op(
-            (lw := lw_op, UnrealizedConversionCastOp.get(lw.results, (op.res.type,)))
+        rewriter.replace_op(
+            op,
+            (lw := lw_op, UnrealizedConversionCastOp.get(lw.results, (op.res.type,))),
         )
 
 
@@ -111,10 +112,11 @@ class ConvertLoadOp(RewritePattern):
 class ConvertMemRefToPtrOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ptr.ToPtrOp, rewriter: PatternRewriter, /):
-        rewriter.replace_matched_op(
+        rewriter.replace_op(
+            op,
             UnrealizedConversionCastOp.get(
                 (op.source,), (riscv.Registers.UNALLOCATED_INT,)
-            )
+            ),
         )
 
 
@@ -130,6 +132,7 @@ class ConvertPtrToRiscvPass(ModulePass):
                     ConvertStoreOp(),
                     ConvertLoadOp(),
                     ConvertMemRefToPtrOp(),
-                ]
+                ],
+                dce_enabled=False,
             ),
         ).rewrite_module(op)

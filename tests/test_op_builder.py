@@ -79,8 +79,8 @@ def test_builder():
     x = ConstantOp.from_int_and_width(0, 1)
     y = ConstantOp.from_int_and_width(1, 1)
 
-    b.insert_op(x)
-    b.insert_op(y)
+    b.insert(x)
+    b.insert(y)
 
     assert target.is_structurally_equivalent(block)
 
@@ -101,12 +101,12 @@ def test_builder_insertion_point():
     y = ConstantOp.from_int_and_width(2, 8)
     z = ConstantOp.from_int_and_width(3, 8)
 
-    b.insert_op(x)
-    b.insert_op(z)
+    b.insert(x)
+    b.insert(z)
 
     b.insertion_point = InsertPoint.before(z)
 
-    b.insert_op(y)
+    b.insert(y)
 
     assert target.is_structurally_equivalent(block)
 
@@ -163,10 +163,10 @@ def test_builder_listener_op_insert():
 
     b.operation_insertion_handler = [add_op_on_insert]
 
-    b.insert_op(x)
-    b.insert_op(z)
+    b.insert(x)
+    b.insert(z)
     b.insertion_point = InsertPoint.before(z)
-    b.insert_op(y)
+    b.insert(y)
 
     assert added_ops == [x, z, y]
 
@@ -194,16 +194,16 @@ def test_builder_listener_block_created():
 def test_builder_name_hint_listener():
     block = Block()
     b = Builder(InsertPoint.at_start(block))
-    assert b.insert_op(TestOp((), result_types=(i32,))).results[0].name_hint is None
+    assert b.insert(TestOp((), result_types=(i32,))).results[0].name_hint is None
 
     b.name_hint = "hello"
     # No name hint
-    assert b.insert_op(TestOp((), result_types=(i32,))).results[0].name_hint == "hello"
+    assert b.insert(TestOp((), result_types=(i32,))).results[0].name_hint == "hello"
 
     # With name hint
     op = TestOp((), result_types=(i32,))
     op.results[0].name_hint = "world"
-    assert b.insert_op(op).results[0].name_hint == "world"
+    assert b.insert(op).results[0].name_hint == "world"
 
     with pytest.raises(ValueError, match="Invalid SSAValue name format `1`."):
         b.name_hint = "1"
@@ -227,8 +227,8 @@ def test_build_region():
         x = ConstantOp.from_int_and_width(one, i32)
         y = ConstantOp.from_int_and_width(two, i32)
 
-        b.insert_op(x)
-        b.insert_op(y)
+        b.insert(x)
+        b.insert(y)
 
     assert target.is_structurally_equivalent(region)
 
@@ -254,8 +254,8 @@ def test_build_callable_region():
         x = ConstantOp.from_int_and_width(one, i32)
         y = ConstantOp.from_int_and_width(two, i32)
 
-        b.insert_op(x)
-        b.insert_op(y)
+        b.insert(x)
+        b.insert(y)
 
     assert target.is_structurally_equivalent(region)
 
@@ -359,7 +359,7 @@ def test_build_implicit_region_fail():
 
                 @Builder.region
                 def then_1(b: Builder):
-                    b.insert_op(ConstantOp.from_int_and_width(three, i32))
+                    b.insert(ConstantOp.from_int_and_width(three, i32))
 
                 IfOp(cond, (), then_1)
 

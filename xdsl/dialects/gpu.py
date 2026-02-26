@@ -5,6 +5,7 @@ from enum import auto
 
 from xdsl.dialects import memref
 from xdsl.dialects.builtin import (
+    DYNAMIC_INDEX,
     AffineMapAttr,
     DenseArrayBase,
     FunctionType,
@@ -149,7 +150,7 @@ class AllocOp(IRDLOperation):
     dynamicSizes = var_operand_def(IndexType)
     symbolOperands = var_operand_def(IndexType)
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
     result = result_def(memref.MemRefType)
     asyncToken = opt_result_def(AsyncTokenType)
@@ -157,7 +158,7 @@ class AllocOp(IRDLOperation):
     def verify_(self) -> None:
         ndyn = len(self.dynamicSizes)
         assert isinstance(res_type := self.result.type, memref.MemRefType)
-        ndyn_type = len([i for i in res_type.get_shape() if i == -1])
+        ndyn_type = len([i for i in res_type.get_shape() if i == DYNAMIC_INDEX])
         if ndyn != ndyn_type:
             raise VerifyException(
                 f"Expected {ndyn_type} dynamic sizes, got {ndyn}. All "
@@ -291,7 +292,7 @@ class DeallocOp(IRDLOperation):
     asyncDependencies = var_operand_def(AsyncTokenType)
     buffer = operand_def(memref.MemRefType)
 
-    irdl_options = [AttrSizedOperandSegments()]
+    irdl_options = (AttrSizedOperandSegments(),)
 
     asyncToken = opt_result_def(AsyncTokenType)
 
@@ -315,7 +316,7 @@ class MemcpyOp(IRDLOperation):
     dst = operand_def(memref.MemRefType)
     src = operand_def(memref.MemRefType)
 
-    irdl_options = [AttrSizedOperandSegments()]
+    irdl_options = (AttrSizedOperandSegments(),)
 
     asyncToken = opt_result_def(AsyncTokenType)
 
@@ -496,7 +497,7 @@ class LaunchOp(IRDLOperation):
     dynamicSharedMemorySize = opt_operand_def(i32)
     asyncToken = opt_result_def(AsyncTokenType)
     body = region_def()
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
     def __init__(
         self,
@@ -605,7 +606,7 @@ class LaunchFuncOp(IRDLOperation):
 
     kernel = prop_def(SymbolRefAttr)
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
     def __init__(
         self,

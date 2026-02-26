@@ -5,12 +5,12 @@ from xdsl.dialects import arith, memref_stream
 from xdsl.dialects.builtin import (
     AffineMapAttr,
     ArrayAttr,
-    Float32Type,
     IndexType,
     IntAttr,
     IntegerAttr,
     MemRefType,
     ModuleOp,
+    f32,
     i32,
 )
 from xdsl.interpreter import Interpreter
@@ -183,8 +183,6 @@ def test_memref_stream_generic_imperfect_nesting():
     interpreter.register_implementations(MemRefStreamFunctions())
     interpreter.register_implementations(ArithFunctions())
 
-    f32 = Float32Type()
-
     op = memref_stream.GenericOp(
         (
             create_ssa_value(MemRefType(f32, [3, 2])),
@@ -234,8 +232,6 @@ def test_memref_stream_generic_reduction_with_initial_value():
     interpreter.register_implementations(MemRefStreamFunctions())
     interpreter.register_implementations(ArithFunctions())
 
-    f32 = Float32Type()
-
     op = memref_stream.GenericOp(
         (
             create_ssa_value(MemRefType(f32, [3, 2])),
@@ -284,8 +280,6 @@ def test_memref_stream_interleaved_reduction_with_initial_value():
     interpreter = Interpreter(ModuleOp([]))
     interpreter.register_implementations(MemRefStreamFunctions())
     interpreter.register_implementations(ArithFunctions())
-
-    f32 = Float32Type()
 
     op = memref_stream.GenericOp(
         (

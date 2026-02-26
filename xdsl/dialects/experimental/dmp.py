@@ -456,7 +456,7 @@ class GridSlice2dAttr(DomainDecompositionStrategy):
     diagonals: builtin.BoolAttr
 
     def __init__(self, topo: tuple[int, ...]):
-        super().__init__(RankTopoAttr(topo), builtin.BoolAttr.from_int_and_width(0, 1))
+        super().__init__(RankTopoAttr(topo), builtin.BoolAttr.from_bool(False))
 
     def _verify(self):
         assert len(self.topology.as_tuple()) >= 2, (
@@ -502,7 +502,7 @@ class GridSlice3dAttr(DomainDecompositionStrategy):
     diagonals: builtin.BoolAttr
 
     def __init__(self, topo: tuple[int, ...]):
-        super().__init__(RankTopoAttr(topo), builtin.BoolAttr.from_int_and_width(0, 1))
+        super().__init__(RankTopoAttr(topo), builtin.BoolAttr.from_bool(False))
 
     def _verify(self):
         assert len(self.topology.as_tuple()) >= 3, (

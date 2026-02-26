@@ -4,7 +4,7 @@
 // versions of ssum (C=A+B where all have fixed size 128xf32) .
 
 riscv_func.func @pres_1(%X : !riscv.reg<a0>, %Y : !riscv.reg<a1>, %Z : !riscv.reg<a2>) {
-    %zero = riscv.get_register : !riscv.reg<zero>
+    %zero = rv32.get_register : !riscv.reg<zero>
     %i = riscv.mv %zero : (!riscv.reg<zero>) -> !riscv.reg<a3>
     %ub = riscv.addi %zero 512 : (!riscv.reg<zero>) -> !riscv.reg<a4>
     riscv.label ".loop_body"
@@ -21,7 +21,7 @@ riscv_func.func @pres_1(%X : !riscv.reg<a0>, %Y : !riscv.reg<a1>, %Z : !riscv.re
 }
 
 riscv_func.func @pres_2(%X : !riscv.reg<a0>, %Y : !riscv.reg<a1>, %Z : !riscv.reg<a2>) {
-    %zero = riscv.get_register : !riscv.reg<zero>
+    %zero = rv32.get_register : !riscv.reg<zero>
     %i = riscv.mv %zero : (!riscv.reg<zero>) -> !riscv.reg<a3>
     %ub = riscv.addi %zero 512 : (!riscv.reg<zero>) -> !riscv.reg<a4>
     riscv.label ".loop_body"
@@ -38,7 +38,7 @@ riscv_func.func @pres_2(%X : !riscv.reg<a0>, %Y : !riscv.reg<a1>, %Z : !riscv.re
 }
 
 riscv_func.func @pres_3(%X : !riscv.reg<a0>, %Y : !riscv.reg<a1>, %Z : !riscv.reg<a2>) {
-    %zero = riscv.get_register : !riscv.reg<zero>
+    %zero = rv32.get_register : !riscv.reg<zero>
     %n = riscv.addi %zero 63 : (!riscv.reg<zero>) -> !riscv.reg<a3>
     riscv_snitch.scfgwi %n, 95 : (!riscv.reg<a3>) -> ()
     %ub = riscv.addi %zero 8 : (!riscv.reg<zero>) -> !riscv.reg<a3>
@@ -59,7 +59,7 @@ riscv_func.func @pres_3(%X : !riscv.reg<a0>, %Y : !riscv.reg<a1>, %Z : !riscv.re
 }
 
 riscv_func.func @pres_4(%X : !riscv.reg<a0>, %Y : !riscv.reg<a1>, %Z : !riscv.reg<a2>) {
-    %zero = riscv.get_register : !riscv.reg<zero>
+    %zero = rv32.get_register : !riscv.reg<zero>
     %n = riscv.addi %zero 63 : (!riscv.reg<zero>) -> !riscv.reg<a3>
     riscv_snitch.scfgwi %n, 95 : (!riscv.reg<a3>) -> ()
     %ub = riscv.addi %zero 8 : (!riscv.reg<zero>) -> !riscv.reg<a3>

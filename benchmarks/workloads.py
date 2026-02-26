@@ -7,11 +7,11 @@ from math import prod
 from xdsl.dialects.arith import AddfOp, AddiOp, ConstantOp
 from xdsl.dialects.builtin import (
     DenseIntOrFPElementsAttr,
-    Float32Type,
     FunctionType,
     IntegerAttr,
     ModuleOp,
     TensorType,
+    f32,
     i8,
     i32,
 )
@@ -155,7 +155,7 @@ class WorkloadBuilder:
         """
         assert num_add_ops >= 0
         random.seed(RANDOM_SEED)
-        tensor_type = TensorType(shape=tensor_shape, element_type=Float32Type())
+        tensor_type = TensorType(shape=tensor_shape, element_type=f32)
         function_type = FunctionType.from_lists(
             inputs=[tensor_type], outputs=[tensor_type]
         )

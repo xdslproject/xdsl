@@ -1,11 +1,13 @@
 from collections import Counter
 from collections.abc import Sequence
+from io import StringIO
 
 import marimo as mo
 
 from xdsl.context import Context
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.passes import ModulePass, PassPipeline
+from xdsl.passes import ModulePass
+from xdsl.printer import Printer
 
 
 def asm_html(asm: str) -> mo.Html:
@@ -22,14 +24,38 @@ def module_html(module: ModuleOp) -> mo.Html:
     return mo.ui.code_editor(str(module), language="javascript", disabled=True)
 
 
-def _spec_str(p: ModulePass | PassPipeline) -> str:
+def module_str(module: ModuleOp) -> str:
     """
-    A string representation of the pass passed in, to display to the user.
+    Returns a string representation of the module passed in, without the
+    outer `builtin.module` operation.
     """
-    if isinstance(p, PassPipeline):
-        return ",".join(str(c.pipeline_pass_spec()) for c in p.passes)
-    else:
-        return str(p.pipeline_pass_spec())
+    output = StringIO()
+    printer = Printer(output)
+    for i, op in enumerate(module.ops):
+        if i != 0:
+            printer.print_string("\n")
+        printer.print_op(op)
+
+    return output.getvalue()
+
+
+def module_md(module: ModuleOp) -> mo.Html:
+    return mo.md("`" * 3 + "mlir\n" + module_str(module) + "\n" + "`" * 3)
+
+
+def pipeline_titles(passes: Sequence[ModulePass]) -> list[str]:
+    total_key_count = Counter(str(p) for p in passes)
+    d_key_count = Counter[str]()
+    titles: list[str] = []
+    for p in passes:
+        spec = str(p)
+        d_key_count[spec] += 1
+        if total_key_count[spec] != 1:
+            titles.append(f"{spec} ({d_key_count[spec]})")
+        else:
+            titles.append(spec)
+
+    return titles
 
 
 def pipeline_html(
@@ -49,16 +75,9 @@ def pipeline_html(
     res = module.clone()
     ctx = ctx.clone()
     d: list[mo.Html] = []
-    total_key_count = Counter(_spec_str(p) for _, p in passes)
-    d_key_count = Counter[str]()
-    for text, p in passes:
+    titles = pipeline_titles(tuple(p for _, p in passes))
+    for header, (text, p) in zip(titles, passes):
         p.apply(ctx, res)
-        spec = _spec_str(p)
-        d_key_count[spec] += 1
-        if total_key_count[spec] != 1:
-            header = f"{spec} ({d_key_count[spec]})"
-        else:
-            header = spec
         html_res = module_html(res)
         d.append(
             mo.vstack(

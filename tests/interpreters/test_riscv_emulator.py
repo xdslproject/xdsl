@@ -5,10 +5,10 @@ import pytest
 
 from xdsl.builder import Builder
 from xdsl.context import Context
-from xdsl.dialects import riscv, riscv_debug, riscv_func
+from xdsl.dialects import riscv, riscv_debug, riscv_func, rv32
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import BlockArgument
-from xdsl.transforms.riscv_register_allocation import RISCVRegisterAllocation
+from xdsl.transforms.riscv_allocate_registers import RISCVAllocateRegistersPass
 
 pytest.importorskip("riscemu", reason="riscemu is an optional dependency")
 
@@ -24,15 +24,15 @@ def test_simple():
     def module():
         @Builder.implicit_region
         def body():
-            six = riscv.LiOp(6).rd
-            seven = riscv.LiOp(7).rd
+            six = rv32.LiOp(6).rd
+            seven = rv32.LiOp(7).rd
             forty_two = riscv.MulOp(six, seven).rd
             riscv_debug.PrintfOp("{}", (forty_two,))
             riscv.ReturnOp()
 
         riscv_func.FuncOp("main", body, ((), ()), visibility="public")
 
-    RISCVRegisterAllocation().apply(ctx, module)
+    RISCVAllocateRegistersPass().apply(ctx, module)
 
     code = riscv.riscv_code(module)
 
@@ -52,15 +52,15 @@ def test_multiply_add():
     def module():
         @Builder.implicit_region
         def main():
-            riscv.LiOp(3, rd=riscv.Registers.A0)
-            riscv.LiOp(2, rd=riscv.Registers.A1)
-            riscv.LiOp(1, rd=riscv.Registers.A2)
+            rv32.LiOp(3, rd=riscv.Registers.A0)
+            rv32.LiOp(2, rd=riscv.Registers.A1)
+            rv32.LiOp(1, rd=riscv.Registers.A2)
 
             riscv.JalOp("muladd")
-            res = riscv.GetRegisterOp(riscv.Registers.A0).res
+            res = rv32.GetRegisterOp(riscv.Registers.A0).res
             riscv_debug.PrintfOp("{}", (res,))
 
-            riscv.LiOp(93, rd=riscv.Registers.A7)
+            rv32.LiOp(93, rd=riscv.Registers.A7)
             riscv.EcallOp()
 
         riscv_func.FuncOp("main", main, ((), ()), visibility="public")
@@ -101,9 +101,9 @@ def test_multiply_add():
             _, _, a2_muladd = args
 
             # get registers we'll use in this section
-            sp_muladd = riscv.GetRegisterOp(riscv.Registers.SP)
-            s0_muladd_0 = riscv.GetRegisterOp(riscv.Registers.S0)
-            ra_muladd = riscv.GetRegisterOp(riscv.Registers.RA)
+            sp_muladd = rv32.GetRegisterOp(riscv.Registers.SP)
+            s0_muladd_0 = rv32.GetRegisterOp(riscv.Registers.S0)
+            ra_muladd = rv32.GetRegisterOp(riscv.Registers.RA)
             riscv.CommentOp(
                 "decrement stack pointer by number of register values we need to store for later"
             )
@@ -149,7 +149,7 @@ def test_multiply_add():
             ),
         )
 
-    RISCVRegisterAllocation().apply(ctx, module)
+    RISCVAllocateRegistersPass().apply(ctx, module)
 
     code = riscv.riscv_code(module)
     with StringIO() as stream, redirect_stdout(stream):

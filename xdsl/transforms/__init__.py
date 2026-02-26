@@ -123,6 +123,18 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return convert_ml_program_to_memref.ConvertMlProgramToMemRefPass
 
+    def get_convert_pdl_interp_to_eqsat_pdl_interp():
+        from xdsl.transforms import convert_pdl_interp_to_eqsat_pdl_interp
+
+        return (
+            convert_pdl_interp_to_eqsat_pdl_interp.ConvertPDLInterpToEqsatPDLInterpPass
+        )
+
+    def get_convert_pdl_to_pdl_interp():
+        from xdsl.transforms.convert_pdl_to_pdl_interp import conversion
+
+        return conversion.ConvertPDLToPDLInterpPass
+
     def get_convert_print_format_to_riscv_debug():
         from xdsl.backend.riscv.lowering import convert_print_format_to_riscv_debug
 
@@ -178,6 +190,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return convert_scf_to_riscv_scf.ConvertScfToRiscvPass
 
+    def get_convert_scf_to_x86_scf():
+        from xdsl.transforms import convert_scf_to_x86_scf
+
+        return convert_scf_to_x86_scf.ConvertScfToX86ScfPass
+
     def get_convert_snitch_stream_to_snitch():
         from xdsl.backend.riscv.lowering import convert_snitch_stream_to_snitch
 
@@ -207,6 +224,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         from xdsl.backend.x86.lowering import convert_vector_to_x86
 
         return convert_vector_to_x86.ConvertVectorToX86Pass
+
+    def get_convert_x86_scf_to_x86():
+        from xdsl.transforms import convert_x86_scf_to_x86
+
+        return convert_x86_scf_to_x86.ConvertX86ScfToX86Pass
 
     def get_jax_use_donated_arguments():
         from xdsl.transforms import jax_use_donated_arguments
@@ -292,6 +314,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         from xdsl.transforms import eqsat_extract
 
         return eqsat_extract.EqsatExtractPass
+
+    def get_approximate_math_with_bitcast():
+        from xdsl.transforms import approximate_math_with_bitcast
+
+        return approximate_math_with_bitcast.ApproximateMathWithBitcastPass
 
     def get_frontend_desymrefy():
         from xdsl.transforms.desymref import FrontendDesymrefyPass
@@ -468,10 +495,20 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return replace_incompatible_fpga.ReplaceIncompatibleFPGA
 
-    def get_riscv_register_allocation():
-        from xdsl.transforms import riscv_register_allocation
+    def get_riscv_allocate_infinite_registers():
+        from xdsl.transforms import riscv_allocate_infinite_registers
 
-        return riscv_register_allocation.RISCVRegisterAllocation
+        return riscv_allocate_infinite_registers.RISCVAllocateInfiniteRegistersPass
+
+    def get_riscv_allocate_registers():
+        from xdsl.transforms import riscv_allocate_registers
+
+        return riscv_allocate_registers.RISCVAllocateRegistersPass
+
+    def get_riscv_lower_parallel_mov():
+        from xdsl.transforms import riscv_lower_parallel_mov
+
+        return riscv_lower_parallel_mov.RISCVLowerParallelMovPass
 
     def get_riscv_prologue_epilogue_insertion():
         from xdsl.backend.riscv import prologue_epilogue_insertion
@@ -493,6 +530,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return scf_for_loop_range_folding.ScfForLoopRangeFoldingPass
 
+    def get_scf_for_loop_unroll():
+        from xdsl.transforms import scf_for_loop_unroll
+
+        return scf_for_loop_unroll.ScfForLoopUnrollPass
+
     def get_scf_parallel_loop_tiling():
         from xdsl.transforms import scf_parallel_loop_tiling
 
@@ -504,9 +546,9 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         return ShapeInferencePass
 
     def get_snitch_allocate_registers():
-        from xdsl.transforms import snitch_register_allocation
+        from xdsl.transforms import snitch_allocate_registers
 
-        return snitch_register_allocation.SnitchRegisterAllocation
+        return snitch_allocate_registers.SnitchAllocateRegistersPass
 
     def get_stencil_bufferize():
         from xdsl.transforms import stencil_bufferize
@@ -548,15 +590,15 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return test_constant_folding.TestConstantFoldingPass
 
-    def get_test_specialised_constant_folding():
-        from xdsl.transforms import test_constant_folding
-
-        return test_constant_folding.TestSpecialisedConstantFoldingPass
-
     def get_test_lower_linalg_to_snitch():
         from xdsl.transforms import test_lower_linalg_to_snitch
 
         return test_lower_linalg_to_snitch.TestLowerLinalgToSnitchPass
+
+    def get_test_specialised_constant_folding():
+        from xdsl.transforms import test_constant_folding
+
+        return test_constant_folding.TestSpecialisedConstantFoldingPass
 
     def get_test_transform_dialect_erase_schedule():
         from xdsl.transforms import test_transform_dialect_erase_schedule
@@ -564,6 +606,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         return (
             test_transform_dialect_erase_schedule.TestTransformDialectEraseSchedulePass
         )
+
+    def get_test_vectorize_matmul():
+        from xdsl.transforms import test_vectorize_matmul
+
+        return test_vectorize_matmul.TestVectorizeMatmulPass
 
     def get_transform_interpreter():
         from xdsl.transforms import transform_interpreter
@@ -585,10 +632,25 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return x86_allocate_registers.X86AllocateRegisters
 
+    def get_x86_prologue_epilogue_insertion():
+        from xdsl.backend.x86 import prologue_epilogue_insertion
+
+        return prologue_epilogue_insertion.X86PrologueEpilogueInsertion
+
+    def get_x86_legalize_for_regalloc():
+        from xdsl.transforms import x86_legalize_for_regalloc
+
+        return x86_legalize_for_regalloc.X86LegalizeForRegallocPass
+
     def get_x86_infer_broadcast():
         from xdsl.transforms import x86_infer_broadcast
 
         return x86_infer_broadcast.X86InferBroadcast
+
+    def get_verify_register_allocation():
+        from xdsl.transforms import verify_register_allocation
+
+        return verify_register_allocation.VerifyRegisterAllocationPass
 
     # Please insert pass and `get_` function in alphabetical order
 
@@ -598,6 +660,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "apply-eqsat-pdl-interp": get_apply_eqsat_pdl_interp,
         "apply-pdl": get_apply_pdl,
         "apply-pdl-interp": get_apply_pdl_interp,
+        "approximate-math-with-bitcast": get_approximate_math_with_bitcast,
         "arith-add-fastmath": get_arith_add_fastmath,
         "canonicalize-dmp": get_canonicalize_dmp,
         "canonicalize": get_canonicalize,
@@ -616,6 +679,8 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "convert-memref-to-ptr": get_convert_memref_to_ptr,
         "convert-memref-to-riscv": get_convert_memref_to_riscv,
         "convert-ml-program-to-memref": get_convert_ml_program_to_memref,
+        "convert-pdl-interp-to-eqsat-pdl-interp": get_convert_pdl_interp_to_eqsat_pdl_interp,
+        "convert-pdl-to-pdl-interp": get_convert_pdl_to_pdl_interp,
         "convert-print-format-to-riscv-debug": get_convert_print_format_to_riscv_debug,
         "convert-ptr-to-llvm": get_convert_ptr_to_llvm,
         "convert-ptr-to-riscv": get_convert_ptr_to_riscv,
@@ -626,6 +691,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "convert-scf-to-cf": get_convert_scf_to_cf,
         "convert-scf-to-openmp": get_convert_scf_to_openmp,
         "convert-scf-to-riscv-scf": get_convert_scf_to_riscv_scf,
+        "convert-scf-to-x86-scf": get_convert_scf_to_x86_scf,
         "convert-snitch-stream-to-snitch": get_convert_snitch_stream_to_snitch,
         "convert-ptr-type-offsets": get_convert_ptr_type_offsets,
         "convert-stencil-to-csl-stencil": get_convert_stencil_to_csl_stencil,
@@ -633,6 +699,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "convert-varith-to-arith": get_convert_varith_to_arith,
         "convert-vector-to-ptr": get_convert_vector_to_ptr,
         "convert-vector-to-x86": get_convert_vector_to_x86,
+        "convert-x86-scf-to-x86": get_convert_x86_scf_to_x86,
         "jax-use-donated-arguments": get_jax_use_donated_arguments,
         "cse": get_cse,
         "csl-stencil-bufferize": get_csl_stencil_bufferize,
@@ -685,11 +752,14 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "printf-to-putchar": get_printf_to_putchar,
         "reconcile-unrealized-casts": get_reconcile_unrealized_casts,
         "replace-incompatible-fpga": get_replace_incompatible_fpga,
-        "riscv-allocate-registers": get_riscv_register_allocation,
+        "riscv-allocate-infinite-registers": get_riscv_allocate_infinite_registers,
+        "riscv-allocate-registers": get_riscv_allocate_registers,
+        "riscv-lower-parallel-mov": get_riscv_lower_parallel_mov,
         "riscv-prologue-epilogue-insertion": get_riscv_prologue_epilogue_insertion,
         "riscv-scf-loop-range-folding": get_riscv_scf_loop_range_folding,
         "scf-for-loop-flatten": get_scf_for_loop_flatten,
         "scf-for-loop-range-folding": get_scf_for_loop_range_folding,
+        "scf-for-loop-unroll": get_scf_for_loop_unroll,
         "scf-parallel-loop-tiling": get_scf_parallel_loop_tiling,
         "shape-inference": get_shape_inference,
         "snitch-allocate-registers": get_snitch_allocate_registers,
@@ -701,12 +771,16 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "stencil-unroll": get_stencil_unroll,
         "test-add-timers-to-top-level-funcs": get_test_add_timers_to_top_level_funcs,
         "test-constant-folding": get_test_constant_folding,
-        "test-specialised-constant-folding": get_test_specialised_constant_folding,
         "test-lower-linalg-to-snitch": get_test_lower_linalg_to_snitch,
+        "test-specialised-constant-folding": get_test_specialised_constant_folding,
         "test-transform-dialect-erase-schedule": get_test_transform_dialect_erase_schedule,
+        "test-vectorize-matmul": get_test_vectorize_matmul,
         "transform-interpreter": get_transform_interpreter,
         "varith-fuse-repeated-operands": get_varith_fuse_repeated_operands,
         "vector-split-load-extract": get_vector_split_load_extract,
         "x86-allocate-registers": get_x86_allocate_registers,
+        "x86-prologue-epilogue-insertion": get_x86_prologue_epilogue_insertion,
+        "x86-legalize-for-regalloc": get_x86_legalize_for_regalloc,
         "x86-infer-broadcast": get_x86_infer_broadcast,
+        "verify-register-allocation": get_verify_register_allocation,
     }

@@ -3,6 +3,7 @@ import pytest
 from xdsl.builder import Builder
 from xdsl.dialects import arith, builtin, func, memref, scf
 from xdsl.dialects.builtin import (
+    DYNAMIC_INDEX,
     AffineMapAttr,
     ArrayAttr,
     FloatAttr,
@@ -126,9 +127,11 @@ def test_memref_alloc():
     dynamic_sizes_1 = [create_ssa_value(builtin.IndexType()) for _ in range(1)]
     dynamic_sizes_3 = [create_ssa_value(builtin.IndexType()) for _ in range(3)]
 
-    alloc4 = AllocOp.get(my_i32, 64, [3, 1, -1], dynamic_sizes=dynamic_sizes_1)
-    alloc5 = AllocOp.get(my_i32, 64, [-1, -1, -1], dynamic_sizes=dynamic_sizes_3)
-    alloc6 = AllocOp.get(my_i32, 64, [-1, -1, -1], dynamic_sizes=dynamic_sizes_1)
+    alloc4 = AllocOp.get(
+        my_i32, 64, [3, 1, DYNAMIC_INDEX], dynamic_sizes=dynamic_sizes_1
+    )
+    alloc5 = AllocOp.get(my_i32, 64, [DYNAMIC_INDEX] * 3, dynamic_sizes=dynamic_sizes_3)
+    alloc6 = AllocOp.get(my_i32, 64, [DYNAMIC_INDEX] * 3, dynamic_sizes=dynamic_sizes_1)
 
     assert list(alloc4.operands) == dynamic_sizes_1
     assert list(alloc5.operands) == dynamic_sizes_3
@@ -169,9 +172,15 @@ def test_memref_alloca():
     dynamic_sizes_1 = [create_ssa_value(builtin.IndexType()) for _ in range(1)]
     dynamic_sizes_3 = [create_ssa_value(builtin.IndexType()) for _ in range(3)]
 
-    alloc4 = AllocaOp.get(my_i32, 64, [3, 1, -1], dynamic_sizes=dynamic_sizes_1)
-    alloc5 = AllocaOp.get(my_i32, 64, [-1, -1, -1], dynamic_sizes=dynamic_sizes_3)
-    alloc6 = AllocaOp.get(my_i32, 64, [-1, -1, -1], dynamic_sizes=dynamic_sizes_1)
+    alloc4 = AllocaOp.get(
+        my_i32, 64, [3, 1, DYNAMIC_INDEX], dynamic_sizes=dynamic_sizes_1
+    )
+    alloc5 = AllocaOp.get(
+        my_i32, 64, [DYNAMIC_INDEX] * 3, dynamic_sizes=dynamic_sizes_3
+    )
+    alloc6 = AllocaOp.get(
+        my_i32, 64, [DYNAMIC_INDEX] * 3, dynamic_sizes=dynamic_sizes_1
+    )
 
     assert list(alloc4.operands) == dynamic_sizes_1
     assert list(alloc5.operands) == dynamic_sizes_3
@@ -222,7 +231,7 @@ def test_memref_ExtractAlignedPointerAsIndexOp():
 
 
 def test_memref_matmul_verify():
-    memref_f64_rank2 = memref.MemRefType(builtin.f64, [-1, -1])
+    memref_f64_rank2 = memref.MemRefType(builtin.f64, [DYNAMIC_INDEX] * 2)
 
     @builtin.ModuleOp
     @Builder.implicit_region
@@ -237,7 +246,9 @@ def test_memref_matmul_verify():
             dim_a1 = memref.DimOp.from_source_and_index(a, lit1)
             dim_b0 = memref.DimOp.from_source_and_index(b, lit0)
             dim_b1 = memref.DimOp.from_source_and_index(b, lit1)
-            out = memref.AllocaOp.get(builtin.f64, 0, [-1, -1], [dim_a0, dim_b1])
+            out = memref.AllocaOp.get(
+                builtin.f64, 0, [DYNAMIC_INDEX] * 2, [dim_a0, dim_b1]
+            )
             # TODO: assert dim_a0 == dim_b1
             lit0_f = arith.ConstantOp(FloatAttr(0.0, builtin.f64))
 

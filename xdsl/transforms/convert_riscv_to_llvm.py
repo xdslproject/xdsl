@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
 from xdsl.context import Context
-from xdsl.dialects import builtin, riscv
+from xdsl.dialects import builtin, rv32
 from xdsl.dialects.builtin import IntAttr, IntegerAttr, UnrealizedConversionCastOp
 from xdsl.dialects.llvm import InlineAsmOp
 from xdsl.dialects.riscv import IntRegisterType, RISCVInstruction
@@ -48,7 +48,7 @@ class RiscvToLLVMPattern(RewritePattern):
                     # a get_register for the zero registers.
                     if arg.type.is_allocated and arg.type.index == IntAttr(0):
                         assembly_args_str.append("x0")
-                        ops_to_insert.append(zero := riscv.GetRegisterOp(arg.type))
+                        ops_to_insert.append(zero := rv32.GetRegisterOp(arg.type))
                         # map final result to an existing SSA value
                         result_map.append(zero.res)
                         continue
@@ -122,7 +122,8 @@ class RiscvToLLVMPattern(RewritePattern):
             op_results = output_op.results
 
         # map results back using result_map
-        rewriter.replace_matched_op(
+        rewriter.replace_op(
+            op,
             ops_to_insert,
             [op_results[i] if isinstance(i, int) else i for i in result_map],
         )

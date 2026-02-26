@@ -14,7 +14,7 @@ from xdsl.dialects.arith import (
 from xdsl.dialects.builtin import Builtin, IntegerAttr, IntegerType, ModuleOp
 from xdsl.ir import Region
 from xdsl.ir.post_order import PostOrderIterator
-from xdsl.irdl import VarIRConstruct, get_variadic_sizes
+from xdsl.irdl import VarIRConstruct, verify_variadic_size
 from xdsl.parser import Parser as XdslParser
 from xdsl.pattern_rewriter import PatternRewriter, Worklist
 from xdsl.rewriter import InsertPoint
@@ -186,16 +186,16 @@ class PatternRewriting(RewritingMicrobenchmarks):
         Exercise inserting an operation and running any required callbacks. This
         is used to effect the results of rewriting.
         """
-        self.pattern_rewriter.insert_op((self.sub_op,), self.insert_point)
+        self.pattern_rewriter.insert((self.sub_op,), self.insert_point)
 
-    def time_get_variadic_sizes(self) -> None:
-        """Time `get_variadic_sizes`.
+    def time_verify_variadic_size(self) -> None:
+        """Time `verify_variadic_size`.
 
-        Exercise getting the variadic size of an operation, including a
+        Exercise verifying the variadic size of an operation, including a
         significant amount of logic to check lengths and types. This is invoked
-        whenever an operation argument is defined with `irdl_op_arg_definition`.
+        4 times whenever an operation is verified.
         """
-        get_variadic_sizes(self.add_op, self.add_op_def, self.add_op_construct)
+        verify_variadic_size(self.add_op, self.add_op_def, self.add_op_construct)
 
 
 class Canonicalization(RewritingMicrobenchmarks):
@@ -215,7 +215,7 @@ class Canonicalization(RewritingMicrobenchmarks):
         Exercise replacing an `SSAValue` and all its uses with another
         SSAValue. This is used when removing unused operations.
         """
-        self.add_op_result.replace_by(self.sub_op_result)
+        self.add_op_result.replace_all_uses_with(self.sub_op_result)
 
     def ignore_time_irwithuses_remove_use(self) -> None:
         """Time `IRWithUses.remove_use`.
@@ -425,8 +425,8 @@ if __name__ == "__main__":
                 GENERAL.ignore_time_pattern_rewriter_insert_op,
                 GENERAL.setup,
             ),
-            "General.get_variadic_sizes": Benchmark(
-                GENERAL.time_get_variadic_sizes, GENERAL.setup
+            "General.verify_variadic_size": Benchmark(
+                GENERAL.time_verify_variadic_size, GENERAL.setup
             ),
             "Canonicalization.operation_drop_all_references": Benchmark(
                 CANONICALIZATION.ignore_time_operation_drop_all_references,

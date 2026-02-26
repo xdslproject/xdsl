@@ -5,7 +5,7 @@ builtin.module {
     %6 = arith.constant 6 : index
     %7 = arith.constant 7 : index
     %42 = arith.muli %6, %7 : index
-    printf.print_format "The magic number is {}", %42 : index
+    printf.print_format "The magic number is {}\n", %42 : index
     func.return
   }
 }

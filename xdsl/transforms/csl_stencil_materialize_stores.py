@@ -54,12 +54,12 @@ class MaterializeInApplyDest(RewritePattern):
             )
             add_args.append(dst)
         copies = [memref.CopyOp(src, dst) for src, dst in zip(op.arguments, views)]
-        rewriter.insert_op(
+        rewriter.insert(
             [*views, *copies],
             InsertPoint.before(op),
         )
 
-        rewriter.replace_matched_op(csl_stencil.YieldOp())
+        rewriter.replace_op(op, csl_stencil.YieldOp())
         rewriter.replace_op(
             apply,
             csl_stencil.ApplyOp(
@@ -98,7 +98,7 @@ class DisableComputeInBorderRegion(RewritePattern):
 
         op.done_exchange.block.insert_arg(cond.type, len(op.done_exchange.block.args))
 
-        rewriter.insert_op(
+        rewriter.insert(
             if_op := scf.IfOp(
                 op.done_exchange.block.args[-1], [], Region(Block()), Region(Block())
             ),
@@ -116,12 +116,13 @@ class DisableComputeInBorderRegion(RewritePattern):
         body = op.done_exchange.block.split_before(if_op.next_op)
         rewriter.inline_block(body, InsertPoint.at_start(if_op.false_region.block))
 
-        rewriter.insert_op(
+        rewriter.insert(
             csl_stencil.YieldOp(), InsertPoint.at_end(op.done_exchange.block)
         )
         rewriter.replace_op(yld, scf.YieldOp())
-        rewriter.insert_op(scf.YieldOp(), InsertPoint.at_start(if_op.true_region.block))
-        rewriter.replace_matched_op(
+        rewriter.insert(scf.YieldOp(), InsertPoint.at_start(if_op.true_region.block))
+        rewriter.replace_op(
+            op,
             csl_stencil.ApplyOp(
                 operands=[
                     op.field,
@@ -133,7 +134,7 @@ class DisableComputeInBorderRegion(RewritePattern):
                 regions=[op.detach_region(r) for r in op.regions],
                 properties=op.properties,
                 result_types=op.result_types or [[]],
-            )
+            ),
         )
 
 

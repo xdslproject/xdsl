@@ -47,20 +47,26 @@ from xdsl.irdl import (
     traits_def,
     var_operand_def,
     var_result_def,
+    var_successor_def,
 )
 from xdsl.traits import (
     AlwaysSpeculatable,
     ConditionallySpeculatable,
     HasAncestor,
     HasParent,
+    IsTerminator,
+    MemoryEffectKind,
     OptionalSymbolOpInterface,
     RecursivelySpeculatable,
+    ReturnLike,
     SameOperandsAndResultType,
     SymbolOpInterface,
     SymbolTable,
+    has_effects,
     is_speculatable,
 )
 from xdsl.utils.exceptions import PyRDLOpDefinitionError, VerifyException
+from xdsl.utils.hints import isa
 from xdsl.utils.test_value import create_ssa_value
 
 
@@ -81,8 +87,8 @@ class LargerOperandTrait(OpTrait):
         # These asserts should be exceptions in a non-testing environment.
         assert len(op.results) == 1
         assert len(op.operands) == 1
-        assert isinstance(op.results[0].type, IntegerType)
-        assert isinstance(op.operands[0].type, IntegerType)
+        assert isa(op.results[0].type, IntegerType)
+        assert isa(op.operands[0].type, IntegerType)
         if op.results[0].type.width.data >= op.operands[0].type.width.data:
             raise VerifyException(
                 "Operation has a result bitwidth greater "
@@ -107,11 +113,11 @@ class BitwidthSumLessThanTrait(OpTrait):
         sum_bitwidth = 0
         for operand in op.operands:
             # This assert should be an exception in a non-testing environment.
-            assert isinstance(operand.type, IntegerType)
+            assert isa(operand.type, IntegerType)
             sum_bitwidth += operand.type.width.data
         for result in op.results:
             # This assert should be an exception in a non-testing environment.
-            assert isinstance(result.type, IntegerType)
+            assert isa(result.type, IntegerType)
             sum_bitwidth += result.type.width.data
 
         if sum_bitwidth >= self.max_sum:
@@ -318,9 +324,7 @@ def test_symbol_op_interface():
         sym_name = attr_def(IntegerAttr)
         traits = traits_def(SymbolOpInterface())
 
-    op1 = SymNameWrongTypeOp(
-        attributes={"sym_name": IntegerAttr.from_int_and_width(1, 32)}
-    )
+    op1 = SymNameWrongTypeOp(attributes={"sym_name": IntegerAttr(1, 32)})
 
     with pytest.raises(
         VerifyException,
@@ -992,6 +996,20 @@ def test_same_operands_and_result_type_trait_for_mixed_rank_and_mixed_shapes(
     op.verify()
 
 
+def test_memory_effects():
+    from xdsl.dialects.test import TestPureOp, TestReadOp, TestWriteOp
+
+    assert not has_effects(TestPureOp(), MemoryEffectKind.ALLOC)
+    assert not has_effects(TestReadOp(), MemoryEffectKind.ALLOC)
+    assert not has_effects(TestWriteOp(), MemoryEffectKind.ALLOC)
+    assert not has_effects(TestPureOp(), MemoryEffectKind.READ)
+    assert has_effects(TestReadOp(), MemoryEffectKind.READ)
+    assert not has_effects(TestWriteOp(), MemoryEffectKind.READ)
+    assert not has_effects(TestPureOp(), MemoryEffectKind.WRITE)
+    assert not has_effects(TestReadOp(), MemoryEffectKind.WRITE)
+    assert has_effects(TestWriteOp(), MemoryEffectKind.WRITE)
+
+
 @irdl_op_definition
 class TestModifyTraitsOp(IRDLOperation):
     name = "test.test_modify_traits"
@@ -1011,3 +1029,38 @@ def test_modify_traits():
 
     with pytest.raises(VerifyException, match="Nope"):
         op.verify()
+
+
+def test_return_like():
+    @irdl_op_definition
+    class TestReturnLikeOp(IRDLOperation):
+        name = "test.return_like"
+
+        traits = traits_def(ReturnLike())
+        my_results = var_result_def()
+        my_successors = var_successor_def()
+
+    terminator = TestReturnLikeOp(result_types=((),), successors=((),))
+
+    with pytest.raises(VerifyException, match="test.return_like is not a terminator"):
+        terminator.verify()
+
+    TestReturnLikeOp.traits.add_trait(IsTerminator())
+    terminator.verify()
+
+    results = TestReturnLikeOp(result_types=((i32,),), successors=((),))
+
+    with pytest.raises(
+        VerifyException, match="test.return_like does not have zero results"
+    ):
+        results.verify()
+
+    _ = Region((a := Block(), b := Block()))
+
+    successors = TestReturnLikeOp(result_types=((),), successors=(b,))
+    a.add_op(successors)
+
+    with pytest.raises(
+        VerifyException, match="test.return_like does not have zero successors"
+    ):
+        successors.verify()

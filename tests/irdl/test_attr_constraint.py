@@ -3,10 +3,12 @@ from abc import ABC
 from dataclasses import dataclass
 
 import pytest
+from typing_extensions import TypeVar
 
 from xdsl.dialects.bufferization import TensorFromMemRefConstraint
 from xdsl.dialects.builtin import (
     IndexType,
+    IntAttrConstraint,
     IntegerType,
     MemRefType,
     StringAttr,
@@ -19,11 +21,14 @@ from xdsl.ir import Attribute, Data, ParametrizedAttribute
 from xdsl.irdl import (
     AllOf,
     AnyAttr,
+    AnyInt,
     AnyOf,
     AttrConstraint,
     BaseAttr,
     ConstraintContext,
     EqAttrConstraint,
+    EqIntConstraint,
+    IntTypeVarConstraint,
     ParamAttrConstraint,
     VarConstraint,
     base,
@@ -49,6 +54,10 @@ def test_failing_inference():
 
 
 class Base(ParametrizedAttribute, ABC):
+    pass
+
+
+class Base2(ParametrizedAttribute, ABC):
     pass
 
 
@@ -283,7 +292,7 @@ def test_constraint_simplification(lhs: AttrConstraint, rhs: AttrConstraint):
             AnyAttr(),
             BaseAttr(AttrA),
             re.escape(
-                "Constraint AnyAttr() cannot appear in an `AnyOf` constraint as its bases aren't known"
+                "Constraint in `AnyOf` without bases must be a `BaseAttr` of a non-final abstract attribute class, got AnyAttr() instead."
             ),
         ),
         (
@@ -305,6 +314,27 @@ def test_constraint_simplification(lhs: AttrConstraint, rhs: AttrConstraint):
             BaseAttr(AttrA),
             re.escape(
                 "Non-equality constraint BaseAttr(AttrA) shares a base with a constraint in {EqAttrConstraint(attr=AttrA())} in `AnyOf` constraint."
+            ),
+        ),
+        (
+            BaseAttr(Base),
+            BaseAttr(Base2),
+            re.escape(
+                "Cannot form `AnyOf` constraint with both BaseAttr(Base2) and BaseAttr(Base), as they cannot be verified as disjoint."
+            ),
+        ),
+        (
+            BaseAttr(Base),
+            BaseAttr(AttrA),
+            re.escape(
+                "Non-equality constraint BaseAttr(AttrA) overlaps with the constraint BaseAttr(Base) in `AnyOf` constraint."
+            ),
+        ),
+        (
+            BaseAttr(Base),
+            EqAttrConstraint(AttrA()),
+            re.escape(
+                "Equality constraint EqAttrConstraint(attr=AttrA()) overlaps with the constraint BaseAttr(Base) in `AnyOf` constraint."
             ),
         ),
     ],
@@ -335,3 +365,13 @@ def test_any_of_overlapping(c1: AttrConstraint, c2: AttrConstraint, msg: str):
 )
 def test_any_of_non_overlapping(constrs: tuple[AttrConstraint, ...]):
     AnyOf(constrs)
+
+
+def test_mapping_type_vars():
+    _IntT = TypeVar("_IntT", bound=int, default=int)
+    tv_constr = IntTypeVarConstraint(_IntT, AnyInt())
+    int_attr_constr = IntAttrConstraint(tv_constr)
+    my_constr = EqIntConstraint(1)
+    assert int_attr_constr.mapping_type_vars({_IntT: my_constr}) == IntAttrConstraint(
+        my_constr
+    )

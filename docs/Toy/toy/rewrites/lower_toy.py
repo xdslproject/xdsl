@@ -61,12 +61,12 @@ def insert_alloc_and_dealloc(
 
     # Make sure to allocate at the beginning of the block.
     alloc = memref.AllocOp.get(type.element_type, None, type.shape)
-    rewriter.insert_op(alloc, InsertPoint.at_start(block))
+    rewriter.insert(alloc, InsertPoint.at_start(block))
 
     # Make sure to deallocate this alloc at the end of the block. This is fine as toy
     # functions have no control flow.
     dealloc = memref.DeallocOp.get(alloc)
-    rewriter.insert_op(dealloc, InsertPoint.before(block.last_op))
+    rewriter.insert(dealloc, InsertPoint.before(block.last_op))
 
     return alloc
 
@@ -114,7 +114,7 @@ def build_affine_for(
         region,
         step,
     )
-    builder.insert_op(op)
+    builder.insert(op)
     body_builder_fn(Builder(InsertPoint.at_end(block)), induction_var, rest)
     return op
 
@@ -192,7 +192,7 @@ def build_affine_loop_nest_impl(
             if i == e - 1:
                 body_builder_fn(nested_builder, ivs)
 
-            nested_builder.insert_op(affine.YieldOp.get())
+            nested_builder.insert(affine.YieldOp.get())
 
         # Delegate actual loop creation to the callback in order to dispatch
         # between constant- and variable-bound loops.
@@ -301,7 +301,7 @@ def lower_op_to_loops(
         # current index.
         value_to_store = process_iteration(nested_builder, operands, ivs)
         store_op = affine.StoreOp(value_to_store, alloc.memref, ivs)
-        nested_builder.insert_op(store_op)
+        nested_builder.insert(store_op)
 
     builder = Builder(InsertPoint.before(op))
     build_affine_loop_nest_const(
@@ -309,8 +309,8 @@ def lower_op_to_loops(
     )
     # Replace this operation with the generated alloc.
 
-    op.res.replace_by(alloc.memref)
-    rewriter.erase_matched_op()
+    op.res.replace_all_uses_with(alloc.memref)
+    rewriter.erase_op(op)
 
 
 # endregion Helpers
@@ -325,9 +325,9 @@ class AddOpLowering(RewritePattern):
             builder: Builder, memref_operands: _ValueRange, loop_ivs: _ValueRange
         ) -> SSAValue:
             # Generate loads for the element of 'lhs' and 'rhs' at the inner loop.
-            loaded_lhs = builder.insert_op(affine.LoadOp(op.lhs, loop_ivs))
-            loaded_rhs = builder.insert_op(affine.LoadOp(op.rhs, loop_ivs))
-            new_binop = builder.insert_op(arith.AddfOp(loaded_lhs, loaded_rhs))
+            loaded_lhs = builder.insert(affine.LoadOp(op.lhs, loop_ivs))
+            loaded_rhs = builder.insert(affine.LoadOp(op.rhs, loop_ivs))
+            new_binop = builder.insert(arith.AddfOp(loaded_lhs, loaded_rhs))
             return new_binop.result
 
         lower_op_to_loops(op, op.operands, rewriter, body)
@@ -340,9 +340,9 @@ class MulOpLowering(RewritePattern):
             builder: Builder, memref_operands: _ValueRange, loop_ivs: _ValueRange
         ) -> SSAValue:
             # Generate loads for the element of 'lhs' and 'rhs' at the inner loop.
-            loaded_lhs = builder.insert_op(affine.LoadOp(op.lhs, loop_ivs))
-            loaded_rhs = builder.insert_op(affine.LoadOp(op.rhs, loop_ivs))
-            new_binop = builder.insert_op(arith.MulfOp(loaded_lhs, loaded_rhs))
+            loaded_lhs = builder.insert(affine.LoadOp(op.lhs, loop_ivs))
+            loaded_rhs = builder.insert(affine.LoadOp(op.rhs, loop_ivs))
+            new_binop = builder.insert(arith.MulfOp(loaded_lhs, loaded_rhs))
             return new_binop.result
 
         lower_op_to_loops(op, op.operands, rewriter, body)
@@ -382,10 +382,10 @@ class ConstantOpLowering(RewritePattern):
         ]
 
         # Insert constants used before the alloc, not before matched operation
-        rewriter.insert_op(constants, InsertPoint.before(alloc))
+        rewriter.insert(constants, InsertPoint.before(alloc))
 
         # Replace the constant by the stores, and its result by the allocated value
-        rewriter.replace_matched_op(stores, (alloc.memref,))
+        rewriter.replace_op(op, stores, (alloc.memref,))
 
 
 class FuncOpLowering(RewritePattern):
@@ -408,7 +408,7 @@ class FuncOpLowering(RewritePattern):
             name, op.function_type, rewriter.move_region_contents_to_new_regions(region)
         )
 
-        rewriter.replace_matched_op(new_op)
+        rewriter.replace_op(op, new_op)
 
 
 class PrintOpLowering(RewritePattern):
@@ -425,7 +425,7 @@ class PrintOpLowering(RewritePattern):
         new_vals: list[SSAValue] = []
 
         for indices in product(*(range(dim) for dim in shape)):
-            rewriter.insert_op_before_matched_op(
+            rewriter.insert(
                 load := affine.LoadOp(
                     op.input,
                     (),
@@ -434,7 +434,7 @@ class PrintOpLowering(RewritePattern):
             )
             new_vals.append(load.result)
 
-        rewriter.replace_matched_op(printf.PrintFormatOp(format_str, *new_vals))
+        rewriter.replace_op(op, printf.PrintFormatOp(format_str, *new_vals))
 
 
 class ReturnOpLowering(RewritePattern):
@@ -444,7 +444,7 @@ class ReturnOpLowering(RewritePattern):
             "During this lowering, we expect that all function calls have been inlined."
         )
 
-        rewriter.replace_matched_op(func.ReturnOp())
+        rewriter.replace_op(op, func.ReturnOp())
 
 
 class TransposeOpLowering(RewritePattern):
@@ -455,7 +455,7 @@ class TransposeOpLowering(RewritePattern):
         ) -> SSAValue:
             # Transpose the elements by generating a load from the reverse indices.
             load_op = affine.LoadOp(op.arg, tuple(reversed(loop_ivs)))
-            builder.insert_op(load_op)
+            builder.insert(load_op)
             return load_op.result
 
         lower_op_to_loops(op, op.operands, rewriter, body)

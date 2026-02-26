@@ -15,7 +15,7 @@ builtin.module {
 
   // CHECK-GENERIC:      "func.func"() <{sym_name = "assert", function_type = () -> (), sym_visibility = "private"}> ({
   // CHECK-GENERIC-NEXT:     %{{.*}} = "arith.constant"() <{value = true}> : () -> i1
-  // CHECK-GENERIC-NEXT:     "cf.assert"(%{{.*}}) {msg = "some message"} : (i1) -> ()
+  // CHECK-GENERIC-NEXT:     "cf.assert"(%{{.*}}) <{msg = "some message"}> : (i1) -> ()
   // CHECK-GENERIC-NEXT:     "func.return"() : () -> ()
   // CHECK-GENERIC-NEXT:   }
 

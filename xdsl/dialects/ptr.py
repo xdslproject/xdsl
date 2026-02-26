@@ -39,9 +39,6 @@ from xdsl.traits import HasCanonicalizationPatternsTrait, Pure
 class PtrType(ParametrizedAttribute, TypeAttribute):
     name = "ptr_xdsl.ptr"
 
-    def __init__(self):
-        super().__init__()
-
 
 class PtrAddOpHasCanonicalizationPatterns(HasCanonicalizationPatternsTrait):
     @classmethod

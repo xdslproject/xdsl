@@ -6,19 +6,25 @@ from typing import ClassVar, cast
 
 from typing_extensions import Self
 
-from xdsl.dialects import memref
 from xdsl.dialects.builtin import (
+    DYNAMIC_INDEX,
     AnySignlessIntegerOrIndexType,
     ArrayAttr,
     DenseArrayBase,
     IndexType,
     IntegerAttr,
+    Region,
     ShapedType,
     TensorType,
+    UnitAttr,
     UnrankedTensorType,
     i64,
 )
+from xdsl.dialects.utils import (
+    AbstractYieldOperation,
+)
 from xdsl.dialects.utils.dynamic_index_list import (
+    DynamicIndexList,
     parse_dynamic_index_list_without_types,
     print_dynamic_index_list,
 )
@@ -36,14 +42,21 @@ from xdsl.irdl import (
     base,
     irdl_op_definition,
     operand_def,
+    opt_prop_def,
     prop_def,
+    region_def,
     result_def,
     traits_def,
     var_operand_def,
 )
 from xdsl.parser import Parser
 from xdsl.printer import Printer
-from xdsl.traits import NoMemoryEffect
+from xdsl.traits import (
+    IsTerminator,
+    NoMemoryEffect,
+    Pure,
+    SingleBlockImplicitTerminator,
+)
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -69,7 +82,7 @@ class CastOp(IRDLOperation):
 
     assembly_format = "$source attr-dict `:` type($source) `to` type($dest)"
 
-    traits = traits_def(NoMemoryEffect())
+    traits = traits_def(Pure())
 
     def __init__(self, source: SSAValue | Operation, dest: TensorType[Attribute]):
         super().__init__(operands=(source,), result_types=(dest,))
@@ -111,6 +124,8 @@ class DimOp(IRDLOperation):
 
     traits = traits_def(NoMemoryEffect())
 
+    assembly_format = "attr-dict $source `,` $index `:` type($source)"
+
     def __init__(
         self,
         source: SSAValue | Operation,
@@ -120,25 +135,6 @@ class DimOp(IRDLOperation):
         super().__init__(
             operands=(source, index), result_types=(IndexType(),), attributes=attributes
         )
-
-    def print(self, printer: Printer):
-        printer.print_op_attributes(self.attributes)
-        printer.print_string(" ")
-        printer.print_ssa_value(self.source)
-        printer.print_string(", ")
-        printer.print_ssa_value(self.index)
-        printer.print_string(" : ")
-        printer.print_attribute(self.source.type)
-
-    @classmethod
-    def parse(cls, parser: Parser) -> Self:
-        attributes = parser.parse_optional_attr_dict()
-        source = parser.parse_operand()
-        parser.parse_punctuation(",")
-        index = parser.parse_operand()
-        parser.parse_punctuation(":")
-        parser.parse_type()
-        return cls(source, index, attributes)
 
     def verify_(self):
         if isinstance((source_type := self.source.type), TensorType):
@@ -228,7 +224,7 @@ class CollapseShapeOp(IRDLOperation):
         "$src $reassociation attr-dict `:` type($src) `into` type($result)"
     )
 
-    traits = traits_def(NoMemoryEffect())
+    traits = traits_def(Pure())
 
 
 @irdl_op_definition
@@ -248,8 +244,9 @@ class ReshapeOp(IRDLOperation):
     source = operand_def(TensorType[Attribute])
     shape = operand_def(TensorType[AnySignlessIntegerOrIndexType])
     result = result_def(TensorType[Attribute])
+    assembly_format = "attr-dict $source `(` $shape `)` `:` `(` type($source) `,` type($shape) `)` `->` type($result)"
 
-    traits = traits_def(NoMemoryEffect())
+    traits = traits_def(Pure())
 
     def __init__(self, source: SSAValue, shape: SSAValue, result_type: Attribute):
         super().__init__(
@@ -259,43 +256,6 @@ class ReshapeOp(IRDLOperation):
             ),
             result_types=(result_type,),
         )
-
-    def print(self, printer: Printer):
-        printer.print_string(" ")
-        printer.print_ssa_value(self.source)
-        printer.print_string("(")
-        printer.print_ssa_value(self.shape)
-        printer.print_string(")")
-        printer.print_string(" : ")
-        printer.print_string("(")
-        printer.print_attribute(self.source.type)
-        printer.print_string(", ")
-        printer.print_attribute(self.shape.type)
-        printer.print_string(")")
-        printer.print_string(" -> ")
-        printer.print_attribute(self.result.type)
-
-    @classmethod
-    def parse(cls, parser: Parser) -> Self:
-        attrs = parser.parse_optional_attr_dict()
-        source = parser.parse_operand()
-        parser.parse_punctuation("(")
-        shape = parser.parse_operand()
-        parser.parse_punctuation(")")
-        parser.parse_punctuation(":")
-        parser.parse_punctuation("(")
-        parser.parse_comma_separated_list(Parser.Delimiter.NONE, parser.parse_type)
-        parser.parse_punctuation(")")
-        parser.parse_optional_punctuation("->")
-        result_type = parser.parse_attribute()
-
-        reshape = cls(
-            source,
-            shape,
-            result_type,
-        )
-        reshape.attributes |= attrs
-        return reshape
 
     def verify_(self) -> None:
         if not isinstance(
@@ -359,6 +319,8 @@ class ExpandShapeOp(IRDLOperation):
     static_output_shape = prop_def(DenseArrayBase.constr(i64))
 
     result = result_def(TensorType[Attribute])
+
+    traits = traits_def(Pure())
 
     def __init__(
         self,
@@ -474,9 +436,9 @@ class ExtractSliceOp(IRDLOperation):
     static_strides = prop_def(DenseArrayBase.constr(i64))
     result = result_def(TensorType)
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
-    traits = traits_def(NoMemoryEffect())
+    traits = traits_def(Pure())
 
     @staticmethod
     def from_static_parameters(
@@ -533,9 +495,9 @@ class InsertSliceOp(IRDLOperation):
     static_strides = prop_def(DenseArrayBase.constr(i64))
     result = result_def(TensorType)
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
-    traits = traits_def(NoMemoryEffect())
+    traits = traits_def(Pure())
 
     @staticmethod
     def get(
@@ -554,11 +516,11 @@ class InsertSliceOp(IRDLOperation):
         sizes = [] if sizes is None else sizes
         strides = [] if strides is None else strides
         if not static_offsets:
-            static_offsets = [memref.SubviewOp.DYNAMIC_INDEX] * len(offsets) + (
+            static_offsets = [DYNAMIC_INDEX] * len(offsets) + (
                 [0] * (dims - len(offsets))
             )
         if not static_strides:
-            static_strides = [memref.SubviewOp.DYNAMIC_INDEX] * len(strides) + (
+            static_strides = [DYNAMIC_INDEX] * len(strides) + (
                 [1] * (dims - len(strides))
             )
         return InsertSliceOp.build(
@@ -630,6 +592,7 @@ class ExtractOp(IRDLOperation):
     indices = var_operand_def(IndexType)
     result = result_def(Attribute)
     # assembly_format = "$tensor `[` $indices `]` attr-dict `:` type($tensor)"
+    traits = traits_def(Pure())
 
     def __init__(
         self,
@@ -681,6 +644,7 @@ class InsertOp(IRDLOperation):
     indices = var_operand_def(IndexType)
     result = result_def(TensorType)
     # assembly_format = "$scalar `into` $dest `[` $indices `]` attr-dict `:` type($dest)"
+    traits = traits_def(Pure())
 
     def __init__(
         self,
@@ -735,6 +699,7 @@ class FromElementsOp(IRDLOperation):
     elements = var_operand_def(ELEMENT_TYPE)
     result = result_def(TensorType.constr(ELEMENT_TYPE))
     assembly_format = "$elements attr-dict `:` type($result)"
+    traits = traits_def(Pure())
 
 
 @irdl_op_definition
@@ -758,7 +723,7 @@ class SplatOp(IRDLOperation):
     result = result_def(TensorType.constr(SPLAT_TYPE))
     assembly_format = "$input (`[` $dynamicSizes^ `]`)? attr-dict `:` type($result)"
 
-    traits = traits_def(NoMemoryEffect())
+    traits = traits_def(Pure())
 
     def __init__(
         self,
@@ -769,9 +734,125 @@ class SplatOp(IRDLOperation):
         super().__init__(operands=(input, dynamicSizes), result_types=(result_type,))
 
     def verify_(self):
-        if self.result.type.get_shape().count(-1) != len(self.dynamicSizes):
+        if self.result.type.get_shape().count(DYNAMIC_INDEX) != len(self.dynamicSizes):
             raise VerifyException(
                 "number of dynamic sizes must equal number of unknown dimensions in result tensor"
+            )
+
+
+@irdl_op_definition
+class YieldOp(AbstractYieldOperation[Attribute]):
+    name = "tensor.yield"
+
+    traits = traits_def(IsTerminator())
+
+
+@irdl_op_definition
+class PadOp(IRDLOperation):
+    """
+    Tensor pad operation.
+
+    tensor.pad is an operation that pads the source tensor with given low and high padding config.
+
+    https://mlir.llvm.org/docs/Dialects/TensorOps/#tensorpad-tensorpadop
+    """
+
+    name = "tensor.pad"
+
+    source = operand_def(base(TensorType[Attribute]))
+    low = var_operand_def(IndexType)
+    high = var_operand_def(IndexType)
+    static_low = prop_def(DenseArrayBase.constr(i64))
+    static_high = prop_def(DenseArrayBase.constr(i64))
+    nofold = opt_prop_def(UnitAttr)
+    region = region_def("single_block")
+    result = result_def(TensorType[Attribute])
+
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
+
+    assembly_format = (
+        "$source "
+        "(`nofold` $nofold^)? "
+        "`low` `` custom<DynamicIndexList>($low, $static_low) "
+        "`high` `` custom<DynamicIndexList>($high, $static_high) "
+        "$region attr-dict `:` type($source) `to` type($result)"
+    )
+
+    custom_directives = (DynamicIndexList,)
+    traits = traits_def(Pure(), SingleBlockImplicitTerminator(YieldOp))
+
+    def __init__(
+        self,
+        source: SSAValue | Operation,
+        low: Sequence[SSAValue],
+        high: Sequence[SSAValue],
+        region: Region,
+        static_low: Sequence[int] | DenseArrayBase,
+        static_high: Sequence[int] | DenseArrayBase,
+        nofold: UnitAttr,
+        result_type: TensorType[Attribute],
+        attributes: dict[str, Attribute] | None = None,
+    ):
+        if not isinstance(static_low, DenseArrayBase):
+            static_low = DenseArrayBase.from_list(i64, static_low)
+
+        if not isinstance(static_high, DenseArrayBase):
+            static_high = DenseArrayBase.from_list(i64, static_high)
+
+        super().__init__(
+            operands=[source, low, high],
+            result_types=[result_type],
+            properties={
+                "static_low": static_low,
+                "static_high": static_high,
+                "nofold": nofold,
+            },
+            attributes=attributes,
+            regions=[region],
+        )
+
+    def verify_(self):
+        if len(self.static_low) != len(self.static_high):
+            raise VerifyException(
+                f"pad sizes low ({len(self.static_low)}) and high ({len(self.static_high)})"
+                " must have an equal number of dimensions"
+            )
+        source_type = self.source.type
+        if isinstance(source_type, TensorType) and len(self.static_low) != len(
+            source_type.get_shape()
+        ):
+            raise VerifyException(
+                f"number of pad sizes ({len(self.static_low)}) must equal number of dimensions"
+                f" in source tensor ({len(source_type.get_shape())})"
+            )
+        dynamic_dims = tuple(
+            i
+            for i, (l, h) in enumerate(
+                zip(
+                    self.static_low.get_values(),
+                    self.static_high.get_values(),
+                    strict=True,
+                )
+            )
+            if l == DYNAMIC_INDEX or h == DYNAMIC_INDEX
+        )
+        result_dynamic_dims = tuple(
+            i for i, s in enumerate(self.result.type.get_shape()) if s == DYNAMIC_INDEX
+        )
+        if len(result_dynamic_dims) != len(dynamic_dims):
+            raise VerifyException(
+                f"number of dynamic sizes ({len(dynamic_dims)})"
+                f" must equal number of unknown dimensions in result tensor ({len(result_dynamic_dims)})"
+            )
+        if result_dynamic_dims != dynamic_dims:
+            raise VerifyException(
+                f"dynamic dimensions {dynamic_dims} don't correspond"
+                f" with dynamic dimensions in the result tensor {result_dynamic_dims}"
+            )
+        if len(self.region.block.args) != len(self.static_low):
+            raise VerifyException(
+                "region must have an arg for each dimension of the source tensor"
+                f" ({len(self.static_low)}) but region has ({len(self.region.block.args)})"
             )
 
 
@@ -790,6 +871,8 @@ Tensor = Dialect(
         InsertSliceOp,
         ReshapeOp,
         SplatOp,
+        PadOp,
+        YieldOp,
     ],
     [],
 )

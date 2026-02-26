@@ -56,6 +56,9 @@
 %apply_dim, %apply_sym = "test.op"() : () -> (index, index)
 %apply_res = affine.apply affine_map<(d0)[s0] -> (((d0 + (s0 * 42)) + -1))> (%apply_dim)[%apply_sym]
 
+// CHECK-NEXT:    "test.op"(%apply_res_4) : (index) -> ()
+"test.op"(%apply_res) : (index) -> ()
+
 // CHECK-NEXT:  }
 
 // CHECK-NOT: "affine.

@@ -20,7 +20,7 @@ builtin.module {
   %3 = "csl.addressof"(%c) : (memref<1024xf32>) -> !csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const var>>
   "csl.export"(%1) <{"var_name" = "a", "type" = !csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const var>>}> : (!csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const var>>) -> ()
   "csl.export"(%2) <{"var_name" = "b", "type" = !csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const var>>}> : (!csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const var>>) -> ()
-  "csl.export"(%2) <{"var_name" = "c", "type" = !csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const var>>}> : (!csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const var>>) -> ()
+  "csl.export"(%3) <{"var_name" = "c", "type" = !csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const var>>}> : (!csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const var>>) -> ()
 
 // CHECK-NEXT: %0 = "test.op"() : () -> index
 // CHECK-NEXT: %a = "csl.zeros"() : () -> memref<512xf32>
@@ -51,7 +51,7 @@ builtin.module {
 // CHECK-NEXT: %3 = "csl.addressof"(%c) : (memref<1024xf32>) -> !csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const var>>
 // CHECK-NEXT: "csl.export"(%1) <{var_name = "a", type = !csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const var>>}> : (!csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const var>>) -> ()
 // CHECK-NEXT: "csl.export"(%2) <{var_name = "b", type = !csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const var>>}> : (!csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const var>>) -> ()
-// CHECK-NEXT: "csl.export"(%2) <{var_name = "c", type = !csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const var>>}> : (!csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const var>>) -> ()
+// CHECK-NEXT: "csl.export"(%3) <{var_name = "c", type = !csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const var>>}> : (!csl.ptr<f32, #csl<ptr_kind many>, #csl<ptr_const var>>) -> ()
 
 
   %23 = memref.alloc() {"alignment" = 64 : i64} : memref<10xi32>
@@ -98,13 +98,13 @@ builtin.module {
 // CHECK-NEXT: %26 = "test.op"() : () -> !csl<dsd mem1d_dsd>
 // CHECK-NEXT: "csl.fadds"(%26, %26, %26) : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>) -> ()
 
-%33 = "csl.variable"() : () -> !csl.var<memref<512xf32>>
-%34 = "csl.load_var"(%33) : (!csl.var<memref<512xf32>>) -> memref<512xf32>
-"csl.store_var"(%33, %34) : (!csl.var<memref<512xf32>>, memref<512xf32>) -> ()
+%33 = csl.variable() : !csl.var<memref<512xf32>>
+%34 = csl.load_var(%33 : !csl.var<memref<512xf32>>) : memref<512xf32>
+csl.store_var %33 : !csl.var<memref<512xf32>> = %34 : memref<512xf32>
 
-// CHECK-NEXT: %27 = "csl.variable"() : () -> !csl.var<!csl<dsd mem1d_dsd>>
-// CHECK-NEXT: %28 = "csl.load_var"(%27) : (!csl.var<!csl<dsd mem1d_dsd>>) -> !csl<dsd mem1d_dsd>
-// CHECK-NEXT: "csl.store_var"(%27, %28) : (!csl.var<!csl<dsd mem1d_dsd>>, !csl<dsd mem1d_dsd>) -> ()
+// CHECK-NEXT: %27 = csl.variable() : !csl.var<!csl<dsd mem1d_dsd>>
+// CHECK-NEXT: %28 = csl.load_var(%27 : !csl.var<!csl<dsd mem1d_dsd>>) : !csl<dsd mem1d_dsd>
+// CHECK-NEXT: csl.store_var %27 : !csl.var<!csl<dsd mem1d_dsd>> = %28 : !csl<dsd mem1d_dsd>
 
 // ensure that pre-existing get_mem_dsd ops access the underlying buffer, not the get_mem_dsd created on top of it
 
@@ -115,13 +115,14 @@ builtin.module {
 // CHECK-NEXT: %30 = "csl.get_mem_dsd"(%b, %29) : (memref<510xf32>, i16) -> !csl<dsd mem1d_dsd>
 
 %38 = memref.load %b[%28] : memref<510xf32>
-"test.op"(%38) : (f32) -> ()
 
 // CHECK-NEXT: %31 = memref.load %b[%13] : memref<510xf32>
-// CHECK-NEXT: "test.op"(%31) : (f32) -> ()
 
 %39 = memref.alloc() {"alignment" = 64 : i64} : memref<3x64xf32>
 %40 = "memref.subview"(%39, %0) <{operandSegmentSizes = array<i32: 1, 1, 0, 0>, "static_offsets" = array<i64: 2, -9223372036854775808>, "static_sizes" = array<i64: 1, 32>, "static_strides" = array<i64: 1, 1>}> : (memref<3x64xf32>, index) -> memref<32xf32, strided<[1], offset: ?>>
+
+// add a user for all these values to ensure they aren't eliminated:
+"test.op"(%29, %30, %31, %37, %38, %40) : (memref<510xf32, strided<[1]>>, memref<510xf32, strided<[2], offset: 1>>, !csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, f32, memref<32xf32, strided<[1], offset: ?>>) -> ()
 
 // CHECK-NEXT: %32 = "csl.zeros"() : () -> memref<3x64xf32>
 // CHECK-NEXT: %33 = arith.constant 3 : i16
@@ -131,6 +132,7 @@ builtin.module {
 // CHECK-NEXT: %37 = "csl.get_mem_dsd"(%32, %36) <{tensor_access = affine_map<(d0) -> (2, d0)>}> : (memref<3x64xf32>, i16) -> !csl<dsd mem1d_dsd>
 // CHECK-NEXT: %38 = arith.index_cast %0 : index to i16
 // CHECK-NEXT: %39 = "csl.increment_dsd_offset"(%37, %38) <{elem_type = f32}> : (!csl<dsd mem1d_dsd>, i16) -> !csl<dsd mem1d_dsd>
+// CHECK-NEXT: "test.op"(%19, %25, %26, %30, %31, %39) : (!csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, !csl<dsd mem1d_dsd>, f32, !csl<dsd mem1d_dsd>) -> ()
 
 }) {sym_name = "program"} :  () -> ()
 }

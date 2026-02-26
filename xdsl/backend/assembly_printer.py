@@ -2,8 +2,9 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 
+from xdsl.backend.register_type import RegisterType
 from xdsl.dialects.builtin import ModuleOp, StringAttr
-from xdsl.ir import Operation
+from xdsl.ir import Operation, SSAValue
 from xdsl.utils.base_printer import BasePrinter
 
 
@@ -75,3 +76,19 @@ class OneLineAssemblyPrintable(AssemblyPrintable, ABC):
         if line is not None:
             printer.print_string(line)
             printer.print_string("\n")
+
+
+# region: Assembly arg printing utilities
+
+
+def reg(value: SSAValue) -> str:
+    """
+    A wrapper around SSAValue to be printed in assembly.
+    Only valid if the type of the value is a RegisterType.
+    """
+
+    assert isinstance(value.type, RegisterType)
+    return value.type.register_name.data
+
+
+# endregion

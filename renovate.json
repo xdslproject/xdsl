@@ -13,5 +13,9 @@
   },
   "nix": {
     "enabled": true
+  },
+  "rangeStrategy": "replace",
+  "lockFileMaintenance": {
+    "enabled": true
   }
 }

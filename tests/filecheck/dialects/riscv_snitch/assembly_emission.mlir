@@ -2,8 +2,8 @@
 
 
 riscv_func.func @main() {
-  %0 = riscv.get_register : !riscv.reg<a0>
-  %1 = riscv.get_register : !riscv.reg<a1>
+  %0 = rv32.get_register : !riscv.reg<a0>
+  %1 = rv32.get_register : !riscv.reg<a1>
 
   %readable = riscv_snitch.get_stream : !snitch.readable<!riscv.freg<ft0>>
   %writable = riscv_snitch.get_stream : !snitch.writable<!riscv.freg<ft1>>

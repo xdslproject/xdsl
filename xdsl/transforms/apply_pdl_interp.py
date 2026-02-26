@@ -41,10 +41,12 @@ class PDLInterpRewritePattern(RewritePattern):
 
     def match_and_rewrite(self, xdsl_op: Operation, rewriter: PatternRewriter) -> None:
         # Setup the rewriter
-        self.functions.rewriter = rewriter
+        self.functions.set_rewriter(self.interpreter, rewriter)
 
         # Call the matcher function on the operation
         self.interpreter.call_op(self.matcher, (xdsl_op,))
+        self.functions.apply_pending_rewrites(self.interpreter)
+        self.functions.set_rewriter(self.interpreter, None)
 
 
 @dataclass(frozen=True)
@@ -69,7 +71,8 @@ class ApplyPDLInterpPass(ModulePass):
                 break
         assert matcher is not None, "matcher function not found"
         interpreter = Interpreter(pdl_interp_module)
-        implementations = PDLInterpFunctions(ctx)
+        implementations = PDLInterpFunctions()
+        PDLInterpFunctions.set_ctx(interpreter, ctx)
         interpreter.register_implementations(implementations)
         rewrite_pattern = PDLInterpRewritePattern(matcher, interpreter, implementations)
         PatternRewriteWalker(rewrite_pattern).rewrite_module(op)

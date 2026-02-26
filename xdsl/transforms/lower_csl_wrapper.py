@@ -17,7 +17,7 @@ from xdsl.pattern_rewriter import (
 from xdsl.rewriter import InsertPoint
 from xdsl.utils.hints import isa
 
-__DEFAULT_PROG_NAME = "pe_program"
+_DEFAULT_PROG_NAME = "pe_program"
 """
 This is the name which will be used by the layout module when calling
 `@set_tile_code` if the `csl_wrapper.module` does not provide a `program_name`.
@@ -32,7 +32,7 @@ class ExtractCslModules(RewritePattern):
     def match_and_rewrite(self, op: csl_wrapper.ModuleOp, rewriter: PatternRewriter, /):
         program_module = self.lower_program_module(op, rewriter)
         layout_module = self.lower_layout_module(op, rewriter)
-        rewriter.replace_matched_op([layout_module, program_module])
+        rewriter.replace_op(op, [layout_module, program_module])
 
     def _collect_params(
         self, op: csl_wrapper.ModuleOp
@@ -112,7 +112,7 @@ class ExtractCslModules(RewritePattern):
                   `csl.param` for each of them.
         """
 
-        prog_name = op.program_name.data if op.program_name else __DEFAULT_PROG_NAME
+        prog_name = op.program_name.data if op.program_name else _DEFAULT_PROG_NAME
         module_block = Block()
 
         outer_loop_block = Block()
@@ -207,7 +207,7 @@ class ExtractCslModules(RewritePattern):
                   `csl.param` for each of them.
         """
 
-        prog_name = op.program_name.data if op.program_name else __DEFAULT_PROG_NAME
+        prog_name = op.program_name.data if op.program_name else _DEFAULT_PROG_NAME
         module_block = Block()
         with ImplicitBuilder(module_block):
             param_width, param_height, params_from_block_args = self._collect_params(op)
@@ -306,9 +306,9 @@ class LowerImport(RewritePattern):
         )
         import_.result.name_hint = Path(op.module.data.strip("<>")).stem
 
-        rewriter.insert_op(ops, InsertPoint.at_start(csl_mod.body.block))
-        rewriter.insert_op(structs, InsertPoint.before(op))
-        rewriter.replace_matched_op(import_)
+        rewriter.insert(ops, InsertPoint.at_start(csl_mod.body.block))
+        rewriter.insert(structs, InsertPoint.before(op))
+        rewriter.replace_op(op, import_)
 
 
 @dataclass(frozen=True)

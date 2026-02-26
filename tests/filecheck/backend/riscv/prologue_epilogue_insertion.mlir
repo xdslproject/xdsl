@@ -20,7 +20,7 @@ riscv_func.func @main() {
   %fs1 = riscv.get_float_register : !riscv.freg<fs1>
   // Clobber only fs2.
   %sum1 = riscv.fadd.s %fs0, %fs1 : (!riscv.freg<fs0>, !riscv.freg<fs1>) -> !riscv.freg<fs2>
-  %zero = riscv.get_register : !riscv.reg<zero>
+  %zero = rv32.get_register : !riscv.reg<zero>
   // Clobber s5.
   %0 = riscv.mv %zero : (!riscv.reg<zero>) -> !riscv.reg<s5>
   riscv_cf.blt %0 : !riscv.reg<s5>, %zero : !riscv.reg<zero>, ^bb0(), ^bb1()
@@ -53,14 +53,14 @@ riscv_func.func @main() {
 
 // CHECK: func @simple
 riscv_func.func @simple(%0 : !riscv.reg<a0>, %1 : !riscv.reg<a1>) -> !riscv.reg<a0> {
-  // CHECK-NOT: %{{.*}} = riscv.get_register : !riscv.reg<sp>
+  // CHECK-NOT: %{{.*}} = rv32.get_register : !riscv.reg<sp>
   // CHECK-NOT: %{{.*}} = riscv.addi %{{.*}}, 0 : (!riscv.reg<sp>) -> !riscv.reg<sp>
 
   // CHECK-NEXT: %{{.*}} = riscv.mv %{{\S+}}
   // CHECK-SAME: (!riscv.reg<a0>) -> !riscv.reg<t0>
   %2 = riscv.mv %0 : (!riscv.reg<a0>) -> !riscv.reg<t0>
   %3 = riscv.mv %1 : (!riscv.reg<a1>) -> !riscv.reg<t2>
-  %4 = riscv.li 10 : !riscv.reg<t1>
+  %4 = rv32.li 10 : !riscv.reg<t1>
   %5 = riscv.add %2, %3 : (!riscv.reg<t0>, !riscv.reg<t2>) -> !riscv.reg<t0>
   %6 = riscv.add %5, %4 : (!riscv.reg<t0>, !riscv.reg<t1>) -> !riscv.reg<t0>
   %7 = riscv.mv %6 : (!riscv.reg<t0>) -> !riscv.reg<a0>
@@ -74,7 +74,7 @@ riscv_func.func @simple(%0 : !riscv.reg<a0>, %1 : !riscv.reg<a1>) -> !riscv.reg<
 
 // CHECK: func @simplefp
 riscv_func.func @simplefp(%0 : !riscv.freg<fa0>, %1 : !riscv.freg<fa1>) -> !riscv.freg<fa0> {
-  // CHECK-NOT: %{{.*}} = riscv.get_register : !riscv.reg<sp>
+  // CHECK-NOT: %{{.*}} = rv32.get_register : !riscv.reg<sp>
   // CHECK-NOT: %{{.*}} = riscv.addi %{{.*}}, 0 : (!riscv.reg<sp>) -> !riscv.reg<sp>
 
   // CHECK-NEXT: %{{.*}} = riscv.fmv.s %{{\S+}}

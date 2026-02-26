@@ -2,11 +2,11 @@
 
 builtin.module {
   riscv_func.func public @main() {
-    %0 = riscv.li 6 : !riscv.reg<j_0>
-    %1 = riscv.li 7 : !riscv.reg<j_1>
+    %0 = rv32.li 6 : !riscv.reg<j_0>
+    %1 = rv32.li 7 : !riscv.reg<j_1>
     %2 = riscv.mul %0, %1 : (!riscv.reg<j_0>, !riscv.reg<j_1>) -> !riscv.reg<j_2>
     riscv.custom_assembly_instruction %2 {"instruction_name" = "print"} : (!riscv.reg<j_2>) -> ()
-    %3 = riscv.li 93 : !riscv.reg<a7>
+    %3 = rv32.li 93 : !riscv.reg<a7>
     riscv.ecall
     riscv_func.return
   }
@@ -18,12 +18,12 @@ builtin.module {
 
 builtin.module {
   riscv_func.func public @main() {
-    %0 = riscv.li 3 : !riscv.reg<a0>
-    %1 = riscv.li 2 : !riscv.reg<a1>
-    %2 = riscv.li 1 : !riscv.reg<a2>
+    %0 = rv32.li 3 : !riscv.reg<a0>
+    %1 = rv32.li 2 : !riscv.reg<a1>
+    %2 = rv32.li 1 : !riscv.reg<a2>
     %xyz = riscv_func.call @muladd(%0, %1, %2) : (!riscv.reg<a0>, !riscv.reg<a1>, !riscv.reg<a2>) -> !riscv.reg<a0>
     riscv.custom_assembly_instruction %xyz {"instruction_name" = "print"} : (!riscv.reg<a0>) -> ()
-    %4 = riscv.li 93 : !riscv.reg<a7>
+    %4 = rv32.li 93 : !riscv.reg<a7>
     riscv.ecall
     riscv_func.return
   }
@@ -40,9 +40,9 @@ builtin.module {
   riscv_func.func @muladd(%x : !riscv.reg<a0>, %y : !riscv.reg<a1>, %z : !riscv.reg<a2>) {
     "riscv.comment"() {"comment" = "a0 <- a0 * a1 + a2"} : () -> ()
     "riscv.comment"() {"comment" = "prologue"} : () -> ()
-    %12 = riscv.get_register : !riscv.reg<sp>
-    %13 = riscv.get_register : !riscv.reg<s0>
-    %14 = riscv.get_register : !riscv.reg<ra>
+    %12 = rv32.get_register : !riscv.reg<sp>
+    %13 = rv32.get_register : !riscv.reg<s0>
+    %14 = rv32.get_register : !riscv.reg<ra>
     "riscv.comment"() {"comment" = "decrement stack pointer by number of register values we need to store for later"} : () -> ()
     %15 = riscv.addi %12, -8 : (!riscv.reg<sp>) -> !riscv.reg<sp>
     "riscv.comment"() {"comment" = "save the s registers we'll use on the stack"} : () -> ()
@@ -71,11 +71,11 @@ builtin.module {
 
 builtin.module {
   riscv_func.func public @main() {
-    %0 = riscv.li 6 : !riscv.reg<j_0>
-    %1 = riscv.li 7 : !riscv.reg<j_1>
+    %0 = rv32.li 6 : !riscv.reg<j_0>
+    %1 = rv32.li 7 : !riscv.reg<j_1>
     %2 = riscv.mul %0, %1 : (!riscv.reg<j_0>, !riscv.reg<j_1>) -> !riscv.reg<j_2>
     riscv_debug.printf %0, %1, %2 "{} x {} = {}" : (!riscv.reg<j_0>, !riscv.reg<j_1>, !riscv.reg<j_2>) -> ()
-    %3 = riscv.li 93 : !riscv.reg<a7>
+    %3 = rv32.li 93 : !riscv.reg<a7>
     riscv.ecall
     riscv_func.return
   }

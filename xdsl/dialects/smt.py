@@ -2,11 +2,12 @@ from __future__ import annotations
 
 from abc import ABC
 from collections.abc import Sequence
-from typing import ClassVar, TypeAlias
+from typing import ClassVar, TypeAlias, overload
 
 from typing_extensions import Self
 
 from xdsl.dialects.builtin import ArrayAttr, BoolAttr, IntAttr, StringAttr
+from xdsl.interfaces import HasFolderInterface
 from xdsl.ir import (
     Attribute,
     Dialect,
@@ -264,7 +265,7 @@ class ApplyFuncOp(IRDLOperation):
 
 
 @irdl_op_definition
-class ConstantBoolOp(IRDLOperation):
+class ConstantBoolOp(IRDLOperation, HasFolderInterface):
     """
     This operation represents a constant boolean value. The semantics are
     equivalent to the ‘true’ and ‘false’ keywords in the Core theory of the
@@ -287,6 +288,9 @@ class ConstantBoolOp(IRDLOperation):
     @property
     def value(self) -> bool:
         return bool(self.value_attr)
+
+    def fold(self) -> tuple[BoolAttr]:
+        return (self.value_attr,)
 
 
 @irdl_op_definition
@@ -600,7 +604,7 @@ class AssertOp(IRDLOperation):
 
 
 @irdl_op_definition
-class BvConstantOp(IRDLOperation):
+class BvConstantOp(IRDLOperation, HasFolderInterface):
     """
     This operation produces an SSA value equal to the bitvector constant specified
     by the ‘value’ attribute.
@@ -615,19 +619,29 @@ class BvConstantOp(IRDLOperation):
 
     assembly_format = "qualified($value) attr-dict"
 
-    traits = traits_def(ConstantLike(), Pure())
+    traits = traits_def(Pure(), ConstantLike())
 
-    def __init__(self, value: BitVectorAttr) -> None:
-        super().__init__(properties={"value": value}, result_types=[value.type])
+    @overload
+    def __init__(self, value: BitVectorAttr) -> None: ...
 
-    @staticmethod
-    def from_value_and_type(value: int, type: BitVectorType | int) -> BvConstantOp:
+    @overload
+    def __init__(self, value: int, type: BitVectorType | int) -> None: ...
+
+    def __init__(
+        self, value: BitVectorAttr | int, type: int | BitVectorType | None = None
+    ):
         """
         Create a new `BvConstantOp` from a value and a bitvector width.
         """
-        if isinstance(type, int):
-            type = BitVectorType(type)
-        return BvConstantOp(BitVectorAttr(value, type))
+        if not isinstance(value, BitVectorAttr):
+            if isinstance(type, int):
+                type = BitVectorType(type)
+            assert isinstance(type, BitVectorType)
+            value = BitVectorAttr(value, type)
+        super().__init__(properties={"value": value}, result_types=[value.type])
+
+    def fold(self) -> tuple[Attribute]:
+        return (self.value,)
 
 
 class UnaryBVOp(IRDLOperation, ABC):

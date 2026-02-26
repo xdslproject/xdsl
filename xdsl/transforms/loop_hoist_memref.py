@@ -5,7 +5,6 @@ from xdsl.ir import Block, Operation, Region, SSAValue
 from xdsl.irdl import Operand
 from xdsl.passes import Context, ModulePass
 from xdsl.pattern_rewriter import (
-    GreedyRewritePatternApplier,
     PatternRewriter,
     PatternRewriteWalker,
     RewritePattern,
@@ -133,7 +132,7 @@ class LoopHoistMemRef(RewritePattern):
 
         # hoist new loads before the current loop
         new_loads = [load.clone() for load in load_store_pairs.keys()]
-        rewriter.insert_op(new_loads, InsertPoint.before(for_op))
+        rewriter.insert(new_loads, InsertPoint.before(for_op))
 
         new_body = Region()
         block_map: dict[Block, Block] = {}
@@ -159,7 +158,7 @@ class LoopHoistMemRef(RewritePattern):
         toerase_ops: list[Operation] = []
         for new_block_arg, load in zip(new_block_args, load_store_pairs.keys()):
             interim_load = load_map[load]
-            interim_load.res.replace_by(new_block_arg)
+            interim_load.res.replace_all_uses_with(new_block_arg)
             toerase_ops.append(interim_load)
 
         new_yield_vals: list[Operand] = []
@@ -183,9 +182,9 @@ class LoopHoistMemRef(RewritePattern):
             memref.StoreOp.get(new_for_op.res[idx], store.memref, store.indices)
             for idx, store in enumerate(load_store_pairs.values())
         ]
-        rewriter.insert_op(new_stores, InsertPoint.after(for_op))
+        rewriter.insert(new_stores, InsertPoint.after(for_op))
 
-        rewriter.insert_op(new_for_op, InsertPoint.before(for_op))
+        rewriter.insert(new_for_op, InsertPoint.before(for_op))
         rewriter.erase_op(for_op)
 
 
@@ -195,11 +194,7 @@ class LoopHoistMemRefPass(ModulePass):
 
     def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         PatternRewriteWalker(
-            GreedyRewritePatternApplier(
-                [
-                    LoopHoistMemRef(),
-                ]
-            ),
+            LoopHoistMemRef(),
             walk_regions_first=True,
             apply_recursively=True,
         ).rewrite_module(op)

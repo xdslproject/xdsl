@@ -247,7 +247,7 @@ class ApplyOp(IRDLOperation):
         RecursiveMemoryEffect(),
     )
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
     def print(self, printer: Printer):
         def print_arg(arg: SSAValue):

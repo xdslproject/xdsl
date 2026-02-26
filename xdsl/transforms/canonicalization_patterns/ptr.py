@@ -14,7 +14,7 @@ class RedundantFromPtr(RewritePattern):
             return
 
         if origin.source.type == op.res.type:
-            rewriter.replace_matched_op((), (origin.source,))
+            rewriter.replace_op(op, (), (origin.source,))
 
 
 class RedundantToPtr(RewritePattern):
@@ -24,7 +24,7 @@ class RedundantToPtr(RewritePattern):
             return
 
         if origin.source.type == op.res.type:
-            rewriter.replace_matched_op((), (origin.source,))
+            rewriter.replace_op(op, (), (origin.source,))
 
 
 class PtrAddZero(RewritePattern):
@@ -35,4 +35,4 @@ class PtrAddZero(RewritePattern):
             and isinstance(offset_op.value, IntegerAttr)
             and offset_op.value.value.data == 0
         ):
-            rewriter.replace_matched_op((), (op.addr,))
+            rewriter.replace_op(op, (), (op.addr,))

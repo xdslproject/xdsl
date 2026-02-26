@@ -9,7 +9,7 @@ from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import Dialect
 
 from .ops import CmpRegOp, DSMovOp, DSSMulOp, GetRegisterOp, LabelOp
-from .register import IntRegisterType
+from .registers import IntRegisterType
 
 
 def print_assembly(module: ModuleOp, output: IO[str]) -> None:

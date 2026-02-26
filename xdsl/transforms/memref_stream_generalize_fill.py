@@ -41,7 +41,8 @@ class GeneralizeFillPattern(RewritePattern):
         index = IndexType()
         ubs = ArrayAttr(IntegerAttr(ub, index) for ub in shape)
 
-        rewriter.replace_matched_op(
+        rewriter.replace_op(
+            op,
             memref_stream.GenericOp(
                 (op.value,),
                 (op.memref,),
@@ -56,7 +57,7 @@ class GeneralizeFillPattern(RewritePattern):
                 ArrayAttr((memref_stream.IteratorTypeAttr.parallel(),) * len(shape)),
                 ubs,
                 ArrayAttr(()),
-            )
+            ),
         )
 
 

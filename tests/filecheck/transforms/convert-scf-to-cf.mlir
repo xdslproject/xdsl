@@ -61,6 +61,7 @@ func.func @if(%b : i1) -> (i32) {
 
 func.func @if_no_else(%b : i1) {
   scf.if %b {
+    "test.op"() : () -> ()
     scf.yield
   }
   func.return
@@ -69,6 +70,7 @@ func.func @if_no_else(%b : i1) {
 // CHECK:      func.func @if_no_else(%b : i1) {
 // CHECK-NEXT:   cf.cond_br %b, ^bb[[#b1:]], ^bb[[#b2:]]
 // CHECK-NEXT: ^bb[[#b1]]:
+// CHECK-NEXT:   "test.op"() : () -> ()
 // CHECK-NEXT:   cf.br ^bb{{.*}}
 // CHECK-NEXT: ^bb[[#b2]]:
 // CHECK-NEXT:   func.return
@@ -80,7 +82,6 @@ func.func @nested(%n : index) -> (index) {
 
   %zero = arith.constant 0 : index
   %one = arith.constant 1 : index
-  %two = arith.constant 2 : index
 
   %sum = scf.for %iv = %zero to %n step %one
     iter_args(%sum_iter = %sum_0) -> (index) : index {
@@ -102,7 +103,6 @@ func.func @nested(%n : index) -> (index) {
 // CHECK-NEXT:   %sum = arith.constant 0 : index
 // CHECK-NEXT:   %zero = arith.constant 0 : index
 // CHECK-NEXT:   %one = arith.constant 1 : index
-// CHECK-NEXT:   %two = arith.constant 2 : index
 // CHECK-NEXT:   cf.br ^bb[[#b0:]](%zero, %sum : index, index)
 // CHECK-NEXT: ^bb[[#b0]](%iv : index, %sum_iter : index):
 // CHECK-NEXT:   %[[#v0:]] = arith.cmpi slt, %iv, %n : index

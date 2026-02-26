@@ -37,9 +37,9 @@ def test_func():
     # Create a region to include a, b, c
     @Builder.region
     def region0(builder: Builder):
-        builder.insert_op(a)
-        builder.insert_op(b)
-        builder.insert_op(c)
+        builder.insert(a)
+        builder.insert(b)
+        builder.insert(c)
 
     # Use this region to create a func0
     func0 = FuncOp.from_region("func0", [], [], region0)
@@ -68,10 +68,10 @@ def test_func():
 def test_func_II():
     # Create constants and add them, add them in blocks, blocks in
     # a region and create a function
-    a = ConstantOp(IntegerAttr.from_int_and_width(1, 32), i32)
-    b = ConstantOp(IntegerAttr.from_int_and_width(2, 32), i32)
-    c = ConstantOp(IntegerAttr.from_int_and_width(3, 32), i32)
-    d = ConstantOp(IntegerAttr.from_int_and_width(4, 32), i32)
+    a = ConstantOp(IntegerAttr(1, 32), i32)
+    b = ConstantOp(IntegerAttr(2, 32), i32)
+    c = ConstantOp(IntegerAttr(3, 32), i32)
+    d = ConstantOp(IntegerAttr(4, 32), i32)
 
     # Operation to add these constants
     e = AddiOp(a, b)

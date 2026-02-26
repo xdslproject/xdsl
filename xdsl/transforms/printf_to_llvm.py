@@ -53,7 +53,7 @@ def _format_string_spec_from_print_op(
 ) -> Iterable[str | SSAValue]:
     """
     Translates the op:
-    printf.print_format "val = {}, val2 = {}", %1 : i32, %2 : f32
+    printf.print_format "val = {}, val2 = {}\n", %1 : i32, %2 : f32
 
     into this sequence:
     ["val = ", %1, ", val2 = ", %2]
@@ -99,7 +99,7 @@ class PrintlnOpToPrintfCall(RewritePattern):
         t_type = builtin.TensorType(i8, [len(data)])
 
         return llvm.GlobalOp(
-            llvm.LLVMArrayType.from_size_and_type(len(data), i8),
+            llvm.LLVMArrayType(len(data), i8),
             _key_from_str(val),
             constant=True,
             linkage="internal",
@@ -130,15 +130,16 @@ class PrintlnOpToPrintfCall(RewritePattern):
                 args.append(part)
                 format_str += _format_str_for_type(part.type)
 
-        globl = self._construct_global(format_str + "\n")
+        globl = self._construct_global(format_str)
         self.collected_global_symbs[globl.sym_name.data] = globl
 
-        rewriter.replace_matched_op(
+        rewriter.replace_op(
+            op,
             casts
             + [
-                ptr := llvm.AddressOfOp(globl.sym_name, llvm.LLVMPointerType.opaque()),
+                ptr := llvm.AddressOfOp(globl.sym_name, llvm.LLVMPointerType()),
                 llvm.CallOp("printf", ptr.result, *args, variadic_args=len(args)),
-            ]
+            ],
         )
 
 
@@ -157,9 +158,7 @@ class PrintfToLLVM(ModulePass):
             [
                 llvm.FuncOp(
                     "printf",
-                    llvm.LLVMFunctionType(
-                        [llvm.LLVMPointerType.opaque()], is_variadic=True
-                    ),
+                    llvm.LLVMFunctionType([llvm.LLVMPointerType()], is_variadic=True),
                     linkage=llvm.LinkageAttr("external"),
                 ),
                 *add_printf_call.collected_global_symbs.values(),

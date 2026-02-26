@@ -48,6 +48,12 @@ builtin.module {
     %e = "test.op"() : () -> f32
     %207 = "memref.atomic_rmw"(%e, %fmemref, %1, %1) <{kind = 0 : i64}> : (f32, memref<32x32xf32>, index, index) -> f32
 
+    %view_src = "test.op"() : () -> memref<2048xi8>
+    %view_off = "test.op"() : () -> index
+    %view_static = memref.view %view_src[%view_off][] : memref<2048xi8> to memref<64x4xf32>
+    %view_d0, %view_d1 = "test.op"() : () -> (index, index)
+    %view_dynamic = memref.view %view_src[%view_off][%view_d0, %view_d1] : memref<2048xi8> to memref<?x?xf32>
+
     func.return
   }
 }
@@ -81,7 +87,7 @@ builtin.module {
 // CHECK-NEXT:     %{{.*}} = "memref.memory_space_cast"(%{{.*}}) : (memref<10x2xindex>) -> memref<10x2xindex, 1 : i32>
 // CHECK-NEXT:     %{{.*}} = memref.alloc() : memref<64x64xindex, strided<[2, 4], offset: 6>, 2 : i32>
 // CHECK-NEXT:     %{{.*}} = "memref.alloca"() <{operandSegmentSizes = array<i32: 0, 0>}> : () -> memref<64x64xindex, strided<[2, 4], offset: 6>, 2 : i32>
-// CHECK-NEXT:     %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}} = "memref.extract_strided_metadata"(%{{.*}}) : (memref<64x64xindex, strided<[2, 4], offset: 6>, 2 : i32>) -> (memref<index>, index, index, index, index, index)
+// CHECK-NEXT:     %base_buffer, %offset, %sizes, %sizes_1, %strides, %strides_1 = memref.extract_strided_metadata %{{.*}} : memref<64x64xindex, strided<[2, 4], offset: 6>, 2 : i32> -> memref<index>, index, index, index, index, index
 // CHECK-NEXT:     %{{.*}}, %{{.*}}, %{{.*}} = "test.op"() : () -> (index, index, index)
 // CHECK-NEXT:     %{{.*}} = memref.alloc(%{{.*}}) {alignment = 0 : i64} : memref<?xindex>
 // CHECK-NEXT:     %{{.*}} = memref.alloc(%{{.*}}, %{{.*}}, %{{.*}}) {alignment = 0 : i64} : memref<?x?x?xindex>
@@ -101,6 +107,11 @@ builtin.module {
 // CHECK-NEXT:      %{{.*}} = "test.op"() : () -> memref<32x32xf32>
 // CHECK-NEXT:      %{{.*}} = "test.op"() : () -> f32
 // CHECK-NEXT:      %{{.*}} = "memref.atomic_rmw"(%{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}) <{kind = 0 : i64}> : (f32, memref<32x32xf32>, index, index) -> f32
+// CHECK-NEXT:      %{{.*}} = "test.op"() : () -> memref<2048xi8>
+// CHECK-NEXT:      %{{.*}} = "test.op"() : () -> index
+// CHECK-NEXT:      %{{.*}} = memref.view %{{.*}}[%{{.*}}][] : memref<2048xi8> to memref<64x4xf32>
+// CHECK-NEXT:      %{{.*}}, %{{.*}} = "test.op"() : () -> (index, index)
+// CHECK-NEXT:      %{{.*}} = memref.view %{{.*}}[%{{.*}}][%{{.*}}, %{{.*}}] : memref<2048xi8> to memref<?x?xf32>
 // CHECK-NEXT:     func.return
 // CHECK-NEXT:   }
 // CHECK-NEXT: }

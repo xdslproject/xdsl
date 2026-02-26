@@ -19,19 +19,21 @@ class ElideConstantBranches(RewritePattern):
 
         # if branch is always taken, replace by jump
         if branch_taken:
-            rewriter.replace_matched_op(
+            rewriter.replace_op(
+                op,
                 JOp(
                     op.then_arguments,
                     op.then_block,
                     comment=f"Constant folded {op.name}",
-                )
+                ),
             )
         # if branch is never taken, replace by "fall through"
         else:
-            rewriter.replace_matched_op(
+            rewriter.replace_op(
+                op,
                 BranchOp(
                     op.else_arguments,
                     op.else_block,
                     comment=f"Constant folded {op.name}",
-                )
+                ),
             )

@@ -1,7 +1,7 @@
 // RUN: xdsl-run %s | filecheck %s
 // RUN: xdsl-opt -p convert-linalg-to-loops %s | xdsl-run | filecheck %s
 // RUN: xdsl-opt %s -p convert-linalg-to-memref-stream | xdsl-run | filecheck %s
-// RUN: xdsl-opt %s -p convert-linalg-to-memref-stream,memref-streamify,convert-memref-stream-to-loops,convert-memref-stream-to-snitch-stream,convert-arith-to-riscv,convert-func-to-riscv-func,convert-memref-to-riscv,convert-scf-to-riscv-scf,convert-print-format-to-riscv-debug,reconcile-unrealized-casts,snitch-allocate-registers | xdsl-run | filecheck %s
+// RUN: xdsl-opt %s -p convert-linalg-to-memref-stream,memref-streamify,convert-memref-stream-to-loops,convert-memref-stream-to-snitch-stream,convert-arith-to-riscv,convert-func-to-riscv-func,convert-memref-to-riscv,convert-scf-to-riscv-scf,riscv-lower-parallel-mov,convert-print-format-to-riscv-debug,reconcile-unrealized-casts,snitch-allocate-registers | xdsl-run | filecheck %s
 
 builtin.module {
     "memref.global"() {"sym_name" = "a", "type" = memref<2x3xf64>, "initial_value" = dense<[[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]> : tensor<2x3xf64>, "sym_visibility" = "public"} : () -> ()

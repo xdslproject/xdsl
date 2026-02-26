@@ -415,7 +415,7 @@ def _(
 
         # Create a new function and inserts it inside the module.
         func = FuncOp("main", (arg_types, [get_mlir_type(expr)]))
-        builder.insert_op(func)
+        builder.insert(func)
 
         # Associate each symbol with its MLIR name.
         arg_values = {arg: value for arg, value in zip(expr.free_symbols, func.args)}
@@ -432,7 +432,7 @@ def _(
         result = emit_op(expr, builder, arg_values)
 
         # Insert a return statement at the end of the function.
-        builder.insert_op(ReturnOp(result))
+        builder.insert(ReturnOp(result))
         return module
 
     def print_ir(expr: Expr):
@@ -535,7 +535,7 @@ def _(
 
         # Handle constants
         if isinstance(expr, Integer):
-            constant_op = builder.insert_op(
+            constant_op = builder.insert(
                 ConstantOp(IntegerAttr(int(expr), IntegerType(64)))
             )
             return constant_op.result
@@ -543,13 +543,13 @@ def _(
         if isinstance(expr, Add):
             lhs = emit_integer_op(expr.args[0], builder, args)
             rhs = emit_integer_op(expr.args[1], builder, args)
-            add_op = builder.insert_op(AddiOp(lhs, rhs))
+            add_op = builder.insert(AddiOp(lhs, rhs))
             return add_op.result
 
         if isinstance(expr, Mul):
             lhs = emit_integer_op(expr.args[0], builder, args)
             rhs = emit_integer_op(expr.args[1], builder, args)
-            add_op = builder.insert_op(MuliOp(lhs, rhs))
+            add_op = builder.insert(MuliOp(lhs, rhs))
             return add_op.result
 
         raise NotImplementedError(f"No IR emitter for integer function {expr.func}")
@@ -561,26 +561,26 @@ def _(
     ):
         if isinstance(get_mlir_type(expr), Float64Type):
             res = emit_real_op(expr, builder, args)
-            zero = builder.insert_op(ConstantOp(FloatAttr(0, Float64Type()))).result
-            create = builder.insert_op(CreateOp(res, zero)).result
+            zero = builder.insert(ConstantOp(FloatAttr(0, Float64Type()))).result
+            create = builder.insert(CreateOp(res, zero)).result
             return create
 
         if expr == I:
-            zero = builder.insert_op(ConstantOp(FloatAttr(float(0), Float64Type()))).result
-            one = builder.insert_op(ConstantOp(FloatAttr(float(1), Float64Type()))).result
-            create = builder.insert_op(CreateOp(zero, one)).result
+            zero = builder.insert(ConstantOp(FloatAttr(float(0), Float64Type()))).result
+            one = builder.insert(ConstantOp(FloatAttr(float(1), Float64Type()))).result
+            create = builder.insert(CreateOp(zero, one)).result
             return create
 
         if isinstance(expr, Add):
             lhs = emit_complex_op(expr.args[0], builder, args)
             rhs = emit_complex_op(expr.args[1], builder, args)
-            res = builder.insert_op(AddcOp(lhs, rhs)).result
+            res = builder.insert(AddcOp(lhs, rhs)).result
             return res
 
         if isinstance(expr, Mul):
             lhs = emit_complex_op(expr.args[0], builder, args)
             rhs = emit_complex_op(expr.args[1], builder, args)
-            res = builder.insert_op(MulcOp(lhs, rhs)).result
+            res = builder.insert(MulcOp(lhs, rhs)).result
             return res
 
         raise NotImplementedError("Not implemented")
@@ -594,12 +594,12 @@ def _(
         # back to a float expression.
         if expr.is_integer:
             res = emit_integer_op(expr, builder, args)
-            op = builder.insert_op(SIToFPOp(res, Float64Type()))
+            op = builder.insert(SIToFPOp(res, Float64Type()))
             return op.result
 
         # Handle constants
         if isinstance(expr, Float):
-            constant_op = builder.insert_op(
+            constant_op = builder.insert(
                 ConstantOp(FloatAttr(float(expr), Float64Type()))
             )
             return constant_op
@@ -611,35 +611,35 @@ def _(
         if isinstance(expr, Add):
             lhs = emit_real_op(expr.args[0], builder, args)
             rhs = emit_real_op(expr.args[1], builder, args)
-            add_op = builder.insert_op(AddfOp(lhs, rhs))
+            add_op = builder.insert(AddfOp(lhs, rhs))
             return add_op.result
 
         if isinstance(expr, Mul):
             lhs = emit_real_op(expr.args[0], builder, args)
             rhs = emit_real_op(expr.args[1], builder, args)
-            add_op = builder.insert_op(MulfOp(lhs, rhs))
+            add_op = builder.insert(MulfOp(lhs, rhs))
             return add_op.result
 
         if isinstance(expr, Pow):
             lhs = emit_real_op(expr.args[0], builder, args)
             rhs = emit_real_op(expr.args[1], builder, args)
-            add_op = builder.insert_op(PowFOp(lhs, rhs))
+            add_op = builder.insert(PowFOp(lhs, rhs))
             return add_op.result
 
         if isinstance(expr, Abs):
             # The arith.select solution
             if False:
                 arg = emit_real_op(expr.args[0], builder, args)
-                zero = builder.insert_op(ConstantOp(FloatAttr(0, Float64Type()))).result
-                neg = builder.insert_op(SubfOp(zero, arg)).result
-                is_neg = builder.insert_op(CmpfOp(arg, zero, "olt")).result
-                select = builder.insert_op(SelectOp(is_neg, neg, arg)).result
+                zero = builder.insert(ConstantOp(FloatAttr(0, Float64Type()))).result
+                neg = builder.insert(SubfOp(zero, arg)).result
+                is_neg = builder.insert(CmpfOp(arg, zero, "olt")).result
+                select = builder.insert(SelectOp(is_neg, neg, arg)).result
                 return select
 
             # The scf.if solution
             arg = emit_real_op(expr.args[0], builder, args)
-            zero = builder.insert_op(ConstantOp(FloatAttr(0, Float64Type()))).result
-            is_neg = builder.insert_op(CmpfOp(arg, zero, "olt")).result
+            zero = builder.insert(ConstantOp(FloatAttr(0, Float64Type()))).result
+            is_neg = builder.insert(CmpfOp(arg, zero, "olt")).result
 
             lhs_region = Region([Block()])
             builder2 = Builder(InsertPoint.at_end(lhs_region.block))
@@ -650,17 +650,17 @@ def _(
             builder3 = Builder(InsertPoint.at_end(rhs_region.block))
             builder3.insert(YieldOp(neg))
 
-            if_res = builder.insert_op(
+            if_res = builder.insert(
                 IfOp(is_neg, Float64Type(), lhs_region, rhs_region)
             ).results[0]
 
             return if_res
 
         if isinstance(expr, Sum):
-            zero = builder.insert_op(ConstantOp(FloatAttr(0, Float64Type()))).result
+            zero = builder.insert(ConstantOp(FloatAttr(0, Float64Type()))).result
             lb = emit_integer_op(expr.args[1][1], builder, args)
             ub = emit_integer_op(expr.args[1][2], builder, args)
-            step = builder.insert_op(ConstantOp(IntegerAttr(0, IntegerType(64))))
+            step = builder.insert(ConstantOp(IntegerAttr(0, IntegerType(64))))
             region = Region([Block(arg_types=[IntegerType(64), Float64Type()])])
             accumulator = region.block.args[1]
 
@@ -671,11 +671,11 @@ def _(
             add = b2.insert(AddfOp(arg, accumulator)).result
             b2.insert(YieldOp(add))
 
-            return builder.insert_op(ForOp(lb, ub, step, [zero], region)).results[0]
+            return builder.insert(ForOp(lb, ub, step, [zero], region)).results[0]
 
         if isinstance(expr, Norm):
             arg = emit_complex_op(expr.args[0], builder, args)
-            res = builder.insert_op(NormOp(arg)).result
+            res = builder.insert(NormOp(arg)).result
             return res
 
         raise NotImplementedError(f"No IR emitter for float function {expr.func}")
@@ -772,7 +772,7 @@ def _(
             if not isinstance(create := op.arg.owner, CreateOp):
                 return
 
-            rewriter.replace_matched_op([], new_results=[create.re])
+            rewriter.replace_op(op, [], new_results=[create.re])
 
     class FoldImCreateOp(RewritePattern):
         def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter):
@@ -805,7 +805,7 @@ def _(
 
             create = rewriter.insert(CreateOp(new_re, new_im)).result
 
-            rewriter.replace_matched_op([], new_results=[create])
+            rewriter.replace_op(op, [], new_results=[create])
 
     class LowerNormOp(RewritePattern):
         def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter):
@@ -917,7 +917,7 @@ def _(
                 if not isinstance(create := op.arg.owner, CreateOp):
                     return
 
-                rewriter.replace_matched_op([], new_results=[create.re])
+                rewriter.replace_op(op, [], new_results=[create.re])
 
         class FoldImCreateOp(RewritePattern):
             def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter):
@@ -927,7 +927,7 @@ def _(
                 if not isinstance(create := op.arg.owner, CreateOp):
                     return
 
-                rewriter.replace_matched_op([], new_results=[create.im])
+                rewriter.replace_op(op, [], new_results=[create.im])
 
         class LowerAddOp(RewritePattern):
             def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter):
@@ -942,7 +942,7 @@ def _(
                 new_im = rewriter.insert(AddfOp(im_lhs, im_rhs)).result
                 create = rewriter.insert(CreateOp(new_re, new_im)).result
 
-                rewriter.replace_matched_op([], new_results=[create])
+                rewriter.replace_op(op, [], new_results=[create])
 
         class LowerMulOp(RewritePattern):
             def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter):
@@ -964,7 +964,7 @@ def _(
 
                 create = rewriter.insert(CreateOp(new_re, new_im)).result
 
-                rewriter.replace_matched_op([], new_results=[create])
+                rewriter.replace_op(op, [], new_results=[create])
 
         class LowerNormOp(RewritePattern):
             def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter):
@@ -982,7 +982,7 @@ def _(
                 half = rewriter.insert(ConstantOp(FloatAttr(0.5, Float64Type()))).result
                 pow = rewriter.insert(PowFOp(add, half)).result
 
-                rewriter.replace_matched_op([], new_results=[pow])
+                rewriter.replace_op(op, [], new_results=[pow])
     return
 
 

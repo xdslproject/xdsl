@@ -94,7 +94,7 @@ class ConvertParallel(RewritePattern):
         for newarg, oldarg in zip(
             loop_nest.body.block.args, loop.body.block.args[:collapse]
         ):
-            oldarg.replace_by(newarg)
+            oldarg.replace_all_uses_with(newarg)
 
         for _ in range(collapse):
             loop.body.block.erase_arg(loop.body.block.args[0])
@@ -110,9 +110,9 @@ class ConvertParallel(RewritePattern):
             new_ops = [loop.body.block.detach_op(o) for o in loop.body.block.ops]
             last_op = new_ops.pop()
             rewriter.erase_op(last_op)
-        rewriter.insert_op(new_ops, InsertPoint.before(scope_terminator))
+        rewriter.insert(new_ops, InsertPoint.before(scope_terminator))
 
-        rewriter.replace_matched_op(parallel)
+        rewriter.replace_op(loop, parallel)
 
 
 @dataclass(frozen=True)

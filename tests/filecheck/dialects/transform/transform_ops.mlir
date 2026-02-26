@@ -94,5 +94,5 @@
 // CHECK: %applied_registered_pass = transform.apply_registered_pass "foo" to %to_apply_registered_pass : (!transform.op<"builtin.module">) -> !transform.op<"builtin.module">
 %applied_registered_pass = transform.apply_registered_pass "foo" to %to_apply_registered_pass : (!transform.op<"builtin.module">) -> !transform.op<"builtin.module">
 
-// CHECK: %applied_registered_pass_opts = transform.apply_registered_pass "foo" to %to_apply_registered_pass {options = "foo"} : (!transform.op<"builtin.module">) -> !transform.op<"builtin.module">
-%applied_registered_pass_opts = transform.apply_registered_pass "foo" to %to_apply_registered_pass {options = "foo"} : (!transform.op<"builtin.module">) -> !transform.op<"builtin.module">
+// CHECK: %applied_registered_pass_opts = transform.apply_registered_pass "foo" with options = {foo = 1 : i32} to %to_apply_registered_pass : (!transform.op<"builtin.module">) -> !transform.op<"builtin.module">
+%applied_registered_pass_opts = transform.apply_registered_pass "foo" with options = {foo = 1 : i32} to %to_apply_registered_pass : (!transform.op<"builtin.module">) -> !transform.op<"builtin.module">

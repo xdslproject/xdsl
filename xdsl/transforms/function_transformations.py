@@ -59,7 +59,7 @@ class AddBenchTimersPattern(RewritePattern):
         ):
             return
 
-        ptr = op.body.block.insert_arg(llvm.LLVMPointerType.opaque(), len(op.args))
+        ptr = op.body.block.insert_arg(llvm.LLVMPointerType(), len(op.args))
         start_call = func.CallOp(TIMER_START, [], tuple(self.start_func_t.outputs))
         end_call = func.CallOp(
             TIMER_END, start_call.res, tuple(self.end_func_t.outputs)
@@ -71,8 +71,8 @@ class AddBenchTimersPattern(RewritePattern):
         end_call.res[0].name_hint = "timediff"
 
         assert op.body.block.last_op
-        rewriter.insert_op(start_call, InsertPoint.at_start(op.body.block))
-        rewriter.insert_op(
+        rewriter.insert(start_call, InsertPoint.at_start(op.body.block))
+        rewriter.insert(
             [end_call, store_time], InsertPoint.before(op.body.block.last_op)
         )
         op.update_function_type()
@@ -93,10 +93,8 @@ class TestAddBenchTimersToTopLevelFunctions(ModulePass):
         ):
             return
 
-        start_func_t = func.FunctionType.from_lists([], [builtin.Float64Type()])
-        end_func_t = func.FunctionType.from_lists(
-            [builtin.Float64Type()], [builtin.Float64Type()]
-        )
+        start_func_t = func.FunctionType.from_lists([], [builtin.f64])
+        end_func_t = func.FunctionType.from_lists([builtin.f64], [builtin.f64])
         start_func = func.FuncOp(TIMER_START, start_func_t, Region([]), "private")
         end_func = func.FuncOp(TIMER_END, end_func_t, Region([]), "private")
 

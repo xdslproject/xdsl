@@ -52,7 +52,19 @@ builtin.module {
   }
 }
 
-// CHECK: Expected stencil.buffer to buffer a stencil.apply or stencil.combine's output, got Block(_args=(<BlockArgument[!stencil.temp<[0,68]xf64>] index: 0, uses: 1>,), num_ops=2)
+// CHECK: Expected stencil.buffer operand to be a result of stencil.apply or stencil.combine got block argument
+
+// -----
+
+builtin.module {
+  func.func @buffer_operand_source_1d() {
+    %temp = "test.op"() : () -> !stencil.temp<[0,68]xf64>
+    %outt_buffered = "stencil.buffer"(%temp) : (!stencil.temp<[0,68]xf64>) -> !stencil.temp<[0,68]xf64>
+    "func.return"() : () -> ()
+  }
+}
+
+// CHECK: Expected stencil.buffer operand to be a result of stencil.apply or stencil.combine got test.op
 
 // -----
 

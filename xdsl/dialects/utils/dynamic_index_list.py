@@ -248,3 +248,19 @@ class DynamicIndexList(CustomDirective):
         print_dynamic_index_list(
             printer, self.DYNAMIC_INDEX, dynamic, static.get_values()
         )
+
+    def set_empty(self, state: ParsingState):
+        self.dynamic_position.set(state, [])
+        self.static_position.set(state, DenseArrayBase.from_list(i64, []))
+
+    def is_present(self, op: IRDLOperation) -> bool:
+        dynamic_empty = not self.dynamic_position.get(op)
+
+        static_vals = self.static_position.get(op)
+        assert isa(static_vals, DenseArrayBase[IntegerType])
+        static_empty = not static_vals.data.data
+
+        return not (dynamic_empty and static_empty)
+
+    def is_anchorable(self) -> bool:
+        return True

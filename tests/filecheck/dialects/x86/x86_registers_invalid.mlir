@@ -17,3 +17,8 @@
 
 // CHECK: Invalid register name foo for register type x86.ssereg.
 "test.op"() { reg = !x86.ssereg<foo> } : () -> ()
+
+// -----
+
+// CHECK: Invalid register name foo for register type x86.avx512maskreg.
+"test.op"() { reg = !x86.avx512maskreg<foo> } : () -> ()

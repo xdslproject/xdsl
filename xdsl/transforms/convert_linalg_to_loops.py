@@ -42,7 +42,7 @@ class LowerGenericOpPattern(RewritePattern):
                     rewriter, insertion_target, affine_map_attr.data, ind_vars
                 )
                 load_op = memref.LoadOp.get(value, indices)
-                rewriter.insert_op(load_op, insertion_target)
+                rewriter.insert(load_op, insertion_target)
                 return load_op.res
             else:
                 return value
@@ -63,7 +63,7 @@ class LowerGenericOpPattern(RewritePattern):
                 rewriter, insertion_target, affine_map_attr.data, ind_vars
             )
             store_op = memref.StoreOp.get(value, destination, indices)
-            rewriter.insert_op(store_op, insertion_target)
+            rewriter.insert(store_op, insertion_target)
             return store_op
 
         rewrite_generic_to_loops(

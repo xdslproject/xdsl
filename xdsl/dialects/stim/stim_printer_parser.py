@@ -10,6 +10,7 @@ from typing import cast
 from xdsl.dialects.builtin import ArrayAttr, FloatData, IntAttr
 from xdsl.ir import Attribute, Operation
 from xdsl.utils.base_printer import BasePrinter
+from xdsl.utils.hints import isa
 
 
 @dataclass(eq=False, repr=False)
@@ -24,7 +25,7 @@ class StimPrinter(BasePrinter):
         if isinstance(attribute, FloatData):
             self.print_string(f"{attribute.data}")
             return
-        if isinstance(attribute, IntAttr):
+        if isa(attribute, IntAttr):
             self.print_string(f"{attribute.data}")
             return
         raise ValueError(f"Cannot print in stim format: {attribute}")

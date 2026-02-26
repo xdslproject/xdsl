@@ -1,6 +1,7 @@
 import ast
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import cast
+from typing import Any, cast
 
 import xdsl.dialects.builtin as builtin
 import xdsl.dialects.cf as cf
@@ -193,26 +194,28 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         )
 
     def visit_Call(self, node: ast.Call) -> None:
-        # Resolve function
-        assert isinstance(node.func, ast.Name)
-        func_name = node.func.id
-        source_func = self.type_converter.globals.get(func_name, None)
-        if source_func is None:
-            raise CodeGenerationException(
-                self.file,
-                node.lineno,
-                node.col_offset,
-                f"Function '{func_name}' is not defined in scope.",
-            )
-        ir_op = self.type_converter.function_registry.get_operation_constructor(
-            source_func
-        )
+        match node.func:
+            case ast.Name():
+                source_kind = "function"
+                source, source_name = self._call_source_function(node)
+            case ast.Attribute():
+                source_kind = "classmethod"
+                source, source_name = self._call_source_classmethod(node)
+            case _:
+                raise CodeGenerationException(
+                    self.file,
+                    node.lineno,
+                    node.col_offset,
+                    "Unsupported call expression.",
+                )
+
+        ir_op = self.type_converter.function_registry.get_operation_constructor(source)
         if ir_op is None:
             raise CodeGenerationException(
                 self.file,
                 node.lineno,
                 node.col_offset,
-                f"Function '{func_name}' is not registered.",
+                f"{source_kind.capitalize()} '{source_name}' is not registered.",
             )
 
         # Resolve arguments
@@ -224,7 +227,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                     self.file,
                     node.lineno,
                     node.col_offset,
-                    "Function arguments must be declared variables.",
+                    f"{source_kind.capitalize()} arguments must be declared variables.",
                 )
             args.append(arg_op := symref.FetchOp(arg.id, self.symbol_table[arg.id]))
             self.inserter.insert_op(arg_op)
@@ -240,7 +243,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                     self.file,
                     node.lineno,
                     node.col_offset,
-                    "Function arguments must be declared variables.",
+                    f"{source_kind.capitalize()} arguments must be declared variables.",
                 )
             assert keyword.arg is not None
             kwargs[keyword.arg] = symref.FetchOp(
@@ -249,6 +252,50 @@ class CodeGenerationVisitor(ast.NodeVisitor):
             self.inserter.insert_op(kwargs[keyword.arg])
 
         self.inserter.insert_op(ir_op(*args, **kwargs))
+
+    # Get called function for a call expression.
+    def _call_source_function(self, node: ast.Call) -> tuple[Callable[..., Any], str]:
+        assert isinstance(node.func, ast.Name)
+
+        func_name = node.func.id
+        func = self.type_converter.globals.get(func_name, None)
+        if func is None:
+            raise CodeGenerationException(
+                self.file,
+                node.lineno,
+                node.col_offset,
+                f"Function '{func_name}' is not defined in scope.",
+            )
+        return func, func_name
+
+    # Get called classmethod for a call expression.
+    def _call_source_classmethod(
+        self, node: ast.Call
+    ) -> tuple[Callable[..., Any], str]:
+        assert isinstance(node.func, ast.Attribute)
+        assert isinstance(node.func.value, ast.Name)
+
+        class_name = node.func.value.id
+        method_name = node.func.attr
+        classmethod_name = f"{class_name}.{method_name}"
+
+        source_class = self.type_converter.globals.get(class_name, None)
+        if source_class is None:
+            raise CodeGenerationException(
+                self.file,
+                node.lineno,
+                node.col_offset,
+                f"Class '{class_name}' is not defined in scope.",
+            )
+        classmethod_ = getattr(source_class, method_name, None)
+        if classmethod_ is None:
+            raise CodeGenerationException(
+                self.file,
+                node.lineno,
+                node.col_offset,
+                f"Method '{method_name}' is not defined on class '{class_name}'.",
+            )
+        return classmethod_, classmethod_name
 
     def visit_Compare(self, node: ast.Compare) -> None:
         # Allow a single comparison only.
@@ -377,17 +424,21 @@ class CodeGenerationVisitor(ast.NodeVisitor):
                 )
             argument_types.append(xdsl_type)
 
+        returns = node.returns
         return_types: list[Attribute] = []
-        if node.returns is not None:
+        if not (
+            returns is None
+            or (isinstance(returns, ast.Constant) and returns.value is None)
+        ):
             xdsl_type = self.type_converter.type_registry.resolve_attribute(
-                ast.unparse(node.returns), self.type_converter.globals
+                ast.unparse(returns), self.type_converter.globals
             )
             if xdsl_type is None:
                 raise CodeGenerationException(
                     self.file,
                     node.lineno,
                     node.col_offset,
-                    f"Unsupported function return type: '{ast.unparse(node.returns)}'",
+                    f"Unsupported function return type: '{ast.unparse(returns)}'",
                 )
             return_types.append(xdsl_type)
 
@@ -413,6 +464,11 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         # Parse function body.
         for stmt in node.body:
             self.visit(stmt)
+
+        # If function does not end with a return statement to be visited, we
+        # must insert a ReturnOp here.
+        if not isinstance(node.body[-1], ast.Return):
+            self.inserter.insert_op(func.ReturnOp())
 
         # When function definition is processed, reset the symbol table and set
         # the insertion point.
@@ -486,22 +542,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         self.inserter.insert_op(fetch_op)
 
     def visit_Pass(self, node: ast.Pass) -> None:
-        parent_op = self.inserter.insertion_point.parent_op()
-
-        # We might have to add an explicit return statement in this case. Make sure to
-        # check the type signature.
-        if parent_op is not None and isinstance(parent_op, func.FuncOp):
-            return_types = parent_op.function_type.outputs.data
-
-            if len(return_types) != 0:
-                function_name = parent_op.sym_name.data
-                raise CodeGenerationException(
-                    self.file,
-                    node.lineno,
-                    node.col_offset,
-                    f"Expected '{function_name}' to return a type.",
-                )
-            self.inserter.insert_op(func.ReturnOp())
+        pass
 
     def visit_Return(self, node: ast.Return) -> None:
         # First of all, we should only be able to return if the statement is directly
@@ -527,9 +568,10 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         callee = parent_op.sym_name.data
         func_return_types = parent_op.function_type.outputs.data
 
-        if node.value is None:
+        value = node.value
+        if value is None or (isinstance(value, ast.Constant) and value.value is None):
             # Return nothing, check function signature matches.
-            if len(func_return_types) != 0:
+            if func_return_types:
                 raise CodeGenerationException(
                     self.file,
                     node.lineno,
@@ -541,10 +583,10 @@ class CodeGenerationVisitor(ast.NodeVisitor):
         else:
             # Return some type, check function signature matches as well.
             # TODO: Support multiple return values if we allow multiple assignemnts.
-            self.visit(node.value)
+            self.visit(value)
             operands = [self.inserter.get_operand()]
 
-            if len(func_return_types) == 0:
+            if not func_return_types:
                 raise CodeGenerationException(
                     self.file,
                     node.lineno,

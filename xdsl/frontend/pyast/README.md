@@ -60,7 +60,7 @@ builtin.module {
 │   ├── block.py              : Mark functions as basic blocks using a decorator
 │   ├── const.py              : Mark variables as compile-time constants using a
 │   │                           type hint
-│   ├── exceptions.py         : Custom exceptions for the frontend and code 
+│   ├── exceptions.py         : Custom exceptions for the frontend and code
 │   │                           generation
 │   ├── op_inserter.py        : Helper class to add operations from a stack to
 │   │                           the end of an operation/region/block
@@ -81,7 +81,6 @@ builtin.module {
 ├── program.py                : Helper class to store, compile, and print code
 └── README.md
 ```
-
 
 ## Future development
 

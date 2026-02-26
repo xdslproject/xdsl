@@ -14,7 +14,6 @@ from xdsl.ir import (
     Block,
     BlockArgument,
     Operation,
-    OperationInvT,
     Region,
     SSAValue,
 )
@@ -80,19 +79,21 @@ class Builder(BuilderListener):
     def name_hint(self, name: str | None):
         self._name_hint = SSAValue.extract_valid_name(name)
 
-    @deprecated("Use .insert_op instead")
-    def insert(self, op: OperationInvT) -> OperationInvT:
-        """
-        Inserts op at the current location and returns it.
-        """
-        return self.insert_op(op)
-
+    @deprecated("Use .insert(op, insertion_point) instead")
     def insert_op(
         self,
         op: InsertOpInvT,
         insertion_point: InsertPoint | None = None,
     ) -> InsertOpInvT:
         """Inserts op(s) at the current insertion point."""
+        return self.insert(op, insertion_point)
+
+    def insert(
+        self, op: InsertOpInvT, insertion_point: InsertPoint | None = None
+    ) -> InsertOpInvT:
+        """
+        Inserts op at the current location and returns it.
+        """
         ops = (op,) if isinstance(op, Operation) else op
         if not ops:
             return ops
@@ -360,7 +361,7 @@ _CallableImplicitRegionFuncType: TypeAlias = Callable[[tuple[BlockArgument, ...]
 
 def _op_init_callback(op: Operation):
     if (b := _current_builder.builder) is not None:
-        b.insert_op(op)
+        b.insert(op)
 
 
 def _override_operation_post_init() -> Callable[[Operation], None]:

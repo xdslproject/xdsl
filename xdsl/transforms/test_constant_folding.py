@@ -42,7 +42,7 @@ class TestConstantFoldingIntegerAdditionPattern(RewritePattern):
         )
 
         # Rewrite with the calculated result
-        rewriter.replace_matched_op(folded_op, [folded_op.results[0]])
+        rewriter.replace_op(op, folded_op, [folded_op.results[0]])
 
 
 class TestConstantFoldingPass(ModulePass):

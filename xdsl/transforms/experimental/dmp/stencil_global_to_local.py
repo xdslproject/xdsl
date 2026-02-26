@@ -56,7 +56,7 @@ class AddHaloExchangeOps(RewritePattern):
     def match_and_rewrite(self, op: stencil.LoadOp, rewriter: PatternRewriter, /):
         swap_op = dmp.SwapOp.get(op.res, self.strategy)
         assert swap_op.swapped_values
-        rewriter.insert_op_after_matched_op(swap_op)
+        rewriter.insert(swap_op, InsertPoint.after(op))
         for use in tuple(op.res.uses):
             if use.operation is swap_op:
                 continue
@@ -75,7 +75,8 @@ class LowerHaloExchangeToMpi(RewritePattern):
 
         input_type = cast(ContainerType, op.input_stencil.type)
 
-        rewriter.replace_matched_op(
+        rewriter.replace_op(
+            op,
             list(
                 generate_mpi_calls_for(
                     op.input_stencil,
@@ -289,7 +290,7 @@ def generate_mpi_calls_for(
 
             if emit_debug:
                 yield printf.PrintFormatOp(
-                    f"Rank {{}}: sending {ex.source_area()} -> {{}}", rank, dest_rank
+                    f"Rank {{}}: sending {ex.source_area()} -> {{}}\n", rank, dest_rank
                 )
 
             # isend call
@@ -352,7 +353,7 @@ def generate_mpi_calls_for(
                         )
                         + [
                             printf.PrintFormatOp(
-                                f"Rank {{}} receiving from {ex.neighbor}",
+                                f"Rank {{}} receiving from {ex.neighbor}\n",
                                 rank,
                             )
                         ]

@@ -20,8 +20,8 @@ class PrintfOp(riscv.RISCVCustomFormatOperation, riscv.RISCVInstruction):
     During assembly emission, the results are printed before the operands:
 
     ``` python
-    s0 = riscv.GetRegisterOp(Registers.s0).res
-    s1 = riscv.GetRegisterOp(Registers.s1).res
+    s0 = rv32.GetRegisterOp(Registers.s0).res
+    s1 = rv32.GetRegisterOp(Registers.s1).res
     op = PrintfOp("s0: {}, s1: {}", (s0, s1))
 
     op.assembly_line()   # 'printf "s0: {}, s1: {}", s0, s1'

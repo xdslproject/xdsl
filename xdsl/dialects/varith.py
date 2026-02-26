@@ -33,6 +33,7 @@ from xdsl.irdl import (
 from xdsl.parser import Parser
 from xdsl.printer import Printer
 from xdsl.traits import Pure
+from xdsl.utils.hints import isa
 
 integerOrFloatLike = ContainerOf(
     AnyOf(
@@ -128,7 +129,7 @@ class VarithSwitchOp(IRDLOperation):
         unresolved_flag = parser.parse_unresolved_operand()
         parser.parse_punctuation(":")
         flag_type = parser.parse_type()
-        assert isinstance(flag_type, IntegerType | IndexType)
+        assert isa(flag_type, IntegerType | IndexType)
         flag = parser.resolve_operand(unresolved_flag, flag_type)
         parser.parse_punctuation("->")
         return_type = parser.parse_type()

@@ -5,7 +5,7 @@ Test the definition of attributes and their constraints.
 from __future__ import annotations
 
 import re
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from enum import auto
 from io import StringIO
@@ -27,7 +27,6 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.ir import (
     Attribute,
-    AttributeCovT,
     AttributeInvT,
     BitEnumAttribute,
     BuiltinAttribute,
@@ -46,6 +45,7 @@ from xdsl.irdl import (
     BaseAttr,
     ConstraintContext,
     GenericData,
+    IntConstraint,
     MessageConstraint,
     ParamAttrConstraint,
     ParamAttrDef,
@@ -437,7 +437,7 @@ class PositiveIntConstr(AttrConstraint):
             raise VerifyException(f"Expected positive integer, got {attr.data}.")
 
     def mapping_type_vars(
-        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+        self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
     ) -> PositiveIntConstr:
         return self
 
@@ -472,7 +472,7 @@ _T = TypeVar("_T", bound=BoolData | IntData)
 
 
 @irdl_attr_definition
-class ParamWrapperAttr(Generic[_T], ParametrizedAttribute):
+class ParamWrapperAttr(ParametrizedAttribute, Generic[_T]):
     name = "test.int_or_bool_generic"
 
     param: _T
@@ -536,7 +536,7 @@ _U = TypeVar("_U", bound=IntData)
 
 
 @irdl_attr_definition
-class NestedParamWrapperAttr(Generic[_U], ParametrizedAttribute):
+class NestedParamWrapperAttr(ParametrizedAttribute, Generic[_U]):
     name = "test.nested_param_wrapper"
 
     param: ParamWrapperAttr[_U]
@@ -645,7 +645,7 @@ def test_informative_constraint():
 
 
 @irdl_attr_definition
-class ListData(Generic[AttributeInvT], GenericData[tuple[AttributeInvT, ...]]):
+class ListData(GenericData[tuple[AttributeInvT, ...]], Generic[AttributeInvT]):
     name = "test.list"
 
     @classmethod
@@ -660,10 +660,8 @@ class ListData(Generic[AttributeInvT], GenericData[tuple[AttributeInvT, ...]]):
 
     @staticmethod
     @override
-    def constr(
-        constr: AttrConstraint[AttributeCovT],
-    ) -> DataListAttr[AttributeCovT]:
-        return DataListAttr(constr)
+    def constr() -> DataListAttr:
+        return DataListAttr(TypeVarConstraint(AttributeInvT, AnyAttr()))
 
     @staticmethod
     def from_list(data: list[AttributeInvT]) -> ListData[AttributeInvT]:
@@ -695,7 +693,7 @@ class DataListAttr(AttrConstraint[ListData[AttributeInvT]]):
             self.elem_constr.verify(e, constraint_context)
 
     def mapping_type_vars(
-        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+        self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
     ) -> DataListAttr[AttributeInvT]:
         return DataListAttr(self.elem_constr.mapping_type_vars(type_var_mapping))
 
@@ -878,7 +876,7 @@ def test_custom_constructor():
 
 
 @irdl_attr_definition
-class GenericAttr(Generic[AttributeInvT], ParametrizedAttribute):
+class GenericAttr(ParametrizedAttribute, Generic[AttributeInvT]):
     name = "test.generic_attr"
 
     param: AttributeInvT

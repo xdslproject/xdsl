@@ -2,7 +2,7 @@ from abc import ABC
 from collections.abc import Sequence
 from io import StringIO
 
-from xdsl.dialects.builtin import ArrayAttr, Float64Type, FloatData, IntAttr
+from xdsl.dialects.builtin import ArrayAttr, FloatData, IntAttr, f64
 from xdsl.dialects.stim.stim_printer_parser import StimPrintable, StimPrinter
 from xdsl.ir import ParametrizedAttribute, Region, TypeAttribute
 from xdsl.irdl import (
@@ -109,7 +109,7 @@ class QubitMappingAttr(StimPrintable, ParametrizedAttribute):
                     self.coords,
                     lambda c: printer.print_int(c.data)
                     if isinstance(c, IntAttr)
-                    else printer.print_float(c.data, Float64Type()),
+                    else printer.print_float(c.data, f64),
                 )
             printer.print_string(", ")
             printer.print_attribute(self.qubit_name)

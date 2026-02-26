@@ -6,7 +6,7 @@ import pytest
 from xdsl.context import Context
 from xdsl.dialects import test
 from xdsl.dialects.arith import AddiOp, Arith, ConstantOp
-from xdsl.dialects.builtin import Builtin, Float32Type, Float64Type, ModuleOp, i32, i64
+from xdsl.dialects.builtin import Builtin, ModuleOp, f32, f64, i32, i64
 from xdsl.ir import Block, Region
 from xdsl.parser import Parser
 from xdsl.printer import Printer
@@ -133,6 +133,40 @@ def test_replace_op_new_results():
         assert isinstance(add_op, AddiOp)
 
         rewriter.replace_op(add_op, [], [add_op.lhs])
+
+    rewrite_and_compare(prog, expected, transformation)
+
+
+# Test an operation replacement with name hints
+def test_replace_op_name_hints():
+    prog = """\
+"builtin.module"() ({
+  %a = "arith.constant"() <{value = 2 : i32}> : () -> i32
+  %b, %c, %0 = "test.op"(%a, %a) : (i32, i32) -> (i32, i32, i32)
+}) : () -> ()
+"""
+
+    expected = """\
+"builtin.module"() ({
+  %a = "arith.constant"() <{value = 2 : i32}> : () -> i32
+  %B = "test.op"() : () -> i32
+  %c = "test.op"() : () -> i32
+  %d = "test.op"() : () -> i32
+}) : () -> ()
+"""
+
+    def transformation(module: ModuleOp, rewriter: Rewriter) -> None:
+        old_op = module.ops.last
+        assert old_op is not None
+        new_op1 = test.TestOp(result_types=(i32,))
+        new_op1.results[0].name_hint = "B"
+        new_op2 = test.TestOp(result_types=(i32,))
+        new_op3 = test.TestOp(result_types=(i32,))
+        new_op3.results[0].name_hint = "d"
+        new_ops = [new_op1, new_op2, new_op3]
+        new_results = [op.results[0] for op in new_ops]
+
+        rewriter.replace_op(old_op, new_ops, new_results)
 
     rewrite_and_compare(prog, expected, transformation)
 
@@ -518,8 +552,8 @@ def test_inline_region_before():
     def transformation(module: ModuleOp, rewriter: Rewriter) -> None:
         region = Region(
             (
-                Block((test.TestOp(result_types=(Float32Type(),)),)),
-                Block((test.TestOp(result_types=(Float64Type(),)),)),
+                Block((test.TestOp(result_types=(f32,)),)),
+                Block((test.TestOp(result_types=(f64,)),)),
             )
         )
         rewriter.inline_region(region, BlockInsertPoint.before(module.body.blocks[1]))
@@ -552,8 +586,8 @@ def test_inline_region_after():
     def transformation(module: ModuleOp, rewriter: Rewriter) -> None:
         region = Region(
             (
-                Block((test.TestOp(result_types=(Float32Type(),)),)),
-                Block((test.TestOp(result_types=(Float64Type(),)),)),
+                Block((test.TestOp(result_types=(f32,)),)),
+                Block((test.TestOp(result_types=(f64,)),)),
             )
         )
         rewriter.inline_region(region, BlockInsertPoint.after(module.body.blocks[0]))
@@ -586,8 +620,8 @@ def test_inline_region_at_start():
     def transformation(module: ModuleOp, rewriter: Rewriter) -> None:
         region = Region(
             (
-                Block((test.TestOp(result_types=(Float32Type(),)),)),
-                Block((test.TestOp(result_types=(Float64Type(),)),)),
+                Block((test.TestOp(result_types=(f32,)),)),
+                Block((test.TestOp(result_types=(f64,)),)),
             )
         )
         rewriter.inline_region(region, BlockInsertPoint.at_start(module.body))
@@ -620,8 +654,8 @@ def test_inline_region_at_end():
     def transformation(module: ModuleOp, rewriter: Rewriter) -> None:
         region = Region(
             (
-                Block((test.TestOp(result_types=(Float32Type(),)),)),
-                Block((test.TestOp(result_types=(Float64Type(),)),)),
+                Block((test.TestOp(result_types=(f32,)),)),
+                Block((test.TestOp(result_types=(f64,)),)),
             )
         )
         rewriter.inline_region(region, BlockInsertPoint.at_end(module.body))

@@ -74,7 +74,7 @@ def test_empty_program():
         (
             ["tests/xdsl_opt/unverified_program.mlir"],
             DiagnosticException,
-            "operand at position 0 does not verify",
+            "operand 'lhs' at position 0 does not verify",
         ),
     ],
 )

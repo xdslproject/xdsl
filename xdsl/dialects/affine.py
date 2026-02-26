@@ -127,7 +127,7 @@ class ForOp(IRDLOperation):
 
     body = region_def()
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
     # TODO this requires the ImplicitAffineTerminator trait instead of
     # NoTerminator

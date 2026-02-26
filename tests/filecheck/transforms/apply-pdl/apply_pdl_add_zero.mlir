@@ -3,7 +3,6 @@
 
 // CHECK:       func.func @impl() -> i32 {
 // CHECK-NEXT:    %0 = arith.constant 4 : i32
-// CHECK-NEXT:    %1 = arith.constant 0 : i32
 // CHECK-NEXT:    func.return %0 : i32
 // CHECK-NEXT:  }
 

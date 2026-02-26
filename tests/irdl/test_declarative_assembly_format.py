@@ -3,7 +3,7 @@ from __future__ import annotations
 import textwrap
 from collections.abc import Callable
 from io import StringIO
-from typing import Annotated, ClassVar, Generic
+from typing import ClassVar, Generic
 
 import pytest
 from typing_extensions import TypeVar
@@ -26,9 +26,11 @@ from xdsl.dialects.builtin import (
     StringAttr,
     SymbolNameConstraint,
     UnitAttr,
+    f32,
     i32,
 )
 from xdsl.dialects.test import Test, TestType
+from xdsl.dialects.utils import DynamicIndexList
 from xdsl.ir import (
     Attribute,
     Operation,
@@ -51,6 +53,8 @@ from xdsl.irdl import (
     ParsePropInAttrDict,
     RangeOf,
     RangeVarConstraint,
+    SameVariadicOperandSize,
+    SameVariadicResultSize,
     TypedAttributeConstraint,  # pyright: ignore[reportDeprecated]
     VarConstraint,
     VarOperand,
@@ -300,7 +304,7 @@ def test_attr_dict_prop_fallback(program: str, generic_program: str):
     class PropOp(IRDLOperation):
         name = "test.prop"
         prop = opt_prop_def()
-        irdl_options = [ParsePropInAttrDict()]
+        irdl_options = (ParsePropInAttrDict(),)
         assembly_format = "attr-dict"
 
     ctx = Context()
@@ -329,7 +333,7 @@ def test_partial_attr_dict_prop_fallback(program: str, generic_program: str):
         name = "test.prop"
         prop1 = prop_def()
         prop2 = opt_prop_def()
-        irdl_options = [ParsePropInAttrDict()]
+        irdl_options = (ParsePropInAttrDict(),)
         assembly_format = "$prop1 attr-dict"
 
     ctx = Context()
@@ -744,7 +748,7 @@ def test_typed_attribute_variable(program: str, generic_program: str):
     class TypedAttributeOp(IRDLOperation):
         name = "test.typed_attr"
         attr = attr_def(IntegerAttr[I32])
-        float_attr = attr_def(FloatAttr[Annotated[Float64Type, Float64Type()]])
+        float_attr = attr_def(FloatAttr[Float64Type])
 
         assembly_format = "$attr $float_attr attr-dict"
 
@@ -843,7 +847,7 @@ def test_dense_array_special_cases(program: str, generic_program: str, format: s
         i64s = opt_prop_def(DenseArrayBase[I64])
         f32s = prop_def(
             DenseArrayBase[Float32Type],
-            default_value=DenseArrayBase.from_list(Float32Type(), (9.0,)),
+            default_value=DenseArrayBase.from_list(f32, (9.0,)),
         )
         f64s = prop_def(
             VarConstraint("F64S", irdl_to_attr_constraint(DenseArrayBase[Float64Type]))
@@ -1167,7 +1171,7 @@ def test_multiple_variadic_operands(
         args1 = var_operand_def()
         args2 = var_operand_def()
 
-        irdl_options = [AttrSizedOperandSegments(as_property=as_property)]
+        irdl_options = (AttrSizedOperandSegments(as_property=as_property),)
 
         assembly_format = (
             "`(` $args1 `:` type($args1) `)` `[` $args2 `:` type($args2) `]` attr-dict"
@@ -1204,7 +1208,7 @@ def test_multiple_optional_operands(program: str, generic_program: str):
         arg1 = opt_operand_def()
         arg2 = opt_operand_def()
 
-        irdl_options = [AttrSizedOperandSegments()]
+        irdl_options = (AttrSizedOperandSegments(),)
 
         assembly_format = (
             "`(` $arg1 `:` type($arg1) `)` `[` $arg2 `:` type($arg2) `]` attr-dict"
@@ -1333,9 +1337,72 @@ def test_operands_directive_fails_with_two_var():
             op1 = var_operand_def()
             op2 = var_operand_def()
 
-            irdl_options = [AttrSizedOperandSegments()]
+            irdl_options = (AttrSizedOperandSegments(),)
 
             assembly_format = "operands attr-dict `:` type(operands)"
+
+
+@pytest.mark.parametrize(
+    "program",
+    [
+        "test.two_var_op :",
+        "test.two_var_op %0, %1 : i32, i32",
+        "test.two_var_op %0, %1, %2, %3 : i32, i32, i32, i32",
+    ],
+)
+def test_operands_directive_works_with_two_var_and_option(program: str):
+    """
+    Test operands directive can be used with two variadic operands as long as they have
+    the same length.
+    """
+
+    @irdl_op_definition
+    class TwoVarOp(IRDLOperation):
+        name = "test.two_var_op"
+
+        res1 = var_operand_def()
+        res2 = var_operand_def()
+
+        irdl_options = (SameVariadicOperandSize(),)
+
+        assembly_format = "operands attr-dict  `:` type(operands)"
+
+    ctx = Context()
+    ctx.load_op(TwoVarOp)
+    ctx.load_dialect(Test)
+
+    check_roundtrip(program, ctx)
+
+
+@pytest.mark.parametrize(
+    "program",
+    [
+        "test.two_var_op :",
+        "test.two_var_op %0, %1 : i32, i32",
+    ],
+)
+def test_operands_directive_works_with_two_opt_and_option(program: str):
+    """
+    Test operands directive can be used with two optional operands as long as they have
+    the same length.
+    """
+
+    @irdl_op_definition
+    class TwoVarOp(IRDLOperation):
+        name = "test.two_var_op"
+
+        res1 = var_operand_def()
+        res2 = var_operand_def()
+
+        irdl_options = (SameVariadicOperandSize(),)
+
+        assembly_format = "operands attr-dict `:` type(operands)"
+
+    ctx = Context()
+    ctx.load_op(TwoVarOp)
+    ctx.load_dialect(Test)
+
+    check_roundtrip(program, ctx)
 
 
 def test_operands_directive_fails_with_no_operands():
@@ -1392,15 +1459,15 @@ def test_operands_directive_fails_with_other_type_directive():
 @pytest.mark.parametrize(
     "program, error",
     [
-        ("test.two_operands %0 : i32, i32", "Expected 2 operands but found 1"),
+        ("test.two_operands %0 : i32, i32", "Expected 2 operands, but got 1"),
         (
             "test.two_operands %0, %1, %2 : i32, i32",
-            "Expected 2 operands but found 3",
+            "Expected 2 operands, but got 3",
         ),
-        ("test.two_operands %0, %1 : i32", "Expected 2 operand types but found 1"),
+        ("test.two_operands %0, %1 : i32", "Expected 2 operand types, but got 1"),
         (
             "test.two_operands %0, %1 : i32, i32, i32",
-            "Expected 2 operand types but found 3",
+            "Expected 2 operand types, but got 3",
         ),
     ],
 )
@@ -1427,19 +1494,19 @@ def test_operands_directive_bounds(program: str, error: str):
     [
         (
             "test.three_operands %0 : i32, i32",
-            "Expected at least 2 operands but found 1",
+            "Expected 2 or 3 operands, but got 1",
         ),
         (
             "test.three_operands %0, %1, %2, %3 : i32, i32, i32",
-            "Expected at most 3 operands but found 4",
+            "Expected 2 or 3 operands, but got 4",
         ),
         (
             "test.three_operands %0, %1 : i32",
-            "Expected at least 2 operand types but found 1",
+            "Expected 2 or 3 operand types, but got 1",
         ),
         (
             "test.three_operands %0, %1, %3 : i32, i32, i32, i32",
-            "Expected at most 3 operand types but found 4",
+            "Expected 2 or 3 operand types, but got 4",
         ),
     ],
 )
@@ -1467,11 +1534,11 @@ def test_operands_directive_bounds_with_opt(program: str, error: str):
     [
         (
             "test.three_operands %0 : i32, i32",
-            "Expected at least 2 operands but found 1",
+            "Expected at least 2 operands, but got 1",
         ),
         (
             "test.three_operands %0, %1 : i32",
-            "Expected at least 2 operand types but found 1",
+            "Expected at least 2 operand types, but got 1",
         ),
     ],
 )
@@ -1501,10 +1568,10 @@ def test_operands_directive_with_non_variadic_type_directive():
     # an OperandsDirective, but we can manually make one.
     format_program = FormatProgram(
         (
-            OperandsDirective(None),
+            OperandsDirective(),
             AttrDictDirective(False, set(), set()),
             PunctuationDirective(":"),
-            TypeDirective(OperandsDirective(None)),
+            TypeDirective(OperandsDirective()),
         ),
     )
 
@@ -1536,10 +1603,10 @@ def test_operands_directive_with_variadic_type_directive():
     # an OperandsDirective, but we can manually make one.
     format_program = FormatProgram(
         (
-            OperandsDirective((False, 1)),
+            OperandsDirective(),
             AttrDictDirective(False, set(), set()),
             PunctuationDirective(":"),
-            TypeDirective(OperandsDirective((False, 1))),
+            TypeDirective(OperandsDirective()),
         ),
     )
 
@@ -1694,7 +1761,7 @@ def test_variadic_result_failure():
 
             res = var_result_def(IndexType())
 
-            irdl_options = [AttrSizedResultSegments()]
+            irdl_options = (AttrSizedResultSegments(),)
 
             assembly_format = "attr-dict"
 
@@ -1819,9 +1886,72 @@ def test_results_directive_fails_with_two_var():
             res1 = var_result_def()
             res2 = var_result_def()
 
-            irdl_options = [AttrSizedResultSegments()]
+            irdl_options = (AttrSizedResultSegments(),)
 
             assembly_format = "attr-dict `:` type(results)"
+
+
+@pytest.mark.parametrize(
+    "program",
+    [
+        "test.two_var_op :",
+        "%0, %1 = test.two_var_op : i32, i32",
+        "%0, %1, %2, %3 = test.two_var_op : i32, i32, i32, i32",
+    ],
+)
+def test_results_directive_works_with_two_var_and_option(program: str):
+    """
+    Test results directive can be used with two variadic results as long as they have
+    the same length.
+    """
+
+    @irdl_op_definition
+    class TwoVarOp(IRDLOperation):
+        name = "test.two_var_op"
+
+        res1 = var_result_def()
+        res2 = var_result_def()
+
+        irdl_options = (SameVariadicResultSize(),)
+
+        assembly_format = "attr-dict `:` type(results)"
+
+    ctx = Context()
+    ctx.load_op(TwoVarOp)
+    ctx.load_dialect(Test)
+
+    check_roundtrip(program, ctx)
+
+
+@pytest.mark.parametrize(
+    "program",
+    [
+        "test.two_var_op :",
+        "%0, %1 = test.two_var_op : i32, i32",
+    ],
+)
+def test_results_directive_works_with_two_opt_and_option(program: str):
+    """
+    Test results directive can be used with two optional results as long as they have
+    the same length.
+    """
+
+    @irdl_op_definition
+    class TwoVarOp(IRDLOperation):
+        name = "test.two_var_op"
+
+        res1 = var_result_def()
+        res2 = var_result_def()
+
+        irdl_options = (SameVariadicResultSize(),)
+
+        assembly_format = "attr-dict `:` type(results)"
+
+    ctx = Context()
+    ctx.load_op(TwoVarOp)
+    ctx.load_dialect(Test)
+
+    check_roundtrip(program, ctx)
 
 
 def test_results_directive_fails_with_no_results():
@@ -1860,10 +1990,10 @@ def test_results_directive_fails_with_other_type_directive():
 @pytest.mark.parametrize(
     "program, error",
     [
-        ("%0 = test.two_results : i32", "Expected 2 result types but found 1"),
+        ("%0 = test.two_results : i32", "Expected 2 result types, but got 1"),
         (
             "%0, %1, %2 = test.two_results : i32, i32, i32",
-            "Expected 2 result types but found 3",
+            "Expected 2 result types, but got 3",
         ),
     ],
 )
@@ -1890,11 +2020,11 @@ def test_results_directive_bounds(program: str, error: str):
     [
         (
             "%0 = test.three_results : i32",
-            "Expected at least 2 result types but found 1",
+            "Expected 2 or 3 result types, but got 1",
         ),
         (
             "%0, %1, %2, %3 = test.three_results : i32, i32, i32, i32",
-            "Expected at most 3 result types but found 4",
+            "Expected 2 or 3 result types, but got 4",
         ),
     ],
 )
@@ -1923,7 +2053,7 @@ def test_results_directive_bound_with_var():
         name = "test.three_results"
 
         res1 = result_def()
-        res2 = opt_result_def()
+        res2 = var_result_def()
         res3 = result_def()
 
         assembly_format = "attr-dict `:` type(results)"
@@ -1931,9 +2061,7 @@ def test_results_directive_bound_with_var():
     ctx = Context()
     ctx.load_op(ThreeResultsOp)
 
-    with pytest.raises(
-        ParseError, match="Expected at least 2 result types but found 1"
-    ):
+    with pytest.raises(ParseError, match="Expected at least 2 result types, but got 1"):
         parser = Parser(ctx, "%0 = test.three_results : i32")
         parser.parse_operation()
 
@@ -1947,7 +2075,7 @@ def test_results_directive_with_non_variadic_type_directive():
         (
             AttrDictDirective(False, set(), set()),
             PunctuationDirective(":"),
-            TypeDirective(ResultsDirective(None)),
+            TypeDirective(ResultsDirective()),
         ),
     )
 
@@ -1981,7 +2109,7 @@ def test_results_directive_with_variadic_type_directive():
         (
             AttrDictDirective(False, set(), set()),
             PunctuationDirective(":"),
-            TypeDirective(ResultsDirective((False, 1))),
+            TypeDirective(ResultsDirective()),
         ),
     )
 
@@ -2128,6 +2256,16 @@ def test_attr_dict_directly_before_region_variable():
             'test.region_attr_dict {a = 2 : i32}, {\n  "test.op"() : () -> ()\n}',
             '"test.region_attr_dict"() ({  "test.op"() : () -> ()}) {a = 2 : i32} : () -> ()',
         ),
+        (
+            "($region^)? attr-dict-with-keyword",
+            "test.region_attr_dict attributes {a = 2 : i32}",
+            '"test.region_attr_dict"() ({}) {a = 2 : i32} : () -> ()',
+        ),
+        (
+            "($region^)? attr-dict-with-keyword",
+            'test.region_attr_dict {\n  "test.op"() : () -> ()\n} attributes {a = 2 : i32}',
+            '"test.region_attr_dict"() ({\n  "test.op"() : () -> ()\n}) {a = 2 : i32} : () -> ()',
+        ),
     ],
 )
 def test_regions_with_attr_dict(format: str, program: str, generic_program: str):
@@ -2273,7 +2411,7 @@ def test_multiple_optional_regions():
         @irdl_op_definition
         class OptionalRegionsOp(IRDLOperation):  # pyright: ignore[reportUnusedClass]
             name = "test.optional_regions"
-            irdl_options = [AttrSizedRegionSegments()]
+            irdl_options = (AttrSizedRegionSegments(),)
             region1 = opt_region_def()
             region2 = opt_region_def()
 
@@ -2283,16 +2421,6 @@ def test_multiple_optional_regions():
 @pytest.mark.parametrize(
     "format, program, generic_program",
     [
-        (
-            "($opt_region^ `keyword`)? attr-dict",
-            "test.optional_region_group",
-            '"test.optional_region_group"() : () -> ()',
-        ),
-        (
-            "($opt_region^ `keyword`)? attr-dict",
-            'test.optional_region_group {\n  "test.op"() : () -> ()\n} keyword',
-            '"test.optional_region_group"() ({"test.op"() : () -> ()}) : () -> ()',
-        ),
         (
             "(`keyword` $opt_region^)? attr-dict",
             "test.optional_region_group",
@@ -2311,7 +2439,6 @@ def test_optional_groups_regions(format: str, program: str, generic_program: str
     @irdl_op_definition
     class OptionalRegionOp(IRDLOperation):
         name = "test.optional_region_group"
-        irdl_options = [AttrSizedRegionSegments]
         opt_region = opt_region_def()
 
         assembly_format = format
@@ -2357,6 +2484,21 @@ def test_optional_groups_empty_regions(program: str, generic_program: str):
 
     check_roundtrip(program, ctx)
     check_equivalence(program, generic_program, ctx)
+
+
+def test_attr_dict_directly_after_optional_group_with_first_region_variable():
+    """Test that regions require an 'attr-dict' directive."""
+    with pytest.raises(
+        PyRDLOpDefinitionError,
+        match="An optional group with a region as a first element cannot be followed by a `attr-dict' directive as it is ambiguous.",
+    ):
+
+        @irdl_op_definition
+        class RegionAttrDictWrongOp(IRDLOperation):  # pyright: ignore[reportUnusedClass]
+            name = "test.region_op_ambiguous_optional_group"
+            region = region_def()
+
+            assembly_format = "($region^)? attr-dict"
 
 
 ################################################################################
@@ -2904,7 +3046,10 @@ def test_chained_variadic_types_safeguard(
             variadic_two = variadic_def_two()
             assembly_format = format
 
-            irdl_options = [AttrSizedOperandSegments(), AttrSizedResultSegments()]
+            irdl_options = (
+                AttrSizedOperandSegments(),
+                AttrSizedResultSegments(),
+            )
 
 
 @pytest.mark.parametrize("variadic_def_one", [var_operand_def, opt_operand_def])
@@ -2926,7 +3071,7 @@ def test_chained_variadic_operands_safeguard(
             variadic_two = variadic_def_two()
             assembly_format = "$variadic_one $variadic_two `:` type($variadic_one) `<` type($variadic_two) `>` attr-dict"
 
-            irdl_options = [AttrSizedOperandSegments()]
+            irdl_options = (AttrSizedOperandSegments(),)
 
 
 @pytest.mark.parametrize(
@@ -3465,7 +3610,7 @@ def test_default_property_in_attr_dict(program: str, generic: str):
 
         attr = attr_def(BoolAttr, default_value=BoolAttr.from_bool(False))
 
-        irdl_options = [ParsePropInAttrDict()]
+        irdl_options = (ParsePropInAttrDict(),)
 
         assembly_format = "attr-dict"
 
@@ -3944,3 +4089,46 @@ def test_ref_directives():
     ctx.load_op(RefDirectivesOp)
     ctx.load_dialect(Test)
     check_roundtrip("%0 = test.ref_directives %1 i1 i2 i3 i4 {\n} ^bb0", ctx)
+
+
+@pytest.mark.parametrize(
+    "program, generic_program",
+    [
+        (
+            "test.dyn_index_list",
+            '"test.dyn_index_list"() <{static_indices = array<i64>}> : () -> ()',
+        ),
+        (
+            '%0 = "test.op"() : () -> i64\ntest.dyn_index_list keyword [%0]',
+            '%0 = "test.op"() : () -> i64\n'
+            '"test.dyn_index_list"(%0) <{static_indices = array<i64: -9223372036854775808>}> : (i64) -> ()',
+        ),
+        (
+            "test.dyn_index_list keyword [3, 5, 7, 9]",
+            '"test.dyn_index_list"() <{static_indices = array<i64: 3, 5, 7 ,9>}> : () -> ()',
+        ),
+        (
+            '%0 = "test.op"() : () -> i64\ntest.dyn_index_list keyword [%0, 5, %0, 9]',
+            '%0 = "test.op"() : () -> i64\n'
+            '"test.dyn_index_list"(%0, %0) <{static_indices = array<i64: -9223372036854775808, 5, -9223372036854775808, 9>}> : (i64, i64) -> ()',
+        ),
+    ],
+)
+def test_optional_anchor_dynamic_index_list(program: str, generic_program: str):
+    @irdl_op_definition
+    class DynIndexListOp(IRDLOperation):
+        name = "test.dyn_index_list"
+
+        dynamic_indices = var_operand_def(I64)
+        static_indices = prop_def(DenseArrayBase[I64])
+
+        assembly_format = "(`keyword` custom<DynamicIndexList>($dynamic_indices, $static_indices)^)? attr-dict"
+
+        custom_directives = (DynamicIndexList,)
+
+    ctx = Context()
+    ctx.load_op(DynIndexListOp)
+    ctx.load_dialect(Test)
+
+    check_roundtrip(program, ctx)
+    check_equivalence(program, generic_program, ctx)

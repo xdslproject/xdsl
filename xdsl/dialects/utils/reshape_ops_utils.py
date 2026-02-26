@@ -4,17 +4,26 @@ See [MLIR counterpart](https://github.com/llvm/llvm-project/blob/main/mlir/inclu
 for more details.
 """
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import cast
 
 from typing_extensions import TypeVar
 
-from xdsl.dialects.builtin import I64, Annotated, ArrayAttr, IntegerAttr, ShapedType
+from xdsl.dialects.builtin import (
+    DYNAMIC_INDEX,
+    I64,
+    Annotated,
+    ArrayAttr,
+    IntegerAttr,
+    ShapedType,
+)
 from xdsl.ir import Attribute
 from xdsl.irdl import (
     AtLeast,
     AttrConstraint,
     ConstraintContext,
+    IntConstraint,
     irdl_to_attr_constraint,
 )
 from xdsl.utils.exceptions import VerifyException
@@ -55,7 +64,7 @@ class ContiguousArrayOfIntArray(AttrConstraint[ArrayOfIntArrayAttr]):
                 raise VerifyException(f"All inner arrays must be contiguous: {attr}")
 
     def mapping_type_vars(
-        self, type_var_mapping: dict[TypeVar, AttrConstraint]
+        self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
     ) -> "ContiguousArrayOfIntArray":
         # No type variables to map in this constraint
         return self
@@ -115,14 +124,14 @@ def verify_reshape_like_shapes_are_compatible(
 
         # Look at the next `len(rm)` dims in expanded_shape
         for dim in expanded_shape[expanded_dim_start : expanded_dim_start + len(rm)]:
-            if dim == -1:
+            if dim == DYNAMIC_INDEX:
                 found_dynamic = True
             else:
                 linearized_static *= dim
 
         if found_dynamic:
             # if any is dynamic, the collapsed must be dynamic too
-            if not collapsed_shape[map_idx] == -1:
+            if not collapsed_shape[map_idx] == DYNAMIC_INDEX:
                 raise VerifyException(
                     f"expected dimension {map_idx} of collapsed type to be dynamic "
                     f"since one or more of the corresponding dimensions in the "
