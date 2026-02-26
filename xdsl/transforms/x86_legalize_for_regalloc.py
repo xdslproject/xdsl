@@ -23,7 +23,6 @@ class X86LegalizeForRegallocPass(ModulePass):
         to_erase: list[Operation] = [],
         alive: set[SSAValue] = set(),
     ) -> None:
-        alive_cardinality = len(alive)
         if not region.blocks:
             return
         assert region.first_block
@@ -45,7 +44,6 @@ class X86LegalizeForRegallocPass(ModulePass):
                     )
             # Handle the block arguments
             alive.difference_update(block.args)
-        assert alive_cardinality == len(alive)
 
     def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         to_erase: list[Operation] = []
