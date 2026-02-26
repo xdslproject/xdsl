@@ -807,8 +807,6 @@ class LocationsArrayConstraint(AttrConstraint):
         self.location_constraint = LocationConstraint()
 
     def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
-        if not isinstance(attr, ArrayAttr):
-            raise VerifyException(f"{attr} is not a locations array attribute")
         array = cast(ArrayAttr[Attribute], attr)
         element: Attribute
         for element in array:
