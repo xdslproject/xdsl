@@ -941,7 +941,6 @@ information that can be attached to operations, covering unknown locations,
 file/line/column positions, call-site chains, named locations, and fused
 (multi-location) aggregates.
 """
-LocationAttr: TypeAlias = UnknownLoc | FileLineColLoc
 UNKNOWN_LOC: LocationAttr = UnknownLoc()
 
 
