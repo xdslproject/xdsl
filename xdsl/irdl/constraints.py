@@ -75,7 +75,6 @@ class ConstraintContext:
     def int_variables(self) -> AbstractSet[str]:
         return self._int_variables.keys()
 
-    @deprecated("ConstraintContexts should not be copied")
     def copy(self):
         return ConstraintContext(
             self._variables.copy(),
@@ -169,6 +168,10 @@ class AttrConstraint(ABC, Generic[AttributeCovT]):
         if isinstance(value, AnyAttr) or self == value:
             return self
         return AllOf((self, value))  # pyright: ignore[reportReturnType]
+
+    def __invert__(self) -> Not[AttributeCovT]:
+        """Return the negation of this constraint (syntactic sugar for Not(self))."""
+        return Not(self)
 
     @abstractmethod
     def mapping_type_vars(
@@ -803,6 +806,59 @@ class MessageConstraint(AttrConstraint[AttributeCovT]):
         return MessageConstraint(
             self.constr.mapping_type_vars(type_var_mapping), self.message
         )
+
+
+@dataclass(frozen=True)
+class Not(AttrConstraint[AttributeCovT]):
+    """
+    Negate an attribute constraint.
+    Succeed iff the wrapped constraint would fail on the given attribute.
+
+    Limitations:
+    - Cannot wrap constraints that expose variables (validated at init time).
+    - Does not provide base information and therefore cannot be used inside
+      `AnyOf` constraints.
+    """
+
+    constraint: AttrConstraint[AttributeCovT]
+    """The constraint to negate."""
+
+    def __post_init__(self) -> None:
+        """Validate that the inner constraint doesn't contain variables."""
+        if self.constraint.variables():
+            raise PyRDLError(
+                f"Not constraint cannot contain variables, but inner constraint "
+                f"{self.constraint} has variables: {self.constraint.variables()}. "
+            )
+
+    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
+        try:
+            # If the inner verification passes on the isolated context, `Not`
+            # must fail.
+            # TODO: ctx.copy() is deprecated, but would be a good usecase here?
+            self.constraint.verify(attr, constraint_context.copy())
+        except VerifyException:
+            # Inner verification failed: `Not` succeeds.
+            return
+        raise VerifyException(
+            f"expected attribute to not satisfy {self.constraint}, but {attr} does"
+        )
+
+    def variables(self) -> set[str]:
+        # Not constraint cannot extract/set variables
+        # It only checks that something does NOT match a pattern
+        return set()
+
+    def get_bases(self) -> set[type[Attribute]] | None:
+        return None
+
+    def infer(self, context: ConstraintContext) -> AttributeCovT:
+        raise ValueError("Cannot infer attribute from Not constraint")
+
+    def mapping_type_vars(
+        self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
+    ) -> Not[AttributeCovT]:
+        return Not(self.constraint.mapping_type_vars(type_var_mapping))
 
 
 @dataclass(frozen=True)
