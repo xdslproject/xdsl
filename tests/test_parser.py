@@ -1004,35 +1004,68 @@ def test_parse_location():
         Parser(ctx, "loc(1)").parse_optional_location()
 
 
-def test_parse_generic_op_location_is_preserved_on_operation():
-    ctx = Context()
-    ctx.load_dialect(Test)
+@pytest.mark.parametrize(
+    "context_mode,text,location_target,expected_location",
+    [
+        (
+            "registered",
+            '"test.op"() : () -> () loc("one":2:3)',
+            "op",
+            FileLineColLoc(StringAttr("one"), IntAttr(2), IntAttr(3)),
+        ),
+        ("registered", '"test.op"() : () -> ()', "op", UnknownLoc()),
+        (
+            "registered",
+            '"test.op"() ({^bb0(%arg0: i32 loc("one":2:3)): "test.termop"() : () -> ()}) : () -> ()',
+            "block_arg",
+            FileLineColLoc(StringAttr("one"), IntAttr(2), IntAttr(3)),
+        ),
+        (
+            "registered",
+            '"test.op"() ({^bb0(%arg0: i32): "test.termop"() : () -> ()}) : () -> ()',
+            "block_arg",
+            UnknownLoc(),
+        ),
+        (
+            "unregistered",
+            '"foo.unknown"() : () -> () loc("one":2:3)',
+            "op",
+            FileLineColLoc(StringAttr("one"), IntAttr(2), IntAttr(3)),
+        ),
+        ("unregistered", '"foo.unknown"() : () -> ()', "op", UnknownLoc()),
+        (
+            "unregistered",
+            '"foo.with_region"() ({^bb0(%arg0: i32 loc("one":2:3)): "foo.term"() : () -> ()}) : () -> ()',
+            "block_arg",
+            FileLineColLoc(StringAttr("one"), IntAttr(2), IntAttr(3)),
+        ),
+        (
+            "unregistered",
+            '"foo.with_region"() ({^bb0(%arg0: i32): "foo.term"() : () -> ()}) : () -> ()',
+            "block_arg",
+            UnknownLoc(),
+        ),
+    ],
+)
+def test_parse_locations_are_preserved(
+    context_mode: str,
+    text: str,
+    location_target: str,
+    expected_location: Attribute,
+):
+    if context_mode == "registered":
+        ctx = Context()
+        ctx.load_dialect(Test)
+    else:
+        ctx = Context(allow_unregistered=True)
 
-    op = Parser(ctx, '"test.op"() : () -> () loc("one":2:3)').parse_op()
+    op = Parser(ctx, text).parse_op()
 
-    assert op.location == FileLineColLoc(StringAttr("one"), IntAttr(2), IntAttr(3))
-
-
-def test_parse_unregistered_generic_op_location_is_preserved_on_operation():
-    ctx = Context(allow_unregistered=True)
-
-    op = Parser(ctx, '"foo.unknown"() : () -> () loc("one":2:3)').parse_op()
-
-    assert op.location == FileLineColLoc(StringAttr("one"), IntAttr(2), IntAttr(3))
-
-
-def test_parse_block_argument_location_is_preserved():
-    ctx = Context(allow_unregistered=True)
-
-    op = Parser(
-        ctx,
-        '"foo.with_region"() ({^bb0(%arg0: i32 loc("one":2:3)): "foo.term"() : () -> ()}) : () -> ()',
-    ).parse_op()
-
-    block = op.regions[0].blocks[0]
-    assert block.args[0].location == FileLineColLoc(
-        StringAttr("one"), IntAttr(2), IntAttr(3)
-    )
+    if location_target == "op":
+        assert op.location == expected_location
+    else:
+        block = op.regions[0].blocks[0]
+        assert block.args[0].location == expected_location
 
 
 @pytest.mark.parametrize(
