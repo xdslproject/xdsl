@@ -207,10 +207,10 @@ class Parser(AttrParser):
             ).span
             self.parse_punctuation(":")
             arg_type = self.parse_attribute()
-            self.parse_optional_location()
+            location = self.parse_optional_location()
 
             # Insert the block argument in the block, and register it in the parser
-            block_arg = block.insert_arg(arg_type, len(block.args))
+            block_arg = block.insert_arg(arg_type, len(block.args), location)
             self._register_ssa_definition(arg_name.text[1:], (block_arg,), arg_name)
 
         self.parse_comma_separated_list(self.Delimiter.PAREN, parse_argument)
@@ -680,6 +680,7 @@ class Parser(AttrParser):
             region-list           ::= `(` region (`,` region)* `)`
             dictionary-attribute  ::= `{` (attribute-entry (`,` attribute-entry)*)? `}`
             properties            ::= `<` dictionary-attribute `>`
+            location              ::= `loc` `(` location-id `)`
         """
         if self._current_token.kind not in (
             MLIRTokenKind.PERCENT_IDENT,
@@ -704,6 +705,7 @@ class Parser(AttrParser):
             region-list           ::= `(` region (`,` region)* `)`
             dictionary-attribute  ::= `{` (attribute-entry (`,` attribute-entry)*)? `}`
             properties            ::= `<` dictionary-attribute `>`
+            location              ::= `loc` `(` location-id `)`
         """
         # Parse the operation results
         op_loc = self._current_token.span
@@ -718,6 +720,8 @@ class Parser(AttrParser):
             self._parser_state.dialect_stack.append(dialect_name)
             op = op_type.parse(self)
             self._parser_state.dialect_stack.pop()
+            if (location := self.parse_optional_location()) is not None:
+                op.location = location
         else:
             # Generic operation format
             op_name = self.expect(
@@ -858,6 +862,7 @@ class Parser(AttrParser):
             region-list           ::= `(` region (`,` region)* `)`
             dictionary-attribute  ::= `{` (attribute-entry (`,` attribute-entry)*)? `}`
             properties            ::= `<` dictionary-attribute `>`
+            location              ::= `loc` `(` location-id `)`
         """
         # Parse arguments
         args = self.parse_op_args_list()
@@ -883,7 +888,7 @@ class Parser(AttrParser):
         # Parse function type
         func_type = self.parse_function_type()
 
-        self.parse_optional_location()
+        location = self.parse_optional_location()
 
         operands = self.resolve_operands(args, func_type.inputs.data, func_type_pos)
 
@@ -900,6 +905,7 @@ class Parser(AttrParser):
             result_types=func_type.outputs.data,
             properties=properties,
             attributes=attributes,
+            location=location,
             successors=successors,
             regions=regions,
         )

@@ -77,17 +77,20 @@ def test_simple_forgotten_op():
 
 
 def test_print_op_location():
-    """Test that an op can be printed with its location."""
+    """Test that debuginfo printing uses operation locations."""
     ctx = Context()
     ctx.load_dialect(test.Test)
 
-    add = test.TestOp(result_types=[i32])
+    op = test.TestOp(result_types=[i32])
 
-    add.verify()
+    op.verify()
 
-    expected = """%0 = "test.op"() : () -> i32 loc(unknown)"""
+    expected_unknown = """%0 = "test.op"() : () -> i32 loc(unknown)"""
+    assert_print_op(op, expected_unknown, print_debuginfo=True)
 
-    assert_print_op(add, expected, print_debuginfo=True)
+    op.location = FileLineColLoc(StringAttr("model.mlir"), IntAttr(7), IntAttr(9))
+    expected_explicit = """%0 = "test.op"() : () -> i32 loc("model.mlir":7:9)"""
+    assert_print_op(op, expected_explicit, print_debuginfo=True)
 
 
 @irdl_op_definition
@@ -453,13 +456,16 @@ def test_print_block_argument():
 def test_print_block_argument_location():
     """Print a block argument with location."""
     block = Block(arg_types=[i32, i32])
+    block.args[0].location = FileLineColLoc(
+        StringAttr("model.mlir"), IntAttr(3), IntAttr(5)
+    )
 
     io = StringIO()
     p = Printer(stream=io, print_debuginfo=True)
     p.print_block_argument(block.args[0])
     p.print_string(", ")
     p.print_block_argument(block.args[1])
-    assert io.getvalue() == """%0 : i32 loc(unknown), %1 : i32 loc(unknown)"""
+    assert io.getvalue() == """%0 : i32 loc("model.mlir":3:5), %1 : i32 loc(unknown)"""
 
 
 def test_print_block():

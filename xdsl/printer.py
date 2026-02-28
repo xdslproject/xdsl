@@ -23,7 +23,6 @@ from xdsl.dialects.builtin import (
     IndexType,
     IntegerType,
     UnitAttr,
-    UnknownLoc,
     UnregisteredOp,
     i1,
 )
@@ -245,7 +244,7 @@ class Printer(BasePrinter):
             self.print_attribute(arg.type)
             if self.print_debuginfo:
                 self.print_string(" ")
-                self.print_attribute(UnknownLoc())
+                self.print_attribute(arg.location)
 
     def print_region(
         self,
@@ -585,7 +584,7 @@ class Printer(BasePrinter):
         self.print_function_type(op.operand_types, op.result_types)
         if self.print_debuginfo:
             self.print_string(" ")
-            self.print_attribute(UnknownLoc())
+            self.print_attribute(op.location)
 
     def enter_scope(self) -> None:
         self._next_valid_name_id.append(self._next_valid_name_id[-1])
