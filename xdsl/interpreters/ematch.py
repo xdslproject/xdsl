@@ -479,3 +479,15 @@ class EmatchFunctions(InterpreterFunctions):
             self.worklist.clear()
             for c in todo:
                 self.repair(interpreter, c)
+
+    def execute_pending_rewrites(self, interpreter: Interpreter):
+        """Execute all pending rewrites that were aggregated during matching."""
+        rewriter = PDLInterpFunctions.get_rewriter(interpreter)
+        for rewriter_op, root, args in self.pending_rewrites:
+            rewriter.current_operation = root
+            rewriter.insertion_point = InsertPoint.before(root)
+
+            self.is_matching = False
+            interpreter.call_op(rewriter_op, args)
+            self.is_matching = True
+        self.pending_rewrites.clear()
