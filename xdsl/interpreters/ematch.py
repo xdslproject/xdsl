@@ -127,3 +127,65 @@ class EmatchFunctions(InterpreterFunctions):
 
         # Value is not an eclass result, return it as-is
         return (val,)
+
+    @impl(ematch.GetClassResultOp)
+    def run_get_class_result(
+        self,
+        interpreter: Interpreter,
+        op: ematch.GetClassResultOp,
+        args: tuple[Any, ...],
+    ) -> tuple[Any, ...]:
+        """
+        Get the equivalence.class result corresponding to the equivalence class of v.
+
+        If v has exactly one use and that use is a ClassOp, return the ClassOp's result.
+        Otherwise return v unchanged.
+        """
+        assert len(args) == 1
+        val = args[0]
+
+        if val is None:
+            return (val,)
+
+        assert isa(val, SSAValue)
+
+        if val.has_one_use():
+            user = val.get_user_of_unique_use()
+            if isinstance(user, equivalence.AnyClassOp):
+                leader = self.eclass_union_find.find(user)
+                return (leader.result,)
+
+        return (val,)
+
+    @impl(ematch.GetClassResultsOp)
+    def run_get_class_results(
+        self,
+        interpreter: Interpreter,
+        op: ematch.GetClassResultsOp,
+        args: tuple[Any, ...],
+    ) -> tuple[Any, ...]:
+        """
+        Get the equivalence.class results corresponding to the equivalence classes
+        of a range of values.
+        """
+        assert len(args) == 1
+        vals = args[0]
+
+        if vals is None:
+            return ((),)
+
+        results: list[SSAValue] = []
+        for val in vals:
+            if val is None:
+                results.append(val)
+            elif val.has_one_use():
+                user = val.get_user_of_unique_use()
+                if isinstance(user, equivalence.AnyClassOp):
+                    leader = self.eclass_union_find.find(user)
+                    results.append(leader.result)
+                else:
+                    results.append(val)
+            else:
+                results.append(val)
+
+        return (tuple(results),)
