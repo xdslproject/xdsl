@@ -176,3 +176,33 @@ def test_dedup_no_duplicate():
     )
     assert result == (op,)
     assert op in ematch_funcs.known_ops
+
+
+def test_rebuild():
+    interpreter, ematch_funcs, block = _make_interpreter_with_rewriter()
+
+    with ImplicitBuilder(block):
+        # Create an eclass with one value
+        v0 = test.TestOp(result_types=(i32,)).results[0]
+
+    eclass_c = ematch_funcs.get_or_create_class(interpreter, v0)
+
+    with ImplicitBuilder(block):
+        # Create two identical operations using the eclass result
+        op1 = test.TestOp(operands=(eclass_c.result,), result_types=(i32,))
+        op2 = test.TestOp(operands=(eclass_c.result,), result_types=(i32,))
+
+    # Create eclasses for op1 and op2's results
+    eclass_a = ematch_funcs.get_or_create_class(interpreter, op1.results[0])
+    eclass_b = ematch_funcs.get_or_create_class(interpreter, op2.results[0])
+    assert eclass_a is not eclass_b
+
+    # Put eclass_c on the worklist and rebuild
+    ematch_funcs.worklist.append(eclass_c)
+    ematch_funcs.rebuild(interpreter)
+
+    # After rebuild, eclass_a and eclass_b should be merged
+    # (because op1 and op2 are structurally identical)
+    assert ematch_funcs.eclass_union_find.find(
+        eclass_a
+    ) is ematch_funcs.eclass_union_find.find(eclass_b)
