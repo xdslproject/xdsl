@@ -146,6 +146,15 @@ def _convert_cast(
     val_map[op.results[0]] = instr
 
 
+def _convert_fabs(
+    op: llvm.FAbsOp, builder: ir.IRBuilder, val_map: dict[SSAValue, ir.Value]
+):
+    operand = val_map[op.input]
+    fn_type = ir.FunctionType(operand.type, [operand.type])
+    intrinsic = builder.module.declare_intrinsic("llvm.fabs", fnty=fn_type)
+    val_map[op.result] = builder.call(intrinsic, [operand])
+
+
 def _convert_call(
     op: llvm.CallOp, builder: ir.IRBuilder, val_map: dict[SSAValue, ir.Value]
 ):
@@ -282,6 +291,8 @@ def convert_op(
             _convert_icmp(op, builder, val_map)
         case op if type(op) in _CAST_OP_NAMES:
             _convert_cast(op, builder, val_map)
+        case llvm.FAbsOp():
+            _convert_fabs(op, builder, val_map)
         case llvm.CallOp():
             _convert_call(op, builder, val_map)
         case llvm.AllocaOp():

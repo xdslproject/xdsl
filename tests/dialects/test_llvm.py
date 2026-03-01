@@ -578,6 +578,13 @@ def test_func_op_extra_attrs():
     assert op.attributes["goofy"] == builtin.StringAttr("goober")
 
 
+def test_fabs_op():
+    val = create_ssa_value(builtin.f32)
+    op = llvm.FAbsOp(val, builtin.f32)
+    assert op.input == val
+    assert op.result.type == builtin.f32
+
+
 def test_masked_store_op():
     value = create_ssa_value(builtin.f32)
     ptr = create_ssa_value(llvm.LLVMPointerType())
