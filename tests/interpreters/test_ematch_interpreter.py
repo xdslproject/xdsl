@@ -1,7 +1,11 @@
-from xdsl.dialects import ematch, equivalence, pdl
+from xdsl.builder import ImplicitBuilder
+from xdsl.dialects import ematch, equivalence, pdl, test
 from xdsl.dialects.builtin import ModuleOp, i32
 from xdsl.interpreter import Interpreter
 from xdsl.interpreters.ematch import EmatchFunctions
+from xdsl.interpreters.pdl_interp import PDLInterpFunctions
+from xdsl.ir import Block, Region
+from xdsl.pattern_rewriter import PatternRewriter
 from xdsl.utils.test_value import create_ssa_value
 
 
@@ -97,3 +101,42 @@ def test_get_class_results():
         ematch.GetClassResultsOp(create_ssa_value(pdl.RangeType(pdl.ValueType()))),
         ((v2,),),
     ) == ((v2,),)
+
+
+def _make_interpreter_with_rewriter():
+    """Helper to set up an interpreter with a rewriter for tests that modify IR."""
+    ematch_funcs = EmatchFunctions()
+    interpreter = Interpreter(ModuleOp([]))
+    interpreter.register_implementations(ematch_funcs)
+
+    testmodule = ModuleOp(Region([Block()]))
+    block = testmodule.body.first_block
+    assert block is not None
+    with ImplicitBuilder(block):
+        root = test.TestOp()
+
+    rewriter = PatternRewriter(root)
+    PDLInterpFunctions.set_rewriter(interpreter, rewriter)
+
+    return interpreter, ematch_funcs, block
+
+
+def test_union_val():
+    interpreter, ematch_funcs, block = _make_interpreter_with_rewriter()
+
+    with ImplicitBuilder(block):
+        v0 = test.TestOp(result_types=(i32,)).results[0]
+        v1 = test.TestOp(result_types=(i32,)).results[0]
+
+    interpreter.run_op(
+        ematch.UnionOp(
+            create_ssa_value(pdl.ValueType()), create_ssa_value(pdl.ValueType())
+        ),
+        (v0, v1),
+    )
+
+    # After union, both values should be operands of the same ClassOp
+    eclass_a = ematch_funcs.get_or_create_class(interpreter, v0)
+    eclass_b = ematch_funcs.get_or_create_class(interpreter, v1)
+    assert eclass_a is eclass_b
+    assert set(eclass_a.operands) == {v0, v1}
