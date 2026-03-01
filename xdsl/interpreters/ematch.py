@@ -5,7 +5,9 @@ from xdsl.analysis.sparse_analysis import Lattice, SparseForwardDataFlowAnalysis
 from xdsl.dialects import ematch, equivalence
 from xdsl.dialects.builtin import SymbolRefAttr
 from xdsl.interpreter import Interpreter, InterpreterFunctions, impl, register_impls
-from xdsl.ir import Operation, OpResult, SSAValue
+from xdsl.interpreters.pdl_interp import PDLInterpFunctions
+from xdsl.ir import Block, Operation, OpResult, SSAValue
+from xdsl.rewriter import InsertPoint
 from xdsl.transforms.common_subexpression_elimination import KnownOps
 from xdsl.utils.disjoint_set import DisjointSet
 from xdsl.utils.hints import isa
@@ -189,3 +191,37 @@ class EmatchFunctions(InterpreterFunctions):
                 results.append(val)
 
         return (tuple(results),)
+
+    def get_or_create_class(
+        self, interpreter: Interpreter, val: SSAValue
+    ) -> equivalence.AnyClassOp:
+        """
+        Get the equivalence class for a value, creating one if it doesn't exist.
+        """
+        if isinstance(val, OpResult):
+            # If val is defined by a ClassOp, return it
+            if isinstance(val.owner, equivalence.AnyClassOp):
+                return self.eclass_union_find.find(val.owner)
+            insertpoint = InsertPoint.before(val.owner)
+        else:
+            assert isinstance(val.owner, Block)
+            insertpoint = InsertPoint.at_start(val.owner)
+
+        # If val has one use and it's a ClassOp, return it
+        if (user := val.get_user_of_unique_use()) is not None:
+            if isinstance(user, equivalence.AnyClassOp):
+                return user
+
+        # If the value is not part of an eclass yet, create one
+        rewriter = PDLInterpFunctions.get_rewriter(interpreter)
+
+        eclass_op = equivalence.ClassOp(val)
+        rewriter.insert_op(eclass_op, insertpoint)
+        self.eclass_union_find.add(eclass_op)
+
+        # Replace uses of val with the eclass result (except in the eclass itself)
+        rewriter.replace_uses_with_if(
+            val, eclass_op.result, lambda use: use.operation is not eclass_op
+        )
+
+        return eclass_op
