@@ -2159,14 +2159,27 @@ class FAbsOp(IRDLOperation):
     input = operand_def(T)
     result = result_def(T)
 
+    fastmathFlags = prop_def(FastMathAttr, default_value=FastMathAttr(None))
+
     assembly_format = (
         "`(` operands `)` attr-dict `:` functional-type(operands, results)"
     )
 
     irdl_options = (ParsePropInAttrDict(),)
 
-    def __init__(self, input: Operation | SSAValue, result_type: Attribute):
-        super().__init__(operands=[input], result_types=[result_type])
+    def __init__(
+        self,
+        input: Operation | SSAValue,
+        result_type: Attribute,
+        fast_math: FastMathAttr | FastMathFlag | None = None,
+    ):
+        if isinstance(fast_math, FastMathFlag | str | None):
+            fast_math = FastMathAttr(fast_math)
+        super().__init__(
+            operands=[input],
+            result_types=[result_type],
+            properties={"fastmathFlags": fast_math},
+        )
 
 
 @irdl_op_definition
