@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -12,6 +13,7 @@ from xdsl.ir import Block, Operation, OpResult, SSAValue
 from xdsl.rewriter import InsertPoint
 from xdsl.transforms.common_subexpression_elimination import KnownOps
 from xdsl.utils.disjoint_set import DisjointSet
+from xdsl.utils.exceptions import InterpretationError
 from xdsl.utils.hints import isa
 
 
@@ -280,3 +282,60 @@ class EmatchFunctions(InterpreterFunctions):
         rewriter = PDLInterpFunctions.get_rewriter(interpreter)
         rewriter.replace_op(to_replace, new_ops=[], new_results=to_keep.results)
         return True
+
+    def union_val(self, interpreter: Interpreter, a: SSAValue, b: SSAValue) -> None:
+        """
+        Union two values into the same equivalence class.
+        """
+        if a == b:
+            return
+
+        eclass_a = self.get_or_create_class(interpreter, a)
+        eclass_b = self.get_or_create_class(interpreter, b)
+
+        if self.eclass_union(interpreter, eclass_a, eclass_b):
+            self.worklist.append(eclass_a)
+
+    @impl(ematch.UnionOp)
+    def run_union(
+        self,
+        interpreter: Interpreter,
+        op: ematch.UnionOp,
+        args: tuple[Any, ...],
+    ) -> tuple[Any, ...]:
+        """
+        Merge two values, an operation and a value range, or two value ranges
+        into equivalence class(es).
+
+        Supported operand type combinations:
+        - (value, value): merge two values
+        - (operation, range<value>): merge operation results with values
+        - (range<value>, range<value>): merge two value ranges
+        """
+        assert len(args) == 2
+        lhs, rhs = args
+
+        if isa(lhs, SSAValue) and isa(rhs, SSAValue):
+            # (Value, Value) case
+            self.union_val(interpreter, lhs, rhs)
+
+        elif isinstance(lhs, Operation) and isa(rhs, Sequence[SSAValue]):
+            # (Operation, ValueRange) case
+            assert len(lhs.results) == len(rhs), (
+                "Operation result count must match value range size"
+            )
+            for result, val in zip(lhs.results, rhs, strict=True):
+                self.union_val(interpreter, result, val)
+
+        elif isa(lhs, Sequence[SSAValue]) and isa(rhs, Sequence[SSAValue]):
+            # (ValueRange, ValueRange) case
+            assert len(lhs) == len(rhs), "Value ranges must have equal size"
+            for val_lhs, val_rhs in zip(lhs, rhs, strict=True):
+                self.union_val(interpreter, val_lhs, val_rhs)
+
+        else:
+            raise InterpretationError(
+                f"union: unsupported argument types: {type(lhs)}, {type(rhs)}"
+            )
+
+        return ()
