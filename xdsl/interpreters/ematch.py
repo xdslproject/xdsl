@@ -8,6 +8,7 @@ from xdsl.interpreter import Interpreter, InterpreterFunctions, impl, register_i
 from xdsl.ir import Operation, OpResult, SSAValue
 from xdsl.transforms.common_subexpression_elimination import KnownOps
 from xdsl.utils.disjoint_set import DisjointSet
+from xdsl.utils.hints import isa
 
 
 @register_impls
@@ -98,3 +99,31 @@ class EmatchFunctions(InterpreterFunctions):
 
         # Value is not an eclass result, return it as a single-element tuple
         return ((val,),)
+
+    @impl(ematch.GetClassRepresentativeOp)
+    def run_get_class_representative(
+        self,
+        interpreter: Interpreter,
+        op: ematch.GetClassRepresentativeOp,
+        args: tuple[Any, ...],
+    ) -> tuple[Any, ...]:
+        """
+        Get one of the values in the equivalence class of v.
+        Returns the first operand of the equivalence class.
+        """
+        assert len(args) == 1
+        val = args[0]
+
+        if val is None:
+            return (val,)
+
+        assert isa(val, SSAValue)
+
+        if isinstance(val, OpResult):
+            defining_op = val.owner
+            if isinstance(defining_op, equivalence.AnyClassOp):
+                leader = self.eclass_union_find.find(defining_op)
+                return (leader.operands[0],)
+
+        # Value is not an eclass result, return it as-is
+        return (val,)

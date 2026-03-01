@@ -25,3 +25,27 @@ def test_get_class_vals():
     assert interpreter.run_op(
         ematch.GetClassValsOp(create_ssa_value(pdl.ValueType())), (v2,)
     ) == ((v2,),)
+
+
+def test_get_class_representative():
+    ematch_funcs = EmatchFunctions()
+    interpreter = Interpreter(ModuleOp([]))
+    interpreter.register_implementations(ematch_funcs)
+
+    v0 = create_ssa_value(i32)
+    v1 = create_ssa_value(i32)
+    classop = equivalence.ClassOp(v0, v1)
+    ematch_funcs.eclass_union_find.add(classop)
+
+    # Class result → first operand (representative)
+    assert interpreter.run_op(
+        ematch.GetClassRepresentativeOp(create_ssa_value(pdl.ValueType())),
+        (classop.result,),
+    ) == (v0,)
+
+    # Plain value → itself
+    v2 = create_ssa_value(i32)
+    assert interpreter.run_op(
+        ematch.GetClassRepresentativeOp(create_ssa_value(pdl.ValueType())),
+        (v2,),
+    ) == (v2,)
