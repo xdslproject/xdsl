@@ -156,3 +156,36 @@ class EmatchFunctions(InterpreterFunctions):
                 return (leader.result,)
 
         return (val,)
+
+    @impl(ematch.GetClassResultsOp)
+    def run_get_class_results(
+        self,
+        interpreter: Interpreter,
+        op: ematch.GetClassResultsOp,
+        args: tuple[Any, ...],
+    ) -> tuple[Any, ...]:
+        """
+        Get the equivalence.class results corresponding to the equivalence classes
+        of a range of values.
+        """
+        assert len(args) == 1
+        vals = args[0]
+
+        if vals is None:
+            return ((),)
+
+        results: list[SSAValue] = []
+        for val in vals:
+            if val is None:
+                results.append(val)
+            elif val.has_one_use():
+                user = val.get_user_of_unique_use()
+                if isinstance(user, equivalence.AnyClassOp):
+                    leader = self.eclass_union_find.find(user)
+                    results.append(leader.result)
+                else:
+                    results.append(val)
+            else:
+                results.append(val)
+
+        return (tuple(results),)
