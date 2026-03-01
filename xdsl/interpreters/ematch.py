@@ -339,3 +339,34 @@ class EmatchFunctions(InterpreterFunctions):
             )
 
         return ()
+
+    @impl(ematch.DedupOp)
+    def run_dedup(
+        self,
+        interpreter: Interpreter,
+        op: ematch.DedupOp,
+        args: tuple[Any, ...],
+    ) -> tuple[Any, ...]:
+        """
+        Check if the operation already exists in the hashcons.
+
+        If an equivalent operation exists, erase the input operation and return
+        the existing one. Otherwise, insert the operation into the hashcons and
+        return it.
+        """
+        assert len(args) == 1
+        input_op = args[0]
+        assert isinstance(input_op, Operation)
+
+        # Check if an equivalent operation exists in hashcons
+        existing = self.known_ops.get(input_op)
+
+        if existing is not None and existing is not input_op:
+            # Deduplicate: erase the new op and return existing
+            rewriter = PDLInterpFunctions.get_rewriter(interpreter)
+            rewriter.erase_op(input_op)
+            return (existing,)
+
+        # No duplicate found, insert into hashcons
+        self.known_ops[input_op] = input_op
+        return (input_op,)
