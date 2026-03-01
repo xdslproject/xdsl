@@ -1,6 +1,8 @@
 from dataclasses import dataclass, field
 from typing import Any
 
+from ordered_set import OrderedSet
+
 from xdsl.analysis.sparse_analysis import Lattice, SparseForwardDataFlowAnalysis
 from xdsl.dialects import ematch, equivalence
 from xdsl.dialects.builtin import SymbolRefAttr
@@ -225,3 +227,56 @@ class EmatchFunctions(InterpreterFunctions):
         )
 
         return eclass_op
+
+    def eclass_union(
+        self,
+        interpreter: Interpreter,
+        a: equivalence.AnyClassOp,
+        b: equivalence.AnyClassOp,
+    ) -> bool:
+        """Unions two eclasses, merging their operands and results.
+        Returns True if the eclasses were merged, False if they were already the same."""
+        a = self.eclass_union_find.find(a)
+        b = self.eclass_union_find.find(b)
+
+        if a == b:
+            return False
+
+        # Meet the analysis states of the two e-classes
+        for analysis in self.analyses:
+            a_lattice = analysis.get_lattice_element(a.result)
+            b_lattice = analysis.get_lattice_element(b.result)
+            a_lattice.meet(b_lattice)
+
+        if isinstance(a, equivalence.ConstantClassOp):
+            if isinstance(b, equivalence.ConstantClassOp):
+                assert a.value == b.value, (
+                    "Trying to union two different constant eclasses.",
+                )
+            to_keep, to_replace = a, b
+            self.eclass_union_find.union_left(to_keep, to_replace)
+        elif isinstance(b, equivalence.ConstantClassOp):
+            to_keep, to_replace = b, a
+            self.eclass_union_find.union_left(to_keep, to_replace)
+        else:
+            self.eclass_union_find.union(
+                a,
+                b,
+            )
+            to_keep = self.eclass_union_find.find(a)
+            to_replace = b if to_keep is a else a
+        # Operands need to be deduplicated because it can happen the same operand was
+        # used by different parent eclasses after their children were merged:
+        new_operands = OrderedSet(to_keep.operands)
+        new_operands.update(to_replace.operands)
+        to_keep.operands = new_operands
+
+        for use in to_replace.result.uses:
+            # uses are removed from the hashcons before the replacement is carried out.
+            # (because the replacement changes the operations which means we cannot find them in the hashcons anymore)
+            if use.operation in self.known_ops:
+                self.known_ops.pop(use.operation)
+
+        rewriter = PDLInterpFunctions.get_rewriter(interpreter)
+        rewriter.replace_op(to_replace, new_ops=[], new_results=to_keep.results)
+        return True
