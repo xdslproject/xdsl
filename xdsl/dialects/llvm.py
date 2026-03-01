@@ -2183,6 +2183,38 @@ class FAbsOp(IRDLOperation):
 
 
 @irdl_op_definition
+class MaskedStoreOp(IRDLOperation):
+    name = "llvm.intr.masked.store"
+
+    value = operand_def(AnyFloatConstr | VectorType.constr(AnyFloatConstr))
+    data = operand_def(LLVMPointerType)
+    mask = operand_def(I1 | VectorType[I1])
+    alignment = prop_def(IntegerAttr[i32])
+
+    assembly_format = (
+        "$value `,` $data `,` $mask attr-dict `:`"
+        " type($value) `,` type($mask) `into` type($data)"
+    )
+
+    irdl_options = (ParsePropInAttrDict(),)
+
+    def __init__(
+        self,
+        value: Operation | SSAValue,
+        data: Operation | SSAValue,
+        mask: Operation | SSAValue,
+        alignment: int = 32,
+    ):
+        super().__init__(
+            operands=[value, data, mask],
+            result_types=[],
+            properties={
+                "alignment": IntegerAttr(alignment, 32),
+            },
+        )
+
+
+@irdl_op_definition
 class UnreachableOp(IRDLOperation):
     name = "llvm.unreachable"
 
@@ -2219,6 +2251,7 @@ LLVM = Dialect(
         IntToPtrOp,
         LShrOp,
         LoadOp,
+        MaskedStoreOp,
         MulOp,
         NullOp,
         OrOp,
