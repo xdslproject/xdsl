@@ -4,6 +4,7 @@ from typing import Any
 
 from ordered_set import OrderedSet
 
+from xdsl.analysis.dataflow import ChangeResult, ProgramPoint
 from xdsl.analysis.sparse_analysis import Lattice, SparseForwardDataFlowAnalysis
 from xdsl.dialects import ematch, equivalence
 from xdsl.dialects.builtin import SymbolRefAttr
@@ -370,3 +371,111 @@ class EmatchFunctions(InterpreterFunctions):
         # No duplicate found, insert into hashcons
         self.known_ops[input_op] = input_op
         return (input_op,)
+
+    def repair(self, interpreter: Interpreter, eclass: equivalence.AnyClassOp):
+        """
+        Repair an e-class by finding and merging duplicate parent operations.
+
+        This method:
+        1. Finds all operations that use this e-class's result
+        2. Identifies structurally equivalent operations among them
+        3. Merges equivalent operations by unioning their result e-classes
+        4. Updates dataflow analysis states
+        """
+        rewriter = PDLInterpFunctions.get_rewriter(interpreter)
+        eclass = self.eclass_union_find.find(eclass)
+
+        if eclass.parent is None:
+            return
+
+        unique_parents = KnownOps()
+
+        # Collect parent operations (operations that use this eclass's result)
+        # Use OrderedSet to maintain deterministic ordering
+        parent_ops = OrderedSet(use.operation for use in eclass.result.uses)
+
+        # Collect pairs of duplicate operations to merge AFTER the loop
+        # This avoids modifying the hash map while iterating
+        to_merge: list[tuple[Operation, Operation]] = []
+
+        for op1 in parent_ops:
+            # Skip eclass operations themselves
+            if isinstance(op1, equivalence.AnyClassOp):
+                continue
+
+            op2 = unique_parents.get(op1)
+
+            if op2 is not None:
+                # Found an equivalent operation - record for later merging
+                to_merge.append((op1, op2))
+            else:
+                unique_parents[op1] = op1
+
+        # Now perform all merges after we're done with the hash map
+        for op1, op2 in to_merge:
+            # Collect eclass pairs for ALL results before replacement
+            eclass_pairs: list[
+                tuple[equivalence.AnyClassOp, equivalence.AnyClassOp]
+            ] = []
+            for res1, res2 in zip(op1.results, op2.results, strict=True):
+                eclass1 = self.get_or_create_class(interpreter, res1)
+                eclass2 = self.get_or_create_class(interpreter, res2)
+                eclass_pairs.append((eclass1, eclass2))
+
+            # Replace op1 with op2's results
+            rewriter.replace_op(op1, new_ops=(), new_results=op2.results)
+
+            # Process each eclass pair
+            for eclass1, eclass2 in eclass_pairs:
+                if eclass1 == eclass2:
+                    # Same eclass - just deduplicate operands
+                    eclass1.operands = OrderedSet(eclass1.operands)
+                else:
+                    # Different eclasses - union them
+                    if self.eclass_union(interpreter, eclass1, eclass2):
+                        self.worklist.append(eclass1)
+
+        # Update dataflow analysis for all parent operations
+        eclass = self.eclass_union_find.find(eclass)
+        for op in OrderedSet(use.operation for use in eclass.result.uses):
+            if isinstance(op, equivalence.AnyClassOp):
+                continue
+
+            point = ProgramPoint.before(op)
+
+            for analysis in self.analyses:
+                operands = [
+                    analysis.get_lattice_element_for(point, o) for o in op.operands
+                ]
+                results = [analysis.get_lattice_element(r) for r in op.results]
+
+                if not results:
+                    continue
+
+                original_state: Any = None
+                # For each result, reset to bottom and recompute
+                for result in results:
+                    original_state = result.value
+                    result._value = result.value_cls()  # pyright: ignore[reportPrivateUsage]
+
+                analysis.visit_operation_impl(op, operands, results)
+
+                # Check if any result changed
+                for result in results:
+                    assert original_state is not None
+                    changed = result.meet(type(result)(result.anchor, original_state))
+                    if changed == ChangeResult.CHANGE:
+                        # Find the eclass for this result and add to worklist
+                        if (op_use := op.results[0].first_use) is not None:
+                            if isinstance(
+                                eclass_op := op_use.operation, equivalence.AnyClassOp
+                            ):
+                                self.worklist.append(eclass_op)
+                        break  # Only need to add to worklist once per operation
+
+    def rebuild(self, interpreter: Interpreter):
+        while self.worklist:
+            todo = OrderedSet(self.eclass_union_find.find(c) for c in self.worklist)
+            self.worklist.clear()
+            for c in todo:
+                self.repair(interpreter, c)
