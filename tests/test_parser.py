@@ -26,6 +26,7 @@ from xdsl.dialects.builtin import (
     UnknownLoc,
     i32,
 )
+from xdsl.dialects.func import Func
 from xdsl.dialects.test import Test
 from xdsl.ir import Attribute, Block, ParametrizedAttribute
 from xdsl.irdl import (
@@ -1088,6 +1089,46 @@ def test_parse_locations_are_preserved(
     else:
         block = op.regions[0].blocks[0]
         assert block.args[0].location == expected_location
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "func.func private @f(%arg0: i32 loc(unknown))",
+        'func.func private @f(%arg0: i32 {arg_name = "x"} loc(unknown))',
+        "func.func private @f(i32 loc(unknown))",
+    ],
+)
+def test_parse_func_argument_location_no_error(text: str):
+    ctx = Context()
+    ctx.load_dialect(Func)
+
+    Parser(ctx, text).parse_op()
+
+
+@pytest.mark.parametrize(
+    "text,error",
+    [
+        (
+            'func.func private @f(%arg0: i32 loc(unknown) {arg_name = "x"})',
+            "Expected function argument attributes before location.",
+        ),
+        (
+            "func.func private @f(%arg0: i32 loc(unknown) {})",
+            "Expected function argument attributes before location.",
+        ),
+        (
+            "func.func private @f(%arg0: i32 loc(unknown) loc(unknown))",
+            "Expected at most one location in function argument.",
+        ),
+    ],
+)
+def test_parse_func_argument_location_order_errors(text: str, error: str):
+    ctx = Context()
+    ctx.load_dialect(Func)
+
+    with pytest.raises(ParseError, match=error):
+        Parser(ctx, text).parse_op()
 
 
 @pytest.mark.parametrize(
