@@ -94,9 +94,7 @@ class EmatchFunctions(InterpreterFunctions):
         if isinstance(val, OpResult):
             defining_op = val.owner
             if isinstance(defining_op, equivalence.AnyClassOp):
-                # Find the leader to get the canonical set of operands
-                leader = self.eclass_union_find.find(defining_op)
-                return (tuple(leader.operands),)
+                return (tuple(defining_op.operands),)
 
         # Value is not an eclass result, return it as a single-element tuple
         return ((val,),)
