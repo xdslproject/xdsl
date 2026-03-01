@@ -2151,6 +2151,38 @@ class FPExtOp(GenericCastOp):
 
 
 @irdl_op_definition
+class FAbsOp(IRDLOperation):
+    T: ClassVar = VarConstraint("T", AnyFloatConstr | VectorType.constr(AnyFloatConstr))
+
+    name = "llvm.intr.fabs"
+
+    input = operand_def(T)
+    result = result_def(T)
+
+    fastmathFlags = prop_def(FastMathAttr, default_value=FastMathAttr(None))
+
+    assembly_format = (
+        "`(` operands `)` attr-dict `:` functional-type(operands, results)"
+    )
+
+    irdl_options = (ParsePropInAttrDict(),)
+
+    def __init__(
+        self,
+        input: Operation | SSAValue,
+        result_type: Attribute,
+        fast_math: FastMathAttr | FastMathFlag | None = None,
+    ):
+        if isinstance(fast_math, FastMathFlag | str | None):
+            fast_math = FastMathAttr(fast_math)
+        super().__init__(
+            operands=[input],
+            result_types=[result_type],
+            properties={"fastmathFlags": fast_math},
+        )
+
+
+@irdl_op_definition
 class UnreachableOp(IRDLOperation):
     name = "llvm.unreachable"
 
@@ -2171,6 +2203,7 @@ LLVM = Dialect(
         CallOp,
         ConstantOp,
         ExtractValueOp,
+        FAbsOp,
         FAddOp,
         FDivOp,
         FMulOp,

@@ -563,6 +563,18 @@ builtin.module {
   // CHECK-NEXT:   ret void
   // CHECK-NEXT: }
 
+  llvm.func @fabs_op(%arg0: f32) -> f32 {
+    %0 = llvm.intr.fabs(%arg0) : (f32) -> f32
+    llvm.return %0 : f32
+  }
+
+  // CHECK: define float @"fabs_op"(float %".1")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT:   {{%.+}} = call float @"llvm.fabs"(float %".1")
+  // CHECK-NEXT:   ret float {{%.+}}
+  // CHECK-NEXT: }
+
   llvm.func @helper(%arg0: i32) -> i32 {
     llvm.return %arg0 : i32
   }

@@ -576,3 +576,10 @@ def test_func_op_extra_attrs():
     op = llvm.FuncOp("my_func", ft, extra_attrs={"goofy": builtin.StringAttr("goober")})
     assert "goofy" in op.attributes
     assert op.attributes["goofy"] == builtin.StringAttr("goober")
+
+
+def test_fabs_op():
+    val = create_ssa_value(builtin.f32)
+    op = llvm.FAbsOp(val, builtin.f32)
+    assert op.input == val
+    assert op.result.type == builtin.f32
