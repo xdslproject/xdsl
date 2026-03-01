@@ -233,3 +233,24 @@ def test_get_or_create_class_creates_new_class_for_block_arg():
     assert isinstance(result, equivalence.ClassOp)
     assert block_arg in result.operands
     assert ematch_funcs.eclass_union_find.find(result) is result
+
+
+def test_union_val():
+    interpreter, ematch_funcs, block = _make_interpreter_with_rewriter()
+
+    with ImplicitBuilder(block):
+        v0 = test.TestOp(result_types=(i32,)).results[0]
+        v1 = test.TestOp(result_types=(i32,)).results[0]
+
+    interpreter.run_op(
+        ematch.UnionOp(
+            create_ssa_value(pdl.ValueType()), create_ssa_value(pdl.ValueType())
+        ),
+        (v0, v1),
+    )
+
+    # After union, both values should be operands of the same ClassOp
+    eclass_a = ematch_funcs.get_or_create_class(interpreter, v0)
+    eclass_b = ematch_funcs.get_or_create_class(interpreter, v1)
+    assert eclass_a is eclass_b
+    assert set(eclass_a.operands) == {v0, v1}
