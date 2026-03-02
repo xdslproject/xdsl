@@ -12,3 +12,13 @@
 
 %2 = llvm.intr.fabs(%arg2) : (vector<4xf32>) -> vector<4xf32>
 // CHECK: llvm.intr.fabs([[arg2]]) : (vector<4xf32>) -> vector<4xf32>
+
+%ptr = "test.op"() : () -> !llvm.ptr
+// CHECK: [[ptr:%\d+]] = "test.op"
+%vec_val = "test.op"() : () -> vector<4xf32>
+// CHECK: [[vec_val:%\d+]] = "test.op"
+%vec_mask = "test.op"() : () -> vector<4xi1>
+// CHECK: [[vec_mask:%\d+]] = "test.op"
+
+llvm.intr.masked.store %vec_val, %ptr, %vec_mask {alignment = 32 : i32} : vector<4xf32>, vector<4xi1> into !llvm.ptr
+// CHECK: llvm.intr.masked.store [[vec_val]], [[ptr]], [[vec_mask]] {alignment = 32 : i32} : vector<4xf32>, vector<4xi1> into !llvm.ptr
