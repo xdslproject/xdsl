@@ -6,6 +6,7 @@ from ordered_set import OrderedSet
 
 from xdsl.analysis.sparse_analysis import Lattice, SparseForwardDataFlowAnalysis
 from xdsl.dialects import ematch, equivalence
+from xdsl.dialects.builtin import SymbolRefAttr
 from xdsl.interpreter import Interpreter, InterpreterFunctions, impl, register_impls
 from xdsl.interpreters.pdl_interp import PDLInterpFunctions
 from xdsl.ir import Block, Operation, OpResult, SSAValue
@@ -30,10 +31,19 @@ class EmatchFunctions(InterpreterFunctions):
     )
     """Union-find structure tracking which e-classes are equivalent and should be merged."""
 
+    pending_rewrites: list[tuple[SymbolRefAttr, Operation, tuple[Any, ...]]] = field(
+        default_factory=lambda: []
+    )
+    """List of pending rewrites to be executed. Each entry is a tuple of (rewriter, root, args)."""
+
     worklist: list[equivalence.AnyClassOp] = field(
         default_factory=list[equivalence.AnyClassOp]
     )
     """Worklist of e-classes that need to be processed for matching."""
+
+    is_matching: bool = True
+    """Keeps track whether the interpreter is currently in a matching context (as opposed to in a rewriting context).
+    If it is, finalize behaves differently by backtracking."""
 
     analyses: list[SparseForwardDataFlowAnalysis[Lattice[Any]]] = field(
         default_factory=lambda: []
