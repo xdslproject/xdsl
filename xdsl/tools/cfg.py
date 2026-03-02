@@ -61,37 +61,66 @@ def build_adj(
     return adj
 
 
-def detect_loops(
-    adj: dict[Block, tuple[()] | tuple[Block] | tuple[Block, Block]], start: Block
-) -> dict[Block, tuple[Block, ...]]:
-    """Detect backedges and return dictionary of `first block in loop` -> `blocks in loop`"""
+# This functionality is implemented in the raiser instead.
+# def detect_loops(
+#     adj: dict[Block, tuple[()] | tuple[Block] | tuple[Block, Block]], start: Block
+# ) -> dict[Block, tuple[Block, ...]]:
+#     """Detect backedges and return dictionary of `first block in loop` -> `blocks in loop`"""
 
-    d: dict[Block, tuple[Block, ...]] = {}
+#     d: dict[Block, tuple[Block, ...]] = {}
 
-    def rec(cur: Block, vis: tuple[Block, ...]):
-        if cur in vis:
-            # found loop. ie cur=x and we have vis=(..., x, a, b, c). so the loop is x->a->b->c.
-            i = vis.index(cur)
-            d[cur] = vis[i:]
-            return
-        for nx in adj[cur]:
-            rec(nx, vis + (cur,))
+#     def rec(cur: Block, vis: tuple[Block, ...]):
+#         if cur in vis:
+#             # found loop. ie cur=x and we have vis=(..., x, a, b, c). so the loop is x->a->b->c.
+#             i = vis.index(cur)
+#             d[cur] = vis[i:]
+#             return
+#         for nx in adj[cur]:
+#             rec(nx, vis + (cur,))
 
-    rec(start, ())
-    return d
+#     rec(start, ())
+#     return d
+
+
+def collate_function(entry: Block, visited: set[Block]) -> list[Block]:
+    """Given an entry point block, find all reachable blocks"""
+    this_func: list[Block] = []
+    stack = [entry]
+
+    while stack:
+        cur = stack.pop()
+        if cur in visited:
+            continue
+        visited.add(cur)
+        this_func.append(cur)
+
+        last_op = cur.last_op
+
+        if isinstance(last_op, (C_JmpOp, FallthroughOp)):
+            stack.append(last_op.successor)
+        elif isinstance(last_op, ConditionalJumpOperation):
+            stack.append(last_op.then_block)
+            stack.append(last_op.else_block)
+
+    return this_func
 
 
 def group_functions(
     blocks: list[Block], label_map: dict[str, int]
-) -> list[list[Block]]:
+) -> list[Block | list[Block]]:
+    """Given a list of blocks, group them into functions if they are reachable
+    and return a sequence of blocks, preserving the order of the given list (but with functions grouped).
+    NB: isinstance(result[i], Block) <=> result[i] is unreachable! (can be annotated)"""
+
     if not blocks:
         return []
 
     # assume the functions only have one entry point
-    # want to maintain order here, so use dict
-    entry_points = {
-        blocks[0]: None
-    }  # blocks called by a CallOp; should be one-to-one to functions in region
+    # want to maintain the order that they appear in source, so use dict with (block: block_idx);
+    # and later we will sort by block_idx
+    entry_points = set(
+        [blocks[0]]
+    )  # blocks called by a CallOp; should be one-to-one to functions in region
     for block in blocks:
         for op in block.ops:
             if isinstance(op, CallOp):
@@ -100,89 +129,68 @@ def group_functions(
                     raise CFGError(f"callee label not recognised: {callee}")
                 ep = blocks[label_map[callee]]
                 if ep not in entry_points:
-                    entry_points[ep] = None
+                    entry_points.add(ep)
 
-    functions: list[list[Block]] = []
-    visited: set[Block] = (
-        set()
-    )  # assume no shared blocks, so we can maintain a global visited set
+    grouped: list[Block | list[Block]] = []
+    # assume no shared blocks, so we can maintain a global visited set
+    visited: set[Block] = set()
 
-    for entry in entry_points.keys():
-        this_func: list[Block] = []
-        stack = [entry]
+    for block in blocks:
+        if block in visited:
+            continue
+        if block in entry_points:
+            grouped.append(collate_function(block, visited))
+        else:
+            grouped.append(block)
+            visited.add(block)
 
-        while stack:
-            cur = stack.pop()
-            if cur in visited:
-                continue
-            visited.add(cur)
-            this_func.append(cur)
-
-            last_op = cur.last_op
-
-            if isinstance(last_op, (C_JmpOp, FallthroughOp)):
-                stack.append(last_op.successor)
-            elif isinstance(last_op, ConditionalJumpOperation):
-                stack.append(last_op.then_block)
-                stack.append(last_op.else_block)
-
-        functions.append(this_func)
-
-    return functions
+    return grouped
 
 
 if __name__ == "__main__":
-    # --- 1. Setup Blocks ---
-    # Function: main
-    b_main = Block()
-    # Function: math_func
-    b_math = Block()
-    # Function: loop_func
-    b_loop_entry = Block()
-    b_loop_top = Block()
-    b_loop_exit = Block()
+    # --- Setup Blocks ---
+    b_main = Block()  # Entry 0
+    b_orphan_1 = Block()  # Unreachable between functions
+    b_helper = Block()  # Entry 2 (Called by main)
+    b_helper_cont = Block()  # Reachable from helper (multi-block function)
+    b_orphan_2 = Block()  # Unreachable at the end
 
-    # --- 2. Create the Label Map ---
-    # This mimics what the parser would produce
-    label_map = {
-        "main": 0,
-        "math_func": 1,
-        "loop_func": 2,
-        "loop_top": 3,
-        "loop_exit": 4,
-    }
-    all_blocks = [b_main, b_math, b_loop_entry, b_loop_top, b_loop_exit]
+    # --- Label Map ---
+    label_map = {"main": 0, "orphan_1": 1, "helper": 2, "helper_cont": 3, "orphan_2": 4}
+    all_blocks = [b_main, b_orphan_1, b_helper, b_helper_cont, b_orphan_2]
 
-    # --- 3. Populate Blocks with Instructions ---
+    # --- Instructions & Logic ---
 
-    # Block: main
-    # Note: CallOp takes (callee, arguments, return_types)
-    # Passing empty lists for args/returns for testing purposes
-    b_main.add_op(CallOp("math_func", [], []))
-    b_main.add_op(CallOp("loop_func", [], []))
+    # Block 0: main (Entry point)
+    # Calls 'helper', but has no successors (it returns)
+    b_main.add_op(CallOp("helper", [], []))
     b_main.add_op(RetOp())
 
-    # Block: math_func
-    b_math.add_op(RetOp())
+    # Block 1: orphan_1 (Dead code)
+    # Nothing points here, and it doesn't point anywhere.
+    b_orphan_1.add_op(RetOp())
 
-    # Block: loop_func (Entry)
-    b_loop_entry.add_op(FallthroughOp([], b_loop_top))
+    # Block 2: helper (Entry point)
+    # Points to Block 3
+    b_helper.add_op(FallthroughOp([], b_helper_cont))
 
-    # Block: loop_top (The Loop)
-    # We use a dummy jump back to itself to test the 'visited' logic
-    # and a jump to exit to test conditional logic
-    b_loop_top.add_op(C_JmpOp([], b_loop_top))  # Simulating a back-edge loop
+    # Block 3: helper_cont (Part of helper)
+    b_helper_cont.add_op(RetOp())
 
-    # Block: loop_exit
-    b_loop_exit.add_op(RetOp())
+    # Block 4: orphan_2 (Dead code)
+    b_orphan_2.add_op(RetOp())
 
-    groups = group_functions(all_blocks, label_map)
+    # --- Run Grouping ---
+    result = group_functions(all_blocks, label_map)
 
-    # --- 5. Verify Results ---
-    print(f"Functions detected: {len(groups)}")
-    for i, group in enumerate(groups):
-        # Get the entry block's "name" by reversing the label_map
-        entry_block = group[0]
-        idx = all_blocks.index(entry_block)
-        name = [k for k, v in label_map.items() if v == idx][0]
-        print(f"Function {i} ({name}): contains {len(group)} blocks")
+    # --- Verification ---
+    print(f"Resulting items: {len(result)}")
+    for i, item in enumerate(result):
+        if isinstance(item, list):
+            entry_idx = all_blocks.index(item[0])
+            name = [k for k, v in label_map.items() if v == entry_idx][0]
+            print(f"Index {i}: [Function Group] {name} ({len(item)} blocks)")
+        else:
+            orphan_idx = all_blocks.index(item)
+            name = [k for k, v in label_map.items() if v == orphan_idx][0]
+            print(f"Index {i}: [Unreachable Block] {name}")
