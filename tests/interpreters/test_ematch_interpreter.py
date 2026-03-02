@@ -25,3 +25,6 @@ def test_get_class_vals():
     assert interpreter.run_op(
         ematch.GetClassValsOp(create_ssa_value(pdl.ValueType())), (v2,)
     ) == ((v2,),)
+    assert interpreter.run_op(
+        ematch.GetClassValsOp(create_ssa_value(pdl.ValueType())), (None,)
+    ) == ((None,),)
