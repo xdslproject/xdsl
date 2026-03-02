@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from typing import cast
 
 from xdsl.context import Context
 from xdsl.dialects import arith, math
@@ -8,9 +7,11 @@ from xdsl.dialects.builtin import (
     DenseIntOrFPElementsAttr,
     FloatAttr,
     ModuleOp,
+    TensorType,
     VectorType,
 )
-from xdsl.ir import Attribute, Operation
+from xdsl.ir import Operation
+from xdsl.irdl import isa
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     PatternRewriter,
@@ -18,7 +19,6 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
-from xdsl.utils.type import get_element_type_or_self
 
 
 @dataclass
@@ -37,18 +37,17 @@ class ExpandExp(RewritePattern):
 
 
 def _float_constant(
-    value: float, tp: Attribute, rewriter: PatternRewriter
+    value: float,
+    tp: AnyFloat | VectorType[AnyFloat] | TensorType[AnyFloat],
+    rewriter: PatternRewriter,
 ) -> arith.ConstantOp:
     """Create and insert a float constant (arith.ConstantOp) for a given float value, handling both scalar and vector types."""
-    elem_type = get_element_type_or_self(tp)
-    assert isinstance(elem_type, AnyFloat)
-    if isinstance(tp, VectorType):
-        vec_tp = cast(VectorType[AnyFloat], tp)
-        attr: FloatAttr[AnyFloat] | DenseIntOrFPElementsAttr[AnyFloat] = (
-            DenseIntOrFPElementsAttr.from_list(vec_tp, [value])
-        )
+    if isa(tp, VectorType[AnyFloat]):
+        attr = DenseIntOrFPElementsAttr.from_list(tp, [value])
+    elif isa(tp, TensorType[AnyFloat]):
+        attr = DenseIntOrFPElementsAttr.from_list(tp, [value])
     else:
-        attr = FloatAttr(value, elem_type)
+        attr = FloatAttr(value, tp)
     return rewriter.insert(arith.ConstantOp(attr))
 
 
@@ -66,6 +65,8 @@ def expand_exp(op: math.ExpOp, rewriter: PatternRewriter, terms: int) -> Operati
     """
     x = op.operands[0]
     tp = x.type
+    if not isa(tp, AnyFloat | VectorType[AnyFloat] | TensorType[AnyFloat]):
+        raise TypeError(f"Unsupported type for math.exp expansion: {tp}")
 
     res = _float_constant(1.0, tp, rewriter)
     term = _float_constant(1.0, tp, rewriter)
