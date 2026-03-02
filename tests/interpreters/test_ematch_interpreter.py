@@ -2,6 +2,7 @@ from xdsl.dialects import ematch, equivalence, pdl
 from xdsl.dialects.builtin import ModuleOp, i32
 from xdsl.interpreter import Interpreter
 from xdsl.interpreters.ematch import EmatchFunctions
+from xdsl.ir import Block
 from xdsl.utils.test_value import create_ssa_value
 
 
@@ -28,3 +29,7 @@ def test_get_class_vals():
     assert interpreter.run_op(
         ematch.GetClassValsOp(create_ssa_value(pdl.ValueType())), (None,)
     ) == ((None,),)
+    block_arg = Block(arg_types=(i32,)).args[0]
+    assert interpreter.run_op(
+        ematch.GetClassValsOp(create_ssa_value(pdl.ValueType())), (block_arg,)
+    ) == ((block_arg,),)
