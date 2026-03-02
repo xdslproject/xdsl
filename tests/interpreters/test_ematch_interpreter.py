@@ -61,3 +61,8 @@ def test_get_class_representative():
         ematch.GetClassRepresentativeOp(create_ssa_value(pdl.ValueType())),
         (None,),
     ) == (None,)
+
+    block_arg = Block(arg_types=(i32,)).args[0]
+    assert interpreter.run_op(
+        ematch.GetClassRepresentativeOp(create_ssa_value(pdl.ValueType())), (block_arg,)
+    ) == (block_arg,)
