@@ -602,4 +602,16 @@ builtin.module {
   // CHECK-NEXT:   {{%.+}} = tail call ninf nnan fastcc i32 @"helper"(i32 %".1")
   // CHECK-NEXT:   ret i32 {{%.+}}
   // CHECK-NEXT: }
+
+  llvm.func @masked_store_op(%arg0: f32, %arg1: !llvm.ptr, %arg2: i1) {
+    llvm.intr.masked.store %arg0, %arg1, %arg2 {alignment = 16 : i32} : f32, i1 into !llvm.ptr
+    llvm.return
+  }
+
+  // CHECK: define void @"masked_store_op"(float %".1", ptr %".2", i1 %".3")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT:   call void @"llvm.masked.store"(float %".1", ptr %".2", i32 16, i1 %".3")
+  // CHECK-NEXT:   ret void
+  // CHECK-NEXT: }
 }

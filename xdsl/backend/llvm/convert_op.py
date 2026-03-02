@@ -240,6 +240,20 @@ def _convert_inline_asm(
         val_map[op.results[0]] = res
 
 
+def _convert_masked_store(
+    op: llvm.MaskedStoreOp, builder: ir.IRBuilder, val_map: dict[SSAValue, ir.Value]
+):
+    value = val_map[op.value]
+    ptr = val_map[op.data]
+    mask = val_map[op.mask]
+    alignment = ir.Constant(ir.IntType(32), op.alignment.value.data)
+    fn_type = ir.FunctionType(
+        ir.VoidType(), [value.type, ptr.type, alignment.type, mask.type]
+    )
+    intrinsic = builder.module.declare_intrinsic("llvm.masked.store", fnty=fn_type)
+    builder.call(intrinsic, [value, ptr, alignment, mask])
+
+
 def _convert_return(
     op: Operation, builder: ir.IRBuilder, val_map: dict[SSAValue, ir.Value]
 ):
@@ -303,6 +317,8 @@ def convert_op(
             _convert_inline_asm(op, builder, val_map)
         case llvm.UnreachableOp():
             builder.unreachable()
+        case llvm.MaskedStoreOp():
+            _convert_masked_store(op, builder, val_map)
         case llvm.ReturnOp():
             _convert_return(op, builder, val_map)
         case _:
