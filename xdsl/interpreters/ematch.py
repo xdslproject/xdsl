@@ -1,9 +1,10 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 from xdsl.dialects import ematch, equivalence
 from xdsl.interpreter import Interpreter, InterpreterFunctions, impl, register_impls
 from xdsl.ir import OpResult, SSAValue
+from xdsl.utils.disjoint_set import DisjointSet
 from xdsl.utils.hints import isa
 
 
@@ -11,6 +12,11 @@ from xdsl.utils.hints import isa
 @dataclass
 class EmatchFunctions(InterpreterFunctions):
     """Interpreter functions for PDL patterns operating on e-graphs."""
+
+    eclass_union_find: DisjointSet[equivalence.AnyClassOp] = field(
+        default_factory=lambda: DisjointSet[equivalence.AnyClassOp]()
+    )
+    """Union-find structure tracking which e-classes are equivalent and should be merged."""
 
     @impl(ematch.GetClassValsOp)
     def run_get_class_vals(
