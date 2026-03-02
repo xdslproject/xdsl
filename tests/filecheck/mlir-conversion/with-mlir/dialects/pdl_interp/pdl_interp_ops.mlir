@@ -53,6 +53,45 @@ pdl_interp.func @matcher(%arg0: !pdl.operation) {
   pdl_interp.switch_attribute %attr_val to [42 : i32, true](^bb20, ^bb1) -> ^bb1
 ^bb20:
   %9 = pdl_interp.apply_constraint "myConstraint"(%attr_val : !pdl.attribute) : !pdl.operation {isNegated = true} -> ^bb16, ^bb1
+^bb21:
+  pdl_interp.apply_rewrite "myRewriter"(%arg0 : !pdl.operation)
+  pdl_interp.finalize
+^bb22:
+  %10 = pdl_interp.apply_rewrite "myRewriter"(%arg0 : !pdl.operation) : !pdl.operation
+  pdl_interp.finalize
+^bb23:
+  %11 = pdl_interp.apply_rewrite "myRewriter"(%arg0, %0 : !pdl.operation, !pdl.value) : !pdl.attribute
+  pdl_interp.finalize
+^bb24:
+  pdl_interp.erase %arg0
+  pdl_interp.finalize
+^bb25:
+  pdl_interp.get_operands of %arg0: !pdl.range<value>
+  pdl_interp.get_operands 1 of %arg0: !pdl.range<value>
+  pdl_interp.finalize
+^bb26:
+  pdl_interp.get_attribute_type of %attr_val
+  pdl_interp.finalize
+^bb27:
+  %types = pdl_interp.create_range %7, %8 : !pdl.type, !pdl.type
+  %types_start_with_range = pdl_interp.create_range %types, %8 : !pdl.range<type>, !pdl.type
+  %empty_create_range = pdl_interp.create_range : !pdl.range<value>
+  pdl_interp.check_types %types are [i32, i64] -> ^bb1, ^bb1
+^bb28:
+  pdl_interp.switch_operand_count of %arg0 to dense<[10, 2]> : vector<2xi32>(^bb1, ^bb1) -> ^bb1
+^bb29:
+  pdl_interp.switch_result_count of %arg0 to dense<[1, 2]> : vector<2xi32>(^bb1, ^bb1) -> ^bb1
+^bb30:
+  pdl_interp.switch_types %types to [[i32, i64], [i64]](^bb1, ^bb1) -> ^bb1
+^bb31:
+  %moretypes = pdl_interp.apply_rewrite "rewrite_in_matcher"(%arg0 : !pdl.operation) : !pdl.range<type>
+  pdl_interp.finalize
+^bb32:
+  pdl_interp.foreach %op : !pdl.type in %types {
+    pdl_interp.continue
+  } -> ^bb1
+^bb33:
+  pdl_interp.branch ^bb1
 }
 module @rewriters {
   pdl_interp.func @pdl_generated_rewriter(%arg0: !pdl.value, %arg1: !pdl.value, %arg2: !pdl.type, %arg3: !pdl.value, %arg4: !pdl.operation) {
@@ -124,6 +163,45 @@ module @rewriters {
 // CHECK-NEXT:       pdl_interp.switch_attribute %9 to [42 : i32, true](^bb19, ^bb1) -> ^bb1
 // CHECK-NEXT:     ^bb19:
 // CHECK-NEXT:       %10 = pdl_interp.apply_constraint "myConstraint"(%9 : !pdl.attribute) : !pdl.operation {isNegated = true} -> ^bb15, ^bb1
+// CHECK-NEXT:     ^bb20:
+// CHECK-NEXT:       pdl_interp.apply_rewrite "myRewriter"([[arg0]] : !pdl.operation)
+// CHECK-NEXT:       pdl_interp.finalize
+// CHECK-NEXT:     ^bb21:
+// CHECK-NEXT:       %11 = pdl_interp.apply_rewrite "myRewriter"([[arg0]] : !pdl.operation) : !pdl.operation
+// CHECK-NEXT:       pdl_interp.finalize
+// CHECK-NEXT:     ^bb22:
+// CHECK-NEXT:       %12 = pdl_interp.apply_rewrite "myRewriter"([[arg0]], %0 : !pdl.operation, !pdl.value) : !pdl.attribute
+// CHECK-NEXT:       pdl_interp.finalize
+// CHECK-NEXT:     ^bb23:
+// CHECK-NEXT:       pdl_interp.erase [[arg0]]
+// CHECK-NEXT:       pdl_interp.finalize
+// CHECK-NEXT:     ^bb24:
+// CHECK-NEXT:       %13 = pdl_interp.get_operands of [[arg0]] : !pdl.range<value>
+// CHECK-NEXT:       %14 = pdl_interp.get_operands 1 of [[arg0]] : !pdl.range<value>
+// CHECK-NEXT:       pdl_interp.finalize
+// CHECK-NEXT:     ^bb25:
+// CHECK-NEXT:       %15 = pdl_interp.get_attribute_type of %9
+// CHECK-NEXT:       pdl_interp.finalize
+// CHECK-NEXT:     ^bb26:
+// CHECK-NEXT:       %16 = pdl_interp.create_range %7, %8 : !pdl.type, !pdl.type
+// CHECK-NEXT:       %17 = pdl_interp.create_range %16, %8 : !pdl.range<type>, !pdl.type
+// CHECK-NEXT:       %18 = pdl_interp.create_range : !pdl.range<value>
+// CHECK-NEXT:       pdl_interp.check_types %16 are [i32, i64] -> ^bb1, ^bb1
+// CHECK-NEXT:     ^bb27:
+// CHECK-NEXT:       pdl_interp.switch_operand_count of [[arg0]] to dense<[10, 2]> : vector<2xi32>(^bb1, ^bb1) -> ^bb1
+// CHECK-NEXT:     ^bb28:
+// CHECK-NEXT:       pdl_interp.switch_result_count of [[arg0]] to dense<[1, 2]> : vector<2xi32>(^bb1, ^bb1) -> ^bb1
+// CHECK-NEXT:     ^bb29:
+// CHECK-NEXT:       pdl_interp.switch_types %16 to {{\[}}[i32, i64], [i64]{{\]}}(^bb1, ^bb1) -> ^bb1
+// CHECK-NEXT:     ^bb30:
+// CHECK-NEXT:       %19 = pdl_interp.apply_rewrite "rewrite_in_matcher"([[arg0]] : !pdl.operation) : !pdl.range<type>
+// CHECK-NEXT:       pdl_interp.finalize
+// CHECK-NEXT:     ^bb31:
+// CHECK-NEXT:       pdl_interp.foreach [[arg1:%arg.]] : !pdl.type in %16 {
+// CHECK-NEXT:         pdl_interp.continue
+// CHECK-NEXT:       } -> ^bb1
+// CHECK-NEXT:     ^bb32:
+// CHECK-NEXT:       pdl_interp.branch ^bb1
 // CHECK-NEXT:     }
 // CHECK-NEXT:     builtin.module @rewriters {
 // CHECK-NEXT:       pdl_interp.func @pdl_generated_rewriter(%arg0 : !pdl.value, %arg1 : !pdl.value, %arg2 : !pdl.type, %arg3 : !pdl.value, %arg4 : !pdl.operation) {

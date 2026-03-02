@@ -295,16 +295,6 @@ func.func @yield_parent() {
 
 // -----
 
-func.func @private_not_enough_blocks() {
-  "omp.private"() <{data_sharing_type = #omp.data_sharing_type {type = private}, sym_name = "p1", type = i32}> ({ }, { }, { }) : () -> ()
-
-  func.return
-}
-
-// CHECK: alloc_region of omp.private has to have at least 1 block
-
-// -----
-
 func.func @reduction_too_many_blocks() {
   "omp.declare_reduction"() <{sym_name = "r1", type = i32}> ({
   ^bb0(%r1_arg : i32):

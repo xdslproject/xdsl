@@ -212,7 +212,8 @@ class PipelineGenericPattern(RewritePattern):
             interleave_bound // interleave_factor
         )
 
-        rewriter.replace_matched_op(
+        rewriter.replace_op(
+            op,
             memref_stream.GenericOp(
                 op.inputs,
                 op.outputs,
@@ -227,7 +228,7 @@ class PipelineGenericPattern(RewritePattern):
                 op.init_indices,
                 op.doc,
                 op.library_call,
-            )
+            ),
         )
 
 

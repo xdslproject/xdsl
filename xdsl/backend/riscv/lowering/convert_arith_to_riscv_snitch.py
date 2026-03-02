@@ -14,12 +14,7 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.ir import Operation
 from xdsl.passes import ModulePass
-from xdsl.pattern_rewriter import (
-    GreedyRewritePatternApplier,
-    PatternRewriter,
-    PatternRewriteWalker,
-    RewritePattern,
-)
+from xdsl.pattern_rewriter import PatternRewriter, PatternRewriteWalker, RewritePattern
 
 
 @dataclass
@@ -70,7 +65,7 @@ class LowerBinaryFloatVectorOp(RewritePattern):
         new_op = cls(lhs, rhs, rd=riscv.Registers.UNALLOCATED_FLOAT, fastmath=rv_flags)
         cast_op = UnrealizedConversionCastOp.get((new_op.rd,), (op.result.type,))
 
-        rewriter.replace_matched_op((lhs, rhs, new_op, cast_op))
+        rewriter.replace_op(op, (lhs, rhs, new_op, cast_op))
 
 
 lower_arith_addf = LowerBinaryFloatVectorOp(
@@ -83,11 +78,7 @@ class ConvertArithToRiscvSnitchPass(ModulePass):
 
     def apply(self, ctx: Context, op: ModuleOp) -> None:
         walker = PatternRewriteWalker(
-            GreedyRewritePatternApplier(
-                [
-                    lower_arith_addf,
-                ]
-            ),
+            lower_arith_addf,
             apply_recursively=False,
         )
         walker.rewrite_module(op)

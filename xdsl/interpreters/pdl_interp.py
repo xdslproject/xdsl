@@ -1,9 +1,8 @@
-from dataclasses import dataclass, field
 from typing import Any, cast
 
 from xdsl.context import Context
 from xdsl.dialects import pdl_interp
-from xdsl.dialects.builtin import StringAttr
+from xdsl.dialects.builtin import SymbolRefAttr
 from xdsl.dialects.pdl import RangeType, ValueType
 from xdsl.interpreter import (
     Interpreter,
@@ -19,12 +18,12 @@ from xdsl.interpreter import (
 from xdsl.ir import Attribute, Operation, OpResult, SSAValue
 from xdsl.irdl import IRDLOperation
 from xdsl.pattern_rewriter import PatternRewriter
+from xdsl.rewriter import InsertPoint
 from xdsl.utils.exceptions import InterpretationError
 from xdsl.utils.hints import isa
 
 
 @register_impls
-@dataclass
 class PDLInterpFunctions(InterpreterFunctions):
     """
     Interpreter functions for the pdl_interp dialect.
@@ -50,21 +49,51 @@ class PDLInterpFunctions(InterpreterFunctions):
     Note that the return type of a native constraint must be `tuple[bool, PythonValues]`.
     """
 
-    ctx: Context
+    @staticmethod
+    def get_ctx(interpreter: Interpreter) -> Context:
+        return interpreter.get_data(
+            PDLInterpFunctions,
+            "ctx",
+            lambda: Context(),
+        )
 
-    _rewriter: PatternRewriter | None = field(default=None)
+    @staticmethod
+    def set_ctx(interpreter: Interpreter, ctx: Context) -> None:
+        interpreter.set_data(
+            PDLInterpFunctions,
+            "ctx",
+            ctx,
+        )
 
-    @property
-    def rewriter(self) -> PatternRewriter:
-        assert self._rewriter is not None
-        return self._rewriter
+    @staticmethod
+    def get_pending_rewrites(
+        interpreter: Interpreter,
+    ) -> list[tuple[SymbolRefAttr, Operation, tuple[Any, ...]]]:
+        """
+        Returns the list of pending rewrites to be executed. Each entry is a tuple of (rewriter, root, args).
+        """
+        return interpreter.get_data(
+            PDLInterpFunctions,
+            "pending_rewrites",
+            lambda: [],
+        )
 
-    @rewriter.setter
-    def rewriter(self, rewriter: PatternRewriter):
-        self._rewriter = rewriter
+    @staticmethod
+    def get_rewriter(interpreter: Interpreter) -> PatternRewriter:
+        rewriter: PatternRewriter | None = interpreter.get_data(
+            PDLInterpFunctions, "rewriter", lambda: None
+        )
+        if rewriter is None:
+            raise InterpretationError(
+                "Expected an active rewriter when calling a pdl_interp function."
+            )
+        return rewriter
 
-    def clear_rewriter(self):
-        self._rewriter = None
+    @staticmethod
+    def set_rewriter(
+        interpreter: Interpreter, rewriter: PatternRewriter | None
+    ) -> None:
+        interpreter.set_data(PDLInterpFunctions, "rewriter", rewriter)
 
     @impl(pdl_interp.GetOperandOp)
     def run_get_operand(
@@ -103,12 +132,23 @@ class PDLInterpFunctions(InterpreterFunctions):
         assert len(args) == 1
         assert isinstance(args[0], Operation)
         src_op = args[0]
-        assert op.index is None, (
-            "TODO: No support yet for getting a specific result group"
-        )
-        if isinstance(op.result_types[0], ValueType) and len(src_op.results) != 1:
-            return (None,)
-        return (src_op.results,)
+        assert isinstance(src_op, IRDLOperation)
+        if op.index is not None:
+            # get the field name of the result group:
+            if op.index.value.data >= len(src_op.get_irdl_definition().results):
+                return (None,)
+            field = src_op.get_irdl_definition().results[op.index.value.data][0]
+            results = getattr(src_op, field)
+            if isa(results, OpResult):
+                results = (results,)
+        else:
+            results = src_op.results
+
+        if isinstance(op.result_types[0], ValueType):
+            if len(results) != 1:
+                return (None,)
+            return (results[0],)
+        return (results,)
 
     @impl(pdl_interp.GetAttributeOp)
     def run_get_attribute(
@@ -307,7 +347,9 @@ class PDLInterpFunctions(InterpreterFunctions):
                 "Number of replacement values should match number of results"
             )
         # Replace the operation with the replacement values
-        self.rewriter.replace_op(input_op, new_ops=[], new_results=repl_values)
+        self.get_rewriter(interpreter).replace_op(
+            input_op, new_ops=[], new_results=repl_values
+        )
         return ()
 
     @impl(pdl_interp.CreateAttributeOp)
@@ -355,27 +397,25 @@ class PDLInterpFunctions(InterpreterFunctions):
                 return Successor(block, ()), ()
         return Successor(op.defaultDest, ()), ()
 
-    @impl(pdl_interp.CreateOperationOp)
-    def run_create_operation(
-        self,
+    @staticmethod
+    def create_operation(
         interpreter: Interpreter,
-        op: pdl_interp.CreateOperationOp,
         args: tuple[Any, ...],
-    ) -> tuple[Any, ...]:
+        op_name: str,
+        attr_names: list[str],
+        num_operands: int,
+        num_attributes: int,
+    ) -> IRDLOperation:
         # Get operation name
-        op_name = op.constraint_name.data
-        op_type = self.ctx.get_optional_op(op_name)
+        ctx = PDLInterpFunctions.get_ctx(interpreter)
+        op_type = ctx.get_optional_op(op_name)
         if op_type is None:
             raise InterpretationError(
                 f"Could not find op type for name {op_name} in context"
             )
 
         # Split args into operands, attributes and result types based on operand segments
-        operands = list(args[0 : len(op.input_operands)])
-
-        attr_names: list[str] = [
-            cast(StringAttr, name).data for name in op.input_attribute_names.data
-        ]
+        operands = list(args[:num_operands])
 
         assert issubclass(op_type, IRDLOperation)
         existing_properties = op_type.get_irdl_definition().properties.keys()
@@ -384,16 +424,13 @@ class PDLInterpFunctions(InterpreterFunctions):
         properties: dict[str, Attribute] = {}
         for name, prop_or_attr in zip(
             attr_names,
-            args[
-                len(op.input_operands) : len(op.input_operands)
-                + len(op.input_attributes)
-            ],
+            args[num_operands : num_operands + num_attributes],
         ):
             if name in existing_properties:
                 properties[name] = prop_or_attr
             else:
                 attributes[name] = prop_or_attr
-        result_types = list(args[len(op.input_operands) + len(op.input_attributes) :])
+        result_types = list(args[num_operands + num_attributes :])
 
         # Create the new operation
         result_op = op_type.create(
@@ -402,8 +439,26 @@ class PDLInterpFunctions(InterpreterFunctions):
             attributes=attributes,
             properties=properties,
         )
+        return result_op
 
-        self.rewriter.insert_op_before_matched_op(result_op)
+    @impl(pdl_interp.CreateOperationOp)
+    def run_create_operation(
+        self,
+        interpreter: Interpreter,
+        op: pdl_interp.CreateOperationOp,
+        args: tuple[Any, ...],
+    ) -> tuple[Any, ...]:
+        result_op = PDLInterpFunctions.create_operation(
+            interpreter,
+            args,
+            op.constraint_name.data,
+            [name.data for name in op.input_attribute_names.data],
+            len(op.input_operands),
+            len(op.input_attributes),
+        )
+
+        rewriter = self.get_rewriter(interpreter)
+        rewriter.insert_op(result_op)
 
         return (result_op,)
 
@@ -411,15 +466,13 @@ class PDLInterpFunctions(InterpreterFunctions):
     def call_func(
         self, interpreter: Interpreter, op: pdl_interp.FuncOp, args: tuple[Any, ...]
     ):
-        if self._rewriter is None:
-            raise InterpretationError(
-                "Expected an active rewriter when calling a pdl_interp function."
-            )
         if op.sym_name.data == "matcher":
             assert len(args) == 1
             root_op = args[0]
             assert isinstance(root_op, Operation)
-            self.rewriter.current_operation = root_op
+            rewriter = self.get_rewriter(interpreter)
+            rewriter.current_operation = root_op
+            rewriter.insertion_point = InsertPoint.before(root_op)
 
         return interpreter.run_ssacfg_region(op.body, args, op.sym_name.data)
 
@@ -430,7 +483,6 @@ class PDLInterpFunctions(InterpreterFunctions):
         op: pdl_interp.ApplyConstraintOp,
         args: tuple[Any, ...],
     ) -> tuple[Successor, PythonValues]:
-        assert len(args) == 1
         constraint_name = op.constraint_name.data
 
         passed, results = interpreter.call_external(constraint_name, op, args)
@@ -449,12 +501,49 @@ class PDLInterpFunctions(InterpreterFunctions):
         op: pdl_interp.RecordMatchOp,
         args: tuple[Any, ...],
     ):
-        interpreter.call_op(op.rewriter, args)
+        PDLInterpFunctions.get_pending_rewrites(interpreter).append(
+            (
+                op.rewriter,
+                PDLInterpFunctions.get_rewriter(interpreter).current_operation,
+                args,
+            )
+        )
         return Successor(op.dest, ()), ()
 
     @impl_terminator(pdl_interp.FinalizeOp)
     def run_finalize(
         self, interpreter: Interpreter, op: pdl_interp.FinalizeOp, args: tuple[Any, ...]
     ):
-        self._rewriter = None
         return ReturnedValues(()), ()
+
+    @impl_terminator(pdl_interp.ForEachOp)
+    def run_foreach(
+        self,
+        interpreter: Interpreter,
+        op: pdl_interp.ForEachOp,
+        args: tuple[Any, ...],
+    ) -> tuple[Any, ...]:
+        assert len(args) == 1
+        values = args[0]
+
+        # Iterate over each value in the range
+        for value in values:
+            interpreter.run_ssacfg_region(op.region, (value,), "foreach")
+
+        return Successor(op.successor, ()), ()
+
+    @impl_terminator(pdl_interp.ContinueOp)
+    def run_continue(
+        self, interpreter: Interpreter, op: pdl_interp.ContinueOp, args: tuple[Any, ...]
+    ):
+        return ReturnedValues(args), ()
+
+    def apply_pending_rewrites(self, interpreter: Interpreter):
+        rewriter = PDLInterpFunctions.get_rewriter(interpreter)
+        pending_rewrites = PDLInterpFunctions.get_pending_rewrites(interpreter)
+        for rewriter_op, root, args in pending_rewrites:
+            rewriter.current_operation = root
+            rewriter.insertion_point = InsertPoint.before(root)
+
+            interpreter.call_op(rewriter_op, args)
+        pending_rewrites.clear()

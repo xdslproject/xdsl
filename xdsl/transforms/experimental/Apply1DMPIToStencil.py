@@ -9,6 +9,7 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
+from xdsl.rewriter import InsertPoint
 from xdsl.utils.hints import isa
 
 AnyNumericType = builtin.AnyFloat | builtin.IntegerType
@@ -117,11 +118,11 @@ class ApplyMPIToExternalLoad(RewritePattern):
 
         # Else set empty request handles
         zero_conv = builtin.UnrealizedConversionCastOp.get(
-            [alloc_lookup_op_zero], [llvm.LLVMPointerType.opaque()]
+            [alloc_lookup_op_zero], [llvm.LLVMPointerType()]
         )
         null_req_zero = llvm.StoreOp(mpi_request_null, zero_conv)
         one_conv = builtin.UnrealizedConversionCastOp.get(
-            [alloc_lookup_op_one], [llvm.LLVMPointerType.opaque()]
+            [alloc_lookup_op_one], [llvm.LLVMPointerType()]
         )
         null_req_one = llvm.StoreOp(mpi_request_null, one_conv)
 
@@ -180,11 +181,11 @@ class ApplyMPIToExternalLoad(RewritePattern):
 
         # Else set empty request handles
         two_conv = builtin.UnrealizedConversionCastOp.get(
-            [alloc_lookup_op_two], [llvm.LLVMPointerType.opaque()]
+            [alloc_lookup_op_two], [llvm.LLVMPointerType()]
         )
         null_req_two = llvm.StoreOp(mpi_request_null, two_conv)
         three_conv = builtin.UnrealizedConversionCastOp.get(
-            [alloc_lookup_op_three], [llvm.LLVMPointerType.opaque()]
+            [alloc_lookup_op_three], [llvm.LLVMPointerType()]
         )
         null_req_three = llvm.StoreOp(mpi_request_null, three_conv)
 
@@ -216,7 +217,7 @@ class ApplyMPIToExternalLoad(RewritePattern):
         wait_op = mpi.WaitallOp(req_ops, four.results[0])
         mpi_operations += [wait_op]
 
-        rewriter.insert_op_after_matched_op(mpi_operations)
+        rewriter.insert_op(mpi_operations, InsertPoint.after(op))
 
 
 def Apply1DMpi(ctx: Context, module: builtin.ModuleOp):

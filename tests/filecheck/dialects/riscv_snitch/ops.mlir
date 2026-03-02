@@ -2,8 +2,8 @@
 // RUN: XDSL_GENERIC_ROUNDTRIP
 
 riscv_func.func @xfrep() {
-  %0 = riscv.get_register : !riscv.reg
-  %1 = riscv.get_register : !riscv.reg
+  %0 = rv32.get_register : !riscv.reg
+  %1 = rv32.get_register : !riscv.reg
 
   // RISC-V extensions
   riscv_snitch.scfgw %0, %1 : (!riscv.reg, !riscv.reg) -> ()
@@ -57,8 +57,8 @@ riscv_func.func @xfrep() {
 }
 
 riscv_func.func @xdma() {
-  %reg = riscv.get_register : !riscv.reg
-  // CHECK: %reg = riscv.get_register : !riscv.reg
+  %reg = rv32.get_register : !riscv.reg
+  // CHECK: %reg = rv32.get_register : !riscv.reg
 
 
   riscv_snitch.dmsrc %reg, %reg : (!riscv.reg, !riscv.reg) -> ()
@@ -119,8 +119,8 @@ riscv_func.func @simd() {
 
 // CHECK-GENERIC-NEXT: "builtin.module"() ({
 // CHECK-GENERIC-NEXT:   "riscv_func.func"() ({
-// CHECK-GENERIC-NEXT:     %0 = "riscv.get_register"() : () -> !riscv.reg
-// CHECK-GENERIC-NEXT:     %1 = "riscv.get_register"() : () -> !riscv.reg
+// CHECK-GENERIC-NEXT:     %0 = "rv32.get_register"() : () -> !riscv.reg
+// CHECK-GENERIC-NEXT:     %1 = "rv32.get_register"() : () -> !riscv.reg
 // CHECK-GENERIC-NEXT:     "riscv_snitch.scfgw"(%0, %1) : (!riscv.reg, !riscv.reg) -> ()
 // CHECK-GENERIC-NEXT:     "riscv_snitch.scfgwi"(%0) {immediate = 42 : si12} : (!riscv.reg) -> ()
 // CHECK-GENERIC-NEXT:    "riscv_snitch.frep_outer"(%{{.*}}) ({
@@ -148,7 +148,7 @@ riscv_func.func @simd() {
 // CHECK-GENERIC-NEXT:     "riscv_func.return"() : () -> ()
 // CHECK-GENERIC-NEXT:   }) {sym_name = "xfrep", function_type = () -> ()} : () -> ()
 // CHECK-GENERIC-NEXT:   "riscv_func.func"() ({
-// CHECK-GENERIC-NEXT:     %reg = "riscv.get_register"() : () -> !riscv.reg
+// CHECK-GENERIC-NEXT:     %reg = "rv32.get_register"() : () -> !riscv.reg
 // CHECK-GENERIC-NEXT:     "riscv_snitch.dmsrc"(%reg, %reg) : (!riscv.reg, !riscv.reg) -> ()
 // CHECK-GENERIC-NEXT:     "riscv_snitch.dmdst"(%reg, %reg) : (!riscv.reg, !riscv.reg) -> ()
 // CHECK-GENERIC-NEXT:     "riscv_snitch.dmstr"(%reg, %reg) : (!riscv.reg, !riscv.reg) -> ()

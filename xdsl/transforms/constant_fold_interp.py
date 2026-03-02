@@ -7,7 +7,9 @@ from dataclasses import dataclass
 from typing import Any, cast
 
 from xdsl.context import Context
-from xdsl.dialect_interfaces import ConstantMaterializationInterface
+from xdsl.dialect_interfaces.constant_materialization import (
+    ConstantMaterializationInterface,
+)
 from xdsl.dialects import builtin
 from xdsl.dialects.builtin import IntegerAttr, IntegerType
 from xdsl.interpreter import Interpreter
@@ -70,7 +72,7 @@ class ConstantFoldInterpPattern(RewritePattern):
                 return
             new_ops.append(new_op)
 
-        rewriter.replace_matched_op(new_ops, [new_op.results[0] for new_op in new_ops])
+        rewriter.replace_op(op, new_ops, [new_op.results[0] for new_op in new_ops])
 
     def convert_to_attr(self, value: Any, value_type: Attribute) -> Attribute | None:
         match (value, value_type):

@@ -22,7 +22,7 @@ class CanonicalizeDmpSwap(RewritePattern):
                 if isinstance(op.input_stencil.type, stencil.TempType)
                 else None
             )
-            rewriter.replace_matched_op([], [new_result])
+            rewriter.replace_op(op, [], [new_result])
         else:
             op.swaps = builtin.ArrayAttr(keeps)
 

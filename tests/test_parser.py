@@ -6,17 +6,21 @@ from typing import cast
 import pytest
 
 from xdsl.context import Context
-from xdsl.dialect_interfaces import OpAsmDialectInterface
+from xdsl.dialect_interfaces.op_asm import OpAsmDialectInterface
 from xdsl.dialects.builtin import (
     DYNAMIC_INDEX,
     ArrayAttr,
     Builtin,
+    CallSiteLoc,
     DictionaryAttr,
     FileLineColLoc,
     FloatAttr,
+    FusedLoc,
     IntAttr,
     IntegerAttr,
     IntegerType,
+    NameLoc,
+    NoneAttr,
     StringAttr,
     SymbolRefAttr,
     UnknownLoc,
@@ -976,8 +980,92 @@ def test_parse_location():
     attr = Parser(ctx, 'loc("one":2:3)').parse_optional_location()
     assert attr == FileLineColLoc(StringAttr("one"), IntAttr(2), IntAttr(3))
 
-    with pytest.raises(ParseError, match="Unexpected location syntax."):
+    attr = Parser(ctx, 'loc("abc")').parse_optional_location()
+    assert attr == NameLoc(StringAttr("abc"), NoneAttr())
+
+    attr = Parser(ctx, 'loc("abc"("def"))').parse_optional_location()
+    assert attr == NameLoc(StringAttr("abc"), NameLoc(StringAttr("def"), NoneAttr()))
+
+    attr = Parser(
+        ctx, """loc(callsite("callee" at "caller"))"""
+    ).parse_optional_location()
+    assert attr == CallSiteLoc(
+        NameLoc(StringAttr("callee"), NoneAttr()),
+        NameLoc(StringAttr("caller"), NoneAttr()),
+    )
+
+    attr = Parser(ctx, "loc(fused[unknown, unknown])").parse_optional_location()
+    assert attr == FusedLoc((UnknownLoc(), UnknownLoc()), NoneAttr())
+
+    with pytest.raises(ParseError, match="Unsupported location type."):
         Parser(ctx, "loc(unexpected)").parse_optional_location()
+
+    with pytest.raises(ParseError, match="Unexpected location syntax."):
+        Parser(ctx, "loc(1)").parse_optional_location()
+
+
+@pytest.mark.parametrize(
+    "context_mode,text,location_target,expected_location",
+    [
+        (
+            "registered",
+            '"test.op"() : () -> () loc("one":2:3)',
+            "op",
+            FileLineColLoc(StringAttr("one"), IntAttr(2), IntAttr(3)),
+        ),
+        ("registered", '"test.op"() : () -> ()', "op", UnknownLoc()),
+        (
+            "registered",
+            '"test.op"() ({^bb0(%arg0: i32 loc("one":2:3)): "test.termop"() : () -> ()}) : () -> ()',
+            "block_arg",
+            FileLineColLoc(StringAttr("one"), IntAttr(2), IntAttr(3)),
+        ),
+        (
+            "registered",
+            '"test.op"() ({^bb0(%arg0: i32): "test.termop"() : () -> ()}) : () -> ()',
+            "block_arg",
+            UnknownLoc(),
+        ),
+        (
+            "unregistered",
+            '"foo.unknown"() : () -> () loc("one":2:3)',
+            "op",
+            FileLineColLoc(StringAttr("one"), IntAttr(2), IntAttr(3)),
+        ),
+        ("unregistered", '"foo.unknown"() : () -> ()', "op", UnknownLoc()),
+        (
+            "unregistered",
+            '"foo.with_region"() ({^bb0(%arg0: i32 loc("one":2:3)): "foo.term"() : () -> ()}) : () -> ()',
+            "block_arg",
+            FileLineColLoc(StringAttr("one"), IntAttr(2), IntAttr(3)),
+        ),
+        (
+            "unregistered",
+            '"foo.with_region"() ({^bb0(%arg0: i32): "foo.term"() : () -> ()}) : () -> ()',
+            "block_arg",
+            UnknownLoc(),
+        ),
+    ],
+)
+def test_parse_locations_are_preserved(
+    context_mode: str,
+    text: str,
+    location_target: str,
+    expected_location: Attribute,
+):
+    if context_mode == "registered":
+        ctx = Context()
+        ctx.load_dialect(Test)
+    else:
+        ctx = Context(allow_unregistered=True)
+
+    op = Parser(ctx, text).parse_op()
+
+    if location_target == "op":
+        assert op.location == expected_location
+    else:
+        block = op.regions[0].blocks[0]
+        assert block.args[0].location == expected_location
 
 
 @pytest.mark.parametrize(

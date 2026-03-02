@@ -1,4 +1,4 @@
-// RUN: xdsl-opt -p 'eqsat-create-eclasses,eqsat-add-costs,eqsat-extract' %s | filecheck %s
+// RUN: xdsl-opt -p 'eqsat-create-eclasses,eqsat-add-costs{default=1},eqsat-extract' %s | filecheck %s
 
 func.func @test(%x : index) -> (index) {
     %c2 = arith.constant 2 : index

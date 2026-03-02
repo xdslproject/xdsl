@@ -485,7 +485,7 @@ class ApplyOp(IRDLOperation):
         ApplyMemoryEffect(),
     )
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
     def print(self, printer: Printer):
         def print_assign_argument(args: tuple[BlockArgument, SSAValue, Attribute]):
@@ -825,10 +825,7 @@ class CombineOp(IRDLOperation):
 
     assembly_format = "$dim `at` $index `lower` `=` `(` $lower `:` type($lower) `)` `upper` `=` `(` $upper `:` type($upper) `)` (`lowerext` `=` $lowerext^ `:` type($lowerext))? (`upperext` `=` $upperext^ `:` type($upperext))? attr-dict-with-keyword `:` type($results_)"  # noqa: E501
 
-    irdl_options = [
-        AttrSizedOperandSegments(),
-        Pure(),
-    ]
+    irdl_options = (AttrSizedOperandSegments(),)
 
 
 class DynAccessOpHasShapeInferencePatternsTrait(HasShapeInferencePatternsTrait):
@@ -1347,9 +1344,13 @@ class BufferOp(IRDLOperation):
         if isinstance(self.res.type, FieldType):
             return
         if not isinstance(self.temp.owner, ApplyOp | CombineOp):
+            owner = (
+                "block argument"
+                if isinstance(self.temp.owner, Block)
+                else self.temp.owner.name
+            )
             raise VerifyException(
-                f"Expected stencil.buffer to buffer a stencil.apply or stencil.combine's output, got "
-                f"{self.temp.owner}"
+                f"Expected stencil.buffer operand to be a result of stencil.apply or stencil.combine got {owner}"
             )
         if any(not isinstance(use.operation, BufferOp) for use in self.temp.uses):
             raise VerifyException(

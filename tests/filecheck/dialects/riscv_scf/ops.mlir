@@ -1,9 +1,9 @@
 // RUN: XDSL_ROUNDTRIP
 
-%lb = "riscv.li"() {"immediate" = 0: i32} : () -> !riscv.reg
-%ub = "riscv.li"() {"immediate" = 100: i32} : () -> !riscv.reg
-%step = "riscv.li"() {"immediate" = 1: i32} : () -> !riscv.reg
-%acc = "riscv.li"() {"immediate" = 0 : i32} : () -> !riscv.reg<t0>
+%lb = "rv32.li"() {"immediate" = 0: i32} : () -> !riscv.reg
+%ub = "rv32.li"() {"immediate" = 100: i32} : () -> !riscv.reg
+%step = "rv32.li"() {"immediate" = 1: i32} : () -> !riscv.reg
+%acc = "rv32.li"() {"immediate" = 0 : i32} : () -> !riscv.reg<t0>
 riscv_scf.for %i : !riscv.reg = %lb to %ub step %step {
     riscv.addi %acc, 1 : (!riscv.reg<t0>) -> !riscv.reg<t0>
 }
@@ -21,10 +21,10 @@ riscv_scf.rof %j : !riscv.reg = %ub down to %lb step %step {
 }
 
 // CHECK:      builtin.module {
-// CHECK-NEXT:   %lb = riscv.li 0 : !riscv.reg
-// CHECK-NEXT:   %ub = riscv.li 100 : !riscv.reg
-// CHECK-NEXT:   %step = riscv.li 1 : !riscv.reg
-// CHECK-NEXT:   %acc = riscv.li 0 : !riscv.reg<t0>
+// CHECK-NEXT:   %lb = rv32.li 0 : !riscv.reg
+// CHECK-NEXT:   %ub = rv32.li 100 : !riscv.reg
+// CHECK-NEXT:   %step = rv32.li 1 : !riscv.reg
+// CHECK-NEXT:   %acc = rv32.li 0 : !riscv.reg<t0>
 // CHECK-NEXT:   riscv_scf.for %i : !riscv.reg = %lb to %ub step %step {
 // CHECK-NEXT:     %0 = riscv.addi %acc, 1 : (!riscv.reg<t0>) -> !riscv.reg<t0>
 // CHECK-NEXT:   }

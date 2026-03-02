@@ -242,7 +242,7 @@ class ConvertForLoopToCallGraphPass(RewritePattern):
         rewriter.insert_op(
             [cond_func, body_func, inc_func, post_func], InsertPoint.after(parent_func)
         )
-        rewriter.erase_matched_op()
+        rewriter.erase_op(op)
 
     @staticmethod
     def _is_inside_wrapper_outside_apply(op: Operation):
@@ -279,7 +279,11 @@ class CopyArithConstants(RewritePattern):
             use_func = self._get_enclosing_function(use.operation)
             if use_func != parent_func:
                 rewriter.insert_op(cln := op.clone(), InsertPoint.before(use.operation))
-                op.result.replace_by_if(cln.result, lambda x: x == use)
+                rewriter.replace_uses_with_if(
+                    op.result,
+                    cln.result,
+                    lambda x: x == use,
+                )
 
     @staticmethod
     def _get_enclosing_function(op: Operation) -> csl.FuncOp | None:

@@ -215,7 +215,7 @@ class Canonicalization(RewritingMicrobenchmarks):
         Exercise replacing an `SSAValue` and all its uses with another
         SSAValue. This is used when removing unused operations.
         """
-        self.add_op_result.replace_by(self.sub_op_result)
+        self.add_op_result.replace_all_uses_with(self.sub_op_result)
 
     def ignore_time_irwithuses_remove_use(self) -> None:
         """Time `IRWithUses.remove_use`.

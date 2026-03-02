@@ -1,12 +1,19 @@
+from __future__ import annotations
+
 from collections.abc import Sequence
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from xdsl.builder import Builder
 from xdsl.context import Context
-from xdsl.dialect_interfaces import ConstantMaterializationInterface
+from xdsl.dialect_interfaces.constant_materialization import (
+    ConstantMaterializationInterface,
+)
 from xdsl.ir import Attribute, Operation, SSAValue, TypeAttribute
-from xdsl.pattern_rewriter import PatternRewriter
 from xdsl.traits import HasFolder
+
+if TYPE_CHECKING:
+    from xdsl.pattern_rewriter import PatternRewriter
 
 
 @dataclass

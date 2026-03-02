@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import Generic, overload
 
 from typing_extensions import TypeVar
@@ -34,6 +35,10 @@ class ScopedDict(Generic[_Key, _Value]):
         self._local_scope = {} if local_scope is None else local_scope
         self.parent = parent
         self.name = name
+
+    @property
+    def local_scope(self) -> Mapping[_Key, _Value]:
+        return self._local_scope
 
     @overload
     def get(self, key: _Key, default: None = None) -> _Value | None: ...

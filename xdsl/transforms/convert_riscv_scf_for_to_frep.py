@@ -1,7 +1,7 @@
 from itertools import chain
 
 from xdsl.context import Context
-from xdsl.dialects import builtin, riscv, riscv_scf, riscv_snitch, snitch
+from xdsl.dialects import builtin, riscv, riscv_scf, riscv_snitch, rv32, snitch
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -28,7 +28,7 @@ class ScfForLowering(RewritePattern):
             return
 
         if not (
-            isinstance(step_op := op.step.owner, riscv.LiOp)
+            isinstance(step_op := op.step.owner, rv32.LiOp)
             and isinstance(step_op.immediate, builtin.IntegerAttr)
             and step_op.immediate.value.data == 1
         ):
@@ -59,7 +59,8 @@ class ScfForLowering(RewritePattern):
             return
 
         rewriter.erase_block_argument(indvar)
-        rewriter.replace_matched_op(
+        rewriter.replace_op(
+            op,
             (
                 iter_count := riscv.SubOp(op.ub, op.lb),
                 iter_count_minus_one := riscv.AddiOp(iter_count, -1),
@@ -68,7 +69,7 @@ class ScfForLowering(RewritePattern):
                     rewriter.move_region_contents_to_new_regions(op.body),
                     op.iter_args,
                 ),
-            )
+            ),
         )
 
 
@@ -78,7 +79,7 @@ class ScfYieldLowering(RewritePattern):
         self, op: riscv_scf.YieldOp, rewriter: PatternRewriter
     ) -> None:
         if isinstance(op.parent_op(), riscv_snitch.FRepOperation):
-            rewriter.replace_matched_op(riscv_snitch.FrepYieldOp(*op.operands))
+            rewriter.replace_op(op, riscv_snitch.FrepYieldOp(*op.operands))
 
 
 class ConvertRiscvScfForToFrepPass(ModulePass):

@@ -7,7 +7,7 @@
     operandSegmentSizes = array<i32: 2, 1>
 }> ({
 ^bb0(%s0 : !snitch.readable<!riscv.freg>, %s1 : !snitch.readable<!riscv.freg>, %s2 : !snitch.writable<!riscv.freg>):
-    %c5 = riscv.li 5 : !riscv.reg
+    %c5 = rv32.li 5 : !riscv.reg
     riscv_snitch.frep_outer %c5 {
         %x = riscv_snitch.read from %s0 : !riscv.freg
         %y = riscv_snitch.read from %s1 : !riscv.freg
@@ -25,7 +25,7 @@
 // CHECK-NEXT:      ]
 // CHECK-NEXT:    } ins(%ptr0, %ptr1 : !riscv.reg, !riscv.reg) outs(%ptr2 : !riscv.reg) {
 // CHECK-NEXT:    ^{{.*}}(%s0 : !snitch.readable<!riscv.freg<ft0>>, %s1 : !snitch.readable<!riscv.freg<ft1>>, %s2 : !snitch.writable<!riscv.freg<ft2>>):
-// CHECK-NEXT:      %c5 = riscv.li 5 : !riscv.reg
+// CHECK-NEXT:      %c5 = rv32.li 5 : !riscv.reg
 // CHECK-NEXT:      riscv_snitch.frep_outer %c5 {
 // CHECK-NEXT:        %x = riscv_snitch.read from %s0 : !riscv.freg<ft0>
 // CHECK-NEXT:        %y = riscv_snitch.read from %s1 : !riscv.freg<ft1>

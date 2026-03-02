@@ -7,10 +7,10 @@ func.func @test(%x : index) -> (index) {
 }
 
 // CHECK:       func.func @test(%x : index) -> index {
-// CHECK-NEXT:    %x_1 = eqsat.eclass %x : index
+// CHECK-NEXT:    %x_1 = equivalence.class %x : index
 // CHECK-NEXT:    %c2 = arith.constant 2 : index
-// CHECK-NEXT:    %c2_1 = eqsat.eclass %c2 : index
+// CHECK-NEXT:    %c2_1 = equivalence.class %c2 : index
 // CHECK-NEXT:    %res = arith.muli %x_1, %c2_1 : index
-// CHECK-NEXT:    %res_1 = eqsat.eclass %res : index
+// CHECK-NEXT:    %res_1 = equivalence.class %res : index
 // CHECK-NEXT:    func.return %res_1 : index
 // CHECK-NEXT:  }

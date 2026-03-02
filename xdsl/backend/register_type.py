@@ -19,7 +19,7 @@ from xdsl.ir import (
 )
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
-from xdsl.traits import EffectInstance, MemoryEffect, MemoryEffectKind
+from xdsl.traits import EffectInstance, MemoryEffect, MemoryEffectKind, Resource
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -27,10 +27,41 @@ from xdsl.utils.exceptions import VerifyException
 class RegisterType(ParametrizedAttribute, TypeAttribute, ABC):
     """
     An abstract register type for target ISA-specific dialects.
+
+    Registers have a name, as used in assembly, and an index as used in the binary
+    encoding.
+
+    Some approaches for register allocation have stages where values are assigned to a
+    fixed set of registers that is distinct from the registers that exist on a target
+    platform, to separate the graph coloring from roles of registers in the target ABI.
+    In order to support this scenario, negative indices are allowed in the index,
+    denoting an infinite register set without any representation in the ABI.
+    These are printed with a prefix as defined by the `infinite_register_prefix`
+    class method, which must not be a prefix of any of the register names defined by
+    the `index_by_name` class method.
     """
 
     index: IntAttr | NoneAttr
     register_name: StringAttr
+
+    def __init_subclass__(cls) -> None:
+        # Detect register names clashing with the infinite register prefix
+        try:
+            prefix = cls.infinite_register_prefix()
+            names = cls.index_by_name()
+        except NotImplementedError:
+            # Skip for abstract subclasses
+            return
+
+        clashing_register_names = tuple(
+            register_name for register_name in names if register_name.startswith(prefix)
+        )
+
+        if clashing_register_names:
+            raise ValueError(
+                f"Infinite register prefix '{prefix}' clashes with register names "
+                f"{list(clashing_register_names)}."
+            )
 
     @classmethod
     def unallocated(cls) -> Self:
@@ -191,6 +222,14 @@ class RegisterType(ParametrizedAttribute, TypeAttribute, ABC):
         return res
 
 
+@dataclass(frozen=True)
+class RegisterResource(Resource):
+    register: RegisterType
+
+    def name(self) -> str:
+        return f"<Register {self.register}>"
+
+
 class RegisterAllocatedMemoryEffect(MemoryEffect):
     """
     An assembly operation that only has side-effect if some registers are allocated to
@@ -200,13 +239,14 @@ class RegisterAllocatedMemoryEffect(MemoryEffect):
     @classmethod
     def get_effects(cls, op: Operation) -> set[EffectInstance]:
         effects = set[EffectInstance]()
-        if any(
-            isinstance(r.type, RegisterType) and r.type.is_allocated for r in op.results
-        ):
-            effects.add(EffectInstance(MemoryEffectKind.WRITE))
-        if any(
-            isinstance(r.type, RegisterType) and r.type.is_allocated
-            for r in op.operands
-        ):
-            effects.add(EffectInstance(MemoryEffectKind.READ))
+        for result in op.results:
+            if isinstance(r := result.type, RegisterType) and r.is_allocated:
+                effects.add(
+                    EffectInstance(MemoryEffectKind.WRITE, resource=RegisterResource(r))
+                )
+        for operand in op.operands:
+            if isinstance(r := operand.type, RegisterType) and r.is_allocated:
+                effects.add(
+                    EffectInstance(MemoryEffectKind.READ, resource=RegisterResource(r))
+                )
         return effects

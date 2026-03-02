@@ -32,7 +32,7 @@ class ExtractCslModules(RewritePattern):
     def match_and_rewrite(self, op: csl_wrapper.ModuleOp, rewriter: PatternRewriter, /):
         program_module = self.lower_program_module(op, rewriter)
         layout_module = self.lower_layout_module(op, rewriter)
-        rewriter.replace_matched_op([layout_module, program_module])
+        rewriter.replace_op(op, [layout_module, program_module])
 
     def _collect_params(
         self, op: csl_wrapper.ModuleOp
@@ -308,7 +308,7 @@ class LowerImport(RewritePattern):
 
         rewriter.insert_op(ops, InsertPoint.at_start(csl_mod.body.block))
         rewriter.insert_op(structs, InsertPoint.before(op))
-        rewriter.replace_matched_op(import_)
+        rewriter.replace_op(op, import_)
 
 
 @dataclass(frozen=True)

@@ -27,7 +27,7 @@ def hoist_all(
     if value_mapper is None:
         value_mapper = {}
     for o in ops:
-        if o.get_trait(IsTerminator):
+        if o.has_trait(IsTerminator, value_if_unregistered=False):
             continue
         new_op = o.clone(value_mapper=value_mapper)
         value_mapper |= {

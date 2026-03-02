@@ -195,7 +195,7 @@ def materialize_loop(
 
     Rewriter.insert_op(new_generic_op, loc)
 
-    rewriter.replace_matched_op(ops)
+    rewriter.replace_op(generic_op, ops)
 
     return ops
 

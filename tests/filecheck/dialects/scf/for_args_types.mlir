@@ -3,7 +3,7 @@
 "builtin.module"() ({
   %lbi = "test.op"() : () -> !test.type<"int">
   %x:2 = "test.op"() : () -> (index, index) // ub, step
-// CHECK: operand at position 0 does not verify
+// CHECK: operand 'lb' at position 0 does not verify
   "scf.for"(%lbi, %x#0, %x#1) ({
   ^bb0(%iv : index):
     "scf.yield"() : () -> ()
@@ -27,7 +27,7 @@
 "builtin.module"() ({
   %lbi = "test.op"() : () -> si32
   %x:2 = "test.op"() : () -> (index, index) // ub, step
-// CHECK: operand at position 0 does not verify
+// CHECK: operand 'lb' at position 0 does not verify
   "scf.for"(%lbi, %x#0, %x#1) ({
   ^bb0(%iv : index):
     "scf.yield"() : () -> ()
@@ -50,7 +50,7 @@
 
 "builtin.module"() ({
   %x:3 = "test.op"() : () -> (si32, si32, si32) // lb, ub, step
-// CHECK: operand at position 0 does not verify
+// CHECK: operand 'lb' at position 0 does not verify
   "scf.for"(%x#0, %x#1, %x#2) ({
   ^bb0(%iv : si32):
     "scf.yield"() : () -> ()

@@ -112,7 +112,7 @@ class TwoVarResultOp(IRDLOperation):
 
     res1 = var_result_def(StringAttr)
     res2 = var_result_def(StringAttr)
-    irdl_options = [AttrSizedResultSegments()]
+    irdl_options = (AttrSizedResultSegments(),)
 
 
 def test_two_var_result_builder():
@@ -161,7 +161,7 @@ class MixedResultOp(IRDLOperation):
     res1 = var_result_def(StringAttr)
     res2 = result_def(StringAttr)
     res3 = var_result_def(StringAttr)
-    irdl_options = [AttrSizedResultSegments()]
+    irdl_options = (AttrSizedResultSegments(),)
 
 
 def test_var_mixed_builder():
@@ -266,7 +266,7 @@ class TwoVarOperandOp(IRDLOperation):
 
     res1 = var_operand_def(StringAttr)
     res2 = var_operand_def(StringAttr)
-    irdl_options = [AttrSizedOperandSegments()]
+    irdl_options = (AttrSizedOperandSegments(),)
 
 
 # Define a similar operation with the segment sizes as a property to test this case
@@ -276,7 +276,7 @@ class TwoVarOperandPropOp(IRDLOperation):
 
     res1 = var_operand_def(StringAttr)
     res2 = var_operand_def(StringAttr)
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
 
 def test_two_var_operand_builder():
@@ -326,7 +326,7 @@ class SameSizeVarOperandOp(IRDLOperation):
     var1 = var_operand_def()
     op1 = operand_def()
     var2 = var_operand_def()
-    irdl_options = [SameVariadicOperandSize()]
+    irdl_options = (SameVariadicOperandSize(),)
 
 
 def test_same_size_operand_builder():
@@ -562,7 +562,7 @@ class TwoVarRegionOp(IRDLOperation):
 
     res1 = var_region_def()
     res2 = var_region_def()
-    irdl_options = [AttrSizedRegionSegments()]
+    irdl_options = (AttrSizedRegionSegments(),)
 
 
 def test_two_var_region_builder():
@@ -675,7 +675,7 @@ class TwoVarSuccessorOp(IRDLOperation):
 
     res1 = var_successor_def()
     res2 = var_successor_def()
-    irdl_options = [AttrSizedSuccessorSegments()]
+    irdl_options = (AttrSizedSuccessorSegments(),)
 
     traits = traits_def(IsTerminator())
 

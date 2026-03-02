@@ -12,16 +12,23 @@ from xdsl.dialects.builtin import (
     DYNAMIC_INDEX,
     AnyFloat,
     Builtin,
+    CallSiteLoc,
     ComplexType,
+    FileLineColLoc,
     FloatAttr,
     FunctionType,
+    FusedLoc,
     IndexType,
     IntAttr,
     IntegerType,
     ModuleOp,
+    NameLoc,
+    NoneAttr,
     Signedness,
+    StringAttr,
     SymbolRefAttr,
     UnitAttr,
+    UnknownLoc,
     f32,
     i1,
     i32,
@@ -46,8 +53,11 @@ from xdsl.irdl import (
 )
 from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
+from xdsl.syntax_printer import SyntaxPrinter
+from xdsl.utils.color_printer import ColorPrinter
+from xdsl.utils.colors import Colors
 from xdsl.utils.diagnostic import Diagnostic
-from xdsl.utils.exceptions import ParseError
+from xdsl.utils.exceptions import ParseError, VerifyException
 from xdsl.utils.test_value import create_ssa_value
 
 
@@ -67,17 +77,20 @@ def test_simple_forgotten_op():
 
 
 def test_print_op_location():
-    """Test that an op can be printed with its location."""
+    """Test that debuginfo printing uses operation locations."""
     ctx = Context()
     ctx.load_dialect(test.Test)
 
-    add = test.TestOp(result_types=[i32])
+    op = test.TestOp(result_types=[i32])
 
-    add.verify()
+    op.verify()
 
-    expected = """%0 = "test.op"() : () -> i32 loc(unknown)"""
+    expected_unknown = """%0 = "test.op"() : () -> i32 loc(unknown)"""
+    assert_print_op(op, expected_unknown, print_debuginfo=True)
 
-    assert_print_op(add, expected, print_debuginfo=True)
+    op.location = FileLineColLoc(StringAttr("model.mlir"), IntAttr(7), IntAttr(9))
+    expected_explicit = """%0 = "test.op"() : () -> i32 loc("model.mlir":7:9)"""
+    assert_print_op(op, expected_explicit, print_debuginfo=True)
 
 
 @irdl_op_definition
@@ -110,6 +123,41 @@ def test_added_unit_attr():
     )
 
     assert_print_op(unitop, expected)
+
+
+def test_locations():
+    def to_string(loc: Attribute):
+        io = StringIO()
+        p = Printer(stream=io, print_debuginfo=True)
+        p.print_attribute(loc)
+        return io.getvalue()
+
+    location = UnknownLoc()
+    assert to_string(location) == """loc(unknown)"""
+
+    location = FileLineColLoc(StringAttr("one"), IntAttr(2), IntAttr(3))
+    assert to_string(location) == """loc("one":2:3)"""
+
+    location = NameLoc(StringAttr("abc"), NoneAttr())
+    assert to_string(location) == """loc("abc")"""
+
+    location = NameLoc(StringAttr("abc"), NameLoc(StringAttr("def"), NoneAttr()))
+    assert to_string(location) == """loc("abc"("def"))"""
+
+    location = CallSiteLoc(
+        NameLoc(StringAttr("callee"), NoneAttr()),
+        NameLoc(StringAttr("caller"), NoneAttr()),
+    )
+    assert to_string(location) == """loc(callsite("callee" at "caller"))"""
+
+    location = FusedLoc((UnknownLoc(), UnknownLoc()), NoneAttr())
+    assert to_string(location) == """loc(fused[unknown, unknown])"""
+
+    location = FusedLoc((UnknownLoc(), UnknownLoc()), StringAttr("metadata"))
+    assert to_string(location) == """loc(fused<"metadata">[unknown, unknown])"""
+
+    with pytest.raises(VerifyException, match="is not a location attribute"):
+        location = FusedLoc((StringAttr("a"), StringAttr("b")), NoneAttr())
 
 
 #  ____  _                             _   _
@@ -408,13 +456,16 @@ def test_print_block_argument():
 def test_print_block_argument_location():
     """Print a block argument with location."""
     block = Block(arg_types=[i32, i32])
+    block.args[0].location = FileLineColLoc(
+        StringAttr("model.mlir"), IntAttr(3), IntAttr(5)
+    )
 
     io = StringIO()
     p = Printer(stream=io, print_debuginfo=True)
     p.print_block_argument(block.args[0])
     p.print_string(", ")
     p.print_block_argument(block.args[1])
-    assert io.getvalue() == """%0 : i32 loc(unknown), %1 : i32 loc(unknown)"""
+    assert io.getvalue() == """%0 : i32 loc("model.mlir":3:5), %1 : i32 loc(unknown)"""
 
 
 def test_print_block():
@@ -1135,6 +1186,51 @@ def test_symbol_printing():
     printer.stream = StringIO()
     printer.print_symbol_name("@symbol")
     assert '@"@symbol"' == printer.stream.getvalue()
+
+
+def test_color_printing():
+    printer = ColorPrinter()
+
+    printer.stream = StringIO()
+    with printer.colored(None):
+        printer.print_string("test")
+    assert "test" == printer.stream.getvalue()
+
+    printer.stream = StringIO()
+    with printer.colored(Colors.BLUE):
+        printer.print_string("test")
+    assert "\x1b[34mtest\x1b[0m" == printer.stream.getvalue()
+
+
+def test_nested_color_printing():
+    printer = ColorPrinter()
+
+    printer.stream = StringIO()
+    with printer.colored(Colors.BLUE):
+        with printer.colored(Colors.RED):
+            printer.print_string("test")
+
+    # Should still be blue
+    assert "\x1b[34mtest\x1b[0m" == printer.stream.getvalue()
+
+    printer.stream = StringIO()
+    with printer.colored(None):
+        with printer.colored(Colors.RED):
+            printer.print_string("test")
+
+    # Should be red
+    assert "\x1b[31mtest\x1b[0m" == printer.stream.getvalue()
+
+
+def test_syntax_printer():
+    printer = SyntaxPrinter()
+
+    op = test.TestOp(result_types=(IntegerType(32),))
+
+    printer.stream = StringIO()
+    printer.print_ssa_value(op.results[0])
+
+    assert "\x1b[95m%0\x1b[0m" == printer.stream.getvalue()
 
 
 def assert_print_op(

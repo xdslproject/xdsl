@@ -7,8 +7,8 @@ riscv_func.func @putchar(!riscv.reg) -> !riscv.reg
 riscv_func.func @free(!riscv.reg) -> ()
 
 riscv_func.func @main() -> () {
-    %33 = riscv.li 33 : !riscv.reg
-    %newline = riscv.li 10 : !riscv.reg
+    %33 = rv32.li 33 : !riscv.reg
+    %newline = rv32.li 10 : !riscv.reg
     %ptr = riscv_func.call @malloc(%33) : (!riscv.reg) -> !riscv.reg
     riscv.sw %ptr, %33, 0 : (!riscv.reg, !riscv.reg) -> ()
 

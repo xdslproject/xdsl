@@ -90,7 +90,7 @@ class IfLowering(RewritePattern):
         )
 
         # Remove the original `scf.if` operation
-        rewriter.replace_matched_op([], continue_block.args)
+        rewriter.replace_op(if_op, [], continue_block.args)
 
 
 class ForLowering(RewritePattern):
@@ -151,7 +151,7 @@ class ForLowering(RewritePattern):
 
         # The result of the loop operation are the values of the condition block
         # arguments except the induction variable on the last iteration.
-        rewriter.replace_matched_op([], condition_block.args[1:])
+        rewriter.replace_op(for_op, [], condition_block.args[1:])
 
 
 class SwitchLowering(RewritePattern):
@@ -219,7 +219,7 @@ class SwitchLowering(RewritePattern):
             InsertPoint.at_end(condition_block),
         )
 
-        rewriter.replace_matched_op((), continue_block.args)
+        rewriter.replace_op(op, (), continue_block.args)
 
 
 class ConvertScfToCf(ModulePass):

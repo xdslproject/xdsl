@@ -32,5 +32,5 @@ jobs:
     - name: Generate Python type stubs
       run: uv run xdsl-stubgen
 
-    - name: Run code formatting checks with pre-commit
-      uses: pre-commit/action@v3.0.1
+    - name: Run code formatting checks with prek
+      uses: j178/prek-action@v1

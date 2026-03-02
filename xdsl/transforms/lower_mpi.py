@@ -321,14 +321,14 @@ class _MPIToLLVMRewriteBase(RewritePattern, ABC):
 class LowerMpiInit(_MPIToLLVMRewriteBase):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: mpi.InitOp, rewriter: PatternRewriter, /):
-        rewriter.replace_matched_op(*self.lower(op))
+        rewriter.replace_op(op, *self.lower(op))
 
     def lower(self, op: mpi.InitOp) -> tuple[list[Operation], list[SSAValue | None]]:
         """
         We currently don't model any argument passing to `MPI_Init()` and pass two nullptrs.
         """
         return [
-            nullptr := llvm.ZeroOp(result_types=[llvm.LLVMPointerType.opaque()]),
+            nullptr := llvm.ZeroOp(result_types=[llvm.LLVMPointerType()]),
             func.CallOp(self._mpi_name(op), [nullptr, nullptr], [i32]),
         ], []
 
@@ -336,7 +336,7 @@ class LowerMpiInit(_MPIToLLVMRewriteBase):
 class LowerMpiFinalize(_MPIToLLVMRewriteBase):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: mpi.FinalizeOp, rewriter: PatternRewriter, /):
-        rewriter.replace_matched_op(*self.lower(op))
+        rewriter.replace_op(op, *self.lower(op))
 
     def lower(
         self, op: mpi.FinalizeOp
@@ -352,7 +352,7 @@ class LowerMpiFinalize(_MPIToLLVMRewriteBase):
 class LowerMpiWait(_MPIToLLVMRewriteBase):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: mpi.WaitOp, rewriter: PatternRewriter, /):
-        rewriter.replace_matched_op(*self.lower(op))
+        rewriter.replace_op(op, *self.lower(op))
 
     def lower(self, op: mpi.WaitOp) -> tuple[list[Operation], list[SSAValue | None]]:
         """
@@ -368,7 +368,7 @@ class LowerMpiWait(_MPIToLLVMRewriteBase):
 class LowerMpiWaitall(_MPIToLLVMRewriteBase):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: mpi.WaitallOp, rewriter: PatternRewriter, /):
-        rewriter.replace_matched_op(*self.lower(op))
+        rewriter.replace_op(op, *self.lower(op))
 
     def lower(self, op: mpi.WaitallOp) -> tuple[list[Operation], list[SSAValue | None]]:
         """
@@ -385,7 +385,7 @@ class LowerMpiWaitall(_MPIToLLVMRewriteBase):
 class LowerMpiReduce(_MPIToLLVMRewriteBase):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: mpi.ReduceOp, rewriter: PatternRewriter, /):
-        rewriter.replace_matched_op(*self.lower(op))
+        rewriter.replace_op(op, *self.lower(op))
 
     def lower(self, op: mpi.ReduceOp) -> tuple[list[Operation], list[SSAValue | None]]:
         """
@@ -416,7 +416,7 @@ class LowerMpiReduce(_MPIToLLVMRewriteBase):
 class LowerMpiAllreduce(_MPIToLLVMRewriteBase):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: mpi.AllreduceOp, rewriter: PatternRewriter, /):
-        rewriter.replace_matched_op(*self.lower(op))
+        rewriter.replace_op(op, *self.lower(op))
 
     def lower(
         self, op: mpi.AllreduceOp
@@ -463,7 +463,7 @@ class LowerMpiAllreduce(_MPIToLLVMRewriteBase):
 class LowerMpiBcast(_MPIToLLVMRewriteBase):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: mpi.BcastOp, rewriter: PatternRewriter, /):
-        rewriter.replace_matched_op(*self.lower(op))
+        rewriter.replace_op(op, *self.lower(op))
 
     def lower(self, op: mpi.BcastOp) -> tuple[list[Operation], list[SSAValue | None]]:
         """
@@ -485,7 +485,7 @@ class LowerMpiBcast(_MPIToLLVMRewriteBase):
 class LowerMpiIsend(_MPIToLLVMRewriteBase):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: mpi.IsendOp, rewriter: PatternRewriter, /):
-        rewriter.replace_matched_op(*self.lower(op))
+        rewriter.replace_op(op, *self.lower(op))
 
     def lower(self, op: mpi.IsendOp) -> tuple[list[Operation], list[SSAValue | None]]:
         """
@@ -518,7 +518,7 @@ class LowerMpiIsend(_MPIToLLVMRewriteBase):
 class LowerMpiIrecv(_MPIToLLVMRewriteBase):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: mpi.IrecvOp, rewriter: PatternRewriter, /):
-        rewriter.replace_matched_op(*self.lower(op))
+        rewriter.replace_op(op, *self.lower(op))
 
     def lower(self, op: mpi.IrecvOp) -> tuple[list[Operation], list[SSAValue | None]]:
         """
@@ -551,7 +551,7 @@ class LowerMpiIrecv(_MPIToLLVMRewriteBase):
 class LowerMpiSend(_MPIToLLVMRewriteBase):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: mpi.SendOp, rewriter: PatternRewriter, /):
-        rewriter.replace_matched_op(*self.lower(op))
+        rewriter.replace_op(op, *self.lower(op))
 
     def lower(self, op: mpi.SendOp) -> tuple[list[Operation], list[SSAValue | None]]:
         """
@@ -578,7 +578,7 @@ class LowerMpiSend(_MPIToLLVMRewriteBase):
 class LowerMpiRecv(_MPIToLLVMRewriteBase):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: mpi.RecvOp, rewriter: PatternRewriter, /):
-        rewriter.replace_matched_op(*self.lower(op))
+        rewriter.replace_op(op, *self.lower(op))
 
     def lower(self, op: mpi.RecvOp) -> tuple[list[Operation], list[SSAValue | None]]:
         """
@@ -618,7 +618,7 @@ class LowerMpiRecv(_MPIToLLVMRewriteBase):
 class LowerMpiUnwrapMemRefOp(_MPIToLLVMRewriteBase):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: mpi.UnwrapMemRefOp, rewriter: PatternRewriter, /):
-        rewriter.replace_matched_op(*self.lower(op))
+        rewriter.replace_op(op, *self.lower(op))
 
     def lower(
         self, op: mpi.UnwrapMemRefOp
@@ -638,7 +638,7 @@ class LowerMpiUnwrapMemRefOp(_MPIToLLVMRewriteBase):
 class LowerMpiGetDtype(_MPIToLLVMRewriteBase):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: mpi.GetDtypeOp, rewriter: PatternRewriter, /):
-        rewriter.replace_matched_op(*self.lower(op))
+        rewriter.replace_op(op, *self.lower(op))
 
     def lower(
         self, op: mpi.GetDtypeOp
@@ -651,7 +651,7 @@ class LowerMpiGetDtype(_MPIToLLVMRewriteBase):
 class LowerMpiAllocateType(_MPIToLLVMRewriteBase):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: mpi.AllocateTypeOp, rewriter: PatternRewriter, /):
-        rewriter.replace_matched_op(*self.lower(op))
+        rewriter.replace_op(op, *self.lower(op))
 
     def lower(
         self, op: mpi.AllocateTypeOp
@@ -668,7 +668,7 @@ class LowerMpiAllocateType(_MPIToLLVMRewriteBase):
 class LowerMpiVectorGet(_MPIToLLVMRewriteBase):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: mpi.VectorGetOp, rewriter: PatternRewriter, /):
-        rewriter.replace_matched_op(*self.lower(op))
+        rewriter.replace_op(op, *self.lower(op))
 
     def lower(
         self, op: mpi.VectorGetOp
@@ -697,7 +697,7 @@ class LowerMpiVectorGet(_MPIToLLVMRewriteBase):
 class LowerMpiCommRank(_MPIToLLVMRewriteBase):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: mpi.CommRankOp, rewriter: PatternRewriter, /):
-        rewriter.replace_matched_op(*self.lower(op))
+        rewriter.replace_op(op, *self.lower(op))
 
     def lower(
         self, op: mpi.CommRankOp
@@ -721,7 +721,7 @@ class LowerMpiCommRank(_MPIToLLVMRewriteBase):
 class LowerMpiCommSize(_MPIToLLVMRewriteBase):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: mpi.CommSizeOp, rewriter: PatternRewriter, /):
-        rewriter.replace_matched_op(*self.lower(op))
+        rewriter.replace_op(op, *self.lower(op))
 
     def lower(
         self, op: mpi.CommSizeOp
@@ -776,7 +776,7 @@ def add_external_func_defs(module: builtin.ModuleOp):
 class LowerNullRequestOp(_MPIToLLVMRewriteBase):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: mpi.NullRequestOp, rewriter: PatternRewriter, /):
-        rewriter.replace_matched_op(*self.lower(op))
+        rewriter.replace_op(op, *self.lower(op))
 
     def lower(
         self, op: mpi.NullRequestOp
@@ -796,7 +796,7 @@ class LowerNullRequestOp(_MPIToLLVMRewriteBase):
 class LowerMpiGatherOp(_MPIToLLVMRewriteBase):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: mpi.GatherOp, rewriter: PatternRewriter, /):
-        rewriter.replace_matched_op(*self.lower(op))
+        rewriter.replace_op(op, *self.lower(op))
 
     def lower(self, op: mpi.GatherOp) -> tuple[list[Operation], list[SSAValue | None]]:
         """
