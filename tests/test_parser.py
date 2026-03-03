@@ -1000,6 +1000,28 @@ def test_parse_location():
     with pytest.raises(ParseError, match="Unsupported location type."):
         Parser(ctx, "loc(unexpected)").parse_optional_location()
 
+    parser = Parser(ctx, "loc(#loc1)")
+    parser.attribute_aliases["#loc1"] = FileLineColLoc(
+        StringAttr("alias.mlir"), IntAttr(7), IntAttr(9)
+    )
+    attr = parser.parse_optional_location()
+    assert attr == FileLineColLoc(StringAttr("alias.mlir"), IntAttr(7), IntAttr(9))
+
+    parser = Parser(ctx, 'loc("root"(#loc2))')
+    parser.attribute_aliases["#loc2"] = FileLineColLoc(
+        StringAttr("nested.mlir"), IntAttr(3), IntAttr(4)
+    )
+    attr = parser.parse_optional_location()
+    assert attr == NameLoc(
+        StringAttr("root"),
+        FileLineColLoc(StringAttr("nested.mlir"), IntAttr(3), IntAttr(4)),
+    )
+
+    parser = Parser(ctx, "loc(#not_loc)")
+    parser.attribute_aliases["#not_loc"] = IntAttr(42)
+    with pytest.raises(ParseError, match="Expected location alias."):
+        parser.parse_optional_location()
+
     with pytest.raises(ParseError, match="Unexpected location syntax."):
         Parser(ctx, "loc(1)").parse_optional_location()
 

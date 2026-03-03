@@ -1317,6 +1317,12 @@ class AttrParser(BaseParser):
             col = self.parse_integer(False, False)
             return FileLineColLoc(StringAttr(filename), IntAttr(line), IntAttr(col))
 
+        if self._current_token.kind == MLIRTokenKind.HASH_IDENT:
+            attr = self.parse_attribute()
+            if isa(attr, LocationAttr):
+                return attr
+            self.raise_error("Expected location alias.")
+
         if (identifier := self.parse_optional_identifier()) is not None:
             match identifier:
                 case "callsite":
