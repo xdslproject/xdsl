@@ -63,8 +63,7 @@ class EmatchFunctions(InterpreterFunctions):
         if isinstance(val, OpResult):
             defining_op = val.owner
             if isinstance(defining_op, equivalence.AnyClassOp):
-                leader = self.eclass_union_find.find(defining_op)
-                return (leader.operands[0],)
+                return (defining_op.operands[0],)
 
         # Value is not an eclass result, return it as-is
         return (val,)
