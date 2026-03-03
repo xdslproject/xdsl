@@ -98,6 +98,9 @@ builtin.module {
   %andi_immediate = riscv.andi %i3, 7 : (!riscv.reg) -> !riscv.reg<a0>
   "test.op"(%andi_immediate) : (!riscv.reg<a0>) -> ()
 
+  %andi_zero = riscv.andi %i3, 0 : (!riscv.reg) -> !riscv.reg<a0>
+  "test.op"(%andi_zero) : (!riscv.reg<a0>) -> ()
+
   %shift_left_immediate = riscv.slli %c2, 4 : (!riscv.reg) -> !riscv.reg<a0>
   "test.op"(%shift_left_immediate) : (!riscv.reg<a0>) -> ()
 
@@ -272,6 +275,10 @@ builtin.module {
 
 // CHECK-NEXT:   %andi_immediate = rv32.li 4 : !riscv.reg<a0>
 // CHECK-NEXT:   "test.op"(%andi_immediate) : (!riscv.reg<a0>) -> ()
+
+// CHECK-NEXT:   %andi_zero = rv32.get_register : !riscv.reg<zero>
+// CHECK-NEXT:   %andi_zero_1 = riscv.mv %andi_zero : (!riscv.reg<zero>) -> !riscv.reg<a0>
+// CHECK-NEXT:   "test.op"(%andi_zero_1) : (!riscv.reg<a0>) -> ()
 
 // CHECK-NEXT:   %shift_left_immediate = rv32.li 32 : !riscv.reg<a0>
 // CHECK-NEXT:   "test.op"(%shift_left_immediate) : (!riscv.reg<a0>) -> ()

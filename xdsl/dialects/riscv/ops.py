@@ -163,9 +163,13 @@ class AndiOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.riscv import (
             AndiImmediate,
+            AndiZero,
         )
 
-        return (AndiImmediate(),)
+        return (
+            AndiImmediate(),
+            AndiZero(),
+        )
 
 
 @irdl_op_definition

@@ -240,6 +240,14 @@ class AndiImmediate(RewritePattern):
             )
 
 
+class AndiZero(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: riscv.AndiOp, rewriter: PatternRewriter) -> None:
+        if isinstance(op.immediate, IntegerAttr) and op.immediate.value.data == 0:
+            rd = op.rd.type
+            rewriter.replace_matched_op(rv32.LiOp(0, rd=rd))
+
+
 class OriImmediate(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: riscv.OriOp, rewriter: PatternRewriter) -> None:
