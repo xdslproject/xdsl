@@ -92,7 +92,6 @@ class EmatchFunctions(InterpreterFunctions):
         if val.has_one_use():
             user = val.get_user_of_unique_use()
             if isinstance(user, equivalence.AnyClassOp):
-                leader = self.eclass_union_find.find(user)
-                return (leader.result,)
+                return (user.result,)
 
         return (val,)
