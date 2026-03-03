@@ -120,8 +120,7 @@ class EmatchFunctions(InterpreterFunctions):
             elif val.has_one_use():
                 user = val.get_user_of_unique_use()
                 if isinstance(user, equivalence.AnyClassOp):
-                    leader = self.eclass_union_find.find(user)
-                    results.append(leader.result)
+                    results.append(user.result)
                 else:
                     results.append(val)
             else:
