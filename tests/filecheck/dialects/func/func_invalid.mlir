@@ -98,7 +98,7 @@ func.func @bar() {
 
 // -----
 
-func.func private @f(%arg0: i32 loc(unknown) {arg_name = "x"})
+func.func private @f(%arg0: i32 loc(unknown) {test.arg_name = "x"})
 
 // CHECK: Expected function argument attributes before location.
 

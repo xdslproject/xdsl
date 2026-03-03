@@ -57,7 +57,7 @@ builtin.module {
   func.func private @f_named_loc_only(%arg0: i32 loc(unknown))
   // CHECK: func.func private @f_named_loc_only(i32) -> ()
 
-  func.func private @f_named_attr_then_loc(%arg0: i32 {arg_name = "x"} loc(unknown))
+  func.func private @f_named_attr_then_loc(%arg0: i32 {test.arg_name = "x"} loc(unknown))
   // CHECK: func.func private @f_named_attr_then_loc(i32) -> ()
 
   func.func private @f_unnamed_loc(i32 loc(unknown))
