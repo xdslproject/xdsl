@@ -471,9 +471,16 @@ def parse_func_op_like(
 def print_func_argument(
     printer: Printer, arg: BlockArgument, attrs: DictionaryAttr | None
 ):
-    printer.print_block_argument(arg)
+    # Keep function-argument syntax compatible with MLIR parser expectations:
+    # `%arg : type {attrs} loc(...)` (location after attrs).
+    printer.print_block_argument(arg, print_type=False)
+    printer.print_string(" : ")
+    printer.print_attribute(arg.type)
     if attrs is not None and attrs.data:
         printer.print_op_attributes(attrs.data)
+    if printer.print_debuginfo:
+        printer.print_string(" ")
+        printer.print_attribute(arg.location)
 
 
 def print_func_output(
