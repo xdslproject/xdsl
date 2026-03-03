@@ -384,19 +384,22 @@ def parse_func_op_like(
             # Allow and ignore optional location after unnamed argument type (e.g. `func.func private @f(i32 loc(unknown)`)
             parser.parse_optional_location()
         else:
-            first_loc = parser.parse_optional_location()
-            arg_attr_pos = parser.pos
+            # Parsing order: attrs first, then optional location.
             arg_attr_dict = parser.parse_optional_dictionary_attr_dict()
-            has_arg_attr_dict = parser.pos != arg_attr_pos
-            # Reject optional location before arg attrs (e.g. `%arg: i32 loc(...) {..}`)
-            # Also reject the empty-dict form `%arg: i32 loc(...) {}`.
-            if first_loc is not None and has_arg_attr_dict:
-                parser.raise_error(
-                    "Expected function argument attributes before location."
-                )
-            # Accept optional location after arg attrs (e.g. `%arg: i32 {..} loc(...)`)
-            second_loc = parser.parse_optional_location()
-            if first_loc is not None and second_loc is not None:
+            has_loc = parser.parse_optional_location() is not None
+
+            # If a location was parsed, reject attrs that appear after it,
+            # including empty dictionaries (e.g. `%arg: i32 loc(...) {}`).
+            if has_loc:
+                arg_attr_pos = parser.pos
+                parser.parse_optional_dictionary_attr_dict()
+                if parser.pos != arg_attr_pos:
+                    parser.raise_error(
+                        "Expected function argument attributes before location."
+                    )
+
+            # Reject duplicate locations (e.g. `%arg: i32 ... loc(...) loc(...)`).
+            if has_loc and parser.parse_optional_location() is not None:
                 parser.raise_error(
                     "Expected at most one location in function argument."
                 )
