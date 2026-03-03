@@ -33,3 +33,36 @@ def test_get_class_vals():
     assert interpreter.run_op(
         ematch.GetClassValsOp(create_ssa_value(pdl.ValueType())), (block_arg,)
     ) == ((block_arg,),)
+
+
+def test_get_class_representative():
+    ematch_funcs = EmatchFunctions()
+    interpreter = Interpreter(ModuleOp([]))
+    interpreter.register_implementations(ematch_funcs)
+
+    v0 = create_ssa_value(i32)
+    v1 = create_ssa_value(i32)
+    classop = equivalence.ClassOp(v0, v1)
+
+    # Class result → first operand (representative)
+    assert interpreter.run_op(
+        ematch.GetClassRepresentativeOp(create_ssa_value(pdl.ValueType())),
+        (classop.result,),
+    ) == (v0,)
+
+    # Plain value → itself
+    v2 = create_ssa_value(i32)
+    assert interpreter.run_op(
+        ematch.GetClassRepresentativeOp(create_ssa_value(pdl.ValueType())),
+        (v2,),
+    ) == (v2,)
+
+    assert interpreter.run_op(
+        ematch.GetClassRepresentativeOp(create_ssa_value(pdl.ValueType())),
+        (None,),
+    ) == (None,)
+
+    block_arg = Block(arg_types=(i32,)).args[0]
+    assert interpreter.run_op(
+        ematch.GetClassRepresentativeOp(create_ssa_value(pdl.ValueType())), (block_arg,)
+    ) == (block_arg,)
