@@ -121,8 +121,9 @@ memref.store %fv4, %mstr4[%idx4] {"nontemporal" = false} : memref<2xf32, strided
 // CHECK-NEXT:  %reinterpret_dst = ptr_xdsl.to_ptr %reinterpret_src : memref<10x2xindex> -> !ptr_xdsl.ptr
 // CHECK-NEXT:  %reinterpret_dst_1 = builtin.unrealized_conversion_cast %reinterpret_dst : !ptr_xdsl.ptr to memref<5x4xindex, strided<[1, 1]>>
 
-// CHECK-NEXT:  "test.op"(%lv, %lv2, %flv, %flv2, %flv3, %subview1d, %subview2d, %cast_src, %reinterpret_dst_1) : (i32, i32, f64, f64, f64, memref<5xi32>, memref<5x4xi32>, memref<10xi32>, memref<5x4xindex, strided<[1, 1]>>) -> ()
 "test.op"(%lv, %lv2, %flv, %flv2, %flv3, %subview1d, %subview2d, %cast_dst, %reinterpret_dst) : (i32, i32, f64, f64, f64, memref<5xi32>, memref<5x4xi32>, memref<?xi32>, memref<5x4xindex, strided<[1, 1]>>) -> ()
+
+// CHECK-NEXT:  "test.op"(%lv, %lv2, %flv, %flv2, %flv3, %subview1d, %subview2d, %cast_src, %reinterpret_dst_1) : (i32, i32, f64, f64, f64, memref<5xi32>, memref<5x4xi32>, memref<10xi32>, memref<5x4xindex, strided<[1, 1]>>) -> ()
 
 // -----
 
