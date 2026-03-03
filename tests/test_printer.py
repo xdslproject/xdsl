@@ -1100,6 +1100,32 @@ def test_print_properties_as_attributes_safeguard():
         assert_print_op(parsed, retro_prog, print_properties_as_attributes=True)
 
 
+def test_func_argument_prints_attrs_before_location():
+    """Function arg printer must emit `%arg : type {attrs} loc(...)` order."""
+    prog = """
+"func.func"() <{sym_name = "f", function_type = (i32) -> (), sym_visibility = "private", arg_attrs = [{foo = 1 : i32}]}> ({
+^bb0(%arg0 : i32 loc("a.mlir":1:1)):
+  "func.return"() : () -> ()
+}) : () -> ()
+"""
+
+    ctx = Context()
+    ctx.load_dialect(Builtin)
+    ctx.load_dialect(Func)
+
+    parsed = Parser(ctx, prog).parse_op()
+
+    io = StringIO()
+    Printer(stream=io, print_debuginfo=True).print_op(parsed)
+    printed = io.getvalue()
+
+    assert '%arg0 : i32 {foo = 1 : i32} loc("a.mlir":1:1)' in printed
+    assert 'loc("a.mlir":1:1) {foo = 1 : i32}' not in printed
+
+    # Ensure the emitted custom form is accepted by the parser.
+    Parser(ctx, printed).parse_op()
+
+
 @pytest.mark.parametrize(
     "attr,expected",
     [
