@@ -1,4 +1,4 @@
-from xdsl.dialects import ematch, equivalence, pdl
+from xdsl.dialects import ematch, equivalence, pdl, test
 from xdsl.dialects.builtin import ModuleOp, i32
 from xdsl.interpreter import Interpreter
 from xdsl.interpreters.ematch import EmatchFunctions
@@ -89,6 +89,20 @@ def test_get_class_result():
         (v1,),
     ) == (v1,)
 
+    # None → returns None
+    assert interpreter.run_op(
+        ematch.GetClassResultOp(create_ssa_value(pdl.ValueType())),
+        (None,),
+    ) == (None,)
+
+    # v2 has one use that is *not* a ClassOp → returns itself
+    v2 = create_ssa_value(i32)
+    _ = test.TestOp(operands=(v2,))  # gives v2 exactly one (non-ClassOp) use
+    assert interpreter.run_op(
+        ematch.GetClassResultOp(create_ssa_value(pdl.ValueType())),
+        (v2,),
+    ) == (v2,)
+
 
 def test_get_class_results():
     ematch_funcs = EmatchFunctions()
@@ -111,3 +125,31 @@ def test_get_class_results():
         ematch.GetClassResultsOp(create_ssa_value(pdl.RangeType(pdl.ValueType()))),
         ((v2,),),
     ) == ((v2,),)
+
+    # Single None → returns (None,)
+    assert interpreter.run_op(
+        ematch.GetClassResultsOp(create_ssa_value(pdl.RangeType(pdl.ValueType()))),
+        (None,),
+    ) == ((),)
+
+    # Tuple of Nones → returns tuple of Nones
+    assert interpreter.run_op(
+        ematch.GetClassResultsOp(create_ssa_value(pdl.RangeType(pdl.ValueType()))),
+        ((None, None),),
+    ) == ((None, None),)
+
+    # Mixed: ClassOp value and None
+    v3 = create_ssa_value(i32)
+    classop2 = equivalence.ClassOp(v3)
+    assert interpreter.run_op(
+        ematch.GetClassResultsOp(create_ssa_value(pdl.RangeType(pdl.ValueType()))),
+        ((v3, None),),
+    ) == ((classop2.result, None),)
+
+    # Value with one non-ClassOp use → returns itself
+    v4 = create_ssa_value(i32)
+    _ = test.TestOp(operands=(v4,))  # gives v4 exactly one non-ClassOp use
+    assert interpreter.run_op(
+        ematch.GetClassResultsOp(create_ssa_value(pdl.RangeType(pdl.ValueType()))),
+        ((v4,),),
+    ) == ((v4,),)
