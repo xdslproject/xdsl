@@ -54,6 +54,18 @@ builtin.module {
   func.func private @external_fn(i32) -> (i32, i32)
   // CHECK: func.func private @external_fn(i32) -> (i32, i32)
 
+  func.func private @f_named_loc_only(%arg0: i32 loc(unknown))
+  // CHECK: func.func private @f_named_loc_only(i32) -> ()
+
+  func.func private @f_named_attr_then_loc(%arg0: i32 {arg_name = "x"} loc(unknown))
+  // CHECK: func.func private @f_named_attr_then_loc(i32) -> ()
+
+  func.func private @f_unnamed_loc(i32 loc(unknown))
+  // CHECK: func.func private @f_unnamed_loc(i32) -> ()
+
+  func.func private @f_unnamed_filelinecol_loc(i32 loc("model.mlir":7:9))
+  // CHECK: func.func private @f_unnamed_filelinecol_loc(i32) -> ()
+
   func.func @multi_return_body(%a : i32) -> (i32, i32) {
     func.return %a, %a : i32, i32
   }
