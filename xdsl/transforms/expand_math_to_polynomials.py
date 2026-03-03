@@ -46,8 +46,10 @@ def _float_constant(
         attr = DenseIntOrFPElementsAttr.from_list(tp, [value])
     elif isa(tp, TensorType[AnyFloat]):
         attr = DenseIntOrFPElementsAttr.from_list(tp, [value])
-    else:
+    elif isa(tp, AnyFloat):
         attr = FloatAttr(value, tp)
+    else:
+        raise TypeError(f"Unsupported type for float constant: {tp}")
     return rewriter.insert(arith.ConstantOp(attr))
 
 
