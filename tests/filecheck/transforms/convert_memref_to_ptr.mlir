@@ -109,7 +109,6 @@ memref.store %fv4, %mstr4[%idx4] {"nontemporal" = false} : memref<2xf32, strided
 // CHECK-NEXT:  %offset_pointer_9 = ptr_xdsl.ptradd %arr2_3, %scaled_pointer_offset_9 : (!ptr_xdsl.ptr, index) -> !ptr_xdsl.ptr
 // CHECK-NEXT:  %subview2d = ptr_xdsl.from_ptr %offset_pointer_9 : !ptr_xdsl.ptr -> memref<5x4xi32>
 
-
 %cast_src = "test.op"() : () -> (memref<10xi32>)
 %cast_dst = "memref.cast"(%cast_src) : (memref<10xi32>) -> memref<?xi32>
 
