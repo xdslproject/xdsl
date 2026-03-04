@@ -585,6 +585,13 @@ def test_fabs_op():
     assert op.result.type == builtin.f32
 
 
+def test_fneg_op():
+    val = create_ssa_value(builtin.f32)
+    op = llvm.FNegOp(val)
+    assert op.arg == val
+    assert op.res.type == builtin.f32
+
+
 def test_masked_store_op():
     value = create_ssa_value(builtin.f32)
     ptr = create_ssa_value(llvm.LLVMPointerType())

@@ -2183,6 +2183,37 @@ class FAbsOp(IRDLOperation):
 
 
 @irdl_op_definition
+class FNegOp(IRDLOperation):
+    T: ClassVar = VarConstraint("T", AnyFloatConstr | VectorType.constr(AnyFloatConstr))
+
+    name = "llvm.fneg"
+
+    arg = operand_def(T)
+    res = result_def(T)
+
+    fastmathFlags = prop_def(FastMathAttr, default_value=FastMathAttr(None))
+
+    traits = traits_def(Pure(), SameOperandsAndResultType())
+
+    assembly_format = "$arg attr-dict `:` type($arg)"
+
+    irdl_options = (ParsePropInAttrDict(),)
+
+    def __init__(
+        self,
+        arg: Operation | SSAValue,
+        fast_math: FastMathAttr | None = None,
+    ):
+        if fast_math is None:
+            fast_math = FastMathAttr(None)
+        super().__init__(
+            operands=[arg],
+            result_types=[SSAValue.get(arg).type],
+            properties={"fastmathFlags": fast_math},
+        )
+
+
+@irdl_op_definition
 class MaskedStoreOp(IRDLOperation):
     name = "llvm.intr.masked.store"
 
@@ -2239,6 +2270,7 @@ LLVM = Dialect(
         FAddOp,
         FDivOp,
         FMulOp,
+        FNegOp,
         FPExtOp,
         FRemOp,
         FSubOp,

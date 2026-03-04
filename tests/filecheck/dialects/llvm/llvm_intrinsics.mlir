@@ -13,6 +13,19 @@
 %fabs_vec = llvm.intr.fabs(%vec_f32) : (vector<4xf32>) -> vector<4xf32>
 // CHECK-NEXT: %fabs_vec = llvm.intr.fabs(%vec_f32) : (vector<4xf32>) -> vector<4xf32>
 
+%fneg_f32 = llvm.fneg %f32 : f32
+// CHECK: %fneg_f32 = llvm.fneg %f32 : f32
+
+%fneg_f64 = llvm.fneg %f64 : f64
+// CHECK-NEXT: %fneg_f64 = llvm.fneg %f64 : f64
+
+%fneg_vec = llvm.fneg %vec_f32 : vector<4xf32>
+// CHECK-NEXT: %fneg_vec = llvm.fneg %vec_f32 : vector<4xf32>
+
+// Verify fneg with fastmath flags
+%fneg_fast = llvm.fneg %f32 {fastmathFlags = #llvm.fastmath<fast>} : f32
+// CHECK-NEXT: %fneg_fast = llvm.fneg %f32 {fastmathFlags = #llvm.fastmath<fast>} : f32
+
 %val = "test.op"() : () -> f32
 %ptr = "test.op"() : () -> !llvm.ptr
 %mask = "test.op"() : () -> i1
