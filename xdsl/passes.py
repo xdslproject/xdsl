@@ -1,18 +1,12 @@
 from __future__ import annotations
 
 import dataclasses
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 from collections.abc import Callable
-from dataclasses import Field, dataclass, field
-from types import NoneType, UnionType
+from dataclasses import dataclass, field
 from typing import (
-    Any,
     ClassVar,
     NamedTuple,
-    Union,
-    get_args,
-    get_origin,
-    get_type_hints,
 )
 
 from typing_extensions import Self, TypeVar
@@ -20,18 +14,17 @@ from typing_extensions import Self, TypeVar
 from xdsl.context import Context
 from xdsl.dialects import builtin
 from xdsl.utils.arg_spec import (
-    ArgListType,
     ArgSpec,
-    ArgType,
+    ArgSpecConvertible,
     parse_pipeline,
 )
-from xdsl.utils.hints import isa, type_repr
+from xdsl.utils.hints import type_repr
 
 ModulePassT = TypeVar("ModulePassT", bound="ModulePass")
 
 
 @dataclass(frozen=True)
-class ModulePass(ABC):
+class ModulePass(ArgSpecConvertible):
     """
     A Pass is a named rewrite pass over an IR module that can accept arguments.
 
@@ -78,103 +71,12 @@ class ModulePass(ABC):
 
     @classmethod
     def from_pass_spec(cls, spec: ArgSpec) -> Self:
-        """
-        This method takes a ArgSpec, does type checking on the
-        arguments, and then instantiates an instance of the ModulePass
-        from the spec.
-        """
-        if spec.name != cls.name:
-            raise ValueError(
-                f"Cannot create Pass {cls.name} from pass arguments for pass {spec.name}"
-            )
-
-        # normalize spec arg names:
-        spec_arguments_dict: dict[str, ArgListType] = spec.normalize_arg_names().args
-
-        # get all dataclass fields
-        fields: tuple[Field[Any], ...] = dataclasses.fields(cls)
-
-        # start constructing the argument dict for the dataclass
-        arg_dict = dict[str, ArgListType | ArgType | None]()
-
-        required_fields = cls.required_fields()
-
-        field_types = get_type_hints(cls)
-
-        # iterate over all fields of the dataclass
-        for op_field in fields:
-            # ignore the name field and everything that's not used by __init__
-            if op_field.name == "name" or not op_field.init:
-                continue
-            # check that non-optional fields are present
-            if op_field.name not in spec_arguments_dict:
-                if op_field.name not in required_fields:
-                    arg_dict[op_field.name] = _get_default(op_field)
-                    continue
-                raise ValueError(f'Pass {cls.name} requires argument "{op_field.name}"')
-
-            # convert pass arg to the correct type:
-            field_type = field_types[op_field.name]
-            arg_dict[op_field.name] = _convert_pass_arg_to_type(
-                spec_arguments_dict.pop(op_field.name),
-                field_type,
-            )
-            # we use .pop here to also remove the arg from the dict
-
-        # if not all args were removed we raise an error
-        if len(spec_arguments_dict) != 0:
-            arguments_str = ", ".join(f'"{arg}"' for arg in spec_arguments_dict)
-            fields_str = ", ".join(f'"{field.name}"' for field in fields)
-            raise ValueError(
-                f"Provided arguments [{arguments_str}] not found in expected pass "
-                f"arguments [{fields_str}]"
-            )
-
-        # instantiate the dataclass using kwargs
-        return cls(**arg_dict)
-
-    @classmethod
-    def required_fields(cls) -> set[str]:
-        """
-        Inspects the definition of the pass for fields that do not have default values.
-        """
-        return {
-            field.name for field in dataclasses.fields(cls) if not _is_optional(field)
-        }
+        """Alias for ``from_spec`` for backward compatibility."""
+        return cls.from_spec(spec)
 
     def pipeline_pass_spec(self, *, include_default: bool = False) -> ArgSpec:
-        """
-        This function takes a ModulePass and returns a ArgSpec.
-
-        If `include_default` is `True`, then optional arguments are not included in the
-        spec.
-        """
-        # get all dataclass fields
-        fields = dataclasses.fields(self)
-        args: dict[str, ArgListType] = {}
-
-        # iterate over all fields of the dataclass
-        for op_field in fields:
-            name = op_field.name
-            # ignore the name field and everything that's not used by __init__
-            if name == "name" or not op_field.init:
-                continue
-
-            val = getattr(self, name)
-
-            if _is_optional(op_field):
-                if val == _get_default(op_field) and not include_default:
-                    continue
-
-            if val is None:
-                arg_list = ()
-            elif isinstance(val, ArgType):
-                arg_list = (val,)
-            else:
-                arg_list = val
-
-            args[name] = arg_list
-        return ArgSpec(self.name, args)
+        """Alias for ``spec`` for backward compatibility."""
+        return self.spec(include_default=include_default)
 
     @classmethod
     def schedule_space(
@@ -197,9 +99,6 @@ class ModulePass(ABC):
         except Exception:
             return ()
         return (pass_instance,)
-
-    def __str__(self) -> str:
-        return str(self.pipeline_pass_spec())
 
 
 class PassOptionInfo(NamedTuple):
@@ -277,62 +176,3 @@ class PassPipeline:
         passes = tuple(available_passes[p.name]().from_pass_spec(p) for p in specs)
 
         return PassPipeline(passes, callback)
-
-
-def _convert_pass_arg_to_type(
-    value: ArgListType, dest_type: Any
-) -> ArgListType | ArgType | None:
-    """
-    Takes in a list of pass args, and converts them to the required type.
-
-    value,      dest_type,      result
-    []          int | None      None
-    [1]         int | None      1
-    [1]         tuple[int, ...] (1,)
-    [1,2]       tuple[int, ...] (1,2)
-    [1,2]       int | None      Error
-    []          int             Error
-
-    And so on
-    """
-    origin = get_origin(dest_type)
-
-    # we need to special case optionals as [] means no option given
-    if origin in [Union, UnionType]:
-        if len(value) == 0:
-            if NoneType in get_args(dest_type):
-                return None
-            else:
-                raise ValueError("Argument must contain a value")
-
-    # first check if an individual value passes the type check
-    if len(value) == 1 and isa(value[0], dest_type):
-        return value[0]
-
-    # then check if n-tuple value is okay
-    if isa(value, dest_type):
-        return value
-
-    # at this point we exhausted all possibilities
-    raise ValueError(f"Incompatible types: given {value}, expected {dest_type}")
-
-
-def _is_optional(field: Field[Any]):
-    """
-    Shorthand to check if the given type allows "None" as a value.
-    """
-    can_be_none = get_origin(field.type) in [Union, UnionType] and NoneType in get_args(
-        field.type
-    )
-    has_default_val = field.default is not dataclasses.MISSING
-    has_default_factory = field.default_factory is not dataclasses.MISSING
-
-    return can_be_none or has_default_val or has_default_factory
-
-
-def _get_default(field: Field[Any]) -> Any:
-    if field.default is not dataclasses.MISSING:
-        return field.default
-    if field.default_factory is not dataclasses.MISSING:
-        return field.default_factory()
-    return None

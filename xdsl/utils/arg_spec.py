@@ -8,11 +8,16 @@ This is used when building pass pipelines.
 
 from __future__ import annotations
 
+import dataclasses
 import re
+from abc import ABC
 from collections.abc import Iterator
-from dataclasses import dataclass
+from dataclasses import Field, dataclass
 from enum import Enum
-from typing import TypeAlias
+from types import NoneType, UnionType
+from typing import Any, ClassVar, TypeAlias, Union, get_args, get_origin, get_type_hints
+
+from typing_extensions import Self
 
 from xdsl.utils.exceptions import ArgSpecPipelineParseError
 from xdsl.utils.lexer import Input, Span, Token
@@ -78,6 +83,183 @@ class ArgSpec:
         query += f"{{{arguments_pipeline}}}" if self.args else ""
 
         return query
+
+
+def _convert_arg_to_type(
+    value: ArgListType, dest_type: Any
+) -> ArgListType | ArgType | None:
+    """
+    Takes in a list of args and converts them to the required type.
+
+    value,      dest_type,      result
+    []          int | None      None
+    [1]         int | None      1
+    [1]         tuple[int, ...] (1,)
+    [1,2]       tuple[int, ...] (1,2)
+    [1,2]       int | None      Error
+    []          int             Error
+
+    And so on
+    """
+    from xdsl.utils.hints import isa
+
+    origin = get_origin(dest_type)
+
+    # we need to special case optionals as [] means no option given
+    if origin in [Union, UnionType]:
+        if len(value) == 0:
+            if NoneType in get_args(dest_type):
+                return None
+            else:
+                raise ValueError("Argument must contain a value")
+
+    # first check if an individual value passes the type check
+    if len(value) == 1 and isa(value[0], dest_type):
+        return value[0]
+
+    # then check if n-tuple value is okay
+    if isa(value, dest_type):
+        return value
+
+    # at this point we exhausted all possibilities
+    raise ValueError(f"Incompatible types: given {value}, expected {dest_type}")
+
+
+def _is_optional(field: Field[Any]) -> bool:
+    """
+    Shorthand to check if the given type allows "None" as a value,
+    or has a default value or factory.
+    """
+    can_be_none = get_origin(field.type) in [Union, UnionType] and NoneType in get_args(
+        field.type
+    )
+    has_default_val = field.default is not dataclasses.MISSING
+    has_default_factory = field.default_factory is not dataclasses.MISSING
+
+    return can_be_none or has_default_val or has_default_factory
+
+
+def _get_default(field: Field[Any]) -> Any:
+    if field.default is not dataclasses.MISSING:
+        return field.default
+    if field.default_factory is not dataclasses.MISSING:
+        return field.default_factory()
+    return None
+
+
+@dataclass(frozen=True)
+class ArgSpecConvertible(ABC):
+    """
+    A base class for frozen dataclasses with a ``name: ClassVar[str]`` that can
+    be instantiated from an ``ArgSpec`` and serialized back to one.
+
+    Subclasses must be decorated with ``@dataclass(frozen=True)``.
+
+    Only the following types are supported as argument types:
+
+    Base types:                int | float | bool | string
+    N-tuples of base types:
+        tuple[int, ...], tuple[int|float, ...], tuple[int, ...] | tuple[float, ...]
+    Top-level optional:        ... | None
+
+    Arguments are formatted as follows::
+
+        Spec arg                            Mapped to class field
+        -------------------------           ------------------------------
+        my-thing{arg-1=1}                   arg_1: int             = 1
+        my-thing{arg-1}                     arg_1: int | None      = None
+        my-thing{arg-1=1,2,3}              arg_1: tuple[int, ...] = (1, 2, 3)
+        my-thing{arg-1=true}               arg_1: bool | None     = True
+    """
+
+    name: ClassVar[str]
+
+    @classmethod
+    def from_spec(cls, spec: ArgSpec) -> Self:
+        """
+        Takes an ArgSpec, does type checking on the arguments, and instantiates
+        an instance of this class from the spec.
+        """
+        if spec.name != cls.name:
+            raise ValueError(f"Cannot create {cls.name} from spec for {spec.name}")
+
+        spec_arguments_dict: dict[str, ArgListType] = spec.normalize_arg_names().args
+
+        fields: tuple[Field[Any], ...] = dataclasses.fields(cls)
+
+        arg_dict = dict[str, ArgListType | ArgType | None]()
+
+        required = cls.required_fields()
+
+        field_types = get_type_hints(cls)
+
+        for op_field in fields:
+            if op_field.name == "name" or not op_field.init:
+                continue
+            if op_field.name not in spec_arguments_dict:
+                if op_field.name not in required:
+                    arg_dict[op_field.name] = _get_default(op_field)
+                    continue
+                raise ValueError(f'{cls.name} requires argument "{op_field.name}"')
+
+            field_type = field_types[op_field.name]
+            arg_dict[op_field.name] = _convert_arg_to_type(
+                spec_arguments_dict.pop(op_field.name),
+                field_type,
+            )
+
+        if len(spec_arguments_dict) != 0:
+            arguments_str = ", ".join(f'"{arg}"' for arg in spec_arguments_dict)
+            fields_str = ", ".join(f'"{field.name}"' for field in fields)
+            raise ValueError(
+                f"Provided arguments [{arguments_str}] not found in expected "
+                f"arguments [{fields_str}]"
+            )
+
+        return cls(**arg_dict)
+
+    @classmethod
+    def required_fields(cls) -> set[str]:
+        """
+        Inspects the definition for fields that do not have default values.
+        """
+        return {
+            field.name for field in dataclasses.fields(cls) if not _is_optional(field)
+        }
+
+    def spec(self, *, include_default: bool = False) -> ArgSpec:
+        """
+        Returns an ArgSpec representation of this instance.
+
+        If ``include_default`` is ``True``, then optional arguments with default
+        values are also included in the spec.
+        """
+        fields = dataclasses.fields(self)
+        args: dict[str, ArgListType] = {}
+
+        for op_field in fields:
+            name = op_field.name
+            if name == "name" or not op_field.init:
+                continue
+
+            val = getattr(self, name)
+
+            if _is_optional(op_field):
+                if val == _get_default(op_field) and not include_default:
+                    continue
+
+            if val is None:
+                arg_list = ()
+            elif isinstance(val, ArgType):
+                arg_list = (val,)
+            else:
+                arg_list = val
+
+            args[name] = arg_list
+        return ArgSpec(self.name, args)
+
+    def __str__(self) -> str:
+        return str(self.spec())
 
 
 class SpecTokenKind(Enum):
