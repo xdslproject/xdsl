@@ -197,6 +197,10 @@ def parse_pipeline(
 
 
 def parse_spec(spec: str) -> PipelinePassSpec:
+    """
+    Parses a pass, with optional arguments, or raises a `PassPipelineParseError` if one
+    cannot be parsed.
+    """
     lexer = PipelineLexer(spec)
     return _parse_spec(lexer)
 
