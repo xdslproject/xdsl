@@ -347,7 +347,9 @@ class IRBuilder:
         ...
 
     @_unop("fneg")
-    def fneg(self, arg, name=..., flags=...):  # -> None:
+    def fneg(
+        self, arg: Value, name: str = ..., flags: str | Iterable[str] = ...
+    ) -> Value:
         """
         Floating-point negative:
             name = -arg

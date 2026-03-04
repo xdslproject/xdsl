@@ -575,6 +575,18 @@ builtin.module {
   // CHECK-NEXT:   ret float {{%.+}}
   // CHECK-NEXT: }
 
+  llvm.func @fneg_op(%arg0: f32) -> f32 {
+    %0 = llvm.fneg %arg0 : f32
+    llvm.return %0 : f32
+  }
+
+  // CHECK: define float @"fneg_op"(float %".1")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT:   {{%.+}} = fneg float %".1"
+  // CHECK-NEXT:   ret float {{%.+}}
+  // CHECK-NEXT: }
+
   llvm.func @helper(%arg0: i32) -> i32 {
     llvm.return %arg0 : i32
   }

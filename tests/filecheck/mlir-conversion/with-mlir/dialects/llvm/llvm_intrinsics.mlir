@@ -13,6 +13,18 @@
 %2 = llvm.intr.fabs(%arg2) : (vector<4xf32>) -> vector<4xf32>
 // CHECK: llvm.intr.fabs([[arg2]]) : (vector<4xf32>) -> vector<4xf32>
 
+%3 = llvm.fneg %arg0 : f32
+// CHECK: llvm.fneg [[arg0]] : f32
+
+%4 = llvm.fneg %arg1 : f64
+// CHECK: llvm.fneg [[arg1]] : f64
+
+%5 = llvm.fneg %arg2 : vector<4xf32>
+// CHECK: llvm.fneg [[arg2]] : vector<4xf32>
+
+%6 = llvm.fneg %arg0 {fastmathFlags = #llvm.fastmath<fast>} : f32
+// CHECK: llvm.fneg [[arg0]] {fastmathFlags = #llvm.fastmath<fast>} : f32
+
 %ptr = "test.op"() : () -> !llvm.ptr
 // CHECK: [[ptr:%\d+]] = "test.op"
 %vec_val = "test.op"() : () -> vector<4xf32>

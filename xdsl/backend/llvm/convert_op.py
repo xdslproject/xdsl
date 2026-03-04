@@ -155,6 +155,13 @@ def _convert_fabs(
     val_map[op.result] = builder.call(intrinsic, [operand])
 
 
+def _convert_fneg(
+    op: llvm.FNegOp, builder: ir.IRBuilder, val_map: dict[SSAValue, ir.Value]
+):
+    operand = val_map[op.arg]
+    val_map[op.res] = builder.fneg(operand)
+
+
 def _convert_call(
     op: llvm.CallOp, builder: ir.IRBuilder, val_map: dict[SSAValue, ir.Value]
 ):
@@ -293,6 +300,8 @@ def convert_op(
             _convert_cast(op, builder, val_map)
         case llvm.FAbsOp():
             _convert_fabs(op, builder, val_map)
+        case llvm.FNegOp():
+            _convert_fneg(op, builder, val_map)
         case llvm.CallOp():
             _convert_call(op, builder, val_map)
         case llvm.AllocaOp():
