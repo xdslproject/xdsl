@@ -179,7 +179,7 @@ def parse_pipeline(
         if lexer.peek().kind is SpecTokenKind.EOF:
             return
 
-        yield parse_spec(lexer)
+        yield _parse_spec(lexer)
 
         # check for comma or EOF
         match lexer.lex():
@@ -196,7 +196,12 @@ def parse_pipeline(
                 )
 
 
-def parse_spec(lexer: PipelineLexer) -> PipelinePassSpec:
+def parse_spec(spec: str) -> PipelinePassSpec:
+    lexer = PipelineLexer(spec)
+    return _parse_spec(lexer)
+
+
+def _parse_spec(lexer: PipelineLexer) -> PipelinePassSpec:
     """
     Parses a pass, with optional arguments, or raises a `PassPipelineParseError` if one
     cannot be parsed.

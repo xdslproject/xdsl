@@ -4,6 +4,7 @@ from xdsl.utils.exceptions import PassPipelineParseError
 from xdsl.utils.parse_pipeline import (
     PipelinePassSpec,
     parse_pipeline,
+    parse_spec,
 )
 
 
@@ -97,9 +98,13 @@ def test_pass_parser():
 )
 def test_spec_printer(spec: PipelinePassSpec):
     text = str(spec)
+    # test pipeline parser
     passes = list(parse_pipeline(text))
     assert len(passes) == 1
     assert passes[0] == spec
+    # test individual parser
+    p = parse_spec(text)
+    assert p == spec
 
 
 def test_invalid_mlir_pipeline():
