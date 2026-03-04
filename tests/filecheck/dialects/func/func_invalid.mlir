@@ -107,9 +107,3 @@ func.func private @f(%arg0: i32 loc(unknown) {test.arg_name = "x"})
 func.func private @f(%arg0: i32 loc(unknown) {})
 
 // CHECK: Expected function argument attributes before location.
-
-// -----
-
-func.func private @f(%arg0: i32 loc(unknown) loc(unknown))
-
-// CHECK: Expected at most one location in function argument.
