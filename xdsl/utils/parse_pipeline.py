@@ -176,48 +176,10 @@ def parse_pipeline(
     lexer = PipelineLexer(pipeline_spec)
 
     while True:
-        # get the pass name
-        name = lexer.lex()
-        if name.kind is SpecTokenKind.EOF:
+        if lexer.peek().kind is SpecTokenKind.EOF:
             return
-        if name.kind is not SpecTokenKind.IDENT:
-            raise PassPipelineParseError(name, "Expected pass name here")
 
-        # valid next tokens are EOF, COMMA or `{`
-        match lexer.lex():
-            case Token(kind=SpecTokenKind.EOF):
-                # EOF means we have nothing else left to parse, we are done
-                yield PipelinePassSpec(name.span.text, dict())
-                return
-            case Token(kind=SpecTokenKind.COMMA):
-                # comma means we are done parsing this pass, move on to next pass
-                yield PipelinePassSpec(name.span.text, dict())
-                continue
-            case Token(kind=SpecTokenKind.L_BRACE):
-                # `{` indicates start of args dict, so we parse that next
-                yield PipelinePassSpec(name.span.text, _parse_pass_args(lexer))
-            case Token(SpecTokenKind.MLIR_PIPELINE, span):
-                if name.span.text != "mlir-opt":
-                    raise PassPipelineParseError(
-                        name,
-                        "Expected `mlir-opt` to mark an MLIR pipeline here",
-                    )
-                yield PipelinePassSpec(
-                    "mlir-opt",
-                    {
-                        "arguments": (
-                            "--mlir-print-op-generic",
-                            "--allow-unregistered-dialect",
-                            "-p",
-                            f"builtin.module({span.text[1:-1]})",
-                        )
-                    },
-                )
-            case invalid:
-                # every other token is invalid
-                raise PassPipelineParseError(
-                    invalid, "Expected a comma or pass arguments here"
-                )
+        yield parse_spec(lexer)
 
         # check for comma or EOF
         match lexer.lex():
@@ -232,6 +194,53 @@ def parse_pipeline(
                 raise PassPipelineParseError(
                     invalid, "Expected a comma after pass argument dict here"
                 )
+
+
+def parse_spec(lexer: PipelineLexer) -> PipelinePassSpec:
+    """
+    Parses a pass, with optional arguments, or raises a `PassPipelineParseError` if one
+    cannot be parsed.
+    """
+    # get the pass name
+    name = lexer.lex()
+    if name.kind is not SpecTokenKind.IDENT:
+        raise PassPipelineParseError(name, "Expected pass name here")
+
+    # valid next tokens are EOF, COMMA or `{`
+    match lexer.peek():
+        case Token(kind=SpecTokenKind.EOF):
+            # EOF means we have nothing else left to parse, we are done
+            return PipelinePassSpec(name.span.text, dict())
+        case Token(kind=SpecTokenKind.COMMA):
+            # comma means we are done parsing this pass, move on to next pass
+            return PipelinePassSpec(name.span.text, dict())
+        case Token(kind=SpecTokenKind.L_BRACE):
+            # `{` indicates start of args dict, so we parse that next
+            lexer.lex()
+            return PipelinePassSpec(name.span.text, _parse_pass_args(lexer))
+        case Token(SpecTokenKind.MLIR_PIPELINE, span):
+            if name.span.text != "mlir-opt":
+                raise PassPipelineParseError(
+                    name,
+                    "Expected `mlir-opt` to mark an MLIR pipeline here",
+                )
+            lexer.lex()
+            return PipelinePassSpec(
+                "mlir-opt",
+                {
+                    "arguments": (
+                        "--mlir-print-op-generic",
+                        "--allow-unregistered-dialect",
+                        "-p",
+                        f"builtin.module({span.text[1:-1]})",
+                    )
+                },
+            )
+        case invalid:
+            # every other token is invalid
+            raise PassPipelineParseError(
+                invalid, "Expected a comma or pass arguments here"
+            )
 
 
 def _parse_pass_args(lexer: PipelineLexer) -> dict[str, PassArgListType]:
