@@ -397,12 +397,6 @@ def parse_func_op_like(
                     parser.raise_error(
                         "Expected function argument attributes before location."
                     )
-
-            # Reject duplicate locations (e.g. `%arg: i32 ... loc(...) loc(...)`).
-            if has_loc and parser.parse_optional_location() is not None:
-                parser.raise_error(
-                    "Expected at most one location in function argument."
-                )
             ret = (arg, arg_attr_dict)
         return ret
 
