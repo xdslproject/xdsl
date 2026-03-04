@@ -82,11 +82,11 @@ def test_pass_instantiation():
 @pytest.mark.parametrize(
     "spec, error_msg",
     [
-        (ArgSpec("wrong", {"a": (1,)}), "Cannot create Pass simple"),
+        (ArgSpec("wrong", {"a": (1,)}), "Cannot create simple from spec for wrong"),
         (ArgSpec("simple", {}), 'requires argument "a"'),
         (
             ArgSpec("simple", {"a": (1,), "no": ()}),
-            'Provided arguments ["no"] not found in expected pass arguments ["a", "b"]',
+            'Provided arguments ["no"] not found in expected arguments ["a", "b"]',
         ),
         (ArgSpec("simple", {"a": ()}), "Argument must contain a value"),
         (ArgSpec("simple", {"a": ("test",)}), "Incompatible types"),
