@@ -208,7 +208,9 @@ class ParamAttrDef:
         field_types = {
             field_name: field_type
             for parent_cls in pyrdl_def.mro()[::-1]
-            for field_name, field_type in get_annotations(parent_cls, eval_str=False).items()
+            for field_name, field_type in get_annotations(
+                parent_cls, eval_str=False
+            ).items()
             if field_name not in _IGNORED_PARAM_ATTR_FIELD_TYPES
         }
 
@@ -248,7 +250,9 @@ class ParamAttrDef:
                 if isinstance(value, _ParameterDef):
                     try:
                         if value.param is not None:
-                            constraint &= irdl_to_attr_constraint(value.param, allow_type_var=True)
+                            constraint &= irdl_to_attr_constraint(
+                                value.param, allow_type_var=True
+                            )
                     except TypeError as e:
                         raise PyRDLAttrDefinitionError(
                             f"Invalid constraint {value.param} for field name {field_name}."
@@ -268,7 +272,9 @@ class ParamAttrDef:
                         stacklevel=2,
                     )
                 else:
-                    raise PyRDLAttrDefinitionError(f"{field_name} is not a parameter definition.")
+                    raise PyRDLAttrDefinitionError(
+                        f"{field_name} is not a parameter definition."
+                    )
 
             parameters[field_name] = ParamDef(constraint, converter)
 
@@ -317,7 +323,9 @@ def irdl_param_attr_definition(cls: _PAttrTT) -> _PAttrTT:
     new_fields = get_accessors_from_param_attr_def(attr_def)
 
     if issubclass(cls, TypedAttribute):
-        type_indexes = tuple(i for i, (p, _) in enumerate(attr_def.parameters) if p == "type")
+        type_indexes = tuple(
+            i for i, (p, _) in enumerate(attr_def.parameters) if p == "type"
+        )
         if not type_indexes:
             raise PyRDLAttrDefinitionError(
                 f"TypedAttribute {cls.__name__} should have a 'type' parameter."
@@ -346,7 +354,9 @@ TypeAttributeInvT = TypeVar("TypeAttributeInvT", bound=type[Attribute])
 
 
 @overload
-def irdl_attr_definition(cls: TypeAttributeInvT, *, init: bool = True) -> TypeAttributeInvT: ...
+def irdl_attr_definition(
+    cls: TypeAttributeInvT, *, init: bool = True
+) -> TypeAttributeInvT: ...
 
 
 @overload
@@ -460,7 +470,8 @@ def irdl_list_to_attr_constraint(
             return VarConstraint(arg.name, constraint)
 
     constraints = tuple(
-        irdl_to_attr_constraint(arg, allow_type_var=allow_type_var) for arg in pyrdl_constraints
+        irdl_to_attr_constraint(arg, allow_type_var=allow_type_var)
+        for arg in pyrdl_constraints
     )
 
     if len(constraints) > 1:
@@ -507,7 +518,11 @@ def irdl_to_attr_constraint(
 
     # Attribute class case
     # This is a coercion for an `BaseAttr`.
-    if isclass(irdl) and not isinstance(irdl, GenericAlias) and issubclass(irdl, Attribute):
+    if (
+        isclass(irdl)
+        and not isinstance(irdl, GenericAlias)
+        and issubclass(irdl, Attribute)
+    ):
         return cast(AttrConstraint[AttributeInvT], BaseAttr(irdl))
 
     # Type variable case
@@ -516,7 +531,9 @@ def irdl_to_attr_constraint(
         if not allow_type_var:
             raise PyRDLTypeError("TypeVar in unexpected context.")
         if irdl.__bound__ is None:
-            raise PyRDLTypeError("Type variables used in IRDL are expected to be bound.")
+            raise PyRDLTypeError(
+                "Type variables used in IRDL are expected to be bound."
+            )
         # We do not allow nested type variables.
         constraint = irdl_to_attr_constraint(irdl.__bound__)
         return cast(AttrConstraint[AttributeInvT], TypeVarConstraint(irdl, constraint))
@@ -644,7 +661,9 @@ def get_optional_int_constraint(arg: Any) -> IntConstraint | None:
             for union_arg in union_args
         ):
             ints = frozenset(
-                literal_arg for union_arg in union_args for literal_arg in get_args(union_arg)
+                literal_arg
+                for union_arg in union_args
+                for literal_arg in get_args(union_arg)
             )
             return IntSetConstraint(ints)
 
@@ -720,6 +739,4 @@ def get_constraint(
     if (ic := get_optional_int_constraint(arg)) is not None:
         return ic
 
-    return irdl_to_attr_constraint(
-        arg, allow_type_var=allow_type_var
-    )  # pyright: ignore[reportArgumentType]
+    return irdl_to_attr_constraint(arg, allow_type_var=allow_type_var)  # pyright: ignore[reportArgumentType]
