@@ -372,6 +372,20 @@ def parse_func_op_like(
     def parse_fun_input() -> (
         Attribute | tuple[Parser.Argument, dict[str, Attribute]] | None
     ):
+        def parse_optional_attrs_and_loc() -> dict[str, Attribute]:
+            arg_attr_dict = parser.parse_optional_dictionary_attr_dict()
+            has_loc = parser.parse_optional_location() is not None
+
+            # Reject attrs after location, including empty dictionaries.
+            if has_loc:
+                arg_attr_pos = parser.pos
+                parser.parse_optional_dictionary_attr_dict()
+                if parser.pos != arg_attr_pos:
+                    parser.raise_error(
+                        "Expected function argument attributes before location."
+                    )
+            return arg_attr_dict
+
         nonlocal is_variadic
         if allow_variadic and parser.parse_optional_characters("...") is not None:
             is_variadic = True
@@ -381,22 +395,10 @@ def parse_func_op_like(
             ret = parser.parse_optional_type()
             if ret is None:
                 parser.raise_error("Expected argument or type")
-            # Allow and ignore optional location after unnamed argument type (e.g. `func.func private @f(i32 loc(unknown)`)
-            parser.parse_optional_location()
+            # Declarative args keep only the type and consume attributes and location.
+            parse_optional_attrs_and_loc()
         else:
-            # Parsing order: attrs first, then optional location.
-            arg_attr_dict = parser.parse_optional_dictionary_attr_dict()
-            has_loc = parser.parse_optional_location() is not None
-
-            # If a location was parsed, reject attrs that appear after it,
-            # including empty dictionaries (e.g. `%arg: i32 loc(...) {}`).
-            if has_loc:
-                arg_attr_pos = parser.pos
-                parser.parse_optional_dictionary_attr_dict()
-                if parser.pos != arg_attr_pos:
-                    parser.raise_error(
-                        "Expected function argument attributes before location."
-                    )
+            arg_attr_dict = parse_optional_attrs_and_loc()
             ret = (arg, arg_attr_dict)
         return ret
 
