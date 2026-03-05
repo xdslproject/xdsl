@@ -22,14 +22,7 @@ from xdsl.dialects.builtin import (
     StringAttr,
     UnitAttr,
 )
-from xdsl.ir import (
-    Attribute,
-    Data,
-    ParametrizedAttribute,
-    Region,
-    SSAValue,
-    TypedAttribute,
-)
+from xdsl.ir import Attribute, Data, ParametrizedAttribute, Region, SSAValue, TypedAttribute
 from xdsl.irdl import (
     BaseAccessor,
     ConstraintContext,
@@ -129,9 +122,7 @@ class FormatProgram:
 
         return FormatParser(input, op_def).parse_format()
 
-    def parse(
-        self, parser: Parser, op_type: type[IRDLOperationInvT]
-    ) -> IRDLOperationInvT:
+    def parse(self, parser: Parser, op_type: type[IRDLOperationInvT]) -> IRDLOperationInvT:
         """
         Parse the operation with this format.
         The given operation type is expected to be the operation type represented by
@@ -188,9 +179,7 @@ class FormatProgram:
                 operand_type = (operand_type,)
             operand_def.constr.verify(operand_type, ctx)
 
-        for result_type, (_, result_def) in zip(
-            state.result_types, op_def.results, strict=True
-        ):
+        for result_type, (_, result_def) in zip(state.result_types, op_def.results, strict=True):
             if result_type is None:
                 continue
             if isinstance(result_type, Attribute):
@@ -221,12 +210,14 @@ class FormatProgram:
         types.
         """
         return tuple(
-            operand_def.constr.infer(
-                state.context,
-                length=len(cast(Sequence[Any], operand)),
+            (
+                operand_def.constr.infer(
+                    state.context,
+                    length=len(cast(Sequence[Any], operand)),
+                )
+                if operand_type is None
+                else operand_type
             )
-            if operand_type is None
-            else operand_type
             for operand_type, operand, (_, operand_def) in zip(
                 state.operand_types, state.operands, op_def.operands, strict=True
             )
@@ -240,15 +231,15 @@ class FormatProgram:
         types.
         """
         return tuple(
-            result_def.constr.infer(
-                state.context,
-                length=None,
+            (
+                result_def.constr.infer(
+                    state.context,
+                    length=None,
+                )
+                if result_type is None
+                else result_type
             )
-            if result_type is None
-            else result_type
-            for result_type, (_, result_def) in zip(
-                state.result_types, op_def.results, strict=True
-            )
+            for result_type, (_, result_def) in zip(state.result_types, op_def.results, strict=True)
         )
 
     def print(self, printer: Printer, op: IRDLOperation) -> None:
@@ -310,9 +301,7 @@ class FormatDirective(Directive, ABC):
         return self.parse(parser, state)
 
     @abstractmethod
-    def print(
-        self, printer: Printer, state: PrintingState, op: IRDLOperation
-    ) -> None: ...
+    def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None: ...
 
     def set_empty(self, state: ParsingState):
         """
@@ -339,7 +328,7 @@ def irdl_custom_directive(cls: type[CustomDirectiveInvT]) -> type[CustomDirectiv
     """Decorator used on custom directives to define the `parameters` class variable."""
 
     cls.parameters = {}
-    param_types = inspect.get_annotations(cls, eval_str=True)
+    param_types = inspect.get_annotations(cls, eval_str=False)
     for field_name, ty in param_types.items():
         if is_const_classvar(field_name, ty, PyRDLError):
             continue
@@ -516,9 +505,7 @@ class AttrDictDirective(FormatDirective):
         dictionary = op.attributes | {
             k: v for k, v in op.properties.items() if k in self.expected_properties
         }
-        defs = {
-            x: op_def.properties[x] for x in self.expected_properties
-        } | op_def.attributes
+        defs = {x: op_def.properties[x] for x in self.expected_properties} | op_def.attributes
 
         reserved_or_default = self.reserved_attr_names.union(
             name
@@ -1293,9 +1280,7 @@ class DenseArrayAttributeVariable(AttributeVariable):
                 elements = parser.parse_comma_separated_list(
                     parser.Delimiter.SQUARE, parser.parse_integer
                 )
-            return DenseArrayBase(
-                self.elt_type, BytesAttr(self.elt_type.pack(elements))
-            )
+            return DenseArrayBase(self.elt_type, BytesAttr(self.elt_type.pack(elements)))
         else:
             if self.is_optional:
                 elements = parser.parse_optional_comma_separated_list(
@@ -1307,9 +1292,7 @@ class DenseArrayAttributeVariable(AttributeVariable):
                 elements = parser.parse_comma_separated_list(
                     parser.Delimiter.SQUARE, parser.parse_float
                 )
-            return DenseArrayBase(
-                self.elt_type, BytesAttr(self.elt_type.pack(elements))
-            )
+            return DenseArrayBase(self.elt_type, BytesAttr(self.elt_type.pack(elements)))
 
     def print_attr(self, printer: Printer, attr: Attribute) -> None:
         with printer.in_square_brackets():

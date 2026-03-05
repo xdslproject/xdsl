@@ -46,11 +46,11 @@ class PatternRewriterListener(BuilderListener):
     )
     """Callbacks that are called when an operation is modified."""
 
-    operation_replacement_handler: list[
-        Callable[[Operation, Sequence[SSAValue | None]], None]
-    ] = field(
-        default_factory=list[Callable[[Operation, Sequence[SSAValue | None]], None]],
-        kw_only=True,
+    operation_replacement_handler: list[Callable[[Operation, Sequence[SSAValue | None]], None]] = (
+        field(
+            default_factory=list[Callable[[Operation, Sequence[SSAValue | None]], None]],
+            kw_only=True,
+        )
     )
     """Callbacks that are called when an operation is replaced."""
 
@@ -76,12 +76,8 @@ class PatternRewriterListener(BuilderListener):
         super().extend_from_listener(listener)
         if isinstance(listener, PatternRewriterListener):
             self.operation_removal_handler.extend(listener.operation_removal_handler)
-            self.operation_modification_handler.extend(
-                listener.operation_modification_handler
-            )
-            self.operation_replacement_handler.extend(
-                listener.operation_replacement_handler
-            )
+            self.operation_modification_handler.extend(listener.operation_modification_handler)
+            self.operation_replacement_handler.extend(listener.operation_replacement_handler)
 
 
 class _TrackingPredicate:
@@ -206,9 +202,7 @@ class PatternRewriter(Builder, PatternRewriterListener):
         If safe_erase is True, check that the operation has no uses.
         Otherwise, replace its uses with ErasedSSAValue.
         """
-        self.replace_op(
-            self.current_operation, new_ops, new_results, safe_erase=safe_erase
-        )
+        self.replace_op(self.current_operation, new_ops, new_results, safe_erase=safe_erase)
 
     def replace_op(
         self,
@@ -235,9 +229,7 @@ class PatternRewriter(Builder, PatternRewriterListener):
             new_results = new_ops[-1].results if new_ops else []
 
         if len(op.results) != len(new_results):
-            raise ValueError(
-                f"Expected {len(op.results)} new results, but got {len(new_results)}"
-            )
+            raise ValueError(f"Expected {len(op.results)} new results, but got {len(new_results)}")
 
         # Then, replace the results with new ones
         self.handle_operation_replacement(op, new_results)
@@ -262,9 +254,7 @@ class PatternRewriter(Builder, PatternRewriterListener):
         # Then, erase the original operation
         self.erase_op(op, safe_erase=safe_erase)
 
-    def replace_value_with_new_type(
-        self, val: SSAValue, new_type: Attribute
-    ) -> SSAValue:
+    def replace_value_with_new_type(self, val: SSAValue, new_type: Attribute) -> SSAValue:
         """
         Replace a value with a value of a new type, and return the new value.
         This will insert the new value in the operation or block, and remove the existing
@@ -278,9 +268,7 @@ class PatternRewriter(Builder, PatternRewriterListener):
                 self.handle_operation_modification(op)
         return Rewriter.replace_value_with_new_type(val, new_type)
 
-    def insert_block_argument(
-        self, block: Block, index: int, arg_type: Attribute
-    ) -> BlockArgument:
+    def insert_block_argument(self, block: Block, index: int, arg_type: Attribute) -> BlockArgument:
         """Insert a new block argument."""
         self.has_done_action = True
         return block.insert_arg(arg_type, index)
@@ -308,28 +296,20 @@ class PatternRewriter(Builder, PatternRewriterListener):
         Rewriter.inline_block(block, insertion_point, arg_values=arg_values)
 
     @deprecated("Please use `inline_block(block, InsertPoint.before(op))`")
-    def inline_block_before_matched_op(
-        self, block: Block, arg_values: Sequence[SSAValue] = ()
-    ):
+    def inline_block_before_matched_op(self, block: Block, arg_values: Sequence[SSAValue] = ()):
         """
         Move the block operations before the matched operation.
         The block should not be a parent of the operation.
         """
-        self.inline_block(
-            block, InsertPoint.before(self.current_operation), arg_values=arg_values
-        )
+        self.inline_block(block, InsertPoint.before(self.current_operation), arg_values=arg_values)
 
     @deprecated("Please use `inline_block(block, InsertPoint.after(op))`")
-    def inline_block_after_matched_op(
-        self, block: Block, arg_values: Sequence[SSAValue] = ()
-    ):
+    def inline_block_after_matched_op(self, block: Block, arg_values: Sequence[SSAValue] = ()):
         """
         Move the block operations after the matched operation.
         The block should not be a parent of the operation.
         """
-        self.inline_block(
-            block, InsertPoint.after(self.current_operation), arg_values=arg_values
-        )
+        self.inline_block(block, InsertPoint.after(self.current_operation), arg_values=arg_values)
 
     def move_region_contents_to_new_regions(self, region: Region) -> Region:
         """Move the region blocks to a new region."""
@@ -379,9 +359,7 @@ def op_type_rewrite_pattern(
     calling the decorated function.
     """
     # Get the operation argument and check that it is a subclass of Operation
-    params = [
-        param for param in inspect.signature(func, eval_str=True).parameters.values()
-    ]
+    params = [param for param in inspect.signature(func, eval_str=False).parameters.values()]
     if len(params) != 3:
         raise Exception(
             "op_type_rewrite_pattern expects the decorated function to "
@@ -397,8 +375,7 @@ def op_type_rewrite_pattern(
     else:
         if len(params) != 2:
             raise Exception(
-                "op_type_rewrite_pattern expects the decorated function to "
-                "have two arguments."
+                "op_type_rewrite_pattern expects the decorated function to " "have two arguments."
             )
     expected_type: type[_OperationT] = params[-2].annotation
 
@@ -471,9 +448,7 @@ class TypeConversionPattern(RewritePattern):
         inp = typ
         if self.recursive:
             if isinstance(typ, ParametrizedAttribute):
-                parameters = list(
-                    self._convert_type_rec(p) or p for p in typ.parameters
-                )
+                parameters = list(self._convert_type_rec(p) or p for p in typ.parameters)
                 inp = type(typ).new(parameters)
             if isa(typ, ArrayAttr[Attribute]):
                 parameters = tuple(self._convert_type_rec(p) or p for p in typ)
@@ -531,9 +506,7 @@ class TypeConversionPattern(RewritePattern):
                 new.name_hint = old.name_hint
 
 
-_TypeConversionPatternT = TypeVar(
-    "_TypeConversionPatternT", bound=TypeConversionPattern
-)
+_TypeConversionPatternT = TypeVar("_TypeConversionPatternT", bound=TypeConversionPattern)
 _AttributeT = TypeVar("_AttributeT", bound=Attribute)
 _ConvertedT = TypeVar("_ConvertedT", bound=Attribute)
 
@@ -572,7 +545,7 @@ def attr_type_rewrite_pattern(
     method. It uses type hints to match on a specific attribute type before
     calling the decorated function.
     """
-    params = list(inspect.signature(func, eval_str=True).parameters.values())
+    params = list(inspect.signature(func, eval_str=False).parameters.values())
     expected_type: type[_AttributeT] = params[-1].annotation
     constr = base(expected_type)
     return attr_constr_rewrite_pattern(constr)(func)
@@ -638,9 +611,7 @@ class GreedyRewritePatternApplier(RewritePattern):
 
 @dataclass(eq=False)
 class Worklist:
-    _op_stack: list[Operation | None] = field(
-        default_factory=list[Operation | None], init=False
-    )
+    _op_stack: list[Operation | None] = field(default_factory=list[Operation | None], init=False)
     """
     The list of operations to iterate over, used as a last-in-first-out stack.
     Operations are added and removed at the end of the list.
@@ -717,9 +688,7 @@ class PatternRewriteWalker:
     That way, all uses are replaced before the definitions.
     """
 
-    post_walk_func: Callable[[Region, PatternRewriterListener], bool] | None = field(
-        default=None
-    )
+    post_walk_func: Callable[[Region, PatternRewriterListener], bool] | None = field(default=None)
     """
     Function to call between each walk of the IR.
     """
