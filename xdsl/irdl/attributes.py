@@ -35,6 +35,7 @@ else:
     if TYPE_CHECKING:
         from typing_extensions import TypeForm
 
+
 from xdsl.ir import (
     Attribute,
     AttributeCovT,
@@ -46,14 +47,17 @@ from xdsl.ir import (
 )
 from xdsl.utils.classvar import is_const_classvar
 from xdsl.utils.exceptions import PyRDLAttrDefinitionError, PyRDLTypeError
-from xdsl.utils.hints import PropertyType, get_type_var_from_generic_class
+from xdsl.utils.hints import (
+    PropertyType,
+    get_type_var_from_generic_class,
+)
 from xdsl.utils.runtime_final import runtime_final
 
-from .constraints import (
+from .constraints import (  # noqa: TID251
     AllOf,
     AnyAttr,
     AnyInt,
-    AnyOf,  # noqa: TID251
+    AnyOf,
     AttrConstraint,
     BaseAttr,
     ConstraintContext,

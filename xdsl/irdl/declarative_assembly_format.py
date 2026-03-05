@@ -221,14 +221,12 @@ class FormatProgram:
         types.
         """
         return tuple(
-            (
-                operand_def.constr.infer(
-                    state.context,
-                    length=len(cast(Sequence[Any], operand)),
-                )
-                if operand_type is None
-                else operand_type
+            operand_def.constr.infer(
+                state.context,
+                length=len(cast(Sequence[Any], operand)),
             )
+            if operand_type is None
+            else operand_type
             for operand_type, operand, (_, operand_def) in zip(
                 state.operand_types, state.operands, op_def.operands, strict=True
             )
@@ -242,14 +240,12 @@ class FormatProgram:
         types.
         """
         return tuple(
-            (
-                result_def.constr.infer(
-                    state.context,
-                    length=None,
-                )
-                if result_type is None
-                else result_type
+            result_def.constr.infer(
+                state.context,
+                length=None,
             )
+            if result_type is None
+            else result_type
             for result_type, (_, result_def) in zip(
                 state.result_types, op_def.results, strict=True
             )
