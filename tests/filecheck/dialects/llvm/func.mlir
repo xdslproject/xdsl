@@ -13,6 +13,18 @@ llvm.func @external_func(i64)
 
 // CHECK: llvm.func @external_func(i64)
 
+llvm.func @unnamed_arg_attrs_loc(i64 {llvm.noundef} loc("model.mlir":7:9))
+
+// CHECK: llvm.func @unnamed_arg_attrs_loc(i64)
+
+llvm.func @named_arg_attrs_loc(%arg0: i64 {llvm.noundef} loc("model.mlir":8:11)) {
+  llvm.return
+}
+
+// CHECK: llvm.func @named_arg_attrs_loc(%{{.*}} : i64 {llvm.noundef}) {
+// CHECK-NEXT:   llvm.return
+// CHECK-NEXT: }
+
 llvm.func @void_func(%arg0: i64) {
   llvm.return
 }
