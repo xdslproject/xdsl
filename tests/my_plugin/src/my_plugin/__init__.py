@@ -17,7 +17,7 @@ class PluginPass(ModulePass):
 class PluginTarget(Target):
     name = "plugin-target"
 
-    def emit(self, ctx: Context, prog: ModuleOp, output: IO[str]) -> None:
+    def emit(self, ctx: Context, module: ModuleOp, output: IO[str]) -> None:
         pass
 
 

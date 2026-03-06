@@ -1,8 +1,8 @@
 import argparse
+import dataclasses
 import inspect
 import sys
 from collections.abc import Callable, Sequence
-from contextlib import redirect_stdout
 from importlib.metadata import version
 from io import StringIO
 from itertools import accumulate
@@ -13,7 +13,6 @@ from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import Attribute
 from xdsl.passes import ModulePass, PassPipeline
 from xdsl.printer import Printer
-from xdsl.syntax_printer import SyntaxPrinter
 from xdsl.tools.command_line_tool import CommandLineTool
 from xdsl.universe import Universe
 from xdsl.utils.arg_spec import parse_spec
@@ -259,94 +258,6 @@ class xDSLOptMain(CommandLineTool):
 
         Add other/additional targets by overloading this function.
         """
-
-        def _output_arm_asm(prog: ModuleOp, output: IO[str]):
-            from xdsl.dialects.arm import print_assembly
-
-            print_assembly(prog, output)
-
-        def _output_mlir(prog: ModuleOp, output: IO[str]):
-            cls = SyntaxPrinter if self.args.syntax_highlight else Printer
-            printer = cls(
-                stream=output,
-                print_generic_format=self.args.print_op_generic,
-                print_properties_as_attributes=self.args.print_no_properties,
-                print_debuginfo=self.args.print_debuginfo,
-            )
-            printer.print_op(prog)
-            printer.print_metadata(self.ctx.loaded_dialects)
-            print("\n", file=output)
-
-        def _output_riscv_asm(prog: ModuleOp, output: IO[str]):
-            from xdsl.dialects.riscv import print_assembly
-
-            print_assembly(prog, output)
-
-        def _output_x86_asm(prog: ModuleOp, output: IO[str]):
-            from xdsl.dialects.x86.ops import print_assembly
-
-            print_assembly(prog, output)
-
-        def _output_wat(prog: ModuleOp, output: IO[str]):
-            from xdsl.dialects.wasm import WasmModuleOp
-            from xdsl.dialects.wasm.wat import WatPrinter
-
-            for op in prog.walk():
-                if isinstance(op, WasmModuleOp):
-                    printer = WatPrinter(output)
-                    op.print_wat(printer)
-                    print("", file=output)
-
-        def _emulate_riscv(prog: ModuleOp, output: IO[str]):
-            # import only if running riscv emulation
-            try:
-                from xdsl.interpreters.riscv_emulator import run_riscv
-            except ImportError:
-                print("Please install optional dependencies to run riscv emulation")
-                return
-
-            from xdsl.dialects.riscv import riscv_code
-
-            code = riscv_code(prog)
-            with redirect_stdout(output):
-                run_riscv(code, unlimited_regs=True, verbosity=0)
-
-        def _output_csl(prog: ModuleOp, output: IO[str]):
-            from xdsl.backend.csl.print_csl import print_to_csl
-
-            print_to_csl(prog, output)
-
-        def _output_wgsl(prog: ModuleOp, output: IO[str]):
-            from xdsl.backend.wgsl.wgsl_printer import WGSLPrinter
-            from xdsl.dialects import gpu
-
-            for op in prog.ops:
-                if isinstance(op, gpu.ModuleOp):
-                    printer = WGSLPrinter(stream=output)
-                    printer.print(op)
-
-        def _output_air(prog: ModuleOp, output: IO[str]):
-            from xdsl.backend.mps.print_mps import print_to_mps
-
-            print_to_mps(prog, output)
-
-        def _output_llvm(prog: ModuleOp, output: IO[str]):
-            from xdsl.backend.llvm.convert import convert_module
-
-            llvm_module = convert_module(prog)
-            print(llvm_module, file=output)
-
-        self.available_targets["arm-asm"] = _output_arm_asm
-        self.available_targets["csl"] = _output_csl
-        self.available_targets["mlir"] = _output_mlir
-        self.available_targets["riscemu"] = _emulate_riscv
-        self.available_targets["riscv-asm"] = _output_riscv_asm
-        self.available_targets["wat"] = _output_wat
-        self.available_targets["wgsl"] = _output_wgsl
-        self.available_targets["mps"] = _output_air
-        self.available_targets["x86-asm"] = _output_x86_asm
-        self.available_targets["llvm"] = _output_llvm
-
         multiverse = Universe.get_multiverse()
         for target_name, target_factory in multiverse.all_targets.items():
             if target_name not in self.available_targets:
@@ -440,6 +351,16 @@ class xDSLOptMain(CommandLineTool):
         if len(sig.parameters) == 0:
             factory = cast(Callable[[], type[Target]], target_entry)
             target = factory().from_spec(spec)
+            if spec.name == "mlir":
+                target = dataclasses.replace(
+                    target,
+                    **{
+                        "print_generic_format": self.args.print_op_generic,
+                        "print_properties_as_attributes": self.args.print_no_properties,
+                        "print_debuginfo": self.args.print_debuginfo,
+                        "syntax_highlight": self.args.syntax_highlight,
+                    },
+                )
             target.emit(self.ctx, prog, output)
         else:
             legacy = cast(Callable[[ModuleOp, IO[str]], None], target_entry)
