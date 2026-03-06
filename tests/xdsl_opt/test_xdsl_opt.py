@@ -5,6 +5,7 @@ test functions below.
 
 import re
 from contextlib import redirect_stdout
+from dataclasses import dataclass
 from io import StringIO
 from typing import IO
 
@@ -12,9 +13,11 @@ import pytest
 
 from xdsl.context import Context
 from xdsl.dialects import builtin, get_all_dialects
+from xdsl.dialects.builtin import ModuleOp
 from xdsl.passes import ModulePass
 from xdsl.transforms import get_all_passes
 from xdsl.utils.exceptions import DiagnosticException, ParseError
+from xdsl.utils.target import Target
 from xdsl.xdsl_opt_main import xDSLOptMain
 
 
@@ -104,23 +107,11 @@ def test_error_on_construction(
         xDSLOptMain(args=args)
 
 
-@pytest.mark.parametrize(
-    "args, expected_error",
-    [
-        (
-            ["tests/xdsl_opt/empty_program.mlir", "-t", "wrong"],
-            "invalid choice: 'wrong'",
-        ),
-    ],
-)
-def test_error_on_argparse(
-    capsys: pytest.CaptureFixture[str], args: list[str], expected_error: str
-):
+def test_error_on_unknown_target(capsys: pytest.CaptureFixture[str]):
     with pytest.raises(SystemExit):
-        xDSLOptMain(args=args)
-    out, err = capsys.readouterr()
-    assert out == ""
-    assert expected_error in err
+        xDSLOptMain(args=["tests/xdsl_opt/empty_program.mlir", "-t", "wrong"])
+    _, err = capsys.readouterr()
+    assert "invalid choice: 'wrong'" in err
 
 
 def test_print_to_file():
@@ -224,3 +215,58 @@ def test_split_input():
         expected = file.read()
 
     assert inp.strip() == expected.strip()
+
+
+def test_new_style_target_with_args():
+    """New-style Target subclasses receive parsed arguments via from_spec."""
+
+    @dataclass(frozen=True)
+    class EchoTarget(Target):
+        name = "echo"
+        prefix: str = ""
+
+        def emit(self, ctx: Context, module: ModuleOp, output: IO[str]) -> None:
+            print(f"{self.prefix}ok", file=output)
+
+    class TestMain(xDSLOptMain):
+        def register_all_targets(self):
+            self.available_targets["echo"] = lambda: EchoTarget
+
+        def get_input_stream(self) -> tuple[IO[str], str]:
+            return (StringIO("builtin.module {}"), "mlir")
+
+    opt = TestMain(args=["-t", "echo"])
+    f = StringIO()
+    with redirect_stdout(f):
+        opt.run()
+    assert "ok" in f.getvalue()
+
+    opt = TestMain(args=["-t", 'echo{prefix="hello "}'])
+    f = StringIO()
+    with redirect_stdout(f):
+        opt.run()
+    assert "hello ok" in f.getvalue()
+
+
+def test_new_style_target_no_args():
+    """New-style Target with no fields works when called as -t name."""
+
+    @dataclass(frozen=True)
+    class NoopTarget(Target):
+        name = "noop"
+
+        def emit(self, ctx: Context, module: ModuleOp, output: IO[str]) -> None:
+            print("noop", file=output)
+
+    class TestMain(xDSLOptMain):
+        def register_all_targets(self):
+            self.available_targets["noop"] = lambda: NoopTarget
+
+        def get_input_stream(self) -> tuple[IO[str], str]:
+            return (StringIO("builtin.module {}"), "mlir")
+
+    opt = TestMain(args=["-t", "noop"])
+    f = StringIO()
+    with redirect_stdout(f):
+        opt.run()
+    assert "noop" in f.getvalue()
