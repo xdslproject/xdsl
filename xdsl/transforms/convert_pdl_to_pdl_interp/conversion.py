@@ -2192,7 +2192,20 @@ class MatcherGenerator:
             op.constraint_name, arguments, result_types
         )
         self.rewriter_builder.insert(interp_op)
-        for old_res, new_res in zip(op.results, interp_op.results, strict=True):
+        new_results = interp_op.results
+        if self.optimize_for_eqsat:
+            # In order for equality saturation to work correctly, operations muste be deduplicated.
+            # This includes operations created by native rewrites. Whenever a native rewrite
+            # creates an operation, it should be returned by the native rewrite. Here we insert
+            # dedup ops for each operation that is returned by the native rewrite:
+            new_results = [
+                self.rewriter_builder.insert(ematch.DedupOp(new_res)).result_op
+                if isinstance(new_res.type, pdl.OperationType)
+                else new_res
+                for new_res in new_results
+            ]
+
+        for old_res, new_res in zip(op.results, new_results, strict=True):
             rewrite_values[old_res] = new_res
 
     def _generate_rewriter_for_attribute(
