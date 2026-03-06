@@ -13,7 +13,8 @@ from collections.abc import Iterator
 from dataclasses import dataclass
 from enum import Enum
 from typing import TypeAlias
-from warnings import deprecated
+
+from typing_extensions import deprecated
 
 from xdsl.utils.exceptions import ArgSpecParseError
 from xdsl.utils.lexer import Input, Span, Token
