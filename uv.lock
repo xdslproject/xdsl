@@ -2069,7 +2069,7 @@ wheels = [
 
 [[package]]
 name = "my-plugin"
-source = { directory = "tests/my_plugin" }
+source = { editable = "tests/my_plugin" }
 dependencies = [
     { name = "xdsl" },
 ]
@@ -3877,7 +3877,7 @@ bench = [
     { name = "viztracer", specifier = ">=1.0.1" },
 ]
 dev = [
-    { name = "my-plugin", directory = "tests/my_plugin" },
+    { name = "my-plugin", editable = "tests/my_plugin" },
     { name = "xdsl", extras = ["dev", "gui", "llvm"] },
 ]
 docs = [
