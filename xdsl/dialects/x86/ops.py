@@ -31,6 +31,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from collections.abc import Set as AbstractSet
+from dataclasses import dataclass
 from io import StringIO
 from typing import IO, ClassVar, Generic, Literal, TypeAlias, cast
 
@@ -42,6 +43,7 @@ from xdsl.backend.register_allocatable import (
     RegisterConstraints,
 )
 from xdsl.backend.register_type import RegisterAllocatedMemoryEffect
+from xdsl.context import Context
 from xdsl.dialects.builtin import (
     ArrayAttr,
     IntegerAttr,
@@ -87,6 +89,7 @@ from xdsl.traits import (
     Pure,
 )
 from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.target import Target
 
 from .assembly import (
     AssemblyInstructionArg,
@@ -3705,3 +3708,11 @@ def x86_code(module: ModuleOp) -> str:
     stream = StringIO()
     print_assembly(module, stream)
     return stream.getvalue()
+
+
+@dataclass(frozen=True)
+class X86AsmTarget(Target):
+    name = "x86-asm"
+
+    def emit(self, ctx: Context, module: ModuleOp, output: IO[str]) -> None:
+        print_assembly(module, output)
