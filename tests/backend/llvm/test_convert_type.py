@@ -106,9 +106,10 @@ def test_convert_function():
     )
 
 
+def test_convert_index():
+    assert convert_type(builtin.IndexType()) == ir.IntType(64)
+
+
 def test_unsupported_type():
     with pytest.raises(LLVMTranslationException, match="Type not supported"):
         convert_type(builtin.StringAttr("foo"))
-
-    with pytest.raises(LLVMTranslationException, match="Type not supported"):
-        convert_type(builtin.IndexType())

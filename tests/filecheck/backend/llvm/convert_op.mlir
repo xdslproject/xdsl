@@ -47,6 +47,16 @@ builtin.module {
   // CHECK-NEXT:   ret i32 %".1"
   // CHECK-NEXT: }
 
+  llvm.func @index_arg(%arg0: index) -> index {
+    llvm.return %arg0 : index
+  }
+
+  // CHECK: define i64 @"index_arg"(i64 %".1")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT:   ret i64 %".1"
+  // CHECK-NEXT: }
+
   llvm.func @return_second_arg(%arg0: i32, %arg1: i32) -> i32 {
     llvm.return %arg1 : i32
   }
