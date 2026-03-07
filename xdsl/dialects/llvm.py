@@ -49,6 +49,7 @@ from xdsl.ir import (
     TypeAttribute,
 )
 from xdsl.irdl import (
+    AnyAttr,
     AttrSizedOperandSegments,
     IRDLOperation,
     ParsePropInAttrDict,
@@ -2246,6 +2247,37 @@ class MaskedStoreOp(IRDLOperation):
 
 
 @irdl_op_definition
+class SelectOp(IRDLOperation):
+    name = "llvm.select"
+
+    T: ClassVar = VarConstraint("T", AnyAttr())
+
+    cond = operand_def(I1)
+    lhs = operand_def(T)
+    rhs = operand_def(T)
+    res = result_def(T)
+
+    fastmathFlags = prop_def(FastMathAttr, default_value=FastMathAttr(None))
+
+    traits = traits_def(Pure())
+
+    assembly_format = "$cond `,` $lhs `,` $rhs attr-dict `:` type($cond) `,` type($res)"
+
+    irdl_options = (ParsePropInAttrDict(),)
+
+    def __init__(
+        self,
+        cond: Operation | SSAValue,
+        lhs: Operation | SSAValue,
+        rhs: Operation | SSAValue,
+    ):
+        super().__init__(
+            operands=[cond, lhs, rhs],
+            result_types=[SSAValue.get(lhs).type],
+        )
+
+
+@irdl_op_definition
 class UnreachableOp(IRDLOperation):
     name = "llvm.unreachable"
 
@@ -2291,6 +2323,7 @@ LLVM = Dialect(
         ReturnOp,
         SDivOp,
         SExtOp,
+        SelectOp,
         SIToFPOp,
         SRemOp,
         ShlOp,
