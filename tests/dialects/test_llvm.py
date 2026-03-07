@@ -603,6 +603,14 @@ def test_select_op():
     assert op.res.type == builtin.i32
 
 
+def test_cond_br_op():
+    cond = create_ssa_value(builtin.i1)
+    then_block = Block()
+    else_block = Block()
+    op = llvm.CondBrOp(cond, then_block, [], else_block, [])
+    assert op.cond == cond
+
+
 def test_masked_store_op():
     value = create_ssa_value(builtin.f32)
     ptr = create_ssa_value(llvm.LLVMPointerType())

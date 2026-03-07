@@ -40,6 +40,7 @@ from xdsl.dialects.utils import (
 from xdsl.ir import (
     Attribute,
     BitEnumAttribute,
+    Block,
     Dialect,
     EnumAttribute,
     Operation,
@@ -65,6 +66,7 @@ from xdsl.irdl import (
     prop_def,
     region_def,
     result_def,
+    successor_def,
     traits_def,
     var_operand_def,
 )
@@ -2278,6 +2280,42 @@ class SelectOp(IRDLOperation):
 
 
 @irdl_op_definition
+class CondBrOp(IRDLOperation):
+    name = "llvm.cond_br"
+
+    cond = operand_def(IntegerType(1))
+    then_arguments = var_operand_def()
+    else_arguments = var_operand_def()
+
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
+
+    then_block = successor_def()
+    else_block = successor_def()
+
+    traits = traits_def(IsTerminator())
+
+    assembly_format = (
+        "$cond `,`"
+        " $then_block (`(` $then_arguments^ `:` type($then_arguments) `)`)? `,`"
+        " $else_block (`(` $else_arguments^ `:` type($else_arguments) `)`)?"
+        " attr-dict"
+    )
+
+    def __init__(
+        self,
+        cond: Operation | SSAValue,
+        then_block: Block,
+        then_ops: Sequence[Operation | SSAValue],
+        else_block: Block,
+        else_ops: Sequence[Operation | SSAValue],
+    ):
+        super().__init__(
+            operands=[cond, then_ops, else_ops],
+            successors=[then_block, else_block],
+        )
+
+
+@irdl_op_definition
 class UnreachableOp(IRDLOperation):
     name = "llvm.unreachable"
 
@@ -2296,6 +2334,7 @@ LLVM = Dialect(
         BitcastOp,
         CallIntrinsicOp,
         CallOp,
+        CondBrOp,
         ConstantOp,
         ExtractValueOp,
         FAbsOp,
