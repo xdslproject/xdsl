@@ -845,7 +845,18 @@ class SExtOp(IntegerConversionOp):
         super().verify(verify_nested_ops)
 
 
-class ICmpPredicateFlag(StrEnum):
+class _CmpPredicateFlag(StrEnum):
+    # Shared helper for ICmpOp, FCmpOp
+    @classmethod
+    def from_int(cls, index: int) -> _CmpPredicateFlag:
+        return tuple(cls)[index]
+
+    @property
+    def int_value(self) -> int:
+        return list(type(self)).index(self)
+
+
+class ICmpPredicateFlag(_CmpPredicateFlag):
     EQ = "eq"
     NE = "ne"
     SLT = "slt"
@@ -857,16 +868,39 @@ class ICmpPredicateFlag(StrEnum):
     UGT = "ugt"
     UGE = "uge"
 
-    @staticmethod
-    def from_int(index: int) -> ICmpPredicateFlag:
-        return ALL_ICMP_FLAGS[index]
 
-    def to_int(self) -> int:
-        return ICMP_INDEX_BY_FLAG[self]
+def _parse_cmp_op(
+    cls: type[ICmpOp | FCmpOp],
+    flag_type: type[_CmpPredicateFlag],
+    parser: Parser,
+) -> ICmpOp | FCmpOp:
+    # Shared helper for ICmpOp, FCmpOp
+    predicate_literal = parser.parse_str_literal()
+    predicate = IntegerAttr(flag_type(predicate_literal).int_value, i64)
+    lhs = parser.parse_unresolved_operand()
+    parser.parse_characters(",")
+    rhs = parser.parse_unresolved_operand()
+    attributes = parser.parse_optional_attr_dict()
+    parser.parse_characters(":")
+    type = parser.parse_type()
+    operands = parser.resolve_operands([lhs, rhs], [type, type], parser.pos)
+    return cls(operands[0], operands[1], predicate, attributes)
 
 
-ALL_ICMP_FLAGS = tuple(ICmpPredicateFlag)
-ICMP_INDEX_BY_FLAG = {f: i for (i, f) in enumerate(ALL_ICMP_FLAGS)}
+def _print_cmp_op(
+    op: ICmpOp | FCmpOp,
+    flag_type: type[_CmpPredicateFlag],
+    printer: Printer,
+) -> None:
+    # Shared helper for ICmpOp, FCmpOp
+    flag = flag_type.from_int(op.predicate.value.data)
+    printer.print_string(f' "{flag}" ')
+    printer.print_ssa_value(op.lhs)
+    printer.print_string(", ")
+    printer.print_ssa_value(op.rhs)
+    printer.print_op_attributes(op.attributes)
+    printer.print_string(" : ")
+    printer.print_attribute(op.lhs.type)
 
 
 @irdl_op_definition
@@ -907,33 +941,10 @@ class ICmpOp(IRDLOperation):
 
     @classmethod
     def parse(cls, parser: Parser):
-        predicate_literal = parser.parse_str_literal()
-        predicate_value = ICmpPredicateFlag[predicate_literal.upper()]
-        predicate_int = predicate_value.to_int()
-        predicate = IntegerAttr(predicate_int, i64)
-        lhs = parser.parse_unresolved_operand()
-        parser.parse_characters(",")
-        rhs = parser.parse_unresolved_operand()
-        attributes = parser.parse_optional_attr_dict()
-        parser.parse_characters(":")
-        type = parser.parse_type()
-        operands = parser.resolve_operands([lhs, rhs], [type, type], parser.pos)
-        return cls(operands[0], operands[1], predicate, attributes)
-
-    def print_predicate(self, printer: Printer):
-        flag = ICmpPredicateFlag.from_int(self.predicate.value.data)
-        printer.print_string(f"{flag}")
+        return _parse_cmp_op(cls, ICmpPredicateFlag, parser)
 
     def print(self, printer: Printer):
-        printer.print_string(' "')
-        self.print_predicate(printer)
-        printer.print_string('" ')
-        printer.print_ssa_value(self.lhs)
-        printer.print_string(", ")
-        printer.print_ssa_value(self.rhs)
-        printer.print_op_attributes(self.attributes)
-        printer.print_string(" : ")
-        printer.print_attribute(self.lhs.type)
+        _print_cmp_op(self, ICmpPredicateFlag, printer)
 
     def verify_(self, verify_nested_ops: bool = True) -> None:
         if isa(self.lhs.type, VectorType):
@@ -2136,6 +2147,68 @@ class FRemOp(AbstractFloatArithOp):
     name = "llvm.frem"
 
 
+class FCmpPredicateFlag(_CmpPredicateFlag):
+    FALSE = "_false"
+    OEQ = "oeq"
+    OGT = "ogt"
+    OGE = "oge"
+    OLT = "olt"
+    OLE = "ole"
+    ONE = "one"
+    ORD = "ord"
+    UEQ = "ueq"
+    UGT = "ugt"
+    UGE = "uge"
+    ULT = "ult"
+    ULE = "ule"
+    UNE = "une"
+    UNO = "uno"
+    TRUE = "_true"
+
+
+@irdl_op_definition
+class FCmpOp(IRDLOperation):
+    name = "llvm.fcmp"
+
+    T: ClassVar = VarConstraint("T", AnyFloatConstr)
+
+    lhs = operand_def(T)
+    rhs = operand_def(T)
+    res = result_def(I1)
+    predicate = prop_def(IntegerAttr[i64])
+
+    fastmathFlags = prop_def(FastMathAttr, default_value=FastMathAttr(None))
+
+    traits = traits_def(Pure())
+
+    irdl_options = (ParsePropInAttrDict(),)
+
+    def __init__(
+        self,
+        lhs: Operation | SSAValue,
+        rhs: Operation | SSAValue,
+        predicate: str | IntegerAttr[IntegerType],
+        attributes: dict[str, Attribute] = {},
+    ):
+        if isinstance(predicate, str):
+            predicate = IntegerAttr(FCmpPredicateFlag(predicate).int_value, i64)
+        super().__init__(
+            operands=[lhs, rhs],
+            result_types=[i1],
+            attributes=attributes,
+            properties={
+                "predicate": predicate,
+            },
+        )
+
+    @classmethod
+    def parse(cls, parser: Parser):
+        return _parse_cmp_op(cls, FCmpPredicateFlag, parser)
+
+    def print(self, printer: Printer):
+        _print_cmp_op(self, FCmpPredicateFlag, printer)
+
+
 @irdl_op_definition
 class BitcastOp(GenericCastOp):
     name = "llvm.bitcast"
@@ -2300,6 +2373,7 @@ LLVM = Dialect(
         ExtractValueOp,
         FAbsOp,
         FAddOp,
+        FCmpOp,
         FDivOp,
         FMulOp,
         FNegOp,

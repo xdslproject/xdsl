@@ -26,6 +26,18 @@
 %fneg_fast = llvm.fneg %f32 {fastmathFlags = #llvm.fastmath<fast>} : f32
 // CHECK-NEXT: %fneg_fast = llvm.fneg %f32 {fastmathFlags = #llvm.fastmath<fast>} : f32
 
+%fcmp_lhs = "test.op"() : () -> f32
+%fcmp_rhs = "test.op"() : () -> f32
+
+%fcmp_oeq = llvm.fcmp "oeq" %fcmp_lhs, %fcmp_rhs : f32
+// CHECK: %fcmp_oeq = llvm.fcmp "oeq" %fcmp_lhs, %fcmp_rhs : f32
+
+%fcmp_ult = llvm.fcmp "ult" %fcmp_lhs, %fcmp_rhs : f32
+// CHECK-NEXT: %fcmp_ult = llvm.fcmp "ult" %fcmp_lhs, %fcmp_rhs : f32
+
+%fcmp_one = llvm.fcmp "one" %fcmp_lhs, %fcmp_rhs : f32
+// CHECK-NEXT: %fcmp_one = llvm.fcmp "one" %fcmp_lhs, %fcmp_rhs : f32
+
 %select_cond = "test.op"() : () -> i1
 %select_lhs = "test.op"() : () -> i32
 %select_rhs = "test.op"() : () -> i32
