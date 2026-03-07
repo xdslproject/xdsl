@@ -573,6 +573,19 @@ builtin.module {
   // CHECK-NEXT:   ret void
   // CHECK-NEXT: }
 
+  llvm.func @select_op(%arg0: i1, %arg1: i32, %arg2: i32) -> i32 {
+    %0 = llvm.select %arg0, %arg1, %arg2 : i1, i32
+    llvm.return %0 : i32
+  }
+
+  // CHECK: define i32 @"select_op"(i1 %".1", i32 %".2", i32 %".3")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT:   {{%.+}} = select {{.*}}i1 %".1", i32 %".2", i32 %".3"
+  // CHECK-NEXT:   ret i32 {{%.+}}
+  // CHECK-NEXT: }
+
+
   llvm.func @fabs_op(%arg0: f32) -> f32 {
     %0 = llvm.intr.fabs(%arg0) : (f32) -> f32
     llvm.return %0 : f32
