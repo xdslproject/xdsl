@@ -846,7 +846,7 @@ class SExtOp(IntegerConversionOp):
 
 
 class _CmpPredicateFlag(StrEnum):
-    # Shared helper for ICmpOp and FCmpOp
+    # Shared helper for ICmpOp, FCmpOp
     @classmethod
     def from_int(cls, index: int) -> _CmpPredicateFlag:
         return tuple(cls)[index]
@@ -874,7 +874,7 @@ def _parse_cmp_op(
     flag_type: type[_CmpPredicateFlag],
     parser: Parser,
 ) -> ICmpOp | FCmpOp:
-    # Shared helper for ICmpOp and FCmpOp
+    # Shared helper for ICmpOp, FCmpOp
     predicate_literal = parser.parse_str_literal()
     predicate = IntegerAttr(flag_type(predicate_literal).int_value, i64)
     lhs = parser.parse_unresolved_operand()
@@ -892,7 +892,7 @@ def _print_cmp_op(
     flag_type: type[_CmpPredicateFlag],
     printer: Printer,
 ) -> None:
-    # Shared helper for ICmpOp and FCmpOp
+    # Shared helper for ICmpOp, FCmpOp
     flag = flag_type.from_int(op.predicate.value.data)
     printer.print_string(f' "{flag}" ')
     printer.print_ssa_value(op.lhs)
