@@ -1,12 +1,18 @@
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
+from ordered_set import OrderedSet
+
+from xdsl.analysis.sparse_analysis import Lattice, SparseForwardDataFlowAnalysis
 from xdsl.dialects import ematch, equivalence
 from xdsl.interpreter import Interpreter, InterpreterFunctions, impl, register_impls
 from xdsl.interpreters.pdl_interp import PDLInterpFunctions
-from xdsl.ir import Block, OpResult, SSAValue
+from xdsl.ir import Block, Operation, OpResult, SSAValue
 from xdsl.rewriter import InsertPoint
+from xdsl.transforms.common_subexpression_elimination import KnownOps
 from xdsl.utils.disjoint_set import DisjointSet
+from xdsl.utils.exceptions import InterpretationError
 from xdsl.utils.hints import isa
 
 
@@ -15,10 +21,51 @@ from xdsl.utils.hints import isa
 class EmatchFunctions(InterpreterFunctions):
     """Interpreter functions for PDL patterns operating on e-graphs."""
 
+    known_ops: KnownOps = field(default_factory=KnownOps)
+    """Used for hashconsing operations. When new operations are created, if they are identical to an existing operation,
+    the existing operation is reused instead of creating a new one."""
+
     eclass_union_find: DisjointSet[equivalence.AnyClassOp] = field(
         default_factory=lambda: DisjointSet[equivalence.AnyClassOp]()
     )
     """Union-find structure tracking which e-classes are equivalent and should be merged."""
+
+    worklist: list[equivalence.AnyClassOp] = field(
+        default_factory=list[equivalence.AnyClassOp]
+    )
+    """Worklist of e-classes that need to be processed for matching."""
+
+    analyses: list[SparseForwardDataFlowAnalysis[Lattice[Any]]] = field(
+        default_factory=lambda: []
+    )
+    """The sparse forward analyses to be run during equality saturation.
+    These must be registered with a NonPropagatingDataFlowSolver where `propagate` is False.
+    This way, state propagation is handled purely by the equality saturation logic.
+    """
+
+    def modification_handler(self, op: Operation):
+        """
+        Keeps `known_ops` up to date.
+        Whenever an operation is modified, for example when its operands are updated to a different eclass value,
+        the operation is added to the hashcons `known_ops`.
+        """
+        if op not in self.known_ops:
+            self.known_ops[op] = op
+
+    def populate_known_ops(self, outer_op: Operation) -> None:
+        """
+        Populates the known_ops dictionary by traversing the module.
+
+        Args:
+            outer_op: The operation containing all operations to be added to known_ops.
+        """
+        # Walk through all operations in the module
+        for op in outer_op.walk():
+            # Skip eclasses instances
+            if not isinstance(op, equivalence.AnyClassOp):
+                self.known_ops[op] = op
+            else:
+                self.eclass_union_find.add(op)
 
     @impl(ematch.GetClassValsOp)
     def run_get_class_vals(
@@ -169,3 +216,113 @@ class EmatchFunctions(InterpreterFunctions):
         )
 
         return eclass_op
+
+    def eclass_union(
+        self,
+        interpreter: Interpreter,
+        a: equivalence.AnyClassOp,
+        b: equivalence.AnyClassOp,
+    ) -> bool:
+        """Unions two eclasses, merging their operands and results.
+        Returns True if the eclasses were merged, False if they were already the same."""
+        a = self.eclass_union_find.find(a)
+        b = self.eclass_union_find.find(b)
+
+        if a == b:
+            return False
+
+        # Meet the analysis states of the two e-classes
+        for analysis in self.analyses:
+            a_lattice = analysis.get_lattice_element(a.result)
+            b_lattice = analysis.get_lattice_element(b.result)
+            a_lattice.meet(b_lattice)
+
+        if isinstance(a, equivalence.ConstantClassOp):
+            if isinstance(b, equivalence.ConstantClassOp):
+                assert a.value == b.value, (
+                    "Trying to union two different constant eclasses.",
+                )
+            to_keep, to_replace = a, b
+            self.eclass_union_find.union_left(to_keep, to_replace)
+        elif isinstance(b, equivalence.ConstantClassOp):
+            to_keep, to_replace = b, a
+            self.eclass_union_find.union_left(to_keep, to_replace)
+        else:
+            self.eclass_union_find.union(
+                a,
+                b,
+            )
+            to_keep = self.eclass_union_find.find(a)
+            to_replace = b if to_keep is a else a
+        # Operands need to be deduplicated because it can happen the same operand was
+        # used by different parent eclasses after their children were merged:
+        new_operands = OrderedSet(to_keep.operands)
+        new_operands.update(to_replace.operands)
+        to_keep.operands = new_operands
+
+        for use in to_replace.result.uses:
+            # uses are removed from the hashcons before the replacement is carried out.
+            # (because the replacement changes the operations which means we cannot find them in the hashcons anymore)
+            if use.operation in self.known_ops:
+                self.known_ops.pop(use.operation)
+
+        rewriter = PDLInterpFunctions.get_rewriter(interpreter)
+        rewriter.replace_op(to_replace, new_ops=[], new_results=to_keep.results)
+        return True
+
+    def union_val(self, interpreter: Interpreter, a: SSAValue, b: SSAValue) -> None:
+        """
+        Union two values into the same equivalence class.
+        """
+        if a == b:
+            return
+
+        eclass_a = self.get_or_create_class(interpreter, a)
+        eclass_b = self.get_or_create_class(interpreter, b)
+
+        if self.eclass_union(interpreter, eclass_a, eclass_b):
+            self.worklist.append(eclass_a)
+
+    @impl(ematch.UnionOp)
+    def run_union(
+        self,
+        interpreter: Interpreter,
+        op: ematch.UnionOp,
+        args: tuple[Any, ...],
+    ) -> tuple[Any, ...]:
+        """
+        Merge two values, an operation and a value range, or two value ranges
+        into equivalence class(es).
+
+        Supported operand type combinations:
+        - (value, value): merge two values
+        - (operation, range<value>): merge operation results with values
+        - (range<value>, range<value>): merge two value ranges
+        """
+        assert len(args) == 2
+        lhs, rhs = args
+
+        if isa(lhs, SSAValue) and isa(rhs, SSAValue):
+            # (Value, Value) case
+            self.union_val(interpreter, lhs, rhs)
+
+        elif isinstance(lhs, Operation) and isa(rhs, Sequence[SSAValue]):
+            # (Operation, ValueRange) case
+            assert len(lhs.results) == len(rhs), (
+                "Operation result count must match value range size"
+            )
+            for result, val in zip(lhs.results, rhs, strict=True):
+                self.union_val(interpreter, result, val)
+
+        elif isa(lhs, Sequence[SSAValue]) and isa(rhs, Sequence[SSAValue]):
+            # (ValueRange, ValueRange) case
+            assert len(lhs) == len(rhs), "Value ranges must have equal size"
+            for val_lhs, val_rhs in zip(lhs, rhs, strict=True):
+                self.union_val(interpreter, val_lhs, val_rhs)
+
+        else:
+            raise InterpretationError(
+                f"union: unsupported argument types: {type(lhs)}, {type(rhs)}"
+            )
+
+        return ()
