@@ -25,6 +25,25 @@
 %6 = llvm.fneg %arg0 {fastmathFlags = #llvm.fastmath<fast>} : f32
 // CHECK: llvm.fneg [[arg0]] {fastmathFlags = #llvm.fastmath<fast>} : f32
 
+%select_cond = "test.op"() : () -> i1
+// CHECK: [[select_cond:%\d+]] = "test.op"
+%select_lhs = "test.op"() : () -> i32
+// CHECK: [[select_lhs:%\d+]] = "test.op"
+%select_rhs = "test.op"() : () -> i32
+// CHECK: [[select_rhs:%\d+]] = "test.op"
+
+%10 = llvm.select %select_cond, %select_lhs, %select_rhs : i1, i32
+// CHECK: llvm.select [[select_cond]], [[select_lhs]], [[select_rhs]] : i1, i32
+
+%select_f32_lhs = "test.op"() : () -> f32
+// CHECK: [[select_f32_lhs:%\d+]] = "test.op"
+%select_f32_rhs = "test.op"() : () -> f32
+// CHECK: [[select_f32_rhs:%\d+]] = "test.op"
+
+%11 = llvm.select %select_cond, %select_f32_lhs, %select_f32_rhs : i1, f32
+// CHECK: llvm.select [[select_cond]], [[select_f32_lhs]], [[select_f32_rhs]] : i1, f32
+
+
 %ptr = "test.op"() : () -> !llvm.ptr
 // CHECK: [[ptr:%\d+]] = "test.op"
 %vec_val = "test.op"() : () -> vector<4xf32>

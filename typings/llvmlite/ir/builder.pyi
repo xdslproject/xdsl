@@ -396,7 +396,14 @@ class IRBuilder:
         """
         ...
 
-    def select(self, cond, lhs, rhs, name=..., flags=...):  # -> SelectInstr:
+    def select(
+        self,
+        cond: Value,
+        lhs: Value,
+        rhs: Value,
+        name: str = ...,
+        flags: str | Iterable[str] = ...,
+    ) -> Value:
         """
         Ternary select operator:
             name = cond ? lhs : rhs
