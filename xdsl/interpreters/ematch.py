@@ -5,8 +5,9 @@ from xdsl.analysis.sparse_analysis import Lattice, SparseForwardDataFlowAnalysis
 from xdsl.dialects import ematch, equivalence
 from xdsl.interpreter import Interpreter, InterpreterFunctions, impl, register_impls
 from xdsl.interpreters.pdl_interp import PDLInterpFunctions
-from xdsl.ir import Block, OpResult, SSAValue
+from xdsl.ir import Block, Operation, OpResult, SSAValue
 from xdsl.rewriter import InsertPoint
+from xdsl.transforms.common_subexpression_elimination import KnownOps
 from xdsl.utils.disjoint_set import DisjointSet
 from xdsl.utils.hints import isa
 
@@ -15,6 +16,10 @@ from xdsl.utils.hints import isa
 @dataclass
 class EmatchFunctions(InterpreterFunctions):
     """Interpreter functions for PDL patterns operating on e-graphs."""
+
+    known_ops: KnownOps = field(default_factory=KnownOps)
+    """Used for hashconsing operations. When new operations are created, if they are identical to an existing operation,
+    the existing operation is reused instead of creating a new one."""
 
     eclass_union_find: DisjointSet[equivalence.AnyClassOp] = field(
         default_factory=lambda: DisjointSet[equivalence.AnyClassOp]()
@@ -33,6 +38,30 @@ class EmatchFunctions(InterpreterFunctions):
     These must be registered with a NonPropagatingDataFlowSolver where `propagate` is False.
     This way, state propagation is handled purely by the equality saturation logic.
     """
+
+    def modification_handler(self, op: Operation):
+        """
+        Keeps `known_ops` up to date.
+        Whenever an operation is modified, for example when its operands are updated to a different eclass value,
+        the operation is added to the hashcons `known_ops`.
+        """
+        if op not in self.known_ops:
+            self.known_ops[op] = op
+
+    def populate_known_ops(self, outer_op: Operation) -> None:
+        """
+        Populates the known_ops dictionary by traversing the module.
+
+        Args:
+            outer_op: The operation containing all operations to be added to known_ops.
+        """
+        # Walk through all operations in the module
+        for op in outer_op.walk():
+            # Skip eclasses instances
+            if not isinstance(op, equivalence.AnyClassOp):
+                self.known_ops[op] = op
+            else:
+                self.eclass_union_find.add(op)
 
     @impl(ematch.GetClassValsOp)
     def run_get_class_vals(
