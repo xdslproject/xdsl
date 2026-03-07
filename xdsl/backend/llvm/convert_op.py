@@ -263,6 +263,12 @@ def _convert_inline_asm(
         val_map[op.results[0]] = res
 
 
+def _convert_select(
+    op: llvm.SelectOp, builder: ir.IRBuilder, val_map: dict[SSAValue, ir.Value]
+):
+    val_map[op.res] = builder.select(val_map[op.cond], val_map[op.lhs], val_map[op.rhs])
+
+
 def _convert_masked_store(
     op: llvm.MaskedStoreOp, builder: ir.IRBuilder, val_map: dict[SSAValue, ir.Value]
 ):
@@ -344,6 +350,8 @@ def convert_op(
             _convert_inline_asm(op, builder, val_map)
         case llvm.UnreachableOp():
             builder.unreachable()
+        case llvm.SelectOp():
+            _convert_select(op, builder, val_map)
         case llvm.MaskedStoreOp():
             _convert_masked_store(op, builder, val_map)
         case llvm.ReturnOp():

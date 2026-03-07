@@ -601,6 +601,17 @@ def test_fcmp_op():
     assert op.res.type == builtin.i1
 
 
+def test_select_op():
+    cond = create_ssa_value(builtin.i1)
+    lhs = create_ssa_value(builtin.i32)
+    rhs = create_ssa_value(builtin.i32)
+    op = llvm.SelectOp(cond, lhs, rhs)
+    assert op.cond == cond
+    assert op.lhs == lhs
+    assert op.rhs == rhs
+    assert op.res.type == builtin.i32
+
+
 def test_masked_store_op():
     value = create_ssa_value(builtin.f32)
     ptr = create_ssa_value(llvm.LLVMPointerType())
