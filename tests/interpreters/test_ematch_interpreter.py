@@ -205,6 +205,7 @@ def test_get_or_create_class_creates_new_class_for_opresult():
 
     with ImplicitBuilder(block):
         v0 = test.TestOp(result_types=(i32,)).res[0]
+        _user = test.TestOp((v0,))
 
     result = ematch_funcs.get_or_create_class(interpreter, v0)
     assert isinstance(result, equivalence.ClassOp)
