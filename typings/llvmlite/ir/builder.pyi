@@ -8,13 +8,16 @@ from typing import Any
 
 from llvmlite.ir.instructions import (
     AllocaInstr,
+    Branch,
     CallInstr,
+    ConditionalBranch,
     ExtractValue,
     GEPInstr,
     ICMPInstr,
     InsertValue,
     Instruction,
     LoadInstr,
+    PhiInstr,
     Ret,
     StoreInstr,
     Unreachable,
@@ -49,14 +52,14 @@ class IRBuilder:
         """
         ...
 
-    def position_before(self, instr):  # -> None:
+    def position_before(self, instr: Instruction) -> None:
         """
         Position immediately before the given instruction.  The current block
         is also changed to the instruction's basic block.
         """
         ...
 
-    def position_after(self, instr):  # -> None:
+    def position_after(self, instr: Instruction) -> None:
         """
         Position immediately after the given instruction.  The current block
         is also changed to the instruction's basic block.
@@ -565,13 +568,13 @@ class IRBuilder:
         """
         ...
 
-    def branch(self, target):  # -> Branch:
+    def branch(self, target: Block) -> Branch:
         """
         Unconditional branch to *target*.
         """
         ...
 
-    def cbranch(self, cond, truebr, falsebr):  # -> ConditionalBranch:
+    def cbranch(self, cond: Value, truebr: Block, falsebr: Block) -> ConditionalBranch:
         """
         Conditional branch to *truebr* if *cond* is true, else to *falsebr*.
         """
@@ -705,8 +708,9 @@ class IRBuilder:
         """
         ...
 
-    def phi(self, typ, name=..., flags=...):  # -> PhiInstr:
-        ...
+    def phi(
+        self, typ: Type, name: str = ..., flags: tuple[str, ...] = ...
+    ) -> PhiInstr: ...
     def unreachable(self) -> Unreachable: ...
     def atomic_rmw(self, op, ptr, val, ordering, name=...):  # -> AtomicRMW:
         ...

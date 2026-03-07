@@ -575,6 +575,17 @@ builtin.module {
   // CHECK-NEXT:   ret i32 {{%.+}}
   // CHECK-NEXT: }
 
+  llvm.func @cond_br_op(%arg0: i1, %arg1: i32, %arg2: i32) -> i32 {
+    llvm.cond_br %arg0, ^bb1(%arg1 : i32), ^bb2(%arg2 : i32)
+  ^bb1(%0 : i32):
+    llvm.return %0 : i32
+  ^bb2(%1 : i32):
+    llvm.return %1 : i32
+  }
+
+  // CHECK: define i32 @"cond_br_op"(i1 %".1", i32 %".2", i32 %".3")
+  // CHECK: br i1 %".1", label %{{.*}}, label %{{.*}}
+  // CHECK: ret i32
 
   llvm.func @fabs_op(%arg0: f32) -> f32 {
     %0 = llvm.intr.fabs(%arg0) : (f32) -> f32
