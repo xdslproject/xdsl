@@ -856,7 +856,6 @@ class _CmpPredicateFlag(StrEnum):
 
 
 class ICmpPredicateFlag(_CmpPredicateFlag):
-    # Shared helper for ICmpOp and FCmpOp
     EQ = "eq"
     NE = "ne"
     SLT = "slt"
