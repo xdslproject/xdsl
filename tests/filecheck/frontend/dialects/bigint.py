@@ -20,6 +20,33 @@ def foo(x: int) -> int:
 print(foo.module)
 
 
+# CHECK: bigint.constant 0
+@ctx1.parse_program
+def test_constant_int_zero() -> int:
+    return 0
+
+
+print(test_constant_int_zero.module)
+
+
+# CHECK: bigint.constant 42
+@ctx1.parse_program
+def test_constant_int_nonzero() -> int:
+    return 42
+
+
+print(test_constant_int_nonzero.module)
+
+
+# CHECK: bigint.constant 123456789012345678901234567890
+@ctx1.parse_program
+def test_constant_int_large() -> int:
+    return 123456789012345678901234567890
+
+
+print(test_constant_int_large.module)
+
+
 ctx2 = PyASTContext()
 ctx2.register_type(int, bigint.bigint)
 ctx2.register_type(float, builtin.f64)
