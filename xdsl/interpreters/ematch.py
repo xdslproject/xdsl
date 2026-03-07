@@ -20,6 +20,11 @@ class EmatchFunctions(InterpreterFunctions):
     )
     """Union-find structure tracking which e-classes are equivalent and should be merged."""
 
+    worklist: list[equivalence.AnyClassOp] = field(
+        default_factory=list[equivalence.AnyClassOp]
+    )
+    """Worklist of e-classes that need to be processed for matching."""
+
     @impl(ematch.GetClassValsOp)
     def run_get_class_vals(
         self,
