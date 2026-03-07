@@ -603,7 +603,6 @@ def test_select_op():
     assert op.res.type == builtin.i32
 
 
-
 def test_masked_store_op():
     value = create_ssa_value(builtin.f32)
     ptr = create_ssa_value(llvm.LLVMPointerType())
