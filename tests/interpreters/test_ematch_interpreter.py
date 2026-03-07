@@ -1,8 +1,11 @@
+from xdsl.builder import ImplicitBuilder
 from xdsl.dialects import ematch, equivalence, pdl, test
 from xdsl.dialects.builtin import ModuleOp, i32
 from xdsl.interpreter import Interpreter
 from xdsl.interpreters.ematch import EmatchFunctions
-from xdsl.ir import Block
+from xdsl.interpreters.pdl_interp import PDLInterpFunctions
+from xdsl.ir import Block, Region
+from xdsl.pattern_rewriter import PatternRewriter
 from xdsl.utils.test_value import create_ssa_value
 
 
@@ -153,3 +156,79 @@ def test_get_class_results():
         ematch.GetClassResultsOp(create_ssa_value(pdl.RangeType(pdl.ValueType()))),
         ((v4,),),
     ) == ((v4,),)
+
+
+def _make_interpreter_with_rewriter():
+    """Helper to set up an interpreter with a rewriter for tests that modify IR."""
+    ematch_funcs = EmatchFunctions()
+    interpreter = Interpreter(ModuleOp([]))
+    interpreter.register_implementations(ematch_funcs)
+
+    testmodule = ModuleOp(Region([Block()]))
+    block = testmodule.body.first_block
+    assert block is not None
+    with ImplicitBuilder(block):
+        root = test.TestOp()
+
+    rewriter = PatternRewriter(root)
+    PDLInterpFunctions.set_rewriter(interpreter, rewriter)
+
+    return interpreter, ematch_funcs, block
+
+
+def test_get_or_create_class_val_is_class_result():
+    """If val is defined by a ClassOp, return that ClassOp."""
+    interpreter, ematch_funcs, block = _make_interpreter_with_rewriter()
+
+    with ImplicitBuilder(block):
+        classop = equivalence.ClassOp(create_ssa_value(i32))
+
+    result = ematch_funcs.get_or_create_class(interpreter, classop.result)
+    assert result is classop
+
+
+def test_get_or_create_class_val_has_classop_user():
+    """If val has exactly one use and that use is a ClassOp, return it."""
+    interpreter, ematch_funcs, block = _make_interpreter_with_rewriter()
+
+    with ImplicitBuilder(block):
+        v0 = test.TestOp(result_types=(i32,)).res[0]
+        classop = equivalence.ClassOp(v0)
+
+    result = ematch_funcs.get_or_create_class(interpreter, v0)
+    assert result is classop
+
+
+def test_get_or_create_class_creates_new_class_for_opresult():
+    """If val is an OpResult without a ClassOp user, create a new ClassOp."""
+    interpreter, ematch_funcs, block = _make_interpreter_with_rewriter()
+
+    with ImplicitBuilder(block):
+        v0 = test.TestOp(result_types=(i32,)).res[0]
+
+    result = ematch_funcs.get_or_create_class(interpreter, v0)
+    assert isinstance(result, equivalence.ClassOp)
+    assert v0 in result.operands
+    assert ematch_funcs.eclass_union_find.find(result) is result
+
+
+def test_get_or_create_class_creates_new_class_for_block_arg():
+    """If val is a block argument without a ClassOp user, create a new ClassOp."""
+    ematch_funcs = EmatchFunctions()
+    interpreter = Interpreter(ModuleOp([]))
+    interpreter.register_implementations(ematch_funcs)
+
+    testmodule = ModuleOp(Region([Block(arg_types=(i32,))]))
+    block = testmodule.body.first_block
+    assert block is not None
+    block_arg = block.args[0]
+    with ImplicitBuilder(block):
+        root = test.TestOp()
+
+    rewriter = PatternRewriter(root)
+    PDLInterpFunctions.set_rewriter(interpreter, rewriter)
+
+    result = ematch_funcs.get_or_create_class(interpreter, block_arg)
+    assert isinstance(result, equivalence.ClassOp)
+    assert block_arg in result.operands
+    assert ematch_funcs.eclass_union_find.find(result) is result
