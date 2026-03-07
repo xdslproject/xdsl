@@ -156,7 +156,8 @@ def _convert_fcmp(
     flag = llvm.FCmpPredicateFlag.from_int(pred_int)
     pred = flag.value
     is_ordered = pred[0] == "o"
-    cmpop = _FCMP_CMP_MAP.get(pred[1:], pred)
+    key = pred[1:]
+    cmpop = _FCMP_CMP_MAP[key] if key in _FCMP_CMP_MAP else pred
     fn = builder.fcmp_ordered if is_ordered else builder.fcmp_unordered
     val_map[op.results[0]] = fn(cmpop, val_map[op.lhs], val_map[op.rhs])
 

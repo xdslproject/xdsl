@@ -869,10 +869,10 @@ class ICmpPredicateFlag(_CmpPredicateFlag):
 
 
 def _parse_cmp_op(
-    cls: type[IRDLOperation],
+    cls: type[ICmpOp | FCmpOp],
     flag_type: type[_CmpPredicateFlag],
     parser: Parser,
-) -> IRDLOperation:
+) -> ICmpOp | FCmpOp:
     # Shared helper for ICmpOp and FCmpOp
     predicate_literal = parser.parse_str_literal()
     predicate = IntegerAttr(flag_type(predicate_literal).int_value, i64)
@@ -887,7 +887,7 @@ def _parse_cmp_op(
 
 
 def _print_cmp_op(
-    op: IRDLOperation,
+    op: ICmpOp | FCmpOp,
     flag_type: type[_CmpPredicateFlag],
     printer: Printer,
 ) -> None:
