@@ -111,3 +111,44 @@ containing a lot of common tasks, which might provide an overview of common acti
 
 You can also join the discussion at our [Zulip chat room](https://xdsl.zulipchat.com),
 kindly supported by community hosting from [Zulip](https://zulip.com/).
+
+### Citing xDSL
+
+xDSL itself has been published as
+[xDSL: Sidekick Compilation for SSA-Based Compilers](https://2025.cgo.org/details/cgo-2025-papers/32/xDSL-Sidekick-Compilation-for-SSA-Based-Compilers)
+at CGO 2025, which is the paper that should be cited when referencing xDSL the
+tool:
+
+```bibtex
+@inproceedings{fehr_xdsl_2025,
+  address = {Las Vegas NV USA},
+  title = {{xDSL}: {Sidekick} {Compilation} for {SSA}-{Based} {Compilers}},
+  isbn = {979-8-4007-1275-3},
+  shorttitle = {{xDSL}},
+  url = {https://dl.acm.org/doi/10.1145/3696443.3708945},
+  doi = {10.1145/3696443.3708945},
+  language = {en},
+  urldate = {2026-01-26},
+  booktitle = {Proceedings of the 23rd {ACM}/{IEEE} {International} {Symposium} on {Code} {Generation} and {Optimization}},
+  publisher = {ACM},
+  author = {Fehr, Mathieu and Weber, Michel and Ulmann, Christian and Lopoukhine, Alexandre and Lücke, Martin Paul and Degioanni, Théo and Vasiladiotis, Christos and Steuwer, Michel and Grosser, Tobias},
+  month = mar,
+  year = {2025},
+  pages = {179--192},
+}
+```
+
+Other published works that use xDSL internally (feel free to open a PR to extend
+this list):
+
+- [Stencil-HMLS: A multi-layered approach to the automatic optimisation of stencil codes on FPGA](https://dl.acm.org/doi/abs/10.1145/3624062.3624543)
+- [Fortran performance optimisation and auto-parallelisation by leveraging MLIR-based domain specific abstractions in Flang](https://dl.acm.org/doi/abs/10.1145/3624062.3624167)
+- [A shared compilation stack for distributed-memory parallelism in stencil DSLs](https://dl.acm.org/doi/abs/10.1145/3620666.3651344)
+- [A Multi-level Compiler Backend for Accelerated Micro-kernels Targeting RISC-V ISA Extensions](https://dl.acm.org/doi/abs/10.1145/3696443.3708952)
+- [The Configuration Wall: Characterization and Elimination of Accelerator Configuration Overhead](https://dl.acm.org/doi/abs/10.1145/3760250.3762225)
+- [First-Class Verification Dialects for MLIR](https://dl.acm.org/doi/abs/10.1145/3729309)
+- [Integrating Quantum Software Tools with(in) MLIR](https://arxiv.org/abs/2601.02062)
+- [eqsat: An Equality Saturation Dialect for Non-destructive Rewriting](https://arxiv.org/abs/2505.09363)
+- [An MLIR pipeline for offloading Fortran to FPGAs via OpenMP](https://dl.acm.org/doi/full/10.1145/3731599.3767485)
+- [Development of a Custom Compilation Workflow With MLIR Leveraging OpenFPM to Accelerate Particle Simulations](https://esim-project.eu/files/Images/people/chair-cc/theses/2508_Cornel_MA.pdf)
+- [Quantum Oracle Synthesis from HDL Designs via Multi Level Intermediate Representation](https://re.public.polimi.it/handle/11311/1301614)
