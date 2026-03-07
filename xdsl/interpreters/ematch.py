@@ -7,6 +7,7 @@ from xdsl.interpreter import Interpreter, InterpreterFunctions, impl, register_i
 from xdsl.interpreters.pdl_interp import PDLInterpFunctions
 from xdsl.ir import Block, OpResult, SSAValue
 from xdsl.rewriter import InsertPoint
+from xdsl.transforms.common_subexpression_elimination import KnownOps
 from xdsl.utils.disjoint_set import DisjointSet
 from xdsl.utils.hints import isa
 
@@ -15,6 +16,10 @@ from xdsl.utils.hints import isa
 @dataclass
 class EmatchFunctions(InterpreterFunctions):
     """Interpreter functions for PDL patterns operating on e-graphs."""
+
+    known_ops: KnownOps = field(default_factory=KnownOps)
+    """Used for hashconsing operations. When new operations are created, if they are identical to an existing operation,
+    the existing operation is reused instead of creating a new one."""
 
     eclass_union_find: DisjointSet[equivalence.AnyClassOp] = field(
         default_factory=lambda: DisjointSet[equivalence.AnyClassOp]()
