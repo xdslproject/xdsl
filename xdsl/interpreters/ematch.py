@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field
 from typing import Any
 
+from xdsl.analysis.sparse_analysis import Lattice, SparseForwardDataFlowAnalysis
 from xdsl.dialects import ematch, equivalence
 from xdsl.interpreter import Interpreter, InterpreterFunctions, impl, register_impls
 from xdsl.interpreters.pdl_interp import PDLInterpFunctions
@@ -24,6 +25,14 @@ class EmatchFunctions(InterpreterFunctions):
         default_factory=list[equivalence.AnyClassOp]
     )
     """Worklist of e-classes that need to be processed for matching."""
+
+    analyses: list[SparseForwardDataFlowAnalysis[Lattice[Any]]] = field(
+        default_factory=lambda: []
+    )
+    """The sparse forward analyses to be run during equality saturation.
+    These must be registered with a NonPropagatingDataFlowSolver where `propagate` is False.
+    This way, state propagation is handled purely by the equality saturation logic.
+    """
 
     @impl(ematch.GetClassValsOp)
     def run_get_class_vals(
