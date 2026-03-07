@@ -145,7 +145,7 @@ class EmatchFunctions(InterpreterFunctions):
         if isinstance(val, OpResult):
             # If val is defined by a ClassOp, return it
             if isinstance(val.owner, equivalence.AnyClassOp):
-                return self.eclass_union_find.find(val.owner)
+                return val.owner
             insertpoint = InsertPoint.before(val.owner)
         else:
             assert isinstance(val.owner, Block)
