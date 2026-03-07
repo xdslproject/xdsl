@@ -146,6 +146,21 @@ def _convert_cast(
     val_map[op.results[0]] = instr
 
 
+_FCMP_CMP_MAP = {"eq": "==", "gt": ">", "ge": ">=", "lt": "<", "le": "<=", "ne": "!="}
+
+
+def _convert_fcmp(
+    op: llvm.FCmpOp, builder: ir.IRBuilder, val_map: dict[SSAValue, ir.Value]
+):
+    pred_int: int = op.predicate.value.data  # type: ignore[union-attr]
+    flag = llvm.FCmpPredicateFlag.from_int(pred_int)
+    pred = flag.value
+    is_ordered = pred[0] == "o"
+    cmpop = _FCMP_CMP_MAP.get(pred[1:], pred)
+    fn = builder.fcmp_ordered if is_ordered else builder.fcmp_unordered
+    val_map[op.results[0]] = fn(cmpop, val_map[op.lhs], val_map[op.rhs])
+
+
 def _convert_fabs(
     op: llvm.FAbsOp, builder: ir.IRBuilder, val_map: dict[SSAValue, ir.Value]
 ):
@@ -296,6 +311,8 @@ def convert_op(
             _convert_binop(op, builder, val_map)
         case llvm.ICmpOp():
             _convert_icmp(op, builder, val_map)
+        case llvm.FCmpOp():
+            _convert_fcmp(op, builder, val_map)
         case op if type(op) in _CAST_OP_NAMES:
             _convert_cast(op, builder, val_map)
         case llvm.FAbsOp():

@@ -563,6 +563,20 @@ builtin.module {
   // CHECK-NEXT:   ret void
   // CHECK-NEXT: }
 
+  llvm.func @fcmp_op(%arg0: f32, %arg1: f32) {
+    %0 = llvm.fcmp "oeq" %arg0, %arg1 : f32
+    %1 = llvm.fcmp "ult" %arg0, %arg1 : f32
+    llvm.return
+  }
+
+  // CHECK: define void @"fcmp_op"(float %".1", float %".2")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT:   {{%.+}} = fcmp oeq float %".1", %".2"
+  // CHECK-NEXT:   {{%.+}} = fcmp ult float %".1", %".2"
+  // CHECK-NEXT:   ret void
+  // CHECK-NEXT: }
+
   llvm.func @fabs_op(%arg0: f32) -> f32 {
     %0 = llvm.intr.fabs(%arg0) : (f32) -> f32
     llvm.return %0 : f32

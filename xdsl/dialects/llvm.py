@@ -2135,6 +2135,106 @@ class FRemOp(AbstractFloatArithOp):
     name = "llvm.frem"
 
 
+class FCmpPredicateFlag(StrEnum):
+    FALSE = "_false"
+    OEQ = "oeq"
+    OGT = "ogt"
+    OGE = "oge"
+    OLT = "olt"
+    OLE = "ole"
+    ONE = "one"
+    ORD = "ord"
+    UEQ = "ueq"
+    UGT = "ugt"
+    UGE = "uge"
+    ULT = "ult"
+    ULE = "ule"
+    UNE = "une"
+    UNO = "uno"
+    TRUE = "_true"
+
+    @staticmethod
+    def from_int(index: int) -> FCmpPredicateFlag:
+        return ALL_FCMP_FLAGS[index]
+
+    def to_int(self) -> int:
+        return FCMP_INDEX_BY_FLAG[self]
+
+
+ALL_FCMP_FLAGS = tuple(FCmpPredicateFlag)
+FCMP_INDEX_BY_FLAG = {f: i for (i, f) in enumerate(ALL_FCMP_FLAGS)}
+
+
+@irdl_op_definition
+class FCmpOp(IRDLOperation):
+    name = "llvm.fcmp"
+
+    T: ClassVar = VarConstraint("T", AnyFloatConstr)
+
+    lhs = operand_def(T)
+    rhs = operand_def(T)
+    res = result_def(I1)
+    predicate = prop_def(IntegerAttr[i64])
+
+    fastmathFlags = prop_def(FastMathAttr, default_value=FastMathAttr(None))
+
+    traits = traits_def(Pure())
+
+    irdl_options = (ParsePropInAttrDict(),)
+
+    def __init__(
+        self,
+        lhs: Operation | SSAValue,
+        rhs: Operation | SSAValue,
+        predicate: str,
+        fast_math: FastMathAttr | FastMathFlag | None = None,
+    ):
+        if isinstance(fast_math, FastMathFlag | str | None):
+            fast_math = FastMathAttr(fast_math)
+        pred_flag = FCmpPredicateFlag(predicate)
+        super().__init__(
+            operands=[lhs, rhs],
+            result_types=[i1],
+            properties={
+                "predicate": IntegerAttr(pred_flag.to_int(), i64),
+                "fastmathFlags": fast_math,
+            },
+        )
+
+    @classmethod
+    def parse(cls, parser: Parser):
+        predicate_literal = parser.parse_str_literal()
+        predicate_value = FCmpPredicateFlag(predicate_literal)
+        predicate_int = predicate_value.to_int()
+        predicate = IntegerAttr(predicate_int, i64)
+        lhs = parser.parse_unresolved_operand()
+        parser.parse_characters(",")
+        rhs = parser.parse_unresolved_operand()
+        attributes = parser.parse_optional_attr_dict()
+        parser.parse_characters(":")
+        type = parser.parse_type()
+        operands = parser.resolve_operands([lhs, rhs], [type, type], parser.pos)
+        return cls.build(
+            operands=operands,
+            result_types=[i1],
+            properties={"predicate": predicate, "fastmathFlags": FastMathAttr(None)},
+            attributes=attributes,
+        )
+
+    def print(self, printer: Printer):
+        flag = FCmpPredicateFlag.from_int(self.predicate.value.data)
+        printer.print_string(f' "{flag}" ')
+        printer.print_ssa_value(self.lhs)
+        printer.print_string(", ")
+        printer.print_ssa_value(self.rhs)
+        if self.fastmathFlags.data:
+            printer.print_string(" {fastmathFlags = ")
+            printer.print_attribute(self.fastmathFlags)
+            printer.print_string("}")
+        printer.print_string(" : ")
+        printer.print_attribute(self.lhs.type)
+
+
 @irdl_op_definition
 class BitcastOp(GenericCastOp):
     name = "llvm.bitcast"
@@ -2268,6 +2368,7 @@ LLVM = Dialect(
         ExtractValueOp,
         FAbsOp,
         FAddOp,
+        FCmpOp,
         FDivOp,
         FMulOp,
         FNegOp,

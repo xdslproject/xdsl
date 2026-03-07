@@ -25,6 +25,18 @@
 %6 = llvm.fneg %arg0 {fastmathFlags = #llvm.fastmath<fast>} : f32
 // CHECK: llvm.fneg [[arg0]] {fastmathFlags = #llvm.fastmath<fast>} : f32
 
+%fcmp_lhs, %fcmp_rhs = "test.op"() : () -> (f32, f32)
+// CHECK: [[fcmp_lhs:%\d+]], [[fcmp_rhs:%\d+]]
+
+%7 = llvm.fcmp "oeq" %fcmp_lhs, %fcmp_rhs : f32
+// CHECK: llvm.fcmp "oeq" [[fcmp_lhs]], [[fcmp_rhs]] : f32
+
+%8 = llvm.fcmp "ult" %fcmp_lhs, %fcmp_rhs : f32
+// CHECK: llvm.fcmp "ult" [[fcmp_lhs]], [[fcmp_rhs]] : f32
+
+%9 = llvm.fcmp "one" %fcmp_lhs, %fcmp_rhs : f32
+// CHECK: llvm.fcmp "one" [[fcmp_lhs]], [[fcmp_rhs]] : f32
+
 %ptr = "test.op"() : () -> !llvm.ptr
 // CHECK: [[ptr:%\d+]] = "test.op"
 %vec_val = "test.op"() : () -> vector<4xf32>
