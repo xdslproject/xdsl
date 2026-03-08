@@ -103,6 +103,27 @@ class LinalgStructuredOperation(IRDLOperation, ABC):
     via a unified interface.
     """
 
+    inputs = var_operand_def()
+    """
+    The operands that won't be mutated.
+    """
+    outputs = var_operand_def(ShapedType)
+    """
+    The operands that will be accumulated into.
+    These inputs may be `memref`s, which will be mutated in-place, or `tensor`s, which will be returned as results.
+    """
+
+    res = var_result_def(TensorType)
+    """
+    The updated `outputs`, empty if the inputs are memrefs.
+    """
+
+    body = region_def("single_block")
+    """
+    The body implementing the combination of scalar elements of the inputs, and
+    yielding the scalar elements of the outputs.
+    """
+
     @abstractmethod
     def get_indexing_maps(self) -> Sequence[AffineMap]:
         """
@@ -173,13 +194,6 @@ class LinalgStructuredOperation(IRDLOperation, ABC):
 class GenericOp(LinalgStructuredOperation):
     name = "linalg.generic"
 
-    inputs = var_operand_def()
-    outputs = var_operand_def(base(ShapedType))
-
-    res = var_result_def(AnyTensorType)
-
-    body = region_def("single_block")
-
     # Trait attributes
     indexing_maps = prop_def(ArrayAttr[AffineMapAttr])
     iterator_types = prop_def(ArrayAttr[IteratorTypeAttr])
@@ -210,6 +224,9 @@ class GenericOp(LinalgStructuredOperation):
             },
             regions=[body],
         )
+
+    def get_body(self) -> Region:
+        return self.body
 
     def get_indexing_maps(self) -> Sequence[AffineMap]:
         return tuple(attr.data for attr in self.indexing_maps)
