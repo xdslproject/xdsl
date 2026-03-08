@@ -636,3 +636,39 @@ def test_run_union_unsupported_types():
             ),
             ("not_a_value", 42),
         )
+
+
+def test_dedup():
+    interpreter, ematch_funcs, block = _make_interpreter_with_rewriter()
+
+    with ImplicitBuilder(block):
+        # Create two structurally identical operations
+        existing_op = test.TestOp(result_types=(i32,))
+        new_op = test.TestOp(result_types=(i32,))
+
+    ematch_funcs.known_ops[existing_op] = existing_op
+
+    # Dedup new_op → should return existing_op and erase new_op
+    result = interpreter.run_op(
+        ematch.DedupOp(create_ssa_value(pdl.OperationType())),
+        (new_op,),
+    )
+    assert result == (existing_op,)
+
+    # new_op should no longer be in the block
+    assert new_op.parent is None
+
+
+def test_dedup_no_duplicate():
+    interpreter, ematch_funcs, block = _make_interpreter_with_rewriter()
+
+    with ImplicitBuilder(block):
+        op = test.TestOp(result_types=(i32,))
+
+    # No existing equivalent in known_ops
+    result = interpreter.run_op(
+        ematch.DedupOp(create_ssa_value(pdl.OperationType())),
+        (op,),
+    )
+    assert result == (op,)
+    assert op in ematch_funcs.known_ops
