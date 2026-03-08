@@ -621,8 +621,22 @@ class NamedOperation(LinalgStructuredOperation, ABC):
         raise NotImplementedError
 
 
+class ElementwiseOperation(NamedOperation, ABC):
+    def get_indexing_maps(self) -> Sequence[AffineMap]:
+        assert all(isinstance(t, ShapedType) for t in self.operand_types), (
+            "Assume that all named linalg pointwise operations have matching shaped "
+            "types."
+        )
+        operand_types = cast(Sequence[ShapedType], self.operand_types)
+        shapes = tuple(t.get_shape() for t in operand_types)
+        assert all(shape == shapes[0] for shape in shapes[1:]), (
+            "All shapes must be equal"
+        )
+        return (AffineMap.identity(len(shapes[0])),) * len(operand_types)
+
+
 @irdl_op_definition
-class AddOp(NamedOperation):
+class AddOp(ElementwiseOperation):
     """
     Adds two tensors elementwise.
 
@@ -664,9 +678,6 @@ class AddOp(NamedOperation):
             YieldOp(result)
 
         return hidden_region
-
-    def get_indexing_maps(self) -> Sequence[AffineMap]:
-        raise NotImplementedError
 
 
 @irdl_op_definition
@@ -758,7 +769,7 @@ class LogOp(NamedOperation):
 
 
 @irdl_op_definition
-class SubOp(NamedOperation):
+class SubOp(ElementwiseOperation):
     """
     Subtracts two tensors elementwise.
 
@@ -802,9 +813,6 @@ class SubOp(NamedOperation):
             YieldOp(result)
 
         return hidden_region
-
-    def get_indexing_maps(self) -> Sequence[AffineMap]:
-        raise NotImplementedError
 
 
 @irdl_op_definition
@@ -957,7 +965,7 @@ class FillOp(NamedOperation):
 
 
 @irdl_op_definition
-class CopyOp(NamedOperation):
+class CopyOp(ElementwiseOperation):
     """
     Copies the tensor elementwise.
 
@@ -1005,7 +1013,7 @@ class CopyOp(NamedOperation):
 
 
 @irdl_op_definition
-class MaxOp(NamedOperation):
+class MaxOp(ElementwiseOperation):
     """
     Takes the max (signed) between two inputs, elementwise.
 
@@ -1052,7 +1060,7 @@ class MaxOp(NamedOperation):
 
 
 @irdl_op_definition
-class MinOp(NamedOperation):
+class MinOp(ElementwiseOperation):
     """
     Takes the max (signed) between two inputs, elementwise.
 
@@ -1099,7 +1107,7 @@ class MinOp(NamedOperation):
 
 
 @irdl_op_definition
-class MulOp(NamedOperation):
+class MulOp(ElementwiseOperation):
     """
     Multiplies two tensors elementwise.
 
@@ -1141,9 +1149,6 @@ class MulOp(NamedOperation):
             YieldOp(result)
 
         return hidden_region
-
-    def get_indexing_maps(self) -> Sequence[AffineMap]:
-        raise NotImplementedError
 
 
 @irdl_op_definition

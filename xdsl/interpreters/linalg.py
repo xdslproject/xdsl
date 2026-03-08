@@ -85,21 +85,7 @@ class LinalgFunctions(InterpreterFunctions):
     def run_add(
         self, interpreter: Interpreter, op: linalg.AddOp, args: tuple[Any, ...]
     ) -> tuple[Any, ...]:
-        (lhs, rhs, res) = (args[0], args[1], args[2])
-        assert isinstance(lhs, ShapedArray)
-        assert isinstance(rhs, ShapedArray)
-        assert isinstance(res, ShapedArray)
-        lhs = cast(ShapedArray[float], lhs)
-        rhs = cast(ShapedArray[float], rhs)
-        res = cast(ShapedArray[float], res)
-        if not all(res.data_ptr[i] == 0.0 for i in range(len(res.data))):
-            raise NotImplementedError()
-        assert lhs.shape == rhs.shape == res.shape
-        for i in range(len(lhs.data)):
-            res.data_ptr[i] = lhs.data_ptr[i] + rhs.data_ptr[i]
-        if len(op.results) > 0:
-            return (res,)
-        return ()
+        return run_linalg_structured_op(interpreter, op, args)
 
     @impl(linalg.FillOp)
     def run_fill(
@@ -122,21 +108,7 @@ class LinalgFunctions(InterpreterFunctions):
     def run_mul(
         self, interpreter: Interpreter, op: linalg.MulOp, args: tuple[Any, ...]
     ) -> tuple[Any, ...]:
-        lhs, rhs, res = args[0], args[1], args[2]
-        assert isinstance(lhs, ShapedArray)
-        assert isinstance(rhs, ShapedArray)
-        assert isinstance(res, ShapedArray)
-        lhs = cast(ShapedArray[float], lhs)
-        rhs = cast(ShapedArray[float], rhs)
-        res = cast(ShapedArray[float], res)
-        if not all(res.data_ptr[i] == 0.0 for i in range(len(res.data))):
-            raise NotImplementedError()
-        assert lhs.shape == rhs.shape == res.shape
-        for i in range(len(lhs.data)):
-            res.data_ptr[i] = lhs.data_ptr[i] * rhs.data_ptr[i]
-        if len(op.results) > 0:
-            return (res,)
-        return ()
+        return run_linalg_structured_op(interpreter, op, args)
 
     @impl(linalg.TransposeOp)
     def run_transpose(
