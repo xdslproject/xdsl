@@ -213,7 +213,7 @@ class ParamAttrDef:
             field_name: field_type
             for parent_cls in pyrdl_def.mro()[::-1]
             for field_name, field_type in get_annotations(
-                parent_cls, eval_str=True
+                parent_cls, eval_str=False
             ).items()
             if field_name not in _IGNORED_PARAM_ATTR_FIELD_TYPES
         }
