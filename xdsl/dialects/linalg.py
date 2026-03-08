@@ -97,10 +97,10 @@ class IteratorTypeAttr(EnumAttribute[IteratorType]):
             super().print_parameter(printer)
 
 
-class LinalgOperation(IRDLOperation, ABC):
+class LinalgStructuredOperation(IRDLOperation, ABC):
     """
-    Abstract base class for linalg operations, allowing them to be processed in with a
-    unified interface.
+    Abstract base class for structured linalg operations, allowing them to be processed
+    via a unified interface.
     """
 
     @abstractmethod
@@ -170,7 +170,7 @@ class LinalgOperation(IRDLOperation, ABC):
 
 
 @irdl_op_definition
-class GenericOp(LinalgOperation):
+class GenericOp(LinalgStructuredOperation):
     name = "linalg.generic"
 
     inputs = var_operand_def()
