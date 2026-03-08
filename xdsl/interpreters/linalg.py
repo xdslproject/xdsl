@@ -163,29 +163,7 @@ class LinalgFunctions(InterpreterFunctions):
     def run_mat_mul(
         self, interpreter: Interpreter, op: linalg.MatmulOp, args: tuple[Any, ...]
     ) -> tuple[Any, ...]:
-        lhs, rhs, res = args[0], args[1], args[2]
-        assert isinstance(lhs, ShapedArray)
-        assert isinstance(rhs, ShapedArray)
-        assert isinstance(res, ShapedArray)
-        lhs = cast(ShapedArray[float], lhs)
-        rhs = cast(ShapedArray[float], rhs)
-        res = cast(ShapedArray[float], res)
-        if not all(res.data_ptr[i] == 0.0 for i in range(len(res.data))):
-            raise NotImplementedError()
-        rows = lhs.shape[0]
-        cols = rhs.shape[1]
-        assert rows == cols
-        for i in range(rows):
-            for j in range(cols):
-                res.data_ptr[i * cols + j] = sum(
-                    lhs.data_ptr[i * lhs.shape[1] + k]
-                    * rhs.data_ptr[k * rhs.shape[1] + j]
-                    for k in range(lhs.shape[1])
-                )
-
-        if len(op.results) > 0:
-            return (res,)
-        return ()
+        return run_linalg_structured_op(interpreter, op, args)
 
     @impl(linalg.PoolingNchwMaxOp)
     def run_pooling_nchw_max(
