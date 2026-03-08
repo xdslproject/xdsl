@@ -2,7 +2,14 @@ from dataclasses import dataclass
 from typing import Any, cast
 
 import pytest
+from typing_extensions import Self
 
+from xdsl.analysis.dataflow import DataFlowSolver
+from xdsl.analysis.sparse_analysis import (
+    AbstractLatticeValue,
+    Lattice,
+    SparseForwardDataFlowAnalysis,
+)
 from xdsl.builder import ImplicitBuilder
 from xdsl.dialects import arith, ematch, equivalence, pdl, test
 from xdsl.dialects.builtin import IntegerAttr, ModuleOp, i32
@@ -14,6 +21,44 @@ from xdsl.ir import Block, Operation, Region
 from xdsl.pattern_rewriter import PatternRewriter
 from xdsl.utils.exceptions import InterpretationError
 from xdsl.utils.test_value import create_ssa_value
+
+
+@dataclass(frozen=True)
+class TestLatticeValue(AbstractLatticeValue):
+    value: int = 0
+
+    @classmethod
+    def initial_value(cls) -> Self:
+        return cls(0)
+
+    def meet(self, other: "TestLatticeValue") -> "TestLatticeValue":
+        return TestLatticeValue(min(self.value, other.value))
+
+    def join(self, other: "TestLatticeValue") -> "TestLatticeValue":
+        return TestLatticeValue(max(self.value, other.value))
+
+
+class TestLattice(Lattice[TestLatticeValue]):
+    value_cls = TestLatticeValue
+
+
+class TestAnalysis(SparseForwardDataFlowAnalysis[TestLattice]):
+    def __init__(self, solver: DataFlowSolver):
+        super().__init__(solver, TestLattice)
+
+    def visit_operation_impl(
+        self,
+        op: Operation,
+        operands: list[TestLattice],
+        results: list[TestLattice],
+    ) -> None:
+        if operands:
+            max_val = max((o.value.value if o.value else 0) for o in operands)
+            for r in results:
+                r._value = TestLatticeValue(max_val)  # pyright: ignore[reportPrivateUsage]
+
+    def set_to_entry_state(self, lattice: TestLattice) -> None:
+        pass
 
 
 def test_get_class_vals():
@@ -434,47 +479,6 @@ def test_eclass_union_deduplicates_operands():
 
 def test_eclass_union_meets_analysis_states():
     """Analysis lattice states are met when eclasses are unioned."""
-    from typing_extensions import Self
-
-    from xdsl.analysis.dataflow import DataFlowSolver
-    from xdsl.analysis.sparse_analysis import (
-        AbstractLatticeValue,
-        Lattice,
-        SparseForwardDataFlowAnalysis,
-    )
-
-    @dataclass(frozen=True)
-    class TestLatticeValue(AbstractLatticeValue):
-        value: int
-
-        @classmethod
-        def initial_value(cls) -> Self:
-            return cls(0)
-
-        def meet(self, other: "TestLatticeValue") -> "TestLatticeValue":
-            return TestLatticeValue(min(self.value, other.value))
-
-        def join(self, other: "TestLatticeValue") -> "TestLatticeValue":
-            return TestLatticeValue(max(self.value, other.value))
-
-    class TestLattice(Lattice[TestLatticeValue]):
-        value_cls = TestLatticeValue
-
-    class TestAnalysis(SparseForwardDataFlowAnalysis[TestLattice]):
-        def __init__(self, solver: DataFlowSolver):
-            super().__init__(solver, TestLattice)
-
-        def visit_operation_impl(
-            self,
-            op: Operation,
-            operands: list[TestLattice],
-            results: list[TestLattice],
-        ) -> None:
-            pass
-
-        def set_to_entry_state(self, lattice: TestLattice) -> None:
-            pass
-
     interpreter, ematch_funcs, block = _make_interpreter_with_rewriter()
 
     ctx = PDLInterpFunctions.get_ctx(interpreter)
@@ -702,3 +706,134 @@ def test_rebuild():
     assert ematch_funcs.eclass_union_find.find(
         eclass_a
     ) is ematch_funcs.eclass_union_find.find(eclass_b)
+
+
+def test_repair_parent_is_none():
+    """repair is a no-op when the eclass has no parent (detached from IR)."""
+    interpreter, ematch_funcs, block = _make_interpreter_with_rewriter()
+
+    with ImplicitBuilder(block):
+        v0 = test.TestOp(result_types=(i32,)).results[0]
+        eclass = equivalence.ClassOp(v0, res_type=i32)
+
+    ematch_funcs.eclass_union_find.add(eclass)
+
+    # Detach the eclass from its parent block
+    eclass.detach()
+    assert eclass.parent is None
+
+    # Should return immediately without error
+    ematch_funcs.repair(interpreter, eclass)
+    assert not ematch_funcs.worklist
+
+
+def test_repair_skips_eclass_parents():
+    """repair skips parent operations that are themselves equivalence.AnyClassOp."""
+    interpreter, ematch_funcs, block = _make_interpreter_with_rewriter()
+
+    with ImplicitBuilder(block):
+        v0 = test.TestOp(result_types=(i32,)).results[0]
+        inner_eclass = equivalence.ClassOp(v0, res_type=i32)
+        # Create an outer eclass that uses inner_eclass's result —
+        # this makes the outer eclass a "parent" of inner_eclass.
+        outer_eclass = equivalence.ClassOp(inner_eclass.result, res_type=i32)
+
+    ematch_funcs.eclass_union_find.add(inner_eclass)
+    ematch_funcs.eclass_union_find.add(outer_eclass)
+
+    # repair should skip the outer_eclass (it's an AnyClassOp) and not crash
+    ematch_funcs.repair(interpreter, inner_eclass)
+    assert not ematch_funcs.worklist
+
+
+def test_repair_same_eclass_deduplicates_operands():
+    """When two duplicate parents map to the same result eclass, operands are deduplicated."""
+    interpreter, ematch_funcs, block = _make_interpreter_with_rewriter()
+
+    with ImplicitBuilder(block):
+        v0 = test.TestOp(result_types=(i32,)).results[0]
+
+    eclass_c = ematch_funcs.get_or_create_class(interpreter, v0)
+
+    with ImplicitBuilder(block):
+        op1 = test.TestOp(operands=(eclass_c.result,), result_types=(i32,))
+        op2 = test.TestOp(operands=(eclass_c.result,), result_types=(i32,))
+
+    # Put both op1 and op2 results into the SAME eclass
+    _shared_val = test.TestOp(result_types=(i32,)).results[0]
+    eclass_shared = ematch_funcs.get_or_create_class(interpreter, op1.results[0])
+    # Manually add op2's result as an operand of the same eclass
+    eclass_shared.operands = [op1.results[0], op2.results[0], op1.results[0]]
+
+    ematch_funcs.repair(interpreter, eclass_c)
+
+    # After repair, the shared eclass should have deduplicated operands
+    canonical = ematch_funcs.eclass_union_find.find(eclass_shared)
+    operand_list = list(canonical.operands)
+    assert operand_list.count(op1.results[0]) <= 1
+
+
+def test_repair_merges_duplicate_parents():
+    """repair finds two structurally identical parents and unions their result eclasses."""
+    interpreter, ematch_funcs, block = _make_interpreter_with_rewriter()
+
+    with ImplicitBuilder(block):
+        v0 = test.TestOp(result_types=(i32,)).results[0]
+
+    eclass_c = ematch_funcs.get_or_create_class(interpreter, v0)
+
+    with ImplicitBuilder(block):
+        op1 = test.TestOp(operands=(eclass_c.result,), result_types=(i32,))
+        op2 = test.TestOp(operands=(eclass_c.result,), result_types=(i32,))
+
+    eclass_a = ematch_funcs.get_or_create_class(interpreter, op1.results[0])
+    eclass_b = ematch_funcs.get_or_create_class(interpreter, op2.results[0])
+    assert eclass_a is not eclass_b
+
+    ematch_funcs.repair(interpreter, eclass_c)
+
+    # op1 and op2 are structurally identical, so their eclasses should be merged
+    assert ematch_funcs.eclass_union_find.find(
+        eclass_a
+    ) is ematch_funcs.eclass_union_find.find(eclass_b)
+    # The merged eclass should be on the worklist
+    assert len(ematch_funcs.worklist) > 0
+
+
+def test_repair_updates_analysis_state():
+    """repair recomputes dataflow analysis states for parent operations."""
+
+    interpreter, ematch_funcs, block = _make_interpreter_with_rewriter()
+
+    ctx = PDLInterpFunctions.get_ctx(interpreter)
+    solver = NonPropagatingDataFlowSolver(ctx)
+    analysis = TestAnalysis(solver)
+    ematch_funcs.analyses.append(
+        cast(SparseForwardDataFlowAnalysis[Lattice[Any]], analysis)
+    )
+
+    with ImplicitBuilder(block):
+        v0 = test.TestOp(result_types=(i32,)).results[0]
+
+    eclass_c = ematch_funcs.get_or_create_class(interpreter, v0)
+
+    with ImplicitBuilder(block):
+        parent_op = test.TestOp(operands=(eclass_c.result,), result_types=(i32,))
+
+    _eclass_parent = ematch_funcs.get_or_create_class(interpreter, parent_op.results[0])
+
+    # Set a lattice value on the eclass input
+    input_lattice = analysis.get_lattice_element(eclass_c.result)
+    input_lattice._value = TestLatticeValue(7)  # pyright: ignore[reportPrivateUsage]
+
+    # Set a stale value on the parent result
+    result_lattice = analysis.get_lattice_element(parent_op.results[0])
+    result_lattice._value = TestLatticeValue(99)  # pyright: ignore[reportPrivateUsage]
+
+    # Repair should recompute the analysis for parent_op
+    ematch_funcs.repair(interpreter, eclass_c)
+
+    updated = analysis.get_lattice_element(parent_op.results[0])
+    # visit_operation_impl propagates max of operands (7) and then meets
+    # with the original (99) → min(7, 99) = 7
+    assert updated.value.value == 7
