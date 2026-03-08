@@ -225,9 +225,6 @@ class GenericOp(LinalgStructuredOperation):
             regions=[body],
         )
 
-    def get_body(self) -> Region:
-        return self.body
-
     def get_indexing_maps(self) -> Sequence[AffineMap]:
         return tuple(attr.data for attr in self.indexing_maps)
 
