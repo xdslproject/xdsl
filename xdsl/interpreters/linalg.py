@@ -15,6 +15,54 @@ from xdsl.interpreter import (
 from xdsl.interpreters.shaped_array import ShapedArray
 
 
+def run_linalg_structured_op(
+    interpreter: Interpreter,
+    op: linalg.LinalgStructuredOperation,
+    args: tuple[ShapedArray[float] | float, ...],
+):
+    """
+    Helper function for interpreting ops inheriting from
+    [`LinalgStructuredOperation`][xdsl.dialects.linalg.LinalgStructuredOperation].
+    """
+    body = op.body
+    inputs_count = len(op.inputs)
+    input_args = args[:inputs_count]
+    output_args = args[inputs_count:]
+    results = op.results
+    indexing_maps = op.get_indexing_maps()
+    loop_ranges = op.get_static_loop_ranges()
+
+    if any(not isinstance(arg, ShapedArray) for arg in output_args):
+        raise NotImplementedError("Only shaped out results are implemented")
+    output_args = cast(tuple[ShapedArray[float], ...], output_args)
+    if results:
+        # If there are results, they must be tensors, initialised with the
+        # `output_args`. If not, the results are stored in output_args directly.
+        outputs = tuple(arg.copy() for arg in output_args)
+    else:
+        outputs = output_args
+
+    loop_shaped_args = input_args + outputs
+
+    output_indexing_maps = indexing_maps[inputs_count:]
+
+    for indices in product(*(range(loop_range) for loop_range in loop_ranges)):
+        loop_scalar_args = tuple(
+            (
+                i.load(indexing_map.eval(indices, ()))
+                if isinstance(i, ShapedArray)
+                else i
+            )
+            for i, indexing_map in zip(loop_shaped_args, indexing_maps, strict=True)
+        )
+        loop_results = interpreter.run_ssacfg_region(body, loop_scalar_args, "for_loop")
+        for res, indexing_map in zip(loop_results, output_indexing_maps, strict=True):
+            result_indices = indexing_map.eval(indices, ())
+            outputs[0].store(result_indices, res)
+
+    return outputs if results else ()
+
+
 @register_impls
 class LinalgFunctions(InterpreterFunctions):
     @impl(linalg.GenericOp)
@@ -25,45 +73,7 @@ class LinalgFunctions(InterpreterFunctions):
             raise NotImplementedError(
                 "library_call not yet supported in linalg.generic interpreter"
             )
-        inputs_count = len(op.inputs)
-        input_args = args[:inputs_count]
-        output_args = args[inputs_count:]
-
-        for arg in output_args:
-            assert isinstance(arg, ShapedArray)
-
-        output_args = cast(tuple[ShapedArray[float], ...], output_args)
-        if op.results:
-            # If there are results, they must be tensors, initialised with the
-            # `output_args`. If not, the results are stored in output_args directly.
-            outputs = tuple(arg.copy() for arg in output_args)
-        else:
-            outputs = output_args
-
-        loop_shaped_args = input_args + outputs
-
-        indexing_maps = op.get_indexing_maps()
-        output_indexing_maps = indexing_maps[inputs_count:]
-
-        loop_ranges = op.get_static_loop_ranges()
-
-        for indices in product(*(range(loop_range) for loop_range in loop_ranges)):
-            loop_args = tuple(
-                (
-                    (cast(ShapedArray[Any], i)).load(indexing_map.eval(indices, ()))
-                    if isinstance(i, ShapedArray)
-                    else i
-                )
-                for i, indexing_map in zip(loop_shaped_args, indexing_maps, strict=True)
-            )
-            loop_results = interpreter.run_ssacfg_region(op.body, loop_args, "for_loop")
-            for res, indexing_map in zip(
-                loop_results, output_indexing_maps, strict=True
-            ):
-                result_indices = indexing_map.eval(indices, ())
-                outputs[0].store(result_indices, res)
-
-        return outputs if op.results else ()
+        return run_linalg_structured_op(interpreter, op, args)
 
     @impl_terminator(linalg.YieldOp)
     def run_yield(
