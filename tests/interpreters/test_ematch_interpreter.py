@@ -12,6 +12,7 @@ from xdsl.interpreters.eqsat_pdl_interp import NonPropagatingDataFlowSolver
 from xdsl.interpreters.pdl_interp import PDLInterpFunctions
 from xdsl.ir import Block, Operation, Region
 from xdsl.pattern_rewriter import PatternRewriter
+from xdsl.utils.exceptions import InterpretationError
 from xdsl.utils.test_value import create_ssa_value
 
 
@@ -504,3 +505,134 @@ def test_eclass_union_meets_analysis_states():
     canonical = ematch_funcs.eclass_union_find.find(eclass_a)
     result_lattice = analysis.get_lattice_element(canonical.result)
     assert result_lattice.value.value == 3
+
+
+def test_eclass_union_removes_uses_not_in_known_ops():
+    """Operations using the replaced eclass that are NOT in known_ops should not cause errors."""
+    interpreter, ematch_funcs, block = _make_interpreter_with_rewriter()
+
+    with ImplicitBuilder(block):
+        v0 = test.TestOp(result_types=(i32,)).results[0]
+        v1 = test.TestOp(result_types=(i32,)).results[0]
+        eclass_a = equivalence.ClassOp(v0, res_type=i32)
+        eclass_b = equivalence.ClassOp(v1, res_type=i32)
+
+        # Create an operation that uses eclass_b's result but do NOT add it to known_ops
+        user_op = test.TestOp((eclass_b.result,), result_types=(i32,))
+
+    ematch_funcs.eclass_union_find.add(eclass_a)
+    ematch_funcs.eclass_union_find.add(eclass_b)
+
+    # user_op is intentionally not in known_ops
+    assert user_op not in ematch_funcs.known_ops
+
+    # Should succeed without error
+    ematch_funcs.eclass_union(interpreter, eclass_a, eclass_b)
+
+    # user_op should still not be in known_ops
+    assert user_op not in ematch_funcs.known_ops
+
+
+def test_union_val_same_value():
+    """Union of a value with itself is a no-op."""
+    interpreter, ematch_funcs, block = _make_interpreter_with_rewriter()
+
+    with ImplicitBuilder(block):
+        v0 = test.TestOp(result_types=(i32,)).results[0]
+
+    ematch_funcs.union_val(interpreter, v0, v0)
+
+    # No worklist entries should be created
+    assert len(ematch_funcs.worklist) == 0
+
+
+def test_union_val_already_same_eclass():
+    """Union of two values already in the same eclass is a no-op (via eclass_union)."""
+    interpreter, ematch_funcs, block = _make_interpreter_with_rewriter()
+
+    with ImplicitBuilder(block):
+        v0 = test.TestOp(result_types=(i32,)).results[0]
+        v1 = test.TestOp(result_types=(i32,)).results[0]
+        eclass = equivalence.ClassOp(v0, v1, res_type=i32)
+
+    ematch_funcs.eclass_union_find.add(eclass)
+
+    ematch_funcs.union_val(interpreter, v0, v1)
+
+    # Both already in the same eclass, so no worklist entries
+    assert len(ematch_funcs.worklist) == 0
+
+
+def test_run_union_operation_and_value_range():
+    """Union of an operation with a value range merges results pairwise."""
+    interpreter, ematch_funcs, block = _make_interpreter_with_rewriter()
+
+    with ImplicitBuilder(block):
+        op = test.TestOp(result_types=(i32, i32))
+        v0 = test.TestOp(result_types=(i32,)).results[0]
+        v1 = test.TestOp(result_types=(i32,)).results[0]
+
+    interpreter.run_op(
+        ematch.UnionOp(
+            create_ssa_value(pdl.OperationType()),
+            create_ssa_value(pdl.RangeType(pdl.ValueType())),
+        ),
+        (op, (v0, v1)),
+    )
+
+    eclass_r0 = ematch_funcs.get_or_create_class(interpreter, op.results[0])
+    eclass_v0 = ematch_funcs.get_or_create_class(interpreter, v0)
+    assert ematch_funcs.eclass_union_find.find(
+        eclass_r0
+    ) is ematch_funcs.eclass_union_find.find(eclass_v0)
+
+    eclass_r1 = ematch_funcs.get_or_create_class(interpreter, op.results[1])
+    eclass_v1 = ematch_funcs.get_or_create_class(interpreter, v1)
+    assert ematch_funcs.eclass_union_find.find(
+        eclass_r1
+    ) is ematch_funcs.eclass_union_find.find(eclass_v1)
+
+
+def test_run_union_two_value_ranges():
+    """Union of two value ranges merges values pairwise."""
+    interpreter, ematch_funcs, block = _make_interpreter_with_rewriter()
+
+    with ImplicitBuilder(block):
+        v0 = test.TestOp(result_types=(i32,)).results[0]
+        v1 = test.TestOp(result_types=(i32,)).results[0]
+        v2 = test.TestOp(result_types=(i32,)).results[0]
+        v3 = test.TestOp(result_types=(i32,)).results[0]
+
+    interpreter.run_op(
+        ematch.UnionOp(
+            create_ssa_value(pdl.RangeType(pdl.ValueType())),
+            create_ssa_value(pdl.RangeType(pdl.ValueType())),
+        ),
+        ((v0, v1), (v2, v3)),
+    )
+
+    eclass_v0 = ematch_funcs.get_or_create_class(interpreter, v0)
+    eclass_v2 = ematch_funcs.get_or_create_class(interpreter, v2)
+    assert ematch_funcs.eclass_union_find.find(
+        eclass_v0
+    ) is ematch_funcs.eclass_union_find.find(eclass_v2)
+
+    eclass_v1 = ematch_funcs.get_or_create_class(interpreter, v1)
+    eclass_v3 = ematch_funcs.get_or_create_class(interpreter, v3)
+    assert ematch_funcs.eclass_union_find.find(
+        eclass_v1
+    ) is ematch_funcs.eclass_union_find.find(eclass_v3)
+
+
+def test_run_union_unsupported_types():
+    """Union with unsupported argument types raises InterpretationError."""
+    interpreter, _ematch_funcs, _block = _make_interpreter_with_rewriter()
+
+    with pytest.raises(InterpretationError, match="unsupported argument types"):
+        interpreter.run_op(
+            ematch.UnionOp(
+                create_ssa_value(pdl.ValueType()),
+                create_ssa_value(pdl.ValueType()),
+            ),
+            ("not_a_value", 42),
+        )
