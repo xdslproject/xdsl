@@ -543,7 +543,7 @@ def test_union_val_same_value():
     ematch_funcs.union_val(interpreter, v0, v0)
 
     # No worklist entries should be created
-    assert len(ematch_funcs.worklist) == 0
+    assert not ematch_funcs.worklist
 
 
 def test_union_val_already_same_eclass():
@@ -560,7 +560,7 @@ def test_union_val_already_same_eclass():
     ematch_funcs.union_val(interpreter, v0, v1)
 
     # Both already in the same eclass, so no worklist entries
-    assert len(ematch_funcs.worklist) == 0
+    assert not ematch_funcs.worklist
 
 
 def test_run_union_operation_and_value_range():
