@@ -44,6 +44,30 @@ class EmatchFunctions(InterpreterFunctions):
     This way, state propagation is handled purely by the equality saturation logic.
     """
 
+    def modification_handler(self, op: Operation):
+        """
+        Keeps `known_ops` up to date.
+        Whenever an operation is modified, for example when its operands are updated to a different eclass value,
+        the operation is added to the hashcons `known_ops`.
+        """
+        if op not in self.known_ops:
+            self.known_ops[op] = op
+
+    def populate_known_ops(self, outer_op: Operation) -> None:
+        """
+        Populates the known_ops dictionary by traversing the module.
+
+        Args:
+            outer_op: The operation containing all operations to be added to known_ops.
+        """
+        # Walk through all operations in the module
+        for op in outer_op.walk():
+            # Skip eclasses instances
+            if not isinstance(op, equivalence.AnyClassOp):
+                self.known_ops[op] = op
+            else:
+                self.eclass_union_find.add(op)
+
     @impl(ematch.GetClassValsOp)
     def run_get_class_vals(
         self,
