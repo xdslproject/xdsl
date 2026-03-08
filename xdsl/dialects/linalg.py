@@ -438,17 +438,10 @@ class IndexOp(IRDLOperation):
         super().__init__(properties={"dim": dim_attr}, result_types=[IndexType()])
 
 
-class NamedOperation(IRDLOperation, ABC):
+class NamedOperation(LinalgStructuredOperation, ABC):
     """
     Abstract base class for named ops with hidden region.
     """
-
-    inputs = var_operand_def()
-    outputs = var_operand_def(base(ShapedType))
-
-    res = var_result_def(AnyTensorType)
-
-    hidden_region = region_def("single_block")
 
     irdl_options = (
         AttrSizedOperandSegments(as_property=True),
@@ -672,6 +665,9 @@ class AddOp(NamedOperation):
 
         return hidden_region
 
+    def get_indexing_maps(self) -> Sequence[AffineMap]:
+        raise NotImplementedError
+
 
 @irdl_op_definition
 class ExpOp(NamedOperation):
@@ -806,6 +802,9 @@ class SubOp(NamedOperation):
             YieldOp(result)
 
         return hidden_region
+
+    def get_indexing_maps(self) -> Sequence[AffineMap]:
+        raise NotImplementedError
 
 
 @irdl_op_definition
@@ -952,6 +951,9 @@ class FillOp(NamedOperation):
             YieldOp(args[0])
 
         return hidden_region
+
+    def get_indexing_maps(self) -> Sequence[AffineMap]:
+        raise NotImplementedError
 
 
 @irdl_op_definition
@@ -1140,6 +1142,9 @@ class MulOp(NamedOperation):
 
         return hidden_region
 
+    def get_indexing_maps(self) -> Sequence[AffineMap]:
+        raise NotImplementedError
+
 
 @irdl_op_definition
 class TransposeOp(IRDLOperation):
@@ -1327,6 +1332,9 @@ class MatmulOp(NamedOperation):
 
         return hidden_region
 
+    def get_indexing_maps(self) -> Sequence[AffineMap]:
+        return tuple(m.data for m in self.indexing_maps.data)
+
 
 @irdl_op_definition
 class QuantizedMatmulOp(NamedOperation):
@@ -1396,6 +1404,9 @@ class QuantizedMatmulOp(NamedOperation):
 
         return hidden_region
 
+    def get_indexing_maps(self) -> Sequence[AffineMap]:
+        return tuple(m.data for m in self.memoized_indexing_maps.data)
+
 
 class PoolingOperation(NamedOperation, ABC):
     """Base class for linalg pooling operations."""
@@ -1423,6 +1434,9 @@ class PoolingOperation(NamedOperation, ABC):
             properties={"strides": strides, "dilations": dilations},
             hidden_region=self.get_hidden_region(inputs, outputs),
         )
+
+    def get_indexing_maps(self) -> Sequence[AffineMap]:
+        raise NotImplementedError
 
 
 @irdl_op_definition
@@ -1504,6 +1518,9 @@ class ConvOperation(NamedOperation, ABC):
             YieldOp(mac)
 
         return hidden_region
+
+    def get_indexing_maps(self) -> Sequence[AffineMap]:
+        raise NotImplementedError
 
 
 @irdl_op_definition

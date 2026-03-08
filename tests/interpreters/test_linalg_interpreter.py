@@ -270,6 +270,7 @@ def test_linalg_transpose():
 def test_linalg_matmul():
     interpreter = Interpreter(ModuleOp([]))
     interpreter.register_implementations(LinalgFunctions())
+    interpreter.register_implementations(ArithFunctions())
     op = linalg.MatmulOp(
         (
             create_ssa_value(TensorType(f32, [3, 2])),
