@@ -30,7 +30,7 @@ from xdsl.dialects.builtin import (
     VectorType,
 )
 from xdsl.dialects.utils import FastMathAttrBase, FastMathFlag
-from xdsl.interfaces import HasFolderInterface
+from xdsl.interfaces import ConditionallySpeculatableInterface, HasFolderInterface
 from xdsl.ir import (
     Attribute,
     BitEnumAttribute,
@@ -57,7 +57,6 @@ from xdsl.pattern_rewriter import RewritePattern
 from xdsl.printer import Printer
 from xdsl.traits import (
     Commutative,
-    ConditionallySpeculatable,
     ConstantLike,
     HasCanonicalizationPatternsTrait,
     NoMemoryEffect,
@@ -527,18 +526,8 @@ class SubiOp(SignlessIntegerBinaryOperationWithOverflow):
         return attr.value.data == 0
 
 
-class DivUISpeculatable(ConditionallySpeculatable):
-    @classmethod
-    def is_speculatable(cls, op: Operation):
-        op = cast(DivUIOp, op)
-        if not isinstance(cst := op.rhs.owner, ConstantOp):
-            return False
-        value = cast(IntegerAttr[IntegerType | IndexType], cst.value)
-        return value.value.data != 0
-
-
 @irdl_op_definition
-class DivUIOp(SignlessIntegerBinaryOperation):
+class DivUIOp(SignlessIntegerBinaryOperation, ConditionallySpeculatableInterface):
     """
     Unsigned integer division. Rounds towards zero. Treats the leading bit as
     the most significant, i.e. for `i16` given two's complement representation,
@@ -549,9 +538,14 @@ class DivUIOp(SignlessIntegerBinaryOperation):
 
     traits = traits_def(
         NoMemoryEffect(),
-        DivUISpeculatable(),
         SignlessIntegerBinaryOperationHasCanonicalizationPatternsTrait(),
     )
+
+    def is_speculatable(self) -> bool:
+        if not isinstance(cst := self.rhs.owner, ConstantOp):
+            return False
+        value = cast(IntegerAttr[IntegerType | IndexType], cst.value)
+        return value.value.data != 0
 
     @staticmethod
     def is_right_unit(attr: IntegerAttr) -> bool:
