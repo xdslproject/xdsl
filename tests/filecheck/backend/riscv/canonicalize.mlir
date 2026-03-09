@@ -99,21 +99,24 @@ builtin.module {
   %andi_immediate = riscv.andi %i3, 7 : (!riscv.reg) -> !riscv.reg<a0>
   "test.op"(%andi_immediate) : (!riscv.reg<a0>) -> ()
 
-  %shift_left_immediate = riscv.slli %c2, 4 : (!riscv.reg) -> !riscv.reg<a0>
-  "test.op"(%shift_left_immediate) : (!riscv.reg<a0>) -> ()
+  %sll_imm = riscv.slli %c2, 3 : (!riscv.reg) -> !riscv.reg<a0>
+  "test.op"(%sll_imm) : (!riscv.reg<a0>) -> ()
 
-  %shift_right_immediate = riscv.srli %shift_left_immediate, 3 : (!riscv.reg<a0>) -> !riscv.reg<a0>
-  "test.op"(%shift_right_immediate) : (!riscv.reg<a0>) -> ()
+  %srl_immediate = riscv.srli %c2, 3 : (!riscv.reg) -> !riscv.reg<a0>
+  "test.op"(%srl_immediate) : (!riscv.reg<a0>) -> ()
+
+  %sra_immediate = riscv.srai %c2, 3 : (!riscv.reg) -> !riscv.reg<a0>
+  "test.op"(%sra_immediate) : (!riscv.reg<a0>) -> ()
 
   // Check shifts with signed numbers
+  %slli_neg = riscv.slli %c_neg1, 1 : (!riscv.reg) -> !riscv.reg<a0>
+  "test.op"(%slli_neg) : (!riscv.reg<a0>) -> ()
+
   %srli_neg = riscv.srli %c_neg1, 1 : (!riscv.reg) -> !riscv.reg<a0>
   "test.op"(%srli_neg) : (!riscv.reg<a0>) -> ()
 
   %srai_neg = riscv.srai %c_neg1, 1 : (!riscv.reg) -> !riscv.reg<a0>
   "test.op"(%srai_neg) : (!riscv.reg<a0>) -> ()
-
-  %slli_neg = riscv.slli %c_neg1, 1 : (!riscv.reg) -> !riscv.reg<a0>
-  "test.op"(%slli_neg) : (!riscv.reg<a0>) -> ()
 
   %load_float_ptr = riscv.addi %i2, 8 : (!riscv.reg) -> !riscv.reg
   %load_float_known_offset = riscv.flw %load_float_ptr, 4 : (!riscv.reg) -> !riscv.freg<fa0>
@@ -285,20 +288,25 @@ builtin.module {
 // CHECK-NEXT:   %andi_immediate = rv32.li 4 : !riscv.reg<a0>
 // CHECK-NEXT:   "test.op"(%andi_immediate) : (!riscv.reg<a0>) -> ()
 
-// CHECK-NEXT:   %shift_left_immediate = rv32.li 32 : !riscv.reg<a0>
-// CHECK-NEXT:   "test.op"(%shift_left_immediate) : (!riscv.reg<a0>) -> ()
+// CHECK-NEXT:   %sll_imm = rv32.li 16 : !riscv.reg<a0>
+// CHECK-NEXT:   "test.op"(%sll_imm) : (!riscv.reg<a0>) -> ()
 
-// CHECK-NEXT:   %shift_right_immediate = rv32.li 4 : !riscv.reg<a0>
-// CHECK-NEXT:   "test.op"(%shift_right_immediate) : (!riscv.reg<a0>) -> ()
+// CHECK-NEXT:   %srl_immediate = rv32.get_register : !riscv.reg<zero>
+// CHECK-NEXT:   riscv.mv %srl_immediate : (!riscv.reg<zero>) -> !riscv.reg<a0>
+// CHECK-NEXT:   "test.op"(%srl_immediate_1) : (!riscv.reg<a0>) -> ()
+
+// CHECK-NEXT:   %sra_immediate = rv32.get_register : !riscv.reg<zero>
+// CHECK-NEXT:   %sra_immediate_1 = riscv.mv %sra_immediate : (!riscv.reg<zero>) -> !riscv.reg<a0>
+// CHECK-NEXT:   "test.op"(%sra_immediate_1) : (!riscv.reg<a0>) -> ()
+
+// CHECK-NEXT:   %slli_neg = rv32.li -2 : !riscv.reg<a0>
+// CHECK-NEXT:   "test.op"(%slli_neg) : (!riscv.reg<a0>) -> ()
 
 // CHECK-NEXT:   %srli_neg = rv32.li 2147483647 : !riscv.reg<a0>
 // CHECK-NEXT:   "test.op"(%srli_neg) : (!riscv.reg<a0>) -> ()
 
 // CHECK-NEXT:   %srai_neg = rv32.li -1 : !riscv.reg<a0>
 // CHECK-NEXT:   "test.op"(%srai_neg) : (!riscv.reg<a0>) -> ()
-
-// CHECK-NEXT:   %slli_neg = rv32.li -2 : !riscv.reg<a0>
-// CHECK-NEXT:   "test.op"(%slli_neg) : (!riscv.reg<a0>) -> ()
 
 // CHECK-NEXT:   %load_float_known_offset = riscv.flw %i2, 12 : (!riscv.reg) -> !riscv.freg<fa0>
 // CHECK-NEXT:   "test.op"(%load_float_known_offset) : (!riscv.freg<fa0>) -> ()
