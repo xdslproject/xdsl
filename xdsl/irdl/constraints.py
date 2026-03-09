@@ -192,43 +192,6 @@ TypedAttributeCovT = TypeVar("TypedAttributeCovT", bound=TypedAttribute, covaria
 TypedAttributeT = TypeVar("TypedAttributeT", bound=TypedAttribute)
 
 
-@deprecated("Please use appropriate `AnyOf` constraints instead.")
-@dataclass(frozen=True)
-class TypedAttributeConstraint(AttrConstraint[TypedAttributeCovT]):
-    """
-    Constrains the type of a typed attribute.
-    """
-
-    attr_constraint: AttrConstraint[TypedAttributeCovT]
-    type_constraint: AttrConstraint
-
-    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
-        if not isinstance(attr, TypedAttribute):
-            raise VerifyException(f"attribute {attr} expected to be a TypedAttribute")
-        self.attr_constraint.verify(attr, constraint_context)
-        self.type_constraint.verify(attr.get_type(), constraint_context)
-
-    def variables(self) -> set[str]:
-        return self.type_constraint.variables() | self.attr_constraint.variables()
-
-    def can_infer(self, var_constraint_names: AbstractSet[str]) -> bool:
-        return self.attr_constraint.can_infer(var_constraint_names)
-
-    def infer(self, context: ConstraintContext) -> TypedAttributeCovT:
-        return self.attr_constraint.infer(context)
-
-    def get_bases(self) -> set[type[Attribute]] | None:
-        return self.attr_constraint.get_bases()
-
-    def mapping_type_vars(
-        self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
-    ) -> TypedAttributeConstraint[TypedAttributeCovT]:  # pyright: ignore[reportDeprecated]
-        return TypedAttributeConstraint(  # pyright: ignore[reportDeprecated]
-            self.attr_constraint.mapping_type_vars(type_var_mapping),
-            self.type_constraint.mapping_type_vars(type_var_mapping),
-        )
-
-
 @dataclass(frozen=True)
 class VarConstraint(AttrConstraint[AttributeCovT]):
     """
