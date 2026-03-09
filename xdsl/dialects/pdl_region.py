@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from xdsl.dialects.pdl import TypeType, ValueType
+from xdsl.dialects.pdl_types import TypeType, ValueType
 from xdsl.ir import (
     Dialect,
     ParametrizedAttribute,

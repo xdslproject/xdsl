@@ -14,12 +14,13 @@ from xdsl.interpreter import (
     impl,
     impl_callable,
     impl_terminator,
-    register_impls,
+    register_impls, impl_external,
 )
 from xdsl.ir import Attribute, Operation, OpResult, SSAValue, Region, Block
 from xdsl.irdl import IRDLOperation
 from xdsl.pattern_rewriter import PatternRewriter
 from xdsl.rewriter import InsertPoint
+from xdsl.traits import SymbolTable
 from xdsl.utils.exceptions import InterpretationError
 from xdsl.utils.hints import isa
 
@@ -665,6 +666,9 @@ class PDLInterpFunctions(InterpreterFunctions):
         region = args[1]
         assert isinstance(region, Region)
 
+        new_region = region.clone()
+        new_region.ops.last.erase()
+
         map_old_ops_to_new = {}
         region_operations = []
         for op in region.walk():
@@ -683,3 +687,59 @@ class PDLInterpFunctions(InterpreterFunctions):
         result_of_newly_created_op = newly_created_op.results[0]
 
         return (result_of_newly_created_op,)
+
+    @impl_external("get_function_call")
+    def run_get_function_call_op(
+        self, interp: Interpreter, op: Operation, args: PythonValues
+    ) -> tuple[bool, tuple[Operation | None, ...]]:
+        assert args
+        call_operation = args[0]
+        assert isinstance(call_operation, Operation)
+
+        # Extract the function name
+        function_name = call_operation.callee.root_reference.data
+
+        # Find the callee
+        callee = SymbolTable.lookup_symbol(call_operation, function_name)
+        return True, tuple([callee])
+
+    @impl_external("replace_return_with_yield")
+    def run_replace_return_with_yield(
+            self, interp: Interpreter, op: Operation, args: PythonValues
+    ) -> tuple[bool, tuple[Region, ...]]:
+        assert args
+        region = args[0]
+        assert isinstance(region, Region)
+
+        new_region = [x.clone() for x in region.ops]
+        return_op = new_region.pop()
+
+        yield_op = YieldOp.create(
+            operands=return_op.operands,
+            result_types=return_op.result_types,
+            properties=return_op.properties,
+            attributes=return_op.attributes,
+            successors=return_op.successors,
+            regions=return_op.regions,
+        )
+
+        new_region.append(yield_op)
+
+        block = Block(new_region)
+        created_region = Region(block)
+
+        return True, tuple([created_region])
+
+
+    @impl_external("get_arguments_of_function")
+    def run_get_arguments_of_function(
+            self, interp: Interpreter, op: Operation, args: PythonValues
+    ) -> tuple[bool, tuple[ValueType, ...]]:
+        assert args
+        func_op = args[0]
+        assert isinstance(func_op, Operation)
+
+
+
+
+        return True, tuple([None])

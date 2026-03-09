@@ -14,6 +14,8 @@ from xdsl.dialects.builtin import (
     IntegerType,
     StringAttr,
 )
+from xdsl.dialects.pdl_region import RegionType
+from xdsl.dialects.pdl_types import AttributeType, OperationType, TypeType, ValueType
 from xdsl.ir import (
     Attribute,
     Block,
@@ -110,29 +112,10 @@ def verify_has_binding_use(op: Operation) -> None:
         )
 
 
-@irdl_attr_definition
-class AttributeType(ParametrizedAttribute, TypeAttribute):
-    name = "pdl.attribute"
 
-
-@irdl_attr_definition
-class OperationType(ParametrizedAttribute, TypeAttribute):
-    name = "pdl.operation"
-
-
-@irdl_attr_definition
-class TypeType(ParametrizedAttribute, TypeAttribute):
-    name = "pdl.type"
-
-
-@irdl_attr_definition
-class ValueType(ParametrizedAttribute, TypeAttribute):
-    name = "pdl.value"
-
-
-AnyPDLType = AttributeType | OperationType | TypeType | ValueType
+AnyPDLType = AttributeType | OperationType | TypeType | ValueType | RegionType
 AnyPDLTypeConstr = (
-    base(AttributeType) | base(OperationType) | base(TypeType) | base(ValueType)
+    base(AttributeType) | base(OperationType) | base(TypeType) | base(ValueType) | base(RegionType)
 )
 
 _RangeT = TypeVar(
