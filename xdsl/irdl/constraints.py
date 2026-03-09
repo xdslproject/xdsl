@@ -1184,6 +1184,10 @@ class RangeLengthConstraint(RangeConstraint[AttributeCovT]):
     def can_infer(
         self, var_constraint_names: AbstractSet[str], *, length_known: bool
     ) -> bool:
+        # If we can infer length to be 0 without any variables then
+        # the range can always be inferred
+        if self.length.can_infer(set()) and self.length.infer(ConstraintContext()) == 0:
+            return True
         length_known = length_known or self.length.can_infer(var_constraint_names)
         return self.constraint.can_infer(
             var_constraint_names, length_known=length_known
@@ -1194,6 +1198,8 @@ class RangeLengthConstraint(RangeConstraint[AttributeCovT]):
     ) -> Sequence[AttributeCovT]:
         if length is None:
             length = self.length.infer(context)
+        if length == 0:
+            return ()
         return self.constraint.infer(context, length=length)
 
     def mapping_type_vars(
