@@ -1,4 +1,4 @@
-from typing import Any, cast
+from typing import Any, cast, List, Tuple
 
 from xdsl.context import Context
 from xdsl.dialects import pdl, pdl_interp, pdl_region, pdl_interp_region
@@ -16,7 +16,7 @@ from xdsl.interpreter import (
     impl_terminator,
     register_impls, impl_external,
 )
-from xdsl.ir import Attribute, Operation, OpResult, SSAValue, Region, Block
+from xdsl.ir import Attribute, Operation, OpResult, SSAValue, Region, Block, BlockArgument
 from xdsl.irdl import IRDLOperation
 from xdsl.pattern_rewriter import PatternRewriter
 from xdsl.rewriter import InsertPoint
@@ -739,7 +739,38 @@ class PDLInterpFunctions(InterpreterFunctions):
         func_op = args[0]
         assert isinstance(func_op, Operation)
 
+        args = func_op.args
+
+        return True, tuple([args])
+
+    @impl_external("replace_func_args_with_correct_definitions")
+    def run_replace_func_args_with_correct_definitions(
+            self, interp: Interpreter, op: Operation, args: PythonValues
+    ) -> tuple[bool, tuple[...]]:
+        assert args
+        operation = args[0]
+        assert isinstance(operation, Operation)
+
+        args_to_replace = args[1]
+        assert isinstance(args_to_replace, Tuple)
+
+        args_to_replace_name_hints = [x.name_hint for x in args_to_replace]
+
+        map_name_hints_to_operations = {}
+
+        for op in operation.parent.walk():
+            if len(op.results) > 0:
+                result = op.results[0]
+                if result.name_hint is not None:
+                    name_hint = result.name_hint
+                    map_name_hints_to_operations.update({name_hint: op})
+
+        for op in operation.walk():
+            if len(op.operands) > 0:
+                for i, operand in enumerate(op.operands):
+                    if operand.name_hint is not None:
+                        if operand.name_hint in args_to_replace_name_hints:
+                            op.operands[i] = map_name_hints_to_operations[operand.name_hint].results[0]
 
 
-
-        return True, tuple([None])
+        return True, tuple([])

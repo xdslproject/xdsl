@@ -330,8 +330,8 @@ class xDSLOptMain(CommandLineTool):
         if not self.args.disable_verify:
             prog.verify()
         self.pipeline.apply(self.ctx, prog)
-        # if not self.args.disable_verify:
-        #     prog.verify()
+        if not self.args.disable_verify:
+            prog.verify()
         return True
 
     def output_resulting_program(self, prog: ModuleOp) -> str:
