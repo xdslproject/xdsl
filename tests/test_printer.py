@@ -6,7 +6,7 @@ import pytest
 
 from xdsl.builder import ImplicitBuilder
 from xdsl.context import Context
-from xdsl.dialects import test
+from xdsl.dialects import linalg, test
 from xdsl.dialects.arith import AddiOp, Arith, ConstantOp
 from xdsl.dialects.builtin import (
     DYNAMIC_INDEX,
@@ -27,13 +27,14 @@ from xdsl.dialects.builtin import (
     Signedness,
     StringAttr,
     SymbolRefAttr,
+    TensorType,
     UnitAttr,
     UnknownLoc,
     f32,
     i1,
     i32,
 )
-from xdsl.dialects.func import Func
+from xdsl.dialects.func import Func, FuncOp, ReturnOp
 from xdsl.ir import (
     Attribute,
     Block,
@@ -91,6 +92,34 @@ def test_print_op_location():
     op.location = FileLineColLoc(StringAttr("model.mlir"), IntAttr(7), IntAttr(9))
     expected_explicit = """%0 = "test.op"() : () -> i32 loc("model.mlir":7:9)"""
     assert_print_op(op, expected_explicit, print_debuginfo=True)
+
+
+def test_print_custom_format_op_location():
+    """Test that debuginfo printing preserves locations on custom-format ops."""
+    lhs_type = TensorType(i32, [2, 4])
+    rhs_type = TensorType(i32, [4, 5])
+    out_type = TensorType(i32, [2, 5])
+
+    func = FuncOp("f", ([lhs_type, rhs_type, out_type], []))
+    block = func.body.blocks.first
+    assert block is not None
+
+    with ImplicitBuilder(block):
+        matmul = linalg.MatmulOp(inputs=block.args[:2], outputs=(block.args[2],))
+        matmul.location = FileLineColLoc(
+            StringAttr("model.mlir"), IntAttr(7), IntAttr(9)
+        )
+        ReturnOp()
+
+    module = ModuleOp([func])
+
+    expected = """builtin.module {
+  func.func @f(%0 : tensor<2x4xi32> loc(unknown), %1 : tensor<4x5xi32> loc(unknown), %2 : tensor<2x5xi32> loc(unknown)) {
+    %3 = linalg.matmul ins(%0, %1 : tensor<2x4xi32>, tensor<4x5xi32>) outs(%2 : tensor<2x5xi32>) -> tensor<2x5xi32> loc("model.mlir":7:9)
+    func.return loc(unknown)
+  } loc(unknown)
+} loc(unknown)"""
+    assert_print_op(module, expected, print_generic_format=False, print_debuginfo=True)
 
 
 @irdl_op_definition
