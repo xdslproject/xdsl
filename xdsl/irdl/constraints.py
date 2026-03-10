@@ -1198,7 +1198,7 @@ class RangeLengthConstraint(RangeConstraint[AttributeCovT]):
     ) -> Sequence[AttributeCovT]:
         if length is None:
             length = self.length.infer(context)
-        if length == 0:
+        if not length:
             return ()
         return self.constraint.infer(context, length=length)
 
