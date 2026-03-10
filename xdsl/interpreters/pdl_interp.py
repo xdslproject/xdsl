@@ -711,8 +711,8 @@ class PDLInterpFunctions(InterpreterFunctions):
         region = args[0]
         assert isinstance(region, Region)
 
-        new_region = [x.clone() for x in region.ops]
-        return_op = new_region.pop()
+        new_region = region.clone()
+        return_op = new_region.ops.last
 
         yield_op = YieldOp.create(
             operands=return_op.operands,
@@ -723,12 +723,11 @@ class PDLInterpFunctions(InterpreterFunctions):
             regions=return_op.regions,
         )
 
-        new_region.append(yield_op)
+        self.get_rewriter(interp).replace_op(
+            return_op, yield_op
+        )
 
-        block = Block(new_region)
-        created_region = Region(block)
-
-        return True, tuple([created_region])
+        return True, tuple([new_region])
 
 
     @impl_external("get_arguments_of_function")
