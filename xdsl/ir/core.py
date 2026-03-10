@@ -768,6 +768,8 @@ class SSAValue(IRWithUses, IRWithName, ABC, Generic[AttributeCovT]):
 
     def replace_all_uses_with(self, value: SSAValue) -> None:
         """Replace the value by another value in all its uses."""
+        if value is self:
+            return
         for use in tuple(self.uses):
             use.operation.operands[use.index] = value
         # carry over name if possible
