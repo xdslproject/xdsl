@@ -1186,7 +1186,7 @@ class RangeLengthConstraint(RangeConstraint[AttributeCovT]):
     ) -> bool:
         # If we can infer length to be 0 without any variables then
         # the range can always be inferred
-        if self.length.can_infer(set()) and self.length.infer(ConstraintContext()) == 0:
+        if self.length.can_infer(set()) and not self.length.infer(ConstraintContext()):
             return True
         length_known = length_known or self.length.can_infer(var_constraint_names)
         return self.constraint.can_infer(
