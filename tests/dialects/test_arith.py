@@ -70,7 +70,7 @@ from xdsl.dialects.builtin import (
     i32,
     i64,
 )
-from xdsl.ir import Attribute
+from xdsl.ir import Attribute, SSAValue
 from xdsl.traits import ConstantLike, is_speculatable
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.test_value import create_ssa_value
@@ -562,7 +562,7 @@ def test_fold():
         ),
     ],
 )
-def test_divui_speculatability(rhs, speculatability: bool):
+def test_divui_speculatability(rhs: SSAValue, speculatability: bool):
     lhs = create_ssa_value(i32)
     op = DivUIOp(lhs, rhs)
 
