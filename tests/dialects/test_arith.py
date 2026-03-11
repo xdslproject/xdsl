@@ -556,7 +556,9 @@ def test_fold():
     ("rhs", "speculatability"),
     [
         pytest.param(create_ssa_value(i32), False, id="non-constant-rhs"),
-        pytest.param(ConstantOp.from_int_and_width(0, i32).result, False, id="zero-rhs"),
+        pytest.param(
+            ConstantOp.from_int_and_width(0, i32).result, False, id="zero-rhs"
+        ),
         pytest.param(
             ConstantOp.from_int_and_width(1, i32).result, True, id="non-zero-rhs"
         ),

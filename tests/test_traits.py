@@ -578,7 +578,9 @@ def test_speculability(
 @pytest.mark.parametrize("speculatability", [True, False])
 def test_conditionally_speculatable_interface(speculatability: bool):
     @irdl_op_definition
-    class InterfaceSpeculatabilityTestOp(IRDLOperation, ConditionallySpeculatableInterface):
+    class InterfaceSpeculatabilityTestOp(
+        IRDLOperation, ConditionallySpeculatableInterface
+    ):
         name = "test.interface_speculatability"
         region = region_def()
 
