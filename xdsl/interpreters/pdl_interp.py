@@ -204,6 +204,8 @@ class PDLInterpFunctions(InterpreterFunctions):
         args: tuple[Any, ...],
     ) -> tuple[Any, ...]:
         assert len(args) == 1
+        if not isinstance(args[0], Operation):
+            return Successor(op.false_dest, ()), ()
         assert isinstance(args[0], Operation)
         cond = args[0].name == op.operation_name.data
         successor = op.true_dest if cond else op.false_dest
@@ -667,26 +669,22 @@ class PDLInterpFunctions(InterpreterFunctions):
         assert isinstance(region, Region)
 
         new_region = region.clone()
-        new_region.ops.last.erase()
+        block = new_region.block
+        yield_op = block.last_op
+        assert yield_op is not None
 
-        map_old_ops_to_new = {}
-        region_operations = []
-        for op in region.walk():
-            op_clone = op.clone()
-            map_old_ops_to_new.update({op: op_clone})
-            region_operations.append(op_clone)
-
-        yield_op = region_operations.pop()  # remove the final yield op
-
-        for op in region_operations:
-            self.get_rewriter(interpreter).insert_op(op, InsertPoint.before(input_op))
-
+        # Get the result value from the yield before inlining
         result_of_yield = yield_op.operands[0]
-        defining_op = result_of_yield.op
-        newly_created_op = map_old_ops_to_new[defining_op]
-        result_of_newly_created_op = newly_created_op.results[0]
 
-        return (result_of_newly_created_op,)
+        # Inline the block's operations before the input operation
+        rewriter = self.get_rewriter(interpreter)
+        rewriter.inline_block(block, InsertPoint.before(input_op))
+
+        # Erase the yield op since it's no longer needed
+        rewriter.erase_op(yield_op, safe_erase=False)
+
+        # Return the value that was yielded (now defined by an inlined op)
+        return (result_of_yield,)
 
     @impl_external("get_function_call")
     def run_get_function_call_op(
