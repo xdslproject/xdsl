@@ -31,6 +31,7 @@ from xdsl.dialects.builtin import (
     i64,
 )
 from xdsl.ir import Attribute, Operation, OpTrait, SSAValue
+from xdsl.interfaces import ConditionallySpeculatableInterface
 from xdsl.irdl import (
     Block,
     IRDLOperation,
@@ -571,6 +572,24 @@ def test_speculability(
     else:
         assert optrait is None
 
+    assert is_speculatable(op) is speculatability
+
+
+@pytest.mark.parametrize("speculatability", [True, False])
+def test_conditionally_speculatable_interface(speculatability: bool):
+    @irdl_op_definition
+    class InterfaceSpeculatabilityTestOp(IRDLOperation, ConditionallySpeculatableInterface):
+        name = "test.interface_speculatability"
+        region = region_def()
+
+        def is_speculatable(self) -> bool:
+            return speculatability
+
+    op = InterfaceSpeculatabilityTestOp(regions=[Region(Block())])
+    trait = op.get_trait(ConditionallySpeculatable)
+
+    assert trait is not None
+    assert trait.is_speculatable(op) is speculatability
     assert is_speculatable(op) is speculatability
 
 

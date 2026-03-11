@@ -71,7 +71,7 @@ from xdsl.dialects.builtin import (
     i64,
 )
 from xdsl.ir import Attribute
-from xdsl.traits import ConstantLike
+from xdsl.traits import ConstantLike, is_speculatable
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.test_value import create_ssa_value
 
@@ -550,3 +550,21 @@ def test_fold():
     # x + x cannot be folded
     addi_val_val = AddiOp(some_value, some_value)
     assert addi_val_val.fold() is None
+
+
+@pytest.mark.parametrize(
+    ("rhs", "speculatability"),
+    [
+        pytest.param(create_ssa_value(i32), False, id="non-constant-rhs"),
+        pytest.param(ConstantOp.from_int_and_width(0, i32).result, False, id="zero-rhs"),
+        pytest.param(
+            ConstantOp.from_int_and_width(1, i32).result, True, id="non-zero-rhs"
+        ),
+    ],
+)
+def test_divui_speculatability(rhs, speculatability: bool):
+    lhs = create_ssa_value(i32)
+    op = DivUIOp(lhs, rhs)
+
+    assert op.is_speculatable() is speculatability
+    assert is_speculatable(op) is speculatability
