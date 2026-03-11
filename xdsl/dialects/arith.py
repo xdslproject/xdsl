@@ -542,10 +542,8 @@ class DivUIOp(SignlessIntegerBinaryOperation, ConditionallySpeculatableInterface
     )
 
     def is_speculatable(self) -> bool:
-        if not isinstance(cst := self.rhs.owner, ConstantOp):
-            return False
-        value = cast(IntegerAttr[IntegerType | IndexType], cst.value)
-        return value.value.data != 0
+        rhs = ConstantLike.get_constant_value(self.rhs)
+        return isa(rhs, IntegerAttr[IntegerType | IndexType]) and rhs.value.data != 0
 
     @staticmethod
     def is_right_unit(attr: IntegerAttr) -> bool:
@@ -553,7 +551,7 @@ class DivUIOp(SignlessIntegerBinaryOperation, ConditionallySpeculatableInterface
 
 
 @irdl_op_definition
-class DivSIOp(SignlessIntegerBinaryOperation):
+class DivSIOp(SignlessIntegerBinaryOperation, ConditionallySpeculatableInterface):
     """
     Signed integer division. Rounds towards zero. Treats the leading bit as
     sign, i.e. `6 / -2 = -3`.
@@ -565,6 +563,14 @@ class DivSIOp(SignlessIntegerBinaryOperation):
         NoMemoryEffect(),
         SignlessIntegerBinaryOperationHasCanonicalizationPatternsTrait(),
     )
+
+    def is_speculatable(self) -> bool:
+        rhs = ConstantLike.get_constant_value(self.rhs)
+        return (
+            isa(rhs, IntegerAttr[IntegerType | IndexType])
+            and rhs.value.data != 0
+            and rhs.value.data != -1
+        )
 
     @staticmethod
     def is_right_unit(attr: IntegerAttr) -> bool:
