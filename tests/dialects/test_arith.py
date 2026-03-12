@@ -70,8 +70,9 @@ from xdsl.dialects.builtin import (
     i32,
     i64,
 )
-from xdsl.ir import Attribute
-from xdsl.traits import ConstantLike
+from xdsl.dialects.test import TestConstantOp
+from xdsl.ir import Attribute, SSAValue
+from xdsl.traits import ConstantLike, is_speculatable
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.test_value import create_ssa_value
 
@@ -550,3 +551,52 @@ def test_fold():
     # x + x cannot be folded
     addi_val_val = AddiOp(some_value, some_value)
     assert addi_val_val.fold() is None
+
+
+@pytest.mark.parametrize(
+    ("rhs", "speculatability"),
+    [
+        pytest.param(create_ssa_value(i32), False, id="non-constant-rhs"),
+        pytest.param(
+            ConstantOp.from_int_and_width(0, i32).result, False, id="zero-rhs"
+        ),
+        pytest.param(
+            ConstantOp.from_int_and_width(1, i32).result, True, id="non-zero-rhs"
+        ),
+        pytest.param(TestConstantOp(0, i32).result, False, id="constantlike-zero-rhs"),
+        pytest.param(
+            TestConstantOp(1, i32).result, True, id="constantlike-non-zero-rhs"
+        ),
+    ],
+)
+def test_divui_speculatability(rhs: SSAValue, speculatability: bool):
+    lhs = create_ssa_value(i32)
+    op = DivUIOp(lhs, rhs)
+
+    assert op.is_speculatable() is speculatability
+    assert is_speculatable(op) is speculatability
+
+
+@pytest.mark.parametrize(
+    ("rhs", "speculatability"),
+    [
+        pytest.param(create_ssa_value(i32), False, id="non-constant-rhs"),
+        pytest.param(
+            ConstantOp.from_int_and_width(0, i32).result, False, id="zero-rhs"
+        ),
+        pytest.param(ConstantOp.from_int_and_width(1, i32).result, True, id="one-rhs"),
+        pytest.param(
+            ConstantOp.from_int_and_width(-1, i32).result, False, id="minus-one-rhs"
+        ),
+        pytest.param(TestConstantOp(1, i32).result, True, id="constantlike-one-rhs"),
+        pytest.param(
+            TestConstantOp(-1, i32).result, False, id="constantlike-minus-one-rhs"
+        ),
+    ],
+)
+def test_divsi_speculatability(rhs: SSAValue, speculatability: bool):
+    lhs = create_ssa_value(i32)
+    op = DivSIOp(lhs, rhs)
+
+    assert op.is_speculatable() is speculatability
+    assert is_speculatable(op) is speculatability
