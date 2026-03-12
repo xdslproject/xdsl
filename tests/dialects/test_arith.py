@@ -70,7 +70,7 @@ from xdsl.dialects.builtin import (
     i32,
     i64,
 )
-from xdsl.dialects.hw import ConstantOp as HWConstantOp
+from xdsl.dialects.test import TestConstantOp
 from xdsl.ir import Attribute, SSAValue
 from xdsl.traits import ConstantLike, is_speculatable
 from xdsl.utils.exceptions import VerifyException
@@ -563,8 +563,10 @@ def test_fold():
         pytest.param(
             ConstantOp.from_int_and_width(1, i32).result, True, id="non-zero-rhs"
         ),
-        pytest.param(HWConstantOp(0, i32).result, False, id="constantlike-zero-rhs"),
-        pytest.param(HWConstantOp(1, i32).result, True, id="constantlike-non-zero-rhs"),
+        pytest.param(TestConstantOp(0, i32).result, False, id="constantlike-zero-rhs"),
+        pytest.param(
+            TestConstantOp(1, i32).result, True, id="constantlike-non-zero-rhs"
+        ),
     ],
 )
 def test_divui_speculatability(rhs: SSAValue, speculatability: bool):
@@ -586,9 +588,9 @@ def test_divui_speculatability(rhs: SSAValue, speculatability: bool):
         pytest.param(
             ConstantOp.from_int_and_width(-1, i32).result, False, id="minus-one-rhs"
         ),
-        pytest.param(HWConstantOp(1, i32).result, True, id="constantlike-one-rhs"),
+        pytest.param(TestConstantOp(1, i32).result, True, id="constantlike-one-rhs"),
         pytest.param(
-            HWConstantOp(-1, i32).result, False, id="constantlike-minus-one-rhs"
+            TestConstantOp(-1, i32).result, False, id="constantlike-minus-one-rhs"
         ),
     ],
 )
