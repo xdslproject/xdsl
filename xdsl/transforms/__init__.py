@@ -375,6 +375,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return LinalgFuseMultiplyAddPass
 
+    def get_linalg_generalize_named_ops():
+        from xdsl.transforms import linalg_generalize_named_ops
+
+        return linalg_generalize_named_ops.LinalgGeneralizeNamedOpsPass
+
     def get_linalg_to_csl():
         from xdsl.transforms.linalg_to_csl import LinalgToCsl
 
@@ -733,6 +738,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "licm": get_licm,
         "lift-arith-to-linalg": get_lift_arith_to_linalg,
         "linalg-fuse-multiply-add": get_linalg_fuse_multiply_add,
+        "linalg-generalize-named-ops": get_linalg_generalize_named_ops,
         "linalg-to-csl": get_linalg_to_csl,
         "loop-hoist-memref": get_loop_hoist_memref,
         "lower-affine": get_lower_affine,
