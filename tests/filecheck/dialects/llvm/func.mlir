@@ -26,7 +26,7 @@ llvm.func @named_arg_attrs_loc(%arg0: i64 {llvm.noundef} loc("model.mlir":8:11))
 // CHECK: llvm.func @named_arg_attrs_loc(%{{.*}} : i64 {llvm.noundef}) {
 // CHECK-NEXT:   llvm.return
 // CHECK-NEXT: }
-// CHECK-DEBUG-INFO: llvm.func @named_arg_attrs_loc(%{{.*}} : i64 {llvm.noundef} loc(unknown)) {
+// CHECK-DEBUG-INFO: llvm.func @named_arg_attrs_loc(%{{.*}} : i64 {llvm.noundef} loc("model.mlir":8:11)) {
 // CHECK-DEBUG-INFO-NEXT:   llvm.return
 // CHECK-DEBUG-INFO-NEXT: }
 

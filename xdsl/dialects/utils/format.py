@@ -5,6 +5,7 @@ from xdsl.dialects.builtin import (
     ArrayAttr,
     DictionaryAttr,
     FunctionType,
+    LocationAttr,
     StringAttr,
 )
 from xdsl.ir import (
@@ -372,19 +373,21 @@ def parse_func_op_like(
     def parse_fun_input() -> (
         Attribute | tuple[Parser.Argument, dict[str, Attribute]] | None
     ):
-        def parse_optional_attrs_and_loc() -> dict[str, Attribute]:
+        def parse_optional_attrs_and_loc() -> tuple[
+            dict[str, Attribute], LocationAttr | None
+        ]:
             arg_attr_dict = parser.parse_optional_dictionary_attr_dict()
-            has_loc = parser.parse_optional_location() is not None
+            arg_loc = parser.parse_optional_location()
 
             # Reject attrs after location, including empty dictionaries.
-            if has_loc:
+            if arg_loc is not None:
                 arg_attr_pos = parser.pos
                 parser.parse_optional_dictionary_attr_dict()
                 if parser.pos != arg_attr_pos:
                     parser.raise_error(
                         "Expected function argument attributes before location."
                     )
-            return arg_attr_dict
+            return arg_attr_dict, arg_loc
 
         nonlocal is_variadic
         if allow_variadic and parser.parse_optional_characters("...") is not None:
@@ -398,7 +401,8 @@ def parse_func_op_like(
             # Declarative args keep only the type and consume attributes and location.
             parse_optional_attrs_and_loc()
         else:
-            arg_attr_dict = parse_optional_attrs_and_loc()
+            arg_attr_dict, arg_loc = parse_optional_attrs_and_loc()
+            arg.location = arg_loc
             ret = (arg, arg_attr_dict)
         return ret
 

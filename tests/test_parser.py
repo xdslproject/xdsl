@@ -26,6 +26,7 @@ from xdsl.dialects.builtin import (
     UnknownLoc,
     i32,
 )
+from xdsl.dialects.func import Func, FuncOp
 from xdsl.dialects.test import Test
 from xdsl.ir import Attribute, Block, ParametrizedAttribute
 from xdsl.irdl import (
@@ -1024,6 +1025,24 @@ def test_parse_location():
 
     with pytest.raises(ParseError, match="Unexpected location syntax."):
         Parser(ctx, "loc(1)").parse_optional_location()
+
+
+def test_parse_func_argument_location_is_preserved() -> None:
+    ctx = Context()
+    ctx.load_dialect(Func)
+
+    op = Parser(
+        ctx,
+        'func.func private @f(%arg0: i32 {test.arg_name = "x"} loc("one":2:3), %arg1: i32) { func.return }',
+    ).parse_op()
+    assert isinstance(op, FuncOp)
+
+    block = op.body.blocks.first
+    assert block is not None
+    assert block.args[0].location == FileLineColLoc(
+        StringAttr("one"), IntAttr(2), IntAttr(3)
+    )
+    assert block.args[1].location == UnknownLoc()
 
 
 @pytest.mark.parametrize(

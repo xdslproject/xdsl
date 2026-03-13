@@ -61,7 +61,7 @@ builtin.module {
   // CHECK: func.func private @f_named_loc_only(%{{.*}} : i32) {
   // CHECK-NEXT:   func.return
   // CHECK-NEXT: }
-  // CHECK-DEBUG-INFO: func.func private @f_named_loc_only(%{{.*}} : i32 loc(unknown))
+  // CHECK-DEBUG-INFO: func.func private @f_named_loc_only(%{{.*}} : i32 loc("file.mlir":3:5))
 
   func.func private @f_named_attr_then_loc(%arg0: i32 {test.arg_name = "x"} loc("file.mlir":5:7)) {
     func.return
@@ -69,7 +69,7 @@ builtin.module {
   // CHECK: func.func private @f_named_attr_then_loc(%{{.*}} : i32 {test.arg_name = "x"}) {
   // CHECK-NEXT:   func.return
   // CHECK-NEXT: }
-  // CHECK-DEBUG-INFO: func.func private @f_named_attr_then_loc(%{{.*}} : i32 {test.arg_name = "x"} loc(unknown))
+  // CHECK-DEBUG-INFO: func.func private @f_named_attr_then_loc(%{{.*}} : i32 {test.arg_name = "x"} loc("file.mlir":5:7))
 
   func.func private @f_decl_loc_only(i32 loc("model.mlir":7:9))
   // CHECK: func.func private @f_decl_loc_only(i32) -> ()
