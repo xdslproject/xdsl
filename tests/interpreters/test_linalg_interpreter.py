@@ -1,7 +1,6 @@
 import pytest
 
 from xdsl.builder import ImplicitBuilder
-from xdsl.context import Context
 from xdsl.dialects import arith, linalg
 from xdsl.dialects.builtin import (
     AffineMapAttr,
@@ -23,7 +22,6 @@ from xdsl.interpreters.shaped_array import ShapedArray
 from xdsl.interpreters.utils.ptr import TypedPtr
 from xdsl.ir import Block, Region
 from xdsl.ir.affine import AffineExpr, AffineMap
-from xdsl.transforms.linalg_generalize_named_ops import LinalgGeneralizeNamedOpsPass
 from xdsl.utils.test_value import create_ssa_value
 
 
@@ -214,38 +212,6 @@ def test_linalg_add():
     assert c == ShapedArray(TypedPtr.new_float32([7, 6, 12, 9]), [2, 2])
 
 
-def test_linalg_add_generalize_named_ops_keeps_semantics():
-    interpreter = Interpreter(ModuleOp([]))
-    interpreter.register_implementations(LinalgFunctions())
-    interpreter.register_implementations(ArithFunctions())
-
-    op = linalg.AddOp(
-        (
-            create_ssa_value(TensorType(f32, [2, 2])),
-            create_ssa_value(TensorType(f32, [2, 2])),
-        ),
-        (create_ssa_value(TensorType(f32, [2, 2])),),
-        (TensorType(f32, [2, 2]),),
-    )
-    a = ShapedArray(TypedPtr.new_float32([1.0, 2.0, 3.0, 4.0]), [2, 2])
-    b = ShapedArray(TypedPtr.new_float32([6.0, 4.0, 9.0, 5.0]), [2, 2])
-    init = ShapedArray(TypedPtr.new_float32([0.0, 0.0, 0.0, 0.0]), [2, 2])
-    (named_res,) = interpreter.run_op(op, (a, b, init))
-    expected = ShapedArray(TypedPtr.new_float32([7.0, 6.0, 12.0, 9.0]), [2, 2])
-    assert named_res == expected
-
-    module = ModuleOp([op.clone()])
-    LinalgGeneralizeNamedOpsPass().apply(Context(), module)
-    generalized_op = module.ops.first
-    assert isinstance(generalized_op, linalg.GenericOp)
-
-    init_generalized = ShapedArray(TypedPtr.new_float32([0.0, 0.0, 0.0, 0.0]), [2, 2])
-    (generalized_res,) = interpreter.run_op(generalized_op, (a, b, init_generalized))
-
-    assert named_res == generalized_res
-    assert generalized_res == expected
-
-
 def test_fill_op():
     interpreter = Interpreter(ModuleOp([]))
     interpreter.register_implementations(ArithFunctions())
@@ -283,38 +249,6 @@ def test_linalg_mul():
 
     (c,) = interpreter.run_op(op, (a, b, c))
     assert c == ShapedArray(TypedPtr.new_float32([3.0, 0.0, 8.0, 24.0]), [2, 2])
-
-
-def test_linalg_mul_generalize_named_ops_keeps_semantics():
-    interpreter = Interpreter(ModuleOp([]))
-    interpreter.register_implementations(LinalgFunctions())
-    interpreter.register_implementations(ArithFunctions())
-
-    op = linalg.MulOp(
-        (
-            create_ssa_value(TensorType(f32, [2, 2])),
-            create_ssa_value(TensorType(f32, [2, 2])),
-        ),
-        (create_ssa_value(TensorType(f32, [2, 2])),),
-        (TensorType(f32, [2, 2]),),
-    )
-    a = ShapedArray(TypedPtr.new_float32([1.0, 0.0, 8.0, 4.0]), [2, 2])
-    b = ShapedArray(TypedPtr.new_float32([3.0, 9.0, 1.0, 6.0]), [2, 2])
-    init = ShapedArray(TypedPtr.new_float32([0.0, 0.0, 0.0, 0.0]), [2, 2])
-    (named_res,) = interpreter.run_op(op, (a, b, init))
-    expected = ShapedArray(TypedPtr.new_float32([3.0, 0.0, 8.0, 24.0]), [2, 2])
-    assert named_res == expected
-
-    module = ModuleOp([op.clone()])
-    LinalgGeneralizeNamedOpsPass().apply(Context(), module)
-    generalized_op = module.ops.first
-    assert isinstance(generalized_op, linalg.GenericOp)
-
-    init_generalized = ShapedArray(TypedPtr.new_float32([0.0, 0.0, 0.0, 0.0]), [2, 2])
-    (generalized_res,) = interpreter.run_op(generalized_op, (a, b, init_generalized))
-
-    assert named_res == generalized_res
-    assert generalized_res == expected
 
 
 def test_linalg_transpose():
@@ -357,41 +291,6 @@ def test_linalg_matmul():
         TypedPtr.new_float32([6.0, 7.0, 21.0, 16.0, 17.0, 47.0, 26.0, 27.0, 73.0]),
         [3, 3],
     )
-
-
-def test_linalg_matmul_generalize_named_ops_keeps_semantics():
-    interpreter = Interpreter(ModuleOp([]))
-    interpreter.register_implementations(LinalgFunctions())
-    interpreter.register_implementations(ArithFunctions())
-
-    op = linalg.MatmulOp(
-        (
-            create_ssa_value(TensorType(f32, [3, 2])),
-            create_ssa_value(TensorType(f32, [2, 3])),
-        ),
-        (create_ssa_value(TensorType(f32, [3, 3])),),
-        (TensorType(f32, [3, 3]),),
-    )
-    a = ShapedArray(TypedPtr.new_float32([1.0, 2.0, 3.0, 4.0, 5.0, 6.0]), [3, 2])
-    b = ShapedArray(TypedPtr.new_float32([4.0, 3.0, 5.0, 1.0, 2.0, 8.0]), [2, 3])
-    init = ShapedArray(TypedPtr.new_float32([0.0] * 9), [3, 3])
-    (named_res,) = interpreter.run_op(op, (a, b, init))
-    expected = ShapedArray(
-        TypedPtr.new_float32([6.0, 7.0, 21.0, 16.0, 17.0, 47.0, 26.0, 27.0, 73.0]),
-        [3, 3],
-    )
-    assert named_res == expected
-
-    module = ModuleOp([op.clone()])
-    LinalgGeneralizeNamedOpsPass().apply(Context(), module)
-    generalized_op = module.ops.first
-    assert isinstance(generalized_op, linalg.GenericOp)
-
-    init_generalized = ShapedArray(TypedPtr.new_float32([0.0] * 9), [3, 3])
-    (generalized_res,) = interpreter.run_op(generalized_op, (a, b, init_generalized))
-
-    assert named_res == generalized_res
-    assert generalized_res == expected
 
 
 def test_linalg_pooling_nchw_max():

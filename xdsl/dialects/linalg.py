@@ -130,6 +130,12 @@ class LinalgStructuredOperation(IRDLOperation, ABC):
         Get the indexing maps corresponding to this operation's operands, in order.
         """
 
+    @abstractmethod
+    def get_iterator_types(self) -> ArrayAttr[IteratorTypeAttr]:
+        """
+        Get the iterator types corresponding to this operation's loop, in order.
+        """
+
     def get_num_loops(self) -> int:
         return self.get_indexing_maps().data[0].data.num_dims
 
@@ -226,6 +232,9 @@ class GenericOp(LinalgStructuredOperation):
 
     def get_indexing_maps(self) -> ArrayAttr[AffineMapAttr]:
         return self.indexing_maps
+
+    def get_iterator_types(self) -> ArrayAttr[IteratorTypeAttr]:
+        return self.iterator_types
 
     def print(self, printer: Printer):
         printer.print_string(" {indexing_maps = ")
@@ -645,6 +654,10 @@ class ElementwiseOperation(NamedOperation, ABC):
 
         return (AffineMap.identity(len(shapes[0])),) * len(operand_types)
 
+    def get_iterator_types(self) -> ArrayAttr[IteratorTypeAttr]:
+        num_loops = self.get_num_loops()
+        return ArrayAttr(IteratorTypeAttr.parallel() for _ in range(num_loops))
+
 
 @irdl_op_definition
 class AddOp(ElementwiseOperation):
@@ -972,6 +985,9 @@ class FillOp(NamedOperation):
         return hidden_region
 
     def get_default_indexing_maps(self) -> Sequence[AffineMap]:
+        raise NotImplementedError
+
+    def get_iterator_types(self) -> ArrayAttr[IteratorTypeAttr]:
         raise NotImplementedError
 
 
@@ -1353,6 +1369,15 @@ class MatmulOp(NamedOperation):
 
     def get_indexing_maps(self) -> ArrayAttr[AffineMapAttr]:
         return self.indexing_maps
+    
+    def get_iterator_types(self) -> ArrayAttr[IteratorTypeAttr]:
+        return ArrayAttr(
+            [
+                IteratorTypeAttr.parallel(),
+                IteratorTypeAttr.parallel(),
+                IteratorTypeAttr.reduction(),
+            ]
+        )
 
 
 @irdl_op_definition
@@ -1428,6 +1453,15 @@ class QuantizedMatmulOp(NamedOperation):
 
     def get_indexing_maps(self) -> ArrayAttr[AffineMapAttr]:
         return self.memoized_indexing_maps
+    
+    def get_iterator_types(self) -> ArrayAttr[IteratorTypeAttr]:
+        return ArrayAttr(
+            [
+                IteratorTypeAttr.parallel(),
+                IteratorTypeAttr.parallel(),
+                IteratorTypeAttr.reduction(),
+            ]
+        )
 
 
 class PoolingOperation(NamedOperation, ABC):
@@ -1458,6 +1492,9 @@ class PoolingOperation(NamedOperation, ABC):
         )
 
     def get_default_indexing_maps(self) -> Sequence[AffineMap]:
+        raise NotImplementedError
+
+    def get_iterator_types(self) -> ArrayAttr[IteratorTypeAttr]:
         raise NotImplementedError
 
 
@@ -1542,6 +1579,9 @@ class ConvOperation(NamedOperation, ABC):
         return hidden_region
 
     def get_default_indexing_maps(self) -> Sequence[AffineMap]:
+        raise NotImplementedError
+
+    def get_iterator_types(self) -> ArrayAttr[IteratorTypeAttr]:
         raise NotImplementedError
 
 
