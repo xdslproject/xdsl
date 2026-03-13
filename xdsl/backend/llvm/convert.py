@@ -30,6 +30,7 @@ def _convert_func(op: llvm.FuncOp, llvm_module: ir.Module):
                 val_map[arg] = llvm_arg
 
     # create PHI nodes for non-entry block arguments
+    # incoming values are added later by branch ops (e.g. CondBrOp) in convert_op
     for i, block in enumerate(op.body.blocks):
         if i == 0:
             continue
