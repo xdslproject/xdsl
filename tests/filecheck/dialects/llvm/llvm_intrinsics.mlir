@@ -47,9 +47,14 @@
 ^bb2(%cond_br_else : i32):
   "test.termop"(%cond_br_else) : (i32) -> ()
 }) : () -> ()
-// CHECK: llvm.cond_br %cond_br_cond, ^bb1(%cond_br_arg : i32), ^bb2(%cond_br_arg : i32)
-// CHECK: ^bb1(%cond_br_then : i32):
-// CHECK: ^bb2(%cond_br_else : i32):
+// CHECK:      "test.op"() ({
+// CHECK-NEXT: ^{{.*}}(%cond_br_cond : i1, %cond_br_arg : i32):
+// CHECK-NEXT:   llvm.cond_br %cond_br_cond, ^bb1(%cond_br_arg : i32), ^bb2(%cond_br_arg : i32)
+// CHECK-NEXT: ^bb1(%cond_br_then : i32):
+// CHECK-NEXT:   "test.termop"(%cond_br_then) : (i32) -> ()
+// CHECK-NEXT: ^bb2(%cond_br_else : i32):
+// CHECK-NEXT:   "test.termop"(%cond_br_else) : (i32) -> ()
+// CHECK-NEXT: }) : () -> ()
 
 %val = "test.op"() : () -> f32
 %ptr = "test.op"() : () -> !llvm.ptr

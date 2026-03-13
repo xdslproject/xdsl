@@ -584,8 +584,16 @@ builtin.module {
   }
 
   // CHECK: define i32 @"cond_br_op"(i1 %".1", i32 %".2", i32 %".3")
-  // CHECK: br i1 %".1", label %{{.*}}, label %{{.*}}
-  // CHECK: ret i32
+  // CHECK-NEXT: {
+  // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT:   br i1 %".1", label %{{.*}}, label %{{.*}}
+  // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT:   {{%.+}} = phi  i32 [%".2", %{{.*}}]
+  // CHECK-NEXT:   ret i32 {{%.+}}
+  // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT:   {{%.+}} = phi  i32 [%".3", %{{.*}}]
+  // CHECK-NEXT:   ret i32 {{%.+}}
+  // CHECK-NEXT: }
 
   llvm.func @fabs_op(%arg0: f32) -> f32 {
     %0 = llvm.intr.fabs(%arg0) : (f32) -> f32
