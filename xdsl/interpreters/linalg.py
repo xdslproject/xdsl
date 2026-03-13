@@ -29,7 +29,7 @@ def run_linalg_structured_op(
     input_args = args[:inputs_count]
     output_args = args[inputs_count:]
     results = op.results
-    indexing_maps = op.get_indexing_maps()
+    indexing_maps = op.get_default_indexing_maps()
     loop_ranges = op.get_static_loop_ranges()
 
     if any(not isinstance(arg, ShapedArray) for arg in output_args):

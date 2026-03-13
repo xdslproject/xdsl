@@ -125,13 +125,16 @@ class LinalgStructuredOperation(IRDLOperation, ABC):
     """
 
     @abstractmethod
-    def get_indexing_maps(self) -> Sequence[AffineMap]:
+    def get_indexing_maps(self) -> ArrayAttr[AffineMapAttr]:
         """
         Get the indexing maps corresponding to this operation's operands, in order.
         """
 
+    def get_default_indexing_maps(self) -> Sequence[AffineMap]:
+        return tuple(attr.data for attr in self.get_indexing_maps())
+
     def get_num_loops(self) -> int:
-        return self.get_indexing_maps()[0].num_dims
+        return self.get_default_indexing_maps()[0].num_dims
 
     def get_loops_to_shapes_map(self) -> AffineMap:
         """
@@ -141,13 +144,13 @@ class LinalgStructuredOperation(IRDLOperation, ABC):
         The default behavior is to just concatenate all the indexing maps.
         """
         result_exprs = tuple(
-            res for map in self.get_indexing_maps() for res in map.results
+            res for map in self.get_default_indexing_maps() for res in map.results
         )
 
         dims = self.get_num_loops()
 
         # FIXME: Support symbols.
-        for map in self.get_indexing_maps():
+        for map in self.get_default_indexing_maps():
             if map.num_symbols != 0:
                 raise NotImplementedError(
                     "Indexing maps with symbols not supported for now."
@@ -225,8 +228,8 @@ class GenericOp(LinalgStructuredOperation):
             regions=[body],
         )
 
-    def get_indexing_maps(self) -> Sequence[AffineMap]:
-        return tuple(attr.data for attr in self.indexing_maps)
+    def get_indexing_maps(self) -> ArrayAttr[AffineMapAttr]:
+        return self.indexing_maps
 
     def print(self, printer: Printer):
         printer.print_string(" {indexing_maps = ")
@@ -622,7 +625,7 @@ class NamedOperation(LinalgStructuredOperation, ABC):
 
 
 class ElementwiseOperation(NamedOperation, ABC):
-    def get_indexing_maps(self) -> Sequence[AffineMap]:
+    def get_indexing_maps(self) -> ArrayAttr[AffineMapAttr]:
         assert all(isinstance(t, ShapedType) for t in self.operand_types), (
             "Assume that all named linalg pointwise operations have matching shaped "
             "types."
@@ -632,7 +635,10 @@ class ElementwiseOperation(NamedOperation, ABC):
         assert all(shape == shapes[0] for shape in shapes[1:]), (
             "All shapes must be equal"
         )
-        return (AffineMap.identity(len(shapes[0])),) * len(operand_types)
+        # return ArrayAttr((AffineMap.identity(len(shapes[0])),) * len(operand_types))
+        return ArrayAttr(
+            (AffineMapAttr(AffineMap.identity(len(shapes[0]))),) * len(operand_types)
+        )
 
 
 @irdl_op_definition
@@ -960,7 +966,7 @@ class FillOp(NamedOperation):
 
         return hidden_region
 
-    def get_indexing_maps(self) -> Sequence[AffineMap]:
+    def get_indexing_maps(self) -> ArrayAttr[AffineMapAttr]:
         raise NotImplementedError
 
 
@@ -1337,8 +1343,8 @@ class MatmulOp(NamedOperation):
 
         return hidden_region
 
-    def get_indexing_maps(self) -> Sequence[AffineMap]:
-        return tuple(m.data for m in self.indexing_maps.data)
+    def get_indexing_maps(self) -> ArrayAttr[AffineMapAttr]:
+        return self.indexing_maps
 
 
 @irdl_op_definition
@@ -1409,8 +1415,8 @@ class QuantizedMatmulOp(NamedOperation):
 
         return hidden_region
 
-    def get_indexing_maps(self) -> Sequence[AffineMap]:
-        return tuple(m.data for m in self.memoized_indexing_maps.data)
+    def get_indexing_maps(self) -> ArrayAttr[AffineMapAttr]:
+        return self.memoized_indexing_maps
 
 
 class PoolingOperation(NamedOperation, ABC):
@@ -1440,7 +1446,7 @@ class PoolingOperation(NamedOperation, ABC):
             hidden_region=self.get_hidden_region(inputs, outputs),
         )
 
-    def get_indexing_maps(self) -> Sequence[AffineMap]:
+    def get_indexing_maps(self) -> ArrayAttr[AffineMapAttr]:
         raise NotImplementedError
 
 
@@ -1524,7 +1530,7 @@ class ConvOperation(NamedOperation, ABC):
 
         return hidden_region
 
-    def get_indexing_maps(self) -> Sequence[AffineMap]:
+    def get_indexing_maps(self) -> ArrayAttr[AffineMapAttr]:
         raise NotImplementedError
 
 
