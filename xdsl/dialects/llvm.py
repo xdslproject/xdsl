@@ -2218,9 +2218,9 @@ class FNegOp(IRDLOperation):
 class MaskedStoreOp(IRDLOperation):
     name = "llvm.intr.masked.store"
 
-    value = operand_def(AnyFloatConstr | VectorType.constr(AnyFloatConstr))
+    value = operand_def(VectorType.constr(AnyFloatConstr))
     data = operand_def(LLVMPointerType)
-    mask = operand_def(I1 | VectorType[I1])
+    mask = operand_def(VectorType[I1])
     alignment = prop_def(IntegerAttr[i32])
 
     assembly_format = (

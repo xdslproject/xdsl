@@ -604,9 +604,9 @@ def test_select_op():
 
 
 def test_masked_store_op():
-    value = create_ssa_value(builtin.f32)
+    value = create_ssa_value(builtin.VectorType(builtin.f32, [4]))
     ptr = create_ssa_value(llvm.LLVMPointerType())
-    mask = create_ssa_value(builtin.IntegerType(1))
+    mask = create_ssa_value(builtin.VectorType(builtin.IntegerType(1), [4]))
     op = llvm.MaskedStoreOp(value, ptr, mask, alignment=16)
     assert op.value == value
     assert op.data == ptr

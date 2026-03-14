@@ -628,15 +628,15 @@ builtin.module {
   // CHECK-NEXT:   ret i32 {{%.+}}
   // CHECK-NEXT: }
 
-  llvm.func @masked_store_op(%arg0: f32, %arg1: !llvm.ptr, %arg2: i1) {
-    llvm.intr.masked.store %arg0, %arg1, %arg2 {alignment = 16 : i32} : f32, i1 into !llvm.ptr
+  llvm.func @masked_store_op(%arg0: vector<4xf32>, %arg1: !llvm.ptr, %arg2: vector<4xi1>) {
+    llvm.intr.masked.store %arg0, %arg1, %arg2 {alignment = 16 : i32} : vector<4xf32>, vector<4xi1> into !llvm.ptr
     llvm.return
   }
 
-  // CHECK: define void @"masked_store_op"(float %".1", ptr %".2", i1 %".3")
+  // CHECK: define void @"masked_store_op"(<4 x float> %".1", ptr %".2", <4 x i1> %".3")
   // CHECK-NEXT: {
   // CHECK-NEXT: {{.[0-9]+}}:
-  // CHECK-NEXT:   call void @"llvm.masked.store"(float %".1", ptr %".2", i32 16, i1 %".3")
+  // CHECK-NEXT:   call void @"llvm.masked.store"(<4 x float> %".1", ptr %".2", i32 16, <4 x i1> %".3")
   // CHECK-NEXT:   ret void
   // CHECK-NEXT: }
 }
