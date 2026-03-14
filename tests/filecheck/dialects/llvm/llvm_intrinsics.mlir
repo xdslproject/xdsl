@@ -48,7 +48,7 @@
   "test.termop"(%cond_br_else) : (i32) -> ()
 }) : () -> ()
 // CHECK:      "test.op"() ({
-// CHECK-NEXT: ^{{.*}}(%cond_br_cond : i1, %cond_br_arg : i32):
+// CHECK-NEXT: ^{{bb\d+}}(%cond_br_cond : i1, %cond_br_arg : i32):
 // CHECK-NEXT:   llvm.cond_br %cond_br_cond, ^bb1(%cond_br_arg : i32), ^bb2(%cond_br_arg : i32)
 // CHECK-NEXT: ^bb1(%cond_br_then : i32):
 // CHECK-NEXT:   "test.termop"(%cond_br_then) : (i32) -> ()

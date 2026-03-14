@@ -52,12 +52,12 @@
   "test.termop"(%cond_br_else) : (i32) -> ()
 }) : () -> ()
 // CHECK:      "test.op"() ({
-// CHECK-NEXT: ^{{.*}}(%{{.*}} : i1, %{{.*}} : i32):
-// CHECK-NEXT:   llvm.cond_br %{{.*}}, ^bb{{.*}}(%{{.*}} : i32), ^bb{{.*}}(%{{.*}} : i32)
-// CHECK-NEXT: ^{{.*}}(%{{.*}} : i32):
-// CHECK-NEXT:   "test.termop"(%{{.*}}) : (i32) -> ()
-// CHECK-NEXT: ^{{.*}}(%{{.*}} : i32):
-// CHECK-NEXT:   "test.termop"(%{{.*}}) : (i32) -> ()
+// CHECK-NEXT: ^{{bb\d+}}([[COND:%.*]] : i1, [[ARG:%.*]] : i32):
+// CHECK-NEXT:   llvm.cond_br [[COND]], ^[[BB1:bb\d+]]([[ARG]] : i32), ^[[BB2:bb\d+]]([[ARG]] : i32)
+// CHECK-NEXT: ^[[BB1]]([[THEN:%.*]] : i32):
+// CHECK-NEXT:   "test.termop"([[THEN]]) : (i32) -> ()
+// CHECK-NEXT: ^[[BB2]]([[ELSE:%.*]] : i32):
+// CHECK-NEXT:   "test.termop"([[ELSE]]) : (i32) -> ()
 // CHECK-NEXT: }) : () -> ()
 
 %ptr = "test.op"() : () -> !llvm.ptr
