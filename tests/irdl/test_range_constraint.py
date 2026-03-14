@@ -126,3 +126,11 @@ def test_mapping_type_vars():
 def test_init_irdl_constraint():
     range_constr = RangeOf(Attribute)
     assert range_constr.constr == AnyAttr()
+
+
+def test_empty_range():
+    constr = AnyRangeConstraint().of_length(EqIntConstraint(0))
+
+    assert constr.can_infer(set(), length_known=False)
+
+    assert constr.infer(ConstraintContext(), length=None) == ()

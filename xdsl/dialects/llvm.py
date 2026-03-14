@@ -910,9 +910,7 @@ class ICmpOp(IRDLOperation):
     @classmethod
     def parse(cls, parser: Parser):
         predicate_literal = parser.parse_str_literal()
-        predicate_value = ICmpPredicateFlag[predicate_literal.upper()]
-        predicate_int = predicate_value.to_int()
-        predicate = IntegerAttr(predicate_int, i64)
+        predicate = IntegerAttr(ICmpPredicateFlag(predicate_literal).to_int(), i64)
         lhs = parser.parse_unresolved_operand()
         parser.parse_characters(",")
         rhs = parser.parse_unresolved_operand()
@@ -922,14 +920,9 @@ class ICmpOp(IRDLOperation):
         operands = parser.resolve_operands([lhs, rhs], [type, type], parser.pos)
         return cls(operands[0], operands[1], predicate, attributes)
 
-    def print_predicate(self, printer: Printer):
-        flag = ICmpPredicateFlag.from_int(self.predicate.value.data)
-        printer.print_string(f"{flag}")
-
     def print(self, printer: Printer):
-        printer.print_string(' "')
-        self.print_predicate(printer)
-        printer.print_string('" ')
+        flag = ICmpPredicateFlag.from_int(self.predicate.value.data)
+        printer.print_string(f' "{flag}" ')
         printer.print_ssa_value(self.lhs)
         printer.print_string(", ")
         printer.print_ssa_value(self.rhs)
@@ -1075,6 +1068,30 @@ class GEPOp(IRDLOperation):
     inbounds = opt_prop_def(UnitAttr)
 
     traits = traits_def(NoMemoryEffect())
+
+    def verify_(self) -> None:
+        indices = tuple(self.rawConstantIndices.iter_values())
+        # first index is pointer arithmetic; only subsequent ones need validation.
+        current_type: Attribute = self.elem_type
+        for i, idx in enumerate(indices[1:], start=1):
+            match current_type:
+                case LLVMArrayType():
+                    current_type = current_type.type
+                case LLVMStructType(types=types):
+                    if idx == GEP_USE_SSA_VAL:
+                        raise VerifyException(
+                            f"GEP index #{i}: struct indices must be constants"
+                        )
+                    if not (0 <= idx < len(types)):
+                        raise VerifyException(
+                            f"GEP index #{i}: {idx} is out of range for "
+                            f"struct with {len(types)} field(s)"
+                        )
+                    current_type = types.data[idx]
+                case _:
+                    raise VerifyException(
+                        f"GEP index #{i}: cannot index into {current_type}"
+                    )
 
     def __init__(
         self,
@@ -2138,6 +2155,95 @@ class FRemOp(AbstractFloatArithOp):
     name = "llvm.frem"
 
 
+class FCmpPredicateFlag(StrEnum):
+    FALSE = "_false"
+    OEQ = "oeq"
+    OGT = "ogt"
+    OGE = "oge"
+    OLT = "olt"
+    OLE = "ole"
+    ONE = "one"
+    ORD = "ord"
+    UEQ = "ueq"
+    UGT = "ugt"
+    UGE = "uge"
+    ULT = "ult"
+    ULE = "ule"
+    UNE = "une"
+    UNO = "uno"
+    TRUE = "_true"
+
+    @staticmethod
+    def from_int(index: int) -> FCmpPredicateFlag:
+        return ALL_FCMP_FLAGS[index]
+
+    def to_int(self) -> int:
+        return FCMP_INDEX_BY_FLAG[self]
+
+
+ALL_FCMP_FLAGS = tuple(FCmpPredicateFlag)
+FCMP_INDEX_BY_FLAG = {f: i for (i, f) in enumerate(ALL_FCMP_FLAGS)}
+
+
+@irdl_op_definition
+class FCmpOp(IRDLOperation):
+    name = "llvm.fcmp"
+
+    T: ClassVar = VarConstraint("T", AnyFloatConstr)
+
+    lhs = operand_def(T)
+    rhs = operand_def(T)
+    res = result_def(I1)
+    predicate = prop_def(IntegerAttr[i64])
+
+    fastmathFlags = prop_def(FastMathAttr, default_value=FastMathAttr(None))
+
+    traits = traits_def(Pure())
+
+    irdl_options = (ParsePropInAttrDict(),)
+
+    def __init__(
+        self,
+        lhs: Operation | SSAValue,
+        rhs: Operation | SSAValue,
+        predicate: str | IntegerAttr[IntegerType],
+        attributes: dict[str, Attribute] = {},
+    ):
+        if isinstance(predicate, str):
+            predicate = IntegerAttr(FCmpPredicateFlag(predicate).to_int(), i64)
+        super().__init__(
+            operands=[lhs, rhs],
+            result_types=[i1],
+            attributes=attributes,
+            properties={
+                "predicate": predicate,
+            },
+        )
+
+    @classmethod
+    def parse(cls, parser: Parser):
+        predicate_literal = parser.parse_str_literal()
+        predicate = IntegerAttr(FCmpPredicateFlag(predicate_literal).to_int(), i64)
+        lhs = parser.parse_unresolved_operand()
+        parser.parse_characters(",")
+        rhs = parser.parse_unresolved_operand()
+        attributes = parser.parse_optional_attr_dict()
+        parser.parse_characters(":")
+        type = parser.parse_type()
+        operands = parser.resolve_operands([lhs, rhs], [type, type], parser.pos)
+        return cls(operands[0], operands[1], predicate, attributes)
+
+    def print(self, printer: Printer):
+        flag = FCmpPredicateFlag.from_int(self.predicate.value.data)
+        printer.print_string(f' "{flag}" ')
+        printer.print_ssa_value(self.lhs)
+        printer.print_string(", ")
+        printer.print_ssa_value(self.rhs)
+        printer.print_op_attributes(self.attributes)
+        printer.print_string(" : ")
+        printer.print_attribute(self.lhs.type)
+
+
 @irdl_op_definition
 class BitcastOp(GenericCastOp):
     name = "llvm.bitcast"
@@ -2220,9 +2326,9 @@ class FNegOp(IRDLOperation):
 class MaskedStoreOp(IRDLOperation):
     name = "llvm.intr.masked.store"
 
-    value = operand_def(AnyFloatConstr | VectorType.constr(AnyFloatConstr))
+    value = operand_def(VectorType.constr(AnyFloatConstr))
     data = operand_def(LLVMPointerType)
-    mask = operand_def(I1 | VectorType[I1])
+    mask = operand_def(VectorType[I1])
     alignment = prop_def(IntegerAttr[i32])
 
     assembly_format = (
@@ -2339,6 +2445,7 @@ LLVM = Dialect(
         ExtractValueOp,
         FAbsOp,
         FAddOp,
+        FCmpOp,
         FDivOp,
         FMulOp,
         FNegOp,
