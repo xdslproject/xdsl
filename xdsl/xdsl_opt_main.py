@@ -1,11 +1,12 @@
 import argparse
+import inspect
 import sys
 from collections.abc import Callable, Sequence
 from contextlib import redirect_stdout
 from importlib.metadata import version
 from io import StringIO
 from itertools import accumulate
-from typing import IO, Any
+from typing import IO, Any, cast
 
 from xdsl.context import Context
 from xdsl.dialects.builtin import ModuleOp
@@ -15,9 +16,11 @@ from xdsl.printer import Printer
 from xdsl.syntax_printer import SyntaxPrinter
 from xdsl.tools.command_line_tool import CommandLineTool
 from xdsl.universe import Universe
+from xdsl.utils.arg_spec import parse_spec
 from xdsl.utils.diagnostic import Diagnostic
 from xdsl.utils.exceptions import DiagnosticException, ParseError, ShrinkException
 from xdsl.utils.lexer import Span
+from xdsl.utils.target import Target
 
 
 def _empty_post_init(self: Attribute):
@@ -34,10 +37,13 @@ class xDSLOptMain(CommandLineTool):
     A mapping from pass names to functions that apply the pass to a ModuleOp.
     """
 
-    available_targets: dict[str, Callable[[ModuleOp, IO[str]], None]]
+    available_targets: dict[
+        str, Callable[[ModuleOp, IO[str]], None] | Callable[[], type[Target]]
+    ]
     """
-    A mapping from target names to functions that serialize a ModuleOp into a
-    stream.
+    A mapping from target names to either:
+    - Old-style: a function `(ModuleOp, IO[str]) -> None` (deprecated soon)
+    - New-style: a factory `() -> type[Target]`
     """
 
     pipeline: PassPipeline
@@ -62,6 +68,13 @@ class xDSLOptMain(CommandLineTool):
         arg_parser = argparse.ArgumentParser(description=description)
         self.register_all_arguments(arg_parser)
         self.args = arg_parser.parse_args(args=args)
+
+        target_spec = parse_spec(self.args.target)
+        if target_spec.name not in self.available_targets:
+            arg_parser.error(
+                f"argument -t/--target: invalid choice: '{target_spec.name}' "
+                f"(choose from {', '.join(self.available_targets)})"
+            )
 
         self.ctx.allow_unregistered = self.args.allow_unregistered_dialect
 
@@ -129,14 +142,13 @@ class xDSLOptMain(CommandLineTool):
         """
         super().register_all_arguments(arg_parser)
 
-        targets = [name for name in self.available_targets]
+        target_names = ",".join(self.available_targets)
         arg_parser.add_argument(
             "-t",
             "--target",
             type=str,
             required=False,
-            choices=targets,
-            help="target",
+            help=f"Target to use for output. Available targets are: {target_names}",
             default="mlir",
         )
 
@@ -409,7 +421,25 @@ class xDSLOptMain(CommandLineTool):
     def output_resulting_program(self, prog: ModuleOp) -> str:
         """Get the resulting program."""
         output = StringIO()
-        self.available_targets[self.args.target](prog, output)
+
+        spec = parse_spec(self.args.target)
+        if spec.name not in self.available_targets:
+            raise ValueError(
+                f"Unknown target '{spec.name}'. "
+                f"Available targets: {list(self.available_targets)}"
+            )
+
+        target_entry = self.available_targets[spec.name]
+        sig = inspect.signature(target_entry)
+
+        if not sig.parameters:
+            factory = cast(Callable[[], type[Target]], target_entry)
+            target = factory().from_spec(spec)
+            target.emit(self.ctx, prog, output)
+        else:
+            legacy = cast(Callable[[ModuleOp, IO[str]], None], target_entry)
+            legacy(prog, output)
+
         return output.getvalue()
 
 
