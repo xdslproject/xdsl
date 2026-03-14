@@ -432,7 +432,7 @@ class xDSLOptMain(CommandLineTool):
         target_entry = self.available_targets[spec.name]
         sig = inspect.signature(target_entry)
 
-        if len(sig.parameters) == 0:
+        if not sig.parameters:
             factory = cast(Callable[[], type[Target]], target_entry)
             target = factory().from_spec(spec)
             target.emit(self.ctx, prog, output)
