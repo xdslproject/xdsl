@@ -1075,7 +1075,7 @@ class GEPOp(IRDLOperation):
     traits = traits_def(NoMemoryEffect())
 
     def verify_(self) -> None:
-        indices = list(self.rawConstantIndices.iter_values())
+        indices = tuple(self.rawConstantIndices.iter_values())
         # first index is pointer arithmetic; only subsequent ones need validation.
         current_type: Attribute = self.elem_type
         for i, idx in enumerate(indices[1:], start=1):
