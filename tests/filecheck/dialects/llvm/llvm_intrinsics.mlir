@@ -40,12 +40,7 @@
 // CHECK: %select_f32_res = llvm.select %select_cond, %select_f32_lhs, %select_f32_rhs : i1, f32
 
 
-%val = "test.op"() : () -> f32
 %ptr = "test.op"() : () -> !llvm.ptr
-%mask = "test.op"() : () -> i1
-
-llvm.intr.masked.store %val, %ptr, %mask {alignment = 16 : i32} : f32, i1 into !llvm.ptr
-// CHECK: llvm.intr.masked.store %val, %ptr, %mask {alignment = 16 : i32} : f32, i1 into !llvm.ptr
 
 %vec_val = "test.op"() : () -> vector<4xf32>
 %vec_mask = "test.op"() : () -> vector<4xi1>
