@@ -82,7 +82,10 @@ def test_pass_instantiation():
 @pytest.mark.parametrize(
     "spec, error_msg",
     [
-        (ArgSpec("wrong", {"a": (1,)}), "Cannot create simple from spec for wrong"),
+        (
+            ArgSpec("wrong", {"a": (1,)}),
+            "Spec name mismatch: got 'wrong', expected 'simple'.",
+        ),
         (ArgSpec("simple", {}), 'requires argument "a"'),
         (
             ArgSpec("simple", {"a": (1,), "no": ()}),
@@ -100,7 +103,7 @@ def test_pass_instantiation_error(spec: ArgSpec, error_msg: str):
     """
     Test all possible failure modes in pass instantiation
     """
-    with pytest.raises(Exception, match=re.escape(error_msg)):
+    with pytest.raises(ValueError, match=re.escape(error_msg)):
         SimplePass.from_pass_spec(spec)
 
 

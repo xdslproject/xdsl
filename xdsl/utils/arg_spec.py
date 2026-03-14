@@ -192,7 +192,9 @@ class ArgSpecConvertible(ABC):
         an instance of this class from the spec.
         """
         if spec.name != cls.name:
-            raise ValueError(f"Cannot create {cls.name} from spec for {spec.name}")
+            raise ValueError(
+                f"Spec name mismatch: got '{spec.name}', expected '{cls.name}'."
+            )
 
         spec_arguments_dict: dict[str, ParameterListType] = (
             spec.normalize_parameter_names().parameters
