@@ -51,6 +51,22 @@
 %select_f32_res = llvm.select %select_cond, %select_f32_lhs, %select_f32_rhs : i1, f32
 // CHECK: %select_f32_res = llvm.select %select_cond, %select_f32_lhs, %select_f32_rhs : i1, f32
 
+"test.op"() ({
+^bb0(%cond_br_cond : i1, %cond_br_arg : i32):
+  llvm.cond_br %cond_br_cond, ^bb1(%cond_br_arg : i32), ^bb2(%cond_br_arg : i32)
+^bb1(%cond_br_then : i32):
+  "test.termop"(%cond_br_then) : (i32) -> ()
+^bb2(%cond_br_else : i32):
+  "test.termop"(%cond_br_else) : (i32) -> ()
+}) : () -> ()
+// CHECK:      "test.op"() ({
+// CHECK-NEXT: ^{{bb\d+}}(%cond_br_cond : i1, %cond_br_arg : i32):
+// CHECK-NEXT:   llvm.cond_br %cond_br_cond, ^bb1(%cond_br_arg : i32), ^bb2(%cond_br_arg : i32)
+// CHECK-NEXT: ^bb1(%cond_br_then : i32):
+// CHECK-NEXT:   "test.termop"(%cond_br_then) : (i32) -> ()
+// CHECK-NEXT: ^bb2(%cond_br_else : i32):
+// CHECK-NEXT:   "test.termop"(%cond_br_else) : (i32) -> ()
+// CHECK-NEXT: }) : () -> ()
 
 %ptr = "test.op"() : () -> !llvm.ptr
 

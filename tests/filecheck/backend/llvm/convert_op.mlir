@@ -589,6 +589,25 @@ builtin.module {
   // CHECK-NEXT:   ret i32 {{%.+}}
   // CHECK-NEXT: }
 
+  llvm.func @cond_br_op(%arg0: i1, %arg1: i32, %arg2: i32) -> i32 {
+    llvm.cond_br %arg0, ^bb1(%arg1 : i32), ^bb2(%arg2 : i32)
+  ^bb1(%0 : i32):
+    llvm.return %0 : i32
+  ^bb2(%1 : i32):
+    llvm.return %1 : i32
+  }
+
+  // CHECK: define i32 @"cond_br_op"(i1 %".1", i32 %".2", i32 %".3")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: [[BB0:.\d+]]:
+  // CHECK-NEXT:   br i1 %".1", label %"[[BB1:.\d+]]", label %"[[BB2:.\d+]]"
+  // CHECK-NEXT: [[BB1]]:
+  // CHECK-NEXT:   %"[[V1:.\d+]]" = phi  i32 [%".2", %"[[BB0]]"]
+  // CHECK-NEXT:   ret i32 %"[[V1]]"
+  // CHECK-NEXT: [[BB2]]:
+  // CHECK-NEXT:   %"[[V2:.\d+]]" = phi  i32 [%".3", %"[[BB0]]"]
+  // CHECK-NEXT:   ret i32 %"[[V2]]"
+  // CHECK-NEXT: }
 
   llvm.func @fabs_op(%arg0: f32) -> f32 {
     %0 = llvm.intr.fabs(%arg0) : (f32) -> f32
@@ -597,9 +616,9 @@ builtin.module {
 
   // CHECK: define float @"fabs_op"(float %".1")
   // CHECK-NEXT: {
-  // CHECK-NEXT: {{.[0-9]+}}:
-  // CHECK-NEXT:   {{%.+}} = call float @"llvm.fabs"(float %".1")
-  // CHECK-NEXT:   ret float {{%.+}}
+  // CHECK-NEXT: [[ENTRY:.\d+]]:
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = call float @"llvm.fabs"(float %".1")
+  // CHECK-NEXT:   ret float %"[[RES]]"
   // CHECK-NEXT: }
 
   llvm.func @fneg_op(%arg0: f32) -> f32 {
@@ -609,9 +628,9 @@ builtin.module {
 
   // CHECK: define float @"fneg_op"(float %".1")
   // CHECK-NEXT: {
-  // CHECK-NEXT: {{.[0-9]+}}:
-  // CHECK-NEXT:   {{%.+}} = fneg float %".1"
-  // CHECK-NEXT:   ret float {{%.+}}
+  // CHECK-NEXT: [[ENTRY:.\d+]]:
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = fneg float %".1"
+  // CHECK-NEXT:   ret float %"[[RES]]"
   // CHECK-NEXT: }
 
   llvm.func @helper(%arg0: i32) -> i32 {
@@ -620,7 +639,7 @@ builtin.module {
 
   // CHECK: define i32 @"helper"(i32 %".1")
   // CHECK-NEXT: {
-  // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT: [[ENTRY:.\d+]]:
   // CHECK-NEXT:   ret i32 %".1"
   // CHECK-NEXT: }
 
@@ -637,9 +656,9 @@ builtin.module {
 
   // CHECK: define i32 @"call_op"(i32 %".1")
   // CHECK-NEXT: {
-  // CHECK-NEXT: {{.[0-9]+}}:
-  // CHECK-NEXT:   {{%.+}} = tail call ninf nnan fastcc i32 @"helper"(i32 %".1")
-  // CHECK-NEXT:   ret i32 {{%.+}}
+  // CHECK-NEXT: [[ENTRY:.\d+]]:
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = tail call ninf nnan fastcc i32 @"helper"(i32 %".1")
+  // CHECK-NEXT:   ret i32 %"[[RES]]"
   // CHECK-NEXT: }
 
   llvm.func @masked_store_op(%arg0: vector<4xf32>, %arg1: !llvm.ptr, %arg2: vector<4xi1>) {
@@ -649,7 +668,7 @@ builtin.module {
 
   // CHECK: define void @"masked_store_op"(<4 x float> %".1", ptr %".2", <4 x i1> %".3")
   // CHECK-NEXT: {
-  // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT: [[ENTRY:.\d+]]:
   // CHECK-NEXT:   call void @"llvm.masked.store"(<4 x float> %".1", ptr %".2", i32 16, <4 x i1> %".3")
   // CHECK-NEXT:   ret void
   // CHECK-NEXT: }
