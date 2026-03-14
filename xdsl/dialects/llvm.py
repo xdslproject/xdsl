@@ -1074,6 +1074,30 @@ class GEPOp(IRDLOperation):
 
     traits = traits_def(NoMemoryEffect())
 
+    def verify_(self) -> None:
+        indices = list(self.rawConstantIndices.iter_values())
+        # first index is pointer arithmetic; only subsequent ones need validation.
+        current_type: Attribute = self.elem_type
+        for i, idx in enumerate(indices[1:], start=1):
+            match current_type:
+                case LLVMArrayType():
+                    current_type = current_type.type
+                case LLVMStructType(types=types):
+                    if idx == GEP_USE_SSA_VAL:
+                        raise VerifyException(
+                            f"GEP index #{i}: struct indices must be constants"
+                        )
+                    if not (0 <= idx < len(types)):
+                        raise VerifyException(
+                            f"GEP index #{i}: {idx} is out of range for "
+                            f"struct with {len(types)} field(s)"
+                        )
+                    current_type = types.data[idx]
+                case _:
+                    raise VerifyException(
+                        f"GEP index #{i}: cannot index into {current_type}"
+                    )
+
     def __init__(
         self,
         ptr: SSAValue | Operation,
