@@ -454,12 +454,12 @@ builtin.module {
   // CHECK-NEXT:   {{%.+}} = zext i32 %".1" to i64
   // CHECK-NEXT:   {{%.+}} = zext nneg i32 %".1" to i64
 
-  // void gep_constant(int* ptr) {
+  // void gep_constant(int (*ptr)[10]) {
   //   int* result = &ptr[1][2];
   // }
   llvm.func @gep_constant(%arg0 : !llvm.ptr) {
     %0 = "llvm.getelementptr"(%arg0) <{
-      elem_type = i32,
+      elem_type = !llvm.array<10 x i32>,
       rawConstantIndices = array<i32: 1, 2>,
       noWrapFlags = 0 : i32
     }> : (!llvm.ptr) -> !llvm.ptr
@@ -469,7 +469,7 @@ builtin.module {
   // CHECK: define void @"gep_constant"(ptr %".1")
   // CHECK-NEXT: {
   // CHECK-NEXT: {{.[0-9]+}}:
-  // CHECK-NEXT:   {{%.+}} = getelementptr i32, ptr %".1", i32 1, i32 2
+  // CHECK-NEXT:   {{%.+}} = getelementptr [10 x i32], ptr %".1", i32 1, i32 2
   // CHECK-NEXT:   ret void
   // CHECK-NEXT: }
 
@@ -492,13 +492,13 @@ builtin.module {
   // CHECK-NEXT:   ret void
   // CHECK-NEXT: }
 
-  // void gep_mixed(int* ptr, int i, int j) {
-  //   // e.g. ptr[1].some_array[i].some_struct[2].some_data[j]
-  //   int* result = &ptr[1][i][2][j];
+  // void gep_mixed(ptr, int i, int j) {
+  //   // e.g. ptr[1][i].field2[j]
+  //   int* result = &ptr[1][i].field2[j];
   // }
   llvm.func @gep_mixed(%arg0 : !llvm.ptr, %arg1 : i32, %arg2 : i32) {
     %0 = "llvm.getelementptr"(%arg0, %arg1, %arg2) <{
-      elem_type = i32,
+      elem_type = !llvm.array<10 x !llvm.struct<(i32, i32, !llvm.array<10 x i32>)>>,
       rawConstantIndices = array<i32: 1, -2147483648, 2, -2147483648>,
       noWrapFlags = 0 : i32
     }> : (!llvm.ptr, i32, i32) -> !llvm.ptr
@@ -508,7 +508,7 @@ builtin.module {
   // CHECK: define void @"gep_mixed"(ptr %".1", i32 %".2", i32 %".3")
   // CHECK-NEXT: {
   // CHECK-NEXT: {{.[0-9]+}}:
-  // CHECK-NEXT:   {{%.+}} = getelementptr i32, ptr %".1", i32 1, i32 %".2", i32 2, i32 %".3"
+  // CHECK-NEXT:   {{%.+}} = getelementptr [10 x {i32, i32, [10 x i32]}], ptr %".1", i32 1, i32 %".2", i32 2, i32 %".3"
   // CHECK-NEXT:   ret void
   // CHECK-NEXT: }
 
@@ -642,15 +642,15 @@ builtin.module {
   // CHECK-NEXT:   ret i32 {{%.+}}
   // CHECK-NEXT: }
 
-  llvm.func @masked_store_op(%arg0: f32, %arg1: !llvm.ptr, %arg2: i1) {
-    llvm.intr.masked.store %arg0, %arg1, %arg2 {alignment = 16 : i32} : f32, i1 into !llvm.ptr
+  llvm.func @masked_store_op(%arg0: vector<4xf32>, %arg1: !llvm.ptr, %arg2: vector<4xi1>) {
+    llvm.intr.masked.store %arg0, %arg1, %arg2 {alignment = 16 : i32} : vector<4xf32>, vector<4xi1> into !llvm.ptr
     llvm.return
   }
 
-  // CHECK: define void @"masked_store_op"(float %".1", ptr %".2", i1 %".3")
+  // CHECK: define void @"masked_store_op"(<4 x float> %".1", ptr %".2", <4 x i1> %".3")
   // CHECK-NEXT: {
   // CHECK-NEXT: {{.[0-9]+}}:
-  // CHECK-NEXT:   call void @"llvm.masked.store"(float %".1", ptr %".2", i32 16, i1 %".3")
+  // CHECK-NEXT:   call void @"llvm.masked.store"(<4 x float> %".1", ptr %".2", i32 16, <4 x i1> %".3")
   // CHECK-NEXT:   ret void
   // CHECK-NEXT: }
 }

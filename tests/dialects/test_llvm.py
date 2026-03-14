@@ -201,7 +201,9 @@ def test_llvm_getelementptr_op():
     assert len(gep1.ssa_indices) == 0
 
     # check GEP with mixed args
-    gep2 = llvm.GEPOp.from_mixed_indices(ptr, [1, size], builtin.i32, ptr_type)
+    gep2 = llvm.GEPOp.from_mixed_indices(
+        ptr, [1, size], llvm.LLVMArrayType(10, builtin.i32), ptr_type
+    )
 
     assert len(gep2.rawConstantIndices) == 2
     assert len(gep2.ssa_indices) == 1
@@ -613,9 +615,9 @@ def test_select_op():
 
 
 def test_masked_store_op():
-    value = create_ssa_value(builtin.f32)
+    value = create_ssa_value(builtin.VectorType(builtin.f32, [4]))
     ptr = create_ssa_value(llvm.LLVMPointerType())
-    mask = create_ssa_value(builtin.IntegerType(1))
+    mask = create_ssa_value(builtin.VectorType(builtin.IntegerType(1), [4]))
     op = llvm.MaskedStoreOp(value, ptr, mask, alignment=16)
     assert op.value == value
     assert op.data == ptr
