@@ -347,6 +347,11 @@ class xDSLOptMain(CommandLineTool):
         self.available_targets["x86-asm"] = _output_x86_asm
         self.available_targets["llvm"] = _output_llvm
 
+        multiverse = Universe.get_multiverse()
+        for target_name, target_factory in multiverse.all_targets.items():
+            if target_name not in self.available_targets:
+                self.available_targets[target_name] = target_factory
+
     def setup_pipeline(self):
         """
         Creates a pipeline that consists of all the passes specified.
