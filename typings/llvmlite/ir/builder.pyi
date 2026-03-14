@@ -378,7 +378,14 @@ class IRBuilder:
         """
         ...
 
-    def fcmp_ordered(self, cmpop, lhs, rhs, name=..., flags=...):  # -> FCMPInstr:
+    def fcmp_ordered(
+        self,
+        cmpop: str,
+        lhs: Value,
+        rhs: Value,
+        name: str = ...,
+        flags: str | Iterable[str] = ...,
+    ) -> Value:
         """
         Floating-point ordered comparison:
             name = lhs <cmpop> rhs
@@ -387,7 +394,14 @@ class IRBuilder:
         """
         ...
 
-    def fcmp_unordered(self, cmpop, lhs, rhs, name=..., flags=...):  # -> FCMPInstr:
+    def fcmp_unordered(
+        self,
+        cmpop: str,
+        lhs: Value,
+        rhs: Value,
+        name: str = ...,
+        flags: str | Iterable[str] = ...,
+    ) -> Value:
         """
         Floating-point unordered comparison:
             name = lhs <cmpop> rhs
