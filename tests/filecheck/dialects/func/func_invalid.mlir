@@ -95,3 +95,15 @@ func.func @bar() {
 }
 
 // CHECK: result type mismatch: expected result type !test.type<"int">, but provided !test.type<"foo"> for result number 0
+
+// -----
+
+func.func private @f(%arg0: i32 loc(unknown) {test.arg_name = "x"})
+
+// CHECK: Expected function argument attributes before location.
+
+// -----
+
+func.func private @f(%arg0: i32 loc(unknown) {})
+
+// CHECK: Expected function argument attributes before location.

@@ -97,10 +97,31 @@ class IteratorTypeAttr(EnumAttribute[IteratorType]):
             super().print_parameter(printer)
 
 
-class LinalgOperation(IRDLOperation, ABC):
+class LinalgStructuredOperation(IRDLOperation, ABC):
     """
-    Abstract base class for linalg operations, allowing them to be processed in with a
-    unified interface.
+    Abstract base class for structured linalg operations, allowing them to be processed
+    via a unified interface.
+    """
+
+    inputs = var_operand_def()
+    """
+    The operands that won't be mutated.
+    """
+    outputs = var_operand_def(ShapedType)
+    """
+    The operands that will be accumulated into.
+    These inputs may be `memref`s, which will be mutated in-place, or `tensor`s, which will be returned as results.
+    """
+
+    res = var_result_def(TensorType)
+    """
+    The updated `outputs`, empty if the inputs are memrefs.
+    """
+
+    body = region_def("single_block")
+    """
+    The body implementing the combination of scalar elements of the inputs, and
+    yielding the scalar elements of the outputs.
     """
 
     @abstractmethod
@@ -170,15 +191,8 @@ class LinalgOperation(IRDLOperation, ABC):
 
 
 @irdl_op_definition
-class GenericOp(LinalgOperation):
+class GenericOp(LinalgStructuredOperation):
     name = "linalg.generic"
-
-    inputs = var_operand_def()
-    outputs = var_operand_def(base(ShapedType))
-
-    res = var_result_def(AnyTensorType)
-
-    body = region_def("single_block")
 
     # Trait attributes
     indexing_maps = prop_def(ArrayAttr[AffineMapAttr])
@@ -424,17 +438,10 @@ class IndexOp(IRDLOperation):
         super().__init__(properties={"dim": dim_attr}, result_types=[IndexType()])
 
 
-class NamedOperation(IRDLOperation, ABC):
+class NamedOperation(LinalgStructuredOperation, ABC):
     """
     Abstract base class for named ops with hidden region.
     """
-
-    inputs = var_operand_def()
-    outputs = var_operand_def(base(ShapedType))
-
-    res = var_result_def(AnyTensorType)
-
-    hidden_region = region_def("single_block")
 
     irdl_options = (
         AttrSizedOperandSegments(as_property=True),
@@ -614,8 +621,22 @@ class NamedOperation(IRDLOperation, ABC):
         raise NotImplementedError
 
 
+class ElementwiseOperation(NamedOperation, ABC):
+    def get_indexing_maps(self) -> Sequence[AffineMap]:
+        assert all(isinstance(t, ShapedType) for t in self.operand_types), (
+            "Assume that all named linalg pointwise operations have matching shaped "
+            "types."
+        )
+        operand_types = cast(Sequence[ShapedType], self.operand_types)
+        shapes = tuple(t.get_shape() for t in operand_types)
+        assert all(shape == shapes[0] for shape in shapes[1:]), (
+            "All shapes must be equal"
+        )
+        return (AffineMap.identity(len(shapes[0])),) * len(operand_types)
+
+
 @irdl_op_definition
-class AddOp(NamedOperation):
+class AddOp(ElementwiseOperation):
     """
     Adds two tensors elementwise.
 
@@ -748,7 +769,7 @@ class LogOp(NamedOperation):
 
 
 @irdl_op_definition
-class SubOp(NamedOperation):
+class SubOp(ElementwiseOperation):
     """
     Subtracts two tensors elementwise.
 
@@ -939,9 +960,12 @@ class FillOp(NamedOperation):
 
         return hidden_region
 
+    def get_indexing_maps(self) -> Sequence[AffineMap]:
+        raise NotImplementedError
+
 
 @irdl_op_definition
-class CopyOp(NamedOperation):
+class CopyOp(ElementwiseOperation):
     """
     Copies the tensor elementwise.
 
@@ -989,7 +1013,7 @@ class CopyOp(NamedOperation):
 
 
 @irdl_op_definition
-class MaxOp(NamedOperation):
+class MaxOp(ElementwiseOperation):
     """
     Takes the max (signed) between two inputs, elementwise.
 
@@ -1036,7 +1060,7 @@ class MaxOp(NamedOperation):
 
 
 @irdl_op_definition
-class MinOp(NamedOperation):
+class MinOp(ElementwiseOperation):
     """
     Takes the max (signed) between two inputs, elementwise.
 
@@ -1083,7 +1107,7 @@ class MinOp(NamedOperation):
 
 
 @irdl_op_definition
-class MulOp(NamedOperation):
+class MulOp(ElementwiseOperation):
     """
     Multiplies two tensors elementwise.
 
@@ -1313,6 +1337,9 @@ class MatmulOp(NamedOperation):
 
         return hidden_region
 
+    def get_indexing_maps(self) -> Sequence[AffineMap]:
+        return tuple(m.data for m in self.indexing_maps.data)
+
 
 @irdl_op_definition
 class QuantizedMatmulOp(NamedOperation):
@@ -1382,6 +1409,9 @@ class QuantizedMatmulOp(NamedOperation):
 
         return hidden_region
 
+    def get_indexing_maps(self) -> Sequence[AffineMap]:
+        return tuple(m.data for m in self.memoized_indexing_maps.data)
+
 
 class PoolingOperation(NamedOperation, ABC):
     """Base class for linalg pooling operations."""
@@ -1409,6 +1439,9 @@ class PoolingOperation(NamedOperation, ABC):
             properties={"strides": strides, "dilations": dilations},
             hidden_region=self.get_hidden_region(inputs, outputs),
         )
+
+    def get_indexing_maps(self) -> Sequence[AffineMap]:
+        raise NotImplementedError
 
 
 @irdl_op_definition
@@ -1490,6 +1523,9 @@ class ConvOperation(NamedOperation, ABC):
             YieldOp(mac)
 
         return hidden_region
+
+    def get_indexing_maps(self) -> Sequence[AffineMap]:
+        raise NotImplementedError
 
 
 @irdl_op_definition
