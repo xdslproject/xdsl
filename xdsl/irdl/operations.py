@@ -1179,7 +1179,6 @@ class OpDef:
 
     def verify(self, op: Operation):
         """Given an IRDL definition, verify that an operation satisfies its invariants."""
-
         # Mapping from type variables to their concrete types.
         constraint_context = ConstraintContext()
 
@@ -1203,7 +1202,9 @@ class OpDef:
                 raise VerifyException(
                     f"property '{prop_name}' expected in operation '{op.name}'"
                 )
-            attr_def.constr.verify(op.properties[prop_name], constraint_context)
+            constraint_context.add_constraint(
+                attr_def.constr.verify, op.properties[prop_name]
+            )
 
         for prop_name in op.properties.keys():
             if prop_name not in self.properties:
@@ -1221,7 +1222,11 @@ class OpDef:
                 raise VerifyException(
                     f"attribute '{attr_name}' expected in operation '{op.name}'"
                 )
-            attr_def.constr.verify(op.attributes[attr_name], constraint_context)
+            constraint_context.add_constraint(
+                attr_def.constr.verify, op.attributes[attr_name]
+            )
+
+        constraint_context.solve_constraints()
 
         # Verify traits.
         for trait in self.traits:
@@ -1464,6 +1469,32 @@ def irdl_op_verify_regions(
                 ) from e
 
 
+def _verify_arg_at_position(
+    args: tuple[
+        RangeConstraint,
+        str,
+        Sequence[Attribute],
+        Literal[VarIRConstruct.OPERAND, VarIRConstruct.RESULT],
+        int,
+    ],
+    constraint_context: ConstraintContext,
+):
+    constr, arg_name, arg_types, construct, idx = args
+    length = len(arg_types)
+    try:
+        constr.verify(arg_types, constraint_context)
+    except VerifyException as e:
+        if length == 0:
+            pos = f"expected at position {idx}"
+        elif length == 1:
+            pos = f"at position {idx}"
+        else:
+            pos = f"at positions {idx} to {idx + length - 1}"
+        raise VerifyException(
+            f"{get_construct_name(construct)} '{arg_name}' {pos} does not verify:\n{e}"
+        ) from e
+
+
 def irdl_op_verify_arg_list(
     op: Operation,
     op_def: OpDef,
@@ -1484,21 +1515,11 @@ def irdl_op_verify_arg_list(
             arg_types = (args.type,)
         else:
             arg_types = args.types
-        length = len(arg_types)
-        try:
-            arg_def.constr.verify(arg_types, constraint_context)
-        except VerifyException as e:
-            if length == 0:
-                pos = f"expected at position {idx}"
-            elif length == 1:
-                pos = f"at position {idx}"
-            else:
-                pos = f"at positions {idx} to {idx + length - 1}"
-            raise VerifyException(
-                f"{get_construct_name(construct)} '{arg_name}' {pos} does not "
-                f"verify:\n{e}"
-            ) from e
-        idx += length
+        constraint_context.add_constraint(
+            _verify_arg_at_position,
+            (arg_def.constr, arg_name, arg_types, construct, idx),
+        )
+        idx += len(arg_types)
 
 
 @overload
