@@ -512,6 +512,7 @@ class ApplyOp(IRDLOperation):
 
     args = var_operand_def(Attribute)
     dest = var_operand_def(FieldType)
+    reductions = var_operand_def()
     region = region_def()
     res = var_result_def(TempType)
 
@@ -572,6 +573,12 @@ class ApplyOp(IRDLOperation):
             printer.print_string(" -> ")
             with printer.in_parens():
                 printer.print_list(self.res.types, printer.print_attribute)
+
+        if self.reductions:
+            printer.print_string(" reductions ")
+            with printer.in_parens():
+                printer.print_list(self.reductions, print_destination_operand)
+
         printer.print_string(" ")
         printer.print_op_attributes(self.attributes, print_keyword=True)
         printer.print_region(self.region, print_entry_block_args=False)
@@ -631,7 +638,8 @@ class ApplyOp(IRDLOperation):
         else:
             bounds = None
         return cls.build(
-            operands=[operands, destinations or []],
+            # TODO: support stencil reduction parsing
+            operands=[operands, destinations or [], []],
             result_types=[result_types or []],
             regions=[region],
             attributes=attrs,
@@ -645,8 +653,21 @@ class ApplyOp(IRDLOperation):
         body: Block | Region,
         result_types: Sequence[TempType[Attribute]] = (),
         bounds: StencilBoundsAttr | None = None,
+        reductions: Sequence[SSAValue] | Sequence[Operation] = (),
     ):
         return ApplyOp(args, body, result_types, bounds)
+        assert result_types or bounds
+        if isinstance(body, Block):
+            body = Region(body)
+
+        properties = {"bounds": bounds} if bounds else {}
+
+        return ApplyOp.build(
+            operands=[list(args), [], list(reductions)],
+            regions=[body],
+            result_types=[result_types],
+            properties=properties,
+        )
 
     def verify_(self) -> None:
         for operand, argument in zip(self.operands, self.region.block.args):

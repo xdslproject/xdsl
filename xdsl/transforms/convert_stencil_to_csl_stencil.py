@@ -239,7 +239,8 @@ class ConvertSwapToPrefetchPattern(RewritePattern):
             r_types = apply_op.result_types
             assert isa(r_types, Sequence[stencil.TempType[Attribute]])
             new_apply_op = stencil.ApplyOp.build(
-                operands=[[*apply_op.args, prefetch_op.result], apply_op.dest],
+                # TODO: support stencil reductions
+                operands=[[*apply_op.args, prefetch_op.result], apply_op.dest, []],
                 regions=[apply_op.detach_region(apply_op.region)],
                 result_types=[r_types],
                 properties=apply_op.properties,
