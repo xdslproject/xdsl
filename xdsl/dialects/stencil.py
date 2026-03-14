@@ -511,6 +511,7 @@ class ApplyOp(IRDLOperation):
 
     args = var_operand_def(Attribute)
     dest = var_operand_def(FieldType)
+    reductions = var_operand_def()
     region = region_def()
     res = var_result_def(TempType)
 
@@ -571,6 +572,12 @@ class ApplyOp(IRDLOperation):
             printer.print_string(" -> ")
             with printer.in_parens():
                 printer.print_list(self.res.types, printer.print_attribute)
+
+        if self.reductions:
+            printer.print_string(" reductions ")
+            with printer.in_parens():
+                printer.print_list(self.reductions, print_destination_operand)
+
         printer.print_string(" ")
         printer.print_op_attributes(self.attributes, print_keyword=True)
         printer.print_region(self.region, print_entry_block_args=False)
@@ -630,7 +637,8 @@ class ApplyOp(IRDLOperation):
         else:
             bounds = None
         return cls.build(
-            operands=[operands, destinations or []],
+            # TODO: support stencil reduction parsing
+            operands=[operands, destinations or [], []],
             result_types=[result_types or []],
             regions=[region],
             attributes=attrs,
@@ -644,8 +652,21 @@ class ApplyOp(IRDLOperation):
         body: Block | Region,
         result_types: Sequence[TempType[Attribute]] = (),
         bounds: StencilBoundsAttr | None = None,
+        reductions: Sequence[SSAValue] | Sequence[Operation] = (),
     ):
         return ApplyOp(args, body, result_types, bounds)
+        assert result_types or bounds
+        if isinstance(body, Block):
+            body = Region(body)
+
+        properties = {"bounds": bounds} if bounds else {}
+
+        return ApplyOp.build(
+            operands=[list(args), [], list(reductions)],
+            regions=[body],
+            result_types=[result_types],
+            properties=properties,
+        )
 
     def verify_(self) -> None:
         for operand, argument in zip(self.operands, self.region.block.args):
@@ -1622,6 +1643,69 @@ class ReturnOp(IRDLOperation):
                     )
 
 
+@irdl_op_definition
+class ReduceOp(IRDLOperation):
+    """
+    Reduce operation for accumulating values across stencil iterations.
+    """
+
+    name = "stencil.reduce"
+
+    operand = operand_def()
+    init = operand_def()
+    body = region_def("single_block")
+
+    def __init__(self, operand: SSAValue, init: SSAValue, body: Region):
+        super().__init__(operands=[operand, init], result_types=[], regions=[body])
+
+    @staticmethod
+    def get(operand: SSAValue, init: SSAValue, body: Region):
+        return ReduceOp(operand, init, body)
+
+    def verify_(self) -> None:
+        body_block = self.body.blocks[0]
+
+        if len(body_block.args) != 2:
+            raise VerifyException("stencil.reduce body must have 2 arguments")
+
+        operand_type = self.operand.type
+        init_type = self.init.type
+
+        if operand_type != init_type:
+            raise VerifyException(
+                "stencil.reduce operand and init must have the same type, ",
+                f"got {operand_type} and {init_type}",
+            )
+
+        if (
+            body_block.args[0].type != operand_type
+            or body_block.args[1].type != operand_type
+        ):
+            raise VerifyException(
+                "stencil.reduce body arguments must match operand type"
+            )
+
+
+@irdl_op_definition
+class ReduceReturnOp(IRDLOperation):
+    """
+    Terminator for stencil.reduce body.
+    """
+
+    name = "stencil.reduce.return"
+
+    result = operand_def()
+
+    traits = traits_def(IsTerminator())
+
+    def __init__(self, result: SSAValue):
+        super().__init__(operands=[result])
+
+    @staticmethod
+    def get(result: SSAValue):
+        return ReduceReturnOp(result)
+
+
 @dataclass(frozen=True)
 class AccessPattern:
     """
@@ -1750,6 +1834,8 @@ Stencil = Dialect(
         ApplyOp,
         StoreResultOp,
         ReturnOp,
+        ReduceOp,
+        ReduceReturnOp,
     ],
     [
         FieldType,
