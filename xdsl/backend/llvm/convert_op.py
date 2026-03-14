@@ -152,7 +152,7 @@ _FCMP_CMP_MAP = {"eq": "==", "gt": ">", "ge": ">=", "lt": "<", "le": "<=", "ne":
 def _convert_fcmp(
     op: llvm.FCmpOp, builder: ir.IRBuilder, val_map: dict[SSAValue, ir.Value]
 ):
-    pred_int: int = op.predicate.value.data  # type: ignore[union-attr]
+    pred_int: int = op.predicate.value.data
     flag = llvm.FCmpPredicateFlag.from_int(pred_int)
     pred = flag.value
     is_ordered = pred[0] == "o"
