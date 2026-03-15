@@ -1,8 +1,8 @@
 // RUN: xdsl-opt %s --print-debuginfo | mlir-opt --allow-unregistered-dialect --mlir-print-debuginfo --mlir-print-local-scope | xdsl-opt --print-debuginfo | filecheck %s --check-prefix=CHECK-DEBUG-INFO
 
-%0 = "arith.constant"() <{value = 1 : i32}> : () -> i32
-%1 = "arith.constant"() <{value = 2 : i32}> : () -> i32
-%2 = "arith.addi"(%0, %1) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32 loc("model.mlir":7:9)
+%0 = arith.constant 1 : i32
+%1 = arith.constant 2 : i32
+%2 = arith.addi %0, %1 : i32 loc("model.mlir":7:9)
 
 // CHECK-DEBUG-INFO: builtin.module {
 // CHECK-DEBUG-INFO-NEXT:   %{{.*}} = arith.constant 1 : i32 loc(unknown)
