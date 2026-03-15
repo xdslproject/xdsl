@@ -7,7 +7,7 @@ from warnings import warn
 from typing_extensions import TypeVar
 
 from xdsl.context import Context
-from xdsl.dialects import arith, builtin, memref, scf
+from xdsl.dialects import arith, builtin, llvm, memref, scf
 from xdsl.dialects.builtin import (
     MemRefType,
     UnrealizedConversionCastOp,
@@ -25,6 +25,8 @@ from xdsl.dialects.stencil import (
     IndexAttr,
     IndexOp,
     LoadOp,
+    ReduceOp,
+    ReduceReturnOp,
     ResultType,
     ReturnOp,
     StencilBoundsAttr,
@@ -277,7 +279,7 @@ class LoadOpToMemRef(RewritePattern):
         subview.result.name_hint = name
 
 
-def prepare_apply_body(op: ApplyOp):
+def prepare_apply_body(op: ApplyOp) -> tuple[Block, list[SSAValue]]:
     # First replace all current arguments by their definition
     # and erase them from the block. (We are changing the op
     # to a loop, which has access to them either way)
@@ -286,11 +288,49 @@ def prepare_apply_body(op: ApplyOp):
     for operand, arg in zip(op.operands, entry.args):
         arg.replace_all_uses_with(operand)
         entry.erase_arg(arg)
-    entry.add_op(scf.ReduceOp())
+
+    stencil_reduces: list[ReduceOp] = []
+
+    for block_op in list(entry.ops):
+        if isinstance(block_op, ReduceOp):
+            stencil_reduces.append(block_op)
+
+    reduce_values: list[SSAValue] = []
+    reduce_regions: list[Block] = []
+    reduce_init_values: list[SSAValue] = []
+
+    for stencil_reduce in stencil_reduces:
+        reduce_values.append(stencil_reduce.operand)
+        reduce_init_values.append(stencil_reduce.init)
+
+        body_block = stencil_reduce.body.block
+
+        for body_op in list(body_block.ops):
+            if isinstance(body_op, ReduceReturnOp):
+                scf_return = scf.ReduceReturnOp(body_op.result)
+                body_block.insert_op_before(scf_return, body_op)
+                body_op.detach()
+                body_op.erase()
+
+        reduce_regions.append(stencil_reduce.body.detach_block(0))
+
+        stencil_reduce.detach()
+        stencil_reduce.erase()
+
+    if reduce_values:
+        # Create single scf.reduce with all reductions
+        scf_reduce = scf.ReduceOp(
+            reduce_values, [Region(block) for block in reduce_regions]
+        )
+        entry.add_op(scf_reduce)
+    else:
+        # No reductions, just add empty terminator
+        entry.add_op(scf.ReduceOp())
+
     for _ in range(op.get_rank()):
         entry.insert_arg(builtin.IndexType(), 0)
 
-    return op.region.detach_block(entry)
+    return op.region.detach_block(entry), reduce_init_values
 
 
 @dataclass
@@ -376,7 +416,9 @@ class ApplyOpFieldSubviews(RewritePattern):
             return
 
         new_apply = ApplyOp.create(
-            operands=[SSAValue.get(arg) for arg in args] + list(op.dest),
+            operands=[SSAValue.get(arg) for arg in args]
+            + list(op.dest)
+            + list(op.reductions),
             result_types=[r.type for r in op.res],
             regions=[op.detach_region(0)],
             attributes=op.attributes,
@@ -411,7 +453,7 @@ class ApplyOpToParallel(RewritePattern):
             unroll = list(u for u in unroll)
 
         rank = op.get_rank()
-        body = prepare_apply_body(op)
+        body, reduce_init_values = prepare_apply_body(op)
         if unroll is None:
             unroll = [1] * rank
         else:
@@ -439,6 +481,22 @@ class ApplyOpToParallel(RewritePattern):
             ),
         ]
 
+        cloned_init_ops: list[Operation] = []
+        cloned_init_values: list[OpResult] = []
+
+        for init_value in reduce_init_values:
+            assert isinstance(init_value, OpResult)
+
+            # Clone the defining operation
+            init_op = init_value.op
+            cloned_op = init_op.clone()
+            cloned_init_ops.append(cloned_op)
+            cloned_init_values.append(cloned_op.results[0])
+
+        # Insert cloned init ops
+        if cloned_init_ops:
+            rewriter.insert_op(cloned_init_ops)
+
         # Generate an outer parallel loop as well as two inner sequential
         # loops. The inner sequential loops ensure that the computational
         # kernel itself is not slowed down by the OpenMP runtime.
@@ -448,6 +506,7 @@ class ApplyOpToParallel(RewritePattern):
             upper_bounds=upperBounds,
             steps=tiled_steps,
             body=Region(body),
+            init_vals=cloned_init_values,
         )
         for index in body.walk():
             if isinstance(index, IndexOp):
@@ -469,6 +528,19 @@ class ApplyOpToParallel(RewritePattern):
         # Replace with the loop and necessary constants.
         assert isa(boilerplate_ops, list[Operation])
         rewriter.insert_op([*boilerplate_ops, p])
+
+        terminator = body.last_op
+        has_reductions = (
+            isinstance(terminator, scf.ReduceOp) and len(terminator.args) > 0
+        )
+
+        if has_reductions:
+            reduction_handles = list(op.reductions)
+
+            for result, handle_ptr in zip(p.results, reduction_handles):
+                store_op = llvm.StoreOp(result, handle_ptr)
+                rewriter.insert_op(store_op)
+
         rewriter.replace_op(op, [], new_results)
 
 
