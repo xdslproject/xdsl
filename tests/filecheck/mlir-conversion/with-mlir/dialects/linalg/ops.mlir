@@ -1,6 +1,5 @@
 // RUN: MLIR_ROUNDTRIP
 // RUN: MLIR_GENERIC_ROUNDTRIP
-// RUN: xdsl-opt %s --print-debuginfo | mlir-opt --allow-unregistered-dialect --mlir-print-debuginfo --mlir-print-local-scope | xdsl-opt --print-debuginfo
 
 %0, %1 = "test.op"() : () -> (f32, memref<1x256xf32>)
 

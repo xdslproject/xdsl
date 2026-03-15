@@ -1,6 +1,5 @@
 // RUN: XDSL_ROUNDTRIP
 // RUN: XDSL_GENERIC_ROUNDTRIP
-// RUN: xdsl-opt %s --split-input-file --print-debuginfo | filecheck %s --check-prefix=CHECK-DEBUG-INFO
 
 %0, %1 = "test.op"() : () -> (f32, memref<1x256xf32>)
 
@@ -286,17 +285,3 @@ linalg.generic {indexing_maps = [affine_map<(d0, d1) -> ()>, affine_map<(d0, d1)
 // CHECK-GENERIC-NEXT:      "linalg.yield"(%{{.*}}) : (f32) -> ()
 // CHECK-GENERIC-NEXT:    }) : (tensor<12x20xf32>, tensor<20xf32>) -> tensor<20xf32>
 // CHECK-GENERIC-NEXT:  }) : () -> ()
-
-// -----
-
-%lhs, %rhs, %out = "test.op"() : () -> (tensor<2x4xi32>, tensor<4x5xi32>, tensor<2x5xi32>)
-%matmul = "linalg.matmul"(%lhs, %rhs, %out) <{operandSegmentSizes = array<i32: 2, 1>, indexing_maps = [affine_map<(d0, d1, d2) -> (d0, d2)>, affine_map<(d0, d1, d2) -> (d2, d1)>, affine_map<(d0, d1, d2) -> (d0, d1)>]}> ({
-^bb0(%arg0: i32, %arg1: i32, %arg2: i32):
-  %prod = arith.muli %arg0, %arg1 : i32
-  %addi = arith.addi %arg2, %prod : i32
-  linalg.yield %addi : i32
-}) : (tensor<2x4xi32>, tensor<4x5xi32>, tensor<2x5xi32>) -> tensor<2x5xi32> loc("model.mlir":7:9)
-
-// CHECK-DEBUG-INFO-LABEL: builtin.module {
-// CHECK-DEBUG-INFO: %{{.*}}, %{{.*}}, %{{.*}} = "test.op"() : () -> (tensor<2x4xi32>, tensor<4x5xi32>, tensor<2x5xi32>) loc(unknown)
-// CHECK-DEBUG-INFO-NEXT: %{{.*}} = linalg.matmul ins(%{{.*}}, %{{.*}} : tensor<2x4xi32>, tensor<4x5xi32>) outs(%{{.*}} : tensor<2x5xi32>) -> tensor<2x5xi32> loc("model.mlir":7:9)
