@@ -9,7 +9,7 @@ from typing import Literal, overload
 
 from xdsl.context import Context
 from xdsl.dialect_interfaces.op_asm import OpAsmDialectInterface
-from xdsl.dialects.builtin import DictionaryAttr, ModuleOp
+from xdsl.dialects.builtin import DictionaryAttr, LocationAttr, ModuleOp
 from xdsl.ir import (
     Attribute,
     Block,
@@ -444,6 +444,9 @@ class Parser(AttrParser):
         type: Attribute
         """The type of the argument, if any."""
 
+        location: LocationAttr | None = None
+        """The optional source location attached to the argument."""
+
     @overload
     def parse_optional_argument(
         self, expect_type: Literal[True] = True
@@ -548,6 +551,8 @@ class Parser(AttrParser):
             entry_block = Block(arg_types=arg_types)
             for block_arg, arg in zip(entry_block.args, arguments):
                 self._register_ssa_definition(arg.name.text[1:], (block_arg,), arg.name)
+                if arg.location is not None:
+                    block_arg.location = arg.location
 
             # Parse the entry block body
             self._parse_block_body(entry_block)
