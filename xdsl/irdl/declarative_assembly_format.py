@@ -339,7 +339,7 @@ def irdl_custom_directive(cls: type[CustomDirectiveInvT]) -> type[CustomDirectiv
     """Decorator used on custom directives to define the `parameters` class variable."""
 
     cls.parameters = {}
-    param_types = inspect.get_annotations(cls, eval_str=True)
+    param_types = inspect.get_annotations(cls, eval_str=False)
     for field_name, ty in param_types.items():
         if is_const_classvar(field_name, ty, PyRDLError):
             continue
