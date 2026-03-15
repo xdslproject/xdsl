@@ -279,7 +279,7 @@ class LoadOpToMemRef(RewritePattern):
         subview.result.name_hint = name
 
 
-def prepare_apply_body(op: ApplyOp):
+def prepare_apply_body(op: ApplyOp) -> tuple[Block, list[SSAValue]]:
     # First replace all current arguments by their definition
     # and erase them from the block. (We are changing the op
     # to a loop, which has access to them either way)
@@ -295,9 +295,9 @@ def prepare_apply_body(op: ApplyOp):
         if isinstance(block_op, ReduceOp):
             stencil_reduces.append(block_op)
 
-    reduce_values = []
-    reduce_regions = []
-    reduce_init_values = []
+    reduce_values: list[SSAValue] = []
+    reduce_regions: list[Block] = []
+    reduce_init_values: list[SSAValue] = []
 
     for stencil_reduce in stencil_reduces:
         reduce_values.append(stencil_reduce.operand)
@@ -481,10 +481,12 @@ class ApplyOpToParallel(RewritePattern):
             ),
         ]
 
-        cloned_init_ops = []
-        cloned_init_values = []
+        cloned_init_ops: list[Operation] = []
+        cloned_init_values: list[OpResult] = []
 
         for init_value in reduce_init_values:
+            assert isinstance(init_value, OpResult)
+
             # Clone the defining operation
             init_op = init_value.op
             cloned_op = init_op.clone()
