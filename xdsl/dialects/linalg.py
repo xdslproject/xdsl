@@ -130,11 +130,8 @@ class LinalgStructuredOperation(IRDLOperation, ABC):
         Get the indexing maps corresponding to this operation's operands, in order.
         """
 
-    def get_default_indexing_maps(self) -> Sequence[AffineMap]:
-        return tuple(attr.data for attr in self.get_indexing_maps())
-
     def get_num_loops(self) -> int:
-        return self.get_default_indexing_maps()[0].num_dims
+        return self.get_indexing_maps().data[0].data.num_dims
 
     def get_loops_to_shapes_map(self) -> AffineMap:
         """
@@ -143,14 +140,15 @@ class LinalgStructuredOperation(IRDLOperation, ABC):
         computation".
         The default behavior is to just concatenate all the indexing maps.
         """
+        indexing_maps_sequence = tuple(attr.data for attr in self.get_indexing_maps())
         result_exprs = tuple(
-            res for map in self.get_default_indexing_maps() for res in map.results
+            res for map in indexing_maps_sequence for res in map.results
         )
 
         dims = self.get_num_loops()
 
         # FIXME: Support symbols.
-        for map in self.get_default_indexing_maps():
+        for map in indexing_maps_sequence:
             if map.num_symbols != 0:
                 raise NotImplementedError(
                     "Indexing maps with symbols not supported for now."
@@ -623,9 +621,20 @@ class NamedOperation(LinalgStructuredOperation, ABC):
         """
         raise NotImplementedError
 
+    @abstractmethod
+    def get_default_indexing_maps(self) -> Sequence[AffineMap]:
+        """
+        Get the default indexing maps corresponding to this operation's operands, in order.
+        """
+
+    def get_indexing_maps(self) -> ArrayAttr[AffineMapAttr]:
+        return ArrayAttr(
+            AffineMapAttr(map_) for map_ in self.get_default_indexing_maps()
+        )
+
 
 class ElementwiseOperation(NamedOperation, ABC):
-    def get_indexing_maps(self) -> ArrayAttr[AffineMapAttr]:
+    def get_default_indexing_maps(self) -> Sequence[AffineMap]:
         assert all(isinstance(t, ShapedType) for t in self.operand_types), (
             "Assume that all named linalg pointwise operations have matching shaped "
             "types."
@@ -635,10 +644,8 @@ class ElementwiseOperation(NamedOperation, ABC):
         assert all(shape == shapes[0] for shape in shapes[1:]), (
             "All shapes must be equal"
         )
-        # return ArrayAttr((AffineMap.identity(len(shapes[0])),) * len(operand_types))
-        return ArrayAttr(
-            (AffineMapAttr(AffineMap.identity(len(shapes[0]))),) * len(operand_types)
-        )
+
+        return (AffineMap.identity(len(shapes[0])),) * len(operand_types)
 
 
 @irdl_op_definition
@@ -966,7 +973,7 @@ class FillOp(NamedOperation):
 
         return hidden_region
 
-    def get_indexing_maps(self) -> ArrayAttr[AffineMapAttr]:
+    def get_default_indexing_maps(self) -> Sequence[AffineMap]:
         raise NotImplementedError
 
 
@@ -1343,6 +1350,9 @@ class MatmulOp(NamedOperation):
 
         return hidden_region
 
+    def get_default_indexing_maps(self) -> Sequence[AffineMap]:
+        return tuple(m.data for m in self.indexing_maps.data)
+
     def get_indexing_maps(self) -> ArrayAttr[AffineMapAttr]:
         return self.indexing_maps
 
@@ -1415,6 +1425,9 @@ class QuantizedMatmulOp(NamedOperation):
 
         return hidden_region
 
+    def get_default_indexing_maps(self) -> Sequence[AffineMap]:
+        return tuple(m.data for m in self.memoized_indexing_maps.data)
+
     def get_indexing_maps(self) -> ArrayAttr[AffineMapAttr]:
         return self.memoized_indexing_maps
 
@@ -1446,7 +1459,7 @@ class PoolingOperation(NamedOperation, ABC):
             hidden_region=self.get_hidden_region(inputs, outputs),
         )
 
-    def get_indexing_maps(self) -> ArrayAttr[AffineMapAttr]:
+    def get_default_indexing_maps(self) -> Sequence[AffineMap]:
         raise NotImplementedError
 
 
@@ -1530,7 +1543,7 @@ class ConvOperation(NamedOperation, ABC):
 
         return hidden_region
 
-    def get_indexing_maps(self) -> ArrayAttr[AffineMapAttr]:
+    def get_default_indexing_maps(self) -> Sequence[AffineMap]:
         raise NotImplementedError
 
 

@@ -29,7 +29,7 @@ def run_linalg_structured_op(
     input_args = args[:inputs_count]
     output_args = args[inputs_count:]
     results = op.results
-    indexing_maps = op.get_default_indexing_maps()
+    indexing_maps = op.get_indexing_maps()
     loop_ranges = op.get_static_loop_ranges()
 
     if any(not isinstance(arg, ShapedArray) for arg in output_args):
@@ -44,7 +44,8 @@ def run_linalg_structured_op(
 
     loop_shaped_args = input_args + outputs
 
-    output_indexing_maps = indexing_maps[inputs_count:]
+    indexing_maps_sequence = tuple(attr.data for attr in indexing_maps)
+    output_indexing_maps = indexing_maps_sequence[inputs_count:]
 
     for indices in product(*(range(loop_range) for loop_range in loop_ranges)):
         loop_scalar_args = tuple(
@@ -53,7 +54,9 @@ def run_linalg_structured_op(
                 if isinstance(i, ShapedArray)
                 else i
             )
-            for i, indexing_map in zip(loop_shaped_args, indexing_maps, strict=True)
+            for i, indexing_map in zip(
+                loop_shaped_args, indexing_maps_sequence, strict=True
+            )
         )
         loop_results = interpreter.run_ssacfg_region(body, loop_scalar_args, "for_loop")
         for res, indexing_map in zip(loop_results, output_indexing_maps, strict=True):
