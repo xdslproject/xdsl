@@ -7,7 +7,7 @@ import pytest
 from xdsl.context import Context
 from xdsl.dialects import builtin
 from xdsl.passes import ModulePass
-from xdsl.utils.parse_pipeline import PipelinePassSpec
+from xdsl.utils.arg_spec import ArgSpec
 
 
 @dataclass(frozen=True)
@@ -55,9 +55,9 @@ class SimplePass(ModulePass):
 
 def test_pass_instantiation():
     p = CustomPass.from_pass_spec(
-        PipelinePassSpec(
+        ArgSpec(
             name="custom-pass",
-            args={
+            parameters={
                 "number": (2,),
                 "int-list": (1, 2, 3),
                 "str-thing": ("hello world",),
@@ -76,31 +76,34 @@ def test_pass_instantiation():
     assert p.optional_bool is False
 
     # this should just work
-    EmptyPass.from_pass_spec(PipelinePassSpec("empty", dict()))
+    EmptyPass.from_pass_spec(ArgSpec("empty", dict()))
 
 
 @pytest.mark.parametrize(
     "spec, error_msg",
     [
-        (PipelinePassSpec("wrong", {"a": (1,)}), "Cannot create Pass simple"),
-        (PipelinePassSpec("simple", {}), 'requires argument "a"'),
         (
-            PipelinePassSpec("simple", {"a": (1,), "no": ()}),
-            'Provided arguments ["no"] not found in expected pass arguments ["a", "b"]',
+            ArgSpec("wrong", {"a": (1,)}),
+            "Spec name mismatch: got 'wrong', expected 'simple'.",
         ),
-        (PipelinePassSpec("simple", {"a": ()}), "Argument must contain a value"),
-        (PipelinePassSpec("simple", {"a": ("test",)}), "Incompatible types"),
+        (ArgSpec("simple", {}), 'requires argument "a"'),
         (
-            PipelinePassSpec("simple", {"a": ("test",), "literal": ("definitely",)}),
+            ArgSpec("simple", {"a": (1,), "no": ()}),
+            'Provided arguments ["no"] not found in expected arguments ["a", "b"]',
+        ),
+        (ArgSpec("simple", {"a": ()}), "Argument must contain a value"),
+        (ArgSpec("simple", {"a": ("test",)}), "Incompatible types"),
+        (
+            ArgSpec("simple", {"a": ("test",), "literal": ("definitely",)}),
             "Incompatible types",
         ),
     ],
 )
-def test_pass_instantiation_error(spec: PipelinePassSpec, error_msg: str):
+def test_pass_instantiation_error(spec: ArgSpec, error_msg: str):
     """
     Test all possible failure modes in pass instantiation
     """
-    with pytest.raises(Exception, match=re.escape(error_msg)):
+    with pytest.raises(ValueError, match=re.escape(error_msg)):
         SimplePass.from_pass_spec(spec)
 
 

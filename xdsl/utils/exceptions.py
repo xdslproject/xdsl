@@ -12,7 +12,7 @@ from typing import Any
 if typing.TYPE_CHECKING:
     from xdsl.ir import Attribute
     from xdsl.parser import Span
-    from xdsl.utils.parse_pipeline import SpecToken
+    from xdsl.utils.arg_spec import SpecToken
 
 
 class UnregisteredConstructException(Exception):
@@ -137,7 +137,7 @@ class MultipleSpansParseError(ParseError):
         return res
 
 
-class PassPipelineParseError(BaseException):
+class ArgSpecParseError(BaseException):
     def __init__(self, token: SpecToken, msg: str):
         super().__init__(
             "Error parsing pass pipeline specification:\n"

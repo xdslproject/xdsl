@@ -625,6 +625,9 @@ class Printer(BasePrinter):
             op.attributes["op_name__"] = op_name
         elif use_custom_format:
             op.print(self)
+            if self.print_debuginfo:
+                self.print_string(" ")
+                self.print_attribute(op.location)
         else:
             self.print_op_with_default_format(op)
         if scope:

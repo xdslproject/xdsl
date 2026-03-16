@@ -1145,6 +1145,17 @@ def test_dialect_name():
     assert MyOperation.dialect_name() == "dialect"
 
 
+def test_replace_all_uses_with_self():
+    """Replacing an SSA value with itself should be a no-op (fixes #5721)."""
+    a = create_ssa_value(i32)
+    b = test.TestOp((a,))
+
+    a.replace_all_uses_with(a)
+
+    # The use should still be intact and pointing to a
+    assert set(u.operation for u in a.uses) == {b}
+
+
 def test_replace_by_if():
     a = create_ssa_value(i32)
     b = test.TestOp((a,))

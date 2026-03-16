@@ -789,8 +789,8 @@ class PadOp(IRDLOperation):
         region: Region,
         static_low: Sequence[int] | DenseArrayBase,
         static_high: Sequence[int] | DenseArrayBase,
-        nofold: UnitAttr,
         result_type: TensorType[Attribute],
+        nofold: UnitAttr | None = None,
         attributes: dict[str, Attribute] | None = None,
     ):
         if not isinstance(static_low, DenseArrayBase):

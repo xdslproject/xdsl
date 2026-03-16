@@ -25,6 +25,18 @@
 %6 = llvm.fneg %arg0 {fastmathFlags = #llvm.fastmath<fast>} : f32
 // CHECK: llvm.fneg [[arg0]] {fastmathFlags = #llvm.fastmath<fast>} : f32
 
+%fcmp_lhs, %fcmp_rhs = "test.op"() : () -> (f32, f32)
+// CHECK: [[fcmp_lhs:%\d+]], [[fcmp_rhs:%\d+]]
+
+%7 = llvm.fcmp "oeq" %fcmp_lhs, %fcmp_rhs : f32
+// CHECK: llvm.fcmp "oeq" [[fcmp_lhs]], [[fcmp_rhs]] : f32
+
+%8 = llvm.fcmp "ult" %fcmp_lhs, %fcmp_rhs : f32
+// CHECK: llvm.fcmp "ult" [[fcmp_lhs]], [[fcmp_rhs]] : f32
+
+%9 = llvm.fcmp "one" %fcmp_lhs, %fcmp_rhs : f32
+// CHECK: llvm.fcmp "one" [[fcmp_lhs]], [[fcmp_rhs]] : f32
+
 %select_cond = "test.op"() : () -> i1
 // CHECK: [[select_cond:%\d+]] = "test.op"
 %select_lhs = "test.op"() : () -> i32
@@ -43,6 +55,22 @@
 %11 = llvm.select %select_cond, %select_f32_lhs, %select_f32_rhs : i1, f32
 // CHECK: llvm.select [[select_cond]], [[select_f32_lhs]], [[select_f32_rhs]] : i1, f32
 
+"test.op"() ({
+^bb0(%cond_br_cond : i1, %cond_br_arg : i32):
+  llvm.cond_br %cond_br_cond, ^bb1(%cond_br_arg : i32), ^bb2(%cond_br_arg : i32)
+^bb1(%cond_br_then : i32):
+  "test.termop"(%cond_br_then) : (i32) -> ()
+^bb2(%cond_br_else : i32):
+  "test.termop"(%cond_br_else) : (i32) -> ()
+}) : () -> ()
+// CHECK:      "test.op"() ({
+// CHECK-NEXT: ^{{bb\d+}}([[COND:%.*]] : i1, [[ARG:%.*]] : i32):
+// CHECK-NEXT:   llvm.cond_br [[COND]], ^[[BB1:bb\d+]]([[ARG]] : i32), ^[[BB2:bb\d+]]([[ARG]] : i32)
+// CHECK-NEXT: ^[[BB1]]([[THEN:%.*]] : i32):
+// CHECK-NEXT:   "test.termop"([[THEN]]) : (i32) -> ()
+// CHECK-NEXT: ^[[BB2]]([[ELSE:%.*]] : i32):
+// CHECK-NEXT:   "test.termop"([[ELSE]]) : (i32) -> ()
+// CHECK-NEXT: }) : () -> ()
 
 %ptr = "test.op"() : () -> !llvm.ptr
 // CHECK: [[ptr:%\d+]] = "test.op"
