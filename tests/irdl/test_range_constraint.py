@@ -113,6 +113,17 @@ def test_verify_range_length_constraint():
     ) == (world, world, world)
 
 
+def test_of_length():
+    range_constraint = RangeOf(AnyAttr())
+
+    range_len_1 = RangeLengthConstraint(range_constraint, EqIntConstraint(2))
+    range_len_2 = range_constraint.of_length(EqIntConstraint(2))
+    range_len_3 = range_constraint.of_length(2)
+
+    assert range_len_1 == range_len_2
+    assert range_len_1 == range_len_3
+
+
 def test_mapping_type_vars():
     _IntT = TypeVar("_IntT", bound=int, default=int)
     tv_constr = IntTypeVarConstraint(_IntT, AnyInt())
