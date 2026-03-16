@@ -25,6 +25,8 @@ from xdsl.utils.exceptions import PyRDLError, VerifyException
 from xdsl.utils.runtime_final import is_runtime_final
 
 if TYPE_CHECKING:
+    from typing_extensions import TypeForm
+
     from xdsl.irdl import IRDLAttrConstraint
 
 
@@ -1142,9 +1144,13 @@ class RangeConstraint(ABC, Generic[AttributeCovT]):
         )
 
     def of_length(
-        self, length_constr: IntConstraint
+        self, length_constr: int | TypeForm[int] | IntConstraint
     ) -> RangeLengthConstraint[AttributeCovT]:
-        return RangeLengthConstraint(self, length_constr)
+        if isinstance(length_constr, IntConstraint):
+            return RangeLengthConstraint(self, length_constr)
+        from xdsl.irdl import get_int_constraint
+
+        return RangeLengthConstraint(self, get_int_constraint(length_constr))
 
 
 @dataclass(frozen=True)
