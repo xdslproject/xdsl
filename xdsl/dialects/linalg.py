@@ -140,15 +140,13 @@ class LinalgStructuredOperation(IRDLOperation, ABC):
         computation".
         The default behavior is to just concatenate all the indexing maps.
         """
-        indexing_maps_sequence = tuple(attr.data for attr in self.get_indexing_maps())
-        result_exprs = tuple(
-            res for map in indexing_maps_sequence for res in map.results
-        )
+        indexing_maps = tuple(attr.data for attr in self.get_indexing_maps())
+        result_exprs = tuple(res for map in indexing_maps for res in map.results)
 
         dims = self.get_num_loops()
 
         # FIXME: Support symbols.
-        for map in indexing_maps_sequence:
+        for map in indexing_maps:
             if map.num_symbols != 0:
                 raise NotImplementedError(
                     "Indexing maps with symbols not supported for now."
