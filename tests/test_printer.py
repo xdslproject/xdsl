@@ -93,6 +93,18 @@ def test_print_op_location():
     assert_print_op(op, expected_explicit, print_debuginfo=True)
 
 
+def test_print_custom_format_op_location():
+    lhs = ConstantOp.from_int_and_width(1, 32)
+    rhs = ConstantOp.from_int_and_width(2, 32)
+    add = PlusCustomFormatOp.create(
+        operands=[lhs.result, rhs.result], result_types=[i32]
+    )
+    add.location = FileLineColLoc(StringAttr("model.mlir"), IntAttr(7), IntAttr(9))
+
+    expected = '%0 = test.add %1 + %2 : i32 loc("model.mlir":7:9)'
+    assert_print_op(add, expected, print_generic_format=False, print_debuginfo=True)
+
+
 @irdl_op_definition
 class UnitAttrOp(IRDLOperation):
     name = "unit_attr_op"
