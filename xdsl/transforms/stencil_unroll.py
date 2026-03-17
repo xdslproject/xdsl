@@ -47,12 +47,12 @@ def offseted_block_clone(apply: ApplyOp, unroll_offset: Sequence[int]):
                     for o, m in zip(op.offset, offset_mapping, strict=True)
                 ]
 
-                op.offset = IndexAttr.get(*new_offset)
+                op.offset = IndexAttr(*new_offset)
             case DynAccessOp():
-                op.lb += IndexAttr.get(*unroll_offset)
-                op.ub += IndexAttr.get(*unroll_offset)
+                op.lb += IndexAttr(*unroll_offset)
+                op.ub += IndexAttr(*unroll_offset)
             case IndexOp():
-                op.offset += IndexAttr.get(*unroll_offset)
+                op.offset += IndexAttr(*unroll_offset)
             case _:
                 continue
 
@@ -116,8 +116,8 @@ class StencilUnrollPattern(RewritePattern):
                     break
                 o.detach()
                 unrolled_block.insert_op_before(o, unrolled_return)
-        unrolled_return.unroll = IndexAttr.get(*unroll)
-        new_apply = ApplyOp.get(op.args, unrolled_block, res_types)
+        unrolled_return.unroll = IndexAttr(*unroll)
+        new_apply = ApplyOp(op.args, unrolled_block, res_types)
         rewriter.replace_op(op, new_apply)
 
 

@@ -38,8 +38,8 @@ class ChangeStoreOpSizes(RewritePattern):
         new_shape = self.strategy.calc_resize(shape)
         op.bounds = stencil.StencilBoundsAttr.new(
             [
-                stencil.IndexAttr.get(*(len(new_shape) * [0])),
-                stencil.IndexAttr.get(*new_shape),
+                stencil.IndexAttr(*(len(new_shape) * [0])),
+                stencil.IndexAttr(*new_shape),
             ]
         )
 
@@ -388,7 +388,7 @@ def generate_memcpy(
 
     memref_val = uc.results[0]
 
-    offset = stencil.IndexAttr.get(*ex.offset) - field_type.bounds.lb
+    offset = stencil.IndexAttr(*ex.offset) - field_type.bounds.lb
 
     subview = memref.SubviewOp.from_static_parameters(
         memref_val,

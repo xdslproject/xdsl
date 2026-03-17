@@ -104,7 +104,7 @@ class ApplyBufferizePattern(RewritePattern):
             for o in op.args
         ]
 
-        new = ApplyOp(
+        new = ApplyOp.build(
             operands=[args, op.dest],
             regions=[op.detach_region(0)],
             result_types=[op.res.types],
@@ -322,7 +322,7 @@ class ApplyStoreFoldPattern(RewritePattern):
             rewriter.replace_op(old_return, new_return)
 
             # Create a load of a destination, for any other user of the result
-            load = LoadOp.get(stores[0].field, bounds.lb, bounds.ub)
+            load = LoadOp(stores[0].field, bounds.lb, bounds.ub)
 
             rewriter.replace_op(
                 op,
@@ -409,8 +409,8 @@ class BufferAlloc(RewritePattern):
         rewriter.replace_op(
             op,
             new_ops=[
-                StoreOp.get(op.temp, alloc.field, temp_t.bounds),
-                LoadOp.get(alloc.field, temp_t.bounds.lb, temp_t.bounds.ub),
+                StoreOp(op.temp, alloc.field, temp_t.bounds),
+                LoadOp(alloc.field, temp_t.bounds.lb, temp_t.bounds.ub),
             ],
         )
 
@@ -454,10 +454,10 @@ class CombineStoreFold(RewritePattern):
             bounds = cast(StencilBoundsAttr, cast(TempType[Attribute], r.type).bounds)
             newub = list(bounds.ub)
             newub[op.dim.value.data] = op.index.value.data
-            lower_bounds = StencilBoundsAttr.new((bounds.lb, IndexAttr.get(*newub)))
+            lower_bounds = StencilBoundsAttr.new((bounds.lb, IndexAttr(*newub)))
             newlb = list(bounds.lb)
             newlb[op.dim.value.data] = op.index.value.data
-            upper_bounds = StencilBoundsAttr.new((IndexAttr.get(*newlb), bounds.ub))
+            upper_bounds = StencilBoundsAttr.new((IndexAttr(*newlb), bounds.ub))
 
             rewriter.erase_op(store)
 
@@ -467,12 +467,12 @@ class CombineStoreFold(RewritePattern):
                 new_upper = op.upper[:i] + op.upper[i + 1 :]
                 rewriter.insert_op(
                     (
-                        StoreOp.get(
+                        StoreOp(
                             op.lower[i],
                             store.field,
                             lower_bounds,
                         ),
-                        StoreOp.get(
+                        StoreOp(
                             op.upper[i],
                             store.field,
                             upper_bounds,
@@ -488,12 +488,12 @@ class CombineStoreFold(RewritePattern):
                 )
                 rewriter.insert_op(
                     (
-                        StoreOp.get(
+                        StoreOp(
                             op.lower[i],
                             store.field,
                             lower_bounds,
                         ),
-                        StoreOp.get(
+                        StoreOp(
                             op.upper[i],
                             store.field,
                             upper_bounds,
@@ -508,12 +508,12 @@ class CombineStoreFold(RewritePattern):
                 )
                 rewriter.insert_op(
                     (
-                        StoreOp.get(
+                        StoreOp(
                             op.lower[i],
                             store.field,
                             lower_bounds,
                         ),
-                        StoreOp.get(
+                        StoreOp(
                             op.upper[i],
                             store.field,
                             upper_bounds,
@@ -560,7 +560,7 @@ class SwapBufferize(RewritePattern):
         )
         new_swap = SwapOp.get(buffer.res, op.strategy)
         new_swap.swaps = op.swaps
-        load = LoadOp(operands=[buffer.res], result_types=[temp_t])
+        load = LoadOp.build(operands=[buffer.res], result_types=[temp_t])
 
         rewriter.replace_op(
             op,

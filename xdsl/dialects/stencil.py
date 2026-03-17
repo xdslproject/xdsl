@@ -7,7 +7,7 @@ from math import prod
 from operator import add, lt, neg
 from typing import Generic, TypeAlias, cast
 
-from typing_extensions import TypeVar
+from typing_extensions import TypeVar, deprecated
 
 from xdsl.dialects import builtin, memref
 from xdsl.dialects.builtin import (
@@ -118,21 +118,29 @@ class IndexAttr(ParametrizedAttribute, Iterable[int]):
                 f"Expected 1 to 3 indexes for stencil.index, got {l}."
             )
 
-    @staticmethod
-    def get(*indices: int | IntAttr):
-        return IndexAttr(
+    def __init__(self, *indices: int | IntAttr):
+        super().__init__(
             ArrayAttr(
                 [(IntAttr(idx) if isinstance(idx, int) else idx) for idx in indices]
             )
         )
 
+    @classmethod
+    def from_array(cls, array: ArrayAttr[IntAttr]) -> IndexAttr:
+        return cls(*array.data)
+
+    @deprecated("Please use the default constructor instead")
+    @staticmethod
+    def get(*indices: int | IntAttr):
+        return IndexAttr(*indices)
+
     # TODO : come to an agreement on, do we want to allow that kind of things
     # on Attributes? Author's opinion is a clear yes :P
     def __neg__(self) -> IndexAttr:
-        return IndexAttr.get(*(map(neg, self)))
+        return IndexAttr(*(map(neg, self)))
 
     def __add__(self, o: IndexAttr) -> IndexAttr:
-        return IndexAttr.get(*(map(add, self, o)))
+        return IndexAttr(*(map(add, self, o)))
 
     def __sub__(self, o: IndexAttr) -> IndexAttr:
         return self + -o
@@ -144,13 +152,13 @@ class IndexAttr(ParametrizedAttribute, Iterable[int]):
     def min(a: IndexAttr, b: IndexAttr | None) -> IndexAttr:
         if b is None:
             return a
-        return IndexAttr.get(*map(min, a, b))
+        return IndexAttr(*map(min, a, b))
 
     @staticmethod
     def max(a: IndexAttr, b: IndexAttr | None) -> IndexAttr:
         if b is None:
             return a
-        return IndexAttr.get(*map(max, a, b))
+        return IndexAttr(*map(max, a, b))
 
     def __len__(self):
         return len(self.array)
@@ -188,8 +196,8 @@ class StencilBoundsAttr(ParametrizedAttribute):
         else:
             lb, ub = (), ()
         super().__init__(
-            IndexAttr.get(*lb),
-            IndexAttr.get(*ub),
+            IndexAttr(*lb),
+            IndexAttr(*ub),
         )
 
     def print_parameters(self, printer: Printer) -> None:
@@ -201,9 +209,9 @@ class StencilBoundsAttr(ParametrizedAttribute):
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
         with parser.in_angle_brackets():
-            lb = IndexAttr(IndexAttr.parse_indices(parser))
+            lb = IndexAttr.from_array(IndexAttr.parse_indices(parser))
             parser.parse_punctuation(",")
-            ub = IndexAttr(IndexAttr.parse_indices(parser))
+            ub = IndexAttr(*IndexAttr.parse_indices(parser))
             return [lb, ub]
 
     def union(self, other: StencilBoundsAttr | IntAttr) -> StencilBoundsAttr:
@@ -568,7 +576,7 @@ class ApplyOp(IRDLOperation):
             bounds = StencilBoundsAttr.new(StencilBoundsAttr.parse_parameters(parser))
         else:
             bounds = None
-        return cls(
+        return cls.build(
             operands=[operands, destinations or []],
             result_types=[result_types or []],
             regions=[region],
@@ -576,11 +584,11 @@ class ApplyOp(IRDLOperation):
             properties={"bounds": bounds},
         )
 
-    @staticmethod
-    def get(
+    def __init__(
+        self,
         args: Sequence[SSAValue] | Sequence[Operation],
         body: Block | Region,
-        result_types: Sequence[TempType[Attribute]] = (),
+        result_types: Sequence[TempType[Attribute]] | None = None,
         bounds: StencilBoundsAttr | None = None,
     ):
         assert result_types or bounds
@@ -589,12 +597,22 @@ class ApplyOp(IRDLOperation):
 
         properties = {"bounds": bounds} if bounds else {}
 
-        return ApplyOp.build(
+        super().__init__(
             operands=[list(args), []],
             regions=[body],
             result_types=[result_types],
             properties=properties,
         )
+
+    @deprecated("Please use the default constructor instead")
+    @staticmethod
+    def get(
+        args: Sequence[SSAValue] | Sequence[Operation],
+        body: Block | Region,
+        result_types: Sequence[TempType[Attribute]] = (),
+        bounds: StencilBoundsAttr | None = None,
+    ):
+        return ApplyOp(args, body, result_types, bounds)
 
     def verify_(self) -> None:
         for operand, argument in zip(self.operands, self.region.block.args):
@@ -736,23 +754,31 @@ class CastOp(IRDLOperation):
 
     traits = traits_def(NoMemoryEffect(), CastOpHasCanonicalizationPatternsTrait())
 
-    @staticmethod
-    def get(
+    def __init__(
+        self,
         field: SSAValue | Operation,
         bounds: StencilBoundsAttr,
         res_type: FieldType[_FieldTypeElement] | FieldType[Attribute] | None = None,
-    ) -> CastOp:
-        """ """
+    ):
         field_ssa = SSAValue.get(field, type=FieldType)
         if res_type is None:
             res_type = FieldType(
                 bounds,
                 field_ssa.type.element_type,
             )
-        return CastOp.build(
+        super().__init__(
             operands=[field],
             result_types=[res_type],
         )
+
+    @deprecated("Please use the default constructor instead")
+    @staticmethod
+    def get(
+        field: SSAValue | Operation,
+        bounds: StencilBoundsAttr,
+        res_type: FieldType[_FieldTypeElement] | FieldType[Attribute] | None = None,
+    ) -> CastOp:
+        return CastOp(field, bounds, res_type)
 
     def verify_(self) -> None:
         # this should be fine, verify() already checks them:
@@ -914,12 +940,20 @@ class ExternalLoadOp(IRDLOperation):
         "$field attr-dict-with-keyword `:` type($field) `->` type($result)"
     )
 
+    def __init__(
+        self,
+        arg: SSAValue | Operation,
+        res_type: FieldType[Attribute] | memref.MemRefType,
+    ):
+        super().__init__(operands=[arg], result_types=[res_type])
+
+    @deprecated("Please use the default constructor instead")
     @staticmethod
     def get(
         arg: SSAValue | Operation,
         res_type: FieldType[Attribute] | memref.MemRefType,
     ):
-        return ExternalLoadOp.build(operands=[arg], result_types=[res_type])
+        return ExternalLoadOp(arg, res_type)
 
 
 @irdl_op_definition
@@ -1078,9 +1112,9 @@ class AccessOp(IRDLOperation):
             {"offset", "offset_mapping"}
         )
         attrs = dict(attrs.data) if attrs else {}
-        attrs["offset"] = IndexAttr.get(*offset)
+        attrs["offset"] = IndexAttr(*offset)
         if offset_mapping:
-            attrs["offset_mapping"] = IndexAttr.get(*offset_mapping)
+            attrs["offset_mapping"] = IndexAttr(*offset_mapping)
         parser.parse_punctuation(":")
         res_type = parser.parse_attribute()
         if not isa(res_type, StencilType):
@@ -1091,8 +1125,8 @@ class AccessOp(IRDLOperation):
             operands=[temp], result_types=[res_type.element_type], attributes=attrs
         )
 
-    @staticmethod
-    def get(
+    def __init__(
+        self,
         temp: SSAValue | Operation,
         offset: Sequence[int],
         offset_mapping: Sequence[int] | IndexAttr | None = None,
@@ -1101,18 +1135,27 @@ class AccessOp(IRDLOperation):
 
         attributes: dict[str, Attribute] = {
             "offset": IndexAttr(
-                ArrayAttr(IntAttr(value) for value in offset),
+                *(IntAttr(value) for value in offset),
             ),
         }
 
         if offset_mapping is not None:
-            attributes["offset_mapping"] = IndexAttr.get(*offset_mapping)
+            attributes["offset_mapping"] = IndexAttr(*offset_mapping)
 
-        return AccessOp.build(
+        super().__init__(
             operands=[temp],
             attributes=attributes,
             result_types=[temp_type.element_type],
         )
+
+    @deprecated("Please use the default constructor instead")
+    @staticmethod
+    def get(
+        temp: SSAValue | Operation,
+        offset: Sequence[int],
+        offset_mapping: Sequence[int] | IndexAttr | None = None,
+    ):
+        return AccessOp(temp, offset, offset_mapping)
 
     def verify_(self) -> None:
         # As promised by HasAncestor(ApplyOp)
@@ -1251,8 +1294,8 @@ class LoadOp(IRDLOperation):
 
     traits = traits_def(LoadOpHasShapeInferencePatternsTrait(), LoadOpMemoryEffect())
 
-    @staticmethod
-    def get(
+    def __init__(
+        self,
         field: SSAValue | Operation,
         lb: IndexAttr | None = None,
         ub: IndexAttr | None = None,
@@ -1264,10 +1307,19 @@ class LoadOp(IRDLOperation):
         else:
             res_type = TempType(zip(lb, ub), field_type.element_type)
 
-        return LoadOp.build(
+        super().__init__(
             operands=[field],
             result_types=[res_type],
         )
+
+    @deprecated("Please use the default constructor instead")
+    @staticmethod
+    def get(
+        field: SSAValue | Operation,
+        lb: IndexAttr | None = None,
+        ub: IndexAttr | None = None,
+    ):
+        return LoadOp(field, lb, ub)
 
     def verify_(self) -> None:
         field = self.field.type
@@ -1411,13 +1463,22 @@ class StoreOp(IRDLOperation):
 
     traits = traits_def(StoreOpHasShapeInferencePatternsTrait(), StoreOpMemoryEffect())
 
+    def __init__(
+        self,
+        temp: SSAValue | Operation,
+        field: SSAValue | Operation,
+        bounds: StencilBoundsAttr,
+    ):
+        super().__init__(operands=[temp, field], attributes={"bounds": bounds})
+
+    @deprecated("Please use the default constructor instead")
     @staticmethod
     def get(
         temp: SSAValue | Operation,
         field: SSAValue | Operation,
         bounds: StencilBoundsAttr,
     ):
-        return StoreOp.build(operands=[temp, field], attributes={"bounds": bounds})
+        return StoreOp(temp, field, bounds)
 
 
 @irdl_op_definition
@@ -1485,9 +1546,13 @@ class ReturnOp(IRDLOperation):
 
     traits = traits_def(HasParent(ApplyOp), IsTerminator(), Pure())
 
+    def __init__(self, res: Sequence[SSAValue | Operation]):
+        super().__init__(operands=[list(res)])
+
+    @deprecated("Please use the default constructor instead")
     @staticmethod
     def get(res: Sequence[SSAValue | Operation]):
-        return ReturnOp.build(operands=[list(res)])
+        return ReturnOp(res)
 
     def verify_(self) -> None:
         unroll_factor = self.unroll_factor

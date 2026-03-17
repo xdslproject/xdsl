@@ -178,7 +178,7 @@ class ReturnOpToMemRef(RewritePattern):
 
             unroll = op.unroll
             if unroll is None:
-                unroll = IndexAttr.get(*([1] * n_dims))
+                unroll = IndexAttr(*([1] * n_dims))
 
             for k, offset in enumerate(product(*(range(u) for u in unroll))):
                 arg = op.arg[j * unroll_factor + k]
@@ -186,7 +186,7 @@ class ReturnOpToMemRef(RewritePattern):
                     IndexOp(
                         attributes={
                             "dim": builtin.IntegerAttr.from_index_int_value(i),
-                            "offset": IndexAttr.get(*([0] * n_dims)),
+                            "offset": IndexAttr(*([0] * n_dims)),
                         },
                         result_types=[builtin.IndexType()],
                     )
@@ -492,7 +492,7 @@ class AccessOpToMemRef(RewritePattern):
             IndexOp(
                 attributes={
                     "dim": builtin.IntegerAttr.from_index_int_value(i),
-                    "offset": IndexAttr.get(*([0] * op.get_apply().get_rank())),
+                    "offset": IndexAttr(*([0] * op.get_apply().get_rank())),
                 },
                 result_types=[builtin.IndexType()],
             )
