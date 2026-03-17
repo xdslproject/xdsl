@@ -118,16 +118,17 @@ class IndexAttr(ParametrizedAttribute, Iterable[int]):
                 f"Expected 1 to 3 indexes for stencil.index, got {l}."
             )
 
-    def __init__(self, *indices: int | IntAttr):
-        super().__init__(
-            ArrayAttr(
-                [(IntAttr(idx) if isinstance(idx, int) else idx) for idx in indices]
+    def __init__(self, *indices: int | IntAttr | ArrayAttr[IntAttr]):
+        if any(isinstance(i, ArrayAttr) for i in indices):
+            if len(indices) != 1 or not isinstance(indices[0], ArrayAttr):
+                raise TypeError("ArrayAttr must be passed as the only argument")
+            array = indices[0]
+        else:
+            array = ArrayAttr(
+                IntAttr(idx) if isinstance(idx, int) else idx for idx in indices
             )
-        )
 
-    @classmethod
-    def from_array(cls, array: ArrayAttr[IntAttr]) -> IndexAttr:
-        return cls(*array.data)
+        super().__init__(array)
 
     @deprecated("Please use the default constructor instead")
     @staticmethod
@@ -209,7 +210,7 @@ class StencilBoundsAttr(ParametrizedAttribute):
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
         with parser.in_angle_brackets():
-            lb = IndexAttr.from_array(IndexAttr.parse_indices(parser))
+            lb = IndexAttr(IndexAttr.parse_indices(parser))
             parser.parse_punctuation(",")
             ub = IndexAttr(*IndexAttr.parse_indices(parser))
             return [lb, ub]
