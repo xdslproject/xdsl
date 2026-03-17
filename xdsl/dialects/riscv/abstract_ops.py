@@ -1416,7 +1416,7 @@ class CsrBitwiseImmOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
         return {"csr", "immediate"}
 
 
-IWidth = TypeVar("IWidth", I32, I64)
+IWidth = TypeVar("IWidth", bound = I32 | I64)
 
 
 class LiOperation(
