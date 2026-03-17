@@ -36,7 +36,7 @@ from typing import IO, ClassVar, Generic, Literal, TypeAlias, cast
 
 from typing_extensions import Self, TypeVar
 
-from xdsl.backend.assembly_printer import AssemblyPrinter, OneLineAssemblyPrintable
+from xdsl.backend.assembly_printer import AssemblyPrinter, OneLineAssemblyPrintable, reg
 from xdsl.backend.register_allocatable import (
     HasRegisterConstraints,
     RegisterConstraints,
@@ -311,7 +311,7 @@ class RS_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT]):
         )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
-        return self.register_in, self.source
+        return reg(self.register_in), reg(self.source)
 
     def get_register_constraints(self) -> RegisterConstraints:
         return RegisterConstraints(
@@ -351,7 +351,7 @@ class DS_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT]):
         )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
-        return (self.destination, self.source)
+        return (reg(self.destination), reg(self.source))
 
 
 class DSK_Operation(X86Instruction, ABC):
@@ -393,7 +393,7 @@ class DSK_Operation(X86Instruction, ABC):
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
         register_out = masked_source_str(self.destination, self.mask_reg, self.z)
-        return register_out, self.source
+        return register_out, reg(self.source)
 
 
 class R_Operation(X86Instruction, ABC, Generic[R1InvT]):
@@ -428,7 +428,7 @@ class R_Operation(X86Instruction, ABC, Generic[R1InvT]):
         )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
-        return (self.register_in,)
+        return (reg(self.register_in),)
 
     def get_register_constraints(self) -> RegisterConstraints:
         return RegisterConstraints((), (), ((self.register_in, self.register_out),))
@@ -478,7 +478,7 @@ class RM_Operation(
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
         memory_access = memory_access_str(self.memory, self.memory_offset)
-        destination = assembly_arg_str(self.register_in)
+        destination = assembly_arg_str(reg(self.register_in))
         return (destination, memory_access)
 
     @classmethod
@@ -548,7 +548,7 @@ class DM_Operation(
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
         memory_access = memory_access_str(self.memory, self.memory_offset)
-        destination = assembly_arg_str(self.destination)
+        destination = assembly_arg_str(reg(self.destination))
         return (destination, memory_access)
 
     @classmethod
@@ -596,7 +596,7 @@ class DI_Operation(X86Instruction, X86CustomFormatOperation, ABC, Generic[R1InvT
         )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
-        return self.destination, self.immediate
+        return reg(self.destination), self.immediate
 
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
@@ -647,7 +647,7 @@ class RI_Operation(X86Instruction, X86CustomFormatOperation, ABC, Generic[R1InvT
         )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
-        return self.register_in, self.immediate
+        return reg(self.register_in), self.immediate
 
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
@@ -718,7 +718,7 @@ class MS_Operation(
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
         memory_access = memory_access_str(self.memory, self.memory_offset)
-        return memory_access, self.source
+        return memory_access, reg(self.source)
 
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
@@ -833,7 +833,7 @@ class DSI_Operation(
         )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
-        return self.destination, self.source, self.immediate
+        return reg(self.destination), reg(self.source), self.immediate
 
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
@@ -891,7 +891,7 @@ class DMI_Operation(
         )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
-        destination = assembly_arg_str(self.destination)
+        destination = assembly_arg_str(reg(self.destination))
         immediate = assembly_arg_str(self.immediate)
         memory_access = memory_access_str(self.memory, self.memory_offset)
         return destination, memory_access, immediate
@@ -1130,7 +1130,11 @@ class RSS_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT, R3InvT]):
         )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
-        return self.register_in, self.source1, self.source2
+        return (
+            reg(self.register_in),
+            reg(self.source1),
+            reg(self.source2),
+        )
 
     def get_register_constraints(self) -> RegisterConstraints:
         return RegisterConstraints(
@@ -1188,7 +1192,7 @@ class RSSK_Operation(X86Instruction, ABC):
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
         register_in = masked_source_str(self.register_in, self.mask_reg, self.z)
-        return register_in, self.source1, self.source2
+        return register_in, reg(self.source1), reg(self.source2)
 
     def get_register_constraints(self) -> RegisterConstraints:
         return RegisterConstraints(
@@ -1233,7 +1237,7 @@ class DSS_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT, R3InvT]):
         )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
-        return self.destination, self.source1, self.source2
+        return reg(self.destination), reg(self.source1), reg(self.source2)
 
     def get_register_constraints(self) -> RegisterConstraints:
         return RegisterConstraints(
@@ -1286,8 +1290,8 @@ class RSM_Operation(
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
         memory_access = memory_access_str(self.memory, self.memory_offset)
-        src1 = assembly_arg_str(self.source1)
-        destination = assembly_arg_str(self.register_in)
+        src1 = reg(self.source1)
+        destination = reg(self.register_in)
         return destination, src1, memory_access
 
     @classmethod
@@ -1345,7 +1349,12 @@ class DSSI_Operation(
         )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
-        return self.destination, self.source0, self.source1, self.immediate
+        return (
+            reg(self.destination),
+            reg(self.source0),
+            reg(self.source1),
+            self.immediate,
+        )
 
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
@@ -1571,7 +1580,7 @@ class S_PushOp(X86Instruction, X86CustomFormatOperation):
         )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
-        return (self.source,)
+        return (reg(self.source),)
 
 
 @irdl_op_definition
@@ -1607,7 +1616,7 @@ class D_PopOp(X86Instruction, X86CustomFormatOperation):
         )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
-        return (self.destination,)
+        return (reg(self.destination),)
 
 
 @irdl_op_definition
@@ -1706,7 +1715,7 @@ class S_IDivOp(X86Instruction, X86CustomFormatOperation):
         )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
-        return (self.source,)
+        return (reg(self.source),)
 
 
 @irdl_op_definition
@@ -1750,7 +1759,7 @@ class S_ImulOp(X86Instruction, X86CustomFormatOperation):
         )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
-        return (self.source,)
+        return (reg(self.source),)
 
 
 @irdl_op_definition
@@ -2737,7 +2746,7 @@ class SS_CmpOp(X86Instruction, X86CustomFormatOperation):
         )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
-        return self.source1, self.source2
+        return reg(self.source1), reg(self.source2)
 
 
 @irdl_op_definition
@@ -2784,7 +2793,7 @@ class SM_CmpOp(X86Instruction, X86CustomFormatOperation):
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
         memory_access = memory_access_str(self.memory, self.memory_offset)
-        return self.source, memory_access
+        return reg(self.source), memory_access
 
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
@@ -2838,7 +2847,7 @@ class SI_CmpOp(X86Instruction, X86CustomFormatOperation):
         )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
-        return self.source, self.immediate
+        return reg(self.source), self.immediate
 
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
@@ -2897,7 +2906,7 @@ class MS_CmpOp(X86Instruction, X86CustomFormatOperation):
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
         memory_access = memory_access_str(self.memory, self.memory_offset)
-        return memory_access, self.source
+        return memory_access, reg(self.source)
 
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
