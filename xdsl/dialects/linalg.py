@@ -656,7 +656,7 @@ class ElementwiseOperation(NamedOperation, ABC):
 
     def get_iterator_types(self) -> ArrayAttr[IteratorTypeAttr]:
         num_loops = self.get_num_loops()
-        return ArrayAttr(IteratorTypeAttr.parallel() for _ in range(num_loops))
+        return ArrayAttr((IteratorTypeAttr.parallel(),) * num_loops)
 
 
 @irdl_op_definition
@@ -1369,7 +1369,7 @@ class MatmulOp(NamedOperation):
 
     def get_indexing_maps(self) -> ArrayAttr[AffineMapAttr]:
         return self.indexing_maps
-    
+
     def get_iterator_types(self) -> ArrayAttr[IteratorTypeAttr]:
         return ArrayAttr(
             [
@@ -1453,7 +1453,7 @@ class QuantizedMatmulOp(NamedOperation):
 
     def get_indexing_maps(self) -> ArrayAttr[AffineMapAttr]:
         return self.memoized_indexing_maps
-    
+
     def get_iterator_types(self) -> ArrayAttr[IteratorTypeAttr]:
         return ArrayAttr(
             [
