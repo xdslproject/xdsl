@@ -1,6 +1,10 @@
 from xdsl.ir import Dialect
 
-from .attributes import LabelAttr, VectorRegisterWidthAttr
+from .attributes import (
+    GeneralPurposeRegisterWidthAttr,
+    LabelAttr,
+    VectorRegisterWidthAttr,
+)
 from .ops import (
     C_JaeOp,
     C_JaOp,
@@ -265,6 +269,7 @@ X86 = Dialect(
         AVX2RegisterType,
         AVX512RegisterType,
         AVX512MaskRegisterType,
+        GeneralPurposeRegisterWidthAttr,
         LabelAttr,
         VectorRegisterWidthAttr,
     ],

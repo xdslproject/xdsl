@@ -3,7 +3,7 @@ import pytest
 from xdsl.backend.assembly_printer import reg
 from xdsl.dialects import x86
 from xdsl.dialects.builtin import IntegerAttr
-from xdsl.dialects.x86.attributes import B128, B256, B512
+from xdsl.dialects.x86.attributes import B16, B32, B64, B128, B256, B512
 from xdsl.dialects.x86.ops import (
     DM_LeaOp,
     DM_MovOp,
@@ -487,4 +487,66 @@ def test_vector_register_printing(
     expected: str,
 ):
     reg_val = create_ssa_value(register_type.from_index(index))
+    assert reg(reg_val, bitwidth) == expected
+
+
+def test_general_purpose_register_width():
+    # Test enum values
+    assert x86.attributes.GeneralPurposeRegisterWidth.B64.value == "b64"
+    assert x86.attributes.GeneralPurposeRegisterWidth.B32.value == "b32"
+    assert x86.attributes.GeneralPurposeRegisterWidth.B16.value == "b16"
+
+    # Test bitwidth property
+    assert x86.attributes.GeneralPurposeRegisterWidth.B64.bitwidth == 64
+    assert x86.attributes.GeneralPurposeRegisterWidth.B32.bitwidth == 32
+    assert x86.attributes.GeneralPurposeRegisterWidth.B16.bitwidth == 16
+
+    # Test from_bitwidth
+    assert (
+        x86.attributes.GeneralPurposeRegisterWidth.from_bitwidth(64)
+        == x86.attributes.GeneralPurposeRegisterWidth.B64
+    )
+    assert (
+        x86.attributes.GeneralPurposeRegisterWidth.from_bitwidth(32)
+        == x86.attributes.GeneralPurposeRegisterWidth.B32
+    )
+    assert (
+        x86.attributes.GeneralPurposeRegisterWidth.from_bitwidth(16)
+        == x86.attributes.GeneralPurposeRegisterWidth.B16
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="No general-purpose register size for bitwidth 128.",
+    ):
+        x86.attributes.GeneralPurposeRegisterWidth.from_bitwidth(128)
+
+
+@pytest.mark.parametrize(
+    "bitwidth,index,expected",
+    [
+        # rax family
+        (B64, 0, "rax"),
+        (B32, 0, "eax"),
+        (B16, 0, "ax"),
+        # rcx family
+        (B64, 1, "rcx"),
+        (B32, 1, "ecx"),
+        (B16, 1, "cx"),
+        # r8 family
+        (B64, 8, "r8"),
+        (B32, 8, "r8d"),
+        (B16, 8, "r8w"),
+        # r15 family
+        (B64, 15, "r15"),
+        (B32, 15, "r15d"),
+        (B16, 15, "r15w"),
+    ],
+)
+def test_general_purpose_register_printing(
+    bitwidth: x86.attributes.GeneralPurposeRegisterWidthAttr,
+    index: int,
+    expected: str,
+):
+    reg_val = create_ssa_value(x86.registers.GeneralRegisterType.from_index(index))
     assert reg(reg_val, bitwidth) == expected

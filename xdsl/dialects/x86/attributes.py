@@ -22,6 +22,140 @@ class LabelAttr(Data[str]):
             printer.print_string_literal(self.data)
 
 
+B64_NAMES = (
+    "rax",
+    "rcx",
+    "rdx",
+    "rbx",
+    "rsp",
+    "rbp",
+    "rsi",
+    "rdi",
+    "r8",
+    "r9",
+    "r10",
+    "r11",
+    "r12",
+    "r13",
+    "r14",
+    "r15",
+)
+"""
+64-bit x86 register names.
+
+See external [documentation](https://wiki.osdev.org/X86-64_Instruction_Encoding#Registers).
+"""
+
+B32_NAMES = (
+    "eax",
+    "ecx",
+    "edx",
+    "ebx",
+    "esp",
+    "ebp",
+    "esi",
+    "edi",
+    "r8d",
+    "r9d",
+    "r10d",
+    "r11d",
+    "r12d",
+    "r13d",
+    "r14d",
+    "r15d",
+)
+"""
+32-bit x86 register names.
+
+See external [documentation](https://wiki.osdev.org/X86-64_Instruction_Encoding#Registers).
+"""
+
+B16_NAMES = (
+    "ax",
+    "cx",
+    "dx",
+    "bx",
+    "sp",
+    "bp",
+    "si",
+    "di",
+    "r8w",
+    "r9w",
+    "r10w",
+    "r11w",
+    "r12w",
+    "r13w",
+    "r14w",
+    "r15w",
+)
+"""
+16-bit x86 register names.
+
+See external [documentation](https://wiki.osdev.org/X86-64_Instruction_Encoding#Registers).
+"""
+
+
+class GeneralPurposeRegisterWidth(StrEnum):
+    """
+    Supported x86 general-purpose register sizes:
+
+      - B64 → 64-bit (rax, rcx, ..., r8, r9, ...)
+      - B32 → 32-bit (eax, ecx, ..., r8d, r9d, ...)
+      - B16 → 16-bit (ax, cx, ..., r8w, r9w, ...)
+    """
+
+    B64 = "b64"
+    B32 = "b32"
+    B16 = "b16"
+    # Don't support 8-bit for now
+
+    @property
+    def bitwidth(self):
+        return _GPR_BITWIDTH_BY_SIZE[self]
+
+    @staticmethod
+    def from_bitwidth(bitwidth: int):
+        try:
+            return _GPR_SIZE_BY_BITWIDTH[bitwidth]
+        except KeyError:
+            raise ValueError(
+                f"No general-purpose register size for bitwidth {bitwidth}."
+            )
+
+
+_GP_NAME_BY_INDEX_BY_BITWIDTH = {
+    GeneralPurposeRegisterWidth.B64: B64_NAMES,
+    GeneralPurposeRegisterWidth.B32: B32_NAMES,
+    GeneralPurposeRegisterWidth.B16: B16_NAMES,
+}
+_GPR_BITWIDTH_BY_SIZE = {
+    GeneralPurposeRegisterWidth.B64: 64,
+    GeneralPurposeRegisterWidth.B32: 32,
+    GeneralPurposeRegisterWidth.B16: 16,
+}
+_GPR_SIZE_BY_BITWIDTH = {v: k for k, v in _GPR_BITWIDTH_BY_SIZE.items()}
+
+
+@irdl_attr_definition
+class GeneralPurposeRegisterWidthAttr(
+    EnumAttribute[GeneralPurposeRegisterWidth],
+    SpacedOpaqueSyntaxAttribute,
+    RegisterNameSpec,
+):
+    """
+    Attribute containing the general-purpose register size specification.
+    """
+
+    name = "x86.gpr_reg_size"
+
+    def get_register_name(self, index: int) -> str:
+        return _GP_NAME_BY_INDEX_BY_BITWIDTH[self.data][index]
+
+
+B64 = GeneralPurposeRegisterWidthAttr(GeneralPurposeRegisterWidth.B64)
+B32 = GeneralPurposeRegisterWidthAttr(GeneralPurposeRegisterWidth.B32)
+B16 = GeneralPurposeRegisterWidthAttr(GeneralPurposeRegisterWidth.B16)
+
 SSE_NAMES = tuple(f"xmm{i}" for i in range(16))
 """
 Valid SSE register names.

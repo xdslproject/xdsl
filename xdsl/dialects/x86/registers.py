@@ -6,6 +6,7 @@ from xdsl.backend.register_type import RegisterType
 from xdsl.dialects.x86.attributes import (
     AVX2_NAMES,
     AVX512_NAMES,
+    B64_NAMES,
     SSE_NAMES,
 )
 from xdsl.irdl import (
@@ -19,34 +20,7 @@ class X86RegisterType(RegisterType, ABC):
     """
 
 
-X86_INDEX_BY_NAME = {
-    "rax": 0,
-    "rcx": 1,
-    "rdx": 2,
-    "rbx": 3,
-    "rsp": 4,
-    "rbp": 5,
-    "rsi": 6,
-    "rdi": 7,
-    # Currently don't support 32-bit registers
-    # https://github.com/xdslproject/xdsl/issues/4737
-    # "eax": 0,
-    # "ecx": 1,
-    # "edx": 2,
-    # "ebx": 3,
-    # "esp": 4,
-    # "ebp": 5,
-    # "esi": 6,
-    # "edi": 7,
-    "r8": 8,
-    "r9": 9,
-    "r10": 10,
-    "r11": 11,
-    "r12": 12,
-    "r13": 13,
-    "r14": 14,
-    "r15": 15,
-}
+X86_INDEX_BY_NAME = {name: i for i, name in enumerate(B64_NAMES)}
 """
 Mapping of x86 register names to their indices.
 
