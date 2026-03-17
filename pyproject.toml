@@ -88,7 +88,7 @@ zip-safe = false
 [tool.uv.sources]
 lzstring2 = { git = "https://github.com/superlopuh/lz-string.git" }
 bytesight = { git = "https://github.com/EdmundGoodman/bytesight.git", rev = "e8e8e45ec34316fdc99ee09ea8886c4f63c248be" }
-my_plugin = { path = "tests/my_plugin" }
+my_plugin = { path = "tests/my_plugin", editable = true }
 
 [tool.setuptools.packages]
 find = {}

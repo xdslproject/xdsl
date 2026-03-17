@@ -243,6 +243,11 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
 
         return Ptr
 
+    def get_py():
+        from xdsl.dialects.py import Py
+
+        return Py
+
     def get_riscv_debug():
         from xdsl.dialects.riscv_debug import RISCV_Debug
 
@@ -343,6 +348,11 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
 
         return TOSA
 
+    def get_transform():
+        from xdsl.dialects.transform import Transform
+
+        return Transform
+
     def get_varith():
         from xdsl.dialects.varith import Varith
 
@@ -372,11 +382,6 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         from xdsl.dialects.x86_scf import X86_Scf
 
         return X86_Scf
-
-    def get_transform():
-        from xdsl.dialects.transform import Transform
-
-        return Transform
 
     return {
         "accfg": get_accfg,
@@ -426,6 +431,7 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "pdl_interp": get_pdl_interp,
         "printf": get_printf,
         "ptr_xdsl": get_ptr_xdsl,
+        "py": get_py,
         "riscv": get_riscv,
         "rv32": get_RV32,
         "rv64": get_RV64,

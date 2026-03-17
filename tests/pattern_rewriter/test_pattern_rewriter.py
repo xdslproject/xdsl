@@ -256,8 +256,8 @@ def test_recursive_rewriter():
             val = op_val.value.data
             if val == 0 or val == 1:
                 return
-            constant_op = ConstantOp(IntegerAttr.from_int_and_width(val - 1, 32), i32)
-            constant_one = ConstantOp(IntegerAttr.from_int_and_width(1, 32), i32)
+            constant_op = ConstantOp(IntegerAttr(val - 1, 32), i32)
+            constant_one = ConstantOp(IntegerAttr(1, 32), i32)
             add_op = AddiOp(constant_op, constant_one)
             rewriter.replace_op(op, [constant_op, constant_one, add_op])
 
@@ -299,8 +299,8 @@ def test_recursive_rewriter_reversed():
             val = op_val.value.data
             if val == 0 or val == 1:
                 return
-            constant_op = ConstantOp(IntegerAttr.from_int_and_width(val - 1, 32), i32)
-            constant_one = ConstantOp(IntegerAttr.from_int_and_width(1, 32), i32)
+            constant_op = ConstantOp(IntegerAttr(val - 1, 32), i32)
+            constant_one = ConstantOp(IntegerAttr(1, 32), i32)
             add_op = AddiOp(constant_op, constant_one)
             rewriter.replace_op(op, [constant_op, constant_one, add_op])
 
@@ -1880,9 +1880,9 @@ builtin.module {
     class Rewrite(RewritePattern):
         @op_type_rewrite_pattern
         def match_and_rewrite(self, matched_op: test.TestOp, rewriter: PatternRewriter):
-            if matched_op.attributes.get(
-                "erroneous", IntegerAttr.from_int_and_width(0, 1)
-            ) == IntegerAttr.from_int_and_width(1, 1):
+            if matched_op.attributes.get("erroneous", IntegerAttr(0, 1)) == IntegerAttr(
+                1, 1
+            ):
                 raise ValueError("Expected operation to not be erroneous!")
             return
 

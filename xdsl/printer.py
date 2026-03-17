@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import json
 import math
-from collections.abc import Callable, Iterable, Mapping, Sequence
+from collections.abc import Callable, Generator, Iterable, Mapping, Sequence
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from itertools import chain
 from typing import Any, cast
@@ -22,7 +23,6 @@ from xdsl.dialects.builtin import (
     IndexType,
     IntegerType,
     UnitAttr,
-    UnknownLoc,
     UnregisteredOp,
     i1,
 )
@@ -58,6 +58,7 @@ class Printer(BasePrinter):
     print_properties_as_attributes: bool = field(default=False)
     print_debuginfo: bool = field(default=False)
     diagnostic: Diagnostic = field(default_factory=Diagnostic)
+    printing_location: bool = field(default=False)
 
     _ssa_values: dict[SSAValue, str] = field(
         default_factory=dict[SSAValue, str], init=False
@@ -243,7 +244,7 @@ class Printer(BasePrinter):
             self.print_attribute(arg.type)
             if self.print_debuginfo:
                 self.print_string(" ")
-                self.print_attribute(UnknownLoc())
+                self.print_attribute(arg.location)
 
     def print_region(
         self,
@@ -583,7 +584,7 @@ class Printer(BasePrinter):
         self.print_function_type(op.operand_types, op.result_types)
         if self.print_debuginfo:
             self.print_string(" ")
-            self.print_attribute(UnknownLoc())
+            self.print_attribute(op.location)
 
     def enter_scope(self) -> None:
         self._next_valid_name_id.append(self._next_valid_name_id[-1])
@@ -624,6 +625,9 @@ class Printer(BasePrinter):
             op.attributes["op_name__"] = op_name
         elif use_custom_format:
             op.print(self)
+            if self.print_debuginfo:
+                self.print_string(" ")
+                self.print_attribute(op.location)
         else:
             self.print_op_with_default_format(op)
         if scope:
@@ -693,3 +697,21 @@ class Printer(BasePrinter):
         """
         self.print_string("@")
         self.print_identifier_or_string_literal(sym_name)
+
+    @contextmanager
+    def in_location(self) -> Generator[None, None, None]:
+        """
+        Provides a context for printing locations. As some locations are
+        recursive and only the top-level location should be wrapped in `loc()`,
+        the printer maintains a state to determine whether a context is already
+        being printed.
+        """
+        if self.printing_location:
+            yield
+        else:
+            self.printing_location = True
+            self.print_string("loc")
+            self.print_string("(")
+            yield
+            self.print_string(")")
+            self.printing_location = False

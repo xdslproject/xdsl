@@ -40,6 +40,7 @@ from xdsl.dialects.utils import (
 from xdsl.ir import (
     Attribute,
     BitEnumAttribute,
+    Block,
     Dialect,
     EnumAttribute,
     Operation,
@@ -49,6 +50,7 @@ from xdsl.ir import (
     TypeAttribute,
 )
 from xdsl.irdl import (
+    AnyAttr,
     AttrSizedOperandSegments,
     IRDLOperation,
     ParsePropInAttrDict,
@@ -64,6 +66,7 @@ from xdsl.irdl import (
     prop_def,
     region_def,
     result_def,
+    successor_def,
     traits_def,
     var_operand_def,
 )
@@ -907,9 +910,7 @@ class ICmpOp(IRDLOperation):
     @classmethod
     def parse(cls, parser: Parser):
         predicate_literal = parser.parse_str_literal()
-        predicate_value = ICmpPredicateFlag[predicate_literal.upper()]
-        predicate_int = predicate_value.to_int()
-        predicate = IntegerAttr(predicate_int, i64)
+        predicate = IntegerAttr(ICmpPredicateFlag(predicate_literal).to_int(), i64)
         lhs = parser.parse_unresolved_operand()
         parser.parse_characters(",")
         rhs = parser.parse_unresolved_operand()
@@ -919,14 +920,9 @@ class ICmpOp(IRDLOperation):
         operands = parser.resolve_operands([lhs, rhs], [type, type], parser.pos)
         return cls(operands[0], operands[1], predicate, attributes)
 
-    def print_predicate(self, printer: Printer):
-        flag = ICmpPredicateFlag.from_int(self.predicate.value.data)
-        printer.print_string(f"{flag}")
-
     def print(self, printer: Printer):
-        printer.print_string(' "')
-        self.print_predicate(printer)
-        printer.print_string('" ')
+        flag = ICmpPredicateFlag.from_int(self.predicate.value.data)
+        printer.print_string(f' "{flag}" ')
         printer.print_ssa_value(self.lhs)
         printer.print_string(", ")
         printer.print_ssa_value(self.rhs)
@@ -1073,6 +1069,30 @@ class GEPOp(IRDLOperation):
 
     traits = traits_def(NoMemoryEffect())
 
+    def verify_(self) -> None:
+        indices = tuple(self.rawConstantIndices.iter_values())
+        # first index is pointer arithmetic; only subsequent ones need validation.
+        current_type: Attribute = self.elem_type
+        for i, idx in enumerate(indices[1:], start=1):
+            match current_type:
+                case LLVMArrayType():
+                    current_type = current_type.type
+                case LLVMStructType(types=types):
+                    if idx == GEP_USE_SSA_VAL:
+                        raise VerifyException(
+                            f"GEP index #{i}: struct indices must be constants"
+                        )
+                    if not (0 <= idx < len(types)):
+                        raise VerifyException(
+                            f"GEP index #{i}: {idx} is out of range for "
+                            f"struct with {len(types)} field(s)"
+                        )
+                    current_type = types.data[idx]
+                case _:
+                    raise VerifyException(
+                        f"GEP index #{i}: cannot index into {current_type}"
+                    )
+
     def __init__(
         self,
         ptr: SSAValue | Operation,
@@ -1161,9 +1181,7 @@ class AllocaOp(IRDLOperation):
         elem_type: Attribute,
         alignment: int = 32,
     ):
-        props: dict[str, Attribute] = {
-            "alignment": IntegerAttr.from_int_and_width(alignment, 64)
-        }
+        props: dict[str, Attribute] = {"alignment": IntegerAttr(alignment, 64)}
         ptr_type = LLVMPointerType()
         props["elem_type"] = elem_type
 
@@ -1251,7 +1269,7 @@ class InlineAsmOp(IRDLOperation):
         props: dict[str, Attribute | None] = {
             "asm_string": StringAttr(asm_string),
             "constraints": StringAttr(constraints),
-            "asm_dialect": IntegerAttr.from_int_and_width(asm_dialect, 64),
+            "asm_dialect": IntegerAttr(asm_dialect, 64),
             "has_side_effects": UnitAttr() if has_side_effects else None,
             "is_align_stack": UnitAttr() if is_align_stack else None,
             "tail_call_kind": tail_call_kind,
@@ -1640,7 +1658,6 @@ class TargetFeaturesAttr(ParametrizedAttribute):
 _FUNC_OP_RESERVED_ATTR_NAMES = (
     "sym_name",
     "function_type",
-    "sym_visibility",
     "arg_attrs",
     "res_attrs",
     "linkage",
@@ -1700,7 +1717,7 @@ class FuncOp(IRDLOperation):
         if isinstance(sym_name, str):
             sym_name = StringAttr(sym_name)
         if isinstance(visibility, int):
-            visibility = IntegerAttr.from_int_and_width(visibility, 64)
+            visibility = IntegerAttr(visibility, 64)
         if body is None:
             body = Region([])
         if isinstance(sym_visibility, str):
@@ -1740,18 +1757,18 @@ class FuncOp(IRDLOperation):
     @staticmethod
     def _parse_llvm_visibility(parser: Parser) -> IntegerAttr[IntegerType]:
         if parser.parse_optional_keyword("hidden"):
-            return IntegerAttr.from_int_and_width(1, 64)
+            return IntegerAttr(1, 64)
         elif parser.parse_optional_keyword("protected"):
-            return IntegerAttr.from_int_and_width(2, 64)
-        return IntegerAttr.from_int_and_width(0, 64)
+            return IntegerAttr(2, 64)
+        return IntegerAttr(0, 64)
 
     @staticmethod
     def _parse_llvm_unnamed_addr(parser: Parser) -> IntegerAttr[IntegerType]:
         if parser.parse_optional_keyword("local_unnamed_addr"):
-            return IntegerAttr.from_int_and_width(1, 64)
+            return IntegerAttr(1, 64)
         elif parser.parse_optional_keyword("unnamed_addr"):
-            return IntegerAttr.from_int_and_width(2, 64)
-        return IntegerAttr.from_int_and_width(0, 64)
+            return IntegerAttr(2, 64)
+        return IntegerAttr(0, 64)
 
     @staticmethod
     def _get_return_type(
@@ -1783,7 +1800,6 @@ class FuncOp(IRDLOperation):
 
     @classmethod
     def parse(cls, parser: Parser) -> FuncOp:
-        sym_visibility = parser.parse_optional_visibility_keyword()
         linkage = cls._parse_linkage(parser)
         cconv = cls._parse_cconv(parser)
         visibility = cls._parse_llvm_visibility(parser)
@@ -1811,7 +1827,6 @@ class FuncOp(IRDLOperation):
             linkage=linkage,
             cconv=cconv,
             visibility=visibility,
-            sym_visibility=sym_visibility,
             body=region,
             other_props=other_props,
             extra_attrs=dict(extra_attrs.data) if extra_attrs else None,
@@ -1842,11 +1857,6 @@ class FuncOp(IRDLOperation):
                 raise AssertionError("Invalid unnamed_addr value")
 
     def print(self, printer: Printer):
-        if self.sym_visibility:
-            visibility = self.sym_visibility.data
-            printer.print_string(" ")
-            printer.print_string(visibility)
-
         if self.linkage.linkage.data != "external":
             printer.print_string(" ")
             printer.print_string(self.linkage.linkage.data)
@@ -1877,6 +1887,7 @@ class FuncOp(IRDLOperation):
             res_attrs=self.res_attrs,
             reserved_attr_names=_FUNC_OP_RESERVED_ATTR_NAMES,
             is_variadic=self.function_type.is_variadic,
+            print_empty_outputs=False,
         )
 
 
@@ -2144,6 +2155,95 @@ class FRemOp(AbstractFloatArithOp):
     name = "llvm.frem"
 
 
+class FCmpPredicateFlag(StrEnum):
+    FALSE = "_false"
+    OEQ = "oeq"
+    OGT = "ogt"
+    OGE = "oge"
+    OLT = "olt"
+    OLE = "ole"
+    ONE = "one"
+    ORD = "ord"
+    UEQ = "ueq"
+    UGT = "ugt"
+    UGE = "uge"
+    ULT = "ult"
+    ULE = "ule"
+    UNE = "une"
+    UNO = "uno"
+    TRUE = "_true"
+
+    @staticmethod
+    def from_int(index: int) -> FCmpPredicateFlag:
+        return ALL_FCMP_FLAGS[index]
+
+    def to_int(self) -> int:
+        return FCMP_INDEX_BY_FLAG[self]
+
+
+ALL_FCMP_FLAGS = tuple(FCmpPredicateFlag)
+FCMP_INDEX_BY_FLAG = {f: i for (i, f) in enumerate(ALL_FCMP_FLAGS)}
+
+
+@irdl_op_definition
+class FCmpOp(IRDLOperation):
+    name = "llvm.fcmp"
+
+    T: ClassVar = VarConstraint("T", AnyFloatConstr)
+
+    lhs = operand_def(T)
+    rhs = operand_def(T)
+    res = result_def(I1)
+    predicate = prop_def(IntegerAttr[i64])
+
+    fastmathFlags = prop_def(FastMathAttr, default_value=FastMathAttr(None))
+
+    traits = traits_def(Pure())
+
+    irdl_options = (ParsePropInAttrDict(),)
+
+    def __init__(
+        self,
+        lhs: Operation | SSAValue,
+        rhs: Operation | SSAValue,
+        predicate: str | IntegerAttr[IntegerType],
+        attributes: dict[str, Attribute] = {},
+    ):
+        if isinstance(predicate, str):
+            predicate = IntegerAttr(FCmpPredicateFlag(predicate).to_int(), i64)
+        super().__init__(
+            operands=[lhs, rhs],
+            result_types=[i1],
+            attributes=attributes,
+            properties={
+                "predicate": predicate,
+            },
+        )
+
+    @classmethod
+    def parse(cls, parser: Parser):
+        predicate_literal = parser.parse_str_literal()
+        predicate = IntegerAttr(FCmpPredicateFlag(predicate_literal).to_int(), i64)
+        lhs = parser.parse_unresolved_operand()
+        parser.parse_characters(",")
+        rhs = parser.parse_unresolved_operand()
+        attributes = parser.parse_optional_attr_dict()
+        parser.parse_characters(":")
+        type = parser.parse_type()
+        operands = parser.resolve_operands([lhs, rhs], [type, type], parser.pos)
+        return cls(operands[0], operands[1], predicate, attributes)
+
+    def print(self, printer: Printer):
+        flag = FCmpPredicateFlag.from_int(self.predicate.value.data)
+        printer.print_string(f' "{flag}" ')
+        printer.print_ssa_value(self.lhs)
+        printer.print_string(", ")
+        printer.print_ssa_value(self.rhs)
+        printer.print_op_attributes(self.attributes)
+        printer.print_string(" : ")
+        printer.print_attribute(self.lhs.type)
+
+
 @irdl_op_definition
 class BitcastOp(GenericCastOp):
     name = "llvm.bitcast"
@@ -2157,6 +2257,168 @@ class SIToFPOp(GenericCastOp):
 @irdl_op_definition
 class FPExtOp(GenericCastOp):
     name = "llvm.fpext"
+
+
+@irdl_op_definition
+class FAbsOp(IRDLOperation):
+    T: ClassVar = VarConstraint("T", AnyFloatConstr | VectorType.constr(AnyFloatConstr))
+
+    name = "llvm.intr.fabs"
+
+    input = operand_def(T)
+    result = result_def(T)
+
+    fastmathFlags = prop_def(FastMathAttr, default_value=FastMathAttr(None))
+
+    assembly_format = (
+        "`(` operands `)` attr-dict `:` functional-type(operands, results)"
+    )
+
+    irdl_options = (ParsePropInAttrDict(),)
+
+    def __init__(
+        self,
+        input: Operation | SSAValue,
+        result_type: Attribute,
+        fast_math: FastMathAttr | FastMathFlag | None = None,
+    ):
+        if isinstance(fast_math, FastMathFlag | str | None):
+            fast_math = FastMathAttr(fast_math)
+        super().__init__(
+            operands=[input],
+            result_types=[result_type],
+            properties={"fastmathFlags": fast_math},
+        )
+
+
+@irdl_op_definition
+class FNegOp(IRDLOperation):
+    T: ClassVar = VarConstraint("T", AnyFloatConstr | VectorType.constr(AnyFloatConstr))
+
+    name = "llvm.fneg"
+
+    arg = operand_def(T)
+    res = result_def(T)
+
+    fastmathFlags = prop_def(FastMathAttr, default_value=FastMathAttr(None))
+
+    traits = traits_def(Pure(), SameOperandsAndResultType())
+
+    assembly_format = "$arg attr-dict `:` type($arg)"
+
+    irdl_options = (ParsePropInAttrDict(),)
+
+    def __init__(
+        self,
+        arg: Operation | SSAValue,
+        fast_math: FastMathAttr | None = None,
+    ):
+        if fast_math is None:
+            fast_math = FastMathAttr(None)
+        super().__init__(
+            operands=[arg],
+            result_types=[SSAValue.get(arg).type],
+            properties={"fastmathFlags": fast_math},
+        )
+
+
+@irdl_op_definition
+class MaskedStoreOp(IRDLOperation):
+    name = "llvm.intr.masked.store"
+
+    value = operand_def(VectorType.constr(AnyFloatConstr))
+    data = operand_def(LLVMPointerType)
+    mask = operand_def(VectorType[I1])
+    alignment = prop_def(IntegerAttr[i32])
+
+    assembly_format = (
+        "$value `,` $data `,` $mask attr-dict `:`"
+        " type($value) `,` type($mask) `into` type($data)"
+    )
+
+    irdl_options = (ParsePropInAttrDict(),)
+
+    def __init__(
+        self,
+        value: Operation | SSAValue,
+        data: Operation | SSAValue,
+        mask: Operation | SSAValue,
+        alignment: int = 32,
+    ):
+        super().__init__(
+            operands=[value, data, mask],
+            result_types=[],
+            properties={
+                "alignment": IntegerAttr(alignment, 32),
+            },
+        )
+
+
+@irdl_op_definition
+class SelectOp(IRDLOperation):
+    name = "llvm.select"
+
+    T: ClassVar = VarConstraint("T", AnyAttr())
+
+    cond = operand_def(I1)
+    lhs = operand_def(T)
+    rhs = operand_def(T)
+    res = result_def(T)
+
+    fastmathFlags = prop_def(FastMathAttr, default_value=FastMathAttr(None))
+
+    traits = traits_def(Pure())
+
+    assembly_format = "$cond `,` $lhs `,` $rhs attr-dict `:` type($cond) `,` type($res)"
+
+    irdl_options = (ParsePropInAttrDict(),)
+
+    def __init__(
+        self,
+        cond: Operation | SSAValue,
+        lhs: Operation | SSAValue,
+        rhs: Operation | SSAValue,
+    ):
+        super().__init__(
+            operands=[cond, lhs, rhs],
+            result_types=[SSAValue.get(lhs).type],
+        )
+
+
+@irdl_op_definition
+class CondBrOp(IRDLOperation):
+    name = "llvm.cond_br"
+
+    cond = operand_def(IntegerType(1))
+    then_arguments = var_operand_def()
+    else_arguments = var_operand_def()
+
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
+
+    then_block = successor_def()
+    else_block = successor_def()
+
+    traits = traits_def(IsTerminator())
+
+    assembly_format = (
+        "$cond `,`"
+        " $then_block (`(` $then_arguments^ `:` type($then_arguments) `)`)? `,`"
+        " $else_block (`(` $else_arguments^ `:` type($else_arguments) `)`)?"
+        " attr-dict"
+    )
+
+    def __init__(
+        self,
+        cond: Operation | SSAValue,
+        then_block: Block,
+        then_ops: Sequence[Operation | SSAValue],
+        else_block: Block,
+        else_ops: Sequence[Operation | SSAValue],
+    ):
+        super().__init__(
+            operands=[cond, then_ops, else_ops],
+            successors=[then_block, else_block],
+        )
 
 
 @irdl_op_definition
@@ -2178,11 +2440,15 @@ LLVM = Dialect(
         BitcastOp,
         CallIntrinsicOp,
         CallOp,
+        CondBrOp,
         ConstantOp,
         ExtractValueOp,
+        FAbsOp,
         FAddOp,
+        FCmpOp,
         FDivOp,
         FMulOp,
+        FNegOp,
         FPExtOp,
         FRemOp,
         FSubOp,
@@ -2195,6 +2461,7 @@ LLVM = Dialect(
         IntToPtrOp,
         LShrOp,
         LoadOp,
+        MaskedStoreOp,
         MulOp,
         NullOp,
         OrOp,
@@ -2202,6 +2469,7 @@ LLVM = Dialect(
         ReturnOp,
         SDivOp,
         SExtOp,
+        SelectOp,
         SIToFPOp,
         SRemOp,
         ShlOp,

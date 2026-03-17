@@ -30,6 +30,7 @@ from xdsl.dialects.builtin import (
     i32,
     i64,
 )
+from xdsl.interfaces import ConditionallySpeculatableInterface
 from xdsl.ir import Attribute, Operation, OpTrait, SSAValue
 from xdsl.irdl import (
     Block,
@@ -324,9 +325,7 @@ def test_symbol_op_interface():
         sym_name = attr_def(IntegerAttr)
         traits = traits_def(SymbolOpInterface())
 
-    op1 = SymNameWrongTypeOp(
-        attributes={"sym_name": IntegerAttr.from_int_and_width(1, 32)}
-    )
+    op1 = SymNameWrongTypeOp(attributes={"sym_name": IntegerAttr(1, 32)})
 
     with pytest.raises(
         VerifyException,
@@ -573,6 +572,26 @@ def test_speculability(
     else:
         assert optrait is None
 
+    assert is_speculatable(op) is speculatability
+
+
+@pytest.mark.parametrize("speculatability", [True, False])
+def test_conditionally_speculatable_interface(speculatability: bool):
+    @irdl_op_definition
+    class InterfaceSpeculatabilityTestOp(
+        IRDLOperation, ConditionallySpeculatableInterface
+    ):
+        name = "test.interface_speculatability"
+        region = region_def()
+
+        def is_speculatable(self) -> bool:
+            return speculatability
+
+    op = InterfaceSpeculatabilityTestOp(regions=[Region(Block())])
+    trait = op.get_trait(ConditionallySpeculatable)
+
+    assert trait is not None
+    assert trait.is_speculatable(op) is speculatability
     assert is_speculatable(op) is speculatability
 
 

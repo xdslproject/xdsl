@@ -30,6 +30,10 @@
   %element = hw.array_get %array[%index] : !hw.array<2xi19>, i1
 
   // CHECK: %{{.*}} = hw.array_get %{{.*}}[%{{.*}}] : !hw.array<2xi19>, i1
+  %nested = "test.op"() : () -> !hw.array<2x!hw.array<4xi64>>
+  %first_index = arith.constant 1 : i1
+  %take_out = hw.array_get %nested[%first_index] : !hw.array<2x!hw.array<4xi64>>, i1
+  // CHECK: %{{.*}} = hw.array_get %{{.*}}[%{{.*}}] : !hw.array<2x!hw.array<4xi64>>, i1
 
   %ic = hw.bitcast %test : (!hw.array<6xi7>) -> !hw.array<7xi6>
   // CHECK: %ic = hw.bitcast %test : (!hw.array<6xi7>) -> !hw.array<7xi6>

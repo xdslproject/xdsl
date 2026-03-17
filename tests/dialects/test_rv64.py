@@ -30,15 +30,13 @@ def test_get_constant_value():
     # Test 64-bit LiOp
     li_op = rv64.LiOp(1)
     li_val = get_constant_value(li_op.rd)
-    assert li_val == IntegerAttr.from_int_and_width(1, 64)
+    assert li_val == IntegerAttr(1, 64)
     # LiOp implements ConstantLikeInterface so it also has a get_constant_value method:
     constantlike = li_op.get_trait(ConstantLike)
     assert constantlike is not None
-    assert constantlike.get_constant_value(li_op.rd) == IntegerAttr.from_int_and_width(
-        1, 64
-    )
+    assert constantlike.get_constant_value(li_op.rd) == IntegerAttr(1, 64)
 
     # Test 64-bit zero register
     zero_op = rv64.GetRegisterOp(riscv.Registers.ZERO)
     zero_val = get_constant_value(zero_op.res)
-    assert zero_val == IntegerAttr.from_int_and_width(0, 64)
+    assert zero_val == IntegerAttr(0, 64)

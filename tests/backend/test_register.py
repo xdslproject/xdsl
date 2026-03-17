@@ -1,3 +1,5 @@
+import re
+
 import pytest
 
 from xdsl.backend.register_type import RegisterType
@@ -7,25 +9,24 @@ from xdsl.utils.exceptions import VerifyException
 
 
 def test_register_clashes():
-    @irdl_attr_definition
-    class ClashRegister(RegisterType):
-        name = "test.reg_clash"
-
-        def verify(self) -> None: ...
-
-        @classmethod
-        def index_by_name(cls) -> dict[str, int]:
-            return {"x0": 0}
-
-        @classmethod
-        def infinite_register_prefix(cls):
-            return "x"
-
     with pytest.raises(
-        AssertionError,
-        match="Invalid 'infinite' register name: x0 clashes with finite register set",
+        ValueError,
+        match=re.escape(
+            "Infinite register prefix 'x' clashes with register names ['x0']."
+        ),
     ):
-        ClashRegister.infinite_register(0)
+
+        @irdl_attr_definition
+        class ClashRegister(RegisterType):  # pyright: ignore[reportUnusedClass]
+            name = "test.reg_clash"
+
+            @classmethod
+            def index_by_name(cls) -> dict[str, int]:
+                return {"x0": 0}
+
+            @classmethod
+            def infinite_register_prefix(cls):
+                return "x"
 
 
 @irdl_attr_definition

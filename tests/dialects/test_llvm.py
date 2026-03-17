@@ -201,7 +201,9 @@ def test_llvm_getelementptr_op():
     assert len(gep1.ssa_indices) == 0
 
     # check GEP with mixed args
-    gep2 = llvm.GEPOp.from_mixed_indices(ptr, [1, size], builtin.i32, ptr_type)
+    gep2 = llvm.GEPOp.from_mixed_indices(
+        ptr, [1, size], llvm.LLVMArrayType(10, builtin.i32), ptr_type
+    )
 
     assert len(gep2.rawConstantIndices) == 2
     assert len(gep2.ssa_indices) == 1
@@ -576,3 +578,56 @@ def test_func_op_extra_attrs():
     op = llvm.FuncOp("my_func", ft, extra_attrs={"goofy": builtin.StringAttr("goober")})
     assert "goofy" in op.attributes
     assert op.attributes["goofy"] == builtin.StringAttr("goober")
+
+
+def test_fabs_op():
+    val = create_ssa_value(builtin.f32)
+    op = llvm.FAbsOp(val, builtin.f32)
+    assert op.input == val
+    assert op.result.type == builtin.f32
+
+
+def test_fneg_op():
+    val = create_ssa_value(builtin.f32)
+    op = llvm.FNegOp(val)
+    assert op.arg == val
+    assert op.res.type == builtin.f32
+
+
+def test_fcmp_op():
+    lhs = create_ssa_value(builtin.f32)
+    rhs = create_ssa_value(builtin.f32)
+    op = llvm.FCmpOp(lhs, rhs, "oeq")
+    assert op.lhs == lhs
+    assert op.rhs == rhs
+    assert op.res.type == builtin.i1
+
+
+def test_select_op():
+    cond = create_ssa_value(builtin.i1)
+    lhs = create_ssa_value(builtin.i32)
+    rhs = create_ssa_value(builtin.i32)
+    op = llvm.SelectOp(cond, lhs, rhs)
+    assert op.cond == cond
+    assert op.lhs == lhs
+    assert op.rhs == rhs
+    assert op.res.type == builtin.i32
+
+
+def test_cond_br_op():
+    cond = create_ssa_value(builtin.i1)
+    then_block = Block()
+    else_block = Block()
+    op = llvm.CondBrOp(cond, then_block, [], else_block, [])
+    assert op.cond == cond
+
+
+def test_masked_store_op():
+    value = create_ssa_value(builtin.VectorType(builtin.f32, [4]))
+    ptr = create_ssa_value(llvm.LLVMPointerType())
+    mask = create_ssa_value(builtin.VectorType(builtin.IntegerType(1), [4]))
+    op = llvm.MaskedStoreOp(value, ptr, mask, alignment=16)
+    assert op.value == value
+    assert op.data == ptr
+    assert op.mask == mask
+    assert op.alignment.value.data == 16

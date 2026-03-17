@@ -16,6 +16,7 @@ from xdsl.ir import Attribute, Operation, SSAValue
 from xdsl.irdl import traits_def
 from xdsl.pattern_rewriter import RewritePattern
 from xdsl.traits import (
+    ConditionallySpeculatable,
     HasCanonicalizationPatternsTrait,
     HasFolder,
 )
@@ -87,5 +88,40 @@ class HasFolderInterface(Operation, abc.ABC):
         When folding is unsuccessful, returns None.
 
         The fold method is not allowed to mutate the operation being folded.
+        """
+        raise NotImplementedError()
+
+
+@dataclass(frozen=True)
+class _ConditionallySpeculatableInterfaceTrait(ConditionallySpeculatable):
+    """
+    Gets the speculatability from the operation's implementation
+    of `ConditionallySpeculatableInterface`.
+    """
+
+    def verify(self, op: Operation) -> None:
+        return
+
+    @classmethod
+    def is_speculatable(cls, op: Operation) -> bool:
+        op = cast("ConditionallySpeculatableInterface", op)
+        return op.is_speculatable()
+
+
+class ConditionallySpeculatableInterface(Operation, abc.ABC):
+    """
+    An operation subclassing this interface must implement the
+    `is_speculatable` method, which indicates whether the operation
+    can be speculatively executed.
+    """
+
+    traits = traits_def(_ConditionallySpeculatableInterfaceTrait())
+
+    @abc.abstractmethod
+    def is_speculatable(self) -> bool:
+        """
+        Returns True if this operation can be speculatively executed,
+        False otherwise. Speculatable ops have no undefined behavior
+        and no observable side effects.
         """
         raise NotImplementedError()

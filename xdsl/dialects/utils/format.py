@@ -5,6 +5,7 @@ from xdsl.dialects.builtin import (
     ArrayAttr,
     DictionaryAttr,
     FunctionType,
+    LocationAttr,
     StringAttr,
 )
 from xdsl.ir import (
@@ -228,13 +229,20 @@ def print_func_op_like(
     res_attrs: ArrayAttr[DictionaryAttr] | None = None,
     reserved_attr_names: Sequence[str],
     is_variadic: bool = False,
+    print_empty_outputs: bool = True,
 ):
     printer.print_string(" ")
     printer.print_symbol_name(sym_name.data)
 
     # Non-variadic declaration
     if not body.blocks and not is_variadic:
-        printer.print_attribute(function_type)
+        if print_empty_outputs:
+            printer.print_attribute(function_type)
+        else:
+            printer.print_string("(")
+            printer.print_list(function_type.inputs, printer.print_attribute)
+            printer.print_string(")")
+            _print_func_outputs(printer, function_type.outputs.data, res_attrs)
         printer.print_op_attributes(
             attributes, reserved_attr_names=reserved_attr_names, print_keyword=True
         )
@@ -365,6 +373,22 @@ def parse_func_op_like(
     def parse_fun_input() -> (
         Attribute | tuple[Parser.Argument, dict[str, Attribute]] | None
     ):
+        def parse_optional_attrs_and_loc() -> tuple[
+            dict[str, Attribute], LocationAttr | None
+        ]:
+            arg_attr_dict = parser.parse_optional_dictionary_attr_dict()
+            arg_loc = parser.parse_optional_location()
+
+            # Reject attrs after location, including empty dictionaries.
+            if arg_loc is not None:
+                arg_attr_pos = parser.pos
+                parser.parse_optional_dictionary_attr_dict()
+                if parser.pos != arg_attr_pos:
+                    parser.raise_error(
+                        "Expected function argument attributes before location."
+                    )
+            return arg_attr_dict, arg_loc
+
         nonlocal is_variadic
         if allow_variadic and parser.parse_optional_characters("...") is not None:
             is_variadic = True
@@ -374,8 +398,11 @@ def parse_func_op_like(
             ret = parser.parse_optional_type()
             if ret is None:
                 parser.raise_error("Expected argument or type")
+            # Declarative args keep only the type and consume attributes and location.
+            parse_optional_attrs_and_loc()
         else:
-            arg_attr_dict = parser.parse_optional_dictionary_attr_dict()
+            arg_attr_dict, arg_loc = parse_optional_attrs_and_loc()
+            arg.location = arg_loc
             ret = (arg, arg_attr_dict)
         return ret
 
@@ -447,9 +474,18 @@ def parse_func_op_like(
 def print_func_argument(
     printer: Printer, arg: BlockArgument, attrs: DictionaryAttr | None
 ):
-    printer.print_block_argument(arg)
+    """
+    Keep function-argument syntax compatible with MLIR parser expectations:
+    `%arg : type {attrs} loc(...)` (location after attrs).
+    """
+    printer.print_block_argument(arg, print_type=False)
+    printer.print_string(" : ")
+    printer.print_attribute(arg.type)
     if attrs is not None and attrs.data:
         printer.print_op_attributes(attrs.data)
+    if printer.print_debuginfo:
+        printer.print_string(" ")
+        printer.print_attribute(arg.location)
 
 
 def print_func_output(
