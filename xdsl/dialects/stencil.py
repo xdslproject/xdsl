@@ -1546,10 +1546,6 @@ class ReduceOp(IRDLOperation):
     def __init__(self, operand: SSAValue, init: SSAValue, body: Region):
         super().__init__(operands=[operand, init], result_types=[], regions=[body])
 
-    @staticmethod
-    def get(operand: SSAValue, init: SSAValue, body: Region):
-        return ReduceOp(operand, init, body)
-
     def verify_(self) -> None:
         body_block = self.body.blocks[0]
 
@@ -1575,12 +1571,12 @@ class ReduceOp(IRDLOperation):
 
 
 @irdl_op_definition
-class ReduceReturnOp(IRDLOperation):
+class YieldOp(IRDLOperation):
     """
-    Terminator for stencil.reduce body.
+    Simple terminator for stencil operations with regions.
     """
 
-    name = "stencil.reduce.return"
+    name = "stencil.yield"
 
     result = operand_def()
 
@@ -1588,10 +1584,6 @@ class ReduceReturnOp(IRDLOperation):
 
     def __init__(self, result: SSAValue):
         super().__init__(operands=[result])
-
-    @staticmethod
-    def get(result: SSAValue):
-        return ReduceReturnOp(result)
 
 
 @dataclass(frozen=True)
@@ -1723,7 +1715,7 @@ Stencil = Dialect(
         StoreResultOp,
         ReturnOp,
         ReduceOp,
-        ReduceReturnOp,
+        YieldOp,
     ],
     [
         FieldType,
