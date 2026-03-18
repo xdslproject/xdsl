@@ -1560,7 +1560,7 @@ class ReturnOp(IRDLOperation):
     traits = traits_def(HasParent(ApplyOp), IsTerminator(), Pure())
 
     def __init__(self, res: Sequence[SSAValue | Operation]):
-        super().__init__(operands=[list(res)])
+        super().__init__(operands=[res])
 
     @deprecated("Please use the default constructor instead")
     @staticmethod
