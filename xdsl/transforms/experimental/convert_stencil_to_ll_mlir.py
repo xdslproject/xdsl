@@ -26,7 +26,6 @@ from xdsl.dialects.stencil import (
     IndexOp,
     LoadOp,
     ReduceOp,
-    ReduceReturnOp,
     ResultType,
     ReturnOp,
     StencilBoundsAttr,
@@ -35,6 +34,7 @@ from xdsl.dialects.stencil import (
     StoreOp,
     StoreResultOp,
     TempType,
+    YieldOp,
 )
 from xdsl.ir import (
     Attribute,
@@ -306,7 +306,7 @@ def prepare_apply_body(op: ApplyOp) -> tuple[Block, list[SSAValue]]:
         body_block = stencil_reduce.body.block
 
         for body_op in list(body_block.ops):
-            if isinstance(body_op, ReduceReturnOp):
+            if isinstance(body_op, YieldOp):
                 scf_return = scf.ReduceReturnOp(body_op.result)
                 body_block.insert_op_before(scf_return, body_op)
                 body_op.detach()
