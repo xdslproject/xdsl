@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import warnings
 from collections.abc import Iterable, Iterator, Sequence
 from dataclasses import dataclass
 from itertools import pairwise
@@ -191,24 +192,56 @@ class StencilBoundsAttr(ParametrizedAttribute):
                     "greater than lower bound."
                 )
 
-    def __init__(self, bounds: Iterable[tuple[int | IntAttr, int | IntAttr]]):
+    # def __init__(self, bounds: Iterable[tuple[int | IntAttr, int | IntAttr]]):
+    #     if bounds:
+    #         lb, ub = zip(*bounds)
+    #     else:
+    #         lb, ub = (), ()
+    #     super().__init__(
+    #         IndexAttr(*lb),
+    #         IndexAttr(*ub),
+    #     )
+
+    # @classmethod
+    # def from_lb_ub(cls, lb: IndexAttr, ub: IndexAttr) -> StencilBoundsAttr:
+    #     if len(lb) != len(ub):
+    #         raise VerifyException(
+    #             "Incoherent stencil bounds: lower and upper bounds must have the "
+    #             "same dimensionality."
+    #         )
+    #     return cls(zip(lb, ub))
+
+    def __init__(
+        self,
+        bounds: IndexAttr | Iterable[tuple[int | IntAttr, int | IntAttr]],
+        ub: IndexAttr | None = None,
+    ):
+        if isinstance(bounds, IndexAttr):
+            lb = bounds
+            assert ub is not None
+        else:
+            warnings.warn(
+                "StencilBoundsAttr init with sequence of tuples is deprecated, please use .from_bounds instead.",
+                DeprecationWarning,
+            )
+
+            if bounds:
+                lb_indices, ub_indices = zip(*bounds)
+            else:
+                lb_indices, ub_indices = (), ()
+            lb = IndexAttr(*lb_indices)
+            ub = IndexAttr(*ub_indices)
+        super().__init__(lb, ub)
+
+    @classmethod
+    def from_bounds(
+        cls, bounds: Iterable[tuple[int | IntAttr, int | IntAttr]]
+    ) -> StencilBoundsAttr:
         if bounds:
             lb, ub = zip(*bounds)
         else:
             lb, ub = (), ()
-        super().__init__(
-            IndexAttr(*lb),
-            IndexAttr(*ub),
-        )
-
-    @classmethod
-    def from_lb_ub(cls, lb: IndexAttr, ub: IndexAttr) -> StencilBoundsAttr:
-        if len(lb) != len(ub):
-            raise VerifyException(
-                "Incoherent stencil bounds: lower and upper bounds must have the "
-                "same dimensionality."
-            )
-        return cls(zip(lb, ub))
+        return StencilBoundsAttr(IndexAttr(*lb), IndexAttr(*ub))
 
     def print_parameters(self, printer: Printer) -> None:
         with printer.in_angle_brackets():
@@ -227,7 +260,7 @@ class StencilBoundsAttr(ParametrizedAttribute):
     def union(self, other: StencilBoundsAttr | IntAttr) -> StencilBoundsAttr:
         if isinstance(other, IntAttr):
             return self
-        return StencilBoundsAttr(
+        return StencilBoundsAttr.from_bounds(
             zip(
                 map(min, self.lb, other.lb),
                 map(max, self.ub, other.ub),
@@ -237,7 +270,7 @@ class StencilBoundsAttr(ParametrizedAttribute):
     def intersection(self, other: StencilBoundsAttr | IntAttr) -> StencilBoundsAttr:
         if isinstance(other, IntAttr):
             return self
-        return StencilBoundsAttr(
+        return StencilBoundsAttr.from_bounds(
             zip(
                 map(max, self.lb, other.lb),
                 map(min, self.ub, other.ub),
@@ -257,7 +290,7 @@ class StencilBoundsAttr(ParametrizedAttribute):
         return self & value
 
     def __add__(self, o: IndexAttr) -> StencilBoundsAttr:
-        return StencilBoundsAttr(
+        return StencilBoundsAttr.from_bounds(
             zip(
                 self.lb + o,
                 self.ub + o,
@@ -323,7 +356,7 @@ class StencilType(
             opt_type = parser.parse_optional_type()
         parser.parse_characters(">")
         if isa(bounds, list[tuple[int, int]]):
-            bounds = StencilBoundsAttr(bounds)
+            bounds = StencilBoundsAttr.from_bounds(bounds)
         elif isa(bounds, list[int]):
             bounds = IntAttr(len(bounds))
         else:
@@ -365,7 +398,7 @@ class StencilType(
         - `Field([(-1,17),(-2,18)],f32)` is represented as `stencil.field<[-1,17]x[-2,18]xf32>`,
         """
         if isinstance(bounds, Iterable):
-            nbounds = StencilBoundsAttr(bounds)
+            nbounds = StencilBoundsAttr.from_bounds(bounds)
         elif isinstance(bounds, int):
             nbounds = IntAttr(bounds)
         else:
@@ -586,7 +619,7 @@ class ApplyOp(IRDLOperation):
             lb, ub = StencilBoundsAttr.parse_parameters(parser)
             assert isa(lb, IndexAttr)
             assert isa(ub, IndexAttr)
-            bounds = StencilBoundsAttr.from_lb_ub(lb, ub)
+            bounds = StencilBoundsAttr(lb, ub)
         else:
             bounds = None
         return cls.build(

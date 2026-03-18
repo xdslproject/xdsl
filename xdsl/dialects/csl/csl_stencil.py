@@ -321,7 +321,7 @@ class ApplyOp(IRDLOperation):
             lb, ub = stencil.StencilBoundsAttr.parse_parameters(parser)
             assert isinstance(lb, stencil.IndexAttr)
             assert isinstance(ub, stencil.IndexAttr)
-            props["bounds"] = stencil.StencilBoundsAttr.from_lb_ub(lb, ub)
+            props["bounds"] = stencil.StencilBoundsAttr(lb, ub)
         # `-3` fixed block args, `+2` offset for operands with fixed use
         split = len(receive_chunk.block.args) - 3 + 2
         return cls(

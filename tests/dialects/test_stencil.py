@@ -52,7 +52,7 @@ def test_stencilboundsattr_verify():
             " dimensionality."
         ),
     ):
-        StencilBoundsAttr.from_lb_ub(IndexAttr(1), IndexAttr(2, 2))
+        StencilBoundsAttr(IndexAttr(1), IndexAttr(2, 2))
 
     with pytest.raises(
         VerifyException,
@@ -61,7 +61,7 @@ def test_stencilboundsattr_verify():
             " lower bound."
         ),
     ):
-        StencilBoundsAttr.from_lb_ub(IndexAttr(2, 2), IndexAttr(2, 2))
+        StencilBoundsAttr(IndexAttr(2, 2), IndexAttr(2, 2))
 
 
 def test_stencil_return_single_float():
@@ -107,7 +107,9 @@ def test_stencil_cast_op_verifier():
     field = create_ssa_value(field_type)
 
     # check that correct op verifies correctly
-    cast = CastOp(field, StencilBoundsAttr(((-2, 100), (-2, 100), (-2, 100))))
+    cast = CastOp(
+        field, StencilBoundsAttr.from_bounds(((-2, 100), (-2, 100), (-2, 100)))
+    )
     cast.verify()
 
     # check that output has same dims as input and lb, ub
@@ -116,7 +118,7 @@ def test_stencil_cast_op_verifier():
     ):
         cast = CastOp(
             field,
-            StencilBoundsAttr(((-2, 100), (-2, 100), (-2, 100))),
+            StencilBoundsAttr.from_bounds(((-2, 100), (-2, 100), (-2, 100))),
             FieldType(((-2, 102), (-2, 102)), f32),
         )
         cast.verify()
@@ -128,7 +130,7 @@ def test_stencil_cast_op_verifier():
     ):
         cast = CastOp(
             field,
-            StencilBoundsAttr(((-2, 100), (-2, 100), (-2, 100))),
+            StencilBoundsAttr.from_bounds(((-2, 100), (-2, 100), (-2, 100))),
             FieldType(((-2, 102), (-2, 102), (-2, 102)), f64),
         )
         cast.verify()
@@ -137,7 +139,7 @@ def test_stencil_cast_op_verifier():
     non_dyn_field = create_ssa_value(FieldType(((-2, 102), (-2, 102), (-2, 102)), f32))
     cast = CastOp(
         non_dyn_field,
-        StencilBoundsAttr(((-2, 100), (-2, 100), (-2, 100))),
+        StencilBoundsAttr.from_bounds(((-2, 100), (-2, 100), (-2, 100))),
         FieldType(((-2, 102), (-2, 102), (-2, 102)), f32),
     )
     cast.verify()
@@ -148,7 +150,7 @@ def test_stencil_cast_op_verifier():
     ):
         cast = CastOp(
             non_dyn_field,
-            StencilBoundsAttr(((-2, 100), (-2, 100), (-2, 101))),
+            StencilBoundsAttr.from_bounds(((-2, 100), (-2, 100), (-2, 101))),
             FieldType(((-2, 102), (-2, 102), (-3, 103)), f32),
         )
         cast.verify()
@@ -159,7 +161,7 @@ def test_cast_op_constructor():
 
     cast = CastOp(
         field,
-        StencilBoundsAttr(((-2, 100), (-3, 100), (-4, 0))),
+        StencilBoundsAttr.from_bounds(((-2, 100), (-3, 100), (-4, 0))),
     )
 
     assert cast.result.type == FieldType(((-2, 100), (-3, 100), (-4, 0)), f32)
@@ -498,7 +500,8 @@ def test_stencil_store():
 
     lb = IndexAttr(1, 1)
     ub = IndexAttr(64, 64)
-    bounds = StencilBoundsAttr.from_lb_ub(lb, ub)
+    # bounds = StencilBoundsAttr(lb, ub)
+    bounds = StencilBoundsAttr.from_bounds(zip(lb, ub))
 
     store = StoreOp(temp_type_ssa_val, field_type_ssa_val, bounds)
 
