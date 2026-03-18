@@ -52,7 +52,7 @@ def test_stencilboundsattr_verify():
             " dimensionality."
         ),
     ):
-        StencilBoundsAttr.new([IndexAttr(1), IndexAttr(2, 2)])
+        StencilBoundsAttr.from_lb_ub(IndexAttr(1), IndexAttr(2, 2))
 
     with pytest.raises(
         VerifyException,
@@ -61,7 +61,7 @@ def test_stencilboundsattr_verify():
             " lower bound."
         ),
     ):
-        StencilBoundsAttr.new([IndexAttr(2, 2), IndexAttr(2, 2)])
+        StencilBoundsAttr.from_lb_ub(IndexAttr(2, 2), IndexAttr(2, 2))
 
 
 def test_stencil_return_single_float():
@@ -498,7 +498,7 @@ def test_stencil_store():
 
     lb = IndexAttr(1, 1)
     ub = IndexAttr(64, 64)
-    bounds = StencilBoundsAttr.new((lb, ub))
+    bounds = StencilBoundsAttr.from_lb_ub(lb, ub)
 
     store = StoreOp(temp_type_ssa_val, field_type_ssa_val, bounds)
 

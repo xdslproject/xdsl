@@ -201,6 +201,15 @@ class StencilBoundsAttr(ParametrizedAttribute):
             IndexAttr(*ub),
         )
 
+    @classmethod
+    def from_lb_ub(cls, lb: IndexAttr, ub: IndexAttr) -> StencilBoundsAttr:
+        if len(lb) != len(ub):
+            raise VerifyException(
+                "Incoherent stencil bounds: lower and upper bounds must have the "
+                "same dimensionality."
+            )
+        return cls(zip(lb, ub))
+
     def print_parameters(self, printer: Printer) -> None:
         with printer.in_angle_brackets():
             self.lb.print_indices(printer)
@@ -574,7 +583,10 @@ class ApplyOp(IRDLOperation):
             attrs = {}
         region = parser.parse_region(args)
         if parser.parse_optional_keyword("to"):
-            bounds = StencilBoundsAttr.new(StencilBoundsAttr.parse_parameters(parser))
+            lb, ub = StencilBoundsAttr.parse_parameters(parser)
+            assert isa(lb, IndexAttr)
+            assert isa(ub, IndexAttr)
+            bounds = StencilBoundsAttr.from_lb_ub(lb, ub)
         else:
             bounds = None
         return cls.build(

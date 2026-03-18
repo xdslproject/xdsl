@@ -36,11 +36,9 @@ class ChangeStoreOpSizes(RewritePattern):
             integer_attr.data for integer_attr in op.bounds.ub.array.data
         )
         new_shape = self.strategy.calc_resize(shape)
-        op.bounds = stencil.StencilBoundsAttr.new(
-            [
-                stencil.IndexAttr(*(len(new_shape) * [0])),
-                stencil.IndexAttr(*new_shape),
-            ]
+        op.bounds = stencil.StencilBoundsAttr.from_lb_ub(
+            stencil.IndexAttr(*(len(new_shape) * [0])),
+            stencil.IndexAttr(*new_shape),
         )
 
 

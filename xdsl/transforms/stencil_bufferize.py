@@ -454,10 +454,10 @@ class CombineStoreFold(RewritePattern):
             bounds = cast(StencilBoundsAttr, cast(TempType[Attribute], r.type).bounds)
             newub = list(bounds.ub)
             newub[op.dim.value.data] = op.index.value.data
-            lower_bounds = StencilBoundsAttr.new((bounds.lb, IndexAttr(*newub)))
+            lower_bounds = StencilBoundsAttr.from_lb_ub(bounds.lb, IndexAttr(*newub))
             newlb = list(bounds.lb)
             newlb[op.dim.value.data] = op.index.value.data
-            upper_bounds = StencilBoundsAttr.new((IndexAttr(*newlb), bounds.ub))
+            upper_bounds = StencilBoundsAttr.from_lb_ub(IndexAttr(*newlb), bounds.ub)
 
             rewriter.erase_op(store)
 
