@@ -199,14 +199,8 @@ class StencilBoundsAttr(ParametrizedAttribute):
             else:
                 lb_indices, ub_indices = (), ()
 
-            lb_indices = tuple(
-                cast(IntAttr, i).data if isinstance(i, IntAttr) else i
-                for i in lb_indices
-            )
-            ub_indices = tuple(
-                cast(IntAttr, i).data if isinstance(i, IntAttr) else i
-                for i in ub_indices
-            )
+            lb_indices = tuple(i if isinstance(i, int) else i.data for i in lb_indices)
+            ub_indices = tuple(i if isinstance(i, int) else i.data for i in ub_indices)
 
             lb = IndexAttr.from_indices(*lb_indices)
             ub = IndexAttr.from_indices(*ub_indices)
@@ -324,8 +318,16 @@ class StencilType(
         - `Field([(-1,17),(-2,18)],f32)` is represented as `stencil.field<[-1,17]x[-2,18]xf32>`,
         """
         if isinstance(bounds, Iterable):
+            warnings.warn(
+                "StencilType init with iterable bounds is deprecated, please pass StencilBoundsAttr or IntAttr instead.",
+                DeprecationWarning,
+            )
             nbounds = StencilBoundsAttr.from_bounds(bounds)
         elif isinstance(bounds, int):
+            warnings.warn(
+                "StencilType init with int bounds is deprecated, please pass StencilBoundsAttr or IntAttr instead.",
+                DeprecationWarning,
+            )
             nbounds = IntAttr(bounds)
         else:
             nbounds = bounds
@@ -1334,9 +1336,11 @@ class LoadOp(IRDLOperation):
         field_type = SSAValue.get(field, type=FieldType).type
 
         if lb is None or ub is None:
-            res_type = TempType(field_type.get_num_dims(), field_type.element_type)
+            res_type = TempType(
+                IntAttr(field_type.get_num_dims()), field_type.element_type
+            )
         else:
-            res_type = TempType(zip(lb, ub), field_type.element_type)
+            res_type = TempType(StencilBoundsAttr(lb, ub), field_type.element_type)
 
         super().__init__(
             operands=[field],

@@ -1,5 +1,12 @@
 from xdsl.builder import Builder
-from xdsl.dialects.builtin import IntegerAttr, IntegerType, MemRefType, TensorType, f32
+from xdsl.dialects.builtin import (
+    IntAttr,
+    IntegerAttr,
+    IntegerType,
+    MemRefType,
+    TensorType,
+    f32,
+)
 from xdsl.dialects.csl.csl_stencil import AccessOp, ApplyOp
 from xdsl.dialects.stencil import IndexAttr, TempType
 from xdsl.ir import Region, SSAValue
@@ -7,7 +14,7 @@ from xdsl.utils.test_value import create_ssa_value
 
 
 def test_access_patterns():
-    temp_t = TempType(5, f32)
+    temp_t = TempType(IntAttr(5), f32)
     temp = create_ssa_value(temp_t)
     mref = create_ssa_value(mref_t := MemRefType(tens_t := TensorType(f32, (5,)), (4,)))
 
