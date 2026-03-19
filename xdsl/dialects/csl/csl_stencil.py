@@ -318,9 +318,10 @@ class ApplyOp(IRDLOperation):
         done_exchange = parser.parse_region()
         parser.parse_punctuation(")")
         if parser.parse_optional_keyword("to"):
-            props["bounds"] = stencil.StencilBoundsAttr.new(
-                stencil.StencilBoundsAttr.parse_parameters(parser)
-            )
+            lb, ub = stencil.StencilBoundsAttr.parse_parameters(parser)
+            assert isinstance(lb, stencil.IndexAttr)
+            assert isinstance(ub, stencil.IndexAttr)
+            props["bounds"] = stencil.StencilBoundsAttr(lb, ub)
         # `-3` fixed block args, `+2` offset for operands with fixed use
         split = len(receive_chunk.block.args) - 3 + 2
         return cls(
@@ -520,9 +521,9 @@ class AccessOp(IRDLOperation):
             {"offset", "offset_mapping"}
         )
         props = dict(props.data) if props else {}
-        props["offset"] = stencil.IndexAttr.get(*offset)
+        props["offset"] = stencil.IndexAttr.from_indices(*offset)
         if offset_mapping:
-            props["offset_mapping"] = stencil.IndexAttr.get(*offset_mapping)
+            props["offset_mapping"] = stencil.IndexAttr.from_indices(*offset_mapping)
         parser.parse_punctuation(":")
         res_type = parser.parse_attribute()
         if stencil.StencilTypeConstr.verifies(res_type):

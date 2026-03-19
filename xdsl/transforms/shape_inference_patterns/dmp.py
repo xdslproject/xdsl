@@ -81,8 +81,8 @@ class DmpSwapSwapsInference(RewritePattern):
                     for idx, dim in enumerate(accessed_dims):
                         new_lb[dim] = buff_lb.array.data[idx].data
                         new_ub[dim] = buff_ub.array.data[idx].data
-                    buff_lb = stencil.IndexAttr.get(*new_lb)
-                    buff_ub = stencil.IndexAttr.get(*new_ub)
+                    buff_lb = stencil.IndexAttr.from_indices(*new_lb)
+                    buff_ub = stencil.IndexAttr.from_indices(*new_ub)
 
                     # todo breaking here means we do not verify that all accesses map to the same dimension
                     break
