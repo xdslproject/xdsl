@@ -74,10 +74,10 @@ def test_insert_slice_dynamic():
     source_v = create_ssa_value(source_t)
     dest_t = TensorType(f64, [10, 20, 30])
     dest_v = create_ssa_value(dest_t)
-    offset1 = create_ssa_value(IndexAttr(3))
-    offset2 = create_ssa_value(IndexAttr(15))
-    stride1 = create_ssa_value(IndexAttr(2))
-    stride2 = create_ssa_value(IndexAttr(5))
+    offset1 = create_ssa_value(IndexAttr.from_indices(3))
+    offset2 = create_ssa_value(IndexAttr.from_indices(15))
+    stride1 = create_ssa_value(IndexAttr.from_indices(2))
+    stride2 = create_ssa_value(IndexAttr.from_indices(5))
 
     insert_slice = InsertSliceOp.get(
         source=source_v,

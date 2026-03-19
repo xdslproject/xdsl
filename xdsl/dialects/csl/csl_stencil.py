@@ -521,9 +521,9 @@ class AccessOp(IRDLOperation):
             {"offset", "offset_mapping"}
         )
         props = dict(props.data) if props else {}
-        props["offset"] = stencil.IndexAttr(*offset)
+        props["offset"] = stencil.IndexAttr.from_indices(*offset)
         if offset_mapping:
-            props["offset_mapping"] = stencil.IndexAttr(*offset_mapping)
+            props["offset_mapping"] = stencil.IndexAttr.from_indices(*offset_mapping)
         parser.parse_punctuation(":")
         res_type = parser.parse_attribute()
         if stencil.StencilTypeConstr.verifies(res_type):

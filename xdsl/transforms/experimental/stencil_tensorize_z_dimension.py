@@ -224,8 +224,8 @@ class ApplyOpTensorize(RewritePattern):
             for access_op in op.region.walk():
                 if isinstance(access_op, AccessOp):
                     z_shift = -access_patterns[access_op.temp].halo_in_axis(2)[0]
-                    access_op.offset = IndexAttr(
-                        *access_op.offset.array.data[:-1],
+                    access_op.offset = IndexAttr.from_indices(
+                        *[idx.data for idx in access_op.offset.array.data[:-1]],
                         access_op.offset.array.data[-1].data + z_shift,
                     )
 
@@ -282,8 +282,8 @@ class LoadOpTensorize(RewritePattern):
             op,
             LoadOp(
                 op.field,
-                IndexAttr(*[lb for lb in bounds.lb][:-1]),
-                IndexAttr(*[ub for ub in bounds.ub][:-1]),
+                IndexAttr.from_indices(*[lb for lb in bounds.lb][:-1]),
+                IndexAttr.from_indices(*[ub for ub in bounds.ub][:-1]),
             ),
         )
 
@@ -296,8 +296,7 @@ class DmpSwapOpTensorize(RewritePattern):
             and op.swapped_values
             and not is_tensorized(op.swapped_values.type)
         ):
-            rewriter.replace_op(
-                op,
+            rewriter.replace_matched_op(
                 dmp.SwapOp.get(op.input_stencil, op.strategy, ArrayAttr(op.swaps.data)),
             )
 

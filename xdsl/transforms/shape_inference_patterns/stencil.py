@@ -86,12 +86,12 @@ class CombineOpShapeInference(RewritePattern):
                 continue
             newub = list(c.ub)
             newub[op.dim.value.data] = op.index.value.data
-            newl = StencilBoundsAttr(c.lb, IndexAttr(*newub))
+            newl = StencilBoundsAttr(c.lb, IndexAttr.from_indices(*newub))
             lower_bounds.append(newl)
 
             newlb = list(c.lb)
             newlb[op.dim.value.data] = op.index.value.data
-            newu = StencilBoundsAttr(IndexAttr(*newlb), c.ub)
+            newu = StencilBoundsAttr(IndexAttr.from_indices(*newlb), c.ub)
             upper_bounds.append(newu)
 
         # Handle combined lower results
@@ -115,7 +115,7 @@ class CombineOpShapeInference(RewritePattern):
             assert isa(o.type, TempType[Attribute])
             newub = list(r.ub)
             newub[op.dim.value.data] = op.index.value.data
-            newl = StencilBoundsAttr(r.lb, IndexAttr(*newub))
+            newl = StencilBoundsAttr(r.lb, IndexAttr.from_indices(*newub))
             update_result_size(o, o.type.bounds | newl, rewriter)
 
         # Handle upperext results
@@ -125,7 +125,7 @@ class CombineOpShapeInference(RewritePattern):
             assert isa(o.type, TempType[Attribute])
             newlb = list(r.lb)
             newlb[op.dim.value.data] = op.index.value.data
-            newu = StencilBoundsAttr(IndexAttr(*newlb), r.ub)
+            newu = StencilBoundsAttr(IndexAttr.from_indices(*newlb), r.ub)
             update_result_size(o, o.type.bounds | newu, rewriter)
 
 

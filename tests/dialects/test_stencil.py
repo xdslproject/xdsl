@@ -52,7 +52,7 @@ def test_stencilboundsattr_verify():
             " dimensionality."
         ),
     ):
-        StencilBoundsAttr(IndexAttr(1), IndexAttr(2, 2))
+        StencilBoundsAttr(IndexAttr.from_indices(1), IndexAttr.from_indices(2, 2))
 
     with pytest.raises(
         VerifyException,
@@ -61,7 +61,7 @@ def test_stencilboundsattr_verify():
             " lower bound."
         ),
     ):
-        StencilBoundsAttr(IndexAttr(2, 2), IndexAttr(2, 2))
+        StencilBoundsAttr(IndexAttr.from_indices(2, 2), IndexAttr.from_indices(2, 2))
 
 
 def test_stencil_return_single_float():
@@ -201,36 +201,20 @@ def test_stencil_apply_no_results():
         ([1]),
         ([1, 2]),
         ([1, 2, 3]),
-        (
-            [
-                IntAttr(1),
-                IntAttr(2),
-                IntAttr(3),
-            ]
-        ),
     ],
 )
-def test_create_index_attr_from_int_list(indices: list[int | IntAttr]):
-    stencil_index_attr = IndexAttr(*indices)
-    expected_array_attr = ArrayAttr(
-        [(IntAttr(idx) if isinstance(idx, int) else idx) for idx in indices]
-    )
+def test_create_index_attr_from_int_list(indices: list[int]):
+    stencil_index_attr = IndexAttr.from_indices(*indices)
+    expected_array_attr = ArrayAttr([(IntAttr(idx)) for idx in indices])
 
     assert stencil_index_attr.array == expected_array_attr
 
 
-def test_create_index_attr_from_list_edge_case1():
-    with pytest.raises(
-        VerifyException, match="Expected 1 to 3 indexes for stencil.index, got 0."
-    ):
-        IndexAttr()
-
-
-def test_create_index_attr_from_list_edge_case2():
+def test_create_index_attr_from_list_edge_case():
     with pytest.raises(
         VerifyException, match="Expected 1 to 3 indexes for stencil.index, got 4."
     ):
-        IndexAttr(*[1] * 4)
+        IndexAttr.from_indices(*[1] * 4)
 
 
 @pytest.mark.parametrize(
@@ -238,7 +222,7 @@ def test_create_index_attr_from_list_edge_case2():
     [([1]), ([1, 2]), ([1, 2, 3])],
 )
 def test_index_attr_neg(indices: list[int]):
-    stencil_index_attr = IndexAttr(*indices)
+    stencil_index_attr = IndexAttr.from_indices(*indices)
     stencil_index_attr_neg = -stencil_index_attr
     expected_array_attr = ArrayAttr([(IntAttr(-idx)) for idx in indices])
 
@@ -250,8 +234,8 @@ def test_index_attr_neg(indices: list[int]):
     [([1], [4]), ([1, 2], [4, 5]), ([1, 2, 3], [5, 6, 7])],
 )
 def test_index_attr_add(indices1: list[int], indices2: list[int]):
-    stencil_index_attr1 = IndexAttr(*indices1)
-    stencil_index_attr2 = IndexAttr(*indices2)
+    stencil_index_attr1 = IndexAttr.from_indices(*indices1)
+    stencil_index_attr2 = IndexAttr.from_indices(*indices2)
 
     stencil_index_attr_add = stencil_index_attr1 + stencil_index_attr2
     expected_array_attr = ArrayAttr(
@@ -266,8 +250,8 @@ def test_index_attr_add(indices1: list[int], indices2: list[int]):
     [([1], [4]), ([1, 2], [4, 5]), ([1, 2, 3], [5, 6, 7])],
 )
 def test_index_attr_sub(indices1: list[int], indices2: list[int]):
-    stencil_index_attr1 = IndexAttr(*indices1)
-    stencil_index_attr2 = IndexAttr(*indices2)
+    stencil_index_attr1 = IndexAttr.from_indices(*indices1)
+    stencil_index_attr2 = IndexAttr.from_indices(*indices2)
 
     stencil_index_attr_sub = stencil_index_attr1 - stencil_index_attr2
     expected_array_attr = ArrayAttr(
@@ -282,8 +266,8 @@ def test_index_attr_sub(indices1: list[int], indices2: list[int]):
     [([1], [4]), ([1, 2], [4, 5]), ([1, 2, 3], [5, 6, 7])],
 )
 def test_index_attr_min(indices1: list[int], indices2: list[int]):
-    stencil_index_attr1 = IndexAttr(*indices1)
-    stencil_index_attr2 = IndexAttr(*indices2)
+    stencil_index_attr1 = IndexAttr.from_indices(*indices1)
+    stencil_index_attr2 = IndexAttr.from_indices(*indices2)
 
     stencil_index_attr_min = IndexAttr.min(stencil_index_attr1, stencil_index_attr2)
     expected_array_attr = ArrayAttr(
@@ -298,8 +282,8 @@ def test_index_attr_min(indices1: list[int], indices2: list[int]):
     [([1], [4]), ([1, 2], [4, 5]), ([1, 2, 3], [5, 6, 7])],
 )
 def test_index_attr_max(indices1: list[int], indices2: list[int]):
-    stencil_index_attr1 = IndexAttr(*indices1)
-    stencil_index_attr2 = IndexAttr(*indices2)
+    stencil_index_attr1 = IndexAttr.from_indices(*indices1)
+    stencil_index_attr2 = IndexAttr.from_indices(*indices2)
 
     stencil_index_attr_max = IndexAttr.max(stencil_index_attr1, stencil_index_attr2)
     expected_array_attr = ArrayAttr(
@@ -314,14 +298,14 @@ def test_index_attr_max(indices1: list[int], indices2: list[int]):
     [((1,)), ((1, 2)), ((1, 2, 3))],
 )
 def test_index_attr_iter(indices: tuple[int, ...]):
-    stencil_index_attr = IndexAttr(*indices)
+    stencil_index_attr = IndexAttr.from_indices(*indices)
 
     assert tuple(stencil_index_attr) == indices
 
 
 @pytest.mark.parametrize("indices", [([1]), ([1, 2]), ([1, 2, 3])])
 def test_index_attr_indices_length(indices: list[int]):
-    stencil_index_attr = IndexAttr(*indices)
+    stencil_index_attr = IndexAttr.from_indices(*indices)
     stencil_index_attr_iter = iter(stencil_index_attr)
 
     for idx in indices:
@@ -407,8 +391,8 @@ def test_stencil_load_bounds():
     field_type = FieldType([(0, 1), (0, 1)], f32)
     result_type_val1 = create_ssa_value(field_type)
 
-    lb = IndexAttr(1, 1)
-    ub = IndexAttr(64, 64)
+    lb = IndexAttr.from_indices(1, 1)
+    ub = IndexAttr.from_indices(64, 64)
 
     load = LoadOp(result_type_val1, lb, ub)
 
@@ -420,6 +404,23 @@ def test_stencil_load_bounds():
     assert load.res.type.bounds.lb == lb
     assert len(load.res.type.bounds.ub) == 2
     assert load.res.type.bounds.ub == ub
+
+
+@pytest.mark.parametrize(
+    "dims",
+    [
+        ((1, 64), (1, 64)),
+        ((IntAttr(1), IntAttr(64)), (IntAttr(1), IntAttr(64))),
+    ],
+)
+def test_deprecated_bounds(dims: list[tuple[int | IntAttr, int | IntAttr]]):
+    with pytest.deprecated_call(
+        match="StencilBoundsAttr init with sequence of tuples is deprecated"
+    ):
+        bounds = StencilBoundsAttr(dims)
+
+    assert bounds.lb == IndexAttr.from_indices(1, 1)
+    assert bounds.ub == IndexAttr.from_indices(64, 64)
 
 
 @pytest.mark.parametrize(
@@ -498,9 +499,8 @@ def test_stencil_store():
     field_type = FieldType([(0, 2), (0, 2)], f32)
     field_type_ssa_val = create_ssa_value(field_type)
 
-    lb = IndexAttr(1, 1)
-    ub = IndexAttr(64, 64)
-    # bounds = StencilBoundsAttr(lb, ub)
+    lb = IndexAttr.from_indices(1, 1)
+    ub = IndexAttr.from_indices(64, 64)
     bounds = StencilBoundsAttr.from_bounds(zip(lb, ub))
 
     store = StoreOp(temp_type_ssa_val, field_type_ssa_val, bounds)
@@ -517,7 +517,7 @@ def test_stencil_store():
 
 def test_stencil_index():
     dim = IntAttr(10)
-    offset = IndexAttr(1)
+    offset = IndexAttr.from_indices(1)
 
     index = IndexOp.build(
         attributes={
@@ -537,7 +537,7 @@ def test_stencil_access():
     temp_type_ssa_val = create_ssa_value(temp_type)
 
     offset = [1, 1]
-    offset_index_attr = IndexAttr(*offset)
+    offset_index_attr = IndexAttr.from_indices(*offset)
 
     access = AccessOp(temp_type_ssa_val, offset)
 
@@ -550,8 +550,8 @@ def test_stencil_dyn_access():
     temp_type = TempType([(0, 5), (0, 5)], f32)
     temp_type_ssa_val = create_ssa_value(temp_type)
 
-    lb = IndexAttr(0, 0)
-    ub = IndexAttr(1, 1)
+    lb = IndexAttr.from_indices(0, 0)
+    ub = IndexAttr.from_indices(1, 1)
     offset = (
         create_ssa_value(builtin.IndexType()),
         create_ssa_value(builtin.IndexType()),
@@ -570,10 +570,10 @@ def test_stencil_access_offset_mapping():
     temp_type_ssa_val = create_ssa_value(temp_type)
 
     offset = [1, 1]
-    offset_index_attr = IndexAttr(*offset)
+    offset_index_attr = IndexAttr.from_indices(*offset)
 
     offset_mapping = [0, 1]
-    offset_mapping_attr = IndexAttr(*offset_mapping)
+    offset_mapping_attr = IndexAttr.from_indices(*offset_mapping)
 
     access = AccessOp(temp_type_ssa_val, offset, offset_mapping)
 
@@ -585,7 +585,7 @@ def test_stencil_access_offset_mapping():
 
 
 def test_store_result():
-    elem = IndexAttr(1)
+    elem = IndexAttr.from_indices(1)
     elem_ssa_val = create_ssa_value(elem)
     result_type = ResultType(f32)
 

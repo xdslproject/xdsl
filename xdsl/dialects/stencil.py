@@ -86,6 +86,15 @@ class IndexAttr(ParametrizedAttribute, Iterable[int]):
 
     array: ArrayAttr[IntAttr]
 
+    def __init__(self, indices: ArrayAttr[IntAttr]):
+        super().__init__(indices)
+
+    @classmethod
+    def from_indices(cls, *indices: int):
+        array = ArrayAttr([IntAttr(idx) for idx in indices])
+
+        return cls(array)
+
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
         """Parse the attribute parameters."""
@@ -119,30 +128,22 @@ class IndexAttr(ParametrizedAttribute, Iterable[int]):
                 f"Expected 1 to 3 indexes for stencil.index, got {l}."
             )
 
-    def __init__(self, *indices: int | IntAttr | ArrayAttr[IntAttr]):
-        if any(isinstance(i, ArrayAttr) for i in indices):
-            if len(indices) != 1 or not isinstance(indices[0], ArrayAttr):
-                raise TypeError("ArrayAttr must be passed as the only argument")
-            array = indices[0]
-        else:
-            array = ArrayAttr(
-                IntAttr(idx) if isinstance(idx, int) else idx for idx in indices
-            )
-
-        super().__init__(array)
-
     @deprecated("Please use the default constructor instead")
     @staticmethod
     def get(*indices: int | IntAttr):
-        return IndexAttr(*indices)
+        array = ArrayAttr(
+            (IntAttr(idx) if isinstance(idx, int) else idx) for idx in indices
+        )
+
+        return IndexAttr(array)
 
     # TODO : come to an agreement on, do we want to allow that kind of things
     # on Attributes? Author's opinion is a clear yes :P
     def __neg__(self) -> IndexAttr:
-        return IndexAttr(*(map(neg, self)))
+        return IndexAttr.from_indices(*(map(neg, self)))
 
     def __add__(self, o: IndexAttr) -> IndexAttr:
-        return IndexAttr(*(map(add, self, o)))
+        return IndexAttr.from_indices(*(map(add, self, o)))
 
     def __sub__(self, o: IndexAttr) -> IndexAttr:
         return self + -o
@@ -154,13 +155,13 @@ class IndexAttr(ParametrizedAttribute, Iterable[int]):
     def min(a: IndexAttr, b: IndexAttr | None) -> IndexAttr:
         if b is None:
             return a
-        return IndexAttr(*map(min, a, b))
+        return IndexAttr.from_indices(*map(min, a, b))
 
     @staticmethod
     def max(a: IndexAttr, b: IndexAttr | None) -> IndexAttr:
         if b is None:
             return a
-        return IndexAttr(*map(max, a, b))
+        return IndexAttr.from_indices(*map(max, a, b))
 
     def __len__(self):
         return len(self.array)
@@ -178,38 +179,6 @@ class StencilBoundsAttr(ParametrizedAttribute):
     name = "stencil.bounds"
     lb: IndexAttr
     ub: IndexAttr
-
-    def _verify(self):
-        if len(self.lb) != len(self.ub):
-            raise VerifyException(
-                "Incoherent stencil bounds: lower and upper bounds must have the "
-                "same dimensionality."
-            )
-        for d in self.ub - self.lb:
-            if d <= 0:
-                raise VerifyException(
-                    "Incoherent stencil bounds: upper bound must be strictly "
-                    "greater than lower bound."
-                )
-
-    # def __init__(self, bounds: Iterable[tuple[int | IntAttr, int | IntAttr]]):
-    #     if bounds:
-    #         lb, ub = zip(*bounds)
-    #     else:
-    #         lb, ub = (), ()
-    #     super().__init__(
-    #         IndexAttr(*lb),
-    #         IndexAttr(*ub),
-    #     )
-
-    # @classmethod
-    # def from_lb_ub(cls, lb: IndexAttr, ub: IndexAttr) -> StencilBoundsAttr:
-    #     if len(lb) != len(ub):
-    #         raise VerifyException(
-    #             "Incoherent stencil bounds: lower and upper bounds must have the "
-    #             "same dimensionality."
-    #         )
-    #     return cls(zip(lb, ub))
 
     def __init__(
         self,
@@ -229,19 +198,40 @@ class StencilBoundsAttr(ParametrizedAttribute):
                 lb_indices, ub_indices = zip(*bounds)
             else:
                 lb_indices, ub_indices = (), ()
-            lb = IndexAttr(*lb_indices)
-            ub = IndexAttr(*ub_indices)
+
+            lb_indices = tuple(
+                cast(IntAttr, i).data if isinstance(i, IntAttr) else i
+                for i in lb_indices
+            )
+            ub_indices = tuple(
+                cast(IntAttr, i).data if isinstance(i, IntAttr) else i
+                for i in ub_indices
+            )
+
+            lb = IndexAttr.from_indices(*lb_indices)
+            ub = IndexAttr.from_indices(*ub_indices)
         super().__init__(lb, ub)
 
     @classmethod
-    def from_bounds(
-        cls, bounds: Iterable[tuple[int | IntAttr, int | IntAttr]]
-    ) -> StencilBoundsAttr:
+    def from_bounds(cls, bounds: Iterable[tuple[int, int]]) -> StencilBoundsAttr:
         if bounds:
             lb, ub = zip(*bounds)
         else:
             lb, ub = (), ()
-        return StencilBoundsAttr(IndexAttr(*lb), IndexAttr(*ub))
+        return cls(IndexAttr.from_indices(*lb), IndexAttr.from_indices(*ub))
+
+    def _verify(self):
+        if len(self.lb) != len(self.ub):
+            raise VerifyException(
+                "Incoherent stencil bounds: lower and upper bounds must have the "
+                "same dimensionality."
+            )
+        for d in self.ub - self.lb:
+            if d <= 0:
+                raise VerifyException(
+                    "Incoherent stencil bounds: upper bound must be strictly "
+                    "greater than lower bound."
+                )
 
     def print_parameters(self, printer: Printer) -> None:
         with printer.in_angle_brackets():
@@ -254,7 +244,7 @@ class StencilBoundsAttr(ParametrizedAttribute):
         with parser.in_angle_brackets():
             lb = IndexAttr(IndexAttr.parse_indices(parser))
             parser.parse_punctuation(",")
-            ub = IndexAttr(*IndexAttr.parse_indices(parser))
+            ub = IndexAttr(IndexAttr.parse_indices(parser))
             return [lb, ub]
 
     def union(self, other: StencilBoundsAttr | IntAttr) -> StencilBoundsAttr:
@@ -319,6 +309,28 @@ class StencilType(
     """
     element_type: _FieldTypeElement
 
+    def __init__(
+        self,
+        bounds: (Iterable[tuple[int, int]] | int | IntAttr | StencilBoundsAttr),
+        element_type: _FieldTypeElement,
+    ) -> None:
+        """
+            A StencilBoundsAttr encodes known bounds, where an IntAttr encodes the
+        rank of unknown bounds. A stencil.field or stencil.temp cannot be unranked!
+
+        ### examples:
+
+        - `Field(3,f32)` is represented as `stencil.field<?x?x?xf32>`
+        - `Field([(-1,17),(-2,18)],f32)` is represented as `stencil.field<[-1,17]x[-2,18]xf32>`,
+        """
+        if isinstance(bounds, Iterable):
+            nbounds = StencilBoundsAttr.from_bounds(bounds)
+        elif isinstance(bounds, int):
+            nbounds = IntAttr(bounds)
+        else:
+            nbounds = bounds
+        return super().__init__(nbounds, element_type)
+
     def get_num_dims(self) -> int:
         if isinstance(self.bounds, IntAttr):
             return self.bounds.data
@@ -377,33 +389,6 @@ class StencilType(
                 for _ in range(self.bounds.data):
                     printer.print_string("?x")
             printer.print_attribute(self.element_type)
-
-    def __init__(
-        self,
-        bounds: (
-            Iterable[tuple[int | IntAttr, int | IntAttr]]
-            | int
-            | IntAttr
-            | StencilBoundsAttr
-        ),
-        element_type: _FieldTypeElement,
-    ) -> None:
-        """
-            A StencilBoundsAttr encodes known bounds, where an IntAttr encodes the
-        rank of unknown bounds. A stencil.field or stencil.temp cannot be unranked!
-
-        ### examples:
-
-        - `Field(3,f32)` is represented as `stencil.field<?x?x?xf32>`
-        - `Field([(-1,17),(-2,18)],f32)` is represented as `stencil.field<[-1,17]x[-2,18]xf32>`,
-        """
-        if isinstance(bounds, Iterable):
-            nbounds = StencilBoundsAttr.from_bounds(bounds)
-        elif isinstance(bounds, int):
-            nbounds = IntAttr(bounds)
-        else:
-            nbounds = bounds
-        return super().__init__(nbounds, element_type)
 
     @classmethod
     def constr(
@@ -529,6 +514,26 @@ class ApplyOp(IRDLOperation):
 
     bounds = opt_prop_def(StencilBoundsAttr)
 
+    def __init__(
+        self,
+        args: Sequence[SSAValue] | Sequence[Operation],
+        body: Block | Region,
+        result_types: Sequence[TempType[Attribute]] | None = None,
+        bounds: StencilBoundsAttr | None = None,
+    ):
+        assert result_types or bounds
+        if isinstance(body, Block):
+            body = Region(body)
+
+        properties = {"bounds": bounds} if bounds else {}
+
+        super().__init__(
+            operands=[list(args), []],
+            regions=[body],
+            result_types=[result_types],
+            properties=properties,
+        )
+
     traits = traits_def(
         IsolatedFromAbove(),
         ApplyOpHasCanonicalizationPatternsTrait(),
@@ -628,26 +633,6 @@ class ApplyOp(IRDLOperation):
             regions=[region],
             attributes=attrs,
             properties={"bounds": bounds},
-        )
-
-    def __init__(
-        self,
-        args: Sequence[SSAValue] | Sequence[Operation],
-        body: Block | Region,
-        result_types: Sequence[TempType[Attribute]] | None = None,
-        bounds: StencilBoundsAttr | None = None,
-    ):
-        assert result_types or bounds
-        if isinstance(body, Block):
-            body = Region(body)
-
-        properties = {"bounds": bounds} if bounds else {}
-
-        super().__init__(
-            operands=[list(args), []],
-            regions=[body],
-            result_types=[result_types],
-            properties=properties,
         )
 
     @deprecated("Please use the default constructor instead")
@@ -1101,6 +1086,29 @@ class AccessOp(IRDLOperation):
         HasAncestor(ApplyOp), Pure(), AccessOpHasShapeInferencePatternsTrait()
     )
 
+    def __init__(
+        self,
+        temp: SSAValue | Operation,
+        offset: Sequence[int],
+        offset_mapping: Sequence[int] | IndexAttr | None = None,
+    ):
+        temp_type = SSAValue.get(temp, type=StencilType).type
+
+        attributes: dict[str, Attribute] = {
+            "offset": IndexAttr.from_indices(
+                *offset,
+            ),
+        }
+
+        if offset_mapping is not None:
+            attributes["offset_mapping"] = IndexAttr.from_indices(*offset_mapping)
+
+        super().__init__(
+            operands=[temp],
+            attributes=attributes,
+            result_types=[temp_type.element_type],
+        )
+
     def print(self, printer: Printer):
         printer.print_string(" ")
         printer.print_operand(self.temp)
@@ -1158,9 +1166,9 @@ class AccessOp(IRDLOperation):
             {"offset", "offset_mapping"}
         )
         attrs = dict(attrs.data) if attrs else {}
-        attrs["offset"] = IndexAttr(*offset)
+        attrs["offset"] = IndexAttr.from_indices(*offset)
         if offset_mapping:
-            attrs["offset_mapping"] = IndexAttr(*offset_mapping)
+            attrs["offset_mapping"] = IndexAttr.from_indices(*offset_mapping)
         parser.parse_punctuation(":")
         res_type = parser.parse_attribute()
         if not isa(res_type, StencilType):
@@ -1169,29 +1177,6 @@ class AccessOp(IRDLOperation):
             )
         return cls.build(
             operands=[temp], result_types=[res_type.element_type], attributes=attrs
-        )
-
-    def __init__(
-        self,
-        temp: SSAValue | Operation,
-        offset: Sequence[int],
-        offset_mapping: Sequence[int] | IndexAttr | None = None,
-    ):
-        temp_type = SSAValue.get(temp, type=StencilType).type
-
-        attributes: dict[str, Attribute] = {
-            "offset": IndexAttr(
-                *(IntAttr(value) for value in offset),
-            ),
-        }
-
-        if offset_mapping is not None:
-            attributes["offset_mapping"] = IndexAttr(*offset_mapping)
-
-        super().__init__(
-            operands=[temp],
-            attributes=attributes,
-            result_types=[temp_type.element_type],
         )
 
     @deprecated("Please use the default constructor instead")

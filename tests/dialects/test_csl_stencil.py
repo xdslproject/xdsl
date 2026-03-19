@@ -15,18 +15,18 @@ def test_access_patterns():
     def region0(args: tuple[SSAValue, ...]):
         t0, t1 = args
         for x in (-1, 1):
-            AccessOp(t0, IndexAttr(x, 0), tens_t)
+            AccessOp(t0, IndexAttr.from_indices(x, 0), tens_t)
         for y in (-1, 1):
-            AccessOp(t0, IndexAttr(0, y), tens_t)
+            AccessOp(t0, IndexAttr.from_indices(0, y), tens_t)
 
-        AccessOp(t1, IndexAttr(1, 1), tens_t)
-        AccessOp(t1, IndexAttr(-1, -1), tens_t)
+        AccessOp(t1, IndexAttr.from_indices(1, 1), tens_t)
+        AccessOp(t1, IndexAttr.from_indices(-1, -1), tens_t)
 
     @Builder.implicit_region((temp_t, temp_t))
     def region1(args: tuple[SSAValue, ...]):
         t0, t1 = args
-        AccessOp(t0, IndexAttr(0, 0), tens_t)
-        AccessOp(t1, IndexAttr(0, 0), tens_t)
+        AccessOp(t0, IndexAttr.from_indices(0, 0), tens_t)
+        AccessOp(t1, IndexAttr.from_indices(0, 0), tens_t)
 
     apply = ApplyOp(
         operands=[temp, mref, [], [], []],
