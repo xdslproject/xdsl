@@ -1,7 +1,7 @@
 import pytest
 
 from xdsl.dialects import x86
-from xdsl.dialects.builtin import IntegerAttr
+from xdsl.dialects.builtin import IntegerAttr, StringAttr
 from xdsl.dialects.x86.ops import (
     DM_LeaOp,
     DM_MovOp,
@@ -415,7 +415,7 @@ def test_jmp_numeric_label_not_implemented():
         match="Assembly printing for jumps to numeric labels not implemented",
     ):
         op.assembly_line_args()
-    label_op.label = x86.attributes.LabelAttr("hello")
+    label_op.label = StringAttr("hello")
     assert op.assembly_line_args() == ("hello",)
 
 
@@ -434,5 +434,5 @@ def test_conditional_jump_numeric_label_not_implemented():
         match="Assembly printing for jumps to numeric labels not implemented",
     ):
         op.assembly_line_args()
-    label_op.label = x86.attributes.LabelAttr("hello")
+    label_op.label = StringAttr("hello")
     assert op.assembly_line_args() == ("hello",)

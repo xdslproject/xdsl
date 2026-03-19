@@ -3,20 +3,18 @@ from __future__ import annotations
 from typing import TypeAlias
 
 from xdsl.backend.assembly_printer import reg
-from xdsl.dialects.builtin import IntegerAttr, UnitAttr
+from xdsl.dialects.builtin import IntegerAttr, StringAttr, UnitAttr
 from xdsl.ir import SSAValue
 from xdsl.parser import Parser
 from xdsl.printer import Printer
 
-from .attributes import LabelAttr
-
-AssemblyInstructionArg: TypeAlias = IntegerAttr | str | LabelAttr
+AssemblyInstructionArg: TypeAlias = IntegerAttr | str | StringAttr
 
 
 def assembly_arg_str(arg: AssemblyInstructionArg) -> str:
     if isinstance(arg, IntegerAttr):
         return f"{arg.value.data}"
-    elif isinstance(arg, LabelAttr):
+    elif isinstance(arg, StringAttr):
         return arg.data
 
     return arg
