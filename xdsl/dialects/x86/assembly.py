@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import TypeAlias
 
 from xdsl.backend.assembly_printer import reg
-from xdsl.dialects.builtin import IndexType, IntegerAttr, IntegerType, UnitAttr
+from xdsl.dialects.builtin import IntegerAttr, UnitAttr
 from xdsl.ir import SSAValue
 from xdsl.parser import Parser
 from xdsl.printer import Printer
@@ -20,35 +20,6 @@ def assembly_arg_str(arg: AssemblyInstructionArg) -> str:
         return arg.data
 
     return arg
-
-
-def parse_immediate_value(
-    parser: Parser, integer_type: IntegerType | IndexType
-) -> IntegerAttr[IntegerType | IndexType] | LabelAttr:
-    return parser.expect(
-        lambda: parse_optional_immediate_value(parser, integer_type),
-        "Expected immediate",
-    )
-
-
-def parse_optional_immediate_value(
-    parser: Parser, integer_type: IntegerType | IndexType
-) -> IntegerAttr[IntegerType | IndexType] | LabelAttr | None:
-    """
-    Parse an optional immediate value. If an integer is parsed, an integer attr with the specified type is created.
-    """
-    if (immediate := parser.parse_optional_integer()) is not None:
-        return IntegerAttr(immediate, integer_type)
-    if (immediate := parser.parse_optional_str_literal()) is not None:
-        return LabelAttr(immediate)
-
-
-def print_immediate_value(printer: Printer, immediate: IntegerAttr | LabelAttr):
-    match immediate:
-        case IntegerAttr():
-            immediate.print_without_type(printer)
-        case LabelAttr():
-            printer.print_string_literal(immediate.data)
 
 
 def memory_access_str(register: SSAValue, offset: IntegerAttr) -> str:
