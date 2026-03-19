@@ -772,6 +772,115 @@ def test_replace_uses_with_if():
         PatternRewriteWalker(Rewrite(), apply_recursively=False),
         # This counts each use individually:
         op_modified=2,
+        expect_rewrite=True,
+    )
+
+
+def test_replace_uses_with_if_no_action():
+    """Test rewrites where a predicates stops any changes actually being made to the IR."""
+
+    prog = """"builtin.module"() ({
+  "test.op"() ({
+    %0 = "arith.constant"() <{value = 5 : i32}> : () -> i32
+    %1 = "arith.constant"() <{value = 42 : i32}> : () -> i32
+    %2 = "arith.addi"(%0, %0) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
+    %3 = "arith.addi"(%0, %0) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
+  }) : () -> ()
+}) : () -> ()"""
+
+    expected = """"builtin.module"() ({
+  "test.op"() ({
+    %0 = "arith.constant"() <{value = 5 : i32}> : () -> i32
+    %1 = "arith.constant"() <{value = 42 : i32}> : () -> i32
+    %2 = "arith.addi"(%0, %0) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
+    %3 = "arith.addi"(%0, %0) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
+  }) : () -> ()
+}) : () -> ()"""
+
+    class Rewrite(RewritePattern):
+        @op_type_rewrite_pattern
+        def match_and_rewrite(self, op: test.TestOp, rewriter: PatternRewriter):
+            first_op = op.regions[0].block.ops.first
+            assert first_op is not None
+            second_op = first_op.next_op
+            assert second_op is not None
+
+            val = first_op.results[0]
+            newval = second_op.results[0]
+            rewriter.replace_uses_with_if(
+                val,
+                newval,
+                lambda _use: False,
+            )
+
+    rewrite_and_compare(
+        prog,
+        expected,
+        PatternRewriteWalker(Rewrite(), apply_recursively=False),
+        # replace_uses_with_if's predicate will never return True so there no rewriting.
+        expect_rewrite=False,
+    )
+
+
+def test_replace_uses_with_if_same_value():
+    """Test rewrites where a value is replaced by the same value so there is no change."""
+
+    prog = """"builtin.module"() ({
+  "test.op"() ({
+    %0 = "arith.constant"() <{value = 5 : i32}> : () -> i32
+    %1 = "arith.addi"(%0, %0) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
+  }) : () -> ()
+}) : () -> ()"""
+
+    class Rewrite(RewritePattern):
+        @op_type_rewrite_pattern
+        def match_and_rewrite(self, op: test.TestOp, rewriter: PatternRewriter):
+            first_op = op.regions[0].block.ops.first
+            assert first_op is not None
+
+            val = first_op.results[0]
+            rewriter.replace_uses_with_if(
+                val,
+                val,
+                lambda _use: pytest.fail("Predicate should never be reached."),
+            )
+
+    rewrite_and_compare(
+        prog,
+        prog,
+        PatternRewriteWalker(Rewrite(), apply_recursively=False),
+        # Replacing with the same value, so there is no change to the IR.
+        expect_rewrite=False,
+    )
+
+
+def test_replace_all_uses_with_same_value():
+    """Test rewrites where a value is replaced by the same value so there is no change."""
+
+    prog = """"builtin.module"() ({
+  "test.op"() ({
+    %0 = "arith.constant"() <{value = 5 : i32}> : () -> i32
+    %1 = "arith.addi"(%0, %0) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
+  }) : () -> ()
+}) : () -> ()"""
+
+    class Rewrite(RewritePattern):
+        @op_type_rewrite_pattern
+        def match_and_rewrite(self, op: test.TestOp, rewriter: PatternRewriter):
+            first_op = op.regions[0].block.ops.first
+            assert first_op is not None
+
+            val = first_op.results[0]
+            rewriter.replace_all_uses_with(
+                val,
+                val,
+            )
+
+    rewrite_and_compare(
+        prog,
+        prog,
+        PatternRewriteWalker(Rewrite(), apply_recursively=False),
+        # Replacing with the same value, so there is no change to the IR.
         expect_rewrite=False,
     )
 
