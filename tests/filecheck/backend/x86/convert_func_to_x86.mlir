@@ -5,7 +5,7 @@ func.func @foo_const() {
 }
 
 // CHECK:       builtin.module {
-// CHECK-NEXT:    x86_func.func @foo_const(%0 : !x86.reg<rsp>) {
+// CHECK-NEXT:    x86_func.func @foo_const(%0: !x86.reg<rsp>) {
 // CHECK-NEXT:      x86_func.ret
 // CHECK-NEXT:    }
 // CHECK-NEXT:  }
@@ -18,7 +18,7 @@ func.func @foo_const() -> i32 {
 }
 
 // CHECK:       builtin.module {
-// CHECK-NEXT:    x86_func.func @foo_const(%0 : !x86.reg<rsp>) -> !x86.reg<rax> {
+// CHECK-NEXT:    x86_func.func @foo_const(%0: !x86.reg<rsp>) -> !x86.reg<rax> {
 // CHECK-NEXT:      %1 = "test.op"() : () -> i32
 // CHECK-NEXT:      %2 = builtin.unrealized_conversion_cast %1 : i32 to !x86.reg
 // CHECK-NEXT:      %3 = x86.ds.mov %2 : (!x86.reg) -> !x86.reg<rax>
@@ -41,7 +41,7 @@ func.func public @foo_int(%0: i32, %1: i32, %2: i32, %3: i32, %4: i32, %5: i32, 
 
 // CHECK:      builtin.module {
 // CHECK-NEXT:   x86.directive ".global" "foo_int"
-// CHECK-NEXT:   x86_func.func public @foo_int(%0 : !x86.reg<rdi>, %1 : !x86.reg<rsi>, %2 : !x86.reg<rdx>, %3 : !x86.reg<rcx>, %4 : !x86.reg<r8>, %5 : !x86.reg<r9>, %6 : !x86.reg<rsp>) -> !x86.reg<rax> {
+// CHECK-NEXT:   x86_func.func public @foo_int(%0: !x86.reg<rdi>, %1: !x86.reg<rsi>, %2: !x86.reg<rdx>, %3: !x86.reg<rcx>, %4: !x86.reg<r8>, %5: !x86.reg<r9>, %6: !x86.reg<rsp>) -> !x86.reg<rax> {
 // CHECK-NEXT:     %7 = x86.ds.mov %0 : (!x86.reg<rdi>) -> !x86.reg
 // CHECK-NEXT:     %8 = builtin.unrealized_conversion_cast %7 : !x86.reg to i32
 // CHECK-NEXT:     %9 = x86.ds.mov %1 : (!x86.reg<rsi>) -> !x86.reg

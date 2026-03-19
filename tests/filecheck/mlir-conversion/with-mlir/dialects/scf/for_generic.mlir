@@ -6,7 +6,7 @@
   %step = "arith.constant"() {"value" = 7 : index} : () -> index
   %sum_init = "arith.constant"() {"value" = 36 : index} : () -> index
   %sum = "scf.for"(%lb, %ub, %step, %sum_init) ({
-  ^bb0(%iv : index, %sum_iter : index):
+  ^bb0(%iv: index, %sum_iter: index):
     %sum_new = "arith.addi"(%sum_iter, %iv) : (index, index) -> index
     "scf.yield"(%sum_new) : (index) -> ()
   }) : (index, index, index, index) -> index
@@ -22,7 +22,7 @@
 // CHECK-NEXT:   %{{.*}} = "arith.constant"() <{value = 7 : index}> : () -> index
 // CHECK-NEXT:   %{{.*}} = "arith.constant"() <{value = 36 : index}> : () -> index
 // CHECK-NEXT:   %{{.*}} = "scf.for"(%{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}) ({
-// CHECK-NEXT:   ^bb0(%{{.*}} : index, %{{.*}} : index):
+// CHECK-NEXT:   ^bb0(%{{.*}}: index, %{{.*}}: index):
 // CHECK-NEXT:     %{{.*}} = "arith.addi"(%{{.*}}, %{{.*}}) <{overflowFlags = #arith.overflow<none>}> : (index, index) -> index
 // CHECK-NEXT:     "scf.yield"(%{{.*}}) : (index) -> ()
 // CHECK-NEXT:   }) : (index, index, index, index) -> index

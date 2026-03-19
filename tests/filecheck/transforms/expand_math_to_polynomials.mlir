@@ -20,7 +20,7 @@ builtin.module {
 
 // ----- f64 test (default terms=4, i.e. 3 loop iterations) -----
 
-// CHECK:      func.func @test(%[[X:.*]] : f64) -> f64 {
+// CHECK:      func.func @test(%[[X:.*]]: f64) -> f64 {
 // CHECK-NEXT:   %[[RES0:.*]] = arith.constant 1.000000e+00 : f64
 // CHECK-NEXT:   %[[TERM0:.*]] = arith.constant 1.000000e+00 : f64
 // CHECK-NEXT:   %[[I1:.*]] = arith.constant 1.000000e+00 : f64
@@ -40,7 +40,7 @@ builtin.module {
 
 // ----- f32 test -----
 
-// CHECK:      func.func @test_f32(%[[X32:.*]] : f32) -> f32 {
+// CHECK:      func.func @test_f32(%[[X32:.*]]: f32) -> f32 {
 // CHECK-NEXT:   %[[RES0_32:.*]] = arith.constant 1.000000e+00 : f32
 // CHECK-NEXT:   %[[TERM0_32:.*]] = arith.constant 1.000000e+00 : f32
 // CHECK-NEXT:   %[[I1_32:.*]] = arith.constant 1.000000e+00 : f32
@@ -60,7 +60,7 @@ builtin.module {
 
 // ----- vector<2xf32> test -----
 
-// CHECK:      func.func @test_vec(%[[XV:.*]] : vector<2xf32>) -> vector<2xf32> {
+// CHECK:      func.func @test_vec(%[[XV:.*]]: vector<2xf32>) -> vector<2xf32> {
 // CHECK-NEXT:   %[[RES0_V:.*]] = arith.constant dense<1.000000e+00> : vector<2xf32>
 // CHECK-NEXT:   %[[TERM0_V:.*]] = arith.constant dense<1.000000e+00> : vector<2xf32>
 // CHECK-NEXT:   %[[I1_V:.*]] = arith.constant dense<1.000000e+00> : vector<2xf32>
@@ -82,7 +82,7 @@ builtin.module {
 
 // CHECK-FIVE: builtin.module {
 
-// CHECK-FIVE:      func.func @test(%[[X:.*]] : f64) -> f64 {
+// CHECK-FIVE:      func.func @test(%[[X:.*]]: f64) -> f64 {
 // CHECK-FIVE-NEXT:   %[[RES0:.*]] = arith.constant 1.000000e+00 : f64
 // CHECK-FIVE-NEXT:   %[[TERM0:.*]] = arith.constant 1.000000e+00 : f64
 // CHECK-FIVE-NEXT:   %[[I1:.*]] = arith.constant 1.000000e+00 : f64
@@ -104,7 +104,7 @@ builtin.module {
 // CHECK-FIVE-NEXT:   func.return %[[RES4]] : f64
 // CHECK-FIVE-NEXT: }
 
-// CHECK-FIVE:      func.func @test_f32(%[[X32:.*]] : f32) -> f32 {
+// CHECK-FIVE:      func.func @test_f32(%[[X32:.*]]: f32) -> f32 {
 // CHECK-FIVE-NEXT:   %[[RES0_32:.*]] = arith.constant 1.000000e+00 : f32
 // CHECK-FIVE-NEXT:   %[[TERM0_32:.*]] = arith.constant 1.000000e+00 : f32
 // CHECK-FIVE-NEXT:   %[[I1_32:.*]] = arith.constant 1.000000e+00 : f32
@@ -126,7 +126,7 @@ builtin.module {
 // CHECK-FIVE-NEXT:   func.return %[[RES4_32]] : f32
 // CHECK-FIVE-NEXT: }
 
-// CHECK-FIVE:      func.func @test_vec(%[[XV:.*]] : vector<2xf32>) -> vector<2xf32> {
+// CHECK-FIVE:      func.func @test_vec(%[[XV:.*]]: vector<2xf32>) -> vector<2xf32> {
 // CHECK-FIVE-NEXT:   %[[RES0_V:.*]] = arith.constant dense<1.000000e+00> : vector<2xf32>
 // CHECK-FIVE-NEXT:   %[[TERM0_V:.*]] = arith.constant dense<1.000000e+00> : vector<2xf32>
 // CHECK-FIVE-NEXT:   %[[I1_V:.*]] = arith.constant dense<1.000000e+00> : vector<2xf32>

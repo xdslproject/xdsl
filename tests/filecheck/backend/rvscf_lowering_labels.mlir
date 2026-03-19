@@ -3,7 +3,7 @@
 // sum(range(arg0, arg1))
 
 builtin.module {
-    riscv_func.func @foo(%0 : !riscv.reg<a0>, %1 : !riscv.reg<a1>) {
+    riscv_func.func @foo(%0: !riscv.reg<a0>, %1: !riscv.reg<a1>) {
         %2 = rv32.li 1 : !riscv.reg<a2>
         %3 = rv32.li 0 : !riscv.reg<a3>
         %4 = riscv_scf.for %5 : !riscv.reg<a4> = %0 to %1 step %2 iter_args(%6 = %3) -> (!riscv.reg<a3>) {
@@ -16,7 +16,7 @@ builtin.module {
 }
 
 // CHECK:       builtin.module {
-// CHECK-NEXT:    riscv_func.func @foo(%0 : !riscv.reg<a0>, %1 : !riscv.reg<a1>) {
+// CHECK-NEXT:    riscv_func.func @foo(%0: !riscv.reg<a0>, %1: !riscv.reg<a1>) {
 // CHECK-NEXT:      %2 = rv32.li 1 : !riscv.reg<a2>
 // CHECK-NEXT:      %3 = rv32.li 0 : !riscv.reg<a3>
 // CHECK-NEXT:      %4 = riscv.mv %0 : (!riscv.reg<a0>) -> !riscv.reg<a4>
@@ -39,7 +39,7 @@ builtin.module {
 // sum(range(arg0, arg1))
 
   builtin.module {
-    riscv_func.func @foo(%0 : !riscv.reg<a0>, %1 : !riscv.reg<a1>) {
+    riscv_func.func @foo(%0: !riscv.reg<a0>, %1: !riscv.reg<a1>) {
         %2 = rv32.li 1 : !riscv.reg<a2>
         %3 = rv32.li 0 : !riscv.reg<a3>
         %4 = riscv.fcvt.s.w %3 : (!riscv.reg<a3>) -> !riscv.freg<fa0>
@@ -54,7 +54,7 @@ builtin.module {
   }
 
 // CHECK:       builtin.module {
-// CHECK-NEXT:    riscv_func.func @foo(%0 : !riscv.reg<a0>, %1 : !riscv.reg<a1>) {
+// CHECK-NEXT:    riscv_func.func @foo(%0: !riscv.reg<a0>, %1: !riscv.reg<a1>) {
 // CHECK-NEXT:      %2 = rv32.li 1 : !riscv.reg<a2>
 // CHECK-NEXT:      %3 = rv32.li 0 : !riscv.reg<a3>
 // CHECK-NEXT:      %4 = riscv.fcvt.s.w %3 : (!riscv.reg<a3>) -> !riscv.freg<fa0>
@@ -78,7 +78,7 @@ builtin.module {
 // -----
 
 builtin.module {
-    riscv_func.func @foo(%arg0 : !riscv.reg<a0>) {
+    riscv_func.func @foo(%arg0: !riscv.reg<a0>) {
         %0 = rv32.li 0 : !riscv.reg<a1>
         %1 = rv32.li 0 : !riscv.reg<a2>
         %2 = rv32.li 1 : !riscv.reg<a3>
@@ -97,7 +97,7 @@ builtin.module {
 }
 
 // CHECK:       builtin.module {
-// CHECK-NEXT:    riscv_func.func @foo(%arg0 : !riscv.reg<a0>) {
+// CHECK-NEXT:    riscv_func.func @foo(%arg0: !riscv.reg<a0>) {
 // CHECK-NEXT:      %0 = rv32.li 0 : !riscv.reg<a1>
 // CHECK-NEXT:      %1 = rv32.li 0 : !riscv.reg<a2>
 // CHECK-NEXT:      %2 = rv32.li 1 : !riscv.reg<a3>
