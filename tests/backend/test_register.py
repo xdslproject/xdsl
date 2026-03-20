@@ -1,7 +1,7 @@
 import re
-from typing import override
 
 import pytest
+from typing_extensions import override
 
 from xdsl.backend.register_type import NamedRegisterType
 from xdsl.dialects.builtin import IntAttr, StringAttr
