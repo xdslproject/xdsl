@@ -345,6 +345,22 @@ class EmitC_BinaryOperation(IRDLOperation, abc.ABC):
         )
 
 
+class EmitC_UnaryOperation(IRDLOperation, abc.ABC):
+    """Base class for EmitC unary operations."""
+
+    operand = operand_def(EmitCTypeConstr)
+    result = result_def(EmitCTypeConstr)
+
+    assembly_format = "operands attr-dict `:` functional-type(operands, results)"
+
+    def __init__(self, operand: SSAValue, result_type: Attribute):
+        super().__init__(operands=[operand], result_types=[result_type])
+
+    def has_side_effects(self) -> bool:
+        """If operand is fundamental type, the operation is pure."""
+        return not isa(self.operand.type, EmitCFundamentalType)
+
+
 @irdl_op_definition
 class EmitC_AddOp(EmitC_BinaryOperation):
     """
@@ -486,6 +502,138 @@ class EmitC_AssignOp(IRDLOperation):
             raise VerifyException(
                 "'emitc.assign' op operands var and value must have the same type"
             )
+
+
+@irdl_op_definition
+class EmitC_BitwiseAndOp(EmitC_BinaryOperation):
+    """
+    Bitwise and operation.
+
+    With the `emitc.bitwise_and` operation the bitwise operator & (and) can
+    be applied.
+
+    Example:
+
+    ```mlir
+    %0 = emitc.bitwise_and %arg0, %arg1 : (i32, i32) -> i32
+    ```
+    ```c++
+    // Code emitted for the operation above.
+    int32_t v3 = v1 & v2;
+    ```
+    """
+
+    name = "emitc.bitwise_and"
+
+
+@irdl_op_definition
+class EmitC_BitwiseLeftShiftOp(EmitC_BinaryOperation):
+    """
+    Bitwise left shift operation.
+
+    With the `emitc.bitwise_left_shift` operation the bitwise operator <<
+    (left shift) can be applied.
+
+    Example:
+
+    ```mlir
+    %0 = emitc.bitwise_left_shift %arg0, %arg1 : (i32, i32) -> i32
+    ```
+    ```c++
+    // Code emitted for the operation above.
+    int32_t v3 = v1 << v2;
+    ```
+    """
+
+    name = "emitc.bitwise_left_shift"
+
+
+@irdl_op_definition
+class EmitC_BitwiseNotOp(EmitC_UnaryOperation):
+    """
+    Bitwise not operation.
+
+    With the `emitc.bitwise_not` operation the bitwise operator ~ (not) can
+    be applied.
+
+    Example:
+
+    ```mlir
+    %0 = emitc.bitwise_not %arg0 : (i32) -> i32
+    ```
+    ```c++
+    // Code emitted for the operation above.
+    int32_t v2 = ~v1;
+    ```
+    """
+
+    name = "emitc.bitwise_not"
+
+
+@irdl_op_definition
+class EmitC_BitwiseOrOp(EmitC_BinaryOperation):
+    """
+    Bitwise or operation.
+
+    With the `emitc.bitwise_or` operation the bitwise operator | (or)
+    can be applied.
+
+    Example:
+
+    ```mlir
+    %0 = emitc.bitwise_or %arg0, %arg1 : (i32, i32) -> i32
+    ```
+    ```c++
+    // Code emitted for the operation above.
+    int32_t v3 = v1 | v2;
+    ```
+    """
+
+    name = "emitc.bitwise_or"
+
+
+@irdl_op_definition
+class EmitC_BitwiseRightShiftOp(EmitC_BinaryOperation):
+    """
+    Bitwise right shift operation.
+
+    With the `emitc.bitwise_right_shift` operation the bitwise operator >>
+    (right shift) can be applied.
+
+    Example:
+
+    ```mlir
+    %0 = emitc.bitwise_right_shift %arg0, %arg1 : (i32, i32) -> i32
+    ```
+    ```c++
+    // Code emitted for the operation above.
+    int32_t v3 = v1 >> v2;
+    ```
+    """
+
+    name = "emitc.bitwise_right_shift"
+
+
+@irdl_op_definition
+class EmitC_BitwiseXorOp(EmitC_BinaryOperation):
+    """
+    Bitwise xor operation.
+
+    With the `emitc.bitwise_xor` operation the bitwise operator ^ (xor)
+    can be applied.
+
+    Example:
+
+    ```mlir
+    %0 = emitc.bitwise_xor %arg0, %arg1 : (i32, i32) -> i32
+    ```
+    ```c++
+    // Code emitted for the operation above.
+    int32_t v3 = v1 ^ v2;
+    ```
+    """
+
+    name = "emitc.bitwise_xor"
 
 
 @irdl_op_definition
@@ -690,6 +838,40 @@ class EmitC_DereferenceOp(IRDLOperation):
 
 
 @irdl_op_definition
+class EmitC_DivOp(EmitC_BinaryOperation):
+    """
+    Division operation.
+
+    With the `emitc.div` operation the arithmetic operator / (division) can
+    be applied.
+
+    Example:
+
+    ```mlir
+    // Custom form of the division operation.
+    %0 = emitc.div %arg0, %arg1 : (i32, i32) -> i32
+    %1 = emitc.div %arg2, %arg3 : (f32, f32) -> f32
+    ```
+    ```c++
+    // Code emitted for the operations above.
+    int32_t v5 = v1 / v2;
+    float v6 = v3 / v4;
+    ```
+    """
+
+    name = "emitc.div"
+
+    lhs = operand_def(EmitCFloatType | EmitCIntegerType | IndexType | EmitC_OpaqueType)
+    rhs = operand_def(EmitCFloatType | EmitCIntegerType | IndexType | EmitC_OpaqueType)
+    result = result_def(
+        EmitCFloatType | EmitCIntegerType | IndexType | EmitC_OpaqueType
+    )
+
+    def __init__(self, lhs: SSAValue, rhs: SSAValue, result_type: Attribute):
+        super().__init__(lhs, rhs, result_type)
+
+
+@irdl_op_definition
 class EmitC_LiteralOp(IRDLOperation):
     """
     Literal operation.
@@ -760,6 +942,241 @@ class EmitC_LoadOp(IRDLOperation):
 
 
 @irdl_op_definition
+class EmitC_LogicalAndOp(EmitC_BinaryOperation):
+    """
+    Logical and operation.
+
+    With the `emitc.logical_and` operation the logical operator && (and) can
+    be applied.
+
+    Example:
+
+    ```mlir
+    %0 = emitc.logical_and %arg0, %arg1 : i32, i32
+    ```
+    ```c++
+    // Code emitted for the operation above.
+    bool v3 = v1 && v2;
+    ```
+    """
+
+    name = "emitc.logical_and"
+
+    result = result_def(IntegerType(1))
+
+    assembly_format = "operands attr-dict `:` type(operands)"
+
+
+@irdl_op_definition
+class EmitC_LogicalNotOp(EmitC_UnaryOperation):
+    """
+    Logical not operation.
+
+    With the `emitc.logical_not` operation the logical operator ! (negation) can
+    be applied.
+
+    Example:
+
+    ```mlir
+    %0 = emitc.logical_not %arg0 : i32
+    ```
+    ```c++
+    // Code emitted for the operation above.
+    bool v2 = !v1;
+    ```
+    """
+
+    name = "emitc.logical_not"
+
+    result = result_def(IntegerType(1))
+
+    assembly_format = "operands attr-dict `:` type(operands)"
+
+
+@irdl_op_definition
+class EmitC_LogicalOrOp(EmitC_BinaryOperation):
+    """
+    Logical or operation.
+
+    With the `emitc.logical_or` operation the logical operator || (inclusive or)
+    can be applied.
+
+    Example:
+
+    ```mlir
+    %0 = emitc.logical_or %arg0, %arg1 : i32, i32
+    ```
+    ```c++
+    // Code emitted for the operation above.
+    bool v3 = v1 || v2;
+    ```
+    """
+
+    name = "emitc.logical_or"
+
+    result = result_def(IntegerType(1))
+
+    assembly_format = "operands attr-dict `:` type(operands)"
+
+
+@irdl_op_definition
+class EmitC_MulOp(EmitC_BinaryOperation):
+    """
+    Multiplication operation.
+
+    With the `emitc.mul` operation the arithmetic operator * (multiplication) can
+    be applied.
+
+    Example:
+
+    ```mlir
+    // Custom form of the multiplication operation.
+    %0 = emitc.mul %arg0, %arg1 : (i32, i32) -> i32
+    %1 = emitc.mul %arg2, %arg3 : (f32, f32) -> f32
+    ```
+    ```c++
+    // Code emitted for the operations above.
+    int32_t v5 = v1 * v2;
+    float v6 = v3 * v4;
+    ```
+    """
+
+    name = "emitc.mul"
+
+    lhs = operand_def(EmitCFloatType | EmitCIntegerType | IndexType | EmitC_OpaqueType)
+    rhs = operand_def(EmitCFloatType | EmitCIntegerType | IndexType | EmitC_OpaqueType)
+    result = result_def(
+        EmitCFloatType | EmitCIntegerType | IndexType | EmitC_OpaqueType
+    )
+
+    def __init__(self, lhs: SSAValue, rhs: SSAValue, result_type: Attribute):
+        super().__init__(lhs, rhs, result_type)
+
+
+@irdl_op_definition
+class EmitC_RemOp(EmitC_BinaryOperation):
+    """
+    Remainder operation.
+
+    With the `emitc.rem` operation the arithmetic operator % (remainder) can
+    be applied.
+
+    Example:
+
+    ```mlir
+    // Custom form of the remainder operation.
+    %0 = emitc.rem %arg0, %arg1 : (i32, i32) -> i32
+    ```
+    ```c++
+    // Code emitted for the operation above.
+    int32_t v5 = v1 % v2;
+    ```
+    """
+
+    name = "emitc.rem"
+
+    lhs = operand_def(EmitCIntegerType | IndexType | EmitC_OpaqueType)
+    rhs = operand_def(EmitCIntegerType | IndexType | EmitC_OpaqueType)
+    result = result_def(EmitCIntegerType | IndexType | EmitC_OpaqueType)
+
+    def __init__(self, lhs: SSAValue, rhs: SSAValue, result_type: Attribute):
+        super().__init__(lhs, rhs, result_type)
+
+
+@irdl_op_definition
+class EmitC_SubOp(EmitC_BinaryOperation):
+    """
+    Subtraction operation.
+
+    With the `emitc.sub` operation the arithmetic operator - (subtraction) can
+    be applied.
+
+    Example:
+
+    ```mlir
+    // Custom form of the subtraction operation.
+    %0 = emitc.sub %arg0, %arg1 : (i32, i32) -> i32
+    %1 = emitc.sub %arg2, %arg3 : (!emitc.ptr<f32>, i32) -> !emitc.ptr<f32>
+    %2 = emitc.sub %arg4, %arg5 : (!emitc.ptr<i32>, !emitc.ptr<i32>)
+        -> !emitc.ptrdiff_t
+    ```
+    ```c++
+    // Code emitted for the operations above.
+    int32_t v7 = v1 - v2;
+    float* v8 = v3 - v4;
+    ptrdiff_t v9 = v5 - v6;
+    ```
+    """
+
+    name = "emitc.sub"
+
+    def verify_(self) -> None:
+        lhs_type = self.lhs.type
+        rhs_type = self.rhs.type
+
+        if isa(lhs_type, EmitC_PointerType) and isa(rhs_type, EmitC_PointerType):
+            raise VerifyException(
+                "emitc.sub requires that at most one operand is a pointer"
+            )
+
+        if (
+            isa(lhs_type, EmitC_PointerType)
+            and not isa(rhs_type, IntegerType | EmitC_OpaqueType)
+        ) or (
+            isa(rhs_type, EmitC_PointerType)
+            and not isa(lhs_type, IntegerType | EmitC_OpaqueType)
+        ):
+            raise VerifyException(
+                "emitc.sub requires that one operand is an integer or of opaque "
+                "type if the other is a pointer"
+            )
+
+
+@irdl_op_definition
+class EmitC_UnaryMinusOp(EmitC_UnaryOperation):
+    """
+    Unary minus operation.
+
+    With the `emitc.unary_minus` operation the unary operator - (minus) can be
+    applied.
+
+    Example:
+
+    ```mlir
+    %0 = emitc.unary_minus %arg0 : (i32) -> i32
+    ```
+    ```c++
+    // Code emitted for the operation above.
+    int32_t v2 = -v1;
+    ```
+    """
+
+    name = "emitc.unary_minus"
+
+
+@irdl_op_definition
+class EmitC_UnaryPlusOp(EmitC_UnaryOperation):
+    """
+    Unary plus operation.
+
+    With the `emitc.unary_plus` operation the unary operator + (plus) can be
+    applied.
+
+    Example:
+
+    ```mlir
+    %0 = emitc.unary_plus %arg0 : (i32) -> i32
+    ```
+    ```c++
+    // Code emitted for the operation above.
+    int32_t v2 = +v1;
+    ```
+    """
+
+    name = "emitc.unary_plus"
+
+
+@irdl_op_definition
 class EmitC_VariableOp(IRDLOperation):
     """
     Variable operation.
@@ -806,11 +1223,26 @@ EmitC = Dialect(
         EmitC_AddressOfOp,
         EmitC_ApplyOp,
         EmitC_AssignOp,
+        EmitC_BitwiseAndOp,
+        EmitC_BitwiseLeftShiftOp,
+        EmitC_BitwiseNotOp,
+        EmitC_BitwiseOrOp,
+        EmitC_BitwiseRightShiftOp,
+        EmitC_BitwiseXorOp,
         EmitC_CallOpaqueOp,
         EmitC_ConstantOp,
         EmitC_DereferenceOp,
+        EmitC_DivOp,
         EmitC_LiteralOp,
         EmitC_LoadOp,
+        EmitC_LogicalAndOp,
+        EmitC_LogicalNotOp,
+        EmitC_LogicalOrOp,
+        EmitC_MulOp,
+        EmitC_RemOp,
+        EmitC_SubOp,
+        EmitC_UnaryMinusOp,
+        EmitC_UnaryPlusOp,
         EmitC_VariableOp,
     ],
     [
