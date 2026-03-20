@@ -213,7 +213,7 @@ def _insert_store_ops(
         insert_store(i, yield_value, ind_vars, rewriter, insertion_point)
 
 
-def rewrite_generic_to_loops(
+def rewrite_linalg_structured_to_loops(
     rewriter: PatternRewriter,
     insertion_point: InsertPoint,
     ubs: Sequence[int],

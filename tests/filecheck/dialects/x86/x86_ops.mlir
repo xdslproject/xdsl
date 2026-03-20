@@ -113,8 +113,8 @@ x86.mi.xor %1, 2, 8 : (!x86.reg) -> ()
 // CHECK-NEXT: x86.mi.xor %{{.*}}, 2, 8 : (!x86.reg) -> ()
 x86.mi.mov %1, 2, 8 : (!x86.reg) -> ()
 // CHECK-NEXT: x86.mi.mov %{{.*}}, 2, 8 : (!x86.reg) -> ()
-%mi_cmp = x86.mi.cmp %1, 2, 8 : (!x86.reg) -> !x86.rflags<rflags>
-// CHECK-NEXT: %{{.*}} = x86.mi.cmp %{{.*}}, 2, 8 : (!x86.reg) -> !x86.rflags
+%mi_cmp = x86.mi.cmp %1, 2, 8 : !x86.reg -> !x86.rflags<rflags>
+// CHECK-NEXT: %{{.*}} = x86.mi.cmp %{{.*}}, 2, 8 : !x86.reg -> !x86.rflags
 
 %rri_imul = x86.dsi.imul %1, 2 : (!x86.reg) -> !x86.reg
 // CHECK-NEXT: %{{.*}} = x86.dsi.imul %{{.*}}, 2 : (!x86.reg) -> !x86.reg
@@ -425,12 +425,12 @@ func.func @funcyasm() {
 // CHECK-NEXT: %{{.*}} = x86.dm.vbroadcastss %{{.*}}, 8 : (!x86.reg) -> !x86.ssereg
 
 // ---- vmovapd ----
-%dm_vmovapd_sse = x86.dm.vmovapd %1 : (!x86.reg) -> !x86.ssereg
-// CHECK-NEXT: %dm_vmovapd_sse = x86.dm.vmovapd %1, 0 : (!x86.reg) -> !x86.ssereg
-%dm_vmovapd_avx2 = x86.dm.vmovapd %1 : (!x86.reg) -> !x86.avx2reg
-// CHECK-NEXT: %dm_vmovapd_avx2 = x86.dm.vmovapd %1, 0 : (!x86.reg) -> !x86.avx2reg
-%dm_vmovapd_avx512 = x86.dm.vmovapd %1 : (!x86.reg) -> !x86.avx512reg
-// CHECK-NEXT: %dm_vmovapd_avx512 = x86.dm.vmovapd %1, 0 : (!x86.reg) -> !x86.avx512reg
+%dm_vmovapd_sse = x86.dm.vmovapd %1, 128 : (!x86.reg) -> !x86.ssereg
+// CHECK-NEXT: %dm_vmovapd_sse = x86.dm.vmovapd %1, 128 : (!x86.reg) -> !x86.ssereg
+%dm_vmovapd_avx2 = x86.dm.vmovapd %1, 256 : (!x86.reg) -> !x86.avx2reg
+// CHECK-NEXT: %dm_vmovapd_avx2 = x86.dm.vmovapd %1, 256 : (!x86.reg) -> !x86.avx2reg
+%dm_vmovapd_avx512 = x86.dm.vmovapd %1, 512 : (!x86.reg) -> !x86.avx512reg
+// CHECK-NEXT: %dm_vmovapd_avx512 = x86.dm.vmovapd %1, 512 : (!x86.reg) -> !x86.avx512reg
 
 %ds_vmovapd_sse = x86.ds.vmovapd %xmm1 : (!x86.ssereg) -> !x86.ssereg
 // CHECK-NEXT: %ds_vmovapd_sse = x86.ds.vmovapd %xmm1 : (!x86.ssereg) -> !x86.ssereg
@@ -452,12 +452,12 @@ x86.ms.vmovapd %1, %zmm1, 8 : (!x86.reg, !x86.avx512reg) -> ()
 
 
 // ---- vmovaps ----
-%dm_vmovaps_sse = x86.dm.vmovaps %1 : (!x86.reg) -> !x86.ssereg
-// CHECK-NEXT: %dm_vmovaps_sse = x86.dm.vmovaps %1, 0 : (!x86.reg) -> !x86.ssereg
-%dm_vmovaps_avx2 = x86.dm.vmovaps %1 : (!x86.reg) -> !x86.avx2reg
-// CHECK-NEXT: %dm_vmovaps_avx2 = x86.dm.vmovaps %1, 0 : (!x86.reg) -> !x86.avx2reg
-%dm_vmovaps_avx512 = x86.dm.vmovaps %1 : (!x86.reg) -> !x86.avx512reg
-// CHECK-NEXT: %dm_vmovaps_avx512 = x86.dm.vmovaps %1, 0 : (!x86.reg) -> !x86.avx512reg
+%dm_vmovaps_sse = x86.dm.vmovaps %1, 128 : (!x86.reg) -> !x86.ssereg
+// CHECK-NEXT: %dm_vmovaps_sse = x86.dm.vmovaps %1, 128 : (!x86.reg) -> !x86.ssereg
+%dm_vmovaps_avx2 = x86.dm.vmovaps %1, 256 : (!x86.reg) -> !x86.avx2reg
+// CHECK-NEXT: %dm_vmovaps_avx2 = x86.dm.vmovaps %1, 256 : (!x86.reg) -> !x86.avx2reg
+%dm_vmovaps_avx512 = x86.dm.vmovaps %1, 512 : (!x86.reg) -> !x86.avx512reg
+// CHECK-NEXT: %dm_vmovaps_avx512 = x86.dm.vmovaps %1, 512 : (!x86.reg) -> !x86.avx512reg
 
 %ds_vmovaps_sse = x86.ds.vmovaps %xmm1 : (!x86.ssereg) -> !x86.ssereg
 // CHECK-NEXT: %ds_vmovaps_sse = x86.ds.vmovaps %xmm1 : (!x86.ssereg) -> !x86.ssereg
@@ -475,12 +475,12 @@ x86.ms.vmovaps %1, %zmm1, 8 : (!x86.reg, !x86.avx512reg) -> ()
 
 
 // ---- vmovupd ----
-%dm_vmovupd_sse = x86.dm.vmovupd %1 : (!x86.reg) -> !x86.ssereg
-// CHECK-NEXT: %dm_vmovupd_sse = x86.dm.vmovupd %1, 0 : (!x86.reg) -> !x86.ssereg
-%dm_vmovupd_avx2 = x86.dm.vmovupd %1 : (!x86.reg) -> !x86.avx2reg
-// CHECK-NEXT: %dm_vmovupd_avx2 = x86.dm.vmovupd %1, 0 : (!x86.reg) -> !x86.avx2reg
-%dm_vmovupd_avx512 = x86.dm.vmovupd %1 : (!x86.reg) -> !x86.avx512reg
-// CHECK-NEXT: %dm_vmovupd_avx512 = x86.dm.vmovupd %1, 0 : (!x86.reg) -> !x86.avx512reg
+%dm_vmovupd_sse = x86.dm.vmovupd %1, 128 : (!x86.reg) -> !x86.ssereg
+// CHECK-NEXT: %dm_vmovupd_sse = x86.dm.vmovupd %1, 128 : (!x86.reg) -> !x86.ssereg
+%dm_vmovupd_avx2 = x86.dm.vmovupd %1, 256 : (!x86.reg) -> !x86.avx2reg
+// CHECK-NEXT: %dm_vmovupd_avx2 = x86.dm.vmovupd %1, 256 : (!x86.reg) -> !x86.avx2reg
+%dm_vmovupd_avx512 = x86.dm.vmovupd %1, 512 : (!x86.reg) -> !x86.avx512reg
+// CHECK-NEXT: %dm_vmovupd_avx512 = x86.dm.vmovupd %1, 512 : (!x86.reg) -> !x86.avx512reg
 
 x86.ms.vmovupd %1, %xmm1, 8 : (!x86.reg, !x86.ssereg) -> ()
 // CHECK-NEXT: x86.ms.vmovupd %1, %xmm1, 8 : (!x86.reg, !x86.ssereg) -> ()
@@ -491,12 +491,12 @@ x86.ms.vmovupd %1, %zmm1, 8 : (!x86.reg, !x86.avx512reg) -> ()
 
 
 // ---- vmovups ----
-%dm_vmovups_sse = x86.dm.vmovups %1 : (!x86.reg) -> !x86.ssereg
-// CHECK-NEXT: %dm_vmovups_sse = x86.dm.vmovups %1, 0 : (!x86.reg) -> !x86.ssereg
-%dm_vmovups_avx2 = x86.dm.vmovups %1 : (!x86.reg) -> !x86.avx2reg
-// CHECK-NEXT: %dm_vmovups_avx2 = x86.dm.vmovups %1, 0 : (!x86.reg) -> !x86.avx2reg
-%dm_vmovups_avx512 = x86.dm.vmovups %1 : (!x86.reg) -> !x86.avx512reg
-// CHECK-NEXT: %dm_vmovups_avx512 = x86.dm.vmovups %1, 0 : (!x86.reg) -> !x86.avx512reg
+%dm_vmovups_sse = x86.dm.vmovups %1, 128 : (!x86.reg) -> !x86.ssereg
+// CHECK-NEXT: %dm_vmovups_sse = x86.dm.vmovups %1, 128 : (!x86.reg) -> !x86.ssereg
+%dm_vmovups_avx2 = x86.dm.vmovups %1, 256 : (!x86.reg) -> !x86.avx2reg
+// CHECK-NEXT: %dm_vmovups_avx2 = x86.dm.vmovups %1, 256 : (!x86.reg) -> !x86.avx2reg
+%dm_vmovups_avx512 = x86.dm.vmovups %1, 512 : (!x86.reg) -> !x86.avx512reg
+// CHECK-NEXT: %dm_vmovups_avx512 = x86.dm.vmovups %1, 512 : (!x86.reg) -> !x86.avx512reg
 
 x86.ms.vmovups %1, %xmm1, 8 : (!x86.reg, !x86.ssereg) -> ()
 // CHECK-NEXT: x86.ms.vmovups %1, %xmm1, 8 : (!x86.reg, !x86.ssereg) -> ()

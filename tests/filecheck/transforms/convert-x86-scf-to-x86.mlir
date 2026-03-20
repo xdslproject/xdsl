@@ -20,9 +20,9 @@
 //  CHECK-NEXT:      x86_func.ret
 //  CHECK-NEXT:    }
 x86_func.func @copy10(%src: !x86.reg<rax>, %dst: !x86.reg<rbx>) {
-    %zero = x86.di.mov 0 : () -> (!x86.reg<rcx>)
-    %step = x86.di.mov 4 : () -> (!x86.reg<rdx>)
-    %forty = x86.di.mov 40 : () -> (!x86.reg<r8>)
+    %zero = x86.di.mov 0 : () -> !x86.reg<rcx>
+    %step = x86.di.mov 4 : () -> !x86.reg<rdx>
+    %forty = x86.di.mov 40 : () -> !x86.reg<r8>
     x86_scf.for %offset : !x86.reg<r9> = %zero to %forty step %step {
         "test.op"(%offset, %src, %dst) :  (!x86.reg<r9>, !x86.reg<rax>, !x86.reg<rbx>) -> ()
         yield
@@ -69,13 +69,13 @@ x86_func.func @copy10(%src: !x86.reg<rax>, %dst: !x86.reg<rbx>) {
 
 
 x86_func.func @nested(%src: !x86.reg<rax>, %dst: !x86.reg<rbx>) {
-    %zero_outer = x86.di.mov 0 : () -> (!x86.reg<rcx>)
-    %step_outer = x86.di.mov 4 : () -> (!x86.reg<rdx>)
-    %forty_outer = x86.di.mov 40 : () -> (!x86.reg<r8>)
+    %zero_outer = x86.di.mov 0 : () -> !x86.reg<rcx>
+    %step_outer = x86.di.mov 4 : () -> !x86.reg<rdx>
+    %forty_outer = x86.di.mov 40 : () -> !x86.reg<r8>
     x86_scf.for %offset_outer : !x86.reg<r9> = %zero_outer to %forty_outer step %step_outer {
-        %zero_inner = x86.di.mov 0 : () -> (!x86.reg<r10>)
-        %step_inner = x86.di.mov 2 : () -> (!x86.reg<r11>)
-        %forty_inner = x86.di.mov 40 : () -> (!x86.reg<r12>)
+        %zero_inner = x86.di.mov 0 : () -> !x86.reg<r10>
+        %step_inner = x86.di.mov 2 : () -> !x86.reg<r11>
+        %forty_inner = x86.di.mov 40 : () -> !x86.reg<r12>
         x86_scf.for %offset_inner : !x86.reg<r13> = %zero_inner to %forty_inner step %step_inner {
             "test.op"(%src, %dst, %offset_outer, %offset_inner) : (!x86.reg<rax>, !x86.reg<rbx>, !x86.reg<r9>, !x86.reg<r13>) -> ()
             x86_scf.yield
