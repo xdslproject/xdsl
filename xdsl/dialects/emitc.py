@@ -9,6 +9,7 @@ See external [documentation](https://mlir.llvm.org/docs/Dialects/EmitC/).
 
 import abc
 from collections.abc import Iterable, Mapping, Sequence
+from enum import StrEnum
 from typing import Generic, Literal, cast
 
 from typing_extensions import TypeVar
@@ -28,14 +29,19 @@ from xdsl.dialects.builtin import (
     ShapedType,
     StaticShapeArrayConstr,
     StringAttr,
+    SymbolRefAttr,
     TensorType,
     TupleType,
     TypedAttribute,
+    UnitAttr,
 )
 from xdsl.ir import (
     Attribute,
+    Block,
     Dialect,
+    EnumAttribute,
     ParametrizedAttribute,
+    Region,
     SSAValue,
     TypeAttribute,
 )
@@ -53,6 +59,7 @@ from xdsl.irdl import (
     opt_prop_def,
     param_def,
     prop_def,
+    region_def,
     result_def,
     traits_def,
     var_operand_def,
@@ -61,7 +68,11 @@ from xdsl.irdl import (
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
 from xdsl.traits import (
+    IsolatedFromAbove,
+    MemoryAllocEffect,
+    NoTerminator,
     Pure,
+    SymbolTable,
 )
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
@@ -710,6 +721,272 @@ class EmitC_CallOpaqueOp(IRDLOperation):
                 raise VerifyException("cannot return array type")
 
 
+@irdl_op_definition
+class EmitC_CastOp(IRDLOperation):
+    """
+    Cast operation.
+
+    The `emitc.cast` operation performs an explicit type conversion and is emitted
+    as a C-style cast expression. It can be applied to integer, float, index
+    and EmitC types.
+
+    Example:
+
+    ```mlir
+    // Cast from `int32_t` to `float`
+    %0 = emitc.cast %arg0: i32 to f32
+
+    // Cast from `void` to `int32_t` pointer
+    %1 = emitc.cast %arg1 :
+        !emitc.ptr<!emitc.opaque<"void">> to !emitc.ptr<i32>
+    ```
+    """
+
+    name = "emitc.cast"
+
+    assembly_format = "$source attr-dict `:` type($source) `to` type($dest)"
+
+    source = operand_def(EmitCTypeConstr)
+    dest = result_def(EmitCTypeConstr)
+
+    def has_side_effects(self) -> bool:
+        return False
+
+
+@irdl_op_definition
+class EmitC_ClassOp(IRDLOperation):
+    """
+    Represents a C++ class definition, encapsulating fields and methods.
+
+    The `emitc.class` operation defines a C++ class, acting as a container
+    for its data fields (`emitc.field`) and methods (`emitc.func`).
+    It creates a distinct scope, isolating its contents from the surrounding
+    MLIR region, similar to how C++ classes encapsulate their internals.
+
+    Example:
+
+    ```mlir
+    emitc.class @modelClass {
+      emitc.field @fieldName0 : !emitc.array<1xf32> = {emitc.opaque = "input_tensor"}
+      emitc.func @execute() {
+        %0 = "emitc.constant"() <{value = 0 : index}> : () -> !emitc.size_t
+        %1 = get_field @fieldName0 : !emitc.array<1xf32>
+        %2 = subscript %1[%0] : (!emitc.array<1xf32>, !emitc.size_t) -> !emitc.lvalue<f32>
+        return
+      }
+    }
+    // Class with a final specifer
+    emitc.class final @modelClass {
+      emitc.field @fieldName0 : !emitc.array<1xf32> = {emitc.opaque = "input_tensor"}
+      emitc.func @execute() {
+        %0 = "emitc.constant"() <{value = 0 : index}> : () -> !emitc.size_t
+        %1 = get_field @fieldName0 : !emitc.array<1xf32>
+        %2 = subscript %1[%0] : (!emitc.array<1xf32>, !emitc.size_t) -> !emitc.lvalue<f32>
+        return
+      }
+    }
+    ```
+    """
+
+    name = "emitc.class"
+
+    assembly_format = (
+        "(`final` $final_specifier^)? $sym_name attr-dict-with-keyword $body"
+    )
+
+    sym_name = prop_def(SymbolRefAttr)
+    final_specifier = prop_def(UnitAttr)
+
+    body = region_def()
+
+    traits = traits_def(
+        SymbolTable(), IsolatedFromAbove(), NoTerminator(), MemoryAllocEffect()
+    )
+
+    def __init__(self, sym_name: SymbolRefAttr, body: Region | Sequence[Block]):
+        super().__init__(
+            properties={
+                "sym_name": sym_name,
+            },
+            regions=[body],
+        )
+
+    def get_block(self):
+        if self.body.block:
+            return self.body.block
+
+
+@irdl_op_definition
+class EmitC_FieldOp(IRDLOperation):
+    """
+    A field within a class.
+
+    The `emitc.field` operation declares a named field within an `emitc.class`
+    operation. The field's type must be an EmitC type.
+
+    Example:
+
+    ```mlir
+    // Example with an attribute:
+    emitc.field @fieldName0 : !emitc.array<1xf32>  {emitc.opaque = "another_feature"}
+    // Example with no attribute:
+    emitc.field @fieldName0 : !emitc.array<1xf32>
+    // Example with an initial value:
+    emitc.field @fieldName0 : !emitc.array<1xf32> = dense<0.0>
+    // Example with an initial value and attributes:
+    emitc.field @fieldName0 : !emitc.array<1xf32> = dense<0.0> {
+      emitc.opaque = "input_tensor"}
+    """
+
+    name = "emitc.field"
+
+    sym_name = prop_def(SymbolRefAttr)
+    type = prop_def(TypeAttribute)
+    initial_value = opt_prop_def(EmitC_OpaqueAttr | TypedAttribute)
+
+    assembly_format = "$sym_name `:` $type $initial_value attr-dict"
+    # assembly_format = "$sym_name `:` custom<EmitCFieldOpTypeAndInitialValue>($type, $initial_value) attr-dict"
+
+    """
+    def print_EmitCFieldOpTypeAndInitialValue(
+            self,
+            printer: Printer,
+            type_attr: TypeAttribute,
+            initial_value: Attribute | None
+    ):
+        printer.print_attribute(type_attr)
+
+        if initial_value is not None:
+            printer.print_string(" = ")
+            printer.print_attribute(initial_value)
+
+    def parse_EmitCFieldOpTypeAndInitialValue(
+            self,
+            parser: Parser
+    ):
+        type_attr = parser.parse_type()
+        initial_value = None
+
+        has_equal = parser.parse_optional_punctuation("=")
+
+        if has_equal:
+            initial_value = parser.parse_attribute()
+            if not isinstance(initial_value, (IntegerAttr, FloatAttr, EmitC_OpaqueAttr)):
+                pass
+                # raise error
+        return type_attr
+    """
+
+    def verify_(self) -> None:
+        parentOp = self.parent_op()
+        if not parentOp or not isinstance(parentOp, EmitC_ClassOp):
+            raise VerifyException(
+                "field must be nested within an emitc.class operation"
+            )
+        name = self.sym_name
+        if not name:
+            raise VerifyException("field must have a non-empty symbol name")
+
+
+@irdl_op_definition
+class EmitC_GetFieldOp(IRDLOperation):
+    """
+    Obtain access to a field within a class instance.
+
+    The `emitc.get_field` operation retrieves the lvalue of a
+     named field from a given class instance.
+
+     Example:
+
+     ```mlir
+     %0 = get_field @fieldName0 : !emitc.array<1xf32>
+     ```
+    """
+
+    name = "emitc.get_field"
+
+    field_name = prop_def(SymbolRefAttr)
+    result = result_def(EmitCTypeConstr)
+    assembly_format = "$field_name `:` type($result) attr-dict"
+
+    def verify_(self) -> None:
+        parentOp = self.parent_op()
+        if not parentOp or not isinstance(parentOp, EmitC_ClassOp):
+            raise VerifyException(" must be nested within an emitc.class operation")
+
+
+class CmpPredicate(StrEnum):
+    eq = "eq"
+    ne = "ne"
+    lt = "lt"
+    le = "le"
+    gt = "gt"
+    ge = "ge"
+    three_way = "three_way"
+
+
+@irdl_attr_definition
+class EmitC_CmpPredicateAttr(
+    EnumAttribute[CmpPredicate]  # pyright: ignore[reportInvalidTypeArguments]
+):
+    name = "emitc.cmp_predicate"
+
+
+@irdl_op_definition
+class EmitC_CmpOp(EmitC_BinaryOperation):
+    """
+    Comparison operation.
+
+    With the `emitc.cmp` operation the comparison operators ==, !=, <, <=, >, >=, <=>
+    can be applied.
+
+    Its first argument is an attribute that defines the comparison operator:
+
+    - equal to (mnemonic: `"eq"`; integer value: `0`)
+    - not equal to (mnemonic: `"ne"`; integer value: `1`)
+    - less than (mnemonic: `"lt"`; integer value: `2`)
+    - less than or equal to (mnemonic: `"le"`; integer value: `3`)
+    - greater than (mnemonic: `"gt"`; integer value: `4`)
+    - greater than or equal to (mnemonic: `"ge"`; integer value: `5`)
+    - three-way-comparison (mnemonic: `"three_way"`; integer value: `6`)
+
+    Example:
+    ```mlir
+    // Custom form of the cmp operation.
+    %0 = emitc.cmp eq, %arg0, %arg1 : (i32, i32) -> i1
+    %1 = emitc.cmp lt, %arg2, %arg3 :
+        (
+          !emitc.opaque<"std::valarray<float>">,
+          !emitc.opaque<"std::valarray<float>">
+        ) -> !emitc.opaque<"std::valarray<bool>">
+    ```
+    ```c++
+    // Code emitted for the operations above.
+    bool v5 = v1 == v2;
+    std::valarray<bool> v6 = v3 < v4;
+    ```
+    """
+
+    name = "emitc.cmp"
+
+    predicate = prop_def(EmitC_CmpPredicateAttr)
+    lhs = operand_def(EmitCTypeConstr)
+    rhs = operand_def(EmitCTypeConstr)
+    result = result_def(EmitCTypeConstr)
+
+    assembly_format = (
+        "$predicate `,` operands attr-dict `:` functional-type(operands, results)"
+    )
+
+    def __init__(self, pred: int, lhs: SSAValue, rhs: SSAValue, result_type: Attribute):
+        super().__init__(
+            lhs,
+            rhs,
+            result_type,
+        )
+        self.predicate = EmitC_CmpPredicateAttr(CmpPredicate.gt)
+
+
 # ===----------------------------------------------------------------------===
 # ConstantOp
 # ===----------------------------------------------------------------------===
@@ -1020,6 +1297,80 @@ class EmitC_LogicalOrOp(EmitC_BinaryOperation):
 
 
 @irdl_op_definition
+class EmitC_MemberOfPtrOp(IRDLOperation):
+    """
+    Member of pointer operation.
+
+    With the `emitc.member_of_ptr` operation the member access operator `->`
+    can be applied.
+
+    Example:
+
+    ```mlir
+    %0 = "emitc.member_of_ptr" (%arg0) {member = "a"}
+        : (!emitc.lvalue<!emitc.ptr<!emitc.opaque<"mystruct">>>)
+        -> !emitc.lvalue<i32>
+    %1 = "emitc.member_of_ptr" (%arg0) {member = "b"}
+        : (!emitc.lvalue<!emitc.ptr<!emitc.opaque<"mystruct">>>)
+        -> !emitc.array<2xi32>
+    ```
+    """
+
+    name = "emitc.member_of_ptr"
+
+    member = prop_def(StringAttr)
+    operand = operand_def(EmitC_LValueType)
+    result = result_def(EmitC_ArrayType | EmitC_LValueType)
+
+    def __init__(self, operand: SSAValue, member: str, result_type: Attribute):
+        if not isinstance(operand.type, EmitC_OpaqueAttr | EmitC_PointerType):
+            raise VerifyException(
+                "emitc.member_of_ptr expects an opaque or pointer operand type"
+            )
+
+        super().__init__(
+            operands=[operand],
+            properties={"member": StringAttr(member)},
+            result_types=[result_type],
+        )
+
+
+@irdl_op_definition
+class EmitC_MemberOp(IRDLOperation):
+    """
+    Member operation.
+
+    With the `emitc.member` operation the member access operator `.` can be
+    applied.
+
+    Example:
+
+    ```mlir
+    %0 = "emitc.member" (%arg0) {member = "a"}
+        : (!emitc.lvalue<!emitc.opaque<"mystruct">>) -> !emitc.lvalue<i32>
+    %1 = "emitc.member" (%arg0) {member = "b"}
+        : (!emitc.lvalue<!emitc.opaque<"mystruct">>) -> !emitc.array<2xi32>
+    ```
+    """
+
+    name = "emitc.member"
+
+    member = prop_def(StringAttr)
+    operand = operand_def(EmitC_LValueType)
+    result = result_def(EmitC_ArrayType | EmitC_LValueType)
+
+    def __init__(self, operand: SSAValue, member: str, result_type: Attribute):
+        if not isinstance(operand.type, EmitC_OpaqueAttr):
+            raise VerifyException("emitc.member expects an opaque operand type")
+
+        super().__init__(
+            operands=[operand],
+            properties={"member": StringAttr(member)},
+            result_types=[result_type],
+        )
+
+
+@irdl_op_definition
 class EmitC_MulOp(EmitC_BinaryOperation):
     """
     Multiplication operation.
@@ -1133,6 +1484,75 @@ class EmitC_SubOp(EmitC_BinaryOperation):
 
 
 @irdl_op_definition
+class EmitC_SubscriptOp(IRDLOperation):
+    """
+    Subscript operation.
+
+    With the `emitc.subscript` operation the subscript operator `[]` can be applied
+    to variables or arguments of array, pointer and opaque type.
+
+    Example:
+
+    ```mlir
+    %i = index.constant 1
+    %j = index.constant 7
+    %0 = emitc.subscript %arg0[%i, %j] : (!emitc.array<4x8xf32>, index, index)
+           -> !emitc.lvalue<f32>
+    %1 = emitc.subscript %arg1[%i] : (!emitc.ptr<i32>, index)
+           -> !emitc.lvalue<i32>
+    ```
+    """
+
+    name = "emitc.subscript"
+
+    value = operand_def(EmitC_ArrayType | EmitC_OpaqueType | EmitC_PointerType)
+    indices = var_operand_def(EmitCTypeConstr)
+    result = result_def(EmitC_LValueType)
+
+    assembly_format = (
+        "$value `[` $indices `]` attr-dict `:` functional-type(operands, results)"
+    )
+
+    def __init__(self, value: SSAValue, indices: Sequence[SSAValue]):
+        # array[i]
+        if isinstance(value.type, EmitC_ArrayType):
+            res_type = EmitC_LValueType(value.type.element_type)  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType]
+
+        # ptr[i]
+        elif isinstance(value.type, EmitC_PointerType):
+            res_type = EmitC_LValueType(value.type.pointee_type)
+
+        # opaque
+        elif isinstance(value.type, EmitC_OpaqueType):
+            res_type = value.type
+
+        else:
+            raise VerifyException(f"Unsupported type for emitc.subscript: {value.type}")
+
+        super().__init__(operands=[value, *indices], result_types=[res_type])
+
+    def verify_(self) -> None:
+        val_type = self.value.type
+
+        # array[i]
+        if isinstance(val_type, EmitC_ArrayType):
+            if len(self.indices) != len(val_type.shape):
+                raise VerifyException(
+                    f"Array subscript expects {len(val_type.shape)} indices, got {len(self.indices)}"
+                )
+
+        # ptr[i]
+        if isinstance(val_type, EmitC_PointerType):
+            if len(self.indices) != 1:
+                raise VerifyException("Pointer subscript expects exactly one index")
+
+        # opaque
+        if isinstance(val_type, EmitC_OpaqueType):
+            if len(self.indices) == 0:
+                raise VerifyException("Opaque subscript expects at least one index")
+
+
+@irdl_op_definition
 class EmitC_UnaryMinusOp(EmitC_UnaryOperation):
     """
     Unary minus operation.
@@ -1230,6 +1650,11 @@ EmitC = Dialect(
         EmitC_BitwiseRightShiftOp,
         EmitC_BitwiseXorOp,
         EmitC_CallOpaqueOp,
+        EmitC_CastOp,
+        EmitC_ClassOp,
+        EmitC_FieldOp,
+        EmitC_GetFieldOp,
+        EmitC_CmpOp,
         EmitC_ConstantOp,
         EmitC_DereferenceOp,
         EmitC_DivOp,
@@ -1238,9 +1663,12 @@ EmitC = Dialect(
         EmitC_LogicalAndOp,
         EmitC_LogicalNotOp,
         EmitC_LogicalOrOp,
+        EmitC_MemberOfPtrOp,
+        EmitC_MemberOp,
         EmitC_MulOp,
         EmitC_RemOp,
         EmitC_SubOp,
+        EmitC_SubscriptOp,
         EmitC_UnaryMinusOp,
         EmitC_UnaryPlusOp,
         EmitC_VariableOp,
