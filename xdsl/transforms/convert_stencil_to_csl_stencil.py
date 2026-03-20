@@ -229,8 +229,10 @@ class ConvertSwapToPrefetchPattern(RewritePattern):
             rewriter.replace_uses_with_if(
                 field_block_arg,
                 prefetch_block_arg,
-                lambda use: isinstance(use.operation, stencil.AccessOp)
-                and tuple(use.operation.offset) != (0, 0),
+                lambda use: (
+                    isinstance(use.operation, stencil.AccessOp)
+                    and tuple(use.operation.offset) != (0, 0)
+                ),
             )
 
             # rebuild stencil.apply op

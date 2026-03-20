@@ -421,9 +421,9 @@ class Printer(BasePrinter):
         """
         self.print_list(
             dims,
-            lambda x: self.print_int(x)
-            if x != DYNAMIC_INDEX
-            else self.print_string("?"),
+            lambda x: (
+                self.print_int(x) if x != DYNAMIC_INDEX else self.print_string("?")
+            ),
             "x",
         )
 
