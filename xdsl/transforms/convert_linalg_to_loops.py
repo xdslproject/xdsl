@@ -6,7 +6,6 @@ from xdsl.dialects.builtin import MemRefType, ModuleOp
 from xdsl.ir import SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
-    GreedyRewritePatternApplier,
     PatternRewriter,
     PatternRewriteWalker,
     RewritePattern,
@@ -89,6 +88,6 @@ class ConvertLinalgToLoopsPass(ModulePass):
 
     def apply(self, ctx: Context, op: ModuleOp) -> None:
         PatternRewriteWalker(
-            GreedyRewritePatternApplier([LowerLinalgStructuredOpPattern()]),
+            LowerLinalgStructuredOpPattern(),
             apply_recursively=False,
         ).rewrite_module(op)
