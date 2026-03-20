@@ -15,12 +15,14 @@ from xdsl.dialects.riscv import (
     parse_immediate_value,
 )
 from xdsl.dialects.riscv.abstract_ops import GetAnyRegisterOperation, LiOperation
+from xdsl.dialects.riscv.ops import LiOpHasCanonicalizationPatternTrait
 from xdsl.ir import (
     Attribute,
     Dialect,
 )
 from xdsl.irdl import (
     irdl_op_definition,
+    traits_def,
 )
 from xdsl.parser import Parser
 
@@ -36,6 +38,8 @@ class LiOp(LiOperation[I64]):
     """
 
     name = "rv64.li"
+
+    traits = traits_def(LiOpHasCanonicalizationPatternTrait())
 
     def __init__(
         self,

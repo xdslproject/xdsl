@@ -23,7 +23,6 @@ from xdsl.dialects.builtin import (
     StringAttr,
     UnitAttr,
 )
-from xdsl.dialects.riscv.ops import LiOpHasCanonicalizationPatternTrait
 from xdsl.interfaces import HasFolderInterface
 from xdsl.ir import (
     Attribute,
@@ -1416,7 +1415,7 @@ class CsrBitwiseImmOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
         return {"csr", "immediate"}
 
 
-IWidth = TypeVar("IWidth", bound = I32 | I64)
+IWidth = TypeVar("IWidth", bound=I32 | I64)
 
 
 class LiOperation(
@@ -1437,7 +1436,7 @@ class LiOperation(
     rd = result_def(IntRegisterType)
     immediate = attr_def(IntegerAttr[IWidth] | LabelAttr)
 
-    traits = traits_def(Pure(), LiOpHasCanonicalizationPatternTrait(), ConstantLike())
+    traits = traits_def(Pure(), ConstantLike())
 
     def __init__(
         self,
