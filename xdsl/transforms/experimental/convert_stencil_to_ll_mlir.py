@@ -178,7 +178,7 @@ class ReturnOpToMemRef(RewritePattern):
 
             unroll = op.unroll
             if unroll is None:
-                unroll = IndexAttr.get(*([1] * n_dims))
+                unroll = IndexAttr.from_indices(*([1] * n_dims))
 
             for k, offset in enumerate(product(*(range(u) for u in unroll))):
                 arg = op.arg[j * unroll_factor + k]
@@ -186,7 +186,7 @@ class ReturnOpToMemRef(RewritePattern):
                     IndexOp(
                         attributes={
                             "dim": builtin.IntegerAttr.from_index_int_value(i),
-                            "offset": IndexAttr.get(*([0] * n_dims)),
+                            "offset": IndexAttr.from_indices(*([0] * n_dims)),
                         },
                         result_types=[builtin.IndexType()],
                     )
@@ -284,7 +284,7 @@ def prepare_apply_body(op: ApplyOp):
     entry = op.region.block
 
     for operand, arg in zip(op.operands, entry.args):
-        arg.replace_by(operand)
+        arg.replace_all_uses_with(operand)
         entry.erase_arg(arg)
     entry.add_op(scf.ReduceOp())
     for _ in range(op.get_rank()):
@@ -492,7 +492,9 @@ class AccessOpToMemRef(RewritePattern):
             IndexOp(
                 attributes={
                     "dim": builtin.IntegerAttr.from_index_int_value(i),
-                    "offset": IndexAttr.get(*([0] * op.get_apply().get_rank())),
+                    "offset": IndexAttr.from_indices(
+                        *([0] * op.get_apply().get_rank())
+                    ),
                 },
                 result_types=[builtin.IndexType()],
             )

@@ -188,8 +188,8 @@ class StreamOpLowering(RewritePattern):
                 cast_op := builtin.UnrealizedConversionCastOp.get((arg,), (arg.type,)),
                 InsertPoint.at_start(new_body),
             )
-            arg.replace_by_if(
-                cast_op.results[0], lambda use: use.operation is not cast_op
+            rewriter.replace_uses_with_if(
+                arg, cast_op.results[0], lambda use: use.operation is not cast_op
             )
             rewriter.replace_value_with_new_type(arg, stream_type)
 

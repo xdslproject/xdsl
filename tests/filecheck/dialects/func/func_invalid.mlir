@@ -1,8 +1,8 @@
 // RUN: xdsl-opt %s --parsing-diagnostics --verify-diagnostics --split-input-file | filecheck %s
 
 builtin.module {
-  func.func @cus_arg_rec(%0 : !test.type<"int">) -> !test.type<"int"> {
-  ^bb0(%arg : !test.type<"int">)
+  func.func @cus_arg_rec(%0: !test.type<"int">) -> !test.type<"int"> {
+  ^bb0(%arg: !test.type<"int">)
     %1 = "func.call"(%0) {"callee" = @cus_arg_rec} : (!test.type<"int">) -> !test.type<"int">
     "func.return"(%1) : (!test.type<"int">) -> ()
   }
@@ -23,8 +23,8 @@ builtin.module {
 // -----
 
 builtin.module {
-  func.func @mixed_args(%0 : !test.type<"int">, i32) -> !test.type<"int"> {
-  ^bb0(%arg : !test.type<"int">)
+  func.func @mixed_args(%0: !test.type<"int">, i32) -> !test.type<"int"> {
+  ^bb0(%arg: !test.type<"int">)
     %1 = "func.call"(%0) {"callee" = @cus_arg_rec} : (!test.type<"int">) -> !test.type<"int">
     "func.return"(%1) : (!test.type<"int">) -> ()
   }
@@ -43,7 +43,7 @@ builtin.module {
 
 func.func @bar() {
     %1 = "test.op"() : () -> !test.type<"int">
-    %2 = func.call @foo(%1) : (!test.type<"int">) -> !test.type<"int">
+    %2 = func.call @foo(%1): (!test.type<"int">) -> !test.type<"int">
     func.return
 }
 
@@ -51,7 +51,7 @@ func.func @bar() {
 
 // -----
 
-func.func @foo(%0 : !test.type<"int">) -> !test.type<"int">
+func.func @foo(%0: !test.type<"int">) -> !test.type<"int">
 
 func.func @bar() {
     %1 = func.call @foo() : () -> !test.type<"int">
@@ -62,11 +62,11 @@ func.func @bar() {
 
 // -----
 
-func.func @foo(%0 : !test.type<"int">)
+func.func @foo(%0: !test.type<"int">)
 
 func.func @bar() {
     %1 = "test.op"() : () -> !test.type<"int">
-    %2 = func.call @foo(%1) : (!test.type<"int">) -> !test.type<"int">
+    %2 = func.call @foo(%1): (!test.type<"int">) -> !test.type<"int">
     func.return
 }
 
@@ -74,11 +74,11 @@ func.func @bar() {
 
 // -----
 
-func.func @foo(%0 : !test.type<"int">) -> !test.type<"int">
+func.func @foo(%0: !test.type<"int">) -> !test.type<"int">
 
 func.func @bar() {
   %1 = "test.op"() : () -> !test.type<"foo">
-  %2 = func.call @foo(%1) : (!test.type<"foo">) -> !test.type<"int">
+  %2 = func.call @foo(%1): (!test.type<"foo">) -> !test.type<"int">
   func.return
 }
 
@@ -86,12 +86,24 @@ func.func @bar() {
 
 // -----
 
-func.func @foo(%0 : !test.type<"int">) -> !test.type<"int">
+func.func @foo(%0: !test.type<"int">) -> !test.type<"int">
 
 func.func @bar() {
     %1 = "test.op"() : () -> !test.type<"int">
-    %2 = func.call @foo(%1) : (!test.type<"int">) -> !test.type<"foo">
+    %2 = func.call @foo(%1): (!test.type<"int">) -> !test.type<"foo">
     func.return
 }
 
 // CHECK: result type mismatch: expected result type !test.type<"int">, but provided !test.type<"foo"> for result number 0
+
+// -----
+
+func.func private @f(%arg0: i32 loc(unknown) {test.arg_name = "x"})
+
+// CHECK: Expected function argument attributes before location.
+
+// -----
+
+func.func private @f(%arg0: i32 loc(unknown) {})
+
+// CHECK: Expected function argument attributes before location.

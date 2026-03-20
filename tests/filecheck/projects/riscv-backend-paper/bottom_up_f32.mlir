@@ -13,7 +13,7 @@ func.func public @ssum(
     ],
     iterator_types = ["parallel", "parallel"]
   } ins(%X, %Y : memref<8x16xf32>, memref<8x16xf32>) outs(%Z : memref<8x16xf32>) {
-  ^bb1(%in : f32, %in_1 : f32, %out : f32):
+  ^bb1(%in: f32, %in_1: f32, %out: f32):
     %3 = arith.addf %in, %in_1 : f32
     linalg.yield %3 : f32
   }
@@ -71,7 +71,7 @@ func.func public @pooling_nchw_max_d1_s2_3x3(
       ],
       iterator_types = ["parallel", "parallel", "parallel", "parallel", "reduction", "reduction"]
     } ins(%X, %alloc : memref<1x1x18x18xf64>, memref<3x3xf32>) outs(%Y : memref<1x1x8x8xf64>) {
-    ^bb0(%x : f64, %alloc_val: f64, %acc : f64):
+    ^bb0(%x: f64, %alloc_val: f64, %acc: f64):
       %res = arith.maximumf %x, %acc : f64
       linalg.yield %res : f64
     }
@@ -160,7 +160,7 @@ func.func public @pooling_nchw_max_d1_s2_3x3(
     riscv_func.func public @reluf32(%X : !riscv.reg<a0>, %Y : !riscv.reg<a1>) attributes {p2align = 2 : i8} {
       %X_1 = riscv.mv %X : (!riscv.reg<a0>) -> !riscv.reg
       %Y_1 = riscv.mv %Y : (!riscv.reg<a1>) -> !riscv.reg
-      %zero = riscv.get_register : !riscv.reg<zero>
+      %zero = rv32.get_register : !riscv.reg<zero>
       %zero_float = riscv.fcvt.d.w %zero : (!riscv.reg<zero>) -> !riscv.freg
       %zero_vector = riscv_snitch.vfcpka.s.s %zero_float, %zero_float : (!riscv.freg, !riscv.freg) -> !riscv.freg
       snitch_stream.streaming_region {
@@ -168,10 +168,10 @@ func.func public @pooling_nchw_max_d1_s2_3x3(
           #snitch_stream.stride_pattern<ub = [128], strides = [8]>
         ]
       } ins(%X_1 : !riscv.reg) outs(%Y_1 : !riscv.reg) {
-      ^bb0(%x : !snitch.readable<!riscv.freg<ft0>>, %0 : !snitch.writable<!riscv.freg<ft1>>):
-        %c128 = riscv.li 128 : !riscv.reg
-        %c0 = riscv.li 0 : !riscv.reg
-        %c1 = riscv.li 1 : !riscv.reg
+      ^bb0(%x: !snitch.readable<!riscv.freg<ft0>>, %0: !snitch.writable<!riscv.freg<ft1>>):
+        %c128 = rv32.li 128 : !riscv.reg
+        %c0 = rv32.li 0 : !riscv.reg
+        %c1 = rv32.li 1 : !riscv.reg
         riscv_scf.for %i : !riscv.reg = %c0 to %c128 step %c1 {
           %x_1 = riscv_snitch.read from %x : !riscv.freg<ft0>
           %y = riscv_snitch.vfmax.s %x_1, %zero_vector : (!riscv.freg<ft0>, !riscv.freg) -> !riscv.freg<ft1>

@@ -284,7 +284,7 @@ class InlineApplyOpArgs(RewritePattern):
                 new_arg := arg.op.clone(),
                 InsertPoint.at_start(region.block),
             )
-            block_arg.replace_by(SSAValue.get(new_arg))
+            block_arg.replace_all_uses_with(SSAValue.get(new_arg))
 
 
 @dataclass(frozen=True)

@@ -15,6 +15,7 @@ from xdsl.backend.register_allocatable import (
 )
 from xdsl.backend.register_type import RegisterAllocatedMemoryEffect, RegisterType
 from xdsl.dialects.builtin import (
+    I32,
     IntegerAttr,
     IntegerType,
     ModuleOp,
@@ -37,8 +38,9 @@ from xdsl.irdl import (
     traits_def,
 )
 from xdsl.parser import Parser, UnresolvedOperand
+from xdsl.pattern_rewriter import RewritePattern
 from xdsl.printer import Printer
-from xdsl.traits import Pure
+from xdsl.traits import HasCanonicalizationPatternsTrait, Pure
 from xdsl.utils.exceptions import VerifyException
 
 from .attrs import (
@@ -720,7 +722,18 @@ class RdRsImmIntegerOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC)
         return {"immediate"}
 
 
-class RdRsImmShiftOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
+class ImmShiftOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.riscv import (
+            ShiftbyZero,
+            ShiftConstantFolding,
+        )
+
+        return (ShiftbyZero(), ShiftConstantFolding())
+
+
+class RdRsImmShiftOperation(RISCVInstruction, ABC):
     """
     A base class for RISC-V operations that have one destination register, one source
     register and one immediate operand.
@@ -732,6 +745,68 @@ class RdRsImmShiftOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
 
     For RV32I, SLLI, SRLI, and SRAI generate an illegal instruction exception if
     imm[5] 6 != 0 but the shift amount is encoded in the lower 6 bits of the I-immediate field for RV64I.
+    """
+
+    rd = result_def(IntRegisterType)
+    rs1 = operand_def(IntRegisterType)
+    immediate = attr_def(IntegerAttr[UI5])
+    traits = traits_def(ImmShiftOpHasCanonicalizationPatternsTrait())
+
+    assembly_format = (
+        "$rs1 `,` $immediate attr-dict `:` `(` type($rs1) `)` `->` type($rd)"
+    )
+
+    def __init__(
+        self,
+        rs1: Operation | SSAValue,
+        immediate: int | IntegerAttr[UI5],
+        *,
+        rd: IntRegisterType = Registers.UNALLOCATED_INT,
+        comment: str | StringAttr | None = None,
+    ):
+        if isinstance(immediate, int):
+            immediate = IntegerAttr(immediate, ui5)
+
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+        super().__init__(
+            operands=[rs1],
+            result_types=[rd],
+            attributes={
+                "immediate": immediate,
+                "comment": comment,
+            },
+        )
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
+        return self.rd, self.rs1, self.immediate
+
+    @abstractmethod
+    def py_operation(self, rs1: IntegerAttr[I32]) -> IntegerAttr[I32]:
+        """
+        Performs a python function corresponding to this operation.
+
+        If `i := py_operation(rs1)` is an IntegerAttr[I32], then this operation can be
+        canonicalized to a constant with value `i` when the inputs are constants
+        with values `rs1`. The immediate value is retrieved from the `immediate` attribute of the operation.
+        """
+
+        raise NotImplementedError(
+            "RdRsImmShiftOperation py_operation is not yet implemented"
+        )
+
+
+class RdRsImmBitManipOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
+    """
+    A base class for RISC-V operations that have one destination register, one source
+    register and one immediate operand.
+
+    These operations are from the Zba, Zbb, and Zbs extensions.
+
+    The immediate value is encoded in the lower 5 bits of the immediate field for RV32
+    and the lower 6 bits for RV64.
+
+    See external [documentation](https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#).
     """
 
     rd = result_def(IntRegisterType)
@@ -1359,9 +1434,9 @@ class GetAnyRegisterOperation(
     One needs to do the following:
 
     ``` python
-    rhs = riscv.GetRegisterOp(Registers.s0).res
+    rhs = rv32.GetRegisterOp(Registers.s0).res
     riscv.JalOp("my_func")
-    lhs = riscv.GetRegisterOp(Registers.A0).res
+    lhs = rv32.GetRegisterOp(Registers.A0).res
     sum = riscv.AddOp(lhs, rhs, Registers.A0).rd
     ```
     """

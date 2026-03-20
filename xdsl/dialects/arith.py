@@ -30,7 +30,7 @@ from xdsl.dialects.builtin import (
     VectorType,
 )
 from xdsl.dialects.utils import FastMathAttrBase, FastMathFlag
-from xdsl.interfaces import ConstantLikeInterface, HasFolderInterface
+from xdsl.interfaces import ConditionallySpeculatableInterface, HasFolderInterface
 from xdsl.ir import (
     Attribute,
     BitEnumAttribute,
@@ -57,7 +57,7 @@ from xdsl.pattern_rewriter import RewritePattern
 from xdsl.printer import Printer
 from xdsl.traits import (
     Commutative,
-    ConditionallySpeculatable,
+    ConstantLike,
     HasCanonicalizationPatternsTrait,
     NoMemoryEffect,
     Pure,
@@ -137,7 +137,7 @@ class IntegerOverflowAttr(BitEnumAttribute[IntegerOverflowFlag]):
 
 
 @irdl_op_definition
-class ConstantOp(IRDLOperation, ConstantLikeInterface):
+class ConstantOp(IRDLOperation, HasFolderInterface):
     name = "arith.constant"
     _T: ClassVar = VarConstraint("T", AnyAttr())
     result = result_def(_T)
@@ -148,7 +148,7 @@ class ConstantOp(IRDLOperation, ConstantLikeInterface):
         | ParamAttrConstraint(DenseResourceAttr, (AnyAttr(), _T))
     )
 
-    traits = traits_def(Pure())
+    traits = traits_def(Pure(), ConstantLike())
 
     assembly_format = "attr-dict $value"
 
@@ -180,8 +180,8 @@ class ConstantOp(IRDLOperation, ConstantLikeInterface):
             },
         )
 
-    def get_constant_value(self) -> Attribute:
-        return self.value
+    def fold(self) -> Sequence[SSAValue | Attribute] | None:
+        return (self.value,)
 
 
 class SignlessIntegerBinaryOperation(IRDLOperation, HasFolderInterface, abc.ABC):
@@ -228,8 +228,8 @@ class SignlessIntegerBinaryOperation(IRDLOperation, HasFolderInterface, abc.ABC)
         return False
 
     def fold(self):
-        lhs = self.get_constant(self.lhs)
-        rhs = self.get_constant(self.rhs)
+        lhs = ConstantLike.get_constant_value(self.lhs)
+        rhs = ConstantLike.get_constant_value(self.rhs)
         if lhs is not None and rhs is not None:
             if isa(lhs, IntegerAttr) and isa(rhs, IntegerAttr):
                 assert lhs.type == rhs.type
@@ -526,18 +526,8 @@ class SubiOp(SignlessIntegerBinaryOperationWithOverflow):
         return attr.value.data == 0
 
 
-class DivUISpeculatable(ConditionallySpeculatable):
-    @classmethod
-    def is_speculatable(cls, op: Operation):
-        op = cast(DivUIOp, op)
-        if not isinstance(cst := op.rhs.owner, ConstantOp):
-            return False
-        value = cast(IntegerAttr[IntegerType | IndexType], cst.value)
-        return value.value.data != 0
-
-
 @irdl_op_definition
-class DivUIOp(SignlessIntegerBinaryOperation):
+class DivUIOp(SignlessIntegerBinaryOperation, ConditionallySpeculatableInterface):
     """
     Unsigned integer division. Rounds towards zero. Treats the leading bit as
     the most significant, i.e. for `i16` given two's complement representation,
@@ -548,9 +538,12 @@ class DivUIOp(SignlessIntegerBinaryOperation):
 
     traits = traits_def(
         NoMemoryEffect(),
-        DivUISpeculatable(),
         SignlessIntegerBinaryOperationHasCanonicalizationPatternsTrait(),
     )
+
+    def is_speculatable(self) -> bool:
+        rhs = ConstantLike.get_constant_value(self.rhs)
+        return isa(rhs, IntegerAttr[IntegerType | IndexType]) and rhs.value.data != 0
 
     @staticmethod
     def is_right_unit(attr: IntegerAttr) -> bool:
@@ -558,7 +551,7 @@ class DivUIOp(SignlessIntegerBinaryOperation):
 
 
 @irdl_op_definition
-class DivSIOp(SignlessIntegerBinaryOperation):
+class DivSIOp(SignlessIntegerBinaryOperation, ConditionallySpeculatableInterface):
     """
     Signed integer division. Rounds towards zero. Treats the leading bit as
     sign, i.e. `6 / -2 = -3`.
@@ -570,6 +563,14 @@ class DivSIOp(SignlessIntegerBinaryOperation):
         NoMemoryEffect(),
         SignlessIntegerBinaryOperationHasCanonicalizationPatternsTrait(),
     )
+
+    def is_speculatable(self) -> bool:
+        rhs = ConstantLike.get_constant_value(self.rhs)
+        return (
+            isa(rhs, IntegerAttr[IntegerType | IndexType])
+            and rhs.value.data != 0
+            and rhs.value.data != -1
+        )
 
     @staticmethod
     def is_right_unit(attr: IntegerAttr) -> bool:
@@ -886,7 +887,7 @@ class CmpiOp(ComparisonOperation):
         super().__init__(
             operands=[operand1, operand2],
             result_types=[IntegerType(1)],
-            properties={"predicate": IntegerAttr.from_int_and_width(arg, 64)},
+            properties={"predicate": IntegerAttr(arg, 64)},
         )
 
     @classmethod
@@ -988,7 +989,7 @@ class CmpfOp(ComparisonOperation):
             operands=[operand1, operand2],
             result_types=[IntegerType(1)],
             properties={
-                "predicate": IntegerAttr.from_int_and_width(arg, 64),
+                "predicate": IntegerAttr(arg, 64),
                 "fastmath": fastmath,
             },
         )

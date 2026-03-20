@@ -255,7 +255,8 @@ class CondBranchTruthPropagation(RewritePattern):
             ):
                 const_true = arith.ConstantOp(BoolAttr.from_bool(True))
                 rewriter.insert_op(const_true, InsertPoint.before(op))
-                op.cond.replace_by_if(
+                rewriter.replace_uses_with_if(
+                    op.cond,
                     const_true.result,
                     lambda use: use.operation.parent_block() is op.then_block,
                 )
@@ -265,7 +266,8 @@ class CondBranchTruthPropagation(RewritePattern):
             ):
                 const_false = arith.ConstantOp(BoolAttr.from_bool(False))
                 rewriter.insert_op(const_false, InsertPoint.before(op))
-                op.cond.replace_by_if(
+                rewriter.replace_uses_with_if(
+                    op.cond,
                     const_false.result,
                     lambda use: use.operation.parent_block() is op.else_block,
                 )

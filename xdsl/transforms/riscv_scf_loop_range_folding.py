@@ -1,5 +1,5 @@
 from xdsl.context import Context
-from xdsl.dialects import builtin, riscv, riscv_scf
+from xdsl.dialects import builtin, riscv, riscv_scf, rv32
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     PatternRewriter,
@@ -41,7 +41,7 @@ class HoistIndexTimesConstantOp(RewritePattern):
                     # All the uses are multiplications by a constant, we can fold
                     rewriter.insert_op(
                         [
-                            shift := riscv.LiOp(constant),
+                            shift := rv32.LiOp(constant),
                             new_lb := riscv.AddOp(op.lb, shift),
                             new_ub := riscv.AddOp(op.ub, shift),
                         ]
@@ -50,7 +50,7 @@ class HoistIndexTimesConstantOp(RewritePattern):
                     # All the uses are multiplications by a constant, we can fold
                     rewriter.insert_op(
                         [
-                            factor := riscv.LiOp(constant),
+                            factor := rv32.LiOp(constant),
                             new_lb := riscv.MulOp(op.lb, factor),
                             new_ub := riscv.MulOp(op.ub, factor),
                             new_step := riscv.MulOp(op.step, factor),

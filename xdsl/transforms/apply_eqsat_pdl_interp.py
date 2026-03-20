@@ -16,9 +16,8 @@ from xdsl.interpreters.pdl_interp import PDLInterpFunctions
 from xdsl.ir import Operation
 from xdsl.parser import Parser
 from xdsl.passes import ModulePass
-from xdsl.pattern_rewriter import PatternRewriterListener, PatternRewriteWalker
+from xdsl.pattern_rewriter import PatternRewriter
 from xdsl.traits import SymbolTable
-from xdsl.transforms.apply_pdl_interp import PDLInterpRewritePattern
 
 _DEFAULT_MAX_ITERATIONS = 20
 """Default number of times to iterate over the module."""
@@ -55,21 +54,19 @@ def apply_eqsat_pdl_interp(
     interpreter.register_implementations(eqsat_pdl_interp_functions)
     interpreter.register_implementations(pdl_interp_functions)
     interpreter.register_implementations(EqsatConstraintFunctions())
-    rewrite_pattern = PDLInterpRewritePattern(
-        matcher, interpreter, pdl_interp_functions
-    )
 
-    listener = PatternRewriterListener()
-    listener.operation_modification_handler.append(
+    if not op.ops.first:
+        return
+
+    rewriter = PatternRewriter(op.ops.first)
+    rewriter.operation_modification_handler.append(
         eqsat_pdl_interp_functions.modification_handler
     )
-    walker = PatternRewriteWalker(rewrite_pattern, apply_recursively=False)
-    walker.listener = listener
-
+    pdl_interp_functions.set_rewriter(interpreter, rewriter)
     for _i in range(max_iterations):
-        # Register matches by walking the module
-        walker.rewrite_module(op)
-        # Execute all pending rewrites that were aggregated during matching
+        for root in op.body.walk():
+            rewriter.current_operation = root
+            interpreter.call_op(matcher, (root,))
         eqsat_pdl_interp_functions.execute_pending_rewrites(interpreter)
 
         if not eqsat_pdl_interp_functions.worklist:

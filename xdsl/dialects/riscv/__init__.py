@@ -13,6 +13,9 @@ from .abstract_ops import (
     AssemblyInstructionArg as AssemblyInstructionArg,
 )
 from .abstract_ops import (
+    RdRsImmShiftOperation as RdRsImmShiftOperation,
+)
+from .abstract_ops import (
     RdRsRsFloatOperationWithFastMath as RdRsRsFloatOperationWithFastMath,
 )
 from .abstract_ops import (
@@ -141,7 +144,6 @@ from .ops import (
     FSubSOp,
     FSwOp,
     GetFloatRegisterOp,
-    GetRegisterOp,
     JalOp,
     JalrOp,
     JOp,
@@ -151,7 +153,6 @@ from .ops import (
     LbuOp,
     LhOp,
     LhuOp,
-    LiOp,
     LuiOp,
     LwOp,
     MaxOp,
@@ -299,7 +300,6 @@ RISCV = Dialect(
         DivuOp,
         RemOp,
         RemuOp,
-        LiOp,
         RolOp,
         RorOp,
         RemuwOp,
@@ -354,7 +354,6 @@ RISCV = Dialect(
         WfiOp,
         CustomAssemblyInstructionOp,
         CommentOp,
-        GetRegisterOp,
         GetFloatRegisterOp,
         # Floating point
         FMVOp,

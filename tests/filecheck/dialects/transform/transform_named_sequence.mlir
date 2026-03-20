@@ -10,7 +10,7 @@ module {
   }
 
   module attributes {transform.with_named_sequence} {
-    transform.named_sequence @__transform_main(%arg0 : !transform.op<"builtin.module">) {
+    transform.named_sequence @__transform_main(%arg0: !transform.op<"builtin.module">) {
       %0 = transform.apply_registered_pass "canonicalize" to %arg0 : (!transform.op<"builtin.module">) -> !transform.op<"builtin.module">
       transform.yield
     }
@@ -22,7 +22,7 @@ module {
 // CHECK-NEXT: func.return %add : i32
 // CHECK-NEXT: }
 
-// CHECK:      transform.named_sequence @__transform_main(%arg0 : !transform.op<"builtin.module">) {
+// CHECK:      transform.named_sequence @__transform_main(%arg0: !transform.op<"builtin.module">) {
 // CHECK-NEXT:   %0 = transform.apply_registered_pass "canonicalize" to %arg0 : (!transform.op<"builtin.module">) -> !transform.op<"builtin.module">
 // CHECK-NEXT:   transform.yield
 // CHECK-NEXT: }

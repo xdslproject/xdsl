@@ -226,10 +226,13 @@ class ConvertSwapToPrefetchPattern(RewritePattern):
             prefetch_block_arg = apply_op.region.block.insert_arg(
                 prefetch_op.result.type, len(apply_op.args)
             )
-            field_block_arg.replace_by_if(
+            rewriter.replace_uses_with_if(
+                field_block_arg,
                 prefetch_block_arg,
-                lambda use: isinstance(use.operation, stencil.AccessOp)
-                and tuple(use.operation.offset) != (0, 0),
+                lambda use: (
+                    isinstance(use.operation, stencil.AccessOp)
+                    and tuple(use.operation.offset) != (0, 0)
+                ),
             )
 
             # rebuild stencil.apply op
@@ -246,7 +249,7 @@ class ConvertSwapToPrefetchPattern(RewritePattern):
 
 
 def split_ops(
-    ops: Sequence[Operation], buf: BlockArgument
+    ops: Sequence[Operation], buf: BlockArgument, rewriter: PatternRewriter
 ) -> tuple[Sequence[Operation], Sequence[Operation]]:
     """
     Returns a split of `ops` into an `(a,b)` tuple, such that:
@@ -316,7 +319,8 @@ def split_ops(
                     # create a copy of the constant in the second region
                     done_exch_ops.append(cln := op.clone())
                     # rewire ops of the second region to use the copied constant
-                    op.result.replace_by_if(
+                    rewriter.replace_uses_with_if(
+                        op.result,
                         cln.result,
                         lambda use: use.operation in b or use.operation in rem,
                     )
@@ -416,7 +420,7 @@ class ConvertApplyOpPattern(RewritePattern):
 
         # determine how ops should be split across the two regions
         chunk_region_ops, done_exchange_ops = split_ops(
-            list(op.region.block.ops), op.region.block.args[prefetch_idx]
+            list(op.region.block.ops), op.region.block.args[prefetch_idx], rewriter
         )
 
         # fetch what receive_chunk is computing for
@@ -618,7 +622,7 @@ class TransformPrefetch(RewritePattern):
             dest = acc
             for i, acc_offset in enumerate(offsets):
                 ac_op = csl_stencil.AccessOp(
-                    buf, stencil.IndexAttr.get(*acc_offset), chunk_t
+                    buf, stencil.IndexAttr.from_indices(*acc_offset), chunk_t
                 )
                 assert isa(ac_op.result.type, AnyTensorType)
                 # inserts 1 (see static_sizes) 1d slice into a 2d tensor at offset (i, `offset`) (see static_offsets)

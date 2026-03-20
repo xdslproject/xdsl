@@ -66,7 +66,7 @@ async def test_inputs():
         app.input_text_area.clear()
         app.input_text_area.insert(
             """
-        func.func @hello(%n : index) -> index {
+        func.func @hello(%n: index) -> index {
           %two = arith.constant 2 : index
           %res = arith.muli %n, %two : index
           func.return %res : index
@@ -77,7 +77,7 @@ async def test_inputs():
         assert (
             app.output_text_area.text
             == """builtin.module {
-  func.func @hello(%n : index) -> index {
+  func.func @hello(%n: index) -> index {
     %two = arith.constant 2 : index
     %res = arith.muli %n, %two : index
     func.return %res : index
@@ -115,7 +115,7 @@ async def test_buttons():
         await pilot.pause()
         app.input_text_area.insert(
             """
-        func.func @hello(%n : index) -> index {
+        func.func @hello(%n: index) -> index {
           %two = arith.constant 2 : index
           %res = arith.muli %n, %two : index
           func.return %res : index
@@ -128,7 +128,7 @@ async def test_buttons():
         assert (
             app.input_text_area.text
             == """
-        func.func @hello(%n : index) -> index {
+        func.func @hello(%n: index) -> index {
           %two = arith.constant 2 : index
           %res = arith.muli %n, %two : index
           func.return %res : index
@@ -138,7 +138,7 @@ async def test_buttons():
         assert (
             app.output_text_area.text
             == """builtin.module {
-  func.func @hello(%n : index) -> index {
+  func.func @hello(%n: index) -> index {
     %two = arith.constant 2 : index
     %res = arith.muli %n, %two : index
     func.return %res : index
@@ -156,7 +156,7 @@ async def test_buttons():
 
         app.input_text_area.insert(
             """
-        func.func @hello(%n : index) -> index {
+        func.func @hello(%n: index) -> index {
           %two = arith.constant 2 : index
           %res = arith.muli %n, %two : index
           func.return %res : index
@@ -181,10 +181,10 @@ async def test_buttons():
             app.output_text_area.text
             == """\
 builtin.module {
-  riscv_func.func public @hello(%n : !riscv.reg<a0>) -> !riscv.reg<a0> attributes {p2align = 2 : i8} {
+  riscv_func.func public @hello(%n: !riscv.reg<a0>) -> !riscv.reg<a0> attributes {p2align = 2 : i8} {
     %0 = riscv.mv %n : (!riscv.reg<a0>) -> !riscv.reg
     %n_1 = builtin.unrealized_conversion_cast %0 : !riscv.reg to index
-    %two = riscv.li 2 : !riscv.reg
+    %two = rv32.li 2 : !riscv.reg
     %two_1 = builtin.unrealized_conversion_cast %two : !riscv.reg to index
     %res = builtin.unrealized_conversion_cast %n_1 : index to !riscv.reg
     %res_1 = builtin.unrealized_conversion_cast %two_1 : index to !riscv.reg
@@ -216,7 +216,7 @@ builtin.module {
             app.output_text_area.text
             == """\
 builtin.module {
-  riscv_func.func public @hello(%n : !riscv.reg<a0>) -> !riscv.reg<a0> attributes {p2align = 2 : i8} {
+  riscv_func.func public @hello(%n: !riscv.reg<a0>) -> !riscv.reg<a0> attributes {p2align = 2 : i8} {
     %0 = riscv.mv %n : (!riscv.reg<a0>) -> !riscv.reg
     %n_1 = builtin.unrealized_conversion_cast %0 : !riscv.reg to index
     %two = arith.constant 2 : index
@@ -238,7 +238,7 @@ builtin.module {
         assert (
             app.output_text_area.text
             == """builtin.module {
-  func.func @hello(%n : index) -> index {
+  func.func @hello(%n: index) -> index {
     %two = arith.constant 2 : index
     %res = arith.muli %n, %two : index
     func.return %res : index
@@ -305,7 +305,7 @@ async def test_rewrites():
         # Testing a pass
         app.input_text_area.insert(
             """
-        func.func @hello(%n : i32) -> i32 {
+        func.func @hello(%n: i32) -> i32 {
   %c0 = arith.constant 0 : i32
   %res = arith.addi %n, %c0 : i32
   func.return %res : i32
@@ -340,7 +340,7 @@ async def test_rewrites():
         assert (
             app.output_text_area.text
             == """builtin.module {
-  func.func @hello(%n : i32) -> i32 {
+  func.func @hello(%n: i32) -> i32 {
     %c0 = arith.constant 0 : i32
     func.return %n : i32
   }
@@ -364,7 +364,7 @@ async def test_passes():
         # Testing a pass
         app.input_text_area.insert(
             """
-        func.func @hello(%n : index) -> index {
+        func.func @hello(%n: index) -> index {
           %two = arith.constant 2 : index
           %res = arith.muli %n, %two : index
           func.return %res : index
@@ -377,7 +377,7 @@ async def test_passes():
         assert (
             app.output_text_area.text
             == """builtin.module {
-  func.func @hello(%n : index) -> index {
+  func.func @hello(%n: index) -> index {
     %two = arith.constant 2 : index
     %res = arith.muli %n, %two : index
     func.return %res : index
@@ -396,7 +396,7 @@ async def test_passes():
         assert (
             app.output_text_area.text
             == """builtin.module {
-  riscv_func.func public @hello(%n : !riscv.reg<a0>) -> !riscv.reg<a0> attributes {p2align = 2 : i8} {
+  riscv_func.func public @hello(%n: !riscv.reg<a0>) -> !riscv.reg<a0> attributes {p2align = 2 : i8} {
     %0 = riscv.mv %n : (!riscv.reg<a0>) -> !riscv.reg
     %n_1 = builtin.unrealized_conversion_cast %0 : !riscv.reg to index
     %two = arith.constant 2 : index
@@ -454,7 +454,7 @@ async def test_argument_pass_screen():
         # Testing a pass
         app.input_text_area.insert(
             """
-        func.func @hello(%n : i32) -> i32 {
+        func.func @hello(%n: i32) -> i32 {
   %two = arith.constant 0 : i32
   %res = arith.addi %two, %n : i32
   func.return %res : i32
@@ -524,7 +524,7 @@ async def test_apply_individual_rewrite():
         # Testing a pass
         app.input_text_area.insert(
             """
-        func.func @hello(%n : i32) -> i32 {
+        func.func @hello(%n: i32) -> i32 {
   %c0 = arith.constant 0 : i32
   %res = arith.addi %c0, %n : i32
   func.return %res : i32
@@ -550,7 +550,7 @@ async def test_apply_individual_rewrite():
         assert (
             app.output_text_area.text
             == """builtin.module {
-  func.func @hello(%n : i32) -> i32 {
+  func.func @hello(%n: i32) -> i32 {
     %c0 = arith.constant 0 : i32
     %res = arith.addi %n, %c0 : i32
     func.return %res : i32
@@ -577,7 +577,7 @@ async def test_apply_individual_rewrite():
         assert (
             app.output_text_area.text
             == """builtin.module {
-  func.func @hello(%n : i32) -> i32 {
+  func.func @hello(%n: i32) -> i32 {
     %c0 = arith.constant 0 : i32
     func.return %n : i32
   }

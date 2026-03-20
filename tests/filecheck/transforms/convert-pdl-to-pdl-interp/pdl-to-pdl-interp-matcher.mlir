@@ -16,7 +16,7 @@ module @empty_module {
 
 // CHECK-LABEL: module @simple
 module @simple {
-  // CHECK: func @matcher(%[[ROOT:.*]] : !pdl.operation)
+  // CHECK: func @matcher(%[[ROOT:.*]]: !pdl.operation)
   // CHECK:   pdl_interp.check_operation_name of %[[ROOT]] is "foo.op" -> ^bb0, ^bb1
   // CHECK: ^bb1:
   // CHECK:   pdl_interp.finalize
@@ -42,7 +42,7 @@ module @simple {
 
 // CHECK-LABEL: module @attributes
 module @attributes {
-  // CHECK: func @matcher(%[[ROOT:.*]] : !pdl.operation)
+  // CHECK: func @matcher(%[[ROOT:.*]]: !pdl.operation)
   // Check the value of "attr".
   // CHECK-DAG:   %[[ATTR:.*]] = pdl_interp.get_attribute "attr" of %[[ROOT]]
   // CHECK-DAG:   pdl_interp.is_not_null %[[ATTR]] : !pdl.attribute
@@ -66,7 +66,7 @@ module @attributes {
 
 // CHECK-LABEL: module @constraints
 module @constraints {
-  // CHECK: func @matcher(%[[ROOT:.*]] : !pdl.operation)
+  // CHECK: func @matcher(%[[ROOT:.*]]: !pdl.operation)
   // CHECK-DAG:   %[[INPUT:.*]] = pdl_interp.get_operand 0 of %[[ROOT]]
   // CHECK-DAG:   %[[INPUT1:.*]] = pdl_interp.get_operand 1 of %[[ROOT]]
   // CHECK-DAG:   %[[RESULT:.*]] = pdl_interp.get_result 0 of %[[ROOT]]
@@ -87,7 +87,7 @@ module @constraints {
 
 // CHECK-LABEL: module @constraint_with_result
 module @constraint_with_result {
-  // CHECK: func @matcher(%[[ROOT:.*]] : !pdl.operation)
+  // CHECK: func @matcher(%[[ROOT:.*]]: !pdl.operation)
   // CHECK: %[[ATTR:.*]] = pdl_interp.apply_constraint "check_op_and_get_attr_constr"(%[[ROOT]]
   // CHECK: pdl_interp.record_match @rewriters::@pdl_generated_rewriter(%[[ROOT]], %[[ATTR]] : !pdl.operation, !pdl.attribute)
   pdl.pattern : benefit(1) {
@@ -101,7 +101,7 @@ module @constraint_with_result {
 
 // CHECK-LABEL: module @constraint_with_unused_result
 module @constraint_with_unused_result {
-  // CHECK: func @matcher(%[[ROOT:.*]] : !pdl.operation)
+  // CHECK: func @matcher(%[[ROOT:.*]]: !pdl.operation)
   // CHECK: %[[ATTR:.*]] = pdl_interp.apply_constraint "check_op_and_get_attr_constr"(%[[ROOT]]
   // CHECK: pdl_interp.record_match @rewriters::@pdl_generated_rewriter(%[[ROOT]] : !pdl.operation)
   pdl.pattern : benefit(1) {
@@ -117,7 +117,7 @@ module @constraint_with_unused_result {
 module @constraint_with_result_multiple {
   // check that native constraints work as expected even when multiple identical constraints are fused
 
-  // CHECK: func @matcher(%[[ROOT:.*]] : !pdl.operation)
+  // CHECK: func @matcher(%[[ROOT:.*]]: !pdl.operation)
   // CHECK: %[[ATTR:.*]] = pdl_interp.apply_constraint "check_op_and_get_attr_constr"(%[[ROOT]]
   // CHECK-NOT: pdl_interp.apply_constraint "check_op_and_get_attr_constr"
   // CHECK: pdl_interp.record_match @rewriters::@pdl_generated_rewriter_0(%[[ROOT]], %[[ATTR]]  : !pdl.operation, !pdl.attribute)
@@ -138,7 +138,7 @@ module @constraint_with_result_multiple {
 
 // CHECK-LABEL: module @negated_constraint
 module @negated_constraint {
-  // CHECK: func @matcher(%[[ROOT:.*]] : !pdl.operation)
+  // CHECK: func @matcher(%[[ROOT:.*]]: !pdl.operation)
   // CHECK: pdl_interp.apply_constraint "constraint"(%[[ROOT]] : !pdl.operation) {isNegated = true}
   // CHECK: pdl_interp.record_match @rewriters::@pdl_generated_rewriter(%[[ROOT]] : !pdl.operation)
   pdl.pattern : benefit(1) {
@@ -152,7 +152,7 @@ module @negated_constraint {
 
 // CHECK-LABEL: module @inputs
 module @inputs {
-  // CHECK: func @matcher(%[[ROOT:.*]] : !pdl.operation)
+  // CHECK: func @matcher(%[[ROOT:.*]]: !pdl.operation)
   // CHECK-DAG: pdl_interp.check_operand_count of %[[ROOT]] is 2
 
   // Get the input and check the type.
@@ -176,7 +176,7 @@ module @inputs {
 
 // CHECK-LABEL: module @variadic_inputs
 module @variadic_inputs {
-  // CHECK: func @matcher(%[[ROOT:.*]] : !pdl.operation)
+  // CHECK: func @matcher(%[[ROOT:.*]]: !pdl.operation)
   // CHECK-DAG: pdl_interp.check_operand_count of %[[ROOT]] is at_least 2
 
   // The first operand has a known index.
@@ -207,7 +207,7 @@ module @variadic_inputs {
 
 // CHECK-LABEL: module @single_operand_range
 module @single_operand_range {
-  // CHECK: func @matcher(%[[ROOT:.*]] : !pdl.operation)
+  // CHECK: func @matcher(%[[ROOT:.*]]: !pdl.operation)
 
   // Check that the operand range is treated as all of the operands of the
   // operation.
@@ -229,7 +229,7 @@ module @single_operand_range {
 
 // CHECK-LABEL: module @results
 module @results {
-  // CHECK: func @matcher(%[[ROOT:.*]] : !pdl.operation)
+  // CHECK: func @matcher(%[[ROOT:.*]]: !pdl.operation)
   // CHECK:   pdl_interp.check_result_count of %[[ROOT]] is 2
 
   // Get the result and check the type.
@@ -253,7 +253,7 @@ module @results {
 
 // CHECK-LABEL: module @variadic_results
 module @variadic_results {
-  // CHECK: func @matcher(%[[ROOT:.*]] : !pdl.operation)
+  // CHECK: func @matcher(%[[ROOT:.*]]: !pdl.operation)
   // CHECK-DAG: pdl_interp.check_result_count of %[[ROOT]] is at_least 2
 
   // The first result has a known index.
@@ -283,7 +283,7 @@ module @variadic_results {
 
 // CHECK-LABEL: module @single_result_range
 module @single_result_range {
-  // CHECK: func @matcher(%[[ROOT:.*]] : !pdl.operation)
+  // CHECK: func @matcher(%[[ROOT:.*]]: !pdl.operation)
 
   // Check that the result range is treated as all of the results of the
   // operation.
@@ -304,7 +304,7 @@ module @single_result_range {
 
 // CHECK-LABEL: module @results_as_operands
 module @results_as_operands {
-  // CHECK: func @matcher(%[[ROOT:.*]] : !pdl.operation)
+  // CHECK: func @matcher(%[[ROOT:.*]]: !pdl.operation)
 
   // Get the first result and check it matches the first operand.
   // CHECK-DAG:   %[[OPERAND_0:.*]] = pdl_interp.get_operand 0 of %[[ROOT]]
@@ -337,7 +337,7 @@ module @results_as_operands {
 
 // CHECK-LABEL: module @single_result_range_as_operands
 module @single_result_range_as_operands {
-  // CHECK: func @matcher(%[[ROOT:.*]] : !pdl.operation)
+  // CHECK: func @matcher(%[[ROOT:.*]]: !pdl.operation)
   // CHECK-DAG:  %[[OPERANDS:.*]] = pdl_interp.get_operands of %[[ROOT]] : !pdl.range<value>
   // CHECK-DAG:  %[[OP:.*]] = pdl_interp.get_defining_op of %[[OPERANDS]] : !pdl.range<value>
   // CHECK-DAG:  pdl_interp.is_not_null %[[OP]]
@@ -358,7 +358,7 @@ module @single_result_range_as_operands {
 
 // CHECK-LABEL: module @switch_single_result_type
 module @switch_single_result_type {
-  // CHECK: func @matcher(%[[ROOT:.*]] : !pdl.operation)
+  // CHECK: func @matcher(%[[ROOT:.*]]: !pdl.operation)
   // CHECK:   %[[RESULT:.*]] = pdl_interp.get_result 0 of %[[ROOT]]
   // CHECK:   %[[RESULT_TYPE:.*]] = pdl_interp.get_value_type of %[[RESULT]]
   // CHECK:   pdl_interp.switch_type %[[RESULT_TYPE]] to [i32, i64]
@@ -378,7 +378,7 @@ module @switch_single_result_type {
 
 // CHECK-LABEL: module @switch_result_types
 module @switch_result_types {
-  // CHECK: func @matcher(%[[ROOT:.*]] : !pdl.operation)
+  // CHECK: func @matcher(%[[ROOT:.*]]: !pdl.operation)
   // CHECK:   %[[RESULTS:.*]] = pdl_interp.get_results of %[[ROOT]]
   // CHECK:   %[[RESULT_TYPES:.*]] = pdl_interp.get_value_type of %[[RESULTS]]
   // CHECK:   pdl_interp.switch_types %[[RESULT_TYPES]] to {{\[\[}}i32], [i64, i32]]
@@ -401,7 +401,7 @@ module @switch_operand_count_at_least {
   // Check that when there are multiple "at_least" checks, the failure branch
   // goes to the next one in increasing order.
 
-  // CHECK: func @matcher(%[[ROOT:.*]] : !pdl.operation)
+  // CHECK: func @matcher(%[[ROOT:.*]]: !pdl.operation)
   // CHECK: pdl_interp.check_operand_count of %[[ROOT]] is at_least 1 -> ^[[PATTERN_1_NEXT_BLOCK:.*]],
   // CHECK: ^bb2:
   // CHECK-NEXT: pdl_interp.check_operand_count of %[[ROOT]] is at_least 2
@@ -429,7 +429,7 @@ module @switch_result_count_at_least {
   // Check that when there are multiple "at_least" checks, the failure branch
   // goes to the next one in increasing order.
 
-  // CHECK: func @matcher(%[[ROOT:.*]] : !pdl.operation)
+  // CHECK: func @matcher(%[[ROOT:.*]]: !pdl.operation)
   // CHECK: pdl_interp.check_result_count of %[[ROOT]] is at_least 1 -> ^[[PATTERN_1_NEXT_BLOCK:.*]],
   // CHECK: ^[[PATTERN_2_BLOCK:[a-zA-Z_0-9]*]]:
   // CHECK: pdl_interp.check_result_count of %[[ROOT]] is at_least 2
@@ -460,7 +460,7 @@ module @predicate_ordering {
   // constraint. The null check is prevalent in both patterns, so should be
   // prioritized first.
 
-  // CHECK: func @matcher(%[[ROOT:.*]] : !pdl.operation)
+  // CHECK: func @matcher(%[[ROOT:.*]]: !pdl.operation)
   // CHECK:   %[[RESULT:.*]] = pdl_interp.get_result 0 of %[[ROOT]]
   // CHECK-NEXT: pdl_interp.is_not_null %[[RESULT]]
   // CHECK:   %[[RESULT_TYPE:.*]] = pdl_interp.get_value_type of %[[RESULT]]
@@ -484,7 +484,7 @@ module @predicate_ordering {
 
 // CHECK-LABEL: module @attribute_literal
 module @attribute_literal {
-  // CHECK: func @matcher(%{{.*}} : !pdl.operation)
+  // CHECK: func @matcher(%{{.*}}: !pdl.operation)
   // CHECK: %[[ATTR:.*]] = pdl_interp.create_attribute 10 : i64
   // CHECK: pdl_interp.apply_constraint "constraint"(%[[ATTR]] : !pdl.attribute)
 

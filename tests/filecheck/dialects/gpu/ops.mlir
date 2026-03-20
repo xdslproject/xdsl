@@ -53,7 +53,7 @@ builtin.module attributes {"gpu.container_module"} {
             }) {"op" = #gpu<all_reduce_op mul>} : (index) -> index
 
             %globalsumy = "gpu.all_reduce"(%globalidy) ({
-            ^bb(%lhs : index, %rhs : index):
+            ^bb(%lhs: index, %rhs: index):
                 %sum = arith.addi %lhs, %rhs : index
                 "gpu.yield"(%sum) : (index) -> ()
             }) : (index) -> index
@@ -62,7 +62,7 @@ builtin.module attributes {"gpu.container_module"} {
             ^bb0(%bx : index, %by : index, %bz : index,
                 %tx : index, %ty : index, %tz : index,
                 %num_bx : index, %num_by : index, %num_bz : index,
-                %num_tx : index, %num_ty : index, %num_tz : index):
+                %num_tx : index, %num_ty: index, %num_tz: index):
                 %sum = "gpu.all_reduce"(%tx) ({
                 }) {"op" = #gpu<all_reduce_op add>} : (index) -> index
                 %final = arith.muli %sum, %one : index
@@ -132,16 +132,16 @@ builtin.module attributes {"gpu.container_module"} {
 // CHECK-NEXT:             }) : (index) -> index
 
 // CHECK-NEXT:             %{{.*}} = "gpu.all_reduce"(%{{.*}}) ({
-// CHECK-NEXT:             ^{{.*}}(%{{.*}} : index, %{{.*}} : index):
+// CHECK-NEXT:             ^{{.*}}(%{{.*}}: index, %{{.*}}: index):
 // CHECK-NEXT:                 %{{.*}} = arith.addi %{{.*}}, %{{.*}} : index
 // CHECK-NEXT:                 "gpu.yield"(%{{.*}}) : (index) -> ()
 // CHECK-NEXT:             }) : (index) -> index
 
 // CHECK-NEXT:             "gpu.launch"(%{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}) <{operandSegmentSizes = array<i32: 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0>}> ({
-// CHECK-NEXT:             ^{{\S+}}(%{{\S+}} : index, %{{\S+}} : index, %{{\S+}} : index,
-// CHECK-SAME:                 %{{\S+}} : index, %{{\S+}} : index, %{{\S+}} : index,
-// CHECK-SAME:                 %{{\S+}} : index, %{{\S+}} : index, %{{\S+}} : index,
-// CHECK-SAME:                 %{{\S+}} : index, %{{\S+}} : index, %{{\S+}} : index):
+// CHECK-NEXT:             ^{{\S+}}(%{{\S+}}: index, %{{\S+}}: index, %{{\S+}}: index,
+// CHECK-SAME:                 %{{\S+}}: index, %{{\S+}}: index, %{{\S+}}: index,
+// CHECK-SAME:                 %{{\S+}}: index, %{{\S+}}: index, %{{\S+}}: index,
+// CHECK-SAME:                 %{{\S+}}: index, %{{\S+}}: index, %{{\S+}}: index):
 // CHECK-NEXT:                 %{{.*}} = "gpu.all_reduce"(%{{.*}}) <{op = #gpu<all_reduce_op add>}> ({
 // CHECK-NEXT:                 }) : (index) -> index
 // CHECK-NEXT:                 %{{.*}} = arith.muli %{{.*}}, %{{.*}} : index

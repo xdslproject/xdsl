@@ -8,7 +8,7 @@ ctx1.register_type(int, bigint.bigint)
 
 
 # CHECK:      builtin.module {
-# CHECK-NEXT:   func.func @foo(%x : !bigint.bigint) -> !bigint.bigint {
+# CHECK-NEXT:   func.func @foo(%x: !bigint.bigint) -> !bigint.bigint {
 # CHECK-NEXT:     func.return %x : !bigint.bigint
 # CHECK-NEXT:   }
 # CHECK-NEXT: }

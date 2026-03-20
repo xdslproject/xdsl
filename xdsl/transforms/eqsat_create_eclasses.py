@@ -13,7 +13,7 @@ from xdsl.rewriter import InsertPoint, Rewriter
 from xdsl.utils.exceptions import DiagnosticException
 
 
-def insert_eclass_ops(block: Block):
+def insert_eclass_ops(block: Block, rewriter: PatternRewriter):
     # Insert equivalence.class for each operation
     for op in block.ops:
         results = op.results
@@ -28,7 +28,8 @@ def insert_eclass_ops(block: Block):
         eclass_op = equivalence.ClassOp(results[0])
         insertion_point = InsertPoint.after(op)
         Rewriter.insert_op(eclass_op, insertion_point)
-        results[0].replace_by_if(
+        rewriter.replace_uses_with_if(
+            results[0],
             eclass_op.results[0],
             lambda u: not isinstance(u.operation, equivalence.ClassOp),
         )
@@ -38,7 +39,8 @@ def insert_eclass_ops(block: Block):
         eclass_op = equivalence.ClassOp(arg)
         insertion_point = InsertPoint.at_start(block)
         Rewriter.insert_op(eclass_op, insertion_point)
-        arg.replace_by_if(
+        rewriter.replace_uses_with_if(
+            arg,
             eclass_op.results[0],
             lambda u: not isinstance(u.operation, equivalence.ClassOp),
         )
@@ -51,7 +53,7 @@ class InsertEclassOps(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: func.FuncOp, rewriter: PatternRewriter):
-        insert_eclass_ops(op.body.block)
+        insert_eclass_ops(op.body.block, rewriter)
 
 
 class EqsatCreateEclassesPass(ModulePass):
@@ -60,14 +62,14 @@ class EqsatCreateEclassesPass(ModulePass):
 
     Input example:
        ```mlir
-       func.func @test(%a : index, %b : index) -> (index) {
+       func.func @test(%a: index, %b: index) -> (index) {
            %c = arith.addi %a, %b : index
            func.return %c : index
        }
        ```
     Output example:
         ```mlir
-        func.func @test(%a : index, %b : index) -> (index) {
+        func.func @test(%a: index, %b: index) -> (index) {
             %a_eq = equivalence.class %a : index
             %b_eq = equivalence.class %b : index
             %c = arith.addi %a_eq, %b_eq : index

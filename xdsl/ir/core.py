@@ -27,7 +27,7 @@ from typing import (
     overload,
 )
 
-from typing_extensions import Self, TypeVar
+from typing_extensions import Self, TypeVar, deprecated
 
 from xdsl.dialect_interfaces import DialectInterface
 from xdsl.traits import IsTerminator, NoTerminator, OpTrait, OpTraitInvT
@@ -38,6 +38,7 @@ from xdsl.utils.str_enum import StrEnum
 if TYPE_CHECKING:
     from typing_extensions import TypeForm
 
+    from xdsl.dialects.builtin import LocationAttr
     from xdsl.irdl import ParamAttrDef
     from xdsl.parser import AttrParser, Parser
     from xdsl.printer import Printer
@@ -134,6 +135,13 @@ class Attribute(ABC):
         printer = Printer(stream=res)
         printer.print_attribute(self)
         return res.getvalue()
+
+
+def _unknown_loc() -> LocationAttr:
+    # Lazily import to avoid cyclic imports during module initialization.
+    from xdsl.dialects.builtin import UNKNOWN_LOC
+
+    return UNKNOWN_LOC
 
 
 @dataclass(frozen=True, init=False)
@@ -754,8 +762,14 @@ class SSAValue(IRWithUses, IRWithName, ABC, Generic[AttributeCovT]):
                     "SSAValue.get: expected operation with a single result."
                 )
 
+    @deprecated("Please use `self.replace_all_uses_with(value)`")
     def replace_by(self, value: SSAValue) -> None:
+        return self.replace_all_uses_with(value)
+
+    def replace_all_uses_with(self, value: SSAValue) -> None:
         """Replace the value by another value in all its uses."""
+        if value is self:
+            return
         for use in tuple(self.uses):
             use.operation.operands[use.index] = value
         # carry over name if possible
@@ -763,13 +777,19 @@ class SSAValue(IRWithUses, IRWithName, ABC, Generic[AttributeCovT]):
             value.name_hint = self.name_hint
         assert self.first_use is None, "unexpected error in xdsl"
 
-    def replace_by_if(self, value: SSAValue, test: Callable[[Use], bool]):
+    @deprecated(
+        "Please use `self.replace_uses_with_if(value, lambda use: True)` (or `rewriter.replace_uses_if` if applicable)."
+    )
+    def replace_by_if(self, value: SSAValue, test: Callable[[Use], bool]) -> None:
+        return self.replace_uses_with_if(value, test)
+
+    def replace_uses_with_if(self, value: SSAValue, predicate: Callable[[Use], bool]):
         """
         Replace the value by another value in all its uses that pass the given test
         function.
         """
         for use in tuple(self.uses):
-            if test(use):
+            if predicate(use):
                 use.operation.operands[use.index] = value
         # carry over name if possible
         if value.name_hint is None:
@@ -786,7 +806,7 @@ class SSAValue(IRWithUses, IRWithName, ABC, Generic[AttributeCovT]):
                 "Attempting to delete SSA value that still has uses of result "
                 f"of operation:\n{self.owner}"
             )
-        self.replace_by(ErasedSSAValue(self.type, self))
+        self.replace_all_uses_with(ErasedSSAValue(self.type, self))
 
     def __hash__(self):
         """
@@ -832,6 +852,9 @@ class BlockArgument(SSAValue[AttributeCovT], Generic[AttributeCovT]):
 
     index: int
     """The index of the variable in the block arguments."""
+
+    location: LocationAttr = field(default_factory=_unknown_loc)
+    """Source location attached to this block argument."""
 
     @property
     def owner(self) -> Block:
@@ -1057,6 +1080,9 @@ class Operation(_IRNode):
     attributes: dict[str, Attribute] = field(default_factory=dict[str, Attribute])
     """The attributes attached to the operation."""
 
+    location: LocationAttr = field(default_factory=_unknown_loc)
+    """The source location attached to this operation."""
+
     regions: tuple[Region, ...] = field(default=())
     """Regions arguments of the operation."""
 
@@ -1192,6 +1218,7 @@ class Operation(_IRNode):
         result_types: Sequence[Attribute] = (),
         properties: Mapping[str, Attribute] = {},
         attributes: Mapping[str, Attribute] = {},
+        location: LocationAttr | None = None,
         successors: Sequence[Block] = (),
         regions: Sequence[Region] = (),
     ) -> None:
@@ -1206,6 +1233,7 @@ class Operation(_IRNode):
         )
         self.properties = dict(properties)
         self.attributes = dict(attributes)
+        self.location = _unknown_loc() if location is None else location
         self.successors = list(successors)
         self.regions = ()
         for region in regions:
@@ -1221,6 +1249,7 @@ class Operation(_IRNode):
         result_types: Sequence[Attribute] = (),
         properties: Mapping[str, Attribute] = {},
         attributes: Mapping[str, Attribute] = {},
+        location: LocationAttr | None = None,
         successors: Sequence[Block] = (),
         regions: Sequence[Region] = (),
     ) -> Self:
@@ -1231,6 +1260,7 @@ class Operation(_IRNode):
             result_types=result_types,
             properties=properties,
             attributes=attributes,
+            location=location,
             successors=successors,
             regions=regions,
         )
@@ -1275,6 +1305,11 @@ class Operation(_IRNode):
         self.parent = None
         for operand, use in zip(self._operands, self._operand_uses):
             operand.remove_use(use)
+        self._operand_uses = ()
+        for successor, use in zip(self._successors, self._successor_uses):
+            successor.remove_use(use)
+        self._successor_uses = ()
+        self._successors = ()
         for region in self.regions:
             region.drop_all_references()
 
@@ -1431,6 +1466,7 @@ class Operation(_IRNode):
             result_types=result_types,
             attributes=attributes,
             properties=properties,
+            location=self.location,
             successors=successors,
             regions=regions,
         )
@@ -1803,14 +1839,24 @@ class Block(_IRNode, IRWithUses, IRWithName):
         """Returns the block arguments."""
         return self._args
 
-    def insert_arg(self, arg_type: Attribute, index: int) -> BlockArgument:
+    def insert_arg(
+        self,
+        arg_type: Attribute,
+        index: int,
+        location: LocationAttr | None = None,
+    ) -> BlockArgument:
         """
         Insert a new argument with a given type to the arguments list at a specific index.
         Returns the new argument.
         """
         if index < 0 or index > len(self._args):
-            raise ValueError("Unexpected index")
-        new_arg = BlockArgument(arg_type, self, index)
+            raise ValueError(
+                f"Cannot insert block argument at index {index}, index must be in "
+                f"range [0, {len(self._args)}]."
+            )
+        new_arg = BlockArgument(
+            arg_type, self, index, _unknown_loc() if location is None else location
+        )
         for arg in self._args[index:]:
             arg.index += 1
         self._args = tuple(chain(self._args[:index], [new_arg], self._args[index:]))
@@ -2577,6 +2623,10 @@ class Region(_IRNode):
                 block.prev_block
             )
 
+        # Detach linked list from block
+        block._prev_block = None  # pyright: ignore[reportPrivateUsage]
+        block._next_block = None  # pyright: ignore[reportPrivateUsage]
+
         return block
 
     def erase_block(self, block: int | Block, safe_erase: bool = True) -> None:
@@ -2630,7 +2680,7 @@ class Region(_IRNode):
         # Populate the blocks with the cloned operations
         for block, new_block in zip(self.blocks, new_blocks):
             for idx, block_arg in enumerate(block.args):
-                new_block.insert_arg(block_arg.type, idx)
+                new_block.insert_arg(block_arg.type, idx, block_arg.location)
                 new_arg = new_block.args[idx]
                 value_mapper[block_arg] = new_arg
                 if clone_name_hints:

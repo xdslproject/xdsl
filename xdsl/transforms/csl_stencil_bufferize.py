@@ -99,8 +99,10 @@ class ApplyOpBufferize(RewritePattern):
         buf_args: list[SSAValue] = []
         to_memrefs: list[Operation] = [buf_iter_arg := to_buffer_op(op.accumulator)]
         # in case of subsequent apply ops accessing this accumulator, replace uses with `bufferization.to_memref`
-        op.accumulator.replace_by_if(
-            buf_iter_arg.memref, lambda use: use.operation != buf_iter_arg
+        rewriter.replace_uses_with_if(
+            op.accumulator,
+            buf_iter_arg.memref,
+            lambda use: use.operation != buf_iter_arg,
         )
         for arg in [*op.args_rchunk, *op.args_dexchng]:
             if isa(arg.type, TensorType[Attribute]):

@@ -91,9 +91,11 @@ class QubitMappingAttr(StimPrintable, ParametrizedAttribute):
         parser.parse_punctuation("<")
         coords = parser.parse_comma_separated_list(
             delimiter=parser.Delimiter.PAREN,
-            parse=lambda: IntAttr(x)
-            if type(x := parser.parse_number(allow_boolean=False)) is int
-            else FloatData(x),
+            parse=lambda: (
+                IntAttr(x)
+                if type(x := parser.parse_number(allow_boolean=False)) is int
+                else FloatData(x)
+            ),
         )
         parser.parse_punctuation(",")
         qubit = parser.parse_attribute()
@@ -107,9 +109,11 @@ class QubitMappingAttr(StimPrintable, ParametrizedAttribute):
             with printer.in_parens():
                 printer.print_list(
                     self.coords,
-                    lambda c: printer.print_int(c.data)
-                    if isinstance(c, IntAttr)
-                    else printer.print_float(c.data, f64),
+                    lambda c: (
+                        printer.print_int(c.data)
+                        if isinstance(c, IntAttr)
+                        else printer.print_float(c.data, f64)
+                    ),
                 )
             printer.print_string(", ")
             printer.print_attribute(self.qubit_name)

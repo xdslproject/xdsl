@@ -22,7 +22,7 @@ def eqsat_extract(module_op: builtin.ModuleOp):
         elif (min_cost_index := op.min_cost_index) is not None:
             # Replace eclass result by operand
             operand = op.operands[min_cost_index.data]
-            op.result.replace_by_if(operand, lambda use: use.operation is not op)
+            op.result.replace_uses_with_if(operand, lambda use: use.operation is not op)
             # Erase eclass and all operand ops excluding min cost one
             ops_to_erase = [op] + [
                 operand.owner

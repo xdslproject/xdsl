@@ -272,7 +272,7 @@ def test_mr_vops(
 ):
     output = x86.ops.GetRegisterOp(dest)
     input = x86.ops.GetAVXRegisterOp(src)
-    op = OpClass(memory=output, source=input, memory_offset=IntegerAttr(0, 64))
+    op = OpClass(memory=output, source=input, memory_offset=0)
     assert op.memory.type == dest
     assert op.source.type == src
 

@@ -165,7 +165,7 @@ class Rewriter:
             if new_result is None:
                 old_result.erase(safe_erase=safe_erase)
             else:
-                old_result.replace_by(new_result)
+                old_result.replace_all_uses_with(new_result)
 
         block.insert_ops_after(new_ops, op)
 
@@ -208,7 +208,7 @@ class Rewriter:
             )
 
         new_value.name_hint = val.name_hint
-        val.replace_by(new_value)
+        val.replace_all_uses_with(new_value)
         return new_value
 
     @staticmethod
@@ -253,7 +253,7 @@ class Rewriter:
         # Replace all of the successor arguments with the provided values.
         if arg_values:
             for arg, val in zip(source.args, arg_values, strict=True):
-                arg.replace_by(val)
+                arg.replace_all_uses_with(val)
 
         # Move operations from the source block to the dest block and erase the
         # source block.

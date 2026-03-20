@@ -27,3 +27,7 @@ class _HasMetadata:
         value.
         """
         ...
+
+    def _stringify_metadata(self, leading_comma: bool = ...) -> str:
+        """Stringify metadata attachments (internal method)."""
+        ...

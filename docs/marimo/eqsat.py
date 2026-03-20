@@ -126,7 +126,7 @@ def _(extracted_module):
 @app.cell(hide_code=True)
 def _():
     input_module_string = """
-    func.func @impl(%a : i32) -> i32 {
+    func.func @impl(%a: i32) -> i32 {
       %two   = arith.constant 2  : i32
       %mul   = arith.muli %a, %two : i32
       %div   = arith.divui %mul, %two : i32
