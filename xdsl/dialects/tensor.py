@@ -701,6 +701,18 @@ class FromElementsOp(IRDLOperation):
     assembly_format = "$elements attr-dict `:` type($result)"
     traits = traits_def(Pure())
 
+    def __init__(
+        self,
+        element_0: SSAValue,
+        *elements: SSAValue,
+        result_type: Attribute | None = None,
+    ):
+        if result_type is None:
+            elem_type = element_0.type
+            result_type = TensorType(elem_type, (len(elements) + 1,))
+
+        super().__init__(operands=[(element_0,) + elements], result_types=[result_type])
+
 
 @irdl_op_definition
 class SplatOp(IRDLOperation):
