@@ -40,6 +40,7 @@ from xdsl.ir import (
     Block,
     Dialect,
     EnumAttribute,
+    Operation,
     ParametrizedAttribute,
     Region,
     SSAValue,
@@ -72,6 +73,7 @@ from xdsl.traits import (
     MemoryAllocEffect,
     NoTerminator,
     Pure,
+    RecursiveMemoryEffect,
     SymbolTable,
 )
 from xdsl.utils.exceptions import VerifyException
@@ -817,6 +819,106 @@ class EmitC_ClassOp(IRDLOperation):
 
 
 @irdl_op_definition
+class EmitC_DoOp(IRDLOperation):
+    """
+    Do-while operation.
+
+    The `emitc.do` operation represents a C/C++ do-while loop construct that
+    repeatedly executes a body region as long as a condition region evaluates
+    to true. The operation has two regions:
+
+    1. A body region that contains the loop body
+    2. A condition region that must yield a boolean value (i1)
+
+    The condition is evaluated before each iteration as follows:
+    - The condition region must contain exactly one block with:
+      1. An `emitc.expression` operation producing an i1 value
+      2. An `emitc.yield` passing through the expression result
+    - The expression's body contains the actual condition logic
+
+    The body region is executed before the first evaluation of the
+    condition. Thus, there is a guarantee that the loop will be executed
+    at least once. The loop terminates when the condition yields false.
+
+    The canonical structure of `emitc.do` is:
+
+    ```mlir
+    emitc.do {
+      // Body region (no terminator required).
+      // Loop body operations...
+    } while {
+      // Condition region (must yield i1)
+      %condition = emitc.expression : () -> i1 {
+        // Condition computation...
+        %result = ... : i1  // Last operation must produce i1
+        emitc.yield %result : i1
+      }
+      // Forward expression result
+      emitc.yield %condition : i1
+    }
+    ```
+
+    Example:
+
+    ```mlir
+    emitc.func @do_example() {
+      %counter = "emitc.variable"() <{value = 0 : i32}> : () -> !emitc.lvalue<i32>
+      %end = emitc.literal "10" : i32
+      %step = emitc.literal "1" : i32
+
+      emitc.do {
+        // Print current value
+        %val = emitc.load %counter : !emitc.lvalue<i32>
+        emitc.verbatim "printf(\"%d\\n\", {});" args %val : i32
+
+        // Increment counter
+        %new_val = emitc.add %val, %step : (i32, i32) -> i32
+        "emitc.assign"(%counter, %new_val) : (!emitc.lvalue<i32>, i32) -> ()
+      } while {
+        %condition = emitc.expression %counter, %end : (!emitc.lvalue<i32>, i32) -> i1 {
+          %current = emitc.load %counter : !emitc.lvalue<i32>
+          %cmp_res = emitc.cmp lt, %current, %end : (i32, i32) -> i1
+          emitc.yield %cmp_res : i1
+        }
+        emitc.yield %condition : i1
+      }
+      return
+    }
+    ```
+    ```c++
+    // Code emitted for the operation above.
+    void do_example() {
+      int32_t v1 = 0;
+      do {
+        int32_t v2 = v1;
+        printf("%d\n", v2);
+        int32_t v3 = v2 + 1;
+        v1 = v3;
+      } while (v1 < 10);
+      return;
+    }
+    ```
+    """
+
+    name = "emitc.do"
+
+    irdl_options = (ParsePropInAttrDict(),)
+
+    bodyRegion = region_def()
+    conditionRegion = region_def()
+
+    traits = traits_def(
+        NoTerminator(),
+        RecursiveMemoryEffect(),
+    )
+
+    assembly_format = "attr-dict-with-keyword $bodyRegion `while` $conditionRegion "
+
+    def verify_(self) -> None:
+        pass
+
+
+@irdl_op_definition
 class EmitC_FieldOp(IRDLOperation):
     """
     A field within a class.
@@ -987,6 +1089,46 @@ class EmitC_CmpOp(EmitC_BinaryOperation):
         self.predicate = EmitC_CmpPredicateAttr(CmpPredicate.gt)
 
 
+@irdl_op_definition
+class EmitC_ConditionalOp(IRDLOperation):
+    """
+    Conditional (ternary) operation.
+
+    With the `emitc.conditional` operation the ternary conditional operator can
+    be applied.
+
+    Example:
+
+    ```mlir
+    %0 = emitc.cmp gt, %arg0, %arg1 : (i32, i32) -> i1
+
+    %c0 = "emitc.constant"() {value = 10 : i32} : () -> i32
+    %c1 = "emitc.constant"() {value = 11 : i32} : () -> i32
+
+    %1 = emitc.conditional %0, %c0, %c1 : i32
+    ```
+    ```c++
+    // Code emitted for the operations above.
+    bool v3 = v1 > v2;
+    int32_t v4 = 10;
+    int32_t v5 = 11;
+    int32_t v6 = v3 ? v4 : v5;
+    ```
+    """
+
+    name = "emitc.conditional"
+
+    condition = operand_def(IntegerType(1))
+    true_value = operand_def(EmitCTypeConstr)
+    false_value = operand_def(EmitCTypeConstr)
+    result = result_def(EmitCTypeConstr)
+
+    # assembly_format = "operands attr-dict `:` type($result)"
+
+    def has_side_effects(self) -> bool:
+        return False
+
+
 # ===----------------------------------------------------------------------===
 # ConstantOp
 # ===----------------------------------------------------------------------===
@@ -1146,6 +1288,121 @@ class EmitC_DivOp(EmitC_BinaryOperation):
 
     def __init__(self, lhs: SSAValue, rhs: SSAValue, result_type: Attribute):
         super().__init__(lhs, rhs, result_type)
+
+
+class EmitC_YieldOp(IRDLOperation):
+    """
+    The `emitc.yield` terminates its parent EmitC op's region, optionally yielding
+    an SSA value. The semantics of how the values are yielded is defined by the
+    parent operation.
+    If `emitc.yield` has an operand, the operand must match the parent operation's
+    result. If the parent operation defines no values, then the `emitc.yield`
+    may be left out in the custom syntax and the builders will insert one
+    implicitly. Otherwise, it has to be present in the syntax to indicate which
+    value is yielded.
+    """
+
+    name = "emitc.yield"
+
+    result = result_def(EmitCTypeConstr)
+
+    assembly_format = "[{ attr-dict ($result^ `:` type($result))? }]"
+
+    def verify_(self) -> None:
+        pass
+
+
+@irdl_op_definition
+class EmitC_IfOp(IRDLOperation):
+    """
+    If-then-else operation.
+
+    The `emitc.if` operation represents an if-then-else construct for
+    conditionally executing two regions of code. The operand to an if operation
+    is a boolean value. For example:
+
+    ```mlir
+    emitc.if %b  {
+      ...
+    } else {
+      ...
+    }
+    ```
+
+    The "then" region has exactly 1 block. The "else" region may have 0 or 1
+    blocks. The blocks are always terminated with `emitc.yield`, which can be
+    left out to be inserted implicitly. This operation doesn't produce any
+    results.
+    """
+
+    name = "emitc.if"
+    condition = operand_def(IntegerType(1))
+    thenRegion = region_def("single_block")
+    elseRegion = region_def()
+
+    traits = traits_def(RecursiveMemoryEffect(), NoTerminator())
+
+    def __init__(
+        self,
+        cond: SSAValue | Operation,
+        thenRegion: Region | Sequence[Block] | Sequence[Operation],
+        elseRegion: Region | Sequence[Block] | Sequence[Operation] | None = None,
+        attr_dict: dict[str, Attribute] | None = None,
+    ):
+        if elseRegion is None:
+            elseRegion = Region()
+
+        super().__init__(
+            operands=[cond],
+            result_types=[],
+            regions=[thenRegion, elseRegion],
+            attributes=attr_dict,
+        )
+
+    irdl_options = (ParsePropInAttrDict(),)
+    assembly_format = "attr-dict $condition  $thenRegion (`else` $elseRegion^)?"
+
+
+@irdl_op_definition
+class EmitC_IncludeOp(IRDLOperation):
+    """
+    Include operation.
+
+    The `emitc.include` operation allows to define a source file inclusion via the
+    `#include` directive.
+
+    Example:
+
+    ```mlir
+    // Custom form defining the inclusion of `<myheader>`.
+    emitc.include <"myheader.h">
+
+    // Generic form of the same operation.
+    "emitc.include" (){include = "myheader.h", is_standard_include} : () -> ()
+
+    // Custom form defining the inclusion of `"myheader"`.
+    emitc.include "myheader.h"
+
+    // Generic form of the same operation.
+    "emitc.include" (){include = "myheader.h"} : () -> ()
+    ```
+    """
+
+    name = "emitc.include"
+    include = prop_def(StringAttr)
+    is_standard_include = opt_prop_def(UnitAttr)
+
+    irdl_options = (ParsePropInAttrDict(),)
+
+    assembly_format = "attr-dict ` `(`<` $is_standard_include^)? $include `>`"
+
+    def __init__(
+        self, include: StringAttr, is_standard_include: UnitAttr | None = None
+    ):
+        super().__init__(
+            operands=[],
+            properties={"include": include, "is_standard_include": is_standard_include},
+        )
 
 
 @irdl_op_definition
@@ -1636,6 +1893,81 @@ class EmitC_VariableOp(IRDLOperation):
         return True
 
 
+@irdl_op_definition
+class EmitC_VerbatimOp(IRDLOperation):
+    """
+    Verbatim operation.
+
+    The `emitc.verbatim` operation produces no results and the value is emitted as is
+    followed by a line break  ('\n' character) during translation.
+
+    Note: Use with caution. This operation can have arbitrary effects on the
+    semantics of the emitted code. Use semantically more meaningful operations
+    whenever possible. Additionally this op is *NOT* intended to be used to
+    inject large snippets of code.
+
+    This operation can be used in situations where a more suitable operation is
+    not yet implemented in the dialect or where preprocessor directives
+    interfere with the structure of the code. One example of this is to declare
+    the linkage of external symbols to make the generated code usable in both C
+    and C++ contexts:
+
+    ```c++
+    #ifdef __cplusplus
+    extern "C" {
+    #endif
+
+    ...
+
+    #ifdef __cplusplus
+    }
+    #endif
+    ```
+
+    If the `emitc.verbatim` op has operands, then the `value` is interpreted as
+    format string, where `{}` is a placeholder for an operand in their order.
+    For example, `emitc.verbatim "#pragma my src={} dst={}" %src, %dest : i32, i32`
+    would be emitted as `#pragma my src=a dst=b` if `%src` became `a` and
+    `%dest` became `b` in the C code.
+    `{{` in the format string is interpreted as a single `{` and doesn't introduce
+    a placeholder.
+
+    Example:
+
+    ```mlir
+    emitc.verbatim "typedef float f32;"
+    emitc.verbatim "#pragma my var={} property" args %arg : f32
+    ```
+    ```c++
+    // Code emitted for the operation above.
+    typedef float f32;
+    #pragma my var=v1 property
+    ```
+    """
+
+    name = "emitc.verbatim"
+
+    value = prop_def(StringAttr)
+    fmtArgs = var_operand_def(AnyAttr())
+
+    assembly_format = "$value (`args` $fmtArgs^ `:` type($fmtArgs))? attr-dict"
+
+    def __init__(
+        self,
+        value: StringAttr,
+        operands: Sequence[AnyAttr],
+    ):
+        super().__init__(
+            operands=[operands],  # pyright: ignore[reportArgumentType]
+            properties={"value": value},
+        )
+
+    def verify_(self) -> None:
+        value = self.value
+        if not value:
+            raise VerifyException("'emitc.verbatim' op requires attribute 'value'")
+
+
 EmitC = Dialect(
     "emitc",
     [
@@ -1652,12 +1984,16 @@ EmitC = Dialect(
         EmitC_CallOpaqueOp,
         EmitC_CastOp,
         EmitC_ClassOp,
+        EmitC_DoOp,
         EmitC_FieldOp,
         EmitC_GetFieldOp,
         EmitC_CmpOp,
+        EmitC_ConditionalOp,
         EmitC_ConstantOp,
         EmitC_DereferenceOp,
         EmitC_DivOp,
+        EmitC_IfOp,
+        EmitC_IncludeOp,
         EmitC_LiteralOp,
         EmitC_LoadOp,
         EmitC_LogicalAndOp,
@@ -1672,6 +2008,8 @@ EmitC = Dialect(
         EmitC_UnaryMinusOp,
         EmitC_UnaryPlusOp,
         EmitC_VariableOp,
+        EmitC_VerbatimOp,
+        EmitC_YieldOp,
     ],
     [
         EmitC_ArrayType,
