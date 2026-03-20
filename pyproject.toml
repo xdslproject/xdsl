@@ -36,7 +36,7 @@ dev = [
     "pyright==1.1.408",
     "sympy==1.14.0",
 ]
-gui = ["textual>=6,<7", "pyclip==0.7"]
+gui = ["textual>=8,<9", "pyclip==0.7"]
 llvm = ["llvmlite~=0.46.0"]
 
 [dependency-groups]
