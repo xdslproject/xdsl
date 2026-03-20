@@ -19,7 +19,7 @@
 
 // CHECK:      %{{.*}} = "arith.constant"() <{value = 10 : i32}> {truc = !llvm.func<!llvm.ptr<16> (i64, ...)>} : () -> i32
 // CHECK-NEXT: "llvm.func"() <{CConv = #llvm.cconv<ccc>, function_type = !llvm.func<void (i64, ...)>, linkage = #llvm.linkage<"external">, sym_name = "printf", visibility_ = 0 : i64}> ({
-// CHECK-NEXT: ^{{.*}}(%arg0 : i64):
+// CHECK-NEXT: ^{{.*}}(%arg0: i64):
 // CHECK-NEXT:   %{{.*}} = "llvm.mlir.constant"() <{value = 1 : i64}> : () -> i64
 // CHECK-NEXT:   %{{.*}} = "llvm.call_intrinsic"(%arg0, %{{.*}}) <{fastmathFlags = #llvm.fastmath<none>, intrin = "llvm.my_intrin", op_bundle_sizes = array<i32>, operandSegmentSizes = array<i32: 2, 0>}> : (i64, i64) -> i64
 // CHECK-NEXT:   llvm.return

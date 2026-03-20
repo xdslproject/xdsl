@@ -152,11 +152,11 @@ linalg.reduce ins(%49:memref<16x64xf32>) outs(%51:memref<16xf32>) dimensions = [
 // CHECK:       builtin.module {
 // CHECK-NEXT:    %{{.*}}, %{{.*}} = "test.op"() : () -> (f32, memref<1x256xf32>)
 // CHECK-NEXT:    linalg.generic {indexing_maps = [affine_map<(d0, d1) -> ()>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%{{.*}} : f32) outs(%{{.*}} : memref<1x256xf32>) {
-// CHECK-NEXT:    ^{{.*}}(%{{.*}} : f32, %{{.*}} : f32):
+// CHECK-NEXT:    ^{{.*}}(%{{.*}}: f32, %{{.*}}: f32):
 // CHECK-NEXT:      linalg.yield %{{.*}} : f32
 // CHECK-NEXT:    }
 // CHECK-NEXT:    linalg.generic {indexing_maps = [affine_map<(d0, d1) -> ()>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%{{.*}} : f32) outs(%{{.*}} : memref<1x256xf32>) attrs =  {hello = "world"} {
-// CHECK-NEXT:    ^{{.*}}(%{{.*}} : f32, %{{.*}} : f32):
+// CHECK-NEXT:    ^{{.*}}(%{{.*}}: f32, %{{.*}}: f32):
 // CHECK-NEXT:      linalg.yield %{{.*}} : f32
 // CHECK-NEXT:    }
 // CHECK-NEXT:    %{{.*}}, %{{.*}} = "test.op"() : () -> (tensor<2x3xf32>, tensor<2x3xf32>)
@@ -180,7 +180,7 @@ linalg.reduce ins(%49:memref<16x64xf32>) outs(%51:memref<16xf32>) dimensions = [
 // CHECK-NEXT:    %{{.*}}, %{{.*}} = "test.op"() : () -> (tensor<16xf32>, tensor<16x64xf32>)
 // CHECK-NEXT:    %{{.*}} = linalg.broadcast ins(%{{.*}}tensor<16xf32>) outs(%{{.*}}tensor<16x64xf32>) dimensions = [1]
 // CHECK-NEXT:    %{{.*}} = linalg.generic {indexing_maps = [affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>, affine_map<(d0, d1) -> (d0, d1)>], iterator_types = ["parallel", "parallel"]} ins(%{{.*}}, %{{.*}} : tensor<2x3xf32>, tensor<2x3xf32>) outs(%{{.*}} : tensor<2x3xf32>) {
-// CHECK-NEXT:    ^{{.*}}(%{{.*}} : f32, %{{.*}} : f32, %{{.*}} : f32):
+// CHECK-NEXT:    ^{{.*}}(%{{.*}}: f32, %{{.*}}: f32, %{{.*}}: f32):
 // CHECK-NEXT:      %{{.*}} = arith.addf %{{.*}}, %{{.*}} : f32
 // CHECK-NEXT:      linalg.yield %{{.*}} : f32
 // CHECK-NEXT:    } -> tensor<2x3xf32>
@@ -221,13 +221,13 @@ linalg.reduce ins(%49:memref<16x64xf32>) outs(%51:memref<16xf32>) dimensions = [
 // CHECK-NEXT:    linalg.transpose ins(%{{.*}}memref<16x64xf32>) outs(%{{.*}}memref<64x16xf32>) permutation = [1, 0]
 // CHECK-NEXT:    %{{.*}} = "test.op"() : () -> memref<16xf32>
 // CHECK-NEXT:    linalg.reduce ins(%{{.*}}memref<16x64xf32>) outs(%{{.*}}memref<16xf32>) dimensions = [1]
-// CHECK-NEXT:    (%{{.*}} : f32, %{{.*}} : f32) {
+// CHECK-NEXT:    (%{{.*}}: f32, %{{.*}}: f32) {
 // CHECK-NEXT:      %{{.*}} = arith.addf %{{.*}}, %{{.*}} : f32
 // CHECK-NEXT:      linalg.yield %{{.*}} : f32
 // CHECK-NEXT:    }
 // CHECK-NEXT:    %{{.*}}, %{{.*}} = "test.op"() : () -> (tensor<100x50xi32>, tensor<i32>)
 // CHECK-NEXT:    %{{.*}} = linalg.reduce ins(%{{.*}}tensor<100x50xi32>) outs(%{{.*}}tensor<i32>) dimensions = [0, 1]
-// CHECK-NEXT:    (%{{.*}} : i32, %{{.*}} : i32) {
+// CHECK-NEXT:    (%{{.*}}: i32, %{{.*}}: i32) {
 // CHECK-NEXT:      %{{.*}} = arith.addi %{{.*}}, %{{.*}} : i32
 // CHECK-NEXT:      linalg.yield %{{.*}} : i32
 // CHECK-NEXT:    }

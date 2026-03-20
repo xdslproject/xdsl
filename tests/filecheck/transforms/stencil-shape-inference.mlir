@@ -1,7 +1,7 @@
 // RUN: xdsl-opt -p shape-inference --verify-diagnostics --split-input-file %s | filecheck %s
 
 builtin.module {
-  func.func @different_input_offsets(%out : !stencil.field<[-4,68]xf64>, %left : !stencil.field<[-4,68]xf64>, %right : !stencil.field<[-4,68]xf64>) {
+  func.func @different_input_offsets(%out: !stencil.field<[-4,68]xf64>, %left: !stencil.field<[-4,68]xf64>, %right: !stencil.field<[-4,68]xf64>) {
     %tleft = stencil.load %left : !stencil.field<[-4,68]xf64> -> !stencil.temp<?xf64>
     %tright = stencil.load %right : !stencil.field<[-4,68]xf64> -> !stencil.temp<?xf64>
     %tout = stencil.apply(%lefti = %tleft : !stencil.temp<?xf64>, %righti = %tright : !stencil.temp<?xf64>) -> (!stencil.temp<?xf64>) {
@@ -15,7 +15,7 @@ builtin.module {
   }
 }
 
-// CHECK:         func.func @different_input_offsets(%out : !stencil.field<[-4,68]xf64>, %left : !stencil.field<[-4,68]xf64>, %right : !stencil.field<[-4,68]xf64>) {
+// CHECK:         func.func @different_input_offsets(%out: !stencil.field<[-4,68]xf64>, %left: !stencil.field<[-4,68]xf64>, %right: !stencil.field<[-4,68]xf64>) {
 // CHECK-NEXT:      %tleft = stencil.load %left : !stencil.field<[-4,68]xf64> -> !stencil.temp<[-1,63]xf64>
 // CHECK-NEXT:      %tright = stencil.load %right : !stencil.field<[-4,68]xf64> -> !stencil.temp<[1,65]xf64>
 // CHECK-NEXT:      %tout = stencil.apply(%lefti = %tleft : !stencil.temp<[-1,63]xf64>, %righti = %tright : !stencil.temp<[1,65]xf64>) -> (!stencil.temp<[0,64]xf64>) {
@@ -31,7 +31,7 @@ builtin.module {
 // -----
 
 builtin.module {
-  func.func @stencil_hdiff(%0 : !stencil.field<?x?x?xf64>, %1 : !stencil.field<?x?x?xf64>) {
+  func.func @stencil_hdiff(%0: !stencil.field<?x?x?xf64>, %1: !stencil.field<?x?x?xf64>) {
     %2 = stencil.cast %0 : !stencil.field<?x?x?xf64> -> !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>
     %3 = stencil.cast %1 : !stencil.field<?x?x?xf64> -> !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>
     %4 = stencil.load %2 : !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64> -> !stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>
@@ -55,7 +55,7 @@ builtin.module {
 }
 
 
-// CHECK:         func.func @stencil_hdiff(%0 : !stencil.field<?x?x?xf64>, %1 : !stencil.field<?x?x?xf64>) {
+// CHECK:         func.func @stencil_hdiff(%0: !stencil.field<?x?x?xf64>, %1: !stencil.field<?x?x?xf64>) {
 // CHECK-NEXT:      %2 = stencil.cast %0 : !stencil.field<?x?x?xf64> -> !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>
 // CHECK-NEXT:      %3 = stencil.cast %1 : !stencil.field<?x?x?xf64> -> !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>
 // CHECK-NEXT:      %4 = stencil.load %2 : !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64> -> !stencil.temp<[-1,65]x[-1,65]x[0,64]xf64>
@@ -80,7 +80,7 @@ builtin.module {
 // -----
 
 builtin.module {
-  func.func @stencil_hdiff(%0 : !stencil.field<?x?x?xf64>, %1 : !stencil.field<?x?x?xf64>) {
+  func.func @stencil_hdiff(%0: !stencil.field<?x?x?xf64>, %1: !stencil.field<?x?x?xf64>) {
     %2 = stencil.cast %0 : !stencil.field<?x?x?xf64> -> !stencil.field<[0,68]x[0,68]x[0,68]xf64>
     %3 = stencil.cast %1 : !stencil.field<?x?x?xf64> -> !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>
     %4 = stencil.load %2 : !stencil.field<[0,68]x[0,68]x[0,68]xf64> -> !stencil.temp<?x?x?xf64>
@@ -111,7 +111,7 @@ builtin.module {
 
 builtin.module {
 
-  func.func @stencil_init_float(%0 : f64, %1 : !stencil.field<?x?x?xf64>) {
+  func.func @stencil_init_float(%0: f64, %1: !stencil.field<?x?x?xf64>) {
     %2 = stencil.cast %1 : !stencil.field<?x?x?xf64> -> !stencil.field<[-3,67]x[-3,67]x[-3,67]xf64>
     %3 = stencil.apply(%4 = %0 : f64) -> (!stencil.temp<[1,65]x[2,66]x[3,63]xf64>) {
       %5 = arith.constant 1.000000e+00 : f64
@@ -123,7 +123,7 @@ builtin.module {
   }
 }
 
-// CHECK:         func.func @stencil_init_float(%0 : f64, %1 : !stencil.field<?x?x?xf64>) {
+// CHECK:         func.func @stencil_init_float(%0: f64, %1: !stencil.field<?x?x?xf64>) {
 // CHECK-NEXT:      %2 = stencil.cast %1 : !stencil.field<?x?x?xf64> -> !stencil.field<[-3,67]x[-3,67]x[-3,67]xf64>
 // CHECK-NEXT:      %3 = stencil.apply(%4 = %0 : f64) -> (!stencil.temp<[1,65]x[2,66]x[3,63]xf64>) {
 // CHECK-NEXT:        %5 = arith.constant 1.000000e+00 : f64
@@ -137,7 +137,7 @@ builtin.module {
 // -----
 
 builtin.module {
-  func.func private @stencil_buffer(%0 : !stencil.field<[-4,68]xf64>, %1 : !stencil.field<[-4,68]xf64>) {
+  func.func private @stencil_buffer(%0: !stencil.field<[-4,68]xf64>, %1: !stencil.field<[-4,68]xf64>) {
     %2 = stencil.load %0 : !stencil.field<[-4,68]xf64> -> !stencil.temp<?xf64>
     %3 = stencil.apply(%4 = %2 : !stencil.temp<?xf64>) -> (!stencil.temp<?xf64>) {
       %5 = stencil.access %4[0] : !stencil.temp<?xf64>
@@ -153,7 +153,7 @@ builtin.module {
   }
 }
 
-// CHECK:         func.func private @stencil_buffer(%0 : !stencil.field<[-4,68]xf64>, %1 : !stencil.field<[-4,68]xf64>) {
+// CHECK:         func.func private @stencil_buffer(%0: !stencil.field<[-4,68]xf64>, %1: !stencil.field<[-4,68]xf64>) {
 // CHECK-NEXT:      %2 = stencil.load %0 : !stencil.field<[-4,68]xf64> -> !stencil.temp<[0,64]xf64>
 // CHECK-NEXT:      %3 = stencil.apply(%4 = %2 : !stencil.temp<[0,64]xf64>) -> (!stencil.temp<[0,64]xf64>) {
 // CHECK-NEXT:        %5 = stencil.access %4[0] : !stencil.temp<[0,64]xf64>
@@ -170,7 +170,7 @@ builtin.module {
 
 // -----
 
-func.func @dyn_access(%arg0 : !stencil.field<?x?x?xf64>, %arg1 : !stencil.field<?x?x?xf64>) attributes {"stencil.program"} {
+func.func @dyn_access(%arg0: !stencil.field<?x?x?xf64>, %arg1: !stencil.field<?x?x?xf64>) attributes {"stencil.program"} {
     %0 = stencil.cast %arg0 : !stencil.field<?x?x?xf64> -> !stencil.field<[-3,67]x[-3,67]x[0,60]xf64>
     %1 = stencil.cast %arg1 : !stencil.field<?x?x?xf64> -> !stencil.field<[-3,67]x[-3,67]x[0,60]xf64>
     %2 = stencil.load %0 : !stencil.field<[-3,67]x[-3,67]x[0,60]xf64> -> !stencil.temp<?x?x?xf64>
@@ -184,7 +184,7 @@ func.func @dyn_access(%arg0 : !stencil.field<?x?x?xf64>, %arg1 : !stencil.field<
     func.return
   }
 
-// CHECK:         func.func @dyn_access(%arg0 : !stencil.field<?x?x?xf64>, %arg1 : !stencil.field<?x?x?xf64>) attributes {stencil.program} {
+// CHECK:         func.func @dyn_access(%arg0: !stencil.field<?x?x?xf64>, %arg1: !stencil.field<?x?x?xf64>) attributes {stencil.program} {
 // CHECK-NEXT:      %0 = stencil.cast %arg0 : !stencil.field<?x?x?xf64> -> !stencil.field<[-3,67]x[-3,67]x[0,60]xf64>
 // CHECK-NEXT:      %1 = stencil.cast %arg1 : !stencil.field<?x?x?xf64> -> !stencil.field<[-3,67]x[-3,67]x[0,60]xf64>
 // CHECK-NEXT:      %2 = stencil.load %0 : !stencil.field<[-3,67]x[-3,67]x[0,60]xf64> -> !stencil.temp<[-1,65]x[-2,66]x[0,60]xf64>
@@ -200,7 +200,7 @@ func.func @dyn_access(%arg0 : !stencil.field<?x?x?xf64>, %arg1 : !stencil.field<
 
 // -----
 
-func.func @combine(%arg0 : !stencil.field<?x?x?xf64>, %arg1 : !stencil.field<?x?x?xf64>) attributes {"stencil.program"} {
+func.func @combine(%arg0: !stencil.field<?x?x?xf64>, %arg1: !stencil.field<?x?x?xf64>) attributes {"stencil.program"} {
     %0 = stencil.cast %arg0 : !stencil.field<?x?x?xf64> -> !stencil.field<[-3,67]x[-3,67]x[0,60]xf64>
     %1 = stencil.cast %arg1 : !stencil.field<?x?x?xf64> -> !stencil.field<[-3,67]x[-3,67]x[0,60]xf64>
     %2 = stencil.load %0 : !stencil.field<[-3,67]x[-3,67]x[0,60]xf64> -> !stencil.temp<?x?x?xf64>
@@ -219,7 +219,7 @@ func.func @combine(%arg0 : !stencil.field<?x?x?xf64>, %arg1 : !stencil.field<?x?
     func.return
   }
 
-// CHECK:         func.func @combine(%arg0 : !stencil.field<?x?x?xf64>, %arg1 : !stencil.field<?x?x?xf64>) attributes {stencil.program} {
+// CHECK:         func.func @combine(%arg0: !stencil.field<?x?x?xf64>, %arg1: !stencil.field<?x?x?xf64>) attributes {stencil.program} {
 // CHECK-NEXT:      %0 = stencil.cast %arg0 : !stencil.field<?x?x?xf64> -> !stencil.field<[-3,67]x[-3,67]x[0,60]xf64>
 // CHECK-NEXT:      %1 = stencil.cast %arg1 : !stencil.field<?x?x?xf64> -> !stencil.field<[-3,67]x[-3,67]x[0,60]xf64>
 // CHECK-NEXT:      %2 = stencil.load %0 : !stencil.field<[-3,67]x[-3,67]x[0,60]xf64> -> !stencil.temp<[0,64]x[0,64]x[0,60]xf64>
@@ -240,7 +240,7 @@ func.func @combine(%arg0 : !stencil.field<?x?x?xf64>, %arg1 : !stencil.field<?x?
 
 // -----
 
-func.func @buffer(%arg0 : !stencil.field<?x?x?xf64>, %arg1 : !stencil.field<?x?x?xf64>, %arg2 : !stencil.field<?x?x?xf64>) attributes {"stencil.program"} {
+func.func @buffer(%arg0: !stencil.field<?x?x?xf64>, %arg1: !stencil.field<?x?x?xf64>, %arg2: !stencil.field<?x?x?xf64>) attributes {"stencil.program"} {
     %0 = stencil.cast %arg0 : !stencil.field<?x?x?xf64> -> !stencil.field<[-3,67]x[-3,67]x[0,60]xf64>
     %1 = stencil.cast %arg1 : !stencil.field<?x?x?xf64> -> !stencil.field<[-3,67]x[-3,67]x[0,60]xf64>
     %2 = stencil.cast %arg2 : !stencil.field<?x?x?xf64> -> !stencil.field<[-3,67]x[-3,67]x[0,60]xf64>
@@ -284,7 +284,7 @@ func.func @buffer(%arg0 : !stencil.field<?x?x?xf64>, %arg1 : !stencil.field<?x?x
     func.return
   }
 
-// CHECK:         func.func @buffer(%arg0 : !stencil.field<?x?x?xf64>, %arg1 : !stencil.field<?x?x?xf64>, %arg2 : !stencil.field<?x?x?xf64>) attributes {stencil.program} {
+// CHECK:         func.func @buffer(%arg0: !stencil.field<?x?x?xf64>, %arg1: !stencil.field<?x?x?xf64>, %arg2: !stencil.field<?x?x?xf64>) attributes {stencil.program} {
 // CHECK-NEXT:      %0 = stencil.cast %arg0 : !stencil.field<?x?x?xf64> -> !stencil.field<[-3,67]x[-3,67]x[0,60]xf64>
 // CHECK-NEXT:      %1 = stencil.cast %arg1 : !stencil.field<?x?x?xf64> -> !stencil.field<[-3,67]x[-3,67]x[0,60]xf64>
 // CHECK-NEXT:      %2 = stencil.cast %arg2 : !stencil.field<?x?x?xf64> -> !stencil.field<[-3,67]x[-3,67]x[0,60]xf64>
@@ -329,7 +329,7 @@ func.func @buffer(%arg0 : !stencil.field<?x?x?xf64>, %arg1 : !stencil.field<?x?x
 // CHECK-NEXT:    }
 // -----
 
-func.func @stencil_missing_dims(%in : !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>, %ybuf : !stencil.field<[-4,68]xf64>, %zbuf : !stencil.field<[-4,68]xf64>, %out : !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>) {
+func.func @stencil_missing_dims(%in: !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>, %ybuf: !stencil.field<[-4,68]xf64>, %zbuf: !stencil.field<[-4,68]xf64>, %out: !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>) {
   %intemp = stencil.load %in : !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64> -> !stencil.temp<?x?x?xf64>
   %0 = "dmp.swap"(%intemp) {strategy = #dmp.grid_slice_2d<#dmp.topo<64x64>, false>, swaps = []} : (!stencil.temp<?x?x?xf64>) -> !stencil.temp<?x?x?xf64>
   %ybuf_t = stencil.load %ybuf : !stencil.field<[-4,68]xf64> -> !stencil.temp<?xf64>
@@ -348,7 +348,7 @@ func.func @stencil_missing_dims(%in : !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64
   func.return
 }
 
-// CHECK:       func.func @stencil_missing_dims(%in : !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>, %ybuf : !stencil.field<[-4,68]xf64>, %zbuf : !stencil.field<[-4,68]xf64>, %out : !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>) {
+// CHECK:       func.func @stencil_missing_dims(%in: !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>, %ybuf: !stencil.field<[-4,68]xf64>, %zbuf: !stencil.field<[-4,68]xf64>, %out: !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>) {
 // CHECK-NEXT:    %intemp = stencil.load %in : !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64> -> !stencil.temp<[0,1]x[-1,0]x[-1,63]xf64>
 // CHECK-NEXT:    %0 = "dmp.swap"(%intemp) {strategy = #dmp.grid_slice_2d<#dmp.topo<64x64>, false>, swaps = [#dmp.exchange<at [0, -1, 0] size [1, 1, 64] source offset [0, 1, 0] to [0, -1, 0]>]} : (!stencil.temp<[0,1]x[-1,0]x[-1,63]xf64>) -> !stencil.temp<[0,1]x[-1,0]x[-1,63]xf64>
 // CHECK-NEXT:    %ybuf_t = stencil.load %ybuf : !stencil.field<[-4,68]xf64> -> !stencil.temp<[-1,0]xf64>

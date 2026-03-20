@@ -44,7 +44,7 @@ should give the following output:
 
 ```mlir
 builtin.module {
-  func.func @foo(%x : f64, %y : f64, %z : f64) -> f64 {
+  func.func @foo(%x: f64, %y: f64, %z: f64) -> f64 {
     %0 = arith.mulf %y, %z : f64
     %1 = arith.addf %x, %0 : f64
     func.return %1 : f64

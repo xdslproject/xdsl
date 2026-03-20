@@ -891,7 +891,7 @@ def test_block_argument_type_change():
     prog = """\
 "builtin.module"() ({
   %0 = "test.op"() ({
-  ^bb0(%1 : !test.type<"int">):
+  ^bb0(%1: !test.type<"int">):
     %2 = "test.op"() : () -> !test.type<"int">
   }) : () -> !test.type<"int">
 }) : () -> ()
@@ -900,7 +900,7 @@ def test_block_argument_type_change():
     expected = """\
 "builtin.module"() ({
   %0 = "test.op"() ({
-  ^bb0(%1 : i64):
+  ^bb0(%1: i64):
     %2 = "test.op"() : () -> !test.type<"int">
   }) : () -> !test.type<"int">
 }) : () -> ()
@@ -928,7 +928,7 @@ def test_block_argument_erasure():
     prog = """\
 "builtin.module"() ({
   %0 = "test.op"() ({
-  ^bb0(%1 : !test.type<"int">):
+  ^bb0(%1: !test.type<"int">):
     %2 = "test.op"() : () -> !test.type<"int">
   }, {
   ^bb0:
@@ -973,7 +973,7 @@ def test_block_argument_insertion():
     expected = """\
 "builtin.module"() ({
   %0 = "test.op"() ({
-  ^bb0(%1 : !test.type<"int">):
+  ^bb0(%1: !test.type<"int">):
     %2 = "test.op"() : () -> !test.type<"int">
   }, {
   ^bb1:
@@ -1135,9 +1135,9 @@ def test_inline_block_before_with_args():
 "builtin.module"() ({
   %0 = "test.op"() : () -> !test.type<"int">
   %1 = "test.op"() ({
-  ^bb0(%arg0 : !test.type<"int">):
+  ^bb0(%arg0: !test.type<"int">):
     %1 = "test.op"() ({
-    ^bb1(%arg1 : !test.type<"int">):
+    ^bb1(%arg1: !test.type<"int">):
       %1 = "test.op"(%arg1) : (!test.type<"int">) -> !test.type<"int">
     }, {
     ^bb2:
@@ -1152,7 +1152,7 @@ def test_inline_block_before_with_args():
 "builtin.module"() ({
   %0 = "test.op"() : () -> !test.type<"int">
   %1 = "test.op"() ({
-  ^bb0(%arg0 : !test.type<"int">):
+  ^bb0(%arg0: !test.type<"int">):
     %2 = "test.op"(%arg0) : (!test.type<"int">) -> !test.type<"int">
     %3 = "test.op"() ({
     }, {
@@ -1681,7 +1681,7 @@ def test_type_conversion():
     prog = """\
 "builtin.module"() ({
   "func.func"() ({
-  ^bb0(%arg : i32):
+  ^bb0(%arg: i32):
   }) : () -> ()
   %0 = "test.op"() {nested = memref<*xi32>} : () -> i32
   %1 = "test.op"() {type = () -> memref<*xi32>} : () -> f32
@@ -1695,7 +1695,7 @@ def test_type_conversion():
     expected = """\
 "builtin.module"() ({
   "func.func"() ({
-  ^bb0(%arg : index):
+  ^bb0(%arg: index):
   }) : () -> ()
   %0 = "test.op"() {nested = memref<*xindex>} : () -> index
   %1 = "test.op"() {type = () -> memref<*xindex>} : () -> f32
@@ -1744,7 +1744,7 @@ def test_type_conversion():
     non_rec_expected = """\
 "builtin.module"() ({
   "func.func"() ({
-  ^bb0(%arg : index):
+  ^bb0(%arg: index):
   }) : () -> ()
   %0 = "test.op"() {nested = memref<*xi32>} : () -> index
   %1 = "test.op"() {type = () -> memref<*xi32>} : () -> f32
@@ -1786,7 +1786,7 @@ def test_type_conversion():
     expected = """\
 "builtin.module"() ({
   "func.func"() ({
-  ^bb0(%arg : i32):
+  ^bb0(%arg: i32):
   }) : () -> ()
   %0 = "test.op"() {nested = memref<*xindex>} : () -> index
   %1 = "test.op"() {type = () -> memref<*xindex>} : () -> f32
@@ -1841,7 +1841,7 @@ def test_type_conversion():
     prog = """\
 "builtin.module"() ({
   "func.func"() ({
-  ^bb0(%arg : i6):
+  ^bb0(%arg: i6):
   }) : () -> ()
   %0 = "test.op"() {nested = memref<*xi4>} : () -> i6
   %1 = "test.op"() {type = () -> memref<*xi32>} : () -> f32
@@ -1855,7 +1855,7 @@ def test_type_conversion():
     expected = """\
 "builtin.module"() ({
   "func.func"() ({
-  ^bb0(%arg : i6):
+  ^bb0(%arg: i6):
   }) : () -> ()
   %0 = "test.op"() {nested = memref<*xi4>} : () -> i6
   %1 = "test.op"() {type = () -> memref<*xindex>} : () -> f32
@@ -1909,7 +1909,7 @@ def test_recursive_type_conversion_in_regions():
     prog = """\
 "builtin.module"() ({
   "func.func"() <{function_type = (memref<2x4xui16>) -> (), sym_name = "main", sym_visibility = "private"}> ({
-  ^bb0(%arg0 : memref<2x4xui16>):
+  ^bb0(%arg0: memref<2x4xui16>):
     "func.return"() : () -> ()
   }) : () -> ()
 }) : () -> ()
@@ -1917,7 +1917,7 @@ def test_recursive_type_conversion_in_regions():
     expected_prog = """\
 "builtin.module"() ({
   "func.func"() <{function_type = (memref<2x4xindex>) -> (), sym_name = "main", sym_visibility = "private"}> ({
-  ^bb0(%arg0 : memref<2x4xindex>):
+  ^bb0(%arg0: memref<2x4xindex>):
     "func.return"() : () -> ()
   }) : () -> ()
 }) : () -> ()
@@ -2012,7 +2012,7 @@ def test_attr_constr_rewrite_pattern():
     prog = """\
 "builtin.module"() ({
   "func.func"() <{function_type = (memref<2x4xui16>) -> (), sym_name = "main", sym_visibility = "private"}> ({
-  ^bb0(%arg0 : memref<2x4xui16>):
+  ^bb0(%arg0: memref<2x4xui16>):
     "func.return"() : () -> ()
   }) : () -> ()
 }) : () -> ()
@@ -2020,7 +2020,7 @@ def test_attr_constr_rewrite_pattern():
     expected_prog = """\
 "builtin.module"() ({
   "func.func"() <{function_type = (memref<2x4xindex>) -> (), sym_name = "main", sym_visibility = "private"}> ({
-  ^bb0(%arg0 : memref<2x4xindex>):
+  ^bb0(%arg0: memref<2x4xindex>):
     "func.return"() : () -> ()
   }) : () -> ()
 }) : () -> ()

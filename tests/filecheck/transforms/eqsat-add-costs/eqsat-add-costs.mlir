@@ -1,6 +1,6 @@
 // RUN: xdsl-opt -p eqsat-add-costs{default=1} --verify-diagnostics --split-input-file %s | filecheck %s
 
-// CHECK:         func.func @trivial_arithmetic(%a : index, %b : index) -> index {
+// CHECK:         func.func @trivial_arithmetic(%a: index, %b: index) -> index {
 // CHECK-NEXT:      %a_eq = equivalence.class %a {min_cost_index = #builtin.int<0>} : index
 // CHECK-NEXT:      %one = arith.constant {eqsat_cost = #builtin.int<1>} 1 : index
 // CHECK-NEXT:      %one_eq = equivalence.class %one {min_cost_index = #builtin.int<0>} : index
@@ -11,7 +11,7 @@
 // CHECK-NEXT:      %res_eq = equivalence.class %a_shift_one, %a_times_two {min_cost_index = #builtin.int<0>} : index
 // CHECK-NEXT:      func.return %res_eq : index
 // CHECK-NEXT:    }
-func.func @trivial_arithmetic(%a : index, %b : index) -> (index) {
+func.func @trivial_arithmetic(%a: index, %b: index) -> (index) {
     %a_eq = equivalence.class %a : index
     %one = arith.constant 1 : index
     %one_eq = equivalence.class %one : index
@@ -23,18 +23,18 @@ func.func @trivial_arithmetic(%a : index, %b : index) -> (index) {
     func.return %res_eq : index
 }
 
-// CHECK-NEXT:    func.func @no_eclass(%a : index, %b : index) -> index {
+// CHECK-NEXT:    func.func @no_eclass(%a: index, %b: index) -> index {
 // CHECK-NEXT:      %one = arith.constant 1 : index
 // CHECK-NEXT:      %amul = arith.muli %a, %one : index
 // CHECK-NEXT:      func.return %amul : index
 // CHECK-NEXT:    }
-func.func @no_eclass(%a : index, %b : index) -> (index) {
+func.func @no_eclass(%a: index, %b: index) -> (index) {
     %one = arith.constant 1 : index
     %amul = arith.muli %a, %one : index
     func.return %amul : index
 }
 
-// CHECK-NEXT:    func.func @existing_cost(%a : index, %b : index) -> index {
+// CHECK-NEXT:    func.func @existing_cost(%a: index, %b: index) -> index {
 // CHECK-NEXT:      %a_eq = equivalence.class %a {min_cost_index = #builtin.int<0>} : index
 // CHECK-NEXT:      %one = arith.constant {eqsat_cost = #builtin.int<1000>} 1 : index
 // CHECK-NEXT:      %one_eq = equivalence.class %one {min_cost_index = #builtin.int<0>} : index
@@ -45,7 +45,7 @@ func.func @no_eclass(%a : index, %b : index) -> (index) {
 // CHECK-NEXT:      %res_eq = equivalence.class %a_shift_one, %a_times_two {min_cost_index = #builtin.int<1>} : index
 // CHECK-NEXT:      func.return %res_eq : index
 // CHECK-NEXT:    }
-func.func @existing_cost(%a : index, %b : index) -> (index) {
+func.func @existing_cost(%a: index, %b: index) -> (index) {
     // Another pass can set the cost, which must not be overwritten
     %a_eq = equivalence.class %a : index
     %one = arith.constant {"eqsat_cost" = #builtin.int<1000>} 1  : index
@@ -60,7 +60,7 @@ func.func @existing_cost(%a : index, %b : index) -> (index) {
 
 // -----
 
-//      CHECK:    func.func @recursive(%a : index) -> index {
+//      CHECK:    func.func @recursive(%a: index) -> index {
 // CHECK-NEXT:      %a_eq = equivalence.class %a, %b {min_cost_index = #builtin.int<0>} : index
 // CHECK-NEXT:      %one = arith.constant {eqsat_cost = #builtin.int<1>} 1 : index
 // CHECK-NEXT:      %one_eq = equivalence.class %one {min_cost_index = #builtin.int<0>} : index
@@ -68,7 +68,7 @@ func.func @existing_cost(%a : index, %b : index) -> (index) {
 // CHECK-NEXT:      func.return %a_eq : index
 // CHECK-NEXT:    }
 
-func.func @recursive(%a : index) -> (index) {
+func.func @recursive(%a: index) -> (index) {
     %a_eq = equivalence.class %a, %b : index
     %one = arith.constant 1 : index
     %one_eq = equivalence.class %one : index
@@ -80,7 +80,7 @@ func.func @recursive(%a : index) -> (index) {
 
 // CHECK:    Unexpected value 1000 : i64 for key eqsat_cost in ConstantOp(%one = arith.constant {eqsat_cost = 1000 : i64} 1 : index)
 
-func.func @wrong_type_cost(%a : index, %b : index) -> (index) {
+func.func @wrong_type_cost(%a: index, %b: index) -> (index) {
     %a_eq = equivalence.class %a : index
     %one = arith.constant {"eqsat_cost" = 1000} 1  : index
     %one_eq = equivalence.class %one : index
@@ -96,7 +96,7 @@ func.func @wrong_type_cost(%a : index, %b : index) -> (index) {
 
 // CHECK:  Cannot compute cost of one result of operation with multiple results: TestOp(%test0, %test1 = "test.op"() : () -> (index, index))
 
-func.func @multiple_results(%a : index, %b : index) -> (index) {
+func.func @multiple_results(%a: index, %b: index) -> (index) {
     %test0, %test1 = "test.op"() : () -> (index, index)
     %out = equivalence.class %test0, %test1 : index
     func.return %out : index

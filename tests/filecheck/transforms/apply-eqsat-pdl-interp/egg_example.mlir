@@ -119,23 +119,23 @@ pdl_interp.func @matcher(%arg0: !pdl.operation) {
   eqsat_pdl_interp.record_match @rewriters::@pdl_generated_rewriter_1(%11, %arg0 : !pdl.value, !pdl.operation) : benefit(1), loc([%arg0, %13]), root("arith.muli") -> ^bb1
 }
 builtin.module @rewriters {
-  pdl_interp.func @pdl_generated_rewriter(%arg0 : !pdl.type, %arg1 : !pdl.operation) {
+  pdl_interp.func @pdl_generated_rewriter(%arg0: !pdl.type, %arg1: !pdl.operation) {
     %0 = pdl_interp.create_attribute 1 : i32
     %1 = eqsat_pdl_interp.create_operation "arith.constant" {"value" = %0} -> (%arg0 : !pdl.type)
     %2 = eqsat_pdl_interp.get_results of %1 : !pdl.range<value>
     eqsat_pdl_interp.replace %arg1 with (%2 : !pdl.range<value>)
     eqsat_pdl_interp.finalize
   }
-  pdl_interp.func @pdl_generated_rewriter_0(%arg0 : !pdl.value, %arg1 : !pdl.value, %arg2 : !pdl.type, %arg3 : !pdl.value, %arg4 : !pdl.operation) {
-    %0 = eqsat_pdl_interp.create_operation "arith.divui"(%arg0, %arg1 : !pdl.value, !pdl.value) -> (%arg2 : !pdl.type)
+  pdl_interp.func @pdl_generated_rewriter_0(%arg0: !pdl.value, %arg1: !pdl.value, %arg2: !pdl.type, %arg3: !pdl.value, %arg4: !pdl.operation) {
+    %0 = eqsat_pdl_interp.create_operation "arith.divui"(%arg0, %arg1: !pdl.value, !pdl.value) -> (%arg2 : !pdl.type)
     %1 = eqsat_pdl_interp.get_result 0 of %0
-    %2 = eqsat_pdl_interp.create_operation "arith.muli"(%arg3, %1 : !pdl.value, !pdl.value) -> (%arg2 : !pdl.type)
+    %2 = eqsat_pdl_interp.create_operation "arith.muli"(%arg3, %1: !pdl.value, !pdl.value) -> (%arg2 : !pdl.type)
     %3 = eqsat_pdl_interp.get_result 0 of %2
     %4 = eqsat_pdl_interp.get_results of %2 : !pdl.range<value>
     eqsat_pdl_interp.replace %arg4 with (%4 : !pdl.range<value>)
     eqsat_pdl_interp.finalize
   }
-  pdl_interp.func @pdl_generated_rewriter_1(%arg0 : !pdl.value, %arg1 : !pdl.operation) {
+  pdl_interp.func @pdl_generated_rewriter_1(%arg0: !pdl.value, %arg1: !pdl.operation) {
     eqsat_pdl_interp.replace %arg1 with (%arg0 : !pdl.value)
     eqsat_pdl_interp.finalize
   }
@@ -148,14 +148,14 @@ builtin.module @rewriters {
 //   %y = pdl.operand
 //   %z = pdl.operand
 //   %type = pdl.type
-//   %mulop = pdl.operation "arith.muli" (%x, %y : !pdl.value, !pdl.value) -> (%type : !pdl.type)
+//   %mulop = pdl.operation "arith.muli" (%x, %y: !pdl.value, !pdl.value) -> (%type : !pdl.type)
 //   %mul = pdl.result 0 of %mulop
-//   %resultop = pdl.operation "arith.divui" (%mul, %z : !pdl.value, !pdl.value) -> (%type : !pdl.type)
+//   %resultop = pdl.operation "arith.divui" (%mul, %z: !pdl.value, !pdl.value) -> (%type : !pdl.type)
 //   %result = pdl.result 0 of %resultop
 //   pdl.rewrite %resultop {
-//     %newdivop = pdl.operation "arith.divui" (%y, %z : !pdl.value, !pdl.value) -> (%type : !pdl.type)
+//     %newdivop = pdl.operation "arith.divui" (%y, %z: !pdl.value, !pdl.value) -> (%type : !pdl.type)
 //     %newdiv = pdl.result 0 of %newdivop
-//     %newresultop = pdl.operation "arith.muli" (%x, %newdiv : !pdl.value, !pdl.value) -> (%type : !pdl.type)
+//     %newresultop = pdl.operation "arith.muli" (%x, %newdiv: !pdl.value, !pdl.value) -> (%type : !pdl.type)
 //     %newresult = pdl.result 0 of %newresultop
 //     pdl.replace %resultop with %newresultop
 //   }

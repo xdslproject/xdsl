@@ -27,17 +27,17 @@ builtin.module {
     riscv.ecall
     riscv_func.return
   }
-  riscv_func.func @multiply(%x : !riscv.reg<a0>, %y : !riscv.reg<a1>) {
+  riscv_func.func @multiply(%x: !riscv.reg<a0>, %y: !riscv.reg<a1>) {
     "riscv.comment"() {"comment" = "no extra registers needed, so no need to deal with stack"} : () -> ()
     %product = riscv.mul %x, %y : (!riscv.reg<a0>, !riscv.reg<a1>) -> !riscv.reg<a0>
     riscv_func.return %product : !riscv.reg<a0>
   }
-  riscv_func.func @add(%x : !riscv.reg<a0>, %y : !riscv.reg<a1>) {
+  riscv_func.func @add(%x: !riscv.reg<a0>, %y: !riscv.reg<a1>) {
     "riscv.comment"() {"comment" = "no extra registers needed, so no need to deal with stack"} : () -> ()
     %sum = "riscv.add"(%x, %y) : (!riscv.reg<a0>, !riscv.reg<a1>) -> !riscv.reg<a0>
     riscv_func.return %sum : !riscv.reg<a0>
   }
-  riscv_func.func @muladd(%x : !riscv.reg<a0>, %y : !riscv.reg<a1>, %z : !riscv.reg<a2>) {
+  riscv_func.func @muladd(%x: !riscv.reg<a0>, %y: !riscv.reg<a1>, %z: !riscv.reg<a2>) {
     "riscv.comment"() {"comment" = "a0 <- a0 * a1 + a2"} : () -> ()
     "riscv.comment"() {"comment" = "prologue"} : () -> ()
     %12 = rv32.get_register : !riscv.reg<sp>
@@ -50,9 +50,9 @@ builtin.module {
     "riscv.comment"() {"comment" = "save the return address we'll use on the stack"} : () -> ()
     riscv.sw %12, %14, 4: (!riscv.reg<sp>, !riscv.reg<ra>) -> ()
     %16 = riscv.mv %z : (!riscv.reg<a2>) -> !riscv.reg<s0>
-    %xy = riscv_func.call @multiply(%x, %y) : (!riscv.reg<a0>, !riscv.reg<a1>) -> !riscv.reg<a0>
+    %xy = riscv_func.call @multiply(%x, %y): (!riscv.reg<a0>, !riscv.reg<a1>) -> !riscv.reg<a0>
     %17 = riscv.mv %16 : (!riscv.reg<s0>) -> !riscv.reg<a1>
-    %xyz = riscv_func.call @add(%xy, %17) : (!riscv.reg<a0>, !riscv.reg<a1>) -> !riscv.reg<a0>
+    %xyz = riscv_func.call @add(%xy, %17): (!riscv.reg<a0>, !riscv.reg<a1>) -> !riscv.reg<a0>
     "riscv.comment"() {"comment" = "epilogue"} : () -> ()
     "riscv.comment"() {"comment" = "store the old values back into the s registers"} : () -> ()
     %18 = riscv.lw %12, 0: (!riscv.reg<sp>) -> !riscv.reg<s0>

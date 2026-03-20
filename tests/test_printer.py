@@ -450,7 +450,7 @@ def test_print_custom_block_arg_name():
     io = StringIO()
     p = Printer(stream=io)
     p.print_block(block)
-    assert io.getvalue() == """\n^bb0(%test : i32, %test_1 : i32):"""
+    assert io.getvalue() == """\n^bb0(%test: i32, %test_1: i32):"""
 
 
 def test_print_block_argument():
@@ -462,7 +462,7 @@ def test_print_block_argument():
     p.print_block_argument(block.args[0])
     p.print_string(", ")
     p.print_block_argument(block.args[1], print_type=False)
-    assert io.getvalue() == """%0 : i32, %1"""
+    assert io.getvalue() == """%0: i32, %1"""
 
 
 def test_print_block_argument_location():
@@ -477,7 +477,7 @@ def test_print_block_argument_location():
     p.print_block_argument(block.args[0])
     p.print_string(", ")
     p.print_block_argument(block.args[1])
-    assert io.getvalue() == """%0 : i32 loc("model.mlir":3:5), %1 : i32 loc(unknown)"""
+    assert io.getvalue() == """%0: i32 loc("model.mlir":3:5), %1: i32 loc(unknown)"""
 
 
 def test_print_block():
@@ -490,8 +490,7 @@ def test_print_block():
     p = Printer(stream=io)
     p.print_block(block)
     assert (
-        io.getvalue()
-        == """\n^bb0(%0 : i32, %1 : i32):\n  "test.op"(%1) : (i32) -> ()"""
+        io.getvalue() == """\n^bb0(%0: i32, %1: i32):\n  "test.op"(%1) : (i32) -> ()"""
     )
 
 
@@ -507,7 +506,7 @@ def test_print_block_without_arguments():
     p.print_string(", ")
     p.print_block_argument(block.args[1])
     p.print_block(block, print_block_args=False)
-    assert io.getvalue() == """%0 : i32, %1 : i32\n  "test.op"(%1) : (i32) -> ()"""
+    assert io.getvalue() == """%0: i32, %1: i32\n  "test.op"(%1) : (i32) -> ()"""
 
 
 def test_print_block_with_terminator():
@@ -555,7 +554,7 @@ def test_print_region():
     p.print_region(region)
     assert (
         io.getvalue()
-        == """{\n^bb0(%0 : i32, %1 : i32):\n  "test.op"(%1) : (i32) -> ()\n}"""
+        == """{\n^bb0(%0: i32, %1: i32):\n  "test.op"(%1) : (i32) -> ()\n}"""
     )
 
 
@@ -572,7 +571,7 @@ def test_print_region_without_arguments():
     p.print_block_argument(block.args[1])
     p.print_string(" ")
     p.print_region(region, print_entry_block_args=False)
-    assert io.getvalue() == """%0 : i32, %1 : i32 {\n  "test.op"(%1) : (i32) -> ()\n}"""
+    assert io.getvalue() == """%0: i32, %1: i32 {\n  "test.op"(%1) : (i32) -> ()\n}"""
 
 
 def test_print_region_empty_block():
@@ -600,7 +599,7 @@ def test_print_region_empty_block_with_args():
     io = StringIO()
     p = Printer(stream=io)
     p.print_region(region, print_empty_block=False)
-    assert io.getvalue() == """{\n^bb0(%0 : i32, %1 : i32):\n}"""
+    assert io.getvalue() == """{\n^bb0(%0: i32, %1: i32):\n}"""
 
 
 #   ____          _                  _____                          _
