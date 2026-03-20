@@ -59,24 +59,24 @@ class VectorRegisterWidth(StrEnum):
 
     @property
     def bitwidth(self):
-        return _BITWIDTH_BY_SIZE[self]
+        return _VECTOR_BITWIDTH_BY_SIZE[self]
 
     @staticmethod
     def from_bitwidth(bitwidth: int):
         try:
-            return _SIZE_BY_BITWIDTH[bitwidth]
+            return _VECTOR_SIZE_BY_BITWIDTH[bitwidth]
         except KeyError:
             raise ValueError(f"No vector register size for bitwidth {bitwidth}.")
 
 
-_BITWIDTH_BY_SIZE = {
+_VECTOR_BITWIDTH_BY_SIZE = {
     VectorRegisterWidth.B128: 128,
     VectorRegisterWidth.B256: 256,
     VectorRegisterWidth.B512: 512,
 }
-_SIZE_BY_BITWIDTH = {v: k for k, v in _BITWIDTH_BY_SIZE.items()}
+_VECTOR_SIZE_BY_BITWIDTH = {v: k for k, v in _VECTOR_BITWIDTH_BY_SIZE.items()}
 
-_NAME_BY_INDEX_BY_BITWIDTH = {
+_VECTOR_NAME_BY_INDEX_BY_BITWIDTH = {
     VectorRegisterWidth.B128: SSE_NAMES,
     VectorRegisterWidth.B256: AVX2_NAMES,
     VectorRegisterWidth.B512: AVX512_NAMES,
@@ -94,7 +94,7 @@ class VectorRegisterWidthAttr(
     name = "x86.vec_reg_size"
 
     def get_register_name(self, index: int) -> str:
-        return _NAME_BY_INDEX_BY_BITWIDTH[self.data][index]
+        return _VECTOR_NAME_BY_INDEX_BY_BITWIDTH[self.data][index]
 
 
 B128 = VectorRegisterWidthAttr(VectorRegisterWidth.B128)
