@@ -15,18 +15,18 @@ from xdsl.pattern_rewriter import (
 from xdsl.rewriter import InsertPoint
 from xdsl.transforms.loop_nest_lowering_utils import (
     indices_for_map,
-    rewrite_generic_to_loops,
+    rewrite_linalg_structured_to_loops,
 )
 
 
-class LowerGenericOpPattern(RewritePattern):
+class LowerLinalgStructuredOpPattern(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(
-        self, op: linalg.GenericOp, rewriter: PatternRewriter
+        self, op: linalg.LinalgStructuredOperation, rewriter: PatternRewriter
     ) -> None:
         if op.res:
             raise NotImplementedError(
-                "lowering for linalg.generic with results not yet supported"
+                f"lowering for {op.name} with tensor results not yet supported"
             )
 
         def insert_load(
@@ -36,7 +36,7 @@ class LowerGenericOpPattern(RewritePattern):
             insertion_target: InsertPoint,
         ) -> SSAValue:
             value = op.operands[value_index]
-            affine_map_attr = op.indexing_maps.data[value_index]
+            affine_map_attr = op.get_indexing_maps().data[value_index]
             if isinstance(value.type, MemRefType):
                 indices = indices_for_map(
                     rewriter, insertion_target, affine_map_attr.data, ind_vars
@@ -58,7 +58,7 @@ class LowerGenericOpPattern(RewritePattern):
         ):
             value_index = ins_count + output_index
             destination = op.operands[value_index]
-            affine_map_attr = op.indexing_maps.data[value_index]
+            affine_map_attr = op.get_indexing_maps().data[value_index]
             indices = indices_for_map(
                 rewriter, insertion_target, affine_map_attr.data, ind_vars
             )
@@ -66,12 +66,12 @@ class LowerGenericOpPattern(RewritePattern):
             rewriter.insert_op(store_op, insertion_target)
             return store_op
 
-        rewrite_generic_to_loops(
+        rewrite_linalg_structured_to_loops(
             rewriter,
             InsertPoint.before(op),
             op.get_static_loop_ranges(),
-            op.indexing_maps.data,
-            op.indexing_maps.data[-len(op.outputs) :],
+            op.get_indexing_maps().data,
+            op.get_indexing_maps().data[-len(op.outputs) :],
             op.operands,
             op.outputs,
             op.body.block,
@@ -82,13 +82,13 @@ class LowerGenericOpPattern(RewritePattern):
 
 class ConvertLinalgToLoopsPass(ModulePass):
     """
-    Converts a linalg generic to perfectly nested loops.
+    Converts a linalg structured ops to perfectly nested loops.
     """
 
     name = "convert-linalg-to-loops"
 
     def apply(self, ctx: Context, op: ModuleOp) -> None:
         PatternRewriteWalker(
-            GreedyRewritePatternApplier([LowerGenericOpPattern()]),
+            GreedyRewritePatternApplier([LowerLinalgStructuredOpPattern()]),
             apply_recursively=False,
         ).rewrite_module(op)

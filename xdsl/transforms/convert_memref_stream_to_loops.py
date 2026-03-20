@@ -16,7 +16,7 @@ from xdsl.rewriter import InsertPoint
 from xdsl.transforms.loop_nest_lowering_utils import (
     indices_for_map,
     rewrite_generic_to_imperfect_loops,
-    rewrite_generic_to_loops,
+    rewrite_linalg_structured_to_loops,
 )
 
 
@@ -188,7 +188,7 @@ class LowerGenericOpPattern(RewritePattern):
                 insert_store,
             )
         else:
-            rewrite_generic_to_loops(
+            rewrite_linalg_structured_to_loops(
                 rewriter,
                 InsertPoint.before(op),
                 outer_ubs,

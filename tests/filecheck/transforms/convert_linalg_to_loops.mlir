@@ -117,4 +117,41 @@ linalg.generic {
 // CHECK-NEXT:      }
 // CHECK-NEXT:    }
 
+// Named op: add
+linalg.add ins(%D, %D : memref<2x3xf64>, memref<2x3xf64>) outs(%D : memref<2x3xf64>)
+
+// CHECK-NEXT:    %{{.*}} = arith.constant 2 : index
+// CHECK-NEXT:    %{{.*}} = arith.constant 3 : index
+// CHECK-NEXT:    %{{.*}} = arith.constant 0 : index
+// CHECK-NEXT:    %{{.*}} = arith.constant 1 : index
+// CHECK-NEXT:    scf.for %{{.*}} = %{{.*}} to %{{.*}} step %{{.*}} {
+// CHECK-NEXT:      scf.for %{{.*}} = %{{.*}} to %{{.*}} step %{{.*}} {
+// CHECK-NEXT:        %{{.*}} = memref.load %D[%{{.*}}, %{{.*}}] : memref<2x3xf64>
+// CHECK-NEXT:        %{{.*}} = memref.load %D[%{{.*}}, %{{.*}}] : memref<2x3xf64>
+// CHECK-NEXT:        %{{.*}} = arith.addf %{{.*}}, %{{.*}} : f64
+// CHECK-NEXT:        memref.store %{{.*}}, %D[%{{.*}}, %{{.*}}] : memref<2x3xf64>
+// CHECK-NEXT:      }
+// CHECK-NEXT:    }
+
+
+// Named op: matmul
+linalg.matmul ins(%D, %E : memref<2x3xf64>, memref<3x4xf64>) outs(%F : memref<2x4xf64>)
+
+// CHECK-NEXT:    %{{.*}} = arith.constant 2 : index
+// CHECK-NEXT:    %{{.*}} = arith.constant 4 : index
+// CHECK-NEXT:    %{{.*}} = arith.constant 3 : index
+// CHECK-NEXT:    %{{.*}} = arith.constant 0 : index
+// CHECK-NEXT:    %{{.*}} = arith.constant 1 : index
+// CHECK-NEXT:    scf.for %{{.*}} = %{{.*}} to %{{.*}} step %{{.*}} {
+// CHECK-NEXT:      scf.for %{{.*}} = %{{.*}} to %{{.*}} step %{{.*}} {
+// CHECK-NEXT:        scf.for %{{.*}} = %{{.*}} to %{{.*}} step %{{.*}} {
+// CHECK-NEXT:          %{{.*}} = memref.load %D[%{{.*}}, %{{.*}}] : memref<2x3xf64>
+// CHECK-NEXT:          %{{.*}} = memref.load %E[%{{.*}}, %{{.*}}] : memref<3x4xf64>
+// CHECK-NEXT:          %{{.*}} = memref.load %F[%{{.*}}, %{{.*}}] : memref<2x4xf64>
+// CHECK-NEXT:          %{{.*}} = arith.mulf %{{.*}}, %{{.*}} : f64
+// CHECK-NEXT:          %{{.*}} = arith.addf %{{.*}}, %{{.*}} : f64
+// CHECK-NEXT:          memref.store %{{.*}}, %F[%{{.*}}, %{{.*}}] : memref<2x4xf64>
+// CHECK-NEXT:        }
+// CHECK-NEXT:      }
+// CHECK-NEXT:    }
 // CHECK-NEXT:  }
