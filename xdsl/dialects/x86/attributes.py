@@ -97,12 +97,6 @@ class VectorRegisterWidthAttr(
         return _NAME_BY_INDEX_BY_BITWIDTH[self.data][index]
 
 
-VECTOR_REGISTER_MNEMONIC_BY_WIDTH = {
-    VectorRegisterWidth.B128: "x",
-    VectorRegisterWidth.B256: "y",
-    VectorRegisterWidth.B512: "z",
-}
-
 B128 = VectorRegisterWidthAttr(VectorRegisterWidth.B128)
 B256 = VectorRegisterWidthAttr(VectorRegisterWidth.B256)
 B512 = VectorRegisterWidthAttr(VectorRegisterWidth.B512)
