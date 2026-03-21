@@ -128,7 +128,10 @@ from .registers import (
     AVX2RegisterType,
     AVX512MaskRegisterType,
     AVX512RegisterType,
-    GeneralRegisterType,
+    Reg8Type,
+    Reg16Type,
+    Reg32Type,
+    Reg64Type,
     RFLAGSRegisterType,
     SSERegisterType,
 )
@@ -259,7 +262,10 @@ X86 = Dialect(
         ParallelMovOp,
     ],
     [
-        GeneralRegisterType,
+        Reg64Type,
+        Reg32Type,
+        Reg16Type,
+        Reg8Type,
         RFLAGSRegisterType,
         SSERegisterType,
         AVX2RegisterType,

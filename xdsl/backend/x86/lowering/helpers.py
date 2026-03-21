@@ -11,10 +11,17 @@ from xdsl.dialects import ptr, x86
 from xdsl.dialects.builtin import (
     FixedBitwidthType,
     IndexType,
-    ShapedType,
     VectorType,
 )
-from xdsl.dialects.x86.registers import X86RegisterType, X86VectorRegisterType
+from xdsl.dialects.x86.registers import (
+    GeneralRegisterType,
+    Reg8Type,
+    Reg16Type,
+    Reg32Type,
+    Reg64Type,
+    X86RegisterType,
+    X86VectorRegisterType,
+)
 from xdsl.ir import Attribute, SSAValue
 from xdsl.pattern_rewriter import PatternRewriter
 from xdsl.utils.exceptions import DiagnosticException
@@ -60,16 +67,22 @@ class Arch(StrEnum):
                     f"The vector size ({vector_size} bits) and target architecture `{self}` are inconsistent."
                 )
 
-    def _scalar_type_for_type(self, value_type: Attribute) -> type[X86RegisterType]:
-        assert not isinstance(value_type, ShapedType)
-        if (
-            (isinstance(value_type, FixedBitwidthType) and value_type.bitwidth <= 64)
-            or isinstance(value_type, IndexType)
-            or isinstance(value_type, ptr.PtrType)
-        ):
-            return x86.registers.GeneralRegisterType
-        else:
-            raise DiagnosticException("Not implemented for bitwidth larger than 64.")
+    def _scalar_type_for_type(self, value_type: Attribute) -> type[GeneralRegisterType]:
+        if isinstance(value_type, FixedBitwidthType):
+            match value_type.bitwidth:
+                case 64:
+                    return Reg64Type
+                case 32:
+                    return Reg32Type
+                case 16:
+                    return Reg16Type
+                case 8:
+                    return Reg8Type
+                case _:
+                    ...
+        if isinstance(value_type, IndexType) or isinstance(value_type, ptr.PtrType):
+            return Reg64Type
+        raise DiagnosticException(f"Register type for type {value_type} not supported.")
 
     @overload
     def register_type_for_type(

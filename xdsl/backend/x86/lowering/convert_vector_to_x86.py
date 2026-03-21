@@ -26,13 +26,9 @@ class VectorBroadcastToX86(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: vector.BroadcastOp, rewriter: PatternRewriter):
-        # Get the register to be broadcasted
-        source_cast_op, source_x86 = UnrealizedConversionCastOp.cast_one(
-            op.source, x86.registers.UNALLOCATED_GENERAL
-        )
-        # Actually broadcast the register
         element_type = op.source.type
         assert isinstance(element_type, FixedBitwidthType)
+        # Actually broadcast the register
         element_size = element_type.bitwidth
         match element_size:
             case 16:
@@ -47,6 +43,10 @@ class VectorBroadcastToX86(RewritePattern):
                 raise DiagnosticException(
                     "Float precision must be half, single or double."
                 )
+        scalar_reg_type = self.arch.register_type_for_type(element_type)
+        source_cast_op, source_x86 = UnrealizedConversionCastOp.cast_one(
+            op.source, scalar_reg_type.unallocated()
+        )
         broadcast_op = broadcast(
             source=source_x86,
             destination=self.arch.register_type_for_type(op.vector.type).unallocated(),

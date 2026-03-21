@@ -8,6 +8,7 @@ from xdsl.dialects.builtin import (
     UnrealizedConversionCastOp,
     VectorType,
 )
+from xdsl.dialects.x86.registers import GeneralRegisterType
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -22,24 +23,22 @@ from xdsl.utils.hints import isa
 
 @dataclass
 class PtrAddToX86(RewritePattern):
+    arch: Arch
+
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ptr.PtrAddOp, rewriter: PatternRewriter):
-        x86_reg_type = x86.registers.UNALLOCATED_GENERAL
+        # Pointer-sized GPR for address arithmetic (ptr + offset in the flat address space).
+        reg = self.arch.register_type_for_type(ptr.PtrType()).unallocated()
+        assert isinstance(reg, GeneralRegisterType)
 
         rewriter.replace_op(
             op,
             [
-                ptr_cast_op := UnrealizedConversionCastOp.get(
-                    (op.addr,), (x86_reg_type,)
-                ),
-                offset_cast_op := UnrealizedConversionCastOp.get(
-                    (op.offset,), (x86_reg_type,)
-                ),
-                ptr_mv_op := x86.DS_MovOp(
-                    ptr_cast_op, destination=x86.registers.UNALLOCATED_GENERAL
-                ),
+                ptr_cast_op := UnrealizedConversionCastOp.get((op.addr,), (reg,)),
+                offset_cast_op := UnrealizedConversionCastOp.get((op.offset,), (reg,)),
+                ptr_mv_op := x86.DS_MovOp(ptr_cast_op, destination=reg),
                 add_op := x86.RS_AddOp(
-                    ptr_mv_op.destination, offset_cast_op, register_out=x86_reg_type
+                    ptr_mv_op.destination, offset_cast_op, register_out=reg
                 ),
                 UnrealizedConversionCastOp.get(
                     (add_op.register_out,), (ptr.PtrType(),)
@@ -56,8 +55,9 @@ class PtrStoreToX86(RewritePattern):
     def match_and_rewrite(self, op: ptr.StoreOp, rewriter: PatternRewriter):
         value_type = op.value.type
         # Pointer casts
+        addr_unalloc = self.arch.register_type_for_type(op.addr.type).unallocated()
         addr_cast_op, x86_ptr = UnrealizedConversionCastOp.cast_one(
-            op.addr, x86.registers.UNALLOCATED_GENERAL
+            op.addr, addr_unalloc
         )
         if isa(value_type, VectorType[FixedBitwidthType]):
             x86_vect_type = self.arch.register_type_for_type(value_type)
@@ -81,8 +81,9 @@ class PtrStoreToX86(RewritePattern):
                     )
             mov_op = mov(x86_ptr, x86_data, memory_offset=0)
         else:
+            value_unalloc = self.arch.register_type_for_type(value_type).unallocated()
             cast_op, x86_data = UnrealizedConversionCastOp.cast_one(
-                op.value, x86.registers.UNALLOCATED_GENERAL
+                op.value, value_unalloc
             )
             mov_op = x86.MS_MovOp(x86_ptr, x86_data, memory_offset=0)
 
@@ -96,7 +97,8 @@ class PtrLoadToX86(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ptr.LoadOp, rewriter: PatternRewriter):
         # Pointer cast
-        x86_reg_type = x86.registers.UNALLOCATED_GENERAL
+        x86_reg_type = self.arch.register_type_for_type(op.addr.type).unallocated()
+        assert isinstance(x86_reg_type, GeneralRegisterType)
         cast_op, addr_x86 = UnrealizedConversionCastOp.cast_one(op.addr, x86_reg_type)
 
         value_type = op.res.type
@@ -122,9 +124,7 @@ class PtrLoadToX86(RewritePattern):
                 destination=self.arch.register_type_for_type(value_type).unallocated(),
             )
         else:
-            mov_op = x86.DM_MovOp(
-                addr_x86, memory_offset=0, destination=x86.registers.UNALLOCATED_GENERAL
-            )
+            mov_op = x86.DM_MovOp(addr_x86, memory_offset=0, destination=x86_reg_type)
 
         res_cast_op = UnrealizedConversionCastOp.get(mov_op.results, (value_type,))
         rewriter.replace_op(op, [cast_op, mov_op, res_cast_op])
@@ -143,7 +143,7 @@ class ConvertPtrToX86Pass(ModulePass):
                 [
                     PtrLoadToX86(arch),
                     PtrStoreToX86(arch),
-                    PtrAddToX86(),
+                    PtrAddToX86(arch),
                 ]
             ),
             apply_recursively=False,
