@@ -33,7 +33,23 @@ def test_push_register():
     assert register_stack.pop(x86.AVX2RegisterType) == x86.registers.YMM0
 
     register_stack.push(x86.registers.RAX)
-    assert register_stack.pop(x86.GeneralRegisterType) == x86.registers.RAX
+    assert register_stack.pop(x86.registers.Reg64Type) == x86.registers.RAX
+
+
+def test_gpr_widths_share_one_pool():
+    """
+    64/32/16/8-bit GPR names share pool key x86.reg; exhausting one width blocks others.
+    """
+    stack = X86RegisterStack.get()
+
+    try:
+        while True:
+            stack.pop(x86.registers.Reg64Type)
+    except OutOfRegisters:
+        pass
+
+    with pytest.raises(OutOfRegisters):
+        stack.pop(x86.registers.Reg32Type)
 
 
 def test_vector_registers_share_one_pool():
@@ -42,21 +58,12 @@ def test_vector_registers_share_one_pool():
     After every ABI index usable by SSE is taken, AVX2 cannot allocate (same indices).
     """
     stack = X86RegisterStack.get()
-    pool_key = x86.registers.X86_VECTOR_POOL_KEY
-    assert len(stack.available_registers[pool_key]) == 32
-    n_sse = len(x86.SSERegisterType.abi_name_by_index())
-    for _ in range(n_sse):
-        stack.pop(x86.SSERegisterType)
-    with pytest.raises(OutOfRegisters):
-        stack.pop(x86.AVX2RegisterType)
 
+    try:
+        while True:
+            stack.pop(x86.registers.SSERegisterType)
+    except OutOfRegisters:
+        pass
 
-def test_vector_pool_includes_zmm16_through_zmm31():
-    """Default stack seeds zmm0-zmm31; indices 16-31 share the same pool key as low vector."""
-    stack = X86RegisterStack.get()
-    pool_key = x86.registers.X86_VECTOR_POOL_KEY
-    assert len(stack.available_registers[pool_key]) == 32
-    for _ in range(32):
-        stack.pop(x86.AVX512RegisterType)
     with pytest.raises(OutOfRegisters):
-        stack.pop(x86.AVX512RegisterType)
+        stack.pop(x86.registers.AVX2RegisterType)

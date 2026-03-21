@@ -16,56 +16,34 @@ class X86RegisterType(RegisterType, ABC):
     """
 
 
-X86_INDEX_BY_NAME = {
-    "rax": 0,
-    "rcx": 1,
-    "rdx": 2,
-    "rbx": 3,
-    "rsp": 4,
-    "rbp": 5,
-    "rsi": 6,
-    "rdi": 7,
-    # Currently don't support 32-bit registers
-    # https://github.com/xdslproject/xdsl/issues/4737
-    # "eax": 0,
-    # "ecx": 1,
-    # "edx": 2,
-    # "ebx": 3,
-    # "esp": 4,
-    # "ebp": 5,
-    # "esi": 6,
-    # "edi": 7,
-    "r8": 8,
-    "r9": 9,
-    "r10": 10,
-    "r11": 11,
-    "r12": 12,
-    "r13": 13,
-    "r14": 14,
-    "r15": 15,
-}
+X86_GPR_POOL_KEY = "x86.reg"
 """
-Mapping of x86 register names to their indices.
+Pool key for x86 general-purpose register allocation.
 
-See external [documentation](https://wiki.osdev.org/X86-64_Instruction_Encoding#Registers).
+64-bit, 32-bit, 16-bit, and 8-bit names share one physical register per index (e.g.
+``rax`` / ``eax`` / ``ax`` / ``al``). Indices are drawn from a single pool; see concrete
+subclasses of [xdsl.dialects.x86.GeneralRegisterType].
 """
 
 
-@irdl_attr_definition
-class GeneralRegisterType(X86RegisterType):
-    """
-    A scalar x86 register type representing general registers.
-    """
+_ALLOCATABLE_GPR_INDICES = frozenset({0, 1, 2, 3, 6, 7, 8, 9, 10, 11, 13, 14, 15})
+"""
+Indices allocatable per x86-64 System V ABI (excludes rsp, rbp, r12 in this dialect).
+"""
 
-    name = "x86.reg"
+
+class GeneralRegisterType(X86RegisterType, ABC):
+    """
+    Abstract base for x86 scalar general-purpose register types (64/32/16/8-bit names).
+
+    Concrete subclasses set the assembly name width; all share :data:`X86_GPR_POOL_KEY`
+    for register allocation.
+    """
 
     @classmethod
-    def index_by_name(cls) -> dict[str, int]:
-        return X86_INDEX_BY_NAME
-
-    @classmethod
-    def infinite_register_prefix(cls):
-        return "inf_reg_"
+    @override
+    def register_pool_key(cls) -> str:
+        return X86_GPR_POOL_KEY
 
     @classmethod
     def allocatable_registers(cls):
@@ -76,52 +54,239 @@ class GeneralRegisterType(X86RegisterType):
         are allocatable according to the x86-64 System V ABI.
         This excludes registers with special purposes (e.g., stack pointer, base pointer).
         """
-        return (
-            RAX,
-            RCX,
-            RDX,
-            RBX,
-            RSI,
-            RDI,
-            R8,
-            R9,
-            R10,
-            R11,
-            R13,
-            R14,
-            R15,
-        )
+        return tuple(cls.from_index(i) for i in _ALLOCATABLE_GPR_INDICES)
 
 
-UNALLOCATED_GENERAL = GeneralRegisterType.unallocated()
-RAX = GeneralRegisterType.from_name("rax")
-RCX = GeneralRegisterType.from_name("rcx")
-RDX = GeneralRegisterType.from_name("rdx")
-RBX = GeneralRegisterType.from_name("rbx")
-RSP = GeneralRegisterType.from_name("rsp")
-RBP = GeneralRegisterType.from_name("rbp")
-RSI = GeneralRegisterType.from_name("rsi")
-RDI = GeneralRegisterType.from_name("rdi")
+X86_INDEX_BY_NAME = {
+    "rax": 0,
+    "rcx": 1,
+    "rdx": 2,
+    "rbx": 3,
+    "rsp": 4,
+    "rbp": 5,
+    "rsi": 6,
+    "rdi": 7,
+    "r8": 8,
+    "r9": 9,
+    "r10": 10,
+    "r11": 11,
+    "r12": 12,
+    "r13": 13,
+    "r14": 14,
+    "r15": 15,
+}
+"""
+Mapping of x86 64-bit register names to their indices.
 
-# Currently don't support 32-bit registers
-# https://github.com/xdslproject/xdsl/issues/4737
-# EAX = GeneralRegisterType.from_name("eax")
-# ECX = GeneralRegisterType.from_name("ecx")
-# EDX = GeneralRegisterType.from_name("edx")
-# EBX = GeneralRegisterType.from_name("ebx")
-# ESP = GeneralRegisterType.from_name("esp")
-# EBP = GeneralRegisterType.from_name("ebp")
-# ESI = GeneralRegisterType.from_name("esi")
-# EDI = GeneralRegisterType.from_name("edi")
+See external [documentation](https://wiki.osdev.org/X86-64_Instruction_Encoding#Registers).
+"""
 
-R8 = GeneralRegisterType.from_name("r8")
-R9 = GeneralRegisterType.from_name("r9")
-R10 = GeneralRegisterType.from_name("r10")
-R11 = GeneralRegisterType.from_name("r11")
-R12 = GeneralRegisterType.from_name("r12")
-R13 = GeneralRegisterType.from_name("r13")
-R14 = GeneralRegisterType.from_name("r14")
-R15 = GeneralRegisterType.from_name("r15")
+REG32_INDEX_BY_NAME = {
+    "eax": 0,
+    "ecx": 1,
+    "edx": 2,
+    "ebx": 3,
+    "esp": 4,
+    "ebp": 5,
+    "esi": 6,
+    "edi": 7,
+    "r8d": 8,
+    "r9d": 9,
+    "r10d": 10,
+    "r11d": 11,
+    "r12d": 12,
+    "r13d": 13,
+    "r14d": 14,
+    "r15d": 15,
+}
+
+REG16_INDEX_BY_NAME = {
+    "ax": 0,
+    "cx": 1,
+    "dx": 2,
+    "bx": 3,
+    "sp": 4,
+    "bp": 5,
+    "si": 6,
+    "di": 7,
+    "r8w": 8,
+    "r9w": 9,
+    "r10w": 10,
+    "r11w": 11,
+    "r12w": 12,
+    "r13w": 13,
+    "r14w": 14,
+    "r15w": 15,
+}
+
+REG8_INDEX_BY_NAME = {
+    "al": 0,
+    "cl": 1,
+    "dl": 2,
+    "bl": 3,
+    "spl": 4,
+    "bpl": 5,
+    "sil": 6,
+    "dil": 7,
+    "r8b": 8,
+    "r9b": 9,
+    "r10b": 10,
+    "r11b": 11,
+    "r12b": 12,
+    "r13b": 13,
+    "r14b": 14,
+    "r15b": 15,
+}
+"""
+Low-byte 8-bit names only; ``ah``/``ch``/``dh``/``bh`` are not modeled (see
+:class:`Reg8Type`).
+"""
+
+
+@irdl_attr_definition
+class Reg64Type(GeneralRegisterType):
+    """
+    64-bit x86 general-purpose register names (``rax``, ``r8``, …).
+    """
+
+    name = "x86.reg64"
+
+    @classmethod
+    def index_by_name(cls) -> dict[str, int]:
+        return X86_INDEX_BY_NAME
+
+    @classmethod
+    def infinite_register_prefix(cls):
+        return "inf_reg_"
+
+
+@irdl_attr_definition
+class Reg32Type(GeneralRegisterType):
+    """
+    32-bit x86 general-purpose register names (``eax``, ``r8d``, …).
+    """
+
+    name = "x86.reg32"
+
+    @classmethod
+    def index_by_name(cls) -> dict[str, int]:
+        return REG32_INDEX_BY_NAME
+
+    @classmethod
+    def infinite_register_prefix(cls):
+        return "inf_reg32_"
+
+
+@irdl_attr_definition
+class Reg16Type(GeneralRegisterType):
+    """
+    16-bit x86 general-purpose register names (``ax``, ``r8w``, …).
+    """
+
+    name = "x86.reg16"
+
+    @classmethod
+    def index_by_name(cls) -> dict[str, int]:
+        return REG16_INDEX_BY_NAME
+
+    @classmethod
+    def infinite_register_prefix(cls):
+        return "inf_reg16_"
+
+
+@irdl_attr_definition
+class Reg8Type(GeneralRegisterType):
+    """
+    8-bit x86 low-byte register names (``al``, ``r8b``, …).
+
+    High-byte names ``ah``/``ch``/``dh``/``bh`` are not represented: they share indices
+    with low bytes but :class:`~xdsl.backend.register_type.RegisterType` assumes one
+    canonical name per pool index.
+    """
+
+    name = "x86.reg8"
+
+    @classmethod
+    def index_by_name(cls) -> dict[str, int]:
+        return REG8_INDEX_BY_NAME
+
+    @classmethod
+    def infinite_register_prefix(cls):
+        return "inf_reg8_"
+
+
+UNALLOCATED_REG64 = Reg64Type.unallocated()
+UNALLOCATED_REG32 = Reg32Type.unallocated()
+UNALLOCATED_REG16 = Reg16Type.unallocated()
+UNALLOCATED_REG8 = Reg8Type.unallocated()
+
+RAX = Reg64Type.from_name("rax")
+RCX = Reg64Type.from_name("rcx")
+RDX = Reg64Type.from_name("rdx")
+RBX = Reg64Type.from_name("rbx")
+RSP = Reg64Type.from_name("rsp")
+RBP = Reg64Type.from_name("rbp")
+RSI = Reg64Type.from_name("rsi")
+RDI = Reg64Type.from_name("rdi")
+R8 = Reg64Type.from_name("r8")
+R9 = Reg64Type.from_name("r9")
+R10 = Reg64Type.from_name("r10")
+R11 = Reg64Type.from_name("r11")
+R12 = Reg64Type.from_name("r12")
+R13 = Reg64Type.from_name("r13")
+R14 = Reg64Type.from_name("r14")
+R15 = Reg64Type.from_name("r15")
+
+EAX = Reg32Type.from_name("eax")
+ECX = Reg32Type.from_name("ecx")
+EDX = Reg32Type.from_name("edx")
+EBX = Reg32Type.from_name("ebx")
+ESP = Reg32Type.from_name("esp")
+EBP = Reg32Type.from_name("ebp")
+ESI = Reg32Type.from_name("esi")
+EDI = Reg32Type.from_name("edi")
+R8D = Reg32Type.from_name("r8d")
+R9D = Reg32Type.from_name("r9d")
+R10D = Reg32Type.from_name("r10d")
+R11D = Reg32Type.from_name("r11d")
+R12D = Reg32Type.from_name("r12d")
+R13D = Reg32Type.from_name("r13d")
+R14D = Reg32Type.from_name("r14d")
+R15D = Reg32Type.from_name("r15d")
+
+AX = Reg16Type.from_name("ax")
+CX = Reg16Type.from_name("cx")
+DX = Reg16Type.from_name("dx")
+BX = Reg16Type.from_name("bx")
+SP = Reg16Type.from_name("sp")
+BP = Reg16Type.from_name("bp")
+SI = Reg16Type.from_name("si")
+DI = Reg16Type.from_name("di")
+R8W = Reg16Type.from_name("r8w")
+R9W = Reg16Type.from_name("r9w")
+R10W = Reg16Type.from_name("r10w")
+R11W = Reg16Type.from_name("r11w")
+R12W = Reg16Type.from_name("r12w")
+R13W = Reg16Type.from_name("r13w")
+R14W = Reg16Type.from_name("r14w")
+R15W = Reg16Type.from_name("r15w")
+
+AL = Reg8Type.from_name("al")
+CL = Reg8Type.from_name("cl")
+DL = Reg8Type.from_name("dl")
+BL = Reg8Type.from_name("bl")
+SPL = Reg8Type.from_name("spl")
+BPL = Reg8Type.from_name("bpl")
+SIL = Reg8Type.from_name("sil")
+DIL = Reg8Type.from_name("dil")
+R8B = Reg8Type.from_name("r8b")
+R9B = Reg8Type.from_name("r9b")
+R10B = Reg8Type.from_name("r10b")
+R11B = Reg8Type.from_name("r11b")
+R12B = Reg8Type.from_name("r12b")
+R13B = Reg8Type.from_name("r13b")
+R14B = Reg8Type.from_name("r14b")
+R15B = Reg8Type.from_name("r15b")
 
 RFLAGS_INDEX_BY_NAME = {
     "rflags": 0,
