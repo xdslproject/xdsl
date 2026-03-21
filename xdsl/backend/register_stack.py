@@ -21,33 +21,36 @@ class OutOfRegisters(DiagnosticException):
 class RegisterStack:
     """
     LIFO stack of registers available for allocation.
+
+    Internal maps are keyed by
+    [RegisterType.register_pool_key][xdsl.backend.register_type.RegisterType.register_pool_key]
+    so targets can merge pools for aliasing registers.
     """
 
     allocatable_registers: defaultdict[str, set[int]] = field(
         default_factory=lambda: defaultdict(lambda: set[int]())
     )
     """
-    Registers that can be used by the register allocator for a given register set.
+    Registers that can be used by the register allocator for a given allocation pool.
     """
 
     next_infinite_indices: defaultdict[str, int] = field(
         default_factory=lambda: defaultdict(lambda: 0)
     )
-    """Next index for a given register set."""
+    """Next index to be used for a given allocation pool."""
 
     reserved_registers: defaultdict[str, defaultdict[int, int]] = field(
         default_factory=lambda: defaultdict(lambda: defaultdict[int, int](lambda: 0))
     )
     """
-    Registers unavailable to be used by the register allocator for a given register set.
+    Registers unavailable to be used by the register allocator for a given pool.
     """
 
     available_registers: defaultdict[str, list[int]] = field(
         default_factory=lambda: defaultdict(list[int])
     )
     """
-    Registers from a given register set that values can be allocated to in the current
-    context.
+    Registers from a given pool whose values can be allocated to in the current context.
     """
 
     allow_infinite: bool = False
@@ -84,34 +87,35 @@ class RegisterStack:
             raise ValueError("Cannot push an unallocated register")
 
         index = reg.index.data
-        register_set = reg.name
+        pool_key = reg.register_pool_key()
         if (
-            index in self.reserved_registers[register_set]
-            or index not in self.allocatable_registers[register_set]
+            index in self.reserved_registers[pool_key]
+            or index not in self.allocatable_registers[pool_key]
         ) and 0 <= index:
             return
 
-        self.available_registers[register_set].append(index)
+        available = self.available_registers[pool_key]
+        if index in available:
+            available.remove(index)
+        available.append(index)
 
     def pop(self, reg_type: type[_T]) -> _T:
         """
         Get the next available register for allocation.
         """
-        register_set = reg_type.name
-        available_registers = self.available_registers[register_set]
+        pool_key = reg_type.register_pool_key()
+        pool = self.available_registers[pool_key]
 
-        if available_registers:
-            reg = reg_type.from_index(available_registers.pop())
+        if pool:
+            reg = reg_type.from_index(pool.pop())
         else:
             if self.allow_infinite:
-                reg = reg_type.infinite_register(
-                    self.next_infinite_indices[register_set]
-                )
-                self.next_infinite_indices[register_set] += 1
+                reg = reg_type.infinite_register(self.next_infinite_indices[pool_key])
+                self.next_infinite_indices[pool_key] += 1
             else:
                 raise OutOfRegisters
 
-        reserved_registers = self.reserved_registers[reg_type.name]
+        reserved_registers = self.reserved_registers[pool_key]
 
         assert isinstance(reg.index, IntAttr)
         assert reg.index.data not in reserved_registers, (
@@ -128,7 +132,7 @@ class RegisterStack:
         unreserving a register will result in an AssertionError.
         """
         assert isinstance(reg.index, IntAttr)
-        self.reserved_registers[reg.name][reg.index.data] += 1
+        self.reserved_registers[reg.register_pool_key()][reg.index.data] += 1
 
     @contextmanager
     def reserve_registers(self, regs: Sequence[RegisterType]):
@@ -142,11 +146,12 @@ class RegisterStack:
 
     def unreserve_register(self, reg: RegisterType) -> None:
         """
-        Decrease the reservation count for a register. If the reservation count is 0, make
-        the register available for allocation.
+        Decrease the reservation count for a register. If the reservation count is 0,
+        make the register available for allocation.
         """
         assert isinstance(reg.index, IntAttr)
-        reserved_registers = self.reserved_registers[reg.name]
+        pool_key = reg.register_pool_key()
+        reserved_registers = self.reserved_registers[pool_key]
         if reg.index.data not in reserved_registers:
             raise ValueError(f"Cannot unreserve register {reg.register_name}")
         reserved_registers[reg.index.data] -= 1
@@ -158,7 +163,8 @@ class RegisterStack:
         Makes register available for allocation.
         """
         assert not isinstance(reg.index, NoneAttr)
-        self.allocatable_registers[reg.name].add(reg.index.data)
+        pool_key = reg.register_pool_key()
+        self.allocatable_registers[pool_key].add(reg.index.data)
         self.push(reg)
 
     def exclude_register(self, reg: RegisterType) -> None:
@@ -167,8 +173,9 @@ class RegisterStack:
         """
         assert isinstance(reg.index, IntAttr)
         index = reg.index.data
-        available_registers = self.available_registers[reg.name]
-        allocatable_registers = self.allocatable_registers[reg.name]
+        pool_key = reg.register_pool_key()
+        available_registers = self.available_registers[pool_key]
+        allocatable_registers = self.allocatable_registers[pool_key]
         if index in available_registers:
             available_registers.remove(index)
         if index in allocatable_registers:
