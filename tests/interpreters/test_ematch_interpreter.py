@@ -837,3 +837,47 @@ def test_repair_updates_analysis_state():
     # visit_operation_impl propagates max of operands (7) and then meets
     # with the original (99) → min(7, 99) = 7
     assert updated.value.value == 7
+
+
+def test_repair_analysis_change_adds_to_worklist():
+    """When repair detects a ChangeResult.CHANGE, the result eclass is added to worklist."""
+    interpreter, ematch_funcs, block = _make_interpreter_with_rewriter()
+
+    ctx = PDLInterpFunctions.get_ctx(interpreter)
+    solver = NonPropagatingDataFlowSolver(ctx)
+    analysis = TestAnalysis(solver)
+    ematch_funcs.analyses.append(
+        cast(SparseForwardDataFlowAnalysis[Lattice[Any]], analysis)
+    )
+
+    with ImplicitBuilder(block):
+        v0 = test.TestOp(result_types=(i32,)).results[0]
+
+    eclass_c = ematch_funcs.get_or_create_class(interpreter, v0)
+
+    with ImplicitBuilder(block):
+        parent_op = test.TestOp(operands=(eclass_c.result,), result_types=(i32,))
+
+    eclass_parent = ematch_funcs.get_or_create_class(interpreter, parent_op.results[0])
+
+    # Set operand lattice to 10
+    input_lattice = analysis.get_lattice_element(eclass_c.result)
+    input_lattice._value = TestLatticeValue(10)  # pyright: ignore[reportPrivateUsage]
+
+    # Set a *lower* original value (5) on the parent result so that
+    # visit_operation_impl computes 10, then meet with 5 → min(10, 5) = 5
+    # which is a CHANGE from 10, triggering the worklist addition.
+    result_lattice = analysis.get_lattice_element(parent_op.results[0])
+    result_lattice._value = TestLatticeValue(5)  # pyright: ignore[reportPrivateUsage]
+
+    assert not ematch_funcs.worklist
+
+    ematch_funcs.repair(interpreter, eclass_c)
+
+    updated = analysis.get_lattice_element(parent_op.results[0])
+    assert updated.value.value == 5
+
+    # The parent eclass should have been added to the worklist
+    assert eclass_parent in [
+        ematch_funcs.eclass_union_find.find(c) for c in ematch_funcs.worklist
+    ]
