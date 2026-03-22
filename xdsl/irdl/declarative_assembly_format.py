@@ -181,12 +181,12 @@ class FormatProgram:
             state.operands, state.operand_types, op_def.operands, strict=True
         ):
             length = len(operand) if isinstance(operand, Sequence) else 1
-            operand_def.constr.verify_length(length, ctx)
+            ctx.add_constraint(operand_def.constr.verify_length, length)
             if operand_type is None:
                 continue
             if isinstance(operand_type, Attribute):
                 operand_type = (operand_type,)
-            operand_def.constr.verify(operand_type, ctx)
+            ctx.add_constraint(operand_def.constr.verify, operand_type)
 
         for result_type, (_, result_def) in zip(
             state.result_types, op_def.results, strict=True
@@ -195,7 +195,7 @@ class FormatProgram:
                 continue
             if isinstance(result_type, Attribute):
                 result_type = (result_type,)
-            result_def.constr.verify(result_type, ctx)
+            ctx.add_constraint(result_def.constr.verify, result_type)
 
         for prop_name, prop_def in op_def.properties.items():
             if isinstance(prop_def, OptionalDef) and prop_def.default_value is None:
@@ -203,7 +203,7 @@ class FormatProgram:
             attr = state.properties.get(prop_name, prop_def.default_value)
             if attr is None:
                 continue
-            prop_def.constr.verify(attr, ctx)
+            ctx.add_constraint(prop_def.constr.verify, attr)
 
         for attr_name, attr_def in op_def.attributes.items():
             if isinstance(attr_def, OptionalDef) and attr_def.default_value is None:
@@ -211,7 +211,9 @@ class FormatProgram:
             attr = state.attributes.get(attr_name, attr_def.default_value)
             if attr is None:
                 continue
-            attr_def.constr.verify(attr, ctx)
+            ctx.add_constraint(attr_def.constr.verify, attr)
+
+        ctx.solve_constraints()
 
     def resolve_operand_types(
         self, state: ParsingState, op_def: OpDef
