@@ -6,6 +6,10 @@
 %rsp = "test.op"() : () -> !x86.reg64<rsp>
 %rax = "test.op"() : () -> !x86.reg64<rax>
 %rdx = "test.op"() : () -> !x86.reg64<rdx>
+%r8b = x86.get_register: !x86.reg8<r8b>
+%r8w = x86.get_register: !x86.reg16<r8w>
+%r8d = x86.get_register: !x86.reg32<r8d>
+%r8 = x86.get_register: !x86.reg64<r8>
 
 %rs_add = x86.rs.add %0, %1 : (!x86.reg64, !x86.reg64) -> !x86.reg64
 // CHECK: %{{.*}} = x86.rs.add %{{.*}}, %{{.*}} : (!x86.reg64, !x86.reg64) -> !x86.reg64
@@ -537,3 +541,25 @@ x86.ms.vmovntps %1, %zmm1, 8 : (!x86.reg64, !x86.avx512reg) -> ()
 
 %mov_int_a, %mov_int_b, %mov_sse_a, %mov_sse_b = x86.parallel_mov %0, %1, %xmm0, %xmm1 : (!x86.reg64, !x86.reg64, !x86.ssereg, !x86.ssereg) -> (!x86.reg64, !x86.reg64, !x86.ssereg, !x86.ssereg)
 // CHECK-NEXT: %mov_int_a, %mov_int_b, %mov_sse_a, %mov_sse_b = x86.parallel_mov %0, %1, %xmm0, %xmm1 : (!x86.reg64, !x86.reg64, !x86.ssereg, !x86.ssereg) -> (!x86.reg64, !x86.reg64, !x86.ssereg, !x86.ssereg)
+
+// ---- kmov -----
+
+%ks_kmovb = x86.ks.kmov %r8b : (!x86.reg8<r8b>) -> !x86.avx512maskreg<k1>
+// CHECK-NEXT: %ks_kmovb = x86.ks.kmov %r8b : (!x86.reg8<r8b>) -> !x86.avx512maskreg<k1>
+%dk_kmovb = x86.dk.kmov %ks_kmovb : (!x86.avx512maskreg<k1>) -> !x86.reg8<r8b>
+// CHECK-NEXT: %dk_kmovb = x86.dk.kmov %ks_kmovb : (!x86.avx512maskreg<k1>) -> !x86.reg8<r8b>
+
+%ks_kmovw = x86.ks.kmov %r8w : (!x86.reg16<r8w>) -> !x86.avx512maskreg<k1>
+// CHECK-NEXT: %ks_kmovw = x86.ks.kmov %r8w : (!x86.reg16<r8w>) -> !x86.avx512maskreg<k1>
+%dk_kmovw = x86.dk.kmov %ks_kmovw : (!x86.avx512maskreg<k1>) -> !x86.reg16<r8w>
+// CHECK-NEXT: %dk_kmovw = x86.dk.kmov %ks_kmovw : (!x86.avx512maskreg<k1>) -> !x86.reg16<r8w>
+
+%ks_kmovd = x86.ks.kmov %r8d : (!x86.reg32<r8d>) -> !x86.avx512maskreg<k1>
+// CHECK-NEXT: %ks_kmovd = x86.ks.kmov %r8d : (!x86.reg32<r8d>) -> !x86.avx512maskreg<k1>
+%dk_kmovd = x86.dk.kmov %ks_kmovd : (!x86.avx512maskreg<k1>) -> !x86.reg32<r8d>
+// CHECK-NEXT: %dk_kmovd = x86.dk.kmov %ks_kmovd : (!x86.avx512maskreg<k1>) -> !x86.reg32<r8d>
+
+%ks_kmovq = x86.ks.kmov %r8 : (!x86.reg64<r8>) -> !x86.avx512maskreg<k1>
+// CHECK-NEXT: %ks_kmovq = x86.ks.kmov %r8 : (!x86.reg64<r8>) -> !x86.avx512maskreg<k1>
+%dk_kmovq = x86.dk.kmov %ks_kmovq : (!x86.avx512maskreg<k1>) -> !x86.reg64<r8>
+// CHECK-NEXT: %dk_kmovq = x86.dk.kmov %ks_kmovq : (!x86.avx512maskreg<k1>) -> !x86.reg64<r8>

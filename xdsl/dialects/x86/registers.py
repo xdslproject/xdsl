@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from abc import ABC
+from abc import ABC, abstractmethod
 
 from typing_extensions import override
 
@@ -55,6 +55,13 @@ class GeneralRegisterType(X86RegisterType, ABC):
         This excludes registers with special purposes (e.g., stack pointer, base pointer).
         """
         return tuple(cls.from_index(i) for i in _ALLOCATABLE_GPR_INDICES)
+
+    @classmethod
+    @abstractmethod
+    def mnemonic(cls) -> str:
+        """
+        Returns the mnemonic used by operations to specify the bitwidth operated on.
+        """
 
 
 X86_INDEX_BY_NAME = {
@@ -159,6 +166,10 @@ class Reg64Type(GeneralRegisterType):
     def infinite_register_prefix(cls):
         return "inf_reg_"
 
+    @classmethod
+    def mnemonic(cls) -> str:
+        return "q"
+
 
 @irdl_attr_definition
 class Reg32Type(GeneralRegisterType):
@@ -176,6 +187,10 @@ class Reg32Type(GeneralRegisterType):
     def infinite_register_prefix(cls):
         return "inf_reg32_"
 
+    @classmethod
+    def mnemonic(cls) -> str:
+        return "d"
+
 
 @irdl_attr_definition
 class Reg16Type(GeneralRegisterType):
@@ -192,6 +207,10 @@ class Reg16Type(GeneralRegisterType):
     @classmethod
     def infinite_register_prefix(cls):
         return "inf_reg16_"
+
+    @classmethod
+    def mnemonic(cls) -> str:
+        return "w"
 
 
 @irdl_attr_definition
@@ -213,6 +232,10 @@ class Reg8Type(GeneralRegisterType):
     @classmethod
     def infinite_register_prefix(cls):
         return "inf_reg8_"
+
+    @classmethod
+    def mnemonic(cls) -> str:
+        return "b"
 
 
 UNALLOCATED_REG64 = Reg64Type.unallocated()

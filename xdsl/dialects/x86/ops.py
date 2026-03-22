@@ -1256,6 +1256,89 @@ class DSSI_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT, R3InvT]):
         )
 
 
+class DK_Operation(
+    X86Instruction, X86CustomFormatOperation, HasRegisterConstraints, ABC
+):
+    """
+    A base class for x86 operations that have one general purpose destination register
+    and one writemask source register.
+    """
+
+    destination: OpResult[GeneralRegisterType] = result_def(GeneralRegisterType)
+    source = operand_def(AVX512MaskRegisterType)
+
+    def __init__(
+        self,
+        source: Operation | SSAValue,
+        *,
+        comment: str | StringAttr | None = None,
+        destination: GeneralRegisterType,
+    ):
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            operands=(source,),
+            attributes={
+                "comment": comment,
+            },
+            result_types=(destination,),
+        )
+
+    def get_register_constraints(self) -> RegisterConstraints:
+        return RegisterConstraints((self.source,), (self.destination,), ())
+
+    def assembly_instruction_name(self) -> str:
+        base = super().assembly_instruction_name()
+        mnemonic = self.destination.type.mnemonic()
+        return base + mnemonic
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        return reg(self.destination), reg(self.source)
+
+
+class KS_Operation(
+    X86Instruction, X86CustomFormatOperation, HasRegisterConstraints, ABC
+):
+    """
+    A base class for x86 operations that have one general purpose destination register
+    and one writemask source register.
+    """
+
+    destination: OpResult[AVX512MaskRegisterType] = result_def(AVX512MaskRegisterType)
+    source = operand_def(GeneralRegisterType)
+
+    def __init__(
+        self,
+        source: Operation | SSAValue,
+        *,
+        comment: str | StringAttr | None = None,
+        destination: AVX512MaskRegisterType,
+    ):
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            operands=(source,),
+            attributes={
+                "comment": comment,
+            },
+            result_types=(destination,),
+        )
+
+    def get_register_constraints(self) -> RegisterConstraints:
+        return RegisterConstraints((self.source,), (self.destination,), ())
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        return reg(self.destination), reg(self.source)
+
+    def assembly_instruction_name(self) -> str:
+        base = super().assembly_instruction_name()
+        assert isinstance(source_type := self.source.type, GeneralRegisterType)
+        mnemonic = source_type.mnemonic()
+        return base + mnemonic
+
+
 # endregion
 
 
@@ -3435,6 +3518,24 @@ class DM_VbroadcastssOp(DM_Operation[X86VectorRegisterType, GeneralRegisterType]
     """
 
     name = "x86.dm.vbroadcastss"
+
+
+@irdl_op_definition
+class DK_KMovOp(DK_Operation):
+    """
+    Move mask from source mask register to general-purpose register.
+    """
+
+    name = "x86.dk.kmov"
+
+
+@irdl_op_definition
+class KS_KMovOp(KS_Operation):
+    """
+    Move mask from general-purpose register to destination mask register.
+    """
+
+    name = "x86.ks.kmov"
 
 
 @irdl_op_definition

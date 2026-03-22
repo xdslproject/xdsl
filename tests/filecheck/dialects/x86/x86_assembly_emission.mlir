@@ -7,6 +7,10 @@
 %2 = x86.get_register : !x86.reg64<rcx>
 %rsp = x86.get_register : !x86.reg64<rsp>
 %rax = x86.get_register : !x86.reg64<rax>
+%r8b = x86.get_register: !x86.reg8<r8b>
+%r8w = x86.get_register: !x86.reg16<r8w>
+%r8d = x86.get_register: !x86.reg32<r8d>
+%r8 = x86.get_register: !x86.reg64<r8>
 
 %rs_add = x86.rs.add %0, %1 : (!x86.reg64<rax>, !x86.reg64<rdx>) -> !x86.reg64<rax>
 // CHECK-NEXT: add rax, rdx
@@ -523,3 +527,25 @@ x86.ms.vmovntps %1, %zmm1, 8 : (!x86.reg64<rdx>, !x86.avx512reg<zmm1>) -> ()
 
 %shuf_res = x86.dssi.shufps %zmm1, %zmm2, 170 : (!x86.avx512reg<zmm1>, !x86.avx512reg<zmm2>) -> !x86.avx512reg<zmm0>
 // CHECK: shufps zmm0, zmm1, zmm2, 170
+
+// ---- kmov -----
+
+%ks_kmovb = x86.ks.kmov %r8b : (!x86.reg8<r8b>) -> !x86.avx512maskreg<k1>
+// CHECK-NEXT: kmovb k1, r8b
+%dk_kmovb = x86.dk.kmov %ks_kmovb : (!x86.avx512maskreg<k1>) -> !x86.reg8<r8b>
+// CHECK-NEXT: kmovb r8b, k1
+
+%ks_kmovw = x86.ks.kmov %r8w : (!x86.reg16<r8w>) -> !x86.avx512maskreg<k1>
+// CHECK-NEXT: kmovw k1, r8w
+%dk_kmovw = x86.dk.kmov %ks_kmovw : (!x86.avx512maskreg<k1>) -> !x86.reg16<r8w>
+// CHECK-NEXT: kmovw r8w, k1
+
+%ks_kmovd = x86.ks.kmov %r8d : (!x86.reg32<r8d>) -> !x86.avx512maskreg<k1>
+// CHECK-NEXT: kmovd k1, r8d
+%dk_kmovd = x86.dk.kmov %ks_kmovd : (!x86.avx512maskreg<k1>) -> !x86.reg32<r8d>
+// CHECK-NEXT: kmovd r8d, k1
+
+%ks_kmovq = x86.ks.kmov %r8 : (!x86.reg64<r8>) -> !x86.avx512maskreg<k1>
+// CHECK-NEXT: kmovq k1, r8
+%dk_kmovq = x86.dk.kmov %ks_kmovq : (!x86.avx512maskreg<k1>) -> !x86.reg64<r8>
+// CHECK-NEXT: kmovq r8, k1
