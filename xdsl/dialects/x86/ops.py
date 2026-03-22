@@ -98,7 +98,6 @@ from .assembly import (
     parse_type_pair,
     print_type_pair,
 )
-from .attributes import LabelAttr
 from .registers import (
     RAX,
     RDX,
@@ -2314,24 +2313,26 @@ class M_ImulOp(X86Instruction):
 
 
 @irdl_op_definition
-class LabelOp(X86AsmOperation, X86RegallocOperation, X86CustomFormatOperation):
+class LabelOp(X86AsmOperation, X86RegallocOperation):
     """
     The label operation is used to emit text labels (e.g. loop:) that are used
     as branch, unconditional jump targets and symbol offsets.
     """
 
     name = "x86.label"
-    label = attr_def(LabelAttr)
+    label = attr_def(StringAttr)
     comment = opt_attr_def(StringAttr)
+
+    assembly_format = "$label attr-dict"
 
     def __init__(
         self,
-        label: str | LabelAttr,
+        label: str | StringAttr,
         *,
         comment: str | StringAttr | None = None,
     ):
         if isinstance(label, str):
-            label = LabelAttr(label)
+            label = StringAttr(label)
         if isinstance(comment, str):
             comment = StringAttr(comment)
 
@@ -2344,26 +2345,6 @@ class LabelOp(X86AsmOperation, X86RegallocOperation, X86CustomFormatOperation):
 
     def assembly_line(self) -> str | None:
         return AssemblyPrinter.append_comment(f"{self.label.data}:", self.comment)
-
-    @classmethod
-    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
-        attributes = dict[str, Attribute]()
-        attributes["label"] = LabelAttr(parser.parse_str_literal("Expected label"))
-        return attributes
-
-    def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
-        printer.print_string(" ")
-        printer.print_string_literal(self.label.data)
-        return {"label"}
-
-    def print_op_type(self, printer: Printer) -> None:
-        return
-
-    @classmethod
-    def parse_op_type(
-        cls, parser: Parser
-    ) -> tuple[Sequence[Attribute], Sequence[Attribute]]:
-        return (), ()
 
 
 @irdl_op_definition
