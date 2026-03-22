@@ -797,7 +797,7 @@ def test_repair_merges_duplicate_parents():
         eclass_a
     ) is ematch_funcs.eclass_union_find.find(eclass_b)
     # The merged eclass should be on the worklist
-    assert len(ematch_funcs.worklist) > 0
+    assert ematch_funcs.worklist
 
 
 def test_repair_updates_analysis_state():
