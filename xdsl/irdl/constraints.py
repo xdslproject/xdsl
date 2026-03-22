@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping, Sequence, Sized
 from collections.abc import Set as AbstractSet
 from dataclasses import dataclass, field
 from typing import (
@@ -1019,6 +1019,28 @@ class IntTypeVarConstraint(IntConstraint):
         if not isinstance(res, IntConstraint):
             raise ValueError(f"Unexpected constraint {res} for TypeVar {self.type_var}")
         return res
+
+
+@dataclass(frozen=True)
+class SizedConstraint(AttrConstraint):
+    """
+    Constraint the length of a sized attribute with an int constraint
+    """
+
+    len_constraint: IntConstraint
+
+    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
+        if not isinstance(attr, Sized):
+            raise VerifyException(f"Expected {attr} to be sized")
+        self.len_constraint.verify(len(attr), constraint_context)
+
+    def variables(self) -> set[str]:
+        return self.len_constraint.variables()
+
+    def mapping_type_vars(
+        self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
+    ) -> AttrConstraint:
+        return SizedConstraint(self.len_constraint.mapping_type_vars(type_var_mapping))
 
 
 @dataclass(frozen=True)
