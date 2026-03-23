@@ -16,7 +16,7 @@ from xdsl.interpreter import (
     impl_terminator,
     register_impls, impl_external,
 )
-from xdsl.ir import Attribute, Operation, OpResult, SSAValue, Region, Block, BlockArgument
+from xdsl.ir import Attribute, Operation, OpResult, SSAValue, Region, Block, BlockArgument, OpOperands
 from xdsl.irdl import IRDLOperation
 from xdsl.pattern_rewriter import PatternRewriter
 from xdsl.rewriter import InsertPoint
@@ -341,7 +341,9 @@ class PDLInterpFunctions(InterpreterFunctions):
         # Get replacement values (if any)
         repl_values: list[SSAValue] = []
         for i in range(0, len(args) - 1):
-            if isa(op.repl_values.types[i], ValueType):
+            if isinstance(args[i + 1], OpOperands):
+                repl_values.append(args[i + 1][0])
+            elif isa(op.repl_values.types[i], ValueType):
                 repl_values.append(args[i + 1])
             elif isa(op.repl_values.types[i], RangeType[ValueType]):
                 repl_values.extend(args[i + 1])
@@ -669,12 +671,13 @@ class PDLInterpFunctions(InterpreterFunctions):
         assert isinstance(region, Region)
 
         new_region = region.clone()
+        assert len(new_region.blocks) == 1
         block = new_region.block
         yield_op = block.last_op
         assert yield_op is not None
 
         # Get the result value from the yield before inlining
-        result_of_yield = yield_op.operands[0]
+        results_of_yield = yield_op.operands
 
         # Inline the block's operations before the input operation
         rewriter = self.get_rewriter(interpreter)
@@ -684,7 +687,7 @@ class PDLInterpFunctions(InterpreterFunctions):
         rewriter.erase_op(yield_op, safe_erase=False)
 
         # Return the value that was yielded (now defined by an inlined op)
-        return (result_of_yield,)
+        return (results_of_yield,)
 
     @impl_external("get_function_call")
     def run_get_function_call_op(
@@ -771,3 +774,23 @@ class PDLInterpFunctions(InterpreterFunctions):
 
 
         return True, tuple([])
+
+
+    @impl_external("at_most_1_block")
+    def run_at_most_1_block(
+            self, interp: Interpreter, op: Operation, args: PythonValues
+    ) -> tuple[bool, tuple[...]]:
+        assert args
+        region = args[0]
+        assert isinstance(region, Region)
+
+        if len(region.blocks) != 1:
+            return False, tuple([])
+
+        block = region.block
+        yield_op = block.last_op
+        assert yield_op is not None
+
+        return len(yield_op.operands) == 1, tuple([])
+
+
