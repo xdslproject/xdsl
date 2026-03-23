@@ -353,15 +353,15 @@ class EmatchFunctions(InterpreterFunctions):
 
         unique_parents = KnownOps()
 
-        # Collect parent operations (operations that use this eclass's result)
+        # Collect e-class parents (operations that use this class's result)
         # Use OrderedSet to maintain deterministic ordering
-        parent_ops = OrderedSet(use.operation for use in eclass.result.uses)
+        user_ops = OrderedSet(use.operation for use in eclass.result.uses)
 
         # Collect pairs of duplicate operations to merge AFTER the loop
         # This avoids modifying the hash map while iterating
         to_merge: list[tuple[Operation, Operation]] = []
 
-        for op1 in parent_ops:
+        for op1 in user_ops:
             # Skip eclass operations themselves
             if isinstance(op1, equivalence.AnyClassOp):
                 continue
