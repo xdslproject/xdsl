@@ -2,6 +2,8 @@ import typing as t
 from dataclasses import dataclass
 from itertools import islice
 
+from ordered_set import OrderedSet
+
 from xdsl.backend.riscv.register_stack import RiscvRegisterStack
 from xdsl.context import Context
 from xdsl.dialects import builtin, riscv_func
@@ -21,12 +23,12 @@ class RISCVSpillingPass(ModulePass):
                 total_regs = len(
                     RiscvRegisterStack.get().available_registers[IntRegisterType.name]
                 )
-                loaded_values = set[SSAValue]()
+                loaded_values = OrderedSet[SSAValue]([])
 
                 die = self.get_die_set(func_op)
 
                 for inner_op in func_op.walk():
-                    uses = set(inner_op.operands)
+                    uses = OrderedSet(inner_op.operands)
                     free_values = iter(
                         loaded_values - uses
                     )  # values that we can use to spill
@@ -37,7 +39,9 @@ class RISCVSpillingPass(ModulePass):
                         num_regs_to_spill = len(uses | loaded_values) - total_regs
                         # get registers not used by current op
                         # TODO: use heuristic to select
-                        regs_to_spill = set(islice(free_values, num_regs_to_spill))
+                        regs_to_spill = OrderedSet(
+                            islice(free_values, num_regs_to_spill)
+                        )
 
                         self.insert_spill(inner_op, regs_to_spill)
                         loaded_values -= regs_to_spill
@@ -47,13 +51,15 @@ class RISCVSpillingPass(ModulePass):
                     loaded_values -= die[inner_op]
 
                     # Process definitions
-                    defns = set(inner_op.results)
+                    defns = OrderedSet(inner_op.results)
                     if len(loaded_values | defns) > total_regs:
                         # spill excess regs
                         num_regs_to_spill = len(loaded_values | defns) - total_regs
                         # get registers not used by current op
                         # TODO: use heuristic to select
-                        regs_to_spill = set(islice(free_values, num_regs_to_spill))
+                        regs_to_spill = OrderedSet(
+                            islice(free_values, num_regs_to_spill)
+                        )
 
                         self.insert_spill(inner_op, regs_to_spill)
                         loaded_values -= regs_to_spill
