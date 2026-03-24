@@ -861,6 +861,26 @@ class VFAddHOp(riscv.RdRsRsFloatOperationWithFastMath):
 
 
 @irdl_op_definition
+class VFMulHOp(riscv.RdRsRsFloatOperationWithFastMath):
+    """
+    Performs vectorial multiplication of corresponding f16 values from
+    rs1 and rs2 and stores the results in the corresponding f16 lanes
+    into the vectorial 4xf16 rd operand, such as:
+
+    ```C
+    f[rd][0] = f[rs1][0] * f[rs2][0]
+    f[rd][1] = f[rs1][1] * f[rs2][1]
+    f[rd][2] = f[rs1][2] * f[rs2][2]
+    f[rd][3] = f[rs1][3] * f[rs2][3]
+    ```
+    """
+
+    name = "riscv_snitch.vfmul.h"
+
+    traits = traits_def(Pure())
+
+
+@irdl_op_definition
 class VFMaxSOp(riscv.RdRsRsFloatOperationWithFastMath):
     """
     Performs vectorial maximum of corresponding f32 values from
