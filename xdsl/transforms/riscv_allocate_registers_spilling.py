@@ -48,53 +48,50 @@ class LoadOp(IRDLOperation):
 class SpillPass(ModulePass):
     def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         for func_op in op.walk():
-            if isinstance(func_op, riscv_func.FuncOp):
-                # Assume for now we only have integer regs
-                total_regs = len(
-                    RiscvRegisterStack.get().available_registers[IntRegisterType.name]
-                )
-                loaded_values = OrderedSet[SSAValue]([])
+            if not isinstance(func_op, riscv_func.FuncOp):
+                continue
+            # Assume for now we only have integer regs
+            total_regs = len(
+                RiscvRegisterStack.get().available_registers[IntRegisterType.name]
+            )
+            loaded_values = OrderedSet[SSAValue]([])
 
-                die = self.get_die_set(func_op)
+            die = self.get_die_set(func_op)
 
-                for inner_op in func_op.walk():
-                    uses = OrderedSet(inner_op.operands)
-                    free_values = iter(
-                        loaded_values - uses
-                    )  # values that we can use to spill
+            for inner_op in func_op.walk():
+                uses = OrderedSet(inner_op.operands)
+                free_values = iter(
+                    loaded_values - uses
+                )  # values that we can use to spill
 
-                    # Process uses
-                    if len(loaded_values | uses) > total_regs:
-                        # spill excess regs
-                        num_regs_to_spill = len(uses | loaded_values) - total_regs
-                        # get registers not used by current op
-                        # TODO: use heuristic to select
-                        regs_to_spill = OrderedSet(
-                            islice(free_values, num_regs_to_spill)
-                        )
+                # Process uses
+                if len(loaded_values | uses) > total_regs:
+                    # spill excess regs
+                    num_regs_to_spill = len(uses | loaded_values) - total_regs
+                    # get registers not used by current op
+                    # TODO: use heuristic to select
+                    regs_to_spill = OrderedSet(islice(free_values, num_regs_to_spill))
 
-                        self.insert_spill(inner_op, regs_to_spill)
-                        loaded_values -= regs_to_spill
-                    loaded_uses = self.insert_load(inner_op, uses - loaded_values)
-                    loaded_values |= loaded_uses
+                    self.insert_spill(inner_op, regs_to_spill)
+                    loaded_values -= regs_to_spill
+                loaded_uses = self.insert_load(inner_op, uses - loaded_values)
+                loaded_values |= loaded_uses
 
-                    # Remove dead values from live set
-                    loaded_values -= die[inner_op]
+                # Remove dead values from live set
+                loaded_values -= die[inner_op]
 
-                    # Process definitions
-                    defns = OrderedSet(inner_op.results)
-                    if len(loaded_values | defns) > total_regs:
-                        # spill excess regs
-                        num_regs_to_spill = len(loaded_values | defns) - total_regs
-                        # get registers not used by current op
-                        # TODO: use heuristic to select
-                        regs_to_spill = OrderedSet(
-                            islice(free_values, num_regs_to_spill)
-                        )
+                # Process definitions
+                defns = OrderedSet(inner_op.results)
+                if len(loaded_values | defns) > total_regs:
+                    # spill excess regs
+                    num_regs_to_spill = len(loaded_values | defns) - total_regs
+                    # get registers not used by current op
+                    # TODO: use heuristic to select
+                    regs_to_spill = OrderedSet(islice(free_values, num_regs_to_spill))
 
-                        self.insert_spill(inner_op, regs_to_spill)
-                        loaded_values -= regs_to_spill
-                    loaded_values |= defns
+                    self.insert_spill(inner_op, regs_to_spill)
+                    loaded_values -= regs_to_spill
+                loaded_values |= defns
 
     def insert_spill(self, inner_op: Operation, spills: OrderedSet[SSAValue]):
         """Insert spills before inner_op."""
