@@ -1,5 +1,6 @@
 from typing import TypeAlias
 
+from xdsl.dialects import builtin
 from xdsl.dialects.builtin import (
     I32,
     I64,
@@ -10,7 +11,7 @@ from xdsl.dialects.builtin import (
     FunctionType,
     IntAttr,
 )
-from xdsl.ir import ParametrizedAttribute, TypeAttribute
+from xdsl.ir import Dialect, ParametrizedAttribute, TypeAttribute
 from xdsl.irdl import irdl_attr_definition
 
 IntegerType: TypeAlias = I32 | I64
@@ -76,3 +77,18 @@ class TableType(ParametrizedAttribute):
 
     reference: RefType
     limit: LimitType
+
+
+IntegerAttr = builtin.IntegerAttr[I32] | builtin.IntegerAttr[I64]
+FPAttr = builtin.FloatAttr[Float32Type] | builtin.FloatAttr[Float64Type]
+NumericAttr = IntegerAttr | FPAttr
+
+WasmSSA = Dialect(
+    "wasmssa",
+    [],
+    [
+        FuncType,
+        LimitType,
+        TableType,
+    ],
+)
