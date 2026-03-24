@@ -118,7 +118,7 @@ class LowerArithConstant(RewritePattern):
                     )
             else:
                 raise NotImplementedError("Only 32 or 64 bit floats are supported")
-        elif isinstance(op_value := op.value, DenseIntOrFPElementsAttr) and len(op_value.data) == 8 and:
+        elif isinstance(op_value := op.value, DenseIntOrFPElementsAttr) and len(op_value.data) == 8:
                 # We have to load the bits into an integer register, store them on the
                 # stack, and load again.
 
