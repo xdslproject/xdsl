@@ -7,7 +7,7 @@
   "func.func"() ({
     %0 = "memref.get_global"() {"name" = @g} : () -> memref<1xindex>
     %1 = "arith.constant"() {"value" = 0 : index} : () -> index
-    %2 = "memref.alloca"() {"alignment" = 0 : i64, operandSegmentSizes = array<i32: 0, 0>} : () -> memref<1xindex>
+    %2 = memref.alloca() {"alignment" = 0 : i64} : memref<1xindex>
     %3 = "arith.constant"() {"value" = 42 : index} : () -> index
     "memref.store"(%3, %2, %1) : (index, memref<1xindex>, index) -> ()
     %4 = "memref.load"(%2, %1) : (memref<1xindex>, index) -> index
@@ -16,7 +16,7 @@
     %6 = memref.subview %5[0, 0] [1, 1] [1, 1] : memref<10x2xindex> to memref<1x1xindex, strided<[2, 1]>>
     %7 = "memref.cast"(%5) : (memref<10x2xindex>) -> memref<?x?xindex>
     %8 = memref.reinterpret_cast %5 to offset: [0], sizes: [5, 4], strides: [1, 1] : memref<10x2xindex> to memref<5x4xindex, strided<[1, 1]>>
-    %no_align = "memref.alloca"() {i64, operandSegmentSizes = array<i32: 0, 0>} : () -> memref<1xindex>
+    %no_align = memref.alloca() {i64} : memref<1xindex>
     "memref.copy"(%no_align, %2) : (memref<1xindex>, memref<1xindex>) -> ()
     "memref.dealloc"(%no_align) : (memref<1xindex>) -> ()
     "memref.dealloc"(%2) : (memref<1xindex>) -> ()
