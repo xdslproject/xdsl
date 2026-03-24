@@ -154,4 +154,25 @@ linalg.matmul ins(%D, %E : memref<2x3xf64>, memref<3x4xf64>) outs(%F : memref<2x
 // CHECK-NEXT:        }
 // CHECK-NEXT:      }
 // CHECK-NEXT:    }
+
+// Dynamic shape: add
+%LHS, %RHS, %OUT = "test.op"() : () -> (memref<?x?xf32>, memref<?x?xf32>, memref<?x?xf32>)
+linalg.add ins(%LHS, %RHS : memref<?x?xf32>, memref<?x?xf32>) outs(%OUT : memref<?x?xf32>)
+
+// CHECK-NEXT:    %{{.*}}, %{{.*}}, %{{.*}} = "test.op"() : () -> (memref<?x?xf32>, memref<?x?xf32>, memref<?x?xf32>)
+// CHECK-NEXT:    %{{.*}} = arith.constant 0 : index
+// CHECK-NEXT:    %{{.*}} = "memref.dim"(%LHS, %{{.*}}) : (memref<?x?xf32>, index) -> index
+// CHECK-NEXT:    %{{.*}} = arith.constant 1 : index
+// CHECK-NEXT:    %{{.*}} = "memref.dim"(%LHS, %{{.*}}) : (memref<?x?xf32>, index) -> index
+// CHECK-NEXT:    %{{.*}} = arith.constant 0 : index
+// CHECK-NEXT:    %{{.*}} = arith.constant 1 : index
+// CHECK-NEXT:    scf.for %{{.*}} = %{{.*}} to %{{.*}} step %{{.*}} {
+// CHECK-NEXT:      scf.for %{{.*}} = %{{.*}} to %{{.*}} step %{{.*}} {
+// CHECK-NEXT:        %{{.*}} = memref.load %LHS[%{{.*}}, %{{.*}}] : memref<?x?xf32>
+// CHECK-NEXT:        %{{.*}} = memref.load %RHS[%{{.*}}, %{{.*}}] : memref<?x?xf32>
+// CHECK-NEXT:        %{{.*}} = arith.addf %{{.*}}, %{{.*}} : f32
+// CHECK-NEXT:        memref.store %{{.*}}, %OUT[%{{.*}}, %{{.*}}] : memref<?x?xf32>
+// CHECK-NEXT:      }
+// CHECK-NEXT:    }
+
 // CHECK-NEXT:  }
