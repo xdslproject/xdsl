@@ -118,7 +118,7 @@ class LowerArithConstant(RewritePattern):
                     )
             else:
                 raise NotImplementedError("Only 32 or 64 bit floats are supported")
-        elif isinstance(op_value := op.value, DenseIntOrFPElementsAttr) and len(op_value.data.data) == 8:
+        elif isinstance(op_val, DenseIntOrFPElementsAttr) and len(op_val.data.data) == 8:
                 # We have to load the bits into an integer register, store them on the
                 # stack, and load again.
 
@@ -127,7 +127,7 @@ class LowerArithConstant(RewritePattern):
                 # This lowering assumes that xlen is 32 and flen is 64
 
                 lower, upper = struct.unpack(
-                    "<ii", op_val.value.data.data
+                    "<ii", op_val.data.data
                 )
                 rewriter.replace_op(
                     op,
