@@ -90,7 +90,8 @@ class ConvertArithToRiscvSnitchPass(ModulePass):
                 [
                     lower_arith_addf,
                     lower_arith_mulf,
-                ]
+                ],
+                dce_enabled=False,
             ),
             apply_recursively=False,
         )
