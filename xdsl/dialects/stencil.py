@@ -608,6 +608,7 @@ class ApplyOp(IRDLOperation):
         args: tuple[Parser.Argument, ...]
         operands: tuple[SSAValue, ...]
         args, operands = zip(*assign_args) if assign_args else ((), ())
+        reductions = []
 
         if parser.parse_optional_punctuation("->"):
             parser.parse_punctuation("(")
@@ -615,6 +616,7 @@ class ApplyOp(IRDLOperation):
                 parser.parse_optional_attribute, parser.parse_attribute
             )
             destinations = []
+            parser.parse_punctuation(")")
         else:
             parser.parse_keyword("outs")
             parser.parse_punctuation("(")
@@ -622,7 +624,15 @@ class ApplyOp(IRDLOperation):
                 parser.Delimiter.NONE, parse_operand
             )
             result_types = []
-        parser.parse_punctuation(")")
+            parser.parse_punctuation(")")
+
+            if parser.parse_optional_keyword("reductions"):
+                parser.parse_punctuation("(")
+                reductions = parser.parse_comma_separated_list(
+                    parser.Delimiter.NONE, parse_operand
+                )
+                parser.parse_punctuation(")")
+
         attrs = parser.parse_optional_attr_dict_with_keyword()
         if attrs is not None:
             attrs = dict(attrs.data)
@@ -638,7 +648,7 @@ class ApplyOp(IRDLOperation):
             bounds = None
         return cls.build(
             # TODO: support stencil reduction parsing
-            operands=[operands, destinations or [], []],
+            operands=[operands, destinations or [], reductions],
             result_types=[result_types or []],
             regions=[region],
             attributes=attrs,
