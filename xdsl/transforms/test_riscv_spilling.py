@@ -32,7 +32,7 @@ class SpillOp(IRDLOperation):
     value = operand_def()
     result = result_def(SpillType())
 
-    def __init__(self, val):
+    def __init__(self, val: SSAValue):
         super().__init__(operands=[val], result_types=[SpillType()])
 
 
@@ -42,7 +42,7 @@ class LoadOp(IRDLOperation):
     value = operand_def(SpillType())
     result = result_def()
 
-    def __init__(self, val):
+    def __init__(self, val: SSAValue):
         super().__init__(operands=[val], result_types=[Registers.UNALLOCATED_INT])
 
 
@@ -149,7 +149,7 @@ class ResolveSpillingOps(ModulePass):
             load_ops = tuple(op for op in func_op.walk() if isinstance(op, LoadOp))
 
             # Map each spill value with its own stack offset
-            offset_by_value = {}
+            offset_by_value: dict[SSAValue, int] = {}
             offset = 0
             for spill_op in spill_ops:
                 offset_by_value[spill_op.result] = offset
