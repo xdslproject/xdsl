@@ -213,7 +213,7 @@ class RescaleOp(IRDLOperation):
     def print(self, printer: Printer):
         # print operands
         printer.print_string(" ")
-        printer.print_list(self.operands, lambda x: printer.print_ssa_value(x))
+        printer.print_list(self.operands, lambda op: printer.print_ssa_value(op))
 
         # print attr-dict
         printer.print_string(" ")
@@ -236,11 +236,9 @@ class RescaleOp(IRDLOperation):
         # print types
         printer.print_string(" : ")
         with printer.in_parens():
-            last_idx = len(self.operands) - 1
-            for idx, op in enumerate(self.operands):
-                printer.print_attribute(op.type)
-                if idx != last_idx:
-                    printer.print_string(", ")
+            printer.print_list(
+                self.operand_types, lambda ty: printer.print_attribute(ty)
+            )
 
         printer.print_string(" -> ")
         printer.print_attribute(self.result_types[0])
