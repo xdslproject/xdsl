@@ -81,6 +81,16 @@ from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
 
+def _verify_memref_alloc_alignment(alignment: IntegerAttr | None) -> None:
+    if alignment is None:
+        return
+    v = alignment.value.data
+    if v <= 0:
+        raise VerifyException(f"Alignment attribute must be positive, got {v}")
+    if not is_power_of_two(v):
+        raise VerifyException(f"Alignment attribute {v} is not a power of 2")
+
+
 @irdl_op_definition
 class LoadOp(IRDLOperation):
     name = "memref.load"
@@ -227,6 +237,7 @@ class AllocOp(IRDLOperation):
             raise VerifyException(
                 "op dimension operand count does not equal memref dynamic dimension count."
             )
+        _verify_memref_alloc_alignment(self.alignment)
 
     def print(self, printer: Printer):
         printer.print_string("(")
@@ -369,6 +380,7 @@ class AllocaOp(IRDLOperation):
             raise VerifyException(
                 "op dimension operand count does not equal memref dynamic dimension count."
             )
+        _verify_memref_alloc_alignment(self.alignment)
 
 
 @irdl_op_definition

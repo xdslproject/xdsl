@@ -6,7 +6,7 @@
             %n = "arith.constant"() {"value" = 13 : index} : () -> index
             %one = arith.constant {"loopdim" = #gpu.loop_dim_map<processor = thread_x, map = (d0) -> (d0), bound = (d0) -> (d0)>} 1 : index
 
-            %memref = "memref.alloc"() {"alignment" = 0 : i64, operandSegmentSizes = array<i32: 0, 0>} : () -> memref<10x10xi32>
+            %memref = "memref.alloc"() {operandSegmentSizes = array<i32: 0, 0>} : () -> memref<10x10xi32>
             %unranked = "memref.cast"(%memref) : (memref<10x10xi32>) -> memref<*xi32>
             "gpu.host_register"(%unranked) : (memref<*xi32>) -> ()
             "gpu.host_unregister"(%unranked) : (memref<*xi32>) -> ()
@@ -84,7 +84,7 @@
 // CHECK-NEXT:         "func.func"() <{function_type = () -> (), sym_name = "kernel"}> ({
 // CHECK-NEXT:             %{{.*}} = "arith.constant"() <{value = 13 : index}> : () -> index
 // CHECK-NEXT:             %{{.*}} = "arith.constant"() <{value = 1 : index}> {loopdim = #gpu.loop_dim_map<processor = thread_x, map = (d0) -> (d0), bound = (d0) -> (d0)>} : () -> index
-// CHECK-NEXT:             %{{.*}} = "memref.alloc"() <{alignment = 0 : i64, operandSegmentSizes = array<i32: 0, 0>}> : () -> memref<10x10xi32>
+// CHECK-NEXT:             %{{.*}} = "memref.alloc"() <{operandSegmentSizes = array<i32: 0, 0>}> : () -> memref<10x10xi32>
 // CHECK-NEXT:             %{{.*}} = "memref.cast"(%{{.*}}) : (memref<10x10xi32>) -> memref<*xi32>
 // CHECK-NEXT:             "gpu.host_register"(%{{.*}}) : (memref<*xi32>) -> ()
 // CHECK-NEXT:             "gpu.host_unregister"(%{{.*}}) : (memref<*xi32>) -> ()
