@@ -243,3 +243,45 @@ builtin.module {
 // CHECK-NEXT:      func.return
 // CHECK-NEXT:    }
 // CHECK-NEXT:  }
+
+// -----
+
+builtin.module {
+  func.func @stencil_copy_bufferized_with_reduction(%0: !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>, %1: !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>, %red: !llvm.ptr) {
+    stencil.apply(%6 = %0 : !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>)
+      outs (%1 : !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>)
+      reductions (%red : !llvm.ptr) {
+
+      %7 = stencil.access %6[0, 0, 0] : !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>
+
+      // reduction (side effect)
+      %c0 = arith.constant 0.000000e+00 : f64
+      "stencil.reduce"(%7, %c0) ({
+      ^bb0(%acc : f64, %elem : f64):
+        %sum = arith.addf %acc, %elem : f64
+        "stencil.yield"(%sum) : (f64) -> ()
+      }) : (f64, f64) -> ()
+
+      %8 = stencil.store_result %7 : !stencil.result<f64>
+      stencil.return %8 : !stencil.result<f64>
+    } to <[0, 0, 0], [64, 64, 64]>
+    func.return
+  }
+}
+
+// CHECK:       builtin.module {
+// CHECK-NEXT:    func.func @stencil_copy_bufferized_with_reduction(%0: !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>, %1: !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>, %red: !llvm.ptr) {
+// CHECK-NEXT:      stencil.apply(%2 = %0 : !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>) outs (%1 : !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>) reductions (%red : !llvm.ptr) {
+// CHECK-NEXT:        %3 = stencil.access %2[0, 0, 0] : !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>
+// CHECK-NEXT:        %c0 = arith.constant 0.000000e+00 : f64
+// CHECK-NEXT:        "stencil.reduce"(%3, %c0) ({
+// CHECK-NEXT:        ^bb0(%acc: f64, %elem: f64):
+// CHECK-NEXT:          %sum = arith.addf %acc, %elem : f64
+// CHECK-NEXT:          "stencil.yield"(%sum) : (f64) -> ()
+// CHECK-NEXT:        }) : (f64, f64) -> ()
+// CHECK-NEXT:        %4 = stencil.store_result %3 : !stencil.result<f64>
+// CHECK-NEXT:        stencil.return %4 : !stencil.result<f64>
+// CHECK-NEXT:      } to <[0, 0, 0], [64, 64, 64]>
+// CHECK-NEXT:      func.return
+// CHECK-NEXT:    }
+// CHECK-NEXT:  }
