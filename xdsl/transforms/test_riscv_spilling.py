@@ -193,3 +193,21 @@ class ResolveSpillingOps(ModulePass):
                         AddiOp(stack_pointer, stack_size, rd=Registers.SP),
                         InsertPoint.before(ret_op),
                     )
+
+
+@dataclass(frozen=True)
+class TestRiscvSpillingPass(ModulePass):
+    name = "test-riscv-spilling"
+
+    def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
+        defaults = RiscvRegisterStack.DEFAULT_ALLOCATABLE_REGISTERS
+        # Use reduced register set for testing
+        RiscvRegisterStack.DEFAULT_ALLOCATABLE_REGISTERS = (
+            Registers.T0,
+            Registers.T1,
+            Registers.T2,
+        )
+        SpillPass().apply(ctx, op)
+        ResolveSpillingOps().apply(ctx, op)
+
+        RiscvRegisterStack.DEFAULT_ALLOCATABLE_REGISTERS = defaults
