@@ -329,7 +329,11 @@ class AllocaOp(IRDLOperation):
 
     traits = traits_def(MemoryAllocEffect())
 
-    irdl_options = (AttrSizedOperandSegments(as_property=True),)
+    irdl_options = (AttrSizedOperandSegments(as_property=True), ParsePropInAttrDict())
+
+    assembly_format = """
+    `(`$dynamic_sizes`)` (`` `[` $symbol_operands^ `]`)? attr-dict `:` type($memref)
+    """
 
     @staticmethod
     def get(
