@@ -188,10 +188,19 @@ class LowerGenericOpPattern(RewritePattern):
                 insert_store,
             )
         else:
+            insertion_point = InsertPoint.before(op)
+            bound_values: list[SSAValue] = []
+            for ub in outer_ubs:
+                bound_constant_op = arith.ConstantOp(
+                    IntegerAttr.from_index_int_value(ub)
+                )
+                rewriter.insert_op(bound_constant_op, insertion_point)
+                bound_values.append(bound_constant_op.result)
+
             rewrite_linalg_structured_to_loops(
                 rewriter,
-                InsertPoint.before(op),
-                outer_ubs,
+                insertion_point,
+                bound_values,
                 op.indexing_maps.data,
                 op.indexing_maps.data[-len(op.outputs) :],
                 op.operands,
