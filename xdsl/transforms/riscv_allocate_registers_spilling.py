@@ -6,7 +6,7 @@ from ordered_set import OrderedSet
 from xdsl.backend.riscv.register_stack import RiscvRegisterStack
 from xdsl.context import Context
 from xdsl.dialects import builtin, riscv_func
-from xdsl.dialects.riscv.ops import LwOp, SwOp
+from xdsl.dialects.riscv.ops import AddiOp, LwOp, SwOp
 from xdsl.dialects.riscv.registers import IntRegisterType, Registers
 from xdsl.dialects.rv32 import GetRegisterOp
 from xdsl.ir import Operation, ParametrizedAttribute, SSAValue
@@ -174,3 +174,22 @@ class ResolveSpillingOps(ModulePass):
                 # Use insert/erase since we are dropping the spill_op's result
                 Rewriter.insert_op(store_op, InsertPoint.before(spill_op))
                 Rewriter.erase_op(spill_op)
+
+            # Manage stack pointer
+            # Align stack to 16 bytes
+            stack_size = (offset + 15) & ~15
+            if stack_size > 0:
+                Rewriter.insert_op(
+                    AddiOp(stack_pointer, -stack_size, rd=Registers.SP),
+                    InsertPoint.after(stack_pointer),
+                )
+
+                for block in func_op.body.blocks:
+                    ret_op = block.last_op
+                    if not isinstance(ret_op, riscv_func.ReturnOp):
+                        continue
+
+                    Rewriter.insert_op(
+                        AddiOp(stack_pointer, stack_size, rd=Registers.SP),
+                        InsertPoint.before(ret_op),
+                    )
