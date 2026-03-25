@@ -22,13 +22,20 @@ from xdsl.dialects.builtin import (
     TensorType,
     i1,
 )
-from xdsl.ir import Attribute, Dialect, SSAValue, TypeAttribute
+from xdsl.ir import (
+    Attribute,
+    Dialect,
+    EnumAttribute,
+    SpacedOpaqueSyntaxAttribute,
+    SSAValue,
+    TypeAttribute,
+)
 from xdsl.irdl import (
     AttrConstraint,
     IRDLOperation,
     ParsePropInAttrDict,
     VarConstraint,
-    eq,
+    irdl_attr_definition,
     irdl_op_definition,
     lazy_traits_def,
     operand_def,
@@ -49,6 +56,7 @@ from xdsl.traits import (
     SingleBlockImplicitTerminator,
 )
 from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.str_enum import StrEnum
 
 
 def are_tosa_broadcastable(lhs: Attribute, rhs: Attribute, out: Attribute):
@@ -109,12 +117,18 @@ class ClampOp(IRDLOperation):
     assembly_format = "$input attr-dict `:` `(` type($input) `)` `->` type($output)"
 
 
-ROUNDING_MODE_CONSTRAINT = (
-    eq(StringAttr("SINGLE_ROUND"))
-    | eq(StringAttr("INEXACT_ROUND"))
-    | eq(StringAttr("DOUBLE_ROUND"))
-)
+class RoundingMode(StrEnum):
+    SINGLE_ROUND = "SINGLE_ROUND"
+    INEXACT_ROUND = "INEXACT_ROUND"
+    DOUBLE_ROUND = "DOUBLE_ROUND"
+
+
 """Rounding mode for `tosa.rescale`"""
+
+
+@irdl_attr_definition
+class RoundingModeAttr(EnumAttribute[RoundingMode], SpacedOpaqueSyntaxAttribute):
+    name = "tosa.rounding_mode"
 
 
 @irdl_op_definition
@@ -149,7 +163,7 @@ class RescaleOp(IRDLOperation):
 
     scale32 = prop_def(BoolAttr)
     rounding_mode = prop_def(
-        ROUNDING_MODE_CONSTRAINT, default_value=StringAttr("PROPAGATE")
+        RoundingModeAttr, default_value=RoundingModeAttr(RoundingMode.SINGLE_ROUND)
     )
     per_channel = prop_def(BoolAttr)
     input_unsigned = prop_def(BoolAttr)
@@ -612,5 +626,7 @@ TOSA = Dialect(
         IfOp,
         YieldOp,
     ],
-    [],
+    [
+        RoundingModeAttr,
+    ],
 )
