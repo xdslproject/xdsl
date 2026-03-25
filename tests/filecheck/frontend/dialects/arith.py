@@ -2,9 +2,10 @@
 
 from ctypes import c_float, c_int32, c_int64
 
-from xdsl.dialects import arith, builtin
+from xdsl.dialects import arith, bigint, builtin
 from xdsl.frontend.pyast.context import PyASTContext
 from xdsl.frontend.pyast.utils.exceptions import CodeGenerationException
+from xdsl.frontend.pyast.utils.type_conversion import LiteralRegistry
 
 
 def add_i32(operand1: c_int32, operand2: c_int32) -> c_int32: ...
@@ -48,6 +49,9 @@ ctx.register_function(sub_f32, arith.SubfOp)
 ctx.register_function(float.__sub__, arith.SubfOp)
 ctx.register_function(mul_f32, arith.MulfOp)
 ctx.register_function(float.__mul__, arith.MulfOp)
+ctx.register_literal(bool, lambda v: arith.ConstantOp(builtin.IntegerAttr(int(v), 1)))
+ctx.register_literal(int, lambda v: bigint.ConstantOp(v))
+ctx.register_literal(float, lambda v: arith.ConstantOp(builtin.FloatAttr(v, 64)))
 
 
 # CHECK: arith.addi %{{.*}}, %{{.*}} : i32
@@ -210,6 +214,84 @@ def test_mulf_overload_f64(a: float, b: float) -> float:
 
 
 print(test_mulf_overload_f64.module)
+
+
+# CHECK: arith.constant 0.000000e+00 : f64
+@ctx.parse_program
+def test_constant_float() -> float:
+    return 0.0
+
+
+print(test_constant_float.module)
+
+
+# CHECK: arith.constant 1.500000e+00 : f64
+@ctx.parse_program
+def test_constant_float_nonzero() -> float:
+    return 1.5
+
+
+print(test_constant_float_nonzero.module)
+
+
+# CHECK: arith.constant false
+@ctx.parse_program
+def test_constant_bool() -> bool:
+    return False
+
+
+print(test_constant_bool.module)
+
+
+# CHECK: arith.constant true
+@ctx.parse_program
+def test_constant_bool_true() -> bool:
+    return True
+
+
+print(test_constant_bool_true.module)
+
+
+# CHECK: Unsupported constant 'some_string' of type 'str'.
+@ctx.parse_program
+def test_constant_unsupported() -> float:
+    return "some_string"  # pyright: ignore[reportReturnType]
+
+
+try:
+    test_constant_unsupported.module
+except CodeGenerationException as e:
+    print(e.msg)
+
+
+# CHECK: Type signature and the type of the return value do not match at position 0: expected f32, got f64.
+@ctx.parse_program
+def test_constant_float_wrong_return_type_f32() -> c_float:
+    return 0.0  # pyright: ignore[reportReturnType]
+
+
+try:
+    test_constant_float_wrong_return_type_f32.module
+except CodeGenerationException as e:
+    print(e.msg)
+
+
+ctx_c_float_literal = PyASTContext(
+    literal_registry=LiteralRegistry(), post_transforms=[]
+)
+ctx_c_float_literal.register_type(c_float, builtin.f32)
+ctx_c_float_literal.register_literal(
+    float, lambda value: arith.ConstantOp(builtin.FloatAttr(value, 32))
+)
+
+
+# CHECK: arith.constant 0.000000e+00 : f32
+@ctx_c_float_literal.parse_program
+def test_constant_float_custom_literal_codegen() -> c_float:
+    return 0.0  # pyright: ignore[reportReturnType]
+
+
+print(test_constant_float_custom_literal_codegen.module)
 
 
 # CHECK: Binary operation 'FloorDiv' is not supported by type 'float' which does not overload '__floordiv__'.
