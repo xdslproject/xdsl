@@ -6,7 +6,9 @@ from ordered_set import OrderedSet
 from xdsl.backend.riscv.register_stack import RiscvRegisterStack
 from xdsl.context import Context
 from xdsl.dialects import builtin, riscv_func
+from xdsl.dialects.riscv.ops import LwOp, SwOp
 from xdsl.dialects.riscv.registers import IntRegisterType, Registers
+from xdsl.dialects.rv32 import GetRegisterOp
 from xdsl.ir import Operation, ParametrizedAttribute, SSAValue
 from xdsl.irdl import (
     IRDLOperation,
@@ -136,3 +138,39 @@ class SpillPass(ModulePass):
             die[inner_op] = uses - seen_vals
             seen_vals |= uses
         return die
+
+
+class ResolveSpillingOps(ModulePass):
+    def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
+        for func_op in op.walk():
+            if not isinstance(func_op, riscv_func.FuncOp):
+                continue
+            spill_ops = tuple(op for op in func_op.walk() if isinstance(op, SpillOp))
+            load_ops = tuple(op for op in func_op.walk() if isinstance(op, LoadOp))
+
+            # Map each spill value with its own stack offset
+            offset_by_value = {}
+            offset = 0
+            for spill_op in spill_ops:
+                offset_by_value[spill_op.result] = offset
+                offset += 4  # assume 32 bit values for now
+
+            # Get stack pointer for Lw/Sw to reference
+            stack_pointer = GetRegisterOp(Registers.SP)
+            Rewriter.insert_op(stack_pointer, InsertPoint.at_start(func_op.body.block))
+
+            # Resolve loads
+            for load_op in load_ops:
+                Rewriter.replace_op(
+                    load_op,
+                    LwOp(stack_pointer, offset_by_value[load_op.value]),
+                )
+
+            # Resolve spills
+            for spill_op in spill_ops:
+                store_op = SwOp(
+                    stack_pointer, spill_op.value, offset_by_value[spill_op.result]
+                )
+                # Use insert/erase since we are dropping the spill_op's result
+                Rewriter.insert_op(store_op, InsertPoint.before(spill_op))
+                Rewriter.erase_op(spill_op)
