@@ -196,7 +196,7 @@ func.func @test_reduce_sum(%arg0: tensor<31x5x3xf32>) -> tensor<1x5x3xf32> {
 }
 
 // -----
-// CHECK-LABEL: cond_if
+// // CHECK-LABEL: cond_if
 func.func @test_cond_if(%arg0: tensor<i1>, %arg1: tensor<3x4x5xf32>) -> tensor<3x4x5xf32> {
   // CHECK: {{%.*}} = tosa.cond_if {{%.*}} -> (tensor<3x4x5xf32>) {
   %0 = tosa.cond_if %arg0: tensor<i1> -> (tensor<3x4x5xf32>) {

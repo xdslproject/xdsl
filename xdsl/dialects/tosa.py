@@ -1,6 +1,6 @@
 from abc import ABC
-from collections.abc import Sequence
-from typing import ClassVar, Generic
+from collections.abc import Mapping, Sequence
+from typing import ClassVar, Generic, Protocol, cast
 
 from typing_extensions import TypeVar
 
@@ -18,7 +18,6 @@ from xdsl.dialects.builtin import (
     IntegerAttr,
     ShapedType,
     SignlessIntegerConstraint,
-    StringAttr,
     TensorType,
     i1,
 )
@@ -26,7 +25,6 @@ from xdsl.ir import (
     Attribute,
     Dialect,
     EnumAttribute,
-    SpacedOpaqueSyntaxAttribute,
     SSAValue,
     TypeAttribute,
 )
@@ -47,6 +45,8 @@ from xdsl.irdl import (
     var_operand_def,
     var_result_def,
 )
+from xdsl.parser import AttrParser, Parser
+from xdsl.printer import Printer
 from xdsl.traits import (
     Commutative,
     HasParent,
@@ -89,6 +89,51 @@ def are_tosa_broadcastable(lhs: Attribute, rhs: Attribute, out: Attribute):
     )
 
 
+T = TypeVar("T", bound=StrEnum)
+
+
+class TosaAttribProtocol(Protocol[T]):
+    data: T
+    enum_type: ClassVar[type[T]]
+
+
+class TosaEnumMixin(Generic[T]):
+    """Base class for TOSA attributes to share printing and parsing logic."""
+
+    def print_parameter(self: TosaAttribProtocol[T], printer: Printer) -> None:
+        with printer.in_angle_brackets():
+            printer.print_string(self.data)
+
+    @classmethod
+    def parse_parameter(cls: type[TosaAttribProtocol[T]], parser: AttrParser) -> T:
+        with parser.in_angle_brackets():
+            return parser.parse_str_enum(cls.enum_type)
+
+
+class RoundingMode(StrEnum):
+    SINGLE_ROUND = "SINGLE_ROUND"
+    INEXACT_ROUND = "INEXACT_ROUND"
+    DOUBLE_ROUND = "DOUBLE_ROUND"
+
+
+"""Rounding mode for `tosa.rescale`"""
+
+
+@irdl_attr_definition
+class RoundingModeAttr(TosaEnumMixin[RoundingMode], EnumAttribute[RoundingMode]):
+    name = "tosa.rounding_mode"
+
+
+class NanMode(StrEnum):
+    PROPAGATE = "PROPAGATE"
+    IGNORE = "IGNORE"
+
+
+@irdl_attr_definition
+class NanModeAttr(TosaEnumMixin[NanMode], EnumAttribute[NanMode]):
+    name = "tosa.nan_mode"
+
+
 @irdl_op_definition
 class ClampOp(IRDLOperation):
     """
@@ -107,7 +152,7 @@ class ClampOp(IRDLOperation):
     min_val = prop_def(VALUE)
     max_val = prop_def(VALUE)
 
-    nan_mode = opt_prop_def(StringAttr, default_value=StringAttr("PROPAGATE"))
+    nan_mode = opt_prop_def(NanModeAttr, default_value=NanModeAttr(NanMode.PROPAGATE))
 
     input = operand_def(TensorType.constr(T))
     output = result_def(TensorType.constr(T))
@@ -115,20 +160,6 @@ class ClampOp(IRDLOperation):
     irdl_options = (ParsePropInAttrDict(),)
 
     assembly_format = "$input attr-dict `:` `(` type($input) `)` `->` type($output)"
-
-
-class RoundingMode(StrEnum):
-    SINGLE_ROUND = "SINGLE_ROUND"
-    INEXACT_ROUND = "INEXACT_ROUND"
-    DOUBLE_ROUND = "DOUBLE_ROUND"
-
-
-"""Rounding mode for `tosa.rescale`"""
-
-
-@irdl_attr_definition
-class RoundingModeAttr(EnumAttribute[RoundingMode], SpacedOpaqueSyntaxAttribute):
-    name = "tosa.rounding_mode"
 
 
 @irdl_op_definition
@@ -179,7 +210,87 @@ class RescaleOp(IRDLOperation):
 
     irdl_options = (ParsePropInAttrDict(),)
 
-    assembly_format = "operands attr-dict `:` functional-type(operands, results)"
+    def print(self, printer: Printer):
+        # print operands
+        printer.print_string(" ")
+        printer.print_list(self.operands, lambda x: printer.print_ssa_value(x))
+
+        # print attr-dict
+        printer.print_string(" ")
+        with printer.in_braces():
+
+            def print_attr_entry(arg: tuple[str, Attribute]):
+                k, v = arg
+                match k:
+                    case "rounding_mode":
+                        printer.print_string("rounding_mode = ")
+                        rounding_mode = cast(RoundingModeAttr, v)
+                        printer.print_string(rounding_mode.data)
+                    case _:
+                        printer.print_identifier_or_string_literal(k)
+                        printer.print_string(" = ")
+                        printer.print_attribute(v)
+
+            printer.print_list(self.properties.items(), print_attr_entry)
+
+        # print types
+        printer.print_string(" : ")
+        with printer.in_parens():
+            last_idx = len(self.operands) - 1
+            for idx, op in enumerate(self.operands):
+                printer.print_attribute(op.type)
+                if idx != last_idx:
+                    printer.print_string(", ")
+
+        printer.print_string(" -> ")
+        printer.print_attribute(self.result_types[0])
+
+    @classmethod
+    def parse(cls, parser: Parser):
+        # parse operands
+        operands: list[SSAValue] = []
+
+        def parse_arg():
+            operands.append(parser.parse_operand())
+
+        parser.parse_comma_separated_list(parser.Delimiter.NONE, parse_arg)
+
+        # parse attr-dict
+        properties: Mapping[str, Attribute | None] = {}
+
+        def parse_attribute_entry():
+            key = parser.parse_identifier()
+            parser.parse_punctuation("=")
+            match key:
+                case "rounding_mode":
+                    rounding_mode = parser.parse_identifier()
+                    val = RoundingModeAttr(RoundingMode(rounding_mode))
+                case _:
+                    val = parser.parse_attribute()
+            properties[key] = val
+
+        parser.parse_comma_separated_list(
+            parser.Delimiter.BRACES, parse_attribute_entry
+        )
+
+        # parse results
+        operand_types: list[Attribute] = []
+
+        def parse_operand_type():
+            operand_types.append(parser.parse_attribute())
+
+        parser.parse_punctuation(":")
+        parser.parse_comma_separated_list(parser.Delimiter.PAREN, parse_operand_type)
+        parser.parse_punctuation("->")
+
+        result_type = parser.parse_attribute()
+
+        return cls(
+            operands=operands,
+            result_types=[result_type],
+            regions=[],
+            properties=properties,
+        )
 
 
 class ElementwiseOperation(IRDLOperation, ABC):
@@ -400,7 +511,7 @@ class MaxPool2DOp(IRDLOperation):
     kernel = prop_def(DenseArrayBase[I64])
     stride = prop_def(DenseArrayBase[I64])
     pad = prop_def(DenseArrayBase[I64])
-    nan_mode = opt_prop_def(StringAttr, default_value=StringAttr("PROPAGATE"))
+    nan_mode = opt_prop_def(NanModeAttr, default_value=NanModeAttr(NanMode.PROPAGATE))
 
     irdl_options = (ParsePropInAttrDict(),)
 
@@ -518,9 +629,7 @@ class IfOp(IRDLOperation):
         SingleBlockImplicitTerminator(YieldOp),
     )
 
-    assembly_format = (
-        "$cond `->` `(` type($output) `)` $true_region `else` $false_region attr-dict"
-    )
+    assembly_format = "$cond `:` type($cond) `->` `(` type($output) `)` $true_region `else` $false_region attr-dict"
 
 
 ################################################################################
@@ -569,7 +678,7 @@ class ReduceMaxOp(ReductionOperation):
 
     name = "tosa.reduce_max"
 
-    nan_mode = prop_def(StringAttr, default_value=StringAttr("PROPAGATE"))
+    nan_mode = opt_prop_def(NanModeAttr, default_value=NanModeAttr(NanMode.PROPAGATE))
 
 
 @irdl_op_definition
@@ -580,7 +689,7 @@ class ReduceMinOp(ReductionOperation):
 
     name = "tosa.reduce_min"
 
-    nan_mode = prop_def(StringAttr, default_value=StringAttr("PROPAGATE"))
+    nan_mode = opt_prop_def(NanModeAttr, default_value=NanModeAttr(NanMode.PROPAGATE))
 
 
 @irdl_op_definition
@@ -627,6 +736,7 @@ TOSA = Dialect(
         YieldOp,
     ],
     [
+        NanModeAttr,
         RoundingModeAttr,
     ],
 )
