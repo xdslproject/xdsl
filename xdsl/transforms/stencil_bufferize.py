@@ -104,10 +104,8 @@ class ApplyBufferizePattern(RewritePattern):
             for o in op.args
         ]
 
+        # TODO: support stencil reductions
         new = ApplyOp.build(
-            operands=[args, op.dest],
-        new = ApplyOp(
-            # TODO: support stencil reductions
             operands=[args, op.dest, []],
             regions=[op.detach_region(0)],
             result_types=[op.res.types],

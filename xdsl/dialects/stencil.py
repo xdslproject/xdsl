@@ -531,7 +531,7 @@ class ApplyOp(IRDLOperation):
         properties = {"bounds": bounds} if bounds else {}
 
         super().__init__(
-            operands=[list(args), []],
+            operands=[list(args), [], []],
             regions=[body],
             result_types=[result_types],
             properties=properties,
