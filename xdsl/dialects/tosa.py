@@ -1,6 +1,6 @@
 from abc import ABC
 from collections.abc import Mapping, Sequence
-from typing import ClassVar, Generic, Protocol, cast
+from typing import ClassVar, Generic, cast
 
 from typing_extensions import TypeVar
 
@@ -89,49 +89,51 @@ def are_tosa_broadcastable(lhs: Attribute, rhs: Attribute, out: Attribute):
     )
 
 
-T = TypeVar("T", bound=StrEnum)
-
-
-class TosaAttribProtocol(Protocol[T]):
-    data: T
-    enum_type: ClassVar[type[T]]
-
-
-class TosaEnumMixin(Generic[T]):
-    """Base class for TOSA attributes to share printing and parsing logic."""
-
-    def print_parameter(self: TosaAttribProtocol[T], printer: Printer) -> None:
-        with printer.in_angle_brackets():
-            printer.print_string(self.data)
-
-    @classmethod
-    def parse_parameter(cls: type[TosaAttribProtocol[T]], parser: AttrParser) -> T:
-        with parser.in_angle_brackets():
-            return parser.parse_str_enum(cls.enum_type)
-
-
 class RoundingMode(StrEnum):
+    """
+    Rounding mode for `tosa.rescale`
+    """
+
     SINGLE_ROUND = "SINGLE_ROUND"
     INEXACT_ROUND = "INEXACT_ROUND"
     DOUBLE_ROUND = "DOUBLE_ROUND"
 
 
-"""Rounding mode for `tosa.rescale`"""
-
-
 @irdl_attr_definition
-class RoundingModeAttr(TosaEnumMixin[RoundingMode], EnumAttribute[RoundingMode]):
+class RoundingModeAttr(EnumAttribute[RoundingMode]):
     name = "tosa.rounding_mode"
+
+    def print_parameter(self, printer: Printer) -> None:
+        with printer.in_angle_brackets():
+            printer.print_string(self.data)
+
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> RoundingMode:
+        with parser.in_angle_brackets():
+            return parser.parse_str_enum(RoundingMode)
 
 
 class NanMode(StrEnum):
+    """
+    Supported NaN propagation strategies
+    """
+
     PROPAGATE = "PROPAGATE"
     IGNORE = "IGNORE"
 
 
 @irdl_attr_definition
-class NanModeAttr(TosaEnumMixin[NanMode], EnumAttribute[NanMode]):
+class NanModeAttr(EnumAttribute[NanMode]):
     name = "tosa.nan_mode"
+
+    def print_parameter(self, printer: Printer) -> None:
+        with printer.in_angle_brackets():
+            printer.print_string(self.data)
+
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> NanMode:
+        with parser.in_angle_brackets():
+            return parser.parse_str_enum(NanMode)
 
 
 @irdl_op_definition
