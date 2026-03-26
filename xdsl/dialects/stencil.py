@@ -665,18 +665,6 @@ class ApplyOp(IRDLOperation):
         reductions: Sequence[SSAValue] | Sequence[Operation] = (),
     ):
         return ApplyOp(args, body, result_types, bounds)
-        assert result_types or bounds
-        if isinstance(body, Block):
-            body = Region(body)
-
-        properties = {"bounds": bounds} if bounds else {}
-
-        return ApplyOp.build(
-            operands=[list(args), [], list(reductions)],
-            regions=[body],
-            result_types=[result_types],
-            properties=properties,
-        )
 
     def verify_(self) -> None:
         for operand, argument in zip(self.operands, self.region.block.args):
