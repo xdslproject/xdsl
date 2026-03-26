@@ -60,17 +60,9 @@ def move_to_regs(
     """
     Return move operations to `a` registers (a0, a1, ... | fa0, fa1, ...).
     """
-    # For scalar floats, use their bitwidth. Otherwise, default to the register
-    # width: flen (64) for float registers, xlen (32) for int registers. This
-    # ensures packed types like vector<4xf16> get a full 64-bit move (fmv.d)
-    # instead of a truncating 32-bit move (fmv.s).
+    # We only care about bitwidths for floats for now, so default to 32 for non floats
     widths = tuple(
-        i.bitwidth
-        if isinstance(i, builtin.AnyFloat)
-        else 64
-        if isinstance(value.type, riscv.FloatRegisterType)
-        else 32
-        for i, value in zip(value_types, values)
+        i.bitwidth if isinstance(i, builtin.AnyFloat) else 32 for i in value_types
     )
 
     new_op = riscv.ParallelMovOp(
