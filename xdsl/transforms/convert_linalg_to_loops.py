@@ -2,7 +2,7 @@ from collections.abc import Sequence
 
 from xdsl.context import Context
 from xdsl.dialects import arith, linalg, memref
-from xdsl.dialects.builtin import IntegerAttr, MemRefType, ModuleOp
+from xdsl.dialects.builtin import IndexType, IntegerAttr, MemRefType, ModuleOp
 from xdsl.ir import SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
@@ -66,11 +66,13 @@ class LowerLinalgStructuredOpPattern(RewritePattern):
             return store_op
 
         insertion_point = InsertPoint.before(op)
-        bound_values: list[SSAValue] = []
-        for ub in op.get_static_loop_ranges():
-            bound_constant_op = arith.ConstantOp(IntegerAttr.from_index_int_value(ub))
-            rewriter.insert_op(bound_constant_op, insertion_point)
-            bound_values.append(bound_constant_op.result)
+        index = IndexType()
+        ub_ops = tuple(
+            arith.ConstantOp(IntegerAttr(ub, index))
+            for ub in op.get_static_loop_ranges()
+        )
+        rewriter.insert_op(ub_ops, insertion_point)
+        bound_values = tuple(op.result for op in ub_ops)
 
         rewrite_linalg_structured_to_loops(
             rewriter,
