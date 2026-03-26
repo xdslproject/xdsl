@@ -8,7 +8,7 @@ from xdsl.dialects.stim.ops import (
     QubitCoordsOp,
     QubitMappingAttr,
 )
-from xdsl.dialects.stim.stim_parser import StimParseError, StimParser
+from xdsl.dialects.stim.stim_parser import NAME, StimParseError, StimParser
 from xdsl.dialects.stim.stim_printer_parser import StimPrintable, StimPrinter
 from xdsl.dialects.test import TestOp
 from xdsl.ir import Block, Region
@@ -106,6 +106,17 @@ def test_stim_roundtrip_empty_circuit(program: str):
 )
 def test_stim_roundtrip_qubit_coord_op(program: str):
     check_stim_roundtrip(program)
+
+
+@pytest.mark.parametrize(
+    "name",
+    ["H", "X", "Y", "Z", "I", "M", "R", "S"],
+)
+def test_name_regex_single_char(name: str):
+    """Test that the NAME regex matches single-character names."""
+    parser = StimParser(name)
+    result = parser.parse_optional_pattern(NAME)
+    assert result == name
 
 
 def test_no_spaces_before_target():

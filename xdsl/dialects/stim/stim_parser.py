@@ -42,9 +42,9 @@ ARG = re.compile(r"\d+(\.\d+)?")
 TARGET = re.compile(r"\d+")
 # GATE = re.compile("|".join(re.escape(p.value) for p in PrimitiveSpelling))
 # INSTRUCTION = re.compile("|".join(re.escape(i.value) for i in Instruction))
-NAME = re.compile(r"[a-zA-Z][a-zA-Z0-9_]+")
+NAME = re.compile(r"[a-zA-Z][a-zA-Z0-9_]*")
 """
-A regular expression for a name: a letter followed by a number of letters or numbers or underscores.
+A regular expression for a name: a letter followed by zero or more letters, numbers, or underscores.
 """
 
 
