@@ -104,7 +104,6 @@ class ApplyBufferizePattern(RewritePattern):
             for o in op.args
         ]
 
-        # TODO: support stencil reductions
         new = ApplyOp.build(
             operands=[args, op.dest, []],
             regions=[op.detach_region(0)],
@@ -281,7 +280,6 @@ class ApplyStoreFoldPattern(RewritePattern):
                 operands=[
                     apply.args,
                     (*apply.dest, *(store.field for store in stores)),
-                    # TODO: support stencil reductions
                     [],
                 ],
                 # We only remove the considered result

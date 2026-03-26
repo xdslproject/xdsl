@@ -647,7 +647,6 @@ class ApplyOp(IRDLOperation):
         else:
             bounds = None
         return cls.build(
-            # TODO: support stencil reduction parsing
             operands=[operands, destinations or [], reductions],
             result_types=[result_types or []],
             regions=[region],
