@@ -43,7 +43,7 @@ x86_func.func @main() {
 // -----
 
 // CHECK: func @simple
-x86_func.func @simple(%0 : !x86.reg<rdi>, %1 : !x86.reg<rsi>) -> !x86.reg<rax> {
+x86_func.func @simple(%0: !x86.reg<rdi>, %1: !x86.reg<rsi>) -> !x86.reg<rax> {
   // CHECK-NOT: %{{.*}} = x86.get_register : !x86.reg<rsp>
   // CHECK-NOT: %{{.*}} = x86.s.push %{{.*}}, %{{.*}} : (!x86.reg<rsp>, !x86.reg<{{.*}}>) -> !x86.reg<rsp>
   // CHECK-NEXT: %2 = x86.ds.mov %0 : (!x86.reg<rdi>) -> !x86.reg<r8>

@@ -389,7 +389,7 @@ def test_parse_region_with_args(text: str):
     "text",
     [
         """%x : i32 { ^bb: "test.op"(%x) : (i32) -> () }""",
-        """%x : i32 { ^bb(%y : i32): "test.op"(%x) : (i32) -> () }""",
+        """%x : i32 { ^bb(%y: i32): "test.op"(%x) : (i32) -> () }""",
         """%x : i32 { %x = "test.op"() : () -> (i32) }""",
     ],
 )

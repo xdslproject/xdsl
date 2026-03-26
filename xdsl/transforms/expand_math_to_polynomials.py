@@ -74,8 +74,8 @@ def expand_exp(op: math.ExpOp, rewriter: PatternRewriter, terms: int) -> Operati
     term = _float_constant(1.0, tp, rewriter)
 
     for i in range(1, terms):
-        i_val = _float_constant(float(i), tp, rewriter)
-        frac = rewriter.insert(arith.DivfOp(x, i_val.result))
+        i_val = _float_constant(1.0 / float(i), tp, rewriter)
+        frac = rewriter.insert(arith.MulfOp(x, i_val.result))
         mul = rewriter.insert(arith.MulfOp(frac.result, term.result))
         add = rewriter.insert(arith.AddfOp(res.result, mul.result))
 

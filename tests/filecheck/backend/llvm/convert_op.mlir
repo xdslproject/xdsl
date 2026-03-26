@@ -404,7 +404,7 @@ builtin.module {
   // CHECK-NEXT:   unreachable
   // CHECK-NEXT: }
 
-  llvm.func @casts(%arg0 : i32, %arg1 : i64, %arg2 : !llvm.ptr, %arg3 : f32) {
+  llvm.func @casts(%arg0: i32, %arg1: i64, %arg2: !llvm.ptr, %arg3: f32) {
     %0 = llvm.trunc %arg1 : i64 to i32
     %1 = llvm.zext %arg0 : i32 to i64
     %2 = llvm.sext %arg0 : i32 to i64
@@ -430,7 +430,7 @@ builtin.module {
   // CHECK-NEXT:   ret void
   // CHECK-NEXT: }
 
-  llvm.func @casts_with_flags(%arg0 : i32, %arg1 : i64) {
+  llvm.func @casts_with_flags(%arg0: i32, %arg1: i64) {
     // llvm.TruncOp with overflow flags (IntegerConversionOpOverflow)
     %trunc_none = llvm.trunc %arg1 : i64 to i32
     %trunc_nsw = llvm.trunc %arg1 overflow<nsw> : i64 to i32
@@ -457,7 +457,7 @@ builtin.module {
   // void gep_constant(int (*ptr)[10]) {
   //   int* result = &ptr[1][2];
   // }
-  llvm.func @gep_constant(%arg0 : !llvm.ptr) {
+  llvm.func @gep_constant(%arg0: !llvm.ptr) {
     %0 = "llvm.getelementptr"(%arg0) <{
       elem_type = !llvm.array<10 x i32>,
       rawConstantIndices = array<i32: 1, 2>,
@@ -476,7 +476,7 @@ builtin.module {
   // void gep_ssa(int* ptr, int index) {
   //   int* result = &ptr[index];
   // }
-  llvm.func @gep_ssa(%arg0 : !llvm.ptr, %arg1 : i32) {
+  llvm.func @gep_ssa(%arg0: !llvm.ptr, %arg1: i32) {
     %0 = "llvm.getelementptr"(%arg0, %arg1) <{
       elem_type = i32,
       rawConstantIndices = array<i32: -2147483648>, // magic constant 0x80000000 (placeholder for ssa value)
@@ -496,7 +496,7 @@ builtin.module {
   //   // e.g. ptr[1][i].field2[j]
   //   int* result = &ptr[1][i].field2[j];
   // }
-  llvm.func @gep_mixed(%arg0 : !llvm.ptr, %arg1 : i32, %arg2 : i32) {
+  llvm.func @gep_mixed(%arg0: !llvm.ptr, %arg1: i32, %arg2: i32) {
     %0 = "llvm.getelementptr"(%arg0, %arg1, %arg2) <{
       elem_type = !llvm.array<10 x !llvm.struct<(i32, i32, !llvm.array<10 x i32>)>>,
       rawConstantIndices = array<i32: 1, -2147483648, 2, -2147483648>,
@@ -516,7 +516,7 @@ builtin.module {
   //   // same as gep_ssa, but we assume that 'ptr + idx' stays within the same 'object'
   //   int* result = &ptr[idx]; 
   // }
-  llvm.func @gep_inbounds(%arg0 : !llvm.ptr, %arg1 : i32) {
+  llvm.func @gep_inbounds(%arg0: !llvm.ptr, %arg1: i32) {
     %0 = "llvm.getelementptr"(%arg0, %arg1) <{
       elem_type = i32,
       rawConstantIndices = array<i32: -2147483648>,
@@ -590,10 +590,10 @@ builtin.module {
   // CHECK-NEXT: }
 
   llvm.func @cond_br_op(%arg0: i1, %arg1: i32, %arg2: i32) -> i32 {
-    llvm.cond_br %arg0, ^bb1(%arg1 : i32), ^bb2(%arg2 : i32)
-  ^bb1(%0 : i32):
+    llvm.cond_br %arg0, ^bb1(%arg1: i32), ^bb2(%arg2: i32)
+  ^bb1(%0: i32):
     llvm.return %0 : i32
-  ^bb2(%1 : i32):
+  ^bb2(%1: i32):
     llvm.return %1 : i32
   }
 

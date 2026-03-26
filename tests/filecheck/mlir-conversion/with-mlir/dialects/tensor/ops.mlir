@@ -29,7 +29,7 @@
 
 %pval, %ptensor = "test.op"() : () -> (f32, tensor<12x20x20xf32>) 
 %padded = tensor.pad %ptensor nofold low[1, %dim1, 2] high[%dim2, 3, 3] {
- ^bb0(%arg0 : index, %arg1 : index, %arg2 : index):
+ ^bb0(%arg0: index, %arg1: index, %arg2: index):
    tensor.yield %pval : f32
  } : tensor<12x20x20xf32> to tensor<?x?x25xf32>
 

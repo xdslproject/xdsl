@@ -5,8 +5,8 @@ func.func private @memref_test() {
   %13 = "test.op"() : () -> index
   %14 = "test.op"() : () -> index
   %10 = memref.alloc() : memref<64x64xindex, strided<[2, 4], offset: 6>, 2 : i32>
-  %15 = memref.alloc(%12) {"alignment" = 0} : memref<?xindex>
-  %16 = memref.alloc(%12, %13, %14) {"alignment" = 0} : memref<?x?x?xindex>
+  %15 = memref.alloc(%12) : memref<?xindex>
+  %16 = memref.alloc(%12, %13, %14) : memref<?x?x?xindex>
   memref.dealloc %10 : memref<64x64xindex, strided<[2, 4], offset: 6>, 2 : i32>
   memref.dealloc %15 : memref<?xindex>
   memref.dealloc %16 : memref<?x?x?xindex>

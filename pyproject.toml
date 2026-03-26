@@ -7,7 +7,7 @@ license = { text = "Apache License v2.0 with LLVM Exceptions" }
 authors = [{ name = "Mathieu Fehr", email = "mathieu.fehr@ed.ac.uk" }]
 classifiers = ["Programming Language :: Python :: 3"]
 dependencies = [
-    "immutabledict<4.2.3",
+    "immutabledict<4.3.2",
     "typing-extensions>=4.7,<5",
     "ordered-set==4.1.0",
 ]
@@ -23,20 +23,20 @@ dev = [
     "pytest-cov",
     "coverage<8.0.0",
     "ipykernel",
-    "pytest<8.5",
+    "pytest<9.1",
     "nbval<0.12",
     "filecheck==1.0.3",
     "lit<19.0.0",
-    "marimo>=0.17,<0.18",
+    "marimo>=0.21,<0.22",
     "prek~=0.3.1",
-    "ruff==0.14.7",
+    "ruff==0.15.7",
     "nbconvert>=7.7.2,<8.0.0",
     "textual-dev==1.8.0",
-    "pytest-asyncio==1.2.0",
-    "pyright==1.1.407",
+    "pytest-asyncio==1.3.0",
+    "pyright==1.1.408",
     "sympy==1.14.0",
 ]
-gui = ["textual>=6,<7", "pyclip==0.7"]
+gui = ["textual>=8,<9", "pyclip==0.7"]
 llvm = ["llvmlite~=0.46.0"]
 
 [dependency-groups]

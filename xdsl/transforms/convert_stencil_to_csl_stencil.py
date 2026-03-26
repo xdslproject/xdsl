@@ -229,8 +229,10 @@ class ConvertSwapToPrefetchPattern(RewritePattern):
             rewriter.replace_uses_with_if(
                 field_block_arg,
                 prefetch_block_arg,
-                lambda use: isinstance(use.operation, stencil.AccessOp)
-                and tuple(use.operation.offset) != (0, 0),
+                lambda use: (
+                    isinstance(use.operation, stencil.AccessOp)
+                    and tuple(use.operation.offset) != (0, 0)
+                ),
             )
 
             # rebuild stencil.apply op
@@ -620,7 +622,7 @@ class TransformPrefetch(RewritePattern):
             dest = acc
             for i, acc_offset in enumerate(offsets):
                 ac_op = csl_stencil.AccessOp(
-                    buf, stencil.IndexAttr.get(*acc_offset), chunk_t
+                    buf, stencil.IndexAttr.from_indices(*acc_offset), chunk_t
                 )
                 assert isa(ac_op.result.type, AnyTensorType)
                 # inserts 1 (see static_sizes) 1d slice into a 2d tensor at offset (i, `offset`) (see static_offsets)

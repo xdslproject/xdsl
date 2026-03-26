@@ -24,7 +24,7 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
       ],
       iterator_types = ["parallel", "parallel", "parallel", "parallel", "reduction", "reduction", "reduction"]
     } ins(%X, %Y : memref<1x1x10x10xf64>, memref<1x1x3x3xf64>) outs(%Z : memref<1x1x8x8xf64>) {
-    ^bb0(%x : f64, %y : f64, %acc : f64):
+    ^bb0(%x: f64, %y: f64, %acc: f64):
       %prod = arith.mulf %x, %y fastmath<fast> : f64
       %res = arith.addf %prod, %acc fastmath<fast> : f64
       linalg.yield %res : f64
@@ -196,7 +196,7 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
           ],
           iterator_types = ["parallel", "parallel"]
       } ins(%X, %Y : memref<8x16xf64>, memref<8x16xf64>) outs(%Z : memref<8x16xf64>) {
-      ^bb0(%x : f64, %y : f64, %out : f64):
+      ^bb0(%x: f64, %y: f64, %out: f64):
           %z = arith.addf %x, %y : f64
           linalg.yield %z : f64
       }
@@ -240,7 +240,7 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
         ],
         iterator_types = ["parallel", "parallel"]
     } ins(%X : f64) outs(%Y : memref<16x16xf64>) {
-    ^bb0(%d : f64, %c : f64):
+    ^bb0(%d: f64, %c: f64):
         linalg.yield %d : f64
     }
 
@@ -295,7 +295,7 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
         ],
         iterator_types = ["parallel", "parallel", "reduction"]
     } ins(%X, %Y : memref<8x8xf64>, memref<8x8xf64>) outs(%G : memref<8x8xf64>) {
-    ^bb0(%x : f64, %y : f64, %acc_old : f64):
+    ^bb0(%x: f64, %y: f64, %acc_old: f64):
         %prod = arith.mulf %x, %y fastmath<fast> : f64
         %acc_new = arith.addf %acc_old, %prod fastmath<fast> : f64
         linalg.yield %acc_new : f64
@@ -404,7 +404,7 @@ func.func public @pooling_nchw_max_d1_s2_3x3(
       ],
       iterator_types = ["parallel", "parallel", "parallel", "parallel", "reduction", "reduction"]
     } ins(%X, %alloc : memref<1x1x18x18xf64>, memref<3x3xf64>) outs(%Y : memref<1x1x8x8xf64>) {
-    ^bb0(%x : f64, %alloc_val: f64, %acc : f64):
+    ^bb0(%x: f64, %alloc_val: f64, %acc: f64):
       %res = arith.maximumf %x, %acc : f64
       linalg.yield %res : f64
     }
@@ -499,7 +499,7 @@ func.func public @pooling_nchw_max_d1_s2_3x3(
         ],
         iterator_types = ["parallel", "parallel"]
     } ins(%X : memref<16x16xf64>) outs(%Y : memref<16x16xf64>) {
-    ^bb0(%x : f64, %out : f64):
+    ^bb0(%x: f64, %out: f64):
         %y = arith.maximumf %x, %zero_float : f64
         linalg.yield %y : f64
     }
@@ -557,7 +557,7 @@ func.func public @pooling_nchw_sum_d1_s2_3x3(
       ],
       iterator_types = ["parallel", "parallel", "parallel", "parallel", "reduction", "reduction"]
     } ins(%X, %alloc : memref<1x1x18x18xf64>, memref<3x3xf64>) outs(%Y : memref<1x1x8x8xf64>) {
-    ^bb0(%x : f64, %alloc_val: f64, %acc : f64):
+    ^bb0(%x: f64, %alloc_val: f64, %acc: f64):
       %res = arith.addf %x, %acc : f64
       linalg.yield %res : f64
     }

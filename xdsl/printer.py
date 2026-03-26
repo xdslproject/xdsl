@@ -240,7 +240,7 @@ class Printer(BasePrinter):
         """
         self.print_ssa_value(arg)
         if print_type:
-            self.print_string(" : ")
+            self.print_string(": ")
             self.print_attribute(arg.type)
             if self.print_debuginfo:
                 self.print_string(" ")
@@ -421,9 +421,9 @@ class Printer(BasePrinter):
         """
         self.print_list(
             dims,
-            lambda x: self.print_int(x)
-            if x != DYNAMIC_INDEX
-            else self.print_string("?"),
+            lambda x: (
+                self.print_int(x) if x != DYNAMIC_INDEX else self.print_string("?")
+            ),
             "x",
         )
 

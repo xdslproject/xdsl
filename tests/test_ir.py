@@ -789,7 +789,7 @@ program_add_2 = """
 program_func = """
 "builtin.module"() ({
   "func.func"() ({
-  ^bb0(%0 : i32, %1 : i32):
+  ^bb0(%0: i32, %1: i32):
     %2 = "arith.addi"(%0, %1) : (i32, i32) -> i32
     "func.return"(%2) : (i32) -> ()
   }) {"sym_name" = "test", "function_type" = (i32, i32) -> i32, "sym_visibility" = "private"} : () -> ()
@@ -871,11 +871,11 @@ def test_is_structurally_equivalent_incompatible_ir_nodes():
     program_func = """
 "builtin.module"() ({
   "func.func"() ({
-  ^bb0(%0 : i32, %1 : i32):
+  ^bb0(%0: i32, %1: i32):
     %2 = "arith.addi"(%0, %1) : (i32, i32) -> i32
     %3 = "arith.constant"() {"value" = 2 : i32} : () -> i32
     "func.return"(%3) : (i32) -> ()
-  ^bb1(%4 : i32, %5 : i32):
+  ^bb1(%4: i32, %5: i32):
     "func.return"(%4) : (i32) -> ()
   }) {"sym_name" = "test", "function_type" = (i32, i32) -> i32, "sym_visibility" = "private"} : () -> ()
 }) : () -> ()

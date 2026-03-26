@@ -1,7 +1,7 @@
 import pytest
 
 from xdsl.dialects import x86
-from xdsl.dialects.builtin import IntegerAttr
+from xdsl.dialects.builtin import IntegerAttr, StringAttr
 from xdsl.dialects.x86.ops import (
     DM_LeaOp,
     DM_MovOp,
@@ -272,7 +272,7 @@ def test_mr_vops(
 ):
     output = x86.ops.GetRegisterOp(dest)
     input = x86.ops.GetAVXRegisterOp(src)
-    op = OpClass(memory=output, source=input, memory_offset=IntegerAttr(0, 64))
+    op = OpClass(memory=output, source=input, memory_offset=0)
     assert op.memory.type == dest
     assert op.source.type == src
 
@@ -415,7 +415,7 @@ def test_jmp_numeric_label_not_implemented():
         match="Assembly printing for jumps to numeric labels not implemented",
     ):
         op.assembly_line_args()
-    label_op.label = x86.attributes.LabelAttr("hello")
+    label_op.label = StringAttr("hello")
     assert op.assembly_line_args() == ("hello",)
 
 
@@ -434,5 +434,5 @@ def test_conditional_jump_numeric_label_not_implemented():
         match="Assembly printing for jumps to numeric labels not implemented",
     ):
         op.assembly_line_args()
-    label_op.label = x86.attributes.LabelAttr("hello")
+    label_op.label = StringAttr("hello")
     assert op.assembly_line_args() == ("hello",)

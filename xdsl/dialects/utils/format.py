@@ -479,7 +479,7 @@ def print_func_argument(
     `%arg : type {attrs} loc(...)` (location after attrs).
     """
     printer.print_block_argument(arg, print_type=False)
-    printer.print_string(" : ")
+    printer.print_string(": ")
     printer.print_attribute(arg.type)
     if attrs is not None and attrs.data:
         printer.print_op_attributes(attrs.data)

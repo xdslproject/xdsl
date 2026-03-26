@@ -22,7 +22,7 @@ def redefined_function(x: int) -> int:
 # Function definitions can be overriden
 print(redefined_function.module)
 # CHECK:      builtin.module {
-# CHECK-NEXT:     func.func @redefined_function(%x : !bigint.bigint) -> !bigint.bigint {
+# CHECK-NEXT:     func.func @redefined_function(%x: !bigint.bigint) -> !bigint.bigint {
 # CHECK-NEXT:       func.return %x : !bigint.bigint
 # CHECK-NEXT:     }
 # CHECK-NEXT:   }
