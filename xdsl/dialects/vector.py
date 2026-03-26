@@ -1617,10 +1617,10 @@ Vector = Dialect(
         BitcastOp,
         BroadcastOp,
         CreateMaskOp,
-        ExtractElementOp,
+        ExtractElementOp,  # pyright: ignore[reportDeprecated]
         ExtractOp,
         FMAOp,
-        InsertElementOp,
+        InsertElementOp,  # pyright: ignore[reportDeprecated]
         InsertOp,
         LoadOp,
         MaskedLoadOp,
