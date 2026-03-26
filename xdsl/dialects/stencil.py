@@ -1637,13 +1637,15 @@ class ReduceOp(IRDLOperation):
     init = operand_def(T)
     body = region_def("single_block", entry_args=RangeOf(T).of_length(2))
 
+    assembly_format = "$acc `init` $init $body attr-dict `:` type($acc)"
+
     def __init__(self, operand: SSAValue, init: SSAValue, body: Region):
         super().__init__(operands=[operand, init], result_types=[], regions=[body])
 
     def verify_(self) -> None:
         body_block = self.body.block
 
-        if len(body_block.ops) == 0:
+        if not body_block.ops:
             raise VerifyException("stencil.reduce body must end with stencil.yield")
 
         last_op = body_block.last_op
@@ -1659,24 +1661,6 @@ class ReduceOp(IRDLOperation):
                 f"got {last_op.operand.type} and {self.acc.type}"
             )
 
-    def print(self, printer: Printer):
-        printer.print_string(" ")
-        printer.print_ssa_value(self.acc)
-        printer.print_string(" init ")
-        printer.print_ssa_value(self.init)
-        printer.print_string(" ")
-        printer.print_region(self.body, print_entry_block_args=True)
-
-    @classmethod
-    def parse(cls: type[ReduceOp], parser: Parser):
-
-        acc = parser.parse_operand()
-        parser.parse_keyword("init")
-        init = parser.parse_operand()
-        region = parser.parse_region()
-
-        return cls.build(operands=[acc, init], result_types=[], regions=[region])
-
 
 @irdl_op_definition
 class YieldOp(IRDLOperation):
@@ -1688,31 +1672,12 @@ class YieldOp(IRDLOperation):
 
     operand = operand_def()
 
+    assembly_format = "$operand attr-dict `:` type($operand)"
+
     traits = traits_def(IsTerminator())
 
     def __init__(self, result: SSAValue):
         super().__init__(operands=[result])
-
-    def print(self, printer: Printer):
-        printer.print_string(" ")
-        printer.print_ssa_value(self.operand)
-        printer.print_string(" : ")
-        printer.print_attribute(self.operand.type)
-
-    @classmethod
-    def parse(cls: type[YieldOp], parser: Parser):
-
-        operand = parser.parse_operand()
-
-        parser.parse_punctuation(":")
-        type_attr = parser.parse_attribute()
-
-        if operand.type.name != type_attr.name:
-            parser.raise_error(
-                f"stencil.yield type mismatch: operand has type {operand.type}, but annotation is {type_attr}"
-            )
-
-        return cls.build(operands=[operand])
 
 
 @dataclass(frozen=True)

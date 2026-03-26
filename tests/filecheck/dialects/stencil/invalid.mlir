@@ -187,7 +187,7 @@ builtin.module {
     stencil.reduce %a init %b {
       ^bb0(%x: f64, %y: f64):
         stencil.yield %x : f64
-    }
+    } : f64
     func.return
   }
 }
@@ -197,26 +197,11 @@ builtin.module {
 // -----
 
 builtin.module {
-  func.func @reduce_block_arg_count_wrong(%a: f64, %b: f64) {
-    stencil.reduce %a init %b {
-      ^bb0(%x: f64):
-        stencil.yield %x : f64
-    }
-    func.return
-  }
-}
-
-// CHECK: region #0 entry arguments do not verify:
-// CHECK: incorrect length for range variable
-
-// -----
-
-builtin.module {
   func.func @reduce_block_arg_type_wrong(%a: f64, %b: f64) {
     stencil.reduce %a init %b {
       ^bb0(%x: f64, %y: i32):
         stencil.yield %x : f64
-    }
+    } : f64
     func.return
   }
 }
@@ -231,7 +216,7 @@ builtin.module {
     stencil.reduce %a init %b {
       ^bb0(%x: f64, %y: f64):
         %sum = arith.addf %x, %y : f64
-    }
+    } : f64
     func.return
   }
 }
@@ -246,7 +231,7 @@ builtin.module {
       ^bb0(%x: f64, %y: f64):
         %sum = arith.addf %x, %y : f64
         stencil.return %sum : f64
-    }
+    } : f64
     func.return
   }
 }
@@ -261,7 +246,7 @@ builtin.module {
       ^bb0(%x: f64, %y: f64):
         %c0_i32 = arith.constant 0 : i32
         stencil.yield %c0_i32 : i32
-    }
+    } : f64
     func.return
   }
 }
@@ -271,13 +256,14 @@ builtin.module {
 // -----
 
 builtin.module {
-  func.func @yield_parse_type_mismatch(%a: f64, %b: f64) {
+  func.func @reduce_block_arg_count_wrong(%a: f64, %b: f64) {
     stencil.reduce %a init %b {
-      ^bb0(%x: f64, %y: f64):
-        stencil.yield %x : i32
-    }
+      ^bb0(%x: f64):
+        stencil.yield %x : f64
+    } : f64
     func.return
   }
 }
 
-// CHECK: stencil.yield type mismatch: operand has type f64, but annotation is i32
+// CHECK: region #0 entry arguments do not verify:
+// CHECK: incorrect length for range variable
