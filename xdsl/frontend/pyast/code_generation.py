@@ -385,6 +385,22 @@ class CodeGenerationVisitor(ast.NodeVisitor):
             f"which does not overload '{python_op}'.",
         )
 
+    def visit_Constant(self, node: ast.Constant) -> None:
+        if (
+            literal_op := self.type_converter.literal_registry.resolve_operation(
+                node.value
+            )
+        ) is not None:
+            self.inserter.insert_op(literal_op)
+            return
+
+        raise CodeGenerationException(
+            self.file,
+            node.lineno,
+            node.col_offset,
+            f"Unsupported constant '{node.value}' of type '{type(node.value).__qualname__}'.",
+        )
+
     def visit_Expr(self, node: ast.Expr) -> None:
         self.visit(node.value)
 
