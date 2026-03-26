@@ -14,7 +14,12 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.ir import Operation
 from xdsl.passes import ModulePass
-from xdsl.pattern_rewriter import GreedyRewritePatternApplier, PatternRewriter, PatternRewriteWalker, RewritePattern
+from xdsl.pattern_rewriter import (
+    GreedyRewritePatternApplier,
+    PatternRewriter,
+    PatternRewriteWalker,
+    RewritePattern,
+)
 
 
 @dataclass
@@ -81,7 +86,13 @@ class ConvertArithToRiscvSnitchPass(ModulePass):
 
     def apply(self, ctx: Context, op: ModuleOp) -> None:
         walker = PatternRewriteWalker(
-            GreedyRewritePatternApplier([lower_arith_addf, lower_arith_mulf,]),
+            GreedyRewritePatternApplier(
+                [
+                    lower_arith_addf,
+                    lower_arith_mulf,
+                ],
+                dce_enabled=False,
+            ),
             apply_recursively=False,
         )
         walker.rewrite_module(op)
