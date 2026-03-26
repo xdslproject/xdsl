@@ -20,7 +20,7 @@
   %10 = "memref.alloc"() <{operandSegmentSizes = array<i32: 0, 0>}> : () -> memref<memref<?xf32>>
   %11 = memref.load %10[] : memref<memref<?xf32>>
   %12 = arith.constant 1 : index
-  %13 = "memref.dim"(%11, %12) : (memref<?xf32>, index) -> index
+  %13 = memref.dim %11, %12 : memref<?xf32>
 
   // CHECK:       %2 = memref.alloc() : memref<memref<?xf32>>
   // CHECK-NOT: memref.load

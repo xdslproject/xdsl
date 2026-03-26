@@ -5,10 +5,10 @@
   ^bb0(%0: memref<?x?xi64>, %1: memref<?x?xi64>):
     %2 = "arith.constant"() {"value" = 0 : index} : () -> index
     %3 = "arith.constant"() {"value" = 1 : index} : () -> index
-    %4 = "memref.dim"(%0, %2) : (memref<?x?xi64>, index) -> index
-    %5 = "memref.dim"(%0, %3) : (memref<?x?xi64>, index) -> index
-    %6 = "memref.dim"(%1, %2) : (memref<?x?xi64>, index) -> index
-    %7 = "memref.dim"(%1, %3) : (memref<?x?xi64>, index) -> index
+    %4 = memref.dim %0, %2 : memref<?x?xi64>
+    %5 = memref.dim %0, %3 : memref<?x?xi64>
+    %6 = memref.dim %1, %2 : memref<?x?xi64>
+    %7 = memref.dim %1, %3 : memref<?x?xi64>
     %8 = memref.alloca(%4, %7) : memref<?x?xi64>
     %9 = "arith.constant"() {"value" = 0 : i64} : () -> i64
     "scf.for"(%2, %4, %3) ({
