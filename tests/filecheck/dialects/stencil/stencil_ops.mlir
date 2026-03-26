@@ -243,3 +243,27 @@ builtin.module {
 // CHECK-NEXT:      func.return
 // CHECK-NEXT:    }
 // CHECK-NEXT:  }
+
+// -----
+
+builtin.module {
+  func.func @stencil_reduce(%a: f64, %b: f64) {
+    stencil.reduce %a init %b {
+      ^bb0(%x: f64, %y: f64):
+        %sum = arith.addf %x, %y : f64
+        stencil.yield %sum : f64
+    }
+    func.return
+  }
+}
+
+// CHECK:      builtin.module {
+// CHECK-NEXT:   func.func @stencil_reduce_positive(%a: f64, %b: f64) {
+// CHECK-NEXT:     stencil.reduce %a init %b {
+// CHECK-NEXT:     ^bb0(%x: f64, %y: f64):
+// CHECK-NEXT:       %sum = arith.addf %x, %y : f64
+// CHECK-NEXT:       stencil.yield %sum : f64
+// CHECK-NEXT:     }
+// CHECK-NEXT:     func.return
+// CHECK-NEXT:   }
+// CHECK-NEXT: }
