@@ -1066,6 +1066,7 @@ RISCV_Snitch = Dialect(
         VFCpkASSOp,
         VFMacSOp,
         VFSumSOp,
+        VFMulHOp,
         VFAddHOp,
         VFMaxSOp,
     ],
