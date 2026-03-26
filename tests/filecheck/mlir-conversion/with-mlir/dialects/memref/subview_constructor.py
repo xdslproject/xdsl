@@ -10,7 +10,7 @@ from xdsl.utils.hints import isa
 @ModuleOp
 @Builder.implicit_region
 def subview_module():
-    input = memref.AllocOp.get(f32, 0, [100, 200, 300, 400])
+    input = memref.AllocOp.get(f32, None, [100, 200, 300, 400])
     assert isa(input.memref.type, memref.MemRefType)
 
     subview = memref.SubviewOp.from_static_parameters(
