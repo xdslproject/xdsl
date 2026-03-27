@@ -8,8 +8,13 @@ from xdsl.dialects.stim import (
     QubitCoordsOp,
 )
 from xdsl.dialects.stim.ops import (
+    CXOp,
+    CYOp,
+    CZOp,
     HOp,
     IOp,
+    ISwapDagOp,
+    ISwapOp,
     QubitAttr,
     QubitMappingAttr,
     SDagOp,
@@ -19,6 +24,7 @@ from xdsl.dialects.stim.ops import (
     SqrtYDagOp,
     SqrtYOp,
     StimCircuitOp,
+    SwapOp,
     XOp,
     YOp,
     ZOp,
@@ -57,6 +63,12 @@ class Instruction(StrEnum):
     SQRT_X_DAG = "SQRT_X_DAG"
     SQRT_Y = "SQRT_Y"
     SQRT_Y_DAG = "SQRT_Y_DAG"
+    CX = "CX"
+    CY = "CY"
+    CZ = "CZ"
+    SWAP = "SWAP"
+    ISWAP = "ISWAP"
+    ISWAP_DAG = "ISWAP_DAG"
 
 
 SINGLE_QUBIT_GATE_OPS: dict[Instruction, type] = {
@@ -71,6 +83,15 @@ SINGLE_QUBIT_GATE_OPS: dict[Instruction, type] = {
     Instruction.SQRT_X_DAG: SqrtXDagOp,
     Instruction.SQRT_Y: SqrtYOp,
     Instruction.SQRT_Y_DAG: SqrtYDagOp,
+}
+
+TWO_QUBIT_GATE_OPS: dict[Instruction, type] = {
+    Instruction.CX: CXOp,
+    Instruction.CY: CYOp,
+    Instruction.CZ: CZOp,
+    Instruction.SWAP: SwapOp,
+    Instruction.ISWAP: ISwapOp,
+    Instruction.ISWAP_DAG: ISwapDagOp,
 }
 
 
@@ -315,6 +336,9 @@ class StimParser:
                 return QubitCoordsOp(mapping)
             case op if op in SINGLE_QUBIT_GATE_OPS:
                 OpClass = SINGLE_QUBIT_GATE_OPS[op]
+                return OpClass(targets)
+            case op if op in TWO_QUBIT_GATE_OPS:
+                OpClass = TWO_QUBIT_GATE_OPS[op]
                 return OpClass(targets)
             case _:
                 pass

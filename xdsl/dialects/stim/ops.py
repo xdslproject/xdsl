@@ -16,6 +16,7 @@ from xdsl.irdl import (
 )
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
+from xdsl.utils.exceptions import VerifyException
 
 
 @irdl_attr_definition
@@ -294,3 +295,74 @@ class SqrtYOp(SingleQubitGateOp):
 class SqrtYDagOp(SingleQubitGateOp):
     name = "stim.sqrt_y_dag"
     STIM_NAME: ClassVar[str] = "SQRT_Y_DAG"
+
+
+"""
+Two-Qubit Gate Operations
+
+These operations represent quantum gates that act on pairs of qubits.
+"""
+
+
+class TwoQubitGateOp(StimPrintable, IRDLOperation, ABC):
+    """
+    Base operation for two-qubit gates.
+    """
+
+    STIM_NAME: ClassVar[str]
+
+    targets = prop_def(ArrayAttr[QubitAttr])
+
+    assembly_format = "$targets attr-dict"
+
+    def __init__(self, targets: Sequence[QubitAttr | int]):
+        targets = [QubitAttr(t) if isinstance(t, int) else t for t in targets]
+        super().__init__(properties={"targets": ArrayAttr(targets)})
+
+    def verify_(self) -> None:
+        if len(self.targets) % 2:
+            raise VerifyException(
+                f"Expected an even number of targets for {self.STIM_NAME}, got {len(self.targets)}"
+            )
+
+    def print_stim(self, printer: StimPrinter) -> None:
+        printer.print_string(self.STIM_NAME)
+        for target in self.targets:
+            printer.print_string(" ")
+            target.print_stim(printer)
+
+
+@irdl_op_definition
+class CXOp(TwoQubitGateOp):
+    name = "stim.cx"
+    STIM_NAME: ClassVar[str] = "CX"
+
+
+@irdl_op_definition
+class CYOp(TwoQubitGateOp):
+    name = "stim.cy"
+    STIM_NAME: ClassVar[str] = "CY"
+
+
+@irdl_op_definition
+class CZOp(TwoQubitGateOp):
+    name = "stim.cz"
+    STIM_NAME: ClassVar[str] = "CZ"
+
+
+@irdl_op_definition
+class SwapOp(TwoQubitGateOp):
+    name = "stim.swap"
+    STIM_NAME: ClassVar[str] = "SWAP"
+
+
+@irdl_op_definition
+class ISwapOp(TwoQubitGateOp):
+    name = "stim.iswap"
+    STIM_NAME: ClassVar[str] = "ISWAP"
+
+
+@irdl_op_definition
+class ISwapDagOp(TwoQubitGateOp):
+    name = "stim.iswap_dag"
+    STIM_NAME: ClassVar[str] = "ISWAP_DAG"

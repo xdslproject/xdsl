@@ -4,8 +4,13 @@ import pytest
 
 from xdsl.dialects import stim
 from xdsl.dialects.stim.ops import (
+    CXOp,
+    CYOp,
+    CZOp,
     HOp,
     IOp,
+    ISwapDagOp,
+    ISwapOp,
     QubitAttr,
     QubitCoordsOp,
     QubitMappingAttr,
@@ -15,6 +20,7 @@ from xdsl.dialects.stim.ops import (
     SqrtXOp,
     SqrtYDagOp,
     SqrtYOp,
+    SwapOp,
     XOp,
     YOp,
     ZOp,
@@ -189,4 +195,42 @@ def test_stim_roundtrip_single_qubit_gate(program: str):
 def test_construct_single_qubit_gate(op_class: type, stim_name: str):
     op = op_class([0, 1, 2])
     expected = f"{stim_name} 0 1 2"
+    check_stim_print(op, expected)
+
+
+################################################################################
+# Test two-qubit gate operations                                               #
+################################################################################
+
+
+@pytest.mark.parametrize(
+    "program",
+    [
+        ("CX 0 1\n"),
+        ("CX 0 1 2 3\n"),
+        ("CY 0 1\n"),
+        ("CZ 0 1\n"),
+        ("SWAP 0 1\n"),
+        ("ISWAP 0 1\n"),
+        ("ISWAP_DAG 0 1\n"),
+    ],
+)
+def test_stim_roundtrip_two_qubit_gate(program: str):
+    check_stim_roundtrip(program)
+
+
+@pytest.mark.parametrize(
+    ("op_class", "stim_name"),
+    [
+        (CXOp, "CX"),
+        (CYOp, "CY"),
+        (CZOp, "CZ"),
+        (SwapOp, "SWAP"),
+        (ISwapOp, "ISWAP"),
+        (ISwapDagOp, "ISWAP_DAG"),
+    ],
+)
+def test_construct_two_qubit_gate(op_class: type, stim_name: str):
+    op = op_class([0, 1])
+    expected = f"{stim_name} 0 1"
     check_stim_print(op, expected)

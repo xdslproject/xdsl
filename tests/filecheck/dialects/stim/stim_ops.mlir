@@ -88,5 +88,28 @@ stim.sqrt_y_dag [!stim.qubit<0>]
 // CHECK-NEXT:    stim.sqrt_y_dag [!stim.qubit<0>]
 // CHECK-GENERIC-NEXT:    "stim.sqrt_y_dag"() <{targets = [!stim.qubit<0>]}> : () -> ()
 
+stim.cx [!stim.qubit<0>, !stim.qubit<1>]
+// CHECK-NEXT:    stim.cx [!stim.qubit<0>, !stim.qubit<1>]
+// CHECK-GENERIC-NEXT:    "stim.cx"() <{targets = [!stim.qubit<0>, !stim.qubit<1>]}> : () -> ()
+
+stim.cy [!stim.qubit<0>, !stim.qubit<1>]
+// CHECK-NEXT:    stim.cy [!stim.qubit<0>, !stim.qubit<1>]
+// CHECK-GENERIC-NEXT:    "stim.cy"() <{targets = [!stim.qubit<0>, !stim.qubit<1>]}> : () -> ()
+
+stim.cz [!stim.qubit<0>, !stim.qubit<1>]
+// CHECK-NEXT:    stim.cz [!stim.qubit<0>, !stim.qubit<1>]
+// CHECK-GENERIC-NEXT:    "stim.cz"() <{targets = [!stim.qubit<0>, !stim.qubit<1>]}> : () -> ()
+
+stim.swap [!stim.qubit<0>, !stim.qubit<1>]
+// CHECK-NEXT:    stim.swap [!stim.qubit<0>, !stim.qubit<1>]
+// CHECK-GENERIC-NEXT:    "stim.swap"() <{targets = [!stim.qubit<0>, !stim.qubit<1>]}> : () -> ()
+
+stim.iswap [!stim.qubit<0>, !stim.qubit<1>]
+// CHECK-NEXT:    stim.iswap [!stim.qubit<0>, !stim.qubit<1>]
+// CHECK-GENERIC-NEXT:    "stim.iswap"() <{targets = [!stim.qubit<0>, !stim.qubit<1>]}> : () -> ()
+
+stim.iswap_dag [!stim.qubit<0>, !stim.qubit<1>]
+// CHECK-NEXT:    stim.iswap_dag [!stim.qubit<0>, !stim.qubit<1>]
+// CHECK-GENERIC-NEXT:    "stim.iswap_dag"() <{targets = [!stim.qubit<0>, !stim.qubit<1>]}> : () -> ()
 // CHECK-NEXT:  }
 // CHECK-GENERIC-NEXT:  }) : () -> ()
