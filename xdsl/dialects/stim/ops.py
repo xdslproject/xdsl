@@ -220,9 +220,7 @@ class SingleQubitGateOp(StimPrintable, IRDLOperation, ABC):
     assembly_format = "$targets attr-dict"
 
     def __init__(self, targets: Sequence[QubitAttr | int]):
-        targets = [
-            QubitAttr(t) if isinstance(t, int) else t for t in targets
-        ]
+        targets = [QubitAttr(t) if isinstance(t, int) else t for t in targets]
         super().__init__(properties={"targets": ArrayAttr(targets)})
 
     def print_stim(self, printer: StimPrinter) -> None:
