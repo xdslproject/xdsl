@@ -105,7 +105,7 @@ class ApplyBufferizePattern(RewritePattern):
         ]
 
         new = ApplyOp.build(
-            operands=[args, op.dest],
+            operands=[args, op.dest, []],
             regions=[op.detach_region(0)],
             result_types=[op.res.types],
             properties={"bounds": bounds},
@@ -280,6 +280,7 @@ class ApplyStoreFoldPattern(RewritePattern):
                 operands=[
                     apply.args,
                     (*apply.dest, *(store.field for store in stores)),
+                    [],
                 ],
                 # We only remove the considered result
                 result_types=[
