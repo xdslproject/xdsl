@@ -316,6 +316,8 @@ class StimParser:
             case op if op in SINGLE_QUBIT_GATE_OPS:
                 OpClass = SINGLE_QUBIT_GATE_OPS[op]
                 return OpClass(targets)
+            case _:
+                pass
 
     # endregion
 
