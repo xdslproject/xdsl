@@ -7,7 +7,22 @@ from xdsl.dialects.builtin import ArrayAttr, FloatData, IntAttr
 from xdsl.dialects.stim import (
     QubitCoordsOp,
 )
-from xdsl.dialects.stim.ops import QubitAttr, QubitMappingAttr, StimCircuitOp
+from xdsl.dialects.stim.ops import (
+    HOp,
+    IOp,
+    QubitAttr,
+    QubitMappingAttr,
+    SDagOp,
+    SOp,
+    SqrtXDagOp,
+    SqrtXOp,
+    SqrtYDagOp,
+    SqrtYOp,
+    StimCircuitOp,
+    XOp,
+    YOp,
+    ZOp,
+)
 from xdsl.ir import Block, Operation, Region
 from xdsl.utils.lexer import Input, Position
 from xdsl.utils.str_enum import StrEnum
@@ -31,6 +46,32 @@ class Instruction(StrEnum):
     """
 
     COORD = "QUBIT_COORDS"
+    H = "H"
+    S = "S"
+    S_DAG = "S_DAG"
+    X = "X"
+    Y = "Y"
+    Z = "Z"
+    I = "I"
+    SQRT_X = "SQRT_X"
+    SQRT_X_DAG = "SQRT_X_DAG"
+    SQRT_Y = "SQRT_Y"
+    SQRT_Y_DAG = "SQRT_Y_DAG"
+
+
+SINGLE_QUBIT_GATE_OPS: dict[Instruction, type] = {
+    Instruction.H: HOp,
+    Instruction.S: SOp,
+    Instruction.S_DAG: SDagOp,
+    Instruction.X: XOp,
+    Instruction.Y: YOp,
+    Instruction.Z: ZOp,
+    Instruction.I: IOp,
+    Instruction.SQRT_X: SqrtXOp,
+    Instruction.SQRT_X_DAG: SqrtXDagOp,
+    Instruction.SQRT_Y: SqrtYOp,
+    Instruction.SQRT_Y_DAG: SqrtYDagOp,
+}
 
 
 NEWLINE = re.compile(r"\n")
@@ -42,9 +83,9 @@ ARG = re.compile(r"\d+(\.\d+)?")
 TARGET = re.compile(r"\d+")
 # GATE = re.compile("|".join(re.escape(p.value) for p in PrimitiveSpelling))
 # INSTRUCTION = re.compile("|".join(re.escape(i.value) for i in Instruction))
-NAME = re.compile(r"[a-zA-Z][a-zA-Z0-9_]+")
+NAME = re.compile(r"[a-zA-Z][a-zA-Z0-9_]*")
 """
-A regular expression for a name: a letter followed by a number of letters or numbers or underscores.
+A regular expression for a name: a letter followed by zero or more letters, numbers, or underscores.
 """
 
 
@@ -272,6 +313,9 @@ class StimParser:
                 coords = self.build_parens(parens)
                 mapping = QubitMappingAttr(coords, qubit)
                 return QubitCoordsOp(mapping)
+            case op if op in SINGLE_QUBIT_GATE_OPS:
+                OpClass = SINGLE_QUBIT_GATE_OPS[op]
+                return OpClass(targets)
 
     # endregion
 

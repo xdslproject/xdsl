@@ -1,6 +1,7 @@
 from abc import ABC
 from collections.abc import Sequence
 from io import StringIO
+from typing import ClassVar
 
 from xdsl.dialects.builtin import ArrayAttr, FloatData, IntAttr, f64
 from xdsl.dialects.stim.stim_printer_parser import StimPrintable, StimPrinter
@@ -198,3 +199,100 @@ class QubitCoordsOp(AnnotationOp):
     def print_stim(self, printer: StimPrinter) -> None:
         printer.print_string("QUBIT_COORDS")
         self.qubitmapping.print_stim(printer)
+
+
+"""
+Single-Qubit Gate Operations
+
+These operations represent quantum gates that act on individual qubits.
+"""
+
+
+class SingleQubitGateOp(StimPrintable, IRDLOperation, ABC):
+    """
+    Base operation for single-qubit gates.
+    """
+
+    STIM_NAME: ClassVar[str]
+
+    targets = prop_def(ArrayAttr[QubitAttr])
+
+    assembly_format = "$targets attr-dict"
+
+    def __init__(self, targets: Sequence[QubitAttr | int]):
+        targets = [
+            QubitAttr(t) if isinstance(t, int) else t for t in targets
+        ]
+        super().__init__(properties={"targets": ArrayAttr(targets)})
+
+    def print_stim(self, printer: StimPrinter) -> None:
+        printer.print_string(self.STIM_NAME)
+        for target in self.targets:
+            printer.print_string(" ")
+            target.print_stim(printer)
+
+
+@irdl_op_definition
+class HOp(SingleQubitGateOp):
+    name = "stim.h"
+    STIM_NAME: ClassVar[str] = "H"
+
+
+@irdl_op_definition
+class SOp(SingleQubitGateOp):
+    name = "stim.s"
+    STIM_NAME: ClassVar[str] = "S"
+
+
+@irdl_op_definition
+class SDagOp(SingleQubitGateOp):
+    name = "stim.s_dag"
+    STIM_NAME: ClassVar[str] = "S_DAG"
+
+
+@irdl_op_definition
+class XOp(SingleQubitGateOp):
+    name = "stim.x"
+    STIM_NAME: ClassVar[str] = "X"
+
+
+@irdl_op_definition
+class YOp(SingleQubitGateOp):
+    name = "stim.y"
+    STIM_NAME: ClassVar[str] = "Y"
+
+
+@irdl_op_definition
+class ZOp(SingleQubitGateOp):
+    name = "stim.z"
+    STIM_NAME: ClassVar[str] = "Z"
+
+
+@irdl_op_definition
+class IOp(SingleQubitGateOp):
+    name = "stim.i"
+    STIM_NAME: ClassVar[str] = "I"
+
+
+@irdl_op_definition
+class SqrtXOp(SingleQubitGateOp):
+    name = "stim.sqrt_x"
+    STIM_NAME: ClassVar[str] = "SQRT_X"
+
+
+@irdl_op_definition
+class SqrtXDagOp(SingleQubitGateOp):
+    name = "stim.sqrt_x_dag"
+    STIM_NAME: ClassVar[str] = "SQRT_X_DAG"
+
+
+@irdl_op_definition
+class SqrtYOp(SingleQubitGateOp):
+    name = "stim.sqrt_y"
+    STIM_NAME: ClassVar[str] = "SQRT_Y"
+
+
+@irdl_op_definition
+class SqrtYDagOp(SingleQubitGateOp):
+    name = "stim.sqrt_y_dag"
+    STIM_NAME: ClassVar[str] = "SQRT_Y_DAG"
