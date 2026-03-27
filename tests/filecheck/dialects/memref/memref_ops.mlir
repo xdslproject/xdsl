@@ -54,6 +54,10 @@ builtin.module {
     %view_d0, %view_d1 = "test.op"() : () -> (index, index)
     %view_dynamic = memref.view %view_src[%view_off][%view_d0, %view_d1] : memref<2048xi8> to memref<?x?xf32>
 
+    %dim_memref = "test.op"() : () -> memref<?x?xindex>
+    %dim_index = "test.op"() : () -> index
+    %dim = "memref.dim"(%dim_memref, %dim_index) : (memref<?x?xindex>, index) -> index
+
     func.return
   }
 }
@@ -112,6 +116,9 @@ builtin.module {
 // CHECK-NEXT:      %{{.*}} = memref.view %{{.*}}[%{{.*}}][] : memref<2048xi8> to memref<64x4xf32>
 // CHECK-NEXT:      %{{.*}}, %{{.*}} = "test.op"() : () -> (index, index)
 // CHECK-NEXT:      %{{.*}} = memref.view %{{.*}}[%{{.*}}][%{{.*}}, %{{.*}}] : memref<2048xi8> to memref<?x?xf32>
+// CHECK-NEXT:      %{{.*}} = "test.op"() : () -> memref<?x?xindex>
+// CHECK-NEXT:      %{{.*}} = "test.op"() : () -> index
+// CHECK-NEXT:      %{{.*}} = memref.dim %{{.*}}, %{{.*}} : memref<?x?xindex>
 // CHECK-NEXT:     func.return
 // CHECK-NEXT:   }
 // CHECK-NEXT: }
