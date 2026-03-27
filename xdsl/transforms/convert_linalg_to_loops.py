@@ -23,6 +23,7 @@ from xdsl.transforms.loop_nest_lowering_utils import (
     indices_for_map,
     rewrite_linalg_structured_to_loops,
 )
+from xdsl.utils.exceptions import PassFailedException
 
 
 def materialize_loop_bound(
@@ -33,7 +34,7 @@ def materialize_loop_bound(
     dim_size: int,
 ) -> SSAValue:
     if not isinstance(operand.type, MemRefType):
-        raise NotImplementedError(
+        raise PassFailedException(
             "convert-linalg-to-loops requires buffer semantics; "
             "tensor operands must be bufferized to memrefs before lowering"
         )
@@ -72,7 +73,7 @@ def create_loop_bounds(
         if isinstance(operand_type, ShapedType) and not isinstance(
             operand_type, MemRefType
         ):
-            raise NotImplementedError(
+            raise PassFailedException(
                 "convert-linalg-to-loops requires buffer semantics; "
                 "tensor operands must be bufferized to memrefs before lowering"
             )
