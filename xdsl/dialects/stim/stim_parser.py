@@ -7,7 +7,38 @@ from xdsl.dialects.builtin import ArrayAttr, FloatData, IntAttr
 from xdsl.dialects.stim import (
     QubitCoordsOp,
 )
-from xdsl.dialects.stim.ops import QubitAttr, QubitMappingAttr, StimCircuitOp
+from xdsl.dialects.stim.ops import (
+    CXOp,
+    CYOp,
+    CZOp,
+    HOp,
+    IOp,
+    ISwapDagOp,
+    ISwapOp,
+    MOp,
+    MROp,
+    MRXOp,
+    MRYOp,
+    MXOp,
+    MYOp,
+    QubitAttr,
+    QubitMappingAttr,
+    ROp,
+    RXOp,
+    RYOp,
+    SDagOp,
+    SOp,
+    SqrtXDagOp,
+    SqrtXOp,
+    SqrtYDagOp,
+    SqrtYOp,
+    StimCircuitOp,
+    SwapOp,
+    TickOp,
+    XOp,
+    YOp,
+    ZOp,
+)
 from xdsl.ir import Block, Operation, Region
 from xdsl.utils.lexer import Input, Position
 from xdsl.utils.str_enum import StrEnum
@@ -31,6 +62,112 @@ class Instruction(StrEnum):
     """
 
     COORD = "QUBIT_COORDS"
+
+    # Single-qubit gates
+    H = "H"
+    S = "S"
+    S_DAG = "S_DAG"
+    X = "X"
+    Y = "Y"
+    Z = "Z"
+    I = "I"
+    SQRT_X = "SQRT_X"
+    SQRT_X_DAG = "SQRT_X_DAG"
+    SQRT_Y = "SQRT_Y"
+    SQRT_Y_DAG = "SQRT_Y_DAG"
+
+    # Two-qubit gates
+    CX = "CX"
+    CY = "CY"
+    CZ = "CZ"
+    SWAP = "SWAP"
+    ISWAP = "ISWAP"
+    ISWAP_DAG = "ISWAP_DAG"
+
+    # Measurements
+    M = "M"
+    MX = "MX"
+    MY = "MY"
+
+    # Resets
+    R = "R"
+    RX = "RX"
+    RY = "RY"
+
+    # Measure-resets
+    MR = "MR"
+    MRX = "MRX"
+    MRY = "MRY"
+
+    # Annotations
+    TICK = "TICK"
+
+    # Aliases
+    CNOT = "CNOT"
+    MZ = "MZ"
+    RZ = "RZ"
+    MRZ = "MRZ"
+    H_XZ = "H_XZ"
+    SQRT_Z = "SQRT_Z"
+    SQRT_Z_DAG = "SQRT_Z_DAG"
+
+
+SINGLE_QUBIT_GATE_OPS: dict[Instruction, type] = {
+    Instruction.H: HOp,
+    Instruction.S: SOp,
+    Instruction.S_DAG: SDagOp,
+    Instruction.X: XOp,
+    Instruction.Y: YOp,
+    Instruction.Z: ZOp,
+    Instruction.I: IOp,
+    Instruction.SQRT_X: SqrtXOp,
+    Instruction.SQRT_X_DAG: SqrtXDagOp,
+    Instruction.SQRT_Y: SqrtYOp,
+    Instruction.SQRT_Y_DAG: SqrtYDagOp,
+    # Aliases
+    Instruction.H_XZ: HOp,
+    Instruction.SQRT_Z: SOp,
+    Instruction.SQRT_Z_DAG: SDagOp,
+}
+
+TWO_QUBIT_GATE_OPS: dict[Instruction, type] = {
+    Instruction.CX: CXOp,
+    Instruction.CY: CYOp,
+    Instruction.CZ: CZOp,
+    Instruction.SWAP: SwapOp,
+    Instruction.ISWAP: ISwapOp,
+    Instruction.ISWAP_DAG: ISwapDagOp,
+    # Aliases
+    Instruction.CNOT: CXOp,
+}
+
+MEASUREMENT_OPS: dict[Instruction, type] = {
+    Instruction.M: MOp,
+    Instruction.MX: MXOp,
+    Instruction.MY: MYOp,
+    # Aliases
+    Instruction.MZ: MOp,
+}
+
+RESET_OPS: dict[Instruction, type] = {
+    Instruction.R: ROp,
+    Instruction.RX: RXOp,
+    Instruction.RY: RYOp,
+    # Aliases
+    Instruction.RZ: ROp,
+}
+
+MEASURE_RESET_OPS: dict[Instruction, type] = {
+    Instruction.MR: MROp,
+    Instruction.MRX: MRXOp,
+    Instruction.MRY: MRYOp,
+    # Aliases
+    Instruction.MRZ: MROp,
+}
+
+ZERO_TARGET_OPS: set[Instruction] = {
+    Instruction.TICK,
+}
 
 
 NEWLINE = re.compile(r"\n")
@@ -158,11 +295,17 @@ class StimParser:
         """
         if (name := self.parse_optional_pattern(NAME)) is None:
             return None
-        op = Instruction(name)
+        try:
+            op = Instruction(name)
+        except ValueError:
+            raise StimParseError(self.pos, f"Unknown instruction: {name}")
         parens = self.parse_optional_parens()
         if parens is None:
             parens = []
-        targets = self.parse_targets()
+        if op in ZERO_TARGET_OPS:
+            targets: list[QubitAttr] = []
+        else:
+            targets = self.parse_targets()
         return self.build_operation(op, parens, targets)
 
     # region Parens parsing
@@ -272,6 +415,34 @@ class StimParser:
                 coords = self.build_parens(parens)
                 mapping = QubitMappingAttr(coords, qubit)
                 return QubitCoordsOp(mapping)
+
+            case Instruction.TICK:
+                return TickOp()
+
+            case op if op in SINGLE_QUBIT_GATE_OPS:
+                op_class = SINGLE_QUBIT_GATE_OPS[op]
+                return op_class(ArrayAttr(targets))
+
+            case op if op in TWO_QUBIT_GATE_OPS:
+                op_class = TWO_QUBIT_GATE_OPS[op]
+                return op_class(ArrayAttr(targets))
+
+            case op if op in MEASUREMENT_OPS:
+                op_class = MEASUREMENT_OPS[op]
+                flip_probability = FloatData(parens[0]) if len(parens) == 1 else None
+                return op_class(ArrayAttr(targets), flip_probability)
+
+            case op if op in RESET_OPS:
+                op_class = RESET_OPS[op]
+                return op_class(ArrayAttr(targets))
+
+            case op if op in MEASURE_RESET_OPS:
+                op_class = MEASURE_RESET_OPS[op]
+                flip_probability = FloatData(parens[0]) if len(parens) == 1 else None
+                return op_class(ArrayAttr(targets), flip_probability)
+
+            case _:
+                raise StimParseError(self.pos, f"Unhandled instruction: {op.value}")
 
     # endregion
 
