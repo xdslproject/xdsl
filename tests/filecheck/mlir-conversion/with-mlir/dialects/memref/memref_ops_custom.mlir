@@ -28,7 +28,7 @@ memref.dealloc %a1 : memref<2x3xf32>
 
 %dm = "test.op"() : () -> (memref<?x?xi32>)
 %di = "test.op"() : () -> (index)
-%dv = "memref.dim"(%dm, %di) : (memref<?x?xi32>, index) -> index
+%dv = memref.dim %dm, %di : memref<?x?xi32>
 
 // CHECK:       module {
 // CHECK-NEXT:    func.func @memref_alloca_scope() {

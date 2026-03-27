@@ -56,7 +56,7 @@ builtin.module {
 
     %dim_memref = "test.op"() : () -> memref<?x?xindex>
     %dim_index = "test.op"() : () -> index
-    %dim = "memref.dim"(%dim_memref, %dim_index) : (memref<?x?xindex>, index) -> index
+    %dim = memref.dim %dim_memref, %dim_index : memref<?x?xindex>
 
     func.return
   }
