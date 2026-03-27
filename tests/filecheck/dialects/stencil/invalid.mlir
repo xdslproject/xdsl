@@ -127,7 +127,7 @@ builtin.module {
   }
 }
 
- // CHECK: 'stencil.access' expects ancestor op 'stencil.apply'
+// CHECK: 'stencil.access' expects ancestor op 'stencil.apply'
 
 // -----
 
@@ -144,7 +144,7 @@ builtin.module {
   }
 }
 
- // CHECK: stencil.return expected 2 operands to match the parent stencil.apply result types, got 1
+// CHECK: stencil.return expected 2 operands to match the parent stencil.apply result types, got 1
 
 // -----
 
@@ -161,8 +161,7 @@ builtin.module {
   }
 }
 
- // CHECK: stencil.return expected operand types to match the parent stencil.apply result element types. Got f64 at index 1, expected f32.
-
+// CHECK: stencil.return expected operand types to match the parent stencil.apply result element types. Got f64 at index 1, expected f32.
 
 // -----
 
@@ -180,3 +179,91 @@ builtin.module {
 }
 
 // CHECK: Expected all output types bounds to be equals.
+
+// -----
+
+builtin.module {
+  func.func @reduce_acc_init_type_mismatch(%a: f64, %b: i32) {
+    stencil.reduce %a init %b {
+      ^bb0(%x: f64, %y: f64):
+        stencil.yield %x : f64
+    } : f64
+    func.return
+  }
+}
+
+// CHECK: attribute f64 expected from variable 'T', but got i32
+
+// -----
+
+builtin.module {
+  func.func @reduce_block_arg_type_wrong(%a: f64, %b: f64) {
+    stencil.reduce %a init %b {
+      ^bb0(%x: f64, %y: i32):
+        stencil.yield %x : f64
+    } : f64
+    func.return
+  }
+}
+
+// CHECK: region #0 entry arguments do not verify:
+// CHECK: attribute f64 expected from variable 'T', but got i32
+
+// -----
+
+builtin.module {
+  func.func @reduce_missing_yield_terminator(%a: f64, %b: f64) {
+    stencil.reduce %a init %b {
+      ^bb0(%x: f64, %y: f64):
+        %sum = arith.addf %x, %y : f64
+    } : f64
+    func.return
+  }
+}
+
+// CHECK: Operation arith.addf terminates block in single-block region but is not a terminator
+
+// -----
+
+builtin.module {
+  func.func @reduce_missing_yield_terminator(%a: f64, %b: f64) {
+    stencil.reduce %a init %b {
+      ^bb0(%x: f64, %y: f64):
+        %sum = arith.addf %x, %y : f64
+        stencil.return %sum : f64
+    } : f64
+    func.return
+  }
+}
+
+// CHECK: 'stencil.return' expects parent op 'stencil.apply'
+
+// -----
+
+builtin.module {
+  func.func @reduce_yield_type_mismatch(%a: f64, %b: f64) {
+    stencil.reduce %a init %b {
+      ^bb0(%x: f64, %y: f64):
+        %c0_i32 = arith.constant 0 : i32
+        stencil.yield %c0_i32 : i32
+    } : f64
+    func.return
+  }
+}
+
+// CHECK: stencil.reduce yield type must match reduce operand type, got i32 and f64
+
+// -----
+
+builtin.module {
+  func.func @reduce_block_arg_count_wrong(%a: f64, %b: f64) {
+    stencil.reduce %a init %b {
+      ^bb0(%x: f64):
+        stencil.yield %x : f64
+    } : f64
+    func.return
+  }
+}
+
+// CHECK: region #0 entry arguments do not verify:
+// CHECK: incorrect length for range variable
