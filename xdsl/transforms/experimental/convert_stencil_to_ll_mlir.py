@@ -300,14 +300,14 @@ def prepare_apply_body(op: ApplyOp) -> tuple[Block, list[SSAValue]]:
     reduce_init_values: list[SSAValue] = []
 
     for stencil_reduce in stencil_reduces:
-        reduce_values.append(stencil_reduce.operand)
+        reduce_values.append(stencil_reduce.acc)
         reduce_init_values.append(stencil_reduce.init)
 
         body_block = stencil_reduce.body.block
 
         for body_op in list(body_block.ops):
             if isinstance(body_op, YieldOp):
-                scf_return = scf.ReduceReturnOp(body_op.result)
+                scf_return = scf.ReduceReturnOp(body_op.operand)
                 body_block.insert_op_before(scf_return, body_op)
                 body_op.detach()
                 body_op.erase()
