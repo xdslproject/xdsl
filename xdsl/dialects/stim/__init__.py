@@ -1,8 +1,13 @@
 from xdsl.ir import Dialect
 
 from .ops import (
+    CXOp,
+    CYOp,
+    CZOp,
     HOp,
     IOp,
+    ISwapDagOp,
+    ISwapOp,
     QubitAttr,
     QubitCoordsOp,
     QubitMappingAttr,
@@ -13,6 +18,7 @@ from .ops import (
     SqrtYDagOp,
     SqrtYOp,
     StimCircuitOp,
+    SwapOp,
     XOp,
     YOp,
     ZOp,
@@ -21,8 +27,13 @@ from .ops import (
 Stim = Dialect(
     "stim",
     [
+        CXOp,
+        CYOp,
+        CZOp,
         HOp,
         IOp,
+        ISwapDagOp,
+        ISwapOp,
         QubitCoordsOp,
         SDagOp,
         SOp,
@@ -31,6 +42,7 @@ Stim = Dialect(
         SqrtYDagOp,
         SqrtYOp,
         StimCircuitOp,
+        SwapOp,
         XOp,
         YOp,
         ZOp,
