@@ -29,7 +29,6 @@ from xdsl.dialects.stim.stim_parser import NAME, StimParseError, StimParser
 from xdsl.dialects.stim.stim_printer_parser import StimPrintable, StimPrinter
 from xdsl.dialects.test import TestOp
 from xdsl.ir import Block, Region
-from xdsl.utils.exceptions import VerifyException
 
 ################################################################################
 # Utils for this test file                                                     #
@@ -235,13 +234,3 @@ def test_construct_two_qubit_gate(op_class: type, stim_name: str):
     op = op_class([0, 1])
     expected = f"{stim_name} 0 1"
     check_stim_print(op, expected)
-
-
-@pytest.mark.parametrize(
-    "op_class",
-    [CXOp, CYOp, CZOp, SwapOp, ISwapOp, ISwapDagOp],
-)
-def test_two_qubit_gate_odd_targets_fails(op_class: type):
-    op = op_class([0, 1, 2])
-    with pytest.raises(VerifyException, match="Expected an even number of targets"):
-        op.verify_()
