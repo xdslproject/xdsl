@@ -247,7 +247,7 @@ def test_memref_matmul_verify():
             dim_b0 = memref.DimOp.from_source_and_index(b, lit0)
             dim_b1 = memref.DimOp.from_source_and_index(b, lit1)
             out = memref.AllocaOp.get(
-                builtin.f64, 0, [DYNAMIC_INDEX] * 2, [dim_a0, dim_b1]
+                builtin.f64, None, [DYNAMIC_INDEX] * 2, [dim_a0, dim_b1]
             )
             # TODO: assert dim_a0 == dim_b1
             lit0_f = arith.ConstantOp(FloatAttr(0.0, builtin.f64))

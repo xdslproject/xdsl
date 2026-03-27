@@ -112,7 +112,7 @@
 // -----
 
 "builtin.module"() ({
-    %memref = "memref.alloc"() {"alignment" = 0 : i64, operandSegmentSizes = array<i32: 0, 0>} : () -> memref<10x10xi32>
+    %memref = "memref.alloc"() {operandSegmentSizes = array<i32: 0, 0>} : () -> memref<10x10xi32>
     %ten = "arith.constant"() {"value" = 10 : index} : () -> index
     %gmemref = "gpu.alloc"(%ten, %ten) {operandSegmentSizes = array<i32: 0, 2, 0>} : (index, index) -> memref<?x?xi32>
 
