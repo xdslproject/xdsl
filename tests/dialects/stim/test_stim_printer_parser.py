@@ -4,9 +4,20 @@ import pytest
 
 from xdsl.dialects import stim
 from xdsl.dialects.stim.ops import (
+    HOp,
+    IOp,
     QubitAttr,
     QubitCoordsOp,
     QubitMappingAttr,
+    SDagOp,
+    SOp,
+    SqrtXDagOp,
+    SqrtXOp,
+    SqrtYDagOp,
+    SqrtYOp,
+    XOp,
+    YOp,
+    ZOp,
 )
 from xdsl.dialects.stim.stim_parser import NAME, StimParseError, StimParser
 from xdsl.dialects.stim.stim_printer_parser import StimPrintable, StimPrinter
@@ -131,3 +142,51 @@ def test_no_targets():
     with pytest.raises(StimParseError, match="Expected at least one target"):
         parser = StimParser(program)
         parser.parse_circuit()
+
+
+################################################################################
+# Test single-qubit gate operations                                            #
+################################################################################
+
+
+@pytest.mark.parametrize(
+    "program",
+    [
+        ("H 0\n"),
+        ("H 0 1 2\n"),
+        ("S 0\n"),
+        ("S_DAG 0\n"),
+        ("X 0\n"),
+        ("Y 0\n"),
+        ("Z 0\n"),
+        ("I 0\n"),
+        ("SQRT_X 0 1\n"),
+        ("SQRT_X_DAG 0\n"),
+        ("SQRT_Y 0 1\n"),
+        ("SQRT_Y_DAG 0\n"),
+    ],
+)
+def test_stim_roundtrip_single_qubit_gate(program: str):
+    check_stim_roundtrip(program)
+
+
+@pytest.mark.parametrize(
+    ("op_class", "stim_name"),
+    [
+        (HOp, "H"),
+        (SOp, "S"),
+        (SDagOp, "S_DAG"),
+        (XOp, "X"),
+        (YOp, "Y"),
+        (ZOp, "Z"),
+        (IOp, "I"),
+        (SqrtXOp, "SQRT_X"),
+        (SqrtXDagOp, "SQRT_X_DAG"),
+        (SqrtYOp, "SQRT_Y"),
+        (SqrtYDagOp, "SQRT_Y_DAG"),
+    ],
+)
+def test_construct_single_qubit_gate(op_class: type, stim_name: str):
+    op = op_class([0, 1, 2])
+    expected = f"{stim_name} 0 1 2"
+    check_stim_print(op, expected)
