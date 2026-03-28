@@ -161,9 +161,9 @@ linalg.add ins(%LHS, %RHS : memref<?x?xf32>, memref<?x?xf32>) outs(%OUT : memref
 
 // CHECK-NEXT:    [[LHS_DYN:%.*]], [[RHS_DYN:%.*]], [[OUT_DYN:%.*]] = "test.op"() : () -> (memref<?x?xf32>, memref<?x?xf32>, memref<?x?xf32>)
 // CHECK-NEXT:    [[DIM0_IDX:%.*]] = arith.constant 0 : index
-// CHECK-NEXT:    [[DIM0:%.*]] = "memref.dim"([[LHS_DYN]], [[DIM0_IDX]]) : (memref<?x?xf32>, index) -> index
+// CHECK-NEXT:    [[DIM0:%.*]] = memref.dim [[LHS_DYN]], [[DIM0_IDX]] : memref<?x?xf32>
 // CHECK-NEXT:    [[DIM1_IDX:%.*]] = arith.constant 1 : index
-// CHECK-NEXT:    [[DIM1:%.*]] = "memref.dim"([[LHS_DYN]], [[DIM1_IDX]]) : (memref<?x?xf32>, index) -> index
+// CHECK-NEXT:    [[DIM1:%.*]] = memref.dim [[LHS_DYN]], [[DIM1_IDX]] : memref<?x?xf32>
 // CHECK-NEXT:    [[LB:%.*]] = arith.constant 0 : index
 // CHECK-NEXT:    [[STEP:%.*]] = arith.constant 1 : index
 // CHECK-NEXT:    scf.for [[I:%.*]] = [[LB]] to [[DIM0]] step [[STEP]] {
