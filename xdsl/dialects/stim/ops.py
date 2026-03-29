@@ -440,7 +440,7 @@ class MYOp(MeasurementOp):
     STIM_NAME: ClassVar[str] = "MY"
 
 
-class ResetOp(StimPrintable, IRDLOperation, ABC):
+class ResetOperation(StimPrintable, IRDLOperation, ABC):
     """
     Base operation for reset gates (R, RX, RY).
     Resets do not take a flip probability.
