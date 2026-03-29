@@ -16,6 +16,7 @@ from xdsl.dialects.builtin import (
     IntegerType,
     ModuleOp,
     UnrealizedConversionCastOp,
+    DenseIntOrFPElementsAttr,
 )
 from xdsl.ir import Operation
 from xdsl.passes import ModulePass
@@ -117,6 +118,31 @@ class LowerArithConstant(RewritePattern):
                     )
             else:
                 raise NotImplementedError("Only 32 or 64 bit floats are supported")
+        elif isinstance(op_val, DenseIntOrFPElementsAttr) and len(op_val.data.data) == 8:
+                # We have to load the bits into an integer register, store them on the
+                # stack, and load again.
+
+                # TODO: check the xlen in this lowering.
+
+                # This lowering assumes that xlen is 32 and flen is 64
+
+                lower, upper = struct.unpack(
+                    "<ii", op_val.data.data
+                )
+                rewriter.replace_op(
+                    op,
+                    [
+                        sp := rv32.GetRegisterOp(riscv.Registers.SP),
+                        li_upper := rv32.LiOp(upper),
+                        riscv.SwOp(sp, li_upper, -4),
+                        li_lower := rv32.LiOp(lower),
+                        riscv.SwOp(sp, li_lower, -8),
+                        fld := riscv.FLdOp(sp, -8, rd=_FLOAT_REGISTER_TYPE),
+                        UnrealizedConversionCastOp.get(
+                            fld.results, (op_result_type,)
+                        ),
+                    ],
+                )
         elif isinstance(op_result_type, IndexType) and isinstance(
             op_val := op.value, IntegerAttr
         ):
