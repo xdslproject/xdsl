@@ -368,12 +368,10 @@ class ISwapDagOp(TwoQubitGateOp):
     STIM_NAME: ClassVar[str] = "ISWAP_DAG"
 
 
-"""
-Measurement and Reset Operations
-
-Measurements (M, MX, MY) and measure-resets (MR, MRX, MRY) support an optional
-flip probability argument. Resets (R, RX, RY) do not.
-"""
+# Measurement and Reset Operations
+#
+# Measurements (M, MX, MY) and measure-resets (MR, MRX, MRY) support an optional
+# flip probability argument. Resets (R, RX, RY) do not.
 
 
 class _FlipProbGateOperation(StimPrintable, IRDLOperation, ABC):
@@ -410,13 +408,13 @@ class _FlipProbGateOperation(StimPrintable, IRDLOperation, ABC):
             target.print_stim(printer)
 
 
-class MeasurementOp(_FlipProbGateOp, ABC):
+class MeasurementOp(_FlipProbGateOperation, ABC):
     """
     Base operation for measurement gates (M, MX, MY).
     """
 
 
-class MeasureResetOp(_FlipProbGateOp, ABC):
+class MeasureResetOp(_FlipProbGateOperation, ABC):
     """
     Base operation for combined measure-reset gates (MR, MRX, MRY).
     """
@@ -464,19 +462,19 @@ class ResetOperation(StimPrintable, IRDLOperation, ABC):
 
 
 @irdl_op_definition
-class ROp(ResetOp):
+class ROp(ResetOperation):
     name = "stim.r"
     STIM_NAME: ClassVar[str] = "R"
 
 
 @irdl_op_definition
-class RXOp(ResetOp):
+class RXOp(ResetOperation):
     name = "stim.rx"
     STIM_NAME: ClassVar[str] = "RX"
 
 
 @irdl_op_definition
-class RYOp(ResetOp):
+class RYOp(ResetOperation):
     name = "stim.ry"
     STIM_NAME: ClassVar[str] = "RY"
 
