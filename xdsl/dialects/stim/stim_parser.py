@@ -15,8 +15,17 @@ from xdsl.dialects.stim.ops import (
     IOp,
     ISwapDagOp,
     ISwapOp,
+    MOp,
+    MROp,
+    MRXOp,
+    MRYOp,
+    MXOp,
+    MYOp,
     QubitAttr,
     QubitMappingAttr,
+    ROp,
+    RXOp,
+    RYOp,
     SDagOp,
     SOp,
     SqrtXDagOp,
@@ -69,6 +78,15 @@ class Instruction(StrEnum):
     SWAP = "SWAP"
     ISWAP = "ISWAP"
     ISWAP_DAG = "ISWAP_DAG"
+    M = "M"
+    MX = "MX"
+    MY = "MY"
+    R = "R"
+    RX = "RX"
+    RY = "RY"
+    MR = "MR"
+    MRX = "MRX"
+    MRY = "MRY"
 
 
 SINGLE_QUBIT_GATE_OPS: dict[Instruction, type] = {
@@ -92,6 +110,24 @@ TWO_QUBIT_GATE_OPS: dict[Instruction, type] = {
     Instruction.SWAP: SwapOp,
     Instruction.ISWAP: ISwapOp,
     Instruction.ISWAP_DAG: ISwapDagOp,
+}
+
+MEASUREMENT_OPS: dict[Instruction, type] = {
+    Instruction.M: MOp,
+    Instruction.MX: MXOp,
+    Instruction.MY: MYOp,
+}
+
+RESET_OPS: dict[Instruction, type] = {
+    Instruction.R: ROp,
+    Instruction.RX: RXOp,
+    Instruction.RY: RYOp,
+}
+
+MEASURE_RESET_OPS: dict[Instruction, type] = {
+    Instruction.MR: MROp,
+    Instruction.MRX: MRXOp,
+    Instruction.MRY: MRYOp,
 }
 
 
@@ -340,6 +376,17 @@ class StimParser:
             case op if op in TWO_QUBIT_GATE_OPS:
                 OpClass = TWO_QUBIT_GATE_OPS[op]
                 return OpClass(targets)
+            case op if op in MEASUREMENT_OPS:
+                OpClass = MEASUREMENT_OPS[op]
+                flip_prob = parens[0] if parens else None
+                return OpClass(targets, flip_prob)
+            case op if op in RESET_OPS:
+                OpClass = RESET_OPS[op]
+                return OpClass(targets)
+            case op if op in MEASURE_RESET_OPS:
+                OpClass = MEASURE_RESET_OPS[op]
+                flip_prob = parens[0] if parens else None
+                return OpClass(targets, flip_prob)
             case _:
                 pass
 

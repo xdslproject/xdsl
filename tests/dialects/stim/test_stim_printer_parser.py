@@ -11,9 +11,18 @@ from xdsl.dialects.stim.ops import (
     IOp,
     ISwapDagOp,
     ISwapOp,
+    MOp,
+    MROp,
+    MRXOp,
+    MRYOp,
+    MXOp,
+    MYOp,
     QubitAttr,
     QubitCoordsOp,
     QubitMappingAttr,
+    ROp,
+    RXOp,
+    RYOp,
     SDagOp,
     SOp,
     SqrtXDagOp,
@@ -233,4 +242,77 @@ def test_stim_roundtrip_two_qubit_gate(program: str):
 def test_construct_two_qubit_gate(op_class: type, stim_name: str):
     op = op_class([0, 1])
     expected = f"{stim_name} 0 1"
+    check_stim_print(op, expected)
+
+
+################################################################################
+# Test measurement, reset, and measure-reset operations                        #
+################################################################################
+
+
+@pytest.mark.parametrize(
+    "program",
+    [
+        ("M 0\n"),
+        ("M 0 1 2\n"),
+        ("M(0.01) 0\n"),
+        ("M(0.01) 0 1 2\n"),
+        ("MX 0\n"),
+        ("MX(0.05) 0 1\n"),
+        ("MY 0\n"),
+        ("MY(0.1) 0\n"),
+        ("R 0\n"),
+        ("R 0 1 2\n"),
+        ("RX 0\n"),
+        ("RX 0 1\n"),
+        ("RY 0\n"),
+        ("RY 0 1\n"),
+        ("MR 0\n"),
+        ("MR 0 1 2\n"),
+        ("MR(0.01) 0\n"),
+        ("MR(0.01) 0 1 2\n"),
+        ("MRX 0\n"),
+        ("MRX(0.05) 0 1\n"),
+        ("MRY 0\n"),
+        ("MRY(0.1) 0\n"),
+    ],
+)
+def test_stim_roundtrip_measurement_reset(program: str):
+    check_stim_roundtrip(program)
+
+
+@pytest.mark.parametrize(
+    ("op_class", "stim_name"),
+    [
+        (MOp, "M"),
+        (MXOp, "MX"),
+        (MYOp, "MY"),
+        (ROp, "R"),
+        (RXOp, "RX"),
+        (RYOp, "RY"),
+        (MROp, "MR"),
+        (MRXOp, "MRX"),
+        (MRYOp, "MRY"),
+    ],
+)
+def test_construct_measurement_reset(op_class: type, stim_name: str):
+    op = op_class([0, 1, 2])
+    expected = f"{stim_name} 0 1 2"
+    check_stim_print(op, expected)
+
+
+@pytest.mark.parametrize(
+    ("op_class", "stim_name"),
+    [
+        (MOp, "M"),
+        (MXOp, "MX"),
+        (MYOp, "MY"),
+        (MROp, "MR"),
+        (MRXOp, "MRX"),
+        (MRYOp, "MRY"),
+    ],
+)
+def test_construct_flip_prob(op_class: type, stim_name: str):
+    op = op_class([0, 1], 0.01)
+    expected = f"{stim_name}(0.01) 0 1"
     check_stim_print(op, expected)

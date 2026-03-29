@@ -111,5 +111,49 @@ stim.iswap [!stim.qubit<0>, !stim.qubit<1>]
 stim.iswap_dag [!stim.qubit<0>, !stim.qubit<1>]
 // CHECK-NEXT:    stim.iswap_dag [!stim.qubit<0>, !stim.qubit<1>]
 // CHECK-GENERIC-NEXT:    "stim.iswap_dag"() <{targets = [!stim.qubit<0>, !stim.qubit<1>]}> : () -> ()
+
+stim.m [!stim.qubit<0>, !stim.qubit<1>]
+// CHECK-NEXT:    stim.m [!stim.qubit<0>, !stim.qubit<1>]
+// CHECK-GENERIC-NEXT:    "stim.m"() <{targets = [!stim.qubit<0>, !stim.qubit<1>]}> : () -> ()
+
+stim.m flip_prob #builtin.float_data<0.01> [!stim.qubit<0>]
+// CHECK-NEXT:    stim.m flip_prob #builtin.float_data<0.01> [!stim.qubit<0>]
+// CHECK-GENERIC-NEXT:    "stim.m"() <{flip_prob = #builtin.float_data<0.01>, targets = [!stim.qubit<0>]}> : () -> ()
+
+stim.mx [!stim.qubit<0>]
+// CHECK-NEXT:    stim.mx [!stim.qubit<0>]
+// CHECK-GENERIC-NEXT:    "stim.mx"() <{targets = [!stim.qubit<0>]}> : () -> ()
+
+stim.my flip_prob #builtin.float_data<0.05> [!stim.qubit<0>, !stim.qubit<1>]
+// CHECK-NEXT:    stim.my flip_prob #builtin.float_data<0.05> [!stim.qubit<0>, !stim.qubit<1>]
+// CHECK-GENERIC-NEXT:    "stim.my"() <{flip_prob = #builtin.float_data<0.05>, targets = [!stim.qubit<0>, !stim.qubit<1>]}> : () -> ()
+
+stim.r [!stim.qubit<0>, !stim.qubit<1>]
+// CHECK-NEXT:    stim.r [!stim.qubit<0>, !stim.qubit<1>]
+// CHECK-GENERIC-NEXT:    "stim.r"() <{targets = [!stim.qubit<0>, !stim.qubit<1>]}> : () -> ()
+
+stim.rx [!stim.qubit<0>]
+// CHECK-NEXT:    stim.rx [!stim.qubit<0>]
+// CHECK-GENERIC-NEXT:    "stim.rx"() <{targets = [!stim.qubit<0>]}> : () -> ()
+
+stim.ry [!stim.qubit<0>]
+// CHECK-NEXT:    stim.ry [!stim.qubit<0>]
+// CHECK-GENERIC-NEXT:    "stim.ry"() <{targets = [!stim.qubit<0>]}> : () -> ()
+
+stim.mr [!stim.qubit<0>, !stim.qubit<1>]
+// CHECK-NEXT:    stim.mr [!stim.qubit<0>, !stim.qubit<1>]
+// CHECK-GENERIC-NEXT:    "stim.mr"() <{targets = [!stim.qubit<0>, !stim.qubit<1>]}> : () -> ()
+
+stim.mr flip_prob #builtin.float_data<0.01> [!stim.qubit<0>]
+// CHECK-NEXT:    stim.mr flip_prob #builtin.float_data<0.01> [!stim.qubit<0>]
+// CHECK-GENERIC-NEXT:    "stim.mr"() <{flip_prob = #builtin.float_data<0.01>, targets = [!stim.qubit<0>]}> : () -> ()
+
+stim.mrx [!stim.qubit<0>]
+// CHECK-NEXT:    stim.mrx [!stim.qubit<0>]
+// CHECK-GENERIC-NEXT:    "stim.mrx"() <{targets = [!stim.qubit<0>]}> : () -> ()
+
+stim.mry flip_prob #builtin.float_data<0.1> [!stim.qubit<0>]
+// CHECK-NEXT:    stim.mry flip_prob #builtin.float_data<0.1> [!stim.qubit<0>]
+// CHECK-GENERIC-NEXT:    "stim.mry"() <{flip_prob = #builtin.float_data<0.1>, targets = [!stim.qubit<0>]}> : () -> ()
 // CHECK-NEXT:  }
 // CHECK-GENERIC-NEXT:  }) : () -> ()
