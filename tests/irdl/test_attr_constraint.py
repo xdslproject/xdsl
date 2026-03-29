@@ -7,6 +7,9 @@ from typing_extensions import TypeVar
 
 from xdsl.dialects.bufferization import TensorFromMemRefConstraint
 from xdsl.dialects.builtin import (
+    ArrayAttr,
+    DenseArrayBase,
+    DenseIntElementsAttr,
     IndexType,
     IntAttrConstraint,
     IntegerType,
@@ -23,6 +26,7 @@ from xdsl.irdl import (
     AnyAttr,
     AnyInt,
     AnyOf,
+    AtLeast,
     AttrConstraint,
     BaseAttr,
     ConstraintContext,
@@ -30,12 +34,13 @@ from xdsl.irdl import (
     EqIntConstraint,
     IntTypeVarConstraint,
     ParamAttrConstraint,
+    SizedConstraint,
     VarConstraint,
     base,
     eq,
     irdl_attr_definition,
 )
-from xdsl.utils.exceptions import PyRDLError
+from xdsl.utils.exceptions import PyRDLError, VerifyException
 
 
 def test_failing_inference():
@@ -212,6 +217,32 @@ def test_base_attr_constraint_inference():
 def test_constraint_repr(constr: AttrConstraint, expected: str):
     assert repr(constr) == expected
     assert eval(repr(constr)) == constr
+
+
+@pytest.mark.parametrize(
+    "sized_attribute",
+    [
+        ArrayAttr((AttrA(), AttrC())),
+        DenseIntElementsAttr.from_list(TensorType(i32, (2,)), (1, 2)),
+        DenseArrayBase.from_list(i32, (1, 2)),
+    ],
+)
+def test_sized_constraint(sized_attribute: Attribute):
+    constr_passes = SizedConstraint(EqIntConstraint(2))
+
+    constr_passes.verify(sized_attribute, ConstraintContext())
+
+    constr_fails = SizedConstraint(AtLeast(3))
+
+    with pytest.raises(VerifyException, match="expected integer >= 3, got 2"):
+        constr_fails.verify(sized_attribute, ConstraintContext())
+
+
+def test_not_sized_constraint():
+    constr = SizedConstraint(AnyInt())
+
+    with pytest.raises(VerifyException, match="Expected #test.attr_a to be sized"):
+        constr.verify(AttrA(), ConstraintContext())
 
 
 @pytest.mark.parametrize(
