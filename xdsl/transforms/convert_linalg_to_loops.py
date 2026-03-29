@@ -2,7 +2,12 @@ from collections.abc import Sequence
 
 from xdsl.context import Context
 from xdsl.dialects import arith, linalg, memref
-from xdsl.dialects.builtin import IndexType, IntegerAttr, MemRefType, ModuleOp
+from xdsl.dialects.builtin import (
+    DYNAMIC_INDEX,
+    IndexType,
+    MemRefType,
+    ModuleOp,
+)
 from xdsl.ir import SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
@@ -16,6 +21,56 @@ from xdsl.transforms.loop_nest_lowering_utils import (
     indices_for_map,
     rewrite_linalg_structured_to_loops,
 )
+from xdsl.utils.exceptions import PassFailedException
+
+
+def materialize_loop_bound(
+    rewriter: PatternRewriter,
+    insertion_point: InsertPoint,
+    operand: SSAValue[MemRefType],
+    dim_index: int,
+    dim_size: int,
+) -> SSAValue:
+
+    if dim_size == DYNAMIC_INDEX:
+        dim_index_op = arith.ConstantOp.from_int_and_width(dim_index, IndexType())
+        rewriter.insert_op(dim_index_op, insertion_point)
+
+        dim_op = memref.DimOp.from_source_and_index(operand, dim_index_op.result)
+        rewriter.insert_op(dim_op, insertion_point)
+        return dim_op.result
+
+    const_op = arith.ConstantOp.from_int_and_width(dim_size, IndexType())
+    rewriter.insert_op(const_op, insertion_point)
+    return const_op.result
+
+
+def create_loop_bounds(
+    rewriter: PatternRewriter,
+    insertion_point: InsertPoint,
+    op: linalg.LinalgStructuredOperation,
+) -> tuple[SSAValue, ...]:
+    bounds: list[SSAValue] = []
+
+    for operand, dim_index, dim_size in op.get_loop_bound_sources():
+        if not isinstance(operand.type, MemRefType):
+            raise PassFailedException(
+                "convert-linalg-to-loops requires buffer semantics; "
+                "tensor operands must be bufferized to memrefs before lowering"
+            )
+
+        memref_operand = SSAValue.get(operand, type=MemRefType)
+        bounds.append(
+            materialize_loop_bound(
+                rewriter,
+                insertion_point,
+                memref_operand,
+                dim_index,
+                dim_size,
+            )
+        )
+
+    return tuple(bounds)
 
 
 class LowerLinalgStructuredOpPattern(RewritePattern):
@@ -66,18 +121,10 @@ class LowerLinalgStructuredOpPattern(RewritePattern):
             return store_op
 
         insertion_point = InsertPoint.before(op)
-        index = IndexType()
-        ub_ops = tuple(
-            arith.ConstantOp(IntegerAttr(ub, index))
-            for ub in op.get_static_loop_ranges()
-        )
-        rewriter.insert_op(ub_ops, insertion_point)
-        bound_values = tuple(op.result for op in ub_ops)
-
         rewrite_linalg_structured_to_loops(
             rewriter,
             insertion_point,
-            bound_values,
+            create_loop_bounds(rewriter, insertion_point, op),
             op.get_indexing_maps().data,
             op.get_indexing_maps().data[-len(op.outputs) :],
             op.operands,

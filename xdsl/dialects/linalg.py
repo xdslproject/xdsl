@@ -37,7 +37,7 @@ from xdsl.ir import (
     Region,
     SSAValue,
 )
-from xdsl.ir.affine import AffineMap
+from xdsl.ir.affine import AffineDimExpr, AffineMap
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
@@ -180,6 +180,30 @@ class LinalgStructuredOperation(IRDLOperation, ABC):
                 "Non-invertible maps need dynamic shapes, which are not implemented."
             )
         return inverse
+
+    def get_loop_bound_sources(
+        self,
+    ) -> tuple[tuple[SSAValue[ShapedType], int, int], ...]:
+
+        shapes_to_loops = self.get_shapes_to_loops_map()
+
+        needed_positions = tuple(
+            expr.position
+            for expr in shapes_to_loops.results
+            if isinstance(expr, AffineDimExpr)
+        )
+
+        flat_shape_dims: list[tuple[SSAValue[ShapedType], int, int]] = []
+        for operand in self.operands:
+            operand_type = operand.type
+            if not isinstance(operand_type, ShapedType):
+                continue
+
+            shaped_operand = SSAValue.get(operand, type=ShapedType)
+            for dim_index, dim_size in enumerate(operand_type.get_shape()):
+                flat_shape_dims.append((shaped_operand, dim_index, dim_size))
+
+        return tuple(flat_shape_dims[position] for position in needed_positions)
 
     def get_static_shapes(self) -> list[int]:
         return [
