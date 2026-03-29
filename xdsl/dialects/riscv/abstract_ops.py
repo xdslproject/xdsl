@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from io import StringIO
 from typing import IO, Generic, TypeAlias
 
-from typing_extensions import Self
+from typing_extensions import Self, TypeVar
 
 from xdsl.backend.assembly_printer import AssemblyPrinter, OneLineAssemblyPrintable
 from xdsl.backend.register_allocatable import (
@@ -18,12 +18,14 @@ from xdsl.backend.register_type import RegisterAllocatedMemoryEffect, RegisterTy
 from xdsl.context import Context
 from xdsl.dialects.builtin import (
     I32,
+    I64,
     IntegerAttr,
     IntegerType,
     ModuleOp,
     StringAttr,
     UnitAttr,
 )
+from xdsl.interfaces import HasFolderInterface
 from xdsl.ir import (
     Attribute,
     Dialect,
@@ -42,7 +44,7 @@ from xdsl.irdl import (
 from xdsl.parser import Parser, UnresolvedOperand
 from xdsl.pattern_rewriter import RewritePattern
 from xdsl.printer import Printer
-from xdsl.traits import HasCanonicalizationPatternsTrait, Pure
+from xdsl.traits import ConstantLike, HasCanonicalizationPatternsTrait, Pure
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.target import Target
 
@@ -770,7 +772,7 @@ class RdRsImmShiftOperation(RISCVInstruction, ABC):
     def __init__(
         self,
         rs1: Operation | SSAValue,
-        immediate: int | IntegerAttr[UI5],
+        immediate: IntegerAttr[UI5],
         *,
         rd: IntRegisterType = Registers.UNALLOCATED_INT,
         comment: str | StringAttr | None = None,
@@ -1422,6 +1424,73 @@ class CsrBitwiseImmOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
         printer.print_string(", ")
         print_immediate_value(printer, self.immediate)
         return {"csr", "immediate"}
+
+
+IWidth = TypeVar("IWidth", bound=I32 | I64)
+
+
+class LiOperation(
+    RISCVCustomFormatOperation,
+    RISCVInstruction,
+    HasFolderInterface,
+    ABC,
+    Generic[IWidth],
+):
+    """
+    Loads a 32-bit immediate into rd.
+
+    This is an assembler pseudo-instruction.
+
+    See external [documentation](https://github.com/riscv-non-isa/riscv-asm-manual/blob/main/src/asm-manual.adoc).
+    """
+
+    rd = result_def(IntRegisterType)
+    immediate = attr_def(IntegerAttr[IWidth] | LabelAttr)
+
+    traits = traits_def(Pure(), ConstantLike())
+
+    def __init__(
+        self,
+        immediate: IntegerAttr[IWidth] | str | LabelAttr,
+        *,
+        rd: IntRegisterType = Registers.UNALLOCATED_INT,
+        comment: str | StringAttr | None = None,
+    ):
+        if isinstance(immediate, str):
+            immediate = LabelAttr(immediate)
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            result_types=[rd],
+            attributes={
+                "immediate": immediate,
+                "comment": comment,
+            },
+        )
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
+        return self.rd, self.immediate
+
+    def fold(self) -> tuple[IntegerAttr[IWidth] | LabelAttr]:
+        return (self.immediate,)
+
+    def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
+        printer.print_string(" ")
+        print_immediate_value(printer, self.immediate)
+        return {"immediate", "fastmath"}
+
+    @classmethod
+    def parse_op_type(
+        cls, parser: Parser
+    ) -> tuple[Sequence[Attribute], Sequence[Attribute]]:
+        parser.parse_punctuation(":")
+        res_type = parser.parse_attribute()
+        return (), (res_type,)
+
+    def print_op_type(self, printer: Printer) -> None:
+        printer.print_string(" : ")
+        printer.print_attribute(self.rd.type)
 
 
 class GetAnyRegisterOperation(
