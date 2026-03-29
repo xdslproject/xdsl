@@ -376,7 +376,7 @@ flip probability argument. Resets (R, RX, RY) do not.
 """
 
 
-class _FlipProbGateOp(StimPrintable, IRDLOperation, ABC):
+class _FlipProbGateOperation(StimPrintable, IRDLOperation, ABC):
     """
     Base for gate operations that take an optional flip probability.
     Used by measurements and measure-resets.
