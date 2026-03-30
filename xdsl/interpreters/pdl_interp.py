@@ -636,6 +636,9 @@ class PDLInterpFunctions(InterpreterFunctions):
         rewriter = PDLInterpFunctions.get_rewriter(interpreter)
         pending_rewrites = PDLInterpFunctions.get_pending_rewrites(interpreter)
         for rewriter_op, root, args in pending_rewrites:
+            if root.parent_block() is None:
+                continue
+
             rewriter.current_operation = root
             rewriter.insertion_point = InsertPoint.before(root)
 
@@ -713,7 +716,10 @@ class PDLInterpFunctions(InterpreterFunctions):
         assert isinstance(region, Region)
 
         new_region = region.clone()
-        return_op = new_region.ops.last
+        if len(new_region.blocks) > 1:
+            return_op = new_region.last_block.last_op
+        else:
+            return_op = new_region.ops.last
 
         yield_op = YieldOp.create(
             operands=return_op.operands,
@@ -770,7 +776,8 @@ class PDLInterpFunctions(InterpreterFunctions):
                 for i, operand in enumerate(op.operands):
                     if operand.name_hint is not None:
                         if operand.name_hint in args_to_replace_name_hints:
-                            op.operands[i] = map_name_hints_to_operations[operand.name_hint].results[0]
+                            if operand.name_hint in map_name_hints_to_operations:
+                                op.operands[i] = map_name_hints_to_operations[operand.name_hint].results[0]
 
 
         return True, tuple([])
