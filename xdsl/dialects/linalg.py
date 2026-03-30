@@ -202,6 +202,7 @@ class LinalgStructuredOperation(IRDLOperation, ABC):
             for expr in shapes_to_loops.results
             if isinstance(expr, AffineDimExpr)
         )
+        assert len(shapes_to_loops.results) == len(needed_positions)
 
         flat_shape_dims = tuple(
             LoopBoundSource(operand, dim_index, dim_size)
