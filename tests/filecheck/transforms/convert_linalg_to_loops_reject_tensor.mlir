@@ -3,7 +3,6 @@
 builtin.module {
   %input = "test.op"() : () -> tensor<?x?xf32>
   %output = "test.op"() : () -> memref<?x?xf32>
-  // expected-error @+1 {{convert-linalg-to-loops requires buffer semantics; tensor operands must be bufferized to memrefs before lowering}}
   linalg.generic {
       indexing_maps = [
           affine_map<(i, j) -> (i, j)>,

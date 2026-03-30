@@ -57,7 +57,7 @@ def create_loop_bounds(
     rewriter: PatternRewriter,
     insertion_point: InsertPoint,
     op: linalg.LinalgStructuredOperation,
-) -> tuple[SSAValue, ...]:
+) -> Sequence[SSAValue]:
     """
     Build loop upper bounds for a linalg structured operation.
 
@@ -83,7 +83,7 @@ def create_loop_bounds(
             )
         )
 
-    return tuple(bounds)
+    return bounds
 
 
 class LowerLinalgStructuredOpPattern(RewritePattern):
