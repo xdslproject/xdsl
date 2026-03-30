@@ -674,9 +674,12 @@ class PDLInterpFunctions(InterpreterFunctions):
         assert isinstance(region, Region)
 
         new_region = region.clone()
-        assert len(new_region.blocks) == 1
-        block = new_region.block
-        yield_op = block.last_op
+        if len(new_region.blocks) > 1:
+            yield_op = new_region.last_block.last_op
+        else:
+            yield_op = new_region.ops.last
+        # block = new_region.block
+        # yield_op = block.last_op
         assert yield_op is not None
 
         # Get the result value from the yield before inlining
@@ -684,7 +687,8 @@ class PDLInterpFunctions(InterpreterFunctions):
 
         # Inline the block's operations before the input operation
         rewriter = self.get_rewriter(interpreter)
-        rewriter.inline_block(block, InsertPoint.before(input_op))
+        for block in new_region.blocks:
+            rewriter.inline_block(block, InsertPoint.before(input_op))
 
         # Erase the yield op since it's no longer needed
         rewriter.erase_op(yield_op, safe_erase=False)

@@ -1,75 +1,5 @@
-
-  func.func @is_prime(%arg0 : i64) -> i8 attributes {llvm.linkage = #llvm.linkage<"external">} {
-    %cst = arith.constant 1.000000e+00 : f64
-    %aaa = arith.constant 1.000000e+00 : f32
-    %bbb = arith.constant 1.000000e+00 : f32
-    %ccc = arith.addf %aaa, %bbb : f32
-    %c1_i8 = arith.constant 1 : i8
-    %c1_i64 = arith.constant 1 : i64
-    %c0_i8 = arith.constant 0 : i8
-    %c0_i64 = arith.constant 0 : i64
-    %c2_i64 = arith.constant 2 : i64
-    %true = arith.constant true
-    %0 = arith.constant 0 : i8
-    cf.br ^bb0(%c2_i64, %true, %0, %true : i64, i1, i8, i1)
-  ^bb0(%1 : i64, %2 : i1, %3 : i8, %4 : i1):
-    %5 = arith.uitofp %1 : i64 to f64
-    %6 = arith.uitofp %arg0 : i64 to f64
-    %7 = math.sqrt %6 : f64
-    %8 = arith.addf %7, %cst : f64
-    %9 = arith.cmpf olt, %5, %8 : f64
-    %10 = arith.andi %9, %4 : i1
-    cf.cond_br %10, ^bb1, ^bb2
-  ^bb1:
-    %11 = arith.remui %arg0, %1 : i64
-    %12 = arith.cmpi eq, %11, %c0_i64 : i64
-    %13 = arith.cmpi ne, %11, %c0_i64 : i64
-    %14 = arith.andi %13, %2 : i1
-    %15 = arith.select %12, %c0_i8, %3 : i8
-    %16 = arith.cmpi ne, %11, %c0_i64 : i64
-    %17 = arith.xori %4, %true : i1
-    %18 = arith.andi %4, %14 : i1
-    %19 = arith.andi %17, %2 : i1
-    %20 = arith.ori %18, %19 : i1
-    %21 = arith.select %4, %15, %3 : i8
-    %22 = arith.andi %4, %16 : i1
-    %23 = scf.if %22 -> (i64) {
-      %24 = arith.addi %1, %c1_i64 : i64
-      scf.yield %24 : i64
-    } else {
-      scf.yield %1 : i64
-    }
-    cf.br ^bb0(%23, %20, %21, %22 : i64, i1, i8, i1)
-  ^bb2:
-    %25 = arith.select %2, %c1_i8, %3 : i8
-    func.return %25 : i8
-  }
-  func.func @sum_of_primes(%arg0 : i64) -> i64 attributes {llvm.linkage = #llvm.linkage<"external">} {
-    %c0_i8 = arith.constant 0 : i8
-    %c3_i64 = arith.constant 3 : i64
-    %c2_i64 = arith.constant 2 : i64
-    cf.br ^bb0(%c3_i64, %c2_i64 : i64, i64)
-  ^bb0(%0 : i64, %1 : i64):
-    %2 = arith.cmpi ult, %0, %arg0 : i64
-    cf.cond_br %2, ^bb1, ^bb2
-  ^bb1:
-    %3 = func.call @is_prime(%0) : (i64) -> i8
-    %4 = arith.cmpi ne, %3, %c0_i8 : i8
-    %5 = scf.if %4 -> (i64) {
-      %6 = arith.addi %1, %0 : i64
-      scf.yield %6 : i64
-    } else {
-      scf.yield %1 : i64
-    }
-    %7 = arith.addi %0, %c2_i64 : i64
-    cf.br ^bb0(%7, %5 : i64, i64)
-  ^bb2:
-    func.return %1 : i64
-  }
-
+builtin.module {
   pdl_interp.func @matcher(%0 : !pdl.operation) {
-    pdl_interp.check_operation_name of %0 is "scf.if" -> ^bb100100, ^bb10010030
-  ^bb100101:
     %1 = pdl_interp.get_result 0 of %0
     pdl_interp.is_not_null %1 : !pdl.value -> ^bb0, ^bb1
   ^bb1:
@@ -16625,120 +16555,8 @@
     pdl_interp.check_type %3523 is f32 -> ^bb6514, ^bb23
   ^bb6514:
     pdl_interp.record_match @rewriters::@atanh_def(%3522, %0 : !pdl.value, !pdl.operation) : benefit(1), loc([]), root("math.atanh") -> ^bb23
-  ^bb100100:
-    pdl_interp.check_result_count of %0 is 1 -> ^bb100102, ^bb100101
-  ^bb100102:
-    %10100 = pdl_interp.get_operand 0 of %0
-    pdl_interp.is_not_null %10100 : !pdl.value -> ^bb100103, ^bb100101
-  ^bb100103:
-    %10101 = pdl_interp.get_result 0 of %0
-    pdl_interp.is_not_null %10101 : !pdl.value -> ^bb100104, ^bb100101
-  ^bb100104:
-    %10102 = ematch.get_class_result %10101
-    pdl_interp.is_not_null %10102 : !pdl.value -> ^bb100105, ^bb100101
-  ^bb100105:
-    %10103 = ematch.get_class_vals %10100
-    pdl_interp.foreach %10104 : !pdl.value in %10103 {
-      %10105 = pdl_interp.get_defining_op of %10104 : !pdl.value
-      pdl_interp.is_not_null %10105 : !pdl.operation -> ^bb100106, ^bb100107
-    ^bb100107:
-      pdl_interp.continue
-    ^bb100106:
-      pdl_interp.check_operation_name of %10105 is "arith.constant" -> ^bb100108, ^bb100107
-    ^bb100108:
-      pdl_interp.check_operand_count of %10105 is 0 -> ^bb100109, ^bb100107
-    ^bb100109:
-      pdl_interp.check_result_count of %10105 is 1 -> ^bb10010010, ^bb100107
-    ^bb10010010:
-      %10106 = pdl_interp.get_attribute "value" of %10105
-      pdl_interp.is_not_null %10106 : !pdl.attribute -> ^bb10010011, ^bb100107
-    ^bb10010011:
-      %10107 = pdl_interp.create_attribute 1 : i1
-      pdl_interp.are_equal %10106, %10107 : !pdl.attribute -> ^bb10010012, ^bb10010016
-    ^bb10010012:
-      %10108 = pdl_interp.get_result 0 of %10105
-      pdl_interp.is_not_null %10108 : !pdl.value -> ^bb10010013, ^bb100107
-    ^bb10010013:
-      %10109 = ematch.get_class_result %10108
-      pdl_interp.is_not_null %10109 : !pdl.value -> ^bb10010014, ^bb100107
-    ^bb10010014:
-      pdl_interp.are_equal %10109, %10100 : !pdl.value -> ^bb10010015, ^bb100107
-    ^bb10010015:
-      %101010 = pdl_interp.get_value_type of %10102 : !pdl.type
-      pdl_interp.record_match @rewriters::@if_true_rewriter(%0, %101010 : !pdl.operation, !pdl.type) : benefit(1), loc([]), root("scf.if") -> ^bb100107
-    ^bb10010016:
-      %101011 = pdl_interp.create_attribute 0 : i1
-      pdl_interp.are_equal %10106, %101011 : !pdl.attribute -> ^bb10010017, ^bb100107
-    ^bb10010017:
-      %101012 = pdl_interp.get_result 0 of %10105
-      pdl_interp.is_not_null %101012 : !pdl.value -> ^bb10010018, ^bb100107
-    ^bb10010018:
-      %101013 = ematch.get_class_result %101012
-      pdl_interp.is_not_null %101013 : !pdl.value -> ^bb10010019, ^bb100107
-    ^bb10010019:
-      pdl_interp.are_equal %101013, %10100 : !pdl.value -> ^bb10010020, ^bb100107
-    ^bb10010020:
-      %101014 = pdl_interp.get_value_type of %10102 : !pdl.type
-      pdl_interp.record_match @rewriters::@if_false_rewriter(%0, %101014 : !pdl.operation, !pdl.type) : benefit(1), loc([]), root("scf.if") -> ^bb100107
-    } -> ^bb100101
-    ^bb10010030:
-      pdl_interp.check_operation_name of %0 is "scf.execute_region" -> ^bb10010031, ^bb10010040
-    ^bb10010031:
-      pdl_interp.record_match @rewriters::@execute_region_rewriter(%0 : !pdl.operation) : benefit(1) -> ^bb100101
-    ^bb10010040:
-      pdl_interp.check_operation_name of %0 is "func.call" -> ^bb10010041, ^bb100101
-    ^bb10010041:
-      %1010100 = pdl_interp.apply_constraint "get_function_call"(%0 : !pdl.operation) : !pdl.operation -> ^bb10010042, ^bb100101
-    ^bb10010042:
-      %1010101 = pdl_interp_region.get_region 0 of %1010100 : !pdl_region.region
-      %1010102 = pdl_interp.apply_constraint "replace_return_with_yield"(%1010101 : !pdl_region.region) : !pdl_region.region -> ^bb10010043, ^bb100101
-    ^bb10010043:
-      %1010103 = pdl_interp.apply_constraint "get_arguments_of_function"(%1010100 : !pdl.operation) : !pdl.range<value> -> ^bb10010044, ^bb100101
-    ^bb10010044:
-      %1010104 = pdl_interp.get_result 0 of %0
-      %1010105 = pdl_interp.get_value_type of %1010104 : !pdl.type
-      %1010106 = pdl_interp_region.create_operation_with_region "scf.execute_region"(%1010102 : !pdl_region.region) -> (%1010105 : !pdl.type)
-      pdl_interp.apply_constraint "replace_func_args_with_correct_definitions"(%1010106, %1010103 : !pdl.operation, !pdl.range<value>) : ^bb10010045, ^bb100101
-    ^bb10010045:
-      pdl_interp.record_match @rewriters::@func_call_rewriter(%0, %1010106 : !pdl.operation, !pdl.operation) : benefit(1) -> ^bb100101
-   }
-
+  }
   builtin.module @rewriters {
-    pdl_interp.func @if_true_rewriter(%0 : !pdl.operation, %arg1 : !pdl.type) {
-      %10100 = pdl_interp_region.get_region 0 of %0 : !pdl_region.region
-      %10101 = pdl_interp_region.create_operation_with_region "scf.execute_region"(%10100 : !pdl_region.region) -> (%arg1 : !pdl.type)
-      %10102 = pdl_interp.get_result 0 of %10101
-      %10103 = ematch.get_class_result %10102
-      %10104 = pdl_interp.create_range %10103 : !pdl.value
-      ematch.union %0 : !pdl.operation, %10104 : !pdl.range<value>
-      pdl_interp.finalize
-    }
-
-     pdl_interp.func @if_false_rewriter(%0 : !pdl.operation, %arg1 : !pdl.type) {
-      %10100 = pdl_interp_region.get_region 1 of %0 : !pdl_region.region
-      %10101 = pdl_interp_region.create_operation_with_region "scf.execute_region"(%10100 : !pdl_region.region) -> (%arg1 : !pdl.type)
-      %10102 = pdl_interp.get_result 0 of %10101
-      %10103 = ematch.get_class_result %10102
-      %10104 = pdl_interp.create_range %10103 : !pdl.value
-      ematch.union %0 : !pdl.operation, %10104 : !pdl.range<value>
-      pdl_interp.finalize
-    }
-
-    pdl_interp.func @execute_region_rewriter(%0: !pdl.operation) {
-      %10100 = pdl_interp_region.get_region 0 of %0 : !pdl_region.region
-      %10101 = pdl_interp_region.inline_region %0 with (%10100 : !pdl_region.region)
-      pdl_interp.replace %0 with (%10101 : !pdl.value)
-      pdl_interp.finalize
-    }
-
-    pdl_interp.func @func_call_rewriter(%0 : !pdl.operation, %arg1 : !pdl.operation) {
-      %10100 = pdl_interp.get_result 0 of %arg1
-      %10101 = ematch.get_class_result %10100
-      %10102 = pdl_interp.create_range %10101 : !pdl.value
-      ematch.union %0 : !pdl.operation, %10102 : !pdl.range<value>
-      pdl_interp.finalize
-    }
-
     pdl_interp.func @cos_diff_rev(%0 : !pdl.value, %1 : !pdl.value, %2 : !pdl.operation) {
       %3 = pdl_interp.create_type f32
       %4 = pdl_interp.create_operation "arith.subf"(%0, %1 : !pdl.value, !pdl.value) -> (%3 : !pdl.type)
@@ -21118,4 +20936,5 @@
       pdl_interp.finalize
     }
   }
+}
 

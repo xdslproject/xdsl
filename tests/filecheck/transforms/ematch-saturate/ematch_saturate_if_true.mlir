@@ -27,7 +27,7 @@
 
 builtin.module {
   func.func @impl() -> i32 {
-    %cond = arith.constant 1  : i1
+    %cond = arith.constant 0  : i1
     %ifelse = scf.if %cond -> (i32) {
       %1 = arith.constant 1 : i32
       %2 = arith.constant 2 : i32
@@ -41,7 +41,7 @@ builtin.module {
   }
 
   pdl_interp.func @matcher(%arg0 : !pdl.operation) {
-    pdl_interp.check_operation_name of %arg0 is "scf.if" -> ^bb0, ^bb1
+    pdl_interp.check_operation_name of %arg0 is "scf.if" -> ^bb0, ^bb30
   ^bb1:
     pdl_interp.finalize
   ^bb0:
@@ -73,7 +73,7 @@ builtin.module {
       pdl_interp.is_not_null %6 : !pdl.attribute -> ^bb11, ^bb7
     ^bb11:
       %7 = pdl_interp.create_attribute 1 : i1
-      pdl_interp.are_equal %6, %7 : !pdl.attribute -> ^bb12, ^bb7
+      pdl_interp.are_equal %6, %7 : !pdl.attribute -> ^bb12, ^bb16
     ^bb12:
       %8 = pdl_interp.get_result 0 of %5
       pdl_interp.is_not_null %8 : !pdl.value -> ^bb13, ^bb7
@@ -85,8 +85,26 @@ builtin.module {
     ^bb15:
       %10 = pdl_interp.get_value_type of %2 : !pdl.type
       pdl_interp.record_match @rewriters::@if_true_rewriter(%arg0, %10 : !pdl.operation, !pdl.type) : benefit(1), loc([]), root("scf.if") -> ^bb7
+    ^bb16:
+      %11 = pdl_interp.create_attribute 0 : i1
+      pdl_interp.are_equal %6, %11 : !pdl.attribute -> ^bb17, ^bb7
+    ^bb17:
+      %12 = pdl_interp.get_result 0 of %5
+      pdl_interp.is_not_null %12 : !pdl.value -> ^bb18, ^bb7
+    ^bb18:
+      %13 = ematch.get_class_result %12
+      pdl_interp.is_not_null %13 : !pdl.value -> ^bb19, ^bb7
+    ^bb19:
+      pdl_interp.are_equal %13, %0 : !pdl.value -> ^bb20, ^bb7
+    ^bb20:
+      %14 = pdl_interp.get_value_type of %2 : !pdl.type
+      pdl_interp.record_match @rewriters::@if_false_rewriter(%arg0, %14 : !pdl.operation, !pdl.type) : benefit(1), loc([]), root("scf.if") -> ^bb7
     } -> ^bb1
-  }
+    ^bb30:
+      pdl_interp.check_operation_name of %arg0 is "scf.execute_region" -> ^bb31, ^bb1
+    ^bb31:
+      pdl_interp.record_match @rewriters::@execute_region_rewriter(%arg0 : !pdl.operation) : benefit(1) -> ^bb1
+   }
 
   builtin.module @rewriters {
     pdl_interp.func @if_true_rewriter(%arg0 : !pdl.operation, %arg1 : !pdl.type) {
@@ -94,6 +112,25 @@ builtin.module {
       %1 = pdl_interp_region.create_operation_with_region "scf.execute_region"(%0 : !pdl_region.region) -> (%arg1 : !pdl.type)
       %2 = pdl_interp.get_result 0 of %1
       %3 = ematch.get_class_result %2
+      %4 = pdl_interp.create_range %3 : !pdl.value
+      ematch.union %arg0 : !pdl.operation, %4 : !pdl.range<value>
+      pdl_interp.finalize
+    }
+
+     pdl_interp.func @if_false_rewriter(%arg0 : !pdl.operation, %arg1 : !pdl.type) {
+      %0 = pdl_interp_region.get_region 1 of %arg0 : !pdl_region.region
+      %1 = pdl_interp_region.create_operation_with_region "scf.execute_region"(%0 : !pdl_region.region) -> (%arg1 : !pdl.type)
+      %2 = pdl_interp.get_result 0 of %1
+      %3 = ematch.get_class_result %2
+      %4 = pdl_interp.create_range %3 : !pdl.value
+      ematch.union %arg0 : !pdl.operation, %4 : !pdl.range<value>
+      pdl_interp.finalize
+    }
+
+    pdl_interp.func @execute_region_rewriter(%arg0: !pdl.operation) {
+      %0 = pdl_interp_region.get_region 0 of %arg0 : !pdl_region.region
+      %1 = pdl_interp_region.inline_region %arg0 with (%0 : !pdl_region.region)
+      %3 = ematch.get_class_result %1
       %4 = pdl_interp.create_range %3 : !pdl.value
       ematch.union %arg0 : !pdl.operation, %4 : !pdl.range<value>
       pdl_interp.finalize
