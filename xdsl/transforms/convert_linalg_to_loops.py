@@ -22,6 +22,7 @@ from xdsl.transforms.loop_nest_lowering_utils import (
     rewrite_linalg_structured_to_loops,
 )
 from xdsl.utils.exceptions import PassFailedException
+from xdsl.utils.hints import isa
 
 
 def materialize_loop_bound(
@@ -31,6 +32,12 @@ def materialize_loop_bound(
     dim_index: int,
     dim_size: int,
 ) -> SSAValue:
+    """
+    Create the value used as one loop upper bound.
+
+    If the memref dimension is dynamic, use `memref.dim`.
+    If it is static, use an index constant.
+    """
 
     if dim_size == DYNAMIC_INDEX:
         dim_index_op = arith.ConstantOp.from_int_and_width(dim_index, IndexType())
@@ -40,9 +47,10 @@ def materialize_loop_bound(
         rewriter.insert_op(dim_op, insertion_point)
         return dim_op.result
 
-    const_op = arith.ConstantOp.from_int_and_width(dim_size, IndexType())
-    rewriter.insert_op(const_op, insertion_point)
-    return const_op.result
+    else:
+        const_op = arith.ConstantOp.from_int_and_width(dim_size, IndexType())
+        rewriter.insert_op(const_op, insertion_point)
+        return const_op.result
 
 
 def create_loop_bounds(
@@ -50,21 +58,26 @@ def create_loop_bounds(
     insertion_point: InsertPoint,
     op: linalg.LinalgStructuredOperation,
 ) -> tuple[SSAValue, ...]:
+    """
+    Build loop upper bounds for a linalg structured operation.
+
+    This lowering only supports buffer semantics, so bound sources must come
+    from memref operands.
+    """
     bounds: list[SSAValue] = []
 
     for operand, dim_index, dim_size in op.get_loop_bound_sources():
-        if not isinstance(operand.type, MemRefType):
+        if not isa(operand, SSAValue[MemRefType]):
             raise PassFailedException(
                 "convert-linalg-to-loops requires buffer semantics; "
                 "tensor operands must be bufferized to memrefs before lowering"
             )
 
-        memref_operand = SSAValue.get(operand, type=MemRefType)
         bounds.append(
             materialize_loop_bound(
                 rewriter,
                 insertion_point,
-                memref_operand,
+                operand,
                 dim_index,
                 dim_size,
             )

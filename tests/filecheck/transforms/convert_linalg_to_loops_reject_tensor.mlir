@@ -1,8 +1,9 @@
-// RUN: not xdsl-opt -p convert-linalg-to-loops %s 2>&1 | filecheck %s
+// RUN: xdsl-opt -p convert-linalg-to-loops --verify-diagnostics %s | filecheck %s
 
 builtin.module {
   %input = "test.op"() : () -> tensor<?x?xf32>
   %output = "test.op"() : () -> memref<?x?xf32>
+  // expected-error @+1 {{convert-linalg-to-loops requires buffer semantics; tensor operands must be bufferized to memrefs before lowering}}
   linalg.generic {
       indexing_maps = [
           affine_map<(i, j) -> (i, j)>,

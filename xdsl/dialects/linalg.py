@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections.abc import Mapping, Sequence
 from enum import auto
-from typing import ClassVar, cast
+from typing import ClassVar, NamedTuple, cast
 
 from typing_extensions import Self
 
@@ -97,6 +97,12 @@ class IteratorTypeAttr(EnumAttribute[IteratorType]):
             super().print_parameter(printer)
 
 
+class LoopBoundSource(NamedTuple):
+    operand: SSAValue
+    dim_index: int
+    dim_size: int
+
+
 class LinalgStructuredOperation(IRDLOperation, ABC):
     """
     Abstract base class for structured linalg operations, allowing them to be processed
@@ -183,8 +189,12 @@ class LinalgStructuredOperation(IRDLOperation, ABC):
 
     def get_loop_bound_sources(
         self,
-    ) -> tuple[tuple[SSAValue[ShapedType], int, int], ...]:
+    ) -> tuple[LoopBoundSource, ...]:
+        """
+        Return where each loop upper bound comes from.
 
+        Each entry identifies the shaped operand, the dimension index, and the size value.
+        """
         shapes_to_loops = self.get_shapes_to_loops_map()
 
         needed_positions = tuple(
@@ -193,15 +203,12 @@ class LinalgStructuredOperation(IRDLOperation, ABC):
             if isinstance(expr, AffineDimExpr)
         )
 
-        flat_shape_dims: list[tuple[SSAValue[ShapedType], int, int]] = []
-        for operand in self.operands:
-            operand_type = operand.type
-            if not isinstance(operand_type, ShapedType):
-                continue
-
-            shaped_operand = SSAValue.get(operand, type=ShapedType)
-            for dim_index, dim_size in enumerate(operand_type.get_shape()):
-                flat_shape_dims.append((shaped_operand, dim_index, dim_size))
+        flat_shape_dims = tuple(
+            LoopBoundSource(operand, dim_index, dim_size)
+            for operand in self.operands
+            if isa(operand, SSAValue[ShapedType])
+            for dim_index, dim_size in enumerate(operand.type.get_shape())
+        )
 
         return tuple(flat_shape_dims[position] for position in needed_positions)
 
