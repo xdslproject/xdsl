@@ -2,7 +2,7 @@
 // RUN: xdsl-opt %s -p "distribute-stencil{strategy=3d-grid slices=2,2,2},shape-inference" | filecheck %s --check-prefix SHAPE
 // RUN: xdsl-opt %s -p "distribute-stencil{strategy=3d-grid slices=2,2,2},shape-inference,stencil-bufferize" | filecheck %s --check-prefix BUFF
 
-  func.func @offsets(%27 : !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>, %28 : !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>, %29 : !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>) {
+  func.func @offsets(%27: !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>, %28: !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>, %29: !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>) {
     %33 = stencil.load %27 : !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64> -> !stencil.temp<?x?x?xf64>
     %34, %35 = stencil.apply(%36 = %33 : !stencil.temp<?x?x?xf64>) -> (!stencil.temp<?x?x?xf64>, !stencil.temp<?x?x?xf64>) {
       %37 = stencil.access %36[-1, 0, 0] : !stencil.temp<?x?x?xf64>
@@ -23,7 +23,7 @@
     func.return
   }
 
-// CHECK:         func.func @offsets(%0 : !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>, %1 : !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>, %2 : !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>) {
+// CHECK:         func.func @offsets(%0: !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>, %1: !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>, %2: !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>) {
 // CHECK-NEXT:      %3 = stencil.load %0 : !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64> -> !stencil.temp<?x?x?xf64>
 // CHECK-NEXT:      %4 = "dmp.swap"(%3) {strategy = #dmp.grid_slice_3d<#dmp.topo<2x2x2>, false>, swaps = []} : (!stencil.temp<?x?x?xf64>) -> !stencil.temp<?x?x?xf64>
 // CHECK-NEXT:      %5, %6 = stencil.apply(%7 = %4 : !stencil.temp<?x?x?xf64>) -> (!stencil.temp<?x?x?xf64>, !stencil.temp<?x?x?xf64>) {
@@ -45,7 +45,7 @@
 // CHECK-NEXT:      func.return
 // CHECK-NEXT:    }
 
-// SHAPE:         func.func @offsets(%0 : !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>, %1 : !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>, %2 : !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>) {
+// SHAPE:         func.func @offsets(%0: !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>, %1: !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>, %2: !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>) {
 // SHAPE-NEXT:      %3 = stencil.load %0 : !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64> -> !stencil.temp<[-1,33]x[-1,33]x[0,32]xf64>
 // SHAPE-NEXT:      %4 = "dmp.swap"(%3) {strategy = #dmp.grid_slice_3d<#dmp.topo<2x2x2>, false>, swaps = [#dmp.exchange<at [32, 0, 0] size [1, 32, 32] source offset [-1, 0, 0] to [1, 0, 0]>, #dmp.exchange<at [-1, 0, 0] size [1, 32, 32] source offset [1, 0, 0] to [-1, 0, 0]>, #dmp.exchange<at [0, 32, 0] size [32, 1, 32] source offset [0, -1, 0] to [0, 1, 0]>, #dmp.exchange<at [0, -1, 0] size [32, 1, 32] source offset [0, 1, 0] to [0, -1, 0]>]} : (!stencil.temp<[-1,33]x[-1,33]x[0,32]xf64>) -> !stencil.temp<[-1,33]x[-1,33]x[0,32]xf64>
 // SHAPE-NEXT:      %5, %6 = stencil.apply(%7 = %4 : !stencil.temp<[-1,33]x[-1,33]x[0,32]xf64>) -> (!stencil.temp<[0,32]x[0,32]x[0,32]xf64>, !stencil.temp<[0,32]x[0,32]x[0,32]xf64>) {
@@ -67,7 +67,7 @@
 // SHAPE-NEXT:      func.return
 // SHAPE-NEXT:    }
 
-// BUFF:         func.func @offsets(%0 : !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>, %1 : !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>, %2 : !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>) {
+// BUFF:         func.func @offsets(%0: !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>, %1: !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>, %2: !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>) {
 // BUFF-NEXT:      "dmp.swap"(%0) {strategy = #dmp.grid_slice_3d<#dmp.topo<2x2x2>, false>, swaps = [#dmp.exchange<at [32, 0, 0] size [1, 32, 32] source offset [-1, 0, 0] to [1, 0, 0]>, #dmp.exchange<at [-1, 0, 0] size [1, 32, 32] source offset [1, 0, 0] to [-1, 0, 0]>, #dmp.exchange<at [0, 32, 0] size [32, 1, 32] source offset [0, -1, 0] to [0, 1, 0]>, #dmp.exchange<at [0, -1, 0] size [32, 1, 32] source offset [0, 1, 0] to [0, -1, 0]>]} : (!stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>) -> ()
 // BUFF-NEXT:      stencil.apply(%3 = %0 : !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>) outs (%1 : !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>, %2 : !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>) {
 // BUFF-NEXT:        %4 = stencil.access %3[-1, 0, 0] : !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>
@@ -86,25 +86,27 @@
 // BUFF-NEXT:      func.return
 // BUFF-NEXT:    }
 
-  func.func @trivial_externals(%dyn_mem : memref<?x?x?xf64>, %sta_mem : memref<64x64x64xf64>, %dyn_field : !stencil.field<?x?x?xf64>, %sta_field : !stencil.field<[-2,62]x[0,64]x[2,66]xf64>) {
+  func.func @trivial_externals(%dyn_mem: memref<?x?x?xf64>, %sta_mem: memref<64x64x64xf64>, %dyn_field: !stencil.field<?x?x?xf64>, %sta_field: !stencil.field<[-2,62]x[0,64]x[2,66]xf64>) {
     stencil.external_store %dyn_field to %dyn_mem : !stencil.field<?x?x?xf64> to memref<?x?x?xf64>
     stencil.external_store %sta_field to %sta_mem : !stencil.field<[-2,62]x[0,64]x[2,66]xf64> to memref<64x64x64xf64>
     %47 = stencil.external_load %dyn_mem : memref<?x?x?xf64> -> !stencil.field<?x?x?xf64>
     %48 = stencil.external_load %sta_mem : memref<64x64x64xf64> -> !stencil.field<[-2,62]x[0,64]x[2,66]xf64>
     %casted = stencil.cast %47 : !stencil.field<?x?x?xf64> -> !stencil.field<[-2,62]x[0,64]x[2,66]xf64>
+    "test.op"(%casted) : (!stencil.field<[-2,62]x[0,64]x[2,66]xf64>) -> ()
     func.return
   }
 
-// SHAPE:         func.func @trivial_externals(%dyn_mem : memref<?x?x?xf64>, %sta_mem : memref<64x64x64xf64>, %dyn_field : !stencil.field<?x?x?xf64>, %sta_field : !stencil.field<[-2,62]x[0,64]x[2,66]xf64>) {
+// SHAPE:         func.func @trivial_externals(%dyn_mem: memref<?x?x?xf64>, %sta_mem: memref<64x64x64xf64>, %dyn_field: !stencil.field<?x?x?xf64>, %sta_field: !stencil.field<[-2,62]x[0,64]x[2,66]xf64>) {
 // SHAPE-NEXT:      stencil.external_store %dyn_field to %dyn_mem : !stencil.field<?x?x?xf64> to memref<?x?x?xf64>
 // SHAPE-NEXT:      stencil.external_store %sta_field to %sta_mem : !stencil.field<[-2,62]x[0,64]x[2,66]xf64> to memref<64x64x64xf64>
 // SHAPE-NEXT:      %0 = stencil.external_load %dyn_mem : memref<?x?x?xf64> -> !stencil.field<?x?x?xf64>
 // SHAPE-NEXT:      %1 = stencil.external_load %sta_mem : memref<64x64x64xf64> -> !stencil.field<[-2,62]x[0,64]x[2,66]xf64>
 // SHAPE-NEXT:      %casted = stencil.cast %0 : !stencil.field<?x?x?xf64> -> !stencil.field<[-2,62]x[0,64]x[2,66]xf64>
+// SHAPE-NEXT:      "test.op"(%casted) : (!stencil.field<[-2,62]x[0,64]x[2,66]xf64>) -> ()
 // SHAPE-NEXT:      func.return
 // SHAPE-NEXT:    }
 
-  func.func @stencil_init_index(%91 : !stencil.field<[0,64]x[0,64]x[0,64]xindex>) {
+  func.func @stencil_init_index(%91: !stencil.field<[0,64]x[0,64]x[0,64]xindex>) {
     %92 = stencil.apply() -> (!stencil.temp<[0,64]x[0,64]x[0,64]xindex>) {
       %x = stencil.index 0 <[0, 0, 0]>
       %y = stencil.index 1 <[0, 0, 0]>
@@ -117,7 +119,7 @@
     func.return
   }
 
-// SHAPE:         func.func @stencil_init_index(%0 : !stencil.field<[0,64]x[0,64]x[0,64]xindex>) {
+// SHAPE:         func.func @stencil_init_index(%0: !stencil.field<[0,64]x[0,64]x[0,64]xindex>) {
 // SHAPE-NEXT:      %1 = stencil.apply() -> (!stencil.temp<[0,64]x[0,64]x[0,64]xindex>) {
 // SHAPE-NEXT:        %x = stencil.index 0 <[0, 0, 0]>
 // SHAPE-NEXT:        %y = stencil.index 1 <[0, 0, 0]>
@@ -130,7 +132,7 @@
 // SHAPE-NEXT:      func.return
 // SHAPE-NEXT:    }
 
-  func.func @stencil_init_index_offset(%93 : !stencil.field<[0,64]x[0,64]x[0,64]xindex>) {
+  func.func @stencil_init_index_offset(%93: !stencil.field<[0,64]x[0,64]x[0,64]xindex>) {
     %94 = stencil.apply() -> (!stencil.temp<[0,64]x[0,64]x[0,64]xindex>) {
       %x_1 = stencil.index 0 <[1, 1, 1]>
       %y_1 = stencil.index 1 <[-1, -1, -1]>
@@ -143,7 +145,7 @@
     func.return
   }
 
-// SHAPE:         func.func @stencil_init_index_offset(%0 : !stencil.field<[0,64]x[0,64]x[0,64]xindex>) {
+// SHAPE:         func.func @stencil_init_index_offset(%0: !stencil.field<[0,64]x[0,64]x[0,64]xindex>) {
 // SHAPE-NEXT:      %1 = stencil.apply() -> (!stencil.temp<[0,64]x[0,64]x[0,64]xindex>) {
 // SHAPE-NEXT:        %x = stencil.index 0 <[1, 1, 1]>
 // SHAPE-NEXT:        %y = stencil.index 1 <[-1, -1, -1]>
@@ -156,7 +158,7 @@
 // SHAPE-NEXT:      func.return
 // SHAPE-NEXT:    }
 
-func.func @store_result_lowering(%arg0 : f64) {
+func.func @store_result_lowering(%arg0: f64) -> (!stencil.temp<[0,7]x[0,7]x[0,7]xf64>, !stencil.temp<[0,7]x[0,7]x[0,7]xf64>) {
     %95, %96 = stencil.apply(%arg1 = %arg0 : f64) -> (!stencil.temp<[0,7]x[0,7]x[0,7]xf64>, !stencil.temp<[0,7]x[0,7]x[0,7]xf64>) {
       %97 = stencil.store_result %arg1 : !stencil.result<f64>
       %98 = stencil.store_result %arg1 : !stencil.result<f64>
@@ -164,10 +166,11 @@ func.func @store_result_lowering(%arg0 : f64) {
     }
     %99 = stencil.buffer %96 : !stencil.temp<[0,7]x[0,7]x[0,7]xf64> -> !stencil.temp<[0,7]x[0,7]x[0,7]xf64>
     %100 = stencil.buffer %95 : !stencil.temp<[0,7]x[0,7]x[0,7]xf64> -> !stencil.temp<[0,7]x[0,7]x[0,7]xf64>
-    func.return
+    //"test.op"(%99, %100) : (!stencil.temp<[0,7]x[0,7]x[0,7]xf64>, !stencil.temp<[0,7]x[0,7]x[0,7]xf64>)
+    func.return %99, %100 : !stencil.temp<[0,7]x[0,7]x[0,7]xf64>, !stencil.temp<[0,7]x[0,7]x[0,7]xf64>
   }
 
-// SHAPE:         func.func @store_result_lowering(%arg0 : f64) {
+// SHAPE:         func.func @store_result_lowering(%arg0: f64) -> (!stencil.temp<[0,7]x[0,7]x[0,7]xf64>, !stencil.temp<[0,7]x[0,7]x[0,7]xf64>) {
 // SHAPE-NEXT:      %0, %1 = stencil.apply(%arg1 = %arg0 : f64) -> (!stencil.temp<[0,7]x[0,7]x[0,7]xf64>, !stencil.temp<[0,7]x[0,7]x[0,7]xf64>) {
 // SHAPE-NEXT:        %2 = stencil.store_result %arg1 : !stencil.result<f64>
 // SHAPE-NEXT:        %3 = stencil.store_result %arg1 : !stencil.result<f64>
@@ -178,7 +181,7 @@ func.func @store_result_lowering(%arg0 : f64) {
 // SHAPE-NEXT:      func.return
 // SHAPE-NEXT:    }
 
-func.func @if_lowering(%arg0_1 : f64, %b0 : !stencil.field<[0,8]x[0,8]x[0,8]xf64>, %b1 : !stencil.field<[0,8]x[0,8]x[0,8]xf64>)  attributes {"stencil.program"} {
+func.func @if_lowering(%arg0_1: f64, %b0: !stencil.field<[0,8]x[0,8]x[0,8]xf64>, %b1: !stencil.field<[0,8]x[0,8]x[0,8]xf64>)  attributes {"stencil.program"} {
     %101, %102 = stencil.apply(%arg1_1 = %arg0_1 : f64) -> (!stencil.temp<[0,8]x[0,8]x[0,8]xf64>, !stencil.temp<[0,8]x[0,8]x[0,8]xf64>) {
       %true = "test.op"() : () -> i1
       %103, %104 = scf.if %true -> (!stencil.result<f64>, f64) {
@@ -196,7 +199,7 @@ func.func @if_lowering(%arg0_1 : f64, %b0 : !stencil.field<[0,8]x[0,8]x[0,8]xf64
     func.return
   }
 
-// SHAPE:         func.func @if_lowering(%arg0 : f64, %b0 : !stencil.field<[0,8]x[0,8]x[0,8]xf64>, %b1 : !stencil.field<[0,8]x[0,8]x[0,8]xf64>)  attributes {stencil.program} {
+// SHAPE:         func.func @if_lowering(%arg0: f64, %b0: !stencil.field<[0,8]x[0,8]x[0,8]xf64>, %b1: !stencil.field<[0,8]x[0,8]x[0,8]xf64>)  attributes {stencil.program} {
 // SHAPE-NEXT:      %0, %1 = stencil.apply(%arg1 = %arg0 : f64) -> (!stencil.temp<[0,8]x[0,8]x[0,8]xf64>, !stencil.temp<[0,8]x[0,8]x[0,8]xf64>) {
 // SHAPE-NEXT:        %true = "test.op"() : () -> i1
 // SHAPE-NEXT:        %2, %3 = scf.if %true -> (!stencil.result<f64>, f64) {

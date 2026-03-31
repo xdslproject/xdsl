@@ -9,7 +9,7 @@ TCov = TypeVar("TCov", covariant=True)
 TCon = TypeVar("TCon", contravariant=True)
 
 
-class ReadableStream(Generic[TCov], abc.ABC):
+class ReadableStream(abc.ABC, Generic[TCov]):
     """
     Abstract base class for readable stream interpreter model objects.
     """
@@ -19,7 +19,7 @@ class ReadableStream(Generic[TCov], abc.ABC):
         raise NotImplementedError()
 
 
-class WritableStream(Generic[TCon], abc.ABC):
+class WritableStream(abc.ABC, Generic[TCon]):
     """
     Abstract base class for readable stream interpreter model objects.
     """

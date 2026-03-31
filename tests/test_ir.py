@@ -107,10 +107,10 @@ def test_ops_accessor_II():
 def test_ops_accessor_III():
     # Create constants and add them, add them in blocks, blocks in
     # a region and create a function
-    a = ConstantOp(IntegerAttr.from_int_and_width(1, 32), i32)
-    b = ConstantOp(IntegerAttr.from_int_and_width(2, 32), i32)
-    c = ConstantOp(IntegerAttr.from_int_and_width(3, 32), i32)
-    d = ConstantOp(IntegerAttr.from_int_and_width(4, 32), i32)
+    a = ConstantOp(IntegerAttr(1, 32), i32)
+    b = ConstantOp(IntegerAttr(2, 32), i32)
+    c = ConstantOp(IntegerAttr(3, 32), i32)
+    d = ConstantOp(IntegerAttr(4, 32), i32)
 
     # Operation to add these constants
     e = AddiOp(a, b)
@@ -152,6 +152,50 @@ def test_ops_accessor_III():
     region0.detach_block(0)
     with pytest.raises(IndexError):
         region0.detach_block(1)
+
+
+def test_detach_block_clears_pointers():
+    """Test that detach_block clears the block's prev/next pointers."""
+    a = ConstantOp.from_int_and_width(1, i32)
+    b = ConstantOp.from_int_and_width(2, i32)
+    c = ConstantOp.from_int_and_width(3, i32)
+
+    block0 = Block([a])
+    block1 = Block([b])
+    block2 = Block([c])
+
+    region = Region([block0, block1, block2])
+
+    # Verify initial state
+    assert block0.next_block is block1
+    assert block1.prev_block is block0
+    assert block1.next_block is block2
+    assert block2.prev_block is block1
+
+    # Detach middle block
+    detached_block = region.detach_block(block1)
+
+    # Verify detached block's pointers are cleared
+    assert detached_block._prev_block is None  # pyright: ignore[reportPrivateUsage]
+    assert detached_block._next_block is None  # pyright: ignore[reportPrivateUsage]
+    assert detached_block.parent is None
+
+    # Verify region's blocks are properly linked
+    assert block0.next_block is block2
+    assert block2.prev_block is block0
+    assert list(region.blocks) == [block0, block2]
+
+    # Test detaching first block
+    detached_first = region.detach_block(block0)
+    assert detached_first._prev_block is None  # pyright: ignore[reportPrivateUsage]
+    assert detached_first._next_block is None  # pyright: ignore[reportPrivateUsage]
+    assert list(region.blocks) == [block2]
+
+    # Test detaching last (and only) remaining block
+    detached_last = region.detach_block(block2)
+    assert detached_last._prev_block is None  # pyright: ignore[reportPrivateUsage]
+    assert detached_last._next_block is None  # pyright: ignore[reportPrivateUsage]
+    assert list(region.blocks) == []
 
 
 def test_op_operands_assign():
@@ -271,6 +315,52 @@ def test_op_clone_with_regions():
     assert tuple(name_hints(pb)) == ("ca0", "ca1", "a", "b")
     assert tuple(name_hints(pc)) == ("ca0", "ca1", "a", "b")
     assert tuple(name_hints(pd)) == (None, None, None, None)
+
+
+def test_op_clone_graph_region():
+    # Children
+    ca0 = test.TestOp.create(result_types=(i32,))
+    ca0.results[0].name_hint = "a"
+    ca1 = test.TestOp.create(result_types=(i32,))
+    ca1.results[0].name_hint = "b"
+    # Make recursive
+    ca0.operands = (ca1.results[0],)
+    ca1.operands = (ca0.results[0],)
+    # Parent
+    pa = test.TestOp.create(regions=[Region([Block([ca0, ca1])])])
+
+    pb = pa.clone()
+    assert pa is not pb
+
+    cb0, cb1 = pb.regions[0].blocks[0].ops
+
+    assert ca0 is not cb0
+    assert ca1 is not cb1
+    assert ca0.operands != cb0.operands
+    assert ca1.operands != cb1.operands
+
+
+def test_op_clone_wrong_block_order():
+    # Children
+    ca1 = test.TestOp.create(result_types=(i32,))
+    ca1.results[0].name_hint = "b"
+    ca0 = test.TestOp.create(operands=ca1.results, result_types=(i32,))
+    ca0.results[0].name_hint = "a"
+    # Parent
+    pa = test.TestOp.create(regions=[Region([Block([ca0]), Block([ca1])])])
+
+    pb = pa.clone()
+    assert pa is not pb
+
+    (cb0,) = pb.regions[0].blocks[0].ops
+    (cb1,) = pb.regions[0].blocks[1].ops
+
+    assert ca0 is not cb0
+    assert ca1 is not cb1
+    for oa, ob in zip(ca0.operands, cb0.operands, strict=True):
+        assert oa is not ob
+    for oa, ob in zip(ca1.operands, cb1.operands, strict=True):
+        assert oa is not ob
 
 
 def test_block_branching_to_another_region_wrong():
@@ -699,7 +789,7 @@ program_add_2 = """
 program_func = """
 "builtin.module"() ({
   "func.func"() ({
-  ^bb0(%0 : i32, %1 : i32):
+  ^bb0(%0: i32, %1: i32):
     %2 = "arith.addi"(%0, %1) : (i32, i32) -> i32
     "func.return"(%2) : (i32) -> ()
   }) {"sym_name" = "test", "function_type" = (i32, i32) -> i32, "sym_visibility" = "private"} : () -> ()
@@ -781,11 +871,11 @@ def test_is_structurally_equivalent_incompatible_ir_nodes():
     program_func = """
 "builtin.module"() ({
   "func.func"() ({
-  ^bb0(%0 : i32, %1 : i32):
+  ^bb0(%0: i32, %1: i32):
     %2 = "arith.addi"(%0, %1) : (i32, i32) -> i32
     %3 = "arith.constant"() {"value" = 2 : i32} : () -> i32
     "func.return"(%3) : (i32) -> ()
-  ^bb1(%4 : i32, %5 : i32):
+  ^bb1(%4: i32, %5: i32):
     "func.return"(%4) : (i32) -> ()
   }) {"sym_name" = "test", "function_type" = (i32, i32) -> i32, "sym_visibility" = "private"} : () -> ()
 }) : () -> ()
@@ -903,6 +993,30 @@ def test_detach_region():
     assert op.get_region_index(region2) == 0
 
 
+def test_detach_toplevel_opration():
+    a = ConstantOp.from_int_and_width(1, 32)
+    assert a.parent is None
+    with pytest.raises(ValueError, match="Cannot detach a toplevel operation."):
+        a.detach()
+
+
+def test_add_already_attached_region():
+    """Adding a region that is already attached to an operation should raise."""
+    a = ConstantOp.from_int_and_width(1, 32)
+    b = ConstantOp.from_int_and_width(2, 32)
+    region1 = Region([Block([a])])
+    region2 = Region([Block([b])])
+    op1 = MultipleRegionsOp.build(regions=[[region1]])
+    op2 = MultipleRegionsOp.build(regions=[[region2]])
+
+    assert region2.parent is op2
+
+    with pytest.raises(
+        ValueError, match="Cannot add region that is already attached on an operation."
+    ):
+        op1.add_region(region2)
+
+
 def test_region_hashable():
     a = Region()
     b = Region()
@@ -939,8 +1053,22 @@ def test_op_custom_verify_is_done_last():
     b = CustomVerifyOp.get(a.result)
     with pytest.raises(
         VerifyException,
-        match="operand at position 0 does not verify:\nExpected attribute i64 but got i32",
+        match="operand 'val' at position 0 does not verify:\nExpected attribute i64 but got i32",
     ):
+        b.verify()
+
+
+def test_verify_erased_ssa_value():
+    """Verify that an operation using an ErasedSSAValue raises on verify."""
+    a = ConstantOp.from_int_and_width(1, i64)
+    b = AddiOp(a, a)
+    region = Region([Block([a, b])])
+
+    # Erase a, replacing its uses with ErasedSSAValue (unsafe erase)
+    region.block.erase_op(a, safe_erase=False)
+
+    assert isinstance(b.operands[0], ErasedSSAValue)
+    with pytest.raises(ValueError, match="Erased SSA value is used by the operation"):
         b.verify()
 
 
@@ -1017,6 +1145,17 @@ def test_dialect_name():
     assert MyOperation.dialect_name() == "dialect"
 
 
+def test_replace_all_uses_with_self():
+    """Replacing an SSA value with itself should be a no-op (fixes #5721)."""
+    a = create_ssa_value(i32)
+    b = test.TestOp((a,))
+
+    a.replace_all_uses_with(a)
+
+    # The use should still be intact and pointing to a
+    assert set(u.operation for u in a.uses) == {b}
+
+
 def test_replace_by_if():
     a = create_ssa_value(i32)
     b = test.TestOp((a,))
@@ -1025,7 +1164,7 @@ def test_replace_by_if():
     assert set(u.operation for u in a.uses) == {b, c}
 
     d = create_ssa_value(i32)
-    a.replace_by_if(d, lambda u: u.operation is not c)
+    a.replace_uses_with_if(d, lambda u: u.operation is not c)
 
     assert set(u.operation for u in a.uses) == {c}
     assert set(u.operation for u in d.uses) == {b}
@@ -1167,3 +1306,149 @@ def test_ssa_get_on_op():
         ValueError, match="SSAValue.get: expected operation with a single result."
     ):
         SSAValue.get(op2)
+
+
+def test_repr():
+    bb = tuple(Block(arg_types=(i32,)) for _ in range(3))
+    bb[0].add_op(test.TestTermOp(result_types=(i32,), successors=bb[1:]))
+    bb[1].add_op(
+        test.TestTermOp(operands=bb[0].args, result_types=(i32,), successors=bb[2:])
+    )
+    bb[2].add_op(test.TestTermOp(operands=bb[0].args, result_types=(i32,)))
+    root = test.TestOp(regions=(r := Region(bb),))
+
+    ops = tuple(root.walk())
+    assert len(ops) == 4
+    regions = tuple(region for op in ops for region in op.regions)
+    assert len(regions) == 1
+    blocks = tuple(block for region in regions for block in region.blocks)
+    assert len(blocks) == 3
+    results = tuple(result for op in ops for result in op.results)
+    assert len(results) == 3
+    args = tuple(arg for block in blocks for arg in block.args)
+    assert len(args) == 3
+    values = (*results, *args)
+    block_uses = tuple(use for block in blocks for use in block.uses)
+    assert len(block_uses) == 3
+    value_uses = tuple(use for value in values for use in value.uses)
+    assert len(value_uses) == 2
+
+    blocks[0].args[0].name_hint = "bb0arg"
+    ops[1].results[0].name_hint = "op1res"
+
+    op_reprs = tuple(repr(op) for op in ops)
+    assert op_reprs == (
+        f"<TestOp {id(root)}(operands=[], results=[], successors=[], properties={{}}, attributes={{}}, regions=[<Region {id(r)}>], parent=None, _next_op=None, _prev_op=None)>",
+        f"<TestTermOp {id(ops[1])}(operands=[], results=[<OpResult {id(results[0])}>], successors=[<Block {id(bb[1])}>, <Block {id(bb[2])}>], properties={{}}, attributes={{}}, regions=[], parent=<Block {id(bb[0])}>, _next_op=None, _prev_op=None)>",
+        f"<TestTermOp {id(ops[2])}(operands=[<BlockArgument {id(args[0])}>], results=[<OpResult {id(results[1])}>], successors=[<Block {id(bb[2])}>], properties={{}}, attributes={{}}, regions=[], parent=<Block {id(bb[1])}>, _next_op=None, _prev_op=None)>",
+        f"<TestTermOp {id(ops[3])}(operands=[<BlockArgument {id(args[0])}>], results=[<OpResult {id(results[2])}>], successors=[], properties={{}}, attributes={{}}, regions=[], parent=<Block {id(bb[2])}>, _next_op=None, _prev_op=None)>",
+    )
+
+    region_reprs = tuple(repr(region) for region in regions)
+    assert region_reprs == (
+        f"Region(blocks=[<Block {id(blocks[0])}>, <Block {id(blocks[1])}>, <Block {id(blocks[2])}>])",
+    )
+
+    block_reprs = tuple(repr(block) for block in blocks)
+    assert block_reprs == (
+        f"<Block {id(blocks[0])}(_args=(<BlockArgument[i32] name_hint: bb0arg, index: 0, uses: 2>,), num_ops=1)>",
+        f"<Block {id(blocks[1])}(_args=(<BlockArgument[i32] name_hint: None, index: 0, uses: 0>,), num_ops=1)>",
+        f"<Block {id(blocks[2])}(_args=(<BlockArgument[i32] name_hint: None, index: 0, uses: 0>,), num_ops=1)>",
+    )
+
+    op_result_reprs = tuple(repr(result) for result in results)
+    assert op_result_reprs == (
+        "<OpResult[i32] name_hint: op1res, index: 0, operation: test.termop, uses: 0>",
+        "<OpResult[i32] name_hint: None, index: 0, operation: test.termop, uses: 0>",
+        "<OpResult[i32] name_hint: None, index: 0, operation: test.termop, uses: 0>",
+    )
+
+    block_arg_reprs = tuple(repr(arg) for arg in args)
+    assert block_arg_reprs == (
+        "<BlockArgument[i32] name_hint: bb0arg, index: 0, uses: 2>",
+        "<BlockArgument[i32] name_hint: None, index: 0, uses: 0>",
+        "<BlockArgument[i32] name_hint: None, index: 0, uses: 0>",
+    )
+
+    block_use_reprs = tuple(repr(use) for use in block_uses)
+    assert block_use_reprs == (
+        f"<Use {id(block_uses[0])}(_operation=<TestTermOp {id(ops[1])}>, _index=0, _prev_use=None, _next_use=None)>",
+        f"<Use {id(block_uses[1])}(_operation=<TestTermOp {id(ops[2])}>, _index=0, _prev_use=None, _next_use=<Use {id(block_uses[2])}>)>",
+        f"<Use {id(block_uses[2])}(_operation=<TestTermOp {id(ops[1])}>, _index=1, _prev_use=<Use {id(block_uses[1])}>, _next_use=None)>",
+    )
+
+    value_use_reprs = tuple(repr(use) for use in value_uses)
+    assert value_use_reprs == (
+        f"<Use {id(value_uses[0])}(_operation=<TestTermOp {id(ops[3])}>, _index=0, _prev_use=None, _next_use=<Use {id(value_uses[1])}>)>",
+        f"<Use {id(value_uses[1])}(_operation=<TestTermOp {id(ops[2])}>, _index=0, _prev_use=<Use {id(value_uses[0])}>, _next_use=None)>",
+    )
+
+
+def test_insert_arg_unexpected_index():
+    """Test that insert_arg raises ValueError for out-of-range index."""
+    block = Block(arg_types=[i32])
+    with pytest.raises(
+        ValueError,
+        match=r"Cannot insert block argument at index -1, index must be in range \[0, 1\]\.",
+    ):
+        block.insert_arg(i32, -1)
+    with pytest.raises(
+        ValueError,
+        match=r"Cannot insert block argument at index 5, index must be in range \[0, 1\]\.",
+    ):
+        block.insert_arg(i32, 5)
+
+
+def test_erase_arg_wrong_block():
+    """Test that erase_arg raises ValueError when arg belongs to another block."""
+    block1 = Block(arg_types=[i32])
+    block2 = Block(arg_types=[i32])
+    with pytest.raises(
+        ValueError, match="Attempting to delete an argument of the wrong block"
+    ):
+        block1.erase_arg(block2.args[0])
+
+
+def test_get_operation_index_not_child():
+    """Test that get_operation_index raises ValueError for non-child op."""
+    op = test.TestOp.create()
+    block = Block([test.TestOp.create()])
+    with pytest.raises(ValueError, match="Operation is not a child of the block."):
+        block.get_operation_index(op)
+
+
+def test_detach_op_different_block():
+    """Test that detach_op raises ValueError for op in a different block."""
+    op = test.TestOp.create()
+    Block([op])
+    block2 = Block()
+    with pytest.raises(
+        ValueError, match="Cannot detach operation from a different block."
+    ):
+        block2.detach_op(op)
+
+
+def test_block_verify_parent_pointer_mismatch():
+    """Test that Block.verify raises ValueError when op parent is wrong."""
+    op = test.TestOp.create()
+    block = Block([op])
+    # Corrupt the parent pointer
+    op.parent = Block()
+    with pytest.raises(
+        ValueError,
+        match="Parent pointer of operation does not refer to containing region",
+    ):
+        block.verify()
+
+
+def test_region_verify_block_parent_pointer_mismatch():
+    """Test that Region.verify raises ValueError when block parent is wrong."""
+    block = Block([test.TestOp.create()])
+    region = Region([block])
+    # Corrupt the parent pointer
+    block.parent = Region()
+    with pytest.raises(
+        ValueError,
+        match="Parent pointer of block does not refer to containing region",
+    ):
+        region.verify()

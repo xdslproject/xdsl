@@ -17,7 +17,7 @@ builtin.module attributes  {"transform.with_named_sequence"} {
     transform.yield
   }
   "transform.sequence"() <{"failure_propagation_mode" = 1 : i32, operandSegmentSizes = array<i32: 0, 0>}> ({
-  ^bb1(%arg0_1 : !transform.any_op):
+  ^bb1(%arg0_1: !transform.any_op):
     %arg1_1 = "transform.select"(%arg0_1) <{"op_name" = "linalg.quantized_matmul"}> : (!transform.any_op) -> !transform.op<"linalg.quantized_matmul">
     %13, %14, %15 = "transform.structured.tile_using_for"(%arg1_1) <{"scalable_sizes" = array<i1: false, false>, "static_sizes" = array<i64: 8, 8>}> : (!transform.op<"linalg.quantized_matmul">) -> (!transform.any_op, !transform.any_op, !transform.any_op)
     transform.yield
@@ -41,7 +41,7 @@ builtin.module attributes  {"transform.with_named_sequence"} {
   %28 = "transform.structured.match"(%24) <{"op_attrs" = {"qmatmul_0"}}> : (!transform.any_op) -> !transform.any_op
   %29 = "test.op"() : () -> !transform.op<"builtin.module">
   %30 = transform.apply_registered_pass "foo" to %29 : (!transform.op<"builtin.module">) -> !transform.op<"builtin.module">
-  %31 = transform.apply_registered_pass "foo" to %30 {options = "foo"} : (!transform.op<"builtin.module">) -> !transform.op<"builtin.module">
+  %31 = transform.apply_registered_pass "foo" with options = {foo = 1 : i32} to %30 : (!transform.op<"builtin.module">) -> !transform.op<"builtin.module">
 }
 
 
@@ -86,5 +86,5 @@ builtin.module attributes  {"transform.with_named_sequence"} {
 //CHECK-NEXT:   %18 = transform.structured.match attributes {qmatmul_0} in %14 : (!transform.any_op) -> !transform.any_op
 //CHECK-NEXT:   %19 = "test.op"() : () -> !transform.op<"builtin.module">
 //CHECK-NEXT:   %20 = transform.apply_registered_pass "foo" to %19 : (!transform.op<"builtin.module">) -> !transform.op<"builtin.module">
-//CHECK-NEXT:   %21 = transform.apply_registered_pass "foo" to %20 {options = "foo"} : (!transform.op<"builtin.module">) -> !transform.op<"builtin.module">
+//CHECK-NEXT:   %21 = transform.apply_registered_pass "foo" with options = {"foo" = 1 : i32} to %20 : (!transform.op<"builtin.module">) -> !transform.op<"builtin.module">
 //CHECK-NEXT: }

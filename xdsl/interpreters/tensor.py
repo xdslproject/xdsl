@@ -5,7 +5,7 @@ from typing import Any, cast
 from typing_extensions import TypeVar
 
 from xdsl.dialects import tensor
-from xdsl.dialects.builtin import TensorType
+from xdsl.dialects.builtin import DYNAMIC_INDEX, TensorType
 from xdsl.interpreter import (
     Interpreter,
     InterpreterFunctions,
@@ -32,7 +32,7 @@ class TensorFunctions(InterpreterFunctions):
 
         dynamic_dims = iter(args)
         for i in range(len(result_shape)):
-            if result_shape[i] == -1:
+            if result_shape[i] == DYNAMIC_INDEX:
                 result_shape[i] = next(dynamic_dims)
         assert next(dynamic_dims, None) is None
 

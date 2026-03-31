@@ -146,7 +146,7 @@ class CSEDriver:
 
         for o, n in zip(op.results, existing.results, strict=True):
             if all(wasVisited(u) for u in o.uses):
-                o.replace_by(n)
+                o.replace_all_uses_with(n)
 
         # If no uses remain, we can mark this operation for erasure
         if all(not r.uses for r in op.results):
@@ -206,8 +206,8 @@ class CSEDriver:
     def _simplify_block(self, block: Block):
         for op in block.ops:
             if op.regions:
-                might_be_isolated = isinstance(op, UnregisteredOp) or (
-                    op.get_trait(IsolatedFromAbove) is not None
+                might_be_isolated = op.has_trait(
+                    IsolatedFromAbove, value_if_unregistered=True
                 )
                 # If we can't be sure the op isn't isolated, we assume it is for safety
                 if might_be_isolated:

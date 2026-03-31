@@ -9,6 +9,7 @@ from xdsl.dialects.arith import (
     AddfOp,
     AddiOp,
     AndIOp,
+    CmpfOp,
     CmpiOp,
     ConstantOp,
     DivSIOp,
@@ -236,6 +237,80 @@ def test_cmpi(
 
     assert len(ret) == 1
     assert ret[0] == fn(lhs_value, rhs_value)
+
+
+@pytest.mark.parametrize("lhs_value", [1.5, 0.5, -1.5, 127.5, float("nan")])
+@pytest.mark.parametrize("rhs_value", [1.5, 0.5, -1.5, 127.5, float("nan")])
+@pytest.mark.parametrize(
+    "pred",
+    [
+        "false",
+        "oeq",
+        "ogt",
+        "oge",
+        "olt",
+        "ole",
+        "one",
+        "ord",
+        "ueq",
+        "ugt",
+        "uge",
+        "ult",
+        "ule",
+        "une",
+        "uno",
+        "true",
+    ],
+)
+def test_cmpf(lhs_value: int, rhs_value: int, pred: str):
+    x = lhs_value
+    y = rhs_value
+
+    o = not isnan(x) and not isnan(y)
+    u = isnan(x) or isnan(y)
+
+    match pred:
+        case "false":
+            expectation = False
+        case "oeq":
+            expectation = (x == y) and o
+        case "ogt":
+            expectation = (x > y) and o
+        case "oge":
+            expectation = (x >= y) and o
+        case "olt":
+            expectation = (x < y) and o
+        case "ole":
+            expectation = (x <= y) and o
+        case "one":
+            expectation = (x != y) and o
+        case "ord":
+            expectation = o
+        case "ueq":
+            expectation = (x == y) or u
+        case "ugt":
+            expectation = (x > y) or u
+        case "uge":
+            expectation = (x >= y) or u
+        case "ult":
+            expectation = (x < y) or u
+        case "ule":
+            expectation = (x <= y) or u
+        case "une":
+            expectation = (x != y) or u
+        case "uno":
+            expectation = u
+        case "true":
+            expectation = True
+        case _:
+            expectation = None
+
+    cmpf = CmpfOp(lhs_op, rhs_op, pred)
+
+    ret = interpreter.run_op(cmpf, (lhs_value, rhs_value))
+
+    assert len(ret) == 1
+    assert ret[0] == expectation
 
 
 @pytest.mark.parametrize("lhs_value", [1, 0, -1, 127])

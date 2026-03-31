@@ -13,9 +13,11 @@ pdl.pattern @nativeConstraint : benefit(1) {
                         -> (%type : !pdl.type)
 
   pdl.apply_native_constraint "myConstraint"(%type, %operand, %attr : !pdl.type, !pdl.value, !pdl.attribute)
+  pdl.apply_native_constraint "myNegatedConstraint"(%type, %operand, %attr : !pdl.type, !pdl.value, !pdl.attribute) {isNegated = true}
 
   pdl.rewrite %root with "test_rewriter"(%root : !pdl.operation)
 }
 
 // CHECK: @nativeConstraint
 // CHECK: pdl.apply_native_constraint "myConstraint"(%{{.*}}, %{{.*}}, %{{.*}} : !pdl.type, !pdl.value, !pdl.attribute)
+// CHECK: pdl.apply_native_constraint "myNegatedConstraint"(%{{.*}}, %{{.*}}, %{{.*}} : !pdl.type, !pdl.value, !pdl.attribute) {isNegated = true}

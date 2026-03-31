@@ -12,8 +12,8 @@ def test_assert():
 
     assert c.arg is a.result
     assert d.arg is b.result
-    assert c.attributes["msg"] == StringAttr("a")
-    assert d.attributes["msg"] == StringAttr("b")
+    assert c.properties["msg"] == StringAttr("a")
+    assert d.properties["msg"] == StringAttr("b")
 
 
 def test_branch():

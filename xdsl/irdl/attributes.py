@@ -5,13 +5,13 @@
 # |____/ \__,_|\__\__,_|
 #
 
+import sys
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Hashable, Sequence
 from dataclasses import dataclass
 from inspect import get_annotations, isclass
 from types import FunctionType, GenericAlias, UnionType
 from typing import (
-    TYPE_CHECKING,
     Annotated,
     Any,
     Generic,
@@ -27,21 +27,25 @@ from typing import (
 
 from typing_extensions import TypeVar, dataclass_transform
 
-from xdsl.ir import AttributeCovT
-from xdsl.utils.classvar import is_const_classvar
-
-if TYPE_CHECKING:
+if sys.version_info >= (3, 14, 0):
     from typing_extensions import TypeForm
+else:
+    from typing import TYPE_CHECKING
+
+    if TYPE_CHECKING:
+        from typing_extensions import TypeForm
 
 
 from xdsl.ir import (
     Attribute,
+    AttributeCovT,
     AttributeInvT,
     BuiltinAttribute,
     Data,
     ParametrizedAttribute,
     TypedAttribute,
 )
+from xdsl.utils.classvar import is_const_classvar
 from xdsl.utils.exceptions import PyRDLAttrDefinitionError, PyRDLTypeError
 from xdsl.utils.hints import (
     PropertyType,
@@ -74,7 +78,6 @@ from .constraints import (  # noqa: TID251
 _DataElement = TypeVar("_DataElement", bound=Hashable, covariant=True)
 
 
-@dataclass(frozen=True)
 class GenericData(Data[_DataElement], ABC):
     """
     A Data with type parameters.
@@ -120,7 +123,7 @@ def param_def(
     converter: Callable[[Any], AttributeInvT] | None = None,
     init: Literal[True] = True,
 ) -> AttributeInvT:
-    """Defines a property of an operation."""
+    """Defines a parameter of a ParametrizedAttribute."""
     return cast(AttributeInvT, _ParameterDef(constraint, converter))
 
 
@@ -163,6 +166,10 @@ _PARAMETRIZED_ATTRIBUTE_DICT_KEYS = {
 _IGNORED_PARAM_ATTR_FIELD_TYPES = set(("name", "parameters"))
 
 
+def _is_dunder(name: str) -> bool:
+    return name.startswith("__") and name.endswith("__")
+
+
 class ParamDef(NamedTuple):
     """
     Contains information about a parameter,
@@ -189,7 +196,7 @@ class ParamAttrDef:
             key: value
             for parent_cls in pyrdl_def.mro()[::-1]
             for key, value in parent_cls.__dict__.items()
-            if key not in _PARAMETRIZED_ATTRIBUTE_DICT_KEYS
+            if key not in _PARAMETRIZED_ATTRIBUTE_DICT_KEYS and not _is_dunder(key)
         }
 
         if "name" not in clsdict:
@@ -401,23 +408,49 @@ class ConstraintConvertible(Generic[AttributeCovT]):
         """The constraint for this instance."""
 
 
-IRDLAttrConstraint: TypeAlias = (
-    AttrConstraint[AttributeInvT]
-    | AttributeInvT
-    | type[AttributeInvT]
-    | "TypeForm[AttributeInvT]"
-    | type[ConstraintConvertible[AttributeInvT]]
-    | ConstraintConvertible[AttributeInvT]
-)
-"""
-Attribute constraints represented using the IRDL python frontend. Attribute constraints
-can either be:
-- An instance of `AttrConstraint` representing a constraint on an attribute.
-- An instance of `Attribute` representing an equality constraint on an attribute.
-- A type representing a specific attribute class.
-- A TypeForm that can represent both unions and generic attributes.
-- An instance or subclass of ConstraintConvertible.
-"""
+# Dynamic check due to a regression in Python 3.14, which broke `|` between types and
+# strings, and a bug in Marimo where the correct version of typing_extensions is not
+# installed due to an old (4.11.0) version of typing_extensions already being present in
+# the Pyodide build.
+# When Marimo update their Pyodide we should delete the second branch.
+# We will likely want to support 3.14.0 for a long time, so we can't remove the first
+# branch even if the `|` bug is fixed in a patch update.
+if sys.version_info >= (3, 14, 0):
+    IRDLAttrConstraint: TypeAlias = (
+        AttrConstraint[AttributeInvT]
+        | AttributeInvT
+        | type[AttributeInvT]
+        | type[ConstraintConvertible[AttributeInvT]]
+        | ConstraintConvertible[AttributeInvT]
+        | TypeForm[AttributeInvT]
+    )
+    """
+    Attribute constraints represented using the IRDL python frontend. Attribute constraints
+    can either be:
+    - An instance of `AttrConstraint` representing a constraint on an attribute.
+    - An instance of `Attribute` representing an equality constraint on an attribute.
+    - A type representing a specific attribute class.
+    - A TypeForm that can represent both unions and generic attributes.
+    - An instance or subclass of ConstraintConvertible.
+    """
+else:
+    IRDLAttrConstraint: TypeAlias = (
+        AttrConstraint[AttributeInvT]
+        | AttributeInvT
+        | type[AttributeInvT]
+        | type[ConstraintConvertible[AttributeInvT]]
+        | ConstraintConvertible[AttributeInvT]
+        | "TypeForm[AttributeInvT]"
+    )
+    """
+    Attribute constraints represented using the IRDL python frontend. Attribute constraints
+    can either be:
+    - An instance of `AttrConstraint` representing a constraint on an attribute.
+    - An instance of `Attribute` representing an equality constraint on an attribute.
+    - A type representing a specific attribute class.
+    - A TypeForm that can represent both unions and generic attributes.
+    - An instance or subclass of ConstraintConvertible.
+    """
 
 
 def irdl_list_to_attr_constraint(

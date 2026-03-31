@@ -1,5 +1,4 @@
-from xdsl.dialects import memref
-from xdsl.dialects.builtin import DenseArrayBase, TensorType, f64, i64
+from xdsl.dialects.builtin import DYNAMIC_INDEX, DenseArrayBase, TensorType, f64, i64
 from xdsl.dialects.stencil import IndexAttr
 from xdsl.dialects.tensor import ExtractSliceOp, InsertSliceOp
 from xdsl.dialects.test import TestOp
@@ -75,10 +74,10 @@ def test_insert_slice_dynamic():
     source_v = create_ssa_value(source_t)
     dest_t = TensorType(f64, [10, 20, 30])
     dest_v = create_ssa_value(dest_t)
-    offset1 = create_ssa_value(IndexAttr.get(3))
-    offset2 = create_ssa_value(IndexAttr.get(15))
-    stride1 = create_ssa_value(IndexAttr.get(2))
-    stride2 = create_ssa_value(IndexAttr.get(5))
+    offset1 = create_ssa_value(IndexAttr.from_indices(3))
+    offset2 = create_ssa_value(IndexAttr.from_indices(15))
+    stride1 = create_ssa_value(IndexAttr.from_indices(2))
+    stride2 = create_ssa_value(IndexAttr.from_indices(5))
 
     insert_slice = InsertSliceOp.get(
         source=source_v,
@@ -89,8 +88,8 @@ def test_insert_slice_dynamic():
     )
 
     assert insert_slice.static_offsets == DenseArrayBase.from_list(
-        i64, 2 * [memref.SubviewOp.DYNAMIC_INDEX]
+        i64, 2 * [DYNAMIC_INDEX]
     )
     assert insert_slice.static_strides == DenseArrayBase.from_list(
-        i64, 2 * [memref.SubviewOp.DYNAMIC_INDEX]
+        i64, 2 * [DYNAMIC_INDEX]
     )

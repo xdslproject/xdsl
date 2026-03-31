@@ -2,7 +2,13 @@ from collections.abc import Sequence
 
 from xdsl.context import Context
 from xdsl.dialects import arith, memref, memref_stream
-from xdsl.dialects.builtin import AffineMapAttr, IntegerAttr, ModuleOp, UnitAttr
+from xdsl.dialects.builtin import (
+    AffineMapAttr,
+    IndexType,
+    IntegerAttr,
+    ModuleOp,
+    UnitAttr,
+)
 from xdsl.ir import Operation, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
@@ -16,7 +22,7 @@ from xdsl.rewriter import InsertPoint
 from xdsl.transforms.loop_nest_lowering_utils import (
     indices_for_map,
     rewrite_generic_to_imperfect_loops,
-    rewrite_generic_to_loops,
+    rewrite_linalg_structured_to_loops,
 )
 
 
@@ -48,7 +54,7 @@ class LowerGenericOpPattern(RewritePattern):
     ) -> None:
         if memref_stream.IteratorTypeAttr.interleaved() in op.iterator_types:
             interleave_factor = op.bounds.data[-1].value.data
-            rewriter.insert_op_before_matched_op(
+            rewriter.insert_op(
                 interleaved_index_ops := tuple(
                     arith.ConstantOp(IntegerAttr.from_index_int_value(i))
                     for i in range(interleave_factor)
@@ -188,10 +194,16 @@ class LowerGenericOpPattern(RewritePattern):
                 insert_store,
             )
         else:
-            rewrite_generic_to_loops(
+            insertion_point = InsertPoint.before(op)
+            index = IndexType()
+            ub_ops = tuple(arith.ConstantOp(IntegerAttr(ub, index)) for ub in outer_ubs)
+            rewriter.insert_op(ub_ops, insertion_point)
+            bound_values = tuple(op.result for op in ub_ops)
+
+            rewrite_linalg_structured_to_loops(
                 rewriter,
-                InsertPoint.before(op),
-                outer_ubs,
+                insertion_point,
+                bound_values,
                 op.indexing_maps.data,
                 op.indexing_maps.data[-len(op.outputs) :],
                 op.operands,

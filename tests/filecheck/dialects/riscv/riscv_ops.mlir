@@ -3,8 +3,8 @@
 
 "builtin.module"() ({
   riscv_func.func @main() {
-    %0 = riscv.get_register : !riscv.reg
-    %1 = riscv.get_register : !riscv.reg
+    %0 = rv32.get_register : !riscv.reg
+    %1 = rv32.get_register : !riscv.reg
     // RV32I/RV64I: 2.4 Integer Computational Instructions
 
     // Integer Register-Immediate Instructions
@@ -32,6 +32,16 @@
     // CHECK-NEXT: %{{.*}} = riscv.auipc 1 : () -> !riscv.reg
     %mv = riscv.mv %0 : (!riscv.reg) -> !riscv.reg
     // CHECK: %{{.*}} = riscv.mv %{{.*}} : (!riscv.reg) -> !riscv.reg
+    %seqz = riscv.seqz %0 : (!riscv.reg) -> !riscv.reg
+    // CHECK: %{{.*}} = riscv.seqz %{{.*}} : (!riscv.reg) -> !riscv.reg
+    %snez = riscv.snez %0 : (!riscv.reg) -> !riscv.reg
+    // CHECK: %{{.*}} = riscv.snez %{{.*}} : (!riscv.reg) -> !riscv.reg
+    %zextb = riscv.zext.b %0 : (!riscv.reg) -> !riscv.reg
+    // CHECK: %{{.*}} = riscv.zext.b %{{.*}} : (!riscv.reg) -> !riscv.reg
+    %zextw = riscv.zext.w %0 : (!riscv.reg) -> !riscv.reg
+    // CHECK: %{{.*}} = riscv.zext.w %{{.*}} : (!riscv.reg) -> !riscv.reg
+    %sextw = riscv.sext.w %0 : (!riscv.reg) -> !riscv.reg
+    // CHECK: %{{.*}} = riscv.sext.w %{{.*}} : (!riscv.reg) -> !riscv.reg
     %srliw = riscv.srliw %0, 1: (!riscv.reg) -> !riscv.reg
     // CHECK-NEXT: %{{.*}} = riscv.srliw %0, 1 : (!riscv.reg) -> !riscv.reg
     %sraiw = riscv.sraiw %0, 1: (!riscv.reg) -> !riscv.reg
@@ -95,8 +105,8 @@
 
     riscv.ret
     // CHECK-NEXT: riscv.ret
-  ^bb0(%2 : !riscv.reg, %3 : !riscv.reg):
-  // CHECK-NEXT: ^bb0(%2 : !riscv.reg, %3 : !riscv.reg):
+  ^bb0(%2: !riscv.reg, %3: !riscv.reg):
+  // CHECK-NEXT: ^bb0(%2: !riscv.reg, %3: !riscv.reg):
 
     // Conditional Branch Instructions
     riscv.beq %0, %1, 1 : (!riscv.reg, !riscv.reg) -> ()
@@ -195,7 +205,7 @@
     // CHECK-NEXT: %{{.*}} = riscv.remw %{{.*}}, %{{.*}} : (!riscv.reg, !riscv.reg) -> !riscv.reg
     %remuw = riscv.remuw %0, %1 : (!riscv.reg, !riscv.reg) -> !riscv.reg
     // CHECK-NEXT: %{{.*}} = riscv.remuw %{{.*}}, %{{.*}} : (!riscv.reg, !riscv.reg) -> !riscv.reg
-    
+
     // RV32B/RV64B:  “B” Standard Extension for Bit Manipulation
 
     %rol = riscv.rol %0, %1 : (!riscv.reg, !riscv.reg) -> !riscv.reg
@@ -254,17 +264,13 @@
     // CHECK-NEXT: %{{.*}} = riscv.minu %{{.*}}, %{{.*}} : (!riscv.reg, !riscv.reg) -> !riscv.reg
 
 
-    // RV32/RV64 Zicond extension for conditional operations 
+    // RV32/RV64 Zicond extension for conditional operations
 
     %czeroeqzop = riscv.czero.eqz %0, %1 : (!riscv.reg, !riscv.reg) -> !riscv.reg
     // CHECK-NEXT: %{{.*}} = riscv.czero.eqz %{{.*}}, %{{.*}} : (!riscv.reg, !riscv.reg) -> !riscv.reg
     %czeronezop = riscv.czero.nez %0, %1 : (!riscv.reg, !riscv.reg) -> !riscv.reg
     // CHECK-NEXT: %{{.*}} = riscv.czero.nez %{{.*}}, %{{.*}} : (!riscv.reg, !riscv.reg) -> !riscv.reg
-    
-    // Assembler pseudo-instructions
 
-    %li = riscv.li 1 : !riscv.reg
-    // CHECK-NEXT: %{{.*}} = riscv.li 1 : !riscv.reg
     // Environment Call and Breakpoints
     riscv.ecall
     // CHECK-NEXT: riscv.ecall
@@ -275,17 +281,17 @@
     riscv.directive ".align" "2"
     // CHECK-NEXT: riscv.directive ".align" "2"
     riscv.assembly_section ".text" attributes {"foo" = i32} {
-      %nested_li = riscv.li 1 : !riscv.reg
+      riscv.nop
     }
     // CHECK-NEXT:  riscv.assembly_section ".text" attributes {foo = i32} {
-    // CHECK-NEXT:    %{{.*}} = riscv.li 1 : !riscv.reg
+    // CHECK-NEXT:    riscv.nop
     // CHECK-NEXT:  }
 
     riscv.assembly_section ".text" {
-      %nested_li = riscv.li 1 : !riscv.reg
+      riscv.nop
     }
     // CHECK-NEXT:  riscv.assembly_section ".text" {
-    // CHECK-NEXT:    %{{.*}} = riscv.li 1 : !riscv.reg
+    // CHECK-NEXT:    riscv.nop
     // CHECK-NEXT:  }
 
     // Custom instruction
@@ -437,6 +443,9 @@
     %fcvt_d_wu = riscv.fcvt.d.wu %0 : (!riscv.reg) -> !riscv.freg
     // CHECK-NEXT: %{{.*}} = riscv.fcvt.d.wu %{{.*}} : (!riscv.reg) -> !riscv.freg
 
+    %mov_int_a, %mov_int_b, %mov_f_a, %mov_f_b = riscv.parallel_mov %0, %1, %f0, %f1 [64, 32, 64, 32] : (!riscv.reg, !riscv.reg, !riscv.freg, !riscv.freg) -> (!riscv.reg, !riscv.reg, !riscv.freg, !riscv.freg)
+    // CHECK-NEXT: %mov_int_a, %mov_int_b, %mov_f_a, %mov_f_b = riscv.parallel_mov %0, %1, %f0, %f1 [64, 32, 64, 32] : (!riscv.reg, !riscv.reg, !riscv.freg, !riscv.freg) -> (!riscv.reg, !riscv.reg, !riscv.freg, !riscv.freg)
+
     // Terminate block
     riscv_func.return
   }
@@ -444,8 +453,8 @@
 
 // CHECK-GENERIC:       "builtin.module"() ({
 // CHECK-GENERIC-NEXT:    "riscv_func.func"() ({
-// CHECK-GENERIC-NEXT:      %0 = "riscv.get_register"() : () -> !riscv.reg
-// CHECK-GENERIC-NEXT:      %1 = "riscv.get_register"() : () -> !riscv.reg
+// CHECK-GENERIC-NEXT:      %0 = "rv32.get_register"() : () -> !riscv.reg
+// CHECK-GENERIC-NEXT:      %1 = "rv32.get_register"() : () -> !riscv.reg
 // CHECK-GENERIC-NEXT:      %addi = "riscv.addi"(%0) {immediate = 1 : si12} : (!riscv.reg) -> !riscv.reg
 // CHECK-GENERIC-NEXT:      %slti = "riscv.slti"(%0) {immediate = 1 : si12} : (!riscv.reg) -> !riscv.reg
 // CHECK-GENERIC-NEXT:      %sltiu = "riscv.sltiu"(%0) {immediate = 1 : si12} : (!riscv.reg) -> !riscv.reg
@@ -458,6 +467,11 @@
 // CHECK-GENERIC-NEXT:      %lui = "riscv.lui"() {immediate = 1 : i20} : () -> !riscv.reg
 // CHECK-GENERIC-NEXT:      %auipc = "riscv.auipc"() {immediate = 1 : i20} : () -> !riscv.reg
 // CHECK-GENERIC-NEXT:      %mv = "riscv.mv"(%0) : (!riscv.reg) -> !riscv.reg
+// CHECK-GENERIC-NEXT:      %seqz = "riscv.seqz"(%0) : (!riscv.reg) -> !riscv.reg
+// CHECK-GENERIC-NEXT:      %snez = "riscv.snez"(%0) : (!riscv.reg) -> !riscv.reg
+// CHECK-GENERIC-NEXT:      %zextb = "riscv.zext.b"(%0) : (!riscv.reg) -> !riscv.reg
+// CHECK-GENERIC-NEXT:      %zextw = "riscv.zext.w"(%0) : (!riscv.reg) -> !riscv.reg
+// CHECK-GENERIC-NEXT:      %sextw = "riscv.sext.w"(%0) : (!riscv.reg) -> !riscv.reg
 // CHECK-GENERIC-NEXT:      %srliw = "riscv.srliw"(%0) {immediate = 1 : ui5} : (!riscv.reg) -> !riscv.reg
 // CHECK-GENERIC-NEXT:      %sraiw = "riscv.sraiw"(%0) {immediate = 1 : si12} : (!riscv.reg) -> !riscv.reg
 // CHECK-GENERIC-NEXT:      %add = "riscv.add"(%0, %1) : (!riscv.reg, !riscv.reg) -> !riscv.reg
@@ -485,7 +499,7 @@
 // CHECK-GENERIC-NEXT:      "riscv.jalr"(%0) {immediate = 1 : si12, rd = !riscv.reg} : (!riscv.reg) -> ()
 // CHECK-GENERIC-NEXT:      "riscv.jalr"(%0) {immediate = #riscv.label<"label">} : (!riscv.reg) -> ()
 // CHECK-GENERIC-NEXT:      "riscv.ret"() : () -> ()
-// CHECK-GENERIC-NEXT:    ^bb0(%2 : !riscv.reg, %3 : !riscv.reg):
+// CHECK-GENERIC-NEXT:    ^bb0(%2: !riscv.reg, %3: !riscv.reg):
 // CHECK-GENERIC-NEXT:      "riscv.beq"(%0, %1) {offset = 1 : si12} : (!riscv.reg, !riscv.reg) -> ()
 // CHECK-GENERIC-NEXT:      "riscv.bne"(%0, %1) {offset = 1 : si12} : (!riscv.reg, !riscv.reg) -> ()
 // CHECK-GENERIC-NEXT:      "riscv.blt"(%0, %1) {offset = 1 : si12} : (!riscv.reg, !riscv.reg) -> ()
@@ -555,16 +569,15 @@
 // CHECK-GENERIC-NEXT:      %minu = "riscv.minu"(%0, %1) : (!riscv.reg, !riscv.reg) -> !riscv.reg
 // CHECK-GENERIC-NEXT:      %czeroeqzop = "riscv.czero.eqz"(%0, %1) : (!riscv.reg, !riscv.reg) -> !riscv.reg
 // CHECK-GENERIC-NEXT:      %czeronezop = "riscv.czero.nez"(%0, %1) : (!riscv.reg, !riscv.reg) -> !riscv.reg
-// CHECK-GENERIC-NEXT:      %li = "riscv.li"() {immediate = 1 : i32} : () -> !riscv.reg
 // CHECK-GENERIC-NEXT:      "riscv.ecall"() : () -> ()
 // CHECK-GENERIC-NEXT:      "riscv.ebreak"() : () -> ()
 // CHECK-GENERIC-NEXT:      "riscv.directive"() {directive = ".bss"} : () -> ()
 // CHECK-GENERIC-NEXT:      "riscv.directive"() {directive = ".align", value = "2"} : () -> ()
 // CHECK-GENERIC-NEXT:      "riscv.assembly_section"() ({
-// CHECK-GENERIC-NEXT:        %nested_li = "riscv.li"() {immediate = 1 : i32} : () -> !riscv.reg
+// CHECK-GENERIC-NEXT:        "riscv.nop"() : () -> ()
 // CHECK-GENERIC-NEXT:      }) {directive = ".text", foo = i32} : () -> ()
 // CHECK-GENERIC-NEXT:      "riscv.assembly_section"() ({
-// CHECK-GENERIC-NEXT:        %nested_li = "riscv.li"() {immediate = 1 : i32} : () -> !riscv.reg
+// CHECK-GENERIC-NEXT:        "riscv.nop"() : () -> ()
 // CHECK-GENERIC-NEXT:      }) {directive = ".text"} : () -> ()
 // CHECK-GENERIC-NEXT:      %custom0, %custom1 = "riscv.custom_assembly_instruction"(%0, %1) {instruction_name = "hello"} : (!riscv.reg, !riscv.reg) -> (!riscv.reg, !riscv.reg)
 // CHECK-GENERIC-NEXT:      %f0 = "riscv.get_float_register"() : () -> !riscv.freg
@@ -627,6 +640,7 @@
 // CHECK-GENERIC-NEXT:      %fmax_d_fm = "riscv.fmax.d"(%f0, %f1) {fastmath = #riscv.fastmath<fast>} : (!riscv.freg, !riscv.freg) -> !riscv.freg
 // CHECK-GENERIC-NEXT:      %fcvt_d_w = "riscv.fcvt.d.w"(%0) : (!riscv.reg) -> !riscv.freg
 // CHECK-GENERIC-NEXT:      %fcvt_d_wu = "riscv.fcvt.d.wu"(%0) : (!riscv.reg) -> !riscv.freg
+// CHECK-GENERIC-NEXT:      %mov_int_a, %mov_int_b, %mov_f_a, %mov_f_b = "riscv.parallel_mov"(%0, %1, %f0, %f1) <{input_widths = array<i32: 64, 32, 64, 32>}> : (!riscv.reg, !riscv.reg, !riscv.freg, !riscv.freg) -> (!riscv.reg, !riscv.reg, !riscv.freg, !riscv.freg)
 // CHECK-GENERIC-NEXT:      "riscv_func.return"() : () -> ()
 // CHECK-GENERIC-NEXT:    }) {sym_name = "main", function_type = () -> ()} : () -> ()
 // CHECK-GENERIC-NEXT:  }) : () -> ()

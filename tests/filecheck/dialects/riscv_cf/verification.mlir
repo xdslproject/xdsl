@@ -4,9 +4,9 @@
 
 "test.op"() ({
     riscv_cf.beq %0 : !riscv.reg<a0>, %1 : !riscv.reg<a1>, ^then(%2 : !riscv.reg<a2>, %3 : !riscv.reg<a3>), ^else(%4 : !riscv.reg<a2>, %5 : !riscv.reg<a3>)
-  ^else(%e0 : !riscv.reg<a2>, %e1 : !riscv.reg<a3>):
+  ^else(%e0: !riscv.reg<a2>, %e1: !riscv.reg<a3>):
     riscv_cf.j ^then(%2 : !riscv.reg<a2>, %3 : !riscv.reg<a3>)
-  ^then(%t0 : !riscv.reg<a2>, %t1 : !riscv.reg<a3>):
+  ^then(%t0: !riscv.reg<a2>, %t1: !riscv.reg<a3>):
     riscv_cf.j ^then(%2 : !riscv.reg<a2>, %3 : !riscv.reg<a3>)
 }) : () -> ()
 
@@ -18,9 +18,9 @@
 
 "test.op"() ({
     riscv_cf.beq %0 : !riscv.reg<a0>, %1 : !riscv.reg<a1>, ^then(%2 : !riscv.reg<a2>, %3 : !riscv.reg<a3>), ^else(%4 : !riscv.reg<a2>, %4 : !riscv.reg<a2>)
-  ^else(%e0 : !riscv.reg<a2>, %e1 : !riscv.reg<a3>):
+  ^else(%e0: !riscv.reg<a2>, %e1: !riscv.reg<a3>):
     riscv_cf.j ^then(%2 : !riscv.reg<a2>, %3 : !riscv.reg<a3>)
-  ^then(%t0 : !riscv.reg<a2>, %t1 : !riscv.reg<a3>):
+  ^then(%t0: !riscv.reg<a2>, %t1: !riscv.reg<a3>):
     riscv.label "label"
     riscv_cf.j ^then(%2 : !riscv.reg<a2>, %3 : !riscv.reg<a3>)
 }) : () -> ()
@@ -33,9 +33,9 @@
 
 "test.op"() ({
     riscv_cf.beq %0 : !riscv.reg<a0>, %1 : !riscv.reg<a1>, ^then(%3 : !riscv.reg<a3>, %3 : !riscv.reg<a3>), ^else(%4 : !riscv.reg<a2>, %5 : !riscv.reg<a3>)
-  ^else(%e0 : !riscv.reg<a2>, %e1 : !riscv.reg<a3>):
+  ^else(%e0: !riscv.reg<a2>, %e1: !riscv.reg<a3>):
     riscv_cf.j ^then(%2 : !riscv.reg<a2>, %3 : !riscv.reg<a3>)
-  ^then(%t0 : !riscv.reg<a2>, %t1 : !riscv.reg<a3>):
+  ^then(%t0: !riscv.reg<a2>, %t1: !riscv.reg<a3>):
     riscv.label "label"
     riscv_cf.j ^then(%2 : !riscv.reg<a2>, %3 : !riscv.reg<a3>)
 }) : () -> ()
@@ -48,10 +48,10 @@
 
 "test.op"() ({
     riscv_cf.beq %0 : !riscv.reg<a0>, %1 : !riscv.reg<a1>, ^then(%2 : !riscv.reg<a2>, %3 : !riscv.reg<a3>), ^else(%4 : !riscv.reg<a2>, %5 : !riscv.reg<a3>)
-  ^then(%t0 : !riscv.reg<a2>, %t1 : !riscv.reg<a3>):
+  ^then(%t0: !riscv.reg<a2>, %t1: !riscv.reg<a3>):
     riscv.label "label"
     riscv_cf.j ^then(%2 : !riscv.reg<a2>, %3 : !riscv.reg<a3>)
-  ^else(%e0 : !riscv.reg<a2>, %e1 : !riscv.reg<a3>):
+  ^else(%e0: !riscv.reg<a2>, %e1: !riscv.reg<a3>):
     riscv_cf.j ^then(%2 : !riscv.reg<a2>, %3 : !riscv.reg<a3>)
 }) : () -> ()
 
@@ -62,9 +62,9 @@
 %0, %1, %2, %3, %4, %5 = "test.op"() : () -> (!riscv.reg<a0>, !riscv.reg<a1>, !riscv.reg<a2>, !riscv.reg<a3>, !riscv.reg<a2>, !riscv.reg<a3>)
 
 "test.op"() ({
-    riscv_cf.branch ^bb0(%0 : !riscv.reg<a0>, %0 : !riscv.reg<a0>)
-  ^bb0(%t0 : !riscv.reg<a2>, %t1 : !riscv.reg<a3>):
-    riscv_cf.j ^bb0(%2 : !riscv.reg<a2>, %3 : !riscv.reg<a3>)
+    riscv_cf.branch ^bb0(%0: !riscv.reg<a0>, %0: !riscv.reg<a0>)
+  ^bb0(%t0: !riscv.reg<a2>, %t1: !riscv.reg<a3>):
+    riscv_cf.j ^bb0(%2: !riscv.reg<a2>, %3: !riscv.reg<a3>)
 }) : () -> ()
 
 // CHECK: Operation does not verify: Block arg types must match !riscv.reg<a0> !riscv.reg<a2>
@@ -75,9 +75,9 @@
 
 "test.op"() ({
     riscv_cf.branch ^bb1(%0 : !riscv.reg<a0>, %1 : !riscv.reg<a1>)
-  ^bb0(%t0 : !riscv.reg<a0>, %t1 : !riscv.reg<a1>):
+  ^bb0(%t0: !riscv.reg<a0>, %t1: !riscv.reg<a1>):
     riscv_cf.j ^bb0(%2 : !riscv.reg<a2>, %3 : !riscv.reg<a3>)
-  ^bb1(%t2 : !riscv.reg<a0>, %t3 : !riscv.reg<a1>):
+  ^bb1(%t2: !riscv.reg<a0>, %t3: !riscv.reg<a1>):
     riscv_cf.j ^bb0(%2 : !riscv.reg<a2>, %3 : !riscv.reg<a3>)
 }) : () -> ()
 
@@ -89,7 +89,7 @@
 
 "test.op"() ({
     riscv_cf.j ^bb0(%1 : !riscv.reg<a1>, %1 : !riscv.reg<a1>)
-  ^bb0(%t0 : !riscv.reg<a0>, %t1 : !riscv.reg<a1>):
+  ^bb0(%t0: !riscv.reg<a0>, %t1: !riscv.reg<a1>):
     riscv.label "label"
     riscv_cf.j ^bb0(%0 : !riscv.reg<a0>, %1 : !riscv.reg<a1>)
 }) : () -> ()
@@ -102,7 +102,7 @@
 
 "test.op"() ({
     riscv_cf.branch ^bb0(%0 : !riscv.reg<a0>, %1 : !riscv.reg<a1>)
-  ^bb0(%t0 : !riscv.reg<a0>, %t1 : !riscv.reg<a1>):
+  ^bb0(%t0: !riscv.reg<a0>, %t1: !riscv.reg<a1>):
     riscv_cf.j ^bb0(%0 : !riscv.reg<a0>, %1 : !riscv.reg<a1>)
 }) : () -> ()
 

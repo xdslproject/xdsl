@@ -63,7 +63,7 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(Parser, ctx):
     _before_text = """\
-    func.func @my_func(%x : index) -> index {
+    func.func @my_func(%x: index) -> index {
       %c0 = arith.constant 0 : index
       %c2 = arith.constant 2 : index
       %also_x = arith.addi %c0, %x : index
@@ -79,7 +79,7 @@ def _(Parser, ctx):
 @app.cell(hide_code=True)
 def _(Parser, ctx):
     _after_text = """\
-    func.func @my_func(%x : index) -> index {
+    func.func @my_func(%x: index) -> index {
       %two_x = arith.addi %x, %x : index
       func.return %two_x : index
     }
@@ -161,7 +161,7 @@ def _(
             # The second argument is the replacement for the results of the matched
             # operation (op). As we replace `x + 0` with `x`, we replace the
             # `arith.addi` results with its first argument.
-            rewriter.replace_matched_op([], new_results=[op.lhs])
+            rewriter.replace_op(op, [], new_results=[op.lhs])
 
     # The rewrite x * 2 -> x + x
     class MulTwoPattern(RewritePattern):
@@ -183,7 +183,7 @@ def _(
             # The results of the `arith.muli` operation are by default the results of the
             # last operation added, so here the `arith.addi`
             add = AddiOp(x, x)
-            rewriter.replace_matched_op([add])
+            rewriter.replace_op(op, [add])
     return AddZeroPattern, MulTwoPattern
 
 

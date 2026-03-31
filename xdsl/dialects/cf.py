@@ -19,7 +19,6 @@ from xdsl.irdl import (
     IRDLOperation,
     Successor,
     VarOperand,
-    attr_def,
     irdl_op_definition,
     operand_def,
     opt_prop_def,
@@ -64,7 +63,7 @@ class AssertOp(IRDLOperation):
     name = "cf.assert"
 
     arg = operand_def(IntegerType(1))
-    msg = attr_def(StringAttr)
+    msg = prop_def(StringAttr)
 
     traits = traits_def(AssertHasCanonicalizationPatterns())
 
@@ -73,7 +72,7 @@ class AssertOp(IRDLOperation):
             msg = StringAttr(msg)
         super().__init__(
             operands=[arg],
-            attributes={"msg": msg},
+            properties={"msg": msg},
         )
 
     assembly_format = "$arg `,` $msg attr-dict"
@@ -135,7 +134,7 @@ class ConditionalBranchOp(IRDLOperation):
     then_arguments = var_operand_def()
     else_arguments = var_operand_def()
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
     then_block = successor_def()
     else_block = successor_def()
@@ -342,7 +341,7 @@ class SwitchOp(IRDLOperation):
 
     case_blocks = var_successor_def()
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
     traits = traits_def(IsTerminator(), Pure(), SwitchOpHasCanonicalizationPatterns())
 

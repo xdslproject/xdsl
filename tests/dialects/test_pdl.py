@@ -3,7 +3,7 @@ import pytest
 import xdsl.dialects.pdl as pdl
 from xdsl.builder import Builder
 from xdsl.dialects.builtin import ArrayAttr, IntegerAttr, StringAttr, i32, i64
-from xdsl.ir import Block
+from xdsl.ir import Block, Region
 from xdsl.irdl import IRDLOperation, irdl_op_definition, traits_def
 from xdsl.traits import HasParent, IsTerminator
 from xdsl.utils.exceptions import VerifyException
@@ -31,6 +31,11 @@ def test_build_anc():
 
     assert anc.constraint_name == StringAttr("anc")
     assert anc.args == (type_val,)
+    assert bool(anc.is_negated.value.data) is False
+
+    anc2 = pdl.ApplyNativeConstraintOp("anc", [type_val], [], is_negated=True)
+    assert bool(anc2.is_negated.value.data) is True
+    assert anc2.args == (type_val,)
 
 
 def test_build_anr():
@@ -43,18 +48,16 @@ def test_build_anr():
 
 
 def test_build_rewrite():
-    r = pdl.RewriteOp(
-        name="r", root=None, external_args=[type_val, attr_val], body=None
-    )
+    r = pdl.RewriteOp(name="r", root=None, external_args=[type_val, attr_val])
 
     assert r.name_ == StringAttr("r")
     assert r.external_args == (type_val, attr_val)
     assert len(r.results) == 0
-    assert r.body is None
+    assert r.body.is_structurally_equivalent(Region(Block()))
 
     r1 = pdl.RewriteOp(name="r", root=None, external_args=[type_val, attr_val])
 
-    assert r1.body is not None
+    assert r1.body.is_structurally_equivalent(Region(Block()))
 
 
 def test_build_operation_replace():
@@ -105,7 +108,7 @@ def test_build_pattern():
 
     pattern = pdl.PatternOp(1, "pattern", body)
 
-    assert pattern.benefit == IntegerAttr.from_int_and_width(1, 16)
+    assert pattern.benefit == IntegerAttr(1, 16)
     assert pattern.sym_name == StringAttr("pattern")
     assert pattern.body is body
 
@@ -139,9 +142,9 @@ def test_build_pattern():
 
 
 def test_build_result():
-    res = pdl.ResultOp(IntegerAttr.from_int_and_width(1, 32), parent=op_val)
+    res = pdl.ResultOp(IntegerAttr(1, 32), parent=op_val)
 
-    assert res.index == IntegerAttr.from_int_and_width(1, 32)
+    assert res.index == IntegerAttr(1, 32)
     assert res.parent_ == op_val
 
 
@@ -154,18 +157,18 @@ def test_build_resultS():
 
 
 def test_build_results_with_index():
-    res = pdl.ResultsOp(op_val, IntegerAttr.from_int_and_width(1, 32))
+    res = pdl.ResultsOp(op_val, IntegerAttr(1, 32))
 
     assert res.parent_ == op_val
-    assert res.index == IntegerAttr.from_int_and_width(1, 32)
+    assert res.index == IntegerAttr(1, 32)
     assert res.val.type == pdl.RangeType(pdl.ValueType())
 
 
 def test_build_results_with_index_and_type():
-    res = pdl.ResultsOp(op_val, IntegerAttr.from_int_and_width(1, 32), pdl.ValueType())
+    res = pdl.ResultsOp(op_val, IntegerAttr(1, 32), pdl.ValueType())
 
     assert res.parent_ == op_val
-    assert res.index == IntegerAttr.from_int_and_width(1, 32)
+    assert res.index == IntegerAttr(1, 32)
     assert res.val.type == pdl.ValueType()
 
 

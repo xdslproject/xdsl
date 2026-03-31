@@ -43,6 +43,7 @@ from xdsl.dialects.smt import (
     YieldOp,
 )
 from xdsl.ir import Block, Region
+from xdsl.traits import ConstantLike
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.test_value import create_ssa_value
 
@@ -51,10 +52,12 @@ def test_constant_bool():
     op = ConstantBoolOp(True)
     assert op.value is True
     assert op.value_attr == IntegerAttr(-1, 1)
+    assert ConstantLike.get_constant_value(op.result) == IntegerAttr(-1, 1)
 
     op = ConstantBoolOp(False)
     assert op.value is False
     assert op.value_attr == IntegerAttr(0, 1)
+    assert ConstantLike.get_constant_value(op.result) == IntegerAttr(0, 1)
 
 
 def test_bv_type():
@@ -182,14 +185,17 @@ def test_bv_constant_op():
     op = BvConstantOp(bv_attr)
     assert op.value == bv_attr
     assert op.result.type == BitVectorType(32)
+    assert ConstantLike.get_constant_value(op.result) == bv_attr
 
     op2 = BvConstantOp(42, 32)
     assert op2.value == bv_attr
     assert op2.result.type == BitVectorType(32)
+    assert ConstantLike.get_constant_value(op2.result) == bv_attr
 
     op3 = BvConstantOp(42, BitVectorType(32))
     assert op3.value == bv_attr
     assert op3.result.type == BitVectorType(32)
+    assert ConstantLike.get_constant_value(op3.result) == bv_attr
 
 
 @pytest.mark.parametrize("op_type", [BVNotOp, BVNegOp])

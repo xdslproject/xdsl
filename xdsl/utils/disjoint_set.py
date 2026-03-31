@@ -75,6 +75,27 @@ class IntDisjointSet:
 
         return root
 
+    def union_left(self, lhs: int, rhs: int) -> bool:
+        """
+        Merge the sets containing the two given values, with `rhs`'s tree being attached to `lhs`'s tree.
+        Returns True if the sets were merged, False if they were already the same set.
+
+        In contrast to `union`, this does not do union by size - the `rhs` set is always
+        attached to the `lhs` set. This is useful when we want to control
+        which element becomes the representative of the merged set.
+        """
+        lhs = self[lhs]
+        rhs = self[rhs]
+        if lhs == rhs:
+            return False
+
+        lhs_count = self._count[lhs]
+        rhs_count = self._count[rhs]
+        self._parent[rhs] = lhs
+        self._count[lhs] = lhs_count + rhs_count
+        # Note: We don't need to update _count[rhs] since it's no longer a root
+        return True
+
     def union(self, lhs: int, rhs: int) -> bool:
         """
         Merges the sets containing lhs and rhs if they are different.
@@ -153,6 +174,23 @@ class DisjointSet(Generic[_T]):
         """
         index = self._base[self._index_by_value[value]]
         return self._values[index]
+
+    def union_left(self, lhs: _T, rhs: _T) -> bool:
+        """
+        Merge the sets containing the two given values, with `rhs`'s tree being attached to `lhs`'s tree.
+        Returns True if the sets were merged, False if they were already the same set.
+
+        In contrast to `union`, this does not do union by size - the `rhs` set is always
+        attached to the `lhs` set. This is useful when we want to control
+        which element becomes the representative of the merged set.
+
+        Raises:
+            KeyError: If either value is not in the disjoint set
+        """
+        return self._base.union_left(
+            self._index_by_value[lhs],
+            self._index_by_value[rhs],
+        )
 
     def union(self, lhs: _T, rhs: _T) -> bool:
         """

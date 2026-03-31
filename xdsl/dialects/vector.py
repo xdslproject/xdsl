@@ -4,6 +4,7 @@ from abc import ABC
 from collections.abc import Mapping, Sequence
 from collections.abc import Set as AbstractSet
 from dataclasses import dataclass
+from math import prod
 from typing import ClassVar, cast
 
 from typing_extensions import TypeVar, deprecated
@@ -18,6 +19,7 @@ from xdsl.dialects.builtin import (
     ArrayAttr,
     BoolAttr,
     DenseArrayBase,
+    FixedBitwidthType,
     IndexType,
     IndexTypeConstr,
     IntAttr,
@@ -48,12 +50,15 @@ from xdsl.ir import (
 from xdsl.ir.affine import AffineConstantExpr, AffineDimExpr, AffineMap
 from xdsl.irdl import (
     AnyAttr,
+    AtLeast,
     AttrConstraint,
     AttrSizedOperandSegments,
     ConstraintContext,
     IntConstraint,
     IRDLOperation,
+    MessageConstraint,
     ParsePropInAttrDict,
+    RangeOf,
     VarConstraint,
     base,
     irdl_attr_definition,
@@ -87,7 +92,7 @@ class LoadOp(IRDLOperation):
     result = result_def(VectorType)
     nontemporal = opt_prop_def(BoolAttr, default_value=BoolAttr.from_bool(False))
 
-    irdl_options = [ParsePropInAttrDict()]
+    irdl_options = (ParsePropInAttrDict(),)
     assembly_format = (
         "$base `[` $indices `]` attr-dict `:` type($base) `,` type($result)"
     )
@@ -132,7 +137,7 @@ class StoreOp(IRDLOperation):
     indices = var_operand_def(IndexType)
     nontemporal = opt_prop_def(BoolAttr, default_value=BoolAttr.from_bool(False))
 
-    irdl_options = [ParsePropInAttrDict()]
+    irdl_options = (ParsePropInAttrDict(),)
     assembly_format = (
         "$vector `,` $base `[` $indices `]` attr-dict `:` type($base) `,` type($vector)"
     )
@@ -289,7 +294,7 @@ class ShuffleOp(IRDLOperation):
     mask = prop_def(MASK)
     result = result_def(RES)
 
-    irdl_options = [ParsePropInAttrDict()]
+    irdl_options = (ParsePropInAttrDict(),)
     traits = traits_def(NoMemoryEffect())
 
     assembly_format = "operands $mask attr-dict `:` type(operands)"
@@ -601,7 +606,16 @@ class ExtractOp(IRDLOperation):
     vector = operand_def(_V)
     dynamic_position = var_operand_def(IndexTypeConstr)
 
-    result = result_def(VectorType.constr(_T) | _T)
+    result = result_def(
+        VectorType.constr(
+            _T,
+            shape=MessageConstraint(
+                ArrayAttr.constr(RangeOf(base(IntAttr)).of_length(AtLeast(1))),
+                "Cannot extract 0d vector.",
+            ),
+        )
+        | _T
+    )
 
     traits = traits_def(Pure())
 
@@ -727,7 +741,16 @@ class InsertOp(IRDLOperation):
 
     static_position = prop_def(DenseArrayBase.constr(i64))
 
-    source = operand_def(VectorType.constr(_T) | _T)
+    source = operand_def(
+        VectorType.constr(
+            _T,
+            shape=MessageConstraint(
+                ArrayAttr.constr(RangeOf(base(IntAttr)).of_length(AtLeast(1))),
+                "Cannot insert 0d vector.",
+            ),
+        )
+        | _T
+    )
     dest = operand_def(_V)
     dynamic_position = var_operand_def(IndexTypeConstr)
 
@@ -1161,7 +1184,10 @@ class TransferReadOp(VectorTransferOperation):
 
     result = result_def(VectorType)
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True), ParsePropInAttrDict()]
+    irdl_options = (
+        AttrSizedOperandSegments(as_property=True),
+        ParsePropInAttrDict(),
+    )
 
     def __init__(
         self,
@@ -1311,7 +1337,10 @@ class TransferWriteOp(VectorTransferOperation):
 
     result = opt_result_def(TensorType)
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True), ParsePropInAttrDict()]
+    irdl_options = (
+        AttrSizedOperandSegments(as_property=True),
+        ParsePropInAttrDict(),
+    )
 
     def __init__(
         self,
@@ -1514,9 +1543,76 @@ class ReductionOp(IRDLOperation):
         )
 
 
+@irdl_op_definition
+class BitcastOp(IRDLOperation):
+    """
+    Bitcast between vectors.
+
+    See [external documentation](https://mlir.llvm.org/docs/Dialects/Vector/#vectorbitcast-vectorbitcastop).
+    """
+
+    name = "vector.bitcast"
+
+    source = operand_def(
+        VectorType.constr(base(IntegerType) | base(IndexType) | AnyFloatConstr)
+    )
+    result = result_def(
+        VectorType.constr(base(IntegerType) | base(IndexType) | AnyFloatConstr)
+    )
+
+    assembly_format = "$source attr-dict `:` type($source) `to` type($result)"
+
+    def __init__(
+        self,
+        source: SSAValue | Operation,
+        result_type: Attribute,
+    ):
+        super().__init__(
+            operands=[source],
+            result_types=[result_type],
+        )
+
+    def verify_(self) -> None:
+        s_t = self.source.type
+        r_t = self.result.type
+
+        assert isa(s_t, VectorType)
+        assert isa(r_t, VectorType)
+
+        s_elem_t = s_t.get_element_type()
+        r_elem_t = r_t.get_element_type()
+        s_shape = s_t.get_shape()
+        r_shape = r_t.get_shape()
+
+        # technically only support index -> index conversions if sizes unknown,
+        # and they must have the same shape
+        s_elem_t_sized = isinstance(s_elem_t, FixedBitwidthType)
+        r_elem_t_sized = isinstance(r_elem_t, FixedBitwidthType)
+
+        if not s_elem_t_sized or not r_elem_t_sized:
+            # if they are both unsized and have the same shape
+            if not (s_elem_t_sized ^ r_elem_t_sized) and s_shape == r_shape:
+                return
+
+            raise VerifyException(
+                "For element types of undefined bitwidth, expect "
+                + "both types to have undefined bitwidth and shape to be equal"
+            )
+
+        source_size = prod(s_shape) * s_elem_t.bitwidth
+        result_size = prod(r_shape) * r_elem_t.bitwidth
+
+        # if sizes are known, they must match perfectly
+        if not source_size == result_size:
+            raise VerifyException(
+                "The source and result types do not have an equal bitwidth"
+            )
+
+
 Vector = Dialect(
     "vector",
     [
+        BitcastOp,
         BroadcastOp,
         CreateMaskOp,
         ExtractElementOp,

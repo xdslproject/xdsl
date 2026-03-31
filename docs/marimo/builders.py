@@ -77,7 +77,7 @@ def _(AddiOp, c0):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""Generally, it is recommended to look at the definition of the operation you would like to create to see the API. Here is the xDSL generated documentation for the [`arith` dialect](https://xdsl.readthedocs.io/stable/reference/dialects/arith/) and the [`scf` dialect](https://xdsl.readthedocs.io/stable/reference/dialects/scf/).""")
+    mo.md(r"""Generally, it is recommended to look at the definition of the operation you would like to create to see the API. Here is the xDSL generated documentation for the [`arith` dialect](https://docs.xdsl.dev/reference/dialects/arith/) and the [`scf` dialect](https://docs.xdsl.dev/reference/dialects/scf/).""")
     return
 
 

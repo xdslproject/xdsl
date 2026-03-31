@@ -6,8 +6,10 @@ from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing import IO, Literal, cast
 
+from xdsl.context import Context
 from xdsl.dialects import arith, csl, memref, scf
 from xdsl.dialects.builtin import (
+    DYNAMIC_INDEX,
     ArrayAttr,
     DenseIntOrFPElementsAttr,
     DictionaryAttr,
@@ -34,6 +36,7 @@ from xdsl.irdl import Operand
 from xdsl.traits import is_side_effect_free
 from xdsl.utils.comparisons import to_unsigned
 from xdsl.utils.hints import isa
+from xdsl.utils.target import Target
 
 _CSL_KW_SET = {
     "align",
@@ -339,7 +342,7 @@ class CslPrintContext:
         We need to get the SSAValue passed here, as for unknown sizes, we need to put the
         variable name in the type.
 
-        For every unknown size (-1) in the shape, we look up the corresponding operand to the value
+        For every unknown size (DYNAMIC_INDEX) in the shape, we look up the corresponding operand to the value
         that created the memref (e.g. memref.alloc, csl.constants, ...)
         """
         type = val.type
@@ -350,7 +353,7 @@ class CslPrintContext:
         dims: list[str] = []
         idx = 0
         for dim in type.get_shape():
-            if dim == -1:
+            if dim == DYNAMIC_INDEX:
                 dims.append(self.variables[val.owner.operands[idx]])
                 idx += 1
             else:
@@ -395,7 +398,7 @@ class CslPrintContext:
             case IntegerType():
                 return f"i{cast(IntegerType, type_attr).width.data}"
             case MemRefType(element_type=Attribute() as elem_t, shape=shape):
-                if any(dim.data == -1 for dim in shape):
+                if any(dim.data == DYNAMIC_INDEX for dim in shape):
                     raise ValueError(
                         "Can't print memrefs using mlir_type_to_csl_type if they have dynamic sizes. "
                         "Use _memref_type_to_string instead"
@@ -905,3 +908,11 @@ def print_to_csl(
         divider = True
         ctx.print("// FILE: " + module.sym_name.data)
         ctx.print_block(module.body.block)
+
+
+@dataclass(frozen=True)
+class CSLTarget(Target):
+    name = "csl"
+
+    def emit(self, ctx: Context, module: ModuleOp, output: IO[str]) -> None:
+        print_to_csl(module, output)

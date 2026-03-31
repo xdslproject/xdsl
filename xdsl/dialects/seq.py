@@ -103,7 +103,7 @@ class CompRegOp(IRDLOperation):
     power_on_value = opt_operand_def(DATA_TYPE)
     data = result_def(DATA_TYPE)
 
-    irdl_options = [AttrSizedOperandSegments()]
+    irdl_options = (AttrSizedOperandSegments(),)
 
     assembly_format = (
         "(`sym` $inner_sym^)? $input `,` $clk "

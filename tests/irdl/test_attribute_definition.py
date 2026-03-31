@@ -472,7 +472,7 @@ _T = TypeVar("_T", bound=BoolData | IntData)
 
 
 @irdl_attr_definition
-class ParamWrapperAttr(Generic[_T], ParametrizedAttribute):
+class ParamWrapperAttr(ParametrizedAttribute, Generic[_T]):
     name = "test.int_or_bool_generic"
 
     param: _T
@@ -536,7 +536,7 @@ _U = TypeVar("_U", bound=IntData)
 
 
 @irdl_attr_definition
-class NestedParamWrapperAttr(Generic[_U], ParametrizedAttribute):
+class NestedParamWrapperAttr(ParametrizedAttribute, Generic[_U]):
     name = "test.nested_param_wrapper"
 
     param: ParamWrapperAttr[_U]
@@ -645,7 +645,7 @@ def test_informative_constraint():
 
 
 @irdl_attr_definition
-class ListData(Generic[AttributeInvT], GenericData[tuple[AttributeInvT, ...]]):
+class ListData(GenericData[tuple[AttributeInvT, ...]], Generic[AttributeInvT]):
     name = "test.list"
 
     @classmethod
@@ -876,7 +876,7 @@ def test_custom_constructor():
 
 
 @irdl_attr_definition
-class GenericAttr(Generic[AttributeInvT], ParametrizedAttribute):
+class GenericAttr(ParametrizedAttribute, Generic[AttributeInvT]):
     name = "test.generic_attr"
 
     param: AttributeInvT

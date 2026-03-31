@@ -589,7 +589,7 @@ class AllocmemOp(IRDLOperation):
     result_0 = result_def()
     regs = var_region_def()
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
 
 @irdl_op_definition
@@ -666,7 +666,7 @@ class AllocaOp(IRDLOperation):
     valuebyref = opt_prop_def(UnitAttr)
     pinned = opt_prop_def(UnitAttr)
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
 
 @irdl_op_definition
@@ -1434,7 +1434,7 @@ class DoLoopOp(IRDLOperation):
     _results = var_result_def()
     regs = var_region_def()
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
 
 @irdl_op_definition
@@ -1572,7 +1572,7 @@ class EmboxOp(IRDLOperation):
     result_0 = result_def()
     regs = var_region_def()
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
 
 @irdl_op_definition
@@ -2019,7 +2019,7 @@ class ReboxOp(IRDLOperation):
     result_0 = result_def()
     regs = var_region_def()
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
 
 @irdl_op_definition
@@ -2033,7 +2033,7 @@ class ResultOp(IRDLOperation):
 
     name = "fir.result"
     regs = var_region_def()
-    _results = opt_operand_def()
+    _results = var_operand_def()
 
     traits = traits_def(IsTerminator())
 

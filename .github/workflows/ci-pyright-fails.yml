@@ -22,10 +22,10 @@ jobs:
       PYRIGHT_VERSION: 1.0
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v6
+        uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
           cache-dependency-glob: "uv.lock"
@@ -44,7 +44,7 @@ jobs:
         run: xdsl-stubgen
 
       - name: Pyright
-        uses: jakebailey/pyright-action@v2
+        uses: jakebailey/pyright-action@v3
         with:
           version: PATH
           venv-path: .venv

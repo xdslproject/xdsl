@@ -354,7 +354,7 @@ _T = TypeVar("_T", bound=Attribute)
 
 
 @irdl_attr_definition
-class MyParamAttr(Generic[_T], ParametrizedAttribute):
+class MyParamAttr(ParametrizedAttribute, Generic[_T]):
     name = "test.param"
 
     v: _T

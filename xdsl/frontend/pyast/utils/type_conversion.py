@@ -102,6 +102,32 @@ class TypeRegistry:
         return self._mapping.get(annotation, None)
 
 
+class LiteralRegistry:
+    """A mapping between Python literals and IR operation constructors."""
+
+    def __init__(self):
+        """Instantiate the literal registry."""
+        self._mapping: dict[type[object], Callable[[Any], Operation]] = {}
+
+    def insert(
+        self, value_type: type[object], ir_constructor: Callable[[Any], Operation]
+    ) -> None:
+        """Insert a relation between a Python literal type and IR operation constructor."""
+        if value_type in self._mapping:
+            raise FrontendProgramException(
+                f"Cannot re-register literal type '{value_type.__qualname__}'"
+            )
+        self._mapping[value_type] = ir_constructor
+
+    def resolve_operation(self, value: Any) -> Operation | None:
+        """Get a concrete IR operation for a literal value."""
+        value_type = cast(type[object], type(value))
+        constructor = self._mapping.get(value_type)
+        if constructor is not None:
+            return constructor(value)
+        return None
+
+
 @dataclass
 class TypeConverter:
     """Responsible for conversion of Python type hints to xDSL types."""
@@ -118,3 +144,6 @@ class TypeConverter:
 
     function_registry: FunctionRegistry = field(default_factory=FunctionRegistry)
     """Mappings between methods on objects and their operations."""
+
+    literal_registry: LiteralRegistry = field(default_factory=LiteralRegistry)
+    """Mappings between literal types and their operation constructors."""

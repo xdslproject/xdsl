@@ -1,13 +1,11 @@
 import pytest
 
-from xdsl.utils.exceptions import PassPipelineParseError
-from xdsl.utils.parse_pipeline import (
+from xdsl.utils.arg_spec import (
     PipelineLexer,
-    Token,
+    SpecTokenKind,
     parse_pipeline,
 )
-
-Kind = Token.Kind
+from xdsl.utils.exceptions import ArgSpecParseError
 
 generator = PipelineLexer._generator  # pyright: ignore[reportPrivateUsage]
 
@@ -20,16 +18,16 @@ def test_pass_lexer():
     )
 
     assert [t.kind for t in tokens] == [
-        Kind.IDENT, Kind.COMMA,  # pass-1,
-        Kind.IDENT, Kind.L_BRACE,  # pass-2{
-        Kind.IDENT, Kind.EQUALS, Kind.NUMBER, Kind.SPACE,  # arg1=1
-        Kind.IDENT, Kind.EQUALS, Kind.IDENT, Kind.SPACE,  # arg2=test
-        Kind.IDENT, Kind.EQUALS, Kind.STRING_LIT, Kind.SPACE,  # arg3="test-str"
-        Kind.IDENT, Kind.EQUALS, Kind.NUMBER, Kind.SPACE,  # arg-4=-34.4e-12
-        Kind.IDENT,  # no-val-arg
-        Kind.R_BRACE, Kind.COMMA,  # },
-        Kind.IDENT,  # pass-3
-        Kind.EOF,
+        SpecTokenKind.IDENT, SpecTokenKind.COMMA,  # pass-1,
+        SpecTokenKind.IDENT, SpecTokenKind.L_BRACE,  # pass-2{
+        SpecTokenKind.IDENT, SpecTokenKind.EQUALS, SpecTokenKind.NUMBER, SpecTokenKind.SPACE,  # arg1=1
+        SpecTokenKind.IDENT, SpecTokenKind.EQUALS, SpecTokenKind.IDENT, SpecTokenKind.SPACE,  # arg2=test
+        SpecTokenKind.IDENT, SpecTokenKind.EQUALS, SpecTokenKind.STRING_LIT, SpecTokenKind.SPACE,  # arg3="test-str"
+        SpecTokenKind.IDENT, SpecTokenKind.EQUALS, SpecTokenKind.NUMBER, SpecTokenKind.SPACE,  # arg-4=-34.4e-12
+        SpecTokenKind.IDENT,  # no-val-arg
+        SpecTokenKind.R_BRACE, SpecTokenKind.COMMA,  # },
+        SpecTokenKind.IDENT,  # pass-3
+        SpecTokenKind.EOF,
     ]  # fmt: skip
 
     assert tokens[-2].span.text == "pass-3"
@@ -41,10 +39,10 @@ def test_pass_lexer():
 
 
 def test_pass_lex_errors():
-    with pytest.raises(PassPipelineParseError, match="Unknown token"):
+    with pytest.raises(ArgSpecParseError, match="Unknown token"):
         list(generator("pass-1["))
 
-    with pytest.raises(PassPipelineParseError, match="Unknown token"):
+    with pytest.raises(ArgSpecParseError, match="Unknown token"):
         list(generator("pass-1{thing$=1}"))
 
 
@@ -66,7 +64,7 @@ def test_pass_parser_argument_dict_edge_cases(
     passes = list(parse_pipeline(input_str))
     assert len(passes) == 1
     assert passes[0].name == pass_name
-    assert set(passes[0].args.keys()) == pass_arg_names
+    assert set(passes[0].parameters.keys()) == pass_arg_names
 
 
 @pytest.mark.parametrize(
@@ -79,7 +77,7 @@ def test_pass_parser_argument_dict_edge_cases(
     ],
 )
 def test_pass_parser_cases_fail(input_str: str):
-    with pytest.raises(PassPipelineParseError):
+    with pytest.raises(ArgSpecParseError):
         list(parse_pipeline(input_str))
 
 
@@ -88,36 +86,37 @@ def test_pass_parse_errors():
     This test triggers all parse errors in the parser in the same order they appear
     in the source file.
     """
-    with pytest.raises(PassPipelineParseError, match="Expected pass name here"):
+    with pytest.raises(ArgSpecParseError, match="Expected pass name here"):
         # numbers are not valid pass names!
         list(parse_pipeline("1"))
 
     with pytest.raises(
-        PassPipelineParseError, match="Expected a comma or pass arguments here"
+        ArgSpecParseError, match="Expected a comma or pass arguments here"
     ):
         list(parse_pipeline("pass-1="))
 
     with pytest.raises(
-        PassPipelineParseError, match="Expected a comma after pass argument dict here"
+        ArgSpecParseError,
+        match="Expected a comma after pass argument dict here",
     ):
         list(parse_pipeline("pass-1{arg1=1}="))
 
-    with pytest.raises(PassPipelineParseError, match="Expected argument name here"):
+    with pytest.raises(ArgSpecParseError, match="Expected argument name here"):
         # numbers are not valid argument names
         list(parse_pipeline("pass-1{1=1}"))
 
     with pytest.raises(
-        PassPipelineParseError,
+        ArgSpecParseError,
         match="Expected equals, space or end of arguments here",
     ):
         # we don't support the case where there is no `=` after the arg name (yet)
         list(parse_pipeline("pass-1{arg1{1}"))
 
     with pytest.raises(
-        PassPipelineParseError,
+        ArgSpecParseError,
         match="Malformed pass arguments, expected either a space or `}` here",
     ):
         list(parse_pipeline("pass-1{arg1=1=}"))
 
-    with pytest.raises(PassPipelineParseError, match="Unknown argument value"):
+    with pytest.raises(ArgSpecParseError, match="Unknown argument value"):
         list(parse_pipeline("pass-1{arg1={}}"))

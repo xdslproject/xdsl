@@ -106,7 +106,7 @@ class SubstituteDonatedTensors(RewritePattern):
         func_op.function_type = FunctionType.from_lists(
             func_op.function_type.inputs.data, return_types
         )
-        rewriter.replace_matched_op(new_ops)
+        rewriter.replace_op(op, new_ops)
 
         # remove the donation attribute to avoid their reuse if we run the pass multiple times on the same function
         used_donated_arguments = set(donated_input_by_output.values())

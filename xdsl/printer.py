@@ -2,15 +2,17 @@ from __future__ import annotations
 
 import json
 import math
-from collections.abc import Callable, Iterable, Mapping, Sequence
+from collections.abc import Callable, Generator, Iterable, Mapping, Sequence
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from itertools import chain
 from typing import Any, cast
 
 from typing_extensions import TypeVar, deprecated
 
-from xdsl.dialect_interfaces import OpAsmDialectInterface
+from xdsl.dialect_interfaces.op_asm import OpAsmDialectInterface
 from xdsl.dialects.builtin import (
+    DYNAMIC_INDEX,
     AnyFloat,
     BuiltinAttribute,
     ComplexType,
@@ -21,7 +23,6 @@ from xdsl.dialects.builtin import (
     IndexType,
     IntegerType,
     UnitAttr,
-    UnknownLoc,
     UnregisteredOp,
     i1,
 )
@@ -57,6 +58,7 @@ class Printer(BasePrinter):
     print_properties_as_attributes: bool = field(default=False)
     print_debuginfo: bool = field(default=False)
     diagnostic: Diagnostic = field(default_factory=Diagnostic)
+    printing_location: bool = field(default=False)
 
     _ssa_values: dict[SSAValue, str] = field(
         default_factory=dict[SSAValue, str], init=False
@@ -238,11 +240,11 @@ class Printer(BasePrinter):
         """
         self.print_ssa_value(arg)
         if print_type:
-            self.print_string(" : ")
+            self.print_string(": ")
             self.print_attribute(arg.type)
             if self.print_debuginfo:
                 self.print_string(" ")
-                self.print_attribute(UnknownLoc())
+                self.print_attribute(arg.location)
 
     def print_region(
         self,
@@ -409,6 +411,22 @@ class Printer(BasePrinter):
         else:
             self.print_string(f"{value:d}")
 
+    def print_dimension_list(self, dims: Sequence[int]):
+        """
+        Prints the dimension list of a shape, ending with a dimension.
+
+        e.g.:
+          Input: [5, 1, DYNAMIC_INDEX, 4]
+          Prints: "5x1x?x4"
+        """
+        self.print_list(
+            dims,
+            lambda x: (
+                self.print_int(x) if x != DYNAMIC_INDEX else self.print_string("?")
+            ),
+            "x",
+        )
+
     def print_attribute(self, attribute: Attribute) -> None:
         # Print builtin attributes
         if isinstance(attribute, BuiltinAttribute):
@@ -566,7 +584,7 @@ class Printer(BasePrinter):
         self.print_function_type(op.operand_types, op.result_types)
         if self.print_debuginfo:
             self.print_string(" ")
-            self.print_attribute(UnknownLoc())
+            self.print_attribute(op.location)
 
     def enter_scope(self) -> None:
         self._next_valid_name_id.append(self._next_valid_name_id[-1])
@@ -607,6 +625,9 @@ class Printer(BasePrinter):
             op.attributes["op_name__"] = op_name
         elif use_custom_format:
             op.print(self)
+            if self.print_debuginfo:
+                self.print_string(" ")
+                self.print_attribute(op.location)
         else:
             self.print_op_with_default_format(op)
         if scope:
@@ -676,3 +697,21 @@ class Printer(BasePrinter):
         """
         self.print_string("@")
         self.print_identifier_or_string_literal(sym_name)
+
+    @contextmanager
+    def in_location(self) -> Generator[None, None, None]:
+        """
+        Provides a context for printing locations. As some locations are
+        recursive and only the top-level location should be wrapped in `loc()`,
+        the printer maintains a state to determine whether a context is already
+        being printed.
+        """
+        if self.printing_location:
+            yield
+        else:
+            self.printing_location = True
+            self.print_string("loc")
+            self.print_string("(")
+            yield
+            self.print_string(")")
+            self.printing_location = False

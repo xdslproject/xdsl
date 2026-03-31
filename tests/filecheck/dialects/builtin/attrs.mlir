@@ -4,6 +4,14 @@
 "builtin.module"() ({
   // CHECK: func.func
   "func.func"() ({
+    // CHECK-NEXT: test = #builtin.int<0>
+    "test.op"() {test = #builtin.int<0>} : () -> ()
+    // CHECK-NEXT: test = #builtin.int<5444517870735015415413993718908291383295>
+    "test.op"() {test = #builtin.int<5444517870735015415413993718908291383295>} : () -> ()
+    // CHECK-NEXT: test = #builtin.float_data<-0.4>
+    "test.op"() {test = #builtin.float_data<-0.4>} : () -> ()
+    // CHECK-NEXT: test = #builtin.float_data<2.1>
+    "test.op"() {test = #builtin.float_data<2.100000e+00>} : () -> ()
     // CHECK-NEXT: test = true
     "test.op"() {test = true} : () -> ()
     // CHECK-NEXT: test = false

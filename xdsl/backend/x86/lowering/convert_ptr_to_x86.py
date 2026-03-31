@@ -26,7 +26,8 @@ class PtrAddToX86(RewritePattern):
     def match_and_rewrite(self, op: ptr.PtrAddOp, rewriter: PatternRewriter):
         x86_reg_type = x86.registers.UNALLOCATED_GENERAL
 
-        rewriter.replace_matched_op(
+        rewriter.replace_op(
+            op,
             [
                 ptr_cast_op := UnrealizedConversionCastOp.get(
                     (op.addr,), (x86_reg_type,)
@@ -43,7 +44,7 @@ class PtrAddToX86(RewritePattern):
                 UnrealizedConversionCastOp.get(
                     (add_op.register_out,), (ptr.PtrType(),)
                 ),
-            ]
+            ],
         )
 
 
@@ -85,7 +86,7 @@ class PtrStoreToX86(RewritePattern):
             )
             mov_op = x86.MS_MovOp(x86_ptr, x86_data, memory_offset=0)
 
-        rewriter.replace_matched_op([addr_cast_op, cast_op, mov_op])
+        rewriter.replace_op(op, [addr_cast_op, cast_op, mov_op])
 
 
 @dataclass
@@ -126,7 +127,7 @@ class PtrLoadToX86(RewritePattern):
             )
 
         res_cast_op = UnrealizedConversionCastOp.get(mov_op.results, (value_type,))
-        rewriter.replace_matched_op([cast_op, mov_op, res_cast_op])
+        rewriter.replace_op(op, [cast_op, mov_op, res_cast_op])
 
 
 @dataclass(frozen=True)

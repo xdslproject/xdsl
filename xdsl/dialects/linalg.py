@@ -8,7 +8,7 @@ from typing import ClassVar, cast
 from typing_extensions import Self
 
 from xdsl.builder import Builder
-from xdsl.dialects import arith
+from xdsl.dialects import arith, math
 from xdsl.dialects.builtin import (
     AffineMapAttr,
     AnyFloat,
@@ -97,20 +97,47 @@ class IteratorTypeAttr(EnumAttribute[IteratorType]):
             super().print_parameter(printer)
 
 
-class LinalgOperation(IRDLOperation, ABC):
+class LinalgStructuredOperation(IRDLOperation, ABC):
     """
-    Abstract base class for linalg operations, allowing them to be processed in with a
-    unified interface.
+    Abstract base class for structured linalg operations, allowing them to be processed
+    via a unified interface.
+    """
+
+    inputs = var_operand_def()
+    """
+    The operands that won't be mutated.
+    """
+    outputs = var_operand_def(ShapedType)
+    """
+    The operands that will be accumulated into.
+    These inputs may be `memref`s, which will be mutated in-place, or `tensor`s, which will be returned as results.
+    """
+
+    res = var_result_def(TensorType)
+    """
+    The updated `outputs`, empty if the inputs are memrefs.
+    """
+
+    body = region_def("single_block")
+    """
+    The body implementing the combination of scalar elements of the inputs, and
+    yielding the scalar elements of the outputs.
     """
 
     @abstractmethod
-    def get_indexing_maps(self) -> Sequence[AffineMap]:
+    def get_indexing_maps(self) -> ArrayAttr[AffineMapAttr]:
         """
         Get the indexing maps corresponding to this operation's operands, in order.
         """
 
+    @abstractmethod
+    def get_iterator_types(self) -> ArrayAttr[IteratorTypeAttr]:
+        """
+        Get the iterator types corresponding to this operation's loop, in order.
+        """
+
     def get_num_loops(self) -> int:
-        return self.get_indexing_maps()[0].num_dims
+        return self.get_indexing_maps().data[0].data.num_dims
 
     def get_loops_to_shapes_map(self) -> AffineMap:
         """
@@ -119,14 +146,13 @@ class LinalgOperation(IRDLOperation, ABC):
         computation".
         The default behavior is to just concatenate all the indexing maps.
         """
-        result_exprs = tuple(
-            res for map in self.get_indexing_maps() for res in map.results
-        )
+        indexing_maps = tuple(attr.data for attr in self.get_indexing_maps())
+        result_exprs = tuple(res for map in indexing_maps for res in map.results)
 
         dims = self.get_num_loops()
 
         # FIXME: Support symbols.
-        for map in self.get_indexing_maps():
+        for map in indexing_maps:
             if map.num_symbols != 0:
                 raise NotImplementedError(
                     "Indexing maps with symbols not supported for now."
@@ -170,15 +196,8 @@ class LinalgOperation(IRDLOperation, ABC):
 
 
 @irdl_op_definition
-class GenericOp(LinalgOperation):
+class GenericOp(LinalgStructuredOperation):
     name = "linalg.generic"
-
-    inputs = var_operand_def()
-    outputs = var_operand_def(base(ShapedType))
-
-    res = var_result_def(AnyTensorType)
-
-    body = region_def("single_block")
 
     # Trait attributes
     indexing_maps = prop_def(ArrayAttr[AffineMapAttr])
@@ -186,7 +205,7 @@ class GenericOp(LinalgOperation):
     doc = opt_prop_def(StringAttr)
     library_call = opt_prop_def(StringAttr)
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
     def __init__(
         self,
@@ -211,8 +230,11 @@ class GenericOp(LinalgOperation):
             regions=[body],
         )
 
-    def get_indexing_maps(self) -> Sequence[AffineMap]:
-        return tuple(attr.data for attr in self.indexing_maps)
+    def get_indexing_maps(self) -> ArrayAttr[AffineMapAttr]:
+        return self.indexing_maps
+
+    def get_iterator_types(self) -> ArrayAttr[IteratorTypeAttr]:
+        return self.iterator_types
 
     def print(self, printer: Printer):
         printer.print_string(" {indexing_maps = ")
@@ -424,19 +446,15 @@ class IndexOp(IRDLOperation):
         super().__init__(properties={"dim": dim_attr}, result_types=[IndexType()])
 
 
-class NamedOperation(IRDLOperation, ABC):
+class NamedOperation(LinalgStructuredOperation, ABC):
     """
     Abstract base class for named ops with hidden region.
     """
 
-    inputs = var_operand_def()
-    outputs = var_operand_def(base(ShapedType))
-
-    res = var_result_def(AnyTensorType)
-
-    hidden_region = region_def("single_block")
-
-    irdl_options = [AttrSizedOperandSegments(as_property=True), ParsePropInAttrDict()]
+    irdl_options = (
+        AttrSizedOperandSegments(as_property=True),
+        ParsePropInAttrDict(),
+    )
 
     PRINT_ATTRS_IN_FRONT: ClassVar[bool] = False
 
@@ -511,14 +529,31 @@ class NamedOperation(IRDLOperation, ABC):
                 parser.Delimiter.PAREN, parser.parse_attribute
             )
             if res_types is None:
-                res_types = [[parser.parse_attribute()]]
+                res_types = [parser.parse_attribute()]
         else:
             res_types = ()
 
-        return cls(ins, outs, res_types, attrs)
+        prop_names = cls.get_irdl_definition().properties
+
+        properties = {k: v for k, v in attrs.items() if k in prop_names}
+        # Drop the values in properties from attrs
+        for k in properties:
+            if k in attrs:
+                del attrs[k]
+
+        try:
+            return cls.build(
+                operands=(ins, outs),
+                result_types=(res_types,),
+                properties=properties,
+                attributes=attrs,
+                regions=(cls.get_hidden_region(ins, outs),),
+            )
+        except ValueError:
+            parser.raise_error("Could not build linalg op")
 
     def print(self, printer: Printer):
-        extra_attrs = self.attributes.copy()
+        extra_attrs = {**self.attributes, **self.properties}
         if "indexing_maps" in extra_attrs:
             del extra_attrs["indexing_maps"]
         if "linalg.memoized_indexing_maps" in extra_attrs:
@@ -529,6 +564,8 @@ class NamedOperation(IRDLOperation, ABC):
             del extra_attrs["doc"]
         if "library_call" in extra_attrs:
             del extra_attrs["library_call"]
+        if "operandSegmentSizes" in extra_attrs:
+            del extra_attrs["operandSegmentSizes"]
 
         if extra_attrs and self.PRINT_ATTRS_IN_FRONT:
             printer.print_op_attributes(extra_attrs)
@@ -581,9 +618,49 @@ class NamedOperation(IRDLOperation, ABC):
 
         return result
 
+    @classmethod
+    @abstractmethod
+    def get_hidden_region(
+        cls, inputs: Sequence[SSAValue], outputs: Sequence[SSAValue]
+    ) -> Region:
+        """
+        The hidden region for this linalg NamedOperation.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_default_indexing_maps(self) -> Sequence[AffineMap]:
+        """
+        Get the default indexing maps corresponding to this operation's operands, in order.
+        """
+
+    def get_indexing_maps(self) -> ArrayAttr[AffineMapAttr]:
+        return ArrayAttr(
+            AffineMapAttr(map_) for map_ in self.get_default_indexing_maps()
+        )
+
+
+class ElementwiseOperation(NamedOperation, ABC):
+    def get_default_indexing_maps(self) -> Sequence[AffineMap]:
+        assert all(isinstance(t, ShapedType) for t in self.operand_types), (
+            "Assume that all named linalg pointwise operations have matching shaped "
+            "types."
+        )
+        operand_types = cast(Sequence[ShapedType], self.operand_types)
+        shapes = tuple(t.get_shape() for t in operand_types)
+        assert all(shape == shapes[0] for shape in shapes[1:]), (
+            "All shapes must be equal"
+        )
+
+        return (AffineMap.identity(len(shapes[0])),) * len(operand_types)
+
+    def get_iterator_types(self) -> ArrayAttr[IteratorTypeAttr]:
+        num_loops = self.get_num_loops()
+        return ArrayAttr((IteratorTypeAttr.parallel(),) * num_loops)
+
 
 @irdl_op_definition
-class AddOp(NamedOperation):
+class AddOp(ElementwiseOperation):
     """
     Adds two tensors elementwise.
 
@@ -604,7 +681,19 @@ class AddOp(NamedOperation):
         else:
             result_types = res
 
-        arg_types = self.body_arg_types((*inputs, *outputs))
+        super().__init__(
+            ins=inputs,
+            outs=outputs,
+            result_types=result_types,
+            attributes=attributes,
+            hidden_region=self.get_hidden_region(inputs, outputs),
+        )
+
+    @classmethod
+    def get_hidden_region(
+        cls, inputs: Sequence[SSAValue], outputs: Sequence[SSAValue]
+    ) -> Region:
+        arg_types = cls.body_arg_types((*inputs, *outputs))
         add = arith.AddfOp if isinstance(arg_types[-1], AnyFloat) else arith.AddiOp
 
         @Builder.implicit_region(arg_types)
@@ -612,17 +701,99 @@ class AddOp(NamedOperation):
             result = add(args[0], args[1])
             YieldOp(result)
 
+        return hidden_region
+
+
+@irdl_op_definition
+class ExpOp(NamedOperation):
+    """
+    Applies exp(x) elementwise.
+
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Linalg/#linalgexp-linalgexpop).
+    """
+
+    name = "linalg.exp"
+
+    def __init__(
+        self,
+        inputs: Sequence[SSAValue],
+        outputs: Sequence[SSAValue] = (),
+        res: Sequence[Attribute] | None = None,
+        attributes: dict[str, Attribute] | None = None,
+    ):
+        if res is None:
+            result_types = tuple(output.type for output in outputs)
+        else:
+            result_types = res
+
         super().__init__(
             ins=inputs,
             outs=outputs,
             result_types=result_types,
             attributes=attributes,
-            hidden_region=hidden_region,
+            hidden_region=self.get_hidden_region(inputs, outputs),
         )
+
+    @classmethod
+    def get_hidden_region(
+        cls, inputs: Sequence[SSAValue], outputs: Sequence[SSAValue]
+    ) -> Region:
+        arg_types = cls.body_arg_types((*inputs, *outputs))
+
+        @Builder.implicit_region(arg_types)
+        def hidden_region(args: tuple[BlockArgument, ...]) -> None:
+            result = math.ExpOp(args[0])
+            YieldOp(result)
+
+        return hidden_region
 
 
 @irdl_op_definition
-class SubOp(NamedOperation):
+class LogOp(NamedOperation):
+    """
+    Applies log(x) elementwise.
+
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Linalg/#linalglog-linalglogop).
+    """
+
+    name = "linalg.log"
+
+    def __init__(
+        self,
+        inputs: Sequence[SSAValue],
+        outputs: Sequence[SSAValue] = (),
+        res: Sequence[Attribute] | None = None,
+        attributes: dict[str, Attribute] | None = None,
+    ):
+        if res is None:
+            result_types = tuple(output.type for output in outputs)
+        else:
+            result_types = res
+
+        super().__init__(
+            ins=inputs,
+            outs=outputs,
+            result_types=result_types,
+            attributes=attributes,
+            hidden_region=self.get_hidden_region(inputs, outputs),
+        )
+
+    @classmethod
+    def get_hidden_region(
+        cls, inputs: Sequence[SSAValue], outputs: Sequence[SSAValue]
+    ) -> Region:
+        arg_types = cls.body_arg_types((*inputs, *outputs))
+
+        @Builder.implicit_region(arg_types)
+        def hidden_region(args: tuple[BlockArgument, ...]) -> None:
+            result = math.LogOp(args[0])
+            YieldOp(result)
+
+        return hidden_region
+
+
+@irdl_op_definition
+class SubOp(ElementwiseOperation):
     """
     Subtracts two tensors elementwise.
 
@@ -643,7 +814,21 @@ class SubOp(NamedOperation):
         else:
             result_types = res
 
-        arg_types = self.body_arg_types((*inputs, *outputs))
+        self.body_arg_types((*inputs, *outputs))
+
+        super().__init__(
+            ins=inputs,
+            outs=outputs,
+            result_types=result_types,
+            attributes=attributes,
+            hidden_region=self.get_hidden_region(inputs, outputs),
+        )
+
+    @classmethod
+    def get_hidden_region(
+        cls, inputs: Sequence[SSAValue], outputs: Sequence[SSAValue]
+    ) -> Region:
+        arg_types = cls.body_arg_types((*inputs, *outputs))
         sub = arith.SubfOp if isinstance(arg_types[-1], AnyFloat) else arith.SubiOp
 
         @Builder.implicit_region(arg_types)
@@ -651,13 +836,51 @@ class SubOp(NamedOperation):
             result = sub(args[0], args[1])
             YieldOp(result)
 
+        return hidden_region
+
+
+@irdl_op_definition
+class SqrtOp(NamedOperation):
+    """
+    Applies sqrt(x) elementwise.
+
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/Linalg/#linalgsqrt-linalgsqrtop).
+    """
+
+    name = "linalg.sqrt"
+
+    def __init__(
+        self,
+        inputs: Sequence[SSAValue],
+        outputs: Sequence[SSAValue] = (),
+        res: Sequence[Attribute] | None = None,
+        attributes: dict[str, Attribute] | None = None,
+    ):
+        if res is None:
+            result_types = tuple(output.type for output in outputs)
+        else:
+            result_types = res
+
         super().__init__(
             ins=inputs,
             outs=outputs,
             result_types=result_types,
             attributes=attributes,
-            hidden_region=hidden_region,
+            hidden_region=self.get_hidden_region(inputs, outputs),
         )
+
+    @classmethod
+    def get_hidden_region(
+        cls, inputs: Sequence[SSAValue], outputs: Sequence[SSAValue]
+    ) -> Region:
+        arg_types = cls.body_arg_types((*inputs, *outputs))
+
+        @Builder.implicit_region(arg_types)
+        def hidden_region(args: tuple[BlockArgument, ...]) -> None:
+            result = math.SqrtOp(args[0])
+            YieldOp(result)
+
+        return hidden_region
 
 
 @irdl_op_definition
@@ -682,20 +905,26 @@ class SelectOp(NamedOperation):
         else:
             result_types = res
 
-        arg_types = self.body_arg_types((*inputs, *outputs))
+        super().__init__(
+            ins=inputs,
+            outs=outputs,
+            result_types=result_types,
+            attributes=attributes,
+            hidden_region=self.get_hidden_region(inputs, outputs),
+        )
+
+    @classmethod
+    def get_hidden_region(
+        cls, inputs: Sequence[SSAValue], outputs: Sequence[SSAValue]
+    ) -> Region:
+        arg_types = cls.body_arg_types((*inputs, *outputs))
 
         @Builder.implicit_region(arg_types)
         def hidden_region(args: tuple[BlockArgument, ...]) -> None:
             result = arith.SelectOp(*args[: len(inputs)])
             YieldOp(result)
 
-        super().__init__(
-            ins=inputs,
-            outs=outputs,
-            result_types=result_types,
-            attributes=attributes,
-            hidden_region=hidden_region,
-        )
+        return hidden_region
 
 
 @irdl_op_definition
@@ -727,18 +956,12 @@ class FillOp(NamedOperation):
         else:
             result_types = res
 
-        arg_types = self.body_arg_types((*inputs, *outputs))
-
-        @Builder.implicit_region(arg_types)
-        def hidden_region(args: tuple[BlockArgument, ...]) -> None:
-            YieldOp(args[0])
-
         super().__init__(
             ins=inputs,
             outs=outputs,
             result_types=result_types,
             attributes=attributes,
-            hidden_region=hidden_region,
+            hidden_region=self.get_hidden_region(inputs, outputs),
         )
 
     def verify_(self) -> None:
@@ -749,9 +972,27 @@ class FillOp(NamedOperation):
                     f"Input type is {value.type} but must be an instance of AnyFloat or IntegerType."
                 )
 
+    @classmethod
+    def get_hidden_region(
+        cls, inputs: Sequence[SSAValue], outputs: Sequence[SSAValue]
+    ) -> Region:
+        arg_types = cls.body_arg_types((*inputs, *outputs))
+
+        @Builder.implicit_region(arg_types)
+        def hidden_region(args: tuple[BlockArgument, ...]) -> None:
+            YieldOp(args[0])
+
+        return hidden_region
+
+    def get_default_indexing_maps(self) -> Sequence[AffineMap]:
+        raise NotImplementedError
+
+    def get_iterator_types(self) -> ArrayAttr[IteratorTypeAttr]:
+        raise NotImplementedError
+
 
 @irdl_op_definition
-class CopyOp(NamedOperation):
+class CopyOp(ElementwiseOperation):
     """
     Copies the tensor elementwise.
 
@@ -777,23 +1018,29 @@ class CopyOp(NamedOperation):
         else:
             result_types = res
 
-        arg_types = self.body_arg_types((*inputs, *outputs))
-
-        @Builder.implicit_region(arg_types)
-        def hidden_region(args: tuple[BlockArgument, ...]) -> None:
-            YieldOp(args[0])
-
         super().__init__(
             ins=inputs,
             outs=outputs,
             result_types=result_types,
             attributes=attributes,
-            hidden_region=hidden_region,
+            hidden_region=self.get_hidden_region(inputs, outputs),
         )
+
+    @classmethod
+    def get_hidden_region(
+        cls, inputs: Sequence[SSAValue], outputs: Sequence[SSAValue]
+    ) -> Region:
+        arg_types = cls.body_arg_types((*inputs, *outputs))
+
+        @Builder.implicit_region(arg_types)
+        def hidden_region(args: tuple[BlockArgument, ...]) -> None:
+            YieldOp(args[0])
+
+        return hidden_region
 
 
 @irdl_op_definition
-class MaxOp(NamedOperation):
+class MaxOp(ElementwiseOperation):
     """
     Takes the max (signed) between two inputs, elementwise.
 
@@ -814,7 +1061,19 @@ class MaxOp(NamedOperation):
         else:
             result_types = res
 
-        arg_types = self.body_arg_types((*inputs, *outputs))
+        super().__init__(
+            ins=inputs,
+            outs=outputs,
+            result_types=result_types,
+            attributes=attributes,
+            hidden_region=self.get_hidden_region(inputs, outputs),
+        )
+
+    @classmethod
+    def get_hidden_region(
+        cls, inputs: Sequence[SSAValue], outputs: Sequence[SSAValue]
+    ) -> Region:
+        arg_types = cls.body_arg_types((*inputs, *outputs))
         maxop = (
             arith.MaximumfOp if isinstance(arg_types[-1], AnyFloat) else arith.MaxSIOp
         )
@@ -824,17 +1083,11 @@ class MaxOp(NamedOperation):
             result = maxop(args[0], args[1])
             YieldOp(result)
 
-        super().__init__(
-            ins=inputs,
-            outs=outputs,
-            result_types=result_types,
-            attributes=attributes,
-            hidden_region=hidden_region,
-        )
+        return hidden_region
 
 
 @irdl_op_definition
-class MinOp(NamedOperation):
+class MinOp(ElementwiseOperation):
     """
     Takes the max (signed) between two inputs, elementwise.
 
@@ -855,7 +1108,19 @@ class MinOp(NamedOperation):
         else:
             result_types = res
 
-        arg_types = self.body_arg_types((*inputs, *outputs))
+        super().__init__(
+            ins=inputs,
+            outs=outputs,
+            result_types=result_types,
+            attributes=attributes,
+            hidden_region=self.get_hidden_region(inputs, outputs),
+        )
+
+    @classmethod
+    def get_hidden_region(
+        cls, inputs: Sequence[SSAValue], outputs: Sequence[SSAValue]
+    ) -> Region:
+        arg_types = cls.body_arg_types((*inputs, *outputs))
         minop = (
             arith.MinimumfOp if isinstance(arg_types[-1], AnyFloat) else arith.MinSIOp
         )
@@ -865,17 +1130,11 @@ class MinOp(NamedOperation):
             result = minop(args[0], args[1])
             YieldOp(result)
 
-        super().__init__(
-            ins=inputs,
-            outs=outputs,
-            result_types=result_types,
-            attributes=attributes,
-            hidden_region=hidden_region,
-        )
+        return hidden_region
 
 
 @irdl_op_definition
-class MulOp(NamedOperation):
+class MulOp(ElementwiseOperation):
     """
     Multiplies two tensors elementwise.
 
@@ -896,7 +1155,19 @@ class MulOp(NamedOperation):
         else:
             result_types = res
 
-        arg_types = self.body_arg_types((*inputs, *outputs))
+        super().__init__(
+            ins=inputs,
+            outs=outputs,
+            result_types=result_types,
+            attributes=attributes,
+            hidden_region=self.get_hidden_region(inputs, outputs),
+        )
+
+    @classmethod
+    def get_hidden_region(
+        cls, inputs: Sequence[SSAValue], outputs: Sequence[SSAValue]
+    ) -> Region:
+        arg_types = cls.body_arg_types((*inputs, *outputs))
         mul = arith.MulfOp if isinstance(arg_types[-1], AnyFloat) else arith.MuliOp
 
         @Builder.implicit_region(arg_types)
@@ -904,13 +1175,7 @@ class MulOp(NamedOperation):
             result = mul(args[0], args[1])
             YieldOp(result)
 
-        super().__init__(
-            ins=inputs,
-            outs=outputs,
-            result_types=result_types,
-            attributes=attributes,
-            hidden_region=hidden_region,
-        )
+        return hidden_region
 
 
 @irdl_op_definition
@@ -1045,7 +1310,16 @@ class MatmulOp(NamedOperation):
 
     PRINT_ATTRS_IN_FRONT: ClassVar[bool] = True
 
-    indexing_maps = prop_def(ArrayAttr[AffineMapAttr])
+    indexing_maps = prop_def(
+        ArrayAttr[AffineMapAttr],
+        default_value=ArrayAttr(
+            [
+                AffineMapAttr(AffineMap.from_callable(lambda i, _, k: (i, k))),
+                AffineMapAttr(AffineMap.from_callable(lambda _, j, k: (k, j))),
+                AffineMapAttr(AffineMap.from_callable(lambda i, j, _: (i, j))),
+            ]
+        ),
+    )
 
     def __init__(
         self,
@@ -1063,7 +1337,19 @@ class MatmulOp(NamedOperation):
         else:
             result_types = res
 
-        arg_types = self.body_arg_types((*inputs, *outputs))
+        super().__init__(
+            ins=inputs,
+            outs=outputs,
+            result_types=result_types,
+            attributes=attributes,
+            hidden_region=self.get_hidden_region(inputs, outputs),
+        )
+
+    @classmethod
+    def get_hidden_region(
+        cls, inputs: Sequence[SSAValue], outputs: Sequence[SSAValue]
+    ) -> Region:
+        arg_types = cls.body_arg_types((*inputs, *outputs))
         add, mul = (
             (arith.AddfOp, arith.MulfOp)
             if isinstance(arg_types[-1], AnyFloat)
@@ -1076,24 +1362,21 @@ class MatmulOp(NamedOperation):
             mac = add(result, args[2])
             YieldOp(mac)
 
-        # add linalg.memoized_indexing_maps attribute
-        properties: dict[str, Attribute] = {
-            "indexing_maps": ArrayAttr(
-                [
-                    AffineMapAttr(AffineMap.from_callable(lambda i, _, k: (i, k))),
-                    AffineMapAttr(AffineMap.from_callable(lambda _, j, k: (k, j))),
-                    AffineMapAttr(AffineMap.from_callable(lambda i, j, _: (i, j))),
-                ]
-            )
-        }
+        return hidden_region
 
-        super().__init__(
-            ins=inputs,
-            outs=outputs,
-            result_types=result_types,
-            properties=properties,
-            attributes=attributes,
-            hidden_region=hidden_region,
+    def get_default_indexing_maps(self) -> Sequence[AffineMap]:
+        return tuple(m.data for m in self.indexing_maps.data)
+
+    def get_indexing_maps(self) -> ArrayAttr[AffineMapAttr]:
+        return self.indexing_maps
+
+    def get_iterator_types(self) -> ArrayAttr[IteratorTypeAttr]:
+        return ArrayAttr(
+            [
+                IteratorTypeAttr.parallel(),
+                IteratorTypeAttr.parallel(),
+                IteratorTypeAttr.reduction(),
+            ]
         )
 
 
@@ -1109,6 +1392,20 @@ class QuantizedMatmulOp(NamedOperation):
 
     PRINT_ATTRS_IN_FRONT: ClassVar[bool] = True
 
+    memoized_indexing_maps = attr_def(
+        ArrayAttr[AffineMapAttr],
+        default_value=ArrayAttr(
+            [
+                AffineMapAttr(AffineMap.from_callable(lambda i, _, k: (i, k))),
+                AffineMapAttr(AffineMap.from_callable(lambda _, j, k: (k, j))),
+                AffineMapAttr(AffineMap(3, 0, ())),
+                AffineMapAttr(AffineMap(3, 0, ())),
+                AffineMapAttr(AffineMap.from_callable(lambda i, j, _: (i, j))),
+            ]
+        ),
+        attr_name="linalg.memoized_indexing_maps",
+    )
+
     def __init__(
         self,
         inputs: Sequence[SSAValue],
@@ -1125,7 +1422,19 @@ class QuantizedMatmulOp(NamedOperation):
         else:
             result_types = res
 
-        arg_types = self.body_arg_types((*inputs, *outputs))
+        super().__init__(
+            ins=inputs,
+            outs=outputs,
+            result_types=result_types,
+            attributes=attributes,
+            hidden_region=self.get_hidden_region(inputs, outputs),
+        )
+
+    @classmethod
+    def get_hidden_region(
+        cls, inputs: Sequence[SSAValue], outputs: Sequence[SSAValue]
+    ) -> Region:
+        arg_types = cls.body_arg_types((*inputs, *outputs))
 
         @Builder.implicit_region(arg_types)
         def hidden_region(args: tuple[BlockArgument, ...]) -> None:
@@ -1137,26 +1446,21 @@ class QuantizedMatmulOp(NamedOperation):
             o6 = arith.AddiOp(args[4], o5)
             YieldOp(o6)
 
-        # add linalg.memoized_indexing_maps attribute
-        if not attributes:
-            attributes = {}
-        if "linalg.memoized_indexing_maps" not in attributes:
-            attributes["linalg.memoized_indexing_maps"] = ArrayAttr(
-                [
-                    AffineMapAttr(AffineMap.from_callable(lambda i, _, k: (i, k))),
-                    AffineMapAttr(AffineMap.from_callable(lambda _, j, k: (k, j))),
-                    AffineMapAttr(AffineMap(3, 0, ())),
-                    AffineMapAttr(AffineMap(3, 0, ())),
-                    AffineMapAttr(AffineMap.from_callable(lambda i, j, _: (i, j))),
-                ]
-            )
+        return hidden_region
 
-        super().__init__(
-            ins=inputs,
-            outs=outputs,
-            result_types=result_types,
-            attributes=attributes,
-            hidden_region=hidden_region,
+    def get_default_indexing_maps(self) -> Sequence[AffineMap]:
+        return tuple(m.data for m in self.memoized_indexing_maps.data)
+
+    def get_indexing_maps(self) -> ArrayAttr[AffineMapAttr]:
+        return self.memoized_indexing_maps
+
+    def get_iterator_types(self) -> ArrayAttr[IteratorTypeAttr]:
+        return ArrayAttr(
+            [
+                IteratorTypeAttr.parallel(),
+                IteratorTypeAttr.parallel(),
+                IteratorTypeAttr.reduction(),
+            ]
         )
 
 
@@ -1165,8 +1469,33 @@ class PoolingOperation(NamedOperation, ABC):
 
     PRINT_ATTRS_IN_FRONT: ClassVar[bool] = True
 
-    strides = attr_def(DenseIntElementsAttr)
-    dilations = attr_def(DenseIntElementsAttr)
+    strides = prop_def(DenseIntElementsAttr)
+    dilations = prop_def(DenseIntElementsAttr)
+
+    def __init__(
+        self,
+        inputs: Sequence[SSAValue],
+        outputs: Sequence[SSAValue] = (),
+        res: Sequence[Attribute] | None = None,
+        attributes: dict[str, Attribute] | None = None,
+        *,
+        strides: DenseIntElementsAttr,
+        dilations: DenseIntElementsAttr,
+    ):
+        super().__init__(
+            ins=inputs,
+            outs=outputs,
+            result_types=res,
+            attributes=attributes,
+            properties={"strides": strides, "dilations": dilations},
+            hidden_region=self.get_hidden_region(inputs, outputs),
+        )
+
+    def get_default_indexing_maps(self) -> Sequence[AffineMap]:
+        raise NotImplementedError
+
+    def get_iterator_types(self) -> ArrayAttr[IteratorTypeAttr]:
+        raise NotImplementedError
 
 
 @irdl_op_definition
@@ -1179,15 +1508,11 @@ class PoolingNchwMaxOp(PoolingOperation):
 
     name = "linalg.pooling_nchw_max"
 
-    def __init__(
-        self,
-        inputs: Sequence[SSAValue],
-        outputs: Sequence[SSAValue] = (),
-        res: Sequence[Attribute] | None = None,
-        attributes: dict[str, Attribute] | None = None,
-    ):
-        arg_types = self.body_arg_types((*inputs, *outputs))
-
+    @classmethod
+    def get_hidden_region(
+        cls, inputs: Sequence[SSAValue], outputs: Sequence[SSAValue]
+    ) -> Region:
+        arg_types = cls.body_arg_types((*inputs, *outputs))
         max_op = (
             arith.MaximumfOp if isinstance(arg_types[-1], AnyFloat) else arith.MaxSIOp
         )
@@ -1197,13 +1522,7 @@ class PoolingNchwMaxOp(PoolingOperation):
             result = max_op(args[0], args[1])
             YieldOp(result)
 
-        super().__init__(
-            ins=inputs,
-            outs=outputs,
-            result_types=res,
-            attributes=attributes,
-            hidden_region=hidden_region,
-        )
+        return hidden_region
 
 
 class ConvOperation(NamedOperation, ABC):
@@ -1211,8 +1530,8 @@ class ConvOperation(NamedOperation, ABC):
 
     PRINT_ATTRS_IN_FRONT: ClassVar[bool] = True
 
-    strides = attr_def(DenseIntElementsAttr)
-    dilations = attr_def(DenseIntElementsAttr)
+    strides = prop_def(DenseIntElementsAttr)
+    dilations = prop_def(DenseIntElementsAttr)
 
     def __init__(
         self,
@@ -1220,8 +1539,24 @@ class ConvOperation(NamedOperation, ABC):
         outputs: Sequence[SSAValue] = (),
         res: Sequence[Attribute] | None = None,
         attributes: dict[str, Attribute] | None = None,
+        *,
+        strides: DenseIntElementsAttr,
+        dilations: DenseIntElementsAttr,
     ):
-        arg_types = self.body_arg_types((*inputs, *outputs))
+        super().__init__(
+            ins=inputs,
+            outs=outputs,
+            attributes=attributes,
+            result_types=res,
+            properties={"strides": strides, "dilations": dilations},
+            hidden_region=self.get_hidden_region(inputs, outputs),
+        )
+
+    @classmethod
+    def get_hidden_region(
+        cls, inputs: Sequence[SSAValue], outputs: Sequence[SSAValue]
+    ) -> Region:
+        arg_types = cls.body_arg_types((*inputs, *outputs))
         add, mul = (
             (arith.AddfOp, arith.MulfOp)
             if isinstance(arg_types[-1], AnyFloat)
@@ -1241,13 +1576,13 @@ class ConvOperation(NamedOperation, ABC):
             mac = add(result, args[2])
             YieldOp(mac)
 
-        super().__init__(
-            ins=inputs,
-            outs=outputs,
-            attributes=attributes,
-            result_types=res,
-            hidden_region=hidden_region,
-        )
+        return hidden_region
+
+    def get_default_indexing_maps(self) -> Sequence[AffineMap]:
+        raise NotImplementedError
+
+    def get_iterator_types(self) -> ArrayAttr[IteratorTypeAttr]:
+        raise NotImplementedError
 
 
 @irdl_op_definition
@@ -1302,7 +1637,7 @@ class BroadcastOp(IRDLOperation):
 
     hidden_region = region_def("single_block")
 
-    dimensions = attr_def(DenseArrayBase.constr(i64))
+    dimensions = prop_def(DenseArrayBase.constr(i64))
 
     def __init__(
         self,
@@ -1326,7 +1661,7 @@ class BroadcastOp(IRDLOperation):
             YieldOp(args[0])
 
         super().__init__(
-            attributes={
+            properties={
                 "dimensions": dimensions,
             },
             operands=(input, init),
@@ -1422,8 +1757,6 @@ class ReduceOp(IRDLOperation):
     region: Region = region_def("single_block")
 
     dimensions = prop_def(DenseArrayBase.constr(i64))
-
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
 
     def __init__(
         self,
@@ -1533,7 +1866,10 @@ Linalg = Dialect(
         YieldOp,
         IndexOp,
         AddOp,
+        ExpOp,
+        LogOp,
         SubOp,
+        SqrtOp,
         SelectOp,
         FillOp,
         CopyOp,

@@ -2,14 +2,24 @@
 
 "builtin.module"() ({
   riscv_func.func @main() {
-    %0 = riscv.li 6 : !riscv.reg<zero>
+    %0 = rv32.li 6 : !riscv.reg<zero>
     // CHECK:      li zero, 6
-    %1 = riscv.li 5 : !riscv.reg<j_1>
+    %1 = rv32.li 5 : !riscv.reg<j_1>
     // CHECK-NEXT: li j_1, 5
     %2 = riscv.add %0, %1 : (!riscv.reg<zero>, !riscv.reg<j_1>) -> !riscv.reg<j_2>
     // CHECK-NEXT: add j_2, zero, j_1
     %mv = riscv.mv %0 : (!riscv.reg<zero>) -> !riscv.reg<j_2>
     // CHECK-NEXT: mv j_2, zero
+    %seqz = riscv.seqz %1 : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
+    // CHECK-NEXT: seqz j_1, j_1
+    %snez = riscv.snez %1 : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
+    // CHECK-NEXT: snez j_1, j_1
+    %zextb = riscv.zext.b %1 : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
+    // CHECK-NEXT: zext.b j_1, j_1
+    %zextw = riscv.zext.w %1 : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
+    // CHECK-NEXT: zext.w j_1, j_1
+    %sextw = riscv.sext.w %1 : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
+    // CHECK-NEXT: sext.w j_1, j_1
 
     // RV32I/RV64I: Integer Computational Instructions (Section 2.4)
     // Integer Register-Immediate Instructions
@@ -84,7 +94,7 @@
 
     riscv.ret
     // CHECK-NEXT: ret
-  ^bb0(%b00 : !riscv.reg, %b01 : !riscv.reg):
+  ^bb0(%b00: !riscv.reg, %b01: !riscv.reg):
 
 
     // Conditional Branch Instructions
@@ -146,9 +156,6 @@
     %csrrwi_w = riscv.csrrwi 1024, 8, "w" : () -> !riscv.reg<zero>
     // CHECK-NEXT: csrrwi zero, 1024, 8
 
-    // Assembler pseudo-instructions
-    %li = riscv.li 1: !riscv.reg<j_0>
-    // CHECK-NEXT: li j_0, 1
     // Environment Call and Breakpoints
     riscv.ecall
     // CHECK-NEXT: ecall
@@ -156,12 +163,12 @@
     // CHECK-NEXT: ebreak
     riscv.ret
     // CHECK-NEXT: ret
-  ^bb1(%b10 : !riscv.reg, %b11 : !riscv.reg):
+  ^bb1(%b10: !riscv.reg, %b11: !riscv.reg):
 
     riscv.directive ".align" "2"
     // CHECK-NEXT: .align 2
     riscv.assembly_section ".text" {
-      %inner = riscv.li 5 : !riscv.reg<j_1>
+      %inner = rv32.li 5 : !riscv.reg<j_1>
       %nested_addi = riscv.addi %inner, 1 : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
     }
     // CHECK-NEXT:  li j_1, 5

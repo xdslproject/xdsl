@@ -86,22 +86,22 @@ class LowerAffineStore(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: affine.StoreOp, rewriter: PatternRewriter):
         ops, indices = insert_affine_map_ops(op.map, op.indices, [])
-        rewriter.insert_op_before_matched_op(ops)
+        rewriter.insert_op(ops)
 
         # TODO: add nontemporal=false once that's added to memref
         # https://github.com/xdslproject/xdsl/issues/1482
-        rewriter.replace_matched_op(memref.StoreOp.get(op.value, op.memref, indices))
+        rewriter.replace_op(op, memref.StoreOp.get(op.value, op.memref, indices))
 
 
 class LowerAffineLoad(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: affine.LoadOp, rewriter: PatternRewriter):
         ops, indices = insert_affine_map_ops(op.map, op.indices, [])
-        rewriter.insert_op_before_matched_op(ops)
+        rewriter.insert_op(ops)
 
         # TODO: add nontemporal=false once that's added to memref
         # https://github.com/xdslproject/xdsl/issues/1482
-        rewriter.replace_matched_op(memref.LoadOp.get(op.memref, indices))
+        rewriter.replace_op(op, memref.LoadOp.get(op.memref, indices))
 
 
 class LowerAffineFor(RewritePattern):
@@ -112,26 +112,27 @@ class LowerAffineFor(RewritePattern):
         assert len(lb_map.results) == 1, "Affine for lower_bound must have one result"
         assert len(ub_map.results) == 1, "Affine for upper_bound must have one result"
         lb_ops, lb_val = affine_expr_ops(lb_map.results[0], [], [])
-        rewriter.insert_op_before_matched_op(lb_ops)
+        rewriter.insert_op(lb_ops)
         ub_ops, ub_val = affine_expr_ops(ub_map.results[0], [], [])
-        rewriter.insert_op_before_matched_op(ub_ops)
+        rewriter.insert_op(ub_ops)
         step_op = arith.ConstantOp(op.step)
-        rewriter.insert_op_before_matched_op(step_op)
-        rewriter.replace_matched_op(
+        rewriter.insert_op(step_op)
+        rewriter.replace_op(
+            op,
             scf.ForOp(
                 lb_val,
                 ub_val,
                 step_op.result,
                 op.inits,
                 rewriter.move_region_contents_to_new_regions(op.body),
-            )
+            ),
         )
 
 
 class LowerAffineYield(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: affine.YieldOp, rewriter: PatternRewriter, /):
-        rewriter.replace_matched_op(scf.YieldOp(*op.arguments))
+        rewriter.replace_op(op, scf.YieldOp(*op.arguments))
 
 
 class LowerAffineApply(RewritePattern):
@@ -152,7 +153,7 @@ class LowerAffineApply(RewritePattern):
         ops, val = affine_expr_ops(affine_map.results[0], dims, symbols)
         new_ops.extend(ops)
         new_results.append(val)
-        rewriter.replace_matched_op(new_ops, new_results)
+        rewriter.replace_op(op, new_ops, new_results)
 
 
 class LowerAffinePass(ModulePass):

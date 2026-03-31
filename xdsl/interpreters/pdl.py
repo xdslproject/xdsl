@@ -100,7 +100,7 @@ class PDLMatcher:
 
         index = pdl_op.index.value.data
 
-        if len(original_op.results) <= index:
+        if original_op.type_values and len(original_op.type_values) <= index:
             return False
 
         self.matching_context[ssa_val] = xdsl_op.results[index]
@@ -352,7 +352,7 @@ class PDLRewriteFunctions(InterpreterFunctions):
         )
 
         # Insert the new operation before the root operation
-        self.rewriter.insert_op_before_matched_op(result_op)
+        self.rewriter.insert_op(result_op)
 
         return (result_op,)
 

@@ -4,7 +4,7 @@ from xdsl.dialects.arm_neon import (
     NeonArrangement,
     NeonArrangementAttr,
     NEONRegisterType,
-    VectorWithArrangement,
+    vector_with_arrangement,
 )
 from xdsl.dialects.builtin import VectorType, f16, f32, f64
 
@@ -12,15 +12,15 @@ from xdsl.dialects.builtin import VectorType, f16, f32, f64
 def test_assembly_str_without_index():
     reg = NEONRegisterType.from_name("v0")
     arrangement = NeonArrangementAttr(NeonArrangement.D)
-    vecreg = VectorWithArrangement(reg=reg, arrangement=arrangement, index=None)
-    assert vecreg.assembly_str() == "v0.2D"
+    vecreg = vector_with_arrangement(reg=reg, arrangement=arrangement, index=None)
+    assert vecreg == "v0.2D"
 
 
 def test_assembly_str_with_index():
     reg = NEONRegisterType.from_name("v0")
     arrangement = NeonArrangementAttr(NeonArrangement.D)
-    vecreg = VectorWithArrangement(reg=reg, arrangement=arrangement, index=5)
-    assert vecreg.assembly_str() == "v0.D[5]"
+    vecreg = vector_with_arrangement(reg=reg, arrangement=arrangement, index=5)
+    assert vecreg == "v0.D[5]"
 
 
 def test_arr_from_vec():

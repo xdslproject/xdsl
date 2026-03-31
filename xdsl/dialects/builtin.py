@@ -21,7 +21,7 @@ from typing import (
 from immutabledict import immutabledict
 from typing_extensions import Self, TypeVar, deprecated, override
 
-from xdsl.dialect_interfaces import OpAsmDialectInterface
+from xdsl.dialect_interfaces.op_asm import OpAsmDialectInterface
 from xdsl.ir import (
     Attribute,
     AttributeCovT,
@@ -101,9 +101,10 @@ if TYPE_CHECKING:
     from xdsl.printer import Printer
 
 
-DYNAMIC_INDEX = -1
+DYNAMIC_INDEX = -(2**63)
 """
 A constant value denoting a dynamic index in a shape.
+Equal to -(2 ** 63) which is used in C++ MLIR.
 """
 
 
@@ -136,13 +137,13 @@ _ContainerElementTypeT = TypeVar(
 )
 
 
-class ContainerType(Generic[_ContainerElementTypeT], ABC):
+class ContainerType(ABC, Generic[_ContainerElementTypeT]):
     @abstractmethod
     def get_element_type(self) -> _ContainerElementTypeT:
         pass
 
 
-class _BuiltinData(Generic[DataElement], Data[DataElement], BuiltinAttribute, ABC):
+class _BuiltinData(Data[DataElement], BuiltinAttribute, ABC, Generic[DataElement]):
     """
     Helper superclass to implement dummy print and parse parameter methods.
     """
@@ -158,7 +159,7 @@ class _BuiltinData(Generic[DataElement], Data[DataElement], BuiltinAttribute, AB
 
 
 class _BuiltinGenericData(
-    Generic[DataElement], GenericData[DataElement], _BuiltinData[DataElement], ABC
+    GenericData[DataElement], _BuiltinData[DataElement], ABC, Generic[DataElement]
 ):
     """
     Helper superclass to implement dummy print and parse parameter methods.
@@ -177,9 +178,9 @@ class NoneAttr(ParametrizedAttribute, BuiltinAttribute):
 
 @irdl_attr_definition
 class ArrayAttr(
-    Generic[AttributeCovT],
     _BuiltinGenericData[tuple[AttributeCovT, ...]],
     Iterable[AttributeCovT],
+    Generic[AttributeCovT],
 ):
     name = "array"
 
@@ -367,7 +368,7 @@ IntCovT = TypeVar("IntCovT", bound=int, default=int, covariant=True)
 
 
 @irdl_attr_definition
-class IntAttr(Generic[IntCovT], GenericData[IntCovT]):
+class IntAttr(GenericData[IntCovT], Generic[IntCovT]):
     name = "builtin.int"
 
     @classmethod
@@ -483,7 +484,7 @@ SignednessCovT = TypeVar(
 
 
 @irdl_attr_definition
-class SignednessAttr(Generic[SignednessCovT], GenericData[SignednessCovT]):
+class SignednessAttr(GenericData[SignednessCovT], Generic[SignednessCovT]):
     name = "builtin.signedness"
 
     @classmethod
@@ -556,7 +557,7 @@ class FixedBitwidthType(CompileTimeFixedBitwidthType, ABC):
 _PyT = TypeVar("_PyT")
 
 
-class PackableType(Generic[_PyT], CompileTimeFixedBitwidthType, ABC):
+class PackableType(CompileTimeFixedBitwidthType, ABC, Generic[_PyT]):
     """
     Abstract base class for xDSL types whose values can be encoded and decoded as bytes.
     """
@@ -590,7 +591,7 @@ class PackableType(Generic[_PyT], CompileTimeFixedBitwidthType, ABC):
         raise NotImplementedError()
 
 
-class StructPackableType(Generic[_PyT], PackableType[_PyT], ABC):
+class StructPackableType(PackableType[_PyT], ABC, Generic[_PyT]):
     """
     Abstract base class for xDSL types that can be packed and unpacked using Python's
     `struct` package, using a format string.
@@ -639,11 +640,11 @@ Bitwidths: `<B`: 1-8, `<H`: 9-16, `<I`: 17-32, `<Q`: 33-64.
 
 @irdl_attr_definition
 class IntegerType(
-    Generic[IntCovT, SignednessCovT],
     ParametrizedAttribute,
     StructPackableType[int],
     FixedBitwidthType,
     BuiltinAttribute,
+    Generic[IntCovT, SignednessCovT],
 ):
     name = "integer_type"
     width: IntAttr[IntCovT]
@@ -780,6 +781,44 @@ class UnitAttr(ParametrizedAttribute, BuiltinAttribute):
         printer.print_string("unit")
 
 
+class LocationConstraint(AttrConstraint):
+    """
+    Check if an attribute is one of the supported location types.
+    """
+
+    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
+        if isinstance(attr, LocationAttr) or isinstance(attr, NoneAttr):
+            return
+        raise VerifyException(f"{attr} is not a location attribute")
+
+    def mapping_type_vars(
+        self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
+    ) -> AttrConstraint:
+        # No type variables to map in this constraint
+        return self
+
+
+class LocationsArrayConstraint(AttrConstraint):
+    """
+    Check if an attribute is one of the supported location types.
+    """
+
+    def __init__(self):
+        self.location_constraint = LocationConstraint()
+
+    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
+        array = cast(ArrayAttr[Attribute], attr)
+        element: Attribute
+        for element in array:
+            self.location_constraint.verify(element, constraint_context)
+
+    def mapping_type_vars(
+        self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
+    ) -> AttrConstraint:
+        # No type variables to map in this constraint
+        return self
+
+
 @irdl_attr_definition
 class UnknownLoc(ParametrizedAttribute, BuiltinAttribute):
     """
@@ -804,7 +843,8 @@ class UnknownLoc(ParametrizedAttribute, BuiltinAttribute):
     name = "unknown_loc"
 
     def print_builtin(self, printer: Printer) -> None:
-        printer.print_string("loc(unknown)")
+        with printer.in_location():
+            printer.print_string("unknown")
 
 
 @irdl_attr_definition
@@ -835,8 +875,7 @@ class FileLineColLoc(ParametrizedAttribute, BuiltinAttribute):
     column: IntAttr = param_def()
 
     def print_builtin(self, printer: Printer) -> None:
-        printer.print_string("loc")
-        with printer.in_parens():
+        with printer.in_location():
             printer.print_string_literal(self.filename.data)
             printer.print_string(":")
             printer.print_int(self.line.data)
@@ -844,7 +883,65 @@ class FileLineColLoc(ParametrizedAttribute, BuiltinAttribute):
             printer.print_int(self.column.data)
 
 
-LocationAttr: TypeAlias = UnknownLoc | FileLineColLoc
+@irdl_attr_definition
+class CallSiteLoc(ParametrizedAttribute, BuiltinAttribute):
+    name = "builtin.callsite_loc"
+
+    callee: Attribute = param_def(LocationConstraint())
+    caller: Attribute = param_def(LocationConstraint())
+
+    def print_builtin(self, printer: Printer) -> None:
+        with printer.in_location():
+            printer.print_string("callsite(")
+            printer.print_attribute(self.callee)
+            printer.print_string(" at ")
+            printer.print_attribute(self.caller)
+            printer.print_string(")")
+
+
+@irdl_attr_definition
+class FusedLoc(ParametrizedAttribute, BuiltinAttribute):
+    name = "builtin.fused_loc"
+
+    locations: Attribute = param_def(
+        constraint=LocationsArrayConstraint(), converter=ArrayAttr[Attribute].get
+    )
+    metadata: Attribute = param_def()
+
+    def print_builtin(self, printer: Printer) -> None:
+        with printer.in_location():
+            printer.print_string("fused")
+            if not isinstance(self.metadata, NoneAttr):
+                printer.print_string("<")
+                printer.print_attribute(self.metadata)
+                printer.print_string(">")
+            printer.print_attribute(self.locations)
+
+
+@irdl_attr_definition
+class NameLoc(ParametrizedAttribute, BuiltinAttribute):
+    name = "builtin.name_loc"
+
+    desc: StringAttr = param_def()
+    location: Attribute = param_def(LocationConstraint())
+
+    def print_builtin(self, printer: Printer) -> None:
+        with printer.in_location():
+            printer.print_attribute(self.desc)
+            if not isinstance(self.location, NoneAttr):
+                printer.print_string("(")
+                printer.print_attribute(self.location)
+                printer.print_string(")")
+
+
+LocationAttr: TypeAlias = UnknownLoc | FileLineColLoc | CallSiteLoc | NameLoc | FusedLoc
+"""
+Union of all MLIR location attribute types. Represents source location
+information that can be attached to operations, covering unknown locations,
+file/line/column positions, call-site chains, named locations, and fused
+(multi-location) aggregates.
+"""
+UNKNOWN_LOC: LocationAttr = UnknownLoc()
 
 
 @irdl_attr_definition
@@ -878,9 +975,9 @@ AnySignlessIntegerOrIndexType: TypeAlias = Annotated[
 
 @irdl_attr_definition
 class IntegerAttr(
-    Generic[_IntegerAttrType],
     BuiltinAttribute,
     TypedAttribute,
+    Generic[_IntegerAttrType],
 ):
     name = "integer"
     value: IntAttr
@@ -923,6 +1020,7 @@ class IntegerAttr(
                 value = normalized_value
         super().__init__(IntAttr(value), value_type)
 
+    @deprecated("Please use IntegerAttr(value, width) instead")
     @staticmethod
     def from_int_and_width(
         value: int, width: IntCovT
@@ -1121,7 +1219,8 @@ class FloatData(Data[float]):
             return float(parser.parse_number())
 
     def print_parameter(self, printer: Printer) -> None:
-        printer.print_string(f"{self.data}")
+        with printer.in_angle_brackets():
+            printer.print_string(f"{self.data}")
 
     def __eq__(self, other: object):
         # avoid triggering `float('nan') != float('nan')` inequality
@@ -1140,7 +1239,7 @@ _FloatAttrTypeInvT = TypeVar("_FloatAttrTypeInvT", bound=AnyFloat)
 
 
 @irdl_attr_definition
-class FloatAttr(Generic[_FloatAttrType], BuiltinAttribute, TypedAttribute):
+class FloatAttr(BuiltinAttribute, TypedAttribute, Generic[_FloatAttrType]):
     name = "float"
 
     value: FloatData
@@ -1214,6 +1313,18 @@ class FloatAttr(Generic[_FloatAttrType], BuiltinAttribute, TypedAttribute):
         """
         return tuple(FloatAttr(value, type) for value in type.unpack(buffer, num))
 
+    @staticmethod
+    def constr(
+        type: IRDLAttrConstraint[_FloatAttrType] = AnyFloatConstr,
+    ) -> AttrConstraint[FloatAttr[_FloatAttrType]]:
+        return ParamAttrConstraint[FloatAttr[_FloatAttrType]](
+            FloatAttr,
+            (
+                None,
+                type,
+            ),
+        )
+
 
 ComplexElementCovT = TypeVar(
     "ComplexElementCovT",
@@ -1225,12 +1336,12 @@ ComplexElementCovT = TypeVar(
 
 @irdl_attr_definition
 class ComplexType(
-    Generic[ComplexElementCovT],
     PackableType[tuple[float, float] | tuple[int, int]],
     ParametrizedAttribute,
     BuiltinAttribute,
     ContainerType[ComplexElementCovT],
     TypeAttribute,
+    Generic[ComplexElementCovT],
 ):
     name = "complex"
     element_type: ComplexElementCovT
@@ -1339,12 +1450,12 @@ class TupleType(ParametrizedAttribute, BuiltinAttribute, TypeAttribute):
 
 @irdl_attr_definition
 class VectorType(
-    Generic[AttributeCovT],
     BuiltinAttribute,
     ParametrizedAttribute,
     TypeAttribute,
     ShapedType,
     ContainerType[AttributeCovT],
+    Generic[AttributeCovT],
 ):
     name = "vector"
 
@@ -1441,12 +1552,12 @@ AnyVectorType: TypeAlias = VectorType[Attribute]
 
 @irdl_attr_definition
 class TensorType(
-    Generic[AttributeCovT],
     ParametrizedAttribute,
     BuiltinAttribute,
     TypeAttribute,
     ShapedType,
     ContainerType[AttributeCovT],
+    Generic[AttributeCovT],
 ):
     name = "tensor"
 
@@ -1468,15 +1579,7 @@ class TensorType(
     def print_builtin(self, printer: Printer):
         printer.print_string("tensor")
         with printer.in_angle_brackets():
-            printer.print_list(
-                self.shape.data,
-                lambda x: (
-                    printer.print_string(f"{x.data}")
-                    if x.data != -1
-                    else printer.print_string("?")
-                ),
-                "x",
-            )
+            printer.print_dimension_list(self.get_shape())
             if len(self.shape.data) != 0:
                 printer.print_string("x")
             printer.print_attribute(self.element_type)
@@ -1512,11 +1615,11 @@ AnyTensorTypeConstr = BaseAttr[TensorType[Attribute]](TensorType)
 
 @irdl_attr_definition
 class UnrankedTensorType(
-    Generic[AttributeCovT],
     ParametrizedAttribute,
     BuiltinAttribute,
     TypeAttribute,
     ContainerType[AttributeCovT],
+    Generic[AttributeCovT],
 ):
     name = "unranked_tensor"
 
@@ -1536,10 +1639,10 @@ AnyUnrankedTensorTypeConstr = BaseAttr[AnyUnrankedTensorType](UnrankedTensorType
 
 @dataclass(frozen=True, init=False)
 class ContainerOf(
-    Generic[AttributeCovT],
     AttrConstraint[
         AttributeCovT | VectorType[AttributeCovT] | TensorType[AttributeCovT]
     ],
+    Generic[AttributeCovT],
 ):
     """A type constraint that can be nested once in a vector or a tensor."""
 
@@ -1687,10 +1790,10 @@ DenseArrayInvT = TypeVar(
 
 @irdl_attr_definition
 class DenseArrayBase(
-    Generic[DenseArrayT],
     ContainerType[DenseArrayT],
     ParametrizedAttribute,
     BuiltinAttribute,
+    Generic[DenseArrayT],
 ):
     name = "array"
 
@@ -1879,8 +1982,6 @@ class MemRefLayoutAttr(Attribute, ABC):
     """
     Interface for any attribute acceptable as a memref layout.
     """
-
-    name = "abstract.memref_layout_att"
 
     @abstractmethod
     def get_affine_map(self) -> AffineMap:
@@ -2141,6 +2242,7 @@ class UnregisteredOp(Operation, ABC):
                 result_types: Sequence[Attribute] = (),
                 properties: Mapping[str, Attribute] = {},
                 attributes: Mapping[str, Attribute] = {},
+                location: LocationAttr | None = None,
                 successors: Sequence[Block] = (),
                 regions: Sequence[Region] = (),
             ):
@@ -2149,6 +2251,7 @@ class UnregisteredOp(Operation, ABC):
                     result_types=result_types,
                     properties=properties,
                     attributes=attributes,
+                    location=location,
                     successors=successors,
                     regions=regions,
                 )
@@ -2269,7 +2372,7 @@ class ModuleOp(IRDLOperation):
 
     def __init__(
         self,
-        ops: list[Operation] | Region,
+        ops: Iterable[Operation] | Region,
         attributes: Mapping[str, Attribute] | None = None,
         sym_name: StringAttr | None = None,
     ):
@@ -2346,18 +2449,18 @@ class NoneType(ParametrizedAttribute, BuiltinAttribute, TypeAttribute):
 
 @irdl_attr_definition
 class MemRefType(
-    Generic[_MemRefTypeElement],
     ParametrizedAttribute,
     BuiltinAttribute,
     TypeAttribute,
     ShapedType,
     ContainerType[_MemRefTypeElement],
+    Generic[_MemRefTypeElement],
 ):
     name = "memref"
 
     shape: ArrayAttr[IntAttr]
     element_type: _MemRefTypeElement
-    layout: StridedLayoutAttr | AffineMapAttr | NoneAttr
+    layout: MemRefLayoutAttr | NoneAttr
     memory_space: Attribute
 
     def __init__(
@@ -2419,15 +2522,7 @@ class MemRefType(
         printer.print_string("memref")
         with printer.in_angle_brackets():
             if self.shape.data:
-                printer.print_list(
-                    self.shape.data,
-                    lambda x: (
-                        printer.print_string(f"{x.data}")
-                        if x.data != -1
-                        else printer.print_string("?")
-                    ),
-                    "x",
-                )
+                printer.print_dimension_list(self.get_shape())
                 printer.print_string("x")
             printer.print_attribute(self.element_type)
             if not isinstance(self.layout, NoneAttr):
@@ -2509,11 +2604,11 @@ class MemRefType(
 
 @irdl_attr_definition
 class UnrankedMemRefType(
-    Generic[_UnrankedMemRefTypeElems],
     ParametrizedAttribute,
     BuiltinAttribute,
     TypeAttribute,
     ContainerType[_UnrankedMemRefTypeElems],
+    Generic[_UnrankedMemRefTypeElems],
 ):
     name = "unranked_memref"
 
@@ -2555,10 +2650,10 @@ DenseElementT = TypeVar("DenseElementT", bound=AnyDenseElement, default=AnyDense
 
 @irdl_attr_definition
 class DenseIntOrFPElementsAttr(
-    Generic[DenseElementCovT],
     TypedAttribute,
     BuiltinAttribute,
     ContainerType[DenseElementCovT],
+    Generic[DenseElementCovT],
 ):
     name = "dense"
     type: RankedStructure[DenseElementCovT]

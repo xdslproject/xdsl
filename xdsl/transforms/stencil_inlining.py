@@ -58,7 +58,7 @@ class StencilStoreResultForwardPattern(RewritePattern):
     def match_and_rewrite(self, op: StoreResultOp, rewriter: PatternRewriter, /):
         if op.arg is None:
             return
-        rewriter.replace_matched_op([], [op.arg])
+        rewriter.replace_op(op, [], [op.arg])
 
 
 class StencilIfResultForwardPattern(RewritePattern):
@@ -74,13 +74,14 @@ class StencilIfResultForwardPattern(RewritePattern):
         ]
         if new_result_types == result_types:
             return
-        rewriter.replace_matched_op(
+        rewriter.replace_op(
+            op,
             scf.IfOp(
                 op.cond,
                 new_result_types,
                 op.detach_region(0),
                 op.detach_region(0),
-            )
+            ),
         )
 
 
@@ -159,7 +160,7 @@ class StencilReroutingPattern(RewritePattern):
         new_operands = list(consumer.args) + list(producer.results)
         new_results = list(r.type for r in consumer.res + producer.res)
 
-        new_consumer = ApplyOp.get(
+        new_consumer = ApplyOp(
             new_operands,
             Block(arg_types=[o.type for o in new_operands]),
             cast(Sequence[TempType[Attribute]], new_results),
@@ -189,10 +190,10 @@ class StencilReroutingPattern(RewritePattern):
         return_operands = list(return_op.arg)
         zero_offset = [0] * new_consumer.get_rank()
         for arg in new_consumer.region.block.args[-len(producer.res) :]:
-            access = AccessOp.get(arg, zero_offset)
+            access = AccessOp(arg, zero_offset)
             rewriter.insert_op(access, InsertPoint.before(return_op))
             return_operands.append(access.res)
-        rewriter.replace_op(return_op, ReturnOp.get(return_operands))
+        rewriter.replace_op(return_op, ReturnOp(return_operands))
 
         # Replace the producer's results by the rerouted consumer results
         rerouted_results = new_consumer.res[-len(producer.res) :]
@@ -329,7 +330,7 @@ class StencilInliningPattern(RewritePattern):
             if not arg.uses:
                 new_operands.pop(arg.index)
                 merged_block.erase_arg(arg)
-        new_apply = ApplyOp.get(
+        new_apply = ApplyOp(
             new_operands,
             merged_block,
             [cast(TempType[Attribute], r.type) for r in consumer.results],

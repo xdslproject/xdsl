@@ -41,7 +41,7 @@ from xdsl.utils.exceptions import (
     PyRDLOpDefinitionError,
     VerifyException,
 )
-from xdsl.utils.hints import PropertyType, get_type_var_mapping
+from xdsl.utils.hints import PropertyType, get_type_var_mapping, isa
 
 from .attributes import (  # noqa: TID251
     IRDLAttrConstraint,
@@ -82,7 +82,7 @@ IRDLOperationContrT = TypeVar(
 )
 
 
-@dataclass(init=False)
+@dataclass(init=False, repr=False)
 class IRDLOperation(Operation):
     assembly_format: ClassVar[str | None] = None
     custom_directives: ClassVar[tuple[type[CustomDirective], ...]] = ()
@@ -499,7 +499,7 @@ class _OpDefField(Generic[_ClsT]):
         self.cls = cls
 
 
-class _RangeConstrainedOpDefField(Generic[_ClsT], _OpDefField[_ClsT]):
+class _RangeConstrainedOpDefField(_OpDefField[_ClsT], Generic[_ClsT]):
     param: RangeConstraint | IRDLAttrConstraint
 
     def __init__(self, cls: type[_ClsT], param: RangeConstraint | IRDLAttrConstraint):
@@ -507,7 +507,7 @@ class _RangeConstrainedOpDefField(Generic[_ClsT], _OpDefField[_ClsT]):
         self.param = param
 
 
-class _ConstrainedOpDefField(Generic[_ClsT], _OpDefField[_ClsT]):
+class _ConstrainedOpDefField(_OpDefField[_ClsT], Generic[_ClsT]):
     param: IRDLAttrConstraint
 
     def __init__(self, cls: type[_ClsT], param: IRDLAttrConstraint):
@@ -527,7 +527,7 @@ AttrOrPropInvT = TypeVar("AttrOrPropInvT", bound=AttrOrPropDef)
 
 
 class _AttrOrPropFieldDef(
-    Generic[AttrOrPropInvT], _ConstrainedOpDefField[AttrOrPropInvT]
+    _ConstrainedOpDefField[AttrOrPropInvT], Generic[AttrOrPropInvT]
 ):
     ir_name: str | None = None
     """
@@ -988,7 +988,20 @@ class OpDef:
                 # in Operation, or are class functions or methods.
 
                 if field_name == "irdl_options":
-                    value = cast(list[IRDLOption], value)
+                    if not isa(value, tuple[IRDLOption, ...]):
+                        if isa(value, list[IRDLOption]):
+                            import warnings
+
+                            warnings.warn(
+                                "Defining irdl_options as a `list` is deprecated, please use a "
+                                "`tuple`.",
+                                DeprecationWarning,
+                                stacklevel=2,
+                            )
+                        else:
+                            raise PyRDLOpDefinitionError(
+                                "All values in irdl_options should inherit IRDLOption"
+                            )
                     op_def.options.extend(value)
                     for option in value:
                         if isinstance(option, AttrSizedSegments):
@@ -1475,12 +1488,14 @@ def irdl_op_verify_arg_list(
         try:
             arg_def.constr.verify(arg_types, constraint_context)
         except VerifyException as e:
-            if length == 1:
-                pos = f"{idx}"
+            if length == 0:
+                pos = f"expected at position {idx}"
+            elif length == 1:
+                pos = f"at position {idx}"
             else:
-                pos = f"{idx} to {idx + length - 1}"
+                pos = f"at positions {idx} to {idx + length - 1}"
             raise VerifyException(
-                f"{get_construct_name(construct)} at position {pos} does not "
+                f"{get_construct_name(construct)} '{arg_name}' {pos} does not "
                 f"verify:\n{e}"
             ) from e
         idx += length

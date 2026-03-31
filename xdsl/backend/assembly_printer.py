@@ -2,8 +2,9 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 
-from xdsl.dialects.builtin import ModuleOp, StringAttr
-from xdsl.ir import Operation
+from xdsl.backend.register_type import RegisterType
+from xdsl.dialects.builtin import IntAttr, ModuleOp, StringAttr
+from xdsl.ir import Operation, SSAValue
 from xdsl.utils.base_printer import BasePrinter
 
 
@@ -75,3 +76,39 @@ class OneLineAssemblyPrintable(AssemblyPrintable, ABC):
         if line is not None:
             printer.print_string(line)
             printer.print_string("\n")
+
+
+# region: Assembly arg printing utilities
+
+
+class RegisterNameSpec(ABC):
+    """
+    Abstract base class for classes that provide the name for registers.
+    On some targets, a single register may be accessed via multiple names, subclass this
+    to specify how the access should be printed in assembly.
+    """
+
+    @abstractmethod
+    def get_register_name(self, index: int) -> str:
+        """
+        Returns the register name for a given index.
+        """
+
+
+def reg(value: SSAValue, spec: RegisterNameSpec | None = None) -> str:
+    """
+    A wrapper around SSAValue to be printed in assembly.
+    Only valid if the type of the value is a RegisterType.
+    """
+
+    assert isinstance(value.type, RegisterType)
+    if spec is None:
+        name = value.type.register_name.data
+    else:
+        index = value.type.index
+        assert isinstance(index, IntAttr)
+        name = spec.get_register_name(index.data)
+    return name
+
+
+# endregion

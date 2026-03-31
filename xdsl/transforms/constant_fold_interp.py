@@ -7,7 +7,10 @@ from dataclasses import dataclass
 from typing import Any, cast
 
 from xdsl.context import Context
-from xdsl.dialects import arith, builtin
+from xdsl.dialect_interfaces.constant_materialization import (
+    ConstantMaterializationInterface,
+)
+from xdsl.dialects import builtin
 from xdsl.dialects.builtin import IntegerAttr, IntegerType
 from xdsl.interpreter import Interpreter
 from xdsl.interpreters import register_implementations
@@ -24,6 +27,7 @@ from xdsl.utils.exceptions import InterpretationError
 
 @dataclass
 class ConstantFoldInterpPattern(RewritePattern):
+    ctx: Context
     interpreter: Interpreter
 
     def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter, /):
@@ -42,6 +46,13 @@ class ConstantFoldInterpPattern(RewritePattern):
             # Only rewrite operations where all the operands are constants
             return
 
+        dialect = self.ctx.get_dialect(op.dialect_name())
+
+        if (
+            materializer := dialect.get_interface(ConstantMaterializationInterface)
+        ) is None:
+            return
+
         try:
             args = tuple(
                 self.interpreter.run_op(cast(OpResult, operand).op, ())[0]
@@ -51,26 +62,22 @@ class ConstantFoldInterpPattern(RewritePattern):
         except InterpretationError:
             return
 
-        new_ops = [
-            self.constant_op_for_value(interp_result, op_result.type)
-            for interp_result, op_result in zip(results, op.results)
-        ]
+        new_ops: list[Operation] = []
+        for interp_result, op_result in zip(results, op.results):
+            result_attr = self.convert_to_attr(interp_result, op_result.type)
+            if result_attr is None:
+                return
+            new_op = materializer.materialize_constant(result_attr, op_result.type)
+            if new_op is None:
+                return
+            new_ops.append(new_op)
 
-        if any(new_op is None for new_op in new_ops):
-            # If we don't know how to create a constant for one of the results, bail
-            return
+        rewriter.replace_op(op, new_ops, [new_op.results[0] for new_op in new_ops])
 
-        new_ops = cast(list[Operation], new_ops)
-
-        rewriter.replace_matched_op(new_ops, [new_op.results[0] for new_op in new_ops])
-
-    def constant_op_for_value(
-        self, value: Any, value_type: Attribute
-    ) -> Operation | None:
+    def convert_to_attr(self, value: Any, value_type: Attribute) -> Attribute | None:
         match (value, value_type):
             case int(), IntegerType():
-                attr = IntegerAttr(value, cast(IntegerType, value_type))
-                return arith.ConstantOp(attr)
+                return IntegerAttr(value, cast(IntegerType, value_type))
             case _:
                 return None
 
@@ -86,5 +93,5 @@ class ConstantFoldInterpPass(ModulePass):
     def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         interpreter = Interpreter(op)
         register_implementations(interpreter, ctx)
-        pattern = ConstantFoldInterpPattern(interpreter)
+        pattern = ConstantFoldInterpPattern(ctx, interpreter)
         PatternRewriteWalker(pattern).rewrite_module(op)

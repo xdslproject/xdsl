@@ -25,7 +25,8 @@ def gen_reference():
 
         if parts[-1] == "__main__":
             continue
-        elif parts[-1].startswith("_"):
+        elif parts[-1].startswith("_") and parts[-1] != "__init__":
+            # skip private modules
             continue
         if not parts:
             continue
@@ -35,6 +36,9 @@ def gen_reference():
 
         if parts[-1] == "__init__":
             parts = parts[:-1]
+            if not parts:
+                # skip the root __init__.py
+                continue
             doc_path = doc_path.with_name("index.md")
             full_doc_path = full_doc_path.with_name("index.md")
 

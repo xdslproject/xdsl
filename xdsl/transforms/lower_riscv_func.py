@@ -1,12 +1,11 @@
 from dataclasses import dataclass, field
 
 from xdsl.context import Context
-from xdsl.dialects import riscv, riscv_func
+from xdsl.dialects import riscv, riscv_func, rv32
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import Operation
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
-    GreedyRewritePatternApplier,
     PatternRewriter,
     PatternRewriteWalker,
     RewritePattern,
@@ -41,7 +40,7 @@ class LowerSyscallOp(RewritePattern):
                 )
             )
 
-        ops.append(riscv.LiOp(immediate=op.syscall_num, rd=riscv.Registers.A7))
+        ops.append(rv32.LiOp(immediate=op.syscall_num, rd=riscv.Registers.A7))
 
         if op.result is None:
             ops.append(riscv.EcallOp())
@@ -50,7 +49,7 @@ class LowerSyscallOp(RewritePattern):
             # The result will be stored to a0, move to register that will be used
             ecall = riscv.EcallOp()
             ops.append(ecall)
-            gr = riscv.GetRegisterOp(riscv.Registers.A0)
+            gr = rv32.GetRegisterOp(riscv.Registers.A0)
             ops.append(gr)
             res = gr.res
 
@@ -58,7 +57,7 @@ class LowerSyscallOp(RewritePattern):
             ops.append(mv)
             new_results = mv.results
 
-        rewriter.replace_matched_op(ops, new_results=new_results)
+        rewriter.replace_op(op, ops, new_results=new_results)
 
 
 class InsertExitSyscallOp(RewritePattern):
@@ -72,7 +71,7 @@ class InsertExitSyscallOp(RewritePattern):
             return
 
         EXIT = 93
-        rewriter.insert_op_before_matched_op(riscv_func.SyscallOp(EXIT))
+        rewriter.insert_op(riscv_func.SyscallOp(EXIT))
 
 
 @dataclass(frozen=True)
@@ -86,10 +85,4 @@ class LowerRISCVFunc(ModulePass):
             PatternRewriteWalker(
                 InsertExitSyscallOp(), apply_recursively=False
             ).rewrite_module(op)
-        PatternRewriteWalker(
-            GreedyRewritePatternApplier(
-                [
-                    LowerSyscallOp(),
-                ]
-            )
-        ).rewrite_module(op)
+        PatternRewriteWalker(LowerSyscallOp()).rewrite_module(op)

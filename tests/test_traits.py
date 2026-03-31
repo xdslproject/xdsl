@@ -30,6 +30,7 @@ from xdsl.dialects.builtin import (
     i32,
     i64,
 )
+from xdsl.interfaces import ConditionallySpeculatableInterface
 from xdsl.ir import Attribute, Operation, OpTrait, SSAValue
 from xdsl.irdl import (
     Block,
@@ -47,15 +48,18 @@ from xdsl.irdl import (
     traits_def,
     var_operand_def,
     var_result_def,
+    var_successor_def,
 )
 from xdsl.traits import (
     AlwaysSpeculatable,
     ConditionallySpeculatable,
     HasAncestor,
     HasParent,
+    IsTerminator,
     MemoryEffectKind,
     OptionalSymbolOpInterface,
     RecursivelySpeculatable,
+    ReturnLike,
     SameOperandsAndResultType,
     SymbolOpInterface,
     SymbolTable,
@@ -321,9 +325,7 @@ def test_symbol_op_interface():
         sym_name = attr_def(IntegerAttr)
         traits = traits_def(SymbolOpInterface())
 
-    op1 = SymNameWrongTypeOp(
-        attributes={"sym_name": IntegerAttr.from_int_and_width(1, 32)}
-    )
+    op1 = SymNameWrongTypeOp(attributes={"sym_name": IntegerAttr(1, 32)})
 
     with pytest.raises(
         VerifyException,
@@ -570,6 +572,26 @@ def test_speculability(
     else:
         assert optrait is None
 
+    assert is_speculatable(op) is speculatability
+
+
+@pytest.mark.parametrize("speculatability", [True, False])
+def test_conditionally_speculatable_interface(speculatability: bool):
+    @irdl_op_definition
+    class InterfaceSpeculatabilityTestOp(
+        IRDLOperation, ConditionallySpeculatableInterface
+    ):
+        name = "test.interface_speculatability"
+        region = region_def()
+
+        def is_speculatable(self) -> bool:
+            return speculatability
+
+    op = InterfaceSpeculatabilityTestOp(regions=[Region(Block())])
+    trait = op.get_trait(ConditionallySpeculatable)
+
+    assert trait is not None
+    assert trait.is_speculatable(op) is speculatability
     assert is_speculatable(op) is speculatability
 
 
@@ -1028,3 +1050,38 @@ def test_modify_traits():
 
     with pytest.raises(VerifyException, match="Nope"):
         op.verify()
+
+
+def test_return_like():
+    @irdl_op_definition
+    class TestReturnLikeOp(IRDLOperation):
+        name = "test.return_like"
+
+        traits = traits_def(ReturnLike())
+        my_results = var_result_def()
+        my_successors = var_successor_def()
+
+    terminator = TestReturnLikeOp(result_types=((),), successors=((),))
+
+    with pytest.raises(VerifyException, match="test.return_like is not a terminator"):
+        terminator.verify()
+
+    TestReturnLikeOp.traits.add_trait(IsTerminator())
+    terminator.verify()
+
+    results = TestReturnLikeOp(result_types=((i32,),), successors=((),))
+
+    with pytest.raises(
+        VerifyException, match="test.return_like does not have zero results"
+    ):
+        results.verify()
+
+    _ = Region((a := Block(), b := Block()))
+
+    successors = TestReturnLikeOp(result_types=((),), successors=(b,))
+    a.add_op(successors)
+
+    with pytest.raises(
+        VerifyException, match="test.return_like does not have zero successors"
+    ):
+        successors.verify()

@@ -316,7 +316,7 @@ class ZeroMemoryOp(GetMemoryInfoBaseOperation):
     name = "snrt.zero_memory"
 
 
-class DmaStart1DBaseOperation(SnitchRuntimeBaseOperation, Generic[_T], ABC):
+class DmaStart1DBaseOperation(SnitchRuntimeBaseOperation, ABC, Generic[_T]):
     """
     Initiate an asynchronous 1D DMA transfer
     """
@@ -336,7 +336,7 @@ class DmaStart1DBaseOperation(SnitchRuntimeBaseOperation, Generic[_T], ABC):
         super().__init__(operands=[dst, src, size], result_types=[tx_id])
 
 
-class DmaStart2DBaseOperation(SnitchRuntimeBaseOperation, Generic[_T], ABC):
+class DmaStart2DBaseOperation(SnitchRuntimeBaseOperation, ABC, Generic[_T]):
     """
     Generic base class for starting asynchronous 2D DMA transfers
     """
@@ -438,7 +438,7 @@ class SsrLoopBaseOp(SnitchRuntimeBaseOperation, ABC):
     data_mover = operand_def(i32)
     bounds = var_operand_def(IndexType)
     strides = var_operand_def(IndexType)
-    irdl_options = [AttrSizedOperandSegments()]
+    irdl_options = (AttrSizedOperandSegments(),)
 
     def verify_(self) -> None:
         if len(self.bounds) != len(self.strides):

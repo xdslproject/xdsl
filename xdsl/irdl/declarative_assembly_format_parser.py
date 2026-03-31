@@ -180,6 +180,16 @@ class FormatParser(BaseParser):
         directives leads to ambiguous parsing, and should raise an error here.
         """
         for a, b in pairwise(elements):
+            if (
+                isinstance(a, OptionalGroupDirective)
+                and isinstance(a.then_first, RegionDirective)
+                and isinstance(b, AttrDictDirective)
+                and not b.with_keyword
+            ):
+                self.raise_error(
+                    "An optional group with a region as a first element cannot be "
+                    "followed by a `attr-dict' directive as it is ambiguous."
+                )
             if not a.is_optional_like():
                 continue
             match a, b:
@@ -197,7 +207,10 @@ class FormatParser(BaseParser):
                         "An optional/variadic operand variable cannot be followed by another "
                         "operand variable."
                     )
-                case RegionDirective(), RegionDirective():
+                case (
+                    VariadicRegionVariable() | OptionalRegionVariable(),
+                    RegionDirective(),
+                ):
                     self.raise_error(
                         "An optional/variadic region variable cannot be followed by another "
                         "region variable."

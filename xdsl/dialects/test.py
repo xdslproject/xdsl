@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 
-from xdsl.dialect_interfaces import OpAsmDialectInterface
+from xdsl.dialect_interfaces.op_asm import OpAsmDialectInterface
+from xdsl.dialects.builtin import IntegerAttr, IntegerType
+from xdsl.interfaces import HasFolderInterface
 from xdsl.ir import (
     Attribute,
     Block,
@@ -18,6 +20,8 @@ from xdsl.irdl import (
     irdl_attr_definition,
     irdl_op_definition,
     opt_prop_def,
+    prop_def,
+    result_def,
     traits_def,
     var_operand_def,
     var_region_def,
@@ -26,7 +30,13 @@ from xdsl.irdl import (
 )
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
-from xdsl.traits import IsTerminator, MemoryReadEffect, MemoryWriteEffect, Pure
+from xdsl.traits import (
+    ConstantLike,
+    IsTerminator,
+    MemoryReadEffect,
+    MemoryWriteEffect,
+    Pure,
+)
 
 
 @irdl_op_definition
@@ -235,6 +245,28 @@ class TestWriteOp(IRDLOperation):
             successors=(successors,),
             regions=(regions,),
         )
+
+
+@irdl_op_definition
+class TestConstantOp(IRDLOperation, HasFolderInterface):
+    """
+    Minimal integer constant op for tests that need a `ConstantLike` producer.
+    """
+
+    name = "test.constant"
+
+    result = result_def(IntegerType)
+    value = prop_def(IntegerAttr)
+
+    traits = traits_def(Pure(), ConstantLike())
+
+    def __init__(self, value: int | IntegerAttr, value_type: IntegerType):
+        if isinstance(value, int):
+            value = IntegerAttr(value, value_type)
+        super().__init__(result_types=[value_type], properties={"value": value})
+
+    def fold(self) -> tuple[Attribute]:
+        return (self.value,)
 
 
 @irdl_attr_definition

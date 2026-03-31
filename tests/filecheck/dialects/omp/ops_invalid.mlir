@@ -1,9 +1,9 @@
 // RUN: xdsl-opt %s --verify-diagnostics --split-input-file | filecheck %s
 
-func.func @omp_ordered(%arg0 : i32, %arg1 : i32, %arg2 : i32, %arg3 : i64, %arg4 : i64, %arg5 : i64, %arg6 : i64) {
+func.func @omp_ordered(%arg0: i32, %arg1: i32, %arg2: i32, %arg3: i64, %arg4: i64, %arg5: i64, %arg6: i64) {
     "omp.wsloop"() <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0, 0>, ordered = 0 : i64}> ({
         "omp.loop_nest"(%arg0, %arg1, %arg2) ({
-        ^bb0(%arg7 : i32):
+        ^bb0(%arg7: i32):
             omp.yield
         }) : (i32, i32, i32) -> ()
         "omp.terminator"() : () -> ()
@@ -15,7 +15,7 @@ func.func @omp_ordered(%arg0 : i32, %arg1 : i32, %arg2 : i32, %arg3 : i64, %arg4
 
 // -----
 
-func.func @omp_ordered(%arg0 : i32, %arg1 : i32, %arg2 : i32, %arg3 : i64, %arg4 : i64, %arg5 : i64, %arg6 : i64) {
+func.func @omp_ordered(%arg0: i32, %arg1: i32, %arg2: i32, %arg3: i64, %arg4: i64, %arg5: i64, %arg6: i64) {
     "omp.wsloop"() <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0, 0>, ordered = 0 : i64}> ({
         "omp.terminator"() : () -> ()
     }) : () -> ()
@@ -26,11 +26,11 @@ func.func @omp_ordered(%arg0 : i32, %arg1 : i32, %arg2 : i32, %arg3 : i64, %arg4
 
 // -----
 
-func.func @omp_wsloop_block(%arg0 : i32, %arg1 : i32, %arg2 : i32, %arg3 : i64, %arg4 : i64, %arg5 : i64, %arg6 : i64) {
+func.func @omp_wsloop_block(%arg0: i32, %arg1: i32, %arg2: i32, %arg3: i64, %arg4: i64, %arg5: i64, %arg6: i64) {
     "omp.wsloop"(%arg0, %arg1, %arg3) <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 2, 1, 0>, ordered = 0 : i64}> ({
-    ^block_(%a : i32):
+    ^block_(%a: i32):
         "omp.loop_nest"(%arg0, %arg1, %arg2) ({
-        ^bb0(%arg7 : i32):
+        ^bb0(%arg7: i32):
             omp.yield
         }) : (i32, i32, i32) -> ()
     }) : (i32, i32, i64) -> ()
@@ -41,9 +41,9 @@ func.func @omp_wsloop_block(%arg0 : i32, %arg1 : i32, %arg2 : i32, %arg3 : i64, 
 
 // -----
 
-func.func @omp_parallel_block(%arg0 : i32, %arg1 : i32, %arg2 : i32, %arg3 : i64, %arg4 : i64, %arg5 : i64, %arg6 : i64) {
+func.func @omp_parallel_block(%arg0: i32, %arg1: i32, %arg2: i32, %arg3: i64, %arg4: i64, %arg5: i64, %arg6: i64) {
   "omp.parallel"(%arg0, %arg1, %arg2) <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 1, 2>}> ({
-    ^block_(%a : i32):
+    ^block_(%a: i32):
     "omp.terminator"() : () -> ()
   }) : (i32, i32, i32) -> ()
   return
@@ -53,10 +53,10 @@ func.func @omp_parallel_block(%arg0 : i32, %arg1 : i32, %arg2 : i32, %arg3 : i64
 
 // -----
 
-func.func @omp_target_block(%host : i32, %inr1 : i32, %inr2 : i32, %map : memref<1xf32>, %arg4 : i64, %arg5 : i64, %arg6 : i64) {
+func.func @omp_target_block(%host: i32, %inr1: i32, %inr2: i32, %map: memref<1xf32>, %arg4: i64, %arg5: i64, %arg6: i64) {
   %map1 = "omp.map.info"(%map) <{operandSegmentSizes = array<i32: 1, 0, 0, 0>, var_type = memref<1xf32>, map_type = 1 : ui64, map_capture_type = #omp<variable_capture_kind(ByCopy)>}> : (memref<1xf32>) -> memref<1xf32>
   "omp.target"(%host, %inr1, %inr2, %map1, %arg4, %arg5, %arg6) <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 1, 0, 2, 0, 1, 3, 0>}> ({
-    ^bb0(%a : i32, %b : i32):
+    ^bb0(%a: i32, %b: i32):
     "omp.terminator"() : () -> ()
   }) : (i32, i32, i32, memref<1xf32>, i64, i64, i64) -> ()
   return
@@ -66,11 +66,11 @@ func.func @omp_target_block(%host : i32, %inr1 : i32, %inr2 : i32, %map : memref
 
 // -----
 
-func.func @omp_simd(%ub : index, %lb : index, %step : index,%p1 : f32, %r1 : memref<1xf32>) {
+func.func @omp_simd(%ub: index, %lb: index, %step: index,%p1: f32, %r1: memref<1xf32>) {
   "omp.simd"(%p1, %r1) <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 1, 1>}> ({
   ^bb0():
     "omp.loop_nest"(%lb, %ub, %step) ({
-    ^bb0(%iter : index):
+    ^bb0(%iter: index):
       omp.yield
     }) : (index, index, index) -> ()
 
@@ -82,10 +82,10 @@ func.func @omp_simd(%ub : index, %lb : index, %step : index,%p1 : f32, %r1 : mem
 
 // -----
 
-func.func @omp_target_data(%dev : i64, %if : i1, %m : memref<1xf32>, %d1 : memref<1xf64>, %d2 : memref<1xi32>) {
+func.func @omp_target_data(%dev: i64, %if: i1, %m: memref<1xf32>, %d1: memref<1xf64>, %d2: memref<1xi32>) {
   %m1 = "omp.map.info"(%m) <{operandSegmentSizes = array<i32: 1, 0, 0, 0>, var_type = memref<1xf32>, map_type = 1 : ui64, map_capture_type = #omp<variable_capture_kind(ByCopy)>}> : (memref<1xf32>) -> memref<1xf32>
   "omp.target_data"(%dev, %if, %m1, %d1, %d2, %d2) <{operandSegmentSizes = array<i32: 1, 1, 1, 2, 1>}> ({
-  ^bb0(%0 : memref<1xi64>, %1 : memref<1xi64>):
+  ^bb0(%0: memref<1xi64>, %1: memref<1xi64>):
     "omp.terminator"() : () -> ()
   }) : (i64, i1, memref<1xf32>, memref<1xf64>, memref<1xi32>, memref<1xi32>) -> ()
   func.return
@@ -96,10 +96,10 @@ func.func @omp_target_data(%dev : i64, %if : i1, %m : memref<1xf32>, %d1 : memre
 
 // -----
 
-func.func @omp_simd_aligned(%ub : index, %lb : index, %step : index, %a1 : memref<1xi32>, %a2 : memref<10xf32>) {
+func.func @omp_simd_aligned(%ub: index, %lb: index, %step: index, %a1: memref<1xi32>, %a2: memref<10xf32>) {
   "omp.simd"(%a1, %a2) <{operandSegmentSizes = array<i32: 2, 0, 0, 0, 0, 0, 0>, alignments = [64, 8, 16]}> ({
     "omp.loop_nest"(%lb, %ub, %step) ({
-    ^bb0(%iter : index):
+    ^bb0(%iter: index):
       omp.yield
     }) : (index, index, index) -> ()
 
@@ -111,10 +111,10 @@ func.func @omp_simd_aligned(%ub : index, %lb : index, %step : index, %a1 : memre
 
 // -----
 
-func.func @omp_simd_linear(%ub : index, %lb : index, %step : index, %l1 : memref<1xi32>, %lstep1 : i32, %lstep2 : i32) {
+func.func @omp_simd_linear(%ub: index, %lb: index, %step: index, %l1: memref<1xi32>, %lstep1: i32, %lstep2: i32) {
   "omp.simd"(%l1, %lstep1, %lstep2) <{operandSegmentSizes = array<i32: 0, 0, 1, 2, 0, 0, 0>}> ({
     "omp.loop_nest"(%lb, %ub, %step) ({
-    ^bb0(%iter : index):
+    ^bb0(%iter: index):
       omp.yield
     }) : (index, index, index) -> ()
 
@@ -126,10 +126,10 @@ func.func @omp_simd_linear(%ub : index, %lb : index, %step : index, %l1 : memref
 
 // -----
 
-func.func @omp_simd_simdlen(%ub : index, %lb : index, %step : index) {
+func.func @omp_simd_simdlen(%ub: index, %lb: index, %step: index) {
   "omp.simd"() <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0, 0>, simdlen=8, safelen=2}> ({
     "omp.loop_nest"(%lb, %ub, %step) ({
-    ^bb0(%iter : index):
+    ^bb0(%iter: index):
       omp.yield
     }) : (index, index, index) -> ()
 
@@ -141,10 +141,10 @@ func.func @omp_simd_simdlen(%ub : index, %lb : index, %step : index) {
 
 // -----
 
-func.func @omp_simd_simdlen_0(%ub : index, %lb : index, %step : index) {
+func.func @omp_simd_simdlen_0(%ub: index, %lb: index, %step: index) {
   "omp.simd"() <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0, 0>, simdlen=0, safelen=2}> ({
     "omp.loop_nest"(%lb, %ub, %step) ({
-    ^bb0(%iter : index):
+    ^bb0(%iter: index):
       omp.yield
     }) : (index, index, index) -> ()
 
@@ -156,7 +156,7 @@ func.func @omp_simd_simdlen_0(%ub : index, %lb : index, %step : index) {
 
 // -----
 
-func.func @omp_target_data_no_map_info(%m : memref<1xf32>) {
+func.func @omp_target_data_no_map_info(%m: memref<1xf32>) {
   "omp.target_data"(%m) <{operandSegmentSizes = array<i32: 0, 0, 1, 0, 0>}> ({
     "omp.terminator"() : () -> ()
   }) : (memref<1xf32>) -> ()
@@ -167,7 +167,7 @@ func.func @omp_target_data_no_map_info(%m : memref<1xf32>) {
 
 // -----
 
-func.func @omp_target_data_delete(%m : memref<1xf32>) {
+func.func @omp_target_data_delete(%m: memref<1xf32>) {
   %m1 = "omp.map.info"(%m) <{operandSegmentSizes = array<i32: 1, 0, 0, 0>, var_type = memref<1xf32>, map_type = 0x08 : ui64, map_capture_type = #omp<variable_capture_kind(ByCopy)>}> : (memref<1xf32>) -> memref<1xf32>
   "omp.target_data"(%m1) <{operandSegmentSizes = array<i32: 0, 0, 1, 0, 0>}> ({
     "omp.terminator"() : () -> ()
@@ -179,10 +179,10 @@ func.func @omp_target_data_delete(%m : memref<1xf32>) {
 
 // -----
 
-func.func @omp_target_data_to_and_delete(%dev : i64, %if : i1, %m : memref<1xf32>, %d1 : memref<1xf32>, %d2 : memref<1xf32>) {
+func.func @omp_target_data_to_and_delete(%dev: i64, %if: i1, %m: memref<1xf32>, %d1: memref<1xf32>, %d2: memref<1xf32>) {
   %m1 = "omp.map.info"(%m) <{operandSegmentSizes = array<i32: 1, 0, 0, 0>, var_type = memref<1xf32>, map_type = 0x9 : ui64, map_capture_type = #omp<variable_capture_kind(ByCopy)>}> : (memref<1xf32>) -> memref<1xf32>
   "omp.target_data"(%m1) <{operandSegmentSizes = array<i32: 0, 0, 1, 0, 0>}> ({
-  ^bb0(%0 : memref<1xf32>, %1 : memref<1xf32>, %2 : memref<1xf32>):
+  ^bb0(%0: memref<1xf32>, %1: memref<1xf32>, %2: memref<1xf32>):
     "omp.terminator"() : () -> ()
   }) : (memref<1xf32>) -> ()
   func.return
@@ -192,7 +192,7 @@ func.func @omp_target_data_to_and_delete(%dev : i64, %if : i1, %m : memref<1xf32
 
 // -----
 
-func.func @omp_target_enter_data_from(%m : memref<1xf32>) {
+func.func @omp_target_enter_data_from(%m: memref<1xf32>) {
   %from = "omp.map.info"(%m) <{operandSegmentSizes = array<i32: 1, 0, 0, 0>, var_type = memref<1xf32>, map_type = 0x2 : ui64, map_capture_type = #omp<variable_capture_kind(ByCopy)>}> : (memref<1xf32>) -> memref<1xf32>
 "omp.target_enter_data"(%from) <{operandSegmentSizes = array<i32: 0, 0, 0, 1>}> : (memref<1xf32>) -> ()
   func.return
@@ -202,7 +202,7 @@ func.func @omp_target_enter_data_from(%m : memref<1xf32>) {
 
 // -----
 
-func.func @omp_target_enter_data_delete(%m : memref<1xf32>) {
+func.func @omp_target_enter_data_delete(%m: memref<1xf32>) {
   %del = "omp.map.info"(%m) <{operandSegmentSizes = array<i32: 1, 0, 0, 0>, var_type = memref<1xf32>, map_type = 0x8 : ui64, map_capture_type = #omp<variable_capture_kind(ByCopy)>}> : (memref<1xf32>) -> memref<1xf32>
 "omp.target_enter_data"(%del) <{operandSegmentSizes = array<i32: 0, 0, 0, 1>}> : (memref<1xf32>) -> ()
   func.return
@@ -212,7 +212,7 @@ func.func @omp_target_enter_data_delete(%m : memref<1xf32>) {
 
 // -----
 
-func.func @omp_target_exit_data_to(%m : memref<1xf32>) {
+func.func @omp_target_exit_data_to(%m: memref<1xf32>) {
   %to = "omp.map.info"(%m) <{operandSegmentSizes = array<i32: 1, 0, 0, 0>, var_type = memref<1xf32>, map_type = 0x1 : ui64, map_capture_type = #omp<variable_capture_kind(ByCopy)>}> : (memref<1xf32>) -> memref<1xf32>
   "omp.target_exit_data"(%to) <{operandSegmentSizes = array<i32: 0, 0, 0, 1>}> : (memref<1xf32>) -> ()
   func.return
@@ -222,7 +222,7 @@ func.func @omp_target_exit_data_to(%m : memref<1xf32>) {
 
 // -----
 
-func.func @omp_target_update_del(%m : memref<1xf32>) {
+func.func @omp_target_update_del(%m: memref<1xf32>) {
   %del = "omp.map.info"(%m) <{operandSegmentSizes = array<i32: 1, 0, 0, 0>, var_type = memref<1xf32>, map_type = 0x8 : ui64, map_capture_type = #omp<variable_capture_kind(ByCopy)>}> : (memref<1xf32>) -> memref<1xf32>
   "omp.target_update"(%del) <{operandSegmentSizes = array<i32: 0, 0, 0, 1>}> : (memref<1xf32>) -> ()
   func.return
@@ -232,7 +232,7 @@ func.func @omp_target_update_del(%m : memref<1xf32>) {
 
 // -----
 
-func.func @omp_target_update_to_from_same_map(%m : memref<1xf32>) {
+func.func @omp_target_update_to_from_same_map(%m: memref<1xf32>) {
   %tofrom = "omp.map.info"(%m) <{operandSegmentSizes = array<i32: 1, 0, 0, 0>, var_type = memref<1xf32>, map_type = 0x3 : ui64, map_capture_type = #omp<variable_capture_kind(ByCopy)>}> : (memref<1xf32>) -> memref<1xf32>
   "omp.target_update"(%tofrom) <{operandSegmentSizes = array<i32: 0, 0, 0, 1>}> : (memref<1xf32>) -> ()
   func.return
@@ -242,7 +242,7 @@ func.func @omp_target_update_to_from_same_map(%m : memref<1xf32>) {
 
 // -----
 
-func.func @omp_target_update_to_from_same_operand(%m : memref<1xf32>) {
+func.func @omp_target_update_to_from_same_operand(%m: memref<1xf32>) {
   %to = "omp.map.info"(%m) <{operandSegmentSizes = array<i32: 1, 0, 0, 0>, var_type = memref<1xf32>, map_type = 0x1 : ui64, map_capture_type = #omp<variable_capture_kind(ByCopy)>}> : (memref<1xf32>) -> memref<1xf32>
   %from = "omp.map.info"(%m) <{operandSegmentSizes = array<i32: 1, 0, 0, 0>, var_type = memref<1xf32>, map_type = 0x2 : ui64, map_capture_type = #omp<variable_capture_kind(ByCopy)>}> : (memref<1xf32>) -> memref<1xf32>
   "omp.target_update"(%to, %from) <{operandSegmentSizes = array<i32: 0, 0, 0, 2>}> : (memref<1xf32>, memref<1xf32>) -> ()
@@ -253,10 +253,10 @@ func.func @omp_target_update_to_from_same_operand(%m : memref<1xf32>) {
 
 // -----
 
-func.func @wsloopop_linear(%ub : index, %lb : index, %step : index, %l1 : memref<1xi32>, %lstep1 : i32, %lstep2 : i32) {
+func.func @wsloopop_linear(%ub: index, %lb: index, %step: index, %l1: memref<1xi32>, %lstep1: i32, %lstep2: i32) {
   "omp.wsloop"(%l1, %lstep1, %lstep2) <{operandSegmentSizes = array<i32: 0, 0, 1, 2, 0, 0, 0>}> ({
     "omp.loop_nest"(%lb, %ub, %step) ({
-    ^bb0(%iter : index):
+    ^bb0(%iter: index):
       omp.yield
     }) : (index, index, index) -> ()
 
@@ -268,10 +268,10 @@ func.func @wsloopop_linear(%ub : index, %lb : index, %step : index, %l1 : memref
 
 // CHECK: integer 1 expected from int variable 'LINEAR_COUNT', but got 2
 
-func.func @wsloopop_ordered(%ub : index, %lb : index, %step : index, %l1 : memref<1xi32>, %lstep1 : i32, %lstep2 : i32) {
+func.func @wsloopop_ordered(%ub: index, %lb: index, %step: index, %l1: memref<1xi32>, %lstep1: i32, %lstep2: i32) {
   "omp.wsloop"() <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0, 0>, ordered = -1 : i64}> ({
     "omp.loop_nest"(%lb, %ub, %step) ({
-    ^bb0(%iter : index):
+    ^bb0(%iter: index):
       omp.yield
     }) : (index, index, index) -> ()
 
@@ -295,19 +295,9 @@ func.func @yield_parent() {
 
 // -----
 
-func.func @private_not_enough_blocks() {
-  "omp.private"() <{data_sharing_type = #omp.data_sharing_type {type = private}, sym_name = "p1", type = i32}> ({ }, { }, { }) : () -> ()
-
-  func.return
-}
-
-// CHECK: alloc_region of omp.private has to have at least 1 block
-
-// -----
-
 func.func @reduction_too_many_blocks() {
   "omp.declare_reduction"() <{sym_name = "r1", type = i32}> ({
-  ^bb0(%r1_arg : i32):
+  ^bb0(%r1_arg: i32):
     cf.br  ^bb1
   ^bb1():
     omp.yield(%r1_arg : i32)
@@ -324,10 +314,10 @@ func.func @reduction_too_many_blocks() {
 
 // -----
 
-func.func @omp_distribute_chunk_operand(%lb : index, %ub : index, %step : index, %chunk : i64) {
+func.func @omp_distribute_chunk_operand(%lb: index, %ub: index, %step: index, %chunk: i64) {
   "omp.distribute"(%chunk) <{operandSegmentSizes = array<i32: 0, 0, 1, 0>}> ({
     "omp.loop_nest"(%lb, %ub, %step) ({
-    ^bb1(%iter : index):
+    ^bb1(%iter: index):
       omp.yield
     }) : (index, index, index) -> ()
   }) : (i64) -> ()
@@ -338,10 +328,10 @@ func.func @omp_distribute_chunk_operand(%lb : index, %ub : index, %step : index,
 
 // -----
 
-func.func @omp_distribute_chunk_attr(%lb : index, %ub : index, %step : index) {
+func.func @omp_distribute_chunk_attr(%lb: index, %ub: index, %step: index) {
   "omp.distribute"() <{dist_schedule_static, operandSegmentSizes = array<i32: 0, 0, 0, 0>}> ({
     "omp.loop_nest"(%lb, %ub, %step) ({
-    ^bb1(%iter : index):
+    ^bb1(%iter: index):
       omp.yield
     }) : (index, index, index) -> ()
   }) : () -> ()

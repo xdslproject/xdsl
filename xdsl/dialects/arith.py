@@ -4,6 +4,9 @@ import abc
 from collections.abc import Mapping, Sequence
 from typing import ClassVar, Literal, cast
 
+from xdsl.dialect_interfaces.constant_materialization import (
+    ConstantMaterializationInterface,
+)
 from xdsl.dialects.builtin import (
     AnyFloat,
     AnyFloatConstr,
@@ -27,7 +30,14 @@ from xdsl.dialects.builtin import (
     VectorType,
 )
 from xdsl.dialects.utils import FastMathAttrBase, FastMathFlag
-from xdsl.ir import Attribute, BitEnumAttribute, Dialect, Operation, SSAValue
+from xdsl.interfaces import ConditionallySpeculatableInterface, HasFolderInterface
+from xdsl.ir import (
+    Attribute,
+    BitEnumAttribute,
+    Dialect,
+    Operation,
+    SSAValue,
+)
 from xdsl.irdl import (
     AnyAttr,
     AnyOf,
@@ -47,7 +57,6 @@ from xdsl.pattern_rewriter import RewritePattern
 from xdsl.printer import Printer
 from xdsl.traits import (
     Commutative,
-    ConditionallySpeculatable,
     ConstantLike,
     HasCanonicalizationPatternsTrait,
     NoMemoryEffect,
@@ -128,7 +137,7 @@ class IntegerOverflowAttr(BitEnumAttribute[IntegerOverflowFlag]):
 
 
 @irdl_op_definition
-class ConstantOp(IRDLOperation):
+class ConstantOp(IRDLOperation, HasFolderInterface):
     name = "arith.constant"
     _T: ClassVar = VarConstraint("T", AnyAttr())
     result = result_def(_T)
@@ -139,7 +148,7 @@ class ConstantOp(IRDLOperation):
         | ParamAttrConstraint(DenseResourceAttr, (AnyAttr(), _T))
     )
 
-    traits = traits_def(ConstantLike(), Pure())
+    traits = traits_def(Pure(), ConstantLike())
 
     assembly_format = "attr-dict $value"
 
@@ -171,8 +180,11 @@ class ConstantOp(IRDLOperation):
             },
         )
 
+    def fold(self) -> Sequence[SSAValue | Attribute] | None:
+        return (self.value,)
 
-class SignlessIntegerBinaryOperation(IRDLOperation, abc.ABC):
+
+class SignlessIntegerBinaryOperation(IRDLOperation, HasFolderInterface, abc.ABC):
     """A generic base class for arith's binary operations on signless integers."""
 
     T: ClassVar = VarConstraint("T", signlessIntegerLike)
@@ -214,6 +226,22 @@ class SignlessIntegerBinaryOperation(IRDLOperation, abc.ABC):
         See external [documentation](https://en.wikipedia.org/wiki/Identity_element).
         """
         return False
+
+    def fold(self):
+        lhs = ConstantLike.get_constant_value(self.lhs)
+        rhs = ConstantLike.get_constant_value(self.rhs)
+        if lhs is not None and rhs is not None:
+            if isa(lhs, IntegerAttr) and isa(rhs, IntegerAttr):
+                assert lhs.type == rhs.type
+                result = self.py_operation(lhs.value.data, rhs.value.data)
+                if result is not None:
+                    return (IntegerAttr(result, lhs.type),)
+        if isa(rhs, IntegerAttr) and self.is_right_unit(rhs):
+            return (self.lhs,)
+        if not self.has_trait(Commutative):
+            return None
+        if isa(lhs, IntegerAttr) and self.is_right_unit(lhs):
+            return (self.rhs,)
 
     def __init__(
         self,
@@ -498,18 +526,8 @@ class SubiOp(SignlessIntegerBinaryOperationWithOverflow):
         return attr.value.data == 0
 
 
-class DivUISpeculatable(ConditionallySpeculatable):
-    @classmethod
-    def is_speculatable(cls, op: Operation):
-        op = cast(DivUIOp, op)
-        if not isinstance(cst := op.rhs.owner, ConstantOp):
-            return False
-        value = cast(IntegerAttr[IntegerType | IndexType], cst.value)
-        return value.value.data != 0
-
-
 @irdl_op_definition
-class DivUIOp(SignlessIntegerBinaryOperation):
+class DivUIOp(SignlessIntegerBinaryOperation, ConditionallySpeculatableInterface):
     """
     Unsigned integer division. Rounds towards zero. Treats the leading bit as
     the most significant, i.e. for `i16` given two's complement representation,
@@ -520,9 +538,12 @@ class DivUIOp(SignlessIntegerBinaryOperation):
 
     traits = traits_def(
         NoMemoryEffect(),
-        DivUISpeculatable(),
         SignlessIntegerBinaryOperationHasCanonicalizationPatternsTrait(),
     )
+
+    def is_speculatable(self) -> bool:
+        rhs = ConstantLike.get_constant_value(self.rhs)
+        return isa(rhs, IntegerAttr[IntegerType | IndexType]) and rhs.value.data != 0
 
     @staticmethod
     def is_right_unit(attr: IntegerAttr) -> bool:
@@ -530,7 +551,7 @@ class DivUIOp(SignlessIntegerBinaryOperation):
 
 
 @irdl_op_definition
-class DivSIOp(SignlessIntegerBinaryOperation):
+class DivSIOp(SignlessIntegerBinaryOperation, ConditionallySpeculatableInterface):
     """
     Signed integer division. Rounds towards zero. Treats the leading bit as
     sign, i.e. `6 / -2 = -3`.
@@ -542,6 +563,14 @@ class DivSIOp(SignlessIntegerBinaryOperation):
         NoMemoryEffect(),
         SignlessIntegerBinaryOperationHasCanonicalizationPatternsTrait(),
     )
+
+    def is_speculatable(self) -> bool:
+        rhs = ConstantLike.get_constant_value(self.rhs)
+        return (
+            isa(rhs, IntegerAttr[IntegerType | IndexType])
+            and rhs.value.data != 0
+            and rhs.value.data != -1
+        )
 
     @staticmethod
     def is_right_unit(attr: IntegerAttr) -> bool:
@@ -858,7 +887,7 @@ class CmpiOp(ComparisonOperation):
         super().__init__(
             operands=[operand1, operand2],
             result_types=[IntegerType(1)],
-            properties={"predicate": IntegerAttr.from_int_and_width(arg, 64)},
+            properties={"predicate": IntegerAttr(arg, 64)},
         )
 
     @classmethod
@@ -960,7 +989,7 @@ class CmpfOp(ComparisonOperation):
             operands=[operand1, operand2],
             result_types=[IntegerType(1)],
             properties={
-                "predicate": IntegerAttr.from_int_and_width(arg, 64),
+                "predicate": IntegerAttr(arg, 64),
                 "fastmath": fastmath,
             },
         )
@@ -1178,6 +1207,8 @@ class BitcastOp(IRDLOperation):
         | MemRefType.constr(element_type=AnyFloatConstr | SignlessIntegerConstraint)
     )
 
+    traits = traits_def(Pure())
+
     assembly_format = "$input attr-dict `:` type($input) `to` type($result)"
 
     def __init__(self, in_arg: SSAValue | Operation, target_type: Attribute):
@@ -1373,6 +1404,14 @@ class ExtUIOp(IRDLOperation):
     traits = traits_def(Pure())
 
 
+class ArithConstantMaterializationInterface(ConstantMaterializationInterface):
+    def materialize_constant(self, value: Attribute, type: Attribute) -> Operation:
+        return cast(
+            Operation,
+            ConstantOp.build(properties={"value": value}, result_types=(type,)),
+        )
+
+
 Arith = Dialect(
     "arith",
     [
@@ -1434,5 +1473,8 @@ Arith = Dialect(
     [
         FastMathFlagsAttr,
         IntegerOverflowAttr,
+    ],
+    [
+        ArithConstantMaterializationInterface(),
     ],
 )
