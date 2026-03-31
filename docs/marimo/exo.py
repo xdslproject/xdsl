@@ -1,18 +1,53 @@
 import marimo
 
-__generated_with = "0.15.3"
+__generated_with = "0.21.1"
 app = marimo.App(width="medium")
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     # Exo-Style Scheduling in xDSL
 
-    Applying 2D tiling on matrix multiplication.
-    """
-    )
+    This notebook describes how to implement schedules similarly to [Exo](github.com/exo-lang/exo), a Python-native framework for linear algebra kernel schedules.
+    Exo divides the process of kernel implementation into two steps, first defining the kernel in a form that is easy to reason about and debug, and then applying a series of semantic-preserving transformations written in Python.
+    This notebook will concentrate on the second part, but without the logic to validate that the transformations are semantic-preserving.
+
+    We will build our way up to a transformation called 2D tiling.
+    Tiling is a transformation is popularly applied to linear algebra kernels accessing memory in different n-dimensional arrays, as a means of optimising for cache locality.
+    Here is a simple matrix multiplication kernel in pure Python before and after this transformation:
+
+    ```py
+    # A, B, and C assumed to be MxK, KxN, and MxN-dimension 2D arrays
+
+    def before(A, B, C):
+      for m in range(M):
+        for n in range(N):
+          for k in range(K):
+            C[m, n] += A[m, k] + B[k, n]
+
+    # Tiled in M and N by 16
+    def after(A, B, C):
+      for m_outer in range(0, M, 16):
+        for n_outer in range(0, N, 16):
+          for m in range(m_outer, m_outer + 16):
+            for n in range(n_outer, n_outer + 16):
+              for k in range(K):
+                C[m, n] += A[m, k] + B[k, n]
+    ```
+
+    The first function computes each element of the output matrix by doing a dot product of the corresponding row and column of the input matrices.
+    CPU caches typically store more than one element in a line, meaning that after loading an address in memory, a subsequent read of a nearby address in memory should be much faster due to already being saved in the cache, avoiding a part of the roundtrip.
+    If the matrices have row-major layout, meaning the elements in rows are contiguous, fetching the elements of the row of A are expected to be faster, as these are laid out close in memory, and the row is reused to compute all of the elements of the first row of C before fetching the next row.
+    In contrast, B will likely slow to access, as each subsequent read will be from a different row, and hence probably from a different cache line.
+    If the size of B is larger than that of the cache, by the time that the next row of C is computed, it's likely that cached elements of B will have been evicted to make space for other values.
+
+    After tiling, the access pattern has changed, even if the output result will be the same.
+    Instead of computing the elements of C row by row, they will now be computed by 16x16 tile.
+    It's more likely that the Kx16 slice of B will fit in the cache, resulting in fewer evictions, and more cache hits.
+
+    This notebook will not discuss either how to pick optimal tile sizes for a given kernel, or how to prove that the transformation is correct, and instead explore a possible API and implementation for this transformation in the style of Exo.
+    """)
     return
 
 
@@ -23,16 +58,18 @@ def _():
     from xdsl.parser import Parser
     from xdsl.context import Context
     from xdsl.dialects import arith, func, test, scf, builtin, memref
-    from xdsl.transforms.scf_for_loop_range_folding import ScfForLoopRangeFoldingPass
+    from xdsl.transforms.scf_for_loop_range_folding import ScfForLoopRangeFoldingPass, ScfForLoopRangeFolding
     from xdsl.transforms.canonicalize import CanonicalizePass
+    from xdsl.pattern_rewriter import PatternRewriter
+    import inspect
+
     return (
-        CanonicalizePass,
         Context,
         Parser,
-        ScfForLoopRangeFoldingPass,
         arith,
         builtin,
         func,
+        inspect,
         memref,
         mo,
         scf,
@@ -54,7 +91,15 @@ def _(Context, arith, builtin, func, memref, scf, test):
     return (ctx,)
 
 
-@app.cell
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    Here's the implementation of the `before` function using the `func`, `arith`, `scf`, and `memref` dialects:
+    """)
+    return
+
+
+@app.cell(hide_code=True)
 def _(Parser, ctx, xmo):
     # Input matmul function
 
@@ -114,6 +159,7 @@ def _():
         op_type_rewrite_pattern,
     )
     from dataclasses import dataclass
+
     return Block, InsertPoint, Operation, Printer, Region, Rewriter
 
 
@@ -135,7 +181,7 @@ def _(
 
     # TODO: cursor is just an Operation for now. We need something better when we support forwarding
     def split(module : ModuleOp, cursor: scf.ForOp, div_const: int) -> tuple[scf.ForOp, scf.ForOp]:
-        r = Rewriter()
+        r = Rewriter
 
         assert isinstance(cursor, scf.ForOp)
 
@@ -161,27 +207,28 @@ def _(
         r.insert_op(step_op, insertion_point=InsertPoint.at_start(parent_func.body.block))
         step_op.result.name_hint = f"c{div_const}"
 
-        inner_body = r.move_region_contents_to_new_regions(cursor.body) # this is region
+        # inner body stays the same
+        inner_body = r.move_region_contents_to_new_regions(cursor.body)
         ii, *iter_args_i = inner_body.block.args
 
+        # outer body contains inner upper bound and inner loop
         outer_body = Region(Block(arg_types=(ii.type, *(val.type for val in iter_args_i))))
         io, *iter_args_o = outer_body.block.args
 
-        inner_loop = scf.ForOp(cursor.lb, step_op.result, cursor.step, iter_args_o, inner_body)
-        for old, new_i_res in zip(res_names, inner_loop.results):
-            if old is not None:
-                new_i_res.name_hint = old + "_i"
+        # inner upper bound is `step` more than i_o
+        inner_ub = arith.AddiOp(io, step_op)
+        r.insert_op(inner_ub, InsertPoint.at_start(outer_body.block))
 
-        r.insert_op(inner_loop, InsertPoint.at_start(outer_body.block))
+        # i_o increments by original step
+        inner_loop = scf.ForOp(io, inner_ub, cursor.step, iter_args_o, inner_body)
+        r.insert_op(inner_loop, InsertPoint.after(inner_ub))
 
+        # outer loop increments by new step
         outer_loop = scf.ForOp(cursor.lb, cursor.ub, step_op, cursor.iter_args, outer_body)
-        new_i = arith.AddiOp(ii, io)
-        r.insert_op(new_i, insertion_point=InsertPoint.at_start(inner_body.block))
-        if ii.name_hint is not None:
-            new_i.result.name_hint = ii.name_hint
-        ii.replace_by_if(new_i.result, lambda val : val.operation != new_i)
 
+        # replace op
         r.replace_op(cursor, outer_loop)
+
         for old, new_o_res in zip(res_names, outer_loop.results):
             if old is not None:
                 new_o_res.name_hint = old + "_o"
@@ -191,8 +238,18 @@ def _(
                 outer_arg.name_hint = inner_arg.name_hint + "_o"
                 inner_arg.name_hint += "_i"
 
+        inner_ub.result.name_hint = "inner_ub" if io.name_hint is None else f"{io.name_hint}_ub"
+
         return outer_loop, inner_loop
+
     return (split,)
+
+
+@app.cell
+def _(inspect, split):
+    lines = inspect.getsource(split)
+    print(lines)
+    return
 
 
 @app.cell
@@ -211,11 +268,19 @@ def _(Block, ModuleOp, Region, Rewriter, arith, scf):
         assert isinstance(i_loop.ub.owner, arith.ConstantOp)
         assert isinstance(i_loop.lb.owner, arith.ConstantOp)
 
-        new_body = r.move_region_contents_to_new_regions(i_loop.body)
-        new_i_loop = scf.ForOp(o_loop.lb, o_loop.ub, o_loop.step, (), new_body)
-        outer_body  = Region(Block([new_i_loop], arg_types=(o_loop.body.block.args[0].type,)))
-        new_o_loop = scf.ForOp(i_loop.lb, i_loop.ub, i_loop.step, (), outer_body)
+        old_i_args = i_loop.body.block.args
+        old_o_args = o_loop.body.block.args
+        old_i_ind_var = old_i_args[0]
+        old_o_ind_var = old_o_args[0]
+
+        new_i_body = r.move_region_contents_to_new_regions(i_loop.body)
+        new_i_loop = scf.ForOp(o_loop.lb, o_loop.ub, o_loop.step, (), new_i_body)
+        new_o_body  = Region(Block([new_i_loop], arg_types=(o_loop.body.block.args[0].type,)))
+        new_o_loop = scf.ForOp(i_loop.lb, i_loop.ub, i_loop.step, (), new_o_body)
         r.replace_op(o_loop, new_o_loop)
+
+        new_i_args = new_i_body.block.args
+        new_o_args = new_o_body.block.args
 
         for (old_inner, new_outer) in zip(new_i_loop.body.block.args, new_o_loop.body.block.args, strict=True):
             new_outer.name_hint = old_inner.name_hint
@@ -223,36 +288,47 @@ def _(Block, ModuleOp, Region, Rewriter, arith, scf):
         for (old_outer, new_inner) in zip(o_loop.body.block.args, new_i_loop.body.block.args, strict=True):
             new_inner.name_hint = old_outer.name_hint
 
+        # We swapped the bodies and must now swap the induction arguments
+        # The new inner induction argument is the one that used to be inner, which has uses
+        # The new outer just got created, and does not have uses
+        # First replace uses of old inner with new outer
+        # Now old inner (which is also the new inner) has now uses
+        # Then replace uses of old outer with new inner
+
+        new_i_ind_var = new_i_args[0]
+        new_o_ind_var = new_o_args[0]
+
+        assert new_i_ind_var is old_i_ind_var
+
+        old_i_ind_var.replace_all_uses_with(new_o_ind_var)
+        old_o_ind_var.replace_all_uses_with(new_i_ind_var)
+
         return new_o_loop, new_i_loop
+
     return (reorder_loops,)
 
 
 @app.cell
-def _(
-    CanonicalizePass,
-    Printer,
-    ScfForLoopRangeFoldingPass,
-    ctx,
-    find,
-    input_module,
-    reorder_loops,
-    scf,
-    split,
-):
+def _(ModuleOp, reorder_loops, scf, split):
+    def tile_2d(module: ModuleOp, i: scf.ForOp, j: scf.ForOp) -> tuple[scf.ForOp, scf.ForOp, scf.ForOp, scf.ForOp]:
+        io, ii = split(module, i, 16)
+        jo, ji = split(module, j, 8)
+        reorder_loops(module, ii, jo)
+        return io, jo, ii, ji
+
+    return (tile_2d,)
+
+
+@app.cell
+def _(Printer, find, input_module, scf, tile_2d):
     # Tile 2D rewrite
 
     print("IR before tiling:")
     Printer().print_op(input_module)
     _module =input_module.clone()
 
-    # ---- Scheduling code begin -----
-    cursors = find(_module, scf.ForOp) # this should be loops
-    io, ii = split(_module, cursors[0], 16) # split the loop cursors[0] is pointing
-    jo, ji = split(_module, cursors[1], 8)
-    ScfForLoopRangeFoldingPass().apply(ctx, _module) # hack
-    CanonicalizePass().apply(ctx, _module) # hack
-    reorder_loops(_module, ii, jo)
-    # ---- Scheduling code end -----
+    i, j, k = find(_module, scf.ForOp)
+    io, ii, jo, ji = tile_2d(_module, i, j)
 
     print("\n")
     print("IR after tiling:")
