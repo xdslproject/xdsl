@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from xdsl.backend.riscv.lowering import (
     convert_arith_to_riscv,
@@ -16,9 +16,9 @@ from xdsl.transforms import (
     canonicalize,
     convert_linalg_to_memref_stream,
     convert_memref_stream_to_loops,
-    expand_math_to_polynomials,
     convert_memref_stream_to_snitch_stream,
     convert_riscv_scf_for_to_frep,
+    expand_math_to_polynomials,
     lower_affine,
     lower_snitch,
     memref_stream_fold_fill,
@@ -99,7 +99,11 @@ class TestLowerLinalgToSnitchPass(ModulePass):
     """
 
     name = "test-lower-linalg-to-snitch"
+    terms: int = 4
 
     def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         for p in TEST_LOWER_LINALG_TO_SNITCH_PASSES:
+            if isinstance(p, expand_math_to_polynomials.ExpandMathToPolynomialsPass):
+                p = replace(p, terms=self.terms)
+
             p.apply(ctx, op)
