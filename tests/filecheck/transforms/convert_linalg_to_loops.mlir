@@ -154,4 +154,25 @@ linalg.matmul ins(%D, %E : memref<2x3xf64>, memref<3x4xf64>) outs(%F : memref<2x
 // CHECK-NEXT:        }
 // CHECK-NEXT:      }
 // CHECK-NEXT:    }
+
+// Dynamic shape: add
+%LHS, %RHS, %OUT = "test.op"() : () -> (memref<?x?xf32>, memref<?x?xf32>, memref<?x?xf32>)
+linalg.add ins(%LHS, %RHS : memref<?x?xf32>, memref<?x?xf32>) outs(%OUT : memref<?x?xf32>)
+
+// CHECK-NEXT:    [[LHS_DYN:%.*]], [[RHS_DYN:%.*]], [[OUT_DYN:%.*]] = "test.op"() : () -> (memref<?x?xf32>, memref<?x?xf32>, memref<?x?xf32>)
+// CHECK-NEXT:    [[DIM0_IDX:%.*]] = arith.constant 0 : index
+// CHECK-NEXT:    [[DIM0:%.*]] = memref.dim [[LHS_DYN]], [[DIM0_IDX]] : memref<?x?xf32>
+// CHECK-NEXT:    [[DIM1_IDX:%.*]] = arith.constant 1 : index
+// CHECK-NEXT:    [[DIM1:%.*]] = memref.dim [[LHS_DYN]], [[DIM1_IDX]] : memref<?x?xf32>
+// CHECK-NEXT:    [[LB:%.*]] = arith.constant 0 : index
+// CHECK-NEXT:    [[STEP:%.*]] = arith.constant 1 : index
+// CHECK-NEXT:    scf.for [[I:%.*]] = [[LB]] to [[DIM0]] step [[STEP]] {
+// CHECK-NEXT:      scf.for [[J:%.*]] = [[LB]] to [[DIM1]] step [[STEP]] {
+// CHECK-NEXT:        [[LHS_VAL:%.*]] = memref.load [[LHS_DYN]][[[I]], [[J]]] : memref<?x?xf32>
+// CHECK-NEXT:        [[RHS_VAL:%.*]] = memref.load [[RHS_DYN]][[[I]], [[J]]] : memref<?x?xf32>
+// CHECK-NEXT:        [[SUM:%.*]] = arith.addf [[LHS_VAL]], [[RHS_VAL]] : f32
+// CHECK-NEXT:        memref.store [[SUM]], [[OUT_DYN]][[[I]], [[J]]] : memref<?x?xf32>
+// CHECK-NEXT:      }
+// CHECK-NEXT:    }
+
 // CHECK-NEXT:  }
