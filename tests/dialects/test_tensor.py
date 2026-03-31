@@ -112,7 +112,12 @@ def test_insert_slice_dynamic():
 @pytest.mark.parametrize(
     ("arg_types", "result_type", "dim", "exp_error"),
     [
-        ([TensorType(f32, (1, 2, 3))], TensorType(f32, (1, 2, 3)), 0, None),
+        (
+            [TensorType(f32, (1, 2, 3))],
+            TensorType(f32, (1, 2, 3)),
+            IntegerAttr(0, i64),
+            None,
+        ),
         ([TensorType(f32, (1, 2, 3))], TensorType(f32, (1, 2, 3)), 2, None),
         (
             [TensorType(f32, (1, 2, 3))],
