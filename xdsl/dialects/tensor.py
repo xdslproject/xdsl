@@ -175,33 +175,35 @@ class ConcatOp(IRDLOperation):
             msg = "concatenation dim must be less than the tensor rank"
             raise VerifyException(msg)
 
-        expected_result_shape = [DYNAMIC_INDEX] * result_type.get_num_dims()
-        # Collect non-concatenated dims:
-        for i in range(result_type.get_num_dims()):
-            if i == concat_dim:
-                continue
+        def expected_concatenated_dim() -> int:
+            dim_sum = 0
+            for arg in self.inputs:
+                assert isa(arg, SSAValue[TensorType])
+                arg_dim = arg.type.shape.data[concat_dim].data
+                if dim_sum != DYNAMIC_INDEX and arg_dim != DYNAMIC_INDEX:
+                    dim_sum += arg_dim
+                else:
+                    return DYNAMIC_INDEX
+            return dim_sum
+
+        def expected_non_concatenated_dim(i: int) -> int:
+            dim = DYNAMIC_INDEX
             for arg in self.inputs:
                 assert isa(arg, SSAValue[TensorType])
                 arg_dim = arg.type.shape.data[i].data
-                if expected_result_shape[i] == DYNAMIC_INDEX:
-                    expected_result_shape[i] = arg_dim
-                elif arg_dim != DYNAMIC_INDEX and expected_result_shape[i] != arg_dim:
+                if dim == DYNAMIC_INDEX:
+                    dim = arg_dim
+                elif arg_dim != DYNAMIC_INDEX and dim != arg_dim:
                     msg = f"static concatenation size mismatch along non-concatenated dimension {i}"
                     raise VerifyException(msg)
-        # Sum to get concatenated dim:
-        expected_result_shape[concat_dim] = 0
-        for arg in self.inputs:
-            assert isa(arg, SSAValue[TensorType])
-            arg_dim = arg.type.shape.data[concat_dim].data
-            if (
-                expected_result_shape[concat_dim] != DYNAMIC_INDEX
-                and arg_dim != DYNAMIC_INDEX
-            ):
-                expected_result_shape[concat_dim] = (
-                    expected_result_shape[concat_dim] + arg_dim
-                )
-            else:
-                expected_result_shape[concat_dim] = DYNAMIC_INDEX
+            return dim
+
+        expected_result_shape = tuple(
+            expected_concatenated_dim()
+            if i == concat_dim
+            else expected_non_concatenated_dim(i)
+            for i in range(result_type.get_num_dims())
+        )
         # Compare expected dims with actual dims
         for inferred_size, actual_size in zip(
             expected_result_shape, result_type.shape, strict=True
