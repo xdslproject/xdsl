@@ -1,7 +1,21 @@
-from xdsl.dialects.builtin import DYNAMIC_INDEX, DenseArrayBase, TensorType, f64, i64
+import re
+from collections.abc import Sequence
+
+import pytest
+
+from xdsl.dialects.builtin import (
+    DYNAMIC_INDEX,
+    DenseArrayBase,
+    IntegerAttr,
+    TensorType,
+    f32,
+    f64,
+    i64,
+)
 from xdsl.dialects.stencil import IndexAttr
-from xdsl.dialects.tensor import ExtractSliceOp, InsertSliceOp
+from xdsl.dialects.tensor import ConcatOp, ExtractSliceOp, InsertSliceOp
 from xdsl.dialects.test import TestOp
+from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.test_value import create_ssa_value
 
 
@@ -93,3 +107,112 @@ def test_insert_slice_dynamic():
     assert insert_slice.static_strides == DenseArrayBase.from_list(
         i64, 2 * [DYNAMIC_INDEX]
     )
+
+
+@pytest.mark.parametrize(
+    ("arg_types", "result_type", "dim", "exp_error"),
+    [
+        ([TensorType(f32, (1, 2, 3))], TensorType(f32, (1, 2, 3)), 0, None),
+        ([TensorType(f32, (1, 2, 3))], TensorType(f32, (1, 2, 3)), 2, None),
+        (
+            [TensorType(f32, (1, 2, 3))],
+            TensorType(f32, (1, 2, 3)),
+            3,
+            "concatenation dim must be less than the tensor rank",
+        ),
+        (
+            [TensorType(f32, (1, 2, 3)), TensorType(f32, (1, 2, 3))],
+            TensorType(f32, (2, 2, 3)),
+            0,
+            None,
+        ),
+        (
+            [TensorType(f32, (1, 2, 3)), TensorType(f32, (1, 2, 3))],
+            TensorType(f32, (1, 1, 3)),
+            0,
+            re.escape(
+                "result type tensor<1x1x3xf32> does not match inferred shape [2, 2, 3] static sizes"
+            ),
+        ),
+        (
+            [TensorType(f32, (1,)), TensorType(f32, (9999,))],
+            TensorType(f32, (10000,)),
+            0,
+            None,
+        ),
+        (
+            [TensorType(f32, (1,)), TensorType(f32, (9999,))],
+            TensorType(f32, (DYNAMIC_INDEX,)),
+            0,
+            None,
+        ),
+        (
+            [TensorType(f32, (1,)), TensorType(f32, (9999,))],
+            TensorType(f32, (10001,)),
+            0,
+            re.escape(
+                "result type tensor<10001xf32> does not match inferred shape [10000] static sizes"
+            ),
+        ),
+        (
+            [TensorType(f32, (1, 2)), TensorType(f32, (1, 2)), TensorType(f32, (2, 1))],
+            TensorType(f32, (4, 2)),
+            0,
+            "static concatenation size mismatch along non-concatenated dimension 1",
+        ),
+        (
+            [
+                TensorType(f32, (1, 2)),
+                TensorType(f32, (1, 2)),
+                TensorType(f32, (2, DYNAMIC_INDEX)),
+            ],
+            TensorType(f32, (4, 2)),
+            0,
+            None,
+        ),
+        (
+            [
+                TensorType(f32, (1, 2)),
+                TensorType(f32, (1, 2)),
+                TensorType(f32, (2, DYNAMIC_INDEX)),
+            ],
+            TensorType(f32, (4, DYNAMIC_INDEX)),
+            0,
+            None,
+        ),
+        (
+            [
+                TensorType(f32, (2, 2)),
+                TensorType(f32, (2, 2)),
+                TensorType(f32, (2, DYNAMIC_INDEX)),
+            ],
+            TensorType(f32, (2, DYNAMIC_INDEX)),
+            1,
+            None,
+        ),
+        (
+            [
+                TensorType(f32, (3, 2)),
+                TensorType(f32, (3, 2)),
+                TensorType(f32, (3, DYNAMIC_INDEX)),
+            ],
+            TensorType(f32, (3, 1000)),
+            1,
+            None,
+        ),
+    ],
+)
+def test_concat_verifies(
+    arg_types: Sequence[TensorType],
+    result_type: TensorType,
+    dim: int | IntegerAttr,
+    exp_error: str | None,
+) -> None:
+    """Test that ConcatOp's custom verify method correctly raises exceptions"""
+    operands = TestOp(result_types=arg_types).res
+    op = ConcatOp(operands, dim, result_type)
+    if exp_error is not None:
+        with pytest.raises(VerifyException, match=exp_error):
+            op.verify()
+    else:
+        op.verify()

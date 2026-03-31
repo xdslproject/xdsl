@@ -15,6 +15,10 @@
 %expanded_with_attr_dict = tensor.expand_shape %tensor [[0, 1, 2], [3]] output_shape [%dim1, 1, 1, %dim2] {test_attr = 42 : i8} : tensor<?x?xf32> into tensor<?x1x1x?xf32>
 %expanded_generic = "tensor.expand_shape"(%tensor, %dim1, %dim2) <{reassociation = [[0 : i64, 1 : i64, 2 : i64], [3 : i64]], static_output_shape = array<i64: -9223372036854775808, 1, 1, -9223372036854775808>}> : (tensor<?x?xf32>, index, index) -> tensor<?x1x1x?xf32>
 
+%concatenated1 = tensor.concat dim(2) %expanded, %expanded_with_attr_dict : (tensor<?x1x1x?xf32>, tensor<?x1x1x?xf32>) -> tensor<?x1x2x?xf32>
+%concatenated2 = tensor.concat dim(1) %tensor, %cast1 {test_attr = 1000 : i32} : (tensor<?x?xf32>, tensor<4x4xf32>) -> tensor<?x?xf32>
+%concatenated_generic = "tensor.concat"(%res_collapse1, %cast1) <{dim = 1 : i64}> : (tensor<4x1xf32>, tensor<4x4xf32>) -> tensor<4x5xf32>
+
 %s = "test.op"() : () -> (f32)
 %v = tensor.splat %s : tensor<8xf32>
 %v2 = tensor.splat %s[%index, %index1] : tensor<?x8x?xf32>
@@ -38,6 +42,9 @@
 // CHECK-NEXT:   %expanded = tensor.expand_shape %tensor [[0 : i64, 1 : i64, 2 : i64], [3 : i64]] output_shape [%dim1, 1, 1, %dim2] : tensor<?x?xf32> into tensor<?x1x1x?xf32>
 // CHECK-NEXT:   %expanded_with_attr_dict = tensor.expand_shape %tensor [[0 : i64, 1 : i64, 2 : i64], [3 : i64]] output_shape [%dim1, 1, 1, %dim2] {test_attr = 42 : i8} : tensor<?x?xf32> into tensor<?x1x1x?xf32>
 // CHECK-NEXT:   %expanded_generic = tensor.expand_shape %tensor [[0 : i64, 1 : i64, 2 : i64], [3 : i64]] output_shape [%dim1, 1, 1, %dim2] : tensor<?x?xf32> into tensor<?x1x1x?xf32>
+// CHECK-NEXT:   %concatenated1 = tensor.concat dim(2) %expanded, %expanded_with_attr_dict : (tensor<?x1x1x?xf32>, tensor<?x1x1x?xf32>) -> tensor<?x1x2x?xf32>
+// CHECK-NEXT:   %concatenated2 = tensor.concat dim(1) %tensor, %cast1 {test_attr = 1000 : i32} : (tensor<?x?xf32>, tensor<4x4xf32>) -> tensor<?x?xf32>
+// CHECK-NEXT:   %concatenated_generic = tensor.concat dim(1) %res_collapse1, %cast1 : (tensor<4x1xf32>, tensor<4x4xf32>) -> tensor<4x5xf32>
 // CHECK-NEXT:   %s = "test.op"() : () -> f32
 // CHECK-NEXT:   %v = tensor.splat %s : tensor<8xf32>
 // CHECK-NEXT:   %v2 = tensor.splat %s[%index, %index1] : tensor<?x8x?xf32>
@@ -61,6 +68,9 @@
 // CHECK-GENERIC-NEXT:   %expanded = "tensor.expand_shape"(%tensor, %dim1, %dim2) <{reassociation = [[0 : i64, 1 : i64, 2 : i64], [3 : i64]], static_output_shape = array<i64: -9223372036854775808, 1, 1, -9223372036854775808>}> : (tensor<?x?xf32>, index, index) -> tensor<?x1x1x?xf32>
 // CHECK-GENERIC-NEXT:   %expanded_with_attr_dict = "tensor.expand_shape"(%tensor, %dim1, %dim2) <{reassociation = [[0 : i64, 1 : i64, 2 : i64], [3 : i64]], static_output_shape = array<i64: -9223372036854775808, 1, 1, -9223372036854775808>}> {test_attr = 42 : i8} : (tensor<?x?xf32>, index, index) -> tensor<?x1x1x?xf32>
 // CHECK-GENERIC-NEXT:   %expanded_generic = "tensor.expand_shape"(%tensor, %dim1, %dim2) <{reassociation = [[0 : i64, 1 : i64, 2 : i64], [3 : i64]], static_output_shape = array<i64: -9223372036854775808, 1, 1, -9223372036854775808>}> : (tensor<?x?xf32>, index, index) -> tensor<?x1x1x?xf32>
+// CHECK-GENERIC-NEXT:   %concatenated1 = "tensor.concat"(%expanded, %expanded_with_attr_dict) <{dim = 2 : i64}> : (tensor<?x1x1x?xf32>, tensor<?x1x1x?xf32>) -> tensor<?x1x2x?xf32>
+// CHECK-GENERIC-NEXT:   %concatenated2 = "tensor.concat"(%tensor, %cast1) <{dim = 1 : i64}> {test_attr = 1000 : i32} : (tensor<?x?xf32>, tensor<4x4xf32>) -> tensor<?x?xf32>
+// CHECK-GENERIC-NEXT:   %concatenated_generic = "tensor.concat"(%res_collapse1, %cast1) <{dim = 1 : i64}> : (tensor<4x1xf32>, tensor<4x4xf32>) -> tensor<4x5xf32>
 // CHECK-GENERIC-NEXT:   %s = "test.op"() : () -> f32
 // CHECK-GENERIC-NEXT:   %v = "tensor.splat"(%s) : (f32) -> tensor<8xf32>
 // CHECK-GENERIC-NEXT:   %v2 = "tensor.splat"(%s, %index, %index1) : (f32, index, index) -> tensor<?x8x?xf32>
