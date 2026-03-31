@@ -98,9 +98,16 @@ class IteratorTypeAttr(EnumAttribute[IteratorType]):
 
 
 class LoopBoundSource(NamedTuple):
+    """Source information for one loop upper bound."""
+
     operand: SSAValue
+    """The shaped operand that provides the bound."""
+
     dim_index: int
+    """The dimension index in the operand used for the bound."""
+
     dim_size: int
+    """The size of that dimension, or DYNAMIC_INDEX if it is dynamic."""
 
 
 class LinalgStructuredOperation(IRDLOperation, ABC):
