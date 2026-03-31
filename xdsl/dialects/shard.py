@@ -53,72 +53,72 @@ from xdsl.utils.str_enum import StrEnum
 # Types and attributes                                                         #
 ################################################################################
 
-MeshAxis: TypeAlias = I16
+ShardAxis: TypeAlias = I16
 """
-The type used to represent numbers on a mesh axis.
+The type used to represent numbers on a grid axis.
 
-See [the MLIR definition](https://github.com/llvm/llvm-project/blob/6146a88f60492b520a36f8f8f3231e15f3cc6082/mlir/include/mlir/Dialect/Mesh/IR/MeshBase.td#L39).
-"""
-
-
-MeshAxesAttr: TypeAlias = DenseArrayBase[MeshAxis]
-"""
-The type used to represent a list of mesh axes.
-
-See [the MLIR definition](https://github.com/llvm/llvm-project/blob/6146a88f60492b520a36f8f8f3231e15f3cc6082/mlir/include/mlir/Dialect/Mesh/IR/MeshBase.td#L40).
+See [the MLIR definition](https://github.com/llvm/llvm-project/blob/fef02d48c08db859ef83f84232ed78bd9d1c323a/mlir/include/mlir/Dialect/Shard/IR/ShardBase.td#L39).
 """
 
 
-def _parse_mesh_axes_attr(parser: AttrParser) -> MeshAxesAttr:
+ShardAxesAttr: TypeAlias = DenseArrayBase[ShardAxis]
+"""
+The type used to represent a list of grid axes.
+
+See [the MLIR definition](https://github.com/llvm/llvm-project/blob/fef02d48c08db859ef83f84232ed78bd9d1c323a/mlir/include/mlir/Dialect/Shard/IR/ShardBase.td#L40).
+"""
+
+
+def _parse_grid_axes_attr(parser: AttrParser) -> ShardAxesAttr:
     """
-    Parses a single MeshAxesAttr, e.g. [1, 4, 7, 8]
+    Parses a single ShardAxesAttr, e.g. [1, 4, 7, 8]
     """
     elements = parser.parse_comma_separated_list(
         parser.Delimiter.SQUARE,
         parser.parse_integer,
     )
 
-    return MeshAxesAttr(i16, BytesAttr(i16.pack(elements)))
+    return ShardAxesAttr(i16, BytesAttr(i16.pack(elements)))
 
 
-def _print_sublist(printer: Printer, sublist: MeshAxesAttr) -> None:
+def _print_sublist(printer: Printer, sublist: ShardAxesAttr) -> None:
     """
-    Prints a single MeshAxesAttr, e.g. [1, 4, 6, 8]
+    Prints a single ShardAxesAttr, e.g. [1, 4, 6, 8]
     """
     with printer.in_square_brackets():
         printer.print_list(sublist.get_values(), printer.print_int)
 
 
 @irdl_attr_definition
-class MeshAxesArrayAttr(ParametrizedAttribute, OpaqueSyntaxAttribute):
+class ShardAxesArrayAttr(ParametrizedAttribute, OpaqueSyntaxAttribute):
     """
-    MeshAxesArrayAttr attribute for representing mutiple mesh axes.
+    ShardAxesArrayAttr attribute for representing multiple grid axes.
 
-    Reflects [the MLIR attribute](https://github.com/llvm/llvm-project/blob/6146a88f60492b520a36f8f8f3231e15f3cc6082/mlir/include/mlir/Dialect/Mesh/IR/MeshBase.td#L83).
+    Reflects [the MLIR attribute](https://github.com/llvm/llvm-project/blob/fef02d48c08db859ef83f84232ed78bd9d1c323a/mlir/include/mlir/Dialect/Shard/IR/ShardBase.td#L83).
     """
 
-    name = "mesh.axisarray"
+    name = "shard.axisarray"
 
-    axes: ArrayAttr[MeshAxesAttr]
+    axes: ArrayAttr[ShardAxesAttr]
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> Sequence[Attribute]:
         """
-        Parses a MeshAxesArrayAttr, which has the syntax of a list
+        Parses a ShardAxesArrayAttr, which has the syntax of a list
         of lists, e.g.:
 
         [[1, 2, 3], [], [4, 5]]
         """
         axes = parser.parse_comma_separated_list(
             parser.Delimiter.SQUARE,
-            lambda: _parse_mesh_axes_attr(parser),
+            lambda: _parse_grid_axes_attr(parser),
         )
 
         return (ArrayAttr(axes),)
 
     def print_parameters(self, printer: Printer) -> None:
         """
-        Prints a MeshAxesArrayAttr, which has the syntax of a list
+        Prints a ShardAxesArrayAttr, which has the syntax of a list
         of lists, e.g.:
 
         [[1, 2, 3], [], [4, 5]]
@@ -131,7 +131,7 @@ class MeshAxesArrayAttr(ParametrizedAttribute, OpaqueSyntaxAttribute):
 
 
 class ReductionKind(StrEnum):
-    "Reduction kind for mesh dialect"
+    "Reduction kind for grid dialect"
 
     SUM = auto()
     MAX = auto()
@@ -146,18 +146,18 @@ class ReductionKind(StrEnum):
 
 @irdl_attr_definition
 class ReductionKindAttr(EnumAttribute[ReductionKind], SpacedOpaqueSyntaxAttribute):
-    name = "mesh.partial"
+    name = "shard.partial"
 
     assembly_format = "$value"
 
 
 @irdl_attr_definition
 class ShardingType(ParametrizedAttribute, TypeAttribute):
-    name = "mesh.sharding"
+    name = "shard.sharding"
 
 
 ################################################################################
-# Collevtive communication ops                                                 #
+# Collective communication ops                                                 #
 ################################################################################
 
 
@@ -166,8 +166,10 @@ class CollectiveCommunicationOp(IRDLOperation, ABC):
     Base class for collective communication ops.
     """
 
-    mesh = prop_def(FlatSymbolRefAttr)
-    mesh_axes = prop_def(MeshAxesAttr, default_value=MeshAxesAttr(i16, BytesAttr(b"")))
+    grid = prop_def(FlatSymbolRefAttr)
+    grid_axes = prop_def(
+        ShardAxesAttr, default_value=ShardAxesAttr(i16, BytesAttr(b""))
+    )
 
 
 @irdl_op_definition
@@ -178,7 +180,7 @@ class BroadcastOp(CollectiveCommunicationOp):
     See [external documentation](https://mlir.llvm.org/docs/Dialects/Shard/#shardbroadcast-shardbroadcastop).
     """
 
-    name = "mesh.broadcast"
+    name = "shard.broadcast"
 
     input = operand_def(TensorType)
     root = prop_def(DenseArrayBase[I64])
@@ -189,7 +191,7 @@ class BroadcastOp(CollectiveCommunicationOp):
     traits = traits_def(Pure())
 
     assembly_format = (
-        "$input `on` $mesh (`mesh_axes` `=` $mesh_axes^)? "
+        "$input `on` $grid (`grid_axes` `=` $grid_axes^)? "
         + "`root` `=` custom<DynamicIndexList>($root_dynamic, $root) "
         + "attr-dict `:` functional-type(operands, results)"
     )
@@ -205,7 +207,7 @@ class GatherOp(CollectiveCommunicationOp):
     See [external documentation](https://mlir.llvm.org/docs/Dialects/Shard/#shardgather-shardgatherop).
     """
 
-    name = "mesh.gather"
+    name = "shard.gather"
 
     input = operand_def(TensorType)
     gather_axis = prop_def(IntegerAttr.constr(IndexTypeConstr))
@@ -217,7 +219,7 @@ class GatherOp(CollectiveCommunicationOp):
     traits = traits_def(Pure())
 
     assembly_format = (
-        "$input `on` $mesh (`mesh_axes` `=` $mesh_axes^)? "
+        "$input `on` $grid (`grid_axes` `=` $grid_axes^)? "
         + "`gather_axis` `=` $gather_axis "
         + "`root` `=` custom<DynamicIndexList>($root_dynamic, $root) "
         + "attr-dict `:` functional-type(operands, results)"
@@ -229,7 +231,7 @@ class GatherOp(CollectiveCommunicationOp):
 @irdl_op_definition
 class ScatterOp(CollectiveCommunicationOp):
     """
-    Scatter tensor over a device mesh.
+    Scatter tensor over a device shard.
 
     For each device group split the input tensor on the `root` device along
     axis `scatter_axis` and scatter the parts across the group devices.
@@ -237,7 +239,7 @@ class ScatterOp(CollectiveCommunicationOp):
     See [external documentation](https://mlir.llvm.org/docs/Dialects/Shard/#shardscatter-shardscatterop).
     """
 
-    name = "mesh.scatter"
+    name = "shard.scatter"
 
     input = operand_def(TensorType)
     scatter_axis = prop_def(IntegerAttr.constr(IndexTypeConstr))
@@ -252,7 +254,7 @@ class ScatterOp(CollectiveCommunicationOp):
     )
 
     assembly_format = (
-        "$input `on` $mesh (`mesh_axes` `=` $mesh_axes^)? "
+        "$input `on` $grid (`grid_axes` `=` $grid_axes^)? "
         + "`scatter_axis` `=` $scatter_axis "
         + "`root` `=` custom<DynamicIndexList>($root_dynamic, $root) "
         + "attr-dict `:` functional-type(operands, results)"
@@ -267,7 +269,7 @@ class RecvOp(CollectiveCommunicationOp):
     Receive from a device within a device group.
     """
 
-    name = "mesh.recv"
+    name = "shard.recv"
 
     input = operand_def(TensorType)
     source = opt_prop_def(DenseArrayBase[I64])
@@ -276,7 +278,7 @@ class RecvOp(CollectiveCommunicationOp):
     result = result_def(TensorType)
 
     assembly_format = (
-        "$input `on` $mesh (`mesh_axes` `=` $mesh_axes^)? "
+        "$input `on` $grid (`grid_axes` `=` $grid_axes^)? "
         + "(`source` `=` custom<DynamicIndexList>($source_dynamic, $source)^)? "
         + "attr-dict `:` functional-type(operands, results)"
     )
@@ -290,7 +292,7 @@ class SendOp(CollectiveCommunicationOp):
     Send from one device to another within a device group.
     """
 
-    name = "mesh.send"
+    name = "shard.send"
 
     input = operand_def(TensorType)
 
@@ -300,7 +302,7 @@ class SendOp(CollectiveCommunicationOp):
     result = result_def(TensorType)
 
     assembly_format = (
-        "$input `on` $mesh (`mesh_axes` `=` $mesh_axes^)? "
+        "$input `on` $grid (`grid_axes` `=` $grid_axes^)? "
         + "`destination` `=` custom<DynamicIndexList>($destination_dynamic, $destination) "
         + "attr-dict `:` functional-type(operands, results)"
     )
@@ -311,13 +313,13 @@ class SendOp(CollectiveCommunicationOp):
 @irdl_op_definition
 class ShiftOp(CollectiveCommunicationOp):
     """
-    Shift over a device mesh.
+    Shift over a device shard.
 
     Within each device group shift along `shift_axis` by `offset`. If the
     `rotate` flag is present a rotation is performed instead of a shift.
     """
 
-    name = "mesh.shift"
+    name = "shard.shift"
 
     input = operand_def(TensorType)
 
@@ -332,7 +334,7 @@ class ShiftOp(CollectiveCommunicationOp):
     )
 
     assembly_format = (
-        "$input `on` $mesh (`mesh_axes` `=` $mesh_axes^)? "
+        "$input `on` $grid (`grid_axes` `=` $grid_axes^)? "
         + "`shift_axis` `=` $shift_axis "
         + "`offset` `=` $offset "
         + "(`rotate` $rotate^)? "
@@ -341,18 +343,18 @@ class ShiftOp(CollectiveCommunicationOp):
 
 
 ################################################################################
-# Operations on mesh                                                           #
+# Operations on grid                                                           #
 ################################################################################
 
 
 @irdl_op_definition
-class MeshOp(IRDLOperation):
-    name = "mesh.mesh"
+class GridOp(IRDLOperation):
+    name = "shard.grid"
 
     sym_name = prop_def(SymbolNameConstraint())
     shape = prop_def(DenseArrayBase[I64])
 
-    traits = traits_def(SymbolOpInterface())
+    traits = traits_def(SymbolOpInterface(), Pure())
 
     assembly_format = (
         "$sym_name `(` `shape` `=` custom<DimensionList>($shape) `)` attr-dict"
@@ -363,7 +365,7 @@ class MeshOp(IRDLOperation):
     def verify_(self):
         if not self.shape.get_values():
             raise VerifyException(
-                "'mesh.mesh' op rank of mesh is expected to be a positive integer"
+                "'shard.grid' op rank of grid is expected to be a positive integer"
             )
 
 
@@ -375,19 +377,17 @@ class MeshOp(IRDLOperation):
 @irdl_op_definition
 class ShardingOp(IRDLOperation):
     """
-    Mesh dialect sharding operation.
+    Define the sharding of a tensor.
 
-    Note: `halo_sizes` and `sharded_dims_offsets` are mutually exlcusive.
+    Note: `halo_sizes` and `sharded_dims_offsets` are mutually exclusive.
 
     See [external documentation](https://mlir.llvm.org/docs/Dialects/Shard/#shardsharding-shardshardingop)
     """
 
-    name = "mesh.sharding"
+    name = "shard.sharding"
 
-    mesh = prop_def(FlatSymbolRefAttr)
-    split_axes = prop_def(MeshAxesArrayAttr)
-    partial_axes = opt_prop_def(MeshAxesAttr)
-    partial_type = opt_prop_def(ReductionKindAttr)
+    grid = prop_def(FlatSymbolRefAttr)
+    split_axes = prop_def(ShardAxesArrayAttr)
     static_sharded_dims_offsets = prop_def(
         DenseArrayBase[I64], default_value=DenseArrayBase[I64](i64, BytesAttr(b""))
     )
@@ -406,8 +406,8 @@ class ShardingOp(IRDLOperation):
     )
 
     assembly_format = (
-        "$mesh `split_axes` "
-        + "`=` $split_axes (`partial` `=` $partial_type $partial_axes^)? "
+        "$grid "
+        + "`split_axes` `=` $split_axes "
         + "(`halo_sizes` `=` custom<DynamicIndexList>($dynamic_halo_sizes, $static_halo_sizes)^)? "
         + "(`sharded_dims_offsets` `=` "
         + "custom<DynamicIndexList>($dynamic_sharded_dims_offsets, $static_sharded_dims_offsets)^)? "
@@ -424,7 +424,7 @@ class ShardingOp(IRDLOperation):
 
         if dims_offsets and halo_sizes:
             raise VerifyException(
-                "'mesh.sharding' cannot use both `halo_sizes` and `sharded_dims_offsets`"
+                "'shard.sharding' op halo sizes and shard offsets are mutually exclusive"
             )
 
 
@@ -436,7 +436,7 @@ class ShardOp(IRDLOperation):
     See [external documentation](https://mlir.llvm.org/docs/Dialects/Shard/#shardshard-shardshardop).
     """
 
-    name = "mesh.shard"
+    name = "shard.shard"
 
     T: ClassVar = VarConstraint("T", TensorType.constr())
 
@@ -467,8 +467,8 @@ class ShardOp(IRDLOperation):
         )
 
 
-Mesh = Dialect(
-    "mesh",
+Shard = Dialect(
+    "shard",
     [
         BroadcastOp,
         GatherOp,
@@ -476,13 +476,13 @@ Mesh = Dialect(
         SendOp,
         ScatterOp,
         ShiftOp,
-        MeshOp,
+        GridOp,
         ShardingOp,
         ShardOp,
     ],
     [
         ReductionKindAttr,
         ShardingType,
-        MeshAxesArrayAttr,
+        ShardAxesArrayAttr,
     ],
 )
