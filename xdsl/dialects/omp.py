@@ -1,7 +1,8 @@
 from abc import ABC, abstractmethod
 from collections import defaultdict
+from collections.abc import Iterable, Sequence
 from enum import IntFlag, auto
-from typing import ClassVar
+from typing import ClassVar, cast
 
 from xdsl.dialects.builtin import (
     ArrayAttr,
@@ -23,6 +24,7 @@ from xdsl.dialects.builtin import (
 from xdsl.dialects.utils import AbstractYieldOperation
 from xdsl.ir import (
     Attribute,
+    BitEnumAttribute,
     Dialect,
     EnumAttribute,
     ParametrizedAttribute,
@@ -133,19 +135,118 @@ class OpenMPOffloadMappingFlags(IntFlag):
         return (flag for flag in type(self) if self & flag)
 
 
+class ClauseMapFlags(StrEnum):
+    STORAGE = auto()
+    TO = auto()
+    FROM = auto()
+    ALWAYS = auto()
+    DELETE = "del"
+    RETURN_PARAM = auto()
+    PRIVATE = "priv"
+    LITERAL = auto()
+    IMPLICIT = auto()
+    CLOSE = auto()
+    PRESENT = auto()
+    OMPX_HOLD = auto()
+    ATTACH = auto()
+    ATTACH_ALWAYS = auto()
+    ATTACH_NONE = auto()
+    ATTACH_AUTO = auto()
+    REF_PTR = auto()
+    REF_PTEE = auto()
+    REF_PTR_PTEE = auto()
+    IS_DEVICE_PTR = auto()
+
+
+@irdl_attr_definition
+class ClauseMapFlagsAttr(BitEnumAttribute[ClauseMapFlags], SpacedOpaqueSyntaxAttribute):
+    name = "omp.clause_map_flags"
+
+    none_value = "none"
+
+    def print_parameter(self, printer: Printer) -> None:
+        flags = self.data
+        if len(flags) == 0 and self.none_value is not None:
+            printer.print_string(self.none_value)
+        elif len(flags) == len(self.enum_type) and self.all_value is not None:
+            printer.print_string(self.all_value)
+        else:
+            # make sure we emit flags in a consistent order
+            printer.print_list(
+                tuple(flag.value for flag in self.enum_type if flag in flags),
+                printer.print_string,
+                "|",
+            )
+
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> tuple[ClauseMapFlags, ...]:
+        def parse_optional_element() -> set[ClauseMapFlags] | None:
+            if (
+                cls.none_value is not None
+                and parser.parse_optional_keyword(cls.none_value) is not None
+            ):
+                return set()
+            if (
+                cls.all_value is not None
+                and parser.parse_optional_keyword(cls.all_value) is not None
+            ):
+                return set(cast(Iterable[ClauseMapFlags], cls.enum_type))
+            value = parser.parse_optional_str_enum(cls.enum_type)
+            if value is None:
+                return None
+
+            return {cast(type[ClauseMapFlags], cls.enum_type)(value)}
+
+        def parse_element() -> set[ClauseMapFlags]:
+            if (
+                cls.none_value is not None
+                and parser.parse_optional_keyword(cls.none_value) is not None
+            ):
+                return set()
+            if (
+                cls.all_value is not None
+                and parser.parse_optional_keyword(cls.all_value) is not None
+            ):
+                return set(cast(Iterable[ClauseMapFlags], cls.enum_type))
+            value = parser.parse_str_enum(cls.enum_type)
+            return {cast(type[ClauseMapFlags], cls.enum_type)(value)}
+
+        flags = []
+        # Parse the first element, if it exist
+        first_elem = parse_optional_element()
+        if first_elem is not None:
+            # Parse the remaining elements
+            flags = [first_elem]
+            while parser.parse_optional_characters("|") is not None:
+                flags.append(parse_element())
+
+        if not flags:
+            return tuple()
+
+        res = set[ClauseMapFlags]()
+
+        for flag_set in flags:
+            res |= flag_set
+
+        return tuple(res)
+
+
 def verify_map_vars(
     vars: VarOperand,
     op_name: str,
     *,
-    disallowed_types: OpenMPOffloadMappingFlags = OpenMPOffloadMappingFlags.NONE,
+    disallowed_types: ClauseMapFlags | Sequence[ClauseMapFlags] = [],
 ):
+    if isinstance(disallowed_types, ClauseMapFlags):
+        disallowed_types = [disallowed_types]
+
     for var in vars:
         if not isinstance(owner := var.owner, MapInfoOp):
             raise VerifyException(
                 f"All mapped operands of {op_name} must be results of a {MapInfoOp.name}"
             )
         for t in disallowed_types:
-            if owner.map_type.value.data & t:
+            if t in owner.map_type.data:
                 raise VerifyException(f"Cannot have map_type {t.name} in {op_name}")
 
 
@@ -534,6 +635,7 @@ class WsLoopOp(BlockArgOpenMPOperation):
     order_mod = opt_prop_def(OrderModifierAttr)
     private_syms = opt_prop_def(ArrayAttr[SymbolRefAttr])
     private_needs_barrier = opt_prop_def(UnitAttr)
+    linear_var_types = opt_prop_def(ArrayAttr)
 
     body = region_def("single_block")
 
@@ -604,6 +706,7 @@ class DeclareReductionOp(IRDLOperation):
     reduction_region = region_def()
     atomic_reduction_region = region_def()
     cleanup_region = region_def()
+    data_ptr_ptr_region = region_def()
 
     traits = traits_def(IsolatedFromAbove(), SymbolOpInterface())
 
@@ -614,6 +717,7 @@ class DeclareReductionOp(IRDLOperation):
         `combiner` $reduction_region
         ( `atomic` $atomic_reduction_region^ )?
         ( `cleanup` $cleanup_region^ )?
+        ( `data_ptr_ptr` $data_ptr_ptr_region^ )?
     """
 
     def verify_(self) -> None:
@@ -733,7 +837,7 @@ class TargetOp(BlockArgOpenMPOperation):
         verify_map_vars(
             self.map_vars,
             self.name,
-            disallowed_types=OpenMPOffloadMappingFlags.DELETE,
+            disallowed_types=[ClauseMapFlags.DELETE],
         )
         return super().verify_()
 
@@ -776,7 +880,7 @@ class MapInfoOp(IRDLOperation):
     bounds = var_operand_def(MapBoundsType)
 
     var_type = prop_def(TypeAttribute)
-    map_type = prop_def(IntegerAttr[_ui64])
+    map_type = prop_def(ClauseMapFlagsAttr)
     """
     To set or test flags in `map_type` use the bits defined in `OpenMPOffloadMappingFlags`
     """
@@ -829,6 +933,7 @@ class SimdOp(BlockArgOpenMPOperation):
     reduction_syms = opt_prop_def(ArrayAttr[SymbolRefAttr])
     simdlen = opt_prop_def(IntegerAttr.constr(value=AtLeast(1), type=eq(i64)))
     safelen = opt_prop_def(IntegerAttr.constr(value=AtLeast(1), type=eq(i64)))
+    linear_var_types = opt_prop_def(ArrayAttr)
 
     body = region_def("single_block")
 
@@ -954,8 +1059,7 @@ class TargetEnterDataOp(TargetTaskBasedDataOp):
         verify_map_vars(
             self.mapped_vars,
             self.name,
-            disallowed_types=OpenMPOffloadMappingFlags.FROM
-            | OpenMPOffloadMappingFlags.DELETE,
+            disallowed_types=[ClauseMapFlags.FROM, ClauseMapFlags.DELETE],
         )
         return super().verify_()
 
@@ -973,7 +1077,7 @@ class TargetExitDataOp(TargetTaskBasedDataOp):
         verify_map_vars(
             self.mapped_vars,
             self.name,
-            disallowed_types=OpenMPOffloadMappingFlags.TO,
+            disallowed_types=ClauseMapFlags.TO,
         )
         return super().verify_()
 
@@ -991,17 +1095,15 @@ class TargetUpdateOp(TargetTaskBasedDataOp):
         verify_map_vars(
             self.mapped_vars,
             self.name,
-            disallowed_types=OpenMPOffloadMappingFlags.DELETE,
+            disallowed_types=ClauseMapFlags.DELETE,
         )
-        mapped = defaultdict[Operand, OpenMPOffloadMappingFlags](
-            lambda: OpenMPOffloadMappingFlags.NONE
-        )
-        one_of = OpenMPOffloadMappingFlags.TO | OpenMPOffloadMappingFlags.FROM
+        mapped = defaultdict[Operand, set[ClauseMapFlags]](lambda: set())
+        one_of = {ClauseMapFlags.TO, ClauseMapFlags.FROM}
         for var in self.mapped_vars:
             assert isinstance(owner := var.owner, MapInfoOp)
 
-            mapped[owner.var_ptr] |= owner.map_type.value.data
-            if (mapped[owner.var_ptr] & one_of).bit_count() != 1:
+            mapped[owner.var_ptr] |= owner.map_type.flags
+            if len(mapped[owner.var_ptr] & one_of) != 1:
                 raise VerifyException(
                     f"{self.name} expected to have exactly one of TO or FROM as map_type"
                 )
@@ -1035,7 +1137,7 @@ class TargetDataOp(BlockArgOpenMPOperation):
         verify_map_vars(
             self.mapped_vars,
             self.name,
-            disallowed_types=(OpenMPOffloadMappingFlags.DELETE),
+            disallowed_types=ClauseMapFlags.DELETE,
         )
         return super().verify_()
 
@@ -1063,6 +1165,7 @@ OMP = Dialect(
     ],
     [
         ClauseRequiresKindAttr,
+        ClauseMapFlagsAttr,
         DataSharingClauseAttr,
         DeclareTargetAttr,
         DeclareTargetCaptureClauseAttr,
