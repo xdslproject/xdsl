@@ -125,15 +125,15 @@ class FoldConstsByReassociation(RewritePattern):
                 const2 := u.lhs.owner if u.rhs == op.result else u.rhs.owner,
                 arith.ConstantOp,
             )
-            or arith.FastMathFlag.REASSOC not in op.fastmath.flags
-            or arith.FastMathFlag.REASSOC not in u.fastmath.flags
+            or arith.FastMathFlag.REASSOC not in op.fastmath.data
+            or arith.FastMathFlag.REASSOC not in u.fastmath.data
             or not isa(c1 := const1.value, builtin.FloatAttr)
             or not isa(c2 := const2.value, builtin.FloatAttr)
         ):
             return
 
         if cnsts := _fold_const_operation(type(op), c1, c2):
-            flags = arith.FastMathFlagsAttr(list(op.fastmath.flags | u.fastmath.flags))
+            flags = arith.FastMathFlagsAttr(list(op.fastmath.data | u.fastmath.data))
             rebuild = type(op)(cnsts, val, flags)
             rewriter.replace_op(op, [cnsts, rebuild])
             rewriter.replace_op(u, [], [rebuild.result])
@@ -203,8 +203,8 @@ class SelectFoldCmpfPattern(RewritePattern):
         ):
             return
         if (
-            arith.FastMathFlag.NO_NANS not in cmpf.fastmath.flags
-            or arith.FastMathFlag.NO_SIGNED_ZEROS not in cmpf.fastmath.flags
+            arith.FastMathFlag.NO_NANS not in cmpf.fastmath.data
+            or arith.FastMathFlag.NO_SIGNED_ZEROS not in cmpf.fastmath.data
         ):
             return
         if not (op.lhs == cmpf.lhs and op.rhs == cmpf.rhs):
