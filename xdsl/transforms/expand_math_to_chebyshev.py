@@ -166,14 +166,24 @@ class ExpandExpChebyshev(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: math.ExpOp, rewriter: PatternRewriter) -> None:
-        degree = self.degree
+        # Only fire when the op has a chebyshev_degree attribute
+        if "chebyshev_degree" not in op.attributes:
+            return
+        attr = op.attributes["chebyshev_degree"]
+        degree = attr.value.data if isinstance(attr, IntegerAttr) else self.degree
+
         lower = self.lower
+        if "lower" in op.attributes:
+            lower_attr = op.attributes["lower"]
+            if isinstance(lower_attr, FloatAttr):
+                lower = lower_attr.value.data
+
         upper = self.upper
-        # Per-op attribute overrides
-        if "degree" in op.attributes:
-            attr = op.attributes["degree"]
-            if isinstance(attr, IntegerAttr):
-                degree = attr.value.data
+        if "upper" in op.attributes:
+            upper_attr = op.attributes["upper"]
+            if isinstance(upper_attr, FloatAttr):
+                upper = upper_attr.value.data
+
         expanded = expand_exp_chebyshev(op, rewriter, degree, lower, upper)
         rewriter.replace_op(op, (), (expanded.results[0],))
 

@@ -2,16 +2,20 @@
 
 builtin.module {
   func.func @test_exp_f64(%x: f64) -> f64 {
-    %y = math.exp %x : f64
+    %y = math.exp %x {chebyshev_degree = 12 : i64} : f64
     func.return %y : f64
   }
   func.func @test_exp_f32(%x: f32) -> f32 {
-    %y = math.exp %x : f32
+    %y = math.exp %x {chebyshev_degree = 12 : i64} : f32
     func.return %y : f32
   }
   func.func @test_exp_vec(%x: vector<2xf32>) -> vector<2xf32> {
-    %y = math.exp %x : vector<2xf32>
+    %y = math.exp %x {chebyshev_degree = 12 : i64} : vector<2xf32>
     func.return %y : vector<2xf32>
+  }
+  func.func @test_exp_no_attr(%x: f64) -> f64 {
+    %y = math.exp %x : f64
+    func.return %y : f64
   }
 }
 
@@ -88,4 +92,10 @@ builtin.module {
 // CHECK-NEXT:   %{{.*}} = arith.addf %{{.*}}, %{{.*}} : vector<2xf32>
 // CHECK-NEXT:   %[[RESV:.*]] = arith.subf %{{.*}}, %{{.*}} : vector<2xf32>
 // CHECK-NEXT:   func.return %[[RESV]] : vector<2xf32>
+// CHECK-NEXT: }
+
+// ----- no chebyshev_degree attribute: pass should not fire -----
+// CHECK:      func.func @test_exp_no_attr(%[[XNA:.*]]: f64) -> f64 {
+// CHECK-NEXT:   %[[YNA:.*]] = math.exp %[[XNA]] : f64
+// CHECK-NEXT:   func.return %[[YNA]] : f64
 // CHECK-NEXT: }
