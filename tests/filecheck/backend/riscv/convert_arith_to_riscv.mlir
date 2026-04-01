@@ -33,6 +33,16 @@ builtin.module {
     // CHECK-NEXT: riscv.sw %{{.*}}, %{{.*}}, -8 : (!riscv.reg<sp>, !riscv.reg) -> ()
     // CHECK-NEXT: %{{.*}} = riscv.fld %{{.*}}, -8 : (!riscv.reg<sp>) -> !riscv.freg
 
+    // DenseIntOrFPElementsAttr with 8 bytes (e.g. vector<2xf32>) gets lowered
+    // via stack spill: store upper/lower halves, then fld.
+    %dense_vec = arith.constant dense<[1.000000e+00, 2.000000e+00]> : vector<2xf32>
+    // CHECK-NEXT: %{{.*}} = rv32.get_register : !riscv.reg<sp>
+    // CHECK-NEXT: %{{.*}} = rv32.li 1073741824 : !riscv.reg
+    // CHECK-NEXT: riscv.sw %{{.*}}, %{{.*}}, -4 : (!riscv.reg<sp>, !riscv.reg) -> ()
+    // CHECK-NEXT: %{{.*}} = rv32.li 1065353216 : !riscv.reg
+    // CHECK-NEXT: riscv.sw %{{.*}}, %{{.*}}, -8 : (!riscv.reg<sp>, !riscv.reg) -> ()
+    // CHECK-NEXT: %{{.*}} = riscv.fld %{{.*}}, -8 : (!riscv.reg<sp>) -> !riscv.freg
+
     %addi32 = "arith.addi"(%lhsi32, %rhsi32) : (i32, i32) -> i32
     // CHECK-NEXT: %{{.*}} = riscv.add %lhsi32, %rhsi32 : (!riscv.reg, !riscv.reg) -> !riscv.reg
     %addindex = "arith.addi"(%lhsindex, %rhsindex) : (index, index) -> index
