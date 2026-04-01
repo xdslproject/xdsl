@@ -133,7 +133,7 @@ class FoldConstsByReassociation(RewritePattern):
             return
 
         if cnsts := _fold_const_operation(type(op), c1, c2):
-            flags = arith.FastMathFlagsAttr(list(op.fastmath.data | u.fastmath.data))
+            flags = arith.FastMathFlagsAttr(op.fastmath.data | u.fastmath.data)
             rebuild = type(op)(cnsts, val, flags)
             rewriter.replace_op(op, [cnsts, rebuild])
             rewriter.replace_op(u, [], [rebuild.result])

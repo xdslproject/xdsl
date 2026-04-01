@@ -344,21 +344,21 @@ class BitEnumAttribute(Data[frozenset[EnumType]], Generic[EnumType]):
     all_value: ClassVar[str | None] = None
 
     def __init__(self, flags: None | Iterable[EnumType] | str) -> None:
-        flags_: set[EnumType]
+        flags_: frozenset[EnumType]
         match flags:
             case self.none_value | None:
-                flags_ = set()
+                flags_ = frozenset()
             case self.all_value:
-                flags_ = cast(set[EnumType], set(self.enum_type))
+                flags_ = cast(frozenset[EnumType], frozenset(self.enum_type))
             case other if isinstance(other, str):
                 raise TypeError(
                     f"expected string parameter to be one of {self.none_value} or {self.all_value}, got {other}"
                 )
             case other:
                 assert not isinstance(other, str)
-                flags_ = set(other)
+                flags_ = frozenset(other)
 
-        super().__init__(frozenset(flags_))
+        super().__init__(flags_)
 
     def __init_subclass__(cls) -> None:
         _check_enum_constraints(cls)
