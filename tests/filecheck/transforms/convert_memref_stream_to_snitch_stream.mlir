@@ -61,9 +61,6 @@ memref_stream.write %val_vf32 to %vf32_writable : vector<2xf32>
 memref_stream.write %val_vf16 to %vf16_writable : vector<4xf16>
 
 
-// Multi-use vector reads: these exercise move_to_unallocated_regs with vector types,
-// ensuring the parallel_mov uses the full 64-bit flen (not the element bitwidth).
-
 // CHECK-NEXT:    %vf32_readable_multi = "test.op"() : () -> !memref_stream.readable<vector<2xf32>>
 %vf32_readable_multi = "test.op"() : () -> !memref_stream.readable<vector<2xf32>>
 
