@@ -474,7 +474,7 @@ class AdditionOfSameVariablesToMultiplyByTwo(RewritePattern):
 
 
 def _has_contract_flag(op: riscv.RdRsRsFloatOperationWithFastMath) -> bool:
-    return op.fastmath is not None and FastMathFlag.ALLOW_CONTRACT in op.fastmath.flags
+    return op.fastmath is not None and FastMathFlag.ALLOW_CONTRACT in op.fastmath.data
 
 
 class FuseMultiplyAddD(RewritePattern):

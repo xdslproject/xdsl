@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Iterable
 from typing import Literal, TypeAlias
 
 from xdsl.dialects.builtin import IndexType, IntegerAttr, IntegerType, Signedness
@@ -20,7 +20,7 @@ class FastMathFlagsAttr(FastMathAttrBase):
 
     name = "riscv.fastmath"
 
-    def __init__(self, flags: None | Sequence[FastMathFlag] | Literal["none", "fast"]):
+    def __init__(self, flags: None | Iterable[FastMathFlag] | Literal["none", "fast"]):
         # irdl_attr_definition defines an __init__ if none is defined, so we need to
         # explicitely define one here.
         super().__init__(flags)
