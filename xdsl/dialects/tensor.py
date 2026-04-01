@@ -167,53 +167,75 @@ class ConcatOp(IRDLOperation):
             attributes=attributes,
         )
 
+    def _expected_concatenated_dim(self) -> int:
+        """Return the expected length of the concatenated dimension for verifying the result type.
+
+        Expects that the ``self.inputs`` operands have been verified as TensorTypes with shapes that can be indexed by
+        ``self.dim``."""
+        concat_dim = self.dim.value.data
+        dim_sum = 0
+        for arg in self.inputs:
+            assert isa(arg, SSAValue[TensorType])
+            arg_dim = arg.type.shape.data[concat_dim].data
+            if dim_sum != DYNAMIC_INDEX and arg_dim != DYNAMIC_INDEX:
+                dim_sum += arg_dim
+            else:
+                return DYNAMIC_INDEX
+        return dim_sum
+
+    def _expected_non_concatenated_dim(self, i: int) -> int | None:
+        """Return the expected length of the non-concatenated dimension given by ``i``. Return None if the lengths of this
+        dimension is inconsistent across the input tensors.
+
+        Expects that the ``self.inputs`` operands have been verified as TensorTypes with shapes that can be indexed by ``i``.
+        """
+        dim = DYNAMIC_INDEX
+        for arg in self.inputs:
+            assert isa(arg, SSAValue[TensorType])
+            arg_dim = arg.type.shape.data[i].data
+            if dim == DYNAMIC_INDEX:
+                dim = arg_dim
+            elif arg_dim != DYNAMIC_INDEX and dim != arg_dim:
+                return None
+        return dim
+
+    def _verify_result_shape(self, inferred_shape: tuple[int | None, ...]) -> None:
+        """Verify the tensor shape of ``self.result.type`` by comparing it to the given inferred shape.
+
+        Raises a VerifyException if any of the inferred_shape dimensions are ``None`` - this is treated as an inconsistency in
+        that dimension across the input tensors.
+        Raises a VerifyException is any dimension that is not ``DYNAMIC_INDEX`` in either ``inferred_shape`` or the result type
+        shape is unequal between the inferred size and the result type shape's dimension size.
+
+        Expects that the length of inferred_shape is equal to the rank of the result type's shape, and that `self.result.type` is
+        a TensorType."""
+        for dim_idx, (inferred_size, actual_size) in enumerate(
+            zip(inferred_shape, self.result.type.shape, strict=True)
+        ):
+            if inferred_size is None:
+                msg = f"static concatenation size mismatch along non-concatenated dimension {dim_idx}"
+                raise VerifyException(msg)
+            if (
+                DYNAMIC_INDEX not in (inferred_size, actual_size.data)
+                and inferred_size != actual_size.data
+            ):
+                msg = f"result type {self.result.type} does not match inferred shape {inferred_shape} static sizes"
+                raise VerifyException(msg)
+
     def verify_(self) -> None:
         concat_dim = self.dim.value.data
-        assert isa(self.result, SSAValue[TensorType])
         result_type = self.result.type
         if concat_dim >= result_type.get_num_dims():
             msg = "concatenation dim must be less than the tensor rank"
             raise VerifyException(msg)
 
-        def expected_concatenated_dim() -> int:
-            dim_sum = 0
-            for arg in self.inputs:
-                assert isa(arg, SSAValue[TensorType])
-                arg_dim = arg.type.shape.data[concat_dim].data
-                if dim_sum != DYNAMIC_INDEX and arg_dim != DYNAMIC_INDEX:
-                    dim_sum += arg_dim
-                else:
-                    return DYNAMIC_INDEX
-            return dim_sum
-
-        def expected_non_concatenated_dim(i: int) -> int:
-            dim = DYNAMIC_INDEX
-            for arg in self.inputs:
-                assert isa(arg, SSAValue[TensorType])
-                arg_dim = arg.type.shape.data[i].data
-                if dim == DYNAMIC_INDEX:
-                    dim = arg_dim
-                elif arg_dim != DYNAMIC_INDEX and dim != arg_dim:
-                    msg = f"static concatenation size mismatch along non-concatenated dimension {i}"
-                    raise VerifyException(msg)
-            return dim
-
         expected_result_shape = tuple(
-            expected_concatenated_dim()
+            self._expected_concatenated_dim()
             if i == concat_dim
-            else expected_non_concatenated_dim(i)
+            else self._expected_non_concatenated_dim(i)
             for i in range(result_type.get_num_dims())
         )
-        # Compare expected dims with actual dims
-        for inferred_size, actual_size in zip(
-            expected_result_shape, result_type.shape, strict=True
-        ):
-            if (
-                DYNAMIC_INDEX not in (inferred_size, actual_size.data)
-                and inferred_size != actual_size.data
-            ):
-                msg = f"result type {result_type} does not match inferred shape {expected_result_shape} static sizes"
-                raise VerifyException(msg)
+        self._verify_result_shape(expected_result_shape)
 
 
 @irdl_op_definition
