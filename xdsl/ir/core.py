@@ -387,6 +387,7 @@ class BitEnumAttribute(Data[frozenset[EnumType]], Generic[EnumType]):
         flag_sets = parser.parse_comma_separated_list(
             parser.Delimiter.ANGLE, parse_element
         )
+
         if not flag_sets:
             return frozenset()
 
