@@ -370,23 +370,6 @@ class BitEnumAttribute(Data[frozenset[EnumType]], Generic[EnumType]):
 
     @classmethod
     def parse_parameter(cls, parser: AttrParser) -> frozenset[EnumType]:
-        def parse_optional_element() -> set[EnumType] | None:
-            if (
-                cls.none_value is not None
-                and parser.parse_optional_keyword(cls.none_value) is not None
-            ):
-                return set()
-            if (
-                cls.all_value is not None
-                and parser.parse_optional_keyword(cls.all_value) is not None
-            ):
-                return set(cast(Iterable[EnumType], cls.enum_type))
-            value = parser.parse_optional_str_enum(cls.enum_type)
-            if value is None:
-                return None
-
-            return {cast(type[EnumType], cls.enum_type)(value)}
-
         def parse_element() -> set[EnumType]:
             if (
                 cls.none_value is not None
@@ -401,21 +384,19 @@ class BitEnumAttribute(Data[frozenset[EnumType]], Generic[EnumType]):
             value = parser.parse_str_enum(cls.enum_type)
             return {cast(type[EnumType], cls.enum_type)(value)}
 
-        with parser.in_angle_brackets():
-            flags: list[set[EnumType]] | None = (
-                parser.parse_optional_undelimited_comma_separated_list(
-                    parse_optional_element, parse_element
-                )
-            )
-            if flags is None:
-                return frozenset()
+        flag_sets = parser.parse_comma_separated_list(
+            parser.Delimiter.ANGLE, parse_element
+        )
 
-            res = set[EnumType]()
+        if not flag_sets:
+            return frozenset()
 
-            for flag_set in flags:
-                res |= flag_set
+        res: set[EnumType] = set()
 
-            return frozenset(res)
+        for flag_set in flag_sets:
+            res |= flag_set
+
+        return frozenset(res)
 
     def print_parameter(self, printer: Printer):
         with printer.in_angle_brackets():
