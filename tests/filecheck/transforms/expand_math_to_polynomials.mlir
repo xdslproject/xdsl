@@ -1,5 +1,5 @@
 // RUN: xdsl-opt -p expand-math-to-polynomials %s | filecheck %s
-// RUN: xdsl-opt -p expand-math-to-polynomials{terms=5} %s | filecheck %s --check-prefix=CHECK-FIVE
+// RUN: xdsl-opt -p expand-math-to-polynomials %s | filecheck %s --check-prefix=CHECK-FIVE
 
 builtin.module {
   func.func @test(%x: f64) -> f64 {
@@ -12,6 +12,18 @@ builtin.module {
   }
   func.func @test_vec(%x: vector<2xf32>) -> vector<2xf32> {
     %y = math.exp %x : vector<2xf32>
+    func.return %y : vector<2xf32>
+  }
+  func.func @test_terms5(%x: f64) -> f64 {
+    %y = math.exp %x {terms = 5 : i64} : f64
+    func.return %y : f64
+  }
+  func.func @test_terms5_f32(%x: f32) -> f32 {
+    %y = math.exp %x {terms = 5 : i64} : f32
+    func.return %y : f32
+  }
+  func.func @test_terms5_vec(%x: vector<2xf32>) -> vector<2xf32> {
+    %y = math.exp %x {terms = 5 : i64} : vector<2xf32>
     func.return %y : vector<2xf32>
   }
 }
@@ -78,11 +90,11 @@ builtin.module {
 // CHECK-NEXT:   func.return %[[RES3_V]] : vector<2xf32>
 // CHECK-NEXT: }
 
-// ----- terms=5 produces 4 loop iterations -----
+// ----- terms=5 via op attribute produces 4 loop iterations -----
 
 // CHECK-FIVE: builtin.module {
 
-// CHECK-FIVE:      func.func @test(%[[X:.*]]: f64) -> f64 {
+// CHECK-FIVE:      func.func @test_terms5(%[[X:.*]]: f64) -> f64 {
 // CHECK-FIVE-NEXT:   %[[RES0:.*]] = arith.constant 1.000000e+00 : f64
 // CHECK-FIVE-NEXT:   %[[TERM0:.*]] = arith.constant 1.000000e+00 : f64
 // CHECK-FIVE-NEXT:   %[[I1:.*]] = arith.constant 1.000000e+00 : f64
@@ -104,7 +116,7 @@ builtin.module {
 // CHECK-FIVE-NEXT:   func.return %[[RES4]] : f64
 // CHECK-FIVE-NEXT: }
 
-// CHECK-FIVE:      func.func @test_f32(%[[X32:.*]]: f32) -> f32 {
+// CHECK-FIVE:      func.func @test_terms5_f32(%[[X32:.*]]: f32) -> f32 {
 // CHECK-FIVE-NEXT:   %[[RES0_32:.*]] = arith.constant 1.000000e+00 : f32
 // CHECK-FIVE-NEXT:   %[[TERM0_32:.*]] = arith.constant 1.000000e+00 : f32
 // CHECK-FIVE-NEXT:   %[[I1_32:.*]] = arith.constant 1.000000e+00 : f32
@@ -126,7 +138,7 @@ builtin.module {
 // CHECK-FIVE-NEXT:   func.return %[[RES4_32]] : f32
 // CHECK-FIVE-NEXT: }
 
-// CHECK-FIVE:      func.func @test_vec(%[[XV:.*]]: vector<2xf32>) -> vector<2xf32> {
+// CHECK-FIVE:      func.func @test_terms5_vec(%[[XV:.*]]: vector<2xf32>) -> vector<2xf32> {
 // CHECK-FIVE-NEXT:   %[[RES0_V:.*]] = arith.constant dense<1.000000e+00> : vector<2xf32>
 // CHECK-FIVE-NEXT:   %[[TERM0_V:.*]] = arith.constant dense<1.000000e+00> : vector<2xf32>
 // CHECK-FIVE-NEXT:   %[[I1_V:.*]] = arith.constant dense<1.000000e+00> : vector<2xf32>

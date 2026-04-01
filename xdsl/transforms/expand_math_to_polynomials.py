@@ -6,6 +6,7 @@ from xdsl.dialects.builtin import (
     AnyFloat,
     DenseIntOrFPElementsAttr,
     FloatAttr,
+    IntegerAttr,
     ModuleOp,
     TensorType,
     VectorType,
@@ -32,7 +33,12 @@ class ExpandExp(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: math.ExpOp, rewriter: PatternRewriter) -> None:
-        expanded: Operation = expand_exp(op, rewriter, self.terms)
+        terms = self.terms
+        if "terms" in op.attributes:
+            attr = op.attributes["terms"]
+            if isinstance(attr, IntegerAttr):
+                terms = attr.value.data
+        expanded: Operation = expand_exp(op, rewriter, terms)
         rewriter.replace_op(op, (), (expanded.results[0],))
 
 
