@@ -2,12 +2,13 @@ from collections.abc import Callable, Sequence
 from itertools import compress
 from typing import TypeAlias
 
-from xdsl.dialects import affine, arith, scf
+from xdsl.dialects import affine, arith, linalg, scf
 from xdsl.dialects.builtin import AffineMapAttr, IndexType, IntegerAttr
 from xdsl.ir import Block, BlockArgument, Operation, Region, SSAValue
 from xdsl.ir.affine import AffineDimExpr, AffineMap
 from xdsl.pattern_rewriter import PatternRewriter
 from xdsl.rewriter import InsertPoint
+from xdsl.utils.hints import isa
 
 
 def indices_for_map(
@@ -213,6 +214,21 @@ def _insert_store_ops(
         insert_store(i, yield_value, ind_vars, rewriter, insertion_point)
 
 
+def _replace_linalg_index_ops(
+    rewriter: PatternRewriter,
+    ops: Sequence[Operation],
+    ind_vars: Sequence[BlockArgument],
+):
+    """
+    Replace linalg.index ops with the corresponding loop induction variables.
+    """
+    for op in ops:
+        if not isa(op, linalg.IndexOp):
+            continue
+
+        rewriter.replace_op(op, (), [ind_vars[op.dim.value.data]])
+
+
 def rewrite_linalg_structured_to_loops(
     rewriter: PatternRewriter,
     insertion_point: InsertPoint,
@@ -260,10 +276,13 @@ def rewrite_linalg_structured_to_loops(
         # Erase the yield op, we still have access to its operands
         rewriter.erase_op(yield_op)
 
+        inlined_ops = tuple(block.ops)
+
         while block.args:
             rewriter.erase_block_argument(block.args[0])
 
         rewriter.inline_block(block, insertion_point)
+        _replace_linalg_index_ops(rewriter, inlined_ops, ind_vars)
 
         _insert_store_ops(
             rewriter,
