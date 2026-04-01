@@ -1,10 +1,4 @@
-from xdsl.dialects.builtin import (
-    DYNAMIC_INDEX,
-    DenseArrayBase,
-    TensorType,
-    f64,
-    i64,
-)
+from xdsl.dialects.builtin import DYNAMIC_INDEX, DenseArrayBase, TensorType, f64, i64
 from xdsl.dialects.stencil import IndexAttr
 from xdsl.dialects.tensor import ExtractSliceOp, InsertSliceOp
 from xdsl.dialects.test import TestOp
