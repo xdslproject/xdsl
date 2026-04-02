@@ -214,21 +214,6 @@ def _insert_store_ops(
         insert_store(i, yield_value, ind_vars, rewriter, insertion_point)
 
 
-def _replace_linalg_index_ops(
-    rewriter: PatternRewriter,
-    ops: Sequence[Operation],
-    ind_vars: Sequence[BlockArgument],
-):
-    """
-    Replace linalg.index ops with the corresponding loop induction variables.
-    """
-    for op in ops:
-        if not isa(op, linalg.IndexOp):
-            continue
-
-        rewriter.replace_op(op, (), [ind_vars[op.dim.value.data]])
-
-
 def rewrite_linalg_structured_to_loops(
     rewriter: PatternRewriter,
     insertion_point: InsertPoint,
@@ -276,13 +261,15 @@ def rewrite_linalg_structured_to_loops(
         # Erase the yield op, we still have access to its operands
         rewriter.erase_op(yield_op)
 
-        inlined_ops = tuple(block.ops)
+        index_ops = tuple(op for op in block.ops if isa(op, linalg.IndexOp))
 
         while block.args:
             rewriter.erase_block_argument(block.args[0])
 
         rewriter.inline_block(block, insertion_point)
-        _replace_linalg_index_ops(rewriter, inlined_ops, ind_vars)
+
+        for index_op in index_ops:
+            rewriter.replace_op(index_op, (), [ind_vars[index_op.dim.value.data]])
 
         _insert_store_ops(
             rewriter,
