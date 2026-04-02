@@ -56,13 +56,21 @@ def move_to_regs(
     values: Iterable[SSAValue],
     value_types: Iterable[Attribute],
     reg_types: Iterable[riscv.RISCVRegisterType],
+    flen: int = 64,
+    xlen: int = 32,
 ) -> tuple[list[Operation], list[SSAValue]]:
     """
     Return move operations to `a` registers (a0, a1, ... | fa0, fa1, ...).
     """
-    # We only care about bitwidths for floats for now, so default to 32 for non floats
+    # If the value type has a known bitwidth, use it. Otherwise, default to
+    # the register width: flen for float registers, xlen for int registers.
     widths = tuple(
-        i.bitwidth if isinstance(i, builtin.AnyFloat) else 32 for i in value_types
+        i.bitwidth
+        if isinstance(i, builtin.FixedBitwidthType)
+        else flen
+        if isinstance(value.type, riscv.FloatRegisterType)
+        else xlen
+        for i, value in zip(value_types, values)
     )
 
     new_op = riscv.ParallelMovOp(
@@ -97,36 +105,27 @@ def a_regs(values: Iterable[SSAValue]) -> Iterator[riscv.RISCVRegisterType]:
 def move_to_a_regs(
     values: Iterable[SSAValue],
     value_types: Iterable[Attribute],
+    flen: int = 64,
+    xlen: int = 32,
 ) -> tuple[list[Operation], list[SSAValue]]:
     """
     Return move operations to `a` registers (a0, a1, ... | fa0, fa1, ...).
     """
-    return move_to_regs(values, value_types, a_regs(values))
+    return move_to_regs(values, value_types, a_regs(values), flen=flen, xlen=xlen)
 
 
 def move_to_unallocated_regs(
     values: Iterable[SSAValue],
     value_types: Iterable[Attribute],
+    flen: int = 64,
+    xlen: int = 32,
 ) -> tuple[list[Operation], list[SSAValue]]:
     """
     Return move operations to unallocated registers.
     """
 
     outputs = (register_type_for_type(value.type).unallocated() for value in values)
-
-    # We only care about bitwidths for floats for now, so default to 32 for non floats
-    widths = tuple(
-        i.bitwidth if isinstance(i, builtin.AnyFloat) else 32 for i in value_types
-    )
-
-    new_op = riscv.ParallelMovOp(
-        tuple(values),
-        tuple(outputs),
-        builtin.DenseArrayBase.from_list(builtin.i32, widths),
-    )
-    new_values = new_op.results
-
-    return [new_op], list(new_values)
+    return move_to_regs(values, value_types, outputs, flen=flen, xlen=xlen)
 
 
 def cast_operands_to_regs(

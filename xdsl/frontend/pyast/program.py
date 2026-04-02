@@ -13,6 +13,7 @@ from xdsl.frontend.pyast.utils.exceptions import FrontendProgramException
 from xdsl.frontend.pyast.utils.python_code_check import FunctionMap
 from xdsl.frontend.pyast.utils.type_conversion import (
     FunctionRegistry,
+    LiteralRegistry,
     TypeConverter,
     TypeRegistry,
 )
@@ -77,6 +78,9 @@ class FrontendProgram:
     function_registry: FunctionRegistry = field(default_factory=FunctionRegistry)
     """Mappings between functions and their operation types."""
 
+    literal_registry: LiteralRegistry = field(default_factory=LiteralRegistry)
+    """Mappings between literal types and their operation constructors."""
+
     file: str | None = field(default=None)
     """Path to the file that contains the program."""
 
@@ -93,6 +97,12 @@ class FrontendProgram:
     ) -> None:
         """Associate a method on an object in the source code with its IR implementation."""
         self.function_registry.insert(function, ir_constructor)
+
+    def register_literal(
+        self, value_type: type[object], ir_constructor: Callable[[Any], Operation]
+    ) -> None:
+        """Associate a Python literal type with an IR constructor."""
+        self.literal_registry.insert(value_type, ir_constructor)
 
     def _check_can_compile(self):
         if self.stmts is None or self.globals is None:
@@ -116,6 +126,7 @@ Cannot compile program without the code context. Try to use:
             globals=self.globals,
             type_registry=self.type_registry,
             function_registry=self.function_registry,
+            literal_registry=self.literal_registry,
         )
         self.xdsl_program = CodeGeneration.run_with_type_converter(
             type_converter,

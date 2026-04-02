@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections.abc import Mapping, Sequence
 from enum import auto
-from typing import ClassVar, cast
+from typing import ClassVar, NamedTuple, cast
 
 from typing_extensions import Self
 
@@ -37,7 +37,7 @@ from xdsl.ir import (
     Region,
     SSAValue,
 )
-from xdsl.ir.affine import AffineMap
+from xdsl.ir.affine import AffineDimExpr, AffineMap
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
@@ -95,6 +95,19 @@ class IteratorTypeAttr(EnumAttribute[IteratorType]):
     def print_parameter(self, printer: Printer) -> None:
         with printer.in_angle_brackets():
             super().print_parameter(printer)
+
+
+class LoopBoundSource(NamedTuple):
+    """Source information for one loop upper bound."""
+
+    operand: SSAValue
+    """The shaped operand that provides the bound."""
+
+    dim_index: int
+    """The dimension index in the operand used for the bound."""
+
+    dim_size: int
+    """The size of that dimension, or DYNAMIC_INDEX if it is dynamic."""
 
 
 class LinalgStructuredOperation(IRDLOperation, ABC):
@@ -180,6 +193,32 @@ class LinalgStructuredOperation(IRDLOperation, ABC):
                 "Non-invertible maps need dynamic shapes, which are not implemented."
             )
         return inverse
+
+    def get_loop_bound_sources(
+        self,
+    ) -> tuple[LoopBoundSource, ...]:
+        """
+        Return where each loop upper bound comes from.
+
+        Each entry identifies the shaped operand, the dimension index, and the size value.
+        """
+        shapes_to_loops = self.get_shapes_to_loops_map()
+
+        needed_positions = tuple(
+            expr.position
+            for expr in shapes_to_loops.results
+            if isinstance(expr, AffineDimExpr)
+        )
+        assert len(shapes_to_loops.results) == len(needed_positions)
+
+        flat_shape_dims = tuple(
+            LoopBoundSource(operand, dim_index, dim_size)
+            for operand in self.operands
+            if isa(operand, SSAValue[ShapedType])
+            for dim_index, dim_size in enumerate(operand.type.get_shape())
+        )
+
+        return tuple(flat_shape_dims[position] for position in needed_positions)
 
     def get_static_shapes(self) -> list[int]:
         return [

@@ -25,6 +25,7 @@ from xdsl.dialects.builtin import (
     StringAttr,
     i32,
 )
+from xdsl.dialects.test import Test
 from xdsl.ir import (
     Attribute,
     AttributeInvT,
@@ -234,14 +235,20 @@ class BitEnumData(BitEnumAttribute[TestEnum]):
         ([TestEnum.No], "#test.bitenum<no>"),
         ([TestEnum.Yes], "#test.bitenum<yes>"),
         ([TestEnum.No, TestEnum.Yes], "#test.bitenum<yes,no>"),
+        ([TestEnum.Yes, TestEnum.No], "#test.bitenum<yes,no>"),
+        ([TestEnum.No, TestEnum.No], "#test.bitenum<no>"),
         ([TestEnum.No, TestEnum.Yes, TestEnum.Maybe], "#test.bitenum<all>"),
         ("all", "#test.bitenum<all>"),
         ("none", "#test.bitenum<none>"),
     ],
 )
-def test_bit_enum_attribute(input: Sequence[TestEnum] | str, output: str):
+def test_bit_enum_attribute(input: Sequence[TestEnum] | str | None, output: str):
     attr = BitEnumData(input)
     assert str(attr) == output
+    ctx = Context()
+    ctx.register_dialect("test", lambda: Test)
+    ctx.load_attr_or_type(BitEnumData)
+    assert Parser(ctx, output).parse_attribute() == attr
 
 
 def test_bit_enum_invalid_str():
@@ -250,6 +257,34 @@ def test_bit_enum_invalid_str():
         match="expected string parameter to be one of none or all, got helloworld",
     ):
         BitEnumData("helloworld")
+
+
+@irdl_attr_definition(init=False)
+class BitEnumNoNoneData(BitEnumAttribute[TestEnum]):
+    name = "test.bitenum"
+
+
+@pytest.mark.parametrize(
+    "input,output",
+    [
+        (None, "#test.bitenum<>"),
+        ([], "#test.bitenum<>"),
+        ([TestEnum.No], "#test.bitenum<no>"),
+        ([TestEnum.Yes], "#test.bitenum<yes>"),
+        ([TestEnum.No, TestEnum.Yes], "#test.bitenum<yes,no>"),
+        ([TestEnum.Yes, TestEnum.No], "#test.bitenum<yes,no>"),
+        ([TestEnum.No, TestEnum.No], "#test.bitenum<no>"),
+    ],
+)
+def test_bit_enum_attribute_with_no_none_value(
+    input: Sequence[TestEnum] | str | None, output: str
+):
+    attr = BitEnumNoNoneData(input)
+    assert str(attr) == output
+    ctx = Context()
+    ctx.register_dialect("test", lambda: Test)
+    ctx.load_attr_or_type(BitEnumNoNoneData)
+    assert Parser(ctx, output).parse_attribute() == attr
 
 
 ################################################################################

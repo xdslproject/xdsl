@@ -490,6 +490,8 @@ class DimOp(IRDLOperation):
 
     traits = traits_def(NoMemoryEffect())
 
+    assembly_format = "$source `,` $index attr-dict `:` type($source)"
+
     @staticmethod
     def from_source_and_index(
         source: SSAValue | Operation, index: SSAValue | Operation

@@ -2,8 +2,16 @@ from typing import Any
 
 from xdsl.builder import Builder
 from xdsl.dialects import arith, func, linalg, memref
-from xdsl.dialects.builtin import AffineMapAttr, FloatAttr, f32
+from xdsl.dialects.builtin import (
+    DYNAMIC_INDEX,
+    AffineMapAttr,
+    FloatAttr,
+    MemRefType,
+    TensorType,
+    f32,
+)
 from xdsl.ir.affine import AffineExpr, AffineMap
+from xdsl.utils.test_value import create_ssa_value
 
 
 def test_linalg_on_memrefs():
@@ -77,3 +85,75 @@ def test_loop_range_methods():
 
     loops = op.get_static_loop_ranges()
     assert loops == (100, 100, 50)
+
+
+def test_get_loop_bound_sources_dynamic_memref():
+    lhs = create_ssa_value(MemRefType(f32, [DYNAMIC_INDEX, 4]))
+    rhs = create_ssa_value(MemRefType(f32, [DYNAMIC_INDEX, 4]))
+    out = create_ssa_value(MemRefType(f32, [DYNAMIC_INDEX, 4]))
+
+    @Builder.implicit_region((f32, f32, f32))
+    def body(args: tuple[Any, ...]):
+        lhs_element, rhs_element, out_element = args
+        linalg.YieldOp(
+            arith.AddfOp(arith.AddfOp(lhs_element, rhs_element), out_element)
+        )
+
+    i = AffineExpr.dimension(0)
+    j = AffineExpr.dimension(1)
+
+    op = linalg.GenericOp(
+        [lhs, rhs],
+        [out],
+        body,
+        [
+            AffineMapAttr(AffineMap(2, 0, (i, j))),
+            AffineMapAttr(AffineMap(2, 0, (i, j))),
+            AffineMapAttr(AffineMap(2, 0, (i, j))),
+        ],
+        [
+            linalg.IteratorTypeAttr(linalg.IteratorType.PARALLEL),
+            linalg.IteratorTypeAttr(linalg.IteratorType.PARALLEL),
+        ],
+    )
+
+    assert op.get_loop_bound_sources() == (
+        linalg.LoopBoundSource(lhs, 0, DYNAMIC_INDEX),
+        linalg.LoopBoundSource(lhs, 1, 4),
+    )
+
+
+def test_get_loop_bound_sources_skips_scalar_operand():
+    scalar_operand = create_ssa_value(f32)
+    tensor_operand = create_ssa_value(TensorType(f32, [7, 3]))
+    output = create_ssa_value(MemRefType(f32, [7, 3]))
+
+    @Builder.implicit_region((f32, f32, f32))
+    def body(args: tuple[Any, ...]):
+        scalar, tensor_element, output_element = args
+        linalg.YieldOp(
+            arith.AddfOp(arith.AddfOp(scalar, tensor_element), output_element)
+        )
+
+    i = AffineExpr.dimension(0)
+    j = AffineExpr.dimension(1)
+
+    op = linalg.GenericOp(
+        [scalar_operand, tensor_operand],
+        [output],
+        body,
+        [
+            AffineMapAttr(AffineMap(2, 0, ())),
+            AffineMapAttr(AffineMap(2, 0, (i, j))),
+            AffineMapAttr(AffineMap(2, 0, (i, j))),
+        ],
+        [
+            linalg.IteratorTypeAttr(linalg.IteratorType.PARALLEL),
+            linalg.IteratorTypeAttr(linalg.IteratorType.PARALLEL),
+        ],
+    )
+
+    assert op.get_loop_bound_sources() == (
+        linalg.LoopBoundSource(tensor_operand, 0, 7),
+        linalg.LoopBoundSource(tensor_operand, 1, 3),
+    )

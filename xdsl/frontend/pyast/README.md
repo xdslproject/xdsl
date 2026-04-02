@@ -7,36 +7,29 @@ if you spot bugs!
 
 ## Your first toy program
 
-To get started, first create a `FrontendProgram`, which you can compile or
-transform later. Each snippet of code is encapsulated in `CodeContext` block.
-Using a separate block for this allows to have a custom type checking for
-Pythonic DSL types. For each type and method used in the program, we must first
-specify a mapping between Python types and functions and MLIR attributes and
-operations, with the `register_type` and `register_function` methods
-respectively. Using this, we can write our first simple program:
+To get started, first create a `PyASTContext`, which encapsulates the mapping
+between Python and IR types, operations, and literals.
+For each type, method, and literal used in the program, we must specify a
+mapping using `register_type`, `register_function`, and `register_literal`
+respectively.
+Using this, we can write our first simple program:
 
 ```python
-from xdsl.dialects.arith import AddfOp, MulfOp
-from xdsl.dialects.builtin import f64
-from xdsl.frontend.pyast.context import CodeContext
-from xdsl.frontend.pyast.program import FrontendProgram
+from xdsl.dialects.arith import AddfOp, ConstantOp, MulfOp
+from xdsl.dialects.builtin import FloatAttr, f64
+from xdsl.frontend.pyast.context import PyASTContext
 
-p = FrontendProgram()
-p.register_type(float, f64)
-p.register_function(float.__add__, AddfOp)
-p.register_function(float.__mul__, MulfOp)
-with CodeContext(p):
-    def foo(x: float, y: float, z: float) -> float:
-        return x + y * z
-```
+ctx = PyASTContext()
+ctx.register_type(float, f64)
+ctx.register_function(float.__add__, AddfOp)
+ctx.register_function(float.__mul__, MulfOp)
+ctx.register_literal(float, lambda v: ConstantOp(FloatAttr(v, 64)))
 
-In order to be able to compile the program, you can simply call `compile()` on
-your front-end program after the `CodeContext` block. Additionally, you can add
-a print statement which will print out the generated xDSL.
+@ctx.parse_program
+def foo(x: float, y: float) -> float:
+    return x + y * 5.0
 
-```python
-p.compile()
-print(p.textual_format())
+print(foo.module)
 ```
 
 Finally, everything is set-up and so we can simply run the above code, which
@@ -44,10 +37,11 @@ should give the following output:
 
 ```mlir
 builtin.module {
-  func.func @foo(%x: f64, %y: f64, %z: f64) -> f64 {
-    %0 = arith.mulf %y, %z : f64
-    %1 = arith.addf %x, %0 : f64
-    func.return %1 : f64
+  func.func @foo(%x: f64, %y: f64) -> f64 {
+    %0 = arith.constant 5.000000e+00 : f64
+    %1 = arith.mulf %y, %0 : f64
+    %2 = arith.addf %x, %1 : f64
+    func.return %2 : f64
   }
 }
 ```
@@ -106,8 +100,7 @@ builtin.module {
    - [x] `Return`
    - [ ] `While`
    - [ ] ...
-3. Refactor `CodeContext` to support decorating functions
-4. Add support for more Python builtin data types, for example:
+3. Add support for more Python builtin data types, for example:
    - [ ] `None`
    - [ ] `string`
    - [ ] `list`
