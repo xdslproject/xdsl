@@ -1,5 +1,4 @@
 import builtins
-import itertools
 import re
 from io import StringIO
 from typing import cast
@@ -457,19 +456,17 @@ def test_parse_block_name():
     assert block.args[1].name_hint is None
 
 
+@pytest.mark.parametrize("separator", Parser.Separator)
+@pytest.mark.parametrize("delimiter", Parser.Delimiter)
 @pytest.mark.parametrize(
-    "separator,delimiter,arr",
-    itertools.product(
-        [s for s in Parser.Separator],
-        [d for d in Parser.Delimiter],
-        [[], list(range(1)), list(range(5))],
-    ),
+    "arr",
+    [[], list(range(1)), list(range(5))],
 )
 def test_parse_list(
     separator: Parser.Separator, delimiter: Parser.Delimiter, arr: list[int]
 ):
     # if delimiter is none, empty array is not a valid input
-    if delimiter == Parser.Delimiter.NONE and len(arr) == 0:
+    if delimiter == Parser.Delimiter.NONE and not arr:
         return
 
     parse_str = separator.value.join(map(str, arr))
