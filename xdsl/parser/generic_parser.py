@@ -311,12 +311,10 @@ class GenericParser(Generic[TokenKindT]):
         self.raise_error(f"'{text}' expected" + context_msg)
 
     @contextmanager
-    def delimited(
-        self, start: str, end: str, context_msg: str = ""
-    ) -> Generator[None, None, None]:
-        self.parse_characters(start, context_msg)
+    def delimited(self, start: str, end: str) -> Generator[None, None, None]:
+        self.parse_characters(start)
         yield
-        self.parse_characters(end, context_msg)
+        self.parse_characters(end)
 
     def in_angle_brackets(self) -> AbstractContextManager[None]:
         return self.delimited("<", ">")
