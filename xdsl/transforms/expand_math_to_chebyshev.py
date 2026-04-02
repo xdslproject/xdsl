@@ -203,10 +203,10 @@ class ExpandMathToChebyshevPass(ModulePass):
     degree: int = 12
     """Degree of the Chebyshev polynomial (higher = more accurate)."""
 
-    lower: float = -1.0
+    lower: float = -10.0
     """Lower bound of the approximation interval."""
 
-    upper: float = 1.0
+    upper: float = 0.0
     """Upper bound of the approximation interval."""
 
     def apply(self, ctx: Context, op: ModuleOp) -> None:
