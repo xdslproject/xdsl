@@ -209,11 +209,7 @@ class GenericParser(Generic[TokenKindT]):
         parsing stops when the delimiter is closed, or when an error is
         produced. If no delimiter is specified, at least one element is
         expected to be parsed.
-
-        The separator must be a non-empty string.
         """
-
-        assert separator != ""
 
         # Parse the opening bracket, and possibly the closing bracket, if a delimiter
         # was provided
