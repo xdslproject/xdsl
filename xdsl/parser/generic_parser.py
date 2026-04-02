@@ -188,19 +188,33 @@ class GenericParser(Generic[TokenKindT]):
         METADATA_TOKEN = ("{-#", "#-}")
         NONE = None
 
+    class Separator(Enum):
+        """
+        Supported separators when parsing lists.
+        """
+
+        COMMA = ","
+        VERTICAL_BAR = "|"
+
     def parse_list(
         self,
         delimiter: Delimiter,
         parse: Callable[[], _AnyInvT],
-        separator: str = ",",
+        separator: Separator = Separator.COMMA,
         context_msg: str = "",
     ) -> list[_AnyInvT]:
         """
-        Parses greedily a list of elements separated by a specified separator, and
-        delimited by the specified delimiter. The parsing stops when the delimiter is
-        closed, or when an error is produced. If no delimiter is specified, at
-        least one element is expected to be parsed.
+        Parses greedily a list of elements separated by a specified separator
+        (by default, a comma), and delimited by the specified delimiter. The
+        parsing stops when the delimiter is closed, or when an error is
+        produced. If no delimiter is specified, at least one element is
+        expected to be parsed.
+
+        The separator must be a non-empty string.
         """
+
+        assert separator != ""
+
         # Parse the opening bracket, and possibly the closing bracket, if a delimiter
         # was provided
         match delimiter.value:
@@ -213,7 +227,7 @@ class GenericParser(Generic[TokenKindT]):
 
         # Parse the list of elements
         elems = [parse()]
-        while self.parse_optional_characters(separator) is not None:
+        while self.parse_optional_characters(separator.value) is not None:
             elems.append(parse())
 
         # Parse the closing bracket, if a delimiter was provided
@@ -234,7 +248,7 @@ class GenericParser(Generic[TokenKindT]):
         closed, or when an error is produced. If no delimiter is specified, at
         least one element is expected to be parsed.
         """
-        return self.parse_list(delimiter, parse, ",", context_msg)
+        return self.parse_list(delimiter, parse, self.Separator.COMMA, context_msg)
 
     def parse_optional_comma_separated_list(
         self, delimiter: Delimiter, parse: Callable[[], _AnyInvT], context_msg: str = ""
@@ -260,7 +274,9 @@ class GenericParser(Generic[TokenKindT]):
             return None
         if self.parse_optional_characters(right_punctuation) is not None:
             return []
-        elems = self.parse_list(delimiter.NONE, parse, ",", context_msg)
+        elems = self.parse_list(
+            delimiter.NONE, parse, self.Separator.COMMA, context_msg
+        )
         self.parse_characters(right_punctuation, context_msg)
 
         return elems
