@@ -989,8 +989,8 @@ Tensor = Dialect(
     "tensor",
     [
         CastOp,
-        ConcatOp,
         CollapseShapeOp,
+        ConcatOp,
         DimOp,
         EmptyOp,
         ExpandShapeOp,
