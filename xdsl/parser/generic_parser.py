@@ -196,8 +196,8 @@ class GenericParser(Generic[TokenKindT]):
         context_msg: str = "",
     ) -> list[_AnyInvT]:
         """
-        Parses greedily a list of elements separated by commas, and delimited
-        by the specified delimiter. The parsing stops when the delimiter is
+        Parses greedily a list of elements separated by a specified separator, and
+        delimited by the specified delimiter. The parsing stops when the delimiter is
         closed, or when an error is produced. If no delimiter is specified, at
         least one element is expected to be parsed.
         """
