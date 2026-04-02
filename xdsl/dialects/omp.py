@@ -179,7 +179,7 @@ class ClauseMapFlagsAttr(BitEnumAttribute[ClauseMapFlags], SpacedOpaqueSyntaxAtt
             )
 
     @classmethod
-    def parse_parameter(cls, parser: AttrParser) -> tuple[ClauseMapFlags, ...]:
+    def parse_parameter(cls, parser: AttrParser) -> frozenset[ClauseMapFlags]:
         def parse_optional_element() -> set[ClauseMapFlags] | None:
             if (
                 cls.none_value is not None
@@ -221,14 +221,14 @@ class ClauseMapFlagsAttr(BitEnumAttribute[ClauseMapFlags], SpacedOpaqueSyntaxAtt
                 flags.append(parse_element())
 
         if not flags:
-            return tuple()
+            return frozenset()
 
         res = set[ClauseMapFlags]()
 
         for flag_set in flags:
             res |= flag_set
 
-        return tuple(res)
+        return frozenset(res)
 
 
 def verify_map_vars(
@@ -1102,7 +1102,7 @@ class TargetUpdateOp(TargetTaskBasedDataOp):
         for var in self.mapped_vars:
             assert isinstance(owner := var.owner, MapInfoOp)
 
-            mapped[owner.var_ptr] |= owner.map_type.flags
+            mapped[owner.var_ptr] |= owner.map_type.data
             if len(mapped[owner.var_ptr] & one_of) != 1:
                 raise VerifyException(
                     f"{self.name} expected to have exactly one of TO or FROM as map_type"
