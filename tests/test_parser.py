@@ -461,13 +461,17 @@ def test_parse_block_name():
     "separator,delimiter,arr",
     itertools.product(
         [s for s in Parser.Separator],
-        [d for d in Parser.Delimiter if d is not Parser.Delimiter.NONE],
+        [d for d in Parser.Delimiter],
         [[], list(range(1)), list(range(5))],
     ),
 )
 def test_parse_list(
     separator: Parser.Separator, delimiter: Parser.Delimiter, arr: list[int]
 ):
+    # if delimiter is none, empty array is not a valid input
+    if delimiter == Parser.Delimiter.NONE and len(arr) == 0:
+        return
+
     parse_str = separator.value.join(map(str, arr))
     match delimiter.value:
         case None:
