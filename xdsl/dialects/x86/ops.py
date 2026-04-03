@@ -97,6 +97,7 @@ from xdsl.utils.target import Target
 from .assembly import (
     AssemblyInstructionArg,
     assembly_arg_str,
+    masked_memory_access_str,
     masked_source_str,
     memory_access_str,
     parse_type_pair,
@@ -611,6 +612,58 @@ class DM_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT]):
         return (destination, memory_access)
 
 
+class DMK_Operation(X86Instruction, ABC, Generic[R1InvT]):
+    """
+    A base class for x86 AVX512 operations that have one destination register d that is
+    written to, a source register m that contains a pointer, a constant offset, and a
+    mask register k. The z attribute enables zero masking, which sets the elements of
+    the destination register to zero where the corresponding bit in the mask is zero.
+    """
+
+    destination = result_def(AVX512RegisterType)
+    memory = operand_def(R1InvT)
+    memory_offset = attr_def(IntegerAttr[I64], default_value=IntegerAttr(0, i64))
+    mask_reg = operand_def(AVX512MaskRegisterType)
+    z = opt_attr_def(UnitAttr)
+
+    traits = traits_def(MemoryReadEffect())
+
+    assembly_format = (
+        "`[` $memory (`+` $memory_offset^)? `]` `,` $mask_reg attr-dict `:` "
+        "`(` type($memory) `,` type($mask_reg) `)` `->` type($destination)"
+    )
+
+    def __init__(
+        self,
+        memory: Operation | SSAValue,
+        mask_reg: Operation | SSAValue,
+        memory_offset: int | IntegerAttr,
+        *,
+        z: bool = False,
+        comment: str | StringAttr | None = None,
+        destination: AVX512RegisterType,
+    ):
+        if isinstance(memory_offset, int):
+            memory_offset = IntegerAttr(memory_offset, i64)
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            operands=(memory, mask_reg),
+            attributes={
+                "memory_offset": memory_offset,
+                "z": UnitAttr() if z else None,
+                "comment": comment,
+            },
+            result_types=(destination,),
+        )
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        memory_access = memory_access_str(self.memory, self.memory_offset)
+        destination = masked_source_str(self.destination, self.mask_reg, self.z)
+        return (destination, memory_access)
+
+
 class DI_Operation(X86Instruction, ABC, Generic[R1InvT]):
     """
     A base class for x86 operations that have one destination register and an immediate
@@ -754,6 +807,62 @@ class MS_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT]):
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
         memory_access = memory_access_str(self.memory, self.memory_offset)
         return memory_access, reg(self.source)
+
+
+class MSK_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT]):
+    """
+    A base class for x86 AVX512 operations that have one destination register that is
+    written to, a memory operand (with optional offset), a source register, and a mask
+    register. The z attribute enables zero-masking, which sets the elements of the
+    destination register to zero where the mask is zero.
+
+    Typical usage: d[k] := op([m+offset], s)
+    where d is the destination AVX512 register, [m+offset] is the memory location
+    addressed by the base register and offset, s is the source register, and k is the mask.
+    """
+
+    memory = operand_def(R1InvT)
+    memory_offset = attr_def(IntegerAttr[I64], default_value=IntegerAttr(0, i64))
+    source = operand_def(R2InvT)
+    mask_reg = operand_def(AVX512MaskRegisterType)
+    z = opt_attr_def(UnitAttr)
+
+    traits = traits_def(MemoryWriteEffect())
+
+    assembly_format = (
+        "`[` $memory (`+` $memory_offset^)? `]` `,` $source `,` $mask_reg attr-dict `:` "
+        "`(` type($memory) `,` type($source) `,` type($mask_reg) `)` `->` `(` `)`"
+    )
+
+    def __init__(
+        self,
+        memory: Operation | SSAValue,
+        source: Operation | SSAValue,
+        mask_reg: Operation | SSAValue,
+        memory_offset: int | IntegerAttr,
+        *,
+        z: bool = False,
+        comment: str | StringAttr | None = None,
+    ):
+        if isinstance(memory_offset, int):
+            memory_offset = IntegerAttr(memory_offset, i64)
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            operands=[memory, source, mask_reg],
+            attributes={
+                "memory_offset": memory_offset,
+                "z": UnitAttr() if z else None,
+                "comment": comment,
+            },
+        )
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        masked_mem = masked_memory_access_str(
+            self.memory, self.memory_offset, self.mask_reg, self.z
+        )
+        return (masked_mem, reg(self.source))
 
 
 class MI_Operation(X86Instruction, ABC, Generic[R1InvT]):
@@ -3444,6 +3553,102 @@ class DM_VmovupsOp(DM_Operation[X86VectorRegisterType, GeneralRegisterType]):
     """
 
     name = "x86.dm.vmovups"
+
+
+@irdl_op_definition
+class DMK_VmovapdOp(DMK_Operation[GeneralRegisterType]):
+    """
+    Move aligned packed double precision floating-point values from memory to vector
+    register using writemask k.
+
+    See external [documentation](https://www.felixcloutier.com/x86/movapd).
+    """
+
+    name = "x86.dmk.vmovapd"
+
+
+@irdl_op_definition
+class DMK_VmovupdOp(DMK_Operation[GeneralRegisterType]):
+    """
+    Move unaligned packed double precision floating-point values from memory to vector
+    register using writemask k.
+
+    See external [documentation](https://www.felixcloutier.com/x86/movupd).
+    """
+
+    name = "x86.dmk.vmovupd"
+
+
+@irdl_op_definition
+class DMK_VmovapsOp(DMK_Operation[GeneralRegisterType]):
+    """
+    Move aligned packed single precision floating-point values from memory to vector
+    register using writemask k.
+
+    See external [documentation](https://www.felixcloutier.com/x86/movaps).
+    """
+
+    name = "x86.dmk.vmovaps"
+
+
+@irdl_op_definition
+class DMK_VmovupsOp(DMK_Operation[GeneralRegisterType]):
+    """
+    Move unaligned packed single precision floating-point values from memory to vector
+    register using writemask k.
+
+    See external [documentation](https://www.felixcloutier.com/x86/movups).
+    """
+
+    name = "x86.dmk.vmovups"
+
+
+@irdl_op_definition
+class MSK_VmovapdOp(MSK_Operation[GeneralRegisterType, AVX512RegisterType]):
+    """
+    Move aligned packed double precision floating-point values from vector register to
+    memory using writemask k.
+
+    See external [documentation](https://www.felixcloutier.com/x86/movapd).
+    """
+
+    name = "x86.msk.vmovapd"
+
+
+@irdl_op_definition
+class MSK_VmovupdOp(MSK_Operation[GeneralRegisterType, AVX512RegisterType]):
+    """
+    Move unaligned packed double precision floating-point values from vector register to
+    memory using writemask k.
+
+    See external [documentation](https://www.felixcloutier.com/x86/movupd).
+    """
+
+    name = "x86.msk.vmovupd"
+
+
+@irdl_op_definition
+class MSK_VmovapsOp(MSK_Operation[GeneralRegisterType, AVX512RegisterType]):
+    """
+    Move aligned packed single precision floating-point values from vector register to
+    memory using writemask k.
+
+    See external [documentation](https://www.felixcloutier.com/x86/movaps).
+    """
+
+    name = "x86.msk.vmovaps"
+
+
+@irdl_op_definition
+class MSK_VmovupsOp(MSK_Operation[GeneralRegisterType, AVX512RegisterType]):
+    """
+    Move unaligned packed single precision floating-point values from vector register to
+    memory using writemask k.
+
+    See external [documentation](https://www.felixcloutier.com/x86/movups).
+    """
+
+    name = "x86.msk.vmovups"
 
 
 @irdl_op_definition
