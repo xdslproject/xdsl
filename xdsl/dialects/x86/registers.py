@@ -155,7 +155,8 @@ Pool key for x86 vector register allocation.
 
 ``xmm*``, ``ymm*``, and ``zmm*`` share one physical register per index where they
 overlap (e.g. xmm0/ymm0/zmm0). Indices are drawn from a single pool; targets configure
-how many names exist (e.g. 8, 16, or 32) via :meth:`allocatable_registers`.
+how many names exist (e.g. 8, 16, or 32) via
+[RegisterType.allocatable_registers][xdsl.backend.register_type.RegisterType.allocatable_registers].
 """
 
 
