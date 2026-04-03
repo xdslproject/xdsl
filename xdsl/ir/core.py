@@ -342,6 +342,7 @@ class BitEnumAttribute(Data[frozenset[EnumType]], Generic[EnumType]):
     enum_type: ClassVar[type[StrEnum]]
     none_value: ClassVar[str | None] = None
     all_value: ClassVar[str | None] = None
+    separator_value: ClassVar[str] = ","
 
     def __init__(self, flags: None | Iterable[EnumType] | str) -> None:
         flags_: frozenset[EnumType]
@@ -384,8 +385,8 @@ class BitEnumAttribute(Data[frozenset[EnumType]], Generic[EnumType]):
             value = parser.parse_str_enum(cls.enum_type)
             return {cast(type[EnumType], cls.enum_type)(value)}
 
-        flag_sets = parser.parse_comma_separated_list(
-            parser.Delimiter.ANGLE, parse_element
+        flag_sets = parser.parse_list(
+            parser.Delimiter.ANGLE, parse_element, cls.separator_value
         )
 
         if not flag_sets:
@@ -410,7 +411,7 @@ class BitEnumAttribute(Data[frozenset[EnumType]], Generic[EnumType]):
                 printer.print_list(
                     tuple(flag.value for flag in self.enum_type if flag in flags),
                     printer.print_string,
-                    ",",
+                    self.separator_value,
                 )
 
 

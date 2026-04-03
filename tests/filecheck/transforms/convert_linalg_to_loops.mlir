@@ -175,4 +175,31 @@ linalg.add ins(%LHS, %RHS : memref<?x?xf32>, memref<?x?xf32>) outs(%OUT : memref
 // CHECK-NEXT:      }
 // CHECK-NEXT:    }
 
+// Index op lowering
+%IDX_OUT = "test.op"() : () -> memref<2x3xindex>
+linalg.generic {
+    indexing_maps = [
+        affine_map<(d0, d1) -> (d0, d1)>
+    ],
+    iterator_types = ["parallel", "parallel"]
+} outs(%IDX_OUT : memref<2x3xindex>) {
+^bb0(%out : index):
+    %i = linalg.index 0 : index
+    %j = linalg.index 1 : index
+    %sum = arith.addi %i, %j : index
+    linalg.yield %sum : index
+}
+
+// CHECK-NEXT:    [[IDX_OUT:%.*]] = "test.op"() : () -> memref<2x3xindex>
+// CHECK-NEXT:    [[UB0:%.*]] = arith.constant 2 : index
+// CHECK-NEXT:    [[UB1:%.*]] = arith.constant 3 : index
+// CHECK-NEXT:    [[LB:%.*]] = arith.constant 0 : index
+// CHECK-NEXT:    [[STEP:%.*]] = arith.constant 1 : index
+// CHECK-NEXT:    scf.for [[I:%.*]] = [[LB]] to [[UB0]] step [[STEP]] {
+// CHECK-NEXT:      scf.for [[J:%.*]] = [[LB]] to [[UB1]] step [[STEP]] {
+// CHECK-NEXT:        [[SUM:%.*]] = arith.addi [[I]], [[J]] : index
+// CHECK-NEXT:        memref.store [[SUM]], [[IDX_OUT]][[[I]], [[J]]] : memref<2x3xindex>
+// CHECK-NEXT:      }
+// CHECK-NEXT:    }
+
 // CHECK-NEXT:  }

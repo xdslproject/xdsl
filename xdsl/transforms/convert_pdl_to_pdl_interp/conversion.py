@@ -89,31 +89,18 @@ class ConvertPDLToPDLInterpPass(ModulePass):
 
         rewriter_module = ModuleOp([], sym_name=StringAttr("rewriters"))
 
+        matcher_func = pdl_interp.FuncOp("matcher", ((pdl.OperationType(),), ()))
+        generator = MatcherGenerator(
+            matcher_func,
+            rewriter_module,
+            self.optimize_for_eqsat,
+            self.print_debug_info,
+        )
         if self.convert_individually:
-            shared_rewriter_names: dict[str, int] = {}
-            for i, pattern in enumerate(patterns):
-                sym_name = pattern.sym_name
-                name = sym_name.data if sym_name is not None else f"matcher_{i}"
-                matcher_func = pdl_interp.FuncOp(name, ((pdl.OperationType(),), ()))
-                generator = MatcherGenerator(
-                    matcher_func,
-                    rewriter_module,
-                    self.optimize_for_eqsat,
-                    self.print_debug_info,
-                )
-                generator.rewriter_names = shared_rewriter_names
-                generator.lower([pattern])
-                op.body.block.add_op(matcher_func)
+            generator.lower_chained(patterns)
         else:
-            matcher_func = pdl_interp.FuncOp("matcher", ((pdl.OperationType(),), ()))
-            generator = MatcherGenerator(
-                matcher_func,
-                rewriter_module,
-                self.optimize_for_eqsat,
-                self.print_debug_info,
-            )
             generator.lower(patterns)
-            op.body.block.add_op(matcher_func)
+        op.body.block.add_op(matcher_func)
 
         # Replace all pattern ops with the matcher func and rewriter module
         rewriter = Rewriter()
@@ -1480,6 +1467,61 @@ class MatcherGenerator:
 
         # Generate the matcher
         _ = self.generate_matcher(root, self.matcher_func.body, block=entry_block)
+
+    def lower_chained(self, patterns: list[pdl.PatternOp]) -> None:
+        """
+        Lower PDL patterns individually but chain them into a single function.
+
+        Each pattern gets its own predicate tree (no cross-pattern predicate
+        sharing/merging), but instead of each tree finalizing independently,
+        the exit node of pattern i is replaced by the root of pattern i+1's
+        tree. Only the last pattern's exit becomes the actual FinalizeOp.
+        """
+
+        # Build predicate trees for each pattern individually
+        trees: list[MatcherNode] = []
+        for pattern in patterns:
+            tree_builder = PredicateTreeBuilder(self.optimize_for_eqsat)
+            root = tree_builder.build_predicate_tree([pattern])
+
+            if self.print_debug_info:
+                print(visualize_matcher_tree(root))
+
+            self.value_to_position.update(tree_builder.pattern_value_positions)
+            trees.append(root)
+
+        if not trees:
+            # No patterns — just finalize
+            entry_block = self.matcher_func.body.block
+            self.builder.insertion_point = InsertPoint.at_end(entry_block)
+            self.builder.insert(pdl_interp.FinalizeOp())
+            return
+
+        # Chain the trees: replace the ExitNode at the tail of each tree's
+        # failure chain with the root of the next tree.
+        for i in range(len(trees) - 1):
+            self._replace_exit_with(trees[i], trees[i + 1])
+
+        # Generate code from the combined (chained) tree
+        entry_block = self.matcher_func.body.block
+        root_pos = OperationPosition(depth=0)
+        self.values[root_pos] = entry_block.args[0]
+
+        _ = self.generate_matcher(trees[0], self.matcher_func.body, block=entry_block)
+
+    @staticmethod
+    def _replace_exit_with(tree: MatcherNode, replacement: MatcherNode) -> None:
+        """Replace the ExitNode at the end of *tree*'s failure chain with *replacement*."""
+        if isinstance(tree, ExitNode):
+            raise ValueError("Cannot chain from a bare ExitNode")
+
+        curr = tree
+        while curr.failure_node is not None and not isinstance(
+            curr.failure_node, ExitNode
+        ):
+            curr = curr.failure_node
+        if isinstance(curr.failure_node, ExitNode):
+            curr.failure_node = replacement
 
     def generate_matcher(
         self, node: MatcherNode, region: Region, block: Block | None = None
