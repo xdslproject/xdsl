@@ -315,23 +315,6 @@ class GenericParser(Generic[TokenKindT]):
             return res
         self.raise_error(f"'{text}' expected" + context_msg)
 
-    def parse_optional_delimited(
-        self,
-        start: str,
-        end: str,
-        parse_optional: Callable[[], _AnyInvT],
-        context_msg: str = "",
-    ) -> _AnyInvT | None:
-
-        if self.parse_optional_characters(start) is None:
-            return None
-        if self.parse_optional_characters(end) is not None:
-            return None
-
-        val = parse_optional()
-        self.parse_characters(end, context_msg)
-        return val
-
     @contextmanager
     def delimited(self, start: str, end: str) -> Generator[None, None, None]:
         self.parse_characters(start)
