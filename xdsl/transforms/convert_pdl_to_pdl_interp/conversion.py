@@ -1469,7 +1469,8 @@ class MatcherGenerator:
         _ = self.generate_matcher(root, self.matcher_func.body, block=entry_block)
 
     def lower_chained(self, patterns: list[pdl.PatternOp]) -> None:
-        """Lower PDL patterns individually but chain them into a single function.
+        """
+        Lower PDL patterns individually but chain them into a single function.
 
         Each pattern gets its own predicate tree (no cross-pattern predicate
         sharing/merging), but instead of each tree finalizing independently,
