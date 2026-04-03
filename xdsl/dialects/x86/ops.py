@@ -441,7 +441,7 @@ class RM_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT]):
     traits = traits_def(MemoryReadEffect())
 
     assembly_format = (
-        "$register_in `,` $memory (`,` $memory_offset^)? attr-dict `:` "
+        "$register_in `,` `[` $memory (`+` $memory_offset^)? `]` attr-dict `:` "
         "`(` type($register_in) `,` type($memory) `)` `->` type($register_out)"
     )
 
@@ -507,7 +507,7 @@ class DM_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT]):
     )
 
     assembly_format = (
-        "$memory (`,` $memory_offset^)? attr-dict `:` "
+        "` ` `[` $memory (`+` $memory_offset^)? `]` attr-dict `:` "
         "functional-type($memory, $destination)"
     )
 
@@ -652,7 +652,7 @@ class MS_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT]):
     )
 
     assembly_format = (
-        "$memory `,` $source (`,` $memory_offset^)? attr-dict `:` "
+        "` ` `[` $memory (`+` $memory_offset^)? `]` `,` $source attr-dict `:` "
         "`(` type($memory) `,` type($source) `)` `->` `(` `)`"
     )
 
@@ -698,7 +698,7 @@ class MI_Operation(X86Instruction, ABC, Generic[R1InvT]):
     traits = traits_def(MemoryReadEffect(), MemoryWriteEffect())
 
     assembly_format = (
-        "$memory `,` $immediate (`,` $memory_offset^)? attr-dict `:` "
+        "` ` `[` $memory (`+` $memory_offset^)? `]` `,` $immediate attr-dict `:` "
         "`(` type($memory) `)` `->` `(` `)`"
     )
 
@@ -791,7 +791,7 @@ class DMI_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT]):
     traits = traits_def(MemoryReadEffect())
 
     assembly_format = (
-        "$memory `,` $immediate (`,` $memory_offset^)? attr-dict `:` "
+        "` ` `[` $memory (`+` $memory_offset^)? `]` `,` $immediate attr-dict `:` "
         "`(` type($memory) `)` `->` type($destination)"
     )
 
@@ -838,7 +838,7 @@ class M_Operation(X86Instruction, ABC, Generic[R1InvT]):
     traits = traits_def(MemoryWriteEffect(), MemoryReadEffect())
 
     assembly_format = (
-        "$memory (`,` $memory_offset^)? attr-dict `:` "
+        "` ` `[` $memory (`+` $memory_offset^)? `]` attr-dict `:` "
         "`(` type($memory) `)` `->` `(` `)`"
     )
 
@@ -1166,7 +1166,7 @@ class RSM_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT, R4InvT]):
     traits = traits_def(MemoryReadEffect())
 
     assembly_format = (
-        "$register_in `,` $source1 `,` $memory (`,` $memory_offset^)? attr-dict `:` "
+        "$register_in `,` $source1 `,` `[` $memory (`+` $memory_offset^)? `]` attr-dict `:` "
         "`(` type($register_in) `,` type($source1) `,` type($memory) `)` "
         "`->` type($register_out)"
     )
@@ -2069,7 +2069,7 @@ class M_PushOp(X86Instruction):
     traits = traits_def(MemoryWriteEffect())
 
     assembly_format = (
-        "$rsp_in `,` $memory (`,` $memory_offset^)? attr-dict `:` "
+        "$rsp_in `,` `[` $memory (`+` $memory_offset^)? `]` attr-dict `:` "
         "`(` type($rsp_in) `,` type($memory) `)` `->` type($rsp_out)"
     )
 
@@ -2121,7 +2121,7 @@ class M_PopOp(X86Instruction):
     traits = traits_def(MemoryWriteEffect())
 
     assembly_format = (
-        "$rsp_in `,` $memory (`,` $memory_offset^)? attr-dict `:` "
+        "$rsp_in `,` `[` $memory (`+` $memory_offset^)? `]` attr-dict `:` "
         "`(` type($rsp_in) `,` type($memory) `)` `->` type($rsp_out)"
     )
 
@@ -2225,7 +2225,7 @@ class M_IDivOp(X86Instruction):
     traits = traits_def(MemoryReadEffect())
 
     assembly_format = (
-        "$memory `,` $rdx_in `,` $rax_in (`,` $memory_offset^)? attr-dict `:` "
+        "` ` `[` $memory (`+` $memory_offset^)? `]` `,` $rdx_in `,` $rax_in attr-dict `:` "
         "`(` type($memory) `,` type($rdx_in) `,` type($rax_in) `)` "
         "`->` `(` type($rdx_out) `,` type($rax_out) `)`"
     )
@@ -2281,7 +2281,7 @@ class M_ImulOp(X86Instruction):
     traits = traits_def(MemoryReadEffect())
 
     assembly_format = (
-        "$memory `,` $rax_in (`,` $memory_offset^)? attr-dict `:` "
+        "` ` `[` $memory (`+` $memory_offset^)? `]` `,` $rax_in attr-dict `:` "
         "`(` type($memory) `,` type($rax_in) `)` "
         "`->` `(` type($rdx_out) `,` type($rax_out) `)`"
     )
@@ -2639,7 +2639,7 @@ class SM_CmpOp(X86Instruction):
     traits = traits_def(MemoryReadEffect())
 
     assembly_format = (
-        "$source `,` $memory (`,` $memory_offset^)? attr-dict `:` "
+        "$source `,` `[` $memory (`+` $memory_offset^)? `]` attr-dict `:` "
         "`(` type($source) `,` type($memory) `)` `->` type($result)"
     )
 
@@ -2736,7 +2736,7 @@ class MS_CmpOp(X86Instruction):
     traits = traits_def(MemoryReadEffect())
 
     assembly_format = (
-        "$memory `,` $source (`,` $memory_offset^)? attr-dict `:` "
+        "` ` `[` $memory (`+` $memory_offset^)? `]` `,` $source attr-dict `:` "
         "`(` type($memory) `,` type($source) `)` `->` type($result)"
     )
 
@@ -2787,7 +2787,10 @@ class MI_CmpOp(X86Instruction):
 
     traits = traits_def(MemoryReadEffect())
 
-    assembly_format = "$memory `,` $immediate (`,` $memory_offset^)? attr-dict `:` type($memory) `->` type($result)"
+    assembly_format = (
+        "` ` `[` $memory (`+` $memory_offset^)? `]` `,` $immediate attr-dict `:`"
+        "type($memory) `->` type($result)"
+    )
 
     def __init__(
         self,

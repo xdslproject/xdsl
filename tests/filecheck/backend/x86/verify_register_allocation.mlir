@@ -2,9 +2,9 @@
 
 // CHECK-LABEL:    @inc
 x86_func.func @inc(%ptr: !x86.reg<rax>) {
-// CHECK-NEXT: %val = x86.dm.mov %ptr : (!x86.reg<rax>) -> !x86.reg<rcx>
+// CHECK-NEXT: %val = x86.dm.mov [%ptr] : (!x86.reg<rax>) -> !x86.reg<rcx>
 // CHECK-NEXT: %ptr2 = x86.r.inc %ptr : (!x86.reg<rax>) -> !x86.reg<rax>
-  %val = x86.dm.mov %ptr : (!x86.reg<rax>) -> !x86.reg<rcx>
+  %val = x86.dm.mov [%ptr] : (!x86.reg<rax>) -> !x86.reg<rcx>
   %ptr2 = x86.r.inc %ptr : (!x86.reg<rax>) -> !x86.reg<rax>
 
 // CHECK-NEXT: x86_func.ret
