@@ -456,20 +456,18 @@ def test_parse_block_name():
     assert block.args[1].name_hint is None
 
 
-@pytest.mark.parametrize("separator", Parser.Separator)
+@pytest.mark.parametrize("separator", [",", "|"])
 @pytest.mark.parametrize("delimiter", Parser.Delimiter)
 @pytest.mark.parametrize(
     "arr",
     [[], list(range(1)), list(range(5))],
 )
-def test_parse_list(
-    separator: Parser.Separator, delimiter: Parser.Delimiter, arr: list[int]
-):
+def test_parse_list(separator: str, delimiter: Parser.Delimiter, arr: list[int]):
     # if delimiter is none, empty array is not a valid input
     if delimiter == Parser.Delimiter.NONE and not arr:
         return
 
-    parse_str = separator.value.join(map(str, arr))
+    parse_str = separator.join(map(str, arr))
     match delimiter.value:
         case None:
             pass
