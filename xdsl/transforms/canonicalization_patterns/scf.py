@@ -79,6 +79,30 @@ class SimplifyTrivialLoops(RewritePattern):
         # TODO: https://mlir.llvm.org/doxygen/Dialect_2SCF_2IR_2SCF_8cpp_source.html
 
 
+class IfPropagateConstantCondition(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: scf.IfOp, rewriter: PatternRewriter) -> None:
+        if (cond := const_evaluate_operand(op.cond)) is None:
+            return
+        if not cond and not op.false_region.blocks:
+            # Cannot use helper below as false region is not single-block
+            rewriter.erase_op(op)
+            return
+        region = op.true_region if cond else op.false_region
+        replace_op_with_region(rewriter, op, region)
+
+
+class SingleBlockExecuteInliner(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(
+        self, op: scf.ExecuteRegionOp, rewriter: PatternRewriter
+    ) -> None:
+        assert op.region.first_block is not None
+        if op.region.first_block is not op.region.last_block:
+            return
+        replace_op_with_region(rewriter, op, op.region)
+
+
 def replace_op_with_region(
     rewriter: PatternRewriter,
     op: Operation,
@@ -88,6 +112,8 @@ def replace_op_with_region(
     """
     Replaces the given op with the contents of the given single-block region, using the
     operands of the block terminator to replace operation results.
+
+    :raises ValueError: if the region does not have a single block.
     """
 
     block = region.block

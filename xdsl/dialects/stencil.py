@@ -1,13 +1,14 @@
 from __future__ import annotations
 
+import warnings
 from collections.abc import Iterable, Iterator, Sequence
 from dataclasses import dataclass
 from itertools import pairwise
 from math import prod
 from operator import add, lt, neg
-from typing import Generic, TypeAlias, cast
+from typing import ClassVar, Generic, TypeAlias, cast
 
-from typing_extensions import TypeVar
+from typing_extensions import TypeVar, deprecated
 
 from xdsl.dialects import builtin, memref
 from xdsl.dialects.builtin import (
@@ -39,6 +40,7 @@ from xdsl.irdl import (
     IRDLOperation,
     MessageConstraint,
     ParamAttrConstraint,
+    RangeOf,
     VarConstraint,
     attr_def,
     base,
@@ -85,6 +87,15 @@ class IndexAttr(ParametrizedAttribute, Iterable[int]):
 
     array: ArrayAttr[IntAttr]
 
+    def __init__(self, indices: ArrayAttr[IntAttr]):
+        super().__init__(indices)
+
+    @classmethod
+    def from_indices(cls, *indices: int):
+        array = ArrayAttr([IntAttr(idx) for idx in indices])
+
+        return cls(array)
+
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
         """Parse the attribute parameters."""
@@ -118,21 +129,22 @@ class IndexAttr(ParametrizedAttribute, Iterable[int]):
                 f"Expected 1 to 3 indexes for stencil.index, got {l}."
             )
 
+    @deprecated("Please use the default constructor instead")
     @staticmethod
     def get(*indices: int | IntAttr):
-        return IndexAttr(
-            ArrayAttr(
-                [(IntAttr(idx) if isinstance(idx, int) else idx) for idx in indices]
-            )
+        array = ArrayAttr(
+            (IntAttr(idx) if isinstance(idx, int) else idx) for idx in indices
         )
+
+        return IndexAttr(array)
 
     # TODO : come to an agreement on, do we want to allow that kind of things
     # on Attributes? Author's opinion is a clear yes :P
     def __neg__(self) -> IndexAttr:
-        return IndexAttr.get(*(map(neg, self)))
+        return IndexAttr.from_indices(*(map(neg, self)))
 
     def __add__(self, o: IndexAttr) -> IndexAttr:
-        return IndexAttr.get(*(map(add, self, o)))
+        return IndexAttr.from_indices(*(map(add, self, o)))
 
     def __sub__(self, o: IndexAttr) -> IndexAttr:
         return self + -o
@@ -144,13 +156,13 @@ class IndexAttr(ParametrizedAttribute, Iterable[int]):
     def min(a: IndexAttr, b: IndexAttr | None) -> IndexAttr:
         if b is None:
             return a
-        return IndexAttr.get(*map(min, a, b))
+        return IndexAttr.from_indices(*map(min, a, b))
 
     @staticmethod
     def max(a: IndexAttr, b: IndexAttr | None) -> IndexAttr:
         if b is None:
             return a
-        return IndexAttr.get(*map(max, a, b))
+        return IndexAttr.from_indices(*map(max, a, b))
 
     def __len__(self):
         return len(self.array)
@@ -169,6 +181,40 @@ class StencilBoundsAttr(ParametrizedAttribute):
     lb: IndexAttr
     ub: IndexAttr
 
+    def __init__(
+        self,
+        bounds: IndexAttr | Iterable[tuple[int | IntAttr, int | IntAttr]],
+        ub: IndexAttr | None = None,
+    ):
+        if isinstance(bounds, IndexAttr):
+            lb = bounds
+            assert ub is not None
+        else:
+            warnings.warn(
+                "StencilBoundsAttr init with sequence of tuples is deprecated, please use .from_bounds instead.",
+                DeprecationWarning,
+            )
+
+            if bounds:
+                lb_indices, ub_indices = zip(*bounds)
+            else:
+                lb_indices, ub_indices = (), ()
+
+            lb_indices = tuple(i if isinstance(i, int) else i.data for i in lb_indices)
+            ub_indices = tuple(i if isinstance(i, int) else i.data for i in ub_indices)
+
+            lb = IndexAttr.from_indices(*lb_indices)
+            ub = IndexAttr.from_indices(*ub_indices)
+        super().__init__(lb, ub)
+
+    @classmethod
+    def from_bounds(cls, bounds: Iterable[tuple[int, int]]) -> StencilBoundsAttr:
+        if bounds:
+            lb, ub = zip(*bounds)
+        else:
+            lb, ub = (), ()
+        return cls(IndexAttr.from_indices(*lb), IndexAttr.from_indices(*ub))
+
     def _verify(self):
         if len(self.lb) != len(self.ub):
             raise VerifyException(
@@ -181,16 +227,6 @@ class StencilBoundsAttr(ParametrizedAttribute):
                     "Incoherent stencil bounds: upper bound must be strictly "
                     "greater than lower bound."
                 )
-
-    def __init__(self, bounds: Iterable[tuple[int | IntAttr, int | IntAttr]]):
-        if bounds:
-            lb, ub = zip(*bounds)
-        else:
-            lb, ub = (), ()
-        super().__init__(
-            IndexAttr.get(*lb),
-            IndexAttr.get(*ub),
-        )
 
     def print_parameters(self, printer: Printer) -> None:
         with printer.in_angle_brackets():
@@ -209,7 +245,7 @@ class StencilBoundsAttr(ParametrizedAttribute):
     def union(self, other: StencilBoundsAttr | IntAttr) -> StencilBoundsAttr:
         if isinstance(other, IntAttr):
             return self
-        return StencilBoundsAttr(
+        return StencilBoundsAttr.from_bounds(
             zip(
                 map(min, self.lb, other.lb),
                 map(max, self.ub, other.ub),
@@ -219,7 +255,7 @@ class StencilBoundsAttr(ParametrizedAttribute):
     def intersection(self, other: StencilBoundsAttr | IntAttr) -> StencilBoundsAttr:
         if isinstance(other, IntAttr):
             return self
-        return StencilBoundsAttr(
+        return StencilBoundsAttr.from_bounds(
             zip(
                 map(max, self.lb, other.lb),
                 map(min, self.ub, other.ub),
@@ -239,7 +275,7 @@ class StencilBoundsAttr(ParametrizedAttribute):
         return self & value
 
     def __add__(self, o: IndexAttr) -> StencilBoundsAttr:
-        return StencilBoundsAttr(
+        return StencilBoundsAttr.from_bounds(
             zip(
                 self.lb + o,
                 self.ub + o,
@@ -267,6 +303,36 @@ class StencilType(
     rank of unknown bounds. A stencil.field or stencil.temp cannot be unranked!
     """
     element_type: _FieldTypeElement
+
+    def __init__(
+        self,
+        bounds: (Iterable[tuple[int, int]] | int | IntAttr | StencilBoundsAttr),
+        element_type: _FieldTypeElement,
+    ) -> None:
+        """
+            A StencilBoundsAttr encodes known bounds, where an IntAttr encodes the
+        rank of unknown bounds. A stencil.field or stencil.temp cannot be unranked!
+
+        ### examples:
+
+        - `Field(3,f32)` is represented as `stencil.field<?x?x?xf32>`
+        - `Field([(-1,17),(-2,18)],f32)` is represented as `stencil.field<[-1,17]x[-2,18]xf32>`,
+        """
+        if isinstance(bounds, Iterable):
+            warnings.warn(
+                "StencilType init with iterable bounds is deprecated, please pass StencilBoundsAttr or IntAttr instead.",
+                DeprecationWarning,
+            )
+            nbounds = StencilBoundsAttr.from_bounds(bounds)
+        elif isinstance(bounds, int):
+            warnings.warn(
+                "StencilType init with int bounds is deprecated, please pass StencilBoundsAttr or IntAttr instead.",
+                DeprecationWarning,
+            )
+            nbounds = IntAttr(bounds)
+        else:
+            nbounds = bounds
+        return super().__init__(nbounds, element_type)
 
     def get_num_dims(self) -> int:
         if isinstance(self.bounds, IntAttr):
@@ -305,7 +371,7 @@ class StencilType(
             opt_type = parser.parse_optional_type()
         parser.parse_characters(">")
         if isa(bounds, list[tuple[int, int]]):
-            bounds = StencilBoundsAttr(bounds)
+            bounds = StencilBoundsAttr.from_bounds(bounds)
         elif isa(bounds, list[int]):
             bounds = IntAttr(len(bounds))
         else:
@@ -326,33 +392,6 @@ class StencilType(
                 for _ in range(self.bounds.data):
                     printer.print_string("?x")
             printer.print_attribute(self.element_type)
-
-    def __init__(
-        self,
-        bounds: (
-            Iterable[tuple[int | IntAttr, int | IntAttr]]
-            | int
-            | IntAttr
-            | StencilBoundsAttr
-        ),
-        element_type: _FieldTypeElement,
-    ) -> None:
-        """
-            A StencilBoundsAttr encodes known bounds, where an IntAttr encodes the
-        rank of unknown bounds. A stencil.field or stencil.temp cannot be unranked!
-
-        ### examples:
-
-        - `Field(3,f32)` is represented as `stencil.field<?x?x?xf32>`
-        - `Field([(-1,17),(-2,18)],f32)` is represented as `stencil.field<[-1,17]x[-2,18]xf32>`,
-        """
-        if isinstance(bounds, Iterable):
-            nbounds = StencilBoundsAttr(bounds)
-        elif isinstance(bounds, int):
-            nbounds = IntAttr(bounds)
-        else:
-            nbounds = bounds
-        return super().__init__(nbounds, element_type)
 
     @classmethod
     def constr(
@@ -478,6 +517,26 @@ class ApplyOp(IRDLOperation):
 
     bounds = opt_prop_def(StencilBoundsAttr)
 
+    def __init__(
+        self,
+        args: Sequence[SSAValue] | Sequence[Operation],
+        body: Block | Region,
+        result_types: Sequence[TempType[Attribute]] | None = None,
+        bounds: StencilBoundsAttr | None = None,
+    ):
+        assert result_types or bounds
+        if isinstance(body, Block):
+            body = Region(body)
+
+        properties = {"bounds": bounds} if bounds else {}
+
+        super().__init__(
+            operands=[list(args), []],
+            regions=[body],
+            result_types=[result_types],
+            properties=properties,
+        )
+
     traits = traits_def(
         IsolatedFromAbove(),
         ApplyOpHasCanonicalizationPatternsTrait(),
@@ -485,7 +544,7 @@ class ApplyOp(IRDLOperation):
         ApplyMemoryEffect(),
     )
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
     def print(self, printer: Printer):
         def print_assign_argument(args: tuple[BlockArgument, SSAValue, Attribute]):
@@ -565,10 +624,13 @@ class ApplyOp(IRDLOperation):
             attrs = {}
         region = parser.parse_region(args)
         if parser.parse_optional_keyword("to"):
-            bounds = StencilBoundsAttr.new(StencilBoundsAttr.parse_parameters(parser))
+            lb, ub = StencilBoundsAttr.parse_parameters(parser)
+            assert isa(lb, IndexAttr)
+            assert isa(ub, IndexAttr)
+            bounds = StencilBoundsAttr(lb, ub)
         else:
             bounds = None
-        return cls(
+        return cls.build(
             operands=[operands, destinations or []],
             result_types=[result_types or []],
             regions=[region],
@@ -576,6 +638,7 @@ class ApplyOp(IRDLOperation):
             properties={"bounds": bounds},
         )
 
+    @deprecated("Please use the default constructor instead")
     @staticmethod
     def get(
         args: Sequence[SSAValue] | Sequence[Operation],
@@ -583,18 +646,7 @@ class ApplyOp(IRDLOperation):
         result_types: Sequence[TempType[Attribute]] = (),
         bounds: StencilBoundsAttr | None = None,
     ):
-        assert result_types or bounds
-        if isinstance(body, Block):
-            body = Region(body)
-
-        properties = {"bounds": bounds} if bounds else {}
-
-        return ApplyOp.build(
-            operands=[list(args), []],
-            regions=[body],
-            result_types=[result_types],
-            properties=properties,
-        )
+        return ApplyOp(args, body, result_types, bounds)
 
     def verify_(self) -> None:
         for operand, argument in zip(self.operands, self.region.block.args):
@@ -736,23 +788,31 @@ class CastOp(IRDLOperation):
 
     traits = traits_def(NoMemoryEffect(), CastOpHasCanonicalizationPatternsTrait())
 
-    @staticmethod
-    def get(
+    def __init__(
+        self,
         field: SSAValue | Operation,
         bounds: StencilBoundsAttr,
         res_type: FieldType[_FieldTypeElement] | FieldType[Attribute] | None = None,
-    ) -> CastOp:
-        """ """
+    ):
         field_ssa = SSAValue.get(field, type=FieldType)
         if res_type is None:
             res_type = FieldType(
                 bounds,
                 field_ssa.type.element_type,
             )
-        return CastOp.build(
+        super().__init__(
             operands=[field],
             result_types=[res_type],
         )
+
+    @deprecated("Please use the default constructor instead")
+    @staticmethod
+    def get(
+        field: SSAValue | Operation,
+        bounds: StencilBoundsAttr,
+        res_type: FieldType[_FieldTypeElement] | FieldType[Attribute] | None = None,
+    ) -> CastOp:
+        return CastOp(field, bounds, res_type)
 
     def verify_(self) -> None:
         # this should be fine, verify() already checks them:
@@ -825,7 +885,7 @@ class CombineOp(IRDLOperation):
 
     assembly_format = "$dim `at` $index `lower` `=` `(` $lower `:` type($lower) `)` `upper` `=` `(` $upper `:` type($upper) `)` (`lowerext` `=` $lowerext^ `:` type($lowerext))? (`upperext` `=` $upperext^ `:` type($upperext))? attr-dict-with-keyword `:` type($results_)"  # noqa: E501
 
-    irdl_options = [AttrSizedOperandSegments()]
+    irdl_options = (AttrSizedOperandSegments(),)
 
 
 class DynAccessOpHasShapeInferencePatternsTrait(HasShapeInferencePatternsTrait):
@@ -914,12 +974,20 @@ class ExternalLoadOp(IRDLOperation):
         "$field attr-dict-with-keyword `:` type($field) `->` type($result)"
     )
 
+    def __init__(
+        self,
+        arg: SSAValue | Operation,
+        res_type: FieldType[Attribute] | memref.MemRefType,
+    ):
+        super().__init__(operands=[arg], result_types=[res_type])
+
+    @deprecated("Please use the default constructor instead")
     @staticmethod
     def get(
         arg: SSAValue | Operation,
         res_type: FieldType[Attribute] | memref.MemRefType,
     ):
-        return ExternalLoadOp.build(operands=[arg], result_types=[res_type])
+        return ExternalLoadOp(arg, res_type)
 
 
 @irdl_op_definition
@@ -1021,6 +1089,29 @@ class AccessOp(IRDLOperation):
         HasAncestor(ApplyOp), Pure(), AccessOpHasShapeInferencePatternsTrait()
     )
 
+    def __init__(
+        self,
+        temp: SSAValue | Operation,
+        offset: Sequence[int],
+        offset_mapping: Sequence[int] | IndexAttr | None = None,
+    ):
+        temp_type = SSAValue.get(temp, type=StencilType).type
+
+        attributes: dict[str, Attribute] = {
+            "offset": IndexAttr.from_indices(
+                *offset,
+            ),
+        }
+
+        if offset_mapping is not None:
+            attributes["offset_mapping"] = IndexAttr.from_indices(*offset_mapping)
+
+        super().__init__(
+            operands=[temp],
+            attributes=attributes,
+            result_types=[temp_type.element_type],
+        )
+
     def print(self, printer: Printer):
         printer.print_string(" ")
         printer.print_operand(self.temp)
@@ -1078,9 +1169,9 @@ class AccessOp(IRDLOperation):
             {"offset", "offset_mapping"}
         )
         attrs = dict(attrs.data) if attrs else {}
-        attrs["offset"] = IndexAttr.get(*offset)
+        attrs["offset"] = IndexAttr.from_indices(*offset)
         if offset_mapping:
-            attrs["offset_mapping"] = IndexAttr.get(*offset_mapping)
+            attrs["offset_mapping"] = IndexAttr.from_indices(*offset_mapping)
         parser.parse_punctuation(":")
         res_type = parser.parse_attribute()
         if not isa(res_type, StencilType):
@@ -1091,28 +1182,14 @@ class AccessOp(IRDLOperation):
             operands=[temp], result_types=[res_type.element_type], attributes=attrs
         )
 
+    @deprecated("Please use the default constructor instead")
     @staticmethod
     def get(
         temp: SSAValue | Operation,
         offset: Sequence[int],
         offset_mapping: Sequence[int] | IndexAttr | None = None,
     ):
-        temp_type = SSAValue.get(temp, type=StencilType).type
-
-        attributes: dict[str, Attribute] = {
-            "offset": IndexAttr(
-                ArrayAttr(IntAttr(value) for value in offset),
-            ),
-        }
-
-        if offset_mapping is not None:
-            attributes["offset_mapping"] = IndexAttr.get(*offset_mapping)
-
-        return AccessOp.build(
-            operands=[temp],
-            attributes=attributes,
-            result_types=[temp_type.element_type],
-        )
+        return AccessOp(temp, offset, offset_mapping)
 
     def verify_(self) -> None:
         # As promised by HasAncestor(ApplyOp)
@@ -1251,8 +1328,8 @@ class LoadOp(IRDLOperation):
 
     traits = traits_def(LoadOpHasShapeInferencePatternsTrait(), LoadOpMemoryEffect())
 
-    @staticmethod
-    def get(
+    def __init__(
+        self,
         field: SSAValue | Operation,
         lb: IndexAttr | None = None,
         ub: IndexAttr | None = None,
@@ -1260,14 +1337,25 @@ class LoadOp(IRDLOperation):
         field_type = SSAValue.get(field, type=FieldType).type
 
         if lb is None or ub is None:
-            res_type = TempType(field_type.get_num_dims(), field_type.element_type)
+            res_type = TempType(
+                IntAttr(field_type.get_num_dims()), field_type.element_type
+            )
         else:
-            res_type = TempType(zip(lb, ub), field_type.element_type)
+            res_type = TempType(StencilBoundsAttr(lb, ub), field_type.element_type)
 
-        return LoadOp.build(
+        super().__init__(
             operands=[field],
             result_types=[res_type],
         )
+
+    @deprecated("Please use the default constructor instead")
+    @staticmethod
+    def get(
+        field: SSAValue | Operation,
+        lb: IndexAttr | None = None,
+        ub: IndexAttr | None = None,
+    ):
+        return LoadOp(field, lb, ub)
 
     def verify_(self) -> None:
         field = self.field.type
@@ -1411,13 +1499,22 @@ class StoreOp(IRDLOperation):
 
     traits = traits_def(StoreOpHasShapeInferencePatternsTrait(), StoreOpMemoryEffect())
 
+    def __init__(
+        self,
+        temp: SSAValue | Operation,
+        field: SSAValue | Operation,
+        bounds: StencilBoundsAttr,
+    ):
+        super().__init__(operands=[temp, field], attributes={"bounds": bounds})
+
+    @deprecated("Please use the default constructor instead")
     @staticmethod
     def get(
         temp: SSAValue | Operation,
         field: SSAValue | Operation,
         bounds: StencilBoundsAttr,
     ):
-        return StoreOp.build(operands=[temp, field], attributes={"bounds": bounds})
+        return StoreOp(temp, field, bounds)
 
 
 @irdl_op_definition
@@ -1485,9 +1582,13 @@ class ReturnOp(IRDLOperation):
 
     traits = traits_def(HasParent(ApplyOp), IsTerminator(), Pure())
 
+    def __init__(self, res: Sequence[SSAValue | Operation]):
+        super().__init__(operands=[res])
+
+    @deprecated("Please use the default constructor instead")
     @staticmethod
     def get(res: Sequence[SSAValue | Operation]):
-        return ReturnOp.build(operands=[list(res)])
+        return ReturnOp(res)
 
     def verify_(self) -> None:
         unroll_factor = self.unroll_factor
@@ -1520,6 +1621,63 @@ class ReturnOp(IRDLOperation):
                         f"stencil.apply result element types. Got {op_type} at index "
                         f"{j}, expected {res_type}."
                     )
+
+
+@irdl_op_definition
+class ReduceOp(IRDLOperation):
+    """
+    Reduce operation for accumulating values across stencil iterations.
+    """
+
+    name = "stencil.reduce"
+
+    T: ClassVar = VarConstraint("T", AnyAttr())
+
+    acc = operand_def(T)
+    init = operand_def(T)
+    body = region_def("single_block", entry_args=RangeOf(T).of_length(2))
+
+    assembly_format = "$acc `init` $init $body attr-dict `:` type($acc)"
+
+    def __init__(self, operand: SSAValue, init: SSAValue, body: Region):
+        super().__init__(operands=[operand, init], result_types=[], regions=[body])
+
+    def verify_(self) -> None:
+        body_block = self.body.block
+
+        if not body_block.ops:
+            raise VerifyException("stencil.reduce body must end with stencil.yield")
+
+        last_op = body_block.last_op
+        if not isinstance(last_op, YieldOp):
+            op_name = "<unknown>" if last_op is None else last_op.name
+            raise VerifyException(
+                f"stencil.reduce body must end with stencil.yield, got {op_name}"
+            )
+
+        if last_op.operand.type != self.acc.type:
+            raise VerifyException(
+                "stencil.reduce yield type must match reduce operand type, "
+                f"got {last_op.operand.type} and {self.acc.type}"
+            )
+
+
+@irdl_op_definition
+class YieldOp(IRDLOperation):
+    """
+    Simple terminator for stencil operations with regions.
+    """
+
+    name = "stencil.yield"
+
+    operand = operand_def()
+
+    assembly_format = "$operand attr-dict `:` type($operand)"
+
+    traits = traits_def(IsTerminator())
+
+    def __init__(self, result: SSAValue):
+        super().__init__(operands=[result])
 
 
 @dataclass(frozen=True)
@@ -1650,6 +1808,8 @@ Stencil = Dialect(
         ApplyOp,
         StoreResultOp,
         ReturnOp,
+        ReduceOp,
+        YieldOp,
     ],
     [
         FieldType,

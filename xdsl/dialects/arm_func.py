@@ -45,7 +45,7 @@ class FuncOpCallableInterface(CallableOpInterface):
 
 
 @irdl_op_definition
-class FuncOp(arm.ops.ARMOperation):
+class FuncOp(arm.ops.ARMAsmOperation):
     """ARM function definition operation"""
 
     name = "arm_func.func"

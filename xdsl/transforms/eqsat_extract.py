@@ -1,12 +1,14 @@
 from xdsl.context import Context
-from xdsl.dialects import builtin, eqsat
+from xdsl.dialects import builtin, equivalence
 from xdsl.ir import OpResult
 from xdsl.passes import ModulePass
 from xdsl.rewriter import Rewriter
 
 
 def eqsat_extract(module_op: builtin.ModuleOp):
-    eclass_ops = [op for op in module_op.walk() if isinstance(op, eqsat.AnyEClassOp)]
+    eclass_ops = [
+        op for op in module_op.walk() if isinstance(op, equivalence.AnyClassOp)
+    ]
 
     while eclass_ops:
         op = eclass_ops.pop()
@@ -20,7 +22,7 @@ def eqsat_extract(module_op: builtin.ModuleOp):
         elif (min_cost_index := op.min_cost_index) is not None:
             # Replace eclass result by operand
             operand = op.operands[min_cost_index.data]
-            op.result.replace_by_if(operand, lambda use: use.operation is not op)
+            op.result.replace_uses_with_if(operand, lambda use: use.operation is not op)
             # Erase eclass and all operand ops excluding min cost one
             ops_to_erase = [op] + [
                 operand.owner
@@ -30,9 +32,9 @@ def eqsat_extract(module_op: builtin.ModuleOp):
             # Delete cost
             if (
                 isinstance(operand, OpResult)
-                and eqsat.EQSAT_COST_LABEL in operand.op.attributes
+                and equivalence.EQSAT_COST_LABEL in operand.op.attributes
             ):
-                del operand.op.attributes[eqsat.EQSAT_COST_LABEL]
+                del operand.op.attributes[equivalence.EQSAT_COST_LABEL]
 
         else:
             # Don't touch this eclass or its operands

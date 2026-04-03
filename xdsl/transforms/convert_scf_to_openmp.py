@@ -94,7 +94,7 @@ class ConvertParallel(RewritePattern):
         for newarg, oldarg in zip(
             loop_nest.body.block.args, loop.body.block.args[:collapse]
         ):
-            oldarg.replace_by(newarg)
+            oldarg.replace_all_uses_with(newarg)
 
         for _ in range(collapse):
             loop.body.block.erase_arg(loop.body.block.args[0])

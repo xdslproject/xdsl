@@ -1,4 +1,5 @@
 from typing import Any, cast
+from unittest.mock import patch
 
 import pytest
 from textual.screen import Screen
@@ -11,16 +12,17 @@ from xdsl.backend.riscv.lowering import (
 from xdsl.builder import ImplicitBuilder
 from xdsl.dialects import arith, func, get_all_dialects, riscv, riscv_func
 from xdsl.dialects.builtin import (
+    DenseArrayBase,
     IndexType,
     IntegerAttr,
     ModuleOp,
     UnrealizedConversionCastOp,
+    i32,
 )
-from xdsl.interactive import _pasteboard
 from xdsl.interactive.add_arguments_screen import AddArguments
 from xdsl.interactive.app import InputApp
 from xdsl.interactive.passes import get_condensed_pass_list, get_new_registered_context
-from xdsl.ir import Block, Region
+from xdsl.ir import Block, Region, SSAValue
 from xdsl.transforms import (
     get_all_passes,
     individual_rewrite,
@@ -64,7 +66,7 @@ async def test_inputs():
         app.input_text_area.clear()
         app.input_text_area.insert(
             """
-        func.func @hello(%n : index) -> index {
+        func.func @hello(%n: index) -> index {
           %two = arith.constant 2 : index
           %res = arith.muli %n, %two : index
           func.return %res : index
@@ -75,7 +77,7 @@ async def test_inputs():
         assert (
             app.output_text_area.text
             == """builtin.module {
-  func.func @hello(%n : index) -> index {
+  func.func @hello(%n: index) -> index {
     %two = arith.constant 2 : index
     %res = arith.muli %n, %two : index
     func.return %res : index
@@ -113,7 +115,7 @@ async def test_buttons():
         await pilot.pause()
         app.input_text_area.insert(
             """
-        func.func @hello(%n : index) -> index {
+        func.func @hello(%n: index) -> index {
           %two = arith.constant 2 : index
           %res = arith.muli %n, %two : index
           func.return %res : index
@@ -126,7 +128,7 @@ async def test_buttons():
         assert (
             app.input_text_area.text
             == """
-        func.func @hello(%n : index) -> index {
+        func.func @hello(%n: index) -> index {
           %two = arith.constant 2 : index
           %res = arith.muli %n, %two : index
           func.return %res : index
@@ -136,7 +138,7 @@ async def test_buttons():
         assert (
             app.output_text_area.text
             == """builtin.module {
-  func.func @hello(%n : index) -> index {
+  func.func @hello(%n: index) -> index {
     %two = arith.constant 2 : index
     %res = arith.muli %n, %two : index
     func.return %res : index
@@ -154,7 +156,7 @@ async def test_buttons():
 
         app.input_text_area.insert(
             """
-        func.func @hello(%n : index) -> index {
+        func.func @hello(%n: index) -> index {
           %two = arith.constant 2 : index
           %res = arith.muli %n, %two : index
           func.return %res : index
@@ -179,17 +181,17 @@ async def test_buttons():
             app.output_text_area.text
             == """\
 builtin.module {
-  riscv_func.func public @hello(%n : !riscv.reg<a0>) -> !riscv.reg<a0> attributes {p2align = 2 : i8} {
+  riscv_func.func public @hello(%n: !riscv.reg<a0>) -> !riscv.reg<a0> attributes {p2align = 2 : i8} {
     %0 = riscv.mv %n : (!riscv.reg<a0>) -> !riscv.reg
     %n_1 = builtin.unrealized_conversion_cast %0 : !riscv.reg to index
-    %two = riscv.li 2 : !riscv.reg
+    %two = rv32.li 2 : !riscv.reg
     %two_1 = builtin.unrealized_conversion_cast %two : !riscv.reg to index
     %res = builtin.unrealized_conversion_cast %n_1 : index to !riscv.reg
     %res_1 = builtin.unrealized_conversion_cast %two_1 : index to !riscv.reg
     %res_2 = riscv.mul %res, %res_1 : (!riscv.reg, !riscv.reg) -> !riscv.reg
     %res_3 = builtin.unrealized_conversion_cast %res_2 : !riscv.reg to index
     %res_4 = builtin.unrealized_conversion_cast %res_3 : index to !riscv.reg
-    %1 = riscv.mv %res_4 : (!riscv.reg) -> !riscv.reg<a0>
+    %1 = riscv.parallel_mov %res_4 [32] : (!riscv.reg) -> !riscv.reg<a0>
     riscv_func.return %1 : !riscv.reg<a0>
   }
 }
@@ -197,13 +199,11 @@ builtin.module {
         )
 
         # Test that the current pipeline command is correctly copied
-        def callback(x: str):
-            assert (
-                x == "xdsl-opt -p 'convert-func-to-riscv-func,convert-arith-to-riscv'"
+        with patch("pyclip.copy") as mock_copy:
+            await pilot.click("#copy_query_button")
+            mock_copy.assert_called_once_with(
+                "xdsl-opt -p 'convert-func-to-riscv-func,convert-arith-to-riscv'"
             )
-
-        _pasteboard._test_pyclip_callback = callback  # pyright: ignore[reportPrivateUsage]
-        await pilot.click("#copy_query_button")
 
         current_pipeline = app.pass_pipeline
         # press "Remove Last Pass" button
@@ -216,13 +216,13 @@ builtin.module {
             app.output_text_area.text
             == """\
 builtin.module {
-  riscv_func.func public @hello(%n : !riscv.reg<a0>) -> !riscv.reg<a0> attributes {p2align = 2 : i8} {
+  riscv_func.func public @hello(%n: !riscv.reg<a0>) -> !riscv.reg<a0> attributes {p2align = 2 : i8} {
     %0 = riscv.mv %n : (!riscv.reg<a0>) -> !riscv.reg
     %n_1 = builtin.unrealized_conversion_cast %0 : !riscv.reg to index
     %two = arith.constant 2 : index
     %res = arith.muli %n_1, %two : index
     %res_1 = builtin.unrealized_conversion_cast %res : index to !riscv.reg
-    %1 = riscv.mv %res_1 : (!riscv.reg) -> !riscv.reg<a0>
+    %1 = riscv.parallel_mov %res_1 [32] : (!riscv.reg) -> !riscv.reg<a0>
     riscv_func.return %1 : !riscv.reg<a0>
   }
 }
@@ -238,7 +238,7 @@ builtin.module {
         assert (
             app.output_text_area.text
             == """builtin.module {
-  func.func @hello(%n : index) -> index {
+  func.func @hello(%n: index) -> index {
     %two = arith.constant 2 : index
     %res = arith.muli %n, %two : index
     func.return %res : index
@@ -305,7 +305,7 @@ async def test_rewrites():
         # Testing a pass
         app.input_text_area.insert(
             """
-        func.func @hello(%n : i32) -> i32 {
+        func.func @hello(%n: i32) -> i32 {
   %c0 = arith.constant 0 : i32
   %res = arith.addi %n, %c0 : i32
   func.return %res : i32
@@ -340,7 +340,7 @@ async def test_rewrites():
         assert (
             app.output_text_area.text
             == """builtin.module {
-  func.func @hello(%n : i32) -> i32 {
+  func.func @hello(%n: i32) -> i32 {
     %c0 = arith.constant 0 : i32
     func.return %n : i32
   }
@@ -364,7 +364,7 @@ async def test_passes():
         # Testing a pass
         app.input_text_area.insert(
             """
-        func.func @hello(%n : index) -> index {
+        func.func @hello(%n: index) -> index {
           %two = arith.constant 2 : index
           %res = arith.muli %n, %two : index
           func.return %res : index
@@ -377,7 +377,7 @@ async def test_passes():
         assert (
             app.output_text_area.text
             == """builtin.module {
-  func.func @hello(%n : index) -> index {
+  func.func @hello(%n: index) -> index {
     %two = arith.constant 2 : index
     %res = arith.muli %n, %two : index
     func.return %res : index
@@ -396,13 +396,13 @@ async def test_passes():
         assert (
             app.output_text_area.text
             == """builtin.module {
-  riscv_func.func public @hello(%n : !riscv.reg<a0>) -> !riscv.reg<a0> attributes {p2align = 2 : i8} {
+  riscv_func.func public @hello(%n: !riscv.reg<a0>) -> !riscv.reg<a0> attributes {p2align = 2 : i8} {
     %0 = riscv.mv %n : (!riscv.reg<a0>) -> !riscv.reg
     %n_1 = builtin.unrealized_conversion_cast %0 : !riscv.reg to index
     %two = arith.constant 2 : index
     %res = arith.muli %n_1, %two : index
     %res_1 = builtin.unrealized_conversion_cast %res : index to !riscv.reg
-    %1 = riscv.mv %res_1 : (!riscv.reg) -> !riscv.reg<a0>
+    %1 = riscv.parallel_mov %res_1 [32] : (!riscv.reg) -> !riscv.reg<a0>
     riscv_func.return %1 : !riscv.reg<a0>
   }
 }
@@ -427,7 +427,11 @@ async def test_passes():
                 one = UnrealizedConversionCastOp.get(
                     [res.result], [riscv.Registers.UNALLOCATED_INT]
                 )
-                two_two = riscv.MVOp(one, rd=riscv.Registers.A0)
+                two_two = riscv.ParallelMovOp(
+                    [SSAValue.get(one)],
+                    [riscv.Registers.A0],
+                    DenseArrayBase.from_list(i32, [32]),
+                )
                 riscv_func.ReturnOp(two_two)
 
         assert isinstance(app.current_module, ModuleOp)
@@ -450,7 +454,7 @@ async def test_argument_pass_screen():
         # Testing a pass
         app.input_text_area.insert(
             """
-        func.func @hello(%n : i32) -> i32 {
+        func.func @hello(%n: i32) -> i32 {
   %two = arith.constant 0 : i32
   %res = arith.addi %two, %n : i32
   func.return %res : i32
@@ -520,7 +524,7 @@ async def test_apply_individual_rewrite():
         # Testing a pass
         app.input_text_area.insert(
             """
-        func.func @hello(%n : i32) -> i32 {
+        func.func @hello(%n: i32) -> i32 {
   %c0 = arith.constant 0 : i32
   %res = arith.addi %c0, %n : i32
   func.return %res : i32
@@ -546,7 +550,7 @@ async def test_apply_individual_rewrite():
         assert (
             app.output_text_area.text
             == """builtin.module {
-  func.func @hello(%n : i32) -> i32 {
+  func.func @hello(%n: i32) -> i32 {
     %c0 = arith.constant 0 : i32
     %res = arith.addi %n, %c0 : i32
     func.return %res : i32
@@ -573,7 +577,7 @@ async def test_apply_individual_rewrite():
         assert (
             app.output_text_area.text
             == """builtin.module {
-  func.func @hello(%n : i32) -> i32 {
+  func.func @hello(%n: i32) -> i32 {
     %c0 = arith.constant 0 : i32
     func.return %n : i32
   }

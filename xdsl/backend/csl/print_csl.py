@@ -6,6 +6,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing import IO, Literal, cast
 
+from xdsl.context import Context
 from xdsl.dialects import arith, csl, memref, scf
 from xdsl.dialects.builtin import (
     DYNAMIC_INDEX,
@@ -35,6 +36,7 @@ from xdsl.irdl import Operand
 from xdsl.traits import is_side_effect_free
 from xdsl.utils.comparisons import to_unsigned
 from xdsl.utils.hints import isa
+from xdsl.utils.target import Target
 
 _CSL_KW_SET = {
     "align",
@@ -906,3 +908,11 @@ def print_to_csl(
         divider = True
         ctx.print("// FILE: " + module.sym_name.data)
         ctx.print_block(module.body.block)
+
+
+@dataclass(frozen=True)
+class CSLTarget(Target):
+    name = "csl"
+
+    def emit(self, ctx: Context, module: ModuleOp, output: IO[str]) -> None:
+        print_to_csl(module, output)

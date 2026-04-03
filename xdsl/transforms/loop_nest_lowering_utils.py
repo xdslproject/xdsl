@@ -213,10 +213,10 @@ def _insert_store_ops(
         insert_store(i, yield_value, ind_vars, rewriter, insertion_point)
 
 
-def rewrite_generic_to_loops(
+def rewrite_linalg_structured_to_loops(
     rewriter: PatternRewriter,
     insertion_point: InsertPoint,
-    ubs: Sequence[int],
+    ubs: Sequence[SSAValue],
     load_indexing_maps: Sequence[AffineMapAttr],
     store_indexing_maps: Sequence[AffineMapAttr],
     load_operands: Sequence[SSAValue],
@@ -228,15 +228,9 @@ def rewrite_generic_to_loops(
     # Create loop nest lb (0), step (1), and ubs
     # ubs are calculated from affine maps and memref dimensions
 
-    bound_constant_ops = tuple(
-        arith.ConstantOp(IntegerAttr.from_index_int_value(ub)) for ub in ubs
-    )
-    rewriter.insert_op(bound_constant_ops)
-    bound_constant_values = tuple(op.result for op in bound_constant_ops)
-
     zero_op = arith.ConstantOp(IntegerAttr.from_index_int_value(0))
     one_op = arith.ConstantOp(IntegerAttr.from_index_int_value(1))
-    if bound_constant_values:
+    if ubs:
         rewriter.insert_op((zero_op, one_op))
 
     def make_body(
@@ -258,7 +252,7 @@ def rewrite_generic_to_loops(
         )
 
         for i, val in loaded_values:
-            block.args[i].replace_by(val)
+            block.args[i].replace_all_uses_with(val)
 
         yield_op = block.last_op
         assert yield_op is not None
@@ -286,7 +280,7 @@ def rewrite_generic_to_loops(
         insertion_point,
         zero_op,
         one_op,
-        bound_constant_values,
+        ubs,
         (),
         make_body,
     )
@@ -373,11 +367,11 @@ def rewrite_generic_to_imperfect_loops(
                 inner_iter_args,
                 strict=True,
             ):
-                block.args[i].replace_by(arg)
+                block.args[i].replace_all_uses_with(arg)
 
             # Replace block argument use with load op results
             for i, val in inner_loaded_values:
-                block.args[i].replace_by(val)
+                block.args[i].replace_all_uses_with(val)
 
             yield_op = block.last_op
             assert yield_op is not None

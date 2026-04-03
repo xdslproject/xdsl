@@ -2,7 +2,7 @@
 // RUN: xdsl-opt -p stencil-shape-minimize{restrict=32} --split-input-file --verify-diagnostics %s | filecheck %s --check-prefix RESTRICT
 
 builtin.module {
-  func.func @different_input_offsets(%out : !stencil.field<[-4,68]xf64>, %in : !stencil.field<[-4,68]xf64>) {
+  func.func @different_input_offsets(%out: !stencil.field<[-4,68]xf64>, %in: !stencil.field<[-4,68]xf64>) {
     %tin = stencil.load %in : !stencil.field<[-4,68]xf64> -> !stencil.temp<[-1,65]xf64>
     %tout = stencil.apply(%arg = %tin : !stencil.temp<[-1,65]xf64>) -> (!stencil.temp<[0,64]xf64>) {
       %x = stencil.access %arg[-1] : !stencil.temp<[-1,65]xf64>
@@ -15,7 +15,7 @@ builtin.module {
   }
 }
 
-// CHECK:       func.func @different_input_offsets(%out : !stencil.field<[-1,65]xf64>, %in : !stencil.field<[-1,65]xf64>) {
+// CHECK:       func.func @different_input_offsets(%out: !stencil.field<[-1,65]xf64>, %in: !stencil.field<[-1,65]xf64>) {
 // CHECK-NEXT:    %tin = stencil.load %in : !stencil.field<[-1,65]xf64> -> !stencil.temp<[-1,65]xf64>
 // CHECK-NEXT:    %tout = stencil.apply(%arg = %tin : !stencil.temp<[-1,65]xf64>) -> (!stencil.temp<[0,64]xf64>) {
 // CHECK-NEXT:      %x = stencil.access %arg[-1] : !stencil.temp<[-1,65]xf64>
@@ -27,7 +27,7 @@ builtin.module {
 // CHECK-NEXT:    func.return
 // CHECK-NEXT:  }
 
-// RESTRICT:       func.func @different_input_offsets(%out : !stencil.field<[-1,33]xf64>, %in : !stencil.field<[-1,33]xf64>) {
+// RESTRICT:       func.func @different_input_offsets(%out: !stencil.field<[-1,33]xf64>, %in: !stencil.field<[-1,33]xf64>) {
 // RESTRICT-NEXT:    %tin = stencil.load %in : !stencil.field<[-1,33]xf64> -> !stencil.temp<[-1,33]xf64>
 // RESTRICT-NEXT:    %tout = stencil.apply(%arg = %tin : !stencil.temp<[-1,33]xf64>) -> (!stencil.temp<[0,32]xf64>) {
 // RESTRICT-NEXT:      %x = stencil.access %arg[-1] : !stencil.temp<[-1,33]xf64>
@@ -40,7 +40,7 @@ builtin.module {
 // RESTRICT-NEXT:  }
 // -----
 
-func.func @stencil_missing_dims(%in : !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>, %ybuf : !stencil.field<[-4,68]xf64>, %zbuf : !stencil.field<[-4,68]xf64>, %out : !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>) {
+func.func @stencil_missing_dims(%in: !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>, %ybuf: !stencil.field<[-4,68]xf64>, %zbuf: !stencil.field<[-4,68]xf64>, %out: !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64>) {
   %intemp = stencil.load %in : !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64> -> !stencil.temp<[0,1]x[-1,0]x[-1,63]xf64>
   %0 = "dmp.swap"(%intemp) {strategy = #dmp.grid_slice_2d<#dmp.topo<64x64>, false>, swaps = [#dmp.exchange<at [0, -1, 0] size [1, 1, 64] source offset [0, 1, 0] to [0, -1, 0]>]} : (!stencil.temp<[0,1]x[-1,0]x[-1,63]xf64>) -> !stencil.temp<[0,1]x[-1,0]x[-1,63]xf64>
   %ybuf_t = stencil.load %ybuf : !stencil.field<[-4,68]xf64> -> !stencil.temp<[-1,0]xf64>
@@ -59,7 +59,7 @@ func.func @stencil_missing_dims(%in : !stencil.field<[-4,68]x[-4,68]x[-4,68]xf64
   func.return
 }
 
-// CHECK:      func.func @stencil_missing_dims(%in : !stencil.field<[0,1]x[-1,1]x[-1,64]xf64>, %ybuf : !stencil.field<[-1,63]xf64>, %zbuf : !stencil.field<[-1,63]xf64>, %out : !stencil.field<[0,1]x[-1,1]x[-1,64]xf64>) {
+// CHECK:      func.func @stencil_missing_dims(%in: !stencil.field<[0,1]x[-1,1]x[-1,64]xf64>, %ybuf: !stencil.field<[-1,63]xf64>, %zbuf: !stencil.field<[-1,63]xf64>, %out: !stencil.field<[0,1]x[-1,1]x[-1,64]xf64>) {
 // CHECK-NEXT:   %intemp = stencil.load %in : !stencil.field<[0,1]x[-1,1]x[-1,64]xf64> -> !stencil.temp<[0,1]x[-1,0]x[-1,63]xf64>
 // CHECK-NEXT:   %0 = "dmp.swap"(%intemp) {strategy = #dmp.grid_slice_2d<#dmp.topo<64x64>, false>, swaps = [#dmp.exchange<at [0, -1, 0] size [1, 1, 64] source offset [0, 1, 0] to [0, -1, 0]>]} : (!stencil.temp<[0,1]x[-1,0]x[-1,63]xf64>) -> !stencil.temp<[0,1]x[-1,0]x[-1,63]xf64>
 // CHECK-NEXT:   %ybuf_t = stencil.load %ybuf : !stencil.field<[-1,63]xf64> -> !stencil.temp<[-1,0]xf64>

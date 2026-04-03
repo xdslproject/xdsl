@@ -1,5 +1,6 @@
 // RUN: xdsl-opt --print-op-generic %s | mlir-opt --mlir-print-op-generic --allow-unregistered-dialect | xdsl-opt | filecheck %s
 // RUN: xdsl-opt %s | mlir-opt --mlir-print-op-generic --allow-unregistered-dialect | xdsl-opt | filecheck %s
+// RUN: xdsl-opt %s --print-debuginfo | mlir-opt --mlir-print-op-generic --allow-unregistered-dialect | xdsl-opt --print-debuginfo | filecheck %s --check-prefix=CHECK-DEBUG-INFO
 
 builtin.module {
 
@@ -31,23 +32,23 @@ builtin.module {
    // CHECK-NEXT:   func.return
    // CHECK-NEXT: }
 
-  func.func @arg_rec(%arg0 : i32) -> i32 {
-    %1 = func.call @arg_rec(%arg0) : (i32) -> i32
+  func.func @arg_rec(%arg0: i32) -> i32 {
+    %1 = func.call @arg_rec(%arg0): (i32) -> i32
     func.return %1 : i32
   }
 
-   // CHECK: func.func @arg_rec(%{{.*}} : i32) -> i32 {
+   // CHECK: func.func @arg_rec(%{{.*}}: i32) -> i32 {
    // CHECK-NEXT:   %{{.*}} = func.call @arg_rec(%{{.*}}) : (i32) -> i32
    // CHECK-NEXT:   func.return %{{.*}} : i32
    // CHECK-NEXT: }
 
   func.func @arg_rec_block(i32) -> i32 {
-  ^bb0(%2 : i32):
+  ^bb0(%2: i32):
     %3 = "func.call"(%2) {"callee" = @arg_rec_block} : (i32) -> i32
     func.return %3 : i32
   }
 
-  // CHECK: func.func @arg_rec_block(%{{.*}} : i32) -> i32 {
+  // CHECK: func.func @arg_rec_block(%{{.*}}: i32) -> i32 {
   // CHECK-NEXT:   %{{.*}} = func.call @arg_rec_block(%{{.*}}) : (i32) -> i32
   // CHECK-NEXT:   func.return %{{.*}} : i32
   // CHECK-NEXT: }
@@ -55,11 +56,35 @@ builtin.module {
   func.func private @external_fn(i32) -> (i32, i32)
   // CHECK: func.func private @external_fn(i32) -> (i32, i32)
 
-  func.func @multi_return_body(%a : i32) -> (i32, i32) {
+  func.func private @f_named_loc_only(%arg0: i32 loc("file.mlir":3:5)) {
+    func.return
+  }
+  // CHECK: func.func private @f_named_loc_only(%{{.*}}: i32) {
+  // CHECK-NEXT:   func.return
+  // CHECK-NEXT: }
+  // CHECK-DEBUG-INFO: func.func private @f_named_loc_only(%{{.*}}: i32 loc(unknown))
+
+  func.func private @f_named_attr_then_loc(%arg0: i32 {test.arg_name = "x"} loc("file.mlir":5:7)) {
+    func.return
+  }
+  // CHECK: func.func private @f_named_attr_then_loc(%{{.*}}: i32 {test.arg_name = "x"}) {
+  // CHECK-NEXT:   func.return
+  // CHECK-NEXT: }
+  // CHECK-DEBUG-INFO: func.func private @f_named_attr_then_loc(%{{.*}}: i32 {test.arg_name = "x"} loc(unknown))
+
+  func.func private @f_decl_loc_only(i32 loc("model.mlir":7:9))
+  // CHECK: func.func private @f_decl_loc_only(i32) -> ()
+  // CHECK-DEBUG-INFO: func.func private @f_decl_loc_only(i32) -> ()
+
+  func.func private @f_decl_unnamed_attr_then_loc(i32 {test.arg_name = "x"} loc("model.mlir":7:9))
+  // CHECK: func.func private @f_decl_unnamed_attr_then_loc(i32) -> ()
+  // CHECK-DEBUG-INFO: func.func private @f_decl_unnamed_attr_then_loc(i32) -> ()
+
+  func.func @multi_return_body(%a: i32) -> (i32, i32) {
     func.return %a, %a : i32, i32
   }
 
-  // CHECK: func.func @multi_return_body(%{{.*}} : i32) -> (i32, i32) {
+  // CHECK: func.func @multi_return_body(%{{.*}}: i32) -> (i32, i32) {
   // CHECK-NEXT:   func.return %{{.*}}, %{{.*}} : i32, i32
   // CHECK-NEXT: }
 

@@ -14,7 +14,11 @@ from xdsl.dialects.builtin import ModuleOp
 from xdsl.frontend.pyast.program import FrontendProgram, P, PyASTProgram, R
 from xdsl.frontend.pyast.utils.builder import PyASTBuilder
 from xdsl.frontend.pyast.utils.python_code_check import PythonCodeCheck
-from xdsl.frontend.pyast.utils.type_conversion import FunctionRegistry, TypeRegistry
+from xdsl.frontend.pyast.utils.type_conversion import (
+    FunctionRegistry,
+    LiteralRegistry,
+    TypeRegistry,
+)
 from xdsl.ir import Dialect, Operation, TypeAttribute
 from xdsl.passes import ModulePass, PassPipeline
 from xdsl.transforms.desymref import FrontendDesymrefyPass
@@ -50,6 +54,9 @@ class PyASTContext:
     function_registry: FunctionRegistry = field(default_factory=FunctionRegistry)
     """Mappings between functions and their operation types."""
 
+    literal_registry: LiteralRegistry = field(default_factory=LiteralRegistry)
+    """Mappings between literal types and their operation constructors."""
+
     post_transforms: list[ModulePass] = field(
         default_factory=lambda: [FrontendDesymrefyPass()]
     )
@@ -78,6 +85,12 @@ class PyASTContext:
     ) -> None:
         """Associate a method on an object in the source code with its IR implementation."""
         self.function_registry.insert(function, ir_constructor)
+
+    def register_literal(
+        self, value_type: type[object], ir_constructor: Callable[[Any], Operation]
+    ) -> None:
+        """Associate a Python literal type with an IR constructor."""
+        self.literal_registry.insert(value_type, ir_constructor)
 
     def register_post_transform(self, transform: ModulePass) -> None:
         """Add a module pass to be run on the generated IR."""
@@ -142,6 +155,7 @@ class PyASTContext:
         builder = PyASTBuilder(
             type_registry=self.type_registry,
             function_registry=self.function_registry,
+            literal_registry=self.literal_registry,
             file=func_file,
             globals=func_globals,
             function_ast=func_ast,

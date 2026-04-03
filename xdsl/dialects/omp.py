@@ -498,7 +498,7 @@ class LoopNestOp(IRDLOperation):
 
     body = region_def("single_block")
 
-    irdl_options = [SameVariadicOperandSize()]
+    irdl_options = (SameVariadicOperandSize(),)
 
     traits = traits_def(RecursiveMemoryEffect())
 
@@ -537,7 +537,7 @@ class WsLoopOp(BlockArgOpenMPOperation):
 
     body = region_def("single_block")
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
     traits = traits_def(LoopWrapper(), RecursiveMemoryEffect())
 
@@ -579,7 +579,7 @@ class ParallelOp(BlockArgOpenMPOperation):
     reduction_byref = opt_prop_def(DenseArrayBase[i1])
     reduction_syms = opt_prop_def(ArrayAttr[SymbolRefAttr])
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
     traits = traits_def(RecursiveMemoryEffect())
 
@@ -718,7 +718,7 @@ class TargetOp(BlockArgOpenMPOperation):
 
     region = region_def()
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
     traits = traits_def(IsolatedFromAbove())
 
     def num_block_args(self) -> int:
@@ -757,7 +757,7 @@ class MapBoundsOp(IRDLOperation):
 
     res = result_def(MapBoundsType)
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
     traits = traits_def(NoMemoryEffect())
 
 
@@ -787,7 +787,7 @@ class MapInfoOp(IRDLOperation):
 
     omp_ptr = result_def()  # TODO: OpenMP_PointerLikeTypeInterface
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
     def verify_(self) -> None:
         verify_map_vars(self.members, self.name)
@@ -832,7 +832,7 @@ class SimdOp(BlockArgOpenMPOperation):
 
     body = region_def("single_block")
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
     traits = traits_def(RecursiveMemoryEffect(), LoopWrapper())
 
@@ -873,7 +873,7 @@ class TeamsOp(BlockArgOpenMPOperation):
 
     body = region_def()
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
     traits = traits_def(RecursiveMemoryEffect())
 
     def num_block_args(self) -> int:
@@ -899,7 +899,7 @@ class DistributeOp(BlockArgOpenMPOperation):
     order_mod = opt_prop_def(OrderModifierAttr)
     private_syms = opt_prop_def(ArrayAttr[SymbolRefAttr])
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
     body = region_def("single_block")
 
@@ -938,7 +938,7 @@ class TargetTaskBasedDataOp(IRDLOperation):
     )
     nowait = opt_prop_def(UnitAttr)
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
 
 @irdl_op_definition
@@ -1025,7 +1025,7 @@ class TargetDataOp(BlockArgOpenMPOperation):
 
     region = region_def()
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
     def num_block_args(self) -> int:
         # NOTE: Unlike TargetOp `mapped_vars` are not passed as block args.

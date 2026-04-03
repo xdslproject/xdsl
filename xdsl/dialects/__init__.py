@@ -103,15 +103,20 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
 
         return DMP
 
+    def get_ematch():
+        from xdsl.dialects.ematch import Ematch
+
+        return Ematch
+
     def get_emitc():
         from xdsl.dialects.emitc import EmitC
 
         return EmitC
 
-    def get_eqsat():
-        from xdsl.dialects.eqsat import EqSat
+    def get_equivalence():
+        from xdsl.dialects.equivalence import Equivalence
 
-        return EqSat
+        return Equivalence
 
     def get_eqsat_pdl_interp():
         from xdsl.dialects.eqsat_pdl_interp import EqSatPDLInterp
@@ -238,6 +243,11 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
 
         return Ptr
 
+    def get_py():
+        from xdsl.dialects.py import Py
+
+        return Py
+
     def get_riscv_debug():
         from xdsl.dialects.riscv_debug import RISCV_Debug
 
@@ -247,6 +257,16 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         from xdsl.dialects.riscv import RISCV
 
         return RISCV
+
+    def get_RV32():
+        from xdsl.dialects.rv32 import RV32
+
+        return RV32
+
+    def get_RV64():
+        from xdsl.dialects.rv64 import RV64
+
+        return RV64
 
     def get_riscv_func():
         from xdsl.dialects.riscv_func import RISCV_Func
@@ -328,6 +348,11 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
 
         return TOSA
 
+    def get_transform():
+        from xdsl.dialects.transform import Transform
+
+        return Transform
+
     def get_varith():
         from xdsl.dialects.varith import Varith
 
@@ -358,11 +383,6 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
 
         return X86_Scf
 
-    def get_transform():
-        from xdsl.dialects.transform import Transform
-
-        return Transform
-
     return {
         "accfg": get_accfg,
         "affine": get_affine,
@@ -383,8 +403,9 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "csl_wrapper": get_csl_wrapper,
         "dlti": get_dlti,
         "dmp": get_dmp,
+        "ematch": get_ematch,
         "emitc": get_emitc,
-        "eqsat": get_eqsat,
+        "equivalence": get_equivalence,
         "eqsat_pdl_interp": get_eqsat_pdl_interp,
         "fir": get_fir,
         "fsm": get_fsm,
@@ -410,7 +431,10 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "pdl_interp": get_pdl_interp,
         "printf": get_printf,
         "ptr_xdsl": get_ptr_xdsl,
+        "py": get_py,
         "riscv": get_riscv,
+        "rv32": get_RV32,
+        "rv64": get_RV64,
         "riscv_debug": get_riscv_debug,
         "riscv_func": get_riscv_func,
         "riscv_scf": get_riscv_scf,

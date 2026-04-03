@@ -108,7 +108,7 @@ class FlattenNestedLoopsPattern(RewritePattern):
                 return
 
             # We can fuse
-            user.result.replace_by(inner_index)
+            user.result.replace_all_uses_with(inner_index)
             rewriter.erase_op(user)
             new_ub = op.ub
             new_step = inner_loop.step

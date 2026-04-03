@@ -3,6 +3,7 @@ from collections.abc import Sequence
 import pytest
 
 from xdsl.builder import ImplicitBuilder
+from xdsl.context import Context
 from xdsl.dialects import pdl, pdl_interp, test
 from xdsl.dialects.builtin import (
     ArrayAttr,
@@ -877,7 +878,7 @@ def test_run_get_results():
         res2 = result_def()
         res3 = var_result_def()
 
-        irdl_options = [AttrSizedResultSegments()]
+        irdl_options = (AttrSizedResultSegments(),)
 
         def __init__(
             self,
@@ -953,3 +954,66 @@ def test_run_get_results():
     # All results > 1, but we ask for single ValueType. Should return None.
     res = run_get_results(None, pdl.ValueType())
     assert res == (None,)
+
+
+@pytest.mark.parametrize(
+    "num_ops",
+    [0, 1, 3],
+    ids=["empty_range", "single_element", "multiple_elements"],
+)
+def test_foreach(num_ops: int):
+    """Test that ForEachOp correctly iterates over ranges of different sizes."""
+
+    @register_impls
+    class CountConstraintImpl(InterpreterFunctions):
+        i = 0
+
+        @impl_external("count")
+        def run_count(self, interp: Interpreter, op: Operation, args: PythonValues):
+            self.i += 1
+            return True, ()
+
+    ctx = Context()
+    ctx.register_dialect("test", lambda: test.Test)
+
+    # Create test operations to iterate over
+    ops_range = tuple(
+        test.TestOp.create(properties={"attr": StringAttr(f"op_{i}")})
+        for i in range(num_ops)
+    )
+
+    module_op = ModuleOp(())
+    entry_block = Block(arg_types=[pdl.RangeType(pdl.OperationType())])
+    exit_block = Block()
+    with ImplicitBuilder(module_op.body):
+        with ImplicitBuilder(entry_block):
+            foreach_op = pdl_interp.ForEachOp(entry_block.args[0], exit_block)
+            continue_block = Block()
+            with ImplicitBuilder(foreach_op.region):
+                pdl_interp.ApplyConstraintOp(
+                    "count", (), continue_block, continue_block
+                )
+            with ImplicitBuilder(continue_block):
+                pdl_interp.ContinueOp()
+        with ImplicitBuilder(exit_block):
+            pdl_interp.FinalizeOp()
+
+    module = ModuleOp([module_op])
+
+    # Set up interpreter
+    interpreter = Interpreter(module)
+    pdl_funcs = PDLInterpFunctions()
+    constraint_funcs = CountConstraintImpl()
+    interpreter.register_implementations(pdl_funcs)
+    interpreter.register_implementations(constraint_funcs)
+
+    # Create a mock rewriter (required by PDLInterpFunctions)
+    dummy_op = test.TestOp()
+    entry_block.add_op(dummy_op)
+    rewriter = PatternRewriter(dummy_op)
+    PDLInterpFunctions.set_rewriter(interpreter, rewriter)
+    PDLInterpFunctions.set_ctx(interpreter, ctx)
+
+    # Run the function with the range of operations
+    interpreter.run_op(foreach_op, (ops_range,))
+    assert constraint_funcs.i == num_ops

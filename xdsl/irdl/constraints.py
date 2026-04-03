@@ -25,6 +25,8 @@ from xdsl.utils.exceptions import PyRDLError, VerifyException
 from xdsl.utils.runtime_final import is_runtime_final
 
 if TYPE_CHECKING:
+    from typing_extensions import TypeForm
+
     from xdsl.irdl import IRDLAttrConstraint
 
 
@@ -190,43 +192,6 @@ ConstraintVariableTypeT = TypeVar(
 
 TypedAttributeCovT = TypeVar("TypedAttributeCovT", bound=TypedAttribute, covariant=True)
 TypedAttributeT = TypeVar("TypedAttributeT", bound=TypedAttribute)
-
-
-@deprecated("Please use appropriate `AnyOf` constraints instead.")
-@dataclass(frozen=True)
-class TypedAttributeConstraint(AttrConstraint[TypedAttributeCovT]):
-    """
-    Constrains the type of a typed attribute.
-    """
-
-    attr_constraint: AttrConstraint[TypedAttributeCovT]
-    type_constraint: AttrConstraint
-
-    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
-        if not isinstance(attr, TypedAttribute):
-            raise VerifyException(f"attribute {attr} expected to be a TypedAttribute")
-        self.attr_constraint.verify(attr, constraint_context)
-        self.type_constraint.verify(attr.get_type(), constraint_context)
-
-    def variables(self) -> set[str]:
-        return self.type_constraint.variables() | self.attr_constraint.variables()
-
-    def can_infer(self, var_constraint_names: AbstractSet[str]) -> bool:
-        return self.attr_constraint.can_infer(var_constraint_names)
-
-    def infer(self, context: ConstraintContext) -> TypedAttributeCovT:
-        return self.attr_constraint.infer(context)
-
-    def get_bases(self) -> set[type[Attribute]] | None:
-        return self.attr_constraint.get_bases()
-
-    def mapping_type_vars(
-        self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
-    ) -> TypedAttributeConstraint[TypedAttributeCovT]:  # pyright: ignore[reportDeprecated]
-        return TypedAttributeConstraint(  # pyright: ignore[reportDeprecated]
-            self.attr_constraint.mapping_type_vars(type_var_mapping),
-            self.type_constraint.mapping_type_vars(type_var_mapping),
-        )
 
 
 @dataclass(frozen=True)
@@ -1142,9 +1107,13 @@ class RangeConstraint(ABC, Generic[AttributeCovT]):
         )
 
     def of_length(
-        self, length_constr: IntConstraint
+        self, length_constr: int | TypeForm[int] | IntConstraint
     ) -> RangeLengthConstraint[AttributeCovT]:
-        return RangeLengthConstraint(self, length_constr)
+        if isinstance(length_constr, IntConstraint):
+            return RangeLengthConstraint(self, length_constr)
+        from xdsl.irdl import get_int_constraint
+
+        return RangeLengthConstraint(self, get_int_constraint(length_constr))
 
 
 @dataclass(frozen=True)
@@ -1184,6 +1153,10 @@ class RangeLengthConstraint(RangeConstraint[AttributeCovT]):
     def can_infer(
         self, var_constraint_names: AbstractSet[str], *, length_known: bool
     ) -> bool:
+        # If we can infer length to be 0 without any variables then
+        # the range can always be inferred
+        if self.length.can_infer(set()) and not self.length.infer(ConstraintContext()):
+            return True
         length_known = length_known or self.length.can_infer(var_constraint_names)
         return self.constraint.can_infer(
             var_constraint_names, length_known=length_known
@@ -1194,6 +1167,8 @@ class RangeLengthConstraint(RangeConstraint[AttributeCovT]):
     ) -> Sequence[AttributeCovT]:
         if length is None:
             length = self.length.infer(context)
+        if not length:
+            return ()
         return self.constraint.infer(context, length=length)
 
     def mapping_type_vars(
@@ -1225,7 +1200,7 @@ class RangeVarConstraint(RangeConstraint[AttributeCovT]):
     ) -> None:
         ctx_attrs = constraint_context.get_range_variable(self.name)
         if ctx_attrs is not None:
-            if attrs != ctx_attrs:
+            if tuple(attrs) != ctx_attrs:
                 raise VerifyException(
                     f"attributes {tuple(str(x) for x in ctx_attrs)} expected from range variable "
                     f"'{self.name}', but got {tuple(str(x) for x in attrs)}"
@@ -1267,6 +1242,11 @@ class RangeOf(RangeConstraint[AttributeCovT]):
     """
 
     constr: AttrConstraint[AttributeCovT]
+
+    def __init__(self, constr: IRDLAttrConstraint[AttributeCovT]):
+        from xdsl.irdl import irdl_to_attr_constraint
+
+        object.__setattr__(self, "constr", irdl_to_attr_constraint(constr))
 
     def verify(
         self,

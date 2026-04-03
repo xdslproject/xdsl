@@ -17,7 +17,7 @@ linalg.generic {
     ],
     iterator_types = []
 } ins(%A, %B : memref<f64>, memref<f64>) outs(%C : memref<f64>) {
-^bb0(%a : f64, %b : f64, %acc_old : f64):
+^bb0(%a: f64, %b: f64, %acc_old: f64):
     %prod = arith.mulf %a, %b : f64
     %acc_new = arith.addf %acc_old, %prod : f64
     linalg.yield %acc_new : f64
@@ -38,7 +38,7 @@ linalg.generic {
     ],
     iterator_types = ["parallel", "parallel", "reduction"]
 } ins(%D, %E : memref<2x3xf64>, memref<3x4xf64>) outs(%F : memref<2x4xf64>) {
-^bb0(%d : f64, %e : f64, %acc_old : f64):
+^bb0(%d: f64, %e: f64, %acc_old: f64):
     %prod = arith.mulf %d, %e : f64
     %acc_new = arith.addf %acc_old, %prod : f64
     linalg.yield %acc_new : f64
@@ -71,7 +71,7 @@ linalg.generic {
     ],
     iterator_types = ["parallel", "reduction"]
 } ins(%G, %H : memref<4xf64>, memref<2xf64>) outs(%I : memref<3xf64>) {
-^bb0(%g : f64, %h : f64, %acc_old : f64):
+^bb0(%g: f64, %h: f64, %acc_old: f64):
     %prod = arith.mulf %g, %h : f64
     %acc_new = arith.addf %acc_old, %prod : f64
     linalg.yield %acc_new : f64
@@ -117,4 +117,41 @@ linalg.generic {
 // CHECK-NEXT:      }
 // CHECK-NEXT:    }
 
+// Named op: add
+linalg.add ins(%D, %D : memref<2x3xf64>, memref<2x3xf64>) outs(%D : memref<2x3xf64>)
+
+// CHECK-NEXT:    %{{.*}} = arith.constant 2 : index
+// CHECK-NEXT:    %{{.*}} = arith.constant 3 : index
+// CHECK-NEXT:    %{{.*}} = arith.constant 0 : index
+// CHECK-NEXT:    %{{.*}} = arith.constant 1 : index
+// CHECK-NEXT:    scf.for %{{.*}} = %{{.*}} to %{{.*}} step %{{.*}} {
+// CHECK-NEXT:      scf.for %{{.*}} = %{{.*}} to %{{.*}} step %{{.*}} {
+// CHECK-NEXT:        %{{.*}} = memref.load %D[%{{.*}}, %{{.*}}] : memref<2x3xf64>
+// CHECK-NEXT:        %{{.*}} = memref.load %D[%{{.*}}, %{{.*}}] : memref<2x3xf64>
+// CHECK-NEXT:        %{{.*}} = arith.addf %{{.*}}, %{{.*}} : f64
+// CHECK-NEXT:        memref.store %{{.*}}, %D[%{{.*}}, %{{.*}}] : memref<2x3xf64>
+// CHECK-NEXT:      }
+// CHECK-NEXT:    }
+
+
+// Named op: matmul
+linalg.matmul ins(%D, %E : memref<2x3xf64>, memref<3x4xf64>) outs(%F : memref<2x4xf64>)
+
+// CHECK-NEXT:    %{{.*}} = arith.constant 2 : index
+// CHECK-NEXT:    %{{.*}} = arith.constant 4 : index
+// CHECK-NEXT:    %{{.*}} = arith.constant 3 : index
+// CHECK-NEXT:    %{{.*}} = arith.constant 0 : index
+// CHECK-NEXT:    %{{.*}} = arith.constant 1 : index
+// CHECK-NEXT:    scf.for %{{.*}} = %{{.*}} to %{{.*}} step %{{.*}} {
+// CHECK-NEXT:      scf.for %{{.*}} = %{{.*}} to %{{.*}} step %{{.*}} {
+// CHECK-NEXT:        scf.for %{{.*}} = %{{.*}} to %{{.*}} step %{{.*}} {
+// CHECK-NEXT:          %{{.*}} = memref.load %D[%{{.*}}, %{{.*}}] : memref<2x3xf64>
+// CHECK-NEXT:          %{{.*}} = memref.load %E[%{{.*}}, %{{.*}}] : memref<3x4xf64>
+// CHECK-NEXT:          %{{.*}} = memref.load %F[%{{.*}}, %{{.*}}] : memref<2x4xf64>
+// CHECK-NEXT:          %{{.*}} = arith.mulf %{{.*}}, %{{.*}} : f64
+// CHECK-NEXT:          %{{.*}} = arith.addf %{{.*}}, %{{.*}} : f64
+// CHECK-NEXT:          memref.store %{{.*}}, %F[%{{.*}}, %{{.*}}] : memref<2x4xf64>
+// CHECK-NEXT:        }
+// CHECK-NEXT:      }
+// CHECK-NEXT:    }
 // CHECK-NEXT:  }

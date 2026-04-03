@@ -55,7 +55,6 @@ from xdsl.irdl import (
     RangeVarConstraint,
     SameVariadicOperandSize,
     SameVariadicResultSize,
-    TypedAttributeConstraint,  # pyright: ignore[reportDeprecated]
     VarConstraint,
     VarOperand,
     VarOpResult,
@@ -304,7 +303,7 @@ def test_attr_dict_prop_fallback(program: str, generic_program: str):
     class PropOp(IRDLOperation):
         name = "test.prop"
         prop = opt_prop_def()
-        irdl_options = [ParsePropInAttrDict()]
+        irdl_options = (ParsePropInAttrDict(),)
         assembly_format = "attr-dict"
 
     ctx = Context()
@@ -333,7 +332,7 @@ def test_partial_attr_dict_prop_fallback(program: str, generic_program: str):
         name = "test.prop"
         prop1 = prop_def()
         prop2 = opt_prop_def()
-        irdl_options = [ParsePropInAttrDict()]
+        irdl_options = (ParsePropInAttrDict(),)
         assembly_format = "$prop1 attr-dict"
 
     ctx = Context()
@@ -1171,7 +1170,7 @@ def test_multiple_variadic_operands(
         args1 = var_operand_def()
         args2 = var_operand_def()
 
-        irdl_options = [AttrSizedOperandSegments(as_property=as_property)]
+        irdl_options = (AttrSizedOperandSegments(as_property=as_property),)
 
         assembly_format = (
             "`(` $args1 `:` type($args1) `)` `[` $args2 `:` type($args2) `]` attr-dict"
@@ -1208,7 +1207,7 @@ def test_multiple_optional_operands(program: str, generic_program: str):
         arg1 = opt_operand_def()
         arg2 = opt_operand_def()
 
-        irdl_options = [AttrSizedOperandSegments()]
+        irdl_options = (AttrSizedOperandSegments(),)
 
         assembly_format = (
             "`(` $arg1 `:` type($arg1) `)` `[` $arg2 `:` type($arg2) `]` attr-dict"
@@ -1337,7 +1336,7 @@ def test_operands_directive_fails_with_two_var():
             op1 = var_operand_def()
             op2 = var_operand_def()
 
-            irdl_options = [AttrSizedOperandSegments()]
+            irdl_options = (AttrSizedOperandSegments(),)
 
             assembly_format = "operands attr-dict `:` type(operands)"
 
@@ -1363,7 +1362,7 @@ def test_operands_directive_works_with_two_var_and_option(program: str):
         res1 = var_operand_def()
         res2 = var_operand_def()
 
-        irdl_options = [SameVariadicOperandSize()]
+        irdl_options = (SameVariadicOperandSize(),)
 
         assembly_format = "operands attr-dict  `:` type(operands)"
 
@@ -1394,7 +1393,7 @@ def test_operands_directive_works_with_two_opt_and_option(program: str):
         res1 = var_operand_def()
         res2 = var_operand_def()
 
-        irdl_options = [SameVariadicOperandSize()]
+        irdl_options = (SameVariadicOperandSize(),)
 
         assembly_format = "operands attr-dict `:` type(operands)"
 
@@ -1761,7 +1760,7 @@ def test_variadic_result_failure():
 
             res = var_result_def(IndexType())
 
-            irdl_options = [AttrSizedResultSegments()]
+            irdl_options = (AttrSizedResultSegments(),)
 
             assembly_format = "attr-dict"
 
@@ -1886,7 +1885,7 @@ def test_results_directive_fails_with_two_var():
             res1 = var_result_def()
             res2 = var_result_def()
 
-            irdl_options = [AttrSizedResultSegments()]
+            irdl_options = (AttrSizedResultSegments(),)
 
             assembly_format = "attr-dict `:` type(results)"
 
@@ -1912,7 +1911,7 @@ def test_results_directive_works_with_two_var_and_option(program: str):
         res1 = var_result_def()
         res2 = var_result_def()
 
-        irdl_options = [SameVariadicResultSize()]
+        irdl_options = (SameVariadicResultSize(),)
 
         assembly_format = "attr-dict `:` type(results)"
 
@@ -1943,7 +1942,7 @@ def test_results_directive_works_with_two_opt_and_option(program: str):
         res1 = var_result_def()
         res2 = var_result_def()
 
-        irdl_options = [SameVariadicResultSize()]
+        irdl_options = (SameVariadicResultSize(),)
 
         assembly_format = "attr-dict `:` type(results)"
 
@@ -2411,7 +2410,7 @@ def test_multiple_optional_regions():
         @irdl_op_definition
         class OptionalRegionsOp(IRDLOperation):  # pyright: ignore[reportUnusedClass]
             name = "test.optional_regions"
-            irdl_options = [AttrSizedRegionSegments()]
+            irdl_options = (AttrSizedRegionSegments(),)
             region1 = opt_region_def()
             region2 = opt_region_def()
 
@@ -3046,7 +3045,10 @@ def test_chained_variadic_types_safeguard(
             variadic_two = variadic_def_two()
             assembly_format = format
 
-            irdl_options = [AttrSizedOperandSegments(), AttrSizedResultSegments()]
+            irdl_options = (
+                AttrSizedOperandSegments(),
+                AttrSizedResultSegments(),
+            )
 
 
 @pytest.mark.parametrize("variadic_def_one", [var_operand_def, opt_operand_def])
@@ -3068,7 +3070,7 @@ def test_chained_variadic_operands_safeguard(
             variadic_two = variadic_def_two()
             assembly_format = "$variadic_one $variadic_two `:` type($variadic_one) `<` type($variadic_two) `>` attr-dict"
 
-            irdl_options = [AttrSizedOperandSegments()]
+            irdl_options = (AttrSizedOperandSegments(),)
 
 
 @pytest.mark.parametrize(
@@ -3518,77 +3520,6 @@ def test_renamed_optional_prop(program: str, output: str, generic: str):
     "program, generic",
     [
         (
-            "test.opt_constant : ()",
-            '"test.opt_constant"() : () -> ()',
-        ),
-        (
-            "%0 = test.opt_constant value 1 : i32 : (i32)",
-            '%0 = "test.opt_constant"() <{value = 1 : i32}> : () -> (i32)',
-        ),
-    ],
-)
-def test_optional_property_with_extractor(program: str, generic: str):
-    with pytest.deprecated_call():
-
-        @irdl_op_definition
-        class OptConstantOp(IRDLOperation):
-            name = "test.opt_constant"
-            T: ClassVar = VarConstraint("T", AnyAttr())
-
-            value = opt_prop_def(TypedAttributeConstraint(IntegerAttr.constr(), T))  # pyright: ignore[reportDeprecated]
-
-            res = opt_result_def(T)
-
-            assembly_format = "(`value` $value^)? attr-dict `:` `(` type($res) `)`"
-
-    ctx = Context()
-    ctx.load_op(OptConstantOp)
-
-    check_roundtrip(program, ctx)
-    check_equivalence(program, generic, ctx)
-
-
-@pytest.mark.parametrize(
-    "program, generic",
-    [
-        (
-            "%0 = test.default_constant",
-            '%0 = "test.default_constant"() <{value = true}> : () -> (i1)',
-        ),
-        (
-            "%0 = test.default_constant value 2 : i32",
-            '%0 = "test.default_constant"() <{value = 2 : i32}> : () -> (i32)',
-        ),
-    ],
-)
-def test_default_property_with_extractor(program: str, generic: str):
-    with pytest.deprecated_call():
-
-        @irdl_op_definition
-        class DefaultConstantOp(IRDLOperation):
-            name = "test.default_constant"
-            T: ClassVar = VarConstraint("T", AnyAttr())
-
-            value = prop_def(
-                TypedAttributeConstraint(IntegerAttr.constr(), T),  # pyright: ignore[reportDeprecated]
-                default_value=BoolAttr.from_bool(True),
-            )
-
-            res = result_def(T)
-
-            assembly_format = "(`value` $value^)? attr-dict"
-
-    ctx = Context()
-    ctx.load_op(DefaultConstantOp)
-
-    check_roundtrip(program, ctx)
-    check_equivalence(program, generic, ctx)
-
-
-@pytest.mark.parametrize(
-    "program, generic",
-    [
-        (
             "test.default_attr_dict",
             '"test.default_attr_dict"() <{prop = false}> {attr = false} : () -> ()',
         ),
@@ -3607,7 +3538,7 @@ def test_default_property_in_attr_dict(program: str, generic: str):
 
         attr = attr_def(BoolAttr, default_value=BoolAttr.from_bool(False))
 
-        irdl_options = [ParsePropInAttrDict()]
+        irdl_options = (ParsePropInAttrDict(),)
 
         assembly_format = "attr-dict"
 

@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
 
     - name: Install uv
       uses: astral-sh/setup-uv@v7
@@ -32,5 +32,5 @@ jobs:
     - name: Generate Python type stubs
       run: uv run xdsl-stubgen
 
-    - name: Run code formatting checks with pre-commit
-      uses: pre-commit/action@v3.0.1
+    - name: Run code formatting checks with prek
+      uses: j178/prek-action@v2

@@ -9,7 +9,7 @@ from xdsl.backend.riscv.lowering.utils import (
 )
 from xdsl.builder import ImplicitBuilder
 from xdsl.context import Context
-from xdsl.dialects import memref, riscv, riscv_func
+from xdsl.dialects import memref, riscv, riscv_func, rv32
 from xdsl.dialects.builtin import (
     DYNAMIC_INDEX,
     AnyFloat,
@@ -51,7 +51,7 @@ class ConvertMemRefAllocOp(RewritePattern):
         rewriter.replace_op(
             op,
             (
-                size_op := riscv.LiOp(size, comment="memref alloc size"),
+                size_op := rv32.LiOp(size, comment="memref alloc size"),
                 move_op := riscv.MVOp(size_op.rd, rd=riscv.Registers.A0),
                 call := riscv_func.CallOp(
                     SymbolRefAttr("malloc"),
@@ -127,7 +127,7 @@ def get_strided_pointer(
                 # elements required to be skipped when incrementing that dimension).
                 ops.extend(
                     (
-                        stride_op := riscv.LiOp(stride),
+                        stride_op := rv32.LiOp(stride),
                         offset_op := riscv.MulOp(increment, stride_op.rd),
                     )
                 )
@@ -150,7 +150,7 @@ def get_strided_pointer(
 
     ops.extend(
         [
-            bytes_per_element_op := riscv.LiOp(bytes_per_element),
+            bytes_per_element_op := rv32.LiOp(bytes_per_element),
             offset_bytes := riscv.MulOp(
                 head,
                 bytes_per_element_op.rd,
@@ -293,7 +293,7 @@ class ConvertMemRefGetGlobalOp(RewritePattern):
         rewriter.replace_op(
             op,
             [
-                ptr := riscv.LiOp(op.name_.string_value()),
+                ptr := rv32.LiOp(op.name_.string_value()),
                 UnrealizedConversionCastOp.get((ptr,), (op.memref.type,)),
             ],
         )
@@ -377,7 +377,7 @@ class ConvertMemRefSubviewOp(RewritePattern):
                     dynamic_offset_index += 1
                 else:
                     # No need to insert arithmetic ops that will be multiplied by zero
-                    index_ops.append(offset_op := riscv.LiOp(static_offset))
+                    index_ops.append(offset_op := rv32.LiOp(static_offset))
                     index_val = offset_op.rd
                 index_val.name_hint = "subview_dim_index"
                 indices.append(index_val)
@@ -424,7 +424,8 @@ class ConvertMemRefToRiscvPass(ModulePass):
                     ConvertMemRefGlobalOp(xlen=self.xlen),
                     ConvertMemRefGetGlobalOp(),
                     ConvertMemRefSubviewOp(),
-                ]
+                ],
+                dce_enabled=False,
             )
         ).rewrite_module(op)
         if contains_malloc:

@@ -60,18 +60,19 @@ def move_to_regs(
     """
     Return move operations to `a` registers (a0, a1, ... | fa0, fa1, ...).
     """
+    # We only care about bitwidths for floats for now, so default to 32 for non floats
+    widths = tuple(
+        i.bitwidth if isinstance(i, builtin.AnyFloat) else 32 for i in value_types
+    )
 
-    new_ops = list[Operation]()
-    new_values = list[SSAValue]()
+    new_op = riscv.ParallelMovOp(
+        tuple(values),
+        tuple(reg_types),
+        builtin.DenseArrayBase.from_list(builtin.i32, widths),
+    )
+    new_values = new_op.results
 
-    for value, value_type, register_type in zip(
-        values, value_types, reg_types, strict=True
-    ):
-        move_op, new_value = move_ops_for_value(value, value_type, register_type)
-        new_ops.append(move_op)
-        new_values.append(new_value)
-
-    return new_ops, new_values
+    return [new_op], list(new_values)
 
 
 def a_regs_for_types(types: Iterable[Attribute]) -> Iterator[riscv.RISCVRegisterType]:
@@ -111,18 +112,21 @@ def move_to_unallocated_regs(
     Return move operations to unallocated registers.
     """
 
-    new_ops = list[Operation]()
-    new_values = list[SSAValue]()
+    outputs = (register_type_for_type(value.type).unallocated() for value in values)
 
-    for value, value_type in zip(values, value_types, strict=True):
-        register_type = register_type_for_type(value.type)
-        move_op, new_value = move_ops_for_value(
-            value, value_type, register_type.unallocated()
-        )
-        new_ops.append(move_op)
-        new_values.append(new_value)
+    # We only care about bitwidths for floats for now, so default to 32 for non floats
+    widths = tuple(
+        i.bitwidth if isinstance(i, builtin.AnyFloat) else 32 for i in value_types
+    )
 
-    return new_ops, new_values
+    new_op = riscv.ParallelMovOp(
+        tuple(values),
+        tuple(outputs),
+        builtin.DenseArrayBase.from_list(builtin.i32, widths),
+    )
+    new_values = new_op.results
+
+    return [new_op], list(new_values)
 
 
 def cast_operands_to_regs(
@@ -191,7 +195,9 @@ def cast_block_args_from_a_regs(block: Block, rewriter: PatternRewriter):
         new_ops.append(cast_op)
 
         index = counter[register_type]
-        arg.replace_by_if(cast_op.results[0], lambda use: use.operation != move_op)
+        rewriter.replace_uses_with_if(
+            arg, cast_op.results[0], lambda use: use.operation != move_op
+        )
         rewriter.replace_value_with_new_type(arg, register_type.a_register(index))
         counter[register_type] += 1
 
@@ -214,5 +220,7 @@ def cast_block_args_to_regs(block: Block, rewriter: PatternRewriter):
         new_val = cast_op.results[0]
 
         new_type = register_type_for_type(arg.type).unallocated()
-        arg.replace_by_if(new_val, lambda use: use.operation != cast_op)
+        rewriter.replace_uses_with_if(
+            arg, new_val, lambda use: use.operation != cast_op
+        )
         rewriter.replace_value_with_new_type(arg, new_type)

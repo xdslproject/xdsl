@@ -1,6 +1,5 @@
 from xdsl.ir import Dialect
 
-from .attributes import LabelAttr
 from .ops import (
     C_JaeOp,
     C_JaOp,
@@ -96,6 +95,7 @@ from .ops import (
     MS_VmovupdOp,
     MS_VmovupsOp,
     MS_XorOp,
+    ParallelMovOp,
     R_DecOp,
     R_IncOp,
     R_NegOp,
@@ -271,6 +271,7 @@ X86 = Dialect(
         KS_KMovDOp,
         DK_KMovQOp,
         KS_KMovQOp,
+        ParallelMovOp,
     ],
     [
         GeneralRegisterType,
@@ -279,6 +280,5 @@ X86 = Dialect(
         AVX2RegisterType,
         AVX512RegisterType,
         AVX512MaskRegisterType,
-        LabelAttr,
     ],
 )

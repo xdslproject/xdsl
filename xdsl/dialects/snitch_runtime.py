@@ -438,7 +438,7 @@ class SsrLoopBaseOp(SnitchRuntimeBaseOperation, ABC):
     data_mover = operand_def(i32)
     bounds = var_operand_def(IndexType)
     strides = var_operand_def(IndexType)
-    irdl_options = [AttrSizedOperandSegments()]
+    irdl_options = (AttrSizedOperandSegments(),)
 
     def verify_(self) -> None:
         if len(self.bounds) != len(self.strides):

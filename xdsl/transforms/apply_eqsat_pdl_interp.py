@@ -12,12 +12,12 @@ from xdsl.interpreter import (
     register_impls,
 )
 from xdsl.interpreters.eqsat_pdl_interp import EqsatPDLInterpFunctions
+from xdsl.interpreters.pdl_interp import PDLInterpFunctions
 from xdsl.ir import Operation
 from xdsl.parser import Parser
 from xdsl.passes import ModulePass
-from xdsl.pattern_rewriter import PatternRewriterListener, PatternRewriteWalker
+from xdsl.pattern_rewriter import PatternRewriter
 from xdsl.traits import SymbolTable
-from xdsl.transforms.apply_pdl_interp import PDLInterpRewritePattern
 
 _DEFAULT_MAX_ITERATIONS = 20
 """Default number of times to iterate over the module."""
@@ -47,28 +47,32 @@ def apply_eqsat_pdl_interp(
 
     # Initialize interpreter and implementations once
     interpreter = Interpreter(pdl_interp_module)
-    implementations = EqsatPDLInterpFunctions()
-    EqsatPDLInterpFunctions.set_ctx(interpreter, ctx)
-    implementations.populate_known_ops(op)
-    interpreter.register_implementations(implementations)
+    pdl_interp_functions = PDLInterpFunctions()
+    eqsat_pdl_interp_functions = EqsatPDLInterpFunctions()
+    PDLInterpFunctions.set_ctx(interpreter, ctx)
+    eqsat_pdl_interp_functions.populate_known_ops(op)
+    interpreter.register_implementations(eqsat_pdl_interp_functions)
+    interpreter.register_implementations(pdl_interp_functions)
     interpreter.register_implementations(EqsatConstraintFunctions())
-    rewrite_pattern = PDLInterpRewritePattern(matcher, interpreter, implementations)
 
-    listener = PatternRewriterListener()
-    listener.operation_modification_handler.append(implementations.modification_handler)
-    walker = PatternRewriteWalker(rewrite_pattern, apply_recursively=False)
-    walker.listener = listener
+    if not op.ops.first:
+        return
 
+    rewriter = PatternRewriter(op.ops.first)
+    rewriter.operation_modification_handler.append(
+        eqsat_pdl_interp_functions.modification_handler
+    )
+    pdl_interp_functions.set_rewriter(interpreter, rewriter)
     for _i in range(max_iterations):
-        # Register matches by walking the module
-        walker.rewrite_module(op)
-        # Execute all pending rewrites that were aggregated during matching
-        implementations.execute_pending_rewrites(interpreter)
+        for root in op.body.walk():
+            rewriter.current_operation = root
+            interpreter.call_op(matcher, (root,))
+        eqsat_pdl_interp_functions.execute_pending_rewrites(interpreter)
 
-        if not implementations.worklist:
+        if not eqsat_pdl_interp_functions.worklist:
             break
 
-        implementations.rebuild(interpreter)
+        eqsat_pdl_interp_functions.rebuild(interpreter)
         if callback is not None:
             callback(op)
 

@@ -22,7 +22,7 @@ def test_add(x: c_int32, y: c_int32) -> c_int32:
 
 print(test_add.module)
 # CHECK:      builtin.module {
-# CHECK-NEXT:   func.func @test_add(%x : i32, %y : i32) -> i32 {
+# CHECK-NEXT:   func.func @test_add(%x: i32, %y: i32) -> i32 {
 # CHECK-NEXT:     %0 = arith.addi %x, %y : i32
 # CHECK-NEXT:     func.return %0 : i32
 # CHECK-NEXT:   }

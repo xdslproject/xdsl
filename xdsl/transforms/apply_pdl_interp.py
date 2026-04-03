@@ -45,6 +45,8 @@ class PDLInterpRewritePattern(RewritePattern):
 
         # Call the matcher function on the operation
         self.interpreter.call_op(self.matcher, (xdsl_op,))
+        self.functions.apply_pending_rewrites(self.interpreter)
+        self.functions.set_rewriter(self.interpreter, None)
 
 
 @dataclass(frozen=True)

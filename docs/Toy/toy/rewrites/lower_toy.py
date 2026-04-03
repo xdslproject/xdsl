@@ -309,7 +309,7 @@ def lower_op_to_loops(
     )
     # Replace this operation with the generated alloc.
 
-    op.res.replace_by(alloc.memref)
+    op.res.replace_all_uses_with(alloc.memref)
     rewriter.erase_op(op)
 
 

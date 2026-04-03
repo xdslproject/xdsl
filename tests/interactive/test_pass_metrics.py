@@ -42,7 +42,7 @@ def test_operation_counter():
 
 def test_operation_counter_with_parsing_text():
     text = """builtin.module {
-  func.func @hello(%n : index) -> index {
+  func.func @hello(%n: index) -> index {
     %two = arith.constant 2 : index
     %res = arith.muli %n, %two : index
     func.return %res : index
@@ -71,7 +71,7 @@ def test_operation_counter_with_parsing_text():
 def test_get_diff_operation_count():
     # get input module
     input_text = """builtin.module {
-  func.func @hello(%n : index) -> index {
+  func.func @hello(%n: index) -> index {
     %two = arith.constant 2 : index
     %res = arith.muli %n, %two : index
     func.return %res : index
@@ -87,8 +87,8 @@ def test_get_diff_operation_count():
 
     # get output module
     output_text = """builtin.module {
-  func.func @hello(%n : index) -> index {
-    %two = riscv.li 2 : !riscv.reg
+  func.func @hello(%n: index) -> index {
+    %two = rv32.li 2 : !riscv.reg
     %two_1 = builtin.unrealized_conversion_cast %two : !riscv.reg to index
     %res = builtin.unrealized_conversion_cast %n : index to !riscv.reg
     %res_1 = builtin.unrealized_conversion_cast %two_1 : index to !riscv.reg
@@ -108,8 +108,8 @@ def test_get_diff_operation_count():
         ("builtin.unrealized_conversion_cast", 4, "+4"),
         ("func.func", 1, "="),
         ("func.return", 1, "="),
-        ("riscv.li", 1, "+1"),
         ("riscv.mul", 1, "+1"),
+        ("rv32.li", 1, "+1"),
     )
 
     assert expected_diff_res == get_diff_operation_count(

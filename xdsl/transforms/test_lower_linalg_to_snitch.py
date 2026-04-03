@@ -30,6 +30,7 @@ from xdsl.transforms import (
     memref_streamify,
     reconcile_unrealized_casts,
     riscv_allocate_registers,
+    riscv_lower_parallel_mov,
     riscv_scf_loop_range_folding,
     scf_for_loop_flatten,
     snitch_allocate_registers,
@@ -73,6 +74,8 @@ LOWER_SNITCH_STREAM_TO_ASM_PASSES: tuple[ModulePass, ...] = (
     riscv_allocate_registers.RISCVAllocateRegistersPass(add_regalloc_stats=True),
     canonicalize.CanonicalizePass(),
     convert_riscv_scf_to_riscv_cf.ConvertRiscvScfToRiscvCfPass(),
+    canonicalize.CanonicalizePass(),
+    riscv_lower_parallel_mov.RISCVLowerParallelMovPass(),
     canonicalize.CanonicalizePass(),
 )
 

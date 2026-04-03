@@ -3,7 +3,7 @@ import os
 from dataclasses import dataclass, field
 
 from xdsl.context import Context
-from xdsl.dialects import builtin, eqsat
+from xdsl.dialects import builtin, equivalence
 from xdsl.dialects.builtin import IntAttr
 from xdsl.ir import Block, Operation, OpResult, SSAValue
 from xdsl.passes import ModulePass
@@ -15,12 +15,12 @@ def get_node_base_cost(op: Operation, default_cost: int | None) -> int | None:
     """
     Get the base cost of an operation (without considering dependencies).
     """
-    cost_attr = op.attributes.get(eqsat.EQSAT_COST_LABEL)
+    cost_attr = op.attributes.get(equivalence.EQSAT_COST_LABEL)
     if cost_attr is None:
         return default_cost
     if not isa(cost_attr, IntAttr):
         raise DiagnosticException(
-            f"Unexpected value {cost_attr} for key {eqsat.EQSAT_COST_LABEL} in {op}"
+            f"Unexpected value {cost_attr} for key {equivalence.EQSAT_COST_LABEL} in {op}"
         )
     return cost_attr.data
 
@@ -42,7 +42,7 @@ def calculate_node_total_cost(
     op = value.op
 
     # For e-classes, return their current best known cost (None if not set)
-    if isinstance(op, eqsat.AnyEClassOp):
+    if isinstance(op, equivalence.AnyClassOp):
         return eclass_costs.get(value)
 
     # For regular operations, compute: own cost + sum of dependent e-class costs
@@ -54,7 +54,9 @@ def calculate_node_total_cost(
 
     # Add costs of all operands (non-recursive, just dictionary lookup)
     for operand in op.operands:
-        if isinstance(operand, OpResult) and isinstance(operand.op, eqsat.AnyEClassOp):
+        if isinstance(operand, OpResult) and isinstance(
+            operand.op, equivalence.AnyClassOp
+        ):
             # Look up the e-class cost from the dictionary
             operand_cost = eclass_costs.get(operand)
             if operand_cost is None:
@@ -82,11 +84,11 @@ def add_eqsat_costs(block: Block, default: int | None, cost_dict: dict[str, int]
         if not op.results:
             continue
 
-        if eqsat.EQSAT_COST_LABEL in op.attributes:
+        if equivalence.EQSAT_COST_LABEL in op.attributes:
             continue
 
         if op.name in cost_dict:
-            op.attributes[eqsat.EQSAT_COST_LABEL] = IntAttr(cost_dict[op.name])
+            op.attributes[equivalence.EQSAT_COST_LABEL] = IntAttr(cost_dict[op.name])
             continue
 
         if len(op.results) != 1:
@@ -96,9 +98,9 @@ def add_eqsat_costs(block: Block, default: int | None, cost_dict: dict[str, int]
             )
 
         # For non-eclass operations without explicit costs, use default
-        if not isinstance(op, eqsat.AnyEClassOp):
+        if not isinstance(op, equivalence.AnyClassOp):
             if default is not None:
-                op.attributes[eqsat.EQSAT_COST_LABEL] = IntAttr(default)
+                op.attributes[equivalence.EQSAT_COST_LABEL] = IntAttr(default)
 
     # Track the minimum total cost for each e-class
     eclass_costs: dict[OpResult, int] = {}
@@ -109,7 +111,7 @@ def add_eqsat_costs(block: Block, default: int | None, cost_dict: dict[str, int]
 
         # Process all e-class operations
         for op in block.ops:
-            if not isinstance(op, eqsat.AnyEClassOp):
+            if not isinstance(op, equivalence.AnyClassOp):
                 continue
 
             if not op.results:
@@ -138,10 +140,10 @@ def add_eqsat_costs(block: Block, default: int | None, cost_dict: dict[str, int]
 @dataclass(frozen=True)
 class EqsatAddCostsPass(ModulePass):
     """
-    Add costs to all operations in blocks that contain eqsat.eclass ops, and perform
+    Add costs to all operations in blocks that contain equivalence.class ops, and perform
     bottom-up extraction to find the minimum cost node in each e-class.
 
-    The cost of an eclass operation is determined through fixed-point iteration:
+    The cost of an e-class operation is determined through fixed-point iteration:
     - Each operand's total cost is calculated (own cost + dependency costs)
     - The operand with minimum total cost is selected and stored in min_cost_index
 
@@ -163,7 +165,7 @@ class EqsatAddCostsPass(ModulePass):
         eclass_parent_blocks = set(
             o.parent
             for o in op.walk()
-            if o.parent is not None and isinstance(o, eqsat.AnyEClassOp)
+            if o.parent is not None and isinstance(o, equivalence.AnyClassOp)
         )
 
         cost_dict: dict[str, int] = {}

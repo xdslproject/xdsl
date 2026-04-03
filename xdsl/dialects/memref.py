@@ -28,6 +28,7 @@ from xdsl.dialects.builtin import (
     SymbolRefAttr,
     UnitAttr,
     UnrankedMemRefType,
+    i8,
     i32,
     i64,
 )
@@ -80,6 +81,16 @@ from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
 
+def _verify_memref_alloc_alignment(alignment: IntegerAttr | None) -> None:
+    if alignment is None:
+        return
+    v = alignment.value.data
+    if v <= 0:
+        raise VerifyException(f"Alignment attribute must be positive, got {v}")
+    if not is_power_of_two(v):
+        raise VerifyException(f"Alignment attribute {v} is not a power of 2")
+
+
 @irdl_op_definition
 class LoadOp(IRDLOperation):
     name = "memref.load"
@@ -94,7 +105,7 @@ class LoadOp(IRDLOperation):
 
     traits = traits_def(MemoryReadEffect())
 
-    irdl_options = [ParsePropInAttrDict()]
+    irdl_options = (ParsePropInAttrDict(),)
     assembly_format = "$memref `[` $indices `]` attr-dict `:` type($memref)"
 
     # TODO varargs for indexing, which must match the memref dimensions
@@ -133,7 +144,7 @@ class StoreOp(IRDLOperation):
 
     traits = traits_def(MemoryWriteEffect())
 
-    irdl_options = [ParsePropInAttrDict()]
+    irdl_options = (ParsePropInAttrDict(),)
     assembly_format = "$value `,` $memref `[` $indices `]` attr-dict `:` type($memref)"
 
     def verify_(self):
@@ -175,7 +186,7 @@ class AllocOp(IRDLOperation):
     # TODO how to constraint the IntegerAttr type?
     alignment = opt_prop_def(IntegerAttr)
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
     traits = traits_def(AllocOpHasCanonicalizationPatterns(), MemoryAllocEffect())
 
@@ -209,7 +220,7 @@ class AllocOp(IRDLOperation):
             dynamic_sizes = []
 
         if isinstance(alignment, int):
-            alignment = IntegerAttr.from_int_and_width(alignment, 64)
+            alignment = IntegerAttr(alignment, 64)
 
         return cls(
             tuple(SSAValue.get(ds) for ds in dynamic_sizes),
@@ -226,6 +237,7 @@ class AllocOp(IRDLOperation):
             raise VerifyException(
                 "op dimension operand count does not equal memref dynamic dimension count."
             )
+        _verify_memref_alloc_alignment(self.alignment)
 
     def print(self, printer: Printer):
         printer.print_string("(")
@@ -328,7 +340,11 @@ class AllocaOp(IRDLOperation):
 
     traits = traits_def(MemoryAllocEffect())
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True), ParsePropInAttrDict())
+
+    assembly_format = """
+    `(`$dynamic_sizes`)` (`` `[` $symbol_operands^ `]`)? attr-dict `:` type($memref)
+    """
 
     @staticmethod
     def get(
@@ -346,7 +362,7 @@ class AllocaOp(IRDLOperation):
             dynamic_sizes = []
 
         if isinstance(alignment, int):
-            alignment = IntegerAttr.from_int_and_width(alignment, 64)
+            alignment = IntegerAttr(alignment, 64)
 
         return AllocaOp.build(
             operands=[dynamic_sizes, []],
@@ -364,6 +380,7 @@ class AllocaOp(IRDLOperation):
             raise VerifyException(
                 "op dimension operand count does not equal memref dynamic dimension count."
             )
+        _verify_memref_alloc_alignment(self.alignment)
 
 
 @irdl_op_definition
@@ -448,7 +465,7 @@ class GlobalOp(IRDLOperation):
         alignment: int | IntegerAttr[IntegerType] | None = None,
     ) -> GlobalOp:
         if isinstance(alignment, int):
-            alignment = IntegerAttr.from_int_and_width(alignment, 64)
+            alignment = IntegerAttr(alignment, 64)
 
         return GlobalOp.build(
             properties={
@@ -472,6 +489,8 @@ class DimOp(IRDLOperation):
     result = result_def(IndexType)
 
     traits = traits_def(NoMemoryEffect())
+
+    assembly_format = "$source `,` $index attr-dict `:` type($source)"
 
     @staticmethod
     def from_source_and_index(
@@ -556,7 +575,7 @@ class ExtractStridedMetaDataOp(IRDLOperation):
 
     traits = traits_def(NoMemoryEffect())
 
-    irdl_options = [SameVariadicResultSize()]
+    irdl_options = (SameVariadicResultSize(),)
 
     assembly_format = "$source `:` type($source) `->` type(results) attr-dict"
 
@@ -622,7 +641,7 @@ class SubviewOp(IRDLOperation):
     static_strides = prop_def(DenseArrayBase.constr(i64))
     result = result_def(MemRefType)
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
     traits = lazy_traits_def(
         lambda: (MemRefHasCanonicalizationPatternsTrait(), NoMemoryEffect())
@@ -846,7 +865,7 @@ class ReinterpretCastOp(IRDLOperation):
 
     traits = traits_def(NoMemoryEffect())
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
     assembly_format = (
         "$source `to` `offset` `` `:`"
@@ -961,6 +980,75 @@ class ReinterpretCastOp(IRDLOperation):
 
 
 @irdl_op_definition
+class ViewOp(IRDLOperation):
+    """
+    memref view operation.
+
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/MemRef/#memrefview-memrefviewop).
+    """
+
+    name = "memref.view"
+
+    source = operand_def(MemRefType[i8])
+    byte_shift = operand_def(IndexType)
+    sizes = var_operand_def(IndexType)
+
+    result = result_def(MemRefType)
+
+    traits = traits_def(NoMemoryEffect())
+
+    assembly_format = (
+        "$source `[` $byte_shift `]` `` `[` $sizes `]` attr-dict "
+        "`:` type($source) `to` type($result)"
+    )
+
+    def __init__(
+        self,
+        source: SSAValue | Operation,
+        byte_shift: SSAValue | Operation,
+        sizes: Sequence[SSAValue | Operation],
+        result_type: MemRefType,
+    ):
+        super().__init__(
+            operands=[source, byte_shift, sizes], result_types=[result_type]
+        )
+
+    def verify_(self) -> None:
+        # Source must be a 1-D memref of i8.
+        src_type = cast(MemRefType[IntegerType], self.source.type)
+
+        if len(src_type.shape.data) != 1:
+            raise VerifyException("memref.view source must be a 1-D memref of i8")
+
+        # Enforce empty layout map on source and result (identity layout, offset 0).
+        if not isinstance(src_type.layout, NoneAttr):
+            raise VerifyException(
+                "memref.view source must have identity layout (no layout map)"
+            )
+
+        res_type = cast(MemRefType[IntegerType], self.result.type)
+
+        if not isinstance(res_type.layout, NoneAttr):
+            raise VerifyException(
+                "memref.view result must have identity layout (no layout map)"
+            )
+
+        # Memory spaces must match between source and result.
+        if src_type.memory_space != res_type.memory_space:
+            raise VerifyException(
+                "different memory spaces specified for base memref type "
+                f"'{src_type}' and view memref type '{res_type}'"
+            )
+
+        # A dynamic size operand must be provided for each dynamic dim in result.
+        dyn_dims = sum(1 for d in res_type.shape.data if d.data == DYNAMIC_INDEX)
+        if dyn_dims != len(self.sizes):
+            raise VerifyException(
+                "number of size operands must match number of dynamic dims in result type"
+            )
+
+
+@irdl_op_definition
 class DmaStartOp(IRDLOperation):
     name = "memref.dma_start"
 
@@ -977,7 +1065,7 @@ class DmaStartOp(IRDLOperation):
 
     traits = traits_def(MemoryWriteEffect(), MemoryReadEffect())
 
-    irdl_options = [AttrSizedOperandSegments()]
+    irdl_options = (AttrSizedOperandSegments(),)
 
     @staticmethod
     def get(
@@ -1109,6 +1197,7 @@ MemRef = Dialect(
         ExtractStridedMetaDataOp,
         ExtractAlignedPointerAsIndexOp,
         SubviewOp,
+        ViewOp,
         CastOp,
         MemorySpaceCastOp,
         ReinterpretCastOp,

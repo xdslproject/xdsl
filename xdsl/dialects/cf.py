@@ -134,7 +134,7 @@ class ConditionalBranchOp(IRDLOperation):
     then_arguments = var_operand_def()
     else_arguments = var_operand_def()
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
     then_block = successor_def()
     else_block = successor_def()
@@ -341,7 +341,7 @@ class SwitchOp(IRDLOperation):
 
     case_blocks = var_successor_def()
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True)]
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
     traits = traits_def(IsTerminator(), Pure(), SwitchOpHasCanonicalizationPatterns())
 

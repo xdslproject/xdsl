@@ -16,7 +16,7 @@ from xdsl.ir import Attribute, Operation, SSAValue
 from xdsl.irdl import traits_def
 from xdsl.pattern_rewriter import RewritePattern
 from xdsl.traits import (
-    ConstantLike,
+    ConditionallySpeculatable,
     HasCanonicalizationPatternsTrait,
     HasFolder,
 )
@@ -56,35 +56,6 @@ class HasCanonicalizationPatternsInterface(Operation, abc.ABC):
         raise NotImplementedError()
 
 
-class _ConstantLikeInterfaceTrait(ConstantLike):
-    """
-    Gets the constant value from the operation's implementation
-    of `ConstantLikeInterface`.
-    """
-
-    def verify(self, op: Operation) -> None:
-        return
-
-    @classmethod
-    def get_constant_value(cls, op: Operation) -> Attribute:
-        op = cast(ConstantLikeInterface, op)
-        return op.get_constant_value()
-
-
-class ConstantLikeInterface(Operation, abc.ABC):
-    """
-    An operation subclassing this interface must implement the
-    `get_constant_value` method, which returns the constant value of this operation.
-    Wraps `ConstantLikeTrait`.
-    """
-
-    traits = traits_def(_ConstantLikeInterfaceTrait())
-
-    @abc.abstractmethod
-    def get_constant_value(self) -> Attribute:
-        raise NotImplementedError()
-
-
 class _HasFolderInterfaceTrait(HasFolder):
     """
     Gets the fold results from the operation's implementation
@@ -109,13 +80,6 @@ class HasFolderInterface(Operation, abc.ABC):
 
     traits = traits_def(_HasFolderInterfaceTrait())
 
-    def get_constant(self, operand: SSAValue) -> Attribute | None:
-        if (
-            isinstance(operand_op := operand.owner, Operation)
-            and (t := operand_op.get_trait(ConstantLike)) is not None
-        ):
-            return t.get_constant_value(operand_op)
-
     @abc.abstractmethod
     def fold(self) -> Sequence[SSAValue | Attribute] | None:
         """
@@ -124,5 +88,40 @@ class HasFolderInterface(Operation, abc.ABC):
         When folding is unsuccessful, returns None.
 
         The fold method is not allowed to mutate the operation being folded.
+        """
+        raise NotImplementedError()
+
+
+@dataclass(frozen=True)
+class _ConditionallySpeculatableInterfaceTrait(ConditionallySpeculatable):
+    """
+    Gets the speculatability from the operation's implementation
+    of `ConditionallySpeculatableInterface`.
+    """
+
+    def verify(self, op: Operation) -> None:
+        return
+
+    @classmethod
+    def is_speculatable(cls, op: Operation) -> bool:
+        op = cast("ConditionallySpeculatableInterface", op)
+        return op.is_speculatable()
+
+
+class ConditionallySpeculatableInterface(Operation, abc.ABC):
+    """
+    An operation subclassing this interface must implement the
+    `is_speculatable` method, which indicates whether the operation
+    can be speculatively executed.
+    """
+
+    traits = traits_def(_ConditionallySpeculatableInterfaceTrait())
+
+    @abc.abstractmethod
+    def is_speculatable(self) -> bool:
+        """
+        Returns True if this operation can be speculatively executed,
+        False otherwise. Speculatable ops have no undefined behavior
+        and no observable side effects.
         """
         raise NotImplementedError()

@@ -156,23 +156,6 @@ class X86VectorRegisterType(X86RegisterType):
     """
 
 
-@irdl_attr_definition
-class SSERegisterType(X86VectorRegisterType):
-    """
-    An x86 register type for SSE instructions.
-    """
-
-    name = "x86.ssereg"
-
-    @classmethod
-    def index_by_name(cls) -> dict[str, int]:
-        return SSE_INDEX_BY_NAME
-
-    @classmethod
-    def infinite_register_prefix(cls):
-        return "inf_sse_"
-
-
 SSE_INDEX_BY_NAME = {
     "xmm0": 0,
     "xmm1": 1,
@@ -197,6 +180,24 @@ Mapping of SSE register names to their indices.
 See external # [documentation](https://wiki.osdev.org/X86-64_Instruction_Encoding#Registers).
 """
 
+
+@irdl_attr_definition
+class SSERegisterType(X86VectorRegisterType):
+    """
+    An x86 register type for SSE instructions.
+    """
+
+    name = "x86.ssereg"
+
+    @classmethod
+    def index_by_name(cls) -> dict[str, int]:
+        return SSE_INDEX_BY_NAME
+
+    @classmethod
+    def infinite_register_prefix(cls):
+        return "inf_sse_"
+
+
 UNALLOCATED_SSE = SSERegisterType.unallocated()
 XMM = tuple(SSERegisterType.from_name(f"xmm{i}") for i in range(16))
 (
@@ -217,27 +218,6 @@ XMM = tuple(SSERegisterType.from_name(f"xmm{i}") for i in range(16))
     XMM14,
     XMM15,
 ) = XMM
-
-
-@irdl_attr_definition
-class AVX2RegisterType(X86VectorRegisterType):
-    """
-    An x86 register type for AVX2 instructions.
-    """
-
-    name = "x86.avx2reg"
-
-    @classmethod
-    def index_by_name(cls) -> dict[str, int]:
-        return AVX2_INDEX_BY_NAME
-
-    @classmethod
-    def infinite_register_prefix(cls):
-        return "inf_avx2_"
-
-    @classmethod
-    def allocatable_registers(cls):
-        return YMM
 
 
 AVX2_INDEX_BY_NAME = {
@@ -264,6 +244,28 @@ Mapping of AVX2 register names to their indices.
 See external # [documentation](https://wiki.osdev.org/X86-64_Instruction_Encoding#Registers).
 """
 
+
+@irdl_attr_definition
+class AVX2RegisterType(X86VectorRegisterType):
+    """
+    An x86 register type for AVX2 instructions.
+    """
+
+    name = "x86.avx2reg"
+
+    @classmethod
+    def index_by_name(cls) -> dict[str, int]:
+        return AVX2_INDEX_BY_NAME
+
+    @classmethod
+    def infinite_register_prefix(cls):
+        return "inf_avx2_"
+
+    @classmethod
+    def allocatable_registers(cls):
+        return YMM
+
+
 UNALLOCATED_AVX2 = AVX2RegisterType.unallocated()
 YMM = tuple(AVX2RegisterType.from_name(f"ymm{i}") for i in range(16))
 (
@@ -284,27 +286,6 @@ YMM = tuple(AVX2RegisterType.from_name(f"ymm{i}") for i in range(16))
     YMM14,
     YMM15,
 ) = YMM
-
-
-@irdl_attr_definition
-class AVX512RegisterType(X86VectorRegisterType):
-    """
-    An x86 register type for AVX512 instructions.
-    """
-
-    name = "x86.avx512reg"
-
-    @classmethod
-    def index_by_name(cls) -> dict[str, int]:
-        return X86AVX512_INDEX_BY_NAME
-
-    @classmethod
-    def infinite_register_prefix(cls):
-        return "inf_avx512_"
-
-    @classmethod
-    def allocatable_registers(cls):
-        return ZMM
 
 
 X86AVX512_INDEX_BY_NAME = {
@@ -347,6 +328,28 @@ Mapping of AVX512 register names to their indices.
 See external # [documentation](https://wiki.osdev.org/X86-64_Instruction_Encoding#Registers).
 """
 
+
+@irdl_attr_definition
+class AVX512RegisterType(X86VectorRegisterType):
+    """
+    An x86 register type for AVX512 instructions.
+    """
+
+    name = "x86.avx512reg"
+
+    @classmethod
+    def index_by_name(cls) -> dict[str, int]:
+        return X86AVX512_INDEX_BY_NAME
+
+    @classmethod
+    def infinite_register_prefix(cls):
+        return "inf_avx512_"
+
+    @classmethod
+    def allocatable_registers(cls):
+        return ZMM
+
+
 UNALLOCATED_AVX512 = AVX512RegisterType.unallocated()
 ZMM = tuple(AVX512RegisterType.from_name(f"zmm{i}") for i in range(32))
 (
@@ -385,6 +388,18 @@ ZMM = tuple(AVX512RegisterType.from_name(f"zmm{i}") for i in range(32))
 ) = ZMM
 
 
+X86AVX512_MASK_INDEX_BY_NAME = {
+    "k0": 0,
+    "k1": 1,
+    "k2": 2,
+    "k3": 3,
+    "k4": 4,
+    "k5": 5,
+    "k6": 6,
+    "k7": 7,
+}
+
+
 @irdl_attr_definition
 class AVX512MaskRegisterType(X86RegisterType):
     """
@@ -405,17 +420,6 @@ class AVX512MaskRegisterType(X86RegisterType):
     def allocatable_registers(cls):
         return K
 
-
-X86AVX512_MASK_INDEX_BY_NAME = {
-    "k0": 0,
-    "k1": 1,
-    "k2": 2,
-    "k3": 3,
-    "k4": 4,
-    "k5": 5,
-    "k6": 6,
-    "k7": 7,
-}
 
 UNALLOCATED_AVX512_MASK = AVX512MaskRegisterType.unallocated()
 K = tuple(AVX512MaskRegisterType.from_name(f"k{i}") for i in range(8))

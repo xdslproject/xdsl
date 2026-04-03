@@ -279,7 +279,11 @@ class CopyArithConstants(RewritePattern):
             use_func = self._get_enclosing_function(use.operation)
             if use_func != parent_func:
                 rewriter.insert_op(cln := op.clone(), InsertPoint.before(use.operation))
-                op.result.replace_by_if(cln.result, lambda x: x == use)
+                rewriter.replace_uses_with_if(
+                    op.result,
+                    cln.result,
+                    lambda x: x == use,
+                )
 
     @staticmethod
     def _get_enclosing_function(op: Operation) -> csl.FuncOp | None:

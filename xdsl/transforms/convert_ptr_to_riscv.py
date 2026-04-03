@@ -132,6 +132,7 @@ class ConvertPtrToRiscvPass(ModulePass):
                     ConvertStoreOp(),
                     ConvertLoadOp(),
                     ConvertMemRefToPtrOp(),
-                ]
+                ],
+                dce_enabled=False,
             ),
         ).rewrite_module(op)

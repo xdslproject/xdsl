@@ -104,7 +104,7 @@ class ClampOp(IRDLOperation):
     input = operand_def(TensorType.constr(T))
     output = result_def(TensorType.constr(T))
 
-    irdl_options = [ParsePropInAttrDict()]
+    irdl_options = (ParsePropInAttrDict(),)
 
     assembly_format = "$input attr-dict `:` `(` type($input) `)` `->` type($output)"
 
@@ -163,7 +163,7 @@ class RescaleOp(IRDLOperation):
 
     output = result_def(TensorType)
 
-    irdl_options = [ParsePropInAttrDict()]
+    irdl_options = (ParsePropInAttrDict(),)
 
     assembly_format = "operands attr-dict `:` functional-type(operands, results)"
 
@@ -388,7 +388,7 @@ class MaxPool2DOp(IRDLOperation):
     pad = prop_def(DenseArrayBase[I64])
     nan_mode = opt_prop_def(StringAttr, default_value=StringAttr("PROPAGATE"))
 
-    irdl_options = [ParsePropInAttrDict()]
+    irdl_options = (ParsePropInAttrDict(),)
 
     assembly_format = "operands attr-dict `:` functional-type(operands, results)"
 
@@ -426,7 +426,7 @@ class AvgPool2DOp(IRDLOperation):
 
     output = result_def(TensorType)
 
-    irdl_options = [ParsePropInAttrDict()]
+    irdl_options = (ParsePropInAttrDict(),)
 
     assembly_format = "operands attr-dict `:` functional-type(operands, results)"
 
@@ -454,7 +454,7 @@ class ConcatOp(IRDLOperation):
             result_types=[output_type],
         )
 
-    irdl_options = [ParsePropInAttrDict()]
+    irdl_options = (ParsePropInAttrDict(),)
 
     assembly_format = "$tensors attr-dict `:` `(` type($tensors) `)` `->` type($output)"
 
@@ -526,7 +526,7 @@ class ReductionOperation(IRDLOperation, ABC):
 
     assembly_format = "$input attr-dict `:` functional-type(operands, results)"
 
-    irdl_options = [ParsePropInAttrDict()]
+    irdl_options = (ParsePropInAttrDict(),)
 
 
 @irdl_op_definition

@@ -32,7 +32,11 @@ def cast_block_args_to_regs(block: Block, arch: Arch, rewriter: PatternRewriter)
         new_val = cast_op.results[0]
 
         new_type = arch.register_type_for_type(arg.type).unallocated()
-        arg.replace_by_if(new_val, lambda use: use.operation != cast_op)
+        rewriter.replace_uses_with_if(
+            arg,
+            new_val,
+            lambda use: use.operation != cast_op,
+        )
         rewriter.replace_value_with_new_type(arg, new_type)
 
 
@@ -63,7 +67,9 @@ class ScfForLowering(RewritePattern):
 
         for res, (cast_op, result) in zip(op.results, res_values):
             rewriter.insert_op(cast_op)
-            res.replace_by_if(result, lambda use: use.operation is not cast_op)
+            rewriter.replace_uses_with_if(
+                res, result, lambda use: use.operation is not cast_op
+            )
 
         rewriter.erase_op(op)
 

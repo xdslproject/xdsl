@@ -4,7 +4,7 @@ from collections.abc import Sequence
 from typing import ClassVar
 
 from xdsl.backend.assembly_printer import reg
-from xdsl.dialects.arm.ops import ARMInstruction, ARMOperation
+from xdsl.dialects.arm.ops import ARMAsmOperation, ARMInstruction
 from xdsl.dialects.arm.registers import ARMRegisterType, IntRegisterType
 from xdsl.dialects.builtin import (
     IntegerAttr,
@@ -169,7 +169,7 @@ def variadic_neon_reg_arg(
 
 
 @irdl_op_definition
-class GetRegisterOp(ARMOperation):
+class GetRegisterOp(ARMAsmOperation):
     """
     This instruction allows us to create an SSAValue for a given register name.
     """

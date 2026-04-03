@@ -12,11 +12,12 @@ from xdsl.analysis.dataflow import (
     ProgramPoint,
 )
 from xdsl.analysis.sparse_analysis import Lattice, SparseForwardDataFlowAnalysis
-from xdsl.dialects import eqsat, eqsat_pdl_interp, pdl_interp
+from xdsl.dialects import eqsat_pdl_interp, equivalence
 from xdsl.dialects.builtin import SymbolRefAttr
 from xdsl.dialects.pdl import RangeType, ValueType
 from xdsl.interpreter import (
     Interpreter,
+    InterpreterFunctions,
     ReturnedValues,
     Successor,
     impl,
@@ -64,7 +65,7 @@ class BacktrackPoint:
     scope: ScopedDict[SSAValue, Any]
     """Variable scope to restore when backtracking."""
 
-    cause: pdl_interp.GetDefiningOpOp | eqsat_pdl_interp.ChooseOp
+    cause: eqsat_pdl_interp.GetDefiningOpOp | eqsat_pdl_interp.ChooseOp
     """The GetDefiningOpOp or ChooseOp that created this backtrack point."""
 
     index: int
@@ -79,7 +80,7 @@ class BacktrackPoint:
 
 @register_impls
 @dataclass
-class EqsatPDLInterpFunctions(PDLInterpFunctions):
+class EqsatPDLInterpFunctions(InterpreterFunctions):
     """Interpreter functions for PDL patterns operating on e-graphs."""
 
     analyses: list[SparseForwardDataFlowAnalysis[Lattice[Any]]] = field(
@@ -109,8 +110,8 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
     """Used for hashconsing operations. When new operations are created, if they are identical to an existing operation,
     the existing operation is reused instead of creating a new one."""
 
-    eclass_union_find: DisjointSet[eqsat.AnyEClassOp] = field(
-        default_factory=lambda: DisjointSet[eqsat.AnyEClassOp]()
+    eclass_union_find: DisjointSet[equivalence.AnyClassOp] = field(
+        default_factory=lambda: DisjointSet[equivalence.AnyClassOp]()
     )
     """Union-find structure tracking which e-classes are equivalent and should be merged."""
 
@@ -119,7 +120,9 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
     )
     """List of pending rewrites to be executed. Each entry is a tuple of (rewriter, root, args)."""
 
-    worklist: list[eqsat.AnyEClassOp] = field(default_factory=list[eqsat.AnyEClassOp])
+    worklist: list[equivalence.AnyClassOp] = field(
+        default_factory=list[equivalence.AnyClassOp]
+    )
     """Worklist of e-classes that need to be processed for matching."""
 
     is_matching: bool = True
@@ -145,16 +148,16 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
         # Walk through all operations in the module
         for op in outer_op.walk():
             # Skip eclasses instances
-            if not isinstance(op, eqsat.AnyEClassOp):
+            if not isinstance(op, equivalence.AnyClassOp):
                 self.known_ops[op] = op
             else:
                 self.eclass_union_find.add(op)
 
-    @impl(pdl_interp.GetResultOp)
-    def run_get_result(
+    @impl(eqsat_pdl_interp.GetResultOp)
+    def run_eqsat_get_result(
         self,
         interpreter: Interpreter,
-        op: pdl_interp.GetResultOp,
+        op: eqsat_pdl_interp.GetResultOp,
         args: tuple[Any, ...],
     ) -> tuple[Any, ...]:
         assert len(args) == 1
@@ -169,23 +172,23 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
 
         if result.has_one_use():
             if isinstance(
-                eclass_op := result.get_user_of_unique_use(), eqsat.AnyEClassOp
+                eclass_op := result.get_user_of_unique_use(), equivalence.AnyClassOp
             ):
                 result = eclass_op.result
         else:
             for use in result.uses:
-                if isinstance(use.operation, eqsat.AnyEClassOp):
+                if isinstance(use.operation, equivalence.AnyClassOp):
                     raise InterpretationError(
                         "pdl_interp.get_result currently only supports operations with results"
                         " that are used by a single eclass each."
                     )
         return (result,)
 
-    @impl(pdl_interp.GetResultsOp)
-    def run_get_results(
+    @impl(eqsat_pdl_interp.GetResultsOp)
+    def run_eqsat_get_results(
         self,
         interpreter: Interpreter,
-        op: pdl_interp.GetResultsOp,
+        op: eqsat_pdl_interp.GetResultsOp,
         args: tuple[Any, ...],
     ) -> tuple[Any, ...]:
         assert len(args) == 1
@@ -214,7 +217,7 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
                     " that are used by a single eclass each."
                 )
             if not isinstance(
-                eclass_op := result.get_user_of_unique_use(), eqsat.AnyEClassOp
+                eclass_op := result.get_user_of_unique_use(), equivalence.AnyClassOp
             ):
                 raise InterpretationError(
                     "pdl_interp.get_results only supports results"
@@ -225,11 +228,11 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
             return (eclass_results[0],)
         return (tuple(eclass_results),)
 
-    @impl(pdl_interp.GetDefiningOpOp)
-    def run_get_defining_op(
+    @impl(eqsat_pdl_interp.GetDefiningOpOp)
+    def run_eqsat_get_defining_op(
         self,
         interpreter: Interpreter,
-        op: pdl_interp.GetDefiningOpOp,
+        op: eqsat_pdl_interp.GetDefiningOpOp,
         args: tuple[Any, ...],
     ) -> tuple[Any, ...]:
         assert len(args) == 1
@@ -241,7 +244,7 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
         else:
             defining_op = args[0].owner
 
-        if not isinstance(defining_op, eqsat.AnyEClassOp):
+        if not isinstance(defining_op, equivalence.AnyClassOp):
             return (defining_op,)
 
         eclass_op = defining_op
@@ -271,11 +274,11 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
 
         return (defining_op,)
 
-    @impl(pdl_interp.ReplaceOp)
-    def run_replace(
+    @impl(eqsat_pdl_interp.ReplaceOp)
+    def run_eqsat_replace(
         self,
         interpreter: Interpreter,
-        op: pdl_interp.ReplaceOp,
+        op: eqsat_pdl_interp.ReplaceOp,
         args: tuple[Any, ...],
     ) -> tuple[Any, ...]:
         assert args
@@ -298,14 +301,14 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
                 )
             assert res.first_use is not None
             if not isinstance(
-                original_eclass := res.first_use.operation, eqsat.AnyEClassOp
+                original_eclass := res.first_use.operation, equivalence.AnyClassOp
             ):
                 raise InterpretationError(
                     "Replaced operation result must be used by an eclass"
                 )
 
             repl_eclass = repl.owner
-            if not isinstance(repl_eclass, eqsat.AnyEClassOp):
+            if not isinstance(repl_eclass, equivalence.AnyClassOp):
                 raise InterpretationError(
                     "Replacement value must be the result of an eclass"
                 )
@@ -316,7 +319,10 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
         return ()
 
     def eclass_union(
-        self, interpreter: Interpreter, a: eqsat.AnyEClassOp, b: eqsat.AnyEClassOp
+        self,
+        interpreter: Interpreter,
+        a: equivalence.AnyClassOp,
+        b: equivalence.AnyClassOp,
     ) -> bool:
         """Unions two eclasses, merging their operands and results.
         Returns True if the eclasses were merged, False if they were already the same."""
@@ -332,14 +338,14 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
             b_lattice = analysis.get_lattice_element(b.result)
             a_lattice.meet(b_lattice)
 
-        if isinstance(a, eqsat.ConstantEClassOp):
-            if isinstance(b, eqsat.ConstantEClassOp):
+        if isinstance(a, equivalence.ConstantClassOp):
+            if isinstance(b, equivalence.ConstantClassOp):
                 assert a.value == b.value, (
                     "Trying to union two different constant eclasses.",
                 )
             to_keep, to_replace = a, b
             self.eclass_union_find.union_left(to_keep, to_replace)
-        elif isinstance(b, eqsat.ConstantEClassOp):
+        elif isinstance(b, equivalence.ConstantClassOp):
             to_keep, to_replace = b, a
             self.eclass_union_find.union_left(to_keep, to_replace)
         else:
@@ -365,65 +371,77 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
         rewriter.replace_op(to_replace, new_ops=[], new_results=to_keep.results)
         return True
 
-    @impl(pdl_interp.CreateOperationOp)
-    def run_create_operation(
+    @impl(eqsat_pdl_interp.CreateOperationOp)
+    def run_eqsat_create_operation(
         self,
         interpreter: Interpreter,
-        op: pdl_interp.CreateOperationOp,
+        op: eqsat_pdl_interp.CreateOperationOp,
         args: tuple[Any, ...],
     ) -> tuple[Any, ...]:
         rewriter = PDLInterpFunctions.get_rewriter(interpreter)
-        has_done_action_checkpoint = rewriter.has_done_action
 
         updated_operands: list[OpResult] = []
         for arg in args[0 : len(op.input_operands)]:
             assert isinstance(arg, OpResult), (
                 "pdl_interp.create_operation currently only supports creating operations with operands that are eclass results."
             )
-            assert isinstance(arg.owner, eqsat.AnyEClassOp), (
+            assert isinstance(arg.owner, equivalence.AnyClassOp), (
                 "pdl_interp.create_operation currently only supports creating operations with operands that are eclass results."
             )
             updated_operands.append(self.eclass_union_find.find(arg.owner).result)
         args = (*updated_operands, *args[len(op.input_operands) :])
-        (new_op,) = super().run_create_operation(interpreter, op, args).values
+        new_op = PDLInterpFunctions.create_operation(
+            interpreter,
+            args,
+            op.constraint_name.data,
+            [name.data for name in op.input_attribute_names.data],
+            len(op.input_operands),
+            len(op.input_attributes),
+        )
+
         assert isinstance(new_op, Operation)
         assert new_op.results, (
             "Creating operations without result values is not supported."
         )
 
+        rewriter = PDLInterpFunctions.get_rewriter(interpreter)
+
+        should_insert_new_op = True
         # Check if an identical operation already exists in our known_ops map
         if existing_op := self.known_ops.get(new_op):
             # CSE can have removed the existing operation, here we check if it is still in use:
             assert existing_op.results
-            if existing_op.parent is new_op.parent:
-                rewriter.erase_op(new_op)
-                rewriter.has_done_action = has_done_action_checkpoint
+            if existing_op.parent is rewriter.insertion_point.block:
                 if not any(
-                    isinstance(use.operation, eqsat.AnyEClassOp)
+                    isinstance(use.operation, equivalence.AnyClassOp)
                     for use in existing_op.results[0].uses
                 ):
                     # It is possible that the existing_op was stripped from its eclass when it merged with a constant eclass.
                     # In this case we should wrap it in a new eclass:
                     new_op = existing_op
+                    should_insert_new_op = False
                 else:
+                    new_op.erase()
                     return (existing_op,)
             else:
                 # if CSE has removed the existing operation, we can remove it from our known_ops map:
                 self.known_ops.pop(existing_op)
+        if should_insert_new_op:
+            rewriter.insert_op(new_op)
 
         # No existing eclass for this operation yet
-        new_eclasses: list[eqsat.AnyEClassOp] = []
-        if new_op.has_trait(eqsat.ConstantLike):
+        new_eclasses: list[equivalence.AnyClassOp] = []
+        if new_op.has_trait(equivalence.ConstantLike):
             assert len(new_op.results) == 1
             new_eclasses.append(
-                eqsat.ConstantEClassOp(
+                equivalence.ConstantClassOp(
                     new_op.results[0],
                 )
             )
         else:
             for res in new_op.results:
                 new_eclasses.append(
-                    eqsat.EClassOp(
+                    equivalence.ClassOp(
                         res,
                     )
                 )
@@ -449,21 +467,28 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
 
         return (new_op,)
 
-    @impl_terminator(pdl_interp.RecordMatchOp)
-    def run_recordmatch(
+    @impl_terminator(eqsat_pdl_interp.RecordMatchOp)
+    def run_eqsat_recordmatch(
         self,
         interpreter: Interpreter,
-        op: pdl_interp.RecordMatchOp,
+        op: eqsat_pdl_interp.RecordMatchOp,
         args: tuple[Any, ...],
     ):
         self.pending_rewrites.append(
-            (op.rewriter, self.get_rewriter(interpreter).current_operation, args)
+            (
+                op.rewriter,
+                PDLInterpFunctions.get_rewriter(interpreter).current_operation,
+                args,
+            )
         )
         return Successor(op.dest, ()), ()
 
-    @impl_terminator(pdl_interp.FinalizeOp)
-    def run_finalize(
-        self, interpreter: Interpreter, _: pdl_interp.FinalizeOp, args: tuple[Any, ...]
+    @impl_terminator(eqsat_pdl_interp.FinalizeOp)
+    def run_eqsat_finalize(
+        self,
+        interpreter: Interpreter,
+        _: eqsat_pdl_interp.FinalizeOp,
+        args: tuple[Any, ...],
     ):
         if not self.is_matching:
             return ReturnedValues(()), ()
@@ -509,7 +534,7 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
             dest = op.choices[index]
         return Successor(dest, ()), ()
 
-    def repair(self, interpreter: Interpreter, eclass: eqsat.AnyEClassOp):
+    def repair(self, interpreter: Interpreter, eclass: equivalence.AnyClassOp):
         rewriter = PDLInterpFunctions.get_rewriter(interpreter)
         unique_parents = KnownOps()
         eclass = self.eclass_union_find.find(eclass)
@@ -520,17 +545,17 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
                 op2 = unique_parents[op1]
 
                 assert (op1_use := op1.results[0].first_use), (
-                    "Modification handler currently only supports operations with a single (EClassOp) use"
+                    "Modification handler currently only supports operations with a single (ClassOp) use"
                 )
-                assert isinstance(eclass1 := op1_use.operation, eqsat.AnyEClassOp)
+                assert isinstance(eclass1 := op1_use.operation, equivalence.AnyClassOp)
 
                 assert len(op2.results) == 1, (
                     "Expected a single result for the operation being modified."
                 )
                 assert (op2_use := op2.results[0].first_use), (
-                    "Modification handler currently only supports operations with a single (EClassOp) use"
+                    "Modification handler currently only supports operations with a single (ClassOp) use"
                 )
-                assert isinstance(eclass2 := op2_use.operation, eqsat.AnyEClassOp)
+                assert isinstance(eclass2 := op2_use.operation, equivalence.AnyClassOp)
 
                 # This temporarily breaks the invariant since eclass2 will now contain the result of op2 twice.
                 # Callling `eclass_union` will deduplicate this operand.
@@ -570,9 +595,11 @@ class EqsatPDLInterpFunctions(PDLInterpFunctions):
                 changed = result.meet(type(result)(result.anchor, original_state))
                 if changed == ChangeResult.CHANGE:
                     assert (op_use := op.results[0].first_use), (
-                        "Dataflow analysis currently only supports operations with a single (EClassOp) use"
+                        "Dataflow analysis currently only supports operations with a single (ClassOp) use"
                     )
-                    assert isinstance(eclass_op := op_use.operation, eqsat.AnyEClassOp)
+                    assert isinstance(
+                        eclass_op := op_use.operation, equivalence.AnyClassOp
+                    )
                     self.worklist.append(eclass_op)
 
     def rebuild(self, interpreter: Interpreter):

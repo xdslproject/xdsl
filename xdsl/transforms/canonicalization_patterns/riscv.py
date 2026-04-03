@@ -1,14 +1,24 @@
-from typing import cast
+from typing import Literal, cast
 
-from xdsl.dialects import riscv, riscv_snitch
-from xdsl.dialects.builtin import IntegerAttr
+from xdsl.dialects import riscv, riscv_snitch, rv32, rv64
+from xdsl.dialects.builtin import (
+    I32,
+    I64,
+    IntegerAttr,
+    IntegerType,
+    Signedness,
+    i32,
+    i64,
+)
 from xdsl.dialects.utils import FastMathFlag
 from xdsl.ir import OpResult, SSAValue
+from xdsl.irdl import irdl_to_attr_constraint
 from xdsl.pattern_rewriter import (
     PatternRewriter,
     RewritePattern,
     op_type_rewrite_pattern,
 )
+from xdsl.traits import ConstantLike
 
 
 class RemoveRedundantMv(RewritePattern):
@@ -43,7 +53,7 @@ class MultiplyImmediates(RewritePattern):
         if (rs2 := get_constant_value(op.rs2)) is not None:
             rhs = rs2.value.data
 
-        rd = cast(riscv.IntRegisterType, op.rd.type)
+        rd = op.rd.type
 
         match (lhs, rhs):
             case int(), None:
@@ -65,7 +75,7 @@ class MultiplyImmediates(RewritePattern):
                 else:
                     return
             case int(), int():
-                rewriter.replace_op(op, riscv.LiOp(lhs * rhs, rd=rd))
+                rewriter.replace_op(op, rv32.LiOp(lhs * rhs, rd=rd))
             case _:
                 return
 
@@ -75,7 +85,7 @@ class DivideByOneIdentity(RewritePattern):
     def match_and_rewrite(self, op: riscv.DivOp, rewriter: PatternRewriter) -> None:
         # Check if rs2 is a constant 1
         if (rs2 := get_constant_value(op.rs2)) is not None and rs2.value.data == 1:
-            rd_type = cast(riscv.IntRegisterType, op.rd.type)
+            rd_type = op.rd.type
 
             # Replace the DivOp with a copy/move of rs1 to rd
             move_op = riscv.MVOp(
@@ -97,7 +107,7 @@ class AddImmediates(RewritePattern):
         if (rs2 := get_constant_value(op.rs2)) is not None:
             rhs = rs2.value.data
 
-        rd = cast(riscv.IntRegisterType, op.rd.type)
+        rd = op.rd.type
 
         match (lhs, rhs):
             case int(), None:
@@ -121,9 +131,7 @@ class AddImmediates(RewritePattern):
                     ),
                 )
             case int(), int():
-                rewriter.replace_op(
-                    op, riscv.LiOp(lhs + rhs, rd=rd, comment=op.comment)
-                )
+                rewriter.replace_op(op, rv32.LiOp(lhs + rhs, rd=rd, comment=op.comment))
             case _:
                 pass
 
@@ -145,7 +153,7 @@ class AddImmediateConstant(RewritePattern):
             rd = op.rd.type
             rewriter.replace_op(
                 op,
-                riscv.LiOp(
+                rv32.LiOp(
                     rs1.value.data + op.immediate.value.data,
                     rd=rd,
                     comment=op.comment,
@@ -164,7 +172,7 @@ class SubImmediates(RewritePattern):
         if (rs2 := get_constant_value(op.rs2)) is not None:
             rhs = rs2.value.data
 
-        rd = cast(riscv.IntRegisterType, op.rd.type)
+        rd = op.rd.type
 
         match (lhs, rhs):
             case int(), None:
@@ -181,9 +189,7 @@ class SubImmediates(RewritePattern):
                     ),
                 )
             case int(), int():
-                rewriter.replace_op(
-                    op, riscv.LiOp(lhs - rhs, rd=rd, comment=op.comment)
-                )
+                rewriter.replace_op(op, rv32.LiOp(lhs - rhs, rd=rd, comment=op.comment))
             case _:
                 pass
 
@@ -195,11 +201,11 @@ class SubBySelf(RewritePattern):
         x - x = 0
         """
         if op.rs1 == op.rs2:
-            rd = cast(riscv.IntRegisterType, op.rd.type)
+            rd = op.rd.type
             rewriter.replace_op(
                 op,
                 (
-                    zero := riscv.GetRegisterOp(riscv.Registers.ZERO),
+                    zero := rv32.GetRegisterOp(riscv.Registers.ZERO),
                     riscv.MVOp(zero.res, rd=rd, comment=op.comment),
                 ),
             )
@@ -218,67 +224,114 @@ class SubAddi(RewritePattern):
             and isinstance(op.rs1.op.immediate, IntegerAttr)
             and op.rs2 == op.rs1.op.rs1
         ):
-            rd = cast(riscv.IntRegisterType, op.rd.type)
-            rewriter.replace_op(op, riscv.LiOp(op.rs1.op.immediate.value.data, rd=rd))
+            rd = op.rd.type
+            rewriter.replace_op(op, rv32.LiOp(op.rs1.op.immediate.value.data, rd=rd))
 
 
 class AndiImmediate(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: riscv.AndiOp, rewriter: PatternRewriter) -> None:
-        if (
-            isinstance(op.rs1, OpResult)
-            and isinstance(op.rs1.op, riscv.LiOp)
-            and isinstance(op.rs1.op.immediate, IntegerAttr)
-            and isinstance(op.immediate, IntegerAttr)
+        if (rs1 := get_constant_value(op.rs1)) is not None and isinstance(
+            op.immediate, IntegerAttr
         ):
             rd = op.rd.type
             rewriter.replace_matched_op(
-                riscv.LiOp(
-                    op.rs1.op.immediate.value.data & op.immediate.value.data, rd=rd
-                )
+                rv32.LiOp(rs1.value.data & op.immediate.value.data, rd=rd)
             )
 
 
-class ShiftLeftImmediate(RewritePattern):
+class AndiZero(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: riscv.SlliOp, rewriter: PatternRewriter) -> None:
-        if (
-            isinstance(op.rs1, OpResult)
-            and isinstance(op.rs1.op, riscv.LiOp)
-            and isinstance(op.rs1.op.immediate, IntegerAttr)
-            and isinstance(op.immediate, IntegerAttr)
+    def match_and_rewrite(self, op: riscv.AndiOp, rewriter: PatternRewriter) -> None:
+        if isinstance(op.immediate, IntegerAttr) and op.immediate.value.data == 0:
+            rd = op.rd.type
+            rewriter.replace_matched_op(rv32.LiOp(0, rd=rd))
+
+
+class OriImmediate(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: riscv.OriOp, rewriter: PatternRewriter) -> None:
+        if (rs1 := get_constant_value(op.rs1)) is not None and isinstance(
+            op.immediate, IntegerAttr
         ):
             rd = op.rd.type
-            rewriter.replace_op(
-                op,
-                riscv.LiOp(
-                    op.rs1.op.immediate.value.data << op.immediate.value.data, rd=rd
-                ),
+            rewriter.replace_matched_op(
+                rv32.LiOp(rs1.value.data | op.immediate.value.data, rd=rd)
             )
 
 
-class ShiftLeftbyZero(RewritePattern):
+class OriImmediateZero(RewritePattern):
     """
-    x << 0 -> x
+    x | 0 -> x
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: riscv.SlliOp, rewriter: PatternRewriter) -> None:
-        # check if the shift amount is zero
+    def match_and_rewrite(self, op: riscv.OriOp, rewriter: PatternRewriter) -> None:
         if isinstance(op.immediate, IntegerAttr) and op.immediate.value.data == 0:
             rewriter.replace_op(op, riscv.MVOp(op.rs1, rd=op.rd.type))
 
 
-class ShiftRightbyZero(RewritePattern):
+class XoriSelfInverse(RewritePattern):
     """
-    x >> 0 -> x
+    (x ^ a) ^ a -> x
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: riscv.SrliOp, rewriter: PatternRewriter) -> None:
+    def match_and_rewrite(self, op: riscv.XoriOp, rewriter: PatternRewriter) -> None:
+        if (
+            isinstance(op.rs1, OpResult)
+            and isinstance(op.rs1.op, riscv.XoriOp)
+            and isinstance(op.immediate, IntegerAttr)
+            and isinstance(op.rs1.op.immediate, IntegerAttr)
+            and op.immediate.value.data == op.rs1.op.immediate.value.data
+        ):
+            rd = op.rd.type
+            can_erase = op.rs1.op.rd.has_one_use()
+            rewriter.replace_op(op, riscv.MVOp(op.rs1.op.rs1, rd=rd))
+            if can_erase:
+                rewriter.erase_op(op.rs1.op)
+
+
+class XoriImmediate(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: riscv.XoriOp, rewriter: PatternRewriter) -> None:
+        if (rs1 := get_constant_value(op.rs1)) is not None and isinstance(
+            op.immediate, IntegerAttr
+        ):
+            rd = op.rd.type
+            rewriter.replace_matched_op(
+                rv32.LiOp(rs1.value.data ^ op.immediate.value.data, rd=rd)
+            )
+
+
+class ShiftbyZero(RewritePattern):
+    """
+    shift(x, 0) -> x
+    """
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(
+        self, op: riscv.RdRsImmShiftOperation, rewriter: PatternRewriter
+    ) -> None:
         # check if the shift amount is zero
-        if isinstance(op.immediate, IntegerAttr) and op.immediate.value.data == 0:
+        if op.immediate.value.data == 0:
             rewriter.replace_op(op, riscv.MVOp(op.rs1, rd=op.rd.type))
+
+
+class ShiftConstantFolding(RewritePattern):
+    """
+    shift(c1, c2) -> c3
+    """
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(
+        self, op: riscv.RdRsImmShiftOperation, rewriter: PatternRewriter
+    ) -> None:
+        if (rs1 := get_constant_value(op.rs1)) is not None:
+            rd = op.rd.type
+            val = cast(IntegerAttr[I32], rs1)
+            result = op.py_operation(val)
+            rewriter.replace_op(op, rv32.LiOp(result, rd=rd))
 
 
 class LoadWordWithKnownOffset(RewritePattern):
@@ -405,11 +458,11 @@ class AdditionOfSameVariablesToMultiplyByTwo(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: riscv.AddOp, rewriter: PatternRewriter) -> None:
         if op.rs1 == op.rs2:
-            rd = cast(riscv.IntRegisterType, op.rd.type)
+            rd = op.rd.type
             rewriter.replace_op(
                 op,
                 [
-                    li_op := riscv.LiOp(2),
+                    li_op := rv32.LiOp(2),
                     riscv.MulOp(
                         op.rs1,
                         li_op,
@@ -476,13 +529,13 @@ class BitwiseAndByZero(RewritePattern):
         # check if the first operand is 0
         if (rs1 := get_constant_value(op.rs1)) is not None and rs1.value.data == 0:
             # if the first operand is 0, set the destination to 0
-            rd = cast(riscv.IntRegisterType, op.rd.type)
+            rd = op.rd.type
             rewriter.replace_op(op, riscv.MVOp(op.rs1, rd=rd))
 
         # check if the second operand is 0
         if (rs2 := get_constant_value(op.rs2)) is not None and rs2.value.data == 0:
             # if the second operand is 0, set the destination to 0
-            rd = cast(riscv.IntRegisterType, op.rd.type)
+            rd = op.rd.type
             rewriter.replace_op(op, riscv.MVOp(op.rs2, rd=rd))
 
 
@@ -493,7 +546,7 @@ class BitwiseAndBySelf(RewritePattern):
         x & x = x
         """
         if op.rs1 == op.rs2:
-            rd = cast(riscv.IntRegisterType, op.rd.type)
+            rd = op.rd.type
             rewriter.replace_op(op, riscv.MVOp(op.rs1, rd=rd, comment=op.comment))
 
 
@@ -507,13 +560,13 @@ class BitwiseOrByZero(RewritePattern):
         # check if the first operand is 0
         if (rs1 := get_constant_value(op.rs1)) is not None and rs1.value.data == 0:
             # if the first operand is 0, set the destination to the second operand
-            rd = cast(riscv.IntRegisterType, op.rd.type)
+            rd = op.rd.type
             rewriter.replace_op(op, riscv.MVOp(op.rs2, rd=rd))
 
         # check if the second operand is 0
         elif (rs2 := get_constant_value(op.rs2)) is not None and rs2.value.data == 0:
             # if the second operand is 0, set the destination to first operand
-            rd = cast(riscv.IntRegisterType, op.rd.type)
+            rd = op.rd.type
             rewriter.replace_op(op, riscv.MVOp(op.rs1, rd=rd))
 
 
@@ -524,7 +577,7 @@ class BitwiseOrBySelf(RewritePattern):
         x | x = x
         """
         if op.rs1 == op.rs2:
-            rd = cast(riscv.IntRegisterType, op.rd.type)
+            rd = op.rd.type
             rewriter.replace_op(op, riscv.MVOp(op.rs1, rd=rd, comment=op.comment))
 
 
@@ -535,11 +588,11 @@ class XorBySelf(RewritePattern):
         x ^ x = 0
         """
         if op.rs1 == op.rs2:
-            rd = cast(riscv.IntRegisterType, op.rd.type)
+            rd = op.rd.type
             rewriter.replace_op(
                 op,
                 (
-                    zero := riscv.GetRegisterOp(riscv.Registers.ZERO),
+                    zero := rv32.GetRegisterOp(riscv.Registers.ZERO),
                     riscv.MVOp(zero.res, rd=rd, comment=op.comment),
                 ),
             )
@@ -552,11 +605,11 @@ class BitwiseXorByZero(RewritePattern):
         x ^ 0 = x
         """
         if (rs1 := get_constant_value(op.rs1)) is not None and rs1.value.data == 0:
-            rd = cast(riscv.IntRegisterType, op.rd.type)
+            rd = op.rd.type
             rewriter.replace_op(op, riscv.MVOp(op.rs2, rd=rd))
 
         if (rs2 := get_constant_value(op.rs2)) is not None and rs2.value.data == 0:
-            rd = cast(riscv.IntRegisterType, op.rd.type)
+            rd = op.rd.type
             rewriter.replace_op(op, riscv.MVOp(op.rs1, rd=rd))
 
 
@@ -582,32 +635,44 @@ class LoadImmediate0(RewritePattern):
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: riscv.LiOp, rewriter: PatternRewriter) -> None:
+    def match_and_rewrite(self, op: rv32.LiOp, rewriter: PatternRewriter) -> None:
         if not (isinstance(op.immediate, IntegerAttr) and op.immediate.value.data == 0):
             return
 
         rd = op.rd.type
         if rd == riscv.Registers.ZERO:
-            rewriter.replace_op(op, riscv.GetRegisterOp(riscv.Registers.ZERO))
+            rewriter.replace_op(op, rv32.GetRegisterOp(riscv.Registers.ZERO))
         else:
             rewriter.replace_op(
                 op,
                 (
-                    zero := riscv.GetRegisterOp(riscv.Registers.ZERO),
+                    zero := rv32.GetRegisterOp(riscv.Registers.ZERO),
                     riscv.MVOp(zero.res, rd=rd, comment=op.comment),
                 ),
             )
 
 
-def get_constant_value(value: SSAValue) -> riscv.Imm32Attr | None:
-    if value.type == riscv.Registers.ZERO:
-        return IntegerAttr.from_int_and_width(0, 32)
+_I32_I64_CONSTRAINT = irdl_to_attr_constraint(
+    IntegerAttr[IntegerType[Literal[32, 64], Literal[Signedness.SIGNLESS]]]
+)
 
+
+def get_constant_value(
+    value: SSAValue,
+) -> IntegerAttr[I32] | IntegerAttr[I64] | None:
     if not isinstance(value, OpResult):
         return
+
+    if value.type == riscv.Registers.ZERO:
+        if isinstance(value.op, rv32.GetRegisterOp):
+            return IntegerAttr(0, i32)
+        elif isinstance(value.op, rv64.GetRegisterOp):
+            return IntegerAttr(0, i64)
 
     if isinstance(value.op, riscv.MVOp):
         return get_constant_value(value.op.rs)
 
-    if isinstance(value.op, riscv.LiOp) and isinstance(value.op.immediate, IntegerAttr):
-        return value.op.immediate
+    if (
+        result := ConstantLike.get_constant_value(value)
+    ) is not None and _I32_I64_CONSTRAINT.verifies(result):
+        return cast(IntegerAttr[I32] | IntegerAttr[I64], result)
