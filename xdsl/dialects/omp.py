@@ -163,6 +163,7 @@ class ClauseMapFlagsAttr(BitEnumAttribute[ClauseMapFlags], SpacedOpaqueSyntaxAtt
     name = "omp.clause_map_flags"
 
     none_value = "none"
+    separator_value = "|"
 
     def print_parameter(self, printer: Printer) -> None:
         flags = self.data
@@ -180,23 +181,6 @@ class ClauseMapFlagsAttr(BitEnumAttribute[ClauseMapFlags], SpacedOpaqueSyntaxAtt
 
     @classmethod
     def parse_parameter(cls, parser: AttrParser) -> frozenset[ClauseMapFlags]:
-        def parse_optional_element() -> set[ClauseMapFlags] | None:
-            if (
-                cls.none_value is not None
-                and parser.parse_optional_keyword(cls.none_value) is not None
-            ):
-                return set()
-            if (
-                cls.all_value is not None
-                and parser.parse_optional_keyword(cls.all_value) is not None
-            ):
-                return set(cast(Iterable[ClauseMapFlags], cls.enum_type))
-            value = parser.parse_optional_str_enum(cls.enum_type)
-            if value is None:
-                return None
-
-            return {cast(type[ClauseMapFlags], cls.enum_type)(value)}
-
         def parse_element() -> set[ClauseMapFlags]:
             if (
                 cls.none_value is not None
@@ -211,14 +195,7 @@ class ClauseMapFlagsAttr(BitEnumAttribute[ClauseMapFlags], SpacedOpaqueSyntaxAtt
             value = parser.parse_str_enum(cls.enum_type)
             return {cast(type[ClauseMapFlags], cls.enum_type)(value)}
 
-        flags = []
-        # Parse the first element, if it exist
-        first_elem = parse_optional_element()
-        if first_elem is not None:
-            # Parse the remaining elements
-            flags = [first_elem]
-            while parser.parse_optional_characters("|") is not None:
-                flags.append(parse_element())
+        flags = parser.parse_list(parser.Delimiter.NONE, parse_element, "|")
 
         if not flags:
             return frozenset()
