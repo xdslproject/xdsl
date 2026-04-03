@@ -11,6 +11,7 @@ from collections.abc import (
     Reversible,
     Sequence,
 )
+from contextlib import nullcontext
 from dataclasses import dataclass, field
 from io import StringIO
 from itertools import chain
@@ -343,6 +344,7 @@ class BitEnumAttribute(Data[frozenset[EnumType]], Generic[EnumType]):
     none_value: ClassVar[str | None] = None
     all_value: ClassVar[str | None] = None
     separator_value: ClassVar[str] = ","
+    delimiter_value: tuple[str, str] | None = ("<", ">")
 
     def __init__(self, flags: None | Iterable[EnumType] | str) -> None:
         flags_: frozenset[EnumType]
@@ -386,7 +388,7 @@ class BitEnumAttribute(Data[frozenset[EnumType]], Generic[EnumType]):
             return {cast(type[EnumType], cls.enum_type)(value)}
 
         flag_sets = parser.parse_list(
-            parser.Delimiter.ANGLE, parse_element, cls.separator_value
+            cls.delimiter_value, parse_element, cls.separator_value
         )
 
         if not flag_sets:
@@ -400,7 +402,13 @@ class BitEnumAttribute(Data[frozenset[EnumType]], Generic[EnumType]):
         return frozenset(res)
 
     def print_parameter(self, printer: Printer):
-        with printer.in_angle_brackets():
+        match self.delimiter_value:
+            case None:
+                bracket = nullcontext()
+            case _:
+                bracket = printer.delimited(*self.delimiter_value)
+
+        with bracket:
             flags = self.data
             if not flags and self.none_value is not None:
                 printer.print_string(self.none_value)
