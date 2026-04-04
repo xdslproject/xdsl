@@ -22,18 +22,14 @@ from xdsl.pattern_rewriter import (
 )
 
 
-@dataclass
 class ExpandExp(RewritePattern):
     """
     Replace `math.exp` operations with a polynomial expansion.
     """
 
-    terms: int
-    """Number of terms to use when expanding `math.exp`."""
-
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: math.ExpOp, rewriter: PatternRewriter) -> None:
-        terms = self.terms
+        terms = 4
         if "terms" in op.attributes:
             attr = op.attributes["terms"]
             if isinstance(attr, IntegerAttr):
@@ -101,11 +97,8 @@ class ExpandMathToPolynomialsPass(ModulePass):
 
     name = "expand-math-to-polynomials"
 
-    terms: int = 4
-    """Number of terms in the resulting polynomial expansion."""
-
     def apply(self, ctx: Context, op: ModuleOp) -> None:
         PatternRewriteWalker(
-            ExpandExp(self.terms),
+            ExpandExp(),
             apply_recursively=False,
         ).rewrite_module(op)
