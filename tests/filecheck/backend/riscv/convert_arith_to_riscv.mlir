@@ -33,6 +33,62 @@ builtin.module {
     // CHECK-NEXT: riscv.sw %{{.*}}, %{{.*}}, -8 : (!riscv.reg<sp>, !riscv.reg) -> ()
     // CHECK-NEXT: %{{.*}} = riscv.fld %{{.*}}, -8 : (!riscv.reg<sp>) -> !riscv.freg
 
+    %dense_1xf64 = arith.constant dense<[3.140000e+00]> : vector<1xf64>
+    // CHECK-NEXT: %{{.*}} = rv32.get_register : !riscv.reg<sp>
+    // CHECK-NEXT: %{{.*}} = rv32.li 1074339512 : !riscv.reg
+    // CHECK-NEXT: riscv.sw %{{.*}}, %{{.*}}, -4 : (!riscv.reg<sp>, !riscv.reg) -> ()
+    // CHECK-NEXT: %{{.*}} = rv32.li 1374389535 : !riscv.reg
+    // CHECK-NEXT: riscv.sw %{{.*}}, %{{.*}}, -8 : (!riscv.reg<sp>, !riscv.reg) -> ()
+    // CHECK-NEXT: %{{.*}} = riscv.fld %{{.*}}, -8 : (!riscv.reg<sp>) -> !riscv.freg
+
+    %dense_2xf32 = arith.constant dense<[1.000000e+00, 2.000000e+00]> : vector<2xf32>
+    // CHECK-NEXT: %{{.*}} = rv32.get_register : !riscv.reg<sp>
+    // CHECK-NEXT: %{{.*}} = rv32.li 1073741824 : !riscv.reg
+    // CHECK-NEXT: riscv.sw %{{.*}}, %{{.*}}, -4 : (!riscv.reg<sp>, !riscv.reg) -> ()
+    // CHECK-NEXT: %{{.*}} = rv32.li 1065353216 : !riscv.reg
+    // CHECK-NEXT: riscv.sw %{{.*}}, %{{.*}}, -8 : (!riscv.reg<sp>, !riscv.reg) -> ()
+    // CHECK-NEXT: %{{.*}} = riscv.fld %{{.*}}, -8 : (!riscv.reg<sp>) -> !riscv.freg
+
+    %dense_4xf16 = arith.constant dense<[1.000000e+00, 2.000000e+00, 3.000000e+00, 4.000000e+00]> : vector<4xf16>
+    // CHECK-NEXT: %{{.*}} = rv32.get_register : !riscv.reg<sp>
+    // CHECK-NEXT: %{{.*}} = rv32.li 1140867584 : !riscv.reg
+    // CHECK-NEXT: riscv.sw %{{.*}}, %{{.*}}, -4 : (!riscv.reg<sp>, !riscv.reg) -> ()
+    // CHECK-NEXT: %{{.*}} = rv32.li 1073757184 : !riscv.reg
+    // CHECK-NEXT: riscv.sw %{{.*}}, %{{.*}}, -8 : (!riscv.reg<sp>, !riscv.reg) -> ()
+    // CHECK-NEXT: %{{.*}} = riscv.fld %{{.*}}, -8 : (!riscv.reg<sp>) -> !riscv.freg
+
+    %dense_8xi8 = arith.constant dense<[1, 2, 3, 4, 5, 6, 7, 8]> : vector<8xi8>
+    // CHECK-NEXT: %{{.*}} = rv32.get_register : !riscv.reg<sp>
+    // CHECK-NEXT: %{{.*}} = rv32.li 134678021 : !riscv.reg
+    // CHECK-NEXT: riscv.sw %{{.*}}, %{{.*}}, -4 : (!riscv.reg<sp>, !riscv.reg) -> ()
+    // CHECK-NEXT: %{{.*}} = rv32.li 67305985 : !riscv.reg
+    // CHECK-NEXT: riscv.sw %{{.*}}, %{{.*}}, -8 : (!riscv.reg<sp>, !riscv.reg) -> ()
+    // CHECK-NEXT: %{{.*}} = riscv.fld %{{.*}}, -8 : (!riscv.reg<sp>) -> !riscv.freg
+
+   %dense_4xi16 = arith.constant dense<[1, 2, 3, 4]> : vector<4xi16>
+    // CHECK-NEXT: %{{.*}} = rv32.get_register : !riscv.reg<sp>
+    // CHECK-NEXT: %{{.*}} = rv32.li 262147 : !riscv.reg
+    // CHECK-NEXT: riscv.sw %{{.*}}, %{{.*}}, -4 : (!riscv.reg<sp>, !riscv.reg) -> ()
+    // CHECK-NEXT: %{{.*}} = rv32.li 131073 : !riscv.reg
+    // CHECK-NEXT: riscv.sw %{{.*}}, %{{.*}}, -8 : (!riscv.reg<sp>, !riscv.reg) -> ()
+    // CHECK-NEXT: %{{.*}} = riscv.fld %{{.*}}, -8 : (!riscv.reg<sp>) -> !riscv.freg
+
+     %dense_2xi32 = arith.constant dense<[1, 2]> : vector<2xi32>
+    // CHECK-NEXT: %{{.*}} = rv32.get_register : !riscv.reg<sp>
+    // CHECK-NEXT: %{{.*}} = rv32.li 2 : !riscv.reg
+    // CHECK-NEXT: riscv.sw %{{.*}}, %{{.*}}, -4 : (!riscv.reg<sp>, !riscv.reg) -> ()
+    // CHECK-NEXT: %{{.*}} = rv32.li 1 : !riscv.reg
+    // CHECK-NEXT: riscv.sw %{{.*}}, %{{.*}}, -8 : (!riscv.reg<sp>, !riscv.reg) -> ()
+    // CHECK-NEXT: %{{.*}} = riscv.fld %{{.*}}, -8 : (!riscv.reg<sp>) -> !riscv.freg
+
+    %dense_1xi64 = arith.constant dense<[42]> : vector<1xi64>
+    // CHECK-NEXT: %{{.*}} = rv32.get_register : !riscv.reg<sp>
+    // CHECK-NEXT: %{{.*}} = rv32.li 0 : !riscv.reg
+    // CHECK-NEXT: riscv.sw %{{.*}}, %{{.*}}, -4 : (!riscv.reg<sp>, !riscv.reg) -> ()
+    // CHECK-NEXT: %{{.*}} = rv32.li 42 : !riscv.reg
+    // CHECK-NEXT: riscv.sw %{{.*}}, %{{.*}}, -8 : (!riscv.reg<sp>, !riscv.reg) -> ()
+    // CHECK-NEXT: %{{.*}} = riscv.fld %{{.*}}, -8 : (!riscv.reg<sp>) -> !riscv.freg
+
     %addi32 = "arith.addi"(%lhsi32, %rhsi32) : (i32, i32) -> i32
     // CHECK-NEXT: %{{.*}} = riscv.add %lhsi32, %rhsi32 : (!riscv.reg, !riscv.reg) -> !riscv.reg
     %addindex = "arith.addi"(%lhsindex, %rhsindex) : (index, index) -> index
