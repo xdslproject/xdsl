@@ -506,6 +506,63 @@ x86.ms.vmovups [%1 + 8], %zmm1 : (!x86.reg, !x86.avx512reg) -> ()
 // CHECK-NEXT: x86.ms.vmovups [%1 + 8], %zmm1 : (!x86.reg, !x86.avx512reg) -> ()
 
 
+// ---- dmk.vmovapd (masked load) ----
+%dmk_vmovapd = x86.dmk.vmovapd [%1], %k1 : (!x86.reg, !x86.avx512maskreg) -> !x86.avx512reg
+// CHECK-NEXT: %dmk_vmovapd = x86.dmk.vmovapd[%1], %k1 : (!x86.reg, !x86.avx512maskreg) -> !x86.avx512reg
+%dmk_vmovapd_offset = x86.dmk.vmovapd [%1 + 8], %k1 : (!x86.reg, !x86.avx512maskreg) -> !x86.avx512reg
+// CHECK-NEXT: %dmk_vmovapd_offset = x86.dmk.vmovapd[%1 + 8], %k1 : (!x86.reg, !x86.avx512maskreg) -> !x86.avx512reg
+%dmk_vmovapd_z = x86.dmk.vmovapd [%1], %k1 {z} : (!x86.reg, !x86.avx512maskreg) -> !x86.avx512reg
+// CHECK-NEXT: %dmk_vmovapd_z = x86.dmk.vmovapd[%1], %k1 {z} : (!x86.reg, !x86.avx512maskreg) -> !x86.avx512reg
+
+// ---- dmk.vmovupd (masked load) ----
+%dmk_vmovupd = x86.dmk.vmovupd [%1], %k1 : (!x86.reg, !x86.avx512maskreg) -> !x86.avx512reg
+// CHECK-NEXT: %dmk_vmovupd = x86.dmk.vmovupd[%1], %k1 : (!x86.reg, !x86.avx512maskreg) -> !x86.avx512reg
+%dmk_vmovupd_offset = x86.dmk.vmovupd [%1 + 8], %k1 : (!x86.reg, !x86.avx512maskreg) -> !x86.avx512reg
+// CHECK-NEXT: %dmk_vmovupd_offset = x86.dmk.vmovupd[%1 + 8], %k1 : (!x86.reg, !x86.avx512maskreg) -> !x86.avx512reg
+%dmk_vmovupd_z = x86.dmk.vmovupd [%1], %k1 {z} : (!x86.reg, !x86.avx512maskreg) -> !x86.avx512reg
+// CHECK-NEXT: %dmk_vmovupd_z = x86.dmk.vmovupd[%1], %k1 {z} : (!x86.reg, !x86.avx512maskreg) -> !x86.avx512reg
+
+// ---- dmk.vmovaps (masked load) ----
+%dmk_vmovaps = x86.dmk.vmovaps [%1], %k1 : (!x86.reg, !x86.avx512maskreg) -> !x86.avx512reg
+// CHECK-NEXT: %dmk_vmovaps = x86.dmk.vmovaps[%1], %k1 : (!x86.reg, !x86.avx512maskreg) -> !x86.avx512reg
+%dmk_vmovaps_offset = x86.dmk.vmovaps [%1 + 8], %k1 : (!x86.reg, !x86.avx512maskreg) -> !x86.avx512reg
+// CHECK-NEXT: %dmk_vmovaps_offset = x86.dmk.vmovaps[%1 + 8], %k1 : (!x86.reg, !x86.avx512maskreg) -> !x86.avx512reg
+%dmk_vmovaps_z = x86.dmk.vmovaps [%1], %k1 {z} : (!x86.reg, !x86.avx512maskreg) -> !x86.avx512reg
+// CHECK-NEXT: %dmk_vmovaps_z = x86.dmk.vmovaps[%1], %k1 {z} : (!x86.reg, !x86.avx512maskreg) -> !x86.avx512reg
+
+// ---- dmk.vmovups (masked load) ----
+%dmk_vmovups = x86.dmk.vmovups [%1], %k1 : (!x86.reg, !x86.avx512maskreg) -> !x86.avx512reg
+// CHECK-NEXT: %dmk_vmovups = x86.dmk.vmovups[%1], %k1 : (!x86.reg, !x86.avx512maskreg) -> !x86.avx512reg
+%dmk_vmovups_offset = x86.dmk.vmovups [%1 + 8], %k1 : (!x86.reg, !x86.avx512maskreg) -> !x86.avx512reg
+// CHECK-NEXT: %dmk_vmovups_offset = x86.dmk.vmovups[%1 + 8], %k1 : (!x86.reg, !x86.avx512maskreg) -> !x86.avx512reg
+%dmk_vmovups_z = x86.dmk.vmovups [%1], %k1 {z} : (!x86.reg, !x86.avx512maskreg) -> !x86.avx512reg
+// CHECK-NEXT: %dmk_vmovups_z = x86.dmk.vmovups[%1], %k1 {z} : (!x86.reg, !x86.avx512maskreg) -> !x86.avx512reg
+
+// ---- msk.vmovapd (masked store) ----
+x86.msk.vmovapd [%1], %zmm1, %k1 : (!x86.reg, !x86.avx512reg, !x86.avx512maskreg) -> ()
+// CHECK-NEXT: x86.msk.vmovapd[%1], %zmm1, %k1 : (!x86.reg, !x86.avx512reg, !x86.avx512maskreg) -> ()
+x86.msk.vmovapd [%1 + 8], %zmm1, %k1 : (!x86.reg, !x86.avx512reg, !x86.avx512maskreg) -> ()
+// CHECK-NEXT: x86.msk.vmovapd[%1 + 8], %zmm1, %k1 : (!x86.reg, !x86.avx512reg, !x86.avx512maskreg) -> ()
+
+// ---- msk.vmovupd (masked store) ----
+x86.msk.vmovupd [%1], %zmm1, %k1 : (!x86.reg, !x86.avx512reg, !x86.avx512maskreg) -> ()
+// CHECK-NEXT: x86.msk.vmovupd[%1], %zmm1, %k1 : (!x86.reg, !x86.avx512reg, !x86.avx512maskreg) -> ()
+x86.msk.vmovupd [%1 + 8], %zmm1, %k1 : (!x86.reg, !x86.avx512reg, !x86.avx512maskreg) -> ()
+// CHECK-NEXT: x86.msk.vmovupd[%1 + 8], %zmm1, %k1 : (!x86.reg, !x86.avx512reg, !x86.avx512maskreg) -> ()
+
+// ---- msk.vmovaps (masked store) ----
+x86.msk.vmovaps [%1], %zmm1, %k1 : (!x86.reg, !x86.avx512reg, !x86.avx512maskreg) -> ()
+// CHECK-NEXT: x86.msk.vmovaps[%1], %zmm1, %k1 : (!x86.reg, !x86.avx512reg, !x86.avx512maskreg) -> ()
+x86.msk.vmovaps [%1 + 8], %zmm1, %k1 : (!x86.reg, !x86.avx512reg, !x86.avx512maskreg) -> ()
+// CHECK-NEXT: x86.msk.vmovaps[%1 + 8], %zmm1, %k1 : (!x86.reg, !x86.avx512reg, !x86.avx512maskreg) -> ()
+
+// ---- msk.vmovups (masked store) ----
+x86.msk.vmovups [%1], %zmm1, %k1 : (!x86.reg, !x86.avx512reg, !x86.avx512maskreg) -> ()
+// CHECK-NEXT: x86.msk.vmovups[%1], %zmm1, %k1 : (!x86.reg, !x86.avx512reg, !x86.avx512maskreg) -> ()
+x86.msk.vmovups [%1 + 8], %zmm1, %k1 : (!x86.reg, !x86.avx512reg, !x86.avx512maskreg) -> ()
+// CHECK-NEXT: x86.msk.vmovups[%1 + 8], %zmm1, %k1 : (!x86.reg, !x86.avx512reg, !x86.avx512maskreg) -> ()
+
+
 // ---- vmovntpd ----
 x86.ms.vmovntpd [%1 + 8], %xmm1 : (!x86.reg, !x86.ssereg) -> ()
 // CHECK-NEXT: x86.ms.vmovntpd [%1 + 8], %xmm1 : (!x86.reg, !x86.ssereg) -> ()
