@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from abc import ABC
 
+from typing_extensions import override
+
 from xdsl.backend.register_type import RegisterType
 from xdsl.irdl import (
     irdl_attr_definition,
@@ -147,30 +149,29 @@ UNALLOCATED_RFLAGS = RFLAGSRegisterType.unallocated()
 RFLAGS = RFLAGSRegisterType.from_name("rflags")
 
 
+X86_VECTOR_POOL_KEY = "x86.vector"
+"""
+Pool key for x86 vector register allocation.
+
+``xmm*``, ``ymm*``, and ``zmm*`` share one physical register per index where they
+overlap (e.g. xmm0/ymm0/zmm0). Indices are drawn from a single pool; targets configure
+how many names exist (e.g. 8, 16, or 32) via
+[RegisterType.allocatable_registers][xdsl.backend.register_type.RegisterType.allocatable_registers].
+"""
+
+
 class X86VectorRegisterType(X86RegisterType):
     """
     The abstract class for all x86 vector register types.
     """
 
+    @override
+    @classmethod
+    def register_pool_key(cls) -> str:
+        return X86_VECTOR_POOL_KEY
 
-SSE_INDEX_BY_NAME = {
-    "xmm0": 0,
-    "xmm1": 1,
-    "xmm2": 2,
-    "xmm3": 3,
-    "xmm4": 4,
-    "xmm5": 5,
-    "xmm6": 6,
-    "xmm7": 7,
-    "xmm8": 8,
-    "xmm9": 9,
-    "xmm10": 10,
-    "xmm11": 11,
-    "xmm12": 12,
-    "xmm13": 13,
-    "xmm14": 14,
-    "xmm15": 15,
-}
+
+SSE_INDEX_BY_NAME = {f"xmm{i}": i for i in range(32)}
 """
 Mapping of SSE register names to their indices.
 
@@ -194,9 +195,13 @@ class SSERegisterType(X86VectorRegisterType):
     def infinite_register_prefix(cls):
         return "inf_sse_"
 
+    @classmethod
+    def allocatable_registers(cls):
+        return XMM
+
 
 UNALLOCATED_SSE = SSERegisterType.unallocated()
-XMM = tuple(SSERegisterType.from_name(f"xmm{i}") for i in range(16))
+XMM = tuple(SSERegisterType.from_name(f"xmm{i}") for i in range(32))
 (
     XMM0,
     XMM1,
@@ -214,27 +219,26 @@ XMM = tuple(SSERegisterType.from_name(f"xmm{i}") for i in range(16))
     XMM13,
     XMM14,
     XMM15,
+    XMM16,
+    XMM17,
+    XMM18,
+    XMM19,
+    XMM20,
+    XMM21,
+    XMM22,
+    XMM23,
+    XMM24,
+    XMM25,
+    XMM26,
+    XMM27,
+    XMM28,
+    XMM29,
+    XMM30,
+    XMM31,
 ) = XMM
 
 
-AVX2_INDEX_BY_NAME = {
-    "ymm0": 0,
-    "ymm1": 1,
-    "ymm2": 2,
-    "ymm3": 3,
-    "ymm4": 4,
-    "ymm5": 5,
-    "ymm6": 6,
-    "ymm7": 7,
-    "ymm8": 8,
-    "ymm9": 9,
-    "ymm10": 10,
-    "ymm11": 11,
-    "ymm12": 12,
-    "ymm13": 13,
-    "ymm14": 14,
-    "ymm15": 15,
-}
+AVX2_INDEX_BY_NAME = {f"ymm{i}": i for i in range(32)}
 """
 Mapping of AVX2 register names to their indices.
 
@@ -264,7 +268,7 @@ class AVX2RegisterType(X86VectorRegisterType):
 
 
 UNALLOCATED_AVX2 = AVX2RegisterType.unallocated()
-YMM = tuple(AVX2RegisterType.from_name(f"ymm{i}") for i in range(16))
+YMM = tuple(AVX2RegisterType.from_name(f"ymm{i}") for i in range(32))
 (
     YMM0,
     YMM1,
@@ -282,43 +286,26 @@ YMM = tuple(AVX2RegisterType.from_name(f"ymm{i}") for i in range(16))
     YMM13,
     YMM14,
     YMM15,
+    YMM16,
+    YMM17,
+    YMM18,
+    YMM19,
+    YMM20,
+    YMM21,
+    YMM22,
+    YMM23,
+    YMM24,
+    YMM25,
+    YMM26,
+    YMM27,
+    YMM28,
+    YMM29,
+    YMM30,
+    YMM31,
 ) = YMM
 
 
-X86AVX512_INDEX_BY_NAME = {
-    "zmm0": 0,
-    "zmm1": 1,
-    "zmm2": 2,
-    "zmm3": 3,
-    "zmm4": 4,
-    "zmm5": 5,
-    "zmm6": 6,
-    "zmm7": 7,
-    "zmm8": 8,
-    "zmm9": 9,
-    "zmm10": 10,
-    "zmm11": 11,
-    "zmm12": 12,
-    "zmm13": 13,
-    "zmm14": 14,
-    "zmm15": 15,
-    "zmm16": 16,
-    "zmm17": 17,
-    "zmm18": 18,
-    "zmm19": 19,
-    "zmm20": 20,
-    "zmm21": 21,
-    "zmm22": 22,
-    "zmm23": 23,
-    "zmm24": 24,
-    "zmm25": 25,
-    "zmm26": 26,
-    "zmm27": 27,
-    "zmm28": 28,
-    "zmm29": 29,
-    "zmm30": 30,
-    "zmm31": 31,
-}
+X86AVX512_INDEX_BY_NAME = {f"zmm{i}": i for i in range(32)}
 """
 Mapping of AVX512 register names to their indices.
 
@@ -385,16 +372,7 @@ ZMM = tuple(AVX512RegisterType.from_name(f"zmm{i}") for i in range(32))
 ) = ZMM
 
 
-X86AVX512_MASK_INDEX_BY_NAME = {
-    "k0": 0,
-    "k1": 1,
-    "k2": 2,
-    "k3": 3,
-    "k4": 4,
-    "k5": 5,
-    "k6": 6,
-    "k7": 7,
-}
+X86AVX512_MASK_INDEX_BY_NAME = {f"k{i}": i for i in range(8)}
 
 
 @irdl_attr_definition
