@@ -190,7 +190,7 @@ class GenericParser(Generic[TokenKindT]):
 
     def parse_list(
         self,
-        delimiter: Delimiter,
+        delimiter: Delimiter | tuple[str, str] | None,
         parse: Callable[[], _AnyInvT],
         separator: str = ",",
         context_msg: str = "",
@@ -203,9 +203,12 @@ class GenericParser(Generic[TokenKindT]):
         expected to be parsed.
         """
 
+        if isinstance(delimiter, self.Delimiter):
+            delimiter = delimiter.value
+
         # Parse the opening bracket, and possibly the closing bracket, if a delimiter
         # was provided
-        match delimiter.value:
+        match delimiter:
             case None:
                 pass
             case (left_punctuation, right_punctuation):
@@ -219,7 +222,7 @@ class GenericParser(Generic[TokenKindT]):
             elems.append(parse())
 
         # Parse the closing bracket, if a delimiter was provided
-        match delimiter.value:
+        match delimiter:
             case None:
                 pass
             case (_, right_punctuation):
@@ -262,7 +265,7 @@ class GenericParser(Generic[TokenKindT]):
             return None
         if self.parse_optional_characters(right_punctuation) is not None:
             return []
-        elems = self.parse_list(delimiter.NONE, parse, ",", context_msg)
+        elems = self.parse_list(None, parse, ",", context_msg)
         self.parse_characters(right_punctuation, context_msg)
 
         return elems
@@ -286,7 +289,7 @@ class GenericParser(Generic[TokenKindT]):
         # Parse the remaining elements
         elems = [first_elem]
         if self.parse_optional_characters(",") is not None:
-            elems.extend(self.parse_list(self.Delimiter.NONE, parse))
+            elems.extend(self.parse_list(None, parse))
 
         return elems
 
