@@ -19,10 +19,10 @@ from xdsl.dialects.builtin import (
 from xdsl.dialects.vector import (
     BroadcastOp,
     CreateMaskOp,
-    ExtractElementOp,
+    ExtractElementOp,  # pyright: ignore[reportDeprecated]
     ExtractOp,
     FMAOp,
-    InsertElementOp,
+    InsertElementOp,  # pyright: ignore[reportDeprecated]
     InsertOp,
     LoadOp,
     MaskedLoadOp,
@@ -455,7 +455,8 @@ def test_vector_extract_element_verify_vector_rank_0_or_1():
 
     vector = create_ssa_value(vector_type)
     position = create_ssa_value(IndexType())
-    extract_element = ExtractElementOp(vector, position)
+    with pytest.deprecated_call():
+        extract_element = ExtractElementOp(vector, position)  # pyright: ignore[reportDeprecated]
 
     with pytest.raises(Exception, match="Unexpected >1 vector rank."):
         extract_element.verify()
@@ -467,7 +468,8 @@ def test_vector_extract_element_construction_1d():
     vector = create_ssa_value(vector_type)
     position = create_ssa_value(IndexType())
 
-    extract_element = ExtractElementOp(vector, position)
+    with pytest.deprecated_call():
+        extract_element = ExtractElementOp(vector, position)  # pyright: ignore[reportDeprecated]
 
     assert extract_element.vector is vector
     assert extract_element.position is position
@@ -479,7 +481,8 @@ def test_vector_extract_element_1d_verify_non_empty_position():
 
     vector = create_ssa_value(vector_type)
 
-    extract_element = ExtractElementOp(vector)
+    with pytest.deprecated_call():
+        extract_element = ExtractElementOp(vector)  # pyright: ignore[reportDeprecated]
 
     with pytest.raises(Exception, match="Expected position for 1-D vector."):
         extract_element.verify()
@@ -490,7 +493,8 @@ def test_vector_extract_element_construction_0d():
 
     vector = create_ssa_value(vector_type)
 
-    extract_element = ExtractElementOp(vector)
+    with pytest.deprecated_call():
+        extract_element = ExtractElementOp(vector)  # pyright: ignore[reportDeprecated]
 
     assert extract_element.vector is vector
     assert extract_element.position is None
@@ -503,7 +507,8 @@ def test_vector_extract_element_0d_verify_empty_position():
     vector = create_ssa_value(vector_type)
     position = create_ssa_value(IndexType())
 
-    extract_element = ExtractElementOp(vector, position)
+    with pytest.deprecated_call():
+        extract_element = ExtractElementOp(vector, position)  # pyright: ignore[reportDeprecated]
 
     with pytest.raises(
         Exception, match="Expected position to be empty with 0-D vector."
@@ -540,7 +545,8 @@ def test_vector_insert_element_verify_vector_rank_0_or_1():
     dest = create_ssa_value(vector_type)
     position = create_ssa_value(IndexType())
 
-    insert_element = InsertElementOp(source, dest, position)
+    with pytest.deprecated_call():
+        insert_element = InsertElementOp(source, dest, position)  # pyright: ignore[reportDeprecated]
 
     with pytest.raises(Exception, match="Unexpected >1 vector rank."):
         insert_element.verify()
@@ -553,7 +559,8 @@ def test_vector_insert_element_construction_1d():
     dest = create_ssa_value(vector_type)
     position = create_ssa_value(IndexType())
 
-    insert_element = InsertElementOp(source, dest, position)
+    with pytest.deprecated_call():
+        insert_element = InsertElementOp(source, dest, position)  # pyright: ignore[reportDeprecated]
 
     assert insert_element.source is source
     assert insert_element.dest is dest
@@ -567,7 +574,8 @@ def test_vector_insert_element_1d_verify_non_empty_position():
     source = create_ssa_value(IndexType())
     dest = create_ssa_value(vector_type)
 
-    insert_element = InsertElementOp(source, dest)
+    with pytest.deprecated_call():
+        insert_element = InsertElementOp(source, dest)  # pyright: ignore[reportDeprecated]
 
     with pytest.raises(
         Exception,
@@ -582,7 +590,8 @@ def test_vector_insert_element_construction_0d():
     source = create_ssa_value(IndexType())
     dest = create_ssa_value(vector_type)
 
-    insert_element = InsertElementOp(source, dest)
+    with pytest.deprecated_call():
+        insert_element = InsertElementOp(source, dest)  # pyright: ignore[reportDeprecated]
 
     assert insert_element.source is source
     assert insert_element.dest is dest
@@ -597,7 +606,8 @@ def test_vector_insert_element_0d_verify_empty_position():
     dest = create_ssa_value(vector_type)
     position = create_ssa_value(IndexType())
 
-    insert_element = InsertElementOp(source, dest, position)
+    with pytest.deprecated_call():
+        insert_element = InsertElementOp(source, dest, position)  # pyright: ignore[reportDeprecated]
 
     with pytest.raises(
         Exception,

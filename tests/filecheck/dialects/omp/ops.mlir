@@ -2,7 +2,7 @@
 
 builtin.module {
   func.func @omp_parallel(%arg0: memref<1xi32>, %arg1: i1, %arg2: i32) {
-    "omp.parallel"(%arg0, %arg0, %arg1, %arg2) <{operandSegmentSizes = array<i32: 1, 1, 1, 1, 0, 0>, "proc_bind_kind" = #omp.procbindkind spread}> ({
+    "omp.parallel"(%arg0, %arg0, %arg1, %arg2) <{operandSegmentSizes = array<i32: 1, 1, 1, 1, 0, 0>, "proc_bind_kind" = #omp<procbindkind spread>}> ({
       "omp.parallel"(%arg0, %arg0, %arg2) <{operandSegmentSizes = array<i32: 1, 1, 0, 1, 0, 0>}> ({
         "omp.terminator"() : () -> ()
       }) : (memref<1xi32>, memref<1xi32>, i32) -> ()
@@ -133,8 +133,8 @@ builtin.module {
   }
   func.func @omp_map_info_bounds(%lb: index, %ub: index, %ptr: memref<1xf32>, %ptr_ptr: memref<1xmemref<1xf32>>) {
     %bounds = "omp.map.bounds"(%lb, %ub) <{operandSegmentSizes = array<i32: 1, 1, 0, 0, 0>}> : (index, index) -> !omp.map_bounds_ty
-    %ptr_info = "omp.map.info"(%ptr, %ptr_ptr, %bounds) <{operandSegmentSizes = array<i32: 1, 1, 0, 1>, var_type = memref<1xf32>, map_type = 1 : ui64, map_capture_type = #omp<variable_capture_kind(ByCopy)>, name = "ptr_info"}> : (memref<1xf32>, memref<1xmemref<1xf32>>, !omp.map_bounds_ty) -> memref<1xf32>
-    %ptr_ptr_info = "omp.map.info"(%ptr_ptr, %ptr_info, %bounds) <{operandSegmentSizes = array<i32: 1, 0, 1, 1>, map_type = 1 : ui64, map_capture_type = #omp<variable_capture_kind (ByCopy)>, var_type = memref<1xmemref<1xf32>>}> : (memref<1xmemref<1xf32>>, memref<1xf32>, !omp.map_bounds_ty) -> memref<1xmemref<1xf32>>
+    %ptr_info = "omp.map.info"(%ptr, %ptr_ptr, %bounds) <{operandSegmentSizes = array<i32: 1, 1, 0, 1>, var_type = memref<1xf32>, map_type = #omp<clause_map_flags to>, map_capture_type = #omp<variable_capture_kind(ByCopy)>, name = "ptr_info"}> : (memref<1xf32>, memref<1xmemref<1xf32>>, !omp.map_bounds_ty) -> memref<1xf32>
+    %ptr_ptr_info = "omp.map.info"(%ptr_ptr, %ptr_info, %bounds) <{operandSegmentSizes = array<i32: 1, 0, 1, 1>, map_type = #omp<clause_map_flags to>, map_capture_type = #omp<variable_capture_kind (ByCopy)>, var_type = memref<1xmemref<1xf32>>}> : (memref<1xmemref<1xf32>>, memref<1xf32>, !omp.map_bounds_ty) -> memref<1xmemref<1xf32>>
     func.return
   }
   func.func @omp_simd(%ub: index, %lb: index, %step: index, %if: i1, %nt: memref<1xi32>, %p1: f32, %r1: memref<1xf32>) {
@@ -171,7 +171,7 @@ builtin.module {
     func.return
   }
   func.func @omp_target_data(%dev: i64, %if: i1, %m: memref<1xf32>, %d1: memref<1xf32>, %d2: memref<1xf32>) {
-    %m1 = "omp.map.info"(%m) <{operandSegmentSizes = array<i32: 1, 0, 0, 0>, var_type = memref<1xf32>, map_type = 1 : ui64, map_capture_type = #omp<variable_capture_kind(ByCopy)>}> : (memref<1xf32>) -> memref<1xf32>
+    %m1 = "omp.map.info"(%m) <{operandSegmentSizes = array<i32: 1, 0, 0, 0>, var_type = memref<1xf32>, map_type = #omp<clause_map_flags to>, map_capture_type = #omp<variable_capture_kind(ByCopy)>}> : (memref<1xf32>) -> memref<1xf32>
     "omp.target_data"(%dev, %if, %m1, %d1, %d2, %d2) <{operandSegmentSizes = array<i32: 1, 1, 1, 2, 1>}> ({
     ^bb0(%0: memref<1xf32>, %1: memref<1xf32>, %2: memref<1xf32>):
       "omp.terminator"() : () -> ()
@@ -180,9 +180,9 @@ builtin.module {
   }
 
   func.func @omp_target_data_task(%dep: memref<1xi32>, %dev: i32, %if: i1, %m1: memref<1xf32>, %m2: memref<1xf32>, %m3: memref<1xf32>) {
-    %to = "omp.map.info"  (%m1) <{operandSegmentSizes = array<i32: 1, 0, 0, 0>, var_type = memref<1xf32>, map_type = 0x01 : ui64, map_capture_type = #omp<variable_capture_kind(ByCopy)>}> : (memref<1xf32>) -> memref<1xf32>
-    %from = "omp.map.info"(%m2) <{operandSegmentSizes = array<i32: 1, 0, 0, 0>, var_type = memref<1xf32>, map_type = 0x02 : ui64, map_capture_type = #omp<variable_capture_kind(ByCopy)>}> : (memref<1xf32>) -> memref<1xf32>
-    %del = "omp.map.info" (%m3) <{operandSegmentSizes = array<i32: 1, 0, 0, 0>, var_type = memref<1xf32>, map_type = 0x08 : ui64, map_capture_type = #omp<variable_capture_kind(ByCopy)>}> : (memref<1xf32>) -> memref<1xf32>
+    %to = "omp.map.info"  (%m1) <{operandSegmentSizes = array<i32: 1, 0, 0, 0>, var_type = memref<1xf32>, map_type = #omp<clause_map_flags to>, map_capture_type = #omp<variable_capture_kind(ByCopy)>}> : (memref<1xf32>) -> memref<1xf32>
+    %from = "omp.map.info"(%m2) <{operandSegmentSizes = array<i32: 1, 0, 0, 0>, var_type = memref<1xf32>, map_type = #omp<clause_map_flags from>, map_capture_type = #omp<variable_capture_kind(ByCopy)>}> : (memref<1xf32>) -> memref<1xf32>
+    %del = "omp.map.info" (%m3) <{operandSegmentSizes = array<i32: 1, 0, 0, 0>, var_type = memref<1xf32>, map_type =  #omp<clause_map_flags del>, map_capture_type = #omp<variable_capture_kind(ByCopy)>}> : (memref<1xf32>) -> memref<1xf32>
     "omp.target_enter_data"(%dep, %dev, %if, %to)         <{operandSegmentSizes = array<i32: 1, 1, 1, 1>, "nowait", depend_kinds=[#omp<clause_task_depend(taskdependin)>]}>: (memref<1xi32>, i32, i1, memref<1xf32>) -> ()
     "omp.target_update"    (%dep, %dev, %if, %to, %from)  <{operandSegmentSizes = array<i32: 1, 1, 1, 2>, "nowait", depend_kinds=[#omp<clause_task_depend(taskdependin)>]}>: (memref<1xi32>, i32, i1, memref<1xf32>, memref<1xf32>) -> ()
     "omp.target_exit_data" (%dep, %dev, %if, %from, %del) <{operandSegmentSizes = array<i32: 1, 1, 1, 2>, "nowait", depend_kinds=[#omp<clause_task_depend(taskdependin)>]}>: (memref<1xi32>, i32, i1, memref<1xf32>, memref<1xf32>) -> ()
@@ -422,8 +422,8 @@ builtin.module {
 // CHECK-NEXT:    }
 // CHECK-NEXT:    func.func @omp_map_info_bounds(%lb: index, %ub: index, %ptr: memref<1xf32>, %ptr_ptr: memref<1xmemref<1xf32>>) {
 // CHECK-NEXT:      %bounds = "omp.map.bounds"(%lb, %ub) <{operandSegmentSizes = array<i32: 1, 1, 0, 0, 0>, stride_in_bytes = false}> : (index, index) -> !omp.map_bounds_ty
-// CHECK-NEXT:      %ptr_info = "omp.map.info"(%ptr, %ptr_ptr, %bounds) <{operandSegmentSizes = array<i32: 1, 1, 0, 1>, var_type = memref<1xf32>, map_type = 1 : ui64, map_capture_type = #omp<variable_capture_kind (ByCopy)>, name = "ptr_info"}> : (memref<1xf32>, memref<1xmemref<1xf32>>, !omp.map_bounds_ty) -> memref<1xf32>
-// CHECK-NEXT:      %ptr_ptr_info = "omp.map.info"(%ptr_ptr, %ptr_info, %bounds) <{operandSegmentSizes = array<i32: 1, 0, 1, 1>, map_type = 1 : ui64, map_capture_type = #omp<variable_capture_kind (ByCopy)>, var_type = memref<1xmemref<1xf32>>}> : (memref<1xmemref<1xf32>>, memref<1xf32>, !omp.map_bounds_ty) -> memref<1xmemref<1xf32>>
+// CHECK-NEXT:      %ptr_info = "omp.map.info"(%ptr, %ptr_ptr, %bounds) <{operandSegmentSizes = array<i32: 1, 1, 0, 1>, var_type = memref<1xf32>, map_type = #omp<clause_map_flags to>, map_capture_type = #omp<variable_capture_kind (ByCopy)>, name = "ptr_info"}> : (memref<1xf32>, memref<1xmemref<1xf32>>, !omp.map_bounds_ty) -> memref<1xf32>
+// CHECK-NEXT:      %ptr_ptr_info = "omp.map.info"(%ptr_ptr, %ptr_info, %bounds) <{operandSegmentSizes = array<i32: 1, 0, 1, 1>, map_type = #omp<clause_map_flags to>, map_capture_type = #omp<variable_capture_kind (ByCopy)>, var_type = memref<1xmemref<1xf32>>}> : (memref<1xmemref<1xf32>>, memref<1xf32>, !omp.map_bounds_ty) -> memref<1xmemref<1xf32>>
 // CHECK-NEXT:      func.return
 // CHECK-NEXT:    }
 // CHECK-NEXT:    func.func @omp_simd(%ub: index, %lb: index, %step: index, %if: i1, %nt: memref<1xi32>, %p1: f32, %r1: memref<1xf32>) {
@@ -455,7 +455,7 @@ builtin.module {
 // CHECK-NEXT:      func.return
 // CHECK-NEXT:    }
 // CHECK-NEXT:    func.func @omp_target_data(%dev: i64, %if: i1, %m: memref<1xf32>, %d1: memref<1xf32>, %d2: memref<1xf32>) {
-// CHECK-NEXT:      %m1 = "omp.map.info"(%m) <{operandSegmentSizes = array<i32: 1, 0, 0, 0>, var_type = memref<1xf32>, map_type = 1 : ui64, map_capture_type = #omp<variable_capture_kind (ByCopy)>}> : (memref<1xf32>) -> memref<1xf32>
+// CHECK-NEXT:      %m1 = "omp.map.info"(%m) <{operandSegmentSizes = array<i32: 1, 0, 0, 0>, var_type = memref<1xf32>, map_type = #omp<clause_map_flags to>, map_capture_type = #omp<variable_capture_kind (ByCopy)>}> : (memref<1xf32>) -> memref<1xf32>
 // CHECK-NEXT:      "omp.target_data"(%dev, %if, %m1, %d1, %d2, %d2) <{operandSegmentSizes = array<i32: 1, 1, 1, 2, 1>}> ({
 // CHECK-NEXT:      ^bb0(%0: memref<1xf32>, %1: memref<1xf32>, %2: memref<1xf32>):
 // CHECK-NEXT:        "omp.terminator"() : () -> ()
@@ -463,9 +463,9 @@ builtin.module {
 // CHECK-NEXT:      func.return
 // CHECK-NEXT:    }
 // CHECK-NEXT:    func.func @omp_target_data_task(%dep: memref<1xi32>, %dev: i32, %if: i1, %m1: memref<1xf32>, %m2: memref<1xf32>, %m3: memref<1xf32>) {
-// CHECK-NEXT:      %to = "omp.map.info"(%m1) <{operandSegmentSizes = array<i32: 1, 0, 0, 0>, var_type = memref<1xf32>, map_type = 1 : ui64, map_capture_type = #omp<variable_capture_kind (ByCopy)>}> : (memref<1xf32>) -> memref<1xf32>
-// CHECK-NEXT:      %from = "omp.map.info"(%m2) <{operandSegmentSizes = array<i32: 1, 0, 0, 0>, var_type = memref<1xf32>, map_type = 2 : ui64, map_capture_type = #omp<variable_capture_kind (ByCopy)>}> : (memref<1xf32>) -> memref<1xf32>
-// CHECK-NEXT:      %del = "omp.map.info"(%m3) <{operandSegmentSizes = array<i32: 1, 0, 0, 0>, var_type = memref<1xf32>, map_type = 8 : ui64, map_capture_type = #omp<variable_capture_kind (ByCopy)>}> : (memref<1xf32>) -> memref<1xf32>
+// CHECK-NEXT:      %to = "omp.map.info"(%m1) <{operandSegmentSizes = array<i32: 1, 0, 0, 0>, var_type = memref<1xf32>, map_type = #omp<clause_map_flags to>, map_capture_type = #omp<variable_capture_kind (ByCopy)>}> : (memref<1xf32>) -> memref<1xf32>
+// CHECK-NEXT:      %from = "omp.map.info"(%m2) <{operandSegmentSizes = array<i32: 1, 0, 0, 0>, var_type = memref<1xf32>,  map_type = #omp<clause_map_flags from>, map_capture_type = #omp<variable_capture_kind (ByCopy)>}> : (memref<1xf32>) -> memref<1xf32>
+// CHECK-NEXT:      %del = "omp.map.info"(%m3) <{operandSegmentSizes = array<i32: 1, 0, 0, 0>, var_type = memref<1xf32>, map_type = #omp<clause_map_flags del>, map_capture_type = #omp<variable_capture_kind (ByCopy)>}> : (memref<1xf32>) -> memref<1xf32>
 // CHECK-NEXT:      "omp.target_enter_data"(%dep, %dev, %if, %to) <{operandSegmentSizes = array<i32: 1, 1, 1, 1>, nowait, depend_kinds = [#omp<clause_task_depend (taskdependin)>]}> : (memref<1xi32>, i32, i1, memref<1xf32>) -> ()
 // CHECK-NEXT:      "omp.target_update"(%dep, %dev, %if, %to, %from) <{operandSegmentSizes = array<i32: 1, 1, 1, 2>, nowait, depend_kinds = [#omp<clause_task_depend (taskdependin)>]}> : (memref<1xi32>, i32, i1, memref<1xf32>, memref<1xf32>) -> ()
 // CHECK-NEXT:      "omp.target_exit_data"(%dep, %dev, %if, %from, %del) <{operandSegmentSizes = array<i32: 1, 1, 1, 2>, nowait, depend_kinds = [#omp<clause_task_depend (taskdependin)>]}> : (memref<1xi32>, i32, i1, memref<1xf32>, memref<1xf32>) -> ()
