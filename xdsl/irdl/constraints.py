@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from collections.abc import Set as AbstractSet
 from dataclasses import dataclass, field
 from typing import (
@@ -30,6 +30,18 @@ if TYPE_CHECKING:
     from xdsl.irdl import IRDLAttrConstraint
 
 
+class InferVariableError(Exception):
+    """
+    Thrown when a variable was expected to be instantiated for inference,
+    but has not been set yet.
+    """
+
+    variable: str
+
+
+T = TypeVar("T")
+
+
 @dataclass
 class ConstraintContext:
     """
@@ -47,6 +59,12 @@ class ConstraintContext:
     _int_variables: dict[str, int] = field(default_factory=dict[str, int])
     """The assignment of constraint int variables."""
 
+    _has_changed: bool = False
+
+    _constraints: list[tuple[Callable[[Any, ConstraintContext], None], Any]] = field(
+        default_factory=list[tuple[Callable[[Any, "ConstraintContext"], None], Any]]
+    )
+
     def get_variable(self, key: str) -> Attribute | None:
         return self._variables.get(key)
 
@@ -58,12 +76,40 @@ class ConstraintContext:
 
     def set_attr_variable(self, key: str, attr: Attribute):
         self._variables[key] = attr
+        self._has_changed = True
 
     def set_range_variable(self, key: str, attrs: tuple[Attribute, ...]):
         self._range_variables[key] = attrs
+        self._has_changed = True
 
     def set_int_variable(self, key: str, i: int):
         self._int_variables[key] = i
+        self._has_changed = True
+
+    def add_constraint(
+        self, verify: Callable[[T, ConstraintContext], None], to_verify: T
+    ):
+        self._constraints.append((verify, to_verify))
+
+    def _verify_constraint(
+        self, verify: Callable[[T, ConstraintContext], None], to_verify: T
+    ):
+        try:
+            verify(to_verify, self)
+            return False
+        except InferVariableError:
+            return True
+
+    def solve_constraints(self):
+        while True:
+            self._has_changed = False
+            self._constraints[:] = [
+                (x, y) for (x, y) in self._constraints if self._verify_constraint(x, y)
+            ]
+            if not self._constraints:
+                return
+            if not self._has_changed:
+                raise VerifyException("Constraint variable resolution did not converge")
 
     @property
     def attr_variables(self) -> AbstractSet[str]:
@@ -228,6 +274,8 @@ class VarConstraint(AttrConstraint[AttributeCovT]):
 
     def infer(self, context: ConstraintContext) -> AttributeCovT:
         v = context.get_variable(self.name)
+        if v is None:
+            raise InferVariableError(self.name)
         return cast(AttributeCovT, v)
 
     def can_infer(self, var_constraint_names: AbstractSet[str]) -> bool:
@@ -980,7 +1028,8 @@ class IntVarConstraint(IntConstraint):
         context: ConstraintContext,
     ) -> int:
         v = context.get_int_variable(self.name)
-        assert isinstance(v, int)
+        if v is None:
+            raise InferVariableError(self.name)
         return v
 
     def mapping_type_vars(
@@ -1225,6 +1274,8 @@ class RangeVarConstraint(RangeConstraint[AttributeCovT]):
         self, context: ConstraintContext, *, length: int | None
     ) -> Sequence[AttributeCovT]:
         v = context.get_range_variable(self.name)
+        if v is None:
+            raise InferVariableError(self.name)
         return cast(Sequence[AttributeCovT], v)
 
     def mapping_type_vars(
