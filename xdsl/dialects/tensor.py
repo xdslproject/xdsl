@@ -167,28 +167,23 @@ class ConcatOp(IRDLOperation):
         )
 
     @staticmethod
-    def _expected_concatenated_dim(dimension_lengths: tuple[int]) -> int:
+    def _expected_concatenated_dim(dims: tuple[int]) -> int:
         """Return the expected length of concatenated dimension lengths for verifying the result type."""
-        return (
-            DYNAMIC_INDEX
-            if DYNAMIC_INDEX in dimension_lengths
-            else sum(dimension_lengths)
-        )
+        return DYNAMIC_INDEX if DYNAMIC_INDEX in dims else sum(dims)
 
     @staticmethod
-    def _verify_and_get_non_concatenated_dim(
-        dimension_lengths: tuple[int], dimension_index: int
-    ) -> int:
+    def _verify_and_get_non_concatenated_dim(dims: tuple[int], dim_index: int) -> int:
         """Raise a VerifyException if the lengths are inconsistent - ie. non-dynamic lengths are not all equal - or return the
         expected length of the non-concatenated dimension.
         """
         dim = DYNAMIC_INDEX
-        for arg_dim in dimension_lengths:
+        for arg_dim in dims:
             if dim == DYNAMIC_INDEX:
                 dim = arg_dim
             elif arg_dim != DYNAMIC_INDEX and dim != arg_dim:
-                msg = f"static concatenation size mismatch along non-concatenated dimension {dimension_index}"
-                raise VerifyException(msg)
+                raise VerifyException(
+                    f"static concatenation size mismatch along non-concatenated dimension {dim_index}"
+                )
         return dim
 
     def _verify_result_shape(self, inferred_shape: tuple[int, ...]) -> None:
@@ -206,8 +201,9 @@ class ConcatOp(IRDLOperation):
                 DYNAMIC_INDEX not in (inferred_size, actual_size.data)
                 and inferred_size != actual_size.data
             ):
-                msg = f"result type {self.result.type} does not match inferred shape {inferred_shape} static sizes"
-                raise VerifyException(msg)
+                raise VerifyException(
+                    f"result type {self.result.type} does not match inferred shape {inferred_shape} static sizes"
+                )
 
     def verify_(self) -> None:
         concat_dim = self.dim.value.data
