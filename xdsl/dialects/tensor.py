@@ -209,8 +209,7 @@ class ConcatOp(IRDLOperation):
         concat_dim = self.dim.value.data
         result_type = self.result.type
         if concat_dim >= result_type.get_num_dims():
-            msg = "concatenation dim must be less than the tensor rank"
-            raise VerifyException(msg)
+            raise VerifyException("concatenation dim must be less than the tensor rank")
 
         transposed_shapes = zip(
             *(
