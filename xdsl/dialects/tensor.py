@@ -173,7 +173,7 @@ class ConcatOp(IRDLOperation):
 
     @staticmethod
     def _verify_and_get_non_concatenated_dim(dims: tuple[int], dim_index: int) -> int:
-        """Raise a VerifyException if the lengths are inconsistent - ie. non-dynamic lengths are not all equal - or return the
+        """Raise a VerifyException if the lengths are inconsistent - ie. non-dynamic lengths are not all equal - else return the
         expected length of the non-concatenated dimension.
         """
         dim = DYNAMIC_INDEX
