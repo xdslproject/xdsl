@@ -257,30 +257,6 @@ class Data(Attribute, ABC, Generic[DataElement]):
 EnumType = TypeVar("EnumType", bound=StrEnum)
 
 
-def _check_enum_constraints(
-    enum_class: type[EnumAttribute[EnumType]],
-) -> None:
-    """
-    This hook first checks two constraints, enforced to keep the implementation
-    reasonable, until more complex use cases appear. It then stores the Enum type
-    used by the subclass to use in parsing/printing.
-
-    The constraints are:
-
-    - Only direct, specialized inheritance is allowed. That is, using a subclass
-    of EnumAttribute as a base class is *not supported*.
-      This simplifies type-hacking code and I don't see it being too restrictive
-      anytime soon.
-    """
-    orig_bases = getattr(enum_class, "__orig_bases__")
-    enumattr = next(b for b in orig_bases if get_origin(b) is EnumAttribute)
-    enum_type = get_args(enumattr)[0]
-    if isinstance(enum_type, TypeVar):
-        raise TypeError("Only direct inheritance from EnumAttribute is allowed.")
-
-    enum_class.enum_type = enum_type
-
-
 class EnumAttribute(Data[EnumType]):
     """
     Core helper for Enum Attributes. Takes a StrEnum type parameter, and defines
@@ -304,7 +280,27 @@ class EnumAttribute(Data[EnumType]):
     enum_type: ClassVar[type[StrEnum]]
 
     def __init_subclass__(cls) -> None:
-        _check_enum_constraints(cls)
+        """
+        Extract and store the Enum type used by the subclass for use in
+        parsing/printing.
+
+        Subclass implementations are also constrained to keep implementations
+        reasonable, unless more complex use cases appear.
+
+        The constraint(s) are:
+        - Only direct, specialized inheritance is allowed. That is, using a
+        subclass of EnumAttribute as a base class is *not supported*.
+        This simplifies type-hacking code and I don't see it being too
+        restrictive anytime soon.
+        """
+
+        orig_bases = getattr(cls, "__orig_bases__")
+        enumattr = next(b for b in orig_bases if get_origin(b) is EnumAttribute)
+        enum_type = get_args(enumattr)[0]
+        if isinstance(enum_type, TypeVar):
+            raise TypeError("Only direct inheritance from EnumAttribute is allowed.")
+
+        cls.enum_type = enum_type
 
     def print_parameter(self, printer: Printer) -> None:
         printer.print_identifier_or_string_literal(self.data.value)

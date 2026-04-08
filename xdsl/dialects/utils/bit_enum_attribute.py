@@ -14,30 +14,6 @@ from xdsl.utils.str_enum import StrEnum
 EnumType = TypeVar("EnumType", bound=StrEnum)
 
 
-def _check_enum_constraints(
-    enum_class: type[BitEnumAttribute[EnumType]],
-) -> None:
-    """
-    This hook first checks two constraints, enforced to keep the implementation
-    reasonable, until more complex use cases appear. It then stores the Enum type
-    used by the subclass to use in parsing/printing.
-
-    The constraints are:
-
-    - Only direct, specialized inheritance is allowed. That is, using a subclass
-    of EnumAttribute as a base class is *not supported*.
-      This simplifies type-hacking code and I don't see it being too restrictive
-      anytime soon.
-    """
-    orig_bases = getattr(enum_class, "__orig_bases__")
-    enumattr = next(b for b in orig_bases if get_origin(b) is BitEnumAttribute)
-    enum_type = get_args(enumattr)[0]
-    if isinstance(enum_type, TypeVar):
-        raise TypeError("Only direct inheritance from EnumAttribute is allowed.")
-
-    enum_class.enum_type = enum_type
-
-
 @dataclass(frozen=True, init=False)
 class BitEnumAttribute(Data[frozenset[EnumType]], Generic[EnumType]):
     """
@@ -82,7 +58,27 @@ class BitEnumAttribute(Data[frozenset[EnumType]], Generic[EnumType]):
         super().__init__(flags_)
 
     def __init_subclass__(cls) -> None:
-        _check_enum_constraints(cls)
+        """
+        Extract and store the Enum type used by the subclass for use in
+        parsing/printing.
+
+        Subclass implementations are also constrained to keep implementations
+        reasonable, unless more complex use cases appear.
+
+        The constraint(s) are:
+        - Only direct, specialized inheritance is allowed. That is, using a
+        subclass of BitEnumAttribute as a base class is *not supported*.
+        This simplifies type-hacking code and I don't see it being too
+        restrictive anytime soon.
+        """
+
+        orig_bases = getattr(cls, "__orig_bases__")
+        enumattr = next(b for b in orig_bases if get_origin(b) is BitEnumAttribute)
+        enum_type = get_args(enumattr)[0]
+        if isinstance(enum_type, TypeVar):
+            raise TypeError("Only direct inheritance from BitEnumAttribute is allowed.")
+
+        cls.enum_type = enum_type
 
     @property
     @deprecated("Please use .data instead")
