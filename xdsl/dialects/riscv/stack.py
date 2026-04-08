@@ -5,14 +5,13 @@ from typing import ClassVar, Generic
 from typing_extensions import TypeVar
 
 from xdsl.dialects.builtin import Attribute, ContainerType
-from xdsl.ir import Dialect, ParametrizedAttribute, SSAValue, TypeAttribute
+from xdsl.ir import Dialect, Operation, ParametrizedAttribute, SSAValue, TypeAttribute
 from xdsl.irdl import (
     AnyAttr,
     AttrConstraint,
     IRDLAttrConstraint,
     IRDLOperation,
     ParamAttrConstraint,
-    TypeVarConstraint,
     VarConstraint,
     irdl_attr_definition,
     irdl_op_definition,
@@ -33,8 +32,6 @@ class StackSlotType(
     Generic[_StackValueType],
 ):
     name = "riscv_stack.ptr"
-
-    _StackTypeConstr = TypeVarConstraint(_StackValueType, AnyAttr())
     value_type: _StackValueType
 
     def __init__(self, value_type: _StackValueType):
@@ -74,15 +71,16 @@ class StoreOp(IRDLOperation):
 
     _T: ClassVar = VarConstraint("_T", AnyAttr())
     ptr = operand_def(StackSlotType.constr(_T))
-    value = operand_def(_T)
+    rs = operand_def(_T)
 
     def __init__(
         self,
-        ptr: SSAValue[StackSlotType[_StackValueType]],
-        value: SSAValue[_StackValueType],
+        ptr: SSAValue[StackSlotType[_StackValueType]] | AllocaOp,
+        value: SSAValue[_StackValueType] | Operation,
     ):
+        ptr_val = ptr.ref if isinstance(ptr, AllocaOp) else ptr
         super().__init__(
-            operands=(ptr, value),
+            operands=(ptr_val, value),
         )
 
 
@@ -94,10 +92,11 @@ class LoadOp(IRDLOperation):
 
     _T: ClassVar = VarConstraint("_T", AnyAttr())
     ptr = operand_def(StackSlotType.constr(_T))
-    res = result_def(_T)
+    rd = result_def(_T)
 
-    def __init__(self, ptr: SSAValue[StackSlotType]):
-        super().__init__(operands=(ptr,), result_types=[ptr.type.value_type])
+    def __init__(self, ptr: SSAValue[StackSlotType] | AllocaOp):
+        ptr_val = ptr.ref if isinstance(ptr, AllocaOp) else ptr
+        super().__init__(operands=(ptr,), result_types=[ptr_val.type.value_type])
 
 
 # Define the Dialect
