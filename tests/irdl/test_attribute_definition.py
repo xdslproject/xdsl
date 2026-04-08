@@ -259,7 +259,6 @@ def test_bit_enum_invalid_str():
         BitEnumData("helloworld")
 
 
-@pytest.mark.parametrize("attr_name", ["#test.bitenum"])
 @pytest.mark.parametrize("separator", [",", "|"])
 @pytest.mark.parametrize(
     "delimiter", [d for d in Parser.Delimiter if d != Parser.Delimiter.NONE]
@@ -280,7 +279,6 @@ def test_bit_enum_invalid_str():
     ],
 )
 def test_bit_enum_attribute_piped_separator(
-    attr_name: str,
     separator: str,
     delimiter: Parser.Delimiter,
     input: Sequence[TestEnum] | str | None,
@@ -294,12 +292,12 @@ def test_bit_enum_attribute_piped_separator(
         separator_value = separator
         delimiter_value = delimiter
 
-    match delimiter:
-        case Parser.Delimiter.NONE:
-            left_punc, right_punc = ("", "")
-        case _:
-            left_punc, right_punc = delimiter.value
-    output = f"{attr_name}{left_punc}{separator.join(flag_strs)}{right_punc}"
+    if delimiter == Parser.Delimiter.NONE:
+        pytest.fail("Delimiter.NONE is not supported in this test case")
+
+    left_punc, right_punc = delimiter.value
+
+    output = f"#{BitEnumWithModifiers.name}{left_punc}{separator.join(flag_strs)}{right_punc}"
 
     attr = BitEnumWithModifiers(input)
     assert str(attr) == output
@@ -309,7 +307,6 @@ def test_bit_enum_attribute_piped_separator(
     assert Parser(ctx, output).parse_attribute() == attr
 
 
-@pytest.mark.parametrize("attr_name", ["#test.bitenum"])
 @pytest.mark.parametrize("separator", [",", "|"])
 @pytest.mark.parametrize("delimiter", Parser.Delimiter)
 @pytest.mark.parametrize(
@@ -328,7 +325,6 @@ def test_bit_enum_attribute_piped_separator(
     ],
 )
 def test_bit_enum_attribute_spaced_opaque_syntax(
-    attr_name: str,
     separator: str,
     delimiter: Parser.Delimiter,
     input: Sequence[TestEnum] | str | None,
@@ -347,7 +343,7 @@ def test_bit_enum_attribute_spaced_opaque_syntax(
             left_punc, right_punc = ("", "")
         case _:
             left_punc, right_punc = delimiter.value
-    output = f"{attr_name.replace('.', '<')} {left_punc}{separator.join(flag_strs)}{right_punc}>"
+    output = f"#{BitEnumWithModifiers.name.replace('.', '<')} {left_punc}{separator.join(flag_strs)}{right_punc}>"
 
     attr = BitEnumWithModifiers(input)
     assert str(attr) == output
