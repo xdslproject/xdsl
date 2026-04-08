@@ -321,6 +321,22 @@ def test_bit_enum_attribute_with_no_none_value(
     assert Parser(ctx, output).parse_attribute() == attr
 
 
+Ty = TypeVar("Ty", bound=StrEnum)
+
+
+def test_bit_enum_illegal_subclass():
+    with pytest.raises(TypeError) as excinfo:
+
+        class BitEnumParent(EnumAttribute[Ty]):
+            name = "test.bitenum"
+
+        BitEnumParent(TestEnum.Yes)
+
+    assert "Only direct inheritance from EnumAttribute is allowed." in str(
+        excinfo.value
+    )
+
+
 ################################################################################
 # Typed Attribute
 ################################################################################
