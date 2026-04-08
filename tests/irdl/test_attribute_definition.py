@@ -26,10 +26,10 @@ from xdsl.dialects.builtin import (
     i32,
 )
 from xdsl.dialects.test import Test
+from xdsl.dialects.utils import BitEnumAttribute
 from xdsl.ir import (
     Attribute,
     AttributeInvT,
-    BitEnumAttribute,
     BuiltinAttribute,
     Data,
     EnumAttribute,

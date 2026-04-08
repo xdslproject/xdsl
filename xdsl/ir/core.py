@@ -258,7 +258,7 @@ EnumType = TypeVar("EnumType", bound=StrEnum)
 
 
 def _check_enum_constraints(
-    enum_class: type[EnumAttribute[EnumType] | BitEnumAttribute[EnumType]],
+    enum_class: type[EnumAttribute[EnumType]],
 ) -> None:
     """
     This hook first checks two constraints, enforced to keep the implementation
@@ -273,11 +273,7 @@ def _check_enum_constraints(
       anytime soon.
     """
     orig_bases = getattr(enum_class, "__orig_bases__")
-    enumattr = next(
-        b
-        for b in orig_bases
-        if get_origin(b) is EnumAttribute or get_origin(b) is BitEnumAttribute
-    )
+    enumattr = next(b for b in orig_bases if get_origin(b) is EnumAttribute)
     enum_type = get_args(enumattr)[0]
     if isinstance(enum_type, TypeVar):
         raise TypeError("Only direct inheritance from EnumAttribute is allowed.")
@@ -316,103 +312,6 @@ class EnumAttribute(Data[EnumType]):
     @classmethod
     def parse_parameter(cls, parser: AttrParser) -> EnumType:
         return cast(EnumType, parser.parse_str_enum(cls.enum_type))
-
-
-@dataclass(frozen=True, init=False)
-class BitEnumAttribute(Data[frozenset[EnumType]], Generic[EnumType]):
-    """
-    Core helper for BitEnumAttributes. Takes a StrEnum type parameter, and
-    defines parsing/printing automatically from its values.
-
-    Additionally, two values can be given to designate all/none bits being set.
-
-    example:
-    ```python
-    class MyBitEnum(StrEnum):
-        First = auto()
-        Second = auto()
-
-    class MyBitEnumAttribute(BitEnumAttribute[MyBitEnum]):
-        name = "example.my_bit_enum"
-        none_value = "none"
-        all_value = "all"
-
-    """
-
-    enum_type: ClassVar[type[StrEnum]]
-    none_value: ClassVar[str | None] = None
-    all_value: ClassVar[str | None] = None
-    separator_value: ClassVar[str] = ","
-
-    def __init__(self, flags: None | Iterable[EnumType] | str) -> None:
-        flags_: frozenset[EnumType]
-        match flags:
-            case self.none_value | None:
-                flags_ = frozenset()
-            case self.all_value:
-                flags_ = cast(frozenset[EnumType], frozenset(self.enum_type))
-            case other if isinstance(other, str):
-                raise TypeError(
-                    f"expected string parameter to be one of {self.none_value} or {self.all_value}, got {other}"
-                )
-            case other:
-                assert not isinstance(other, str)
-                flags_ = frozenset(other)
-
-        super().__init__(flags_)
-
-    def __init_subclass__(cls) -> None:
-        _check_enum_constraints(cls)
-
-    @property
-    @deprecated("Please use .data instead")
-    def flags(self) -> set[EnumType]:
-        return set(self.data)
-
-    @classmethod
-    def parse_parameter(cls, parser: AttrParser) -> frozenset[EnumType]:
-        def parse_element() -> set[EnumType]:
-            if (
-                cls.none_value is not None
-                and parser.parse_optional_keyword(cls.none_value) is not None
-            ):
-                return set()
-            if (
-                cls.all_value is not None
-                and parser.parse_optional_keyword(cls.all_value) is not None
-            ):
-                return set(cast(Iterable[EnumType], cls.enum_type))
-            value = parser.parse_str_enum(cls.enum_type)
-            return {cast(type[EnumType], cls.enum_type)(value)}
-
-        flag_sets = parser.parse_list(
-            parser.Delimiter.ANGLE, parse_element, cls.separator_value
-        )
-
-        if not flag_sets:
-            return frozenset()
-
-        res: set[EnumType] = set()
-
-        for flag_set in flag_sets:
-            res |= flag_set
-
-        return frozenset(res)
-
-    def print_parameter(self, printer: Printer):
-        with printer.in_angle_brackets():
-            flags = self.data
-            if not flags and self.none_value is not None:
-                printer.print_string(self.none_value)
-            elif len(flags) == len(self.enum_type) and self.all_value is not None:
-                printer.print_string(self.all_value)
-            else:
-                # make sure we emit flags in a consistent order
-                printer.print_list(
-                    tuple(flag.value for flag in self.enum_type if flag in flags),
-                    printer.print_string,
-                    self.separator_value,
-                )
 
 
 @dataclass(frozen=True, init=False)
