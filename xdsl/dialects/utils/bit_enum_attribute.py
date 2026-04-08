@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
+from contextlib import nullcontext
 from dataclasses import dataclass
 from typing import ClassVar, Generic, cast, get_args, get_origin
 
 from typing_extensions import TypeVar, deprecated
 
 from xdsl.ir import Data
-from xdsl.parser import AttrParser
+from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
 from xdsl.utils.str_enum import StrEnum
 
@@ -39,6 +40,7 @@ class BitEnumAttribute(Data[frozenset[EnumType]], Generic[EnumType]):
     none_value: ClassVar[str | None] = None
     all_value: ClassVar[str | None] = None
     separator_value: ClassVar[str] = ","
+    delimiter_value: ClassVar[Parser.Delimiter] = Parser.Delimiter.ANGLE
 
     def __init__(self, flags: None | Iterable[EnumType] | str) -> None:
         flags_: frozenset[EnumType]
@@ -103,7 +105,7 @@ class BitEnumAttribute(Data[frozenset[EnumType]], Generic[EnumType]):
             return {cast(type[EnumType], cls.enum_type)(value)}
 
         flag_sets = parser.parse_list(
-            parser.Delimiter.ANGLE, parse_element, cls.separator_value
+            cls.delimiter_value, parse_element, cls.separator_value
         )
 
         if not flag_sets:
@@ -117,7 +119,13 @@ class BitEnumAttribute(Data[frozenset[EnumType]], Generic[EnumType]):
         return frozenset(res)
 
     def print_parameter(self, printer: Printer):
-        with printer.in_angle_brackets():
+        match self.delimiter_value:
+            case Parser.Delimiter.NONE:
+                delimiter = nullcontext()
+            case _:
+                delimiter = printer.delimited(*self.delimiter_value.value)
+
+        with delimiter:
             flags = self.data
             if not flags and self.none_value is not None:
                 printer.print_string(self.none_value)

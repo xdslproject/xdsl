@@ -259,37 +259,101 @@ def test_bit_enum_invalid_str():
         BitEnumData("helloworld")
 
 
-@irdl_attr_definition(init=False)
-class BitEnumPipedData(BitEnumAttribute[TestEnum]):
-    name = "test.bitenum"
-    all_value = "all"
-    none_value = "none"
-    separator_value = "|"
-
-
+@pytest.mark.parametrize("attr_name", ["#test.bitenum"])
+@pytest.mark.parametrize("separator", [",", "|"])
 @pytest.mark.parametrize(
-    "input,output",
+    "delimiter", [d for d in Parser.Delimiter if d != Parser.Delimiter.NONE]
+)
+@pytest.mark.parametrize(
+    "input,flag_strs",
     [
-        (None, "#test.bitenum<none>"),
-        ([], "#test.bitenum<none>"),
-        ([TestEnum.No], "#test.bitenum<no>"),
-        ([TestEnum.Yes], "#test.bitenum<yes>"),
-        ([TestEnum.No, TestEnum.Yes], "#test.bitenum<yes|no>"),
-        ([TestEnum.Yes, TestEnum.No], "#test.bitenum<yes|no>"),
-        ([TestEnum.No, TestEnum.No], "#test.bitenum<no>"),
-        ([TestEnum.No, TestEnum.Yes, TestEnum.Maybe], "#test.bitenum<all>"),
-        ("all", "#test.bitenum<all>"),
-        ("none", "#test.bitenum<none>"),
+        (None, ["none"]),
+        ([], ["none"]),
+        ([TestEnum.No], ["no"]),
+        ([TestEnum.Yes], ["yes"]),
+        ([TestEnum.No, TestEnum.Yes], ["yes", "no"]),
+        ([TestEnum.Yes, TestEnum.No], ["yes", "no"]),
+        ([TestEnum.No, TestEnum.No], ["no"]),
+        ([TestEnum.No, TestEnum.Yes, TestEnum.Maybe], ["all"]),
+        ("all", ["all"]),
+        ("none", ["none"]),
     ],
 )
 def test_bit_enum_attribute_piped_separator(
-    input: Sequence[TestEnum] | str | None, output: str
+    attr_name: str,
+    separator: str,
+    delimiter: Parser.Delimiter,
+    input: Sequence[TestEnum] | str | None,
+    flag_strs: list[str],
 ):
-    attr = BitEnumPipedData(input)
+    @irdl_attr_definition(init=False)
+    class BitEnumWithModifiers(BitEnumAttribute[TestEnum]):
+        name = "test.bitenum"
+        all_value = "all"
+        none_value = "none"
+        separator_value = separator
+        delimiter_value = delimiter
+
+    match delimiter:
+        case Parser.Delimiter.NONE:
+            left_punc, right_punc = ("", "")
+        case _:
+            left_punc, right_punc = delimiter.value
+    output = f"{attr_name}{left_punc}{separator.join(flag_strs)}{right_punc}"
+
+    attr = BitEnumWithModifiers(input)
     assert str(attr) == output
     ctx = Context()
     ctx.register_dialect("test", lambda: Test)
-    ctx.load_attr_or_type(BitEnumPipedData)
+    ctx.load_attr_or_type(BitEnumWithModifiers)
+    assert Parser(ctx, output).parse_attribute() == attr
+
+
+@pytest.mark.parametrize("attr_name", ["#test.bitenum"])
+@pytest.mark.parametrize("separator", [",", "|"])
+@pytest.mark.parametrize("delimiter", Parser.Delimiter)
+@pytest.mark.parametrize(
+    "input,flag_strs",
+    [
+        (None, ["none"]),
+        ([], ["none"]),
+        ([TestEnum.No], ["no"]),
+        ([TestEnum.Yes], ["yes"]),
+        ([TestEnum.No, TestEnum.Yes], ["yes", "no"]),
+        ([TestEnum.Yes, TestEnum.No], ["yes", "no"]),
+        ([TestEnum.No, TestEnum.No], ["no"]),
+        ([TestEnum.No, TestEnum.Yes, TestEnum.Maybe], ["all"]),
+        ("all", ["all"]),
+        ("none", ["none"]),
+    ],
+)
+def test_bit_enum_attribute_spaced_opaque_syntax(
+    attr_name: str,
+    separator: str,
+    delimiter: Parser.Delimiter,
+    input: Sequence[TestEnum] | str | None,
+    flag_strs: list[str],
+):
+    @irdl_attr_definition(init=False)
+    class BitEnumWithModifiers(BitEnumAttribute[TestEnum], SpacedOpaqueSyntaxAttribute):
+        name = "test.bitenum"
+        all_value = "all"
+        none_value = "none"
+        separator_value = separator
+        delimiter_value = delimiter
+
+    match delimiter:
+        case Parser.Delimiter.NONE:
+            left_punc, right_punc = ("", "")
+        case _:
+            left_punc, right_punc = delimiter.value
+    output = f"{attr_name.replace('.', '<')} {left_punc}{separator.join(flag_strs)}{right_punc}>"
+
+    attr = BitEnumWithModifiers(input)
+    assert str(attr) == output
+    ctx = Context()
+    ctx.register_dialect("test", lambda: Test)
+    ctx.load_attr_or_type(BitEnumWithModifiers)
     assert Parser(ctx, output).parse_attribute() == attr
 
 
