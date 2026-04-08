@@ -7,7 +7,7 @@ from typing import ClassVar, Generic, cast, get_args, get_origin
 from typing_extensions import TypeVar, deprecated
 
 from xdsl.ir import Data
-from xdsl.parser import AttrParser, Parser
+from xdsl.parser import AttrParser
 from xdsl.printer import Printer
 from xdsl.utils.str_enum import StrEnum
 
@@ -63,7 +63,6 @@ class BitEnumAttribute(Data[frozenset[EnumType]], Generic[EnumType]):
     none_value: ClassVar[str | None] = None
     all_value: ClassVar[str | None] = None
     separator_value: ClassVar[str] = ","
-    delimiter_value: ClassVar[Parser.Delimiter] = Parser.Delimiter.ANGLE
 
     def __init__(self, flags: None | Iterable[EnumType] | str) -> None:
         flags_: frozenset[EnumType]
