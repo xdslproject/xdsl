@@ -71,6 +71,7 @@ class BitEnumAttribute(Data[frozenset[EnumType]], Generic[EnumType]):
         This simplifies type-hacking code and I don't see it being too
         restrictive anytime soon.
         """
+        super().__init_subclass__()
 
         orig_bases = getattr(cls, "__orig_bases__")
         enumattr = next(b for b in orig_bases if get_origin(b) is BitEnumAttribute)
