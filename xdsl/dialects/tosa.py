@@ -90,11 +90,6 @@ def are_tosa_broadcastable(lhs: Attribute, rhs: Attribute, out: Attribute):
 
 
 class RoundingMode(StrEnum):
-    """
-    Rounding mode for `tosa.rescale`
-    See external [documentation](https://github.com/llvm/llvm-project/blob/fef02d48c08db859ef83f84232ed78bd9d1c323a/mlir/include/mlir/Dialect/Tosa/IR/TosaOpBase.td#L470).
-    """
-
     SINGLE_ROUND = "SINGLE_ROUND"
     INEXACT_ROUND = "INEXACT_ROUND"
     DOUBLE_ROUND = "DOUBLE_ROUND"
@@ -102,6 +97,11 @@ class RoundingMode(StrEnum):
 
 @irdl_attr_definition
 class RoundingModeAttr(EnumAttribute[RoundingMode]):
+    """
+    Rounding mode for `tosa.rescale`
+    See external [documentation](https://github.com/llvm/llvm-project/blob/fef02d48c08db859ef83f84232ed78bd9d1c323a/mlir/include/mlir/Dialect/Tosa/IR/TosaOpBase.td#L470).
+    """
+
     name = "tosa.rounding_mode"
 
     def print_parameter(self, printer: Printer) -> None:
@@ -115,17 +115,17 @@ class RoundingModeAttr(EnumAttribute[RoundingMode]):
 
 
 class NanMode(StrEnum):
-    """
-    Supported NaN propagation strategies
-    See external [documentation](https://github.com/llvm/llvm-project/blob/fef02d48c08db859ef83f84232ed78bd9d1c323a/mlir/include/mlir/Dialect/Tosa/IR/TosaOpBase.td#L462).
-    """
-
     PROPAGATE = "PROPAGATE"
     IGNORE = "IGNORE"
 
 
 @irdl_attr_definition
 class NanModeAttr(EnumAttribute[NanMode]):
+    """
+    Supported NaN propagation strategies
+    See external [documentation](https://github.com/llvm/llvm-project/blob/fef02d48c08db859ef83f84232ed78bd9d1c323a/mlir/include/mlir/Dialect/Tosa/IR/TosaOpBase.td#L462).
+    """
+
     name = "tosa.nan_mode"
 
     def print_parameter(self, printer: Printer) -> None:
