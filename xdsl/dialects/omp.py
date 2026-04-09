@@ -170,11 +170,8 @@ def verify_map_vars(
     vars: VarOperand,
     op_name: str,
     *,
-    disallowed_types: ClauseMapFlags | Sequence[ClauseMapFlags] = [],
+    disallowed_types: Sequence[ClauseMapFlags] = (),
 ):
-    if isinstance(disallowed_types, ClauseMapFlags):
-        disallowed_types = [disallowed_types]
-
     for var in vars:
         if not isinstance(owner := var.owner, MapInfoOp):
             raise VerifyException(
@@ -1012,7 +1009,7 @@ class TargetExitDataOp(TargetTaskBasedDataOp):
         verify_map_vars(
             self.mapped_vars,
             self.name,
-            disallowed_types=ClauseMapFlags.TO,
+            disallowed_types=[ClauseMapFlags.TO],
         )
         return super().verify_()
 
@@ -1030,7 +1027,7 @@ class TargetUpdateOp(TargetTaskBasedDataOp):
         verify_map_vars(
             self.mapped_vars,
             self.name,
-            disallowed_types=ClauseMapFlags.DELETE,
+            disallowed_types=[ClauseMapFlags.DELETE],
         )
         mapped = defaultdict[Operand, set[ClauseMapFlags]](lambda: set())
         one_of = {ClauseMapFlags.TO, ClauseMapFlags.FROM}
@@ -1072,7 +1069,7 @@ class TargetDataOp(BlockArgOpenMPOperation):
         verify_map_vars(
             self.mapped_vars,
             self.name,
-            disallowed_types=ClauseMapFlags.DELETE,
+            disallowed_types=[ClauseMapFlags.DELETE],
         )
         return super().verify_()
 
