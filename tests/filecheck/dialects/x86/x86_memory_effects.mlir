@@ -14,43 +14,43 @@
 
 // Write effects don't get eliminated even if the result is unused
 
-// CHECK-NEXT: x86.ms.add %unallocated, %unallocated : (!x86.reg, !x86.reg) -> ()
-x86.ms.add %unallocated, %unallocated : (!x86.reg, !x86.reg) -> ()
-// CHECK-NEXT: x86.ms.sub %unallocated, %unallocated, -8 : (!x86.reg, !x86.reg) -> ()
-x86.ms.sub %unallocated, %unallocated, -8 : (!x86.reg, !x86.reg) -> ()
-// CHECK-NEXT: x86.ms.and %unallocated, %unallocated, 8 : (!x86.reg, !x86.reg) -> ()
-x86.ms.and %unallocated, %unallocated, 8 : (!x86.reg, !x86.reg) -> ()
-// CHECK-NEXT: x86.ms.or %unallocated, %unallocated, 8 : (!x86.reg, !x86.reg) -> ()
-x86.ms.or %unallocated, %unallocated, 8 : (!x86.reg, !x86.reg) -> ()
-// CHECK-NEXT: x86.ms.xor %unallocated, %unallocated, 8 : (!x86.reg, !x86.reg) -> ()
-x86.ms.xor %unallocated, %unallocated, 8 : (!x86.reg, !x86.reg) -> ()
-// CHECK-NEXT: x86.ms.mov %unallocated, %unallocated, 8 : (!x86.reg, !x86.reg) -> ()
-x86.ms.mov %unallocated, %unallocated, 8 : (!x86.reg, !x86.reg) -> ()
+// CHECK-NEXT: x86.ms.add [%unallocated], %unallocated : (!x86.reg, !x86.reg) -> ()
+x86.ms.add [%unallocated], %unallocated : (!x86.reg, !x86.reg) -> ()
+// CHECK-NEXT: x86.ms.sub [%unallocated + -8], %unallocated : (!x86.reg, !x86.reg) -> ()
+x86.ms.sub [%unallocated + -8], %unallocated : (!x86.reg, !x86.reg) -> ()
+// CHECK-NEXT: x86.ms.and [%unallocated + 8], %unallocated : (!x86.reg, !x86.reg) -> ()
+x86.ms.and [%unallocated + 8], %unallocated : (!x86.reg, !x86.reg) -> ()
+// CHECK-NEXT: x86.ms.or [%unallocated + 8], %unallocated : (!x86.reg, !x86.reg) -> ()
+x86.ms.or [%unallocated + 8], %unallocated : (!x86.reg, !x86.reg) -> ()
+// CHECK-NEXT: x86.ms.xor [%unallocated + 8], %unallocated : (!x86.reg, !x86.reg) -> ()
+x86.ms.xor [%unallocated + 8], %unallocated : (!x86.reg, !x86.reg) -> ()
+// CHECK-NEXT: x86.ms.mov [%unallocated + 8], %unallocated : (!x86.reg, !x86.reg) -> ()
+x86.ms.mov [%unallocated + 8], %unallocated : (!x86.reg, !x86.reg) -> ()
 
-// CHECK-NEXT: x86.mi.add %unallocated, 2 : (!x86.reg) -> ()
-x86.mi.add %unallocated, 2 : (!x86.reg) -> ()
-// CHECK-NEXT: x86.mi.sub %unallocated, 2, -8 : (!x86.reg) -> ()
-x86.mi.sub %unallocated, 2, -8 : (!x86.reg) -> ()
-// CHECK-NEXT: x86.mi.and %unallocated, 2, 8 : (!x86.reg) -> ()
-x86.mi.and %unallocated, 2, 8 : (!x86.reg) -> ()
-// CHECK-NEXT: x86.mi.or %unallocated, 2, 8 : (!x86.reg) -> ()
-x86.mi.or %unallocated, 2, 8 : (!x86.reg) -> ()
-// CHECK-NEXT: x86.mi.xor %unallocated, 2, 8 : (!x86.reg) -> ()
-x86.mi.xor %unallocated, 2, 8 : (!x86.reg) -> ()
-// CHECK-NEXT: x86.mi.mov %unallocated, 2, 8 : (!x86.reg) -> ()
-x86.mi.mov %unallocated, 2, 8 : (!x86.reg) -> ()
+// CHECK-NEXT: x86.mi.add [%unallocated], 2 : (!x86.reg) -> ()
+x86.mi.add [%unallocated], 2 : (!x86.reg) -> ()
+// CHECK-NEXT: x86.mi.sub [%unallocated + -8], 2 : (!x86.reg) -> ()
+x86.mi.sub [%unallocated + -8], 2 : (!x86.reg) -> ()
+// CHECK-NEXT: x86.mi.and [%unallocated + 8], 2 : (!x86.reg) -> ()
+x86.mi.and [%unallocated + 8], 2 : (!x86.reg) -> ()
+// CHECK-NEXT: x86.mi.or [%unallocated + 8], 2 : (!x86.reg) -> ()
+x86.mi.or [%unallocated + 8], 2 : (!x86.reg) -> ()
+// CHECK-NEXT: x86.mi.xor [%unallocated + 8], 2 : (!x86.reg) -> ()
+x86.mi.xor [%unallocated + 8], 2 : (!x86.reg) -> ()
+// CHECK-NEXT: x86.mi.mov [%unallocated + 8], 2 : (!x86.reg) -> ()
+x86.mi.mov [%unallocated + 8], 2 : (!x86.reg) -> ()
 
-// CHECK-NEXT: %m_push_rsp = x86.m.push %rsp, %unallocated : (!x86.reg<rsp>, !x86.reg) -> !x86.reg<rsp>
-%m_push_rsp = x86.m.push %rsp, %unallocated : (!x86.reg<rsp>, !x86.reg) -> !x86.reg<rsp>
+// CHECK-NEXT: %m_push_rsp = x86.m.push %rsp, [%unallocated] : (!x86.reg<rsp>, !x86.reg) -> !x86.reg<rsp>
+%m_push_rsp = x86.m.push %rsp, [%unallocated] : (!x86.reg<rsp>, !x86.reg) -> !x86.reg<rsp>
 
-// CHECK-NEXT: %m_pop_rsp = x86.m.pop %rsp, %unallocated, 8 : (!x86.reg<rsp>, !x86.reg) -> !x86.reg<rsp>
-%m_pop_rsp = x86.m.pop %rsp, %unallocated, 8 : (!x86.reg<rsp>, !x86.reg) -> !x86.reg<rsp>
+// CHECK-NEXT: %m_pop_rsp = x86.m.pop %rsp, [%unallocated + 8] : (!x86.reg<rsp>, !x86.reg) -> !x86.reg<rsp>
+%m_pop_rsp = x86.m.pop %rsp, [%unallocated + 8] : (!x86.reg<rsp>, !x86.reg) -> !x86.reg<rsp>
 
-// CHECK-NEXT: x86.m.neg %unallocated : (!x86.reg) -> ()
-x86.m.neg %unallocated : (!x86.reg) -> ()
-// CHECK-NEXT: x86.m.not %unallocated, 8 : (!x86.reg) -> ()
-x86.m.not %unallocated, 8 : (!x86.reg) -> ()
-// CHECK-NEXT: x86.m.inc %unallocated, 8 : (!x86.reg) -> ()
-x86.m.inc %unallocated, 8 : (!x86.reg) -> ()
-// CHECK-NEXT: x86.m.dec %unallocated, 8 : (!x86.reg) -> ()
-x86.m.dec %unallocated, 8 : (!x86.reg) -> ()
+// CHECK-NEXT: x86.m.neg [%unallocated] : (!x86.reg) -> ()
+x86.m.neg [%unallocated] : (!x86.reg) -> ()
+// CHECK-NEXT: x86.m.not [%unallocated + 8] : (!x86.reg) -> ()
+x86.m.not [%unallocated + 8] : (!x86.reg) -> ()
+// CHECK-NEXT: x86.m.inc [%unallocated + 8] : (!x86.reg) -> ()
+x86.m.inc [%unallocated + 8] : (!x86.reg) -> ()
+// CHECK-NEXT: x86.m.dec [%unallocated + 8] : (!x86.reg) -> ()
+x86.m.dec [%unallocated + 8] : (!x86.reg) -> ()

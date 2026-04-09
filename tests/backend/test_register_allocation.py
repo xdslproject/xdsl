@@ -46,6 +46,40 @@ class TestRegister(RegisterType):
         return "y"
 
 
+@irdl_attr_definition
+class TestAliasRegisterA(RegisterType):
+    name = "test.alias_a"
+
+    @classmethod
+    def index_by_name(cls) -> dict[str, int]:
+        return {"p0": 0, "p1": 1}
+
+    @classmethod
+    def infinite_register_prefix(cls):
+        return "inf_alias_a_"
+
+    @classmethod
+    def register_pool_key(cls) -> str:
+        return "test.alias_pool"
+
+
+@irdl_attr_definition
+class TestAliasRegisterB(RegisterType):
+    name = "test.alias_b"
+
+    @classmethod
+    def index_by_name(cls) -> dict[str, int]:
+        return {"q0": 0, "q1": 1}
+
+    @classmethod
+    def infinite_register_prefix(cls):
+        return "inf_alias_b_"
+
+    @classmethod
+    def register_pool_key(cls) -> str:
+        return "test.alias_pool"
+
+
 @irdl_op_definition
 class TestAllocatableOp(IRDLOperation, HasRegisterConstraints):
     name = "test.allocatable"
@@ -401,3 +435,45 @@ def test_out_of_registers():
     register_stack = RegisterStack()
     with pytest.raises(OutOfRegisters, match="Out of registers."):
         register_stack.pop(TestRegister)
+
+
+def test_reserved_aliased_register():
+    assert TestAliasRegisterA.register_pool_key() != TestAliasRegisterA.name
+
+    stack = RegisterStack.get((TestAliasRegisterA.from_index(0),))
+    r = stack.pop(TestAliasRegisterB)
+    assert r == TestAliasRegisterB.from_index(0)
+
+    stack.push(r)
+    stack.reserve_register(r)
+    with pytest.raises(AssertionError, match="Cannot pop a reserved register"):
+        stack.pop(TestAliasRegisterA)
+
+
+def test_register_pool_key_alias_pool_shares_physical_indices():
+    """
+    Two register types with different IR names but the same register_pool_key() must
+    draw from one pool of ABI indices.
+    """
+    stack = RegisterStack.get(
+        (
+            TestAliasRegisterA.from_name("p0"),
+            TestAliasRegisterB.from_name("q0"),
+        )
+    )
+    assert stack.available_registers["test.alias_pool"] == [0]
+    assert stack.pop(TestAliasRegisterA) == TestAliasRegisterA.from_index(0)
+    with pytest.raises(OutOfRegisters):
+        stack.pop(TestAliasRegisterB)
+
+
+def test_register_pool_key_alias_exclude_by_index():
+    stack = RegisterStack.get(
+        (
+            TestAliasRegisterA.from_name("p0"),
+            TestAliasRegisterA.from_name("p1"),
+        )
+    )
+    stack.exclude_register(TestAliasRegisterB.from_name("q0"))
+    assert 0 not in stack.available_registers["test.alias_pool"]
+    assert stack.available_registers["test.alias_pool"] == [1]

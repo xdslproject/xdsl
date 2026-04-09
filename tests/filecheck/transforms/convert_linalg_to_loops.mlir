@@ -3,11 +3,13 @@
 %A, %B, %C = "test.op"() : () -> (memref<f64>, memref<f64>, memref<f64>)
 %D, %E, %F = "test.op"() : () -> (memref<2x3xf64>, memref<3x4xf64>, memref<2x4xf64>)
 %G, %H, %I = "test.op"() : () -> (memref<4xf64>, memref<2xf64>, memref<3xf64>)
+%J = "test.op"() : () -> memref<3x2xf64>
 
 // CHECK:       builtin.module {
 // CHECK-NEXT:    %{{.*}}, %{{.*}}, %{{.*}} = "test.op"() : () -> (memref<f64>, memref<f64>, memref<f64>)
 // CHECK-NEXT:    %{{.*}}, %{{.*}}, %{{.*}} = "test.op"() : () -> (memref<2x3xf64>, memref<3x4xf64>, memref<2x4xf64>)
 // CHECK-NEXT:    %{{.*}}, %{{.*}}, %{{.*}} = "test.op"() : () -> (memref<4xf64>, memref<2xf64>, memref<3xf64>)
+// CHECK-NEXT:    %{{.*}} = "test.op"() : () -> memref<3x2xf64>
 
 linalg.generic {
     indexing_maps = [
@@ -130,6 +132,20 @@ linalg.add ins(%D, %D : memref<2x3xf64>, memref<2x3xf64>) outs(%D : memref<2x3xf
 // CHECK-NEXT:        %{{.*}} = memref.load %D[%{{.*}}, %{{.*}}] : memref<2x3xf64>
 // CHECK-NEXT:        %{{.*}} = arith.addf %{{.*}}, %{{.*}} : f64
 // CHECK-NEXT:        memref.store %{{.*}}, %D[%{{.*}}, %{{.*}}] : memref<2x3xf64>
+// CHECK-NEXT:      }
+// CHECK-NEXT:    }
+
+// Named op: transpose
+linalg.transpose ins(%D : memref<2x3xf64>) outs(%J : memref<3x2xf64>) permutation = [1, 0]
+
+// CHECK-NEXT:    %{{.*}} = arith.constant 3 : index
+// CHECK-NEXT:    %{{.*}} = arith.constant 2 : index
+// CHECK-NEXT:    %{{.*}} = arith.constant 0 : index
+// CHECK-NEXT:    %{{.*}} = arith.constant 1 : index
+// CHECK-NEXT:    scf.for [[I:%.*]] = %{{.*}} to %{{.*}} step %{{.*}} {
+// CHECK-NEXT:      scf.for [[J:%.*]] = %{{.*}} to %{{.*}} step %{{.*}} {
+// CHECK-NEXT:        %{{.*}} = memref.load %D[[[J]], [[I]]] : memref<2x3xf64>
+// CHECK-NEXT:        memref.store %{{.*}}, %J[[[I]], [[J]]] : memref<3x2xf64>
 // CHECK-NEXT:      }
 // CHECK-NEXT:    }
 
