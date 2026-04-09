@@ -1,8 +1,8 @@
 from abc import ABC, abstractmethod
 from collections import defaultdict
-from collections.abc import Iterable, Sequence
+from collections.abc import Sequence
 from enum import IntFlag, auto
-from typing import ClassVar, cast
+from typing import ClassVar
 
 from xdsl.dialects.builtin import (
     ArrayAttr,
@@ -21,10 +21,9 @@ from xdsl.dialects.builtin import (
     i32,
     i64,
 )
-from xdsl.dialects.utils import AbstractYieldOperation
+from xdsl.dialects.utils import AbstractYieldOperation, BitEnumAttribute
 from xdsl.ir import (
     Attribute,
-    BitEnumAttribute,
     Dialect,
     EnumAttribute,
     ParametrizedAttribute,
@@ -164,48 +163,7 @@ class ClauseMapFlagsAttr(BitEnumAttribute[ClauseMapFlags], SpacedOpaqueSyntaxAtt
 
     none_value = "none"
     separator_value = "|"
-
-    def print_parameter(self, printer: Printer) -> None:
-        flags = self.data
-        if len(flags) == 0 and self.none_value is not None:
-            printer.print_string(self.none_value)
-        elif len(flags) == len(self.enum_type) and self.all_value is not None:
-            printer.print_string(self.all_value)
-        else:
-            # make sure we emit flags in a consistent order
-            printer.print_list(
-                tuple(flag.value for flag in self.enum_type if flag in flags),
-                printer.print_string,
-                "|",
-            )
-
-    @classmethod
-    def parse_parameter(cls, parser: AttrParser) -> frozenset[ClauseMapFlags]:
-        def parse_element() -> set[ClauseMapFlags]:
-            if (
-                cls.none_value is not None
-                and parser.parse_optional_keyword(cls.none_value) is not None
-            ):
-                return set()
-            if (
-                cls.all_value is not None
-                and parser.parse_optional_keyword(cls.all_value) is not None
-            ):
-                return set(cast(Iterable[ClauseMapFlags], cls.enum_type))
-            value = parser.parse_str_enum(cls.enum_type)
-            return {cast(type[ClauseMapFlags], cls.enum_type)(value)}
-
-        flags = parser.parse_list(parser.Delimiter.NONE, parse_element, "|")
-
-        if not flags:
-            return frozenset()
-
-        res = set[ClauseMapFlags]()
-
-        for flag_set in flags:
-            res |= flag_set
-
-        return frozenset(res)
+    delimiter_value = AttrParser.Delimiter.NONE
 
 
 def verify_map_vars(
