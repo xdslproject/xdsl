@@ -1,26 +1,17 @@
-from __future__ import annotations
-
-from typing import ClassVar, Generic
-
-from typing_extensions import TypeVar
-
-from xdsl.dialects.builtin import Attribute, ContainerType
+from xdsl.dialects.builtin import (
+    AnyFloat,
+    ContainerType,
+    FixedBitwidthType,
+    IntegerType,
+)
+from xdsl.dialects.riscv.registers import Registers, RISCVRegisterType
 from xdsl.ir import Dialect, Operation, ParametrizedAttribute, SSAValue, TypeAttribute
 from xdsl.irdl import (
-    AnyAttr,
-    AttrConstraint,
-    IRDLAttrConstraint,
     IRDLOperation,
-    ParamAttrConstraint,
-    VarConstraint,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
     result_def,
-)
-
-_StackValueType = TypeVar(
-    "_StackValueType", bound=Attribute, covariant=True, default=Attribute
 )
 
 
@@ -28,25 +19,16 @@ _StackValueType = TypeVar(
 class StackSlotType(
     ParametrizedAttribute,
     TypeAttribute,
-    ContainerType[_StackValueType],
-    Generic[_StackValueType],
+    ContainerType[FixedBitwidthType],
 ):
     name = "riscv_stack.ptr"
-    value_type: _StackValueType
+    value_type: FixedBitwidthType
 
-    def __init__(self, value_type: _StackValueType):
+    def __init__(self, value_type: FixedBitwidthType):
         super().__init__(value_type)
 
-    def get_element_type(self) -> _StackValueType:
+    def get_element_type(self) -> FixedBitwidthType:
         return self.value_type
-
-    @staticmethod
-    def constr(
-        element_type: IRDLAttrConstraint[_StackValueType] = AnyAttr(),
-    ) -> AttrConstraint[StackSlotType[_StackValueType]]:
-        return ParamAttrConstraint[StackSlotType[_StackValueType]](
-            StackSlotType, (element_type,)
-        )
 
 
 @irdl_op_definition
@@ -57,7 +39,7 @@ class AllocaOp(IRDLOperation):
 
     ref = result_def(StackSlotType)
 
-    def __init__(self, value_type: Attribute):
+    def __init__(self, value_type: FixedBitwidthType):
         super().__init__(
             result_types=(StackSlotType(value_type),),
         )
@@ -69,14 +51,13 @@ class StoreOp(IRDLOperation):
 
     name = "riscv_stack.store"
 
-    _T: ClassVar = VarConstraint("_T", AnyAttr())
-    ptr = operand_def(StackSlotType.constr(_T))
-    rs = operand_def(_T)
+    ptr = operand_def(StackSlotType)
+    rs = operand_def(RISCVRegisterType)
 
     def __init__(
         self,
-        ptr: SSAValue[StackSlotType[_StackValueType]] | AllocaOp,
-        value: SSAValue[_StackValueType] | Operation,
+        ptr: SSAValue[StackSlotType] | AllocaOp,
+        value: SSAValue | Operation,
     ):
         ptr_val = ptr.ref if isinstance(ptr, AllocaOp) else ptr
         super().__init__(
@@ -90,13 +71,21 @@ class LoadOp(IRDLOperation):
 
     name = "riscv_stack.load"
 
-    _T: ClassVar = VarConstraint("_T", AnyAttr())
-    ptr = operand_def(StackSlotType.constr(_T))
-    rd = result_def(_T)
+    ptr = operand_def(StackSlotType)
+    rd = result_def(RISCVRegisterType)
 
-    def __init__(self, ptr: SSAValue[StackSlotType] | AllocaOp):
+    def __init__(
+        self,
+        ptr: SSAValue[StackSlotType] | AllocaOp,
+        rd: RISCVRegisterType | None = None,
+    ):
         ptr_val = ptr.ref if isinstance(ptr, AllocaOp) else ptr
-        super().__init__(operands=(ptr,), result_types=[ptr_val.type.value_type])
+        if rd is None:
+            if isinstance(ptr_val.type.value_type, AnyFloat):
+                rd = Registers.UNALLOCATED_FLOAT
+            elif isinstance(ptr_val.type.value_type, IntegerType):
+                rd = Registers.UNALLOCATED_INT
+        super().__init__(operands=(ptr,), result_types=[rd])
 
 
 # Define the Dialect

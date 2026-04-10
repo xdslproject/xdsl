@@ -1,7 +1,7 @@
 from xdsl.builder import Builder
 from xdsl.context import Context
 from xdsl.dialects import riscv_func, rv32
-from xdsl.dialects.builtin import ModuleOp
+from xdsl.dialects.builtin import IntegerType, ModuleOp
 from xdsl.dialects.riscv.ops import AddiOp, LwOp, SwOp
 from xdsl.dialects.riscv.registers import IntRegisterType, Registers
 from xdsl.dialects.riscv.stack import AllocaOp, LoadOp, StoreOp
@@ -29,7 +29,7 @@ class ConvertRiscvStackToRiscvPass(ModulePass):
             # For each function, give each alloca its stack offset
             for alloca_op in alloca_ops:
                 stack_slot = alloca_op.ref.type
-                assert isinstance(stack_slot.value_type, IntRegisterType)
+                assert isinstance(stack_slot.value_type, IntegerType)
                 value_size = get_type_size(stack_slot.value_type)
 
                 for use in alloca_op.ref.uses:
