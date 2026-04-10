@@ -56,8 +56,8 @@
 %broadcast = vector.broadcast %s: f64 to vector<4xf64>
 // CHECK:      builtin.module {
 // CHECK-NEXT:   %s = "test.op"() : () -> f64
-// CHECK-NEXT:   %s_1 = builtin.unrealized_conversion_cast %s : f64 to !x86.reg
-// CHECK-NEXT:   %broadcast = x86.ds.vpbroadcastq %s_1 : (!x86.reg) -> !x86.avx2reg
+// CHECK-NEXT:   %s_1 = builtin.unrealized_conversion_cast %s : f64 to !x86.reg64
+// CHECK-NEXT:   %broadcast = x86.ds.vpbroadcastq %s_1 : (!x86.reg64) -> !x86.avx2reg
 // CHECK-NEXT:   %broadcast_1 = builtin.unrealized_conversion_cast %broadcast : !x86.avx2reg to vector<4xf64>
 // CHECK-NEXT: }
 
@@ -67,8 +67,8 @@
 %broadcast = vector.broadcast %s: f32 to vector<8xf32>
 // CHECK:      builtin.module {
 // CHECK-NEXT:   %s = "test.op"() : () -> f32
-// CHECK-NEXT:   %s_1 = builtin.unrealized_conversion_cast %s : f32 to !x86.reg
-// CHECK-NEXT:   %broadcast = x86.ds.vpbroadcastd %s_1 : (!x86.reg) -> !x86.avx2reg
+// CHECK-NEXT:   %s_1 = builtin.unrealized_conversion_cast %s : f32 to !x86.reg32
+// CHECK-NEXT:   %broadcast = x86.ds.vpbroadcastd %s_1 : (!x86.reg32) -> !x86.avx2reg
 // CHECK-NEXT:   %broadcast_1 = builtin.unrealized_conversion_cast %broadcast : !x86.avx2reg to vector<8xf32>
 // CHECK-NEXT: }
 

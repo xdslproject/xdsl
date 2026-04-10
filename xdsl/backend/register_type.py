@@ -177,6 +177,14 @@ class RegisterType(ParametrizedAttribute, TypeAttribute, ABC):
         return ()
 
     @classmethod
+    def register_pool_key(cls) -> str:
+        """
+        Pool key used when allocating unallocated values of this type and for infinite
+        spill registers. Defaults to the dialect type name (``cls.name``).
+        """
+        return cls.name
+
+    @classmethod
     @abstractmethod
     def index_by_name(cls) -> dict[str, int]:
         raise NotImplementedError()

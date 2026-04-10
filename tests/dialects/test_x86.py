@@ -46,9 +46,9 @@ from xdsl.utils.test_value import create_ssa_value
 
 
 def test_unallocated_register():
-    unallocated = x86.registers.GeneralRegisterType.from_name("")
+    unallocated = x86.registers.Reg64Type.from_name("")
     assert not unallocated.is_allocated
-    assert unallocated == x86.registers.UNALLOCATED_GENERAL
+    assert unallocated == x86.registers.UNALLOCATED_REG64
 
     unallocated = x86.registers.RFLAGSRegisterType.from_name("")
     assert not unallocated.is_allocated
@@ -78,16 +78,14 @@ def test_unallocated_register():
         (x86.registers.RBP, "rbp"),
         (x86.registers.RSI, "rsi"),
         (x86.registers.RDI, "rdi"),
-        # Currently don't support 32-bit registers
-        # https://github.com/xdslproject/xdsl/issues/4737
-        # (x86.register.EAX, "eax"),
-        # (x86.register.ECX, "ecx"),
-        # (x86.register.EDX, "edx"),
-        # (x86.register.EBX, "ebx"),
-        # (x86.register.ESP, "esp"),
-        # (x86.register.EBP, "ebp"),
-        # (x86.register.ESI, "esi"),
-        # (x86.register.EDI, "edi"),
+        (x86.registers.EAX, "eax"),
+        (x86.registers.ECX, "ecx"),
+        (x86.registers.EDX, "edx"),
+        (x86.registers.EBX, "ebx"),
+        (x86.registers.ESP, "esp"),
+        (x86.registers.EBP, "ebp"),
+        (x86.registers.ESI, "esi"),
+        (x86.registers.EDI, "edi"),
         (x86.registers.R8, "r8"),
         (x86.registers.R9, "r9"),
         (x86.registers.R10, "r10"),
@@ -98,7 +96,9 @@ def test_unallocated_register():
         (x86.registers.R15, "r15"),
     ],
 )
-def test_register(register: x86.registers.GeneralRegisterType, name: str):
+def test_register(
+    register: x86.registers.Reg64Type | x86.registers.Reg32Type, name: str
+):
     assert register.is_allocated
     assert register.register_name.data == name
 
@@ -350,7 +350,7 @@ def test_dss_vops(
 
 
 def test_get_constant_value():
-    U = x86.registers.UNALLOCATED_GENERAL
+    U = x86.registers.UNALLOCATED_REG64
     unknown_value = create_ssa_value(U)
     assert get_constant_value(unknown_value) is None
     known_value = x86.DI_MovOp(42, destination=U).destination

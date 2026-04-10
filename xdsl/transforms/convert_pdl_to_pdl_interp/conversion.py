@@ -89,31 +89,18 @@ class ConvertPDLToPDLInterpPass(ModulePass):
 
         rewriter_module = ModuleOp([], sym_name=StringAttr("rewriters"))
 
+        matcher_func = pdl_interp.FuncOp("matcher", ((pdl.OperationType(),), ()))
+        generator = MatcherGenerator(
+            matcher_func,
+            rewriter_module,
+            self.optimize_for_eqsat,
+            self.print_debug_info,
+        )
         if self.convert_individually:
-            shared_rewriter_names: dict[str, int] = {}
-            for i, pattern in enumerate(patterns):
-                sym_name = pattern.sym_name
-                name = sym_name.data if sym_name is not None else f"matcher_{i}"
-                matcher_func = pdl_interp.FuncOp(name, ((pdl.OperationType(),), ()))
-                generator = MatcherGenerator(
-                    matcher_func,
-                    rewriter_module,
-                    self.optimize_for_eqsat,
-                    self.print_debug_info,
-                )
-                generator.rewriter_names = shared_rewriter_names
-                generator.lower([pattern])
-                op.body.block.add_op(matcher_func)
+            generator.lower_chained(patterns)
         else:
-            matcher_func = pdl_interp.FuncOp("matcher", ((pdl.OperationType(),), ()))
-            generator = MatcherGenerator(
-                matcher_func,
-                rewriter_module,
-                self.optimize_for_eqsat,
-                self.print_debug_info,
-            )
             generator.lower(patterns)
-            op.body.block.add_op(matcher_func)
+        op.body.block.add_op(matcher_func)
 
         # Replace all pattern ops with the matcher func and rewriter module
         rewriter = Rewriter()
@@ -1481,6 +1468,61 @@ class MatcherGenerator:
         # Generate the matcher
         _ = self.generate_matcher(root, self.matcher_func.body, block=entry_block)
 
+    def lower_chained(self, patterns: list[pdl.PatternOp]) -> None:
+        """
+        Lower PDL patterns individually but chain them into a single function.
+
+        Each pattern gets its own predicate tree (no cross-pattern predicate
+        sharing/merging), but instead of each tree finalizing independently,
+        the exit node of pattern i is replaced by the root of pattern i+1's
+        tree. Only the last pattern's exit becomes the actual FinalizeOp.
+        """
+
+        # Build predicate trees for each pattern individually
+        trees: list[MatcherNode] = []
+        for pattern in patterns:
+            tree_builder = PredicateTreeBuilder(self.optimize_for_eqsat)
+            root = tree_builder.build_predicate_tree([pattern])
+
+            if self.print_debug_info:
+                print(visualize_matcher_tree(root))
+
+            self.value_to_position.update(tree_builder.pattern_value_positions)
+            trees.append(root)
+
+        if not trees:
+            # No patterns — just finalize
+            entry_block = self.matcher_func.body.block
+            self.builder.insertion_point = InsertPoint.at_end(entry_block)
+            self.builder.insert(pdl_interp.FinalizeOp())
+            return
+
+        # Chain the trees: replace the ExitNode at the tail of each tree's
+        # failure chain with the root of the next tree.
+        for i in range(len(trees) - 1):
+            self._replace_exit_with(trees[i], trees[i + 1])
+
+        # Generate code from the combined (chained) tree
+        entry_block = self.matcher_func.body.block
+        root_pos = OperationPosition(depth=0)
+        self.values[root_pos] = entry_block.args[0]
+
+        _ = self.generate_matcher(trees[0], self.matcher_func.body, block=entry_block)
+
+    @staticmethod
+    def _replace_exit_with(tree: MatcherNode, replacement: MatcherNode) -> None:
+        """Replace the ExitNode at the end of *tree*'s failure chain with *replacement*."""
+        if isinstance(tree, ExitNode):
+            raise ValueError("Cannot chain from a bare ExitNode")
+
+        curr = tree
+        while curr.failure_node is not None and not isinstance(
+            curr.failure_node, ExitNode
+        ):
+            curr = curr.failure_node
+        if isinstance(curr.failure_node, ExitNode):
+            curr.failure_node = replacement
+
     def generate_matcher(
         self, node: MatcherNode, region: Region, block: Block | None = None
     ) -> Block:
@@ -1491,53 +1533,83 @@ class MatcherGenerator:
             block = Block()
             region.add_block(block)
 
-        # Set insertion point to end of this block
-        self.builder.insertion_point = InsertPoint.at_end(block)
+        # Collect the failure chain iteratively to avoid deep recursion.
+        # Each element is (node_to_process, block_for_node).
+        work_list: list[tuple[MatcherNode, Block]] = [(node, block)]
+        curr = node
+        while curr.failure_node is not None and not isinstance(
+            curr.failure_node, ExitNode
+        ):
+            failure_block = Block()
+            region.add_block(failure_block)
+            work_list.append((curr.failure_node, failure_block))
+            curr = curr.failure_node
 
-        # Handle exit node - just add finalize
-        if isinstance(node, ExitNode):
+        # Process the terminal failure node (ExitNode or None) first so that
+        # when we work backwards each node already has its failure block ready.
+        terminal_failure = curr.failure_node  # ExitNode or None
+
+        # Generate the terminal ExitNode block if present.
+        terminal_block: Block | None = None
+        if isinstance(terminal_failure, ExitNode):
+            terminal_block = Block()
+            region.add_block(terminal_block)
+            self.builder.insertion_point = InsertPoint.at_end(terminal_block)
             self.builder.insert(pdl_interp.FinalizeOp())
-            return block
 
-        self.values = ScopedDict(self.values)
-        assert self.values.parent is not None
+        # Process work_list in reverse (deepest failure node first).
+        for i in range(len(work_list) - 1, -1, -1):
+            work_node, work_block = work_list[i]
 
-        # Handle failure node
-        failure_block = None
-        if node.failure_node:
-            failure_block = self.generate_matcher(node.failure_node, region)
-            self.failure_block_stack.append(failure_block)
-            # Restore insertion point after generating failure node
-            self.builder.insertion_point = InsertPoint.at_end(block)
-        else:
-            assert self.failure_block_stack, "Expected valid failure block"
-            failure_block = self.failure_block_stack[-1]
+            self.builder.insertion_point = InsertPoint.at_end(work_block)
 
-        # Get value for position if exists (may change insertion point)
-        val = None
-        if node.position:
-            val = self.get_value_at(node.position)
+            # Handle exit node
+            if isinstance(work_node, ExitNode):
+                self.builder.insert(pdl_interp.FinalizeOp())
+                continue
 
-        # Dispatch based on node type
-        match node:
-            case BoolNode():
-                assert val is not None
-                self.generate_bool_node(node, val)
-            case SwitchNode():
-                assert val is not None
-                self.generate_switch_node(node, val)
-            case SuccessNode():
-                self.generate_success_node(node)
-            case ChooseNode():
-                self.generate_choose_node(node)
-            case _:
-                raise NotImplementedError(f"Unhandled node type {type(node)}")
+            self.values = ScopedDict(self.values)
+            assert self.values.parent is not None
 
-        # Pop failure block if we pushed one
-        if node.failure_node:
-            self.failure_block_stack.pop()
+            # Determine failure block for this nodehttps://meet.google.com/uap-fjzk-efd
+            if work_node.failure_node:
+                if i + 1 < len(work_list):
+                    # The next entry in work_list is our failure node's block
+                    failure_block = work_list[i + 1][1]
+                else:
+                    # Terminal node
+                    assert terminal_block is not None
+                    failure_block = terminal_block
+                self.failure_block_stack.append(failure_block)
+            else:
+                assert self.failure_block_stack, "Expected valid failure block"
 
-        self.values = self.values.parent  # Pop scope
+            # Get value for position if exists (may change insertion point)
+            val = None
+            if work_node.position:
+                val = self.get_value_at(work_node.position)
+
+            # Dispatch based on node type
+            match work_node:
+                case BoolNode():
+                    assert val is not None
+                    self.generate_bool_node(work_node, val)
+                case SwitchNode():
+                    assert val is not None
+                    self.generate_switch_node(work_node, val)
+                case SuccessNode():
+                    self.generate_success_node(work_node)
+                case ChooseNode():
+                    self.generate_choose_node(work_node)
+                case _:
+                    raise NotImplementedError(f"Unhandled node type {type(work_node)}")
+
+            # Pop failure block if we pushed one
+            if work_node.failure_node:
+                self.failure_block_stack.pop()
+
+            self.values = self.values.parent  # Pop scope
+
         return block
 
     def get_value_at(self, position: Position) -> SSAValue:

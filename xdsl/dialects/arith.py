@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import abc
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from typing import ClassVar, Literal, cast
 
 from xdsl.dialect_interfaces.constant_materialization import (
@@ -29,11 +29,10 @@ from xdsl.dialects.builtin import (
     UnrankedTensorType,
     VectorType,
 )
-from xdsl.dialects.utils import FastMathAttrBase, FastMathFlag
+from xdsl.dialects.utils import BitEnumAttribute, FastMathAttrBase, FastMathFlag
 from xdsl.interfaces import ConditionallySpeculatableInterface, HasFolderInterface
 from xdsl.ir import (
     Attribute,
-    BitEnumAttribute,
     Dialect,
     Operation,
     SSAValue,
@@ -113,7 +112,7 @@ class FastMathFlagsAttr(FastMathAttrBase):
 
     name = "arith.fastmath"
 
-    def __init__(self, flags: None | Sequence[FastMathFlag] | Literal["none", "fast"]):
+    def __init__(self, flags: None | Iterable[FastMathFlag] | Literal["none", "fast"]):
         # irdl_attr_definition defines an __init__ if none is defined, so we need to
         # explicitely define one here.
         super().__init__(flags)
@@ -130,7 +129,7 @@ class IntegerOverflowAttr(BitEnumAttribute[IntegerOverflowFlag]):
 
     none_value = "none"
 
-    def __init__(self, flags: None | Sequence[IntegerOverflowFlag] | Literal["none"]):
+    def __init__(self, flags: None | Iterable[IntegerOverflowFlag] | Literal["none"]):
         # irdl_attr_definition defines an __init__ if none is defined, so we need to
         # explicitely define one here.
         super().__init__(flags)

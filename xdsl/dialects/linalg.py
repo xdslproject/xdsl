@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections.abc import Mapping, Sequence
 from enum import auto
-from typing import ClassVar, cast
+from typing import ClassVar, NamedTuple, cast
 
 from typing_extensions import Self
 
@@ -37,11 +37,12 @@ from xdsl.ir import (
     Region,
     SSAValue,
 )
-from xdsl.ir.affine import AffineMap
+from xdsl.ir.affine import AffineDimExpr, AffineMap
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
     ParsePropInAttrDict,
+    SameVariadicOperandSize,
     attr_def,
     base,
     irdl_attr_definition,
@@ -95,6 +96,19 @@ class IteratorTypeAttr(EnumAttribute[IteratorType]):
     def print_parameter(self, printer: Printer) -> None:
         with printer.in_angle_brackets():
             super().print_parameter(printer)
+
+
+class LoopBoundSource(NamedTuple):
+    """Source information for one loop upper bound."""
+
+    operand: SSAValue
+    """The shaped operand that provides the bound."""
+
+    dim_index: int
+    """The dimension index in the operand used for the bound."""
+
+    dim_size: int
+    """The size of that dimension, or DYNAMIC_INDEX if it is dynamic."""
 
 
 class LinalgStructuredOperation(IRDLOperation, ABC):
@@ -180,6 +194,32 @@ class LinalgStructuredOperation(IRDLOperation, ABC):
                 "Non-invertible maps need dynamic shapes, which are not implemented."
             )
         return inverse
+
+    def get_loop_bound_sources(
+        self,
+    ) -> tuple[LoopBoundSource, ...]:
+        """
+        Return where each loop upper bound comes from.
+
+        Each entry identifies the shaped operand, the dimension index, and the size value.
+        """
+        shapes_to_loops = self.get_shapes_to_loops_map()
+
+        needed_positions = tuple(
+            expr.position
+            for expr in shapes_to_loops.results
+            if isinstance(expr, AffineDimExpr)
+        )
+        assert len(shapes_to_loops.results) == len(needed_positions)
+
+        flat_shape_dims = tuple(
+            LoopBoundSource(operand, dim_index, dim_size)
+            for operand in self.operands
+            if isa(operand, SSAValue[ShapedType])
+            for dim_index, dim_size in enumerate(operand.type.get_shape())
+        )
+
+        return tuple(flat_shape_dims[position] for position in needed_positions)
 
     def get_static_shapes(self) -> list[int]:
         return [
@@ -1179,7 +1219,7 @@ class MulOp(ElementwiseOperation):
 
 
 @irdl_op_definition
-class TransposeOp(IRDLOperation):
+class TransposeOp(LinalgStructuredOperation):
     """
     Transpose operator
 
@@ -1188,11 +1228,13 @@ class TransposeOp(IRDLOperation):
 
     name = "linalg.transpose"
 
-    input = operand_def(base(MemRefType) | base(AnyTensorType))
-    init = operand_def(base(MemRefType) | base(AnyTensorType))
-    result = var_result_def(AnyTensorType)
+    inputs = var_operand_def(base(MemRefType) | base(AnyTensorType))
+    outputs = var_operand_def(base(MemRefType) | base(AnyTensorType))
+    res = var_result_def(AnyTensorType)
 
-    hidden_region = region_def("single_block")
+    body = region_def("single_block")
+
+    irdl_options = (SameVariadicOperandSize(), ParsePropInAttrDict())
 
     permutation = prop_def(DenseArrayBase.constr(i64))
 
@@ -1218,17 +1260,40 @@ class TransposeOp(IRDLOperation):
             YieldOp(args[0])
 
         super().__init__(
-            properties={
-                "permutation": permutation,
-            },
-            operands=(input, init),
-            result_types=(results,),
-            regions=(hidden_region,),
+            operands=[(input,), (init,)],
+            result_types=[results],
+            properties={"permutation": permutation},
+            regions=[hidden_region],
+        )
+
+    def get_indexing_maps(self) -> ArrayAttr[AffineMapAttr]:
+        permutation = self.permutation.get_values()
+        inverse_permutation = [0] * len(permutation)
+
+        for output_dim, input_dim in enumerate(permutation):
+            inverse_permutation[input_dim] = output_dim
+
+        return ArrayAttr(
+            [
+                AffineMapAttr(
+                    AffineMap(
+                        len(permutation),
+                        0,
+                        tuple(AffineDimExpr(dim) for dim in inverse_permutation),
+                    )
+                ),
+                AffineMapAttr(AffineMap.identity(len(permutation))),
+            ]
+        )
+
+    def get_iterator_types(self) -> ArrayAttr[IteratorTypeAttr]:
+        return ArrayAttr(
+            (IteratorTypeAttr.parallel(),) * len(self.permutation.get_values())
         )
 
     def verify_(self) -> None:
-        assert isinstance(input_type := self.input.type, TensorType | MemRefType)
-        assert isinstance(init_type := self.init.type, TensorType | MemRefType)
+        assert isinstance(input_type := self.inputs[0].type, TensorType | MemRefType)
+        assert isinstance(init_type := self.outputs[0].type, TensorType | MemRefType)
 
         input_shape = input_type.get_shape()
         init_shape = init_type.get_shape()
@@ -1259,14 +1324,14 @@ class TransposeOp(IRDLOperation):
     def print(self, printer: Printer):
         printer.print_string(" ins")
         with printer.in_parens():
-            printer.print_ssa_value(self.input)
+            printer.print_ssa_value(self.inputs[0])
             printer.print_string(":")
-            printer.print_attribute(self.input.type)
+            printer.print_attribute(self.inputs[0].type)
         printer.print_string(" outs")
         with printer.in_parens():
-            printer.print_ssa_value(self.init)
+            printer.print_ssa_value(self.outputs[0])
             printer.print_string(":")
-            printer.print_attribute(self.init.type)
+            printer.print_attribute(self.outputs[0].type)
         printer.print_string(" permutation = ")
         with printer.in_square_brackets():
             printer.print_list(self.permutation.get_values(), printer.print_int)

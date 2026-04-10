@@ -1,10 +1,15 @@
+from dataclasses import dataclass
+from typing import IO
+
 import llvmlite.ir as ir
 
 from xdsl.backend.llvm.convert_op import convert_op
 from xdsl.backend.llvm.convert_type import convert_type
+from xdsl.context import Context
 from xdsl.dialects import llvm
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.ir import Block, SSAValue
+from xdsl.utils.target import Target
 
 
 def _convert_func(op: llvm.FuncOp, llvm_module: ir.Module):
@@ -66,3 +71,12 @@ def convert_module(module: ModuleOp) -> ir.Module:
                 )
 
     return llvm_module
+
+
+@dataclass(frozen=True)
+class LLVMTarget(Target):
+    name = "llvm"
+
+    def emit(self, ctx: Context, module: ModuleOp, output: IO[str]) -> None:
+        llvm_module = convert_module(module)
+        print(llvm_module, file=output)

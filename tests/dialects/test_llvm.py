@@ -426,7 +426,7 @@ def test_fastmath_attr_defaults_empty():
     # verify omitted fast_math results in empty flags
     lhs = create_ssa_value(builtin.f32)
     op = llvm.FAddOp(lhs, lhs)
-    assert op.fastmathFlags.data == ()
+    assert not op.fastmathFlags.data
 
 
 def test_undef_op():

@@ -37,6 +37,7 @@ riscv_func.func @main() {
 
   // f16
   %vfadd_h = riscv_snitch.vfadd.h %ft1, %ft0 : (!riscv.freg<ft1>, !riscv.freg<ft0>) -> !riscv.freg<ft2>
+  %vfmul_h = riscv_snitch.vfmul.h %ft0, %ft1 : (!riscv.freg<ft0>, !riscv.freg<ft1>) -> !riscv.freg<ft2>
 
   riscv_func.return
 }
@@ -59,4 +60,5 @@ riscv_func.func @main() {
 // CHECK-NEXT:       vfmac.s ft3, ft0, ft1
 // CHECK-NEXT:       vfsum.s ft3, ft1
 // CHECK-NEXT:       vfadd.h ft2, ft1, ft0
+// CHECK-NEXT:       vfmul.h ft2, ft0, ft1
 // CHECK-NEXT:       ret

@@ -2,12 +2,13 @@ from collections.abc import Callable, Sequence
 from itertools import compress
 from typing import TypeAlias
 
-from xdsl.dialects import affine, arith, scf
+from xdsl.dialects import affine, arith, linalg, scf
 from xdsl.dialects.builtin import AffineMapAttr, IndexType, IntegerAttr
 from xdsl.ir import Block, BlockArgument, Operation, Region, SSAValue
 from xdsl.ir.affine import AffineDimExpr, AffineMap
 from xdsl.pattern_rewriter import PatternRewriter
 from xdsl.rewriter import InsertPoint
+from xdsl.utils.hints import isa
 
 
 def indices_for_map(
@@ -216,7 +217,7 @@ def _insert_store_ops(
 def rewrite_linalg_structured_to_loops(
     rewriter: PatternRewriter,
     insertion_point: InsertPoint,
-    ubs: Sequence[int],
+    ubs: Sequence[SSAValue],
     load_indexing_maps: Sequence[AffineMapAttr],
     store_indexing_maps: Sequence[AffineMapAttr],
     load_operands: Sequence[SSAValue],
@@ -228,15 +229,9 @@ def rewrite_linalg_structured_to_loops(
     # Create loop nest lb (0), step (1), and ubs
     # ubs are calculated from affine maps and memref dimensions
 
-    bound_constant_ops = tuple(
-        arith.ConstantOp(IntegerAttr.from_index_int_value(ub)) for ub in ubs
-    )
-    rewriter.insert_op(bound_constant_ops)
-    bound_constant_values = tuple(op.result for op in bound_constant_ops)
-
     zero_op = arith.ConstantOp(IntegerAttr.from_index_int_value(0))
     one_op = arith.ConstantOp(IntegerAttr.from_index_int_value(1))
-    if bound_constant_values:
+    if ubs:
         rewriter.insert_op((zero_op, one_op))
 
     def make_body(
@@ -266,10 +261,15 @@ def rewrite_linalg_structured_to_loops(
         # Erase the yield op, we still have access to its operands
         rewriter.erase_op(yield_op)
 
+        index_ops = tuple(op for op in block.ops if isa(op, linalg.IndexOp))
+
         while block.args:
             rewriter.erase_block_argument(block.args[0])
 
         rewriter.inline_block(block, insertion_point)
+
+        for index_op in index_ops:
+            rewriter.replace_op(index_op, (), [ind_vars[index_op.dim.value.data]])
 
         _insert_store_ops(
             rewriter,
@@ -286,7 +286,7 @@ def rewrite_linalg_structured_to_loops(
         insertion_point,
         zero_op,
         one_op,
-        bound_constant_values,
+        ubs,
         (),
         make_body,
     )

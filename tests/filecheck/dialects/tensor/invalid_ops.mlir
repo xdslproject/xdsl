@@ -160,3 +160,24 @@ builtin.module {
   ^bb0(%arg0: index, %arg1: index):
     tensor.yield %pval : f32
   } : tensor<12x20x20xf32> to tensor<?x?x25xf32>
+
+
+// -----
+%tensor1 = "test.op"() : () -> (tensor<1x2x3xf32>) 
+// CHECK: concatenation dim must be less than the tensor rank
+%res = tensor.concat dim(3) %tensor1 : (tensor<1x2x3xf32>) -> tensor<1x2x3xf32>
+
+// -----
+%tensor1, %tensor2 = "test.op"() : () -> (tensor<1x2x3xf32>, tensor<1x2x3xf32>) 
+// CHECK: result type tensor<1x1x3xf32> does not match inferred shape (2, 2, 3) static sizes
+%res = tensor.concat dim(0) %tensor1, %tensor2 : (tensor<1x2x3xf32>, tensor<1x2x3xf32>) ->  tensor<1x1x3xf32>
+
+// -----
+%tensor1, %tensor2 = "test.op"() : () -> (tensor<1xf32>, tensor<9999xf32>) 
+// CHECK: result type tensor<10001xf32> does not match inferred shape (10000,) static sizes
+%res = tensor.concat dim(0) %tensor1, %tensor2 : (tensor<1xf32>, tensor<9999xf32>) ->  tensor<10001xf32>
+
+// -----
+%tensor1, %tensor2, %tensor3 = "test.op"() : () -> (tensor<1x2xf32>, tensor<1x2xf32>, tensor<2x1xf32>) 
+// CHECK: static concatenation size mismatch along non-concatenated dimension 1
+%res = tensor.concat dim(0) %tensor1, %tensor2, %tensor3 : (tensor<1x2xf32>, tensor<1x2xf32>, tensor<2x1xf32>) ->  tensor<4x2xf32>

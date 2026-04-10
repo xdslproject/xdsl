@@ -198,11 +198,6 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
 
         return MemRefStream
 
-    def get_mesh():
-        from xdsl.dialects.mesh import Mesh
-
-        return Mesh
-
     def get_ml_program():
         from xdsl.dialects.ml_program import MLProgram
 
@@ -297,6 +292,11 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         from xdsl.dialects.seq import Seq
 
         return Seq
+
+    def get_shard():
+        from xdsl.dialects.shard import Shard
+
+        return Shard
 
     def get_smt():
         from xdsl.dialects.smt import SMT
@@ -422,7 +422,6 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "math_xdsl": get_math_xdsl,
         "memref": get_memref,
         "memref_stream": get_memref_stream,
-        "mesh": get_mesh,
         "ml_program": get_ml_program,
         "mod_arith": get_mod_arith,
         "mpi": get_mpi,
@@ -442,6 +441,7 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "riscv_snitch": get_riscv_snitch,
         "scf": get_scf,
         "seq": get_seq,
+        "shard": get_shard,
         "smt": get_smt,
         "snitch": get_snitch,
         "snrt": get_snitch_runtime,

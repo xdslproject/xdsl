@@ -15,7 +15,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     # https://github.com/xdslproject/llvm-docker/pkgs/container/llvm
-    container: ghcr.io/xdslproject/llvm:21.1.1
+    container: ghcr.io/xdslproject/llvm:22.1.2
     strategy:
       matrix:
         python-version: ['3.10', '3.11', '3.12', '3.13', '3.14']
@@ -38,6 +38,9 @@ jobs:
       uses: actions/setup-python@v6
       with:
         python-version: ${{ matrix.python-version }}
+
+    - name: Mark workspace as safe for git
+      run: git config --global --add safe.directory $GITHUB_WORKSPACE
 
     - name: Install the package locally and nbval
       run: make venv

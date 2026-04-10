@@ -32,6 +32,7 @@ from xdsl.dialects.builtin import (
     i64,
 )
 from xdsl.dialects.utils import (
+    BitEnumAttribute,
     FastMathAttrBase,
     FastMathFlag,
     parse_func_op_like,
@@ -39,7 +40,6 @@ from xdsl.dialects.utils import (
 )
 from xdsl.ir import (
     Attribute,
-    BitEnumAttribute,
     Block,
     Dialect,
     EnumAttribute,
@@ -416,18 +416,17 @@ class OverflowAttr(OverflowAttrBase):
         return OverflowAttr("none")
 
     def print(self, printer: Printer):
-        if self.flags:
+        if self.data:
             printer.print_string(" overflow")
             self.print_parameter(printer)
 
     def to_int(self) -> int:
-        if len(self.data) == 0:
-            return 0
-        if len(self.data) == 2:
-            return 3
-        if self.data[0] == OverflowFlag.NO_SIGNED_WRAP:
-            return 1
-        return 2
+        res = 0
+        if OverflowFlag.NO_SIGNED_WRAP in self.data:
+            res |= 1
+        if OverflowFlag.NO_UNSIGNED_WRAP in self.data:
+            res |= 2
+        return res
 
     @staticmethod
     def from_int(i: int) -> OverflowAttr:

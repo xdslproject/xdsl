@@ -456,6 +456,32 @@ def test_parse_block_name():
     assert block.args[1].name_hint is None
 
 
+@pytest.mark.parametrize("separator", [",", "|"])
+@pytest.mark.parametrize("delimiter", Parser.Delimiter)
+@pytest.mark.parametrize(
+    "arr",
+    [[], list(range(1)), list(range(5))],
+)
+def test_parse_list(separator: str, delimiter: Parser.Delimiter, arr: list[int]):
+    # if delimiter is none, empty array is not a valid input
+    if delimiter == Parser.Delimiter.NONE and not arr:
+        return
+
+    parse_str = separator.join(map(str, arr))
+    match delimiter.value:
+        case None:
+            pass
+        case left_punctuation, right_punctuation:
+            parse_str = left_punctuation + parse_str + right_punctuation
+
+    ctx = Context()
+    parser = Parser(ctx, parse_str)
+    parse_res = parser.parse_list(
+        delimiter, parser.parse_integer, separator, " in test"
+    )
+    assert parse_res == arr
+
+
 @pytest.mark.parametrize(
     "delimiter,open_bracket,close_bracket",
     [

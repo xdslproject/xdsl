@@ -16,8 +16,24 @@ builtin.module {
 
 // -----
 
+builtin.module {
+  %0 = memref.alloc() {alignment = 0} : memref<2x2xindex>
+}
+
+// CHECK: Alignment attribute must be positive, got 0
+
+// -----
+
+builtin.module {
+  %0 = memref.alloca() {alignment = 0} : memref<2x2xindex>
+}
+
+// CHECK: Alignment attribute must be positive, got 0
+
+// -----
+
 "func.func"() ({
-    %0 = "memref.alloc"() {"alignment" = 64 : i64, operandSegmentSizes = array<i32: 0, 0>}: () -> memref<10x2xindex>
+    %0 = memref.alloc() {alignment = 64 : i64} : memref<10x2xindex>
     %1 = "memref.collapse_shape"(%0) {"reassociation" = [[0 : i32 , 1 : i32]]} : (memref<10x2xindex>) -> memref<20xindex>
     "func.return"() : () -> ()
 }) {function_type = () -> (), sym_name = "invalid_reassociation"} : () -> ()
@@ -29,7 +45,7 @@ builtin.module {
 // -----
 
 "func.func"() ({
-    %0 = "memref.alloc"() {"alignment" = 64 : i64, operandSegmentSizes = array<i32: 0, 0>}: () -> memref<20xindex>
+    %0 = memref.alloc() {alignment = 64 : i64} : memref<20xindex>
     %1 = "memref.expand_shape"(%0) {"reassociation" = [[0 : i32 , 1 : i32]]} : (memref<20xindex>) -> memref<2x10xindex>
     "func.return"() : () -> ()
 }) {function_type = () -> (), sym_name = "invalid_reassociation"} : () -> ()
@@ -40,7 +56,7 @@ builtin.module {
 // -----
 
 "func.func"() ({
-  %0 = "memref.alloc"() <{operandSegmentSizes = array<i32: 0, 0>}> : () -> memref<10x2xindex>
+  %0 = memref.alloc() : memref<10x2xindex>
   %1 = "memref.reinterpret_cast"(%0) <{operandSegmentSizes = array<i32: 1, 0, 0, 0>, static_offsets = array<i64: 0>, static_sizes = array<i64: 5>, static_strides = array<i64: 1>}> : (memref<10x2xindex>) -> memref<10x2xindex, strided<[1, 1]>>
   "func.return"() : () -> ()
 }) {function_type = () -> (), sym_name = "mismatched_sizes"} : () -> ()
@@ -51,7 +67,7 @@ builtin.module {
 // -----
 
 "func.func"() ({
-  %0 = "memref.alloc"() <{operandSegmentSizes = array<i32: 0, 0>}> : () -> memref<10x2xindex>
+  %0 = memref.alloc() : memref<10x2xindex>
   %1 = "memref.reinterpret_cast"(%0) <{operandSegmentSizes = array<i32: 1, 0, 0, 0>, static_offsets = array<i64: 0>, static_sizes = array<i64: 5, 4>, static_strides = array<i64: 1, 1>}> : (memref<10x2xindex>) -> memref<10x2xindex, strided<[1, 1]>>
   "func.return"() : () -> ()
 }) {function_type = () -> (), sym_name = "mismatched_sizes"} : () -> ()
@@ -63,7 +79,7 @@ builtin.module {
 // Mismatched sizes in size arguments
 
 "func.func"() ({
-  %0 = "memref.alloc"() <{operandSegmentSizes = array<i32: 0, 0>}> : () -> memref<10x2xindex>
+  %0 = memref.alloc() : memref<10x2xindex>
   %1 = "memref.reinterpret_cast"(%0) <{operandSegmentSizes = array<i32: 1, 0, 0, 0>, static_offsets = array<i64: 0>, static_sizes = array<i64: -9223372036854775808, -9223372036854775808>, static_strides = array<i64: 1, 1>}> : (memref<10x2xindex>) -> memref<5x4xindex, strided<[1, 1]>>
   "func.return"() : () -> ()
 }) {function_type = () -> (), sym_name = "mismatched_sizes"} : () -> ()
@@ -75,7 +91,7 @@ builtin.module {
 // Mismatched sizes in offset arguments
 
 "func.func"() ({
-  %0 = "memref.alloc"() <{operandSegmentSizes = array<i32: 0, 0>}> : () -> memref<10x2xindex>
+  %0 = memref.alloc() : memref<10x2xindex>
   %1 = "memref.reinterpret_cast"(%0) <{operandSegmentSizes = array<i32: 1, 0, 0, 0>, static_offsets = array<i64: -9223372036854775808, -9223372036854775808>, static_sizes = array<i64: 5, 4>, static_strides = array<i64: 1, 1>}> : (memref<10x2xindex>) -> memref<5x4xindex, strided<[1, 1]>>
   "func.return"() : () -> ()
 }) {function_type = () -> (), sym_name = "mismatched_sizes"} : () -> ()
@@ -87,7 +103,7 @@ builtin.module {
 // Mismatched sizes in stride arguments
 
 "func.func"() ({
-  %0 = "memref.alloc"() <{operandSegmentSizes = array<i32: 0, 0>}> : () -> memref<10x2xindex>
+  %0 = memref.alloc() : memref<10x2xindex>
   %1 = "memref.reinterpret_cast"(%0) <{operandSegmentSizes = array<i32: 1, 0, 0, 0>, static_offsets = array<i64: 0>, static_sizes = array<i64: 5, 4>, static_strides = array<i64: -9223372036854775808, -9223372036854775808>}> : (memref<10x2xindex>) -> memref<5x4xindex, strided<[1, 1]>>
   "func.return"() : () -> ()
 }) {function_type = () -> (), sym_name = "mismatched_sizes"} : () -> ()
@@ -99,7 +115,7 @@ builtin.module {
 // Mismatched sizes in size arguments
 
 "func.func"() ({
-  %0 = "memref.alloc"() <{operandSegmentSizes = array<i32: 0, 0>}> : () -> memref<10x2xindex>
+  %0 = memref.alloc() : memref<10x2xindex>
   %1 = "memref.subview"(%0) <{operandSegmentSizes = array<i32: 1, 0, 0, 0>, static_offsets = array<i64: 0>, static_sizes = array<i64: -9223372036854775808, -9223372036854775808>, static_strides = array<i64: 1, 1>}> : (memref<10x2xindex>) -> memref<5x4xindex>
   "func.return"() : () -> ()
 }) {function_type = () -> (), sym_name = "mismatched_sizes"} : () -> ()
@@ -111,7 +127,7 @@ builtin.module {
 // Mismatched sizes in offset arguments
 
 "func.func"() ({
-  %0 = "memref.alloc"() <{operandSegmentSizes = array<i32: 0, 0>}> : () -> memref<10x2xindex>
+  %0 = memref.alloc() : memref<10x2xindex>
   %1 = "memref.subview"(%0) <{operandSegmentSizes = array<i32: 1, 0, 0, 0>, static_offsets = array<i64: -9223372036854775808, -9223372036854775808>, static_sizes = array<i64: 5, 4>, static_strides = array<i64: 1, 1>}> : (memref<10x2xindex>) -> memref<5x4xindex>
   "func.return"() : () -> ()
 }) {function_type = () -> (), sym_name = "mismatched_sizes"} : () -> ()
@@ -123,7 +139,7 @@ builtin.module {
 // Mismatched sizes in stride arguments
 
 "func.func"() ({
-  %0 = "memref.alloc"() <{operandSegmentSizes = array<i32: 0, 0>}> : () -> memref<10x2xindex>
+  %0 = memref.alloc() : memref<10x2xindex>
   %1 = "memref.subview"(%0) <{operandSegmentSizes = array<i32: 1, 0, 0, 0>, static_offsets = array<i64: 0>, static_sizes = array<i64: 5, 4>, static_strides = array<i64: -9223372036854775808, -9223372036854775808>}> : (memref<10x2xindex>) -> memref<5x4xindex>
   "func.return"() : () -> ()
 }) {function_type = () -> (), sym_name = "mismatched_sizes"} : () -> ()
@@ -139,6 +155,30 @@ builtin.module {
 %v = memref.view %src[%off][] : memref<2048xi32> to memref<64x4xf32>
 
 // CHECK: Expected attribute i8 but got i32
+
+// -----
+
+builtin.module {
+  %0 = memref.alloc() {alignment = 3 : i64} : memref<2x2xindex>
+}
+
+// CHECK: Alignment attribute 3 is not a power of 2
+
+// -----
+
+builtin.module {
+  %0 = memref.alloca() {alignment = 24 : i64} : memref<2x2xindex>
+}
+
+// CHECK: Alignment attribute 24 is not a power of 2
+
+// -----
+
+builtin.module {
+  %0 = memref.alloc() {alignment = -8 : i64} : memref<2x2xindex>
+}
+
+// CHECK: Alignment attribute must be positive, got -8
 
 // -----
 
