@@ -158,31 +158,56 @@ def expand_exp_chebyshev(
 
 @dataclass
 class ExpandExpChebyshev(RewritePattern):
-    """Replace ``math.exp`` with a Chebyshev polynomial approximation."""
+    """Replace ``math.exp`` with a Chebyshev polynomial approximation.
 
-    degree: int
-    lower: float
-    upper: float
+    Only expands when degree, lower, and upper are specified, either via
+    attributes on the operation or via the pass-level defaults.
+    """
+
+    default_degree: int | None = None
+    """Pass-level default for degree. None means don't expand
+    unless the operation has an explicit degree attribute."""
+
+    default_lower: float | None = None
+    """Pass-level default for lower bound of the approximation interval."""
+
+    default_upper: float | None = None
+    """Pass-level default for upper bound of the approximation interval."""
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: math.ExpOp, rewriter: PatternRewriter) -> None:
-        # Only fire when the op has a chebyshev_degree attribute
-        if "chebyshev_degree" not in op.attributes:
-            return
-        attr = op.attributes["chebyshev_degree"]
-        degree = attr.value.data if isinstance(attr, IntegerAttr) else self.degree
+        degree: int | None = None
+        if "degree" in op.attributes:
+            attr = op.attributes["degree"]
+            if isinstance(attr, IntegerAttr):
+                degree = attr.value.data
+        elif self.default_degree is not None:
+            degree = self.default_degree
 
-        lower = self.lower
+        if degree is None:
+            return
+
+        lower: float | None = None
         if "lower" in op.attributes:
             lower_attr = op.attributes["lower"]
             if isinstance(lower_attr, FloatAttr):
                 lower = lower_attr.value.data
+        elif self.default_lower is not None:
+            lower = self.default_lower
 
-        upper = self.upper
+        if lower is None:
+            return
+
+        upper: float | None = None
         if "upper" in op.attributes:
             upper_attr = op.attributes["upper"]
             if isinstance(upper_attr, FloatAttr):
                 upper = upper_attr.value.data
+        elif self.default_upper is not None:
+            upper = self.default_upper
+
+        if upper is None:
+            return
 
         expanded = expand_exp_chebyshev(op, rewriter, degree, lower, upper)
         rewriter.replace_op(op, (), (expanded.results[0],))
@@ -200,17 +225,24 @@ class ExpandMathToChebyshevPass(ModulePass):
 
     name = "expand-math-to-chebyshev"
 
-    degree: int = 12
-    """Degree of the Chebyshev polynomial (higher = more accurate)."""
+    degree: int | None = None
+    """Degree of the Chebyshev polynomial (higher = more accurate).
+    If not set, only operations with an explicit degree attribute are expanded."""
 
-    lower: float = -10.0
-    """Lower bound of the approximation interval."""
+    lower: float | None = None
+    """Lower bound of the approximation interval.
+    If not set, only operations with an explicit lower attribute are expanded."""
 
-    upper: float = 0.0
-    """Upper bound of the approximation interval."""
+    upper: float | None = None
+    """Upper bound of the approximation interval.
+    If not set, only operations with an explicit upper attribute are expanded."""
 
     def apply(self, ctx: Context, op: ModuleOp) -> None:
         PatternRewriteWalker(
-            ExpandExpChebyshev(self.degree, self.lower, self.upper),
+            ExpandExpChebyshev(
+                default_degree=self.degree,
+                default_lower=self.lower,
+                default_upper=self.upper,
+            ),
             apply_recursively=False,
         ).rewrite_module(op)
