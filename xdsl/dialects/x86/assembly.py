@@ -42,6 +42,25 @@ def parse_type_pair(parser: Parser) -> SSAValue:
     return parser.resolve_operand(unresolved, type)
 
 
+def masked_memory_access_str(
+    register: SSAValue,
+    offset: IntegerAttr,
+    mask: SSAValue,
+    z: UnitAttr | None,
+) -> str:
+    """
+    Returns string for asm printing of a memory access followed by the {k}
+    (and optionally {z}) specifiers, in AVX512 masked operations.
+    e.g. ``[rdx+8] {k1}`` or ``[rdx] {k1}{z}``
+    """
+    mem_str = memory_access_str(register, offset)
+    mask_str = reg(mask)
+    res = f"{mem_str} {{{mask_str}}}"
+    if z:
+        res += "{z}"
+    return res
+
+
 def masked_source_str(reg_in: SSAValue, mask: SSAValue, z: UnitAttr | None) -> str:
     """
     Returns string for asm printing of the register followed by the {k} (and optionally {z})

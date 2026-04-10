@@ -114,22 +114,7 @@ class LinalgFunctions(InterpreterFunctions):
     def run_transpose(
         self, interpreter: Interpreter, op: linalg.TransposeOp, args: tuple[Any, ...]
     ) -> tuple[Any, ...]:
-        operand, res = args[0], args[1]
-        assert isinstance(operand, ShapedArray)
-        assert isinstance(res, ShapedArray)
-        operand = cast(ShapedArray[float], operand)
-        res = cast(ShapedArray[float], res)
-        if not all(res.data_ptr[i] == 0.0 for i in range(len(res.data))):
-            raise NotImplementedError()
-        assert len(operand.shape) == 2
-        assert len(res.shape) == 2
-        rows, cols = operand.shape
-        for i in range(rows):
-            for j in range(cols):
-                res.data_ptr[j * rows + i] = operand.data_ptr[i * cols + j]
-        if len(op.results) > 0:
-            return (res,)
-        return ()
+        return run_linalg_structured_op(interpreter, op, args)
 
     @impl(linalg.MatmulOp)
     def run_mat_mul(

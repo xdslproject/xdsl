@@ -690,6 +690,7 @@ class ExtractOp(IRDLOperation):
         )
 
 
+@deprecated("use vector.extract instead")
 @irdl_op_definition
 class ExtractElementOp(IRDLOperation):
     name = "vector.extractelement"
@@ -831,6 +832,7 @@ class InsertOp(IRDLOperation):
         )
 
 
+@deprecated("use vector.insert instead")
 @irdl_op_definition
 class InsertElementOp(IRDLOperation):
     name = "vector.insertelement"
@@ -1615,10 +1617,10 @@ Vector = Dialect(
         BitcastOp,
         BroadcastOp,
         CreateMaskOp,
-        ExtractElementOp,
+        ExtractElementOp,  # pyright: ignore[reportDeprecated]
         ExtractOp,
         FMAOp,
-        InsertElementOp,
+        InsertElementOp,  # pyright: ignore[reportDeprecated]
         InsertOp,
         LoadOp,
         MaskedLoadOp,

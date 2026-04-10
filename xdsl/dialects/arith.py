@@ -29,11 +29,10 @@ from xdsl.dialects.builtin import (
     UnrankedTensorType,
     VectorType,
 )
-from xdsl.dialects.utils import FastMathAttrBase, FastMathFlag
+from xdsl.dialects.utils import BitEnumAttribute, FastMathAttrBase, FastMathFlag
 from xdsl.interfaces import ConditionallySpeculatableInterface, HasFolderInterface
 from xdsl.ir import (
     Attribute,
-    BitEnumAttribute,
     Dialect,
     Operation,
     SSAValue,

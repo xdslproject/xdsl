@@ -2,12 +2,13 @@ from collections.abc import Callable, Sequence
 from itertools import compress
 from typing import TypeAlias
 
-from xdsl.dialects import affine, arith, scf
+from xdsl.dialects import affine, arith, linalg, scf
 from xdsl.dialects.builtin import AffineMapAttr, IndexType, IntegerAttr
 from xdsl.ir import Block, BlockArgument, Operation, Region, SSAValue
 from xdsl.ir.affine import AffineDimExpr, AffineMap
 from xdsl.pattern_rewriter import PatternRewriter
 from xdsl.rewriter import InsertPoint
+from xdsl.utils.hints import isa
 
 
 def indices_for_map(
@@ -260,10 +261,15 @@ def rewrite_linalg_structured_to_loops(
         # Erase the yield op, we still have access to its operands
         rewriter.erase_op(yield_op)
 
+        index_ops = tuple(op for op in block.ops if isa(op, linalg.IndexOp))
+
         while block.args:
             rewriter.erase_block_argument(block.args[0])
 
         rewriter.inline_block(block, insertion_point)
+
+        for index_op in index_ops:
+            rewriter.replace_op(index_op, (), [ind_vars[index_op.dim.value.data]])
 
         _insert_store_ops(
             rewriter,
