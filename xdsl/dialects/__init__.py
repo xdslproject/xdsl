@@ -283,6 +283,11 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
 
         return RISCV_Snitch
 
+    def get_riscv_stack():
+        from xdsl.dialects.riscv.stack import RISCVStack
+
+        return RISCVStack
+
     def get_scf():
         from xdsl.dialects.scf import Scf
 
@@ -439,6 +444,7 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "riscv_scf": get_riscv_scf,
         "riscv_cf": get_riscv_cf,
         "riscv_snitch": get_riscv_snitch,
+        "riscv_stack": get_riscv_stack,
         "scf": get_scf,
         "seq": get_seq,
         "shard": get_shard,

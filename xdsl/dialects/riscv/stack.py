@@ -4,10 +4,10 @@ from xdsl.dialects.builtin import (
     FixedBitwidthType,
     IntegerType,
 )
+from xdsl.dialects.riscv.abstract_ops import RISCVCustomFormatOperation
 from xdsl.dialects.riscv.registers import Registers, RISCVRegisterType
 from xdsl.ir import Dialect, Operation, ParametrizedAttribute, SSAValue, TypeAttribute
 from xdsl.irdl import (
-    IRDLOperation,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
@@ -32,7 +32,7 @@ class StackSlotType(
 
 
 @irdl_op_definition
-class AllocaOp(IRDLOperation):
+class AllocaOp(RISCVCustomFormatOperation):
     """Allocates space on the stack."""
 
     name = "riscv_stack.alloca"
@@ -46,7 +46,7 @@ class AllocaOp(IRDLOperation):
 
 
 @irdl_op_definition
-class StoreOp(IRDLOperation):
+class StoreOp(RISCVCustomFormatOperation):
     """Stores a value into a stack pointer."""
 
     name = "riscv_stack.store"
@@ -66,7 +66,7 @@ class StoreOp(IRDLOperation):
 
 
 @irdl_op_definition
-class LoadOp(IRDLOperation):
+class LoadOp(RISCVCustomFormatOperation):
     """Loads a value from a stack-allocated slot."""
 
     name = "riscv_stack.load"
