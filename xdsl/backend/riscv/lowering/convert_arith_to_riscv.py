@@ -29,6 +29,7 @@ from xdsl.pattern_rewriter import (
 )
 from xdsl.utils.bitwise_casts import convert_f32_to_u32
 from xdsl.utils.comparisons import signed_lower_bound, signed_upper_bound
+from xdsl.utils.exceptions import PassFailedException
 from xdsl.utils.hints import isa
 
 _INT_REGISTER_TYPE = riscv.Registers.UNALLOCATED_INT
@@ -121,6 +122,11 @@ class LowerArithConstant(RewritePattern):
         elif (
             isinstance(op_val, DenseIntOrFPElementsAttr) and len(op_val.data.data) == 8
         ):
+            if isinstance(op_val.get_element_type(), IntegerType):
+                raise PassFailedException(
+                    "Integer vector constants cannot be lowered to float registers"
+                )
+
             # We have to load the bits into an integer register, store them on the
             # stack, and load again.
 
