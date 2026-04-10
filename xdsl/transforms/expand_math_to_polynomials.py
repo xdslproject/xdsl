@@ -25,6 +25,8 @@ from xdsl.pattern_rewriter import (
 class ExpandExp(RewritePattern):
     """
     Replace `math.exp` operations with a polynomial expansion.
+
+    The default number of terms in the expansion is 4.
     """
 
     @op_type_rewrite_pattern
@@ -55,11 +57,14 @@ def _float_constant(
     return rewriter.insert(arith.ConstantOp(attr))
 
 
-def expand_exp(op: math.ExpOp, rewriter: PatternRewriter, terms: int) -> Operation:
+def expand_exp(op: math.ExpOp, rewriter: PatternRewriter, terms: int = 4) -> Operation:
     """
-    Expand exp(x) using the Taylor-series loop from the pseudo-code:
+    Expand exp(x) using a Taylor-series polynomial expansion.
 
-        terms = 75
+    The default number of terms is 4.
+
+    Pseudo-code::
+
         result = 1.0
         term = 1.0
         for i in range(1, terms): # loop will be unrolled by the rewriter
@@ -93,6 +98,8 @@ class ExpandMathToPolynomialsPass(ModulePass):
     This pass expands `math` operations to a polynomial expansion using the Taylor series.
 
     Currently only expands `math.exp` operations.
+
+    The default number of terms in the expansion is 4.
     """
 
     name = "expand-math-to-polynomials"
