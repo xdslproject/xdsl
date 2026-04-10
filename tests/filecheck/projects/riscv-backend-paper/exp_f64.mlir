@@ -12,7 +12,7 @@ func.func public @exp_f64(
     iterator_types = ["parallel"]
   } ins(%X : memref<8xf64>) outs(%Y : memref<8xf64>) {
   ^bb0(%in: f64, %out: f64):
-    %0 = math.exp %in : f64
+    %0 = math.exp %in {terms = 4 : i64} : f64
     linalg.yield %0 : f64
   }
   func.return
