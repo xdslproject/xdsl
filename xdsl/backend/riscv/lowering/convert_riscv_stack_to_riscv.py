@@ -1,18 +1,22 @@
 from xdsl.builder import Builder
 from xdsl.context import Context
 from xdsl.dialects import riscv_func, rv32
-from xdsl.dialects.builtin import IntegerType, ModuleOp
-from xdsl.dialects.riscv.ops import AddiOp, LwOp, SwOp
-from xdsl.dialects.riscv.registers import IntRegisterType, Registers
+from xdsl.dialects.builtin import FixedBitwidthType, IntegerType, ModuleOp
+from xdsl.dialects.riscv.ops import AddiOp, FLdOp, FSdOp, LwOp, SwOp
+from xdsl.dialects.riscv.registers import FloatRegisterType, IntRegisterType, Registers
 from xdsl.dialects.riscv.stack import AllocaOp, LoadOp, StoreOp
-from xdsl.ir import Attribute, Use
+from xdsl.ir import Use
 from xdsl.passes import ModulePass
 from xdsl.rewriter import InsertPoint, Rewriter
 from xdsl.utils.exceptions import PassFailedException
 
 
-def get_type_size(value_type: Attribute):
-    return 4
+def get_type_size(value_type: FixedBitwidthType):
+    # For now, assume 32 bit ints and 64 bit floats
+    if isinstance(value_type, IntegerType):
+        return 4
+    else:
+        return 8
 
 
 class ConvertRiscvStackToRiscvPass(ModulePass):
@@ -29,11 +33,10 @@ class ConvertRiscvStackToRiscvPass(ModulePass):
             # For each function, give each alloca its stack offset
             for alloca_op in alloca_ops:
                 stack_slot = alloca_op.ref.type
-                assert isinstance(stack_slot.value_type, IntegerType)
                 value_size = get_type_size(stack_slot.value_type)
 
                 for use in alloca_op.ref.uses:
-                    self.rewrite_stack_slot_use(use, cur_offset)
+                    self.rewrite_stack_slot_use(use, cur_offset, stack_slot.value_type)
 
                 Rewriter.erase_op(alloca_op)
                 cur_offset += value_size
@@ -41,24 +44,47 @@ class ConvertRiscvStackToRiscvPass(ModulePass):
             # Adjust stack pointer
             self.insert_prologue_epilogue(cur_offset, func_op)
 
-    def rewrite_stack_slot_use(self, use: Use, stack_offset: int):
+    def rewrite_stack_slot_use(
+        self, use: Use, stack_offset: int, val_type: FixedBitwidthType
+    ):
         if isinstance(use.operation, StoreOp):
-            Rewriter.replace_op(
-                use.operation,
-                (
-                    stack_ptr := rv32.GetRegisterOp(Registers.SP),
-                    SwOp(stack_ptr, use.operation.rs, stack_offset),
-                ),
-            )
+            if isinstance(val_type, IntegerType):
+                Rewriter.replace_op(
+                    use.operation,
+                    (
+                        stack_ptr := rv32.GetRegisterOp(Registers.SP),
+                        SwOp(stack_ptr, use.operation.rs, stack_offset),
+                    ),
+                )
+            else:
+                Rewriter.replace_op(
+                    use.operation,
+                    (
+                        stack_ptr := rv32.GetRegisterOp(Registers.SP),
+                        FSdOp(stack_ptr, use.operation.rs, stack_offset),
+                    ),
+                )
+
         elif isinstance(use.operation, LoadOp):
-            assert isinstance(use.operation.rd.type, IntRegisterType)
-            Rewriter.replace_op(
-                use.operation,
-                (
-                    stack_ptr := rv32.GetRegisterOp(Registers.SP),
-                    LwOp(stack_ptr, stack_offset, rd=use.operation.rd.type),
-                ),
-            )
+            if isinstance(val_type, IntegerType):
+                assert isinstance(use.operation.rd.type, IntRegisterType)
+                Rewriter.replace_op(
+                    use.operation,
+                    (
+                        stack_ptr := rv32.GetRegisterOp(Registers.SP),
+                        LwOp(stack_ptr, stack_offset, rd=use.operation.rd.type),
+                    ),
+                )
+            else:
+                assert isinstance(use.operation.rd.type, FloatRegisterType)
+                Rewriter.replace_op(
+                    use.operation,
+                    (
+                        stack_ptr := rv32.GetRegisterOp(Registers.SP),
+                        FLdOp(stack_ptr, stack_offset, rd=use.operation.rd.type),
+                    ),
+                )
+
         else:
             raise PassFailedException("Invalid use of StackSlotType: ", use.operation)
 
