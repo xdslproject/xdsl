@@ -609,6 +609,18 @@ builtin.module {
   // CHECK-NEXT:   ret i32 %"[[V2]]"
   // CHECK-NEXT: }
 
+  llvm.func @maxnum_op(%arg0: f32, %arg1: f32) -> f32 {
+    %0 = llvm.intr.maxnum(%arg0, %arg1) : (f32, f32) -> f32
+    llvm.return %0 : f32
+  }
+
+  // CHECK: define float @"maxnum_op"(float %".1", float %".2")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: [[ENTRY:.\d+]]:
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = call float @"llvm.maxnum"(float %".1", float %".2")
+  // CHECK-NEXT:   ret float %"[[RES]]"
+  // CHECK-NEXT: }
+
   llvm.func @fabs_op(%arg0: f32) -> f32 {
     %0 = llvm.intr.fabs(%arg0) : (f32) -> f32
     llvm.return %0 : f32

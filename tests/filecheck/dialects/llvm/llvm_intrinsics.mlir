@@ -51,6 +51,15 @@
 %select_f32_res = llvm.select %select_cond, %select_f32_lhs, %select_f32_rhs : i1, f32
 // CHECK: %select_f32_res = llvm.select %select_cond, %select_f32_lhs, %select_f32_rhs : i1, f32
 
+%maxnum_f32 = llvm.intr.maxnum(%f32, %f32) : (f32, f32) -> f32
+// CHECK: %maxnum_f32 = llvm.intr.maxnum(%f32, %f32) : (f32, f32) -> f32
+
+%maxnum_f64 = llvm.intr.maxnum(%f64, %f64) : (f64, f64) -> f64
+// CHECK-NEXT: %maxnum_f64 = llvm.intr.maxnum(%f64, %f64) : (f64, f64) -> f64
+
+%maxnum_vec = llvm.intr.maxnum(%vec_f32, %vec_f32) : (vector<4xf32>, vector<4xf32>) -> vector<4xf32>
+// CHECK-NEXT: %maxnum_vec = llvm.intr.maxnum(%vec_f32, %vec_f32) : (vector<4xf32>, vector<4xf32>) -> vector<4xf32>
+
 "test.op"() ({
 ^bb0(%cond_br_cond: i1, %cond_br_arg: i32):
   llvm.cond_br %cond_br_cond, ^bb1(%cond_br_arg : i32), ^bb2(%cond_br_arg : i32)
