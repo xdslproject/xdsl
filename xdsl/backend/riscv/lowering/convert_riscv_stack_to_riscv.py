@@ -93,7 +93,8 @@ class ConvertRiscvStackToRiscvPass(ModulePass):
         stack_ptr: rv32.GetRegisterOp,
     ):
         # Align SP to 16 bytes (from RISC-V calling convention)
-        total_offset = (total_offset + 15) & ~15
+        # commented to match previous prologue-epilogue-insertion behaviour
+        # total_offset = (total_offset + 15) & ~15
 
         if total_offset > 0:
             # prologue
