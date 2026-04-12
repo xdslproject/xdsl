@@ -12,11 +12,8 @@ from xdsl.utils.exceptions import PassFailedException
 
 
 def get_type_size(value_type: FixedBitwidthType):
-    # For now, assume 32 bit ints and 64 bit floats
-    if isinstance(value_type, IntegerType):
-        return 4
-    else:
-        return 8
+    # Use match case for now, should be a better way
+    return (value_type.bitwidth + 7) // 8
 
 
 class ConvertRiscvStackToRiscvPass(ModulePass):
