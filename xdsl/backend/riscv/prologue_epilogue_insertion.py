@@ -9,8 +9,8 @@ from xdsl.dialects.riscv import (
     FloatRegisterType,
     IntRegisterType,
     Registers,
-    RISCVRegisterType,
 )
+from xdsl.dialects.riscv.stack import AllocaOp, LoadOp, StoreOp
 from xdsl.passes import ModulePass
 
 
@@ -47,27 +47,26 @@ class PrologueEpilogueInsertion(ModulePass):
         if not used_callee_preserved_registers:
             return
 
-        def get_register_size(r: RISCVRegisterType):
-            if isinstance(r, IntRegisterType):
-                return self.xlen
-            return self.flen
-
         # Build the prologue at the beginning of the function.
         builder = Builder(InsertPoint.at_start(func.body.blocks[0]))
-        sp_register = builder.insert(rv32.GetRegisterOp(Registers.SP))
-        stack_size = sum(get_register_size(r) for r in used_callee_preserved_registers)
-        builder.insert(riscv.AddiOp(sp_register, -stack_size, rd=Registers.SP))
-        offset = 0
+        memrefs = []
         for reg in used_callee_preserved_registers:
             if isinstance(reg, IntRegisterType):
+                alloca_op = builder.insert(AllocaOp(builtin.i32))
                 reg_op = builder.insert(rv32.GetRegisterOp(reg))
-                op = riscv.SwOp(rs1=sp_register, rs2=reg_op, immediate=offset)
             else:
-                reg_op = builder.insert(riscv.GetFloatRegisterOp(reg))
-                op = riscv.FSdOp(rs1=sp_register, rs2=reg_op, immediate=offset)
+                match self.flen:
+                    case 8:
+                        float_size = builtin.f64
+                    case 4:
+                        float_size = builtin.f32
+                    case _:
+                        raise NotImplementedError("flen must be 4 or 8")
 
-            builder.insert(op)
-            offset += get_register_size(reg)
+                alloca_op = builder.insert(AllocaOp(float_size))
+                reg_op = builder.insert(riscv.GetFloatRegisterOp(reg))
+            builder.insert(StoreOp(alloca_op, reg_op))
+            memrefs.append(alloca_op)
 
         # Now build the epilogue right before every return operation.
         for block in func.body.blocks:
@@ -76,16 +75,8 @@ class PrologueEpilogueInsertion(ModulePass):
                 continue
 
             builder = Builder(InsertPoint.before(ret_op))
-            offset = 0
-            for reg in used_callee_preserved_registers:
-                if isinstance(reg, IntRegisterType):
-                    op = riscv.LwOp(rs1=sp_register, rd=reg, immediate=offset)
-                else:
-                    op = riscv.FLdOp(rs1=sp_register, rd=reg, immediate=offset)
-                builder.insert(op)
-                offset += get_register_size(reg)
-
-            builder.insert(riscv.AddiOp(sp_register, stack_size, rd=Registers.SP))
+            for memref, reg in zip(memrefs, used_callee_preserved_registers):
+                builder.insert(LoadOp(memref, rd=reg))
 
     def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         for func in op.walk():
