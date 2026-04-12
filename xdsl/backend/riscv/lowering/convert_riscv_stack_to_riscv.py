@@ -30,39 +30,46 @@ class ConvertRiscvStackToRiscvPass(ModulePass):
             cur_offset = 0
             # Need to instantiate generator so erasing op doesn't stop iteration
             alloca_ops = tuple(op for op in func_op.walk() if isinstance(op, AllocaOp))
+
+            if not alloca_ops:
+                return
+
+            stack_ptr = rv32.GetRegisterOp(
+                Registers.SP
+            )  # inserted in insert_prologue_epilogue
             # For each function, give each alloca its stack offset
             for alloca_op in alloca_ops:
                 stack_slot = alloca_op.ref.type
                 value_size = get_type_size(stack_slot.value_type)
 
                 for use in alloca_op.ref.uses:
-                    self.rewrite_stack_slot_use(use, cur_offset, stack_slot.value_type)
+                    self.rewrite_stack_slot_use(
+                        use, cur_offset, stack_slot.value_type, stack_ptr
+                    )
 
                 Rewriter.erase_op(alloca_op)
                 cur_offset += value_size
 
             # Adjust stack pointer
-            self.insert_prologue_epilogue(cur_offset, func_op)
+            self.insert_prologue_epilogue(cur_offset, func_op, stack_ptr)
 
     def rewrite_stack_slot_use(
-        self, use: Use, stack_offset: int, val_type: FixedBitwidthType
+        self,
+        use: Use,
+        stack_offset: int,
+        val_type: FixedBitwidthType,
+        stack_ptr: rv32.GetRegisterOp,
     ):
         if isinstance(use.operation, StoreOp):
             if isinstance(val_type, IntegerType):
                 Rewriter.replace_op(
                     use.operation,
-                    (
-                        stack_ptr := rv32.GetRegisterOp(Registers.SP),
-                        SwOp(stack_ptr, use.operation.rs, stack_offset),
-                    ),
+                    (SwOp(stack_ptr, use.operation.rs, stack_offset),),
                 )
             else:
                 Rewriter.replace_op(
                     use.operation,
-                    (
-                        stack_ptr := rv32.GetRegisterOp(Registers.SP),
-                        FSdOp(stack_ptr, use.operation.rs, stack_offset),
-                    ),
+                    (FSdOp(stack_ptr, use.operation.rs, stack_offset),),
                 )
 
         elif isinstance(use.operation, LoadOp):
@@ -70,32 +77,31 @@ class ConvertRiscvStackToRiscvPass(ModulePass):
                 assert isinstance(use.operation.rd.type, IntRegisterType)
                 Rewriter.replace_op(
                     use.operation,
-                    (
-                        stack_ptr := rv32.GetRegisterOp(Registers.SP),
-                        LwOp(stack_ptr, stack_offset, rd=use.operation.rd.type),
-                    ),
+                    (LwOp(stack_ptr, stack_offset, rd=use.operation.rd.type),),
                 )
             else:
                 assert isinstance(use.operation.rd.type, FloatRegisterType)
                 Rewriter.replace_op(
                     use.operation,
-                    (
-                        stack_ptr := rv32.GetRegisterOp(Registers.SP),
-                        FLdOp(stack_ptr, stack_offset, rd=use.operation.rd.type),
-                    ),
+                    (FLdOp(stack_ptr, stack_offset, rd=use.operation.rd.type),),
                 )
 
         else:
             raise PassFailedException("Invalid use of StackSlotType: ", use.operation)
 
-    def insert_prologue_epilogue(self, total_offset: int, func_op: riscv_func.FuncOp):
+    def insert_prologue_epilogue(
+        self,
+        total_offset: int,
+        func_op: riscv_func.FuncOp,
+        stack_ptr: rv32.GetRegisterOp,
+    ):
         # Align SP to 16 bytes (from RISC-V calling convention)
         total_offset = (total_offset + 15) & ~15
 
         if total_offset > 0:
             # prologue
             builder = Builder(InsertPoint.at_start(func_op.body.blocks[0]))
-            builder.insert(stack_ptr := rv32.GetRegisterOp(Registers.SP))
+            builder.insert(stack_ptr)
             builder.insert(AddiOp(stack_ptr, -total_offset, rd=Registers.SP))
             # epilogue
             # using logic from prologue_epilogue_insertion.py
