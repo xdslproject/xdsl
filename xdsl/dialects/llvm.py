@@ -15,7 +15,9 @@ from xdsl.dialects.builtin import (
     AnyFloatConstr,
     ArrayAttr,
     DenseArrayBase,
+    DenseIntOrFPElementsAttr,
     DictionaryAttr,
+    FloatAttr,
     FunctionType,
     IntAttr,
     IntegerAttr,
@@ -1912,7 +1914,7 @@ class ReturnOp(IRDLOperation):
 class ConstantOp(IRDLOperation):
     name = "llvm.mlir.constant"
     result = result_def(Attribute)
-    value = prop_def()
+    value = prop_def(IntegerAttr | FloatAttr | DenseIntOrFPElementsAttr)
 
     traits = traits_def(NoMemoryEffect())
 

@@ -309,6 +309,13 @@ def test_return_op_empty():
     assert len(op_empty.operands) == 0
 
 
+def test_constant_op_rejects_invalid_prop():
+    op = llvm.ConstantOp(builtin.StringAttr("invalid"), builtin.i32)
+
+    with pytest.raises(VerifyException):
+        op.verify()
+
+
 def test_calling_conv():
     cconv = llvm.CallingConventionAttr("cc 11")
     cconv.verify()
