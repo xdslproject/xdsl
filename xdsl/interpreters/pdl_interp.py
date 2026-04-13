@@ -3,6 +3,7 @@ from typing import Any, cast, List, Tuple
 from xdsl.context import Context
 from xdsl.dialects import pdl, pdl_interp, pdl_region, pdl_interp_region
 from xdsl.dialects.builtin import SymbolRefAttr
+from xdsl.dialects.func import FuncOp, CallOp
 from xdsl.dialects.pdl import RangeType, ValueType
 from xdsl.dialects.scf import YieldOp
 from xdsl.interpreter import (
@@ -761,28 +762,27 @@ class PDLInterpFunctions(InterpreterFunctions):
         operation = args[0]
         assert isinstance(operation, Operation)
 
-        args_to_replace = args[1]
-        assert isinstance(args_to_replace, Tuple)
+        original_func = args[1]
+        assert isinstance(original_func, Operation)
 
-        args_to_replace_name_hints = [x.name_hint for x in args_to_replace]
+        call = args[2]
+        assert isinstance(call, CallOp)
 
-        map_name_hints_to_operations = {}
+        original_args = original_func.args
+        call_args = call.arguments
 
-        for op in operation.parent.walk():
-            if len(op.results) > 0:
-                result = op.results[0]
-                if result.name_hint is not None:
-                    name_hint = result.name_hint
-                    map_name_hints_to_operations.update({name_hint: op})
+        original_to_call = {}
+        for i, _ in enumerate(original_args):
+            original_to_call.update({original_args[i].name_hint : call_args[i]})
+
+        args_to_replace_name_hints = [x.name_hint for x in original_args]
 
         for op in operation.walk():
             if len(op.operands) > 0:
                 for i, operand in enumerate(op.operands):
                     if operand.name_hint is not None:
                         if operand.name_hint in args_to_replace_name_hints:
-                            if operand.name_hint in map_name_hints_to_operations:
-                                op.operands[i] = map_name_hints_to_operations[operand.name_hint].results[0]
-
+                            op.operands[i] = original_to_call[operand.name_hint]
 
         return True, tuple([])
 
