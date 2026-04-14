@@ -1,3 +1,5 @@
+from dataclasses import dataclass, field
+
 from xdsl.builder import Builder
 from xdsl.context import Context
 from xdsl.dialects import riscv_func, rv32
@@ -16,8 +18,11 @@ def get_type_size(value_type: FixedBitwidthType):
     return (value_type.bitwidth + 7) // 8
 
 
+@dataclass(frozen=True)
 class ConvertRiscvStackToRiscvPass(ModulePass):
     name = "convert-riscv-stack-to-riscv"
+
+    align_sp: bool = field(default=False)
 
     def apply(self, ctx: Context, op: ModuleOp) -> None:
         for func_op in op.walk():
@@ -93,8 +98,8 @@ class ConvertRiscvStackToRiscvPass(ModulePass):
         stack_ptr: rv32.GetRegisterOp,
     ):
         # Align SP to 16 bytes (from RISC-V calling convention)
-        # commented to match previous prologue-epilogue-insertion behaviour
-        # total_offset = (total_offset + 15) & ~15
+        if self.align_sp:
+            total_offset = (total_offset + 15) & ~15
 
         if total_offset > 0:
             # prologue
