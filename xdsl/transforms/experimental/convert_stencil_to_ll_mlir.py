@@ -7,7 +7,7 @@ from warnings import warn
 from typing_extensions import TypeVar
 
 from xdsl.context import Context
-from xdsl.dialects import arith, builtin, llvm, memref, scf
+from xdsl.dialects import arith, builtin, memref, scf
 from xdsl.dialects.builtin import (
     MemRefType,
     UnrealizedConversionCastOp,
@@ -537,8 +537,12 @@ class ApplyOpToParallel(RewritePattern):
         if has_reductions:
             reduction_handles = list(op.reductions)
 
+            # for result, handle_ptr in zip(p.results, reduction_handles):
+            #     store_op = llvm.StoreOp(result, handle_ptr)
+            #     rewriter.insert_op(store_op)
+
             for result, handle_ptr in zip(p.results, reduction_handles):
-                store_op = llvm.StoreOp(result, handle_ptr)
+                store_op = memref.StoreOp.get(result, handle_ptr, [])
                 rewriter.insert_op(store_op)
 
         rewriter.replace_op(op, [], new_results)
