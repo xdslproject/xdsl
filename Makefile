@@ -121,7 +121,6 @@ tests-marimo: uv-installed
 			rm -f "$$error_log"; \
 			echo -e "\n\nAll marimo tests passed successfully."; \
 		fi'
-	uv run pytest docs/marimo
 
 .PHONY: tests-functional
 tests-functional: pytest tests-toy filecheck tests-marimo ## run functional tests
@@ -163,8 +162,7 @@ coverage: coverage-tests coverage-filecheck-tests ## run coverage over all tests
 
 .PHONY: coverage-tests
 coverage-tests: uv-installed ## use different coverage data file per coverage run, otherwise combine complains
-	# Run pytest both on the tests folder and the marimo notebooks that have test cells
-	COVERAGE_FILE="${COVERAGE_FILE}.$@" uv run pytest -W error --cov tests docs/marimo
+	COVERAGE_FILE="${COVERAGE_FILE}.$@" uv run pytest -W error --cov
 
 .PHONY: coverage-filecheck-tests
 coverage-filecheck-tests: uv-installed ## run coverage over filecheck tests
