@@ -24,9 +24,9 @@ class PrintfFunctions(InterpreterFunctions):
         self, interpreter: Interpreter, op: PrintFormatOp, args: tuple[Any, ...]
     ):
         pretty_args: list[str] = [
-        pretty_args = tuple(
-            self._format_arg(fmt_val, arg) for fmt_val, arg in zip(op.format_vals, args, strict=True)
-        )
+            self._format_arg(fmt_val, arg)
+            for fmt_val, arg in zip(op.format_vals, args, strict=True)
+        ]
 
         print(
             op.format_str.data.format(*pretty_args),
