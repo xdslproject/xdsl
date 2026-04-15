@@ -8,6 +8,8 @@ from llvmlite.ir.types import FunctionType, Type
 from llvmlite.ir.values import Function, GlobalValue
 
 class Module:
+    data_layout: str
+    triple: str
     def __init__(self, name=..., context=...) -> None: ...
     @property
     def name(self) -> str: ...
