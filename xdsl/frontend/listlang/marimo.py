@@ -14,16 +14,17 @@ from xdsl.utils.hints import isa
 
 @register_impls
 class PrintfFunctions(InterpreterFunctions):
-    def _format_arg(self, fmt_val, arg):
+    def _format_arg(self, fmt_val: Any, arg: Any) -> str:
         if isa(fmt_val.type, builtin.I1):
             return "true" if arg else "false"
-        return arg
+        return str(arg)
 
     @impl(PrintFormatOp)
     def run_println(
         self, interpreter: Interpreter, op: PrintFormatOp, args: tuple[Any, ...]
     ):
-        pretty_args = [
+
+        pretty_args: list[str] = [
             self._format_arg(fmt_val, arg) for fmt_val, arg in zip(op.format_vals, args)
         ]
 
