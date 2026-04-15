@@ -359,7 +359,7 @@ def _(bool_edit, lmo, mo, to_mlir, xmo):
     bool_3_ok = bool_3_output == bool_3_expected
     bool_3_check = "✅ " if bool_3_ok else "❌"
 
-    bool_3_cmp = mo.md(f"expected: {bool_3_expected}" + "&nbsp; &nbsp; ↔ &nbsp; " + f"current: {bool_1_output}")
+    bool_3_cmp = mo.md(f"expected: {bool_3_expected}" + "&nbsp; &nbsp; ↔ &nbsp; " + f"current: {bool_3_output}")
     bool_3_stack = mo.vstack([mo.md("### Case 3 &nbsp;&nbsp;" + bool_3_check), lmo.rust_md(bool_3_prefix), bool_3_cmp])
 
     bool_4_prefix = "let x = 3; let y = 5;"
