@@ -22,3 +22,12 @@ def test_convert_indirect_call_raises():
 
     with pytest.raises(NotImplementedError, match="Indirect calls not yet implemented"):
         convert_op(op, builder, val_map)
+
+
+def test_convert_null():
+    op = llvm.NullOp(llvm.LLVMPointerType())
+    val_map: dict[SSAValue, Any] = {}
+
+    convert_op(op, MagicMock(), val_map)
+
+    assert str(val_map[op.nullptr]) == "ptr null"

@@ -40,7 +40,7 @@ jobs:
       # The --strict flag ensures the build fails on warnings
 
     - name: Upload artifact
-      uses: actions/upload-pages-artifact@v4
+      uses: actions/upload-pages-artifact@v5
       with:
         path: ./site
 

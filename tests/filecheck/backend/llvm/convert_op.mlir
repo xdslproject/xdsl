@@ -735,6 +735,17 @@ builtin.module {
   // CHECK-NEXT:   ret void
   // CHECK-NEXT: }
 
+  llvm.func @null_op() -> !llvm.ptr {
+    %0 = "llvm.mlir.null"() : () -> !llvm.ptr
+    llvm.return %0 : !llvm.ptr
+  }
+
+  // CHECK: define ptr @"null_op"()
+  // CHECK-NEXT: {
+  // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT:   ret ptr null
+  // CHECK-NEXT: }
+
   llvm.func @fma_op_f32(%arg0: vector<4xf32>, %arg1: vector<4xf32>, %arg2: vector<4xf32>) -> vector<4xf32> {
     %0 = vector.fma %arg0, %arg1, %arg2 : vector<4xf32>
     llvm.return %0 : vector<4xf32>

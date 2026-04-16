@@ -55,11 +55,19 @@ def _convert_func(op: llvm.FuncOp, llvm_module: ir.Module):
             convert_op(op_in_block, builder, val_map, block_map)
 
 
-def convert_module(module: ModuleOp) -> ir.Module:
+def convert_module(
+    module: ModuleOp,
+    target_triple: str = "",
+    data_layout: str = "",
+) -> ir.Module:
     """
     Convert an xDSL module to an LLVM module.
     """
     llvm_module = ir.Module()
+    if target_triple:
+        llvm_module.triple = target_triple
+    if data_layout:
+        llvm_module.data_layout = data_layout
 
     for op in module.ops:
         match op:
