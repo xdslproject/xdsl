@@ -264,7 +264,6 @@ class AttrParser(BaseParser):
             if not is_opaque:
                 if self.parse_optional_punctuation("<") is None:
                     return attr_def(attr_name, is_type, is_opaque, "")
-
             body = self._parse_unregistered_attr_body(starting_opaque_pos)
             attr = attr_def(attr_name, is_type, is_opaque, body)
             if not is_opaque:
