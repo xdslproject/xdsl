@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from contextlib import contextmanager
 from dataclasses import dataclass
 from enum import Enum
 from string import hexdigits
@@ -255,7 +256,7 @@ MLIRToken = Token[MLIRTokenKind]
 
 @dataclass
 class MLIRLexer(Lexer[MLIRTokenKind]):
-    _angle_bracket_depth: int = 0
+    _allow_line_comments: bool = True
 
     def _is_in_bounds(self, size: Position = 1) -> bool:
         """
@@ -299,16 +300,25 @@ class MLIRLexer(Lexer[MLIRTokenKind]):
     _whitespace_regex = re.compile(r"((//[^\n]*(\n)?)|(\s+))*", re.ASCII)
     _whitespace_in_attr_regex = re.compile(r"((\s+))*", re.ASCII)
 
-    def _consume_whitespace(self) -> re.Match[str] | None:
+    @contextmanager
+    def allow_line_comments(self, value: bool):
+        old = self._allow_line_comments
+        self._allow_line_comments = value
+        try:
+            yield
+        finally:
+            self._allow_line_comments = old
+
+    def _consume_whitespace(self) -> None:
         """
         Consume whitespace and comments.
         """
         regex = (
-            self._whitespace_in_attr_regex
-            if self._angle_bracket_depth > 0
-            else self._whitespace_regex
+            self._whitespace_regex
+            if self._allow_line_comments
+            else self._whitespace_in_attr_regex
         )
-        return self._consume_regex(regex)
+        self._consume_regex(regex)
 
     def _form_token(self, kind: MLIRTokenKind, start_pos: Position) -> MLIRToken:
         """
@@ -353,12 +363,7 @@ class MLIRLexer(Lexer[MLIRTokenKind]):
             "|": MLIRTokenKind.VERTICAL_BAR,
         }
         if current_char in single_char_punctuation:
-            kind = single_char_punctuation[current_char]
-            if kind == MLIRTokenKind.LESS:
-                self._angle_bracket_depth += 1
-            elif kind == MLIRTokenKind.GREATER:
-                self._angle_bracket_depth = max(0, self._angle_bracket_depth - 1)
-            return self._form_token(kind, start_pos)
+            return self._form_token(single_char_punctuation[current_char], start_pos)
 
         # '...'
         if current_char == ".":

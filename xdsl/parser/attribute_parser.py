@@ -75,7 +75,7 @@ from xdsl.utils.bitwise_casts import (
 from xdsl.utils.exceptions import ParseError, VerifyException
 from xdsl.utils.hints import isa
 from xdsl.utils.lexer import Position, Span
-from xdsl.utils.mlir_lexer import MLIRTokenKind, StringLiteral
+from xdsl.utils.mlir_lexer import MLIRLexer, MLIRTokenKind, StringLiteral
 
 from .base_parser import BaseParser  # noqa: TID251
 
@@ -264,7 +264,9 @@ class AttrParser(BaseParser):
             if not is_opaque:
                 if self.parse_optional_punctuation("<") is None:
                     return attr_def(attr_name, is_type, is_opaque, "")
-            body = self._parse_unregistered_attr_body(starting_opaque_pos)
+            assert isinstance(self.lexer, MLIRLexer)
+            with self.lexer.allow_line_comments(False):
+                body = self._parse_unregistered_attr_body(starting_opaque_pos)
             attr = attr_def(attr_name, is_type, is_opaque, body)
             if not is_opaque:
                 self.parse_punctuation(">")
@@ -275,7 +277,10 @@ class AttrParser(BaseParser):
             return attr_def.new(param_list)
         elif issubclass(attr_def, Data):
             _attr_def = cast(type[Data[Any]], attr_def)
-            param = _attr_def.parse_parameter(self)
+            assert isinstance(self.lexer, MLIRLexer)
+            with self.lexer.allow_line_comments(False):
+                param = _attr_def.parse_parameter(self)
+            self._resume_from(self._current_token.span.start)
             return _attr_def(param)
         else:
             raise TypeError("Attributes are either ParametrizedAttribute or Data.")

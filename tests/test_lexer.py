@@ -285,9 +285,17 @@ def get_all_tokens(input_str: str) -> list[MLIRToken]:
     return tokens
 
 
-def test_slash_inside_angle_brackets():
-    """Verify // inside <...> produces SLASH tokens, not treated as comment."""
-    tokens = get_all_tokens("<a // b>")
+def test_slash_with_comments_disabled():
+    """Verify // produces SLASH tokens when line comments are disabled."""
+    file = Input("<a // b>", "<unknown>")
+    lexer = MLIRLexer(file)
+    with lexer.allow_line_comments(False):
+        tokens: list[MLIRToken] = []
+        while True:
+            token = lexer.lex()
+            tokens.append(token)
+            if token.kind == MLIRTokenKind.EOF:
+                break
     kinds = [t.kind for t in tokens]
     assert kinds == [
         MLIRTokenKind.LESS,
@@ -300,8 +308,8 @@ def test_slash_inside_angle_brackets():
     ]
 
 
-def test_comment_outside_angle_brackets():
-    """Verify // outside <...> is still treated as a comment."""
+def test_slash_with_comments_enabled():
+    """Verify // is treated as a comment by default."""
     tokens = get_all_tokens("<a> // comment\n0")
     kinds = [t.kind for t in tokens]
     assert kinds == [
