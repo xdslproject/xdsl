@@ -51,6 +51,7 @@ def assert_token_fail(input: str):
         (")", MLIRTokenKind.R_PAREN),
         ("]", MLIRTokenKind.R_SQUARE),
         ("*", MLIRTokenKind.STAR),
+        ("/", MLIRTokenKind.SLASH),
         ("|", MLIRTokenKind.VERTICAL_BAR),
         ("{-#", MLIRTokenKind.FILE_METADATA_BEGIN),
         ("#-}", MLIRTokenKind.FILE_METADATA_END),
@@ -60,7 +61,7 @@ def test_punctuation(text: str, kind: MLIRTokenKind):
     assert_single_token(text, kind)
 
 
-@pytest.mark.parametrize("text", [".", "&", "/"])
+@pytest.mark.parametrize("text", [".", "&"])
 def test_punctuation_fail(text: str):
     assert_token_fail(text)
 
@@ -270,3 +271,43 @@ def test_get_start_of_line(
     input = Input(START_END_LINE_CONTENT, "<>")
     assert input.get_start_of_line(pos) == expected_start
     assert input.get_end_of_line(pos) == expected_end
+
+
+def get_all_tokens(input_str: str) -> list[MLIRToken]:
+    file = Input(input_str, "<unknown>")
+    lexer = MLIRLexer(file)
+    tokens: list[MLIRToken] = []
+    while True:
+        token = lexer.lex()
+        tokens.append(token)
+        if token.kind == MLIRTokenKind.EOF:
+            break
+    return tokens
+
+
+def test_slash_inside_angle_brackets():
+    """Verify // inside <...> produces SLASH tokens, not treated as comment."""
+    tokens = get_all_tokens("<a // b>")
+    kinds = [t.kind for t in tokens]
+    assert kinds == [
+        MLIRTokenKind.LESS,
+        MLIRTokenKind.BARE_IDENT,
+        MLIRTokenKind.SLASH,
+        MLIRTokenKind.SLASH,
+        MLIRTokenKind.BARE_IDENT,
+        MLIRTokenKind.GREATER,
+        MLIRTokenKind.EOF,
+    ]
+
+
+def test_comment_outside_angle_brackets():
+    """Verify // outside <...> is still treated as a comment."""
+    tokens = get_all_tokens("<a> // comment\n0")
+    kinds = [t.kind for t in tokens]
+    assert kinds == [
+        MLIRTokenKind.LESS,
+        MLIRTokenKind.BARE_IDENT,
+        MLIRTokenKind.GREATER,
+        MLIRTokenKind.INTEGER_LIT,
+        MLIRTokenKind.EOF,
+    ]

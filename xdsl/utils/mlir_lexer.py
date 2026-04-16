@@ -27,6 +27,7 @@ PunctuationSpelling: TypeAlias = Literal[
     ")",
     "]",
     "*",
+    "/",
     "|",
     "{-#",
     "#-}",
@@ -166,6 +167,7 @@ class MLIRTokenKind(Enum):
     R_PAREN = ")"
     R_SQUARE = "]"
     STAR = "*"
+    SLASH = "/"
     VERTICAL_BAR = "|"
     FILE_METADATA_BEGIN = "{-#"
     FILE_METADATA_END = "#-}"
@@ -240,6 +242,7 @@ KIND_BY_PUNCTUATION_SPELLING = {
     "}": MLIRTokenKind.R_BRACE,
     ")": MLIRTokenKind.R_PAREN,
     "]": MLIRTokenKind.R_SQUARE,
+    "/": MLIRTokenKind.SLASH,
     "*": MLIRTokenKind.STAR,
     "|": MLIRTokenKind.VERTICAL_BAR,
     "{-#": MLIRTokenKind.FILE_METADATA_BEGIN,
@@ -252,6 +255,8 @@ MLIRToken = Token[MLIRTokenKind]
 
 @dataclass
 class MLIRLexer(Lexer[MLIRTokenKind]):
+    _angle_bracket_depth: int = 0
+
     def _is_in_bounds(self, size: Position = 1) -> bool:
         """
         Check if the current position is within the bounds of the input.
@@ -292,12 +297,18 @@ class MLIRLexer(Lexer[MLIRTokenKind]):
         return match
 
     _whitespace_regex = re.compile(r"((//[^\n]*(\n)?)|(\s+))*", re.ASCII)
+    _whitespace_in_attr_regex = re.compile(r"((\s+))*", re.ASCII)
 
-    def _consume_whitespace(self) -> None:
+    def _consume_whitespace(self) -> re.Match[str] | None:
         """
         Consume whitespace and comments.
         """
-        self._consume_regex(self._whitespace_regex)
+        regex = (
+            self._whitespace_in_attr_regex
+            if self._angle_bracket_depth > 0
+            else self._whitespace_regex
+        )
+        return self._consume_regex(regex)
 
     def _form_token(self, kind: MLIRTokenKind, start_pos: Position) -> MLIRToken:
         """
@@ -337,11 +348,17 @@ class MLIRLexer(Lexer[MLIRTokenKind]):
             "=": MLIRTokenKind.EQUAL,
             "+": MLIRTokenKind.PLUS,
             "*": MLIRTokenKind.STAR,
+            "/": MLIRTokenKind.SLASH,
             "?": MLIRTokenKind.QUESTION,
             "|": MLIRTokenKind.VERTICAL_BAR,
         }
         if current_char in single_char_punctuation:
-            return self._form_token(single_char_punctuation[current_char], start_pos)
+            kind = single_char_punctuation[current_char]
+            if kind == MLIRTokenKind.LESS:
+                self._angle_bracket_depth += 1
+            elif kind == MLIRTokenKind.GREATER:
+                self._angle_bracket_depth = max(0, self._angle_bracket_depth - 1)
+            return self._form_token(kind, start_pos)
 
         # '...'
         if current_char == ".":
