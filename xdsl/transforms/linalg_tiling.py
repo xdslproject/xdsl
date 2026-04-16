@@ -22,6 +22,7 @@ from xdsl.pattern_rewriter import (
     op_type_rewrite_pattern,
 )
 from xdsl.rewriter import InsertPoint
+from xdsl.utils.exceptions import PassFailedException
 from xdsl.utils.hints import isa
 
 
@@ -78,18 +79,22 @@ def _verify_generic_is_tileable(
     """
 
     if any(tile_sizes[dim] < 0 for dim in tiled_dims):
-        raise ValueError("negative tile sizes not supported")
+        raise PassFailedException("negative tile sizes are not supported")
 
     if op.res:
-        raise NotImplementedError("tensor results not supported yet")
+        raise PassFailedException(
+            "tiling linalg.generic with tensor results is not supported yet"
+        )
 
     if any(isa(body_op, linalg.IndexOp) for body_op in op.body.walk()):
-        raise NotImplementedError("linalg.index not supported yet")
+        raise PassFailedException(
+            "tiling linalg.generic using linalg.index is not supported yet"
+        )
 
     iterator_types = tuple(iterator.data for iterator in op.get_iterator_types())
     if any(iterator_types[dim] != linalg.IteratorType.PARALLEL for dim in tiled_dims):
-        raise NotImplementedError(
-            "only parallel iterator dimensions can be tiled in MVP"
+        raise PassFailedException(
+            "tiling of non-parallel iterator dimensions is not supported yet"
         )
 
     indexing_maps = tuple(attr.data for attr in op.get_indexing_maps())
@@ -97,18 +102,24 @@ def _verify_generic_is_tileable(
         raw_operand_type = operand.type
 
         if not isa(raw_operand_type, MemRefType):
-            raise ValueError("only memref operands supported")
+            raise PassFailedException(
+                "tiling linalg.generic with non-memref operands is not supported yet"
+            )
         operand_type = raw_operand_type
 
         if any(dim < 0 for dim in operand_type.get_shape()):
-            raise NotImplementedError("dynamic shapes not supported")
+            raise PassFailedException(
+                "tiling linalg.generic with dynamic operand shapes is not supported yet"
+            )
 
         if not indexing_map.is_projected_permutation():
-            raise NotImplementedError("only projected-permutation maps supported")
+            raise PassFailedException(
+                "tiling linalg.generic with non-projected-permutation indexing maps is not supported yet"
+            )
 
     loop_ranges = op.get_static_loop_ranges()
-    if any(loop_ranges[dim] % tile_sizes[dim] != 0 for dim in tiled_dims):
-        raise NotImplementedError("partial tiles not supported yet")
+    if any(loop_ranges[dim] % tile_sizes[dim] for dim in tiled_dims):
+        raise PassFailedException("partial tiles are not supported yet")
 
     return loop_ranges
 
@@ -171,18 +182,20 @@ def _build_tiled_subview_type(source_type: MemRefType, result_shape: Sequence[in
     Build `the type` for one tiled subview.
     """
 
+    layout = source_type.layout
+    if not isinstance(layout, (NoneAttr, StridedLayoutAttr)):
+        raise PassFailedException(
+            f"tiling memrefs with layout {layout} is not supported yet"
+        )
+
     strides = source_type.get_strides()
     assert strides is not None
     if any(stride is None for stride in strides):
-        raise NotImplementedError(
-            "Subview of memref with dynamic strides not supported"
+        raise PassFailedException(
+            "tiling memrefs with dynamic strides is not supported yet"
         )
 
-    layout = source_type.layout
-    if not isinstance(layout, (NoneAttr, StridedLayoutAttr)):
-        raise NotImplementedError(f"Subview of memref layout {layout} not supported")
-
-    layout = StridedLayoutAttr(tuple(stride for stride in strides), None)
+    layout = StridedLayoutAttr(tuple(strides), None)
 
     return MemRefType(
         source_type.element_type,
@@ -305,8 +318,8 @@ def _analyze_generic_op(
     operand_infos = tuple(operand_infos_list)
 
     return TilingPlan(
-        loop_ranges=tuple(loop_ranges),
-        tiled_dims=tuple(tiled_dims),
+        loop_ranges=loop_ranges,
+        tiled_dims=tiled_dims,
         operand_infos=operand_infos,
         tile_sizes=normalized_tile_sizes,
     )
