@@ -1,4 +1,5 @@
 from collections.abc import Callable
+from typing import cast
 
 from llvmlite import ir
 from llvmlite.ir import instructions
@@ -164,12 +165,31 @@ def _convert_fcmp(
     val_map[op.results[0]] = fn(cmpop, val_map[op.lhs], val_map[op.rhs])
 
 
+def _declare_intrinsic(
+    module: ir.Module, base_name: str, fn_type: ir.FunctionType, operand_type: ir.Type
+) -> ir.Function:
+    # llvmlite's Module.declare_intrinsic raises on ir.VectorType, so build the
+    # mangled name manually for vector overloads (e.g. llvm.fabs.v4f32).
+    if isinstance(operand_type, ir.VectorType):
+        count = cast(int, operand_type.count)  # pyright: ignore[reportAttributeAccessIssue, reportUnknownMemberType]
+        element = cast(ir.Type, operand_type.element)  # pyright: ignore[reportAttributeAccessIssue, reportUnknownMemberType]
+        intrinsic_name = cast(str, element.intrinsic_name)  # pyright: ignore[reportAttributeAccessIssue, reportUnknownMemberType]
+        name = f"{base_name}.v{count}{intrinsic_name}"
+        try:
+            existing = module.get_global(name)
+        except KeyError:
+            return ir.Function(module, fn_type, name=name)
+        assert isinstance(existing, ir.Function)
+        return existing
+    return module.declare_intrinsic(base_name, fnty=fn_type)
+
+
 def _convert_fabs(
     op: llvm.FAbsOp, builder: ir.IRBuilder, val_map: dict[SSAValue, ir.Value]
 ):
     operand = val_map[op.input]
     fn_type = ir.FunctionType(operand.type, [operand.type])
-    intrinsic = builder.module.declare_intrinsic("llvm.fabs", fnty=fn_type)
+    intrinsic = _declare_intrinsic(builder.module, "llvm.fabs", fn_type, operand.type)
     val_map[op.result] = builder.call(intrinsic, [operand])
 
 

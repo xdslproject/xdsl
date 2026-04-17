@@ -621,6 +621,30 @@ builtin.module {
   // CHECK-NEXT:   ret float %"[[RES]]"
   // CHECK-NEXT: }
 
+  llvm.func @fabs_v4f32(%arg0: vector<4xf32>) -> vector<4xf32> {
+    %0 = llvm.intr.fabs(%arg0) : (vector<4xf32>) -> vector<4xf32>
+    llvm.return %0 : vector<4xf32>
+  }
+
+  // CHECK: define <4 x float> @"fabs_v4f32"(<4 x float> %".1")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: [[ENTRY:.\d+]]:
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = call <4 x float> @"llvm.fabs.v4f32"(<4 x float> %".1")
+  // CHECK-NEXT:   ret <4 x float> %"[[RES]]"
+  // CHECK-NEXT: }
+
+  llvm.func @fabs_v2f64(%arg0: vector<2xf64>) -> vector<2xf64> {
+    %0 = llvm.intr.fabs(%arg0) : (vector<2xf64>) -> vector<2xf64>
+    llvm.return %0 : vector<2xf64>
+  }
+
+  // CHECK: define <2 x double> @"fabs_v2f64"(<2 x double> %".1")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: [[ENTRY:.\d+]]:
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = call <2 x double> @"llvm.fabs.v2f64"(<2 x double> %".1")
+  // CHECK-NEXT:   ret <2 x double> %"[[RES]]"
+  // CHECK-NEXT: }
+
   llvm.func @fneg_op(%arg0: f32) -> f32 {
     %0 = llvm.fneg %arg0 : f32
     llvm.return %0 : f32
