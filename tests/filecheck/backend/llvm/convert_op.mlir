@@ -769,6 +769,15 @@ builtin.module {
   // CHECK-NEXT: {
   // CHECK-NEXT: [[ENTRY:.\d+]]:
   // CHECK-NEXT:   %"[[RES:.\d+]]" = call float @"llvm.floor"(float %".1")
+  llvm.func @fexp2_op(%arg0: f32) -> f32 {
+    %0 = llvm.intr.exp2(%arg0) : (f32) -> f32
+    llvm.return %0 : f32
+  }
+
+  // CHECK: define float @"fexp2_op"(float %".1")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: [[ENTRY:.\d+]]:
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = call float @"llvm.exp2"(float %".1")
   // CHECK-NEXT:   ret float %"[[RES]]"
   // CHECK-NEXT: }
 
