@@ -608,6 +608,17 @@ def test_flog_op():
     assert op.res.type == builtin.f32
 
 
+def test_fma_op():
+    a = create_ssa_value(builtin.f32)
+    b = create_ssa_value(builtin.f32)
+    c = create_ssa_value(builtin.f32)
+    op = llvm.FMAOp(a, b, c)
+    assert op.a == a
+    assert op.b == b
+    assert op.c == c
+    assert op.res.type == builtin.f32
+
+
 def test_fneg_op():
     val = create_ssa_value(builtin.f32)
     op = llvm.FNegOp(val)

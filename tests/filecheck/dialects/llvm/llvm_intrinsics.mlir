@@ -30,6 +30,7 @@
 
 %fsqrt_vec = llvm.intr.sqrt(%vec_f32) : (vector<4xf32>) -> vector<4xf32>
 // CHECK-NEXT: %fsqrt_vec = llvm.intr.sqrt(%vec_f32) : (vector<4xf32>) -> vector<4xf32>
+
 %flog_f32 = llvm.intr.log(%f32) : (f32) -> f32
 // CHECK: %flog_f32 = llvm.intr.log(%f32) : (f32) -> f32
 
@@ -38,6 +39,15 @@
 
 %flog_vec = llvm.intr.log(%vec_f32) : (vector<4xf32>) -> vector<4xf32>
 // CHECK-NEXT: %flog_vec = llvm.intr.log(%vec_f32) : (vector<4xf32>) -> vector<4xf32>
+
+%fma_f32 = llvm.intr.fma(%f32, %f32, %f32) : (f32, f32, f32) -> f32
+// CHECK: %fma_f32 = llvm.intr.fma(%f32, %f32, %f32) : (f32, f32, f32) -> f32
+
+%fma_f64 = llvm.intr.fma(%f64, %f64, %f64) : (f64, f64, f64) -> f64
+// CHECK-NEXT: %fma_f64 = llvm.intr.fma(%f64, %f64, %f64) : (f64, f64, f64) -> f64
+
+%fma_vec = llvm.intr.fma(%vec_f32, %vec_f32, %vec_f32) : (vector<4xf32>, vector<4xf32>, vector<4xf32>) -> vector<4xf32>
+// CHECK-NEXT: %fma_vec = llvm.intr.fma(%vec_f32, %vec_f32, %vec_f32) : (vector<4xf32>, vector<4xf32>, vector<4xf32>) -> vector<4xf32>
 
 %fneg_f32 = llvm.fneg %f32 : f32
 // CHECK: %fneg_f32 = llvm.fneg %f32 : f32

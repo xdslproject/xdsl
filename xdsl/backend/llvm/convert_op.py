@@ -213,6 +213,29 @@ def _convert_fneg(
     val_map[op.res] = builder.fneg(operand)
 
 
+def _convert_fma_intr(
+    op: llvm.FMAOp, builder: ir.IRBuilder, val_map: dict[SSAValue, ir.Value]
+):
+    a = val_map[op.a]
+    b = val_map[op.b]
+    c = val_map[op.c]
+    res_type = convert_type(op.res.type)
+    fn_type = ir.FunctionType(res_type, [res_type, res_type, res_type])
+    if isinstance(res_type, ir.VectorType):
+        assert isinstance(res_type.element, (ir.HalfType, ir.FloatType, ir.DoubleType))
+        # declare_intrinsic doesn't support VectorType, build name manually
+        name = f"llvm.fma.v{res_type.count}{res_type.element.intrinsic_name}"
+        try:
+            intrinsic = builder.module.get_global(name)
+        except KeyError:
+            intrinsic = ir.Function(builder.module, fn_type, name=name)
+    else:
+        intrinsic = builder.module.declare_intrinsic(
+            "llvm.fma", tys=[res_type], fnty=fn_type
+        )
+    val_map[op.res] = builder.call(intrinsic, [a, b, c])
+
+
 def _convert_call(
     op: llvm.CallOp, builder: ir.IRBuilder, val_map: dict[SSAValue, ir.Value]
 ):
@@ -472,6 +495,8 @@ def convert_op(
             _convert_binary_intrinsic(op, builder, val_map)
         case llvm.FNegOp():
             _convert_fneg(op, builder, val_map)
+        case llvm.FMAOp():
+            _convert_fma_intr(op, builder, val_map)
         case llvm.CallOp():
             _convert_call(op, builder, val_map)
         case llvm.AllocaOp():

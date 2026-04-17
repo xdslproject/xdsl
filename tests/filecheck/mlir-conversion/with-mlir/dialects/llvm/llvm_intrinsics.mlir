@@ -13,6 +13,15 @@
 %2 = llvm.intr.fabs(%arg2) : (vector<4xf32>) -> vector<4xf32>
 // CHECK: llvm.intr.fabs([[arg2]]) : (vector<4xf32>) -> vector<4xf32>
 
+%fma_f32 = llvm.intr.fma(%arg0, %arg0, %arg0) : (f32, f32, f32) -> f32
+// CHECK: llvm.intr.fma([[arg0]], [[arg0]], [[arg0]]) : (f32, f32, f32) -> f32
+
+%fma_f64 = llvm.intr.fma(%arg1, %arg1, %arg1) : (f64, f64, f64) -> f64
+// CHECK: llvm.intr.fma([[arg1]], [[arg1]], [[arg1]]) : (f64, f64, f64) -> f64
+
+%fma_vec = llvm.intr.fma(%arg2, %arg2, %arg2) : (vector<4xf32>, vector<4xf32>, vector<4xf32>) -> vector<4xf32>
+// CHECK: llvm.intr.fma([[arg2]], [[arg2]], [[arg2]]) : (vector<4xf32>, vector<4xf32>, vector<4xf32>) -> vector<4xf32>
+
 %3 = llvm.fneg %arg0 : f32
 // CHECK: llvm.fneg [[arg0]] : f32
 

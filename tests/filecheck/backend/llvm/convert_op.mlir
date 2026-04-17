@@ -759,6 +759,41 @@ builtin.module {
   // CHECK-NEXT:   ret float %"[[RES]]"
   // CHECK-NEXT: }
 
+  llvm.func @llvm_intr_fma_op_f32(%arg0: f32, %arg1: f32, %arg2: f32) -> f32 {
+    %0 = llvm.intr.fma(%arg0, %arg1, %arg2) : (f32, f32, f32) -> f32
+    llvm.return %0 : f32
+  }
+
+  // CHECK: define float @"llvm_intr_fma_op_f32"(float %".1", float %".2", float %".3")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: [[ENTRY:.\d+]]:
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = call float @"llvm.fma.f32"(float %".1", float %".2", float %".3")
+  // CHECK-NEXT:   ret float %"[[RES]]"
+  // CHECK-NEXT: }
+
+  llvm.func @llvm_intr_fma_op_f64(%arg0: f64, %arg1: f64, %arg2: f64) -> f64 {
+    %0 = llvm.intr.fma(%arg0, %arg1, %arg2) : (f64, f64, f64) -> f64
+    llvm.return %0 : f64
+  }
+
+  // CHECK: define double @"llvm_intr_fma_op_f64"(double %".1", double %".2", double %".3")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: [[ENTRY:.\d+]]:
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = call double @"llvm.fma.f64"(double %".1", double %".2", double %".3")
+  // CHECK-NEXT:   ret double %"[[RES]]"
+  // CHECK-NEXT: }
+
+  llvm.func @llvm_intr_fma_op_vec_f32(%arg0: vector<4xf32>, %arg1: vector<4xf32>, %arg2: vector<4xf32>) -> vector<4xf32> {
+    %0 = llvm.intr.fma(%arg0, %arg1, %arg2) : (vector<4xf32>, vector<4xf32>, vector<4xf32>) -> vector<4xf32>
+    llvm.return %0 : vector<4xf32>
+  }
+
+  // CHECK: define <4 x float> @"llvm_intr_fma_op_vec_f32"(<4 x float> %".1", <4 x float> %".2", <4 x float> %".3")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: [[ENTRY:.\d+]]:
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = call <4 x float> @"llvm.fma.v4f32"(<4 x float> %".1", <4 x float> %".2", <4 x float> %".3")
+  // CHECK-NEXT:   ret <4 x float> %"[[RES]]"
+  // CHECK-NEXT: }
   llvm.func @fneg_op(%arg0: f32) -> f32 {
     %0 = llvm.fneg %arg0 : f32
     llvm.return %0 : f32
