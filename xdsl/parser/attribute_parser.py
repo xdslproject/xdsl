@@ -78,7 +78,7 @@ from xdsl.utils.bitwise_casts import (
 from xdsl.utils.exceptions import ParseError, VerifyException
 from xdsl.utils.hints import isa
 from xdsl.utils.lexer import Position, Span
-from xdsl.utils.mlir_lexer import MLIRTokenKind, StringLiteral
+from xdsl.utils.mlir_lexer import AttrBodyLexer, MLIRTokenKind, StringLiteral
 
 from .base_parser import BaseParser  # noqa: TID251
 
@@ -115,6 +115,18 @@ class AttrParser(BaseParser):
     """
     Set of resource references encountered during parsing.
     """
+
+    _attr_body_lexer: AttrBodyLexer | None = field(default=None, init=False)
+
+    @property
+    def attr_body_lexer(self) -> AttrBodyLexer:
+        """
+        A cached AttrBodyLexer over the same input, for re-parsing
+        attribute bodies without comment handling.
+        """
+        if self._attr_body_lexer is None:
+            self._attr_body_lexer = AttrBodyLexer(self.lexer.input)
+        return self._attr_body_lexer
 
     def parse_optional_type(self) -> TypeAttribute | None:
         """
@@ -231,7 +243,6 @@ class AttrParser(BaseParser):
         self,
         attr_name: str,
         is_type: bool,
-        is_opaque: bool,
         starting_opaque_pos: Position | None,
     ):
         """
@@ -241,9 +252,12 @@ class AttrParser(BaseParser):
                                     | `[` dialect-attr-contents+ `]`
                                     | `{` dialect-attr-contents+ `}`
                                     | [^[]<>(){}\0]+
-        In the case where the attribute or type is using the opaque syntax,
-        the attribute or type mnemonic should have already been parsed.
+
+        ``starting_opaque_pos`` is set when the attribute uses the opaque
+        syntax (``#dialect<name ...>``), pointing to the first character
+        after the mnemonic.  ``None`` means the pretty syntax was used.
         """
+        is_opaque = starting_opaque_pos is not None
         pretty = "." in attr_name
         if not pretty:
             self.parse_punctuation("<")
@@ -263,23 +277,43 @@ class AttrParser(BaseParser):
             )
         if attr_def is None:
             self.raise_error(f"'{attr_name}' is not registered")
+
         if issubclass(attr_def, UnregisteredAttr):
-            if not is_opaque:
-                if self.parse_optional_punctuation("<") is None:
-                    return attr_def(attr_name, is_type, is_opaque, "")
-            body = self._parse_unregistered_attr_body(starting_opaque_pos)
-            attr = attr_def(attr_name, is_type, is_opaque, body)
-            if not is_opaque:
-                self.parse_punctuation(">")
+            if starting_opaque_pos is not None:
+                # this is opaque
+                gt_pos = self._raw_scan_balanced(starting_opaque_pos)
+                body = self.lexer.input.content[starting_opaque_pos:gt_pos]
+                self.lexer.pos = gt_pos
+                self._parser_state.current_token = self.lexer.lex()
+                return attr_def(attr_name, is_type, is_opaque, body)
+            if self._current_token.kind != MLIRTokenKind.LESS:
+                return attr_def(attr_name, is_type, is_opaque, "")
+            body_text = self._parse_dialect_symbol_body()
+            return attr_def(attr_name, is_type, is_opaque, body_text)
+
+        # Registered attribute — swap to AttrBodyLexer (no // comments)
+        # so that slashes inside <...> are tokenized, not treated as comments.
+        # We resume from wherever parse_parameters stops, since some attributes
+        # (e.g. ComplexNumberAttr) parse beyond the closing '>'.
+        if self._current_token.kind == MLIRTokenKind.LESS:
+            lt_pos = self._current_token.span.start
+            old_lexer = self._parser_state.lexer
+            self._parser_state.lexer = self.attr_body_lexer
+            self._resume_from(lt_pos)
+            attr = self._dispatch_registered_attr(attr_def)
+            resume_pos = self._current_token.span.start
+            self._parser_state.lexer = old_lexer
+            self._resume_from(resume_pos)
             return attr
 
-        elif issubclass(attr_def, ParametrizedAttribute):
-            param_list = attr_def.parse_parameters(self)
-            return attr_def.new(param_list)
+        return self._dispatch_registered_attr(attr_def)
+
+    def _dispatch_registered_attr(self, attr_def: type[Attribute]) -> Attribute:
+        if issubclass(attr_def, ParametrizedAttribute):
+            return attr_def.new(attr_def.parse_parameters(self))
         elif issubclass(attr_def, Data):
             _attr_def = cast(type[Data[Any]], attr_def)
-            param = _attr_def.parse_parameter(self)
-            return _attr_def(param)
+            return _attr_def(_attr_def.parse_parameter(self))
         else:
             raise TypeError("Attributes are either ParametrizedAttribute or Data.")
 
@@ -336,13 +370,80 @@ class AttrParser(BaseParser):
                 attr_or_dialect_name += "." + attr_name_token.text
 
         attr = self._parse_dialect_type_or_attribute_body(
-            attr_or_dialect_name, is_type, not is_pretty_name, starting_opaque_pos
+            attr_or_dialect_name, is_type, starting_opaque_pos
         )
 
         if not is_pretty_name:
             self.parse_punctuation(">")
 
         return attr
+
+    def _raw_scan_balanced(self, pos: Position) -> Position:
+        """
+        Scan raw characters for balanced brackets starting from `pos`.
+
+        `pos` must point to the first character after an opening `<`.
+        Returns the position of the matching closing `>`.
+        """
+        content = self.lexer.input.content
+        length = self.lexer.input.len
+        closers = {">": "<", ")": "(", "]": "[", "}": "{"}
+        nesting: list[str] = []
+
+        while pos < length:
+            c = content[pos]
+            pos += 1
+
+            if c in "<([{":
+                nesting.append(c)
+            elif c == "-" and pos < length and content[pos] == ">":
+                pos += 1  # '->' is not a closing bracket
+            elif c in closers:
+                expected = closers[c]
+                if not nesting:
+                    if c == ">":
+                        return pos - 1  # position of '>'
+                    self.raise_error(
+                        f"Unbalanced '{c}' in dialect symbol body"
+                    )
+                if nesting[-1] != expected:
+                    self.raise_error(
+                        f"Unbalanced '{c}' in dialect symbol body"
+                    )
+                nesting.pop()
+            elif c == '"':
+                while pos < length:
+                    sc = content[pos]
+                    pos += 1
+                    if sc == "\\":
+                        pos += 1
+                    elif sc == '"':
+                        break
+                else:
+                    self.raise_error(
+                        "Unterminated string literal in dialect symbol body"
+                    )
+
+        self.raise_error("Unexpected end of file in dialect symbol body")
+
+    def _parse_dialect_symbol_body(self) -> str:
+        """
+        Extract a dialect symbol body via raw character scanning.
+
+        The current token must be `<`.  Scans the input directly (bypassing
+        the tokenizer) to find the matching `>`, handling nested brackets
+        and string literals.  This matches MLIR's `parseDialectSymbolBody`.
+
+        After this call the lexer is positioned past the closing `>`.
+
+        Returns the body text between the outer `<` and `>` (exclusive).
+        """
+        body_start = self._current_token.span.start + 1
+        gt_pos = self._raw_scan_balanced(body_start)
+
+        self.lexer.pos = gt_pos + 1
+        self._parser_state.current_token = self.lexer.lex()
+        return self.lexer.input.content[body_start:gt_pos]
 
     def _parse_unregistered_attr_body(self, start_pos: Position | None) -> str:
         """
