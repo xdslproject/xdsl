@@ -2,7 +2,7 @@
 // RUN: XDSL_GENERIC_ROUNDTRIP
 
 
-// CHECK:      func.func @main(%val : !pdl.value, %valrange : !pdl.range<value>, %op : !pdl.operation) {
+// CHECK:      func.func @main(%val: !pdl.value, %valrange: !pdl.range<value>, %op: !pdl.operation) {
 // CHECK-NEXT:   %class_vals = ematch.get_class_vals %val
 // CHECK-NEXT:   %representative = ematch.get_class_representative %val
 // CHECK-NEXT:   %result = ematch.get_class_result %val
@@ -15,7 +15,7 @@
 // CHECK-NEXT: }
 
 // CHECK-GENERIC:     "func.func"() <{sym_name = "main", function_type = (!pdl.value, !pdl.range<value>, !pdl.operation) -> ()}> ({
-// CHECK-GENERIC-NEXT: ^bb0(%val : !pdl.value, %valrange : !pdl.range<value>, %op : !pdl.operation):
+// CHECK-GENERIC-NEXT: ^bb0(%val: !pdl.value, %valrange: !pdl.range<value>, %op: !pdl.operation):
 // CHECK-GENERIC-NEXT:   %class_vals = "ematch.get_class_vals"(%val) : (!pdl.value) -> !pdl.range<value>
 // CHECK-GENERIC-NEXT:   %representative = "ematch.get_class_representative"(%val) : (!pdl.value) -> !pdl.value
 // CHECK-GENERIC-NEXT:   %result = "ematch.get_class_result"(%val) : (!pdl.value) -> !pdl.value

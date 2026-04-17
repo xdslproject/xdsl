@@ -7,7 +7,7 @@ ctx = PyASTContext(post_transforms=[])
 ctx.register_type(int, bigint.bigint)
 
 
-# CHECK:      func.func @f1(%{{.*}} : !bigint.bigint) {
+# CHECK:      func.func @f1(%{{.*}}: !bigint.bigint) {
 # CHECK-NEXT:   symref.declare "x"
 # CHECK-NEXT:   symref.update @x = %{{.*}} : !bigint.bigint
 # CHECK-NEXT:   func.return
@@ -31,7 +31,7 @@ def f2():
 print(f2.module)
 
 
-# CHECK:      func.func @f3(%{{.*}} : !bigint.bigint) -> !bigint.bigint {
+# CHECK:      func.func @f3(%{{.*}}: !bigint.bigint) -> !bigint.bigint {
 # CHECK-NEXT:   symref.declare "x"
 # CHECK-NEXT:   symref.update @x = %{{.*}} : !bigint.bigint
 # CHECK-NEXT:   %{{.*}} = symref.fetch @x : !bigint.bigint
@@ -45,7 +45,7 @@ def f3(x: int) -> int:
 print(f3.module)
 
 try:
-    # CHECK:      func.func @f4(%{{.*}} : !bigint.bigint) -> !bigint.bigint {
+    # CHECK:      func.func @f4(%{{.*}}: !bigint.bigint) -> !bigint.bigint {
     # CHECK-NEXT:   symref.declare "x"
     # CHECK-NEXT:   symref.update @x = %{{.*}} : !bigint.bigint
     # CHECK-NEXT:   %{{.*}} = symref.fetch @x : !bigint.bigint

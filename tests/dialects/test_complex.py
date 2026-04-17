@@ -22,13 +22,13 @@ from xdsl.traits import ConstantLike
 
 
 def test_constant_construction():
+    value = ArrayAttr([IntAttr(42), IntAttr(43)])
     c1 = complex.ConstantOp(
-        value=ArrayAttr([IntAttr(42), IntAttr(43)]),
+        value=value,
         result_type=complex.ComplexType(i32),
     )
-    constantlike = c1.get_trait(ConstantLike)
-    assert constantlike is not None
-    assert constantlike.get_constant_value(c1) == ArrayAttr([IntAttr(42), IntAttr(43)])
+
+    assert ConstantLike.get_constant_value(c1.complex) == value
 
 
 class Test_constant_op_helper_constructors:

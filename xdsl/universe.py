@@ -37,27 +37,34 @@ from collections.abc import Callable
 from xdsl.dialects import get_all_dialects
 from xdsl.ir import Dialect
 from xdsl.passes import ModulePass
+from xdsl.targets import get_all_targets
 from xdsl.transforms import get_all_passes
+from xdsl.utils.target import Target
 
 
 class Universe:
     """
-    Contains all the dialects and passes from modules in the environment.
+    Contains all the dialects, passes, and targets from modules in the
+    environment.
     """
 
     all_dialects: dict[str, Callable[[], Dialect]]
     """Dialects from all modules in the current environment."""
     all_passes: dict[str, Callable[[], type[ModulePass]]]
     """Passes from all modules in the current environment."""
+    all_targets: dict[str, Callable[[], type[Target]]]
+    """Targets from all modules in the current environment."""
 
     def __init__(
         self,
         *,
         all_dialects: dict[str, Callable[[], Dialect]] | None = None,
         all_passes: dict[str, Callable[[], type[ModulePass]]] | None = None,
+        all_targets: dict[str, Callable[[], type[Target]]] | None = None,
     ) -> None:
         self.all_dialects = {} if all_dialects is None else all_dialects
         self.all_passes = {} if all_passes is None else all_passes
+        self.all_targets = {} if all_targets is None else all_targets
 
     @staticmethod
     def get_multiverse() -> Universe:
@@ -73,6 +80,7 @@ class Universe:
 
         all_dialects: dict[str, Callable[[], Dialect]] = {}
         all_passes: dict[str, Callable[[], type[ModulePass]]] = {}
+        all_targets: dict[str, Callable[[], type[Target]]] = {}
 
         for universe_name, universe in sorted_universes:
             if not isinstance(universe, Universe):
@@ -100,7 +108,25 @@ class Universe:
                     )
                 all_passes[pass_name] = _pass
 
-        return Universe(all_dialects=all_dialects, all_passes=all_passes)
+            for target_name, target in universe.all_targets.items():
+                if target_name in all_targets:
+                    universes = [
+                        n for n, u in sorted_universes if target_name in u.all_targets
+                    ]
+                    raise ValueError(
+                        f"Duplicate definition of {target_name} in {universes}."
+                    )
+                all_targets[target_name] = target
+
+        return Universe(
+            all_dialects=all_dialects,
+            all_passes=all_passes,
+            all_targets=all_targets,
+        )
 
 
-XDSL_UNIVERSE = Universe(all_dialects=get_all_dialects(), all_passes=get_all_passes())
+XDSL_UNIVERSE = Universe(
+    all_dialects=get_all_dialects(),
+    all_passes=get_all_passes(),
+    all_targets=get_all_targets(),
+)

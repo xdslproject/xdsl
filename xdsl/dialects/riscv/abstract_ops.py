@@ -3,6 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from collections.abc import Set as AbstractSet
+from dataclasses import dataclass
 from io import StringIO
 from typing import IO, Generic, TypeAlias
 
@@ -14,7 +15,9 @@ from xdsl.backend.register_allocatable import (
     RegisterConstraints,
 )
 from xdsl.backend.register_type import RegisterAllocatedMemoryEffect, RegisterType
+from xdsl.context import Context
 from xdsl.dialects.builtin import (
+    I32,
     IntegerAttr,
     IntegerType,
     ModuleOp,
@@ -41,6 +44,7 @@ from xdsl.pattern_rewriter import RewritePattern
 from xdsl.printer import Printer
 from xdsl.traits import HasCanonicalizationPatternsTrait, Pure
 from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.target import Target
 
 from .attrs import (
     I12,
@@ -241,6 +245,14 @@ def riscv_code(module: ModuleOp) -> str:
     stream = StringIO()
     print_assembly(module, stream)
     return stream.getvalue()
+
+
+@dataclass(frozen=True)
+class RISCVAsmTarget(Target):
+    name = "riscv-asm"
+
+    def emit(self, ctx: Context, module: ModuleOp, output: IO[str]) -> None:
+        print_assembly(module, output)
 
 
 # endregion
@@ -726,12 +738,13 @@ class ImmShiftOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrai
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.riscv import (
             ShiftbyZero,
+            ShiftConstantFolding,
         )
 
-        return (ShiftbyZero(),)
+        return (ShiftbyZero(), ShiftConstantFolding())
 
 
-class RdRsImmShiftOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
+class RdRsImmShiftOperation(RISCVInstruction, ABC):
     """
     A base class for RISC-V operations that have one destination register, one source
     register and one immediate operand.
@@ -747,21 +760,23 @@ class RdRsImmShiftOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
 
     rd = result_def(IntRegisterType)
     rs1 = operand_def(IntRegisterType)
-    immediate = attr_def(IntegerAttr[UI5] | LabelAttr)
+    immediate = attr_def(IntegerAttr[UI5])
     traits = traits_def(ImmShiftOpHasCanonicalizationPatternsTrait())
+
+    assembly_format = (
+        "$rs1 `,` $immediate attr-dict `:` `(` type($rs1) `)` `->` type($rd)"
+    )
 
     def __init__(
         self,
         rs1: Operation | SSAValue,
-        immediate: int | IntegerAttr[UI5] | str | LabelAttr,
+        immediate: int | IntegerAttr[UI5],
         *,
         rd: IntRegisterType = Registers.UNALLOCATED_INT,
         comment: str | StringAttr | None = None,
     ):
         if isinstance(immediate, int):
             immediate = IntegerAttr(immediate, ui5)
-        elif isinstance(immediate, str):
-            immediate = LabelAttr(immediate)
 
         if isinstance(comment, str):
             comment = StringAttr(comment)
@@ -777,16 +792,19 @@ class RdRsImmShiftOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
         return self.rd, self.rs1, self.immediate
 
-    @classmethod
-    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
-        attributes = dict[str, Attribute]()
-        attributes["immediate"] = parse_immediate_value(parser, ui5)
-        return attributes
+    @abstractmethod
+    def py_operation(self, rs1: IntegerAttr[I32]) -> IntegerAttr[I32]:
+        """
+        Performs a python function corresponding to this operation.
 
-    def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
-        printer.print_string(", ")
-        print_immediate_value(printer, self.immediate)
-        return {"immediate"}
+        If `i := py_operation(rs1)` is an IntegerAttr[I32], then this operation can be
+        canonicalized to a constant with value `i` when the inputs are constants
+        with values `rs1`. The immediate value is retrieved from the `immediate` attribute of the operation.
+        """
+
+        raise NotImplementedError(
+            "RdRsImmShiftOperation py_operation is not yet implemented"
+        )
 
 
 class RdRsImmBitManipOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
@@ -1427,9 +1445,9 @@ class GetAnyRegisterOperation(
     One needs to do the following:
 
     ``` python
-    rhs = riscv.GetRegisterOp(Registers.s0).res
+    rhs = rv32.GetRegisterOp(Registers.s0).res
     riscv.JalOp("my_func")
-    lhs = riscv.GetRegisterOp(Registers.A0).res
+    lhs = rv32.GetRegisterOp(Registers.A0).res
     sum = riscv.AddOp(lhs, rhs, Registers.A0).rd
     ```
     """

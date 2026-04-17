@@ -8,17 +8,25 @@ from typing_extensions import Self
 
 from xdsl.dialects.builtin import (
     DYNAMIC_INDEX,
+    I64,
     AnySignlessIntegerOrIndexType,
     ArrayAttr,
+    ArrayOfConstraint,
     DenseArrayBase,
     IndexType,
     IntegerAttr,
+    Region,
     ShapedType,
     TensorType,
+    UnitAttr,
     UnrankedTensorType,
     i64,
 )
+from xdsl.dialects.utils import (
+    AbstractYieldOperation,
+)
 from xdsl.dialects.utils.dynamic_index_list import (
+    DynamicIndexList,
     parse_dynamic_index_list_without_types,
     print_dynamic_index_list,
 )
@@ -29,21 +37,33 @@ from xdsl.dialects.utils.reshape_ops_utils import (
 from xdsl.ir import Attribute, Dialect, Operation, SSAValue
 from xdsl.irdl import (
     AnyAttr,
+    AtLeast,
+    AttrConstraint,
     AttrSizedOperandSegments,
+    IntConstraint,
+    IntVarConstraint,
     IRDLOperation,
     Operand,
+    RangeOf,
     VarConstraint,
     base,
     irdl_op_definition,
     operand_def,
+    opt_prop_def,
     prop_def,
+    region_def,
     result_def,
     traits_def,
     var_operand_def,
 )
 from xdsl.parser import Parser
 from xdsl.printer import Printer
-from xdsl.traits import NoMemoryEffect, Pure
+from xdsl.traits import (
+    IsTerminator,
+    NoMemoryEffect,
+    Pure,
+    SingleBlockImplicitTerminator,
+)
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -69,7 +89,7 @@ class CastOp(IRDLOperation):
 
     assembly_format = "$source attr-dict `:` type($source) `to` type($dest)"
 
-    traits = traits_def(NoMemoryEffect())
+    traits = traits_def(Pure())
 
     def __init__(self, source: SSAValue | Operation, dest: TensorType[Attribute]):
         super().__init__(operands=(source,), result_types=(dest,))
@@ -87,6 +107,123 @@ class CastOp(IRDLOperation):
                     raise VerifyException(
                         "source and destination constant dimensions should match"
                     )
+
+
+@irdl_op_definition
+class ConcatOp(IRDLOperation):
+    """
+    Tensor concatenation operation.
+
+    The “concat” operation constructs a tensor out of a variadic list of input tensors,
+    concatenated along a static dimension number. All inputs and the result type must share the
+    same rank.
+
+    ``dim`` specifies the dimension along which to concatenate. The size of the concatenated
+    dimension in the result must be equal to the sum of the sizes of the inputs along that
+    dimension. All other dimensions in both the inputs and result must be the same size.
+
+    https://mlir.llvm.org/docs/Dialects/TensorOps/#tensorconcat-tensorconcatop
+    """
+
+    name = "tensor.concat"
+    _TENSOR_ELEMENT: ClassVar[AttrConstraint] = VarConstraint(
+        "Tensor Element", AnyAttr()
+    )
+    _RANK: ClassVar[IntConstraint] = IntVarConstraint("Rank", AtLeast(1))
+    inputs = var_operand_def(
+        RangeOf(
+            TensorType.constr(
+                _TENSOR_ELEMENT, ArrayOfConstraint(RangeOf(AnyAttr()).of_length(_RANK))
+            )
+        ).of_length(AtLeast(1))
+    )
+    dim = prop_def(IntegerAttr[I64])
+    result = result_def(
+        TensorType.constr(
+            _TENSOR_ELEMENT, ArrayOfConstraint(RangeOf(AnyAttr()).of_length(_RANK))
+        )
+    )
+
+    traits = traits_def(Pure())
+
+    assembly_format = (
+        " `dim` `(` $dim `)` $inputs attr-dict `:` functional-type(operands, results)"
+    )
+
+    def __init__(
+        self,
+        inputs: Sequence[SSAValue | Operation],
+        dim: IntegerAttr | int,
+        result_type: TensorType,
+        attributes: Mapping[str, Attribute] | None = None,
+    ):
+        if isinstance(dim, int):
+            dim = IntegerAttr(dim, i64)
+        super().__init__(
+            operands=(inputs,),
+            result_types=(result_type,),
+            properties={"dim": dim},
+            attributes=attributes,
+        )
+
+    @staticmethod
+    def _expected_concatenated_dim(dims: tuple[int]) -> int:
+        """Return the expected length of concatenated dimension lengths for verifying the result type."""
+        return DYNAMIC_INDEX if DYNAMIC_INDEX in dims else sum(dims)
+
+    @staticmethod
+    def _verify_and_get_non_concatenated_dim(dims: tuple[int], dim_index: int) -> int:
+        """Raise a VerifyException if the lengths are inconsistent - ie. non-dynamic lengths are not all equal - else return the
+        expected length of the non-concatenated dimension.
+        """
+        dim = DYNAMIC_INDEX
+        for arg_dim in dims:
+            if dim == DYNAMIC_INDEX:
+                dim = arg_dim
+            elif arg_dim != DYNAMIC_INDEX and dim != arg_dim:
+                raise VerifyException(
+                    f"static concatenation size mismatch along non-concatenated dimension {dim_index}"
+                )
+        return dim
+
+    def _verify_result_shape(self, inferred_shape: tuple[int, ...]) -> None:
+        """Verify the tensor shape of ``self.result.type`` by comparing it to the given inferred shape.
+
+        Raises a VerifyException is any dimension that is not ``DYNAMIC_INDEX`` in either ``inferred_shape`` or the result type
+        shape is unequal between the inferred size and the result type shape's dimension size.
+
+        Expects that the length of inferred_shape is equal to the rank of the result type's shape, and that `self.result.type` is
+        a TensorType."""
+        for inferred_size, actual_size in zip(
+            inferred_shape, self.result.type.shape, strict=True
+        ):
+            if (
+                DYNAMIC_INDEX not in (inferred_size, actual_size.data)
+                and inferred_size != actual_size.data
+            ):
+                raise VerifyException(
+                    f"result type {self.result.type} does not match inferred shape {inferred_shape} static sizes"
+                )
+
+    def verify_(self) -> None:
+        concat_dim = self.dim.value.data
+        result_type = self.result.type
+        if concat_dim >= result_type.get_num_dims():
+            raise VerifyException("concatenation dim must be less than the tensor rank")
+
+        transposed_shapes = zip(
+            *(
+                (int_attr.data for int_attr in cast(TensorType, arg.type).shape)
+                for arg in self.inputs
+            )
+        )
+        expected_result_shape = tuple(
+            self._expected_concatenated_dim(grouped_dims)
+            if i == concat_dim
+            else self._verify_and_get_non_concatenated_dim(grouped_dims, i)
+            for i, grouped_dims in enumerate(transposed_shapes)
+        )
+        self._verify_result_shape(expected_result_shape)
 
 
 @irdl_op_definition
@@ -109,7 +246,7 @@ class DimOp(IRDLOperation):
     index = operand_def(IndexType)
     result = result_def(IndexType)
 
-    traits = traits_def(Pure())
+    traits = traits_def(NoMemoryEffect())
 
     assembly_format = "attr-dict $source `,` $index `:` type($source)"
 
@@ -211,7 +348,7 @@ class CollapseShapeOp(IRDLOperation):
         "$src $reassociation attr-dict `:` type($src) `into` type($result)"
     )
 
-    traits = traits_def(NoMemoryEffect())
+    traits = traits_def(Pure())
 
 
 @irdl_op_definition
@@ -233,7 +370,7 @@ class ReshapeOp(IRDLOperation):
     result = result_def(TensorType[Attribute])
     assembly_format = "attr-dict $source `(` $shape `)` `:` `(` type($source) `,` type($shape) `)` `->` type($result)"
 
-    traits = traits_def(NoMemoryEffect())
+    traits = traits_def(Pure())
 
     def __init__(self, source: SSAValue, shape: SSAValue, result_type: Attribute):
         super().__init__(
@@ -306,6 +443,8 @@ class ExpandShapeOp(IRDLOperation):
     static_output_shape = prop_def(DenseArrayBase.constr(i64))
 
     result = result_def(TensorType[Attribute])
+
+    traits = traits_def(Pure())
 
     def __init__(
         self,
@@ -423,7 +562,7 @@ class ExtractSliceOp(IRDLOperation):
 
     irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
-    traits = traits_def(NoMemoryEffect())
+    traits = traits_def(Pure())
 
     @staticmethod
     def from_static_parameters(
@@ -482,7 +621,7 @@ class InsertSliceOp(IRDLOperation):
 
     irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
-    traits = traits_def(NoMemoryEffect())
+    traits = traits_def(Pure())
 
     @staticmethod
     def get(
@@ -577,6 +716,7 @@ class ExtractOp(IRDLOperation):
     indices = var_operand_def(IndexType)
     result = result_def(Attribute)
     # assembly_format = "$tensor `[` $indices `]` attr-dict `:` type($tensor)"
+    traits = traits_def(Pure())
 
     def __init__(
         self,
@@ -628,6 +768,7 @@ class InsertOp(IRDLOperation):
     indices = var_operand_def(IndexType)
     result = result_def(TensorType)
     # assembly_format = "$scalar `into` $dest `[` $indices `]` attr-dict `:` type($dest)"
+    traits = traits_def(Pure())
 
     def __init__(
         self,
@@ -682,6 +823,20 @@ class FromElementsOp(IRDLOperation):
     elements = var_operand_def(ELEMENT_TYPE)
     result = result_def(TensorType.constr(ELEMENT_TYPE))
     assembly_format = "$elements attr-dict `:` type($result)"
+    traits = traits_def(Pure())
+
+    def __init__(
+        self,
+        head_element: SSAValue,
+        *tail_elements: SSAValue,
+        result_type: Attribute | None = None,
+    ):
+        elements = (head_element,) + tail_elements
+
+        if result_type is None:
+            result_type = TensorType(head_element.type, (len(elements),))
+
+        super().__init__(operands=(elements,), result_types=(result_type,))
 
 
 @irdl_op_definition
@@ -705,7 +860,7 @@ class SplatOp(IRDLOperation):
     result = result_def(TensorType.constr(SPLAT_TYPE))
     assembly_format = "$input (`[` $dynamicSizes^ `]`)? attr-dict `:` type($result)"
 
-    traits = traits_def(NoMemoryEffect())
+    traits = traits_def(Pure())
 
     def __init__(
         self,
@@ -722,11 +877,128 @@ class SplatOp(IRDLOperation):
             )
 
 
+@irdl_op_definition
+class YieldOp(AbstractYieldOperation[Attribute]):
+    name = "tensor.yield"
+
+    traits = traits_def(IsTerminator())
+
+
+@irdl_op_definition
+class PadOp(IRDLOperation):
+    """
+    Tensor pad operation.
+
+    tensor.pad is an operation that pads the source tensor with given low and high padding config.
+
+    https://mlir.llvm.org/docs/Dialects/TensorOps/#tensorpad-tensorpadop
+    """
+
+    name = "tensor.pad"
+
+    source = operand_def(base(TensorType[Attribute]))
+    low = var_operand_def(IndexType)
+    high = var_operand_def(IndexType)
+    static_low = prop_def(DenseArrayBase.constr(i64))
+    static_high = prop_def(DenseArrayBase.constr(i64))
+    nofold = opt_prop_def(UnitAttr)
+    region = region_def("single_block")
+    result = result_def(TensorType[Attribute])
+
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
+
+    assembly_format = (
+        "$source "
+        "(`nofold` $nofold^)? "
+        "`low` `` custom<DynamicIndexList>($low, $static_low) "
+        "`high` `` custom<DynamicIndexList>($high, $static_high) "
+        "$region attr-dict `:` type($source) `to` type($result)"
+    )
+
+    custom_directives = (DynamicIndexList,)
+    traits = traits_def(Pure(), SingleBlockImplicitTerminator(YieldOp))
+
+    def __init__(
+        self,
+        source: SSAValue | Operation,
+        low: Sequence[SSAValue],
+        high: Sequence[SSAValue],
+        region: Region,
+        static_low: Sequence[int] | DenseArrayBase,
+        static_high: Sequence[int] | DenseArrayBase,
+        result_type: TensorType[Attribute],
+        nofold: UnitAttr | None = None,
+        attributes: dict[str, Attribute] | None = None,
+    ):
+        if not isinstance(static_low, DenseArrayBase):
+            static_low = DenseArrayBase.from_list(i64, static_low)
+
+        if not isinstance(static_high, DenseArrayBase):
+            static_high = DenseArrayBase.from_list(i64, static_high)
+
+        super().__init__(
+            operands=[source, low, high],
+            result_types=[result_type],
+            properties={
+                "static_low": static_low,
+                "static_high": static_high,
+                "nofold": nofold,
+            },
+            attributes=attributes,
+            regions=[region],
+        )
+
+    def verify_(self):
+        if len(self.static_low) != len(self.static_high):
+            raise VerifyException(
+                f"pad sizes low ({len(self.static_low)}) and high ({len(self.static_high)})"
+                " must have an equal number of dimensions"
+            )
+        source_type = self.source.type
+        if isinstance(source_type, TensorType) and len(self.static_low) != len(
+            source_type.get_shape()
+        ):
+            raise VerifyException(
+                f"number of pad sizes ({len(self.static_low)}) must equal number of dimensions"
+                f" in source tensor ({len(source_type.get_shape())})"
+            )
+        dynamic_dims = tuple(
+            i
+            for i, (l, h) in enumerate(
+                zip(
+                    self.static_low.get_values(),
+                    self.static_high.get_values(),
+                    strict=True,
+                )
+            )
+            if l == DYNAMIC_INDEX or h == DYNAMIC_INDEX
+        )
+        result_dynamic_dims = tuple(
+            i for i, s in enumerate(self.result.type.get_shape()) if s == DYNAMIC_INDEX
+        )
+        if len(result_dynamic_dims) != len(dynamic_dims):
+            raise VerifyException(
+                f"number of dynamic sizes ({len(dynamic_dims)})"
+                f" must equal number of unknown dimensions in result tensor ({len(result_dynamic_dims)})"
+            )
+        if result_dynamic_dims != dynamic_dims:
+            raise VerifyException(
+                f"dynamic dimensions {dynamic_dims} don't correspond"
+                f" with dynamic dimensions in the result tensor {result_dynamic_dims}"
+            )
+        if len(self.region.block.args) != len(self.static_low):
+            raise VerifyException(
+                "region must have an arg for each dimension of the source tensor"
+                f" ({len(self.static_low)}) but region has ({len(self.region.block.args)})"
+            )
+
+
 Tensor = Dialect(
     "tensor",
     [
         CastOp,
         CollapseShapeOp,
+        ConcatOp,
         DimOp,
         EmptyOp,
         ExpandShapeOp,
@@ -737,6 +1009,8 @@ Tensor = Dialect(
         InsertSliceOp,
         ReshapeOp,
         SplatOp,
+        PadOp,
+        YieldOp,
     ],
     [],
 )

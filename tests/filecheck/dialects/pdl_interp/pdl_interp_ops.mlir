@@ -95,7 +95,7 @@ pdl_interp.func @matcher(%arg0: !pdl.operation) {
 }
 module @rewriters {
   pdl_interp.func @pdl_generated_rewriter(%arg0: !pdl.value, %arg1: !pdl.value, %arg2: !pdl.type, %arg3: !pdl.value, %arg4: !pdl.operation) {
-    %attr = pdl_interp.create_attribute 10 : i64 
+    %attr = pdl_interp.create_attribute 10 : i64
     %type_i64 = pdl_interp.create_type i64
     %types_range = pdl_interp.create_types [i32, i64]
     %0 = pdl_interp.create_operation "arith.subi"(%arg0, %arg1 : !pdl.value, !pdl.value) {"attrA" = %attr}  -> (%arg2 : !pdl.type)
@@ -111,7 +111,7 @@ module @rewriters {
 }
 
 // CHECK:     builtin.module {
-// CHECK-NEXT:     pdl_interp.func @matcher(%arg0 : !pdl.operation) {
+// CHECK-NEXT:     pdl_interp.func @matcher(%arg0: !pdl.operation) {
 // CHECK-NEXT:       %0 = pdl_interp.get_result 0 of %arg0
 // CHECK-NEXT:       pdl_interp.is_not_null %0 : !pdl.value -> ^bb0, ^bb1
 // CHECK-NEXT:     ^bb1:
@@ -204,7 +204,7 @@ module @rewriters {
 // CHECK-NEXT:       pdl_interp.branch ^bb1
 // CHECK-NEXT:     }
 // CHECK-NEXT:     builtin.module @rewriters {
-// CHECK-NEXT:       pdl_interp.func @pdl_generated_rewriter(%arg0 : !pdl.value, %arg1 : !pdl.value, %arg2 : !pdl.type, %arg3 : !pdl.value, %arg4 : !pdl.operation) {
+// CHECK-NEXT:       pdl_interp.func @pdl_generated_rewriter(%arg0: !pdl.value, %arg1: !pdl.value, %arg2: !pdl.type, %arg3: !pdl.value, %arg4: !pdl.operation) {
 // CHECK-NEXT:         %attr = pdl_interp.create_attribute 10 : i64
 // CHECK-NEXT:         %type_i64 = pdl_interp.create_type i64
 // CHECK-NEXT:         %types_range = pdl_interp.create_types [i32, i64]
@@ -223,7 +223,7 @@ module @rewriters {
 
 // CHECK-GENERIC:     "builtin.module"() ({
 // CHECK-GENERIC-NEXT:     "pdl_interp.func"() <{sym_name = "matcher", function_type = (!pdl.operation) -> ()}> ({
-// CHECK-GENERIC-NEXT:     ^bb0(%arg0 : !pdl.operation):
+// CHECK-GENERIC-NEXT:     ^bb0(%arg0: !pdl.operation):
 // CHECK-GENERIC-NEXT:       %0 = "pdl_interp.get_result"(%arg0) <{index = 0 : i32}> : (!pdl.operation) -> !pdl.value
 // CHECK-GENERIC-NEXT:       "pdl_interp.is_not_null"(%0) [^bb1, ^bb2] : (!pdl.value) -> ()
 // CHECK-GENERIC-NEXT:     ^bb2:
@@ -310,7 +310,7 @@ module @rewriters {
 // CHECK-GENERIC-NEXT:       "pdl_interp.finalize"() : () -> ()
 // CHECK-GENERIC-NEXT:     ^bb32:
 // CHECK-GENERIC-NEXT:       "pdl_interp.foreach"(%types) [^bb2] ({
-// CHECK-GENERIC-NEXT:       ^bb33(%op : !pdl.type):
+// CHECK-GENERIC-NEXT:       ^bb33(%op: !pdl.type):
 // CHECK-GENERIC-NEXT:         "pdl_interp.continue"() : () -> ()
 // CHECK-GENERIC-NEXT:       }) : (!pdl.range<type>) -> ()
 // CHECK-GENERIC-NEXT:     ^bb34:
@@ -318,7 +318,7 @@ module @rewriters {
 // CHECK-GENERIC-NEXT:     }) : () -> ()
 // CHECK-GENERIC-NEXT:     "builtin.module"() <{sym_name = "rewriters"}> ({
 // CHECK-GENERIC-NEXT:       "pdl_interp.func"() <{sym_name = "pdl_generated_rewriter", function_type = (!pdl.value, !pdl.value, !pdl.type, !pdl.value, !pdl.operation) -> ()}> ({
-// CHECK-GENERIC-NEXT:       ^bb0(%arg0 : !pdl.value, %arg1 : !pdl.value, %arg2 : !pdl.type, %arg3 : !pdl.value, %arg4 : !pdl.operation):
+// CHECK-GENERIC-NEXT:       ^bb0(%arg0: !pdl.value, %arg1: !pdl.value, %arg2: !pdl.type, %arg3: !pdl.value, %arg4: !pdl.operation):
 // CHECK-GENERIC-NEXT:         %attr = "pdl_interp.create_attribute"() <{value = 10 : i64}> : () -> !pdl.attribute
 // CHECK-GENERIC-NEXT:         %type_i64 = "pdl_interp.create_type"() <{value = i64}> : () -> !pdl.type
 // CHECK-GENERIC-NEXT:         %types_range = "pdl_interp.create_types"() <{value = [i32, i64]}> : () -> !pdl.range<type>

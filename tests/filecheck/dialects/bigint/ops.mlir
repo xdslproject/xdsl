@@ -8,6 +8,21 @@
 %b = "test.op"() : () -> !bigint.bigint
 
 
+// CHECK-NEXT:   %c0 = bigint.constant 0
+// CHECK-NEXT:   %c42 = bigint.constant 42
+// CHECK-NEXT:   %cneg = bigint.constant -42
+// CHECK-NEXT:   %cwithdict = bigint.constant 1 {my_attr}
+%c0 = bigint.constant 0
+%c42 = bigint.constant 42
+%cneg = bigint.constant -42
+%cwithdict = bigint.constant 1 {my_attr}
+
+
+// CHECK-NEXT:  %trunc1 = bigint.truncate_to_int %a : i32
+// CHECK-NEXT:  %trunc2 = bigint.truncate_to_int %a {my_attr} : i64
+%trunc1 = bigint.truncate_to_int %a : i32
+%trunc2 = bigint.truncate_to_int %a {my_attr} : i64
+
 // CHECK-NEXT:   %sum = bigint.add %a, %b : !bigint.bigint
 // CHECK-NEXT:   %diff = bigint.sub %a, %b : !bigint.bigint
 // CHECK-NEXT:   %prod = bigint.mul %a, %b : !bigint.bigint

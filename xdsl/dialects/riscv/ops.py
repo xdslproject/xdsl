@@ -163,9 +163,13 @@ class AndiOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.riscv import (
             AndiImmediate,
+            AndiZero,
         )
 
-        return (AndiImmediate(),)
+        return (
+            AndiImmediate(),
+            AndiZero(),
+        )
 
 
 @irdl_op_definition
@@ -235,16 +239,6 @@ class XoriOp(RdRsImmIntegerOperation):
     traits = traits_def(XoriOpHasCanonicalizationPatternsTrait())
 
 
-class SlliOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
-    @classmethod
-    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.transforms.canonicalization_patterns.riscv import (
-            ShiftLeftImmediate,
-        )
-
-        return (ShiftLeftImmediate(),)
-
-
 @irdl_op_definition
 class SlliOp(RdRsImmShiftOperation):
     """
@@ -258,17 +252,8 @@ class SlliOp(RdRsImmShiftOperation):
 
     name = "riscv.slli"
 
-    traits = traits_def(SlliOpHasCanonicalizationPatternsTrait())
-
-
-class SrliOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
-    @classmethod
-    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.transforms.canonicalization_patterns.riscv import (
-            ShiftRightImmediate,
-        )
-
-        return (ShiftRightImmediate(),)
+    def py_operation(self, rs1: IntegerAttr[I32]) -> IntegerAttr[I32]:
+        return IntegerAttr(rs1.value.data << self.immediate.value.data, i32)
 
 
 @irdl_op_definition
@@ -284,7 +269,10 @@ class SrliOp(RdRsImmShiftOperation):
 
     name = "riscv.srli"
 
-    traits = traits_def(SrliOpHasCanonicalizationPatternsTrait())
+    def py_operation(self, rs1: IntegerAttr[I32]) -> IntegerAttr[I32]:
+        return IntegerAttr(
+            (rs1.value.data % 0x100000000) >> self.immediate.value.data, i32
+        )
 
 
 @irdl_op_definition
@@ -299,6 +287,9 @@ class SraiOp(RdRsImmShiftOperation):
     """
 
     name = "riscv.srai"
+
+    def py_operation(self, rs1: IntegerAttr[I32]) -> IntegerAttr[I32]:
+        return IntegerAttr(rs1.value.data >> self.immediate.value.data, i32)
 
 
 @irdl_op_definition
@@ -2338,8 +2329,8 @@ class CustomAssemblyInstructionOp(RISCVCustomFormatOperation, RISCVInstruction):
     During assembly emission, the results are printed before the operands:
 
     ``` python
-    s0 = riscv.GetRegisterOp(Registers.s0).res
-    s1 = riscv.GetRegisterOp(Registers.s1).res
+    s0 = rv32.GetRegisterOp(Registers.s0).res
+    s1 = rv32.GetRegisterOp(Registers.s1).res
     rs2 = riscv.Registers.s2
     rs3 = riscv.Registers.s3
     op = CustomAssemblyInstructionOp("my_instr", (s0, s1), (rs2, rs3))
@@ -2430,11 +2421,6 @@ class WfiOp(NullaryOperation):
 # endregion
 
 # region RISC-V SSA Helpers
-
-
-@irdl_op_definition
-class GetRegisterOp(GetAnyRegisterOperation[IntRegisterType]):
-    name = "riscv.get_register"
 
 
 @irdl_op_definition
@@ -3372,7 +3358,6 @@ RISCV = Dialect(
         WfiOp,
         CustomAssemblyInstructionOp,
         CommentOp,
-        GetRegisterOp,
         GetFloatRegisterOp,
         # Floating point
         FMVOp,

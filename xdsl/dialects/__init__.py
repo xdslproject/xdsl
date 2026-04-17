@@ -198,11 +198,6 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
 
         return MemRefStream
 
-    def get_mesh():
-        from xdsl.dialects.mesh import Mesh
-
-        return Mesh
-
     def get_ml_program():
         from xdsl.dialects.ml_program import MLProgram
 
@@ -242,6 +237,11 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         from xdsl.dialects.ptr import Ptr
 
         return Ptr
+
+    def get_py():
+        from xdsl.dialects.py import Py
+
+        return Py
 
     def get_riscv_debug():
         from xdsl.dialects.riscv_debug import RISCV_Debug
@@ -293,6 +293,11 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
 
         return Seq
 
+    def get_shard():
+        from xdsl.dialects.shard import Shard
+
+        return Shard
+
     def get_smt():
         from xdsl.dialects.smt import SMT
 
@@ -343,6 +348,11 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
 
         return TOSA
 
+    def get_transform():
+        from xdsl.dialects.transform import Transform
+
+        return Transform
+
     def get_varith():
         from xdsl.dialects.varith import Varith
 
@@ -372,11 +382,6 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         from xdsl.dialects.x86_scf import X86_Scf
 
         return X86_Scf
-
-    def get_transform():
-        from xdsl.dialects.transform import Transform
-
-        return Transform
 
     return {
         "accfg": get_accfg,
@@ -417,7 +422,6 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "math_xdsl": get_math_xdsl,
         "memref": get_memref,
         "memref_stream": get_memref_stream,
-        "mesh": get_mesh,
         "ml_program": get_ml_program,
         "mod_arith": get_mod_arith,
         "mpi": get_mpi,
@@ -426,6 +430,7 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "pdl_interp": get_pdl_interp,
         "printf": get_printf,
         "ptr_xdsl": get_ptr_xdsl,
+        "py": get_py,
         "riscv": get_riscv,
         "rv32": get_RV32,
         "rv64": get_RV64,
@@ -436,6 +441,7 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "riscv_snitch": get_riscv_snitch,
         "scf": get_scf,
         "seq": get_seq,
+        "shard": get_shard,
         "smt": get_smt,
         "snitch": get_snitch,
         "snrt": get_snitch_runtime,

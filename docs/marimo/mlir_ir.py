@@ -59,7 +59,7 @@ def _(mo):
 @app.cell(hide_code=True)
 def _():
     swap_text = """\
-    func.func @swap(%a : i32, %b : i32) -> (i32, i32) {
+    func.func @swap(%a: i32, %b: i32) -> (i32, i32) {
       func.return %b, %a : i32, i32
     }"""
     return (swap_text,)
@@ -199,7 +199,7 @@ def _(mo):
 @app.cell(hide_code=True)
 def _():
     fma_text = """\
-    func.func @multiply_and_add(%a : i32, %b : i32, %c : i32) -> (i32) {
+    func.func @multiply_and_add(%a: i32, %b: i32, %c: i32) -> (i32) {
       // Change this to return a * b + c instead
       func.return %a : i32
     }"""
@@ -227,7 +227,7 @@ def _(exercise_text, fma_text_area, mo):
 @app.cell(hide_code=True)
 def _(mo, xmo):
     fma_impl = """\
-    func.func @multiply_and_add(%a : i32, %b : i32, %c : i32) -> (i32) {
+    func.func @multiply_and_add(%a: i32, %b: i32, %c: i32) -> (i32) {
       %ab = arith.muli %a, %b : i32
       %res = arith.addi %ab, %c : i32
       func.return %res : i32
@@ -258,7 +258,7 @@ def _(mo):
 @app.cell(hide_code=True)
 def _():
     select_text = """\
-    func.func @select(%cond : i32, %a : i32, %b : i32) -> i32 {
+    func.func @select(%cond: i32, %a: i32, %b: i32) -> i32 {
       %res = scf.if %cond -> (i32) {
         scf.yield %a : i32
       } else {
@@ -300,7 +300,7 @@ def _(abs_function_text, mo):
 @app.cell(hide_code=True)
 def _():
     abs_function_text = """\
-    func.func @abs(%a : i32) -> i32 {
+    func.func @abs(%a: i32) -> i32 {
         %false = arith.constant 0 : i1
         %res = scf.if %false -> (i32) {
             scf.yield %a : i32
@@ -359,7 +359,7 @@ def _(abs_info_text, abs_input_text, abs_text_area, mo):
 @app.cell(hide_code=True)
 def _(mo, xmo):
     abs_impl = """\
-    func.func @abs(%a : i32) -> i32 {
+    func.func @abs(%a: i32) -> i32 {
         %zero = arith.constant 0 : i32
         %slt = arith.cmpi slt, %a, %zero : i32
         %res = scf.if %slt -> (i32) {

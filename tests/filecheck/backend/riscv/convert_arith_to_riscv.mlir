@@ -26,10 +26,34 @@ builtin.module {
     // CHECK-NEXT: %lhsf64_reg, %rhsf64_reg = "test.op"() : () -> (!riscv.freg, !riscv.freg)
 
     %f64 = "arith.constant"() {value = 1234.5678 : f64} : () -> f64
-    // CHECK-NEXT: %{{.*}} = riscv.get_register : !riscv.reg<sp>
+    // CHECK-NEXT: %{{.*}} = rv32.get_register : !riscv.reg<sp>
     // CHECK-NEXT: %{{.*}} = rv32.li 1083394629 : !riscv.reg
     // CHECK-NEXT: riscv.sw %{{.*}}, %{{.*}}, -4 : (!riscv.reg<sp>, !riscv.reg) -> ()
     // CHECK-NEXT: %{{.*}} = rv32.li 1834810029 : !riscv.reg
+    // CHECK-NEXT: riscv.sw %{{.*}}, %{{.*}}, -8 : (!riscv.reg<sp>, !riscv.reg) -> ()
+    // CHECK-NEXT: %{{.*}} = riscv.fld %{{.*}}, -8 : (!riscv.reg<sp>) -> !riscv.freg
+
+    %dense_1xf64 = arith.constant dense<[3.140000e+00]> : vector<1xf64>
+    // CHECK-NEXT: %{{.*}} = rv32.get_register : !riscv.reg<sp>
+    // CHECK-NEXT: %{{.*}} = rv32.li 1074339512 : !riscv.reg
+    // CHECK-NEXT: riscv.sw %{{.*}}, %{{.*}}, -4 : (!riscv.reg<sp>, !riscv.reg) -> ()
+    // CHECK-NEXT: %{{.*}} = rv32.li 1374389535 : !riscv.reg
+    // CHECK-NEXT: riscv.sw %{{.*}}, %{{.*}}, -8 : (!riscv.reg<sp>, !riscv.reg) -> ()
+    // CHECK-NEXT: %{{.*}} = riscv.fld %{{.*}}, -8 : (!riscv.reg<sp>) -> !riscv.freg
+
+    %dense_2xf32 = arith.constant dense<[1.000000e+00, 2.000000e+00]> : vector<2xf32>
+    // CHECK-NEXT: %{{.*}} = rv32.get_register : !riscv.reg<sp>
+    // CHECK-NEXT: %{{.*}} = rv32.li 1073741824 : !riscv.reg
+    // CHECK-NEXT: riscv.sw %{{.*}}, %{{.*}}, -4 : (!riscv.reg<sp>, !riscv.reg) -> ()
+    // CHECK-NEXT: %{{.*}} = rv32.li 1065353216 : !riscv.reg
+    // CHECK-NEXT: riscv.sw %{{.*}}, %{{.*}}, -8 : (!riscv.reg<sp>, !riscv.reg) -> ()
+    // CHECK-NEXT: %{{.*}} = riscv.fld %{{.*}}, -8 : (!riscv.reg<sp>) -> !riscv.freg
+
+    %dense_4xf16 = arith.constant dense<[1.000000e+00, 2.000000e+00, 3.000000e+00, 4.000000e+00]> : vector<4xf16>
+    // CHECK-NEXT: %{{.*}} = rv32.get_register : !riscv.reg<sp>
+    // CHECK-NEXT: %{{.*}} = rv32.li 1140867584 : !riscv.reg
+    // CHECK-NEXT: riscv.sw %{{.*}}, %{{.*}}, -4 : (!riscv.reg<sp>, !riscv.reg) -> ()
+    // CHECK-NEXT: %{{.*}} = rv32.li 1073757184 : !riscv.reg
     // CHECK-NEXT: riscv.sw %{{.*}}, %{{.*}}, -8 : (!riscv.reg<sp>, !riscv.reg) -> ()
     // CHECK-NEXT: %{{.*}} = riscv.fld %{{.*}}, -8 : (!riscv.reg<sp>) -> !riscv.freg
 
@@ -76,7 +100,7 @@ builtin.module {
     // CHECK-NEXT: %{{.*}} = riscv.xor %lhsi32, %rhsi32 : (!riscv.reg, !riscv.reg) -> !riscv.reg
     // CHECK-NEXT: %{{.*}} = riscv.sltiu %cmpi0, 1 : (!riscv.reg) -> !riscv.reg
     %cmpi1 = "arith.cmpi"(%lhsi32, %rhsi32) {"predicate" = 1 : i32} : (i32, i32) -> i1
-    // CHECK-NEXT: %{{.*}} = riscv.get_register : !riscv.reg<zero>
+    // CHECK-NEXT: %{{.*}} = rv32.get_register : !riscv.reg<zero>
     // CHECK-NEXT: %{{.*}}= riscv.xor %lhsi32, %rhsi32 : (!riscv.reg, !riscv.reg) -> !riscv.reg
     // CHECK-NEXT: %{{.*}} = riscv.sltu %cmpi1, %cmpi1_1 : (!riscv.reg<zero>, !riscv.reg) -> !riscv.reg
     %cmpi2 = "arith.cmpi"(%lhsi32, %rhsi32) {"predicate" = 2 : i32} : (i32, i32) -> i1

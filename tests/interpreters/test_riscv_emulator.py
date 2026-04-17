@@ -57,7 +57,7 @@ def test_multiply_add():
             rv32.LiOp(1, rd=riscv.Registers.A2)
 
             riscv.JalOp("muladd")
-            res = riscv.GetRegisterOp(riscv.Registers.A0).res
+            res = rv32.GetRegisterOp(riscv.Registers.A0).res
             riscv_debug.PrintfOp("{}", (res,))
 
             rv32.LiOp(93, rd=riscv.Registers.A7)
@@ -101,9 +101,9 @@ def test_multiply_add():
             _, _, a2_muladd = args
 
             # get registers we'll use in this section
-            sp_muladd = riscv.GetRegisterOp(riscv.Registers.SP)
-            s0_muladd_0 = riscv.GetRegisterOp(riscv.Registers.S0)
-            ra_muladd = riscv.GetRegisterOp(riscv.Registers.RA)
+            sp_muladd = rv32.GetRegisterOp(riscv.Registers.SP)
+            s0_muladd_0 = rv32.GetRegisterOp(riscv.Registers.S0)
+            ra_muladd = rv32.GetRegisterOp(riscv.Registers.RA)
             riscv.CommentOp(
                 "decrement stack pointer by number of register values we need to store for later"
             )

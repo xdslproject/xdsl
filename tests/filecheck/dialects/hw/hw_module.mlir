@@ -7,7 +7,7 @@
 // CHECK-NEXT: hw.output %{{[^ ]*}}, %{{[^ ]*}} : i1, i1
 // CHECK-NEXT: }
 // CHECK-GENERIC: "hw.module"() ({
-// CHECK-GENERIC-NEXT: ^{{[^(]*}}(%{{[^ ]*}} : i1, %{{[^ ]*}} : i1, %{{[^ ]*}} : i32):
+// CHECK-GENERIC-NEXT: ^{{[^(]*}}(%{{[^ ]*}}: i1, %{{[^ ]*}}: i1, %{{[^ ]*}}: i32):
 // CHECK-GENERIC-NEXT:   "hw.output"(%{{[^ ]*}}, %{{[^ ]*}}) : (i1, i1) -> ()
 // CHECK-GENERIC-NEXT: }) {sym_name = "custom_basic", module_type = !hw.modty<input a : i1, output nameOfPortInSV : i1, output "" : i1, input customName : i1, input "very custom name" : i32>, parameters = []} : () -> ()
 hw.module @custom_basic(in %a_foo a: i1, out nameOfPortInSV: i1, out "": i1, in %b customName: i1, in %c "very custom name": i32) {
@@ -67,11 +67,11 @@ hw.module.extern @extern(in %foo: i32, in %bar "hello": i16, out baz: i8)
 // CHECK-NEXT: hw.output %{{[^ ]*}}, %{{[^ ]*}} : i1, i1
 // CHECK-NEXT: }
 // CHECK-GENERIC: "hw.module"() ({
-// CHECK-GENERIC-NEXT: ^{{[^(]*}}(%{{[^ ]*}} : i1, %{{[^ ]*}} : i1, %{{[^ ]*}} : i32):
+// CHECK-GENERIC-NEXT: ^{{[^(]*}}(%{{[^ ]*}}: i1, %{{[^ ]*}}: i1, %{{[^ ]*}}: i32):
 // CHECK-GENERIC-NEXT:   "hw.output"(%{{[^ ]*}}, %{{[^ ]*}}) : (i1, i1) -> ()
 // CHECK-GENERIC-NEXT: }) {sym_name = "generic_basic", module_type = !hw.modty<input a : i1, output nameOfPortInSV : i1, output "" : i1, input customName : i1, input "very custom name" : i32>, parameters = []} : () -> ()
 "hw.module"() ({
-  ^bb0(%a_foo : i1, %b : i1, %c: i32):
+  ^bb0(%a_foo: i1, %b: i1, %c: i32):
     "hw.output"(%a_foo, %b) : (i1, i1) -> ()
   }) {
     "sym_name" = "generic_basic",
@@ -89,6 +89,6 @@ hw.module.extern @extern(in %foo: i32, in %bar "hello": i16, out baz: i8)
   "hw.output"() : () -> ()
 }) {
   "sym_name" = "generic_param",
-  "module_type" = !hw.modty<>, 
+  "module_type" = !hw.modty<>,
   "parameters" = [#hw.param.decl<"p1": i42>, #hw.param.decl<"p2 with wack name": i1>]
 } : () -> ()

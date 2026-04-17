@@ -1,10 +1,16 @@
 from collections.abc import Callable
 
 from llvmlite import ir
+from llvmlite.ir import instructions
+from llvmlite.ir.instructions import PhiInstr
+from llvmlite.ir.types import Type
+from llvmlite.ir.values import Block as LLVMBlock
+from llvmlite.ir.values import Value
 
 from xdsl.backend.llvm.convert_type import convert_type
 from xdsl.dialects import llvm
-from xdsl.ir import Operation, SSAValue
+from xdsl.dialects.vector import FMAOp
+from xdsl.ir import Block, Operation, SSAValue
 
 _BINARY_OP_MAP: dict[
     type[Operation], Callable[[ir.IRBuilder], Callable[[ir.Value, ir.Value], ir.Value]]
@@ -84,6 +90,188 @@ def _convert_icmp(
     val_map[op.results[0]] = target_func(llvm_pred, val_map[op.lhs], val_map[op.rhs])
 
 
+_CAST_OP_NAMES: dict[type[Operation], str] = {
+    llvm.TruncOp: "trunc",
+    llvm.ZExtOp: "zext",
+    llvm.SExtOp: "sext",
+    llvm.PtrToIntOp: "ptrtoint",
+    llvm.IntToPtrOp: "inttoptr",
+    llvm.BitcastOp: "bitcast",
+    llvm.FPExtOp: "fpext",
+    llvm.SIToFPOp: "sitofp",
+}
+
+
+class CastInstrWithFlags(instructions.CastInstr):
+    # workaround: llvmlite's CastInstr doesn't support flags like 'trunc nsw' or 'zext nneg'
+    def __init__(
+        self,
+        parent: LLVMBlock,
+        op: str,
+        val: Value,
+        typ: Type,
+        name: str = "",
+        flags: tuple[str, ...] | list[str] = (),
+    ):
+        instructions.Instruction.__init__(
+            self, parent, typ, op, [val], name=name, flags=flags
+        )
+
+    def descr(self, buf: list[str]) -> None:
+        opname = (
+            " ".join([self.opname] + list(self.flags)) if self.flags else self.opname
+        )
+        op = self.operands[0]
+        buf.append(
+            f"{opname} {op.type} {op.get_reference()} to {self.type}{self._stringify_metadata(leading_comma=True)}\n"
+        )
+
+
+def _convert_cast(
+    op: Operation, builder: ir.IRBuilder, val_map: dict[SSAValue, ir.Value]
+):
+    match op:
+        case llvm.IntegerConversionOpOverflow() if op.overflowFlags:
+            flags = [f.value for f in op.overflowFlags.data]
+        case llvm.IntegerConversionOpNNeg() if op.non_neg:
+            flags = ["nneg"]
+        case _:
+            flags = []
+
+    instr = CastInstrWithFlags(
+        builder.block,
+        _CAST_OP_NAMES[type(op)],
+        val_map[op.operands[0]],
+        convert_type(op.results[0].type),
+        flags=flags,
+    )
+    builder._insert(instr)
+    val_map[op.results[0]] = instr
+
+
+_FCMP_CMP_MAP = {"eq": "==", "gt": ">", "ge": ">=", "lt": "<", "le": "<=", "ne": "!="}
+
+
+def _convert_fcmp(
+    op: llvm.FCmpOp, builder: ir.IRBuilder, val_map: dict[SSAValue, ir.Value]
+):
+    pred_int: int = op.predicate.value.data
+    flag = llvm.FCmpPredicateFlag.from_int(pred_int)
+    pred = flag.value
+    is_ordered = pred[0] == "o"
+    key = pred[1:]
+    cmpop = _FCMP_CMP_MAP.get(key, pred)
+    fn = builder.fcmp_ordered if is_ordered else builder.fcmp_unordered
+    val_map[op.results[0]] = fn(cmpop, val_map[op.lhs], val_map[op.rhs])
+
+
+_UNARY_INTRINSIC_MAP: dict[type[Operation], str] = {
+    llvm.FAbsOp: "llvm.fabs",
+    llvm.FSqrtOp: "llvm.sqrt",
+    llvm.FLogOp: "llvm.log",
+}
+
+
+_BINARY_INTRINSIC_MAP: dict[type[Operation], str] = {
+    llvm.VectorFMaxOp: "llvm.maxnum",
+}
+
+
+def _convert_unary_intrinsic(
+    op: Operation, builder: ir.IRBuilder, val_map: dict[SSAValue, ir.Value]
+):
+    operand = val_map[op.operands[0]]
+    fn_type = ir.FunctionType(operand.type, [operand.type])
+    intrinsic_name = _UNARY_INTRINSIC_MAP[type(op)]
+    intrinsic = builder.module.declare_intrinsic(intrinsic_name, fnty=fn_type)
+    val_map[op.results[0]] = builder.call(intrinsic, [operand])
+
+
+def _convert_binary_intrinsic(
+    op: Operation, builder: ir.IRBuilder, val_map: dict[SSAValue, ir.Value]
+):
+    lhs = val_map[op.operands[0]]
+    rhs = val_map[op.operands[1]]
+    fn_type = ir.FunctionType(lhs.type, [lhs.type, rhs.type])
+    intrinsic_name = _BINARY_INTRINSIC_MAP[type(op)]
+    intrinsic = builder.module.declare_intrinsic(intrinsic_name, fnty=fn_type)
+    val_map[op.results[0]] = builder.call(intrinsic, [lhs, rhs])
+
+
+def _convert_fneg(
+    op: llvm.FNegOp, builder: ir.IRBuilder, val_map: dict[SSAValue, ir.Value]
+):
+    operand = val_map[op.arg]
+    val_map[op.res] = builder.fneg(operand)
+
+
+def _convert_call(
+    op: llvm.CallOp, builder: ir.IRBuilder, val_map: dict[SSAValue, ir.Value]
+):
+    args = [val_map[arg] for arg in op.args]
+    if op.callee is None:
+        raise NotImplementedError("Indirect calls not yet implemented")
+    callee = builder.module.get_global(op.callee.string_value())
+    instruction = builder.call(
+        callee,
+        args,
+        cconv=op.CConv.cconv_name,
+        tail=op.TailCallKind.data != "none",
+        fastmath=[f.value for f in op.fastmathFlags.data],
+    )
+    if op.returned:
+        val_map[op.returned] = instruction
+
+
+def _convert_alloca(
+    op: llvm.AllocaOp, builder: ir.IRBuilder, val_map: dict[SSAValue, ir.Value]
+):
+    alloca_instr = builder.alloca(convert_type(op.elem_type), size=val_map[op.size])
+    if op.alignment:
+        alloca_instr.align = op.alignment.value.data
+    val_map[op.results[0]] = alloca_instr
+
+
+def _convert_load(
+    op: llvm.LoadOp, builder: ir.IRBuilder, val_map: dict[SSAValue, ir.Value]
+):
+    load_instr = builder.load(val_map[op.ptr], typ=convert_type(op.results[0].type))
+    if op.alignment:
+        load_instr.align = op.alignment.value.data
+    val_map[op.results[0]] = load_instr
+
+
+def _convert_store(
+    op: llvm.StoreOp, builder: ir.IRBuilder, val_map: dict[SSAValue, ir.Value]
+):
+    store_instr = builder.store(val_map[op.value], val_map[op.ptr])
+    if op.alignment:
+        store_instr.align = op.alignment.value.data
+
+
+def _convert_getelementptr(
+    op: llvm.GEPOp, builder: ir.IRBuilder, val_map: dict[SSAValue, ir.Value]
+) -> None:
+    # GEPOp mixes static and dynamic indices (placeholder for SSA values)
+    typed_ptr_ty = convert_type(op.elem_type).as_pointer()
+    casted_ptr = builder.bitcast(val_map[op.ptr], typed_ptr_ty)
+
+    ssa_indices = iter(op.ssa_indices)
+    indices = [
+        val_map[next(ssa_indices)]
+        if idx == llvm.GEP_USE_SSA_VAL
+        else ir.Constant(ir.IntType(32), idx)
+        for idx in op.rawConstantIndices.iter_values()
+    ]
+
+    val_map[op.results[0]] = builder.gep(
+        casted_ptr,
+        indices,
+        inbounds=op.inbounds is not None,
+        source_etype=convert_type(op.elem_type),
+    )
+
+
 def _convert_inline_asm(
     op: llvm.InlineAsmOp, builder: ir.IRBuilder, val_map: dict[SSAValue, ir.Value]
 ):
@@ -102,6 +290,86 @@ def _convert_inline_asm(
         val_map[op.results[0]] = res
 
 
+def _convert_select(
+    op: llvm.SelectOp, builder: ir.IRBuilder, val_map: dict[SSAValue, ir.Value]
+):
+    val_map[op.res] = builder.select(val_map[op.cond], val_map[op.lhs], val_map[op.rhs])
+
+
+def _convert_br(
+    op: llvm.BrOp,
+    builder: ir.IRBuilder,
+    val_map: dict[SSAValue, ir.Value],
+    block_map: dict[Block, LLVMBlock],
+):
+    dest = op.successor
+    parent = op.parent_block()
+    assert parent is not None
+    current_block = block_map[parent]
+    for arg, val in zip(dest.args, op.arguments):
+        phi = val_map[arg]
+        assert isinstance(phi, PhiInstr)
+        phi.add_incoming(val_map[val], current_block)
+    builder.branch(block_map[dest])
+
+
+def _convert_condbr(
+    op: llvm.CondBrOp,
+    builder: ir.IRBuilder,
+    val_map: dict[SSAValue, ir.Value],
+    block_map: dict[Block, LLVMBlock],
+):
+    then_block = op.then_block
+    else_block = op.else_block
+    parent = op.parent_block()
+    assert parent is not None
+    current_block = block_map[parent]
+    for arg, val in zip(then_block.args, op.then_arguments):
+        phi = val_map[arg]
+        assert isinstance(phi, PhiInstr)
+        phi.add_incoming(val_map[val], current_block)
+    for arg, val in zip(else_block.args, op.else_arguments):
+        phi = val_map[arg]
+        assert isinstance(phi, PhiInstr)
+        phi.add_incoming(val_map[val], current_block)
+    builder.cbranch(val_map[op.cond], block_map[then_block], block_map[else_block])
+
+
+def _convert_masked_store(
+    op: llvm.MaskedStoreOp, builder: ir.IRBuilder, val_map: dict[SSAValue, ir.Value]
+):
+    value = val_map[op.value]
+    ptr = val_map[op.data]
+    mask = val_map[op.mask]
+    alignment = ir.Constant(ir.IntType(32), op.alignment.value.data)
+    fn_type = ir.FunctionType(
+        ir.VoidType(), [value.type, ptr.type, alignment.type, mask.type]
+    )
+    intrinsic = builder.module.declare_intrinsic("llvm.masked.store", fnty=fn_type)
+    builder.call(intrinsic, [value, ptr, alignment, mask])
+
+
+def _convert_fma(
+    op: FMAOp,
+    builder: ir.IRBuilder,
+    val_map: dict[SSAValue, ir.Value],
+):
+    lhs = val_map[op.lhs]
+    rhs = val_map[op.rhs]
+    acc = val_map[op.acc]
+    res_type = convert_type(op.res.type)
+    assert isinstance(res_type, ir.VectorType)
+    assert isinstance(res_type.element, (ir.HalfType, ir.FloatType, ir.DoubleType))
+    # declare_intrinsic doesn't support VectorType, build name manually
+    name = f"llvm.fma.v{res_type.count}{res_type.element.intrinsic_name}"
+    fn_type = ir.FunctionType(res_type, [res_type, res_type, res_type])
+    try:
+        intrinsic = builder.module.get_global(name)
+    except KeyError:
+        intrinsic = ir.Function(builder.module, fn_type, name=name)
+    val_map[op.res] = builder.call(intrinsic, [lhs, rhs, acc])
+
+
 def _convert_return(
     op: Operation, builder: ir.IRBuilder, val_map: dict[SSAValue, ir.Value]
 ):
@@ -111,10 +379,23 @@ def _convert_return(
         builder.ret_void()
 
 
+def _convert_null(
+    op: llvm.NullOp, builder: ir.IRBuilder, val_map: dict[SSAValue, ir.Value]
+):
+    val_map[op.nullptr] = ir.Constant(convert_type(op.nullptr.type), None)
+
+
+def _convert_addressof(
+    op: llvm.AddressOfOp, builder: ir.IRBuilder, val_map: dict[SSAValue, ir.Value]
+):
+    val_map[op.result] = builder.module.get_global(op.global_name.root_reference.data)
+
+
 def convert_op(
     op: Operation,
     builder: ir.IRBuilder,
     val_map: dict[SSAValue, ir.Value],
+    block_map: dict[Block, LLVMBlock] | None = None,
 ):
     """
     Convert an xDSL operation to an llvmlite LLVM IR.
@@ -137,9 +418,55 @@ def convert_op(
             _convert_binop(op, builder, val_map)
         case llvm.ICmpOp():
             _convert_icmp(op, builder, val_map)
+        case llvm.FCmpOp():
+            _convert_fcmp(op, builder, val_map)
+        case op if type(op) in _CAST_OP_NAMES:
+            _convert_cast(op, builder, val_map)
+        case op if type(op) in _UNARY_INTRINSIC_MAP:
+            _convert_unary_intrinsic(op, builder, val_map)
+        case op if type(op) in _BINARY_INTRINSIC_MAP:
+            _convert_binary_intrinsic(op, builder, val_map)
+        case llvm.FNegOp():
+            _convert_fneg(op, builder, val_map)
+        case llvm.CallOp():
+            _convert_call(op, builder, val_map)
+        case llvm.AllocaOp():
+            _convert_alloca(op, builder, val_map)
+        case llvm.LoadOp():
+            _convert_load(op, builder, val_map)
+        case llvm.StoreOp():
+            _convert_store(op, builder, val_map)
+        case llvm.ExtractValueOp():
+            val_map[op.results[0]] = builder.extract_value(
+                val_map[op.container], list(op.position.iter_values())
+            )
+        case llvm.InsertValueOp():
+            val_map[op.results[0]] = builder.insert_value(
+                val_map[op.container],
+                val_map[op.value],
+                list(op.position.iter_values()),
+            )
+        case llvm.GEPOp():
+            _convert_getelementptr(op, builder, val_map)
         case llvm.InlineAsmOp():
             _convert_inline_asm(op, builder, val_map)
+        case llvm.BrOp() if block_map is not None:
+            _convert_br(op, builder, val_map, block_map)
+        case llvm.CondBrOp() if block_map is not None:
+            _convert_condbr(op, builder, val_map, block_map)
+        case llvm.UnreachableOp():
+            builder.unreachable()
+        case llvm.SelectOp():
+            _convert_select(op, builder, val_map)
+        case llvm.MaskedStoreOp():
+            _convert_masked_store(op, builder, val_map)
         case llvm.ReturnOp():
             _convert_return(op, builder, val_map)
+        case llvm.NullOp():
+            _convert_null(op, builder, val_map)
+        case llvm.AddressOfOp():
+            _convert_addressof(op, builder, val_map)
+        case FMAOp():
+            _convert_fma(op, builder, val_map)
         case _:
             raise NotImplementedError(f"Conversion not implemented for op: {op.name}")

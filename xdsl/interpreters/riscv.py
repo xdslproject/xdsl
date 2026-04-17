@@ -13,6 +13,7 @@ from xdsl.dialects.builtin import (
     IntegerType,
     ModuleOp,
     StringAttr,
+    i32,
 )
 from xdsl.interpreter import (
     Interpreter,
@@ -309,9 +310,11 @@ class RiscvFunctions(InterpreterFunctions):
         args: tuple[Any, ...],
     ):
         args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
-        imm = RiscvFunctions.get_immediate_value(interpreter, op.immediate)
-        assert isinstance(imm, int)
-        results = (args[0] << imm,)
+        assert len(args) == 1
+        assert isinstance(args[0], int)
+        py_op_result = op.py_operation(IntegerAttr(args[0], i32))
+        assert py_op_result is not None
+        results = (py_op_result.value.data,)
         return RiscvFunctions.set_reg_values(interpreter, op.results, results)
 
     @impl(riscv.SllOp)
@@ -574,28 +577,6 @@ class RiscvFunctions(InterpreterFunctions):
         return RiscvFunctions.set_reg_values(interpreter, op.results, results)
 
     # endregion
-
-    @impl(riscv.GetRegisterOp)
-    def run_get_register(
-        self, interpreter: Interpreter, op: riscv.GetRegisterOp, args: PythonValues
-    ) -> PythonValues:
-        attr = op.res.type
-
-        if not attr.is_allocated:
-            raise InterpretationError(
-                f"Cannot get value for unallocated register {attr}"
-            )
-
-        name = attr.register_name
-
-        registers = RiscvFunctions.registers(interpreter)
-
-        if name not in registers:
-            raise InterpretationError(f"Value not found for register name {name.data}")
-
-        stored_value = registers[name]
-
-        return (stored_value,)
 
     @impl(riscv.CustomAssemblyInstructionOp)
     def run_custom_instruction(

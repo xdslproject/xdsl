@@ -9,7 +9,7 @@
 // CHECK-NEXT:     %{{.+}} = riscv.mv %{{.+}} : (!riscv.reg<s0>) -> !riscv.reg<a0>
 // CHECK-NEXT:     %{{.+}} = rv32.li 64 : !riscv.reg<a7>
 // CHECK-NEXT:     riscv.ecall
-// CHECK-NEXT:     %{{.+}} = riscv.get_register : !riscv.reg<a0>
+// CHECK-NEXT:     %{{.+}} = rv32.get_register : !riscv.reg<a0>
 // CHECK-NEXT:     %{{.+}} = riscv.mv %{{.+}} : (!riscv.reg<a0>) -> !riscv.reg<s1>
 
 
@@ -52,12 +52,12 @@
 // CHECK-NEXT:       riscv_func.return %{{\d+}} : !riscv.reg
 // CHECK-NEXT:   }
 
-    riscv_func.func @add(%arg0 : !riscv.reg, %arg1 : !riscv.reg) {
+    riscv_func.func @add(%arg0: !riscv.reg, %arg1: !riscv.reg) {
         %res = riscv.add %arg0, %arg1 : (!riscv.reg, !riscv.reg) -> !riscv.reg
         riscv_func.return %res : !riscv.reg
     }
 
-// CHECK-NEXT:   riscv_func.func @add(%arg0 : !riscv.reg, %arg1 : !riscv.reg) {
+// CHECK-NEXT:   riscv_func.func @add(%arg0: !riscv.reg, %arg1: !riscv.reg) {
 // CHECK-NEXT:       %res = riscv.add %arg0, %arg1 : (!riscv.reg, !riscv.reg) -> !riscv.reg
 // CHECK-NEXT:       riscv_func.return %res : !riscv.reg
 // CHECK-NEXT:   }

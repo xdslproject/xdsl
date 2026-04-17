@@ -359,7 +359,7 @@ def _(bool_edit, lmo, mo, to_mlir, xmo):
     bool_3_ok = bool_3_output == bool_3_expected
     bool_3_check = "✅ " if bool_3_ok else "❌"
 
-    bool_3_cmp = mo.md(f"expected: {bool_3_expected}" + "&nbsp; &nbsp; ↔ &nbsp; " + f"current: {bool_1_output}")
+    bool_3_cmp = mo.md(f"expected: {bool_3_expected}" + "&nbsp; &nbsp; ↔ &nbsp; " + f"current: {bool_3_output}")
     bool_3_stack = mo.vstack([mo.md("### Case 3 &nbsp;&nbsp;" + bool_3_check), lmo.rust_md(bool_3_prefix), bool_3_cmp])
 
     bool_4_prefix = "let x = 3; let y = 5;"
@@ -381,7 +381,53 @@ def _(bool_edit, lmo, mo, to_mlir, xmo):
 
     mo.vstack([bool_res, mo.hstack([bool_1_stack, bool_2_stack]), mo.md("<br>"),
     mo.hstack([bool_3_stack, bool_4_stack])])
-    return (bool_all_check,)
+    return (
+        bool_1_expected,
+        bool_1_prefix,
+        bool_2_expected,
+        bool_2_prefix,
+        bool_3_expected,
+        bool_3_prefix,
+        bool_4_expected,
+        bool_4_prefix,
+        bool_all_check,
+    )
+
+
+@app.cell(hide_code=True)
+def _(lmo, to_mlir):
+    def test_marimo_bool_print_true() -> None:
+        module = to_mlir("0 < 1")
+        assert lmo.interp(module) == "true"
+
+    def test_marimo_bool_print_false() -> None:
+        module = to_mlir("1 < 0")
+        assert lmo.interp(module) == "false"
+
+    return
+
+
+@app.cell(hide_code=True)
+def _(
+    bool_1_expected,
+    bool_1_prefix,
+    bool_2_expected,
+    bool_2_prefix,
+    bool_3_expected,
+    bool_3_prefix,
+    bool_4_expected,
+    bool_4_prefix,
+    lmo,
+    to_mlir,
+):
+    def test_boolean_expr_exercise_solution() -> None:
+        solution = "x != y"
+        assert lmo.interp(to_mlir(bool_1_prefix + solution)) == bool_1_expected
+        assert lmo.interp(to_mlir(bool_2_prefix + solution)) == bool_2_expected
+        assert lmo.interp(to_mlir(bool_3_prefix + solution)) == bool_3_expected
+        assert lmo.interp(to_mlir(bool_4_prefix + solution)) == bool_4_expected
+
+    return
 
 
 @app.cell(hide_code=True)

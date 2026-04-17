@@ -563,7 +563,7 @@ def _(IRDLOperation, IntegerAttr, i32, irdl_op_definition, printer):
         output = result_def(i32)
 
 
-    i32_ssa_var = ConstantOp(IntegerAttr.from_int_and_width(62, 32), i32)
+    i32_ssa_var = ConstantOp(IntegerAttr(62, 32), i32)
     my_addi32 = Addi32Op.build(
         operands=[i32_ssa_var.result, i32_ssa_var.result], result_types=[i32]
     )
@@ -723,7 +723,7 @@ def _(
         res = result_def(i32)
 
 
-    i32_ssa_var_b = ConstantOp(IntegerAttr.from_int_and_width(62, 32), i32)
+    i32_ssa_var_b = ConstantOp(IntegerAttr(62, 32), i32)
     add_op = AddVariadicOp.build(operands=[[i32_ssa_var_b] * 3], result_types=[i32])
     printer.print_op(i32_ssa_var_b)
     print()
@@ -773,7 +773,7 @@ def _(
         irdl_options = (AttrSizedOperandSegments(),)
 
 
-    i32_ssa_var_c = ConstantOp(IntegerAttr.from_int_and_width(62, 32), i32)
+    i32_ssa_var_c = ConstantOp(IntegerAttr(62, 32), i32)
     add_op2 = AddVariadic2Op.build(
         operands=[[i32_ssa_var_c] * 2, [i32_ssa_var_c]],
         result_types=[i32],
@@ -811,7 +811,7 @@ def _(
         res = result_def(i32)
 
 
-    i32_ssa_var_d = ConstantOp(IntegerAttr.from_int_and_width(62, 32), i32)
+    i32_ssa_var_d = ConstantOp(IntegerAttr(62, 32), i32)
     add_op3 = AddVariadic2Op2.build(
         operands=[i32_ssa_var_d, [i32_ssa_var_d]], result_types=[i32]
     )
@@ -971,7 +971,7 @@ def _(
                 raise Exception("expect all input and output types to be equal")
 
 
-    i32_ssa_var_e = ConstantOp(IntegerAttr.from_int_and_width(62, 32), i32)
+    i32_ssa_var_e = ConstantOp(IntegerAttr(62, 32), i32)
     add_op5 = AddiOp.build(operands=[i32_ssa_var_e, i32_ssa_var_e], result_types=[i32])
     # This will pass, since all operands and results have the same type
     add_op5.verify()

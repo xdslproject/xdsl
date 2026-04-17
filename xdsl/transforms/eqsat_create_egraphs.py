@@ -12,14 +12,14 @@ class EqsatCreateEgraphsPass(ModulePass):
 
     Input example:
     ```
-    func.func @test(%a : index, %b : index) -> (index) {
+    func.func @test(%a: index, %b: index) -> (index) {
         %c = arith.addi %a, %b : index
         func.return %c : index
     }
     ```
     Output example:
     ```
-    func.func @test(%a : index, %b : index) -> index {
+    func.func @test(%a: index, %b: index) -> index {
         %c = equivalence.graph -> index {
             %a_1 = equivalence.class %a : index
             %b_1 = equivalence.class %b : index

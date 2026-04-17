@@ -22,8 +22,9 @@ from xdsl.dialects.riscv import (
     parse_immediate_value,
     print_immediate_value,
 )
+from xdsl.dialects.riscv.abstract_ops import GetAnyRegisterOperation
 from xdsl.dialects.riscv.ops import LiOpHasCanonicalizationPatternTrait
-from xdsl.interfaces import ConstantLikeInterface
+from xdsl.interfaces import HasFolderInterface
 from xdsl.ir import (
     Attribute,
     Dialect,
@@ -37,12 +38,13 @@ from xdsl.irdl import (
 from xdsl.parser import Parser
 from xdsl.printer import Printer
 from xdsl.traits import (
+    ConstantLike,
     Pure,
 )
 
 
 @irdl_op_definition
-class LiOp(RISCVCustomFormatOperation, RISCVInstruction, ConstantLikeInterface, ABC):
+class LiOp(RISCVCustomFormatOperation, RISCVInstruction, HasFolderInterface, ABC):
     """
     Loads a 32-bit immediate into rd.
 
@@ -56,7 +58,7 @@ class LiOp(RISCVCustomFormatOperation, RISCVInstruction, ConstantLikeInterface, 
     rd = result_def(IntRegisterType)
     immediate = attr_def(IntegerAttr[I32] | LabelAttr)
 
-    traits = traits_def(Pure(), LiOpHasCanonicalizationPatternTrait())
+    traits = traits_def(Pure(), LiOpHasCanonicalizationPatternTrait(), ConstantLike())
 
     def __init__(
         self,
@@ -83,8 +85,8 @@ class LiOp(RISCVCustomFormatOperation, RISCVInstruction, ConstantLikeInterface, 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
         return self.rd, self.immediate
 
-    def get_constant_value(self):
-        return self.immediate
+    def fold(self) -> tuple[IntegerAttr[I32] | LabelAttr]:
+        return (self.immediate,)
 
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
@@ -110,8 +112,16 @@ class LiOp(RISCVCustomFormatOperation, RISCVInstruction, ConstantLikeInterface, 
         printer.print_attribute(self.rd.type)
 
 
+@irdl_op_definition
+class GetRegisterOp(GetAnyRegisterOperation[IntRegisterType]):
+    name = "rv32.get_register"
+
+
 RV32 = Dialect(
     "rv32",
-    [LiOp],
+    [
+        LiOp,
+        GetRegisterOp,
+    ],
     [],
 )
