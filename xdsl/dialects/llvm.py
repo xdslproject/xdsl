@@ -3143,6 +3143,11 @@ class FExpOp(IRDLOperation):
 
     name = "llvm.intr.exp"
 
+class FSinOp(IRDLOperation):
+    T: ClassVar = VarConstraint("T", AnyFloatConstr | VectorType.constr(AnyFloatConstr))
+
+    name = "llvm.intr.sin"
+
     arg = operand_def(T)
     res = result_def(T)
 
@@ -3423,6 +3428,7 @@ LLVM = Dialect(
         FNegOp,
         FPExtOp,
         FRemOp,
+        FSinOp,
         FSqrtOp,
         FSubOp,
         FuncOp,

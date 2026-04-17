@@ -30,6 +30,7 @@
 
 %fsqrt_vec = llvm.intr.sqrt(%vec_f32) : (vector<4xf32>) -> vector<4xf32>
 // CHECK-NEXT: %fsqrt_vec = llvm.intr.sqrt(%vec_f32) : (vector<4xf32>) -> vector<4xf32>
+
 %flog_f32 = llvm.intr.log(%f32) : (f32) -> f32
 // CHECK: %flog_f32 = llvm.intr.log(%f32) : (f32) -> f32
 
@@ -47,6 +48,15 @@
 
 %fexp_vec = llvm.intr.exp(%vec_f32) : (vector<4xf32>) -> vector<4xf32>
 // CHECK-NEXT: %fexp_vec = llvm.intr.exp(%vec_f32) : (vector<4xf32>) -> vector<4xf32>
+
+%fsin_f32 = llvm.intr.sin(%f32) : (f32) -> f32
+// CHECK: %fsin_f32 = llvm.intr.sin(%f32) : (f32) -> f32
+
+%fsin_f64 = llvm.intr.sin(%f64) : (f64) -> f64
+// CHECK-NEXT: %fsin_f64 = llvm.intr.sin(%f64) : (f64) -> f64
+
+%fsin_vec = llvm.intr.sin(%vec_f32) : (vector<4xf32>) -> vector<4xf32>
+// CHECK-NEXT: %fsin_vec = llvm.intr.sin(%vec_f32) : (vector<4xf32>) -> vector<4xf32>
 
 %fneg_f32 = llvm.fneg %f32 : f32
 // CHECK: %fneg_f32 = llvm.fneg %f32 : f32

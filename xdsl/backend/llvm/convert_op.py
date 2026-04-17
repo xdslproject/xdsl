@@ -176,6 +176,7 @@ _UNARY_INTRINSIC_MAP: dict[type[Operation], str] = {
     llvm.FAbsOp: "llvm.fabs",
     llvm.FExpOp: "llvm.exp",
     llvm.FCeilOp: "llvm.ceil",
+    llvm.FSinOp: "llvm.sin",
     llvm.FSqrtOp: "llvm.sqrt",
     llvm.FLogOp: "llvm.log",
 }
