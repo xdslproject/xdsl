@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import math
 import re
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Generator, Sequence
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing import Any, Literal, NoReturn, cast, overload
 
@@ -115,6 +116,20 @@ class AttrParser(BaseParser):
     """
     Set of resource references encountered during parsing.
     """
+
+    @contextmanager
+    def _without_line_comments(self) -> Generator[None]:
+        """Temporarily disable line comment lexing.
+
+        Inside attribute/type bodies, '//' should be treated as literal
+        slash tokens rather than line comments, matching MLIR's behavior.
+        """
+        lexer = self.lexer
+        if isinstance(lexer, MLIRLexer):
+            with lexer.allow_line_comments(False):
+                yield
+        else:
+            yield
 
     def parse_optional_type(self) -> TypeAttribute | None:
         """
@@ -267,26 +282,25 @@ class AttrParser(BaseParser):
             if not is_opaque:
                 if self.parse_optional_punctuation("<") is None:
                     return attr_def(attr_name, is_type, is_opaque, "")
-            assert isinstance(self.lexer, MLIRLexer)
-            with self.lexer.allow_line_comments(False):
-                body = self._parse_unregistered_attr_body(starting_opaque_pos)
-            attr = attr_def(attr_name, is_type, is_opaque, body)
-            if not is_opaque:
-                self.parse_punctuation(">")
-            return attr
 
-        elif issubclass(attr_def, ParametrizedAttribute):
-            param_list = attr_def.parse_parameters(self)
-            return attr_def.new(param_list)
-        elif issubclass(attr_def, Data):
-            _attr_def = cast(type[Data[Any]], attr_def)
-            assert isinstance(self.lexer, MLIRLexer)
-            with self.lexer.allow_line_comments(False):
+        with self._without_line_comments():
+            if issubclass(attr_def, UnregisteredAttr):
+                body = self._parse_unregistered_attr_body(starting_opaque_pos)
+                attr = attr_def(attr_name, is_type, is_opaque, body)
+                if not is_opaque:
+                    self.parse_punctuation(">")
+            elif issubclass(attr_def, ParametrizedAttribute):
+                param_list = attr_def.parse_parameters(self)
+                attr = attr_def.new(param_list)
+            elif issubclass(attr_def, Data):
+                _attr_def = cast(type[Data[Any]], attr_def)
                 param = _attr_def.parse_parameter(self)
-            self._resume_from(self._current_token.span.start)
-            return _attr_def(param)
-        else:
-            raise TypeError("Attributes are either ParametrizedAttribute or Data.")
+                attr = _attr_def(param)
+            else:
+                raise TypeError("Attributes are either ParametrizedAttribute or Data.")
+
+        self._resume_from(self._current_token.span.start)
+        return attr
 
     @overload
     def _parse_extended_type_or_attribute(

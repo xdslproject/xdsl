@@ -33,6 +33,7 @@ from xdsl.irdl import (
     IRDLOperation,
     irdl_attr_definition,
     irdl_op_definition,
+    param_def,
     prop_def,
     region_def,
 )
@@ -1411,8 +1412,8 @@ class SlashType(Data[str], TypeAttribute):
         ("valid / mlir // syntax ///", "valid / mlir / / syntax / / /"),
     ],
 )
-def test_slash_in_registered_type(body: str, expected: str):
-    """Verify that // inside <...> works for registered dialect types."""
+def test_slash_in_registered_data_type(body: str, expected: str):
+    """Verify that // inside <...> works for registered Data types."""
     ctx = Context(allow_unregistered=True)
     ctx.load_attr_or_type(SlashType)
     parser = Parser(ctx, f'"test.op"() : () -> !test_slash.type<{body}>')
@@ -1421,3 +1422,49 @@ def test_slash_in_registered_type(body: str, expected: str):
     res_type = op.results[0].type
     assert isinstance(res_type, SlashType)
     assert res_type.data == expected
+
+
+@irdl_attr_definition
+class SlashParamType(ParametrizedAttribute, TypeAttribute):
+    """A test ParametrizedAttribute that parses slash-separated identifiers."""
+
+    name = "test_slash_param.type"
+
+    value: StringAttr = param_def(StringAttr)
+
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
+        parser.parse_punctuation("<")
+        tokens: list[str] = []
+        if (ident := parser.parse_optional_identifier()) is not None:
+            tokens.append(ident)
+        while parser.parse_optional_punctuation("/") is not None:
+            tokens.append("/")
+            if (ident := parser.parse_optional_identifier()) is not None:
+                tokens.append(ident)
+        parser.parse_punctuation(">")
+        return [StringAttr(" ".join(tokens))]
+
+    def print_parameters(self, printer: Printer) -> None:
+        printer.print_string("<")
+        printer.print_string(self.value.data)
+        printer.print_string(">")
+
+
+@pytest.mark.parametrize(
+    "body, expected",
+    [
+        ("a // b", "a / / b"),
+        ("valid / mlir // syntax ///", "valid / mlir / / syntax / / /"),
+    ],
+)
+def test_slash_in_registered_param_type(body: str, expected: str):
+    """Verify that // inside <...> works for registered ParametrizedAttribute types."""
+    ctx = Context(allow_unregistered=True)
+    ctx.load_attr_or_type(SlashParamType)
+    parser = Parser(ctx, f'"test.op"() : () -> !test_slash_param.type<{body}>')
+    op = parser.parse_optional_operation()
+    assert op is not None
+    res_type = op.results[0].type
+    assert isinstance(res_type, SlashParamType)
+    assert res_type.value.data == expected
