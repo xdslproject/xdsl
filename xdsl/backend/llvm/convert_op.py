@@ -184,6 +184,7 @@ _UNARY_INTRINSIC_MAP: dict[type[Operation], str] = {
 
 _BINARY_INTRINSIC_MAP: dict[type[Operation], str] = {
     llvm.VectorFMaxOp: "llvm.maxnum",
+    llvm.VectorFMinOp: "llvm.minnum",
 }
 
 

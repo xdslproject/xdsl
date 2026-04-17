@@ -724,6 +724,18 @@ builtin.module {
   // CHECK-NEXT:   ret float %"[[RES]]"
   // CHECK-NEXT: }
 
+  llvm.func @minnum_op(%arg0: f32, %arg1: f32) -> f32 {
+    %0 = llvm.intr.minnum(%arg0, %arg1) : (f32, f32) -> f32
+    llvm.return %0 : f32
+  }
+
+  // CHECK: define float @"minnum_op"(float %".1", float %".2")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: [[ENTRY:.\d+]]:
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = call float @"llvm.minnum"(float %".1", float %".2")
+  // CHECK-NEXT:   ret float %"[[RES]]"
+  // CHECK-NEXT: }
+
   llvm.func @fabs_op(%arg0: f32) -> f32 {
     %0 = llvm.intr.fabs(%arg0) : (f32) -> f32
     llvm.return %0 : f32
