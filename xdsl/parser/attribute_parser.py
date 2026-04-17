@@ -258,15 +258,6 @@ class AttrParser(BaseParser):
         after the mnemonic.  ``None`` means the pretty syntax was used.
         """
         is_opaque = starting_opaque_pos is not None
-        pretty = "." in attr_name
-        if not pretty:
-            self.parse_punctuation("<")
-            attr_name += (
-                "."
-                + self._parse_token(
-                    MLIRTokenKind.BARE_IDENT, "Expected attribute name."
-                ).text
-            )
         if is_type:
             attr_def = self.ctx.get_optional_type(
                 attr_name,

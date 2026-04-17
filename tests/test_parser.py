@@ -1506,3 +1506,20 @@ def test_unregistered_type_unexpected_eof():
     with pytest.raises(ParseError, match="end of file"):
         parser = Parser(ctx, '"test.op"() : () -> !unknowndialect.t<no close')
         parser.parse_optional_operation()
+
+
+def test_opaque_syntax_attr():
+    """Opaque syntax (#dialect<name ...>) goes through the non-pretty path."""
+    ctx = Context(allow_unregistered=True)
+    parser = Parser(ctx, '"test.op"() {x = #unknowndialect<myattr a / b>} : () -> ()')
+    op = parser.parse_optional_operation()
+    assert op is not None
+
+
+def test_unregistered_attr_name_rejected():
+    """An unknown attr name is rejected when allow_unregistered is False."""
+    ctx = Context(allow_unregistered=False)
+    ctx.load_dialect(Test)
+    with pytest.raises(ParseError, match="is not registered"):
+        parser = Parser(ctx, '"test.op"() : () -> !nonexistent.type<foo>')
+        parser.parse_optional_operation()
