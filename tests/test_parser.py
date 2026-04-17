@@ -1430,7 +1430,7 @@ class SlashParamType(ParametrizedAttribute, TypeAttribute):
 
     name = "test_slash_param.type"
 
-    value: StringAttr = param_def(StringAttr)
+    value: StringAttr = param_def()
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
