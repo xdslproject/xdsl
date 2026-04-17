@@ -3208,6 +3208,10 @@ class FSinOp(IRDLOperation):
     T: ClassVar = VarConstraint("T", AnyFloatConstr | VectorType.constr(AnyFloatConstr))
 
     name = "llvm.intr.sin"
+class FCosOp(IRDLOperation):
+    T: ClassVar = VarConstraint("T", AnyFloatConstr | VectorType.constr(AnyFloatConstr))
+
+    name = "llvm.intr.cos"
 
     arg = operand_def(T)
     res = result_def(T)
@@ -3481,6 +3485,7 @@ LLVM = Dialect(
         FAddOp,
         FCeilOp,
         FCmpOp,
+        FCosOp,
         FDivOp,
         FExpOp,
         FFloorOp,

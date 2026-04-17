@@ -180,6 +180,7 @@ _UNARY_INTRINSIC_MAP: dict[type[Operation], str] = {
     llvm.FFloorOp: "llvm.floor",
     llvm.FSqrtOp: "llvm.sqrt",
     llvm.FLogOp: "llvm.log",
+    llvm.FCosOp: "llvm.cos",
 }
 
 _BINARY_INTRINSIC_MAP: dict[type[Operation], str] = {
@@ -192,8 +193,9 @@ def _convert_unary_intrinsic(
 ):
     operand = val_map[op.operands[0]]
     fn_type = ir.FunctionType(operand.type, [operand.type])
-    intrinsic_name = _UNARY_INTRINSIC_MAP[type(op)]
-    intrinsic = builder.module.declare_intrinsic(intrinsic_name, fnty=fn_type)
+    intrinsic = builder.module.declare_intrinsic(
+        _UNARY_INTRINSIC_MAP[type(op)], fnty=fn_type
+    )
     val_map[op.results[0]] = builder.call(intrinsic, [operand])
 
 
@@ -203,8 +205,9 @@ def _convert_binary_intrinsic(
     lhs = val_map[op.operands[0]]
     rhs = val_map[op.operands[1]]
     fn_type = ir.FunctionType(lhs.type, [lhs.type, rhs.type])
-    intrinsic_name = _BINARY_INTRINSIC_MAP[type(op)]
-    intrinsic = builder.module.declare_intrinsic(intrinsic_name, fnty=fn_type)
+    intrinsic = builder.module.declare_intrinsic(
+        _BINARY_INTRINSIC_MAP[type(op)], fnty=fn_type
+    )
     val_map[op.results[0]] = builder.call(intrinsic, [lhs, rhs])
 
 

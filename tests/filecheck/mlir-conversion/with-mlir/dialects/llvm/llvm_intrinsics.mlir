@@ -38,6 +38,14 @@
 
 %ffloor_vec = llvm.intr.floor(%arg2) : (vector<4xf32>) -> vector<4xf32>
 // CHECK: llvm.intr.floor([[arg2]]) : (vector<4xf32>) -> vector<4xf32>
+%fcos_f32 = llvm.intr.cos(%arg0) : (f32) -> f32
+// CHECK: llvm.intr.cos([[arg0]]) : (f32) -> f32
+
+%fcos_f64 = llvm.intr.cos(%arg1) : (f64) -> f64
+// CHECK: llvm.intr.cos([[arg1]]) : (f64) -> f64
+
+%fcos_vec = llvm.intr.cos(%arg2) : (vector<4xf32>) -> vector<4xf32>
+// CHECK: llvm.intr.cos([[arg2]]) : (vector<4xf32>) -> vector<4xf32>
 
 %3 = llvm.fneg %arg0 : f32
 // CHECK: llvm.fneg [[arg0]] : f32
