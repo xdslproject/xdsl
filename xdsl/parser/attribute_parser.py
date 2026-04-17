@@ -380,10 +380,10 @@ class AttrParser(BaseParser):
 
     def _raw_scan_balanced(self, pos: Position) -> Position:
         """
-        Scan raw characters for balanced brackets starting from `pos`.
+        Scan raw characters for balanced brackets starting from ``pos``.
 
-        `pos` must point to the first character after an opening `<`.
-        Returns the position of the matching closing `>`.
+        ``pos`` must point to the first character after an opening ``<``.
+        Returns the position of the matching closing ``>``.
         """
         content = self.lexer.input.content
         length = self.lexer.input.len
@@ -397,21 +397,23 @@ class AttrParser(BaseParser):
             if c in "<([{":
                 nesting.append(c)
             elif c == "-" and pos < length and content[pos] == ">":
-                pos += 1  # '->' is not a closing bracket
+                pos += 1
             elif c in closers:
-                expected = closers[c]
                 if not nesting:
                     if c == ">":
-                        return pos - 1  # position of '>'
+                        return pos - 1
                     self.raise_error(
-                        f"Unbalanced '{c}' in dialect symbol body"
+                        f"Unbalanced '{c}' in dialect symbol body",
+                        pos - 1,
                     )
-                if nesting[-1] != expected:
+                if nesting[-1] != closers[c]:
                     self.raise_error(
-                        f"Unbalanced '{c}' in dialect symbol body"
+                        f"Unbalanced '{c}' in dialect symbol body",
+                        pos - 1,
                     )
                 nesting.pop()
             elif c == '"':
+                str_start = pos - 1
                 while pos < length:
                     sc = content[pos]
                     pos += 1
@@ -421,7 +423,8 @@ class AttrParser(BaseParser):
                         break
                 else:
                     self.raise_error(
-                        "Unterminated string literal in dialect symbol body"
+                        "Unterminated string literal in dialect symbol body",
+                        str_start,
                     )
 
         self.raise_error("Unexpected end of file in dialect symbol body")
