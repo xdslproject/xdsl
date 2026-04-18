@@ -207,6 +207,7 @@ def _convert_binary_intrinsic(
     intrinsic = builder.module.declare_intrinsic(intrinsic_name, fnty=fn_type)
     val_map[op.results[0]] = builder.call(intrinsic, [lhs, rhs])
 
+
 def _convert_fneg(
     op: llvm.FNegOp, builder: ir.IRBuilder, val_map: dict[SSAValue, ir.Value]
 ):
