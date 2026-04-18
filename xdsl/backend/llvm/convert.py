@@ -13,12 +13,7 @@ from xdsl.utils.target import Target
 
 
 def _convert_func(op: llvm.FuncOp, llvm_module: ir.Module):
-    ret_type = convert_type(op.function_type.output)
-    arg_types = [convert_type(t) for t in op.function_type.inputs]
-    func_type = ir.FunctionType(ret_type, arg_types)
-    func_name = op.sym_name.data
-
-    func = ir.Function(llvm_module, func_type, name=func_name)
+    func = llvm_module.get_global(op.sym_name.data)
 
     if not op.body.blocks:
         return
@@ -26,7 +21,7 @@ def _convert_func(op: llvm.FuncOp, llvm_module: ir.Module):
     block_map: dict[Block, ir.Block] = {}
     val_map: dict[SSAValue, ir.Value] = {}
 
-    # create all blocks first so that forward references work
+    # Create all blocks first so that forward references work
     for i, block in enumerate(op.body.blocks):
         llvm_block = func.append_basic_block(name=block.name_hint or "")
         block_map[block] = llvm_block
@@ -34,8 +29,8 @@ def _convert_func(op: llvm.FuncOp, llvm_module: ir.Module):
             for arg, llvm_arg in zip(block.args, func.args):
                 val_map[arg] = llvm_arg
 
-    # create PHI nodes for non-entry block arguments
-    # incoming values are added later by branch ops (e.g. CondBrOp) in convert_op
+    # Create PHI nodes for non-entry block arguments
+    # Incoming values are added later by branch ops (e.g. BrOp, CondBrOp) in convert_op
     for i, block in enumerate(op.body.blocks):
         if i == 0:
             continue
@@ -45,30 +40,47 @@ def _convert_func(op: llvm.FuncOp, llvm_module: ir.Module):
                 phi = builder.phi(convert_type(arg.type))
                 val_map[arg] = phi
 
-    # convert ops in each block
+    # Convert ops in each block
     for block in op.body.blocks:
         builder = ir.IRBuilder(block_map[block])
-        # position after any PHI nodes
+        # Position after any PHI nodes
         if block_map[block].instructions:
             builder.position_after(block_map[block].instructions[-1])
         for op_in_block in block.ops:
             convert_op(op_in_block, builder, val_map, block_map)
 
 
-def convert_module(module: ModuleOp) -> ir.Module:
+def convert_module(
+    module: ModuleOp,
+    target_triple: str = "",
+    data_layout: str = "",
+) -> ir.Module:
     """
     Convert an xDSL module to an LLVM module.
     """
     llvm_module = ir.Module()
+    if target_triple:
+        llvm_module.triple = target_triple
+    if data_layout:
+        llvm_module.data_layout = data_layout
 
+    func_ops: list[llvm.FuncOp] = []
     for op in module.ops:
-        match op:
-            case llvm.FuncOp():
-                _convert_func(op, llvm_module)
-            case _:
-                raise NotImplementedError(
-                    f"Conversion not implemented for op: {op.name}"
-                )
+        if not isinstance(op, llvm.FuncOp):
+            raise NotImplementedError(f"Conversion not implemented for op: {op.name}")
+        func_ops.append(op)
+
+    # Declare all functions (enables forward references)
+    for op in func_ops:
+        ret_type = convert_type(op.function_type.output)
+        arg_types = [convert_type(t) for t in op.function_type.inputs]
+        func_type = ir.FunctionType(ret_type, arg_types)
+        ir.Function(llvm_module, func_type, name=op.sym_name.data)
+
+    # Generate function bodies
+    for func_op in func_ops:
+        if func_op.body.blocks:
+            _convert_func(func_op, llvm_module)
 
     return llvm_module
 

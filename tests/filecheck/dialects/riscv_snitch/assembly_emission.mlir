@@ -30,6 +30,7 @@ riscv_func.func @main() {
   // f32
   %vfmul_s = riscv_snitch.vfmul.s %ft0, %ft1 : (!riscv.freg<ft0>, !riscv.freg<ft1>) -> !riscv.freg<ft2>
   %vfadd_s = riscv_snitch.vfadd.s %ft0, %ft1 : (!riscv.freg<ft0>, !riscv.freg<ft1>) -> !riscv.freg<ft2>
+  %vfsub_s = riscv_snitch.vfsub.s %ft0, %ft1 : (!riscv.freg<ft0>, !riscv.freg<ft1>) -> !riscv.freg<ft2>
   %vfmax_s = riscv_snitch.vfmax.s %ft0, %ft1 : (!riscv.freg<ft0>, !riscv.freg<ft1>) -> !riscv.freg<ft2>
   %vfcpka_s_s = riscv_snitch.vfcpka.s.s %ft0, %ft1 : (!riscv.freg<ft0>, !riscv.freg<ft1>) -> !riscv.freg<ft2>
   %vfmac_s = riscv_snitch.vfmac.s %ft3, %ft0, %ft1 : (!riscv.freg<ft3>, !riscv.freg<ft0>, !riscv.freg<ft1>) -> !riscv.freg<ft3>
@@ -37,6 +38,7 @@ riscv_func.func @main() {
 
   // f16
   %vfadd_h = riscv_snitch.vfadd.h %ft1, %ft0 : (!riscv.freg<ft1>, !riscv.freg<ft0>) -> !riscv.freg<ft2>
+  %vfsub_h = riscv_snitch.vfsub.h %ft1, %ft0 : (!riscv.freg<ft1>, !riscv.freg<ft0>) -> !riscv.freg<ft2>
   %vfmul_h = riscv_snitch.vfmul.h %ft0, %ft1 : (!riscv.freg<ft0>, !riscv.freg<ft1>) -> !riscv.freg<ft2>
 
   riscv_func.return
@@ -55,10 +57,12 @@ riscv_func.func @main() {
 // CHECK-NEXT:       dmstati a5, 22
 // CHECK-NEXT:       vfmul.s ft2, ft0, ft1
 // CHECK-NEXT:       vfadd.s ft2, ft0, ft1
+// CHECK-NEXT:       vfsub.s ft2, ft0, ft1
 // CHECK-NEXT:       vfmax.s ft2, ft0, ft1
 // CHECK-NEXT:       vfcpka.s.s ft2, ft0, ft1
 // CHECK-NEXT:       vfmac.s ft3, ft0, ft1
 // CHECK-NEXT:       vfsum.s ft3, ft1
 // CHECK-NEXT:       vfadd.h ft2, ft1, ft0
+// CHECK-NEXT:       vfsub.h ft2, ft1, ft0
 // CHECK-NEXT:       vfmul.h ft2, ft0, ft1
 // CHECK-NEXT:       ret

@@ -841,6 +841,24 @@ class VFAddSOp(riscv.RdRsRsFloatOperationWithFastMath):
 
 
 @irdl_op_definition
+class VFSubSOp(riscv.RdRsRsFloatOperationWithFastMath):
+    """
+    Performs vectorial subtraction of corresponding f32 values from
+    rs1 and rs2 and stores the results in the corresponding f32 lanes
+    into the vectorial 2xf32 rd operand, such as:
+
+    ```C
+    f[rd][lo] = f[rs1][lo] - f[rs2][lo]
+    f[rd][hi] = f[rs1][hi] - f[rs2][hi]
+    ```
+    """
+
+    name = "riscv_snitch.vfsub.s"
+
+    traits = traits_def(Pure())
+
+
+@irdl_op_definition
 class VFAddHOp(riscv.RdRsRsFloatOperationWithFastMath):
     """
     Performs vectorial addition of corresponding f16 values from
@@ -856,6 +874,26 @@ class VFAddHOp(riscv.RdRsRsFloatOperationWithFastMath):
     """
 
     name = "riscv_snitch.vfadd.h"
+
+    traits = traits_def(Pure())
+
+
+@irdl_op_definition
+class VFSubHOp(riscv.RdRsRsFloatOperationWithFastMath):
+    """
+    Performs vectorial subtraction of corresponding f16 values from
+    rs1 and rs2 and stores the results in the corresponding f16 lanes
+    into the vectorial 4xf16 rd operand, such as:
+
+    ```C
+    f[rd][0] = f[rs1][0] - f[rs2][0]
+    f[rd][1] = f[rs1][1] - f[rs2][1]
+    f[rd][2] = f[rs1][2] - f[rs2][2]
+    f[rd][3] = f[rs1][3] - f[rs2][3]
+    ```
+    """
+
+    name = "riscv_snitch.vfsub.h"
 
     traits = traits_def(Pure())
 
@@ -1063,11 +1101,13 @@ RISCV_Snitch = Dialect(
         DMStatImmOp,
         VFMulSOp,
         VFAddSOp,
+        VFSubSOp,
         VFCpkASSOp,
         VFMacSOp,
         VFSumSOp,
         VFMulHOp,
         VFAddHOp,
+        VFSubHOp,
         VFMaxSOp,
     ],
     [],

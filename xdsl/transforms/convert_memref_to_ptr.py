@@ -35,13 +35,13 @@ from xdsl.pattern_rewriter import (
     op_type_rewrite_pattern,
 )
 from xdsl.rewriter import InsertPoint
-from xdsl.utils.exceptions import DiagnosticException, PassFailedException
+from xdsl.utils.exceptions import DiagnosticException
 from xdsl.utils.hints import isa
 
 _index_type = builtin.IndexType()
 
 
-def get_bytes_offset(
+def build_bytes_offset(
     elements_offset: SSAValue, element_type: Attribute, builder: Builder
 ) -> SSAValue:
     """
@@ -59,7 +59,7 @@ def get_bytes_offset(
     return bytes_offset.result
 
 
-def get_offset_pointer(
+def build_offset_pointer(
     pointer: SSAValue,
     bytes_offset: SSAValue,
     builder: Builder,
@@ -72,13 +72,26 @@ def get_offset_pointer(
     return target_ptr.result
 
 
-def get_constant_strides(memref_type: builtin.MemRefType) -> Sequence[int]:
+def get_strides(
+    memref_val: SSAValue,
+    memref_type: builtin.MemRefType,
+    builder: Builder,
+) -> Sequence[int]:
     """
-    If the memref has constant strides and offset, returns them, otherwise raises a
-    DiagnosticException.
+    Returns the per-dimension strides of `memref_val` as a sequence of `int`s when
+    they are all statically known, otherwise raises a `DiagnosticException`.
+
+    `memref_val` and `builder` are currently unused; they are accepted so that a
+    follow-up change can extend this helper to emit `memref.dim` ops for dynamic
+    dimensions without changing its call sites.
     """
+    del memref_val, builder
     match memref_type.layout:
         case builtin.NoneAttr():
+            if builtin.DYNAMIC_INDEX in memref_type.get_shape():
+                raise DiagnosticException(
+                    f"MemRef {memref_type} with dynamic shape is not yet implemented"
+                )
             strides = builtin.ShapedType.strides_for_shape(memref_type.get_shape())
         case builtin.StridedLayoutAttr():
             strides = memref_type.layout.get_strides()
@@ -92,7 +105,7 @@ def get_constant_strides(memref_type: builtin.MemRefType) -> Sequence[int]:
     return strides
 
 
-def get_strides_offset(
+def build_strides_offset(
     indices: Iterable[SSAValue], strides: Sequence[int], builder: Builder
 ) -> SSAValue | None:
     """
@@ -135,26 +148,26 @@ def get_strides_offset(
     return head
 
 
-def get_target_ptr(
+def build_target_ptr(
     target_memref: SSAValue,
     memref_type: memref.MemRefType[Any],
     indices: Iterable[SSAValue],
     builder: Builder,
 ) -> SSAValue:
     """
-    Get operations returning a pointer to an element of a memref referenced by indices.
+    Build operations returning a pointer to an element of a memref referenced by indices.
     """
 
     memref_ptr = builder.insert_op(ptr.ToPtrOp(target_memref))
     pointer = memref_ptr.res
     pointer.name_hint = target_memref.name_hint
 
-    strides = get_constant_strides(memref_type)
-    head = get_strides_offset(indices, strides, builder)
+    strides = get_strides(target_memref, memref_type, builder)
+    head = build_strides_offset(indices, strides, builder)
 
     if head is not None:
-        offset = get_bytes_offset(head, memref_type.element_type, builder)
-        pointer = get_offset_pointer(pointer, offset, builder)
+        offset = build_bytes_offset(head, memref_type.element_type, builder)
+        pointer = build_offset_pointer(pointer, offset, builder)
 
     return pointer
 
@@ -164,7 +177,7 @@ class ConvertStorePattern(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: memref.StoreOp, rewriter: PatternRewriter, /):
         assert isa(memref_type := op.memref.type, memref.MemRefType)
-        target_ptr = get_target_ptr(op.memref, memref_type, op.indices, rewriter)
+        target_ptr = build_target_ptr(op.memref, memref_type, op.indices, rewriter)
         rewriter.replace_op(op, ptr.StoreOp(target_ptr, op.value))
 
 
@@ -173,7 +186,7 @@ class ConvertLoadPattern(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: memref.LoadOp, rewriter: PatternRewriter, /):
         assert isa(memref_type := op.memref.type, memref.MemRefType)
-        target_ptr = get_target_ptr(op.memref, memref_type, op.indices, rewriter)
+        target_ptr = build_target_ptr(op.memref, memref_type, op.indices, rewriter)
         rewriter.replace_op(op, ptr.LoadOp(target_ptr, memref_type.element_type))
 
 
@@ -204,13 +217,7 @@ class ConvertSubviewPattern(RewritePattern):
         result_type = op.result.type
         element_type = result_type.element_type
 
-        source_shape = source_type.get_shape()
-        if builtin.DYNAMIC_INDEX in source_shape:
-            raise PassFailedException(
-                f"Cannot lower memref subview of memref type with dynamic "
-                f"shape {source_type}."
-            )
-        source_strides = get_constant_strides(source_type)
+        source_strides = get_strides(op.source, source_type, rewriter)
 
         pointer = rewriter.insert_op(ptr.ToPtrOp(op.source)).res
         pointer.name_hint = op.source.name_hint
@@ -250,8 +257,8 @@ class ConvertSubviewPattern(RewritePattern):
                 head.name_hint = "subview"
 
         if head is not None:
-            offset = get_bytes_offset(head, element_type, rewriter)
-            pointer = get_offset_pointer(pointer, offset, rewriter)
+            offset = build_bytes_offset(head, element_type, rewriter)
+            pointer = build_offset_pointer(pointer, offset, rewriter)
 
         rewriter.replace_op(op, ptr.FromPtrOp(pointer, result_type))
 
@@ -385,14 +392,28 @@ class ConvertReinterpretCastOp(RewritePattern):
     def match_and_rewrite(
         self, op: memref.ReinterpretCastOp, rewriter: PatternRewriter, /
     ):
-        rewriter.replace_matched_op(
-            (
-                ptr_cast := ptr.ToPtrOp(op.source),
-                builtin.UnrealizedConversionCastOp.get(
-                    [ptr_cast.res], [op.result.type]
-                ),
-            )
-        )
+        pointer = rewriter.insert_op(ptr.ToPtrOp(op.source)).res
+        pointer.name_hint = op.source.name_hint
+
+        # reinterpret_cast has exactly one flat element offset
+        static_offset = next(iter(op.static_offsets.iter_values()))
+
+        if static_offset != 0:
+            # dynamic offset: passed as operand
+            if static_offset == builtin.DYNAMIC_INDEX:
+                offset_val = op.offsets[0]
+            # static non-zero offset: materialize as constant
+            else:
+                offset_val = rewriter.insert_op(
+                    arith.ConstantOp(builtin.IntegerAttr(static_offset, _index_type))
+                ).result
+                offset_val.name_hint = f"c{static_offset}"
+
+            # scale element offset to bytes and advance pointer
+            element_type = op.result.type.element_type
+            byte_offset = build_bytes_offset(offset_val, element_type, rewriter)
+            pointer = build_offset_pointer(pointer, byte_offset, rewriter)
+        rewriter.replace_op(op, ptr.FromPtrOp(pointer, op.result.type))
 
 
 @dataclass(frozen=True)

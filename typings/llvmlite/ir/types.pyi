@@ -162,6 +162,7 @@ class IntType(Type):
         ...
 
 class _BaseFloatType(Type):
+    intrinsic_name: str
     def __new__(cls):  # -> Self:
         ...
     def __eq__(self, other) -> bool: ...
@@ -217,7 +218,10 @@ class VectorType(Type):
     """
     The type for vectors of primitive data items (e.g. "<f32 x 4>").
     """
-    def __init__(self, element, count) -> None: ...
+
+    element: Type
+    count: int
+    def __init__(self, element: Type, count: int) -> None: ...
     @property
     def elements(self):  # -> _Repeat:
         ...

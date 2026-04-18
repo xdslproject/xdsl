@@ -114,16 +114,48 @@ memref.store %fv4, %mstr4[%idx4] {"nontemporal" = false} : memref<2xf32, strided
 
 // CHECK-NEXT:  %cast_src = "test.op"() : () -> memref<10xi32>
 
-%reinterpret_src = "test.op"() : () -> (memref<10x2xindex>)
-%reinterpret_dst = "memref.reinterpret_cast"(%reinterpret_src) <{operandSegmentSizes = array<i32: 1, 0, 0, 0>, static_offsets = array<i64: 0>, static_sizes = array<i64: 5, 4>, static_strides = array<i64: 1, 1>}> : (memref<10x2xindex>) -> memref<5x4xindex, strided<[1, 1]>>
+"test.op"(%lv, %lv2, %flv, %flv2, %flv3, %subview1d, %subview2d, %cast_dst) : (i32, i32, f64, f64, f64, memref<5xi32>, memref<5x4xi32>, memref<?xi32>) -> ()
 
-// CHECK-NEXT:  %reinterpret_src = "test.op"() : () -> memref<10x2xindex>
-// CHECK-NEXT:  %reinterpret_dst = ptr_xdsl.to_ptr %reinterpret_src : memref<10x2xindex> -> !ptr_xdsl.ptr
-// CHECK-NEXT:  %reinterpret_dst_1 = builtin.unrealized_conversion_cast %reinterpret_dst : !ptr_xdsl.ptr to memref<5x4xindex, strided<[1, 1]>>
+// CHECK-NEXT:  "test.op"(%lv, %lv2, %flv, %flv2, %flv3, %subview1d, %subview2d, %cast_src) : (i32, i32, f64, f64, f64, memref<5xi32>, memref<5x4xi32>, memref<10xi32>) -> ()
 
-"test.op"(%lv, %lv2, %flv, %flv2, %flv3, %subview1d, %subview2d, %cast_dst, %reinterpret_dst) : (i32, i32, f64, f64, f64, memref<5xi32>, memref<5x4xi32>, memref<?xi32>, memref<5x4xindex, strided<[1, 1]>>) -> ()
+// -----
 
-// CHECK-NEXT:  "test.op"(%lv, %lv2, %flv, %flv2, %flv3, %subview1d, %subview2d, %cast_src, %reinterpret_dst_1) : (i32, i32, f64, f64, f64, memref<5xi32>, memref<5x4xi32>, memref<10xi32>, memref<5x4xindex, strided<[1, 1]>>) -> ()
+// zero offset: just to_ptr + from_ptr, no arithmetic
+%zero_src = "test.op"() : () -> (memref<10x2xindex>)
+%zero_dst = "memref.reinterpret_cast"(%zero_src) <{operandSegmentSizes = array<i32: 1, 0, 0, 0>, static_offsets = array<i64: 0>, static_sizes = array<i64: 5, 4>, static_strides = array<i64: 1, 1>}> : (memref<10x2xindex>) -> memref<5x4xindex, strided<[1, 1]>>
+
+// static offset=5: constant + byte-scale + ptradd
+%static_src = "test.op"() : () -> (memref<10xi32>)
+%static_dst = "memref.reinterpret_cast"(%static_src) <{operandSegmentSizes = array<i32: 1, 0, 0, 0>, static_offsets = array<i64: 5>, static_sizes = array<i64: 5>, static_strides = array<i64: 1>}> : (memref<10xi32>) -> memref<5xi32, strided<[1], offset: 5>>
+
+// dynamic offset: use dynamic operand directly
+%dyn_src = "test.op"() : () -> (memref<10xi32>)
+%dyn_off = "test.op"() : () -> (index)
+%dyn_dst = "memref.reinterpret_cast"(%dyn_src, %dyn_off) <{operandSegmentSizes = array<i32: 1, 1, 0, 0>, static_offsets = array<i64: -9223372036854775808>, static_sizes = array<i64: 5>, static_strides = array<i64: 1>}> : (memref<10xi32>, index) -> memref<5xi32, strided<[1], offset: ?>>
+
+"test.op"(%zero_dst, %static_dst, %dyn_dst) : (memref<5x4xindex, strided<[1, 1]>>, memref<5xi32, strided<[1], offset: 5>>, memref<5xi32, strided<[1], offset: ?>>) -> ()
+
+// CHECK:       %zero_src = "test.op"() : () -> memref<10x2xindex>
+// CHECK-NEXT:  %zero_src_1 = ptr_xdsl.to_ptr %zero_src : memref<10x2xindex> -> !ptr_xdsl.ptr
+// CHECK-NEXT:  %zero_dst = ptr_xdsl.from_ptr %zero_src_1 : !ptr_xdsl.ptr -> memref<5x4xindex, strided<[1, 1]>>
+
+// CHECK-NEXT:  %static_src = "test.op"() : () -> memref<10xi32>
+// CHECK-NEXT:  %static_src_1 = ptr_xdsl.to_ptr %static_src : memref<10xi32> -> !ptr_xdsl.ptr
+// CHECK-NEXT:  %c5 = arith.constant 5 : index
+// CHECK-NEXT:  %bytes_per_element = ptr_xdsl.type_offset i32 : index
+// CHECK-NEXT:  %scaled_pointer_offset = arith.muli %c5, %bytes_per_element : index
+// CHECK-NEXT:  %offset_pointer = ptr_xdsl.ptradd %static_src_1, %scaled_pointer_offset : (!ptr_xdsl.ptr, index) -> !ptr_xdsl.ptr
+// CHECK-NEXT:  %static_dst = ptr_xdsl.from_ptr %offset_pointer : !ptr_xdsl.ptr -> memref<5xi32, strided<[1], offset: 5>>
+
+// CHECK-NEXT:  %dyn_src = "test.op"() : () -> memref<10xi32>
+// CHECK-NEXT:  %dyn_off = "test.op"() : () -> index
+// CHECK-NEXT:  %dyn_src_1 = ptr_xdsl.to_ptr %dyn_src : memref<10xi32> -> !ptr_xdsl.ptr
+// CHECK-NEXT:  %bytes_per_element_1 = ptr_xdsl.type_offset i32 : index
+// CHECK-NEXT:  %scaled_pointer_offset_1 = arith.muli %dyn_off, %bytes_per_element_1 : index
+// CHECK-NEXT:  %offset_pointer_1 = ptr_xdsl.ptradd %dyn_src_1, %scaled_pointer_offset_1 : (!ptr_xdsl.ptr, index) -> !ptr_xdsl.ptr
+// CHECK-NEXT:  %dyn_dst = ptr_xdsl.from_ptr %offset_pointer_1 : !ptr_xdsl.ptr -> memref<5xi32, strided<[1], offset: ?>>
+
+// CHECK-NEXT:  "test.op"(%zero_dst, %static_dst, %dyn_dst) : (memref<5x4xindex, strided<[1, 1]>>, memref<5xi32, strided<[1], offset: 5>>, memref<5xi32, strided<[1], offset: ?>>) -> ()
 
 // -----
 

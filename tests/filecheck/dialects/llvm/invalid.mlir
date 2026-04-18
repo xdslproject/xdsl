@@ -72,3 +72,12 @@ func.func @gep_struct_out_of_range() {
 }
 
 // CHECK: GEP index #1: 5 is out of range for struct with 2 field(s)
+
+// -----
+
+func.func @constant_op_rejects_invalid_prop() {
+  %0 = "llvm.mlir.constant"() <{value = "invalid"}> : () -> i32
+  func.return
+}
+
+// CHECK: Unexpected attribute "invalid"
