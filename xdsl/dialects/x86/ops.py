@@ -3728,7 +3728,7 @@ class KS_KMovBOp(KS_Operation):
     """
     Move 8 bits mask from general-purpose register to destination mask register.
 
-    See external [documentation](https://www.felixcloutier.com/x86/kmovb).
+    See external [documentation](https://www.felixcloutier.com/x86/kmovw:kmovb:kmovq:kmovd).
     """
 
     name = "x86.ks.kmovb"
