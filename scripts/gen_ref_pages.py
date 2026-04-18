@@ -77,14 +77,11 @@ Some features are not supported so they have to be opted into it one by one.
 
 
 def gen_marimo_old():
-    def create_marimo_app_url(code: str, mode: str = "read") -> str:
+    def create_marimo_app_url(code: str) -> str:
         from lzstring2 import LZString
 
         encoded_code = LZString.compress_to_encoded_URI_component(code)
-        return (
-            f"https://marimo.app/?embed=true&mode={mode}&show-chrome=false"
-            f"#code/{encoded_code}"
-        )
+        return f"https://marimo.app/?embed=true&show-chrome=false#code/{encoded_code}"
 
     for path in sorted((docs_root / "marimo").rglob("*.py")):
         if path in NEW_MARIMO_NOTEBOOKS:
