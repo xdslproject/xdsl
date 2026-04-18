@@ -38,6 +38,9 @@ jobs:
         run: uv run mkdocs build --strict
         # The --strict flag ensures the build fails on warnings
 
+      - name: Prune uv cache
+        run: uv cache prune --ci
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v5
         with:
