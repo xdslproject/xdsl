@@ -81,7 +81,10 @@ def gen_marimo_old():
         from lzstring2 import LZString
 
         encoded_code = LZString.compress_to_encoded_URI_component(code)
-        return f"https://marimo.app/#code/{encoded_code}&embed=true"
+        return (
+            f"https://marimo.app/?embed=true&mode={mode}&show-chrome=false"
+            f"#code/{encoded_code}"
+        )
 
     for path in sorted((docs_root / "marimo").rglob("*.py")):
         if path in NEW_MARIMO_NOTEBOOKS:
