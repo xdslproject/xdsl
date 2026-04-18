@@ -3708,7 +3708,7 @@ class DK_KMovBOp(DK_Operation):
     """
     Move 8 bits mask from source mask register to general-purpose register.
 
-    See external [documentation](https://www.felixcloutier.com/x86/kmovb).
+    See external [documentation](https://www.felixcloutier.com/x86/kmovw:kmovb:kmovq:kmovd).
     """
 
     name = "x86.dk.kmovb"
@@ -3749,7 +3749,7 @@ class DK_KMovWOp(DK_Operation):
     """
     Move 16 bits mask from source mask register to general-purpose register.
 
-    See external [documentation](https://www.felixcloutier.com/x86/kmovw).
+    See external [documentation](https://www.felixcloutier.com/x86/kmovw:kmovb:kmovq:kmovd).
     """
 
     name = "x86.dk.kmovw"
@@ -3769,7 +3769,7 @@ class KS_KMovWOp(KS_Operation):
     """
     Move 16 bits mask from general-purpose register to destination mask register.
 
-    See external [documentation](https://www.felixcloutier.com/x86/kmovw).
+    See external [documentation](https://www.felixcloutier.com/x86/kmovw:kmovb:kmovq:kmovd).
     """
 
     name = "x86.ks.kmovw"
@@ -3790,7 +3790,7 @@ class DK_KMovDOp(DK_Operation):
     """
     Move 32 bits mask from source mask register to general-purpose register.
 
-    See external [documentation](https://www.felixcloutier.com/x86/kmovd).
+    See external [documentation](https://www.felixcloutier.com/x86/kmovw:kmovb:kmovq:kmovd).
     """
 
     name = "x86.dk.kmovd"
@@ -3810,7 +3810,7 @@ class KS_KMovDOp(KS_Operation):
     """
     Move 32 bits mask from general-purpose register to destination mask register.
 
-    See external [documentation](https://www.felixcloutier.com/x86/kmovd).
+    See external [documentation](https://www.felixcloutier.com/x86/kmovw:kmovb:kmovq:kmovd).
     """
 
     name = "x86.ks.kmovd"
@@ -3831,7 +3831,7 @@ class DK_KMovQOp(DK_Operation):
     """
     Move 64 bits mask from source mask register to general-purpose register.
 
-    See external [documentation](https://www.felixcloutier.com/x86/kmovq).
+    See external [documentation](https://www.felixcloutier.com/x86/kmovw:kmovb:kmovq:kmovd).
     """
 
     name = "x86.dk.kmovq"
@@ -3842,7 +3842,7 @@ class KS_KMovQOp(KS_Operation):
     """
     Move 64 bits mask from general-purpose register to destination mask register.
 
-    See external [documentation](https://www.felixcloutier.com/x86/kmovq).
+    See external [documentation](https://www.felixcloutier.com/x86/kmovw:kmovb:kmovq:kmovd).
     """
 
     name = "x86.ks.kmovq"
