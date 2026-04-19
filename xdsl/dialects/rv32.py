@@ -37,10 +37,7 @@ from xdsl.irdl import (
 )
 from xdsl.parser import Parser
 from xdsl.printer import Printer
-from xdsl.traits import (
-    ConstantLike,
-    Pure,
-)
+from xdsl.traits import ConstantLike
 
 
 @irdl_op_definition
@@ -58,7 +55,7 @@ class LiOp(RISCVCustomFormatOperation, RISCVInstruction, HasFolderInterface, ABC
     rd = result_def(IntRegisterType)
     immediate = attr_def(IntegerAttr[I32] | LabelAttr)
 
-    traits = traits_def(Pure(), LiOpHasCanonicalizationPatternTrait(), ConstantLike())
+    traits = traits_def(LiOpHasCanonicalizationPatternTrait(), ConstantLike())
 
     def __init__(
         self,

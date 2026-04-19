@@ -64,6 +64,7 @@ def test_effect_traits():
     # Check below separately for each of these
     assert all_effects_trait_types == {
         Pure,
+        RegisterAllocatedMemoryEffect,
     }
 
     register_effects_ops = {
@@ -71,8 +72,5 @@ def test_effect_traits():
     }
     no_effects_ops = {op for op in effects_ops if op.has_trait(NoMemoryEffect)}
 
-    assert not register_effects_ops
-    assert no_effects_ops == {
-        rv64.LiOp,  # This is a bug, will fix in an upcoming PR
-        rv64.GetRegisterOp,
-    }
+    assert register_effects_ops == {rv64.LiOp}
+    assert no_effects_ops == {rv64.GetRegisterOp}

@@ -8,7 +8,7 @@ from typing_extensions import Self, override
 
 from xdsl.backend.register_allocatable import RegisterConstraints
 from xdsl.backend.register_allocator import BlockAllocator
-from xdsl.backend.register_type import RegisterAllocatedMemoryEffect, RegisterResource
+from xdsl.backend.register_type import RegisterResource
 from xdsl.backend.riscv.traits import StaticInsnRepresentation
 from xdsl.dialects import riscv, snitch
 from xdsl.dialects.builtin import (
@@ -738,9 +738,6 @@ class DMCopyOp(RISCVInstruction):
         StaticInsnRepresentation(insn=".insn r 0x2b, 0, 3, {0}, {1}, {2}"),
         MemoryReadEffect(),
         MemoryWriteEffect(),
-        # https://github.com/xdslproject/xdsl/issues/5882
-        # Move to appropriate superclass in the future
-        RegisterAllocatedMemoryEffect(),
     )
 
     def __init__(
@@ -767,9 +764,6 @@ class DMStatOp(RISCVInstruction):
     traits = traits_def(
         StaticInsnRepresentation(insn=".insn r 0x2b, 0, 5, {0}, {1}, {2}"),
         MemoryReadEffect(),
-        # https://github.com/xdslproject/xdsl/issues/5882
-        # Move to appropriate superclass in the future
-        RegisterAllocatedMemoryEffect(),
     )
 
     def __init__(
@@ -817,9 +811,6 @@ class DMCopyImmOp(RISCVInstruction):
         StaticInsnRepresentation(insn=".insn r 0x2b, 0, 2, {0}, {1}, {2}"),
         MemoryReadEffect(),
         MemoryWriteEffect(),
-        # https://github.com/xdslproject/xdsl/issues/5882
-        # Move to appropriate superclass in the future
-        RegisterAllocatedMemoryEffect(),
     )
 
     def __init__(
@@ -852,9 +843,6 @@ class DMStatImmOp(RISCVInstruction):
     traits = traits_def(
         StaticInsnRepresentation(insn=".insn r 0x2b, 0, 4, {0}, {1}, {2}"),
         MemoryReadEffect(),
-        # https://github.com/xdslproject/xdsl/issues/5882
-        # Move to appropriate superclass in the future
-        RegisterAllocatedMemoryEffect(),
     )
 
     def __init__(
@@ -903,9 +891,7 @@ class VFCpkASSOp(
 
     name = "riscv_snitch.vfcpka.s.s"
 
-    # https://github.com/xdslproject/xdsl/issues/5882
-    # Move to appropriate superclass in the future
-    traits = traits_def(AlwaysSpeculatable(), RegisterAllocatedMemoryEffect())
+    traits = traits_def(AlwaysSpeculatable())
 
 
 @irdl_op_definition
@@ -1060,9 +1046,7 @@ class RdRsRsAccumulatingFloatOperationWithFastMath(
 
     fastmath = opt_attr_def(FastMathFlagsAttr)
 
-    # https://github.com/xdslproject/xdsl/issues/5882
-    # Move to appropriate superclass in the future
-    traits = traits_def(AlwaysSpeculatable(), RegisterAllocatedMemoryEffect())
+    traits = traits_def(AlwaysSpeculatable())
 
     def __init__(
         self,
@@ -1125,9 +1109,7 @@ class RdRsAccumulatingFloatOperation(RISCVCustomFormatOperation, RISCVInstructio
     rd_in = operand_def(SAME_FLOAT_REGISTER_TYPE)
     rs = operand_def(FloatRegisterType)
 
-    # https://github.com/xdslproject/xdsl/issues/5882
-    # Move to appropriate superclass in the future
-    traits = traits_def(AlwaysSpeculatable(), RegisterAllocatedMemoryEffect())
+    traits = traits_def(AlwaysSpeculatable())
 
     def __init__(
         self,

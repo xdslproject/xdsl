@@ -81,4 +81,7 @@ def test_effect_traits():
     assert write_effects_ops == {riscv_func.CallOp, riscv_func.SyscallOp}
     assert riscv_func_call_effects_ops == {riscv_func.CallOp, riscv_func.SyscallOp}
 
-    assert register_allocated_memory_effects_ops == {riscv_func.ReturnOp}
+    assert register_allocated_memory_effects_ops == {
+        riscv_func.CallOp,
+        riscv_func.ReturnOp,
+    }
