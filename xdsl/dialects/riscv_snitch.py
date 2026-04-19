@@ -8,6 +8,7 @@ from typing_extensions import Self
 
 from xdsl.backend.register_allocatable import RegisterConstraints
 from xdsl.backend.register_allocator import BlockAllocator
+from xdsl.backend.register_type import RegisterResource
 from xdsl.backend.riscv.traits import StaticInsnRepresentation
 from xdsl.dialects import riscv, snitch
 from xdsl.dialects.builtin import (
@@ -62,12 +63,15 @@ from xdsl.parser import Parser, UnresolvedOperand
 from xdsl.pattern_rewriter import RewritePattern
 from xdsl.printer import Printer
 from xdsl.traits import (
+    AlwaysSpeculatable,
     HasCanonicalizationPatternsTrait,
     HasParent,
     IsTerminator,
-    Pure,
+    MemoryReadEffect,
+    MemoryWriteEffect,
     SingleBlockImplicitTerminator,
     ensure_terminator,
+    get_effects,
 )
 from xdsl.utils.exceptions import VerifyException
 
@@ -97,7 +101,7 @@ class ScfgwOp(RsRsIntegerOperation):
 
     name = "riscv_snitch.scfgw"
 
-    traits = traits_def(ScfgwOpHasCanonicalizationPatternsTrait())
+    traits = traits_def(MemoryWriteEffect(), ScfgwOpHasCanonicalizationPatternsTrait())
 
 
 @irdl_op_definition
@@ -115,6 +119,8 @@ class ScfgwiOp(RISCVCustomFormatOperation, RISCVInstruction):
 
     rs1 = operand_def(IntRegisterType)
     immediate = attr_def(IntegerAttr[SI12])
+
+    traits = traits_def(MemoryWriteEffect())
 
     def __init__(
         self,
@@ -175,6 +181,9 @@ class ReadOp(RISCVAsmOperation, RISCVRegallocOperation):
 
     assembly_format = "`from` $stream attr-dict `:` type($res)"
 
+    # Reads from memory and updates stream state
+    traits = traits_def(MemoryWriteEffect(), MemoryReadEffect())
+
     def __init__(self, stream_val: SSAValue, result_type: Attribute | None = None):
         if result_type is None:
             assert isinstance(stream_type := stream_val.type, snitch.ReadableStreamType)
@@ -204,6 +213,9 @@ class WriteOp(RISCVAsmOperation, RISCVRegallocOperation):
 
     assembly_format = "$value `to` $stream attr-dict `:` type($value)"
 
+    # Writes to memory and updates stream state
+    traits = traits_def(MemoryWriteEffect())
+
     def __init__(self, value: SSAValue, stream: SSAValue):
         super().__init__(operands=[value, stream])
 
@@ -218,7 +230,7 @@ class WriteOp(RISCVAsmOperation, RISCVRegallocOperation):
         yield riscv.Registers.FT2
 
 
-ALLOWED_FREP_OP_TYPES = (
+ALLOWED_FREP_OP_TYPES: tuple[type[Operation], ...] = (
     FrepYieldOp,
     ReadOp,
     WriteOp,
@@ -234,7 +246,22 @@ def is_valid_frep_body_op(operation: Operation) -> bool:
     contain memory effects via `ReadOp` / `WriteOp`.
     We also allow `UnrealizedConversionCastOp` to support partial lowering of dialects.
     """
-    return operation.has_trait(Pure) or isinstance(operation, ALLOWED_FREP_OP_TYPES)
+    if isinstance(operation, ALLOWED_FREP_OP_TYPES):
+        # Exceptions to the rules
+        return True
+
+    effects = get_effects(operation)
+
+    if effects is None:
+        # No effects interface
+        return False
+
+    # All effects are on float registers
+    return all(
+        isinstance(effect.resource, RegisterResource)
+        and isinstance(effect.resource.register, FloatRegisterType)
+        for effect in effects
+    )
 
 
 I3: TypeAlias = IntegerType[Literal[3]]
@@ -811,7 +838,7 @@ class VFCpkASSOp(
 
     name = "riscv_snitch.vfcpka.s.s"
 
-    traits = traits_def(Pure())
+    traits = traits_def(AlwaysSpeculatable())
 
 
 @irdl_op_definition
@@ -829,7 +856,7 @@ class VFMulSOp(riscv.RdRsRsFloatOperationWithFastMath):
 
     name = "riscv_snitch.vfmul.s"
 
-    traits = traits_def(Pure())
+    traits = traits_def(AlwaysSpeculatable())
 
 
 @irdl_op_definition
@@ -847,7 +874,7 @@ class VFAddSOp(riscv.RdRsRsFloatOperationWithFastMath):
 
     name = "riscv_snitch.vfadd.s"
 
-    traits = traits_def(Pure())
+    traits = traits_def(AlwaysSpeculatable())
 
 
 @irdl_op_definition
@@ -865,7 +892,7 @@ class VFSubSOp(riscv.RdRsRsFloatOperationWithFastMath):
 
     name = "riscv_snitch.vfsub.s"
 
-    traits = traits_def(Pure())
+    traits = traits_def(AlwaysSpeculatable())
 
 
 @irdl_op_definition
@@ -885,7 +912,7 @@ class VFAddHOp(riscv.RdRsRsFloatOperationWithFastMath):
 
     name = "riscv_snitch.vfadd.h"
 
-    traits = traits_def(Pure())
+    traits = traits_def(AlwaysSpeculatable())
 
 
 @irdl_op_definition
@@ -905,7 +932,7 @@ class VFSubHOp(riscv.RdRsRsFloatOperationWithFastMath):
 
     name = "riscv_snitch.vfsub.h"
 
-    traits = traits_def(Pure())
+    traits = traits_def(AlwaysSpeculatable())
 
 
 @irdl_op_definition
@@ -925,7 +952,7 @@ class VFMulHOp(riscv.RdRsRsFloatOperationWithFastMath):
 
     name = "riscv_snitch.vfmul.h"
 
-    traits = traits_def(Pure())
+    traits = traits_def(AlwaysSpeculatable())
 
 
 @irdl_op_definition
@@ -943,7 +970,7 @@ class VFMaxSOp(riscv.RdRsRsFloatOperationWithFastMath):
 
     name = "riscv_snitch.vfmax.s"
 
-    traits = traits_def(Pure())
+    traits = traits_def(AlwaysSpeculatable())
 
 
 class RdRsRsAccumulatingFloatOperationWithFastMath(
@@ -965,6 +992,8 @@ class RdRsRsAccumulatingFloatOperationWithFastMath(
     rs2 = operand_def(FloatRegisterType)
 
     fastmath = opt_attr_def(FastMathFlagsAttr)
+
+    traits = traits_def(AlwaysSpeculatable())
 
     def __init__(
         self,
@@ -1027,6 +1056,8 @@ class RdRsAccumulatingFloatOperation(RISCVCustomFormatOperation, RISCVInstructio
     rd_in = operand_def(SAME_FLOAT_REGISTER_TYPE)
     rs = operand_def(FloatRegisterType)
 
+    traits = traits_def(AlwaysSpeculatable())
+
     def __init__(
         self,
         rd: Operation | SSAValue,
@@ -1069,8 +1100,6 @@ class VFMacSOp(RdRsRsAccumulatingFloatOperationWithFastMath):
 
     name = "riscv_snitch.vfmac.s"
 
-    traits = traits_def(Pure())
-
 
 @irdl_op_definition
 class VFSumSOp(RdRsAccumulatingFloatOperation):
@@ -1084,8 +1113,6 @@ class VFSumSOp(RdRsAccumulatingFloatOperation):
     """
 
     name = "riscv_snitch.vfsum.s"
-
-    traits = traits_def(Pure())
 
 
 # endregion
