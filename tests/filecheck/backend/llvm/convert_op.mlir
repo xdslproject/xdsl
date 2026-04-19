@@ -764,12 +764,12 @@ builtin.module {
   // CHECK-NEXT:   ret void
   // CHECK-NEXT: }
 
-  llvm.func @null_op() -> !llvm.ptr {
-    %0 = "llvm.mlir.null"() : () -> !llvm.ptr
+  llvm.func @zero_op() -> !llvm.ptr {
+    %0 = "llvm.mlir.zero"() : () -> !llvm.ptr
     llvm.return %0 : !llvm.ptr
   }
 
-  // CHECK: define ptr @"null_op"()
+  // CHECK: define ptr @"zero_op"()
   // CHECK-NEXT: {
   // CHECK-NEXT: {{.[0-9]+}}:
   // CHECK-NEXT:   ret ptr null

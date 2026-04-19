@@ -10,12 +10,6 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
-from xdsl.traits import Pure
-
-ALLOWED_FREP_OP_LOWERING_TYPES = (
-    *riscv_snitch.ALLOWED_FREP_OP_TYPES,
-    riscv_scf.YieldOp,
-)
 
 
 class ScfForLowering(RewritePattern):
@@ -49,7 +43,7 @@ class ScfForLowering(RewritePattern):
             return
 
         if not all(
-            isinstance(o, ALLOWED_FREP_OP_LOWERING_TYPES) or o.has_trait(Pure)
+            isinstance(o, riscv_scf.YieldOp) or riscv_snitch.is_valid_frep_body_op(o)
             for o in body_block.ops
         ):
             # 4. All operations are pure or one of

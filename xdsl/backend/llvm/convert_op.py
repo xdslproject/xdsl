@@ -385,12 +385,6 @@ def _convert_return(
         builder.ret_void()
 
 
-def _convert_null(
-    op: llvm.NullOp, builder: ir.IRBuilder, val_map: dict[SSAValue, ir.Value]
-):
-    val_map[op.nullptr] = ir.Constant(convert_type(op.nullptr.type), None)
-
-
 def _convert_addressof(
     op: llvm.AddressOfOp, builder: ir.IRBuilder, val_map: dict[SSAValue, ir.Value]
 ):
@@ -504,8 +498,8 @@ def convert_op(
             _convert_masked_store(op, builder, val_map)
         case llvm.ReturnOp():
             _convert_return(op, builder, val_map)
-        case llvm.NullOp():
-            _convert_null(op, builder, val_map)
+        case llvm.ZeroOp():
+            val_map[op.res] = ir.Constant(convert_type(op.res.type), None)
         case llvm.AddressOfOp():
             _convert_addressof(op, builder, val_map)
         case FMAOp():
