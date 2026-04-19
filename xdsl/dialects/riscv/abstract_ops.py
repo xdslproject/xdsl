@@ -3,6 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from collections.abc import Set as AbstractSet
+from dataclasses import dataclass
 from io import StringIO
 from typing import IO, Generic, TypeAlias
 
@@ -14,7 +15,9 @@ from xdsl.backend.register_allocatable import (
     RegisterConstraints,
 )
 from xdsl.backend.register_type import RegisterAllocatedMemoryEffect, RegisterType
+from xdsl.context import Context
 from xdsl.dialects.builtin import (
+    I32,
     IntegerAttr,
     IntegerType,
     ModuleOp,
@@ -41,6 +44,7 @@ from xdsl.pattern_rewriter import RewritePattern
 from xdsl.printer import Printer
 from xdsl.traits import HasCanonicalizationPatternsTrait, Pure
 from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.target import Target
 
 from .attrs import (
     I12,
@@ -241,6 +245,14 @@ def riscv_code(module: ModuleOp) -> str:
     stream = StringIO()
     print_assembly(module, stream)
     return stream.getvalue()
+
+
+@dataclass(frozen=True)
+class RISCVAsmTarget(Target):
+    name = "riscv-asm"
+
+    def emit(self, ctx: Context, module: ModuleOp, output: IO[str]) -> None:
+        print_assembly(module, output)
 
 
 # endregion
@@ -519,6 +531,10 @@ class RdRsRsFloatOperationWithFastMath(
     rs2 = operand_def(FloatRegisterType)
     fastmath = opt_attr_def(FastMathFlagsAttr)
 
+    # https://github.com/xdslproject/xdsl/issues/5882
+    # Move to appropriate superclass in the future
+    traits = traits_def(RegisterAllocatedMemoryEffect())
+
     def __init__(
         self,
         rs1: Operation | SSAValue,
@@ -726,9 +742,10 @@ class ImmShiftOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrai
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.riscv import (
             ShiftbyZero,
+            ShiftConstantFolding,
         )
 
-        return (ShiftbyZero(),)
+        return (ShiftbyZero(), ShiftConstantFolding())
 
 
 class RdRsImmShiftOperation(RISCVInstruction, ABC):
@@ -778,6 +795,20 @@ class RdRsImmShiftOperation(RISCVInstruction, ABC):
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
         return self.rd, self.rs1, self.immediate
+
+    @abstractmethod
+    def py_operation(self, rs1: IntegerAttr[I32]) -> IntegerAttr[I32]:
+        """
+        Performs a python function corresponding to this operation.
+
+        If `i := py_operation(rs1)` is an IntegerAttr[I32], then this operation can be
+        canonicalized to a constant with value `i` when the inputs are constants
+        with values `rs1`. The immediate value is retrieved from the `immediate` attribute of the operation.
+        """
+
+        raise NotImplementedError(
+            "RdRsImmShiftOperation py_operation is not yet implemented"
+        )
 
 
 class RdRsImmBitManipOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):

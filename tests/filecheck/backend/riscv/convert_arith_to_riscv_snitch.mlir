@@ -32,3 +32,25 @@
 // tests with fastmath flags when set to "contract"
 // CHECK-NEXT:    %addf64_fm_contract = riscv.fadd.d %l, %r fastmath<contract> : (!riscv.freg, !riscv.freg) -> !riscv.freg
 %addf64_fm_contract = arith.addf %lhsvf64, %rhsvf64 fastmath<contract> : vector<1xf64>
+
+// CHECK-NEXT:    %mulf16 = riscv_snitch.vfmul.h %l, %r : (!riscv.freg, !riscv.freg) -> !riscv.freg
+%mulf16 = arith.mulf %l16, %r16 : vector<4xf16>
+// CHECK-NEXT:    %mulf32 = riscv_snitch.vfmul.s %l, %r : (!riscv.freg, !riscv.freg) -> !riscv.freg
+%mulf32 = arith.mulf %l32, %r32 : vector<2xf32>
+
+// tests with fastmath flags when set to "fast"
+// CHECK-NEXT:    %mulf16_fm = riscv_snitch.vfmul.h %l, %r fastmath<fast> : (!riscv.freg, !riscv.freg) -> !riscv.freg
+%mulf16_fm = arith.mulf %l16, %r16 fastmath<fast> : vector<4xf16>
+// CHECK-NEXT:    %mulf32_fm = riscv_snitch.vfmul.s %l, %r fastmath<fast> : (!riscv.freg, !riscv.freg) -> !riscv.freg
+%mulf32_fm = arith.mulf %l32, %r32 fastmath<fast> : vector<2xf32>
+
+// CHECK-NEXT:    %mulf64 = riscv.fmul.d %l, %r : (!riscv.freg, !riscv.freg) -> !riscv.freg
+%mulf64 = arith.mulf %lhsvf64, %rhsvf64 : vector<1xf64>
+
+// tests with fastmath flags when set to "fast"
+// CHECK-NEXT:    %mulf64_fm = riscv.fmul.d %l, %r fastmath<fast> : (!riscv.freg, !riscv.freg) -> !riscv.freg
+%mulf64_fm = arith.mulf %lhsvf64, %rhsvf64 fastmath<fast> : vector<1xf64>
+
+// tests with fastmath flags when set to "contract"
+// CHECK-NEXT:    %mulf64_fm_contract = riscv.fmul.d %l, %r fastmath<contract> : (!riscv.freg, !riscv.freg) -> !riscv.freg
+%mulf64_fm_contract = arith.mulf %lhsvf64, %rhsvf64 fastmath<contract> : vector<1xf64>

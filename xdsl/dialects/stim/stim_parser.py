@@ -7,7 +7,37 @@ from xdsl.dialects.builtin import ArrayAttr, FloatData, IntAttr
 from xdsl.dialects.stim import (
     QubitCoordsOp,
 )
-from xdsl.dialects.stim.ops import QubitAttr, QubitMappingAttr, StimCircuitOp
+from xdsl.dialects.stim.ops import (
+    CXOp,
+    CYOp,
+    CZOp,
+    HOp,
+    IOp,
+    ISwapDagOp,
+    ISwapOp,
+    MOp,
+    MROp,
+    MRXOp,
+    MRYOp,
+    MXOp,
+    MYOp,
+    QubitAttr,
+    QubitMappingAttr,
+    ROp,
+    RXOp,
+    RYOp,
+    SDagOp,
+    SOp,
+    SqrtXDagOp,
+    SqrtXOp,
+    SqrtYDagOp,
+    SqrtYOp,
+    StimCircuitOp,
+    SwapOp,
+    XOp,
+    YOp,
+    ZOp,
+)
 from xdsl.ir import Block, Operation, Region
 from xdsl.utils.lexer import Input, Position
 from xdsl.utils.str_enum import StrEnum
@@ -31,6 +61,74 @@ class Instruction(StrEnum):
     """
 
     COORD = "QUBIT_COORDS"
+    H = "H"
+    S = "S"
+    S_DAG = "S_DAG"
+    X = "X"
+    Y = "Y"
+    Z = "Z"
+    I = "I"
+    SQRT_X = "SQRT_X"
+    SQRT_X_DAG = "SQRT_X_DAG"
+    SQRT_Y = "SQRT_Y"
+    SQRT_Y_DAG = "SQRT_Y_DAG"
+    CX = "CX"
+    CY = "CY"
+    CZ = "CZ"
+    SWAP = "SWAP"
+    ISWAP = "ISWAP"
+    ISWAP_DAG = "ISWAP_DAG"
+    M = "M"
+    MX = "MX"
+    MY = "MY"
+    R = "R"
+    RX = "RX"
+    RY = "RY"
+    MR = "MR"
+    MRX = "MRX"
+    MRY = "MRY"
+
+
+SINGLE_QUBIT_GATE_OPS: dict[Instruction, type] = {
+    Instruction.H: HOp,
+    Instruction.S: SOp,
+    Instruction.S_DAG: SDagOp,
+    Instruction.X: XOp,
+    Instruction.Y: YOp,
+    Instruction.Z: ZOp,
+    Instruction.I: IOp,
+    Instruction.SQRT_X: SqrtXOp,
+    Instruction.SQRT_X_DAG: SqrtXDagOp,
+    Instruction.SQRT_Y: SqrtYOp,
+    Instruction.SQRT_Y_DAG: SqrtYDagOp,
+}
+
+TWO_QUBIT_GATE_OPS: dict[Instruction, type] = {
+    Instruction.CX: CXOp,
+    Instruction.CY: CYOp,
+    Instruction.CZ: CZOp,
+    Instruction.SWAP: SwapOp,
+    Instruction.ISWAP: ISwapOp,
+    Instruction.ISWAP_DAG: ISwapDagOp,
+}
+
+MEASUREMENT_OPS: dict[Instruction, type] = {
+    Instruction.M: MOp,
+    Instruction.MX: MXOp,
+    Instruction.MY: MYOp,
+}
+
+RESET_OPS: dict[Instruction, type] = {
+    Instruction.R: ROp,
+    Instruction.RX: RXOp,
+    Instruction.RY: RYOp,
+}
+
+MEASURE_RESET_OPS: dict[Instruction, type] = {
+    Instruction.MR: MROp,
+    Instruction.MRX: MRXOp,
+    Instruction.MRY: MRYOp,
+}
 
 
 NEWLINE = re.compile(r"\n")
@@ -42,9 +140,9 @@ ARG = re.compile(r"\d+(\.\d+)?")
 TARGET = re.compile(r"\d+")
 # GATE = re.compile("|".join(re.escape(p.value) for p in PrimitiveSpelling))
 # INSTRUCTION = re.compile("|".join(re.escape(i.value) for i in Instruction))
-NAME = re.compile(r"[a-zA-Z][a-zA-Z0-9_]+")
+NAME = re.compile(r"[a-zA-Z][a-zA-Z0-9_]*")
 """
-A regular expression for a name: a letter followed by a number of letters or numbers or underscores.
+A regular expression for a name: a letter followed by zero or more letters, numbers, or underscores.
 """
 
 
@@ -272,6 +370,25 @@ class StimParser:
                 coords = self.build_parens(parens)
                 mapping = QubitMappingAttr(coords, qubit)
                 return QubitCoordsOp(mapping)
+            case op if op in SINGLE_QUBIT_GATE_OPS:
+                OpClass = SINGLE_QUBIT_GATE_OPS[op]
+                return OpClass(targets)
+            case op if op in TWO_QUBIT_GATE_OPS:
+                OpClass = TWO_QUBIT_GATE_OPS[op]
+                return OpClass(targets)
+            case op if op in MEASUREMENT_OPS:
+                OpClass = MEASUREMENT_OPS[op]
+                flip_prob = parens[0] if parens else None
+                return OpClass(targets, flip_prob)
+            case op if op in RESET_OPS:
+                OpClass = RESET_OPS[op]
+                return OpClass(targets)
+            case op if op in MEASURE_RESET_OPS:
+                OpClass = MEASURE_RESET_OPS[op]
+                flip_prob = parens[0] if parens else None
+                return OpClass(targets, flip_prob)
+            case _:
+                pass
 
     # endregion
 

@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections.abc import Mapping, Sequence
 from enum import auto
-from typing import ClassVar, cast
+from typing import ClassVar, NamedTuple, cast
 
 from typing_extensions import Self
 
@@ -37,11 +37,12 @@ from xdsl.ir import (
     Region,
     SSAValue,
 )
-from xdsl.ir.affine import AffineMap
+from xdsl.ir.affine import AffineDimExpr, AffineMap
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
     ParsePropInAttrDict,
+    SameVariadicOperandSize,
     attr_def,
     base,
     irdl_attr_definition,
@@ -97,20 +98,60 @@ class IteratorTypeAttr(EnumAttribute[IteratorType]):
             super().print_parameter(printer)
 
 
-class LinalgOperation(IRDLOperation, ABC):
+class LoopBoundSource(NamedTuple):
+    """Source information for one loop upper bound."""
+
+    operand: SSAValue
+    """The shaped operand that provides the bound."""
+
+    dim_index: int
+    """The dimension index in the operand used for the bound."""
+
+    dim_size: int
+    """The size of that dimension, or DYNAMIC_INDEX if it is dynamic."""
+
+
+class LinalgStructuredOperation(IRDLOperation, ABC):
     """
-    Abstract base class for linalg operations, allowing them to be processed in with a
-    unified interface.
+    Abstract base class for structured linalg operations, allowing them to be processed
+    via a unified interface.
+    """
+
+    inputs = var_operand_def()
+    """
+    The operands that won't be mutated.
+    """
+    outputs = var_operand_def(ShapedType)
+    """
+    The operands that will be accumulated into.
+    These inputs may be `memref`s, which will be mutated in-place, or `tensor`s, which will be returned as results.
+    """
+
+    res = var_result_def(TensorType)
+    """
+    The updated `outputs`, empty if the inputs are memrefs.
+    """
+
+    body = region_def("single_block")
+    """
+    The body implementing the combination of scalar elements of the inputs, and
+    yielding the scalar elements of the outputs.
     """
 
     @abstractmethod
-    def get_indexing_maps(self) -> Sequence[AffineMap]:
+    def get_indexing_maps(self) -> ArrayAttr[AffineMapAttr]:
         """
         Get the indexing maps corresponding to this operation's operands, in order.
         """
 
+    @abstractmethod
+    def get_iterator_types(self) -> ArrayAttr[IteratorTypeAttr]:
+        """
+        Get the iterator types corresponding to this operation's loop, in order.
+        """
+
     def get_num_loops(self) -> int:
-        return self.get_indexing_maps()[0].num_dims
+        return self.get_indexing_maps().data[0].data.num_dims
 
     def get_loops_to_shapes_map(self) -> AffineMap:
         """
@@ -119,14 +160,13 @@ class LinalgOperation(IRDLOperation, ABC):
         computation".
         The default behavior is to just concatenate all the indexing maps.
         """
-        result_exprs = tuple(
-            res for map in self.get_indexing_maps() for res in map.results
-        )
+        indexing_maps = tuple(attr.data for attr in self.get_indexing_maps())
+        result_exprs = tuple(res for map in indexing_maps for res in map.results)
 
         dims = self.get_num_loops()
 
         # FIXME: Support symbols.
-        for map in self.get_indexing_maps():
+        for map in indexing_maps:
             if map.num_symbols != 0:
                 raise NotImplementedError(
                     "Indexing maps with symbols not supported for now."
@@ -155,6 +195,32 @@ class LinalgOperation(IRDLOperation, ABC):
             )
         return inverse
 
+    def get_loop_bound_sources(
+        self,
+    ) -> tuple[LoopBoundSource, ...]:
+        """
+        Return where each loop upper bound comes from.
+
+        Each entry identifies the shaped operand, the dimension index, and the size value.
+        """
+        shapes_to_loops = self.get_shapes_to_loops_map()
+
+        needed_positions = tuple(
+            expr.position
+            for expr in shapes_to_loops.results
+            if isinstance(expr, AffineDimExpr)
+        )
+        assert len(shapes_to_loops.results) == len(needed_positions)
+
+        flat_shape_dims = tuple(
+            LoopBoundSource(operand, dim_index, dim_size)
+            for operand in self.operands
+            if isa(operand, SSAValue[ShapedType])
+            for dim_index, dim_size in enumerate(operand.type.get_shape())
+        )
+
+        return tuple(flat_shape_dims[position] for position in needed_positions)
+
     def get_static_shapes(self) -> list[int]:
         return [
             dim
@@ -170,15 +236,8 @@ class LinalgOperation(IRDLOperation, ABC):
 
 
 @irdl_op_definition
-class GenericOp(LinalgOperation):
+class GenericOp(LinalgStructuredOperation):
     name = "linalg.generic"
-
-    inputs = var_operand_def()
-    outputs = var_operand_def(base(ShapedType))
-
-    res = var_result_def(AnyTensorType)
-
-    body = region_def("single_block")
 
     # Trait attributes
     indexing_maps = prop_def(ArrayAttr[AffineMapAttr])
@@ -211,8 +270,11 @@ class GenericOp(LinalgOperation):
             regions=[body],
         )
 
-    def get_indexing_maps(self) -> Sequence[AffineMap]:
-        return tuple(attr.data for attr in self.indexing_maps)
+    def get_indexing_maps(self) -> ArrayAttr[AffineMapAttr]:
+        return self.indexing_maps
+
+    def get_iterator_types(self) -> ArrayAttr[IteratorTypeAttr]:
+        return self.iterator_types
 
     def print(self, printer: Printer):
         printer.print_string(" {indexing_maps = ")
@@ -424,17 +486,10 @@ class IndexOp(IRDLOperation):
         super().__init__(properties={"dim": dim_attr}, result_types=[IndexType()])
 
 
-class NamedOperation(IRDLOperation, ABC):
+class NamedOperation(LinalgStructuredOperation, ABC):
     """
     Abstract base class for named ops with hidden region.
     """
-
-    inputs = var_operand_def()
-    outputs = var_operand_def(base(ShapedType))
-
-    res = var_result_def(AnyTensorType)
-
-    hidden_region = region_def("single_block")
 
     irdl_options = (
         AttrSizedOperandSegments(as_property=True),
@@ -613,9 +668,39 @@ class NamedOperation(IRDLOperation, ABC):
         """
         raise NotImplementedError
 
+    @abstractmethod
+    def get_default_indexing_maps(self) -> Sequence[AffineMap]:
+        """
+        Get the default indexing maps corresponding to this operation's operands, in order.
+        """
+
+    def get_indexing_maps(self) -> ArrayAttr[AffineMapAttr]:
+        return ArrayAttr(
+            AffineMapAttr(map_) for map_ in self.get_default_indexing_maps()
+        )
+
+
+class ElementwiseOperation(NamedOperation, ABC):
+    def get_default_indexing_maps(self) -> Sequence[AffineMap]:
+        assert all(isinstance(t, ShapedType) for t in self.operand_types), (
+            "Assume that all named linalg pointwise operations have matching shaped "
+            "types."
+        )
+        operand_types = cast(Sequence[ShapedType], self.operand_types)
+        shapes = tuple(t.get_shape() for t in operand_types)
+        assert all(shape == shapes[0] for shape in shapes[1:]), (
+            "All shapes must be equal"
+        )
+
+        return (AffineMap.identity(len(shapes[0])),) * len(operand_types)
+
+    def get_iterator_types(self) -> ArrayAttr[IteratorTypeAttr]:
+        num_loops = self.get_num_loops()
+        return ArrayAttr((IteratorTypeAttr.parallel(),) * num_loops)
+
 
 @irdl_op_definition
-class AddOp(NamedOperation):
+class AddOp(ElementwiseOperation):
     """
     Adds two tensors elementwise.
 
@@ -748,7 +833,7 @@ class LogOp(NamedOperation):
 
 
 @irdl_op_definition
-class SubOp(NamedOperation):
+class SubOp(ElementwiseOperation):
     """
     Subtracts two tensors elementwise.
 
@@ -939,9 +1024,15 @@ class FillOp(NamedOperation):
 
         return hidden_region
 
+    def get_default_indexing_maps(self) -> Sequence[AffineMap]:
+        raise NotImplementedError
+
+    def get_iterator_types(self) -> ArrayAttr[IteratorTypeAttr]:
+        raise NotImplementedError
+
 
 @irdl_op_definition
-class CopyOp(NamedOperation):
+class CopyOp(ElementwiseOperation):
     """
     Copies the tensor elementwise.
 
@@ -989,7 +1080,7 @@ class CopyOp(NamedOperation):
 
 
 @irdl_op_definition
-class MaxOp(NamedOperation):
+class MaxOp(ElementwiseOperation):
     """
     Takes the max (signed) between two inputs, elementwise.
 
@@ -1036,7 +1127,7 @@ class MaxOp(NamedOperation):
 
 
 @irdl_op_definition
-class MinOp(NamedOperation):
+class MinOp(ElementwiseOperation):
     """
     Takes the max (signed) between two inputs, elementwise.
 
@@ -1083,7 +1174,7 @@ class MinOp(NamedOperation):
 
 
 @irdl_op_definition
-class MulOp(NamedOperation):
+class MulOp(ElementwiseOperation):
     """
     Multiplies two tensors elementwise.
 
@@ -1128,7 +1219,7 @@ class MulOp(NamedOperation):
 
 
 @irdl_op_definition
-class TransposeOp(IRDLOperation):
+class TransposeOp(LinalgStructuredOperation):
     """
     Transpose operator
 
@@ -1137,11 +1228,13 @@ class TransposeOp(IRDLOperation):
 
     name = "linalg.transpose"
 
-    input = operand_def(base(MemRefType) | base(AnyTensorType))
-    init = operand_def(base(MemRefType) | base(AnyTensorType))
-    result = var_result_def(AnyTensorType)
+    inputs = var_operand_def(base(MemRefType) | base(AnyTensorType))
+    outputs = var_operand_def(base(MemRefType) | base(AnyTensorType))
+    res = var_result_def(AnyTensorType)
 
-    hidden_region = region_def("single_block")
+    body = region_def("single_block")
+
+    irdl_options = (SameVariadicOperandSize(), ParsePropInAttrDict())
 
     permutation = prop_def(DenseArrayBase.constr(i64))
 
@@ -1167,17 +1260,40 @@ class TransposeOp(IRDLOperation):
             YieldOp(args[0])
 
         super().__init__(
-            properties={
-                "permutation": permutation,
-            },
-            operands=(input, init),
-            result_types=(results,),
-            regions=(hidden_region,),
+            operands=[(input,), (init,)],
+            result_types=[results],
+            properties={"permutation": permutation},
+            regions=[hidden_region],
+        )
+
+    def get_indexing_maps(self) -> ArrayAttr[AffineMapAttr]:
+        permutation = self.permutation.get_values()
+        inverse_permutation = [0] * len(permutation)
+
+        for output_dim, input_dim in enumerate(permutation):
+            inverse_permutation[input_dim] = output_dim
+
+        return ArrayAttr(
+            [
+                AffineMapAttr(
+                    AffineMap(
+                        len(permutation),
+                        0,
+                        tuple(AffineDimExpr(dim) for dim in inverse_permutation),
+                    )
+                ),
+                AffineMapAttr(AffineMap.identity(len(permutation))),
+            ]
+        )
+
+    def get_iterator_types(self) -> ArrayAttr[IteratorTypeAttr]:
+        return ArrayAttr(
+            (IteratorTypeAttr.parallel(),) * len(self.permutation.get_values())
         )
 
     def verify_(self) -> None:
-        assert isinstance(input_type := self.input.type, TensorType | MemRefType)
-        assert isinstance(init_type := self.init.type, TensorType | MemRefType)
+        assert isinstance(input_type := self.inputs[0].type, TensorType | MemRefType)
+        assert isinstance(init_type := self.outputs[0].type, TensorType | MemRefType)
 
         input_shape = input_type.get_shape()
         init_shape = init_type.get_shape()
@@ -1208,14 +1324,14 @@ class TransposeOp(IRDLOperation):
     def print(self, printer: Printer):
         printer.print_string(" ins")
         with printer.in_parens():
-            printer.print_ssa_value(self.input)
+            printer.print_ssa_value(self.inputs[0])
             printer.print_string(":")
-            printer.print_attribute(self.input.type)
+            printer.print_attribute(self.inputs[0].type)
         printer.print_string(" outs")
         with printer.in_parens():
-            printer.print_ssa_value(self.init)
+            printer.print_ssa_value(self.outputs[0])
             printer.print_string(":")
-            printer.print_attribute(self.init.type)
+            printer.print_attribute(self.outputs[0].type)
         printer.print_string(" permutation = ")
         with printer.in_square_brackets():
             printer.print_list(self.permutation.get_values(), printer.print_int)
@@ -1313,6 +1429,21 @@ class MatmulOp(NamedOperation):
 
         return hidden_region
 
+    def get_default_indexing_maps(self) -> Sequence[AffineMap]:
+        return tuple(m.data for m in self.indexing_maps.data)
+
+    def get_indexing_maps(self) -> ArrayAttr[AffineMapAttr]:
+        return self.indexing_maps
+
+    def get_iterator_types(self) -> ArrayAttr[IteratorTypeAttr]:
+        return ArrayAttr(
+            [
+                IteratorTypeAttr.parallel(),
+                IteratorTypeAttr.parallel(),
+                IteratorTypeAttr.reduction(),
+            ]
+        )
+
 
 @irdl_op_definition
 class QuantizedMatmulOp(NamedOperation):
@@ -1382,6 +1513,21 @@ class QuantizedMatmulOp(NamedOperation):
 
         return hidden_region
 
+    def get_default_indexing_maps(self) -> Sequence[AffineMap]:
+        return tuple(m.data for m in self.memoized_indexing_maps.data)
+
+    def get_indexing_maps(self) -> ArrayAttr[AffineMapAttr]:
+        return self.memoized_indexing_maps
+
+    def get_iterator_types(self) -> ArrayAttr[IteratorTypeAttr]:
+        return ArrayAttr(
+            [
+                IteratorTypeAttr.parallel(),
+                IteratorTypeAttr.parallel(),
+                IteratorTypeAttr.reduction(),
+            ]
+        )
+
 
 class PoolingOperation(NamedOperation, ABC):
     """Base class for linalg pooling operations."""
@@ -1409,6 +1555,12 @@ class PoolingOperation(NamedOperation, ABC):
             properties={"strides": strides, "dilations": dilations},
             hidden_region=self.get_hidden_region(inputs, outputs),
         )
+
+    def get_default_indexing_maps(self) -> Sequence[AffineMap]:
+        raise NotImplementedError
+
+    def get_iterator_types(self) -> ArrayAttr[IteratorTypeAttr]:
+        raise NotImplementedError
 
 
 @irdl_op_definition
@@ -1490,6 +1642,12 @@ class ConvOperation(NamedOperation, ABC):
             YieldOp(mac)
 
         return hidden_region
+
+    def get_default_indexing_maps(self) -> Sequence[AffineMap]:
+        raise NotImplementedError
+
+    def get_iterator_types(self) -> ArrayAttr[IteratorTypeAttr]:
+        raise NotImplementedError
 
 
 @irdl_op_definition

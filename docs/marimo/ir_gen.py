@@ -117,7 +117,7 @@ def _(mo):
     Here is the expected MLIR output for the expression `x + x`:
     ```
     builtin.module {
-      func.func @main(%x : f64) -> f64 {
+      func.func @main(%x: f64) -> f64 {
         %add = arith.addf %x, %x : f64
         func.return %add : f64
       }

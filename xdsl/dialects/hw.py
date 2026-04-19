@@ -1430,7 +1430,7 @@ class ArrayGetOp(IRDLOperation):
     name = "hw.array_get"
     input = operand_def(ArrayType)
     index = operand_def(IntegerType)
-    result = result_def(IntegerType)
+    result = result_def(IntegerType | ArrayType)
 
     def __init__(self, input: Operation | SSAValue, index: Operation | SSAValue):
         typ = SSAValue.get(input, type=ArrayType).type

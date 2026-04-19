@@ -86,6 +86,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return convert_func_to_x86_func.ConvertFuncToX86FuncPass
 
+    def get_expand_math_to_polynomials():
+        from xdsl.transforms import expand_math_to_polynomials
+
+        return expand_math_to_polynomials.ExpandMathToPolynomialsPass
+
     def get_convert_linalg_to_loops():
         from xdsl.transforms import convert_linalg_to_loops
 
@@ -369,6 +374,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         from xdsl.transforms.linalg_transformations import LinalgFuseMultiplyAddPass
 
         return LinalgFuseMultiplyAddPass
+
+    def get_linalg_generalize_named_ops():
+        from xdsl.transforms import linalg_generalize_named_ops
+
+        return linalg_generalize_named_ops.LinalgGeneralizeNamedOpsPass
 
     def get_linalg_to_csl():
         from xdsl.transforms.linalg_to_csl import LinalgToCsl
@@ -672,6 +682,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "convert-arith-to-x86": get_convert_arith_to_x86,
         "convert-func-to-riscv-func": get_convert_func_to_riscv_func,
         "convert-func-to-x86-func": get_convert_func_to_x86_func,
+        "expand-math-to-polynomials": get_expand_math_to_polynomials,
         "convert-linalg-to-loops": get_convert_linalg_to_loops,
         "convert-linalg-to-memref-stream": get_convert_linalg_to_memref_stream,
         "convert-memref-stream-to-loops": get_convert_memref_stream_to_loops,
@@ -727,6 +738,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "licm": get_licm,
         "lift-arith-to-linalg": get_lift_arith_to_linalg,
         "linalg-fuse-multiply-add": get_linalg_fuse_multiply_add,
+        "linalg-generalize-named-ops": get_linalg_generalize_named_ops,
         "linalg-to-csl": get_linalg_to_csl,
         "loop-hoist-memref": get_loop_hoist_memref,
         "lower-affine": get_lower_affine,

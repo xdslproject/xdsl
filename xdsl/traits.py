@@ -789,8 +789,7 @@ def is_speculatable(op: Operation):
 
 class Pure(NoMemoryEffect, AlwaysSpeculatable):
     """
-    In MLIR, Pure is NoMemoryEffect + AlwaysSpeculatable, but the latter is nowhere to be
-    found here.
+    In MLIR, Pure is NoMemoryEffect + AlwaysSpeculatable.
     """
 
 

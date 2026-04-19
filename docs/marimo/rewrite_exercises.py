@@ -484,7 +484,7 @@ def _(mo):
 
     ```
     builtin.module {
-      func.func @main(%y : f64, %x : f64) -> f64 {
+      func.func @main(%y: f64, %x: f64) -> f64 {
         %0 = arith.subf %x, %y : f64
         func.return %0 : f64
       }

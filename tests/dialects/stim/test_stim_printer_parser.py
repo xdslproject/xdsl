@@ -4,11 +4,37 @@ import pytest
 
 from xdsl.dialects import stim
 from xdsl.dialects.stim.ops import (
+    CXOp,
+    CYOp,
+    CZOp,
+    HOp,
+    IOp,
+    ISwapDagOp,
+    ISwapOp,
+    MOp,
+    MROp,
+    MRXOp,
+    MRYOp,
+    MXOp,
+    MYOp,
     QubitAttr,
     QubitCoordsOp,
     QubitMappingAttr,
+    ROp,
+    RXOp,
+    RYOp,
+    SDagOp,
+    SOp,
+    SqrtXDagOp,
+    SqrtXOp,
+    SqrtYDagOp,
+    SqrtYOp,
+    SwapOp,
+    XOp,
+    YOp,
+    ZOp,
 )
-from xdsl.dialects.stim.stim_parser import StimParseError, StimParser
+from xdsl.dialects.stim.stim_parser import NAME, StimParseError, StimParser
 from xdsl.dialects.stim.stim_printer_parser import StimPrintable, StimPrinter
 from xdsl.dialects.test import TestOp
 from xdsl.ir import Block, Region
@@ -108,6 +134,17 @@ def test_stim_roundtrip_qubit_coord_op(program: str):
     check_stim_roundtrip(program)
 
 
+@pytest.mark.parametrize(
+    "name",
+    ["H", "X", "Y", "Z", "I", "M", "R", "S"],
+)
+def test_name_regex_single_char(name: str):
+    """Test that the NAME regex matches single-character names."""
+    parser = StimParser(name)
+    result = parser.parse_optional_pattern(NAME)
+    assert result == name
+
+
 def test_no_spaces_before_target():
     with pytest.raises(StimParseError, match="Targets must be separated by spacing."):
         program = "QUBIT_COORDS(1, 1)1"
@@ -120,3 +157,162 @@ def test_no_targets():
     with pytest.raises(StimParseError, match="Expected at least one target"):
         parser = StimParser(program)
         parser.parse_circuit()
+
+
+################################################################################
+# Test single-qubit gate operations                                            #
+################################################################################
+
+
+@pytest.mark.parametrize(
+    "program",
+    [
+        ("H 0\n"),
+        ("H 0 1 2\n"),
+        ("S 0\n"),
+        ("S_DAG 0\n"),
+        ("X 0\n"),
+        ("Y 0\n"),
+        ("Z 0\n"),
+        ("I 0\n"),
+        ("SQRT_X 0 1\n"),
+        ("SQRT_X_DAG 0\n"),
+        ("SQRT_Y 0 1\n"),
+        ("SQRT_Y_DAG 0\n"),
+    ],
+)
+def test_stim_roundtrip_single_qubit_gate(program: str):
+    check_stim_roundtrip(program)
+
+
+@pytest.mark.parametrize(
+    ("op_class", "stim_name"),
+    [
+        (HOp, "H"),
+        (SOp, "S"),
+        (SDagOp, "S_DAG"),
+        (XOp, "X"),
+        (YOp, "Y"),
+        (ZOp, "Z"),
+        (IOp, "I"),
+        (SqrtXOp, "SQRT_X"),
+        (SqrtXDagOp, "SQRT_X_DAG"),
+        (SqrtYOp, "SQRT_Y"),
+        (SqrtYDagOp, "SQRT_Y_DAG"),
+    ],
+)
+def test_construct_single_qubit_gate(op_class: type, stim_name: str):
+    op = op_class([0, 1, 2])
+    expected = f"{stim_name} 0 1 2"
+    check_stim_print(op, expected)
+
+
+################################################################################
+# Test two-qubit gate operations                                               #
+################################################################################
+
+
+@pytest.mark.parametrize(
+    "program",
+    [
+        ("CX 0 1\n"),
+        ("CX 0 1 2 3\n"),
+        ("CY 0 1\n"),
+        ("CZ 0 1\n"),
+        ("SWAP 0 1\n"),
+        ("ISWAP 0 1\n"),
+        ("ISWAP_DAG 0 1\n"),
+    ],
+)
+def test_stim_roundtrip_two_qubit_gate(program: str):
+    check_stim_roundtrip(program)
+
+
+@pytest.mark.parametrize(
+    ("op_class", "stim_name"),
+    [
+        (CXOp, "CX"),
+        (CYOp, "CY"),
+        (CZOp, "CZ"),
+        (SwapOp, "SWAP"),
+        (ISwapOp, "ISWAP"),
+        (ISwapDagOp, "ISWAP_DAG"),
+    ],
+)
+def test_construct_two_qubit_gate(op_class: type, stim_name: str):
+    op = op_class([0, 1])
+    expected = f"{stim_name} 0 1"
+    check_stim_print(op, expected)
+
+
+################################################################################
+# Test measurement, reset, and measure-reset operations                        #
+################################################################################
+
+
+@pytest.mark.parametrize(
+    "program",
+    [
+        ("M 0\n"),
+        ("M 0 1 2\n"),
+        ("M(0.01) 0\n"),
+        ("M(0.01) 0 1 2\n"),
+        ("MX 0\n"),
+        ("MX(0.05) 0 1\n"),
+        ("MY 0\n"),
+        ("MY(0.1) 0\n"),
+        ("R 0\n"),
+        ("R 0 1 2\n"),
+        ("RX 0\n"),
+        ("RX 0 1\n"),
+        ("RY 0\n"),
+        ("RY 0 1\n"),
+        ("MR 0\n"),
+        ("MR 0 1 2\n"),
+        ("MR(0.01) 0\n"),
+        ("MR(0.01) 0 1 2\n"),
+        ("MRX 0\n"),
+        ("MRX(0.05) 0 1\n"),
+        ("MRY 0\n"),
+        ("MRY(0.1) 0\n"),
+    ],
+)
+def test_stim_roundtrip_measurement_reset(program: str):
+    check_stim_roundtrip(program)
+
+
+@pytest.mark.parametrize(
+    ("op_class", "stim_name"),
+    [
+        (MOp, "M"),
+        (MXOp, "MX"),
+        (MYOp, "MY"),
+        (ROp, "R"),
+        (RXOp, "RX"),
+        (RYOp, "RY"),
+        (MROp, "MR"),
+        (MRXOp, "MRX"),
+        (MRYOp, "MRY"),
+    ],
+)
+def test_construct_measurement_reset(op_class: type, stim_name: str):
+    op = op_class([0, 1, 2])
+    expected = f"{stim_name} 0 1 2"
+    check_stim_print(op, expected)
+
+
+@pytest.mark.parametrize(
+    ("op_class", "stim_name"),
+    [
+        (MOp, "M"),
+        (MXOp, "MX"),
+        (MYOp, "MY"),
+        (MROp, "MR"),
+        (MRXOp, "MRX"),
+        (MRYOp, "MRY"),
+    ],
+)
+def test_construct_flip_prob(op_class: type, stim_name: str):
+    op = op_class([0, 1], 0.01)
+    expected = f"{stim_name}(0.01) 0 1"
+    check_stim_print(op, expected)

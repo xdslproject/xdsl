@@ -105,8 +105,8 @@
 
     riscv.ret
     // CHECK-NEXT: riscv.ret
-  ^bb0(%2 : !riscv.reg, %3 : !riscv.reg):
-  // CHECK-NEXT: ^bb0(%2 : !riscv.reg, %3 : !riscv.reg):
+  ^bb0(%2: !riscv.reg, %3: !riscv.reg):
+  // CHECK-NEXT: ^bb0(%2: !riscv.reg, %3: !riscv.reg):
 
     // Conditional Branch Instructions
     riscv.beq %0, %1, 1 : (!riscv.reg, !riscv.reg) -> ()
@@ -499,7 +499,7 @@
 // CHECK-GENERIC-NEXT:      "riscv.jalr"(%0) {immediate = 1 : si12, rd = !riscv.reg} : (!riscv.reg) -> ()
 // CHECK-GENERIC-NEXT:      "riscv.jalr"(%0) {immediate = #riscv.label<"label">} : (!riscv.reg) -> ()
 // CHECK-GENERIC-NEXT:      "riscv.ret"() : () -> ()
-// CHECK-GENERIC-NEXT:    ^bb0(%2 : !riscv.reg, %3 : !riscv.reg):
+// CHECK-GENERIC-NEXT:    ^bb0(%2: !riscv.reg, %3: !riscv.reg):
 // CHECK-GENERIC-NEXT:      "riscv.beq"(%0, %1) {offset = 1 : si12} : (!riscv.reg, !riscv.reg) -> ()
 // CHECK-GENERIC-NEXT:      "riscv.bne"(%0, %1) {offset = 1 : si12} : (!riscv.reg, !riscv.reg) -> ()
 // CHECK-GENERIC-NEXT:      "riscv.blt"(%0, %1) {offset = 1 : si12} : (!riscv.reg, !riscv.reg) -> ()

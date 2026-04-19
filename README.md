@@ -60,7 +60,7 @@ This may be useful for projects wanting to replicate the xDSL testing setup.
 
 *Note:* This version of xDSL is validated against a specific MLIR version,
 interoperability with other versions is not guaranteed. The supported
-MLIR version is 21.1.1.
+MLIR version is 22.1.2.
 
 > [!IMPORTANT]
 >

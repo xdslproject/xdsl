@@ -2,7 +2,7 @@
 // RUN: xdsl-run --verbose --symbol="sum_to" --args="6" %s | filecheck %s --check-prefix=CHECK-ARGS
 
 builtin.module {
-  func.func @sum_to(%0 : !riscv.reg) -> !riscv.reg {
+  func.func @sum_to(%0: !riscv.reg) -> !riscv.reg {
     %1 = rv32.li 0 : !riscv.reg
     %2 = rv32.li 1 : !riscv.reg
     %3 = rv32.li 0 : !riscv.reg
@@ -14,7 +14,7 @@ builtin.module {
   }
   func.func @main() -> !riscv.reg {
     %c5 = rv32.li 5 : !riscv.reg
-    %res = func.call @sum_to(%c5) : (!riscv.reg) -> !riscv.reg
+    %res = func.call @sum_to(%c5): (!riscv.reg) -> !riscv.reg
     return %res : !riscv.reg
   }
 }

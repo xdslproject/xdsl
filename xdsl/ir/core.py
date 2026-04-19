@@ -38,6 +38,7 @@ from xdsl.utils.str_enum import StrEnum
 if TYPE_CHECKING:
     from typing_extensions import TypeForm
 
+    from xdsl.dialects.builtin import LocationAttr
     from xdsl.irdl import ParamAttrDef
     from xdsl.parser import AttrParser, Parser
     from xdsl.printer import Printer
@@ -134,6 +135,13 @@ class Attribute(ABC):
         printer = Printer(stream=res)
         printer.print_attribute(self)
         return res.getvalue()
+
+
+def _unknown_loc() -> LocationAttr:
+    # Lazily import to avoid cyclic imports during module initialization.
+    from xdsl.dialects.builtin import UNKNOWN_LOC
+
+    return UNKNOWN_LOC
 
 
 @dataclass(frozen=True, init=False)
@@ -249,34 +257,6 @@ class Data(Attribute, ABC, Generic[DataElement]):
 EnumType = TypeVar("EnumType", bound=StrEnum)
 
 
-def _check_enum_constraints(
-    enum_class: type[EnumAttribute[EnumType] | BitEnumAttribute[EnumType]],
-) -> None:
-    """
-    This hook first checks two constraints, enforced to keep the implementation
-    reasonable, until more complex use cases appear. It then stores the Enum type
-    used by the subclass to use in parsing/printing.
-
-    The constraints are:
-
-    - Only direct, specialized inheritance is allowed. That is, using a subclass
-    of EnumAttribute as a base class is *not supported*.
-      This simplifies type-hacking code and I don't see it being too restrictive
-      anytime soon.
-    """
-    orig_bases = getattr(enum_class, "__orig_bases__")
-    enumattr = next(
-        b
-        for b in orig_bases
-        if get_origin(b) is EnumAttribute or get_origin(b) is BitEnumAttribute
-    )
-    enum_type = get_args(enumattr)[0]
-    if isinstance(enum_type, TypeVar):
-        raise TypeError("Only direct inheritance from EnumAttribute is allowed.")
-
-    enum_class.enum_type = enum_type
-
-
 class EnumAttribute(Data[EnumType]):
     """
     Core helper for Enum Attributes. Takes a StrEnum type parameter, and defines
@@ -300,7 +280,28 @@ class EnumAttribute(Data[EnumType]):
     enum_type: ClassVar[type[StrEnum]]
 
     def __init_subclass__(cls) -> None:
-        _check_enum_constraints(cls)
+        """
+        Extract and store the Enum type used by the subclass for use in
+        parsing/printing.
+
+        Subclass implementations are also constrained to keep implementations
+        reasonable, unless more complex use cases appear.
+
+        The constraint(s) are:
+        - Only direct, specialized inheritance is allowed. That is, using a
+        subclass of EnumAttribute as a base class is *not supported*.
+        This simplifies type-hacking code and I don't see it being too
+        restrictive anytime soon.
+        """
+        super().__init_subclass__()
+
+        orig_bases = getattr(cls, "__orig_bases__")
+        enumattr = next(b for b in orig_bases if get_origin(b) is EnumAttribute)
+        enum_type = get_args(enumattr)[0]
+        if isinstance(enum_type, TypeVar):
+            raise TypeError("Only direct inheritance from EnumAttribute is allowed.")
+
+        cls.enum_type = enum_type
 
     def print_parameter(self, printer: Printer) -> None:
         printer.print_identifier_or_string_literal(self.data.value)
@@ -308,120 +309,6 @@ class EnumAttribute(Data[EnumType]):
     @classmethod
     def parse_parameter(cls, parser: AttrParser) -> EnumType:
         return cast(EnumType, parser.parse_str_enum(cls.enum_type))
-
-
-@dataclass(frozen=True, init=False)
-class BitEnumAttribute(Data[tuple[EnumType, ...]], Generic[EnumType]):
-    """
-    Core helper for BitEnumAttributes. Takes a StrEnum type parameter, and
-    defines parsing/printing automatically from its values.
-
-    Additionally, two values can be given to designate all/none bits being set.
-
-    example:
-    ```python
-    class MyBitEnum(StrEnum):
-        First = auto()
-        Second = auto()
-
-    class MyBitEnumAttribute(BitEnumAttribute[MyBitEnum]):
-        name = "example.my_bit_enum"
-        none_value = "none"
-        all_value = "all"
-
-    """
-
-    enum_type: ClassVar[type[StrEnum]]
-    none_value: ClassVar[str | None] = None
-    all_value: ClassVar[str | None] = None
-
-    def __init__(self, flags: None | Sequence[EnumType] | str) -> None:
-        flags_: set[EnumType]
-        match flags:
-            case self.none_value | None:
-                flags_ = set()
-            case self.all_value:
-                flags_ = cast(set[EnumType], set(self.enum_type))
-            case other if isinstance(other, str):
-                raise TypeError(
-                    f"expected string parameter to be one of {self.none_value} or {self.all_value}, got {other}"
-                )
-            case other:
-                assert not isinstance(other, str)
-                flags_ = set(other)
-
-        super().__init__(tuple(flags_))
-
-    def __init_subclass__(cls) -> None:
-        _check_enum_constraints(cls)
-
-    @property
-    def flags(self) -> set[EnumType]:
-        return set(self.data)
-
-    @classmethod
-    def parse_parameter(cls, parser: AttrParser) -> tuple[EnumType, ...]:
-        def parse_optional_element() -> set[EnumType] | None:
-            if (
-                cls.none_value is not None
-                and parser.parse_optional_keyword(cls.none_value) is not None
-            ):
-                return set()
-            if (
-                cls.all_value is not None
-                and parser.parse_optional_keyword(cls.all_value) is not None
-            ):
-                return set(cast(Iterable[EnumType], cls.enum_type))
-            value = parser.parse_optional_str_enum(cls.enum_type)
-            if value is None:
-                return None
-
-            return {cast(type[EnumType], cls.enum_type)(value)}
-
-        def parse_element() -> set[EnumType]:
-            if (
-                cls.none_value is not None
-                and parser.parse_optional_keyword(cls.none_value) is not None
-            ):
-                return set()
-            if (
-                cls.all_value is not None
-                and parser.parse_optional_keyword(cls.all_value) is not None
-            ):
-                return set(cast(Iterable[EnumType], cls.enum_type))
-            value = parser.parse_str_enum(cls.enum_type)
-            return {cast(type[EnumType], cls.enum_type)(value)}
-
-        with parser.in_angle_brackets():
-            flags: list[set[EnumType]] | None = (
-                parser.parse_optional_undelimited_comma_separated_list(
-                    parse_optional_element, parse_element
-                )
-            )
-            if flags is None:
-                return tuple()
-
-            res = set[EnumType]()
-
-            for flag_set in flags:
-                res |= flag_set
-
-            return tuple(res)
-
-    def print_parameter(self, printer: Printer):
-        with printer.in_angle_brackets():
-            flags = self.data
-            if len(flags) == 0 and self.none_value is not None:
-                printer.print_string(self.none_value)
-            elif len(flags) == len(self.enum_type) and self.all_value is not None:
-                printer.print_string(self.all_value)
-            else:
-                # make sure we emit flags in a consistent order
-                printer.print_list(
-                    tuple(flag.value for flag in self.enum_type if flag in flags),
-                    printer.print_string,
-                    ",",
-                )
 
 
 @dataclass(frozen=True, init=False)
@@ -760,6 +647,8 @@ class SSAValue(IRWithUses, IRWithName, ABC, Generic[AttributeCovT]):
 
     def replace_all_uses_with(self, value: SSAValue) -> None:
         """Replace the value by another value in all its uses."""
+        if value is self:
+            return
         for use in tuple(self.uses):
             use.operation.operands[use.index] = value
         # carry over name if possible
@@ -842,6 +731,9 @@ class BlockArgument(SSAValue[AttributeCovT], Generic[AttributeCovT]):
 
     index: int
     """The index of the variable in the block arguments."""
+
+    location: LocationAttr = field(default_factory=_unknown_loc)
+    """Source location attached to this block argument."""
 
     @property
     def owner(self) -> Block:
@@ -1067,6 +959,9 @@ class Operation(_IRNode):
     attributes: dict[str, Attribute] = field(default_factory=dict[str, Attribute])
     """The attributes attached to the operation."""
 
+    location: LocationAttr = field(default_factory=_unknown_loc)
+    """The source location attached to this operation."""
+
     regions: tuple[Region, ...] = field(default=())
     """Regions arguments of the operation."""
 
@@ -1202,6 +1097,7 @@ class Operation(_IRNode):
         result_types: Sequence[Attribute] = (),
         properties: Mapping[str, Attribute] = {},
         attributes: Mapping[str, Attribute] = {},
+        location: LocationAttr | None = None,
         successors: Sequence[Block] = (),
         regions: Sequence[Region] = (),
     ) -> None:
@@ -1216,6 +1112,7 @@ class Operation(_IRNode):
         )
         self.properties = dict(properties)
         self.attributes = dict(attributes)
+        self.location = _unknown_loc() if location is None else location
         self.successors = list(successors)
         self.regions = ()
         for region in regions:
@@ -1231,6 +1128,7 @@ class Operation(_IRNode):
         result_types: Sequence[Attribute] = (),
         properties: Mapping[str, Attribute] = {},
         attributes: Mapping[str, Attribute] = {},
+        location: LocationAttr | None = None,
         successors: Sequence[Block] = (),
         regions: Sequence[Region] = (),
     ) -> Self:
@@ -1241,6 +1139,7 @@ class Operation(_IRNode):
             result_types=result_types,
             properties=properties,
             attributes=attributes,
+            location=location,
             successors=successors,
             regions=regions,
         )
@@ -1446,6 +1345,7 @@ class Operation(_IRNode):
             result_types=result_types,
             attributes=attributes,
             properties=properties,
+            location=self.location,
             successors=successors,
             regions=regions,
         )
@@ -1818,7 +1718,12 @@ class Block(_IRNode, IRWithUses, IRWithName):
         """Returns the block arguments."""
         return self._args
 
-    def insert_arg(self, arg_type: Attribute, index: int) -> BlockArgument:
+    def insert_arg(
+        self,
+        arg_type: Attribute,
+        index: int,
+        location: LocationAttr | None = None,
+    ) -> BlockArgument:
         """
         Insert a new argument with a given type to the arguments list at a specific index.
         Returns the new argument.
@@ -1828,7 +1733,9 @@ class Block(_IRNode, IRWithUses, IRWithName):
                 f"Cannot insert block argument at index {index}, index must be in "
                 f"range [0, {len(self._args)}]."
             )
-        new_arg = BlockArgument(arg_type, self, index)
+        new_arg = BlockArgument(
+            arg_type, self, index, _unknown_loc() if location is None else location
+        )
         for arg in self._args[index:]:
             arg.index += 1
         self._args = tuple(chain(self._args[:index], [new_arg], self._args[index:]))
@@ -2652,7 +2559,7 @@ class Region(_IRNode):
         # Populate the blocks with the cloned operations
         for block, new_block in zip(self.blocks, new_blocks):
             for idx, block_arg in enumerate(block.args):
-                new_block.insert_arg(block_arg.type, idx)
+                new_block.insert_arg(block_arg.type, idx, block_arg.location)
                 new_arg = new_block.args[idx]
                 value_mapper[block_arg] = new_arg
                 if clone_name_hints:

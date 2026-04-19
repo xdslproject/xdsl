@@ -10,7 +10,7 @@ func.func @matmul(
 }
 
 // CHECK:       builtin.module {
-// CHECK-NEXT:    func.func @matmul(%A : memref<2x3xf64>, %B : memref<3x4xf64>, %C : memref<2x4xf64>) {
+// CHECK-NEXT:    func.func @matmul(%A: memref<2x3xf64>, %B: memref<3x4xf64>, %C: memref<2x4xf64>) {
 // CHECK-NEXT:      %0 = arith.constant 0 : index
 // CHECK-NEXT:      %1 = arith.constant 1 : index
 // CHECK-NEXT:      %2 = arith.constant 2 : index

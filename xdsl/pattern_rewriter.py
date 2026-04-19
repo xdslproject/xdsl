@@ -173,11 +173,18 @@ class PatternRewriter(Builder, PatternRewriterListener):
         self, from_value: SSAValue, to_value: SSAValue | None, safe_erase: bool = True
     ):
         """Replace all uses of `old` with `new`."""
+        if from_value is to_value:
+            return
+
         modified_ops = [use.operation for use in from_value.uses]
         if to_value is None:
+            self.has_done_action = True
             from_value.erase(safe_erase=safe_erase)
         else:
             from_value.replace_all_uses_with(to_value)
+
+        if modified_ops:
+            self.has_done_action = True
         for op in modified_ops:
             self.handle_operation_modification(op)
 
@@ -188,9 +195,14 @@ class PatternRewriter(Builder, PatternRewriterListener):
         predicate: Callable[[Use], bool],
     ):
         """Replace uses of `old` satisfying `predicate` with `new`."""
+        if from_value is to_value:
+            return
+
         tracking = _TrackingPredicate(predicate)
         from_value.replace_uses_with_if(to_value, tracking)
 
+        if tracking.modified_ops:
+            self.has_done_action = True
         for op in tracking.modified_ops:
             self.handle_operation_modification(op)
 

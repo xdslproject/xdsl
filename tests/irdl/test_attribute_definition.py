@@ -25,10 +25,11 @@ from xdsl.dialects.builtin import (
     StringAttr,
     i32,
 )
+from xdsl.dialects.test import Test
+from xdsl.dialects.utils import BitEnumAttribute
 from xdsl.ir import (
     Attribute,
     AttributeInvT,
-    BitEnumAttribute,
     BuiltinAttribute,
     Data,
     EnumAttribute,
@@ -234,14 +235,20 @@ class BitEnumData(BitEnumAttribute[TestEnum]):
         ([TestEnum.No], "#test.bitenum<no>"),
         ([TestEnum.Yes], "#test.bitenum<yes>"),
         ([TestEnum.No, TestEnum.Yes], "#test.bitenum<yes,no>"),
+        ([TestEnum.Yes, TestEnum.No], "#test.bitenum<yes,no>"),
+        ([TestEnum.No, TestEnum.No], "#test.bitenum<no>"),
         ([TestEnum.No, TestEnum.Yes, TestEnum.Maybe], "#test.bitenum<all>"),
         ("all", "#test.bitenum<all>"),
         ("none", "#test.bitenum<none>"),
     ],
 )
-def test_bit_enum_attribute(input: Sequence[TestEnum] | str, output: str):
+def test_bit_enum_attribute(input: Sequence[TestEnum] | str | None, output: str):
     attr = BitEnumData(input)
     assert str(attr) == output
+    ctx = Context()
+    ctx.register_dialect("test", lambda: Test)
+    ctx.load_attr_or_type(BitEnumData)
+    assert Parser(ctx, output).parse_attribute() == attr
 
 
 def test_bit_enum_invalid_str():
@@ -250,6 +257,157 @@ def test_bit_enum_invalid_str():
         match="expected string parameter to be one of none or all, got helloworld",
     ):
         BitEnumData("helloworld")
+
+
+@pytest.mark.parametrize("separator", [",", "|"])
+@pytest.mark.parametrize(
+    "delimiter", [d for d in Parser.Delimiter if d != Parser.Delimiter.NONE]
+)
+@pytest.mark.parametrize(
+    "input,flag_strs",
+    [
+        (None, ["none"]),
+        ([], ["none"]),
+        ([TestEnum.No], ["no"]),
+        ([TestEnum.Yes], ["yes"]),
+        ([TestEnum.No, TestEnum.Yes], ["yes", "no"]),
+        ([TestEnum.Yes, TestEnum.No], ["yes", "no"]),
+        ([TestEnum.No, TestEnum.No], ["no"]),
+        ([TestEnum.No, TestEnum.Yes, TestEnum.Maybe], ["all"]),
+        ("all", ["all"]),
+        ("none", ["none"]),
+    ],
+)
+def test_bit_enum_attribute_piped_separator(
+    separator: str,
+    delimiter: Parser.Delimiter,
+    input: Sequence[TestEnum] | str | None,
+    flag_strs: list[str],
+):
+    @irdl_attr_definition(init=False)
+    class BitEnumWithModifiers(BitEnumAttribute[TestEnum]):
+        name = "test.bitenum"
+        all_value = "all"
+        none_value = "none"
+        separator_value = separator
+        delimiter_value = delimiter
+
+    if delimiter == Parser.Delimiter.NONE:
+        pytest.fail("Delimiter.NONE is not supported in this test case")
+
+    left_punc, right_punc = delimiter.value
+
+    output = f"#{BitEnumWithModifiers.name}{left_punc}{separator.join(flag_strs)}{right_punc}"
+
+    attr = BitEnumWithModifiers(input)
+    assert str(attr) == output
+    ctx = Context()
+    ctx.register_dialect("test", lambda: Test)
+    ctx.load_attr_or_type(BitEnumWithModifiers)
+    assert Parser(ctx, output).parse_attribute() == attr
+
+
+@pytest.mark.parametrize("separator", [",", "|"])
+@pytest.mark.parametrize("delimiter", Parser.Delimiter)
+@pytest.mark.parametrize(
+    "input,flag_strs",
+    [
+        (None, ["none"]),
+        ([], ["none"]),
+        ([TestEnum.No], ["no"]),
+        ([TestEnum.Yes], ["yes"]),
+        ([TestEnum.No, TestEnum.Yes], ["yes", "no"]),
+        ([TestEnum.Yes, TestEnum.No], ["yes", "no"]),
+        ([TestEnum.No, TestEnum.No], ["no"]),
+        ([TestEnum.No, TestEnum.Yes, TestEnum.Maybe], ["all"]),
+        ("all", ["all"]),
+        ("none", ["none"]),
+    ],
+)
+def test_bit_enum_attribute_spaced_opaque_syntax(
+    separator: str,
+    delimiter: Parser.Delimiter,
+    input: Sequence[TestEnum] | str | None,
+    flag_strs: list[str],
+):
+    @irdl_attr_definition(init=False)
+    class BitEnumWithModifiers(BitEnumAttribute[TestEnum], SpacedOpaqueSyntaxAttribute):
+        name = "test.bitenum"
+        all_value = "all"
+        none_value = "none"
+        separator_value = separator
+        delimiter_value = delimiter
+
+    match delimiter:
+        case Parser.Delimiter.NONE:
+            left_punc, right_punc = ("", "")
+        case _:
+            left_punc, right_punc = delimiter.value
+    output = f"#{BitEnumWithModifiers.name.replace('.', '<')} {left_punc}{separator.join(flag_strs)}{right_punc}>"
+
+    attr = BitEnumWithModifiers(input)
+    assert str(attr) == output
+    ctx = Context()
+    ctx.register_dialect("test", lambda: Test)
+    ctx.load_attr_or_type(BitEnumWithModifiers)
+    assert Parser(ctx, output).parse_attribute() == attr
+
+
+@irdl_attr_definition(init=False)
+class BitEnumNoNoneData(BitEnumAttribute[TestEnum]):
+    name = "test.bitenum"
+
+
+@pytest.mark.parametrize(
+    "input,output",
+    [
+        (None, "#test.bitenum<>"),
+        ([], "#test.bitenum<>"),
+        ([TestEnum.No], "#test.bitenum<no>"),
+        ([TestEnum.Yes], "#test.bitenum<yes>"),
+        ([TestEnum.No, TestEnum.Yes], "#test.bitenum<yes,no>"),
+        ([TestEnum.Yes, TestEnum.No], "#test.bitenum<yes,no>"),
+        ([TestEnum.No, TestEnum.No], "#test.bitenum<no>"),
+    ],
+)
+def test_bit_enum_attribute_with_no_none_value(
+    input: Sequence[TestEnum] | str | None, output: str
+):
+    attr = BitEnumNoNoneData(input)
+    assert str(attr) == output
+    ctx = Context()
+    ctx.register_dialect("test", lambda: Test)
+    ctx.load_attr_or_type(BitEnumNoNoneData)
+    assert Parser(ctx, output).parse_attribute() == attr
+
+
+Ty = TypeVar("Ty", bound=StrEnum)
+
+
+def test_enum_illegal_subclass():
+    with pytest.raises(TypeError) as excinfo:
+
+        class EnumParent(EnumAttribute[Ty]):
+            name = "test.bitenum"
+
+        EnumParent(TestEnum.Yes)
+
+    assert "Only direct inheritance from EnumAttribute is allowed." in str(
+        excinfo.value
+    )
+
+
+def test_bit_enum_illegal_subclass():
+    with pytest.raises(TypeError) as excinfo:
+
+        class BitEnumParent(BitEnumAttribute[Ty]):
+            name = "test.bitenum"
+
+        BitEnumParent(TestEnum.Yes)
+
+    assert "Only direct inheritance from BitEnumAttribute is allowed." in str(
+        excinfo.value
+    )
 
 
 ################################################################################

@@ -2,7 +2,7 @@
 
 
   "csl_wrapper.module"() <{"width" = 1022 : i16, "height" = 510 : i16, "params" = [#csl_wrapper.param<"z_dim" default=512 : i16>, #csl_wrapper.param<"pattern" default=2 : i16>, #csl_wrapper.param<"num_chunks" default=2 : i16>, #csl_wrapper.param<"chunk_size" default=255 : i16>, #csl_wrapper.param<"padded_z_dim" default=510 : i16>], "program_name" = "gauss_seidel_func", target="wse2"}> ({
-  ^bb0(%0 : i16, %1 : i16, %2 : i16, %3 : i16, %4 : i16, %5 : i16, %6 : i16, %7 : i16, %8 : i16):
+  ^bb0(%0: i16, %1: i16, %2: i16, %3: i16, %4: i16, %5: i16, %6: i16, %7: i16, %8: i16):
     %9 = arith.constant 0 : i16
     %10 = "csl.get_color"(%9) : (i16) -> !csl.color
     %11 = "csl_wrapper.import"(%2, %3, %10) <{"module" = "<memcpy/get_params>", "fields" = ["width", "height", "LAUNCH"]}> : (i16, i16, !csl.color) -> !csl.imported_module
@@ -22,7 +22,7 @@
     %25 = arith.ori %24, %22 : i1
     "csl_wrapper.yield"(%14, %13, %25) <{"fields" = ["memcpy_params", "stencil_comms_params", "isBorderRegionPE"]}> : (!csl.comptime_struct, !csl.comptime_struct, i1) -> ()
   }, {
-  ^bb1(%26 : i16, %27 : i16, %28 : i16, %29 : i16, %30 : i16, %31 : i16, %32 : i16, %memcpy_params : !csl.comptime_struct, %stencil_comms_params : !csl.comptime_struct, %isBorderRegionPE : i1):
+  ^bb1(%26: i16, %27: i16, %28: i16, %29: i16, %30: i16, %31: i16, %32: i16, %memcpy_params: !csl.comptime_struct, %stencil_comms_params: !csl.comptime_struct, %isBorderRegionPE: i1):
     %33 = "csl_wrapper.import"(%memcpy_params) <{"module" = "<memcpy/memcpy>", "fields" = [""]}> : (!csl.comptime_struct) -> !csl.imported_module
     %34 = "csl_wrapper.import"(%29, %31, %stencil_comms_params) <{"module" = "stencil_comms.csl", "fields" = ["pattern", "chunkSize", ""]}> : (i16, i16, !csl.comptime_struct) -> !csl.imported_module
     %arg0 = memref.alloc() : memref<512xf32>
@@ -35,7 +35,7 @@
     csl.func @gauss_seidel_func() {
       %37 = memref.alloc() {"alignment" = 64 : i64} : memref<510xf32>
       csl_stencil.apply(%arg0 : memref<512xf32>, %37 : memref<510xf32>) outs (%arg1 : memref<512xf32>) <{"bounds" = #stencil.bounds<[0, 0], [1, 1]>, "num_chunks" = 2 : i64, operandSegmentSizes = array<i32: 1, 1, 0, 0, 1>, "swaps" = [#csl_stencil.exchange<to [1, 0]>, #csl_stencil.exchange<to [-1, 0]>, #csl_stencil.exchange<to [0, 1]>, #csl_stencil.exchange<to [0, -1]>], "topo" = #dmp.topo<1022x510>}> ({
-      ^bb2(%arg2 : memref<4x255xf32>, %arg3 : index, %arg4 : memref<510xf32>):
+      ^bb2(%arg2: memref<4x255xf32>, %arg3: index, %arg4: memref<510xf32>):
         %38 = csl_stencil.access %arg2[1, 0] : memref<4x255xf32>
         %39 = csl_stencil.access %arg2[-1, 0] : memref<4x255xf32>
         %40 = csl_stencil.access %arg2[0, 1] : memref<4x255xf32>
@@ -46,7 +46,7 @@
         "csl.fadds"(%42, %42, %38) : (memref<255xf32, strided<[1], offset: ?>>, memref<255xf32, strided<[1], offset: ?>>, memref<255xf32>) -> ()
         csl_stencil.yield %arg4 : memref<510xf32>
       }, {
-      ^bb3(%arg2_1 : memref<512xf32>, %arg3_1 : memref<510xf32>):
+      ^bb3(%arg2_1: memref<512xf32>, %arg3_1: memref<510xf32>):
         %43 = memref.subview %arg2_1[2] [510] [1] : memref<512xf32> to memref<510xf32, strided<[1], offset: 2>>
         %44 = memref.subview %arg2_1[0] [510] [1] : memref<512xf32> to memref<510xf32, strided<[1]>>
         "csl.fadds"(%arg3_1, %arg3_1, %44) : (memref<510xf32>, memref<510xf32>, memref<510xf32, strided<[1]>>) -> ()
@@ -61,7 +61,7 @@
   }) : () -> ()
 
 // CHECK:        "csl_wrapper.module"() <{width = 1022 : i16, height = 510 : i16, params = [#csl_wrapper.param<"z_dim" default=512 : i16>, #csl_wrapper.param<"pattern" default=2 : i16>, #csl_wrapper.param<"num_chunks" default=2 : i16>, #csl_wrapper.param<"chunk_size" default=255 : i16>, #csl_wrapper.param<"padded_z_dim" default=510 : i16>], program_name = "gauss_seidel_func", target = "wse2"}> ({
-// CHECK-NEXT:   ^bb0(%0 : i16, %1 : i16, %2 : i16, %3 : i16, %4 : i16, %5 : i16, %6 : i16, %7 : i16, %8 : i16):
+// CHECK-NEXT:   ^bb0(%0: i16, %1: i16, %2: i16, %3: i16, %4: i16, %5: i16, %6: i16, %7: i16, %8: i16):
 // CHECK-NEXT:     %9 = arith.constant 0 : i16
 // CHECK-NEXT:     %10 = "csl.get_color"(%9) : (i16) -> !csl.color
 // CHECK-NEXT:     %11 = "csl_wrapper.import"(%2, %3, %10) <{module = "<memcpy/get_params>", fields = ["width", "height", "LAUNCH"]}> : (i16, i16, !csl.color) -> !csl.imported_module
@@ -81,7 +81,7 @@
 // CHECK-NEXT:     %25 = arith.ori %24, %22 : i1
 // CHECK-NEXT:     "csl_wrapper.yield"(%14, %13, %25) <{fields = ["memcpy_params", "stencil_comms_params", "isBorderRegionPE"]}> : (!csl.comptime_struct, !csl.comptime_struct, i1) -> ()
 // CHECK-NEXT:   }, {
-// CHECK-NEXT:   ^bb1(%26 : i16, %27 : i16, %28 : i16, %29 : i16, %30 : i16, %31 : i16, %32 : i16, %memcpy_params : !csl.comptime_struct, %stencil_comms_params : !csl.comptime_struct, %isBorderRegionPE : i1):
+// CHECK-NEXT:   ^bb1(%26: i16, %27: i16, %28: i16, %29: i16, %30: i16, %31: i16, %32: i16, %memcpy_params: !csl.comptime_struct, %stencil_comms_params: !csl.comptime_struct, %isBorderRegionPE: i1):
 // CHECK-NEXT:     %33 = "csl_wrapper.import"(%memcpy_params) <{module = "<memcpy/memcpy>", fields = [""]}> : (!csl.comptime_struct) -> !csl.imported_module
 // CHECK-NEXT:     %34 = "csl_wrapper.import"(%29, %31, %stencil_comms_params) <{module = "stencil_comms.csl", fields = ["pattern", "chunkSize", ""]}> : (i16, i16, !csl.comptime_struct) -> !csl.imported_module
 // CHECK-NEXT:     %arg0 = memref.alloc() : memref<512xf32>
@@ -102,7 +102,7 @@
 // CHECK-NEXT:       "csl.member_call"(%34, %send_dsd, %38, %39, %40) <{field = "communicate"}> : (!csl.imported_module, memref<510xf32>, i16, !csl.ptr<(i16) -> (), #csl<ptr_kind single>, #csl<ptr_const const>>, !csl.ptr<() -> (), #csl<ptr_kind single>, #csl<ptr_const const>>) -> ()
 // CHECK-NEXT:       csl.return
 // CHECK-NEXT:     }
-// CHECK-NEXT:     csl.func @receive_chunk_cb0(%offset : i16) {
+// CHECK-NEXT:     csl.func @receive_chunk_cb0(%offset: i16) {
 // CHECK-NEXT:       %offset_1 = arith.index_cast %offset : i16 to index
 // CHECK-NEXT:       %41 = arith.constant 4 : i16
 // CHECK-NEXT:       %42 = "csl.get_mem_dsd"(%accumulator, %41, %29, %31) <{tensor_access = affine_map<(d0, d1, d2) -> (d2)>}> : (memref<510xf32>, i16, i16, i16) -> !csl<dsd mem4d_dsd>
@@ -127,7 +127,7 @@
 // -----
 
   "csl_wrapper.module"() <{"height" = 512 : i16, "params" = [#csl_wrapper.param<"z_dim" default=512 : i16>, #csl_wrapper.param<"pattern" default=2 : i16>, #csl_wrapper.param<"num_chunks" default=1 : i16>, #csl_wrapper.param<"chunk_size" default=510 : i16>, #csl_wrapper.param<"padded_z_dim" default=510 : i16>], "program_name" = "loop", "width" = 1024 : i16, target="wse2"}> ({
-  ^bb0(%arg0 : i16, %arg1 : i16, %arg2 : i16, %arg3 : i16, %arg4 : i16, %arg5 : i16, %arg6 : i16, %arg7 : i16, %arg8 : i16):
+  ^bb0(%arg0: i16, %arg1: i16, %arg2: i16, %arg3: i16, %arg4: i16, %arg5: i16, %arg6: i16, %arg7: i16, %arg8: i16):
     %0 = arith.constant 0 : i16
     %1 = "csl.get_color"(%0) : (i16) -> !csl.color
     %2 = "csl_wrapper.import"(%arg2, %arg3, %1) <{"fields" = ["width", "height", "LAUNCH"], "module" = "<memcpy/get_params>"}> : (i16, i16, !csl.color) -> !csl.imported_module
@@ -147,7 +147,7 @@
     %16 = arith.ori %15, %13 : i1
     "csl_wrapper.yield"(%5, %4, %16) <{"fields" = ["memcpy_params", "stencil_comms_params", "isBorderRegionPE"]}> : (!csl.comptime_struct, !csl.comptime_struct, i1) -> ()
   }, {
-  ^bb1(%arg0_1 : i16, %arg1_1 : i16, %arg2_1 : i16, %arg3_1 : i16, %arg4_1 : i16, %arg5_1 : i16, %arg6_1 : i16, %arg7_1 : !csl.comptime_struct, %arg8_1 : !csl.comptime_struct, %arg9 : i1):
+  ^bb1(%arg0_1: i16, %arg1_1: i16, %arg2_1: i16, %arg3_1: i16, %arg4_1: i16, %arg5_1: i16, %arg6_1: i16, %arg7_1: !csl.comptime_struct, %arg8_1: !csl.comptime_struct, %arg9: i1):
     %17 = "csl_wrapper.import"(%arg7_1) <{"fields" = [""], "module" = "<memcpy/memcpy>"}> : (!csl.comptime_struct) -> !csl.imported_module
     %18 = "csl_wrapper.import"(%arg3_1, %arg5_1, %arg8_1) <{"fields" = ["pattern", "chunkSize", ""], "module" = "stencil_comms.csl"}> : (i16, i16, !csl.comptime_struct) -> !csl.imported_module
     %19 = memref.alloc() : memref<512xf32>
@@ -186,7 +186,7 @@
       %arg12 = csl.load_var(%25 : !csl.var<memref<512xf32>>) : memref<512xf32>
       %32 = memref.alloc() {"alignment" = 64 : i64} : memref<510xf32>
       csl_stencil.apply(%arg11 : memref<512xf32>, %32 : memref<510xf32>, %arg12 : memref<512xf32>, %arg9 : i1) outs (%arg12 : memref<512xf32>) <{"bounds" = #stencil.bounds<[0, 0], [1, 1]>, "num_chunks" = 1 : i64, operandSegmentSizes = array<i32: 1, 1, 0, 2, 1>, "swaps" = [#csl_stencil.exchange<to [1, 0]>, #csl_stencil.exchange<to [-1, 0]>, #csl_stencil.exchange<to [0, 1]>, #csl_stencil.exchange<to [0, -1]>], "topo" = #dmp.topo<1022x510>}> ({
-      ^bb2(%arg13 : memref<4x510xf32>, %arg14 : index, %arg15 : memref<510xf32>):
+      ^bb2(%arg13: memref<4x510xf32>, %arg14: index, %arg15: memref<510xf32>):
         %33 = csl_stencil.access %arg13[1, 0] : memref<4x510xf32>
         %34 = csl_stencil.access %arg13[-1, 0] : memref<4x510xf32>
         %35 = csl_stencil.access %arg13[0, 1] : memref<4x510xf32>
@@ -198,7 +198,7 @@
         "memref.copy"(%37, %37) : (memref<510xf32, strided<[1], offset: ?>>, memref<510xf32, strided<[1], offset: ?>>) -> ()
         csl_stencil.yield %arg15 : memref<510xf32>
       }, {
-      ^bb3(%arg13_1 : memref<512xf32>, %arg14_1 : memref<510xf32>, %38 : memref<512xf32>, %39 : i1):
+      ^bb3(%arg13_1: memref<512xf32>, %arg14_1: memref<510xf32>, %38: memref<512xf32>, %39: i1):
         scf.if %39 {
         } else {
           %40 = memref.subview %arg13_1[2] [510] [1] : memref<512xf32> to memref<510xf32, strided<[1], offset: 2>>
@@ -235,7 +235,7 @@
   }) : () -> ()
 
 // CHECK:       "csl_wrapper.module"() <{height = 512 : i16, params = [#csl_wrapper.param<"z_dim" default=512 : i16>, #csl_wrapper.param<"pattern" default=2 : i16>, #csl_wrapper.param<"num_chunks" default=1 : i16>, #csl_wrapper.param<"chunk_size" default=510 : i16>, #csl_wrapper.param<"padded_z_dim" default=510 : i16>], program_name = "loop", width = 1024 : i16, target = "wse2"}> ({
-// CHECK-NEXT:  ^bb0(%arg0 : i16, %arg1 : i16, %arg2 : i16, %arg3 : i16, %arg4 : i16, %arg5 : i16, %arg6 : i16, %arg7 : i16, %arg8 : i16):
+// CHECK-NEXT:  ^bb0(%arg0: i16, %arg1: i16, %arg2: i16, %arg3: i16, %arg4: i16, %arg5: i16, %arg6: i16, %arg7: i16, %arg8: i16):
 // CHECK-NEXT:    %0 = arith.constant 0 : i16
 // CHECK-NEXT:    %1 = "csl.get_color"(%0) : (i16) -> !csl.color
 // CHECK-NEXT:    %2 = "csl_wrapper.import"(%arg2, %arg3, %1) <{fields = ["width", "height", "LAUNCH"], module = "<memcpy/get_params>"}> : (i16, i16, !csl.color) -> !csl.imported_module
@@ -255,7 +255,7 @@
 // CHECK-NEXT:    %16 = arith.ori %15, %13 : i1
 // CHECK-NEXT:    "csl_wrapper.yield"(%5, %4, %16) <{fields = ["memcpy_params", "stencil_comms_params", "isBorderRegionPE"]}> : (!csl.comptime_struct, !csl.comptime_struct, i1) -> ()
 // CHECK-NEXT:  }, {
-// CHECK-NEXT:  ^bb1(%arg0_1 : i16, %arg1_1 : i16, %arg2_1 : i16, %arg3_1 : i16, %arg4_1 : i16, %arg5_1 : i16, %arg6_1 : i16, %arg7_1 : !csl.comptime_struct, %arg8_1 : !csl.comptime_struct, %arg9 : i1):
+// CHECK-NEXT:  ^bb1(%arg0_1: i16, %arg1_1: i16, %arg2_1: i16, %arg3_1: i16, %arg4_1: i16, %arg5_1: i16, %arg6_1: i16, %arg7_1: !csl.comptime_struct, %arg8_1: !csl.comptime_struct, %arg9: i1):
 // CHECK-NEXT:    %17 = "csl_wrapper.import"(%arg7_1) <{fields = [""], module = "<memcpy/memcpy>"}> : (!csl.comptime_struct) -> !csl.imported_module
 // CHECK-NEXT:    %18 = "csl_wrapper.import"(%arg3_1, %arg5_1, %arg8_1) <{fields = ["pattern", "chunkSize", ""], module = "stencil_comms.csl"}> : (i16, i16, !csl.comptime_struct) -> !csl.imported_module
 // CHECK-NEXT:    %19 = memref.alloc() : memref<512xf32>
@@ -297,7 +297,7 @@
 // CHECK-NEXT:      "csl.member_call"(%18, %send_dsd, %30, %31, %32) <{field = "communicate"}> : (!csl.imported_module, memref<510xf32>, i16, !csl.ptr<(i16) -> (), #csl<ptr_kind single>, #csl<ptr_const const>>, !csl.ptr<() -> (), #csl<ptr_kind single>, #csl<ptr_const const>>) -> ()
 // CHECK-NEXT:      csl.return
 // CHECK-NEXT:    }
-// CHECK-NEXT:    csl.func @receive_chunk_cb0(%offset : i16) {
+// CHECK-NEXT:    csl.func @receive_chunk_cb0(%offset: i16) {
 // CHECK-NEXT:      %offset_1 = arith.index_cast %offset : i16 to index
 // CHECK-NEXT:      %33 = memref.subview %accumulator[%offset_1] [510] [1] : memref<510xf32> to memref<510xf32, strided<[1], offset: ?>>
 // CHECK-NEXT:      %34 = arith.constant 4 : i16
@@ -348,7 +348,7 @@
 // -----
 
   "csl_wrapper.module"() <{"width" = 1022 : i16, "height" = 510 : i16, "params" = [#csl_wrapper.param<"z_dim" default=512 : i16>, #csl_wrapper.param<"pattern" default=2 : i16>, #csl_wrapper.param<"num_chunks" default=2 : i16>, #csl_wrapper.param<"chunk_size" default=255 : i16>, #csl_wrapper.param<"padded_z_dim" default=510 : i16>], "program_name" = "partial_access", target="wse2"}> ({
-  ^bb0(%0 : i16, %1 : i16, %2 : i16, %3 : i16, %4 : i16, %5 : i16, %6 : i16, %7 : i16, %8 : i16):
+  ^bb0(%0: i16, %1: i16, %2: i16, %3: i16, %4: i16, %5: i16, %6: i16, %7: i16, %8: i16):
     %9 = arith.constant 0 : i16
     %10 = "csl.get_color"(%9) : (i16) -> !csl.color
     %11 = "csl_wrapper.import"(%2, %3, %10) <{"module" = "<memcpy/get_params>", "fields" = ["width", "height", "LAUNCH"]}> : (i16, i16, !csl.color) -> !csl.imported_module
@@ -368,7 +368,7 @@
     %25 = arith.ori %24, %22 : i1
     "csl_wrapper.yield"(%14, %13, %25) <{"fields" = ["memcpy_params", "stencil_comms_params", "isBorderRegionPE"]}> : (!csl.comptime_struct, !csl.comptime_struct, i1) -> ()
   }, {
-  ^bb1(%26 : i16, %27 : i16, %28 : i16, %29 : i16, %30 : i16, %31 : i16, %32 : i16, %memcpy_params : !csl.comptime_struct, %stencil_comms_params : !csl.comptime_struct, %isBorderRegionPE : i1):
+  ^bb1(%26: i16, %27: i16, %28: i16, %29: i16, %30: i16, %31: i16, %32: i16, %memcpy_params: !csl.comptime_struct, %stencil_comms_params: !csl.comptime_struct, %isBorderRegionPE: i1):
     %33 = "csl_wrapper.import"(%memcpy_params) <{"module" = "<memcpy/memcpy>", "fields" = [""]}> : (!csl.comptime_struct) -> !csl.imported_module
     %34 = "csl_wrapper.import"(%29, %31, %stencil_comms_params) <{"module" = "stencil_comms.csl", "fields" = ["pattern", "chunkSize", ""]}> : (i16, i16, !csl.comptime_struct) -> !csl.imported_module
     %arg0 = memref.alloc() : memref<512xf32>
@@ -381,7 +381,7 @@
     csl.func @partial_access() {
       %37 = memref.alloc() {"alignment" = 64 : i64} : memref<510xf32>
       csl_stencil.apply(%arg0 : memref<512xf32>, %37 : memref<510xf32>) outs (%arg1 : memref<512xf32>) <{"bounds" = #stencil.bounds<[0, 0], [1, 1]>, "num_chunks" = 2 : i64, operandSegmentSizes = array<i32: 1, 1, 0, 0, 1>, "swaps" = [#csl_stencil.exchange<to [1, 0]>, #csl_stencil.exchange<to [-1, 0]>, #csl_stencil.exchange<to [0, 1]>, #csl_stencil.exchange<to [0, -1]>], "topo" = #dmp.topo<1022x510>}> ({
-      ^bb2(%arg2 : memref<4x255xf32>, %arg3 : index, %arg4 : memref<510xf32>):
+      ^bb2(%arg2: memref<4x255xf32>, %arg3: index, %arg4: memref<510xf32>):
         %38 = csl_stencil.access %arg2[1, 0] : memref<4x255xf32>
         %39 = csl_stencil.access %arg2[-1, 0] : memref<4x255xf32>
         %40 = csl_stencil.access %arg2[0, 1] : memref<4x255xf32>
@@ -390,7 +390,7 @@
         "csl.fadds"(%42, %42, %38) : (memref<255xf32, strided<[1], offset: ?>>, memref<255xf32, strided<[1], offset: ?>>, memref<255xf32>) -> ()
         csl_stencil.yield %arg4 : memref<510xf32>
       }, {
-      ^bb3(%arg2_1 : memref<512xf32>, %arg3_1 : memref<510xf32>):
+      ^bb3(%arg2_1: memref<512xf32>, %arg3_1: memref<510xf32>):
         %43 = memref.subview %arg2_1[2] [510] [1] : memref<512xf32> to memref<510xf32, strided<[1], offset: 2>>
         %44 = memref.subview %arg2_1[0] [510] [1] : memref<512xf32> to memref<510xf32, strided<[1]>>
         "csl.fadds"(%arg3_1, %arg3_1, %44) : (memref<510xf32>, memref<510xf32>, memref<510xf32, strided<[1]>>) -> ()
@@ -405,7 +405,7 @@
   }) : () -> ()
 
 // CHECK:       "csl_wrapper.module"() <{width = 1022 : i16, height = 510 : i16, params = [#csl_wrapper.param<"z_dim" default=512 : i16>, #csl_wrapper.param<"pattern" default=2 : i16>, #csl_wrapper.param<"num_chunks" default=2 : i16>, #csl_wrapper.param<"chunk_size" default=255 : i16>, #csl_wrapper.param<"padded_z_dim" default=510 : i16>], program_name = "partial_access", target = "wse2"}> ({
-// CHECK-NEXT:  ^bb0(%0 : i16, %1 : i16, %2 : i16, %3 : i16, %4 : i16, %5 : i16, %6 : i16, %7 : i16, %8 : i16):
+// CHECK-NEXT:  ^bb0(%0: i16, %1: i16, %2: i16, %3: i16, %4: i16, %5: i16, %6: i16, %7: i16, %8: i16):
 // CHECK-NEXT:    %9 = arith.constant 0 : i16
 // CHECK-NEXT:    %10 = "csl.get_color"(%9) : (i16) -> !csl.color
 // CHECK-NEXT:    %11 = "csl_wrapper.import"(%2, %3, %10) <{module = "<memcpy/get_params>", fields = ["width", "height", "LAUNCH"]}> : (i16, i16, !csl.color) -> !csl.imported_module
@@ -425,7 +425,7 @@
 // CHECK-NEXT:    %25 = arith.ori %24, %22 : i1
 // CHECK-NEXT:    "csl_wrapper.yield"(%14, %13, %25) <{fields = ["memcpy_params", "stencil_comms_params", "isBorderRegionPE"]}> : (!csl.comptime_struct, !csl.comptime_struct, i1) -> ()
 // CHECK-NEXT:  }, {
-// CHECK-NEXT:  ^bb1(%26 : i16, %27 : i16, %28 : i16, %29 : i16, %30 : i16, %31 : i16, %32 : i16, %memcpy_params : !csl.comptime_struct, %stencil_comms_params : !csl.comptime_struct, %isBorderRegionPE : i1):
+// CHECK-NEXT:  ^bb1(%26: i16, %27: i16, %28: i16, %29: i16, %30: i16, %31: i16, %32: i16, %memcpy_params: !csl.comptime_struct, %stencil_comms_params: !csl.comptime_struct, %isBorderRegionPE: i1):
 // CHECK-NEXT:    %33 = "csl_wrapper.import"(%memcpy_params) <{module = "<memcpy/memcpy>", fields = [""]}> : (!csl.comptime_struct) -> !csl.imported_module
 // CHECK-NEXT:    %34 = "csl_wrapper.import"(%29, %31, %stencil_comms_params) <{module = "stencil_comms.csl", fields = ["pattern", "chunkSize", ""]}> : (i16, i16, !csl.comptime_struct) -> !csl.imported_module
 // CHECK-NEXT:    %arg0 = memref.alloc() : memref<512xf32>
@@ -444,7 +444,7 @@
 // CHECK-NEXT:      "csl.member_call"(%34, %send_dsd, %37, %38, %39) <{field = "communicate"}> : (!csl.imported_module, memref<510xf32>, i16, !csl.ptr<(i16) -> (), #csl<ptr_kind single>, #csl<ptr_const const>>, !csl.ptr<() -> (), #csl<ptr_kind single>, #csl<ptr_const const>>) -> ()
 // CHECK-NEXT:      csl.return
 // CHECK-NEXT:    }
-// CHECK-NEXT:    csl.func @receive_chunk_cb0(%offset : i16) {
+// CHECK-NEXT:    csl.func @receive_chunk_cb0(%offset: i16) {
 // CHECK-NEXT:      %offset_1 = arith.index_cast %offset : i16 to index
 // CHECK-NEXT:      %40 = arith.constant 1 : i16
 // CHECK-NEXT:      %41 = "csl.get_dir"() <{dir = #csl<dir_kind west>}> : () -> !csl.direction
@@ -478,7 +478,7 @@
 // -----
 
   "csl_wrapper.module"() <{"height" = 512 : i16, "params" = [#csl_wrapper.param<"z_dim" default=511 : i16>, #csl_wrapper.param<"pattern" default=2 : i16>, #csl_wrapper.param<"num_chunks" default=1 : i16>, #csl_wrapper.param<"chunk_size" default=510 : i16>, #csl_wrapper.param<"padded_z_dim" default=510 : i16>], "program_name" = "chunk_reduce_only", "width" = 1024 : i16, target="wse2"}> ({
-  ^bb0(%arg0 : i16, %arg1 : i16, %arg2 : i16, %arg3 : i16, %arg4 : i16, %arg5 : i16, %arg6 : i16, %arg7 : i16, %arg8 : i16):
+  ^bb0(%arg0: i16, %arg1: i16, %arg2: i16, %arg3: i16, %arg4: i16, %arg5: i16, %arg6: i16, %arg7: i16, %arg8: i16):
     %0 = arith.constant 1 : i16
     %1 = arith.constant 0 : i16
     %2 = "csl.get_color"(%1) : (i16) -> !csl.color
@@ -498,7 +498,7 @@
     %16 = arith.ori %15, %13 : i1
     "csl_wrapper.yield"(%6, %5, %16) <{"fields" = ["memcpy_params", "stencil_comms_params", "isBorderRegionPE"]}> : (!csl.comptime_struct, !csl.comptime_struct, i1) -> ()
   }, {
-  ^bb1(%arg0_1 : i16, %arg1_1 : i16, %arg2_1 : i16, %arg3_1 : i16, %arg4_1 : i16, %arg5_1 : i16, %arg6_1 : i16, %arg7_1 : !csl.comptime_struct, %arg8_1 : !csl.comptime_struct, %arg9 : i1):
+  ^bb1(%arg0_1: i16, %arg1_1: i16, %arg2_1: i16, %arg3_1: i16, %arg4_1: i16, %arg5_1: i16, %arg6_1: i16, %arg7_1: !csl.comptime_struct, %arg8_1: !csl.comptime_struct, %arg9: i1):
     %17 = "csl_wrapper.import"(%arg7_1) <{"fields" = [""], "module" = "<memcpy/memcpy>"}> : (!csl.comptime_struct) -> !csl.imported_module
     %18 = "csl_wrapper.import"(%arg3_1, %arg5_1, %arg8_1) <{"fields" = ["pattern", "chunkSize", ""], "module" = "stencil_comms.csl"}> : (i16, i16, !csl.comptime_struct) -> !csl.imported_module
     %19 = memref.alloc() : memref<511xf32>
@@ -537,7 +537,7 @@
       %arg12 = csl.load_var(%25 : !csl.var<memref<511xf32>>) : memref<511xf32>
       %32 = memref.alloc() {"alignment" = 64 : i64} : memref<510xf32>
       csl_stencil.apply(%arg11 : memref<511xf32>, %32 : memref<510xf32>, %arg11 : memref<511xf32>, %arg12 : memref<511xf32>, %arg9 : i1) outs (%arg12 : memref<511xf32>) <{"bounds" = #stencil.bounds<[0, 0], [1, 1]>, "num_chunks" = 1 : i64, operandSegmentSizes = array<i32: 1, 1, 1, 2, 1>, "swaps" = [#csl_stencil.exchange<to [1, 0]>, #csl_stencil.exchange<to [0, 1]>], "topo" = #dmp.topo<1022x510>, "coeffs" = [#csl_stencil.coeff<#stencil.index<[1, 0]>, 2.345678e-01 : f32>, #csl_stencil.coeff<#stencil.index<[0, -1]>, 3.141500e-01 : f32>]}> ({
-      ^bb2(%arg13 : memref<2x510xf32>, %arg14 : index, %arg15 : memref<510xf32>, %arg16 : memref<511xf32>):
+      ^bb2(%arg13: memref<2x510xf32>, %arg14: index, %arg15: memref<510xf32>, %arg16: memref<511xf32>):
         %33 = arith.constant dense<1.234500e-01> : memref<510xf32>
         %34 = csl_stencil.access %arg13[1, 0] : memref<2x510xf32>
         %35 = memref.subview %arg16[1] [510] [1] : memref<511xf32> to memref<510xf32, strided<[1], offset: 1>>
@@ -549,7 +549,7 @@
         "csl.fmuls"(%37, %37, %38) : (memref<510xf32, strided<[1], offset: ?>>, memref<510xf32, strided<[1], offset: ?>>, f32) -> ()
         csl_stencil.yield %arg15 : memref<510xf32>
       }, {
-      ^bb3(%arg13_1 : memref<511xf32>, %arg14_1 : memref<510xf32>, %39 : memref<511xf32>, %40 : i1):
+      ^bb3(%arg13_1: memref<511xf32>, %arg14_1: memref<510xf32>, %39: memref<511xf32>, %40: i1):
         scf.if %40 {
         } else {
           %41 = memref.subview %39[0] [510] [1] : memref<511xf32> to memref<510xf32>
@@ -580,7 +580,7 @@
   }) : () -> ()
 
 // CHECK:       "csl_wrapper.module"() <{height = 512 : i16, params = [#csl_wrapper.param<"z_dim" default=511 : i16>, #csl_wrapper.param<"pattern" default=2 : i16>, #csl_wrapper.param<"num_chunks" default=1 : i16>, #csl_wrapper.param<"chunk_size" default=510 : i16>, #csl_wrapper.param<"padded_z_dim" default=510 : i16>], program_name = "chunk_reduce_only", width = 1024 : i16, target = "wse2"}> ({
-// CHECK-NEXT:  ^bb0(%arg0 : i16, %arg1 : i16, %arg2 : i16, %arg3 : i16, %arg4 : i16, %arg5 : i16, %arg6 : i16, %arg7 : i16, %arg8 : i16):
+// CHECK-NEXT:  ^bb0(%arg0: i16, %arg1: i16, %arg2: i16, %arg3: i16, %arg4: i16, %arg5: i16, %arg6: i16, %arg7: i16, %arg8: i16):
 // CHECK-NEXT:    %0 = arith.constant 1 : i16
 // CHECK-NEXT:    %1 = arith.constant 0 : i16
 // CHECK-NEXT:    %2 = "csl.get_color"(%1) : (i16) -> !csl.color
@@ -600,7 +600,7 @@
 // CHECK-NEXT:    %16 = arith.ori %15, %13 : i1
 // CHECK-NEXT:    "csl_wrapper.yield"(%6, %5, %16) <{fields = ["memcpy_params", "stencil_comms_params", "isBorderRegionPE"]}> : (!csl.comptime_struct, !csl.comptime_struct, i1) -> ()
 // CHECK-NEXT:  }, {
-// CHECK-NEXT:  ^bb1(%arg0_1 : i16, %arg1_1 : i16, %arg2_1 : i16, %arg3_1 : i16, %arg4_1 : i16, %arg5_1 : i16, %arg6_1 : i16, %arg7_1 : !csl.comptime_struct, %arg8_1 : !csl.comptime_struct, %arg9 : i1):
+// CHECK-NEXT:  ^bb1(%arg0_1: i16, %arg1_1: i16, %arg2_1: i16, %arg3_1: i16, %arg4_1: i16, %arg5_1: i16, %arg6_1: i16, %arg7_1: !csl.comptime_struct, %arg8_1: !csl.comptime_struct, %arg9: i1):
 // CHECK-NEXT:    %17 = "csl_wrapper.import"(%arg7_1) <{fields = [""], module = "<memcpy/memcpy>"}> : (!csl.comptime_struct) -> !csl.imported_module
 // CHECK-NEXT:    %18 = "csl_wrapper.import"(%arg3_1, %arg5_1, %arg8_1) <{fields = ["pattern", "chunkSize", ""], module = "stencil_comms.csl"}> : (i16, i16, !csl.comptime_struct) -> !csl.imported_module
 // CHECK-NEXT:    %19 = memref.alloc() : memref<511xf32>
@@ -649,7 +649,7 @@
 // CHECK-NEXT:      "csl.member_call"(%18, %send_dsd, %33, %34, %35) <{field = "communicate"}> : (!csl.imported_module, memref<510xf32>, i16, !csl.ptr<(i16) -> (), #csl<ptr_kind single>, #csl<ptr_const const>>, !csl.ptr<() -> (), #csl<ptr_kind single>, #csl<ptr_const const>>) -> ()
 // CHECK-NEXT:      csl.return
 // CHECK-NEXT:    }
-// CHECK-NEXT:    csl.func @receive_chunk_cb0(%offset : i16) {
+// CHECK-NEXT:    csl.func @receive_chunk_cb0(%offset: i16) {
 // CHECK-NEXT:      %offset_1 = arith.index_cast %offset : i16 to index
 // CHECK-NEXT:      %arg11_1 = csl.load_var(%24 : !csl.var<memref<511xf32>>) : memref<511xf32>
 // CHECK-NEXT:      %36 = arith.constant 1 : i16
