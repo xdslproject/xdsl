@@ -225,6 +225,18 @@ ALLOWED_FREP_OP_TYPES = (
     UnrealizedConversionCastOp,
 )
 
+
+def is_valid_frep_body_op(operation: Operation) -> bool:
+    """
+    Helper method to determine whether the `frep` loop on the Snitch core can contain
+    the given operation.
+    `frep` loops can only contain instructions that are executed on the FPU, and only
+    contain memory effects via `ReadOp` / `WriteOp`.
+    We also allow `UnrealizedConversionCastOp` to support partial lowering of dialects.
+    """
+    return operation.has_trait(Pure) or isinstance(operation, ALLOWED_FREP_OP_TYPES)
+
+
 I3: TypeAlias = IntegerType[Literal[3]]
 I4: TypeAlias = IntegerType[Literal[4]]
 i3 = I3(3)
@@ -409,9 +421,7 @@ class FRepOperation(RISCVInstruction):
         if self.stagger_mask.value.data:
             raise VerifyException("Non-zero stagger mask currently unsupported")
         for instruction in self.body.ops:
-            if not instruction.has_trait(Pure) and not isinstance(
-                instruction, ALLOWED_FREP_OP_TYPES
-            ):
+            if not is_valid_frep_body_op(instruction):
                 raise VerifyException(
                     "Frep operation body may not contain instructions "
                     f"with side-effects, found {instruction.name}"
