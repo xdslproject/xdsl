@@ -69,6 +69,8 @@ from xdsl.traits import (
     IsTerminator,
     MemoryReadEffect,
     MemoryWriteEffect,
+    NoMemoryEffect,
+    RecursiveMemoryEffect,
     SingleBlockImplicitTerminator,
     ensure_terminator,
     get_effects,
@@ -163,7 +165,7 @@ class FrepYieldOp(
     name = "riscv_snitch.frep_yield"
 
     traits = lazy_traits_def(
-        lambda: (IsTerminator(), HasParent(FrepInnerOp, FrepOuterOp))
+        lambda: (IsTerminator(), HasParent(FrepInnerOp, FrepOuterOp), NoMemoryEffect())
     )
 
     def assembly_line(self) -> str | None:
@@ -231,7 +233,6 @@ class WriteOp(RISCVAsmOperation, RISCVRegallocOperation):
 
 
 ALLOWED_FREP_OP_TYPES: tuple[type[Operation], ...] = (
-    FrepYieldOp,
     ReadOp,
     WriteOp,
     UnrealizedConversionCastOp,
@@ -311,7 +312,9 @@ class FRepOperation(RISCVInstruction):
     Loop-carried variable initial values.
     """
 
-    traits = lazy_traits_def(lambda: (SingleBlockImplicitTerminator(FrepYieldOp),))
+    traits = lazy_traits_def(
+        lambda: (SingleBlockImplicitTerminator(FrepYieldOp), RecursiveMemoryEffect())
+    )
 
     def __init__(
         self,
