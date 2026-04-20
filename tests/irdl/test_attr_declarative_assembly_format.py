@@ -174,7 +174,7 @@ def print_attr(attr: Attribute) -> str:
     return output.getvalue()
 
 
-def check_roundtrip(attr_type: type, body: str, ctx: Context) -> None:
+def check_roundtrip(attr_type: type[ParametrizedAttribute], body: str, ctx: Context) -> None:
     """Parse !type<body>, print it, verify the body matches."""
     type_str = f"!{attr_type.name}<{body}>"
     parsed = parse_type(type_str, ctx)
@@ -182,7 +182,7 @@ def check_roundtrip(attr_type: type, body: str, ctx: Context) -> None:
     assert printed == type_str, f"Round-trip failed: {printed!r} != {type_str!r}"
 
 
-def check_attr_roundtrip(attr_type: type, body: str, ctx: Context) -> None:
+def check_attr_roundtrip(attr_type: type[ParametrizedAttribute], body: str, ctx: Context) -> None:
     """Round-trip for #-prefixed attributes."""
     attr_str = f"#{attr_type.name}<{body}>"
     parsed = parse_attr(attr_str, ctx)
@@ -515,7 +515,9 @@ def test_error_missing_parameter():
     with pytest.raises(PyRDLAttrDefinitionError, match="parameter 'second' not found"):
 
         @irdl_attr_definition
-        class BadType(ParametrizedAttribute, TypeAttribute):
+        class BadType(  # pyright: ignore[reportUnusedClass]
+            ParametrizedAttribute, TypeAttribute
+        ):
             name = "test_af.bad_missing"
             first: IntegerType = param_def()
             second: IntegerType = param_def()
@@ -527,7 +529,9 @@ def test_error_duplicate_parameter():
     with pytest.raises(PyRDLAttrDefinitionError, match="is already bound"):
 
         @irdl_attr_definition
-        class BadType(ParametrizedAttribute, TypeAttribute):
+        class BadType(  # pyright: ignore[reportUnusedClass]
+            ParametrizedAttribute, TypeAttribute
+        ):
             name = "test_af.bad_dup"
             value: IntegerType = param_def()
             assembly_format = "$value `,` $value"
@@ -538,7 +542,9 @@ def test_error_unknown_variable():
     with pytest.raises(PyRDLAttrDefinitionError, match="does not refer to a parameter"):
 
         @irdl_attr_definition
-        class BadType(ParametrizedAttribute, TypeAttribute):
+        class BadType(  # pyright: ignore[reportUnusedClass]
+            ParametrizedAttribute, TypeAttribute
+        ):
             name = "test_af.bad_unknown"
             value: IntegerType = param_def()
             assembly_format = "$nonexistent"
@@ -552,13 +558,17 @@ def test_error_assembly_format_with_parse_parameters():
     ):
 
         @irdl_attr_definition
-        class BadType(ParametrizedAttribute, TypeAttribute):
+        class BadType(  # pyright: ignore[reportUnusedClass]
+            ParametrizedAttribute, TypeAttribute
+        ):
             name = "test_af.bad_custom_parse"
             value: IntegerType = param_def()
             assembly_format = "$value"
 
             @classmethod
-            def parse_parameters(cls, parser):
+            def parse_parameters(
+                cls, parser: AttrParser
+            ) -> list[Attribute]:
                 return []
 
 
@@ -570,12 +580,14 @@ def test_error_assembly_format_with_print_parameters():
     ):
 
         @irdl_attr_definition
-        class BadType(ParametrizedAttribute, TypeAttribute):
+        class BadType(  # pyright: ignore[reportUnusedClass]
+            ParametrizedAttribute, TypeAttribute
+        ):
             name = "test_af.bad_custom_print"
             value: IntegerType = param_def()
             assembly_format = "$value"
 
-            def print_parameters(self, printer):
+            def print_parameters(self, printer: Printer) -> None:
                 pass
 
 
@@ -587,7 +599,9 @@ def test_error_assembly_format_on_singleton():
     ):
 
         @irdl_attr_definition
-        class BadType(ParametrizedAttribute, TypeAttribute):
+        class BadType(  # pyright: ignore[reportUnusedClass]
+            ParametrizedAttribute, TypeAttribute
+        ):
             name = "test_af.bad_singleton"
             assembly_format = ""
 
