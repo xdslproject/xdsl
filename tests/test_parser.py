@@ -1440,7 +1440,7 @@ class SlashAttr(ParametrizedAttribute):
     @classmethod
     def parse_parameters(
         cls,
-        parser: Parser,  # type: ignore[override]
+        parser: AttrParser,
     ) -> Sequence[Attribute]:
         with parser.in_angle_brackets():
             parser.parse_punctuation("/")
