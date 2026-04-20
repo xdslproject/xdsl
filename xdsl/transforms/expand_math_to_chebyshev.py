@@ -21,6 +21,7 @@ Algorithm:
 """
 
 import math as pymath
+from collections.abc import Callable
 from dataclasses import dataclass
 
 from xdsl.context import Context
@@ -46,7 +47,7 @@ from xdsl.pattern_rewriter import (
 
 
 def chebyshev_coefficients(
-    f: "Callable[[float], float]",  # noqa: F821
+    f: Callable[[float], float],
     degree: int,
     lower: float = -1.0,
     upper: float = 1.0,
