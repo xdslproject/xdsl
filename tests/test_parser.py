@@ -38,6 +38,7 @@ from xdsl.irdl import (
     region_def,
 )
 from xdsl.parser import Parser
+from xdsl.parser.attribute_parser import AttrParser
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import ParseError
 from xdsl.utils.mlir_lexer import (
