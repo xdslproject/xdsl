@@ -16,6 +16,7 @@ from xdsl.dialects.builtin import (
     Builtin,
     DenseArrayBase,
     IntegerType,
+    NoneAttr,
     SymbolNameConstraint,
     UnitAttr,
 )
@@ -32,6 +33,7 @@ from xdsl.irdl import (
     OptSingleBlockRegionDef,
     OptSuccessorDef,
     ParamAttrConstraint,
+    ParamAttrDef,
     ParsePropInAttrDict,
     SameVariadicOperandSize,
     SameVariadicResultSize,
@@ -45,7 +47,13 @@ from xdsl.irdl import (
 )
 from xdsl.irdl.declarative_assembly_format import (
     AttrDictDirective,
+    AttrFormatDirective,
+    AttrFormatProgram,
     AttributeVariable,
+    AttrKeywordDirective,
+    AttrOptionalGroupDirective,
+    AttrPunctuationDirective,
+    AttrWhitespaceDirective,
     DenseArrayAttributeVariable,
     Directive,
     FormatDirective,
@@ -61,11 +69,15 @@ from xdsl.irdl.declarative_assembly_format import (
     OptionalResultVariable,
     OptionalSuccessorVariable,
     OptionalUnitAttrVariable,
+    ParameterVariable,
+    ParamsDirective,
     PunctuationDirective,
+    QualifiedParameterVariable,
     RegionDirective,
     RegionVariable,
     ResultsDirective,
     ResultVariable,
+    StructDirective,
     SuccessorDirective,
     SuccessorVariable,
     SymbolNameAttributeVariable,
@@ -900,3 +912,217 @@ class FormatParser(BaseParser):
         if not inside_ref:
             self.seen_result_types = [True] * len(self.seen_result_types)
         return ResultsDirective()
+
+
+@dataclass(init=False)
+class AttrFormatParser(BaseParser):
+    """Parser for attribute/type declarative assembly format strings."""
+
+    attr_def: ParamAttrDef
+    seen_parameters: set[str]
+
+    def __init__(self, input_str: str, attr_def: ParamAttrDef):
+        super().__init__(ParserState(FormatLexer(Input(input_str, "<attr-format>"))))
+        self.attr_def = attr_def
+        self.seen_parameters = set()
+
+    def parse_format(self) -> AttrFormatProgram:
+        elements: list[AttrFormatDirective] = []
+        while self._current_token.kind != MLIRTokenKind.EOF:
+            elements.append(self.parse_format_directive())
+        self.verify_parameters()
+        return AttrFormatProgram(tuple(elements))
+
+    def verify_parameters(self) -> None:
+        for name, _ in self.attr_def.parameters:
+            if name not in self.seen_parameters:
+                self.raise_error(
+                    f"parameter '{name}' not found in format string, "
+                    f"consider adding a '${name}' directive"
+                )
+
+    def parse_format_directive(self) -> AttrFormatDirective:
+        if self._current_token.text == "`":
+            return self.parse_keyword_or_punctuation()
+        if self.parse_optional_punctuation("("):
+            return self.parse_optional_group()
+        if self._current_token.text == "$":
+            return self.parse_variable()
+        if self.parse_optional_keyword("params"):
+            return self.parse_params_directive()
+        if self.parse_optional_keyword("struct"):
+            return self.parse_struct_directive()
+        if self.parse_optional_keyword("qualified"):
+            return self.parse_qualified_directive()
+        if self.parse_optional_keyword("custom"):
+            return self.parse_attr_custom_directive()
+        self.raise_error(f"unexpected token '{self._current_token.text}'")
+
+    def parse_variable(self, inside_ref: bool = False) -> ParameterVariable:
+        self._consume_token(MLIRTokenKind.BARE_IDENT)
+        token = self._current_token
+        name = self.parse_identifier(" after '$'")
+
+        for idx, (param_name, param_def) in enumerate(self.attr_def.parameters):
+            if name == param_name:
+                if not inside_ref:
+                    if name in self.seen_parameters:
+                        self.raise_error(
+                            f"parameter '{name}' is already bound", token.span
+                        )
+                    self.seen_parameters.add(name)
+                is_optional = param_def.constr.verifies(NoneAttr())
+                return ParameterVariable(name, idx, is_optional)
+
+        self.raise_error(
+            f"'{name}' does not refer to a parameter of this attribute", token.span
+        )
+
+    def _all_param_variables(self) -> tuple[ParameterVariable, ...]:
+        """Create ParameterVariable instances for all parameters."""
+        params: list[ParameterVariable] = []
+        for idx, (name, param_def) in enumerate(self.attr_def.parameters):
+            if name in self.seen_parameters:
+                self.raise_error(f"parameter '{name}' is already bound")
+            self.seen_parameters.add(name)
+            is_optional = param_def.constr.verifies(NoneAttr())
+            params.append(ParameterVariable(name, idx, is_optional))
+        return tuple(params)
+
+    def _parse_struct_variables(self) -> tuple[ParameterVariable, ...]:
+        """Parse the argument list for struct(): either `params` or `$a, $b, ...`."""
+        with self.in_parens():
+            if self.parse_optional_keyword("params"):
+                return self._all_param_variables()
+            params: list[ParameterVariable] = []
+            params.append(self.parse_variable())
+            while self.parse_optional_punctuation(","):
+                params.append(self.parse_variable())
+            return tuple(params)
+
+    def parse_params_directive(self) -> ParamsDirective:
+        return ParamsDirective(self._all_param_variables())
+
+    def parse_struct_directive(self) -> StructDirective:
+        return StructDirective(self._parse_struct_variables())
+
+    def parse_qualified_directive(self) -> QualifiedParameterVariable:
+        with self.in_parens():
+            pv = self.parse_variable()
+            return QualifiedParameterVariable(pv.name, pv.index, pv.is_optional)
+
+    def parse_possible_ref_directive(self) -> AttrFormatDirective:
+        """Parse a ref directive or variable: `ref` `(` `$var` `)` | `$var`."""
+        if self.parse_optional_keyword("ref"):
+            with self.in_parens():
+                return self.parse_variable(inside_ref=True)
+        return self.parse_variable()
+
+    def parse_attr_custom_directive(self) -> AttrFormatDirective:
+        """Parse `custom` `<` name `>` `(` args `)` for attr format."""
+        with self.in_angle_brackets():
+            name = self.parse_identifier()
+            if name not in self.attr_def.custom_directives:
+                self.raise_error(f"Custom attr directive '{name}' cannot be found.")
+        directive = self.attr_def.custom_directives[name]
+        param_types = directive.parameters
+        params: list[AttrFormatDirective] = []
+        with self.in_parens():
+            for i, (field_name, ty) in enumerate(param_types.items()):
+                if i:
+                    self.parse_punctuation(",")
+                param = self.parse_possible_ref_directive()
+                if not isinstance(param, ty):
+                    self.raise_error(
+                        f"{name}.{field_name} was expected to be of type "
+                        f"{ty.__name__}, but got {type(param).__name__}"
+                    )
+                params.append(param)
+        return directive(*params)
+
+    def parse_keyword_or_punctuation(self) -> AttrFormatDirective:
+        start_token = self._current_token
+        self.parse_characters("`")
+
+        # \n case
+        if self.parse_optional_keyword("\\"):
+            self.parse_keyword("n")
+            self.parse_characters("`")
+            return AttrWhitespaceDirective("\n")
+
+        # Space or empty backtick case
+        end_token = self._current_token
+        if self.parse_optional_characters("`"):
+            whitespace = self.lexer.input.content[
+                start_token.span.end : end_token.span.start
+            ]
+            if whitespace != " " and whitespace != "":
+                self.raise_error(
+                    "unexpected whitespace in directive, "
+                    "only ` ` or `` whitespace is allowed"
+                )
+            return AttrWhitespaceDirective(whitespace)
+
+        # Punctuation case
+        if self._current_token.kind.is_punctuation():
+            punctuation = self._consume_token().text
+            self.parse_characters("`")
+            assert MLIRTokenKind.is_spelling_of_punctuation(punctuation)
+            return AttrPunctuationDirective(punctuation)
+
+        # Identifier case
+        ident = self.parse_optional_identifier()
+        if ident is None or ident == "`":
+            self.raise_error("punctuation or identifier expected")
+
+        self.parse_characters("`")
+        return AttrKeywordDirective(ident)
+
+    def parse_optional_group(self) -> AttrFormatDirective:
+        then_elements = tuple[AttrFormatDirective, ...]()
+        else_elements = tuple[AttrFormatDirective, ...]()
+        anchor: AttrFormatDirective | None = None
+
+        while not self.parse_optional_punctuation(")"):
+            then_elements += (self.parse_format_directive(),)
+            if self.parse_optional_keyword("^"):
+                if anchor is not None:
+                    self.raise_error("An optional group can only have one anchor.")
+                anchor = then_elements[-1]
+
+        if self.parse_optional_punctuation(":"):
+            self.parse_punctuation("(")
+            while not self.parse_optional_punctuation(")"):
+                else_elements += (self.parse_format_directive(),)
+
+        self.parse_punctuation("?")
+
+        first_non_whitespace_index = None
+        for i, x in enumerate(then_elements):
+            if not isinstance(x, AttrWhitespaceDirective):
+                first_non_whitespace_index = i
+                break
+
+        if first_non_whitespace_index is None:
+            self.raise_error("An optional group must have a non-whitespace directive")
+        if anchor is None:
+            self.raise_error("Every optional group must have an anchor.")
+        if not then_elements[first_non_whitespace_index].is_optional_like():
+            self.raise_error(
+                "First element of an optional group must be optionally parsable."
+            )
+        if not anchor.is_anchorable():
+            self.raise_error(
+                "An optional group's anchor must be an anchorable directive."
+            )
+
+        return AttrOptionalGroupDirective(
+            anchor,
+            cast(
+                tuple[AttrWhitespaceDirective, ...],
+                then_elements[:first_non_whitespace_index],
+            ),
+            then_elements[first_non_whitespace_index],
+            then_elements[first_non_whitespace_index + 1 :],
+            else_elements,
+        )
