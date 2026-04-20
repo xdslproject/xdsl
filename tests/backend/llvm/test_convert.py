@@ -1,6 +1,6 @@
 import pytest
 
-from xdsl.dialects import llvm as llvm_dialect
+from xdsl.dialects import llvm
 from xdsl.dialects.builtin import ModuleOp, i32
 from xdsl.dialects.test import TestOp
 from xdsl.ir import Block, Region
@@ -59,8 +59,8 @@ def test_convert_module_target_config_combined():
 
 def test_convert_module_declaration():
     # a func op with no body becomes a declaration
-    ft = llvm_dialect.LLVMFunctionType([i32], i32)
-    func = llvm_dialect.FuncOp("my_decl", ft)
+    ft = llvm.LLVMFunctionType([i32], i32)
+    func = llvm.FuncOp("my_decl", ft)
     module = ModuleOp([func])
 
     llvm_module = convert_module(module)
@@ -71,25 +71,25 @@ def test_convert_module_declaration():
 
 def test_convert_module_forward_reference():
     # a function can call another function defined later in the module
-    ft_callee = llvm_dialect.LLVMFunctionType([i32], i32)
-    ft_caller = llvm_dialect.LLVMFunctionType([i32], i32)
+    ft_callee = llvm.LLVMFunctionType([i32], i32)
+    ft_caller = llvm.LLVMFunctionType([i32], i32)
 
     caller_block = Block(arg_types=[i32])
     arg = caller_block.args[0]
-    call_op = llvm_dialect.CallOp("callee", arg, return_type=i32)
+    call_op = llvm.CallOp("callee", arg, return_type=i32)
     caller_block.add_op(call_op)
-    ret_op = llvm_dialect.ReturnOp(call_op.returned)
+    ret_op = llvm.ReturnOp(call_op.returned)
     caller_block.add_op(ret_op)
     caller_body = Region(caller_block)
 
-    caller = llvm_dialect.FuncOp("caller", ft_caller, body=caller_body)
+    caller = llvm.FuncOp("caller", ft_caller, body=caller_body)
 
     callee_block = Block(arg_types=[i32])
-    callee_ret = llvm_dialect.ReturnOp(callee_block.args[0])
+    callee_ret = llvm.ReturnOp(callee_block.args[0])
     callee_block.add_op(callee_ret)
     callee_body = Region(callee_block)
 
-    callee = llvm_dialect.FuncOp("callee", ft_callee, body=callee_body)
+    callee = llvm.FuncOp("callee", ft_callee, body=callee_body)
 
     # caller defined before callee
     module = ModuleOp([caller, callee])

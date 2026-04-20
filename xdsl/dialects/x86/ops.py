@@ -50,6 +50,7 @@ from xdsl.dialects.builtin import (
     IntegerAttr,
     IntegerType,
     ModuleOp,
+    NoneAttr,
     Signedness,
     StringAttr,
     UnitAttr,
@@ -110,6 +111,7 @@ from .registers import (
     AVX512MaskRegisterType,
     AVX512RegisterType,
     GeneralRegisterType,
+    Reg32Type,
     RFLAGSRegisterType,
     X86RegisterType,
     X86VectorRegisterType,
@@ -387,6 +389,78 @@ class DSK_Operation(X86Instruction, ABC):
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
         register_out = masked_source_str(self.destination, self.mask_reg, self.z)
         return register_out, reg(self.source)
+
+
+class DK_Operation(
+    X86Instruction, X86CustomFormatOperation, HasRegisterConstraints, ABC
+):
+    """
+    A base class for x86 operations that have one general purpose destination register
+    and one writemask source register.
+    """
+
+    destination: OpResult[GeneralRegisterType] = result_def(GeneralRegisterType)
+    source = operand_def(AVX512MaskRegisterType)
+
+    def __init__(
+        self,
+        source: Operation | SSAValue,
+        *,
+        comment: str | StringAttr | None = None,
+        destination: GeneralRegisterType,
+    ):
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            operands=(source,),
+            attributes={
+                "comment": comment,
+            },
+            result_types=(destination,),
+        )
+
+    def get_register_constraints(self) -> RegisterConstraints:
+        return RegisterConstraints((self.source,), (self.destination,), ())
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        return reg(self.destination), reg(self.source)
+
+
+class KS_Operation(
+    X86Instruction, X86CustomFormatOperation, HasRegisterConstraints, ABC
+):
+    """
+    A base class for x86 operations that have one general purpose destination register
+    and one writemask source register.
+    """
+
+    destination: OpResult[AVX512MaskRegisterType] = result_def(AVX512MaskRegisterType)
+    source = operand_def(GeneralRegisterType)
+
+    def __init__(
+        self,
+        source: Operation | SSAValue,
+        *,
+        comment: str | StringAttr | None = None,
+        destination: AVX512MaskRegisterType,
+    ):
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            operands=(source,),
+            attributes={
+                "comment": comment,
+            },
+            result_types=(destination,),
+        )
+
+    def get_register_constraints(self) -> RegisterConstraints:
+        return RegisterConstraints((self.source,), (self.destination,), ())
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        return reg(self.destination), reg(self.source)
 
 
 class R_Operation(X86Instruction, ABC, Generic[R1InvT]):
@@ -3627,6 +3701,151 @@ class DM_VbroadcastssOp(DM_Operation[X86VectorRegisterType, GeneralRegisterType]
     """
 
     name = "x86.dm.vbroadcastss"
+
+
+@irdl_op_definition
+class DK_KMovBOp(DK_Operation):
+    """
+    Move 8 bits mask from source mask register to general-purpose register.
+
+    See external [documentation](https://www.felixcloutier.com/x86/kmovw:kmovb:kmovq:kmovd).
+    """
+
+    name = "x86.dk.kmovb"
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        # kmovb uses r32 operands in assembly; convert the 64-bit register
+        # index to its 32-bit name via Reg32Type.
+        dest = self.destination.type
+        if isinstance(dest.index, NoneAttr):
+            raise ValueError("Unallocated register in assembly printing")
+        dest_32 = Reg32Type.from_index(dest.index.data)
+        return dest_32.register_name.data, reg(self.source)
+
+
+@irdl_op_definition
+class KS_KMovBOp(KS_Operation):
+    """
+    Move 8 bits mask from general-purpose register to destination mask register.
+
+    See external [documentation](https://www.felixcloutier.com/x86/kmovw:kmovb:kmovq:kmovd).
+    """
+
+    name = "x86.ks.kmovb"
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        # kmovb uses r32 operands in assembly; convert the 64-bit register
+        # index to its 32-bit name via Reg32Type.
+        source = self.source.type
+        assert isinstance(source, GeneralRegisterType)
+        if isinstance(source.index, NoneAttr):
+            raise ValueError("Unallocated register in assembly printing")
+        source_32 = Reg32Type.from_index(source.index.data)
+        return reg(self.destination), source_32.register_name.data
+
+
+@irdl_op_definition
+class DK_KMovWOp(DK_Operation):
+    """
+    Move 16 bits mask from source mask register to general-purpose register.
+
+    See external [documentation](https://www.felixcloutier.com/x86/kmovw:kmovb:kmovq:kmovd).
+    """
+
+    name = "x86.dk.kmovw"
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        # kmovw uses r32 operands in assembly; convert the 64-bit register
+        # index to its 32-bit name via Reg32Type.
+        dest = self.destination.type
+        if isinstance(dest.index, NoneAttr):
+            raise ValueError("Unallocated register in assembly printing")
+        dest_32 = Reg32Type.from_index(dest.index.data)
+        return dest_32.register_name.data, reg(self.source)
+
+
+@irdl_op_definition
+class KS_KMovWOp(KS_Operation):
+    """
+    Move 16 bits mask from general-purpose register to destination mask register.
+
+    See external [documentation](https://www.felixcloutier.com/x86/kmovw:kmovb:kmovq:kmovd).
+    """
+
+    name = "x86.ks.kmovw"
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        # kmovw uses r32 operands in assembly; convert the 64-bit register
+        # index to its 32-bit name via Reg32Type.
+        source = self.source.type
+        assert isinstance(source, GeneralRegisterType)
+        if isinstance(source.index, NoneAttr):
+            raise ValueError("Unallocated register in assembly printing")
+        source_32 = Reg32Type.from_index(source.index.data)
+        return reg(self.destination), source_32.register_name.data
+
+
+@irdl_op_definition
+class DK_KMovDOp(DK_Operation):
+    """
+    Move 32 bits mask from source mask register to general-purpose register.
+
+    See external [documentation](https://www.felixcloutier.com/x86/kmovw:kmovb:kmovq:kmovd).
+    """
+
+    name = "x86.dk.kmovd"
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        # kmovd uses r32 operands in assembly; convert the 64-bit register
+        # index to its 32-bit name via Reg32Type.
+        dest = self.destination.type
+        if isinstance(dest.index, NoneAttr):
+            raise ValueError("Unallocated register in assembly printing")
+        dest_32 = Reg32Type.from_index(dest.index.data)
+        return dest_32.register_name.data, reg(self.source)
+
+
+@irdl_op_definition
+class KS_KMovDOp(KS_Operation):
+    """
+    Move 32 bits mask from general-purpose register to destination mask register.
+
+    See external [documentation](https://www.felixcloutier.com/x86/kmovw:kmovb:kmovq:kmovd).
+    """
+
+    name = "x86.ks.kmovd"
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        # kmovd uses r32 operands in assembly; convert the 64-bit register
+        # index to its 32-bit name via Reg32Type.
+        source = self.source.type
+        assert isinstance(source, GeneralRegisterType)
+        if isinstance(source.index, NoneAttr):
+            raise ValueError("Unallocated register in assembly printing")
+        source_32 = Reg32Type.from_index(source.index.data)
+        return reg(self.destination), source_32.register_name.data
+
+
+@irdl_op_definition
+class DK_KMovQOp(DK_Operation):
+    """
+    Move 64 bits mask from source mask register to general-purpose register.
+
+    See external [documentation](https://www.felixcloutier.com/x86/kmovw:kmovb:kmovq:kmovd).
+    """
+
+    name = "x86.dk.kmovq"
+
+
+@irdl_op_definition
+class KS_KMovQOp(KS_Operation):
+    """
+    Move 64 bits mask from general-purpose register to destination mask register.
+
+    See external [documentation](https://www.felixcloutier.com/x86/kmovw:kmovb:kmovq:kmovd).
+    """
+
+    name = "x86.ks.kmovq"
 
 
 @irdl_op_definition

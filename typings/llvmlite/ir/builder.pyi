@@ -11,14 +11,17 @@ from llvmlite.ir.instructions import (
     Branch,
     CallInstr,
     ConditionalBranch,
+    ExtractElement,
     ExtractValue,
     GEPInstr,
     ICMPInstr,
+    InsertElement,
     InsertValue,
     Instruction,
     LoadInstr,
     PhiInstr,
     Ret,
+    ShuffleVector,
     StoreInstr,
     Unreachable,
 )
@@ -683,20 +686,26 @@ class IRBuilder:
         """
         ...
 
-    def extract_element(self, vector, idx, name=...):  # -> ExtractElement:
+    def extract_element(
+        self, vector: Value, idx: Value, name: str = ...
+    ) -> ExtractElement:
         """
         Returns the value at position idx.
         """
         ...
 
-    def insert_element(self, vector, value, idx, name=...):  # -> InsertElement:
+    def insert_element(
+        self, vector: Value, value: Value, idx: Value, name: str = ...
+    ) -> InsertElement:
         """
         Returns vector with vector[idx] replaced by value.
         The result is undefined if the idx is larger or equal the vector length.
         """
         ...
 
-    def shuffle_vector(self, vector1, vector2, mask, name=...):  # -> ShuffleVector:
+    def shuffle_vector(
+        self, vector1: Value, vector2: Value, mask: Value, name: str = ...
+    ) -> ShuffleVector:
         """
         Constructs a permutation of elements from *vector1* and *vector2*.
         Returns a new vector in the same length of *mask*.

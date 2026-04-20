@@ -43,3 +43,6 @@ jobs:
       - name: Test marimo notebooks
         run: |
           make tests-marimo
+
+      - name: Prune uv cache
+        run: uv cache prune --ci

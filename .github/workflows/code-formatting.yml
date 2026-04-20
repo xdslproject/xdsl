@@ -33,3 +33,6 @@ jobs:
 
       - name: Run code formatting checks with prek
         uses: j178/prek-action@v2
+
+      - name: Prune uv cache
+        run: uv cache prune --ci

@@ -748,7 +748,7 @@ builtin.module {
   // CHECK: define i32 @"call_op"(i32 %".1")
   // CHECK-NEXT: {
   // CHECK-NEXT: [[ENTRY:.\d+]]:
-  // CHECK-NEXT:   %"[[RES:.\d+]]" = tail call ninf nnan fastcc i32 @"helper"(i32 %".1")
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = tail call fastcc i32 @"helper"(i32 %".1")
   // CHECK-NEXT:   ret i32 %"[[RES]]"
   // CHECK-NEXT: }
 
@@ -764,12 +764,12 @@ builtin.module {
   // CHECK-NEXT:   ret void
   // CHECK-NEXT: }
 
-  llvm.func @null_op() -> !llvm.ptr {
-    %0 = "llvm.mlir.null"() : () -> !llvm.ptr
+  llvm.func @zero_op() -> !llvm.ptr {
+    %0 = "llvm.mlir.zero"() : () -> !llvm.ptr
     llvm.return %0 : !llvm.ptr
   }
 
-  // CHECK: define ptr @"null_op"()
+  // CHECK: define ptr @"zero_op"()
   // CHECK-NEXT: {
   // CHECK-NEXT: {{.[0-9]+}}:
   // CHECK-NEXT:   ret ptr null
@@ -816,5 +816,51 @@ builtin.module {
   // CHECK-NEXT: [[ENTRY:.\d+]]:
   // CHECK-NEXT:   call ccc void @"callee"(void ()* @"addressof_target")
   // CHECK-NEXT:   ret void
+  // CHECK-NEXT: }
+
+  llvm.func @broadcast_f32(%arg0: f32) -> vector<4xf32> {
+    %0 = vector.broadcast %arg0 : f32 to vector<4xf32>
+    llvm.return %0 : vector<4xf32>
+  }
+
+  // CHECK: define <4 x float> @"broadcast_f32"(float %".1")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: [[ENTRY:.\d+]]:
+  // CHECK-NEXT:   %"[[INS:.\d+]]" = insertelement <4 x float> <float undef, float undef, float undef, float undef>, float %".1", i32 0
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = shufflevector <4 x float> %"[[INS]]", <4 x float> <float undef, float undef, float undef, float undef>, <4 x i32> <i32 0, i32 0, i32 0, i32 0>
+  // CHECK-NEXT:   ret <4 x float> %"[[RES]]"
+  // CHECK-NEXT: }
+
+  llvm.func @constant_int() -> i32 {
+    %0 = llvm.mlir.constant(42 : i32) : i32
+    llvm.return %0 : i32
+  }
+
+  // CHECK: define i32 @"constant_int"()
+  // CHECK-NEXT: {
+  // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT:   ret i32 42
+  // CHECK-NEXT: }
+
+  llvm.func @constant_float() -> f32 {
+    %0 = llvm.mlir.constant(3.14 : f32) : f32
+    llvm.return %0 : f32
+  }
+
+  // CHECK: define float @"constant_float"()
+  // CHECK-NEXT: {
+  // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT:   ret float 0x40091eb860000000
+  // CHECK-NEXT: }
+
+  llvm.func @constant_dense_vector() -> vector<4xi32> {
+    %0 = llvm.mlir.constant(dense<[1, 2, 3, 4]> : vector<4xi32>) : vector<4xi32>
+    llvm.return %0 : vector<4xi32>
+  }
+
+  // CHECK: define <4 x i32> @"constant_dense_vector"()
+  // CHECK-NEXT: {
+  // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT:   ret <4 x i32> <i32 1, i32 2, i32 3, i32 4>
   // CHECK-NEXT: }
 }

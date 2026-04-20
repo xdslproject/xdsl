@@ -41,7 +41,7 @@ from xdsl.utils.hints import isa
 _index_type = builtin.IndexType()
 
 
-def get_bytes_offset(
+def build_bytes_offset(
     elements_offset: SSAValue, element_type: Attribute, builder: Builder
 ) -> SSAValue:
     """
@@ -59,7 +59,7 @@ def get_bytes_offset(
     return bytes_offset.result
 
 
-def get_offset_pointer(
+def build_offset_pointer(
     pointer: SSAValue,
     bytes_offset: SSAValue,
     builder: Builder,
@@ -105,7 +105,7 @@ def get_strides(
     return strides
 
 
-def get_strides_offset(
+def build_strides_offset(
     indices: Iterable[SSAValue], strides: Sequence[int], builder: Builder
 ) -> SSAValue | None:
     """
@@ -148,14 +148,14 @@ def get_strides_offset(
     return head
 
 
-def get_target_ptr(
+def build_target_ptr(
     target_memref: SSAValue,
     memref_type: memref.MemRefType[Any],
     indices: Iterable[SSAValue],
     builder: Builder,
 ) -> SSAValue:
     """
-    Get operations returning a pointer to an element of a memref referenced by indices.
+    Build operations returning a pointer to an element of a memref referenced by indices.
     """
 
     memref_ptr = builder.insert_op(ptr.ToPtrOp(target_memref))
@@ -163,11 +163,11 @@ def get_target_ptr(
     pointer.name_hint = target_memref.name_hint
 
     strides = get_strides(target_memref, memref_type, builder)
-    head = get_strides_offset(indices, strides, builder)
+    head = build_strides_offset(indices, strides, builder)
 
     if head is not None:
-        offset = get_bytes_offset(head, memref_type.element_type, builder)
-        pointer = get_offset_pointer(pointer, offset, builder)
+        offset = build_bytes_offset(head, memref_type.element_type, builder)
+        pointer = build_offset_pointer(pointer, offset, builder)
 
     return pointer
 
@@ -177,7 +177,7 @@ class ConvertStorePattern(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: memref.StoreOp, rewriter: PatternRewriter, /):
         assert isa(memref_type := op.memref.type, memref.MemRefType)
-        target_ptr = get_target_ptr(op.memref, memref_type, op.indices, rewriter)
+        target_ptr = build_target_ptr(op.memref, memref_type, op.indices, rewriter)
         rewriter.replace_op(op, ptr.StoreOp(target_ptr, op.value))
 
 
@@ -186,7 +186,7 @@ class ConvertLoadPattern(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: memref.LoadOp, rewriter: PatternRewriter, /):
         assert isa(memref_type := op.memref.type, memref.MemRefType)
-        target_ptr = get_target_ptr(op.memref, memref_type, op.indices, rewriter)
+        target_ptr = build_target_ptr(op.memref, memref_type, op.indices, rewriter)
         rewriter.replace_op(op, ptr.LoadOp(target_ptr, memref_type.element_type))
 
 
@@ -257,8 +257,8 @@ class ConvertSubviewPattern(RewritePattern):
                 head.name_hint = "subview"
 
         if head is not None:
-            offset = get_bytes_offset(head, element_type, rewriter)
-            pointer = get_offset_pointer(pointer, offset, rewriter)
+            offset = build_bytes_offset(head, element_type, rewriter)
+            pointer = build_offset_pointer(pointer, offset, rewriter)
 
         rewriter.replace_op(op, ptr.FromPtrOp(pointer, result_type))
 
@@ -411,8 +411,8 @@ class ConvertReinterpretCastOp(RewritePattern):
 
             # scale element offset to bytes and advance pointer
             element_type = op.result.type.element_type
-            byte_offset = get_bytes_offset(offset_val, element_type, rewriter)
-            pointer = get_offset_pointer(pointer, byte_offset, rewriter)
+            byte_offset = build_bytes_offset(offset_val, element_type, rewriter)
+            pointer = build_offset_pointer(pointer, byte_offset, rewriter)
         rewriter.replace_op(op, ptr.FromPtrOp(pointer, op.result.type))
 
 

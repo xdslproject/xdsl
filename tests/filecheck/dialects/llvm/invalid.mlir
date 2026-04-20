@@ -81,3 +81,25 @@ func.func @constant_op_rejects_invalid_prop() {
 }
 
 // CHECK: Unexpected attribute "invalid"
+
+// -----
+
+llvm.func @caller(%arg0: i32) -> i32 {
+  %0 = "llvm.call"(%arg0) <{callee = @unknown_fn, op_bundle_sizes = array<i32>, operandSegmentSizes = array<i32: 1, 0>}> : (i32) -> i32
+  llvm.return %0 : i32
+}
+
+// CHECK: '@unknown_fn' could not be found in symbol table
+
+// -----
+
+func.func @not_llvm_func(%arg0: i32) -> i32 {
+  func.return %arg0 : i32
+}
+
+llvm.func @caller(%arg0: i32) -> i32 {
+  %0 = "llvm.call"(%arg0) <{callee = @not_llvm_func, op_bundle_sizes = array<i32>, operandSegmentSizes = array<i32: 1, 0>}> : (i32) -> i32
+  llvm.return %0 : i32
+}
+
+// CHECK: '@not_llvm_func' must reference an 'llvm.func', but found 'func.func'
