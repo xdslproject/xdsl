@@ -231,6 +231,7 @@ class AttrParser(BaseParser):
         self,
         attr_name: str,
         is_type: bool,
+        is_opaque: bool,
         starting_opaque_pos: Position | None,
     ):
         """
@@ -240,12 +241,18 @@ class AttrParser(BaseParser):
                                     | `[` dialect-attr-contents+ `]`
                                     | `{` dialect-attr-contents+ `}`
                                     | [^[]<>(){}\0]+
-
-        ``starting_opaque_pos`` is set when the attribute uses the opaque
-        syntax (``#dialect<name ...>``), pointing to the first character
-        after the mnemonic.  ``None`` means the pretty syntax was used.
+        In the case where the attribute or type is using the opaque syntax,
+        the attribute or type mnemonic should have already been parsed.
         """
-        is_opaque = starting_opaque_pos is not None
+        pretty = "." in attr_name
+        if not pretty:
+            self.parse_punctuation("<")
+            attr_name += (
+                "."
+                + self._parse_token(
+                    MLIRTokenKind.BARE_IDENT, "Expected attribute name."
+                ).text
+            )
         if is_type:
             attr_def = self.ctx.get_optional_type(
                 attr_name,
@@ -256,24 +263,25 @@ class AttrParser(BaseParser):
             )
         if attr_def is None:
             self.raise_error(f"'{attr_name}' is not registered")
-
         if issubclass(attr_def, UnregisteredAttr):
             if starting_opaque_pos is not None:
                 gt_pos = self._raw_scan_balanced(starting_opaque_pos)
                 body = self.lexer.input.content[starting_opaque_pos:gt_pos]
                 self.lexer.pos = gt_pos
                 self._parser_state.current_token = self.lexer.lex()
-                return attr_def(attr_name, is_type, is_opaque, body)
-            if self._current_token.kind != MLIRTokenKind.LESS:
+            elif self._current_token.kind != MLIRTokenKind.LESS:
                 return attr_def(attr_name, is_type, is_opaque, "")
-            body_text = self._parse_dialect_symbol_body()
-            return attr_def(attr_name, is_type, is_opaque, body_text)
+            else:
+                body = self._parse_dialect_symbol_body()
+            return attr_def(attr_name, is_type, is_opaque, body)
 
-        if issubclass(attr_def, ParametrizedAttribute):
-            return attr_def.new(attr_def.parse_parameters(self))
+        elif issubclass(attr_def, ParametrizedAttribute):
+            param_list = attr_def.parse_parameters(self)
+            return attr_def.new(param_list)
         elif issubclass(attr_def, Data):
             _attr_def = cast(type[Data[Any]], attr_def)
-            return _attr_def(_attr_def.parse_parameter(self))
+            param = _attr_def.parse_parameter(self)
+            return _attr_def(param)
         else:
             raise TypeError("Attributes are either ParametrizedAttribute or Data.")
 
@@ -330,7 +338,7 @@ class AttrParser(BaseParser):
                 attr_or_dialect_name += "." + attr_name_token.text
 
         attr = self._parse_dialect_type_or_attribute_body(
-            attr_or_dialect_name, is_type, starting_opaque_pos
+            attr_or_dialect_name, is_type, not is_pretty_name, starting_opaque_pos
         )
 
         if not is_pretty_name:
