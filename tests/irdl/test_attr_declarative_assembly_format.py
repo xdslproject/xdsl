@@ -174,7 +174,9 @@ def print_attr(attr: Attribute) -> str:
     return output.getvalue()
 
 
-def check_roundtrip(attr_type: type[ParametrizedAttribute], body: str, ctx: Context) -> None:
+def check_roundtrip(
+    attr_type: type[ParametrizedAttribute], body: str, ctx: Context
+) -> None:
     """Parse !type<body>, print it, verify the body matches."""
     type_str = f"!{attr_type.name}<{body}>"
     parsed = parse_type(type_str, ctx)
@@ -182,7 +184,9 @@ def check_roundtrip(attr_type: type[ParametrizedAttribute], body: str, ctx: Cont
     assert printed == type_str, f"Round-trip failed: {printed!r} != {type_str!r}"
 
 
-def check_attr_roundtrip(attr_type: type[ParametrizedAttribute], body: str, ctx: Context) -> None:
+def check_attr_roundtrip(
+    attr_type: type[ParametrizedAttribute], body: str, ctx: Context
+) -> None:
     """Round-trip for #-prefixed attributes."""
     attr_str = f"#{attr_type.name}<{body}>"
     parsed = parse_attr(attr_str, ctx)
@@ -566,9 +570,7 @@ def test_error_assembly_format_with_parse_parameters():
             assembly_format = "$value"
 
             @classmethod
-            def parse_parameters(
-                cls, parser: AttrParser
-            ) -> list[Attribute]:
+            def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
                 return []
 
 

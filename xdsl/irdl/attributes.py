@@ -366,9 +366,7 @@ def irdl_param_attr_definition(cls: _PAttrTT) -> _PAttrTT:
             with parser.in_angle_brackets():
                 return program.parse(parser, attr_def)
 
-        def print_with_format(
-            self: ParametrizedAttribute, printer: "Printer"
-        ) -> None:
+        def print_with_format(self: ParametrizedAttribute, printer: "Printer") -> None:
             with printer.in_angle_brackets():
                 program.print(printer, self)
 
