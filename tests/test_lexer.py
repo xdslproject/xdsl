@@ -2,7 +2,7 @@ import pytest
 
 from xdsl.utils.exceptions import ParseError
 from xdsl.utils.lexer import Input, Position
-from xdsl.utils.mlir_lexer import AttrBodyLexer, MLIRLexer, MLIRToken, MLIRTokenKind
+from xdsl.utils.mlir_lexer import MLIRLexer, MLIRToken, MLIRTokenKind
 
 
 def get_token(input: str) -> MLIRToken:
@@ -270,48 +270,3 @@ def test_get_start_of_line(
     input = Input(START_END_LINE_CONTENT, "<>")
     assert input.get_start_of_line(pos) == expected_start
     assert input.get_end_of_line(pos) == expected_end
-
-
-def _get_all_tokens(lexer: MLIRLexer) -> list[MLIRToken]:
-    tokens: list[MLIRToken] = []
-    while True:
-        tok = lexer.lex()
-        tokens.append(tok)
-        if tok.kind == MLIRTokenKind.EOF:
-            break
-    return tokens
-
-
-def test_attr_body_lexer_slash():
-    """AttrBodyLexer produces SLASH tokens for /."""
-    inp = Input("a / b", "<>")
-    tokens = _get_all_tokens(AttrBodyLexer(inp))
-    kinds = [t.kind for t in tokens]
-    assert kinds == [
-        MLIRTokenKind.BARE_IDENT,
-        MLIRTokenKind.SLASH,
-        MLIRTokenKind.BARE_IDENT,
-        MLIRTokenKind.EOF,
-    ]
-
-
-def test_attr_body_lexer_double_slash():
-    """AttrBodyLexer treats // as two SLASH tokens, not a comment."""
-    inp = Input("a // b", "<>")
-    tokens = _get_all_tokens(AttrBodyLexer(inp))
-    kinds = [t.kind for t in tokens]
-    assert kinds == [
-        MLIRTokenKind.BARE_IDENT,
-        MLIRTokenKind.SLASH,
-        MLIRTokenKind.SLASH,
-        MLIRTokenKind.BARE_IDENT,
-        MLIRTokenKind.EOF,
-    ]
-
-
-def test_main_lexer_double_slash_is_comment():
-    """The main MLIRLexer treats // as a comment."""
-    inp = Input("a // b", "<>")
-    tokens = _get_all_tokens(MLIRLexer(inp))
-    kinds = [t.kind for t in tokens]
-    assert kinds == [MLIRTokenKind.BARE_IDENT, MLIRTokenKind.EOF]

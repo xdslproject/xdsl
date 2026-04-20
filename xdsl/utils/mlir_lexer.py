@@ -4,7 +4,7 @@ import re
 from dataclasses import dataclass
 from enum import Enum
 from string import hexdigits
-from typing import ClassVar, Literal, TypeAlias, TypeGuard, cast, overload
+from typing import Literal, TypeAlias, TypeGuard, cast, overload
 
 from xdsl.utils.exceptions import ParseError
 from xdsl.utils.lexer import Lexer, Position, Span, Token
@@ -27,7 +27,6 @@ PunctuationSpelling: TypeAlias = Literal[
     ")",
     "]",
     "*",
-    "/",
     "|",
     "{-#",
     "#-}",
@@ -166,7 +165,6 @@ class MLIRTokenKind(Enum):
     R_BRACE = "}"
     R_PAREN = ")"
     R_SQUARE = "]"
-    SLASH = "/"
     STAR = "*"
     VERTICAL_BAR = "|"
     FILE_METADATA_BEGIN = "{-#"
@@ -243,7 +241,6 @@ KIND_BY_PUNCTUATION_SPELLING = {
     ")": MLIRTokenKind.R_PAREN,
     "]": MLIRTokenKind.R_SQUARE,
     "*": MLIRTokenKind.STAR,
-    "/": MLIRTokenKind.SLASH,
     "|": MLIRTokenKind.VERTICAL_BAR,
     "{-#": MLIRTokenKind.FILE_METADATA_BEGIN,
     "#-}": MLIRTokenKind.FILE_METADATA_END,
@@ -255,23 +252,6 @@ MLIRToken = Token[MLIRTokenKind]
 
 @dataclass
 class MLIRLexer(Lexer[MLIRTokenKind]):
-    _single_char_punctuation: ClassVar[dict[str, MLIRTokenKind]] = {
-        ":": MLIRTokenKind.COLON,
-        ",": MLIRTokenKind.COMMA,
-        "(": MLIRTokenKind.L_PAREN,
-        ")": MLIRTokenKind.R_PAREN,
-        "}": MLIRTokenKind.R_BRACE,
-        "[": MLIRTokenKind.L_SQUARE,
-        "]": MLIRTokenKind.R_SQUARE,
-        "<": MLIRTokenKind.LESS,
-        ">": MLIRTokenKind.GREATER,
-        "=": MLIRTokenKind.EQUAL,
-        "+": MLIRTokenKind.PLUS,
-        "*": MLIRTokenKind.STAR,
-        "?": MLIRTokenKind.QUESTION,
-        "|": MLIRTokenKind.VERTICAL_BAR,
-    }
-
     def _is_in_bounds(self, size: Position = 1) -> bool:
         """
         Check if the current position is within the bounds of the input.
@@ -344,10 +324,24 @@ class MLIRLexer(Lexer[MLIRTokenKind]):
             return self._lex_bare_identifier(start_pos)
 
         # single-char punctuation that are not part of a multi-char token
-        if current_char in self._single_char_punctuation:
-            return self._form_token(
-                self._single_char_punctuation[current_char], start_pos
-            )
+        single_char_punctuation = {
+            ":": MLIRTokenKind.COLON,
+            ",": MLIRTokenKind.COMMA,
+            "(": MLIRTokenKind.L_PAREN,
+            ")": MLIRTokenKind.R_PAREN,
+            "}": MLIRTokenKind.R_BRACE,
+            "[": MLIRTokenKind.L_SQUARE,
+            "]": MLIRTokenKind.R_SQUARE,
+            "<": MLIRTokenKind.LESS,
+            ">": MLIRTokenKind.GREATER,
+            "=": MLIRTokenKind.EQUAL,
+            "+": MLIRTokenKind.PLUS,
+            "*": MLIRTokenKind.STAR,
+            "?": MLIRTokenKind.QUESTION,
+            "|": MLIRTokenKind.VERTICAL_BAR,
+        }
+        if current_char in single_char_punctuation:
+            return self._form_token(single_char_punctuation[current_char], start_pos)
 
         # '...'
         if current_char == ".":
@@ -551,22 +545,3 @@ class MLIRLexer(Lexer[MLIRTokenKind]):
         if match is not None:
             return self._form_token(MLIRTokenKind.FLOAT_LIT, start_pos)
         return self._form_token(MLIRTokenKind.INTEGER_LIT, start_pos)
-
-
-@dataclass
-class AttrBodyLexer(MLIRLexer):
-    """Lexer for attribute/type bodies that treats // as slash tokens, not comments.
-
-    This matches MLIR's behavior where the attribute body is extracted via raw
-    character scanning and then re-tokenized without comment handling.
-    """
-
-    _single_char_punctuation: ClassVar[dict[str, MLIRTokenKind]] = {
-        **MLIRLexer._single_char_punctuation,
-        "/": MLIRTokenKind.SLASH,
-    }
-
-    _whitespace_no_comments_regex = re.compile(r"\s*", re.ASCII)
-
-    def _consume_whitespace(self) -> None:
-        self._consume_regex(self._whitespace_no_comments_regex)

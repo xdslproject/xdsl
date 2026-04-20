@@ -78,7 +78,7 @@ from xdsl.utils.bitwise_casts import (
 from xdsl.utils.exceptions import ParseError, VerifyException
 from xdsl.utils.hints import isa
 from xdsl.utils.lexer import Position, Span
-from xdsl.utils.mlir_lexer import AttrBodyLexer, MLIRTokenKind, StringLiteral
+from xdsl.utils.mlir_lexer import MLIRTokenKind, StringLiteral
 
 from .base_parser import BaseParser  # noqa: TID251
 
@@ -115,18 +115,6 @@ class AttrParser(BaseParser):
     """
     Set of resource references encountered during parsing.
     """
-
-    _attr_body_lexer: AttrBodyLexer | None = field(default=None, init=False)
-
-    @property
-    def attr_body_lexer(self) -> AttrBodyLexer:
-        """
-        A cached AttrBodyLexer over the same input, for re-parsing
-        attribute bodies without comment handling.
-        """
-        if self._attr_body_lexer is None:
-            self._attr_body_lexer = AttrBodyLexer(self.lexer.input)
-        return self._attr_body_lexer
 
     def parse_optional_type(self) -> TypeAttribute | None:
         """
@@ -271,7 +259,6 @@ class AttrParser(BaseParser):
 
         if issubclass(attr_def, UnregisteredAttr):
             if starting_opaque_pos is not None:
-                # this is opaque
                 gt_pos = self._raw_scan_balanced(starting_opaque_pos)
                 body = self.lexer.input.content[starting_opaque_pos:gt_pos]
                 self.lexer.pos = gt_pos
@@ -282,24 +269,6 @@ class AttrParser(BaseParser):
             body_text = self._parse_dialect_symbol_body()
             return attr_def(attr_name, is_type, is_opaque, body_text)
 
-        # Registered attribute — swap to AttrBodyLexer (no // comments)
-        # so that slashes inside <...> are tokenized, not treated as comments.
-        # We resume from wherever parse_parameters stops, since some attributes
-        # (e.g. ComplexNumberAttr) parse beyond the closing '>'.
-        if self._current_token.kind == MLIRTokenKind.LESS:
-            lt_pos = self._current_token.span.start
-            old_lexer = self._parser_state.lexer
-            self._parser_state.lexer = self.attr_body_lexer
-            self._resume_from(lt_pos)
-            attr = self._dispatch_registered_attr(attr_def)
-            resume_pos = self._current_token.span.start
-            self._parser_state.lexer = old_lexer
-            self._resume_from(resume_pos)
-            return attr
-
-        return self._dispatch_registered_attr(attr_def)
-
-    def _dispatch_registered_attr(self, attr_def: type[Attribute]) -> Attribute:
         if issubclass(attr_def, ParametrizedAttribute):
             return attr_def.new(attr_def.parse_parameters(self))
         elif issubclass(attr_def, Data):
