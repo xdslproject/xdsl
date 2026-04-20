@@ -23,6 +23,7 @@ PunctuationSpelling: TypeAlias = Literal[
     "-",
     "+",
     "?",
+    "/",
     "}",
     ")",
     "]",
@@ -165,6 +166,7 @@ class MLIRTokenKind(Enum):
     R_BRACE = "}"
     R_PAREN = ")"
     R_SQUARE = "]"
+    SLASH = "/"
     STAR = "*"
     VERTICAL_BAR = "|"
     FILE_METADATA_BEGIN = "{-#"
@@ -240,6 +242,7 @@ KIND_BY_PUNCTUATION_SPELLING = {
     "}": MLIRTokenKind.R_BRACE,
     ")": MLIRTokenKind.R_PAREN,
     "]": MLIRTokenKind.R_SQUARE,
+    "/": MLIRTokenKind.SLASH,
     "*": MLIRTokenKind.STAR,
     "|": MLIRTokenKind.VERTICAL_BAR,
     "{-#": MLIRTokenKind.FILE_METADATA_BEGIN,
@@ -336,6 +339,7 @@ class MLIRLexer(Lexer[MLIRTokenKind]):
             ">": MLIRTokenKind.GREATER,
             "=": MLIRTokenKind.EQUAL,
             "+": MLIRTokenKind.PLUS,
+            "/": MLIRTokenKind.SLASH,
             "*": MLIRTokenKind.STAR,
             "?": MLIRTokenKind.QUESTION,
             "|": MLIRTokenKind.VERTICAL_BAR,
