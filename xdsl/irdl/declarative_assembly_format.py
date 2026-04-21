@@ -1698,6 +1698,40 @@ class QualifiedParameterVariable(ParameterVariable):
     """
 
 
+class AttrCustomDirective(AttrFormatDirective, ABC):
+    """A user defined assembly format directive for attribute/type formats.
+
+    Mirrors CustomDirective for operations. Custom directives can have
+    multiple parameters, whose types should be declared in the
+    `parameters` field.
+    """
+
+    parameters: ClassVar[dict[str, type[AttrFormatDirective]]]
+
+
+AttrCustomDirectiveInvT = TypeVar("AttrCustomDirectiveInvT", bound=AttrCustomDirective)
+
+
+def irdl_attr_custom_directive(
+    cls: type[AttrCustomDirectiveInvT],
+) -> type[AttrCustomDirectiveInvT]:
+    """Decorator used on custom attr directives to define the `parameters`
+    class variable."""
+
+    cls.parameters = {}
+    param_types = inspect.get_annotations(cls, eval_str=True)
+    for field_name, ty in param_types.items():
+        if is_const_classvar(field_name, ty, PyRDLError):
+            continue
+        if not issubclass(ty, AttrFormatDirective):
+            raise PyRDLError(
+                f"Custom attr directive {cls.__name__} has parameter "
+                f"{field_name} which is not an attr format directive."
+            )
+        cls.parameters[field_name] = ty
+    return dataclass(frozen=True)(cls)
+
+
 @dataclass(frozen=True)
 class ParamsDirective(AttrFormatDirective):
     """Captures all parameters of an attribute, printed comma-separated."""

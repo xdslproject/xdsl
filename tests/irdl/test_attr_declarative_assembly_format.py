@@ -16,7 +16,14 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.ir import Attribute, ParametrizedAttribute, TypeAttribute
 from xdsl.irdl import ParamAttrDef, irdl_attr_definition, param_def
-from xdsl.irdl.declarative_assembly_format import AttrFormatProgram
+from xdsl.irdl.declarative_assembly_format import (
+    AttrCustomDirective,
+    AttrFormatProgram,
+    AttrParsingState,
+    ParameterVariable,
+    PrintingState,
+    irdl_attr_custom_directive,
+)
 from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import ParseError, PyRDLAttrDefinitionError
@@ -684,6 +691,57 @@ def test_struct_optional_param():
     ctx.load_attr_or_type(StructOptType)
     check_roundtrip(StructOptType, "req = i32, opt = i64", ctx)
     check_roundtrip(StructOptType, "req = i32", ctx)
+
+
+# ============================================================================
+# Integration tests — custom directive
+# ============================================================================
+
+
+def test_custom_directive():
+    """Custom directive with two parameters."""
+
+    @irdl_attr_custom_directive
+    class SwapDirective(AttrCustomDirective):
+        """Prints two parameters in reversed order."""
+
+        first: ParameterVariable
+        second: ParameterVariable
+
+        def parse(self, parser: AttrParser, state: AttrParsingState) -> bool:
+            self.second.parse(parser, state)
+            parser.parse_punctuation(",")
+            self.first.parse(parser, state)
+            return True
+
+        def print(
+            self,
+            printer: Printer,
+            state: PrintingState,
+            attr: ParametrizedAttribute,
+            /,
+        ) -> None:
+            self.second.print(printer, state, attr)
+            printer.print_string(", ")
+            state.should_emit_space = False
+            state.last_was_punctuation = True
+            self.first.print(printer, state, attr)
+
+    @irdl_attr_definition
+    class CustomType(ParametrizedAttribute, TypeAttribute):
+        name = "test_af.custom"
+        a: IntegerType = param_def()
+        b: IntegerType = param_def()
+        assembly_format = "custom<SwapDirective>($a, $b)"
+        custom_directives = (SwapDirective,)
+
+    ctx = Context(allow_unregistered=True)
+    ctx.load_attr_or_type(CustomType)
+    attr = CustomType(i32, i64)
+    printed = print_attr(attr)
+    assert printed == "!test_af.custom<i64, i32>"
+    parsed = parse_type(printed, ctx)
+    assert parsed == attr
 
 
 # ============================================================================
