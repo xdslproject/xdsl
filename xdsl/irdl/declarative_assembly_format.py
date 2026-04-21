@@ -1734,6 +1734,56 @@ class ParamsDirective(AttrFormatDirective):
 
 
 @dataclass(frozen=True)
+class StructDirective(AttrFormatDirective):
+    """Prints parameters as key = value pairs, parseable in any order."""
+
+    params: tuple[ParameterVariable, ...]
+
+    def parse(self, parser: AttrParser, state: AttrParsingState) -> bool:
+        remaining = {pv.name: pv for pv in self.params}
+        first = True
+        while remaining:
+            if not first:
+                if not parser.parse_optional_punctuation(","):
+                    break
+            name = parser.parse_optional_identifier()
+            if name is None:
+                if first:
+                    break
+                parser.raise_error("expected parameter name in struct")
+            first = False
+            if name not in remaining:
+                parser.raise_error(
+                    f"unexpected parameter '{name}', "
+                    f"expected one of {list(remaining.keys())}"
+                )
+            parser.parse_punctuation("=")
+            remaining[name].parse(parser, state)
+            del remaining[name]
+        for pv in remaining.values():
+            if pv.is_optional:
+                pv.set_empty(state)
+            else:
+                parser.raise_error(f"missing required parameter '{pv.name}' in struct")
+        return True
+
+    def print(
+        self, printer: Printer, state: PrintingState, attr: ParametrizedAttribute, /
+    ) -> None:
+        first = True
+        for pv in self.params:
+            if not pv.is_present(attr):
+                continue
+            if not first:
+                printer.print_string(", ")
+            first = False
+            printer.print_string(f"{pv.name} = ")
+            state.should_emit_space = False
+            state.last_was_punctuation = True
+            pv.print(printer, state, attr)
+
+
+@dataclass(frozen=True)
 class AttrOptionalGroupDirective(AttrFormatDirective):
     """An optional group in attribute assembly format."""
 
