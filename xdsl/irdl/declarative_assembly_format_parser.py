@@ -1111,7 +1111,7 @@ class AttrFormatParser(BaseParser):
             for i, (field_name, ty) in enumerate(param_types.items()):
                 if i:
                     self.parse_punctuation(",")
-                param = self.parse_variable()
+                param = self.parse_possible_ref_directive()
                 if not isinstance(param, ty):
                     self.raise_error(
                         f"{name}.{field_name} was expected to be of type "
@@ -1119,3 +1119,10 @@ class AttrFormatParser(BaseParser):
                     )
                 params.append(param)
         return directive(*params)
+
+    def parse_possible_ref_directive(self) -> AttrFormatDirective:
+        """Parse a ref directive or variable: `ref` `(` `$var` `)` | `$var`."""
+        if self.parse_optional_keyword("ref"):
+            with self.in_parens():
+                return self.parse_variable(inside_ref=True)
+        return self.parse_variable()

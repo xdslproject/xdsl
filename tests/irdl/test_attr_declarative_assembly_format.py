@@ -745,6 +745,52 @@ def test_custom_directive():
 
 
 # ============================================================================
+# Integration tests — ref directive
+# ============================================================================
+
+
+def test_ref_directive_in_custom():
+    """ref($x) allows re-using a parameter without re-binding it."""
+
+    @irdl_attr_custom_directive
+    class PrintTwiceDirective(AttrCustomDirective):
+        """Prints a parameter, then prints a ref of it again."""
+
+        value: ParameterVariable
+        value_ref: ParameterVariable
+
+        def parse(self, parser: AttrParser, state: AttrParsingState) -> bool:
+            self.value.parse(parser, state)
+            parser.parse_punctuation(",")
+            parser.parse_attribute()
+            return True
+
+        def print(
+            self,
+            printer: Printer,
+            state: PrintingState,
+            attr: ParametrizedAttribute,
+            /,
+        ) -> None:
+            self.value.print(printer, state, attr)
+            printer.print_string(", ")
+            state.should_emit_space = False
+            state.last_was_punctuation = True
+            self.value_ref.print(printer, state, attr)
+
+    @irdl_attr_definition
+    class RefType(ParametrizedAttribute, TypeAttribute):
+        name = "test_af.ref"
+        a: IntegerType = param_def()
+        assembly_format = "custom<PrintTwiceDirective>($a, ref($a))"
+        custom_directives = (PrintTwiceDirective,)
+
+    attr = RefType(i32)
+    printed = print_attr(attr)
+    assert printed == "!test_af.ref<i32, i32>"
+
+
+# ============================================================================
 # Integration tests — printing correctness
 # ============================================================================
 
