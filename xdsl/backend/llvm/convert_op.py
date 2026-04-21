@@ -1,4 +1,5 @@
 from collections.abc import Callable
+from typing import cast
 
 from llvmlite import ir
 from llvmlite.ir import instructions
@@ -8,9 +9,16 @@ from llvmlite.ir.values import Block as LLVMBlock
 from llvmlite.ir.values import Value
 
 from xdsl.backend.llvm.convert_type import convert_type
-from xdsl.dialects import llvm
+from xdsl.dialects import llvm, vector
+from xdsl.dialects.builtin import (
+    AnyFloat,
+    DenseIntOrFPElementsAttr,
+    FloatAttr,
+    IntegerAttr,
+)
 from xdsl.dialects.vector import FMAOp
-from xdsl.ir import Block, Operation, SSAValue
+from xdsl.ir import Attribute, Block, Operation, SSAValue
+from xdsl.utils.type import get_element_type_or_self
 
 _BINARY_OP_MAP: dict[
     type[Operation], Callable[[ir.IRBuilder], Callable[[ir.Value, ir.Value], ir.Value]]
@@ -212,12 +220,18 @@ def _convert_call(
     if op.callee is None:
         raise NotImplementedError("Indirect calls not yet implemented")
     callee = builder.module.get_global(op.callee.string_value())
+    fastmath = (
+        [f.value for f in op.fastmathFlags.data]
+        if op.returned is not None
+        and isinstance(get_element_type_or_self(op.returned.type), AnyFloat)
+        else []
+    )
     instruction = builder.call(
         callee,
         args,
         cconv=op.CConv.cconv_name,
         tail=op.TailCallKind.data != "none",
-        fastmath=[f.value for f in op.fastmathFlags.data],
+        fastmath=fastmath,
     )
     if op.returned:
         val_map[op.returned] = instruction
@@ -379,16 +393,46 @@ def _convert_return(
         builder.ret_void()
 
 
-def _convert_null(
-    op: llvm.NullOp, builder: ir.IRBuilder, val_map: dict[SSAValue, ir.Value]
-):
-    val_map[op.nullptr] = ir.Constant(convert_type(op.nullptr.type), None)
-
-
 def _convert_addressof(
     op: llvm.AddressOfOp, builder: ir.IRBuilder, val_map: dict[SSAValue, ir.Value]
 ):
     val_map[op.result] = builder.module.get_global(op.global_name.root_reference.data)
+
+
+def _convert_broadcast(
+    op: vector.BroadcastOp,
+    builder: ir.IRBuilder,
+    val_map: dict[SSAValue, ir.Value],
+):
+    source_val = val_map[op.source]
+    vec_type = convert_type(op.vector.type)
+    n_lanes = op.vector.type.get_shape()[0]
+    undef = ir.Constant(vec_type, ir.Undefined)
+    inserted = builder.insert_element(undef, source_val, ir.Constant(ir.IntType(32), 0))
+    mask = ir.Constant(ir.VectorType(ir.IntType(32), n_lanes), [0] * n_lanes)
+    val_map[op.vector] = builder.shuffle_vector(inserted, undef, mask)
+
+
+_CONSTANT_VALUE_MAP: dict[type[Attribute], Callable[[Attribute], object]] = {
+    DenseIntOrFPElementsAttr: lambda v: list(
+        cast(DenseIntOrFPElementsAttr, v).iter_values()
+    ),
+    IntegerAttr: lambda v: cast(IntegerAttr, v).value.data,
+    FloatAttr: lambda v: cast(FloatAttr, v).value.data,
+}
+
+
+def _convert_constant(
+    op: llvm.ConstantOp, builder: ir.IRBuilder, val_map: dict[SSAValue, ir.Value]
+):
+    value = op.value
+    try:
+        handler = _CONSTANT_VALUE_MAP[type(value)]
+    except KeyError:
+        raise NotImplementedError(
+            f"Unsupported constant attribute type: {type(value)}"
+        ) from None
+    val_map[op.result] = ir.Constant(convert_type(op.result.type), handler(value))
 
 
 def convert_op(
@@ -462,11 +506,15 @@ def convert_op(
             _convert_masked_store(op, builder, val_map)
         case llvm.ReturnOp():
             _convert_return(op, builder, val_map)
-        case llvm.NullOp():
-            _convert_null(op, builder, val_map)
+        case llvm.ZeroOp():
+            val_map[op.res] = ir.Constant(convert_type(op.res.type), None)
         case llvm.AddressOfOp():
             _convert_addressof(op, builder, val_map)
         case FMAOp():
             _convert_fma(op, builder, val_map)
+        case vector.BroadcastOp():
+            _convert_broadcast(op, builder, val_map)
+        case llvm.ConstantOp():
+            _convert_constant(op, builder, val_map)
         case _:
             raise NotImplementedError(f"Conversion not implemented for op: {op.name}")

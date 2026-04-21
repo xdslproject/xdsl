@@ -1,46 +1,45 @@
-
-name-template: 'v$NEXT_PATCH_VERSION'
-tag-template: 'v$NEXT_PATCH_VERSION'
+name-template: "v$NEXT_PATCH_VERSION"
+tag-template: "v$NEXT_PATCH_VERSION"
 categories:
-  - title: '⚠Breaking Changes⚠'
-    label: 'breaking'
-  - title: 'xDSL framework'
-    label: 'core'
-  - title: 'Frontend'
-    label: 'frontend'
-  - title: 'Dialects'
-    label: 'dialects'
-  - title: 'Transformations'
-    label: 'transformations'
-  - title: 'Backend'
-    label: 'backend'
-  - title: 'Benchmarking'
-    label: 'bench'
-  - title: 'Interpreter'
-    label: 'interpreter'
-  - title: '🗎 Documentation'
-    label: 'documentation'
-  - title: '🐛 Bug Fixes'
-    label: 'bug'
-  - title: 'Testing'
-    label: 'testing'
-  - title: 'Continuous Integration'
-    label: 'CI'
-  - title: 'Installation'
-    label: 'installation'
-  - title: 'Dependencies'
-    label: 'dependencies'
-  - title: 'Miscellaneous'
+  - title: "⚠Breaking Changes⚠"
+    label: "breaking"
+  - title: "xDSL framework"
+    label: "core"
+  - title: "Frontend"
+    label: "frontend"
+  - title: "Dialects"
+    label: "dialects"
+  - title: "Transformations"
+    label: "transformations"
+  - title: "Backend"
+    label: "backend"
+  - title: "Benchmarking"
+    label: "bench"
+  - title: "Interpreter"
+    label: "interpreter"
+  - title: "🗎 Documentation"
+    label: "documentation"
+  - title: "🐛 Bug Fixes"
+    label: "bug"
+  - title: "Testing"
+    label: "testing"
+  - title: "Continuous Integration"
+    label: "CI"
+  - title: "Installation"
+    label: "installation"
+  - title: "Dependencies"
+    label: "dependencies"
+  - title: "Miscellaneous"
     labels:
-      - 'minor'
-      - 'misc'
-  - title: 'Interactive'
-    label: 'interactive'
-  - title: 'Rewriting'
-    label: 'rewriting'
-  - title: 'Tool'
-    label: 'tool'
-change-template: '- $TITLE @$AUTHOR (#$NUMBER)'
+      - "minor"
+      - "misc"
+  - title: "Interactive"
+    label: "interactive"
+  - title: "Rewriting"
+    label: "rewriting"
+  - title: "Tool"
+    label: "tool"
+change-template: "- $TITLE @$AUTHOR (#$NUMBER)"
 template: |
   ## Changes
   $CHANGES

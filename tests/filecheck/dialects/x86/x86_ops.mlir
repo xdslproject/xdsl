@@ -590,6 +590,28 @@ x86.ms.vmovntps [%1 + 8], %zmm1 : (!x86.reg64, !x86.avx512reg) -> ()
 %shuf_res = x86.dssi.shufps %zmm1, %zmm2, 170 : (!x86.avx512reg, !x86.avx512reg) -> !x86.avx512reg
 // CHECK: %shuf_res = x86.dssi.shufps %zmm1, %zmm2, 170 : (!x86.avx512reg, !x86.avx512reg) -> !x86.avx512reg
 
+// ---- kmov -----
+
+%ks_kmovb = x86.ks.kmovb %0 : (!x86.reg64) -> !x86.avx512maskreg
+// CHECK-NEXT: %ks_kmovb = x86.ks.kmovb %0 : (!x86.reg64) -> !x86.avx512maskreg
+%dk_kmovb = x86.dk.kmovb %ks_kmovb : (!x86.avx512maskreg) -> !x86.reg64
+// CHECK-NEXT: %dk_kmovb = x86.dk.kmovb %ks_kmovb : (!x86.avx512maskreg) -> !x86.reg64
+
+%ks_kmovw = x86.ks.kmovw %0 : (!x86.reg64) -> !x86.avx512maskreg
+// CHECK-NEXT: %ks_kmovw = x86.ks.kmovw %0 : (!x86.reg64) -> !x86.avx512maskreg
+%dk_kmovw = x86.dk.kmovw %ks_kmovw : (!x86.avx512maskreg) -> !x86.reg64
+// CHECK-NEXT: %dk_kmovw = x86.dk.kmovw %ks_kmovw : (!x86.avx512maskreg) -> !x86.reg64
+
+%ks_kmovd = x86.ks.kmovd %0 : (!x86.reg64) -> !x86.avx512maskreg
+// CHECK-NEXT: %ks_kmovd = x86.ks.kmovd %0 : (!x86.reg64) -> !x86.avx512maskreg
+%dk_kmovd = x86.dk.kmovd %ks_kmovd : (!x86.avx512maskreg) -> !x86.reg64
+// CHECK-NEXT: %dk_kmovd = x86.dk.kmovd %ks_kmovd : (!x86.avx512maskreg) -> !x86.reg64
+
+%ks_kmovq = x86.ks.kmovq %0 : (!x86.reg64) -> !x86.avx512maskreg
+// CHECK-NEXT: %ks_kmovq = x86.ks.kmovq %0 : (!x86.reg64) -> !x86.avx512maskreg
+%dk_kmovq = x86.dk.kmovq %ks_kmovq : (!x86.avx512maskreg) -> !x86.reg64
+// CHECK-NEXT: %dk_kmovq = x86.dk.kmovq %ks_kmovq : (!x86.avx512maskreg) -> !x86.reg64
+
 // ---- pmov ----
 
 %mov_int_a, %mov_int_b, %mov_sse_a, %mov_sse_b = x86.parallel_mov %0, %1, %xmm0, %xmm1 : (!x86.reg64, !x86.reg64, !x86.ssereg, !x86.ssereg) -> (!x86.reg64, !x86.reg64, !x86.ssereg, !x86.ssereg)

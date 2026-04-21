@@ -24,10 +24,10 @@ def test_convert_indirect_call_raises():
         convert_op(op, builder, val_map)
 
 
-def test_convert_null():
-    op = llvm.NullOp(llvm.LLVMPointerType())
+def test_convert_zero():
+    op = llvm.ZeroOp.create(result_types=[llvm.LLVMPointerType()])
     val_map: dict[SSAValue, Any] = {}
 
     convert_op(op, MagicMock(), val_map)
 
-    assert str(val_map[op.nullptr]) == "ptr null"
+    assert str(val_map[op.res]) == "ptr null"

@@ -80,6 +80,8 @@ from xdsl.traits import (
     Pure,
     SameOperandsAndResultType,
     SymbolOpInterface,
+    SymbolTable,
+    SymbolUserOpInterface,
 )
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
@@ -1703,6 +1705,8 @@ class FuncOp(IRDLOperation):
     tune_cpu = opt_prop_def(StringAttr)
     unnamed_addr = opt_prop_def(IntegerAttr)
 
+    traits = traits_def(SymbolOpInterface())
+
     def __init__(
         self,
         sym_name: str | StringAttr,
@@ -1993,6 +1997,32 @@ class CallIntrinsicOp(IRDLOperation):
         )
 
 
+class CallOpSymbolUserOpInterface(SymbolUserOpInterface):
+    """
+    Verifies that a direct `llvm.call` resolves to an `llvm.func` in the enclosing
+    symbol table. Indirect calls (no `callee` symbol) are skipped.
+
+    Mirrors MLIR's `LLVM::CallOp::verifySymbolUses`:
+    https://github.com/llvm/llvm-project/blob/main/mlir/lib/Dialect/LLVMIR/IR/LLVMDialect.cpp
+    """
+
+    def verify(self, op: Operation) -> None:
+        assert isinstance(op, CallOp)
+
+        if op.callee is None:
+            return
+
+        found_callee = SymbolTable.lookup_symbol(op, op.callee)
+        if not found_callee:
+            raise VerifyException(f"'{op.callee}' could not be found in symbol table")
+
+        if not isinstance(found_callee, FuncOp):
+            raise VerifyException(
+                f"'{op.callee}' must reference an 'llvm.func', "
+                f"but found '{found_callee.name}'"
+            )
+
+
 @irdl_op_definition
 class CallOp(IRDLOperation):
     name = "llvm.call"
@@ -2012,6 +2042,8 @@ class CallOp(IRDLOperation):
         TailCallKindAttr, default_value=TailCallKindAttr(TailCallKind.NONE)
     )
     returned = opt_result_def()
+
+    traits = traits_def(CallOpSymbolUserOpInterface())
 
     irdl_options = (AttrSizedOperandSegments(as_property=True),)
 

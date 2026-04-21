@@ -14,12 +14,20 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v6
-    - name: Install Nix
-      uses: cachix/install-nix-action@v31
-      with:
-        github_access_token: ${{ secrets.GITHUB_TOKEN }}
-    - name: Build venv
-      run: nix develop --command make venv
-    - name: Run tests
-      run: nix develop --command make tests
+      - uses: actions/checkout@v6
+      - name: Install Nix
+        uses: cachix/install-nix-action@v31
+        with:
+          github_access_token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Cache uv packages
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/uv
+          key: uv-nix-${{ hashFiles('uv.lock') }}
+          restore-keys: uv-nix-
+      - name: Build venv
+        run: nix develop --command make venv
+      - name: Run tests
+        run: nix develop --command make tests
+      - name: Prune uv cache
+        run: nix develop --command uv cache prune --ci

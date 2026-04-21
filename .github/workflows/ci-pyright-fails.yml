@@ -48,3 +48,6 @@ jobs:
         with:
           version: PATH
           venv-path: .venv
+
+      - name: Prune uv cache
+        run: uv cache prune --ci
