@@ -954,6 +954,8 @@ class AttrFormatParser(BaseParser):
             return self.parse_params_directive()
         if self.parse_optional_keyword("struct"):
             return self.parse_struct_directive()
+        if self.parse_optional_keyword("custom"):
+            return self.parse_attr_custom_directive()
         self.raise_error(f"unexpected token '{self._current_token.text}'")
 
     def parse_variable(self, inside_ref: bool = False) -> ParameterVariable:
@@ -1095,3 +1097,25 @@ class AttrFormatParser(BaseParser):
 
     def parse_struct_directive(self) -> StructDirective:
         return StructDirective(self._parse_struct_variables())
+
+    def parse_attr_custom_directive(self) -> AttrFormatDirective:
+        """Parse `custom` `<` name `>` `(` args `)` for attr format."""
+        with self.in_angle_brackets():
+            name = self.parse_identifier()
+            if name not in self.attr_def.custom_directives:
+                self.raise_error(f"Custom attr directive '{name}' cannot be found.")
+        directive = self.attr_def.custom_directives[name]
+        param_types = directive.parameters
+        params: list[AttrFormatDirective] = []
+        with self.in_parens():
+            for i, (field_name, ty) in enumerate(param_types.items()):
+                if i:
+                    self.parse_punctuation(",")
+                param = self.parse_variable()
+                if not isinstance(param, ty):
+                    self.raise_error(
+                        f"{name}.{field_name} was expected to be of type "
+                        f"{ty.__name__}, but got {type(param).__name__}"
+                    )
+                params.append(param)
+        return directive(*params)
