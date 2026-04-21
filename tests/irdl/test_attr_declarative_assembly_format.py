@@ -9,6 +9,7 @@ import pytest
 from xdsl.context import Context
 from xdsl.dialects.builtin import (
     IntegerType,
+    NoneAttr,
     i1,
     i32,
     i64,
@@ -130,6 +131,22 @@ class ThreeParamType(ParametrizedAttribute, TypeAttribute):
     assembly_format = "$a `,` $b `,` $c"
 
 
+@irdl_attr_definition
+class OptionalParamType(ParametrizedAttribute, TypeAttribute):
+    name = "test_af.optional_param"
+    value: IntegerType = param_def()
+    opt: IntegerType | NoneAttr = param_def()
+    assembly_format = "$value (`,` $opt^)?"
+
+
+@irdl_attr_definition
+class ElseBranchType(ParametrizedAttribute, TypeAttribute):
+    name = "test_af.else_branch"
+    a: IntegerType | NoneAttr = param_def()
+    b: IntegerType | NoneAttr = param_def()
+    assembly_format = "($a^) : (`fallback` $b)?"
+
+
 # ============================================================================
 # Unit test helpers (call AttrFormatProgram directly, no @irdl_attr_definition)
 # ============================================================================
@@ -229,6 +246,8 @@ def ctx() -> Context:
     ctx.load_attr_or_type(PairType)
     ctx.load_attr_or_type(PairAttr)
     ctx.load_attr_or_type(ThreeParamType)
+    ctx.load_attr_or_type(OptionalParamType)
+    ctx.load_attr_or_type(ElseBranchType)
     return ctx
 
 
@@ -472,6 +491,58 @@ def test_whitespace_newline():
     attr = NewlineType(i32, i64)
     printed = print_attr(attr)
     assert printed == "!test_af.newline<i32\ni64>"
+
+
+# ============================================================================
+# Integration tests — optional groups
+# ============================================================================
+
+
+@pytest.mark.parametrize("body", ["i32, i64", "i32"])
+def test_optional_param_roundtrip(body: str, ctx: Context):
+    check_roundtrip(OptionalParamType, body, ctx)
+
+
+def test_optional_param_present_constructs(ctx: Context):
+    parsed = parse_type("!test_af.optional_param<i32, i64>", ctx)
+    assert isinstance(parsed, OptionalParamType)
+    assert parsed.value == i32
+    assert parsed.opt == i64
+
+
+def test_optional_param_absent_constructs(ctx: Context):
+    parsed = parse_type("!test_af.optional_param<i32>", ctx)
+    assert isinstance(parsed, OptionalParamType)
+    assert parsed.value == i32
+    assert isinstance(parsed.opt, NoneAttr)
+
+
+def test_else_branch_then(ctx: Context):
+    check_roundtrip(ElseBranchType, "i32", ctx)
+
+
+def test_else_branch_else(ctx: Context):
+    check_roundtrip(ElseBranchType, "fallback i64", ctx)
+
+
+def test_else_branch_then_constructs(ctx: Context):
+    parsed = parse_type("!test_af.else_branch<i32>", ctx)
+    assert isinstance(parsed, ElseBranchType)
+    assert parsed.a == i32
+    assert isinstance(parsed.b, NoneAttr)
+
+
+@pytest.mark.parametrize(
+    "attr, expected",
+    [
+        (OptionalParamType(i32, i64), "!test_af.optional_param<i32, i64>"),
+        (OptionalParamType(i32, NoneAttr()), "!test_af.optional_param<i32>"),
+        (ElseBranchType(i32, NoneAttr()), "!test_af.else_branch<i32>"),
+        (ElseBranchType(NoneAttr(), i64), "!test_af.else_branch<fallback i64>"),
+    ],
+)
+def test_optional_print_correctness(attr: Attribute, expected: str):
+    assert print_attr(attr) == expected
 
 
 # ============================================================================
