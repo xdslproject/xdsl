@@ -617,6 +617,76 @@ def test_params_with_optional():
 
 
 # ============================================================================
+# Integration tests — struct directive
+# ============================================================================
+
+
+def test_struct_all_params():
+    """struct(params) prints all params as key=value pairs."""
+
+    @irdl_attr_definition
+    class StructAllType(ParametrizedAttribute, TypeAttribute):
+        name = "test_af.struct_all"
+        x: IntegerType = param_def()
+        y: IntegerType = param_def()
+        assembly_format = "struct(params)"
+
+    ctx = Context(allow_unregistered=True)
+    ctx.load_attr_or_type(StructAllType)
+    check_roundtrip(StructAllType, "x = i32, y = i64", ctx)
+
+
+def test_struct_subset():
+    """struct($a, $b) with a subset of parameters."""
+
+    @irdl_attr_definition
+    class StructSubType(ParametrizedAttribute, TypeAttribute):
+        name = "test_af.struct_sub"
+        a: IntegerType = param_def()
+        b: IntegerType = param_def()
+        c: IntegerType = param_def()
+        assembly_format = "struct($a, $b) `,` $c"
+
+    ctx = Context(allow_unregistered=True)
+    ctx.load_attr_or_type(StructSubType)
+    check_roundtrip(StructSubType, "a = i32, b = i64, i1", ctx)
+
+
+def test_struct_reordered_parse():
+    """Struct fields can be parsed in any order."""
+
+    @irdl_attr_definition
+    class StructReorderType(ParametrizedAttribute, TypeAttribute):
+        name = "test_af.struct_reorder"
+        a: IntegerType = param_def()
+        b: IntegerType = param_def()
+        assembly_format = "struct(params)"
+
+    ctx = Context(allow_unregistered=True)
+    ctx.load_attr_or_type(StructReorderType)
+    parsed = parse_type("!test_af.struct_reorder<b = i64, a = i32>", ctx)
+    assert isinstance(parsed, StructReorderType)
+    assert parsed.a == i32
+    assert parsed.b == i64
+
+
+def test_struct_optional_param():
+    """Struct with optional parameter omitted."""
+
+    @irdl_attr_definition
+    class StructOptType(ParametrizedAttribute, TypeAttribute):
+        name = "test_af.struct_opt"
+        req: IntegerType = param_def()
+        opt: IntegerType | NoneAttr = param_def()
+        assembly_format = "struct(params)"
+
+    ctx = Context(allow_unregistered=True)
+    ctx.load_attr_or_type(StructOptType)
+    check_roundtrip(StructOptType, "req = i32, opt = i64", ctx)
+    check_roundtrip(StructOptType, "req = i32", ctx)
+
+
+# ============================================================================
 # Integration tests — printing correctness
 # ============================================================================
 

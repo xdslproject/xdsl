@@ -77,6 +77,7 @@ from xdsl.irdl.declarative_assembly_format import (
     RegionVariable,
     ResultsDirective,
     ResultVariable,
+    StructDirective,
     SuccessorDirective,
     SuccessorVariable,
     SymbolNameAttributeVariable,
@@ -951,6 +952,8 @@ class AttrFormatParser(BaseParser):
             return self.parse_qualified_directive()
         if self.parse_optional_keyword("params"):
             return self.parse_params_directive()
+        if self.parse_optional_keyword("struct"):
+            return self.parse_struct_directive()
         self.raise_error(f"unexpected token '{self._current_token.text}'")
 
     def parse_variable(self, inside_ref: bool = False) -> ParameterVariable:
@@ -1078,3 +1081,17 @@ class AttrFormatParser(BaseParser):
 
     def parse_params_directive(self) -> ParamsDirective:
         return ParamsDirective(self._all_param_variables())
+
+    def _parse_struct_variables(self) -> tuple[ParameterVariable, ...]:
+        """Parse the argument list for struct(): either `params` or `$a, $b, ...`."""
+        with self.in_parens():
+            if self.parse_optional_keyword("params"):
+                return self._all_param_variables()
+            params: list[ParameterVariable] = []
+            params.append(self.parse_variable())
+            while self.parse_optional_punctuation(","):
+                params.append(self.parse_variable())
+            return tuple(params)
+
+    def parse_struct_directive(self) -> StructDirective:
+        return StructDirective(self._parse_struct_variables())
