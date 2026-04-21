@@ -565,6 +565,58 @@ def test_qualified_roundtrip():
 
 
 # ============================================================================
+# Integration tests — params directive
+# ============================================================================
+
+
+def test_params_directive_roundtrip():
+    """params captures all parameters, printed comma-separated."""
+
+    @irdl_attr_definition
+    class ParamsType(ParametrizedAttribute, TypeAttribute):
+        name = "test_af.params_all"
+        a: IntegerType = param_def()
+        b: IntegerType = param_def()
+        assembly_format = "params"
+
+    ctx = Context(allow_unregistered=True)
+    ctx.load_attr_or_type(ParamsType)
+    check_roundtrip(ParamsType, "i32, i64", ctx)
+
+
+def test_params_directive_three_params():
+    """params with three parameters."""
+
+    @irdl_attr_definition
+    class Params3Type(ParametrizedAttribute, TypeAttribute):
+        name = "test_af.params3"
+        a: IntegerType = param_def()
+        b: IntegerType = param_def()
+        c: IntegerType = param_def()
+        assembly_format = "params"
+
+    ctx = Context(allow_unregistered=True)
+    ctx.load_attr_or_type(Params3Type)
+    check_roundtrip(Params3Type, "i1, i32, i64", ctx)
+
+
+def test_params_with_optional():
+    """params with optional parameter omitted."""
+
+    @irdl_attr_definition
+    class ParamsOptType(ParametrizedAttribute, TypeAttribute):
+        name = "test_af.params_opt"
+        req: IntegerType = param_def()
+        opt: IntegerType | NoneAttr = param_def()
+        assembly_format = "params"
+
+    ctx = Context(allow_unregistered=True)
+    ctx.load_attr_or_type(ParamsOptType)
+    check_roundtrip(ParamsOptType, "i32, i64", ctx)
+    check_roundtrip(ParamsOptType, "i32", ctx)
+
+
+# ============================================================================
 # Integration tests — printing correctness
 # ============================================================================
 

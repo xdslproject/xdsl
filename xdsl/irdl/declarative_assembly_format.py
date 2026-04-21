@@ -1699,6 +1699,41 @@ class QualifiedParameterVariable(ParameterVariable):
 
 
 @dataclass(frozen=True)
+class ParamsDirective(AttrFormatDirective):
+    """Captures all parameters of an attribute, printed comma-separated."""
+
+    params: tuple[ParameterVariable, ...]
+
+    def parse(self, parser: AttrParser, state: AttrParsingState) -> bool:
+        non_optional = [p for p in self.params if not p.is_optional]
+        optional = [p for p in self.params if p.is_optional]
+        for i, pv in enumerate(non_optional):
+            if i:
+                parser.parse_punctuation(",")
+            pv.parse(parser, state)
+        for pv in optional:
+            if not parser.parse_optional_punctuation(","):
+                pv.set_empty(state)
+                continue
+            pv.parse(parser, state)
+        return True
+
+    def print(
+        self, printer: Printer, state: PrintingState, attr: ParametrizedAttribute, /
+    ) -> None:
+        first = True
+        for pv in self.params:
+            if not pv.is_present(attr):
+                continue
+            if not first:
+                printer.print_string(", ")
+                state.should_emit_space = False
+                state.last_was_punctuation = True
+            first = False
+            pv.print(printer, state, attr)
+
+
+@dataclass(frozen=True)
 class AttrOptionalGroupDirective(AttrFormatDirective):
     """An optional group in attribute assembly format."""
 
