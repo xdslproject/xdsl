@@ -632,6 +632,16 @@ class AddOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     )
 
 
+class SltOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.riscv import (
+            SltSameOperand,
+        )
+
+        return (SltSameOperand(),)
+
+
 @irdl_op_definition
 class SltOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
@@ -644,6 +654,17 @@ class SltOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
 
     name = "riscv.slt"
+    traits = traits_def(SltOpHasCanonicalizationPatternsTrait())
+
+
+class SltuOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.riscv import (
+            SltuSameOperand,
+        )
+
+        return (SltuSameOperand(),)
 
 
 @irdl_op_definition
@@ -658,6 +679,7 @@ class SltuOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
 
     name = "riscv.sltu"
+    traits = traits_def(SltuOpHasCanonicalizationPatternsTrait())
 
 
 class BitwiseAndHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
@@ -1446,6 +1468,16 @@ class DivwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     name = "riscv.divw"
 
 
+class RemOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.riscv import (
+            RemByOne,
+        )
+
+        return (RemByOne(),)
+
+
 @irdl_op_definition
 class RemOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
@@ -1456,6 +1488,17 @@ class RemOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
 
     name = "riscv.rem"
+    traits = traits_def(RemOpHasCanonicalizationPatternsTrait())
+
+
+class RemuOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.riscv import (
+            RemuByOne,
+        )
+
+        return (RemuByOne(),)
 
 
 @irdl_op_definition
@@ -1468,6 +1511,7 @@ class RemuOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
 
     name = "riscv.remu"
+    traits = traits_def(RemuOpHasCanonicalizationPatternsTrait())
 
 
 @irdl_op_definition
