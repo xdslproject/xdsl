@@ -1690,6 +1690,52 @@ class ParameterVariable(AttrFormatDirective):
 
 
 @dataclass(frozen=True)
+class AttrOptionalGroupDirective(AttrFormatDirective):
+    """An optional group in attribute assembly format."""
+
+    anchor: AttrFormatDirective
+    then_whitespace: tuple[AttrWhitespaceDirective, ...]
+    then_first: AttrFormatDirective
+    then_elements: tuple[AttrFormatDirective, ...]
+    else_elements: tuple[AttrFormatDirective, ...]
+
+    def parse(self, parser: AttrParser, state: AttrParsingState) -> bool:
+        if ret := self.then_first.parse_optional(parser, state):
+            for element in self.then_elements:
+                element.parse(parser, state)
+            for element in self.else_elements:
+                element.set_empty(state)
+        else:
+            self.then_first.set_empty(state)
+            for element in self.then_elements:
+                element.set_empty(state)
+            for element in self.else_elements:
+                element.parse(parser, state)
+        return ret
+
+    def print(
+        self, printer: Printer, state: PrintingState, attr: ParametrizedAttribute, /
+    ) -> None:
+        if self.anchor.is_present(attr):
+            for element in (
+                *self.then_whitespace,
+                self.then_first,
+                *self.then_elements,
+            ):
+                element.print(printer, state, attr)
+        else:
+            for element in self.else_elements:
+                element.print(printer, state, attr)
+
+    def set_empty(self, state: AttrParsingState) -> None:
+        self.then_first.set_empty(state)
+        for element in self.then_elements:
+            element.set_empty(state)
+        for element in self.else_elements:
+            element.set_empty(state)
+
+
+@dataclass(frozen=True)
 class AttrFormatProgram:
     """
     The toplevel data structure of a declarative assembly format program

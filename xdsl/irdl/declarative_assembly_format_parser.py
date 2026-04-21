@@ -51,6 +51,7 @@ from xdsl.irdl.declarative_assembly_format import (
     AttrFormatProgram,
     AttributeVariable,
     AttrKeywordDirective,
+    AttrOptionalGroupDirective,
     AttrPunctuationDirective,
     AttrWhitespaceDirective,
     DenseArrayAttributeVariable,
@@ -940,6 +941,8 @@ class AttrFormatParser(BaseParser):
     def parse_format_directive(self) -> AttrFormatDirective:
         if self._current_token.text == "`":
             return self.parse_keyword_or_punctuation()
+        if self.parse_optional_punctuation("("):
+            return self.parse_optional_group()
         if self._current_token.text == "$":
             return self.parse_variable()
         self.raise_error(f"unexpected token '{self._current_token.text}'")
@@ -1001,3 +1004,52 @@ class AttrFormatParser(BaseParser):
 
         self.parse_characters("`")
         return AttrKeywordDirective(ident)
+
+    def parse_optional_group(self) -> AttrFormatDirective:
+        then_elements = tuple[AttrFormatDirective, ...]()
+        else_elements = tuple[AttrFormatDirective, ...]()
+        anchor: AttrFormatDirective | None = None
+
+        while not self.parse_optional_punctuation(")"):
+            then_elements += (self.parse_format_directive(),)
+            if self.parse_optional_keyword("^"):
+                if anchor is not None:
+                    self.raise_error("An optional group can only have one anchor.")
+                anchor = then_elements[-1]
+
+        if self.parse_optional_punctuation(":"):
+            self.parse_punctuation("(")
+            while not self.parse_optional_punctuation(")"):
+                else_elements += (self.parse_format_directive(),)
+
+        self.parse_punctuation("?")
+
+        first_non_whitespace_index = None
+        for i, x in enumerate(then_elements):
+            if not isinstance(x, AttrWhitespaceDirective):
+                first_non_whitespace_index = i
+                break
+
+        if first_non_whitespace_index is None:
+            self.raise_error("An optional group must have a non-whitespace directive")
+        if anchor is None:
+            self.raise_error("Every optional group must have an anchor.")
+        if not then_elements[first_non_whitespace_index].is_optional_like():
+            self.raise_error(
+                "First element of an optional group must be optionally parsable."
+            )
+        if not anchor.is_anchorable():
+            self.raise_error(
+                "An optional group's anchor must be an anchorable directive."
+            )
+
+        return AttrOptionalGroupDirective(
+            anchor,
+            cast(
+                tuple[AttrWhitespaceDirective, ...],
+                then_elements[:first_non_whitespace_index],
+            ),
+            then_elements[first_non_whitespace_index],
+            then_elements[first_non_whitespace_index + 1 :],
+            else_elements,
+        )
