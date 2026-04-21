@@ -12,11 +12,12 @@ from typing import ClassVar
 
 from xdsl.dialects.builtin import IntAttr
 from xdsl.interfaces import HasFolderInterface
-from xdsl.ir import Attribute, Block, Dialect, OpResult, Region, SSAValue
+from xdsl.ir import Attribute, Block, Data, Dialect, OpResult, Region, SSAValue
 from xdsl.irdl import (
     AnyAttr,
     IRDLOperation,
     VarConstraint,
+    irdl_attr_definition,
     irdl_op_definition,
     lazy_traits_def,
     opt_attr_def,
@@ -27,6 +28,8 @@ from xdsl.irdl import (
     var_operand_def,
     var_result_def,
 )
+from xdsl.parser import AttrParser
+from xdsl.printer import Printer
 from xdsl.traits import (
     ConstantLike,
     HasParent,
@@ -188,6 +191,23 @@ class YieldOp(IRDLOperation):
         super().__init__(operands=[values])
 
 
+@irdl_attr_definition
+class CostAttr(Data[int]):
+    name = "equivalence.cost"
+
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> int:
+        parser.parse_punctuation("<")
+        value = parser.parse_integer()
+        parser.parse_punctuation(">")
+        return value
+
+    def print_parameter(self, printer: Printer) -> None:
+        printer.print_string("<")
+        printer.print_int(self.data)
+        printer.print_string(">")
+
+
 Equivalence = Dialect(
     "equivalence",
     [
@@ -195,5 +215,8 @@ Equivalence = Dialect(
         ConstantClassOp,
         YieldOp,
         GraphOp,
+    ],
+    [
+        CostAttr,
     ],
 )
