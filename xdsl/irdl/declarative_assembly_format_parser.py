@@ -71,6 +71,7 @@ from xdsl.irdl.declarative_assembly_format import (
     OptionalUnitAttrVariable,
     ParameterVariable,
     PunctuationDirective,
+    QualifiedParameterVariable,
     RegionDirective,
     RegionVariable,
     ResultsDirective,
@@ -945,6 +946,8 @@ class AttrFormatParser(BaseParser):
             return self.parse_optional_group()
         if self._current_token.text == "$":
             return self.parse_variable()
+        if self.parse_optional_keyword("qualified"):
+            return self.parse_qualified_directive()
         self.raise_error(f"unexpected token '{self._current_token.text}'")
 
     def parse_variable(self, inside_ref: bool = False) -> ParameterVariable:
@@ -1053,3 +1056,8 @@ class AttrFormatParser(BaseParser):
             then_elements[first_non_whitespace_index + 1 :],
             else_elements,
         )
+
+    def parse_qualified_directive(self) -> QualifiedParameterVariable:
+        with self.in_parens():
+            pv = self.parse_variable()
+            return QualifiedParameterVariable(pv.name, pv.index, pv.is_optional)

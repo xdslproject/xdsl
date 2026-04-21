@@ -546,6 +546,25 @@ def test_optional_print_correctness(attr: Attribute, expected: str):
 
 
 # ============================================================================
+# Integration tests — qualified directive
+# ============================================================================
+
+
+def test_qualified_roundtrip():
+    """qualified($x) should parse and print identically to $x in xdsl."""
+
+    @irdl_attr_definition
+    class QualifiedType(ParametrizedAttribute, TypeAttribute):
+        name = "test_af.qualified"
+        value: IntegerType = param_def()
+        assembly_format = "qualified($value)"
+
+    ctx = Context(allow_unregistered=True)
+    ctx.load_attr_or_type(QualifiedType)
+    check_roundtrip(QualifiedType, "i32", ctx)
+
+
+# ============================================================================
 # Integration tests — printing correctness
 # ============================================================================
 

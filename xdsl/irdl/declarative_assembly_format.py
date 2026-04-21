@@ -1690,6 +1690,15 @@ class ParameterVariable(AttrFormatDirective):
 
 
 @dataclass(frozen=True)
+class QualifiedParameterVariable(ParameterVariable):
+    """Wraps a ParameterVariable to print with full dialect qualification.
+
+    In xdsl, print_attribute() always qualifies, so this is currently
+    identical to ParameterVariable. Exists for MLIR format compatibility.
+    """
+
+
+@dataclass(frozen=True)
 class AttrOptionalGroupDirective(AttrFormatDirective):
     """An optional group in attribute assembly format."""
 
