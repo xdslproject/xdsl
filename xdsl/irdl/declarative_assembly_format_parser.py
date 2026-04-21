@@ -70,6 +70,7 @@ from xdsl.irdl.declarative_assembly_format import (
     OptionalSuccessorVariable,
     OptionalUnitAttrVariable,
     ParameterVariable,
+    ParamsDirective,
     PunctuationDirective,
     QualifiedParameterVariable,
     RegionDirective,
@@ -948,6 +949,8 @@ class AttrFormatParser(BaseParser):
             return self.parse_variable()
         if self.parse_optional_keyword("qualified"):
             return self.parse_qualified_directive()
+        if self.parse_optional_keyword("params"):
+            return self.parse_params_directive()
         self.raise_error(f"unexpected token '{self._current_token.text}'")
 
     def parse_variable(self, inside_ref: bool = False) -> ParameterVariable:
@@ -1061,3 +1064,17 @@ class AttrFormatParser(BaseParser):
         with self.in_parens():
             pv = self.parse_variable()
             return QualifiedParameterVariable(pv.name, pv.index, pv.is_optional)
+
+    def _all_param_variables(self) -> tuple[ParameterVariable, ...]:
+        """Create ParameterVariable instances for all parameters."""
+        params: list[ParameterVariable] = []
+        for idx, (name, param_def) in enumerate(self.attr_def.parameters):
+            if name in self.seen_parameters:
+                self.raise_error(f"parameter '{name}' is already bound")
+            self.seen_parameters.add(name)
+            is_optional = param_def.constr.verifies(NoneAttr())
+            params.append(ParameterVariable(name, idx, is_optional))
+        return tuple(params)
+
+    def parse_params_directive(self) -> ParamsDirective:
+        return ParamsDirective(self._all_param_variables())
