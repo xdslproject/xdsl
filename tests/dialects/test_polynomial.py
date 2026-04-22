@@ -13,6 +13,7 @@ from xdsl.dialects.polynomial import (
     ChebyshevPolynomialAttr,
     EvalChebyshevOp,
 )
+from xdsl.ir import Attribute
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.test_value import create_ssa_value
 
@@ -87,7 +88,7 @@ def test_eval_pre_built_attr():
     [f16, f32, f64, VectorType(f32, [4]), TensorType(f64, [8])],
     ids=["f16", "f32", "f64", "vector<4xf32>", "tensor<8xf64>"],
 )
-def test_eval_type_polymorphism(tp):
+def test_eval_type_polymorphism(tp: Attribute):
     x = create_ssa_value(tp)
     op = EvalChebyshevOp(x, [1.0, 2.0])
     assert op.value.type == tp
