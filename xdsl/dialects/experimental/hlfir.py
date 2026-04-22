@@ -151,8 +151,12 @@ class DeclareOp(IRDLOperation):
     shape = opt_operand_def()
     typeparams = var_operand_def()
     dummy_scope = opt_operand_def()
+    storage = opt_operand_def()
+    storage_offset = opt_prop_def(IntegerAttr)
     uniq_name = opt_prop_def(StringAttr)
     fortran_attrs = opt_prop_def(FortranVariableFlagsAttr)
+    skip_rebox = opt_prop_def(UnitAttr)
+    dummy_arg_no = opt_prop_def(IntegerAttr)
     result = result_def()
     result2 = result_def()
 
@@ -529,7 +533,9 @@ class AssociateOp(IRDLOperation):
     typeparams = var_operand_def()
     uniq_name = opt_prop_def(StringAttr)
     fortran_attrs = opt_prop_def(FortranVariableFlagsAttr)
-    result = var_result_def()
+    result = result_def()
+    fir_base = result_def()
+    must_free = result_def()
 
     irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
@@ -1112,6 +1118,128 @@ class CharExtremumOp(IRDLOperation):
     irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
 
+@irdl_op_definition
+class CharTrimOp(IRDLOperation):
+    """TRIM intrinsic on a character string."""
+
+    name = "hlfir.char_trim"
+    chr = operand_def()
+    result = result_def()
+
+
+@irdl_op_definition
+class CmpCharOp(IRDLOperation):
+    """Lexicographic compare of two character strings."""
+
+    name = "hlfir.cmpchar"
+    predicate = prop_def(Attribute)
+    lchr = operand_def()
+    rchr = operand_def()
+    result = result_def()
+
+
+@irdl_op_definition
+class CShiftOp(IRDLOperation):
+    """CSHIFT intrinsic — circular shift along an array dimension."""
+
+    name = "hlfir.cshift"
+    array = operand_def()
+    shift = operand_def()
+    dim = opt_operand_def()
+    result = result_def()
+
+
+@irdl_op_definition
+class EOShiftOp(IRDLOperation):
+    """EOSHIFT intrinsic — end-off shift with optional boundary value."""
+
+    name = "hlfir.eoshift"
+    array = operand_def()
+    shift = operand_def()
+    boundary = opt_operand_def()
+    dim = opt_operand_def()
+    result = result_def()
+
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
+
+
+@irdl_op_definition
+class EvaluateInMemoryOp(IRDLOperation):
+    """Materialise a Fortran expression into a fresh in-memory temporary."""
+
+    name = "hlfir.eval_in_mem"
+    shape = opt_operand_def()
+    typeparams = var_operand_def()
+    result = result_def()
+    body = region_def("single_block")
+
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
+
+
+@irdl_op_definition
+class ExactlyOnceOp(IRDLOperation):
+    """Mark a region whose body is guaranteed to execute exactly once."""
+
+    name = "hlfir.exactly_once"
+    result = result_def()
+    body = region_def("single_block")
+
+
+@irdl_op_definition
+class IndexOp(IRDLOperation):
+    """INDEX intrinsic — find substring position."""
+
+    name = "hlfir.index"
+    substr = operand_def()
+    string = operand_def()
+    back = opt_operand_def()
+    result = result_def()
+
+
+@irdl_op_definition
+class MaxlocOp(IRDLOperation):
+    """MAXLOC reduction."""
+
+    name = "hlfir.maxloc"
+    array = operand_def()
+    dim = opt_operand_def()
+    mask = opt_operand_def()
+    back = opt_operand_def()
+    fastmath = opt_prop_def(FastMathFlagsAttr)
+    result = result_def()
+
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
+
+
+@irdl_op_definition
+class MinlocOp(IRDLOperation):
+    """MINLOC reduction."""
+
+    name = "hlfir.minloc"
+    array = operand_def()
+    dim = opt_operand_def()
+    mask = opt_operand_def()
+    back = opt_operand_def()
+    fastmath = opt_prop_def(FastMathFlagsAttr)
+    result = result_def()
+
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
+
+
+@irdl_op_definition
+class ReshapeOp(IRDLOperation):
+    """RESHAPE intrinsic."""
+
+    name = "hlfir.reshape"
+    array = operand_def()
+    shape = operand_def()
+    pad = opt_operand_def()
+    order = opt_operand_def()
+    result = result_def()
+
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
+
+
 HLFIR = Dialect(
     "hlfir",
     [
@@ -1155,6 +1283,16 @@ HLFIR = Dialect(
         TransposeOp,
         YieldElementOp,
         YieldOp,
+        CharTrimOp,
+        CmpCharOp,
+        CShiftOp,
+        EOShiftOp,
+        EvaluateInMemoryOp,
+        ExactlyOnceOp,
+        IndexOp,
+        MaxlocOp,
+        MinlocOp,
+        ReshapeOp,
     ],
     [
         ExprType,
