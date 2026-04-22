@@ -151,6 +151,15 @@ builtin.module {
     }) : () -> ()
     func.return
   }
+  func.func @omp_loop_nest_collapse(%lb: index, %ub: index, %step: index) {
+    "omp.wsloop"() <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0, 0>}> ({
+      "omp.loop_nest"(%lb, %lb, %ub, %ub, %step, %step) <{collapse_num_loops = 2 : i64}> ({
+      ^bb0(%iter1: index, %iter2: index):
+        omp.yield
+      }) : (index, index, index, index, index, index) -> ()
+    }) : () -> ()
+    func.return
+  }
   func.func @omp_target(%dep: memref<6xf32>, %dev: i64, %host: i32, %if: i1, %p1: memref<10xi8>, %p2: f64, %tlimit: i32) {
     "omp.target"(%dep, %dev, %host, %if, %p1, %p2, %tlimit) <{operandSegmentSizes = array<i32: 0, 0, 1, 1, 0, 1, 1, 0, 0, 0, 2, 1>, private_maps = array<i64: 0, 1>, in_reduction_syms = [@rsym1, @rsym2], in_reduction_byref = array<i1: true, false>, private_syms = [@psym1, @psym2], nowait, bare, depend_kinds = [#omp<clause_task_depend(taskdependinout)>]}> ({
     ^bb0(%b_host: i32, %b_p1: memref<10xi8>, %b_p2: f64):
@@ -452,6 +461,15 @@ builtin.module {
 // CHECK-NEXT:        ^{{.*}}(%{{.*}}: index):
 // CHECK-NEXT:          omp.yield
 // CHECK-NEXT:        }) : (index, index, index) -> ()
+// CHECK-NEXT:      }) : () -> ()
+// CHECK-NEXT:      func.return
+// CHECK-NEXT:    }
+// CHECK-NEXT:    func.func @omp_loop_nest_collapse(%{{.*}}: index, %{{.*}}: index, %{{.*}}: index) {
+// CHECK-NEXT:      "omp.wsloop"() <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0, 0>}> ({
+// CHECK-NEXT:        "omp.loop_nest"(%{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}) <{collapse_num_loops = 2 : i64}> ({
+// CHECK-NEXT:        ^{{.*}}(%{{.*}}: index, %{{.*}}: index):
+// CHECK-NEXT:          omp.yield
+// CHECK-NEXT:        }) : (index, index, index, index, index, index) -> ()
 // CHECK-NEXT:      }) : () -> ()
 // CHECK-NEXT:      func.return
 // CHECK-NEXT:    }
