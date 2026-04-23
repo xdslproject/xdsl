@@ -83,4 +83,4 @@ class YieldOp(AbstractYieldOperation[Attribute]):
     )
 
 
-ACC = Dialect("acc", [ParallelOp, YieldOp], [])
+ACC = Dialect("acc", [ParallelOp, YieldOp,], [])
