@@ -38,10 +38,9 @@ dev = [
 ]
 gui = ["textual>=8,<9", "pyclip==0.7"]
 llvm = ["llvmlite~=0.47.0"]
-heir = ["heir_py==2026.4.1; python_version >= '3.11' and python_version < '3.14'"]
 
 [dependency-groups]
-dev = ["xdsl[dev,gui,llvm,heir]", "my_plugin"]
+dev = ["xdsl[dev,gui,llvm]", "my_plugin"]
 bench = [
     "asv>=0.6.4",
     "snakeviz>=2.2.2",
@@ -64,9 +63,6 @@ docs = [
     "riscemu==2.2.7",
     "micropip>=0.7",
 ]
-
-[tool.uv]
-override-dependencies = ["llvmlite~=0.47.0"]
 
 [project.urls]
 Homepage = "https://xdsl.dev/"

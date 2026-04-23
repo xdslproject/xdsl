@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s | heir-opt --allow-unregistered-dialect | xdsl-opt | filecheck %s
+// RUN: xdsl-opt %s | uv run --with heir_py heir-opt --allow-unregistered-dialect | xdsl-opt | filecheck %s
 
 // CHECK:      builtin.module {
 
