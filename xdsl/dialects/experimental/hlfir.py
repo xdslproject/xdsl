@@ -91,13 +91,12 @@ class ExprType(ParametrizedAttribute, TypeAttribute):
             return IntegerAttr(s, 32)
 
         shape: list[IntegerAttr | DeferredAttr] = []
-        parser.parse_characters("<")
-        elementType = parser.parse_optional_type()
-        while elementType is None:
-            shape.append(parse_interval())
-            parser.parse_shape_delimiter()
+        with parser.in_angle_brackets():
             elementType = parser.parse_optional_type()
-        parser.parse_characters(">")
+            while elementType is None:
+                shape.append(parse_interval())
+                parser.parse_shape_delimiter()
+                elementType = parser.parse_optional_type()
         return [ArrayAttr(shape), elementType]
 
 

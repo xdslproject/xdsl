@@ -278,23 +278,21 @@ class SequenceType(ParametrizedAttribute, TypeAttribute):
 
         shape: list[IntegerAttr[IntegerType] | DeferredAttr] = []
         type2 = NoneType()
-        parser.parse_characters("<")
-        has_tuple = parser.parse_optional_characters("0")
-        if has_tuple is not None:
-            parser.parse_characters("xtuple")
-            parser.parse_characters("<")
-            type1 = parser.parse_type()
-            parser.parse_characters(",")
-            type2 = parser.parse_type()
-            parser.parse_characters(">")
-            shape.append(IntegerAttr(1, 32))
-        else:
-            type1 = parser.parse_optional_type()
-            while type1 is None:
-                shape.append(parse_interval())
-                parser.parse_shape_delimiter()
+        with parser.in_angle_brackets():
+            has_tuple = parser.parse_optional_characters("0")
+            if has_tuple is not None:
+                parser.parse_characters("xtuple")
+                with parser.in_angle_brackets():
+                    type1 = parser.parse_type()
+                    parser.parse_characters(",")
+                    type2 = parser.parse_type()
+                shape.append(IntegerAttr(1, 32))
+            else:
                 type1 = parser.parse_optional_type()
-        parser.parse_characters(">")
+                while type1 is None:
+                    shape.append(parse_interval())
+                    parser.parse_shape_delimiter()
+                    type1 = parser.parse_optional_type()
         return [ArrayAttr(shape), type1, type2]
 
     def hasDeferredShape(self):
@@ -343,14 +341,13 @@ class CharacterType(ParametrizedAttribute, TypeAttribute):
             else:
                 return IntAttr(parser.parse_integer(allow_boolean=False))
 
-        parser.parse_characters("<")
-        lower = parse_value()
-        has_upper = parser.parse_optional_characters(",")
-        if has_upper:
-            upper = parse_value()
-        else:
-            upper = IntAttr(1)
-        parser.parse_characters(">")
+        with parser.in_angle_brackets():
+            lower = parse_value()
+            has_upper = parser.parse_optional_characters(",")
+            if has_upper:
+                upper = parse_value()
+            else:
+                upper = IntAttr(1)
         return [lower, upper]
 
 
@@ -371,9 +368,8 @@ class LogicalType(ParametrizedAttribute, TypeAttribute):
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
-        parser.parse_characters("<")
-        s = parser.parse_integer(allow_boolean=False)
-        parser.parse_characters(">")
+        with parser.in_angle_brackets():
+            s = parser.parse_integer(allow_boolean=False)
         return [IntAttr(s)]
 
 
@@ -390,9 +386,8 @@ class IntType(ParametrizedAttribute, TypeAttribute):
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
-        parser.parse_characters("<")
-        s = parser.parse_integer(allow_boolean=False)
-        parser.parse_characters(">")
+        with parser.in_angle_brackets():
+            s = parser.parse_integer(allow_boolean=False)
         return [IntAttr(s)]
 
 
@@ -409,9 +404,8 @@ class UnsignedType(ParametrizedAttribute, TypeAttribute):
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
-        parser.parse_characters("<")
-        s = parser.parse_integer(allow_boolean=False)
-        parser.parse_characters(">")
+        with parser.in_angle_brackets():
+            s = parser.parse_integer(allow_boolean=False)
         return [IntAttr(s)]
 
 
@@ -476,9 +470,8 @@ class SliceType(ParametrizedAttribute, TypeAttribute):
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
-        parser.parse_characters("<")
-        s = parser.parse_integer(allow_boolean=False)
-        parser.parse_characters(">")
+        with parser.in_angle_brackets():
+            s = parser.parse_integer(allow_boolean=False)
         return [IntAttr(s)]
 
 
@@ -498,11 +491,10 @@ class VectorType(ParametrizedAttribute, TypeAttribute):
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
-        parser.parse_characters("<")
-        length = parser.parse_integer(allow_boolean=False)
-        parser.parse_characters(":")
-        ty = parser.parse_type()
-        parser.parse_characters(">")
+        with parser.in_angle_brackets():
+            length = parser.parse_integer(allow_boolean=False)
+            parser.parse_characters(":")
+            ty = parser.parse_type()
         return [IntAttr(length), ty]
 
 
@@ -524,9 +516,8 @@ class ShiftType(ParametrizedAttribute, TypeAttribute):
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
-        parser.parse_characters("<")
-        s = parser.parse_integer(allow_boolean=False)
-        parser.parse_characters(">")
+        with parser.in_angle_brackets():
+            s = parser.parse_integer(allow_boolean=False)
         return [IntAttr(s)]
 
 
@@ -548,9 +539,8 @@ class ShapeType(ParametrizedAttribute, TypeAttribute):
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
-        parser.parse_characters("<")
-        s = parser.parse_integer(allow_boolean=False)
-        parser.parse_characters(">")
+        with parser.in_angle_brackets():
+            s = parser.parse_integer(allow_boolean=False)
         return [IntAttr(s)]
 
 
@@ -573,9 +563,8 @@ class ShapeShiftType(ParametrizedAttribute, TypeAttribute):
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
-        parser.parse_characters("<")
-        s = parser.parse_integer(allow_boolean=False)
-        parser.parse_characters(">")
+        with parser.in_angle_brackets():
+            s = parser.parse_integer(allow_boolean=False)
         return [IntAttr(s)]
 
 
@@ -622,12 +611,11 @@ class BoxType(ParametrizedAttribute, TypeAttribute):
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
-        parser.parse_characters("<")
-        ty = parser.parse_type()
-        is_volatile = parser.parse_optional_punctuation(",") is not None
-        if is_volatile:
-            parser.parse_keyword("volatile")
-        parser.parse_characters(">")
+        with parser.in_angle_brackets():
+            ty = parser.parse_type()
+            is_volatile = parser.parse_optional_punctuation(",") is not None
+            if is_volatile:
+                parser.parse_keyword("volatile")
         return [ty, BoolAttr.from_bool(is_volatile)]
 
 
@@ -649,9 +637,8 @@ class BoxCharType(ParametrizedAttribute, TypeAttribute):
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
-        parser.parse_characters("<")
-        s = parser.parse_integer(allow_boolean=False)
-        parser.parse_characters(">")
+        with parser.in_angle_brackets():
+            s = parser.parse_integer(allow_boolean=False)
         return [IntAttr(s)]
 
 
