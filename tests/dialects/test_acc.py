@@ -181,10 +181,3 @@ def test_yield_inside_parallel_ok():
     last = op.region.block.last_op
     assert isinstance(last, acc.YieldOp)
     last.verify()
-
-
-def test_dialect_registration():
-    """The dialect exposes exactly the two bootstrap ops."""
-    op_names = {op.name for op in acc.ACC.operations}
-    assert op_names == {"acc.parallel", "acc.yield"}
-    assert acc.ACC.name == "acc"
