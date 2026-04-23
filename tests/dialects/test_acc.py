@@ -14,10 +14,7 @@ from xdsl.utils.exceptions import VerifyException
 
 def _empty_parallel() -> acc.ParallelOp:
     """acc.parallel with an empty body (just the required yield)."""
-    return acc.ParallelOp(
-        operands=[[], [], [], [], [], [], [], [], [], [], []],
-        regions=[Region(Block([acc.YieldOp()]))],
-    )
+    return acc.ParallelOp(region=Region(Block([acc.YieldOp()])))
 
 
 def test_parallel_empty_verifies():
@@ -49,20 +46,12 @@ def test_parallel_with_operands_verifies():
     data_val = TestOp(result_types=[MemRefType(f32, [10])])
 
     op = acc.ParallelOp(
-        operands=[
-            [async_val.result],
-            [],
-            [num_gangs_val.result],
-            [num_workers_val.result],
-            [],
-            [if_cond_val.result],
-            [],
-            [],
-            [],
-            [],
-            [data_val.res[0]],
-        ],
-        regions=[Region(Block([acc.YieldOp()]))],
+        region=Region(Block([acc.YieldOp()])),
+        async_operands=[async_val.result],
+        num_gangs=[num_gangs_val.result],
+        num_workers=[num_workers_val.result],
+        if_cond=if_cond_val.result,
+        data_clause_operands=[data_val.res[0]],
     )
     op.verify()
 
@@ -75,10 +64,7 @@ def test_parallel_with_operands_verifies():
 
 
 def test_parallel_empty_block_fails():
-    op = acc.ParallelOp(
-        operands=[[], [], [], [], [], [], [], [], [], [], []],
-        regions=[Region(Block([]))],
-    )
+    op = acc.ParallelOp(region=Region(Block([])))
     with pytest.raises(
         VerifyException,
         match="acc.parallel contains empty block in single-block region",
@@ -92,10 +78,7 @@ def test_parallel_wrong_terminator_fails():
     core-region check before SingleBlockImplicitTerminator.
     """
     body_op = TestOp(result_types=[i32])
-    op = acc.ParallelOp(
-        operands=[[], [], [], [], [], [], [], [], [], [], []],
-        regions=[Region(Block([body_op]))],
-    )
+    op = acc.ParallelOp(region=Region(Block([body_op])))
     with pytest.raises(
         VerifyException,
         match="terminates block in single-block region but is not a terminator",
@@ -107,20 +90,8 @@ def test_parallel_non_integer_async_operand_fails():
     """async_operands must be integer or index typed."""
     bad = TestOp(result_types=[MemRefType(f32, [1])])
     op = acc.ParallelOp(
-        operands=[
-            [bad.res[0]],
-            [],
-            [],
-            [],
-            [],
-            [],
-            [],
-            [],
-            [],
-            [],
-            [],
-        ],
-        regions=[Region(Block([acc.YieldOp()]))],
+        region=Region(Block([acc.YieldOp()])),
+        async_operands=[bad.res[0]],
     )
     with pytest.raises(VerifyException):
         op.verify()
@@ -130,20 +101,8 @@ def test_parallel_if_cond_non_i1_fails():
     """if_cond must be i1."""
     not_i1 = ConstantOp.from_int_and_width(1, IntegerType(32))
     op = acc.ParallelOp(
-        operands=[
-            [],
-            [],
-            [],
-            [],
-            [],
-            [not_i1.result],
-            [],
-            [],
-            [],
-            [],
-            [],
-        ],
-        regions=[Region(Block([acc.YieldOp()]))],
+        region=Region(Block([acc.YieldOp()])),
+        if_cond=not_i1.result,
     )
     with pytest.raises(VerifyException):
         op.verify()

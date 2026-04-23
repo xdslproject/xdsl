@@ -9,9 +9,11 @@ code can be represented, analysed, and lowered to target-specific runtimes.
 See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenACCDialect/).
 """
 
+from collections.abc import Sequence
+
 from xdsl.dialects.builtin import I1, IndexType, IntegerType
 from xdsl.dialects.utils import AbstractYieldOperation
-from xdsl.ir import Attribute, Dialect
+from xdsl.ir import Attribute, Dialect, Operation, Region, SSAValue
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
@@ -66,6 +68,39 @@ class ParallelOp(IRDLOperation):
         )
     )
 
+    def __init__(
+        self,
+        *,
+        region: Region,
+        async_operands: Sequence[SSAValue | Operation] = (),
+        wait_operands: Sequence[SSAValue | Operation] = (),
+        num_gangs: Sequence[SSAValue | Operation] = (),
+        num_workers: Sequence[SSAValue | Operation] = (),
+        vector_length: Sequence[SSAValue | Operation] = (),
+        if_cond: SSAValue | Operation | None = None,
+        self_cond: SSAValue | Operation | None = None,
+        reduction_operands: Sequence[SSAValue | Operation] = (),
+        private_operands: Sequence[SSAValue | Operation] = (),
+        firstprivate_operands: Sequence[SSAValue | Operation] = (),
+        data_clause_operands: Sequence[SSAValue | Operation] = (),
+    ) -> None:
+        super().__init__(
+            operands=[
+                async_operands,
+                wait_operands,
+                num_gangs,
+                num_workers,
+                vector_length,
+                [if_cond] if if_cond is not None else [],
+                [self_cond] if self_cond is not None else [],
+                reduction_operands,
+                private_operands,
+                firstprivate_operands,
+                data_clause_operands,
+            ],
+            regions=[region],
+        )
+
 
 @irdl_op_definition
 class YieldOp(AbstractYieldOperation[Attribute]):
@@ -83,4 +118,11 @@ class YieldOp(AbstractYieldOperation[Attribute]):
     )
 
 
-ACC = Dialect("acc", [ParallelOp, YieldOp,], [])
+ACC = Dialect(
+    "acc",
+    [
+        ParallelOp,
+        YieldOp,
+    ],
+    [],
+)
