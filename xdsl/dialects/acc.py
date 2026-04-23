@@ -40,7 +40,6 @@ from xdsl.irdl import (
     opt_operand_def,
     opt_prop_def,
     region_def,
-    traits_def,
     var_operand_def,
 )
 from xdsl.parser import AttrParser
@@ -247,10 +246,12 @@ class YieldOp(AbstractYieldOperation[Attribute]):
 
     name = "acc.yield"
 
-    traits = traits_def(
-        IsTerminator(),
-        NoMemoryEffect(),
-        HasParent(ParallelOp),
+    traits = lazy_traits_def(
+        lambda: (
+            IsTerminator(),
+            NoMemoryEffect(),
+            HasParent(ParallelOp),
+        )
     )
 
 
