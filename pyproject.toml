@@ -41,7 +41,7 @@ llvm = ["llvmlite~=0.47.0"]
 heir = ["heir_py==2026.4.1; python_version >= '3.11'"]
 
 [dependency-groups]
-dev = ["xdsl[dev,gui,llvm]", "my_plugin"]
+dev = ["xdsl[dev,gui,llvm,heir]", "my_plugin"]
 bench = [
     "asv>=0.6.4",
     "snakeviz>=2.2.2",

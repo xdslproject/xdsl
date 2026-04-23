@@ -3982,7 +3982,7 @@ bench = [
 ]
 dev = [
     { name = "my-plugin" },
-    { name = "xdsl", extra = ["dev", "gui", "llvm"] },
+    { name = "xdsl", extra = ["dev", "gui", "heir", "llvm"] },
 ]
 docs = [
     { name = "lzstring2" },
@@ -4040,7 +4040,7 @@ bench = [
 ]
 dev = [
     { name = "my-plugin", editable = "tests/my_plugin" },
-    { name = "xdsl", extras = ["dev", "gui", "llvm"] },
+    { name = "xdsl", extras = ["dev", "gui", "llvm", "heir"] },
 ]
 docs = [
     { name = "lzstring2", git = "https://github.com/superlopuh/lz-string.git" },
