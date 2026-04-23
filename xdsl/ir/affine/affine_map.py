@@ -480,13 +480,13 @@ class AffineMap:
         return tuple(source[expr.position] for expr in results)
 
     def __str__(self) -> str:
-        # Create comma seperated list of dims.
+        # Create comma separated list of dims.
         dims = ["d" + str(i) for i in range(self.num_dims)]
         dims = ", ".join(dims)
-        # Create comma seperated list of symbols.
+        # Create comma separated list of symbols.
         syms = ["s" + str(i) for i in range(self.num_symbols)]
         syms = ", ".join(syms)
-        # Create comma seperated list of results.
+        # Create comma separated list of results.
         results = ", ".join(str(expr) for expr in self.results)
         if self.num_symbols == 0:
             return f"({dims}) -> ({results})"
