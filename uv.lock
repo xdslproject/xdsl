@@ -3964,7 +3964,7 @@ gui = [
     { name = "textual" },
 ]
 heir = [
-    { name = "heir-py", marker = "python_full_version >= '3.11'" },
+    { name = "heir-py", marker = "python_full_version >= '3.11' and python_full_version < '3.14'" },
 ]
 llvm = [
     { name = "llvmlite" },
@@ -4004,7 +4004,7 @@ docs = [
 requires-dist = [
     { name = "coverage", marker = "extra == 'dev'", specifier = "<8.0.0" },
     { name = "filecheck", marker = "extra == 'dev'", specifier = "==1.0.3" },
-    { name = "heir-py", marker = "python_full_version >= '3.11' and extra == 'heir'", specifier = "==2026.4.1" },
+    { name = "heir-py", marker = "python_full_version >= '3.11' and python_full_version < '3.14' and extra == 'heir'", specifier = "==2026.4.1" },
     { name = "immutabledict", specifier = "<4.3.2" },
     { name = "ipykernel", marker = "extra == 'dev'" },
     { name = "lit", marker = "extra == 'dev'", specifier = "<19.0.0" },
