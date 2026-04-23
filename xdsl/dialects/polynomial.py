@@ -2,18 +2,16 @@
 A minimal polynomial dialect for representing unevaluated polynomial
 approximations, designed for use with equality saturation.
 
-Key idea: instead of immediately expanding a math function into arithmetic
-operations, represent it as a single `polynomial.eval_chebyshev` op that
-carries all the information needed for both cost estimation and later lowering.
-The corresponding e-graph carries multiple polynomial variants (different degrees,
-domains) as alternatives and picks the best one during extraction.
+Cost estimation can be done on a single `polynomial.eval_chebyshev` op
+that carries all the information needed. After extraction, the selected
+polynomial variant will be expanded into arithmetic operations.
 
-Currently supports Chebyshev polynomials. Other polynomial families can be added later.
+https://heir.dev/docs/dialects/polynomial/
+
 """
 
 from __future__ import annotations
 
-from collections.abc import Sequence
 from typing import ClassVar
 
 from xdsl.dialects.builtin import (
@@ -63,22 +61,17 @@ class ChebyshevPolynomialAttr(ParametrizedAttribute):
 
     def __init__(
         self,
-        coefficients: Sequence[float] | Sequence[FloatAttr] | ArrayAttr[FloatAttr],
-        domain_lower: float | FloatAttr = -1.0,
-        domain_upper: float | FloatAttr = 1.0,
+        coefficients: tuple[float, ...] | ArrayAttr[FloatAttr],
+        domain_lower: float | FloatAttr = FloatAttr(-1.0, f64),
+        domain_upper: float | FloatAttr = FloatAttr(1.0, f64),
     ):
         if isinstance(coefficients, ArrayAttr):
             arr = coefficients
         else:
-            arr = ArrayAttr(
-                [
-                    FloatAttr(c, f64) if isinstance(c, (int, float)) else c
-                    for c in coefficients
-                ]
-            )
-        if isinstance(domain_lower, (int, float)):
+            arr = ArrayAttr([FloatAttr(c, f64) for c in coefficients])
+        if not isinstance(domain_lower, FloatAttr):
             domain_lower = FloatAttr(float(domain_lower), f64)
-        if isinstance(domain_upper, (int, float)):
+        if not isinstance(domain_upper, FloatAttr):
             domain_upper = FloatAttr(float(domain_upper), f64)
         super().__init__(arr, domain_lower, domain_upper)
 
@@ -139,9 +132,9 @@ class EvalChebyshevOp(IRDLOperation):
     def __init__(
         self,
         value: Operation | SSAValue,
-        polynomial: ChebyshevPolynomialAttr | Sequence[float],
-        domain_lower: float | FloatAttr = -1.0,
-        domain_upper: float | FloatAttr = 1.0,
+        polynomial: ChebyshevPolynomialAttr | tuple[float, ...],
+        domain_lower: float | FloatAttr = FloatAttr(-1.0, f64),
+        domain_upper: float | FloatAttr = FloatAttr(1.0, f64),
     ):
         if not isinstance(polynomial, ChebyshevPolynomialAttr):
             polynomial = ChebyshevPolynomialAttr(polynomial, domain_lower, domain_upper)
