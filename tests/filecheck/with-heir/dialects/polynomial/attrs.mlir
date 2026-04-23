@@ -1,4 +1,4 @@
-// RUN: XDSL_ROUNDTRIP
+// RUN: xdsl-opt %s | heir-opt --allow-unregistered-dialect | xdsl-opt | filecheck %s
 
 // CHECK:      builtin.module {
 
