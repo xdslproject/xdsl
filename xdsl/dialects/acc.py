@@ -17,7 +17,6 @@ from xdsl.ir import Attribute, Dialect, Operation, Region, SSAValue
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
-    base,
     irdl_op_definition,
     lazy_traits_def,
     opt_operand_def,
@@ -33,8 +32,6 @@ from xdsl.traits import (
     SingleBlockImplicitTerminator,
 )
 
-_IntOrIndex = base(IntegerType) | base(IndexType)
-
 
 @irdl_op_definition
 class ParallelOp(IRDLOperation):
@@ -45,11 +42,11 @@ class ParallelOp(IRDLOperation):
 
     name = "acc.parallel"
 
-    async_operands = var_operand_def(_IntOrIndex)
-    wait_operands = var_operand_def(_IntOrIndex)
-    num_gangs = var_operand_def(_IntOrIndex)
-    num_workers = var_operand_def(_IntOrIndex)
-    vector_length = var_operand_def(_IntOrIndex)
+    async_operands = var_operand_def(IntegerType | IndexType)
+    wait_operands = var_operand_def(IntegerType | IndexType)
+    num_gangs = var_operand_def(IntegerType | IndexType)
+    num_workers = var_operand_def(IntegerType | IndexType)
+    vector_length = var_operand_def(IntegerType | IndexType)
     if_cond = opt_operand_def(I1)
     self_cond = opt_operand_def(I1)
     reduction_operands = var_operand_def()
