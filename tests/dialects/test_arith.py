@@ -68,6 +68,8 @@ from xdsl.dialects.builtin import (
     f16,
     f32,
     f64,
+    f80,
+    f128,
     i1,
     i32,
     i64,
@@ -291,6 +293,14 @@ def test_select_op():
         (IntegerType(16), bf16),
         (VectorType(bf16, [4]), VectorType(IntegerType(16), [4])),
         (MemRefType(bf16, [5]), MemRefType(IntegerType(16), [5])),
+        (f80, IntegerType(80)),
+        (IntegerType(80), f80),
+        (VectorType(f80, [4]), VectorType(IntegerType(80), [4])),
+        (MemRefType(f80, [5]), MemRefType(IntegerType(80), [5])),
+        (f128, IntegerType(128)),
+        (IntegerType(128), f128),
+        (VectorType(f128, [4]), VectorType(IntegerType(128), [4])),
+        (MemRefType(f128, [5]), MemRefType(IntegerType(128), [5])),
     ],
 )
 def test_bitcast_op(in_type: Attribute, out_type: Attribute):
@@ -320,6 +330,8 @@ BITWIDTH_MISMATCH = "operand and result types must have equal bitwidths or be In
         (MemRefType(i32, [5]), MemRefType(f32, [6]), SHAPE_MISMATCH),
         (MemRefType(i32, [5]), f32, SHAPE_MISMATCH),
         (bf16, f32, BITWIDTH_MISMATCH),
+        (f80, f128, BITWIDTH_MISMATCH),
+        (f128, f64, BITWIDTH_MISMATCH),
     ],
 )
 def test_bitcast_incorrect(in_type: Attribute, out_type: Attribute, err_msg: str):
