@@ -37,6 +37,24 @@ builtin.module {
     }) : () -> ()
     func.return
   }
+  func.func @acc_serial_if_self_operands(%cond: i1) {
+    "acc.serial"(%cond, %cond) <{operandSegmentSizes = array<i32: 0, 0, 1, 1, 0, 0, 0, 0>}> ({
+      "acc.yield"() : () -> ()
+    }) : (i1, i1) -> ()
+    func.return
+  }
+  func.func @acc_serial_async_operand(%v: i32) {
+    "acc.serial"(%v) <{asyncOperandsDeviceType = [#acc.device_type<none>], operandSegmentSizes = array<i32: 1, 0, 0, 0, 0, 0, 0, 0>}> ({
+      "acc.yield"() : () -> ()
+    }) : (i32) -> ()
+    func.return
+  }
+  func.func @acc_serial_wait_operands(%w: i64, %x: index) {
+    "acc.serial"(%w, %x) <{hasWaitDevnum = [false], waitOperandsSegments = array<i32: 2>, waitOperandsDeviceType = [#acc.device_type<none>], operandSegmentSizes = array<i32: 0, 2, 0, 0, 0, 0, 0, 0>}> ({
+      "acc.yield"() : () -> ()
+    }) : (i64, index) -> ()
+    func.return
+  }
 }
 
 // CHECK:       builtin.module {
@@ -74,6 +92,24 @@ builtin.module {
 // CHECK-NEXT:      acc.serial {
 // CHECK-NEXT:        acc.yield
 // CHECK-NEXT:      } attributes {asyncOnly = [#acc.device_type<nvidia>], waitOnly = [#acc.device_type<host>]}
+// CHECK-NEXT:      func.return
+// CHECK-NEXT:    }
+// CHECK-NEXT:    func.func @acc_serial_if_self_operands(%{{[^ :]+}}: i1) {
+// CHECK-NEXT:      acc.serial self(%{{[^)]+}}) if(%{{[^)]+}}) {
+// CHECK-NEXT:        acc.yield
+// CHECK-NEXT:      }
+// CHECK-NEXT:      func.return
+// CHECK-NEXT:    }
+// CHECK-NEXT:    func.func @acc_serial_async_operand(%{{[^ :]+}}: i32) {
+// CHECK-NEXT:      acc.serial async(%{{[^ ]+}} : i32) {
+// CHECK-NEXT:        acc.yield
+// CHECK-NEXT:      } attributes {asyncOperandsDeviceType = [#acc.device_type<none>]}
+// CHECK-NEXT:      func.return
+// CHECK-NEXT:    }
+// CHECK-NEXT:    func.func @acc_serial_wait_operands(%{{[^ :]+}}: i64, %{{[^ :]+}}: index) {
+// CHECK-NEXT:      acc.serial wait(%{{[^ ]+}}, %{{[^ ]+}} : i64, index) {
+// CHECK-NEXT:        acc.yield
+// CHECK-NEXT:      } attributes {hasWaitDevnum = [false], waitOperandsDeviceType = [#acc.device_type<none>], waitOperandsSegments = array<i32: 2>}
 // CHECK-NEXT:      func.return
 // CHECK-NEXT:    }
 // CHECK-NEXT:  }
