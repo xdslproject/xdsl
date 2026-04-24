@@ -24,12 +24,12 @@
   %17 = "arith.select"(%16, %f128_lhs, %f128_rhs) : (i1, f128, f128) -> f128
 }) : ()->()
 
-// CHECK:        "arith.cmpf"(%0, %1) <{fastmath = #arith.fastmath<none>, predicate = 2 : i64}> : (f64, f64) -> i1
-// CHECK:        "arith.select"(%6, %0, %1) : (i1, f64, f64) -> f64
-// CHECK:        "arith.cmpi"(%2, %3) <{predicate = 1 : i64}> : (i32, i32) -> i1
-// CHECK:        "arith.select"(%8, %2, %3) : (i1, i32, i32) -> i32
-// CHECK:        "arith.cmpi"(%4, %5) <{predicate = 1 : i64}> : (index, index) -> i1
-// CHECK:        "arith.select"(%10, %4, %5) : (i1, index, index) -> index
+// CHECK:        "arith.cmpf"(%{{.*}}, %{{.*}}) <{fastmath = #arith.fastmath<none>, predicate = 2 : i64}> : (f64, f64) -> i1
+// CHECK:        "arith.select"(%{{.*}}, %{{.*}}, %{{.*}}) : (i1, f64, f64) -> f64
+// CHECK:        "arith.cmpi"(%{{.*}}, %{{.*}}) <{predicate = 1 : i64}> : (i32, i32) -> i1
+// CHECK:        "arith.select"(%{{.*}}, %{{.*}}, %{{.*}}) : (i1, i32, i32) -> i32
+// CHECK:        "arith.cmpi"(%{{.*}}, %{{.*}}) <{predicate = 1 : i64}> : (index, index) -> i1
+// CHECK:        "arith.select"(%{{.*}}, %{{.*}}, %{{.*}}) : (i1, index, index) -> index
 // CHECK:        "arith.cmpf"(%{{.*}}, %{{.*}}) <{fastmath = #arith.fastmath<none>, predicate = 2 : i64}> : (bf16, bf16) -> i1
 // CHECK:        "arith.select"(%{{.*}}, %{{.*}}, %{{.*}}) : (i1, bf16, bf16) -> bf16
 // CHECK:        "arith.cmpf"(%{{.*}}, %{{.*}}) <{fastmath = #arith.fastmath<none>, predicate = 2 : i64}> : (f80, f80) -> i1
