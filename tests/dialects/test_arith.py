@@ -64,6 +64,8 @@ from xdsl.dialects.builtin import (
     Signedness,
     TensorType,
     VectorType,
+    bf16,
+    f16,
     f32,
     f64,
     i1,
@@ -283,6 +285,12 @@ def test_select_op():
         (VectorType(i64, [3]), VectorType(f64, [3])),
         (VectorType(f32, [3]), VectorType(i32, [3])),
         (MemRefType(i32, [5]), MemRefType(f32, [5])),
+        (bf16, f16),
+        (f16, bf16),
+        (bf16, IntegerType(16)),
+        (IntegerType(16), bf16),
+        (VectorType(bf16, [4]), VectorType(IntegerType(16), [4])),
+        (MemRefType(bf16, [5]), MemRefType(IntegerType(16), [5])),
     ],
 )
 def test_bitcast_op(in_type: Attribute, out_type: Attribute):
@@ -311,6 +319,7 @@ BITWIDTH_MISMATCH = "operand and result types must have equal bitwidths or be In
         (VectorType(i32, [5]), VectorType(f64, [5]), BITWIDTH_MISMATCH),
         (MemRefType(i32, [5]), MemRefType(f32, [6]), SHAPE_MISMATCH),
         (MemRefType(i32, [5]), f32, SHAPE_MISMATCH),
+        (bf16, f32, BITWIDTH_MISMATCH),
     ],
 )
 def test_bitcast_incorrect(in_type: Attribute, out_type: Attribute, err_msg: str):

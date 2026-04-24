@@ -7,6 +7,9 @@
 %lhsf32, %rhsf32 = "test.op"() : () -> (f32, f32)
 %lhsf64, %rhsf64 = "test.op"() : () -> (f64, f64)
 %lhsvec, %rhsvec = "test.op"() : () -> (vector<4xf32>, vector<4xf32>)
+%lhsbf16, %rhsbf16 = "test.op"() : () -> (bf16, bf16)
+%lhsbf16vec, %rhsbf16vec = "test.op"() : () -> (vector<4xbf16>, vector<4xbf16>)
+%lhsi16 = "test.op"() : () -> i16
 
 
 %divsi = arith.divsi %lhsi32, %rhsi32 : i32
@@ -149,6 +152,24 @@
 %negf = "arith.negf"(%lhsf32) : (f32) -> f32
 
 // CHECK-NEXT: %negf = arith.negf %lhsf32 : f32
+
+%addf_bf16 = arith.addf %lhsbf16, %rhsbf16 : bf16
+%addf_bf16_vector = arith.addf %lhsbf16vec, %rhsbf16vec : vector<4xbf16>
+%negf_bf16 = arith.negf %lhsbf16 : bf16
+%cmpf_bf16 = arith.cmpf ogt, %lhsbf16, %rhsbf16 : bf16
+%bitcast_bf16_to_i16 = arith.bitcast %lhsbf16 : bf16 to i16
+%bitcast_bf16_to_f16 = arith.bitcast %lhsbf16 : bf16 to f16
+%bitcast_i16_to_bf16 = arith.bitcast %lhsi16 : i16 to bf16
+%bitcast_bf16_vec = arith.bitcast %lhsbf16vec : vector<4xbf16> to vector<4xi16>
+
+// CHECK-NEXT: %addf_bf16 = arith.addf %lhsbf16, %rhsbf16 : bf16
+// CHECK-NEXT: %addf_bf16_vector = arith.addf %lhsbf16vec, %rhsbf16vec : vector<4xbf16>
+// CHECK-NEXT: %negf_bf16 = arith.negf %lhsbf16 : bf16
+// CHECK-NEXT: %cmpf_bf16 = arith.cmpf ogt, %lhsbf16, %rhsbf16 : bf16
+// CHECK-NEXT: %bitcast_bf16_to_i16 = arith.bitcast %lhsbf16 : bf16 to i16
+// CHECK-NEXT: %bitcast_bf16_to_f16 = arith.bitcast %lhsbf16 : bf16 to f16
+// CHECK-NEXT: %bitcast_i16_to_bf16 = arith.bitcast %lhsi16 : i16 to bf16
+// CHECK-NEXT: %bitcast_bf16_vec = arith.bitcast %lhsbf16vec : vector<4xbf16> to vector<4xi16>
 
 %extf = "arith.extf"(%lhsf32) : (f32) -> f64
 
