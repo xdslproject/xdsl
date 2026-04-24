@@ -276,16 +276,6 @@ class SerialOp(IRDLOperation):
 
     irdl_options = (AttrSizedOperandSegments(as_property=True), ParsePropInAttrDict())
 
-    # Declarative assembly format. The upstream MLIR format uses an
-    # `oilist(...)` of clauses in any order plus a pair of `custom<...>`
-    # directives (`DeviceTypeOperandsWithKeywordOnly`, `WaitClause`) that
-    # xDSL's declarative format does not provide. We keep the common clauses
-    # expressible here in a fixed oilist-definition order and defer the less
-    # common shapes (bare `async` / `wait` keywords, per-group wait syntax
-    # with devnum, per-operand async device types) to the
-    # `attr-dict-with-keyword` tail. The generic-form properties
-    # (`asyncOnly`, `waitOnly`, `asyncOperandsDeviceType`, …) remain valid
-    # so MLIR interop still round-trips through them.
     assembly_format = (
         "(`combined` `(` `loop` `)` $combined^)?"
         " (`dataOperands` `(` $data_clause_operands^ `:`"

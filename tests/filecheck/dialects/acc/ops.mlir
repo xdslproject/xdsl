@@ -200,4 +200,52 @@ builtin.module {
   // CHECK: acc.serial {
   // CHECK-NEXT: acc.yield
   // CHECK-NEXT: } attributes {selfAttr}
+
+  func.func @acc_serial_data_operands_multi(%a: memref<10xf32>, %b: memref<10x10xf32>) {
+    acc.serial dataOperands(%a, %b : memref<10xf32>, memref<10x10xf32>) {
+      acc.yield
+    }
+    func.return
+  }
+  // CHECK: acc.serial dataOperands(%{{.*}}, %{{.*}} : memref<10xf32>, memref<10x10xf32>) {
+
+  func.func @acc_serial_firstprivate_multi(%a: memref<10xf32>, %b: memref<10x10xf32>) {
+    acc.serial firstprivate(%a, %b : memref<10xf32>, memref<10x10xf32>) {
+      acc.yield
+    }
+    func.return
+  }
+  // CHECK: acc.serial firstprivate(%{{.*}}, %{{.*}} : memref<10xf32>, memref<10x10xf32>) {
+
+  func.func @acc_serial_reduction_multi(%a: memref<10xf32>, %b: memref<10x10xf32>) {
+    acc.serial reduction(%a, %b : memref<10xf32>, memref<10x10xf32>) {
+      acc.yield
+    }
+    func.return
+  }
+  // CHECK: acc.serial reduction(%{{.*}}, %{{.*}} : memref<10xf32>, memref<10x10xf32>) {
+
+  func.func @acc_serial_combined_with_operands(%v: i32, %a: memref<10xf32>) {
+    acc.serial combined(loop) dataOperands(%a : memref<10xf32>) async(%v : i32) {
+      acc.yield
+    }
+    func.return
+  }
+  // CHECK: acc.serial combined(loop) dataOperands(%{{.*}} : memref<10xf32>) async(%{{.*}} : i32) {
+
+  func.func @acc_serial_all_clauses(%cond: i1, %v: i32, %w: i32, %a: memref<10xf32>, %b: memref<10x10xf32>) {
+    acc.serial combined(loop) dataOperands(%a : memref<10xf32>) async(%v : i32) firstprivate(%a : memref<10xf32>) private(%a, %b : memref<10xf32>, memref<10x10xf32>) wait(%w : i32) self(%cond) if(%cond) reduction(%a : memref<10xf32>) {
+      acc.yield
+    }
+    func.return
+  }
+  // CHECK:      acc.serial combined(loop)
+  // CHECK-SAME: dataOperands(%{{[^ ]+}} : memref<10xf32>)
+  // CHECK-SAME: async(%{{[^ ]+}} : i32)
+  // CHECK-SAME: firstprivate(%{{[^ ]+}} : memref<10xf32>)
+  // CHECK-SAME: private(%{{[^ ]+}}, %{{[^ ]+}} : memref<10xf32>, memref<10x10xf32>)
+  // CHECK-SAME: wait(%{{[^ ]+}} : i32)
+  // CHECK-SAME: self(%{{[^)]+}})
+  // CHECK-SAME: if(%{{[^)]+}})
+  // CHECK-SAME: reduction(%{{[^ ]+}} : memref<10xf32>)
 }
