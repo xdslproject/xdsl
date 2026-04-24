@@ -5,6 +5,84 @@ builtin.module {
 
   // CHECK: declare void @"declaration"()
 
+  llvm.func @noalias_all(%arg0: !llvm.ptr {llvm.noalias}, %arg1: !llvm.ptr {llvm.noalias}) {
+    llvm.return
+  }
+
+  // CHECK: define void @"noalias_all"(ptr noalias %".1", ptr noalias %".2")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT:   ret void
+  // CHECK-NEXT: }
+
+  llvm.func @noalias_partial(%arg0: !llvm.ptr {llvm.noalias}, %arg1: !llvm.ptr) {
+    llvm.return
+  }
+
+  // CHECK: define void @"noalias_partial"(ptr noalias %".1", ptr %".2")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT:   ret void
+  // CHECK-NEXT: }
+
+  llvm.func @arg_attr_flags(
+      %arg0: !llvm.ptr {llvm.nocapture, llvm.nofree, llvm.nonnull, llvm.readonly},
+      %arg1: i32 {llvm.noundef, llvm.signext, llvm.inreg},
+      %arg2: i32 {llvm.zeroext, llvm.returned},
+      %arg3: !llvm.ptr {llvm.nest}
+  ) -> i32 {
+    llvm.return %arg2 : i32
+  }
+
+  // llvm.readonly is dropped. llvmlite prints in alphabetical order.
+  // CHECK: define i32 @"arg_attr_flags"(ptr nocapture nofree nonnull %".1", i32 inreg noundef signext %".2", i32 returned zeroext %".3", ptr nest %".4")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT:   ret i32 %".3"
+  // CHECK-NEXT: }
+
+  llvm.func @arg_attr_ints(
+      %arg0: !llvm.ptr {llvm.align = 16 : i64},
+      %arg1: !llvm.ptr {llvm.dereferenceable = 32 : i64},
+      %arg2: !llvm.ptr {llvm.dereferenceable_or_null = 64 : i64},
+      %arg3: !llvm.ptr {llvm.align = 8 : i64, llvm.dereferenceable = 128 : i64, llvm.noalias}
+  ) {
+    llvm.return
+  }
+
+  // CHECK: define void @"arg_attr_ints"(ptr align 16 %".1", ptr dereferenceable(32) %".2", ptr dereferenceable_or_null(64) %".3", ptr noalias align 8 dereferenceable(128) %".4")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT:   ret void
+  // CHECK-NEXT: }
+
+  llvm.func @arg_attr_types(
+      %arg0: !llvm.ptr {llvm.byval = i32},
+      %arg1: !llvm.ptr {llvm.sret = !llvm.struct<(i32, i32)>},
+      %arg2: !llvm.ptr {llvm.byref = i64, llvm.align = 8 : i64, llvm.noalias},
+      %arg3: !llvm.ptr {llvm.elementtype = f32}
+  ) {
+    llvm.return
+  }
+
+  // Type-valued attrs force a typed pointer so llvmlite can print name(T).
+  // CHECK: define void @"arg_attr_types"(i32* byval(i32) %".1", {i32, i32}* sret({i32, i32}) %".2", i64* byref(i64) noalias align 8 %".3", float* elementtype(float) %".4")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT:   ret void
+  // CHECK-NEXT: }
+
+  llvm.func @arg_attr_unknown(%arg0: !llvm.ptr {llvm.readonly}, %arg1: i32) {
+    llvm.return
+  }
+
+  // Unsupported attrs are dropped.
+  // CHECK: define void @"arg_attr_unknown"(ptr %".1", i32 %".2")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT:   ret void
+  // CHECK-NEXT: }
+
   llvm.func @named_entry() {
   ^entry:
     llvm.return
@@ -408,8 +486,8 @@ builtin.module {
     %0 = llvm.trunc %arg1 : i64 to i32
     %1 = llvm.zext %arg0 : i32 to i64
     %2 = llvm.sext %arg0 : i32 to i64
-    %3 = "llvm.ptrtoint"(%arg2) : (!llvm.ptr) -> i64
-    %4 = "llvm.inttoptr"(%arg1) : (i64) -> !llvm.ptr
+    %3 = llvm.ptrtoint %arg2 : !llvm.ptr to i64
+    %4 = llvm.inttoptr %arg1 : i64 to !llvm.ptr
     %5 = llvm.bitcast %arg1 : i64 to f64
     %6 = llvm.fpext %arg3 : f32 to f64
     %7 = llvm.sitofp %arg0 : i32 to f32
@@ -765,7 +843,7 @@ builtin.module {
   // CHECK-NEXT: }
 
   llvm.func @zero_op() -> !llvm.ptr {
-    %0 = "llvm.mlir.zero"() : () -> !llvm.ptr
+    %0 = llvm.mlir.zero : !llvm.ptr
     llvm.return %0 : !llvm.ptr
   }
 
@@ -806,7 +884,7 @@ builtin.module {
   }
 
   llvm.func @addressof_op() {
-    %0 = "llvm.mlir.addressof"() <{global_name = @addressof_target}> : () -> !llvm.ptr
+    %0 = llvm.mlir.addressof @addressof_target : !llvm.ptr
     "llvm.call"(%0) <{callee = @callee, fastmathFlags = #llvm.fastmath<>, CConv = #llvm.cconv<ccc>, TailCallKind = #llvm.tailcallkind<none>, operandSegmentSizes = array<i32: 1, 0>}> : (!llvm.ptr) -> ()
     llvm.return
   }

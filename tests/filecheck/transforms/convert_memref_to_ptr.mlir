@@ -159,10 +159,155 @@ memref.store %fv4, %mstr4[%idx4] {"nontemporal" = false} : memref<2xf32, strided
 
 // -----
 
+// load from memref with one dynamic dim, strides are all static [8, 1], no memref.dim needed
+%idx_a1, %idx_a2, %arr_dyn1 = "test.op"() : () -> (index, index, memref<?x8xf32>)
+%lv_dyn1 = memref.load %arr_dyn1[%idx_a1, %idx_a2] {"nontemporal" = false} : memref<?x8xf32>
+
+// CHECK:       %idx_a1, %idx_a2, %arr_dyn1 = "test.op"() : () -> (index, index, memref<?x8xf32>)
+// CHECK-NEXT:  %arr_dyn1_1 = ptr_xdsl.to_ptr %arr_dyn1 : memref<?x8xf32> -> !ptr_xdsl.ptr
+// CHECK-NEXT:  %pointer_dim_stride = arith.constant 8 : index
+// CHECK-NEXT:  %pointer_dim_offset = arith.muli %idx_a1, %pointer_dim_stride : index
+// CHECK-NEXT:  %pointer_dim_stride_1 = arith.addi %pointer_dim_offset, %idx_a2 : index
+// CHECK-NEXT:  %bytes_per_element = ptr_xdsl.type_offset f32 : index
+// CHECK-NEXT:  %scaled_pointer_offset = arith.muli %pointer_dim_stride_1, %bytes_per_element : index
+// CHECK-NEXT:  %offset_pointer = ptr_xdsl.ptradd %arr_dyn1_1, %scaled_pointer_offset : (!ptr_xdsl.ptr, index) -> !ptr_xdsl.ptr
+// CHECK-NEXT:  %lv_dyn1 = ptr_xdsl.load %offset_pointer : !ptr_xdsl.ptr -> f32
+
+// load from memref with all dynamic dims, needs memref.dim for stride[0]
+%idx_b1, %idx_b2, %arr_dyn2 = "test.op"() : () -> (index, index, memref<?x?xf32>)
+%lv_dyn2 = memref.load %arr_dyn2[%idx_b1, %idx_b2] {"nontemporal" = false} : memref<?x?xf32>
+
+// CHECK-NEXT:  %idx_b1, %idx_b2, %arr_dyn2 = "test.op"() : () -> (index, index, memref<?x?xf32>)
+// CHECK-NEXT:  %arr_dyn2_1 = ptr_xdsl.to_ptr %arr_dyn2 : memref<?x?xf32> -> !ptr_xdsl.ptr
+// CHECK-NEXT:  %dim_idx = arith.constant 1 : index
+// CHECK-NEXT:  %0 = memref.dim %arr_dyn2, %dim_idx : memref<?x?xf32>
+// CHECK-NEXT:  %pointer_dim_offset_1 = arith.muli %idx_b1, %0 : index
+// CHECK-NEXT:  %pointer_dim_stride_2 = arith.addi %pointer_dim_offset_1, %idx_b2 : index
+// CHECK-NEXT:  %bytes_per_element_1 = ptr_xdsl.type_offset f32 : index
+// CHECK-NEXT:  %scaled_pointer_offset_1 = arith.muli %pointer_dim_stride_2, %bytes_per_element_1 : index
+// CHECK-NEXT:  %offset_pointer_1 = ptr_xdsl.ptradd %arr_dyn2_1, %scaled_pointer_offset_1 : (!ptr_xdsl.ptr, index) -> !ptr_xdsl.ptr
+// CHECK-NEXT:  %lv_dyn2 = ptr_xdsl.load %offset_pointer_1 : !ptr_xdsl.ptr -> f32
+
+// 3D with middle dynamic dim, exercises stride fold for (static=4, dynamic=dim1)
+%i, %j, %k, %m3d = "test.op"() : () -> (index, index, index, memref<2x?x4xf32>)
+%lv_3d = memref.load %m3d[%i, %j, %k] {"nontemporal" = false} : memref<2x?x4xf32>
+
+// CHECK-NEXT:  %i, %j, %k, %m3d = "test.op"() : () -> (index, index, index, memref<2x?x4xf32>)
+// CHECK-NEXT:  %m3d_1 = ptr_xdsl.to_ptr %m3d : memref<2x?x4xf32> -> !ptr_xdsl.ptr
+// CHECK-NEXT:  %dim_idx_1 = arith.constant 1 : index
+// CHECK-NEXT:  %1 = memref.dim %m3d, %dim_idx_1 : memref<2x?x4xf32>
+// CHECK-NEXT:  %2 = arith.constant 4 : index
+// CHECK-NEXT:  %3 = arith.muli %2, %1 : index
+// CHECK-NEXT:  %pointer_dim_offset_2 = arith.muli %i, %3 : index
+// CHECK-NEXT:  %pointer_dim_stride_3 = arith.constant 4 : index
+// CHECK-NEXT:  %pointer_dim_offset_3 = arith.muli %j, %pointer_dim_stride_3 : index
+// CHECK-NEXT:  %pointer_dim_stride_4 = arith.addi %pointer_dim_offset_2, %pointer_dim_offset_3 : index
+// CHECK-NEXT:  %pointer_dim_stride_5 = arith.addi %pointer_dim_stride_4, %k : index
+// CHECK-NEXT:  %bytes_per_element_2 = ptr_xdsl.type_offset f32 : index
+// CHECK-NEXT:  %scaled_pointer_offset_2 = arith.muli %pointer_dim_stride_5, %bytes_per_element_2 : index
+// CHECK-NEXT:  %offset_pointer_2 = ptr_xdsl.ptradd %m3d_1, %scaled_pointer_offset_2 : (!ptr_xdsl.ptr, index) -> !ptr_xdsl.ptr
+// CHECK-NEXT:  %lv_3d = ptr_xdsl.load %offset_pointer_2 : !ptr_xdsl.ptr -> f32
+
+// 1D dynamic memref, stride is always 1, no memref.dim needed
+%idx_1d, %arr_1d = "test.op"() : () -> (index, memref<?xf32>)
+%lv_1d = memref.load %arr_1d[%idx_1d] {"nontemporal" = false} : memref<?xf32>
+
+// CHECK-NEXT:  %idx_1d, %arr_1d = "test.op"() : () -> (index, memref<?xf32>)
+// CHECK-NEXT:  %arr_1d_1 = ptr_xdsl.to_ptr %arr_1d : memref<?xf32> -> !ptr_xdsl.ptr
+// CHECK-NEXT:  %bytes_per_element_3 = ptr_xdsl.type_offset f32 : index
+// CHECK-NEXT:  %scaled_pointer_offset_3 = arith.muli %idx_1d, %bytes_per_element_3 : index
+// CHECK-NEXT:  %offset_pointer_3 = ptr_xdsl.ptradd %arr_1d_1, %scaled_pointer_offset_3 : (!ptr_xdsl.ptr, index) -> !ptr_xdsl.ptr
+// CHECK-NEXT:  %lv_1d = ptr_xdsl.load %offset_pointer_3 : !ptr_xdsl.ptr -> f32
+
+// subview with dynamic offset on dynamic-shaped source
+%off, %dyn_src = "test.op"() : () -> (index, memref<?x?xf32>)
+%subview_dyn = memref.subview %dyn_src[%off, 0][4, 8][1, 1] : memref<?x?xf32> to memref<4x8xf32, strided<[?, 1], offset: ?>>
+
+// CHECK-NEXT:  %off, %dyn_src = "test.op"() : () -> (index, memref<?x?xf32>)
+// CHECK-NEXT:  %dim_idx_2 = arith.constant 1 : index
+// CHECK-NEXT:  %4 = memref.dim %dyn_src, %dim_idx_2 : memref<?x?xf32>
+// CHECK-NEXT:  %dyn_src_1 = ptr_xdsl.to_ptr %dyn_src : memref<?x?xf32> -> !ptr_xdsl.ptr
+// CHECK-NEXT:  %increment = arith.muli %4, %off : index
+// CHECK-NEXT:  %c0 = arith.constant 0 : index
+// CHECK-NEXT:  %subview = arith.addi %increment, %c0 : index
+// CHECK-NEXT:  %bytes_per_element_4 = ptr_xdsl.type_offset f32 : index
+// CHECK-NEXT:  %scaled_pointer_offset_4 = arith.muli %subview, %bytes_per_element_4 : index
+// CHECK-NEXT:  %offset_pointer_4 = ptr_xdsl.ptradd %dyn_src_1, %scaled_pointer_offset_4 : (!ptr_xdsl.ptr, index) -> !ptr_xdsl.ptr
+// CHECK-NEXT:  %subview_dyn = ptr_xdsl.from_ptr %offset_pointer_4 : !ptr_xdsl.ptr -> memref<4x8xf32, strided<[?, 1], offset: ?>>
+
+// subview with all-static offsets on dynamic-shaped source
+%dyn_src2 = "test.op"() : () -> (memref<?x?xf32>)
+%subview_static = memref.subview %dyn_src2[2, 3][4, 8][1, 1] : memref<?x?xf32> to memref<4x8xf32, strided<[?, 1], offset: ?>>
+
+// CHECK-NEXT:  %dyn_src2 = "test.op"() : () -> memref<?x?xf32>
+// CHECK-NEXT:  %dim_idx_3 = arith.constant 1 : index
+// CHECK-NEXT:  %5 = memref.dim %dyn_src2, %dim_idx_3 : memref<?x?xf32>
+// CHECK-NEXT:  %dyn_src2_1 = ptr_xdsl.to_ptr %dyn_src2 : memref<?x?xf32> -> !ptr_xdsl.ptr
+// CHECK-NEXT:  %c2 = arith.constant 2 : index
+// CHECK-NEXT:  %increment_1 = arith.muli %5, %c2 : index
+// CHECK-NEXT:  %c3 = arith.constant 3 : index
+// CHECK-NEXT:  %subview_1 = arith.addi %increment_1, %c3 : index
+// CHECK-NEXT:  %bytes_per_element_5 = ptr_xdsl.type_offset f32 : index
+// CHECK-NEXT:  %scaled_pointer_offset_5 = arith.muli %subview_1, %bytes_per_element_5 : index
+// CHECK-NEXT:  %offset_pointer_5 = ptr_xdsl.ptradd %dyn_src2_1, %scaled_pointer_offset_5 : (!ptr_xdsl.ptr, index) -> !ptr_xdsl.ptr
+// CHECK-NEXT:  %subview_static = ptr_xdsl.from_ptr %offset_pointer_5 : !ptr_xdsl.ptr -> memref<4x8xf32, strided<[?, 1], offset: ?>>
+
+// covers the `(_, 1)` stride fold and `isinstance(dim_size, int)` branch
+%a, %b, %c, %d, %m4d = "test.op"() : () -> (index, index, index, index, memref<?x1x4x?xf32>)
+%lv_4d = memref.load %m4d[%a, %b, %c, %d] {"nontemporal" = false} : memref<?x1x4x?xf32>
+
+// CHECK-NEXT:  %a, %b, %c, %d, %m4d = "test.op"() : () -> (index, index, index, index, memref<?x1x4x?xf32>)
+// CHECK-NEXT:  %m4d_1 = ptr_xdsl.to_ptr %m4d : memref<?x1x4x?xf32> -> !ptr_xdsl.ptr
+// CHECK-NEXT:  %dim_idx_4 = arith.constant 3 : index
+// CHECK-NEXT:  %6 = memref.dim %m4d, %dim_idx_4 : memref<?x1x4x?xf32>
+// CHECK-NEXT:  %7 = arith.constant 4 : index
+// CHECK-NEXT:  %8 = arith.muli %6, %7 : index
+// CHECK-NEXT:  %pointer_dim_offset_4 = arith.muli %a, %8 : index
+// CHECK-NEXT:  %pointer_dim_offset_5 = arith.muli %b, %8 : index
+// CHECK-NEXT:  %pointer_dim_stride_6 = arith.addi %pointer_dim_offset_4, %pointer_dim_offset_5 : index
+// CHECK-NEXT:  %pointer_dim_offset_6 = arith.muli %c, %6 : index
+// CHECK-NEXT:  %pointer_dim_stride_7 = arith.addi %pointer_dim_stride_6, %pointer_dim_offset_6 : index
+// CHECK-NEXT:  %pointer_dim_stride_8 = arith.addi %pointer_dim_stride_7, %d : index
+// CHECK-NEXT:  %bytes_per_element_6 = ptr_xdsl.type_offset f32 : index
+// CHECK-NEXT:  %scaled_pointer_offset_6 = arith.muli %pointer_dim_stride_8, %bytes_per_element_6 : index
+// CHECK-NEXT:  %offset_pointer_6 = ptr_xdsl.ptradd %m4d_1, %scaled_pointer_offset_6 : (!ptr_xdsl.ptr, index) -> !ptr_xdsl.ptr
+// CHECK-NEXT:  %lv_4d = ptr_xdsl.load %offset_pointer_6 : !ptr_xdsl.ptr -> f32
+
+"test.op"(%lv_dyn1, %lv_dyn2, %lv_3d, %lv_1d, %subview_dyn, %subview_static, %lv_4d) : (f32, f32, f32, f32, memref<4x8xf32, strided<[?, 1], offset: ?>>, memref<4x8xf32, strided<[?, 1], offset: ?>>, f32) -> ()
+
+// CHECK-NEXT:  "test.op"(%lv_dyn1, %lv_dyn2, %lv_3d, %lv_1d, %subview_dyn, %subview_static, %lv_4d) : (f32, f32, f32, f32, memref<4x8xf32, strided<[?, 1], offset: ?>>, memref<4x8xf32, strided<[?, 1], offset: ?>>, f32) -> ()
+
+// -----
+
 %fv, %idx, %mstr = "test.op"() : () -> (f64, index, memref<2xf64, strided<[?]>>)
 memref.store %fv, %mstr[%idx] {"nontemporal" = false} : memref<2xf64, strided<[?]>>
 
 // CHECK: MemRef memref<2xf64, strided<[?]>> with dynamic stride is not yet implemented
+
+// -----
+
+// TODO: multi-dim strided layout with dynamic leading stride
+%fv2, %idx1_2, %idx2_2, %mstr_2 = "test.op"() : () -> (f64, index, index, memref<4x8xf64, strided<[?, 1]>>)
+memref.store %fv2, %mstr_2[%idx1_2, %idx2_2] {"nontemporal" = false} : memref<4x8xf64, strided<[?, 1]>>
+
+// CHECK: MemRef memref<4x8xf64, strided<[?, 1]>> with dynamic stride is not yet implemented
+
+// -----
+
+// TODO: strided layout with all-dynamic strides
+%fv3, %idx1_3, %idx2_3, %mstr_3 = "test.op"() : () -> (f64, index, index, memref<4x8xf64, strided<[?, ?]>>)
+memref.store %fv3, %mstr_3[%idx1_3, %idx2_3] {"nontemporal" = false} : memref<4x8xf64, strided<[?, ?]>>
+
+// CHECK: MemRef memref<4x8xf64, strided<[?, ?]>> with dynamic stride is not yet implemented
+
+// -----
+
+// TODO: subview whose source has a strided layout with dynamic stride
+%sv_src, %sv_off = "test.op"() : () -> (memref<4x8xf64, strided<[?, 1]>>, index)
+%sv = memref.subview %sv_src[%sv_off, 0][2, 4][1, 1] : memref<4x8xf64, strided<[?, 1]>> to memref<2x4xf64, strided<[?, 1], offset: ?>>
+"test.op"(%sv) : (memref<2x4xf64, strided<[?, 1], offset: ?>>) -> ()
+
+// CHECK: MemRef memref<4x8xf64, strided<[?, 1]>> with dynamic stride is not yet implemented
 
 // -----
 

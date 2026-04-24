@@ -10,9 +10,9 @@
 ptr_xdsl.store %2, %0  : i32, !ptr_xdsl.ptr
 
 // CHECK-NEXT: %3 = arith.index_cast %1 : index to i64
-// CHECK-NEXT: %4 = "llvm.ptrtoint"(%0) : (!llvm.ptr) -> i64
+// CHECK-NEXT: %4 = llvm.ptrtoint %0 : !llvm.ptr to i64
 // CHECK-NEXT: %5 = arith.addi %4, %3 : i64
-// CHECK-NEXT: %6 = "llvm.inttoptr"(%5) : (i64) -> !llvm.ptr
+// CHECK-NEXT: %6 = llvm.inttoptr %5 : i64 to !llvm.ptr
 // CHECK-NEXT: "test.op"(%6) : (!llvm.ptr) -> ()
 %3 = ptr_xdsl.ptradd %0, %1 : (!ptr_xdsl.ptr, index) -> !ptr_xdsl.ptr
 "test.op"(%3) : (!ptr_xdsl.ptr) -> ()

@@ -98,7 +98,7 @@ def test_llvm_pointer_ops():
             idx := arith.ConstantOp.from_int_and_width(0, 64),
             ptr := llvm.AllocaOp(idx, builtin.i32),
             val := llvm.LoadOp(ptr, builtin.i32),
-            nullptr := llvm.NullOp(),
+            nullptr := llvm.ZeroOp(result_types=[llvm.LLVMPointerType()]),
             alloc_ptr := llvm.AllocaOp(idx, elem_type=builtin.IndexType()),
             llvm.LoadOp(alloc_ptr, builtin.IndexType()),
             store := llvm.StoreOp(
@@ -119,8 +119,8 @@ def test_llvm_pointer_ops():
     assert "alignment" in store.properties
     assert "ordering" in store.properties
 
-    assert isinstance(nullptr.nullptr.type, llvm.LLVMPointerType)
-    assert isinstance(nullptr.nullptr.type.addr_space, builtin.NoneAttr)
+    assert isinstance(nullptr.res.type, llvm.LLVMPointerType)
+    assert isinstance(nullptr.res.type.addr_space, builtin.NoneAttr)
 
 
 @pytest.mark.parametrize(
@@ -481,11 +481,11 @@ def test_gep_op_inbounds_flag():
     assert "inbounds" in op.properties
 
 
-def test_null_op_with_address_space():
+def test_zero_op_with_address_space():
     # address space 1 (e.g. GPU global memory) instead of default address space 0
     ptr_type = llvm.LLVMPointerType(addr_space=builtin.IntAttr(1))
-    op = llvm.NullOp(ptr_type)
-    assert op.nullptr.type == ptr_type
+    op = llvm.ZeroOp(result_types=[ptr_type])
+    assert op.res.type == ptr_type
     assert isinstance(ptr_type.addr_space, builtin.IntAttr)
     assert ptr_type.addr_space.data == 1  # verify address space is actually set
 

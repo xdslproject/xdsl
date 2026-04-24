@@ -76,71 +76,100 @@ def get_strides(
     memref_val: SSAValue,
     memref_type: builtin.MemRefType,
     builder: Builder,
-) -> Sequence[int]:
+) -> Sequence[int | SSAValue]:
     """
-    Returns the per-dimension strides of `memref_val` as a sequence of `int`s when
-    they are all statically known, otherwise raises a `DiagnosticException`.
-
-    `memref_val` and `builder` are currently unused; they are accepted so that a
-    follow-up change can extend this helper to emit `memref.dim` ops for dynamic
-    dimensions without changing its call sites.
+    Returns the per-dimension strides of `memref_val`. Each stride is an `int` when
+    statically known, or an SSA value when it depends on dynamic source dimensions
+    (for which `memref.dim` ops are emitted).
     """
-    del memref_val, builder
     match memref_type.layout:
-        case builtin.NoneAttr():
-            if builtin.DYNAMIC_INDEX in memref_type.get_shape():
-                raise DiagnosticException(
-                    f"MemRef {memref_type} with dynamic shape is not yet implemented"
-                )
-            strides = builtin.ShapedType.strides_for_shape(memref_type.get_shape())
-        case builtin.StridedLayoutAttr():
-            strides = memref_type.layout.get_strides()
-            if None in strides:
+        case builtin.StridedLayoutAttr() as layout:
+            layout_strides = layout.get_strides()
+            if None in layout_strides:
                 raise DiagnosticException(
                     f"MemRef {memref_type} with dynamic stride is not yet implemented"
                 )
-            strides = cast(Sequence[int], strides)
+            return cast(Sequence[int], layout_strides)
+        case builtin.NoneAttr():
+            pass
         case _:
             raise DiagnosticException(f"Unsupported layout type {memref_type.layout}")
+
+    shape = memref_type.get_shape()
+    if builtin.DYNAMIC_INDEX not in shape:
+        return builtin.ShapedType.strides_for_shape(shape)
+
+    rank = len(shape)
+    strides: list[int | SSAValue] = [1] * rank
+    for i in range(rank - 2, -1, -1):
+        dim_size: int | SSAValue = shape[i + 1]
+        if dim_size == builtin.DYNAMIC_INDEX:
+            dim_idx = builder.insert_op(
+                arith.ConstantOp.from_int_and_width(i + 1, _index_type)
+            )
+            dim_idx.result.name_hint = "dim_idx"
+            dim_size = builder.insert_op(
+                memref.DimOp.from_source_and_index(memref_val, dim_idx.result)
+            ).result
+        prev = strides[i + 1]
+        match (prev, dim_size):
+            case (int(p), int(d)):
+                strides[i] = p * d
+                continue
+            case (1, _):
+                strides[i] = dim_size
+                continue
+            case (_, 1):
+                strides[i] = prev
+                continue
+            case _:
+                pass
+        if isinstance(prev, int):
+            prev = builder.insert_op(
+                arith.ConstantOp.from_int_and_width(prev, _index_type)
+            ).result
+        if isinstance(dim_size, int):
+            dim_size = builder.insert_op(
+                arith.ConstantOp.from_int_and_width(dim_size, _index_type)
+            ).result
+        strides[i] = builder.insert_op(arith.MuliOp(prev, dim_size)).result
     return strides
 
 
 def build_strides_offset(
-    indices: Iterable[SSAValue], strides: Sequence[int], builder: Builder
+    indices: Iterable[SSAValue],
+    strides: Sequence[int | SSAValue],
+    builder: Builder,
 ) -> SSAValue | None:
     """
-    Given SSA values for indices, and constant strides, insert the arithmetic ops that
-    create the combined index offset.
+    Given SSA values for indices, and strides (each either an `int` or an SSA value),
+    insert the arithmetic ops that create the combined index offset.
     The length of indices and strides must be the same.
-    Strides must be positive.
+    Static strides must be positive.
     """
     head: SSAValue | None = None
 
     for index, stride in zip(indices, strides, strict=True):
-        assert stride > 0, f"Strides must be positive, got {stride}"
-        # Calculate the offset that needs to be added through the index of the current
-        # dimension.
         increment = index
-
-        # Stride 1 is a noop making the index equal to the offset.
-        if stride != 1:
-            # Otherwise, multiply the stride (which by definition is the number of
-            # elements required to be skipped when incrementing that dimension).
-            stride_op = builder.insert_op(
-                arith.ConstantOp.from_int_and_width(stride, _index_type)
-            )
-            offset_op = builder.insert_op(arith.MuliOp(increment, stride_op))
-            stride_op.result.name_hint = "pointer_dim_stride"
+        if isinstance(stride, int):
+            assert stride > 0, f"Strides must be positive, got {stride}"
+            if stride != 1:
+                stride_op = builder.insert_op(
+                    arith.ConstantOp.from_int_and_width(stride, _index_type)
+                )
+                offset_op = builder.insert_op(arith.MuliOp(increment, stride_op))
+                stride_op.result.name_hint = "pointer_dim_stride"
+                offset_op.result.name_hint = "pointer_dim_offset"
+                increment = offset_op.result
+        else:
+            offset_op = builder.insert_op(arith.MuliOp(increment, stride))
             offset_op.result.name_hint = "pointer_dim_offset"
-
             increment = offset_op.result
 
         if head is None:
-            # First iteration.
             head = increment
             continue
 
-        # Otherwise sum up the products.
         add_op = builder.insert_op(arith.AddiOp(head, increment))
         add_op.result.name_hint = "pointer_dim_stride"
         head = add_op.result
@@ -209,8 +238,10 @@ class ConvertSubviewPattern(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: memref.SubviewOp, rewriter: PatternRewriter, /):
-        # The result of the subview op has the necessary information for downstream
-        # users to perform indexing, we only need to translate the offset here.
+        # The result type of the subview op already encodes the shape, strides, and
+        # element type that downstream users need for indexing, so this rewrite only
+        # emits the pointer offset. For dynamic source shapes the source strides can
+        # be SSA values, which the loop below multiplies directly.
 
         source_type = op.source.type
         assert isa(source_type, builtin.MemRefType)
@@ -239,7 +270,7 @@ class ConvertSubviewPattern(RewritePattern):
 
             if stride == 1:
                 increment = offset_val
-            else:
+            elif isinstance(stride, int):
                 stride_val = rewriter.insert_op(
                     arith.ConstantOp(builtin.IntegerAttr(stride, _index_type))
                 ).result
@@ -247,6 +278,9 @@ class ConvertSubviewPattern(RewritePattern):
                     arith.MuliOp(stride_val, offset_val)
                 ).result
                 stride_val.name_hint = f"c{stride}"
+                increment.name_hint = "increment"
+            else:
+                increment = rewriter.insert_op(arith.MuliOp(stride, offset_val)).result
                 increment.name_hint = "increment"
 
             if head is None:

@@ -14,9 +14,6 @@ from xdsl.dialects.builtin import (
     DenseIntOrFPElementsAttr,
     DenseResourceAttr,
     FixedBitwidthType,
-    Float16Type,
-    Float32Type,
-    Float64Type,
     FloatAttr,
     IndexType,
     IndexTypeConstr,
@@ -68,7 +65,7 @@ from xdsl.utils.type import get_element_type_or_self, have_compatible_shape
 
 boolLike = ContainerOf(IntegerType(1))
 signlessIntegerLike = ContainerOf(AnyOf([IntegerType, IndexType]))
-floatingPointLike = ContainerOf(AnyOf([Float16Type, Float32Type, Float64Type]))
+floatingPointLike = ContainerOf(AnyFloatConstr)
 
 
 CMPI_COMPARISON_OPERATIONS = [
@@ -1194,15 +1191,11 @@ class BitcastOp(IRDLOperation):
     name = "arith.bitcast"
 
     input = operand_def(
-        ContainerOf(
-            AnyOf((IntegerType, IndexType, Float16Type, Float32Type, Float64Type))
-        )
+        ContainerOf(AnyOf((IntegerType, IndexType)) | AnyFloatConstr)
         | MemRefType.constr(element_type=AnyFloatConstr | SignlessIntegerConstraint)
     )
     result = result_def(
-        ContainerOf(
-            AnyOf((IntegerType, IndexType, Float16Type, Float32Type, Float64Type))
-        )
+        ContainerOf(AnyOf((IntegerType, IndexType)) | AnyFloatConstr)
         | MemRefType.constr(element_type=AnyFloatConstr | SignlessIntegerConstraint)
     )
 

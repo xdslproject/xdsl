@@ -8,6 +8,11 @@ from xdsl.utils.dialect_loader import IRDLDialectFinder
 def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
     """Returns all available dialects."""
 
+    def get_acc():
+        from xdsl.dialects.acc import ACC
+
+        return ACC
+
     def get_accfg():
         from xdsl.dialects.accfg import ACCFG
 
@@ -384,6 +389,7 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         return X86_Scf
 
     return {
+        "acc": get_acc,
         "accfg": get_accfg,
         "affine": get_affine,
         "air": get_air,
