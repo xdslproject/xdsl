@@ -1,43 +1,128 @@
-// RUN: MLIR_GENERIC_ROUNDTRIP
+// RUN: MLIR_ROUNDTRIP
 
 builtin.module {
-  func.func @acc_parallel_empty() {
-    "acc.parallel"() <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0>}> ({
-      "acc.yield"() : () -> ()
-    }) : () -> ()
+  func.func @empty() {
+    acc.parallel {
+      acc.yield
+    }
     func.return
   }
-  func.func @acc_parallel_default_and_unit_attrs() {
-    "acc.parallel"() <{defaultAttr = #acc<defaultvalue present>, selfAttr, combined, operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0>}> ({
-      "acc.yield"() : () -> ()
-    }) : () -> ()
+  func.func @self_if(%c : i1) {
+    acc.parallel self(%c) if(%c) {
+      acc.yield
+    }
     func.return
   }
-  func.func @acc_parallel_device_type_arrays() {
-    "acc.parallel"() <{asyncOnly = [#acc.device_type<nvidia>], waitOnly = [#acc.device_type<host>], operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0>}> ({
-      "acc.yield"() : () -> ()
-    }) : () -> ()
+  func.func @combined_default_self() {
+    acc.parallel combined(loop) {
+      acc.yield
+    } attributes {defaultAttr = #acc<defaultvalue present>, selfAttr}
+    func.return
+  }
+  func.func @async_bare() {
+    acc.parallel async {
+      acc.yield
+    }
+    func.return
+  }
+  func.func @async_one_operand(%a : i64) {
+    acc.parallel async(%a : i64) {
+      acc.yield
+    }
+    func.return
+  }
+  func.func @async_operand_with_dt(%a : i64) {
+    acc.parallel async(%a : i64 [#acc.device_type<default>]) {
+      acc.yield
+    }
+    func.return
+  }
+  func.func @num_gangs_single(%a : i32) {
+    acc.parallel num_gangs({%a : i32}) {
+      acc.yield
+    }
+    func.return
+  }
+  func.func @num_gangs_multigroup(%a : i32, %b : i32, %c : i32, %d : i32) {
+    acc.parallel num_gangs({%a : i32} [#acc.device_type<default>], {%b : i32, %c : i32, %d : i32} [#acc.device_type<nvidia>]) {
+      acc.yield
+    }
+    func.return
+  }
+  func.func @num_workers_vector_length(%a : i64, %b : i32, %c : i32) {
+    acc.parallel num_workers(%a : i64 [#acc.device_type<default>], %b : i32 [#acc.device_type<nvidia>]) vector_length(%c : i32) {
+      acc.yield
+    }
+    func.return
+  }
+  func.func @wait_bare() {
+    acc.parallel wait {
+      acc.yield
+    }
+    func.return
+  }
+  func.func @wait_group(%a : i64, %b : i32, %c : index) {
+    acc.parallel wait({%a : i64, %b : i32, %c : index}) {
+      acc.yield
+    }
+    func.return
+  }
+  func.func @kitchen_sink(%c : i1, %a : i32, %b : i64) {
+    acc.parallel combined(loop) async(%b : i64) num_gangs({%a : i32} [#acc.device_type<default>], {%a : i32} [#acc.device_type<nvidia>]) num_workers(%b : i64) vector_length(%a : i32) wait({%b : i64}) self(%c) if(%c) {
+      acc.yield
+    } attributes {defaultAttr = #acc<defaultvalue present>, selfAttr}
     func.return
   }
 }
 
 // CHECK:       builtin.module {
-// CHECK-NEXT:    func.func @acc_parallel_empty() {
-// CHECK-NEXT:      "acc.parallel"() <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0>}> ({
+// CHECK-NEXT:    func.func @empty() {
+// CHECK-NEXT:      acc.parallel {
 // CHECK-NEXT:        acc.yield
-// CHECK-NEXT:      }) : () -> ()
+// CHECK-NEXT:      }
 // CHECK-NEXT:      func.return
 // CHECK-NEXT:    }
-// CHECK-NEXT:    func.func @acc_parallel_default_and_unit_attrs() {
-// CHECK-NEXT:      "acc.parallel"() <{combined, defaultAttr = #acc<defaultvalue present>, operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0>, selfAttr}> ({
+// CHECK-NEXT:    func.func @self_if(
+// CHECK:           acc.parallel self(%{{.*}}) if(%{{.*}}) {
 // CHECK-NEXT:        acc.yield
-// CHECK-NEXT:      }) : () -> ()
-// CHECK-NEXT:      func.return
-// CHECK-NEXT:    }
-// CHECK-NEXT:    func.func @acc_parallel_device_type_arrays() {
-// CHECK-NEXT:      "acc.parallel"() <{asyncOnly = [#acc.device_type<nvidia>], operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0>, waitOnly = [#acc.device_type<host>]}> ({
+// CHECK-NEXT:      }
+// CHECK:         func.func @combined_default_self() {
+// CHECK-NEXT:      acc.parallel combined(loop) {
 // CHECK-NEXT:        acc.yield
-// CHECK-NEXT:      }) : () -> ()
-// CHECK-NEXT:      func.return
-// CHECK-NEXT:    }
-// CHECK-NEXT:  }
+// CHECK-NEXT:      } attributes {defaultAttr = #acc<defaultvalue present>, selfAttr}
+// CHECK:         func.func @async_bare() {
+// CHECK-NEXT:      acc.parallel async {
+// CHECK-NEXT:        acc.yield
+// CHECK-NEXT:      }
+// CHECK:         func.func @async_one_operand(
+// CHECK:           acc.parallel async(%{{.*}} : i64) {
+// CHECK-NEXT:        acc.yield
+// CHECK-NEXT:      }
+// CHECK:         func.func @async_operand_with_dt(
+// CHECK:           acc.parallel async(%{{.*}} : i64 [#acc.device_type<default>]) {
+// CHECK-NEXT:        acc.yield
+// CHECK-NEXT:      }
+// CHECK:         func.func @num_gangs_single(
+// CHECK:           acc.parallel num_gangs({%{{.*}} : i32}) {
+// CHECK-NEXT:        acc.yield
+// CHECK-NEXT:      }
+// CHECK:         func.func @num_gangs_multigroup(
+// CHECK:           acc.parallel num_gangs({%{{.*}} : i32} [#acc.device_type<default>], {%{{.*}} : i32, %{{.*}} : i32, %{{.*}} : i32} [#acc.device_type<nvidia>]) {
+// CHECK-NEXT:        acc.yield
+// CHECK-NEXT:      }
+// CHECK:         func.func @num_workers_vector_length(
+// CHECK:           acc.parallel num_workers(%{{.*}} : i64 [#acc.device_type<default>], %{{.*}} : i32 [#acc.device_type<nvidia>]) vector_length(%{{.*}} : i32) {
+// CHECK-NEXT:        acc.yield
+// CHECK-NEXT:      }
+// CHECK:         func.func @wait_bare() {
+// CHECK-NEXT:      acc.parallel wait {
+// CHECK-NEXT:        acc.yield
+// CHECK-NEXT:      }
+// CHECK:         func.func @wait_group(
+// CHECK:           acc.parallel wait({%{{.*}} : i64, %{{.*}} : i32, %{{.*}} : index}) {
+// CHECK-NEXT:        acc.yield
+// CHECK-NEXT:      }
+// CHECK:         func.func @kitchen_sink(
+// CHECK:           acc.parallel combined(loop) async(%{{.*}} : i64) num_gangs({%{{.*}} : i32} [#acc.device_type<default>], {%{{.*}} : i32} [#acc.device_type<nvidia>]) num_workers(%{{.*}} : i64) vector_length(%{{.*}} : i32) wait({%{{.*}} : i64}) self(%{{.*}}) if(%{{.*}}) {
+// CHECK-NEXT:        acc.yield
+// CHECK-NEXT:      } attributes {defaultAttr = #acc<defaultvalue present>, selfAttr}
