@@ -98,40 +98,48 @@ builtin.module {
   // CHECK: acc.serial async(%{{.*}} : i32) {
 
   func.func @acc_serial_async_only() {
-    acc.serial {
+    acc.serial async {
       acc.yield
-    } attributes {asyncOnly = [#acc.device_type<none>]}
+    }
     func.return
   }
-  // CHECK: acc.serial {
+  // CHECK: acc.serial async {
   // CHECK-NEXT: acc.yield
-  // CHECK-NEXT: } attributes {asyncOnly = [#acc.device_type<none>]}
+  // CHECK-NEXT: }
+
+  func.func @acc_serial_async_only_nvidia() {
+    acc.serial async([#acc.device_type<nvidia>]) {
+      acc.yield
+    }
+    func.return
+  }
+  // CHECK: acc.serial async([#acc.device_type<nvidia>]) {
 
   func.func @acc_serial_wait_operand(%v: i32) {
-    acc.serial wait(%v : i32) {
+    acc.serial wait({%v : i32}) {
       acc.yield
     }
     func.return
   }
-  // CHECK: acc.serial wait(%{{.*}} : i32) {
+  // CHECK: acc.serial wait({%{{.*}} : i32}) {
 
   func.func @acc_serial_wait_operands_multi(%v: i64, %w: i32, %x: index) {
-    acc.serial wait(%v, %w, %x : i64, i32, index) {
+    acc.serial wait({%v : i64, %w : i32, %x : index}) {
       acc.yield
     }
     func.return
   }
-  // CHECK: acc.serial wait(%{{.*}}, %{{.*}}, %{{.*}} : i64, i32, index) {
+  // CHECK: acc.serial wait({%{{.*}} : i64, %{{.*}} : i32, %{{.*}} : index}) {
 
   func.func @acc_serial_wait_only() {
-    acc.serial {
+    acc.serial wait {
       acc.yield
-    } attributes {waitOnly = [#acc.device_type<none>]}
+    }
     func.return
   }
-  // CHECK: acc.serial {
+  // CHECK: acc.serial wait {
   // CHECK-NEXT: acc.yield
-  // CHECK-NEXT: } attributes {waitOnly = [#acc.device_type<none>]}
+  // CHECK-NEXT: }
 
   func.func @acc_serial_private_firstprivate(%a: memref<10xf32>, %b: memref<10x10xf32>) {
     acc.serial firstprivate(%a : memref<10xf32>) private(%a, %b : memref<10xf32>, memref<10x10xf32>) {
@@ -234,7 +242,7 @@ builtin.module {
   // CHECK: acc.serial combined(loop) dataOperands(%{{.*}} : memref<10xf32>) async(%{{.*}} : i32) {
 
   func.func @acc_serial_all_clauses(%cond: i1, %v: i32, %w: i32, %a: memref<10xf32>, %b: memref<10x10xf32>) {
-    acc.serial combined(loop) dataOperands(%a : memref<10xf32>) async(%v : i32) firstprivate(%a : memref<10xf32>) private(%a, %b : memref<10xf32>, memref<10x10xf32>) wait(%w : i32) self(%cond) if(%cond) reduction(%a : memref<10xf32>) {
+    acc.serial combined(loop) dataOperands(%a : memref<10xf32>) async(%v : i32) firstprivate(%a : memref<10xf32>) private(%a, %b : memref<10xf32>, memref<10x10xf32>) wait({%w : i32}) self(%cond) if(%cond) reduction(%a : memref<10xf32>) {
       acc.yield
     }
     func.return
@@ -244,7 +252,7 @@ builtin.module {
   // CHECK-SAME: async(%{{[^ ]+}} : i32)
   // CHECK-SAME: firstprivate(%{{[^ ]+}} : memref<10xf32>)
   // CHECK-SAME: private(%{{[^ ]+}}, %{{[^ ]+}} : memref<10xf32>, memref<10x10xf32>)
-  // CHECK-SAME: wait(%{{[^ ]+}} : i32)
+  // CHECK-SAME: wait({%{{[^ ]+}} : i32})
   // CHECK-SAME: self(%{{[^)]+}})
   // CHECK-SAME: if(%{{[^)]+}})
   // CHECK-SAME: reduction(%{{[^ ]+}} : memref<10xf32>)
