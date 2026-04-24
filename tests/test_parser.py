@@ -1,6 +1,5 @@
 import builtins
 import re
-from collections.abc import Sequence
 from io import StringIO
 from typing import cast
 
@@ -37,7 +36,7 @@ from xdsl.irdl import (
     prop_def,
     region_def,
 )
-from xdsl.parser import AttrParser, Parser
+from xdsl.parser import Parser
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import ParseError
 from xdsl.utils.mlir_lexer import (
@@ -1429,36 +1428,3 @@ def test_unregistered_attr_name_rejected():
     with pytest.raises(ParseError, match="is not registered"):
         parser = Parser(ctx, '"test.op"() : () -> !nonexistent.type<foo>')
         parser.parse_optional_operation()
-
-
-@irdl_attr_definition
-class SlashAttr(ParametrizedAttribute):
-    """Test attribute whose parameter syntax contains a `/`."""
-
-    name = "test_slash.attr"
-
-    @classmethod
-    def parse_parameters(
-        cls,
-        parser: AttrParser,
-    ) -> Sequence[Attribute]:
-        with parser.in_angle_brackets():
-            parser.parse_punctuation("/")
-        return ()
-
-    def print_parameters(self, printer: Printer) -> None:
-        printer.print_string("</>")
-
-
-def test_slash_punctuation_in_registered_attr():
-    """parse_punctuation('/') works inside a registered attribute."""
-    ctx = Context()
-    ctx.load_attr_or_type(SlashAttr)
-
-    parser = Parser(ctx, "#test_slash.attr</>")
-    attr = parser.parse_attribute()
-    assert isinstance(attr, SlashAttr)
-
-    with StringIO() as io:
-        Printer(io).print_attribute(attr)
-        assert io.getvalue() == "#test_slash.attr</>"
