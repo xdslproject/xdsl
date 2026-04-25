@@ -170,13 +170,12 @@ def _parse_num_gangs_group(
     parser: Parser,
 ) -> tuple[tuple[UnresolvedOperand, ...], tuple[Attribute, ...], DeviceTypeAttr]:
     """Parse one `{ %v : type, ... } ( `[` #acc.device_type<...> `]` )?` group."""
-    parser.parse_punctuation("{")
-    pairs = parser.parse_comma_separated_list(
-        parser.Delimiter.NONE, lambda: _parse_typed_operand(parser)
-    )
-    operands, types = zip(*pairs)
-    parser.parse_punctuation("}")
-    return operands, types, _parse_optional_device_type_suffix(parser)
+    with parser.in_braces():
+        pairs = parser.parse_comma_separated_list(
+            parser.Delimiter.NONE, lambda: _parse_typed_operand(parser)
+        )
+        operands, types = zip(*pairs)
+        return operands, types, _parse_optional_device_type_suffix(parser)
 
 
 def _flatten_groups(
