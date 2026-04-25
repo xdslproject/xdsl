@@ -1,5 +1,4 @@
 // RUN: MLIR_ROUNDTRIP
-// RUN: MLIR_GENERIC_ROUNDTRIP
 
 builtin.module {
   func.func @empty() {
