@@ -174,8 +174,8 @@ def _parse_num_gangs_group(
         pairs = parser.parse_comma_separated_list(
             parser.Delimiter.NONE, lambda: _parse_typed_operand(parser)
         )
-        operands, types = zip(*pairs)
-        return operands, types, _parse_optional_device_type_suffix(parser)
+    operands, types = zip(*pairs)
+    return operands, types, _parse_optional_device_type_suffix(parser)
 
 
 def _flatten_groups(
