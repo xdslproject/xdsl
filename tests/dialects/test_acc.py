@@ -6,9 +6,6 @@ from xdsl.dialects import acc
 from xdsl.dialects.arith import ConstantOp
 from xdsl.dialects.builtin import (
     ArrayAttr,
-    BoolAttr,
-    DenseArrayBase,
-    IntegerType,
     MemRefType,
     UnitAttr,
     f32,
@@ -43,11 +40,8 @@ def test_parallel_empty_verifies():
     assert len(op.data_clause_operands) == 0
     assert op.async_operands_device_type is None
     assert op.async_only is None
-    assert op.wait_operands_segments is None
     assert op.wait_operands_device_type is None
-    assert op.has_wait_devnum is None
     assert op.wait_only is None
-    assert op.num_gangs_segments is None
     assert op.num_gangs_device_type is None
     assert op.num_workers_device_type is None
     assert op.vector_length_device_type is None
@@ -92,13 +86,8 @@ def test_parallel_accepts_device_type_attrs():
         async_operands_device_type=ArrayAttr([nvidia]),
         async_only=ArrayAttr([host]),
         wait_operands_device_type=ArrayAttr([nvidia, host]),
-        wait_operands_segments=DenseArrayBase.from_list(IntegerType(32), [1, 1]),
-        has_wait_devnum=ArrayAttr(
-            [BoolAttr.from_bool(False), BoolAttr.from_bool(True)]
-        ),
         wait_only=ArrayAttr([host]),
         num_gangs_device_type=ArrayAttr([nvidia]),
-        num_gangs_segments=DenseArrayBase.from_list(IntegerType(32), [1]),
         num_workers_device_type=ArrayAttr([nvidia]),
         vector_length_device_type=ArrayAttr([nvidia]),
     )
@@ -107,15 +96,8 @@ def test_parallel_accepts_device_type_attrs():
     assert op.async_operands_device_type == ArrayAttr([nvidia])
     assert op.async_only == ArrayAttr([host])
     assert op.wait_operands_device_type == ArrayAttr([nvidia, host])
-    assert op.wait_operands_segments == DenseArrayBase.from_list(
-        IntegerType(32), [1, 1]
-    )
-    assert op.has_wait_devnum == ArrayAttr(
-        [BoolAttr.from_bool(False), BoolAttr.from_bool(True)]
-    )
     assert op.wait_only == ArrayAttr([host])
     assert op.num_gangs_device_type == ArrayAttr([nvidia])
-    assert op.num_gangs_segments == DenseArrayBase.from_list(IntegerType(32), [1])
     assert op.num_workers_device_type == ArrayAttr([nvidia])
     assert op.vector_length_device_type == ArrayAttr([nvidia])
 
