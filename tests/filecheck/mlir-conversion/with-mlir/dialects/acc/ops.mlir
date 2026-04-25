@@ -35,6 +35,17 @@ builtin.module {
   // CHECK-NEXT:      acc.yield
   // CHECK-NEXT:    } attributes {defaultAttr = #acc<defaultvalue present>, selfAttr}
 
+  func.func @async_bare() {
+    acc.parallel async {
+      acc.yield
+    }
+    func.return
+  }
+  // CHECK:       func.func @async_bare() {
+  // CHECK-NEXT:    acc.parallel async {
+  // CHECK-NEXT:      acc.yield
+  // CHECK-NEXT:    }
+
   func.func @async_one_operand(%a : i64) {
     acc.parallel async(%a : i64) {
       acc.yield
@@ -43,6 +54,17 @@ builtin.module {
   }
   // CHECK:       func.func @async_one_operand(
   // CHECK:         acc.parallel async(%{{.*}} : i64) {
+  // CHECK-NEXT:      acc.yield
+  // CHECK-NEXT:    }
+
+  func.func @async_operand_with_dt(%a : i64) {
+    acc.parallel async(%a : i64 [#acc.device_type<default>]) {
+      acc.yield
+    }
+    func.return
+  }
+  // CHECK:       func.func @async_operand_with_dt(
+  // CHECK:         acc.parallel async(%{{.*}} : i64 [#acc.device_type<default>]) {
   // CHECK-NEXT:      acc.yield
   // CHECK-NEXT:    }
 

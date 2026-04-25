@@ -45,6 +45,28 @@ builtin.module {
   // CHECK-NEXT:      acc.yield
   // CHECK-NEXT:    }
 
+  func.func @async_bare() {
+    acc.parallel async {
+      acc.yield
+    }
+    func.return
+  }
+  // CHECK-LABEL: func.func @async_bare() {
+  // CHECK-NEXT:    acc.parallel async {
+  // CHECK-NEXT:      acc.yield
+  // CHECK-NEXT:    }
+
+  func.func @async_keyword_only_with_dt() {
+    acc.parallel async([#acc.device_type<nvidia>]) {
+      acc.yield
+    }
+    func.return
+  }
+  // CHECK-LABEL: func.func @async_keyword_only_with_dt() {
+  // CHECK-NEXT:    acc.parallel async([#acc.device_type<nvidia>]) {
+  // CHECK-NEXT:      acc.yield
+  // CHECK-NEXT:    }
+
   func.func @async_one_operand(%a : i64) {
     acc.parallel async(%a : i64) {
       acc.yield
@@ -53,6 +75,28 @@ builtin.module {
   }
   // CHECK-LABEL: func.func @async_one_operand(
   // CHECK:         acc.parallel async(%{{.*}} : i64) {
+  // CHECK-NEXT:      acc.yield
+  // CHECK-NEXT:    }
+
+  func.func @async_operand_with_dt(%a : i64) {
+    acc.parallel async(%a : i64 [#acc.device_type<nvidia>]) {
+      acc.yield
+    }
+    func.return
+  }
+  // CHECK-LABEL: func.func @async_operand_with_dt(
+  // CHECK:         acc.parallel async(%{{.*}} : i64 [#acc.device_type<nvidia>]) {
+  // CHECK-NEXT:      acc.yield
+  // CHECK-NEXT:    }
+
+  func.func @async_mixed(%a : i64) {
+    acc.parallel async([#acc.device_type<nvidia>], %a : i64 [#acc.device_type<default>]) {
+      acc.yield
+    }
+    func.return
+  }
+  // CHECK-LABEL: func.func @async_mixed(
+  // CHECK:         acc.parallel async([#acc.device_type<nvidia>], %{{.*}} : i64 [#acc.device_type<default>]) {
   // CHECK-NEXT:      acc.yield
   // CHECK-NEXT:    }
 

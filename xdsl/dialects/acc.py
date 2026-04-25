@@ -166,6 +166,16 @@ def _print_operand_with_dt(printer: Printer, operand: SSAValue, dt: Attribute) -
     _print_device_type_suffix(printer, dt)
 
 
+def _is_only_none(dts: Attribute | None) -> bool:
+    """Upstream `hasOnlyDeviceTypeNone`: True iff `dts` is exactly `[#none]`."""
+    if not isa(dts, ArrayAttr):
+        return False
+    if len(dts.data) != 1:
+        return False
+    only = dts.data[0]
+    return isinstance(only, DeviceTypeAttr) and only.data == DeviceType.NONE
+
+
 def _parse_num_gangs_group(
     parser: Parser,
 ) -> tuple[tuple[UnresolvedOperand, ...], tuple[Attribute, ...], DeviceTypeAttr]:
@@ -281,6 +291,103 @@ class DeviceTypeOperands(CustomDirective):
 
 
 @irdl_custom_directive
+class DeviceTypeOperandsWithKeywordOnly(CustomDirective):
+    """Port of upstream `custom<DeviceTypeOperandsWithKeywordOnly>`.
+
+    Follows a bare keyword (e.g. `async`) in the format. The directive owns
+    the optional surrounding parentheses. Syntax options after the keyword:
+      bare                         → keyword-only = [#none]
+      `(` `[` dts `]` `)`          → keyword-only list, no operands
+      `(` operand-list `)`         → operands with optional per-operand dt
+      `(` `[` dts `]` `,` ops `)`  → mix of keyword-only and operands
+    """
+
+    operands: VariadicOperandVariable
+    operand_types: TypeDirective
+    device_types: AttributeVariable
+    keyword_only: AttributeVariable
+
+    def is_anchorable(self) -> bool:
+        return True
+
+    def is_optional_like(self) -> bool:
+        return True
+
+    def is_present(self, op: IRDLOperation) -> bool:
+        return (
+            bool(self.operands.get(op))
+            or self.keyword_only.get(op) is not None
+            or self.device_types.get(op) is not None
+        )
+
+    def set_empty(self, state: ParsingState) -> None:
+        self.operands.set(state, ())
+        self.operand_types.set(state, ())
+
+    def parse(self, parser: Parser, state: ParsingState) -> bool:
+        if not parser.parse_optional_punctuation("("):
+            self.keyword_only.set(state, ArrayAttr([DeviceTypeAttr(DeviceType.NONE)]))
+            self.operands.set(state, ())
+            self.operand_types.set(state, ())
+            return True
+
+        needs_comma_before_operands = False
+        if parser.parse_optional_punctuation("["):
+            kw_only = parser.parse_comma_separated_list(
+                parser.Delimiter.NONE, lambda: _parse_device_type_attr(parser)
+            )
+            parser.parse_punctuation("]")
+            self.keyword_only.set(state, ArrayAttr(kw_only))
+            needs_comma_before_operands = True
+
+        if parser.parse_optional_punctuation(")"):
+            self.operands.set(state, ())
+            self.operand_types.set(state, ())
+            return True
+
+        if needs_comma_before_operands:
+            parser.parse_punctuation(",")
+
+        triples = parser.parse_comma_separated_list(
+            parser.Delimiter.NONE, lambda: _parse_operand_with_dt(parser)
+        )
+        parser.parse_punctuation(")")
+        operands, types, device_types = zip(*triples)
+        self.operands.set(state, operands)
+        self.operand_types.set(state, types)
+        self.device_types.set(state, ArrayAttr(device_types))
+        return True
+
+    def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
+        operands = self.operands.get(op)
+        keyword_only = self.keyword_only.get(op)
+
+        if not operands and _is_only_none(keyword_only):
+            return
+
+        printer.print_string("(")
+        if isa(keyword_only, ArrayAttr) and keyword_only.data:
+            printer.print_string("[")
+            printer.print_list(keyword_only.data, printer.print_attribute)
+            printer.print_string("]")
+            if operands:
+                printer.print_string(", ")
+        if operands:
+            dts = (
+                attr.data
+                if isa(attr := self.device_types.get(op), ArrayAttr)
+                else (DeviceTypeAttr(DeviceType.NONE),) * len(operands)
+            )
+            printer.print_list(
+                zip(operands, dts, strict=True),
+                lambda pair: _print_operand_with_dt(printer, pair[0], pair[1]),
+            )
+        printer.print_string(")")
+        state.should_emit_space = True
+        state.last_was_punctuation = False
+
+
+@irdl_custom_directive
 class NumGangs(CustomDirective):
     """Port of upstream `custom<NumGangs>`.
 
@@ -389,14 +496,18 @@ class ParallelOp(IRDLOperation):
         ParsePropInAttrDict(),
     )
 
-    custom_directives = (DeviceTypeOperands, NumGangs)
+    custom_directives = (
+        DeviceTypeOperands,
+        NumGangs,
+        DeviceTypeOperandsWithKeywordOnly,
+    )
 
     assembly_format = (
         "(`combined` `(` `loop` `)` $combined^)?"
         " (`dataOperands` `(` $data_clause_operands^ `:`"
         " type($data_clause_operands) `)`)?"
-        " (`async` `(` custom<DeviceTypeOperands>($async_operands,"
-        " type($async_operands), $asyncOperandsDeviceType)^ `)`)?"
+        " (`async` custom<DeviceTypeOperandsWithKeywordOnly>($async_operands,"
+        " type($async_operands), $asyncOperandsDeviceType, $asyncOnly)^)?"
         " (`firstprivate` `(` $firstprivate_operands^ `:`"
         " type($firstprivate_operands) `)`)?"
         " (`num_gangs` `(` custom<NumGangs>($num_gangs, type($num_gangs),"
