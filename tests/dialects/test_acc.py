@@ -6,6 +6,7 @@ from xdsl.dialects import acc
 from xdsl.dialects.arith import ConstantOp
 from xdsl.dialects.builtin import (
     ArrayAttr,
+    DenseArrayBase,
     MemRefType,
     UnitAttr,
     f32,
@@ -100,6 +101,28 @@ def test_parallel_accepts_device_type_attrs():
     assert op.num_gangs_device_type == ArrayAttr([nvidia])
     assert op.num_workers_device_type == ArrayAttr([nvidia])
     assert op.vector_length_device_type == ArrayAttr([nvidia])
+
+
+def test_parallel_num_gangs_segments():
+    """num_gangs_segments rides through as an i32 DenseArrayBase property."""
+    nvidia = acc.DeviceTypeAttr(acc.DeviceType.NVIDIA)
+    default = acc.DeviceTypeAttr(acc.DeviceType.DEFAULT)
+    a = ConstantOp.from_int_and_width(1, i32)
+    b = ConstantOp.from_int_and_width(2, i32)
+    c = ConstantOp.from_int_and_width(3, i32)
+
+    op = acc.ParallelOp(
+        region=Region(Block([acc.YieldOp()])),
+        num_gangs=[a.result, b.result, c.result],
+        num_gangs_device_type=ArrayAttr([default, nvidia]),
+        num_gangs_segments=DenseArrayBase.from_list(i32, [1, 2]),
+    )
+    op.verify()
+
+    assert op.num_gangs_device_type == ArrayAttr([default, nvidia])
+    segments = op.num_gangs_segments
+    assert isinstance(segments, DenseArrayBase)
+    assert segments.get_values() == (1, 2)
 
 
 def test_parallel_unit_and_default_attrs():

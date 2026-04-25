@@ -14,9 +14,12 @@ from collections.abc import Sequence
 from xdsl.dialects.builtin import (
     I1,
     ArrayAttr,
+    DenseArrayBase,
     IndexType,
+    IntegerAttr,
     IntegerType,
     UnitAttr,
+    i32,
 )
 from xdsl.dialects.utils import AbstractYieldOperation
 from xdsl.ir import (
@@ -163,6 +166,69 @@ def _print_operand_with_dt(printer: Printer, operand: SSAValue, dt: Attribute) -
     _print_device_type_suffix(printer, dt)
 
 
+def _parse_num_gangs_group(
+    parser: Parser,
+) -> tuple[tuple[UnresolvedOperand, ...], tuple[Attribute, ...], DeviceTypeAttr]:
+    """Parse one `{ %v : type, ... } ( `[` #acc.device_type<...> `]` )?` group."""
+    parser.parse_punctuation("{")
+    pairs = parser.parse_comma_separated_list(
+        parser.Delimiter.NONE, lambda: _parse_typed_operand(parser)
+    )
+    operands, types = zip(*pairs)
+    parser.parse_punctuation("}")
+    return operands, types, _parse_optional_device_type_suffix(parser)
+
+
+def _flatten_groups(
+    groups: Sequence[
+        tuple[Sequence[UnresolvedOperand], Sequence[Attribute], DeviceTypeAttr]
+    ],
+) -> tuple[
+    tuple[UnresolvedOperand, ...],
+    tuple[Attribute, ...],
+    tuple[DeviceTypeAttr, ...],
+    tuple[int, ...],
+]:
+    """Flatten a list of parsed groups into operands / types / dts / segment sizes."""
+    operands: list[UnresolvedOperand] = []
+    types: list[Attribute] = []
+    dts: list[DeviceTypeAttr] = []
+    segs: list[int] = []
+    for group_operands, group_types, dt in groups:
+        operands.extend(group_operands)
+        types.extend(group_types)
+        dts.append(dt)
+        segs.append(len(group_operands))
+    return tuple(operands), tuple(types), tuple(dts), tuple(segs)
+
+
+def _print_groups(
+    printer: Printer,
+    operands: Sequence[SSAValue],
+    device_types: Sequence[Attribute],
+    segments: Sequence[int],
+    *,
+    devnum_flags: Sequence[Attribute] = (),
+) -> None:
+    """Print brace-grouped operands `{ ( `devnum:` )? %v : T, ... }[dt]`, comma-separated."""
+    idx = 0
+    for group_idx, (size, dt) in enumerate(zip(segments, device_types, strict=True)):
+        if group_idx:
+            printer.print_string(", ")
+        printer.print_string("{")
+        if group_idx < len(devnum_flags):
+            flag = devnum_flags[group_idx]
+            if isinstance(flag, IntegerAttr) and bool(flag.value.data):
+                printer.print_string("devnum: ")
+        for i in range(size):
+            if i:
+                printer.print_string(", ")
+            _print_typed_operand(printer, operands[idx])
+            idx += 1
+        printer.print_string("}")
+        _print_device_type_suffix(printer, dt)
+
+
 @irdl_custom_directive
 class DeviceTypeOperands(CustomDirective):
     """Port of upstream `custom<DeviceTypeOperands>`.
@@ -215,6 +281,63 @@ class DeviceTypeOperands(CustomDirective):
         state.last_was_punctuation = False
 
 
+@irdl_custom_directive
+class NumGangs(CustomDirective):
+    """Port of upstream `custom<NumGangs>`.
+
+    Groups of operands with a per-group device type and a segments array.
+    Syntax inside the enclosing `(`...`)`:
+      `{` op:type (`,` op:type)* `}` (`[` dt `]`)?  (`,` ...)*
+    """
+
+    operands: VariadicOperandVariable
+    operand_types: TypeDirective
+    device_types: AttributeVariable
+    segments: AttributeVariable
+
+    def is_anchorable(self) -> bool:
+        return True
+
+    def is_optional_like(self) -> bool:
+        return True
+
+    def is_present(self, op: IRDLOperation) -> bool:
+        return bool(self.operands.get(op))
+
+    def set_empty(self, state: ParsingState) -> None:
+        self.operands.set(state, ())
+        self.operand_types.set(state, ())
+
+    def parse(self, parser: Parser, state: ParsingState) -> bool:
+        groups = [_parse_num_gangs_group(parser)]
+        while parser.parse_optional_punctuation(","):
+            groups.append(_parse_num_gangs_group(parser))
+        operands, types, dts, segs = _flatten_groups(groups)
+        self.operands.set(state, operands)
+        self.operand_types.set(state, types)
+        self.device_types.set(state, ArrayAttr(dts))
+        self.segments.set(state, DenseArrayBase.from_list(i32, segs))
+        return True
+
+    def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
+        operands = self.operands.get(op)
+        if not operands:
+            return
+        dts = (
+            attr.data
+            if isa(attr := self.device_types.get(op), ArrayAttr)
+            else (DeviceTypeAttr(DeviceType.NONE),)
+        )
+        seg_values: Sequence[int] = (
+            segments.get_values()
+            if isinstance(segments := self.segments.get(op), DenseArrayBase)
+            else (len(operands),)
+        )
+        _print_groups(printer, operands, dts, seg_values)
+        state.should_emit_space = True
+        state.last_was_punctuation = False
+
+
 @irdl_op_definition
 class ParallelOp(IRDLOperation):
     """
@@ -244,6 +367,9 @@ class ParallelOp(IRDLOperation):
         ArrayAttr[DeviceTypeAttr], prop_name="waitOperandsDeviceType"
     )
     wait_only = opt_prop_def(ArrayAttr[DeviceTypeAttr], prop_name="waitOnly")
+    num_gangs_segments = opt_prop_def(
+        DenseArrayBase.constr(IntegerType(32)), prop_name="numGangsSegments"
+    )
     num_gangs_device_type = opt_prop_def(
         ArrayAttr[DeviceTypeAttr], prop_name="numGangsDeviceType"
     )
@@ -264,7 +390,7 @@ class ParallelOp(IRDLOperation):
         ParsePropInAttrDict(),
     )
 
-    custom_directives = (DeviceTypeOperands,)
+    custom_directives = (DeviceTypeOperands, NumGangs)
 
     assembly_format = (
         "(`combined` `(` `loop` `)` $combined^)?"
@@ -274,7 +400,8 @@ class ParallelOp(IRDLOperation):
         " type($async_operands), $asyncOperandsDeviceType)^ `)`)?"
         " (`firstprivate` `(` $firstprivate_operands^ `:`"
         " type($firstprivate_operands) `)`)?"
-        " (`num_gangs` `(` $num_gangs^ `:` type($num_gangs) `)`)?"
+        " (`num_gangs` `(` custom<NumGangs>($num_gangs, type($num_gangs),"
+        " $numGangsDeviceType, $numGangsSegments)^ `)`)?"
         " (`num_workers` `(` custom<DeviceTypeOperands>($num_workers,"
         " type($num_workers), $numWorkersDeviceType)^ `)`)?"
         " (`private` `(` $private_operands^ `:`"
@@ -315,6 +442,7 @@ class ParallelOp(IRDLOperation):
         async_only: ArrayAttr[DeviceTypeAttr] | None = None,
         wait_operands_device_type: ArrayAttr[DeviceTypeAttr] | None = None,
         wait_only: ArrayAttr[DeviceTypeAttr] | None = None,
+        num_gangs_segments: DenseArrayBase | None = None,
         num_gangs_device_type: ArrayAttr[DeviceTypeAttr] | None = None,
         num_workers_device_type: ArrayAttr[DeviceTypeAttr] | None = None,
         vector_length_device_type: ArrayAttr[DeviceTypeAttr] | None = None,
@@ -356,6 +484,7 @@ class ParallelOp(IRDLOperation):
                 "asyncOnly": async_only,
                 "waitOperandsDeviceType": wait_operands_device_type,
                 "waitOnly": wait_only,
+                "numGangsSegments": num_gangs_segments,
                 "numGangsDeviceType": num_gangs_device_type,
                 "numWorkersDeviceType": num_workers_device_type,
                 "vectorLengthDeviceType": vector_length_device_type,

@@ -57,13 +57,35 @@ builtin.module {
   // CHECK-NEXT:    }
 
   func.func @num_gangs_single(%a : i32) {
-    acc.parallel num_gangs(%a : i32) {
+    acc.parallel num_gangs({%a : i32}) {
       acc.yield
     }
     func.return
   }
   // CHECK-LABEL: func.func @num_gangs_single(
-  // CHECK:         acc.parallel num_gangs(%{{.*}} : i32) {
+  // CHECK:         acc.parallel num_gangs({%{{.*}} : i32}) {
+  // CHECK-NEXT:      acc.yield
+  // CHECK-NEXT:    }
+
+  func.func @num_gangs_multi(%a : i32, %b : i32, %c : index) {
+    acc.parallel num_gangs({%a : i32, %b : i32, %c : index}) {
+      acc.yield
+    }
+    func.return
+  }
+  // CHECK-LABEL: func.func @num_gangs_multi(
+  // CHECK:         acc.parallel num_gangs({%{{.*}} : i32, %{{.*}} : i32, %{{.*}} : index}) {
+  // CHECK-NEXT:      acc.yield
+  // CHECK-NEXT:    }
+
+  func.func @num_gangs_multi_dt(%a : i32, %b : i32, %c : i32) {
+    acc.parallel num_gangs({%a : i32} [#acc.device_type<default>], {%b : i32, %c : i32} [#acc.device_type<nvidia>]) {
+      acc.yield
+    }
+    func.return
+  }
+  // CHECK-LABEL: func.func @num_gangs_multi_dt(
+  // CHECK:         acc.parallel num_gangs({%{{.*}} : i32} [#acc.device_type<default>], {%{{.*}} : i32, %{{.*}} : i32} [#acc.device_type<nvidia>]) {
   // CHECK-NEXT:      acc.yield
   // CHECK-NEXT:    }
 
