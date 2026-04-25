@@ -113,22 +113,6 @@ class ClauseDefaultValueAttr(
     name = "acc.defaultvalue"
 
 
-def _array_attr_data(attr: Attribute | None) -> tuple[Attribute, ...]:
-    """Return the inner tuple of an `ArrayAttr`, or `()` for anything else."""
-    if not isinstance(attr, ArrayAttr):
-        return ()
-    return cast("tuple[Attribute, ...]", attr.data)  # pyright: ignore[reportUnknownMemberType]
-
-
-def _is_only_device_type_none(dts: Attribute | None) -> bool:
-    """Upstream `hasOnlyDeviceTypeNone`: True iff `dts` is exactly `[#none]`."""
-    values = _array_attr_data(dts)
-    if len(values) != 1:
-        return False
-    only = values[0]
-    return isinstance(only, DeviceTypeAttr) and only.data == DeviceType.NONE
-
-
 def _parse_device_type_attr(parser: Parser) -> DeviceTypeAttr:
     """Parse a single `#acc.device_type<...>` attribute."""
     attr = parser.parse_attribute()
@@ -137,22 +121,28 @@ def _parse_device_type_attr(parser: Parser) -> DeviceTypeAttr:
     return attr
 
 
-def _parse_operand_with_optional_dt(
-    parser: Parser,
-) -> tuple[UnresolvedOperand, Attribute, DeviceTypeAttr]:
-    """Parse `%v : <type> ( `[` #acc.device_type<...> `]` )?`.
+def _parse_optional_device_type_suffix(parser: Parser) -> DeviceTypeAttr:
+    """Parse an optional `[ #acc.device_type<...> ]`, defaulting to `#none`."""
+    if parser.parse_optional_punctuation("[") is None:
+        return DeviceTypeAttr(DeviceType.NONE)
+    dt = _parse_device_type_attr(parser)
+    parser.parse_punctuation("]")
+    return dt
 
-    Missing device-type defaults to `#acc.device_type<none>` to match upstream.
-    """
+
+def _parse_typed_operand(parser: Parser) -> tuple[UnresolvedOperand, Attribute]:
+    """Parse `%v : <type>` and return `(operand, type)`."""
     operand = parser.parse_unresolved_operand()
     parser.parse_punctuation(":")
-    ty = parser.parse_type()
-    if parser.parse_optional_punctuation("["):
-        dt = _parse_device_type_attr(parser)
-        parser.parse_punctuation("]")
-    else:
-        dt = DeviceTypeAttr(DeviceType.NONE)
-    return operand, ty, dt
+    return operand, parser.parse_type()
+
+
+def _parse_operand_with_dt(
+    parser: Parser,
+) -> tuple[UnresolvedOperand, Attribute, DeviceTypeAttr]:
+    """Parse `%v : <type> ( `[` #acc.device_type<...> `]` )?`."""
+    operand, ty = _parse_typed_operand(parser)
+    return operand, ty, _parse_optional_device_type_suffix(parser)
 
 
 def _print_device_type_suffix(printer: Printer, dt: Attribute) -> None:
@@ -164,19 +154,33 @@ def _print_device_type_suffix(printer: Printer, dt: Attribute) -> None:
     printer.print_string("]")
 
 
-def _print_device_type_list(printer: Printer, dts: Sequence[Attribute]) -> None:
-    """Print `[#acc.device_type<a>, #acc.device_type<b>, ...]`."""
-    printer.print_string("[")
-    printer.print_list(dts, printer.print_attribute)
-    printer.print_string("]")
+def _print_typed_operand(printer: Printer, operand: SSAValue) -> None:
+    """Print `%v : <type>`."""
+    printer.print_ssa_value(operand)
+    printer.print_string(" : ")
+    printer.print_attribute(operand.type)
 
 
 def _print_operand_with_dt(printer: Printer, operand: SSAValue, dt: Attribute) -> None:
     """Print `%v : <type> ( [#acc.device_type<...>] )?`."""
-    printer.print_ssa_value(operand)
-    printer.print_string(" : ")
-    printer.print_attribute(operand.type)
+    _print_typed_operand(printer, operand)
     _print_device_type_suffix(printer, dt)
+
+
+def _attr_array_data(attr: Attribute | None) -> tuple[Attribute, ...]:
+    """Return the inner tuple of an `ArrayAttr`, else `()`."""
+    if not isinstance(attr, ArrayAttr):
+        return ()
+    return cast("tuple[Attribute, ...]", attr.data)  # pyright: ignore[reportUnknownMemberType]
+
+
+def _is_only_none(dts: Sequence[Attribute]) -> bool:
+    """Upstream `hasOnlyDeviceTypeNone`: True iff `dts` is exactly `[#none]`."""
+    return (
+        len(dts) == 1
+        and isinstance(dts[0], DeviceTypeAttr)
+        and dts[0].data == DeviceType.NONE
+    )
 
 
 @irdl_custom_directive
@@ -198,26 +202,19 @@ class DeviceTypeOperands(CustomDirective):
         return True
 
     def is_present(self, op: IRDLOperation) -> bool:
-        operands = self.operands.get(op)
-        return bool(operands)
+        return bool(self.operands.get(op))
 
     def set_empty(self, state: ParsingState) -> None:
         self.operands.set(state, ())
         self.operand_types.set(state, ())
 
     def parse(self, parser: Parser, state: ParsingState) -> bool:
-        operands: list[UnresolvedOperand] = []
-        types: list[Attribute] = []
-        device_types: list[Attribute] = []
-        while True:
-            o, t, dt = _parse_operand_with_optional_dt(parser)
-            operands.append(o)
-            types.append(t)
-            device_types.append(dt)
-            if not parser.parse_optional_punctuation(","):
-                break
-        self.operands.set(state, tuple(operands))
-        self.operand_types.set(state, tuple(types))
+        triples = parser.parse_comma_separated_list(
+            parser.Delimiter.NONE, lambda: _parse_operand_with_dt(parser)
+        )
+        operands, types, device_types = zip(*triples)
+        self.operands.set(state, operands)
+        self.operand_types.set(state, types)
         self.device_types.set(state, ArrayAttr(device_types))
         return True
 
@@ -225,13 +222,13 @@ class DeviceTypeOperands(CustomDirective):
         operands = self.operands.get(op)
         if not operands:
             return
-        dts = _array_attr_data(self.device_types.get(op))
-        if not dts:
-            dts = (DeviceTypeAttr(DeviceType.NONE),) * len(operands)
-        for i, (value, dt) in enumerate(zip(operands, dts)):
-            if i:
-                printer.print_string(", ")
-            _print_operand_with_dt(printer, value, dt)
+        dts = _attr_array_data(self.device_types.get(op)) or (
+            DeviceTypeAttr(DeviceType.NONE),
+        ) * len(operands)
+        printer.print_list(
+            list(zip(operands, dts)),
+            lambda pair: _print_operand_with_dt(printer, pair[0], pair[1]),
+        )
         state.should_emit_space = True
         state.last_was_punctuation = False
 
@@ -260,81 +257,70 @@ class DeviceTypeOperandsWithKeywordOnly(CustomDirective):
         return True
 
     def is_present(self, op: IRDLOperation) -> bool:
-        operands = self.operands.get(op)
-        if operands:
-            return True
-        keyword_only = self.keyword_only.get(op)
-        device_types = self.device_types.get(op)
-        return keyword_only is not None or device_types is not None
+        return (
+            bool(self.operands.get(op))
+            or self.keyword_only.get(op) is not None
+            or self.device_types.get(op) is not None
+        )
 
     def set_empty(self, state: ParsingState) -> None:
         self.operands.set(state, ())
         self.operand_types.set(state, ())
 
     def parse(self, parser: Parser, state: ParsingState) -> bool:
-        if not parser.parse_optional_punctuation("("):
+        if parser.parse_optional_punctuation("(") is None:
             # bare keyword form → keyword-only list = [#none]
             self.keyword_only.set(state, ArrayAttr([DeviceTypeAttr(DeviceType.NONE)]))
             self.operands.set(state, ())
             self.operand_types.set(state, ())
             return True
 
-        needs_comma_before_operands = False
-        if parser.parse_optional_punctuation("["):
-            keyword_only_attrs: list[Attribute] = [_parse_device_type_attr(parser)]
-            while parser.parse_optional_punctuation(","):
-                keyword_only_attrs.append(_parse_device_type_attr(parser))
-            parser.parse_punctuation("]")
-            self.keyword_only.set(state, ArrayAttr(keyword_only_attrs))
-            needs_comma_before_operands = True
+        kwlist = parser.parse_optional_comma_separated_list(
+            parser.Delimiter.SQUARE, lambda: _parse_device_type_attr(parser)
+        )
+        if kwlist is not None:
+            self.keyword_only.set(state, ArrayAttr(kwlist))
 
-        if parser.parse_optional_punctuation(")"):
-            # keyword-only list with no operands
+        if parser.parse_optional_punctuation(")") is not None:
             self.operands.set(state, ())
             self.operand_types.set(state, ())
             return True
 
-        if needs_comma_before_operands:
+        if kwlist is not None:
             parser.parse_punctuation(",")
 
-        operands: list[UnresolvedOperand] = []
-        types: list[Attribute] = []
-        device_types: list[Attribute] = []
-        while True:
-            o, t, dt = _parse_operand_with_optional_dt(parser)
-            operands.append(o)
-            types.append(t)
-            device_types.append(dt)
-            if not parser.parse_optional_punctuation(","):
-                break
+        triples = parser.parse_comma_separated_list(
+            parser.Delimiter.NONE, lambda: _parse_operand_with_dt(parser)
+        )
         parser.parse_punctuation(")")
-        self.operands.set(state, tuple(operands))
-        self.operand_types.set(state, tuple(types))
+        operands, types, device_types = zip(*triples)
+        self.operands.set(state, operands)
+        self.operand_types.set(state, types)
         self.device_types.set(state, ArrayAttr(device_types))
         return True
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         operands = self.operands.get(op)
-        keyword_only = self.keyword_only.get(op)
+        kwords = _attr_array_data(self.keyword_only.get(op))
 
         # bare keyword (no parens): operands empty and keyword-only is [#none].
-        if not operands and _is_only_device_type_none(keyword_only):
+        if not operands and _is_only_none(kwords):
             return
-
-        kwords = _array_attr_data(keyword_only)
-        dts = _array_attr_data(self.device_types.get(op))
-        if operands and not dts:
-            dts = (DeviceTypeAttr(DeviceType.NONE),) * len(operands)
 
         printer.print_string("(")
         if kwords:
-            _print_device_type_list(printer, kwords)
+            with printer.in_square_brackets():
+                printer.print_list(kwords, printer.print_attribute)
             if operands:
                 printer.print_string(", ")
-        for i, (value, dt) in enumerate(zip(operands, dts)):
-            if i:
-                printer.print_string(", ")
-            _print_operand_with_dt(printer, value, dt)
+        if operands:
+            dts = _attr_array_data(self.device_types.get(op)) or (
+                DeviceTypeAttr(DeviceType.NONE),
+            ) * len(operands)
+            printer.print_list(
+                list(zip(operands, dts)),
+                lambda pair: _print_operand_with_dt(printer, pair[0], pair[1]),
+            )
         printer.print_string(")")
         state.should_emit_space = True
         state.last_was_punctuation = False
@@ -368,32 +354,12 @@ class NumGangs(CustomDirective):
         self.operand_types.set(state, ())
 
     def parse(self, parser: Parser, state: ParsingState) -> bool:
-        operands: list[UnresolvedOperand] = []
-        types: list[Attribute] = []
-        device_types: list[Attribute] = []
-        seg: list[int] = []
-        while True:
-            parser.parse_punctuation("{")
-            group_start = len(operands)
-            while True:
-                o = parser.parse_unresolved_operand()
-                parser.parse_punctuation(":")
-                t = parser.parse_type()
-                operands.append(o)
-                types.append(t)
-                if not parser.parse_optional_punctuation(","):
-                    break
-            seg.append(len(operands) - group_start)
-            parser.parse_punctuation("}")
-            if parser.parse_optional_punctuation("["):
-                device_types.append(_parse_device_type_attr(parser))
-                parser.parse_punctuation("]")
-            else:
-                device_types.append(DeviceTypeAttr(DeviceType.NONE))
-            if not parser.parse_optional_punctuation(","):
-                break
-        self.operands.set(state, tuple(operands))
-        self.operand_types.set(state, tuple(types))
+        groups = parser.parse_comma_separated_list(
+            parser.Delimiter.NONE, lambda: _parse_num_gangs_group(parser)
+        )
+        operands, types, device_types, seg = _flatten_groups(groups)
+        self.operands.set(state, operands)
+        self.operand_types.set(state, types)
         self.device_types.set(state, ArrayAttr(device_types))
         self.segments.set(state, DenseArrayBase.from_list(i32, seg))
         return True
@@ -402,30 +368,12 @@ class NumGangs(CustomDirective):
         operands = self.operands.get(op)
         if not operands:
             return
-        dts = _array_attr_data(self.device_types.get(op))
-        if not dts:
-            dts = (DeviceTypeAttr(DeviceType.NONE),)
-        segments_attr = self.segments.get(op)
-        seg_values: Sequence[int] = (
-            tuple(segments_attr.get_values())
-            if isinstance(segments_attr, DenseArrayBase)
-            else (len(operands),)
+        _print_groups(
+            printer,
+            operands,
+            _attr_array_data(self.device_types.get(op)),
+            self.segments.get(op),
         )
-        idx = 0
-        for group_idx, (size, dt) in enumerate(zip(seg_values, dts)):
-            if group_idx:
-                printer.print_string(", ")
-            printer.print_string("{")
-            for i in range(size):
-                if i:
-                    printer.print_string(", ")
-                value = operands[idx]
-                printer.print_ssa_value(value)
-                printer.print_string(" : ")
-                printer.print_attribute(value.type)
-                idx += 1
-            printer.print_string("}")
-            _print_device_type_suffix(printer, dt)
         state.should_emit_space = True
         state.last_was_punctuation = False
 
@@ -454,10 +402,9 @@ class WaitClause(CustomDirective):
         return True
 
     def is_present(self, op: IRDLOperation) -> bool:
-        if self.operands.get(op):
-            return True
         return (
-            self.keyword_only.get(op) is not None
+            bool(self.operands.get(op))
+            or self.keyword_only.get(op) is not None
             or self.device_types.get(op) is not None
         )
 
@@ -466,120 +413,149 @@ class WaitClause(CustomDirective):
         self.operand_types.set(state, ())
 
     def parse(self, parser: Parser, state: ParsingState) -> bool:
-        if not parser.parse_optional_punctuation("("):
+        if parser.parse_optional_punctuation("(") is None:
             # bare `wait` → keyword-only = [#none]
             self.keyword_only.set(state, ArrayAttr([DeviceTypeAttr(DeviceType.NONE)]))
             self.operands.set(state, ())
             self.operand_types.set(state, ())
             return True
 
-        needs_comma_before_operands = False
-        if parser.parse_optional_punctuation("["):
-            keyword_only_attrs: list[Attribute] = [_parse_device_type_attr(parser)]
-            while parser.parse_optional_punctuation(","):
-                keyword_only_attrs.append(_parse_device_type_attr(parser))
-            parser.parse_punctuation("]")
-            self.keyword_only.set(state, ArrayAttr(keyword_only_attrs))
-            needs_comma_before_operands = True
+        kwlist = parser.parse_optional_comma_separated_list(
+            parser.Delimiter.SQUARE, lambda: _parse_device_type_attr(parser)
+        )
+        if kwlist is not None:
+            self.keyword_only.set(state, ArrayAttr(kwlist))
 
-        if parser.parse_optional_punctuation(")"):
-            # keyword-only list with no braced groups
+        if parser.parse_optional_punctuation(")") is not None:
             self.operands.set(state, ())
             self.operand_types.set(state, ())
             return True
 
-        if needs_comma_before_operands:
+        if kwlist is not None:
             parser.parse_punctuation(",")
 
-        operands: list[UnresolvedOperand] = []
-        types: list[Attribute] = []
-        device_types: list[Attribute] = []
-        seg: list[int] = []
-        has_devnum: list[Attribute] = []
-        while True:
-            parser.parse_punctuation("{")
-            group_start = len(operands)
-            if parser.parse_optional_keyword("devnum"):
-                parser.parse_punctuation(":")
-                has_devnum.append(BoolAttr.from_bool(True))
-            else:
-                has_devnum.append(BoolAttr.from_bool(False))
-            while True:
-                o = parser.parse_unresolved_operand()
-                parser.parse_punctuation(":")
-                t = parser.parse_type()
-                operands.append(o)
-                types.append(t)
-                if not parser.parse_optional_punctuation(","):
-                    break
-            seg.append(len(operands) - group_start)
-            parser.parse_punctuation("}")
-            if parser.parse_optional_punctuation("["):
-                device_types.append(_parse_device_type_attr(parser))
-                parser.parse_punctuation("]")
-            else:
-                device_types.append(DeviceTypeAttr(DeviceType.NONE))
-            if not parser.parse_optional_punctuation(","):
-                break
+        groups = parser.parse_comma_separated_list(
+            parser.Delimiter.NONE, lambda: _parse_wait_group(parser)
+        )
         parser.parse_punctuation(")")
-        self.operands.set(state, tuple(operands))
-        self.operand_types.set(state, tuple(types))
+        operands, types, device_types, seg = _flatten_groups(
+            [(o, t, dt) for o, t, dt, _ in groups]
+        )
+        self.operands.set(state, operands)
+        self.operand_types.set(state, types)
         self.device_types.set(state, ArrayAttr(device_types))
         self.segments.set(state, DenseArrayBase.from_list(i32, seg))
-        self.has_devnum.set(state, ArrayAttr(has_devnum))
+        self.has_devnum.set(
+            state, ArrayAttr([BoolAttr.from_bool(devnum) for _, _, _, devnum in groups])
+        )
         return True
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         operands = self.operands.get(op)
-        keyword_only = self.keyword_only.get(op)
-        segments_attr = self.segments.get(op)
+        kwords = _attr_array_data(self.keyword_only.get(op))
 
-        if not operands and _is_only_device_type_none(keyword_only):
+        if not operands and _is_only_none(kwords):
             return
-
-        kwords = _array_attr_data(keyword_only)
 
         printer.print_string("(")
         if kwords:
-            _print_device_type_list(printer, kwords)
+            with printer.in_square_brackets():
+                printer.print_list(kwords, printer.print_attribute)
+            if operands:
+                printer.print_string(", ")
 
         if operands:
-            dts = _array_attr_data(self.device_types.get(op))
-            if not dts:
-                dts = (DeviceTypeAttr(DeviceType.NONE),)
-            seg_values: Sequence[int] = (
-                tuple(segments_attr.get_values())
-                if isinstance(segments_attr, DenseArrayBase)
-                else (len(operands),)
+            _print_groups(
+                printer,
+                operands,
+                _attr_array_data(self.device_types.get(op)),
+                self.segments.get(op),
+                _attr_array_data(self.has_devnum.get(op)),
             )
-            devnum_flags = _array_attr_data(self.has_devnum.get(op))
-            if kwords:
-                printer.print_string(", ")
-            idx = 0
-            for group_idx, (size, dt) in enumerate(zip(seg_values, dts)):
-                if group_idx:
-                    printer.print_string(", ")
-                printer.print_string("{")
-                devnum_attr = (
-                    devnum_flags[group_idx] if group_idx < len(devnum_flags) else None
-                )
-                if isinstance(devnum_attr, IntegerAttr) and bool(
-                    devnum_attr.value.data
-                ):
-                    printer.print_string("devnum: ")
-                for i in range(size):
-                    if i:
-                        printer.print_string(", ")
-                    value = operands[idx]
-                    printer.print_ssa_value(value)
-                    printer.print_string(" : ")
-                    printer.print_attribute(value.type)
-                    idx += 1
-                printer.print_string("}")
-                _print_device_type_suffix(printer, dt)
         printer.print_string(")")
         state.should_emit_space = True
         state.last_was_punctuation = False
+
+
+def _parse_num_gangs_group(
+    parser: Parser,
+) -> tuple[Sequence[UnresolvedOperand], Sequence[Attribute], DeviceTypeAttr]:
+    """Parse one `{ op:ty, ... } [dt]?` group used by `acc.parallel num_gangs`."""
+    pairs = parser.parse_comma_separated_list(
+        parser.Delimiter.BRACES, lambda: _parse_typed_operand(parser)
+    )
+    ops, tys = zip(*pairs)
+    return ops, tys, _parse_optional_device_type_suffix(parser)
+
+
+def _parse_wait_group(
+    parser: Parser,
+) -> tuple[Sequence[UnresolvedOperand], Sequence[Attribute], DeviceTypeAttr, bool]:
+    """Parse one `{ devnum: op:ty, ... } [dt]?` group used by `acc.parallel wait`."""
+    parser.parse_punctuation("{")
+    has_devnum = parser.parse_optional_keyword("devnum") is not None
+    if has_devnum:
+        parser.parse_punctuation(":")
+    pairs = parser.parse_comma_separated_list(
+        parser.Delimiter.NONE, lambda: _parse_typed_operand(parser)
+    )
+    parser.parse_punctuation("}")
+    ops, tys = zip(*pairs)
+    return ops, tys, _parse_optional_device_type_suffix(parser), has_devnum
+
+
+def _flatten_groups(
+    groups: Sequence[
+        tuple[Sequence[UnresolvedOperand], Sequence[Attribute], DeviceTypeAttr]
+    ],
+) -> tuple[
+    tuple[UnresolvedOperand, ...],
+    tuple[Attribute, ...],
+    list[Attribute],
+    list[int],
+]:
+    """Flatten a list of `(ops, tys, dt)` groups into per-field tuples + segment sizes."""
+    operands: list[UnresolvedOperand] = []
+    types: list[Attribute] = []
+    device_types: list[Attribute] = []
+    seg: list[int] = []
+    for ops, tys, dt in groups:
+        operands.extend(ops)
+        types.extend(tys)
+        device_types.append(dt)
+        seg.append(len(ops))
+    return tuple(operands), tuple(types), device_types, seg
+
+
+def _print_groups(
+    printer: Printer,
+    operands: Sequence[SSAValue],
+    device_types: Sequence[Attribute],
+    segments_attr: Attribute | None,
+    devnum_flags: Sequence[Attribute] = (),
+) -> None:
+    """Print `{ devnum:? op:ty, ... } [dt]? (`,` ...)*` groups."""
+    dts: Sequence[Attribute] = device_types or (DeviceTypeAttr(DeviceType.NONE),)
+    seg_values: Sequence[int] = (
+        tuple(segments_attr.get_values())
+        if isinstance(segments_attr, DenseArrayBase)
+        else (len(operands),)
+    )
+    idx = 0
+    for group_idx, (size, dt) in enumerate(zip(seg_values, dts)):
+        if group_idx:
+            printer.print_string(", ")
+        with printer.in_braces():
+            devnum = (
+                devnum_flags[group_idx] if group_idx < len(devnum_flags) else None
+            )
+            if isinstance(devnum, IntegerAttr) and bool(devnum.value.data):
+                printer.print_string("devnum: ")
+            printer.print_list(
+                operands[idx : idx + size], lambda v: _print_typed_operand(printer, v)
+            )
+        _print_device_type_suffix(printer, dt)
+        idx += size
 
 
 @irdl_op_definition
