@@ -10,7 +10,6 @@ See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenACCDialect/
 """
 
 from collections.abc import Sequence
-from typing import cast
 
 from xdsl.dialects.builtin import (
     I1,
@@ -60,6 +59,7 @@ from xdsl.traits import (
     RecursiveMemoryEffect,
     SingleBlockImplicitTerminator,
 )
+from xdsl.utils.hints import isa
 
 
 class DeviceType(StrEnum):
@@ -163,13 +163,6 @@ def _print_operand_with_dt(printer: Printer, operand: SSAValue, dt: Attribute) -
     _print_device_type_suffix(printer, dt)
 
 
-def _attr_array_data(attr: Attribute | None) -> tuple[Attribute, ...]:
-    """Return the inner tuple of an `ArrayAttr`, else `()`."""
-    if not isinstance(attr, ArrayAttr):
-        return ()
-    return cast("tuple[Attribute, ...]", attr.data)  # pyright: ignore[reportUnknownMemberType]
-
-
 @irdl_custom_directive
 class DeviceTypeOperands(CustomDirective):
     """Port of upstream `custom<DeviceTypeOperands>`.
@@ -209,11 +202,13 @@ class DeviceTypeOperands(CustomDirective):
         operands = self.operands.get(op)
         if not operands:
             return
-        dts = _attr_array_data(self.device_types.get(op)) or (
-            DeviceTypeAttr(DeviceType.NONE),
-        ) * len(operands)
+        dts = (
+            attr.data
+            if isa(attr := self.device_types.get(op), ArrayAttr)
+            else (DeviceTypeAttr(DeviceType.NONE),) * len(operands)
+        )
         printer.print_list(
-            list(zip(operands, dts)),
+            zip(operands, dts, strict=True),
             lambda pair: _print_operand_with_dt(printer, pair[0], pair[1]),
         )
         state.should_emit_space = True
