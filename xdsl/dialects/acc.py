@@ -166,14 +166,8 @@ def _print_operand_with_dt(printer: Printer, operand: SSAValue, dt: Attribute) -
     _print_device_type_suffix(printer, dt)
 
 
-def _is_only_none(dts: Attribute | None) -> bool:
-    """Upstream `hasOnlyDeviceTypeNone`: True iff `dts` is exactly `[#none]`."""
-    if not isa(dts, ArrayAttr):
-        return False
-    if len(dts.data) != 1:
-        return False
-    only = dts.data[0]
-    return isinstance(only, DeviceTypeAttr) and only.data == DeviceType.NONE
+_DEVICE_TYPE_ONLY_NONE = ArrayAttr((DeviceTypeAttr(DeviceType.NONE),))
+"""Upstream `hasOnlyDeviceTypeNone` sentinel: the `[#acc.device_type<none>]` array."""
 
 
 def _parse_num_gangs_group(
@@ -362,7 +356,7 @@ class DeviceTypeOperandsWithKeywordOnly(CustomDirective):
         operands = self.operands.get(op)
         keyword_only = self.keyword_only.get(op)
 
-        if not operands and _is_only_none(keyword_only):
+        if not operands and keyword_only == _DEVICE_TYPE_ONLY_NONE:
             return
 
         printer.print_string("(")

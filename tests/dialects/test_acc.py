@@ -219,21 +219,6 @@ def test_parallel_async_mixed_keyword_and_operand():
     )
 
 
-def test_is_only_none_helper():
-    """`_is_only_none` matches upstream `hasOnlyDeviceTypeNone`."""
-    from xdsl.dialects.acc import _is_only_none  # pyright: ignore[reportPrivateUsage]
-
-    none = acc.DeviceTypeAttr(acc.DeviceType.NONE)
-    nvidia = acc.DeviceTypeAttr(acc.DeviceType.NVIDIA)
-
-    assert _is_only_none(ArrayAttr([none])) is True
-    assert _is_only_none(None) is False
-    assert _is_only_none(ArrayAttr([])) is False
-    assert _is_only_none(ArrayAttr([nvidia])) is False
-    assert _is_only_none(ArrayAttr([none, nvidia])) is False
-    assert _is_only_none(UnitAttr()) is False
-
-
 def test_parallel_unit_and_default_attrs():
     """self_attr / combined accept bool shortcuts; default_attr accepts enum."""
     op = acc.ParallelOp(
