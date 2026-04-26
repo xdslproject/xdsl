@@ -87,7 +87,7 @@ class CodeGenerationVisitor(ast.NodeVisitor):
             self.file,
             getattr(node, "lineno"),
             getattr(node, "col_offset"),
-            f"Unsupported Python AST node {str(node)}",
+            f"Unsupported Python AST node {node!s}",
         )
 
     def visit_AnnAssign(self, node: ast.AnnAssign) -> None:

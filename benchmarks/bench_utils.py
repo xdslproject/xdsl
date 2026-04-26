@@ -225,7 +225,7 @@ def show(
     if options is None:
         options = cast(tuple[str], ())
     command = ["uv", "run", tool, output_prof, *options]
-    subprocess.run(command, check=True)  # noqa: S603
+    subprocess.run(command, check=True)
 
 
 def profile(

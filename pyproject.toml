@@ -123,12 +123,24 @@ extend-include = ["*.ipynb", "*.pyi"]
 exclude = [".venv", "docs/marimo"]
 
 [tool.ruff.lint]
-select = ["E", "F", "W", "I", "UP", "PT", "TID251", "INP", "PYI"]
+select = ["E", "F", "W", "I", "UP", "PT", "TID251", "INP", "PYI", "RUF"]
 ignore = [
     "E741",   # https://beta.ruff.rs/docs/rules/ambiguous-variable-name/
     "PT006",  # https://beta.ruff.rs/docs/rules/pytest-parametrize-names-wrong-type/
     "PT012",  # https://beta.ruff.rs/docs/rules/pytest-raises-with-multiple-statements/
     "PYI041", # https://docs.astral.sh/ruff/rules/redundant-numeric-union
+    # Help welcome removing ignores below
+    # https://github.com/xdslproject/xdsl/issues/5927
+    "RUF001", # https://docs.astral.sh/ruff/rules/ambiguous-unicode-character-string
+    "RUF002", # https://docs.astral.sh/ruff/rules/ambiguous-unicode-character-docstring
+    "RUF003", # https://docs.astral.sh/ruff/rules/ambiguous-unicode-character-comment
+    "RUF005", # https://docs.astral.sh/ruff/rules/collection-literal-concatenation
+    "RUF007", # https://docs.astral.sh/ruff/rules/zip-instead-of-pairwise
+    "RUF012", # https://docs.astral.sh/ruff/rules/mutable-class-default
+    "RUF015", # https://docs.astral.sh/ruff/rules/unnecessary-iterable-allocation-for-first-element
+    "RUF018", # https://docs.astral.sh/ruff/rules/assignment-in-assert
+    "RUF033", # https://docs.astral.sh/ruff/rules/post-init-default
+    "RUF043", # https://docs.astral.sh/ruff/rules/pytest-raises-ambiguous-pattern
 ]
 
 [tool.ruff.lint.pycodestyle]

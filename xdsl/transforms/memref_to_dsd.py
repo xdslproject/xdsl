@@ -267,8 +267,8 @@ class LowerSubviewOpPass(RewritePattern):
         elif (
             isinstance(subview.source.type.layout, StridedLayoutAttr)
             and static_offsets[0] != (subview.source.type.layout.get_offset() or 0)
-            or isinstance(subview.source.type.layout, NoneAttr)
-            and static_offsets[0] != 0
+        ) or (
+            isinstance(subview.source.type.layout, NoneAttr) and static_offsets[0] != 0
         ):
             # update offsets only if they differ from op.source.type
             ops.append(

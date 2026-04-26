@@ -594,18 +594,12 @@ class NamedOperation(LinalgStructuredOperation, ABC):
 
     def print(self, printer: Printer):
         extra_attrs = {**self.attributes, **self.properties}
-        if "indexing_maps" in extra_attrs:
-            del extra_attrs["indexing_maps"]
-        if "linalg.memoized_indexing_maps" in extra_attrs:
-            del extra_attrs["linalg.memoized_indexing_maps"]
-        if "iterator_types" in extra_attrs:
-            del extra_attrs["iterator_types"]
-        if "doc" in extra_attrs:
-            del extra_attrs["doc"]
-        if "library_call" in extra_attrs:
-            del extra_attrs["library_call"]
-        if "operandSegmentSizes" in extra_attrs:
-            del extra_attrs["operandSegmentSizes"]
+        extra_attrs.pop("indexing_maps", None)
+        extra_attrs.pop("linalg.memoized_indexing_maps", None)
+        extra_attrs.pop("iterator_types", None)
+        extra_attrs.pop("doc", None)
+        extra_attrs.pop("library_call", None)
+        extra_attrs.pop("operandSegmentSizes", None)
 
         if extra_attrs and self.PRINT_ATTRS_IN_FRONT:
             printer.print_op_attributes(extra_attrs)

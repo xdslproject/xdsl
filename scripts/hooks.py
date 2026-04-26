@@ -1,4 +1,4 @@
-import os  # noqa
+import os
 
 
 def build_xdsl_wheel(config: dict[str, str], **kwargs: object):

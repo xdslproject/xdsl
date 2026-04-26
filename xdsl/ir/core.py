@@ -1526,8 +1526,8 @@ class Operation(_IRNode):
             f"operands=[{operands}], "
             f"results=[{results}], "
             f"successors=[{successors}], "
-            f"properties={repr(self.properties)}, "
-            f"attributes={repr(self.attributes)}, "
+            f"properties={self.properties!r}, "
+            f"attributes={self.attributes!r}, "
             f"regions=[{regions}], "
             f"parent={_short_repr(self.parent)}, "
             f"_next_op={_short_repr(self.next_op)}, "
@@ -1711,7 +1711,7 @@ class Block(_IRNode, IRWithUses, IRWithName):
         return self.parent.parent.parent if self.parent and self.parent.parent else None
 
     def __repr__(self) -> str:
-        return f"<Block {id(self)}(_args={repr(self._args)}, num_ops={len(self.ops)})>"
+        return f"<Block {id(self)}(_args={self._args!r}, num_ops={len(self.ops)})>"
 
     @property
     def args(self) -> tuple[BlockArgument, ...]:

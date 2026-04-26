@@ -97,7 +97,7 @@ class DialectStubGenerator:
                 )
             case AllOf(constraints):
                 self._import(typing, "Annotated")
-                return f"Annotated[{', '.join(self._generate_constraint_type(c) for c in reversed(constraints))}]"  # noqa: E501
+                return f"Annotated[{', '.join(self._generate_constraint_type(c) for c in reversed(constraints))}]"
             case ArrayOfConstraint(RangeOf(constraint)):
                 self._import(xdsl.dialects.builtin, ArrayAttr)
                 return f"ArrayAttr[{self._generate_constraint_type(constraint)}]"
@@ -188,14 +188,14 @@ class DialectStubGenerator:
             had_body = True
             match o:
                 case OptAttributeDef():
-                    yield f"    {name} : {self._generate_constraint_type(o.constr)} | None"  # noqa: E501
+                    yield f"    {name} : {self._generate_constraint_type(o.constr)} | None"
                 case AttributeDef():
                     yield f"    {name} : {self._generate_constraint_type(o.constr)}"
         for name, o in op_def.properties.items():
             had_body = True
             match o:
                 case OptPropertyDef():
-                    yield f"    {name} : {self._generate_constraint_type(o.constr)} | None"  # noqa: E501
+                    yield f"    {name} : {self._generate_constraint_type(o.constr)} | None"
                 case PropertyDef():
                     yield f"    {name} : {self._generate_constraint_type(o.constr)}"
 

@@ -1136,7 +1136,7 @@ class VectorTransferOperation(IRDLOperation, ABC):
         if len(in_bounds) != len(permutation_map.results):
             raise VerifyException(
                 f'"{op.name}" expects the in_bounds attr of same rank as permutation_map results: '
-                f"{str(permutation_map)} vs in_bounds of of size {len(in_bounds)}"
+                f"{permutation_map!s} vs in_bounds of of size {len(in_bounds)}"
             )
 
     @staticmethod

@@ -46,9 +46,8 @@ class FuseMultiplyAddPass(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, mul: linalg.MulOp, rewriter: PatternRewriter, /):
-        if (
-            len(mul.res) != 1
-            or self.require_erasable_mul
+        if len(mul.res) != 1 or (
+            self.require_erasable_mul
             and len(set(use.operation for use in mul.res[0].uses)) != 1
         ):
             return
