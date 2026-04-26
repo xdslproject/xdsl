@@ -45,6 +45,8 @@ def test_parallel_empty_verifies():
     assert op.async_operands_device_type is None
     assert op.async_only is None
     assert op.wait_operands_device_type is None
+    assert op.wait_operands_segments is None
+    assert op.has_wait_devnum is None
     assert op.wait_only is None
     assert op.num_gangs_device_type is None
     assert op.num_workers_device_type is None
@@ -150,6 +152,31 @@ def test_parallel_num_gangs_print_without_segments_or_dt():
     out = io.StringIO()
     Printer(stream=out).print_op(op)
     assert "num_gangs({%0 : i32, %1 : i32})" in out.getvalue()
+
+
+def test_parallel_wait_print_without_metadata():
+    """WaitClause.print falls back when device_types / segments / has_devnum are unset.
+
+    None of these branches are reachable via filecheck round-trip — the parser
+    always sets all three properties — so they need a Python-constructed op.
+    """
+    a = ConstantOp.from_int_and_width(1, i32)
+    b = ConstantOp.from_int_and_width(2, i32)
+
+    op = acc.ParallelOp(
+        region=Region(Block([acc.YieldOp()])),
+        wait_operands=[a.result, b.result],
+    )
+    op.verify()
+    assert op.wait_operands_device_type is None
+    assert op.wait_operands_segments is None
+    assert op.has_wait_devnum is None
+
+    out = io.StringIO()
+    Printer(stream=out).print_op(op)
+    text = out.getvalue()
+    assert "wait({%0 : i32, %1 : i32})" in text
+    assert "devnum:" not in text
 
 
 def test_parallel_unit_and_default_attrs():

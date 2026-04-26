@@ -14,6 +14,7 @@ from collections.abc import Sequence
 from xdsl.dialects.builtin import (
     I1,
     ArrayAttr,
+    BoolAttr,
     DenseArrayBase,
     IndexType,
     IntegerAttr,
@@ -180,6 +181,31 @@ def _parse_num_gangs_group(
         )
     operands, types = zip(*pairs)
     return operands, types, _parse_optional_device_type_suffix(parser)
+
+
+def _parse_wait_group(
+    parser: Parser,
+) -> tuple[
+    tuple[UnresolvedOperand, ...],
+    tuple[Attribute, ...],
+    DeviceTypeAttr,
+    BoolAttr,
+]:
+    """Parse one `{ (`devnum:`)? %v : type, ... } ( `[` #acc.device_type<...> `]` )?` group."""
+    with parser.in_braces():
+        has_devnum = parser.parse_optional_keyword("devnum") is not None
+        if has_devnum:
+            parser.parse_punctuation(":")
+        pairs = parser.parse_comma_separated_list(
+            parser.Delimiter.NONE, lambda: _parse_typed_operand(parser)
+        )
+    operands, types = zip(*pairs)
+    return (
+        operands,
+        types,
+        _parse_optional_device_type_suffix(parser),
+        IntegerAttr.from_bool(has_devnum),
+    )
 
 
 def _flatten_groups(
@@ -438,6 +464,121 @@ class NumGangs(CustomDirective):
         state.last_was_punctuation = False
 
 
+@irdl_custom_directive
+class WaitClause(CustomDirective):
+    """Port of upstream `custom<WaitClause>`.
+
+    Follows a bare `wait` keyword in the format. The directive owns the
+    optional surrounding parentheses. Syntax options after the keyword:
+      bare                                                → keyword-only = [#none]
+      `(` `[` dts `]` `,` group (`,` group)* `)`          → kw-only + operand groups
+      `(` group (`,` group)* `)`                          → operand groups only
+    where each group is `{ (`devnum:`)? %v : type, ... } (`[` dt `]`)?`.
+    """
+
+    operands: VariadicOperandVariable
+    operand_types: TypeDirective
+    device_types: AttributeVariable
+    segments: AttributeVariable
+    has_devnum: AttributeVariable
+    keyword_only: AttributeVariable
+
+    def is_anchorable(self) -> bool:
+        return True
+
+    def is_optional_like(self) -> bool:
+        return True
+
+    def is_present(self, op: IRDLOperation) -> bool:
+        return (
+            bool(self.operands.get(op))
+            or self.keyword_only.get(op) is not None
+            or self.device_types.get(op) is not None
+        )
+
+    def set_empty(self, state: ParsingState) -> None:
+        self.operands.set(state, ())
+        self.operand_types.set(state, ())
+
+    def parse(self, parser: Parser, state: ParsingState) -> bool:
+        if not parser.parse_optional_punctuation("("):
+            self.keyword_only.set(state, ArrayAttr([DeviceTypeAttr(DeviceType.NONE)]))
+            self.operands.set(state, ())
+            self.operand_types.set(state, ())
+            return True
+
+        if parser.parse_optional_punctuation("["):
+            kw_only = parser.parse_comma_separated_list(
+                parser.Delimiter.NONE, lambda: _parse_device_type_attr(parser)
+            )
+            parser.parse_punctuation("]")
+            self.keyword_only.set(state, ArrayAttr(kw_only))
+            parser.parse_punctuation(",")
+
+        groups = [_parse_wait_group(parser)]
+        while parser.parse_optional_punctuation(","):
+            groups.append(_parse_wait_group(parser))
+        parser.parse_punctuation(")")
+
+        all_operands: list[UnresolvedOperand] = []
+        all_types: list[Attribute] = []
+        dts: list[DeviceTypeAttr] = []
+        devnum_flags: list[BoolAttr] = []
+        segs: list[int] = []
+        for group_operands, group_types, dt, devnum in groups:
+            all_operands.extend(group_operands)
+            all_types.extend(group_types)
+            dts.append(dt)
+            devnum_flags.append(devnum)
+            segs.append(len(group_operands))
+
+        self.operands.set(state, tuple(all_operands))
+        self.operand_types.set(state, tuple(all_types))
+        self.device_types.set(state, ArrayAttr(dts))
+        self.segments.set(state, DenseArrayBase.from_list(i32, segs))
+        self.has_devnum.set(state, ArrayAttr(devnum_flags))
+        return True
+
+    def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
+        operands = self.operands.get(op)
+        keyword_only = self.keyword_only.get(op)
+
+        if not operands and keyword_only == _DEVICE_TYPE_ONLY_NONE:
+            return
+
+        printer.print_string("(")
+        if (
+            isa(keyword_only, ArrayAttr)
+            and keyword_only.data
+            and keyword_only != _DEVICE_TYPE_ONLY_NONE
+        ):
+            printer.print_string("[")
+            printer.print_list(keyword_only.data, printer.print_attribute)
+            printer.print_string("]")
+            if operands:
+                printer.print_string(", ")
+        if operands:
+            dts = (
+                attr.data
+                if isa(attr := self.device_types.get(op), ArrayAttr)
+                else (DeviceTypeAttr(DeviceType.NONE),)
+            )
+            seg_values: Sequence[int] = (
+                segments.get_values()
+                if isinstance(segments := self.segments.get(op), DenseArrayBase)
+                else (len(operands),)
+            )
+            devnum_flags: Sequence[Attribute] = (
+                devnum_attrs.data
+                if isa(devnum_attrs := self.has_devnum.get(op), ArrayAttr)
+                else ()
+            )
+            _print_groups(printer, operands, dts, seg_values, devnum_flags=devnum_flags)
+        printer.print_string(")")
+        state.should_emit_space = True
+        state.last_was_punctuation = False
+
+
 @irdl_op_definition
 class ParallelOp(IRDLOperation):
     """
@@ -466,6 +607,10 @@ class ParallelOp(IRDLOperation):
     wait_operands_device_type = opt_prop_def(
         ArrayAttr[DeviceTypeAttr], prop_name="waitOperandsDeviceType"
     )
+    wait_operands_segments = opt_prop_def(
+        DenseArrayBase.constr(IntegerType(32)), prop_name="waitOperandsSegments"
+    )
+    has_wait_devnum = opt_prop_def(ArrayAttr[BoolAttr], prop_name="hasWaitDevnum")
     wait_only = opt_prop_def(ArrayAttr[DeviceTypeAttr], prop_name="waitOnly")
     num_gangs_segments = opt_prop_def(
         DenseArrayBase.constr(IntegerType(32)), prop_name="numGangsSegments"
@@ -494,6 +639,7 @@ class ParallelOp(IRDLOperation):
         DeviceTypeOperands,
         NumGangs,
         DeviceTypeOperandsWithKeywordOnly,
+        WaitClause,
     )
 
     assembly_format = (
@@ -512,7 +658,9 @@ class ParallelOp(IRDLOperation):
         " type($private_operands) `)`)?"
         " (`vector_length` `(` custom<DeviceTypeOperands>($vector_length,"
         " type($vector_length), $vectorLengthDeviceType)^ `)`)?"
-        " (`wait` `(` $wait_operands^ `:` type($wait_operands) `)`)?"
+        " (`wait` custom<WaitClause>($wait_operands, type($wait_operands),"
+        " $waitOperandsDeviceType, $waitOperandsSegments, $hasWaitDevnum,"
+        " $waitOnly)^)?"
         " (`self` `(` $self_cond^ `)`)?"
         " (`if` `(` $if_cond^ `)`)?"
         " (`reduction` `(` $reduction_operands^ `:`"
@@ -545,6 +693,8 @@ class ParallelOp(IRDLOperation):
         async_operands_device_type: ArrayAttr[DeviceTypeAttr] | None = None,
         async_only: ArrayAttr[DeviceTypeAttr] | None = None,
         wait_operands_device_type: ArrayAttr[DeviceTypeAttr] | None = None,
+        wait_operands_segments: DenseArrayBase | None = None,
+        has_wait_devnum: ArrayAttr[BoolAttr] | None = None,
         wait_only: ArrayAttr[DeviceTypeAttr] | None = None,
         num_gangs_segments: DenseArrayBase | None = None,
         num_gangs_device_type: ArrayAttr[DeviceTypeAttr] | None = None,
@@ -587,6 +737,8 @@ class ParallelOp(IRDLOperation):
                 "asyncOperandsDeviceType": async_operands_device_type,
                 "asyncOnly": async_only,
                 "waitOperandsDeviceType": wait_operands_device_type,
+                "waitOperandsSegments": wait_operands_segments,
+                "hasWaitDevnum": has_wait_devnum,
                 "waitOnly": wait_only,
                 "numGangsSegments": num_gangs_segments,
                 "numGangsDeviceType": num_gangs_device_type,

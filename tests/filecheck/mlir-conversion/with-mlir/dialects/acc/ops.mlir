@@ -112,14 +112,58 @@ builtin.module {
   // CHECK-NEXT:      acc.yield
   // CHECK-NEXT:    }
 
+  func.func @wait_bare() {
+    acc.parallel wait {
+      acc.yield
+    }
+    func.return
+  }
+  // CHECK:       func.func @wait_bare() {
+  // CHECK-NEXT:    acc.parallel wait {
+  // CHECK-NEXT:      acc.yield
+  // CHECK-NEXT:    }
+
+  func.func @wait_group(%a : i64, %b : i32) {
+    acc.parallel wait({%a : i64, %b : i32}) {
+      acc.yield
+    }
+    func.return
+  }
+  // CHECK:       func.func @wait_group(
+  // CHECK:         acc.parallel wait({%{{.*}} : i64, %{{.*}} : i32}) {
+  // CHECK-NEXT:      acc.yield
+  // CHECK-NEXT:    }
+
+  func.func @wait_devnum(%a : i64, %b : i32) {
+    acc.parallel wait({devnum: %a : i64, %b : i32}) {
+      acc.yield
+    }
+    func.return
+  }
+  // CHECK:       func.func @wait_devnum(
+  // CHECK:         acc.parallel wait({devnum: %{{.*}} : i64, %{{.*}} : i32}) {
+  // CHECK-NEXT:      acc.yield
+  // CHECK-NEXT:    }
+
+  func.func @wait_mixed(%a : i64, %b : i32) {
+    acc.parallel wait([#acc.device_type<nvidia>], {devnum: %a : i64, %b : i32} [#acc.device_type<default>]) {
+      acc.yield
+    }
+    func.return
+  }
+  // CHECK:       func.func @wait_mixed(
+  // CHECK:         acc.parallel wait([#acc.device_type<nvidia>], {devnum: %{{.*}} : i64, %{{.*}} : i32} [#acc.device_type<default>]) {
+  // CHECK-NEXT:      acc.yield
+  // CHECK-NEXT:    }
+
   func.func @test_entire(%c : i1, %a : i32, %b : i64) {
-    acc.parallel combined(loop) async(%b : i64) num_workers(%b : i64) vector_length(%a : i32) self(%c) if(%c) {
+    acc.parallel combined(loop) async(%b : i64) num_workers(%b : i64) vector_length(%a : i32) wait({%b : i64}) self(%c) if(%c) {
       acc.yield
     } attributes {defaultAttr = #acc<defaultvalue present>, selfAttr}
     func.return
   }
   // CHECK:       func.func @test_entire(
-  // CHECK:         acc.parallel combined(loop) async(%{{.*}} : i64) num_workers(%{{.*}} : i64) vector_length(%{{.*}} : i32) self(%{{.*}}) if(%{{.*}}) {
+  // CHECK:         acc.parallel combined(loop) async(%{{.*}} : i64) num_workers(%{{.*}} : i64) vector_length(%{{.*}} : i32) wait({%{{.*}} : i64}) self(%{{.*}}) if(%{{.*}}) {
   // CHECK-NEXT:      acc.yield
   // CHECK-NEXT:    } attributes {defaultAttr = #acc<defaultvalue present>, selfAttr}
 }

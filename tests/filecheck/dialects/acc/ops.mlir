@@ -144,14 +144,69 @@ builtin.module {
   // CHECK-NEXT:      acc.yield
   // CHECK-NEXT:    }
 
-  func.func @wait_one_operand(%a : i64, %b : i32) {
-    acc.parallel wait(%a, %b : i64, i32) {
+  func.func @wait_bare() {
+    acc.parallel wait {
       acc.yield
     }
     func.return
   }
-  // CHECK-LABEL: func.func @wait_one_operand(
-  // CHECK:         acc.parallel wait(%{{.*}}, %{{.*}} : i64, i32) {
+  // CHECK-LABEL: func.func @wait_bare() {
+  // CHECK-NEXT:    acc.parallel wait {
+  // CHECK-NEXT:      acc.yield
+  // CHECK-NEXT:    }
+
+  func.func @wait_keyword_only_dt(%a : i64) {
+    acc.parallel wait([#acc.device_type<nvidia>], {%a : i64}) {
+      acc.yield
+    }
+    func.return
+  }
+  // CHECK-LABEL: func.func @wait_keyword_only_dt(
+  // CHECK:         acc.parallel wait([#acc.device_type<nvidia>], {%{{.*}} : i64}) {
+  // CHECK-NEXT:      acc.yield
+  // CHECK-NEXT:    }
+
+  func.func @wait_group(%a : i64, %b : i32) {
+    acc.parallel wait({%a : i64, %b : i32}) {
+      acc.yield
+    }
+    func.return
+  }
+  // CHECK-LABEL: func.func @wait_group(
+  // CHECK:         acc.parallel wait({%{{.*}} : i64, %{{.*}} : i32}) {
+  // CHECK-NEXT:      acc.yield
+  // CHECK-NEXT:    }
+
+  func.func @wait_devnum(%a : i64, %b : i32) {
+    acc.parallel wait({devnum: %a : i64, %b : i32}) {
+      acc.yield
+    }
+    func.return
+  }
+  // CHECK-LABEL: func.func @wait_devnum(
+  // CHECK:         acc.parallel wait({devnum: %{{.*}} : i64, %{{.*}} : i32}) {
+  // CHECK-NEXT:      acc.yield
+  // CHECK-NEXT:    }
+
+  func.func @wait_devnum_multi(%a : i64, %b : i32) {
+    acc.parallel wait({devnum: %a : i64}, {%b : i32}) {
+      acc.yield
+    }
+    func.return
+  }
+  // CHECK-LABEL: func.func @wait_devnum_multi(
+  // CHECK:         acc.parallel wait({devnum: %{{.*}} : i64}, {%{{.*}} : i32}) {
+  // CHECK-NEXT:      acc.yield
+  // CHECK-NEXT:    }
+
+  func.func @wait_mixed(%a : i64, %b : i32) {
+    acc.parallel wait([#acc.device_type<nvidia>], {devnum: %a : i64, %b : i32} [#acc.device_type<default>]) {
+      acc.yield
+    }
+    func.return
+  }
+  // CHECK-LABEL: func.func @wait_mixed(
+  // CHECK:         acc.parallel wait([#acc.device_type<nvidia>], {devnum: %{{.*}} : i64, %{{.*}} : i32} [#acc.device_type<default>]) {
   // CHECK-NEXT:      acc.yield
   // CHECK-NEXT:    }
 
