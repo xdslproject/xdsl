@@ -33,7 +33,7 @@ func.func @serial_empty_block() {
   }) : () -> ()
   func.return
 }
-// CHECK: acc.serial
+// CHECK: Operation acc.serial contains empty block in single-block region that expects at least a terminator
 
 // -----
 
@@ -43,4 +43,4 @@ func.func @serial_wrong_terminator(%arg0: i32) {
   }) : () -> ()
   func.return
 }
-// CHECK: builtin.unrealized_conversion_cast
+// CHECK: Operation builtin.unrealized_conversion_cast terminates block in single-block region but is not a terminator
