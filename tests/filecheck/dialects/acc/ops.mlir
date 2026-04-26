@@ -242,4 +242,180 @@ builtin.module {
   // CHECK-NEXT:    acc.parallel {
   // CHECK-NEXT:      acc.yield
   // CHECK-NEXT:    }
+
+  func.func @serial_empty() {
+    acc.serial {
+      acc.yield
+    }
+    func.return
+  }
+  // CHECK-LABEL: func.func @serial_empty() {
+  // CHECK-NEXT:    acc.serial {
+  // CHECK-NEXT:      acc.yield
+  // CHECK-NEXT:    }
+
+  func.func @serial_if_self(%c1 : i1) {
+    acc.serial self(%c1) if(%c1) {
+      acc.yield
+    }
+    func.return
+  }
+  // CHECK-LABEL: func.func @serial_if_self(
+  // CHECK:         acc.serial self(%{{.*}}) if(%{{.*}}) {
+  // CHECK-NEXT:      acc.yield
+  // CHECK-NEXT:    }
+
+  func.func @serial_data_ops(%m : memref<10xf32>) {
+    acc.serial dataOperands(%m : memref<10xf32>) {
+      acc.yield
+    }
+    func.return
+  }
+  // CHECK-LABEL: func.func @serial_data_ops(
+  // CHECK:         acc.serial dataOperands(%{{.*}} : memref<10xf32>) {
+  // CHECK-NEXT:      acc.yield
+  // CHECK-NEXT:    }
+
+  func.func @serial_private_firstprivate_reduction(%m : memref<10xf32>) {
+    acc.serial firstprivate(%m : memref<10xf32>) private(%m : memref<10xf32>) reduction(%m : memref<10xf32>) {
+      acc.yield
+    }
+    func.return
+  }
+  // CHECK-LABEL: func.func @serial_private_firstprivate_reduction(
+  // CHECK:         acc.serial firstprivate(%{{.*}} : memref<10xf32>) private(%{{.*}} : memref<10xf32>) reduction(%{{.*}} : memref<10xf32>) {
+  // CHECK-NEXT:      acc.yield
+  // CHECK-NEXT:    }
+
+  func.func @serial_async_bare() {
+    acc.serial async {
+      acc.yield
+    }
+    func.return
+  }
+  // CHECK-LABEL: func.func @serial_async_bare() {
+  // CHECK-NEXT:    acc.serial async {
+  // CHECK-NEXT:      acc.yield
+  // CHECK-NEXT:    }
+
+  func.func @serial_async_keyword_only_with_dt() {
+    acc.serial async([#acc.device_type<nvidia>]) {
+      acc.yield
+    }
+    func.return
+  }
+  // CHECK-LABEL: func.func @serial_async_keyword_only_with_dt() {
+  // CHECK-NEXT:    acc.serial async([#acc.device_type<nvidia>]) {
+  // CHECK-NEXT:      acc.yield
+  // CHECK-NEXT:    }
+
+  func.func @serial_async_one_operand(%a : i64) {
+    acc.serial async(%a : i64) {
+      acc.yield
+    }
+    func.return
+  }
+  // CHECK-LABEL: func.func @serial_async_one_operand(
+  // CHECK:         acc.serial async(%{{.*}} : i64) {
+  // CHECK-NEXT:      acc.yield
+  // CHECK-NEXT:    }
+
+  func.func @serial_async_operand_with_dt(%a : i64) {
+    acc.serial async(%a : i64 [#acc.device_type<nvidia>]) {
+      acc.yield
+    }
+    func.return
+  }
+  // CHECK-LABEL: func.func @serial_async_operand_with_dt(
+  // CHECK:         acc.serial async(%{{.*}} : i64 [#acc.device_type<nvidia>]) {
+  // CHECK-NEXT:      acc.yield
+  // CHECK-NEXT:    }
+
+  func.func @serial_async_mixed(%a : i64) {
+    acc.serial async([#acc.device_type<nvidia>], %a : i64 [#acc.device_type<default>]) {
+      acc.yield
+    }
+    func.return
+  }
+  // CHECK-LABEL: func.func @serial_async_mixed(
+  // CHECK:         acc.serial async([#acc.device_type<nvidia>], %{{.*}} : i64 [#acc.device_type<default>]) {
+  // CHECK-NEXT:      acc.yield
+  // CHECK-NEXT:    }
+
+  func.func @serial_wait_bare() {
+    acc.serial wait {
+      acc.yield
+    }
+    func.return
+  }
+  // CHECK-LABEL: func.func @serial_wait_bare() {
+  // CHECK-NEXT:    acc.serial wait {
+  // CHECK-NEXT:      acc.yield
+  // CHECK-NEXT:    }
+
+  func.func @serial_wait_group(%a : i64, %b : i32) {
+    acc.serial wait({%a : i64, %b : i32}) {
+      acc.yield
+    }
+    func.return
+  }
+  // CHECK-LABEL: func.func @serial_wait_group(
+  // CHECK:         acc.serial wait({%{{.*}} : i64, %{{.*}} : i32}) {
+  // CHECK-NEXT:      acc.yield
+  // CHECK-NEXT:    }
+
+  func.func @serial_wait_devnum(%a : i64, %b : i32) {
+    acc.serial wait({devnum: %a : i64, %b : i32}) {
+      acc.yield
+    }
+    func.return
+  }
+  // CHECK-LABEL: func.func @serial_wait_devnum(
+  // CHECK:         acc.serial wait({devnum: %{{.*}} : i64, %{{.*}} : i32}) {
+  // CHECK-NEXT:      acc.yield
+  // CHECK-NEXT:    }
+
+  func.func @serial_wait_mixed(%a : i64, %b : i32) {
+    acc.serial wait([#acc.device_type<nvidia>], {devnum: %a : i64, %b : i32} [#acc.device_type<default>]) {
+      acc.yield
+    }
+    func.return
+  }
+  // CHECK-LABEL: func.func @serial_wait_mixed(
+  // CHECK:         acc.serial wait([#acc.device_type<nvidia>], {devnum: %{{.*}} : i64, %{{.*}} : i32} [#acc.device_type<default>]) {
+  // CHECK-NEXT:      acc.yield
+  // CHECK-NEXT:    }
+
+  func.func @serial_combined_prefix() {
+    acc.serial combined(loop) {
+      acc.yield
+    }
+    func.return
+  }
+  // CHECK-LABEL: func.func @serial_combined_prefix() {
+  // CHECK-NEXT:    acc.serial combined(loop) {
+  // CHECK-NEXT:      acc.yield
+  // CHECK-NEXT:    }
+
+  func.func @serial_default_self_attrs_via_attr_dict() {
+    acc.serial {
+      acc.yield
+    } attributes {defaultAttr = #acc<defaultvalue present>, selfAttr}
+    func.return
+  }
+  // CHECK-LABEL: func.func @serial_default_self_attrs_via_attr_dict() {
+  // CHECK-NEXT:    acc.serial {
+  // CHECK-NEXT:      acc.yield
+  // CHECK-NEXT:    } attributes {defaultAttr = #acc<defaultvalue present>, selfAttr}
+
+  func.func @serial_generic_roundtrip_retained() {
+    "acc.serial"() <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0, 0, 0>}> ({
+      "acc.yield"() : () -> ()
+    }) : () -> ()
+    func.return
+  }
+  // CHECK-LABEL: func.func @serial_generic_roundtrip_retained() {
+  // CHECK-NEXT:    acc.serial {
+  // CHECK-NEXT:      acc.yield
+  // CHECK-NEXT:    }
 }

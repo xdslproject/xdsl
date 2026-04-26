@@ -166,4 +166,125 @@ builtin.module {
   // CHECK:         acc.parallel combined(loop) async(%{{.*}} : i64) num_workers(%{{.*}} : i64) vector_length(%{{.*}} : i32) wait({%{{.*}} : i64}) self(%{{.*}}) if(%{{.*}}) {
   // CHECK-NEXT:      acc.yield
   // CHECK-NEXT:    } attributes {defaultAttr = #acc<defaultvalue present>, selfAttr}
+
+  func.func @serial_empty() {
+    acc.serial {
+      acc.yield
+    }
+    func.return
+  }
+  // CHECK:       func.func @serial_empty() {
+  // CHECK-NEXT:    acc.serial {
+  // CHECK-NEXT:      acc.yield
+  // CHECK-NEXT:    }
+
+  func.func @serial_self_if(%c : i1) {
+    acc.serial self(%c) if(%c) {
+      acc.yield
+    }
+    func.return
+  }
+  // CHECK:       func.func @serial_self_if(
+  // CHECK:         acc.serial self(%{{.*}}) if(%{{.*}}) {
+  // CHECK-NEXT:      acc.yield
+  // CHECK-NEXT:    }
+
+  func.func @serial_combined_default_self() {
+    acc.serial combined(loop) {
+      acc.yield
+    } attributes {defaultAttr = #acc<defaultvalue present>, selfAttr}
+    func.return
+  }
+  // CHECK:       func.func @serial_combined_default_self() {
+  // CHECK-NEXT:    acc.serial combined(loop) {
+  // CHECK-NEXT:      acc.yield
+  // CHECK-NEXT:    } attributes {defaultAttr = #acc<defaultvalue present>, selfAttr}
+
+  func.func @serial_async_bare() {
+    acc.serial async {
+      acc.yield
+    }
+    func.return
+  }
+  // CHECK:       func.func @serial_async_bare() {
+  // CHECK-NEXT:    acc.serial async {
+  // CHECK-NEXT:      acc.yield
+  // CHECK-NEXT:    }
+
+  func.func @serial_async_one_operand(%a : i64) {
+    acc.serial async(%a : i64) {
+      acc.yield
+    }
+    func.return
+  }
+  // CHECK:       func.func @serial_async_one_operand(
+  // CHECK:         acc.serial async(%{{.*}} : i64) {
+  // CHECK-NEXT:      acc.yield
+  // CHECK-NEXT:    }
+
+  func.func @serial_async_operand_with_dt(%a : i64) {
+    acc.serial async(%a : i64 [#acc.device_type<default>]) {
+      acc.yield
+    }
+    func.return
+  }
+  // CHECK:       func.func @serial_async_operand_with_dt(
+  // CHECK:         acc.serial async(%{{.*}} : i64 [#acc.device_type<default>]) {
+  // CHECK-NEXT:      acc.yield
+  // CHECK-NEXT:    }
+
+  func.func @serial_wait_bare() {
+    acc.serial wait {
+      acc.yield
+    }
+    func.return
+  }
+  // CHECK:       func.func @serial_wait_bare() {
+  // CHECK-NEXT:    acc.serial wait {
+  // CHECK-NEXT:      acc.yield
+  // CHECK-NEXT:    }
+
+  func.func @serial_wait_group(%a : i64, %b : i32) {
+    acc.serial wait({%a : i64, %b : i32}) {
+      acc.yield
+    }
+    func.return
+  }
+  // CHECK:       func.func @serial_wait_group(
+  // CHECK:         acc.serial wait({%{{.*}} : i64, %{{.*}} : i32}) {
+  // CHECK-NEXT:      acc.yield
+  // CHECK-NEXT:    }
+
+  func.func @serial_wait_devnum(%a : i64, %b : i32) {
+    acc.serial wait({devnum: %a : i64, %b : i32}) {
+      acc.yield
+    }
+    func.return
+  }
+  // CHECK:       func.func @serial_wait_devnum(
+  // CHECK:         acc.serial wait({devnum: %{{.*}} : i64, %{{.*}} : i32}) {
+  // CHECK-NEXT:      acc.yield
+  // CHECK-NEXT:    }
+
+  func.func @serial_wait_mixed(%a : i64, %b : i32) {
+    acc.serial wait([#acc.device_type<nvidia>], {devnum: %a : i64, %b : i32} [#acc.device_type<default>]) {
+      acc.yield
+    }
+    func.return
+  }
+  // CHECK:       func.func @serial_wait_mixed(
+  // CHECK:         acc.serial wait([#acc.device_type<nvidia>], {devnum: %{{.*}} : i64, %{{.*}} : i32} [#acc.device_type<default>]) {
+  // CHECK-NEXT:      acc.yield
+  // CHECK-NEXT:    }
+
+  func.func @serial_test_entire(%c : i1, %b : i64) {
+    acc.serial combined(loop) async(%b : i64) wait({%b : i64}) self(%c) if(%c) {
+      acc.yield
+    } attributes {defaultAttr = #acc<defaultvalue present>, selfAttr}
+    func.return
+  }
+  // CHECK:       func.func @serial_test_entire(
+  // CHECK:         acc.serial combined(loop) async(%{{.*}} : i64) wait({%{{.*}} : i64}) self(%{{.*}}) if(%{{.*}}) {
+  // CHECK-NEXT:      acc.yield
+  // CHECK-NEXT:    } attributes {defaultAttr = #acc<defaultvalue present>, selfAttr}
 }

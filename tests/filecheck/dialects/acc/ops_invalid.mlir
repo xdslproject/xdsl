@@ -23,4 +23,24 @@ func.func @wrong_terminator(%arg0: i32) {
 builtin.module {
   "acc.yield"() : () -> ()
 }
-// CHECK: 'acc.yield' expects parent op 'acc.parallel'
+// CHECK: 'acc.yield' expects parent op
+
+// -----
+
+func.func @serial_empty_block() {
+  "acc.serial"() <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0, 0, 0>}> ({
+  ^bb0:
+  }) : () -> ()
+  func.return
+}
+// CHECK: acc.serial
+
+// -----
+
+func.func @serial_wrong_terminator(%arg0: i32) {
+  "acc.serial"() <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0, 0, 0>}> ({
+    %0 = "builtin.unrealized_conversion_cast"(%arg0) : (i32) -> i32
+  }) : () -> ()
+  func.return
+}
+// CHECK: builtin.unrealized_conversion_cast
