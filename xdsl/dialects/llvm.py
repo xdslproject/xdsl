@@ -37,12 +37,10 @@ from xdsl.dialects.utils import (
     BitEnumAttribute,
     FastMathAttrBase,
     FastMathFlag,
-    parse_func_op_like,
-    print_func_op_like,
-)
-from xdsl.dialects.utils.dynamic_index_list import (
     parse_dynamic_index_list_without_types,
+    parse_func_op_like,
     print_dynamic_index_list,
+    print_func_op_like,
 )
 from xdsl.ir import (
     Attribute,
