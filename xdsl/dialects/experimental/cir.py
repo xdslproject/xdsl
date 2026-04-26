@@ -44,6 +44,7 @@ from xdsl.ir import (
     TypeAttribute,
 )
 from xdsl.irdl import (
+    AttrSizedOperandSegments,
     IRDLOperation,
     irdl_attr_definition,
     irdl_op_definition,
@@ -811,6 +812,186 @@ class VisibilityAttr(ParametrizedAttribute):
         return [StringAttr(kw)]
 
 
+@irdl_attr_definition
+class UndefAttr(ParametrizedAttribute):
+    """`#cir.undef : T` — typed `undef` constant."""
+
+    name = "cir.undef"
+
+    undef_type: Attribute
+
+    def __init__(self, undef_type: Attribute):
+        super().__init__(undef_type)
+
+    def print_parameters(self, printer: Printer) -> None:
+        printer.print_string(" : ")
+        printer.print_attribute(self.undef_type)
+
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
+        parser.parse_punctuation(":")
+        return [parser.parse_type()]
+
+    def get_type(self) -> Attribute:
+        return self.undef_type
+
+
+@irdl_attr_definition
+class PoisonAttr(ParametrizedAttribute):
+    """`#cir.poison : T` — typed `poison` constant."""
+
+    name = "cir.poison"
+
+    poison_type: Attribute
+
+    def __init__(self, poison_type: Attribute):
+        super().__init__(poison_type)
+
+    def print_parameters(self, printer: Printer) -> None:
+        printer.print_string(" : ")
+        printer.print_attribute(self.poison_type)
+
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
+        parser.parse_punctuation(":")
+        return [parser.parse_type()]
+
+    def get_type(self) -> Attribute:
+        return self.poison_type
+
+
+@irdl_attr_definition
+class ConstRecordAttr(ParametrizedAttribute):
+    """`#cir.const_record<{m1, m2, ...}> : !cir.record<...>` — typed
+    record/struct initialiser. `members` is an `mlir::ArrayAttr` of typed
+    member values, printed inside braces."""
+
+    name = "cir.const_record"
+
+    record_type: Attribute
+    members: ArrayAttr[Attribute]
+
+    def __init__(
+        self,
+        record_type: Attribute,
+        members: Sequence[Attribute] | ArrayAttr[Attribute],
+    ):
+        if not isinstance(members, ArrayAttr):
+            members = ArrayAttr(members)
+        super().__init__(record_type, members)
+
+    def print_parameters(self, printer: Printer) -> None:
+        with printer.in_angle_brackets():
+            with printer.in_braces():
+                printer.print_list(self.members.data, printer.print_attribute)
+        printer.print_string(" : ")
+        printer.print_attribute(self.record_type)
+
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
+        with parser.in_angle_brackets():
+            members: list[Attribute] = []
+            parser.parse_punctuation("{")
+            if parser.parse_optional_punctuation("}") is None:
+                members.append(parser.parse_attribute())
+                while parser.parse_optional_punctuation(",") is not None:
+                    members.append(parser.parse_attribute())
+                parser.parse_punctuation("}")
+        parser.parse_punctuation(":")
+        record_type = parser.parse_type()
+        return [record_type, ArrayAttr(members)]
+
+    def get_type(self) -> Attribute:
+        return self.record_type
+
+
+@irdl_attr_definition
+class GlobalViewAttr(ParametrizedAttribute):
+    """`#cir.global_view<@sym (, [i, j, ...])?> : T` — typed pointer to a
+    global symbol, optionally with sub-element indices."""
+
+    name = "cir.global_view"
+
+    view_type: Attribute
+    symbol: SymbolRefAttr
+    indices: ArrayAttr[Attribute]
+
+    def __init__(
+        self,
+        view_type: Attribute,
+        symbol: str | SymbolRefAttr,
+        indices: Sequence[Attribute] | ArrayAttr[Attribute] = (),
+    ):
+        if isinstance(symbol, str):
+            symbol = SymbolRefAttr(symbol)
+        if not isinstance(indices, ArrayAttr):
+            indices = ArrayAttr(indices)
+        super().__init__(view_type, symbol, indices)
+
+    def print_parameters(self, printer: Printer) -> None:
+        with printer.in_angle_brackets():
+            printer.print_attribute(self.symbol)
+            if self.indices.data:
+                printer.print_string(", [")
+                printer.print_list(self.indices.data, printer.print_attribute)
+                printer.print_string("]")
+        printer.print_string(" : ")
+        printer.print_attribute(self.view_type)
+
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
+        with parser.in_angle_brackets():
+            symbol = parser.parse_attribute()
+            indices: list[Attribute] = []
+            if parser.parse_optional_punctuation(",") is not None:
+                parser.parse_punctuation("[")
+                if parser.parse_optional_punctuation("]") is None:
+                    indices.append(parser.parse_attribute())
+                    while parser.parse_optional_punctuation(",") is not None:
+                        indices.append(parser.parse_attribute())
+                    parser.parse_punctuation("]")
+        parser.parse_punctuation(":")
+        view_type = parser.parse_type()
+        if not isinstance(symbol, SymbolRefAttr):
+            parser.raise_error("expected a symbol reference")
+        return [view_type, symbol, ArrayAttr(indices)]
+
+    def get_type(self) -> Attribute:
+        return self.view_type
+
+
+@irdl_attr_definition
+class OptInfoAttr(ParametrizedAttribute):
+    """`#cir.opt_info<level = N, size = M>` — module-level optimisation flags."""
+
+    name = "cir.opt_info"
+
+    level: IntegerAttr
+    size: IntegerAttr
+
+    def __init__(self, level: int, size: int):
+        super().__init__(IntegerAttr(level, 32), IntegerAttr(size, 32))
+
+    def print_parameters(self, printer: Printer) -> None:
+        with printer.in_angle_brackets():
+            printer.print_string("level = ")
+            printer.print_string(str(self.level.value.data))
+            printer.print_string(", size = ")
+            printer.print_string(str(self.size.value.data))
+
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
+        with parser.in_angle_brackets():
+            parser.parse_keyword("level")
+            parser.parse_punctuation("=")
+            level = parser.parse_integer()
+            parser.parse_punctuation(",")
+            parser.parse_keyword("size")
+            parser.parse_punctuation("=")
+            size = parser.parse_integer()
+        return [IntegerAttr(level, 32), IntegerAttr(size, 32)]
+
+
 # ---------------------------------------------------------------------------
 # Operations
 # ---------------------------------------------------------------------------
@@ -1180,6 +1361,600 @@ class SelectOp(IRDLOperation):
 
 
 # ---------------------------------------------------------------------------
+# Tier-1 ops: extra control flow + lifecycle helpers
+# ---------------------------------------------------------------------------
+
+
+@irdl_op_definition
+class BrCondOp(IRDLOperation):
+    """`cir.brcond` — conditional branch with two successors."""
+
+    name = "cir.brcond"
+
+    cond = operand_def(BoolType)
+    dest_operands_true = var_operand_def()
+    dest_operands_false = var_operand_def()
+    successors = var_successor_def()
+    traits = traits_def(IsTerminator())
+
+    irdl_options = [AttrSizedOperandSegments()]
+
+
+@irdl_op_definition
+class DoWhileOp(IRDLOperation):
+    """`cir.do` — bottom-tested do-while loop. Two regions: body and cond."""
+
+    name = "cir.do"
+
+    body_region = region_def()
+    cond_region = region_def()
+
+
+@irdl_op_definition
+class SwitchOp(IRDLOperation):
+    """`cir.switch` — structured C/C++ switch."""
+
+    name = "cir.switch"
+
+    condition = operand_def(IntType)
+    body = region_def()
+    all_enum_cases_covered = opt_prop_def(UnitAttr)
+
+
+@irdl_op_definition
+class CaseOp(IRDLOperation):
+    """`cir.case` — case clause within a `cir.switch`."""
+
+    name = "cir.case"
+
+    case_region = region_def()
+    value = prop_def(ArrayAttr)
+    kind = prop_def(IntegerAttr)
+
+
+@irdl_op_definition
+class SwitchFlatOp(IRDLOperation):
+    """`cir.switch.flat` — region-less, LLVM-style switch terminator."""
+
+    name = "cir.switch.flat"
+
+    condition = operand_def(IntType)
+    default_operands = var_operand_def()
+    case_operands = var_operand_def()
+    case_values = prop_def(ArrayAttr)
+    case_operand_segments = prop_def(Attribute)
+    successors = var_successor_def()
+    traits = traits_def(IsTerminator())
+
+    irdl_options = [AttrSizedOperandSegments()]
+
+
+@irdl_op_definition
+class CopyOp(IRDLOperation):
+    """`cir.copy` — typed pointer-to-pointer memcpy."""
+
+    name = "cir.copy"
+
+    dst = operand_def(PointerType)
+    src = operand_def(PointerType)
+    is_volatile = opt_prop_def(UnitAttr)
+
+
+@irdl_op_definition
+class UnreachableOp(IRDLOperation):
+    """`cir.unreachable` — `__builtin_unreachable` / immediate UB."""
+
+    name = "cir.unreachable"
+
+    traits = traits_def(IsTerminator())
+
+
+@irdl_op_definition
+class TrapOp(IRDLOperation):
+    """`cir.trap` — `__builtin_trap`."""
+
+    name = "cir.trap"
+
+    traits = traits_def(IsTerminator())
+
+
+@irdl_op_definition
+class ExpectOp(IRDLOperation):
+    """`cir.expect` — `__builtin_expect[_with_probability]`."""
+
+    name = "cir.expect"
+
+    val = operand_def(IntType)
+    expected = operand_def(IntType)
+    res = result_def(IntType)
+    prob = opt_prop_def(FloatAttr)
+
+
+@irdl_op_definition
+class AssumeOp(IRDLOperation):
+    """`cir.assume` — `__builtin_assume`."""
+
+    name = "cir.assume"
+
+    predicate = operand_def(BoolType)
+
+
+@irdl_op_definition
+class AssumeAlignedOp(IRDLOperation):
+    """`cir.assume_aligned` — `__builtin_assume_aligned`."""
+
+    name = "cir.assume_aligned"
+
+    pointer = operand_def(PointerType)
+    offset = var_operand_def()
+    res = result_def(PointerType)
+    alignment = prop_def(IntegerAttr)
+
+
+@irdl_op_definition
+class AssumeSeparateStorageOp(IRDLOperation):
+    """`cir.assume_separate_storage` — `__builtin_assume_separate_storage`."""
+
+    name = "cir.assume_separate_storage"
+
+    ptr1 = operand_def(PointerType)
+    ptr2 = operand_def(PointerType)
+
+
+# ---------------------------------------------------------------------------
+# Tier-2 ops: builtins, math, vectors, complex, varargs, misc
+# ---------------------------------------------------------------------------
+
+
+@irdl_op_definition
+class IsConstantOp(IRDLOperation):
+    """`cir.is_constant` — `__builtin_constant_p`."""
+
+    name = "cir.is_constant"
+
+    val = operand_def()
+    res = result_def(BoolType)
+
+
+@irdl_op_definition
+class ObjSizeOp(IRDLOperation):
+    """`cir.objsize` — `__builtin_object_size`."""
+
+    name = "cir.objsize"
+
+    ptr = operand_def(PointerType)
+    res = result_def(IntType)
+    min = opt_prop_def(UnitAttr)
+    nullunknown = opt_prop_def(UnitAttr)
+    dynamic = opt_prop_def(UnitAttr)
+
+
+@irdl_op_definition
+class PtrDiffOp(IRDLOperation):
+    """`cir.ptr_diff` — typed pointer subtraction."""
+
+    name = "cir.ptr_diff"
+
+    lhs = operand_def(PointerType)
+    rhs = operand_def(PointerType)
+    res = result_def(IntType)
+
+
+@irdl_op_definition
+class IsFPClassOp(IRDLOperation):
+    """`cir.is_fp_class` — `__builtin_fpclassify` / isnan / isinf."""
+
+    name = "cir.is_fp_class"
+
+    src = operand_def()
+    res = result_def(BoolType)
+    flags = prop_def(IntegerAttr)
+
+
+@irdl_op_definition
+class PrefetchOp(IRDLOperation):
+    """`cir.prefetch` — `__builtin_prefetch`."""
+
+    name = "cir.prefetch"
+
+    addr = operand_def(PointerType)
+    locality = opt_prop_def(IntegerAttr)
+    is_write = opt_prop_def(UnitAttr, prop_name="isWrite")
+
+
+@irdl_op_definition
+class StackSaveOp(IRDLOperation):
+    """`cir.stacksave` — VLA stack snapshot."""
+
+    name = "cir.stacksave"
+
+    res = result_def(PointerType)
+
+
+@irdl_op_definition
+class StackRestoreOp(IRDLOperation):
+    """`cir.stackrestore` — restore stack to a previously-saved snapshot."""
+
+    name = "cir.stackrestore"
+
+    ptr = operand_def(PointerType)
+
+
+@irdl_op_definition
+class ReturnAddrOp(IRDLOperation):
+    """`cir.return_address` — `__builtin_return_address`."""
+
+    name = "cir.return_address"
+
+    level = operand_def(IntType)
+    res = result_def(PointerType)
+
+
+@irdl_op_definition
+class FrameAddrOp(IRDLOperation):
+    """`cir.frame_address` — `__builtin_frame_address`."""
+
+    name = "cir.frame_address"
+
+    level = operand_def(IntType)
+    res = result_def(PointerType)
+
+
+@irdl_op_definition
+class AddrOfReturnAddrOp(IRDLOperation):
+    """`cir.address_of_return_address` — MSVC `_AddressOfReturnAddress`."""
+
+    name = "cir.address_of_return_address"
+
+    res = result_def(PointerType)
+
+
+@irdl_op_definition
+class DynamicCastOp(IRDLOperation):
+    """`cir.dyn_cast` — C++ `dynamic_cast`."""
+
+    name = "cir.dyn_cast"
+
+    src = operand_def(PointerType)
+    res = result_def(PointerType)
+    kind = prop_def(IntegerAttr)
+    info = opt_prop_def(Attribute)
+    relative_layout = opt_prop_def(UnitAttr)
+
+
+# Math FP→FP builtins (sqrt, sin, cos, …).
+
+
+def _make_unary_fp_op(mnemonic: str):
+    cls = type(
+        f"FP{mnemonic.capitalize()}Op",
+        (IRDLOperation,),
+        {
+            "name": f"cir.{mnemonic}",
+            "src": operand_def(),
+            "res": result_def(),
+            "__doc__": f"`cir.{mnemonic}` — unary FP→FP math builtin.",
+        },
+    )
+    return irdl_op_definition(cls)
+
+
+SqrtOp = _make_unary_fp_op("sqrt")
+ACosOp = _make_unary_fp_op("acos")
+ASinOp = _make_unary_fp_op("asin")
+ATanOp = _make_unary_fp_op("atan")
+CeilOp = _make_unary_fp_op("ceil")
+CosOp = _make_unary_fp_op("cos")
+ExpOp = _make_unary_fp_op("exp")
+Exp2Op = _make_unary_fp_op("exp2")
+FAbsOp = _make_unary_fp_op("fabs")
+FloorOp = _make_unary_fp_op("floor")
+SinOp = _make_unary_fp_op("sin")
+
+
+# Bit manipulation builtins (`cir.<mnemonic>`).
+
+
+@irdl_op_definition
+class BitClrsbOp(IRDLOperation):
+    """`cir.clrsb` — count leading redundant sign bits."""
+
+    name = "cir.clrsb"
+    input = operand_def(IntType)
+    result = result_def(IntType)
+
+
+@irdl_op_definition
+class BitClzOp(IRDLOperation):
+    """`cir.clz` — count leading zero bits."""
+
+    name = "cir.clz"
+    input = operand_def(IntType)
+    result = result_def(IntType)
+    poison_zero = opt_prop_def(UnitAttr)
+
+
+@irdl_op_definition
+class BitCtzOp(IRDLOperation):
+    """`cir.ctz` — count trailing zero bits."""
+
+    name = "cir.ctz"
+    input = operand_def(IntType)
+    result = result_def(IntType)
+    poison_zero = opt_prop_def(UnitAttr)
+
+
+@irdl_op_definition
+class BitFfsOp(IRDLOperation):
+    """`cir.ffs` — find first set bit (1-based)."""
+
+    name = "cir.ffs"
+    input = operand_def(IntType)
+    result = result_def(IntType)
+
+
+@irdl_op_definition
+class BitParityOp(IRDLOperation):
+    """`cir.parity` — parity of input bits."""
+
+    name = "cir.parity"
+    input = operand_def(IntType)
+    result = result_def(IntType)
+
+
+@irdl_op_definition
+class BitPopcountOp(IRDLOperation):
+    """`cir.popcount` — population count."""
+
+    name = "cir.popcount"
+    input = operand_def(IntType)
+    result = result_def(IntType)
+
+
+@irdl_op_definition
+class BitReverseOp(IRDLOperation):
+    """`cir.bitreverse` — reverse the bit pattern."""
+
+    name = "cir.bitreverse"
+    input = operand_def(IntType)
+    result = result_def(IntType)
+
+
+@irdl_op_definition
+class ByteSwapOp(IRDLOperation):
+    """`cir.byte_swap` — byte-order reverse."""
+
+    name = "cir.byte_swap"
+    input = operand_def(IntType)
+    result = result_def(IntType)
+
+
+@irdl_op_definition
+class RotateOp(IRDLOperation):
+    """`cir.rotate` — bit rotation; `rotateLeft` selects direction."""
+
+    name = "cir.rotate"
+    input = operand_def(IntType)
+    amount = operand_def(IntType)
+    result = result_def(IntType)
+    rotate_left = opt_prop_def(UnitAttr, prop_name="rotateLeft")
+
+
+# Complex number ops.
+
+
+@irdl_op_definition
+class ComplexCreateOp(IRDLOperation):
+    """`cir.complex.create` — build a complex value from real/imag parts."""
+
+    name = "cir.complex.create"
+    real = operand_def()
+    imag = operand_def()
+    result = result_def(ComplexType)
+
+
+@irdl_op_definition
+class ComplexRealOp(IRDLOperation):
+    """`cir.complex.real` — real part of a complex (or scalar pass-through)."""
+
+    name = "cir.complex.real"
+    operand = operand_def()
+    result = result_def()
+
+
+@irdl_op_definition
+class ComplexImagOp(IRDLOperation):
+    """`cir.complex.imag` — imaginary part of a complex."""
+
+    name = "cir.complex.imag"
+    operand = operand_def()
+    result = result_def()
+
+
+@irdl_op_definition
+class ComplexRealPtrOp(IRDLOperation):
+    """`cir.complex.real_ptr` — pointer to the real part of a complex object."""
+
+    name = "cir.complex.real_ptr"
+    operand = operand_def(PointerType)
+    result = result_def(PointerType)
+
+
+@irdl_op_definition
+class ComplexImagPtrOp(IRDLOperation):
+    """`cir.complex.imag_ptr` — pointer to the imaginary part."""
+
+    name = "cir.complex.imag_ptr"
+    operand = operand_def(PointerType)
+    result = result_def(PointerType)
+
+
+@irdl_op_definition
+class ComplexAddOp(IRDLOperation):
+    """`cir.complex.add` — complex addition."""
+
+    name = "cir.complex.add"
+    lhs = operand_def(ComplexType)
+    rhs = operand_def(ComplexType)
+    result = result_def(ComplexType)
+
+
+@irdl_op_definition
+class ComplexSubOp(IRDLOperation):
+    """`cir.complex.sub` — complex subtraction."""
+
+    name = "cir.complex.sub"
+    lhs = operand_def(ComplexType)
+    rhs = operand_def(ComplexType)
+    result = result_def(ComplexType)
+
+
+@irdl_op_definition
+class ComplexMulOp(IRDLOperation):
+    """`cir.complex.mul` — complex multiplication; `range` enum encoded as i32."""
+
+    name = "cir.complex.mul"
+    lhs = operand_def(ComplexType)
+    rhs = operand_def(ComplexType)
+    result = result_def(ComplexType)
+    range = prop_def(IntegerAttr)
+
+
+@irdl_op_definition
+class ComplexDivOp(IRDLOperation):
+    """`cir.complex.div` — complex division; `range` enum encoded as i32."""
+
+    name = "cir.complex.div"
+    lhs = operand_def(ComplexType)
+    rhs = operand_def(ComplexType)
+    result = result_def(ComplexType)
+    range = prop_def(IntegerAttr)
+
+
+# Vector ops.
+
+
+@irdl_op_definition
+class VecCreateOp(IRDLOperation):
+    """`cir.vec.create` — build a vector value from element operands."""
+
+    name = "cir.vec.create"
+    elements = var_operand_def()
+    result = result_def(VectorType)
+
+
+@irdl_op_definition
+class VecInsertOp(IRDLOperation):
+    """`cir.vec.insert` — replace one element of a vector."""
+
+    name = "cir.vec.insert"
+    vec = operand_def(VectorType)
+    value = operand_def()
+    index = operand_def(IntType)
+    result = result_def(VectorType)
+
+
+@irdl_op_definition
+class VecExtractOp(IRDLOperation):
+    """`cir.vec.extract` — extract one element from a vector."""
+
+    name = "cir.vec.extract"
+    vec = operand_def(VectorType)
+    index = operand_def(IntType)
+    result = result_def()
+
+
+@irdl_op_definition
+class VecCmpOp(IRDLOperation):
+    """`cir.vec.cmp` — element-wise comparison; `kind` encoded as i32."""
+
+    name = "cir.vec.cmp"
+    lhs = operand_def(VectorType)
+    rhs = operand_def(VectorType)
+    result = result_def(VectorType)
+    kind = prop_def(IntegerAttr)
+
+
+@irdl_op_definition
+class VecShuffleOp(IRDLOperation):
+    """`cir.vec.shuffle` — `__builtin_shufflevector` (compile-time indices)."""
+
+    name = "cir.vec.shuffle"
+    vec1 = operand_def(VectorType)
+    vec2 = operand_def(VectorType)
+    result = result_def(VectorType)
+    indices = prop_def(ArrayAttr)
+
+
+@irdl_op_definition
+class VecShuffleDynamicOp(IRDLOperation):
+    """`cir.vec.shuffle.dynamic` — `__builtin_shufflevector` (runtime indices)."""
+
+    name = "cir.vec.shuffle.dynamic"
+    vec = operand_def(VectorType)
+    indices = operand_def(VectorType)
+    result = result_def(VectorType)
+
+
+@irdl_op_definition
+class VecTernaryOp(IRDLOperation):
+    """`cir.vec.ternary` — element-wise `cond ? a : b` for vectors."""
+
+    name = "cir.vec.ternary"
+    cond = operand_def(VectorType)
+    lhs = operand_def(VectorType)
+    rhs = operand_def(VectorType)
+    result = result_def(VectorType)
+
+
+@irdl_op_definition
+class VecSplatOp(IRDLOperation):
+    """`cir.vec.splat` — replicate a scalar across a vector."""
+
+    name = "cir.vec.splat"
+    value = operand_def()
+    result = result_def(VectorType)
+
+
+# Variadic-arg ops.
+
+
+@irdl_op_definition
+class VAStartOp(IRDLOperation):
+    """`cir.va_start` — initialise a `va_list`."""
+
+    name = "cir.va_start"
+    arg_list = operand_def(PointerType)
+    count = operand_def(IntType)
+
+
+@irdl_op_definition
+class VAEndOp(IRDLOperation):
+    """`cir.va_end` — finalise a `va_list`."""
+
+    name = "cir.va_end"
+    arg_list = operand_def(PointerType)
+
+
+@irdl_op_definition
+class VACopyOp(IRDLOperation):
+    """`cir.va_copy` — copy one `va_list` into another."""
+
+    name = "cir.va_copy"
+    src_list = operand_def(PointerType)
+    dst_list = operand_def(PointerType)
+
+
+@irdl_op_definition
+class VAArgOp(IRDLOperation):
+    """`cir.va_arg` — fetch next variadic argument as a typed value."""
+
+    name = "cir.va_arg"
+    arg_list = operand_def(PointerType)
+    result = result_def()
+
+
+# ---------------------------------------------------------------------------
 # Dialect
 # ---------------------------------------------------------------------------
 
@@ -1187,31 +1962,95 @@ class SelectOp(IRDLOperation):
 CIR = Dialect(
     "cir",
     [
+        ACosOp,
+        ASinOp,
+        ATanOp,
+        AddrOfReturnAddrOp,
         AllocaOp,
+        AssumeAlignedOp,
+        AssumeOp,
+        AssumeSeparateStorageOp,
         BinOp,
+        BitClrsbOp,
+        BitClzOp,
+        BitCtzOp,
+        BitFfsOp,
+        BitParityOp,
+        BitPopcountOp,
+        BitReverseOp,
+        BrCondOp,
         BrOp,
         BreakOp,
+        ByteSwapOp,
         CallOp,
+        CaseOp,
         CastOp,
+        CeilOp,
         CmpOp,
+        ComplexAddOp,
+        ComplexCreateOp,
+        ComplexDivOp,
+        ComplexImagOp,
+        ComplexImagPtrOp,
+        ComplexMulOp,
+        ComplexRealOp,
+        ComplexRealPtrOp,
+        ComplexSubOp,
         ConditionOp,
         ConstantOp,
         ContinueOp,
+        CopyOp,
+        CosOp,
+        DoWhileOp,
+        DynamicCastOp,
+        Exp2Op,
+        ExpOp,
+        ExpectOp,
+        FAbsOp,
+        FloorOp,
         ForOp,
+        FrameAddrOp,
         FuncOp,
         GetElementOp,
         GetGlobalOp,
         GetMemberOp,
         GlobalOp,
         IfOp,
+        IsConstantOp,
+        IsFPClassOp,
         LoadOp,
+        ObjSizeOp,
+        PrefetchOp,
+        PtrDiffOp,
         PtrStrideOp,
+        ReturnAddrOp,
         ReturnOp,
+        RotateOp,
         ScopeOp,
         SelectOp,
+        SinOp,
+        SqrtOp,
+        StackRestoreOp,
+        StackSaveOp,
         StoreOp,
+        SwitchFlatOp,
+        SwitchOp,
         TernaryOp,
+        TrapOp,
         UnaryOp,
+        UnreachableOp,
+        VAArgOp,
+        VACopyOp,
+        VAEndOp,
+        VAStartOp,
+        VecCmpOp,
+        VecCreateOp,
+        VecExtractOp,
+        VecInsertOp,
+        VecShuffleDynamicOp,
+        VecShuffleOp,
+        VecSplatOp,
+        VecTernaryOp,
         WhileOp,
         YieldOp,
     ],
@@ -1225,17 +2064,22 @@ CIR = Dialect(
         ComplexType,
         ConstArrayAttr,
         ConstPtrAttr,
+        ConstRecordAttr,
         DoubleType,
         FP16Type,
         FP80Type,
         FP128Type,
         FuncType,
+        GlobalViewAttr,
         IntType,
         LongDoubleType,
+        OptInfoAttr,
+        PoisonAttr,
         PointerType,
         RecordType,
         SingleType,
         SourceLanguageAttr,
+        UndefAttr,
         VectorType,
         VisibilityAttr,
         VoidType,
