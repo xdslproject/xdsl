@@ -89,12 +89,12 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         return CSL
 
     def get_csl_stencil():
-        from xdsl.dialects.csl.csl_stencil import CSL_STENCIL
+        from xdsl.dialects.csl_stencil import CSL_STENCIL
 
         return CSL_STENCIL
 
     def get_csl_wrapper():
-        from xdsl.dialects.csl.csl_wrapper import CSL_WRAPPER
+        from xdsl.dialects.csl_wrapper import CSL_WRAPPER
 
         return CSL_WRAPPER
 

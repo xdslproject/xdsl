@@ -2,7 +2,16 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 
 from xdsl.context import Context
-from xdsl.dialects import arith, bufferization, func, linalg, memref, stencil, tensor
+from xdsl.dialects import (
+    arith,
+    bufferization,
+    csl_stencil,
+    func,
+    linalg,
+    memref,
+    stencil,
+    tensor,
+)
 from xdsl.dialects.builtin import (
     DYNAMIC_INDEX,
     AnyDenseElement,
@@ -16,7 +25,6 @@ from xdsl.dialects.builtin import (
     TensorType,
     i64,
 )
-from xdsl.dialects.csl import csl_stencil
 from xdsl.ir import (
     Attribute,
     AttributeInvT,

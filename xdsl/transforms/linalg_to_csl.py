@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
 from xdsl.context import Context
-from xdsl.dialects import arith, builtin, linalg
+from xdsl.dialects import arith, builtin, csl, linalg
 from xdsl.dialects.builtin import (
     DenseIntOrFPElementsAttr,
     FloatAttr,
@@ -9,7 +9,6 @@ from xdsl.dialects.builtin import (
     MemRefType,
     ModuleOp,
 )
-from xdsl.dialects.csl import csl
 from xdsl.ir import Attribute, OpResult, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (

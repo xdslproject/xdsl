@@ -1,9 +1,8 @@
-from xdsl.dialects import arith
+from xdsl.dialects import arith, csl
 from xdsl.dialects.builtin import (
     AffineMapAttr,
     IntegerAttr,
 )
-from xdsl.dialects.csl import csl
 from xdsl.ir import OpResult
 from xdsl.ir.affine import AffineMap
 from xdsl.pattern_rewriter import (
