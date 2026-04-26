@@ -35,11 +35,11 @@ from xdsl.dialects.builtin import (
     i64,
 )
 from xdsl.dialects.utils import (
+    DynamicIndexList,
     get_dynamic_index_list,
     split_dynamic_index_list,
     verify_dynamic_index_list,
 )
-from xdsl.dialects.utils.dynamic_index_list import DynamicIndexList
 from xdsl.ir import (
     Attribute,
     Dialect,
