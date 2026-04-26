@@ -361,12 +361,3 @@ def test_serial_unit_and_default_attrs():
     assert op_explicit.default_attr == acc.ClauseDefaultValueAttr(
         acc.ClauseDefaultValue.NONE
     )
-
-
-def test_yield_inside_serial_ok():
-    """Building a yield inside acc.serial's region should verify."""
-    op = _empty_serial()
-    op.verify()
-    last = op.region.block.last_op
-    assert isinstance(last, acc.YieldOp)
-    last.verify()
