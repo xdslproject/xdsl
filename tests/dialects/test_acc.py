@@ -307,31 +307,6 @@ def test_serial_accepts_device_type_attrs():
     assert op.wait_only == ArrayAttr([host])
 
 
-def test_serial_wait_print_without_metadata():
-    """WaitClause.print falls back when device_types / segments / has_devnum are unset.
-
-    None of these branches are reachable via filecheck round-trip — the parser
-    always sets all three properties — so they need a Python-constructed op.
-    """
-    a = ConstantOp.from_int_and_width(1, i32)
-    b = ConstantOp.from_int_and_width(2, i32)
-
-    op = acc.SerialOp(
-        region=Region(Block([acc.YieldOp()])),
-        wait_operands=[a.result, b.result],
-    )
-    op.verify()
-    assert op.wait_operands_device_type is None
-    assert op.wait_operands_segments is None
-    assert op.has_wait_devnum is None
-
-    out = io.StringIO()
-    Printer(stream=out).print_op(op)
-    text = out.getvalue()
-    assert "wait({%0 : i32, %1 : i32})" in text
-    assert "devnum:" not in text
-
-
 def test_serial_unit_and_default_attrs():
     """self_attr / combined accept bool shortcuts; default_attr accepts enum."""
     op = acc.SerialOp(

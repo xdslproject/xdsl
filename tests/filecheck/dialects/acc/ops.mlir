@@ -418,4 +418,19 @@ builtin.module {
   // CHECK-NEXT:    acc.serial {
   // CHECK-NEXT:      acc.yield
   // CHECK-NEXT:    }
+
+  // Generic-form input with wait operands but none of the wait property
+  // attributes (waitOperandsDeviceType / waitOperandsSegments / hasWaitDevnum)
+  // exercises the WaitClause printer's fallback path; the pretty parser would
+  // never produce this combination because it always populates all three.
+  func.func @serial_wait_printer_fallback(%a : i32, %b : i32) {
+    "acc.serial"(%a, %b) <{operandSegmentSizes = array<i32: 0, 2, 0, 0, 0, 0, 0, 0>}> ({
+      "acc.yield"() : () -> ()
+    }) : (i32, i32) -> ()
+    func.return
+  }
+  // CHECK-LABEL: func.func @serial_wait_printer_fallback(
+  // CHECK:         acc.serial wait({%{{.*}} : i32, %{{.*}} : i32}) {
+  // CHECK-NEXT:      acc.yield
+  // CHECK-NEXT:    }
 }
