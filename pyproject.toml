@@ -123,7 +123,7 @@ extend-include = ["*.ipynb", "*.pyi"]
 exclude = [".venv", "docs/marimo"]
 
 [tool.ruff.lint]
-select = ["E", "F", "W", "I", "UP", "PT", "TID251", "INP", "PYI"]
+select = ["E", "F", "W", "I", "UP", "PT", "TID251", "INP", "PYI", "RUF015"]
 ignore = [
     "E741",   # https://beta.ruff.rs/docs/rules/ambiguous-variable-name/
     "PT006",  # https://beta.ruff.rs/docs/rules/pytest-parametrize-names-wrong-type/

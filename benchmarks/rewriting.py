@@ -122,7 +122,7 @@ class RewritingMicrobenchmarks:
         self.add_op_def = AddiOp.get_irdl_definition()
         self.add_op_construct = VarIRConstruct.OPERAND
         self.add_op_result = self.add_op.result
-        self.add_op_result_use = list(self.add_op_result.uses)[0]
+        self.add_op_result_use = next(iter(self.add_op_result.uses))
         self.sub_op = SubiOp(self.const_1, self.const_0)
         self.sub_op_result = self.sub_op.result
         self.insert_point = InsertPoint.before(self.add_op)
