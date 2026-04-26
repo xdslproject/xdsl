@@ -68,6 +68,11 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
 
         return Cf
 
+    def get_cir():
+        from xdsl.dialects.experimental.cir import CIR
+
+        return CIR
+
     def get_cmath():
         from xdsl.dialects.cmath import Cmath
 
@@ -401,6 +406,7 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "bufferization": get_bufferization,
         "builtin": get_builtin,
         "cf": get_cf,
+        "cir": get_cir,
         "cmath": get_cmath,
         "comb": get_comb,
         "complex": get_complex,
