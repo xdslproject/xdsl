@@ -9,6 +9,7 @@ code can be represented, analysed, and lowered to target-specific runtimes.
 See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenACCDialect/).
 """
 
+from abc import ABC
 from collections.abc import Sequence
 
 from xdsl.dialects.builtin import (
@@ -28,10 +29,12 @@ from xdsl.ir import (
     Dialect,
     EnumAttribute,
     Operation,
+    ParametrizedAttribute,
     Region,
     SpacedOpaqueSyntaxAttribute,
     SSAValue,
     StrEnum,
+    TypeAttribute,
 )
 from xdsl.irdl import (
     AttrSizedOperandSegments,
@@ -40,9 +43,11 @@ from xdsl.irdl import (
     irdl_attr_definition,
     irdl_op_definition,
     lazy_traits_def,
+    operand_def,
     opt_operand_def,
     opt_prop_def,
     region_def,
+    result_def,
     var_operand_def,
 )
 from xdsl.irdl.declarative_assembly_format import (
@@ -64,6 +69,7 @@ from xdsl.traits import (
     RecursiveMemoryEffect,
     SingleBlockImplicitTerminator,
 )
+from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
 
@@ -112,6 +118,19 @@ class ClauseDefaultValueAttr(
     """
 
     name = "acc.defaultvalue"
+
+
+@irdl_attr_definition
+class DataBoundsType(ParametrizedAttribute, TypeAttribute):
+    """
+    Type used for `acc.bounds` results. Holds normalized bounds information
+    for an `acc` data clause; consumed by the data-clause ops via their
+    variadic `bounds` operand and by the `acc.get_*bound`/`get_extent`/
+    `get_stride` accessor ops.
+    See upstream `!acc.data_bounds_ty`.
+    """
+
+    name = "acc.data_bounds_ty"
 
 
 def _parse_device_type_attr(parser: Parser) -> DeviceTypeAttr:
@@ -1066,6 +1085,123 @@ class KernelsOp(IRDLOperation):
 
 
 @irdl_op_definition
+class DataBoundsOp(IRDLOperation):
+    """
+    Implementation of upstream acc.bounds.
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenACCDialect/#accbounds-accdataboundsop).
+
+    The verifier requires either `extent` or `upperbound` (or both) to be
+    present. The five operand groups are gated by `AttrSizedOperandSegments`,
+    matching upstream's `Optional<IntOrIndex>` argument shape.
+    """
+
+    name = "acc.bounds"
+
+    lowerbound = opt_operand_def(IntegerType | IndexType)
+    upperbound = opt_operand_def(IntegerType | IndexType)
+    extent = opt_operand_def(IntegerType | IndexType)
+    stride = opt_operand_def(IntegerType | IndexType)
+    start_idx = opt_operand_def(IntegerType | IndexType)
+
+    stride_in_bytes = opt_prop_def(BoolAttr, prop_name="strideInBytes")
+
+    result = result_def(DataBoundsType)
+
+    irdl_options = (
+        AttrSizedOperandSegments(as_property=True),
+        ParsePropInAttrDict(),
+    )
+
+    # Upstream uses `oilist(...)` so each clause is independently optional and
+    # may appear in any order. xDSL's declarative format requires a fixed
+    # sequence; we follow the upstream td definition order
+    # (lowerbound, upperbound, extent, stride, startIdx). This still matches
+    # what mlir-opt prints, since oilist also emits in td order.
+    assembly_format = (
+        "(`lowerbound` `(` $lowerbound^ `:` type($lowerbound) `)`)?"
+        " (`upperbound` `(` $upperbound^ `:` type($upperbound) `)`)?"
+        " (`extent` `(` $extent^ `:` type($extent) `)`)?"
+        " (`stride` `(` $stride^ `:` type($stride) `)`)?"
+        " (`startIdx` `(` $start_idx^ `:` type($start_idx) `)`)?"
+        " attr-dict"
+    )
+
+    traits = lazy_traits_def(lambda: (NoMemoryEffect(),))
+
+    def __init__(
+        self,
+        *,
+        lowerbound: SSAValue | Operation | None = None,
+        upperbound: SSAValue | Operation | None = None,
+        extent: SSAValue | Operation | None = None,
+        stride: SSAValue | Operation | None = None,
+        start_idx: SSAValue | Operation | None = None,
+        stride_in_bytes: BoolAttr | None = None,
+    ) -> None:
+        super().__init__(
+            operands=[
+                [lowerbound] if lowerbound is not None else [],
+                [upperbound] if upperbound is not None else [],
+                [extent] if extent is not None else [],
+                [stride] if stride is not None else [],
+                [start_idx] if start_idx is not None else [],
+            ],
+            properties={"strideInBytes": stride_in_bytes},
+            result_types=[DataBoundsType()],
+        )
+
+    def verify_(self) -> None:
+        if self.extent is None and self.upperbound is None:
+            raise VerifyException("expected extent or upperbound.")
+
+
+class _DataBoundsAccessorOp(IRDLOperation, ABC):
+    """
+    Shared shape for the `acc.get_lowerbound` / `get_upperbound` /
+    `get_stride` / `get_extent` accessor ops. Each takes an
+    `!acc.data_bounds_ty` operand and yields an `index`.
+    """
+
+    bounds = operand_def(DataBoundsType)
+    result = result_def(IndexType)
+
+    assembly_format = "$bounds attr-dict `:` `(` type($bounds) `)` `->` type($result)"
+
+    traits = lazy_traits_def(lambda: (NoMemoryEffect(),))
+
+    def __init__(self, bounds: SSAValue | Operation) -> None:
+        super().__init__(operands=[bounds], result_types=[IndexType()])
+
+
+@irdl_op_definition
+class GetLowerboundOp(_DataBoundsAccessorOp):
+    """Implementation of upstream acc.get_lowerbound."""
+
+    name = "acc.get_lowerbound"
+
+
+@irdl_op_definition
+class GetUpperboundOp(_DataBoundsAccessorOp):
+    """Implementation of upstream acc.get_upperbound."""
+
+    name = "acc.get_upperbound"
+
+
+@irdl_op_definition
+class GetStrideOp(_DataBoundsAccessorOp):
+    """Implementation of upstream acc.get_stride."""
+
+    name = "acc.get_stride"
+
+
+@irdl_op_definition
+class GetExtentOp(_DataBoundsAccessorOp):
+    """Implementation of upstream acc.get_extent."""
+
+    name = "acc.get_extent"
+
+
+@irdl_op_definition
 class YieldOp(AbstractYieldOperation[Attribute]):
     """
     Implementation of upstream acc.yield.
@@ -1089,10 +1225,16 @@ ACC = Dialect(
         ParallelOp,
         SerialOp,
         KernelsOp,
+        DataBoundsOp,
+        GetLowerboundOp,
+        GetUpperboundOp,
+        GetStrideOp,
+        GetExtentOp,
         YieldOp,
     ],
     [
         DeviceTypeAttr,
         ClauseDefaultValueAttr,
+        DataBoundsType,
     ],
 )

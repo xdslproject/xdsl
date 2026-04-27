@@ -60,3 +60,12 @@ func.func @kernels_multi_block() {
   func.return
 }
 // CHECK: 'acc.kernels' does not contain single-block regions
+
+// -----
+
+// acc.bounds requires either `extent` or `upperbound` (or both) to be set.
+func.func @bounds_missing_extent_and_upperbound() {
+  %b = "acc.bounds"() <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 0>}> : () -> !acc.data_bounds_ty
+  func.return
+}
+// CHECK: Operation does not verify: expected extent or upperbound.

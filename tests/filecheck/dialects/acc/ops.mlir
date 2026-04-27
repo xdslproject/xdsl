@@ -618,4 +618,54 @@ builtin.module {
   // CHECK-LABEL: func.func @kernels_generic_roundtrip_retained() {
   // CHECK-NEXT:    acc.kernels {
   // CHECK-NEXT:    }
+
+  func.func @bounds_full(%c0 : index, %c9 : index, %c1 : index) {
+    %b = acc.bounds lowerbound(%c0 : index) upperbound(%c9 : index) stride(%c1 : index)
+    func.return
+  }
+  // CHECK-LABEL: func.func @bounds_full(
+  // CHECK:         %{{.*}} = acc.bounds lowerbound(%{{.*}} : index) upperbound(%{{.*}} : index) stride(%{{.*}} : index)
+
+  func.func @bounds_extent_only(%c9 : index) {
+    %b = acc.bounds extent(%c9 : index)
+    func.return
+  }
+  // CHECK-LABEL: func.func @bounds_extent_only(
+  // CHECK:         %{{.*}} = acc.bounds extent(%{{.*}} : index)
+
+  func.func @bounds_upperbound_only(%c9 : index) {
+    %b = acc.bounds upperbound(%c9 : index)
+    func.return
+  }
+  // CHECK-LABEL: func.func @bounds_upperbound_only(
+  // CHECK:         %{{.*}} = acc.bounds upperbound(%{{.*}} : index)
+
+  func.func @bounds_with_stride_in_bytes(%c1 : index, %c20 : index, %c4 : index) {
+    %b = acc.bounds lowerbound(%c1 : index) upperbound(%c20 : index) extent(%c20 : index) stride(%c4 : index) startIdx(%c1 : index) {strideInBytes = true}
+    func.return
+  }
+  // CHECK-LABEL: func.func @bounds_with_stride_in_bytes(
+  // CHECK:         %{{.*}} = acc.bounds lowerbound(%{{.*}} : index) upperbound(%{{.*}} : index) extent(%{{.*}} : index) stride(%{{.*}} : index) startIdx(%{{.*}} : index) {strideInBytes = true}
+
+  // Generic form is retained as insurance that the operandSegmentSizes
+  // round-trip (with all clauses absent except `extent`) still parses.
+  func.func @bounds_generic_roundtrip_retained(%c9 : index) {
+    %b = "acc.bounds"(%c9) <{operandSegmentSizes = array<i32: 0, 0, 1, 0, 0>}> : (index) -> !acc.data_bounds_ty
+    func.return
+  }
+  // CHECK-LABEL: func.func @bounds_generic_roundtrip_retained(
+  // CHECK:         %{{.*}} = acc.bounds extent(%{{.*}} : index)
+
+  func.func @bounds_accessors(%b : !acc.data_bounds_ty) {
+    %lb = acc.get_lowerbound %b : (!acc.data_bounds_ty) -> index
+    %ub = acc.get_upperbound %b : (!acc.data_bounds_ty) -> index
+    %stride = acc.get_stride %b : (!acc.data_bounds_ty) -> index
+    %extent = acc.get_extent %b : (!acc.data_bounds_ty) -> index
+    func.return
+  }
+  // CHECK-LABEL: func.func @bounds_accessors(
+  // CHECK:         %{{.*}} = acc.get_lowerbound %{{.*}} : (!acc.data_bounds_ty) -> index
+  // CHECK-NEXT:    %{{.*}} = acc.get_upperbound %{{.*}} : (!acc.data_bounds_ty) -> index
+  // CHECK-NEXT:    %{{.*}} = acc.get_stride %{{.*}} : (!acc.data_bounds_ty) -> index
+  // CHECK-NEXT:    %{{.*}} = acc.get_extent %{{.*}} : (!acc.data_bounds_ty) -> index
 }
