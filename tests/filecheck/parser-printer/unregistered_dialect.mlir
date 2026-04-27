@@ -19,6 +19,7 @@
     "op"() {opaque_slash = #unknowndialect<myattr a / b>} : () -> ()
     "op"() {opaque_nested = #unknowndialect<myattr [x // y]>} : () -> ()
     "op"() {opaque_str = #unknowndialect<myattr "str>">} : () -> ()
+    "op"() {escaped_str = #unknowndialect.esc<"a\"b">} : () -> ()
     %r = "op_with_res"() : () -> !unknowndialect<mytype a / b>
   }) {testattr = "foo"} : () -> i32
   "builtin.unimplemented_op"() {"attr" = #builtin.unimplemented_attr} : () -> ()
@@ -40,6 +41,7 @@
   // CHECK-NEXT:   "op"() {opaque_slash = #unknowndialect<myattr a / b>} : () -> ()
   // CHECK-NEXT:   "op"() {opaque_nested = #unknowndialect<myattr [x // y]>} : () -> ()
   // CHECK-NEXT:   "op"() {opaque_str = #unknowndialect<myattr "str>">} : () -> ()
+  // CHECK-NEXT:   "op"() {escaped_str = #unknowndialect.esc<"a\"b">} : () -> ()
   // CHECK-NEXT:   %{{.*}} = "op_with_res"() : () -> !unknowndialect<mytype a / b>
   // CHECK-NEXT:  }) {testattr = "foo"} : () -> i32
   // CHECK-NEXT:  "builtin.unimplemented_op"() {attr = #builtin.unimplemented_attr} : () -> ()
