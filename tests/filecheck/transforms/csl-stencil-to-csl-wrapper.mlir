@@ -120,7 +120,7 @@ func.func @bufferized(%arg0: memref<512xf32> {"llvm.name" = "in"}, %arg1: memref
     csl_stencil.yield %arg3_1 : memref<510xf32>
   }) to <[0, 0], [1, 1]>
   %end = func.call @timer_end(%start) : (f64) -> f64
-  "llvm.store"(%end, %timers) <{"ordering" = 0 : i64}> : (f64, !llvm.ptr) -> ()
+  llvm.store %end, %timers : f64, !llvm.ptr
   func.return
 }
 func.func private @timer_start() -> f64

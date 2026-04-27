@@ -1388,30 +1388,30 @@ def test_parse_dimension_list(input: str, expected: list[int]):
         "a (] b",
         "a [} b",
         "a {) b",
+        "a ) b",
+        "a ] b",
+        "a } b",
     ],
 )
 def test_unregistered_type_unbalanced_brackets(body: str):
     """_raw_scan_balanced rejects mismatched bracket pairs."""
     ctx = Context(allow_unregistered=True)
     with pytest.raises(ParseError, match="Unbalanced"):
-        parser = Parser(ctx, f'"test.op"() : () -> !unknowndialect.t<{body}>')
-        parser.parse_optional_operation()
+        Parser(ctx, f"!unknowndialect.t<{body}>").parse_type()
 
 
 def test_unregistered_type_unterminated_string():
     """_raw_scan_balanced rejects unterminated string literals."""
     ctx = Context(allow_unregistered=True)
     with pytest.raises(ParseError, match="Unterminated string literal"):
-        parser = Parser(ctx, '"test.op"() : () -> !unknowndialect.t<"no end>')
-        parser.parse_optional_operation()
+        Parser(ctx, '!unknowndialect.t<"no end>').parse_type()
 
 
 def test_unregistered_type_unexpected_eof():
     """_raw_scan_balanced rejects unexpected end of file."""
     ctx = Context(allow_unregistered=True)
     with pytest.raises(ParseError, match="end of file"):
-        parser = Parser(ctx, '"test.op"() : () -> !unknowndialect.t<no close')
-        parser.parse_optional_operation()
+        Parser(ctx, "!unknowndialect.t<no close").parse_type()
 
 
 def test_opaque_syntax_attr():

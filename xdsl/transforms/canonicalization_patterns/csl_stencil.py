@@ -1,5 +1,4 @@
-from xdsl.dialects import tensor
-from xdsl.dialects.csl import csl_stencil
+from xdsl.dialects import csl_stencil, tensor
 from xdsl.ir import OpResult
 from xdsl.pattern_rewriter import (
     PatternRewriter,

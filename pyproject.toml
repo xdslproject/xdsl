@@ -29,11 +29,11 @@ dev = [
     "lit<19.0.0",
     "marimo>=0.23,<0.24",
     "prek~=0.3.1",
-    "ruff==0.15.11",
+    "ruff==0.15.12",
     "nbconvert>=7.7.2,<8.0.0",
     "textual-dev==1.8.0",
     "pytest-asyncio==1.3.0",
-    "pyright==1.1.408",
+    "pyright==1.1.409",
     "sympy==1.14.0",
 ]
 gui = ["textual>=8,<9", "pyclip==0.7"]
@@ -123,12 +123,24 @@ extend-include = ["*.ipynb", "*.pyi"]
 exclude = [".venv", "docs/marimo"]
 
 [tool.ruff.lint]
-select = ["E", "F", "W", "I", "UP", "PT", "TID251", "INP", "PYI"]
+select = ["E", "F", "W", "I", "UP", "PT", "TID251", "INP", "PYI", "RUF"]
 ignore = [
     "E741",   # https://beta.ruff.rs/docs/rules/ambiguous-variable-name/
     "PT006",  # https://beta.ruff.rs/docs/rules/pytest-parametrize-names-wrong-type/
     "PT012",  # https://beta.ruff.rs/docs/rules/pytest-raises-with-multiple-statements/
     "PYI041", # https://docs.astral.sh/ruff/rules/redundant-numeric-union
+    # Help welcome removing ignores below
+    # https://github.com/xdslproject/xdsl/issues/5927
+    "RUF001", # https://docs.astral.sh/ruff/rules/ambiguous-unicode-character-string
+    "RUF002", # https://docs.astral.sh/ruff/rules/ambiguous-unicode-character-docstring
+    "RUF003", # https://docs.astral.sh/ruff/rules/ambiguous-unicode-character-comment
+    "RUF005", # https://docs.astral.sh/ruff/rules/collection-literal-concatenation
+    "RUF007", # https://docs.astral.sh/ruff/rules/zip-instead-of-pairwise
+    "RUF012", # https://docs.astral.sh/ruff/rules/mutable-class-default
+    "RUF015", # https://docs.astral.sh/ruff/rules/unnecessary-iterable-allocation-for-first-element
+    "RUF018", # https://docs.astral.sh/ruff/rules/assignment-in-assert
+    "RUF033", # https://docs.astral.sh/ruff/rules/post-init-default
+    "RUF043", # https://docs.astral.sh/ruff/rules/pytest-raises-ambiguous-pattern
 ]
 
 [tool.ruff.lint.pycodestyle]
@@ -138,6 +150,10 @@ ignore = [
 max-line-length = 130
 
 [tool.ruff.lint.flake8-tidy-imports.banned-api]
+"typing.TypeVar".msg = "Use typing_extensions.TypeVar instead."
+"xdsl.dialects.utils.bit_enum_attribute".msg = "Use xdsl.dialects.utils instead"
+"xdsl.dialects.utils.dimension_list".msg = "Use xdsl.dialects.utils instead"
+"xdsl.dialects.utils.dynamic_index_list".msg = "Use xdsl.dialects.utils instead"
 "xdsl.dialects.utils.fast_math".msg = "Use xdsl.dialects.utils instead"
 "xdsl.dialects.utils.format".msg = "Use xdsl.dialects.utils instead"
 "xdsl.ir.affine.affine_expr".msg = "Use xdsl.ir.affine instead"
@@ -153,7 +169,6 @@ max-line-length = 130
 "xdsl.parser.base_parser".msg = "Use xdsl.parser instead."
 "xdsl.parser.core".msg = "Use xdsl.parser instead."
 "xdsl.parser.generic_parser".msg = "Use xdsl.parser instead."
-"typing.TypeVar".msg = "Use typing_extensions.TypeVar instead."
 
 
 [tool.ruff.lint.per-file-ignores]

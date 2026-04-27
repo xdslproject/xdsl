@@ -367,7 +367,7 @@ class Printer(BasePrinter):
                 self.print_string(hex(convert_f64_to_u64(value)))
             else:
                 raise NotImplementedError(
-                    f"Cannot print '{value}' value for float type {str(type)}"
+                    f"Cannot print '{value}' value for float type {type!s}"
                 )
         else:
             # to mirror mlir-opt, attempt to print scientific notation iff the value parses losslessly
@@ -396,7 +396,7 @@ class Printer(BasePrinter):
                         self.print_string(f"0x{convert_f64_to_u64(value):X}")
                 else:
                     # default to full python precision
-                    self.print_string(f"{repr(value)}")
+                    self.print_string(f"{value!r}")
 
     def print_int(self, value: int, type: IntegerType | IndexType | None = None):
         """

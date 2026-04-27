@@ -8,7 +8,7 @@ from xdsl.dialects.func import Func
 from xdsl.dialects.test import Test
 from xdsl.ir import Operation
 from xdsl.parser import Parser
-from xdsl.rewriting.composable_rewriting.immutable_ir.immutable_ir import (  # noqa
+from xdsl.rewriting.composable_rewriting.immutable_ir.immutable_ir import (
     get_immutable_copy,
 )
 

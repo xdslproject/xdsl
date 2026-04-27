@@ -116,7 +116,7 @@ def _(
         b.name_hint = "B"
         c.name_hint = "C"
         body = Region(Block(arg_types = (f64, f64, f64)))
-        linalg.GenericOp(
+        linalg.ops.GenericOp(
             inputs=(a, b),
             outputs=(c,),
             body=body,
@@ -126,15 +126,15 @@ def _(
                 AffineMapAttr(AffineMap.from_callable(lambda m, n, k: (m, n))),
             ),
             iterator_types=(
-                linalg.IteratorTypeAttr.parallel(),
-                linalg.IteratorTypeAttr.parallel(),
-                linalg.IteratorTypeAttr.reduction(),
+                linalg.attrs.IteratorTypeAttr.parallel(),
+                linalg.attrs.IteratorTypeAttr.parallel(),
+                linalg.attrs.IteratorTypeAttr.reduction(),
             )
         )
         with ImplicitBuilder(body) as (a_val, b_val, acc_old_val):
             prod_val = arith.MulfOp(a_val, b_val).result
             acc_new_val = arith.AddfOp(acc_old_val, prod_val).result
-            linalg.YieldOp(acc_new_val)
+            linalg.ops.YieldOp(acc_new_val)
             # Add more name hints to make it easier to track how values are lowered
             a_val.name_hint = "a"
             b_val.name_hint = "b"

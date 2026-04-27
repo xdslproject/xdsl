@@ -11,20 +11,22 @@ from xdsl.pattern_rewriter import (
 )
 
 
-def iterator_type_attr(t: linalg.IteratorTypeAttr) -> memref_stream.IteratorTypeAttr:
+def iterator_type_attr(
+    t: linalg.attrs.IteratorTypeAttr,
+) -> memref_stream.IteratorTypeAttr:
     match t.data:
-        case linalg.IteratorType.PARALLEL:
+        case linalg.attrs.IteratorType.PARALLEL:
             return memref_stream.IteratorTypeAttr.parallel()
-        case linalg.IteratorType.REDUCTION:
+        case linalg.attrs.IteratorType.REDUCTION:
             return memref_stream.IteratorTypeAttr.reduction()
-        case linalg.IteratorType.WINDOW:
+        case linalg.attrs.IteratorType.WINDOW:
             raise NotImplementedError("Cannot convert window iterator type")
 
 
 class ConvertGenericOpPattern(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(
-        self, op: linalg.GenericOp, rewriter: PatternRewriter
+        self, op: linalg.ops.GenericOp, rewriter: PatternRewriter
     ) -> None:
         if op.res:
             raise NotImplementedError(
@@ -60,7 +62,9 @@ class ConvertGenericOpPattern(RewritePattern):
 
 class ConvertYieldOpPattern(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: linalg.YieldOp, rewriter: PatternRewriter) -> None:
+    def match_and_rewrite(
+        self, op: linalg.ops.YieldOp, rewriter: PatternRewriter
+    ) -> None:
         rewriter.replace_op(op, memref_stream.YieldOp(*op.operands))
 
 

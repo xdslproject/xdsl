@@ -1,5 +1,4 @@
 from collections.abc import Callable
-from functools import cache
 from typing import Any
 
 import llvmlite.ir as ir
@@ -100,7 +99,6 @@ _TYPE_CONVERTERS: dict[type[Attribute], Callable[[Any], ir.Type]] = {
 }
 
 
-@cache
 def convert_type(type_attr: Attribute) -> ir.Type:
     """
     Convert an xDSL type attribute to an LLVM IR type.

@@ -35,11 +35,11 @@ from xdsl.dialects.builtin import (
     i64,
 )
 from xdsl.dialects.utils import (
+    DynamicIndexList,
     get_dynamic_index_list,
     split_dynamic_index_list,
     verify_dynamic_index_list,
 )
-from xdsl.dialects.utils.dynamic_index_list import DynamicIndexList
 from xdsl.ir import (
     Attribute,
     Dialect,
@@ -1136,7 +1136,7 @@ class VectorTransferOperation(IRDLOperation, ABC):
         if len(in_bounds) != len(permutation_map.results):
             raise VerifyException(
                 f'"{op.name}" expects the in_bounds attr of same rank as permutation_map results: '
-                f"{str(permutation_map)} vs in_bounds of of size {len(in_bounds)}"
+                f"{permutation_map!s} vs in_bounds of of size {len(in_bounds)}"
             )
 
     @staticmethod

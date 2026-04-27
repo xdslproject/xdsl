@@ -151,12 +151,16 @@ def is_inplace(apply: ApplyOp, field: SSAValue):
     return not any(
         access
         for access in apply.walk()
-        if isinstance(access, AccessOp)
-        and access.temp in field_args
-        and any(o != 0 for o in access.offset)
-        or isinstance(access, DynAccessOp)
-        and access.temp in field_args
-        and any(o != 0 for o in chain(access.lb, access.ub))
+        if (
+            isinstance(access, AccessOp)
+            and access.temp in field_args
+            and any(o != 0 for o in access.offset)
+        )
+        or (
+            isinstance(access, DynAccessOp)
+            and access.temp in field_args
+            and any(o != 0 for o in chain(access.lb, access.ub))
+        )
     )
 
 
@@ -390,7 +394,7 @@ class BufferAlloc(RewritePattern):
     %forward = stencil.load %alloc : !stencil.field<[0,32]>xf64 -> !stencil.temp<[0,32]>
     // [...]
     ```
-    """  # noqa: E501
+    """
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: BufferOp, rewriter: PatternRewriter):

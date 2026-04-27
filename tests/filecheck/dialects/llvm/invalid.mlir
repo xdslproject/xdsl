@@ -103,3 +103,34 @@ llvm.func @caller(%arg0: i32) -> i32 {
 }
 
 // CHECK: '@not_llvm_func' must reference an 'llvm.func', but found 'func.func'
+
+// -----
+
+func.func @load_unknown_atomic_ordering() {
+  %ptr = "test.op"() : () -> !llvm.ptr
+  %v = llvm.load %ptr atomic bogus : !llvm.ptr -> i32
+  func.return
+}
+
+// CHECK: unknown atomic ordering 'bogus'
+
+// -----
+
+func.func @extractvalue_into_scalar() {
+  %v = "test.op"() : () -> i32
+  %r = llvm.extractvalue %v[0] : i32
+  func.return
+}
+
+// CHECK: cannot index into i32
+
+// -----
+
+func.func @insertvalue_into_scalar() {
+  %v = "test.op"() : () -> i32
+  %w = "test.op"() : () -> i32
+  %r = llvm.insertvalue %w, %v[0] : i32
+  func.return
+}
+
+// CHECK: cannot index into i32

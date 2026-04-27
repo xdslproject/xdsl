@@ -1225,7 +1225,8 @@ class FloatData(Data[float]):
     def __eq__(self, other: object):
         # avoid triggering `float('nan') != float('nan')` inequality
         return isinstance(other, FloatData) and (
-            math.isnan(self.data) and math.isnan(other.data) or self.data == other.data
+            (math.isnan(self.data) and math.isnan(other.data))
+            or self.data == other.data
         )
 
     def __hash__(self):

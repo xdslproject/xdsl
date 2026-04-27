@@ -527,6 +527,7 @@ class LoopNestOp(IRDLOperation):
     upperBound = var_operand_def(base(IntegerType) | base(IndexType))
     step = var_operand_def(base(IntegerType) | base(IndexType))
 
+    collapse_num_loops = opt_prop_def(IntegerAttr)
     loop_inclusive = opt_prop_def(UnitAttr)
 
     body = region_def("single_block")

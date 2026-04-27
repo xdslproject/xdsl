@@ -17,12 +17,12 @@ from xdsl.interpreters.shaped_array import ShapedArray
 
 def run_linalg_structured_op(
     interpreter: Interpreter,
-    op: linalg.LinalgStructuredOperation,
+    op: linalg.abstract_ops.LinalgStructuredOperation,
     args: tuple[ShapedArray[float] | float, ...],
 ):
     """
     Helper function for interpreting ops inheriting from
-    [`LinalgStructuredOperation`][xdsl.dialects.linalg.LinalgStructuredOperation].
+    [`LinalgStructuredOperation`][xdsl.dialects.linalg.abstract_ops.LinalgStructuredOperation].
     """
     body = op.body
     inputs_count = len(op.inputs)
@@ -65,9 +65,9 @@ def run_linalg_structured_op(
 
 @register_impls
 class LinalgFunctions(InterpreterFunctions):
-    @impl(linalg.GenericOp)
+    @impl(linalg.ops.GenericOp)
     def run_generic(
-        self, interpreter: Interpreter, op: linalg.GenericOp, args: tuple[Any, ...]
+        self, interpreter: Interpreter, op: linalg.ops.GenericOp, args: tuple[Any, ...]
     ) -> PythonValues:
         if op.library_call is not None:
             raise NotImplementedError(
@@ -75,21 +75,21 @@ class LinalgFunctions(InterpreterFunctions):
             )
         return run_linalg_structured_op(interpreter, op, args)
 
-    @impl_terminator(linalg.YieldOp)
+    @impl_terminator(linalg.ops.YieldOp)
     def run_yield(
-        self, interpreter: Interpreter, op: linalg.YieldOp, args: tuple[Any, ...]
+        self, interpreter: Interpreter, op: linalg.ops.YieldOp, args: tuple[Any, ...]
     ):
         return ReturnedValues(args), ()
 
-    @impl(linalg.AddOp)
+    @impl(linalg.ops.AddOp)
     def run_add(
-        self, interpreter: Interpreter, op: linalg.AddOp, args: tuple[Any, ...]
+        self, interpreter: Interpreter, op: linalg.ops.AddOp, args: tuple[Any, ...]
     ) -> tuple[Any, ...]:
         return run_linalg_structured_op(interpreter, op, args)
 
-    @impl(linalg.FillOp)
+    @impl(linalg.ops.FillOp)
     def run_fill(
-        self, interpreter: Interpreter, op: linalg.FillOp, args: tuple[Any, ...]
+        self, interpreter: Interpreter, op: linalg.ops.FillOp, args: tuple[Any, ...]
     ) -> tuple[Any, ...]:
         operand, res = args[0], args[1]
         assert isinstance(operand, ShapedArray)
@@ -104,29 +104,32 @@ class LinalgFunctions(InterpreterFunctions):
             return (res,)
         return ()
 
-    @impl(linalg.MulOp)
+    @impl(linalg.ops.MulOp)
     def run_mul(
-        self, interpreter: Interpreter, op: linalg.MulOp, args: tuple[Any, ...]
+        self, interpreter: Interpreter, op: linalg.ops.MulOp, args: tuple[Any, ...]
     ) -> tuple[Any, ...]:
         return run_linalg_structured_op(interpreter, op, args)
 
-    @impl(linalg.TransposeOp)
+    @impl(linalg.ops.TransposeOp)
     def run_transpose(
-        self, interpreter: Interpreter, op: linalg.TransposeOp, args: tuple[Any, ...]
+        self,
+        interpreter: Interpreter,
+        op: linalg.ops.TransposeOp,
+        args: tuple[Any, ...],
     ) -> tuple[Any, ...]:
         return run_linalg_structured_op(interpreter, op, args)
 
-    @impl(linalg.MatmulOp)
+    @impl(linalg.ops.MatmulOp)
     def run_mat_mul(
-        self, interpreter: Interpreter, op: linalg.MatmulOp, args: tuple[Any, ...]
+        self, interpreter: Interpreter, op: linalg.ops.MatmulOp, args: tuple[Any, ...]
     ) -> tuple[Any, ...]:
         return run_linalg_structured_op(interpreter, op, args)
 
-    @impl(linalg.PoolingNchwMaxOp)
+    @impl(linalg.ops.PoolingNchwMaxOp)
     def run_pooling_nchw_max(
         self,
         interpreter: Interpreter,
-        op: linalg.PoolingNchwMaxOp,
+        op: linalg.ops.PoolingNchwMaxOp,
         args: tuple[Any, ...],
     ) -> tuple[Any, ...]:
         input, kernel_filter, res = args[0], args[1], args[2]
@@ -168,11 +171,11 @@ class LinalgFunctions(InterpreterFunctions):
             return (res,)
         return ()
 
-    @impl(linalg.Conv2DNchwFchwOp)
+    @impl(linalg.ops.Conv2DNchwFchwOp)
     def run_conv_2d_nchw_fchw(
         self,
         interpreter: Interpreter,
-        op: linalg.Conv2DNchwFchwOp,
+        op: linalg.ops.Conv2DNchwFchwOp,
         args: tuple[Any, ...],
     ) -> tuple[Any, ...]:
         input, kernel_filter, res = args[0], args[1], args[2]

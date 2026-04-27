@@ -74,7 +74,7 @@ uv run pytest
 make pytest
 ```
 
-### FileCheck Tests
+### Lit/FileCheck Tests
 
 File-based tests in `tests/filecheck` using `filecheck` (a Python reimplementation of
 LLVM's FileCheck) to verify tool output. These tests rely on the textual format to
@@ -88,6 +88,38 @@ uv run lit tests/filecheck
 # or via makefile
 make filecheck
 ```
+
+Note that when a `lit` test fails, it also prints the command that was run, which can
+usually be quickly copy/pasted to the terminal to inspect the unexpected output.
+
+#### Bootstrapping and Updating FileCheck Tests with `filecheckize`
+
+When adding or updating tests, sometimes large chunks of `CHECK` lines will have to be
+added or updated.
+Our team created a tool called `filecheckize` that can sometimes be useful to ease this
+work.
+It's not added by default to the developer installation, but can still be used via uvx
+(installed with uv) like so:
+
+```sh
+echo "%c1 = arith.constant 1 : index
+%res = arith.addi %c1, %c1 : index
+" | uvx filecheckize
+```
+
+This will print the following:
+
+```mlir
+// CHECK:       %c1 = arith.constant 1 : index
+// CHECK-NEXT:  %res = arith.addi %c1, %c1 : index
+```
+
+`filecheckize` provides handy options like `--mlir-anonymize` to convert SSA value names
+to `{{.*}}` and `--check-prefix` to customize `CHECK` commands.
+
+It's rarely a good idea to use the ouput of `filecheckize` directly as the test for your
+transformation or printing/parsing test, but it can be handy as a starting point to go
+from the output of your command.
 
 ### Coverage Tests
 
