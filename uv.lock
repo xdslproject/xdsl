@@ -1014,12 +1014,12 @@ name = "heir-py"
 version = "2026.4.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "absl-py", marker = "python_full_version >= '3.11'" },
-    { name = "colorama", marker = "python_full_version >= '3.11'" },
-    { name = "numba", marker = "python_full_version >= '3.11'" },
-    { name = "numpy", marker = "python_full_version >= '3.11'" },
-    { name = "pybind11", marker = "python_full_version >= '3.11'" },
-    { name = "pybind11-global", marker = "python_full_version >= '3.11'" },
+    { name = "absl-py", marker = "python_full_version >= '3.11' and python_full_version < '3.13'" },
+    { name = "colorama", marker = "python_full_version >= '3.11' and python_full_version < '3.13'" },
+    { name = "numba", marker = "python_full_version >= '3.11' and python_full_version < '3.13'" },
+    { name = "numpy", marker = "python_full_version >= '3.11' and python_full_version < '3.13'" },
+    { name = "pybind11", marker = "python_full_version >= '3.11' and python_full_version < '3.13'" },
+    { name = "pybind11-global", marker = "python_full_version >= '3.11' and python_full_version < '3.13'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/99/9a/99f95bc05e6ed0bb290b6114f98f4d2880d79c3a62473eb0647b5d0e453a/heir_py-2026.4.1.tar.gz", hash = "sha256:ece38a361419afcaec5c596851ea1c39df6b688977afe9399c40d7368b1ea7aa", size = 13698673, upload-time = "2026-04-01T19:50:38.594Z" }
 wheels = [
@@ -2247,8 +2247,8 @@ name = "numba"
 version = "0.62.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "llvmlite", marker = "python_full_version >= '3.11'" },
-    { name = "numpy", marker = "python_full_version >= '3.11'" },
+    { name = "llvmlite", marker = "python_full_version >= '3.11' and python_full_version < '3.13'" },
+    { name = "numpy", marker = "python_full_version >= '3.11' and python_full_version < '3.13'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/a3/20/33dbdbfe60e5fd8e3dbfde299d106279a33d9f8308346022316781368591/numba-0.62.1.tar.gz", hash = "sha256:7b774242aa890e34c21200a1fc62e5b5757d5286267e71103257f4e2af0d5161", size = 2749817, upload-time = "2025-09-29T10:46:31.551Z" }
 wheels = [
@@ -3964,7 +3964,7 @@ gui = [
     { name = "textual" },
 ]
 heir = [
-    { name = "heir-py", marker = "python_full_version >= '3.11' and python_full_version < '3.14'" },
+    { name = "heir-py", marker = "python_full_version >= '3.11' and python_full_version < '3.13'" },
 ]
 llvm = [
     { name = "llvmlite" },
@@ -4004,7 +4004,7 @@ docs = [
 requires-dist = [
     { name = "coverage", marker = "extra == 'dev'", specifier = "<8.0.0" },
     { name = "filecheck", marker = "extra == 'dev'", specifier = "==1.0.3" },
-    { name = "heir-py", marker = "python_full_version >= '3.11' and python_full_version < '3.14' and extra == 'heir'", specifier = "==2026.4.1" },
+    { name = "heir-py", marker = "python_full_version >= '3.11' and python_full_version < '3.13' and extra == 'heir'", specifier = "==2026.4.1" },
     { name = "immutabledict", specifier = "<4.3.2" },
     { name = "ipykernel", marker = "extra == 'dev'" },
     { name = "lit", marker = "extra == 'dev'", specifier = "<19.0.0" },
