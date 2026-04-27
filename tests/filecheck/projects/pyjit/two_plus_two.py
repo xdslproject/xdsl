@@ -96,7 +96,7 @@ class JITContext:
     ) -> McJitKeepalive[[float, float], float]:
         parsed_program = self.pyast_ctx.parse_program(func)
         module = convert_module(parsed_program.module)
-        return mcjit_f64_f64_f64_binary(module, "plus")
+        return mcjit_f64_f64_f64_binary(module, parsed_program.name)
 
 
 # Test
