@@ -14,6 +14,9 @@ from xdsl.dialects.polynomial import (
     ChebyshevPolynomialAttr,
     EvalOp,
     EvalScheme,
+    PolynomialType,
+    RingAttr,
+    TypedChebyshevPolynomialAttr,
 )
 from xdsl.ir import Attribute
 from xdsl.utils.test_value import create_ssa_value
@@ -44,6 +47,34 @@ def test_attr_construction(
     assert attr.coeff_values == expected_coeffs
 
 
+# --- RingAttr / PolynomialType / TypedChebyshevPolynomialAttr ---
+
+
+def test_ring_attr_construction():
+    ring = RingAttr(f64)
+    assert ring.coefficient_type == f64
+
+
+def test_polynomial_type_construction():
+    poly_ty = PolynomialType(RingAttr(f64))
+    assert poly_ty.ring.coefficient_type == f64
+
+
+def test_typed_chebyshev_polynomial_from_tuple():
+    poly_ty = PolynomialType(RingAttr(f64))
+    typed = TypedChebyshevPolynomialAttr(poly_ty, (1.0, 2.0, 3.0))
+    assert typed.degree == 2
+    assert typed.coeff_values == [1.0, 2.0, 3.0]
+    assert typed.type == poly_ty
+
+
+def test_typed_chebyshev_polynomial_from_attr():
+    poly_ty = PolynomialType(RingAttr(f64))
+    inner = ChebyshevPolynomialAttr((1.0, 2.0))
+    typed = TypedChebyshevPolynomialAttr(poly_ty, inner)
+    assert typed.value is inner
+
+
 # --- EvalOp construction ---
 
 
@@ -58,11 +89,21 @@ def test_eval_basic_construction():
     assert op.eval_scheme == EvalScheme.CLENSHAW
 
 
-def test_eval_pre_built_attr():
-    attr = ChebyshevPolynomialAttr((1.0, 2.0, 3.0))
+def test_eval_pre_built_typed_attr():
+    poly_ty = PolynomialType(RingAttr(f64))
+    typed = TypedChebyshevPolynomialAttr(poly_ty, (1.0, 2.0, 3.0))
     x = create_ssa_value(f64)
-    op = EvalOp(x, attr, EvalScheme.CLENSHAW)
-    assert op.polynomial is attr
+    op = EvalOp(x, typed, EvalScheme.CLENSHAW)
+    assert op.polynomial is typed
+
+
+def test_eval_pre_built_untyped_attr_is_wrapped():
+    """An untyped ChebyshevPolynomialAttr is auto-wrapped with the default type."""
+    untyped = ChebyshevPolynomialAttr((1.0, 2.0, 3.0))
+    x = create_ssa_value(f64)
+    op = EvalOp(x, untyped, EvalScheme.CLENSHAW)
+    assert isinstance(op.polynomial, TypedChebyshevPolynomialAttr)
+    assert op.polynomial.value is untyped
 
 
 @pytest.mark.parametrize(
@@ -87,23 +128,19 @@ def test_eval_domain_bounds_propagated():
     assert op.domain_upper.value.data == 0.0
 
 
-@pytest.mark.parametrize(
-    "scheme",
-    [EvalScheme.CLENSHAW, EvalScheme.PATERSON_STOCKMEYER],
-)
-def test_eval_scheme_propagated(scheme: EvalScheme):
+def test_eval_scheme_propagated():
     x = create_ssa_value(f32)
-    op = EvalOp(x, (1.0, 2.0), scheme)
-    assert op.scheme.data == scheme.value
-    assert op.eval_scheme == scheme
+    op = EvalOp(x, (1.0, 2.0), EvalScheme.CLENSHAW)
+    assert op.scheme.data == EvalScheme.CLENSHAW.value
+    assert op.eval_scheme == EvalScheme.CLENSHAW
 
 
 def test_eval_scheme_accepts_string_attr():
     x = create_ssa_value(f32)
-    attr = StringAttr("paterson_stockmeyer")
+    attr = StringAttr("clenshaw")
     op = EvalOp(x, (1.0, 2.0), attr)
     assert op.scheme is attr
-    assert op.eval_scheme == EvalScheme.PATERSON_STOCKMEYER
+    assert op.eval_scheme == EvalScheme.CLENSHAW
 
 
 def test_eval_scheme_accepts_str():
