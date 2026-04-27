@@ -1431,8 +1431,8 @@ def test_unregistered_pretty_syntax(syntax: str, expected_body: str):
     """Pretty syntax (!dialect.name<body> / #dialect.name<body>)."""
     ctx = Context(allow_unregistered=True)
     is_type = syntax.startswith("!")
-    parse = Parser(ctx, syntax).parse_type if is_type else Parser(ctx, syntax).parse_attribute
-    attr = parse()
+    parser = Parser(ctx, syntax)
+    attr = parser.parse_type() if is_type else parser.parse_attribute()
 
     assert isinstance(attr, UnregisteredAttr)
     assert attr.value.data == expected_body
@@ -1452,8 +1452,8 @@ def test_unregistered_opaque_syntax(syntax: str, expected_body: str):
     """Opaque syntax (#dialect<name body>). The name goes into attr_name."""
     ctx = Context(allow_unregistered=True)
     is_type = syntax.startswith("!")
-    parse = Parser(ctx, syntax).parse_type if is_type else Parser(ctx, syntax).parse_attribute
-    attr = parse()
+    parser = Parser(ctx, syntax)
+    attr = parser.parse_type() if is_type else parser.parse_attribute()
 
     assert isinstance(attr, UnregisteredAttr)
     assert attr.value.data == expected_body
