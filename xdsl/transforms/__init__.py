@@ -91,6 +91,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return expand_math_to_polynomials.ExpandMathToPolynomialsPass
 
+    def get_expand_polynomial_eval():
+        from xdsl.transforms import expand_polynomial_eval
+
+        return expand_polynomial_eval.ExpandPolynomialEvalPass
+
     def get_convert_linalg_to_loops():
         from xdsl.transforms import convert_linalg_to_loops
 
@@ -688,6 +693,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "convert-func-to-riscv-func": get_convert_func_to_riscv_func,
         "convert-func-to-x86-func": get_convert_func_to_x86_func,
         "expand-math-to-polynomials": get_expand_math_to_polynomials,
+        "expand-polynomial-eval": get_expand_polynomial_eval,
         "convert-linalg-to-loops": get_convert_linalg_to_loops,
         "convert-linalg-to-memref-stream": get_convert_linalg_to_memref_stream,
         "convert-memref-stream-to-loops": get_convert_memref_stream_to_loops,
