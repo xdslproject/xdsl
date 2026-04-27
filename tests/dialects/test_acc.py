@@ -232,3 +232,123 @@ def test_yield_inside_parallel_ok():
     last = op.region.block.last_op
     assert isinstance(last, acc.YieldOp)
     last.verify()
+
+
+def test_serial_empty_verifies():
+    op = acc.SerialOp(region=Region(Block([acc.YieldOp()])))
+    op.verify()
+
+    assert len(op.regions) == 1
+    assert len(op.region.blocks) == 1
+    assert len(op.async_operands) == 0
+    assert len(op.wait_operands) == 0
+    assert op.if_cond is None
+    assert op.self_cond is None
+    assert len(op.reduction_operands) == 0
+    assert len(op.private_operands) == 0
+    assert len(op.firstprivate_operands) == 0
+    assert len(op.data_clause_operands) == 0
+    assert op.async_operands_device_type is None
+    assert op.async_only is None
+    assert op.wait_operands_device_type is None
+    assert op.wait_operands_segments is None
+    assert op.has_wait_devnum is None
+    assert op.wait_only is None
+    assert op.self_attr is None
+    assert op.default_attr is None
+    assert op.combined is None
+    assert isinstance(op.region.block.last_op, acc.YieldOp)
+
+
+def test_serial_with_operands_verifies():
+    """Populate several operand groups and verify segment bookkeeping."""
+    async_val = ConstantOp.from_int_and_width(1, i32)
+    if_cond_val = ConstantOp.from_int_and_width(1, i1)
+    data_val = TestOp(result_types=[MemRefType(f32, [10])])
+    private_val = TestOp(result_types=[MemRefType(f32, [10])])
+
+    op = acc.SerialOp(
+        region=Region(Block([acc.YieldOp()])),
+        async_operands=[async_val.result],
+        if_cond=if_cond_val.result,
+        data_clause_operands=[data_val.res[0]],
+        private_operands=[private_val.res[0]],
+    )
+    op.verify()
+
+    assert op.async_operands[0] is async_val.result
+    assert op.if_cond is if_cond_val.result
+    assert op.self_cond is None
+    assert op.data_clause_operands[0] is data_val.res[0]
+    assert op.private_operands[0] is private_val.res[0]
+
+
+def test_serial_accepts_device_type_attrs():
+    """Per-device-type array attributes land on the op as properties."""
+    nvidia = acc.DeviceTypeAttr(acc.DeviceType.NVIDIA)
+    host = acc.DeviceTypeAttr(acc.DeviceType.HOST)
+    op = acc.SerialOp(
+        region=Region(Block([acc.YieldOp()])),
+        async_operands_device_type=ArrayAttr([nvidia]),
+        async_only=ArrayAttr([host]),
+        wait_operands_device_type=ArrayAttr([nvidia, host]),
+        wait_only=ArrayAttr([host]),
+    )
+    op.verify()
+
+    assert op.async_operands_device_type == ArrayAttr([nvidia])
+    assert op.async_only == ArrayAttr([host])
+    assert op.wait_operands_device_type == ArrayAttr([nvidia, host])
+    assert op.wait_only == ArrayAttr([host])
+
+
+def test_serial_unit_and_default_attrs():
+    """self_attr / combined accept bool shortcuts; default_attr accepts enum."""
+    op = acc.SerialOp(
+        region=Region(Block([acc.YieldOp()])),
+        self_attr=True,
+        default_attr=acc.ClauseDefaultValue.PRESENT,
+        combined=True,
+    )
+    op.verify()
+
+    assert isinstance(op.self_attr, UnitAttr)
+    assert isinstance(op.combined, UnitAttr)
+    assert op.default_attr == acc.ClauseDefaultValueAttr(acc.ClauseDefaultValue.PRESENT)
+
+    op_off = acc.SerialOp(region=Region(Block([acc.YieldOp()])))
+    assert op_off.self_attr is None
+    assert op_off.combined is None
+
+    op_explicit = acc.SerialOp(
+        region=Region(Block([acc.YieldOp()])),
+        self_attr=UnitAttr(),
+        default_attr=acc.ClauseDefaultValueAttr(acc.ClauseDefaultValue.NONE),
+        combined=UnitAttr(),
+    )
+    assert isinstance(op_explicit.self_attr, UnitAttr)
+    assert isinstance(op_explicit.combined, UnitAttr)
+    assert op_explicit.default_attr == acc.ClauseDefaultValueAttr(
+        acc.ClauseDefaultValue.NONE
+    )
+
+
+def test_kernels_init_bool_shortcuts():
+    """The bool-shortcut branch in KernelsOp.__init__ (self_attr=True / combined=True
+    / default_attr=enum) cannot be reached via the parser — filecheck would have to
+    pass already-constructed attributes — so this Python-only branch lives here."""
+    op = acc.KernelsOp(
+        region=Region(Block()),
+        self_attr=True,
+        default_attr=acc.ClauseDefaultValue.PRESENT,
+        combined=True,
+    )
+    op.verify()
+
+    assert isinstance(op.self_attr, UnitAttr)
+    assert isinstance(op.combined, UnitAttr)
+    assert op.default_attr == acc.ClauseDefaultValueAttr(acc.ClauseDefaultValue.PRESENT)
+
+    op_off = acc.KernelsOp(region=Region(Block()))
+    assert op_off.self_attr is None
+    assert op_off.combined is None

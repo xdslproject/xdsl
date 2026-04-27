@@ -60,6 +60,7 @@ from xdsl.traits import (
     HasParent,
     IsTerminator,
     NoMemoryEffect,
+    NoTerminator,
     RecursiveMemoryEffect,
     SingleBlockImplicitTerminator,
 )
@@ -753,6 +754,318 @@ class ParallelOp(IRDLOperation):
 
 
 @irdl_op_definition
+class SerialOp(IRDLOperation):
+    """
+    Implementation of upstream acc.serial.
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenACCDialect/#accserial-accserialop).
+    """
+
+    name = "acc.serial"
+
+    async_operands = var_operand_def(IntegerType | IndexType)
+    wait_operands = var_operand_def(IntegerType | IndexType)
+    if_cond = opt_operand_def(I1)
+    self_cond = opt_operand_def(I1)
+    reduction_operands = var_operand_def()
+    private_operands = var_operand_def()
+    firstprivate_operands = var_operand_def()
+    data_clause_operands = var_operand_def()
+
+    async_operands_device_type = opt_prop_def(
+        ArrayAttr[DeviceTypeAttr], prop_name="asyncOperandsDeviceType"
+    )
+    async_only = opt_prop_def(ArrayAttr[DeviceTypeAttr], prop_name="asyncOnly")
+    wait_operands_device_type = opt_prop_def(
+        ArrayAttr[DeviceTypeAttr], prop_name="waitOperandsDeviceType"
+    )
+    wait_operands_segments = opt_prop_def(
+        DenseArrayBase.constr(IntegerType(32)), prop_name="waitOperandsSegments"
+    )
+    has_wait_devnum = opt_prop_def(ArrayAttr[BoolAttr], prop_name="hasWaitDevnum")
+    wait_only = opt_prop_def(ArrayAttr[DeviceTypeAttr], prop_name="waitOnly")
+    self_attr = opt_prop_def(UnitAttr, prop_name="selfAttr")
+    default_attr = opt_prop_def(ClauseDefaultValueAttr, prop_name="defaultAttr")
+    combined = opt_prop_def(UnitAttr)
+
+    region = region_def("single_block")
+
+    irdl_options = (
+        AttrSizedOperandSegments(as_property=True),
+        ParsePropInAttrDict(),
+    )
+
+    custom_directives = (
+        DeviceTypeOperandsWithKeywordOnly,
+        WaitClause,
+    )
+
+    assembly_format = (
+        "(`combined` `(` `loop` `)` $combined^)?"
+        " (`dataOperands` `(` $data_clause_operands^ `:`"
+        " type($data_clause_operands) `)`)?"
+        " (`async` custom<DeviceTypeOperandsWithKeywordOnly>($async_operands,"
+        " type($async_operands), $asyncOperandsDeviceType, $asyncOnly)^)?"
+        " (`firstprivate` `(` $firstprivate_operands^ `:`"
+        " type($firstprivate_operands) `)`)?"
+        " (`private` `(` $private_operands^ `:`"
+        " type($private_operands) `)`)?"
+        " (`wait` custom<WaitClause>($wait_operands, type($wait_operands),"
+        " $waitOperandsDeviceType, $waitOperandsSegments, $hasWaitDevnum,"
+        " $waitOnly)^)?"
+        " (`self` `(` $self_cond^ `)`)?"
+        " (`if` `(` $if_cond^ `)`)?"
+        " (`reduction` `(` $reduction_operands^ `:`"
+        " type($reduction_operands) `)`)?"
+        " $region attr-dict-with-keyword"
+    )
+
+    traits = lazy_traits_def(
+        lambda: (
+            SingleBlockImplicitTerminator(YieldOp),
+            RecursiveMemoryEffect(),
+        )
+    )
+
+    def __init__(
+        self,
+        *,
+        region: Region,
+        async_operands: Sequence[SSAValue | Operation] = (),
+        wait_operands: Sequence[SSAValue | Operation] = (),
+        if_cond: SSAValue | Operation | None = None,
+        self_cond: SSAValue | Operation | None = None,
+        reduction_operands: Sequence[SSAValue | Operation] = (),
+        private_operands: Sequence[SSAValue | Operation] = (),
+        firstprivate_operands: Sequence[SSAValue | Operation] = (),
+        data_clause_operands: Sequence[SSAValue | Operation] = (),
+        async_operands_device_type: ArrayAttr[DeviceTypeAttr] | None = None,
+        async_only: ArrayAttr[DeviceTypeAttr] | None = None,
+        wait_operands_device_type: ArrayAttr[DeviceTypeAttr] | None = None,
+        wait_operands_segments: DenseArrayBase | None = None,
+        has_wait_devnum: ArrayAttr[BoolAttr] | None = None,
+        wait_only: ArrayAttr[DeviceTypeAttr] | None = None,
+        self_attr: UnitAttr | bool = False,
+        default_attr: ClauseDefaultValueAttr | ClauseDefaultValue | None = None,
+        combined: UnitAttr | bool = False,
+    ) -> None:
+        self_attr_prop: UnitAttr | None = (
+            (UnitAttr() if self_attr else None)
+            if isinstance(self_attr, bool)
+            else self_attr
+        )
+        combined_prop: UnitAttr | None = (
+            (UnitAttr() if combined else None)
+            if isinstance(combined, bool)
+            else combined
+        )
+        default_prop: ClauseDefaultValueAttr | None = (
+            ClauseDefaultValueAttr(default_attr)
+            if isinstance(default_attr, ClauseDefaultValue)
+            else default_attr
+        )
+        super().__init__(
+            operands=[
+                async_operands,
+                wait_operands,
+                [if_cond] if if_cond is not None else [],
+                [self_cond] if self_cond is not None else [],
+                reduction_operands,
+                private_operands,
+                firstprivate_operands,
+                data_clause_operands,
+            ],
+            properties={
+                "asyncOperandsDeviceType": async_operands_device_type,
+                "asyncOnly": async_only,
+                "waitOperandsDeviceType": wait_operands_device_type,
+                "waitOperandsSegments": wait_operands_segments,
+                "hasWaitDevnum": has_wait_devnum,
+                "waitOnly": wait_only,
+                "selfAttr": self_attr_prop,
+                "defaultAttr": default_prop,
+                "combined": combined_prop,
+            },
+            regions=[region],
+        )
+
+
+@irdl_op_definition
+class KernelsOp(IRDLOperation):
+    """
+    Implementation of upstream acc.kernels.
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenACCDialect/#acckernels-acckernelsop).
+    """
+
+    name = "acc.kernels"
+
+    async_operands = var_operand_def(IntegerType | IndexType)
+    wait_operands = var_operand_def(IntegerType | IndexType)
+    num_gangs = var_operand_def(IntegerType | IndexType)
+    num_workers = var_operand_def(IntegerType | IndexType)
+    vector_length = var_operand_def(IntegerType | IndexType)
+    if_cond = opt_operand_def(I1)
+    self_cond = opt_operand_def(I1)
+    reduction_operands = var_operand_def()
+    private_operands = var_operand_def()
+    firstprivate_operands = var_operand_def()
+    data_clause_operands = var_operand_def()
+
+    async_operands_device_type = opt_prop_def(
+        ArrayAttr[DeviceTypeAttr], prop_name="asyncOperandsDeviceType"
+    )
+    async_only = opt_prop_def(ArrayAttr[DeviceTypeAttr], prop_name="asyncOnly")
+    wait_operands_device_type = opt_prop_def(
+        ArrayAttr[DeviceTypeAttr], prop_name="waitOperandsDeviceType"
+    )
+    wait_operands_segments = opt_prop_def(
+        DenseArrayBase.constr(IntegerType(32)), prop_name="waitOperandsSegments"
+    )
+    has_wait_devnum = opt_prop_def(ArrayAttr[BoolAttr], prop_name="hasWaitDevnum")
+    wait_only = opt_prop_def(ArrayAttr[DeviceTypeAttr], prop_name="waitOnly")
+    num_gangs_segments = opt_prop_def(
+        DenseArrayBase.constr(IntegerType(32)), prop_name="numGangsSegments"
+    )
+    num_gangs_device_type = opt_prop_def(
+        ArrayAttr[DeviceTypeAttr], prop_name="numGangsDeviceType"
+    )
+    num_workers_device_type = opt_prop_def(
+        ArrayAttr[DeviceTypeAttr], prop_name="numWorkersDeviceType"
+    )
+    vector_length_device_type = opt_prop_def(
+        ArrayAttr[DeviceTypeAttr], prop_name="vectorLengthDeviceType"
+    )
+    self_attr = opt_prop_def(UnitAttr, prop_name="selfAttr")
+    default_attr = opt_prop_def(ClauseDefaultValueAttr, prop_name="defaultAttr")
+    combined = opt_prop_def(UnitAttr)
+
+    region = region_def()
+
+    irdl_options = (
+        AttrSizedOperandSegments(as_property=True),
+        ParsePropInAttrDict(),
+    )
+
+    custom_directives = (
+        DeviceTypeOperands,
+        NumGangs,
+        DeviceTypeOperandsWithKeywordOnly,
+        WaitClause,
+    )
+
+    # Upstream `acc.kernels` body uses `acc.terminator` rather than `acc.yield`
+    # That will be supported later, until that op exists we accept any (or empty)
+    # body via NoTerminator, mirroring upstream's `AnyRegion` modeling.
+    assembly_format = (
+        "(`combined` `(` `loop` `)` $combined^)?"
+        " (`dataOperands` `(` $data_clause_operands^ `:`"
+        " type($data_clause_operands) `)`)?"
+        " (`async` custom<DeviceTypeOperandsWithKeywordOnly>($async_operands,"
+        " type($async_operands), $asyncOperandsDeviceType, $asyncOnly)^)?"
+        " (`firstprivate` `(` $firstprivate_operands^ `:`"
+        " type($firstprivate_operands) `)`)?"
+        " (`num_gangs` `(` custom<NumGangs>($num_gangs, type($num_gangs),"
+        " $numGangsDeviceType, $numGangsSegments)^ `)`)?"
+        " (`num_workers` `(` custom<DeviceTypeOperands>($num_workers,"
+        " type($num_workers), $numWorkersDeviceType)^ `)`)?"
+        " (`private` `(` $private_operands^ `:`"
+        " type($private_operands) `)`)?"
+        " (`vector_length` `(` custom<DeviceTypeOperands>($vector_length,"
+        " type($vector_length), $vectorLengthDeviceType)^ `)`)?"
+        " (`wait` custom<WaitClause>($wait_operands, type($wait_operands),"
+        " $waitOperandsDeviceType, $waitOperandsSegments, $hasWaitDevnum,"
+        " $waitOnly)^)?"
+        " (`self` `(` $self_cond^ `)`)?"
+        " (`if` `(` $if_cond^ `)`)?"
+        " (`reduction` `(` $reduction_operands^ `:`"
+        " type($reduction_operands) `)`)?"
+        " $region attr-dict-with-keyword"
+    )
+
+    traits = lazy_traits_def(
+        lambda: (
+            NoTerminator(),
+            RecursiveMemoryEffect(),
+        )
+    )
+
+    def __init__(
+        self,
+        *,
+        region: Region,
+        async_operands: Sequence[SSAValue | Operation] = (),
+        wait_operands: Sequence[SSAValue | Operation] = (),
+        num_gangs: Sequence[SSAValue | Operation] = (),
+        num_workers: Sequence[SSAValue | Operation] = (),
+        vector_length: Sequence[SSAValue | Operation] = (),
+        if_cond: SSAValue | Operation | None = None,
+        self_cond: SSAValue | Operation | None = None,
+        reduction_operands: Sequence[SSAValue | Operation] = (),
+        private_operands: Sequence[SSAValue | Operation] = (),
+        firstprivate_operands: Sequence[SSAValue | Operation] = (),
+        data_clause_operands: Sequence[SSAValue | Operation] = (),
+        async_operands_device_type: ArrayAttr[DeviceTypeAttr] | None = None,
+        async_only: ArrayAttr[DeviceTypeAttr] | None = None,
+        wait_operands_device_type: ArrayAttr[DeviceTypeAttr] | None = None,
+        wait_operands_segments: DenseArrayBase | None = None,
+        has_wait_devnum: ArrayAttr[BoolAttr] | None = None,
+        wait_only: ArrayAttr[DeviceTypeAttr] | None = None,
+        num_gangs_segments: DenseArrayBase | None = None,
+        num_gangs_device_type: ArrayAttr[DeviceTypeAttr] | None = None,
+        num_workers_device_type: ArrayAttr[DeviceTypeAttr] | None = None,
+        vector_length_device_type: ArrayAttr[DeviceTypeAttr] | None = None,
+        self_attr: UnitAttr | bool = False,
+        default_attr: ClauseDefaultValueAttr | ClauseDefaultValue | None = None,
+        combined: UnitAttr | bool = False,
+    ) -> None:
+        self_attr_prop: UnitAttr | None = (
+            (UnitAttr() if self_attr else None)
+            if isinstance(self_attr, bool)
+            else self_attr
+        )
+        combined_prop: UnitAttr | None = (
+            (UnitAttr() if combined else None)
+            if isinstance(combined, bool)
+            else combined
+        )
+        default_prop: ClauseDefaultValueAttr | None = (
+            ClauseDefaultValueAttr(default_attr)
+            if isinstance(default_attr, ClauseDefaultValue)
+            else default_attr
+        )
+        super().__init__(
+            operands=[
+                async_operands,
+                wait_operands,
+                num_gangs,
+                num_workers,
+                vector_length,
+                [if_cond] if if_cond is not None else [],
+                [self_cond] if self_cond is not None else [],
+                reduction_operands,
+                private_operands,
+                firstprivate_operands,
+                data_clause_operands,
+            ],
+            properties={
+                "asyncOperandsDeviceType": async_operands_device_type,
+                "asyncOnly": async_only,
+                "waitOperandsDeviceType": wait_operands_device_type,
+                "waitOperandsSegments": wait_operands_segments,
+                "hasWaitDevnum": has_wait_devnum,
+                "waitOnly": wait_only,
+                "numGangsSegments": num_gangs_segments,
+                "numGangsDeviceType": num_gangs_device_type,
+                "numWorkersDeviceType": num_workers_device_type,
+                "vectorLengthDeviceType": vector_length_device_type,
+                "selfAttr": self_attr_prop,
+                "defaultAttr": default_prop,
+                "combined": combined_prop,
+            },
+            regions=[region],
+        )
+
+
+@irdl_op_definition
 class YieldOp(AbstractYieldOperation[Attribute]):
     """
     Implementation of upstream acc.yield.
@@ -765,7 +1078,7 @@ class YieldOp(AbstractYieldOperation[Attribute]):
         lambda: (
             IsTerminator(),
             NoMemoryEffect(),
-            HasParent(ParallelOp),
+            HasParent(ParallelOp, SerialOp),
         )
     )
 
@@ -774,6 +1087,8 @@ ACC = Dialect(
     "acc",
     [
         ParallelOp,
+        SerialOp,
+        KernelsOp,
         YieldOp,
     ],
     [
