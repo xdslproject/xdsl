@@ -270,7 +270,7 @@ class AttrParser(BaseParser):
                 self.lexer.pos = gt_pos
                 self._parser_state.current_token = self.lexer.lex()
             elif self._current_token.kind != MLIRTokenKind.LESS:
-                return attr_def(attr_name, is_type, is_opaque, "")
+                body = ""
             else:
                 body = self._parse_dialect_symbol_body()
             return attr_def(attr_name, is_type, is_opaque, body)
