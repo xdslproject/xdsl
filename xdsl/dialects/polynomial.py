@@ -19,6 +19,7 @@ from xdsl.dialects.builtin import (
     ArrayAttr,
     ContainerOf,
     FloatAttr,
+    StringAttr,
     f64,
 )
 from xdsl.ir import (
@@ -30,6 +31,7 @@ from xdsl.ir import (
 from xdsl.irdl import (
     IRDLOperation,
     VarConstraint,
+    attr_def,
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
@@ -40,6 +42,20 @@ from xdsl.irdl import (
 )
 from xdsl.traits import Pure, SameOperandsAndResultType
 from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.str_enum import StrEnum
+
+
+class EvalScheme(StrEnum):
+    """
+    Evaluation scheme used to lower a `polynomial.eval` op to arithmetic ops.
+
+    Stored on the op as a builtin string attribute so that compilers like HEIR
+    that don't know about this xDSL extension can preserve it on round-trip
+    (the same way they ignore `domain_lower`/`domain_upper`).
+    """
+
+    CLENSHAW = "clenshaw"
+    PATERSON_STOCKMEYER = "paterson_stockmeyer"
 
 
 @irdl_attr_definition
@@ -84,16 +100,23 @@ class EvalOp(IRDLOperation):
 
     This op is *unevaluated* -- it carries all information needed for:
       - Cost estimation (degree, accuracy from coefficients)
-      - Later lowering to arithmetic ops (Clenshaw's algorithm)
+      - Later lowering to arithmetic ops, dispatched on `scheme`
+
+    The `scheme` attribute selects the evaluation algorithm used during
+    expansion (e.g. Clenshaw, Paterson-Stockmeyer). It is stored as a
+    builtin string attribute (not a custom dialect attribute) so that
+    HEIR-compatible round-trip works: HEIR doesn't know about it but
+    preserves it like any other discardable attribute.
 
     The optional domain_lower/domain_upper attributes specify the input
-    domain for Clenshaw evaluation. During lowering, the input value is
-    mapped from [lower, upper] to [-1, 1] before evaluation.
+    domain for schemes that need to rescale the input from [lower, upper]
+    to [-1, 1].
 
     Example:
         %result = polynomial.eval
             #polynomial.chebyshev_polynomial<[0.5 : f64, 1.2 : f64]>,
-            %x {domain_lower = -1.0 : f64, domain_upper = 1.0 : f64}
+            %x {scheme = "clenshaw",
+                domain_lower = -1.0 : f64, domain_upper = 1.0 : f64}
             : f32
     """
 
@@ -106,6 +129,7 @@ class EvalOp(IRDLOperation):
 
     polynomial = prop_def(ChebyshevPolynomialAttr)
 
+    scheme = attr_def(StringAttr)
     domain_lower = opt_attr_def(FloatAttr)
     domain_upper = opt_attr_def(FloatAttr)
 
@@ -117,11 +141,17 @@ class EvalOp(IRDLOperation):
         self,
         value: Operation | SSAValue,
         polynomial: ChebyshevPolynomialAttr | tuple[float, ...],
+        scheme: StringAttr | EvalScheme | str,
         domain_lower: float | FloatAttr | None = None,
         domain_upper: float | FloatAttr | None = None,
     ):
         if not isinstance(polynomial, ChebyshevPolynomialAttr):
             polynomial = ChebyshevPolynomialAttr(polynomial)
+
+        if isinstance(scheme, EvalScheme):
+            scheme = StringAttr(scheme.value)
+        elif isinstance(scheme, str):
+            scheme = StringAttr(scheme)
 
         value = SSAValue.get(value)
 
@@ -130,7 +160,7 @@ class EvalOp(IRDLOperation):
         if isinstance(domain_upper, (int, float)):
             domain_upper = FloatAttr(float(domain_upper), f64)
 
-        attrs: dict[str, FloatAttr] = {}
+        attrs: dict[str, StringAttr | FloatAttr] = {"scheme": scheme}
         if domain_lower is not None:
             attrs["domain_lower"] = domain_lower
         if domain_upper is not None:
@@ -159,10 +189,23 @@ class EvalOp(IRDLOperation):
                 "Chebyshev polynomial must have at least degree 1 "
                 f"(got {self.polynomial.degree + 1} coefficients)"
             )
+        try:
+            EvalScheme(self.scheme.data)
+        except ValueError:
+            valid = ", ".join(repr(s.value) for s in EvalScheme)
+            raise VerifyException(
+                f"unknown evaluation scheme {self.scheme.data!r}; "
+                f"expected one of: {valid}"
+            )
 
     @property
     def degree(self) -> int:
         return self.polynomial.degree
+
+    @property
+    def eval_scheme(self) -> EvalScheme:
+        """Return the scheme as an EvalScheme enum."""
+        return EvalScheme(self.scheme.data)
 
 
 Polynomial = Dialect(
