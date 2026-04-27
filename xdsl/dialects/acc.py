@@ -952,8 +952,8 @@ class KernelsOp(IRDLOperation):
         WaitClause,
     )
 
-    # Upstream `acc.kernels` body uses `acc.terminator` (which lands in PR 9)
-    # rather than `acc.yield`; until that op exists we accept any (or empty)
+    # Upstream `acc.kernels` body uses `acc.terminator` rather than `acc.yield`
+    # That will be supported later, until that op exists we accept any (or empty)
     # body via NoTerminator, mirroring upstream's `AnyRegion` modeling.
     assembly_format = (
         "(`combined` `(` `loop` `)` $combined^)?"
