@@ -96,7 +96,7 @@ class JITContext:
     ) -> McJitKeepalive[[float, float], float]:
         parsed_program = self.pyast_ctx.parse_program(func)
         module = convert_module(parsed_program.module)
-        return mcjit_f64_f64_f64_binary(module, "test_addi_overload")
+        return mcjit_f64_f64_f64_binary(module, "plus")
 
 
 # Test
@@ -105,16 +105,16 @@ ctx = JITContext()
 
 
 @ctx.jit
-def test_addi_overload(a: float, b: float) -> float:
+def plus(a: float, b: float) -> float:
     return a + b
 
 
-# CHECK: test_addi_overload(2.0, 2.0) = 4.0
-# CHECK: test_addi_overload(3.0, 4.0) = 7.0
-print(f"{test_addi_overload(2.0, 2.0) = }")
-print(f"{test_addi_overload(3.0, 4.0) = }")
+# CHECK: plus(2.0, 2.0) = 4.0
+# CHECK: plus(3.0, 4.0) = 7.0
+print(f"{plus(2.0, 2.0) = }")
+print(f"{plus(3.0, 4.0) = }")
 
-# CHECK: test_addi_overload.func(2.0, 2.0) = 4.0
-# CHECK: test_addi_overload.func(3.0, 4.0) = 7.0
-print(f"{test_addi_overload.func(2.0, 2.0) = }")
-print(f"{test_addi_overload.func(3.0, 4.0) = }")
+# CHECK: plus.func(2.0, 2.0) = 4.0
+# CHECK: plus.func(3.0, 4.0) = 7.0
+print(f"{plus.func(2.0, 2.0) = }")
+print(f"{plus.func(3.0, 4.0) = }")
