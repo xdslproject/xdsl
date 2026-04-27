@@ -4,7 +4,7 @@ import pytest
 
 from xdsl.builder import Builder, ImplicitBuilder
 from xdsl.dialects import func, riscv, riscv_scf, rv32
-from xdsl.dialects.builtin import IndexType, ModuleOp
+from xdsl.dialects.builtin import IndexType, IntegerAttr, ModuleOp
 from xdsl.dialects.test import TestOp
 from xdsl.interpreter import Interpreter, OpImplResult
 from xdsl.interpreters.func import FuncFunctions
@@ -119,5 +119,22 @@ def test_for_dynamic():
     assert RiscvScfFunctions().run_for(
         interpreter, result, (1, 5, 3, 1)
     ) == OpImplResult((99,), None)
+    interpreter.run_ssacfg_region.assert_called_with(body, (4, 99), "for_loop")
+    assert interpreter.run_ssacfg_region.call_count == 2
+
+
+def test_for_static():
+    r = riscv.Registers.UNALLOCATED_INT
+    lb, ub, initial = TestOp(result_types=(r,) * 3).results
+    body = Region(Block(arg_types=(r, r)))
+
+    result = riscv_scf.ForOp(lb, ub, IntegerAttr(3, riscv.si12), (initial,), body)
+
+    interpreter = Mock(spec=Interpreter)
+    interpreter.run_ssacfg_region = Mock(return_value=(99,))
+
+    assert RiscvScfFunctions().run_for(interpreter, result, (1, 5, 1)) == OpImplResult(
+        (99,), None
+    )
     interpreter.run_ssacfg_region.assert_called_with(body, (4, 99), "for_loop")
     assert interpreter.run_ssacfg_region.call_count == 2

@@ -1,4 +1,4 @@
-// RUN: xdsl-opt -p riscv-scf-loop-range-folding %s | filecheck %s
+// RUN: xdsl-opt -p riscv-scf-loop-range-folding --split-input-file --verify-diagnostics %s | filecheck %s
 
 // CHECK:       builtin.module {
 
@@ -53,3 +53,15 @@ riscv_scf.for %2 : !riscv.reg = %lb to %ub step %step {
 // CHECK-NEXT:      "test.op"(%{{.*}}, %{{.*}}) : (!riscv.reg, !riscv.reg) -> ()
 // CHECK-NEXT:    }
 // CHECK-NEXT:  }
+
+// -----
+
+%lb, %ub, %step = "test.op"() : () -> (!riscv.reg, !riscv.reg, !riscv.reg)
+
+// Static step: folding mul scales the IntegerAttr step
+riscv_scf.for %k : !riscv.reg = %lb to %ub step 2 : si12 {
+    %f = rv32.li 3 : !riscv.reg
+    %p = riscv.mul %k, %f : (!riscv.reg, !riscv.reg) -> !riscv.reg
+    "test.op"(%p) : (!riscv.reg) -> ()
+}
+// CHECK:    Error while applying pattern: Folding riscv_scf loops with constant step not yet implemented.

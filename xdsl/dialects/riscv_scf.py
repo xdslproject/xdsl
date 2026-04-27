@@ -13,6 +13,7 @@ from typing_extensions import Self
 from xdsl.backend.register_allocatable import RegisterAllocatableOperation
 from xdsl.backend.register_allocator import BlockAllocator
 from xdsl.backend.register_type import RegisterType
+from xdsl.dialects.builtin import IntegerAttr, IntegerType
 from xdsl.dialects.riscv import IntRegisterType, RISCVRegisterType
 from xdsl.dialects.utils import (
     AbstractYieldOperation,
@@ -21,6 +22,7 @@ from xdsl.dialects.utils import (
 )
 from xdsl.ir import Attribute, Dialect
 from xdsl.irdl import (
+    AttrSizedOperandSegments,
     Block,
     IRDLOperation,
     Operation,
@@ -29,6 +31,8 @@ from xdsl.irdl import (
     irdl_op_definition,
     lazy_traits_def,
     operand_def,
+    opt_operand_def,
+    opt_prop_def,
     region_def,
     traits_def,
     var_operand_def,
@@ -57,7 +61,8 @@ class YieldOp(AbstractYieldOperation[RISCVRegisterType]):
 class ForRofOperation(RegisterAllocatableOperation, IRDLOperation, ABC):
     lb = operand_def(IntRegisterType)
     ub = operand_def(IntRegisterType)
-    step = operand_def(IntRegisterType)
+    step_val = opt_operand_def(IntRegisterType)
+    step_attr = opt_prop_def(IntegerAttr[IntegerType])
 
     iter_args = var_operand_def(RISCVRegisterType)
 
@@ -66,25 +71,50 @@ class ForRofOperation(RegisterAllocatableOperation, IRDLOperation, ABC):
     body = region_def("single_block")
 
     traits = traits_def(SingleBlockImplicitTerminator(YieldOp))
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
+
+    @property
+    def step(self) -> IntegerAttr[IntegerType] | SSAValue:
+        """Static step (typed integer) or dynamic register SSA value."""
+        if self.step_attr is not None:
+            return self.step_attr
+        else:
+            assert self.step_val is not None, (
+                "Exactly one of step_attr or step_val must be set"
+            )
+            return self.step_val
 
     def __init__(
         self,
         lb: SSAValue | Operation,
         ub: SSAValue | Operation,
-        step: SSAValue | Operation,
+        step: SSAValue | Operation | IntegerAttr,
         iter_args: Sequence[SSAValue | Operation],
         body: Region | Sequence[Operation] | Sequence[Block] | Block,
     ):
         if isinstance(body, Block):
             body = [body]
 
+        if isinstance(step, IntegerAttr):
+            step_attr = step
+            step_val = None
+        else:
+            step_attr = None
+            step_val = step
+
         super().__init__(
-            operands=[lb, ub, step, iter_args],
+            operands=[lb, ub, step_val, iter_args],
+            properties={"step_attr": step_attr},
             result_types=[[SSAValue.get(a).type for a in iter_args]],
             regions=[body],
         )
 
     def verify_(self):
+        if (self.step_attr is None) == (self.step_val is None):
+            raise VerifyException(
+                "Exactly one of step_attr (static) or step_val (dynamic) must be set, "
+                f"got step_attr={self.step_attr}, step_val={self.step_val}"
+            )
         if (len(self.iter_args) + 1) != len(self.body.block.args):
             raise VerifyException(
                 f"Wrong number of block arguments, expected {len(self.iter_args) + 1}, got "
@@ -152,9 +182,10 @@ class ForRofOperation(RegisterAllocatableOperation, IRDLOperation, ABC):
         # Induction variable
         allocator.allocate_value(block_args[0])
 
-        # Step and ub are used throughout loop
+        # ub is used throughout the loop; step_val only when dynamic
         allocator.allocate_value(self.ub)
-        allocator.allocate_value(self.step)
+        if self.step_val is not None:
+            allocator.allocate_value(self.step_val)
 
         # Reserve the loop carried variables for allocation within the body
         regs = self.iter_args.types
@@ -189,7 +220,9 @@ class ForOp(ForRofOperation):
 
     @classmethod
     def parse(cls, parser: Parser) -> Self:
-        lb, ub, step, iter_arg_operands, body = parse_for_op_like(parser)
+        lb, ub, step, iter_arg_operands, body = parse_for_op_like(
+            parser, allow_static_step=True
+        )
         _, *iter_args = body.block.args
 
         for_op = cls(lb, ub, step, iter_arg_operands, body)
@@ -233,7 +266,7 @@ class RofOp(ForRofOperation):
     @classmethod
     def parse(cls, parser: Parser) -> Self:
         ub, lb, step, iter_arg_operands, body = parse_for_op_like(
-            parser, bound_words=["down", "to"]
+            parser, bound_words=["down", "to"], allow_static_step=True
         )
         _, *iter_args = body.block.args
 

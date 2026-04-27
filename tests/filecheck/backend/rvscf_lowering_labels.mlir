@@ -1,4 +1,4 @@
-// RUN: xdsl-opt -p lower-riscv-scf-to-labels --split-input-file %s | filecheck %s
+// RUN: xdsl-opt -p lower-riscv-scf-to-labels --split-input-file --verify-diagnostics %s | filecheck %s
 
 // sum(range(arg0, arg1))
 
@@ -128,3 +128,15 @@ builtin.module {
 // CHECK-NEXT:      riscv_func.return %12 : !riscv.reg<a1>
 // CHECK-NEXT:    }
 // CHECK-NEXT:  }
+
+// -----
+
+%lb, %ub = "test.op"() : () -> (!riscv.reg<a0>, !riscv.reg<a1>)
+%acc = rv32.li 0 : !riscv.reg<a2>
+%res = riscv_scf.for %i : !riscv.reg<a3> = %lb to %ub step 2 : si12 iter_args(%v = %acc) -> (!riscv.reg<a2>) {
+    %next = riscv.add %i, %v : (!riscv.reg<a3>, !riscv.reg<a2>) -> !riscv.reg<a2>
+    riscv_scf.yield %next : !riscv.reg<a2>
+}
+"test.op"(%res) : (!riscv.reg<a2>) -> ()
+
+// CHECK: Error while applying pattern: Lowering riscv_scf loops with constant step not yet implemented.

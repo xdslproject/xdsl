@@ -2,6 +2,8 @@ from itertools import chain
 
 from xdsl.context import Context
 from xdsl.dialects import builtin, riscv, riscv_scf, riscv_snitch, rv32, snitch
+from xdsl.dialects.builtin import IntAttr, IntegerAttr
+from xdsl.ir import SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -21,13 +23,19 @@ class ScfForLowering(RewritePattern):
             # 1. Induction variable is used
             return
 
-        if not (
-            isinstance(step_op := op.step.owner, rv32.LiOp)
-            and isinstance(step_op.immediate, builtin.IntegerAttr)
-            and step_op.immediate.value.data == 1
-        ):
-            # 2. Step is 1
-            return
+        match op.step:
+            case IntegerAttr(value=IntAttr(1)):
+                pass
+            case step_ssa if (
+                isinstance(step_ssa, SSAValue)
+                and isinstance(step_op := step_ssa.owner, rv32.LiOp)
+                and isinstance(step_op.immediate, builtin.IntegerAttr)
+                and step_op.immediate.value.data == 1
+            ):
+                pass
+            case _:
+                # 2. Step is 1
+                return
 
         if not all(
             isinstance(

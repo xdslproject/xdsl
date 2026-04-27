@@ -8,6 +8,7 @@ from xdsl.pattern_rewriter import (
     op_type_rewrite_pattern,
 )
 from xdsl.transforms.canonicalization_patterns.riscv import get_constant_value
+from xdsl.utils.exceptions import PassFailedException
 
 
 class HoistIndexTimesConstantOp(RewritePattern):
@@ -48,15 +49,22 @@ class HoistIndexTimesConstantOp(RewritePattern):
                     )
                 case riscv.MulOp():
                     # All the uses are multiplications by a constant, we can fold
+                    step_attr = op.step_attr
+                    if step_attr is not None:
+                        raise PassFailedException(
+                            "Folding riscv_scf loops with constant step not yet "
+                            "implemented."
+                        )
+
                     rewriter.insert_op(
                         [
                             factor := rv32.LiOp(constant),
                             new_lb := riscv.MulOp(op.lb, factor),
                             new_ub := riscv.MulOp(op.ub, factor),
-                            new_step := riscv.MulOp(op.step, factor),
                         ]
                     )
-
+                    assert op.step_val is not None
+                    rewriter.insert_op(new_step := riscv.MulOp(op.step_val, factor))
                     op.operands[2] = new_step.rd
 
             op.operands[0] = new_lb.rd

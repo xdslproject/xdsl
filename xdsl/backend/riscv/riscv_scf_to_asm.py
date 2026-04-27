@@ -2,6 +2,7 @@ from collections.abc import Iterator, Sequence
 
 from xdsl.context import Context
 from xdsl.dialects import builtin, riscv, riscv_scf, rv32
+from xdsl.dialects.builtin import IntegerAttr
 from xdsl.ir import SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
@@ -11,6 +12,7 @@ from xdsl.pattern_rewriter import (
     op_type_rewrite_pattern,
 )
 from xdsl.rewriter import InsertPoint
+from xdsl.utils.exceptions import PassFailedException
 
 
 def get_register_ops_from_values(
@@ -69,9 +71,17 @@ class LowerRiscvScfToLabels(RewritePattern):
         yield_op = body.last_op
         assert isinstance(yield_op, riscv_scf.YieldOp)
 
+        match op.step:
+            case IntegerAttr():
+                raise PassFailedException(
+                    "Lowering riscv_scf loops with constant step not yet implemented."
+                )
+            case _:
+                step_add_op = riscv.AddOp(get_loop_var, op.step, rd=loop_var_reg)
+
         rewriter.insert_op(
             [
-                riscv.AddOp(get_loop_var, op.step, rd=loop_var_reg),
+                step_add_op,
                 riscv.BltOp(get_loop_var, op.ub, scf_body),
                 riscv.LabelOp(scf_body_end),
             ],

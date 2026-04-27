@@ -1,4 +1,4 @@
-// RUN: xdsl-opt -p convert-riscv-scf-to-riscv-cf --split-input-file %s | filecheck %s
+// RUN: xdsl-opt -p convert-riscv-scf-to-riscv-cf --split-input-file --verify-diagnostics %s | filecheck %s
 
 
 builtin.module {
@@ -123,3 +123,21 @@ builtin.module {
 // CHECK-NEXT:      riscv_func.return %14 : !riscv.reg<a1>
 // CHECK-NEXT:    }
 // CHECK-NEXT:  }
+
+// -----
+
+
+riscv_func.func @static_step_loop_example(%src: !riscv.reg<a0>, %dst: !riscv.reg<a1>) {
+    %zero = rv32.li 0 : !riscv.reg<a2>
+    %forty = rv32.li 40 : !riscv.reg<a4>
+    riscv_scf.for %offset : !riscv.reg<a5> = %zero to %forty step 4 : si12 {
+        %srcptr = riscv.add %src, %offset : (!riscv.reg<a0>, !riscv.reg<a5>) -> !riscv.reg<a6>
+        %dstptr = riscv.add %dst, %offset : (!riscv.reg<a1>, !riscv.reg<a5>) -> !riscv.reg<a7>
+        %val = riscv.lw %srcptr, 0 : (!riscv.reg<a6>) -> !riscv.reg<t0>
+        riscv.sw %dstptr, %val, 0 : (!riscv.reg<a7>, !riscv.reg<t0>) -> ()
+        riscv_scf.yield
+    }
+    riscv_func.return
+}
+
+// CHECK: Error while applying pattern: Lowering riscv_scf loops with constant step not yet implemented.

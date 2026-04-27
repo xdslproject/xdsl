@@ -1,5 +1,6 @@
 from xdsl.context import Context
 from xdsl.dialects import builtin, riscv, riscv_cf, riscv_scf
+from xdsl.dialects.builtin import IntegerAttr
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     PatternRewriter,
@@ -8,6 +9,7 @@ from xdsl.pattern_rewriter import (
     op_type_rewrite_pattern,
 )
 from xdsl.rewriter import BlockInsertPoint, InsertPoint
+from xdsl.utils.exceptions import PassFailedException
 
 
 class LowerRiscvScfForPattern(RewritePattern):
@@ -104,10 +106,18 @@ class LowerRiscvScfForPattern(RewritePattern):
         yield_op = last_body_block.last_op
         assert isinstance(yield_op, riscv_scf.YieldOp)
 
+        match op.step:
+            case IntegerAttr():
+                raise PassFailedException(
+                    "Lowering riscv_scf loops with constant step not yet implemented."
+                )
+            case _:
+                add_op = riscv.AddOp(iv, op.step, rd=iv_reg)
+
         rewriter.replace_op(
             yield_op,
             (
-                add_op := riscv.AddOp(iv, op.step, rd=iv_reg),
+                add_op,
                 riscv_cf.BltOp(
                     add_op.rd,
                     op.ub,
