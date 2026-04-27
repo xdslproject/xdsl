@@ -331,3 +331,24 @@ def test_serial_unit_and_default_attrs():
     assert op_explicit.default_attr == acc.ClauseDefaultValueAttr(
         acc.ClauseDefaultValue.NONE
     )
+
+
+def test_kernels_init_bool_shortcuts():
+    """The bool-shortcut branch in KernelsOp.__init__ (self_attr=True / combined=True
+    / default_attr=enum) cannot be reached via the parser — filecheck would have to
+    pass already-constructed attributes — so this Python-only branch lives here."""
+    op = acc.KernelsOp(
+        region=Region(Block()),
+        self_attr=True,
+        default_attr=acc.ClauseDefaultValue.PRESENT,
+        combined=True,
+    )
+    op.verify()
+
+    assert isinstance(op.self_attr, UnitAttr)
+    assert isinstance(op.combined, UnitAttr)
+    assert op.default_attr == acc.ClauseDefaultValueAttr(acc.ClauseDefaultValue.PRESENT)
+
+    op_off = acc.KernelsOp(region=Region(Block()))
+    assert op_off.self_attr is None
+    assert op_off.combined is None

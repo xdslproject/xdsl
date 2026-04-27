@@ -287,4 +287,134 @@ builtin.module {
   // CHECK:         acc.serial combined(loop) async(%{{.*}} : i64) wait({%{{.*}} : i64}) self(%{{.*}}) if(%{{.*}}) {
   // CHECK-NEXT:      acc.yield
   // CHECK-NEXT:    } attributes {defaultAttr = #acc<defaultvalue present>, selfAttr}
+
+  // acc.kernels models upstream's `AnyRegion` body (NoTerminator); upstream
+  // mlir-opt rejects acc.yield inside acc.kernels (yield's ParentOneOf list
+  // excludes KernelsOp), so all bodies here are empty until acc.terminator
+  // is introduced later in the roadmap.
+  func.func @kernels_empty() {
+    acc.kernels {
+    }
+    func.return
+  }
+  // CHECK:       func.func @kernels_empty() {
+  // CHECK-NEXT:    acc.kernels {
+  // CHECK-NEXT:    }
+
+  func.func @kernels_self_if(%c : i1) {
+    acc.kernels self(%c) if(%c) {
+    }
+    func.return
+  }
+  // CHECK:       func.func @kernels_self_if(
+  // CHECK:         acc.kernels self(%{{.*}}) if(%{{.*}}) {
+  // CHECK-NEXT:    }
+
+  func.func @kernels_combined_default_self() {
+    acc.kernels combined(loop) {
+    } attributes {defaultAttr = #acc<defaultvalue present>, selfAttr}
+    func.return
+  }
+  // CHECK:       func.func @kernels_combined_default_self() {
+  // CHECK-NEXT:    acc.kernels combined(loop) {
+  // CHECK-NEXT:    } attributes {defaultAttr = #acc<defaultvalue present>, selfAttr}
+
+  func.func @kernels_async_bare() {
+    acc.kernels async {
+    }
+    func.return
+  }
+  // CHECK:       func.func @kernels_async_bare() {
+  // CHECK-NEXT:    acc.kernels async {
+  // CHECK-NEXT:    }
+
+  func.func @kernels_async_one_operand(%a : i64) {
+    acc.kernels async(%a : i64) {
+    }
+    func.return
+  }
+  // CHECK:       func.func @kernels_async_one_operand(
+  // CHECK:         acc.kernels async(%{{.*}} : i64) {
+  // CHECK-NEXT:    }
+
+  func.func @kernels_async_operand_with_dt(%a : i64) {
+    acc.kernels async(%a : i64 [#acc.device_type<default>]) {
+    }
+    func.return
+  }
+  // CHECK:       func.func @kernels_async_operand_with_dt(
+  // CHECK:         acc.kernels async(%{{.*}} : i64 [#acc.device_type<default>]) {
+  // CHECK-NEXT:    }
+
+  func.func @kernels_num_gangs_single(%a : i32) {
+    acc.kernels num_gangs({%a : i32}) {
+    }
+    func.return
+  }
+  // CHECK:       func.func @kernels_num_gangs_single(
+  // CHECK:         acc.kernels num_gangs({%{{.*}} : i32}) {
+  // CHECK-NEXT:    }
+
+  func.func @kernels_num_gangs_multi_dt(%a : i32, %b : i32, %c : i32) {
+    acc.kernels num_gangs({%a : i32} [#acc.device_type<default>], {%b : i32, %c : i32} [#acc.device_type<nvidia>]) {
+    }
+    func.return
+  }
+  // CHECK:       func.func @kernels_num_gangs_multi_dt(
+  // CHECK:         acc.kernels num_gangs({%{{.*}} : i32} [#acc.device_type<default>], {%{{.*}} : i32, %{{.*}} : i32} [#acc.device_type<nvidia>]) {
+  // CHECK-NEXT:    }
+
+  func.func @kernels_num_workers_vector_length(%a : i64, %b : i32, %c : i32) {
+    acc.kernels num_workers(%a : i64 [#acc.device_type<default>], %b : i32 [#acc.device_type<nvidia>]) vector_length(%c : i32) {
+    }
+    func.return
+  }
+  // CHECK:       func.func @kernels_num_workers_vector_length(
+  // CHECK:         acc.kernels num_workers(%{{.*}} : i64 [#acc.device_type<default>], %{{.*}} : i32 [#acc.device_type<nvidia>]) vector_length(%{{.*}} : i32) {
+  // CHECK-NEXT:    }
+
+  func.func @kernels_wait_bare() {
+    acc.kernels wait {
+    }
+    func.return
+  }
+  // CHECK:       func.func @kernels_wait_bare() {
+  // CHECK-NEXT:    acc.kernels wait {
+  // CHECK-NEXT:    }
+
+  func.func @kernels_wait_group(%a : i64, %b : i32) {
+    acc.kernels wait({%a : i64, %b : i32}) {
+    }
+    func.return
+  }
+  // CHECK:       func.func @kernels_wait_group(
+  // CHECK:         acc.kernels wait({%{{.*}} : i64, %{{.*}} : i32}) {
+  // CHECK-NEXT:    }
+
+  func.func @kernels_wait_devnum(%a : i64, %b : i32) {
+    acc.kernels wait({devnum: %a : i64, %b : i32}) {
+    }
+    func.return
+  }
+  // CHECK:       func.func @kernels_wait_devnum(
+  // CHECK:         acc.kernels wait({devnum: %{{.*}} : i64, %{{.*}} : i32}) {
+  // CHECK-NEXT:    }
+
+  func.func @kernels_wait_mixed(%a : i64, %b : i32) {
+    acc.kernels wait([#acc.device_type<nvidia>], {devnum: %a : i64, %b : i32} [#acc.device_type<default>]) {
+    }
+    func.return
+  }
+  // CHECK:       func.func @kernels_wait_mixed(
+  // CHECK:         acc.kernels wait([#acc.device_type<nvidia>], {devnum: %{{.*}} : i64, %{{.*}} : i32} [#acc.device_type<default>]) {
+  // CHECK-NEXT:    }
+
+  func.func @kernels_test_entire(%c : i1, %a : i32, %b : i64) {
+    acc.kernels combined(loop) async(%b : i64) num_workers(%b : i64) vector_length(%a : i32) wait({%b : i64}) self(%c) if(%c) {
+    } attributes {defaultAttr = #acc<defaultvalue present>, selfAttr}
+    func.return
+  }
+  // CHECK:       func.func @kernels_test_entire(
+  // CHECK:         acc.kernels combined(loop) async(%{{.*}} : i64) num_workers(%{{.*}} : i64) vector_length(%{{.*}} : i32) wait({%{{.*}} : i64}) self(%{{.*}}) if(%{{.*}}) {
+  // CHECK-NEXT:    } attributes {defaultAttr = #acc<defaultvalue present>, selfAttr}
 }

@@ -433,4 +433,189 @@ builtin.module {
   // CHECK:         acc.serial wait({%{{.*}} : i32, %{{.*}} : i32}) {
   // CHECK-NEXT:      acc.yield
   // CHECK-NEXT:    }
+
+  // acc.kernels uses the upstream `NoTerminator` body shape: the body can
+  // be empty or contain ops that lower to a kernels region. acc.yield is
+  // *not* a valid terminator inside acc.kernels (upstream's acc.yield
+  // ParentOneOf list excludes KernelsOp); the dedicated acc.terminator op
+  // lands later in the roadmap.
+  func.func @kernels_empty() {
+    acc.kernels {
+    }
+    func.return
+  }
+  // CHECK-LABEL: func.func @kernels_empty() {
+  // CHECK-NEXT:    acc.kernels {
+  // CHECK-NEXT:    }
+
+  func.func @kernels_if_self(%c1 : i1) {
+    acc.kernels self(%c1) if(%c1) {
+    }
+    func.return
+  }
+  // CHECK-LABEL: func.func @kernels_if_self(
+  // CHECK:         acc.kernels self(%{{.*}}) if(%{{.*}}) {
+  // CHECK-NEXT:    }
+
+  func.func @kernels_data_ops(%m : memref<10xf32>) {
+    acc.kernels dataOperands(%m : memref<10xf32>) {
+    }
+    func.return
+  }
+  // CHECK-LABEL: func.func @kernels_data_ops(
+  // CHECK:         acc.kernels dataOperands(%{{.*}} : memref<10xf32>) {
+  // CHECK-NEXT:    }
+
+  func.func @kernels_private_firstprivate_reduction(%m : memref<10xf32>) {
+    acc.kernels firstprivate(%m : memref<10xf32>) private(%m : memref<10xf32>) reduction(%m : memref<10xf32>) {
+    }
+    func.return
+  }
+  // CHECK-LABEL: func.func @kernels_private_firstprivate_reduction(
+  // CHECK:         acc.kernels firstprivate(%{{.*}} : memref<10xf32>) private(%{{.*}} : memref<10xf32>) reduction(%{{.*}} : memref<10xf32>) {
+  // CHECK-NEXT:    }
+
+  func.func @kernels_async_bare() {
+    acc.kernels async {
+    }
+    func.return
+  }
+  // CHECK-LABEL: func.func @kernels_async_bare() {
+  // CHECK-NEXT:    acc.kernels async {
+  // CHECK-NEXT:    }
+
+  func.func @kernels_async_keyword_only_with_dt() {
+    acc.kernels async([#acc.device_type<nvidia>]) {
+    }
+    func.return
+  }
+  // CHECK-LABEL: func.func @kernels_async_keyword_only_with_dt() {
+  // CHECK-NEXT:    acc.kernels async([#acc.device_type<nvidia>]) {
+  // CHECK-NEXT:    }
+
+  func.func @kernels_async_one_operand(%a : i64) {
+    acc.kernels async(%a : i64) {
+    }
+    func.return
+  }
+  // CHECK-LABEL: func.func @kernels_async_one_operand(
+  // CHECK:         acc.kernels async(%{{.*}} : i64) {
+  // CHECK-NEXT:    }
+
+  func.func @kernels_async_operand_with_dt(%a : i64) {
+    acc.kernels async(%a : i64 [#acc.device_type<nvidia>]) {
+    }
+    func.return
+  }
+  // CHECK-LABEL: func.func @kernels_async_operand_with_dt(
+  // CHECK:         acc.kernels async(%{{.*}} : i64 [#acc.device_type<nvidia>]) {
+  // CHECK-NEXT:    }
+
+  func.func @kernels_async_mixed(%a : i64) {
+    acc.kernels async([#acc.device_type<nvidia>], %a : i64 [#acc.device_type<default>]) {
+    }
+    func.return
+  }
+  // CHECK-LABEL: func.func @kernels_async_mixed(
+  // CHECK:         acc.kernels async([#acc.device_type<nvidia>], %{{.*}} : i64 [#acc.device_type<default>]) {
+  // CHECK-NEXT:    }
+
+  func.func @kernels_num_gangs_single(%a : i32) {
+    acc.kernels num_gangs({%a : i32}) {
+    }
+    func.return
+  }
+  // CHECK-LABEL: func.func @kernels_num_gangs_single(
+  // CHECK:         acc.kernels num_gangs({%{{.*}} : i32}) {
+  // CHECK-NEXT:    }
+
+  func.func @kernels_num_gangs_multi(%a : i32, %b : i32, %c : index) {
+    acc.kernels num_gangs({%a : i32, %b : i32, %c : index}) {
+    }
+    func.return
+  }
+  // CHECK-LABEL: func.func @kernels_num_gangs_multi(
+  // CHECK:         acc.kernels num_gangs({%{{.*}} : i32, %{{.*}} : i32, %{{.*}} : index}) {
+  // CHECK-NEXT:    }
+
+  func.func @kernels_num_gangs_multi_dt(%a : i32, %b : i32, %c : i32) {
+    acc.kernels num_gangs({%a : i32} [#acc.device_type<default>], {%b : i32, %c : i32} [#acc.device_type<nvidia>]) {
+    }
+    func.return
+  }
+  // CHECK-LABEL: func.func @kernels_num_gangs_multi_dt(
+  // CHECK:         acc.kernels num_gangs({%{{.*}} : i32} [#acc.device_type<default>], {%{{.*}} : i32, %{{.*}} : i32} [#acc.device_type<nvidia>]) {
+  // CHECK-NEXT:    }
+
+  func.func @kernels_num_workers_vector_length(%a : i64, %b : i32) {
+    acc.kernels num_workers(%a : i64 [#acc.device_type<nvidia>]) vector_length(%b : i32) {
+    }
+    func.return
+  }
+  // CHECK-LABEL: func.func @kernels_num_workers_vector_length(
+  // CHECK:         acc.kernels num_workers(%{{.*}} : i64 [#acc.device_type<nvidia>]) vector_length(%{{.*}} : i32) {
+  // CHECK-NEXT:    }
+
+  func.func @kernels_wait_bare() {
+    acc.kernels wait {
+    }
+    func.return
+  }
+  // CHECK-LABEL: func.func @kernels_wait_bare() {
+  // CHECK-NEXT:    acc.kernels wait {
+  // CHECK-NEXT:    }
+
+  func.func @kernels_wait_group(%a : i64, %b : i32) {
+    acc.kernels wait({%a : i64, %b : i32}) {
+    }
+    func.return
+  }
+  // CHECK-LABEL: func.func @kernels_wait_group(
+  // CHECK:         acc.kernels wait({%{{.*}} : i64, %{{.*}} : i32}) {
+  // CHECK-NEXT:    }
+
+  func.func @kernels_wait_devnum(%a : i64, %b : i32) {
+    acc.kernels wait({devnum: %a : i64, %b : i32}) {
+    }
+    func.return
+  }
+  // CHECK-LABEL: func.func @kernels_wait_devnum(
+  // CHECK:         acc.kernels wait({devnum: %{{.*}} : i64, %{{.*}} : i32}) {
+  // CHECK-NEXT:    }
+
+  func.func @kernels_wait_mixed(%a : i64, %b : i32) {
+    acc.kernels wait([#acc.device_type<nvidia>], {devnum: %a : i64, %b : i32} [#acc.device_type<default>]) {
+    }
+    func.return
+  }
+  // CHECK-LABEL: func.func @kernels_wait_mixed(
+  // CHECK:         acc.kernels wait([#acc.device_type<nvidia>], {devnum: %{{.*}} : i64, %{{.*}} : i32} [#acc.device_type<default>]) {
+  // CHECK-NEXT:    }
+
+  func.func @kernels_combined_prefix() {
+    acc.kernels combined(loop) {
+    }
+    func.return
+  }
+  // CHECK-LABEL: func.func @kernels_combined_prefix() {
+  // CHECK-NEXT:    acc.kernels combined(loop) {
+  // CHECK-NEXT:    }
+
+  func.func @kernels_default_self_attrs_via_attr_dict() {
+    acc.kernels {
+    } attributes {defaultAttr = #acc<defaultvalue present>, selfAttr}
+    func.return
+  }
+  // CHECK-LABEL: func.func @kernels_default_self_attrs_via_attr_dict() {
+  // CHECK-NEXT:    acc.kernels {
+  // CHECK-NEXT:    } attributes {defaultAttr = #acc<defaultvalue present>, selfAttr}
+
+  func.func @kernels_generic_roundtrip_retained() {
+    "acc.kernels"() <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0>}> ({
+    }) : () -> ()
+    func.return
+  }
+  // CHECK-LABEL: func.func @kernels_generic_roundtrip_retained() {
+  // CHECK-NEXT:    acc.kernels {
+  // CHECK-NEXT:    }
 }

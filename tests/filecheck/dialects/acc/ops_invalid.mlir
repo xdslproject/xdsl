@@ -44,3 +44,19 @@ func.func @serial_wrong_terminator(%arg0: i32) {
   func.return
 }
 // CHECK: Operation builtin.unrealized_conversion_cast terminates block in single-block region but is not a terminator
+
+// -----
+
+// acc.kernels uses upstream's NoTerminator body modeling (AnyRegion with no
+// implicit terminator), so empty blocks and non-terminator final ops are
+// accepted; the only verifier failure unique to that trait is a multi-block
+// region.
+func.func @kernels_multi_block() {
+  "acc.kernels"() <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0>}> ({
+  ^bb0:
+    "cf.br"()[^bb1] : () -> ()
+  ^bb1:
+  }) : () -> ()
+  func.return
+}
+// CHECK: 'acc.kernels' does not contain single-block regions
