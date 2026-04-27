@@ -234,13 +234,8 @@ def test_yield_inside_parallel_ok():
     last.verify()
 
 
-def _empty_serial() -> acc.SerialOp:
-    """acc.serial with an empty body (just the required yield)."""
-    return acc.SerialOp(region=Region(Block([acc.YieldOp()])))
-
-
 def test_serial_empty_verifies():
-    op = _empty_serial()
+    op = acc.SerialOp(region=Region(Block([acc.YieldOp()])))
     op.verify()
 
     assert len(op.regions) == 1
