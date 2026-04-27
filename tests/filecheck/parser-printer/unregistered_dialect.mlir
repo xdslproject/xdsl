@@ -14,6 +14,12 @@
     "op"() {slash_attr = #unknowndialect.attr_with_slash<x // y>} : () -> ()
     "op"() {arrow_attr = #unknowndialect.attr_with_arrow<a -> b>} : () -> ()
     "op"() {str_attr = #unknowndialect.attr_with_str<"hello // world">} : () -> ()
+    %s = "op_with_res"() : () -> !unknowndialect.nested_brackets<[nested, <brackets>]>
+    // Opaque syntax with slashes, nested brackets, strings
+    "op"() {opaque_slash = #unknowndialect<myattr a / b>} : () -> ()
+    "op"() {opaque_nested = #unknowndialect<myattr [x // y]>} : () -> ()
+    "op"() {opaque_str = #unknowndialect<myattr "str>">} : () -> ()
+    %r = "op_with_res"() : () -> !unknowndialect<mytype a / b>
   }) {testattr = "foo"} : () -> i32
   "builtin.unimplemented_op"() {"attr" = #builtin.unimplemented_attr} : () -> ()
 
@@ -30,6 +36,11 @@
   // CHECK-NEXT:   "op"() {slash_attr = #unknowndialect.attr_with_slash<x // y>} : () -> ()
   // CHECK-NEXT:   "op"() {arrow_attr = #unknowndialect.attr_with_arrow<a -> b>} : () -> ()
   // CHECK-NEXT:   "op"() {str_attr = #unknowndialect.attr_with_str<"hello // world">} : () -> ()
+  // CHECK-NEXT:   %{{.*}} = "op_with_res"() : () -> !unknowndialect.nested_brackets<[nested, <brackets>]>
+  // CHECK-NEXT:   "op"() {opaque_slash = #unknowndialect<myattr a / b>} : () -> ()
+  // CHECK-NEXT:   "op"() {opaque_nested = #unknowndialect<myattr [x // y]>} : () -> ()
+  // CHECK-NEXT:   "op"() {opaque_str = #unknowndialect<myattr "str>">} : () -> ()
+  // CHECK-NEXT:   %{{.*}} = "op_with_res"() : () -> !unknowndialect<mytype a / b>
   // CHECK-NEXT:  }) {testattr = "foo"} : () -> i32
   // CHECK-NEXT:  "builtin.unimplemented_op"() {attr = #builtin.unimplemented_attr} : () -> ()
 

@@ -24,7 +24,6 @@ from xdsl.dialects.builtin import (
     StringAttr,
     SymbolRefAttr,
     UnknownLoc,
-    UnregisteredAttr,
     i32,
 )
 from xdsl.dialects.func import Func, FuncOp
@@ -1412,52 +1411,6 @@ def test_unregistered_type_unexpected_eof():
     with pytest.raises(ParseError, match="end of file"):
         parser = Parser(ctx, '"test.op"() : () -> !unknowndialect.t<no close')
         parser.parse_optional_operation()
-
-
-@pytest.mark.parametrize(
-    "syntax, expected_body",
-    [
-        ("!unknowndialect.t<a / b>", "a / b"),
-        ("!unknowndialect.t<valid / mlir // syntax ///>", "valid / mlir // syntax ///"),
-        ("!unknowndialect.t<a, [b // c], d>", "a, [b // c], d"),
-        ('!unknowndialect.t<"hello // world">', '"hello // world"'),
-        ("!unknowndialect.t<a -> b>", "a -> b"),
-        ("!unknowndialect.t<[nested, <brackets>]>", "[nested, <brackets>]"),
-        ("#unknowndialect.a<x // y>", "x // y"),
-        ("!unknowndialect.singleton", ""),
-    ],
-)
-def test_unregistered_pretty_syntax(syntax: str, expected_body: str):
-    """Pretty syntax (!dialect.name<body> / #dialect.name<body>)."""
-    ctx = Context(allow_unregistered=True)
-    is_type = syntax.startswith("!")
-    parser = Parser(ctx, syntax)
-    attr = parser.parse_type() if is_type else parser.parse_attribute()
-
-    assert isinstance(attr, UnregisteredAttr)
-    assert attr.value.data == expected_body
-    assert attr.is_opaque.data == 0
-
-
-@pytest.mark.parametrize(
-    "syntax, expected_body",
-    [
-        ("#unknowndialect<myattr a / b>", " a / b"),
-        ("#unknowndialect<myattr [x // y]>", " [x // y]"),
-        ('#unknowndialect<myattr "str>">', ' "str>"'),
-        ("!unknowndialect<mytype a / b>", " a / b"),
-    ],
-)
-def test_unregistered_opaque_syntax(syntax: str, expected_body: str):
-    """Opaque syntax (#dialect<name body>). The name goes into attr_name."""
-    ctx = Context(allow_unregistered=True)
-    is_type = syntax.startswith("!")
-    parser = Parser(ctx, syntax)
-    attr = parser.parse_type() if is_type else parser.parse_attribute()
-
-    assert isinstance(attr, UnregisteredAttr)
-    assert attr.value.data == expected_body
-    assert attr.is_opaque.data == 1
 
 
 def test_unregistered_attr_name_rejected():
