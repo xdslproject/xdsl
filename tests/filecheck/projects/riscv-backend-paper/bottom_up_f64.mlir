@@ -34,7 +34,7 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
   }
 
 
-// CHECK-NEXT:  # Regalloc stats: {"preallocated_float": ["ft0", "ft1", "ft2"], "preallocated_int": ["a0", "a1", "a2", "zero"], "allocated_float": ["ft0", "ft1", "ft2", "ft3", "ft4", "ft5", "ft6", "ft7"], "allocated_int": ["a0", "a1", "a2", "a3", "a4", "a5", "t0", "t1", "t2", "t3", "t4", "t5", "t6", "zero"]}
+// CHECK-NEXT:  # Regalloc stats: {"preallocated_float": ["ft0", "ft1", "ft2"], "preallocated_int": ["a0", "a1", "a2", "zero"], "allocated_float": ["ft0", "ft1", "ft2", "ft3", "ft4", "ft5", "ft6", "ft7"], "allocated_int": ["a0", "a1", "a2", "a3", "a4", "t0", "t1", "t2", "t3", "t4", "t5", "t6", "zero"]}
 // CHECK:       .text
 // CHECK-NEXT:  .globl conv_2d_nchw_fchw_d1_s1_3x3
 // CHECK-NEXT:  .p2align 2
@@ -47,68 +47,68 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
 // CHECK-NEXT:      mv t3, zero
 // CHECK-NEXT:      # Constant folded riscv_cf.bge
 // CHECK-NEXT:  scf_body_{{\d}}_for:
-// CHECK-NEXT:      mv t6, t3
-// CHECK-NEXT:      li a4, 10
-// CHECK-NEXT:      mul t6, t6, a4
+// CHECK-NEXT:      mv a3, t3
+// CHECK-NEXT:      li t5, 10
+// CHECK-NEXT:      mul a3, a3, t5
+// CHECK-NEXT:      li t5, 8
+// CHECK-NEXT:      mul a3, a3, t5                               # multiply by element size
+// CHECK-NEXT:      add a3, t2, a3
+// CHECK-NEXT:      mv t5, t1
+// CHECK-NEXT:      li t6, 8
+// CHECK-NEXT:      mul t6, t3, t6
 // CHECK-NEXT:      li a4, 8
 // CHECK-NEXT:      mul t6, t6, a4                               # multiply by element size
-// CHECK-NEXT:      add t6, t2, t6
-// CHECK-NEXT:      mv a4, t1
-// CHECK-NEXT:      li a3, 8
-// CHECK-NEXT:      mul a3, t3, a3
-// CHECK-NEXT:      li a5, 8
-// CHECK-NEXT:      mul a3, a3, a5                               # multiply by element size
-// CHECK-NEXT:      add a3, t0, a3
-// CHECK-NEXT:      li a5, 3
-// CHECK-NEXT:      scfgwi a5, 64                                # dm 0 dim 0 bound
-// CHECK-NEXT:      li a5, 2
-// CHECK-NEXT:      scfgwi a5, 96                                # dm 0 dim 1 bound
-// CHECK-NEXT:      li a5, 2
-// CHECK-NEXT:      scfgwi a5, 128                               # dm 0 dim 2 bound
-// CHECK-NEXT:      li a5, 1
-// CHECK-NEXT:      scfgwi a5, 160                               # dm 0 dim 3 bound
-// CHECK-NEXT:      li a5, 8
-// CHECK-NEXT:      scfgwi a5, 192                               # dm 0 dim 0 stride
-// CHECK-NEXT:      li a5, -16
-// CHECK-NEXT:      scfgwi a5, 224                               # dm 0 dim 1 stride
-// CHECK-NEXT:      li a5, 40
-// CHECK-NEXT:      scfgwi a5, 256                               # dm 0 dim 2 stride
-// CHECK-NEXT:      li a5, -168
-// CHECK-NEXT:      scfgwi a5, 288                               # dm 0 dim 3 stride
+// CHECK-NEXT:      add t6, t0, t6
+// CHECK-NEXT:      li a4, 3
+// CHECK-NEXT:      scfgwi a4, 64                                # dm 0 dim 0 bound
+// CHECK-NEXT:      li a4, 2
+// CHECK-NEXT:      scfgwi a4, 96                                # dm 0 dim 1 bound
+// CHECK-NEXT:      li a4, 2
+// CHECK-NEXT:      scfgwi a4, 128                               # dm 0 dim 2 bound
+// CHECK-NEXT:      li a4, 1
+// CHECK-NEXT:      scfgwi a4, 160                               # dm 0 dim 3 bound
+// CHECK-NEXT:      li a4, 8
+// CHECK-NEXT:      scfgwi a4, 192                               # dm 0 dim 0 stride
+// CHECK-NEXT:      li a4, -16
+// CHECK-NEXT:      scfgwi a4, 224                               # dm 0 dim 1 stride
+// CHECK-NEXT:      li a4, 40
+// CHECK-NEXT:      scfgwi a4, 256                               # dm 0 dim 2 stride
+// CHECK-NEXT:      li a4, -168
+// CHECK-NEXT:      scfgwi a4, 288                               # dm 0 dim 3 stride
 // CHECK-NEXT:      scfgwi zero, 32                              # dm 0 repeat
-// CHECK-NEXT:      li a5, 2
-// CHECK-NEXT:      scfgwi a5, 65                                # dm 1 dim 0 bound
-// CHECK-NEXT:      li a5, 2
-// CHECK-NEXT:      scfgwi a5, 97                                # dm 1 dim 1 bound
-// CHECK-NEXT:      li a5, 1
-// CHECK-NEXT:      scfgwi a5, 129                               # dm 1 dim 2 bound
-// CHECK-NEXT:      li a5, 8
-// CHECK-NEXT:      scfgwi a5, 193                               # dm 1 dim 0 stride
-// CHECK-NEXT:      li a5, 8
-// CHECK-NEXT:      scfgwi a5, 225                               # dm 1 dim 1 stride
-// CHECK-NEXT:      li a5, -64
-// CHECK-NEXT:      scfgwi a5, 257                               # dm 1 dim 2 stride
-// CHECK-NEXT:      li a5, 3
-// CHECK-NEXT:      scfgwi a5, 33                                # dm 1 repeat
-// CHECK-NEXT:      li a5, 7
-// CHECK-NEXT:      scfgwi a5, 66                                # dm 2 dim 0 bound
-// CHECK-NEXT:      li a5, 8
-// CHECK-NEXT:      scfgwi a5, 194                               # dm 2 dim 0 stride
+// CHECK-NEXT:      li a4, 2
+// CHECK-NEXT:      scfgwi a4, 65                                # dm 1 dim 0 bound
+// CHECK-NEXT:      li a4, 2
+// CHECK-NEXT:      scfgwi a4, 97                                # dm 1 dim 1 bound
+// CHECK-NEXT:      li a4, 1
+// CHECK-NEXT:      scfgwi a4, 129                               # dm 1 dim 2 bound
+// CHECK-NEXT:      li a4, 8
+// CHECK-NEXT:      scfgwi a4, 193                               # dm 1 dim 0 stride
+// CHECK-NEXT:      li a4, 8
+// CHECK-NEXT:      scfgwi a4, 225                               # dm 1 dim 1 stride
+// CHECK-NEXT:      li a4, -64
+// CHECK-NEXT:      scfgwi a4, 257                               # dm 1 dim 2 stride
+// CHECK-NEXT:      li a4, 3
+// CHECK-NEXT:      scfgwi a4, 33                                # dm 1 repeat
+// CHECK-NEXT:      li a4, 7
+// CHECK-NEXT:      scfgwi a4, 66                                # dm 2 dim 0 bound
+// CHECK-NEXT:      li a4, 8
+// CHECK-NEXT:      scfgwi a4, 194                               # dm 2 dim 0 stride
 // CHECK-NEXT:      scfgwi zero, 34                              # dm 2 repeat
-// CHECK-NEXT:      scfgwi t6, 864                               # dm 0 dim 3 source
-// CHECK-NEXT:      scfgwi a4, 833                               # dm 1 dim 2 source
-// CHECK-NEXT:      scfgwi a3, 898                               # dm 2 dim 0 destination
+// CHECK-NEXT:      scfgwi a3, 864                               # dm 0 dim 3 source
+// CHECK-NEXT:      scfgwi t5, 833                               # dm 1 dim 2 source
+// CHECK-NEXT:      scfgwi t6, 898                               # dm 2 dim 0 destination
 // CHECK-NEXT:      csrrsi zero, 1984, 1                         # SSR enable
-// CHECK-NEXT:      li a3, 2
-// CHECK-NEXT:      mv t6, zero
+// CHECK-NEXT:      li t6, 2
+// CHECK-NEXT:      mv t5, zero
 // CHECK-NEXT:      # Constant folded riscv_cf.bge
 // CHECK-NEXT:  scf_body_{{\d}}_for:
 // CHECK-NEXT:      fmv.d ft7, ft3
 // CHECK-NEXT:      fmv.d ft6, ft3
 // CHECK-NEXT:      fmv.d ft5, ft3
 // CHECK-NEXT:      fmv.d ft4, ft3
-// CHECK-NEXT:      li a5, 8
-// CHECK-NEXT:      frep.o a5, 4, 0, 0
+// CHECK-NEXT:      li a3, 8
+// CHECK-NEXT:      frep.o a3, 4, 0, 0
 // CHECK-NEXT:      fmadd.d ft7, ft0, ft1, ft7
 // CHECK-NEXT:      fmadd.d ft6, ft0, ft1, ft6
 // CHECK-NEXT:      fmadd.d ft5, ft0, ft1, ft5
@@ -117,8 +117,8 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
 // CHECK-NEXT:      fmv.d ft2, ft6
 // CHECK-NEXT:      fmv.d ft2, ft5
 // CHECK-NEXT:      fmv.d ft2, ft4
-// CHECK-NEXT:      addi t6, t6, 1
-// CHECK-NEXT:      blt t6, a3, scf_body_{{\d}}_for
+// CHECK-NEXT:      addi t5, t5, 1
+// CHECK-NEXT:      blt t5, t6, scf_body_{{\d}}_for
 // CHECK-NEXT:  scf_body_end_{{\d}}_for:
 // CHECK-NEXT:      csrrci zero, 1984, 1                         # SSR disable
 // CHECK-NEXT:      addi t3, t3, 1
@@ -308,9 +308,9 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
 // CHECK-NEXT:  .globl matmul
 // CHECK-NEXT:  .p2align 2
 // CHECK-NEXT:  matmul:
-// CHECK-NEXT:      mv t0, a0
-// CHECK-NEXT:      mv t1, a1
-// CHECK-NEXT:      mv t2, a2
+// CHECK-NEXT:      mv t2, a0
+// CHECK-NEXT:      mv t0, a1
+// CHECK-NEXT:      mv t1, a2
 // CHECK-NEXT:      fcvt.d.w ft3, zero
 // CHECK-NEXT:      li t3, 7
 // CHECK-NEXT:      scfgwi t3, 64                                # dm 0 dim 0 bound
@@ -348,9 +348,9 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
 // CHECK-NEXT:      li t3, 8
 // CHECK-NEXT:      scfgwi t3, 194                               # dm 2 dim 0 stride
 // CHECK-NEXT:      scfgwi zero, 34                              # dm 2 repeat
-// CHECK-NEXT:      scfgwi t0, 832                               # dm 0 dim 2 source
-// CHECK-NEXT:      scfgwi t1, 865                               # dm 1 dim 3 source
-// CHECK-NEXT:      scfgwi t2, 898                               # dm 2 dim 0 destination
+// CHECK-NEXT:      scfgwi t2, 832                               # dm 0 dim 2 source
+// CHECK-NEXT:      scfgwi t0, 865                               # dm 1 dim 3 source
+// CHECK-NEXT:      scfgwi t1, 898                               # dm 2 dim 0 destination
 // CHECK-NEXT:      csrrsi zero, 1984, 1                         # SSR enable
 // CHECK-NEXT:      li t1, 16
 // CHECK-NEXT:      mv t0, zero
@@ -360,8 +360,8 @@ func.func public @conv_2d_nchw_fchw_d1_s1_3x3(
 // CHECK-NEXT:      fmv.d ft6, ft3
 // CHECK-NEXT:      fmv.d ft5, ft3
 // CHECK-NEXT:      fmv.d ft4, ft3
-// CHECK-NEXT:      li t3, 7
-// CHECK-NEXT:      frep.o t3, 4, 0, 0
+// CHECK-NEXT:      li t2, 7
+// CHECK-NEXT:      frep.o t2, 4, 0, 0
 // CHECK-NEXT:      fmadd.d ft7, ft0, ft1, ft7
 // CHECK-NEXT:      fmadd.d ft6, ft0, ft1, ft6
 // CHECK-NEXT:      fmadd.d ft5, ft0, ft1, ft5
@@ -413,65 +413,65 @@ func.func public @pooling_nchw_max_d1_s2_3x3(
   }
 
 
-// CHECK-NEXT:  # Regalloc stats: {"preallocated_float": ["ft0", "ft1", "ft2"], "preallocated_int": ["a0", "a1", "zero"], "allocated_float": ["ft0", "ft1", "ft3", "ft4", "ft5", "ft6", "ft7"], "allocated_int": ["a0", "a1", "a2", "a3", "t0", "t1", "t2", "t3", "t4", "t5", "t6", "zero"]}
+// CHECK-NEXT:  # Regalloc stats: {"preallocated_float": ["ft0", "ft1", "ft2"], "preallocated_int": ["a0", "a1", "zero"], "allocated_float": ["ft0", "ft1", "ft3", "ft4", "ft5", "ft6", "ft7"], "allocated_int": ["a0", "a1", "t0", "t1", "t2", "t3", "t4", "t5", "t6", "zero"]}
 // CHECK-NEXT:  .globl pooling_nchw_max_d1_s2_3x3
 // CHECK-NEXT:  .p2align 2
 // CHECK-NEXT:  pooling_nchw_max_d1_s2_3x3:
 // CHECK-NEXT:      mv t1, a0
 // CHECK-NEXT:      mv t0, a1
-// CHECK-NEXT:      li t4, -10000
-// CHECK-NEXT:      fcvt.d.w ft3, t4
+// CHECK-NEXT:      li t3, -10000
+// CHECK-NEXT:      fcvt.d.w ft3, t3
 // CHECK-NEXT:      li t3, 8
 // CHECK-NEXT:      mv t2, zero
 // CHECK-NEXT:      # Constant folded riscv_cf.bge
 // CHECK-NEXT:  scf_body_{{\d}}_for:
-// CHECK-NEXT:      li a2, 2
-// CHECK-NEXT:      mul a2, t2, a2
-// CHECK-NEXT:      li t6, 18
-// CHECK-NEXT:      mul a2, a2, t6
-// CHECK-NEXT:      li t6, 8
-// CHECK-NEXT:      mul a2, a2, t6                               # multiply by element size
-// CHECK-NEXT:      add a2, t1, a2
-// CHECK-NEXT:      li t6, 8
-// CHECK-NEXT:      mul t6, t2, t6
+// CHECK-NEXT:      li t4, 2
+// CHECK-NEXT:      mul t4, t2, t4
+// CHECK-NEXT:      li t5, 18
+// CHECK-NEXT:      mul t4, t4, t5
 // CHECK-NEXT:      li t5, 8
-// CHECK-NEXT:      mul t6, t6, t5                               # multiply by element size
-// CHECK-NEXT:      add t6, t0, t6
-// CHECK-NEXT:      li t5, 3
-// CHECK-NEXT:      scfgwi t5, 64                                # dm 0 dim 0 bound
-// CHECK-NEXT:      li t5, 2
-// CHECK-NEXT:      scfgwi t5, 96                                # dm 0 dim 1 bound
-// CHECK-NEXT:      li t5, 2
-// CHECK-NEXT:      scfgwi t5, 128                               # dm 0 dim 2 bound
-// CHECK-NEXT:      li t5, 1
-// CHECK-NEXT:      scfgwi t5, 160                               # dm 0 dim 3 bound
-// CHECK-NEXT:      li t5, 16
-// CHECK-NEXT:      scfgwi t5, 192                               # dm 0 dim 0 stride
-// CHECK-NEXT:      li t5, -40
-// CHECK-NEXT:      scfgwi t5, 224                               # dm 0 dim 1 stride
-// CHECK-NEXT:      li t5, 80
-// CHECK-NEXT:      scfgwi t5, 256                               # dm 0 dim 2 stride
-// CHECK-NEXT:      li t5, -288
-// CHECK-NEXT:      scfgwi t5, 288                               # dm 0 dim 3 stride
-// CHECK-NEXT:      scfgwi zero, 32                              # dm 0 repeat
-// CHECK-NEXT:      li t5, 7
-// CHECK-NEXT:      scfgwi t5, 65                                # dm 1 dim 0 bound
+// CHECK-NEXT:      mul t4, t4, t5                               # multiply by element size
+// CHECK-NEXT:      add t4, t1, t4
 // CHECK-NEXT:      li t5, 8
-// CHECK-NEXT:      scfgwi t5, 193                               # dm 1 dim 0 stride
-// CHECK-NEXT:      scfgwi zero, 33                              # dm 1 repeat
-// CHECK-NEXT:      scfgwi a2, 864                               # dm 0 dim 3 source
-// CHECK-NEXT:      scfgwi t6, 897                               # dm 1 dim 0 destination
-// CHECK-NEXT:      csrrsi zero, 1984, 1                         # SSR enable
+// CHECK-NEXT:      mul t5, t2, t5
+// CHECK-NEXT:      li t6, 8
+// CHECK-NEXT:      mul t5, t5, t6                               # multiply by element size
+// CHECK-NEXT:      add t5, t0, t5
+// CHECK-NEXT:      li t6, 3
+// CHECK-NEXT:      scfgwi t6, 64                                # dm 0 dim 0 bound
 // CHECK-NEXT:      li t6, 2
-// CHECK-NEXT:      mv t5, zero
+// CHECK-NEXT:      scfgwi t6, 96                                # dm 0 dim 1 bound
+// CHECK-NEXT:      li t6, 2
+// CHECK-NEXT:      scfgwi t6, 128                               # dm 0 dim 2 bound
+// CHECK-NEXT:      li t6, 1
+// CHECK-NEXT:      scfgwi t6, 160                               # dm 0 dim 3 bound
+// CHECK-NEXT:      li t6, 16
+// CHECK-NEXT:      scfgwi t6, 192                               # dm 0 dim 0 stride
+// CHECK-NEXT:      li t6, -40
+// CHECK-NEXT:      scfgwi t6, 224                               # dm 0 dim 1 stride
+// CHECK-NEXT:      li t6, 80
+// CHECK-NEXT:      scfgwi t6, 256                               # dm 0 dim 2 stride
+// CHECK-NEXT:      li t6, -288
+// CHECK-NEXT:      scfgwi t6, 288                               # dm 0 dim 3 stride
+// CHECK-NEXT:      scfgwi zero, 32                              # dm 0 repeat
+// CHECK-NEXT:      li t6, 7
+// CHECK-NEXT:      scfgwi t6, 65                                # dm 1 dim 0 bound
+// CHECK-NEXT:      li t6, 8
+// CHECK-NEXT:      scfgwi t6, 193                               # dm 1 dim 0 stride
+// CHECK-NEXT:      scfgwi zero, 33                              # dm 1 repeat
+// CHECK-NEXT:      scfgwi t4, 864                               # dm 0 dim 3 source
+// CHECK-NEXT:      scfgwi t5, 897                               # dm 1 dim 0 destination
+// CHECK-NEXT:      csrrsi zero, 1984, 1                         # SSR enable
+// CHECK-NEXT:      li t5, 2
+// CHECK-NEXT:      mv t4, zero
 // CHECK-NEXT:      # Constant folded riscv_cf.bge
 // CHECK-NEXT:  scf_body_{{\d}}_for:
 // CHECK-NEXT:      fmv.d ft7, ft3
 // CHECK-NEXT:      fmv.d ft6, ft3
 // CHECK-NEXT:      fmv.d ft5, ft3
 // CHECK-NEXT:      fmv.d ft4, ft3
-// CHECK-NEXT:      li a3, 8
-// CHECK-NEXT:      frep.o a3, 4, 0, 0
+// CHECK-NEXT:      li t6, 8
+// CHECK-NEXT:      frep.o t6, 4, 0, 0
 // CHECK-NEXT:      fmax.d ft7, ft0, ft7
 // CHECK-NEXT:      fmax.d ft6, ft0, ft6
 // CHECK-NEXT:      fmax.d ft5, ft0, ft5
@@ -480,8 +480,8 @@ func.func public @pooling_nchw_max_d1_s2_3x3(
 // CHECK-NEXT:      fmv.d ft1, ft6
 // CHECK-NEXT:      fmv.d ft1, ft5
 // CHECK-NEXT:      fmv.d ft1, ft4
-// CHECK-NEXT:      addi t5, t5, 1
-// CHECK-NEXT:      blt t5, t6, scf_body_{{\d}}_for
+// CHECK-NEXT:      addi t4, t4, 1
+// CHECK-NEXT:      blt t4, t5, scf_body_{{\d}}_for
 // CHECK-NEXT:  scf_body_end_{{\d}}_for:
 // CHECK-NEXT:      csrrci zero, 1984, 1                         # SSR disable
 // CHECK-NEXT:      addi t2, t2, 1
@@ -566,7 +566,7 @@ func.func public @pooling_nchw_sum_d1_s2_3x3(
   }
 
 
-// CHECK-NEXT:  # Regalloc stats: {"preallocated_float": ["ft0", "ft1", "ft2"], "preallocated_int": ["a0", "a1", "zero"], "allocated_float": ["ft0", "ft1", "ft3", "ft4", "ft5", "ft6", "ft7"], "allocated_int": ["a0", "a1", "a2", "a3", "t0", "t1", "t2", "t3", "t4", "t5", "t6", "zero"]}
+// CHECK-NEXT:  # Regalloc stats: {"preallocated_float": ["ft0", "ft1", "ft2"], "preallocated_int": ["a0", "a1", "zero"], "allocated_float": ["ft0", "ft1", "ft3", "ft4", "ft5", "ft6", "ft7"], "allocated_int": ["a0", "a1", "t0", "t1", "t2", "t3", "t4", "t5", "t6", "zero"]}
 // CHECK-NEXT:  .globl pooling_nchw_sum_d1_s2_3x3
 // CHECK-NEXT:  .p2align 2
 // CHECK-NEXT:  pooling_nchw_sum_d1_s2_3x3:
@@ -577,53 +577,53 @@ func.func public @pooling_nchw_sum_d1_s2_3x3(
 // CHECK-NEXT:      mv t2, zero
 // CHECK-NEXT:      # Constant folded riscv_cf.bge
 // CHECK-NEXT:  scf_body_{{\d}}_for:
-// CHECK-NEXT:      li a2, 2
-// CHECK-NEXT:      mul a2, t2, a2
-// CHECK-NEXT:      li t6, 18
-// CHECK-NEXT:      mul a2, a2, t6
-// CHECK-NEXT:      li t6, 8
-// CHECK-NEXT:      mul a2, a2, t6                               # multiply by element size
-// CHECK-NEXT:      add a2, t1, a2
-// CHECK-NEXT:      li t6, 8
-// CHECK-NEXT:      mul t6, t2, t6
+// CHECK-NEXT:      li t4, 2
+// CHECK-NEXT:      mul t4, t2, t4
+// CHECK-NEXT:      li t5, 18
+// CHECK-NEXT:      mul t4, t4, t5
 // CHECK-NEXT:      li t5, 8
-// CHECK-NEXT:      mul t6, t6, t5                               # multiply by element size
-// CHECK-NEXT:      add t6, t0, t6
-// CHECK-NEXT:      li t5, 3
-// CHECK-NEXT:      scfgwi t5, 64                                # dm 0 dim 0 bound
-// CHECK-NEXT:      li t5, 2
-// CHECK-NEXT:      scfgwi t5, 96                                # dm 0 dim 1 bound
-// CHECK-NEXT:      li t5, 2
-// CHECK-NEXT:      scfgwi t5, 128                               # dm 0 dim 2 bound
-// CHECK-NEXT:      li t5, 1
-// CHECK-NEXT:      scfgwi t5, 160                               # dm 0 dim 3 bound
-// CHECK-NEXT:      li t5, 16
-// CHECK-NEXT:      scfgwi t5, 192                               # dm 0 dim 0 stride
-// CHECK-NEXT:      li t5, -40
-// CHECK-NEXT:      scfgwi t5, 224                               # dm 0 dim 1 stride
-// CHECK-NEXT:      li t5, 80
-// CHECK-NEXT:      scfgwi t5, 256                               # dm 0 dim 2 stride
-// CHECK-NEXT:      li t5, -288
-// CHECK-NEXT:      scfgwi t5, 288                               # dm 0 dim 3 stride
-// CHECK-NEXT:      scfgwi zero, 32                              # dm 0 repeat
-// CHECK-NEXT:      li t5, 7
-// CHECK-NEXT:      scfgwi t5, 65                                # dm 1 dim 0 bound
+// CHECK-NEXT:      mul t4, t4, t5                               # multiply by element size
+// CHECK-NEXT:      add t4, t1, t4
 // CHECK-NEXT:      li t5, 8
-// CHECK-NEXT:      scfgwi t5, 193                               # dm 1 dim 0 stride
-// CHECK-NEXT:      scfgwi zero, 33                              # dm 1 repeat
-// CHECK-NEXT:      scfgwi a2, 864                               # dm 0 dim 3 source
-// CHECK-NEXT:      scfgwi t6, 897                               # dm 1 dim 0 destination
-// CHECK-NEXT:      csrrsi zero, 1984, 1                         # SSR enable
+// CHECK-NEXT:      mul t5, t2, t5
+// CHECK-NEXT:      li t6, 8
+// CHECK-NEXT:      mul t5, t5, t6                               # multiply by element size
+// CHECK-NEXT:      add t5, t0, t5
+// CHECK-NEXT:      li t6, 3
+// CHECK-NEXT:      scfgwi t6, 64                                # dm 0 dim 0 bound
 // CHECK-NEXT:      li t6, 2
-// CHECK-NEXT:      mv t5, zero
+// CHECK-NEXT:      scfgwi t6, 96                                # dm 0 dim 1 bound
+// CHECK-NEXT:      li t6, 2
+// CHECK-NEXT:      scfgwi t6, 128                               # dm 0 dim 2 bound
+// CHECK-NEXT:      li t6, 1
+// CHECK-NEXT:      scfgwi t6, 160                               # dm 0 dim 3 bound
+// CHECK-NEXT:      li t6, 16
+// CHECK-NEXT:      scfgwi t6, 192                               # dm 0 dim 0 stride
+// CHECK-NEXT:      li t6, -40
+// CHECK-NEXT:      scfgwi t6, 224                               # dm 0 dim 1 stride
+// CHECK-NEXT:      li t6, 80
+// CHECK-NEXT:      scfgwi t6, 256                               # dm 0 dim 2 stride
+// CHECK-NEXT:      li t6, -288
+// CHECK-NEXT:      scfgwi t6, 288                               # dm 0 dim 3 stride
+// CHECK-NEXT:      scfgwi zero, 32                              # dm 0 repeat
+// CHECK-NEXT:      li t6, 7
+// CHECK-NEXT:      scfgwi t6, 65                                # dm 1 dim 0 bound
+// CHECK-NEXT:      li t6, 8
+// CHECK-NEXT:      scfgwi t6, 193                               # dm 1 dim 0 stride
+// CHECK-NEXT:      scfgwi zero, 33                              # dm 1 repeat
+// CHECK-NEXT:      scfgwi t4, 864                               # dm 0 dim 3 source
+// CHECK-NEXT:      scfgwi t5, 897                               # dm 1 dim 0 destination
+// CHECK-NEXT:      csrrsi zero, 1984, 1                         # SSR enable
+// CHECK-NEXT:      li t5, 2
+// CHECK-NEXT:      mv t4, zero
 // CHECK-NEXT:      # Constant folded riscv_cf.bge
 // CHECK-NEXT:  scf_body_{{\d}}_for:
 // CHECK-NEXT:      fmv.d ft7, ft3
 // CHECK-NEXT:      fmv.d ft6, ft3
 // CHECK-NEXT:      fmv.d ft5, ft3
 // CHECK-NEXT:      fmv.d ft4, ft3
-// CHECK-NEXT:      li a3, 8
-// CHECK-NEXT:      frep.o a3, 4, 0, 0
+// CHECK-NEXT:      li t6, 8
+// CHECK-NEXT:      frep.o t6, 4, 0, 0
 // CHECK-NEXT:      fadd.d ft7, ft0, ft7
 // CHECK-NEXT:      fadd.d ft6, ft0, ft6
 // CHECK-NEXT:      fadd.d ft5, ft0, ft5
@@ -632,8 +632,8 @@ func.func public @pooling_nchw_sum_d1_s2_3x3(
 // CHECK-NEXT:      fmv.d ft1, ft6
 // CHECK-NEXT:      fmv.d ft1, ft5
 // CHECK-NEXT:      fmv.d ft1, ft4
-// CHECK-NEXT:      addi t5, t5, 1
-// CHECK-NEXT:      blt t5, t6, scf_body_{{\d}}_for
+// CHECK-NEXT:      addi t4, t4, 1
+// CHECK-NEXT:      blt t4, t5, scf_body_{{\d}}_for
 // CHECK-NEXT:  scf_body_end_{{\d}}_for:
 // CHECK-NEXT:      csrrci zero, 1984, 1                         # SSR disable
 // CHECK-NEXT:      addi t2, t2, 1
