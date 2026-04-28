@@ -133,10 +133,38 @@ builtin.module {
 
 %lb, %ub = "test.op"() : () -> (!riscv.reg<a0>, !riscv.reg<a1>)
 %acc = rv32.li 0 : !riscv.reg<a2>
+// CHECK:         %lb, %ub = "test.op"() : () -> (!riscv.reg<a0>, !riscv.reg<a1>)
+// CHECK-NEXT:    %acc = rv32.li 0 : !riscv.reg<a2>
+
 %res = riscv_scf.for %i : !riscv.reg<a3> = %lb to %ub step 2 : si12 iter_args(%v = %acc) -> (!riscv.reg<a2>) {
     %next = riscv.add %i, %v : (!riscv.reg<a3>, !riscv.reg<a2>) -> !riscv.reg<a2>
     riscv_scf.yield %next : !riscv.reg<a2>
 }
+// CHECK-NEXT:    %0 = riscv.mv %lb : (!riscv.reg<a0>) -> !riscv.reg<a3>
+// CHECK-NEXT:    riscv.label "scf_cond_0_for"
+// CHECK-NEXT:    riscv.bge %0, %ub, "scf_body_end_0_for" : (!riscv.reg<a3>, !riscv.reg<a1>) -> ()
+// CHECK-NEXT:    riscv.label "scf_body_0_for"
+// CHECK-NEXT:    %v = rv32.get_register : !riscv.reg<a2>
+// CHECK-NEXT:    %i = rv32.get_register : !riscv.reg<a3>
+// CHECK-NEXT:    %next = riscv.add %i, %v : (!riscv.reg<a3>, !riscv.reg<a2>) -> !riscv.reg<a2>
+// CHECK-NEXT:    %1 = riscv.addi %0, 2 : (!riscv.reg<a3>) -> !riscv.reg<a3>
+// CHECK-NEXT:    riscv.blt %0, %ub, "scf_body_0_for" : (!riscv.reg<a3>, !riscv.reg<a1>) -> ()
+// CHECK-NEXT:    riscv.label "scf_body_end_0_for"
+// CHECK-NEXT:    %res = rv32.get_register : !riscv.reg<a2>
+
+"test.op"(%res) : (!riscv.reg<a2>) -> ()
+// CHECK-NEXT:    "test.op"(%res) : (!riscv.reg<a2>) -> ()
+
+// -----
+
+%lb, %ub = "test.op"() : () -> (!riscv.reg<a0>, !riscv.reg<a1>)
+%acc = rv32.li 0 : !riscv.reg<a2>
+
+%res = riscv_scf.for %i : !riscv.reg<a3> = %lb to %ub step 2 : i12 iter_args(%v = %acc) -> (!riscv.reg<a2>) {
+    %next = riscv.add %i, %v : (!riscv.reg<a3>, !riscv.reg<a2>) -> !riscv.reg<a2>
+    riscv_scf.yield %next : !riscv.reg<a2>
+}
+
 "test.op"(%res) : (!riscv.reg<a2>) -> ()
 
-// CHECK: Error while applying pattern: Lowering riscv_scf loops with constant step not yet implemented.
+// CHECK:    Error while applying pattern: riscv_scf.for static step must use type si12 (signed 12-bit) for addi lowering; got i12

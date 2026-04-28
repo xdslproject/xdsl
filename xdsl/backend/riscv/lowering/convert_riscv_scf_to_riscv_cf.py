@@ -10,6 +10,7 @@ from xdsl.pattern_rewriter import (
 )
 from xdsl.rewriter import BlockInsertPoint, InsertPoint
 from xdsl.utils.exceptions import PassFailedException
+from xdsl.utils.hints import isa
 
 
 class LowerRiscvScfForPattern(RewritePattern):
@@ -107,10 +108,14 @@ class LowerRiscvScfForPattern(RewritePattern):
         assert isinstance(yield_op, riscv_scf.YieldOp)
 
         match op.step:
-            case IntegerAttr():
-                raise PassFailedException(
-                    "Lowering riscv_scf loops with constant step not yet implemented."
-                )
+            case IntegerAttr() as step_attr:
+                if isa(step_attr, IntegerAttr[riscv.SI12]):
+                    add_op = riscv.AddiOp(iv, step_attr, rd=loop_var_reg)
+                else:
+                    raise PassFailedException(
+                        "riscv_scf.for static step must use type si12 (signed 12-bit) for "
+                        f"addi lowering; got {step_attr.type}"
+                    )
             case _:
                 add_op = riscv.AddOp(iv, op.step, rd=iv_reg)
 
