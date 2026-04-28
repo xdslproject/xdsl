@@ -18,8 +18,9 @@ from xdsl.dialects.builtin import (
     i32,
 )
 from xdsl.dialects.test import TestOp
-from xdsl.ir import Block, Region, SSAValue
+from xdsl.ir import Block, Region
 from xdsl.printer import Printer
+from xdsl.utils.test_value import create_ssa_value
 
 
 def _empty_parallel() -> acc.ParallelOp:
@@ -374,11 +375,6 @@ def test_data_clause_modifier_attr_constructor():
     )
 
 
-def _memref_var() -> SSAValue:
-    """Helper: produce an SSA value of `memref<10xf32>` for use as a `var` operand."""
-    return TestOp(result_types=[MemRefType(f32, [10])]).res[0]
-
-
 def test_copyin_minimal_defaulted_props_absent_from_dict():
     """Defaulted props (`dataClause` / `structured` / `implicit` / `modifiers`)
     must be *absent* from `op.properties` when not explicitly set, even though
@@ -386,7 +382,7 @@ def test_copyin_minimal_defaulted_props_absent_from_dict():
     invariant that drives attr-dict elision on print — filecheck observes the
     elided text but cannot distinguish "absent from dict" from "present and
     matching default", so the dict-state assertion lives here."""
-    op = acc.CopyinOp(var=_memref_var())
+    op = acc.CopyinOp(var=create_ssa_value(MemRefType(f32, [10])))
     op.verify()
 
     assert "dataClause" not in op.properties
@@ -401,7 +397,7 @@ def test_copyin_builder_shortcuts():
     code path: the parser never sees these Python types, so filecheck
     cannot exercise the conversions."""
     op = acc.CopyinOp(
-        var=_memref_var(),
+        var=create_ssa_value(MemRefType(f32, [10])),
         data_clause=acc.DataClause.ACC_COPYIN_READONLY,
         structured=False,
         implicit=True,
