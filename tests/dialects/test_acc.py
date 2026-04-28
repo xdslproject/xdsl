@@ -352,3 +352,21 @@ def test_kernels_init_bool_shortcuts():
     op_off = acc.KernelsOp(region=Region(Block()))
     assert op_off.self_attr is None
     assert op_off.combined is None
+
+
+def test_data_clause_modifier_attr_constructor():
+    """The bit-enum constructor accepts a frozenset of enum members and stores
+    it on `.data`. Pretty-form printing/parsing is covered by filecheck in
+    `tests/filecheck/dialects/acc/attrs.mlir`; the constructor surface is
+    Python-only and lives here."""
+    none = acc.DataClauseModifierAttr(frozenset[acc.DataClauseModifier]())
+    readonly = acc.DataClauseModifierAttr(frozenset({acc.DataClauseModifier.READONLY}))
+    multi = acc.DataClauseModifierAttr(
+        frozenset({acc.DataClauseModifier.READONLY, acc.DataClauseModifier.ZERO})
+    )
+
+    assert none.data == frozenset()
+    assert readonly.data == frozenset({acc.DataClauseModifier.READONLY})
+    assert multi.data == frozenset(
+        {acc.DataClauseModifier.READONLY, acc.DataClauseModifier.ZERO}
+    )

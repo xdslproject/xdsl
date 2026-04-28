@@ -23,7 +23,7 @@ from xdsl.dialects.builtin import (
     UnitAttr,
     i32,
 )
-from xdsl.dialects.utils import AbstractYieldOperation
+from xdsl.dialects.utils import AbstractYieldOperation, BitEnumAttribute
 from xdsl.ir import (
     Attribute,
     Dialect,
@@ -88,6 +88,70 @@ class ClauseDefaultValue(StrEnum):
     NONE = "none"
 
 
+class DataClause(StrEnum):
+    """OpenACC data clause names (decomposed form).
+
+    The original OpenACC `copy`/`copyout`/`copyin(readonly)`/etc. clauses
+    are decomposed into individual `acc` ops. This enum keeps track of
+    which user-level clause an op was generated for. See upstream
+    `mlir::acc::DataClause`.
+    """
+
+    ACC_COPYIN = "acc_copyin"
+    ACC_COPYIN_READONLY = "acc_copyin_readonly"
+    ACC_COPY = "acc_copy"
+    ACC_COPYOUT = "acc_copyout"
+    ACC_COPYOUT_ZERO = "acc_copyout_zero"
+    ACC_PRESENT = "acc_present"
+    ACC_CREATE = "acc_create"
+    ACC_CREATE_ZERO = "acc_create_zero"
+    ACC_DELETE = "acc_delete"
+    ACC_ATTACH = "acc_attach"
+    ACC_DETACH = "acc_detach"
+    ACC_NO_CREATE = "acc_no_create"
+    ACC_PRIVATE = "acc_private"
+    ACC_FIRSTPRIVATE = "acc_firstprivate"
+    ACC_DEVICEPTR = "acc_deviceptr"
+    ACC_GETDEVICEPTR = "acc_getdeviceptr"
+    ACC_UPDATE_HOST = "acc_update_host"
+    ACC_UPDATE_SELF = "acc_update_self"
+    ACC_UPDATE_DEVICE = "acc_update_device"
+    ACC_USE_DEVICE = "acc_use_device"
+    ACC_REDUCTION = "acc_reduction"
+    ACC_DECLARE_DEVICE_RESIDENT = "acc_declare_device_resident"
+    ACC_DECLARE_LINK = "acc_declare_link"
+    ACC_CACHE = "acc_cache"
+    ACC_CACHE_READONLY = "acc_cache_readonly"
+
+
+class DataClauseModifier(StrEnum):
+    """Bit flags carried by a data clause op (zero / readonly / always*).
+
+    See upstream `mlir::acc::DataClauseModifier`. Modeled as a bit-enum;
+    the empty set is rendered as `none`.
+    """
+
+    ZERO = "zero"
+    READONLY = "readonly"
+    ALWAYSIN = "alwaysin"
+    ALWAYSOUT = "alwaysout"
+    CAPTURE = "capture"
+
+
+class VariableTypeCategory(StrEnum):
+    """Bit flags describing the OpenACC type category of a variable.
+
+    See upstream `mlir::acc::VariableTypeCategory`. Used by the
+    `MappableTypeInterface`/`PointerLikeTypeInterface` machinery; the
+    empty set is rendered as `uncategorized`.
+    """
+
+    SCALAR = "scalar"
+    ARRAY = "array"
+    COMPOSITE = "composite"
+    NONSCALAR = "nonscalar"
+
+
 @irdl_attr_definition
 class DeviceTypeAttr(EnumAttribute[DeviceType]):
     """
@@ -118,6 +182,49 @@ class ClauseDefaultValueAttr(
     """
 
     name = "acc.defaultvalue"
+
+
+@irdl_attr_definition
+class DataClauseAttr(EnumAttribute[DataClause], SpacedOpaqueSyntaxAttribute):
+    """
+    OpenACC `#acc<data_clause ...>` attribute. Carried on every data-clause op
+    so consumers can recover which user clause (e.g. `acc_copy`) the op was
+    decomposed from. See upstream `acc.data_clause`.
+    """
+
+    name = "acc.data_clause"
+
+
+@irdl_attr_definition
+class DataClauseModifierAttr(
+    BitEnumAttribute[DataClauseModifier], SpacedOpaqueSyntaxAttribute
+):
+    """
+    Bit-enum attribute for data-clause modifiers (`zero` / `readonly` /
+    `alwaysin` / `alwaysout` / `capture`). The empty set prints as `none`.
+    See upstream `acc.data_clause_modifier`.
+    """
+
+    name = "acc.data_clause_modifier"
+    none_value = "none"
+    separator_value = ","
+    delimiter_value = AttrParser.Delimiter.NONE
+
+
+@irdl_attr_definition
+class VariableTypeCategoryAttr(
+    BitEnumAttribute[VariableTypeCategory], SpacedOpaqueSyntaxAttribute
+):
+    """
+    Bit-enum attribute classifying a variable's type per the OpenACC spec.
+    Empty set prints as `uncategorized`. See upstream
+    `acc.variable_type_category`.
+    """
+
+    name = "acc.variable_type_category"
+    none_value = "uncategorized"
+    separator_value = ","
+    delimiter_value = AttrParser.Delimiter.NONE
 
 
 @irdl_attr_definition
@@ -1235,6 +1342,9 @@ ACC = Dialect(
     [
         DeviceTypeAttr,
         ClauseDefaultValueAttr,
+        DataClauseAttr,
+        DataClauseModifierAttr,
+        VariableTypeCategoryAttr,
         DataBoundsType,
     ],
 )
