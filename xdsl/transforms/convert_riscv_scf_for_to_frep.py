@@ -19,10 +19,11 @@ class ScfForLowering(RewritePattern):
     def match_and_rewrite(self, op: riscv_scf.ForOp, rewriter: PatternRewriter) -> None:
         body_block = op.body.block
         indvar = body_block.args[0]
+        # 1. Induction variable is used
         if indvar.uses:
-            # 1. Induction variable is used
             return
 
+        # 2. Step is 1
         match op.step:
             case IntegerAttr(value=IntAttr(1)):
                 pass
@@ -34,9 +35,9 @@ class ScfForLowering(RewritePattern):
             ):
                 pass
             case _:
-                # 2. Step is 1
                 return
 
+        # 3. All operations in the loop operate on float registers
         if not all(
             isinstance(
                 value.type,
@@ -47,17 +48,16 @@ class ScfForLowering(RewritePattern):
             for o in body_block.ops
             for value in chain(o.operands, o.results)
         ):
-            # 3. All operations in the loop operate on float registers
             return
 
+        # 4. All operations are pure or one of
+        #     a) riscv_snitch.read
+        #     b) riscv_snitch.write
+        #     c) builtin.unrealized_conversion_cast
         if not all(
             isinstance(o, riscv_scf.YieldOp) or riscv_snitch.is_valid_frep_body_op(o)
             for o in body_block.ops
         ):
-            # 4. All operations are pure or one of
-            #     a) riscv_snitch.read
-            #     b) riscv_snitch.write
-            #     c) builtin.unrealized_conversion_cast
             return
 
         rewriter.erase_block_argument(indvar)
