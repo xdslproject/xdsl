@@ -9,14 +9,16 @@ from xdsl.dialects.arith import ConstantOp
 from xdsl.dialects.builtin import (
     ArrayAttr,
     DenseArrayBase,
+    IntegerAttr,
     MemRefType,
+    StringAttr,
     UnitAttr,
     f32,
     i1,
     i32,
 )
 from xdsl.dialects.test import TestOp
-from xdsl.ir import Block, Region
+from xdsl.ir import Block, Region, SSAValue
 from xdsl.printer import Printer
 
 
@@ -370,3 +372,44 @@ def test_data_clause_modifier_attr_constructor():
     assert multi.data == frozenset(
         {acc.DataClauseModifier.READONLY, acc.DataClauseModifier.ZERO}
     )
+
+
+def _memref_var() -> SSAValue:
+    """Helper: produce an SSA value of `memref<10xf32>` for use as a `var` operand."""
+    return TestOp(result_types=[MemRefType(f32, [10])]).res[0]
+
+
+def test_copyin_minimal_defaulted_props_absent_from_dict():
+    """Defaulted props (`dataClause` / `structured` / `implicit` / `modifiers`)
+    must be *absent* from `op.properties` when not explicitly set, even though
+    the accessor reads back the default value. This is the load-bearing
+    invariant that drives attr-dict elision on print — filecheck observes the
+    elided text but cannot distinguish "absent from dict" from "present and
+    matching default", so the dict-state assertion lives here."""
+    op = acc.CopyinOp(var=_memref_var())
+    op.verify()
+
+    assert "dataClause" not in op.properties
+    assert "structured" not in op.properties
+    assert "implicit" not in op.properties
+    assert "modifiers" not in op.properties
+
+
+def test_copyin_builder_shortcuts():
+    """The Python `__init__` accepts bool / str / `DataClause` shortcuts and
+    converts them to the right attribute kinds. This is a builder-only
+    code path: the parser never sees these Python types, so filecheck
+    cannot exercise the conversions."""
+    op = acc.CopyinOp(
+        var=_memref_var(),
+        data_clause=acc.DataClause.ACC_COPYIN_READONLY,
+        structured=False,
+        implicit=True,
+        var_name="foo",
+    )
+    op.verify()
+
+    assert op.data_clause == acc.DataClauseAttr(acc.DataClause.ACC_COPYIN_READONLY)
+    assert op.structured == IntegerAttr.from_bool(False)
+    assert op.implicit == IntegerAttr.from_bool(True)
+    assert op.var_name == StringAttr("foo")

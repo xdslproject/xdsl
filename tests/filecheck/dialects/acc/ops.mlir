@@ -668,4 +668,172 @@ builtin.module {
   // CHECK-NEXT:    %{{.*}} = acc.get_upperbound %{{.*}} : (!acc.data_bounds_ty) -> index
   // CHECK-NEXT:    %{{.*}} = acc.get_stride %{{.*}} : (!acc.data_bounds_ty) -> index
   // CHECK-NEXT:    %{{.*}} = acc.get_extent %{{.*}} : (!acc.data_bounds_ty) -> index
+
+  // Entry data-clause ops (PR 6b lands the `_DataEntryOp` shape and three
+  // leaves: copyin / create / present). All three share the same operand
+  // and property surface; cover it thoroughly via `acc.copyin` and
+  // spot-check the per-op `dataClause` default elision via `acc.create` /
+  // `acc.present`.
+  func.func @copyin_minimal(%a : memref<10xf32>) {
+    %r = acc.copyin varPtr(%a : memref<10xf32>) -> memref<10xf32>
+    func.return
+  }
+  // CHECK-LABEL: func.func @copyin_minimal(
+  // CHECK:         %{{.*}} = acc.copyin varPtr(%{{.*}} : memref<10xf32>) -> memref<10xf32>
+
+  func.func @copyin_var_keyword(%a : memref<10xf32>) {
+    // The `var` keyword is also accepted on parse (the printer always emits
+    // `varPtr`). Exercises the alternative branch in `Var.parse`.
+    %r = acc.copyin var(%a : memref<10xf32>) -> memref<10xf32>
+    func.return
+  }
+  // CHECK-LABEL: func.func @copyin_var_keyword(
+  // CHECK:         %{{.*}} = acc.copyin varPtr(%{{.*}} : memref<10xf32>) -> memref<10xf32>
+
+  func.func @copyin_with_var_type(%a : memref<10xf32>) {
+    // varType differs from the var's element type, so `Var.print` emits the
+    // optional `varType(...)` slot.
+    %r = acc.copyin varPtr(%a : memref<10xf32>) varType(tensor<10xf32>) -> memref<10xf32>
+    func.return
+  }
+  // CHECK-LABEL: func.func @copyin_with_var_type(
+  // CHECK:         %{{.*}} = acc.copyin varPtr(%{{.*}} : memref<10xf32>) varType(tensor<10xf32>) -> memref<10xf32>
+
+  func.func @copyin_with_var_ptr_ptr(%a : memref<10xf32>, %p : memref<memref<10xf32>>) {
+    %r = acc.copyin varPtr(%a : memref<10xf32>) varPtrPtr(%p : memref<memref<10xf32>>) -> memref<10xf32>
+    func.return
+  }
+  // CHECK-LABEL: func.func @copyin_with_var_ptr_ptr(
+  // CHECK:         %{{.*}} = acc.copyin varPtr(%{{.*}} : memref<10xf32>) varPtrPtr(%{{.*}} : memref<memref<10xf32>>) -> memref<10xf32>
+
+  func.func @copyin_with_bounds(%a : memref<10xf32>, %c0 : index, %c9 : index) {
+    %b = acc.bounds lowerbound(%c0 : index) upperbound(%c9 : index)
+    %r = acc.copyin varPtr(%a : memref<10xf32>) bounds(%b) -> memref<10xf32>
+    func.return
+  }
+  // CHECK-LABEL: func.func @copyin_with_bounds(
+  // CHECK:         %{{.*}} = acc.bounds lowerbound(%{{.*}} : index) upperbound(%{{.*}} : index)
+  // CHECK-NEXT:    %{{.*}} = acc.copyin varPtr(%{{.*}} : memref<10xf32>) bounds(%{{.*}}) -> memref<10xf32>
+
+  func.func @copyin_async_bare(%a : memref<10xf32>) {
+    %r = acc.copyin varPtr(%a : memref<10xf32>) async -> memref<10xf32>
+    func.return
+  }
+  // CHECK-LABEL: func.func @copyin_async_bare(
+  // CHECK:         %{{.*}} = acc.copyin varPtr(%{{.*}} : memref<10xf32>) async -> memref<10xf32>
+
+  func.func @copyin_async_kw_dt(%a : memref<10xf32>) {
+    %r = acc.copyin varPtr(%a : memref<10xf32>) async([#acc.device_type<nvidia>]) -> memref<10xf32>
+    func.return
+  }
+  // CHECK-LABEL: func.func @copyin_async_kw_dt(
+  // CHECK:         %{{.*}} = acc.copyin varPtr(%{{.*}} : memref<10xf32>) async([#acc.device_type<nvidia>]) -> memref<10xf32>
+
+  func.func @copyin_async_operand(%a : memref<10xf32>, %async : i32) {
+    %r = acc.copyin varPtr(%a : memref<10xf32>) async(%async : i32) -> memref<10xf32>
+    func.return
+  }
+  // CHECK-LABEL: func.func @copyin_async_operand(
+  // CHECK:         %{{.*}} = acc.copyin varPtr(%{{.*}} : memref<10xf32>) async(%{{.*}} : i32) -> memref<10xf32>
+
+  func.func @copyin_async_operand_dt(%a : memref<10xf32>, %async : i32) {
+    %r = acc.copyin varPtr(%a : memref<10xf32>) async(%async : i32 [#acc.device_type<nvidia>]) -> memref<10xf32>
+    func.return
+  }
+  // CHECK-LABEL: func.func @copyin_async_operand_dt(
+  // CHECK:         %{{.*}} = acc.copyin varPtr(%{{.*}} : memref<10xf32>) async(%{{.*}} : i32 [#acc.device_type<nvidia>]) -> memref<10xf32>
+
+  func.func @copyin_full_attr_dict(%a : memref<10xf32>) {
+    // Every defaulted prop overridden in attr-dict, to verify each round-trips
+    // (rather than collapsing to the per-op default and silently disappearing).
+    %r = acc.copyin varPtr(%a : memref<10xf32>) -> memref<10xf32> {dataClause = #acc<data_clause acc_copyin_readonly>, implicit = true, modifiers = #acc<data_clause_modifier readonly>, name = "myvar", structured = false}
+    func.return
+  }
+  // CHECK-LABEL: func.func @copyin_full_attr_dict(
+  // CHECK:         %{{.*}} = acc.copyin varPtr(%{{.*}} : memref<10xf32>) -> memref<10xf32> {dataClause = #acc<data_clause acc_copyin_readonly>, implicit = true, modifiers = #acc<data_clause_modifier readonly>, name = "myvar", structured = false}
+
+  // Generic-form input retained per dialect convention — insurance that
+  // operandSegmentSizes round-trips through the generic surface even after
+  // the pretty form lands.
+  func.func @copyin_generic_roundtrip(%a : memref<10xf32>) {
+    %r = "acc.copyin"(%a) <{operandSegmentSizes = array<i32: 1, 0, 0, 0>, varType = f32}> : (memref<10xf32>) -> memref<10xf32>
+    func.return
+  }
+  // CHECK-LABEL: func.func @copyin_generic_roundtrip(
+  // CHECK:         %{{.*}} = acc.copyin varPtr(%{{.*}} : memref<10xf32>) -> memref<10xf32>
+
+  func.func @create_minimal(%a : memref<10xf32>) {
+    // No dataClause in attr-dict: matches the per-op default (acc_create),
+    // so attr-dict elision suppresses it on print.
+    %r = acc.create varPtr(%a : memref<10xf32>) -> memref<10xf32>
+    func.return
+  }
+  // CHECK-LABEL: func.func @create_minimal(
+  // CHECK:         %{{.*}} = acc.create varPtr(%{{.*}} : memref<10xf32>) -> memref<10xf32>
+
+  func.func @create_with_clause_override(%a : memref<10xf32>) {
+    // `acc.create` decomposed from `copyout` keeps the original clause name
+    // in its `dataClause` attr — non-default value, so attr-dict prints it.
+    %r = acc.create varPtr(%a : memref<10xf32>) -> memref<10xf32> {dataClause = #acc<data_clause acc_copyout>}
+    func.return
+  }
+  // CHECK-LABEL: func.func @create_with_clause_override(
+  // CHECK:         %{{.*}} = acc.create varPtr(%{{.*}} : memref<10xf32>) -> memref<10xf32> {dataClause = #acc<data_clause acc_copyout>}
+
+  func.func @present_minimal(%a : memref<10xf32>) {
+    %r = acc.present varPtr(%a : memref<10xf32>) -> memref<10xf32>
+    func.return
+  }
+  // CHECK-LABEL: func.func @present_minimal(
+  // CHECK:         %{{.*}} = acc.present varPtr(%{{.*}} : memref<10xf32>) -> memref<10xf32>
+
+  // Non-memref var: `_default_var_type` falls back to the var's own type
+  // (the upstream `printVarPtrType` heuristic for non-pointer-like types).
+  // Both parser-side defaulting and printer-side elision exercised here.
+  // mlir-opt rejects this case (its operand constraint requires a pointer-
+  // like or mappable type), so it lives only in the xDSL-only roundtrip.
+  func.func @copyin_non_memref_var(%a : i32) {
+    %r = acc.copyin varPtr(%a : i32) -> i32
+    func.return
+  }
+  // CHECK-LABEL: func.func @copyin_non_memref_var(
+  // CHECK:         %{{.*}} = acc.copyin varPtr(%{{.*}} : i32) -> i32
+
+  // Result type differs from the var's type: the assembly format's
+  // `type($acc_var)` slot is honored independently of `var.type`.
+  func.func @copyin_explicit_acc_var_type(%a : memref<10xf32>) {
+    %r = acc.copyin varPtr(%a : memref<10xf32>) -> memref<20xf32>
+    func.return
+  }
+  // CHECK-LABEL: func.func @copyin_explicit_acc_var_type(
+  // CHECK:         %{{.*}} = acc.copyin varPtr(%{{.*}} : memref<10xf32>) -> memref<20xf32>
+
+  // Per-op `dataClause` default wiring. Generic-form input carries the
+  // default value explicitly; the pretty-form output must elide it. If a
+  // leaf class were wired to the wrong default, the round-trip would
+  // either keep the attr (when input differs from the leaf's actual
+  // default) or drop the wrong one — either way visible in the CHECK.
+  func.func @copyin_dataclause_default_elided(%a : memref<10xf32>) {
+    %r = "acc.copyin"(%a) <{dataClause = #acc<data_clause acc_copyin>, operandSegmentSizes = array<i32: 1, 0, 0, 0>, varType = f32}> : (memref<10xf32>) -> memref<10xf32>
+    func.return
+  }
+  // CHECK-LABEL: func.func @copyin_dataclause_default_elided(
+  // CHECK:         %{{.*}} = acc.copyin varPtr(%{{.*}} : memref<10xf32>) -> memref<10xf32>
+  // CHECK-NOT:     dataClause
+
+  func.func @create_dataclause_default_elided(%a : memref<10xf32>) {
+    %r = "acc.create"(%a) <{dataClause = #acc<data_clause acc_create>, operandSegmentSizes = array<i32: 1, 0, 0, 0>, varType = f32}> : (memref<10xf32>) -> memref<10xf32>
+    func.return
+  }
+  // CHECK-LABEL: func.func @create_dataclause_default_elided(
+  // CHECK:         %{{.*}} = acc.create varPtr(%{{.*}} : memref<10xf32>) -> memref<10xf32>
+  // CHECK-NOT:     dataClause
+
+  func.func @present_dataclause_default_elided(%a : memref<10xf32>) {
+    %r = "acc.present"(%a) <{dataClause = #acc<data_clause acc_present>, operandSegmentSizes = array<i32: 1, 0, 0, 0>, varType = f32}> : (memref<10xf32>) -> memref<10xf32>
+    func.return
+  }
+  // CHECK-LABEL: func.func @present_dataclause_default_elided(
+  // CHECK:         %{{.*}} = acc.present varPtr(%{{.*}} : memref<10xf32>) -> memref<10xf32>
+  // CHECK-NOT:     dataClause
 }

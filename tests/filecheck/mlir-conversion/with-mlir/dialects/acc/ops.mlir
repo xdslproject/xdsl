@@ -455,4 +455,86 @@ builtin.module {
   // CHECK-NEXT:    %{{.*}} = acc.get_upperbound %{{.*}} : (!acc.data_bounds_ty) -> index
   // CHECK-NEXT:    %{{.*}} = acc.get_stride %{{.*}} : (!acc.data_bounds_ty) -> index
   // CHECK-NEXT:    %{{.*}} = acc.get_extent %{{.*}} : (!acc.data_bounds_ty) -> index
+
+  // Entry data-clause ops (PR 6b: copyin / create / present). Each MLIR
+  // interop entry round-trips through both the pretty and generic surfaces;
+  // covers `acc.copyin` exhaustively and the other two minimally.
+  func.func @copyin_minimal(%a : memref<10xf32>) {
+    %r = acc.copyin varPtr(%a : memref<10xf32>) -> memref<10xf32>
+    func.return
+  }
+  // CHECK:       func.func @copyin_minimal(
+  // CHECK:         %{{.*}} = acc.copyin varPtr(%{{.*}} : memref<10xf32>) -> memref<10xf32>
+
+  func.func @copyin_with_var_type(%a : memref<10xf32>) {
+    %r = acc.copyin varPtr(%a : memref<10xf32>) varType(tensor<10xf32>) -> memref<10xf32>
+    func.return
+  }
+  // CHECK:       func.func @copyin_with_var_type(
+  // CHECK:         %{{.*}} = acc.copyin varPtr(%{{.*}} : memref<10xf32>) varType(tensor<10xf32>) -> memref<10xf32>
+
+  func.func @copyin_with_var_ptr_ptr(%a : memref<10xf32>, %p : memref<memref<10xf32>>) {
+    %r = acc.copyin varPtr(%a : memref<10xf32>) varPtrPtr(%p : memref<memref<10xf32>>) -> memref<10xf32>
+    func.return
+  }
+  // CHECK:       func.func @copyin_with_var_ptr_ptr(
+  // CHECK:         %{{.*}} = acc.copyin varPtr(%{{.*}} : memref<10xf32>) varPtrPtr(%{{.*}} : memref<memref<10xf32>>) -> memref<10xf32>
+
+  func.func @copyin_with_bounds(%a : memref<10xf32>, %c0 : index, %c9 : index) {
+    %b = acc.bounds lowerbound(%c0 : index) upperbound(%c9 : index)
+    %r = acc.copyin varPtr(%a : memref<10xf32>) bounds(%b) -> memref<10xf32>
+    func.return
+  }
+  // CHECK:       func.func @copyin_with_bounds(
+  // CHECK:         %{{.*}} = acc.bounds lowerbound(%{{.*}} : index) upperbound(%{{.*}} : index)
+  // CHECK-NEXT:    %{{.*}} = acc.copyin varPtr(%{{.*}} : memref<10xf32>) bounds(%{{.*}}) -> memref<10xf32>
+
+  func.func @copyin_async_bare(%a : memref<10xf32>) {
+    %r = acc.copyin varPtr(%a : memref<10xf32>) async -> memref<10xf32>
+    func.return
+  }
+  // CHECK:       func.func @copyin_async_bare(
+  // CHECK:         %{{.*}} = acc.copyin varPtr(%{{.*}} : memref<10xf32>) async -> memref<10xf32>
+
+  func.func @copyin_async_operand(%a : memref<10xf32>, %async : i32) {
+    %r = acc.copyin varPtr(%a : memref<10xf32>) async(%async : i32) -> memref<10xf32>
+    func.return
+  }
+  // CHECK:       func.func @copyin_async_operand(
+  // CHECK:         %{{.*}} = acc.copyin varPtr(%{{.*}} : memref<10xf32>) async(%{{.*}} : i32) -> memref<10xf32>
+
+  func.func @copyin_async_operand_dt(%a : memref<10xf32>, %async : i32) {
+    %r = acc.copyin varPtr(%a : memref<10xf32>) async(%async : i32 [#acc.device_type<nvidia>]) -> memref<10xf32>
+    func.return
+  }
+  // CHECK:       func.func @copyin_async_operand_dt(
+  // CHECK:         %{{.*}} = acc.copyin varPtr(%{{.*}} : memref<10xf32>) async(%{{.*}} : i32 [#acc.device_type<nvidia>]) -> memref<10xf32>
+
+  func.func @copyin_clause_override(%a : memref<10xf32>) {
+    %r = acc.copyin varPtr(%a : memref<10xf32>) -> memref<10xf32> {dataClause = #acc<data_clause acc_copyin_readonly>, modifiers = #acc<data_clause_modifier readonly>, name = "myvar"}
+    func.return
+  }
+  // CHECK:       func.func @copyin_clause_override(
+  // CHECK:         %{{.*}} = acc.copyin varPtr(%{{.*}} : memref<10xf32>) -> memref<10xf32> {dataClause = #acc<data_clause acc_copyin_readonly>, modifiers = #acc<data_clause_modifier readonly>, name = "myvar"}
+
+  func.func @create_minimal(%a : memref<10xf32>) {
+    %r = acc.create varPtr(%a : memref<10xf32>) -> memref<10xf32>
+    func.return
+  }
+  // CHECK:       func.func @create_minimal(
+  // CHECK:         %{{.*}} = acc.create varPtr(%{{.*}} : memref<10xf32>) -> memref<10xf32>
+
+  func.func @create_with_copyout_clause(%a : memref<10xf32>) {
+    %r = acc.create varPtr(%a : memref<10xf32>) -> memref<10xf32> {dataClause = #acc<data_clause acc_copyout>}
+    func.return
+  }
+  // CHECK:       func.func @create_with_copyout_clause(
+  // CHECK:         %{{.*}} = acc.create varPtr(%{{.*}} : memref<10xf32>) -> memref<10xf32> {dataClause = #acc<data_clause acc_copyout>}
+
+  func.func @present_minimal(%a : memref<10xf32>) {
+    %r = acc.present varPtr(%a : memref<10xf32>) -> memref<10xf32>
+    func.return
+  }
+  // CHECK:       func.func @present_minimal(
+  // CHECK:         %{{.*}} = acc.present varPtr(%{{.*}} : memref<10xf32>) -> memref<10xf32>
 }

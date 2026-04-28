@@ -11,6 +11,7 @@ See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenACCDialect/
 
 from abc import ABC
 from collections.abc import Sequence
+from typing import cast
 
 from xdsl.dialects.builtin import (
     I1,
@@ -20,6 +21,9 @@ from xdsl.dialects.builtin import (
     IndexType,
     IntegerAttr,
     IntegerType,
+    MemRefType,
+    StringAttr,
+    SymbolRefAttr,
     UnitAttr,
     i32,
 )
@@ -46,6 +50,7 @@ from xdsl.irdl import (
     operand_def,
     opt_operand_def,
     opt_prop_def,
+    prop_def,
     region_def,
     result_def,
     var_operand_def,
@@ -53,6 +58,7 @@ from xdsl.irdl import (
 from xdsl.irdl.declarative_assembly_format import (
     AttributeVariable,
     CustomDirective,
+    OperandVariable,
     ParsingState,
     PrintingState,
     TypeDirective,
@@ -706,6 +712,73 @@ class WaitClause(CustomDirective):
         state.last_was_punctuation = False
 
 
+def _default_var_type(var_type: Attribute) -> Attribute:
+    """Default `varType` value for a `var` operand.
+
+    Mirrors upstream's `parseVarPtrType`/`printVarPtrType` heuristic: when
+    `var` has a pointer-like type, the implied `varType` is the pointee
+    element type; otherwise the variable's own type is used.
+    """
+    if isa(var_type, MemRefType):
+        return var_type.element_type
+    return var_type
+
+
+@irdl_custom_directive
+class Var(CustomDirective):
+    """Port of upstream `custom<Var>($var) `:` custom<VarPtrType>(type($var), $varType)`.
+
+    Renders `varPtr(%v : type) (varType(t))?`. Accepts both `varPtr` and `var`
+    keywords on parse; always emits `varPtr` (xDSL doesn't distinguish
+    `PointerLikeType` vs `MappableType` here, and the OpenACC tests target
+    memref types which are pointer-like). The `varType` slot is omitted on
+    print whenever it matches `_default_var_type(var.type)`.
+    """
+
+    var: OperandVariable
+    var_type: TypeDirective
+    var_type_attr: AttributeVariable
+
+    def is_anchorable(self) -> bool:
+        return False
+
+    def is_optional_like(self) -> bool:
+        return False
+
+    def parse(self, parser: Parser, state: ParsingState) -> bool:
+        if parser.parse_optional_keyword("varPtr") is None:
+            parser.parse_keyword("var")
+        with parser.in_parens():
+            operand = parser.parse_unresolved_operand()
+            parser.parse_punctuation(":")
+            ty = parser.parse_type()
+        self.var.set(state, operand)
+        self.var_type.set(state, (ty,))
+
+        if parser.parse_optional_keyword("varType") is not None:
+            with parser.in_parens():
+                self.var_type_attr.set(state, parser.parse_type())
+        else:
+            self.var_type_attr.set(state, _default_var_type(ty))
+        return True
+
+    def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
+        state.print_whitespace(printer)
+        ssa = self.var.get(op)
+        printer.print_string("varPtr(")
+        printer.print_ssa_value(ssa)
+        printer.print_string(" : ")
+        printer.print_attribute(ssa.type)
+        printer.print_string(")")
+        attr = self.var_type_attr.get(op)
+        if attr is not None and attr != _default_var_type(ssa.type):
+            printer.print_string(" varType(")
+            printer.print_attribute(attr)
+            printer.print_string(")")
+        state.should_emit_space = True
+        state.last_was_punctuation = False
+
+
 @irdl_op_definition
 class ParallelOp(IRDLOperation):
     """
@@ -1191,6 +1264,177 @@ class KernelsOp(IRDLOperation):
         )
 
 
+# ---------------------------------------------------------------------------
+# Entry data-clause ops
+# ---------------------------------------------------------------------------
+#
+# Upstream models the entry data-clause family (`copyin`, `create`, `present`,
+# `nocreate`, `attach`, `deviceptr`, `use_device`, `cache`,
+# `declare_device_resident`, `declare_link`) as a single `OpenACC_DataEntryOp`
+# class with one operand-and-attribute shape. The xDSL port mirrors that shape
+# in the abstract `_DataEntryOp` mixin below; concrete leaves inherit it and
+# add only what differs per op (`name`, the per-op `dataClause` default, and
+# eventually the `NoMemoryEffect` trait on `acc.cache`). The IRDL field
+# descriptors are inherited — same pattern already used by
+# `_DataBoundsAccessorOp`.
+
+
+class _DataEntryOp(IRDLOperation, ABC):
+    """Shared shape for the OpenACC entry data-clause ops.
+
+    Mirrors upstream's `OpenACC_DataEntryOp` td class. Concrete leaves
+    override `name` and supply their own `dataClause` default. Everything else
+    — the four operand groups, the `varType` / async / structured / implicit
+    / modifiers properties, the optional `name` / `recipe`, the `accVar`
+    result, the assembly format, and the keyword-only `__init__` — lives
+    here.
+    """
+
+    var = operand_def()
+    var_ptr_ptr = opt_operand_def()
+    bounds = var_operand_def(DataBoundsType)
+    async_operands = var_operand_def(IntegerType | IndexType)
+
+    var_type = prop_def(TypeAttribute, prop_name="varType")
+    async_operands_device_type = opt_prop_def(
+        ArrayAttr[DeviceTypeAttr], prop_name="asyncOperandsDeviceType"
+    )
+    async_only = opt_prop_def(ArrayAttr[DeviceTypeAttr], prop_name="asyncOnly")
+    structured = opt_prop_def(
+        BoolAttr,
+        default_value=IntegerAttr.from_bool(True),
+        prop_name="structured",
+    )
+    implicit = opt_prop_def(
+        BoolAttr,
+        default_value=IntegerAttr.from_bool(False),
+        prop_name="implicit",
+    )
+    modifiers = opt_prop_def(
+        DataClauseModifierAttr,
+        default_value=DataClauseModifierAttr(frozenset[DataClauseModifier]()),
+        prop_name="modifiers",
+    )
+    var_name = opt_prop_def(StringAttr, prop_name="name")
+    recipe = opt_prop_def(SymbolRefAttr, prop_name="recipe")
+
+    acc_var = result_def()
+
+    irdl_options = (
+        AttrSizedOperandSegments(as_property=True),
+        ParsePropInAttrDict(),
+    )
+
+    custom_directives = (Var, DeviceTypeOperandsWithKeywordOnly)
+
+    assembly_format = (
+        "custom<Var>($var, type($var), $varType)"
+        " (`varPtrPtr` `(` $var_ptr_ptr^ `:` type($var_ptr_ptr) `)`)?"
+        " (`bounds` `(` $bounds^ `)`)?"
+        " (`async` custom<DeviceTypeOperandsWithKeywordOnly>($async_operands,"
+        " type($async_operands), $asyncOperandsDeviceType, $asyncOnly)^)?"
+        " `->` type($acc_var) attr-dict"
+    )
+
+    def __init__(
+        self,
+        *,
+        var: SSAValue | Operation,
+        var_ptr_ptr: SSAValue | Operation | None = None,
+        bounds: Sequence[SSAValue | Operation] = (),
+        async_operands: Sequence[SSAValue | Operation] = (),
+        var_type: TypeAttribute | None = None,
+        async_operands_device_type: ArrayAttr[DeviceTypeAttr] | None = None,
+        async_only: ArrayAttr[DeviceTypeAttr] | None = None,
+        data_clause: DataClauseAttr | DataClause | None = None,
+        structured: BoolAttr | bool | None = None,
+        implicit: BoolAttr | bool | None = None,
+        modifiers: DataClauseModifierAttr | None = None,
+        var_name: StringAttr | str | None = None,
+        recipe: SymbolRefAttr | None = None,
+        acc_var_type: Attribute | None = None,
+    ) -> None:
+        var_value = SSAValue.get(var)
+        if var_type is None:
+            var_type = cast(TypeAttribute, _default_var_type(var_value.type))
+        if acc_var_type is None:
+            acc_var_type = var_value.type
+
+        structured_prop: BoolAttr | None = (
+            IntegerAttr.from_bool(structured)
+            if isinstance(structured, bool)
+            else structured
+        )
+        implicit_prop: BoolAttr | None = (
+            IntegerAttr.from_bool(implicit) if isinstance(implicit, bool) else implicit
+        )
+        data_clause_prop: DataClauseAttr | None = (
+            DataClauseAttr(data_clause)
+            if isinstance(data_clause, DataClause)
+            else data_clause
+        )
+        var_name_prop: StringAttr | None = (
+            StringAttr(var_name) if isinstance(var_name, str) else var_name
+        )
+
+        super().__init__(
+            operands=[
+                [var],
+                [var_ptr_ptr] if var_ptr_ptr is not None else [],
+                list(bounds),
+                list(async_operands),
+            ],
+            properties={
+                "varType": var_type,
+                "asyncOperandsDeviceType": async_operands_device_type,
+                "asyncOnly": async_only,
+                "dataClause": data_clause_prop,
+                "structured": structured_prop,
+                "implicit": implicit_prop,
+                "modifiers": modifiers,
+                "name": var_name_prop,
+                "recipe": recipe,
+            },
+            result_types=[acc_var_type],
+        )
+
+
+@irdl_op_definition
+class CopyinOp(_DataEntryOp):
+    """Implementation of upstream acc.copyin."""
+
+    name = "acc.copyin"
+    data_clause = opt_prop_def(
+        DataClauseAttr,
+        default_value=DataClauseAttr(DataClause.ACC_COPYIN),
+        prop_name="dataClause",
+    )
+
+
+@irdl_op_definition
+class CreateOp(_DataEntryOp):
+    """Implementation of upstream acc.create."""
+
+    name = "acc.create"
+    data_clause = opt_prop_def(
+        DataClauseAttr,
+        default_value=DataClauseAttr(DataClause.ACC_CREATE),
+        prop_name="dataClause",
+    )
+
+
+@irdl_op_definition
+class PresentOp(_DataEntryOp):
+    """Implementation of upstream acc.present."""
+
+    name = "acc.present"
+    data_clause = opt_prop_def(
+        DataClauseAttr,
+        default_value=DataClauseAttr(DataClause.ACC_PRESENT),
+        prop_name="dataClause",
+    )
+
+
 @irdl_op_definition
 class DataBoundsOp(IRDLOperation):
     """
@@ -1337,6 +1581,9 @@ ACC = Dialect(
         GetUpperboundOp,
         GetStrideOp,
         GetExtentOp,
+        CopyinOp,
+        CreateOp,
+        PresentOp,
         YieldOp,
     ],
     [
