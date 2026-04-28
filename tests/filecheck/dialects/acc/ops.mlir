@@ -953,6 +953,17 @@ builtin.module {
   // CHECK-LABEL: func.func @copyout_minimal(
   // CHECK:         acc.copyout accPtr(%{{.*}} : memref<10xf32>) to varPtr(%{{.*}} : memref<10xf32>)
 
+  // The `AccVar` directive accepts either `accPtr` or `accVar` on parse and
+  // always emits `accPtr` on print (mirroring `Var`'s `varPtr` choice). Input
+  // uses the `accVar` spelling; the output must normalize to `accPtr`,
+  // proving the parser fallback is reachable.
+  func.func @copyout_acc_var_keyword(%d : memref<10xf32>, %h : memref<10xf32>) {
+    acc.copyout accVar(%d : memref<10xf32>) to varPtr(%h : memref<10xf32>)
+    func.return
+  }
+  // CHECK-LABEL: func.func @copyout_acc_var_keyword(
+  // CHECK:         acc.copyout accPtr(%{{.*}} : memref<10xf32>) to varPtr(%{{.*}} : memref<10xf32>)
+
   func.func @copyout_with_var_type(%d : memref<10xf32>, %h : memref<10xf32>) {
     acc.copyout accPtr(%d : memref<10xf32>) to varPtr(%h : memref<10xf32>) varType(tensor<10xf32>)
     func.return
