@@ -380,10 +380,10 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return linalg_generalize_named_ops.LinalgGeneralizeNamedOpsPass
 
-    def get_linalg_tiling():
-        from xdsl.transforms import linalg_tiling
+    def get_test_linalg_tiling():
+        from xdsl.transforms.test_linalg_tiling import TestLinalgTilingPass
 
-        return linalg_tiling.LinalgTilingPass
+        return TestLinalgTilingPass
 
     def get_linalg_to_csl():
         from xdsl.transforms.linalg_to_csl import LinalgToCsl
@@ -754,7 +754,6 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "lift-arith-to-linalg": get_lift_arith_to_linalg,
         "linalg-fuse-multiply-add": get_linalg_fuse_multiply_add,
         "linalg-generalize-named-ops": get_linalg_generalize_named_ops,
-        "linalg-tiling": get_linalg_tiling,
         "linalg-to-csl": get_linalg_to_csl,
         "loop-hoist-memref": get_loop_hoist_memref,
         "lower-affine": get_lower_affine,
@@ -801,6 +800,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "test-add-timers-to-top-level-funcs": get_test_add_timers_to_top_level_funcs,
         "test-constant-folding": get_test_constant_folding,
         "test-deprecation": get_test_deprecation,
+        "test-linalg-tiling": get_test_linalg_tiling,
         "test-lower-linalg-to-snitch": get_test_lower_linalg_to_snitch,
         "test-specialised-constant-folding": get_test_specialised_constant_folding,
         "test-transform-dialect-erase-schedule": get_test_transform_dialect_erase_schedule,

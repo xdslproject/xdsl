@@ -1,5 +1,4 @@
-// RUN: xdsl-opt -p "linalg-tiling{tile-sizes=2,2}" --split-input-file --verify-diagnostics %s | filecheck %s
-// RUN: xdsl-opt -p "linalg-tiling{tile-sizes=-2,2}" --split-input-file --verify-diagnostics %s | filecheck %s --check-prefix=NEG
+// RUN: xdsl-opt -p test-linalg-tiling --split-input-file --verify-diagnostics %s | filecheck %s
 
 builtin.module {
   %input = "test.op"() : () -> memref<4x4xf32>
@@ -10,12 +9,12 @@ builtin.module {
           affine_map<(i, j) -> (i, j)>
       ],
       iterator_types = ["parallel", "parallel"]
-  } ins(%input : memref<4x4xf32>) outs(%output : memref<4x4xf32>) {
+  } ins(%input : memref<4x4xf32>) outs(%output : memref<4x4xf32>) attrs = {test_tile_sizes = array<i32: -2, 2>} {
   ^bb0(%in: f32, %out: f32):
       linalg.yield %in : f32
   }
 }
-// NEG: negative tile sizes are not supported
+// CHECK: negative tile sizes are not supported
 
 // -----
 
@@ -28,7 +27,7 @@ builtin.module {
           affine_map<(i, j) -> (i, j)>
       ],
       iterator_types = ["parallel", "parallel"]
-  } ins(%input : tensor<4x4xf32>) outs(%output : tensor<4x4xf32>) {
+  } ins(%input : tensor<4x4xf32>) outs(%output : tensor<4x4xf32>) attrs = {test_tile_sizes = array<i32: 2, 2>} {
   ^bb0(%in: f32, %out: f32):
       linalg.yield %in : f32
   } -> tensor<4x4xf32>
@@ -47,7 +46,7 @@ builtin.module {
           affine_map<(i, j) -> (i, j)>
       ],
       iterator_types = ["parallel", "parallel"]
-  } ins(%input : memref<4x4xf32>) outs(%output : memref<4x4xf32>) {
+  } ins(%input : memref<4x4xf32>) outs(%output : memref<4x4xf32>) attrs = {test_tile_sizes = array<i32: 2, 2>} {
   ^bb0(%in: f32, %out: f32):
       %i = linalg.index 0 : index
       %unused = "test.op"(%i) : (index) -> f32
@@ -67,7 +66,7 @@ builtin.module {
           affine_map<(i, j) -> (i, j)>
       ],
       iterator_types = ["parallel", "reduction"]
-  } ins(%input : memref<4x4xf32>) outs(%output : memref<4x4xf32>) {
+  } ins(%input : memref<4x4xf32>) outs(%output : memref<4x4xf32>) attrs = {test_tile_sizes = array<i32: 2, 2>} {
   ^bb0(%in: f32, %out: f32):
       linalg.yield %in : f32
   }
@@ -85,7 +84,7 @@ builtin.module {
           affine_map<(i, j) -> (i, j)>
       ],
       iterator_types = ["parallel", "parallel"]
-  } ins(%input : tensor<4x4xf32>) outs(%output : memref<4x4xf32>) {
+  } ins(%input : tensor<4x4xf32>) outs(%output : memref<4x4xf32>) attrs = {test_tile_sizes = array<i32: 2, 2>} {
   ^bb0(%in: f32, %out: f32):
       linalg.yield %out : f32
   }
@@ -103,7 +102,7 @@ builtin.module {
           affine_map<(i, j) -> (i, j)>
       ],
       iterator_types = ["parallel", "parallel"]
-  } ins(%input : memref<?x4xf32>) outs(%output : memref<?x4xf32>) {
+  } ins(%input : memref<?x4xf32>) outs(%output : memref<?x4xf32>) attrs = {test_tile_sizes = array<i32: 2, 2>} {
   ^bb0(%in: f32, %out: f32):
       linalg.yield %in : f32
   }
@@ -121,7 +120,7 @@ builtin.module {
           affine_map<(i, j) -> (i, j)>
       ],
       iterator_types = ["parallel", "parallel"]
-  } ins(%input : memref<4x4xf32>) outs(%output : memref<4x4xf32>) {
+  } ins(%input : memref<4x4xf32>) outs(%output : memref<4x4xf32>) attrs = {test_tile_sizes = array<i32: 2, 2>} {
   ^bb0(%in: f32, %out: f32):
       linalg.yield %in : f32
   }
@@ -139,7 +138,7 @@ builtin.module {
           affine_map<(i, j) -> (i, j)>
       ],
       iterator_types = ["parallel", "parallel"]
-  } ins(%input : memref<5x4xf32>) outs(%output : memref<5x4xf32>) {
+  } ins(%input : memref<5x4xf32>) outs(%output : memref<5x4xf32>) attrs = {test_tile_sizes = array<i32: 2, 2>} {
   ^bb0(%in: f32, %out: f32):
       linalg.yield %in : f32
   }
@@ -157,7 +156,7 @@ builtin.module {
           affine_map<(i, j) -> (i, j)>
       ],
       iterator_types = ["parallel", "parallel"]
-  } ins(%input : memref<4x4xf32, affine_map<(d0, d1) -> (d0 * 4 + d1)>>) outs(%output : memref<4x4xf32, affine_map<(d0, d1) -> (d0 * 4 + d1)>>) {
+  } ins(%input : memref<4x4xf32, affine_map<(d0, d1) -> (d0 * 4 + d1)>>) outs(%output : memref<4x4xf32, affine_map<(d0, d1) -> (d0 * 4 + d1)>>) attrs = {test_tile_sizes = array<i32: 2, 2>} {
   ^bb0(%in: f32, %out: f32):
       linalg.yield %in : f32
   }
@@ -175,7 +174,7 @@ builtin.module {
           affine_map<(i, j) -> (i, j)>
       ],
       iterator_types = ["parallel", "parallel"]
-  } ins(%input : memref<4x4xf32, strided<[?, 1]>>) outs(%output : memref<4x4xf32, strided<[?, 1]>>) {
+  } ins(%input : memref<4x4xf32, strided<[?, 1]>>) outs(%output : memref<4x4xf32, strided<[?, 1]>>) attrs = {test_tile_sizes = array<i32: 2, 2>} {
   ^bb0(%in: f32, %out: f32):
       linalg.yield %in : f32
   }
