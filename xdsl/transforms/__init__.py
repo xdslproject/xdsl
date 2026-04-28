@@ -530,6 +530,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return riscv_scf_loop_range_folding.RiscvScfLoopRangeFoldingPass
 
+    def get_riscv_scf_for_infer_constant_step():
+        from xdsl.transforms import riscv_scf_for_infer_constant_step
+
+        return riscv_scf_for_infer_constant_step.RiscvScfForInferConstantStepPass
+
     def get_scf_for_loop_flatten():
         from xdsl.transforms import scf_for_loop_flatten
 
@@ -768,6 +773,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "riscv-allocate-registers": get_riscv_allocate_registers,
         "riscv-lower-parallel-mov": get_riscv_lower_parallel_mov,
         "riscv-prologue-epilogue-insertion": get_riscv_prologue_epilogue_insertion,
+        "riscv-scf-for-infer-constant-step": get_riscv_scf_for_infer_constant_step,
         "riscv-scf-loop-range-folding": get_riscv_scf_loop_range_folding,
         "scf-for-loop-flatten": get_scf_for_loop_flatten,
         "scf-for-loop-range-folding": get_scf_for_loop_range_folding,
