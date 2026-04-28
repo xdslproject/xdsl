@@ -499,3 +499,48 @@ def test_cache_op_has_no_memory_effect_trait():
     assert not acc.CopyinOp.has_trait(NoMemoryEffect)
     assert not acc.AttachOp.has_trait(NoMemoryEffect)
     assert not acc.DeclareDeviceResidentOp.has_trait(NoMemoryEffect)
+
+
+def test_private_minimal_defaulted_props_absent_from_dict():
+    """Privatization ops share the `_DataEntryOperation` mixin, so the
+    same defaulted-prop absence invariant applies: defaulted props
+    (`dataClause` / `structured` / `implicit` / `modifiers`) must be
+    *absent* from `op.properties` when not explicitly set."""
+    op = acc.PrivateOp(var=create_ssa_value(MemRefType(f32, [10])))
+
+    assert "dataClause" not in op.properties
+    assert "structured" not in op.properties
+    assert "implicit" not in op.properties
+    assert "modifiers" not in op.properties
+
+
+def test_private_builder_shortcuts():
+    """Bool / str / `DataClause` shortcuts on `_DataEntryOperation`'s
+    `__init__` for `acc.private`. Builder-only conversions; the parser only
+    sees attribute instances."""
+    op = acc.PrivateOp(
+        var=create_ssa_value(MemRefType(f32, [10])),
+        data_clause=acc.DataClause.ACC_PRIVATE,
+        structured=False,
+        implicit=True,
+        var_name="myvar",
+    )
+
+    assert op.data_clause == acc.DataClauseAttr(acc.DataClause.ACC_PRIVATE)
+    assert op.structured == IntegerAttr.from_bool(False)
+    assert op.implicit == IntegerAttr.from_bool(True)
+    assert op.var_name == StringAttr("myvar")
+
+
+def test_privatization_leaf_dataclause_defaults_absent_from_dict():
+    """The defaulted `dataClause` prop must be *absent* from `op.properties`
+    on each privatization leaf when not explicitly set — otherwise attr-dict
+    elision on print silently fails. Filecheck owns the *value* of each
+    leaf's default (via the `*_dataclause_default_elided` cases); the
+    dict-state invariant is Python-only."""
+    fp = acc.FirstprivateOp(var=create_ssa_value(MemRefType(f32, [10])))
+    fpm = acc.FirstprivateMapOp(var=create_ssa_value(MemRefType(f32, [10])))
+    red = acc.ReductionOp(var=create_ssa_value(MemRefType(f32, [10])))
+    assert "dataClause" not in fp.properties
+    assert "dataClause" not in fpm.properties
+    assert "dataClause" not in red.properties

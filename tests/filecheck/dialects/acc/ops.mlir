@@ -1146,4 +1146,84 @@ builtin.module {
   // CHECK-LABEL: func.func @detach_dataclause_default_elided(
   // CHECK:         acc.detach accPtr(%{{.*}} : memref<10xf32>)
   // CHECK-NOT:     dataClause
+
+  // Privatization data-clause leaves (`acc.private`, `acc.firstprivate`,
+  // `acc.firstprivate_map`, `acc.reduction`). Same `_DataEntryOperation`
+  // shape as `acc.copyin`, so the operand / property surface is already
+  // covered there — the cases below pin the per-op `dataClause` default
+  // and show the inherited optional `recipe` symbol slot rendered through
+  // attr-dict.
+  func.func @private_minimal(%a : memref<10xf32>) {
+    %r = acc.private varPtr(%a : memref<10xf32>) -> memref<10xf32>
+    func.return
+  }
+  // CHECK-LABEL: func.func @private_minimal(
+  // CHECK:         %{{.*}} = acc.private varPtr(%{{.*}} : memref<10xf32>) -> memref<10xf32>
+
+  func.func @private_with_recipe(%a : memref<10xf32>) {
+    // The `recipe` symbol slot is an attr-dict-only property on
+    // `_DataEntryOperation`; this case proves it round-trips for
+    // `acc.private` even though no recipe op exists yet in xDSL.
+    %r = acc.private varPtr(%a : memref<10xf32>) -> memref<10xf32> {recipe = @priv_recipe}
+    func.return
+  }
+  // CHECK-LABEL: func.func @private_with_recipe(
+  // CHECK:         %{{.*}} = acc.private varPtr(%{{.*}} : memref<10xf32>) -> memref<10xf32> {recipe = @priv_recipe}
+
+  func.func @private_dataclause_default_elided(%a : memref<10xf32>) {
+    %r = "acc.private"(%a) <{dataClause = #acc<data_clause acc_private>, operandSegmentSizes = array<i32: 1, 0, 0, 0>, varType = f32}> : (memref<10xf32>) -> memref<10xf32>
+    func.return
+  }
+  // CHECK-LABEL: func.func @private_dataclause_default_elided(
+  // CHECK:         %{{.*}} = acc.private varPtr(%{{.*}} : memref<10xf32>) -> memref<10xf32>
+  // CHECK-NOT:     dataClause
+
+  func.func @firstprivate_minimal(%a : memref<10xf32>) {
+    %r = acc.firstprivate varPtr(%a : memref<10xf32>) -> memref<10xf32>
+    func.return
+  }
+  // CHECK-LABEL: func.func @firstprivate_minimal(
+  // CHECK:         %{{.*}} = acc.firstprivate varPtr(%{{.*}} : memref<10xf32>) -> memref<10xf32>
+
+  func.func @firstprivate_dataclause_default_elided(%a : memref<10xf32>) {
+    %r = "acc.firstprivate"(%a) <{dataClause = #acc<data_clause acc_firstprivate>, operandSegmentSizes = array<i32: 1, 0, 0, 0>, varType = f32}> : (memref<10xf32>) -> memref<10xf32>
+    func.return
+  }
+  // CHECK-LABEL: func.func @firstprivate_dataclause_default_elided(
+  // CHECK:         %{{.*}} = acc.firstprivate varPtr(%{{.*}} : memref<10xf32>) -> memref<10xf32>
+  // CHECK-NOT:     dataClause
+
+  // `acc.firstprivate_map` shares `acc.firstprivate`'s `dataClause` default
+  // (`acc_firstprivate`) — the two ops are distinguished by name, not
+  // dataClause. So the generic-form input here also carries the same
+  // `acc_firstprivate` default to verify it elides on the pretty form.
+  func.func @firstprivate_map_minimal(%a : memref<10xf32>) {
+    %r = acc.firstprivate_map varPtr(%a : memref<10xf32>) -> memref<10xf32>
+    func.return
+  }
+  // CHECK-LABEL: func.func @firstprivate_map_minimal(
+  // CHECK:         %{{.*}} = acc.firstprivate_map varPtr(%{{.*}} : memref<10xf32>) -> memref<10xf32>
+
+  func.func @firstprivate_map_dataclause_default_elided(%a : memref<10xf32>) {
+    %r = "acc.firstprivate_map"(%a) <{dataClause = #acc<data_clause acc_firstprivate>, operandSegmentSizes = array<i32: 1, 0, 0, 0>, varType = f32}> : (memref<10xf32>) -> memref<10xf32>
+    func.return
+  }
+  // CHECK-LABEL: func.func @firstprivate_map_dataclause_default_elided(
+  // CHECK:         %{{.*}} = acc.firstprivate_map varPtr(%{{.*}} : memref<10xf32>) -> memref<10xf32>
+  // CHECK-NOT:     dataClause
+
+  func.func @reduction_minimal(%a : memref<i64>) {
+    %r = acc.reduction varPtr(%a : memref<i64>) -> memref<i64>
+    func.return
+  }
+  // CHECK-LABEL: func.func @reduction_minimal(
+  // CHECK:         %{{.*}} = acc.reduction varPtr(%{{.*}} : memref<i64>) -> memref<i64>
+
+  func.func @reduction_dataclause_default_elided(%a : memref<i64>) {
+    %r = "acc.reduction"(%a) <{dataClause = #acc<data_clause acc_reduction>, operandSegmentSizes = array<i32: 1, 0, 0, 0>, varType = i64}> : (memref<i64>) -> memref<i64>
+    func.return
+  }
+  // CHECK-LABEL: func.func @reduction_dataclause_default_elided(
+  // CHECK:         %{{.*}} = acc.reduction varPtr(%{{.*}} : memref<i64>) -> memref<i64>
+  // CHECK-NOT:     dataClause
 }

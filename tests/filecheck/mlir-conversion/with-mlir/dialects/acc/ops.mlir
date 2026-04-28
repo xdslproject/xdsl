@@ -677,4 +677,26 @@ builtin.module {
   }
   // CHECK:       func.func @detach_minimal(
   // CHECK:         acc.detach accPtr(%{{.*}} : memref<10xf32>)
+
+  // `acc.firstprivate_map` is the only privatization-family op that does
+  // *not* require a `recipe` symbol per upstream's verifier — so it's the
+  // one we can interop-test without first standing up the recipe ops
+  // (deferred to PR 13). For `acc.private`, `acc.firstprivate`, and
+  // `acc.reduction`, the upstream verifier rejects the op when the var is
+  // a pointer-like memref and no recipe is set; xDSL-only roundtrip
+  // coverage in `tests/filecheck/dialects/acc/ops.mlir` exercises the
+  // operand/property surface in the meantime.
+  func.func @firstprivate_map_minimal(%a : memref<10xf32>) {
+    %r = acc.firstprivate_map varPtr(%a : memref<10xf32>) -> memref<10xf32>
+    func.return
+  }
+  // CHECK:       func.func @firstprivate_map_minimal(
+  // CHECK:         %{{.*}} = acc.firstprivate_map varPtr(%{{.*}} : memref<10xf32>) -> memref<10xf32>
+
+  func.func @firstprivate_map_with_var_type(%a : memref<10xf32>) {
+    %r = acc.firstprivate_map varPtr(%a : memref<10xf32>) varType(tensor<10xf32>) -> memref<10xf32>
+    func.return
+  }
+  // CHECK:       func.func @firstprivate_map_with_var_type(
+  // CHECK:         %{{.*}} = acc.firstprivate_map varPtr(%{{.*}} : memref<10xf32>) varType(tensor<10xf32>) -> memref<10xf32>
 }

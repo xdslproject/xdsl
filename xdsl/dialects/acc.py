@@ -159,6 +159,28 @@ class VariableTypeCategory(StrEnum):
     NONSCALAR = "nonscalar"
 
 
+class ReductionOperator(StrEnum):
+    """Built-in OpenACC reduction operators.
+
+    Matches upstream `mlir::acc::ReductionOperator`. Not yet consumed by an
+    op in this PR — it's introduced here for the upcoming `acc.loop` and
+    `acc.reduction.recipe` ops, per the dialect roadmap.
+    """
+
+    NONE = "none"
+    ADD = "add"
+    MUL = "mul"
+    MAX = "max"
+    MIN = "min"
+    IAND = "iand"
+    IOR = "ior"
+    XOR = "xor"
+    EQV = "eqv"
+    NEQV = "neqv"
+    LAND = "land"
+    LOR = "lor"
+
+
 @irdl_attr_definition
 class DeviceTypeAttr(EnumAttribute[DeviceType]):
     """
@@ -232,6 +254,26 @@ class VariableTypeCategoryAttr(
     none_value = "uncategorized"
     separator_value = ","
     delimiter_value = AttrParser.Delimiter.NONE
+
+
+@irdl_attr_definition
+class ReductionOperatorAttr(EnumAttribute[ReductionOperator]):
+    """
+    Reduction operator attribute. Prints using the pretty form
+    `#acc.reduction_operator<value>` to match upstream MLIR (which defines
+    `assemblyFormat = "`<` $value `>`"`).
+    """
+
+    name = "acc.reduction_operator"
+
+    def print_parameter(self, printer: Printer) -> None:
+        with printer.in_angle_brackets():
+            printer.print_string(self.data.value)
+
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> ReductionOperator:
+        with parser.in_angle_brackets():
+            return parser.parse_str_enum(ReductionOperator)
 
 
 @irdl_attr_definition
@@ -1593,6 +1635,80 @@ class UpdateDeviceOp(_DataEntryOperation):
 
 
 # ---------------------------------------------------------------------------
+# Privatization data-clause ops
+# ---------------------------------------------------------------------------
+#
+# Upstream models the privatization family (`private`, `firstprivate`,
+# `firstprivate_map`, `reduction`) as plain `OpenACC_DataEntryOp` leaves —
+# same operand-and-attribute shape as the entry ops above. They differ only
+# in the per-op `dataClause` default. The `recipe` slot inherited from
+# `_DataEntryOperation` is what carries the privatization/reduction logic;
+# upstream's verifier requires it to be set when the var is a pointer-like
+# type (memref). The recipe ops themselves are introduced in a later PR.
+
+
+@irdl_op_definition
+class PrivateOp(_DataEntryOperation):
+    """Implementation of upstream acc.private."""
+
+    name = "acc.private"
+    data_clause = opt_prop_def(
+        DataClauseAttr,
+        default_value=DataClauseAttr(DataClause.ACC_PRIVATE),
+        prop_name="dataClause",
+    )
+
+
+@irdl_op_definition
+class FirstprivateOp(_DataEntryOperation):
+    """Implementation of upstream acc.firstprivate."""
+
+    name = "acc.firstprivate"
+    data_clause = opt_prop_def(
+        DataClauseAttr,
+        default_value=DataClauseAttr(DataClause.ACC_FIRSTPRIVATE),
+        prop_name="dataClause",
+    )
+
+
+@irdl_op_definition
+class FirstprivateMapOp(_DataEntryOperation):
+    """Implementation of upstream acc.firstprivate_map.
+
+    Used to decompose firstprivate semantics: this op represents the mapping
+    of the host's initial value (which the per-iteration private copies are
+    initialized from). It shares `acc.firstprivate`'s `dataClause` default
+    (`acc_firstprivate`) — the two ops are distinguished by op name, not by
+    their `dataClause` attribute.
+    """
+
+    name = "acc.firstprivate_map"
+    data_clause = opt_prop_def(
+        DataClauseAttr,
+        default_value=DataClauseAttr(DataClause.ACC_FIRSTPRIVATE),
+        prop_name="dataClause",
+    )
+
+
+@irdl_op_definition
+class ReductionOp(_DataEntryOperation):
+    """Implementation of upstream acc.reduction.
+
+    Plain entry-shape op per upstream `OpenACC_ReductionOp`. The reduction
+    operator (add / mul / max / ...) is *not* carried on this op — it lives
+    on the corresponding `acc.reduction.recipe` referenced via the inherited
+    `recipe` symbol slot.
+    """
+
+    name = "acc.reduction"
+    data_clause = opt_prop_def(
+        DataClauseAttr,
+        default_value=DataClauseAttr(DataClause.ACC_REDUCTION),
+        prop_name="dataClause",
+    )
+
+
+# ---------------------------------------------------------------------------
 # Exit data-clause ops
 # ---------------------------------------------------------------------------
 #
@@ -2021,6 +2137,10 @@ ACC = Dialect(
         DeclareLinkOp,
         GetDevicePtrOp,
         UpdateDeviceOp,
+        PrivateOp,
+        FirstprivateOp,
+        FirstprivateMapOp,
+        ReductionOp,
         CopyoutOp,
         UpdateHostOp,
         DeleteOp,
@@ -2033,6 +2153,7 @@ ACC = Dialect(
         DataClauseAttr,
         DataClauseModifierAttr,
         VariableTypeCategoryAttr,
+        ReductionOperatorAttr,
         DataBoundsType,
     ],
 )
