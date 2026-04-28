@@ -647,4 +647,34 @@ builtin.module {
   }
   // CHECK:       func.func @update_device_minimal(
   // CHECK:         %{{.*}} = acc.update_device varPtr(%{{.*}} : memref<10xf32>) -> memref<10xf32>
+
+  func.func @delete_minimal(%d : memref<10xf32>) {
+    acc.delete accPtr(%d : memref<10xf32>)
+    func.return
+  }
+  // CHECK:       func.func @delete_minimal(
+  // CHECK:         acc.delete accPtr(%{{.*}} : memref<10xf32>)
+
+  func.func @delete_with_bounds_async(%d : memref<10xf32>, %async : i32, %c0 : index, %c9 : index) {
+    %b = acc.bounds lowerbound(%c0 : index) upperbound(%c9 : index)
+    acc.delete accPtr(%d : memref<10xf32>) bounds(%b) async(%async : i32)
+    func.return
+  }
+  // CHECK:       func.func @delete_with_bounds_async(
+  // CHECK:         %{{.*}} = acc.bounds lowerbound(%{{.*}} : index) upperbound(%{{.*}} : index)
+  // CHECK-NEXT:    acc.delete accPtr(%{{.*}} : memref<10xf32>) bounds(%{{.*}}) async(%{{.*}} : i32)
+
+  func.func @delete_clause_override(%d : memref<10xf32>) {
+    acc.delete accPtr(%d : memref<10xf32>) {dataClause = #acc<data_clause acc_create>, modifiers = #acc<data_clause_modifier alwaysout>, name = "myvar"}
+    func.return
+  }
+  // CHECK:       func.func @delete_clause_override(
+  // CHECK:         acc.delete accPtr(%{{.*}} : memref<10xf32>) {dataClause = #acc<data_clause acc_create>, modifiers = #acc<data_clause_modifier alwaysout>, name = "myvar"}
+
+  func.func @detach_minimal(%d : memref<10xf32>) {
+    acc.detach accPtr(%d : memref<10xf32>)
+    func.return
+  }
+  // CHECK:       func.func @detach_minimal(
+  // CHECK:         acc.detach accPtr(%{{.*}} : memref<10xf32>)
 }

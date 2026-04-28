@@ -1593,7 +1593,7 @@ class UpdateDeviceOp(_DataEntryOperation):
 
 
 # ---------------------------------------------------------------------------
-# Exit data-clause ops (with-host-pointer family)
+# Exit data-clause ops
 # ---------------------------------------------------------------------------
 #
 # Upstream models the exit data-clause family as two TableGen base classes:
@@ -1601,8 +1601,9 @@ class UpdateDeviceOp(_DataEntryOperation):
 # *and* device pointer) and `OpenACC_DataExitOpNoVarPtr` (for `delete`,
 # `detach` — device pointer only). They differ in operand layout and
 # assembly format, but share the bounds / async / dataClause / structured /
-# implicit / modifiers / name surface. This file currently models only the
-# WithVarPtr half; the NoVarPtr half lands in a follow-up PR.
+# implicit / modifiers / name surface. The two mixins below mirror that
+# split; concrete leaves inherit one and supply only the per-op
+# `dataClause` default.
 
 
 class _DataExitOperationWithVarPtr(IRDLOperation, ABC):
@@ -1735,6 +1736,129 @@ class UpdateHostOp(_DataExitOperationWithVarPtr):
     data_clause = opt_prop_def(
         DataClauseAttr,
         default_value=DataClauseAttr(DataClause.ACC_UPDATE_HOST),
+        prop_name="dataClause",
+    )
+
+
+class _DataExitOperationNoVarPtr(IRDLOperation, ABC):
+    """Shared shape for `acc.delete` / `acc.detach`.
+
+    Mirrors upstream's `OpenACC_DataExitOpNoVarPtr` td class: just the
+    `accVar` operand (device pointer) plus the shared bounds / async /
+    dataClause / structured / implicit / modifiers / name surface. No host
+    `var` and no `varType` — these ops do not transfer data, so they don't
+    need to know the host-side mapping.
+    """
+
+    acc_var = operand_def()
+    bounds = var_operand_def(DataBoundsType)
+    async_operands = var_operand_def(IntegerType | IndexType)
+
+    async_operands_device_type = opt_prop_def(
+        ArrayAttr[DeviceTypeAttr], prop_name="asyncOperandsDeviceType"
+    )
+    async_only = opt_prop_def(ArrayAttr[DeviceTypeAttr], prop_name="asyncOnly")
+    structured = opt_prop_def(
+        BoolAttr,
+        default_value=IntegerAttr.from_bool(True),
+        prop_name="structured",
+    )
+    implicit = opt_prop_def(
+        BoolAttr,
+        default_value=IntegerAttr.from_bool(False),
+        prop_name="implicit",
+    )
+    modifiers = opt_prop_def(
+        DataClauseModifierAttr,
+        default_value=DataClauseModifierAttr(frozenset[DataClauseModifier]()),
+        prop_name="modifiers",
+    )
+    var_name = opt_prop_def(StringAttr, prop_name="name")
+
+    irdl_options = (
+        AttrSizedOperandSegments(as_property=True),
+        ParsePropInAttrDict(),
+    )
+
+    custom_directives = (AccVar, DeviceTypeOperandsWithKeywordOnly)
+
+    assembly_format = (
+        "custom<AccVar>($acc_var, type($acc_var))"
+        " (`bounds` `(` $bounds^ `)`)?"
+        " (`async` custom<DeviceTypeOperandsWithKeywordOnly>($async_operands,"
+        " type($async_operands), $asyncOperandsDeviceType, $asyncOnly)^)?"
+        " attr-dict"
+    )
+
+    def __init__(
+        self,
+        *,
+        acc_var: SSAValue | Operation,
+        bounds: Sequence[SSAValue | Operation] = (),
+        async_operands: Sequence[SSAValue | Operation] = (),
+        async_operands_device_type: ArrayAttr[DeviceTypeAttr] | None = None,
+        async_only: ArrayAttr[DeviceTypeAttr] | None = None,
+        data_clause: DataClauseAttr | DataClause | None = None,
+        structured: BoolAttr | bool | None = None,
+        implicit: BoolAttr | bool | None = None,
+        modifiers: DataClauseModifierAttr | None = None,
+        var_name: StringAttr | str | None = None,
+    ) -> None:
+        structured_prop: BoolAttr | None = (
+            IntegerAttr.from_bool(structured)
+            if isinstance(structured, bool)
+            else structured
+        )
+        implicit_prop: BoolAttr | None = (
+            IntegerAttr.from_bool(implicit) if isinstance(implicit, bool) else implicit
+        )
+        data_clause_prop: DataClauseAttr | None = (
+            DataClauseAttr(data_clause)
+            if isinstance(data_clause, DataClause)
+            else data_clause
+        )
+        var_name_prop: StringAttr | None = (
+            StringAttr(var_name) if isinstance(var_name, str) else var_name
+        )
+
+        super().__init__(
+            operands=[
+                [acc_var],
+                list(bounds),
+                list(async_operands),
+            ],
+            properties={
+                "asyncOperandsDeviceType": async_operands_device_type,
+                "asyncOnly": async_only,
+                "dataClause": data_clause_prop,
+                "structured": structured_prop,
+                "implicit": implicit_prop,
+                "modifiers": modifiers,
+                "name": var_name_prop,
+            },
+        )
+
+
+@irdl_op_definition
+class DeleteOp(_DataExitOperationNoVarPtr):
+    """Implementation of upstream acc.delete."""
+
+    name = "acc.delete"
+    data_clause = opt_prop_def(
+        DataClauseAttr,
+        default_value=DataClauseAttr(DataClause.ACC_DELETE),
+        prop_name="dataClause",
+    )
+
+
+@irdl_op_definition
+class DetachOp(_DataExitOperationNoVarPtr):
+    """Implementation of upstream acc.detach."""
+
+    name = "acc.detach"
+    data_clause = opt_prop_def(
+        DataClauseAttr,
+        default_value=DataClauseAttr(DataClause.ACC_DETACH),
         prop_name="dataClause",
     )
 
@@ -1899,6 +2023,8 @@ ACC = Dialect(
         UpdateDeviceOp,
         CopyoutOp,
         UpdateHostOp,
+        DeleteOp,
+        DetachOp,
         YieldOp,
     ],
     [

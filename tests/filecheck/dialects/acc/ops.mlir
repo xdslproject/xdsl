@@ -1077,4 +1077,73 @@ builtin.module {
   // CHECK-LABEL: func.func @update_device_dataclause_default_elided(
   // CHECK:         %{{.*}} = acc.update_device varPtr(%{{.*}} : memref<10xf32>) -> memref<10xf32>
   // CHECK-NOT:     dataClause
+
+  // No-host-pointer exit ops (`acc.delete`, `acc.detach`). These live on
+  // `_DataExitOperationNoVarPtr` — three operand groups (`accVar`,
+  // `bounds`, `asyncOperands`), no host `var`, no `varType`. They share
+  // the `AccVar` custom directive and the bounds/async assembly format
+  // tail with the with-host-pointer exit ops.
+  func.func @delete_minimal(%d : memref<10xf32>) {
+    acc.delete accPtr(%d : memref<10xf32>)
+    func.return
+  }
+  // CHECK-LABEL: func.func @delete_minimal(
+  // CHECK:         acc.delete accPtr(%{{.*}} : memref<10xf32>)
+
+  func.func @delete_with_bounds_async(%d : memref<10xf32>, %async : i32, %c0 : index, %c9 : index) {
+    %b = acc.bounds lowerbound(%c0 : index) upperbound(%c9 : index)
+    acc.delete accPtr(%d : memref<10xf32>) bounds(%b) async(%async : i32)
+    func.return
+  }
+  // CHECK-LABEL: func.func @delete_with_bounds_async(
+  // CHECK:         %{{.*}} = acc.bounds lowerbound(%{{.*}} : index) upperbound(%{{.*}} : index)
+  // CHECK-NEXT:    acc.delete accPtr(%{{.*}} : memref<10xf32>) bounds(%{{.*}}) async(%{{.*}} : i32)
+
+  func.func @delete_async_kw_dt(%d : memref<10xf32>) {
+    acc.delete accPtr(%d : memref<10xf32>) async([#acc.device_type<nvidia>])
+    func.return
+  }
+  // CHECK-LABEL: func.func @delete_async_kw_dt(
+  // CHECK:         acc.delete accPtr(%{{.*}} : memref<10xf32>) async([#acc.device_type<nvidia>])
+
+  func.func @delete_full_attr_dict(%d : memref<10xf32>) {
+    acc.delete accPtr(%d : memref<10xf32>) {dataClause = #acc<data_clause acc_create>, implicit = true, modifiers = #acc<data_clause_modifier alwaysout>, name = "myvar", structured = false}
+    func.return
+  }
+  // CHECK-LABEL: func.func @delete_full_attr_dict(
+  // CHECK:         acc.delete accPtr(%{{.*}} : memref<10xf32>) {dataClause = #acc<data_clause acc_create>, implicit = true, modifiers = #acc<data_clause_modifier alwaysout>, name = "myvar", structured = false}
+
+  // Generic-form roundtrip insurance for the no-varPtr exit shape. Three
+  // operand groups (`accVar`, `bounds`, `asyncOperands`) — distinct from
+  // the four-group WithVarPtr shape, so the `operandSegmentSizes` shape is
+  // independently load-bearing here.
+  func.func @delete_generic_roundtrip(%d : memref<10xf32>) {
+    "acc.delete"(%d) <{operandSegmentSizes = array<i32: 1, 0, 0>}> : (memref<10xf32>) -> ()
+    func.return
+  }
+  // CHECK-LABEL: func.func @delete_generic_roundtrip(
+  // CHECK:         acc.delete accPtr(%{{.*}} : memref<10xf32>)
+
+  func.func @delete_dataclause_default_elided(%d : memref<10xf32>) {
+    "acc.delete"(%d) <{dataClause = #acc<data_clause acc_delete>, operandSegmentSizes = array<i32: 1, 0, 0>}> : (memref<10xf32>) -> ()
+    func.return
+  }
+  // CHECK-LABEL: func.func @delete_dataclause_default_elided(
+  // CHECK:         acc.delete accPtr(%{{.*}} : memref<10xf32>)
+  // CHECK-NOT:     dataClause
+
+  func.func @detach_minimal(%d : memref<10xf32>) {
+    acc.detach accPtr(%d : memref<10xf32>)
+    func.return
+  }
+  // CHECK-LABEL: func.func @detach_minimal(
+  // CHECK:         acc.detach accPtr(%{{.*}} : memref<10xf32>)
+
+  func.func @detach_dataclause_default_elided(%d : memref<10xf32>) {
+    "acc.detach"(%d) <{dataClause = #acc<data_clause acc_detach>, operandSegmentSizes = array<i32: 1, 0, 0>}> : (memref<10xf32>) -> ()
+    func.return
+  }
+  // CHECK-LABEL: func.func @detach_dataclause_default_elided(
+  // CHECK:         acc.detach accPtr(%{{.*}} : memref<10xf32>)
+  // CHECK-NOT:     dataClause
 }

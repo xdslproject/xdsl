@@ -451,6 +451,43 @@ def test_copyout_builder_shortcuts():
     assert op.var_name == StringAttr("myvar")
 
 
+def test_delete_minimal_defaulted_props_absent_from_dict():
+    """Same invariant for the `_DataExitOperationNoVarPtr` mixin (no `var`,
+    no `varType`). `acc.delete` exercises the no-host-pointer branch of the
+    exit-shape `__init__`; the dict-state assertion is independently
+    load-bearing because this mixin's `__init__` is a separate method that
+    must reproduce the absence-on-default behavior."""
+    acc_var = create_ssa_value(MemRefType(f32, [10]))
+    op = acc.DeleteOp(acc_var=acc_var)
+    op.verify()
+
+    assert "dataClause" not in op.properties
+    assert "structured" not in op.properties
+    assert "implicit" not in op.properties
+    assert "modifiers" not in op.properties
+    assert op.acc_var is acc_var
+
+
+def test_delete_builder_shortcuts():
+    """Bool / str / `DataClause` shortcuts on `_DataExitOperationNoVarPtr`'s
+    `__init__`. Builder-only conversions; the parser only sees attribute
+    instances."""
+    acc_var = create_ssa_value(MemRefType(f32, [10]))
+    op = acc.DeleteOp(
+        acc_var=acc_var,
+        data_clause=acc.DataClause.ACC_CREATE,
+        structured=False,
+        implicit=True,
+        var_name="d",
+    )
+    op.verify()
+
+    assert op.data_clause == acc.DataClauseAttr(acc.DataClause.ACC_CREATE)
+    assert op.structured == IntegerAttr.from_bool(False)
+    assert op.implicit == IntegerAttr.from_bool(True)
+    assert op.var_name == StringAttr("d")
+
+
 def test_cache_op_has_no_memory_effect_trait():
     """`acc.cache` is the only entry data-clause op that carries
     `NoMemoryEffect` (per upstream's td definition). Tested in pytest because
