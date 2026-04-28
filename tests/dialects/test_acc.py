@@ -412,6 +412,45 @@ def test_copyin_builder_shortcuts():
     assert op.var_name == StringAttr("foo")
 
 
+def test_copyout_minimal_defaulted_props_absent_from_dict():
+    """Same load-bearing invariant as `acc.copyin` — defaulted props on the
+    `_DataExitOperationWithVarPtr` mixin must be *absent* from the dict when
+    not set, otherwise attr-dict elision on print silently fails."""
+    acc_var = create_ssa_value(MemRefType(f32, [10]))
+    var = create_ssa_value(MemRefType(f32, [10]))
+    op = acc.CopyoutOp(acc_var=acc_var, var=var)
+    op.verify()
+
+    assert "dataClause" not in op.properties
+    assert "structured" not in op.properties
+    assert "implicit" not in op.properties
+    assert "modifiers" not in op.properties
+    assert op.acc_var is acc_var
+    assert op.var is var
+
+
+def test_copyout_builder_shortcuts():
+    """Bool / str / `DataClause` shortcuts on `_DataExitOperationWithVarPtr`'s
+    `__init__`. Builder-only code path; the parser only sees attribute
+    instances, so filecheck cannot exercise these conversions."""
+    acc_var = create_ssa_value(MemRefType(f32, [10]))
+    var = create_ssa_value(MemRefType(f32, [10]))
+    op = acc.CopyoutOp(
+        acc_var=acc_var,
+        var=var,
+        data_clause=acc.DataClause.ACC_COPYOUT_ZERO,
+        structured=False,
+        implicit=True,
+        var_name="myvar",
+    )
+    op.verify()
+
+    assert op.data_clause == acc.DataClauseAttr(acc.DataClause.ACC_COPYOUT_ZERO)
+    assert op.structured == IntegerAttr.from_bool(False)
+    assert op.implicit == IntegerAttr.from_bool(True)
+    assert op.var_name == StringAttr("myvar")
+
+
 def test_cache_op_has_no_memory_effect_trait():
     """`acc.cache` is the only entry data-clause op that carries
     `NoMemoryEffect` (per upstream's td definition). Tested in pytest because

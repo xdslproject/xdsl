@@ -726,6 +726,48 @@ def _default_var_type(var_type: Attribute) -> Attribute:
 
 
 @irdl_custom_directive
+class AccVar(CustomDirective):
+    """Port of upstream `custom<AccVar>($accVar, type($accVar))`.
+
+    Renders `accPtr(%v : type)`. Accepts both `accPtr` and `accVar`
+    keywords on parse; always emits `accPtr` (xDSL doesn't distinguish
+    `PointerLikeType` vs `MappableType` here, mirroring `Var`'s `varPtr`
+    choice).
+    """
+
+    acc_var: OperandVariable
+    acc_var_type: TypeDirective
+
+    def is_anchorable(self) -> bool:
+        return False
+
+    def is_optional_like(self) -> bool:
+        return False
+
+    def parse(self, parser: Parser, state: ParsingState) -> bool:
+        if parser.parse_optional_keyword("accPtr") is None:
+            parser.parse_keyword("accVar")
+        with parser.in_parens():
+            operand = parser.parse_unresolved_operand()
+            parser.parse_punctuation(":")
+            ty = parser.parse_type()
+        self.acc_var.set(state, operand)
+        self.acc_var_type.set(state, (ty,))
+        return True
+
+    def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
+        state.print_whitespace(printer)
+        ssa = self.acc_var.get(op)
+        printer.print_string("accPtr(")
+        printer.print_ssa_value(ssa)
+        printer.print_string(" : ")
+        printer.print_attribute(ssa.type)
+        printer.print_string(")")
+        state.should_emit_space = True
+        state.last_was_punctuation = False
+
+
+@irdl_custom_directive
 class Var(CustomDirective):
     """Port of upstream `custom<Var>($var) `:` custom<VarPtrType>(type($var), $varType)`.
 
@@ -1523,6 +1565,181 @@ class DeclareLinkOp(_DataEntryOperation):
 
 
 @irdl_op_definition
+class GetDevicePtrOp(_DataEntryOperation):
+    """Implementation of upstream acc.getdeviceptr.
+
+    Used to get the `accVar` for a host variable when a structured data-entry
+    op is not available; the natural pair for the unstructured exit ops below.
+    """
+
+    name = "acc.getdeviceptr"
+    data_clause = opt_prop_def(
+        DataClauseAttr,
+        default_value=DataClauseAttr(DataClause.ACC_GETDEVICEPTR),
+        prop_name="dataClause",
+    )
+
+
+@irdl_op_definition
+class UpdateDeviceOp(_DataEntryOperation):
+    """Implementation of upstream acc.update_device."""
+
+    name = "acc.update_device"
+    data_clause = opt_prop_def(
+        DataClauseAttr,
+        default_value=DataClauseAttr(DataClause.ACC_UPDATE_DEVICE),
+        prop_name="dataClause",
+    )
+
+
+# ---------------------------------------------------------------------------
+# Exit data-clause ops (with-host-pointer family)
+# ---------------------------------------------------------------------------
+#
+# Upstream models the exit data-clause family as two TableGen base classes:
+# `OpenACC_DataExitOpWithVarPtr` (for `copyout`, `update_host` — both host
+# *and* device pointer) and `OpenACC_DataExitOpNoVarPtr` (for `delete`,
+# `detach` — device pointer only). They differ in operand layout and
+# assembly format, but share the bounds / async / dataClause / structured /
+# implicit / modifiers / name surface. This file currently models only the
+# WithVarPtr half; the NoVarPtr half lands in a follow-up PR.
+
+
+class _DataExitOperationWithVarPtr(IRDLOperation, ABC):
+    """Shared shape for `acc.copyout` / `acc.update_host`.
+
+    Mirrors upstream's `OpenACC_DataExitOpWithVarPtr` td class: an `accVar`
+    operand (the device pointer, sourced from a matching data-entry op) plus
+    a `var` operand (the host pointer to copy/move to) carrying a `varType`
+    attr. The bounds / async groups, all shared properties, the assembly
+    format, and the keyword-only `__init__` live here.
+    """
+
+    acc_var = operand_def()
+    var = operand_def()
+    bounds = var_operand_def(DataBoundsType)
+    async_operands = var_operand_def(IntegerType | IndexType)
+
+    var_type = prop_def(TypeAttribute, prop_name="varType")
+    async_operands_device_type = opt_prop_def(
+        ArrayAttr[DeviceTypeAttr], prop_name="asyncOperandsDeviceType"
+    )
+    async_only = opt_prop_def(ArrayAttr[DeviceTypeAttr], prop_name="asyncOnly")
+    structured = opt_prop_def(
+        BoolAttr,
+        default_value=IntegerAttr.from_bool(True),
+        prop_name="structured",
+    )
+    implicit = opt_prop_def(
+        BoolAttr,
+        default_value=IntegerAttr.from_bool(False),
+        prop_name="implicit",
+    )
+    modifiers = opt_prop_def(
+        DataClauseModifierAttr,
+        default_value=DataClauseModifierAttr(frozenset[DataClauseModifier]()),
+        prop_name="modifiers",
+    )
+    var_name = opt_prop_def(StringAttr, prop_name="name")
+
+    irdl_options = (
+        AttrSizedOperandSegments(as_property=True),
+        ParsePropInAttrDict(),
+    )
+
+    custom_directives = (AccVar, Var, DeviceTypeOperandsWithKeywordOnly)
+
+    assembly_format = (
+        "custom<AccVar>($acc_var, type($acc_var))"
+        " (`bounds` `(` $bounds^ `)`)?"
+        " (`async` custom<DeviceTypeOperandsWithKeywordOnly>($async_operands,"
+        " type($async_operands), $asyncOperandsDeviceType, $asyncOnly)^)?"
+        " `to` custom<Var>($var, type($var), $varType)"
+        " attr-dict"
+    )
+
+    def __init__(
+        self,
+        *,
+        acc_var: SSAValue | Operation,
+        var: SSAValue | Operation,
+        bounds: Sequence[SSAValue | Operation] = (),
+        async_operands: Sequence[SSAValue | Operation] = (),
+        var_type: TypeAttribute | None = None,
+        async_operands_device_type: ArrayAttr[DeviceTypeAttr] | None = None,
+        async_only: ArrayAttr[DeviceTypeAttr] | None = None,
+        data_clause: DataClauseAttr | DataClause | None = None,
+        structured: BoolAttr | bool | None = None,
+        implicit: BoolAttr | bool | None = None,
+        modifiers: DataClauseModifierAttr | None = None,
+        var_name: StringAttr | str | None = None,
+    ) -> None:
+        var_value = SSAValue.get(var)
+        if var_type is None:
+            var_type = cast(TypeAttribute, _default_var_type(var_value.type))
+
+        structured_prop: BoolAttr | None = (
+            IntegerAttr.from_bool(structured)
+            if isinstance(structured, bool)
+            else structured
+        )
+        implicit_prop: BoolAttr | None = (
+            IntegerAttr.from_bool(implicit) if isinstance(implicit, bool) else implicit
+        )
+        data_clause_prop: DataClauseAttr | None = (
+            DataClauseAttr(data_clause)
+            if isinstance(data_clause, DataClause)
+            else data_clause
+        )
+        var_name_prop: StringAttr | None = (
+            StringAttr(var_name) if isinstance(var_name, str) else var_name
+        )
+
+        super().__init__(
+            operands=[
+                [acc_var],
+                [var],
+                list(bounds),
+                list(async_operands),
+            ],
+            properties={
+                "varType": var_type,
+                "asyncOperandsDeviceType": async_operands_device_type,
+                "asyncOnly": async_only,
+                "dataClause": data_clause_prop,
+                "structured": structured_prop,
+                "implicit": implicit_prop,
+                "modifiers": modifiers,
+                "name": var_name_prop,
+            },
+        )
+
+
+@irdl_op_definition
+class CopyoutOp(_DataExitOperationWithVarPtr):
+    """Implementation of upstream acc.copyout."""
+
+    name = "acc.copyout"
+    data_clause = opt_prop_def(
+        DataClauseAttr,
+        default_value=DataClauseAttr(DataClause.ACC_COPYOUT),
+        prop_name="dataClause",
+    )
+
+
+@irdl_op_definition
+class UpdateHostOp(_DataExitOperationWithVarPtr):
+    """Implementation of upstream acc.update_host."""
+
+    name = "acc.update_host"
+    data_clause = opt_prop_def(
+        DataClauseAttr,
+        default_value=DataClauseAttr(DataClause.ACC_UPDATE_HOST),
+        prop_name="dataClause",
+    )
+
+
+@irdl_op_definition
 class DataBoundsOp(IRDLOperation):
     """
     Implementation of upstream acc.bounds.
@@ -1678,6 +1895,10 @@ ACC = Dialect(
         CacheOp,
         DeclareDeviceResidentOp,
         DeclareLinkOp,
+        GetDevicePtrOp,
+        UpdateDeviceOp,
+        CopyoutOp,
+        UpdateHostOp,
         YieldOp,
     ],
     [

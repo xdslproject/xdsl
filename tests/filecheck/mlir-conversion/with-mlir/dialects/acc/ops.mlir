@@ -589,4 +589,62 @@ builtin.module {
   }
   // CHECK:       func.func @declare_link_minimal(
   // CHECK:         %{{.*}} = acc.declare_link varPtr(%{{.*}} : memref<10xf32>) -> memref<10xf32>
+
+  func.func @copyout_minimal(%d : memref<10xf32>, %h : memref<10xf32>) {
+    acc.copyout accPtr(%d : memref<10xf32>) to varPtr(%h : memref<10xf32>)
+    func.return
+  }
+  // CHECK:       func.func @copyout_minimal(
+  // CHECK:         acc.copyout accPtr(%{{.*}} : memref<10xf32>) to varPtr(%{{.*}} : memref<10xf32>)
+
+  func.func @copyout_with_var_type(%d : memref<10xf32>, %h : memref<10xf32>) {
+    acc.copyout accPtr(%d : memref<10xf32>) to varPtr(%h : memref<10xf32>) varType(tensor<10xf32>)
+    func.return
+  }
+  // CHECK:       func.func @copyout_with_var_type(
+  // CHECK:         acc.copyout accPtr(%{{.*}} : memref<10xf32>) to varPtr(%{{.*}} : memref<10xf32>) varType(tensor<10xf32>)
+
+  func.func @copyout_with_bounds(%d : memref<10xf32>, %h : memref<10xf32>, %c0 : index, %c9 : index) {
+    %b = acc.bounds lowerbound(%c0 : index) upperbound(%c9 : index)
+    acc.copyout accPtr(%d : memref<10xf32>) bounds(%b) to varPtr(%h : memref<10xf32>)
+    func.return
+  }
+  // CHECK:       func.func @copyout_with_bounds(
+  // CHECK:         %{{.*}} = acc.bounds lowerbound(%{{.*}} : index) upperbound(%{{.*}} : index)
+  // CHECK-NEXT:    acc.copyout accPtr(%{{.*}} : memref<10xf32>) bounds(%{{.*}}) to varPtr(%{{.*}} : memref<10xf32>)
+
+  func.func @copyout_async_operand_dt(%d : memref<10xf32>, %h : memref<10xf32>, %async : i32) {
+    acc.copyout accPtr(%d : memref<10xf32>) async(%async : i32 [#acc.device_type<nvidia>]) to varPtr(%h : memref<10xf32>)
+    func.return
+  }
+  // CHECK:       func.func @copyout_async_operand_dt(
+  // CHECK:         acc.copyout accPtr(%{{.*}} : memref<10xf32>) async(%{{.*}} : i32 [#acc.device_type<nvidia>]) to varPtr(%{{.*}} : memref<10xf32>)
+
+  func.func @copyout_clause_override(%d : memref<10xf32>, %h : memref<10xf32>) {
+    acc.copyout accPtr(%d : memref<10xf32>) to varPtr(%h : memref<10xf32>) {dataClause = #acc<data_clause acc_copyout_zero>, modifiers = #acc<data_clause_modifier zero>, name = "myvar"}
+    func.return
+  }
+  // CHECK:       func.func @copyout_clause_override(
+  // CHECK:         acc.copyout accPtr(%{{.*}} : memref<10xf32>) to varPtr(%{{.*}} : memref<10xf32>) {dataClause = #acc<data_clause acc_copyout_zero>, modifiers = #acc<data_clause_modifier zero>, name = "myvar"}
+
+  func.func @update_host_minimal(%d : memref<10xf32>, %h : memref<10xf32>) {
+    acc.update_host accPtr(%d : memref<10xf32>) to varPtr(%h : memref<10xf32>)
+    func.return
+  }
+  // CHECK:       func.func @update_host_minimal(
+  // CHECK:         acc.update_host accPtr(%{{.*}} : memref<10xf32>) to varPtr(%{{.*}} : memref<10xf32>)
+
+  func.func @getdeviceptr_minimal(%a : memref<10xf32>) {
+    %r = acc.getdeviceptr varPtr(%a : memref<10xf32>) -> memref<10xf32>
+    func.return
+  }
+  // CHECK:       func.func @getdeviceptr_minimal(
+  // CHECK:         %{{.*}} = acc.getdeviceptr varPtr(%{{.*}} : memref<10xf32>) -> memref<10xf32>
+
+  func.func @update_device_minimal(%a : memref<10xf32>) {
+    %r = acc.update_device varPtr(%a : memref<10xf32>) -> memref<10xf32>
+    func.return
+  }
+  // CHECK:       func.func @update_device_minimal(
+  // CHECK:         %{{.*}} = acc.update_device varPtr(%{{.*}} : memref<10xf32>) -> memref<10xf32>
 }

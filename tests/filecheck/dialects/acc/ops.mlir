@@ -945,4 +945,125 @@ builtin.module {
   // CHECK-LABEL: func.func @declare_link_dataclause_default_elided(
   // CHECK:         %{{.*}} = acc.declare_link varPtr(%{{.*}} : memref<10xf32>) -> memref<10xf32>
   // CHECK-NOT:     dataClause
+
+  func.func @copyout_minimal(%d : memref<10xf32>, %h : memref<10xf32>) {
+    acc.copyout accPtr(%d : memref<10xf32>) to varPtr(%h : memref<10xf32>)
+    func.return
+  }
+  // CHECK-LABEL: func.func @copyout_minimal(
+  // CHECK:         acc.copyout accPtr(%{{.*}} : memref<10xf32>) to varPtr(%{{.*}} : memref<10xf32>)
+
+  func.func @copyout_with_var_type(%d : memref<10xf32>, %h : memref<10xf32>) {
+    acc.copyout accPtr(%d : memref<10xf32>) to varPtr(%h : memref<10xf32>) varType(tensor<10xf32>)
+    func.return
+  }
+  // CHECK-LABEL: func.func @copyout_with_var_type(
+  // CHECK:         acc.copyout accPtr(%{{.*}} : memref<10xf32>) to varPtr(%{{.*}} : memref<10xf32>) varType(tensor<10xf32>)
+
+  func.func @copyout_with_bounds(%d : memref<10xf32>, %h : memref<10xf32>, %c0 : index, %c9 : index) {
+    %b = acc.bounds lowerbound(%c0 : index) upperbound(%c9 : index)
+    acc.copyout accPtr(%d : memref<10xf32>) bounds(%b) to varPtr(%h : memref<10xf32>)
+    func.return
+  }
+  // CHECK-LABEL: func.func @copyout_with_bounds(
+  // CHECK:         %{{.*}} = acc.bounds lowerbound(%{{.*}} : index) upperbound(%{{.*}} : index)
+  // CHECK-NEXT:    acc.copyout accPtr(%{{.*}} : memref<10xf32>) bounds(%{{.*}}) to varPtr(%{{.*}} : memref<10xf32>)
+
+  func.func @copyout_async_bare(%d : memref<10xf32>, %h : memref<10xf32>) {
+    acc.copyout accPtr(%d : memref<10xf32>) async to varPtr(%h : memref<10xf32>)
+    func.return
+  }
+  // CHECK-LABEL: func.func @copyout_async_bare(
+  // CHECK:         acc.copyout accPtr(%{{.*}} : memref<10xf32>) async to varPtr(%{{.*}} : memref<10xf32>)
+
+  func.func @copyout_async_operand(%d : memref<10xf32>, %h : memref<10xf32>, %async : i32) {
+    acc.copyout accPtr(%d : memref<10xf32>) async(%async : i32) to varPtr(%h : memref<10xf32>)
+    func.return
+  }
+  // CHECK-LABEL: func.func @copyout_async_operand(
+  // CHECK:         acc.copyout accPtr(%{{.*}} : memref<10xf32>) async(%{{.*}} : i32) to varPtr(%{{.*}} : memref<10xf32>)
+
+  func.func @copyout_async_operand_dt(%d : memref<10xf32>, %h : memref<10xf32>, %async : i32) {
+    acc.copyout accPtr(%d : memref<10xf32>) async(%async : i32 [#acc.device_type<nvidia>]) to varPtr(%h : memref<10xf32>)
+    func.return
+  }
+  // CHECK-LABEL: func.func @copyout_async_operand_dt(
+  // CHECK:         acc.copyout accPtr(%{{.*}} : memref<10xf32>) async(%{{.*}} : i32 [#acc.device_type<nvidia>]) to varPtr(%{{.*}} : memref<10xf32>)
+
+  func.func @copyout_full_attr_dict(%d : memref<10xf32>, %h : memref<10xf32>) {
+    acc.copyout accPtr(%d : memref<10xf32>) to varPtr(%h : memref<10xf32>) {dataClause = #acc<data_clause acc_copyout_zero>, implicit = true, modifiers = #acc<data_clause_modifier zero>, name = "myvar", structured = false}
+    func.return
+  }
+  // CHECK-LABEL: func.func @copyout_full_attr_dict(
+  // CHECK:         acc.copyout accPtr(%{{.*}} : memref<10xf32>) to varPtr(%{{.*}} : memref<10xf32>) {dataClause = #acc<data_clause acc_copyout_zero>, implicit = true, modifiers = #acc<data_clause_modifier zero>, name = "myvar", structured = false}
+
+  // Generic-form roundtrip insurance for `acc.copyout` — proves the four-
+  // group `operandSegmentSizes` shape (`accVar`, `var`, `bounds`,
+  // `asyncOperands`) survives the generic surface even after the pretty
+  // form lands.
+  func.func @copyout_generic_roundtrip(%d : memref<10xf32>, %h : memref<10xf32>) {
+    "acc.copyout"(%d, %h) <{operandSegmentSizes = array<i32: 1, 1, 0, 0>, varType = f32}> : (memref<10xf32>, memref<10xf32>) -> ()
+    func.return
+  }
+  // CHECK-LABEL: func.func @copyout_generic_roundtrip(
+  // CHECK:         acc.copyout accPtr(%{{.*}} : memref<10xf32>) to varPtr(%{{.*}} : memref<10xf32>)
+
+  // Per-op `dataClause` default elision for each exit leaf — generic-form
+  // input carries the leaf's default explicitly; pretty-form output must
+  // elide it. Catches a wrong-default wiring per leaf.
+  func.func @copyout_dataclause_default_elided(%d : memref<10xf32>, %h : memref<10xf32>) {
+    "acc.copyout"(%d, %h) <{dataClause = #acc<data_clause acc_copyout>, operandSegmentSizes = array<i32: 1, 1, 0, 0>, varType = f32}> : (memref<10xf32>, memref<10xf32>) -> ()
+    func.return
+  }
+  // CHECK-LABEL: func.func @copyout_dataclause_default_elided(
+  // CHECK:         acc.copyout accPtr(%{{.*}} : memref<10xf32>) to varPtr(%{{.*}} : memref<10xf32>)
+  // CHECK-NOT:     dataClause
+
+  func.func @update_host_minimal(%d : memref<10xf32>, %h : memref<10xf32>) {
+    acc.update_host accPtr(%d : memref<10xf32>) to varPtr(%h : memref<10xf32>)
+    func.return
+  }
+  // CHECK-LABEL: func.func @update_host_minimal(
+  // CHECK:         acc.update_host accPtr(%{{.*}} : memref<10xf32>) to varPtr(%{{.*}} : memref<10xf32>)
+
+  func.func @update_host_dataclause_default_elided(%d : memref<10xf32>, %h : memref<10xf32>) {
+    "acc.update_host"(%d, %h) <{dataClause = #acc<data_clause acc_update_host>, operandSegmentSizes = array<i32: 1, 1, 0, 0>, varType = f32}> : (memref<10xf32>, memref<10xf32>) -> ()
+    func.return
+  }
+  // CHECK-LABEL: func.func @update_host_dataclause_default_elided(
+  // CHECK:         acc.update_host accPtr(%{{.*}} : memref<10xf32>) to varPtr(%{{.*}} : memref<10xf32>)
+  // CHECK-NOT:     dataClause
+
+  // The two entry-shape leaves — they live on `_DataEntryOperation`
+  // (same shape as `acc.copyin`), they just differ in the per-op
+  // `dataClause` default.
+  func.func @getdeviceptr_minimal(%a : memref<10xf32>) {
+    %r = acc.getdeviceptr varPtr(%a : memref<10xf32>) -> memref<10xf32>
+    func.return
+  }
+  // CHECK-LABEL: func.func @getdeviceptr_minimal(
+  // CHECK:         %{{.*}} = acc.getdeviceptr varPtr(%{{.*}} : memref<10xf32>) -> memref<10xf32>
+
+  func.func @getdeviceptr_dataclause_default_elided(%a : memref<10xf32>) {
+    %r = "acc.getdeviceptr"(%a) <{dataClause = #acc<data_clause acc_getdeviceptr>, operandSegmentSizes = array<i32: 1, 0, 0, 0>, varType = f32}> : (memref<10xf32>) -> memref<10xf32>
+    func.return
+  }
+  // CHECK-LABEL: func.func @getdeviceptr_dataclause_default_elided(
+  // CHECK:         %{{.*}} = acc.getdeviceptr varPtr(%{{.*}} : memref<10xf32>) -> memref<10xf32>
+  // CHECK-NOT:     dataClause
+
+  func.func @update_device_minimal(%a : memref<10xf32>) {
+    %r = acc.update_device varPtr(%a : memref<10xf32>) -> memref<10xf32>
+    func.return
+  }
+  // CHECK-LABEL: func.func @update_device_minimal(
+  // CHECK:         %{{.*}} = acc.update_device varPtr(%{{.*}} : memref<10xf32>) -> memref<10xf32>
+
+  func.func @update_device_dataclause_default_elided(%a : memref<10xf32>) {
+    %r = "acc.update_device"(%a) <{dataClause = #acc<data_clause acc_update_device>, operandSegmentSizes = array<i32: 1, 0, 0, 0>, varType = f32}> : (memref<10xf32>) -> memref<10xf32>
+    func.return
+  }
+  // CHECK-LABEL: func.func @update_device_dataclause_default_elided(
+  // CHECK:         %{{.*}} = acc.update_device varPtr(%{{.*}} : memref<10xf32>) -> memref<10xf32>
+  // CHECK-NOT:     dataClause
 }
