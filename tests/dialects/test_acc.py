@@ -20,6 +20,7 @@ from xdsl.dialects.builtin import (
 from xdsl.dialects.test import TestOp
 from xdsl.ir import Block, Region
 from xdsl.printer import Printer
+from xdsl.traits import NoMemoryEffect
 from xdsl.utils.test_value import create_ssa_value
 
 
@@ -409,3 +410,16 @@ def test_copyin_builder_shortcuts():
     assert op.structured == IntegerAttr.from_bool(False)
     assert op.implicit == IntegerAttr.from_bool(True)
     assert op.var_name == StringAttr("foo")
+
+
+def test_cache_op_has_no_memory_effect_trait():
+    """`acc.cache` is the only entry data-clause op that carries
+    `NoMemoryEffect` (per upstream's td definition). Tested in pytest because
+    a trait's presence on a class isn't observable via filecheck — it shapes
+    what *transformations* are allowed, not how the op is printed."""
+    assert acc.CacheOp.has_trait(NoMemoryEffect)
+    # The other entry data-clause ops should *not* carry NoMemoryEffect —
+    # upstream models them as touching runtime counters / device memory.
+    assert not acc.CopyinOp.has_trait(NoMemoryEffect)
+    assert not acc.AttachOp.has_trait(NoMemoryEffect)
+    assert not acc.DeclareDeviceResidentOp.has_trait(NoMemoryEffect)

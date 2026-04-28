@@ -836,4 +836,113 @@ builtin.module {
   // CHECK-LABEL: func.func @present_dataclause_default_elided(
   // CHECK:         %{{.*}} = acc.present varPtr(%{{.*}} : memref<10xf32>) -> memref<10xf32>
   // CHECK-NOT:     dataClause
+
+  // Remaining seven entry data-clause leaves. Each gets one minimal pretty-
+  // form roundtrip and one generic-form input that carries the leaf's
+  // `dataClause` default explicitly — pretty-form output must elide it,
+  // proving the per-op default is wired correctly.
+  func.func @nocreate_minimal(%a : memref<10xf32>) {
+    %r = acc.nocreate varPtr(%a : memref<10xf32>) -> memref<10xf32>
+    func.return
+  }
+  // CHECK-LABEL: func.func @nocreate_minimal(
+  // CHECK:         %{{.*}} = acc.nocreate varPtr(%{{.*}} : memref<10xf32>) -> memref<10xf32>
+
+  func.func @nocreate_dataclause_default_elided(%a : memref<10xf32>) {
+    %r = "acc.nocreate"(%a) <{dataClause = #acc<data_clause acc_no_create>, operandSegmentSizes = array<i32: 1, 0, 0, 0>, varType = f32}> : (memref<10xf32>) -> memref<10xf32>
+    func.return
+  }
+  // CHECK-LABEL: func.func @nocreate_dataclause_default_elided(
+  // CHECK:         %{{.*}} = acc.nocreate varPtr(%{{.*}} : memref<10xf32>) -> memref<10xf32>
+  // CHECK-NOT:     dataClause
+
+  func.func @attach_minimal(%a : memref<10xf32>) {
+    %r = acc.attach varPtr(%a : memref<10xf32>) -> memref<10xf32>
+    func.return
+  }
+  // CHECK-LABEL: func.func @attach_minimal(
+  // CHECK:         %{{.*}} = acc.attach varPtr(%{{.*}} : memref<10xf32>) -> memref<10xf32>
+
+  func.func @attach_dataclause_default_elided(%a : memref<10xf32>) {
+    %r = "acc.attach"(%a) <{dataClause = #acc<data_clause acc_attach>, operandSegmentSizes = array<i32: 1, 0, 0, 0>, varType = f32}> : (memref<10xf32>) -> memref<10xf32>
+    func.return
+  }
+  // CHECK-LABEL: func.func @attach_dataclause_default_elided(
+  // CHECK:         %{{.*}} = acc.attach varPtr(%{{.*}} : memref<10xf32>) -> memref<10xf32>
+  // CHECK-NOT:     dataClause
+
+  func.func @deviceptr_minimal(%a : memref<10xf32>) {
+    %r = acc.deviceptr varPtr(%a : memref<10xf32>) -> memref<10xf32>
+    func.return
+  }
+  // CHECK-LABEL: func.func @deviceptr_minimal(
+  // CHECK:         %{{.*}} = acc.deviceptr varPtr(%{{.*}} : memref<10xf32>) -> memref<10xf32>
+
+  func.func @deviceptr_dataclause_default_elided(%a : memref<10xf32>) {
+    %r = "acc.deviceptr"(%a) <{dataClause = #acc<data_clause acc_deviceptr>, operandSegmentSizes = array<i32: 1, 0, 0, 0>, varType = f32}> : (memref<10xf32>) -> memref<10xf32>
+    func.return
+  }
+  // CHECK-LABEL: func.func @deviceptr_dataclause_default_elided(
+  // CHECK:         %{{.*}} = acc.deviceptr varPtr(%{{.*}} : memref<10xf32>) -> memref<10xf32>
+  // CHECK-NOT:     dataClause
+
+  func.func @use_device_minimal(%a : memref<10xf32>) {
+    %r = acc.use_device varPtr(%a : memref<10xf32>) -> memref<10xf32>
+    func.return
+  }
+  // CHECK-LABEL: func.func @use_device_minimal(
+  // CHECK:         %{{.*}} = acc.use_device varPtr(%{{.*}} : memref<10xf32>) -> memref<10xf32>
+
+  func.func @use_device_dataclause_default_elided(%a : memref<10xf32>) {
+    %r = "acc.use_device"(%a) <{dataClause = #acc<data_clause acc_use_device>, operandSegmentSizes = array<i32: 1, 0, 0, 0>, varType = f32}> : (memref<10xf32>) -> memref<10xf32>
+    func.return
+  }
+  // CHECK-LABEL: func.func @use_device_dataclause_default_elided(
+  // CHECK:         %{{.*}} = acc.use_device varPtr(%{{.*}} : memref<10xf32>) -> memref<10xf32>
+  // CHECK-NOT:     dataClause
+
+  func.func @cache_minimal(%a : memref<10xf32>) {
+    %r = acc.cache varPtr(%a : memref<10xf32>) -> memref<10xf32>
+    func.return
+  }
+  // CHECK-LABEL: func.func @cache_minimal(
+  // CHECK:         %{{.*}} = acc.cache varPtr(%{{.*}} : memref<10xf32>) -> memref<10xf32>
+
+  func.func @cache_dataclause_default_elided(%a : memref<10xf32>) {
+    %r = "acc.cache"(%a) <{dataClause = #acc<data_clause acc_cache>, operandSegmentSizes = array<i32: 1, 0, 0, 0>, varType = f32}> : (memref<10xf32>) -> memref<10xf32>
+    func.return
+  }
+  // CHECK-LABEL: func.func @cache_dataclause_default_elided(
+  // CHECK:         %{{.*}} = acc.cache varPtr(%{{.*}} : memref<10xf32>) -> memref<10xf32>
+  // CHECK-NOT:     dataClause
+
+  func.func @declare_device_resident_minimal(%a : memref<10xf32>) {
+    %r = acc.declare_device_resident varPtr(%a : memref<10xf32>) -> memref<10xf32>
+    func.return
+  }
+  // CHECK-LABEL: func.func @declare_device_resident_minimal(
+  // CHECK:         %{{.*}} = acc.declare_device_resident varPtr(%{{.*}} : memref<10xf32>) -> memref<10xf32>
+
+  func.func @declare_device_resident_dataclause_default_elided(%a : memref<10xf32>) {
+    %r = "acc.declare_device_resident"(%a) <{dataClause = #acc<data_clause acc_declare_device_resident>, operandSegmentSizes = array<i32: 1, 0, 0, 0>, varType = f32}> : (memref<10xf32>) -> memref<10xf32>
+    func.return
+  }
+  // CHECK-LABEL: func.func @declare_device_resident_dataclause_default_elided(
+  // CHECK:         %{{.*}} = acc.declare_device_resident varPtr(%{{.*}} : memref<10xf32>) -> memref<10xf32>
+  // CHECK-NOT:     dataClause
+
+  func.func @declare_link_minimal(%a : memref<10xf32>) {
+    %r = acc.declare_link varPtr(%a : memref<10xf32>) -> memref<10xf32>
+    func.return
+  }
+  // CHECK-LABEL: func.func @declare_link_minimal(
+  // CHECK:         %{{.*}} = acc.declare_link varPtr(%{{.*}} : memref<10xf32>) -> memref<10xf32>
+
+  func.func @declare_link_dataclause_default_elided(%a : memref<10xf32>) {
+    %r = "acc.declare_link"(%a) <{dataClause = #acc<data_clause acc_declare_link>, operandSegmentSizes = array<i32: 1, 0, 0, 0>, varType = f32}> : (memref<10xf32>) -> memref<10xf32>
+    func.return
+  }
+  // CHECK-LABEL: func.func @declare_link_dataclause_default_elided(
+  // CHECK:         %{{.*}} = acc.declare_link varPtr(%{{.*}} : memref<10xf32>) -> memref<10xf32>
+  // CHECK-NOT:     dataClause
 }

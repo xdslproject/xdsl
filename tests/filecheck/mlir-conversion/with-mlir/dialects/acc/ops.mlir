@@ -537,4 +537,56 @@ builtin.module {
   }
   // CHECK:       func.func @present_minimal(
   // CHECK:         %{{.*}} = acc.present varPtr(%{{.*}} : memref<10xf32>) -> memref<10xf32>
+
+  // Remaining seven entry data-clause leaves (PR 6c). Each gets one MLIR
+  // interop entry — proves xDSL emission is bit-compatible with upstream
+  // and the per-op `dataClause` default round-trips through MLIR.
+  func.func @nocreate_minimal(%a : memref<10xf32>) {
+    %r = acc.nocreate varPtr(%a : memref<10xf32>) -> memref<10xf32>
+    func.return
+  }
+  // CHECK:       func.func @nocreate_minimal(
+  // CHECK:         %{{.*}} = acc.nocreate varPtr(%{{.*}} : memref<10xf32>) -> memref<10xf32>
+
+  func.func @attach_minimal(%a : memref<10xf32>) {
+    %r = acc.attach varPtr(%a : memref<10xf32>) -> memref<10xf32>
+    func.return
+  }
+  // CHECK:       func.func @attach_minimal(
+  // CHECK:         %{{.*}} = acc.attach varPtr(%{{.*}} : memref<10xf32>) -> memref<10xf32>
+
+  func.func @deviceptr_minimal(%a : memref<10xf32>) {
+    %r = acc.deviceptr varPtr(%a : memref<10xf32>) -> memref<10xf32>
+    func.return
+  }
+  // CHECK:       func.func @deviceptr_minimal(
+  // CHECK:         %{{.*}} = acc.deviceptr varPtr(%{{.*}} : memref<10xf32>) -> memref<10xf32>
+
+  func.func @use_device_minimal(%a : memref<10xf32>) {
+    %r = acc.use_device varPtr(%a : memref<10xf32>) -> memref<10xf32>
+    func.return
+  }
+  // CHECK:       func.func @use_device_minimal(
+  // CHECK:         %{{.*}} = acc.use_device varPtr(%{{.*}} : memref<10xf32>) -> memref<10xf32>
+
+  func.func @cache_minimal(%a : memref<10xf32>) {
+    %r = acc.cache varPtr(%a : memref<10xf32>) -> memref<10xf32>
+    func.return
+  }
+  // CHECK:       func.func @cache_minimal(
+  // CHECK:         %{{.*}} = acc.cache varPtr(%{{.*}} : memref<10xf32>) -> memref<10xf32>
+
+  func.func @declare_device_resident_minimal(%a : memref<10xf32>) {
+    %r = acc.declare_device_resident varPtr(%a : memref<10xf32>) -> memref<10xf32>
+    func.return
+  }
+  // CHECK:       func.func @declare_device_resident_minimal(
+  // CHECK:         %{{.*}} = acc.declare_device_resident varPtr(%{{.*}} : memref<10xf32>) -> memref<10xf32>
+
+  func.func @declare_link_minimal(%a : memref<10xf32>) {
+    %r = acc.declare_link varPtr(%a : memref<10xf32>) -> memref<10xf32>
+    func.return
+  }
+  // CHECK:       func.func @declare_link_minimal(
+  // CHECK:         %{{.*}} = acc.declare_link varPtr(%{{.*}} : memref<10xf32>) -> memref<10xf32>
 }

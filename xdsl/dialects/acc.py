@@ -53,6 +53,7 @@ from xdsl.irdl import (
     prop_def,
     region_def,
     result_def,
+    traits_def,
     var_operand_def,
 )
 from xdsl.irdl.declarative_assembly_format import (
@@ -1436,6 +1437,92 @@ class PresentOp(_DataEntryOperation):
 
 
 @irdl_op_definition
+class NoCreateOp(_DataEntryOperation):
+    """Implementation of upstream acc.nocreate."""
+
+    name = "acc.nocreate"
+    data_clause = opt_prop_def(
+        DataClauseAttr,
+        default_value=DataClauseAttr(DataClause.ACC_NO_CREATE),
+        prop_name="dataClause",
+    )
+
+
+@irdl_op_definition
+class AttachOp(_DataEntryOperation):
+    """Implementation of upstream acc.attach."""
+
+    name = "acc.attach"
+    data_clause = opt_prop_def(
+        DataClauseAttr,
+        default_value=DataClauseAttr(DataClause.ACC_ATTACH),
+        prop_name="dataClause",
+    )
+
+
+@irdl_op_definition
+class DevicePtrOp(_DataEntryOperation):
+    """Implementation of upstream acc.deviceptr."""
+
+    name = "acc.deviceptr"
+    data_clause = opt_prop_def(
+        DataClauseAttr,
+        default_value=DataClauseAttr(DataClause.ACC_DEVICEPTR),
+        prop_name="dataClause",
+    )
+
+
+@irdl_op_definition
+class UseDeviceOp(_DataEntryOperation):
+    """Implementation of upstream acc.use_device."""
+
+    name = "acc.use_device"
+    data_clause = opt_prop_def(
+        DataClauseAttr,
+        default_value=DataClauseAttr(DataClause.ACC_USE_DEVICE),
+        prop_name="dataClause",
+    )
+
+
+@irdl_op_definition
+class CacheOp(_DataEntryOperation):
+    """Implementation of upstream acc.cache. Carries `NoMemoryEffect` per upstream."""
+
+    name = "acc.cache"
+    data_clause = opt_prop_def(
+        DataClauseAttr,
+        default_value=DataClauseAttr(DataClause.ACC_CACHE),
+        prop_name="dataClause",
+    )
+
+    traits = traits_def(NoMemoryEffect())
+
+
+@irdl_op_definition
+class DeclareDeviceResidentOp(_DataEntryOperation):
+    """Implementation of upstream acc.declare_device_resident."""
+
+    name = "acc.declare_device_resident"
+    data_clause = opt_prop_def(
+        DataClauseAttr,
+        default_value=DataClauseAttr(DataClause.ACC_DECLARE_DEVICE_RESIDENT),
+        prop_name="dataClause",
+    )
+
+
+@irdl_op_definition
+class DeclareLinkOp(_DataEntryOperation):
+    """Implementation of upstream acc.declare_link."""
+
+    name = "acc.declare_link"
+    data_clause = opt_prop_def(
+        DataClauseAttr,
+        default_value=DataClauseAttr(DataClause.ACC_DECLARE_LINK),
+        prop_name="dataClause",
+    )
+
+
+@irdl_op_definition
 class DataBoundsOp(IRDLOperation):
     """
     Implementation of upstream acc.bounds.
@@ -1584,6 +1671,13 @@ ACC = Dialect(
         CopyinOp,
         CreateOp,
         PresentOp,
+        NoCreateOp,
+        AttachOp,
+        DevicePtrOp,
+        UseDeviceOp,
+        CacheOp,
+        DeclareDeviceResidentOp,
+        DeclareLinkOp,
         YieldOp,
     ],
     [
