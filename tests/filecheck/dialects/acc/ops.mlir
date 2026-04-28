@@ -669,8 +669,8 @@ builtin.module {
   // CHECK-NEXT:    %{{.*}} = acc.get_stride %{{.*}} : (!acc.data_bounds_ty) -> index
   // CHECK-NEXT:    %{{.*}} = acc.get_extent %{{.*}} : (!acc.data_bounds_ty) -> index
 
-  // Entry data-clause ops (PR 6b lands the `_DataEntryOp` shape and three
-  // leaves: copyin / create / present). All three share the same operand
+  // Entry data-clause ops sharing the abstract `_DataEntryOperation` mixin:
+  // copyin / create / present (more leaves follow). All three share the same operand
   // and property surface; cover it thoroughly via `acc.copyin` and
   // spot-check the per-op `dataClause` default elision via `acc.create` /
   // `acc.present`.

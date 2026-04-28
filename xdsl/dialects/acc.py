@@ -1270,19 +1270,19 @@ class KernelsOp(IRDLOperation):
 #
 # Upstream models the entry data-clause family (`copyin`, `create`, `present`,
 # `nocreate`, `attach`, `deviceptr`, `use_device`, `cache`,
-# `declare_device_resident`, `declare_link`) as a single `OpenACC_DataEntryOp`
+# `declare_device_resident`, `declare_link`) as a single `OpenACC_DataEntryOperation`
 # class with one operand-and-attribute shape. The xDSL port mirrors that shape
-# in the abstract `_DataEntryOp` mixin below; concrete leaves inherit it and
+# in the abstract `_DataEntryOperation` mixin below; concrete leaves inherit it and
 # add only what differs per op (`name`, the per-op `dataClause` default, and
 # eventually the `NoMemoryEffect` trait on `acc.cache`). The IRDL field
 # descriptors are inherited — same pattern already used by
 # `_DataBoundsAccessorOp`.
 
 
-class _DataEntryOp(IRDLOperation, ABC):
+class _DataEntryOperation(IRDLOperation, ABC):
     """Shared shape for the OpenACC entry data-clause ops.
 
-    Mirrors upstream's `OpenACC_DataEntryOp` td class. Concrete leaves
+    Mirrors upstream's `OpenACC_DataEntryOperation` td class. Concrete leaves
     override `name` and supply their own `dataClause` default. Everything else
     — the four operand groups, the `varType` / async / structured / implicit
     / modifiers properties, the optional `name` / `recipe`, the `accVar`
@@ -1400,7 +1400,7 @@ class _DataEntryOp(IRDLOperation, ABC):
 
 
 @irdl_op_definition
-class CopyinOp(_DataEntryOp):
+class CopyinOp(_DataEntryOperation):
     """Implementation of upstream acc.copyin."""
 
     name = "acc.copyin"
@@ -1412,7 +1412,7 @@ class CopyinOp(_DataEntryOp):
 
 
 @irdl_op_definition
-class CreateOp(_DataEntryOp):
+class CreateOp(_DataEntryOperation):
     """Implementation of upstream acc.create."""
 
     name = "acc.create"
@@ -1424,7 +1424,7 @@ class CreateOp(_DataEntryOp):
 
 
 @irdl_op_definition
-class PresentOp(_DataEntryOp):
+class PresentOp(_DataEntryOperation):
     """Implementation of upstream acc.present."""
 
     name = "acc.present"
