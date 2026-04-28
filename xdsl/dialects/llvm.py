@@ -52,6 +52,7 @@ from xdsl.ir import (
     Region,
     SSAValue,
     TypeAttribute,
+    TypedAttribute,
 )
 from xdsl.irdl import (
     AnyAttr,
@@ -1305,7 +1306,22 @@ class TailCallKindAttr(EnumAttribute[TailCallKind]):
             super().print_parameter(printer)
 
 
-# TODO: custom assembly format https://github.com/xdslproject/xdsl/issues/5897
+ASM_DIALECT_NAME_BY_KEY: dict[int, str] = {0: "att", 1: "intel"}
+"""
+Mapping from LLVM inline-assembly dialect integer values to their textual
+keyword form. See external
+[documentation](https://mlir.llvm.org/docs/Dialects/LLVM/#llvminline_asm-llvminlineasmop)
+for the MLIR op, and
+[LLVM LangRef](https://llvm.org/docs/LangRef.html#inline-assembler-expressions)
+for the underlying semantics.
+"""
+
+ASM_DIALECT_KEY_BY_NAME: dict[str, int] = {
+    v: k for k, v in ASM_DIALECT_NAME_BY_KEY.items()
+}
+"""Inverse of ASM_DIALECT_NAME_BY_KEY: maps keyword strings to integer keys."""
+
+
 @irdl_op_definition
 class InlineAsmOp(IRDLOperation):
     """
@@ -1343,7 +1359,7 @@ class InlineAsmOp(IRDLOperation):
         constraints: str,
         operands: Sequence[SSAValue | Operation],
         res_types: Sequence[Attribute] | None = None,
-        asm_dialect: int = 0,
+        asm_dialect: int | None = None,
         has_side_effects: bool = False,
         is_align_stack: bool = False,
         tail_call_kind: TailCallKindAttr | None = None,
@@ -1351,7 +1367,9 @@ class InlineAsmOp(IRDLOperation):
         props: dict[str, Attribute | None] = {
             "asm_string": StringAttr(asm_string),
             "constraints": StringAttr(constraints),
-            "asm_dialect": IntegerAttr(asm_dialect, 64),
+            "asm_dialect": IntegerAttr(asm_dialect, 64)
+            if asm_dialect is not None
+            else None,
             "has_side_effects": UnitAttr() if has_side_effects else None,
             "is_align_stack": UnitAttr() if is_align_stack else None,
             "tail_call_kind": tail_call_kind,
@@ -1365,6 +1383,79 @@ class InlineAsmOp(IRDLOperation):
             properties=props,
             result_types=[res_types],
         )
+
+    def print(self, printer: Printer) -> None:
+        if self.has_side_effects is not None:
+            printer.print_string(" has_side_effects")
+        if self.is_align_stack is not None:
+            printer.print_string(" is_align_stack")
+        if self.asm_dialect is not None:
+            printer.print_string(
+                f" asm_dialect = {ASM_DIALECT_NAME_BY_KEY[self.asm_dialect.value.data]}"
+            )
+        if (tck := self.tail_call_kind.data) != TailCallKind.NONE:
+            printer.print_string(f" tail_call_kind = <{tck.value}>")
+        printer.print_string(" ")
+        printer.print_string_literal(self.asm_string.data)
+        printer.print_string(", ")
+        printer.print_string_literal(self.constraints.data)
+        if self.operands_:
+            printer.print_string(" ")
+            printer.print_list(self.operands_, printer.print_ssa_value)
+        printer.print_op_attributes(self.attributes)
+        printer.print_string(" : ")
+        printer.print_function_type(
+            [v.type for v in self.operands_],
+            [self.res.type] if self.res is not None else [],
+        )
+
+    @classmethod
+    def parse(cls, parser: Parser) -> InlineAsmOp:
+        has_side_effects = parser.parse_optional_keyword("has_side_effects") is not None
+        is_align_stack = parser.parse_optional_keyword("is_align_stack") is not None
+        asm_dialect: int | None = None
+        if parser.parse_optional_keyword("asm_dialect") is not None:
+            parser.parse_punctuation("=")
+            if parser.parse_optional_keyword("att") is not None:
+                asm_dialect = ASM_DIALECT_KEY_BY_NAME["att"]
+            elif parser.parse_optional_keyword("intel") is not None:
+                asm_dialect = ASM_DIALECT_KEY_BY_NAME["intel"]
+            else:
+                parser.raise_error(
+                    "Expected one of 'att', 'intel' after 'asm_dialect ='"
+                )
+        tail_call_kind = TailCallKindAttr(TailCallKind.NONE)
+        if parser.parse_optional_keyword("tail_call_kind") is not None:
+            parser.parse_punctuation("=")
+            parser.parse_punctuation("<")
+            tail_call_kind = TailCallKindAttr(parser.parse_str_enum(TailCallKind))
+            parser.parse_punctuation(">")
+        asm_string = parser.parse_str_literal()
+        parser.parse_punctuation(",")
+        constraints = parser.parse_str_literal()
+        operands_pos = parser.pos
+        operands = (
+            parser.parse_optional_undelimited_comma_separated_list(
+                parser.parse_optional_unresolved_operand,
+                parser.parse_unresolved_operand,
+            )
+            or []
+        )
+        attrs = parser.parse_optional_attr_dict()
+        parser.parse_punctuation(":")
+        ft = parser.parse_function_type()
+        op = cls(
+            asm_string,
+            constraints,
+            parser.resolve_operands(operands, ft.inputs.data, operands_pos),
+            ft.outputs.data,
+            asm_dialect=asm_dialect,
+            has_side_effects=has_side_effects,
+            is_align_stack=is_align_stack,
+            tail_call_kind=tail_call_kind,
+        )
+        op.attributes |= attrs
+        return op
 
 
 @irdl_op_definition
@@ -1711,7 +1802,25 @@ class UndefOp(IRDLOperation):
         super().__init__(result_types=[result_type])
 
 
-# TODO: custom assembly format https://github.com/xdslproject/xdsl/issues/5897
+UNNAMED_ADDR_KEYWORD_BY_KEY: dict[int, str] = {
+    1: "local_unnamed_addr",
+    2: "unnamed_addr",
+}
+"""
+Mapping from LLVM `unnamed_addr` integer values to their textual keyword form
+(0 = no keyword). See external
+[documentation](https://mlir.llvm.org/docs/Dialects/LLVM/#llvmmlirglobal-llvmglobalop)
+for the MLIR op, and
+[LLVM LangRef](https://llvm.org/docs/LangRef.html#global-variables) for the
+underlying semantics.
+"""
+
+UNNAMED_ADDR_KEY_BY_KEYWORD: dict[str, int] = {
+    v: k for k, v in UNNAMED_ADDR_KEYWORD_BY_KEY.items()
+}
+"""Reverse mapping from keyword string to integer key."""
+
+
 @irdl_op_definition
 class GlobalOp(IRDLOperation):
     name = "llvm.mlir.global"
@@ -1789,6 +1898,92 @@ class GlobalOp(IRDLOperation):
             body = Region()
 
         super().__init__(properties=props, regions=(body,))
+
+    def print(self, printer: Printer) -> None:
+        printer.print_string(" ")
+        printer.print_string(self.linkage.linkage.data)
+        if self.thread_local_ is not None:
+            printer.print_string(" thread_local")
+        if self.unnamed_addr is not None and (
+            kw := UNNAMED_ADDR_KEYWORD_BY_KEY.get(self.unnamed_addr.value.data)
+        ):
+            printer.print_string(f" {kw}")
+        if self.constant is not None:
+            printer.print_string(" constant")
+        printer.print_string(" ")
+        printer.print_symbol_name(self.sym_name.data)
+        printer.print_string("(")
+        if self.value is not None:
+            printer.print_attribute(self.value)
+        printer.print_string(")")
+        printer.print_op_attributes(
+            self.properties | self.attributes,
+            reserved_attr_names=(
+                "global_type",
+                "sym_name",
+                "linkage",
+                "constant",
+                "thread_local_",
+                "unnamed_addr",
+                "value",
+            ),
+        )
+        printer.print_string(" : ")
+        printer.print_attribute(self.global_type)
+        if self.body.blocks:
+            printer.print_string(" ")
+            printer.print_region(self.body)
+
+    @classmethod
+    def parse(cls, parser: Parser) -> GlobalOp:
+        linkage = parser.parse_optional_keyword_in(_LINKAGE_OPTIONS) or "external"
+        thread_local_ = parser.parse_optional_keyword("thread_local") is not None
+        unnamed_addr_kw = parser.parse_optional_keyword_in(
+            UNNAMED_ADDR_KEYWORD_BY_KEY.values()
+        )
+        unnamed_addr_val = (
+            UNNAMED_ADDR_KEY_BY_KEYWORD.get(unnamed_addr_kw)
+            if unnamed_addr_kw is not None
+            else None
+        )
+        constant = parser.parse_optional_keyword("constant") is not None
+        sym_name = parser.parse_symbol_name()
+        parser.parse_punctuation("(")
+        value = None
+        if parser.parse_optional_punctuation(")") is None:
+            value = parser.parse_attribute()
+            parser.parse_punctuation(")")
+        attrs = parser.parse_optional_attr_dict()
+        if parser.parse_optional_punctuation(":") is not None:
+            global_type = parser.parse_type()
+        elif isinstance(value, StringAttr):
+            global_type = LLVMArrayType(len(value.data), IntegerType(8))
+        elif isinstance(value, TypedAttribute):
+            global_type = value.get_type()
+        else:
+            parser.raise_error("expected `:` followed by global type")
+        addr_space = attrs.pop("addr_space", IntegerAttr(0, 32))
+        alignment = attrs.pop("alignment", None)
+        section = attrs.pop("section", None)
+        assert isinstance(addr_space, IntegerAttr)
+        assert alignment is None or isinstance(alignment, IntegerAttr)
+        assert section is None or isinstance(section, StringAttr)
+        op = cls(
+            global_type=global_type,
+            sym_name=sym_name,
+            linkage=linkage,
+            addr_space=addr_space.value.data,
+            constant=constant,
+            dso_local=attrs.pop("dso_local", None) is not None,
+            thread_local_=thread_local_,
+            value=value,
+            alignment=alignment.value.data if alignment is not None else None,
+            unnamed_addr=unnamed_addr_val,
+            section=section,
+            body=parser.parse_optional_region(),
+        )
+        op.attributes |= attrs
+        return op
 
 
 @irdl_op_definition
