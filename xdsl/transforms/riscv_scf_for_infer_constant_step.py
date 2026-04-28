@@ -1,6 +1,7 @@
 """
-This pass converts a statically-known `step` value in `riscv_scf` loops when it fits
-into the bitwidth of the immediate in the `addi` operation.
+This pass converts a statically-known `step` value into a constant attribute in
+`riscv_scf` loops when it fits into the bitwidth of the immediate in the `addi`
+operation.
 The rationale is to use one fewer register in the loop body.
 The lower bound and upper bound don't benefit from the same transformation, as the
 former is only used to initialise the induction variable, and the step is used in a
@@ -26,12 +27,15 @@ class InferConstantStep(RewritePattern):
         self, op: riscv_scf.ForOp | riscv_scf.RofOp, rewriter: PatternRewriter
     ) -> None:
         if (sv := op.step_val) is None:
+            # Nothing to be done
             return
 
         if not isinstance(owner := sv.owner, rv32.LiOp):
+            # Only support rv32.LiOp for now
             return
 
         if isinstance(imm := owner.immediate, riscv.LabelAttr):
+            # Cannot support labels for now
             return
 
         try:
