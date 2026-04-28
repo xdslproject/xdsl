@@ -1,14 +1,17 @@
+from unittest.mock import Mock
+
 import pytest
 
 from xdsl.builder import Builder, ImplicitBuilder
 from xdsl.dialects import func, riscv, riscv_scf, rv32
 from xdsl.dialects.builtin import IndexType, ModuleOp
-from xdsl.interpreter import Interpreter
+from xdsl.dialects.test import TestOp
+from xdsl.interpreter import Interpreter, OpImplResult
 from xdsl.interpreters.func import FuncFunctions
 from xdsl.interpreters.riscv import RiscvFunctions
 from xdsl.interpreters.riscv_scf import RiscvScfFunctions
 from xdsl.interpreters.rv32 import Rv32Functions
-from xdsl.ir import BlockArgument
+from xdsl.ir import Block, BlockArgument, Region
 
 index = IndexType()
 register = riscv.Registers.UNALLOCATED_INT
@@ -101,3 +104,20 @@ def interp(module_op: ModuleOp, func_name: str, n: int) -> int:
 def test_sum_to(n: int, res: int):
     assert res == interp(sum_to_for_op, "sum_to", n)
     assert res == interp(sum_to_while_op, "sum_to", n)
+
+
+def test_for_dynamic():
+    r = riscv.Registers.UNALLOCATED_INT
+    lb, ub, step, initial = TestOp(result_types=(r,) * 4).results
+    body = Region(Block(arg_types=(r, r)))
+
+    result = riscv_scf.ForOp(lb, ub, step, (initial,), body)
+
+    interpreter = Mock(spec=Interpreter)
+    interpreter.run_ssacfg_region = Mock(return_value=(99,))
+
+    assert RiscvScfFunctions().run_for(
+        interpreter, result, (1, 5, 3, 1)
+    ) == OpImplResult((99,), None)
+    interpreter.run_ssacfg_region.assert_called_with(body, (4, 99), "for_loop")
+    assert interpreter.run_ssacfg_region.call_count == 2
