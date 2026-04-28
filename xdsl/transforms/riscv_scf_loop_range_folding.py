@@ -1,5 +1,6 @@
 from xdsl.context import Context
 from xdsl.dialects import builtin, riscv, riscv_scf, rv32
+from xdsl.dialects.builtin import IntegerAttr
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     PatternRewriter,
@@ -8,7 +9,7 @@ from xdsl.pattern_rewriter import (
     op_type_rewrite_pattern,
 )
 from xdsl.transforms.canonicalization_patterns.riscv import get_constant_value
-from xdsl.utils.exceptions import PassFailedException
+from xdsl.utils.exceptions import VerifyException
 
 
 class HoistIndexTimesConstantOp(RewritePattern):
@@ -51,10 +52,15 @@ class HoistIndexTimesConstantOp(RewritePattern):
                     # All the uses are multiplications by a constant, we can fold
                     step_attr = op.step_attr
                     if step_attr is not None:
-                        raise PassFailedException(
-                            "Folding riscv_scf loops with constant step not yet "
-                            "implemented."
-                        )
+                        try:
+                            # If the new step can be represented with the new bounds,
+                            # then update it
+                            step_attr = IntegerAttr(
+                                step_attr.value.data * constant, step_attr.type
+                            )
+                        except VerifyException:
+                            # Can't fit into existing bounds, return
+                            return
 
                     rewriter.insert_op(
                         [
@@ -63,9 +69,12 @@ class HoistIndexTimesConstantOp(RewritePattern):
                             new_ub := riscv.MulOp(op.ub, factor),
                         ]
                     )
-                    assert op.step_val is not None
-                    rewriter.insert_op(new_step := riscv.MulOp(op.step_val, factor))
-                    op.operands[2] = new_step.rd
+                    if step_attr is not None:
+                        op.step_attr = step_attr
+                    else:
+                        assert op.step_val is not None
+                        rewriter.insert_op(new_step := riscv.MulOp(op.step_val, factor))
+                        op.operands[2] = new_step.rd
 
             op.operands[0] = new_lb.rd
             op.operands[1] = new_ub.rd
