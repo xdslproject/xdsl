@@ -39,7 +39,7 @@ class HoistIndexTimesConstantOp(RewritePattern):
 
             match user:
                 case riscv.AddOp():
-                    # All the uses are multiplications by a constant, we can fold
+                    # All the uses are additions with a constant, we can fold
                     rewriter.insert_op(
                         [
                             shift := rv32.LiOp(constant),
