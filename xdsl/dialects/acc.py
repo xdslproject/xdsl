@@ -159,6 +159,29 @@ class VariableTypeCategory(StrEnum):
     NONSCALAR = "nonscalar"
 
 
+class ReductionOpKind(StrEnum):
+    """Built-in reduction operators supported by OpenACC.
+
+    See upstream `mlir::acc::ReductionOperator` (renamed in xDSL to avoid
+    clashing with the `Operator` / `Operation` naming used elsewhere).
+    Carried on `acc.reduction.recipe` to identify which reduction the recipe
+    encodes.
+    """
+
+    NONE = "none"
+    ADD = "add"
+    MUL = "mul"
+    MAX = "max"
+    MIN = "min"
+    IAND = "iand"
+    IOR = "ior"
+    XOR = "xor"
+    EQV = "eqv"
+    NEQV = "neqv"
+    LAND = "land"
+    LOR = "lor"
+
+
 @irdl_attr_definition
 class DeviceTypeAttr(EnumAttribute[DeviceType]):
     """
@@ -232,6 +255,29 @@ class VariableTypeCategoryAttr(
     none_value = "uncategorized"
     separator_value = ","
     delimiter_value = AttrParser.Delimiter.NONE
+
+
+@irdl_attr_definition
+class ReductionOpKindAttr(EnumAttribute[ReductionOpKind]):
+    """
+    Reduction operator attribute carried by `acc.reduction.recipe`. Prints
+    using the pretty form `#acc.reduction_operator<value>` to match upstream
+    MLIR (which defines `assemblyFormat = "`<` $value `>`"`). When referenced
+    as `$reductionOperator` in an op assembly format, xDSL prints just the
+    `<value>` parameter — matching upstream's inline spelling
+    `reduction_operator <add>`.
+    """
+
+    name = "acc.reduction_operator"
+
+    def print_parameter(self, printer: Printer) -> None:
+        with printer.in_angle_brackets():
+            printer.print_string(self.data.value)
+
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> ReductionOpKind:
+        with parser.in_angle_brackets():
+            return parser.parse_str_enum(ReductionOpKind)
 
 
 @irdl_attr_definition
@@ -2033,6 +2079,7 @@ ACC = Dialect(
         DataClauseAttr,
         DataClauseModifierAttr,
         VariableTypeCategoryAttr,
+        ReductionOpKindAttr,
         DataBoundsType,
     ],
 )

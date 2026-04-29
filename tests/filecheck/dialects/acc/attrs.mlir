@@ -37,8 +37,39 @@
                 // CHECK-SAME: #acc<variable_type_category uncategorized>
                 #acc<variable_type_category scalar>,
                 // CHECK-SAME: #acc<variable_type_category scalar>
-                #acc<variable_type_category array,composite>
+                #acc<variable_type_category array,composite>,
                 // CHECK-SAME: #acc<variable_type_category array,composite>
+
+                // Reduction operator attribute. Prints with `<value>`
+                // surrounding the parameter (matching upstream MLIR's
+                // `assemblyFormat = "`<` $value `>`"`), so when consumed
+                // inline via `$reductionOperator` in a future op format the
+                // spelling is `reduction_operator <add>` rather than the
+                // long-form `#acc.reduction_operator<add>`.
+                #acc.reduction_operator<none>,
+                // CHECK-SAME: #acc.reduction_operator<none>
+                #acc.reduction_operator<add>,
+                // CHECK-SAME: #acc.reduction_operator<add>
+                #acc.reduction_operator<mul>,
+                // CHECK-SAME: #acc.reduction_operator<mul>
+                #acc.reduction_operator<max>,
+                // CHECK-SAME: #acc.reduction_operator<max>
+                #acc.reduction_operator<min>,
+                // CHECK-SAME: #acc.reduction_operator<min>
+                #acc.reduction_operator<iand>,
+                // CHECK-SAME: #acc.reduction_operator<iand>
+                #acc.reduction_operator<ior>,
+                // CHECK-SAME: #acc.reduction_operator<ior>
+                #acc.reduction_operator<xor>,
+                // CHECK-SAME: #acc.reduction_operator<xor>
+                #acc.reduction_operator<eqv>,
+                // CHECK-SAME: #acc.reduction_operator<eqv>
+                #acc.reduction_operator<neqv>,
+                // CHECK-SAME: #acc.reduction_operator<neqv>
+                #acc.reduction_operator<land>,
+                // CHECK-SAME: #acc.reduction_operator<land>
+                #acc.reduction_operator<lor>
+                // CHECK-SAME: #acc.reduction_operator<lor>
 
             ]}: () -> !acc.data_bounds_ty
                 // CHECK-SAME: !acc.data_bounds_ty
