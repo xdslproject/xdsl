@@ -99,7 +99,7 @@ class _TrackingPredicate:
 
     def __init__(self, predicate: Callable[[Use], bool]):
         self.predicate = predicate
-        self.modified_ops: list[Operation] = []
+        self.modified_ops = []
 
     def __call__(self, use: Use) -> bool:
         if self.predicate(use):
