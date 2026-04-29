@@ -1147,6 +1147,43 @@ builtin.module {
   // CHECK:         acc.detach accPtr(%{{.*}} : memref<10xf32>)
   // CHECK-NOT:     dataClause
 
+  // The inherited `recipe` property is consumed by the `DataEntryOilist`
+  // custom directive as an inline `recipe(@sym)` clause — matching
+  // upstream's `oilist(... | `recipe` `(` ... `)`)`. Both the inline
+  // pretty-form and the attr-dict spelling parse to the same op; the
+  // pretty form is canonical on print. Exercised on `acc.copyin` since
+  // `_DataEntryOperation`'s assembly format is uniform across every entry
+  // leaf.
+  func.func @copyin_with_recipe(%a : memref<10xf32>) {
+    %r = acc.copyin varPtr(%a : memref<10xf32>) recipe(@some_recipe) -> memref<10xf32>
+    func.return
+  }
+  // CHECK-LABEL: func.func @copyin_with_recipe(
+  // CHECK:         %{{.*}} = acc.copyin varPtr(%{{.*}} : memref<10xf32>) recipe(@some_recipe) -> memref<10xf32>
+
+  // Attr-dict spelling for `recipe` — accepted on parse, normalized to the
+  // inline `recipe(@sym)` form on print. Exercises the `ParsePropInAttrDict`
+  // fallback for the same property.
+  func.func @copyin_recipe_attr_dict_input(%a : memref<10xf32>) {
+    %r = acc.copyin varPtr(%a : memref<10xf32>) -> memref<10xf32> {recipe = @some_recipe}
+    func.return
+  }
+  // CHECK-LABEL: func.func @copyin_recipe_attr_dict_input(
+  // CHECK:         %{{.*}} = acc.copyin varPtr(%{{.*}} : memref<10xf32>) recipe(@some_recipe) -> memref<10xf32>
+
+  // Order-free input: the `DataEntryOilist` directive accepts the four
+  // optional clauses (varPtrPtr / bounds / async / recipe) in any order on
+  // parse (mirroring upstream's `oilist(...)` semantics), and emits them
+  // in the canonical td-definition order on print. This is what makes the
+  // `mlir-opt` round-trip tolerant to upstream's own clause-order choices.
+  func.func @copyin_clauses_reordered(%a : memref<10xf32>, %p : memref<memref<10xf32>>, %c0 : index, %c9 : index) {
+    %b = acc.bounds lowerbound(%c0 : index) upperbound(%c9 : index)
+    %r = acc.copyin varPtr(%a : memref<10xf32>) recipe(@some_recipe) async bounds(%b) varPtrPtr(%p : memref<memref<10xf32>>) -> memref<10xf32>
+    func.return
+  }
+  // CHECK-LABEL: func.func @copyin_clauses_reordered(
+  // CHECK:         %{{.*}} = acc.copyin varPtr(%{{.*}} : memref<10xf32>) varPtrPtr(%{{.*}} : memref<memref<10xf32>>) bounds(%{{.*}}) async recipe(@some_recipe) -> memref<10xf32>
+
   // Privatization recipes — `acc.private.recipe` / `acc.firstprivate.recipe`
   // are top-level Symbol ops (`IsolatedFromAbove`). Each carries a
   // `sym_name` + `type` plus named regions; the `acc.yield`-as-init-result

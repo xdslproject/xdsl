@@ -61,6 +61,7 @@ from xdsl.irdl.declarative_assembly_format import (
     AttributeVariable,
     CustomDirective,
     OperandVariable,
+    OptionalOperandVariable,
     ParsingState,
     PrintingState,
     TypeDirective,
@@ -493,6 +494,88 @@ class DeviceTypeOperands(CustomDirective):
         state.last_was_punctuation = False
 
 
+def _parse_dt_kw_only_body(
+    parser: Parser,
+) -> tuple[
+    Sequence[UnresolvedOperand],
+    Sequence[Attribute],
+    ArrayAttr[DeviceTypeAttr] | None,
+    ArrayAttr[DeviceTypeAttr] | None,
+]:
+    """Parse the post-keyword body of an `async`-style clause.
+
+    Returns ``(operands, types, device_types, keyword_only)``. Either or
+    both attributes may be ``None`` when no list / no operands are present.
+    The bare-keyword form (no parens) yields ``keyword_only =
+    [#acc.device_type<none>]``. Shared between
+    ``DeviceTypeOperandsWithKeywordOnly`` and ``DataEntryOilist``'s
+    ``async`` branch.
+    """
+    if not parser.parse_optional_punctuation("("):
+        return (), (), None, ArrayAttr([DeviceTypeAttr(DeviceType.NONE)])
+
+    keyword_only: ArrayAttr[DeviceTypeAttr] | None = None
+    needs_comma_before_operands = False
+    if parser.parse_optional_punctuation("["):
+        kw_only = parser.parse_comma_separated_list(
+            parser.Delimiter.NONE, lambda: _parse_device_type_attr(parser)
+        )
+        parser.parse_punctuation("]")
+        keyword_only = ArrayAttr(kw_only)
+        needs_comma_before_operands = True
+
+    if parser.parse_optional_punctuation(")"):
+        return (), (), None, keyword_only
+
+    if needs_comma_before_operands:
+        parser.parse_punctuation(",")
+
+    triples = parser.parse_comma_separated_list(
+        parser.Delimiter.NONE, lambda: _parse_operand_with_dt(parser)
+    )
+    parser.parse_punctuation(")")
+    operands, types, device_types = zip(*triples)
+    return operands, types, ArrayAttr(device_types), keyword_only
+
+
+def _print_dt_kw_only_body(
+    printer: Printer,
+    state: PrintingState,
+    operands: Sequence[SSAValue],
+    keyword_only: Attribute | None,
+    device_types: Attribute | None,
+) -> None:
+    """Print the post-keyword body of an `async`-style clause.
+
+    Mirror of `_parse_dt_kw_only_body`. Emits nothing when both
+    ``operands`` is empty and ``keyword_only`` is the all-`#none` sentinel
+    — matching upstream's "bare async keyword" elision.
+    """
+    if not operands and keyword_only == _DEVICE_TYPE_ONLY_NONE:
+        return
+
+    printer.print_string("(")
+    if isa(keyword_only, ArrayAttr) and keyword_only.data:
+        printer.print_string("[")
+        printer.print_list(keyword_only.data, printer.print_attribute)
+        printer.print_string("]")
+        if operands:
+            printer.print_string(", ")
+    if operands:
+        dts = (
+            attr.data
+            if isa(attr := device_types, ArrayAttr)
+            else (DeviceTypeAttr(DeviceType.NONE),) * len(operands)
+        )
+        printer.print_list(
+            zip(operands, dts, strict=True),
+            lambda pair: _print_operand_with_dt(printer, pair[0], pair[1]),
+        )
+    printer.print_string(")")
+    state.should_emit_space = True
+    state.last_was_punctuation = False
+
+
 @irdl_custom_directive
 class DeviceTypeOperandsWithKeywordOnly(CustomDirective):
     """Port of upstream `custom<DeviceTypeOperandsWithKeywordOnly>`.
@@ -528,66 +611,23 @@ class DeviceTypeOperandsWithKeywordOnly(CustomDirective):
         self.operand_types.set(state, ())
 
     def parse(self, parser: Parser, state: ParsingState) -> bool:
-        if not parser.parse_optional_punctuation("("):
-            self.keyword_only.set(state, ArrayAttr([DeviceTypeAttr(DeviceType.NONE)]))
-            self.operands.set(state, ())
-            self.operand_types.set(state, ())
-            return True
-
-        needs_comma_before_operands = False
-        if parser.parse_optional_punctuation("["):
-            kw_only = parser.parse_comma_separated_list(
-                parser.Delimiter.NONE, lambda: _parse_device_type_attr(parser)
-            )
-            parser.parse_punctuation("]")
-            self.keyword_only.set(state, ArrayAttr(kw_only))
-            needs_comma_before_operands = True
-
-        if parser.parse_optional_punctuation(")"):
-            self.operands.set(state, ())
-            self.operand_types.set(state, ())
-            return True
-
-        if needs_comma_before_operands:
-            parser.parse_punctuation(",")
-
-        triples = parser.parse_comma_separated_list(
-            parser.Delimiter.NONE, lambda: _parse_operand_with_dt(parser)
-        )
-        parser.parse_punctuation(")")
-        operands, types, device_types = zip(*triples)
+        operands, types, device_types, keyword_only = _parse_dt_kw_only_body(parser)
         self.operands.set(state, operands)
         self.operand_types.set(state, types)
-        self.device_types.set(state, ArrayAttr(device_types))
+        if device_types is not None:
+            self.device_types.set(state, device_types)
+        if keyword_only is not None:
+            self.keyword_only.set(state, keyword_only)
         return True
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
-        operands = self.operands.get(op)
-        keyword_only = self.keyword_only.get(op)
-
-        if not operands and keyword_only == _DEVICE_TYPE_ONLY_NONE:
-            return
-
-        printer.print_string("(")
-        if isa(keyword_only, ArrayAttr) and keyword_only.data:
-            printer.print_string("[")
-            printer.print_list(keyword_only.data, printer.print_attribute)
-            printer.print_string("]")
-            if operands:
-                printer.print_string(", ")
-        if operands:
-            dts = (
-                attr.data
-                if isa(attr := self.device_types.get(op), ArrayAttr)
-                else (DeviceTypeAttr(DeviceType.NONE),) * len(operands)
-            )
-            printer.print_list(
-                zip(operands, dts, strict=True),
-                lambda pair: _print_operand_with_dt(printer, pair[0], pair[1]),
-            )
-        printer.print_string(")")
-        state.should_emit_space = True
-        state.last_was_punctuation = False
+        _print_dt_kw_only_body(
+            printer,
+            state,
+            self.operands.get(op),
+            self.keyword_only.get(op),
+            self.device_types.get(op),
+        )
 
 
 @irdl_custom_directive
@@ -869,6 +909,140 @@ class Var(CustomDirective):
             printer.print_string(")")
         state.should_emit_space = True
         state.last_was_punctuation = False
+
+
+@irdl_custom_directive
+class DataEntryOilist(CustomDirective):
+    """Port of upstream's `oilist(...)` for the data-entry op family.
+
+    Accepts the four optional clauses `varPtrPtr` / `bounds` / `async` /
+    `recipe` in any order on parse; emits them in the canonical
+    upstream-td-definition order on print. Each clause may appear at most
+    once. This mirrors upstream MLIR's `oilist(...)` semantics — the
+    round-trip with `mlir-opt` (which emits in upstream's td order)
+    round-trips bit-identically through xDSL even when the input source
+    interleaves clauses in a different order.
+    """
+
+    var_ptr_ptr: OptionalOperandVariable
+    var_ptr_ptr_type: TypeDirective
+    bounds: VariadicOperandVariable
+    async_operands: VariadicOperandVariable
+    async_operand_types: TypeDirective
+    async_device_type: AttributeVariable
+    async_only: AttributeVariable
+    recipe: AttributeVariable
+
+    def is_anchorable(self) -> bool:
+        return False
+
+    def is_optional_like(self) -> bool:
+        return True
+
+    def set_empty(self, state: ParsingState) -> None:
+        self.var_ptr_ptr.set(state, None)
+        self.var_ptr_ptr_type.set(state, ())
+        self.bounds.set(state, ())
+        self.async_operands.set(state, ())
+        self.async_operand_types.set(state, ())
+
+    def parse(self, parser: Parser, state: ParsingState) -> bool:
+        self.set_empty(state)
+        seen: set[str] = set()
+        while True:
+            if parser.parse_optional_keyword("varPtrPtr") is not None:
+                if "varPtrPtr" in seen:
+                    parser.raise_error("'varPtrPtr' clause specified twice")
+                seen.add("varPtrPtr")
+                with parser.in_parens():
+                    operand = parser.parse_unresolved_operand()
+                    parser.parse_punctuation(":")
+                    ty = parser.parse_type()
+                self.var_ptr_ptr.set(state, operand)
+                self.var_ptr_ptr_type.set(state, (ty,))
+            elif parser.parse_optional_keyword("bounds") is not None:
+                if "bounds" in seen:
+                    parser.raise_error("'bounds' clause specified twice")
+                seen.add("bounds")
+                with parser.in_parens():
+                    bounds_operands = parser.parse_comma_separated_list(
+                        parser.Delimiter.NONE, parser.parse_unresolved_operand
+                    )
+                self.bounds.set(state, bounds_operands)
+            elif parser.parse_optional_keyword("async") is not None:
+                if "async" in seen:
+                    parser.raise_error("'async' clause specified twice")
+                seen.add("async")
+                ops, types, dts, kw_only = _parse_dt_kw_only_body(parser)
+                self.async_operands.set(state, ops)
+                self.async_operand_types.set(state, types)
+                if dts is not None:
+                    self.async_device_type.set(state, dts)
+                if kw_only is not None:
+                    self.async_only.set(state, kw_only)
+            elif parser.parse_optional_keyword("recipe") is not None:
+                if "recipe" in seen:
+                    parser.raise_error("'recipe' clause specified twice")
+                seen.add("recipe")
+                with parser.in_parens():
+                    self.recipe.set(state, parser.parse_attribute())
+            else:
+                break
+        return True
+
+    def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
+        var_ptr_ptr = self.var_ptr_ptr.get(op)
+        if var_ptr_ptr is not None:
+            state.print_whitespace(printer)
+            printer.print_string("varPtrPtr(")
+            printer.print_ssa_value(var_ptr_ptr)
+            printer.print_string(" : ")
+            printer.print_attribute(var_ptr_ptr.type)
+            printer.print_string(")")
+            state.should_emit_space = True
+            state.last_was_punctuation = False
+
+        bounds = self.bounds.get(op)
+        if bounds:
+            state.print_whitespace(printer)
+            printer.print_string("bounds(")
+            printer.print_list(bounds, printer.print_ssa_value)
+            printer.print_string(")")
+            state.should_emit_space = True
+            state.last_was_punctuation = False
+
+        async_operands = self.async_operands.get(op)
+        async_only = self.async_only.get(op)
+        async_device_type = self.async_device_type.get(op)
+        # Mirror upstream's optional-group anchor: the `async` keyword is
+        # emitted whenever any of the four async slots is set, including the
+        # all-`#none` sentinel (which renders bare `async`).
+        async_present = (
+            bool(async_operands)
+            or async_only is not None
+            or async_device_type is not None
+        )
+        if async_present:
+            state.print_whitespace(printer)
+            printer.print_string("async")
+            # Leave `should_emit_space = True` so the bare-keyword case (body
+            # returns early) lands a space before the next clause / `->`.
+            # The body's `print_string("(")` doesn't consult this flag, so
+            # `async(...)` still prints adjacent in the non-bare case.
+            state.should_emit_space = True
+            state.last_was_punctuation = False
+            _print_dt_kw_only_body(
+                printer, state, async_operands, async_only, async_device_type
+            )
+
+        recipe = self.recipe.get(op)
+        if recipe is not None:
+            state.print_whitespace(printer)
+            printer.print_string("recipe(")
+            printer.print_attribute(recipe)
+            printer.print_string(")")
+            state.should_emit_space = True
+            state.last_was_punctuation = False
 
 
 @irdl_op_definition
@@ -1417,14 +1591,21 @@ class _DataEntryOperation(IRDLOperation, ABC):
         ParsePropInAttrDict(),
     )
 
-    custom_directives = (Var, DeviceTypeOperandsWithKeywordOnly)
+    custom_directives = (Var, DataEntryOilist)
 
+    # The four optional clauses (varPtrPtr / bounds / async / recipe) are
+    # consumed by `DataEntryOilist`, which mirrors upstream's
+    # `oilist(...)` — accepting them in any order on parse and emitting
+    # them in the canonical td-definition order on print. The
+    # `recipe(@sym)` clause is the SymbolRefAttr inline spelling matching
+    # upstream's `recipe` `(` ... `)`; mlir-opt may emit the four clauses
+    # in any order depending on context, so the oilist directive accepts
+    # them all and normalizes to canonical order on print.
     assembly_format = (
         "custom<Var>($var, type($var), $varType)"
-        " (`varPtrPtr` `(` $var_ptr_ptr^ `:` type($var_ptr_ptr) `)`)?"
-        " (`bounds` `(` $bounds^ `)`)?"
-        " (`async` custom<DeviceTypeOperandsWithKeywordOnly>($async_operands,"
-        " type($async_operands), $asyncOperandsDeviceType, $asyncOnly)^)?"
+        " custom<DataEntryOilist>($var_ptr_ptr, type($var_ptr_ptr), $bounds,"
+        " $async_operands, type($async_operands), $asyncOperandsDeviceType,"
+        " $asyncOnly, $recipe)"
         " `->` type($acc_var) attr-dict"
     )
 

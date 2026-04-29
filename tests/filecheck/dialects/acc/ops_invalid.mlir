@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s --verify-diagnostics --split-input-file | filecheck %s
+// RUN: xdsl-opt %s --parsing-diagnostics --verify-diagnostics --split-input-file | filecheck %s
 
 func.func @empty_block() {
   "acc.parallel"() <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0>}> ({
@@ -193,3 +193,39 @@ func.func @recipe_leaks_outer_value(%outer: i32) {
 }, {
 }) : () -> ()
 // CHECK: Operation does not verify: expects combiner region to yield a value of the reduction type
+
+// -----
+
+// `DataEntryOilist` rejects each of its four clauses appearing twice on
+// parse. Cover all four keywords — the duplicate-detection branch is per-
+// keyword, so a single shared case wouldn't prove each branch fires.
+func.func @copyin_duplicate_var_ptr_ptr(%a : memref<10xf32>, %p : memref<memref<10xf32>>) {
+  %r = acc.copyin varPtr(%a : memref<10xf32>) varPtrPtr(%p : memref<memref<10xf32>>) varPtrPtr(%p : memref<memref<10xf32>>) -> memref<10xf32>
+  func.return
+}
+// CHECK: 'varPtrPtr' clause specified twice
+
+// -----
+
+func.func @copyin_duplicate_bounds(%a : memref<10xf32>, %c0 : index, %c9 : index) {
+  %b = acc.bounds lowerbound(%c0 : index) upperbound(%c9 : index)
+  %r = acc.copyin varPtr(%a : memref<10xf32>) bounds(%b) bounds(%b) -> memref<10xf32>
+  func.return
+}
+// CHECK: 'bounds' clause specified twice
+
+// -----
+
+func.func @copyin_duplicate_async(%a : memref<10xf32>) {
+  %r = acc.copyin varPtr(%a : memref<10xf32>) async async -> memref<10xf32>
+  func.return
+}
+// CHECK: 'async' clause specified twice
+
+// -----
+
+func.func @copyin_duplicate_recipe(%a : memref<10xf32>) {
+  %r = acc.copyin varPtr(%a : memref<10xf32>) recipe(@r1) recipe(@r2) -> memref<10xf32>
+  func.return
+}
+// CHECK: 'recipe' clause specified twice

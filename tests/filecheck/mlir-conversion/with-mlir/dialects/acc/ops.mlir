@@ -678,6 +678,17 @@ builtin.module {
   // CHECK:       func.func @detach_minimal(
   // CHECK:         acc.detach accPtr(%{{.*}} : memref<10xf32>)
 
+  // `recipe(@sym)` interop: upstream's pretty-form spelling for the
+  // `recipe` SymbolRefAttr property. The `DataEntryOilist` directive's
+  // anchor on `$recipe` must produce the inline form that mlir-opt
+  // re-emits identically, otherwise the round-trip diverges.
+  func.func @copyin_with_recipe(%a : memref<10xf32>) {
+    %r = acc.copyin varPtr(%a : memref<10xf32>) recipe(@some_recipe) -> memref<10xf32>
+    func.return
+  }
+  // CHECK:       func.func @copyin_with_recipe(
+  // CHECK:         %{{.*}} = acc.copyin varPtr(%{{.*}} : memref<10xf32>) recipe(@some_recipe) -> memref<10xf32>
+
   // Privatization recipes — top-level Symbol ops. Pretty form is
   // `@sym : type init { ... } [destroy { ... }]?` (and `copy {...}` between
   // for firstprivate). Both MLIR_ROUNDTRIP and MLIR_GENERIC_ROUNDTRIP must
