@@ -130,8 +130,9 @@ func.func @bounds_missing_extent_and_upperbound() {
 
 // `IsolatedFromAbove` on `acc.private.recipe` is enforced by the verifier:
 // nested ops cannot reference SSA values defined outside the recipe. Same
-// trait is on `acc.firstprivate.recipe`; one case is enough since it
-// fires from the trait's verifier rather than the per-op `verify_`.
+// trait is on `acc.firstprivate.recipe` and `acc.reduction.recipe`; one
+// case is enough since it fires from the trait's verifier rather than
+// from any per-op `verify_`.
 func.func @recipe_leaks_outer_value(%outer: i32) {
   acc.private.recipe @p : i32 init {
   ^bb0(%a: i32):
@@ -141,3 +142,54 @@ func.func @recipe_leaks_outer_value(%outer: i32) {
   func.return
 }
 // CHECK: Operation using value defined out of its IsolatedFromAbove parent
+
+// -----
+
+// acc.reduction.recipe: empty init region is rejected (mirrors the same
+// `verifyInitLikeSingleArgRegion` port used by the privatization recipes).
+"acc.reduction.recipe"() <{sym_name = "r", type = i32, reductionOperator = #acc.reduction_operator<add>}> ({
+}, {
+}, {
+}) : () -> ()
+// CHECK: Operation does not verify: expects non-empty init region
+
+// -----
+
+// acc.reduction.recipe: empty combiner region is rejected.
+"acc.reduction.recipe"() <{sym_name = "r", type = i32, reductionOperator = #acc.reduction_operator<add>}> ({
+^bb0(%a: i32):
+  "acc.yield"(%a) : (i32) -> ()
+}, {
+}, {
+}) : () -> ()
+// CHECK: Operation does not verify: expects non-empty combiner region
+
+// -----
+
+// acc.reduction.recipe: combiner region's first two args must match `type`.
+"acc.reduction.recipe"() <{sym_name = "r", type = i32, reductionOperator = #acc.reduction_operator<add>}> ({
+^bb0(%a: i32):
+  "acc.yield"(%a) : (i32) -> ()
+}, {
+^bb0(%a: i64, %b: i64):
+  "acc.yield"(%a) : (i64) -> ()
+}, {
+}) : () -> ()
+// CHECK: Operation does not verify: expects combiner region with the first two arguments of the reduction type
+
+// -----
+
+// acc.reduction.recipe: every `acc.yield` in the combiner region must
+// yield exactly one value of the reduction type. Distinct from the
+// init-region check — combiner-region `acc.yield`s are walked
+// post-block-shape verification.
+"acc.reduction.recipe"() <{sym_name = "r", type = i32, reductionOperator = #acc.reduction_operator<add>}> ({
+^bb0(%a: i32):
+  "acc.yield"(%a) : (i32) -> ()
+}, {
+^bb0(%a: i32, %b: i32):
+  %c0 = "arith.constant"() <{value = 0 : i64}> : () -> i64
+  "acc.yield"(%c0) : (i64) -> ()
+}, {
+}) : () -> ()
+// CHECK: Operation does not verify: expects combiner region to yield a value of the reduction type
