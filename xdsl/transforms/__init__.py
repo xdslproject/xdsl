@@ -175,6 +175,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return convert_riscv_scf_to_riscv_cf.ConvertRiscvScfToRiscvCfPass
 
+    def get_convert_riscv_stack_to_riscv():
+        from xdsl.backend.riscv.lowering import convert_riscv_stack_to_riscv
+
+        return convert_riscv_stack_to_riscv.ConvertRiscvStackToRiscvPass
+
     def get_convert_riscv_to_llvm():
         from xdsl.transforms import convert_riscv_to_llvm
 
@@ -698,6 +703,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "convert-ptr-to-x86": get_convert_ptr_to_x86,
         "convert-riscv-scf-for-to-frep": get_convert_riscv_scf_for_to_frep,
         "convert-riscv-scf-to-riscv-cf": get_convert_riscv_scf_to_riscv_cf,
+        "convert-riscv-stack-to-riscv": get_convert_riscv_stack_to_riscv,
         "convert-riscv-to-llvm": get_convert_riscv_to_llvm,
         "convert-scf-to-cf": get_convert_scf_to_cf,
         "convert-scf-to-openmp": get_convert_scf_to_openmp,

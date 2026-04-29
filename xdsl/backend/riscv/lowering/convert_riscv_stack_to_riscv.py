@@ -1,0 +1,116 @@
+from dataclasses import dataclass, field
+
+from xdsl.builder import Builder
+from xdsl.context import Context
+from xdsl.dialects import riscv_func, rv32
+from xdsl.dialects.builtin import FixedBitwidthType, IntegerType, ModuleOp
+from xdsl.dialects.riscv.ops import AddiOp, FLdOp, FSdOp, LwOp, SwOp
+from xdsl.dialects.riscv.registers import FloatRegisterType, IntRegisterType, Registers
+from xdsl.dialects.riscv.stack import AllocaOp, LoadOp, StoreOp
+from xdsl.ir import Use
+from xdsl.passes import ModulePass
+from xdsl.rewriter import InsertPoint, Rewriter
+from xdsl.utils.exceptions import PassFailedException
+
+
+def get_type_size(value_type: FixedBitwidthType):
+    return (value_type.bitwidth + 7) // 8
+
+
+@dataclass(frozen=True)
+class ConvertRiscvStackToRiscvPass(ModulePass):
+    name = "convert-riscv-stack-to-riscv"
+
+    align_sp: bool = field(default=False)
+
+    def apply(self, ctx: Context, op: ModuleOp) -> None:
+        for func_op in op.walk():
+            if not isinstance(func_op, riscv_func.FuncOp):
+                continue
+
+            cur_offset = 0
+            # Need to instantiate generator so erasing op doesn't stop iteration
+            alloca_ops = tuple(op for op in func_op.walk() if isinstance(op, AllocaOp))
+
+            if not alloca_ops:
+                return
+
+            stack_ptr = rv32.GetRegisterOp(
+                Registers.SP
+            )  # inserted in insert_prologue_epilogue
+            # For each function, give each alloca its stack offset
+            for alloca_op in alloca_ops:
+                stack_slot = alloca_op.ref.type
+                value_size = get_type_size(stack_slot.value_type)
+
+                for use in alloca_op.ref.uses:
+                    self.rewrite_stack_slot_use(
+                        use, cur_offset, stack_slot.value_type, stack_ptr
+                    )
+
+                Rewriter.erase_op(alloca_op)
+                cur_offset += value_size
+
+            # Adjust stack pointer
+            self.insert_prologue_epilogue(cur_offset, func_op, stack_ptr)
+
+    def rewrite_stack_slot_use(
+        self,
+        use: Use,
+        stack_offset: int,
+        val_type: FixedBitwidthType,
+        stack_ptr: rv32.GetRegisterOp,
+    ):
+        if isinstance(use.operation, StoreOp):
+            if isinstance(val_type, IntegerType):
+                Rewriter.replace_op(
+                    use.operation,
+                    (SwOp(stack_ptr, use.operation.rs, stack_offset),),
+                )
+            else:
+                Rewriter.replace_op(
+                    use.operation,
+                    (FSdOp(stack_ptr, use.operation.rs, stack_offset),),
+                )
+
+        elif isinstance(use.operation, LoadOp):
+            if isinstance(val_type, IntegerType):
+                assert isinstance(use.operation.rd.type, IntRegisterType)
+                Rewriter.replace_op(
+                    use.operation,
+                    (LwOp(stack_ptr, stack_offset, rd=use.operation.rd.type),),
+                )
+            else:
+                assert isinstance(use.operation.rd.type, FloatRegisterType)
+                Rewriter.replace_op(
+                    use.operation,
+                    (FLdOp(stack_ptr, stack_offset, rd=use.operation.rd.type),),
+                )
+
+        else:
+            raise PassFailedException("Invalid use of StackSlotType: ", use.operation)
+
+    def insert_prologue_epilogue(
+        self,
+        total_offset: int,
+        func_op: riscv_func.FuncOp,
+        stack_ptr: rv32.GetRegisterOp,
+    ):
+        # Align SP to 16 bytes (from RISC-V calling convention)
+        if self.align_sp:
+            total_offset = (total_offset + 15) & ~15
+
+        if total_offset > 0:
+            # prologue
+            builder = Builder(InsertPoint.at_start(func_op.body.blocks[0]))
+            builder.insert(stack_ptr)
+            builder.insert(AddiOp(stack_ptr, -total_offset, rd=Registers.SP))
+            # epilogue
+            # using logic from prologue_epilogue_insertion.py
+            for block in func_op.body.blocks:
+                ret_op = block.last_op
+                if not isinstance(ret_op, riscv_func.ReturnOp):
+                    continue
+
+                builder = Builder(InsertPoint.before(ret_op))
+                builder.insert(AddiOp(stack_ptr, total_offset, rd=Registers.SP))
