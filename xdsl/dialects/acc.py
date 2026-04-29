@@ -933,9 +933,6 @@ class DataEntryOilist(CustomDirective):
     async_only: AttributeVariable
     recipe: AttributeVariable
 
-    def is_anchorable(self) -> bool:
-        return False
-
     def is_optional_like(self) -> bool:
         return True
 
