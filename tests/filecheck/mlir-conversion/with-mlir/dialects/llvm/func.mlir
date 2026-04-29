@@ -114,3 +114,19 @@ llvm.func @test_calls(%arg0: i64, %fptr: !llvm.ptr) {
 // CHECK-NEXT:   llvm.call fastcc @external_func(%[[ARG0]]) : (i64) -> ()
 // CHECK-NEXT:   llvm.return
 // CHECK-NEXT: }
+
+llvm.func @test_call_intrinsic(%arg0: i64, %arg1: i64) {
+  %0 = llvm.call_intrinsic "llvm.smax"(%arg0, %arg1) : (i64, i64) -> i64
+  llvm.call_intrinsic "llvm.donothing"() : () -> ()
+  %1 = llvm.call_intrinsic "llvm.smax"(%arg0, %arg1) {fastmathFlags = #llvm.fastmath<reassoc,nnan>} : (i64, i64) -> i64
+  %2 = llvm.call_intrinsic "llvm.smax"(%arg0, %arg1) {fastmathFlags = #llvm.fastmath<fast>} : (i64, i64) -> i64
+  llvm.return
+}
+
+// CHECK: llvm.func @test_call_intrinsic(%{{.*}}: i64, %{{.*}}: i64) {
+// CHECK-NEXT:   %{{.*}} = llvm.call_intrinsic "llvm.smax"(%{{.*}}, %{{.*}}) : (i64, i64) -> i64
+// CHECK-NEXT:   llvm.call_intrinsic "llvm.donothing"() : () -> ()
+// CHECK-NEXT:   %{{.*}} = llvm.call_intrinsic "llvm.smax"(%{{.*}}, %{{.*}}) {fastmathFlags = #llvm.fastmath<reassoc,nnan>} : (i64, i64) -> i64
+// CHECK-NEXT:   %{{.*}} = llvm.call_intrinsic "llvm.smax"(%{{.*}}, %{{.*}}) {fastmathFlags = #llvm.fastmath<fast>} : (i64, i64) -> i64
+// CHECK-NEXT:   llvm.return
+// CHECK-NEXT: }

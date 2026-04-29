@@ -121,3 +121,18 @@ llvm.func @test_calls(%arg0: i32, %fptr: !llvm.ptr, %farg: f32) {
 // CHECK-NEXT:   %{{.*}} = llvm.call @float_callee(%{{.*}}) {fastmathFlags = #llvm.fastmath<fast>} : (f32) -> f32
 // CHECK-NEXT:   llvm.return
 // CHECK-NEXT: }
+
+%ci0, %ci1 = "test.op"() : () -> (i64, i64)
+%ci2 = llvm.call_intrinsic "llvm.smax"(%ci0, %ci1) : (i64, i64) -> i64
+llvm.call_intrinsic "llvm.donothing"() : () -> ()
+%ci3 = llvm.call_intrinsic "llvm.smax"(%ci0, %ci1) {fastmathFlags = #llvm.fastmath<reassoc,nnan>} : (i64, i64) -> i64
+%ci4 = llvm.call_intrinsic "llvm.smax"(%ci0, %ci1) {fastmathFlags = #llvm.fastmath<fast>} : (i64, i64) -> i64
+
+%ci5 = llvm.call_intrinsic "llvm.smax"(%ci0, %ci1) [%ci0, %ci1 : i64, i64] {op_bundle_sizes = array<i32: 2>} : (i64, i64) -> i64
+
+// CHECK: %ci0, %ci1 = "test.op"() : () -> (i64, i64)
+// CHECK-NEXT: %ci2 = llvm.call_intrinsic "llvm.smax"(%ci0, %ci1) : (i64, i64) -> i64
+// CHECK-NEXT: llvm.call_intrinsic "llvm.donothing"() : () -> ()
+// CHECK-NEXT: %ci3 = llvm.call_intrinsic "llvm.smax"(%ci0, %ci1) {fastmathFlags = #llvm.fastmath<reassoc,nnan>} : (i64, i64) -> i64
+// CHECK-NEXT: %ci4 = llvm.call_intrinsic "llvm.smax"(%ci0, %ci1) {fastmathFlags = #llvm.fastmath<fast>} : (i64, i64) -> i64
+// CHECK-NEXT: %ci5 = llvm.call_intrinsic "llvm.smax"(%ci0, %ci1) [%ci0, %ci1 : i64, i64] {op_bundle_sizes = array<i32: 2>} : (i64, i64) -> i64

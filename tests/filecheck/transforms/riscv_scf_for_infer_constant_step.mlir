@@ -32,3 +32,12 @@ riscv_scf.for %i_label : !riscv.reg = %lb to %ub step %step_static_label {
 }
 
 // CHECK:    riscv_scf.for %i_label : !riscv.reg = %lb to %ub step %step_static_label {
+
+
+// Value too large
+%step_big = rv32.li 4000 : !riscv.reg
+riscv_scf.for %i_big : !riscv.reg = %lb to %ub step %step_big {
+  riscv_scf.yield
+}
+
+// CHECK:    riscv_scf.for %i_big : !riscv.reg = %lb to %ub step %step_big {
