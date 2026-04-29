@@ -1,3 +1,4 @@
+from collections.abc import Set as AbstractSet
 from dataclasses import dataclass
 from itertools import islice
 
@@ -81,7 +82,7 @@ class SpillPass(ModulePass):
             )
 
     def insert_load(
-        self, inner_op: Operation, loads: OrderedSet[SSAValue]
+        self, inner_op: Operation, loads: AbstractSet[SSAValue]
     ) -> OrderedSet[SSAValue]:
         """Insert loads before inner_op."""
         if not loads:

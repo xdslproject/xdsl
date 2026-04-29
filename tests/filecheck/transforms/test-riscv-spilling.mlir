@@ -21,7 +21,7 @@ builtin.module {
 // CHECK-NEXT:      riscv.sw %0, %6, 8 : (!riscv.reg<sp>, !riscv.reg) -> ()
 // CHECK-NEXT:      %8 = riscv.lw %0, 4 : (!riscv.reg<sp>) -> !riscv.reg
 // CHECK-NEXT:      %9 = riscv.add %8, %3 : (!riscv.reg, !riscv.reg) -> !riscv.reg
-// CHECK-NEXT:      %10 = riscv.addi %0, 12: (!riscv.reg<sp>) -> !riscv.reg<sp>
+// CHECK-NEXT:      %10 = riscv.addi %0, 12 : (!riscv.reg<sp>) -> !riscv.reg<sp>
 // CHECK-NEXT:      riscv_func.return
 // CHECK-NEXT:    }
 // CHECK-NEXT:  }
