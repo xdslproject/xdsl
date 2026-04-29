@@ -49,7 +49,7 @@ class PrologueEpilogueInsertion(ModulePass):
 
         # Build the prologue at the beginning of the function.
         builder = Builder(InsertPoint.at_start(func.body.blocks[0]))
-        memrefs = []
+        memrefs: list[AllocaOp] = []
         for reg in used_callee_preserved_registers:
             if isinstance(reg, IntRegisterType):
                 alloca_op = builder.insert(AllocaOp(builtin.i32))

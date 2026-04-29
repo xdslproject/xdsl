@@ -14,7 +14,6 @@ from xdsl.utils.exceptions import PassFailedException
 
 
 def get_type_size(value_type: FixedBitwidthType):
-    # Use match case for now, should be a better way
     return (value_type.bitwidth + 7) // 8
 
 
