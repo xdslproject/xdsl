@@ -23,6 +23,7 @@ from xdsl.dialects.builtin import (
     IntegerType,
     MemRefType,
     StringAttr,
+    SymbolNameConstraint,
     SymbolRefAttr,
     UnitAttr,
     i32,
@@ -70,11 +71,13 @@ from xdsl.parser import AttrParser, Parser, UnresolvedOperand
 from xdsl.printer import Printer
 from xdsl.traits import (
     HasParent,
+    IsolatedFromAbove,
     IsTerminator,
     NoMemoryEffect,
     NoTerminator,
     RecursiveMemoryEffect,
     SingleBlockImplicitTerminator,
+    SymbolOpInterface,
 )
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
@@ -2026,6 +2029,182 @@ class GetExtentOp(_DataBoundsAccessorOp):
     name = "acc.get_extent"
 
 
+# ---------------------------------------------------------------------------
+# Privatization recipes
+# ---------------------------------------------------------------------------
+#
+# `acc.private.recipe` and `acc.firstprivate.recipe` declare reusable
+# templates for how to allocate / initialize / copy / destroy a privatized
+# value. Both are top-level symbol ops (`Symbol` + `IsolatedFromAbove`); the
+# `private` / `firstprivate` data ops then reference the recipe by name.
+# `acc.reduction.recipe` shares the same shape and lands in a follow-up
+# PR with its `ReductionOpKindAttr` consumer.
+#
+# The two ops here share `sym_name` + `type` props, so we factor that into
+# the abstract `_RecipeOperation` mixin; concrete leaves declare only their
+# own regions, traits, assembly format, and per-op `verify_`.
+
+
+def _verify_init_like_region(
+    region: Region,
+    region_type: str,
+    region_name: str,
+    expected_type: Attribute,
+    *,
+    optional: bool = False,
+) -> None:
+    """Port of upstream `verifyInitLikeSingleArgRegion`.
+
+    The init / destroy region must be non-empty (unless `optional`) and the
+    first argument of its first block must be of the recipe's type.
+    """
+    if optional and not region.blocks:
+        return
+    if not region.blocks:
+        raise VerifyException(f"expects non-empty {region_name} region")
+    first_block = region.block
+    if not first_block.args or first_block.args[0].type != expected_type:
+        raise VerifyException(
+            f"expects {region_name} region first argument of the {region_type} type"
+        )
+
+
+class _RecipeOperation(IRDLOperation, ABC):
+    """Shared `sym_name` + `type` shape for the recipe ops.
+
+    Mirrors upstream's near-identical `OpenACC_*RecipeOp` td classes.
+    Concrete leaves declare their own regions, traits, assembly format, and
+    per-op `verify_`.
+    """
+
+    sym_name = prop_def(SymbolNameConstraint())
+    var_type = prop_def(TypeAttribute, prop_name="type")
+
+
+@irdl_op_definition
+class PrivateRecipeOp(_RecipeOperation):
+    """
+    Implementation of upstream acc.private.recipe.
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenACCDialect/#accprivaterecipe-accprivaterecipeop).
+    """
+
+    name = "acc.private.recipe"
+
+    init_region = region_def()
+    destroy_region = region_def()
+
+    traits = lazy_traits_def(lambda: (IsolatedFromAbove(), SymbolOpInterface()))
+
+    assembly_format = (
+        "$sym_name `:` $type attr-dict-with-keyword"
+        " `init` $init_region"
+        " (`destroy` $destroy_region^)?"
+    )
+
+    def __init__(
+        self,
+        *,
+        sym_name: StringAttr | str,
+        var_type: TypeAttribute,
+        init_region: Region,
+        destroy_region: Region | None = None,
+    ) -> None:
+        sym_name_attr: StringAttr = (
+            StringAttr(sym_name) if isinstance(sym_name, str) else sym_name
+        )
+        super().__init__(
+            properties={
+                "sym_name": sym_name_attr,
+                "type": var_type,
+            },
+            regions=[init_region, destroy_region or Region()],
+        )
+
+    def verify_(self) -> None:
+        _verify_init_like_region(
+            self.init_region,
+            "privatization",
+            "init",
+            self.var_type,
+        )
+        _verify_init_like_region(
+            self.destroy_region,
+            "privatization",
+            "destroy",
+            self.var_type,
+            optional=True,
+        )
+
+
+@irdl_op_definition
+class FirstprivateRecipeOp(_RecipeOperation):
+    """
+    Implementation of upstream acc.firstprivate.recipe.
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenACCDialect/#accfirstprivaterecipe-accfirstprivaterecipeop).
+    """
+
+    name = "acc.firstprivate.recipe"
+
+    init_region = region_def()
+    copy_region = region_def()
+    destroy_region = region_def()
+
+    traits = lazy_traits_def(lambda: (IsolatedFromAbove(), SymbolOpInterface()))
+
+    assembly_format = (
+        "$sym_name `:` $type attr-dict-with-keyword"
+        " `init` $init_region"
+        " `copy` $copy_region"
+        " (`destroy` $destroy_region^)?"
+    )
+
+    def __init__(
+        self,
+        *,
+        sym_name: StringAttr | str,
+        var_type: TypeAttribute,
+        init_region: Region,
+        copy_region: Region,
+        destroy_region: Region | None = None,
+    ) -> None:
+        sym_name_attr: StringAttr = (
+            StringAttr(sym_name) if isinstance(sym_name, str) else sym_name
+        )
+        super().__init__(
+            properties={
+                "sym_name": sym_name_attr,
+                "type": var_type,
+            },
+            regions=[init_region, copy_region, destroy_region or Region()],
+        )
+
+    def verify_(self) -> None:
+        _verify_init_like_region(
+            self.init_region,
+            "privatization",
+            "init",
+            self.var_type,
+        )
+        if not self.copy_region.blocks:
+            raise VerifyException("expects non-empty copy region")
+        copy_block = self.copy_region.block
+        if (
+            len(copy_block.args) < 2
+            or copy_block.args[0].type != self.var_type
+            or copy_block.args[1].type != self.var_type
+        ):
+            raise VerifyException(
+                "expects copy region with two arguments of the privatization type"
+            )
+        if self.destroy_region.blocks:
+            _verify_init_like_region(
+                self.destroy_region,
+                "privatization",
+                "destroy",
+                self.var_type,
+            )
+
+
 @irdl_op_definition
 class YieldOp(AbstractYieldOperation[Attribute]):
     """
@@ -2039,7 +2218,7 @@ class YieldOp(AbstractYieldOperation[Attribute]):
         lambda: (
             IsTerminator(),
             NoMemoryEffect(),
-            HasParent(ParallelOp, SerialOp),
+            HasParent(ParallelOp, SerialOp, PrivateRecipeOp, FirstprivateRecipeOp),
         )
     )
 
@@ -2071,6 +2250,8 @@ ACC = Dialect(
         UpdateHostOp,
         DeleteOp,
         DetachOp,
+        PrivateRecipeOp,
+        FirstprivateRecipeOp,
         YieldOp,
     ],
     [

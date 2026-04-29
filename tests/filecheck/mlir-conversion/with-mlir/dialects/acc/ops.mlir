@@ -677,4 +677,58 @@ builtin.module {
   }
   // CHECK:       func.func @detach_minimal(
   // CHECK:         acc.detach accPtr(%{{.*}} : memref<10xf32>)
+
+  // Privatization recipes — top-level Symbol ops. Pretty form is
+  // `@sym : type init { ... } [destroy { ... }]?` (and `copy {...}` between
+  // for firstprivate). Both MLIR_ROUNDTRIP and MLIR_GENERIC_ROUNDTRIP must
+  // pass — the latter exercises the `<{sym_name = ..., type = ...}>` props
+  // dict that any consumer (e.g. `acc.private` referencing this recipe by
+  // SymbolRefAttr) will need to round-trip.
+  acc.private.recipe @priv_min : memref<10xf32> init {
+  ^bb0(%arg0: memref<10xf32>):
+    acc.yield %arg0 : memref<10xf32>
+  }
+  // CHECK:       acc.private.recipe @priv_min : memref<10xf32> init {
+  // CHECK-NEXT:    ^{{.*}}(%{{.*}}: memref<10xf32>):
+  // CHECK-NEXT:      acc.yield %{{.*}} : memref<10xf32>
+  // CHECK-NEXT:    }
+
+  acc.private.recipe @priv_with_destroy : memref<10xf32> init {
+  ^bb0(%arg0: memref<10xf32>):
+    acc.yield %arg0 : memref<10xf32>
+  } destroy {
+  ^bb0(%arg0: memref<10xf32>):
+    acc.yield
+  }
+  // CHECK:       acc.private.recipe @priv_with_destroy : memref<10xf32> init {
+  // CHECK:         } destroy {
+  // CHECK:           acc.yield
+  // CHECK-NEXT:    }
+
+  acc.firstprivate.recipe @fp_min : memref<10xf32> init {
+  ^bb0(%arg0: memref<10xf32>):
+    acc.yield %arg0 : memref<10xf32>
+  } copy {
+  ^bb0(%arg0: memref<10xf32>, %arg1: memref<10xf32>):
+    acc.yield
+  }
+  // CHECK:       acc.firstprivate.recipe @fp_min : memref<10xf32> init {
+  // CHECK:         } copy {
+  // CHECK-NEXT:    ^{{.*}}(%{{.*}}: memref<10xf32>, %{{.*}}: memref<10xf32>):
+  // CHECK-NEXT:      acc.yield
+  // CHECK-NEXT:    }
+
+  acc.firstprivate.recipe @fp_with_destroy : memref<10xf32> init {
+  ^bb0(%arg0: memref<10xf32>):
+    acc.yield %arg0 : memref<10xf32>
+  } copy {
+  ^bb0(%arg0: memref<10xf32>, %arg1: memref<10xf32>):
+    acc.yield
+  } destroy {
+  ^bb0(%arg0: memref<10xf32>):
+    acc.yield
+  }
+  // CHECK:       acc.firstprivate.recipe @fp_with_destroy : memref<10xf32> init {
+  // CHECK:         } copy {
+  // CHECK:         } destroy {
 }
