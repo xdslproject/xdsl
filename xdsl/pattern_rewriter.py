@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import inspect
+import warnings
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, field
@@ -591,6 +592,12 @@ def attr_type_rewrite_pattern(
     return attr_constr_rewrite_pattern(constr)(func)
 
 
+_GREEDY_DCE_DISABLED_DEPRECATED = (
+    "GreedyRewritePatternApplier(..., dce_enabled=False) is deprecated "
+    "and will be removed in a future release."
+)
+
+
 @dataclass(eq=False, repr=False)
 class GreedyRewritePatternApplier(RewritePattern):
     """
@@ -618,8 +625,13 @@ class GreedyRewritePatternApplier(RewritePattern):
     attempting to rewrite them.
     """
 
+    def __post_init__(self) -> None:
+        self._warn_if_dce_disabled(stacklevel=4)
+
     def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter) -> None:
         from xdsl.transforms.dead_code_elimination import is_trivially_dead
+
+        self._warn_if_dce_disabled(stacklevel=3)
 
         if self.dce_enabled and is_trivially_dead(op):
             rewriter.erase_op(op)
@@ -647,6 +659,14 @@ class GreedyRewritePatternApplier(RewritePattern):
             if rewriter.has_done_action:
                 return
         return
+
+    def _warn_if_dce_disabled(self, stacklevel: int) -> None:
+        if not self.dce_enabled:
+            warnings.warn(
+                _GREEDY_DCE_DISABLED_DEPRECATED,
+                DeprecationWarning,
+                stacklevel=stacklevel,
+            )
 
 
 @dataclass(eq=False)

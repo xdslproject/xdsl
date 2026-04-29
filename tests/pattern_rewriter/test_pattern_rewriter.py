@@ -2164,3 +2164,32 @@ def test_replace_matched_op():
         op_removed=1,
         op_replaced=1,
     )
+
+
+def test_greedy_rewrite_pattern_applier_dce_disabled_deprecation_and_behavior():
+    """
+    GreedyRewritePatternApplier(..., dce_enabled=False) is deprecated but must
+    still skip trivial DCE — dead ops stay in the IR.
+    """
+
+    prog = """"builtin.module"() ({
+  %0 = "arith.constant"() <{value = 42 : i32}> : () -> i32
+  %1 = "arith.addi"(%0, %0) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
+}) : () -> ()"""
+
+    expected = prog
+
+    with pytest.warns(DeprecationWarning, match="dce_enabled=False"):
+        pattern = GreedyRewritePatternApplier([], dce_enabled=False)
+
+    with pytest.warns(DeprecationWarning, match="dce_enabled=False"):
+        rewrite_and_compare(
+            prog,
+            expected,
+            PatternRewriteWalker(pattern, apply_recursively=True),
+            op_inserted=0,
+            op_removed=0,
+            op_replaced=0,
+            op_modified=0,
+            expect_rewrite=False,
+        )
