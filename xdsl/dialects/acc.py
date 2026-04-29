@@ -2030,19 +2030,20 @@ class GetExtentOp(_DataBoundsAccessorOp):
 
 
 # ---------------------------------------------------------------------------
-# Privatization recipes
+# Privatization / reduction recipes
 # ---------------------------------------------------------------------------
 #
-# `acc.private.recipe` and `acc.firstprivate.recipe` declare reusable
-# templates for how to allocate / initialize / copy / destroy a privatized
-# value. Both are top-level symbol ops (`Symbol` + `IsolatedFromAbove`); the
-# `private` / `firstprivate` data ops then reference the recipe by name.
-# `acc.reduction.recipe` shares the same shape and lands in a follow-up
-# PR with its `ReductionOpKindAttr` consumer.
+# `acc.private.recipe`, `acc.firstprivate.recipe`, and
+# `acc.reduction.recipe` declare reusable templates for how to allocate /
+# initialize / copy / combine / destroy a privatized or reduction value.
+# Each is a top-level symbol op (`Symbol` + `IsolatedFromAbove`); the
+# corresponding data-clause ops reference the recipe by name.
 #
-# The two ops here share `sym_name` + `type` props, so we factor that into
+# The three ops share `sym_name` + `type` props, so we factor that into
 # the abstract `_RecipeOperation` mixin; concrete leaves declare only their
 # own regions, traits, assembly format, and per-op `verify_`.
+# `acc.reduction.recipe` additionally carries a `reductionOperator`
+# property typed against `ReductionOpKindAttr`.
 
 
 def _verify_init_like_region(
@@ -2206,6 +2207,103 @@ class FirstprivateRecipeOp(_RecipeOperation):
 
 
 @irdl_op_definition
+class ReductionRecipeOp(_RecipeOperation):
+    """
+    Implementation of upstream acc.reduction.recipe.
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenACCDialect/#accreductionrecipe-accreductionrecipeop).
+    """
+
+    name = "acc.reduction.recipe"
+
+    reduction_operator = prop_def(ReductionOpKindAttr, prop_name="reductionOperator")
+
+    init_region = region_def()
+    combiner_region = region_def()
+    destroy_region = region_def()
+
+    traits = lazy_traits_def(lambda: (IsolatedFromAbove(), SymbolOpInterface()))
+
+    # Note: `$reductionOperator` prints/parses as `<value>` (just the
+    # parameter, no dialect prefix) because `ReductionOpKindAttr` overrides
+    # `print_parameter`/`parse_parameter` to wrap the value in angle
+    # brackets — matching upstream's `assemblyFormat = "`<` $value `>`"`.
+    # The declarative format machinery uses `UniqueBaseAttributeVariable`
+    # for non-builtin attrs, which calls `print_parameter` directly and
+    # bypasses the `#acc.reduction_operator` opaque prefix.
+    assembly_format = (
+        "$sym_name `:` $type attr-dict-with-keyword"
+        " `reduction_operator` $reductionOperator"
+        " `init` $init_region"
+        " `combiner` $combiner_region"
+        " (`destroy` $destroy_region^)?"
+    )
+
+    def __init__(
+        self,
+        *,
+        sym_name: StringAttr | str,
+        var_type: TypeAttribute,
+        reduction_operator: ReductionOpKindAttr | ReductionOpKind,
+        init_region: Region,
+        combiner_region: Region,
+        destroy_region: Region | None = None,
+    ) -> None:
+        sym_name_attr: StringAttr = (
+            StringAttr(sym_name) if isinstance(sym_name, str) else sym_name
+        )
+        operator_attr: ReductionOpKindAttr = (
+            ReductionOpKindAttr(reduction_operator)
+            if isinstance(reduction_operator, ReductionOpKind)
+            else reduction_operator
+        )
+        super().__init__(
+            properties={
+                "sym_name": sym_name_attr,
+                "type": var_type,
+                "reductionOperator": operator_attr,
+            },
+            regions=[init_region, combiner_region, destroy_region or Region()],
+        )
+
+    def verify_(self) -> None:
+        _verify_init_like_region(
+            self.init_region,
+            "reduction",
+            "init",
+            self.var_type,
+        )
+        if not self.combiner_region.blocks:
+            raise VerifyException("expects non-empty combiner region")
+        combiner_block = self.combiner_region.block
+        if (
+            len(combiner_block.args) < 2
+            or combiner_block.args[0].type != self.var_type
+            or combiner_block.args[1].type != self.var_type
+        ):
+            raise VerifyException(
+                "expects combiner region with the first two arguments of the "
+                "reduction type"
+            )
+        for yield_op in self.combiner_region.walk():
+            if not isinstance(yield_op, YieldOp):
+                continue
+            if (
+                len(yield_op.arguments) != 1
+                or yield_op.arguments[0].type != self.var_type
+            ):
+                raise VerifyException(
+                    "expects combiner region to yield a value of the reduction type"
+                )
+        if self.destroy_region.blocks:
+            _verify_init_like_region(
+                self.destroy_region,
+                "reduction",
+                "destroy",
+                self.var_type,
+            )
+
+
+@irdl_op_definition
 class YieldOp(AbstractYieldOperation[Attribute]):
     """
     Implementation of upstream acc.yield.
@@ -2218,7 +2316,13 @@ class YieldOp(AbstractYieldOperation[Attribute]):
         lambda: (
             IsTerminator(),
             NoMemoryEffect(),
-            HasParent(ParallelOp, SerialOp, PrivateRecipeOp, FirstprivateRecipeOp),
+            HasParent(
+                ParallelOp,
+                SerialOp,
+                PrivateRecipeOp,
+                FirstprivateRecipeOp,
+                ReductionRecipeOp,
+            ),
         )
     )
 
@@ -2252,6 +2356,7 @@ ACC = Dialect(
         DetachOp,
         PrivateRecipeOp,
         FirstprivateRecipeOp,
+        ReductionRecipeOp,
         YieldOp,
     ],
     [
