@@ -23,6 +23,7 @@ from xdsl.dialects.builtin import (
     IntegerType,
     MemRefType,
     StringAttr,
+    SymbolNameConstraint,
     SymbolRefAttr,
     UnitAttr,
     i32,
@@ -70,11 +71,13 @@ from xdsl.parser import AttrParser, Parser, UnresolvedOperand
 from xdsl.printer import Printer
 from xdsl.traits import (
     HasParent,
+    IsolatedFromAbove,
     IsTerminator,
     NoMemoryEffect,
     NoTerminator,
     RecursiveMemoryEffect,
     SingleBlockImplicitTerminator,
+    SymbolOpInterface,
 )
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
@@ -159,6 +162,29 @@ class VariableTypeCategory(StrEnum):
     NONSCALAR = "nonscalar"
 
 
+class ReductionOpKind(StrEnum):
+    """Built-in reduction operators supported by OpenACC.
+
+    See upstream `mlir::acc::ReductionOperator` (renamed in xDSL to avoid
+    clashing with the `Operator` / `Operation` naming used elsewhere).
+    Carried on `acc.reduction.recipe` to identify which reduction the recipe
+    encodes.
+    """
+
+    NONE = "none"
+    ADD = "add"
+    MUL = "mul"
+    MAX = "max"
+    MIN = "min"
+    IAND = "iand"
+    IOR = "ior"
+    XOR = "xor"
+    EQV = "eqv"
+    NEQV = "neqv"
+    LAND = "land"
+    LOR = "lor"
+
+
 @irdl_attr_definition
 class DeviceTypeAttr(EnumAttribute[DeviceType]):
     """
@@ -232,6 +258,29 @@ class VariableTypeCategoryAttr(
     none_value = "uncategorized"
     separator_value = ","
     delimiter_value = AttrParser.Delimiter.NONE
+
+
+@irdl_attr_definition
+class ReductionOpKindAttr(EnumAttribute[ReductionOpKind]):
+    """
+    Reduction operator attribute carried by `acc.reduction.recipe`. Prints
+    using the pretty form `#acc.reduction_operator<value>` to match upstream
+    MLIR (which defines `assemblyFormat = "`<` $value `>`"`). When referenced
+    as `$reductionOperator` in an op assembly format, xDSL prints just the
+    `<value>` parameter — matching upstream's inline spelling
+    `reduction_operator <add>`.
+    """
+
+    name = "acc.reduction_operator"
+
+    def print_parameter(self, printer: Printer) -> None:
+        with printer.in_angle_brackets():
+            printer.print_string(self.data.value)
+
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> ReductionOpKind:
+        with parser.in_angle_brackets():
+            return parser.parse_str_enum(ReductionOpKind)
 
 
 @irdl_attr_definition
@@ -1593,7 +1642,7 @@ class UpdateDeviceOp(_DataEntryOperation):
 
 
 # ---------------------------------------------------------------------------
-# Exit data-clause ops (with-host-pointer family)
+# Exit data-clause ops
 # ---------------------------------------------------------------------------
 #
 # Upstream models the exit data-clause family as two TableGen base classes:
@@ -1601,8 +1650,9 @@ class UpdateDeviceOp(_DataEntryOperation):
 # *and* device pointer) and `OpenACC_DataExitOpNoVarPtr` (for `delete`,
 # `detach` — device pointer only). They differ in operand layout and
 # assembly format, but share the bounds / async / dataClause / structured /
-# implicit / modifiers / name surface. This file currently models only the
-# WithVarPtr half; the NoVarPtr half lands in a follow-up PR.
+# implicit / modifiers / name surface. The two mixins below mirror that
+# split; concrete leaves inherit one and supply only the per-op
+# `dataClause` default.
 
 
 class _DataExitOperationWithVarPtr(IRDLOperation, ABC):
@@ -1739,6 +1789,129 @@ class UpdateHostOp(_DataExitOperationWithVarPtr):
     )
 
 
+class _DataExitOperationNoVarPtr(IRDLOperation, ABC):
+    """Shared shape for `acc.delete` / `acc.detach`.
+
+    Mirrors upstream's `OpenACC_DataExitOpNoVarPtr` td class: just the
+    `accVar` operand (device pointer) plus the shared bounds / async /
+    dataClause / structured / implicit / modifiers / name surface. No host
+    `var` and no `varType` — these ops do not transfer data, so they don't
+    need to know the host-side mapping.
+    """
+
+    acc_var = operand_def()
+    bounds = var_operand_def(DataBoundsType)
+    async_operands = var_operand_def(IntegerType | IndexType)
+
+    async_operands_device_type = opt_prop_def(
+        ArrayAttr[DeviceTypeAttr], prop_name="asyncOperandsDeviceType"
+    )
+    async_only = opt_prop_def(ArrayAttr[DeviceTypeAttr], prop_name="asyncOnly")
+    structured = opt_prop_def(
+        BoolAttr,
+        default_value=IntegerAttr.from_bool(True),
+        prop_name="structured",
+    )
+    implicit = opt_prop_def(
+        BoolAttr,
+        default_value=IntegerAttr.from_bool(False),
+        prop_name="implicit",
+    )
+    modifiers = opt_prop_def(
+        DataClauseModifierAttr,
+        default_value=DataClauseModifierAttr(frozenset[DataClauseModifier]()),
+        prop_name="modifiers",
+    )
+    var_name = opt_prop_def(StringAttr, prop_name="name")
+
+    irdl_options = (
+        AttrSizedOperandSegments(as_property=True),
+        ParsePropInAttrDict(),
+    )
+
+    custom_directives = (AccVar, DeviceTypeOperandsWithKeywordOnly)
+
+    assembly_format = (
+        "custom<AccVar>($acc_var, type($acc_var))"
+        " (`bounds` `(` $bounds^ `)`)?"
+        " (`async` custom<DeviceTypeOperandsWithKeywordOnly>($async_operands,"
+        " type($async_operands), $asyncOperandsDeviceType, $asyncOnly)^)?"
+        " attr-dict"
+    )
+
+    def __init__(
+        self,
+        *,
+        acc_var: SSAValue | Operation,
+        bounds: Sequence[SSAValue | Operation] = (),
+        async_operands: Sequence[SSAValue | Operation] = (),
+        async_operands_device_type: ArrayAttr[DeviceTypeAttr] | None = None,
+        async_only: ArrayAttr[DeviceTypeAttr] | None = None,
+        data_clause: DataClauseAttr | DataClause | None = None,
+        structured: BoolAttr | bool | None = None,
+        implicit: BoolAttr | bool | None = None,
+        modifiers: DataClauseModifierAttr | None = None,
+        var_name: StringAttr | str | None = None,
+    ) -> None:
+        structured_prop: BoolAttr | None = (
+            IntegerAttr.from_bool(structured)
+            if isinstance(structured, bool)
+            else structured
+        )
+        implicit_prop: BoolAttr | None = (
+            IntegerAttr.from_bool(implicit) if isinstance(implicit, bool) else implicit
+        )
+        data_clause_prop: DataClauseAttr | None = (
+            DataClauseAttr(data_clause)
+            if isinstance(data_clause, DataClause)
+            else data_clause
+        )
+        var_name_prop: StringAttr | None = (
+            StringAttr(var_name) if isinstance(var_name, str) else var_name
+        )
+
+        super().__init__(
+            operands=[
+                [acc_var],
+                list(bounds),
+                list(async_operands),
+            ],
+            properties={
+                "asyncOperandsDeviceType": async_operands_device_type,
+                "asyncOnly": async_only,
+                "dataClause": data_clause_prop,
+                "structured": structured_prop,
+                "implicit": implicit_prop,
+                "modifiers": modifiers,
+                "name": var_name_prop,
+            },
+        )
+
+
+@irdl_op_definition
+class DeleteOp(_DataExitOperationNoVarPtr):
+    """Implementation of upstream acc.delete."""
+
+    name = "acc.delete"
+    data_clause = opt_prop_def(
+        DataClauseAttr,
+        default_value=DataClauseAttr(DataClause.ACC_DELETE),
+        prop_name="dataClause",
+    )
+
+
+@irdl_op_definition
+class DetachOp(_DataExitOperationNoVarPtr):
+    """Implementation of upstream acc.detach."""
+
+    name = "acc.detach"
+    data_clause = opt_prop_def(
+        DataClauseAttr,
+        default_value=DataClauseAttr(DataClause.ACC_DETACH),
+        prop_name="dataClause",
+    )
+
+
 @irdl_op_definition
 class DataBoundsOp(IRDLOperation):
     """
@@ -1856,6 +2029,182 @@ class GetExtentOp(_DataBoundsAccessorOp):
     name = "acc.get_extent"
 
 
+# ---------------------------------------------------------------------------
+# Privatization recipes
+# ---------------------------------------------------------------------------
+#
+# `acc.private.recipe` and `acc.firstprivate.recipe` declare reusable
+# templates for how to allocate / initialize / copy / destroy a privatized
+# value. Both are top-level symbol ops (`Symbol` + `IsolatedFromAbove`); the
+# `private` / `firstprivate` data ops then reference the recipe by name.
+# `acc.reduction.recipe` shares the same shape and lands in a follow-up
+# PR with its `ReductionOpKindAttr` consumer.
+#
+# The two ops here share `sym_name` + `type` props, so we factor that into
+# the abstract `_RecipeOperation` mixin; concrete leaves declare only their
+# own regions, traits, assembly format, and per-op `verify_`.
+
+
+def _verify_init_like_region(
+    region: Region,
+    region_type: str,
+    region_name: str,
+    expected_type: Attribute,
+    *,
+    optional: bool = False,
+) -> None:
+    """Port of upstream `verifyInitLikeSingleArgRegion`.
+
+    The init / destroy region must be non-empty (unless `optional`) and the
+    first argument of its first block must be of the recipe's type.
+    """
+    if optional and not region.blocks:
+        return
+    if not region.blocks:
+        raise VerifyException(f"expects non-empty {region_name} region")
+    first_block = region.block
+    if not first_block.args or first_block.args[0].type != expected_type:
+        raise VerifyException(
+            f"expects {region_name} region first argument of the {region_type} type"
+        )
+
+
+class _RecipeOperation(IRDLOperation, ABC):
+    """Shared `sym_name` + `type` shape for the recipe ops.
+
+    Mirrors upstream's near-identical `OpenACC_*RecipeOp` td classes.
+    Concrete leaves declare their own regions, traits, assembly format, and
+    per-op `verify_`.
+    """
+
+    sym_name = prop_def(SymbolNameConstraint())
+    var_type = prop_def(TypeAttribute, prop_name="type")
+
+
+@irdl_op_definition
+class PrivateRecipeOp(_RecipeOperation):
+    """
+    Implementation of upstream acc.private.recipe.
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenACCDialect/#accprivaterecipe-accprivaterecipeop).
+    """
+
+    name = "acc.private.recipe"
+
+    init_region = region_def()
+    destroy_region = region_def()
+
+    traits = lazy_traits_def(lambda: (IsolatedFromAbove(), SymbolOpInterface()))
+
+    assembly_format = (
+        "$sym_name `:` $type attr-dict-with-keyword"
+        " `init` $init_region"
+        " (`destroy` $destroy_region^)?"
+    )
+
+    def __init__(
+        self,
+        *,
+        sym_name: StringAttr | str,
+        var_type: TypeAttribute,
+        init_region: Region,
+        destroy_region: Region | None = None,
+    ) -> None:
+        sym_name_attr: StringAttr = (
+            StringAttr(sym_name) if isinstance(sym_name, str) else sym_name
+        )
+        super().__init__(
+            properties={
+                "sym_name": sym_name_attr,
+                "type": var_type,
+            },
+            regions=[init_region, destroy_region or Region()],
+        )
+
+    def verify_(self) -> None:
+        _verify_init_like_region(
+            self.init_region,
+            "privatization",
+            "init",
+            self.var_type,
+        )
+        _verify_init_like_region(
+            self.destroy_region,
+            "privatization",
+            "destroy",
+            self.var_type,
+            optional=True,
+        )
+
+
+@irdl_op_definition
+class FirstprivateRecipeOp(_RecipeOperation):
+    """
+    Implementation of upstream acc.firstprivate.recipe.
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenACCDialect/#accfirstprivaterecipe-accfirstprivaterecipeop).
+    """
+
+    name = "acc.firstprivate.recipe"
+
+    init_region = region_def()
+    copy_region = region_def()
+    destroy_region = region_def()
+
+    traits = lazy_traits_def(lambda: (IsolatedFromAbove(), SymbolOpInterface()))
+
+    assembly_format = (
+        "$sym_name `:` $type attr-dict-with-keyword"
+        " `init` $init_region"
+        " `copy` $copy_region"
+        " (`destroy` $destroy_region^)?"
+    )
+
+    def __init__(
+        self,
+        *,
+        sym_name: StringAttr | str,
+        var_type: TypeAttribute,
+        init_region: Region,
+        copy_region: Region,
+        destroy_region: Region | None = None,
+    ) -> None:
+        sym_name_attr: StringAttr = (
+            StringAttr(sym_name) if isinstance(sym_name, str) else sym_name
+        )
+        super().__init__(
+            properties={
+                "sym_name": sym_name_attr,
+                "type": var_type,
+            },
+            regions=[init_region, copy_region, destroy_region or Region()],
+        )
+
+    def verify_(self) -> None:
+        _verify_init_like_region(
+            self.init_region,
+            "privatization",
+            "init",
+            self.var_type,
+        )
+        if not self.copy_region.blocks:
+            raise VerifyException("expects non-empty copy region")
+        copy_block = self.copy_region.block
+        if (
+            len(copy_block.args) < 2
+            or copy_block.args[0].type != self.var_type
+            or copy_block.args[1].type != self.var_type
+        ):
+            raise VerifyException(
+                "expects copy region with two arguments of the privatization type"
+            )
+        if self.destroy_region.blocks:
+            _verify_init_like_region(
+                self.destroy_region,
+                "privatization",
+                "destroy",
+                self.var_type,
+            )
+
+
 @irdl_op_definition
 class YieldOp(AbstractYieldOperation[Attribute]):
     """
@@ -1869,7 +2218,7 @@ class YieldOp(AbstractYieldOperation[Attribute]):
         lambda: (
             IsTerminator(),
             NoMemoryEffect(),
-            HasParent(ParallelOp, SerialOp),
+            HasParent(ParallelOp, SerialOp, PrivateRecipeOp, FirstprivateRecipeOp),
         )
     )
 
@@ -1899,6 +2248,10 @@ ACC = Dialect(
         UpdateDeviceOp,
         CopyoutOp,
         UpdateHostOp,
+        DeleteOp,
+        DetachOp,
+        PrivateRecipeOp,
+        FirstprivateRecipeOp,
         YieldOp,
     ],
     [
@@ -1907,6 +2260,7 @@ ACC = Dialect(
         DataClauseAttr,
         DataClauseModifierAttr,
         VariableTypeCategoryAttr,
+        ReductionOpKindAttr,
         DataBoundsType,
     ],
 )

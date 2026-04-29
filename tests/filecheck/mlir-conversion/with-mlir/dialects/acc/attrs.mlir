@@ -1,5 +1,18 @@
-// RUN: XDSL_ROUNDTRIP
+// RUN: MLIR_ROUNDTRIP
+// RUN: MLIR_GENERIC_ROUNDTRIP
 
+// Proves xDSL emits each `acc` dialect attribute in a spelling that
+// upstream `mlir-opt` accepts and re-emits identically. The attrs are
+// hung off an unregistered `"test.op"` so that no concrete op is needed
+// to exercise them — `--allow-unregistered-dialect` (set in the
+// MLIR_ROUNDTRIP substitution) lets mlir-opt parse the carrier op.
+//
+// Pre-existing attrs (`device_type`, `defaultvalue`, `data_clause`,
+// `data_clause_modifier`, `variable_type_category`) currently have no
+// MLIR interop test of their own — they were only covered indirectly
+// through the data-clause ops. Including them here gives every `acc`
+// attribute its own MLIR-interop CHECK and makes `attrs.mlir` the
+// canonical place to extend coverage when new attributes land.
 "test.op"() {attrs = [
                 #acc.device_type<none>,
                 // CHECK: #acc.device_type<none>
@@ -27,25 +40,23 @@
                 #acc<data_clause_modifier readonly>,
                 // CHECK-SAME: #acc<data_clause_modifier readonly>
                 // Multi-bit sets parse in any order but print in the
-                // declaration order of the StrEnum (zero before readonly).
-                #acc<data_clause_modifier readonly,zero>,
+                // declaration order of the enum (zero before readonly).
+                #acc<data_clause_modifier zero,readonly>,
                 // CHECK-SAME: #acc<data_clause_modifier zero,readonly>
-                #acc<data_clause_modifier alwaysin,alwaysout,capture>,
-                // CHECK-SAME: #acc<data_clause_modifier alwaysin,alwaysout,capture>
+                // Note: combining `alwaysin,alwaysout` triggers upstream's
+                // group alias `always` on re-emit, which xDSL doesn't model.
+                // Stick to single-bit cases here; the full multi-bit
+                // coverage stays in `tests/filecheck/dialects/acc/attrs.mlir`.
+                #acc<data_clause_modifier alwaysin>,
+                // CHECK-SAME: #acc<data_clause_modifier alwaysin>
+                #acc<data_clause_modifier capture>,
+                // CHECK-SAME: #acc<data_clause_modifier capture>
 
-                #acc<variable_type_category uncategorized>,
-                // CHECK-SAME: #acc<variable_type_category uncategorized>
-                #acc<variable_type_category scalar>,
-                // CHECK-SAME: #acc<variable_type_category scalar>
-                #acc<variable_type_category array,composite>,
-                // CHECK-SAME: #acc<variable_type_category array,composite>
+                // `#acc<variable_type_category ...>` is xDSL-only — upstream
+                // models VariableTypeCategory as a type-categorization bit
+                // enum, not a registered attribute, so mlir-opt does not
+                // accept it. Coverage stays in `tests/filecheck/dialects/acc/attrs.mlir`.
 
-                // Reduction operator attribute. Prints with `<value>`
-                // surrounding the parameter (matching upstream MLIR's
-                // `assemblyFormat = "`<` $value `>`"`), so when consumed
-                // inline via `$reductionOperator` in a future op format the
-                // spelling is `reduction_operator <add>` rather than the
-                // long-form `#acc.reduction_operator<add>`.
                 #acc.reduction_operator<none>,
                 // CHECK-SAME: #acc.reduction_operator<none>
                 #acc.reduction_operator<add>,
@@ -71,5 +82,4 @@
                 #acc.reduction_operator<lor>
                 // CHECK-SAME: #acc.reduction_operator<lor>
 
-            ]}: () -> !acc.data_bounds_ty
-                // CHECK-SAME: !acc.data_bounds_ty
+            ]} : () -> ()

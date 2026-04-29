@@ -1077,4 +1077,152 @@ builtin.module {
   // CHECK-LABEL: func.func @update_device_dataclause_default_elided(
   // CHECK:         %{{.*}} = acc.update_device varPtr(%{{.*}} : memref<10xf32>) -> memref<10xf32>
   // CHECK-NOT:     dataClause
+
+  // No-host-pointer exit ops (`acc.delete`, `acc.detach`). These live on
+  // `_DataExitOperationNoVarPtr` — three operand groups (`accVar`,
+  // `bounds`, `asyncOperands`), no host `var`, no `varType`. They share
+  // the `AccVar` custom directive and the bounds/async assembly format
+  // tail with the with-host-pointer exit ops.
+  func.func @delete_minimal(%d : memref<10xf32>) {
+    acc.delete accPtr(%d : memref<10xf32>)
+    func.return
+  }
+  // CHECK-LABEL: func.func @delete_minimal(
+  // CHECK:         acc.delete accPtr(%{{.*}} : memref<10xf32>)
+
+  func.func @delete_with_bounds_async(%d : memref<10xf32>, %async : i32, %c0 : index, %c9 : index) {
+    %b = acc.bounds lowerbound(%c0 : index) upperbound(%c9 : index)
+    acc.delete accPtr(%d : memref<10xf32>) bounds(%b) async(%async : i32)
+    func.return
+  }
+  // CHECK-LABEL: func.func @delete_with_bounds_async(
+  // CHECK:         %{{.*}} = acc.bounds lowerbound(%{{.*}} : index) upperbound(%{{.*}} : index)
+  // CHECK-NEXT:    acc.delete accPtr(%{{.*}} : memref<10xf32>) bounds(%{{.*}}) async(%{{.*}} : i32)
+
+  func.func @delete_async_kw_dt(%d : memref<10xf32>) {
+    acc.delete accPtr(%d : memref<10xf32>) async([#acc.device_type<nvidia>])
+    func.return
+  }
+  // CHECK-LABEL: func.func @delete_async_kw_dt(
+  // CHECK:         acc.delete accPtr(%{{.*}} : memref<10xf32>) async([#acc.device_type<nvidia>])
+
+  func.func @delete_full_attr_dict(%d : memref<10xf32>) {
+    acc.delete accPtr(%d : memref<10xf32>) {dataClause = #acc<data_clause acc_create>, implicit = true, modifiers = #acc<data_clause_modifier alwaysout>, name = "myvar", structured = false}
+    func.return
+  }
+  // CHECK-LABEL: func.func @delete_full_attr_dict(
+  // CHECK:         acc.delete accPtr(%{{.*}} : memref<10xf32>) {dataClause = #acc<data_clause acc_create>, implicit = true, modifiers = #acc<data_clause_modifier alwaysout>, name = "myvar", structured = false}
+
+  // Generic-form roundtrip insurance for the no-varPtr exit shape. Three
+  // operand groups (`accVar`, `bounds`, `asyncOperands`) — distinct from
+  // the four-group WithVarPtr shape, so the `operandSegmentSizes` shape is
+  // independently load-bearing here.
+  func.func @delete_generic_roundtrip(%d : memref<10xf32>) {
+    "acc.delete"(%d) <{operandSegmentSizes = array<i32: 1, 0, 0>}> : (memref<10xf32>) -> ()
+    func.return
+  }
+  // CHECK-LABEL: func.func @delete_generic_roundtrip(
+  // CHECK:         acc.delete accPtr(%{{.*}} : memref<10xf32>)
+
+  func.func @delete_dataclause_default_elided(%d : memref<10xf32>) {
+    "acc.delete"(%d) <{dataClause = #acc<data_clause acc_delete>, operandSegmentSizes = array<i32: 1, 0, 0>}> : (memref<10xf32>) -> ()
+    func.return
+  }
+  // CHECK-LABEL: func.func @delete_dataclause_default_elided(
+  // CHECK:         acc.delete accPtr(%{{.*}} : memref<10xf32>)
+  // CHECK-NOT:     dataClause
+
+  func.func @detach_minimal(%d : memref<10xf32>) {
+    acc.detach accPtr(%d : memref<10xf32>)
+    func.return
+  }
+  // CHECK-LABEL: func.func @detach_minimal(
+  // CHECK:         acc.detach accPtr(%{{.*}} : memref<10xf32>)
+
+  func.func @detach_dataclause_default_elided(%d : memref<10xf32>) {
+    "acc.detach"(%d) <{dataClause = #acc<data_clause acc_detach>, operandSegmentSizes = array<i32: 1, 0, 0>}> : (memref<10xf32>) -> ()
+    func.return
+  }
+  // CHECK-LABEL: func.func @detach_dataclause_default_elided(
+  // CHECK:         acc.detach accPtr(%{{.*}} : memref<10xf32>)
+  // CHECK-NOT:     dataClause
+
+  // Privatization recipes — `acc.private.recipe` / `acc.firstprivate.recipe`
+  // are top-level Symbol ops (`IsolatedFromAbove`). Each carries a
+  // `sym_name` + `type` plus named regions; the `acc.yield`-as-init-result
+  // body terminator works because both ops were appended to YieldOp's
+  // `HasParent` list.
+  acc.private.recipe @priv_min : memref<10xf32> init {
+  ^bb0(%arg0: memref<10xf32>):
+    acc.yield %arg0 : memref<10xf32>
+  }
+  // CHECK-LABEL: acc.private.recipe @priv_min : memref<10xf32> init {
+  // CHECK-NEXT:    ^{{.*}}(%{{.*}}: memref<10xf32>):
+  // CHECK-NEXT:      acc.yield %{{.*}} : memref<10xf32>
+  // CHECK-NEXT:    }
+
+  acc.private.recipe @priv_with_destroy : memref<10xf32> init {
+  ^bb0(%arg0: memref<10xf32>):
+    acc.yield %arg0 : memref<10xf32>
+  } destroy {
+  ^bb0(%arg0: memref<10xf32>):
+    acc.yield
+  }
+  // CHECK-LABEL: acc.private.recipe @priv_with_destroy : memref<10xf32> init {
+  // CHECK:         } destroy {
+  // CHECK:           acc.yield
+  // CHECK-NEXT:    }
+
+  // Generic-form roundtrip insurance for `acc.private.recipe` — the destroy
+  // region is always part of `op.regions` (always printed in generic form),
+  // even when it's empty, in which case the optional `destroy` keyword is
+  // elided in the pretty form.
+  "acc.private.recipe"() <{sym_name = "priv_generic", type = memref<10xf32>}> ({
+  ^bb0(%arg0: memref<10xf32>):
+    "acc.yield"(%arg0) : (memref<10xf32>) -> ()
+  }, {
+  }) : () -> ()
+  // CHECK-LABEL: acc.private.recipe @priv_generic : memref<10xf32> init {
+
+  acc.firstprivate.recipe @fp_min : memref<10xf32> init {
+  ^bb0(%arg0: memref<10xf32>):
+    acc.yield %arg0 : memref<10xf32>
+  } copy {
+  ^bb0(%arg0: memref<10xf32>, %arg1: memref<10xf32>):
+    acc.yield
+  }
+  // CHECK-LABEL: acc.firstprivate.recipe @fp_min : memref<10xf32> init {
+  // CHECK:         } copy {
+  // CHECK-NEXT:    ^{{.*}}(%{{.*}}: memref<10xf32>, %{{.*}}: memref<10xf32>):
+  // CHECK-NEXT:      acc.yield
+  // CHECK-NEXT:    }
+
+  acc.firstprivate.recipe @fp_with_destroy : memref<10xf32> init {
+  ^bb0(%arg0: memref<10xf32>):
+    acc.yield %arg0 : memref<10xf32>
+  } copy {
+  ^bb0(%arg0: memref<10xf32>, %arg1: memref<10xf32>):
+    acc.yield
+  } destroy {
+  ^bb0(%arg0: memref<10xf32>):
+    acc.yield
+  }
+  // CHECK-LABEL: acc.firstprivate.recipe @fp_with_destroy : memref<10xf32> init {
+  // CHECK:         } copy {
+  // CHECK:         } destroy {
+  // CHECK-NEXT:    ^{{.*}}(%{{.*}}: memref<10xf32>):
+  // CHECK-NEXT:      acc.yield
+  // CHECK-NEXT:    }
+
+  // Generic-form roundtrip for the firstprivate three-region shape. An
+  // empty trailing region elides `destroy` in pretty form.
+  "acc.firstprivate.recipe"() <{sym_name = "fp_generic", type = memref<10xf32>}> ({
+  ^bb0(%arg0: memref<10xf32>):
+    "acc.yield"(%arg0) : (memref<10xf32>) -> ()
+  }, {
+  ^bb1(%arg1: memref<10xf32>, %arg2: memref<10xf32>):
+    "acc.yield"() : () -> ()
+  }, {
+  }) : () -> ()
+  // CHECK-LABEL: acc.firstprivate.recipe @fp_generic : memref<10xf32> init {
 }

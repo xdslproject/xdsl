@@ -558,12 +558,15 @@ def test_call_op_variadic():
 
 
 def test_call_intrinsic_op_converts_str_to_stringattr():
-    # verify string intrinsic name is auto-converted to StringAttr
-    op = llvm.CallIntrinsicOp(
-        "llvm.intr", [], [], op_bundle_sizes=llvm.DenseArrayBase.from_list(i32, [])
-    )
+    op = llvm.CallIntrinsicOp("llvm.intr", [], [])
     assert isinstance(op.intrin, builtin.StringAttr)
     assert op.intrin.data == "llvm.intr"
+
+
+def test_call_intrinsic_op_accepts_stringattr():
+    intrin = builtin.StringAttr("llvm.smax")
+    op = llvm.CallIntrinsicOp(intrin, [], [])
+    assert op.intrin is intrin
 
 
 def test_func_op_visibility_default():

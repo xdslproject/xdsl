@@ -451,6 +451,43 @@ def test_copyout_builder_shortcuts():
     assert op.var_name == StringAttr("myvar")
 
 
+def test_delete_minimal_defaulted_props_absent_from_dict():
+    """Same invariant for the `_DataExitOperationNoVarPtr` mixin (no `var`,
+    no `varType`). `acc.delete` exercises the no-host-pointer branch of the
+    exit-shape `__init__`; the dict-state assertion is independently
+    load-bearing because this mixin's `__init__` is a separate method that
+    must reproduce the absence-on-default behavior."""
+    acc_var = create_ssa_value(MemRefType(f32, [10]))
+    op = acc.DeleteOp(acc_var=acc_var)
+    op.verify()
+
+    assert "dataClause" not in op.properties
+    assert "structured" not in op.properties
+    assert "implicit" not in op.properties
+    assert "modifiers" not in op.properties
+    assert op.acc_var is acc_var
+
+
+def test_delete_builder_shortcuts():
+    """Bool / str / `DataClause` shortcuts on `_DataExitOperationNoVarPtr`'s
+    `__init__`. Builder-only conversions; the parser only sees attribute
+    instances."""
+    acc_var = create_ssa_value(MemRefType(f32, [10]))
+    op = acc.DeleteOp(
+        acc_var=acc_var,
+        data_clause=acc.DataClause.ACC_CREATE,
+        structured=False,
+        implicit=True,
+        var_name="d",
+    )
+    op.verify()
+
+    assert op.data_clause == acc.DataClauseAttr(acc.DataClause.ACC_CREATE)
+    assert op.structured == IntegerAttr.from_bool(False)
+    assert op.implicit == IntegerAttr.from_bool(True)
+    assert op.var_name == StringAttr("d")
+
+
 def test_cache_op_has_no_memory_effect_trait():
     """`acc.cache` is the only entry data-clause op that carries
     `NoMemoryEffect` (per upstream's td definition). Tested in pytest because
@@ -462,3 +499,49 @@ def test_cache_op_has_no_memory_effect_trait():
     assert not acc.CopyinOp.has_trait(NoMemoryEffect)
     assert not acc.AttachOp.has_trait(NoMemoryEffect)
     assert not acc.DeclareDeviceResidentOp.has_trait(NoMemoryEffect)
+
+
+def test_private_recipe_builder_shortcuts():
+    """The Python `__init__` accepts a `str` shortcut for `sym_name` and
+    defaults a missing `destroy_region` to an empty `Region()`. Both
+    branches are unreachable from filecheck — the parser only sees an
+    already-built `StringAttr` and always supplies a (possibly empty)
+    region — so they live here."""
+    init_block = Block(arg_types=[i32])
+    init_block.add_op(acc.YieldOp(init_block.args[0]))
+    op = acc.PrivateRecipeOp(
+        sym_name="priv",
+        var_type=i32,
+        init_region=Region([init_block]),
+    )
+    op.verify()
+
+    assert op.sym_name == StringAttr("priv")
+    assert op.var_type == i32
+    assert len(op.init_region.blocks) == 1
+    # `destroy_region=None` defaults to an empty Region, not absent.
+    assert len(op.destroy_region.blocks) == 0
+
+
+def test_firstprivate_recipe_builder_shortcuts():
+    """Same builder-only branches as `PrivateRecipeOp`'s test, but on the
+    firstprivate constructor — the `__init__` is a separate method that
+    must independently exercise the `str` → `StringAttr` shortcut and the
+    `destroy_region=None` default."""
+    init_block = Block(arg_types=[i32])
+    init_block.add_op(acc.YieldOp(init_block.args[0]))
+    copy_block = Block(arg_types=[i32, i32])
+    copy_block.add_op(acc.YieldOp())
+    op = acc.FirstprivateRecipeOp(
+        sym_name="fp",
+        var_type=i32,
+        init_region=Region([init_block]),
+        copy_region=Region([copy_block]),
+    )
+    op.verify()
+
+    assert op.sym_name == StringAttr("fp")
+    assert op.var_type == i32
+    assert len(op.init_region.blocks) == 1
+    assert len(op.copy_region.blocks) == 1
+    assert len(op.destroy_region.blocks) == 0
