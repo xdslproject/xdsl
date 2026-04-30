@@ -918,6 +918,18 @@ builtin.module {
   // CHECK-NEXT:   ret void
   // CHECK-NEXT: }
 
+  llvm.func @shuffle_vector_f32(%arg0: vector<4xf32>, %arg1: vector<4xf32>) -> vector<4xf32> {
+    %res = llvm.shufflevector %arg0, %arg1 [0, 0, 0, 0] : vector<4xf32>
+    llvm.return %res : vector<4xf32>
+  }
+
+  // CHECK: define <4 x float> @"shuffle_vector_f32"(<4 x float> %".1", <4 x float> %".2")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: [[ENTRY:.\d+]]:
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = shufflevector <4 x float> %".1", <4 x float> %".2", <4 x i32> <i32 0, i32 0, i32 0, i32 0>
+  // CHECK-NEXT:   ret <4 x float> %"[[RES]]"
+  // CHECK-NEXT: }
+
   llvm.func @callee(!llvm.ptr)
 
   llvm.func @addressof_target() {
