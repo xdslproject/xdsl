@@ -508,6 +508,8 @@ def convert_op(
             _convert_return(op, builder, val_map)
         case llvm.ZeroOp():
             val_map[op.res] = ir.Constant(convert_type(op.res.type), None)
+        case llvm.UndefOp():
+            val_map[op.res] = ir.Constant(convert_type(op.res.type), ir.Undefined)
         case llvm.AddressOfOp():
             _convert_addressof(op, builder, val_map)
         case FMAOp():

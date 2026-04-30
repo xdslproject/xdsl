@@ -845,6 +845,17 @@ builtin.module {
   // CHECK-NEXT:   ret ptr null
   // CHECK-NEXT: }
 
+  llvm.func @undef_i32() -> i32 {
+    %0 = llvm.mlir.undef : i32
+    llvm.return %0 : i32
+  }
+
+  // CHECK: define i32 @"undef_i32"()
+  // CHECK-NEXT: {
+  // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT:   ret i32 undef
+  // CHECK-NEXT: }
+
   llvm.func @fma_op_f32(%arg0: vector<4xf32>, %arg1: vector<4xf32>, %arg2: vector<4xf32>) -> vector<4xf32> {
     %0 = vector.fma %arg0, %arg1, %arg2 : vector<4xf32>
     llvm.return %0 : vector<4xf32>
