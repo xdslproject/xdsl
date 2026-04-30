@@ -24,8 +24,8 @@ jobs:
         with:
           python-version: "3.13"
 
-      - name: Install without bench dependencies
-        run: uv sync
+      - name: Install without optional dependencies
+        run: uv sync --no-dev
 
       - name: Import all benchmark files
         run: |
