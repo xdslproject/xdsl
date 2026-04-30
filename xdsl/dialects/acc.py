@@ -943,33 +943,31 @@ class DataEntryOilist(CustomDirective):
         self.async_operands.set(state, ())
         self.async_operand_types.set(state, ())
 
+    _CLAUSE_KEYWORDS = ("varPtrPtr", "bounds", "async", "recipe")
+
     def parse(self, parser: Parser, state: ParsingState) -> bool:
         self.set_empty(state)
         seen: set[str] = set()
-        while True:
-            if parser.parse_optional_keyword("varPtrPtr") is not None:
-                if "varPtrPtr" in seen:
-                    parser.raise_error("'varPtrPtr' clause specified twice")
-                seen.add("varPtrPtr")
+        while (
+            kw := parser.parse_optional_keyword_in(self._CLAUSE_KEYWORDS)
+        ) is not None:
+            if kw in seen:
+                parser.raise_error(f"'{kw}' clause specified twice")
+            seen.add(kw)
+            if kw == "varPtrPtr":
                 with parser.in_parens():
                     operand = parser.parse_unresolved_operand()
                     parser.parse_punctuation(":")
                     ty = parser.parse_type()
                 self.var_ptr_ptr.set(state, operand)
                 self.var_ptr_ptr_type.set(state, (ty,))
-            elif parser.parse_optional_keyword("bounds") is not None:
-                if "bounds" in seen:
-                    parser.raise_error("'bounds' clause specified twice")
-                seen.add("bounds")
+            elif kw == "bounds":
                 with parser.in_parens():
                     bounds_operands = parser.parse_comma_separated_list(
                         parser.Delimiter.NONE, parser.parse_unresolved_operand
                     )
                 self.bounds.set(state, bounds_operands)
-            elif parser.parse_optional_keyword("async") is not None:
-                if "async" in seen:
-                    parser.raise_error("'async' clause specified twice")
-                seen.add("async")
+            elif kw == "async":
                 ops, types, dts, kw_only = _parse_dt_kw_only_body(parser)
                 self.async_operands.set(state, ops)
                 self.async_operand_types.set(state, types)
@@ -977,14 +975,9 @@ class DataEntryOilist(CustomDirective):
                     self.async_device_type.set(state, dts)
                 if kw_only is not None:
                     self.async_only.set(state, kw_only)
-            elif parser.parse_optional_keyword("recipe") is not None:
-                if "recipe" in seen:
-                    parser.raise_error("'recipe' clause specified twice")
-                seen.add("recipe")
+            else:  # recipe
                 with parser.in_parens():
                     self.recipe.set(state, parser.parse_attribute())
-            else:
-                break
         return True
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
