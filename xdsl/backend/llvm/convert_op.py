@@ -444,7 +444,7 @@ def _convert_shuffle_vector(
     builder: ir.IRBuilder,
     val_map: dict[SSAValue, ir.Value],
 ):
-    mask_values = list(op.mask.iter_values())
+    mask_values = op.mask.get_values()
     mask = ir.Constant(ir.VectorType(ir.IntType(32), len(mask_values)), mask_values)
     val_map[op.res] = builder.shuffle_vector(val_map[op.v1], val_map[op.v2], mask)
 
