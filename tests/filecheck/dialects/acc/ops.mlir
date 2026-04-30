@@ -1184,6 +1184,102 @@ builtin.module {
   // CHECK-LABEL: func.func @copyin_clauses_reordered(
   // CHECK:         %{{.*}} = acc.copyin varPtr(%{{.*}} : memref<10xf32>) varPtrPtr(%{{.*}} : memref<memref<10xf32>>) bounds(%{{.*}}) async recipe(@some_recipe) -> memref<10xf32>
 
+  // Privatization data-clause ops (`acc.private`, `acc.firstprivate`,
+  // `acc.firstprivate_map`, `acc.reduction`). These share the entry
+  // `_DataEntryOperation` mixin — same operand and assembly-format
+  // surface as `acc.copyin` etc. — and differ only in the per-op
+  // `dataClause` default. The natural extra coverage here is the
+  // `recipe(@sym)` reference case: `acc.private` / `acc.firstprivate` /
+  // `acc.reduction` all carry a recipe pointing at one of the
+  // privatization / reduction recipe symbol ops introduced in PR 13.
+  func.func @private_minimal(%a : memref<10xf32>) {
+    %r = acc.private varPtr(%a : memref<10xf32>) -> memref<10xf32>
+    func.return
+  }
+  // CHECK-LABEL: func.func @private_minimal(
+  // CHECK:         %{{.*}} = acc.private varPtr(%{{.*}} : memref<10xf32>) -> memref<10xf32>
+
+  func.func @private_with_recipe(%a : memref<10xf32>) {
+    %r = acc.private varPtr(%a : memref<10xf32>) recipe(@priv_min) -> memref<10xf32>
+    func.return
+  }
+  // CHECK-LABEL: func.func @private_with_recipe(
+  // CHECK:         %{{.*}} = acc.private varPtr(%{{.*}} : memref<10xf32>) recipe(@priv_min) -> memref<10xf32>
+
+  func.func @private_dataclause_default_elided(%a : memref<10xf32>) {
+    %r = "acc.private"(%a) <{dataClause = #acc<data_clause acc_private>, operandSegmentSizes = array<i32: 1, 0, 0, 0>, varType = f32}> : (memref<10xf32>) -> memref<10xf32>
+    func.return
+  }
+  // CHECK-LABEL: func.func @private_dataclause_default_elided(
+  // CHECK:         %{{.*}} = acc.private varPtr(%{{.*}} : memref<10xf32>) -> memref<10xf32>
+  // CHECK-NOT:     dataClause
+
+  func.func @firstprivate_minimal(%a : memref<10xf32>) {
+    %r = acc.firstprivate varPtr(%a : memref<10xf32>) -> memref<10xf32>
+    func.return
+  }
+  // CHECK-LABEL: func.func @firstprivate_minimal(
+  // CHECK:         %{{.*}} = acc.firstprivate varPtr(%{{.*}} : memref<10xf32>) -> memref<10xf32>
+
+  func.func @firstprivate_with_recipe(%a : memref<10xf32>) {
+    %r = acc.firstprivate varPtr(%a : memref<10xf32>) recipe(@fp_min) -> memref<10xf32>
+    func.return
+  }
+  // CHECK-LABEL: func.func @firstprivate_with_recipe(
+  // CHECK:         %{{.*}} = acc.firstprivate varPtr(%{{.*}} : memref<10xf32>) recipe(@fp_min) -> memref<10xf32>
+
+  func.func @firstprivate_dataclause_default_elided(%a : memref<10xf32>) {
+    %r = "acc.firstprivate"(%a) <{dataClause = #acc<data_clause acc_firstprivate>, operandSegmentSizes = array<i32: 1, 0, 0, 0>, varType = f32}> : (memref<10xf32>) -> memref<10xf32>
+    func.return
+  }
+  // CHECK-LABEL: func.func @firstprivate_dataclause_default_elided(
+  // CHECK:         %{{.*}} = acc.firstprivate varPtr(%{{.*}} : memref<10xf32>) -> memref<10xf32>
+  // CHECK-NOT:     dataClause
+
+  func.func @firstprivate_map_minimal(%a : memref<10xf32>) {
+    %r = acc.firstprivate_map varPtr(%a : memref<10xf32>) -> memref<10xf32>
+    func.return
+  }
+  // CHECK-LABEL: func.func @firstprivate_map_minimal(
+  // CHECK:         %{{.*}} = acc.firstprivate_map varPtr(%{{.*}} : memref<10xf32>) -> memref<10xf32>
+
+  // `acc.firstprivate_map` decomposes the same user-level
+  // `acc_firstprivate` clause as `acc.firstprivate` — its `dataClause`
+  // default is `acc_firstprivate` (not the op-name-derived value a typo
+  // would land on).
+  func.func @firstprivate_map_dataclause_default_elided(%a : memref<10xf32>) {
+    %r = "acc.firstprivate_map"(%a) <{dataClause = #acc<data_clause acc_firstprivate>, operandSegmentSizes = array<i32: 1, 0, 0, 0>, varType = f32}> : (memref<10xf32>) -> memref<10xf32>
+    func.return
+  }
+  // CHECK-LABEL: func.func @firstprivate_map_dataclause_default_elided(
+  // CHECK:         %{{.*}} = acc.firstprivate_map varPtr(%{{.*}} : memref<10xf32>) -> memref<10xf32>
+  // CHECK-NOT:     dataClause
+
+  func.func @reduction_minimal(%a : memref<10xf32>) {
+    %r = acc.reduction varPtr(%a : memref<10xf32>) -> memref<10xf32>
+    func.return
+  }
+  // CHECK-LABEL: func.func @reduction_minimal(
+  // CHECK:         %{{.*}} = acc.reduction varPtr(%{{.*}} : memref<10xf32>) -> memref<10xf32>
+
+  // `acc.reduction` references the operator via `recipe(@sym)` — the
+  // operator itself lives on `acc.reduction.recipe`, not on the data-entry
+  // op.
+  func.func @reduction_with_recipe(%a : memref<10xf32>) {
+    %r = acc.reduction varPtr(%a : memref<10xf32>) recipe(@red_add_i64) -> memref<10xf32>
+    func.return
+  }
+  // CHECK-LABEL: func.func @reduction_with_recipe(
+  // CHECK:         %{{.*}} = acc.reduction varPtr(%{{.*}} : memref<10xf32>) recipe(@red_add_i64) -> memref<10xf32>
+
+  func.func @reduction_dataclause_default_elided(%a : memref<10xf32>) {
+    %r = "acc.reduction"(%a) <{dataClause = #acc<data_clause acc_reduction>, operandSegmentSizes = array<i32: 1, 0, 0, 0>, varType = f32}> : (memref<10xf32>) -> memref<10xf32>
+    func.return
+  }
+  // CHECK-LABEL: func.func @reduction_dataclause_default_elided(
+  // CHECK:         %{{.*}} = acc.reduction varPtr(%{{.*}} : memref<10xf32>) -> memref<10xf32>
+  // CHECK-NOT:     dataClause
+
   // Privatization recipes — `acc.private.recipe` / `acc.firstprivate.recipe`
   // are top-level Symbol ops (`IsolatedFromAbove`). Each carries a
   // `sym_name` + `type` plus named regions; the `acc.yield`-as-init-result
