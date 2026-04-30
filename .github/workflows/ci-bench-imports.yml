@@ -1,0 +1,50 @@
+name: CI - Benchmark Imports
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  bench-imports:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v8.1.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Install without bench dependencies
+        run: uv sync
+
+      - name: Import all benchmark files
+        run: |
+          uv run python -c "
+          import importlib
+          from pathlib import Path
+
+          failures = []
+          for p in sorted(Path('benchmarks').glob('*.py')):
+              if p.stem == '__init__':
+                  continue
+              mod = f'benchmarks.{p.stem}'
+              try:
+                  importlib.import_module(mod)
+              except ImportError as e:
+                  failures.append(f'{mod}: {e}')
+
+          if failures:
+              for f in failures:
+                  print(f)
+              raise SystemExit(1)
+          "

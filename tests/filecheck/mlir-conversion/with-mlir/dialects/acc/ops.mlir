@@ -456,7 +456,7 @@ builtin.module {
   // CHECK-NEXT:    %{{.*}} = acc.get_stride %{{.*}} : (!acc.data_bounds_ty) -> index
   // CHECK-NEXT:    %{{.*}} = acc.get_extent %{{.*}} : (!acc.data_bounds_ty) -> index
 
-  // Entry data-clause ops (PR 6b: copyin / create / present). Each MLIR
+  // Entry data-clause ops — `copyin` / `create` / `present`. Each MLIR
   // interop entry round-trips through both the pretty and generic surfaces;
   // covers `acc.copyin` exhaustively and the other two minimally.
   func.func @copyin_minimal(%a : memref<10xf32>) {
@@ -538,9 +538,9 @@ builtin.module {
   // CHECK:       func.func @present_minimal(
   // CHECK:         %{{.*}} = acc.present varPtr(%{{.*}} : memref<10xf32>) -> memref<10xf32>
 
-  // Remaining seven entry data-clause leaves (PR 6c). Each gets one MLIR
-  // interop entry — proves xDSL emission is bit-compatible with upstream
-  // and the per-op `dataClause` default round-trips through MLIR.
+  // Remaining seven entry data-clause leaves. Each gets one MLIR interop
+  // entry — proves xDSL emission is bit-compatible with upstream and the
+  // per-op `dataClause` default round-trips through MLIR.
   func.func @nocreate_minimal(%a : memref<10xf32>) {
     %r = acc.nocreate varPtr(%a : memref<10xf32>) -> memref<10xf32>
     func.return
@@ -647,4 +647,124 @@ builtin.module {
   }
   // CHECK:       func.func @update_device_minimal(
   // CHECK:         %{{.*}} = acc.update_device varPtr(%{{.*}} : memref<10xf32>) -> memref<10xf32>
+
+  func.func @delete_minimal(%d : memref<10xf32>) {
+    acc.delete accPtr(%d : memref<10xf32>)
+    func.return
+  }
+  // CHECK:       func.func @delete_minimal(
+  // CHECK:         acc.delete accPtr(%{{.*}} : memref<10xf32>)
+
+  func.func @delete_with_bounds_async(%d : memref<10xf32>, %async : i32, %c0 : index, %c9 : index) {
+    %b = acc.bounds lowerbound(%c0 : index) upperbound(%c9 : index)
+    acc.delete accPtr(%d : memref<10xf32>) bounds(%b) async(%async : i32)
+    func.return
+  }
+  // CHECK:       func.func @delete_with_bounds_async(
+  // CHECK:         %{{.*}} = acc.bounds lowerbound(%{{.*}} : index) upperbound(%{{.*}} : index)
+  // CHECK-NEXT:    acc.delete accPtr(%{{.*}} : memref<10xf32>) bounds(%{{.*}}) async(%{{.*}} : i32)
+
+  func.func @delete_clause_override(%d : memref<10xf32>) {
+    acc.delete accPtr(%d : memref<10xf32>) {dataClause = #acc<data_clause acc_create>, modifiers = #acc<data_clause_modifier alwaysout>, name = "myvar"}
+    func.return
+  }
+  // CHECK:       func.func @delete_clause_override(
+  // CHECK:         acc.delete accPtr(%{{.*}} : memref<10xf32>) {dataClause = #acc<data_clause acc_create>, modifiers = #acc<data_clause_modifier alwaysout>, name = "myvar"}
+
+  func.func @detach_minimal(%d : memref<10xf32>) {
+    acc.detach accPtr(%d : memref<10xf32>)
+    func.return
+  }
+  // CHECK:       func.func @detach_minimal(
+  // CHECK:         acc.detach accPtr(%{{.*}} : memref<10xf32>)
+
+  // Privatization recipes — top-level Symbol ops. Pretty form is
+  // `@sym : type init { ... } [destroy { ... }]?` (and `copy {...}` between
+  // for firstprivate). Both MLIR_ROUNDTRIP and MLIR_GENERIC_ROUNDTRIP must
+  // pass — the latter exercises the `<{sym_name = ..., type = ...}>` props
+  // dict that any consumer (e.g. `acc.private` referencing this recipe by
+  // SymbolRefAttr) will need to round-trip.
+  acc.private.recipe @priv_min : memref<10xf32> init {
+  ^bb0(%arg0: memref<10xf32>):
+    acc.yield %arg0 : memref<10xf32>
+  }
+  // CHECK:       acc.private.recipe @priv_min : memref<10xf32> init {
+  // CHECK-NEXT:    ^{{.*}}(%{{.*}}: memref<10xf32>):
+  // CHECK-NEXT:      acc.yield %{{.*}} : memref<10xf32>
+  // CHECK-NEXT:    }
+
+  acc.private.recipe @priv_with_destroy : memref<10xf32> init {
+  ^bb0(%arg0: memref<10xf32>):
+    acc.yield %arg0 : memref<10xf32>
+  } destroy {
+  ^bb0(%arg0: memref<10xf32>):
+    acc.yield
+  }
+  // CHECK:       acc.private.recipe @priv_with_destroy : memref<10xf32> init {
+  // CHECK:         } destroy {
+  // CHECK:           acc.yield
+  // CHECK-NEXT:    }
+
+  acc.firstprivate.recipe @fp_min : memref<10xf32> init {
+  ^bb0(%arg0: memref<10xf32>):
+    acc.yield %arg0 : memref<10xf32>
+  } copy {
+  ^bb0(%arg0: memref<10xf32>, %arg1: memref<10xf32>):
+    acc.yield
+  }
+  // CHECK:       acc.firstprivate.recipe @fp_min : memref<10xf32> init {
+  // CHECK:         } copy {
+  // CHECK-NEXT:    ^{{.*}}(%{{.*}}: memref<10xf32>, %{{.*}}: memref<10xf32>):
+  // CHECK-NEXT:      acc.yield
+  // CHECK-NEXT:    }
+
+  acc.firstprivate.recipe @fp_with_destroy : memref<10xf32> init {
+  ^bb0(%arg0: memref<10xf32>):
+    acc.yield %arg0 : memref<10xf32>
+  } copy {
+  ^bb0(%arg0: memref<10xf32>, %arg1: memref<10xf32>):
+    acc.yield
+  } destroy {
+  ^bb0(%arg0: memref<10xf32>):
+    acc.yield
+  }
+  // CHECK:       acc.firstprivate.recipe @fp_with_destroy : memref<10xf32> init {
+  // CHECK:         } copy {
+  // CHECK:         } destroy {
+
+  // Reduction recipe — load-bearing for MLIR interop because xDSL's pretty
+  // form spells the operator inline as `<add>` (the
+  // `ReductionOpKindAttr.print_parameter` output) which is exactly what
+  // upstream's `assemblyFormat = "`<` $value `>`"` expects after the
+  // `reduction_operator` keyword. Both `MLIR_ROUNDTRIP` and
+  // `MLIR_GENERIC_ROUNDTRIP` must pass — the latter exercises the
+  // `reductionOperator = #acc.reduction_operator<add>` opaque spelling
+  // in the properties dict.
+  acc.reduction.recipe @red_add_i64 : i64 reduction_operator <add> init {
+  ^bb0(%arg0: i64):
+    %c0 = arith.constant 0 : i64
+    acc.yield %c0 : i64
+  } combiner {
+  ^bb0(%arg0: i64, %arg1: i64):
+    %r = arith.addi %arg0, %arg1 : i64
+    acc.yield %r : i64
+  }
+  // CHECK:       acc.reduction.recipe @red_add_i64 : i64 reduction_operator <add> init {
+  // CHECK:         } combiner {
+  // CHECK:           acc.yield %{{.*}} : i64
+  // CHECK-NEXT:    }
+
+  acc.reduction.recipe @red_max_f32 : f32 reduction_operator <max> init {
+  ^bb0(%arg0: f32):
+    acc.yield %arg0 : f32
+  } combiner {
+  ^bb0(%arg0: f32, %arg1: f32):
+    acc.yield %arg0 : f32
+  } destroy {
+  ^bb0(%arg0: f32):
+    acc.yield
+  }
+  // CHECK:       acc.reduction.recipe @red_max_f32 : f32 reduction_operator <max> init {
+  // CHECK:         } combiner {
+  // CHECK:         } destroy {
 }

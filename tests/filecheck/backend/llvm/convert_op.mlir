@@ -361,11 +361,10 @@ builtin.module {
   }
 
   llvm.func @inline_asm(%arg0: i32) {
-    "llvm.inline_asm"(%arg0) <{
-      asm_string = "add $0, 1",
-      constraints = "r",
-      has_side_effects
-    }> : (i32) -> ()
+    llvm.inline_asm has_side_effects "add $0, 1", "r" %arg0 : (i32) -> ()
+    llvm.inline_asm "add $0, 1", "r" %arg0 : (i32) -> ()
+    llvm.inline_asm asm_dialect = att "add $0, 1", "r" %arg0 : (i32) -> ()
+    llvm.inline_asm asm_dialect = intel "add $0, 1", "r" %arg0 : (i32) -> ()
     llvm.return
   }
 
@@ -373,7 +372,22 @@ builtin.module {
   // CHECK-NEXT: {
   // CHECK-NEXT: {{.[0-9]+}}:
   // CHECK-NEXT:   call void asm sideeffect "add $0, 1", "r"(i32 %".1")
+  // CHECK-NEXT:   call void asm  "add $0, 1", "r"(i32 %".1")
+  // CHECK-NEXT:   call void asm  "add $0, 1", "r"(i32 %".1")
+  // CHECK-NEXT:   call void asm  "add $0, 1", "r"(i32 %".1")
   // CHECK-NEXT:   ret void
+  // CHECK-NEXT: }
+
+  llvm.func @inline_asm_with_result(%arg0: i32) -> i32 {
+    %0 = llvm.inline_asm "mov $0, $1", "=r,r" %arg0 : (i32) -> i32
+    llvm.return %0 : i32
+  }
+
+  // CHECK: define i32 @"inline_asm_with_result"(i32 %".1")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT:   {{%.+}} = call i32 asm  "mov $0, $1", "=r,r"(i32 %".1")
+  // CHECK-NEXT:   ret i32 {{%.+}}
   // CHECK-NEXT: }
 
   llvm.func @alloca_op(%arg0: i32) {

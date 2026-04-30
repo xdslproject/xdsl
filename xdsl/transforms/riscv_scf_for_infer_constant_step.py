@@ -19,6 +19,7 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
+from xdsl.utils.exceptions import VerifyException
 
 
 class InferConstantStep(RewritePattern):
@@ -40,7 +41,7 @@ class InferConstantStep(RewritePattern):
 
         try:
             step_attr = IntegerAttr(imm.value.data, si12)
-        except ValueError:
+        except VerifyException:
             # RV32 I-type addi immediates (12-bit signed). This is only valid until we
             # add support for rv64, revisit then.
             return
