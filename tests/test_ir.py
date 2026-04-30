@@ -33,6 +33,7 @@ from xdsl.irdl import (
 )
 from xdsl.parser import Parser
 from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.hints import assert_isa
 from xdsl.utils.test_value import create_ssa_value
 
 
@@ -1443,40 +1444,45 @@ def test_region_drop_all_references():
 
 
 def test_region_erase():
-    """Test that Region.erase leaves the Region fully detached."""
-
-    block1 = Block([])
+    """Test that Region.erase requires being detached first and removes uses of inner ops."""
+    op1 = test.TestOp(result_types=(test.TestType("T1"),))
+    operand = op1.res[0]
+    op2 = test.TestOp(operands=(operand,))
+    block1 = Block([op2])
     block2 = Block([])
     region = Region([block1, block2])
     op = test.TestOp(regions=[region])
 
+    assert operand.uses.get_length() == 1
+
     with pytest.raises(AssertionError):
         region.erase()
-
+    assert operand.uses.get_length() == 1
     op.detach_region(region)
-
+    assert operand.uses.get_length() == 1
     assert len(op.regions) == 0  # references from above are dropped by when detaching
     assert region.parent is None  # reference to a parent are removed when detaching
 
     region.erase()
+    assert operand.uses.get_length() == 0
 
 
 def test_block_drop_all_references():
-    """Test that Block.drop_all_references leaves the block with no op references."""
+    """Test that Block.erase replaces references to inner ops."""
     op1 = test.TestOp()
     op2 = test.TestOp()
     op3 = test.TestOp(result_types=(test.TestType("t3"),))
     op4 = test.TestOp(operands=op3.res)
     block = Block([op1, op2, op3])
 
-    block.erase()
+    with pytest.raises(
+        ValueError,
+        match="Attempting to delete SSA value that still has uses of result of operation",
+    ):
+        block.erase()
 
-    assert block.first_op is None
-    assert block.last_op is None
-    for op in (op1, op2, op3):
-        assert op.next_op is None
-        assert op.prev_op is None
-    assert len(op4.operands) == 0
+    block.erase(safe_erase=False)
+    assert_isa(op4.operands[0], ErasedSSAValue)
 
 
 def test_block_verify_parent_pointer_mismatch():
