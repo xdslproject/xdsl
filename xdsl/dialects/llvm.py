@@ -2407,7 +2407,6 @@ class FastMathAttr(FastMathAttrBase):
     name = "llvm.fastmath"
 
 
-# TODO: custom assembly format https://github.com/xdslproject/xdsl/issues/5897
 @irdl_op_definition
 class CallIntrinsicOp(IRDLOperation):
     """
@@ -2484,7 +2483,6 @@ class CallOpSymbolUserOpInterface(SymbolUserOpInterface):
             )
 
 
-# TODO: custom assembly format https://github.com/xdslproject/xdsl/issues/5897
 @irdl_op_definition
 class CallOp(IRDLOperation):
     name = "llvm.call"
