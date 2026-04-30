@@ -712,6 +712,87 @@ builtin.module {
   // CHECK:       func.func @copyin_clauses_reordered(
   // CHECK:         %{{.*}} = acc.copyin varPtr(%{{.*}} : memref<10xf32>) varPtrPtr(%{{.*}} : memref<memref<10xf32>>) bounds(%{{.*}}) async recipe(@some_recipe) -> memref<10xf32>
 
+  // Privatization data-clause ops. Same `_DataEntryOperation` shape as
+  // `acc.copyin` / `acc.create` etc., differing only in per-op `dataClause`
+  // default and op name. Upstream's verifier requires a `recipe` attribute
+  // on `acc.private` / `acc.firstprivate` / `acc.reduction` (recipe is
+  // mandatory whenever the op decomposes a privatization / reduction
+  // clause). `acc.firstprivate_map` does *not* require a recipe upstream,
+  // so its minimal form is exercised here too. Recipe-less variants for
+  // the other three live in the xDSL-only test.
+  func.func @private_with_recipe(%a : memref<10xf32>) {
+    %r = acc.private varPtr(%a : memref<10xf32>) recipe(@priv_min) -> memref<10xf32>
+    func.return
+  }
+  // CHECK:       func.func @private_with_recipe(
+  // CHECK:         %{{.*}} = acc.private varPtr(%{{.*}} : memref<10xf32>) recipe(@priv_min) -> memref<10xf32>
+
+  func.func @firstprivate_with_recipe(%a : memref<10xf32>) {
+    %r = acc.firstprivate varPtr(%a : memref<10xf32>) recipe(@fp_min) -> memref<10xf32>
+    func.return
+  }
+  // CHECK:       func.func @firstprivate_with_recipe(
+  // CHECK:         %{{.*}} = acc.firstprivate varPtr(%{{.*}} : memref<10xf32>) recipe(@fp_min) -> memref<10xf32>
+
+  func.func @firstprivate_map_minimal(%a : memref<10xf32>) {
+    %r = acc.firstprivate_map varPtr(%a : memref<10xf32>) -> memref<10xf32>
+    func.return
+  }
+  // CHECK:       func.func @firstprivate_map_minimal(
+  // CHECK:         %{{.*}} = acc.firstprivate_map varPtr(%{{.*}} : memref<10xf32>) -> memref<10xf32>
+
+  func.func @reduction_with_recipe(%a : memref<10xf32>) {
+    %r = acc.reduction varPtr(%a : memref<10xf32>) recipe(@red_add_i64) -> memref<10xf32>
+    func.return
+  }
+  // CHECK:       func.func @reduction_with_recipe(
+  // CHECK:         %{{.*}} = acc.reduction varPtr(%{{.*}} : memref<10xf32>) recipe(@red_add_i64) -> memref<10xf32>
+
+  // Per-op `dataClause` default agreement: feeding each leaf's expected
+  // default explicitly through the attr-dict and asserting that *both*
+  // xDSL and mlir-opt elide it on print proves the two sides agree on
+  // each leaf's default value. A wrong default at either end would
+  // surface here as `dataClause` no longer eliding through the
+  // round-trip. Recipe attached on the three ops where upstream's
+  // verifier requires it; `firstprivate_map` carries no recipe (upstream
+  // does not require one).
+  func.func @private_dataclause_default_elided(%a : memref<10xf32>) {
+    %r = acc.private varPtr(%a : memref<10xf32>) recipe(@priv_min) -> memref<10xf32> {dataClause = #acc<data_clause acc_private>}
+    func.return
+  }
+  // CHECK:       func.func @private_dataclause_default_elided(
+  // CHECK:         %{{.*}} = acc.private varPtr(%{{.*}} : memref<10xf32>) recipe(@priv_min) -> memref<10xf32>
+  // CHECK-NOT:     dataClause
+
+  func.func @firstprivate_dataclause_default_elided(%a : memref<10xf32>) {
+    %r = acc.firstprivate varPtr(%a : memref<10xf32>) recipe(@fp_min) -> memref<10xf32> {dataClause = #acc<data_clause acc_firstprivate>}
+    func.return
+  }
+  // CHECK:       func.func @firstprivate_dataclause_default_elided(
+  // CHECK:         %{{.*}} = acc.firstprivate varPtr(%{{.*}} : memref<10xf32>) recipe(@fp_min) -> memref<10xf32>
+  // CHECK-NOT:     dataClause
+
+  // `acc.firstprivate_map` shares the `acc_firstprivate` user-level
+  // clause with `acc.firstprivate`, so its default is also
+  // `acc_firstprivate`. Load-bearing under interop — if either xDSL or
+  // mlir-opt thought the default was the op-name-derived value, the
+  // elision would fail.
+  func.func @firstprivate_map_dataclause_default_elided(%a : memref<10xf32>) {
+    %r = acc.firstprivate_map varPtr(%a : memref<10xf32>) -> memref<10xf32> {dataClause = #acc<data_clause acc_firstprivate>}
+    func.return
+  }
+  // CHECK:       func.func @firstprivate_map_dataclause_default_elided(
+  // CHECK:         %{{.*}} = acc.firstprivate_map varPtr(%{{.*}} : memref<10xf32>) -> memref<10xf32>
+  // CHECK-NOT:     dataClause
+
+  func.func @reduction_dataclause_default_elided(%a : memref<10xf32>) {
+    %r = acc.reduction varPtr(%a : memref<10xf32>) recipe(@red_add_i64) -> memref<10xf32> {dataClause = #acc<data_clause acc_reduction>}
+    func.return
+  }
+  // CHECK:       func.func @reduction_dataclause_default_elided(
+  // CHECK:         %{{.*}} = acc.reduction varPtr(%{{.*}} : memref<10xf32>) recipe(@red_add_i64) -> memref<10xf32>
+  // CHECK-NOT:     dataClause
+
   // Privatization recipes — top-level Symbol ops. Pretty form is
   // `@sym : type init { ... } [destroy { ... }]?` (and `copy {...}` between
   // for firstprivate). Both MLIR_ROUNDTRIP and MLIR_GENERIC_ROUNDTRIP must

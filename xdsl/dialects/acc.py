@@ -1807,6 +1807,80 @@ class UpdateDeviceOp(_DataEntryOperation):
 
 
 # ---------------------------------------------------------------------------
+# Privatization data-clause ops
+# ---------------------------------------------------------------------------
+#
+# `acc.private`, `acc.firstprivate`, `acc.firstprivate_map`, and
+# `acc.reduction` are all `OpenACC_DataEntryOp` instances upstream — same
+# operands and properties as the entry data-clause ops above, with the
+# leaves differing only in `name` and the per-op `dataClause` default. The
+# associated reduction operator is not carried on `acc.reduction` itself;
+# it lives on the `acc.reduction.recipe` referenced via the inherited
+# `recipe` SymbolRefAttr property. Both `acc.firstprivate` and
+# `acc.firstprivate_map` use `acc_firstprivate` as their `dataClause`
+# default — `firstprivate_map` is the decomposed mapping half of the
+# firstprivate clause and shares the user-level clause name.
+
+
+@irdl_op_definition
+class PrivateOp(_DataEntryOperation):
+    """Implementation of upstream acc.private."""
+
+    name = "acc.private"
+    data_clause = opt_prop_def(
+        DataClauseAttr,
+        default_value=DataClauseAttr(DataClause.ACC_PRIVATE),
+        prop_name="dataClause",
+    )
+
+
+@irdl_op_definition
+class FirstprivateOp(_DataEntryOperation):
+    """Implementation of upstream acc.firstprivate."""
+
+    name = "acc.firstprivate"
+    data_clause = opt_prop_def(
+        DataClauseAttr,
+        default_value=DataClauseAttr(DataClause.ACC_FIRSTPRIVATE),
+        prop_name="dataClause",
+    )
+
+
+@irdl_op_definition
+class FirstprivateMapOp(_DataEntryOperation):
+    """Implementation of upstream acc.firstprivate_map.
+
+    Used to decompose firstprivate semantics — represents the mapping of the
+    initial value used to initialize the privatized copies. Shares the
+    `acc_firstprivate` user-level clause with `acc.firstprivate`.
+    """
+
+    name = "acc.firstprivate_map"
+    data_clause = opt_prop_def(
+        DataClauseAttr,
+        default_value=DataClauseAttr(DataClause.ACC_FIRSTPRIVATE),
+        prop_name="dataClause",
+    )
+
+
+@irdl_op_definition
+class ReductionOp(_DataEntryOperation):
+    """Implementation of upstream acc.reduction.
+
+    The reduction operator (`add`, `mul`, `max`, ...) is carried on the
+    `acc.reduction.recipe` referenced via the inherited `recipe`
+    SymbolRefAttr property — not on the data-entry op itself.
+    """
+
+    name = "acc.reduction"
+    data_clause = opt_prop_def(
+        DataClauseAttr,
+        default_value=DataClauseAttr(DataClause.ACC_REDUCTION),
+        prop_name="dataClause",
+    )
+
+
+# ---------------------------------------------------------------------------
 # Exit data-clause ops
 # ---------------------------------------------------------------------------
 #
@@ -2515,6 +2589,10 @@ ACC = Dialect(
         DeclareLinkOp,
         GetDevicePtrOp,
         UpdateDeviceOp,
+        PrivateOp,
+        FirstprivateOp,
+        FirstprivateMapOp,
+        ReductionOp,
         CopyoutOp,
         UpdateHostOp,
         DeleteOp,
