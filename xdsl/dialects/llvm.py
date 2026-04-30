@@ -1901,7 +1901,7 @@ class ShuffleVectorOp(IRDLOperation):
         VectorType.constr(
             T,
             shape=ArrayAttr.constr(
-                RangeOf(base(IntAttr)).of_length(EqIntConstraint(1))
+                RangeOf(base(IntAttr)).of_length(1)
             ),
         ),
     )
