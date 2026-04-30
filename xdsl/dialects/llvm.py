@@ -15,7 +15,6 @@ from xdsl.dialects.builtin import (
     I64,
     AnyFloatConstr,
     ArrayAttr,
-    BoolAttr,
     DenseArrayBase,
     DenseIntOrFPElementsAttr,
     DictionaryAttr,
@@ -1888,16 +1887,11 @@ class ShuffleVectorOp(IRDLOperation):
     name = "llvm.shufflevector"
 
     T: ClassVar = VarConstraint("T", AnyAttr())
-    SHAPE: ClassVar = VarConstraint(
-        "SHAPE", irdl_to_attr_constraint(ArrayAttr[IntAttr])
-    )
-    SCALABLE: ClassVar = VarConstraint(
-        "SCALABLE", irdl_to_attr_constraint(ArrayAttr[BoolAttr])
-    )
+    VEC_TYPE: ClassVar = VarConstraint("VEC_TYPE", VectorType.constr(T))
     MASK: ClassVar = VarConstraint("MASK", irdl_to_attr_constraint(DenseArrayBase[I32]))
 
-    v1 = operand_def(VectorType.constr(T, shape=SHAPE, scalable_dims=SCALABLE))
-    v2 = operand_def(VectorType.constr(T, shape=SHAPE, scalable_dims=SCALABLE))
+    v1 = operand_def(VEC_TYPE)
+    v2 = operand_def(VEC_TYPE)
     mask = prop_def(MASK)
     res = result_def(_ShuffleVectorResultConstraint(T, MASK))
 
