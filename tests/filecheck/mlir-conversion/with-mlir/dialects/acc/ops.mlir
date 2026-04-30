@@ -678,6 +678,40 @@ builtin.module {
   // CHECK:       func.func @detach_minimal(
   // CHECK:         acc.detach accPtr(%{{.*}} : memref<10xf32>)
 
+  // `recipe(@sym)` interop: upstream's pretty-form spelling for the
+  // `recipe` SymbolRefAttr property. The `DataEntryOilist` directive's
+  // anchor on `$recipe` must produce the inline form that mlir-opt
+  // re-emits identically, otherwise the round-trip diverges.
+  func.func @copyin_with_recipe(%a : memref<10xf32>) {
+    %r = acc.copyin varPtr(%a : memref<10xf32>) recipe(@some_recipe) -> memref<10xf32>
+    func.return
+  }
+  // CHECK:       func.func @copyin_with_recipe(
+  // CHECK:         %{{.*}} = acc.copyin varPtr(%{{.*}} : memref<10xf32>) recipe(@some_recipe) -> memref<10xf32>
+
+  // Attr-dict spelling for `recipe` interop: xDSL's `ParsePropInAttrDict`
+  // fallback parses `{recipe = @sym}` and emits the inline `recipe(@sym)`
+  // form. mlir-opt re-emits the same inline form, so the round-trip lands
+  // bit-identical to the canonical pretty form.
+  func.func @copyin_recipe_attr_dict_input(%a : memref<10xf32>) {
+    %r = acc.copyin varPtr(%a : memref<10xf32>) -> memref<10xf32> {recipe = @some_recipe}
+    func.return
+  }
+  // CHECK:       func.func @copyin_recipe_attr_dict_input(
+  // CHECK:         %{{.*}} = acc.copyin varPtr(%{{.*}} : memref<10xf32>) recipe(@some_recipe) -> memref<10xf32>
+
+  // Order-free input interop: clauses written in non-canonical order on
+  // input get normalized to canonical td-definition order
+  // (varPtrPtr → bounds → async → recipe) by both xDSL and mlir-opt.
+  // Round-trips bit-identical even though the source spelling differs.
+  func.func @copyin_clauses_reordered(%a : memref<10xf32>, %p : memref<memref<10xf32>>, %c0 : index, %c9 : index) {
+    %b = acc.bounds lowerbound(%c0 : index) upperbound(%c9 : index)
+    %r = acc.copyin varPtr(%a : memref<10xf32>) recipe(@some_recipe) async bounds(%b) varPtrPtr(%p : memref<memref<10xf32>>) -> memref<10xf32>
+    func.return
+  }
+  // CHECK:       func.func @copyin_clauses_reordered(
+  // CHECK:         %{{.*}} = acc.copyin varPtr(%{{.*}} : memref<10xf32>) varPtrPtr(%{{.*}} : memref<memref<10xf32>>) bounds(%{{.*}}) async recipe(@some_recipe) -> memref<10xf32>
+
   // Privatization recipes — top-level Symbol ops. Pretty form is
   // `@sym : type init { ... } [destroy { ... }]?` (and `copy {...}` between
   // for firstprivate). Both MLIR_ROUNDTRIP and MLIR_GENERIC_ROUNDTRIP must
