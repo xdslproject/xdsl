@@ -1881,6 +1881,9 @@ class _ShuffleVectorResultConstraint(AttrConstraint[VectorType]):
 @irdl_op_definition
 class ShuffleVectorOp(IRDLOperation):
     """
+    Constructs a new 1D vector by selecting elements from two input vectors
+    according to a static mask of indices.
+
     See external [documentation](https://mlir.llvm.org/docs/Dialects/LLVM/#llvmshufflevector-llvmshufflevectorop).
     """
 
