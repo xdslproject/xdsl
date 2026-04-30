@@ -514,20 +514,15 @@ def _parse_dt_kw_only_body(
     if not parser.parse_optional_punctuation("("):
         return (), (), None, ArrayAttr([DeviceTypeAttr(DeviceType.NONE)])
 
-    keyword_only: ArrayAttr[DeviceTypeAttr] | None = None
-    needs_comma_before_operands = False
-    if parser.parse_optional_punctuation("["):
-        kw_only = parser.parse_comma_separated_list(
-            parser.Delimiter.NONE, lambda: _parse_device_type_attr(parser)
-        )
-        parser.parse_punctuation("]")
-        keyword_only = ArrayAttr(kw_only)
-        needs_comma_before_operands = True
+    kw_only = parser.parse_optional_comma_separated_list(
+        parser.Delimiter.SQUARE, lambda: _parse_device_type_attr(parser)
+    )
+    keyword_only = ArrayAttr(kw_only) if kw_only is not None else None
 
     if parser.parse_optional_punctuation(")"):
         return (), (), None, keyword_only
 
-    if needs_comma_before_operands:
+    if keyword_only is not None:
         parser.parse_punctuation(",")
 
     triples = parser.parse_comma_separated_list(
