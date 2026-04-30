@@ -2379,7 +2379,7 @@ class ConstantOp(IRDLOperation):
         if b is not None:
             return IntegerAttr.from_bool(b)
         attr = parser.parse_optional_attribute()
-        if attr:
+        if attr is not None:
             return attr
         return IntegerAttr(parser.parse_integer(), 64)
 
