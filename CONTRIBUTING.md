@@ -237,9 +237,10 @@ We aim to follow these rules for all changes in this repository:
 - We fail fast by detecting unexpected conditions immediately and raising exceptions
   rather than corrupting state, as this makes debugging easier.
 
-- We use `is not None` to check Optional values, not truthiness (`if x:`), because many
-  xDSL types define `__bool__` and truthiness silently skips valid falsy values. In other
-  cases, prefer truthiness over `len` as `__bool__` is often O(1).
+- We use truthiness (`if x:`) instead of length checks (`len(x) == 0`), as `__bool__`
+  is often O(1). The one exception is Optional values: use `is not None` instead of
+  truthiness, because many xDSL types define `__bool__` and truthiness silently skips
+  valid falsy values.
 
 - We follow the Python philosophy of
   "[ask for forgiveness not permission](https://docs.python.org/3/glossary.html#term-EAFP)":
