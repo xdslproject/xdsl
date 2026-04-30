@@ -1900,9 +1900,7 @@ class ShuffleVectorOp(IRDLOperation):
         "VEC_TYPE",
         VectorType.constr(
             T,
-            shape=ArrayAttr.constr(
-                RangeOf(base(IntAttr)).of_length(1)
-            ),
+            shape=ArrayAttr.constr(RangeOf(base(IntAttr)).of_length(1)),
         ),
     )
     MASK: ClassVar = VarConstraint("MASK", irdl_to_attr_constraint(DenseArrayBase[I32]))
@@ -1915,6 +1913,18 @@ class ShuffleVectorOp(IRDLOperation):
     traits = traits_def(NoMemoryEffect())
 
     assembly_format = "$v1 `,` $v2 $mask attr-dict `:` type($v1)"
+
+    def verify_(self) -> None:
+        v1_type = cast(VectorType, self.v1.type)
+        v1_size = v1_type.get_shape()[0]
+        v2_type = cast(VectorType, self.v2.type)
+        v2_size = v2_type.get_shape()[0]
+        dim_bound = v1_size + v2_size
+        for idx in self.mask.iter_values():
+            if not (-1 <= idx < dim_bound):
+                raise VerifyException(
+                    f"Mask value {idx} out of range [-1, {dim_bound})"
+                )
 
     def __init__(
         self,

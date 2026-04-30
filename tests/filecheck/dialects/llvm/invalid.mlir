@@ -163,3 +163,14 @@ func.func @insertelement_2d_vector() {
 
 // CHECK: incorrect length for range variable:
 // CHECK-NEXT: Invalid value 2, expected 1
+
+// -----
+
+func.func @shufflevector_mask_out_of_range() {
+  %v1 = "test.op"() : () -> vector<2xf32>
+  %v2 = "test.op"() : () -> vector<2xf32>
+  %shuf = llvm.shufflevector %v1, %v2 [0, 5] : vector<2xf32>
+  func.return
+}
+
+// CHECK: Mask value 5 out of range [-1, 4)
