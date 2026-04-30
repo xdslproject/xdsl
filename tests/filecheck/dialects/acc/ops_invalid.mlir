@@ -47,10 +47,9 @@ func.func @serial_wrong_terminator(%arg0: i32) {
 
 // -----
 
-// acc.kernels uses upstream's NoTerminator body modeling (AnyRegion with no
-// implicit terminator), so empty blocks and non-terminator final ops are
-// accepted; the only verifier failure unique to that trait is a multi-block
-// region.
+// acc.kernels uses `SingleBlockImplicitTerminator(TerminatorOp)`: a multi-
+// block region fails the single-block check before terminator handling can
+// run, so this case still exercises that trait branch.
 func.func @kernels_multi_block() {
   "acc.kernels"() <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0>}> ({
   ^bb0:
@@ -60,6 +59,45 @@ func.func @kernels_multi_block() {
   func.return
 }
 // CHECK: 'acc.kernels' does not contain single-block regions
+
+// -----
+
+// Generic-form region with a single, empty block — the implicit-terminator
+// trait expects at least a terminator. (Pretty form auto-inserts the
+// terminator; this generic spelling bypasses that helper.)
+func.func @kernels_empty_block() {
+  "acc.kernels"() <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0>}> ({
+  ^bb0:
+  }) : () -> ()
+  func.return
+}
+// CHECK: Operation acc.kernels contains empty block in single-block region that expects at least a terminator
+
+// -----
+
+// Final op in the body is not a terminator at all — caught by the generic
+// "must end in a terminator" check.
+func.func @kernels_wrong_terminator(%arg0: i32) {
+  "acc.kernels"() <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0>}> ({
+    %0 = "builtin.unrealized_conversion_cast"(%arg0) : (i32) -> i32
+  }) : () -> ()
+  func.return
+}
+// CHECK: Operation builtin.unrealized_conversion_cast terminates block in single-block region but is not a terminator
+
+// -----
+
+// Final op IS a terminator (`test.termop` carries `IsTerminator()`) but is
+// not the specific terminator type required — directly exercises
+// `SingleBlockImplicitTerminator(TerminatorOp)`'s type-mismatch branch and
+// proves the trait was wired against `acc.terminator` specifically.
+func.func @kernels_wrong_terminator_type() {
+  "acc.kernels"() <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0>}> ({
+    "test.termop"() : () -> ()
+  }) : () -> ()
+  func.return
+}
+// CHECK: 'acc.kernels' terminates with operation test.termop instead of acc.terminator
 
 // -----
 
