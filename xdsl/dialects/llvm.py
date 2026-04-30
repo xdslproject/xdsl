@@ -60,6 +60,7 @@ from xdsl.irdl import (
     AttrConstraint,
     AttrSizedOperandSegments,
     ConstraintContext,
+    EqIntConstraint,
     IntConstraint,
     IRDLOperation,
     ParsePropInAttrDict,
@@ -1854,7 +1855,12 @@ class _ShuffleVectorResultConstraint(AttrConstraint[VectorType]):
     mask_constr: VarConstraint
 
     def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
-        VectorType.constr(self.element_constr).verify(attr, constraint_context)
+        VectorType.constr(
+            self.element_constr,
+            shape=ArrayAttr.constr(
+                RangeOf(base(IntAttr)).of_length(EqIntConstraint(1))
+            ),
+        ).verify(attr, constraint_context)
 
     def can_infer(self, var_constraint_names: AbstractSet[str]) -> bool:
         return (
@@ -1890,7 +1896,15 @@ class ShuffleVectorOp(IRDLOperation):
     name = "llvm.shufflevector"
 
     T: ClassVar = VarConstraint("T", AnyAttr())
-    VEC_TYPE: ClassVar = VarConstraint("VEC_TYPE", VectorType.constr(T))
+    VEC_TYPE: ClassVar = VarConstraint(
+        "VEC_TYPE",
+        VectorType.constr(
+            T,
+            shape=ArrayAttr.constr(
+                RangeOf(base(IntAttr)).of_length(EqIntConstraint(1))
+            ),
+        ),
+    )
     MASK: ClassVar = VarConstraint("MASK", irdl_to_attr_constraint(DenseArrayBase[I32]))
 
     v1 = operand_def(VEC_TYPE)
