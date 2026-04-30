@@ -359,6 +359,14 @@ def test_kernels_init_bool_shortcuts():
     assert op_off.combined is None
 
 
+def test_terminator_construction():
+    """TerminatorOp's `__init__` is unreachable from the round-trip parser
+    (declarative `attr-dict` builds the op via IRDL's generic constructor),
+    so its body lives or dies by a Python-side construction call."""
+    term = acc.TerminatorOp()
+    assert term.name == "acc.terminator"
+
+
 def test_data_clause_modifier_attr_constructor():
     """The bit-enum constructor accepts a frozenset of enum members and stores
     it on `.data`. Pretty-form printing/parsing is covered by filecheck in
