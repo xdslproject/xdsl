@@ -1225,4 +1225,53 @@ builtin.module {
   }, {
   }) : () -> ()
   // CHECK-LABEL: acc.firstprivate.recipe @fp_generic : memref<10xf32> init {
+
+  // Reduction recipe — same Symbol / IsolatedFromAbove shape as the
+  // private / firstprivate recipes plus a `reductionOperator` property.
+  // The pretty form spells the operator inline as `<add>` (just the enum
+  // value), matching upstream's `assemblyFormat = "`<` $value `>`"` on the
+  // `ReductionOpKindAttr`. The full `#acc.reduction_operator<add>`
+  // opaque form only appears in the generic / attr-dict spellings.
+  acc.reduction.recipe @red_add_i64 : i64 reduction_operator <add> init {
+  ^bb0(%arg0: i64):
+    %c0 = arith.constant 0 : i64
+    acc.yield %c0 : i64
+  } combiner {
+  ^bb0(%arg0: i64, %arg1: i64):
+    %r = arith.addi %arg0, %arg1 : i64
+    acc.yield %r : i64
+  }
+  // CHECK-LABEL: acc.reduction.recipe @red_add_i64 : i64 reduction_operator <add> init {
+  // CHECK:         } combiner {
+  // CHECK-NEXT:    ^{{.*}}(%{{.*}}: i64, %{{.*}}: i64):
+  // CHECK:           acc.yield %{{.*}} : i64
+  // CHECK-NEXT:    }
+
+  acc.reduction.recipe @red_max_f32 : f32 reduction_operator <max> init {
+  ^bb0(%arg0: f32):
+    acc.yield %arg0 : f32
+  } combiner {
+  ^bb0(%arg0: f32, %arg1: f32):
+    acc.yield %arg0 : f32
+  } destroy {
+  ^bb0(%arg0: f32):
+    acc.yield
+  }
+  // CHECK-LABEL: acc.reduction.recipe @red_max_f32 : f32 reduction_operator <max> init {
+  // CHECK:         } combiner {
+  // CHECK:         } destroy {
+
+  // Generic-form roundtrip insurance for the reduction recipe — the
+  // `reductionOperator` rides as `#acc.reduction_operator<add>` in the
+  // properties dict (the long opaque form), and the optional `destroy`
+  // region is always present in `op.regions` even when empty.
+  "acc.reduction.recipe"() <{sym_name = "red_generic", type = i64, reductionOperator = #acc.reduction_operator<add>}> ({
+  ^bb0(%arg0: i64):
+    "acc.yield"(%arg0) : (i64) -> ()
+  }, {
+  ^bb1(%arg1: i64, %arg2: i64):
+    "acc.yield"(%arg1) : (i64) -> ()
+  }, {
+  }) : () -> ()
+  // CHECK-LABEL: acc.reduction.recipe @red_generic : i64 reduction_operator <add> init {
 }

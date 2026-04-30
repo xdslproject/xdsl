@@ -16,6 +16,7 @@ from xdsl.dialects.builtin import (
     f32,
     i1,
     i32,
+    i64,
 )
 from xdsl.dialects.test import TestOp
 from xdsl.ir import Block, Region
@@ -520,6 +521,34 @@ def test_private_recipe_builder_shortcuts():
     assert op.var_type == i32
     assert len(op.init_region.blocks) == 1
     # `destroy_region=None` defaults to an empty Region, not absent.
+    assert len(op.destroy_region.blocks) == 0
+
+
+def test_reduction_recipe_builder_shortcuts():
+    """The Python `__init__` accepts `str` for `sym_name` and a
+    `ReductionOpKind` value for `reduction_operator`, defaulting a missing
+    `destroy_region` to an empty `Region()`. All three branches are
+    builder-only — the parser only sees an already-built `StringAttr`,
+    a `ReductionOpKindAttr`, and (via the optional format clause) either
+    a parsed region or no region argument at all — so they live here."""
+    init_block = Block(arg_types=[i64])
+    init_block.add_op(acc.YieldOp(init_block.args[0]))
+    combiner_block = Block(arg_types=[i64, i64])
+    combiner_block.add_op(acc.YieldOp(combiner_block.args[0]))
+    op = acc.ReductionRecipeOp(
+        sym_name="red",
+        var_type=i64,
+        reduction_operator=acc.ReductionOpKind.ADD,
+        init_region=Region([init_block]),
+        combiner_region=Region([combiner_block]),
+    )
+    op.verify()
+
+    assert op.sym_name == StringAttr("red")
+    assert op.var_type == i64
+    assert op.reduction_operator == acc.ReductionOpKindAttr(acc.ReductionOpKind.ADD)
+    assert len(op.init_region.blocks) == 1
+    assert len(op.combiner_region.blocks) == 1
     assert len(op.destroy_region.blocks) == 0
 
 
