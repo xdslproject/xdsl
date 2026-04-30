@@ -406,7 +406,7 @@ def _convert_call_intrinsic(
 ):
     if op.op_bundle_operands:
         raise NotImplementedError("Operand bundles not supported")
-    if op.fastmathFlags is not None and any(op.fastmathFlags.data):
+    if any(op.fastmathFlags.data):
         raise NotImplementedError("Fast-math flags not supported")
     args = [val_map[arg] for arg in op.args]
     arg_types = [a.type for a in args]
