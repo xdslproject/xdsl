@@ -894,6 +894,30 @@ builtin.module {
   // CHECK-NEXT:   ret <2 x double> %"[[RES]]"
   // CHECK-NEXT: }
 
+  llvm.func @call_intrinsic_fma(%arg0: vector<4xf32>, %arg1: vector<4xf32>, %arg2: vector<4xf32>) -> vector<4xf32> {
+    %0 = llvm.call_intrinsic "llvm.fma.v4f32"(%arg0, %arg1, %arg2) : (vector<4xf32>, vector<4xf32>, vector<4xf32>) -> vector<4xf32>
+    llvm.return %0 : vector<4xf32>
+  }
+
+  // CHECK: define <4 x float> @"call_intrinsic_fma"(<4 x float> %".1", <4 x float> %".2", <4 x float> %".3")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: [[ENTRY:.\d+]]:
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = call <4 x float> @"llvm.fma.v4f32"(<4 x float> %".1", <4 x float> %".2", <4 x float> %".3")
+  // CHECK-NEXT:   ret <4 x float> %"[[RES]]"
+  // CHECK-NEXT: }
+
+  llvm.func @call_intrinsic_void(%arg0: i32) {
+    llvm.call_intrinsic "llvm.donothing"(%arg0) : (i32) -> ()
+    llvm.return
+  }
+
+  // CHECK: define void @"call_intrinsic_void"(i32 %".1")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: [[ENTRY:.\d+]]:
+  // CHECK-NEXT:   call void @"llvm.donothing"(i32 %".1")
+  // CHECK-NEXT:   ret void
+  // CHECK-NEXT: }
+
   llvm.func @callee(!llvm.ptr)
 
   llvm.func @addressof_target() {

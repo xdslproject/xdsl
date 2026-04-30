@@ -399,6 +399,32 @@ def _convert_addressof(
     val_map[op.result] = builder.module.get_global(op.global_name.root_reference.data)
 
 
+def _convert_call_intrinsic(
+    op: llvm.CallIntrinsicOp,
+    builder: ir.IRBuilder,
+    val_map: dict[SSAValue, ir.Value],
+):
+    if op.op_bundle_operands:
+        raise NotImplementedError("Operand bundles not supported")
+    if op.fastmathFlags is not None and any(op.fastmathFlags.data):
+        raise NotImplementedError("Fast-math flags not supported")
+    args = [val_map[arg] for arg in op.args]
+    arg_types = [a.type for a in args]
+    name = op.intrin.data
+    if op.ress is not None:
+        ret_type = convert_type(op.ress.type)
+    else:
+        ret_type = ir.VoidType()
+    fn_type = ir.FunctionType(ret_type, arg_types)
+    try:
+        intrinsic = builder.module.get_global(name)
+    except KeyError:
+        intrinsic = ir.Function(builder.module, fn_type, name=name)
+    result = builder.call(intrinsic, args)
+    if op.ress is not None:
+        val_map[op.ress] = result
+
+
 def _convert_broadcast(
     op: vector.BroadcastOp,
     builder: ir.IRBuilder,
@@ -512,6 +538,8 @@ def convert_op(
             val_map[op.res] = ir.Constant(convert_type(op.res.type), ir.Undefined)
         case llvm.AddressOfOp():
             _convert_addressof(op, builder, val_map)
+        case llvm.CallIntrinsicOp():
+            _convert_call_intrinsic(op, builder, val_map)
         case FMAOp():
             _convert_fma(op, builder, val_map)
         case vector.BroadcastOp():
