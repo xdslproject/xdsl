@@ -6,6 +6,7 @@ import pytest
 from xdsl.backend.llvm.convert_op import convert_op
 from xdsl.dialects import llvm
 from xdsl.dialects.builtin import i32
+from xdsl.dialects.utils import FastMathFlag
 from xdsl.ir import Block, SSAValue
 
 
@@ -22,6 +23,25 @@ def test_convert_indirect_call_raises():
 
     with pytest.raises(NotImplementedError, match="Indirect calls not yet implemented"):
         convert_op(op, builder, val_map)
+
+
+def test_call_intrinsic_op_bundle_raises():
+    block = Block(arg_types=[i32])
+    arg = block.args[0]
+    op = llvm.CallIntrinsicOp("llvm.donothing", [arg], [], op_bundle_operands=[arg])
+
+    with pytest.raises(NotImplementedError, match="Operand bundles not supported"):
+        convert_op(op, MagicMock(), {arg: MagicMock()})
+
+
+def test_call_intrinsic_fastmath_raises():
+    block = Block(arg_types=[i32])
+    arg = block.args[0]
+    op = llvm.CallIntrinsicOp("llvm.donothing", [arg], [])
+    op.properties["fastmathFlags"] = llvm.FastMathAttr([FastMathFlag.NO_NANS])
+
+    with pytest.raises(NotImplementedError, match="Fast-math flags not supported"):
+        convert_op(op, MagicMock(), {arg: MagicMock()})
 
 
 def test_convert_zero():
