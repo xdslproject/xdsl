@@ -1407,4 +1407,31 @@ builtin.module {
   }, {
   }) : () -> ()
   // CHECK-LABEL: acc.reduction.recipe @red_generic : i64 reduction_operator <add> init {
+
+  // acc.terminator is the value-less generic terminator. It currently only
+  // permits `acc.kernels` as a parent (per HasParent on TerminatorOp); other
+  // region ops in the OpenACC dialect (acc.data, acc.host_data, …) will be
+  // appended to the parent tuple as they land.
+  func.func @terminator_inside_kernels() {
+    acc.kernels {
+      acc.terminator
+    }
+    func.return
+  }
+  // CHECK-LABEL: func.func @terminator_inside_kernels() {
+  // CHECK-NEXT:    acc.kernels {
+  // CHECK-NEXT:      acc.terminator
+  // CHECK-NEXT:    }
+
+  // Generic-form roundtrip insurance for the value-less terminator.
+  func.func @terminator_generic_roundtrip_retained() {
+    acc.kernels {
+      "acc.terminator"() : () -> ()
+    }
+    func.return
+  }
+  // CHECK-LABEL: func.func @terminator_generic_roundtrip_retained() {
+  // CHECK-NEXT:    acc.kernels {
+  // CHECK-NEXT:      acc.terminator
+  // CHECK-NEXT:    }
 }

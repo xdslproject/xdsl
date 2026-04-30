@@ -1401,9 +1401,10 @@ class KernelsOp(IRDLOperation):
         WaitClause,
     )
 
-    # Upstream `acc.kernels` body uses `acc.terminator` rather than `acc.yield`
-    # That will be supported later, until that op exists we accept any (or empty)
-    # body via NoTerminator, mirroring upstream's `AnyRegion` modeling.
+    # Upstream `acc.kernels` body uses `acc.terminator` rather than `acc.yield`.
+    # The terminator op is now defined (`TerminatorOp`) but kernels still uses
+    # `NoTerminator` here — switching to `SingleBlockImplicitTerminator(TerminatorOp)`
+    # is a follow-up stage that updates the existing empty-body tests.
     assembly_format = (
         "(`combined` `(` `loop` `)` $combined^)?"
         " (`dataOperands` `(` $data_clause_operands^ `:`"
@@ -2543,6 +2544,30 @@ class ReductionRecipeOp(_RecipeOperation):
 
 
 @irdl_op_definition
+class TerminatorOp(IRDLOperation):
+    """
+    Implementation of upstream acc.terminator. Generic, value-less terminator
+    used by OpenACC region ops whose bodies do not return a value.
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenACCDialect/#accterminator-accterminatorop).
+    """
+
+    name = "acc.terminator"
+
+    assembly_format = "attr-dict"
+
+    traits = lazy_traits_def(
+        lambda: (
+            IsTerminator(),
+            NoMemoryEffect(),
+            HasParent(KernelsOp),
+        )
+    )
+
+    def __init__(self) -> None:
+        super().__init__()
+
+
+@irdl_op_definition
 class YieldOp(AbstractYieldOperation[Attribute]):
     """
     Implementation of upstream acc.yield.
@@ -2600,6 +2625,7 @@ ACC = Dialect(
         PrivateRecipeOp,
         FirstprivateRecipeOp,
         ReductionRecipeOp,
+        TerminatorOp,
         YieldOp,
     ],
     [

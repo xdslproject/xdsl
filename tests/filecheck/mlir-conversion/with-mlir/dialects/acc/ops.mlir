@@ -882,4 +882,19 @@ builtin.module {
   // CHECK:       acc.reduction.recipe @red_max_f32 : f32 reduction_operator <max> init {
   // CHECK:         } combiner {
   // CHECK:         } destroy {
+
+  // acc.terminator round-trips (pretty + generic) through mlir-opt's OpenACC
+  // dialect. Upstream `acc.kernels` actually models its body via
+  // `SingleBlockImplicitTerminator<"TerminatorOp">`, so mlir-opt re-emits the
+  // body with the terminator on its own line.
+  func.func @terminator_inside_kernels() {
+    acc.kernels {
+      acc.terminator
+    }
+    func.return
+  }
+  // CHECK:       func.func @terminator_inside_kernels() {
+  // CHECK-NEXT:    acc.kernels {
+  // CHECK-NEXT:      acc.terminator
+  // CHECK-NEXT:    }
 }

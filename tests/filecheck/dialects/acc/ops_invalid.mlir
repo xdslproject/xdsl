@@ -229,3 +229,13 @@ func.func @copyin_duplicate_recipe(%a : memref<10xf32>) {
   func.return
 }
 // CHECK: 'recipe' clause specified twice
+
+// -----
+
+// acc.terminator's HasParent constraint accepts only acc.kernels (additional
+// region ops will be appended in later stages); using it directly under a
+// `func.func` must fail the parent check.
+func.func @terminator_wrong_parent() {
+  "acc.terminator"() : () -> ()
+}
+// CHECK: 'acc.terminator' expects parent op 'acc.kernels'
