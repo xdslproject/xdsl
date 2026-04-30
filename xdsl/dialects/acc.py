@@ -653,9 +653,9 @@ class NumGangs(CustomDirective):
         self.operand_types.set(state, ())
 
     def parse(self, parser: Parser, state: ParsingState) -> bool:
-        groups = [_parse_num_gangs_group(parser)]
-        while parser.parse_optional_punctuation(","):
-            groups.append(_parse_num_gangs_group(parser))
+        groups = parser.parse_comma_separated_list(
+            parser.Delimiter.NONE, lambda: _parse_num_gangs_group(parser)
+        )
         operands, types, dts, segs = _flatten_groups(groups)
         self.operands.set(state, operands)
         self.operand_types.set(state, types)
@@ -725,17 +725,16 @@ class WaitClause(CustomDirective):
             self.operand_types.set(state, ())
             return True
 
-        if parser.parse_optional_punctuation("["):
-            kw_only = parser.parse_comma_separated_list(
-                parser.Delimiter.NONE, lambda: _parse_device_type_attr(parser)
-            )
-            parser.parse_punctuation("]")
+        kw_only = parser.parse_optional_comma_separated_list(
+            parser.Delimiter.SQUARE, lambda: _parse_device_type_attr(parser)
+        )
+        if kw_only is not None:
             self.keyword_only.set(state, ArrayAttr(kw_only))
             parser.parse_punctuation(",")
 
-        groups = [_parse_wait_group(parser)]
-        while parser.parse_optional_punctuation(","):
-            groups.append(_parse_wait_group(parser))
+        groups = parser.parse_comma_separated_list(
+            parser.Delimiter.NONE, lambda: _parse_wait_group(parser)
+        )
         parser.parse_punctuation(")")
 
         all_operands: list[UnresolvedOperand] = []
