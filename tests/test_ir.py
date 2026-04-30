@@ -1428,6 +1428,57 @@ def test_detach_op_different_block():
         block2.detach_op(op)
 
 
+def test_region_drop_all_references():
+    """Test that Region.drop_all_references removes all references from the region."""
+
+    block1 = Block([])
+    block2 = Block([])
+    region = Region([block1, block2])
+    op = test.TestOp(regions=[region])
+
+    region.drop_all_references()
+
+    assert len(op.regions) == 1  # references from above are not dropped
+    assert region.parent is None  # references from the region and below are
+
+
+def test_region_erase():
+    """Test that Region.erase leaves the Region fully detached."""
+
+    block1 = Block([])
+    block2 = Block([])
+    region = Region([block1, block2])
+    op = test.TestOp(regions=[region])
+
+    with pytest.raises(AssertionError):
+        region.erase()
+
+    op.detach_region(region)
+
+    assert len(op.regions) == 0  # references from above are dropped by when detaching
+    assert region.parent is None  # reference to a parent are removed when detaching
+
+    region.erase()
+
+
+def test_block_drop_all_references():
+    """Test that Block.drop_all_references leaves the block with no op references."""
+    op1 = test.TestOp()
+    op2 = test.TestOp()
+    op3 = test.TestOp(result_types=(test.TestType("t3"),))
+    op4 = test.TestOp(operands=op3.res)
+    block = Block([op1, op2, op3])
+
+    block.erase()
+
+    assert block.first_op is None
+    assert block.last_op is None
+    for op in (op1, op2, op3):
+        assert op.next_op is None
+        assert op.prev_op is None
+    assert len(op4.operands) == 0
+
+
 def test_block_verify_parent_pointer_mismatch():
     """Test that Block.verify raises ValueError when op parent is wrong."""
     op = test.TestOp.create()
