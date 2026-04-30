@@ -684,3 +684,16 @@ def test_shuffle_vector_op():
     assert op.v2 == v2
     assert op.mask is mask
     assert op.res.type == vec_type
+
+
+def test_shuffle_vector_op_different_sizes():
+    input_type = builtin.VectorType(builtin.f32, [4])
+    result_type = builtin.VectorType(builtin.f32, [2])
+    v1 = create_ssa_value(input_type)
+    v2 = create_ssa_value(input_type)
+    mask = builtin.DenseArrayBase.from_list(builtin.i32, [0, 5])
+    op = llvm.ShuffleVectorOp(v1, v2, mask, result_type)
+    assert op.v1 == v1
+    assert op.v2 == v2
+    assert op.mask is mask
+    assert op.res.type == result_type

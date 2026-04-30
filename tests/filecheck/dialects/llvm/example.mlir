@@ -107,6 +107,10 @@ builtin.module {
 // CHECK-NEXT: %vec2 = "test.op"() : () -> vector<4xf32>
 // CHECK-NEXT: %shuf = llvm.shufflevector %vec1, %vec2 [0, 1, 2, 3] : vector<4xf32>
 
+  %shuf2 = llvm.shufflevector %vec1, %vec2 [0, 5] : vector<4xf32>
+
+// CHECK-NEXT: %shuf2 = llvm.shufflevector %vec1, %vec2 [0, 5] : vector<4xf32>
+
   llvm.unreachable {my_attr}
 
 // CHECK-NEXT: llvm.unreachable {my_attr}
