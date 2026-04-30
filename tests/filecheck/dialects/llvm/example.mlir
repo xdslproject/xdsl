@@ -99,6 +99,14 @@ builtin.module {
 
 // CHECK-NEXT: %fval3 = llvm.fpext %fval : f32 to f64
 
+  %vec1 = "test.op"() : () -> vector<4xf32>
+  %vec2 = "test.op"() : () -> vector<4xf32>
+  %shuf = llvm.shufflevector %vec1, %vec2 [0, 1, 2, 3] : vector<4xf32>
+
+// CHECK-NEXT: %vec1 = "test.op"() : () -> vector<4xf32>
+// CHECK-NEXT: %vec2 = "test.op"() : () -> vector<4xf32>
+// CHECK-NEXT: %shuf = llvm.shufflevector %vec1, %vec2 [0, 1, 2, 3] : vector<4xf32>
+
   llvm.unreachable {my_attr}
 
 // CHECK-NEXT: llvm.unreachable {my_attr}

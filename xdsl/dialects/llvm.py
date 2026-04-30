@@ -1802,6 +1802,78 @@ class UndefOp(IRDLOperation):
         super().__init__(result_types=[result_type])
 
 
+@irdl_op_definition
+class ShuffleVectorOp(IRDLOperation):
+    """
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/LLVM/#llvmshufflevector-llvmshufflevectorop).
+    """
+
+    name = "llvm.shufflevector"
+
+    T: ClassVar = VarConstraint("T", VectorType.constr())
+
+    v1 = operand_def(T)
+    v2 = operand_def(T)
+    mask = prop_def(DenseArrayBase.constr(i32))
+    res = result_def(VectorType)
+
+    traits = traits_def(NoMemoryEffect())
+
+    def __init__(
+        self,
+        v1: Operation | SSAValue,
+        v2: Operation | SSAValue,
+        mask: DenseArrayBase[IntegerType],
+        result_type: Attribute | None = None,
+    ):
+        if result_type is None:
+            v1_type = cast(VectorType[Attribute], SSAValue.get(v1).type)
+            result_type = VectorType(v1_type.element_type, [len(mask)])
+        super().__init__(
+            operands=[v1, v2],
+            result_types=[result_type],
+            properties={"mask": mask},
+        )
+
+    def print(self, printer: Printer) -> None:
+        printer.print_string(" ")
+        printer.print_ssa_value(self.v1)
+        printer.print_string(", ")
+        printer.print_ssa_value(self.v2)
+        printer.print_string(" [")
+        printer.print_list(self.mask.iter_values(), printer.print_int)
+        printer.print_string("]")
+        printer.print_op_attributes(self.attributes, reserved_attr_names=("mask",))
+        printer.print_string(" : ")
+        printer.print_attribute(self.v1.type)
+
+    @classmethod
+    def parse(cls, parser: Parser) -> ShuffleVectorOp:
+        v1 = parser.parse_unresolved_operand()
+        parser.parse_punctuation(",")
+        v2 = parser.parse_unresolved_operand()
+        mask_values = parser.parse_comma_separated_list(
+            parser.Delimiter.SQUARE,
+            lambda: parser.parse_integer(allow_boolean=False),
+        )
+        attributes = parser.parse_optional_attr_dict()
+        parser.parse_punctuation(":")
+        v1_type = parser.parse_type()
+        if not isinstance(v1_type, VectorType):
+            parser.raise_error("expected vector type")
+        v1_type = cast(VectorType[Attribute], v1_type)
+        mask = DenseArrayBase.from_list(i32, mask_values)
+        result_type = VectorType(v1_type.element_type, [len(mask_values)])
+        op = cls(
+            parser.resolve_operand(v1, v1_type),
+            parser.resolve_operand(v2, v1_type),
+            mask,
+            result_type,
+        )
+        op.attributes |= attributes
+        return op
+
+
 UNNAMED_ADDR_KEYWORD_BY_KEY: dict[int, str] = {
     1: "local_unnamed_addr",
     2: "unnamed_addr",
@@ -1821,6 +1893,7 @@ UNNAMED_ADDR_KEY_BY_KEYWORD: dict[str, int] = {
 """Reverse mapping from keyword string to integer key."""
 
 
+# TODO: custom assembly format https://github.com/xdslproject/xdsl/issues/5897
 @irdl_op_definition
 class GlobalOp(IRDLOperation):
     name = "llvm.mlir.global"
@@ -3215,6 +3288,7 @@ LLVM = Dialect(
         SIToFPOp,
         SRemOp,
         ShlOp,
+        ShuffleVectorOp,
         StoreOp,
         SubOp,
         TruncOp,
