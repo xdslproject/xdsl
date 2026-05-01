@@ -33,6 +33,7 @@ from xdsl.irdl import (
 )
 from xdsl.parser import Parser
 from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.hints import assert_isa
 from xdsl.utils.test_value import create_ssa_value
 
 
@@ -1426,6 +1427,62 @@ def test_detach_op_different_block():
         ValueError, match="Cannot detach operation from a different block."
     ):
         block2.detach_op(op)
+
+
+def test_region_drop_all_references():
+    """Test that Region.drop_all_references removes all references from the region."""
+
+    block1 = Block([])
+    block2 = Block([])
+    region = Region([block1, block2])
+    op = test.TestOp(regions=[region])
+
+    region.drop_all_references()
+
+    assert len(op.regions) == 1  # references from above are not dropped
+    assert region.parent is None  # references from the region and below are
+
+
+def test_region_erase():
+    """Test that Region.erase requires being detached first and removes uses of inner ops."""
+    op1 = test.TestOp(result_types=(test.TestType("T1"),))
+    operand = op1.res[0]
+    op2 = test.TestOp(operands=(operand,))
+    block1 = Block([op2])
+    block2 = Block([])
+    region = Region([block1, block2])
+    op = test.TestOp(regions=[region])
+
+    assert operand.uses.get_length() == 1
+
+    with pytest.raises(AssertionError):
+        region.erase()
+    assert operand.uses.get_length() == 1
+    op.detach_region(region)
+    assert operand.uses.get_length() == 1
+    assert len(op.regions) == 0  # references from above are dropped by when detaching
+    assert region.parent is None  # reference to a parent are removed when detaching
+
+    region.erase()
+    assert operand.uses.get_length() == 0
+
+
+def test_block_drop_all_references():
+    """Test that Block.erase replaces references to inner ops."""
+    op1 = test.TestOp()
+    op2 = test.TestOp()
+    op3 = test.TestOp(result_types=(test.TestType("t3"),))
+    op4 = test.TestOp(operands=op3.res)
+    block = Block([op1, op2, op3])
+
+    with pytest.raises(
+        ValueError,
+        match="Attempting to delete SSA value that still has uses of result of operation",
+    ):
+        block.erase()
+
+    block.erase(safe_erase=False)
+    assert_isa(op4.operands[0], ErasedSSAValue)
 
 
 def test_block_verify_parent_pointer_mismatch():
