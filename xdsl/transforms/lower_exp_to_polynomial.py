@@ -24,13 +24,17 @@ from xdsl.pattern_rewriter import (
 )
 
 _UNDERFLOW_LOWER_BOUND: dict[type, float] = {
-    Float16Type: pymath.log(2.0**-24),  # ≈ -16.64
-    BFloat16Type: pymath.log(2.0**-133),  # ≈ -92.18
-    Float32Type: pymath.log(2.0**-149),  # ≈ -103.28
-    Float64Type: pymath.log(2.0**-1074),  # ≈ -744.44
+    # Float16Type: pymath.log(2.0**-24),  # ≈ -16.64
+    # BFloat16Type: pymath.log(2.0**-133),  # ≈ -92.18
+    # Float32Type: pymath.log(2.0**-149),  # ≈ -103.28
+    # Float64Type: pymath.log(2.0**-1074),  # ≈ -744.44
+    Float16Type: -1,
+    BFloat16Type: -1,
+    Float32Type: -1,
+    Float64Type: -1,
 }
 
-_DEFAULT_DEGREE = 12
+_DEFAULT_DEGREE = 10
 
 
 def _chebyshev_coefficients(
@@ -66,10 +70,18 @@ def _choose_polynomial(
     lower: float,
     upper: float,
 ) -> list[float]:
-    """Dummy: ignore acc_bound, always return Chebyshev coefficients of a
-    fixed degree on [lower, upper]. A real chooser would derive the degree
-    (and possibly family) from acc_bound and the domain width."""
-    return _chebyshev_coefficients(pymath.exp, _DEFAULT_DEGREE, lower, upper)
+    """Smallest degree such that the Lobatto Chebyshev bound for exp on [a,b] is <= acc_bound."""
+    if acc_bound is None:
+        return _chebyshev_coefficients(pymath.exp, _DEFAULT_DEGREE, lower, upper)
+
+    width = upper - lower
+    degree = 0
+    bound = pymath.exp(upper) * width
+    while bound > acc_bound:
+        degree += 1
+        bound *= width / (4 * (degree + 1))
+
+    return _chebyshev_coefficients(pymath.exp, degree, lower, upper)
 
 
 class LowerExpToPolynomial(RewritePattern):
