@@ -1614,9 +1614,9 @@ class DataOp(IRDLOperation):
         # data clauses (copy/copyin/copyout/create/no_create/present/deviceptr/
         # attach) or the `default` attribute.
         if (
-            len(self.async_operands) == 0
-            and len(self.wait_operands) == 0
-            and len(self.data_clause_operands) == 0
+            not self.async_operands
+            and not self.wait_operands
+            and not self.data_clause_operands
             and self.if_cond is None
             and self.default_attr is None
         ):
@@ -1707,7 +1707,7 @@ class HostDataOp(IRDLOperation):
     def verify_(self) -> None:
         # Mirrors `acc::HostDataOp::verify`: at least one operand and each
         # operand must be defined by an `acc.use_device`.
-        if len(self.data_clause_operands) == 0:
+        if not self.data_clause_operands:
             raise VerifyException(
                 "at least one operand must appear on the host_data operation"
             )
