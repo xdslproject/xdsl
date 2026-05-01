@@ -811,9 +811,6 @@ class OperandWithKeywordOnly(CustomDirective):
     def is_anchorable(self) -> bool:
         return True
 
-    def is_optional_like(self) -> bool:
-        return True
-
     def is_present(self, op: IRDLOperation) -> bool:
         return self.operand.get(op) is not None or self.attr.get(op) is not None
 
@@ -862,9 +859,6 @@ class OperandsWithKeywordOnly(CustomDirective):
     attr: AttributeVariable
 
     def is_anchorable(self) -> bool:
-        return True
-
-    def is_optional_like(self) -> bool:
         return True
 
     def is_present(self, op: IRDLOperation) -> bool:
