@@ -288,10 +288,10 @@ builtin.module {
   // CHECK-NEXT:      acc.yield
   // CHECK-NEXT:    } attributes {defaultAttr = #acc<defaultvalue present>, selfAttr}
 
-  // acc.kernels models upstream's `AnyRegion` body (NoTerminator); upstream
-  // mlir-opt rejects acc.yield inside acc.kernels (yield's ParentOneOf list
-  // excludes KernelsOp), so all bodies here are empty until acc.terminator
-  // is introduced later in the roadmap.
+  // acc.kernels uses `SingleBlockImplicitTerminator(TerminatorOp)` on both
+  // sides: the pretty parser auto-inserts `acc.terminator`, the printer
+  // elides it. So `acc.kernels { }` round-trips identically through xDSL
+  // and mlir-opt even though the in-memory IR has the terminator present.
   func.func @kernels_empty() {
     acc.kernels {
     }

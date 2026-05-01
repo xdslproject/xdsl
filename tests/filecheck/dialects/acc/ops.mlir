@@ -434,11 +434,11 @@ builtin.module {
   // CHECK-NEXT:      acc.yield
   // CHECK-NEXT:    }
 
-  // acc.kernels uses the upstream `NoTerminator` body shape: the body can
-  // be empty or contain ops that lower to a kernels region. acc.yield is
-  // *not* a valid terminator inside acc.kernels (upstream's acc.yield
-  // ParentOneOf list excludes KernelsOp); the dedicated acc.terminator op
-  // lands later in the roadmap.
+  // acc.kernels uses `SingleBlockImplicitTerminator(TerminatorOp)`: the
+  // pretty-form parser auto-inserts `acc.terminator` when the body is
+  // written as `{ }` and the printer elides it again on output. acc.yield
+  // is *not* a valid terminator inside acc.kernels (upstream's acc.yield
+  // ParentOneOf list excludes KernelsOp).
   func.func @kernels_empty() {
     acc.kernels {
     }

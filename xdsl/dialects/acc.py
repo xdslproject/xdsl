@@ -75,7 +75,6 @@ from xdsl.traits import (
     IsolatedFromAbove,
     IsTerminator,
     NoMemoryEffect,
-    NoTerminator,
     RecursiveMemoryEffect,
     SingleBlockImplicitTerminator,
     SymbolOpInterface,
@@ -1401,10 +1400,6 @@ class KernelsOp(IRDLOperation):
         WaitClause,
     )
 
-    # Upstream `acc.kernels` body uses `acc.terminator` rather than `acc.yield`.
-    # The terminator op is now defined (`TerminatorOp`) but kernels still uses
-    # `NoTerminator` here — switching to `SingleBlockImplicitTerminator(TerminatorOp)`
-    # is a follow-up stage that updates the existing empty-body tests.
     assembly_format = (
         "(`combined` `(` `loop` `)` $combined^)?"
         " (`dataOperands` `(` $data_clause_operands^ `:`"
@@ -1433,7 +1428,7 @@ class KernelsOp(IRDLOperation):
 
     traits = lazy_traits_def(
         lambda: (
-            NoTerminator(),
+            SingleBlockImplicitTerminator(TerminatorOp),
             RecursiveMemoryEffect(),
         )
     )

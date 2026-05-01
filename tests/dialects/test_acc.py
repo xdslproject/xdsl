@@ -343,7 +343,7 @@ def test_kernels_init_bool_shortcuts():
     / default_attr=enum) cannot be reached via the parser — filecheck would have to
     pass already-constructed attributes — so this Python-only branch lives here."""
     op = acc.KernelsOp(
-        region=Region(Block()),
+        region=Region(Block([acc.TerminatorOp()])),
         self_attr=True,
         default_attr=acc.ClauseDefaultValue.PRESENT,
         combined=True,
@@ -354,7 +354,7 @@ def test_kernels_init_bool_shortcuts():
     assert isinstance(op.combined, UnitAttr)
     assert op.default_attr == acc.ClauseDefaultValueAttr(acc.ClauseDefaultValue.PRESENT)
 
-    op_off = acc.KernelsOp(region=Region(Block()))
+    op_off = acc.KernelsOp(region=Region(Block([acc.TerminatorOp()])))
     assert op_off.self_attr is None
     assert op_off.combined is None
 
