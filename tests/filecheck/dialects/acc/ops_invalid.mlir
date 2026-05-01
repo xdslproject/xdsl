@@ -376,4 +376,3 @@ func.func @enter_data_wait_devnum_alone(%a : memref<10xf32>, %dn : i64) {
   func.return
 }
 // CHECK: wait_devnum cannot appear without waitOperands
-
