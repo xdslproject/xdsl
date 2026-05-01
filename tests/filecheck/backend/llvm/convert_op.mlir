@@ -57,7 +57,7 @@ builtin.module {
     llvm.return
   }
 
-  // CHECK: define void @{{"?arg_attr_types"?}}({{.*}}byval(i32){{.*}}, {{.*}}sret({{.*}}){{.*}}, {{.*}}byref(i64){{.*}})
+  // CHECK: define void @{{"?arg_attr_types"?}}({{.*}}byval(i32){{.*}}, {{.*}}sret({{.*}}){{.*}}, {{.*}}byref(i64){{.*}}, {{.*}}elementtype(float){{.*}})
   // CHECK:   ret void
   // CHECK-NEXT: }
 
@@ -345,9 +345,9 @@ builtin.module {
 
   // CHECK: define void @{{"?inline_asm"?}}(i32 [[A:%[^ ,)]+]])
   // CHECK:   call void asm sideeffect "add $0, 1", "r"(i32 [[A]])
-  // CHECK-NEXT:   call void asm  "add $0, 1", "r"(i32 [[A]])
-  // CHECK-NEXT:   call void asm  "add $0, 1", "r"(i32 [[A]])
-  // CHECK-NEXT:   call void asm  "add $0, 1", "r"(i32 [[A]])
+  // CHECK-NEXT:   call void asm{{.*}} "add $0, 1", "r"(i32 [[A]])
+  // CHECK-NEXT:   call void asm{{.*}} "add $0, 1", "r"(i32 [[A]])
+  // CHECK-NEXT:   call void asm{{.*}} "add $0, 1", "r"(i32 [[A]])
   // CHECK-NEXT:   ret void
   // CHECK-NEXT: }
 
@@ -357,7 +357,7 @@ builtin.module {
   }
 
   // CHECK: define i32 @{{"?inline_asm_with_result"?}}(i32 [[A:%[^ ,)]+]])
-  // CHECK:   [[R:%[^ ]+]] = call i32 asm  "mov $0, $1", "=r,r"(i32 [[A]])
+  // CHECK:   [[R:%[^ ]+]] = call i32 asm{{.*}} "mov $0, $1", "=r,r"(i32 [[A]])
   // CHECK-NEXT:   ret i32 [[R]]
   // CHECK-NEXT: }
 
@@ -776,11 +776,7 @@ builtin.module {
   // CHECK-NEXT: }
 
   llvm.func @fma_op_f32(%arg0: vector<4xf32>, %arg1: vector<4xf32>, %arg2: vector<4xf32>) -> vector<4xf32> {
-    %0 = "llvm.call_intrinsic"(%arg0, %arg1, %arg2) <{
-      intrin = "llvm.fma.v4f32",
-      op_bundle_sizes = array<i32>,
-      operandSegmentSizes = array<i32: 3, 0>
-    }> : (vector<4xf32>, vector<4xf32>, vector<4xf32>) -> vector<4xf32>
+    %0 = vector.fma %arg0, %arg1, %arg2 : vector<4xf32>
     llvm.return %0 : vector<4xf32>
   }
 
@@ -790,11 +786,7 @@ builtin.module {
   // CHECK-NEXT: }
 
   llvm.func @fma_op_f64(%arg0: vector<2xf64>, %arg1: vector<2xf64>, %arg2: vector<2xf64>) -> vector<2xf64> {
-    %0 = "llvm.call_intrinsic"(%arg0, %arg1, %arg2) <{
-      intrin = "llvm.fma.v2f64",
-      op_bundle_sizes = array<i32>,
-      operandSegmentSizes = array<i32: 3, 0>
-    }> : (vector<2xf64>, vector<2xf64>, vector<2xf64>) -> vector<2xf64>
+    %0 = vector.fma %arg0, %arg1, %arg2 : vector<2xf64>
     llvm.return %0 : vector<2xf64>
   }
 
@@ -885,7 +877,7 @@ builtin.module {
   }
 
   // CHECK: define <4 x float> @{{"?shuffle_vector_f32"?}}(<4 x float> [[A:%[^ ,)]+]], <4 x float> [[B:%[^ ,)]+]])
-  // CHECK:   [[R:%[^ ]+]] = shufflevector <4 x float> [[A]], <4 x float> [[B]], <4 x i32> <i32 0, i32 0, i32 0, i32 0>
+  // CHECK:   [[R:%[^ ]+]] = shufflevector <4 x float> [[A]], <4 x float> [[B]], <4 x i32> {{(<i32 0, i32 0, i32 0, i32 0>|zeroinitializer)}}
   // CHECK-NEXT:   ret <4 x float> [[R]]
   // CHECK-NEXT: }
 
@@ -913,13 +905,34 @@ builtin.module {
 
   llvm.func @addressof_op() {
     %0 = llvm.mlir.addressof @addressof_target : !llvm.ptr
-    "llvm.call"(%0) <{callee = @callee, fastmathFlags = #llvm.fastmath<>, CConv = #llvm.cconv<ccc>, TailCallKind = #llvm.tailcallkind<none>, operandSegmentSizes = array<i32: 1, 0>}> : (!llvm.ptr) -> ()
+    llvm.call @callee(%0) : (!llvm.ptr) -> ()
     llvm.return
   }
 
   // CHECK: define void @{{"?addressof_op"?}}()
   // CHECK:   call {{(ccc )?}}void @{{"?callee"?}}({{(void \(\)\*|ptr)}} @{{"?addressof_target"?}})
   // CHECK-NEXT:   ret void
+  // CHECK-NEXT: }
+
+  llvm.func @insert_element(%arg0: vector<4xf32>, %arg1: f32, %arg2: i32) -> vector<4xf32> {
+    %0 = llvm.insertelement %arg1, %arg0[%arg2 : i32] : vector<4xf32>
+    llvm.return %0 : vector<4xf32>
+  }
+
+  // CHECK: define <4 x float> @{{"?insert_element"?}}(<4 x float> [[V:%[^ ,)]+]], float [[E:%[^ ,)]+]], i32 [[I:%[^ ,)]+]])
+  // CHECK:   [[R:%[^ ]+]] = insertelement <4 x float> [[V]], float [[E]], i32 [[I]]
+  // CHECK-NEXT:   ret <4 x float> [[R]]
+  // CHECK-NEXT: }
+
+  llvm.func @broadcast_f32(%arg0: f32) -> vector<4xf32> {
+    %0 = vector.broadcast %arg0 : f32 to vector<4xf32>
+    llvm.return %0 : vector<4xf32>
+  }
+
+  // CHECK: define <4 x float> @{{"?broadcast_f32"?}}(float [[A:%[^ ,)]+]])
+  // CHECK:   {{%[^ ]+}} = insertelement <4 x float> {{.*}}, float [[A]], i32 0
+  // CHECK-NEXT:   [[R:%[^ ]+]] = shufflevector <4 x float> {{%[^ ]+}}, <4 x float> {{.*}}, <4 x i32> {{.*}}
+  // CHECK-NEXT:   ret <4 x float> [[R]]
   // CHECK-NEXT: }
 
   llvm.func @constant_int() -> i32 {
