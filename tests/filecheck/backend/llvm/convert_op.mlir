@@ -937,6 +937,18 @@ builtin.module {
   // CHECK-NEXT:   ret void
   // CHECK-NEXT: }
 
+  llvm.func @insert_element(%arg0: vector<4xf32>, %arg1: f32, %arg2: i32) -> vector<4xf32> {
+    %0 = llvm.insertelement %arg1, %arg0[%arg2 : i32] : vector<4xf32>
+    llvm.return %0 : vector<4xf32>
+  }
+
+  // CHECK: define <4 x float> @"insert_element"(<4 x float> %".1", float %".2", i32 %".3")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: [[ENTRY:.\d+]]:
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = insertelement <4 x float> %".1", float %".2", i32 %".3"
+  // CHECK-NEXT:   ret <4 x float> %"[[RES]]"
+  // CHECK-NEXT: }
+
   llvm.func @broadcast_f32(%arg0: f32) -> vector<4xf32> {
     %0 = vector.broadcast %arg0 : f32 to vector<4xf32>
     llvm.return %0 : vector<4xf32>
