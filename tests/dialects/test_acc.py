@@ -367,6 +367,29 @@ def test_terminator_construction():
     assert term.name == "acc.terminator"
 
 
+def test_data_init_enum_shortcut():
+    """The `default_attr=ClauseDefaultValue.X` enum-shortcut branch in
+    DataOp.__init__ is not reachable via the parser (which produces a
+    fully-formed ClauseDefaultValueAttr)."""
+    op = acc.DataOp(
+        region=Region(Block([acc.TerminatorOp()])),
+        default_attr=acc.ClauseDefaultValue.PRESENT,
+    )
+    assert op.default_attr == acc.ClauseDefaultValueAttr(acc.ClauseDefaultValue.PRESENT)
+
+
+def test_host_data_init_bool_shortcut():
+    """The `if_present=True` bool-shortcut branch in HostDataOp.__init__ is
+    not reachable via the parser (which produces a UnitAttr directly)."""
+    use_dev = acc.UseDeviceOp(var=create_ssa_value(MemRefType(f32, [10])))
+    op = acc.HostDataOp(
+        region=Region(Block([acc.TerminatorOp()])),
+        data_clause_operands=[use_dev],
+        if_present=True,
+    )
+    assert isinstance(op.if_present, UnitAttr)
+
+
 def test_data_clause_modifier_attr_constructor():
     """The bit-enum constructor accepts a frozenset of enum members and stores
     it on `.data`. Pretty-form printing/parsing is covered by filecheck in

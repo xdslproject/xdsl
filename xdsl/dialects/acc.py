@@ -1510,6 +1510,212 @@ class KernelsOp(IRDLOperation):
         )
 
 
+@irdl_op_definition
+class DataOp(IRDLOperation):
+    """
+    Implementation of upstream acc.data — the structured data construct.
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenACCDialect/#accdata-accdataop).
+    """
+
+    name = "acc.data"
+
+    if_cond = opt_operand_def(I1)
+    async_operands = var_operand_def(IntegerType | IndexType)
+    wait_operands = var_operand_def(IntegerType | IndexType)
+    data_clause_operands = var_operand_def()
+
+    async_operands_device_type = opt_prop_def(
+        ArrayAttr[DeviceTypeAttr], prop_name="asyncOperandsDeviceType"
+    )
+    async_only = opt_prop_def(ArrayAttr[DeviceTypeAttr], prop_name="asyncOnly")
+    wait_operands_segments = opt_prop_def(
+        DenseArrayBase.constr(IntegerType(32)), prop_name="waitOperandsSegments"
+    )
+    wait_operands_device_type = opt_prop_def(
+        ArrayAttr[DeviceTypeAttr], prop_name="waitOperandsDeviceType"
+    )
+    has_wait_devnum = opt_prop_def(ArrayAttr[BoolAttr], prop_name="hasWaitDevnum")
+    wait_only = opt_prop_def(ArrayAttr[DeviceTypeAttr], prop_name="waitOnly")
+    default_attr = opt_prop_def(ClauseDefaultValueAttr, prop_name="defaultAttr")
+
+    region = region_def()
+
+    irdl_options = (
+        AttrSizedOperandSegments(as_property=True),
+        ParsePropInAttrDict(),
+    )
+
+    custom_directives = (
+        DeviceTypeOperandsWithKeywordOnly,
+        WaitClause,
+    )
+
+    assembly_format = (
+        "(`if` `(` $if_cond^ `)`)?"
+        " (`async` custom<DeviceTypeOperandsWithKeywordOnly>($async_operands,"
+        " type($async_operands), $asyncOperandsDeviceType, $asyncOnly)^)?"
+        " (`dataOperands` `(` $data_clause_operands^ `:`"
+        " type($data_clause_operands) `)`)?"
+        " (`wait` custom<WaitClause>($wait_operands, type($wait_operands),"
+        " $waitOperandsDeviceType, $waitOperandsSegments, $hasWaitDevnum,"
+        " $waitOnly)^)?"
+        " $region attr-dict-with-keyword"
+    )
+
+    traits = lazy_traits_def(
+        lambda: (
+            SingleBlockImplicitTerminator(TerminatorOp),
+            RecursiveMemoryEffect(),
+        )
+    )
+
+    def __init__(
+        self,
+        *,
+        region: Region,
+        if_cond: SSAValue | Operation | None = None,
+        async_operands: Sequence[SSAValue | Operation] = (),
+        wait_operands: Sequence[SSAValue | Operation] = (),
+        data_clause_operands: Sequence[SSAValue | Operation] = (),
+        async_operands_device_type: ArrayAttr[DeviceTypeAttr] | None = None,
+        async_only: ArrayAttr[DeviceTypeAttr] | None = None,
+        wait_operands_segments: DenseArrayBase | None = None,
+        wait_operands_device_type: ArrayAttr[DeviceTypeAttr] | None = None,
+        has_wait_devnum: ArrayAttr[BoolAttr] | None = None,
+        wait_only: ArrayAttr[DeviceTypeAttr] | None = None,
+        default_attr: ClauseDefaultValueAttr | ClauseDefaultValue | None = None,
+    ) -> None:
+        default_prop: ClauseDefaultValueAttr | None = (
+            ClauseDefaultValueAttr(default_attr)
+            if isinstance(default_attr, ClauseDefaultValue)
+            else default_attr
+        )
+        super().__init__(
+            operands=[
+                [if_cond] if if_cond is not None else [],
+                async_operands,
+                wait_operands,
+                data_clause_operands,
+            ],
+            properties={
+                "asyncOperandsDeviceType": async_operands_device_type,
+                "asyncOnly": async_only,
+                "waitOperandsSegments": wait_operands_segments,
+                "waitOperandsDeviceType": wait_operands_device_type,
+                "hasWaitDevnum": has_wait_devnum,
+                "waitOnly": wait_only,
+                "defaultAttr": default_prop,
+            },
+            regions=[region],
+        )
+
+    def verify_(self) -> None:
+        # Mirrors `acc::DataOp::verify`: 2.6.5 requires at least one of the
+        # data clauses (copy/copyin/copyout/create/no_create/present/deviceptr/
+        # attach) or the `default` attribute.
+        if (
+            len(self.async_operands) == 0
+            and len(self.wait_operands) == 0
+            and len(self.data_clause_operands) == 0
+            and self.if_cond is None
+            and self.default_attr is None
+        ):
+            raise VerifyException(
+                "at least one operand or the default attribute "
+                "must appear on the data operation"
+            )
+        for operand in self.data_clause_operands:
+            defining_op = operand.owner
+            if not isinstance(
+                defining_op,
+                (
+                    AttachOp,
+                    CopyinOp,
+                    CopyoutOp,
+                    CreateOp,
+                    DeleteOp,
+                    DetachOp,
+                    DevicePtrOp,
+                    GetDevicePtrOp,
+                    NoCreateOp,
+                    PresentOp,
+                ),
+            ):
+                raise VerifyException(
+                    "expect data entry/exit operation or acc.getdeviceptr "
+                    "as defining op"
+                )
+
+
+@irdl_op_definition
+class HostDataOp(IRDLOperation):
+    """
+    Implementation of upstream acc.host_data.
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenACCDialect/#acchost_data-acchost_dataop).
+    """
+
+    name = "acc.host_data"
+
+    if_cond = opt_operand_def(I1)
+    data_clause_operands = var_operand_def()
+
+    if_present = opt_prop_def(UnitAttr, prop_name="ifPresent")
+
+    region = region_def()
+
+    irdl_options = (
+        AttrSizedOperandSegments(as_property=True),
+        ParsePropInAttrDict(),
+    )
+
+    assembly_format = (
+        "(`if` `(` $if_cond^ `)`)?"
+        " (`dataOperands` `(` $data_clause_operands^ `:`"
+        " type($data_clause_operands) `)`)?"
+        " $region attr-dict-with-keyword"
+    )
+
+    traits = lazy_traits_def(
+        lambda: (
+            SingleBlockImplicitTerminator(TerminatorOp),
+            RecursiveMemoryEffect(),
+        )
+    )
+
+    def __init__(
+        self,
+        *,
+        region: Region,
+        if_cond: SSAValue | Operation | None = None,
+        data_clause_operands: Sequence[SSAValue | Operation] = (),
+        if_present: UnitAttr | bool = False,
+    ) -> None:
+        if_present_prop: UnitAttr | None = (
+            (UnitAttr() if if_present else None)
+            if isinstance(if_present, bool)
+            else if_present
+        )
+        super().__init__(
+            operands=[
+                [if_cond] if if_cond is not None else [],
+                data_clause_operands,
+            ],
+            properties={"ifPresent": if_present_prop},
+            regions=[region],
+        )
+
+    def verify_(self) -> None:
+        # Mirrors `acc::HostDataOp::verify`: at least one operand and each
+        # operand must be defined by an `acc.use_device`.
+        if len(self.data_clause_operands) == 0:
+            raise VerifyException(
+                "at least one operand must appear on the host_data operation"
+            )
+        for operand in self.data_clause_operands:
+            if not isinstance(operand.owner, UseDeviceOp):
+                raise VerifyException("expect data entry operation as defining op")
+
+
 # ---------------------------------------------------------------------------
 # Entry data-clause ops
 # ---------------------------------------------------------------------------
@@ -2554,7 +2760,7 @@ class TerminatorOp(IRDLOperation):
         lambda: (
             IsTerminator(),
             NoMemoryEffect(),
-            HasParent(KernelsOp),
+            HasParent(KernelsOp, DataOp, HostDataOp),
         )
     )
 
@@ -2592,6 +2798,8 @@ ACC = Dialect(
         ParallelOp,
         SerialOp,
         KernelsOp,
+        DataOp,
+        HostDataOp,
         DataBoundsOp,
         GetLowerboundOp,
         GetUpperboundOp,

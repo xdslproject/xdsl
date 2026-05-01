@@ -270,10 +270,56 @@ func.func @copyin_duplicate_recipe(%a : memref<10xf32>) {
 
 // -----
 
-// acc.terminator's HasParent constraint accepts only acc.kernels (additional
-// region ops will be appended in later stages); using it directly under a
+// acc.terminator's HasParent constraint accepts only the OpenACC region ops
+// that lack a yield (kernels / data / host_data); using it directly under a
 // `func.func` must fail the parent check.
 func.func @terminator_wrong_parent() {
   "acc.terminator"() : () -> ()
 }
-// CHECK: 'acc.terminator' expects parent op 'acc.kernels'
+// CHECK: 'acc.terminator' expects parent op to be one of 'acc.kernels', 'acc.data', 'acc.host_data'
+
+// -----
+
+// acc.data: 2.6.5 mandates at least one operand or `defaultAttr`. An empty
+// op with no operands and no default attribute fails the per-op verifier.
+func.func @data_empty_no_default() {
+  acc.data {
+  }
+  func.return
+}
+// CHECK: at least one operand or the default attribute must appear on the data operation
+
+// -----
+
+// acc.data: each `dataOperands` value must be defined by one of the OpenACC
+// data-clause ops (copyin / create / present / …). A bare memref operand
+// fails the per-op verifier.
+func.func @data_wrong_defining_op(%a : memref<10xf32>) {
+  acc.data dataOperands(%a : memref<10xf32>) {
+  }
+  func.return
+}
+// CHECK: expect data entry/exit operation or acc.getdeviceptr as defining op
+
+// -----
+
+// acc.host_data: at least one operand is required, period (no `default`
+// escape hatch like acc.data has).
+func.func @host_data_empty() {
+  acc.host_data {
+  }
+  func.return
+}
+// CHECK: at least one operand must appear on the host_data operation
+
+// -----
+
+// acc.host_data: every operand must be defined by acc.use_device. Other
+// data-clause ops (e.g. acc.copyin) are rejected.
+func.func @host_data_wrong_defining_op(%a : memref<10xf32>) {
+  %0 = acc.copyin varPtr(%a : memref<10xf32>) -> memref<10xf32>
+  acc.host_data dataOperands(%0 : memref<10xf32>) {
+  }
+  func.return
+}
+// CHECK: expect data entry operation as defining op
