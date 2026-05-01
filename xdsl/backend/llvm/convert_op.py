@@ -540,6 +540,12 @@ def convert_op(
             _convert_addressof(op, builder, val_map)
         case llvm.CallIntrinsicOp():
             _convert_call_intrinsic(op, builder, val_map)
+        case llvm.InsertElementOp():
+            val_map[op.res] = builder.insert_element(
+                val_map[op.vector],
+                val_map[op.value],
+                val_map[op.index],
+            )
         case FMAOp():
             _convert_fma(op, builder, val_map)
         case vector.BroadcastOp():

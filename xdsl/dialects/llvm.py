@@ -59,6 +59,7 @@ from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
     ParsePropInAttrDict,
+    RangeOf,
     VarConstraint,
     base,
     irdl_attr_definition,
@@ -1785,6 +1786,46 @@ class InsertValueOp(IRDLOperation):
 
 
 @irdl_op_definition
+class InsertElementOp(IRDLOperation):
+    """
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/LLVM/#llvminsertelement-llvminsertelementop).
+    """
+
+    name = "llvm.insertelement"
+
+    ELEMENT: ClassVar = VarConstraint("ELEMENT", AnyAttr())
+    VECTOR: ClassVar = VarConstraint(
+        "VECTOR_T",
+        VectorType.constr(
+            ELEMENT,
+            shape=ArrayAttr.constr(RangeOf(IntAttr).of_length(1)),
+        ),
+    )
+
+    vector = operand_def(VECTOR)
+    value = operand_def(ELEMENT)
+    index = operand_def(SignlessIntegerConstraint)
+    res = result_def(VECTOR)
+
+    assembly_format = (
+        "$value `,` $vector `[` $index `:` type($index) `]` attr-dict `:` type($vector)"
+    )
+
+    traits = traits_def(NoMemoryEffect())
+
+    def __init__(
+        self,
+        vector: Operation | SSAValue,
+        value: Operation | SSAValue,
+        index: Operation | SSAValue,
+    ):
+        super().__init__(
+            operands=[vector, value, index],
+            result_types=[SSAValue.get(vector).type],
+        )
+
+
+@irdl_op_definition
 class UndefOp(IRDLOperation):
     """
     See external [documentation](https://mlir.llvm.org/docs/Dialects/LLVM/#llvmmlirundef-mlirllvmundefop).
@@ -3199,6 +3240,7 @@ LLVM = Dialect(
         GlobalOp,
         ICmpOp,
         InlineAsmOp,
+        InsertElementOp,
         InsertValueOp,
         IntToPtrOp,
         LShrOp,
