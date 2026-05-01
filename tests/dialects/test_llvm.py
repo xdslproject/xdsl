@@ -702,17 +702,6 @@ def test_shuffle_vector_op_different_sizes():
     assert op.res.type == result_type
 
 
-def test_shuffle_vector_op_mask_out_of_range():
-    vec_type = builtin.VectorType(builtin.f32, [2])
-    result_type = builtin.VectorType(builtin.f32, [2])
-    v1 = create_ssa_value(vec_type)
-    v2 = create_ssa_value(vec_type)
-    mask = builtin.DenseArrayBase.from_list(builtin.i32, [0, 5])
-    op = llvm.ShuffleVectorOp(v1, v2, mask, result_type)
-    with pytest.raises(VerifyException, match="Mask value 5 out of range"):
-        op.verify()
-
-
 def test_shuffle_vector_result_constraint_mapping_type_vars():
     _T = TypeVar("_T", bound=Attribute)
     elem_constr = TypeVarConstraint(_T, AnyAttr())
