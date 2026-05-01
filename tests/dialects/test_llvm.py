@@ -1,11 +1,14 @@
 from io import StringIO
 
 import pytest
+from typing_extensions import TypeVar
 
 from xdsl.context import Context
 from xdsl.dialects import arith, builtin, llvm, test
 from xdsl.dialects.builtin import UnitAttr, i32
+from xdsl.dialects.llvm import ShuffleVectorResultConstraint
 from xdsl.ir import Attribute, Block, Region
+from xdsl.irdl import AnyAttr, EqAttrConstraint, TypeVarConstraint, VarConstraint
 from xdsl.parser import Parser
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import VerifyException
@@ -708,3 +711,17 @@ def test_shuffle_vector_op_mask_out_of_range():
     op = llvm.ShuffleVectorOp(v1, v2, mask, result_type)
     with pytest.raises(VerifyException, match="Mask value 5 out of range"):
         op.verify()
+
+
+def test_shuffle_vector_result_constraint_mapping_type_vars():
+    _T = TypeVar("_T", bound=Attribute)
+    elem_constr = TypeVarConstraint(_T, AnyAttr())
+    mask_constr = VarConstraint("MASK", AnyAttr())
+    constr = ShuffleVectorResultConstraint(elem_constr, mask_constr)
+
+    replacement = EqAttrConstraint(builtin.f32)
+    mapped = constr.mapping_type_vars({_T: replacement})
+
+    assert isinstance(mapped, ShuffleVectorResultConstraint)
+    assert mapped.element_constr == replacement
+    assert mapped.mask_constr == mask_constr

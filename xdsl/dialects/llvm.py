@@ -1850,7 +1850,13 @@ class UndefOp(IRDLOperation):
 
 
 @dataclass(frozen=True)
-class _ShuffleVectorResultConstraint(AttrConstraint[VectorType]):
+class ShuffleVectorResultConstraint(AttrConstraint[VectorType]):
+    """Infers a 1D VectorType result from the input element type and mask length.
+
+    The result shape is determined by the number of elements in the mask,
+    while the element type is propagated from the input vectors.
+    """
+
     element_constr: AttrConstraint
     mask_constr: VarConstraint
 
@@ -1878,7 +1884,7 @@ class _ShuffleVectorResultConstraint(AttrConstraint[VectorType]):
     def mapping_type_vars(
         self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
     ) -> AttrConstraint[VectorType]:
-        return _ShuffleVectorResultConstraint(
+        return ShuffleVectorResultConstraint(
             self.element_constr.mapping_type_vars(type_var_mapping),
             self.mask_constr.mapping_type_vars(type_var_mapping),
         )
@@ -1908,7 +1914,7 @@ class ShuffleVectorOp(IRDLOperation):
     v1 = operand_def(VEC_TYPE)
     v2 = operand_def(VEC_TYPE)
     mask = prop_def(MASK)
-    res = result_def(_ShuffleVectorResultConstraint(T, MASK))
+    res = result_def(ShuffleVectorResultConstraint(T, MASK))
 
     traits = traits_def(NoMemoryEffect())
 
