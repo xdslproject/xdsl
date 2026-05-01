@@ -9,6 +9,7 @@ from xdsl.dialects.arith import ConstantOp
 from xdsl.dialects.builtin import (
     ArrayAttr,
     DenseArrayBase,
+    IndexType,
     IntegerAttr,
     MemRefType,
     StringAttr,
@@ -18,7 +19,6 @@ from xdsl.dialects.builtin import (
     i32,
     i64,
 )
-from xdsl.dialects.builtin import IndexType
 from xdsl.dialects.test import TestOp
 from xdsl.ir import Block, Region
 from xdsl.printer import Printer
