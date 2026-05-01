@@ -18,6 +18,7 @@ from xdsl.dialects.builtin import (
     i32,
     i64,
 )
+from xdsl.dialects.builtin import IndexType
 from xdsl.dialects.test import TestOp
 from xdsl.ir import Block, Region
 from xdsl.printer import Printer
@@ -605,6 +606,89 @@ def test_firstprivate_recipe_builder_shortcuts():
     assert len(op.init_region.blocks) == 1
     assert len(op.copy_region.blocks) == 1
     assert len(op.destroy_region.blocks) == 0
+
+
+def test_data_bounds_op_builder():
+    """The `DataBoundsOp` Python builder isn't reached via filecheck (the
+    parser uses IRDL `create`, which bypasses `__init__`) — pytest is the
+    only place its `__init__` body runs."""
+    lb = create_ssa_value(IndexType())
+    ub = create_ssa_value(IndexType())
+    extent = create_ssa_value(IndexType())
+    stride = create_ssa_value(IndexType())
+    start_idx = create_ssa_value(IndexType())
+    op = acc.DataBoundsOp(
+        lowerbound=lb,
+        upperbound=ub,
+        extent=extent,
+        stride=stride,
+        start_idx=start_idx,
+        stride_in_bytes=IntegerAttr.from_bool(True),
+    )
+    op.verify()
+
+    assert op.lowerbound is lb
+    assert op.upperbound is ub
+    assert op.extent is extent
+    assert op.stride is stride
+    assert op.start_idx is start_idx
+    assert op.stride_in_bytes == IntegerAttr.from_bool(True)
+    assert isinstance(op.result.type, acc.DataBoundsType)
+
+
+def test_data_bounds_accessor_builders():
+    """The shared `_DataBoundsAccessorOp.__init__` is exercised by all four
+    accessor ops; constructing each from Python covers the single shared
+    builder body that filecheck never invokes."""
+    bounds = acc.DataBoundsOp(
+        lowerbound=create_ssa_value(IndexType()),
+        upperbound=create_ssa_value(IndexType()),
+    )
+    for cls in (
+        acc.GetLowerboundOp,
+        acc.GetUpperboundOp,
+        acc.GetExtentOp,
+        acc.GetStrideOp,
+    ):
+        op = cls(bounds.result)
+        op.verify()
+        assert op.bounds is bounds.result
+        assert isinstance(op.result.type, IndexType)
+
+
+def test_copyin_explicit_var_and_acc_var_type():
+    """Both `var_type` and `acc_var_type` defaulting branches in
+    `_DataEntryOperation.__init__` are skipped when callers pass them
+    explicitly. The parser supplies these via the assembly format
+    (`type($var)`, `$varType`), so the explicit-value branches are only
+    reachable from a Python builder caller."""
+    var = create_ssa_value(MemRefType(f32, [10]))
+    explicit_var_type = f32
+    explicit_acc_var_type = MemRefType(f32, [10])
+    op = acc.CopyinOp(
+        var=var,
+        var_type=explicit_var_type,
+        acc_var_type=explicit_acc_var_type,
+    )
+    op.verify()
+
+    assert op.var_type is explicit_var_type
+    assert op.acc_var.type is explicit_acc_var_type
+
+
+def test_copyout_explicit_var_type():
+    """`var_type=` shortcut on `_DataExitOperationWithVarPtr.__init__`
+    bypasses the `_default_var_type` fallback. Builder-only branch — the
+    parser always supplies `varType` explicitly via the assembly format."""
+    explicit_var_type = f32
+    op = acc.CopyoutOp(
+        acc_var=create_ssa_value(MemRefType(f32, [10])),
+        var=create_ssa_value(MemRefType(f32, [10])),
+        var_type=explicit_var_type,
+    )
+    op.verify()
+
+    assert op.var_type is explicit_var_type
 
 
 def test_enter_data_init_bool_shortcuts():
