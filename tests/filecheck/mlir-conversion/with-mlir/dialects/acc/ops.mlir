@@ -418,6 +418,78 @@ builtin.module {
   // CHECK:         acc.kernels combined(loop) async(%{{.*}} : i64) num_workers(%{{.*}} : i64) vector_length(%{{.*}} : i32) wait({%{{.*}} : i64}) self(%{{.*}}) if(%{{.*}}) {
   // CHECK-NEXT:    } attributes {defaultAttr = #acc<defaultvalue present>, selfAttr}
 
+  // acc.data — round-trips through mlir-opt's OpenACC dialect in both
+  // pretty and generic form. defaultAttr is required on bodies with no
+  // operand to satisfy upstream's verifier (matches xDSL's port).
+  func.func @data_default_attr() {
+    acc.data {
+    } attributes {defaultAttr = #acc<defaultvalue none>}
+    func.return
+  }
+  // CHECK:       func.func @data_default_attr() {
+  // CHECK-NEXT:    acc.data {
+  // CHECK-NEXT:    } attributes {defaultAttr = #acc<defaultvalue none>}
+
+  func.func @data_data_operand(%a : memref<10xf32>) {
+    %p = acc.present varPtr(%a : memref<10xf32>) -> memref<10xf32>
+    acc.data dataOperands(%p : memref<10xf32>) {
+    }
+    func.return
+  }
+  // CHECK:       func.func @data_data_operand(
+  // CHECK:         acc.data dataOperands(%{{.*}} : memref<10xf32>) {
+  // CHECK-NEXT:    }
+
+  func.func @data_if_async_wait(%c : i1, %a : i64, %w : i64) {
+    acc.data if(%c) async(%a : i64) wait({%w : i64}) {
+    } attributes {defaultAttr = #acc<defaultvalue none>}
+    func.return
+  }
+  // CHECK:       func.func @data_if_async_wait(
+  // CHECK:         acc.data if(%{{.*}}) async(%{{.*}} : i64) wait({%{{.*}} : i64}) {
+  // CHECK-NEXT:    } attributes {defaultAttr = #acc<defaultvalue none>}
+
+  func.func @data_async_bare() {
+    acc.data async {
+    } attributes {defaultAttr = #acc<defaultvalue none>}
+    func.return
+  }
+  // CHECK:       func.func @data_async_bare() {
+  // CHECK-NEXT:    acc.data async {
+  // CHECK-NEXT:    } attributes {defaultAttr = #acc<defaultvalue none>}
+
+  // acc.host_data — operands must be defined by acc.use_device, and the
+  // op carries an `ifPresent` UnitAttr instead of a default clause.
+  func.func @host_data_minimal(%a : memref<10xf32>) {
+    %u = acc.use_device varPtr(%a : memref<10xf32>) -> memref<10xf32>
+    acc.host_data dataOperands(%u : memref<10xf32>) {
+    }
+    func.return
+  }
+  // CHECK:       func.func @host_data_minimal(
+  // CHECK:         acc.host_data dataOperands(%{{.*}} : memref<10xf32>) {
+  // CHECK-NEXT:    }
+
+  func.func @host_data_if_present(%a : memref<10xf32>) {
+    %u = acc.use_device varPtr(%a : memref<10xf32>) -> memref<10xf32>
+    acc.host_data dataOperands(%u : memref<10xf32>) {
+    } attributes {ifPresent}
+    func.return
+  }
+  // CHECK:       func.func @host_data_if_present(
+  // CHECK:         acc.host_data dataOperands(%{{.*}} : memref<10xf32>) {
+  // CHECK-NEXT:    } attributes {ifPresent}
+
+  func.func @host_data_if_cond(%c : i1, %a : memref<10xf32>) {
+    %u = acc.use_device varPtr(%a : memref<10xf32>) -> memref<10xf32>
+    acc.host_data if(%c) dataOperands(%u : memref<10xf32>) {
+    }
+    func.return
+  }
+  // CHECK:       func.func @host_data_if_cond(
+  // CHECK:         acc.host_data if(%{{.*}}) dataOperands(%{{.*}} : memref<10xf32>) {
+  // CHECK-NEXT:    }
+
   // The trailing `strideInBytes = false` attribute is omitted by mlir-opt's
   // pretty printer (it matches the default) but appears explicitly in the
   // generic roundtrip path because mlir-opt prints the property in generic
