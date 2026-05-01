@@ -605,3 +605,19 @@ def test_firstprivate_recipe_builder_shortcuts():
     assert len(op.init_region.blocks) == 1
     assert len(op.copy_region.blocks) == 1
     assert len(op.destroy_region.blocks) == 0
+
+
+def test_enter_data_init_bool_shortcuts():
+    """The `async_attr` / `wait_attr` bool-shortcut branches in
+    EnterDataOp.__init__ aren't reachable via the parser (which produces
+    a UnitAttr directly via the custom directive)."""
+    create = acc.CreateOp(var=create_ssa_value(MemRefType(f32, [10])))
+    op = acc.EnterDataOp(
+        data_clause_operands=[create],
+        async_attr=True,
+        wait_attr=True,
+    )
+    op.verify()
+
+    assert isinstance(op.async_attr, UnitAttr)
+    assert isinstance(op.wait_attr, UnitAttr)

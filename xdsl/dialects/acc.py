@@ -795,6 +795,119 @@ class WaitClause(CustomDirective):
         state.last_was_punctuation = False
 
 
+@irdl_custom_directive
+class OperandWithKeywordOnly(CustomDirective):
+    """Port of upstream `custom<OperandWithKeywordOnly>`.
+
+    Follows a bare keyword (e.g. `async`) in the format. After the keyword:
+      bare                       → keyword-only UnitAttr set
+      `(` operand `:` type `)`   → operand set
+    """
+
+    operand: OptionalOperandVariable
+    operand_type: TypeDirective
+    attr: AttributeVariable
+
+    def is_anchorable(self) -> bool:
+        return True
+
+    def is_optional_like(self) -> bool:
+        return True
+
+    def is_present(self, op: IRDLOperation) -> bool:
+        return self.operand.get(op) is not None or self.attr.get(op) is not None
+
+    def set_empty(self, state: ParsingState) -> None:
+        self.operand.set(state, None)
+        self.operand_type.set(state, ())
+
+    def parse(self, parser: Parser, state: ParsingState) -> bool:
+        if not parser.parse_optional_punctuation("("):
+            self.attr.set(state, UnitAttr())
+            self.operand.set(state, None)
+            self.operand_type.set(state, ())
+            return True
+        operand, ty = _parse_typed_operand(parser)
+        parser.parse_punctuation(")")
+        self.operand.set(state, operand)
+        self.operand_type.set(state, (ty,))
+        return True
+
+    def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
+        # Mirror upstream's `if (attr) return;`: when the bare-keyword
+        # UnitAttr is set, the parent already emitted the keyword and we
+        # contribute nothing further.
+        if self.attr.get(op) is not None:
+            return
+        operand = self.operand.get(op)
+        assert operand is not None  # is_present excludes the all-None case
+        printer.print_string("(")
+        _print_typed_operand(printer, operand)
+        printer.print_string(")")
+        state.should_emit_space = True
+        state.last_was_punctuation = False
+
+
+@irdl_custom_directive
+class OperandsWithKeywordOnly(CustomDirective):
+    """Port of upstream `custom<OperandsWithKeywordOnly>`.
+
+    Follows a bare keyword (e.g. `wait`) in the format. After the keyword:
+      bare                                         → keyword-only UnitAttr
+      `(` op (`,` op)* `:` ty (`,` ty)* `)`        → variadic operand list
+    """
+
+    operands: VariadicOperandVariable
+    operand_types: TypeDirective
+    attr: AttributeVariable
+
+    def is_anchorable(self) -> bool:
+        return True
+
+    def is_optional_like(self) -> bool:
+        return True
+
+    def is_present(self, op: IRDLOperation) -> bool:
+        return bool(self.operands.get(op)) or self.attr.get(op) is not None
+
+    def set_empty(self, state: ParsingState) -> None:
+        self.operands.set(state, ())
+        self.operand_types.set(state, ())
+
+    def parse(self, parser: Parser, state: ParsingState) -> bool:
+        if not parser.parse_optional_punctuation("("):
+            self.attr.set(state, UnitAttr())
+            self.operands.set(state, ())
+            self.operand_types.set(state, ())
+            return True
+        operands = parser.parse_comma_separated_list(
+            parser.Delimiter.NONE, parser.parse_unresolved_operand
+        )
+        parser.parse_punctuation(":")
+        types = parser.parse_comma_separated_list(
+            parser.Delimiter.NONE, parser.parse_type
+        )
+        parser.parse_punctuation(")")
+        self.operands.set(state, operands)
+        self.operand_types.set(state, types)
+        return True
+
+    def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
+        if self.attr.get(op) is not None:
+            return
+        operands = self.operands.get(op)
+        assert operands  # is_present excludes the empty/no-attr case
+        printer.print_string("(")
+        printer.print_list(operands, printer.print_ssa_value)
+        printer.print_string(" : ")
+        printer.print_list(
+            (operand.type for operand in operands), printer.print_attribute
+        )
+        printer.print_string(")")
+        state.should_emit_space = True
+        state.last_was_punctuation = False
+
+
 def _default_var_type(var_type: Attribute) -> Attribute:
     """Default `varType` value for a `var` operand.
 
@@ -2353,6 +2466,109 @@ class DetachOp(_DataExitOperationNoVarPtr):
     )
 
 
+# ---------------------------------------------------------------------------
+# Standalone unstructured data-movement ops: acc.enter_data.
+# ---------------------------------------------------------------------------
+#
+# `enter_data` has no region. It carries a single optional `asyncOperand` (no
+# per-device-type array), a single optional `waitDevnum`, variadic
+# `waitOperands`, and `dataClauseOperands`, plus `async` / `wait` UnitAttrs
+# that mirror the bare-keyword spellings.
+
+
+@irdl_op_definition
+class EnterDataOp(IRDLOperation):
+    """
+    Implementation of upstream acc.enter_data — the OpenACC enter data directive.
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenACCDialect/#accenter_data-accenterdataop).
+    """
+
+    name = "acc.enter_data"
+
+    if_cond = opt_operand_def(I1)
+    async_operand = opt_operand_def(IntegerType | IndexType)
+    wait_devnum = opt_operand_def(IntegerType | IndexType)
+    wait_operands = var_operand_def(IntegerType | IndexType)
+    data_clause_operands = var_operand_def()
+
+    async_attr = opt_prop_def(UnitAttr, prop_name="async")
+    wait_attr = opt_prop_def(UnitAttr, prop_name="wait")
+
+    irdl_options = (
+        AttrSizedOperandSegments(as_property=True),
+        ParsePropInAttrDict(),
+    )
+
+    custom_directives = (
+        OperandWithKeywordOnly,
+        OperandsWithKeywordOnly,
+    )
+
+    assembly_format = (
+        "(`if` `(` $if_cond^ `)`)?"
+        " (`async` custom<OperandWithKeywordOnly>($async_operand,"
+        " type($async_operand), $async)^)?"
+        " (`wait_devnum` `(` $wait_devnum^ `:` type($wait_devnum) `)`)?"
+        " (`wait` custom<OperandsWithKeywordOnly>($wait_operands,"
+        " type($wait_operands), $wait)^)?"
+        " (`dataOperands` `(` $data_clause_operands^ `:`"
+        " type($data_clause_operands) `)`)?"
+        " attr-dict-with-keyword"
+    )
+
+    def __init__(
+        self,
+        *,
+        if_cond: SSAValue | Operation | None = None,
+        async_operand: SSAValue | Operation | None = None,
+        wait_devnum: SSAValue | Operation | None = None,
+        wait_operands: Sequence[SSAValue | Operation] = (),
+        data_clause_operands: Sequence[SSAValue | Operation] = (),
+        async_attr: UnitAttr | bool = False,
+        wait_attr: UnitAttr | bool = False,
+    ) -> None:
+        async_prop: UnitAttr | None = (
+            (UnitAttr() if async_attr else None)
+            if isinstance(async_attr, bool)
+            else async_attr
+        )
+        wait_prop: UnitAttr | None = (
+            (UnitAttr() if wait_attr else None)
+            if isinstance(wait_attr, bool)
+            else wait_attr
+        )
+        super().__init__(
+            operands=[
+                [if_cond] if if_cond is not None else [],
+                [async_operand] if async_operand is not None else [],
+                [wait_devnum] if wait_devnum is not None else [],
+                wait_operands,
+                data_clause_operands,
+            ],
+            properties={
+                "async": async_prop,
+                "wait": wait_prop,
+            },
+        )
+
+    def verify_(self) -> None:
+        # Mirrors `acc::EnterDataOp::verify` (2.6.6 Data Enter Directive).
+        if not self.data_clause_operands:
+            raise VerifyException(
+                "at least one operand must be present in dataOperands on "
+                "the enter data operation"
+            )
+        if self.async_operand is not None and self.async_attr is not None:
+            raise VerifyException("async attribute cannot appear with asyncOperand")
+        if self.wait_operands and self.wait_attr is not None:
+            raise VerifyException("wait attribute cannot appear with waitOperands")
+        if self.wait_devnum is not None and not self.wait_operands:
+            raise VerifyException("wait_devnum cannot appear without waitOperands")
+        for operand in self.data_clause_operands:
+            if not isinstance(operand.owner, (AttachOp, CreateOp, CopyinOp)):
+                raise VerifyException("expect data entry operation as defining op")
+
+
 @irdl_op_definition
 class DataBoundsOp(IRDLOperation):
     """
@@ -2825,6 +3041,7 @@ ACC = Dialect(
         UpdateHostOp,
         DeleteOp,
         DetachOp,
+        EnterDataOp,
         PrivateRecipeOp,
         FirstprivateRecipeOp,
         ReductionRecipeOp,

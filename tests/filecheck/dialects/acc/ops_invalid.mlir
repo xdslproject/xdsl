@@ -323,3 +323,57 @@ func.func @host_data_wrong_defining_op(%a : memref<10xf32>) {
   func.return
 }
 // CHECK: expect data entry operation as defining op
+
+// -----
+
+// acc.enter_data: 2.6.6 requires at least one copyin/create/attach clause.
+// An op with empty `dataOperands` fails the per-op verifier.
+func.func @enter_data_empty() {
+  acc.enter_data
+  func.return
+}
+// CHECK: at least one operand must be present in dataOperands on the enter data operation
+
+// -----
+
+// acc.enter_data: each `dataOperands` value must be defined by an
+// `acc.copyin` / `acc.create` / `acc.attach`. A bare memref fails.
+func.func @enter_data_wrong_defining_op(%a : memref<10xf32>) {
+  acc.enter_data dataOperands(%a : memref<10xf32>)
+  func.return
+}
+// CHECK: expect data entry operation as defining op
+
+// -----
+
+// acc.enter_data: the bare `async` UnitAttr and an `asyncOperand` cannot
+// both be set — the keyword-only spelling is mutually exclusive with the
+// operand-bearing spelling.
+func.func @enter_data_async_conflict(%a : memref<10xf32>, %v : i64) {
+  %d = acc.create varPtr(%a : memref<10xf32>) -> memref<10xf32>
+  "acc.enter_data"(%v, %d) <{async, operandSegmentSizes = array<i32: 0, 1, 0, 0, 1>}> : (i64, memref<10xf32>) -> ()
+  func.return
+}
+// CHECK: async attribute cannot appear with asyncOperand
+
+// -----
+
+// acc.enter_data: the bare `wait` UnitAttr and `waitOperands` cannot both
+// be set.
+func.func @enter_data_wait_conflict(%a : memref<10xf32>, %w : i32) {
+  %d = acc.create varPtr(%a : memref<10xf32>) -> memref<10xf32>
+  "acc.enter_data"(%w, %d) <{wait, operandSegmentSizes = array<i32: 0, 0, 0, 1, 1>}> : (i32, memref<10xf32>) -> ()
+  func.return
+}
+// CHECK: wait attribute cannot appear with waitOperands
+
+// -----
+
+// acc.enter_data: `wait_devnum` requires `waitOperands` to be non-empty.
+func.func @enter_data_wait_devnum_alone(%a : memref<10xf32>, %dn : i64) {
+  %d = acc.create varPtr(%a : memref<10xf32>) -> memref<10xf32>
+  "acc.enter_data"(%dn, %d) <{operandSegmentSizes = array<i32: 0, 0, 1, 0, 1>}> : (i64, memref<10xf32>) -> ()
+  func.return
+}
+// CHECK: wait_devnum cannot appear without waitOperands
+
