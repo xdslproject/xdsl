@@ -50,6 +50,8 @@ jobs:
               raise SystemExit(1)
           "
 
+      # Verify [llvm] extra is installed.
+      # On failure check asv.conf.json install_command and pyproject.toml.
       - name: Install xdsl[llvm]
         run: uv pip install --system ".[llvm]"
 
