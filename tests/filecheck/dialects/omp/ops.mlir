@@ -215,6 +215,15 @@ builtin.module {
     }) : () -> ()
     func.return
   }
+  func.func @omp_loop_nest_collapse(%lb: index, %ub: index, %step: index) {
+    "omp.wsloop"() <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0, 0>}> ({
+      "omp.loop_nest"(%lb, %ub, %step) <{collapse_num_loops = 2 : i64}> ({
+      ^bb0(%iter: index):
+        omp.yield
+      }) : (index, index, index) -> ()
+    }) : () -> ()
+    func.return
+  }
   func.func @omp_simd_order(%ub: index, %lb: index, %step: index) {
     "omp.simd"() <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0, 0>, order_mod = #omp<order_mod reproducible>}> ({
       "omp.loop_nest"(%lb, %ub, %step) ({
@@ -492,6 +501,15 @@ builtin.module {
 // CHECK-NEXT:    func.func @omp_loop_nest_inclusive(%lb: index, %ub: index, %step: index) {
 // CHECK-NEXT:      "omp.wsloop"() <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0, 0>, schedule_simd}> ({
 // CHECK-NEXT:        "omp.loop_nest"(%lb, %ub, %step) <{loop_inclusive}> ({
+// CHECK-NEXT:        ^bb0(%iter: index):
+// CHECK-NEXT:          omp.yield
+// CHECK-NEXT:        }) : (index, index, index) -> ()
+// CHECK-NEXT:      }) : () -> ()
+// CHECK-NEXT:      func.return
+// CHECK-NEXT:    }
+// CHECK-NEXT:    func.func @omp_loop_nest_collapse(%lb: index, %ub: index, %step: index) {
+// CHECK-NEXT:      "omp.wsloop"() <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0, 0>}> ({
+// CHECK-NEXT:        "omp.loop_nest"(%lb, %ub, %step) <{collapse_num_loops = 2 : i64}> ({
 // CHECK-NEXT:        ^bb0(%iter: index):
 // CHECK-NEXT:          omp.yield
 // CHECK-NEXT:        }) : (index, index, index) -> ()

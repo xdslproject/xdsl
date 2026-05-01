@@ -653,7 +653,7 @@ class ParamAttrConstraint(
         object.__setattr__(self, "param_constrs", constrs)
 
     def __repr__(self):
-        return f"ParamAttrConstraint({self.base_attr.__name__}, {repr(self.param_constrs)})"
+        return f"ParamAttrConstraint({self.base_attr.__name__}, {self.param_constrs!r})"
 
     def verify(
         self,

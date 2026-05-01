@@ -24,8 +24,6 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.dialects.utils import (
     AbstractYieldOperation,
-)
-from xdsl.dialects.utils.dynamic_index_list import (
     DynamicIndexList,
     parse_dynamic_index_list_without_types,
     print_dynamic_index_list,

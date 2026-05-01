@@ -33,10 +33,10 @@ def test_unimplemented_inputs():
         NotImplementedError,
         match="library_call not yet supported in linalg.generic interpreter",
     ):
-        op = linalg.GenericOp(
+        op = linalg.ops.GenericOp(
             (),
             (),
-            Region(Block([linalg.YieldOp()])),
+            Region(Block([linalg.ops.YieldOp()])),
             (),
             (),
             library_call=StringAttr("hello"),
@@ -50,7 +50,7 @@ def test_linalg_generic():
     interpreter.register_implementations(LinalgFunctions())
     interpreter.register_implementations(ArithFunctions())
 
-    op = linalg.GenericOp(
+    op = linalg.ops.GenericOp(
         (
             create_ssa_value(MemRefType(i32, [2, 3])),
             create_ssa_value(MemRefType(i32, [3, 2])),
@@ -72,15 +72,15 @@ def test_linalg_generic():
             ),
         ),
         (
-            linalg.IteratorTypeAttr.parallel(),
-            linalg.IteratorTypeAttr.parallel(),
-            linalg.IteratorTypeAttr.parallel(),
+            linalg.attrs.IteratorTypeAttr.parallel(),
+            linalg.attrs.IteratorTypeAttr.parallel(),
+            linalg.attrs.IteratorTypeAttr.parallel(),
         ),
     )
 
     with ImplicitBuilder(op.body) as (a, b):
         c = arith.MuliOp(a, b).result
-        linalg.YieldOp(c)
+        linalg.ops.YieldOp(c)
 
     a = ShapedArray(TypedPtr.new_int32([1, 2, 3, 4, 5, 6]), [2, 3])
     b = ShapedArray(TypedPtr.new_int32([1, 4, 2, 5, 3, 6]), [3, 2])
@@ -90,7 +90,7 @@ def test_linalg_generic():
 
     assert c.data == [1, 4, 9, 16, 25, 36]
 
-    tensor_op = linalg.GenericOp(
+    tensor_op = linalg.ops.GenericOp(
         (
             create_ssa_value(TensorType(i32, [2, 3])),
             create_ssa_value(TensorType(i32, [3, 2])),
@@ -115,7 +115,7 @@ def test_linalg_generic_scalar():
     interpreter.register_implementations(LinalgFunctions())
     interpreter.register_implementations(ArithFunctions())
 
-    op = linalg.GenericOp(
+    op = linalg.ops.GenericOp(
         (
             create_ssa_value(MemRefType(i32, [2, 3])),
             create_ssa_value(i32),
@@ -137,15 +137,15 @@ def test_linalg_generic_scalar():
             ),
         ),
         (
-            linalg.IteratorTypeAttr.parallel(),
-            linalg.IteratorTypeAttr.parallel(),
-            linalg.IteratorTypeAttr.parallel(),
+            linalg.attrs.IteratorTypeAttr.parallel(),
+            linalg.attrs.IteratorTypeAttr.parallel(),
+            linalg.attrs.IteratorTypeAttr.parallel(),
         ),
     )
 
     with ImplicitBuilder(op.body) as (a, b):
         c = arith.MuliOp(a, b).result
-        linalg.YieldOp(c)
+        linalg.ops.YieldOp(c)
 
     a = ShapedArray(TypedPtr.new_int32([1, 2, 3, 4, 5, 6]), [2, 3])
     b = 2
@@ -161,7 +161,7 @@ def test_linalg_generic_reduction():
     interpreter.register_implementations(LinalgFunctions())
     interpreter.register_implementations(ArithFunctions())
 
-    op = linalg.GenericOp(
+    op = linalg.ops.GenericOp(
         (
             create_ssa_value(MemRefType(i32, [3])),
             create_ssa_value(MemRefType(i32, [3])),
@@ -173,13 +173,13 @@ def test_linalg_generic_reduction():
             AffineMapAttr(AffineMap.identity(1)),
             AffineMapAttr(AffineMap.from_callable(lambda d0: ())),
         ),
-        (linalg.IteratorTypeAttr.reduction(),),
+        (linalg.attrs.IteratorTypeAttr.reduction(),),
     )
 
     with ImplicitBuilder(op.body) as (lhs, rhs, acc):
         sum = arith.MuliOp(lhs, rhs).result
         new_acc = arith.AddiOp(sum, acc).result
-        linalg.YieldOp(new_acc)
+        linalg.ops.YieldOp(new_acc)
 
     a = ShapedArray(TypedPtr.new_int32([1, 2, 3]), [3])
     b = ShapedArray(TypedPtr.new_int32([4, 5, 6]), [3])
@@ -194,7 +194,7 @@ def test_linalg_add():
     interpreter = Interpreter(ModuleOp([]))
     interpreter.register_implementations(LinalgFunctions())
     interpreter.register_implementations(ArithFunctions())
-    op = linalg.AddOp(
+    op = linalg.ops.AddOp(
         (
             create_ssa_value(TensorType(f32, [2, 2])),
             create_ssa_value(TensorType(f32, [2, 2])),
@@ -217,7 +217,7 @@ def test_fill_op():
     interpreter.register_implementations(ArithFunctions())
     interpreter.register_implementations(LinalgFunctions())
     constant = arith.ConstantOp(FloatAttr(1.0, f32))
-    op = linalg.FillOp(
+    op = linalg.ops.FillOp(
         (create_ssa_value(constant.result.type),),
         (create_ssa_value(TensorType(f32, [2, 3])),),
         (TensorType(f32, [2, 3]),),
@@ -234,7 +234,7 @@ def test_linalg_mul():
     interpreter = Interpreter(ModuleOp([]))
     interpreter.register_implementations(LinalgFunctions())
     interpreter.register_implementations(ArithFunctions())
-    op = linalg.MulOp(
+    op = linalg.ops.MulOp(
         (
             create_ssa_value(TensorType(f32, [2, 2])),
             create_ssa_value(TensorType(f32, [2, 2])),
@@ -254,7 +254,7 @@ def test_linalg_mul():
 def test_linalg_transpose():
     interpreter = Interpreter(ModuleOp([]))
     interpreter.register_implementations(LinalgFunctions())
-    op = linalg.TransposeOp(
+    op = linalg.ops.TransposeOp(
         create_ssa_value(TensorType(f32, [3, 2])),
         create_ssa_value(TensorType(f32, [2, 3])),
         DenseArrayBase.from_list(i64, [1, 0]),
@@ -273,7 +273,7 @@ def test_linalg_matmul():
     interpreter = Interpreter(ModuleOp([]))
     interpreter.register_implementations(LinalgFunctions())
     interpreter.register_implementations(ArithFunctions())
-    op = linalg.MatmulOp(
+    op = linalg.ops.MatmulOp(
         (
             create_ssa_value(TensorType(f32, [3, 2])),
             create_ssa_value(TensorType(f32, [2, 3])),
@@ -297,7 +297,7 @@ def test_linalg_pooling_nchw_max():
     interpreter = Interpreter(ModuleOp([]))
     interpreter.register_implementations(LinalgFunctions())
     interpreter.register_implementations(ArithFunctions())
-    op = linalg.PoolingNchwMaxOp(
+    op = linalg.ops.PoolingNchwMaxOp(
         (
             create_ssa_value(TensorType(f32, [1, 1, 4, 4])),
             create_ssa_value(TensorType(f32, [2, 2])),
@@ -328,7 +328,7 @@ def test_linalg_pooling_nchw_max():
 def test_linalg_pooling_nchw_max_strides_two():
     interpreter = Interpreter(ModuleOp([]))
     interpreter.register_implementations(LinalgFunctions())
-    op = linalg.PoolingNchwMaxOp(
+    op = linalg.ops.PoolingNchwMaxOp(
         (
             create_ssa_value(TensorType(f32, [1, 1, 4, 4])),
             create_ssa_value(TensorType(f32, [2, 2])),
@@ -359,7 +359,7 @@ def test_linalg_pooling_nchw_max_strides_two():
 def test_linalg_conv_2d_nchw_fchw():
     interpreter = Interpreter(ModuleOp([]))
     interpreter.register_implementations(LinalgFunctions())
-    op = linalg.Conv2DNchwFchwOp(
+    op = linalg.ops.Conv2DNchwFchwOp(
         (
             create_ssa_value(TensorType(f32, [1, 1, 5, 5])),
             create_ssa_value(TensorType(f32, [1, 1, 3, 3])),

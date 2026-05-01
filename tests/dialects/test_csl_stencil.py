@@ -7,7 +7,7 @@ from xdsl.dialects.builtin import (
     TensorType,
     f32,
 )
-from xdsl.dialects.csl.csl_stencil import AccessOp, ApplyOp
+from xdsl.dialects.csl_stencil import AccessOp, ApplyOp
 from xdsl.dialects.stencil import IndexAttr, TempType
 from xdsl.ir import Region, SSAValue
 from xdsl.utils.test_value import create_ssa_value

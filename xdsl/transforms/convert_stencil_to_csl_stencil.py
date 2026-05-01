@@ -4,7 +4,7 @@ from math import prod
 
 from xdsl.builder import ImplicitBuilder
 from xdsl.context import Context
-from xdsl.dialects import arith, builtin, stencil, tensor, varith
+from xdsl.dialects import arith, builtin, csl_stencil, stencil, tensor, varith
 from xdsl.dialects.builtin import (
     DYNAMIC_INDEX,
     AnyTensorType,
@@ -17,7 +17,6 @@ from xdsl.dialects.builtin import (
     ModuleOp,
     TensorType,
 )
-from xdsl.dialects.csl import csl_stencil
 from xdsl.dialects.experimental import dmp
 from xdsl.ir import (
     Attribute,

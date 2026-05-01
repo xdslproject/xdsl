@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 from xdsl.builder import ImplicitBuilder
 from xdsl.context import Context
-from xdsl.dialects import arith, scf
+from xdsl.dialects import arith, csl, csl_stencil, csl_wrapper, scf
 from xdsl.dialects.builtin import (
     FunctionType,
     IndexType,
@@ -12,7 +12,6 @@ from xdsl.dialects.builtin import (
     SymbolRefAttr,
     i32,
 )
-from xdsl.dialects.csl import csl, csl_stencil, csl_wrapper
 from xdsl.ir import (
     Block,
     Operation,

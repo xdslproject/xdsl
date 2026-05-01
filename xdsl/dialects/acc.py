@@ -1,0 +1,2640 @@
+"""
+The OpenACC (acc) dialect that models the OpenACC programming model in MLIR.
+
+OpenACC is a directive-based programming model for accelerating applications
+on heterogeneous systems. This dialect exposes compute constructs, data
+constructs, loops, and the associated clauses so that host and accelerator
+code can be represented, analysed, and lowered to target-specific runtimes.
+
+See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenACCDialect/).
+"""
+
+from abc import ABC
+from collections.abc import Sequence
+from typing import cast
+
+from xdsl.dialects.builtin import (
+    I1,
+    ArrayAttr,
+    BoolAttr,
+    DenseArrayBase,
+    IndexType,
+    IntegerAttr,
+    IntegerType,
+    MemRefType,
+    StringAttr,
+    SymbolNameConstraint,
+    SymbolRefAttr,
+    UnitAttr,
+    i32,
+)
+from xdsl.dialects.utils import AbstractYieldOperation, BitEnumAttribute
+from xdsl.ir import (
+    Attribute,
+    Dialect,
+    EnumAttribute,
+    Operation,
+    ParametrizedAttribute,
+    Region,
+    SpacedOpaqueSyntaxAttribute,
+    SSAValue,
+    StrEnum,
+    TypeAttribute,
+)
+from xdsl.irdl import (
+    AttrSizedOperandSegments,
+    IRDLOperation,
+    ParsePropInAttrDict,
+    irdl_attr_definition,
+    irdl_op_definition,
+    lazy_traits_def,
+    operand_def,
+    opt_operand_def,
+    opt_prop_def,
+    prop_def,
+    region_def,
+    result_def,
+    traits_def,
+    var_operand_def,
+)
+from xdsl.irdl.declarative_assembly_format import (
+    AttributeVariable,
+    CustomDirective,
+    OperandVariable,
+    OptionalOperandVariable,
+    ParsingState,
+    PrintingState,
+    TypeDirective,
+    VariadicOperandVariable,
+    irdl_custom_directive,
+)
+from xdsl.parser import AttrParser, Parser, UnresolvedOperand
+from xdsl.printer import Printer
+from xdsl.traits import (
+    HasParent,
+    IsolatedFromAbove,
+    IsTerminator,
+    NoMemoryEffect,
+    NoTerminator,
+    RecursiveMemoryEffect,
+    SingleBlockImplicitTerminator,
+    SymbolOpInterface,
+)
+from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.hints import isa
+
+
+class DeviceType(StrEnum):
+    NONE = "none"
+    STAR = "star"
+    DEFAULT = "default"
+    HOST = "host"
+    MULTICORE = "multicore"
+    NVIDIA = "nvidia"
+    RADEON = "radeon"
+
+
+class ClauseDefaultValue(StrEnum):
+    PRESENT = "present"
+    NONE = "none"
+
+
+class DataClause(StrEnum):
+    """OpenACC data clause names (decomposed form).
+
+    The original OpenACC `copy`/`copyout`/`copyin(readonly)`/etc. clauses
+    are decomposed into individual `acc` ops. This enum keeps track of
+    which user-level clause an op was generated for. See upstream
+    `mlir::acc::DataClause`.
+    """
+
+    ACC_COPYIN = "acc_copyin"
+    ACC_COPYIN_READONLY = "acc_copyin_readonly"
+    ACC_COPY = "acc_copy"
+    ACC_COPYOUT = "acc_copyout"
+    ACC_COPYOUT_ZERO = "acc_copyout_zero"
+    ACC_PRESENT = "acc_present"
+    ACC_CREATE = "acc_create"
+    ACC_CREATE_ZERO = "acc_create_zero"
+    ACC_DELETE = "acc_delete"
+    ACC_ATTACH = "acc_attach"
+    ACC_DETACH = "acc_detach"
+    ACC_NO_CREATE = "acc_no_create"
+    ACC_PRIVATE = "acc_private"
+    ACC_FIRSTPRIVATE = "acc_firstprivate"
+    ACC_DEVICEPTR = "acc_deviceptr"
+    ACC_GETDEVICEPTR = "acc_getdeviceptr"
+    ACC_UPDATE_HOST = "acc_update_host"
+    ACC_UPDATE_SELF = "acc_update_self"
+    ACC_UPDATE_DEVICE = "acc_update_device"
+    ACC_USE_DEVICE = "acc_use_device"
+    ACC_REDUCTION = "acc_reduction"
+    ACC_DECLARE_DEVICE_RESIDENT = "acc_declare_device_resident"
+    ACC_DECLARE_LINK = "acc_declare_link"
+    ACC_CACHE = "acc_cache"
+    ACC_CACHE_READONLY = "acc_cache_readonly"
+
+
+class DataClauseModifier(StrEnum):
+    """Bit flags carried by a data clause op (zero / readonly / always*).
+
+    See upstream `mlir::acc::DataClauseModifier`. Modeled as a bit-enum;
+    the empty set is rendered as `none`.
+    """
+
+    ZERO = "zero"
+    READONLY = "readonly"
+    ALWAYSIN = "alwaysin"
+    ALWAYSOUT = "alwaysout"
+    CAPTURE = "capture"
+
+
+class VariableTypeCategory(StrEnum):
+    """Bit flags describing the OpenACC type category of a variable.
+
+    See upstream `mlir::acc::VariableTypeCategory`. Used by the
+    `MappableTypeInterface`/`PointerLikeTypeInterface` machinery; the
+    empty set is rendered as `uncategorized`.
+    """
+
+    SCALAR = "scalar"
+    ARRAY = "array"
+    COMPOSITE = "composite"
+    NONSCALAR = "nonscalar"
+
+
+class ReductionOpKind(StrEnum):
+    """Built-in reduction operators supported by OpenACC.
+
+    See upstream `mlir::acc::ReductionOperator` (renamed in xDSL to avoid
+    clashing with the `Operator` / `Operation` naming used elsewhere).
+    Carried on `acc.reduction.recipe` to identify which reduction the recipe
+    encodes.
+    """
+
+    NONE = "none"
+    ADD = "add"
+    MUL = "mul"
+    MAX = "max"
+    MIN = "min"
+    IAND = "iand"
+    IOR = "ior"
+    XOR = "xor"
+    EQV = "eqv"
+    NEQV = "neqv"
+    LAND = "land"
+    LOR = "lor"
+
+
+@irdl_attr_definition
+class DeviceTypeAttr(EnumAttribute[DeviceType]):
+    """
+    Device type attribute used to associate values of clauses with a specific
+    device_type. Prints using the pretty form `#acc.device_type<value>` to
+    match upstream MLIR (which defines `assemblyFormat = "`<` $value `>`"`).
+    """
+
+    name = "acc.device_type"
+
+    def print_parameter(self, printer: Printer) -> None:
+        with printer.in_angle_brackets():
+            printer.print_string(self.data.value)
+
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> DeviceType:
+        with parser.in_angle_brackets():
+            return parser.parse_str_enum(DeviceType)
+
+
+@irdl_attr_definition
+class ClauseDefaultValueAttr(
+    EnumAttribute[ClauseDefaultValue], SpacedOpaqueSyntaxAttribute
+):
+    """
+    Default clause value attribute, selecting either `none` or `present`.
+    See upstream `acc.defaultvalue`.
+    """
+
+    name = "acc.defaultvalue"
+
+
+@irdl_attr_definition
+class DataClauseAttr(EnumAttribute[DataClause], SpacedOpaqueSyntaxAttribute):
+    """
+    OpenACC `#acc<data_clause ...>` attribute. Carried on every data-clause op
+    so consumers can recover which user clause (e.g. `acc_copy`) the op was
+    decomposed from. See upstream `acc.data_clause`.
+    """
+
+    name = "acc.data_clause"
+
+
+@irdl_attr_definition
+class DataClauseModifierAttr(
+    BitEnumAttribute[DataClauseModifier], SpacedOpaqueSyntaxAttribute
+):
+    """
+    Bit-enum attribute for data-clause modifiers (`zero` / `readonly` /
+    `alwaysin` / `alwaysout` / `capture`). The empty set prints as `none`.
+    See upstream `acc.data_clause_modifier`.
+    """
+
+    name = "acc.data_clause_modifier"
+    none_value = "none"
+    separator_value = ","
+    delimiter_value = AttrParser.Delimiter.NONE
+
+
+@irdl_attr_definition
+class VariableTypeCategoryAttr(
+    BitEnumAttribute[VariableTypeCategory], SpacedOpaqueSyntaxAttribute
+):
+    """
+    Bit-enum attribute classifying a variable's type per the OpenACC spec.
+    Empty set prints as `uncategorized`. See upstream
+    `acc.variable_type_category`.
+    """
+
+    name = "acc.variable_type_category"
+    none_value = "uncategorized"
+    separator_value = ","
+    delimiter_value = AttrParser.Delimiter.NONE
+
+
+@irdl_attr_definition
+class ReductionOpKindAttr(EnumAttribute[ReductionOpKind]):
+    """
+    Reduction operator attribute carried by `acc.reduction.recipe`. Prints
+    using the pretty form `#acc.reduction_operator<value>` to match upstream
+    MLIR (which defines `assemblyFormat = "`<` $value `>`"`). When referenced
+    as `$reductionOperator` in an op assembly format, xDSL prints just the
+    `<value>` parameter — matching upstream's inline spelling
+    `reduction_operator <add>`.
+    """
+
+    name = "acc.reduction_operator"
+
+    def print_parameter(self, printer: Printer) -> None:
+        with printer.in_angle_brackets():
+            printer.print_string(self.data.value)
+
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> ReductionOpKind:
+        with parser.in_angle_brackets():
+            return parser.parse_str_enum(ReductionOpKind)
+
+
+@irdl_attr_definition
+class DataBoundsType(ParametrizedAttribute, TypeAttribute):
+    """
+    Type used for `acc.bounds` results. Holds normalized bounds information
+    for an `acc` data clause; consumed by the data-clause ops via their
+    variadic `bounds` operand and by the `acc.get_*bound`/`get_extent`/
+    `get_stride` accessor ops.
+    See upstream `!acc.data_bounds_ty`.
+    """
+
+    name = "acc.data_bounds_ty"
+
+
+def _parse_device_type_attr(parser: Parser) -> DeviceTypeAttr:
+    """Parse a single `#acc.device_type<...>` attribute."""
+    attr = parser.parse_attribute()
+    if not isinstance(attr, DeviceTypeAttr):
+        parser.raise_error("expected #acc.device_type attribute")
+    return attr
+
+
+def _parse_optional_device_type_suffix(parser: Parser) -> DeviceTypeAttr:
+    """Parse an optional `[ #acc.device_type<...> ]`, defaulting to `#none`."""
+    if parser.parse_optional_punctuation("[") is None:
+        return DeviceTypeAttr(DeviceType.NONE)
+    dt = _parse_device_type_attr(parser)
+    parser.parse_punctuation("]")
+    return dt
+
+
+def _parse_typed_operand(parser: Parser) -> tuple[UnresolvedOperand, Attribute]:
+    """Parse `%v : <type>` and return `(operand, type)`."""
+    operand = parser.parse_unresolved_operand()
+    parser.parse_punctuation(":")
+    return operand, parser.parse_type()
+
+
+def _parse_operand_with_dt(
+    parser: Parser,
+) -> tuple[UnresolvedOperand, Attribute, DeviceTypeAttr]:
+    """Parse `%v : <type> ( `[` #acc.device_type<...> `]` )?`."""
+    operand, ty = _parse_typed_operand(parser)
+    return operand, ty, _parse_optional_device_type_suffix(parser)
+
+
+def _print_device_type_suffix(printer: Printer, dt: Attribute) -> None:
+    """Print ` [#acc.device_type<...>]` unless the device type is `#none`."""
+    if isinstance(dt, DeviceTypeAttr) and dt.data == DeviceType.NONE:
+        return
+    printer.print_string(" [")
+    printer.print_attribute(dt)
+    printer.print_string("]")
+
+
+def _print_typed_operand(printer: Printer, operand: SSAValue) -> None:
+    """Print `%v : <type>`."""
+    printer.print_ssa_value(operand)
+    printer.print_string(" : ")
+    printer.print_attribute(operand.type)
+
+
+def _print_operand_with_dt(printer: Printer, operand: SSAValue, dt: Attribute) -> None:
+    """Print `%v : <type> ( [#acc.device_type<...>] )?`."""
+    _print_typed_operand(printer, operand)
+    _print_device_type_suffix(printer, dt)
+
+
+_DEVICE_TYPE_ONLY_NONE = ArrayAttr((DeviceTypeAttr(DeviceType.NONE),))
+"""Upstream `hasOnlyDeviceTypeNone` sentinel: the `[#acc.device_type<none>]` array."""
+
+
+def _parse_num_gangs_group(
+    parser: Parser,
+) -> tuple[tuple[UnresolvedOperand, ...], tuple[Attribute, ...], DeviceTypeAttr]:
+    """Parse one `{ %v : type, ... } ( `[` #acc.device_type<...> `]` )?` group."""
+    with parser.in_braces():
+        pairs = parser.parse_comma_separated_list(
+            parser.Delimiter.NONE, lambda: _parse_typed_operand(parser)
+        )
+    operands, types = zip(*pairs)
+    return operands, types, _parse_optional_device_type_suffix(parser)
+
+
+def _parse_wait_group(
+    parser: Parser,
+) -> tuple[
+    tuple[UnresolvedOperand, ...],
+    tuple[Attribute, ...],
+    DeviceTypeAttr,
+    BoolAttr,
+]:
+    """Parse one `{ (`devnum:`)? %v : type, ... } ( `[` #acc.device_type<...> `]` )?` group."""
+    with parser.in_braces():
+        has_devnum = parser.parse_optional_keyword("devnum") is not None
+        if has_devnum:
+            parser.parse_punctuation(":")
+        pairs = parser.parse_comma_separated_list(
+            parser.Delimiter.NONE, lambda: _parse_typed_operand(parser)
+        )
+    operands, types = zip(*pairs)
+    return (
+        operands,
+        types,
+        _parse_optional_device_type_suffix(parser),
+        IntegerAttr.from_bool(has_devnum),
+    )
+
+
+def _flatten_groups(
+    groups: Sequence[
+        tuple[Sequence[UnresolvedOperand], Sequence[Attribute], DeviceTypeAttr]
+    ],
+) -> tuple[
+    tuple[UnresolvedOperand, ...],
+    tuple[Attribute, ...],
+    tuple[DeviceTypeAttr, ...],
+    tuple[int, ...],
+]:
+    """Flatten a list of parsed groups into operands / types / dts / segment sizes."""
+    operands: list[UnresolvedOperand] = []
+    types: list[Attribute] = []
+    dts: list[DeviceTypeAttr] = []
+    segs: list[int] = []
+    for group_operands, group_types, dt in groups:
+        operands.extend(group_operands)
+        types.extend(group_types)
+        dts.append(dt)
+        segs.append(len(group_operands))
+    return tuple(operands), tuple(types), tuple(dts), tuple(segs)
+
+
+def _print_groups(
+    printer: Printer,
+    operands: Sequence[SSAValue],
+    device_types: Sequence[Attribute],
+    segments: Sequence[int],
+    *,
+    devnum_flags: Sequence[Attribute] = (),
+) -> None:
+    """Print brace-grouped operands `{ ( `devnum:` )? %v : T, ... }[dt]`, comma-separated."""
+    idx = 0
+    for group_idx, (size, dt) in enumerate(zip(segments, device_types, strict=True)):
+        if group_idx:
+            printer.print_string(", ")
+        printer.print_string("{")
+        if group_idx < len(devnum_flags):
+            flag = devnum_flags[group_idx]
+            if isinstance(flag, IntegerAttr) and bool(flag.value.data):
+                printer.print_string("devnum: ")
+        for i in range(size):
+            if i:
+                printer.print_string(", ")
+            _print_typed_operand(printer, operands[idx])
+            idx += 1
+        printer.print_string("}")
+        _print_device_type_suffix(printer, dt)
+
+
+@irdl_custom_directive
+class DeviceTypeOperands(CustomDirective):
+    """Port of upstream `custom<DeviceTypeOperands>`.
+
+    Syntax inside the enclosing `(`...`)`:
+      `%op : type ( `[` #acc.device_type<...> `]` )?` (`,` ...)*
+    """
+
+    operands: VariadicOperandVariable
+    operand_types: TypeDirective
+    device_types: AttributeVariable
+
+    def is_anchorable(self) -> bool:
+        return True
+
+    def is_optional_like(self) -> bool:
+        return True
+
+    def is_present(self, op: IRDLOperation) -> bool:
+        return bool(self.operands.get(op))
+
+    def set_empty(self, state: ParsingState) -> None:
+        self.operands.set(state, ())
+        self.operand_types.set(state, ())
+
+    def parse(self, parser: Parser, state: ParsingState) -> bool:
+        triples = parser.parse_comma_separated_list(
+            parser.Delimiter.NONE, lambda: _parse_operand_with_dt(parser)
+        )
+        operands, types, device_types = zip(*triples)
+        self.operands.set(state, operands)
+        self.operand_types.set(state, types)
+        self.device_types.set(state, ArrayAttr(device_types))
+        return True
+
+    def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
+        operands = self.operands.get(op)
+        if not operands:
+            return
+        dts = (
+            attr.data
+            if isa(attr := self.device_types.get(op), ArrayAttr)
+            else (DeviceTypeAttr(DeviceType.NONE),) * len(operands)
+        )
+        printer.print_list(
+            zip(operands, dts, strict=True),
+            lambda pair: _print_operand_with_dt(printer, pair[0], pair[1]),
+        )
+        state.should_emit_space = True
+        state.last_was_punctuation = False
+
+
+def _parse_dt_kw_only_body(
+    parser: Parser,
+) -> tuple[
+    Sequence[UnresolvedOperand],
+    Sequence[Attribute],
+    ArrayAttr[DeviceTypeAttr] | None,
+    ArrayAttr[DeviceTypeAttr] | None,
+]:
+    """Parse the post-keyword body of an `async`-style clause.
+
+    Returns ``(operands, types, device_types, keyword_only)``. Either or
+    both attributes may be ``None`` when no list / no operands are present.
+    The bare-keyword form (no parens) yields ``keyword_only =
+    [#acc.device_type<none>]``. Shared between
+    ``DeviceTypeOperandsWithKeywordOnly`` and ``DataEntryOilist``'s
+    ``async`` branch.
+    """
+    if not parser.parse_optional_punctuation("("):
+        return (), (), None, ArrayAttr([DeviceTypeAttr(DeviceType.NONE)])
+
+    kw_only = parser.parse_optional_comma_separated_list(
+        parser.Delimiter.SQUARE, lambda: _parse_device_type_attr(parser)
+    )
+    keyword_only = ArrayAttr(kw_only) if kw_only is not None else None
+
+    if parser.parse_optional_punctuation(")"):
+        return (), (), None, keyword_only
+
+    if keyword_only is not None:
+        parser.parse_punctuation(",")
+
+    triples = parser.parse_comma_separated_list(
+        parser.Delimiter.NONE, lambda: _parse_operand_with_dt(parser)
+    )
+    parser.parse_punctuation(")")
+    operands, types, device_types = zip(*triples)
+    return operands, types, ArrayAttr(device_types), keyword_only
+
+
+def _print_dt_kw_only_body(
+    printer: Printer,
+    state: PrintingState,
+    operands: Sequence[SSAValue],
+    keyword_only: Attribute | None,
+    device_types: Attribute | None,
+) -> None:
+    """Print the post-keyword body of an `async`-style clause.
+
+    Mirror of `_parse_dt_kw_only_body`. Emits nothing when both
+    ``operands`` is empty and ``keyword_only`` is the all-`#none` sentinel
+    — matching upstream's "bare async keyword" elision.
+    """
+    if not operands and keyword_only == _DEVICE_TYPE_ONLY_NONE:
+        return
+
+    printer.print_string("(")
+    if isa(keyword_only, ArrayAttr) and keyword_only.data:
+        printer.print_string("[")
+        printer.print_list(keyword_only.data, printer.print_attribute)
+        printer.print_string("]")
+        if operands:
+            printer.print_string(", ")
+    if operands:
+        dts = (
+            attr.data
+            if isa(attr := device_types, ArrayAttr)
+            else (DeviceTypeAttr(DeviceType.NONE),) * len(operands)
+        )
+        printer.print_list(
+            zip(operands, dts, strict=True),
+            lambda pair: _print_operand_with_dt(printer, pair[0], pair[1]),
+        )
+    printer.print_string(")")
+    state.should_emit_space = True
+    state.last_was_punctuation = False
+
+
+@irdl_custom_directive
+class DeviceTypeOperandsWithKeywordOnly(CustomDirective):
+    """Port of upstream `custom<DeviceTypeOperandsWithKeywordOnly>`.
+
+    Follows a bare keyword (e.g. `async`) in the format. The directive owns
+    the optional surrounding parentheses. Syntax options after the keyword:
+      bare                         → keyword-only = [#none]
+      `(` `[` dts `]` `)`          → keyword-only list, no operands
+      `(` operand-list `)`         → operands with optional per-operand dt
+      `(` `[` dts `]` `,` ops `)`  → mix of keyword-only and operands
+    """
+
+    operands: VariadicOperandVariable
+    operand_types: TypeDirective
+    device_types: AttributeVariable
+    keyword_only: AttributeVariable
+
+    def is_anchorable(self) -> bool:
+        return True
+
+    def is_optional_like(self) -> bool:
+        return True
+
+    def is_present(self, op: IRDLOperation) -> bool:
+        return (
+            bool(self.operands.get(op))
+            or self.keyword_only.get(op) is not None
+            or self.device_types.get(op) is not None
+        )
+
+    def set_empty(self, state: ParsingState) -> None:
+        self.operands.set(state, ())
+        self.operand_types.set(state, ())
+
+    def parse(self, parser: Parser, state: ParsingState) -> bool:
+        operands, types, device_types, keyword_only = _parse_dt_kw_only_body(parser)
+        self.operands.set(state, operands)
+        self.operand_types.set(state, types)
+        if device_types is not None:
+            self.device_types.set(state, device_types)
+        if keyword_only is not None:
+            self.keyword_only.set(state, keyword_only)
+        return True
+
+    def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
+        _print_dt_kw_only_body(
+            printer,
+            state,
+            self.operands.get(op),
+            self.keyword_only.get(op),
+            self.device_types.get(op),
+        )
+
+
+@irdl_custom_directive
+class NumGangs(CustomDirective):
+    """Port of upstream `custom<NumGangs>`.
+
+    Groups of operands with a per-group device type and a segments array.
+    Syntax inside the enclosing `(`...`)`:
+      `{` op:type (`,` op:type)* `}` (`[` dt `]`)?  (`,` ...)*
+    """
+
+    operands: VariadicOperandVariable
+    operand_types: TypeDirective
+    device_types: AttributeVariable
+    segments: AttributeVariable
+
+    def is_anchorable(self) -> bool:
+        return True
+
+    def is_optional_like(self) -> bool:
+        return True
+
+    def is_present(self, op: IRDLOperation) -> bool:
+        return bool(self.operands.get(op))
+
+    def set_empty(self, state: ParsingState) -> None:
+        self.operands.set(state, ())
+        self.operand_types.set(state, ())
+
+    def parse(self, parser: Parser, state: ParsingState) -> bool:
+        groups = parser.parse_comma_separated_list(
+            parser.Delimiter.NONE, lambda: _parse_num_gangs_group(parser)
+        )
+        operands, types, dts, segs = _flatten_groups(groups)
+        self.operands.set(state, operands)
+        self.operand_types.set(state, types)
+        self.device_types.set(state, ArrayAttr(dts))
+        self.segments.set(state, DenseArrayBase.from_list(i32, segs))
+        return True
+
+    def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
+        operands = self.operands.get(op)
+        if not operands:
+            return
+        dts = (
+            attr.data
+            if isa(attr := self.device_types.get(op), ArrayAttr)
+            else (DeviceTypeAttr(DeviceType.NONE),)
+        )
+        seg_values: Sequence[int] = (
+            segments.get_values()
+            if isinstance(segments := self.segments.get(op), DenseArrayBase)
+            else (len(operands),)
+        )
+        _print_groups(printer, operands, dts, seg_values)
+        state.should_emit_space = True
+        state.last_was_punctuation = False
+
+
+@irdl_custom_directive
+class WaitClause(CustomDirective):
+    """Port of upstream `custom<WaitClause>`.
+
+    Follows a bare `wait` keyword in the format. The directive owns the
+    optional surrounding parentheses. Syntax options after the keyword:
+      bare                                                → keyword-only = [#none]
+      `(` `[` dts `]` `,` group (`,` group)* `)`          → kw-only + operand groups
+      `(` group (`,` group)* `)`                          → operand groups only
+    where each group is `{ (`devnum:`)? %v : type, ... } (`[` dt `]`)?`.
+    """
+
+    operands: VariadicOperandVariable
+    operand_types: TypeDirective
+    device_types: AttributeVariable
+    segments: AttributeVariable
+    has_devnum: AttributeVariable
+    keyword_only: AttributeVariable
+
+    def is_anchorable(self) -> bool:
+        return True
+
+    def is_optional_like(self) -> bool:
+        return True
+
+    def is_present(self, op: IRDLOperation) -> bool:
+        return (
+            bool(self.operands.get(op))
+            or self.keyword_only.get(op) is not None
+            or self.device_types.get(op) is not None
+        )
+
+    def set_empty(self, state: ParsingState) -> None:
+        self.operands.set(state, ())
+        self.operand_types.set(state, ())
+
+    def parse(self, parser: Parser, state: ParsingState) -> bool:
+        if not parser.parse_optional_punctuation("("):
+            self.keyword_only.set(state, ArrayAttr([DeviceTypeAttr(DeviceType.NONE)]))
+            self.operands.set(state, ())
+            self.operand_types.set(state, ())
+            return True
+
+        kw_only = parser.parse_optional_comma_separated_list(
+            parser.Delimiter.SQUARE, lambda: _parse_device_type_attr(parser)
+        )
+        if kw_only is not None:
+            self.keyword_only.set(state, ArrayAttr(kw_only))
+            parser.parse_punctuation(",")
+
+        groups = parser.parse_comma_separated_list(
+            parser.Delimiter.NONE, lambda: _parse_wait_group(parser)
+        )
+        parser.parse_punctuation(")")
+
+        all_operands: list[UnresolvedOperand] = []
+        all_types: list[Attribute] = []
+        dts: list[DeviceTypeAttr] = []
+        devnum_flags: list[BoolAttr] = []
+        segs: list[int] = []
+        for group_operands, group_types, dt, devnum in groups:
+            all_operands.extend(group_operands)
+            all_types.extend(group_types)
+            dts.append(dt)
+            devnum_flags.append(devnum)
+            segs.append(len(group_operands))
+
+        self.operands.set(state, tuple(all_operands))
+        self.operand_types.set(state, tuple(all_types))
+        self.device_types.set(state, ArrayAttr(dts))
+        self.segments.set(state, DenseArrayBase.from_list(i32, segs))
+        self.has_devnum.set(state, ArrayAttr(devnum_flags))
+        return True
+
+    def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
+        operands = self.operands.get(op)
+        keyword_only = self.keyword_only.get(op)
+
+        if not operands and keyword_only == _DEVICE_TYPE_ONLY_NONE:
+            return
+
+        printer.print_string("(")
+        if (
+            isa(keyword_only, ArrayAttr)
+            and keyword_only.data
+            and keyword_only != _DEVICE_TYPE_ONLY_NONE
+        ):
+            printer.print_string("[")
+            printer.print_list(keyword_only.data, printer.print_attribute)
+            printer.print_string("]")
+            if operands:
+                printer.print_string(", ")
+        if operands:
+            dts = (
+                attr.data
+                if isa(attr := self.device_types.get(op), ArrayAttr)
+                else (DeviceTypeAttr(DeviceType.NONE),)
+            )
+            seg_values: Sequence[int] = (
+                segments.get_values()
+                if isinstance(segments := self.segments.get(op), DenseArrayBase)
+                else (len(operands),)
+            )
+            devnum_flags: Sequence[Attribute] = (
+                devnum_attrs.data
+                if isa(devnum_attrs := self.has_devnum.get(op), ArrayAttr)
+                else ()
+            )
+            _print_groups(printer, operands, dts, seg_values, devnum_flags=devnum_flags)
+        printer.print_string(")")
+        state.should_emit_space = True
+        state.last_was_punctuation = False
+
+
+def _default_var_type(var_type: Attribute) -> Attribute:
+    """Default `varType` value for a `var` operand.
+
+    Mirrors upstream's `parseVarPtrType`/`printVarPtrType` heuristic: when
+    `var` has a pointer-like type, the implied `varType` is the pointee
+    element type; otherwise the variable's own type is used.
+    """
+    if isa(var_type, MemRefType):
+        return var_type.element_type
+    return var_type
+
+
+@irdl_custom_directive
+class AccVar(CustomDirective):
+    """Port of upstream `custom<AccVar>($accVar, type($accVar))`.
+
+    Renders `accPtr(%v : type)`. Accepts both `accPtr` and `accVar`
+    keywords on parse; always emits `accPtr` (xDSL doesn't distinguish
+    `PointerLikeType` vs `MappableType` here, mirroring `Var`'s `varPtr`
+    choice).
+    """
+
+    acc_var: OperandVariable
+    acc_var_type: TypeDirective
+
+    def is_anchorable(self) -> bool:
+        return False
+
+    def is_optional_like(self) -> bool:
+        return False
+
+    def parse(self, parser: Parser, state: ParsingState) -> bool:
+        if parser.parse_optional_keyword("accPtr") is None:
+            parser.parse_keyword("accVar")
+        with parser.in_parens():
+            operand = parser.parse_unresolved_operand()
+            parser.parse_punctuation(":")
+            ty = parser.parse_type()
+        self.acc_var.set(state, operand)
+        self.acc_var_type.set(state, (ty,))
+        return True
+
+    def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
+        state.print_whitespace(printer)
+        ssa = self.acc_var.get(op)
+        printer.print_string("accPtr(")
+        printer.print_ssa_value(ssa)
+        printer.print_string(" : ")
+        printer.print_attribute(ssa.type)
+        printer.print_string(")")
+        state.should_emit_space = True
+        state.last_was_punctuation = False
+
+
+@irdl_custom_directive
+class Var(CustomDirective):
+    """Port of upstream `custom<Var>($var) `:` custom<VarPtrType>(type($var), $varType)`.
+
+    Renders `varPtr(%v : type) (varType(t))?`. Accepts both `varPtr` and `var`
+    keywords on parse; always emits `varPtr` (xDSL doesn't distinguish
+    `PointerLikeType` vs `MappableType` here, and the OpenACC tests target
+    memref types which are pointer-like). The `varType` slot is omitted on
+    print whenever it matches `_default_var_type(var.type)`.
+    """
+
+    var: OperandVariable
+    var_type: TypeDirective
+    var_type_attr: AttributeVariable
+
+    def is_anchorable(self) -> bool:
+        return False
+
+    def is_optional_like(self) -> bool:
+        return False
+
+    def parse(self, parser: Parser, state: ParsingState) -> bool:
+        if parser.parse_optional_keyword("varPtr") is None:
+            parser.parse_keyword("var")
+        with parser.in_parens():
+            operand = parser.parse_unresolved_operand()
+            parser.parse_punctuation(":")
+            ty = parser.parse_type()
+        self.var.set(state, operand)
+        self.var_type.set(state, (ty,))
+
+        if parser.parse_optional_keyword("varType") is not None:
+            with parser.in_parens():
+                self.var_type_attr.set(state, parser.parse_type())
+        else:
+            self.var_type_attr.set(state, _default_var_type(ty))
+        return True
+
+    def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
+        state.print_whitespace(printer)
+        ssa = self.var.get(op)
+        printer.print_string("varPtr(")
+        printer.print_ssa_value(ssa)
+        printer.print_string(" : ")
+        printer.print_attribute(ssa.type)
+        printer.print_string(")")
+        attr = self.var_type_attr.get(op)
+        if attr is not None and attr != _default_var_type(ssa.type):
+            printer.print_string(" varType(")
+            printer.print_attribute(attr)
+            printer.print_string(")")
+        state.should_emit_space = True
+        state.last_was_punctuation = False
+
+
+@irdl_custom_directive
+class DataEntryOilist(CustomDirective):
+    """Port of upstream's `oilist(...)` for the data-entry op family.
+
+    Accepts the four optional clauses `varPtrPtr` / `bounds` / `async` /
+    `recipe` in any order on parse; emits them in the canonical
+    upstream-td-definition order on print. Each clause may appear at most
+    once. This mirrors upstream MLIR's `oilist(...)` semantics — the
+    round-trip with `mlir-opt` (which emits in upstream's td order)
+    round-trips bit-identically through xDSL even when the input source
+    interleaves clauses in a different order.
+    """
+
+    var_ptr_ptr: OptionalOperandVariable
+    var_ptr_ptr_type: TypeDirective
+    bounds: VariadicOperandVariable
+    async_operands: VariadicOperandVariable
+    async_operand_types: TypeDirective
+    async_device_type: AttributeVariable
+    async_only: AttributeVariable
+    recipe: AttributeVariable
+
+    def is_optional_like(self) -> bool:
+        return True
+
+    def set_empty(self, state: ParsingState) -> None:
+        self.var_ptr_ptr.set(state, None)
+        self.var_ptr_ptr_type.set(state, ())
+        self.bounds.set(state, ())
+        self.async_operands.set(state, ())
+        self.async_operand_types.set(state, ())
+
+    _CLAUSE_KEYWORDS = ("varPtrPtr", "bounds", "async", "recipe")
+
+    def parse(self, parser: Parser, state: ParsingState) -> bool:
+        self.set_empty(state)
+        seen: set[str] = set()
+        while (
+            kw := parser.parse_optional_keyword_in(self._CLAUSE_KEYWORDS)
+        ) is not None:
+            if kw in seen:
+                parser.raise_error(f"'{kw}' clause specified twice")
+            seen.add(kw)
+            if kw == "varPtrPtr":
+                with parser.in_parens():
+                    operand = parser.parse_unresolved_operand()
+                    parser.parse_punctuation(":")
+                    ty = parser.parse_type()
+                self.var_ptr_ptr.set(state, operand)
+                self.var_ptr_ptr_type.set(state, (ty,))
+            elif kw == "bounds":
+                with parser.in_parens():
+                    bounds_operands = parser.parse_comma_separated_list(
+                        parser.Delimiter.NONE, parser.parse_unresolved_operand
+                    )
+                self.bounds.set(state, bounds_operands)
+            elif kw == "async":
+                ops, types, dts, kw_only = _parse_dt_kw_only_body(parser)
+                self.async_operands.set(state, ops)
+                self.async_operand_types.set(state, types)
+                if dts is not None:
+                    self.async_device_type.set(state, dts)
+                if kw_only is not None:
+                    self.async_only.set(state, kw_only)
+            else:  # recipe
+                with parser.in_parens():
+                    self.recipe.set(state, parser.parse_attribute())
+        return True
+
+    def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
+        var_ptr_ptr = self.var_ptr_ptr.get(op)
+        if var_ptr_ptr is not None:
+            state.print_whitespace(printer)
+            printer.print_string("varPtrPtr(")
+            printer.print_ssa_value(var_ptr_ptr)
+            printer.print_string(" : ")
+            printer.print_attribute(var_ptr_ptr.type)
+            printer.print_string(")")
+            state.should_emit_space = True
+            state.last_was_punctuation = False
+
+        bounds = self.bounds.get(op)
+        if bounds:
+            state.print_whitespace(printer)
+            printer.print_string("bounds(")
+            printer.print_list(bounds, printer.print_ssa_value)
+            printer.print_string(")")
+            state.should_emit_space = True
+            state.last_was_punctuation = False
+
+        async_operands = self.async_operands.get(op)
+        async_only = self.async_only.get(op)
+        async_device_type = self.async_device_type.get(op)
+        # Mirror upstream's optional-group anchor: the `async` keyword is
+        # emitted whenever any of the four async slots is set, including the
+        # all-`#none` sentinel (which renders bare `async`).
+        async_present = (
+            bool(async_operands)
+            or async_only is not None
+            or async_device_type is not None
+        )
+        if async_present:
+            state.print_whitespace(printer)
+            printer.print_string("async")
+            # Leave `should_emit_space = True` so the bare-keyword case (body
+            # returns early) lands a space before the next clause / `->`.
+            # The body's `print_string("(")` doesn't consult this flag, so
+            # `async(...)` still prints adjacent in the non-bare case.
+            state.should_emit_space = True
+            state.last_was_punctuation = False
+            _print_dt_kw_only_body(
+                printer, state, async_operands, async_only, async_device_type
+            )
+
+        recipe = self.recipe.get(op)
+        if recipe is not None:
+            state.print_whitespace(printer)
+            printer.print_string("recipe(")
+            printer.print_attribute(recipe)
+            printer.print_string(")")
+            state.should_emit_space = True
+            state.last_was_punctuation = False
+
+
+@irdl_op_definition
+class ParallelOp(IRDLOperation):
+    """
+    Implementation of upstream acc.parallel.
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenACCDialect/#accparallel-accparallelop).
+    """
+
+    name = "acc.parallel"
+
+    async_operands = var_operand_def(IntegerType | IndexType)
+    wait_operands = var_operand_def(IntegerType | IndexType)
+    num_gangs = var_operand_def(IntegerType | IndexType)
+    num_workers = var_operand_def(IntegerType | IndexType)
+    vector_length = var_operand_def(IntegerType | IndexType)
+    if_cond = opt_operand_def(I1)
+    self_cond = opt_operand_def(I1)
+    reduction_operands = var_operand_def()
+    private_operands = var_operand_def()
+    firstprivate_operands = var_operand_def()
+    data_clause_operands = var_operand_def()
+
+    async_operands_device_type = opt_prop_def(
+        ArrayAttr[DeviceTypeAttr], prop_name="asyncOperandsDeviceType"
+    )
+    async_only = opt_prop_def(ArrayAttr[DeviceTypeAttr], prop_name="asyncOnly")
+    wait_operands_device_type = opt_prop_def(
+        ArrayAttr[DeviceTypeAttr], prop_name="waitOperandsDeviceType"
+    )
+    wait_operands_segments = opt_prop_def(
+        DenseArrayBase.constr(IntegerType(32)), prop_name="waitOperandsSegments"
+    )
+    has_wait_devnum = opt_prop_def(ArrayAttr[BoolAttr], prop_name="hasWaitDevnum")
+    wait_only = opt_prop_def(ArrayAttr[DeviceTypeAttr], prop_name="waitOnly")
+    num_gangs_segments = opt_prop_def(
+        DenseArrayBase.constr(IntegerType(32)), prop_name="numGangsSegments"
+    )
+    num_gangs_device_type = opt_prop_def(
+        ArrayAttr[DeviceTypeAttr], prop_name="numGangsDeviceType"
+    )
+    num_workers_device_type = opt_prop_def(
+        ArrayAttr[DeviceTypeAttr], prop_name="numWorkersDeviceType"
+    )
+    vector_length_device_type = opt_prop_def(
+        ArrayAttr[DeviceTypeAttr], prop_name="vectorLengthDeviceType"
+    )
+    self_attr = opt_prop_def(UnitAttr, prop_name="selfAttr")
+    default_attr = opt_prop_def(ClauseDefaultValueAttr, prop_name="defaultAttr")
+    combined = opt_prop_def(UnitAttr)
+
+    region = region_def("single_block")
+
+    irdl_options = (
+        AttrSizedOperandSegments(as_property=True),
+        ParsePropInAttrDict(),
+    )
+
+    custom_directives = (
+        DeviceTypeOperands,
+        NumGangs,
+        DeviceTypeOperandsWithKeywordOnly,
+        WaitClause,
+    )
+
+    assembly_format = (
+        "(`combined` `(` `loop` `)` $combined^)?"
+        " (`dataOperands` `(` $data_clause_operands^ `:`"
+        " type($data_clause_operands) `)`)?"
+        " (`async` custom<DeviceTypeOperandsWithKeywordOnly>($async_operands,"
+        " type($async_operands), $asyncOperandsDeviceType, $asyncOnly)^)?"
+        " (`firstprivate` `(` $firstprivate_operands^ `:`"
+        " type($firstprivate_operands) `)`)?"
+        " (`num_gangs` `(` custom<NumGangs>($num_gangs, type($num_gangs),"
+        " $numGangsDeviceType, $numGangsSegments)^ `)`)?"
+        " (`num_workers` `(` custom<DeviceTypeOperands>($num_workers,"
+        " type($num_workers), $numWorkersDeviceType)^ `)`)?"
+        " (`private` `(` $private_operands^ `:`"
+        " type($private_operands) `)`)?"
+        " (`vector_length` `(` custom<DeviceTypeOperands>($vector_length,"
+        " type($vector_length), $vectorLengthDeviceType)^ `)`)?"
+        " (`wait` custom<WaitClause>($wait_operands, type($wait_operands),"
+        " $waitOperandsDeviceType, $waitOperandsSegments, $hasWaitDevnum,"
+        " $waitOnly)^)?"
+        " (`self` `(` $self_cond^ `)`)?"
+        " (`if` `(` $if_cond^ `)`)?"
+        " (`reduction` `(` $reduction_operands^ `:`"
+        " type($reduction_operands) `)`)?"
+        " $region attr-dict-with-keyword"
+    )
+
+    traits = lazy_traits_def(
+        lambda: (
+            SingleBlockImplicitTerminator(YieldOp),
+            RecursiveMemoryEffect(),
+        )
+    )
+
+    def __init__(
+        self,
+        *,
+        region: Region,
+        async_operands: Sequence[SSAValue | Operation] = (),
+        wait_operands: Sequence[SSAValue | Operation] = (),
+        num_gangs: Sequence[SSAValue | Operation] = (),
+        num_workers: Sequence[SSAValue | Operation] = (),
+        vector_length: Sequence[SSAValue | Operation] = (),
+        if_cond: SSAValue | Operation | None = None,
+        self_cond: SSAValue | Operation | None = None,
+        reduction_operands: Sequence[SSAValue | Operation] = (),
+        private_operands: Sequence[SSAValue | Operation] = (),
+        firstprivate_operands: Sequence[SSAValue | Operation] = (),
+        data_clause_operands: Sequence[SSAValue | Operation] = (),
+        async_operands_device_type: ArrayAttr[DeviceTypeAttr] | None = None,
+        async_only: ArrayAttr[DeviceTypeAttr] | None = None,
+        wait_operands_device_type: ArrayAttr[DeviceTypeAttr] | None = None,
+        wait_operands_segments: DenseArrayBase | None = None,
+        has_wait_devnum: ArrayAttr[BoolAttr] | None = None,
+        wait_only: ArrayAttr[DeviceTypeAttr] | None = None,
+        num_gangs_segments: DenseArrayBase | None = None,
+        num_gangs_device_type: ArrayAttr[DeviceTypeAttr] | None = None,
+        num_workers_device_type: ArrayAttr[DeviceTypeAttr] | None = None,
+        vector_length_device_type: ArrayAttr[DeviceTypeAttr] | None = None,
+        self_attr: UnitAttr | bool = False,
+        default_attr: ClauseDefaultValueAttr | ClauseDefaultValue | None = None,
+        combined: UnitAttr | bool = False,
+    ) -> None:
+        self_attr_prop: UnitAttr | None = (
+            (UnitAttr() if self_attr else None)
+            if isinstance(self_attr, bool)
+            else self_attr
+        )
+        combined_prop: UnitAttr | None = (
+            (UnitAttr() if combined else None)
+            if isinstance(combined, bool)
+            else combined
+        )
+        default_prop: ClauseDefaultValueAttr | None = (
+            ClauseDefaultValueAttr(default_attr)
+            if isinstance(default_attr, ClauseDefaultValue)
+            else default_attr
+        )
+        super().__init__(
+            operands=[
+                async_operands,
+                wait_operands,
+                num_gangs,
+                num_workers,
+                vector_length,
+                [if_cond] if if_cond is not None else [],
+                [self_cond] if self_cond is not None else [],
+                reduction_operands,
+                private_operands,
+                firstprivate_operands,
+                data_clause_operands,
+            ],
+            properties={
+                "asyncOperandsDeviceType": async_operands_device_type,
+                "asyncOnly": async_only,
+                "waitOperandsDeviceType": wait_operands_device_type,
+                "waitOperandsSegments": wait_operands_segments,
+                "hasWaitDevnum": has_wait_devnum,
+                "waitOnly": wait_only,
+                "numGangsSegments": num_gangs_segments,
+                "numGangsDeviceType": num_gangs_device_type,
+                "numWorkersDeviceType": num_workers_device_type,
+                "vectorLengthDeviceType": vector_length_device_type,
+                "selfAttr": self_attr_prop,
+                "defaultAttr": default_prop,
+                "combined": combined_prop,
+            },
+            regions=[region],
+        )
+
+
+@irdl_op_definition
+class SerialOp(IRDLOperation):
+    """
+    Implementation of upstream acc.serial.
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenACCDialect/#accserial-accserialop).
+    """
+
+    name = "acc.serial"
+
+    async_operands = var_operand_def(IntegerType | IndexType)
+    wait_operands = var_operand_def(IntegerType | IndexType)
+    if_cond = opt_operand_def(I1)
+    self_cond = opt_operand_def(I1)
+    reduction_operands = var_operand_def()
+    private_operands = var_operand_def()
+    firstprivate_operands = var_operand_def()
+    data_clause_operands = var_operand_def()
+
+    async_operands_device_type = opt_prop_def(
+        ArrayAttr[DeviceTypeAttr], prop_name="asyncOperandsDeviceType"
+    )
+    async_only = opt_prop_def(ArrayAttr[DeviceTypeAttr], prop_name="asyncOnly")
+    wait_operands_device_type = opt_prop_def(
+        ArrayAttr[DeviceTypeAttr], prop_name="waitOperandsDeviceType"
+    )
+    wait_operands_segments = opt_prop_def(
+        DenseArrayBase.constr(IntegerType(32)), prop_name="waitOperandsSegments"
+    )
+    has_wait_devnum = opt_prop_def(ArrayAttr[BoolAttr], prop_name="hasWaitDevnum")
+    wait_only = opt_prop_def(ArrayAttr[DeviceTypeAttr], prop_name="waitOnly")
+    self_attr = opt_prop_def(UnitAttr, prop_name="selfAttr")
+    default_attr = opt_prop_def(ClauseDefaultValueAttr, prop_name="defaultAttr")
+    combined = opt_prop_def(UnitAttr)
+
+    region = region_def("single_block")
+
+    irdl_options = (
+        AttrSizedOperandSegments(as_property=True),
+        ParsePropInAttrDict(),
+    )
+
+    custom_directives = (
+        DeviceTypeOperandsWithKeywordOnly,
+        WaitClause,
+    )
+
+    assembly_format = (
+        "(`combined` `(` `loop` `)` $combined^)?"
+        " (`dataOperands` `(` $data_clause_operands^ `:`"
+        " type($data_clause_operands) `)`)?"
+        " (`async` custom<DeviceTypeOperandsWithKeywordOnly>($async_operands,"
+        " type($async_operands), $asyncOperandsDeviceType, $asyncOnly)^)?"
+        " (`firstprivate` `(` $firstprivate_operands^ `:`"
+        " type($firstprivate_operands) `)`)?"
+        " (`private` `(` $private_operands^ `:`"
+        " type($private_operands) `)`)?"
+        " (`wait` custom<WaitClause>($wait_operands, type($wait_operands),"
+        " $waitOperandsDeviceType, $waitOperandsSegments, $hasWaitDevnum,"
+        " $waitOnly)^)?"
+        " (`self` `(` $self_cond^ `)`)?"
+        " (`if` `(` $if_cond^ `)`)?"
+        " (`reduction` `(` $reduction_operands^ `:`"
+        " type($reduction_operands) `)`)?"
+        " $region attr-dict-with-keyword"
+    )
+
+    traits = lazy_traits_def(
+        lambda: (
+            SingleBlockImplicitTerminator(YieldOp),
+            RecursiveMemoryEffect(),
+        )
+    )
+
+    def __init__(
+        self,
+        *,
+        region: Region,
+        async_operands: Sequence[SSAValue | Operation] = (),
+        wait_operands: Sequence[SSAValue | Operation] = (),
+        if_cond: SSAValue | Operation | None = None,
+        self_cond: SSAValue | Operation | None = None,
+        reduction_operands: Sequence[SSAValue | Operation] = (),
+        private_operands: Sequence[SSAValue | Operation] = (),
+        firstprivate_operands: Sequence[SSAValue | Operation] = (),
+        data_clause_operands: Sequence[SSAValue | Operation] = (),
+        async_operands_device_type: ArrayAttr[DeviceTypeAttr] | None = None,
+        async_only: ArrayAttr[DeviceTypeAttr] | None = None,
+        wait_operands_device_type: ArrayAttr[DeviceTypeAttr] | None = None,
+        wait_operands_segments: DenseArrayBase | None = None,
+        has_wait_devnum: ArrayAttr[BoolAttr] | None = None,
+        wait_only: ArrayAttr[DeviceTypeAttr] | None = None,
+        self_attr: UnitAttr | bool = False,
+        default_attr: ClauseDefaultValueAttr | ClauseDefaultValue | None = None,
+        combined: UnitAttr | bool = False,
+    ) -> None:
+        self_attr_prop: UnitAttr | None = (
+            (UnitAttr() if self_attr else None)
+            if isinstance(self_attr, bool)
+            else self_attr
+        )
+        combined_prop: UnitAttr | None = (
+            (UnitAttr() if combined else None)
+            if isinstance(combined, bool)
+            else combined
+        )
+        default_prop: ClauseDefaultValueAttr | None = (
+            ClauseDefaultValueAttr(default_attr)
+            if isinstance(default_attr, ClauseDefaultValue)
+            else default_attr
+        )
+        super().__init__(
+            operands=[
+                async_operands,
+                wait_operands,
+                [if_cond] if if_cond is not None else [],
+                [self_cond] if self_cond is not None else [],
+                reduction_operands,
+                private_operands,
+                firstprivate_operands,
+                data_clause_operands,
+            ],
+            properties={
+                "asyncOperandsDeviceType": async_operands_device_type,
+                "asyncOnly": async_only,
+                "waitOperandsDeviceType": wait_operands_device_type,
+                "waitOperandsSegments": wait_operands_segments,
+                "hasWaitDevnum": has_wait_devnum,
+                "waitOnly": wait_only,
+                "selfAttr": self_attr_prop,
+                "defaultAttr": default_prop,
+                "combined": combined_prop,
+            },
+            regions=[region],
+        )
+
+
+@irdl_op_definition
+class KernelsOp(IRDLOperation):
+    """
+    Implementation of upstream acc.kernels.
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenACCDialect/#acckernels-acckernelsop).
+    """
+
+    name = "acc.kernels"
+
+    async_operands = var_operand_def(IntegerType | IndexType)
+    wait_operands = var_operand_def(IntegerType | IndexType)
+    num_gangs = var_operand_def(IntegerType | IndexType)
+    num_workers = var_operand_def(IntegerType | IndexType)
+    vector_length = var_operand_def(IntegerType | IndexType)
+    if_cond = opt_operand_def(I1)
+    self_cond = opt_operand_def(I1)
+    reduction_operands = var_operand_def()
+    private_operands = var_operand_def()
+    firstprivate_operands = var_operand_def()
+    data_clause_operands = var_operand_def()
+
+    async_operands_device_type = opt_prop_def(
+        ArrayAttr[DeviceTypeAttr], prop_name="asyncOperandsDeviceType"
+    )
+    async_only = opt_prop_def(ArrayAttr[DeviceTypeAttr], prop_name="asyncOnly")
+    wait_operands_device_type = opt_prop_def(
+        ArrayAttr[DeviceTypeAttr], prop_name="waitOperandsDeviceType"
+    )
+    wait_operands_segments = opt_prop_def(
+        DenseArrayBase.constr(IntegerType(32)), prop_name="waitOperandsSegments"
+    )
+    has_wait_devnum = opt_prop_def(ArrayAttr[BoolAttr], prop_name="hasWaitDevnum")
+    wait_only = opt_prop_def(ArrayAttr[DeviceTypeAttr], prop_name="waitOnly")
+    num_gangs_segments = opt_prop_def(
+        DenseArrayBase.constr(IntegerType(32)), prop_name="numGangsSegments"
+    )
+    num_gangs_device_type = opt_prop_def(
+        ArrayAttr[DeviceTypeAttr], prop_name="numGangsDeviceType"
+    )
+    num_workers_device_type = opt_prop_def(
+        ArrayAttr[DeviceTypeAttr], prop_name="numWorkersDeviceType"
+    )
+    vector_length_device_type = opt_prop_def(
+        ArrayAttr[DeviceTypeAttr], prop_name="vectorLengthDeviceType"
+    )
+    self_attr = opt_prop_def(UnitAttr, prop_name="selfAttr")
+    default_attr = opt_prop_def(ClauseDefaultValueAttr, prop_name="defaultAttr")
+    combined = opt_prop_def(UnitAttr)
+
+    region = region_def()
+
+    irdl_options = (
+        AttrSizedOperandSegments(as_property=True),
+        ParsePropInAttrDict(),
+    )
+
+    custom_directives = (
+        DeviceTypeOperands,
+        NumGangs,
+        DeviceTypeOperandsWithKeywordOnly,
+        WaitClause,
+    )
+
+    # Upstream `acc.kernels` body uses `acc.terminator` rather than `acc.yield`.
+    # The terminator op is now defined (`TerminatorOp`) but kernels still uses
+    # `NoTerminator` here — switching to `SingleBlockImplicitTerminator(TerminatorOp)`
+    # is a follow-up stage that updates the existing empty-body tests.
+    assembly_format = (
+        "(`combined` `(` `loop` `)` $combined^)?"
+        " (`dataOperands` `(` $data_clause_operands^ `:`"
+        " type($data_clause_operands) `)`)?"
+        " (`async` custom<DeviceTypeOperandsWithKeywordOnly>($async_operands,"
+        " type($async_operands), $asyncOperandsDeviceType, $asyncOnly)^)?"
+        " (`firstprivate` `(` $firstprivate_operands^ `:`"
+        " type($firstprivate_operands) `)`)?"
+        " (`num_gangs` `(` custom<NumGangs>($num_gangs, type($num_gangs),"
+        " $numGangsDeviceType, $numGangsSegments)^ `)`)?"
+        " (`num_workers` `(` custom<DeviceTypeOperands>($num_workers,"
+        " type($num_workers), $numWorkersDeviceType)^ `)`)?"
+        " (`private` `(` $private_operands^ `:`"
+        " type($private_operands) `)`)?"
+        " (`vector_length` `(` custom<DeviceTypeOperands>($vector_length,"
+        " type($vector_length), $vectorLengthDeviceType)^ `)`)?"
+        " (`wait` custom<WaitClause>($wait_operands, type($wait_operands),"
+        " $waitOperandsDeviceType, $waitOperandsSegments, $hasWaitDevnum,"
+        " $waitOnly)^)?"
+        " (`self` `(` $self_cond^ `)`)?"
+        " (`if` `(` $if_cond^ `)`)?"
+        " (`reduction` `(` $reduction_operands^ `:`"
+        " type($reduction_operands) `)`)?"
+        " $region attr-dict-with-keyword"
+    )
+
+    traits = lazy_traits_def(
+        lambda: (
+            NoTerminator(),
+            RecursiveMemoryEffect(),
+        )
+    )
+
+    def __init__(
+        self,
+        *,
+        region: Region,
+        async_operands: Sequence[SSAValue | Operation] = (),
+        wait_operands: Sequence[SSAValue | Operation] = (),
+        num_gangs: Sequence[SSAValue | Operation] = (),
+        num_workers: Sequence[SSAValue | Operation] = (),
+        vector_length: Sequence[SSAValue | Operation] = (),
+        if_cond: SSAValue | Operation | None = None,
+        self_cond: SSAValue | Operation | None = None,
+        reduction_operands: Sequence[SSAValue | Operation] = (),
+        private_operands: Sequence[SSAValue | Operation] = (),
+        firstprivate_operands: Sequence[SSAValue | Operation] = (),
+        data_clause_operands: Sequence[SSAValue | Operation] = (),
+        async_operands_device_type: ArrayAttr[DeviceTypeAttr] | None = None,
+        async_only: ArrayAttr[DeviceTypeAttr] | None = None,
+        wait_operands_device_type: ArrayAttr[DeviceTypeAttr] | None = None,
+        wait_operands_segments: DenseArrayBase | None = None,
+        has_wait_devnum: ArrayAttr[BoolAttr] | None = None,
+        wait_only: ArrayAttr[DeviceTypeAttr] | None = None,
+        num_gangs_segments: DenseArrayBase | None = None,
+        num_gangs_device_type: ArrayAttr[DeviceTypeAttr] | None = None,
+        num_workers_device_type: ArrayAttr[DeviceTypeAttr] | None = None,
+        vector_length_device_type: ArrayAttr[DeviceTypeAttr] | None = None,
+        self_attr: UnitAttr | bool = False,
+        default_attr: ClauseDefaultValueAttr | ClauseDefaultValue | None = None,
+        combined: UnitAttr | bool = False,
+    ) -> None:
+        self_attr_prop: UnitAttr | None = (
+            (UnitAttr() if self_attr else None)
+            if isinstance(self_attr, bool)
+            else self_attr
+        )
+        combined_prop: UnitAttr | None = (
+            (UnitAttr() if combined else None)
+            if isinstance(combined, bool)
+            else combined
+        )
+        default_prop: ClauseDefaultValueAttr | None = (
+            ClauseDefaultValueAttr(default_attr)
+            if isinstance(default_attr, ClauseDefaultValue)
+            else default_attr
+        )
+        super().__init__(
+            operands=[
+                async_operands,
+                wait_operands,
+                num_gangs,
+                num_workers,
+                vector_length,
+                [if_cond] if if_cond is not None else [],
+                [self_cond] if self_cond is not None else [],
+                reduction_operands,
+                private_operands,
+                firstprivate_operands,
+                data_clause_operands,
+            ],
+            properties={
+                "asyncOperandsDeviceType": async_operands_device_type,
+                "asyncOnly": async_only,
+                "waitOperandsDeviceType": wait_operands_device_type,
+                "waitOperandsSegments": wait_operands_segments,
+                "hasWaitDevnum": has_wait_devnum,
+                "waitOnly": wait_only,
+                "numGangsSegments": num_gangs_segments,
+                "numGangsDeviceType": num_gangs_device_type,
+                "numWorkersDeviceType": num_workers_device_type,
+                "vectorLengthDeviceType": vector_length_device_type,
+                "selfAttr": self_attr_prop,
+                "defaultAttr": default_prop,
+                "combined": combined_prop,
+            },
+            regions=[region],
+        )
+
+
+# ---------------------------------------------------------------------------
+# Entry data-clause ops
+# ---------------------------------------------------------------------------
+#
+# Upstream models the entry data-clause family (`copyin`, `create`, `present`,
+# `nocreate`, `attach`, `deviceptr`, `use_device`, `cache`,
+# `declare_device_resident`, `declare_link`) as a single `OpenACC_DataEntryOperation`
+# class with one operand-and-attribute shape. The xDSL port mirrors that shape
+# in the abstract `_DataEntryOperation` mixin below; concrete leaves inherit it and
+# add only what differs per op (`name`, the per-op `dataClause` default, and
+# eventually the `NoMemoryEffect` trait on `acc.cache`). The IRDL field
+# descriptors are inherited — same pattern already used by
+# `_DataBoundsAccessorOp`.
+
+
+class _DataEntryOperation(IRDLOperation, ABC):
+    """Shared shape for the OpenACC entry data-clause ops.
+
+    Mirrors upstream's `OpenACC_DataEntryOperation` td class. Concrete leaves
+    override `name` and supply their own `dataClause` default. Everything else
+    — the four operand groups, the `varType` / async / structured / implicit
+    / modifiers properties, the optional `name` / `recipe`, the `accVar`
+    result, the assembly format, and the keyword-only `__init__` — lives
+    here.
+    """
+
+    var = operand_def()
+    var_ptr_ptr = opt_operand_def()
+    bounds = var_operand_def(DataBoundsType)
+    async_operands = var_operand_def(IntegerType | IndexType)
+
+    var_type = prop_def(TypeAttribute, prop_name="varType")
+    async_operands_device_type = opt_prop_def(
+        ArrayAttr[DeviceTypeAttr], prop_name="asyncOperandsDeviceType"
+    )
+    async_only = opt_prop_def(ArrayAttr[DeviceTypeAttr], prop_name="asyncOnly")
+    structured = opt_prop_def(
+        BoolAttr,
+        default_value=IntegerAttr.from_bool(True),
+        prop_name="structured",
+    )
+    implicit = opt_prop_def(
+        BoolAttr,
+        default_value=IntegerAttr.from_bool(False),
+        prop_name="implicit",
+    )
+    modifiers = opt_prop_def(
+        DataClauseModifierAttr,
+        default_value=DataClauseModifierAttr(frozenset[DataClauseModifier]()),
+        prop_name="modifiers",
+    )
+    var_name = opt_prop_def(StringAttr, prop_name="name")
+    recipe = opt_prop_def(SymbolRefAttr, prop_name="recipe")
+
+    acc_var = result_def()
+
+    irdl_options = (
+        AttrSizedOperandSegments(as_property=True),
+        ParsePropInAttrDict(),
+    )
+
+    custom_directives = (Var, DataEntryOilist)
+
+    # The four optional clauses (varPtrPtr / bounds / async / recipe) are
+    # consumed by `DataEntryOilist`, which mirrors upstream's
+    # `oilist(...)` — accepting them in any order on parse and emitting
+    # them in the canonical td-definition order on print. The
+    # `recipe(@sym)` clause is the SymbolRefAttr inline spelling matching
+    # upstream's `recipe` `(` ... `)`; mlir-opt may emit the four clauses
+    # in any order depending on context, so the oilist directive accepts
+    # them all and normalizes to canonical order on print.
+    assembly_format = (
+        "custom<Var>($var, type($var), $varType)"
+        " custom<DataEntryOilist>($var_ptr_ptr, type($var_ptr_ptr), $bounds,"
+        " $async_operands, type($async_operands), $asyncOperandsDeviceType,"
+        " $asyncOnly, $recipe)"
+        " `->` type($acc_var) attr-dict"
+    )
+
+    def __init__(
+        self,
+        *,
+        var: SSAValue | Operation,
+        var_ptr_ptr: SSAValue | Operation | None = None,
+        bounds: Sequence[SSAValue | Operation] = (),
+        async_operands: Sequence[SSAValue | Operation] = (),
+        var_type: TypeAttribute | None = None,
+        async_operands_device_type: ArrayAttr[DeviceTypeAttr] | None = None,
+        async_only: ArrayAttr[DeviceTypeAttr] | None = None,
+        data_clause: DataClauseAttr | DataClause | None = None,
+        structured: BoolAttr | bool | None = None,
+        implicit: BoolAttr | bool | None = None,
+        modifiers: DataClauseModifierAttr | None = None,
+        var_name: StringAttr | str | None = None,
+        recipe: SymbolRefAttr | None = None,
+        acc_var_type: Attribute | None = None,
+    ) -> None:
+        var_value = SSAValue.get(var)
+        if var_type is None:
+            var_type = cast(TypeAttribute, _default_var_type(var_value.type))
+        if acc_var_type is None:
+            acc_var_type = var_value.type
+
+        structured_prop: BoolAttr | None = (
+            IntegerAttr.from_bool(structured)
+            if isinstance(structured, bool)
+            else structured
+        )
+        implicit_prop: BoolAttr | None = (
+            IntegerAttr.from_bool(implicit) if isinstance(implicit, bool) else implicit
+        )
+        data_clause_prop: DataClauseAttr | None = (
+            DataClauseAttr(data_clause)
+            if isinstance(data_clause, DataClause)
+            else data_clause
+        )
+        var_name_prop: StringAttr | None = (
+            StringAttr(var_name) if isinstance(var_name, str) else var_name
+        )
+
+        super().__init__(
+            operands=[
+                [var],
+                [var_ptr_ptr] if var_ptr_ptr is not None else [],
+                list(bounds),
+                list(async_operands),
+            ],
+            properties={
+                "varType": var_type,
+                "asyncOperandsDeviceType": async_operands_device_type,
+                "asyncOnly": async_only,
+                "dataClause": data_clause_prop,
+                "structured": structured_prop,
+                "implicit": implicit_prop,
+                "modifiers": modifiers,
+                "name": var_name_prop,
+                "recipe": recipe,
+            },
+            result_types=[acc_var_type],
+        )
+
+
+@irdl_op_definition
+class CopyinOp(_DataEntryOperation):
+    """Implementation of upstream acc.copyin."""
+
+    name = "acc.copyin"
+    data_clause = opt_prop_def(
+        DataClauseAttr,
+        default_value=DataClauseAttr(DataClause.ACC_COPYIN),
+        prop_name="dataClause",
+    )
+
+
+@irdl_op_definition
+class CreateOp(_DataEntryOperation):
+    """Implementation of upstream acc.create."""
+
+    name = "acc.create"
+    data_clause = opt_prop_def(
+        DataClauseAttr,
+        default_value=DataClauseAttr(DataClause.ACC_CREATE),
+        prop_name="dataClause",
+    )
+
+
+@irdl_op_definition
+class PresentOp(_DataEntryOperation):
+    """Implementation of upstream acc.present."""
+
+    name = "acc.present"
+    data_clause = opt_prop_def(
+        DataClauseAttr,
+        default_value=DataClauseAttr(DataClause.ACC_PRESENT),
+        prop_name="dataClause",
+    )
+
+
+@irdl_op_definition
+class NoCreateOp(_DataEntryOperation):
+    """Implementation of upstream acc.nocreate."""
+
+    name = "acc.nocreate"
+    data_clause = opt_prop_def(
+        DataClauseAttr,
+        default_value=DataClauseAttr(DataClause.ACC_NO_CREATE),
+        prop_name="dataClause",
+    )
+
+
+@irdl_op_definition
+class AttachOp(_DataEntryOperation):
+    """Implementation of upstream acc.attach."""
+
+    name = "acc.attach"
+    data_clause = opt_prop_def(
+        DataClauseAttr,
+        default_value=DataClauseAttr(DataClause.ACC_ATTACH),
+        prop_name="dataClause",
+    )
+
+
+@irdl_op_definition
+class DevicePtrOp(_DataEntryOperation):
+    """Implementation of upstream acc.deviceptr."""
+
+    name = "acc.deviceptr"
+    data_clause = opt_prop_def(
+        DataClauseAttr,
+        default_value=DataClauseAttr(DataClause.ACC_DEVICEPTR),
+        prop_name="dataClause",
+    )
+
+
+@irdl_op_definition
+class UseDeviceOp(_DataEntryOperation):
+    """Implementation of upstream acc.use_device."""
+
+    name = "acc.use_device"
+    data_clause = opt_prop_def(
+        DataClauseAttr,
+        default_value=DataClauseAttr(DataClause.ACC_USE_DEVICE),
+        prop_name="dataClause",
+    )
+
+
+@irdl_op_definition
+class CacheOp(_DataEntryOperation):
+    """Implementation of upstream acc.cache. Carries `NoMemoryEffect` per upstream."""
+
+    name = "acc.cache"
+    data_clause = opt_prop_def(
+        DataClauseAttr,
+        default_value=DataClauseAttr(DataClause.ACC_CACHE),
+        prop_name="dataClause",
+    )
+
+    traits = traits_def(NoMemoryEffect())
+
+
+@irdl_op_definition
+class DeclareDeviceResidentOp(_DataEntryOperation):
+    """Implementation of upstream acc.declare_device_resident."""
+
+    name = "acc.declare_device_resident"
+    data_clause = opt_prop_def(
+        DataClauseAttr,
+        default_value=DataClauseAttr(DataClause.ACC_DECLARE_DEVICE_RESIDENT),
+        prop_name="dataClause",
+    )
+
+
+@irdl_op_definition
+class DeclareLinkOp(_DataEntryOperation):
+    """Implementation of upstream acc.declare_link."""
+
+    name = "acc.declare_link"
+    data_clause = opt_prop_def(
+        DataClauseAttr,
+        default_value=DataClauseAttr(DataClause.ACC_DECLARE_LINK),
+        prop_name="dataClause",
+    )
+
+
+@irdl_op_definition
+class GetDevicePtrOp(_DataEntryOperation):
+    """Implementation of upstream acc.getdeviceptr.
+
+    Used to get the `accVar` for a host variable when a structured data-entry
+    op is not available; the natural pair for the unstructured exit ops below.
+    """
+
+    name = "acc.getdeviceptr"
+    data_clause = opt_prop_def(
+        DataClauseAttr,
+        default_value=DataClauseAttr(DataClause.ACC_GETDEVICEPTR),
+        prop_name="dataClause",
+    )
+
+
+@irdl_op_definition
+class UpdateDeviceOp(_DataEntryOperation):
+    """Implementation of upstream acc.update_device."""
+
+    name = "acc.update_device"
+    data_clause = opt_prop_def(
+        DataClauseAttr,
+        default_value=DataClauseAttr(DataClause.ACC_UPDATE_DEVICE),
+        prop_name="dataClause",
+    )
+
+
+# ---------------------------------------------------------------------------
+# Privatization data-clause ops
+# ---------------------------------------------------------------------------
+#
+# `acc.private`, `acc.firstprivate`, `acc.firstprivate_map`, and
+# `acc.reduction` are all `OpenACC_DataEntryOp` instances upstream — same
+# operands and properties as the entry data-clause ops above, with the
+# leaves differing only in `name` and the per-op `dataClause` default. The
+# associated reduction operator is not carried on `acc.reduction` itself;
+# it lives on the `acc.reduction.recipe` referenced via the inherited
+# `recipe` SymbolRefAttr property. Both `acc.firstprivate` and
+# `acc.firstprivate_map` use `acc_firstprivate` as their `dataClause`
+# default — `firstprivate_map` is the decomposed mapping half of the
+# firstprivate clause and shares the user-level clause name.
+
+
+@irdl_op_definition
+class PrivateOp(_DataEntryOperation):
+    """Implementation of upstream acc.private."""
+
+    name = "acc.private"
+    data_clause = opt_prop_def(
+        DataClauseAttr,
+        default_value=DataClauseAttr(DataClause.ACC_PRIVATE),
+        prop_name="dataClause",
+    )
+
+
+@irdl_op_definition
+class FirstprivateOp(_DataEntryOperation):
+    """Implementation of upstream acc.firstprivate."""
+
+    name = "acc.firstprivate"
+    data_clause = opt_prop_def(
+        DataClauseAttr,
+        default_value=DataClauseAttr(DataClause.ACC_FIRSTPRIVATE),
+        prop_name="dataClause",
+    )
+
+
+@irdl_op_definition
+class FirstprivateMapOp(_DataEntryOperation):
+    """Implementation of upstream acc.firstprivate_map.
+
+    Used to decompose firstprivate semantics — represents the mapping of the
+    initial value used to initialize the privatized copies. Shares the
+    `acc_firstprivate` user-level clause with `acc.firstprivate`.
+    """
+
+    name = "acc.firstprivate_map"
+    data_clause = opt_prop_def(
+        DataClauseAttr,
+        default_value=DataClauseAttr(DataClause.ACC_FIRSTPRIVATE),
+        prop_name="dataClause",
+    )
+
+
+@irdl_op_definition
+class ReductionOp(_DataEntryOperation):
+    """Implementation of upstream acc.reduction.
+
+    The reduction operator (`add`, `mul`, `max`, ...) is carried on the
+    `acc.reduction.recipe` referenced via the inherited `recipe`
+    SymbolRefAttr property — not on the data-entry op itself.
+    """
+
+    name = "acc.reduction"
+    data_clause = opt_prop_def(
+        DataClauseAttr,
+        default_value=DataClauseAttr(DataClause.ACC_REDUCTION),
+        prop_name="dataClause",
+    )
+
+
+# ---------------------------------------------------------------------------
+# Exit data-clause ops
+# ---------------------------------------------------------------------------
+#
+# Upstream models the exit data-clause family as two TableGen base classes:
+# `OpenACC_DataExitOpWithVarPtr` (for `copyout`, `update_host` — both host
+# *and* device pointer) and `OpenACC_DataExitOpNoVarPtr` (for `delete`,
+# `detach` — device pointer only). They differ in operand layout and
+# assembly format, but share the bounds / async / dataClause / structured /
+# implicit / modifiers / name surface. The two mixins below mirror that
+# split; concrete leaves inherit one and supply only the per-op
+# `dataClause` default.
+
+
+class _DataExitOperationWithVarPtr(IRDLOperation, ABC):
+    """Shared shape for `acc.copyout` / `acc.update_host`.
+
+    Mirrors upstream's `OpenACC_DataExitOpWithVarPtr` td class: an `accVar`
+    operand (the device pointer, sourced from a matching data-entry op) plus
+    a `var` operand (the host pointer to copy/move to) carrying a `varType`
+    attr. The bounds / async groups, all shared properties, the assembly
+    format, and the keyword-only `__init__` live here.
+    """
+
+    acc_var = operand_def()
+    var = operand_def()
+    bounds = var_operand_def(DataBoundsType)
+    async_operands = var_operand_def(IntegerType | IndexType)
+
+    var_type = prop_def(TypeAttribute, prop_name="varType")
+    async_operands_device_type = opt_prop_def(
+        ArrayAttr[DeviceTypeAttr], prop_name="asyncOperandsDeviceType"
+    )
+    async_only = opt_prop_def(ArrayAttr[DeviceTypeAttr], prop_name="asyncOnly")
+    structured = opt_prop_def(
+        BoolAttr,
+        default_value=IntegerAttr.from_bool(True),
+        prop_name="structured",
+    )
+    implicit = opt_prop_def(
+        BoolAttr,
+        default_value=IntegerAttr.from_bool(False),
+        prop_name="implicit",
+    )
+    modifiers = opt_prop_def(
+        DataClauseModifierAttr,
+        default_value=DataClauseModifierAttr(frozenset[DataClauseModifier]()),
+        prop_name="modifiers",
+    )
+    var_name = opt_prop_def(StringAttr, prop_name="name")
+
+    irdl_options = (
+        AttrSizedOperandSegments(as_property=True),
+        ParsePropInAttrDict(),
+    )
+
+    custom_directives = (AccVar, Var, DeviceTypeOperandsWithKeywordOnly)
+
+    assembly_format = (
+        "custom<AccVar>($acc_var, type($acc_var))"
+        " (`bounds` `(` $bounds^ `)`)?"
+        " (`async` custom<DeviceTypeOperandsWithKeywordOnly>($async_operands,"
+        " type($async_operands), $asyncOperandsDeviceType, $asyncOnly)^)?"
+        " `to` custom<Var>($var, type($var), $varType)"
+        " attr-dict"
+    )
+
+    def __init__(
+        self,
+        *,
+        acc_var: SSAValue | Operation,
+        var: SSAValue | Operation,
+        bounds: Sequence[SSAValue | Operation] = (),
+        async_operands: Sequence[SSAValue | Operation] = (),
+        var_type: TypeAttribute | None = None,
+        async_operands_device_type: ArrayAttr[DeviceTypeAttr] | None = None,
+        async_only: ArrayAttr[DeviceTypeAttr] | None = None,
+        data_clause: DataClauseAttr | DataClause | None = None,
+        structured: BoolAttr | bool | None = None,
+        implicit: BoolAttr | bool | None = None,
+        modifiers: DataClauseModifierAttr | None = None,
+        var_name: StringAttr | str | None = None,
+    ) -> None:
+        var_value = SSAValue.get(var)
+        if var_type is None:
+            var_type = cast(TypeAttribute, _default_var_type(var_value.type))
+
+        structured_prop: BoolAttr | None = (
+            IntegerAttr.from_bool(structured)
+            if isinstance(structured, bool)
+            else structured
+        )
+        implicit_prop: BoolAttr | None = (
+            IntegerAttr.from_bool(implicit) if isinstance(implicit, bool) else implicit
+        )
+        data_clause_prop: DataClauseAttr | None = (
+            DataClauseAttr(data_clause)
+            if isinstance(data_clause, DataClause)
+            else data_clause
+        )
+        var_name_prop: StringAttr | None = (
+            StringAttr(var_name) if isinstance(var_name, str) else var_name
+        )
+
+        super().__init__(
+            operands=[
+                [acc_var],
+                [var],
+                list(bounds),
+                list(async_operands),
+            ],
+            properties={
+                "varType": var_type,
+                "asyncOperandsDeviceType": async_operands_device_type,
+                "asyncOnly": async_only,
+                "dataClause": data_clause_prop,
+                "structured": structured_prop,
+                "implicit": implicit_prop,
+                "modifiers": modifiers,
+                "name": var_name_prop,
+            },
+        )
+
+
+@irdl_op_definition
+class CopyoutOp(_DataExitOperationWithVarPtr):
+    """Implementation of upstream acc.copyout."""
+
+    name = "acc.copyout"
+    data_clause = opt_prop_def(
+        DataClauseAttr,
+        default_value=DataClauseAttr(DataClause.ACC_COPYOUT),
+        prop_name="dataClause",
+    )
+
+
+@irdl_op_definition
+class UpdateHostOp(_DataExitOperationWithVarPtr):
+    """Implementation of upstream acc.update_host."""
+
+    name = "acc.update_host"
+    data_clause = opt_prop_def(
+        DataClauseAttr,
+        default_value=DataClauseAttr(DataClause.ACC_UPDATE_HOST),
+        prop_name="dataClause",
+    )
+
+
+class _DataExitOperationNoVarPtr(IRDLOperation, ABC):
+    """Shared shape for `acc.delete` / `acc.detach`.
+
+    Mirrors upstream's `OpenACC_DataExitOpNoVarPtr` td class: just the
+    `accVar` operand (device pointer) plus the shared bounds / async /
+    dataClause / structured / implicit / modifiers / name surface. No host
+    `var` and no `varType` — these ops do not transfer data, so they don't
+    need to know the host-side mapping.
+    """
+
+    acc_var = operand_def()
+    bounds = var_operand_def(DataBoundsType)
+    async_operands = var_operand_def(IntegerType | IndexType)
+
+    async_operands_device_type = opt_prop_def(
+        ArrayAttr[DeviceTypeAttr], prop_name="asyncOperandsDeviceType"
+    )
+    async_only = opt_prop_def(ArrayAttr[DeviceTypeAttr], prop_name="asyncOnly")
+    structured = opt_prop_def(
+        BoolAttr,
+        default_value=IntegerAttr.from_bool(True),
+        prop_name="structured",
+    )
+    implicit = opt_prop_def(
+        BoolAttr,
+        default_value=IntegerAttr.from_bool(False),
+        prop_name="implicit",
+    )
+    modifiers = opt_prop_def(
+        DataClauseModifierAttr,
+        default_value=DataClauseModifierAttr(frozenset[DataClauseModifier]()),
+        prop_name="modifiers",
+    )
+    var_name = opt_prop_def(StringAttr, prop_name="name")
+
+    irdl_options = (
+        AttrSizedOperandSegments(as_property=True),
+        ParsePropInAttrDict(),
+    )
+
+    custom_directives = (AccVar, DeviceTypeOperandsWithKeywordOnly)
+
+    assembly_format = (
+        "custom<AccVar>($acc_var, type($acc_var))"
+        " (`bounds` `(` $bounds^ `)`)?"
+        " (`async` custom<DeviceTypeOperandsWithKeywordOnly>($async_operands,"
+        " type($async_operands), $asyncOperandsDeviceType, $asyncOnly)^)?"
+        " attr-dict"
+    )
+
+    def __init__(
+        self,
+        *,
+        acc_var: SSAValue | Operation,
+        bounds: Sequence[SSAValue | Operation] = (),
+        async_operands: Sequence[SSAValue | Operation] = (),
+        async_operands_device_type: ArrayAttr[DeviceTypeAttr] | None = None,
+        async_only: ArrayAttr[DeviceTypeAttr] | None = None,
+        data_clause: DataClauseAttr | DataClause | None = None,
+        structured: BoolAttr | bool | None = None,
+        implicit: BoolAttr | bool | None = None,
+        modifiers: DataClauseModifierAttr | None = None,
+        var_name: StringAttr | str | None = None,
+    ) -> None:
+        structured_prop: BoolAttr | None = (
+            IntegerAttr.from_bool(structured)
+            if isinstance(structured, bool)
+            else structured
+        )
+        implicit_prop: BoolAttr | None = (
+            IntegerAttr.from_bool(implicit) if isinstance(implicit, bool) else implicit
+        )
+        data_clause_prop: DataClauseAttr | None = (
+            DataClauseAttr(data_clause)
+            if isinstance(data_clause, DataClause)
+            else data_clause
+        )
+        var_name_prop: StringAttr | None = (
+            StringAttr(var_name) if isinstance(var_name, str) else var_name
+        )
+
+        super().__init__(
+            operands=[
+                [acc_var],
+                list(bounds),
+                list(async_operands),
+            ],
+            properties={
+                "asyncOperandsDeviceType": async_operands_device_type,
+                "asyncOnly": async_only,
+                "dataClause": data_clause_prop,
+                "structured": structured_prop,
+                "implicit": implicit_prop,
+                "modifiers": modifiers,
+                "name": var_name_prop,
+            },
+        )
+
+
+@irdl_op_definition
+class DeleteOp(_DataExitOperationNoVarPtr):
+    """Implementation of upstream acc.delete."""
+
+    name = "acc.delete"
+    data_clause = opt_prop_def(
+        DataClauseAttr,
+        default_value=DataClauseAttr(DataClause.ACC_DELETE),
+        prop_name="dataClause",
+    )
+
+
+@irdl_op_definition
+class DetachOp(_DataExitOperationNoVarPtr):
+    """Implementation of upstream acc.detach."""
+
+    name = "acc.detach"
+    data_clause = opt_prop_def(
+        DataClauseAttr,
+        default_value=DataClauseAttr(DataClause.ACC_DETACH),
+        prop_name="dataClause",
+    )
+
+
+@irdl_op_definition
+class DataBoundsOp(IRDLOperation):
+    """
+    Implementation of upstream acc.bounds.
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenACCDialect/#accbounds-accdataboundsop).
+
+    The verifier requires either `extent` or `upperbound` (or both) to be
+    present. The five operand groups are gated by `AttrSizedOperandSegments`,
+    matching upstream's `Optional<IntOrIndex>` argument shape.
+    """
+
+    name = "acc.bounds"
+
+    lowerbound = opt_operand_def(IntegerType | IndexType)
+    upperbound = opt_operand_def(IntegerType | IndexType)
+    extent = opt_operand_def(IntegerType | IndexType)
+    stride = opt_operand_def(IntegerType | IndexType)
+    start_idx = opt_operand_def(IntegerType | IndexType)
+
+    stride_in_bytes = opt_prop_def(BoolAttr, prop_name="strideInBytes")
+
+    result = result_def(DataBoundsType)
+
+    irdl_options = (
+        AttrSizedOperandSegments(as_property=True),
+        ParsePropInAttrDict(),
+    )
+
+    # Upstream uses `oilist(...)` so each clause is independently optional and
+    # may appear in any order. xDSL's declarative format requires a fixed
+    # sequence; we follow the upstream td definition order
+    # (lowerbound, upperbound, extent, stride, startIdx). This still matches
+    # what mlir-opt prints, since oilist also emits in td order.
+    assembly_format = (
+        "(`lowerbound` `(` $lowerbound^ `:` type($lowerbound) `)`)?"
+        " (`upperbound` `(` $upperbound^ `:` type($upperbound) `)`)?"
+        " (`extent` `(` $extent^ `:` type($extent) `)`)?"
+        " (`stride` `(` $stride^ `:` type($stride) `)`)?"
+        " (`startIdx` `(` $start_idx^ `:` type($start_idx) `)`)?"
+        " attr-dict"
+    )
+
+    traits = lazy_traits_def(lambda: (NoMemoryEffect(),))
+
+    def __init__(
+        self,
+        *,
+        lowerbound: SSAValue | Operation | None = None,
+        upperbound: SSAValue | Operation | None = None,
+        extent: SSAValue | Operation | None = None,
+        stride: SSAValue | Operation | None = None,
+        start_idx: SSAValue | Operation | None = None,
+        stride_in_bytes: BoolAttr | None = None,
+    ) -> None:
+        super().__init__(
+            operands=[
+                [lowerbound] if lowerbound is not None else [],
+                [upperbound] if upperbound is not None else [],
+                [extent] if extent is not None else [],
+                [stride] if stride is not None else [],
+                [start_idx] if start_idx is not None else [],
+            ],
+            properties={"strideInBytes": stride_in_bytes},
+            result_types=[DataBoundsType()],
+        )
+
+    def verify_(self) -> None:
+        if self.extent is None and self.upperbound is None:
+            raise VerifyException("expected extent or upperbound.")
+
+
+class _DataBoundsAccessorOp(IRDLOperation, ABC):
+    """
+    Shared shape for the `acc.get_lowerbound` / `get_upperbound` /
+    `get_stride` / `get_extent` accessor ops. Each takes an
+    `!acc.data_bounds_ty` operand and yields an `index`.
+    """
+
+    bounds = operand_def(DataBoundsType)
+    result = result_def(IndexType)
+
+    assembly_format = "$bounds attr-dict `:` `(` type($bounds) `)` `->` type($result)"
+
+    traits = lazy_traits_def(lambda: (NoMemoryEffect(),))
+
+    def __init__(self, bounds: SSAValue | Operation) -> None:
+        super().__init__(operands=[bounds], result_types=[IndexType()])
+
+
+@irdl_op_definition
+class GetLowerboundOp(_DataBoundsAccessorOp):
+    """Implementation of upstream acc.get_lowerbound."""
+
+    name = "acc.get_lowerbound"
+
+
+@irdl_op_definition
+class GetUpperboundOp(_DataBoundsAccessorOp):
+    """Implementation of upstream acc.get_upperbound."""
+
+    name = "acc.get_upperbound"
+
+
+@irdl_op_definition
+class GetStrideOp(_DataBoundsAccessorOp):
+    """Implementation of upstream acc.get_stride."""
+
+    name = "acc.get_stride"
+
+
+@irdl_op_definition
+class GetExtentOp(_DataBoundsAccessorOp):
+    """Implementation of upstream acc.get_extent."""
+
+    name = "acc.get_extent"
+
+
+# ---------------------------------------------------------------------------
+# Privatization / reduction recipes
+# ---------------------------------------------------------------------------
+#
+# `acc.private.recipe`, `acc.firstprivate.recipe`, and
+# `acc.reduction.recipe` declare reusable templates for how to allocate /
+# initialize / copy / combine / destroy a privatized or reduction value.
+# Each is a top-level symbol op (`Symbol` + `IsolatedFromAbove`); the
+# corresponding data-clause ops reference the recipe by name.
+#
+# The three ops share `sym_name` + `type` props, so we factor that into
+# the abstract `_RecipeOperation` mixin; concrete leaves declare only their
+# own regions, traits, assembly format, and per-op `verify_`.
+# `acc.reduction.recipe` additionally carries a `reductionOperator`
+# property typed against `ReductionOpKindAttr`.
+
+
+def _verify_init_like_region(
+    region: Region,
+    region_type: str,
+    region_name: str,
+    expected_type: Attribute,
+    *,
+    optional: bool = False,
+) -> None:
+    """Port of upstream `verifyInitLikeSingleArgRegion`.
+
+    The init / destroy region must be non-empty (unless `optional`) and the
+    first argument of its first block must be of the recipe's type.
+    """
+    if optional and not region.blocks:
+        return
+    if not region.blocks:
+        raise VerifyException(f"expects non-empty {region_name} region")
+    first_block = region.block
+    if not first_block.args or first_block.args[0].type != expected_type:
+        raise VerifyException(
+            f"expects {region_name} region first argument of the {region_type} type"
+        )
+
+
+class _RecipeOperation(IRDLOperation, ABC):
+    """Shared `sym_name` + `type` shape for the recipe ops.
+
+    Mirrors upstream's near-identical `OpenACC_*RecipeOp` td classes.
+    Concrete leaves declare their own regions, traits, assembly format, and
+    per-op `verify_`.
+    """
+
+    sym_name = prop_def(SymbolNameConstraint())
+    var_type = prop_def(TypeAttribute, prop_name="type")
+
+
+@irdl_op_definition
+class PrivateRecipeOp(_RecipeOperation):
+    """
+    Implementation of upstream acc.private.recipe.
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenACCDialect/#accprivaterecipe-accprivaterecipeop).
+    """
+
+    name = "acc.private.recipe"
+
+    init_region = region_def()
+    destroy_region = region_def()
+
+    traits = lazy_traits_def(lambda: (IsolatedFromAbove(), SymbolOpInterface()))
+
+    assembly_format = (
+        "$sym_name `:` $type attr-dict-with-keyword"
+        " `init` $init_region"
+        " (`destroy` $destroy_region^)?"
+    )
+
+    def __init__(
+        self,
+        *,
+        sym_name: StringAttr | str,
+        var_type: TypeAttribute,
+        init_region: Region,
+        destroy_region: Region | None = None,
+    ) -> None:
+        sym_name_attr: StringAttr = (
+            StringAttr(sym_name) if isinstance(sym_name, str) else sym_name
+        )
+        super().__init__(
+            properties={
+                "sym_name": sym_name_attr,
+                "type": var_type,
+            },
+            regions=[init_region, destroy_region or Region()],
+        )
+
+    def verify_(self) -> None:
+        _verify_init_like_region(
+            self.init_region,
+            "privatization",
+            "init",
+            self.var_type,
+        )
+        _verify_init_like_region(
+            self.destroy_region,
+            "privatization",
+            "destroy",
+            self.var_type,
+            optional=True,
+        )
+
+
+@irdl_op_definition
+class FirstprivateRecipeOp(_RecipeOperation):
+    """
+    Implementation of upstream acc.firstprivate.recipe.
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenACCDialect/#accfirstprivaterecipe-accfirstprivaterecipeop).
+    """
+
+    name = "acc.firstprivate.recipe"
+
+    init_region = region_def()
+    copy_region = region_def()
+    destroy_region = region_def()
+
+    traits = lazy_traits_def(lambda: (IsolatedFromAbove(), SymbolOpInterface()))
+
+    assembly_format = (
+        "$sym_name `:` $type attr-dict-with-keyword"
+        " `init` $init_region"
+        " `copy` $copy_region"
+        " (`destroy` $destroy_region^)?"
+    )
+
+    def __init__(
+        self,
+        *,
+        sym_name: StringAttr | str,
+        var_type: TypeAttribute,
+        init_region: Region,
+        copy_region: Region,
+        destroy_region: Region | None = None,
+    ) -> None:
+        sym_name_attr: StringAttr = (
+            StringAttr(sym_name) if isinstance(sym_name, str) else sym_name
+        )
+        super().__init__(
+            properties={
+                "sym_name": sym_name_attr,
+                "type": var_type,
+            },
+            regions=[init_region, copy_region, destroy_region or Region()],
+        )
+
+    def verify_(self) -> None:
+        _verify_init_like_region(
+            self.init_region,
+            "privatization",
+            "init",
+            self.var_type,
+        )
+        if not self.copy_region.blocks:
+            raise VerifyException("expects non-empty copy region")
+        copy_block = self.copy_region.block
+        if (
+            len(copy_block.args) < 2
+            or copy_block.args[0].type != self.var_type
+            or copy_block.args[1].type != self.var_type
+        ):
+            raise VerifyException(
+                "expects copy region with two arguments of the privatization type"
+            )
+        if self.destroy_region.blocks:
+            _verify_init_like_region(
+                self.destroy_region,
+                "privatization",
+                "destroy",
+                self.var_type,
+            )
+
+
+@irdl_op_definition
+class ReductionRecipeOp(_RecipeOperation):
+    """
+    Implementation of upstream acc.reduction.recipe.
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenACCDialect/#accreductionrecipe-accreductionrecipeop).
+    """
+
+    name = "acc.reduction.recipe"
+
+    reduction_operator = prop_def(ReductionOpKindAttr, prop_name="reductionOperator")
+
+    init_region = region_def()
+    combiner_region = region_def()
+    destroy_region = region_def()
+
+    traits = lazy_traits_def(lambda: (IsolatedFromAbove(), SymbolOpInterface()))
+
+    # Note: `$reductionOperator` prints/parses as `<value>` (just the
+    # parameter, no dialect prefix) because `ReductionOpKindAttr` overrides
+    # `print_parameter`/`parse_parameter` to wrap the value in angle
+    # brackets — matching upstream's `assemblyFormat = "`<` $value `>`"`.
+    # The declarative format machinery uses `UniqueBaseAttributeVariable`
+    # for non-builtin attrs, which calls `print_parameter` directly and
+    # bypasses the `#acc.reduction_operator` opaque prefix.
+    assembly_format = (
+        "$sym_name `:` $type attr-dict-with-keyword"
+        " `reduction_operator` $reductionOperator"
+        " `init` $init_region"
+        " `combiner` $combiner_region"
+        " (`destroy` $destroy_region^)?"
+    )
+
+    def __init__(
+        self,
+        *,
+        sym_name: StringAttr | str,
+        var_type: TypeAttribute,
+        reduction_operator: ReductionOpKindAttr | ReductionOpKind,
+        init_region: Region,
+        combiner_region: Region,
+        destroy_region: Region | None = None,
+    ) -> None:
+        sym_name_attr: StringAttr = (
+            StringAttr(sym_name) if isinstance(sym_name, str) else sym_name
+        )
+        operator_attr: ReductionOpKindAttr = (
+            ReductionOpKindAttr(reduction_operator)
+            if isinstance(reduction_operator, ReductionOpKind)
+            else reduction_operator
+        )
+        super().__init__(
+            properties={
+                "sym_name": sym_name_attr,
+                "type": var_type,
+                "reductionOperator": operator_attr,
+            },
+            regions=[init_region, combiner_region, destroy_region or Region()],
+        )
+
+    def verify_(self) -> None:
+        _verify_init_like_region(
+            self.init_region,
+            "reduction",
+            "init",
+            self.var_type,
+        )
+        if not self.combiner_region.blocks:
+            raise VerifyException("expects non-empty combiner region")
+        combiner_block = self.combiner_region.block
+        if (
+            len(combiner_block.args) < 2
+            or combiner_block.args[0].type != self.var_type
+            or combiner_block.args[1].type != self.var_type
+        ):
+            raise VerifyException(
+                "expects combiner region with the first two arguments of the "
+                "reduction type"
+            )
+        for yield_op in self.combiner_region.walk():
+            if not isinstance(yield_op, YieldOp):
+                continue
+            if (
+                len(yield_op.arguments) != 1
+                or yield_op.arguments[0].type != self.var_type
+            ):
+                raise VerifyException(
+                    "expects combiner region to yield a value of the reduction type"
+                )
+        if self.destroy_region.blocks:
+            _verify_init_like_region(
+                self.destroy_region,
+                "reduction",
+                "destroy",
+                self.var_type,
+            )
+
+
+@irdl_op_definition
+class TerminatorOp(IRDLOperation):
+    """
+    Implementation of upstream acc.terminator. Generic, value-less terminator
+    used by OpenACC region ops whose bodies do not return a value.
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenACCDialect/#accterminator-accterminatorop).
+    """
+
+    name = "acc.terminator"
+
+    assembly_format = "attr-dict"
+
+    traits = lazy_traits_def(
+        lambda: (
+            IsTerminator(),
+            NoMemoryEffect(),
+            HasParent(KernelsOp),
+        )
+    )
+
+    def __init__(self) -> None:
+        super().__init__()
+
+
+@irdl_op_definition
+class YieldOp(AbstractYieldOperation[Attribute]):
+    """
+    Implementation of upstream acc.yield.
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenACCDialect/#accyield-accyieldop).
+    """
+
+    name = "acc.yield"
+
+    traits = lazy_traits_def(
+        lambda: (
+            IsTerminator(),
+            NoMemoryEffect(),
+            HasParent(
+                ParallelOp,
+                SerialOp,
+                PrivateRecipeOp,
+                FirstprivateRecipeOp,
+                ReductionRecipeOp,
+            ),
+        )
+    )
+
+
+ACC = Dialect(
+    "acc",
+    [
+        ParallelOp,
+        SerialOp,
+        KernelsOp,
+        DataBoundsOp,
+        GetLowerboundOp,
+        GetUpperboundOp,
+        GetStrideOp,
+        GetExtentOp,
+        CopyinOp,
+        CreateOp,
+        PresentOp,
+        NoCreateOp,
+        AttachOp,
+        DevicePtrOp,
+        UseDeviceOp,
+        CacheOp,
+        DeclareDeviceResidentOp,
+        DeclareLinkOp,
+        GetDevicePtrOp,
+        UpdateDeviceOp,
+        PrivateOp,
+        FirstprivateOp,
+        FirstprivateMapOp,
+        ReductionOp,
+        CopyoutOp,
+        UpdateHostOp,
+        DeleteOp,
+        DetachOp,
+        PrivateRecipeOp,
+        FirstprivateRecipeOp,
+        ReductionRecipeOp,
+        TerminatorOp,
+        YieldOp,
+    ],
+    [
+        DeviceTypeAttr,
+        ClauseDefaultValueAttr,
+        DataClauseAttr,
+        DataClauseModifierAttr,
+        VariableTypeCategoryAttr,
+        ReductionOpKindAttr,
+        DataBoundsType,
+    ],
+)

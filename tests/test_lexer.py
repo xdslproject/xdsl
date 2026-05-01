@@ -50,6 +50,7 @@ def assert_token_fail(input: str):
         ("}", MLIRTokenKind.R_BRACE),
         (")", MLIRTokenKind.R_PAREN),
         ("]", MLIRTokenKind.R_SQUARE),
+        ("/", MLIRTokenKind.SLASH),
         ("*", MLIRTokenKind.STAR),
         ("|", MLIRTokenKind.VERTICAL_BAR),
         ("{-#", MLIRTokenKind.FILE_METADATA_BEGIN),
@@ -60,7 +61,7 @@ def test_punctuation(text: str, kind: MLIRTokenKind):
     assert_single_token(text, kind)
 
 
-@pytest.mark.parametrize("text", [".", "&", "/"])
+@pytest.mark.parametrize("text", [".", "&"])
 def test_punctuation_fail(text: str):
     assert_token_fail(text)
 
@@ -185,6 +186,17 @@ def test_float_literal(text: str):
 )
 def test_float_literal_split(text: str, expected: str):
     assert_single_token(text, MLIRTokenKind.FLOAT_LIT, expected)
+
+
+def test_slash_vs_comment():
+    """A single `/` produces SLASH; `//` is consumed as a comment."""
+    assert_single_token("/", MLIRTokenKind.SLASH)
+
+    file = Input("// this is a comment\n0", "<unknown>")
+    lexer = MLIRLexer(file)
+    token = lexer.lex()
+    assert token.kind == MLIRTokenKind.INTEGER_LIT
+    assert token.text == "0"
 
 
 @pytest.mark.parametrize("text", ["0", " 0", "   0", "\n0", "\t0", "// Comment\n0"])

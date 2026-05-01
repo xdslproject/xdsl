@@ -50,8 +50,7 @@ def fold_fills_in_module(module_op: ModuleOp):
                     Rewriter.erase_op(fill_op)
 
         for operand in op.operands:
-            if operand in fill_op_by_memref:
-                del fill_op_by_memref[operand]
+            fill_op_by_memref.pop(operand, None)
 
 
 @dataclass(frozen=True)

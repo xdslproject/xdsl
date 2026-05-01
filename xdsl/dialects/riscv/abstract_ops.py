@@ -531,6 +531,10 @@ class RdRsRsFloatOperationWithFastMath(
     rs2 = operand_def(FloatRegisterType)
     fastmath = opt_attr_def(FastMathFlagsAttr)
 
+    # https://github.com/xdslproject/xdsl/issues/5882
+    # Move to appropriate superclass in the future
+    traits = traits_def(RegisterAllocatedMemoryEffect())
+
     def __init__(
         self,
         rs1: Operation | SSAValue,

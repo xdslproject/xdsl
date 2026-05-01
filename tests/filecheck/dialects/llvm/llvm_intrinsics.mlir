@@ -13,6 +13,15 @@
 %fabs_vec = llvm.intr.fabs(%vec_f32) : (vector<4xf32>) -> vector<4xf32>
 // CHECK-NEXT: %fabs_vec = llvm.intr.fabs(%vec_f32) : (vector<4xf32>) -> vector<4xf32>
 
+%fceil_f32 = llvm.intr.ceil(%f32) : (f32) -> f32
+// CHECK: %fceil_f32 = llvm.intr.ceil(%f32) : (f32) -> f32
+
+%fceil_f64 = llvm.intr.ceil(%f64) : (f64) -> f64
+// CHECK-NEXT: %fceil_f64 = llvm.intr.ceil(%f64) : (f64) -> f64
+
+%fceil_vec = llvm.intr.ceil(%vec_f32) : (vector<4xf32>) -> vector<4xf32>
+// CHECK-NEXT: %fceil_vec = llvm.intr.ceil(%vec_f32) : (vector<4xf32>) -> vector<4xf32>
+
 %fsqrt_f32 = llvm.intr.sqrt(%f32) : (f32) -> f32
 // CHECK: %fsqrt_f32 = llvm.intr.sqrt(%f32) : (f32) -> f32
 

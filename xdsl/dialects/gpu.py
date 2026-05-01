@@ -550,7 +550,7 @@ class LaunchOp(IRDLOperation):
         args_type = self.body.blocks[0].arg_types
         if args_type != (IndexType(),) * 12:
             raise VerifyException(
-                f"Expected [12 x {str(IndexType())}], got {[str(t) for t in args_type]}. "
+                f"Expected [12 x {IndexType()!s}], got {[str(t) for t in args_type]}. "
                 "gpu.launch's body arguments are 12 index arguments, with 3 block "
                 "indices, 3 block sizes, 3 thread indices, and 3 thread counts"
             )

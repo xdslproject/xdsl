@@ -5,6 +5,84 @@ builtin.module {
 
   // CHECK: declare void @"declaration"()
 
+  llvm.func @noalias_all(%arg0: !llvm.ptr {llvm.noalias}, %arg1: !llvm.ptr {llvm.noalias}) {
+    llvm.return
+  }
+
+  // CHECK: define void @"noalias_all"(ptr noalias %".1", ptr noalias %".2")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT:   ret void
+  // CHECK-NEXT: }
+
+  llvm.func @noalias_partial(%arg0: !llvm.ptr {llvm.noalias}, %arg1: !llvm.ptr) {
+    llvm.return
+  }
+
+  // CHECK: define void @"noalias_partial"(ptr noalias %".1", ptr %".2")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT:   ret void
+  // CHECK-NEXT: }
+
+  llvm.func @arg_attr_flags(
+      %arg0: !llvm.ptr {llvm.nocapture, llvm.nofree, llvm.nonnull, llvm.readonly},
+      %arg1: i32 {llvm.noundef, llvm.signext, llvm.inreg},
+      %arg2: i32 {llvm.zeroext, llvm.returned},
+      %arg3: !llvm.ptr {llvm.nest}
+  ) -> i32 {
+    llvm.return %arg2 : i32
+  }
+
+  // llvm.readonly is dropped. llvmlite prints in alphabetical order.
+  // CHECK: define i32 @"arg_attr_flags"(ptr nocapture nofree nonnull %".1", i32 inreg noundef signext %".2", i32 returned zeroext %".3", ptr nest %".4")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT:   ret i32 %".3"
+  // CHECK-NEXT: }
+
+  llvm.func @arg_attr_ints(
+      %arg0: !llvm.ptr {llvm.align = 16 : i64},
+      %arg1: !llvm.ptr {llvm.dereferenceable = 32 : i64},
+      %arg2: !llvm.ptr {llvm.dereferenceable_or_null = 64 : i64},
+      %arg3: !llvm.ptr {llvm.align = 8 : i64, llvm.dereferenceable = 128 : i64, llvm.noalias}
+  ) {
+    llvm.return
+  }
+
+  // CHECK: define void @"arg_attr_ints"(ptr align 16 %".1", ptr dereferenceable(32) %".2", ptr dereferenceable_or_null(64) %".3", ptr noalias align 8 dereferenceable(128) %".4")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT:   ret void
+  // CHECK-NEXT: }
+
+  llvm.func @arg_attr_types(
+      %arg0: !llvm.ptr {llvm.byval = i32},
+      %arg1: !llvm.ptr {llvm.sret = !llvm.struct<(i32, i32)>},
+      %arg2: !llvm.ptr {llvm.byref = i64, llvm.align = 8 : i64, llvm.noalias},
+      %arg3: !llvm.ptr {llvm.elementtype = f32}
+  ) {
+    llvm.return
+  }
+
+  // Type-valued attrs force a typed pointer so llvmlite can print name(T).
+  // CHECK: define void @"arg_attr_types"(i32* byval(i32) %".1", {i32, i32}* sret({i32, i32}) %".2", i64* byref(i64) noalias align 8 %".3", float* elementtype(float) %".4")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT:   ret void
+  // CHECK-NEXT: }
+
+  llvm.func @arg_attr_unknown(%arg0: !llvm.ptr {llvm.readonly}, %arg1: i32) {
+    llvm.return
+  }
+
+  // Unsupported attrs are dropped.
+  // CHECK: define void @"arg_attr_unknown"(ptr %".1", i32 %".2")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT:   ret void
+  // CHECK-NEXT: }
+
   llvm.func @named_entry() {
   ^entry:
     llvm.return
@@ -283,11 +361,10 @@ builtin.module {
   }
 
   llvm.func @inline_asm(%arg0: i32) {
-    "llvm.inline_asm"(%arg0) <{
-      asm_string = "add $0, 1",
-      constraints = "r",
-      has_side_effects
-    }> : (i32) -> ()
+    llvm.inline_asm has_side_effects "add $0, 1", "r" %arg0 : (i32) -> ()
+    llvm.inline_asm "add $0, 1", "r" %arg0 : (i32) -> ()
+    llvm.inline_asm asm_dialect = att "add $0, 1", "r" %arg0 : (i32) -> ()
+    llvm.inline_asm asm_dialect = intel "add $0, 1", "r" %arg0 : (i32) -> ()
     llvm.return
   }
 
@@ -295,11 +372,26 @@ builtin.module {
   // CHECK-NEXT: {
   // CHECK-NEXT: {{.[0-9]+}}:
   // CHECK-NEXT:   call void asm sideeffect "add $0, 1", "r"(i32 %".1")
+  // CHECK-NEXT:   call void asm  "add $0, 1", "r"(i32 %".1")
+  // CHECK-NEXT:   call void asm  "add $0, 1", "r"(i32 %".1")
+  // CHECK-NEXT:   call void asm  "add $0, 1", "r"(i32 %".1")
   // CHECK-NEXT:   ret void
   // CHECK-NEXT: }
 
+  llvm.func @inline_asm_with_result(%arg0: i32) -> i32 {
+    %0 = llvm.inline_asm "mov $0, $1", "=r,r" %arg0 : (i32) -> i32
+    llvm.return %0 : i32
+  }
+
+  // CHECK: define i32 @"inline_asm_with_result"(i32 %".1")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT:   {{%.+}} = call i32 asm  "mov $0, $1", "=r,r"(i32 %".1")
+  // CHECK-NEXT:   ret i32 {{%.+}}
+  // CHECK-NEXT: }
+
   llvm.func @alloca_op(%arg0: i32) {
-    %0 = "llvm.alloca"(%arg0) <{elem_type = i32}> : (i32) -> !llvm.ptr
+    %0 = llvm.alloca %arg0 x i32 : (i32) -> !llvm.ptr
     llvm.return
   }
 
@@ -311,7 +403,7 @@ builtin.module {
   // CHECK-NEXT: }
 
   llvm.func @alloca_op_with_alignment(%arg0: i32) {
-    %0 = "llvm.alloca"(%arg0) <{alignment = 32 : i64, elem_type = i32}> : (i32) -> !llvm.ptr
+    %0 = llvm.alloca %arg0 x i32 {alignment = 32 : i64} : (i32) -> !llvm.ptr
     llvm.return
   }
 
@@ -323,7 +415,7 @@ builtin.module {
   // CHECK-NEXT: }
 
   llvm.func @load_op(%arg0: !llvm.ptr) {
-    %0 = "llvm.load"(%arg0) <{ordering = 0 : i64}> : (!llvm.ptr) -> i32
+    %0 = llvm.load %arg0 : !llvm.ptr -> i32
     llvm.return
   }
 
@@ -335,7 +427,7 @@ builtin.module {
   // CHECK-NEXT: }
 
   llvm.func @load_op_with_alignment(%arg0: !llvm.ptr) {
-    %0 = "llvm.load"(%arg0) <{ordering = 0 : i64, alignment = 16 : i64}> : (!llvm.ptr) -> i32
+    %0 = llvm.load %arg0 {alignment = 16 : i64} : !llvm.ptr -> i32
     llvm.return
   }
 
@@ -347,7 +439,7 @@ builtin.module {
   // CHECK-NEXT: }
 
   llvm.func @store_op(%arg0: i32, %arg1: !llvm.ptr) {
-    "llvm.store"(%arg0, %arg1) <{ordering = 0 : i64}> : (i32, !llvm.ptr) -> ()
+    llvm.store %arg0, %arg1 : i32, !llvm.ptr
     llvm.return
   }
 
@@ -359,7 +451,7 @@ builtin.module {
   // CHECK-NEXT: }
 
   llvm.func @store_op_with_alignment(%arg0: i32, %arg1: !llvm.ptr) {
-    "llvm.store"(%arg0, %arg1) <{ordering = 0 : i64, alignment = 8 : i64}> : (i32, !llvm.ptr) -> ()
+    llvm.store %arg0, %arg1 {alignment = 8 : i64} : i32, !llvm.ptr
     llvm.return
   }
 
@@ -371,7 +463,7 @@ builtin.module {
   // CHECK-NEXT: }
 
   llvm.func @extract_op(%arg0: !llvm.struct<(i32, f32)>) {
-    %0 = "llvm.extractvalue"(%arg0) <{position = array<i64: 0>}> : (!llvm.struct<(i32, f32)>) -> i32
+    %0 = llvm.extractvalue %arg0[0] : !llvm.struct<(i32, f32)>
     llvm.return
   }
 
@@ -383,7 +475,7 @@ builtin.module {
   // CHECK-NEXT: }
 
   llvm.func @insert_op(%arg0: !llvm.struct<(i32, f32)>, %arg1: i32) {
-    %0 = "llvm.insertvalue"(%arg0, %arg1) <{position = array<i64: 0>}> : (!llvm.struct<(i32, f32)>, i32) -> !llvm.struct<(i32, f32)>
+    %0 = llvm.insertvalue %arg1, %arg0[0] : !llvm.struct<(i32, f32)>
     llvm.return
   }
 
@@ -408,8 +500,8 @@ builtin.module {
     %0 = llvm.trunc %arg1 : i64 to i32
     %1 = llvm.zext %arg0 : i32 to i64
     %2 = llvm.sext %arg0 : i32 to i64
-    %3 = "llvm.ptrtoint"(%arg2) : (!llvm.ptr) -> i64
-    %4 = "llvm.inttoptr"(%arg1) : (i64) -> !llvm.ptr
+    %3 = llvm.ptrtoint %arg2 : !llvm.ptr to i64
+    %4 = llvm.inttoptr %arg1 : i64 to !llvm.ptr
     %5 = llvm.bitcast %arg1 : i64 to f64
     %6 = llvm.fpext %arg3 : f32 to f64
     %7 = llvm.sitofp %arg0 : i32 to f32
@@ -458,11 +550,7 @@ builtin.module {
   //   int* result = &ptr[1][2];
   // }
   llvm.func @gep_constant(%arg0: !llvm.ptr) {
-    %0 = "llvm.getelementptr"(%arg0) <{
-      elem_type = !llvm.array<10 x i32>,
-      rawConstantIndices = array<i32: 1, 2>,
-      noWrapFlags = 0 : i32
-    }> : (!llvm.ptr) -> !llvm.ptr
+    %0 = llvm.getelementptr %arg0[1, 2] : (!llvm.ptr) -> !llvm.ptr, !llvm.array<10 x i32>
     llvm.return
   }
 
@@ -477,11 +565,7 @@ builtin.module {
   //   int* result = &ptr[index];
   // }
   llvm.func @gep_ssa(%arg0: !llvm.ptr, %arg1: i32) {
-    %0 = "llvm.getelementptr"(%arg0, %arg1) <{
-      elem_type = i32,
-      rawConstantIndices = array<i32: -2147483648>, // magic constant 0x80000000 (placeholder for ssa value)
-      noWrapFlags = 0 : i32
-    }> : (!llvm.ptr, i32) -> !llvm.ptr
+    %0 = llvm.getelementptr %arg0[%arg1] : (!llvm.ptr, i32) -> !llvm.ptr, i32
     llvm.return
   }
 
@@ -497,11 +581,7 @@ builtin.module {
   //   int* result = &ptr[1][i].field2[j];
   // }
   llvm.func @gep_mixed(%arg0: !llvm.ptr, %arg1: i32, %arg2: i32) {
-    %0 = "llvm.getelementptr"(%arg0, %arg1, %arg2) <{
-      elem_type = !llvm.array<10 x !llvm.struct<(i32, i32, !llvm.array<10 x i32>)>>,
-      rawConstantIndices = array<i32: 1, -2147483648, 2, -2147483648>,
-      noWrapFlags = 0 : i32
-    }> : (!llvm.ptr, i32, i32) -> !llvm.ptr
+    %0 = llvm.getelementptr %arg0[1, %arg1, 2, %arg2] : (!llvm.ptr, i32, i32) -> !llvm.ptr, !llvm.array<10 x !llvm.struct<(i32, i32, !llvm.array<10 x i32>)>>
     llvm.return
   }
 
@@ -517,12 +597,7 @@ builtin.module {
   //   int* result = &ptr[idx]; 
   // }
   llvm.func @gep_inbounds(%arg0: !llvm.ptr, %arg1: i32) {
-    %0 = "llvm.getelementptr"(%arg0, %arg1) <{
-      elem_type = i32,
-      rawConstantIndices = array<i32: -2147483648>,
-      inbounds,
-      noWrapFlags = 0 : i32
-    }> : (!llvm.ptr, i32) -> !llvm.ptr
+    %0 = llvm.getelementptr inbounds %arg0[%arg1] : (!llvm.ptr, i32) -> !llvm.ptr, i32
     llvm.return
   }
 
@@ -662,6 +737,18 @@ builtin.module {
   // CHECK-NEXT:   ret float %"[[RES]]"
   // CHECK-NEXT: }
 
+  llvm.func @fceil_op(%arg0: f32) -> f32 {
+    %0 = llvm.intr.ceil(%arg0) : (f32) -> f32
+    llvm.return %0 : f32
+  }
+
+  // CHECK: define float @"fceil_op"(float %".1")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: [[ENTRY:.\d+]]:
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = call float @"llvm.ceil"(float %".1")
+  // CHECK-NEXT:   ret float %"[[RES]]"
+  // CHECK-NEXT: }
+
   llvm.func @fsqrt_op(%arg0: f32) -> f32 {
     %0 = llvm.intr.sqrt(%arg0) : (f32) -> f32
     llvm.return %0 : f32
@@ -671,6 +758,9 @@ builtin.module {
   // CHECK-NEXT: {
   // CHECK-NEXT: [[ENTRY:.\d+]]:
   // CHECK-NEXT:   %"[[RES:.\d+]]" = call float @"llvm.sqrt"(float %".1")
+  // CHECK-NEXT:   ret float %"[[RES]]"
+  // CHECK-NEXT: }
+
   llvm.func @flog_op(%arg0: f32) -> f32 {
     %0 = llvm.intr.log(%arg0) : (f32) -> f32
     llvm.return %0 : f32
@@ -695,6 +785,35 @@ builtin.module {
   // CHECK-NEXT:   ret float %"[[RES]]"
   // CHECK-NEXT: }
 
+  // forward_ref_caller calls forward_ref_callee which is defined AFTER it
+  llvm.func @forward_ref_caller(%arg0: i32) -> i32 {
+    %0 = "llvm.call"(%arg0) <{
+      callee = @forward_ref_callee,
+      fastmathFlags = #llvm.fastmath<none>,
+      CConv = #llvm.cconv<ccc>,
+      TailCallKind = #llvm.tailcallkind<none>,
+      operandSegmentSizes = array<i32: 1, 0>
+    }> : (i32) -> i32
+    llvm.return %0 : i32
+  }
+
+  // CHECK: define i32 @"forward_ref_caller"(i32 %".1")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: [[ENTRY:.\d+]]:
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = call ccc i32 @"forward_ref_callee"(i32 %".1")
+  // CHECK-NEXT:   ret i32 %"[[RES]]"
+  // CHECK-NEXT: }
+
+  llvm.func @forward_ref_callee(%arg0: i32) -> i32 {
+    llvm.return %arg0 : i32
+  }
+
+  // CHECK: define i32 @"forward_ref_callee"(i32 %".1")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: [[ENTRY:.\d+]]:
+  // CHECK-NEXT:   ret i32 %".1"
+  // CHECK-NEXT: }
+
   llvm.func @helper(%arg0: i32) -> i32 {
     llvm.return %arg0 : i32
   }
@@ -706,20 +825,14 @@ builtin.module {
   // CHECK-NEXT: }
 
   llvm.func @call_op(%arg0: i32) -> i32 {
-    %0 = "llvm.call"(%arg0) <{
-      callee = @helper,
-      fastmathFlags = #llvm.fastmath<nnan, ninf>,
-      CConv = #llvm.cconv<fastcc>,
-      TailCallKind = #llvm.tailcallkind<tail>,
-      operandSegmentSizes = array<i32: 1, 0>
-    }> : (i32) -> i32
+    %0 = llvm.call fastcc tail @helper(%arg0) {fastmathFlags = #llvm.fastmath<nnan, ninf>} : (i32) -> i32
     llvm.return %0 : i32
   }
 
   // CHECK: define i32 @"call_op"(i32 %".1")
   // CHECK-NEXT: {
   // CHECK-NEXT: [[ENTRY:.\d+]]:
-  // CHECK-NEXT:   %"[[RES:.\d+]]" = tail call ninf nnan fastcc i32 @"helper"(i32 %".1")
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = tail call fastcc i32 @"helper"(i32 %".1")
   // CHECK-NEXT:   ret i32 %"[[RES]]"
   // CHECK-NEXT: }
 
@@ -735,15 +848,26 @@ builtin.module {
   // CHECK-NEXT:   ret void
   // CHECK-NEXT: }
 
-  llvm.func @null_op() -> !llvm.ptr {
-    %0 = "llvm.mlir.null"() : () -> !llvm.ptr
+  llvm.func @zero_op() -> !llvm.ptr {
+    %0 = llvm.mlir.zero : !llvm.ptr
     llvm.return %0 : !llvm.ptr
   }
 
-  // CHECK: define ptr @"null_op"()
+  // CHECK: define ptr @"zero_op"()
   // CHECK-NEXT: {
   // CHECK-NEXT: {{.[0-9]+}}:
   // CHECK-NEXT:   ret ptr null
+  // CHECK-NEXT: }
+
+  llvm.func @undef_i32() -> i32 {
+    %0 = llvm.mlir.undef : i32
+    llvm.return %0 : i32
+  }
+
+  // CHECK: define i32 @"undef_i32"()
+  // CHECK-NEXT: {
+  // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT:   ret i32 undef
   // CHECK-NEXT: }
 
   llvm.func @fma_op_f32(%arg0: vector<4xf32>, %arg1: vector<4xf32>, %arg2: vector<4xf32>) -> vector<4xf32> {
@@ -768,5 +892,94 @@ builtin.module {
   // CHECK-NEXT: [[ENTRY:.\d+]]:
   // CHECK-NEXT:   %"[[RES:.\d+]]" = call <2 x double> @"llvm.fma.v2f64"(<2 x double> %".1", <2 x double> %".2", <2 x double> %".3")
   // CHECK-NEXT:   ret <2 x double> %"[[RES]]"
+  // CHECK-NEXT: }
+
+  llvm.func @call_intrinsic_fma(%arg0: vector<4xf32>, %arg1: vector<4xf32>, %arg2: vector<4xf32>) -> vector<4xf32> {
+    %0 = llvm.call_intrinsic "llvm.fma.v4f32"(%arg0, %arg1, %arg2) : (vector<4xf32>, vector<4xf32>, vector<4xf32>) -> vector<4xf32>
+    llvm.return %0 : vector<4xf32>
+  }
+
+  // CHECK: define <4 x float> @"call_intrinsic_fma"(<4 x float> %".1", <4 x float> %".2", <4 x float> %".3")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: [[ENTRY:.\d+]]:
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = call <4 x float> @"llvm.fma.v4f32"(<4 x float> %".1", <4 x float> %".2", <4 x float> %".3")
+  // CHECK-NEXT:   ret <4 x float> %"[[RES]]"
+  // CHECK-NEXT: }
+
+  llvm.func @call_intrinsic_void(%arg0: i32) {
+    llvm.call_intrinsic "llvm.donothing"(%arg0) : (i32) -> ()
+    llvm.return
+  }
+
+  // CHECK: define void @"call_intrinsic_void"(i32 %".1")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: [[ENTRY:.\d+]]:
+  // CHECK-NEXT:   call void @"llvm.donothing"(i32 %".1")
+  // CHECK-NEXT:   ret void
+  // CHECK-NEXT: }
+
+  llvm.func @callee(!llvm.ptr)
+
+  llvm.func @addressof_target() {
+    llvm.return
+  }
+
+  llvm.func @addressof_op() {
+    %0 = llvm.mlir.addressof @addressof_target : !llvm.ptr
+    "llvm.call"(%0) <{callee = @callee, fastmathFlags = #llvm.fastmath<>, CConv = #llvm.cconv<ccc>, TailCallKind = #llvm.tailcallkind<none>, operandSegmentSizes = array<i32: 1, 0>}> : (!llvm.ptr) -> ()
+    llvm.return
+  }
+
+  // CHECK: define void @"addressof_op"()
+  // CHECK-NEXT: {
+  // CHECK-NEXT: [[ENTRY:.\d+]]:
+  // CHECK-NEXT:   call ccc void @"callee"(void ()* @"addressof_target")
+  // CHECK-NEXT:   ret void
+  // CHECK-NEXT: }
+
+  llvm.func @broadcast_f32(%arg0: f32) -> vector<4xf32> {
+    %0 = vector.broadcast %arg0 : f32 to vector<4xf32>
+    llvm.return %0 : vector<4xf32>
+  }
+
+  // CHECK: define <4 x float> @"broadcast_f32"(float %".1")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: [[ENTRY:.\d+]]:
+  // CHECK-NEXT:   %"[[INS:.\d+]]" = insertelement <4 x float> <float undef, float undef, float undef, float undef>, float %".1", i32 0
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = shufflevector <4 x float> %"[[INS]]", <4 x float> <float undef, float undef, float undef, float undef>, <4 x i32> <i32 0, i32 0, i32 0, i32 0>
+  // CHECK-NEXT:   ret <4 x float> %"[[RES]]"
+  // CHECK-NEXT: }
+
+  llvm.func @constant_int() -> i32 {
+    %0 = llvm.mlir.constant(42 : i32) : i32
+    llvm.return %0 : i32
+  }
+
+  // CHECK: define i32 @"constant_int"()
+  // CHECK-NEXT: {
+  // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT:   ret i32 42
+  // CHECK-NEXT: }
+
+  llvm.func @constant_float() -> f32 {
+    %0 = llvm.mlir.constant(3.14 : f32) : f32
+    llvm.return %0 : f32
+  }
+
+  // CHECK: define float @"constant_float"()
+  // CHECK-NEXT: {
+  // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT:   ret float 0x40091eb860000000
+  // CHECK-NEXT: }
+
+  llvm.func @constant_dense_vector() -> vector<4xi32> {
+    %0 = llvm.mlir.constant(dense<[1, 2, 3, 4]> : vector<4xi32>) : vector<4xi32>
+    llvm.return %0 : vector<4xi32>
+  }
+
+  // CHECK: define <4 x i32> @"constant_dense_vector"()
+  // CHECK-NEXT: {
+  // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT:   ret <4 x i32> <i32 1, i32 2, i32 3, i32 4>
   // CHECK-NEXT: }
 }

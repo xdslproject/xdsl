@@ -1,5 +1,6 @@
 import builtins
 import re
+from collections.abc import Sequence
 from io import StringIO
 from typing import cast
 
@@ -36,7 +37,7 @@ from xdsl.irdl import (
     prop_def,
     region_def,
 )
-from xdsl.parser import Parser
+from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import ParseError
 from xdsl.utils.mlir_lexer import (
@@ -1379,3 +1380,110 @@ def test_parse_dimension_list(input: str, expected: list[int]):
 
     result = parser.parse_dimension_list()
     assert result == expected
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        "a (] b",
+        "a [} b",
+        "a {) b",
+        "a ) b",
+        "a ] b",
+        "a } b",
+    ],
+)
+def test_unregistered_type_unbalanced_brackets(body: str):
+    """_raw_scan_balanced rejects mismatched bracket pairs."""
+    ctx = Context(allow_unregistered=True)
+    with pytest.raises(ParseError, match="Unbalanced"):
+        Parser(ctx, f"!unknowndialect.t<{body}>").parse_type()
+
+
+def test_unregistered_type_unterminated_string():
+    """_raw_scan_balanced rejects unterminated string literals."""
+    ctx = Context(allow_unregistered=True)
+    with pytest.raises(ParseError, match="Unterminated string literal"):
+        Parser(ctx, '!unknowndialect.t<"no end>').parse_type()
+
+
+def test_unregistered_type_unexpected_eof():
+    """_raw_scan_balanced rejects unexpected end of file."""
+    ctx = Context(allow_unregistered=True)
+    with pytest.raises(ParseError, match="end of file"):
+        Parser(ctx, "!unknowndialect.t<no close").parse_type()
+
+
+def test_unregistered_attr_name_rejected():
+    """An unknown attr name is rejected when allow_unregistered is False."""
+    ctx = Context(allow_unregistered=False)
+    ctx.load_dialect(Test)
+    with pytest.raises(ParseError, match="is not registered"):
+        parser = Parser(ctx, '"test.op"() : () -> !nonexistent.type<foo>')
+        parser.parse_optional_operation()
+
+
+@irdl_attr_definition
+class SlashAttr(ParametrizedAttribute):
+    """Test attribute whose parameter syntax contains a `/`."""
+
+    name = "test_slash.attr"
+
+    @classmethod
+    def parse_parameters(
+        cls,
+        parser: AttrParser,
+    ) -> Sequence[Attribute]:
+        with parser.in_angle_brackets():
+            parser.parse_punctuation("/")
+        return ()
+
+    def print_parameters(self, printer: Printer) -> None:
+        printer.print_string("</>")
+
+
+def test_slash_punctuation_in_registered_attr():
+    """parse_punctuation('/') works inside a registered attribute."""
+    ctx = Context()
+    ctx.load_attr_or_type(SlashAttr)
+
+    parser = Parser(ctx, "#test_slash.attr</>")
+    attr = parser.parse_attribute()
+    assert isinstance(attr, SlashAttr)
+
+    with StringIO() as io:
+        Printer(io).print_attribute(attr)
+        assert io.getvalue() == "#test_slash.attr</>"
+
+
+def test_parse_optional_keyword_in_matching():
+    parser = Parser(Context(), "fastcc remaining")
+    result = parser.parse_optional_keyword_in({"fastcc", "ccc", "tailcc"})
+    assert result == "fastcc"
+    assert parser.parse_optional_identifier() == "remaining"
+
+
+def test_parse_optional_keyword_in_non_matching():
+    parser = Parser(Context(), "other remaining")
+    result = parser.parse_optional_keyword_in({"fastcc", "ccc"})
+    assert result is None
+    assert parser.parse_optional_identifier() == "other"
+
+
+def test_parse_optional_keyword_in_non_identifier():
+    parser = Parser(Context(), "42 remaining")
+    result = parser.parse_optional_keyword_in({"fastcc"})
+    assert result is None
+
+
+def test_parse_keyword_in_matching():
+    parser = Parser(Context(), "fastcc remaining")
+    result = parser.parse_keyword_in({"fastcc", "ccc", "tailcc"})
+    assert result == "fastcc"
+    assert parser.parse_optional_identifier() == "remaining"
+
+
+def test_parse_keyword_in_non_matching():
+    parser = Parser(Context(), "other remaining")
+    with pytest.raises(ParseError, match="Expected one of"):
+        parser.parse_keyword_in({"fastcc", "ccc"})

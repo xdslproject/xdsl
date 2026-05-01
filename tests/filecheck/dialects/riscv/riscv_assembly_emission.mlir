@@ -183,20 +183,22 @@
 
 
     // RISC-V Extensions
+    %fa0 = riscv.get_float_register : !riscv.freg<fa0>
+    %fa1 = riscv.get_float_register : !riscv.freg<fa1>
 
     riscv_snitch.frep_outer %0 {
-      %add_o = riscv.add %0, %1 : (!riscv.reg<zero>, !riscv.reg<j_1>) -> !riscv.reg<j_2>
+      %add_o = riscv.fadd.s %fa0, %fa1 : (!riscv.freg<fa0>, !riscv.freg<fa1>) -> !riscv.freg<fa2>
     }
 
     // CHECK:          frep.o zero, 1, 0, 0
-    // CHECK-NEXT:     add  j_2, zero, j_1
+    // CHECK-NEXT:     fadd.s  fa2, fa0, fa1
 
     riscv_snitch.frep_inner %0 {
-      %add_i = riscv.add %0, %1 : (!riscv.reg<zero>, !riscv.reg<j_1>) -> !riscv.reg<j_2>
+      %add_o = riscv.fadd.s %fa0, %fa1 : (!riscv.freg<fa0>, !riscv.freg<fa1>) -> !riscv.freg<fa2>
     }
     // CHECK:          frep.i zero, 1, 0, 0
-    // CHECK-NEXT:     add  j_2, zero, j_1
-    
+    // CHECK-NEXT:     fadd.s  fa2, fa0, fa1
+
     //RV32B/RV64B: "B" Extension for Bit Manipulation, Version 1.0.0
     %rol = riscv.rol %2, %1 : (!riscv.reg<j_2>, !riscv.reg<j_1>) -> !riscv.reg<j_2>
     // CHECK-NEXT: rol j_2, j_2, j_1
@@ -246,7 +248,7 @@
     // CHECK-NEXT: min j_2, j_2, j_1
     %minu = riscv.minu %2, %1 : (!riscv.reg<j_2>, !riscv.reg<j_1>) -> !riscv.reg<j_2>
     // CHECK-NEXT: minu j_2, j_2, j_1
-    
+
     // "ZiCond" Conditional" operations extension
     %czeroeqz = riscv.czero.eqz %2, %1 : (!riscv.reg<j_2>, !riscv.reg<j_1>) -> !riscv.reg<j_2>
     // CHECK-NEXT: czero.eqz j_2, j_2, j_1
