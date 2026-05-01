@@ -53,6 +53,9 @@ jobs:
       - name: Install xdsl[llvm]
         run: uv pip install --system ".[llvm]"
 
+      - name: Verify llvm extra is installed
+        run: python -c "import llvmlite"
+
       - name: Verify benchmark entrypoints
         run: |
           failed=""
