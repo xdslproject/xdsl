@@ -30,7 +30,7 @@ _UNDERFLOW_LOWER_BOUND: dict[type, float] = {
     Float64Type: pymath.log(2.0**-1074),  # ≈ -744.44
 }
 
-_DEFAULT_DEGREE = 10
+_DEFAULT_DEGREE = 5
 
 
 def _chebyshev_coefficients(
