@@ -1,11 +1,14 @@
 from io import StringIO
 
 import pytest
+from typing_extensions import TypeVar
 
 from xdsl.context import Context
 from xdsl.dialects import arith, builtin, llvm, test
 from xdsl.dialects.builtin import UnitAttr, i32
+from xdsl.dialects.llvm import ShuffleVectorResultConstraint
 from xdsl.ir import Attribute, Block, Region
+from xdsl.irdl import AnyAttr, EqAttrConstraint, TypeVarConstraint, VarConstraint
 from xdsl.parser import Parser
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import VerifyException
@@ -672,3 +675,42 @@ def test_masked_store_op():
     assert op.data == ptr
     assert op.mask == mask
     assert op.alignment.value.data == 16
+
+
+def test_shuffle_vector_op():
+    vec_type = builtin.VectorType(builtin.f32, [4])
+    v1 = create_ssa_value(vec_type)
+    v2 = create_ssa_value(vec_type)
+    mask = builtin.DenseArrayBase.from_list(builtin.i32, [0, 0, 0, 0])
+    op = llvm.ShuffleVectorOp(v1, v2, mask, vec_type)
+    assert op.v1 == v1
+    assert op.v2 == v2
+    assert op.mask is mask
+    assert op.res.type == vec_type
+
+
+def test_shuffle_vector_op_different_sizes():
+    input_type = builtin.VectorType(builtin.f32, [4])
+    result_type = builtin.VectorType(builtin.f32, [2])
+    v1 = create_ssa_value(input_type)
+    v2 = create_ssa_value(input_type)
+    mask = builtin.DenseArrayBase.from_list(builtin.i32, [0, 5])
+    op = llvm.ShuffleVectorOp(v1, v2, mask, result_type)
+    assert op.v1 == v1
+    assert op.v2 == v2
+    assert op.mask is mask
+    assert op.res.type == result_type
+
+
+def test_shuffle_vector_result_constraint_mapping_type_vars():
+    _T = TypeVar("_T", bound=Attribute)
+    elem_constr = TypeVarConstraint(_T, AnyAttr())
+    mask_constr = VarConstraint("MASK", AnyAttr())
+    constr = ShuffleVectorResultConstraint(elem_constr, mask_constr)
+
+    replacement = EqAttrConstraint(builtin.f32)
+    mapped = constr.mapping_type_vars({_T: replacement})
+
+    assert isinstance(mapped, ShuffleVectorResultConstraint)
+    assert mapped.element_constr == replacement
+    assert mapped.mask_constr == mask_constr

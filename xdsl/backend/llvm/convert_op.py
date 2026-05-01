@@ -439,6 +439,16 @@ def _convert_broadcast(
     val_map[op.vector] = builder.shuffle_vector(inserted, undef, mask)
 
 
+def _convert_shuffle_vector(
+    op: llvm.ShuffleVectorOp,
+    builder: ir.IRBuilder,
+    val_map: dict[SSAValue, ir.Value],
+):
+    mask_values = op.mask.get_values()
+    mask = ir.Constant(ir.VectorType(ir.IntType(32), len(mask_values)), mask_values)
+    val_map[op.res] = builder.shuffle_vector(val_map[op.v1], val_map[op.v2], mask)
+
+
 _CONSTANT_VALUE_MAP: dict[type[Attribute], Callable[[Attribute], object]] = {
     DenseIntOrFPElementsAttr: lambda v: list(
         cast(DenseIntOrFPElementsAttr, v).iter_values()
@@ -546,6 +556,8 @@ def convert_op(
                 val_map[op.value],
                 val_map[op.index],
             )
+        case llvm.ShuffleVectorOp():
+            _convert_shuffle_vector(op, builder, val_map)
         case FMAOp():
             _convert_fma(op, builder, val_map)
         case vector.BroadcastOp():

@@ -2,11 +2,12 @@ from __future__ import annotations
 
 from abc import ABC
 from collections.abc import Mapping, Sequence
+from collections.abc import Set as AbstractSet
 from dataclasses import dataclass
 from types import EllipsisType
 from typing import ClassVar, cast
 
-from typing_extensions import deprecated
+from typing_extensions import TypeVar, deprecated
 
 from xdsl.dialects.builtin import (
     I1,
@@ -56,7 +57,11 @@ from xdsl.ir import (
 )
 from xdsl.irdl import (
     AnyAttr,
+    AttrConstraint,
     AttrSizedOperandSegments,
+    ConstraintContext,
+    EqIntConstraint,
+    IntConstraint,
     IRDLOperation,
     ParsePropInAttrDict,
     RangeOf,
@@ -64,6 +69,7 @@ from xdsl.irdl import (
     base,
     irdl_attr_definition,
     irdl_op_definition,
+    irdl_to_attr_constraint,
     operand_def,
     opt_operand_def,
     opt_prop_def,
@@ -1843,6 +1849,103 @@ class UndefOp(IRDLOperation):
         super().__init__(result_types=[result_type])
 
 
+@dataclass(frozen=True)
+class ShuffleVectorResultConstraint(AttrConstraint[VectorType]):
+    """Infers a 1D VectorType result from the input element type and mask length.
+
+    The result shape is determined by the number of elements in the mask,
+    while the element type is propagated from the input vectors.
+    """
+
+    element_constr: AttrConstraint
+    mask_constr: VarConstraint
+
+    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
+        VectorType.constr(
+            self.element_constr,
+            shape=ArrayAttr.constr(
+                RangeOf(base(IntAttr)).of_length(EqIntConstraint(1))
+            ),
+        ).verify(attr, constraint_context)
+
+    def can_infer(self, var_constraint_names: AbstractSet[str]) -> bool:
+        return (
+            self.element_constr.can_infer(var_constraint_names)
+            and self.mask_constr.name in var_constraint_names
+        )
+
+    def infer(self, context: ConstraintContext) -> VectorType:
+        mask = context.get_variable(self.mask_constr.name)
+        assert mask is not None
+        mask = cast(DenseArrayBase[IntegerType], mask)
+        element_type = self.element_constr.infer(context)
+        return VectorType(element_type, [len(mask)])
+
+    def mapping_type_vars(
+        self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
+    ) -> AttrConstraint[VectorType]:
+        return ShuffleVectorResultConstraint(
+            self.element_constr.mapping_type_vars(type_var_mapping),
+            self.mask_constr.mapping_type_vars(type_var_mapping),
+        )
+
+
+@irdl_op_definition
+class ShuffleVectorOp(IRDLOperation):
+    """
+    Constructs a new 1D vector by selecting elements from two input vectors
+    according to a static mask of indices.
+
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/LLVM/#llvmshufflevector-llvmshufflevectorop).
+    """
+
+    name = "llvm.shufflevector"
+
+    T: ClassVar = VarConstraint("T", AnyAttr())
+    VEC_TYPE: ClassVar = VarConstraint(
+        "VEC_TYPE",
+        VectorType.constr(
+            T,
+            shape=ArrayAttr.constr(RangeOf(base(IntAttr)).of_length(1)),
+        ),
+    )
+    MASK: ClassVar = VarConstraint("MASK", irdl_to_attr_constraint(DenseArrayBase[I32]))
+
+    v1 = operand_def(VEC_TYPE)
+    v2 = operand_def(VEC_TYPE)
+    mask = prop_def(MASK)
+    res = result_def(ShuffleVectorResultConstraint(T, MASK))
+
+    traits = traits_def(NoMemoryEffect())
+
+    assembly_format = "$v1 `,` $v2 $mask attr-dict `:` type($v1)"
+
+    def verify_(self) -> None:
+        v1_type = cast(VectorType, self.v1.type)
+        v1_size = v1_type.get_shape()[0]
+        v2_type = cast(VectorType, self.v2.type)
+        v2_size = v2_type.get_shape()[0]
+        dim_bound = v1_size + v2_size
+        for idx in self.mask.iter_values():
+            if not (-1 <= idx < dim_bound):
+                raise VerifyException(
+                    f"Mask value {idx} out of range [-1, {dim_bound})"
+                )
+
+    def __init__(
+        self,
+        v1: Operation | SSAValue,
+        v2: Operation | SSAValue,
+        mask: DenseArrayBase,
+        result_type: Attribute,
+    ):
+        super().__init__(
+            operands=[v1, v2],
+            result_types=[result_type],
+            properties={"mask": mask},
+        )
+
+
 UNNAMED_ADDR_KEYWORD_BY_KEY: dict[int, str] = {
     1: "local_unnamed_addr",
     2: "unnamed_addr",
@@ -3256,6 +3359,7 @@ LLVM = Dialect(
         SIToFPOp,
         SRemOp,
         ShlOp,
+        ShuffleVectorOp,
         StoreOp,
         SubOp,
         TruncOp,
