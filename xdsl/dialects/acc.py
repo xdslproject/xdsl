@@ -2461,13 +2461,19 @@ class DetachOp(_DataExitOperationNoVarPtr):
 
 
 # ---------------------------------------------------------------------------
-# Standalone unstructured data-movement ops: acc.enter_data.
+# Standalone unstructured data-movement ops: acc.enter_data, acc.exit_data,
+# acc.update.
 # ---------------------------------------------------------------------------
 #
-# `enter_data` has no region. It carries a single optional `asyncOperand` (no
-# per-device-type array), a single optional `waitDevnum`, variadic
-# `waitOperands`, and `dataClauseOperands`, plus `async` / `wait` UnitAttrs
-# that mirror the bare-keyword spellings.
+# None of the three carry a region. `enter_data` and `exit_data` share the
+# same operand shape: a single optional `asyncOperand` (no per-device-type
+# array), a single optional `waitDevnum`, variadic `waitOperands`, and
+# `dataClauseOperands`, plus `async` / `wait` UnitAttrs that mirror the
+# bare-keyword spellings; `exit_data` additionally carries a `finalize`
+# UnitAttr. `acc.update` instead matches the per-device-type async/wait
+# shape used by `acc.parallel` (variadic `asyncOperands` /
+# `waitOperands` paired with `*DeviceType` / `*Segments` / `hasWaitDevnum` /
+# `*Only` arrays) and carries an `ifPresent` UnitAttr.
 
 
 @irdl_op_definition
@@ -2561,6 +2567,218 @@ class EnterDataOp(IRDLOperation):
         for operand in self.data_clause_operands:
             if not isinstance(operand.owner, (AttachOp, CreateOp, CopyinOp)):
                 raise VerifyException("expect data entry operation as defining op")
+
+
+@irdl_op_definition
+class ExitDataOp(IRDLOperation):
+    """
+    Implementation of upstream acc.exit_data — the OpenACC exit data directive.
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenACCDialect/#accexit_data-accexitdataop).
+    """
+
+    name = "acc.exit_data"
+
+    if_cond = opt_operand_def(I1)
+    async_operand = opt_operand_def(IntegerType | IndexType)
+    wait_devnum = opt_operand_def(IntegerType | IndexType)
+    wait_operands = var_operand_def(IntegerType | IndexType)
+    data_clause_operands = var_operand_def()
+
+    async_attr = opt_prop_def(UnitAttr, prop_name="async")
+    wait_attr = opt_prop_def(UnitAttr, prop_name="wait")
+    finalize = opt_prop_def(UnitAttr, prop_name="finalize")
+
+    irdl_options = (
+        AttrSizedOperandSegments(as_property=True),
+        ParsePropInAttrDict(),
+    )
+
+    custom_directives = (
+        OperandWithKeywordOnly,
+        OperandsWithKeywordOnly,
+    )
+
+    assembly_format = (
+        "(`if` `(` $if_cond^ `)`)?"
+        " (`async` custom<OperandWithKeywordOnly>($async_operand,"
+        " type($async_operand), $async)^)?"
+        " (`wait_devnum` `(` $wait_devnum^ `:` type($wait_devnum) `)`)?"
+        " (`wait` custom<OperandsWithKeywordOnly>($wait_operands,"
+        " type($wait_operands), $wait)^)?"
+        " (`dataOperands` `(` $data_clause_operands^ `:`"
+        " type($data_clause_operands) `)`)?"
+        " attr-dict-with-keyword"
+    )
+
+    def __init__(
+        self,
+        *,
+        if_cond: SSAValue | Operation | None = None,
+        async_operand: SSAValue | Operation | None = None,
+        wait_devnum: SSAValue | Operation | None = None,
+        wait_operands: Sequence[SSAValue | Operation] = (),
+        data_clause_operands: Sequence[SSAValue | Operation] = (),
+        async_attr: UnitAttr | bool = False,
+        wait_attr: UnitAttr | bool = False,
+        finalize: UnitAttr | bool = False,
+    ) -> None:
+        async_prop: UnitAttr | None = (
+            (UnitAttr() if async_attr else None)
+            if isinstance(async_attr, bool)
+            else async_attr
+        )
+        wait_prop: UnitAttr | None = (
+            (UnitAttr() if wait_attr else None)
+            if isinstance(wait_attr, bool)
+            else wait_attr
+        )
+        finalize_prop: UnitAttr | None = (
+            (UnitAttr() if finalize else None)
+            if isinstance(finalize, bool)
+            else finalize
+        )
+        super().__init__(
+            operands=[
+                [if_cond] if if_cond is not None else [],
+                [async_operand] if async_operand is not None else [],
+                [wait_devnum] if wait_devnum is not None else [],
+                wait_operands,
+                data_clause_operands,
+            ],
+            properties={
+                "async": async_prop,
+                "wait": wait_prop,
+                "finalize": finalize_prop,
+            },
+        )
+
+    def verify_(self) -> None:
+        # Mirrors `acc::ExitDataOp::verify` (2.6.6 Data Exit Directive).
+        # Note that, unlike `EnterDataOp`, upstream does *not* restrict the
+        # set of defining ops for `dataClauseOperands` here — the data-exit
+        # family is more permissive (copyout / delete / detach / update_host
+        # / getdeviceptr all flow in).
+        if not self.data_clause_operands:
+            raise VerifyException(
+                "at least one operand must be present in dataOperands on "
+                "the exit data operation"
+            )
+        if self.async_operand is not None and self.async_attr is not None:
+            raise VerifyException("async attribute cannot appear with asyncOperand")
+        if self.wait_operands and self.wait_attr is not None:
+            raise VerifyException("wait attribute cannot appear with waitOperands")
+        if self.wait_devnum is not None and not self.wait_operands:
+            raise VerifyException("wait_devnum cannot appear without waitOperands")
+
+
+@irdl_op_definition
+class UpdateOp(IRDLOperation):
+    """
+    Implementation of upstream acc.update — the OpenACC update executable
+    directive.
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenACCDialect/#accupdate-accupdateop).
+
+    Unlike `acc.enter_data` / `acc.exit_data`, `acc.update` carries the same
+    per-device-type async/wait operand+attribute shape as `acc.parallel`
+    (variadic `asyncOperands`/`waitOperands` paired with `*DeviceType`,
+    `*Segments`, `hasWaitDevnum`, and `*Only` arrays). It additionally
+    carries an `ifPresent` UnitAttr but no `async` / `wait` keyword-only
+    UnitAttrs (those are encoded via the `*Only` device-type arrays).
+    """
+
+    name = "acc.update"
+
+    if_cond = opt_operand_def(I1)
+    async_operands = var_operand_def(IntegerType | IndexType)
+    wait_operands = var_operand_def(IntegerType | IndexType)
+    data_clause_operands = var_operand_def()
+
+    async_operands_device_type = opt_prop_def(
+        ArrayAttr[DeviceTypeAttr], prop_name="asyncOperandsDeviceType"
+    )
+    async_only = opt_prop_def(ArrayAttr[DeviceTypeAttr], prop_name="asyncOnly")
+    wait_operands_device_type = opt_prop_def(
+        ArrayAttr[DeviceTypeAttr], prop_name="waitOperandsDeviceType"
+    )
+    wait_operands_segments = opt_prop_def(
+        DenseArrayBase.constr(IntegerType(32)), prop_name="waitOperandsSegments"
+    )
+    has_wait_devnum = opt_prop_def(ArrayAttr[BoolAttr], prop_name="hasWaitDevnum")
+    wait_only = opt_prop_def(ArrayAttr[DeviceTypeAttr], prop_name="waitOnly")
+    if_present = opt_prop_def(UnitAttr, prop_name="ifPresent")
+
+    irdl_options = (
+        AttrSizedOperandSegments(as_property=True),
+        ParsePropInAttrDict(),
+    )
+
+    custom_directives = (
+        DeviceTypeOperandsWithKeywordOnly,
+        WaitClause,
+    )
+
+    assembly_format = (
+        "(`if` `(` $if_cond^ `)`)?"
+        " (`async` custom<DeviceTypeOperandsWithKeywordOnly>($async_operands,"
+        " type($async_operands), $asyncOperandsDeviceType, $asyncOnly)^)?"
+        " (`wait` custom<WaitClause>($wait_operands, type($wait_operands),"
+        " $waitOperandsDeviceType, $waitOperandsSegments, $hasWaitDevnum,"
+        " $waitOnly)^)?"
+        " (`dataOperands` `(` $data_clause_operands^ `:`"
+        " type($data_clause_operands) `)`)?"
+        " attr-dict-with-keyword"
+    )
+
+    def __init__(
+        self,
+        *,
+        if_cond: SSAValue | Operation | None = None,
+        async_operands: Sequence[SSAValue | Operation] = (),
+        wait_operands: Sequence[SSAValue | Operation] = (),
+        data_clause_operands: Sequence[SSAValue | Operation] = (),
+        async_operands_device_type: ArrayAttr[DeviceTypeAttr] | None = None,
+        async_only: ArrayAttr[DeviceTypeAttr] | None = None,
+        wait_operands_device_type: ArrayAttr[DeviceTypeAttr] | None = None,
+        wait_operands_segments: DenseArrayBase | None = None,
+        has_wait_devnum: ArrayAttr[BoolAttr] | None = None,
+        wait_only: ArrayAttr[DeviceTypeAttr] | None = None,
+        if_present: UnitAttr | bool = False,
+    ) -> None:
+        if_present_prop: UnitAttr | None = (
+            (UnitAttr() if if_present else None)
+            if isinstance(if_present, bool)
+            else if_present
+        )
+        super().__init__(
+            operands=[
+                [if_cond] if if_cond is not None else [],
+                async_operands,
+                wait_operands,
+                data_clause_operands,
+            ],
+            properties={
+                "asyncOperandsDeviceType": async_operands_device_type,
+                "asyncOnly": async_only,
+                "waitOperandsDeviceType": wait_operands_device_type,
+                "waitOperandsSegments": wait_operands_segments,
+                "hasWaitDevnum": has_wait_devnum,
+                "waitOnly": wait_only,
+                "ifPresent": if_present_prop,
+            },
+        )
+
+    def verify_(self) -> None:
+        # Mirrors `acc::UpdateOp::verify`.
+        if not self.data_clause_operands:
+            raise VerifyException("at least one value must be present in dataOperands")
+        for operand in self.data_clause_operands:
+            if not isinstance(
+                operand.owner, (UpdateDeviceOp, UpdateHostOp, GetDevicePtrOp)
+            ):
+                raise VerifyException(
+                    "expect data entry/exit operation or acc.getdeviceptr "
+                    "as defining op"
+                )
 
 
 @irdl_op_definition
@@ -3036,6 +3254,8 @@ ACC = Dialect(
         DeleteOp,
         DetachOp,
         EnterDataOp,
+        ExitDataOp,
+        UpdateOp,
         PrivateRecipeOp,
         FirstprivateRecipeOp,
         ReductionRecipeOp,

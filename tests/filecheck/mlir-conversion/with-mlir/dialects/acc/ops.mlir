@@ -1023,4 +1023,108 @@ builtin.module {
   // CHECK:       func.func @enter_data_wait_devnum(
   // CHECK:         acc.enter_data wait_devnum(%{{.*}} : i64) wait(%{{.*}} : i32) dataOperands(%{{.*}} : memref<10xf32>)
 
+  // acc.exit_data — twin of enter_data plus a `finalize` UnitAttr. Both
+  // pretty and generic spellings round-trip through `mlir-opt`. Same
+  // five-segment operand layout (if, async, wait_devnum, wait, dataOperands).
+  func.func @exit_data_minimal(%a : memref<10xf32>) {
+    %d = acc.getdeviceptr varPtr(%a : memref<10xf32>) -> memref<10xf32>
+    acc.exit_data dataOperands(%d : memref<10xf32>)
+    func.return
+  }
+  // CHECK:       func.func @exit_data_minimal(
+  // CHECK:         acc.exit_data dataOperands(%{{.*}} : memref<10xf32>)
+
+  func.func @exit_data_async_finalize(%a : memref<10xf32>) {
+    %d = acc.getdeviceptr varPtr(%a : memref<10xf32>) -> memref<10xf32>
+    acc.exit_data async dataOperands(%d : memref<10xf32>) attributes {finalize}
+    func.return
+  }
+  // CHECK:       func.func @exit_data_async_finalize(
+  // CHECK:         acc.exit_data async dataOperands(%{{.*}} : memref<10xf32>) attributes {finalize}
+
+  func.func @exit_data_async_operand(%a : memref<10xf32>, %v : i64) {
+    %d = acc.getdeviceptr varPtr(%a : memref<10xf32>) -> memref<10xf32>
+    acc.exit_data async(%v : i64) dataOperands(%d : memref<10xf32>)
+    func.return
+  }
+  // CHECK:       func.func @exit_data_async_operand(
+  // CHECK:         acc.exit_data async(%{{.*}} : i64) dataOperands(%{{.*}} : memref<10xf32>)
+
+  // Bare `wait` keyword (no operands) — UnitAttr code path through
+  // `OperandsWithKeywordOnly`. Distinct from the operand-bearing
+  // `wait_devnum`/`wait` form below.
+  func.func @exit_data_wait_bare(%a : memref<10xf32>) {
+    %d = acc.getdeviceptr varPtr(%a : memref<10xf32>) -> memref<10xf32>
+    acc.exit_data wait dataOperands(%d : memref<10xf32>)
+    func.return
+  }
+  // CHECK:       func.func @exit_data_wait_bare(
+  // CHECK:         acc.exit_data wait dataOperands(%{{.*}} : memref<10xf32>)
+
+  func.func @exit_data_if(%a : memref<10xf32>, %c : i1) {
+    %d = acc.getdeviceptr varPtr(%a : memref<10xf32>) -> memref<10xf32>
+    acc.exit_data if(%c) dataOperands(%d : memref<10xf32>)
+    func.return
+  }
+  // CHECK:       func.func @exit_data_if(
+  // CHECK:         acc.exit_data if(%{{.*}}) dataOperands(%{{.*}} : memref<10xf32>)
+
+  func.func @exit_data_wait_devnum(%a : memref<10xf32>, %dn : i64, %w : i32) {
+    %d = acc.getdeviceptr varPtr(%a : memref<10xf32>) -> memref<10xf32>
+    acc.exit_data wait_devnum(%dn : i64) wait(%w : i32) dataOperands(%d : memref<10xf32>)
+    func.return
+  }
+  // CHECK:       func.func @exit_data_wait_devnum(
+  // CHECK:         acc.exit_data wait_devnum(%{{.*}} : i64) wait(%{{.*}} : i32) dataOperands(%{{.*}} : memref<10xf32>)
+
+  // acc.update — per-device-type async/wait shape mirroring `acc.parallel`,
+  // plus an `ifPresent` UnitAttr. Defining ops accepted: `acc.update_device`,
+  // `acc.update_host`, `acc.getdeviceptr`. Note that `mlir-opt`'s
+  // `verifyDeviceTypeCountMatch` segfaults if `asyncOperandsDeviceType` is
+  // not populated when there are async operands — xDSL's
+  // `DeviceTypeOperandsWithKeywordOnly` directive auto-populates it.
+  func.func @update_minimal(%a : memref<f32>) {
+    %d = acc.update_device varPtr(%a : memref<f32>) -> memref<f32>
+    acc.update dataOperands(%d : memref<f32>)
+    func.return
+  }
+  // CHECK:       func.func @update_minimal(
+  // CHECK:         acc.update dataOperands(%{{.*}} : memref<f32>)
+
+  // Bare `async` keyword on `acc.update` — distinct from `acc.exit_data async`:
+  // it lands as `asyncOnly = [#acc.device_type<none>]` (an array attr) via
+  // `DeviceTypeOperandsWithKeywordOnly`, *not* as a `UnitAttr`. This is the
+  // op-specific keyword-only path on the per-device-type async/wait shape.
+  func.func @update_async_bare(%a : memref<f32>) {
+    %d = acc.update_device varPtr(%a : memref<f32>) -> memref<f32>
+    acc.update async dataOperands(%d : memref<f32>)
+    func.return
+  }
+  // CHECK:       func.func @update_async_bare(
+  // CHECK:         acc.update async dataOperands(%{{.*}} : memref<f32>)
+
+  func.func @update_async_operand(%a : memref<f32>, %v : i64) {
+    %d = acc.update_device varPtr(%a : memref<f32>) -> memref<f32>
+    acc.update async(%v : i64) dataOperands(%d : memref<f32>)
+    func.return
+  }
+  // CHECK:       func.func @update_async_operand(
+  // CHECK:         acc.update async(%{{.*}} : i64) dataOperands(%{{.*}} : memref<f32>)
+
+  func.func @update_wait_devnum(%a : memref<f32>, %dn : i64, %w : i32) {
+    %d = acc.update_device varPtr(%a : memref<f32>) -> memref<f32>
+    acc.update wait({devnum: %dn : i64, %w : i32}) dataOperands(%d : memref<f32>)
+    func.return
+  }
+  // CHECK:       func.func @update_wait_devnum(
+  // CHECK:         acc.update wait({devnum: %{{.*}} : i64, %{{.*}} : i32}) dataOperands(%{{.*}} : memref<f32>)
+
+  func.func @update_if_present(%a : memref<f32>, %c : i1) {
+    %d = acc.update_device varPtr(%a : memref<f32>) -> memref<f32>
+    acc.update if(%c) dataOperands(%d : memref<f32>) attributes {ifPresent}
+    func.return
+  }
+  // CHECK:       func.func @update_if_present(
+  // CHECK:         acc.update if(%{{.*}}) dataOperands(%{{.*}} : memref<f32>) attributes {ifPresent}
+
 }
