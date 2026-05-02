@@ -14,7 +14,7 @@ from xdsl.rewriter import InsertPoint, Rewriter
 from xdsl.transforms.canonicalization_patterns.riscv import get_constant_value
 
 
-def reg_types_by_name(regs: Iterable[RISCVRegisterType]) -> dict[str, set[str]]:
+def reg_types_by_name(regs: Iterable[RegisterType]) -> dict[str, set[str]]:
     """
     Groups register types by name.
     """
@@ -57,11 +57,7 @@ class RegisterAllocatorLivenessBlockNaive(BlockNaiveAllocator):
                 f"Cannot register allocate func with {len(func.body.blocks)} blocks."
             )
 
-        preallocated = {
-            reg
-            for reg in RegisterAllocatableOperation.iter_all_used_registers(func.body)
-            if isinstance(reg, RISCVRegisterType)
-        }
+        preallocated = RegisterAllocatableOperation.all_used_registers(func.body)
 
         for pa_reg in preallocated:
             self.available_registers.exclude_register(pa_reg)
