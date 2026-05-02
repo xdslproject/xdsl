@@ -1127,4 +1127,54 @@ builtin.module {
   // CHECK:       func.func @update_if_present(
   // CHECK:         acc.update if(%{{.*}}) dataOperands(%{{.*}} : memref<f32>) attributes {ifPresent}
 
+  // acc.declare_enter / acc.declare_exit / acc.declare — declare family.
+  // Defining ops accepted for `dataOperands`: copyin / copyout / create /
+  // deviceptr / getdeviceptr / present / declare_device_resident /
+  // declare_link (per upstream's `checkDeclareOperands` helper).
+  func.func @declare_enter_basic(%a : memref<f32>) {
+    %0 = acc.copyin varPtr(%a : memref<f32>) -> memref<f32>
+    %t = acc.declare_enter dataOperands(%0 : memref<f32>)
+    acc.declare_exit token(%t) dataOperands(%0 : memref<f32>)
+    func.return
+  }
+  // CHECK:       func.func @declare_enter_basic(
+  // CHECK:         %[[CI:.*]] = acc.copyin varPtr(%{{.*}} : memref<f32>) -> memref<f32>
+  // CHECK-NEXT:    %[[T:.*]] = acc.declare_enter dataOperands(%[[CI]] : memref<f32>)
+  // CHECK-NEXT:    acc.declare_exit token(%[[T]]) dataOperands(%[[CI]] : memref<f32>)
+
+  // acc.declare_exit's `token`-bearing form relaxes the at-least-one
+  // operand requirement — proves the optional-operand AttrSizedOperandSegments
+  // round-trips cleanly through mlir-opt's parser.
+  func.func @declare_exit_token_only(%a : memref<f32>) {
+    %0 = acc.create varPtr(%a : memref<f32>) -> memref<f32>
+    %t = acc.declare_enter dataOperands(%0 : memref<f32>)
+    acc.declare_exit token(%t)
+    func.return
+  }
+  // CHECK:       func.func @declare_exit_token_only(
+  // CHECK:         acc.declare_exit token(%{{.*}})
+
+  // acc.declare_exit without a `token`: only `dataOperands`. Mirrors
+  // upstream's `getdeviceptr` example for device-resident tear-down.
+  func.func @declare_exit_no_token(%a : memref<f32>) {
+    %0 = acc.getdeviceptr varPtr(%a : memref<f32>) -> memref<f32>
+    acc.declare_exit dataOperands(%0 : memref<f32>)
+    func.return
+  }
+  // CHECK:       func.func @declare_exit_no_token(
+  // CHECK:         acc.declare_exit dataOperands(%{{.*}} : memref<f32>)
+
+  // acc.declare — structured declare region. The body is the implicit
+  // data region's lifetime (here empty; AnyRegion has no implicit
+  // terminator).
+  func.func @declare_region(%a : memref<f32>) {
+    %0 = acc.create varPtr(%a : memref<f32>) -> memref<f32>
+    acc.declare dataOperands(%0 : memref<f32>) {
+    }
+    func.return
+  }
+  // CHECK:       func.func @declare_region(
+  // CHECK:         acc.declare dataOperands(%{{.*}} : memref<f32>) {
+  // CHECK-NEXT:    }
+
 }

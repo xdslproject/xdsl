@@ -1697,4 +1697,89 @@ builtin.module {
   // CHECK-NEXT:    acc.kernels {
   // CHECK-NEXT:      acc.terminator
   // CHECK-NEXT:    }
+
+  // acc.declare_enter — entry to an implicit declare data region. Yields
+  // an `!acc.declare_token` that may be threaded into the matching
+  // `acc.declare_exit`. Defining ops accepted for `dataOperands`: any of
+  // copyin / copyout / create / deviceptr / getdeviceptr / present /
+  // declare_device_resident / declare_link (per upstream's
+  // `checkDeclareOperands` helper).
+  func.func @declare_enter_basic(%a : memref<f32>) {
+    %0 = acc.copyin varPtr(%a : memref<f32>) -> memref<f32>
+    %t = acc.declare_enter dataOperands(%0 : memref<f32>)
+    acc.declare_exit token(%t) dataOperands(%0 : memref<f32>)
+    func.return
+  }
+  // CHECK-LABEL: func.func @declare_enter_basic(
+  // CHECK:         %{{.*}} = acc.copyin varPtr(%{{.*}} : memref<f32>) -> memref<f32>
+  // CHECK-NEXT:    %{{.*}} = acc.declare_enter dataOperands(%{{.*}} : memref<f32>)
+  // CHECK-NEXT:    acc.declare_exit token(%{{.*}}) dataOperands(%{{.*}} : memref<f32>)
+
+  // acc.declare_exit — when a `token` is present, `dataOperands` may be
+  // empty (mirrors upstream's `requireAtLeastOneOperand=false` branch).
+  func.func @declare_exit_token_only(%a : memref<f32>) {
+    %0 = acc.create varPtr(%a : memref<f32>) -> memref<f32>
+    %t = acc.declare_enter dataOperands(%0 : memref<f32>)
+    acc.declare_exit token(%t)
+    func.return
+  }
+  // CHECK-LABEL: func.func @declare_exit_token_only(
+  // CHECK:         acc.declare_exit token(%{{.*}})
+
+  // acc.declare_exit — without a `token`, only `dataOperands` is given.
+  // Defining ops accepted include `acc.getdeviceptr` for device-resident
+  // tear-down (per upstream's example).
+  func.func @declare_exit_no_token(%a : memref<f32>) {
+    %0 = acc.getdeviceptr varPtr(%a : memref<f32>) -> memref<f32>
+    acc.declare_exit dataOperands(%0 : memref<f32>)
+    func.return
+  }
+  // CHECK-LABEL: func.func @declare_exit_no_token(
+  // CHECK:         acc.declare_exit dataOperands(%{{.*}} : memref<f32>)
+
+  // acc.declare — structured declare region (no implicit terminator). The
+  // body is just the implicit data region's lifetime; here it's empty.
+  func.func @declare_region(%a : memref<f32>) {
+    %0 = acc.create varPtr(%a : memref<f32>) -> memref<f32>
+    acc.declare dataOperands(%0 : memref<f32>) {
+    }
+    func.return
+  }
+  // CHECK-LABEL: func.func @declare_region(
+  // CHECK:         acc.declare dataOperands(%{{.*}} : memref<f32>) {
+  // CHECK-NEXT:    }
+
+  // Generic-form roundtrip insurance for `acc.declare_enter` plus its
+  // typed token result.
+  func.func @declare_enter_generic_roundtrip_retained(%a : memref<f32>) {
+    %0 = "acc.copyin"(%a) <{varType = f32, operandSegmentSizes = array<i32: 1, 0, 0, 0>}> : (memref<f32>) -> memref<f32>
+    %t = "acc.declare_enter"(%0) : (memref<f32>) -> !acc.declare_token
+    "acc.declare_exit"(%t) <{operandSegmentSizes = array<i32: 1, 0>}> : (!acc.declare_token) -> ()
+    func.return
+  }
+  // CHECK-LABEL: func.func @declare_enter_generic_roundtrip_retained(
+  // CHECK:         %{{.*}} = acc.declare_enter dataOperands(%{{.*}} : memref<f32>)
+  // CHECK-NEXT:    acc.declare_exit token(%{{.*}})
+
+  // Generic-form roundtrip insurance for `acc.declare_exit`'s
+  // AttrSizedOperandSegments — the [0, 1] segments shape (no token,
+  // single dataOperand).
+  func.func @declare_exit_generic_roundtrip_retained(%a : memref<f32>) {
+    %0 = acc.getdeviceptr varPtr(%a : memref<f32>) -> memref<f32>
+    "acc.declare_exit"(%0) <{operandSegmentSizes = array<i32: 0, 1>}> : (memref<f32>) -> ()
+    func.return
+  }
+  // CHECK-LABEL: func.func @declare_exit_generic_roundtrip_retained(
+  // CHECK:         acc.declare_exit dataOperands(%{{.*}} : memref<f32>)
+
+  // Generic-form roundtrip insurance for `acc.declare`.
+  func.func @declare_generic_roundtrip_retained(%a : memref<f32>) {
+    %0 = acc.create varPtr(%a : memref<f32>) -> memref<f32>
+    "acc.declare"(%0) ({
+    }) : (memref<f32>) -> ()
+    func.return
+  }
+  // CHECK-LABEL: func.func @declare_generic_roundtrip_retained(
+  // CHECK:         acc.declare dataOperands(%{{.*}} : memref<f32>) {
+  // CHECK-NEXT:    }
 }
