@@ -1,5 +1,6 @@
 import abc
 from collections.abc import Iterator, Sequence
+from collections.abc import Set as AbstractSet
 from typing import NamedTuple
 
 from xdsl.backend.register_allocator import BlockAllocator
@@ -36,18 +37,18 @@ class RegisterAllocatableOperation(Operation, abc.ABC):
         """
 
     @staticmethod
-    def iter_all_used_registers(
+    def all_used_registers(
         region: Region,
-    ) -> Iterator[RegisterType]:
+    ) -> AbstractSet[RegisterType]:
         """
         All used registers of all operations within a region.
         """
-        return (
+        return {
             reg
             for op in region.walk()
             if isinstance(op, RegisterAllocatableOperation)
             for reg in op.iter_used_registers()
-        )
+        }
 
 
 class RegisterConstraints(NamedTuple):

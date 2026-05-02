@@ -132,11 +132,7 @@ def test_gather_allocated():
         (v2,) = op((), u).results
         op((v1, v2), u)
 
-    pa_regs = set(
-        RegisterAllocatableOperation.iter_all_used_registers(no_preallocated_body)
-    )
-
-    assert pa_regs == set()
+    assert not (RegisterAllocatableOperation.all_used_registers(no_preallocated_body))
 
     @Builder.implicit_region
     def one_preallocated_body() -> None:
@@ -144,11 +140,9 @@ def test_gather_allocated():
         (v2,) = op((), x0).results
         op((v1, v2), u)
 
-    pa_regs = set(
-        RegisterAllocatableOperation.iter_all_used_registers(one_preallocated_body)
-    )
-
-    assert pa_regs == {x0}
+    assert RegisterAllocatableOperation.all_used_registers(one_preallocated_body) == {
+        x0
+    }
 
     @Builder.implicit_region
     def repeated_preallocated_body() -> None:
@@ -157,11 +151,9 @@ def test_gather_allocated():
         (v3,) = op((), x0).results
         op((v1, v2, v3), u)
 
-    pa_regs = set(
-        RegisterAllocatableOperation.iter_all_used_registers(repeated_preallocated_body)
-    )
-
-    assert pa_regs == {x0}
+    assert RegisterAllocatableOperation.all_used_registers(
+        repeated_preallocated_body
+    ) == {x0}
 
     @Builder.implicit_region
     def multiple_preallocated_body() -> None:
@@ -170,11 +162,9 @@ def test_gather_allocated():
         (v3,) = op((), x1).results
         op((v1, v2, v3), u)
 
-    pa_regs = set(
-        RegisterAllocatableOperation.iter_all_used_registers(multiple_preallocated_body)
-    )
-
-    assert pa_regs == {x0, x1}
+    assert RegisterAllocatableOperation.all_used_registers(
+        multiple_preallocated_body
+    ) == {x0, x1}
 
 
 def test_new_type_for_value():

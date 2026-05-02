@@ -22,9 +22,7 @@ class RISCVAllocateInfiniteRegistersPass(ModulePass):
             register_stack = RiscvRegisterStack.get()
 
             # remove registers from stack that are already used in body
-            for reg in RegisterAllocatableOperation.iter_all_used_registers(
-                func_op.body
-            ):
+            for reg in RegisterAllocatableOperation.all_used_registers(func_op.body):
                 register_stack.exclude_register(reg)
 
             phys_reg_by_inf_reg: dict[
