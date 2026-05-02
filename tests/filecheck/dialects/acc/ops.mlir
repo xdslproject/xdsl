@@ -1505,6 +1505,63 @@ builtin.module {
   }) : () -> ()
   // CHECK-LABEL: acc.reduction.recipe @red_generic : i64 reduction_operator <add> init {
 
+  // acc.enter_data — standalone unstructured data-entry op. The optional
+  // clauses appear in upstream-td-definition order on print:
+  //   if, async, wait_devnum, wait, dataOperands.
+  // The custom format encodes both the operand-bearing form `async(%v : ty)`
+  // and the bare-keyword form `async` (UnitAttr) via the
+  // `OperandWithKeywordOnly` directive; same for `wait` via
+  // `OperandsWithKeywordOnly`.
+  func.func @enter_data_minimal(%a : memref<10xf32>) {
+    %d = acc.create varPtr(%a : memref<10xf32>) -> memref<10xf32>
+    acc.enter_data dataOperands(%d : memref<10xf32>)
+    func.return
+  }
+  // CHECK-LABEL: func.func @enter_data_minimal(
+  // CHECK:         acc.enter_data dataOperands(%{{.*}} : memref<10xf32>)
+
+  func.func @enter_data_async_bare(%a : memref<10xf32>) {
+    %d = acc.create varPtr(%a : memref<10xf32>) -> memref<10xf32>
+    acc.enter_data async dataOperands(%d : memref<10xf32>)
+    func.return
+  }
+  // CHECK-LABEL: func.func @enter_data_async_bare(
+  // CHECK:         acc.enter_data async dataOperands(%{{.*}} : memref<10xf32>)
+
+  func.func @enter_data_async_operand(%a : memref<10xf32>, %v : i64) {
+    %d = acc.create varPtr(%a : memref<10xf32>) -> memref<10xf32>
+    acc.enter_data async(%v : i64) dataOperands(%d : memref<10xf32>)
+    func.return
+  }
+  // CHECK-LABEL: func.func @enter_data_async_operand(
+  // CHECK:         acc.enter_data async(%{{.*}} : i64) dataOperands(%{{.*}} : memref<10xf32>)
+
+  func.func @enter_data_wait_bare(%a : memref<10xf32>) {
+    %d = acc.create varPtr(%a : memref<10xf32>) -> memref<10xf32>
+    acc.enter_data wait dataOperands(%d : memref<10xf32>)
+    func.return
+  }
+  // CHECK-LABEL: func.func @enter_data_wait_bare(
+  // CHECK:         acc.enter_data wait dataOperands(%{{.*}} : memref<10xf32>)
+
+  func.func @enter_data_if_wait_devnum(%a : memref<10xf32>, %c : i1, %dn : i64, %w : i32) {
+    %d = acc.create varPtr(%a : memref<10xf32>) -> memref<10xf32>
+    acc.enter_data if(%c) wait_devnum(%dn : i64) wait(%w : i32) dataOperands(%d : memref<10xf32>)
+    func.return
+  }
+  // CHECK-LABEL: func.func @enter_data_if_wait_devnum(
+  // CHECK:         acc.enter_data if(%{{.*}}) wait_devnum(%{{.*}} : i64) wait(%{{.*}} : i32) dataOperands(%{{.*}} : memref<10xf32>)
+
+  // Generic-form roundtrip insurance for `acc.enter_data` — the
+  // `operandSegmentSizes` array gates the five operand groups.
+  func.func @enter_data_generic_roundtrip(%a : memref<10xf32>) {
+    %d = acc.create varPtr(%a : memref<10xf32>) -> memref<10xf32>
+    "acc.enter_data"(%d) <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 1>}> : (memref<10xf32>) -> ()
+    func.return
+  }
+  // CHECK-LABEL: func.func @enter_data_generic_roundtrip(
+  // CHECK:         acc.enter_data dataOperands(%{{.*}} : memref<10xf32>)
+
   // acc.terminator is the value-less generic terminator. It currently only
   // permits `acc.kernels` as a parent (per HasParent on TerminatorOp); other
   // region ops in the OpenACC dialect (acc.data, acc.host_data, …) will be

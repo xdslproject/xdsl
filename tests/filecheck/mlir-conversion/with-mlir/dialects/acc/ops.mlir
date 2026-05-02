@@ -969,4 +969,58 @@ builtin.module {
   // CHECK-NEXT:    acc.kernels {
   // CHECK-NEXT:      acc.terminator
   // CHECK-NEXT:    }
+
+  // acc.enter_data — both pretty and generic-form spellings round-trip
+  // through `mlir-opt`. The five-segment operand shape and the `async` /
+  // `wait` UnitAttrs are the load-bearing properties. xDSL emits clauses
+  // in upstream's td-definition order (if, async, wait_devnum, wait,
+  // dataOperands); mlir-opt's `oilist` printer preserves input order.
+  func.func @enter_data_minimal(%a : memref<10xf32>) {
+    %d = acc.create varPtr(%a : memref<10xf32>) -> memref<10xf32>
+    acc.enter_data dataOperands(%d : memref<10xf32>)
+    func.return
+  }
+  // CHECK:       func.func @enter_data_minimal(
+  // CHECK:         acc.enter_data dataOperands(%{{.*}} : memref<10xf32>)
+
+  func.func @enter_data_async_bare(%a : memref<10xf32>) {
+    %d = acc.create varPtr(%a : memref<10xf32>) -> memref<10xf32>
+    acc.enter_data async dataOperands(%d : memref<10xf32>)
+    func.return
+  }
+  // CHECK:       func.func @enter_data_async_bare(
+  // CHECK:         acc.enter_data async dataOperands(%{{.*}} : memref<10xf32>)
+
+  func.func @enter_data_async_operand(%a : memref<10xf32>, %v : i64) {
+    %d = acc.create varPtr(%a : memref<10xf32>) -> memref<10xf32>
+    acc.enter_data async(%v : i64) dataOperands(%d : memref<10xf32>)
+    func.return
+  }
+  // CHECK:       func.func @enter_data_async_operand(
+  // CHECK:         acc.enter_data async(%{{.*}} : i64) dataOperands(%{{.*}} : memref<10xf32>)
+
+  func.func @enter_data_wait_bare(%a : memref<10xf32>) {
+    %d = acc.create varPtr(%a : memref<10xf32>) -> memref<10xf32>
+    acc.enter_data wait dataOperands(%d : memref<10xf32>)
+    func.return
+  }
+  // CHECK:       func.func @enter_data_wait_bare(
+  // CHECK:         acc.enter_data wait dataOperands(%{{.*}} : memref<10xf32>)
+
+  func.func @enter_data_if(%a : memref<10xf32>, %c : i1) {
+    %d = acc.create varPtr(%a : memref<10xf32>) -> memref<10xf32>
+    acc.enter_data if(%c) dataOperands(%d : memref<10xf32>)
+    func.return
+  }
+  // CHECK:       func.func @enter_data_if(
+  // CHECK:         acc.enter_data if(%{{.*}}) dataOperands(%{{.*}} : memref<10xf32>)
+
+  func.func @enter_data_wait_devnum(%a : memref<10xf32>, %dn : i64, %w : i32) {
+    %d = acc.create varPtr(%a : memref<10xf32>) -> memref<10xf32>
+    acc.enter_data wait_devnum(%dn : i64) wait(%w : i32) dataOperands(%d : memref<10xf32>)
+    func.return
+  }
+  // CHECK:       func.func @enter_data_wait_devnum(
+  // CHECK:         acc.enter_data wait_devnum(%{{.*}} : i64) wait(%{{.*}} : i32) dataOperands(%{{.*}} : memref<10xf32>)
+
 }
