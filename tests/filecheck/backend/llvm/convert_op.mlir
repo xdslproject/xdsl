@@ -57,7 +57,7 @@ builtin.module {
     llvm.return
   }
 
-  // CHECK: define void @{{"?arg_attr_types"?}}({{.*}}byval(i32){{.*}}, {{.*}}sret({{.*}}){{.*}}, {{.*}}byref(i64){{.*}}, {{.*}}elementtype(float){{.*}})
+  // CHECK: define void @{{"?arg_attr_types"?}}(i32* byval(i32) {{%[^,]+}}, {i32, i32}* sret({i32, i32}) {{%[^,]+}}, i64* byref(i64) noalias align 8 {{%[^,]+}}, float* elementtype(float) {{%[^)]+}})
   // CHECK:   ret void
   // CHECK-NEXT: }
 
@@ -345,9 +345,9 @@ builtin.module {
 
   // CHECK: define void @{{"?inline_asm"?}}(i32 [[A:%[^ ,)]+]])
   // CHECK:   call void asm sideeffect "add $0, 1", "r"(i32 [[A]])
-  // CHECK-NEXT:   call void asm{{.*}} "add $0, 1", "r"(i32 [[A]])
-  // CHECK-NEXT:   call void asm{{.*}} "add $0, 1", "r"(i32 [[A]])
-  // CHECK-NEXT:   call void asm{{.*}} "add $0, 1", "r"(i32 [[A]])
+  // CHECK-NEXT:   call void asm{{ *(inteldialect)? *}} "add $0, 1", "r"(i32 [[A]])
+  // CHECK-NEXT:   call void asm{{ *(inteldialect)? *}} "add $0, 1", "r"(i32 [[A]])
+  // CHECK-NEXT:   call void asm{{ *(inteldialect)? *}} "add $0, 1", "r"(i32 [[A]])
   // CHECK-NEXT:   ret void
   // CHECK-NEXT: }
 
@@ -357,7 +357,7 @@ builtin.module {
   }
 
   // CHECK: define i32 @{{"?inline_asm_with_result"?}}(i32 [[A:%[^ ,)]+]])
-  // CHECK:   [[R:%[^ ]+]] = call i32 asm{{.*}} "mov $0, $1", "=r,r"(i32 [[A]])
+  // CHECK:   [[R:%[^ ]+]] = call i32 asm{{ *(inteldialect)? *}} "mov $0, $1", "=r,r"(i32 [[A]])
   // CHECK-NEXT:   ret i32 [[R]]
   // CHECK-NEXT: }
 
@@ -930,8 +930,8 @@ builtin.module {
   }
 
   // CHECK: define <4 x float> @{{"?broadcast_f32"?}}(float [[A:%[^ ,)]+]])
-  // CHECK:   {{%[^ ]+}} = insertelement <4 x float> {{.*}}, float [[A]], i32 0
-  // CHECK-NEXT:   [[R:%[^ ]+]] = shufflevector <4 x float> {{%[^ ]+}}, <4 x float> {{.*}}, <4 x i32> {{.*}}
+  // CHECK:   [[V:%[^ ]+]] = insertelement <4 x float> <float undef, float undef, float undef, float undef>, float [[A]], i32 0
+  // CHECK-NEXT:   [[R:%[^ ]+]] = shufflevector <4 x float> [[V]], <4 x float> <float undef, float undef, float undef, float undef>, <4 x i32> <i32 0, i32 0, i32 0, i32 0>
   // CHECK-NEXT:   ret <4 x float> [[R]]
   // CHECK-NEXT: }
 
