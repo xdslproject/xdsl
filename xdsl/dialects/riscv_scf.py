@@ -43,6 +43,8 @@ from xdsl.printer import Printer
 from xdsl.traits import (
     HasParent,
     IsTerminator,
+    NoMemoryEffect,
+    RecursiveMemoryEffect,
     SingleBlockImplicitTerminator,
     ensure_terminator,
 )
@@ -54,7 +56,11 @@ class YieldOp(AbstractYieldOperation[RISCVRegisterType]):
     name = "riscv_scf.yield"
 
     traits = lazy_traits_def(
-        lambda: (IsTerminator(), HasParent(WhileOp, ForRofOperation))
+        lambda: (
+            IsTerminator(),
+            HasParent(WhileOp, ForRofOperation),
+            NoMemoryEffect(),
+        )
     )
 
 
@@ -70,7 +76,7 @@ class ForRofOperation(RegisterAllocatableOperation, IRDLOperation, ABC):
 
     body = region_def("single_block")
 
-    traits = traits_def(SingleBlockImplicitTerminator(YieldOp))
+    traits = traits_def(SingleBlockImplicitTerminator(YieldOp), RecursiveMemoryEffect())
     irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
     @property
@@ -288,6 +294,8 @@ class WhileOp(IRDLOperation):
     before_region = region_def()
     after_region = region_def()
 
+    traits = traits_def(RecursiveMemoryEffect())
+
     def __init__(
         self,
         arguments: Sequence[SSAValue | Operation],
@@ -409,7 +417,7 @@ class ConditionOp(IRDLOperation):
     cond = operand_def(IntRegisterType)
     arguments = var_operand_def(RISCVRegisterType)
 
-    traits = traits_def(HasParent(WhileOp), IsTerminator())
+    traits = traits_def(HasParent(WhileOp), IsTerminator(), NoMemoryEffect())
 
     def __init__(self, cond: SSAValue | Operation, *output_ops: SSAValue | Operation):
         super().__init__(operands=[cond, output_ops])
