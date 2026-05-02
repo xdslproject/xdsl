@@ -35,6 +35,8 @@ from xdsl.printer import Printer
 from xdsl.traits import (
     HasParent,
     IsTerminator,
+    NoMemoryEffect,
+    RecursiveMemoryEffect,
     SingleBlockImplicitTerminator,
     ensure_terminator,
 )
@@ -45,7 +47,13 @@ from xdsl.utils.exceptions import VerifyException
 class YieldOp(AbstractYieldOperation[X86RegisterType]):
     name = "x86_scf.yield"
 
-    traits = lazy_traits_def(lambda: (IsTerminator(), HasParent(ForRofOperation)))
+    traits = lazy_traits_def(
+        lambda: (
+            IsTerminator(),
+            HasParent(ForRofOperation),
+            NoMemoryEffect(),
+        )
+    )
 
 
 class ForRofOperation(RegisterAllocatableOperation, IRDLOperation, ABC):
@@ -59,7 +67,7 @@ class ForRofOperation(RegisterAllocatableOperation, IRDLOperation, ABC):
 
     body = region_def("single_block")
 
-    traits = traits_def(SingleBlockImplicitTerminator(YieldOp))
+    traits = traits_def(SingleBlockImplicitTerminator(YieldOp), RecursiveMemoryEffect())
 
     def __init__(
         self,
