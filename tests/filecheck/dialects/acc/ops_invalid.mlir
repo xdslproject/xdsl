@@ -376,3 +376,64 @@ func.func @enter_data_wait_devnum_alone(%a : memref<10xf32>, %dn : i64) {
   func.return
 }
 // CHECK: wait_devnum cannot appear without waitOperands
+
+// -----
+
+// acc.exit_data: 2.6.6 requires at least one copyout/delete/detach clause.
+func.func @exit_data_empty() {
+  acc.exit_data
+  func.return
+}
+// CHECK: at least one operand must be present in dataOperands on the exit data operation
+
+// -----
+
+// acc.exit_data: bare `async` UnitAttr and an `asyncOperand` are mutually
+// exclusive.
+func.func @exit_data_async_conflict(%a : memref<10xf32>, %v : i64) {
+  %d = acc.getdeviceptr varPtr(%a : memref<10xf32>) -> memref<10xf32>
+  "acc.exit_data"(%v, %d) <{async, operandSegmentSizes = array<i32: 0, 1, 0, 0, 1>}> : (i64, memref<10xf32>) -> ()
+  func.return
+}
+// CHECK: async attribute cannot appear with asyncOperand
+
+// -----
+
+// acc.exit_data: bare `wait` UnitAttr and `waitOperands` are mutually
+// exclusive.
+func.func @exit_data_wait_conflict(%a : memref<10xf32>, %w : i32) {
+  %d = acc.getdeviceptr varPtr(%a : memref<10xf32>) -> memref<10xf32>
+  "acc.exit_data"(%w, %d) <{wait, operandSegmentSizes = array<i32: 0, 0, 0, 1, 1>}> : (i32, memref<10xf32>) -> ()
+  func.return
+}
+// CHECK: wait attribute cannot appear with waitOperands
+
+// -----
+
+// acc.exit_data: `wait_devnum` requires `waitOperands` to be non-empty.
+func.func @exit_data_wait_devnum_alone(%a : memref<10xf32>, %dn : i64) {
+  %d = acc.getdeviceptr varPtr(%a : memref<10xf32>) -> memref<10xf32>
+  "acc.exit_data"(%dn, %d) <{operandSegmentSizes = array<i32: 0, 0, 1, 0, 1>}> : (i64, memref<10xf32>) -> ()
+  func.return
+}
+// CHECK: wait_devnum cannot appear without waitOperands
+
+// -----
+
+// acc.update: empty `dataOperands` fails the per-op verifier.
+func.func @update_empty() {
+  acc.update
+  func.return
+}
+// CHECK: at least one value must be present in dataOperands
+
+// -----
+
+// acc.update: every `dataOperands` value must be defined by an
+// `acc.update_device` / `acc.update_host` / `acc.getdeviceptr`. A bare
+// memref fails.
+func.func @update_wrong_defining_op(%a : memref<f32>) {
+  acc.update dataOperands(%a : memref<f32>)
+  func.return
+}
+// CHECK: expect data entry/exit operation or acc.getdeviceptr as defining op

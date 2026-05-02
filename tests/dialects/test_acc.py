@@ -705,3 +705,41 @@ def test_enter_data_init_bool_shortcuts():
 
     assert isinstance(op.async_attr, UnitAttr)
     assert isinstance(op.wait_attr, UnitAttr)
+
+
+def test_exit_data_init_bool_shortcuts():
+    """Mirrors the EnterDataOp test for `ExitDataOp` plus its `finalize`
+    bool shortcut. Same parser-bypass story: bare-keyword UnitAttrs come
+    from the custom directive on parse, so the builder bool conversion
+    is only exercised from Python."""
+    devptr = acc.GetDevicePtrOp(var=create_ssa_value(MemRefType(f32, [10])))
+    op = acc.ExitDataOp(
+        data_clause_operands=[devptr],
+        async_attr=True,
+        wait_attr=True,
+        finalize=True,
+    )
+    op.verify()
+
+    assert isinstance(op.async_attr, UnitAttr)
+    assert isinstance(op.wait_attr, UnitAttr)
+    assert isinstance(op.finalize, UnitAttr)
+
+
+def test_update_init():
+    """Smoke test for `UpdateOp` — verifies operand wiring and the
+    `if_present` bool-shortcut branch (only reachable from Python; on
+    parse it lands as a UnitAttr in attr-dict)."""
+    update_dev = acc.UpdateDeviceOp(var=create_ssa_value(MemRefType(f32, [10])))
+    op = acc.UpdateOp(
+        data_clause_operands=[update_dev],
+        if_present=True,
+    )
+    op.verify()
+
+    assert len(op.data_clause_operands) == 1
+    assert op.data_clause_operands[0] is update_dev.acc_var
+    assert isinstance(op.if_present, UnitAttr)
+    assert op.if_cond is None
+    assert len(op.async_operands) == 0
+    assert len(op.wait_operands) == 0
