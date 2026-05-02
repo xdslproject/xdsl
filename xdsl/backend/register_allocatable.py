@@ -30,6 +30,12 @@ class RegisterAllocatableOperation(Operation, abc.ABC):
             if isinstance(val.type, RegisterType) and val.type.is_allocated
         )
 
+    def iter_excluded_registers(self) -> Iterator[RegisterType]:
+        """
+        The registers that should not be used when this operation is present.
+        """
+        yield from ()
+
     @abc.abstractmethod
     def allocate_registers(self, allocator: BlockAllocator) -> None:
         """
@@ -48,6 +54,20 @@ class RegisterAllocatableOperation(Operation, abc.ABC):
             for op in region.walk()
             if isinstance(op, RegisterAllocatableOperation)
             for reg in op.iter_used_registers()
+        }
+
+    @staticmethod
+    def all_excluded_registers(
+        region: Region,
+    ) -> AbstractSet[RegisterType]:
+        """
+        All excluded registers as declared by all operations within a region.
+        """
+        return {
+            reg
+            for op in region.walk()
+            if isinstance(op, RegisterAllocatableOperation)
+            for reg in op.iter_excluded_registers()
         }
 
 

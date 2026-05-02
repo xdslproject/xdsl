@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC
 from collections.abc import Sequence
-from typing import ClassVar, Literal, TypeAlias, cast
+from typing import ClassVar, Literal, TypeAlias, cast, override
 
 from typing_extensions import Self
 
@@ -196,7 +196,8 @@ class ReadOp(RISCVAsmOperation, RISCVRegallocOperation):
     def assembly_line(self) -> str | None:
         return None
 
-    def iter_used_registers(self):
+    @override
+    def iter_excluded_registers(self):
         # When streaming, FT0, FT1, and FT2 cannot be used as general-purpose float
         # registers
         yield riscv.Registers.FT0
@@ -224,7 +225,8 @@ class WriteOp(RISCVAsmOperation, RISCVRegallocOperation):
     def assembly_line(self) -> str | None:
         return None
 
-    def iter_used_registers(self):
+    @override
+    def iter_excluded_registers(self):
         # When streaming, FT0, FT1, and FT2 cannot be used as general-purpose float
         # registers
         yield riscv.Registers.FT0

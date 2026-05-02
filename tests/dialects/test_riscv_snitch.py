@@ -3,7 +3,7 @@ import pytest
 from xdsl import ir, irdl
 from xdsl.backend.register_type import RegisterAllocatedMemoryEffect
 from xdsl.builder import ImplicitBuilder
-from xdsl.dialects import riscv, riscv_snitch
+from xdsl.dialects import riscv, riscv_snitch, snitch
 from xdsl.dialects.riscv import RISCVInstruction
 from xdsl.traits import (
     EffectInstance,
@@ -85,3 +85,26 @@ def test_frep_recursive_effects():
 
     assert get_effects(inner_op) == {EffectInstance(MemoryEffectKind.READ)}
     assert get_effects(frep_op) == {EffectInstance(MemoryEffectKind.READ)}
+
+
+def test_exclude_registers():
+    read_op = riscv_snitch.ReadOp(
+        create_ssa_value(snitch.ReadableStreamType(riscv.Registers.A0))
+    )
+    read_op.verify()
+    assert set(read_op.iter_excluded_registers()) == {
+        riscv.Registers.FT0,
+        riscv.Registers.FT1,
+        riscv.Registers.FT2,
+    }
+
+    write_op = riscv_snitch.WriteOp(
+        create_ssa_value(riscv.Registers.A0),
+        create_ssa_value(snitch.WritableStreamType(riscv.Registers.A0)),
+    )
+    read_op.verify()
+    assert set(write_op.iter_excluded_registers()) == {
+        riscv.Registers.FT0,
+        riscv.Registers.FT1,
+        riscv.Registers.FT2,
+    }
