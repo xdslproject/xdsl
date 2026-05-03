@@ -102,7 +102,7 @@ def test_exclude_registers():
         create_ssa_value(riscv.Registers.A0),
         create_ssa_value(snitch.WritableStreamType(riscv.Registers.A0)),
     )
-    read_op.verify()
+    write_op.verify()
     assert set(write_op.iter_excluded_registers()) == {
         riscv.Registers.FT0,
         riscv.Registers.FT1,
