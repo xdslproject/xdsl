@@ -79,7 +79,29 @@
                 // CHECK-SAME: #acc.reduction_operator<neqv>
                 #acc.reduction_operator<land>,
                 // CHECK-SAME: #acc.reduction_operator<land>
-                #acc.reduction_operator<lor>
+                #acc.reduction_operator<lor>,
                 // CHECK-SAME: #acc.reduction_operator<lor>
+
+                // Gang arg type attribute — `#acc.gang_arg_type<...>`
+                // dot form (matching upstream's
+                // `assemblyFormat = "`<` $value `>`"`).
+                #acc.gang_arg_type<Num>,
+                // CHECK-SAME: #acc.gang_arg_type<Num>
+                #acc.gang_arg_type<Dim>,
+                // CHECK-SAME: #acc.gang_arg_type<Dim>
+                #acc.gang_arg_type<Static>,
+                // CHECK-SAME: #acc.gang_arg_type<Static>
+
+                // Combined constructs attribute. Upstream's `EnumAttr`
+                // default produces the dot form `#acc.combined_constructs<...>`
+                // — *not* the spaced opaque form
+                // `#acc<combined_constructs ...>` — so xDSL must emit the
+                // dot form for `mlir-opt` to round-trip identically.
+                #acc.combined_constructs<kernels_loop>,
+                // CHECK-SAME: #acc.combined_constructs<kernels_loop>
+                #acc.combined_constructs<parallel_loop>,
+                // CHECK-SAME: #acc.combined_constructs<parallel_loop>
+                #acc.combined_constructs<serial_loop>
+                // CHECK-SAME: #acc.combined_constructs<serial_loop>
 
             ]} : () -> ()
