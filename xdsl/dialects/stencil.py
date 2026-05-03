@@ -484,6 +484,7 @@ class ApplyMemoryEffect(RecursiveMemoryEffect):
     def get_effects(cls, op: Operation):
         effects = super().get_effects(op)
         if effects is not None:
+            effects = set(effects)
             for d in cast(ApplyOp, op).dest:
                 effects.add(EffectInstance(MemoryEffectKind.WRITE, d))
             for o in cast(ApplyOp, op).args:
