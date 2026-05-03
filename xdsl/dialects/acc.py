@@ -2551,17 +2551,12 @@ def _verify_dt_count_match(
 
 def _verify_dt_and_segment_count_match(
     operands: Sequence[SSAValue],
-    segments: DenseArrayBase | None,
+    segments: DenseArrayBase[IntegerType] | None,
     device_types: ArrayAttr[DeviceTypeAttr] | None,
     keyword: str,
 ) -> None:
     """Mirror of upstream's `verifyDeviceTypeAndSegmentCountMatch`."""
-    seg_values: tuple[int, ...] = ()
-    if segments is not None:
-        # `segments` is always built from an `i32` element type by the parser
-        # / our own builders — narrow for the typed `get_values` overload.
-        assert isa(segments, DenseArrayBase[IntegerType])
-        seg_values = segments.get_values()
+    seg_values = segments.get_values() if segments is not None else ()
     num_in_segments = sum(seg_values)
     nb_segments = len(seg_values)
     if num_in_segments != len(operands) or (device_types is None and operands):
