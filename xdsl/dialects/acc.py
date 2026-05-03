@@ -2295,13 +2295,12 @@ class LoopOp(IRDLOperation):
         # entry on the matching seq/independent/auto array. Explicit
         # `seq=` / `independent=` / `auto_=` arguments win if also given.
         if par_mode is not None:
-            none_array = ArrayAttr([DeviceTypeAttr(DeviceType.NONE)])
             if par_mode is LoopParMode.SEQ and seq is None:
-                seq = none_array
+                seq = _DEVICE_TYPE_ONLY_NONE
             elif par_mode is LoopParMode.INDEPENDENT and independent is None:
-                independent = none_array
+                independent = _DEVICE_TYPE_ONLY_NONE
             elif par_mode is LoopParMode.AUTO and auto_ is None:
-                auto_ = none_array
+                auto_ = _DEVICE_TYPE_ONLY_NONE
 
         super().__init__(
             operands=[
