@@ -1177,4 +1177,105 @@ builtin.module {
   // CHECK:         acc.declare dataOperands(%{{.*}} : memref<f32>) {
   // CHECK-NEXT:    }
 
+  // ===========================================================================
+  // acc.loop — interop tests. The `independent = [#acc.device_type<none>]`
+  // attribute satisfies upstream's "at least one of auto/independent/seq"
+  // verifier check. Container-like loops (no induction variables) need an
+  // inner loop to satisfy upstream's `LoopLikeOpInterface` walk; these
+  // cases all use `control(...)` so the loop holds its own induction
+  // variables.
+  // ===========================================================================
+
+  func.func @loop_control(%lb : index, %ub : index, %st : index) {
+    acc.loop control(%iv : index) = (%lb : index) to (%ub : index) step (%st : index) {
+      acc.yield
+    } attributes {independent = [#acc.device_type<none>], inclusiveUpperbound = array<i1: true>}
+    func.return
+  }
+  // CHECK:       func.func @loop_control(
+  // CHECK:         acc.loop control(%{{.*}} : index) = (%{{.*}} : index) to (%{{.*}} : index){{[ ]*}}step (%{{.*}} : index) {
+  // CHECK-NEXT:      acc.yield
+  // CHECK-NEXT:    } attributes {inclusiveUpperbound = array<i1: true>, independent = [#acc.device_type<none>]}
+
+  func.func @loop_bare_par_keywords(%lb : index, %ub : index, %st : index) {
+    acc.loop gang worker vector control(%iv : index) = (%lb : index) to (%ub : index) step (%st : index) {
+      acc.yield
+    } attributes {independent = [#acc.device_type<none>], inclusiveUpperbound = array<i1: true>}
+    func.return
+  }
+  // CHECK:       func.func @loop_bare_par_keywords(
+  // CHECK:         acc.loop gang worker vector control(%{{.*}} : index)
+  // CHECK:           acc.yield
+
+  func.func @loop_gang_operands(%v : i64, %lb : index, %ub : index, %st : index) {
+    acc.loop gang({num=%v : i64, static=%v : i64}) worker(%v : i64) vector(%v : i64) control(%iv : index) = (%lb : index) to (%ub : index) step (%st : index) {
+      acc.yield
+    } attributes {independent = [#acc.device_type<none>], inclusiveUpperbound = array<i1: true>}
+    func.return
+  }
+  // CHECK:       func.func @loop_gang_operands(
+  // CHECK:         acc.loop gang({num={{.*}} : i64, static={{.*}} : i64}) worker({{.*}} : i64) vector({{.*}} : i64) control(%{{.*}} : index)
+
+  func.func @loop_tile(%v : i64, %lb : index, %ub : index, %st : index) {
+    acc.loop tile({%v : i64, %v : i64}) control(%iv : index) = (%lb : index) to (%ub : index) step (%st : index) {
+      acc.yield
+    } attributes {independent = [#acc.device_type<none>], inclusiveUpperbound = array<i1: true>}
+    func.return
+  }
+  // CHECK:       func.func @loop_tile(
+  // CHECK:         acc.loop tile({{{.*}} : i64, {{.*}} : i64}) control(%{{.*}} : index)
+
+  func.func @loop_combined(%lb : index, %ub : index, %st : index) {
+    acc.loop combined(parallel) control(%iv : index) = (%lb : index) to (%ub : index) step (%st : index) {
+      acc.yield
+    } attributes {independent = [#acc.device_type<none>], inclusiveUpperbound = array<i1: true>}
+    func.return
+  }
+  // CHECK:       func.func @loop_combined(
+  // CHECK:         acc.loop combined(parallel) control(%{{.*}} : index)
+
+  // Upstream `acc.private` / `acc.firstprivate` / `acc.reduction` verifiers
+  // require a `recipe(@...)` symbol reference, so the loop's data-clause
+  // case carries pre-declared recipes (matching upstream's
+  // `mlir/test/Dialect/OpenACC/ops.mlir` shape).
+  acc.private.recipe @priv_loop : memref<10xf32> init {
+  ^bb0(%arg0: memref<10xf32>):
+    acc.yield %arg0 : memref<10xf32>
+  }
+  acc.firstprivate.recipe @fp_loop : memref<10xf32> init {
+  ^bb0(%arg0: memref<10xf32>):
+    acc.yield %arg0 : memref<10xf32>
+  } copy {
+  ^bb0(%arg0: memref<10xf32>, %arg1: memref<10xf32>):
+    acc.yield
+  }
+  acc.reduction.recipe @red_loop : memref<10xf32> reduction_operator <add> init {
+  ^bb0(%arg0: memref<10xf32>):
+    acc.yield %arg0 : memref<10xf32>
+  } combiner {
+  ^bb0(%arg0: memref<10xf32>, %arg1: memref<10xf32>):
+    acc.yield %arg0 : memref<10xf32>
+  }
+  func.func @loop_data_clauses(%a : memref<10xf32>, %lb : index, %ub : index, %st : index) {
+    %p = acc.private varPtr(%a : memref<10xf32>) recipe(@priv_loop) -> memref<10xf32>
+    %f = acc.firstprivate varPtr(%a : memref<10xf32>) recipe(@fp_loop) -> memref<10xf32>
+    %r = acc.reduction varPtr(%a : memref<10xf32>) recipe(@red_loop) -> memref<10xf32>
+    acc.loop private(%p : memref<10xf32>) firstprivate(%f : memref<10xf32>) reduction(%r : memref<10xf32>) control(%iv : index) = (%lb : index) to (%ub : index) step (%st : index) {
+      acc.yield
+    } attributes {independent = [#acc.device_type<none>], inclusiveUpperbound = array<i1: true>}
+    func.return
+  }
+  // CHECK:       func.func @loop_data_clauses(
+  // CHECK:         acc.loop private({{.*}} : memref<10xf32>) firstprivate({{.*}} : memref<10xf32>) reduction({{.*}} : memref<10xf32>) control(%{{.*}} : index)
+
+  func.func @loop_cache(%a : memref<10xf32>, %lb : index, %ub : index, %st : index) {
+    %b = acc.cache varPtr(%a : memref<10xf32>) -> memref<10xf32>
+    acc.loop cache(%b : memref<10xf32>) control(%iv : index) = (%lb : index) to (%ub : index) step (%st : index) {
+      acc.yield
+    } attributes {independent = [#acc.device_type<none>], inclusiveUpperbound = array<i1: true>}
+    func.return
+  }
+  // CHECK:       func.func @loop_cache(
+  // CHECK:         acc.loop cache({{.*}} : memref<10xf32>) control(%{{.*}} : index)
+
 }

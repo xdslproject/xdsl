@@ -768,3 +768,99 @@ def test_declare_family_init_bodies():
 
     decl = acc.DeclareOp(region=Region(Block()), data_clause_operands=[copyin])
     assert len(decl.region.blocks) == 1
+
+
+def _empty_loop(*, default_independent: bool = True) -> acc.LoopOp:
+    """`acc.loop` with an empty single-block body holding just an `acc.yield`.
+
+    Defaults `independent = [#acc.device_type<none>]` so the verifier's
+    "at least one of auto/independent/seq" check is satisfied.
+    """
+    independent = (
+        ArrayAttr([acc.DeviceTypeAttr(acc.DeviceType.NONE)])
+        if default_independent
+        else None
+    )
+    return acc.LoopOp(
+        region=Region(Block([acc.YieldOp()])),
+        independent=independent,
+    )
+
+
+def test_loop_par_mode_shortcut():
+    """The `par_mode=` keyword argument fills in the matching seq /
+    independent / auto array. This is a builder-only path: the parser only
+    sees the already-built `ArrayAttr[DeviceTypeAttr]`, so the conversion
+    branch is unreachable from filecheck."""
+    op_seq = acc.LoopOp(
+        region=Region(Block([acc.YieldOp()])),
+        par_mode=acc.LoopParMode.SEQ,
+    )
+    op_seq.verify()
+    assert op_seq.seq == ArrayAttr([acc.DeviceTypeAttr(acc.DeviceType.NONE)])
+    assert op_seq.independent is None
+    assert op_seq.auto_ is None
+
+    op_auto = acc.LoopOp(
+        region=Region(Block([acc.YieldOp()])),
+        par_mode=acc.LoopParMode.AUTO,
+    )
+    op_auto.verify()
+    assert op_auto.auto_ == ArrayAttr([acc.DeviceTypeAttr(acc.DeviceType.NONE)])
+    assert op_auto.independent is None
+    assert op_auto.seq is None
+
+    op_indep = acc.LoopOp(
+        region=Region(Block([acc.YieldOp()])),
+        par_mode=acc.LoopParMode.INDEPENDENT,
+    )
+    op_indep.verify()
+    assert op_indep.independent == ArrayAttr([acc.DeviceTypeAttr(acc.DeviceType.NONE)])
+    assert op_indep.seq is None
+    assert op_indep.auto_ is None
+
+    # An explicit `seq=` argument wins over `par_mode=...`. Builder-only
+    # branch; the parser would never pass both.
+    nvidia = acc.DeviceTypeAttr(acc.DeviceType.NVIDIA)
+    op_explicit = acc.LoopOp(
+        region=Region(Block([acc.YieldOp()])),
+        par_mode=acc.LoopParMode.SEQ,
+        seq=ArrayAttr([nvidia]),
+        independent=ArrayAttr([acc.DeviceTypeAttr(acc.DeviceType.NONE)]),
+    )
+    op_explicit.verify()
+    assert op_explicit.seq == ArrayAttr([nvidia])
+
+
+def test_loop_unit_and_combined_shortcuts():
+    """`unstructured` accepts a bool shortcut; `combined` accepts a
+    `CombinedConstructsType` value as well as the wrapped attribute."""
+    op = acc.LoopOp(
+        region=Region(Block([acc.YieldOp()])),
+        independent=ArrayAttr([acc.DeviceTypeAttr(acc.DeviceType.NONE)]),
+        unstructured=True,
+        combined=acc.CombinedConstructsType.PARALLEL_LOOP,
+    )
+    op.verify()
+
+    assert isinstance(op.unstructured, UnitAttr)
+    assert op.combined == acc.CombinedConstructsTypeAttr(
+        acc.CombinedConstructsType.PARALLEL_LOOP
+    )
+
+    op_off = _empty_loop()
+    assert op_off.unstructured is None
+    assert op_off.combined is None
+
+    op_explicit = acc.LoopOp(
+        region=Region(Block([acc.YieldOp()])),
+        independent=ArrayAttr([acc.DeviceTypeAttr(acc.DeviceType.NONE)]),
+        unstructured=UnitAttr(),
+        combined=acc.CombinedConstructsTypeAttr(
+            acc.CombinedConstructsType.KERNELS_LOOP
+        ),
+    )
+    assert isinstance(op_explicit.unstructured, UnitAttr)
+    assert op_explicit.combined == acc.CombinedConstructsTypeAttr(
+        acc.CombinedConstructsType.KERNELS_LOOP
+    )
