@@ -10,8 +10,10 @@ See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenACCDialect/
 """
 
 from abc import ABC
-from collections.abc import Sequence
+from collections.abc import Hashable, Sequence
 from typing import cast
+
+from typing_extensions import TypeVar
 
 from xdsl.dialects.builtin import (
     I1,
@@ -2374,7 +2376,15 @@ class LoopOp(IRDLOperation):
             raise VerifyException(
                 "collapse attribute count must match collapse device_type count"
             )
-        if (dup := _duplicate_device_type(self.collapse_device_type)) is not None:
+        if (
+            self.collapse_device_type is not None
+            and (
+                dup := _first_duplicate(
+                    [dt.data for dt in self.collapse_device_type.data]
+                )
+            )
+            is not None
+        ):
             raise VerifyException(
                 f"duplicate device_type `{dup.value}` found in "
                 "collapseDeviceType attribute"
@@ -2390,7 +2400,11 @@ class LoopOp(IRDLOperation):
                 raise VerifyException(
                     "gangOperandsArgType attribute count must match gangOperands count"
                 )
-        if (dup := _duplicate_device_type(self.gang)) is not None:
+        if (
+            self.gang is not None
+            and (dup := _first_duplicate([dt.data for dt in self.gang.data]))
+            is not None
+        ):
             raise VerifyException(
                 f"duplicate device_type `{dup.value}` found in gang attribute"
             )
@@ -2401,13 +2415,23 @@ class LoopOp(IRDLOperation):
             "gang",
         )
 
-        if (dup := _duplicate_device_type(self.worker)) is not None:
+        if (
+            self.worker is not None
+            and (dup := _first_duplicate([dt.data for dt in self.worker.data]))
+            is not None
+        ):
             raise VerifyException(
                 f"duplicate device_type `{dup.value}` found in worker attribute"
             )
         if (
-            dup := _duplicate_device_type(self.worker_num_operands_device_type)
-        ) is not None:
+            self.worker_num_operands_device_type is not None
+            and (
+                dup := _first_duplicate(
+                    [dt.data for dt in self.worker_num_operands_device_type.data]
+                )
+            )
+            is not None
+        ):
             raise VerifyException(
                 f"duplicate device_type `{dup.value}` found in "
                 "workerNumOperandsDeviceType attribute"
@@ -2418,13 +2442,23 @@ class LoopOp(IRDLOperation):
             "worker",
         )
 
-        if (dup := _duplicate_device_type(self.vector)) is not None:
+        if (
+            self.vector is not None
+            and (dup := _first_duplicate([dt.data for dt in self.vector.data]))
+            is not None
+        ):
             raise VerifyException(
                 f"duplicate device_type `{dup.value}` found in vector attribute"
             )
         if (
-            dup := _duplicate_device_type(self.vector_operands_device_type)
-        ) is not None:
+            self.vector_operands_device_type is not None
+            and (
+                dup := _first_duplicate(
+                    [dt.data for dt in self.vector_operands_device_type.data]
+                )
+            )
+            is not None
+        ):
             raise VerifyException(
                 f"duplicate device_type `{dup.value}` found in "
                 "vectorOperandsDeviceType attribute"
@@ -2483,18 +2517,16 @@ class LoopOp(IRDLOperation):
             )
 
 
-def _duplicate_device_type(
-    attr: ArrayAttr[DeviceTypeAttr] | None,
-) -> DeviceType | None:
-    """Return the first duplicate device type in ``attr``, or `None` if none."""
-    if attr is None:
-        return None
-    seen: set[DeviceType] = set()
-    for dt in attr.data:
-        if dt.data in seen:
-            return dt.data
-        seen.add(dt.data)
-    return None
+_T = TypeVar("_T", bound=Hashable)
+
+
+def _first_duplicate(els: Sequence[_T]) -> _T | None:
+    """Return the first duplicate `el` in `els`, `None` if there are no duplicates."""
+    seen: set[_T] = set()
+    for el in els:
+        if el in seen:
+            return el
+        seen.add(el)
 
 
 def _verify_dt_count_match(
