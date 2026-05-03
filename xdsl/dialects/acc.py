@@ -1315,9 +1315,10 @@ class DeviceTypeOperandsWithSegment(CustomDirective):
         return True
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
+        # `is_present = bool(self.operands.get(op))` — when this `print` is
+        # called the operand list is guaranteed non-empty by the framework's
+        # anchor mechanism, so no empty-list early-return guard is needed.
         operands = self.operands.get(op)
-        if not operands:
-            return
         dts = (
             attr.data
             if isa(attr := self.device_types.get(op), ArrayAttr)
