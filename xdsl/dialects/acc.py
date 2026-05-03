@@ -186,6 +186,36 @@ class ReductionOpKind(StrEnum):
     LOR = "lor"
 
 
+class GangArgType(StrEnum):
+    """Differentiates `num=` / `dim=` / `static=` values inside an
+    `acc.loop` `gang(...)` clause.
+
+    See upstream `mlir::acc::GangArgType`. The string spellings match
+    upstream's `Num` / `Dim` / `Static` symbol names so the printed
+    `#acc.gang_arg_type<...>` attribute round-trips.
+    """
+
+    NUM = "Num"
+    DIM = "Dim"
+    STATIC = "Static"
+
+
+class CombinedConstructsType(StrEnum):
+    """Identifies which combined construct an `acc.loop` was decomposed
+    from (`kernels loop`, `parallel loop`, `serial loop`).
+
+    See upstream `mlir::acc::CombinedConstructsType`. Compute constructs
+    (`acc.parallel` / `acc.serial` / `acc.kernels`) carry just a
+    `combined` UnitAttr indicating they were a combined `... loop`
+    construct; `acc.loop` carries the typed `CombinedConstructsTypeAttr`
+    so the kind is recoverable.
+    """
+
+    KERNELS_LOOP = "kernels_loop"
+    PARALLEL_LOOP = "parallel_loop"
+    SERIAL_LOOP = "serial_loop"
+
+
 @irdl_attr_definition
 class DeviceTypeAttr(EnumAttribute[DeviceType]):
     """
@@ -282,6 +312,51 @@ class ReductionOpKindAttr(EnumAttribute[ReductionOpKind]):
     def parse_parameter(cls, parser: AttrParser) -> ReductionOpKind:
         with parser.in_angle_brackets():
             return parser.parse_str_enum(ReductionOpKind)
+
+
+@irdl_attr_definition
+class GangArgTypeAttr(EnumAttribute[GangArgType]):
+    """
+    Gang arg type attribute distinguishing `num=` / `dim=` / `static=` values
+    inside `acc.loop`'s `gang(...)` clause. Prints using the pretty form
+    `#acc.gang_arg_type<value>` to match upstream MLIR (which defines
+    `assemblyFormat = "`<` $value `>`"`).
+    """
+
+    name = "acc.gang_arg_type"
+
+    def print_parameter(self, printer: Printer) -> None:
+        with printer.in_angle_brackets():
+            printer.print_string(self.data.value)
+
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> GangArgType:
+        with parser.in_angle_brackets():
+            return parser.parse_str_enum(GangArgType)
+
+
+@irdl_attr_definition
+class CombinedConstructsTypeAttr(EnumAttribute[CombinedConstructsType]):
+    """
+    Combined-constructs attribute carried on `acc.loop` to identify the
+    user-level `kernels loop` / `parallel loop` / `serial loop` it was
+    decomposed from. Defaulted to no value when the loop stands alone.
+    Prints using the pretty form `#acc.combined_constructs<value>` to
+    match upstream MLIR (whose `EnumAttr` default
+    `assemblyFormat = "`<` $value `>`"` produces the dot form, *not* the
+    spaced-opaque form `#acc<combined_constructs ...>`).
+    """
+
+    name = "acc.combined_constructs"
+
+    def print_parameter(self, printer: Printer) -> None:
+        with printer.in_angle_brackets():
+            printer.print_string(self.data.value)
+
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> CombinedConstructsType:
+        with parser.in_angle_brackets():
+            return parser.parse_str_enum(CombinedConstructsType)
 
 
 @irdl_attr_definition
@@ -3452,6 +3527,8 @@ ACC = Dialect(
         DataClauseModifierAttr,
         VariableTypeCategoryAttr,
         ReductionOpKindAttr,
+        GangArgTypeAttr,
+        CombinedConstructsTypeAttr,
         DataBoundsType,
         DeclareTokenType,
     ],
