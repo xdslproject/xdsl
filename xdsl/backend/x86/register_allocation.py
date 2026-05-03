@@ -26,8 +26,9 @@ class X86RegisterAllocator(BlockNaiveAllocator):
             )
 
         preallocated = RegisterAllocatableOperation.all_used_registers(func.body)
+        excluded = RegisterAllocatableOperation.all_excluded_registers(func.body)
 
-        for pa_reg in preallocated:
+        for pa_reg in preallocated | excluded:
             self.available_registers.exclude_register(pa_reg)
 
         block = func.body.block
