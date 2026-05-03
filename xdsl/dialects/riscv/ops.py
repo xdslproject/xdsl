@@ -48,6 +48,8 @@ from xdsl.traits import (
     HasCanonicalizationPatternsTrait,
     IsolatedFromAbove,
     IsTerminator,
+    MemoryReadEffect,
+    MemoryWriteEffect,
     NoTerminator,
     Pure,
 )
@@ -1007,6 +1009,8 @@ class LbOp(RdRsImmIntegerOperation):
 
     name = "riscv.lb"
 
+    traits = traits_def(MemoryReadEffect())
+
 
 @irdl_op_definition
 class LbuOp(RdRsImmIntegerOperation):
@@ -1022,6 +1026,8 @@ class LbuOp(RdRsImmIntegerOperation):
     """
 
     name = "riscv.lbu"
+
+    traits = traits_def(MemoryReadEffect())
 
 
 @irdl_op_definition
@@ -1039,6 +1045,8 @@ class LhOp(RdRsImmIntegerOperation):
 
     name = "riscv.lh"
 
+    traits = traits_def(MemoryReadEffect())
+
 
 @irdl_op_definition
 class LhuOp(RdRsImmIntegerOperation):
@@ -1054,6 +1062,8 @@ class LhuOp(RdRsImmIntegerOperation):
     """
 
     name = "riscv.lhu"
+
+    traits = traits_def(MemoryReadEffect())
 
 
 class LwOpHasCanonicalizationPatternTrait(HasCanonicalizationPatternsTrait):
@@ -1081,7 +1091,7 @@ class LwOp(RdRsImmIntegerOperation):
 
     name = "riscv.lw"
 
-    traits = traits_def(LwOpHasCanonicalizationPatternTrait())
+    traits = traits_def(LwOpHasCanonicalizationPatternTrait(), MemoryReadEffect())
 
     def assembly_line(self) -> str | None:
         instruction_name = self.assembly_instruction_name()
@@ -2885,7 +2895,7 @@ class FLwOp(RdRsImmFloatOperation):
 
     name = "riscv.flw"
 
-    traits = traits_def(FLwOpHasCanonicalizationPatternTrait())
+    traits = traits_def(FLwOpHasCanonicalizationPatternTrait(), MemoryReadEffect())
 
     def assembly_line(self) -> str | None:
         instruction_name = self.assembly_instruction_name()
@@ -2919,7 +2929,7 @@ class FSwOp(RsRsImmFloatOperation):
 
     name = "riscv.fsw"
 
-    traits = traits_def(FSwOpHasCanonicalizationPatternTrait())
+    traits = traits_def(FSwOpHasCanonicalizationPatternTrait(), MemoryWriteEffect())
 
     def assembly_line(self) -> str | None:
         instruction_name = self.assembly_instruction_name()
@@ -3123,7 +3133,7 @@ class FLdOp(RdRsImmFloatOperation):
 
     name = "riscv.fld"
 
-    traits = traits_def(FLdOpHasCanonicalizationPatternTrait())
+    traits = traits_def(FLdOpHasCanonicalizationPatternTrait(), MemoryReadEffect())
 
     def assembly_line(self) -> str | None:
         instruction_name = self.assembly_instruction_name()
@@ -3162,7 +3172,7 @@ class FSdOp(RsRsImmFloatOperation):
 
     name = "riscv.fsd"
 
-    traits = traits_def(FSdOpHasCanonicalizationPatternTrait())
+    traits = traits_def(FSdOpHasCanonicalizationPatternTrait(), MemoryWriteEffect())
 
     def assembly_line(self) -> str | None:
         instruction_name = self.assembly_instruction_name()
