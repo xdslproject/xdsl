@@ -1940,12 +1940,12 @@ builtin.module {
 
   // seq + gang with non-overlapping device types — exercises the
   // gang/worker/vector incompatibility check's no-conflict branch. The
-  // round-trip prints `gang([#nvidia])` via the GangClause directive's
-  // keyword-only DT spelling (since `gang`'s sole entry isn't `#none`).
+  // `gang([#nvidia])` keyword-only DT spelling writes to the `gang`
+  // property via GangClause.
   func.func @loop_seq_gang_disjoint() {
-    acc.loop {
+    acc.loop gang([#acc.device_type<nvidia>]) {
       acc.yield
-    } attributes {seq = [#acc.device_type<none>], gang = [#acc.device_type<nvidia>]}
+    } attributes {seq = [#acc.device_type<none>]}
     func.return
   }
   // CHECK-LABEL: func.func @loop_seq_gang_disjoint() {

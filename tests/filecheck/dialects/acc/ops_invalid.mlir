@@ -510,11 +510,13 @@ func.func @loop_missing_par_mode() {
 // -----
 
 // acc.loop: gang / worker / vector cannot coexist with seq for the same
-// device type — the verifier catches `seq + gang` on `#none`.
+// device type — the verifier catches `seq + gang` on `#none`. The bare
+// `gang` keyword writes to the `gang` property directly via GangClause,
+// matching how a real source emits it.
 func.func @loop_seq_with_gang() {
-  acc.loop {
+  acc.loop gang {
     acc.yield
-  } attributes {seq = [#acc.device_type<none>], gang = [#acc.device_type<none>]}
+  } attributes {seq = [#acc.device_type<none>]}
   func.return
 }
 // CHECK: gang, worker or vector cannot appear with seq
@@ -534,11 +536,13 @@ func.func @loop_auto_seq_same_dt() {
 // -----
 
 // acc.loop: duplicate device type in the gang attribute fires a verifier
-// error (mirrors upstream's `checkDeviceTypes` helper).
+// error (mirrors upstream's `checkDeviceTypes` helper). The
+// `gang([#dt, #dt])` keyword-only DT spelling writes the array directly
+// to the `gang` property via GangClause.
 func.func @loop_duplicate_gang_dt() {
-  acc.loop {
+  acc.loop gang([#acc.device_type<none>, #acc.device_type<none>]) {
     acc.yield
-  } attributes {gang = [#acc.device_type<none>, #acc.device_type<none>], independent = [#acc.device_type<none>]}
+  } attributes {independent = [#acc.device_type<none>]}
   func.return
 }
 // CHECK: duplicate device_type `none` found in gang attribute
@@ -750,11 +754,12 @@ func.func @loop_control_too_few_lb_types(%lb : index, %ub : index, %st : index) 
 // -----
 
 // acc.loop: duplicate device_type in `worker` attribute fires the
-// duplicate-DT verifier.
+// duplicate-DT verifier. `worker([#dt, #dt])` is the keyword-only DT
+// spelling that writes the array directly to the `worker` property.
 func.func @loop_duplicate_worker_dt() {
-  acc.loop {
+  acc.loop worker([#acc.device_type<none>, #acc.device_type<none>]) {
     acc.yield
-  } attributes {worker = [#acc.device_type<none>, #acc.device_type<none>], independent = [#acc.device_type<none>]}
+  } attributes {independent = [#acc.device_type<none>]}
   func.return
 }
 // CHECK: duplicate device_type `none` found in worker attribute
@@ -764,9 +769,9 @@ func.func @loop_duplicate_worker_dt() {
 // acc.loop: duplicate device_type in `vector` attribute fires the
 // duplicate-DT verifier.
 func.func @loop_duplicate_vector_dt() {
-  acc.loop {
+  acc.loop vector([#acc.device_type<none>, #acc.device_type<none>]) {
     acc.yield
-  } attributes {vector = [#acc.device_type<none>, #acc.device_type<none>], independent = [#acc.device_type<none>]}
+  } attributes {independent = [#acc.device_type<none>]}
   func.return
 }
 // CHECK: duplicate device_type `none` found in vector attribute

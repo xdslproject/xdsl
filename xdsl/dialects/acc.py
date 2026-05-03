@@ -2345,22 +2345,6 @@ class LoopOp(IRDLOperation):
         # (sibling loops / collapse-count satisfaction) require a
         # `LoopLikeOpInterface`-style enumeration that xDSL doesn't have
         # yet — those land in PR 17 of the OpenACC roadmap.
-        #
-        # The DT array attrs (`gang` / `worker` / `vector` / `seq` /
-        # `independent` / `auto_`) are referenced by name in the assembly
-        # format, so xDSL routes attr-dict-form spellings into
-        # `op.attributes` rather than `op.properties`. The
-        # `_get_attr_or_prop` helper lets the verifier read both surfaces
-        # — matching MLIR's behavior, where TableGen-declared properties
-        # are looked up from one storage regardless of how the user wrote
-        # them.
-        gang = _get_attr_or_prop(self, "gang")
-        worker = _get_attr_or_prop(self, "worker")
-        vector = _get_attr_or_prop(self, "vector")
-        seq = _get_attr_or_prop(self, "seq")
-        independent = _get_attr_or_prop(self, "independent")
-        auto_ = _get_attr_or_prop(self, "auto_")
-
         if len(self.upperbound) != len(self.step):
             raise VerifyException(
                 "number of upperbounds expected to be the same as number of steps"
@@ -2406,7 +2390,7 @@ class LoopOp(IRDLOperation):
                 raise VerifyException(
                     "gangOperandsArgType attribute count must match gangOperands count"
                 )
-        if (dup := _duplicate_device_type(gang)) is not None:
+        if (dup := _duplicate_device_type(self.gang)) is not None:
             raise VerifyException(
                 f"duplicate device_type `{dup.value}` found in gang attribute"
             )
@@ -2417,7 +2401,7 @@ class LoopOp(IRDLOperation):
             "gang",
         )
 
-        if (dup := _duplicate_device_type(worker)) is not None:
+        if (dup := _duplicate_device_type(self.worker)) is not None:
             raise VerifyException(
                 f"duplicate device_type `{dup.value}` found in worker attribute"
             )
@@ -2434,7 +2418,7 @@ class LoopOp(IRDLOperation):
             "worker",
         )
 
-        if (dup := _duplicate_device_type(vector)) is not None:
+        if (dup := _duplicate_device_type(self.vector)) is not None:
             raise VerifyException(
                 f"duplicate device_type `{dup.value}` found in vector attribute"
             )
@@ -2459,7 +2443,7 @@ class LoopOp(IRDLOperation):
         # auto / independent / seq must not specify the same device type more
         # than once across all three.
         seen_device_types: set[DeviceType] = set()
-        for attr in (auto_, independent, seq):
+        for attr in (self.auto_, self.independent, self.seq):
             if attr is None:
                 continue
             for dt in attr.data:
@@ -2474,7 +2458,7 @@ class LoopOp(IRDLOperation):
         # device-`none` (default) device type.
         has_default = any(
             attr is not None and any(dt.data is DeviceType.NONE for dt in attr.data)
-            for attr in (seq, independent, auto_)
+            for attr in (self.seq, self.independent, self.auto_)
         )
         if not has_default:
             raise VerifyException(
@@ -2483,9 +2467,9 @@ class LoopOp(IRDLOperation):
 
         # `gang` / `worker` / `vector` cannot coexist with `seq` for the same
         # device type.
-        if seq is not None:
-            seq_device_types = {dt.data for dt in seq.data}
-            for attr in (gang, worker, vector):
+        if self.seq is not None:
+            seq_device_types = {dt.data for dt in self.seq.data}
+            for attr in (self.gang, self.worker, self.vector):
                 if attr is None:
                     continue
                 if any(dt.data in seq_device_types for dt in attr.data):
@@ -2497,30 +2481,6 @@ class LoopOp(IRDLOperation):
             raise VerifyException(
                 "unstructured acc.loop must not have induction variables"
             )
-
-
-def _get_attr_or_prop(op: IRDLOperation, name: str) -> ArrayAttr[DeviceTypeAttr] | None:
-    """Read a `gang` / `worker` / `vector` / `seq` / `independent` / `auto_`
-    DT array from either the op's properties or its attributes dict.
-
-    These six properties are referenced by name in `acc.loop`'s assembly
-    format (as the `^` keyword anchor for the corresponding clause), so the
-    declarative-format parser routes attr-dict-form spellings into
-    `op.attributes` rather than `op.properties`. The verifier must consult
-    both surfaces to mirror MLIR — where TableGen-declared properties are
-    looked up from one storage regardless of how the user wrote them.
-
-    The IRDL framework enforces the `ArrayAttr[DeviceTypeAttr]` type on the
-    underlying `opt_prop_def` before `verify_` runs (rejecting wrong-typed
-    inputs like `attributes {gang = 42}` upstream of this lookup), so the
-    `assert isa(...)` here documents the invariant rather than guarding
-    against a reachable case.
-    """
-    attr = op.properties.get(name) or op.attributes.get(name)
-    if attr is None:
-        return None
-    assert isa(attr, ArrayAttr[DeviceTypeAttr])
-    return attr
 
 
 def _duplicate_device_type(
