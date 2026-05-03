@@ -75,6 +75,7 @@ from xdsl.traits import (
     IsolatedFromAbove,
     IsTerminator,
     NoMemoryEffect,
+    NoTerminator,
     RecursiveMemoryEffect,
     SingleBlockImplicitTerminator,
     SymbolOpInterface,
@@ -294,6 +295,17 @@ class DataBoundsType(ParametrizedAttribute, TypeAttribute):
     """
 
     name = "acc.data_bounds_ty"
+
+
+@irdl_attr_definition
+class DeclareTokenType(ParametrizedAttribute, TypeAttribute):
+    """
+    Type returned by `acc.declare_enter` and consumed by `acc.declare_exit`
+    to represent an implicit OpenACC data region. See upstream
+    `!acc.declare_token`.
+    """
+
+    name = "acc.declare_token"
 
 
 def _parse_device_type_attr(parser: Parser) -> DeviceTypeAttr:
@@ -2781,6 +2793,174 @@ class UpdateOp(IRDLOperation):
                 )
 
 
+# ---------------------------------------------------------------------------
+# Declare family
+# ---------------------------------------------------------------------------
+#
+# `acc.declare_enter`, `acc.declare_exit`, and `acc.declare` all carry a
+# variadic `dataClauseOperands` and validate it the same way: every operand
+# must be defined by one of the eight data ops listed in upstream's
+# `checkDeclareOperands` helper. The diagnostic strings ("at least one
+# operand must appear on the declare operation" / "expect valid declare data
+# entry operation or acc.getdeviceptr as defining op") are copied verbatim
+# from `mlir/lib/Dialect/OpenACC/IR/OpenACC.cpp` so external tooling and
+# upstream tests round-trip identically.
+
+
+def _verify_declare_operands(
+    operands: Sequence[SSAValue], *, require_at_least_one: bool = True
+) -> None:
+    """Mirror of upstream's `checkDeclareOperands` template helper.
+
+    `acc.declare_exit` passes ``require_at_least_one=False`` when a `token`
+    is present (the token already pins the implicit data region — operands
+    are then redundant); every other caller requires at least one operand.
+    """
+    if not operands and require_at_least_one:
+        raise VerifyException(
+            "at least one operand must appear on the declare operation"
+        )
+    for operand in operands:
+        if not isinstance(
+            operand.owner,
+            (
+                CopyinOp,
+                CopyoutOp,
+                CreateOp,
+                DevicePtrOp,
+                GetDevicePtrOp,
+                PresentOp,
+                DeclareDeviceResidentOp,
+                DeclareLinkOp,
+            ),
+        ):
+            raise VerifyException(
+                "expect valid declare data entry operation or "
+                "acc.getdeviceptr as defining op"
+            )
+
+
+@irdl_op_definition
+class DeclareEnterOp(IRDLOperation):
+    """
+    Implementation of upstream acc.declare_enter — entry to an implicit
+    OpenACC declare data region. Yields an `!acc.declare_token` that can
+    optionally be threaded into the matching `acc.declare_exit`.
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenACCDialect/#accdeclare_enter-accdeclareenterop).
+    """
+
+    name = "acc.declare_enter"
+
+    data_clause_operands = var_operand_def()
+
+    token = result_def(DeclareTokenType)
+
+    assembly_format = (
+        "(`dataOperands` `(` $data_clause_operands^ `:`"
+        " type($data_clause_operands) `)`)?"
+        " attr-dict-with-keyword"
+    )
+
+    def __init__(
+        self,
+        *,
+        data_clause_operands: Sequence[SSAValue | Operation] = (),
+    ) -> None:
+        super().__init__(
+            operands=[data_clause_operands],
+            result_types=[DeclareTokenType()],
+        )
+
+    def verify_(self) -> None:
+        _verify_declare_operands(self.data_clause_operands)
+
+
+@irdl_op_definition
+class DeclareExitOp(IRDLOperation):
+    """
+    Implementation of upstream acc.declare_exit — exit from an implicit
+    OpenACC declare data region, optionally consuming the
+    `!acc.declare_token` produced by the matching `acc.declare_enter`.
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenACCDialect/#accdeclare_exit-accdeclareexitop).
+    """
+
+    name = "acc.declare_exit"
+
+    token = opt_operand_def(DeclareTokenType)
+    data_clause_operands = var_operand_def()
+
+    irdl_options = (
+        AttrSizedOperandSegments(as_property=True),
+        ParsePropInAttrDict(),
+    )
+
+    assembly_format = (
+        "(`token` `(` $token^ `)`)?"
+        " (`dataOperands` `(` $data_clause_operands^ `:`"
+        " type($data_clause_operands) `)`)?"
+        " attr-dict-with-keyword"
+    )
+
+    def __init__(
+        self,
+        *,
+        token: SSAValue | Operation | None = None,
+        data_clause_operands: Sequence[SSAValue | Operation] = (),
+    ) -> None:
+        super().__init__(
+            operands=[
+                [token] if token is not None else [],
+                data_clause_operands,
+            ],
+        )
+
+    def verify_(self) -> None:
+        # Upstream `acc::DeclareExitOp::verify`: the `token`-bearing form
+        # relaxes the at-least-one operand requirement.
+        _verify_declare_operands(
+            self.data_clause_operands,
+            require_at_least_one=self.token is None,
+        )
+
+
+@irdl_op_definition
+class DeclareOp(IRDLOperation):
+    """
+    Implementation of upstream acc.declare — the structured declare region
+    inside a function/subroutine. Body is an arbitrary single-block region
+    (no terminator) holding the implicit data region's lifetime.
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenACCDialect/#accdeclare-accdeclareop).
+    """
+
+    name = "acc.declare"
+
+    data_clause_operands = var_operand_def()
+
+    region = region_def()
+
+    assembly_format = (
+        "(`dataOperands` `(` $data_clause_operands^ `:`"
+        " type($data_clause_operands) `)`)?"
+        " $region attr-dict-with-keyword"
+    )
+
+    traits = traits_def(NoTerminator(), RecursiveMemoryEffect())
+
+    def __init__(
+        self,
+        *,
+        region: Region,
+        data_clause_operands: Sequence[SSAValue | Operation] = (),
+    ) -> None:
+        super().__init__(
+            operands=[data_clause_operands],
+            regions=[region],
+        )
+
+    def verify_(self) -> None:
+        _verify_declare_operands(self.data_clause_operands)
+
+
 @irdl_op_definition
 class DataBoundsOp(IRDLOperation):
     """
@@ -3256,6 +3436,9 @@ ACC = Dialect(
         EnterDataOp,
         ExitDataOp,
         UpdateOp,
+        DeclareEnterOp,
+        DeclareExitOp,
+        DeclareOp,
         PrivateRecipeOp,
         FirstprivateRecipeOp,
         ReductionRecipeOp,
@@ -3270,5 +3453,6 @@ ACC = Dialect(
         VariableTypeCategoryAttr,
         ReductionOpKindAttr,
         DataBoundsType,
+        DeclareTokenType,
     ],
 )

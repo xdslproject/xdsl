@@ -743,3 +743,28 @@ def test_update_init():
     assert op.if_cond is None
     assert len(op.async_operands) == 0
     assert len(op.wait_operands) == 0
+
+
+def test_declare_family_init_bodies():
+    """The three declare ops' `__init__` bodies are only reachable from
+    Python — the parser builds via IRDL `Operation.create()` and bypasses
+    them. Smoke-test all three to keep them covered. The non-trivial
+    branches: `DeclareExitOp` packing the optional `token` into a 0/1-list
+    (covered by both `token=...` and `token=None` calls), and `DeclareOp`
+    accepting the region keyword-only."""
+    var = create_ssa_value(MemRefType(f32, [10]))
+    copyin = acc.CopyinOp(var=var)
+
+    enter = acc.DeclareEnterOp(data_clause_operands=[copyin])
+    assert isinstance(enter.token.type, acc.DeclareTokenType)
+
+    exit_with_token = acc.DeclareExitOp(
+        token=enter.token, data_clause_operands=[copyin]
+    )
+    assert exit_with_token.token is enter.token
+
+    exit_no_token = acc.DeclareExitOp(data_clause_operands=[copyin])
+    assert exit_no_token.token is None
+
+    decl = acc.DeclareOp(region=Region(Block()), data_clause_operands=[copyin])
+    assert len(decl.region.blocks) == 1

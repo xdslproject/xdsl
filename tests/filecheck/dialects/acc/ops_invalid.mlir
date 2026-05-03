@@ -437,3 +437,59 @@ func.func @update_wrong_defining_op(%a : memref<f32>) {
   func.return
 }
 // CHECK: expect data entry/exit operation or acc.getdeviceptr as defining op
+
+// -----
+
+// acc.declare_enter: empty `dataOperands` fails the per-op verifier
+// (mirrors upstream's `checkDeclareOperands(requireAtLeastOneOperand=true)`).
+func.func @declare_enter_empty() {
+  %t = acc.declare_enter
+  acc.declare_exit token(%t)
+  func.return
+}
+// CHECK: at least one operand must appear on the declare operation
+
+// -----
+
+// acc.declare_enter: every `dataOperands` value must be defined by one
+// of the eight allowed data-clause ops (per `checkDeclareOperands`). A
+// bare block argument fails.
+func.func @declare_enter_wrong_defining_op(%a : memref<f32>) {
+  %t = acc.declare_enter dataOperands(%a : memref<f32>)
+  acc.declare_exit token(%t) dataOperands(%a : memref<f32>)
+  func.return
+}
+// CHECK: expect valid declare data entry operation or acc.getdeviceptr as defining op
+
+// -----
+
+// acc.declare_exit without a `token`: empty `dataOperands` fails. The
+// `token`-bearing form would relax this — covered by the positive
+// roundtrip `declare_exit_token_only` in `ops.mlir`.
+func.func @declare_exit_empty_no_token() {
+  acc.declare_exit
+  func.return
+}
+// CHECK: at least one operand must appear on the declare operation
+
+// -----
+
+// acc.declare: empty `dataOperands` fails (the structured declare always
+// requires at least one data operand to scope the implicit data region).
+func.func @declare_empty() {
+  acc.declare {
+  }
+  func.return
+}
+// CHECK: at least one operand must appear on the declare operation
+
+// -----
+
+// acc.declare: every `dataOperands` value must be defined by one of the
+// eight allowed data-clause ops; a bare block-argument memref fails.
+func.func @declare_wrong_defining_op(%a : memref<f32>) {
+  acc.declare dataOperands(%a : memref<f32>) {
+  }
+  func.return
+}
+// CHECK: expect valid declare data entry operation or acc.getdeviceptr as defining op
