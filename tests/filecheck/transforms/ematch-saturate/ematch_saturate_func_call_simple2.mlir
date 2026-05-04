@@ -327,18 +327,26 @@ func.func @collatz_steps(%arg0: i64) -> i64 attributes {llvm.linkage = #llvm.lin
 
       %30 = pdl_interp.get_operand 0 of %arg1
 
-      %3 = pdl_interp.create_operation "arith.shli"(%30, %2 : !pdl.value, !pdl.value) -> (%arg2 : !pdl.type)
+      %3 = pdl_interp.create_operation "arith.shli"(%30, %2 : !pdl.value, !pdl.value) {"equivalence.cost" = %0} -> (%arg2 : !pdl.type)
       %40 = pdl_interp.get_result 0 of %3
 
-      %4 = pdl_interp.create_operation "arith.addi"(%30, %40 : !pdl.value, !pdl.value) -> (%arg2 : !pdl.type)
+      %4 = pdl_interp.create_operation "arith.addi"(%30, %40 : !pdl.value, !pdl.value) {"equivalence.cost" = %0} -> (%arg2 : !pdl.type)
       %5 = pdl_interp.get_result 0 of %4
 
-      %6 = pdl_interp.create_operation "arith.addi"(%5, %2 : !pdl.value, !pdl.value) -> (%arg2 : !pdl.type)
+      %6 = pdl_interp.create_operation "arith.addi"(%5, %2 : !pdl.value, !pdl.value) {"equivalence.cost" = %0} -> (%arg2 : !pdl.type)
       %7 = pdl_interp.get_result 0 of %6
       %8 = ematch.get_class_result %7
 
+      %a = pdl_interp.get_operand 0 of %arg0
+      %b = pdl_interp.get_operand 1 of %arg0
+      %d = pdl_interp.create_attribute 10 : i64
+      %c = pdl_interp.create_operation "arith.muli"(%a, %b : !pdl.value, !pdl.value) {"equivalence.cost" = %d} -> (%arg2 : !pdl.type)
+
+      %e = pdl_interp.get_result 0 of %c
+      pdl_interp.replace %arg0 with (%e : !pdl.value)
+
       %9 = pdl_interp.create_range %8 : !pdl.value
-      ematch.union %arg0 : !pdl.operation, %9 : !pdl.range<value>
+      ematch.union %c : !pdl.operation, %9 : !pdl.range<value>
 
       pdl_interp.finalize
     }
