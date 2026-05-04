@@ -809,3 +809,41 @@ func.func @loop_duplicate_collapse_dt() {
   func.return
 }
 // CHECK: duplicate device_type `none` found in collapseDeviceType attribute
+
+// -----
+
+// acc.init nested in acc.parallel — runtime ops cannot be nested in a
+// compute construct (parallel/serial/kernels/loop).
+func.func @init_in_parallel() {
+  acc.parallel {
+    acc.init
+    acc.yield
+  }
+  func.return
+}
+// CHECK: 'acc.init' op cannot be nested in a compute operation
+
+// -----
+
+// acc.init nested transitively (through acc.serial) — the parent walk
+// must traverse all ancestors, not just the direct parent.
+func.func @init_in_serial() {
+  acc.serial {
+    acc.init
+    acc.yield
+  }
+  func.return
+}
+// CHECK: 'acc.init' op cannot be nested in a compute operation
+
+// -----
+
+// acc.shutdown nested in acc.kernels.
+func.func @shutdown_in_kernels() {
+  acc.kernels {
+    acc.shutdown
+    acc.terminator
+  }
+  func.return
+}
+// CHECK: 'acc.shutdown' op cannot be nested in a compute operation

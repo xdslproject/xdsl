@@ -1952,4 +1952,85 @@ builtin.module {
   // CHECK:         acc.loop gang([#acc.device_type<nvidia>]) {
   // CHECK-NEXT:      acc.yield
   // CHECK-NEXT:    } attributes {seq = [#acc.device_type<none>]}
+
+  // -- Runtime executable ops: acc.init / acc.shutdown / acc.set / acc.wait --
+  // Each carries `AttrSizedOperandSegments` and shares a "cannot be nested
+  // in a compute operation" verifier; their pretty form is a fixed-order
+  // optional-clause sequence (the upstream `oilist(...)` is replaced by
+  // declarative `(...)?` groups).
+
+  func.func @init_empty() {
+    acc.init
+    func.return
+  }
+  // CHECK-LABEL: func.func @init_empty() {
+  // CHECK:         acc.init
+
+  func.func @init_device_num(%dn : i64) {
+    acc.init device_num(%dn : i64)
+    func.return
+  }
+  // CHECK-LABEL: func.func @init_device_num(
+  // CHECK:         acc.init device_num(%{{.*}} : i64)
+
+  func.func @init_if(%c : i1) {
+    acc.init if(%c)
+    func.return
+  }
+  // CHECK-LABEL: func.func @init_if(
+  // CHECK:         acc.init if(%{{.*}})
+
+  func.func @init_device_num_and_if(%dn : index, %c : i1) {
+    acc.init device_num(%dn : index) if(%c)
+    func.return
+  }
+  // CHECK-LABEL: func.func @init_device_num_and_if(
+  // CHECK:         acc.init device_num(%{{.*}} : index) if(%{{.*}})
+
+  // The inherent `device_types` property has no clause — it flows through
+  // `attr-dict-with-keyword`.
+  func.func @init_device_types() {
+    acc.init attributes {device_types = [#acc.device_type<nvidia>]}
+    func.return
+  }
+  // CHECK-LABEL: func.func @init_device_types() {
+  // CHECK:         acc.init attributes {device_types = [#acc.device_type<nvidia>]}
+
+  // Generic-form roundtrip insurance for acc.init — exercises the
+  // two-segment operand layout (device_num, if_cond).
+  func.func @init_generic_roundtrip(%dn : i64) {
+    "acc.init"(%dn) <{operandSegmentSizes = array<i32: 1, 0>}> : (i64) -> ()
+    func.return
+  }
+  // CHECK-LABEL: func.func @init_generic_roundtrip(
+  // CHECK:         acc.init device_num(%{{.*}} : i64)
+
+  func.func @shutdown_empty() {
+    acc.shutdown
+    func.return
+  }
+  // CHECK-LABEL: func.func @shutdown_empty() {
+  // CHECK:         acc.shutdown
+
+  func.func @shutdown_device_num_and_if(%dn : i64, %c : i1) {
+    acc.shutdown device_num(%dn : i64) if(%c)
+    func.return
+  }
+  // CHECK-LABEL: func.func @shutdown_device_num_and_if(
+  // CHECK:         acc.shutdown device_num(%{{.*}} : i64) if(%{{.*}})
+
+  func.func @shutdown_device_types() {
+    acc.shutdown attributes {device_types = [#acc.device_type<default>]}
+    func.return
+  }
+  // CHECK-LABEL: func.func @shutdown_device_types() {
+  // CHECK:         acc.shutdown attributes {device_types = [#acc.device_type<default>]}
+
+  // Generic-form roundtrip insurance for acc.shutdown.
+  func.func @shutdown_generic_roundtrip(%c : i1) {
+    "acc.shutdown"(%c) <{operandSegmentSizes = array<i32: 0, 1>}> : (i1) -> ()
+    func.return
+  }
+  // CHECK-LABEL: func.func @shutdown_generic_roundtrip(
+  // CHECK:         acc.shutdown if(%{{.*}})
 }

@@ -864,3 +864,54 @@ def test_loop_unit_and_combined_shortcuts():
     assert op_explicit.combined == acc.CombinedConstructsTypeAttr(
         acc.CombinedConstructsType.KERNELS_LOOP
     )
+
+
+def test_init_op_builder_branches():
+    """Exercises the InitOp `__init__` branches that the parser bypasses
+    (parsing goes through `Operation.create()`, not `__init__`): empty
+    ternaries, the `Sequence[DeviceTypeAttr] -> ArrayAttr` shortcut, and the
+    already-wrapped-ArrayAttr passthrough."""
+    nvidia = acc.DeviceTypeAttr(acc.DeviceType.NVIDIA)
+
+    empty = acc.InitOp()
+    empty.verify()
+    assert empty.device_num is None
+    assert empty.if_cond is None
+    assert empty.device_types is None
+
+    op_seq = acc.InitOp(
+        device_num=create_ssa_value(i64),
+        if_cond=create_ssa_value(i1),
+        device_types=[nvidia],
+    )
+    op_seq.verify()
+    assert op_seq.device_types == ArrayAttr([nvidia])
+
+    arr = ArrayAttr([nvidia])
+    op_arr = acc.InitOp(device_types=arr)
+    op_arr.verify()
+    assert op_arr.device_types is arr
+
+
+def test_shutdown_op_builder_branches():
+    """Mirrors `test_init_op_builder_branches` for ShutdownOp."""
+    default = acc.DeviceTypeAttr(acc.DeviceType.DEFAULT)
+
+    empty = acc.ShutdownOp()
+    empty.verify()
+    assert empty.device_num is None
+    assert empty.if_cond is None
+    assert empty.device_types is None
+
+    op_seq = acc.ShutdownOp(
+        device_num=create_ssa_value(i64),
+        if_cond=create_ssa_value(i1),
+        device_types=[default],
+    )
+    op_seq.verify()
+    assert op_seq.device_types == ArrayAttr([default])
+
+    arr = ArrayAttr([default])
+    op_arr = acc.ShutdownOp(device_types=arr)
+    op_arr.verify()
+    assert op_arr.device_types is arr
