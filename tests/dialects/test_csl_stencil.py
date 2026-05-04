@@ -1,5 +1,12 @@
 from xdsl.builder import Builder
-from xdsl.dialects.builtin import IntegerAttr, IntegerType, MemRefType, TensorType, f32
+from xdsl.dialects.builtin import (
+    IntAttr,
+    IntegerAttr,
+    IntegerType,
+    MemRefType,
+    TensorType,
+    f32,
+)
 from xdsl.dialects.csl.csl_stencil import AccessOp, ApplyOp
 from xdsl.dialects.stencil import IndexAttr, TempType
 from xdsl.ir import Region, SSAValue
@@ -7,7 +14,7 @@ from xdsl.utils.test_value import create_ssa_value
 
 
 def test_access_patterns():
-    temp_t = TempType(5, f32)
+    temp_t = TempType(IntAttr(5), f32)
     temp = create_ssa_value(temp_t)
     mref = create_ssa_value(mref_t := MemRefType(tens_t := TensorType(f32, (5,)), (4,)))
 
@@ -15,18 +22,18 @@ def test_access_patterns():
     def region0(args: tuple[SSAValue, ...]):
         t0, t1 = args
         for x in (-1, 1):
-            AccessOp(t0, IndexAttr.get(x, 0), tens_t)
+            AccessOp(t0, IndexAttr.from_indices(x, 0), tens_t)
         for y in (-1, 1):
-            AccessOp(t0, IndexAttr.get(0, y), tens_t)
+            AccessOp(t0, IndexAttr.from_indices(0, y), tens_t)
 
-        AccessOp(t1, IndexAttr.get(1, 1), tens_t)
-        AccessOp(t1, IndexAttr.get(-1, -1), tens_t)
+        AccessOp(t1, IndexAttr.from_indices(1, 1), tens_t)
+        AccessOp(t1, IndexAttr.from_indices(-1, -1), tens_t)
 
     @Builder.implicit_region((temp_t, temp_t))
     def region1(args: tuple[SSAValue, ...]):
         t0, t1 = args
-        AccessOp(t0, IndexAttr.get(0, 0), tens_t)
-        AccessOp(t1, IndexAttr.get(0, 0), tens_t)
+        AccessOp(t0, IndexAttr.from_indices(0, 0), tens_t)
+        AccessOp(t1, IndexAttr.from_indices(0, 0), tens_t)
 
     apply = ApplyOp(
         operands=[temp, mref, [], [], []],

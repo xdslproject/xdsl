@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections.abc import Mapping, Sequence
 from enum import auto
-from typing import ClassVar, cast
+from typing import ClassVar, NamedTuple, cast
 
 from typing_extensions import Self
 
@@ -37,7 +37,7 @@ from xdsl.ir import (
     Region,
     SSAValue,
 )
-from xdsl.ir.affine import AffineMap
+from xdsl.ir.affine import AffineDimExpr, AffineMap
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
@@ -97,6 +97,19 @@ class IteratorTypeAttr(EnumAttribute[IteratorType]):
             super().print_parameter(printer)
 
 
+class LoopBoundSource(NamedTuple):
+    """Source information for one loop upper bound."""
+
+    operand: SSAValue
+    """The shaped operand that provides the bound."""
+
+    dim_index: int
+    """The dimension index in the operand used for the bound."""
+
+    dim_size: int
+    """The size of that dimension, or DYNAMIC_INDEX if it is dynamic."""
+
+
 class LinalgStructuredOperation(IRDLOperation, ABC):
     """
     Abstract base class for structured linalg operations, allowing them to be processed
@@ -125,13 +138,19 @@ class LinalgStructuredOperation(IRDLOperation, ABC):
     """
 
     @abstractmethod
-    def get_indexing_maps(self) -> Sequence[AffineMap]:
+    def get_indexing_maps(self) -> ArrayAttr[AffineMapAttr]:
         """
         Get the indexing maps corresponding to this operation's operands, in order.
         """
 
+    @abstractmethod
+    def get_iterator_types(self) -> ArrayAttr[IteratorTypeAttr]:
+        """
+        Get the iterator types corresponding to this operation's loop, in order.
+        """
+
     def get_num_loops(self) -> int:
-        return self.get_indexing_maps()[0].num_dims
+        return self.get_indexing_maps().data[0].data.num_dims
 
     def get_loops_to_shapes_map(self) -> AffineMap:
         """
@@ -140,14 +159,13 @@ class LinalgStructuredOperation(IRDLOperation, ABC):
         computation".
         The default behavior is to just concatenate all the indexing maps.
         """
-        result_exprs = tuple(
-            res for map in self.get_indexing_maps() for res in map.results
-        )
+        indexing_maps = tuple(attr.data for attr in self.get_indexing_maps())
+        result_exprs = tuple(res for map in indexing_maps for res in map.results)
 
         dims = self.get_num_loops()
 
         # FIXME: Support symbols.
-        for map in self.get_indexing_maps():
+        for map in indexing_maps:
             if map.num_symbols != 0:
                 raise NotImplementedError(
                     "Indexing maps with symbols not supported for now."
@@ -175,6 +193,32 @@ class LinalgStructuredOperation(IRDLOperation, ABC):
                 "Non-invertible maps need dynamic shapes, which are not implemented."
             )
         return inverse
+
+    def get_loop_bound_sources(
+        self,
+    ) -> tuple[LoopBoundSource, ...]:
+        """
+        Return where each loop upper bound comes from.
+
+        Each entry identifies the shaped operand, the dimension index, and the size value.
+        """
+        shapes_to_loops = self.get_shapes_to_loops_map()
+
+        needed_positions = tuple(
+            expr.position
+            for expr in shapes_to_loops.results
+            if isinstance(expr, AffineDimExpr)
+        )
+        assert len(shapes_to_loops.results) == len(needed_positions)
+
+        flat_shape_dims = tuple(
+            LoopBoundSource(operand, dim_index, dim_size)
+            for operand in self.operands
+            if isa(operand, SSAValue[ShapedType])
+            for dim_index, dim_size in enumerate(operand.type.get_shape())
+        )
+
+        return tuple(flat_shape_dims[position] for position in needed_positions)
 
     def get_static_shapes(self) -> list[int]:
         return [
@@ -225,8 +269,11 @@ class GenericOp(LinalgStructuredOperation):
             regions=[body],
         )
 
-    def get_indexing_maps(self) -> Sequence[AffineMap]:
-        return tuple(attr.data for attr in self.indexing_maps)
+    def get_indexing_maps(self) -> ArrayAttr[AffineMapAttr]:
+        return self.indexing_maps
+
+    def get_iterator_types(self) -> ArrayAttr[IteratorTypeAttr]:
+        return self.iterator_types
 
     def print(self, printer: Printer):
         printer.print_string(" {indexing_maps = ")
@@ -620,9 +667,20 @@ class NamedOperation(LinalgStructuredOperation, ABC):
         """
         raise NotImplementedError
 
+    @abstractmethod
+    def get_default_indexing_maps(self) -> Sequence[AffineMap]:
+        """
+        Get the default indexing maps corresponding to this operation's operands, in order.
+        """
+
+    def get_indexing_maps(self) -> ArrayAttr[AffineMapAttr]:
+        return ArrayAttr(
+            AffineMapAttr(map_) for map_ in self.get_default_indexing_maps()
+        )
+
 
 class ElementwiseOperation(NamedOperation, ABC):
-    def get_indexing_maps(self) -> Sequence[AffineMap]:
+    def get_default_indexing_maps(self) -> Sequence[AffineMap]:
         assert all(isinstance(t, ShapedType) for t in self.operand_types), (
             "Assume that all named linalg pointwise operations have matching shaped "
             "types."
@@ -632,7 +690,12 @@ class ElementwiseOperation(NamedOperation, ABC):
         assert all(shape == shapes[0] for shape in shapes[1:]), (
             "All shapes must be equal"
         )
+
         return (AffineMap.identity(len(shapes[0])),) * len(operand_types)
+
+    def get_iterator_types(self) -> ArrayAttr[IteratorTypeAttr]:
+        num_loops = self.get_num_loops()
+        return ArrayAttr((IteratorTypeAttr.parallel(),) * num_loops)
 
 
 @irdl_op_definition
@@ -960,7 +1023,10 @@ class FillOp(NamedOperation):
 
         return hidden_region
 
-    def get_indexing_maps(self) -> Sequence[AffineMap]:
+    def get_default_indexing_maps(self) -> Sequence[AffineMap]:
+        raise NotImplementedError
+
+    def get_iterator_types(self) -> ArrayAttr[IteratorTypeAttr]:
         raise NotImplementedError
 
 
@@ -1337,8 +1403,20 @@ class MatmulOp(NamedOperation):
 
         return hidden_region
 
-    def get_indexing_maps(self) -> Sequence[AffineMap]:
+    def get_default_indexing_maps(self) -> Sequence[AffineMap]:
         return tuple(m.data for m in self.indexing_maps.data)
+
+    def get_indexing_maps(self) -> ArrayAttr[AffineMapAttr]:
+        return self.indexing_maps
+
+    def get_iterator_types(self) -> ArrayAttr[IteratorTypeAttr]:
+        return ArrayAttr(
+            [
+                IteratorTypeAttr.parallel(),
+                IteratorTypeAttr.parallel(),
+                IteratorTypeAttr.reduction(),
+            ]
+        )
 
 
 @irdl_op_definition
@@ -1409,8 +1487,20 @@ class QuantizedMatmulOp(NamedOperation):
 
         return hidden_region
 
-    def get_indexing_maps(self) -> Sequence[AffineMap]:
+    def get_default_indexing_maps(self) -> Sequence[AffineMap]:
         return tuple(m.data for m in self.memoized_indexing_maps.data)
+
+    def get_indexing_maps(self) -> ArrayAttr[AffineMapAttr]:
+        return self.memoized_indexing_maps
+
+    def get_iterator_types(self) -> ArrayAttr[IteratorTypeAttr]:
+        return ArrayAttr(
+            [
+                IteratorTypeAttr.parallel(),
+                IteratorTypeAttr.parallel(),
+                IteratorTypeAttr.reduction(),
+            ]
+        )
 
 
 class PoolingOperation(NamedOperation, ABC):
@@ -1440,7 +1530,10 @@ class PoolingOperation(NamedOperation, ABC):
             hidden_region=self.get_hidden_region(inputs, outputs),
         )
 
-    def get_indexing_maps(self) -> Sequence[AffineMap]:
+    def get_default_indexing_maps(self) -> Sequence[AffineMap]:
+        raise NotImplementedError
+
+    def get_iterator_types(self) -> ArrayAttr[IteratorTypeAttr]:
         raise NotImplementedError
 
 
@@ -1524,7 +1617,10 @@ class ConvOperation(NamedOperation, ABC):
 
         return hidden_region
 
-    def get_indexing_maps(self) -> Sequence[AffineMap]:
+    def get_default_indexing_maps(self) -> Sequence[AffineMap]:
+        raise NotImplementedError
+
+    def get_iterator_types(self) -> ArrayAttr[IteratorTypeAttr]:
         raise NotImplementedError
 
 

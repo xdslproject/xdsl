@@ -22,7 +22,7 @@ memref_stream.generic {
     ],
     iterator_types = ["parallel", "parallel", "reduction"]
 } ins(%A, %B : memref<3x5xf64>, memref<5x44xf64>) outs(%C : memref<3x44xf64>) inits(%zero_float : f64) {
-^bb1(%a : f64, %b : f64, %c : f64):
+^bb1(%a: f64, %b: f64, %c: f64):
     %prod = arith.mulf %a, %b fastmath<fast> : f64
     %res = arith.addf %prod, %c fastmath<fast> : f64
     memref_stream.yield %res : f64
@@ -38,7 +38,7 @@ memref_stream.generic {
 // CHECK-NEXT:      ],
 // CHECK-NEXT:      iterator_types = ["parallel", "parallel", "reduction", "interleaved"]
 // CHECK-NEXT:    } ins(%A, %B : memref<3x5xf64>, memref<5x44xf64>) outs(%C : memref<3x44xf64>) inits(%zero_float : f64) {
-// CHECK-NEXT:    ^bb0(%a : f64, %a_1 : f64, %a_2 : f64, %a_3 : f64, %b : f64, %b_1 : f64, %b_2 : f64, %b_3 : f64, %c : f64, %c_1 : f64, %c_2 : f64, %c_3 : f64):
+// CHECK-NEXT:    ^bb0(%a: f64, %a_1: f64, %a_2: f64, %a_3: f64, %b: f64, %b_1: f64, %b_2: f64, %b_3: f64, %c: f64, %c_1: f64, %c_2: f64, %c_3: f64):
 // CHECK-NEXT:      %prod = arith.mulf %a, %b fastmath<fast> : f64
 // CHECK-NEXT:      %prod_1 = arith.mulf %a_1, %b_1 fastmath<fast> : f64
 // CHECK-NEXT:      %prod_2 = arith.mulf %a_2, %b_2 fastmath<fast> : f64
@@ -65,7 +65,7 @@ memref_stream.generic {
 // DEPTH-2-NEXT:      ],
 // DEPTH-2-NEXT:      iterator_types = ["parallel", "parallel", "reduction", "interleaved"]
 // DEPTH-2-NEXT:    } ins(%A, %B : memref<3x5xf64>, memref<5x44xf64>) outs(%C : memref<3x44xf64>) inits(%zero_float : f64) {
-// DEPTH-2-NEXT:    ^{{.*}}(%a : f64, %a_1 : f64, %b : f64, %b_1 : f64, %c : f64, %c_1 : f64):
+// DEPTH-2-NEXT:    ^{{.*}}(%a: f64, %a_1: f64, %b: f64, %b_1: f64, %c: f64, %c_1: f64):
 // DEPTH-2-NEXT:      %prod = arith.mulf %a, %b fastmath<fast> : f64
 // DEPTH-2-NEXT:      %prod_1 = arith.mulf %a_1, %b_1 fastmath<fast> : f64
 // DEPTH-2-NEXT:      %res = arith.addf %prod, %c fastmath<fast> : f64
@@ -87,7 +87,7 @@ memref_stream.generic {
 // DEPTH-3-NEXT:      ],
 // DEPTH-3-NEXT:      iterator_types = ["parallel", "parallel", "reduction", "interleaved"]
 // DEPTH-3-NEXT:    } ins(%A, %B : memref<3x5xf64>, memref<5x44xf64>) outs(%C : memref<3x44xf64>) inits(%zero_float : f64) {
-// DEPTH-3-NEXT:    ^{{.*}}(%a : f64, %a_1 : f64, %a_2 : f64, %a_3 : f64, %b : f64, %b_1 : f64, %b_2 : f64, %b_3 : f64, %c : f64, %c_1 : f64, %c_2 : f64, %c_3 : f64):
+// DEPTH-3-NEXT:    ^{{.*}}(%a: f64, %a_1: f64, %a_2: f64, %a_3: f64, %b: f64, %b_1: f64, %b_2: f64, %b_3: f64, %c: f64, %c_1: f64, %c_2: f64, %c_3: f64):
 // DEPTH-3-NEXT:      %prod = arith.mulf %a, %b fastmath<fast> : f64
 // DEPTH-3-NEXT:      %prod_1 = arith.mulf %a_1, %b_1 fastmath<fast> : f64
 // DEPTH-3-NEXT:      %prod_2 = arith.mulf %a_2, %b_2 fastmath<fast> : f64
@@ -115,7 +115,7 @@ memref_stream.generic {
 // DEPTH-5-NEXT:      ],
 // DEPTH-5-NEXT:      iterator_types = ["parallel", "parallel", "reduction", "interleaved"]
 // DEPTH-5-NEXT:    } ins(%A, %B : memref<3x5xf64>, memref<5x44xf64>) outs(%C : memref<3x44xf64>) inits(%zero_float : f64) {
-// DEPTH-5-NEXT:    ^{{.*}}(%a : f64, %a_1 : f64, %a_2 : f64, %a_3 : f64, %b : f64, %b_1 : f64, %b_2 : f64, %b_3 : f64, %c : f64, %c_1 : f64, %c_2 : f64, %c_3 : f64):
+// DEPTH-5-NEXT:    ^{{.*}}(%a: f64, %a_1: f64, %a_2: f64, %a_3: f64, %b: f64, %b_1: f64, %b_2: f64, %b_3: f64, %c: f64, %c_1: f64, %c_2: f64, %c_3: f64):
 // DEPTH-5-NEXT:      %prod = arith.mulf %a, %b fastmath<fast> : f64
 // DEPTH-5-NEXT:      %prod_1 = arith.mulf %a_1, %b_1 fastmath<fast> : f64
 // DEPTH-5-NEXT:      %prod_2 = arith.mulf %a_2, %b_2 fastmath<fast> : f64
@@ -140,7 +140,7 @@ memref_stream.generic {
 // MANUAL-0-NEXT:      ],
 // MANUAL-0-NEXT:      iterator_types = ["parallel", "parallel", "reduction", "interleaved"]
 // MANUAL-0-NEXT:    } ins(%A, %B : memref<3x5xf64>, memref<5x44xf64>) outs(%C : memref<3x44xf64>) inits(%zero_float : f64) {
-// MANUAL-0-NEXT:    ^bb0(%a : f64, %a_1 : f64, %a_2 : f64, %b : f64, %b_1 : f64, %b_2 : f64, %c : f64, %c_1 : f64, %c_2 : f64):
+// MANUAL-0-NEXT:    ^bb0(%a: f64, %a_1: f64, %a_2: f64, %b: f64, %b_1: f64, %b_2: f64, %c: f64, %c_1: f64, %c_2: f64):
 // MANUAL-0-NEXT:      %prod = arith.mulf %a, %b fastmath<fast> : f64
 // MANUAL-0-NEXT:      %prod_1 = arith.mulf %a_1, %b_1 fastmath<fast> : f64
 // MANUAL-0-NEXT:      %prod_2 = arith.mulf %a_2, %b_2 fastmath<fast> : f64

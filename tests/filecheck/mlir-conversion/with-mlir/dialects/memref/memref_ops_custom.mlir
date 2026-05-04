@@ -26,6 +26,10 @@ memref.dealloc %a1 : memref<2x3xf32>
 %s0 = memref.subview %r[0, 0] [1, 3] [1, 1] : memref<10x3xi32> to memref<3xi32>
 %s2 = memref.subview %r[%i0, 0] [1, 3] [1, 1] : memref<10x3xi32> to memref<3xi32, strided<[1], offset: ?>>
 
+%dm = "test.op"() : () -> (memref<?x?xi32>)
+%di = "test.op"() : () -> (index)
+%dv = memref.dim %dm, %di : memref<?x?xi32>
+
 // CHECK:       module {
 // CHECK-NEXT:    func.func @memref_alloca_scope() {
 // CHECK-NEXT:      memref.alloca_scope  {
@@ -52,5 +56,8 @@ memref.dealloc %a1 : memref<2x3xf32>
 // CHECK-NEXT:   memref.dealloc %{{.*}} : memref<2x3xf32>
 // CHECK-NEXT:   %{{.*}} = memref.subview %{{.*}}[0, 0] [1, 3] [1, 1] : memref<10x3xi32> to memref<3xi32>
 // CHECK-NEXT:   %{{.*}} = memref.subview %{{.*}}[%{{.*}}, 0] [1, 3] [1, 1] : memref<10x3xi32> to memref<3xi32, strided<[1], offset: ?>>
+// CHECK-NEXT:   %{{.*}} = "test.op"() : () -> memref<?x?xi32>
+// CHECK-NEXT:   %{{.*}} = "test.op"() : () -> index
+// CHECK-NEXT:   %{{.*}} = memref.dim %{{.*}}, %{{.*}} : memref<?x?xi32>
 
 // CHECK-NEXT: }

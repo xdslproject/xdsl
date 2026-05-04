@@ -37,8 +37,38 @@ func.func public @main() {
 // -----
 
 func.func @gep_indices_type_validation() {
-  %size = arith.constant 1 : i32
-  %ptr = llvm.alloca %size x i32 : (i32) -> !llvm.ptr
+  %ptr = "test.op"() : () -> !llvm.ptr
   // expected-error @+1 {{'rawConstantIndices' expected data of type builtin.i32, but got builtin.i64}}
   %gep = "llvm.getelementptr"(%ptr) <{elem_type = i32, noWrapFlags = 0 : i32, rawConstantIndices = array<i64: 1>}> : (!llvm.ptr) -> !llvm.ptr
 }
+
+// -----
+
+func.func @gep_scalar_not_indexable() {
+  %ptr = "test.op"() : () -> !llvm.ptr
+  %gep = "llvm.getelementptr"(%ptr) <{elem_type = i32, noWrapFlags = 0 : i32, rawConstantIndices = array<i32: 1, 2>}> : (!llvm.ptr) -> !llvm.ptr
+  func.return
+}
+
+// CHECK: GEP index #1: cannot index into i32
+
+// -----
+
+func.func @gep_struct_ssa_index() {
+  %ptr = "test.op"() : () -> !llvm.ptr
+  %idx = "test.op"() : () -> i32
+  %gep = "llvm.getelementptr"(%ptr, %idx) <{elem_type = !llvm.struct<(i32, i32)>, noWrapFlags = 0 : i32, rawConstantIndices = array<i32: 0, -2147483648>}> : (!llvm.ptr, i32) -> !llvm.ptr
+  func.return
+}
+
+// CHECK: GEP index #1: struct indices must be constants
+
+// -----
+
+func.func @gep_struct_out_of_range() {
+  %ptr = "test.op"() : () -> !llvm.ptr
+  %gep = "llvm.getelementptr"(%ptr) <{elem_type = !llvm.struct<(i32, i32)>, noWrapFlags = 0 : i32, rawConstantIndices = array<i32: 0, 5>}> : (!llvm.ptr) -> !llvm.ptr
+  func.return
+}
+
+// CHECK: GEP index #1: 5 is out of range for struct with 2 field(s)

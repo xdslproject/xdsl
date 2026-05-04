@@ -2,12 +2,14 @@ from collections.abc import Callable
 
 from llvmlite import ir
 from llvmlite.ir import instructions
+from llvmlite.ir.instructions import PhiInstr
 from llvmlite.ir.types import Type
-from llvmlite.ir.values import Block, Value
+from llvmlite.ir.values import Block as LLVMBlock
+from llvmlite.ir.values import Value
 
 from xdsl.backend.llvm.convert_type import convert_type
 from xdsl.dialects import llvm
-from xdsl.ir import Operation, SSAValue
+from xdsl.ir import Block, Operation, SSAValue
 
 _BINARY_OP_MAP: dict[
     type[Operation], Callable[[ir.IRBuilder], Callable[[ir.Value, ir.Value], ir.Value]]
@@ -103,7 +105,7 @@ class CastInstrWithFlags(instructions.CastInstr):
     # workaround: llvmlite's CastInstr doesn't support flags like 'trunc nsw' or 'zext nneg'
     def __init__(
         self,
-        parent: Block,
+        parent: LLVMBlock,
         op: str,
         val: Value,
         typ: Type,
@@ -144,6 +146,22 @@ def _convert_cast(
     )
     builder._insert(instr)
     val_map[op.results[0]] = instr
+
+
+_FCMP_CMP_MAP = {"eq": "==", "gt": ">", "ge": ">=", "lt": "<", "le": "<=", "ne": "!="}
+
+
+def _convert_fcmp(
+    op: llvm.FCmpOp, builder: ir.IRBuilder, val_map: dict[SSAValue, ir.Value]
+):
+    pred_int: int = op.predicate.value.data
+    flag = llvm.FCmpPredicateFlag.from_int(pred_int)
+    pred = flag.value
+    is_ordered = pred[0] == "o"
+    key = pred[1:]
+    cmpop = _FCMP_CMP_MAP.get(key, pred)
+    fn = builder.fcmp_ordered if is_ordered else builder.fcmp_unordered
+    val_map[op.results[0]] = fn(cmpop, val_map[op.lhs], val_map[op.rhs])
 
 
 def _convert_fabs(
@@ -253,6 +271,28 @@ def _convert_select(
     val_map[op.res] = builder.select(val_map[op.cond], val_map[op.lhs], val_map[op.rhs])
 
 
+def _convert_condbr(
+    op: llvm.CondBrOp,
+    builder: ir.IRBuilder,
+    val_map: dict[SSAValue, ir.Value],
+    block_map: dict[Block, LLVMBlock],
+):
+    then_block = op.then_block
+    else_block = op.else_block
+    parent = op.parent_block()
+    assert parent is not None
+    current_block = block_map[parent]
+    for arg, val in zip(then_block.args, op.then_arguments):
+        phi = val_map[arg]
+        assert isinstance(phi, PhiInstr)
+        phi.add_incoming(val_map[val], current_block)
+    for arg, val in zip(else_block.args, op.else_arguments):
+        phi = val_map[arg]
+        assert isinstance(phi, PhiInstr)
+        phi.add_incoming(val_map[val], current_block)
+    builder.cbranch(val_map[op.cond], block_map[then_block], block_map[else_block])
+
+
 def _convert_masked_store(
     op: llvm.MaskedStoreOp, builder: ir.IRBuilder, val_map: dict[SSAValue, ir.Value]
 ):
@@ -280,6 +320,7 @@ def convert_op(
     op: Operation,
     builder: ir.IRBuilder,
     val_map: dict[SSAValue, ir.Value],
+    block_map: dict[Block, LLVMBlock] | None = None,
 ):
     """
     Convert an xDSL operation to an llvmlite LLVM IR.
@@ -302,6 +343,8 @@ def convert_op(
             _convert_binop(op, builder, val_map)
         case llvm.ICmpOp():
             _convert_icmp(op, builder, val_map)
+        case llvm.FCmpOp():
+            _convert_fcmp(op, builder, val_map)
         case op if type(op) in _CAST_OP_NAMES:
             _convert_cast(op, builder, val_map)
         case llvm.FAbsOp():
@@ -330,6 +373,8 @@ def convert_op(
             _convert_getelementptr(op, builder, val_map)
         case llvm.InlineAsmOp():
             _convert_inline_asm(op, builder, val_map)
+        case llvm.CondBrOp() if block_map is not None:
+            _convert_condbr(op, builder, val_map, block_map)
         case llvm.UnreachableOp():
             builder.unreachable()
         case llvm.SelectOp():

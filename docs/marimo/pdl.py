@@ -77,7 +77,7 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(Parser, builtin, ctx, xmo):
     first_text = """
-    func.func @first(%x : i32) -> i32 {
+    func.func @first(%x: i32) -> i32 {
       %c0 = arith.constant 0 : i32
       %y = arith.muli %x, %c0 : i32
       func.return %y : i32
@@ -85,7 +85,7 @@ def _(Parser, builtin, ctx, xmo):
     """
 
     second_text = """
-    func.func @second(%x : i32) -> i32 {
+    func.func @second(%x: i32) -> i32 {
       %c0 = arith.constant 0 : i32
       func.return %c0 : i32
     }
@@ -462,7 +462,7 @@ def _(mo, xmo):
 @app.cell
 def _():
     expected_text = """\
-    func.func @main(%a : f64, %b : f64, %c : f64) -> f64 {
+    func.func @main(%a: f64, %b: f64, %c: f64) -> f64 {
       func.return %c : f64
     }"""
     return (expected_text,)

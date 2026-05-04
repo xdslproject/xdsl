@@ -125,7 +125,7 @@ builtin.module {
 %pval, %ptensor, %dim1, %dim2 = "test.op"() : () -> (f32, tensor<12x20x20xf32>, index, index) 
 // CHECK: number of dynamic sizes (2) must equal number of unknown dimensions in result tensor (1)
 %padded = tensor.pad %ptensor low[1, %dim1, 2] high[%dim2, %dim2, 3] {
-  ^bb0(%arg0 : index, %arg1 : index, %arg2 : index):
+  ^bb0(%arg0: index, %arg1: index, %arg2: index):
     tensor.yield %pval : f32
   } : tensor<12x20x20xf32> to tensor<?x20x25xf32>
 
@@ -133,7 +133,7 @@ builtin.module {
 %pval, %ptensor, %dim1, %dim2 = "test.op"() : () -> (f32, tensor<12x20x20xf32>, index, index) 
 // CHECK: dynamic dimensions (0, 1) don't correspond with dynamic dimensions in the result tensor (0, 2)
 %padded = tensor.pad %ptensor low[1, %dim1, 2] high[%dim1, %dim2, 3] {
-  ^bb0(%arg0 : index, %arg1 : index, %arg2 : index):
+  ^bb0(%arg0: index, %arg1: index, %arg2: index):
     tensor.yield %pval : f32
   } : tensor<12x20x20xf32> to tensor<?x20x?xf32>
 
@@ -141,7 +141,7 @@ builtin.module {
 %pval, %ptensor, %dim1, %dim2 = "test.op"() : () -> (f32, tensor<12x20x20xf32>, index, index) 
 // CHECK: pad sizes low (2) and high (3) must have an equal number of dimensions
 %padded = tensor.pad %ptensor low[1, %dim1] high[%dim2, %dim2, 3] {
-  ^bb0(%arg0 : index, %arg1 : index, %arg2 : index):
+  ^bb0(%arg0: index, %arg1: index, %arg2: index):
     tensor.yield %pval : f32
   } : tensor<12x20x20xf32> to tensor<?x20x25xf32>
 
@@ -149,7 +149,7 @@ builtin.module {
 %pval, %ptensor, %dim1, %dim2 = "test.op"() : () -> (f32, tensor<12x20x20xf32>, index, index) 
 // CHECK: number of pad sizes (2) must equal number of dimensions in source tensor (3)
 %padded = tensor.pad %ptensor low[1, %dim1] high[2, %dim2] {
-  ^bb0(%arg0 : index, %arg1 : index, %arg2 : index):
+  ^bb0(%arg0: index, %arg1: index, %arg2: index):
     tensor.yield %pval : f32
   } : tensor<12x20x20xf32> to tensor<?x20x25xf32>
 
@@ -157,6 +157,6 @@ builtin.module {
 %pval, %ptensor, %dim1, %dim2 = "test.op"() : () -> (f32, tensor<12x20x20xf32>, index, index) 
 // CHECK: region must have an arg for each dimension of the source tensor (3) but region has (2)
 %padded = tensor.pad %ptensor low[1, %dim1, 2] high[%dim2, %dim2, 3] {
-  ^bb0(%arg0 : index, %arg1 : index):
+  ^bb0(%arg0: index, %arg1: index):
     tensor.yield %pval : f32
   } : tensor<12x20x20xf32> to tensor<?x?x25xf32>

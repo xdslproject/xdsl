@@ -16,7 +16,7 @@ func.func public @foo(%arg0: memref<8xf64>, %arg1: memref<8xf64>, %arg2: memref<
   return %arg2 : memref<f64>
 }
 
-// CHECK:       func.func public @foo(%arg0 : memref<8xf64>, %arg1 : memref<8xf64>, %arg2 : memref<f64>) -> memref<f64> {
+// CHECK:       func.func public @foo(%arg0: memref<8xf64>, %arg1: memref<8xf64>, %arg2: memref<f64>) -> memref<f64> {
 // CHECK-NEXT:      %c0 = arith.constant 0 : index
 // CHECK-NEXT:      %c8 = arith.constant 8 : index
 // CHECK-NEXT:      %c1 = arith.constant 1 : index
@@ -54,7 +54,7 @@ func.func public @foo(%arg0: memref<8xf64>, %arg1: memref<8xf64>, %arg2: memref<
   return %arg2 : memref<f64>
 }
 
-// CHECK:         func.func public @foo(%arg0 : memref<8xf64>, %arg1 : memref<8xf64>, %arg2 : memref<f64>, %arg3 : memref<f64>, %arg4 : memref<f64>) -> memref<f64> {
+// CHECK:         func.func public @foo(%arg0: memref<8xf64>, %arg1: memref<8xf64>, %arg2: memref<f64>, %arg3: memref<f64>, %arg4: memref<f64>) -> memref<f64> {
 // CHECK-NEXT:      %c0 = arith.constant 0 : index
 // CHECK-NEXT:      %c8 = arith.constant 8 : index
 // CHECK-NEXT:      %c1 = arith.constant 1 : index
@@ -96,7 +96,7 @@ func.func public @foo(%arg0: memref<8xf64>, %arg1: memref<8xf64>, %arg2: memref<
   return %arg2 : memref<f64>
 }
 
-// CHECK:         func.func public @foo(%arg0 : memref<8xf64>, %arg1 : memref<8xf64>, %arg2 : memref<f64>, %arg3 : memref<f64>, %arg4 : memref<f64>) -> memref<f64> {
+// CHECK:         func.func public @foo(%arg0: memref<8xf64>, %arg1: memref<8xf64>, %arg2: memref<f64>, %arg3: memref<f64>, %arg4: memref<f64>) -> memref<f64> {
 // CHECK-NEXT:      %c0 = arith.constant 0 : index
 // CHECK-NEXT:      %c8 = arith.constant 8 : index
 // CHECK-NEXT:      %c1 = arith.constant 1 : index

@@ -80,6 +80,7 @@ class ConvertPDLToPDLInterpPass(ModulePass):
 
     optimize_for_eqsat: bool = False
     print_debug_info: bool = False
+    convert_individually: bool = False
 
     def apply(self, ctx: Context, op: ModuleOp) -> None:
         patterns = [
@@ -88,15 +89,31 @@ class ConvertPDLToPDLInterpPass(ModulePass):
 
         rewriter_module = ModuleOp([], sym_name=StringAttr("rewriters"))
 
-        matcher_func = pdl_interp.FuncOp("matcher", ((pdl.OperationType(),), ()))
-        generator = MatcherGenerator(
-            matcher_func,
-            rewriter_module,
-            self.optimize_for_eqsat,
-            self.print_debug_info,
-        )
-        generator.lower(patterns)
-        op.body.block.add_op(matcher_func)
+        if self.convert_individually:
+            shared_rewriter_names: dict[str, int] = {}
+            for i, pattern in enumerate(patterns):
+                sym_name = pattern.sym_name
+                name = sym_name.data if sym_name is not None else f"matcher_{i}"
+                matcher_func = pdl_interp.FuncOp(name, ((pdl.OperationType(),), ()))
+                generator = MatcherGenerator(
+                    matcher_func,
+                    rewriter_module,
+                    self.optimize_for_eqsat,
+                    self.print_debug_info,
+                )
+                generator.rewriter_names = shared_rewriter_names
+                generator.lower([pattern])
+                op.body.block.add_op(matcher_func)
+        else:
+            matcher_func = pdl_interp.FuncOp("matcher", ((pdl.OperationType(),), ()))
+            generator = MatcherGenerator(
+                matcher_func,
+                rewriter_module,
+                self.optimize_for_eqsat,
+                self.print_debug_info,
+            )
+            generator.lower(patterns)
+            op.body.block.add_op(matcher_func)
 
         # Replace all pattern ops with the matcher func and rewriter module
         rewriter = Rewriter()

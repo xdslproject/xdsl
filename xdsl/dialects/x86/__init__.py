@@ -1,6 +1,5 @@
 from xdsl.ir import Dialect
 
-from .attributes import LabelAttr
 from .ops import (
     C_JaeOp,
     C_JaOp,
@@ -265,6 +264,5 @@ X86 = Dialect(
         AVX2RegisterType,
         AVX512RegisterType,
         AVX512MaskRegisterType,
-        LabelAttr,
     ],
 )

@@ -15,6 +15,7 @@ def test_multiverse():
 
     assert "plugin_dialect" in multiverse.all_dialects
     assert "plugin-pass" in multiverse.all_passes
+    assert "plugin-target" in multiverse.all_targets
 
     import my_plugin
 
@@ -41,3 +42,15 @@ def test_multiverse():
         Universe.get_multiverse()
 
     del XDSL_UNIVERSE.all_passes["plugin-pass"]
+
+    XDSL_UNIVERSE.all_targets["plugin-target"] = lambda: my_plugin.PluginTarget
+
+    with pytest.raises(
+        ValueError,
+        match=re.escape(
+            "Duplicate definition of plugin-target in ['my_plugin', 'xdsl']."
+        ),
+    ):
+        Universe.get_multiverse()
+
+    del XDSL_UNIVERSE.all_targets["plugin-target"]

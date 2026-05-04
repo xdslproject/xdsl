@@ -21,7 +21,7 @@
 
 %pval, %ptensor = "test.op"() : () -> (f32, tensor<12x20x20xf32>) 
 %padded = tensor.pad %ptensor low[1, %dim1, 2] high[%dim2, 3, 3] {
-  ^bb0(%arg0 : index, %arg1 : index, %arg2 : index):
+  ^bb0(%arg0: index, %arg1: index, %arg2: index):
     tensor.yield %pval : f32
   } : tensor<12x20x20xf32> to tensor<?x?x25xf32>
 
@@ -43,7 +43,7 @@
 // CHECK-NEXT:   %v2 = tensor.splat %s[%index, %index1] : tensor<?x8x?xf32>
 // CHECK-NEXT:  %pval, %ptensor = "test.op"() : () -> (f32, tensor<12x20x20xf32>) 
 // CHECK-NEXT:  %padded = tensor.pad %ptensor low[1, %dim1, 2] high[%dim2, 3, 3] {
-// CHECK-NEXT:    ^bb0(%arg0 : index, %arg1 : index, %arg2 : index):
+// CHECK-NEXT:    ^bb0(%arg0: index, %arg1: index, %arg2: index):
 // CHECK-NEXT:      tensor.yield %pval : f32
 // CHECK-NEXT:    } : tensor<12x20x20xf32> to tensor<?x?x25xf32>
 // CHECK-NEXT: }
@@ -66,7 +66,7 @@
 // CHECK-GENERIC-NEXT:   %v2 = "tensor.splat"(%s, %index, %index1) : (f32, index, index) -> tensor<?x8x?xf32>
 // CHECK-GENERIC-NEXT:   %pval, %ptensor = "test.op"() : () -> (f32, tensor<12x20x20xf32>)
 // CHECK-GENERIC-NEXT:   %padded = "tensor.pad"(%ptensor, %dim1, %dim2) <{static_low = array<i64: 1, -9223372036854775808, 2>, static_high = array<i64: -9223372036854775808, 3, 3>, operandSegmentSizes = array<i32: 1, 1, 1>}> ({
-// CHECK-GENERIC-NEXT:    ^bb0(%arg0 : index, %arg1 : index, %arg2 : index):
+// CHECK-GENERIC-NEXT:    ^bb0(%arg0: index, %arg1: index, %arg2: index):
 // CHECK-GENERIC-NEXT:     "tensor.yield"(%pval) : (f32) -> ()
 // CHECK-GENERIC-NEXT:    }) : (tensor<12x20x20xf32>, index, index) -> tensor<?x?x25xf32>
 // CHECK-GENERIC-NEXT: }) : () -> ()

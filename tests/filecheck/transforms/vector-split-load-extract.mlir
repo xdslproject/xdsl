@@ -1,7 +1,7 @@
 // RUN: xdsl-opt -p vector-split-load-extract %s | filecheck %s
 
 // CHECK-LABEL: @do_split
-func.func @do_split(%ptr : !ptr_xdsl.ptr) {
+func.func @do_split(%ptr: !ptr_xdsl.ptr) {
 // CHECK-NEXT:      %vector = arith.constant 12 : index
 // CHECK-NEXT:      %vector_1 = ptr_xdsl.ptradd %ptr, %vector : (!ptr_xdsl.ptr, index) -> !ptr_xdsl.ptr
 // CHECK-NEXT:      %vector_2 = ptr_xdsl.load %vector_1 : !ptr_xdsl.ptr -> f32
@@ -22,7 +22,7 @@ func.func @do_split(%ptr : !ptr_xdsl.ptr) {
 }
 
 // CHECK-LABEL: @do_not_split
-func.func @do_not_split(%ptr : !ptr_xdsl.ptr) {
+func.func @do_not_split(%ptr: !ptr_xdsl.ptr) {
 // CHECK-NEXT:      %vector = ptr_xdsl.load %ptr : !ptr_xdsl.ptr -> vector<4xf32>
 // CHECK-NEXT:      %f0 = vector.extract %vector[1] : f32 from vector<4xf32>
     %vector = ptr_xdsl.load %ptr : !ptr_xdsl.ptr -> vector<4xf32>

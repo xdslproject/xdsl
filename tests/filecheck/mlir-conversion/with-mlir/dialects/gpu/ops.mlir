@@ -6,7 +6,7 @@
             %n = "arith.constant"() {"value" = 13 : index} : () -> index
             %one = arith.constant {"loopdim" = #gpu.loop_dim_map<processor = thread_x, map = (d0) -> (d0), bound = (d0) -> (d0)>} 1 : index
 
-            %memref = "memref.alloc"() {"alignment" = 0 : i64, operandSegmentSizes = array<i32: 0, 0>} : () -> memref<10x10xi32>
+            %memref = "memref.alloc"() {operandSegmentSizes = array<i32: 0, 0>} : () -> memref<10x10xi32>
             %unranked = "memref.cast"(%memref) : (memref<10x10xi32>) -> memref<*xi32>
             "gpu.host_register"(%unranked) : (memref<*xi32>) -> ()
             "gpu.host_unregister"(%unranked) : (memref<*xi32>) -> ()
@@ -53,7 +53,7 @@
             }) {"op" = #gpu<all_reduce_op mul>} : (i32) -> i32
 
             %globalsumy = "gpu.all_reduce"(%dev) ({
-            ^bb(%lhs : i32, %rhs : i32):
+            ^bb(%lhs: i32, %rhs: i32):
                 %sum = "arith.addi"(%lhs, %rhs) : (i32, i32) -> i32
                 "gpu.yield"(%sum) : (i32) -> ()
             }) : (i32) -> i32
@@ -62,7 +62,7 @@
             ^bb0(%bx : index, %by : index, %bz : index,
                 %tx : index, %ty : index, %tz : index,
                 %num_bx : index, %num_by : index, %num_bz : index,
-                %num_tx : index, %num_ty : index, %num_tz : index):
+                %num_tx : index, %num_ty: index, %num_tz: index):
                 %sum = "gpu.all_reduce"(%dev) ({
                 }) {"op" = #gpu<all_reduce_op add>} : (i32) -> i32
                 %final = "arith.muli"(%sum, %dev) : (i32, i32) -> i32
@@ -84,7 +84,7 @@
 // CHECK-NEXT:         "func.func"() <{function_type = () -> (), sym_name = "kernel"}> ({
 // CHECK-NEXT:             %{{.*}} = "arith.constant"() <{value = 13 : index}> : () -> index
 // CHECK-NEXT:             %{{.*}} = "arith.constant"() <{value = 1 : index}> {loopdim = #gpu.loop_dim_map<processor = thread_x, map = (d0) -> (d0), bound = (d0) -> (d0)>} : () -> index
-// CHECK-NEXT:             %{{.*}} = "memref.alloc"() <{alignment = 0 : i64, operandSegmentSizes = array<i32: 0, 0>}> : () -> memref<10x10xi32>
+// CHECK-NEXT:             %{{.*}} = "memref.alloc"() <{operandSegmentSizes = array<i32: 0, 0>}> : () -> memref<10x10xi32>
 // CHECK-NEXT:             %{{.*}} = "memref.cast"(%{{.*}}) : (memref<10x10xi32>) -> memref<*xi32>
 // CHECK-NEXT:             "gpu.host_register"(%{{.*}}) : (memref<*xi32>) -> ()
 // CHECK-NEXT:             "gpu.host_unregister"(%{{.*}}) : (memref<*xi32>) -> ()
@@ -131,16 +131,16 @@
 // CHECK-NEXT:             }) : (i32) -> i32
 
 // CHECK-NEXT:             %{{.*}} = "gpu.all_reduce"(%{{.*}}) ({
-// CHECK-NEXT:             ^{{.*}}(%{{.*}} : i32, %{{.*}} : i32):
+// CHECK-NEXT:             ^{{.*}}(%{{.*}}: i32, %{{.*}}: i32):
 // CHECK-NEXT:                 %{{.*}} = "arith.addi"(%{{.*}}, %{{.*}}) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
 // CHECK-NEXT:                 "gpu.yield"(%{{.*}}) : (i32) -> ()
 // CHECK-NEXT:             }) : (i32) -> i32
 
 // CHECK-NEXT:             "gpu.launch"(%{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}) <{operandSegmentSizes = array<i32: 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0>}> ({
-// CHECK-NEXT:             ^{{\S+}}(%{{\S+}} : index, %{{\S+}} : index, %{{\S+}} : index,
-// CHECK-SAME:                 %{{\S+}} : index, %{{\S+}} : index, %{{\S+}} : index,
-// CHECK-SAME:                 %{{\S+}} : index, %{{\S+}} : index, %{{\S+}} : index,
-// CHECK-SAME:                 %{{\S+}} : index, %{{\S+}} : index, %{{\S+}} : index):
+// CHECK-NEXT:             ^{{\S+}}(%{{\S+}}: index, %{{\S+}}: index, %{{\S+}}: index,
+// CHECK-SAME:                 %{{\S+}}: index, %{{\S+}}: index, %{{\S+}}: index,
+// CHECK-SAME:                 %{{\S+}}: index, %{{\S+}}: index, %{{\S+}}: index,
+// CHECK-SAME:                 %{{\S+}}: index, %{{\S+}}: index, %{{\S+}}: index):
 // CHECK-NEXT:                 %{{.*}} = "gpu.all_reduce"(%{{.*}}) <{op = #gpu<all_reduce_op add>}> ({
 // CHECK-NEXT:             }) : (i32) -> i32
 // CHECK-NEXT:                 %{{.*}} = "arith.muli"(%{{.*}}, %{{.*}}) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32

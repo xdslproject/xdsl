@@ -3,7 +3,7 @@
 // This should not change with the pass applied.
 
 builtin.module{
-  func.func @copy(%in : !stencil.field<[-4,68]xf64>, %out : !stencil.field<[-4,68]xf64>) {
+  func.func @copy(%in: !stencil.field<[-4,68]xf64>, %out: !stencil.field<[-4,68]xf64>) {
     %int = stencil.load %in : !stencil.field<[-4,68]xf64> -> !stencil.temp<?xf64>
     %outt = stencil.apply(%inb = %int : !stencil.temp<?xf64>) -> (!stencil.temp<?xf64>) {
       %v = stencil.access %inb[-1] : !stencil.temp<?xf64>
@@ -13,7 +13,7 @@ builtin.module{
     func.return
   }
 
-// CHECK:         func.func @copy(%in : !stencil.field<[-4,68]xf64>, %out : !stencil.field<[-4,68]xf64>) {
+// CHECK:         func.func @copy(%in: !stencil.field<[-4,68]xf64>, %out: !stencil.field<[-4,68]xf64>) {
 // CHECK-NEXT:      %int = stencil.load %in : !stencil.field<[-4,68]xf64> -> !stencil.temp<?xf64>
 // CHECK-NEXT:      %outt = stencil.apply(%inb = %int : !stencil.temp<?xf64>) -> (!stencil.temp<?xf64>) {
 // CHECK-NEXT:        %v = stencil.access %inb[-1] : !stencil.temp<?xf64>
@@ -25,7 +25,7 @@ builtin.module{
 
  // Here we want to see a buffer added after the first apply.
 
-  func.func @buffer_copy(%in : !stencil.field<[-4,68]xf64>, %out : !stencil.field<[-4,68]xf64>) {
+  func.func @buffer_copy(%in: !stencil.field<[-4,68]xf64>, %out: !stencil.field<[-4,68]xf64>) {
     %int = stencil.load %in : !stencil.field<[-4,68]xf64> -> !stencil.temp<?xf64>
     %midt = stencil.apply(%inb = %int : !stencil.temp<?xf64>) -> (!stencil.temp<?xf64>) {
       %v = stencil.access %inb[-1] : !stencil.temp<?xf64>
@@ -39,7 +39,7 @@ builtin.module{
     func.return
   }
 
-// CHECK:         func.func @buffer_copy(%in : !stencil.field<[-4,68]xf64>, %out : !stencil.field<[-4,68]xf64>) {
+// CHECK:         func.func @buffer_copy(%in: !stencil.field<[-4,68]xf64>, %out: !stencil.field<[-4,68]xf64>) {
 // CHECK-NEXT:      %int = stencil.load %in : !stencil.field<[-4,68]xf64> -> !stencil.temp<?xf64>
 // CHECK-NEXT:      %midt = stencil.apply(%inb = %int : !stencil.temp<?xf64>) -> (!stencil.temp<?xf64>) {
 // CHECK-NEXT:        %v = stencil.access %inb[-1] : !stencil.temp<?xf64>
@@ -56,7 +56,7 @@ builtin.module{
 
   // Here we don't want to see a buffer added after the apply, because the result is stored.
 
-  func.func @stored_copy(%in : !stencil.field<[-4,68]xf64>, %midout : !stencil.field<[-4,68]xf64>, %out : !stencil.field<[-4,68]xf64>) {
+  func.func @stored_copy(%in: !stencil.field<[-4,68]xf64>, %midout: !stencil.field<[-4,68]xf64>, %out: !stencil.field<[-4,68]xf64>) {
     %int = stencil.load %in : !stencil.field<[-4,68]xf64> -> !stencil.temp<?xf64>
     %midt = stencil.apply(%inb = %int : !stencil.temp<?xf64>) -> (!stencil.temp<?xf64>) {
       %v = stencil.access %inb[-1] : !stencil.temp<?xf64>
@@ -71,7 +71,7 @@ builtin.module{
     func.return
   }
 
-// CHECK:         func.func @stored_copy(%in : !stencil.field<[-4,68]xf64>, %midout : !stencil.field<[-4,68]xf64>, %out : !stencil.field<[-4,68]xf64>) {
+// CHECK:         func.func @stored_copy(%in: !stencil.field<[-4,68]xf64>, %midout: !stencil.field<[-4,68]xf64>, %out: !stencil.field<[-4,68]xf64>) {
 // CHECK-NEXT:      %int = stencil.load %in : !stencil.field<[-4,68]xf64> -> !stencil.temp<?xf64>
 // CHECK-NEXT:      %midt = stencil.apply(%inb = %int : !stencil.temp<?xf64>) -> (!stencil.temp<?xf64>) {
 // CHECK-NEXT:        %v = stencil.access %inb[-1] : !stencil.temp<?xf64>
@@ -86,7 +86,7 @@ builtin.module{
 // CHECK-NEXT:      func.return
 // CHECK-NEXT:    }
 
-  func.func @combine(%0 : !stencil.field<?x?xf64>) {
+  func.func @combine(%0: !stencil.field<?x?xf64>) {
     %1 = stencil.cast %0 : !stencil.field<?x?xf64> -> !stencil.field<[-3,67]x[-3,67]xf64>
     %2 = stencil.apply() -> (!stencil.temp<[1,33]x[2,66]xf64>) {
       %3 = arith.constant 1.000000e+00 : f64
@@ -107,7 +107,7 @@ builtin.module{
     func.return
   }
 
-// CHECK:         func.func @combine(%0 : !stencil.field<?x?xf64>) {
+// CHECK:         func.func @combine(%0: !stencil.field<?x?xf64>) {
 // CHECK-NEXT:      %1 = stencil.cast %0 : !stencil.field<?x?xf64> -> !stencil.field<[-3,67]x[-3,67]xf64>
 // CHECK-NEXT:      %2 = stencil.apply() -> (!stencil.temp<[1,33]x[2,66]xf64>) {
 // CHECK-NEXT:        %3 = arith.constant 1.000000e+00 : f64

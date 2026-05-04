@@ -1,6 +1,6 @@
 // RUN: xdsl-opt -p convert-scf-to-x86-scf %s | filecheck %s
 
-// CHECK-LABEL:    func.func @nested(%src : index, %dst : index) {
+// CHECK-LABEL:    func.func @nested(%src: index, %dst: index) {
 //  CHECK-NEXT:      %zero_outer = arith.constant 0 : index
 //  CHECK-NEXT:      %step_outer = arith.constant 4 : index
 //  CHECK-NEXT:      %forty_outer = arith.constant 40 : index
