@@ -1,5 +1,6 @@
 import pytest
 
+from xdsl.backend.register_type import RegisterAllocatedMemoryEffect
 from xdsl.dialects import x86
 from xdsl.dialects.builtin import IntegerAttr, StringAttr
 from xdsl.dialects.x86.ops import (
@@ -40,7 +41,12 @@ from xdsl.dialects.x86.ops import (
     si32,
 )
 from xdsl.ir import Block, Operation
-from xdsl.traits import MemoryReadEffect
+from xdsl.traits import (
+    MemoryEffect,
+    MemoryReadEffect,
+    MemoryWriteEffect,
+    NoMemoryEffect,
+)
 from xdsl.transforms.canonicalization_patterns.x86 import get_constant_value
 from xdsl.utils.test_value import create_ssa_value
 
@@ -436,3 +442,123 @@ def test_conditional_jump_numeric_label_not_implemented():
         op.assembly_line_args()
     label_op.label = StringAttr("hello")
     assert op.assembly_line_args() == ("hello",)
+
+
+def test_effect_traits():
+    """
+    Check effects of operations in the x86 dialect.
+    """
+    operations = tuple(x86.X86.operations)
+    effects_ops = {op for op in operations if op.has_trait(MemoryEffect)}
+    unknown_effects_ops = {op for op in operations if op not in effects_ops}
+
+    # Sentinels to remind us to update this test when updating the dialect
+    assert len(effects_ops) == 137
+    assert not unknown_effects_ops
+
+    all_effects_trait_types = {
+        type(trait)
+        for op in effects_ops
+        for trait in op.get_traits_of_type(MemoryEffect)
+    }
+
+    # Check below separately for each of these
+    assert all_effects_trait_types == {
+        MemoryReadEffect,
+        MemoryWriteEffect,
+        RegisterAllocatedMemoryEffect,
+    }
+
+    register_effects_ops = {
+        op for op in effects_ops if op.has_trait(RegisterAllocatedMemoryEffect)
+    }
+    memory_read_effects_ops = {
+        op for op in effects_ops if op.has_trait(MemoryReadEffect)
+    }
+    memory_write_effects_ops = {
+        op for op in effects_ops if op.has_trait(MemoryWriteEffect)
+    }
+    no_effects_ops = {op for op in effects_ops if op.has_trait(NoMemoryEffect)}
+
+    assert len(register_effects_ops) == 137
+    assert memory_read_effects_ops == {
+        x86.ops.DM_LeaOp,
+        x86.ops.DMK_VmovapsOp,
+        x86.ops.MS_AddOp,
+        x86.ops.MS_VmovntpsOp,
+        x86.ops.MI_SubOp,
+        x86.ops.RSM_Vfmadd231pdOp,
+        x86.ops.M_IncOp,
+        x86.ops.RM_AndOp,
+        x86.ops.DM_VmovupdOp,
+        x86.ops.M_IDivOp,
+        x86.ops.MS_OrOp,
+        x86.ops.SM_CmpOp,
+        x86.ops.MI_XorOp,
+        x86.ops.M_ImulOp,
+        x86.ops.M_NotOp,
+        x86.ops.MS_VmovupdOp,
+        x86.ops.DM_MovOp,
+        x86.ops.DMK_VmovupdOp,
+        x86.ops.MS_VmovntpdOp,
+        x86.ops.MI_CmpOp,
+        x86.ops.MI_AddOp,
+        x86.ops.DMI_ImulOp,
+        x86.ops.RM_AddOp,
+        x86.ops.DM_VmovapsOp,
+        x86.ops.RM_ImulOp,
+        x86.ops.DM_VbroadcastssOp,
+        x86.ops.MS_AndOp,
+        x86.ops.RSM_Vfmadd231psOp,
+        x86.ops.MI_OrOp,
+        x86.ops.MS_VmovapsOp,
+        x86.ops.M_NegOp,
+        x86.ops.RM_XorOp,
+        x86.ops.DMK_VmovapdOp,
+        x86.ops.MS_MovOp,
+        x86.ops.MS_CmpOp,
+        x86.ops.M_DecOp,
+        x86.ops.RM_SubOp,
+        x86.ops.DM_VmovapdOp,
+        x86.ops.DMK_VmovupsOp,
+        x86.ops.MS_SubOp,
+        x86.ops.DM_VbroadcastsdOp,
+        x86.ops.MI_AndOp,
+        x86.ops.MS_VmovapdOp,
+        x86.ops.RM_OrOp,
+        x86.ops.DM_VmovupsOp,
+        x86.ops.MS_XorOp,
+        x86.ops.MI_MovOp,
+        x86.ops.MS_VmovupsOp,
+    }
+    assert memory_write_effects_ops == {
+        x86.ops.MI_AndOp,
+        x86.ops.MSK_VmovupsOp,
+        x86.ops.M_IncOp,
+        x86.ops.MSK_VmovupdOp,
+        x86.ops.MS_XorOp,
+        x86.ops.MI_MovOp,
+        x86.ops.MS_AddOp,
+        x86.ops.MI_SubOp,
+        x86.ops.MS_OrOp,
+        x86.ops.MSK_VmovapdOp,
+        x86.ops.M_NotOp,
+        x86.ops.MS_VmovupdOp,
+        x86.ops.MI_XorOp,
+        x86.ops.MS_VmovntpsOp,
+        x86.ops.MI_AddOp,
+        x86.ops.MS_VmovapsOp,
+        x86.ops.MS_AndOp,
+        x86.ops.MSK_VmovapsOp,
+        x86.ops.M_NegOp,
+        x86.ops.MI_OrOp,
+        x86.ops.M_PopOp,
+        x86.ops.MS_VmovntpdOp,
+        x86.ops.M_DecOp,
+        x86.ops.MS_MovOp,
+        x86.ops.M_PushOp,
+        x86.ops.MS_VmovapdOp,
+        x86.ops.MS_VmovupsOp,
+        x86.ops.MS_SubOp,
+    }
+    assert not no_effects_ops

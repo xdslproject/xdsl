@@ -6,7 +6,14 @@ from xdsl import ir
 from xdsl.dialects import riscv, riscv_scf, test
 from xdsl.dialects.builtin import IntegerAttr
 from xdsl.dialects.riscv.attrs import i12
-from xdsl.traits import EffectInstance, MemoryEffect, MemoryEffectKind, get_effects
+from xdsl.traits import (
+    EffectInstance,
+    MemoryEffect,
+    MemoryEffectKind,
+    NoMemoryEffect,
+    RecursiveMemoryEffect,
+    get_effects,
+)
 from xdsl.utils.test_value import create_ssa_value
 
 
@@ -122,3 +129,43 @@ def test_while_recursive_memory_effects(
     )
     op.verify()
     assert get_effects(op) == effects
+
+
+def test_effect_traits():
+    """
+    Check effects of operations in the riscv_scf dialect.
+    """
+    operations = tuple(riscv_scf.RISCV_Scf.operations)
+    effects_ops = {op for op in operations if op.has_trait(MemoryEffect)}
+    unknown_effects_ops = {op for op in operations if op not in effects_ops}
+
+    # Sentinels to remind us to update this test when updating the dialect
+    assert len(effects_ops) == 5
+    assert not unknown_effects_ops
+
+    all_effects_trait_types = {
+        type(trait)
+        for op in effects_ops
+        for trait in op.get_traits_of_type(MemoryEffect)
+    }
+
+    # Check below separately for each of these
+    assert all_effects_trait_types == {
+        RecursiveMemoryEffect,
+        NoMemoryEffect,
+    }
+
+    recursive_effects_ops = {
+        op for op in effects_ops if op.has_trait(RecursiveMemoryEffect)
+    }
+    no_effects_ops = {op for op in effects_ops if op.has_trait(NoMemoryEffect)}
+
+    assert recursive_effects_ops == {
+        riscv_scf.ForOp,
+        riscv_scf.RofOp,
+        riscv_scf.WhileOp,
+    }
+    assert no_effects_ops == {
+        riscv_scf.YieldOp,
+        riscv_scf.ConditionOp,
+    }
