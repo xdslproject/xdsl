@@ -8,6 +8,7 @@ from xdsl.dialects.builtin import (
     Float32Type,
     Float64Type,
     IntAttr,
+    NoneAttr,
     f32,
     f64,
     i32,
@@ -17,6 +18,7 @@ from xdsl.dialects.builtin import (
 from xdsl.ir import (
     Attribute,
     Dialect,
+    OpaqueSyntaxAttribute,
     ParametrizedAttribute,
     SpacedOpaqueSyntaxAttribute,
     TypeAttribute,
@@ -54,7 +56,7 @@ ValType: AnyOf = AnyOf([i32, i64, i128, f32, f64, FuncRefType, ExternRefType])
 
 
 @irdl_attr_definition
-class LimitType(ParametrizedAttribute):
+class LimitType(ParametrizedAttribute, OpaqueSyntaxAttribute, TypeAttribute):
     """
     Wasm limit type
     """
@@ -62,7 +64,23 @@ class LimitType(ParametrizedAttribute):
     name = "wasmssa.limit"
 
     min: IntAttr
-    max: IntAttr
+    max: IntAttr | NoneAttr
+
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
+        with parser.in_square_brackets():
+            min = parser.parse_integer(False, True)
+            parser.parse_punctuation(":")
+            max = parser.parse_optional_integer(False, True)
+        return [IntAttr(min), IntAttr(max) if max is not None else NoneAttr()]
+
+    def print_parameters(self, printer: Printer) -> None:
+        with printer.in_square_brackets():
+            printer.print_int(self.min.data)
+            printer.print_string(":")
+            if not isinstance(self.max, NoneAttr):
+                printer.print_string(" ")
+                printer.print_int(self.max.data)
 
 
 @irdl_attr_definition
