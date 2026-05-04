@@ -785,23 +785,3 @@ class PDLInterpFunctions(InterpreterFunctions):
                             op.operands[i] = original_to_call[operand.name_hint]
 
         return True, tuple([])
-
-
-    @impl_external("at_most_1_block")
-    def run_at_most_1_block(
-            self, interp: Interpreter, op: Operation, args: PythonValues
-    ) -> tuple[bool, tuple[...]]:
-        assert args
-        region = args[0]
-        assert isinstance(region, Region)
-
-        if len(region.blocks) != 1:
-            return False, tuple([])
-
-        block = region.block
-        yield_op = block.last_op
-        assert yield_op is not None
-
-        return len(yield_op.operands) == 1, tuple([])
-
-
