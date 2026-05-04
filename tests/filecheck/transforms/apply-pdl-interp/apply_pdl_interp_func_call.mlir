@@ -33,63 +33,89 @@ func.func @impl() -> i32 {
     func.return %test : i32
 }
 
-pdl_interp.func @matcher(%arg0: !pdl.operation) {
-  pdl_interp.check_operation_name of %arg0 is "func.call" -> ^bb1, ^bb6
-^bb1:
-  %1 = pdl_interp.apply_constraint "get_function_call"(%arg0 : !pdl.operation) : !pdl.operation -> ^bb2, ^bb30
-^bb2:
-  %2 = pdl_interp_region.get_region 0 of %1 : !pdl_region.region
-  %3 = pdl_interp.apply_constraint "replace_return_with_yield"(%2 : !pdl_region.region) : !pdl_region.region -> ^bb3, ^bb30
-^bb3:
-  %4 = pdl_interp.apply_constraint "get_arguments_of_function"(%1 : !pdl.operation) : !pdl.range<value> -> ^bb4, ^bb30
-^bb4:
-  %10 = pdl_interp.get_result 0 of %arg0
-  %11 = pdl_interp.get_value_type of %10 : !pdl.type
-  %12 = pdl_interp_region.create_operation_with_region "scf.execute_region"(%3 : !pdl_region.region) -> (%11 : !pdl.type)
-  pdl_interp.apply_constraint "replace_func_args_with_correct_definitions"(%12, %4 : !pdl.operation, !pdl.range<value>) : ^bb5, ^bb30
-^bb5:
-  pdl_interp.record_match @rewriters::@pdl_generated_rewriter_1(%arg0, %12 : !pdl.operation, !pdl.operation) : benefit(1) -> ^bb30
-^bb6:
-  pdl_interp.check_operation_name of %arg0 is "scf.if" -> ^bb7, ^bb10
-^bb7:
-  %20 = pdl_interp.get_operand 0 of %arg0
-  %21 = pdl_interp.get_defining_op of %20 : !pdl.value
-  pdl_interp.check_operation_name of %21 is "arith.constant" -> ^bb8, ^bb10
-^bb8:
-  %22 = pdl_interp.get_attribute "value" of %21
-  %23 = pdl_interp.create_attribute 1 : i1
-  pdl_interp.are_equal %22, %23 : !pdl.attribute -> ^bb9, ^bb10
-^bb9:
-  %24 = pdl_interp.get_result 0 of %arg0
-  %25 = pdl_interp.get_value_type of %24 : !pdl.type
-  pdl_interp.record_match @rewriters::@pdl_generated_rewriter_2(%arg0 , %25 : !pdl.operation, !pdl.type) : benefit(1) -> ^bb10
-^bb10:
-  pdl_interp.check_operation_name of %arg0 is "scf.execute_region" -> ^bb11, ^bb30
-^bb11:
-  pdl_interp.record_match @rewriters::@pdl_generated_rewriter_3(%arg0 : !pdl.operation) : benefit(1) -> ^bb30
-^bb30:
-  pdl_interp.finalize
-}
+  pdl_interp.func @matcher(%arg0 : !pdl.operation) {
+    pdl_interp.check_operation_name of %arg0 is "scf.if" -> ^bb0, ^bb11
+  ^bb1:
+    pdl_interp.finalize
+  ^bb0:
+    pdl_interp.check_result_count of %arg0 is 1 -> ^bb2, ^bb1
+  ^bb2:
+    %0 = pdl_interp.get_operand 0 of %arg0
+    pdl_interp.is_not_null %0 : !pdl.value -> ^bb3, ^bb1
+  ^bb3:
+    %1 = pdl_interp.get_result 0 of %arg0
+    pdl_interp.is_not_null %1 : !pdl.value -> ^bb4, ^bb1
+  ^bb4:
+    %3 = pdl_interp.get_value_type of %1 : !pdl.type
+    %2 = pdl_interp.get_defining_op of %0 : !pdl.value
+    pdl_interp.is_not_null %2 : !pdl.operation -> ^bb5, ^bb1
+  ^bb5:
+    pdl_interp.check_operation_name of %2 is "arith.constant" -> ^bb6, ^bb1
+  ^bb6:
+    %4 = pdl_interp.get_attribute "value" of %2
+    pdl_interp.is_not_null %4 : !pdl.attribute -> ^bb7, ^bb1
+  ^bb7:
+    %5 = pdl_interp.create_attribute 1 : i1
+    pdl_interp.are_equal %4, %5 : !pdl.attribute -> ^bb8, ^bb9
+  ^bb8:
+    pdl_interp.record_match @rewriters::@if_true_rewriter(%arg0, %3 : !pdl.operation, !pdl.type) : benefit(1) -> ^bb1
+  ^bb9:
+    %6 = pdl_interp.create_attribute 0 : i1
+    pdl_interp.are_equal %6, %4 : !pdl.attribute -> ^bb10, ^bb1
+  ^bb10:
+    pdl_interp.record_match @rewriters::@if_false_rewriter(%arg0, %3 : !pdl.operation, !pdl.type) : benefit(1) -> ^bb1
+  ^bb11:
+    pdl_interp.check_operation_name of %arg0 is "scf.execute_region" -> ^bb12, ^bb13
+  ^bb12:
+    pdl_interp.record_match @rewriters::@execute_region_rewriter(%arg0 : !pdl.operation) : benefit(1) -> ^bb1
+  ^bb13:
+    pdl_interp.check_operation_name of %arg0 is "func.call" -> ^bb14, ^bb1
+  ^bb14:
+    %7 = pdl_interp.apply_constraint "get_function_call"(%arg0 : !pdl.operation) : !pdl.operation -> ^bb15, ^bb1
+  ^bb15:
+    %8 = pdl_interp_region.get_region 0 of %7 : !pdl_region.region
+    %9 = pdl_interp.apply_constraint "replace_return_with_yield"(%8 : !pdl_region.region) : !pdl_region.region -> ^bb16, ^bb1
+  ^bb16:
+    %10 = pdl_interp.apply_constraint "get_arguments_of_function"(%7 : !pdl.operation) : !pdl.range<value> -> ^bb17, ^bb1
+  ^bb17:
+    %11 = pdl_interp.get_result 0 of %arg0
+    %12 = pdl_interp.get_value_type of %11 : !pdl.type
+    %13 = pdl_interp_region.create_operation_with_region "scf.execute_region"(%9 : !pdl_region.region) -> (%12 : !pdl.type)
+    pdl_interp.apply_constraint "replace_func_args_with_correct_definitions"(%13, %7, %arg0 : !pdl.operation, !pdl.operation, !pdl.operation) -> ^bb18, ^bb1
+  ^bb18:
+    pdl_interp.record_match @rewriters::@func_call_rewriter(%arg0, %13 : !pdl.operation, !pdl.operation) : benefit(1) -> ^bb1
+   }
+
 
 module @rewriters {
-    pdl_interp.func @pdl_generated_rewriter_1(%arg0 : !pdl.operation, %1 : !pdl.operation) {
-        %3 = pdl_interp.get_result 0 of %1
-        pdl_interp.replace %arg0 with (%3 : !pdl.value)
-        pdl_interp.finalize
-    }
-
-    pdl_interp.func @pdl_generated_rewriter_2(%arg0: !pdl.operation, %arg1 : !pdl.type) {
+    pdl_interp.func @if_true_rewriter(%arg0 : !pdl.operation, %arg1 : !pdl.type) {
       %0 = pdl_interp_region.get_region 0 of %arg0 : !pdl_region.region
       %1 = pdl_interp_region.create_operation_with_region "scf.execute_region"(%0 : !pdl_region.region) -> (%arg1 : !pdl.type)
       %2 = pdl_interp.get_result 0 of %1
+
       pdl_interp.replace %arg0 with (%2 : !pdl.value)
       pdl_interp.finalize
     }
 
-    pdl_interp.func @pdl_generated_rewriter_3(%arg0: !pdl.operation) {
+     pdl_interp.func @if_false_rewriter(%arg0 : !pdl.operation, %arg1 : !pdl.type) {
+      %0 = pdl_interp_region.get_region 1 of %arg0 : !pdl_region.region
+      %1 = pdl_interp_region.create_operation_with_region "scf.execute_region"(%0 : !pdl_region.region) -> (%arg1 : !pdl.type)
+      %2 = pdl_interp.get_result 0 of %1
+
+      pdl_interp.replace %arg0 with (%2 : !pdl.value)
+      pdl_interp.finalize
+    }
+
+    pdl_interp.func @execute_region_rewriter(%arg0: !pdl.operation) {
       %0 = pdl_interp_region.get_region 0 of %arg0 : !pdl_region.region
       %1 = pdl_interp_region.inline_region %arg0 with (%0 : !pdl_region.region)
       pdl_interp.replace %arg0 with (%1 : !pdl.value)
+      pdl_interp.finalize
+    }
+
+    pdl_interp.func @func_call_rewriter(%arg0 : !pdl.operation, %arg1 : !pdl.operation) {
+      %0 = pdl_interp.get_result 0 of %arg1
+      pdl_interp.replace %arg0 with (%0 : !pdl.value)
       pdl_interp.finalize
     }
 }
