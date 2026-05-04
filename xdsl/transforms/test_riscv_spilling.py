@@ -8,7 +8,11 @@ from xdsl.backend.riscv.register_stack import RiscvRegisterStack
 from xdsl.builder import Builder
 from xdsl.context import Context
 from xdsl.dialects import builtin, riscv, riscv_func
-from xdsl.dialects.riscv.registers import IntRegisterType
+from xdsl.dialects.riscv.registers import (
+    FloatRegisterType,
+    IntRegisterType,
+    RISCVRegisterType,
+)
 from xdsl.ir import Operation, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.rewriter import InsertPoint
@@ -21,11 +25,14 @@ class SpillPass(ModulePass):
         for func_op in op.walk():
             if not isinstance(func_op, riscv_func.FuncOp):
                 continue
-            self.spill_values(func_op)
+            self.spill_values(func_op, IntRegisterType)
+            self.spill_values(func_op, FloatRegisterType)
 
-    def spill_values(self, func_op: riscv_func.FuncOp):
+    def spill_values(
+        self, func_op: riscv_func.FuncOp, base_reg_type: type[RISCVRegisterType]
+    ):
         total_regs = len(
-            RiscvRegisterStack.get().available_registers[IntRegisterType.name]
+            RiscvRegisterStack.get().available_registers[base_reg_type.name]
         )
         loaded_values = OrderedSet[SSAValue]([])
 
@@ -33,7 +40,7 @@ class SpillPass(ModulePass):
 
         for inner_op in func_op.walk():
             uses = OrderedSet(
-                i for i in inner_op.operands if isinstance(i.type, IntRegisterType)
+                i for i in inner_op.operands if isinstance(i.type, base_reg_type)
             )
             free_values = iter(loaded_values - uses)  # values that we can use to spill
 
@@ -55,7 +62,7 @@ class SpillPass(ModulePass):
 
             # Process definitions
             defns = OrderedSet(
-                i for i in inner_op.results if isinstance(i.type, IntRegisterType)
+                i for i in inner_op.results if isinstance(i.type, base_reg_type)
             )
             if len(loaded_values | defns) > total_regs:
                 # spill excess regs
@@ -75,7 +82,15 @@ class SpillPass(ModulePass):
 
         builder = Builder(InsertPoint.before(inner_op))
         for spill_val in spills:
-            alloca_op = riscv.stack.AllocaOp(builtin.i32)
+            if isinstance(spill_val.type, IntRegisterType):
+                alloca_op = riscv.stack.AllocaOp(builtin.i32)
+            elif isinstance(spill_val.type, FloatRegisterType):
+                alloca_op = riscv.stack.AllocaOp(builtin.f32)
+            else:
+                raise NotImplementedError(
+                    f"Unsupported register type: {spill_val.type}."
+                    "Only int and float regs supported"
+                )
             spill_op = riscv.stack.StoreOp(alloca_op, spill_val)
             builder.insert_op(alloca_op)
             builder.insert_op(spill_op)
