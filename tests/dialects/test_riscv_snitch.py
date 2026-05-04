@@ -123,8 +123,8 @@ def test_effect_traits():
     unknown_effects_ops = {op for op in operations if op not in effects_ops}
 
     # Sentinels to remind us to update this test when updating the dialect
-    assert len(effects_ops) == 14
-    assert len(unknown_effects_ops) == 12
+    assert len(effects_ops) == 26
+    assert not unknown_effects_ops
 
     all_effects_trait_types = {
         type(trait)
@@ -155,8 +155,21 @@ def test_effect_traits():
     }
     no_effects_ops = {op for op in effects_ops if op.has_trait(NoMemoryEffect)}
 
-    assert memory_read_effects_ops == {riscv_snitch.ReadOp}
+    assert memory_read_effects_ops == {
+        riscv_snitch.DMCopyImmOp,
+        riscv_snitch.DMCopyOp,
+        riscv_snitch.DMStatImmOp,
+        riscv_snitch.DMStatOp,
+        riscv_snitch.ReadOp,
+    }
     assert memory_write_effects_ops == {
+        riscv_snitch.DMCopyImmOp,
+        riscv_snitch.DMCopyOp,
+        riscv_snitch.DMDestinationOp,
+        riscv_snitch.DMDestinationOp,
+        riscv_snitch.DMRepOp,
+        riscv_snitch.DMSourceOp,
+        riscv_snitch.DMStrideOp,
         riscv_snitch.ReadOp,
         riscv_snitch.ScfgwiOp,
         riscv_snitch.ScfgwOp,
@@ -167,14 +180,23 @@ def test_effect_traits():
         riscv_snitch.FrepInnerOp,
     }
     assert register_allocated_memory_effects_ops == {
-        riscv_snitch.VFMulHOp,
-        riscv_snitch.VFSubHOp,
-        riscv_snitch.VFMulSOp,
-        riscv_snitch.VFMaxSOp,
+        riscv_snitch.DMCopyImmOp,
+        riscv_snitch.DMCopyOp,
+        riscv_snitch.DMStatImmOp,
+        riscv_snitch.DMStatOp,
         riscv_snitch.VFAddHOp,
         riscv_snitch.VFAddSOp,
+        riscv_snitch.VFCpkASSOp,
+        riscv_snitch.VFMacSOp,
+        riscv_snitch.VFMacSOp,
+        riscv_snitch.VFMaxSOp,
+        riscv_snitch.VFMulHOp,
+        riscv_snitch.VFMulSOp,
+        riscv_snitch.VFSubHOp,
         riscv_snitch.VFSubSOp,
+        riscv_snitch.VFSumSOp,
     }
     assert no_effects_ops == {
         riscv_snitch.FrepYieldOp,
+        riscv_snitch.GetStreamOp,
     }
