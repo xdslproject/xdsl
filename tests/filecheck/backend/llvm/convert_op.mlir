@@ -918,6 +918,30 @@ builtin.module {
   // CHECK-NEXT:   ret void
   // CHECK-NEXT: }
 
+  llvm.func @shuffle_vector_f32(%arg0: vector<4xf32>, %arg1: vector<4xf32>) -> vector<4xf32> {
+    %res = llvm.shufflevector %arg0, %arg1 [0, 0, 0, 0] : vector<4xf32>
+    llvm.return %res : vector<4xf32>
+  }
+
+  // CHECK: define <4 x float> @"shuffle_vector_f32"(<4 x float> %".1", <4 x float> %".2")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: [[ENTRY:.\d+]]:
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = shufflevector <4 x float> %".1", <4 x float> %".2", <4 x i32> <i32 0, i32 0, i32 0, i32 0>
+  // CHECK-NEXT:   ret <4 x float> %"[[RES]]"
+  // CHECK-NEXT: }
+
+  llvm.func @shuffle_vector_different_sizes(%arg0: vector<4xf32>, %arg1: vector<4xf32>) -> vector<2xf32> {
+    %res = llvm.shufflevector %arg0, %arg1 [0, 5] : vector<4xf32>
+    llvm.return %res : vector<2xf32>
+  }
+
+  // CHECK: define <2 x float> @"shuffle_vector_different_sizes"(<4 x float> %".1", <4 x float> %".2")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: [[ENTRY:.\d+]]:
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = shufflevector <4 x float> %".1", <4 x float> %".2", <2 x i32> <i32 0, i32 5>
+  // CHECK-NEXT:   ret <2 x float> %"[[RES]]"
+  // CHECK-NEXT: }
+
   llvm.func @callee(!llvm.ptr)
 
   llvm.func @addressof_target() {
@@ -935,6 +959,18 @@ builtin.module {
   // CHECK-NEXT: [[ENTRY:.\d+]]:
   // CHECK-NEXT:   call ccc void @"callee"(void ()* @"addressof_target")
   // CHECK-NEXT:   ret void
+  // CHECK-NEXT: }
+
+  llvm.func @insert_element(%arg0: vector<4xf32>, %arg1: f32, %arg2: i32) -> vector<4xf32> {
+    %0 = llvm.insertelement %arg1, %arg0[%arg2 : i32] : vector<4xf32>
+    llvm.return %0 : vector<4xf32>
+  }
+
+  // CHECK: define <4 x float> @"insert_element"(<4 x float> %".1", float %".2", i32 %".3")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: [[ENTRY:.\d+]]:
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = insertelement <4 x float> %".1", float %".2", i32 %".3"
+  // CHECK-NEXT:   ret <4 x float> %"[[RES]]"
   // CHECK-NEXT: }
 
   llvm.func @broadcast_f32(%arg0: f32) -> vector<4xf32> {

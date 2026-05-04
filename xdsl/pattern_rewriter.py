@@ -206,6 +206,7 @@ class PatternRewriter(Builder, PatternRewriterListener):
         for op in tracking.modified_ops:
             self.handle_operation_modification(op)
 
+    @deprecated("Please use `replace_op(op, new_op)`")
     def replace_matched_op(
         self,
         new_ops: Operation | Sequence[Operation],

@@ -2614,8 +2614,8 @@ class Region(_IRNode):
         """
         Erase the region, and remove all its references to other operations.
         """
-        assert self.parent, (
-            "Regions with parents should first be " + "detached before erasure."
+        assert self.parent is None, (
+            "Regions with parents should first be detached before erasure."
         )
         self.drop_all_references()
 
