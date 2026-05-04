@@ -1360,4 +1360,104 @@ builtin.module {
   // CHECK:       func.func @shutdown_full(
   // CHECK:         acc.shutdown device_num(%{{.*}} : index) if(%{{.*}}) attributes {device_types = [#acc.device_type<default>]}
 
+  // acc.set — three optional operand clauses (default_async, device_num,
+  // if_cond) plus a single (non-array) `device_type` property routed
+  // through `attr-dict-with-keyword`.
+  func.func @set_dt() {
+    acc.set attributes {device_type = #acc.device_type<nvidia>}
+    func.return
+  }
+  // CHECK:       func.func @set_dt() {
+  // CHECK-NEXT:    acc.set attributes {device_type = #acc.device_type<nvidia>}
+
+  func.func @set_default_async(%da : i32) {
+    acc.set default_async(%da : i32)
+    func.return
+  }
+  // CHECK:       func.func @set_default_async(
+  // CHECK:         acc.set default_async(%{{.*}} : i32)
+
+  func.func @set_device_num(%dn : i64) {
+    acc.set device_num(%dn : i64)
+    func.return
+  }
+  // CHECK:       func.func @set_device_num(
+  // CHECK:         acc.set device_num(%{{.*}} : i64)
+
+  func.func @set_if(%da : i32, %c : i1) {
+    acc.set default_async(%da : i32) if(%c)
+    func.return
+  }
+  // CHECK:       func.func @set_if(
+  // CHECK:         acc.set default_async(%{{.*}} : i32) if(%{{.*}})
+
+  // `set_full` uses `index` for `device_num` so the interop file covers the
+  // `IntOrIndex` polymorphism on SetOp (InitOp / WaitOp already exercise
+  // `index` elsewhere; this fills the gap for SetOp).
+  func.func @set_full(%da : i32, %dn : index, %c : i1) {
+    acc.set default_async(%da : i32) device_num(%dn : index) if(%c) attributes {device_type = #acc.device_type<host>}
+    func.return
+  }
+  // CHECK:       func.func @set_full(
+  // CHECK:         acc.set default_async(%{{.*}} : i32) device_num(%{{.*}} : index) if(%{{.*}}) attributes {device_type = #acc.device_type<host>}
+
+  // acc.wait — leading `( $waitOperands : type )` group plus
+  // `OperandWithKeywordOnly` for `async`. Each clause covered in
+  // isolation so a regression in any one fires precisely.
+  func.func @wait_min() {
+    acc.wait
+    func.return
+  }
+  // CHECK:       func.func @wait_min() {
+  // CHECK-NEXT:    acc.wait
+
+  func.func @wait_one_operand(%w : i64) {
+    acc.wait(%w : i64)
+    func.return
+  }
+  // CHECK:       func.func @wait_one_operand(
+  // CHECK:         acc.wait(%{{.*}} : i64)
+
+  func.func @wait_multiple_operands(%w1 : i32, %w2 : index) {
+    acc.wait(%w1, %w2 : i32, index)
+    func.return
+  }
+  // CHECK:       func.func @wait_multiple_operands(
+  // CHECK:         acc.wait(%{{.*}}, %{{.*}} : i32, index)
+
+  func.func @wait_async_bare() {
+    acc.wait async
+    func.return
+  }
+  // CHECK:       func.func @wait_async_bare() {
+  // CHECK-NEXT:    acc.wait async
+
+  func.func @wait_async_operand(%a : i32) {
+    acc.wait async(%a : i32)
+    func.return
+  }
+  // CHECK:       func.func @wait_async_operand(
+  // CHECK:         acc.wait async(%{{.*}} : i32)
+
+  func.func @wait_wait_devnum(%w : i64, %dn : i32) {
+    acc.wait(%w : i64) wait_devnum(%dn : i32)
+    func.return
+  }
+  // CHECK:       func.func @wait_wait_devnum(
+  // CHECK:         acc.wait(%{{.*}} : i64) wait_devnum(%{{.*}} : i32)
+
+  func.func @wait_if(%c : i1) {
+    acc.wait if(%c)
+    func.return
+  }
+  // CHECK:       func.func @wait_if(
+  // CHECK:         acc.wait if(%{{.*}})
+
+  func.func @wait_full(%w : i64, %a : index, %dn : i32, %c : i1) {
+    acc.wait(%w : i64) async(%a : index) wait_devnum(%dn : i32) if(%c)
+    func.return
+  }
+  // CHECK:       func.func @wait_full(
+  // CHECK:         acc.wait(%{{.*}} : i64) async(%{{.*}} : index) wait_devnum(%{{.*}} : i32) if(%{{.*}})
+
 }
