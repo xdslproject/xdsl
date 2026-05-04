@@ -10,7 +10,7 @@ See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenACCDialect/
 """
 
 from abc import ABC
-from collections.abc import Hashable, Sequence
+from collections.abc import Hashable, Iterable, Sequence
 from typing import cast
 
 from typing_extensions import TypeVar
@@ -2380,7 +2380,7 @@ class LoopOp(IRDLOperation):
             self.collapse_device_type is not None
             and (
                 dup := _first_duplicate(
-                    [dt.data for dt in self.collapse_device_type.data]
+                    dt.data for dt in self.collapse_device_type.data
                 )
             )
             is not None
@@ -2402,8 +2402,7 @@ class LoopOp(IRDLOperation):
                 )
         if (
             self.gang is not None
-            and (dup := _first_duplicate([dt.data for dt in self.gang.data]))
-            is not None
+            and (dup := _first_duplicate(dt.data for dt in self.gang.data)) is not None
         ):
             raise VerifyException(
                 f"duplicate device_type `{dup.value}` found in gang attribute"
@@ -2417,7 +2416,7 @@ class LoopOp(IRDLOperation):
 
         if (
             self.worker is not None
-            and (dup := _first_duplicate([dt.data for dt in self.worker.data]))
+            and (dup := _first_duplicate(dt.data for dt in self.worker.data))
             is not None
         ):
             raise VerifyException(
@@ -2427,7 +2426,7 @@ class LoopOp(IRDLOperation):
             self.worker_num_operands_device_type is not None
             and (
                 dup := _first_duplicate(
-                    [dt.data for dt in self.worker_num_operands_device_type.data]
+                    dt.data for dt in self.worker_num_operands_device_type.data
                 )
             )
             is not None
@@ -2444,7 +2443,7 @@ class LoopOp(IRDLOperation):
 
         if (
             self.vector is not None
-            and (dup := _first_duplicate([dt.data for dt in self.vector.data]))
+            and (dup := _first_duplicate(dt.data for dt in self.vector.data))
             is not None
         ):
             raise VerifyException(
@@ -2454,7 +2453,7 @@ class LoopOp(IRDLOperation):
             self.vector_operands_device_type is not None
             and (
                 dup := _first_duplicate(
-                    [dt.data for dt in self.vector_operands_device_type.data]
+                    dt.data for dt in self.vector_operands_device_type.data
                 )
             )
             is not None
@@ -2520,7 +2519,7 @@ class LoopOp(IRDLOperation):
 _T = TypeVar("_T", bound=Hashable)
 
 
-def _first_duplicate(els: Sequence[_T]) -> _T | None:
+def _first_duplicate(els: Iterable[_T]) -> _T | None:
     """Return the first duplicate `el` in `els`, `None` if there are no duplicates."""
     seen: set[_T] = set()
     for el in els:
