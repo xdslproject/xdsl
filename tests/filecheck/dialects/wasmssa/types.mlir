@@ -7,8 +7,8 @@
   // CHECK: funcref_val = !wasmssa.funcref
   funcref_val = !wasmssa.funcref,
 
-  // CHECK: array_ssize = !wasmssa<local ref to i32>
-  array_ssize = !wasmssa<local ref to i32>,
+  // CHECK: local_i32 = !wasmssa<local ref to i32>
+  local_i32 = !wasmssa<local ref to i32>,
 
   // CHECK: local_i64 = !wasmssa<local ref to i64>
   local_i64 = !wasmssa<local ref to i64>,
