@@ -85,11 +85,11 @@ from xdsl.parser import Parser, UnresolvedOperand
 from xdsl.pattern_rewriter import RewritePattern
 from xdsl.printer import Printer
 from xdsl.traits import (
+    AlwaysSpeculatable,
     HasCanonicalizationPatternsTrait,
     IsTerminator,
     MemoryReadEffect,
     MemoryWriteEffect,
-    Pure,
 )
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.target import Target
@@ -1465,7 +1465,7 @@ class RS_AddOp(RS_Operation[GeneralRegisterType, GeneralRegisterType]):
 
     name = "x86.rs.add"
 
-    traits = traits_def(Pure(), RS_AddOpHasCanonicalizationPatterns())
+    traits = traits_def(AlwaysSpeculatable(), RS_AddOpHasCanonicalizationPatterns())
 
 
 @irdl_op_definition
@@ -1588,7 +1588,7 @@ class DS_MovOp(DS_Operation[X86RegisterType, GeneralRegisterType]):
 
     name = "x86.ds.mov"
 
-    traits = traits_def(Pure(), DS_MovOpHasCanonicalizationPatterns())
+    traits = traits_def(AlwaysSpeculatable(), DS_MovOpHasCanonicalizationPatterns())
 
 
 @irdl_op_definition
@@ -2054,7 +2054,7 @@ class DI_MovOp(DI_Operation[GeneralRegisterType]):
 
     name = "x86.di.mov"
 
-    traits = traits_def(Pure())
+    traits = traits_def(AlwaysSpeculatable())
 
 
 @irdl_op_definition
