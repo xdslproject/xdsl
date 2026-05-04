@@ -4335,21 +4335,11 @@ class _RuntimeDeviceTypesOperation(IRDLOperation, ABC):
         *,
         device_num: SSAValue | Operation | None = None,
         if_cond: SSAValue | Operation | None = None,
-        device_types: ArrayAttr[DeviceTypeAttr]
-        | Sequence[DeviceTypeAttr]
-        | None = None,
+        device_types: ArrayAttr[DeviceTypeAttr] | None = None,
     ) -> None:
-        device_types_prop: ArrayAttr[DeviceTypeAttr] | None = (
-            ArrayAttr(device_types)
-            if device_types is not None and not isinstance(device_types, ArrayAttr)
-            else device_types
-        )
         super().__init__(
-            operands=[
-                [device_num] if device_num is not None else [],
-                [if_cond] if if_cond is not None else [],
-            ],
-            properties={"device_types": device_types_prop},
+            operands=[device_num, if_cond],
+            properties={"device_types": device_types},
         )
 
     def verify_(self) -> None:

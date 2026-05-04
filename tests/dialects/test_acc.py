@@ -867,10 +867,10 @@ def test_loop_unit_and_combined_shortcuts():
 
 
 def test_init_op_builder_branches():
-    """Exercises the InitOp `__init__` branches that the parser bypasses
-    (parsing goes through `Operation.create()`, not `__init__`): empty
-    ternaries, the `Sequence[DeviceTypeAttr] -> ArrayAttr` shortcut, and the
-    already-wrapped-ArrayAttr passthrough."""
+    """Exercises the InitOp `__init__` paths that the parser bypasses
+    (parsing goes through `Operation.create()`, not `__init__`): empty op
+    plus a fully-populated op with both operands and the `device_types`
+    property."""
     nvidia = acc.DeviceTypeAttr(acc.DeviceType.NVIDIA)
 
     empty = acc.InitOp()
@@ -879,18 +879,13 @@ def test_init_op_builder_branches():
     assert empty.if_cond is None
     assert empty.device_types is None
 
-    op_seq = acc.InitOp(
+    op = acc.InitOp(
         device_num=create_ssa_value(i64),
         if_cond=create_ssa_value(i1),
-        device_types=[nvidia],
+        device_types=ArrayAttr([nvidia]),
     )
-    op_seq.verify()
-    assert op_seq.device_types == ArrayAttr([nvidia])
-
-    arr = ArrayAttr([nvidia])
-    op_arr = acc.InitOp(device_types=arr)
-    op_arr.verify()
-    assert op_arr.device_types is arr
+    op.verify()
+    assert op.device_types == ArrayAttr([nvidia])
 
 
 def test_shutdown_op_builder_branches():
@@ -903,15 +898,10 @@ def test_shutdown_op_builder_branches():
     assert empty.if_cond is None
     assert empty.device_types is None
 
-    op_seq = acc.ShutdownOp(
+    op = acc.ShutdownOp(
         device_num=create_ssa_value(i64),
         if_cond=create_ssa_value(i1),
-        device_types=[default],
+        device_types=ArrayAttr([default]),
     )
-    op_seq.verify()
-    assert op_seq.device_types == ArrayAttr([default])
-
-    arr = ArrayAttr([default])
-    op_arr = acc.ShutdownOp(device_types=arr)
-    op_arr.verify()
-    assert op_arr.device_types is arr
+    op.verify()
+    assert op.device_types == ArrayAttr([default])
