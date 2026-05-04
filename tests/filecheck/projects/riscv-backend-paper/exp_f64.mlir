@@ -18,7 +18,7 @@ func.func public @exp_f64(
   func.return
 }
 
-// CHECK:  # Regalloc stats: {"preallocated_float": ["ft0", "ft1", "ft2"], "preallocated_int": ["a0", "a1", "sp", "zero"], "allocated_float": ["ft0", "ft1", "ft3", "ft4", "ft5", "ft6"], "allocated_int": ["a0", "a1", "sp", "t0", "t1", "t2", "zero"]}
+// CHECK:  # Regalloc stats: {"preallocated_float": ["ft0", "ft1"], "preallocated_int": ["a0", "a1", "sp", "zero"], "excluded_float": ["ft0", "ft1", "ft2"], "excluded_int": [], "allocated_float": ["ft0", "ft1", "ft3", "ft4", "ft5", "ft6"], "allocated_int": ["a0", "a1", "sp", "t0", "t1", "t2", "zero"]}
 // CHECK-NEXT:  .text
 // CHECK-NEXT:  .globl exp_f64
 // CHECK-NEXT:  .p2align 2
