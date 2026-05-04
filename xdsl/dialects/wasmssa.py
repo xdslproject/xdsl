@@ -1,12 +1,7 @@
-from typing import Annotated, TypeAlias
+from collections.abc import Sequence
+from typing import Annotated, TypeAlias, cast
 
-from xdsl.dialects import builtin
 from xdsl.dialects.builtin import (
-    I32,
-    I64,
-    I128,
-    Float32Type,
-    Float64Type,
     IntAttr,
     NoneAttr,
     f32,
@@ -26,11 +21,6 @@ from xdsl.ir import (
 from xdsl.irdl import AnyOf, irdl_attr_definition
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
-
-IntegerType: TypeAlias = I32 | I64
-FPType: TypeAlias = Float32Type | Float64Type
-NumericType: TypeAlias = IntegerType | FPType
-VecType: TypeAlias = I128
 
 
 @irdl_attr_definition
@@ -60,7 +50,7 @@ class LimitType(ParametrizedAttribute, OpaqueSyntaxAttribute, TypeAttribute):
     """
     Wasm limit type
 
-    Prints as `wasmssa<limit[$min: $max]>`
+    Prints as `!wasmssa<limit[$min: $max]>`
     """
 
     name = "wasmssa.limit"
@@ -71,9 +61,9 @@ class LimitType(ParametrizedAttribute, OpaqueSyntaxAttribute, TypeAttribute):
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> tuple[IntAttr, IntAttr | NoneAttr]:
         with parser.in_square_brackets():
-            min = parser.parse_integer(False, True)
+            min = parser.parse_integer(False, False)
             parser.parse_punctuation(":")
-            max = parser.parse_optional_integer(False, True)
+            max = parser.parse_optional_integer(False, False)
         return (IntAttr(min), IntAttr(max) if max is not None else NoneAttr())
 
     def print_parameters(self, printer: Printer) -> None:
@@ -90,7 +80,7 @@ class LocalRefType(ParametrizedAttribute, SpacedOpaqueSyntaxAttribute, TypeAttri
     """
     Type of a local variable
 
-    Prints as `wasmssa<local ref to $elementType>`
+    Prints as `!wasmssa<local ref to $elementType>`
     """
 
     name = "wasmssa.local"
@@ -98,7 +88,7 @@ class LocalRefType(ParametrizedAttribute, SpacedOpaqueSyntaxAttribute, TypeAttri
     elementType: Annotated[Attribute, ValType]
 
     @classmethod
-    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
+    def parse_parameters(cls, parser: AttrParser) -> Sequence[TypeAttribute]:
         parser.parse_keyword("ref")
         parser.parse_keyword("to")
         ty = parser.parse_type()
@@ -114,7 +104,7 @@ class TableType(ParametrizedAttribute, SpacedOpaqueSyntaxAttribute, TypeAttribut
     """
     Wasm table type
 
-    Prints as `wasmssa<tabletype $reference [$limit.min: $limit.max]>`
+    Prints as `!wasmssa<tabletype $reference [$limit.min: $limit.max]>`
     """
 
     name = "wasmssa.tabletype"
@@ -123,21 +113,17 @@ class TableType(ParametrizedAttribute, SpacedOpaqueSyntaxAttribute, TypeAttribut
     limit: LimitType
 
     @classmethod
-    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
-        reference = parser.parse_attribute()
+    def parse_parameters(cls, parser: AttrParser) -> tuple[RefType, LimitType]:
+        reference = cast(RefType, parser.parse_type())
         min, max = LimitType.parse_parameters(parser)
 
-        return [reference, LimitType(min, max)]
+        return (reference, LimitType(min, max))
 
     def print_parameters(self, printer: Printer) -> None:
         printer.print_attribute(self.reference)
         printer.print_string(" ")
         self.limit.print_parameters(printer)
 
-
-IntegerAttr = builtin.IntegerAttr[I32] | builtin.IntegerAttr[I64]
-FPAttr = builtin.FloatAttr[Float32Type] | builtin.FloatAttr[Float64Type]
-NumericAttr = IntegerAttr | FPAttr
 
 WasmSSA = Dialect(
     "wasmssa",
