@@ -40,7 +40,6 @@ func.func public @foo_int(%0: i32, %1: i32, %2: i32, %3: i32, %4: i32, %5: i32, 
 }
 
 // CHECK:      builtin.module {
-// CHECK-NEXT:   x86.directive ".global" "foo_int"
 // CHECK-NEXT:   x86_func.func public @foo_int(%0: !x86.reg32<edi>, %1: !x86.reg32<esi>, %2: !x86.reg32<edx>, %3: !x86.reg32<ecx>, %4: !x86.reg32<r8d>, %5: !x86.reg32<r9d>, %6: !x86.reg64<rsp>) -> !x86.reg32<eax> {
 // CHECK-NEXT:     %7 = x86.ds.mov %0 : (!x86.reg32<edi>) -> !x86.reg32
 // CHECK-NEXT:     %8 = builtin.unrealized_conversion_cast %7 : !x86.reg32 to i32
