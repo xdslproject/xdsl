@@ -905,3 +905,27 @@ def test_shutdown_op_builder_branches():
     )
     op.verify()
     assert op.device_types == ArrayAttr([default])
+
+
+def test_set_op_init_smoke():
+    """Filecheck builds via `Operation.create()` and never calls `SetOp.__init__`,
+    leaving the constructor's `super().__init__(...)` line uncovered. A single
+    Python construction hits it (the body is branchless)."""
+    op = acc.SetOp(
+        default_async=create_ssa_value(i32),
+        device_num=create_ssa_value(i64),
+        if_cond=create_ssa_value(i1),
+        device_type=acc.DeviceTypeAttr(acc.DeviceType.NVIDIA),
+    )
+    op.verify()
+
+
+def test_wait_op_init_smoke():
+    """Mirrors `test_set_op_init_smoke` for WaitOp."""
+    op = acc.WaitOp(
+        wait_operands=[create_ssa_value(i64)],
+        async_operand=create_ssa_value(i32),
+        wait_devnum=create_ssa_value(i32),
+        if_cond=create_ssa_value(i1),
+    )
+    op.verify()

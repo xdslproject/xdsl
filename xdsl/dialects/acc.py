@@ -4284,7 +4284,7 @@ class ReductionRecipeOp(_RecipeOperation):
 
 
 # ---------------------------------------------------------------------------
-# Runtime executable ops: acc.init, acc.shutdown
+# Runtime executable ops: acc.init, acc.shutdown, acc.set, acc.wait
 # ---------------------------------------------------------------------------
 #
 # Upstream models acc.init / acc.shutdown with identical surface — same two
@@ -4294,6 +4294,12 @@ class ReductionRecipeOp(_RecipeOperation):
 # `isComputeOperation`; the set of compute ops is parallel / serial /
 # kernels / loop). The xDSL port factors that shape into the
 # `_RuntimeDeviceTypesOperation` mixin below; concrete leaves override only `name`.
+#
+# `acc.set` and `acc.wait` diverge from that shape (different operand
+# counts, different property names/types, different assembly formats) so
+# they're written as standalone IRDL ops. Both still share the
+# `_verify_not_in_compute_op` parent walk — except `acc.wait`, which
+# upstream explicitly leaves unrestricted (see `acc::WaitOp::verify`).
 
 
 def _verify_not_in_compute_op(op: IRDLOperation) -> None:
@@ -4365,6 +4371,115 @@ class ShutdownOp(_RuntimeDeviceTypesOperation):
     """
 
     name = "acc.shutdown"
+
+
+@irdl_op_definition
+class SetOp(IRDLOperation):
+    """
+    Implementation of upstream acc.set — the OpenACC set executable directive.
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenACCDialect/#accset-accsetop).
+    """
+
+    name = "acc.set"
+
+    default_async = opt_operand_def(IntegerType | IndexType)
+    device_num = opt_operand_def(IntegerType | IndexType)
+    if_cond = opt_operand_def(I1)
+
+    device_type = opt_prop_def(DeviceTypeAttr, prop_name="device_type")
+
+    irdl_options = (
+        AttrSizedOperandSegments(as_property=True),
+        ParsePropInAttrDict(),
+    )
+
+    assembly_format = (
+        "(`default_async` `(` $default_async^ `:` type($default_async) `)`)?"
+        " (`device_num` `(` $device_num^ `:` type($device_num) `)`)?"
+        " (`if` `(` $if_cond^ `)`)?"
+        " attr-dict-with-keyword"
+    )
+
+    def __init__(
+        self,
+        *,
+        default_async: SSAValue | Operation | None = None,
+        device_num: SSAValue | Operation | None = None,
+        if_cond: SSAValue | Operation | None = None,
+        device_type: DeviceTypeAttr | None = None,
+    ) -> None:
+        super().__init__(
+            operands=[default_async, device_num, if_cond],
+            properties={"device_type": device_type},
+        )
+
+    def verify_(self) -> None:
+        _verify_not_in_compute_op(self)
+        if (
+            self.device_type is None
+            and self.default_async is None
+            and self.device_num is None
+        ):
+            raise VerifyException(
+                "at least one default_async, device_num, or device_type "
+                "operand must appear"
+            )
+
+
+@irdl_op_definition
+class WaitOp(IRDLOperation):
+    """
+    Implementation of upstream acc.wait — the OpenACC wait executable directive.
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenACCDialect/#accwait-accwaitop).
+    """
+
+    name = "acc.wait"
+
+    wait_operands = var_operand_def(IntegerType | IndexType)
+    async_operand = opt_operand_def(IntegerType | IndexType)
+    wait_devnum = opt_operand_def(IntegerType | IndexType)
+    if_cond = opt_operand_def(I1)
+
+    async_attr = opt_prop_def(UnitAttr, prop_name="async")
+
+    irdl_options = (
+        AttrSizedOperandSegments(as_property=True),
+        ParsePropInAttrDict(),
+    )
+
+    custom_directives = (OperandWithKeywordOnly,)
+
+    assembly_format = (
+        "( `(` $wait_operands^ `:` type($wait_operands) `)` )?"
+        " (`async` custom<OperandWithKeywordOnly>($async_operand,"
+        " type($async_operand), $async)^)?"
+        " (`wait_devnum` `(` $wait_devnum^ `:` type($wait_devnum) `)`)?"
+        " (`if` `(` $if_cond^ `)`)?"
+        " attr-dict-with-keyword"
+    )
+
+    def __init__(
+        self,
+        *,
+        wait_operands: Sequence[SSAValue | Operation] = (),
+        async_operand: SSAValue | Operation | None = None,
+        wait_devnum: SSAValue | Operation | None = None,
+        if_cond: SSAValue | Operation | None = None,
+        async_attr: UnitAttr | None = None,
+    ) -> None:
+        super().__init__(
+            operands=[wait_operands, async_operand, wait_devnum, if_cond],
+            properties={"async": async_attr},
+        )
+
+    def verify_(self) -> None:
+        # Mirrors upstream `acc::WaitOp::verify`. Note that — unlike
+        # init/shutdown/set — `acc.wait` does *not* forbid nesting inside a
+        # compute construct.
+        if self.async_operand is not None and self.async_attr is not None:
+            raise VerifyException("async attribute cannot appear with asyncOperand")
+        if self.wait_devnum is not None and not self.wait_operands:
+            raise VerifyException("wait_devnum cannot appear without waitOperands")
 
 
 @irdl_op_definition
@@ -4461,6 +4576,8 @@ ACC = Dialect(
         ReductionRecipeOp,
         InitOp,
         ShutdownOp,
+        SetOp,
+        WaitOp,
         TerminatorOp,
         YieldOp,
     ],

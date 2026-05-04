@@ -847,3 +847,45 @@ func.func @shutdown_in_kernels() {
   func.return
 }
 // CHECK: 'acc.shutdown' op cannot be nested in a compute operation
+
+// -----
+
+// acc.set nested in acc.loop.
+func.func @set_in_loop(%lb : index, %ub : index, %st : index) {
+  acc.loop control(%iv : index) = (%lb : index) to (%ub : index) step (%st : index) {
+    acc.set attributes {device_type = #acc.device_type<nvidia>}
+    acc.yield
+  } attributes {independent = [#acc.device_type<none>], inclusiveUpperbound = array<i1: true>}
+  func.return
+}
+// CHECK: 'acc.set' op cannot be nested in a compute operation
+
+// -----
+
+// acc.set with no operands and no device_type — at least one of
+// default_async/device_num/device_type must appear.
+func.func @set_empty() {
+  acc.set
+  func.return
+}
+// CHECK: at least one default_async, device_num, or device_type operand must appear
+
+// -----
+
+// acc.wait: the bare `async` UnitAttr and an `asyncOperand` cannot both be
+// set. The pretty form can only emit one or the other, so build the
+// conflicting state via generic form.
+func.func @wait_async_conflict(%v : i32) {
+  "acc.wait"(%v) <{async, operandSegmentSizes = array<i32: 0, 1, 0, 0>}> : (i32) -> ()
+  func.return
+}
+// CHECK: async attribute cannot appear with asyncOperand
+
+// -----
+
+// acc.wait: `wait_devnum` requires `waitOperands` to be non-empty.
+func.func @wait_devnum_alone(%dn : i32) {
+  acc.wait wait_devnum(%dn : i32)
+  func.return
+}
+// CHECK: wait_devnum cannot appear without waitOperands

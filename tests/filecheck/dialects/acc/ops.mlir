@@ -2033,4 +2033,114 @@ builtin.module {
   }
   // CHECK-LABEL: func.func @shutdown_generic_roundtrip(
   // CHECK:         acc.shutdown if(%{{.*}})
+
+  // acc.set requires at least one of default_async/device_num/device_type.
+  // Three optional operand clauses + a single (non-array) device_type
+  // property that flows through `attr-dict-with-keyword`.
+  func.func @set_device_type_only() {
+    acc.set attributes {device_type = #acc.device_type<nvidia>}
+    func.return
+  }
+  // CHECK-LABEL: func.func @set_device_type_only() {
+  // CHECK:         acc.set attributes {device_type = #acc.device_type<nvidia>}
+
+  func.func @set_device_num(%dn : i32) {
+    acc.set device_num(%dn : i32)
+    func.return
+  }
+  // CHECK-LABEL: func.func @set_device_num(
+  // CHECK:         acc.set device_num(%{{.*}} : i32)
+
+  func.func @set_default_async(%da : i32) {
+    acc.set default_async(%da : i32)
+    func.return
+  }
+  // CHECK-LABEL: func.func @set_default_async(
+  // CHECK:         acc.set default_async(%{{.*}} : i32)
+
+  func.func @set_full(%da : i32, %dn : index, %c : i1) {
+    acc.set default_async(%da : i32) device_num(%dn : index) if(%c) attributes {device_type = #acc.device_type<host>}
+    func.return
+  }
+  // CHECK-LABEL: func.func @set_full(
+  // CHECK:         acc.set default_async(%{{.*}} : i32) device_num(%{{.*}} : index) if(%{{.*}}) attributes {device_type = #acc.device_type<host>}
+
+  // Generic-form roundtrip insurance for acc.set — three operand groups
+  // (default_async, device_num, if_cond).
+  func.func @set_generic_roundtrip(%dn : i64) {
+    "acc.set"(%dn) <{operandSegmentSizes = array<i32: 0, 1, 0>}> : (i64) -> ()
+    func.return
+  }
+  // CHECK-LABEL: func.func @set_generic_roundtrip(
+  // CHECK:         acc.set device_num(%{{.*}} : i64)
+
+  // acc.wait — the only runtime op with a leading parenthesised variadic
+  // operand list (no keyword), plus the same `OperandWithKeywordOnly`
+  // directive used by enter_data/exit_data for the `async` clause. Note:
+  // unlike init/shutdown/set, `acc.wait` does *not* forbid nesting in a
+  // compute op.
+  func.func @wait_empty() {
+    acc.wait
+    func.return
+  }
+  // CHECK-LABEL: func.func @wait_empty() {
+  // CHECK:         acc.wait
+
+  func.func @wait_one_operand(%w : i64) {
+    acc.wait(%w : i64)
+    func.return
+  }
+  // CHECK-LABEL: func.func @wait_one_operand(
+  // CHECK:         acc.wait(%{{.*}} : i64)
+
+  func.func @wait_multiple_operands(%w1 : i32, %w2 : index) {
+    acc.wait(%w1, %w2 : i32, index)
+    func.return
+  }
+  // CHECK-LABEL: func.func @wait_multiple_operands(
+  // CHECK:         acc.wait(%{{.*}}, %{{.*}} : i32, index)
+
+  func.func @wait_async_bare() {
+    acc.wait async
+    func.return
+  }
+  // CHECK-LABEL: func.func @wait_async_bare() {
+  // CHECK:         acc.wait async
+
+  func.func @wait_async_operand(%a : i32) {
+    acc.wait async(%a : i32)
+    func.return
+  }
+  // CHECK-LABEL: func.func @wait_async_operand(
+  // CHECK:         acc.wait async(%{{.*}} : i32)
+
+  func.func @wait_wait_devnum(%w : i64, %dn : i32) {
+    acc.wait(%w : i64) wait_devnum(%dn : i32)
+    func.return
+  }
+  // CHECK-LABEL: func.func @wait_wait_devnum(
+  // CHECK:         acc.wait(%{{.*}} : i64) wait_devnum(%{{.*}} : i32)
+
+  func.func @wait_if(%c : i1) {
+    acc.wait if(%c)
+    func.return
+  }
+  // CHECK-LABEL: func.func @wait_if(
+  // CHECK:         acc.wait if(%{{.*}})
+
+  func.func @wait_full(%w : i64, %a : index, %dn : i32, %c : i1) {
+    acc.wait(%w : i64) async(%a : index) wait_devnum(%dn : i32) if(%c)
+    func.return
+  }
+  // CHECK-LABEL: func.func @wait_full(
+  // CHECK:         acc.wait(%{{.*}} : i64) async(%{{.*}} : index) wait_devnum(%{{.*}} : i32) if(%{{.*}})
+
+  // Generic-form roundtrip insurance for acc.wait — four operand groups
+  // (waitOperands, asyncOperand, waitDevnum, ifCond).
+  func.func @wait_generic_roundtrip(%w : i64) {
+    "acc.wait"(%w) <{operandSegmentSizes = array<i32: 1, 0, 0, 0>}> : (i64) -> ()
+    func.return
+  }
+  // CHECK-LABEL: func.func @wait_generic_roundtrip(
+  // CHECK:         acc.wait(%{{.*}} : i64)
 }
