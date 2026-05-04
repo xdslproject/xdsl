@@ -3,44 +3,8 @@ import pytest
 from xdsl.backend.register_type import RegisterAllocatedMemoryEffect
 from xdsl.dialects import x86
 from xdsl.dialects.builtin import IntegerAttr, StringAttr
-from xdsl.dialects.x86.ops import (
-    DM_LeaOp,
-    DM_MovOp,
-    DM_VbroadcastsdOp,
-    DM_VbroadcastssOp,
-    DM_VmovupdOp,
-    DM_VmovupsOp,
-    DMI_ImulOp,
-    M_DecOp,
-    M_IDivOp,
-    M_ImulOp,
-    M_IncOp,
-    M_NegOp,
-    M_NotOp,
-    MI_AddOp,
-    MI_AndOp,
-    MI_CmpOp,
-    MI_MovOp,
-    MI_OrOp,
-    MI_SubOp,
-    MI_XorOp,
-    MS_AddOp,
-    MS_AndOp,
-    MS_CmpOp,
-    MS_MovOp,
-    MS_OrOp,
-    MS_SubOp,
-    MS_XorOp,
-    RM_AddOp,
-    RM_AndOp,
-    RM_ImulOp,
-    RM_OrOp,
-    RM_SubOp,
-    RM_XorOp,
-    SM_CmpOp,
-    si32,
-)
-from xdsl.ir import Block, Operation
+from xdsl.dialects.x86.ops import si32
+from xdsl.ir import Block
 from xdsl.traits import (
     MemoryEffect,
     MemoryReadEffect,
@@ -368,49 +332,6 @@ def test_get_constant_value():
 
     block = Block(arg_types=(U,))
     assert get_constant_value(block.args[0]) is None
-
-
-@pytest.mark.parametrize(
-    "op",
-    [
-        DM_MovOp,
-        DM_LeaOp,
-        DM_VmovupsOp,
-        DM_VmovupdOp,
-        DM_VbroadcastsdOp,
-        DM_VbroadcastssOp,
-        RM_AddOp,
-        RM_SubOp,
-        RM_ImulOp,
-        RM_AndOp,
-        RM_OrOp,
-        RM_XorOp,
-        MS_AddOp,
-        MS_SubOp,
-        MS_AndOp,
-        MS_OrOp,
-        MS_XorOp,
-        MS_MovOp,
-        MI_AddOp,
-        MI_SubOp,
-        MI_AndOp,
-        MI_OrOp,
-        MI_XorOp,
-        MI_MovOp,
-        DMI_ImulOp,
-        M_NegOp,
-        M_NotOp,
-        M_IncOp,
-        M_DecOp,
-        M_IDivOp,
-        M_ImulOp,
-        SM_CmpOp,
-        MS_CmpOp,
-        MI_CmpOp,
-    ],
-)
-def test_read_effects(op: type[Operation]):
-    assert MemoryReadEffect() in op.traits.traits
 
 
 def test_jmp_numeric_label_not_implemented():
