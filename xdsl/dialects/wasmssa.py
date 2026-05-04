@@ -1,5 +1,5 @@
 from collections.abc import Sequence
-from typing import Annotated, TypeAlias, cast
+from typing import TypeAlias, cast
 
 from xdsl.dialects.builtin import (
     IntAttr,
@@ -18,7 +18,7 @@ from xdsl.ir import (
     SpacedOpaqueSyntaxAttribute,
     TypeAttribute,
 )
-from xdsl.irdl import AnyOf, irdl_attr_definition
+from xdsl.irdl import AnyOf, irdl_attr_definition, param_def
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
 
@@ -85,7 +85,7 @@ class LocalRefType(ParametrizedAttribute, SpacedOpaqueSyntaxAttribute, TypeAttri
 
     name = "wasmssa.local"
 
-    elementType: Annotated[Attribute, ValTypeConstr]
+    elementType: Attribute = param_def(ValTypeConstr)
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> Sequence[TypeAttribute]:
