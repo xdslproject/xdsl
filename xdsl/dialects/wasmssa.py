@@ -59,6 +59,8 @@ ValType: AnyOf = AnyOf([i32, i64, i128, f32, f64, FuncRefType, ExternRefType])
 class LimitType(ParametrizedAttribute, OpaqueSyntaxAttribute, TypeAttribute):
     """
     Wasm limit type
+
+    Prints as `wasmssa<limit[$min: $max]>`
     """
 
     name = "wasmssa.limit"
@@ -87,6 +89,8 @@ class LimitType(ParametrizedAttribute, OpaqueSyntaxAttribute, TypeAttribute):
 class LocalRefType(ParametrizedAttribute, SpacedOpaqueSyntaxAttribute, TypeAttribute):
     """
     Type of a local variable
+
+    Prints as `wasmssa<local ref to $elementType>`
     """
 
     name = "wasmssa.local"
@@ -109,6 +113,8 @@ class LocalRefType(ParametrizedAttribute, SpacedOpaqueSyntaxAttribute, TypeAttri
 class TableType(ParametrizedAttribute, SpacedOpaqueSyntaxAttribute, TypeAttribute):
     """
     Wasm table type
+
+    Prints as `wasmssa<tabletype $reference [$limit.min: $limit.max]>`
     """
 
     name = "wasmssa.tabletype"
