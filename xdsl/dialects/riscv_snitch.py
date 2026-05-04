@@ -8,7 +8,7 @@ from typing_extensions import Self, override
 
 from xdsl.backend.register_allocatable import RegisterConstraints
 from xdsl.backend.register_allocator import BlockAllocator
-from xdsl.backend.register_type import RegisterResource
+from xdsl.backend.register_type import RegisterAllocatedMemoryEffect, RegisterResource
 from xdsl.backend.riscv.traits import StaticInsnRepresentation
 from xdsl.dialects import riscv, snitch
 from xdsl.dialects.builtin import (
@@ -165,7 +165,11 @@ class FrepYieldOp(
     name = "riscv_snitch.frep_yield"
 
     traits = lazy_traits_def(
-        lambda: (IsTerminator(), HasParent(FrepInnerOp, FrepOuterOp), NoMemoryEffect())
+        lambda: (
+            IsTerminator(),
+            HasParent(FrepInnerOp, FrepOuterOp),
+            RegisterAllocatedMemoryEffect(),
+        )
     )
 
     def assembly_line(self) -> str | None:
@@ -184,7 +188,9 @@ class ReadOp(RISCVAsmOperation, RISCVRegallocOperation):
     assembly_format = "`from` $stream attr-dict `:` type($res)"
 
     # Reads from memory and updates stream state
-    traits = traits_def(MemoryWriteEffect(), MemoryReadEffect())
+    traits = traits_def(
+        MemoryWriteEffect(), MemoryReadEffect(), RegisterAllocatedMemoryEffect()
+    )
 
     def __init__(self, stream_val: SSAValue, result_type: Attribute | None = None):
         if result_type is None:
@@ -217,7 +223,7 @@ class WriteOp(RISCVAsmOperation, RISCVRegallocOperation):
     assembly_format = "$value `to` $stream attr-dict `:` type($value)"
 
     # Writes to memory and updates stream state
-    traits = traits_def(MemoryWriteEffect())
+    traits = traits_def(MemoryWriteEffect(), RegisterAllocatedMemoryEffect())
 
     def __init__(self, value: SSAValue, stream: SSAValue):
         super().__init__(operands=[value, stream])

@@ -179,8 +179,7 @@ def test_effect_traits():
         riscv_snitch.FrepOuterOp,
         riscv_snitch.FrepInnerOp,
     }
-    assert len(register_allocated_memory_effects_ops) == 22
+    assert len(register_allocated_memory_effects_ops) == 25
     assert no_effects_ops == {
-        riscv_snitch.FrepYieldOp,
         riscv_snitch.GetStreamOp,
     }
