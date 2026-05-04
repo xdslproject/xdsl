@@ -90,6 +90,7 @@ from xdsl.traits import (
     IsTerminator,
     MemoryReadEffect,
     MemoryWriteEffect,
+    NoMemoryEffect,
 )
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.target import Target
@@ -141,8 +142,6 @@ class X86RegallocOperation(IRDLOperation, HasRegisterConstraints, ABC):
     """
     Base class for operations that can take part in register allocation.
     """
-
-    traits = traits_def(RegisterAllocatedMemoryEffect())
 
     def get_register_constraints(self) -> RegisterConstraints:
         # The default register constraints are that all operands are "in", and all
@@ -232,6 +231,8 @@ class X86Instruction(X86AsmOperation, X86RegallocOperation):
     represent an instruction in the x86 instruction set.
     The name of the operation will be used as the x86 assembly instruction name.
     """
+
+    traits = traits_def(RegisterAllocatedMemoryEffect())
 
     comment = opt_attr_def(StringAttr)
     """
@@ -2697,7 +2698,7 @@ class FallthroughOp(X86AsmOperation, X86RegallocOperation, X86CustomFormatOperat
 
     successor = successor_def()
 
-    traits = traits_def(IsTerminator())
+    traits = traits_def(IsTerminator(), NoMemoryEffect())
 
     def __init__(
         self,
@@ -3884,6 +3885,8 @@ class GetAnyRegisterOperation(
 
     assembly_format = "attr-dict `:` type($result)"
 
+    traits = traits_def(NoMemoryEffect())
+
     def __init__(
         self,
         register_type: R1InvT,
@@ -3918,6 +3921,8 @@ class ParallelMovOp(X86RegallocOperation):
 
     assembly_format = "$inputs attr-dict `:` functional-type($inputs, $outputs)"
     irdl_options = (ParsePropInAttrDict(),)
+
+    traits = traits_def(RegisterAllocatedMemoryEffect())
 
     def __init__(
         self,
