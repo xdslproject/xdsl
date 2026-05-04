@@ -44,6 +44,7 @@ from xdsl.parser import Parser
 from xdsl.pattern_rewriter import RewritePattern
 from xdsl.printer import Printer
 from xdsl.traits import (
+    AlwaysSpeculatable,
     HasCanonicalizationPatternsTrait,
     IsolatedFromAbove,
     IsTerminator,
@@ -2560,7 +2561,7 @@ class FAddSOp(RdRsRsFloatOperationWithFastMath):
 
     name = "riscv.fadd.s"
 
-    traits = traits_def(Pure())
+    traits = traits_def(AlwaysSpeculatable())
 
 
 @irdl_op_definition
@@ -2947,7 +2948,7 @@ class FMAddDOp(RdRsRsRsFloatOperation):
 
     name = "riscv.fmadd.d"
 
-    traits = traits_def(Pure())
+    traits = traits_def(AlwaysSpeculatable())
 
 
 @irdl_op_definition
@@ -2962,7 +2963,7 @@ class FMSubDOp(RdRsRsRsFloatOperation):
 
     name = "riscv.fmsub.d"
 
-    traits = traits_def(Pure())
+    traits = traits_def(AlwaysSpeculatable())
 
 
 class FuseMultiplyAddDCanonicalizationPatternTrait(HasCanonicalizationPatternsTrait):
@@ -2988,7 +2989,7 @@ class FAddDOp(RdRsRsFloatOperationWithFastMath):
     name = "riscv.fadd.d"
 
     traits = traits_def(
-        Pure(),
+        AlwaysSpeculatable(),
         FuseMultiplyAddDCanonicalizationPatternTrait(),
     )
 
@@ -3005,7 +3006,7 @@ class FSubDOp(RdRsRsFloatOperationWithFastMath):
 
     name = "riscv.fsub.d"
 
-    traits = traits_def(Pure())
+    traits = traits_def(AlwaysSpeculatable())
 
 
 @irdl_op_definition
@@ -3020,7 +3021,7 @@ class FMulDOp(RdRsRsFloatOperationWithFastMath):
 
     name = "riscv.fmul.d"
 
-    traits = traits_def(Pure())
+    traits = traits_def(AlwaysSpeculatable())
 
 
 @irdl_op_definition
@@ -3058,7 +3059,7 @@ class FMinDOp(RdRsRsFloatOperationWithFastMath):
 
     name = "riscv.fmin.d"
 
-    traits = traits_def(Pure())
+    traits = traits_def(AlwaysSpeculatable())
 
 
 @irdl_op_definition
@@ -3073,7 +3074,7 @@ class FMaxDOp(RdRsRsFloatOperationWithFastMath):
 
     name = "riscv.fmax.d"
 
-    traits = traits_def(Pure())
+    traits = traits_def(AlwaysSpeculatable())
 
 
 @irdl_op_definition
