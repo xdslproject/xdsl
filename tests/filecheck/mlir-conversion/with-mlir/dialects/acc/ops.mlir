@@ -1278,4 +1278,86 @@ builtin.module {
   // CHECK:       func.func @loop_cache(
   // CHECK:         acc.loop cache({{.*}} : memref<10xf32>) control(%{{.*}} : index)
 
+  // -- Runtime executable ops: acc.init / acc.shutdown --
+  // Both directives share `AttrSizedOperandSegments` and enforce "cannot be
+  // nested in a compute operation"; we test them at top level of `func.func`
+  // so the verifier passes. Each clause is exercised in isolation so that
+  // a regression in parsing or generic emission of one specific clause
+  // (device_num / if / device_types) fires a precise test rather than
+  // hiding behind an "everything together" case.
+
+  func.func @init_min() {
+    acc.init
+    func.return
+  }
+  // CHECK:       func.func @init_min() {
+  // CHECK-NEXT:    acc.init
+
+  func.func @init_device_num(%dn : i64) {
+    acc.init device_num(%dn : i64)
+    func.return
+  }
+  // CHECK:       func.func @init_device_num(
+  // CHECK:         acc.init device_num(%{{.*}} : i64)
+
+  func.func @init_if(%c : i1) {
+    acc.init if(%c)
+    func.return
+  }
+  // CHECK:       func.func @init_if(
+  // CHECK:         acc.init if(%{{.*}})
+
+  // `device_types` flows through `attr-dict-with-keyword`; covers the
+  // attr-dict path independent of the operand clauses.
+  func.func @init_device_types() {
+    acc.init attributes {device_types = [#acc.device_type<nvidia>]}
+    func.return
+  }
+  // CHECK:       func.func @init_device_types() {
+  // CHECK-NEXT:    acc.init attributes {device_types = [#acc.device_type<nvidia>]}
+
+  func.func @init_full(%dn : i64, %c : i1) {
+    acc.init device_num(%dn : i64) if(%c) attributes {device_types = [#acc.device_type<nvidia>]}
+    func.return
+  }
+  // CHECK:       func.func @init_full(
+  // CHECK:         acc.init device_num(%{{.*}} : i64) if(%{{.*}}) attributes {device_types = [#acc.device_type<nvidia>]}
+
+  func.func @shutdown_min() {
+    acc.shutdown
+    func.return
+  }
+  // CHECK:       func.func @shutdown_min() {
+  // CHECK-NEXT:    acc.shutdown
+
+  // device_num typed against `index` rather than `i64` to exercise the
+  // IntOrIndex polymorphism on the operand.
+  func.func @shutdown_device_num(%dn : index) {
+    acc.shutdown device_num(%dn : index)
+    func.return
+  }
+  // CHECK:       func.func @shutdown_device_num(
+  // CHECK:         acc.shutdown device_num(%{{.*}} : index)
+
+  func.func @shutdown_if(%c : i1) {
+    acc.shutdown if(%c)
+    func.return
+  }
+  // CHECK:       func.func @shutdown_if(
+  // CHECK:         acc.shutdown if(%{{.*}})
+
+  func.func @shutdown_device_types() {
+    acc.shutdown attributes {device_types = [#acc.device_type<default>]}
+    func.return
+  }
+  // CHECK:       func.func @shutdown_device_types() {
+  // CHECK-NEXT:    acc.shutdown attributes {device_types = [#acc.device_type<default>]}
+
+  func.func @shutdown_full(%dn : index, %c : i1) {
+    acc.shutdown device_num(%dn : index) if(%c) attributes {device_types = [#acc.device_type<default>]}
+    func.return
+  }
+  // CHECK:       func.func @shutdown_full(
+  // CHECK:         acc.shutdown device_num(%{{.*}} : index) if(%{{.*}}) attributes {device_types = [#acc.device_type<default>]}
+
 }

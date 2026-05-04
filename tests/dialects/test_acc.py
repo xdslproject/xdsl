@@ -864,3 +864,44 @@ def test_loop_unit_and_combined_shortcuts():
     assert op_explicit.combined == acc.CombinedConstructsTypeAttr(
         acc.CombinedConstructsType.KERNELS_LOOP
     )
+
+
+def test_init_op_builder_branches():
+    """Exercises the InitOp `__init__` paths that the parser bypasses
+    (parsing goes through `Operation.create()`, not `__init__`): empty op
+    plus a fully-populated op with both operands and the `device_types`
+    property."""
+    nvidia = acc.DeviceTypeAttr(acc.DeviceType.NVIDIA)
+
+    empty = acc.InitOp()
+    empty.verify()
+    assert empty.device_num is None
+    assert empty.if_cond is None
+    assert empty.device_types is None
+
+    op = acc.InitOp(
+        device_num=create_ssa_value(i64),
+        if_cond=create_ssa_value(i1),
+        device_types=ArrayAttr([nvidia]),
+    )
+    op.verify()
+    assert op.device_types == ArrayAttr([nvidia])
+
+
+def test_shutdown_op_builder_branches():
+    """Mirrors `test_init_op_builder_branches` for ShutdownOp."""
+    default = acc.DeviceTypeAttr(acc.DeviceType.DEFAULT)
+
+    empty = acc.ShutdownOp()
+    empty.verify()
+    assert empty.device_num is None
+    assert empty.if_cond is None
+    assert empty.device_types is None
+
+    op = acc.ShutdownOp(
+        device_num=create_ssa_value(i64),
+        if_cond=create_ssa_value(i1),
+        device_types=ArrayAttr([default]),
+    )
+    op.verify()
+    assert op.device_types == ArrayAttr([default])

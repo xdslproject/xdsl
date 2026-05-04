@@ -4283,6 +4283,90 @@ class ReductionRecipeOp(_RecipeOperation):
             )
 
 
+# ---------------------------------------------------------------------------
+# Runtime executable ops: acc.init, acc.shutdown
+# ---------------------------------------------------------------------------
+#
+# Upstream models acc.init / acc.shutdown with identical surface — same two
+# optional operands (device_num, if_cond), same `device_types` ArrayAttr
+# property, same assembly format, and the same "cannot be nested in a
+# compute operation" verifier (`mlir/lib/Dialect/OpenACC/IR/OpenACC.cpp`,
+# `isComputeOperation`; the set of compute ops is parallel / serial /
+# kernels / loop). The xDSL port factors that shape into the
+# `_RuntimeDeviceTypesOperation` mixin below; concrete leaves override only `name`.
+
+
+def _verify_not_in_compute_op(op: IRDLOperation) -> None:
+    """Mirrors upstream's `isComputeOperation` parent walk."""
+    parent = op.parent_op()
+    while parent is not None:
+        if isinstance(parent, (ParallelOp, SerialOp, KernelsOp, LoopOp)):
+            raise VerifyException(
+                f"'{op.name}' op cannot be nested in a compute operation"
+            )
+        parent = parent.parent_op()
+
+
+class _RuntimeDeviceTypesOperation(IRDLOperation, ABC):
+    """Base class for `acc.init` / `acc.shutdown`.
+
+    Concrete leaves inherit every IRDL field, the assembly format, the
+    `__init__`, and `verify_` — they only override `name`.
+    """
+
+    device_num = opt_operand_def(IntegerType | IndexType)
+    if_cond = opt_operand_def(I1)
+
+    device_types = opt_prop_def(ArrayAttr[DeviceTypeAttr], prop_name="device_types")
+
+    irdl_options = (
+        AttrSizedOperandSegments(as_property=True),
+        ParsePropInAttrDict(),
+    )
+
+    assembly_format = (
+        "(`device_num` `(` $device_num^ `:` type($device_num) `)`)?"
+        " (`if` `(` $if_cond^ `)`)?"
+        " attr-dict-with-keyword"
+    )
+
+    def __init__(
+        self,
+        *,
+        device_num: SSAValue | Operation | None = None,
+        if_cond: SSAValue | Operation | None = None,
+        device_types: ArrayAttr[DeviceTypeAttr] | None = None,
+    ) -> None:
+        super().__init__(
+            operands=[device_num, if_cond],
+            properties={"device_types": device_types},
+        )
+
+    def verify_(self) -> None:
+        _verify_not_in_compute_op(self)
+
+
+@irdl_op_definition
+class InitOp(_RuntimeDeviceTypesOperation):
+    """
+    Implementation of upstream acc.init — the OpenACC init executable directive.
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenACCDialect/#accinit-accinitop).
+    """
+
+    name = "acc.init"
+
+
+@irdl_op_definition
+class ShutdownOp(_RuntimeDeviceTypesOperation):
+    """
+    Implementation of upstream acc.shutdown — the OpenACC shutdown executable
+    directive.
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenACCDialect/#accshutdown-accshutdownop).
+    """
+
+    name = "acc.shutdown"
+
+
 @irdl_op_definition
 class TerminatorOp(IRDLOperation):
     """
@@ -4375,6 +4459,8 @@ ACC = Dialect(
         PrivateRecipeOp,
         FirstprivateRecipeOp,
         ReductionRecipeOp,
+        InitOp,
+        ShutdownOp,
         TerminatorOp,
         YieldOp,
     ],
