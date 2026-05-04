@@ -19,6 +19,7 @@ from xdsl.dialects.builtin import (
     i32,
     i64,
 )
+from xdsl.dialects.test import TestOp
 from xdsl.ir import Block, Operation, SSAValue
 from xdsl.irdl import BaseAttr
 from xdsl.parser import Parser
@@ -2099,4 +2100,67 @@ def test_pattern_rewriter_notify_op_modified():
         expected,
         PatternRewriteWalker(Rewrite(), apply_recursively=True),
         op_modified=3,
+    )
+
+
+def test_erase_matched_op():
+    prog = """
+"builtin.module"() ({
+  "test.op"() {op1} : () -> ()
+  "test.op"() {op2} : () -> ()
+  "test.op"() {op3} : () -> ()
+}) : () -> ()"""
+
+    expected = """
+"builtin.module"() ({
+  "test.op"() {op1} : () -> ()
+  "test.op"() {op3} : () -> ()
+}) : () -> ()"""
+
+    class Rewrite(RewritePattern):
+        @op_type_rewrite_pattern
+        def match_and_rewrite(self, op: test.TestOp, rewriter: PatternRewriter):
+            if "op2" not in op.attributes:
+                return
+            with pytest.deprecated_call():
+                rewriter.erase_matched_op()  # pyright: ignore[reportDeprecated]
+
+    rewrite_and_compare(
+        prog,
+        expected,
+        PatternRewriteWalker(Rewrite(), apply_recursively=True),
+        op_removed=1,
+    )
+
+
+def test_replace_matched_op():
+    prog = """
+"builtin.module"() ({
+  "test.op"() {op1} : () -> ()
+  "test.op"() {op2} : () -> ()
+  "test.op"() {op3} : () -> ()
+}) : () -> ()"""
+
+    expected = """
+"builtin.module"() ({
+  "test.op"() {op1} : () -> ()
+  "test.op"() : () -> ()
+  "test.op"() {op3} : () -> ()
+}) : () -> ()"""
+
+    class Rewrite(RewritePattern):
+        @op_type_rewrite_pattern
+        def match_and_rewrite(self, op: test.TestOp, rewriter: PatternRewriter):
+            if "op2" not in op.attributes:
+                return
+            with pytest.deprecated_call():
+                rewriter.replace_matched_op(TestOp())  # pyright: ignore[reportDeprecated]
+
+    rewrite_and_compare(
+        prog,
+        expected,
+        PatternRewriteWalker(Rewrite(), apply_recursively=True),
+        op_inserted=1,
+        op_removed=1,
+        op_replaced=1,
     )
