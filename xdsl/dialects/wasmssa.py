@@ -1,18 +1,29 @@
-from typing import TypeAlias
+from typing import Annotated, TypeAlias
 
 from xdsl.dialects import builtin
 from xdsl.dialects.builtin import (
     I32,
     I64,
     I128,
-    ContainerType,
     Float32Type,
     Float64Type,
-    FunctionType,
     IntAttr,
+    f32,
+    f64,
+    i32,
+    i64,
+    i128,
 )
-from xdsl.ir import Dialect, ParametrizedAttribute, TypeAttribute
-from xdsl.irdl import irdl_attr_definition
+from xdsl.ir import (
+    Attribute,
+    Dialect,
+    ParametrizedAttribute,
+    SpacedOpaqueSyntaxAttribute,
+    TypeAttribute,
+)
+from xdsl.irdl import AnyOf, irdl_attr_definition
+from xdsl.parser import AttrParser
+from xdsl.printer import Printer
 
 IntegerType: TypeAlias = I32 | I64
 FPType: TypeAlias = Float32Type | Float64Type
@@ -21,50 +32,59 @@ VecType: TypeAlias = I128
 
 
 @irdl_attr_definition
-class FuncRefType(TypeAttribute):
+class FuncRefType(ParametrizedAttribute, TypeAttribute):
     """
     Opaque type for function reference
     """
 
-    name = "funcref"
+    name = "wasmssa.funcref"
 
 
 @irdl_attr_definition
-class ExternRefType(TypeAttribute):
+class ExternRefType(ParametrizedAttribute, TypeAttribute):
     """
     Opaque type for extern reference
     """
 
-    name = "externref"
+    name = "wasmssa.externref"
 
 
 RefType: TypeAlias = FuncRefType | ExternRefType
-ValType: TypeAlias = NumericType | VecType | RefType
-ResultType: TypeAlias = ContainerType[ValType]
-FuncType: TypeAlias = FunctionType
+ValType: AnyOf = AnyOf([i32, i64, i128, f32, f64, FuncRefType, ExternRefType])
 
 
 @irdl_attr_definition
-class LimitType(TypeAttribute):
+class LimitType(ParametrizedAttribute):
     """
     Wasm limit type
     """
 
-    name = "limit"
+    name = "wasmssa.limit"
 
     min: IntAttr
-    max: IntAttr | None
+    max: IntAttr
 
 
 @irdl_attr_definition
-class LocalRefType(ParametrizedAttribute, TypeAttribute):
+class LocalRefType(ParametrizedAttribute, SpacedOpaqueSyntaxAttribute, TypeAttribute):
     """
     Type of a local variable
     """
 
-    name = "local"
+    name = "wasmssa.local"
 
-    elementType: ValType
+    elementType: Annotated[Attribute, ValType]
+
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
+        parser.parse_keyword("ref")
+        parser.parse_keyword("to")
+        ty = parser.parse_type()
+        return [ty]
+
+    def print_parameters(self, printer: Printer) -> None:
+        printer.print_string("ref to ")
+        printer.print_attribute(self.elementType)
 
 
 @irdl_attr_definition
@@ -73,7 +93,7 @@ class TableType(ParametrizedAttribute):
     Wasm table type
     """
 
-    name = "tabletype"
+    name = "wasmssa.tabletype"
 
     reference: RefType
     limit: LimitType
@@ -87,8 +107,10 @@ WasmSSA = Dialect(
     "wasmssa",
     [],
     [
-        FuncType,
+        ExternRefType,
+        FuncRefType,
         LimitType,
+        LocalRefType,
         TableType,
     ],
 )

@@ -1,10 +1,5 @@
 // RUN: XDSL_ROUNDTRIP
 
-// CHECK: array_ssize = !wasmssa<local ref to i32>
-"test.op"() {
-  array_ssize = !wasmssa<local ref to i32>
-}: ()->()
-
 // CHECK: externref_val = !wasmssa.externref
 "test.op"() {
   externref_val = !wasmssa.externref
@@ -13,6 +8,11 @@
 // CHECK: funcref_val = !wasmssa.funcref
 "test.op"() {
   funcref_val = !wasmssa.funcref
+}: ()->()
+
+// CHECK: array_ssize = !wasmssa<local ref to i32>
+"test.op"() {
+  array_ssize = !wasmssa<local ref to i32>
 }: ()->()
 
 // CHECK: local_i64 = !wasmssa<local ref to i64>
