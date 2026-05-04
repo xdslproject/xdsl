@@ -41,7 +41,7 @@ class ExternRefType(ParametrizedAttribute, TypeAttribute):
     name = "wasmssa.externref"
 
 
-RefTypeConstr: TypeAlias = FuncRefType | ExternRefType
+RefType: TypeAlias = FuncRefType | ExternRefType
 ValTypeConstr: AnyOf = AnyOf([i32, i64, i128, f32, f64, FuncRefType, ExternRefType])
 
 
@@ -109,12 +109,12 @@ class TableType(ParametrizedAttribute, SpacedOpaqueSyntaxAttribute, TypeAttribut
 
     name = "wasmssa.tabletype"
 
-    reference: RefTypeConstr
+    reference: RefType
     limit: LimitType
 
     @classmethod
-    def parse_parameters(cls, parser: AttrParser) -> tuple[RefTypeConstr, LimitType]:
-        reference = cast(RefTypeConstr, parser.parse_type())
+    def parse_parameters(cls, parser: AttrParser) -> tuple[RefType, LimitType]:
+        reference = cast(RefType, parser.parse_type())
         min, max = LimitType.parse_parameters(parser)
 
         return (reference, LimitType(min, max))
