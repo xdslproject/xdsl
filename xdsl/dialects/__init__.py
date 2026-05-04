@@ -388,6 +388,11 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
 
         return PDLInterpRegion
 
+    def get_py():
+        from xdsl.dialects.py import Py
+
+        return Py
+
     return {
         "accfg": get_accfg,
         "affine": get_affine,
