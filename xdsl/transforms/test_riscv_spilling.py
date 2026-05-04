@@ -32,7 +32,9 @@ class SpillPass(ModulePass):
         die = self.get_die_set(func_op)
 
         for inner_op in func_op.walk():
-            uses = OrderedSet(inner_op.operands)
+            uses = OrderedSet(
+                i for i in inner_op.operands if isinstance(i.type, IntRegisterType)
+            )
             free_values = iter(loaded_values - uses)  # values that we can use to spill
 
             # Process uses
@@ -52,7 +54,9 @@ class SpillPass(ModulePass):
             loaded_values -= die[inner_op]
 
             # Process definitions
-            defns = OrderedSet(inner_op.results)
+            defns = OrderedSet(
+                i for i in inner_op.results if isinstance(i.type, IntRegisterType)
+            )
             if len(loaded_values | defns) > total_regs:
                 # spill excess regs
                 num_regs_to_spill = len(loaded_values | defns) - total_regs
