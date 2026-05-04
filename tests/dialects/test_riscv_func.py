@@ -1,6 +1,14 @@
+from xdsl.backend.register_type import RegisterAllocatedMemoryEffect
 from xdsl.dialects import riscv, riscv_func
 from xdsl.ir import Region
-from xdsl.traits import CallableOpInterface, MemoryEffect
+from xdsl.traits import (
+    CallableOpInterface,
+    MemoryAllocEffect,
+    MemoryEffect,
+    MemoryFreeEffect,
+    MemoryReadEffect,
+    MemoryWriteEffect,
+)
 
 
 def test_callable_interface():
@@ -28,8 +36,14 @@ def test_effect_traits():
     unknown_effects_ops = {op for op in operations if op not in effects_ops}
 
     # Sentinels to remind us to update this test when updating the dialect
-    assert len(effects_ops) == 0
-    assert len(unknown_effects_ops) == 4
+    assert effects_ops == {
+        riscv_func.CallOp,
+        riscv_func.ReturnOp,
+        riscv_func.SyscallOp,
+    }
+    assert unknown_effects_ops == {
+        riscv_func.FuncOp,
+    }
 
     all_effects_trait_types = {
         type(trait)
@@ -38,4 +52,33 @@ def test_effect_traits():
     }
 
     # Check below separately for each of these
-    assert not all_effects_trait_types
+    assert all_effects_trait_types == {
+        MemoryAllocEffect,
+        MemoryFreeEffect,
+        MemoryReadEffect,
+        MemoryWriteEffect,
+        RegisterAllocatedMemoryEffect,
+        riscv_func.RiscvFunctionCallMemoryEffect,
+    }
+
+    alloc_effects_ops = {op for op in effects_ops if op.has_trait(MemoryAllocEffect)}
+    free_effects_ops = {op for op in effects_ops if op.has_trait(MemoryFreeEffect)}
+    read_effects_ops = {op for op in effects_ops if op.has_trait(MemoryReadEffect)}
+    write_effects_ops = {op for op in effects_ops if op.has_trait(MemoryWriteEffect)}
+    riscv_func_call_effects_ops = {
+        op
+        for op in effects_ops
+        if op.has_trait(riscv_func.RiscvFunctionCallMemoryEffect)
+    }
+
+    register_allocated_memory_effects_ops = {
+        op for op in effects_ops if op.has_trait(RegisterAllocatedMemoryEffect)
+    }
+
+    assert alloc_effects_ops == {riscv_func.CallOp, riscv_func.SyscallOp}
+    assert free_effects_ops == {riscv_func.CallOp, riscv_func.SyscallOp}
+    assert read_effects_ops == {riscv_func.CallOp, riscv_func.SyscallOp}
+    assert write_effects_ops == {riscv_func.CallOp, riscv_func.SyscallOp}
+    assert riscv_func_call_effects_ops == {riscv_func.CallOp, riscv_func.SyscallOp}
+
+    assert register_allocated_memory_effects_ops == {riscv_func.ReturnOp}
