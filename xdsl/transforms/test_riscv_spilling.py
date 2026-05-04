@@ -8,7 +8,7 @@ from xdsl.backend.riscv.register_stack import RiscvRegisterStack
 from xdsl.builder import Builder
 from xdsl.context import Context
 from xdsl.dialects import builtin, riscv, riscv_func
-from xdsl.dialects.riscv.registers import IntRegisterType, Registers
+from xdsl.dialects.riscv.registers import IntRegisterType
 from xdsl.ir import Operation, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.rewriter import InsertPoint
@@ -122,13 +122,4 @@ class TestRiscvSpillingPass(ModulePass):
     name = "test-riscv-spilling"
 
     def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
-        defaults = RiscvRegisterStack.DEFAULT_ALLOCATABLE_REGISTERS
-        # Use reduced register set for testing
-        RiscvRegisterStack.DEFAULT_ALLOCATABLE_REGISTERS = (
-            Registers.T0,
-            Registers.T1,
-            Registers.T2,
-        )
         SpillPass().apply(ctx, op)
-
-        RiscvRegisterStack.DEFAULT_ALLOCATABLE_REGISTERS = defaults
