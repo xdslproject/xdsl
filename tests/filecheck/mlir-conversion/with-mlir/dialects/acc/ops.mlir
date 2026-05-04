@@ -1460,4 +1460,63 @@ builtin.module {
   // CHECK:       func.func @wait_full(
   // CHECK:         acc.wait(%{{.*}} : i64) async(%{{.*}} : index) wait_devnum(%{{.*}} : i32) if(%{{.*}})
 
+  // acc.routine — Symbol + IsolatedFromAbove top-level op. Each clause
+  // covered in isolation so a regression in any one fires precisely.
+  func.func @rt_func() {
+    func.return
+  }
+
+  acc.routine @rt_min func(@rt_func)
+  // CHECK:       acc.routine @rt_min func(@rt_func)
+
+  acc.routine @rt_bind_str func(@rt_func) bind("rt_func_gpu")
+  // CHECK:       acc.routine @rt_bind_str func(@rt_func) bind("rt_func_gpu")
+
+  acc.routine @rt_bind_sym func(@rt_func) bind(@rt_func_gpu)
+  // CHECK:       acc.routine @rt_bind_sym func(@rt_func) bind(@rt_func_gpu)
+
+  acc.routine @rt_bind_dt func(@rt_func) bind("nv" [#acc.device_type<nvidia>], "rd" [#acc.device_type<radeon>])
+  // CHECK:       acc.routine @rt_bind_dt func(@rt_func) bind("nv" [#acc.device_type<nvidia>], "rd" [#acc.device_type<radeon>])
+
+  // Mixed SymbolRef + String entries — id-name entries always print before
+  // str-name entries on both sides (BindName's two-pass print mirrors
+  // upstream's `printBindName`).
+  acc.routine @rt_bind_mixed func(@rt_func) bind(@rt_func_gpu, "rt_func_gpu_str")
+  // CHECK:       acc.routine @rt_bind_mixed func(@rt_func) bind(@rt_func_gpu, "rt_func_gpu_str")
+
+  acc.routine @rt_gang func(@rt_func) gang
+  // CHECK:       acc.routine @rt_gang func(@rt_func) gang
+
+  acc.routine @rt_gang_dim func(@rt_func) gang(dim: 1 : i64)
+  // CHECK:       acc.routine @rt_gang_dim func(@rt_func) gang(dim: 1 : i64)
+
+  // `gang(...)` with a kw-only DT list must be followed by at least one
+  // `dim:` entry — upstream's parser rejects `gang([#dts])` standalone.
+  acc.routine @rt_gang_full func(@rt_func) gang([#acc.device_type<nvidia>], dim: 2 : i64 [#acc.device_type<radeon>])
+  // CHECK:       acc.routine @rt_gang_full func(@rt_func) gang([#acc.device_type<nvidia>], dim: 2 : i64 [#acc.device_type<radeon>])
+
+  acc.routine @rt_worker func(@rt_func) worker
+  // CHECK:       acc.routine @rt_worker func(@rt_func) worker
+
+  acc.routine @rt_vector_dt func(@rt_func) vector([#acc.device_type<nvidia>])
+  // CHECK:       acc.routine @rt_vector_dt func(@rt_func) vector([#acc.device_type<nvidia>])
+
+  acc.routine @rt_seq func(@rt_func) seq
+  // CHECK:       acc.routine @rt_seq func(@rt_func) seq
+
+  acc.routine @rt_nohost func(@rt_func) vector nohost
+  // CHECK:       acc.routine @rt_nohost func(@rt_func) vector nohost
+
+  // Confirms the canonical print order is `gang ... implicit` even when
+  // the source spelling has them adjacent.
+  acc.routine @rt_implicit func(@rt_func) gang implicit
+  // CHECK:       acc.routine @rt_implicit func(@rt_func) gang implicit
+
+  // All clauses in canonical order — parallelism markers target different
+  // device types so the verifier rule (one of gang/worker/vector/seq per
+  // device) holds. Confirms the full optional-group cascade emits in
+  // upstream's td-definition order through mlir-opt.
+  acc.routine @rt_full func(@rt_func) bind("name") gang([#acc.device_type<nvidia>], dim: 1 : i64 [#acc.device_type<nvidia>]) worker([#acc.device_type<radeon>]) vector([#acc.device_type<host>]) seq([#acc.device_type<multicore>]) nohost implicit
+  // CHECK:       acc.routine @rt_full func(@rt_func) bind("name") gang([#acc.device_type<nvidia>], dim: 1 : i64 [#acc.device_type<nvidia>]) worker([#acc.device_type<radeon>]) vector([#acc.device_type<host>]) seq([#acc.device_type<multicore>]) nohost implicit
+
 }

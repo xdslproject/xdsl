@@ -1650,6 +1650,241 @@ def _print_loop_bound_group(printer: Printer, operands: Sequence[SSAValue]) -> N
     printer.print_list((operand.type for operand in operands), printer.print_attribute)
 
 
+@irdl_custom_directive
+class BindName(CustomDirective):
+    """Port of upstream `custom<BindName>($bindIdName, $bindStrName,
+    $bindIdNameDeviceType, $bindStrNameDeviceType)`.
+
+    Body of `acc.routine`'s `bind(...)` clause. Each entry is either a
+    SymbolRefAttr (`@name`) or a StringAttr (`"name"`) optionally followed by
+    `[#acc.device_type<...>]`. SymbolRef entries land in `bindIdName` (paired
+    with `bindIdNameDeviceType`); String entries land in `bindStrName` (paired
+    with `bindStrNameDeviceType`). On print, all id-name entries are emitted
+    first, then all str-name entries — mirroring upstream's two-pass print.
+    """
+
+    bind_id_name: AttributeVariable
+    bind_str_name: AttributeVariable
+    bind_id_name_device_type: AttributeVariable
+    bind_str_name_device_type: AttributeVariable
+
+    def is_anchorable(self) -> bool:
+        return True
+
+    def is_present(self, op: IRDLOperation) -> bool:
+        return (
+            self.bind_id_name.get(op) is not None
+            or self.bind_str_name.get(op) is not None
+        )
+
+    def parse(self, parser: Parser, state: ParsingState) -> bool:
+        id_names: list[SymbolRefAttr] = []
+        str_names: list[StringAttr] = []
+        id_dts: list[DeviceTypeAttr] = []
+        str_dts: list[DeviceTypeAttr] = []
+
+        def parse_one() -> None:
+            attr = parser.parse_attribute()
+            dt = _parse_optional_device_type_suffix(parser)
+            if isinstance(attr, SymbolRefAttr):
+                id_names.append(attr)
+                id_dts.append(dt)
+            elif isinstance(attr, StringAttr):
+                str_names.append(attr)
+                str_dts.append(dt)
+            else:
+                parser.raise_error(
+                    "expected SymbolRef or string attribute in bind clause"
+                )
+
+        parser.parse_comma_separated_list(parser.Delimiter.NONE, parse_one)
+
+        if id_names:
+            self.bind_id_name.set(state, ArrayAttr(id_names))
+            self.bind_id_name_device_type.set(state, ArrayAttr(id_dts))
+        if str_names:
+            self.bind_str_name.set(state, ArrayAttr(str_names))
+            self.bind_str_name_device_type.set(state, ArrayAttr(str_dts))
+        return True
+
+    def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
+        # Concatenate the (id-name, dt) and (str-name, dt) sequences in that
+        # order — upstream's two-pass print emits all SymbolRef entries
+        # before all String entries regardless of source order.
+        entries: list[tuple[Attribute, Attribute]] = []
+        for names_attr, dts_var in (
+            (self.bind_id_name.get(op), self.bind_id_name_device_type),
+            (self.bind_str_name.get(op), self.bind_str_name_device_type),
+        ):
+            if isa(names_attr, ArrayAttr) and names_attr.data:
+                dts = (
+                    attr.data
+                    if isa(attr := dts_var.get(op), ArrayAttr)
+                    else (DeviceTypeAttr(DeviceType.NONE),) * len(names_attr.data)
+                )
+                entries.extend(zip(names_attr.data, dts, strict=True))
+
+        def print_entry(pair: tuple[Attribute, Attribute]) -> None:
+            printer.print_attribute(pair[0])
+            _print_device_type_suffix(printer, pair[1])
+
+        printer.print_list(entries, print_entry)
+        state.should_emit_space = True
+        state.last_was_punctuation = False
+
+
+@irdl_custom_directive
+class RoutineGangClause(CustomDirective):
+    """Port of upstream `custom<RoutineGangClause>($gang, $gangDim,
+    $gangDimDeviceType)`.
+
+    Follows a bare `gang` keyword in `acc.routine`'s format. The directive
+    owns the optional surrounding parentheses. Syntax options after the
+    keyword:
+      bare                                                → gang = [#none]
+      `(` `[` dts `]` `)`                                 → keyword-only DT list
+      `(` `dim` `:` <attr> ([dt])? (`,` ...)* `)`         → dim entries
+      `(` `[` dts `]` `,` `dim` `:` <attr> ([dt])? `)`    → mix of both
+    `dim:` parses an attribute (typically `1 : i64`), not an SSA operand.
+    """
+
+    gang: AttributeVariable
+    gang_dim: AttributeVariable
+    gang_dim_device_type: AttributeVariable
+
+    def is_anchorable(self) -> bool:
+        return True
+
+    def is_present(self, op: IRDLOperation) -> bool:
+        return self.gang.get(op) is not None or self.gang_dim.get(op) is not None
+
+    def parse(self, parser: Parser, state: ParsingState) -> bool:
+        if not parser.parse_optional_punctuation("("):
+            self.gang.set(state, ArrayAttr([DeviceTypeAttr(DeviceType.NONE)]))
+            return True
+
+        kw_only = parser.parse_optional_comma_separated_list(
+            parser.Delimiter.SQUARE, lambda: _parse_device_type_attr(parser)
+        )
+        if kw_only is not None:
+            self.gang.set(state, ArrayAttr(kw_only))
+            if parser.parse_optional_punctuation(")"):
+                return True
+            parser.parse_punctuation(",")
+
+        gang_dim_attrs: list[Attribute] = []
+        gang_dim_dt_attrs: list[DeviceTypeAttr] = []
+
+        def parse_dim_entry() -> None:
+            parser.parse_keyword("dim")
+            parser.parse_punctuation(":")
+            gang_dim_attrs.append(parser.parse_attribute())
+            gang_dim_dt_attrs.append(_parse_optional_device_type_suffix(parser))
+
+        parser.parse_comma_separated_list(parser.Delimiter.NONE, parse_dim_entry)
+        parser.parse_punctuation(")")
+
+        # `parse_comma_separated_list(Delimiter.NONE, ...)` requires at least
+        # one element, so `gang_dim_attrs` is always non-empty here.
+        self.gang_dim.set(state, ArrayAttr(gang_dim_attrs))
+        self.gang_dim_device_type.set(state, ArrayAttr(gang_dim_dt_attrs))
+        return True
+
+    def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
+        gang = self.gang.get(op)
+        gang_dim_data = (
+            attr.data
+            if isa(attr := self.gang_dim.get(op), ArrayAttr)
+            else ()
+        )
+        gang_dim_dts = (
+            attr.data
+            if isa(attr := self.gang_dim_device_type.get(op), ArrayAttr)
+            else (DeviceTypeAttr(DeviceType.NONE),) * len(gang_dim_data)
+        )
+
+        # Mirror upstream's bare-keyword elision: gang == [#none] and no dim
+        # entries → emit nothing past the parent's `gang` keyword.
+        if not gang_dim_data and gang == _DEVICE_TYPE_ONLY_NONE:
+            return
+
+        printer.print_string("(")
+        gang_data = gang.data if isa(gang, ArrayAttr) else ()
+        if gang_data:
+            printer.print_string("[")
+            printer.print_list(gang_data, printer.print_attribute)
+            printer.print_string("]")
+
+        if gang_data and gang_dim_data:
+            printer.print_string(", ")
+
+        def print_dim(pair: tuple[Attribute, Attribute]) -> None:
+            printer.print_string("dim: ")
+            printer.print_attribute(pair[0])
+            _print_device_type_suffix(printer, pair[1])
+
+        printer.print_list(
+            zip(gang_dim_data, gang_dim_dts, strict=True), print_dim
+        )
+
+        printer.print_string(")")
+        state.should_emit_space = True
+        state.last_was_punctuation = False
+
+
+@irdl_custom_directive
+class DeviceTypeArrayClause(CustomDirective):
+    """Port of upstream `custom<DeviceTypeArrayAttr>($deviceTypes)`.
+
+    Follows a bare keyword (e.g. `worker`) in `acc.routine`'s format. The
+    directive owns the optional surrounding parentheses. Syntax options
+    after the keyword:
+      bare                  → device_types = [#none]
+      `(` `[` dts `]` `)`   → list of device types
+    Upstream's printer elides both the bare-`#none` form and any empty list,
+    so an empty array round-trips as the bare keyword.
+    """
+
+    device_types: AttributeVariable
+
+    def is_anchorable(self) -> bool:
+        return True
+
+    def is_present(self, op: IRDLOperation) -> bool:
+        # Filter out the empty-array case (e.g. `worker = []` from generic
+        # form, or upstream's printer eliding an unset slot to `[]`) so the
+        # parent `worker` keyword is dropped on print, matching upstream's
+        # `hasDeviceTypeValues`-gated emission.
+        return isa(attr := self.device_types.get(op), ArrayAttr) and bool(attr.data)
+
+    def parse(self, parser: Parser, state: ParsingState) -> bool:
+        if not parser.parse_optional_punctuation("("):
+            self.device_types.set(state, ArrayAttr([DeviceTypeAttr(DeviceType.NONE)]))
+            return True
+
+        attrs = parser.parse_optional_comma_separated_list(
+            parser.Delimiter.SQUARE, lambda: _parse_device_type_attr(parser)
+        )
+        parser.parse_punctuation(")")
+        self.device_types.set(
+            state, ArrayAttr(attrs) if attrs is not None else ArrayAttr(())
+        )
+        return True
+
+    def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
+        # `is_present` guarantees a non-empty ArrayAttr.
+        attr = self.device_types.get(op)
+        assert isa(attr, ArrayAttr)
+        assert attr.data
+        if attr == _DEVICE_TYPE_ONLY_NONE:
+            return
+        printer.print_string("([")
+        printer.print_list(attr.data, printer.print_attribute)
+        printer.print_string("])")
+        state.should_emit_space = True
+        state.last_was_punctuation = False
+
+
 @irdl_op_definition
 class ParallelOp(IRDLOperation):
     """
@@ -4483,6 +4718,152 @@ class WaitOp(IRDLOperation):
 
 
 @irdl_op_definition
+class RoutineOp(IRDLOperation):
+    """
+    Implementation of upstream acc.routine — captures the clauses of an
+    OpenACC routine directive together with the associated function name.
+    The function keeps track of its corresponding routine declaration via
+    the `acc.routine_info` discardable attribute (an `ArrayAttr` of
+    `SymbolRefAttr` pointing back at the matching `acc.routine` ops).
+
+    `bind`, `gang`, `worker`, `vector`, and `seq` clauses are tracked
+    per-device-type via parallel `ArrayAttr` properties — for any non-`none`
+    device type, at most one of `gang`/`worker`/`vector`/`seq` may be set,
+    and similarly at most one for the `none` device type.
+
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenACCDialect/#accroutine-accroutineop).
+    """
+
+    name = "acc.routine"
+
+    sym_name = prop_def(SymbolNameConstraint())
+    func_name = prop_def(SymbolRefAttr)
+    bind_id_name = opt_prop_def(ArrayAttr[SymbolRefAttr], prop_name="bindIdName")
+    bind_str_name = opt_prop_def(ArrayAttr[StringAttr], prop_name="bindStrName")
+    bind_id_name_device_type = opt_prop_def(
+        ArrayAttr[DeviceTypeAttr], prop_name="bindIdNameDeviceType"
+    )
+    bind_str_name_device_type = opt_prop_def(
+        ArrayAttr[DeviceTypeAttr], prop_name="bindStrNameDeviceType"
+    )
+    worker = opt_prop_def(ArrayAttr[DeviceTypeAttr])
+    vector = opt_prop_def(ArrayAttr[DeviceTypeAttr])
+    seq = opt_prop_def(ArrayAttr[DeviceTypeAttr])
+    nohost = opt_prop_def(UnitAttr)
+    implicit = opt_prop_def(UnitAttr)
+    gang = opt_prop_def(ArrayAttr[DeviceTypeAttr])
+    gang_dim = opt_prop_def(ArrayAttr[IntegerAttr], prop_name="gangDim")
+    gang_dim_device_type = opt_prop_def(
+        ArrayAttr[DeviceTypeAttr], prop_name="gangDimDeviceType"
+    )
+
+    custom_directives = (BindName, RoutineGangClause, DeviceTypeArrayClause)
+
+    assembly_format = (
+        "$sym_name `func` `(` $func_name `)`"
+        " (`bind` `(` custom<BindName>($bindIdName, $bindStrName,"
+        " $bindIdNameDeviceType, $bindStrNameDeviceType)^ `)`)?"
+        " (`gang` custom<RoutineGangClause>($gang, $gangDim,"
+        " $gangDimDeviceType)^)?"
+        " (`worker` custom<DeviceTypeArrayClause>($worker)^)?"
+        " (`vector` custom<DeviceTypeArrayClause>($vector)^)?"
+        " (`seq` custom<DeviceTypeArrayClause>($seq)^)?"
+        " (`nohost` $nohost^)?"
+        " (`implicit` $implicit^)?"
+        " attr-dict-with-keyword"
+    )
+
+    traits = lazy_traits_def(lambda: (IsolatedFromAbove(), SymbolOpInterface()))
+
+    def __init__(
+        self,
+        *,
+        sym_name: StringAttr | str,
+        func_name: SymbolRefAttr | str,
+        bind_id_name: ArrayAttr[SymbolRefAttr] | None = None,
+        bind_str_name: ArrayAttr[StringAttr] | None = None,
+        bind_id_name_device_type: ArrayAttr[DeviceTypeAttr] | None = None,
+        bind_str_name_device_type: ArrayAttr[DeviceTypeAttr] | None = None,
+        worker: ArrayAttr[DeviceTypeAttr] | None = None,
+        vector: ArrayAttr[DeviceTypeAttr] | None = None,
+        seq: ArrayAttr[DeviceTypeAttr] | None = None,
+        nohost: UnitAttr | bool = False,
+        implicit: UnitAttr | bool = False,
+        gang: ArrayAttr[DeviceTypeAttr] | None = None,
+        gang_dim: ArrayAttr[IntegerAttr] | None = None,
+        gang_dim_device_type: ArrayAttr[DeviceTypeAttr] | None = None,
+    ) -> None:
+        sym_name_attr: StringAttr = (
+            StringAttr(sym_name) if isinstance(sym_name, str) else sym_name
+        )
+        func_name_attr: SymbolRefAttr = (
+            SymbolRefAttr(func_name) if isinstance(func_name, str) else func_name
+        )
+        nohost_prop: UnitAttr | None = (
+            (UnitAttr() if nohost else None) if isinstance(nohost, bool) else nohost
+        )
+        implicit_prop: UnitAttr | None = (
+            (UnitAttr() if implicit else None)
+            if isinstance(implicit, bool)
+            else implicit
+        )
+        super().__init__(
+            properties={
+                "sym_name": sym_name_attr,
+                "func_name": func_name_attr,
+                "bindIdName": bind_id_name,
+                "bindStrName": bind_str_name,
+                "bindIdNameDeviceType": bind_id_name_device_type,
+                "bindStrNameDeviceType": bind_str_name_device_type,
+                "worker": worker,
+                "vector": vector,
+                "seq": seq,
+                "nohost": nohost_prop,
+                "implicit": implicit_prop,
+                "gang": gang,
+                "gangDim": gang_dim,
+                "gangDimDeviceType": gang_dim_device_type,
+            },
+        )
+
+    def verify_(self) -> None:
+        # Mirrors `acc::RoutineOp::verify`: at most one of
+        # gang/worker/vector/seq may be set per device_type, and a
+        # `none`-device entry conflicts with any per-device entry.
+        def parallelism_for(dt: DeviceType) -> int:
+            def has_dt(attr: Attribute | None) -> bool:
+                return isa(attr, ArrayAttr) and any(
+                    isinstance(e, DeviceTypeAttr) and e.data == dt
+                    for e in attr.data
+                )
+
+            return sum(
+                (
+                    has_dt(self.gang) or has_dt(self.gang_dim_device_type),
+                    has_dt(self.worker),
+                    has_dt(self.vector),
+                    has_dt(self.seq),
+                )
+            )
+
+        base = parallelism_for(DeviceType.NONE)
+        if base > 1:
+            raise VerifyException(
+                "only one of `gang`, `worker`, `vector`, `seq` can be present "
+                "at the same time"
+            )
+        for dt in DeviceType:
+            if dt == DeviceType.NONE:
+                continue
+            count = parallelism_for(dt)
+            if count > 1 or (base == 1 and count == 1):
+                raise VerifyException(
+                    "only one of `gang`, `worker`, `vector`, `seq` can be "
+                    f"present at the same time for device_type `{dt.value}`"
+                )
+
+
+@irdl_op_definition
 class TerminatorOp(IRDLOperation):
     """
     Implementation of upstream acc.terminator. Generic, value-less terminator
@@ -4578,6 +4959,7 @@ ACC = Dialect(
         ShutdownOp,
         SetOp,
         WaitOp,
+        RoutineOp,
         TerminatorOp,
         YieldOp,
     ],

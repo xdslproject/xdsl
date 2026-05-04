@@ -2143,4 +2143,80 @@ builtin.module {
   }
   // CHECK-LABEL: func.func @wait_generic_roundtrip(
   // CHECK:         acc.wait(%{{.*}} : i64)
+
+  // acc.routine — Symbol + IsolatedFromAbove top-level op. Parses the
+  // header `@sym func(@callee)` and any of `bind` / `gang` / `worker` /
+  // `vector` / `seq` / `nohost` / `implicit` clauses, in upstream's
+  // td-definition order.
+  func.func @acc_func() {
+    func.return
+  }
+
+  acc.routine @rt_min func(@acc_func)
+  // CHECK-LABEL: acc.routine @rt_min func(@acc_func)
+
+  acc.routine @rt_bind_str func(@acc_func) bind("acc_func_gpu")
+  // CHECK-LABEL: acc.routine @rt_bind_str func(@acc_func) bind("acc_func_gpu")
+
+  acc.routine @rt_bind_sym func(@acc_func) bind(@acc_func_gpu)
+  // CHECK-LABEL: acc.routine @rt_bind_sym func(@acc_func) bind(@acc_func_gpu)
+
+  // SymbolRef (id-name) entries print before StringAttr (str-name) entries —
+  // matches upstream's two-pass print regardless of source order.
+  acc.routine @rt_bind_mixed func(@acc_func) bind(@acc_func_gpu, "acc_func_gpu_str")
+  // CHECK-LABEL: acc.routine @rt_bind_mixed func(@acc_func) bind(@acc_func_gpu, "acc_func_gpu_str")
+
+  // Per-entry device type suffix on bind names — `[#acc.device_type<nvidia>]`
+  // following the name attaches that name to the matching device only.
+  acc.routine @rt_bind_dt func(@acc_func) bind("nvidia_name" [#acc.device_type<nvidia>], "radeon_name" [#acc.device_type<radeon>])
+  // CHECK-LABEL: acc.routine @rt_bind_dt func(@acc_func) bind("nvidia_name" [#acc.device_type<nvidia>], "radeon_name" [#acc.device_type<radeon>])
+
+  acc.routine @rt_gang func(@acc_func) gang
+  // CHECK-LABEL: acc.routine @rt_gang func(@acc_func) gang
+
+  // `gang(dim: 1 : i64)` parses an attribute (an IntegerAttr), not an SSA
+  // operand — RoutineGangClause uses parser.parse_attribute() for the dim
+  // payload.
+  acc.routine @rt_gang_dim func(@acc_func) gang(dim: 1 : i64)
+  // CHECK-LABEL: acc.routine @rt_gang_dim func(@acc_func) gang(dim: 1 : i64)
+
+  // Keyword-only DT list inside `gang(...)`: just a list of devices, no dim.
+  acc.routine @rt_gang_dt func(@acc_func) gang([#acc.device_type<nvidia>])
+  // CHECK-LABEL: acc.routine @rt_gang_dt func(@acc_func) gang([#acc.device_type<nvidia>])
+
+  // Mix of kw-only DT list and per-device dim entries inside `gang(...)`.
+  acc.routine @rt_gang_full func(@acc_func) gang([#acc.device_type<nvidia>], dim: 2 : i64 [#acc.device_type<radeon>])
+  // CHECK-LABEL: acc.routine @rt_gang_full func(@acc_func) gang([#acc.device_type<nvidia>], dim: 2 : i64 [#acc.device_type<radeon>])
+
+  acc.routine @rt_worker func(@acc_func) worker
+  // CHECK-LABEL: acc.routine @rt_worker func(@acc_func) worker
+
+  acc.routine @rt_worker_dt func(@acc_func) worker([#acc.device_type<nvidia>])
+  // CHECK-LABEL: acc.routine @rt_worker_dt func(@acc_func) worker([#acc.device_type<nvidia>])
+
+  acc.routine @rt_vector func(@acc_func) vector
+  // CHECK-LABEL: acc.routine @rt_vector func(@acc_func) vector
+
+  acc.routine @rt_seq func(@acc_func) seq
+  // CHECK-LABEL: acc.routine @rt_seq func(@acc_func) seq
+
+  acc.routine @rt_nohost func(@acc_func) vector nohost
+  // CHECK-LABEL: acc.routine @rt_nohost func(@acc_func) vector nohost
+
+  // `implicit` follows `gang` in the canonical print order (despite some
+  // upstream sources writing `implicit gang`).
+  acc.routine @rt_implicit func(@acc_func) gang implicit
+  // CHECK-LABEL: acc.routine @rt_implicit func(@acc_func) gang implicit
+
+  // All clauses in canonical order — confirms each individual optional
+  // group emits in the right slot when many are present together. Note the
+  // parallelism clauses target *different* device types so the verifier
+  // rule (one of gang/worker/vector/seq per device) holds.
+  acc.routine @rt_full func(@acc_func) bind("name") gang([#acc.device_type<nvidia>]) worker([#acc.device_type<radeon>]) vector([#acc.device_type<host>]) seq([#acc.device_type<multicore>]) nohost implicit
+  // CHECK-LABEL: acc.routine @rt_full func(@acc_func) bind("name") gang([#acc.device_type<nvidia>]) worker([#acc.device_type<radeon>]) vector([#acc.device_type<host>]) seq([#acc.device_type<multicore>]) nohost implicit
+
+  // Generic-form roundtrip insurance — covers the parser path that
+  // bypasses the custom directives entirely.
+  "acc.routine"() <{func_name = @acc_func, sym_name = "rt_generic", gang = [#acc.device_type<nvidia>]}> : () -> ()
+  // CHECK-LABEL: acc.routine @rt_generic func(@acc_func) gang([#acc.device_type<nvidia>])
 }

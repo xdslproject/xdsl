@@ -889,3 +889,46 @@ func.func @wait_devnum_alone(%dn : i32) {
   func.return
 }
 // CHECK: wait_devnum cannot appear without waitOperands
+
+// -----
+
+// acc.routine: at most one of `gang`/`worker`/`vector`/`seq` may be set
+// for the `none` device type — built via generic form because the pretty
+// form also goes through this same verifier.
+func.func @routine_base_parallelism() {
+  func.return
+}
+"acc.routine"() <{func_name = @routine_base_parallelism, sym_name = "rt_bad_base", gang = [#acc.device_type<none>], worker = [#acc.device_type<none>]}> : () -> ()
+// CHECK: only one of `gang`, `worker`, `vector`, `seq` can be present at the same time
+
+// -----
+
+// acc.routine: same restriction per non-`none` device type — mirrors
+// upstream's `acc.routine` `device_type` parallelism diagnostic.
+func.func @routine_nvidia_parallelism() {
+  func.return
+}
+"acc.routine"() <{func_name = @routine_nvidia_parallelism, sym_name = "rt_bad_nvidia", gang = [#acc.device_type<nvidia>], worker = [#acc.device_type<nvidia>]}> : () -> ()
+// CHECK: only one of `gang`, `worker`, `vector`, `seq` can be present at the same time for device_type `nvidia`
+
+// -----
+
+// acc.routine: a `none`-device parallelism marker conflicts with any
+// per-device parallelism marker — the verifier emits the per-device
+// diagnostic for the conflicting non-`none` device.
+func.func @routine_none_plus_nvidia() {
+  func.return
+}
+"acc.routine"() <{func_name = @routine_none_plus_nvidia, sym_name = "rt_bad_mix", gang = [#acc.device_type<none>], worker = [#acc.device_type<nvidia>]}> : () -> ()
+// CHECK: only one of `gang`, `worker`, `vector`, `seq` can be present at the same time for device_type `nvidia`
+
+// -----
+
+// acc.routine: a `bind(...)` entry must be a SymbolRef (`@name`) or a
+// StringAttr (`"name"`). Any other attribute kind triggers BindName's
+// defensive parse_attribute → not-isinstance branch.
+func.func @routine_bind_bad() {
+  func.return
+}
+acc.routine @rt_bind_bad func(@routine_bind_bad) bind(1 : i64)
+// CHECK: expected SymbolRef or string attribute in bind clause
