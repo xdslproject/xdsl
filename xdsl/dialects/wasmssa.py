@@ -41,8 +41,8 @@ class ExternRefType(ParametrizedAttribute, TypeAttribute):
     name = "wasmssa.externref"
 
 
-RefType: TypeAlias = FuncRefType | ExternRefType
-ValType: AnyOf = AnyOf([i32, i64, i128, f32, f64, FuncRefType, ExternRefType])
+RefTypeConstr: TypeAlias = FuncRefType | ExternRefType
+ValTypeConstr: AnyOf = AnyOf([i32, i64, i128, f32, f64, FuncRefType, ExternRefType])
 
 
 @irdl_attr_definition
@@ -85,7 +85,7 @@ class LocalRefType(ParametrizedAttribute, SpacedOpaqueSyntaxAttribute, TypeAttri
 
     name = "wasmssa.local"
 
-    elementType: Annotated[Attribute, ValType]
+    elementType: Annotated[Attribute, ValTypeConstr]
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> Sequence[TypeAttribute]:
@@ -109,12 +109,12 @@ class TableType(ParametrizedAttribute, SpacedOpaqueSyntaxAttribute, TypeAttribut
 
     name = "wasmssa.tabletype"
 
-    reference: RefType
+    reference: RefTypeConstr
     limit: LimitType
 
     @classmethod
-    def parse_parameters(cls, parser: AttrParser) -> tuple[RefType, LimitType]:
-        reference = cast(RefType, parser.parse_type())
+    def parse_parameters(cls, parser: AttrParser) -> tuple[RefTypeConstr, LimitType]:
+        reference = cast(RefTypeConstr, parser.parse_type())
         min, max = LimitType.parse_parameters(parser)
 
         return (reference, LimitType(min, max))
