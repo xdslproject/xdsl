@@ -32,7 +32,8 @@ class MakeBase2(RewritePattern):
             case math.LogOp(operand=x, fastmath=ff) if self.log:
                 ln2 = builtin.FloatAttr(pmath.log(2), t)
 
-                rewriter.replace_matched_op(
+                rewriter.replace_op(
+                    op,
                     [
                         c := arith.ConstantOp(ln2),
                         newlog := math.Log2Op(x, ff),
@@ -44,7 +45,8 @@ class MakeBase2(RewritePattern):
             case math.Log1pOp(operand=x, fastmath=ff) if self.log and isa(
                 x.type, builtin.AnyFloat
             ):
-                rewriter.replace_matched_op(
+                rewriter.replace_op(
+                    op,
                     [
                         one := arith.ConstantOp(builtin.FloatAttr(1.0, x.type)),
                         xp1 := arith.AddfOp(one, x, ff),
@@ -55,7 +57,8 @@ class MakeBase2(RewritePattern):
             # rewrite expe(%a) to exp2(%a * log2(e))
             case math.ExpOp(operand=x, fastmath=ff) if self.exp:
                 log2e = builtin.FloatAttr(pmath.log2(pmath.e), t)
-                rewriter.replace_matched_op(
+                rewriter.replace_op(
+                    op,
                     [
                         c := arith.ConstantOp(log2e),
                         inner := arith.MulfOp(c, x, ff),
@@ -97,7 +100,8 @@ class MakeApprox(RewritePattern):
         match op:
             # log2(%a) -> fp(L * (B - eps + A))
             case math.Log2Op(operand=x, fastmath=ff) if self.log:
-                rewriter.replace_matched_op(
+                rewriter.replace_op(
+                    op,
                     [
                         a := arith.ConstantOp(builtin.FloatAttr(L, t)),
                         b := arith.ConstantOp(builtin.FloatAttr(L * (B - 0.045), t)),
@@ -110,7 +114,8 @@ class MakeApprox(RewritePattern):
                 )
             case math.Exp2Op(operand=x, fastmath=ff) if self.exp:
                 # 2^%x -> int(%x) * 1/L - B + eps
-                rewriter.replace_matched_op(
+                rewriter.replace_op(
+                    op,
                     [
                         a := arith.ConstantOp(builtin.FloatAttr(1 / L, t)),
                         b := arith.ConstantOp(builtin.FloatAttr(-B + 0.045, t)),
