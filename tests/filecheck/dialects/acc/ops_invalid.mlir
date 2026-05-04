@@ -493,3 +493,319 @@ func.func @declare_wrong_defining_op(%a : memref<f32>) {
   func.return
 }
 // CHECK: expect valid declare data entry operation or acc.getdeviceptr as defining op
+
+// -----
+
+// acc.loop: at least one of auto / independent / seq must apply to the
+// device-`none` (default) device type. A bare loop with no parallelism
+// markers fails this check.
+func.func @loop_missing_par_mode() {
+  acc.loop {
+    acc.yield
+  }
+  func.return
+}
+// CHECK: at least one of auto, independent, seq must be present
+
+// -----
+
+// acc.loop: gang / worker / vector cannot coexist with seq for the same
+// device type — the verifier catches `seq + gang` on `#none`. The bare
+// `gang` keyword writes to the `gang` property directly via GangClause,
+// matching how a real source emits it.
+func.func @loop_seq_with_gang() {
+  acc.loop gang {
+    acc.yield
+  } attributes {seq = [#acc.device_type<none>]}
+  func.return
+}
+// CHECK: gang, worker or vector cannot appear with seq
+
+// -----
+
+// acc.loop: the same device type cannot appear twice across auto /
+// independent / seq.
+func.func @loop_auto_seq_same_dt() {
+  acc.loop {
+    acc.yield
+  } attributes {auto_ = [#acc.device_type<none>], seq = [#acc.device_type<none>]}
+  func.return
+}
+// CHECK: only one of auto, independent, seq can be present at the same time
+
+// -----
+
+// acc.loop: duplicate device type in the gang attribute fires a verifier
+// error (mirrors upstream's `checkDeviceTypes` helper). The
+// `gang([#dt, #dt])` keyword-only DT spelling writes the array directly
+// to the `gang` property via GangClause.
+func.func @loop_duplicate_gang_dt() {
+  acc.loop gang([#acc.device_type<none>, #acc.device_type<none>]) {
+    acc.yield
+  } attributes {independent = [#acc.device_type<none>]}
+  func.return
+}
+// CHECK: duplicate device_type `none` found in gang attribute
+
+// -----
+
+// acc.loop: an `unstructured` loop carries no induction variables — pairing
+// it with a `control(...)` clause is rejected.
+func.func @loop_unstructured_with_control(%lb : index, %ub : index, %st : index) {
+  acc.loop control(%iv : index) = (%lb : index) to (%ub : index) step (%st : index) {
+    acc.yield
+  } attributes {independent = [#acc.device_type<none>], unstructured}
+  func.return
+}
+// CHECK: unstructured acc.loop must not have induction variables
+
+// -----
+
+// acc.loop: lowerbound / upperbound / step counts must match each other.
+// Generic-form input is the only way to land mismatched counts; the
+// declarative parser only accepts equal-length lists.
+func.func @loop_unequal_counts(%lb : index, %ub : index, %st : index) {
+  "acc.loop"(%lb, %ub) <{independent = [#acc.device_type<none>], operandSegmentSizes = array<i32: 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0>}> ({
+  ^bb0(%iv: index):
+    "acc.yield"() : () -> ()
+  }) : (index, index) -> ()
+  func.return
+}
+// CHECK: number of upperbounds expected to be the same as number of steps
+
+// -----
+
+// acc.loop: lowerbound count must match upperbound count. Generic-form
+// input is the only way to reach this check (the declarative parser uses
+// the same induction-var count for all three lists). Pick segment sizes
+// where upperbound == step but lowerbound differs, so the upperbound/step
+// check passes and the lowerbound check fires.
+func.func @loop_lb_ub_mismatch(%lb : index, %ub : index, %st : index) {
+  "acc.loop"(%lb, %ub, %ub, %st, %st) <{independent = [#acc.device_type<none>], operandSegmentSizes = array<i32: 1, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0>}> ({
+  ^bb0(%iv: index, %iv2: index):
+    "acc.yield"() : () -> ()
+  }) : (index, index, index, index, index) -> ()
+  func.return
+}
+// CHECK: number of upperbounds expected to be the same as number of lowerbounds
+
+// -----
+
+// acc.loop: inclusiveUpperbound array size must match upperbound count.
+func.func @loop_inclusive_size_mismatch(%lb : index, %ub : index, %st : index) {
+  "acc.loop"(%lb, %ub, %st) <{independent = [#acc.device_type<none>], inclusiveUpperbound = array<i1: true, false>, operandSegmentSizes = array<i32: 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0>}> ({
+  ^bb0(%iv: index):
+    "acc.yield"() : () -> ()
+  }) : (index, index, index) -> ()
+  func.return
+}
+// CHECK: inclusiveUpperbound size is expected to be the same as upperbound size
+
+// -----
+
+// acc.loop: a `collapse` attribute requires `collapseDeviceType` too.
+func.func @loop_collapse_no_dt() {
+  acc.loop {
+    acc.yield
+  } attributes {collapse = [1 : i64], independent = [#acc.device_type<none>]}
+  func.return
+}
+// CHECK: collapse device_type attr must be define when collapse attr is present
+
+// -----
+
+// acc.loop: collapse and collapseDeviceType arrays must have matching counts.
+func.func @loop_collapse_count_mismatch() {
+  acc.loop {
+    acc.yield
+  } attributes {collapse = [1 : i64, 2 : i64], collapseDeviceType = [#acc.device_type<none>], independent = [#acc.device_type<none>]}
+  func.return
+}
+// CHECK: collapse attribute count must match collapse device_type count
+
+// -----
+
+// acc.loop: gang_operands present without `gangOperandsArgType` fails.
+func.func @loop_gang_no_arg_type(%v : i64) {
+  "acc.loop"(%v) <{independent = [#acc.device_type<none>], operandSegmentSizes = array<i32: 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0>}> ({
+    "acc.yield"() : () -> ()
+  }) : (i64) -> ()
+  func.return
+}
+// CHECK: gangOperandsArgType attribute must be defined when gang operands are present
+
+// -----
+
+// acc.loop: gangOperandsArgType count must match gang_operands count.
+func.func @loop_gang_arg_type_mismatch(%v : i64) {
+  "acc.loop"(%v, %v) <{independent = [#acc.device_type<none>], gangOperandsArgType = [#acc.gang_arg_type<Num>], gangOperandsDeviceType = [#acc.device_type<none>], gangOperandsSegments = array<i32: 2>, operandSegmentSizes = array<i32: 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0>}> ({
+    "acc.yield"() : () -> ()
+  }) : (i64, i64) -> ()
+  func.return
+}
+// CHECK: gangOperandsArgType attribute count must match gangOperands count
+
+// -----
+
+// acc.loop: worker_num_operands count must match worker_num_operands_device_type
+// count. Generic-form bypasses the declarative parser, which would always
+// populate one DT entry per operand.
+func.func @loop_worker_dt_mismatch(%v : i64) {
+  "acc.loop"(%v, %v) <{independent = [#acc.device_type<none>], workerNumOperandsDeviceType = [#acc.device_type<none>], operandSegmentSizes = array<i32: 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0>}> ({
+    "acc.yield"() : () -> ()
+  }) : (i64, i64) -> ()
+  func.return
+}
+// CHECK: worker operands count must match worker device_type count
+
+// -----
+
+// acc.loop: vector_operands count must match vector_operands_device_type
+// count.
+func.func @loop_vector_dt_mismatch(%v : i64) {
+  "acc.loop"(%v, %v) <{independent = [#acc.device_type<none>], vectorOperandsDeviceType = [#acc.device_type<none>], operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0>}> ({
+    "acc.yield"() : () -> ()
+  }) : (i64, i64) -> ()
+  func.return
+}
+// CHECK: vector operands count must match vector device_type count
+
+// -----
+
+// acc.loop: tile operand count must match the sum of tileOperandsSegments.
+func.func @loop_tile_segment_count_mismatch(%v : i64) {
+  "acc.loop"(%v, %v) <{independent = [#acc.device_type<none>], tileOperandsDeviceType = [#acc.device_type<none>], tileOperandsSegments = array<i32: 1>, operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0>}> ({
+    "acc.yield"() : () -> ()
+  }) : (i64, i64) -> ()
+  func.return
+}
+// CHECK: tile operand count does not match count in segments
+
+// -----
+
+// acc.loop: tileOperandsSegments count must match tileOperandsDeviceType count.
+func.func @loop_tile_segment_dt_mismatch(%v : i64) {
+  "acc.loop"(%v, %v) <{independent = [#acc.device_type<none>], tileOperandsDeviceType = [#acc.device_type<none>, #acc.device_type<nvidia>], tileOperandsSegments = array<i32: 2>, operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0>}> ({
+    "acc.yield"() : () -> ()
+  }) : (i64, i64) -> ()
+  func.return
+}
+// CHECK: tile segment count does not match device_type count
+
+// -----
+
+// acc.loop: parser rejects `combined(...)` with an unknown construct keyword.
+func.func @loop_combined_bad_keyword(%lb : index, %ub : index, %st : index) {
+  acc.loop combined(banana) control(%iv : index) = (%lb : index) to (%ub : index) step (%st : index) {
+    acc.yield
+  } attributes {independent = [#acc.device_type<none>]}
+  func.return
+}
+// CHECK: expected compute construct name
+
+// -----
+
+// acc.loop: gang clause with empty group `{}` is rejected.
+func.func @loop_gang_empty_group(%lb : index, %ub : index, %st : index) {
+  acc.loop gang({}) control(%iv : index) = (%lb : index) to (%ub : index) step (%st : index) {
+    acc.yield
+  } attributes {independent = [#acc.device_type<none>]}
+  func.return
+}
+// CHECK: expect at least one of num, dim or static values
+
+// -----
+
+// acc.loop: trailing comma inside a gang group fires the parser's
+// "new value expected after comma" error.
+func.func @loop_gang_trailing_comma(%v : i64, %lb : index, %ub : index, %st : index) {
+  acc.loop gang({num=%v : i64,}) control(%iv : index) = (%lb : index) to (%ub : index) step (%st : index) {
+    acc.yield
+  } attributes {independent = [#acc.device_type<none>]}
+  func.return
+}
+// CHECK: new value expected after comma
+
+// -----
+
+// acc.loop: `control(...)` with too few lower-bound operands raises a
+// parse error. The declarative parser uses the induction-var count to
+// bound the operand list.
+func.func @loop_control_too_few_lb(%lb : index, %ub : index, %st : index) {
+  acc.loop control(%iv : index, %iv2 : index) = (%lb : index) to (%ub, %ub : index, index) step (%st, %st : index, index) {
+    acc.yield
+  } attributes {independent = [#acc.device_type<none>]}
+  func.return
+}
+// CHECK: expected 2 operands
+
+// -----
+
+// acc.loop: `control(...)` with too few lower-bound types raises a parse
+// error.
+func.func @loop_control_too_few_lb_types(%lb : index, %ub : index, %st : index) {
+  acc.loop control(%iv : index, %iv2 : index) = (%lb, %lb : index) to (%ub, %ub : index, index) step (%st, %st : index, index) {
+    acc.yield
+  } attributes {independent = [#acc.device_type<none>]}
+  func.return
+}
+// CHECK: expected 2 types
+
+// -----
+
+// acc.loop: duplicate device_type in `worker` attribute fires the
+// duplicate-DT verifier. `worker([#dt, #dt])` is the keyword-only DT
+// spelling that writes the array directly to the `worker` property.
+func.func @loop_duplicate_worker_dt() {
+  acc.loop worker([#acc.device_type<none>, #acc.device_type<none>]) {
+    acc.yield
+  } attributes {independent = [#acc.device_type<none>]}
+  func.return
+}
+// CHECK: duplicate device_type `none` found in worker attribute
+
+// -----
+
+// acc.loop: duplicate device_type in `vector` attribute fires the
+// duplicate-DT verifier.
+func.func @loop_duplicate_vector_dt() {
+  acc.loop vector([#acc.device_type<none>, #acc.device_type<none>]) {
+    acc.yield
+  } attributes {independent = [#acc.device_type<none>]}
+  func.return
+}
+// CHECK: duplicate device_type `none` found in vector attribute
+
+// -----
+
+// acc.loop: duplicate device_type in `workerNumOperandsDeviceType`
+// (generic form — declarative parser would never produce duplicates).
+func.func @loop_duplicate_worker_num_operands_dt(%v : i64) {
+  "acc.loop"(%v, %v) <{independent = [#acc.device_type<none>], workerNumOperandsDeviceType = [#acc.device_type<none>, #acc.device_type<none>], operandSegmentSizes = array<i32: 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0>}> ({
+    "acc.yield"() : () -> ()
+  }) : (i64, i64) -> ()
+  func.return
+}
+// CHECK: duplicate device_type `none` found in workerNumOperandsDeviceType attribute
+
+// -----
+
+// acc.loop: duplicate device_type in `vectorOperandsDeviceType`.
+func.func @loop_duplicate_vector_operands_dt(%v : i64) {
+  "acc.loop"(%v, %v) <{independent = [#acc.device_type<none>], vectorOperandsDeviceType = [#acc.device_type<none>, #acc.device_type<none>], operandSegmentSizes = array<i32: 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0>}> ({
+    "acc.yield"() : () -> ()
+  }) : (i64, i64) -> ()
+  func.return
+}
+// CHECK: duplicate device_type `none` found in vectorOperandsDeviceType attribute
+
+// -----
+
+// acc.loop: duplicate device_type in `collapseDeviceType` attribute.
+func.func @loop_duplicate_collapse_dt() {
+  acc.loop {
+    acc.yield
+  } attributes {collapse = [1 : i64, 1 : i64], collapseDeviceType = [#acc.device_type<none>, #acc.device_type<none>], independent = [#acc.device_type<none>]}
+  func.return
+}
+// CHECK: duplicate device_type `none` found in collapseDeviceType attribute
