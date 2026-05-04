@@ -9,6 +9,7 @@ from xdsl.dialects.arith import ConstantOp
 from xdsl.dialects.builtin import (
     ArrayAttr,
     DenseArrayBase,
+    IndexType,
     IntegerAttr,
     MemRefType,
     StringAttr,
@@ -343,7 +344,7 @@ def test_kernels_init_bool_shortcuts():
     / default_attr=enum) cannot be reached via the parser — filecheck would have to
     pass already-constructed attributes — so this Python-only branch lives here."""
     op = acc.KernelsOp(
-        region=Region(Block()),
+        region=Region(Block([acc.TerminatorOp()])),
         self_attr=True,
         default_attr=acc.ClauseDefaultValue.PRESENT,
         combined=True,
@@ -354,7 +355,7 @@ def test_kernels_init_bool_shortcuts():
     assert isinstance(op.combined, UnitAttr)
     assert op.default_attr == acc.ClauseDefaultValueAttr(acc.ClauseDefaultValue.PRESENT)
 
-    op_off = acc.KernelsOp(region=Region(Block()))
+    op_off = acc.KernelsOp(region=Region(Block([acc.TerminatorOp()])))
     assert op_off.self_attr is None
     assert op_off.combined is None
 
@@ -365,6 +366,29 @@ def test_terminator_construction():
     so its body lives or dies by a Python-side construction call."""
     term = acc.TerminatorOp()
     assert term.name == "acc.terminator"
+
+
+def test_data_init_enum_shortcut():
+    """The `default_attr=ClauseDefaultValue.X` enum-shortcut branch in
+    DataOp.__init__ is not reachable via the parser (which produces a
+    fully-formed ClauseDefaultValueAttr)."""
+    op = acc.DataOp(
+        region=Region(Block([acc.TerminatorOp()])),
+        default_attr=acc.ClauseDefaultValue.PRESENT,
+    )
+    assert op.default_attr == acc.ClauseDefaultValueAttr(acc.ClauseDefaultValue.PRESENT)
+
+
+def test_host_data_init_bool_shortcut():
+    """The `if_present=True` bool-shortcut branch in HostDataOp.__init__ is
+    not reachable via the parser (which produces a UnitAttr directly)."""
+    use_dev = acc.UseDeviceOp(var=create_ssa_value(MemRefType(f32, [10])))
+    op = acc.HostDataOp(
+        region=Region(Block([acc.TerminatorOp()])),
+        data_clause_operands=[use_dev],
+        if_present=True,
+    )
+    assert isinstance(op.if_present, UnitAttr)
 
 
 def test_data_clause_modifier_attr_constructor():
@@ -582,3 +606,326 @@ def test_firstprivate_recipe_builder_shortcuts():
     assert len(op.init_region.blocks) == 1
     assert len(op.copy_region.blocks) == 1
     assert len(op.destroy_region.blocks) == 0
+
+
+def test_data_bounds_op_builder():
+    """The `DataBoundsOp` Python builder isn't reached via filecheck (the
+    parser uses IRDL `create`, which bypasses `__init__`) — pytest is the
+    only place its `__init__` body runs."""
+    lb = create_ssa_value(IndexType())
+    ub = create_ssa_value(IndexType())
+    extent = create_ssa_value(IndexType())
+    stride = create_ssa_value(IndexType())
+    start_idx = create_ssa_value(IndexType())
+    op = acc.DataBoundsOp(
+        lowerbound=lb,
+        upperbound=ub,
+        extent=extent,
+        stride=stride,
+        start_idx=start_idx,
+        stride_in_bytes=IntegerAttr.from_bool(True),
+    )
+    op.verify()
+
+    assert op.lowerbound is lb
+    assert op.upperbound is ub
+    assert op.extent is extent
+    assert op.stride is stride
+    assert op.start_idx is start_idx
+    assert op.stride_in_bytes == IntegerAttr.from_bool(True)
+    assert isinstance(op.result.type, acc.DataBoundsType)
+
+
+def test_data_bounds_accessor_builders():
+    """The shared `_DataBoundsAccessorOp.__init__` is exercised by all four
+    accessor ops; constructing each from Python covers the single shared
+    builder body that filecheck never invokes."""
+    bounds = acc.DataBoundsOp(
+        lowerbound=create_ssa_value(IndexType()),
+        upperbound=create_ssa_value(IndexType()),
+    )
+    for cls in (
+        acc.GetLowerboundOp,
+        acc.GetUpperboundOp,
+        acc.GetExtentOp,
+        acc.GetStrideOp,
+    ):
+        op = cls(bounds.result)
+        op.verify()
+        assert op.bounds is bounds.result
+        assert isinstance(op.result.type, IndexType)
+
+
+def test_copyin_explicit_var_and_acc_var_type():
+    """Both `var_type` and `acc_var_type` defaulting branches in
+    `_DataEntryOperation.__init__` are skipped when callers pass them
+    explicitly. The parser supplies these via the assembly format
+    (`type($var)`, `$varType`), so the explicit-value branches are only
+    reachable from a Python builder caller."""
+    var = create_ssa_value(MemRefType(f32, [10]))
+    explicit_var_type = f32
+    explicit_acc_var_type = MemRefType(f32, [10])
+    op = acc.CopyinOp(
+        var=var,
+        var_type=explicit_var_type,
+        acc_var_type=explicit_acc_var_type,
+    )
+    op.verify()
+
+    assert op.var_type is explicit_var_type
+    assert op.acc_var.type is explicit_acc_var_type
+
+
+def test_copyout_explicit_var_type():
+    """`var_type=` shortcut on `_DataExitOperationWithVarPtr.__init__`
+    bypasses the `_default_var_type` fallback. Builder-only branch — the
+    parser always supplies `varType` explicitly via the assembly format."""
+    explicit_var_type = f32
+    op = acc.CopyoutOp(
+        acc_var=create_ssa_value(MemRefType(f32, [10])),
+        var=create_ssa_value(MemRefType(f32, [10])),
+        var_type=explicit_var_type,
+    )
+    op.verify()
+
+    assert op.var_type is explicit_var_type
+
+
+def test_enter_data_init_bool_shortcuts():
+    """The `async_attr` / `wait_attr` bool-shortcut branches in
+    EnterDataOp.__init__ aren't reachable via the parser (which produces
+    a UnitAttr directly via the custom directive)."""
+    create = acc.CreateOp(var=create_ssa_value(MemRefType(f32, [10])))
+    op = acc.EnterDataOp(
+        data_clause_operands=[create],
+        async_attr=True,
+        wait_attr=True,
+    )
+    op.verify()
+
+    assert isinstance(op.async_attr, UnitAttr)
+    assert isinstance(op.wait_attr, UnitAttr)
+
+
+def test_exit_data_init_bool_shortcuts():
+    """Mirrors the EnterDataOp test for `ExitDataOp` plus its `finalize`
+    bool shortcut. Same parser-bypass story: bare-keyword UnitAttrs come
+    from the custom directive on parse, so the builder bool conversion
+    is only exercised from Python."""
+    devptr = acc.GetDevicePtrOp(var=create_ssa_value(MemRefType(f32, [10])))
+    op = acc.ExitDataOp(
+        data_clause_operands=[devptr],
+        async_attr=True,
+        wait_attr=True,
+        finalize=True,
+    )
+    op.verify()
+
+    assert isinstance(op.async_attr, UnitAttr)
+    assert isinstance(op.wait_attr, UnitAttr)
+    assert isinstance(op.finalize, UnitAttr)
+
+
+def test_update_init():
+    """Smoke test for `UpdateOp` — verifies operand wiring and the
+    `if_present` bool-shortcut branch (only reachable from Python; on
+    parse it lands as a UnitAttr in attr-dict)."""
+    update_dev = acc.UpdateDeviceOp(var=create_ssa_value(MemRefType(f32, [10])))
+    op = acc.UpdateOp(
+        data_clause_operands=[update_dev],
+        if_present=True,
+    )
+    op.verify()
+
+    assert len(op.data_clause_operands) == 1
+    assert op.data_clause_operands[0] is update_dev.acc_var
+    assert isinstance(op.if_present, UnitAttr)
+    assert op.if_cond is None
+    assert len(op.async_operands) == 0
+    assert len(op.wait_operands) == 0
+
+
+def test_declare_family_init_bodies():
+    """The three declare ops' `__init__` bodies are only reachable from
+    Python — the parser builds via IRDL `Operation.create()` and bypasses
+    them. Smoke-test all three to keep them covered. The non-trivial
+    branches: `DeclareExitOp` packing the optional `token` into a 0/1-list
+    (covered by both `token=...` and `token=None` calls), and `DeclareOp`
+    accepting the region keyword-only."""
+    var = create_ssa_value(MemRefType(f32, [10]))
+    copyin = acc.CopyinOp(var=var)
+
+    enter = acc.DeclareEnterOp(data_clause_operands=[copyin])
+    assert isinstance(enter.token.type, acc.DeclareTokenType)
+
+    exit_with_token = acc.DeclareExitOp(
+        token=enter.token, data_clause_operands=[copyin]
+    )
+    assert exit_with_token.token is enter.token
+
+    exit_no_token = acc.DeclareExitOp(data_clause_operands=[copyin])
+    assert exit_no_token.token is None
+
+    decl = acc.DeclareOp(region=Region(Block()), data_clause_operands=[copyin])
+    assert len(decl.region.blocks) == 1
+
+
+def _empty_loop(*, default_independent: bool = True) -> acc.LoopOp:
+    """`acc.loop` with an empty single-block body holding just an `acc.yield`.
+
+    Defaults `independent = [#acc.device_type<none>]` so the verifier's
+    "at least one of auto/independent/seq" check is satisfied.
+    """
+    independent = (
+        ArrayAttr([acc.DeviceTypeAttr(acc.DeviceType.NONE)])
+        if default_independent
+        else None
+    )
+    return acc.LoopOp(
+        region=Region(Block([acc.YieldOp()])),
+        independent=independent,
+    )
+
+
+def test_loop_par_mode_shortcut():
+    """The `par_mode=` keyword argument fills in the matching seq /
+    independent / auto array. This is a builder-only path: the parser only
+    sees the already-built `ArrayAttr[DeviceTypeAttr]`, so the conversion
+    branch is unreachable from filecheck."""
+    op_seq = acc.LoopOp(
+        region=Region(Block([acc.YieldOp()])),
+        par_mode=acc.LoopParMode.SEQ,
+    )
+    op_seq.verify()
+    assert op_seq.seq == ArrayAttr([acc.DeviceTypeAttr(acc.DeviceType.NONE)])
+    assert op_seq.independent is None
+    assert op_seq.auto_ is None
+
+    op_auto = acc.LoopOp(
+        region=Region(Block([acc.YieldOp()])),
+        par_mode=acc.LoopParMode.AUTO,
+    )
+    op_auto.verify()
+    assert op_auto.auto_ == ArrayAttr([acc.DeviceTypeAttr(acc.DeviceType.NONE)])
+    assert op_auto.independent is None
+    assert op_auto.seq is None
+
+    op_indep = acc.LoopOp(
+        region=Region(Block([acc.YieldOp()])),
+        par_mode=acc.LoopParMode.INDEPENDENT,
+    )
+    op_indep.verify()
+    assert op_indep.independent == ArrayAttr([acc.DeviceTypeAttr(acc.DeviceType.NONE)])
+    assert op_indep.seq is None
+    assert op_indep.auto_ is None
+
+    # An explicit `seq=` argument wins over `par_mode=...`. Builder-only
+    # branch; the parser would never pass both.
+    nvidia = acc.DeviceTypeAttr(acc.DeviceType.NVIDIA)
+    op_explicit = acc.LoopOp(
+        region=Region(Block([acc.YieldOp()])),
+        par_mode=acc.LoopParMode.SEQ,
+        seq=ArrayAttr([nvidia]),
+        independent=ArrayAttr([acc.DeviceTypeAttr(acc.DeviceType.NONE)]),
+    )
+    op_explicit.verify()
+    assert op_explicit.seq == ArrayAttr([nvidia])
+
+
+def test_loop_unit_and_combined_shortcuts():
+    """`unstructured` accepts a bool shortcut; `combined` accepts a
+    `CombinedConstructsType` value as well as the wrapped attribute."""
+    op = acc.LoopOp(
+        region=Region(Block([acc.YieldOp()])),
+        independent=ArrayAttr([acc.DeviceTypeAttr(acc.DeviceType.NONE)]),
+        unstructured=True,
+        combined=acc.CombinedConstructsType.PARALLEL_LOOP,
+    )
+    op.verify()
+
+    assert isinstance(op.unstructured, UnitAttr)
+    assert op.combined == acc.CombinedConstructsTypeAttr(
+        acc.CombinedConstructsType.PARALLEL_LOOP
+    )
+
+    op_off = _empty_loop()
+    assert op_off.unstructured is None
+    assert op_off.combined is None
+
+    op_explicit = acc.LoopOp(
+        region=Region(Block([acc.YieldOp()])),
+        independent=ArrayAttr([acc.DeviceTypeAttr(acc.DeviceType.NONE)]),
+        unstructured=UnitAttr(),
+        combined=acc.CombinedConstructsTypeAttr(
+            acc.CombinedConstructsType.KERNELS_LOOP
+        ),
+    )
+    assert isinstance(op_explicit.unstructured, UnitAttr)
+    assert op_explicit.combined == acc.CombinedConstructsTypeAttr(
+        acc.CombinedConstructsType.KERNELS_LOOP
+    )
+
+
+def test_init_op_builder_branches():
+    """Exercises the InitOp `__init__` paths that the parser bypasses
+    (parsing goes through `Operation.create()`, not `__init__`): empty op
+    plus a fully-populated op with both operands and the `device_types`
+    property."""
+    nvidia = acc.DeviceTypeAttr(acc.DeviceType.NVIDIA)
+
+    empty = acc.InitOp()
+    empty.verify()
+    assert empty.device_num is None
+    assert empty.if_cond is None
+    assert empty.device_types is None
+
+    op = acc.InitOp(
+        device_num=create_ssa_value(i64),
+        if_cond=create_ssa_value(i1),
+        device_types=ArrayAttr([nvidia]),
+    )
+    op.verify()
+    assert op.device_types == ArrayAttr([nvidia])
+
+
+def test_shutdown_op_builder_branches():
+    """Mirrors `test_init_op_builder_branches` for ShutdownOp."""
+    default = acc.DeviceTypeAttr(acc.DeviceType.DEFAULT)
+
+    empty = acc.ShutdownOp()
+    empty.verify()
+    assert empty.device_num is None
+    assert empty.if_cond is None
+    assert empty.device_types is None
+
+    op = acc.ShutdownOp(
+        device_num=create_ssa_value(i64),
+        if_cond=create_ssa_value(i1),
+        device_types=ArrayAttr([default]),
+    )
+    op.verify()
+    assert op.device_types == ArrayAttr([default])
+
+
+def test_set_op_init_smoke():
+    """Filecheck builds via `Operation.create()` and never calls `SetOp.__init__`,
+    leaving the constructor's `super().__init__(...)` line uncovered. A single
+    Python construction hits it (the body is branchless)."""
+    op = acc.SetOp(
+        default_async=create_ssa_value(i32),
+        device_num=create_ssa_value(i64),
+        if_cond=create_ssa_value(i1),
+        device_type=acc.DeviceTypeAttr(acc.DeviceType.NVIDIA),
+    )
+    op.verify()
+
+
+def test_wait_op_init_smoke():
+    """Mirrors `test_set_op_init_smoke` for WaitOp."""
+    op = acc.WaitOp(
+        wait_operands=[create_ssa_value(i64)],
+        async_operand=create_ssa_value(i32),
+        wait_devnum=create_ssa_value(i32),
+        if_cond=create_ssa_value(i1),
+    )
+    op.verify()

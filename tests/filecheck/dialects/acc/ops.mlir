@@ -434,11 +434,11 @@ builtin.module {
   // CHECK-NEXT:      acc.yield
   // CHECK-NEXT:    }
 
-  // acc.kernels uses the upstream `NoTerminator` body shape: the body can
-  // be empty or contain ops that lower to a kernels region. acc.yield is
-  // *not* a valid terminator inside acc.kernels (upstream's acc.yield
-  // ParentOneOf list excludes KernelsOp); the dedicated acc.terminator op
-  // lands later in the roadmap.
+  // acc.kernels uses `SingleBlockImplicitTerminator(TerminatorOp)`: the
+  // pretty-form parser auto-inserts `acc.terminator` when the body is
+  // written as `{ }` and the printer elides it again on output. acc.yield
+  // is *not* a valid terminator inside acc.kernels (upstream's acc.yield
+  // ParentOneOf list excludes KernelsOp).
   func.func @kernels_empty() {
     acc.kernels {
     }
@@ -618,6 +618,103 @@ builtin.module {
   // CHECK-LABEL: func.func @kernels_generic_roundtrip_retained() {
   // CHECK-NEXT:    acc.kernels {
   // CHECK-NEXT:    }
+
+  // acc.data — structured data construct. Body uses acc.terminator (same
+  // SingleBlockImplicitTerminator(TerminatorOp) shape as kernels). The
+  // verifier additionally requires either at least one operand or
+  // `defaultAttr`, so a body-only case must carry one of them.
+  func.func @data_default_attr() {
+    acc.data {
+    } attributes {defaultAttr = #acc<defaultvalue none>}
+    func.return
+  }
+  // CHECK-LABEL: func.func @data_default_attr() {
+  // CHECK-NEXT:    acc.data {
+  // CHECK-NEXT:    } attributes {defaultAttr = #acc<defaultvalue none>}
+
+  func.func @data_data_operand(%a : memref<10xf32>) {
+    %p = acc.present varPtr(%a : memref<10xf32>) -> memref<10xf32>
+    acc.data dataOperands(%p : memref<10xf32>) {
+    }
+    func.return
+  }
+  // CHECK-LABEL: func.func @data_data_operand(
+  // CHECK:         acc.data dataOperands(%{{.*}} : memref<10xf32>) {
+  // CHECK-NEXT:    }
+
+  func.func @data_if_async_wait(%c : i1, %a : i64, %w : i64) {
+    acc.data if(%c) async(%a : i64) wait({%w : i64}) {
+    } attributes {defaultAttr = #acc<defaultvalue none>}
+    func.return
+  }
+  // CHECK-LABEL: func.func @data_if_async_wait(
+  // CHECK:         acc.data if(%{{.*}}) async(%{{.*}} : i64) wait({%{{.*}} : i64}) {
+  // CHECK-NEXT:    } attributes {defaultAttr = #acc<defaultvalue none>}
+
+  func.func @data_async_bare() {
+    acc.data async {
+    } attributes {defaultAttr = #acc<defaultvalue none>}
+    func.return
+  }
+  // CHECK-LABEL: func.func @data_async_bare() {
+  // CHECK-NEXT:    acc.data async {
+  // CHECK-NEXT:    } attributes {defaultAttr = #acc<defaultvalue none>}
+
+  // Generic-form roundtrip retains insurance that the operandSegmentSizes
+  // (4 segments: ifCond / async / wait / data) round-trip.
+  func.func @data_generic_roundtrip_retained() {
+    "acc.data"() <{operandSegmentSizes = array<i32: 0, 0, 0, 0>}> ({
+    }) {defaultAttr = #acc<defaultvalue none>} : () -> ()
+    func.return
+  }
+  // CHECK-LABEL: func.func @data_generic_roundtrip_retained() {
+  // CHECK-NEXT:    acc.data {
+  // CHECK-NEXT:    } attributes {defaultAttr = #acc<defaultvalue none>}
+
+  // acc.host_data — like acc.data but the operands must be defined by
+  // acc.use_device, and there is an `ifPresent` UnitAttr instead of a
+  // default clause.
+  func.func @host_data_minimal(%a : memref<10xf32>) {
+    %u = acc.use_device varPtr(%a : memref<10xf32>) -> memref<10xf32>
+    acc.host_data dataOperands(%u : memref<10xf32>) {
+    }
+    func.return
+  }
+  // CHECK-LABEL: func.func @host_data_minimal(
+  // CHECK:         acc.host_data dataOperands(%{{.*}} : memref<10xf32>) {
+  // CHECK-NEXT:    }
+
+  func.func @host_data_if_present(%a : memref<10xf32>) {
+    %u = acc.use_device varPtr(%a : memref<10xf32>) -> memref<10xf32>
+    acc.host_data dataOperands(%u : memref<10xf32>) {
+    } attributes {ifPresent}
+    func.return
+  }
+  // CHECK-LABEL: func.func @host_data_if_present(
+  // CHECK:         acc.host_data dataOperands(%{{.*}} : memref<10xf32>) {
+  // CHECK-NEXT:    } attributes {ifPresent}
+
+  func.func @host_data_if_cond(%c : i1, %a : memref<10xf32>) {
+    %u = acc.use_device varPtr(%a : memref<10xf32>) -> memref<10xf32>
+    acc.host_data if(%c) dataOperands(%u : memref<10xf32>) {
+    }
+    func.return
+  }
+  // CHECK-LABEL: func.func @host_data_if_cond(
+  // CHECK:         acc.host_data if(%{{.*}}) dataOperands(%{{.*}} : memref<10xf32>) {
+  // CHECK-NEXT:    }
+
+  // Generic-form roundtrip insurance: 2 segments (ifCond / data) and the
+  // ifPresent UnitAttr ride in the trailing attr-dict.
+  func.func @host_data_generic_roundtrip_retained(%a : memref<10xf32>) {
+    %u = acc.use_device varPtr(%a : memref<10xf32>) -> memref<10xf32>
+    "acc.host_data"(%u) <{operandSegmentSizes = array<i32: 0, 1>, ifPresent}> ({
+    }) : (memref<10xf32>) -> ()
+    func.return
+  }
+  // CHECK-LABEL: func.func @host_data_generic_roundtrip_retained(
+  // CHECK:         acc.host_data dataOperands(%{{.*}} : memref<10xf32>) {
+  // CHECK-NEXT:    } attributes {ifPresent}
 
   func.func @bounds_full(%c0 : index, %c9 : index, %c1 : index) {
     %b = acc.bounds lowerbound(%c0 : index) upperbound(%c9 : index) stride(%c1 : index)
@@ -1408,6 +1505,172 @@ builtin.module {
   }) : () -> ()
   // CHECK-LABEL: acc.reduction.recipe @red_generic : i64 reduction_operator <add> init {
 
+  // acc.enter_data — standalone unstructured data-entry op. The optional
+  // clauses appear in upstream-td-definition order on print:
+  //   if, async, wait_devnum, wait, dataOperands.
+  // The custom format encodes both the operand-bearing form `async(%v : ty)`
+  // and the bare-keyword form `async` (UnitAttr) via the
+  // `OperandWithKeywordOnly` directive; same for `wait` via
+  // `OperandsWithKeywordOnly`.
+  func.func @enter_data_minimal(%a : memref<10xf32>) {
+    %d = acc.create varPtr(%a : memref<10xf32>) -> memref<10xf32>
+    acc.enter_data dataOperands(%d : memref<10xf32>)
+    func.return
+  }
+  // CHECK-LABEL: func.func @enter_data_minimal(
+  // CHECK:         acc.enter_data dataOperands(%{{.*}} : memref<10xf32>)
+
+  func.func @enter_data_async_bare(%a : memref<10xf32>) {
+    %d = acc.create varPtr(%a : memref<10xf32>) -> memref<10xf32>
+    acc.enter_data async dataOperands(%d : memref<10xf32>)
+    func.return
+  }
+  // CHECK-LABEL: func.func @enter_data_async_bare(
+  // CHECK:         acc.enter_data async dataOperands(%{{.*}} : memref<10xf32>)
+
+  func.func @enter_data_async_operand(%a : memref<10xf32>, %v : i64) {
+    %d = acc.create varPtr(%a : memref<10xf32>) -> memref<10xf32>
+    acc.enter_data async(%v : i64) dataOperands(%d : memref<10xf32>)
+    func.return
+  }
+  // CHECK-LABEL: func.func @enter_data_async_operand(
+  // CHECK:         acc.enter_data async(%{{.*}} : i64) dataOperands(%{{.*}} : memref<10xf32>)
+
+  func.func @enter_data_wait_bare(%a : memref<10xf32>) {
+    %d = acc.create varPtr(%a : memref<10xf32>) -> memref<10xf32>
+    acc.enter_data wait dataOperands(%d : memref<10xf32>)
+    func.return
+  }
+  // CHECK-LABEL: func.func @enter_data_wait_bare(
+  // CHECK:         acc.enter_data wait dataOperands(%{{.*}} : memref<10xf32>)
+
+  func.func @enter_data_if_wait_devnum(%a : memref<10xf32>, %c : i1, %dn : i64, %w : i32) {
+    %d = acc.create varPtr(%a : memref<10xf32>) -> memref<10xf32>
+    acc.enter_data if(%c) wait_devnum(%dn : i64) wait(%w : i32) dataOperands(%d : memref<10xf32>)
+    func.return
+  }
+  // CHECK-LABEL: func.func @enter_data_if_wait_devnum(
+  // CHECK:         acc.enter_data if(%{{.*}}) wait_devnum(%{{.*}} : i64) wait(%{{.*}} : i32) dataOperands(%{{.*}} : memref<10xf32>)
+
+  // Generic-form roundtrip insurance for `acc.enter_data` — the
+  // `operandSegmentSizes` array gates the five operand groups.
+  func.func @enter_data_generic_roundtrip(%a : memref<10xf32>) {
+    %d = acc.create varPtr(%a : memref<10xf32>) -> memref<10xf32>
+    "acc.enter_data"(%d) <{operandSegmentSizes = array<i32: 0, 0, 0, 0, 1>}> : (memref<10xf32>) -> ()
+    func.return
+  }
+  // CHECK-LABEL: func.func @enter_data_generic_roundtrip(
+  // CHECK:         acc.enter_data dataOperands(%{{.*}} : memref<10xf32>)
+
+  // acc.exit_data — twin of enter_data plus a `finalize` UnitAttr. Same
+  // five-segment operand shape (if, async, wait_devnum, wait, dataOperands)
+  // and the same `OperandWithKeywordOnly` / `OperandsWithKeywordOnly`
+  // directives. `finalize` rides through `attr-dict-with-keyword`.
+  func.func @exit_data_minimal(%a : memref<10xf32>) {
+    %d = acc.getdeviceptr varPtr(%a : memref<10xf32>) -> memref<10xf32>
+    acc.exit_data dataOperands(%d : memref<10xf32>)
+    func.return
+  }
+  // CHECK-LABEL: func.func @exit_data_minimal(
+  // CHECK:         acc.exit_data dataOperands(%{{.*}} : memref<10xf32>)
+
+  func.func @exit_data_async_finalize(%a : memref<10xf32>) {
+    %d = acc.getdeviceptr varPtr(%a : memref<10xf32>) -> memref<10xf32>
+    acc.exit_data async dataOperands(%d : memref<10xf32>) attributes {finalize}
+    func.return
+  }
+  // CHECK-LABEL: func.func @exit_data_async_finalize(
+  // CHECK:         acc.exit_data async dataOperands(%{{.*}} : memref<10xf32>) attributes {finalize}
+
+  func.func @exit_data_async_operand(%a : memref<10xf32>, %v : i64) {
+    %d = acc.getdeviceptr varPtr(%a : memref<10xf32>) -> memref<10xf32>
+    acc.exit_data async(%v : i64) dataOperands(%d : memref<10xf32>)
+    func.return
+  }
+  // CHECK-LABEL: func.func @exit_data_async_operand(
+  // CHECK:         acc.exit_data async(%{{.*}} : i64) dataOperands(%{{.*}} : memref<10xf32>)
+
+  func.func @exit_data_wait_bare(%a : memref<10xf32>) {
+    %d = acc.getdeviceptr varPtr(%a : memref<10xf32>) -> memref<10xf32>
+    acc.exit_data wait dataOperands(%d : memref<10xf32>)
+    func.return
+  }
+  // CHECK-LABEL: func.func @exit_data_wait_bare(
+  // CHECK:         acc.exit_data wait dataOperands(%{{.*}} : memref<10xf32>)
+
+  func.func @exit_data_if_wait_devnum(%a : memref<10xf32>, %c : i1, %dn : i64, %w : i32) {
+    %d = acc.getdeviceptr varPtr(%a : memref<10xf32>) -> memref<10xf32>
+    acc.exit_data if(%c) wait_devnum(%dn : i64) wait(%w : i32) dataOperands(%d : memref<10xf32>)
+    func.return
+  }
+  // CHECK-LABEL: func.func @exit_data_if_wait_devnum(
+  // CHECK:         acc.exit_data if(%{{.*}}) wait_devnum(%{{.*}} : i64) wait(%{{.*}} : i32) dataOperands(%{{.*}} : memref<10xf32>)
+
+  // Generic-form roundtrip insurance for `acc.exit_data` — same five-group
+  // operandSegmentSizes shape as enter_data plus the `finalize` UnitAttr.
+  func.func @exit_data_generic_roundtrip(%a : memref<10xf32>) {
+    %d = acc.getdeviceptr varPtr(%a : memref<10xf32>) -> memref<10xf32>
+    "acc.exit_data"(%d) <{finalize, operandSegmentSizes = array<i32: 0, 0, 0, 0, 1>}> : (memref<10xf32>) -> ()
+    func.return
+  }
+  // CHECK-LABEL: func.func @exit_data_generic_roundtrip(
+  // CHECK:         acc.exit_data dataOperands(%{{.*}} : memref<10xf32>) attributes {finalize}
+
+  // acc.update — per-device-type async/wait shape mirroring `acc.parallel`,
+  // plus an `ifPresent` UnitAttr (no `async` / `wait` keyword-only attrs;
+  // those are encoded via `*Only` device-type arrays). Defining ops accepted
+  // for `dataOperands`: `acc.update_device`, `acc.update_host`,
+  // `acc.getdeviceptr`.
+  func.func @update_minimal(%a : memref<f32>) {
+    %d = acc.update_device varPtr(%a : memref<f32>) -> memref<f32>
+    acc.update dataOperands(%d : memref<f32>)
+    func.return
+  }
+  // CHECK-LABEL: func.func @update_minimal(
+  // CHECK:         acc.update dataOperands(%{{.*}} : memref<f32>)
+
+  func.func @update_async_bare(%a : memref<f32>) {
+    %d = acc.update_device varPtr(%a : memref<f32>) -> memref<f32>
+    acc.update async dataOperands(%d : memref<f32>)
+    func.return
+  }
+  // CHECK-LABEL: func.func @update_async_bare(
+  // CHECK:         acc.update async dataOperands(%{{.*}} : memref<f32>)
+
+  func.func @update_async_operand(%a : memref<f32>, %v : i64) {
+    %d = acc.update_device varPtr(%a : memref<f32>) -> memref<f32>
+    acc.update async(%v : i64) dataOperands(%d : memref<f32>)
+    func.return
+  }
+  // CHECK-LABEL: func.func @update_async_operand(
+  // CHECK:         acc.update async(%{{.*}} : i64) dataOperands(%{{.*}} : memref<f32>)
+
+  func.func @update_wait_devnum(%a : memref<f32>, %dn : i64, %w : i32) {
+    %d = acc.update_device varPtr(%a : memref<f32>) -> memref<f32>
+    acc.update wait({devnum: %dn : i64, %w : i32}) dataOperands(%d : memref<f32>)
+    func.return
+  }
+  // CHECK-LABEL: func.func @update_wait_devnum(
+  // CHECK:         acc.update wait({devnum: %{{.*}} : i64, %{{.*}} : i32}) dataOperands(%{{.*}} : memref<f32>)
+
+  func.func @update_if_present(%a : memref<f32>, %c : i1) {
+    %d = acc.update_device varPtr(%a : memref<f32>) -> memref<f32>
+    acc.update if(%c) dataOperands(%d : memref<f32>) attributes {ifPresent}
+    func.return
+  }
+  // CHECK-LABEL: func.func @update_if_present(
+  // CHECK:         acc.update if(%{{.*}}) dataOperands(%{{.*}} : memref<f32>) attributes {ifPresent}
+
+  // Generic-form roundtrip insurance for `acc.update` — four-segment
+  // operandSegmentSizes (if, async, wait, dataOperands).
+  func.func @update_generic_roundtrip(%a : memref<f32>) {
+    %d = acc.update_device varPtr(%a : memref<f32>) -> memref<f32>
+    "acc.update"(%d) <{operandSegmentSizes = array<i32: 0, 0, 0, 1>}> : (memref<f32>) -> ()
+    func.return
+  }
+  // CHECK-LABEL: func.func @update_generic_roundtrip(
+  // CHECK:         acc.update dataOperands(%{{.*}} : memref<f32>)
+
   // acc.terminator is the value-less generic terminator. It currently only
   // permits `acc.kernels` as a parent (per HasParent on TerminatorOp); other
   // region ops in the OpenACC dialect (acc.data, acc.host_data, …) will be
@@ -1434,4 +1697,450 @@ builtin.module {
   // CHECK-NEXT:    acc.kernels {
   // CHECK-NEXT:      acc.terminator
   // CHECK-NEXT:    }
+
+  // acc.declare_enter — entry to an implicit declare data region. Yields
+  // an `!acc.declare_token` that may be threaded into the matching
+  // `acc.declare_exit`. Defining ops accepted for `dataOperands`: any of
+  // copyin / copyout / create / deviceptr / getdeviceptr / present /
+  // declare_device_resident / declare_link (per upstream's
+  // `checkDeclareOperands` helper).
+  func.func @declare_enter_basic(%a : memref<f32>) {
+    %0 = acc.copyin varPtr(%a : memref<f32>) -> memref<f32>
+    %t = acc.declare_enter dataOperands(%0 : memref<f32>)
+    acc.declare_exit token(%t) dataOperands(%0 : memref<f32>)
+    func.return
+  }
+  // CHECK-LABEL: func.func @declare_enter_basic(
+  // CHECK:         %{{.*}} = acc.copyin varPtr(%{{.*}} : memref<f32>) -> memref<f32>
+  // CHECK-NEXT:    %{{.*}} = acc.declare_enter dataOperands(%{{.*}} : memref<f32>)
+  // CHECK-NEXT:    acc.declare_exit token(%{{.*}}) dataOperands(%{{.*}} : memref<f32>)
+
+  // acc.declare_exit — when a `token` is present, `dataOperands` may be
+  // empty (mirrors upstream's `requireAtLeastOneOperand=false` branch).
+  func.func @declare_exit_token_only(%a : memref<f32>) {
+    %0 = acc.create varPtr(%a : memref<f32>) -> memref<f32>
+    %t = acc.declare_enter dataOperands(%0 : memref<f32>)
+    acc.declare_exit token(%t)
+    func.return
+  }
+  // CHECK-LABEL: func.func @declare_exit_token_only(
+  // CHECK:         acc.declare_exit token(%{{.*}})
+
+  // acc.declare_exit — without a `token`, only `dataOperands` is given.
+  // Defining ops accepted include `acc.getdeviceptr` for device-resident
+  // tear-down (per upstream's example).
+  func.func @declare_exit_no_token(%a : memref<f32>) {
+    %0 = acc.getdeviceptr varPtr(%a : memref<f32>) -> memref<f32>
+    acc.declare_exit dataOperands(%0 : memref<f32>)
+    func.return
+  }
+  // CHECK-LABEL: func.func @declare_exit_no_token(
+  // CHECK:         acc.declare_exit dataOperands(%{{.*}} : memref<f32>)
+
+  // acc.declare — structured declare region (no implicit terminator). The
+  // body is just the implicit data region's lifetime; here it's empty.
+  func.func @declare_region(%a : memref<f32>) {
+    %0 = acc.create varPtr(%a : memref<f32>) -> memref<f32>
+    acc.declare dataOperands(%0 : memref<f32>) {
+    }
+    func.return
+  }
+  // CHECK-LABEL: func.func @declare_region(
+  // CHECK:         acc.declare dataOperands(%{{.*}} : memref<f32>) {
+  // CHECK-NEXT:    }
+
+  // Generic-form roundtrip insurance for `acc.declare_enter` plus its
+  // typed token result.
+  func.func @declare_enter_generic_roundtrip_retained(%a : memref<f32>) {
+    %0 = "acc.copyin"(%a) <{varType = f32, operandSegmentSizes = array<i32: 1, 0, 0, 0>}> : (memref<f32>) -> memref<f32>
+    %t = "acc.declare_enter"(%0) : (memref<f32>) -> !acc.declare_token
+    "acc.declare_exit"(%t) <{operandSegmentSizes = array<i32: 1, 0>}> : (!acc.declare_token) -> ()
+    func.return
+  }
+  // CHECK-LABEL: func.func @declare_enter_generic_roundtrip_retained(
+  // CHECK:         %{{.*}} = acc.declare_enter dataOperands(%{{.*}} : memref<f32>)
+  // CHECK-NEXT:    acc.declare_exit token(%{{.*}})
+
+  // Generic-form roundtrip insurance for `acc.declare_exit`'s
+  // AttrSizedOperandSegments — the [0, 1] segments shape (no token,
+  // single dataOperand).
+  func.func @declare_exit_generic_roundtrip_retained(%a : memref<f32>) {
+    %0 = acc.getdeviceptr varPtr(%a : memref<f32>) -> memref<f32>
+    "acc.declare_exit"(%0) <{operandSegmentSizes = array<i32: 0, 1>}> : (memref<f32>) -> ()
+    func.return
+  }
+  // CHECK-LABEL: func.func @declare_exit_generic_roundtrip_retained(
+  // CHECK:         acc.declare_exit dataOperands(%{{.*}} : memref<f32>)
+
+  // Generic-form roundtrip insurance for `acc.declare`.
+  func.func @declare_generic_roundtrip_retained(%a : memref<f32>) {
+    %0 = acc.create varPtr(%a : memref<f32>) -> memref<f32>
+    "acc.declare"(%0) ({
+    }) : (memref<f32>) -> ()
+    func.return
+  }
+  // CHECK-LABEL: func.func @declare_generic_roundtrip_retained(
+  // CHECK:         acc.declare dataOperands(%{{.*}} : memref<f32>) {
+  // CHECK-NEXT:    }
+
+  // ===========================================================================
+  // acc.loop
+  // ===========================================================================
+
+  // Container-like loop (no induction variables) — the `independent` /
+  // `seq` / `auto` device-`none` entry is required by the verifier.
+  func.func @loop_empty() {
+    acc.loop {
+      acc.yield
+    } attributes {independent = [#acc.device_type<none>]}
+    func.return
+  }
+  // CHECK-LABEL: func.func @loop_empty() {
+  // CHECK-NEXT:    acc.loop {
+  // CHECK-NEXT:      acc.yield
+  // CHECK-NEXT:    } attributes {independent = [#acc.device_type<none>]}
+
+  // Loop with induction variables — the `control(...) = (...) to (...)
+  // step (...)` header is parsed/printed by the LoopControl directive.
+  func.func @loop_control(%lb : index, %ub : index, %st : index) {
+    acc.loop control(%iv : index) = (%lb : index) to (%ub : index) step (%st : index) {
+      acc.yield
+    } attributes {independent = [#acc.device_type<none>], inclusiveUpperbound = array<i1: true>}
+    func.return
+  }
+  // CHECK-LABEL: func.func @loop_control(
+  // CHECK:         acc.loop control(%{{.*}} : index) = (%{{.*}} : index) to (%{{.*}} : index) step (%{{.*}} : index) {
+  // CHECK-NEXT:      acc.yield
+  // CHECK-NEXT:    } attributes {independent = [#acc.device_type<none>], inclusiveUpperbound = array<i1: true>}
+
+  // Bare gang/worker/vector keywords land as device-`none` arrays.
+  func.func @loop_bare_par_keywords(%lb : index, %ub : index, %st : index) {
+    acc.loop gang worker vector control(%iv : index) = (%lb : index) to (%ub : index) step (%st : index) {
+      acc.yield
+    } attributes {independent = [#acc.device_type<none>], inclusiveUpperbound = array<i1: true>}
+    func.return
+  }
+  // CHECK-LABEL: func.func @loop_bare_par_keywords(
+  // CHECK:         acc.loop gang worker vector control(%{{.*}} : index) = (%{{.*}} : index) to (%{{.*}} : index) step (%{{.*}} : index) {
+  // CHECK-NEXT:      acc.yield
+  // CHECK-NEXT:    } attributes {independent = [#acc.device_type<none>], inclusiveUpperbound = array<i1: true>}
+
+  // gang clause with `num=` / `static=` / `dim=` operand groups.
+  func.func @loop_gang_operands(%v : i64, %lb : index, %ub : index, %st : index) {
+    acc.loop gang({num=%v : i64, static=%v : i64}) worker(%v : i64) vector(%v : i64) control(%iv : index) = (%lb : index) to (%ub : index) step (%st : index) {
+      acc.yield
+    } attributes {independent = [#acc.device_type<none>], inclusiveUpperbound = array<i1: true>}
+    func.return
+  }
+  // CHECK-LABEL: func.func @loop_gang_operands(
+  // CHECK:         acc.loop gang({num=%{{.*}} : i64, static=%{{.*}} : i64}) worker(%{{.*}} : i64) vector(%{{.*}} : i64) control(%{{.*}} : index)
+
+  // tile clause with brace-grouped operands.
+  func.func @loop_tile(%v : i64, %lb : index, %ub : index, %st : index) {
+    acc.loop tile({%v : i64, %v : i64}) control(%iv : index) = (%lb : index) to (%ub : index) step (%st : index) {
+      acc.yield
+    } attributes {independent = [#acc.device_type<none>], inclusiveUpperbound = array<i1: true>}
+    func.return
+  }
+  // CHECK-LABEL: func.func @loop_tile(
+  // CHECK:         acc.loop tile({%{{.*}} : i64, %{{.*}} : i64}) control(%{{.*}} : index)
+
+  // Combined construct keyword — `combined(parallel)` decomposes a
+  // `parallel loop` directive.
+  func.func @loop_combined(%lb : index, %ub : index, %st : index) {
+    acc.loop combined(parallel) control(%iv : index) = (%lb : index) to (%ub : index) step (%st : index) {
+      acc.yield
+    } attributes {independent = [#acc.device_type<none>], inclusiveUpperbound = array<i1: true>}
+    func.return
+  }
+  // CHECK-LABEL: func.func @loop_combined(
+  // CHECK:         acc.loop combined(parallel) control(%{{.*}} : index)
+
+  // private / firstprivate / reduction operand groups.
+  func.func @loop_data_clauses(%a : memref<10xf32>, %lb : index, %ub : index, %st : index) {
+    %p = acc.private varPtr(%a : memref<10xf32>) -> memref<10xf32>
+    %f = acc.firstprivate varPtr(%a : memref<10xf32>) -> memref<10xf32>
+    %r = acc.reduction varPtr(%a : memref<10xf32>) -> memref<10xf32>
+    acc.loop private(%p : memref<10xf32>) firstprivate(%f : memref<10xf32>) reduction(%r : memref<10xf32>) control(%iv : index) = (%lb : index) to (%ub : index) step (%st : index) {
+      acc.yield
+    } attributes {independent = [#acc.device_type<none>], inclusiveUpperbound = array<i1: true>}
+    func.return
+  }
+  // CHECK-LABEL: func.func @loop_data_clauses(
+  // CHECK:         acc.loop private(%{{.*}} : memref<10xf32>) firstprivate(%{{.*}} : memref<10xf32>) reduction(%{{.*}} : memref<10xf32>) control(%{{.*}} : index)
+
+  // cache operand list.
+  func.func @loop_cache(%a : memref<10xf32>, %lb : index, %ub : index, %st : index) {
+    %b = acc.cache varPtr(%a : memref<10xf32>) -> memref<10xf32>
+    acc.loop cache(%b : memref<10xf32>) control(%iv : index) = (%lb : index) to (%ub : index) step (%st : index) {
+      acc.yield
+    } attributes {independent = [#acc.device_type<none>], inclusiveUpperbound = array<i1: true>}
+    func.return
+  }
+  // CHECK-LABEL: func.func @loop_cache(
+  // CHECK:         acc.loop cache(%{{.*}} : memref<10xf32>) control(%{{.*}} : index)
+
+  // Generic-form roundtrip insurance for `acc.loop` — proves the bare
+  // generic surface (operandSegmentSizes + properties) still parses.
+  func.func @loop_generic_roundtrip_retained(%lb : index, %ub : index, %st : index) {
+    "acc.loop"(%lb, %ub, %st) <{independent = [#acc.device_type<none>], inclusiveUpperbound = array<i1: true>, operandSegmentSizes = array<i32: 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0>}> ({
+    ^bb0(%iv: index):
+      "acc.yield"() : () -> ()
+    }) : (index, index, index) -> ()
+    func.return
+  }
+  // CHECK-LABEL: func.func @loop_generic_roundtrip_retained(
+  // CHECK:         acc.loop control(%{{.*}} : index) = (%{{.*}} : index) to (%{{.*}} : index) step (%{{.*}} : index) {
+  // CHECK-NEXT:      acc.yield
+  // CHECK-NEXT:    } attributes {independent = [#acc.device_type<none>], inclusiveUpperbound = array<i1: true>}
+
+  // gang clause with a keyword-only `[#dt]` device-type list (no operands).
+  func.func @loop_gang_kw_only_dts(%lb : index, %ub : index, %st : index) {
+    acc.loop gang([#acc.device_type<nvidia>]) control(%iv : index) = (%lb : index) to (%ub : index) step (%st : index) {
+      acc.yield
+    } attributes {independent = [#acc.device_type<none>], inclusiveUpperbound = array<i1: true>}
+    func.return
+  }
+  // CHECK-LABEL: func.func @loop_gang_kw_only_dts(
+  // CHECK:         acc.loop gang([#acc.device_type<nvidia>]) control(%{{.*}} : index)
+
+  // gang clause mixing keyword-only DT list and operand groups.
+  func.func @loop_gang_mixed(%v : i64, %lb : index, %ub : index, %st : index) {
+    acc.loop gang([#acc.device_type<nvidia>], {num=%v : i64} [#acc.device_type<default>]) control(%iv : index) = (%lb : index) to (%ub : index) step (%st : index) {
+      acc.yield
+    } attributes {independent = [#acc.device_type<none>], inclusiveUpperbound = array<i1: true>}
+    func.return
+  }
+  // CHECK-LABEL: func.func @loop_gang_mixed(
+  // CHECK:         acc.loop gang([#acc.device_type<nvidia>], {num=%{{.*}} : i64} [#acc.device_type<default>]) control(%{{.*}} : index)
+
+  // Multiple gang operand groups — exercises the `, ` separator between
+  // groups in GangClause's printer.
+  func.func @loop_gang_multi_group(%v : i64, %lb : index, %ub : index, %st : index) {
+    acc.loop gang({num=%v : i64} [#acc.device_type<nvidia>], {dim=%v : i64} [#acc.device_type<default>]) control(%iv : index) = (%lb : index) to (%ub : index) step (%st : index) {
+      acc.yield
+    } attributes {independent = [#acc.device_type<none>], inclusiveUpperbound = array<i1: true>}
+    func.return
+  }
+  // CHECK-LABEL: func.func @loop_gang_multi_group(
+  // CHECK:         acc.loop gang({num=%{{.*}} : i64} [#acc.device_type<nvidia>], {dim=%{{.*}} : i64} [#acc.device_type<default>]) control(%{{.*}} : index)
+
+  // collapse with matching counts (1 entry each) — exercises the verifier
+  // path past the collapse-count check on the happy path.
+  func.func @loop_collapse() {
+    acc.loop {
+      acc.yield
+    } attributes {collapse = [2 : i64], collapseDeviceType = [#acc.device_type<none>], independent = [#acc.device_type<none>]}
+    func.return
+  }
+  // CHECK-LABEL: func.func @loop_collapse() {
+  // CHECK:         acc.loop {
+  // CHECK-NEXT:      acc.yield
+  // CHECK-NEXT:    } attributes {collapse = [2 : i64], collapseDeviceType = [#acc.device_type<none>], independent = [#acc.device_type<none>]}
+
+  // seq + gang with non-overlapping device types — exercises the
+  // gang/worker/vector incompatibility check's no-conflict branch. The
+  // `gang([#nvidia])` keyword-only DT spelling writes to the `gang`
+  // property via GangClause.
+  func.func @loop_seq_gang_disjoint() {
+    acc.loop gang([#acc.device_type<nvidia>]) {
+      acc.yield
+    } attributes {seq = [#acc.device_type<none>]}
+    func.return
+  }
+  // CHECK-LABEL: func.func @loop_seq_gang_disjoint() {
+  // CHECK:         acc.loop gang([#acc.device_type<nvidia>]) {
+  // CHECK-NEXT:      acc.yield
+  // CHECK-NEXT:    } attributes {seq = [#acc.device_type<none>]}
+
+  // -- Runtime executable ops: acc.init / acc.shutdown / acc.set / acc.wait --
+  // Each carries `AttrSizedOperandSegments` and shares a "cannot be nested
+  // in a compute operation" verifier; their pretty form is a fixed-order
+  // optional-clause sequence (the upstream `oilist(...)` is replaced by
+  // declarative `(...)?` groups).
+
+  func.func @init_empty() {
+    acc.init
+    func.return
+  }
+  // CHECK-LABEL: func.func @init_empty() {
+  // CHECK:         acc.init
+
+  func.func @init_device_num(%dn : i64) {
+    acc.init device_num(%dn : i64)
+    func.return
+  }
+  // CHECK-LABEL: func.func @init_device_num(
+  // CHECK:         acc.init device_num(%{{.*}} : i64)
+
+  func.func @init_if(%c : i1) {
+    acc.init if(%c)
+    func.return
+  }
+  // CHECK-LABEL: func.func @init_if(
+  // CHECK:         acc.init if(%{{.*}})
+
+  func.func @init_device_num_and_if(%dn : index, %c : i1) {
+    acc.init device_num(%dn : index) if(%c)
+    func.return
+  }
+  // CHECK-LABEL: func.func @init_device_num_and_if(
+  // CHECK:         acc.init device_num(%{{.*}} : index) if(%{{.*}})
+
+  // The inherent `device_types` property has no clause — it flows through
+  // `attr-dict-with-keyword`.
+  func.func @init_device_types() {
+    acc.init attributes {device_types = [#acc.device_type<nvidia>]}
+    func.return
+  }
+  // CHECK-LABEL: func.func @init_device_types() {
+  // CHECK:         acc.init attributes {device_types = [#acc.device_type<nvidia>]}
+
+  // Generic-form roundtrip insurance for acc.init — exercises the
+  // two-segment operand layout (device_num, if_cond).
+  func.func @init_generic_roundtrip(%dn : i64) {
+    "acc.init"(%dn) <{operandSegmentSizes = array<i32: 1, 0>}> : (i64) -> ()
+    func.return
+  }
+  // CHECK-LABEL: func.func @init_generic_roundtrip(
+  // CHECK:         acc.init device_num(%{{.*}} : i64)
+
+  func.func @shutdown_empty() {
+    acc.shutdown
+    func.return
+  }
+  // CHECK-LABEL: func.func @shutdown_empty() {
+  // CHECK:         acc.shutdown
+
+  func.func @shutdown_device_num_and_if(%dn : i64, %c : i1) {
+    acc.shutdown device_num(%dn : i64) if(%c)
+    func.return
+  }
+  // CHECK-LABEL: func.func @shutdown_device_num_and_if(
+  // CHECK:         acc.shutdown device_num(%{{.*}} : i64) if(%{{.*}})
+
+  func.func @shutdown_device_types() {
+    acc.shutdown attributes {device_types = [#acc.device_type<default>]}
+    func.return
+  }
+  // CHECK-LABEL: func.func @shutdown_device_types() {
+  // CHECK:         acc.shutdown attributes {device_types = [#acc.device_type<default>]}
+
+  // Generic-form roundtrip insurance for acc.shutdown.
+  func.func @shutdown_generic_roundtrip(%c : i1) {
+    "acc.shutdown"(%c) <{operandSegmentSizes = array<i32: 0, 1>}> : (i1) -> ()
+    func.return
+  }
+  // CHECK-LABEL: func.func @shutdown_generic_roundtrip(
+  // CHECK:         acc.shutdown if(%{{.*}})
+
+  // acc.set requires at least one of default_async/device_num/device_type.
+  // Three optional operand clauses + a single (non-array) device_type
+  // property that flows through `attr-dict-with-keyword`.
+  func.func @set_device_type_only() {
+    acc.set attributes {device_type = #acc.device_type<nvidia>}
+    func.return
+  }
+  // CHECK-LABEL: func.func @set_device_type_only() {
+  // CHECK:         acc.set attributes {device_type = #acc.device_type<nvidia>}
+
+  func.func @set_device_num(%dn : i32) {
+    acc.set device_num(%dn : i32)
+    func.return
+  }
+  // CHECK-LABEL: func.func @set_device_num(
+  // CHECK:         acc.set device_num(%{{.*}} : i32)
+
+  func.func @set_default_async(%da : i32) {
+    acc.set default_async(%da : i32)
+    func.return
+  }
+  // CHECK-LABEL: func.func @set_default_async(
+  // CHECK:         acc.set default_async(%{{.*}} : i32)
+
+  func.func @set_full(%da : i32, %dn : index, %c : i1) {
+    acc.set default_async(%da : i32) device_num(%dn : index) if(%c) attributes {device_type = #acc.device_type<host>}
+    func.return
+  }
+  // CHECK-LABEL: func.func @set_full(
+  // CHECK:         acc.set default_async(%{{.*}} : i32) device_num(%{{.*}} : index) if(%{{.*}}) attributes {device_type = #acc.device_type<host>}
+
+  // Generic-form roundtrip insurance for acc.set — three operand groups
+  // (default_async, device_num, if_cond).
+  func.func @set_generic_roundtrip(%dn : i64) {
+    "acc.set"(%dn) <{operandSegmentSizes = array<i32: 0, 1, 0>}> : (i64) -> ()
+    func.return
+  }
+  // CHECK-LABEL: func.func @set_generic_roundtrip(
+  // CHECK:         acc.set device_num(%{{.*}} : i64)
+
+  // acc.wait — the only runtime op with a leading parenthesised variadic
+  // operand list (no keyword), plus the same `OperandWithKeywordOnly`
+  // directive used by enter_data/exit_data for the `async` clause. Note:
+  // unlike init/shutdown/set, `acc.wait` does *not* forbid nesting in a
+  // compute op.
+  func.func @wait_empty() {
+    acc.wait
+    func.return
+  }
+  // CHECK-LABEL: func.func @wait_empty() {
+  // CHECK:         acc.wait
+
+  func.func @wait_one_operand(%w : i64) {
+    acc.wait(%w : i64)
+    func.return
+  }
+  // CHECK-LABEL: func.func @wait_one_operand(
+  // CHECK:         acc.wait(%{{.*}} : i64)
+
+  func.func @wait_multiple_operands(%w1 : i32, %w2 : index) {
+    acc.wait(%w1, %w2 : i32, index)
+    func.return
+  }
+  // CHECK-LABEL: func.func @wait_multiple_operands(
+  // CHECK:         acc.wait(%{{.*}}, %{{.*}} : i32, index)
+
+  func.func @wait_async_bare() {
+    acc.wait async
+    func.return
+  }
+  // CHECK-LABEL: func.func @wait_async_bare() {
+  // CHECK:         acc.wait async
+
+  func.func @wait_async_operand(%a : i32) {
+    acc.wait async(%a : i32)
+    func.return
+  }
+  // CHECK-LABEL: func.func @wait_async_operand(
+  // CHECK:         acc.wait async(%{{.*}} : i32)
+
+  func.func @wait_wait_devnum(%w : i64, %dn : i32) {
+    acc.wait(%w : i64) wait_devnum(%dn : i32)
+    func.return
+  }
+  // CHECK-LABEL: func.func @wait_wait_devnum(
+  // CHECK:         acc.wait(%{{.*}} : i64) wait_devnum(%{{.*}} : i32)
+
+  func.func @wait_if(%c : i1) {
+    acc.wait if(%c)
+    func.return
+  }
+  // CHECK-LABEL: func.func @wait_if(
+  // CHECK:         acc.wait if(%{{.*}})
+
+  func.func @wait_full(%w : i64, %a : index, %dn : i32, %c : i1) {
+    acc.wait(%w : i64) async(%a : index) wait_devnum(%dn : i32) if(%c)
+    func.return
+  }
+  // CHECK-LABEL: func.func @wait_full(
+  // CHECK:         acc.wait(%{{.*}} : i64) async(%{{.*}} : index) wait_devnum(%{{.*}} : i32) if(%{{.*}})
+
+  // Generic-form roundtrip insurance for acc.wait — four operand groups
+  // (waitOperands, asyncOperand, waitDevnum, ifCond).
+  func.func @wait_generic_roundtrip(%w : i64) {
+    "acc.wait"(%w) <{operandSegmentSizes = array<i32: 1, 0, 0, 0>}> : (i64) -> ()
+    func.return
+  }
+  // CHECK-LABEL: func.func @wait_generic_roundtrip(
+  // CHECK:         acc.wait(%{{.*}} : i64)
 }

@@ -68,8 +68,30 @@
                 // CHECK-SAME: #acc.reduction_operator<neqv>
                 #acc.reduction_operator<land>,
                 // CHECK-SAME: #acc.reduction_operator<land>
-                #acc.reduction_operator<lor>
+                #acc.reduction_operator<lor>,
                 // CHECK-SAME: #acc.reduction_operator<lor>
+
+                // Gang arg type attribute. Same `<value>` printer style as
+                // `reduction_operator` — when later consumed inline via
+                // `$gangOperandsArgType` in `acc.loop`'s assembly format
+                // the spelling is just `<Num>` rather than the long-form
+                // `#acc.gang_arg_type<Num>`.
+                #acc.gang_arg_type<Num>,
+                // CHECK-SAME: #acc.gang_arg_type<Num>
+                #acc.gang_arg_type<Dim>,
+                // CHECK-SAME: #acc.gang_arg_type<Dim>
+                #acc.gang_arg_type<Static>,
+                // CHECK-SAME: #acc.gang_arg_type<Static>
+
+                // Combined constructs attribute. Used by `acc.loop` to
+                // identify the user-level `kernels loop` / `parallel loop`
+                // / `serial loop` it was decomposed from.
+                #acc.combined_constructs<kernels_loop>,
+                // CHECK-SAME: #acc.combined_constructs<kernels_loop>
+                #acc.combined_constructs<parallel_loop>,
+                // CHECK-SAME: #acc.combined_constructs<parallel_loop>
+                #acc.combined_constructs<serial_loop>
+                // CHECK-SAME: #acc.combined_constructs<serial_loop>
 
             ]}: () -> !acc.data_bounds_ty
                 // CHECK-SAME: !acc.data_bounds_ty
