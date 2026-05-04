@@ -1793,9 +1793,7 @@ class RoutineGangClause(CustomDirective):
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         gang = self.gang.get(op)
         gang_dim_data = (
-            attr.data
-            if isa(attr := self.gang_dim.get(op), ArrayAttr)
-            else ()
+            attr.data if isa(attr := self.gang_dim.get(op), ArrayAttr) else ()
         )
         gang_dim_dts = (
             attr.data
@@ -1823,9 +1821,7 @@ class RoutineGangClause(CustomDirective):
             printer.print_attribute(pair[0])
             _print_device_type_suffix(printer, pair[1])
 
-        printer.print_list(
-            zip(gang_dim_data, gang_dim_dts, strict=True), print_dim
-        )
+        printer.print_list(zip(gang_dim_data, gang_dim_dts, strict=True), print_dim)
 
         printer.print_string(")")
         state.should_emit_space = True
@@ -4833,8 +4829,7 @@ class RoutineOp(IRDLOperation):
         def parallelism_for(dt: DeviceType) -> int:
             def has_dt(attr: Attribute | None) -> bool:
                 return isa(attr, ArrayAttr) and any(
-                    isinstance(e, DeviceTypeAttr) and e.data == dt
-                    for e in attr.data
+                    isinstance(e, DeviceTypeAttr) and e.data == dt for e in attr.data
                 )
 
             return sum(
