@@ -23,5 +23,11 @@
   limit_min = !wasmssa<limit[2:]>,
 
   // CHECK: limit_min_max = !wasmssa<limit[0: 65536]>
-  limit_min_max = !wasmssa<limit[0: 65536]>
+  limit_min_max = !wasmssa<limit[0: 65536]>,
+
+  // CHECK: table_funcref = !wasmssa<tabletype !wasmssa.funcref [348:]>
+  table_funcref = !wasmssa<tabletype !wasmssa.funcref [348:]>,
+
+  // CHECK: table_externref = !wasmssa<tabletype !wasmssa.externref [0: 65536]>
+  table_externref = !wasmssa<tabletype !wasmssa.externref [0: 65536]>
 }: ()->()

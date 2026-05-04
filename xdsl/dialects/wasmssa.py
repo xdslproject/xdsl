@@ -67,12 +67,12 @@ class LimitType(ParametrizedAttribute, OpaqueSyntaxAttribute, TypeAttribute):
     max: IntAttr | NoneAttr
 
     @classmethod
-    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
+    def parse_parameters(cls, parser: AttrParser) -> tuple[IntAttr, IntAttr | NoneAttr]:
         with parser.in_square_brackets():
             min = parser.parse_integer(False, True)
             parser.parse_punctuation(":")
             max = parser.parse_optional_integer(False, True)
-        return [IntAttr(min), IntAttr(max) if max is not None else NoneAttr()]
+        return (IntAttr(min), IntAttr(max) if max is not None else NoneAttr())
 
     def print_parameters(self, printer: Printer) -> None:
         with printer.in_square_brackets():
@@ -106,7 +106,7 @@ class LocalRefType(ParametrizedAttribute, SpacedOpaqueSyntaxAttribute, TypeAttri
 
 
 @irdl_attr_definition
-class TableType(ParametrizedAttribute):
+class TableType(ParametrizedAttribute, SpacedOpaqueSyntaxAttribute, TypeAttribute):
     """
     Wasm table type
     """
@@ -115,6 +115,18 @@ class TableType(ParametrizedAttribute):
 
     reference: RefType
     limit: LimitType
+
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
+        reference = parser.parse_attribute()
+        min, max = LimitType.parse_parameters(parser)
+
+        return [reference, LimitType(min, max)]
+
+    def print_parameters(self, printer: Printer) -> None:
+        printer.print_attribute(self.reference)
+        printer.print_string(" ")
+        self.limit.print_parameters(printer)
 
 
 IntegerAttr = builtin.IntegerAttr[I32] | builtin.IntegerAttr[I64]
