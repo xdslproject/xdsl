@@ -4825,23 +4825,20 @@ class RoutineOp(IRDLOperation):
     def verify_(self) -> None:
         # Mirrors `acc::RoutineOp::verify`: at most one of
         # gang/worker/vector/seq may be set per device_type, and a
-        # `none`-device entry conflicts with any per-device entry.
-        def parallelism_for(dt: DeviceType) -> int:
-            def has_dt(attr: Attribute | None) -> bool:
-                return isa(attr, ArrayAttr) and any(
-                    isinstance(e, DeviceTypeAttr) and e.data == dt for e in attr.data
-                )
-
-            return sum(
-                (
-                    has_dt(self.gang) or has_dt(self.gang_dim_device_type),
-                    has_dt(self.worker),
-                    has_dt(self.vector),
-                    has_dt(self.seq),
-                )
+        # `none`-device entry conflicts with any per-device entry. Gang's
+        # presence is recorded in either `gang` (kw-only DT) or in
+        # `gangDimDeviceType` (the parallel array for sized gangs).
+        bucket_dts: list[set[DeviceType]] = [
+            {entry.data for arr in bucket if arr is not None for entry in arr.data}
+            for bucket in (
+                (self.gang, self.gang_dim_device_type),
+                (self.worker,),
+                (self.vector,),
+                (self.seq,),
             )
+        ]
 
-        base = parallelism_for(DeviceType.NONE)
+        base = sum(DeviceType.NONE in dts for dts in bucket_dts)
         if base > 1:
             raise VerifyException(
                 "only one of `gang`, `worker`, `vector`, `seq` can be present "
@@ -4850,7 +4847,7 @@ class RoutineOp(IRDLOperation):
         for dt in DeviceType:
             if dt == DeviceType.NONE:
                 continue
-            count = parallelism_for(dt)
+            count = sum(dt in dts for dts in bucket_dts)
             if count > 1 or (base == 1 and count == 1):
                 raise VerifyException(
                     "only one of `gang`, `worker`, `vector`, `seq` can be "
