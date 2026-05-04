@@ -58,8 +58,9 @@ class RegisterAllocatorLivenessBlockNaive(BlockNaiveAllocator):
             )
 
         preallocated = RegisterAllocatableOperation.all_used_registers(func.body)
+        excluded = RegisterAllocatableOperation.all_excluded_registers(func.body)
 
-        for pa_reg in preallocated:
+        for pa_reg in preallocated | excluded:
             self.available_registers.exclude_register(pa_reg)
 
         block = func.body.block
@@ -71,6 +72,7 @@ class RegisterAllocatorLivenessBlockNaive(BlockNaiveAllocator):
 
         if add_regalloc_stats:
             preallocated_stats = reg_types_by_name(preallocated)
+            excluded_stats = reg_types_by_name(excluded)
             allocated_stats = reg_types_by_name(
                 val.type
                 for op in block.walk()
@@ -81,6 +83,8 @@ class RegisterAllocatorLivenessBlockNaive(BlockNaiveAllocator):
             stats = {
                 "preallocated_float": sorted(preallocated_stats["riscv.freg"]),
                 "preallocated_int": sorted(preallocated_stats["riscv.reg"]),
+                "excluded_float": sorted(excluded_stats["riscv.freg"]),
+                "excluded_int": sorted(excluded_stats["riscv.reg"]),
                 "allocated_float": sorted(allocated_stats["riscv.freg"]),
                 "allocated_int": sorted(allocated_stats["riscv.reg"]),
             }

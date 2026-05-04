@@ -768,3 +768,164 @@ def test_declare_family_init_bodies():
 
     decl = acc.DeclareOp(region=Region(Block()), data_clause_operands=[copyin])
     assert len(decl.region.blocks) == 1
+
+
+def _empty_loop(*, default_independent: bool = True) -> acc.LoopOp:
+    """`acc.loop` with an empty single-block body holding just an `acc.yield`.
+
+    Defaults `independent = [#acc.device_type<none>]` so the verifier's
+    "at least one of auto/independent/seq" check is satisfied.
+    """
+    independent = (
+        ArrayAttr([acc.DeviceTypeAttr(acc.DeviceType.NONE)])
+        if default_independent
+        else None
+    )
+    return acc.LoopOp(
+        region=Region(Block([acc.YieldOp()])),
+        independent=independent,
+    )
+
+
+def test_loop_par_mode_shortcut():
+    """The `par_mode=` keyword argument fills in the matching seq /
+    independent / auto array. This is a builder-only path: the parser only
+    sees the already-built `ArrayAttr[DeviceTypeAttr]`, so the conversion
+    branch is unreachable from filecheck."""
+    op_seq = acc.LoopOp(
+        region=Region(Block([acc.YieldOp()])),
+        par_mode=acc.LoopParMode.SEQ,
+    )
+    op_seq.verify()
+    assert op_seq.seq == ArrayAttr([acc.DeviceTypeAttr(acc.DeviceType.NONE)])
+    assert op_seq.independent is None
+    assert op_seq.auto_ is None
+
+    op_auto = acc.LoopOp(
+        region=Region(Block([acc.YieldOp()])),
+        par_mode=acc.LoopParMode.AUTO,
+    )
+    op_auto.verify()
+    assert op_auto.auto_ == ArrayAttr([acc.DeviceTypeAttr(acc.DeviceType.NONE)])
+    assert op_auto.independent is None
+    assert op_auto.seq is None
+
+    op_indep = acc.LoopOp(
+        region=Region(Block([acc.YieldOp()])),
+        par_mode=acc.LoopParMode.INDEPENDENT,
+    )
+    op_indep.verify()
+    assert op_indep.independent == ArrayAttr([acc.DeviceTypeAttr(acc.DeviceType.NONE)])
+    assert op_indep.seq is None
+    assert op_indep.auto_ is None
+
+    # An explicit `seq=` argument wins over `par_mode=...`. Builder-only
+    # branch; the parser would never pass both.
+    nvidia = acc.DeviceTypeAttr(acc.DeviceType.NVIDIA)
+    op_explicit = acc.LoopOp(
+        region=Region(Block([acc.YieldOp()])),
+        par_mode=acc.LoopParMode.SEQ,
+        seq=ArrayAttr([nvidia]),
+        independent=ArrayAttr([acc.DeviceTypeAttr(acc.DeviceType.NONE)]),
+    )
+    op_explicit.verify()
+    assert op_explicit.seq == ArrayAttr([nvidia])
+
+
+def test_loop_unit_and_combined_shortcuts():
+    """`unstructured` accepts a bool shortcut; `combined` accepts a
+    `CombinedConstructsType` value as well as the wrapped attribute."""
+    op = acc.LoopOp(
+        region=Region(Block([acc.YieldOp()])),
+        independent=ArrayAttr([acc.DeviceTypeAttr(acc.DeviceType.NONE)]),
+        unstructured=True,
+        combined=acc.CombinedConstructsType.PARALLEL_LOOP,
+    )
+    op.verify()
+
+    assert isinstance(op.unstructured, UnitAttr)
+    assert op.combined == acc.CombinedConstructsTypeAttr(
+        acc.CombinedConstructsType.PARALLEL_LOOP
+    )
+
+    op_off = _empty_loop()
+    assert op_off.unstructured is None
+    assert op_off.combined is None
+
+    op_explicit = acc.LoopOp(
+        region=Region(Block([acc.YieldOp()])),
+        independent=ArrayAttr([acc.DeviceTypeAttr(acc.DeviceType.NONE)]),
+        unstructured=UnitAttr(),
+        combined=acc.CombinedConstructsTypeAttr(
+            acc.CombinedConstructsType.KERNELS_LOOP
+        ),
+    )
+    assert isinstance(op_explicit.unstructured, UnitAttr)
+    assert op_explicit.combined == acc.CombinedConstructsTypeAttr(
+        acc.CombinedConstructsType.KERNELS_LOOP
+    )
+
+
+def test_init_op_builder_branches():
+    """Exercises the InitOp `__init__` paths that the parser bypasses
+    (parsing goes through `Operation.create()`, not `__init__`): empty op
+    plus a fully-populated op with both operands and the `device_types`
+    property."""
+    nvidia = acc.DeviceTypeAttr(acc.DeviceType.NVIDIA)
+
+    empty = acc.InitOp()
+    empty.verify()
+    assert empty.device_num is None
+    assert empty.if_cond is None
+    assert empty.device_types is None
+
+    op = acc.InitOp(
+        device_num=create_ssa_value(i64),
+        if_cond=create_ssa_value(i1),
+        device_types=ArrayAttr([nvidia]),
+    )
+    op.verify()
+    assert op.device_types == ArrayAttr([nvidia])
+
+
+def test_shutdown_op_builder_branches():
+    """Mirrors `test_init_op_builder_branches` for ShutdownOp."""
+    default = acc.DeviceTypeAttr(acc.DeviceType.DEFAULT)
+
+    empty = acc.ShutdownOp()
+    empty.verify()
+    assert empty.device_num is None
+    assert empty.if_cond is None
+    assert empty.device_types is None
+
+    op = acc.ShutdownOp(
+        device_num=create_ssa_value(i64),
+        if_cond=create_ssa_value(i1),
+        device_types=ArrayAttr([default]),
+    )
+    op.verify()
+    assert op.device_types == ArrayAttr([default])
+
+
+def test_set_op_init_smoke():
+    """Filecheck builds via `Operation.create()` and never calls `SetOp.__init__`,
+    leaving the constructor's `super().__init__(...)` line uncovered. A single
+    Python construction hits it (the body is branchless)."""
+    op = acc.SetOp(
+        default_async=create_ssa_value(i32),
+        device_num=create_ssa_value(i64),
+        if_cond=create_ssa_value(i1),
+        device_type=acc.DeviceTypeAttr(acc.DeviceType.NVIDIA),
+    )
+    op.verify()
+
+
+def test_wait_op_init_smoke():
+    """Mirrors `test_set_op_init_smoke` for WaitOp."""
+    op = acc.WaitOp(
+        wait_operands=[create_ssa_value(i64)],
+        async_operand=create_ssa_value(i32),
+        wait_devnum=create_ssa_value(i32),
+        if_cond=create_ssa_value(i1),
+    )
+    op.verify()

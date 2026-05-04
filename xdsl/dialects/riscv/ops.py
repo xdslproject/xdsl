@@ -44,9 +44,12 @@ from xdsl.parser import Parser
 from xdsl.pattern_rewriter import RewritePattern
 from xdsl.printer import Printer
 from xdsl.traits import (
+    AlwaysSpeculatable,
     HasCanonicalizationPatternsTrait,
     IsolatedFromAbove,
     IsTerminator,
+    MemoryReadEffect,
+    MemoryWriteEffect,
     NoTerminator,
     Pure,
 )
@@ -1006,6 +1009,8 @@ class LbOp(RdRsImmIntegerOperation):
 
     name = "riscv.lb"
 
+    traits = traits_def(MemoryReadEffect())
+
 
 @irdl_op_definition
 class LbuOp(RdRsImmIntegerOperation):
@@ -1021,6 +1026,8 @@ class LbuOp(RdRsImmIntegerOperation):
     """
 
     name = "riscv.lbu"
+
+    traits = traits_def(MemoryReadEffect())
 
 
 @irdl_op_definition
@@ -1038,6 +1045,8 @@ class LhOp(RdRsImmIntegerOperation):
 
     name = "riscv.lh"
 
+    traits = traits_def(MemoryReadEffect())
+
 
 @irdl_op_definition
 class LhuOp(RdRsImmIntegerOperation):
@@ -1053,6 +1062,8 @@ class LhuOp(RdRsImmIntegerOperation):
     """
 
     name = "riscv.lhu"
+
+    traits = traits_def(MemoryReadEffect())
 
 
 class LwOpHasCanonicalizationPatternTrait(HasCanonicalizationPatternsTrait):
@@ -1080,7 +1091,7 @@ class LwOp(RdRsImmIntegerOperation):
 
     name = "riscv.lw"
 
-    traits = traits_def(LwOpHasCanonicalizationPatternTrait())
+    traits = traits_def(LwOpHasCanonicalizationPatternTrait(), MemoryReadEffect())
 
     def assembly_line(self) -> str | None:
         instruction_name = self.assembly_instruction_name()
@@ -2560,7 +2571,7 @@ class FAddSOp(RdRsRsFloatOperationWithFastMath):
 
     name = "riscv.fadd.s"
 
-    traits = traits_def(Pure())
+    traits = traits_def(AlwaysSpeculatable())
 
 
 @irdl_op_definition
@@ -2884,7 +2895,7 @@ class FLwOp(RdRsImmFloatOperation):
 
     name = "riscv.flw"
 
-    traits = traits_def(FLwOpHasCanonicalizationPatternTrait())
+    traits = traits_def(FLwOpHasCanonicalizationPatternTrait(), MemoryReadEffect())
 
     def assembly_line(self) -> str | None:
         instruction_name = self.assembly_instruction_name()
@@ -2918,7 +2929,7 @@ class FSwOp(RsRsImmFloatOperation):
 
     name = "riscv.fsw"
 
-    traits = traits_def(FSwOpHasCanonicalizationPatternTrait())
+    traits = traits_def(FSwOpHasCanonicalizationPatternTrait(), MemoryWriteEffect())
 
     def assembly_line(self) -> str | None:
         instruction_name = self.assembly_instruction_name()
@@ -2947,7 +2958,7 @@ class FMAddDOp(RdRsRsRsFloatOperation):
 
     name = "riscv.fmadd.d"
 
-    traits = traits_def(Pure())
+    traits = traits_def(AlwaysSpeculatable())
 
 
 @irdl_op_definition
@@ -2962,7 +2973,7 @@ class FMSubDOp(RdRsRsRsFloatOperation):
 
     name = "riscv.fmsub.d"
 
-    traits = traits_def(Pure())
+    traits = traits_def(AlwaysSpeculatable())
 
 
 class FuseMultiplyAddDCanonicalizationPatternTrait(HasCanonicalizationPatternsTrait):
@@ -2988,7 +2999,7 @@ class FAddDOp(RdRsRsFloatOperationWithFastMath):
     name = "riscv.fadd.d"
 
     traits = traits_def(
-        Pure(),
+        AlwaysSpeculatable(),
         FuseMultiplyAddDCanonicalizationPatternTrait(),
     )
 
@@ -3005,7 +3016,7 @@ class FSubDOp(RdRsRsFloatOperationWithFastMath):
 
     name = "riscv.fsub.d"
 
-    traits = traits_def(Pure())
+    traits = traits_def(AlwaysSpeculatable())
 
 
 @irdl_op_definition
@@ -3020,7 +3031,7 @@ class FMulDOp(RdRsRsFloatOperationWithFastMath):
 
     name = "riscv.fmul.d"
 
-    traits = traits_def(Pure())
+    traits = traits_def(AlwaysSpeculatable())
 
 
 @irdl_op_definition
@@ -3058,7 +3069,7 @@ class FMinDOp(RdRsRsFloatOperationWithFastMath):
 
     name = "riscv.fmin.d"
 
-    traits = traits_def(Pure())
+    traits = traits_def(AlwaysSpeculatable())
 
 
 @irdl_op_definition
@@ -3073,7 +3084,7 @@ class FMaxDOp(RdRsRsFloatOperationWithFastMath):
 
     name = "riscv.fmax.d"
 
-    traits = traits_def(Pure())
+    traits = traits_def(AlwaysSpeculatable())
 
 
 @irdl_op_definition
@@ -3122,7 +3133,7 @@ class FLdOp(RdRsImmFloatOperation):
 
     name = "riscv.fld"
 
-    traits = traits_def(FLdOpHasCanonicalizationPatternTrait())
+    traits = traits_def(FLdOpHasCanonicalizationPatternTrait(), MemoryReadEffect())
 
     def assembly_line(self) -> str | None:
         instruction_name = self.assembly_instruction_name()
@@ -3161,7 +3172,7 @@ class FSdOp(RsRsImmFloatOperation):
 
     name = "riscv.fsd"
 
-    traits = traits_def(FSdOpHasCanonicalizationPatternTrait())
+    traits = traits_def(FSdOpHasCanonicalizationPatternTrait(), MemoryWriteEffect())
 
     def assembly_line(self) -> str | None:
         instruction_name = self.assembly_instruction_name()

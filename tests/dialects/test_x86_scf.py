@@ -4,7 +4,14 @@ import pytest
 
 from xdsl import ir
 from xdsl.dialects import test, x86, x86_scf
-from xdsl.traits import EffectInstance, MemoryEffect, MemoryEffectKind, get_effects
+from xdsl.traits import (
+    EffectInstance,
+    MemoryEffect,
+    MemoryEffectKind,
+    NoMemoryEffect,
+    RecursiveMemoryEffect,
+    get_effects,
+)
 from xdsl.utils.test_value import create_ssa_value
 
 
@@ -44,3 +51,41 @@ def test_for_rof_recursive_memory_effects(
     op.verify()
 
     assert get_effects(op) == effects
+
+
+def test_effect_traits():
+    """
+    Check effects of operations in the x86_scf dialect.
+    """
+    operations = tuple(x86_scf.X86_Scf.operations)
+    effects_ops = {op for op in operations if op.has_trait(MemoryEffect)}
+    unknown_effects_ops = {op for op in operations if op not in effects_ops}
+
+    # Sentinels to remind us to update this test when updating the dialect
+    assert len(effects_ops) == 3
+    assert not unknown_effects_ops
+
+    all_effects_trait_types = {
+        type(trait)
+        for op in effects_ops
+        for trait in op.get_traits_of_type(MemoryEffect)
+    }
+
+    # Check below separately for each of these
+    assert all_effects_trait_types == {
+        RecursiveMemoryEffect,
+        NoMemoryEffect,
+    }
+
+    recursive_effects_ops = {
+        op for op in effects_ops if op.has_trait(RecursiveMemoryEffect)
+    }
+    no_effects_ops = {op for op in effects_ops if op.has_trait(NoMemoryEffect)}
+
+    assert recursive_effects_ops == {
+        x86_scf.ForOp,
+        x86_scf.RofOp,
+    }
+    assert no_effects_ops == {
+        x86_scf.YieldOp,
+    }

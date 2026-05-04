@@ -1782,4 +1782,365 @@ builtin.module {
   // CHECK-LABEL: func.func @declare_generic_roundtrip_retained(
   // CHECK:         acc.declare dataOperands(%{{.*}} : memref<f32>) {
   // CHECK-NEXT:    }
+
+  // ===========================================================================
+  // acc.loop
+  // ===========================================================================
+
+  // Container-like loop (no induction variables) — the `independent` /
+  // `seq` / `auto` device-`none` entry is required by the verifier.
+  func.func @loop_empty() {
+    acc.loop {
+      acc.yield
+    } attributes {independent = [#acc.device_type<none>]}
+    func.return
+  }
+  // CHECK-LABEL: func.func @loop_empty() {
+  // CHECK-NEXT:    acc.loop {
+  // CHECK-NEXT:      acc.yield
+  // CHECK-NEXT:    } attributes {independent = [#acc.device_type<none>]}
+
+  // Loop with induction variables — the `control(...) = (...) to (...)
+  // step (...)` header is parsed/printed by the LoopControl directive.
+  func.func @loop_control(%lb : index, %ub : index, %st : index) {
+    acc.loop control(%iv : index) = (%lb : index) to (%ub : index) step (%st : index) {
+      acc.yield
+    } attributes {independent = [#acc.device_type<none>], inclusiveUpperbound = array<i1: true>}
+    func.return
+  }
+  // CHECK-LABEL: func.func @loop_control(
+  // CHECK:         acc.loop control(%{{.*}} : index) = (%{{.*}} : index) to (%{{.*}} : index) step (%{{.*}} : index) {
+  // CHECK-NEXT:      acc.yield
+  // CHECK-NEXT:    } attributes {independent = [#acc.device_type<none>], inclusiveUpperbound = array<i1: true>}
+
+  // Bare gang/worker/vector keywords land as device-`none` arrays.
+  func.func @loop_bare_par_keywords(%lb : index, %ub : index, %st : index) {
+    acc.loop gang worker vector control(%iv : index) = (%lb : index) to (%ub : index) step (%st : index) {
+      acc.yield
+    } attributes {independent = [#acc.device_type<none>], inclusiveUpperbound = array<i1: true>}
+    func.return
+  }
+  // CHECK-LABEL: func.func @loop_bare_par_keywords(
+  // CHECK:         acc.loop gang worker vector control(%{{.*}} : index) = (%{{.*}} : index) to (%{{.*}} : index) step (%{{.*}} : index) {
+  // CHECK-NEXT:      acc.yield
+  // CHECK-NEXT:    } attributes {independent = [#acc.device_type<none>], inclusiveUpperbound = array<i1: true>}
+
+  // gang clause with `num=` / `static=` / `dim=` operand groups.
+  func.func @loop_gang_operands(%v : i64, %lb : index, %ub : index, %st : index) {
+    acc.loop gang({num=%v : i64, static=%v : i64}) worker(%v : i64) vector(%v : i64) control(%iv : index) = (%lb : index) to (%ub : index) step (%st : index) {
+      acc.yield
+    } attributes {independent = [#acc.device_type<none>], inclusiveUpperbound = array<i1: true>}
+    func.return
+  }
+  // CHECK-LABEL: func.func @loop_gang_operands(
+  // CHECK:         acc.loop gang({num=%{{.*}} : i64, static=%{{.*}} : i64}) worker(%{{.*}} : i64) vector(%{{.*}} : i64) control(%{{.*}} : index)
+
+  // tile clause with brace-grouped operands.
+  func.func @loop_tile(%v : i64, %lb : index, %ub : index, %st : index) {
+    acc.loop tile({%v : i64, %v : i64}) control(%iv : index) = (%lb : index) to (%ub : index) step (%st : index) {
+      acc.yield
+    } attributes {independent = [#acc.device_type<none>], inclusiveUpperbound = array<i1: true>}
+    func.return
+  }
+  // CHECK-LABEL: func.func @loop_tile(
+  // CHECK:         acc.loop tile({%{{.*}} : i64, %{{.*}} : i64}) control(%{{.*}} : index)
+
+  // Combined construct keyword — `combined(parallel)` decomposes a
+  // `parallel loop` directive.
+  func.func @loop_combined(%lb : index, %ub : index, %st : index) {
+    acc.loop combined(parallel) control(%iv : index) = (%lb : index) to (%ub : index) step (%st : index) {
+      acc.yield
+    } attributes {independent = [#acc.device_type<none>], inclusiveUpperbound = array<i1: true>}
+    func.return
+  }
+  // CHECK-LABEL: func.func @loop_combined(
+  // CHECK:         acc.loop combined(parallel) control(%{{.*}} : index)
+
+  // private / firstprivate / reduction operand groups.
+  func.func @loop_data_clauses(%a : memref<10xf32>, %lb : index, %ub : index, %st : index) {
+    %p = acc.private varPtr(%a : memref<10xf32>) -> memref<10xf32>
+    %f = acc.firstprivate varPtr(%a : memref<10xf32>) -> memref<10xf32>
+    %r = acc.reduction varPtr(%a : memref<10xf32>) -> memref<10xf32>
+    acc.loop private(%p : memref<10xf32>) firstprivate(%f : memref<10xf32>) reduction(%r : memref<10xf32>) control(%iv : index) = (%lb : index) to (%ub : index) step (%st : index) {
+      acc.yield
+    } attributes {independent = [#acc.device_type<none>], inclusiveUpperbound = array<i1: true>}
+    func.return
+  }
+  // CHECK-LABEL: func.func @loop_data_clauses(
+  // CHECK:         acc.loop private(%{{.*}} : memref<10xf32>) firstprivate(%{{.*}} : memref<10xf32>) reduction(%{{.*}} : memref<10xf32>) control(%{{.*}} : index)
+
+  // cache operand list.
+  func.func @loop_cache(%a : memref<10xf32>, %lb : index, %ub : index, %st : index) {
+    %b = acc.cache varPtr(%a : memref<10xf32>) -> memref<10xf32>
+    acc.loop cache(%b : memref<10xf32>) control(%iv : index) = (%lb : index) to (%ub : index) step (%st : index) {
+      acc.yield
+    } attributes {independent = [#acc.device_type<none>], inclusiveUpperbound = array<i1: true>}
+    func.return
+  }
+  // CHECK-LABEL: func.func @loop_cache(
+  // CHECK:         acc.loop cache(%{{.*}} : memref<10xf32>) control(%{{.*}} : index)
+
+  // Generic-form roundtrip insurance for `acc.loop` — proves the bare
+  // generic surface (operandSegmentSizes + properties) still parses.
+  func.func @loop_generic_roundtrip_retained(%lb : index, %ub : index, %st : index) {
+    "acc.loop"(%lb, %ub, %st) <{independent = [#acc.device_type<none>], inclusiveUpperbound = array<i1: true>, operandSegmentSizes = array<i32: 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0>}> ({
+    ^bb0(%iv: index):
+      "acc.yield"() : () -> ()
+    }) : (index, index, index) -> ()
+    func.return
+  }
+  // CHECK-LABEL: func.func @loop_generic_roundtrip_retained(
+  // CHECK:         acc.loop control(%{{.*}} : index) = (%{{.*}} : index) to (%{{.*}} : index) step (%{{.*}} : index) {
+  // CHECK-NEXT:      acc.yield
+  // CHECK-NEXT:    } attributes {independent = [#acc.device_type<none>], inclusiveUpperbound = array<i1: true>}
+
+  // gang clause with a keyword-only `[#dt]` device-type list (no operands).
+  func.func @loop_gang_kw_only_dts(%lb : index, %ub : index, %st : index) {
+    acc.loop gang([#acc.device_type<nvidia>]) control(%iv : index) = (%lb : index) to (%ub : index) step (%st : index) {
+      acc.yield
+    } attributes {independent = [#acc.device_type<none>], inclusiveUpperbound = array<i1: true>}
+    func.return
+  }
+  // CHECK-LABEL: func.func @loop_gang_kw_only_dts(
+  // CHECK:         acc.loop gang([#acc.device_type<nvidia>]) control(%{{.*}} : index)
+
+  // gang clause mixing keyword-only DT list and operand groups.
+  func.func @loop_gang_mixed(%v : i64, %lb : index, %ub : index, %st : index) {
+    acc.loop gang([#acc.device_type<nvidia>], {num=%v : i64} [#acc.device_type<default>]) control(%iv : index) = (%lb : index) to (%ub : index) step (%st : index) {
+      acc.yield
+    } attributes {independent = [#acc.device_type<none>], inclusiveUpperbound = array<i1: true>}
+    func.return
+  }
+  // CHECK-LABEL: func.func @loop_gang_mixed(
+  // CHECK:         acc.loop gang([#acc.device_type<nvidia>], {num=%{{.*}} : i64} [#acc.device_type<default>]) control(%{{.*}} : index)
+
+  // Multiple gang operand groups — exercises the `, ` separator between
+  // groups in GangClause's printer.
+  func.func @loop_gang_multi_group(%v : i64, %lb : index, %ub : index, %st : index) {
+    acc.loop gang({num=%v : i64} [#acc.device_type<nvidia>], {dim=%v : i64} [#acc.device_type<default>]) control(%iv : index) = (%lb : index) to (%ub : index) step (%st : index) {
+      acc.yield
+    } attributes {independent = [#acc.device_type<none>], inclusiveUpperbound = array<i1: true>}
+    func.return
+  }
+  // CHECK-LABEL: func.func @loop_gang_multi_group(
+  // CHECK:         acc.loop gang({num=%{{.*}} : i64} [#acc.device_type<nvidia>], {dim=%{{.*}} : i64} [#acc.device_type<default>]) control(%{{.*}} : index)
+
+  // collapse with matching counts (1 entry each) — exercises the verifier
+  // path past the collapse-count check on the happy path.
+  func.func @loop_collapse() {
+    acc.loop {
+      acc.yield
+    } attributes {collapse = [2 : i64], collapseDeviceType = [#acc.device_type<none>], independent = [#acc.device_type<none>]}
+    func.return
+  }
+  // CHECK-LABEL: func.func @loop_collapse() {
+  // CHECK:         acc.loop {
+  // CHECK-NEXT:      acc.yield
+  // CHECK-NEXT:    } attributes {collapse = [2 : i64], collapseDeviceType = [#acc.device_type<none>], independent = [#acc.device_type<none>]}
+
+  // seq + gang with non-overlapping device types — exercises the
+  // gang/worker/vector incompatibility check's no-conflict branch. The
+  // `gang([#nvidia])` keyword-only DT spelling writes to the `gang`
+  // property via GangClause.
+  func.func @loop_seq_gang_disjoint() {
+    acc.loop gang([#acc.device_type<nvidia>]) {
+      acc.yield
+    } attributes {seq = [#acc.device_type<none>]}
+    func.return
+  }
+  // CHECK-LABEL: func.func @loop_seq_gang_disjoint() {
+  // CHECK:         acc.loop gang([#acc.device_type<nvidia>]) {
+  // CHECK-NEXT:      acc.yield
+  // CHECK-NEXT:    } attributes {seq = [#acc.device_type<none>]}
+
+  // -- Runtime executable ops: acc.init / acc.shutdown / acc.set / acc.wait --
+  // Each carries `AttrSizedOperandSegments` and shares a "cannot be nested
+  // in a compute operation" verifier; their pretty form is a fixed-order
+  // optional-clause sequence (the upstream `oilist(...)` is replaced by
+  // declarative `(...)?` groups).
+
+  func.func @init_empty() {
+    acc.init
+    func.return
+  }
+  // CHECK-LABEL: func.func @init_empty() {
+  // CHECK:         acc.init
+
+  func.func @init_device_num(%dn : i64) {
+    acc.init device_num(%dn : i64)
+    func.return
+  }
+  // CHECK-LABEL: func.func @init_device_num(
+  // CHECK:         acc.init device_num(%{{.*}} : i64)
+
+  func.func @init_if(%c : i1) {
+    acc.init if(%c)
+    func.return
+  }
+  // CHECK-LABEL: func.func @init_if(
+  // CHECK:         acc.init if(%{{.*}})
+
+  func.func @init_device_num_and_if(%dn : index, %c : i1) {
+    acc.init device_num(%dn : index) if(%c)
+    func.return
+  }
+  // CHECK-LABEL: func.func @init_device_num_and_if(
+  // CHECK:         acc.init device_num(%{{.*}} : index) if(%{{.*}})
+
+  // The inherent `device_types` property has no clause — it flows through
+  // `attr-dict-with-keyword`.
+  func.func @init_device_types() {
+    acc.init attributes {device_types = [#acc.device_type<nvidia>]}
+    func.return
+  }
+  // CHECK-LABEL: func.func @init_device_types() {
+  // CHECK:         acc.init attributes {device_types = [#acc.device_type<nvidia>]}
+
+  // Generic-form roundtrip insurance for acc.init — exercises the
+  // two-segment operand layout (device_num, if_cond).
+  func.func @init_generic_roundtrip(%dn : i64) {
+    "acc.init"(%dn) <{operandSegmentSizes = array<i32: 1, 0>}> : (i64) -> ()
+    func.return
+  }
+  // CHECK-LABEL: func.func @init_generic_roundtrip(
+  // CHECK:         acc.init device_num(%{{.*}} : i64)
+
+  func.func @shutdown_empty() {
+    acc.shutdown
+    func.return
+  }
+  // CHECK-LABEL: func.func @shutdown_empty() {
+  // CHECK:         acc.shutdown
+
+  func.func @shutdown_device_num_and_if(%dn : i64, %c : i1) {
+    acc.shutdown device_num(%dn : i64) if(%c)
+    func.return
+  }
+  // CHECK-LABEL: func.func @shutdown_device_num_and_if(
+  // CHECK:         acc.shutdown device_num(%{{.*}} : i64) if(%{{.*}})
+
+  func.func @shutdown_device_types() {
+    acc.shutdown attributes {device_types = [#acc.device_type<default>]}
+    func.return
+  }
+  // CHECK-LABEL: func.func @shutdown_device_types() {
+  // CHECK:         acc.shutdown attributes {device_types = [#acc.device_type<default>]}
+
+  // Generic-form roundtrip insurance for acc.shutdown.
+  func.func @shutdown_generic_roundtrip(%c : i1) {
+    "acc.shutdown"(%c) <{operandSegmentSizes = array<i32: 0, 1>}> : (i1) -> ()
+    func.return
+  }
+  // CHECK-LABEL: func.func @shutdown_generic_roundtrip(
+  // CHECK:         acc.shutdown if(%{{.*}})
+
+  // acc.set requires at least one of default_async/device_num/device_type.
+  // Three optional operand clauses + a single (non-array) device_type
+  // property that flows through `attr-dict-with-keyword`.
+  func.func @set_device_type_only() {
+    acc.set attributes {device_type = #acc.device_type<nvidia>}
+    func.return
+  }
+  // CHECK-LABEL: func.func @set_device_type_only() {
+  // CHECK:         acc.set attributes {device_type = #acc.device_type<nvidia>}
+
+  func.func @set_device_num(%dn : i32) {
+    acc.set device_num(%dn : i32)
+    func.return
+  }
+  // CHECK-LABEL: func.func @set_device_num(
+  // CHECK:         acc.set device_num(%{{.*}} : i32)
+
+  func.func @set_default_async(%da : i32) {
+    acc.set default_async(%da : i32)
+    func.return
+  }
+  // CHECK-LABEL: func.func @set_default_async(
+  // CHECK:         acc.set default_async(%{{.*}} : i32)
+
+  func.func @set_full(%da : i32, %dn : index, %c : i1) {
+    acc.set default_async(%da : i32) device_num(%dn : index) if(%c) attributes {device_type = #acc.device_type<host>}
+    func.return
+  }
+  // CHECK-LABEL: func.func @set_full(
+  // CHECK:         acc.set default_async(%{{.*}} : i32) device_num(%{{.*}} : index) if(%{{.*}}) attributes {device_type = #acc.device_type<host>}
+
+  // Generic-form roundtrip insurance for acc.set — three operand groups
+  // (default_async, device_num, if_cond).
+  func.func @set_generic_roundtrip(%dn : i64) {
+    "acc.set"(%dn) <{operandSegmentSizes = array<i32: 0, 1, 0>}> : (i64) -> ()
+    func.return
+  }
+  // CHECK-LABEL: func.func @set_generic_roundtrip(
+  // CHECK:         acc.set device_num(%{{.*}} : i64)
+
+  // acc.wait — the only runtime op with a leading parenthesised variadic
+  // operand list (no keyword), plus the same `OperandWithKeywordOnly`
+  // directive used by enter_data/exit_data for the `async` clause. Note:
+  // unlike init/shutdown/set, `acc.wait` does *not* forbid nesting in a
+  // compute op.
+  func.func @wait_empty() {
+    acc.wait
+    func.return
+  }
+  // CHECK-LABEL: func.func @wait_empty() {
+  // CHECK:         acc.wait
+
+  func.func @wait_one_operand(%w : i64) {
+    acc.wait(%w : i64)
+    func.return
+  }
+  // CHECK-LABEL: func.func @wait_one_operand(
+  // CHECK:         acc.wait(%{{.*}} : i64)
+
+  func.func @wait_multiple_operands(%w1 : i32, %w2 : index) {
+    acc.wait(%w1, %w2 : i32, index)
+    func.return
+  }
+  // CHECK-LABEL: func.func @wait_multiple_operands(
+  // CHECK:         acc.wait(%{{.*}}, %{{.*}} : i32, index)
+
+  func.func @wait_async_bare() {
+    acc.wait async
+    func.return
+  }
+  // CHECK-LABEL: func.func @wait_async_bare() {
+  // CHECK:         acc.wait async
+
+  func.func @wait_async_operand(%a : i32) {
+    acc.wait async(%a : i32)
+    func.return
+  }
+  // CHECK-LABEL: func.func @wait_async_operand(
+  // CHECK:         acc.wait async(%{{.*}} : i32)
+
+  func.func @wait_wait_devnum(%w : i64, %dn : i32) {
+    acc.wait(%w : i64) wait_devnum(%dn : i32)
+    func.return
+  }
+  // CHECK-LABEL: func.func @wait_wait_devnum(
+  // CHECK:         acc.wait(%{{.*}} : i64) wait_devnum(%{{.*}} : i32)
+
+  func.func @wait_if(%c : i1) {
+    acc.wait if(%c)
+    func.return
+  }
+  // CHECK-LABEL: func.func @wait_if(
+  // CHECK:         acc.wait if(%{{.*}})
+
+  func.func @wait_full(%w : i64, %a : index, %dn : i32, %c : i1) {
+    acc.wait(%w : i64) async(%a : index) wait_devnum(%dn : i32) if(%c)
+    func.return
+  }
+  // CHECK-LABEL: func.func @wait_full(
+  // CHECK:         acc.wait(%{{.*}} : i64) async(%{{.*}} : index) wait_devnum(%{{.*}} : i32) if(%{{.*}})
+
+  // Generic-form roundtrip insurance for acc.wait — four operand groups
+  // (waitOperands, asyncOperand, waitDevnum, ifCond).
+  func.func @wait_generic_roundtrip(%w : i64) {
+    "acc.wait"(%w) <{operandSegmentSizes = array<i32: 1, 0, 0, 0>}> : (i64) -> ()
+    func.return
+  }
+  // CHECK-LABEL: func.func @wait_generic_roundtrip(
+  // CHECK:         acc.wait(%{{.*}} : i64)
 }

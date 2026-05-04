@@ -10,8 +10,10 @@ See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenACCDialect/
 """
 
 from abc import ABC
-from collections.abc import Sequence
+from collections.abc import Hashable, Iterable, Sequence
 from typing import cast
+
+from typing_extensions import TypeVar
 
 from xdsl.dialects.builtin import (
     I1,
@@ -56,6 +58,7 @@ from xdsl.irdl import (
     result_def,
     traits_def,
     var_operand_def,
+    var_result_def,
 )
 from xdsl.irdl.declarative_assembly_format import (
     AttributeVariable,
@@ -64,6 +67,7 @@ from xdsl.irdl.declarative_assembly_format import (
     OptionalOperandVariable,
     ParsingState,
     PrintingState,
+    RegionVariable,
     TypeDirective,
     VariadicOperandVariable,
     irdl_custom_directive,
@@ -184,6 +188,19 @@ class ReductionOpKind(StrEnum):
     NEQV = "neqv"
     LAND = "land"
     LOR = "lor"
+
+
+class LoopParMode(StrEnum):
+    """Loop parallelism determination mode for `acc.loop` builders.
+
+    See upstream `mlir::acc::LoopParMode`. Used by Python builders to pick
+    between the `seq` / `independent` / `auto` attributes; the enum itself
+    is not stored on the op.
+    """
+
+    SEQ = "loop_seq"
+    AUTO = "loop_auto"
+    INDEPENDENT = "loop_independent"
 
 
 class GangArgType(StrEnum):
@@ -1222,6 +1239,417 @@ class DataEntryOilist(CustomDirective):
             state.last_was_punctuation = False
 
 
+@irdl_custom_directive
+class CombinedConstructsLoop(CustomDirective):
+    """Port of upstream `custom<CombinedConstructsLoop>($combined)`.
+
+    Sits inside `acc.loop`'s `combined ( ... )` group: parses one of the
+    bare keywords `kernels` / `parallel` / `serial` and produces a
+    `CombinedConstructsTypeAttr`. On print, emits the matching keyword.
+    """
+
+    combined: AttributeVariable
+
+    _KEYWORDS = ("kernels", "parallel", "serial")
+    _BY_KEYWORD = {
+        "kernels": CombinedConstructsType.KERNELS_LOOP,
+        "parallel": CombinedConstructsType.PARALLEL_LOOP,
+        "serial": CombinedConstructsType.SERIAL_LOOP,
+    }
+    _BY_VALUE = {v: k for k, v in _BY_KEYWORD.items()}
+
+    def is_anchorable(self) -> bool:
+        return True
+
+    def is_present(self, op: IRDLOperation) -> bool:
+        return self.combined.get(op) is not None
+
+    def parse(self, parser: Parser, state: ParsingState) -> bool:
+        for kw in self._KEYWORDS:
+            if parser.parse_optional_keyword(kw) is not None:
+                self.combined.set(
+                    state, CombinedConstructsTypeAttr(self._BY_KEYWORD[kw])
+                )
+                return True
+        parser.raise_error("expected compute construct name")
+
+    def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
+        attr = self.combined.get(op)
+        assert isinstance(attr, CombinedConstructsTypeAttr)
+        printer.print_string(self._BY_VALUE[attr.data])
+
+
+@irdl_custom_directive
+class DeviceTypeOperandsWithSegment(CustomDirective):
+    """Port of upstream `custom<DeviceTypeOperandsWithSegment>`.
+
+    Used by `acc.loop` for the `tile(...)` clause. Groups operands inside
+    `{...}`, with an optional per-group `[#acc.device_type<...>]` suffix
+    and a `DenseI32ArrayAttr` segments array. Syntax inside the enclosing
+    `( ... )`:
+      `{` op:type (`,` op:type)* `}` (`[` dt `]`)?  (`,` ...)*
+    """
+
+    operands: VariadicOperandVariable
+    operand_types: TypeDirective
+    device_types: AttributeVariable
+    segments: AttributeVariable
+
+    def is_anchorable(self) -> bool:
+        return True
+
+    def is_present(self, op: IRDLOperation) -> bool:
+        return bool(self.operands.get(op))
+
+    def set_empty(self, state: ParsingState) -> None:
+        self.operands.set(state, ())
+        self.operand_types.set(state, ())
+
+    def parse(self, parser: Parser, state: ParsingState) -> bool:
+        groups = parser.parse_comma_separated_list(
+            parser.Delimiter.NONE, lambda: _parse_num_gangs_group(parser)
+        )
+        operands, types, dts, segs = _flatten_groups(groups)
+        self.operands.set(state, operands)
+        self.operand_types.set(state, types)
+        self.device_types.set(state, ArrayAttr(dts))
+        self.segments.set(state, DenseArrayBase.from_list(i32, segs))
+        return True
+
+    def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
+        # `is_present = bool(self.operands.get(op))` — when this `print` is
+        # called the operand list is guaranteed non-empty by the framework's
+        # anchor mechanism, so no empty-list early-return guard is needed.
+        operands = self.operands.get(op)
+        dts = (
+            attr.data
+            if isa(attr := self.device_types.get(op), ArrayAttr)
+            else (DeviceTypeAttr(DeviceType.NONE),)
+        )
+        seg_values: Sequence[int] = (
+            segments.get_values()
+            if isinstance(segments := self.segments.get(op), DenseArrayBase)
+            else (len(operands),)
+        )
+        _print_groups(printer, operands, dts, seg_values)
+        state.should_emit_space = True
+        state.last_was_punctuation = False
+
+
+_GANG_KEYWORDS: tuple[tuple[str, GangArgType], ...] = (
+    ("num", GangArgType.NUM),
+    ("dim", GangArgType.DIM),
+    ("static", GangArgType.STATIC),
+)
+"""`(keyword, GangArgType)` pairs in upstream's parse-attempt order."""
+
+_GANG_KEYWORD_BY_TYPE = {ty: kw for kw, ty in _GANG_KEYWORDS}
+
+
+def _parse_gang_value_group(
+    parser: Parser,
+) -> tuple[
+    tuple[UnresolvedOperand, ...],
+    tuple[Attribute, ...],
+    tuple[GangArgTypeAttr, ...],
+    DeviceTypeAttr,
+]:
+    """Parse `{ kw=%v:T (`,` kw=%v:T)* }` plus an optional `[#dt]` suffix.
+
+    Returns `(operands, types, gang_arg_types, device_type)`. Mirrors the
+    inner loop of upstream's `parseGangClause`, which retries each
+    `num=` / `dim=` / `static=` keyword in order; raises on an empty group
+    matching upstream's "expect at least one of num, dim or static values"
+    diagnostic.
+    """
+    with parser.in_braces():
+        operands: list[UnresolvedOperand] = []
+        types: list[Attribute] = []
+        arg_types: list[GangArgTypeAttr] = []
+        need_comma = False
+        while True:
+            if need_comma and parser.parse_optional_punctuation(",") is None:
+                break
+            matched = False
+            for keyword, gang_arg_ty in _GANG_KEYWORDS:
+                if parser.parse_optional_keyword(keyword) is None:
+                    continue
+                parser.parse_punctuation("=")
+                operand, ty = _parse_typed_operand(parser)
+                operands.append(operand)
+                types.append(ty)
+                arg_types.append(GangArgTypeAttr(gang_arg_ty))
+                matched = True
+                need_comma = True
+                break
+            if not matched:
+                if need_comma:
+                    parser.raise_error("new value expected after comma")
+                break
+        if not operands:
+            parser.raise_error("expect at least one of num, dim or static values")
+    dt = _parse_optional_device_type_suffix(parser)
+    return tuple(operands), tuple(types), tuple(arg_types), dt
+
+
+@irdl_custom_directive
+class GangClause(CustomDirective):
+    """Port of upstream `custom<GangClause>`.
+
+    Follows a bare `gang` keyword in `acc.loop`'s format. The directive
+    owns the optional surrounding parentheses. Syntax options after the
+    keyword:
+      bare                                     → `gang_only` = [#none]
+      `(` `[` dts `]` `)`                      → keyword-only DT list, no operands
+      `(` group (`,` group)* `)`               → gang operand groups
+      `(` `[` dts `]` `,` group (`,` group)* `)` → mix of keyword-only and groups
+    where each group is `{ kw=%v:T (`,` kw=%v:T)* }` (`[` dt `]`)? and
+    `kw` ∈ {`num`, `dim`, `static`}.
+    """
+
+    operands: VariadicOperandVariable
+    operand_types: TypeDirective
+    gang_arg_types: AttributeVariable
+    device_types: AttributeVariable
+    segments: AttributeVariable
+    gang_only: AttributeVariable
+
+    def is_anchorable(self) -> bool:
+        return True
+
+    def is_present(self, op: IRDLOperation) -> bool:
+        return (
+            bool(self.operands.get(op))
+            or self.gang_only.get(op) is not None
+            or self.device_types.get(op) is not None
+        )
+
+    def set_empty(self, state: ParsingState) -> None:
+        self.operands.set(state, ())
+        self.operand_types.set(state, ())
+
+    def parse(self, parser: Parser, state: ParsingState) -> bool:
+        if not parser.parse_optional_punctuation("("):
+            self.gang_only.set(state, ArrayAttr([DeviceTypeAttr(DeviceType.NONE)]))
+            self.operands.set(state, ())
+            self.operand_types.set(state, ())
+            return True
+
+        kw_only = parser.parse_optional_comma_separated_list(
+            parser.Delimiter.SQUARE, lambda: _parse_device_type_attr(parser)
+        )
+        if kw_only is not None:
+            self.gang_only.set(state, ArrayAttr(kw_only))
+
+        if parser.parse_optional_punctuation(")"):
+            self.operands.set(state, ())
+            self.operand_types.set(state, ())
+            return True
+
+        if kw_only is not None:
+            parser.parse_punctuation(",")
+
+        groups = parser.parse_comma_separated_list(
+            parser.Delimiter.NONE, lambda: _parse_gang_value_group(parser)
+        )
+        parser.parse_punctuation(")")
+
+        all_operands: list[UnresolvedOperand] = []
+        all_types: list[Attribute] = []
+        arg_types: list[GangArgTypeAttr] = []
+        dts: list[DeviceTypeAttr] = []
+        segs: list[int] = []
+        for group_operands, group_types, group_arg_types, dt in groups:
+            all_operands.extend(group_operands)
+            all_types.extend(group_types)
+            arg_types.extend(group_arg_types)
+            dts.append(dt)
+            segs.append(len(group_operands))
+
+        self.operands.set(state, tuple(all_operands))
+        self.operand_types.set(state, tuple(all_types))
+        self.gang_arg_types.set(state, ArrayAttr(arg_types))
+        self.device_types.set(state, ArrayAttr(dts))
+        self.segments.set(state, DenseArrayBase.from_list(i32, segs))
+        return True
+
+    def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
+        operands = self.operands.get(op)
+        gang_only = self.gang_only.get(op)
+
+        if not operands and gang_only == _DEVICE_TYPE_ONLY_NONE:
+            return
+
+        printer.print_string("(")
+        if (
+            isa(gang_only, ArrayAttr)
+            and gang_only.data
+            and gang_only != _DEVICE_TYPE_ONLY_NONE
+        ):
+            printer.print_string("[")
+            printer.print_list(gang_only.data, printer.print_attribute)
+            printer.print_string("]")
+            if operands:
+                printer.print_string(", ")
+
+        if operands:
+            dts = (
+                attr.data
+                if isa(attr := self.device_types.get(op), ArrayAttr)
+                else (DeviceTypeAttr(DeviceType.NONE),)
+            )
+            seg_values: Sequence[int] = (
+                segments.get_values()
+                if isinstance(segments := self.segments.get(op), DenseArrayBase)
+                else (len(operands),)
+            )
+            arg_type_values: Sequence[Attribute] = (
+                arg_attrs.data
+                if isa(arg_attrs := self.gang_arg_types.get(op), ArrayAttr)
+                else ()
+            )
+            idx = 0
+            for group_idx, (size, dt) in enumerate(zip(seg_values, dts, strict=True)):
+                if group_idx:
+                    printer.print_string(", ")
+                printer.print_string("{")
+                for i in range(size):
+                    if i:
+                        printer.print_string(", ")
+                    arg_ty_attr = (
+                        arg_type_values[idx]
+                        if idx < len(arg_type_values)
+                        else GangArgTypeAttr(GangArgType.NUM)
+                    )
+                    keyword = (
+                        _GANG_KEYWORD_BY_TYPE[arg_ty_attr.data]
+                        if isinstance(arg_ty_attr, GangArgTypeAttr)
+                        else "num"
+                    )
+                    printer.print_string(keyword)
+                    printer.print_string("=")
+                    _print_typed_operand(printer, operands[idx])
+                    idx += 1
+                printer.print_string("}")
+                _print_device_type_suffix(printer, dt)
+        printer.print_string(")")
+        state.should_emit_space = True
+        state.last_was_punctuation = False
+
+
+@irdl_custom_directive
+class LoopControl(CustomDirective):
+    """Port of upstream `custom<LoopControl>`.
+
+    Owns `acc.loop`'s region and the optional `control(...) = (...) to (...)
+    step (...)` header. Syntax:
+      `control` `(` arg `:` T (`,` arg `:` T)* `)` `=`
+        `(` lb (`,` lb)* `:` T (`,` T)* `)` `to`
+        `(` ub (`,` ub)* `:` T (`,` T)* `)` `step`
+        `(` st (`,` st)* `:` T (`,` T)* `)`
+        region
+      | region
+
+    The first form provides induction variables to the region's entry
+    block (matching upstream's `parseRegion(region, inductionVars)`); the
+    second form is the container-like loop, which has no induction
+    variables.
+    """
+
+    region: RegionVariable
+    lowerbound: VariadicOperandVariable
+    lowerbound_types: TypeDirective
+    upperbound: VariadicOperandVariable
+    upperbound_types: TypeDirective
+    step: VariadicOperandVariable
+    step_types: TypeDirective
+
+    def parse(self, parser: Parser, state: ParsingState) -> bool:
+        if parser.parse_optional_keyword("control") is None:
+            self.lowerbound.set(state, ())
+            self.lowerbound_types.set(state, ())
+            self.upperbound.set(state, ())
+            self.upperbound_types.set(state, ())
+            self.step.set(state, ())
+            self.step_types.set(state, ())
+            self.region.set(state, parser.parse_region())
+            return True
+
+        with parser.in_parens():
+            args = parser.parse_comma_separated_list(
+                parser.Delimiter.NONE, parser.parse_argument
+            )
+        parser.parse_punctuation("=")
+        lb_ops, lb_types = _parse_loop_bound_group(parser, len(args))
+        parser.parse_keyword("to")
+        ub_ops, ub_types = _parse_loop_bound_group(parser, len(args))
+        parser.parse_keyword("step")
+        st_ops, st_types = _parse_loop_bound_group(parser, len(args))
+
+        self.lowerbound.set(state, lb_ops)
+        self.lowerbound_types.set(state, lb_types)
+        self.upperbound.set(state, ub_ops)
+        self.upperbound_types.set(state, ub_types)
+        self.step.set(state, st_ops)
+        self.step_types.set(state, st_types)
+        self.region.set(state, parser.parse_region(args))
+        return True
+
+    def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
+        region = self.region.get(op)
+        entry_args: Sequence[SSAValue] = region.block.args if region.blocks else ()
+        lb_ops = self.lowerbound.get(op)
+        ub_ops = self.upperbound.get(op)
+        st_ops = self.step.get(op)
+
+        state.print_whitespace(printer)
+        if entry_args:
+            printer.print_string("control(")
+            printer.print_list(
+                entry_args,
+                lambda arg: _print_typed_operand(printer, arg),
+            )
+            printer.print_string(") = (")
+            _print_loop_bound_group(printer, lb_ops)
+            printer.print_string(") to (")
+            _print_loop_bound_group(printer, ub_ops)
+            printer.print_string(") step (")
+            _print_loop_bound_group(printer, st_ops)
+            printer.print_string(") ")
+
+        printer.print_region(region, print_entry_block_args=False)
+        state.should_emit_space = True
+        state.last_was_punctuation = False
+
+
+def _parse_loop_bound_group(
+    parser: Parser, count: int
+) -> tuple[tuple[UnresolvedOperand, ...], tuple[Attribute, ...]]:
+    """Parse `(%a (`,` %a)* `:` T (`,` T)*)` with exactly `count` operands and types."""
+    with parser.in_parens():
+        operands = tuple(
+            parser.parse_comma_separated_list(
+                parser.Delimiter.NONE, parser.parse_unresolved_operand
+            )
+        )
+        if len(operands) != count:
+            parser.raise_error(f"expected {count} operands")
+        parser.parse_punctuation(":")
+        types = tuple(
+            parser.parse_comma_separated_list(parser.Delimiter.NONE, parser.parse_type)
+        )
+        if len(types) != count:
+            parser.raise_error(f"expected {count} types")
+    return operands, types
+
+
+def _print_loop_bound_group(printer: Printer, operands: Sequence[SSAValue]) -> None:
+    """Print `%a (`,` %a)* `:` T (`,` T)*` for a loop control bound group."""
+    printer.print_list(operands, printer.print_ssa_value)
+    printer.print_string(" : ")
+    printer.print_list((operand.type for operand in operands), printer.print_attribute)
+
+
 @irdl_op_definition
 class ParallelOp(IRDLOperation):
     """
@@ -1701,6 +2129,434 @@ class KernelsOp(IRDLOperation):
                 "combined": combined_prop,
             },
             regions=[region],
+        )
+
+
+@irdl_op_definition
+class LoopOp(IRDLOperation):
+    """
+    Implementation of upstream acc.loop — the OpenACC loop construct.
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenACCDialect/#accloop-accloopop).
+
+    Carries the loop's induction variables (`lowerbound` / `upperbound` /
+    `step`) plus per-device-type clauses for `gang` / `worker` / `vector`,
+    `private` / `firstprivate` / `reduction` data ops, `tile` / `cache`
+    operands, `collapse` group sizes, and `seq` / `independent` / `auto`
+    parallelism mode markers. The body is an arbitrary region terminated
+    by `acc.yield`.
+
+    The container-like loop count check from upstream's verifier (which
+    uses `LoopLikeOpInterface` to enumerate loop ops) is intentionally
+    skipped here — xDSL has no equivalent interface yet, so PR 17 of the
+    OpenACC roadmap will wire it up alongside the other interface-driven
+    traits.
+    """
+
+    name = "acc.loop"
+
+    lowerbound = var_operand_def(IntegerType | IndexType)
+    upperbound = var_operand_def(IntegerType | IndexType)
+    step = var_operand_def(IntegerType | IndexType)
+    gang_operands = var_operand_def(IntegerType | IndexType)
+    worker_num_operands = var_operand_def(IntegerType | IndexType)
+    vector_operands = var_operand_def(IntegerType | IndexType)
+    tile_operands = var_operand_def(IntegerType | IndexType)
+    cache_operands = var_operand_def()
+    private_operands = var_operand_def()
+    firstprivate_operands = var_operand_def()
+    reduction_operands = var_operand_def()
+
+    inclusive_upperbound = opt_prop_def(
+        DenseArrayBase.constr(IntegerType(1)), prop_name="inclusiveUpperbound"
+    )
+    collapse = opt_prop_def(ArrayAttr[IntegerAttr])
+    collapse_device_type = opt_prop_def(
+        ArrayAttr[DeviceTypeAttr], prop_name="collapseDeviceType"
+    )
+    gang_operands_arg_type = opt_prop_def(
+        ArrayAttr[GangArgTypeAttr], prop_name="gangOperandsArgType"
+    )
+    gang_operands_segments = opt_prop_def(
+        DenseArrayBase.constr(IntegerType(32)), prop_name="gangOperandsSegments"
+    )
+    gang_operands_device_type = opt_prop_def(
+        ArrayAttr[DeviceTypeAttr], prop_name="gangOperandsDeviceType"
+    )
+    worker_num_operands_device_type = opt_prop_def(
+        ArrayAttr[DeviceTypeAttr], prop_name="workerNumOperandsDeviceType"
+    )
+    vector_operands_device_type = opt_prop_def(
+        ArrayAttr[DeviceTypeAttr], prop_name="vectorOperandsDeviceType"
+    )
+    seq = opt_prop_def(ArrayAttr[DeviceTypeAttr])
+    independent = opt_prop_def(ArrayAttr[DeviceTypeAttr])
+    auto_ = opt_prop_def(ArrayAttr[DeviceTypeAttr], prop_name="auto_")
+    gang = opt_prop_def(ArrayAttr[DeviceTypeAttr])
+    worker = opt_prop_def(ArrayAttr[DeviceTypeAttr])
+    vector = opt_prop_def(ArrayAttr[DeviceTypeAttr])
+    tile_operands_segments = opt_prop_def(
+        DenseArrayBase.constr(IntegerType(32)), prop_name="tileOperandsSegments"
+    )
+    tile_operands_device_type = opt_prop_def(
+        ArrayAttr[DeviceTypeAttr], prop_name="tileOperandsDeviceType"
+    )
+    combined = opt_prop_def(CombinedConstructsTypeAttr)
+    unstructured = opt_prop_def(UnitAttr)
+
+    results_ = var_result_def()
+
+    region = region_def()
+
+    irdl_options = (
+        AttrSizedOperandSegments(as_property=True),
+        ParsePropInAttrDict(),
+    )
+
+    custom_directives = (
+        CombinedConstructsLoop,
+        GangClause,
+        DeviceTypeOperandsWithKeywordOnly,
+        DeviceTypeOperandsWithSegment,
+        LoopControl,
+    )
+
+    assembly_format = (
+        "(`combined` `(` custom<CombinedConstructsLoop>($combined)^ `)`)?"
+        " (`gang` custom<GangClause>($gang_operands, type($gang_operands),"
+        " $gangOperandsArgType, $gangOperandsDeviceType,"
+        " $gangOperandsSegments, $gang)^)?"
+        " (`worker` custom<DeviceTypeOperandsWithKeywordOnly>("
+        "$worker_num_operands, type($worker_num_operands),"
+        " $workerNumOperandsDeviceType, $worker)^)?"
+        " (`vector` custom<DeviceTypeOperandsWithKeywordOnly>($vector_operands,"
+        " type($vector_operands), $vectorOperandsDeviceType, $vector)^)?"
+        " (`private` `(` $private_operands^ `:` type($private_operands) `)`)?"
+        " (`firstprivate` `(` $firstprivate_operands^ `:`"
+        " type($firstprivate_operands) `)`)?"
+        " (`tile` `(` custom<DeviceTypeOperandsWithSegment>($tile_operands,"
+        " type($tile_operands), $tileOperandsDeviceType,"
+        " $tileOperandsSegments)^ `)`)?"
+        " (`reduction` `(` $reduction_operands^ `:`"
+        " type($reduction_operands) `)`)?"
+        " (`cache` `(` $cache_operands^ `:` type($cache_operands) `)`)?"
+        " custom<LoopControl>($region, $lowerbound, type($lowerbound),"
+        " $upperbound, type($upperbound), $step, type($step))"
+        " (`(` type($results_)^ `)`)?"
+        " attr-dict-with-keyword"
+    )
+
+    traits = lazy_traits_def(lambda: (RecursiveMemoryEffect(),))
+
+    def __init__(
+        self,
+        *,
+        region: Region,
+        lowerbound: Sequence[SSAValue | Operation] = (),
+        upperbound: Sequence[SSAValue | Operation] = (),
+        step: Sequence[SSAValue | Operation] = (),
+        gang_operands: Sequence[SSAValue | Operation] = (),
+        worker_num_operands: Sequence[SSAValue | Operation] = (),
+        vector_operands: Sequence[SSAValue | Operation] = (),
+        tile_operands: Sequence[SSAValue | Operation] = (),
+        cache_operands: Sequence[SSAValue | Operation] = (),
+        private_operands: Sequence[SSAValue | Operation] = (),
+        firstprivate_operands: Sequence[SSAValue | Operation] = (),
+        reduction_operands: Sequence[SSAValue | Operation] = (),
+        result_types: Sequence[Attribute] = (),
+        inclusive_upperbound: DenseArrayBase | None = None,
+        collapse: ArrayAttr[IntegerAttr] | None = None,
+        collapse_device_type: ArrayAttr[DeviceTypeAttr] | None = None,
+        gang_operands_arg_type: ArrayAttr[GangArgTypeAttr] | None = None,
+        gang_operands_segments: DenseArrayBase | None = None,
+        gang_operands_device_type: ArrayAttr[DeviceTypeAttr] | None = None,
+        worker_num_operands_device_type: ArrayAttr[DeviceTypeAttr] | None = None,
+        vector_operands_device_type: ArrayAttr[DeviceTypeAttr] | None = None,
+        seq: ArrayAttr[DeviceTypeAttr] | None = None,
+        independent: ArrayAttr[DeviceTypeAttr] | None = None,
+        auto_: ArrayAttr[DeviceTypeAttr] | None = None,
+        gang: ArrayAttr[DeviceTypeAttr] | None = None,
+        worker: ArrayAttr[DeviceTypeAttr] | None = None,
+        vector: ArrayAttr[DeviceTypeAttr] | None = None,
+        tile_operands_segments: DenseArrayBase | None = None,
+        tile_operands_device_type: ArrayAttr[DeviceTypeAttr] | None = None,
+        combined: CombinedConstructsTypeAttr | CombinedConstructsType | None = None,
+        unstructured: UnitAttr | bool = False,
+        par_mode: LoopParMode | None = None,
+    ) -> None:
+        unstructured_prop: UnitAttr | None = (
+            (UnitAttr() if unstructured else None)
+            if isinstance(unstructured, bool)
+            else unstructured
+        )
+        combined_prop: CombinedConstructsTypeAttr | None = (
+            CombinedConstructsTypeAttr(combined)
+            if isinstance(combined, CombinedConstructsType)
+            else combined
+        )
+        # Mirror upstream's `LoopParMode`-driven builder: a single device-`none`
+        # entry on the matching seq/independent/auto array. Explicit
+        # `seq=` / `independent=` / `auto_=` arguments win if also given.
+        if par_mode is not None:
+            if par_mode is LoopParMode.SEQ and seq is None:
+                seq = _DEVICE_TYPE_ONLY_NONE
+            elif par_mode is LoopParMode.INDEPENDENT and independent is None:
+                independent = _DEVICE_TYPE_ONLY_NONE
+            elif par_mode is LoopParMode.AUTO and auto_ is None:
+                auto_ = _DEVICE_TYPE_ONLY_NONE
+
+        super().__init__(
+            operands=[
+                lowerbound,
+                upperbound,
+                step,
+                gang_operands,
+                worker_num_operands,
+                vector_operands,
+                tile_operands,
+                cache_operands,
+                private_operands,
+                firstprivate_operands,
+                reduction_operands,
+            ],
+            properties={
+                "inclusiveUpperbound": inclusive_upperbound,
+                "collapse": collapse,
+                "collapseDeviceType": collapse_device_type,
+                "gangOperandsArgType": gang_operands_arg_type,
+                "gangOperandsSegments": gang_operands_segments,
+                "gangOperandsDeviceType": gang_operands_device_type,
+                "workerNumOperandsDeviceType": worker_num_operands_device_type,
+                "vectorOperandsDeviceType": vector_operands_device_type,
+                "seq": seq,
+                "independent": independent,
+                "auto_": auto_,
+                "gang": gang,
+                "worker": worker,
+                "vector": vector,
+                "tileOperandsSegments": tile_operands_segments,
+                "tileOperandsDeviceType": tile_operands_device_type,
+                "combined": combined_prop,
+                "unstructured": unstructured_prop,
+            },
+            regions=[region],
+            result_types=[result_types],
+        )
+
+    def verify_(self) -> None:
+        # Mirrors `acc::LoopOp::verify`. The container-like loop checks
+        # (sibling loops / collapse-count satisfaction) require a
+        # `LoopLikeOpInterface`-style enumeration that xDSL doesn't have
+        # yet — those land in PR 17 of the OpenACC roadmap.
+        if len(self.upperbound) != len(self.step):
+            raise VerifyException(
+                "number of upperbounds expected to be the same as number of steps"
+            )
+        if len(self.upperbound) != len(self.lowerbound):
+            raise VerifyException(
+                "number of upperbounds expected to be the same as number of lowerbounds"
+            )
+        if (
+            self.upperbound
+            and self.inclusive_upperbound is not None
+            and len(self.inclusive_upperbound.get_values()) != len(self.upperbound)
+        ):
+            raise VerifyException(
+                "inclusiveUpperbound size is expected to be the same as upperbound size"
+            )
+
+        if self.collapse is not None and self.collapse_device_type is None:
+            raise VerifyException(
+                "collapse device_type attr must be define when collapse attr is present"
+            )
+        if (
+            self.collapse is not None
+            and self.collapse_device_type is not None
+            and len(self.collapse) != len(self.collapse_device_type)
+        ):
+            raise VerifyException(
+                "collapse attribute count must match collapse device_type count"
+            )
+        if (
+            self.collapse_device_type is not None
+            and (
+                dup := _first_duplicate(
+                    dt.data for dt in self.collapse_device_type.data
+                )
+            )
+            is not None
+        ):
+            raise VerifyException(
+                f"duplicate device_type `{dup.value}` found in "
+                "collapseDeviceType attribute"
+            )
+
+        if self.gang_operands:
+            if self.gang_operands_arg_type is None:
+                raise VerifyException(
+                    "gangOperandsArgType attribute must be defined when gang "
+                    "operands are present"
+                )
+            if len(self.gang_operands) != len(self.gang_operands_arg_type):
+                raise VerifyException(
+                    "gangOperandsArgType attribute count must match gangOperands count"
+                )
+        if (
+            self.gang is not None
+            and (dup := _first_duplicate(dt.data for dt in self.gang.data)) is not None
+        ):
+            raise VerifyException(
+                f"duplicate device_type `{dup.value}` found in gang attribute"
+            )
+        _verify_dt_and_segment_count_match(
+            self.gang_operands,
+            self.gang_operands_segments,
+            self.gang_operands_device_type,
+            "gang",
+        )
+
+        if (
+            self.worker is not None
+            and (dup := _first_duplicate(dt.data for dt in self.worker.data))
+            is not None
+        ):
+            raise VerifyException(
+                f"duplicate device_type `{dup.value}` found in worker attribute"
+            )
+        if (
+            self.worker_num_operands_device_type is not None
+            and (
+                dup := _first_duplicate(
+                    dt.data for dt in self.worker_num_operands_device_type.data
+                )
+            )
+            is not None
+        ):
+            raise VerifyException(
+                f"duplicate device_type `{dup.value}` found in "
+                "workerNumOperandsDeviceType attribute"
+            )
+        _verify_dt_count_match(
+            self.worker_num_operands,
+            self.worker_num_operands_device_type,
+            "worker",
+        )
+
+        if (
+            self.vector is not None
+            and (dup := _first_duplicate(dt.data for dt in self.vector.data))
+            is not None
+        ):
+            raise VerifyException(
+                f"duplicate device_type `{dup.value}` found in vector attribute"
+            )
+        if (
+            self.vector_operands_device_type is not None
+            and (
+                dup := _first_duplicate(
+                    dt.data for dt in self.vector_operands_device_type.data
+                )
+            )
+            is not None
+        ):
+            raise VerifyException(
+                f"duplicate device_type `{dup.value}` found in "
+                "vectorOperandsDeviceType attribute"
+            )
+        _verify_dt_count_match(
+            self.vector_operands, self.vector_operands_device_type, "vector"
+        )
+
+        _verify_dt_and_segment_count_match(
+            self.tile_operands,
+            self.tile_operands_segments,
+            self.tile_operands_device_type,
+            "tile",
+        )
+
+        # auto / independent / seq must not specify the same device type more
+        # than once across all three.
+        seen_device_types: set[DeviceType] = set()
+        for attr in (self.auto_, self.independent, self.seq):
+            if attr is None:
+                continue
+            for dt in attr.data:
+                if dt.data in seen_device_types:
+                    raise VerifyException(
+                        "only one of auto, independent, seq can be present at "
+                        "the same time"
+                    )
+                seen_device_types.add(dt.data)
+
+        # At least one of auto / independent / seq must apply to the
+        # device-`none` (default) device type.
+        has_default = any(
+            attr is not None and any(dt.data is DeviceType.NONE for dt in attr.data)
+            for attr in (self.seq, self.independent, self.auto_)
+        )
+        if not has_default:
+            raise VerifyException(
+                "at least one of auto, independent, seq must be present"
+            )
+
+        # `gang` / `worker` / `vector` cannot coexist with `seq` for the same
+        # device type.
+        if self.seq is not None:
+            seq_device_types = {dt.data for dt in self.seq.data}
+            for attr in (self.gang, self.worker, self.vector):
+                if attr is None:
+                    continue
+                if any(dt.data in seq_device_types for dt in attr.data):
+                    raise VerifyException(
+                        "gang, worker or vector cannot appear with seq"
+                    )
+
+        if self.unstructured is not None and self.lowerbound:
+            raise VerifyException(
+                "unstructured acc.loop must not have induction variables"
+            )
+
+
+_T = TypeVar("_T", bound=Hashable)
+
+
+def _first_duplicate(els: Iterable[_T]) -> _T | None:
+    """Return the first duplicate `el` in `els`, `None` if there are no duplicates."""
+    seen: set[_T] = set()
+    for el in els:
+        if el in seen:
+            return el
+        seen.add(el)
+
+
+def _verify_dt_count_match(
+    operands: Sequence[SSAValue],
+    device_types: ArrayAttr[DeviceTypeAttr] | None,
+    keyword: str,
+) -> None:
+    """Mirror of upstream's `verifyDeviceTypeCountMatch`."""
+    if operands and (device_types is None or len(device_types) != len(operands)):
+        raise VerifyException(
+            f"{keyword} operands count must match {keyword} device_type count"
+        )
+
+
+def _verify_dt_and_segment_count_match(
+    operands: Sequence[SSAValue],
+    segments: DenseArrayBase[IntegerType] | None,
+    device_types: ArrayAttr[DeviceTypeAttr] | None,
+    keyword: str,
+) -> None:
+    """Mirror of upstream's `verifyDeviceTypeAndSegmentCountMatch`."""
+    seg_values = segments.get_values() if segments is not None else ()
+    num_in_segments = sum(seg_values)
+    nb_segments = len(seg_values)
+    if num_in_segments != len(operands) or (device_types is None and operands):
+        raise VerifyException(
+            f"{keyword} operand count does not match count in segments"
+        )
+    if device_types is not None and len(device_types) != nb_segments:
+        raise VerifyException(
+            f"{keyword} segment count does not match device_type count"
         )
 
 
@@ -3427,6 +4283,205 @@ class ReductionRecipeOp(_RecipeOperation):
             )
 
 
+# ---------------------------------------------------------------------------
+# Runtime executable ops: acc.init, acc.shutdown, acc.set, acc.wait
+# ---------------------------------------------------------------------------
+#
+# Upstream models acc.init / acc.shutdown with identical surface — same two
+# optional operands (device_num, if_cond), same `device_types` ArrayAttr
+# property, same assembly format, and the same "cannot be nested in a
+# compute operation" verifier (`mlir/lib/Dialect/OpenACC/IR/OpenACC.cpp`,
+# `isComputeOperation`; the set of compute ops is parallel / serial /
+# kernels / loop). The xDSL port factors that shape into the
+# `_RuntimeDeviceTypesOperation` mixin below; concrete leaves override only `name`.
+#
+# `acc.set` and `acc.wait` diverge from that shape (different operand
+# counts, different property names/types, different assembly formats) so
+# they're written as standalone IRDL ops. Both still share the
+# `_verify_not_in_compute_op` parent walk — except `acc.wait`, which
+# upstream explicitly leaves unrestricted (see `acc::WaitOp::verify`).
+
+
+def _verify_not_in_compute_op(op: IRDLOperation) -> None:
+    """Mirrors upstream's `isComputeOperation` parent walk."""
+    parent = op.parent_op()
+    while parent is not None:
+        if isinstance(parent, (ParallelOp, SerialOp, KernelsOp, LoopOp)):
+            raise VerifyException(
+                f"'{op.name}' op cannot be nested in a compute operation"
+            )
+        parent = parent.parent_op()
+
+
+class _RuntimeDeviceTypesOperation(IRDLOperation, ABC):
+    """Base class for `acc.init` / `acc.shutdown`.
+
+    Concrete leaves inherit every IRDL field, the assembly format, the
+    `__init__`, and `verify_` — they only override `name`.
+    """
+
+    device_num = opt_operand_def(IntegerType | IndexType)
+    if_cond = opt_operand_def(I1)
+
+    device_types = opt_prop_def(ArrayAttr[DeviceTypeAttr], prop_name="device_types")
+
+    irdl_options = (
+        AttrSizedOperandSegments(as_property=True),
+        ParsePropInAttrDict(),
+    )
+
+    assembly_format = (
+        "(`device_num` `(` $device_num^ `:` type($device_num) `)`)?"
+        " (`if` `(` $if_cond^ `)`)?"
+        " attr-dict-with-keyword"
+    )
+
+    def __init__(
+        self,
+        *,
+        device_num: SSAValue | Operation | None = None,
+        if_cond: SSAValue | Operation | None = None,
+        device_types: ArrayAttr[DeviceTypeAttr] | None = None,
+    ) -> None:
+        super().__init__(
+            operands=[device_num, if_cond],
+            properties={"device_types": device_types},
+        )
+
+    def verify_(self) -> None:
+        _verify_not_in_compute_op(self)
+
+
+@irdl_op_definition
+class InitOp(_RuntimeDeviceTypesOperation):
+    """
+    Implementation of upstream acc.init — the OpenACC init executable directive.
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenACCDialect/#accinit-accinitop).
+    """
+
+    name = "acc.init"
+
+
+@irdl_op_definition
+class ShutdownOp(_RuntimeDeviceTypesOperation):
+    """
+    Implementation of upstream acc.shutdown — the OpenACC shutdown executable
+    directive.
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenACCDialect/#accshutdown-accshutdownop).
+    """
+
+    name = "acc.shutdown"
+
+
+@irdl_op_definition
+class SetOp(IRDLOperation):
+    """
+    Implementation of upstream acc.set — the OpenACC set executable directive.
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenACCDialect/#accset-accsetop).
+    """
+
+    name = "acc.set"
+
+    default_async = opt_operand_def(IntegerType | IndexType)
+    device_num = opt_operand_def(IntegerType | IndexType)
+    if_cond = opt_operand_def(I1)
+
+    device_type = opt_prop_def(DeviceTypeAttr, prop_name="device_type")
+
+    irdl_options = (
+        AttrSizedOperandSegments(as_property=True),
+        ParsePropInAttrDict(),
+    )
+
+    assembly_format = (
+        "(`default_async` `(` $default_async^ `:` type($default_async) `)`)?"
+        " (`device_num` `(` $device_num^ `:` type($device_num) `)`)?"
+        " (`if` `(` $if_cond^ `)`)?"
+        " attr-dict-with-keyword"
+    )
+
+    def __init__(
+        self,
+        *,
+        default_async: SSAValue | Operation | None = None,
+        device_num: SSAValue | Operation | None = None,
+        if_cond: SSAValue | Operation | None = None,
+        device_type: DeviceTypeAttr | None = None,
+    ) -> None:
+        super().__init__(
+            operands=[default_async, device_num, if_cond],
+            properties={"device_type": device_type},
+        )
+
+    def verify_(self) -> None:
+        _verify_not_in_compute_op(self)
+        if (
+            self.device_type is None
+            and self.default_async is None
+            and self.device_num is None
+        ):
+            raise VerifyException(
+                "at least one default_async, device_num, or device_type "
+                "operand must appear"
+            )
+
+
+@irdl_op_definition
+class WaitOp(IRDLOperation):
+    """
+    Implementation of upstream acc.wait — the OpenACC wait executable directive.
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenACCDialect/#accwait-accwaitop).
+    """
+
+    name = "acc.wait"
+
+    wait_operands = var_operand_def(IntegerType | IndexType)
+    async_operand = opt_operand_def(IntegerType | IndexType)
+    wait_devnum = opt_operand_def(IntegerType | IndexType)
+    if_cond = opt_operand_def(I1)
+
+    async_attr = opt_prop_def(UnitAttr, prop_name="async")
+
+    irdl_options = (
+        AttrSizedOperandSegments(as_property=True),
+        ParsePropInAttrDict(),
+    )
+
+    custom_directives = (OperandWithKeywordOnly,)
+
+    assembly_format = (
+        "( `(` $wait_operands^ `:` type($wait_operands) `)` )?"
+        " (`async` custom<OperandWithKeywordOnly>($async_operand,"
+        " type($async_operand), $async)^)?"
+        " (`wait_devnum` `(` $wait_devnum^ `:` type($wait_devnum) `)`)?"
+        " (`if` `(` $if_cond^ `)`)?"
+        " attr-dict-with-keyword"
+    )
+
+    def __init__(
+        self,
+        *,
+        wait_operands: Sequence[SSAValue | Operation] = (),
+        async_operand: SSAValue | Operation | None = None,
+        wait_devnum: SSAValue | Operation | None = None,
+        if_cond: SSAValue | Operation | None = None,
+        async_attr: UnitAttr | None = None,
+    ) -> None:
+        super().__init__(
+            operands=[wait_operands, async_operand, wait_devnum, if_cond],
+            properties={"async": async_attr},
+        )
+
+    def verify_(self) -> None:
+        # Mirrors upstream `acc::WaitOp::verify`. Note that — unlike
+        # init/shutdown/set — `acc.wait` does *not* forbid nesting inside a
+        # compute construct.
+        if self.async_operand is not None and self.async_attr is not None:
+            raise VerifyException("async attribute cannot appear with asyncOperand")
+        if self.wait_devnum is not None and not self.wait_operands:
+            raise VerifyException("wait_devnum cannot appear without waitOperands")
+
+
 @irdl_op_definition
 class TerminatorOp(IRDLOperation):
     """
@@ -3467,6 +4522,7 @@ class YieldOp(AbstractYieldOperation[Attribute]):
             HasParent(
                 ParallelOp,
                 SerialOp,
+                LoopOp,
                 PrivateRecipeOp,
                 FirstprivateRecipeOp,
                 ReductionRecipeOp,
@@ -3481,6 +4537,7 @@ ACC = Dialect(
         ParallelOp,
         SerialOp,
         KernelsOp,
+        LoopOp,
         DataOp,
         HostDataOp,
         DataBoundsOp,
@@ -3517,6 +4574,10 @@ ACC = Dialect(
         PrivateRecipeOp,
         FirstprivateRecipeOp,
         ReductionRecipeOp,
+        InitOp,
+        ShutdownOp,
+        SetOp,
+        WaitOp,
         TerminatorOp,
         YieldOp,
     ],

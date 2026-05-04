@@ -295,7 +295,8 @@ class DmpSwapOpTensorize(RewritePattern):
             and op.swapped_values
             and not is_tensorized(op.swapped_values.type)
         ):
-            rewriter.replace_matched_op(
+            rewriter.replace_op(
+                op,
                 dmp.SwapOp.get(op.input_stencil, op.strategy, ArrayAttr(op.swaps.data)),
             )
 
