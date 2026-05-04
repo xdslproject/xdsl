@@ -4,10 +4,12 @@
 
 // --- RingAttr ---
 
-// CHECK-NEXT:   "test.op"() {ring = #polynomial.ring<coefficientType = f64>} : () -> ()
-"test.op"() {ring = #polynomial.ring<coefficientType = f64>} : () -> ()
+"test.op"() {
+    ring_f32 = #polynomial.ring<coefficientType = f32>,
+    ring_f64 = #polynomial.ring<coefficientType = f64>
+} : () -> ()
 
-// CHECK-NEXT:   "test.op"() {ring = #polynomial.ring<coefficientType = f32>} : () -> ()
-"test.op"() {ring = #polynomial.ring<coefficientType = f32>} : () -> ()
+// CHECK-NEXT:   "test.op"() {ring_f32 = #polynomial.ring<coefficientType = f32>
+// CHECK-SAME:    ring_f64 = #polynomial.ring<coefficientType = f64>
 
 // CHECK-NEXT: }
