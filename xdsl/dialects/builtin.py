@@ -1108,7 +1108,7 @@ class IntegerAttr(
 BoolAttr: TypeAlias = IntegerAttr[Annotated[IntegerType, IntegerType(1)]]
 
 
-class _FloatType(StructPackableType[float], FixedBitwidthType, BuiltinAttribute, ABC):
+class _FloatType(PackableType[float], FixedBitwidthType, BuiltinAttribute, ABC):
     @property
     @abstractmethod
     def bitwidth(self) -> int:
@@ -1126,16 +1126,6 @@ class BFloat16Type(ParametrizedAttribute, _FloatType):
     @property
     def bitwidth(self) -> int:
         return 16
-
-    @property
-    def format(self) -> str:
-        # bf16 has no `struct` format code; pack/unpack are overridden below.
-        # Kept as an explicit raise so the abstract method on
-        # StructPackableType is still satisfied by an override.
-        raise NotImplementedError(
-            "bf16 does not have a struct format string; "
-            "use pack/unpack methods directly."
-        )
 
     def iter_unpack(self, buffer: ReadableBuffer, /) -> Iterator[float]:
         for (value,) in struct.iter_unpack("<H", buffer):
@@ -1158,7 +1148,7 @@ class BFloat16Type(ParametrizedAttribute, _FloatType):
 
 
 @irdl_attr_definition
-class Float16Type(ParametrizedAttribute, _FloatType):
+class Float16Type(ParametrizedAttribute, _FloatType, StructPackableType[float]):
     name = "f16"
 
     @property
@@ -1171,7 +1161,7 @@ class Float16Type(ParametrizedAttribute, _FloatType):
 
 
 @irdl_attr_definition
-class Float32Type(ParametrizedAttribute, _FloatType):
+class Float32Type(ParametrizedAttribute, _FloatType, StructPackableType[float]):
     name = "f32"
 
     @property
@@ -1184,7 +1174,7 @@ class Float32Type(ParametrizedAttribute, _FloatType):
 
 
 @irdl_attr_definition
-class Float64Type(ParametrizedAttribute, _FloatType):
+class Float64Type(ParametrizedAttribute, _FloatType, StructPackableType[float]):
     name = "f64"
 
     @property
@@ -1197,7 +1187,7 @@ class Float64Type(ParametrizedAttribute, _FloatType):
 
 
 @irdl_attr_definition
-class Float80Type(ParametrizedAttribute, _FloatType):
+class Float80Type(ParametrizedAttribute, _FloatType, StructPackableType[float]):
     name = "f80"
 
     @property
@@ -1210,7 +1200,7 @@ class Float80Type(ParametrizedAttribute, _FloatType):
 
 
 @irdl_attr_definition
-class Float128Type(ParametrizedAttribute, _FloatType):
+class Float128Type(ParametrizedAttribute, _FloatType, StructPackableType[float]):
     name = "f128"
 
     @property
