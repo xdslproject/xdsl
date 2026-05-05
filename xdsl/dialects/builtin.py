@@ -55,6 +55,7 @@ from xdsl.irdl import (
     ConstraintContext,
     ConstraintConvertible,
     EqAttrConstraint,
+    EqIntConstraint,
     GenericData,
     IntConstraint,
     IntTypeVarConstraint,
@@ -421,9 +422,15 @@ class IntAttrConstraint(AttrConstraint[IntAttr]):
     def mapping_type_vars(
         self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
     ):
-        return IntAttrConstraint(
+        return IntAttrConstraint.create(
             self.int_constraint.mapping_type_vars(type_var_mapping)
         )
+
+    @staticmethod
+    def create(int_constraint: IntConstraint) -> AttrConstraint[IntAttr]:
+        if isinstance(int_constraint, EqIntConstraint):
+            return EqAttrConstraint(IntAttr(int_constraint.value))
+        return IntAttrConstraint(int_constraint)
 
 
 StaticDimensionConstr = MessageConstraint(
