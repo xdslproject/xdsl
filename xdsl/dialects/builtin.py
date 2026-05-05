@@ -753,13 +753,11 @@ class IntegerType(
         return f[format_index]
 
 
-I128: TypeAlias = IntegerType[Literal[128], Literal[Signedness.SIGNLESS]]
 I64: TypeAlias = IntegerType[Literal[64], Literal[Signedness.SIGNLESS]]
 I32: TypeAlias = IntegerType[Literal[32], Literal[Signedness.SIGNLESS]]
 I16: TypeAlias = IntegerType[Literal[16], Literal[Signedness.SIGNLESS]]
 I8: TypeAlias = IntegerType[Literal[8], Literal[Signedness.SIGNLESS]]
 I1: TypeAlias = IntegerType[Literal[1], Literal[Signedness.SIGNLESS]]
-i128: I128 = IntegerType(128)
 i64: I64 = IntegerType(64)
 i32: I32 = IntegerType(32)
 i16: I16 = IntegerType(16)
