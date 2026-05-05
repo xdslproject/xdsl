@@ -13,6 +13,7 @@ from xdsl.dialects.builtin import (
     IntegerAttr,
     MemRefType,
     StringAttr,
+    SymbolRefAttr,
     UnitAttr,
     f32,
     i1,
@@ -929,3 +930,88 @@ def test_wait_op_init_smoke():
         if_cond=create_ssa_value(i1),
     )
     op.verify()
+
+
+def test_routine_op_builder_shortcuts():
+    """The `RoutineOp.__init__` accepts `str` shortcuts for both `sym_name`
+    (→ StringAttr) and `func_name` (→ SymbolRefAttr), plus `bool`
+    shortcuts for the `nohost` / `implicit` UnitAttrs. None of these
+    branches is reachable via the filecheck parser — it always supplies
+    the wrapped attribute forms — so they're exercised here."""
+    op = acc.RoutineOp(sym_name="r1", func_name="f1")
+    op.verify()
+    assert op.sym_name == StringAttr("r1")
+    assert op.func_name == SymbolRefAttr("f1")
+    assert op.nohost is None
+    assert op.implicit is None
+    assert op.bind_id_name is None
+    assert op.bind_str_name is None
+    assert op.bind_id_name_device_type is None
+    assert op.bind_str_name_device_type is None
+    assert op.gang is None
+    assert op.gang_dim is None
+    assert op.gang_dim_device_type is None
+    assert op.worker is None
+    assert op.vector is None
+    assert op.seq is None
+
+    op_with_bools = acc.RoutineOp(
+        sym_name=StringAttr("r2"),
+        func_name=SymbolRefAttr("f2"),
+        nohost=True,
+        implicit=True,
+    )
+    op_with_bools.verify()
+    assert isinstance(op_with_bools.nohost, UnitAttr)
+    assert isinstance(op_with_bools.implicit, UnitAttr)
+
+    # `bool=False` and explicit `UnitAttr=None` must both produce a missing
+    # property (covers the `(UnitAttr() if x else None)` branch + the
+    # explicit-`UnitAttr` passthrough).
+    op_explicit = acc.RoutineOp(
+        sym_name="r3",
+        func_name="f3",
+        nohost=False,
+        implicit=UnitAttr(),
+    )
+    assert op_explicit.nohost is None
+    assert isinstance(op_explicit.implicit, UnitAttr)
+
+
+def test_routine_op_full_population():
+    """Drive every optional property through the constructor so each
+    `properties=` slot has been written at least once. The filecheck
+    parser builds these via `Operation.create()` (which bypasses
+    `__init__`), so this test is the only place `RoutineOp.__init__`'s
+    body runs to completion."""
+    nvidia = acc.DeviceTypeAttr(acc.DeviceType.NVIDIA)
+    radeon = acc.DeviceTypeAttr(acc.DeviceType.RADEON)
+    host = acc.DeviceTypeAttr(acc.DeviceType.HOST)
+    multicore = acc.DeviceTypeAttr(acc.DeviceType.MULTICORE)
+
+    op = acc.RoutineOp(
+        sym_name="rt",
+        func_name="callee",
+        bind_id_name=ArrayAttr([SymbolRefAttr("alt")]),
+        bind_str_name=ArrayAttr([StringAttr("alt_str")]),
+        bind_id_name_device_type=ArrayAttr([nvidia]),
+        bind_str_name_device_type=ArrayAttr([radeon]),
+        gang=ArrayAttr([nvidia]),
+        gang_dim=ArrayAttr([IntegerAttr(1, i64)]),
+        gang_dim_device_type=ArrayAttr([nvidia]),
+        worker=ArrayAttr([radeon]),
+        vector=ArrayAttr([host]),
+        seq=ArrayAttr([multicore]),
+    )
+    op.verify()
+
+    assert op.bind_id_name == ArrayAttr([SymbolRefAttr("alt")])
+    assert op.bind_str_name == ArrayAttr([StringAttr("alt_str")])
+    assert op.bind_id_name_device_type == ArrayAttr([nvidia])
+    assert op.bind_str_name_device_type == ArrayAttr([radeon])
+    assert op.gang == ArrayAttr([nvidia])
+    assert op.gang_dim == ArrayAttr([IntegerAttr(1, i64)])
+    assert op.gang_dim_device_type == ArrayAttr([nvidia])
+    assert op.worker == ArrayAttr([radeon])
+    assert op.vector == ArrayAttr([host])
+    assert op.seq == ArrayAttr([multicore])
