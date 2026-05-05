@@ -4,6 +4,7 @@ from itertools import islice
 
 from ordered_set import OrderedSet
 
+from xdsl.backend.register_allocatable import RegisterAllocatableOperation
 from xdsl.backend.riscv.register_stack import RiscvRegisterStack
 from xdsl.builder import Builder
 from xdsl.context import Context
@@ -31,14 +32,28 @@ class SpillPass(ModulePass):
     def spill_values(
         self, func_op: riscv_func.FuncOp, base_reg_type: type[RISCVRegisterType]
     ):
+        used_regs = {
+            reg
+            for reg in RegisterAllocatableOperation.iter_all_used_registers(
+                func_op.body
+            )
+            if isinstance(reg, RISCVRegisterType)
+        }
         total_regs = len(
-            RiscvRegisterStack.get().available_registers[base_reg_type.name]
+            {
+                i
+                for i in RiscvRegisterStack.default_allocatable_registers()
+                if i not in used_regs and isinstance(i, base_reg_type)
+            }
         )
+
         loaded_values = OrderedSet[SSAValue]([])
 
         die = self.get_die_set(func_op)
 
         for inner_op in func_op.walk():
+            if not isinstance(inner_op, RegisterAllocatableOperation):
+                continue
             uses = OrderedSet(
                 i for i in inner_op.operands if isinstance(i.type, base_reg_type)
             )
