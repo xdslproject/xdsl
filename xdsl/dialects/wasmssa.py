@@ -44,7 +44,7 @@ class ExternRefType(ParametrizedAttribute, TypeAttribute):
 RefType: TypeAlias = FuncRefType | ExternRefType
 """Type alias for opaque references in WebAssembly"""
 ValTypeConstr: AnyOf = AnyOf([i32, i64, i128, f32, f64, FuncRefType, ExternRefType])
-"""Type alias constraint for types that are supported by WebAssembly"""
+"""Constraint for value types that are supported by WebAssembly"""
 
 
 @irdl_attr_definition
