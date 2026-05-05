@@ -158,6 +158,14 @@ def test_bf16_attr_normalises_inexact_value():
     assert abs(a.value.data - 0.1) < 2**-6
 
 
+def test_FloatAttr_skips_normalisation_for_unsupported_widths():
+    # f80 and f128 have no precision-normalisation path (their format
+    # raises NotImplementedError). FloatAttr.__init__ must take the
+    # else-branch and store the Python float as-is.
+    assert FloatAttr(0.1, f80).value.data == 0.1
+    assert FloatAttr(0.1, f128).value.data == 0.1
+
+
 def test_IntegerType_size():
     assert IntegerType(1).size == 1
     assert IntegerType(2).size == 1
