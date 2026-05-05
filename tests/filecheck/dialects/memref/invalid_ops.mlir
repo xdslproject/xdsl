@@ -4,7 +4,7 @@ builtin.module {
   "memref.global"() {"alignment" = 64 : i32, "sym_name" = "wrong_alignment_type", "type" = memref<1xindex>, "initial_value" = dense<0> : tensor<1xindex>, "sym_visibility" = "public"} : () -> ()
 }
 
-// CHECK: Invalid value 32, expected 64
+// CHECK: Expected attribute i64 but got i32
 
 // -----
 
@@ -40,7 +40,7 @@ builtin.module {
 
 
 
-// CHECK: Invalid value 32, expected 64
+// CHECK: Expected attribute i64 but got i32
 
 // -----
 
@@ -50,7 +50,7 @@ builtin.module {
     "func.return"() : () -> ()
 }) {function_type = () -> (), sym_name = "invalid_reassociation"} : () -> ()
 
-// CHECK: Invalid value 32, expected 64
+// CHECK: Expected attribute i64 but got i32
 
 
 // -----
