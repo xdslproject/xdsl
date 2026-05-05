@@ -11,7 +11,13 @@ from xdsl.dialects.builtin import (
     i32,
 )
 from xdsl.parser import Parser
-from xdsl.traits import MemoryEffect, NoMemoryEffect, Pure
+from xdsl.traits import (
+    MemoryEffect,
+    MemoryReadEffect,
+    MemoryWriteEffect,
+    NoMemoryEffect,
+    Pure,
+)
 from xdsl.utils.exceptions import ParseError, VerifyException
 from xdsl.utils.test_value import create_ssa_value
 
@@ -369,8 +375,8 @@ def test_effect_traits():
     unknown_effects_ops = {op for op in operations if op not in effects_ops}
 
     # Sentinels to remind us to update this test when updating the dialect
-    assert len(effects_ops) == 72
-    assert len(unknown_effects_ops) == 86
+    assert len(effects_ops) == 90
+    assert len(unknown_effects_ops) == 68
 
     all_effects_trait_types = {
         type(trait)
@@ -381,13 +387,46 @@ def test_effect_traits():
     # Check below separately for each of these
     assert all_effects_trait_types == {
         RegisterAllocatedMemoryEffect,
+        MemoryReadEffect,
+        MemoryWriteEffect,
         Pure,
     }
 
     register_effects_ops = {
         op for op in effects_ops if op.has_trait(RegisterAllocatedMemoryEffect)
     }
+    read_effects_ops = {op for op in effects_ops if op.has_trait(MemoryReadEffect)}
+    write_effects_ops = {op for op in effects_ops if op.has_trait(MemoryWriteEffect)}
+
     no_effects_ops = {op for op in effects_ops if op.has_trait(NoMemoryEffect)}
 
     assert len(register_effects_ops) == 18
+    assert read_effects_ops == {
+        riscv.CsrrciOp,
+        riscv.CsrrcOp,
+        riscv.CsrrsiOp,
+        riscv.CsrrsOp,
+        riscv.CsrrwiOp,
+        riscv.CsrrwOp,
+        riscv.FLdOp,
+        riscv.FLwOp,
+        riscv.LbOp,
+        riscv.LbuOp,
+        riscv.LhOp,
+        riscv.LhuOp,
+        riscv.LwOp,
+    }
+    assert write_effects_ops == {
+        riscv.CsrrciOp,
+        riscv.CsrrcOp,
+        riscv.CsrrsiOp,
+        riscv.CsrrsOp,
+        riscv.CsrrwiOp,
+        riscv.CsrrwOp,
+        riscv.FSdOp,
+        riscv.FSwOp,
+        riscv.SbOp,
+        riscv.ShOp,
+        riscv.SwOp,
+    }
     assert len(no_effects_ops) == 54
