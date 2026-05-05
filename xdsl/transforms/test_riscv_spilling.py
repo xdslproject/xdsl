@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from collections.abc import Set as AbstractSet
 from dataclasses import dataclass
 from itertools import islice
@@ -14,7 +15,7 @@ from xdsl.dialects.riscv.registers import (
     IntRegisterType,
     RISCVRegisterType,
 )
-from xdsl.ir import Operation, SSAValue
+from xdsl.ir import Attribute, Operation, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.rewriter import InsertPoint
 from xdsl.utils.hints import isa
@@ -26,11 +27,29 @@ class SpillPass(ModulePass):
         for func_op in op.walk():
             if not isinstance(func_op, riscv_func.FuncOp):
                 continue
-            self.spill_values(func_op, IntRegisterType)
-            self.spill_values(func_op, FloatRegisterType)
+            self.spill_values(
+                func_op,
+                lambda a: (
+                    isinstance(a, IntRegisterType)
+                    or (
+                        isinstance(a, riscv.stack.StackSlotType)
+                        and a.value_type == builtin.i32
+                    )
+                ),
+            )
+            self.spill_values(
+                func_op,
+                lambda a: (
+                    isinstance(a, FloatRegisterType)
+                    or (
+                        isinstance(a, riscv.stack.StackSlotType)
+                        and a.value_type == builtin.f32
+                    )
+                ),
+            )
 
     def spill_values(
-        self, func_op: riscv_func.FuncOp, base_reg_type: type[RISCVRegisterType]
+        self, func_op: riscv_func.FuncOp, is_valid_type: Callable[[Attribute], bool]
     ):
         used_regs = {
             reg
@@ -43,7 +62,7 @@ class SpillPass(ModulePass):
             {
                 i
                 for i in RiscvRegisterStack.default_allocatable_registers()
-                if i not in used_regs and isinstance(i, base_reg_type)
+                if i not in used_regs and is_valid_type(i)
             }
         )
 
@@ -51,12 +70,10 @@ class SpillPass(ModulePass):
 
         die = self.get_die_set(func_op)
 
-        for inner_op in func_op.walk():
+        for i, inner_op in enumerate(func_op.walk()):
             if not isinstance(inner_op, RegisterAllocatableOperation):
                 continue
-            uses = OrderedSet(
-                i for i in inner_op.operands if isinstance(i.type, base_reg_type)
-            )
+            uses = OrderedSet(i for i in inner_op.operands if is_valid_type(i.type))
             free_values = iter(loaded_values - uses)  # values that we can use to spill
 
             # Process uses
@@ -72,18 +89,13 @@ class SpillPass(ModulePass):
             loaded_uses = self.insert_load(inner_op, uses - loaded_values, die)
             loaded_values |= loaded_uses
 
-            # TODO remove this assert
-            assert loaded_values.issuperset(uses)
-
             # Remove dead values from live set
-            for use in uses:
-                if die[use] is inner_op:
+            for use in inner_op.operands:
+                if is_valid_type(use.type) and die[use] is inner_op:
                     loaded_values.remove(use)
 
             # Process definitions
-            defns = OrderedSet(
-                i for i in inner_op.results if isinstance(i.type, base_reg_type)
-            )
+            defns = OrderedSet(i for i in inner_op.results if is_valid_type(i.type))
             if len(loaded_values | defns) > total_regs:
                 # spill excess regs
                 num_regs_to_spill = len(loaded_values | defns) - total_regs
@@ -138,7 +150,6 @@ class SpillPass(ModulePass):
             return OrderedSet([])
 
         assert isa(loads, OrderedSet[SSAValue[riscv.stack.StackSlotType]])
-
         load_results = OrderedSet[SSAValue]([])
         builder = Builder(InsertPoint.before(inner_op))
 
