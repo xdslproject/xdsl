@@ -72,8 +72,13 @@ class SpillPass(ModulePass):
             loaded_uses = self.insert_load(inner_op, uses - loaded_values)
             loaded_values |= loaded_uses
 
+            # TODO remove this assert
+            assert loaded_values.issuperset(uses)
+
             # Remove dead values from live set
-            loaded_values -= die[inner_op]
+            for use in uses:
+                if die[use] is inner_op:
+                    loaded_values.remove(use)
 
             # Process definitions
             defns = OrderedSet(
@@ -140,13 +145,14 @@ class SpillPass(ModulePass):
         return load_results
 
     def get_die_set(self, func_op: riscv_func.FuncOp):
-        """Create set of values that die at each operation."""
-        die: dict[Operation, set[SSAValue]] = {}
+        """Create the operation where every values dies at."""
+        die: dict[SSAValue, Operation] = {}
         seen_vals = set[SSAValue]()
         for inner_op in func_op.walk(reverse=True):
             # by SSA, we can just check if this is the first seen use
             uses = set(inner_op.operands)
-            die[inner_op] = uses - seen_vals
+            for dead_val in uses - seen_vals:
+                die[dead_val] = inner_op
             seen_vals |= uses
         return die
 
