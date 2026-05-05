@@ -188,7 +188,6 @@ def test_effect_traits():
         riscv_snitch.VFAddSOp,
         riscv_snitch.VFCpkASSOp,
         riscv_snitch.VFMacSOp,
-        riscv_snitch.VFMacSOp,
         riscv_snitch.VFMaxSOp,
         riscv_snitch.VFMulHOp,
         riscv_snitch.VFMulSOp,
