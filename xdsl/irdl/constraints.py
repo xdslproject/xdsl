@@ -18,6 +18,7 @@ from typing_extensions import TypeVar, deprecated
 from xdsl.ir import (
     Attribute,
     AttributeCovT,
+    AttributeInvT,
     ParametrizedAttribute,
     TypedAttribute,
 )
@@ -544,10 +545,33 @@ class AnyOf(AttrConstraint[AttributeCovT], Generic[AttributeCovT]):
 
     def mapping_type_vars(
         self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
-    ) -> AnyOf[AttributeCovT]:
-        return AnyOf(
+    ) -> AttrConstraint[AttributeCovT]:
+        return AnyOf.create(
             tuple(c.mapping_type_vars(type_var_mapping) for c in self.attr_constrs)
         )
+
+    @staticmethod
+    def create(
+        attr_constrs: Sequence[
+            AttributeInvT | type[AttributeInvT] | AttrConstraint[AttributeInvT]
+        ],
+    ) -> AttrConstraint[AttributeInvT]:
+        from xdsl.irdl import irdl_to_attr_constraint
+
+        constrs: tuple[AttrConstraint[AttributeInvT], ...] = tuple(
+            irdl_to_attr_constraint(constr) for constr in attr_constrs
+        )
+        # Check for singleton AnyOf
+        if len(constrs) == 1:
+            return constrs[0]
+        # Check for AnyOf of AnyOf
+        constrs = tuple(
+            c
+            for constr in constrs
+            for c in (constr.attr_constrs if isinstance(constr, AnyOf) else (constr,))
+        )
+
+        return AnyOf(constrs)
 
 
 @dataclass(frozen=True)
@@ -696,8 +720,8 @@ class ParamAttrConstraint(
 
     def mapping_type_vars(
         self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
-    ) -> ParamAttrConstraint[ParametrizedAttributeCovT]:
-        return ParamAttrConstraint(
+    ) -> AttrConstraint[ParametrizedAttributeCovT]:
+        return ParamAttrConstraint.create(
             self.base_attr,
             tuple(c.mapping_type_vars(type_var_mapping) for c in self.param_constrs),
         )
@@ -715,6 +739,25 @@ class ParamAttrConstraint(
                 for l, r in zip(self.param_constrs, value.param_constrs, strict=True)
             ),
         )
+
+    @staticmethod
+    def create(
+        base_attr: type[ParametrizedAttributeT],
+        param_constrs: Sequence[IRDLAttrConstraint | None],
+    ) -> AttrConstraint[ParametrizedAttributeT]:
+        from xdsl.irdl import irdl_to_attr_constraint
+
+        constrs = tuple(
+            irdl_to_attr_constraint(constr) if constr is not None else AnyAttr()
+            for constr in param_constrs
+        )
+
+        if all(isinstance(c, EqAttrConstraint) for c in constrs):
+            return EqAttrConstraint(
+                base_attr(*(cast(EqAttrConstraint, c).attr for c in constrs))
+            )
+
+        return ParamAttrConstraint(base_attr, constrs)
 
 
 @dataclass(frozen=True, init=False)
