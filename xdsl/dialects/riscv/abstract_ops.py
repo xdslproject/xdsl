@@ -197,6 +197,8 @@ class RISCVInstruction(RISCVAsmOperation, RISCVRegallocOperation, ABC):
     An optional comment that will be printed along with the instruction.
     """
 
+    traits = traits_def(RegisterAllocatedMemoryEffect())
+
     @abstractmethod
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
         """
@@ -440,8 +442,6 @@ class RdRsRsRsFloatOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
     rs2 = operand_def(FloatRegisterType)
     rs3 = operand_def(FloatRegisterType)
 
-    traits = traits_def(RegisterAllocatedMemoryEffect())
-
     def __init__(
         self,
         rs1: Operation | SSAValue,
@@ -535,10 +535,6 @@ class RdRsRsFloatOperationWithFastMath(
     rs1 = operand_def(FloatRegisterType)
     rs2 = operand_def(FloatRegisterType)
     fastmath = opt_attr_def(FastMathFlagsAttr)
-
-    # https://github.com/xdslproject/xdsl/issues/5882
-    # Move to appropriate superclass in the future
-    traits = traits_def(RegisterAllocatedMemoryEffect())
 
     def __init__(
         self,

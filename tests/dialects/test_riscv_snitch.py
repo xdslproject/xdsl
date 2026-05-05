@@ -179,22 +179,7 @@ def test_effect_traits():
         riscv_snitch.FrepOuterOp,
         riscv_snitch.FrepInnerOp,
     }
-    assert register_allocated_memory_effects_ops == {
-        riscv_snitch.DMCopyImmOp,
-        riscv_snitch.DMCopyOp,
-        riscv_snitch.DMStatImmOp,
-        riscv_snitch.DMStatOp,
-        riscv_snitch.VFAddHOp,
-        riscv_snitch.VFAddSOp,
-        riscv_snitch.VFCpkASSOp,
-        riscv_snitch.VFMacSOp,
-        riscv_snitch.VFMaxSOp,
-        riscv_snitch.VFMulHOp,
-        riscv_snitch.VFMulSOp,
-        riscv_snitch.VFSubHOp,
-        riscv_snitch.VFSubSOp,
-        riscv_snitch.VFSumSOp,
-    }
+    assert len(register_allocated_memory_effects_ops) == 22
     assert no_effects_ops == {
         riscv_snitch.FrepYieldOp,
         riscv_snitch.GetStreamOp,

@@ -4,11 +4,7 @@ import itertools
 from collections.abc import Generator, Sequence
 
 from xdsl.backend.assembly_printer import AssemblyPrintable, AssemblyPrinter
-from xdsl.backend.register_type import (
-    RegisterAllocatedMemoryEffect,
-    RegisterResource,
-    RegisterType,
-)
+from xdsl.backend.register_type import RegisterResource, RegisterType
 from xdsl.dialects import riscv
 from xdsl.dialects.builtin import (
     I8,
@@ -309,9 +305,6 @@ class ReturnOp(riscv.RISCVInstruction):
         IsTerminator(),
         HasParent(FuncOp),
         ReturnLike(),
-        # https://github.com/xdslproject/xdsl/issues/5882
-        # Move to appropriate superclass in the future
-        RegisterAllocatedMemoryEffect(),
     )
 
     assembly_format = "attr-dict ($values^ `:` type($values))?"
