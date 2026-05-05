@@ -358,6 +358,22 @@ def test_IntegerType_packing():
     assert attrs_i64 == tuple(IntegerAttr(n, i64) for n in nums_i64)
     assert tuple(attr for attr in IntegerAttr.iter_unpack(i64, buffer_i64)) == attrs_i64
 
+    # bf16
+    nums_bf16 = (-3.140625, -1.0, 0.0, 1.0, 3.140625)
+    buffer_bf16 = bf16.pack(nums_bf16)
+    unpacked_bf16 = bf16.unpack(buffer_bf16, len(nums_bf16))
+    assert nums_bf16 == unpacked_bf16
+    attrs_bf16 = FloatAttr.unpack(bf16, buffer_bf16, len(nums_bf16))
+    assert attrs_bf16 == tuple(FloatAttr(n, bf16) for n in nums_bf16)
+    assert (
+        tuple(attr for attr in FloatAttr.iter_unpack(bf16, buffer_bf16)) == attrs_bf16
+    )
+    # pack_into mirrors pack for the same values.
+    pack_into_buffer = bytearray(2 * len(nums_bf16))
+    for i, n in enumerate(nums_bf16):
+        bf16.pack_into(pack_into_buffer, 2 * i, n)
+    assert bytes(pack_into_buffer) == buffer_bf16
+
     # f16
     nums_f16 = (-3.140625, -1.0, 0.0, 1.0, 3.140625)
     buffer_f16 = f16.pack(nums_f16)
