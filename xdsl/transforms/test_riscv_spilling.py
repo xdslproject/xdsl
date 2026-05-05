@@ -67,9 +67,9 @@ class SpillPass(ModulePass):
                 # TODO: use heuristic to select
                 regs_to_spill = OrderedSet(islice(free_values, num_regs_to_spill))
 
-                self.insert_spill(inner_op, regs_to_spill)
+                self.insert_spill(inner_op, regs_to_spill, die)
                 loaded_values -= regs_to_spill
-            loaded_uses = self.insert_load(inner_op, uses - loaded_values)
+            loaded_uses = self.insert_load(inner_op, uses - loaded_values, die)
             loaded_values |= loaded_uses
 
             # TODO remove this assert
@@ -91,11 +91,16 @@ class SpillPass(ModulePass):
                 # TODO: use heuristic to select
                 regs_to_spill = OrderedSet(islice(free_values, num_regs_to_spill))
 
-                self.insert_spill(inner_op, regs_to_spill)
+                self.insert_spill(inner_op, regs_to_spill, die)
                 loaded_values -= regs_to_spill
             loaded_values |= defns
 
-    def insert_spill(self, inner_op: Operation, spills: OrderedSet[SSAValue]):
+    def insert_spill(
+        self,
+        inner_op: Operation,
+        spills: OrderedSet[SSAValue],
+        die_set: dict[SSAValue, Operation],
+    ):
         """Insert spills before inner_op."""
         if not spills:
             return
@@ -116,12 +121,17 @@ class SpillPass(ModulePass):
             builder.insert_op(spill_op)
 
             # replace all uses after spill to the ref
+            if spill_val in die_set:
+                die_set[alloca_op.ref] = die_set[spill_val]
             spill_val.replace_uses_with_if(
                 alloca_op.ref, lambda use: spill_op.is_before_in_block(use.operation)
             )
 
     def insert_load(
-        self, inner_op: Operation, loads: AbstractSet[SSAValue]
+        self,
+        inner_op: Operation,
+        loads: AbstractSet[SSAValue],
+        die_set: dict[SSAValue, Operation],
     ) -> OrderedSet[SSAValue]:
         """Insert loads before inner_op."""
         if not loads:
@@ -136,6 +146,8 @@ class SpillPass(ModulePass):
             load_op = riscv.stack.LoadOp(load_val)
             builder.insert_op(load_op)
             # replace all uses of the ref after load to the loaded result
+            if load_val in die_set:
+                die_set[load_op.rd] = die_set[load_val]
             load_val.replace_uses_with_if(
                 load_op.rd,
                 lambda use: load_op.is_before_in_block(use.operation),
