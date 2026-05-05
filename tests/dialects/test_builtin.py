@@ -138,6 +138,25 @@ def test_FloatType_packing():
     pi = f64.unpack(f64.pack((math.pi,)), 1)[0]
     assert pi == math.pi
 
+    # bf16 has no struct format code; pack/unpack are overridden directly.
+    bf16_nums = (-2.0, -1.0, 0.0, 1.0, 2.0)
+    bf16_buffer = bf16.pack(bf16_nums)
+    assert bf16.unpack(bf16_buffer, len(bf16_nums)) == bf16_nums
+
+
+def test_bf16_attr_construction_roundtrips():
+    # 1.5 is exactly representable in bf16.
+    a = FloatAttr(1.5, bf16)
+    assert a.value.data == 1.5
+
+
+def test_bf16_attr_normalises_inexact_value():
+    # 0.1 is not exactly representable; the stored value must be the
+    # round-tripped bf16 representation, not the original Python float.
+    a = FloatAttr(0.1, bf16)
+    assert a.value.data != 0.1
+    assert abs(a.value.data - 0.1) < 2**-6
+
 
 def test_IntegerType_size():
     assert IntegerType(1).size == 1

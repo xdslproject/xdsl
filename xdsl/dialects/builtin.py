@@ -84,6 +84,7 @@ from xdsl.traits import (
     OpTrait,
     SymbolTable,
 )
+from xdsl.utils.bitwise_casts import convert_bf16_to_f32, convert_f32_to_bf16
 from xdsl.utils.comparisons import (
     signed_upper_bound,
     signed_value_range,
@@ -1128,7 +1129,32 @@ class BFloat16Type(ParametrizedAttribute, _FloatType):
 
     @property
     def format(self) -> str:
-        raise NotImplementedError()
+        # bf16 has no `struct` format code; pack/unpack are overridden below.
+        # Kept as an explicit raise so the abstract method on
+        # StructPackableType is still satisfied by an override.
+        raise NotImplementedError(
+            "bf16 does not have a struct format string; "
+            "use pack/unpack methods directly."
+        )
+
+    def iter_unpack(self, buffer: ReadableBuffer, /) -> Iterator[float]:
+        for (value,) in struct.iter_unpack("<H", buffer):
+            yield convert_bf16_to_f32(value)
+
+    def unpack(self, buffer: ReadableBuffer, num: int, /) -> tuple[float, ...]:
+        fmt = f"<{num}H"
+        return tuple(convert_bf16_to_f32(v) for v in struct.unpack(fmt, buffer))
+
+    def pack_into(self, buffer: WriteableBuffer, offset: int, value: float) -> None:
+        struct.pack_into("<H", buffer, offset, convert_f32_to_bf16(value))
+
+    def pack(self, values: Sequence[float]) -> bytes:
+        fmt = f"<{len(values)}H"
+        return struct.pack(fmt, *(convert_f32_to_bf16(v) for v in values))
+
+    @property
+    def compile_time_size(self) -> int:
+        return 2
 
 
 @irdl_attr_definition
@@ -1272,7 +1298,7 @@ class FloatAttr(BuiltinAttribute, TypedAttribute, Generic[_FloatAttrType]):
         value: float = data.data if isinstance(data, FloatData) else data
         # for supported types, constrain value to precision of floating point type
         # else, allow full python float precision
-        if isinstance(type, Float64Type | Float32Type | Float16Type):
+        if isinstance(type, Float64Type | Float32Type | Float16Type | BFloat16Type):
             value = type.unpack(type.pack((value,)), 1)[0]
 
         data_attr = FloatData(value)

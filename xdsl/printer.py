@@ -14,6 +14,7 @@ from xdsl.dialect_interfaces.op_asm import OpAsmDialectInterface
 from xdsl.dialects.builtin import (
     DYNAMIC_INDEX,
     AnyFloat,
+    BFloat16Type,
     BuiltinAttribute,
     ComplexType,
     Float16Type,
@@ -44,6 +45,7 @@ from xdsl.traits import IsolatedFromAbove, IsTerminator
 from xdsl.utils.base_printer import BasePrinter
 from xdsl.utils.bitwise_casts import (
     convert_f16_to_u16,
+    convert_f32_to_bf16,
     convert_f32_to_u32,
     convert_f64_to_u64,
 )
@@ -361,6 +363,8 @@ class Printer(BasePrinter):
         if math.isnan(value) or math.isinf(value):
             if isinstance(type, Float16Type):
                 self.print_string(hex(convert_f16_to_u16(value)))
+            elif isinstance(type, BFloat16Type):
+                self.print_string(hex(convert_f32_to_bf16(value)))
             elif isinstance(type, Float32Type):
                 self.print_string(hex(convert_f32_to_u32(value)))
             elif isinstance(type, Float64Type):

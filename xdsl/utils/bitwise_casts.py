@@ -59,6 +59,33 @@ def convert_u64_to_f64(value: int) -> float:
     return raw_float
 
 
+def convert_f32_to_bf16(value: float) -> int:
+    """
+    Convert a Python float (interpreted as IEEE 754 binary32 after Python's
+    f64 -> f32 narrowing) to its bfloat16 bit pattern.
+
+    Uses round-to-nearest-even, matching LLVM APFloat semantics. NaNs are
+    preserved as quiet NaNs.
+    """
+    f32_bits = struct.unpack("<I", struct.pack("<f", value))[0]
+    # NaN must remain a NaN after truncation; force the quiet bit on so a
+    # signaling NaN with mantissa entirely in the truncated bits doesn't
+    # become inf.
+    if (f32_bits & 0x7FFFFFFF) > 0x7F800000:
+        return ((f32_bits >> 16) | 0x0040) & 0xFFFF
+    rounding_bias = 0x7FFF + ((f32_bits >> 16) & 1)
+    return ((f32_bits + rounding_bias) >> 16) & 0xFFFF
+
+
+def convert_bf16_to_f32(value: int) -> float:
+    """
+    Convert a bfloat16 bit pattern to a Python float by zero-extending the
+    low 16 bits and reinterpreting as IEEE 754 binary32.
+    """
+    f32_bits = (value & 0xFFFF) << 16
+    return struct.unpack("<f", struct.pack("<I", f32_bits))[0]
+
+
 def is_power_of_two(value: int) -> bool:
     """
     Return True if an integer is a power of two.
