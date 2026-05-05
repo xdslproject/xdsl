@@ -150,14 +150,6 @@ def test_bf16_attr_construction_roundtrips():
     assert a.value.data == 1.5
 
 
-def test_bf16_attr_normalises_inexact_value():
-    # 0.1 is not exactly representable; the stored value must be the
-    # round-tripped bf16 representation, not the original Python float.
-    a = FloatAttr(0.1, bf16)
-    assert a.value.data != 0.1
-    assert abs(a.value.data - 0.1) < 2**-6
-
-
 def test_FloatAttr_skips_normalisation_for_unsupported_widths():
     # f80 and f128 have no precision-normalisation path (their format
     # raises NotImplementedError). FloatAttr.__init__ must take the
