@@ -25,6 +25,15 @@
 %6 = llvm.fneg %arg0 {fastmathFlags = #llvm.fastmath<fast>} : f32
 // CHECK: llvm.fneg [[arg0]] {fastmathFlags = #llvm.fastmath<fast>} : f32
 
+%fma_f32 = llvm.intr.fma(%arg0, %arg0, %arg0) : (f32, f32, f32) -> f32
+// CHECK: llvm.intr.fma([[arg0]], [[arg0]], [[arg0]]) : (f32, f32, f32) -> f32
+
+%fma_vec = llvm.intr.fma(%arg2, %arg2, %arg2) : (vector<4xf32>, vector<4xf32>, vector<4xf32>) -> vector<4xf32>
+// CHECK: llvm.intr.fma([[arg2]], [[arg2]], [[arg2]]) : (vector<4xf32>, vector<4xf32>, vector<4xf32>) -> vector<4xf32>
+
+%fma_fast = llvm.intr.fma(%arg0, %arg0, %arg0) {fastmathFlags = #llvm.fastmath<fast>} : (f32, f32, f32) -> f32
+// CHECK: llvm.intr.fma([[arg0]], [[arg0]], [[arg0]]) {fastmathFlags = #llvm.fastmath<fast>} : (f32, f32, f32) -> f32
+
 %fcmp_lhs, %fcmp_rhs = "test.op"() : () -> (f32, f32)
 // CHECK: [[fcmp_lhs:%\d+]], [[fcmp_rhs:%\d+]]
 
