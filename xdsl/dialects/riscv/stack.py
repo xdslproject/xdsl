@@ -1,10 +1,14 @@
+from xdsl.backend.register_allocatable import RegisterConstraints
 from xdsl.dialects.builtin import (
     AnyFloat,
     ContainerType,
     FixedBitwidthType,
     IntegerType,
 )
-from xdsl.dialects.riscv.abstract_ops import RISCVCustomFormatOperation
+from xdsl.dialects.riscv.abstract_ops import (
+    RISCVCustomFormatOperation,
+    RISCVRegallocOperation,
+)
 from xdsl.dialects.riscv.registers import Registers, RISCVRegisterType
 from xdsl.ir import Dialect, Operation, ParametrizedAttribute, SSAValue, TypeAttribute
 from xdsl.irdl import (
@@ -46,7 +50,7 @@ class AllocaOp(RISCVCustomFormatOperation):
 
 
 @irdl_op_definition
-class StoreOp(RISCVCustomFormatOperation):
+class StoreOp(RISCVCustomFormatOperation, RISCVRegallocOperation):
     """Stores a value into a stack pointer."""
 
     name = "riscv_stack.store"
@@ -64,9 +68,12 @@ class StoreOp(RISCVCustomFormatOperation):
             operands=(ptr_val, value),
         )
 
+    def get_register_constraints(self):
+        return RegisterConstraints((self.rs,), (), ())
+
 
 @irdl_op_definition
-class LoadOp(RISCVCustomFormatOperation):
+class LoadOp(RISCVCustomFormatOperation, RISCVRegallocOperation):
     """Loads a value from a stack-allocated slot."""
 
     name = "riscv_stack.load"
@@ -86,6 +93,9 @@ class LoadOp(RISCVCustomFormatOperation):
             elif isinstance(ptr_val.type.value_type, IntegerType):
                 rd = Registers.UNALLOCATED_INT
         super().__init__(operands=(ptr,), result_types=[rd])
+
+    def get_register_constraints(self):
+        return RegisterConstraints((), (self.rd,), ())
 
 
 # Define the Dialect
