@@ -25,7 +25,7 @@ from xdsl.irdl import (
     operand_def,
     prop_def,
     result_def,
-    var_operand_def, opt_prop_def, AttrSizedOperandSegments,
+    var_operand_def, opt_prop_def, AttrSizedOperandSegments, opt_operand_def
 )
 from xdsl.parser import Parser
 from xdsl.printer import Printer
@@ -64,6 +64,37 @@ class InlineRegionOp(IRDLOperation):
     def __init__(self, input_op: SSAValue, repl_values: SSAValue[RegionType]) -> None:
         super().__init__(operands=[input_op, repl_values])
 
+@irdl_op_definition
+class GetOperationOp(IRDLOperation):
+    name = "pdl_interp_region.get_operation"
+    index = prop_def(IntegerAttr[I32])
+    input_region = operand_def(RegionType)
+    # opt_operand = opt_operand_def(ValueType | TypeType | AttributeType | RangeType[ValueType | TypeType | AttributeType])
+    # opt_name = opt_prop_def(StringAttr, prop_name="name")
+
+    result_op = result_def(OperationType)
+
+    assembly_format = "$index `of` $input_region attr-dict"
+
+    def __init__(
+        self,
+        index: int | IntegerAttr[I32],
+        input_region: SSAValue,
+        opt_operands: SSAValue | None = None,
+        opt_attributes: SSAValue | None = None,
+        opt_name: str | StringAttr | None = None,
+        opt_type: SSAValue | None = None,
+    ):
+        if isinstance(index, int):
+            index = IntegerAttr.from_int_and_width(index, 32)
+        # if isinstance(opt_name, str):
+        #     opt_name = StringAttr(opt_name)
+
+        super().__init__(
+            properties={"index": index},
+            operands=[input_region, opt_operands, opt_attributes, opt_type],
+            result_types=[OperationType()],
+        )
 
 @irdl_op_definition
 class CreateOperationRegionOp(IRDLOperation):
@@ -233,6 +264,7 @@ PDLInterpRegion = Dialect(
     [
         GetRegionOp,
         InlineRegionOp,
+        GetOperationOp,
         CreateOperationRegionOp,
     ],
 )

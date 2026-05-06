@@ -52,6 +52,7 @@ pdl_interp.func @matcher(%arg0 : !pdl.operation) {
       pdl_interp.are_equal %110, %112 : !pdl.attribute -> ^bb1, ^bb48
     ^bb48:
       %101 = pdl_interp_region.get_region 0 of %100 : !pdl_region.region
+      %1011 = pdl_interp_region.get_operation 0 of %101
       %102 = pdl_interp.apply_constraint "replace_return_with_yield"(%101 : !pdl_region.region) : !pdl_region.region -> ^bb43, ^bb1
     ^bb43:
       %103 = pdl_interp.apply_constraint "get_arguments_of_function"(%100 : !pdl.operation) : !pdl.range<value> -> ^bb46, ^bb1

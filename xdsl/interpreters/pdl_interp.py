@@ -660,6 +660,17 @@ class PDLInterpFunctions(InterpreterFunctions):
 
         return (args[0].regions[op.index.value.data],)
 
+    @impl(pdl_interp_region.GetOperationOp)
+    def run_get_operation(
+            self,
+            interpreter: Interpreter,
+            op: pdl_interp_region.GetOperationOp,
+            args: tuple[Any, ...],
+    ) -> tuple[Any, ...]:
+
+
+        return (None,)
+
     @impl(pdl_interp_region.InlineRegionOp)
     def run_inline_region(
         self,
