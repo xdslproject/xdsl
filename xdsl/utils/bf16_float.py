@@ -55,8 +55,9 @@ class BF16Float:
         return f"0x{self.raw[::-1].hex()}"
 
     def __float__(self) -> float:
-        f32_bits = int.from_bytes(self.raw, "little") << 16
-        return struct.unpack("<f", struct.pack("<I", f32_bits))[0]
+        # bf16 is the high 16 bits of f32 with the low 16 truncated; the
+        # inverse is to zero-extend with two low bytes in little-endian.
+        return struct.unpack("<f", b"\x00\x00" + self.raw)[0]
 
     def __eq__(self, other: object) -> bool:
         return isinstance(other, BF16Float) and self.raw == other.raw
