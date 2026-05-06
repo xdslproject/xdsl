@@ -411,6 +411,46 @@ def test_host_data_init_bool_shortcut():
     assert isinstance(op.if_present, UnitAttr)
 
 
+def _empty_kernel_environment_block() -> Block:
+    """`acc.kernel_environment` has `NoTerminator` so the body is a single
+    block that need not end in a terminator. Build one with a single
+    placeholder op so the SizedRegion<1> verifier sees a non-empty region."""
+    return Block([TestOp()])
+
+
+def test_kernel_environment_empty_verifies():
+    op = acc.KernelEnvironmentOp(region=Region(_empty_kernel_environment_block()))
+    op.verify()
+
+    assert len(op.data_clause_operands) == 0
+    assert len(op.async_operands) == 0
+    assert len(op.wait_operands) == 0
+    assert op.async_operands_device_type is None
+    assert op.async_only is None
+    assert op.wait_operands_segments is None
+    assert op.wait_operands_device_type is None
+    assert op.has_wait_devnum is None
+    assert op.wait_only is None
+
+
+def test_kernel_environment_unset_props_absent_from_dict():
+    """The optional clause properties are *absent* from `op.properties`
+    when not provided (rather than stored as None). The MLIR-interop
+    round-trip relies on this — extra all-None entries would print as
+    explicit attributes in the trailing attr-dict."""
+    op = acc.KernelEnvironmentOp(region=Region(_empty_kernel_environment_block()))
+
+    for prop in (
+        "asyncOperandsDeviceType",
+        "asyncOnly",
+        "waitOperandsSegments",
+        "waitOperandsDeviceType",
+        "hasWaitDevnum",
+        "waitOnly",
+    ):
+        assert prop not in op.properties
+
+
 def test_data_clause_modifier_attr_constructor():
     """The bit-enum constructor accepts a frozenset of enum members and stores
     it on `.data`. Pretty-form printing/parsing is covered by filecheck in

@@ -448,6 +448,18 @@ def _print_typed_operand(printer: Printer, operand: SSAValue) -> None:
     printer.print_attribute(operand.type)
 
 
+def _emit_clause_keyword(
+    printer: Printer, state: PrintingState, keyword: str
+) -> None:
+    """Print whitespace + a clause keyword and update print state so the
+    body's first character (typically ``(``) lands adjacent (e.g.
+    ``async(``). Shared between every oilist-style clause printer."""
+    state.print_whitespace(printer)
+    printer.print_string(keyword)
+    state.should_emit_space = True
+    state.last_was_punctuation = False
+
+
 def _print_operand_with_dt(printer: Printer, operand: SSAValue, dt: Attribute) -> None:
     """Print `%v : <type> ( [#acc.device_type<...>] )?`."""
     _print_typed_operand(printer, operand)
@@ -800,7 +812,8 @@ def _parse_wait_body(
     Returns ``(operands, types, device_types, segments, has_devnum,
     keyword_only)``. The bare-keyword form (no parens) yields
     ``keyword_only = [#acc.device_type<none>]`` and all other slots
-    ``None`` / empty.
+    ``None`` / empty. Shared between :class:`WaitClause` and the
+    :class:`KernelEnvironmentClauses` oilist.
     """
     if not parser.parse_optional_punctuation("("):
         return (
@@ -959,6 +972,118 @@ class WaitClause(CustomDirective):
             self.segments.get(op),
             self.has_devnum.get(op),
         )
+
+
+@irdl_custom_directive
+class KernelEnvironmentClauses(CustomDirective):
+    """Port of upstream `acc.kernel_environment`'s `oilist(...)`.
+
+    Accepts the three optional clauses `dataOperands` / `async` / `wait` in
+    any order on parse; emits them in upstream's td-definition order on
+    print (data, async, wait). Each clause may appear at most once. The
+    body parsers/printers for `async` and `wait` are shared with
+    :class:`DeviceTypeOperandsWithKeywordOnly` and :class:`WaitClause` via
+    the `_parse/_print_dt_kw_only_body` and `_parse/_print_wait_body`
+    helpers, so the spelling is bit-identical.
+    """
+
+    data_clause_operands: VariadicOperandVariable
+    data_clause_operand_types: TypeDirective
+    async_operands: VariadicOperandVariable
+    async_operand_types: TypeDirective
+    async_device_types: AttributeVariable
+    async_only: AttributeVariable
+    wait_operands: VariadicOperandVariable
+    wait_operand_types: TypeDirective
+    wait_device_types: AttributeVariable
+    wait_segments: AttributeVariable
+    wait_has_devnum: AttributeVariable
+    wait_only: AttributeVariable
+
+    def is_optional_like(self) -> bool:
+        return True
+
+    def set_empty(self, state: ParsingState) -> None:
+        self.data_clause_operands.set(state, ())
+        self.data_clause_operand_types.set(state, ())
+        self.async_operands.set(state, ())
+        self.async_operand_types.set(state, ())
+        self.wait_operands.set(state, ())
+        self.wait_operand_types.set(state, ())
+
+    _CLAUSE_KEYWORDS = ("dataOperands", "async", "wait")
+
+    def parse(self, parser: Parser, state: ParsingState) -> bool:
+        self.set_empty(state)
+        seen: set[str] = set()
+        while (
+            kw := parser.parse_optional_keyword_in(self._CLAUSE_KEYWORDS)
+        ) is not None:
+            if kw in seen:
+                parser.raise_error(f"'{kw}' clause specified twice")
+            seen.add(kw)
+            if kw == "dataOperands":
+                with parser.in_parens():
+                    pairs = parser.parse_comma_separated_list(
+                        parser.Delimiter.NONE, lambda: _parse_typed_operand(parser)
+                    )
+                operands, types = zip(*pairs)
+                self.data_clause_operands.set(state, operands)
+                self.data_clause_operand_types.set(state, types)
+            elif kw == "async":
+                ops, types, dts, kw_only = _parse_dt_kw_only_body(parser)
+                self.async_operands.set(state, ops)
+                self.async_operand_types.set(state, types)
+                if dts is not None:
+                    self.async_device_types.set(state, dts)
+                if kw_only is not None:
+                    self.async_only.set(state, kw_only)
+            else:  # wait
+                ops, types, dts, segs, devnum, kw_only = _parse_wait_body(parser)
+                self.wait_operands.set(state, ops)
+                self.wait_operand_types.set(state, types)
+                if dts is not None:
+                    self.wait_device_types.set(state, dts)
+                if segs is not None:
+                    self.wait_segments.set(state, segs)
+                if devnum is not None:
+                    self.wait_has_devnum.set(state, devnum)
+                if kw_only is not None:
+                    self.wait_only.set(state, kw_only)
+        return True
+
+    def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
+        if data_operands := self.data_clause_operands.get(op):
+            _emit_clause_keyword(printer, state, "dataOperands")
+            printer.print_string("(")
+            printer.print_list(
+                data_operands, lambda v: _print_typed_operand(printer, v)
+            )
+            printer.print_string(")")
+
+        async_operands = self.async_operands.get(op)
+        async_only = self.async_only.get(op)
+        async_device_types = self.async_device_types.get(op)
+        if async_operands or async_only is not None or async_device_types is not None:
+            _emit_clause_keyword(printer, state, "async")
+            _print_dt_kw_only_body(
+                printer, state, async_operands, async_only, async_device_types
+            )
+
+        wait_operands = self.wait_operands.get(op)
+        wait_only = self.wait_only.get(op)
+        wait_device_types = self.wait_device_types.get(op)
+        if wait_operands or wait_only is not None or wait_device_types is not None:
+            _emit_clause_keyword(printer, state, "wait")
+            _print_wait_body(
+                printer,
+                state,
+                wait_operands,
+                wait_only,
+                wait_device_types,
+                self.wait_segments.get(op),
+                self.wait_has_devnum.get(op),
+            )
 
 
 @irdl_custom_directive
@@ -2420,6 +2545,93 @@ class KernelsOp(IRDLOperation):
                 "selfAttr": self_attr_prop,
                 "defaultAttr": default_prop,
                 "combined": combined_prop,
+            },
+            regions=[region],
+        )
+
+
+@irdl_op_definition
+class KernelEnvironmentOp(IRDLOperation):
+    """
+    Implementation of upstream acc.kernel_environment — a decomposition of an
+    OpenACC compute construct that captures only the data-mapping and
+    asynchronous-behavior clauses (data / async / wait), leaving kernel
+    execution parallelism and privatization to be handled separately. The
+    body is a single block with no terminator and typically wraps a
+    `gpu.launch`.
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenACCDialect/#acckernel_environment-acckernelenvironmentop).
+    """
+
+    name = "acc.kernel_environment"
+
+    data_clause_operands = var_operand_def()
+    async_operands = var_operand_def(IntegerType | IndexType)
+    wait_operands = var_operand_def(IntegerType | IndexType)
+
+    async_operands_device_type = opt_prop_def(
+        ArrayAttr[DeviceTypeAttr], prop_name="asyncOperandsDeviceType"
+    )
+    async_only = opt_prop_def(ArrayAttr[DeviceTypeAttr], prop_name="asyncOnly")
+    wait_operands_segments = opt_prop_def(
+        DenseArrayBase.constr(IntegerType(32)), prop_name="waitOperandsSegments"
+    )
+    wait_operands_device_type = opt_prop_def(
+        ArrayAttr[DeviceTypeAttr], prop_name="waitOperandsDeviceType"
+    )
+    has_wait_devnum = opt_prop_def(ArrayAttr[BoolAttr], prop_name="hasWaitDevnum")
+    wait_only = opt_prop_def(ArrayAttr[DeviceTypeAttr], prop_name="waitOnly")
+
+    region = region_def("single_block")
+
+    irdl_options = (
+        AttrSizedOperandSegments(as_property=True),
+        ParsePropInAttrDict(),
+    )
+
+    custom_directives = (KernelEnvironmentClauses,)
+
+    # Port of upstream's `oilist(dataOperands | async | wait)`: the three
+    # clause keywords are order-independent on parse, and the directive
+    # always emits in upstream td-definition order (data, async, wait) on
+    # print so the round-trip is bit-identical with mlir-opt.
+    assembly_format = (
+        "custom<KernelEnvironmentClauses>($data_clause_operands,"
+        " type($data_clause_operands), $async_operands, type($async_operands),"
+        " $asyncOperandsDeviceType, $asyncOnly, $wait_operands,"
+        " type($wait_operands), $waitOperandsDeviceType, $waitOperandsSegments,"
+        " $hasWaitDevnum, $waitOnly)"
+        " $region attr-dict-with-keyword"
+    )
+
+    traits = traits_def(NoTerminator(), RecursiveMemoryEffect())
+
+    def __init__(
+        self,
+        *,
+        region: Region,
+        data_clause_operands: Sequence[SSAValue | Operation] = (),
+        async_operands: Sequence[SSAValue | Operation] = (),
+        wait_operands: Sequence[SSAValue | Operation] = (),
+        async_operands_device_type: ArrayAttr[DeviceTypeAttr] | None = None,
+        async_only: ArrayAttr[DeviceTypeAttr] | None = None,
+        wait_operands_segments: DenseArrayBase | None = None,
+        wait_operands_device_type: ArrayAttr[DeviceTypeAttr] | None = None,
+        has_wait_devnum: ArrayAttr[BoolAttr] | None = None,
+        wait_only: ArrayAttr[DeviceTypeAttr] | None = None,
+    ) -> None:
+        super().__init__(
+            operands=[
+                data_clause_operands,
+                async_operands,
+                wait_operands,
+            ],
+            properties={
+                "asyncOperandsDeviceType": async_operands_device_type,
+                "asyncOnly": async_only,
+                "waitOperandsSegments": wait_operands_segments,
+                "waitOperandsDeviceType": wait_operands_device_type,
+                "hasWaitDevnum": has_wait_devnum,
+                "waitOnly": wait_only,
             },
             regions=[region],
         )
@@ -5029,6 +5241,7 @@ ACC = Dialect(
         ParallelOp,
         SerialOp,
         KernelsOp,
+        KernelEnvironmentOp,
         LoopOp,
         DataOp,
         HostDataOp,

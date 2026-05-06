@@ -418,6 +418,86 @@ builtin.module {
   // CHECK:         acc.kernels combined(loop) async(%{{.*}} : i64) num_workers(%{{.*}} : i64) vector_length(%{{.*}} : i32) wait({%{{.*}} : i64}) self(%{{.*}}) if(%{{.*}}) {
   // CHECK-NEXT:    } attributes {defaultAttr = #acc<defaultvalue present>, selfAttr}
 
+  // acc.kernel_environment — body is a `SizedRegion<1>` with the
+  // `NoTerminator` trait, so the empty `{}` body is *not* valid (both
+  // upstream and xDSL reject 0-block regions); each test carries a
+  // `test.op` placeholder where a real `gpu.launch` would sit.
+  func.func @ke_data_operand(%m : memref<10xf32>) {
+    %c = acc.copyin varPtr(%m : memref<10xf32>) -> memref<10xf32>
+    acc.kernel_environment dataOperands(%c : memref<10xf32>) {
+      "test.op"() : () -> ()
+    }
+    func.return
+  }
+  // CHECK:       func.func @ke_data_operand(
+  // CHECK:         acc.kernel_environment dataOperands(%{{.*}} : memref<10xf32>) {
+  // CHECK-NEXT:      "test.op"() : () -> ()
+  // CHECK-NEXT:    }
+
+  func.func @ke_async_bare() {
+    acc.kernel_environment async {
+      "test.op"() : () -> ()
+    }
+    func.return
+  }
+  // CHECK:       func.func @ke_async_bare() {
+  // CHECK-NEXT:    acc.kernel_environment async {
+
+  // The bare `async([#acc.device_type<...>])` (keyword-only, no operand)
+  // form is omitted: upstream mlir-opt rejects that spelling on every
+  // compute construct (it requires a `,` after the dt-list). xDSL's
+  // ops.mlir still covers it.
+
+  func.func @ke_async_operand(%a : i32) {
+    acc.kernel_environment async(%a : i32 [#acc.device_type<nvidia>]) {
+      "test.op"() : () -> ()
+    }
+    func.return
+  }
+  // CHECK:       func.func @ke_async_operand(
+  // CHECK:         acc.kernel_environment async(%{{.*}} : i32 [#acc.device_type<nvidia>]) {
+
+  func.func @ke_wait_bare() {
+    acc.kernel_environment wait {
+      "test.op"() : () -> ()
+    }
+    func.return
+  }
+  // CHECK:       func.func @ke_wait_bare() {
+  // CHECK-NEXT:    acc.kernel_environment wait {
+
+  func.func @ke_wait_devnum(%a : i64, %b : i32) {
+    acc.kernel_environment wait({devnum: %a : i64, %b : i32}) {
+      "test.op"() : () -> ()
+    }
+    func.return
+  }
+  // CHECK:       func.func @ke_wait_devnum(
+  // CHECK:         acc.kernel_environment wait({devnum: %{{.*}} : i64, %{{.*}} : i32}) {
+
+  func.func @ke_full(%a : i32, %w : i64, %m : memref<10xf32>) {
+    %c = acc.copyin varPtr(%m : memref<10xf32>) -> memref<10xf32>
+    acc.kernel_environment dataOperands(%c : memref<10xf32>) async(%a : i32) wait({%w : i64}) {
+      "test.op"() : () -> ()
+    }
+    func.return
+  }
+  // CHECK:       func.func @ke_full(
+  // CHECK:         acc.kernel_environment dataOperands(%{{.*}} : memref<10xf32>) async(%{{.*}} : i32) wait({%{{.*}} : i64}) {
+
+  // Generic-form input — proves a hand-written generic spelling survives
+  // the xdsl ↔ mlir-opt round-trip in both directions.
+  func.func @ke_generic_form() {
+    "acc.kernel_environment"() <{operandSegmentSizes = array<i32: 0, 0, 0>}> ({
+      "test.op"() : () -> ()
+    }) : () -> ()
+    func.return
+  }
+  // CHECK:       func.func @ke_generic_form() {
+  // CHECK-NEXT:    acc.kernel_environment {
+  // CHECK-NEXT:      "test.op"() : () -> ()
+  // CHECK-NEXT:    }
+
   // acc.data — round-trips through mlir-opt's OpenACC dialect in both
   // pretty and generic form. defaultAttr is required on bodies with no
   // operand to satisfy upstream's verifier (matches xDSL's port).

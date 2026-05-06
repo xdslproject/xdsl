@@ -619,6 +619,109 @@ builtin.module {
   // CHECK-NEXT:    acc.kernels {
   // CHECK-NEXT:    }
 
+  // acc.kernel_environment — decomposition of a compute construct that
+  // captures only the data / async / wait clauses. Body is a `SizedRegion<1>`
+  // with no terminator (the trait is `NoTerminator`) and typically wraps a
+  // `gpu.launch`; here a `test.op` placeholder stands in. Clause shape
+  // mirrors acc.data: same custom directives for async / wait, plus the
+  // variadic dataOperands.
+  func.func @ke_data_operand(%m : memref<10xf32>) {
+    %c = acc.copyin varPtr(%m : memref<10xf32>) -> memref<10xf32>
+    acc.kernel_environment dataOperands(%c : memref<10xf32>) {
+      "test.op"() : () -> ()
+    }
+    func.return
+  }
+  // CHECK-LABEL: func.func @ke_data_operand(
+  // CHECK:         acc.kernel_environment dataOperands(%{{.*}} : memref<10xf32>) {
+  // CHECK-NEXT:      "test.op"() : () -> ()
+  // CHECK-NEXT:    }
+
+  func.func @ke_async_bare() {
+    acc.kernel_environment async {
+      "test.op"() : () -> ()
+    }
+    func.return
+  }
+  // CHECK-LABEL: func.func @ke_async_bare() {
+  // CHECK-NEXT:    acc.kernel_environment async {
+  // CHECK-NEXT:      "test.op"() : () -> ()
+  // CHECK-NEXT:    }
+
+  func.func @ke_async_dt_only() {
+    acc.kernel_environment async([#acc.device_type<nvidia>]) {
+      "test.op"() : () -> ()
+    }
+    func.return
+  }
+  // CHECK-LABEL: func.func @ke_async_dt_only() {
+  // CHECK-NEXT:    acc.kernel_environment async([#acc.device_type<nvidia>]) {
+
+  func.func @ke_async_operand(%a : i32) {
+    acc.kernel_environment async(%a : i32 [#acc.device_type<nvidia>]) {
+      "test.op"() : () -> ()
+    }
+    func.return
+  }
+  // CHECK-LABEL: func.func @ke_async_operand(
+  // CHECK:         acc.kernel_environment async(%{{.*}} : i32 [#acc.device_type<nvidia>]) {
+
+  func.func @ke_wait_bare() {
+    acc.kernel_environment wait {
+      "test.op"() : () -> ()
+    }
+    func.return
+  }
+  // CHECK-LABEL: func.func @ke_wait_bare() {
+  // CHECK-NEXT:    acc.kernel_environment wait {
+
+  func.func @ke_wait_devnum(%a : i64, %b : i32) {
+    acc.kernel_environment wait({devnum: %a : i64, %b : i32}) {
+      "test.op"() : () -> ()
+    }
+    func.return
+  }
+  // CHECK-LABEL: func.func @ke_wait_devnum(
+  // CHECK:         acc.kernel_environment wait({devnum: %{{.*}} : i64, %{{.*}} : i32}) {
+
+  func.func @ke_full(%a : i32, %w : i64, %m : memref<10xf32>) {
+    %c = acc.copyin varPtr(%m : memref<10xf32>) -> memref<10xf32>
+    acc.kernel_environment dataOperands(%c : memref<10xf32>) async(%a : i32) wait({%w : i64}) {
+      "test.op"() : () -> ()
+    }
+    func.return
+  }
+  // CHECK-LABEL: func.func @ke_full(
+  // CHECK:         acc.kernel_environment dataOperands(%{{.*}} : memref<10xf32>) async(%{{.*}} : i32) wait({%{{.*}} : i64}) {
+
+  // Source spells the clauses in non-canonical order (wait, dataOperands,
+  // async); the oilist directive accepts any order on parse and re-emits
+  // them in upstream's td-definition order (dataOperands, async, wait).
+  func.func @ke_clauses_reordered(%a : i32, %w : i64, %m : memref<10xf32>) {
+    %c = acc.copyin varPtr(%m : memref<10xf32>) -> memref<10xf32>
+    acc.kernel_environment wait({%w : i64}) dataOperands(%c : memref<10xf32>) async(%a : i32) {
+      "test.op"() : () -> ()
+    }
+    func.return
+  }
+  // CHECK-LABEL: func.func @ke_clauses_reordered(
+  // CHECK:         acc.kernel_environment dataOperands(%{{.*}} : memref<10xf32>) async(%{{.*}} : i32) wait({%{{.*}} : i64}) {
+
+  // Generic-form roundtrip insurance — proves the parser path that
+  // bypasses the declarative custom assembly format still parses. The body
+  // carries an op because `SizedRegion<1>` rejects an empty (0-block)
+  // region in both upstream and xDSL.
+  func.func @ke_generic_roundtrip_retained() {
+    "acc.kernel_environment"() <{operandSegmentSizes = array<i32: 0, 0, 0>}> ({
+      "test.op"() : () -> ()
+    }) : () -> ()
+    func.return
+  }
+  // CHECK-LABEL: func.func @ke_generic_roundtrip_retained() {
+  // CHECK-NEXT:    acc.kernel_environment {
+  // CHECK-NEXT:      "test.op"() : () -> ()
+  // CHECK-NEXT:    }
+
   // acc.data — structured data construct. Body uses acc.terminator (same
   // SingleBlockImplicitTerminator(TerminatorOp) shape as kernels). The
   // verifier additionally requires either at least one operand or
