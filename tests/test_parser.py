@@ -25,6 +25,7 @@ from xdsl.dialects.builtin import (
     StringAttr,
     SymbolRefAttr,
     UnknownLoc,
+    bf16,
     i32,
 )
 from xdsl.dialects.func import Func, FuncOp
@@ -928,6 +929,10 @@ def test_parse_number(
         ("0x7ff8000000000000 : f64", FloatAttr(float("nan"), 64)),
         ("0x7ff0000000000000 : f64", FloatAttr(float("inf"), 64)),
         ("0xfff0000000000000 : f64", FloatAttr(float("-inf"), 64)),
+        ("-1.5: bf16", FloatAttr(-1.5, bf16)),
+        ("0x7fc0 : bf16", FloatAttr(float("nan"), bf16)),
+        ("0x7f80 : bf16", FloatAttr(float("inf"), bf16)),
+        ("0xff80 : bf16", FloatAttr(float("-inf"), bf16)),
         # ("3 : f64", None),  # todo this fails in mlir-opt but not in xdsl
     ],
 )

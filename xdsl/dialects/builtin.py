@@ -1107,7 +1107,7 @@ class IntegerAttr(
 BoolAttr: TypeAlias = IntegerAttr[Annotated[IntegerType, IntegerType(1)]]
 
 
-class _FloatType(StructPackableType[float], FixedBitwidthType, BuiltinAttribute, ABC):
+class _FloatType(PackableType[float], FixedBitwidthType, BuiltinAttribute, ABC):
     @property
     @abstractmethod
     def bitwidth(self) -> int:
@@ -1127,12 +1127,51 @@ class BFloat16Type(ParametrizedAttribute, _FloatType):
         return 16
 
     @property
-    def format(self) -> str:
-        raise NotImplementedError()
+    def compile_time_size(self) -> int:
+        return 2
+
+    @staticmethod
+    def _encode(value: float) -> bytes:
+        """
+        Encode a Python float (IEEE 754 binary32 after Python's f64 -> f32
+        narrowing) as bf16 bytes, little-endian. Round-to-nearest-even,
+        quiet-NaN preservation; matches LLVM APFloat semantics.
+        """
+        f32_bits = struct.unpack("<I", struct.pack("<f", value))[0]
+        # NaN must remain a NaN after truncation; force the quiet bit on so a
+        # signaling NaN with mantissa entirely in the truncated bits doesn't
+        # become inf.
+        if (f32_bits & 0x7FFFFFFF) > 0x7F800000:
+            bits = ((f32_bits >> 16) | 0x0040) & 0xFFFF
+        else:
+            rounding_bias = 0x7FFF + ((f32_bits >> 16) & 1)
+            bits = ((f32_bits + rounding_bias) >> 16) & 0xFFFF
+        return bits.to_bytes(2, "little")
+
+    @staticmethod
+    def _decode(raw: bytes) -> float:
+        # bf16 is the high 16 bits of an f32 with the low 16 truncated; the
+        # inverse is to zero-extend with two low bytes in little-endian.
+        return struct.unpack("<f", b"\x00\x00" + raw)[0]
+
+    def iter_unpack(self, buffer: ReadableBuffer, /) -> Iterator[float]:
+        mv = memoryview(buffer)
+        for i in range(0, len(mv), 2):
+            yield self._decode(bytes(mv[i : i + 2]))
+
+    def unpack(self, buffer: ReadableBuffer, num: int, /) -> tuple[float, ...]:
+        mv = memoryview(buffer)
+        return tuple(self._decode(bytes(mv[i * 2 : i * 2 + 2])) for i in range(num))
+
+    def pack_into(self, buffer: WriteableBuffer, offset: int, value: float) -> None:
+        memoryview(buffer)[offset : offset + 2] = self._encode(value)
+
+    def pack(self, values: Sequence[float]) -> bytes:
+        return b"".join(self._encode(v) for v in values)
 
 
 @irdl_attr_definition
-class Float16Type(ParametrizedAttribute, _FloatType):
+class Float16Type(ParametrizedAttribute, _FloatType, StructPackableType[float]):
     name = "f16"
 
     @property
@@ -1145,7 +1184,7 @@ class Float16Type(ParametrizedAttribute, _FloatType):
 
 
 @irdl_attr_definition
-class Float32Type(ParametrizedAttribute, _FloatType):
+class Float32Type(ParametrizedAttribute, _FloatType, StructPackableType[float]):
     name = "f32"
 
     @property
@@ -1158,7 +1197,7 @@ class Float32Type(ParametrizedAttribute, _FloatType):
 
 
 @irdl_attr_definition
-class Float64Type(ParametrizedAttribute, _FloatType):
+class Float64Type(ParametrizedAttribute, _FloatType, StructPackableType[float]):
     name = "f64"
 
     @property
@@ -1171,7 +1210,7 @@ class Float64Type(ParametrizedAttribute, _FloatType):
 
 
 @irdl_attr_definition
-class Float80Type(ParametrizedAttribute, _FloatType):
+class Float80Type(ParametrizedAttribute, _FloatType, StructPackableType[float]):
     name = "f80"
 
     @property
@@ -1184,7 +1223,7 @@ class Float80Type(ParametrizedAttribute, _FloatType):
 
 
 @irdl_attr_definition
-class Float128Type(ParametrizedAttribute, _FloatType):
+class Float128Type(ParametrizedAttribute, _FloatType, StructPackableType[float]):
     name = "f128"
 
     @property
@@ -1272,7 +1311,7 @@ class FloatAttr(BuiltinAttribute, TypedAttribute, Generic[_FloatAttrType]):
         value: float = data.data if isinstance(data, FloatData) else data
         # for supported types, constrain value to precision of floating point type
         # else, allow full python float precision
-        if isinstance(type, Float64Type | Float32Type | Float16Type):
+        if isinstance(type, Float64Type | Float32Type | Float16Type | BFloat16Type):
             value = type.unpack(type.pack((value,)), 1)[0]
 
         data_attr = FloatData(value)
