@@ -84,6 +84,7 @@ from xdsl.traits import (
     OpTrait,
     SymbolTable,
 )
+from xdsl.utils.bf16_float import BF16Float
 from xdsl.utils.comparisons import (
     signed_upper_bound,
     signed_value_range,
@@ -1107,7 +1108,7 @@ class IntegerAttr(
 BoolAttr: TypeAlias = IntegerAttr[Annotated[IntegerType, IntegerType(1)]]
 
 
-class _FloatType(StructPackableType[float], FixedBitwidthType, BuiltinAttribute, ABC):
+class _FloatType(PackableType[float], FixedBitwidthType, BuiltinAttribute, ABC):
     @property
     @abstractmethod
     def bitwidth(self) -> int:
@@ -1126,13 +1127,28 @@ class BFloat16Type(ParametrizedAttribute, _FloatType):
     def bitwidth(self) -> int:
         return 16
 
+    def iter_unpack(self, buffer: ReadableBuffer, /) -> Iterator[float]:
+        mv = memoryview(buffer)
+        for i in range(0, len(mv), 2):
+            yield float(BF16Float(bytes(mv[i : i + 2])))
+
+    def unpack(self, buffer: ReadableBuffer, num: int, /) -> tuple[float, ...]:
+        mv = memoryview(buffer)
+        return tuple(float(BF16Float(bytes(mv[i * 2 : i * 2 + 2]))) for i in range(num))
+
+    def pack_into(self, buffer: WriteableBuffer, offset: int, value: float) -> None:
+        memoryview(buffer)[offset : offset + 2] = BF16Float.from_value(value).raw
+
+    def pack(self, values: Sequence[float]) -> bytes:
+        return b"".join(BF16Float.from_value(v).raw for v in values)
+
     @property
-    def format(self) -> str:
-        raise NotImplementedError()
+    def compile_time_size(self) -> int:
+        return 2
 
 
 @irdl_attr_definition
-class Float16Type(ParametrizedAttribute, _FloatType):
+class Float16Type(ParametrizedAttribute, _FloatType, StructPackableType[float]):
     name = "f16"
 
     @property
@@ -1145,7 +1161,7 @@ class Float16Type(ParametrizedAttribute, _FloatType):
 
 
 @irdl_attr_definition
-class Float32Type(ParametrizedAttribute, _FloatType):
+class Float32Type(ParametrizedAttribute, _FloatType, StructPackableType[float]):
     name = "f32"
 
     @property
@@ -1158,7 +1174,7 @@ class Float32Type(ParametrizedAttribute, _FloatType):
 
 
 @irdl_attr_definition
-class Float64Type(ParametrizedAttribute, _FloatType):
+class Float64Type(ParametrizedAttribute, _FloatType, StructPackableType[float]):
     name = "f64"
 
     @property
@@ -1171,7 +1187,7 @@ class Float64Type(ParametrizedAttribute, _FloatType):
 
 
 @irdl_attr_definition
-class Float80Type(ParametrizedAttribute, _FloatType):
+class Float80Type(ParametrizedAttribute, _FloatType, StructPackableType[float]):
     name = "f80"
 
     @property
@@ -1184,7 +1200,7 @@ class Float80Type(ParametrizedAttribute, _FloatType):
 
 
 @irdl_attr_definition
-class Float128Type(ParametrizedAttribute, _FloatType):
+class Float128Type(ParametrizedAttribute, _FloatType, StructPackableType[float]):
     name = "f128"
 
     @property
@@ -1272,7 +1288,7 @@ class FloatAttr(BuiltinAttribute, TypedAttribute, Generic[_FloatAttrType]):
         value: float = data.data if isinstance(data, FloatData) else data
         # for supported types, constrain value to precision of floating point type
         # else, allow full python float precision
-        if isinstance(type, Float64Type | Float32Type | Float16Type):
+        if isinstance(type, Float64Type | Float32Type | Float16Type | BFloat16Type):
             value = type.unpack(type.pack((value,)), 1)[0]
 
         data_attr = FloatData(value)

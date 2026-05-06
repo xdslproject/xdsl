@@ -77,8 +77,8 @@ def test_FloatType_bitwidths():
 
 
 def test_FloatType_formats():
-    with pytest.raises(NotImplementedError):
-        bf16.format
+    # bf16 subclasses PackableType directly (no struct format string).
+    assert not hasattr(bf16, "format")
     assert f16.format == "<e"
     assert f32.format == "<f"
     assert f64.format == "<d"
@@ -137,6 +137,25 @@ def test_FloatType_packing():
 
     pi = f64.unpack(f64.pack((math.pi,)), 1)[0]
     assert pi == math.pi
+
+    # bf16 has no struct format code; pack/unpack are overridden directly.
+    bf16_nums = (-2.0, -1.0, 0.0, 1.0, 2.0)
+    bf16_buffer = bf16.pack(bf16_nums)
+    assert bf16.unpack(bf16_buffer, len(bf16_nums)) == bf16_nums
+
+
+def test_bf16_attr_construction_roundtrips():
+    # 1.5 is exactly representable in bf16.
+    a = FloatAttr(1.5, bf16)
+    assert a.value.data == 1.5
+
+
+def test_FloatAttr_skips_normalisation_for_unsupported_widths():
+    # f80 and f128 have no precision-normalisation path (their format
+    # raises NotImplementedError). FloatAttr.__init__ must take the
+    # else-branch and store the Python float as-is.
+    assert FloatAttr(0.1, f80).value.data == 0.1
+    assert FloatAttr(0.1, f128).value.data == 0.1
 
 
 def test_IntegerType_size():
@@ -339,6 +358,22 @@ def test_IntegerType_packing():
     assert attrs_i64 == tuple(IntegerAttr(n, i64) for n in nums_i64)
     assert tuple(attr for attr in IntegerAttr.iter_unpack(i64, buffer_i64)) == attrs_i64
 
+    # bf16
+    nums_bf16 = (-3.140625, -1.0, 0.0, 1.0, 3.140625)
+    buffer_bf16 = bf16.pack(nums_bf16)
+    unpacked_bf16 = bf16.unpack(buffer_bf16, len(nums_bf16))
+    assert nums_bf16 == unpacked_bf16
+    attrs_bf16 = FloatAttr.unpack(bf16, buffer_bf16, len(nums_bf16))
+    assert attrs_bf16 == tuple(FloatAttr(n, bf16) for n in nums_bf16)
+    assert (
+        tuple(attr for attr in FloatAttr.iter_unpack(bf16, buffer_bf16)) == attrs_bf16
+    )
+    # pack_into mirrors pack for the same values.
+    pack_into_buffer = bytearray(2 * len(nums_bf16))
+    for i, n in enumerate(nums_bf16):
+        bf16.pack_into(pack_into_buffer, 2 * i, n)
+    assert bytes(pack_into_buffer) == buffer_bf16
+
     # f16
     nums_f16 = (-3.140625, -1.0, 0.0, 1.0, 3.140625)
     buffer_f16 = f16.pack(nums_f16)
@@ -349,7 +384,7 @@ def test_IntegerType_packing():
     assert tuple(attr for attr in FloatAttr.iter_unpack(f16, buffer_f16)) == attrs_f16
 
     # f32
-    nums_f32 = (-3.140000104904175, -1.0, 0.0, 1.0, 3.140000104904175)
+    nums_f32 = (-3.140625, -1.0, 0.0, 1.0, 3.140625)
     buffer_f32 = f32.pack(nums_f32)
     unpacked_f32 = f32.unpack(buffer_f32, len(nums_f32))
     assert nums_f32 == unpacked_f32
@@ -358,7 +393,7 @@ def test_IntegerType_packing():
     assert tuple(attr for attr in FloatAttr.iter_unpack(f32, buffer_f32)) == attrs_f32
 
     # f64
-    nums_f64 = (-3.14159265359, -1.0, 0.0, 1.0, 3.14159265359)
+    nums_f64 = (-3.140625, -1.0, 0.0, 1.0, 3.140625)
     buffer_f64 = f64.pack(nums_f64)
     unpacked_f64 = f64.unpack(buffer_f64, len(nums_f64))
     assert nums_f64 == unpacked_f64
