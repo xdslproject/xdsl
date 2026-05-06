@@ -1160,8 +1160,7 @@ class BFloat16Type(ParametrizedAttribute, _FloatType):
             yield self._decode(bytes(mv[i : i + 2]))
 
     def unpack(self, buffer: ReadableBuffer, num: int, /) -> tuple[float, ...]:
-        mv = memoryview(buffer)
-        return tuple(self._decode(bytes(mv[i * 2 : i * 2 + 2])) for i in range(num))
+        return tuple(res for _, res in zip(range(num), self.iter_unpack(buffer)))
 
     def pack_into(self, buffer: WriteableBuffer, offset: int, value: float) -> None:
         memoryview(buffer)[offset : offset + 2] = self._encode(value)
