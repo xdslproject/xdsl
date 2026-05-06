@@ -427,7 +427,7 @@ def test_IntegerType_packing():
     assert tuple(attr for attr in FloatAttr.iter_unpack(f16, buffer_f16)) == attrs_f16
 
     # f32
-    nums_f32 = (-3.140625, -1.0, 0.0, 1.0, 3.140625)
+    nums_f32 = (-3.140000104904175, -1.0, 0.0, 1.0, 3.140000104904175)
     buffer_f32 = f32.pack(nums_f32)
     unpacked_f32 = f32.unpack(buffer_f32, len(nums_f32))
     assert nums_f32 == unpacked_f32
@@ -436,7 +436,7 @@ def test_IntegerType_packing():
     assert tuple(attr for attr in FloatAttr.iter_unpack(f32, buffer_f32)) == attrs_f32
 
     # f64
-    nums_f64 = (-3.140625, -1.0, 0.0, 1.0, 3.140625)
+    nums_f64 = (-3.14159265359, -1.0, 0.0, 1.0, 3.14159265359)
     buffer_f64 = f64.pack(nums_f64)
     unpacked_f64 = f64.unpack(buffer_f64, len(nums_f64))
     assert nums_f64 == unpacked_f64
