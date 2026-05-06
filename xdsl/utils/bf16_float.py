@@ -53,7 +53,26 @@ class BF16Float:
         """
         if isinstance(value, int):
             return cls(value.to_bytes(cls.size_bytes, "little"))
-        return cls(_encode_bf16(value))
+        return cls(cls.encode(value))
+
+    @staticmethod
+    def encode(value: float) -> bytes:
+        """
+        Encode a Python float (interpreted as IEEE 754 binary32 after
+        Python's f64 -> f32 narrowing) as bf16 bytes, little-endian.
+        Round-to-nearest-even, quiet-NaN preservation; matches LLVM
+        APFloat semantics.
+        """
+        f32_bits = struct.unpack("<I", struct.pack("<f", value))[0]
+        # NaN must remain a NaN after truncation; force the quiet bit on so
+        # a signaling NaN with mantissa entirely in the truncated bits
+        # doesn't become inf.
+        if (f32_bits & 0x7FFFFFFF) > 0x7F800000:
+            bits = ((f32_bits >> 16) | 0x0040) & 0xFFFF
+        else:
+            rounding_bias = 0x7FFF + ((f32_bits >> 16) & 1)
+            bits = ((f32_bits + rounding_bias) >> 16) & 0xFFFF
+        return bits.to_bytes(BF16Float.size_bytes, "little")
 
     def hex(self) -> str:
         """``0x``-prefixed lowercase hex, in natural (big-endian) reading order."""
@@ -75,21 +94,3 @@ class BF16Float:
 
     def __str__(self) -> str:
         return str(float(self))
-
-
-def _encode_bf16(value: float) -> bytes:
-    """
-    Encode a Python float (interpreted as IEEE 754 binary32 after Python's
-    f64 -> f32 narrowing) as bf16 bytes. Round-to-nearest-even,
-    quiet-NaN preservation; matches LLVM APFloat semantics.
-    """
-    f32_bits = struct.unpack("<I", struct.pack("<f", value))[0]
-    # NaN must remain a NaN after truncation; force the quiet bit on so a
-    # signaling NaN with mantissa entirely in the truncated bits doesn't
-    # become inf.
-    if (f32_bits & 0x7FFFFFFF) > 0x7F800000:
-        bits = ((f32_bits >> 16) | 0x0040) & 0xFFFF
-    else:
-        rounding_bias = 0x7FFF + ((f32_bits >> 16) & 1)
-        bits = ((f32_bits + rounding_bias) >> 16) & 0xFFFF
-    return bits.to_bytes(BF16Float.size_bytes, "little")
