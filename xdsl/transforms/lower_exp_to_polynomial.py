@@ -34,7 +34,16 @@ _UNDERFLOW_LOWER_BOUND: dict[type, float] = {
     Float64Type: -1,
 }
 
-_DEFAULT_DEGREE = 10
+# Largest x such that exp(x) is still representable in the given precision.
+_OVERFLOW_UPPER_BOUND: dict[type, float] = {
+    Float16Type: 16.0 * pymath.log(2.0),  # ≈ 11.09
+    BFloat16Type: 128.0 * pymath.log(2.0),  # ≈ 88.72
+    Float32Type: 128.0 * pymath.log(2.0),  # ≈ 88.72
+    Float64Type: 1024.0 * pymath.log(2.0),  # ≈ 709.78
+}
+
+# Hard cap on the polynomial degree the chooser will grow to.
+_MAX_DEGREE = 30
 
 
 def _chebyshev_coefficients(
@@ -66,18 +75,16 @@ def _element_float_type(tp: Attribute) -> Attribute:
 
 
 def _choose_polynomial(
-    acc_bound: float | None,
+    acc_bound: float,
     lower: float,
     upper: float,
 ) -> list[float]:
-    """Smallest degree such that the Lobatto Chebyshev bound for exp on [a,b] is <= acc_bound."""
-    if acc_bound is None:
-        return _chebyshev_coefficients(pymath.exp, _DEFAULT_DEGREE, lower, upper)
-
+    """Smallest degree such that the Lobatto Chebyshev bound for exp on [a,b] is <= acc_bound.
+    Capped at _MAX_DEGREE."""
     width = upper - lower
     degree = 0
     bound = pymath.exp(upper) * width
-    while bound > acc_bound:
+    while bound > acc_bound and degree < _MAX_DEGREE:
         degree += 1
         bound *= width / (4 * (degree + 1))
 
@@ -87,19 +94,32 @@ def _choose_polynomial(
 class LowerExpToPolynomial(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: math.ExpOp, rewriter: PatternRewriter) -> None:
-        # derive lower and upper bounds from precision format
-        # this is specific to exp
+        # representable range for the precision format; specific to exp
         elem_ty = _element_float_type(op.operand.type)
-        lower = _UNDERFLOW_LOWER_BOUND.get(type(elem_ty))
-        if lower is None:
+        underflow = _UNDERFLOW_LOWER_BOUND.get(type(elem_ty))
+        overflow = _OVERFLOW_UPPER_BOUND.get(type(elem_ty))
+        if underflow is None or overflow is None:
             return
-        upper = 0.0
 
-        # accuracy bound carried over from softmax (step 1); drives the
-        # polynomial degree the chooser picks. Absent => no constraint.
+        # if no acc_bound attr, do not optimize exp
         acc_bound_attr = op.attributes.get("acc_bound")
-        acc_bound = (
-            acc_bound_attr.value.data if isinstance(acc_bound_attr, FloatAttr) else None
+        if not isinstance(acc_bound_attr, FloatAttr):
+            return
+        acc_bound = acc_bound_attr.value.data
+
+        # Polynomial domain: each side independently clamped to its representable
+        # extreme. Missing lower_bound -> underflow; missing upper_bound -> overflow.
+        lower_attr = op.attributes.get("lower_bound")
+        upper_attr = op.attributes.get("upper_bound")
+        lower = (
+            max(underflow, lower_attr.value.data)
+            if isinstance(lower_attr, FloatAttr)
+            else underflow
+        )
+        upper = (
+            min(overflow, upper_attr.value.data)
+            if isinstance(upper_attr, FloatAttr)
+            else overflow
         )
 
         # choose which polynomial family and degree to use, and compute coefficients
