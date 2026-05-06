@@ -84,7 +84,7 @@ from xdsl.traits import (
     OpTrait,
     SymbolTable,
 )
-from xdsl.utils.bitwise_casts import convert_bf16_to_f32, convert_f32_to_bf16
+from xdsl.utils.bf16_float import BF16Float
 from xdsl.utils.comparisons import (
     signed_upper_bound,
     signed_value_range,
@@ -1128,19 +1128,19 @@ class BFloat16Type(ParametrizedAttribute, _FloatType):
         return 16
 
     def iter_unpack(self, buffer: ReadableBuffer, /) -> Iterator[float]:
-        for (value,) in struct.iter_unpack("<H", buffer):
-            yield convert_bf16_to_f32(value)
+        mv = memoryview(buffer)
+        for i in range(0, len(mv), 2):
+            yield float(BF16Float(bytes(mv[i : i + 2])))
 
     def unpack(self, buffer: ReadableBuffer, num: int, /) -> tuple[float, ...]:
-        fmt = f"<{num}H"
-        return tuple(convert_bf16_to_f32(v) for v in struct.unpack(fmt, buffer))
+        mv = memoryview(buffer)
+        return tuple(float(BF16Float(bytes(mv[i * 2 : i * 2 + 2]))) for i in range(num))
 
     def pack_into(self, buffer: WriteableBuffer, offset: int, value: float) -> None:
-        struct.pack_into("<H", buffer, offset, convert_f32_to_bf16(value))
+        memoryview(buffer)[offset : offset + 2] = BF16Float.from_value(value).raw
 
     def pack(self, values: Sequence[float]) -> bytes:
-        fmt = f"<{len(values)}H"
-        return struct.pack(fmt, *(convert_f32_to_bf16(v) for v in values))
+        return b"".join(BF16Float.from_value(v).raw for v in values)
 
     @property
     def compile_time_size(self) -> int:

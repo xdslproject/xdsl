@@ -43,9 +43,9 @@ from xdsl.ir import (
 )
 from xdsl.traits import IsolatedFromAbove, IsTerminator
 from xdsl.utils.base_printer import BasePrinter
+from xdsl.utils.bf16_float import BF16Float
 from xdsl.utils.bitwise_casts import (
     convert_f16_to_u16,
-    convert_f32_to_bf16,
     convert_f32_to_u32,
     convert_f64_to_u64,
 )
@@ -364,7 +364,7 @@ class Printer(BasePrinter):
             if isinstance(type, Float16Type):
                 self.print_string(hex(convert_f16_to_u16(value)))
             elif isinstance(type, BFloat16Type):
-                self.print_string(hex(convert_f32_to_bf16(value)))
+                self.print_string(BF16Float.from_value(value).hex())
             elif isinstance(type, Float32Type):
                 self.print_string(hex(convert_f32_to_u32(value)))
             elif isinstance(type, Float64Type):

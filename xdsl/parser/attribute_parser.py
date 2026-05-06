@@ -71,8 +71,8 @@ from xdsl.dialects.builtin import (
 from xdsl.ir import Attribute, Data, ParametrizedAttribute, TypeAttribute
 from xdsl.ir.affine import AffineMap, AffineSet
 from xdsl.irdl import base
+from xdsl.utils.bf16_float import BF16Float
 from xdsl.utils.bitwise_casts import (
-    convert_bf16_to_f32,
     convert_u16_to_f16,
     convert_u32_to_f32,
     convert_u64_to_f64,
@@ -1455,7 +1455,7 @@ class AttrParser(BaseParser):
                     case Float16Type():
                         return FloatAttr(convert_u16_to_f16(value), type)
                     case BFloat16Type():
-                        return FloatAttr(convert_bf16_to_f32(value), type)
+                        return FloatAttr(float(BF16Float.from_value(value)), type)
                     case Float32Type():
                         return FloatAttr(convert_u32_to_f32(value), type)
                     case Float64Type():
