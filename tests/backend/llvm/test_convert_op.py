@@ -44,6 +44,17 @@ def test_call_intrinsic_fastmath_raises():
         convert_op(op, MagicMock(), {arg: MagicMock()})
 
 
+def test_fma_fastmath_raises():
+    from xdsl.dialects.builtin import Float32Type
+
+    block = Block(arg_types=[Float32Type()])
+    arg = block.args[0]
+    op = llvm.FMAOp(arg, arg, arg, llvm.FastMathAttr([FastMathFlag.NO_NANS]))
+
+    with pytest.raises(NotImplementedError, match="Fast-math flags not supported"):
+        convert_op(op, MagicMock(), {arg: MagicMock()})
+
+
 def test_convert_zero():
     op = llvm.ZeroOp.create(result_types=[llvm.LLVMPointerType()])
     val_map: dict[SSAValue, Any] = {}

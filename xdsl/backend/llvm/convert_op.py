@@ -367,6 +367,8 @@ def _convert_fma(
     builder: ir.IRBuilder,
     val_map: dict[SSAValue, ir.Value],
 ):
+    if any(op.fastmathFlags.data):
+        raise NotImplementedError("Fast-math flags not supported")
     a = val_map[op.a]
     b = val_map[op.b]
     c = val_map[op.c]
