@@ -30,6 +30,11 @@ class BF16Float:
     __slots__ = ("raw",)
 
     raw: bytes
+    """
+    The two raw bytes of the bf16 bit pattern, stored little-endian (low
+    byte first). For value 1.0 (bit pattern ``0x3F80``), ``raw`` is
+    ``b"\\x80\\x3f"``. ``hex()`` reverses to natural reading order.
+    """
 
     def __init__(self, raw: bytes) -> None:
         if len(raw) != self.size_bytes:
