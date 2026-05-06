@@ -4889,7 +4889,7 @@ class GlobalConstructorOp(_GlobalCtorDtorOperation):
 
     name = "acc.global_ctor"
 
-    traits = lazy_traits_def(lambda: (IsolatedFromAbove(), SymbolOpInterface()))
+    traits = traits_def(IsolatedFromAbove(), SymbolOpInterface())
 
 
 @irdl_op_definition
@@ -4903,7 +4903,7 @@ class GlobalDestructorOp(_GlobalCtorDtorOperation):
 
     name = "acc.global_dtor"
 
-    traits = lazy_traits_def(lambda: (IsolatedFromAbove(), SymbolOpInterface()))
+    traits = traits_def(IsolatedFromAbove(), SymbolOpInterface())
 
 
 @irdl_op_definition
