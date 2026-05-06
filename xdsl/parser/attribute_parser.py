@@ -21,7 +21,6 @@ from xdsl.dialects.builtin import (
     AnyUnrankedTensorType,
     AnyVectorType,
     ArrayAttr,
-    BFloat16Type,
     BoolAttr,
     BytesAttr,
     CallSiteLoc,
@@ -71,12 +70,6 @@ from xdsl.dialects.builtin import (
 from xdsl.ir import Attribute, Data, ParametrizedAttribute, TypeAttribute
 from xdsl.ir.affine import AffineMap, AffineSet
 from xdsl.irdl import base
-from xdsl.utils.bf16_float import BF16Float
-from xdsl.utils.bitwise_casts import (
-    convert_u16_to_f16,
-    convert_u32_to_f32,
-    convert_u64_to_f64,
-)
 from xdsl.utils.exceptions import ParseError, VerifyException
 from xdsl.utils.hints import isa
 from xdsl.utils.lexer import Position, Span
@@ -1451,19 +1444,8 @@ class AttrParser(BaseParser):
         if isinstance(type, AnyFloat):
             if is_hexadecimal_token:
                 assert isinstance(value, int)
-                match type:
-                    case Float16Type():
-                        return FloatAttr(convert_u16_to_f16(value), type)
-                    case BFloat16Type():
-                        return FloatAttr(float(BF16Float.from_value(value)), type)
-                    case Float32Type():
-                        return FloatAttr(convert_u32_to_f32(value), type)
-                    case Float64Type():
-                        return FloatAttr(convert_u64_to_f64(value), type)
-                    case _:
-                        raise NotImplementedError(
-                            f"Cannot parse hexadecimal literal for float type of bit width {type}"
-                        )
+                raw = value.to_bytes(type.compile_time_size, "little")
+                return FloatAttr(next(type.iter_unpack(raw)), type)
             return FloatAttr(float(value), type)
 
         if isa(type, IntegerType | IndexType):

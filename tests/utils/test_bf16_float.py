@@ -100,18 +100,3 @@ def test_bf16_hash_matches_eq():
     a = BF16Float.from_value(1.5)
     b = BF16Float.from_value(1.5)
     assert hash(a) == hash(b)
-
-
-def test_bf16_hex_is_zero_padded():
-    assert BF16Float.from_value(1.0).hex() == "0x3f80"
-    assert BF16Float.from_value(0.0).hex() == "0x0000"
-    assert BF16Float.from_value(float("inf")).hex() == "0x7f80"
-
-
-def test_bf16_repr():
-    assert repr(BF16Float.from_value(1.0)) == "BF16Float(0x3f80)"
-
-
-def test_bf16_str_is_float_str():
-    assert str(BF16Float.from_value(1.0)) == "1.0"
-    assert str(BF16Float.from_value(2.5)) == "2.5"

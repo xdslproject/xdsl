@@ -21,8 +21,7 @@ class BF16Float:
 
     Construct from raw bytes (``BF16Float(b"\\x80\\x3f")``) or from a
     Python numeric (``BF16Float.from_value(1.0)``). Decode to a Python
-    float with ``float(self)``. Equality and hashing are bytes-based:
-    ``+0.0`` vs ``-0.0`` and distinct NaN payloads compare unequal.
+    float with ``float(self)``.
     """
 
     size_bytes: ClassVar[int] = 2
@@ -33,7 +32,7 @@ class BF16Float:
     """
     The two raw bytes of the bf16 bit pattern, stored little-endian (low
     byte first). For value 1.0 (bit pattern ``0x3F80``), ``raw`` is
-    ``b"\\x80\\x3f"``. ``hex()`` reverses to natural reading order.
+    ``b"\\x80\\x3f"``.
     """
 
     def __init__(self, raw: bytes) -> None:
@@ -74,10 +73,6 @@ class BF16Float:
             bits = ((f32_bits + rounding_bias) >> 16) & 0xFFFF
         return bits.to_bytes(BF16Float.size_bytes, "little")
 
-    def hex(self) -> str:
-        """``0x``-prefixed lowercase hex, in natural (big-endian) reading order."""
-        return f"0x{self.raw[::-1].hex()}"
-
     def __float__(self) -> float:
         # bf16 is the high 16 bits of f32 with the low 16 truncated; the
         # inverse is to zero-extend with two low bytes in little-endian.
@@ -88,9 +83,3 @@ class BF16Float:
 
     def __hash__(self) -> int:
         return hash((BF16Float, self.raw))
-
-    def __repr__(self) -> str:
-        return f"BF16Float({self.hex()})"
-
-    def __str__(self) -> str:
-        return str(float(self))
