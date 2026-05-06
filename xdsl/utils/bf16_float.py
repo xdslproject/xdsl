@@ -51,8 +51,8 @@ class BF16Float:
         return cls(_encode_bf16(value))
 
     def hex(self) -> str:
-        """``0x``-prefixed lowercase hex, zero-padded to the full width."""
-        return f"0x{int.from_bytes(self.raw, 'little'):0{self.size_bytes * 2}x}"
+        """``0x``-prefixed lowercase hex, in natural (big-endian) reading order."""
+        return f"0x{self.raw[::-1].hex()}"
 
     def __float__(self) -> float:
         f32_bits = int.from_bytes(self.raw, "little") << 16
