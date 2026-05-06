@@ -870,8 +870,20 @@ builtin.module {
   // CHECK-NEXT:   ret i32 undef
   // CHECK-NEXT: }
 
+  llvm.func @fma_op_scalar_f32(%arg0: f32, %arg1: f32, %arg2: f32) -> f32 {
+    %0 = llvm.intr.fma(%arg0, %arg1, %arg2) : (f32, f32, f32) -> f32
+    llvm.return %0 : f32
+  }
+
+  // CHECK: define float @"fma_op_scalar_f32"(float %".1", float %".2", float %".3")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: [[ENTRY:.\d+]]:
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = call float @"llvm.fma.f32"(float %".1", float %".2", float %".3")
+  // CHECK-NEXT:   ret float %"[[RES]]"
+  // CHECK-NEXT: }
+
   llvm.func @fma_op_f32(%arg0: vector<4xf32>, %arg1: vector<4xf32>, %arg2: vector<4xf32>) -> vector<4xf32> {
-    %0 = vector.fma %arg0, %arg1, %arg2 : vector<4xf32>
+    %0 = llvm.intr.fma(%arg0, %arg1, %arg2) : (vector<4xf32>, vector<4xf32>, vector<4xf32>) -> vector<4xf32>
     llvm.return %0 : vector<4xf32>
   }
 
@@ -883,7 +895,7 @@ builtin.module {
   // CHECK-NEXT: }
 
   llvm.func @fma_op_f64(%arg0: vector<2xf64>, %arg1: vector<2xf64>, %arg2: vector<2xf64>) -> vector<2xf64> {
-    %0 = vector.fma %arg0, %arg1, %arg2 : vector<2xf64>
+    %0 = llvm.intr.fma(%arg0, %arg1, %arg2) : (vector<2xf64>, vector<2xf64>, vector<2xf64>) -> vector<2xf64>
     llvm.return %0 : vector<2xf64>
   }
 

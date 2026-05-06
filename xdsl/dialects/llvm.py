@@ -3303,6 +3303,43 @@ class VectorFMaxOp(IRDLOperation):
 
 
 @irdl_op_definition
+class FMAOp(IRDLOperation):
+    T: ClassVar = VarConstraint("T", AnyFloatConstr | VectorType.constr(AnyFloatConstr))
+
+    name = "llvm.intr.fma"
+
+    a = operand_def(T)
+    b = operand_def(T)
+    c = operand_def(T)
+    res = result_def(T)
+
+    fastmathFlags = prop_def(FastMathAttr, default_value=FastMathAttr(None))
+
+    assembly_format = (
+        "`(` operands `)` attr-dict `:` functional-type(operands, results)"
+    )
+
+    irdl_options = (ParsePropInAttrDict(),)
+
+    traits = traits_def(Pure())
+
+    def __init__(
+        self,
+        a: Operation | SSAValue,
+        b: Operation | SSAValue,
+        c: Operation | SSAValue,
+        fast_math: FastMathAttr | FastMathFlag | None = None,
+    ):
+        if isinstance(fast_math, FastMathFlag | str | None):
+            fast_math = FastMathAttr(fast_math)
+        super().__init__(
+            operands=[a, b, c],
+            result_types=[SSAValue.get(a).type],
+            properties={"fastmathFlags": fast_math},
+        )
+
+
+@irdl_op_definition
 class UnreachableOp(IRDLOperation):
     name = "llvm.unreachable"
 
@@ -3331,6 +3368,7 @@ LLVM = Dialect(
         FCmpOp,
         FDivOp,
         FLogOp,
+        FMAOp,
         FMulOp,
         FNegOp,
         FPExtOp,
