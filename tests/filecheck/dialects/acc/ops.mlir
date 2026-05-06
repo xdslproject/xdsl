@@ -2219,4 +2219,37 @@ builtin.module {
   // bypasses the custom directives entirely.
   "acc.routine"() <{func_name = @acc_func, sym_name = "rt_generic", gang = [#acc.device_type<nvidia>]}> : () -> ()
   // CHECK-LABEL: acc.routine @rt_generic func(@acc_func) gang([#acc.device_type<nvidia>])
+
+  // acc.global_ctor / acc.global_dtor — Symbol + IsolatedFromAbove module-level
+  // ops carrying just a sym_name and an unrestricted region. The body
+  // typically holds data-clause / declare ops terminated by acc.terminator.
+  acc.global_ctor @acc_ctor_empty {
+    acc.terminator
+  }
+  // CHECK-LABEL: acc.global_ctor @acc_ctor_empty {
+  // CHECK-NEXT:    acc.terminator
+  // CHECK-NEXT:  }
+
+  acc.global_dtor @acc_dtor_empty {
+    acc.terminator
+  }
+  // CHECK-LABEL: acc.global_dtor @acc_dtor_empty {
+  // CHECK-NEXT:    acc.terminator
+  // CHECK-NEXT:  }
+
+  // Generic-form roundtrip insurance for both ops — covers the parser path
+  // that bypasses the declarative custom assembly format.
+  "acc.global_ctor"() <{sym_name = "acc_ctor_generic"}> ({
+    "acc.terminator"() : () -> ()
+  }) : () -> ()
+  // CHECK-LABEL: acc.global_ctor @acc_ctor_generic {
+  // CHECK-NEXT:    acc.terminator
+  // CHECK-NEXT:  }
+
+  "acc.global_dtor"() <{sym_name = "acc_dtor_generic"}> ({
+    "acc.terminator"() : () -> ()
+  }) : () -> ()
+  // CHECK-LABEL: acc.global_dtor @acc_dtor_generic {
+  // CHECK-NEXT:    acc.terminator
+  // CHECK-NEXT:  }
 }

@@ -4855,6 +4855,57 @@ class RoutineOp(IRDLOperation):
                 )
 
 
+class _GlobalCtorDtorOperation(IRDLOperation, ABC):
+    """Shared shape for `acc.global_ctor` / `acc.global_dtor`.
+
+    Mirrors upstream's `OpenACC_GlobalConstructorOp` / `OpenACC_GlobalDestructorOp`
+    — both are module-level `IsolatedFromAbove` + `Symbol` ops carrying just a
+    `sym_name` and an unrestricted region. Concrete leaves override only `name`.
+    """
+
+    sym_name = prop_def(SymbolNameConstraint())
+    region = region_def()
+
+    assembly_format = "$sym_name $region attr-dict-with-keyword"
+
+    def __init__(self, *, sym_name: StringAttr | str, region: Region) -> None:
+        sym_name_attr: StringAttr = (
+            StringAttr(sym_name) if isinstance(sym_name, str) else sym_name
+        )
+        super().__init__(
+            properties={"sym_name": sym_name_attr},
+            regions=[region],
+        )
+
+
+@irdl_op_definition
+class GlobalConstructorOp(_GlobalCtorDtorOperation):
+    """
+    Implementation of upstream acc.global_ctor — captures OpenACC actions
+    (e.g. `declare create`) to apply to globals at the entry to the implicit
+    data region. Module-level, isolated, named via Symbol.
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenACCDialect/#accglobal_ctor-accglobalconstructorop).
+    """
+
+    name = "acc.global_ctor"
+
+    traits = traits_def(IsolatedFromAbove(), SymbolOpInterface())
+
+
+@irdl_op_definition
+class GlobalDestructorOp(_GlobalCtorDtorOperation):
+    """
+    Implementation of upstream acc.global_dtor — captures OpenACC actions
+    (e.g. matching `delete` for a `declare create`) to apply to globals at the
+    exit from the implicit data region. Module-level, isolated, named via Symbol.
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenACCDialect/#accglobal_dtor-accglobaldestructorop).
+    """
+
+    name = "acc.global_dtor"
+
+    traits = traits_def(IsolatedFromAbove(), SymbolOpInterface())
+
+
 @irdl_op_definition
 class TerminatorOp(IRDLOperation):
     """
@@ -4871,7 +4922,13 @@ class TerminatorOp(IRDLOperation):
         lambda: (
             IsTerminator(),
             NoMemoryEffect(),
-            HasParent(KernelsOp, DataOp, HostDataOp),
+            HasParent(
+                KernelsOp,
+                DataOp,
+                HostDataOp,
+                GlobalConstructorOp,
+                GlobalDestructorOp,
+            ),
         )
     )
 
@@ -4952,6 +5009,8 @@ ACC = Dialect(
         SetOp,
         WaitOp,
         RoutineOp,
+        GlobalConstructorOp,
+        GlobalDestructorOp,
         TerminatorOp,
         YieldOp,
     ],

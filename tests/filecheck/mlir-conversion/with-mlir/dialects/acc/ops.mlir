@@ -1519,4 +1519,37 @@ builtin.module {
   acc.routine @rt_full func(@rt_func) bind("name") gang([#acc.device_type<nvidia>], dim: 1 : i64 [#acc.device_type<nvidia>]) worker([#acc.device_type<radeon>]) vector([#acc.device_type<host>]) seq([#acc.device_type<multicore>]) nohost implicit
   // CHECK:       acc.routine @rt_full func(@rt_func) bind("name") gang([#acc.device_type<nvidia>], dim: 1 : i64 [#acc.device_type<nvidia>]) worker([#acc.device_type<radeon>]) vector([#acc.device_type<host>]) seq([#acc.device_type<multicore>]) nohost implicit
 
+  // acc.global_ctor / acc.global_dtor — Symbol + IsolatedFromAbove module-level
+  // ops. Body typically holds data-clause + declare ops terminated by
+  // acc.terminator (the assembly format is `$sym_name $region attr-dict-with-keyword`).
+  acc.global_ctor @acc_ctor {
+    acc.terminator
+  }
+  // CHECK:       acc.global_ctor @acc_ctor {
+  // CHECK-NEXT:    acc.terminator
+  // CHECK-NEXT:  }
+
+  acc.global_dtor @acc_dtor {
+    acc.terminator
+  }
+  // CHECK:       acc.global_dtor @acc_dtor {
+  // CHECK-NEXT:    acc.terminator
+  // CHECK-NEXT:  }
+
+  // Generic-form input — proves a hand-written generic spelling survives the
+  // xdsl ↔ mlir-opt round-trip in both directions.
+  "acc.global_ctor"() <{sym_name = "acc_ctor_generic"}> ({
+    "acc.terminator"() : () -> ()
+  }) : () -> ()
+  // CHECK:       acc.global_ctor @acc_ctor_generic {
+  // CHECK-NEXT:    acc.terminator
+  // CHECK-NEXT:  }
+
+  "acc.global_dtor"() <{sym_name = "acc_dtor_generic"}> ({
+    "acc.terminator"() : () -> ()
+  }) : () -> ()
+  // CHECK:       acc.global_dtor @acc_dtor_generic {
+  // CHECK-NEXT:    acc.terminator
+  // CHECK-NEXT:  }
+
 }
