@@ -140,9 +140,8 @@ def test_FloatType_packing():
     assert pi == math.pi
 
     # bf16 has no struct format code; pack/unpack are overridden directly.
-    bf16_nums = (-2.0, -1.0, 0.0, 1.0, 2.0)
-    bf16_buffer = bf16.pack(bf16_nums)
-    assert bf16.unpack(bf16_buffer, len(bf16_nums)) == bf16_nums
+    bf16_buffer = bf16.pack(nums)
+    assert bf16.unpack(bf16_buffer, len(nums)) == nums
 
 
 def test_bf16_attr_construction_roundtrips():
