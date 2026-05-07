@@ -85,7 +85,7 @@ class IntRegisterType(RISCVRegisterType):
     @classmethod
     def allocatable_registers(cls):
         if not hasattr(cls, "_ALLOCATABLE_REGISTERS"):
-            cls._ALLOCATABLE_REGISTERS = (*Registers.T, *Registers.A)
+            cls._ALLOCATABLE_REGISTERS = (*Registers.T, *Registers.A, *Registers.S)
         return cls._ALLOCATABLE_REGISTERS
 
 
@@ -153,7 +153,7 @@ class FloatRegisterType(RISCVRegisterType):
     @classmethod
     def allocatable_registers(cls):
         if not hasattr(cls, "_ALLOCATABLE_REGISTERS"):
-            cls._ALLOCATABLE_REGISTERS = (*Registers.FT, *Registers.FA)
+            cls._ALLOCATABLE_REGISTERS = (*Registers.FT, *Registers.FA, *Registers.FS)
         return cls._ALLOCATABLE_REGISTERS
 
 

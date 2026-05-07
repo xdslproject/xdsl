@@ -1,9 +1,11 @@
+from collections.abc import Callable
 from collections.abc import Set as AbstractSet
 from dataclasses import dataclass
 from itertools import islice
 
 from ordered_set import OrderedSet
 
+from xdsl.backend.register_allocatable import RegisterAllocatableOperation
 from xdsl.backend.riscv.register_stack import RiscvRegisterStack
 from xdsl.builder import Builder
 from xdsl.context import Context
@@ -13,7 +15,7 @@ from xdsl.dialects.riscv.registers import (
     IntRegisterType,
     RISCVRegisterType,
 )
-from xdsl.ir import Operation, SSAValue
+from xdsl.ir import Attribute, Operation, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.rewriter import InsertPoint
 from xdsl.utils.hints import isa
@@ -25,23 +27,53 @@ class SpillPass(ModulePass):
         for func_op in op.walk():
             if not isinstance(func_op, riscv_func.FuncOp):
                 continue
-            self.spill_values(func_op, IntRegisterType)
-            self.spill_values(func_op, FloatRegisterType)
+            self.spill_values(
+                func_op,
+                lambda a: (
+                    isinstance(a, IntRegisterType)
+                    or (
+                        isinstance(a, riscv.stack.StackSlotType)
+                        and a.value_type == builtin.i32
+                    )
+                ),
+            )
+            self.spill_values(
+                func_op,
+                lambda a: (
+                    isinstance(a, FloatRegisterType)
+                    or (
+                        isinstance(a, riscv.stack.StackSlotType)
+                        and a.value_type == builtin.f32
+                    )
+                ),
+            )
 
     def spill_values(
-        self, func_op: riscv_func.FuncOp, base_reg_type: type[RISCVRegisterType]
+        self, func_op: riscv_func.FuncOp, is_valid_type: Callable[[Attribute], bool]
     ):
+        used_regs = {
+            reg
+            for reg in RegisterAllocatableOperation.iter_all_used_registers(
+                func_op.body
+            )
+            if isinstance(reg, RISCVRegisterType)
+        }
         total_regs = len(
-            RiscvRegisterStack.get().available_registers[base_reg_type.name]
+            {
+                i
+                for i in RiscvRegisterStack.default_allocatable_registers()
+                if i not in used_regs and is_valid_type(i)
+            }
         )
+
         loaded_values = OrderedSet[SSAValue]([])
 
         die = self.get_die_set(func_op)
 
-        for inner_op in func_op.walk():
-            uses = OrderedSet(
-                i for i in inner_op.operands if isinstance(i.type, base_reg_type)
-            )
+        for i, inner_op in enumerate(func_op.walk()):
+            if not isinstance(inner_op, RegisterAllocatableOperation):
+                continue
+            uses = OrderedSet(i for i in inner_op.operands if is_valid_type(i.type))
             free_values = iter(loaded_values - uses)  # values that we can use to spill
 
             # Process uses
@@ -52,18 +84,18 @@ class SpillPass(ModulePass):
                 # TODO: use heuristic to select
                 regs_to_spill = OrderedSet(islice(free_values, num_regs_to_spill))
 
-                self.insert_spill(inner_op, regs_to_spill)
+                self.insert_spill(inner_op, regs_to_spill, die)
                 loaded_values -= regs_to_spill
-            loaded_uses = self.insert_load(inner_op, uses - loaded_values)
+            loaded_uses = self.insert_load(inner_op, uses - loaded_values, die)
             loaded_values |= loaded_uses
 
             # Remove dead values from live set
-            loaded_values -= die[inner_op]
+            for use in inner_op.operands:
+                if is_valid_type(use.type) and die[use] is inner_op:
+                    loaded_values.remove(use)
 
             # Process definitions
-            defns = OrderedSet(
-                i for i in inner_op.results if isinstance(i.type, base_reg_type)
-            )
+            defns = OrderedSet(i for i in inner_op.results if is_valid_type(i.type))
             if len(loaded_values | defns) > total_regs:
                 # spill excess regs
                 num_regs_to_spill = len(loaded_values | defns) - total_regs
@@ -71,11 +103,16 @@ class SpillPass(ModulePass):
                 # TODO: use heuristic to select
                 regs_to_spill = OrderedSet(islice(free_values, num_regs_to_spill))
 
-                self.insert_spill(inner_op, regs_to_spill)
+                self.insert_spill(inner_op, regs_to_spill, die)
                 loaded_values -= regs_to_spill
             loaded_values |= defns
 
-    def insert_spill(self, inner_op: Operation, spills: OrderedSet[SSAValue]):
+    def insert_spill(
+        self,
+        inner_op: Operation,
+        spills: OrderedSet[SSAValue],
+        die_set: dict[SSAValue, Operation],
+    ):
         """Insert spills before inner_op."""
         if not spills:
             return
@@ -96,19 +133,23 @@ class SpillPass(ModulePass):
             builder.insert_op(spill_op)
 
             # replace all uses after spill to the ref
+            if spill_val in die_set:
+                die_set[alloca_op.ref] = die_set[spill_val]
             spill_val.replace_uses_with_if(
                 alloca_op.ref, lambda use: spill_op.is_before_in_block(use.operation)
             )
 
     def insert_load(
-        self, inner_op: Operation, loads: AbstractSet[SSAValue]
+        self,
+        inner_op: Operation,
+        loads: AbstractSet[SSAValue],
+        die_set: dict[SSAValue, Operation],
     ) -> OrderedSet[SSAValue]:
         """Insert loads before inner_op."""
         if not loads:
             return OrderedSet([])
 
         assert isa(loads, OrderedSet[SSAValue[riscv.stack.StackSlotType]])
-
         load_results = OrderedSet[SSAValue]([])
         builder = Builder(InsertPoint.before(inner_op))
 
@@ -116,6 +157,8 @@ class SpillPass(ModulePass):
             load_op = riscv.stack.LoadOp(load_val)
             builder.insert_op(load_op)
             # replace all uses of the ref after load to the loaded result
+            if load_val in die_set:
+                die_set[load_op.rd] = die_set[load_val]
             load_val.replace_uses_with_if(
                 load_op.rd,
                 lambda use: load_op.is_before_in_block(use.operation),
@@ -125,13 +168,14 @@ class SpillPass(ModulePass):
         return load_results
 
     def get_die_set(self, func_op: riscv_func.FuncOp):
-        """Create set of values that die at each operation."""
-        die: dict[Operation, set[SSAValue]] = {}
+        """Create the operation where every values dies at."""
+        die: dict[SSAValue, Operation] = {}
         seen_vals = set[SSAValue]()
         for inner_op in func_op.walk(reverse=True):
             # by SSA, we can just check if this is the first seen use
             uses = set(inner_op.operands)
-            die[inner_op] = uses - seen_vals
+            for dead_val in uses - seen_vals:
+                die[dead_val] = inner_op
             seen_vals |= uses
         return die
 
