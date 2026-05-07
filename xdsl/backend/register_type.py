@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import Sequence
+from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
 
 from typing_extensions import Self
@@ -19,7 +19,13 @@ from xdsl.ir import (
 )
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
-from xdsl.traits import EffectInstance, MemoryEffect, MemoryEffectKind, Resource
+from xdsl.traits import (
+    EffectInstance,
+    MemoryEffect,
+    MemoryEffectKind,
+    Resource,
+    get_effects,
+)
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -258,3 +264,33 @@ class RegisterAllocatedMemoryEffect(MemoryEffect):
                     EffectInstance(MemoryEffectKind.READ, resource=RegisterResource(r))
                 )
         return effects
+
+    @staticmethod
+    def iter_used_registers(op: Operation) -> Iterator[RegisterType]:
+        """
+        Iterator over the registers read from or written to according to the operation's
+        memory effects with resource `RegisterResource`.
+        """
+        effects = get_effects(op)
+        if effects is not None:
+            yield from (
+                resource.register
+                for effect in effects
+                if isinstance(resource := effect.resource, RegisterResource)
+            )
+
+        # Include registers from deprecated call:
+        import warnings
+
+        from xdsl.backend.register_allocatable import RegisterAllocatableOperation
+
+        if isinstance(op, RegisterAllocatableOperation) and (
+            type(op).iter_used_registers  # pyright: ignore[reportDeprecated]
+            is not RegisterAllocatableOperation.iter_used_registers  # pyright: ignore[reportDeprecated]
+        ):
+            warnings.warn(
+                "RegisterAllocatableOperation.iter_used_registers is "
+                "deprecated, use register effects instead.",
+                DeprecationWarning,
+            )
+            yield from op.iter_used_registers()  # pyright: ignore[reportDeprecated]

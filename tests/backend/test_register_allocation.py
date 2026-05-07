@@ -3,6 +3,7 @@ from collections.abc import Sequence
 from typing import ClassVar
 
 import pytest
+from typing_extensions import override
 
 from xdsl.backend.block_naive_allocator import BlockNaiveAllocator
 from xdsl.backend.register_allocatable import (
@@ -12,7 +13,7 @@ from xdsl.backend.register_allocatable import (
 )
 from xdsl.backend.register_allocator import ValueAllocator
 from xdsl.backend.register_stack import OutOfRegisters, RegisterStack
-from xdsl.backend.register_type import RegisterType
+from xdsl.backend.register_type import RegisterAllocatedMemoryEffect, RegisterType
 from xdsl.builder import Builder
 from xdsl.dialects.test import TestOp
 from xdsl.ir import Attribute, Block, SSAValue
@@ -26,6 +27,7 @@ from xdsl.irdl import (
     irdl_op_definition,
     operand_def,
     result_def,
+    traits_def,
     var_operand_def,
     var_result_def,
 )
@@ -89,6 +91,8 @@ class TestAllocatableOp(IRDLOperation, HasRegisterConstraints):
     out_results = var_result_def()
     inout_results = var_result_def()
 
+    traits = traits_def(RegisterAllocatedMemoryEffect())
+
     irdl_options = (AttrSizedOperandSegments(), AttrSizedResultSegments())
 
     def __init__(
@@ -130,7 +134,8 @@ def test_gather_allocated():
     def no_preallocated_body() -> None:
         (v1,) = op((), u).results
         (v2,) = op((), u).results
-        op((v1, v2), u)
+        _op = op((v1, v2), u)
+        assert not set(RegisterAllocatedMemoryEffect.iter_used_registers(_op))
 
     assert not (RegisterAllocatableOperation.all_used_registers(no_preallocated_body))
 
@@ -138,7 +143,8 @@ def test_gather_allocated():
     def one_preallocated_body() -> None:
         (v1,) = op((), u).results
         (v2,) = op((), x0).results
-        op((v1, v2), u)
+        _op = op((v1, v2), u)
+        assert set(RegisterAllocatedMemoryEffect.iter_used_registers(_op)) == {x0}
 
     assert RegisterAllocatableOperation.all_used_registers(one_preallocated_body) == {
         x0
@@ -149,7 +155,8 @@ def test_gather_allocated():
         (v1,) = op((), u).results
         (v2,) = op((), x0).results
         (v3,) = op((), x0).results
-        op((v1, v2, v3), u)
+        _op = op((v1, v2, v3), u)
+        assert set(RegisterAllocatedMemoryEffect.iter_used_registers(_op)) == {x0}
 
     assert RegisterAllocatableOperation.all_used_registers(
         repeated_preallocated_body
@@ -160,11 +167,44 @@ def test_gather_allocated():
         (v1,) = op((), u).results
         (v2,) = op((), x0).results
         (v3,) = op((), x1).results
-        op((v1, v2, v3), u)
+        _op = op((v1, v2, v3), u)
+        assert set(RegisterAllocatedMemoryEffect.iter_used_registers(_op)) == {x0, x1}
+
+        # Test that calling iter_used_registers is deprecated on a function that does
+        # not overload it.
+        with pytest.deprecated_call():
+            assert not set(_op.iter_used_registers())  # pyright: ignore[reportDeprecated]
 
     assert RegisterAllocatableOperation.all_used_registers(
         multiple_preallocated_body
     ) == {x0, x1}
+
+
+def test_deprecated_iter_used_registers():
+    """
+    Test that functions that overload `iter_used_registers` still work as expected but
+    raise a deprecation warning.
+    """
+
+    x1 = TestRegister.from_name("x1")
+
+    @irdl_op_definition
+    class TestDepracatedAllocatableOp(IRDLOperation, HasRegisterConstraints):
+        name = "test.allocatable"
+
+        o = var_operand_def()
+        r = var_result_def()
+
+        traits = traits_def(RegisterAllocatedMemoryEffect())
+
+        @override
+        def iter_used_registers(self):
+            yield x1
+
+    o = TestDepracatedAllocatableOp.create()
+
+    with pytest.deprecated_call():
+        assert set(RegisterAllocatedMemoryEffect.iter_used_registers(o)) == {x1}
 
 
 def test_new_type_for_value():

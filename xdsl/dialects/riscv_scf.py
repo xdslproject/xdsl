@@ -5,14 +5,13 @@ RISC-V SCF dialect
 from __future__ import annotations
 
 from abc import ABC
-from collections.abc import Generator, Sequence
+from collections.abc import Sequence
 from typing import cast
 
 from typing_extensions import Self
 
 from xdsl.backend.register_allocatable import RegisterAllocatableOperation
 from xdsl.backend.register_allocator import BlockAllocator
-from xdsl.backend.register_type import RegisterType
 from xdsl.dialects.builtin import IntegerAttr, IntegerType
 from xdsl.dialects.riscv import IntRegisterType, RISCVRegisterType
 from xdsl.dialects.utils import (
@@ -157,11 +156,6 @@ class ForRofOperation(RegisterAllocatableOperation, IRDLOperation, ABC):
                         f"riscv_scf.for's riscv_scf.yield must match carried"
                         f"variables types."
                     )
-
-    def iter_used_registers(self) -> Generator[RegisterType, None, None]:
-        # We know that all the registers for the inputs and outputs are the same, and
-        # that these registers will have been iterated earlier in the IR.
-        yield from ()
 
     def allocate_registers(self, allocator: BlockAllocator) -> None:
         # Allocate values used inside the body but defined outside.
