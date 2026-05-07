@@ -127,14 +127,15 @@ class LowerExpToPolynomial(RewritePattern):
         coeffs = _choose_polynomial(acc_bound, lower, upper)
 
         # insert polynomial into the IR replacing exp
-        rewriter.replace_matched_op(
+        rewriter.replace_op(
+            op,
             polynomial.EvalOp(
                 value=op.operand,
                 polynomial=tuple(coeffs),
                 scheme=polynomial.EvalScheme.CLENSHAW,
                 domain_lower=lower,
                 domain_upper=upper,
-            )
+            ),
         )
 
 
