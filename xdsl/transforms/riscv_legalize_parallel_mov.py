@@ -72,11 +72,16 @@ class RISCVLegalizeParallelMovPass(ModulePass):
                 # Add the value to the pmov
                 new_values.append(value)
 
+        if not new_values:
+            return
+
         new_pmov = extend_parallel_mov_op(pmov_op, new_values)
 
-        Rewriter.replace_op(pmov_op, new_pmov)
+        Rewriter.replace_op(pmov_op, new_pmov, new_pmov.results[: len(pmov_op.results)])
 
-        for old_val, new_val in zip(new_pmov.inputs, new_pmov.outputs, strict=True):
+        for old_val, new_val in zip(
+            new_values, new_pmov.outputs[len(pmov_op.outputs) :], strict=True
+        ):
             old_val.replace_uses_with_if(
-                new_val, lambda use: pmov_op.is_before_in_block(use.operation)
+                new_val, lambda use: new_pmov.is_before_in_block(use.operation)
             )
