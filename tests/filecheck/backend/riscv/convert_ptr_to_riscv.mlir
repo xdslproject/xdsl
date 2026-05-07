@@ -16,10 +16,12 @@ ptr_xdsl.store %v, %p : i32, !ptr_xdsl.ptr
 %r3 = ptr_xdsl.load %p : !ptr_xdsl.ptr -> i32
 // CHECK-NEXT:  %r3 = riscv.lw %p, 0 {comment = "load word from pointer"} : (!riscv.reg) -> !riscv.reg
 // CHECK-NEXT:  %r3_1 = builtin.unrealized_conversion_cast %r3 : !riscv.reg to i32
+"test.op"(%r0, %r3) : (!ptr_xdsl.ptr, i32) -> ()
 
 // -----
 
 %m2 = "test.op"() : () -> (memref<3x2xf128>)
 %p2 = ptr_xdsl.to_ptr %m2 : memref<3x2xf128> -> !ptr_xdsl.ptr
 %v1 = ptr_xdsl.load %p2 : !ptr_xdsl.ptr -> f128
+"test.op"(%v1) : (f128) -> ()
 // CHECK: Lowering memref.load op with floating point type f128 not yet implemented
