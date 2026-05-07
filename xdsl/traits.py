@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import abc
 from collections.abc import Iterator, Sequence
+from collections.abc import Set as AbstractSet
 from dataclasses import dataclass, field
 from enum import Enum, auto
 from typing import TYPE_CHECKING
@@ -629,7 +630,7 @@ class MemoryEffect(OpTrait):
 
     @classmethod
     @abc.abstractmethod
-    def get_effects(cls, op: Operation) -> set[EffectInstance] | None:
+    def get_effects(cls, op: Operation) -> AbstractSet[EffectInstance] | None:
         """
         Returns the concrete side effects of the operation.
 
@@ -672,7 +673,7 @@ def is_side_effect_free(op: Operation) -> bool:
     return effects is not None and len(effects) == 0
 
 
-def get_effects(op: Operation) -> set[EffectInstance] | None:
+def get_effects(op: Operation) -> AbstractSet[EffectInstance] | None:
     """
     Helper to get known side effects of an operation.
     None means that the operation has unknown effects, for safety.
@@ -698,8 +699,15 @@ class NoMemoryEffect(MemoryEffect):
     """
 
     @classmethod
-    def get_effects(cls, op: Operation) -> set[EffectInstance]:
-        return set()
+    def get_effects(cls, op: Operation) -> AbstractSet[EffectInstance]:
+        return frozenset()
+
+
+# Frozen sets to avoid re-creating a set every time
+_MEMORY_READ_EFFECT_SET = frozenset((EffectInstance(MemoryEffectKind.READ),))
+_MEMORY_WRITE_EFFECT_SET = frozenset((EffectInstance(MemoryEffectKind.WRITE),))
+_MEMORY_ALLOC_EFFECT_SET = frozenset((EffectInstance(MemoryEffectKind.ALLOC),))
+_MEMORY_FREE_EFFECT_SET = frozenset((EffectInstance(MemoryEffectKind.FREE),))
 
 
 class MemoryReadEffect(MemoryEffect):
@@ -708,8 +716,8 @@ class MemoryReadEffect(MemoryEffect):
     """
 
     @classmethod
-    def get_effects(cls, op: Operation) -> set[EffectInstance]:
-        return {EffectInstance(MemoryEffectKind.READ)}
+    def get_effects(cls, op: Operation) -> AbstractSet[EffectInstance]:
+        return _MEMORY_READ_EFFECT_SET
 
 
 class MemoryWriteEffect(MemoryEffect):
@@ -718,8 +726,8 @@ class MemoryWriteEffect(MemoryEffect):
     """
 
     @classmethod
-    def get_effects(cls, op: Operation) -> set[EffectInstance]:
-        return {EffectInstance(MemoryEffectKind.WRITE)}
+    def get_effects(cls, op: Operation) -> AbstractSet[EffectInstance]:
+        return _MEMORY_WRITE_EFFECT_SET
 
 
 class MemoryAllocEffect(MemoryEffect):
@@ -728,8 +736,8 @@ class MemoryAllocEffect(MemoryEffect):
     """
 
     @classmethod
-    def get_effects(cls, op: Operation) -> set[EffectInstance]:
-        return {EffectInstance(MemoryEffectKind.ALLOC)}
+    def get_effects(cls, op: Operation) -> AbstractSet[EffectInstance]:
+        return _MEMORY_ALLOC_EFFECT_SET
 
 
 class MemoryFreeEffect(MemoryEffect):
@@ -738,8 +746,8 @@ class MemoryFreeEffect(MemoryEffect):
     """
 
     @classmethod
-    def get_effects(cls, op: Operation) -> set[EffectInstance]:
-        return {EffectInstance(MemoryEffectKind.FREE)}
+    def get_effects(cls, op: Operation) -> AbstractSet[EffectInstance]:
+        return _MEMORY_FREE_EFFECT_SET
 
 
 class RecursiveMemoryEffect(MemoryEffect):
@@ -749,7 +757,7 @@ class RecursiveMemoryEffect(MemoryEffect):
     """
 
     @classmethod
-    def get_effects(cls, op: Operation):
+    def get_effects(cls, op: Operation) -> AbstractSet[EffectInstance] | None:
         effects = set[EffectInstance]()
         for r in op.regions:
             for b in r.blocks:

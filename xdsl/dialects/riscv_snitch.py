@@ -4,11 +4,11 @@ from abc import ABC
 from collections.abc import Sequence
 from typing import ClassVar, Literal, TypeAlias, cast
 
-from typing_extensions import Self
+from typing_extensions import Self, override
 
 from xdsl.backend.register_allocatable import RegisterConstraints
 from xdsl.backend.register_allocator import BlockAllocator
-from xdsl.backend.register_type import RegisterResource
+from xdsl.backend.register_type import RegisterAllocatedMemoryEffect, RegisterResource
 from xdsl.backend.riscv.traits import StaticInsnRepresentation
 from xdsl.dialects import riscv, snitch
 from xdsl.dialects.builtin import (
@@ -165,7 +165,11 @@ class FrepYieldOp(
     name = "riscv_snitch.frep_yield"
 
     traits = lazy_traits_def(
-        lambda: (IsTerminator(), HasParent(FrepInnerOp, FrepOuterOp), NoMemoryEffect())
+        lambda: (
+            IsTerminator(),
+            HasParent(FrepInnerOp, FrepOuterOp),
+            RegisterAllocatedMemoryEffect(),
+        )
     )
 
     def assembly_line(self) -> str | None:
@@ -184,7 +188,9 @@ class ReadOp(RISCVAsmOperation, RISCVRegallocOperation):
     assembly_format = "`from` $stream attr-dict `:` type($res)"
 
     # Reads from memory and updates stream state
-    traits = traits_def(MemoryWriteEffect(), MemoryReadEffect())
+    traits = traits_def(
+        MemoryWriteEffect(), MemoryReadEffect(), RegisterAllocatedMemoryEffect()
+    )
 
     def __init__(self, stream_val: SSAValue, result_type: Attribute | None = None):
         if result_type is None:
@@ -196,7 +202,8 @@ class ReadOp(RISCVAsmOperation, RISCVRegallocOperation):
     def assembly_line(self) -> str | None:
         return None
 
-    def iter_used_registers(self):
+    @override
+    def iter_excluded_registers(self):
         # When streaming, FT0, FT1, and FT2 cannot be used as general-purpose float
         # registers
         yield riscv.Registers.FT0
@@ -216,7 +223,7 @@ class WriteOp(RISCVAsmOperation, RISCVRegallocOperation):
     assembly_format = "$value `to` $stream attr-dict `:` type($value)"
 
     # Writes to memory and updates stream state
-    traits = traits_def(MemoryWriteEffect())
+    traits = traits_def(MemoryWriteEffect(), RegisterAllocatedMemoryEffect())
 
     def __init__(self, value: SSAValue, stream: SSAValue):
         super().__init__(operands=[value, stream])
@@ -224,7 +231,8 @@ class WriteOp(RISCVAsmOperation, RISCVRegallocOperation):
     def assembly_line(self) -> str | None:
         return None
 
-    def iter_used_registers(self):
+    @override
+    def iter_excluded_registers(self):
         # When streaming, FT0, FT1, and FT2 cannot be used as general-purpose float
         # registers
         yield riscv.Registers.FT0
@@ -593,6 +601,8 @@ class GetStreamOp(RISCVAsmOperation, RISCVRegallocOperation):
         | snitch.WritableStreamType.constr(BaseAttr(riscv.FloatRegisterType))
     )
 
+    traits = traits_def(NoMemoryEffect())
+
     def __init__(self, result_type: Attribute):
         super().__init__(result_types=[result_type])
 
@@ -627,7 +637,8 @@ class DMSourceOp(RISCVInstruction):
     assembly_format = "$ptrlo `,` $ptrhi attr-dict `:` `(` type($ptrlo) `,` type($ptrhi) `)` `->` `(` `)`"
 
     traits = traits_def(
-        StaticInsnRepresentation(insn=".insn r 0x2b, 0, 0, x0, {0}, {1}")
+        StaticInsnRepresentation(insn=".insn r 0x2b, 0, 0, x0, {0}, {1}"),
+        MemoryWriteEffect(),
     )
 
     def __init__(self, ptrlo: SSAValue | Operation, ptrhi: SSAValue | Operation):
@@ -647,7 +658,8 @@ class DMDestinationOp(RISCVInstruction):
     assembly_format = "$ptrlo `,` $ptrhi attr-dict `:` `(` type($ptrlo) `,` type($ptrhi) `)` `->` `(` `)`"
 
     traits = traits_def(
-        StaticInsnRepresentation(insn=".insn r 0x2b, 0, 1, x0, {0}, {1}")
+        StaticInsnRepresentation(insn=".insn r 0x2b, 0, 1, x0, {0}, {1}"),
+        MemoryWriteEffect(),
     )
 
     def __init__(self, ptrlo: SSAValue | Operation, ptrhi: SSAValue | Operation):
@@ -667,7 +679,8 @@ class DMStrideOp(RISCVInstruction):
     assembly_format = "$srcstrd `,` $dststrd attr-dict `:` `(` type($srcstrd) `,` type($dststrd) `)` `->` `(` `)`"
 
     traits = traits_def(
-        StaticInsnRepresentation(insn=".insn r 0x2b, 0, 6, x0, {0}, {1}")
+        StaticInsnRepresentation(insn=".insn r 0x2b, 0, 6, x0, {0}, {1}"),
+        MemoryWriteEffect(),
     )
 
     def __init__(self, srcstrd: SSAValue | Operation, dststrd: SSAValue | Operation):
@@ -686,7 +699,8 @@ class DMRepOp(RISCVInstruction):
     assembly_format = "$reps attr-dict `:` `(` type($reps) `)` `->` `(` `)`"
 
     traits = traits_def(
-        StaticInsnRepresentation(insn=".insn r 0x2b, 0, 7, x0, {0}, x0")
+        StaticInsnRepresentation(insn=".insn r 0x2b, 0, 7, x0, {0}, x0"),
+        MemoryWriteEffect(),
     )
 
     def __init__(self, reps: SSAValue | Operation):
@@ -698,18 +712,38 @@ class DMRepOp(RISCVInstruction):
 
 @irdl_op_definition
 class DMCopyOp(RISCVInstruction):
+    """
+    DMCPY and DMCPYI initiate an asynchronous data movement with the parameters
+    configured by the previous DM instructions. A transfer id is placed in register rd,
+    which is necessary to later check for transfer completion. size contains the number
+    of consecutive bytes to transfer. For multi-dimensional transfers this is the size
+    of the innermost dimension.
+    """
+
     name = "riscv_snitch.dmcpy"
 
     dest = result_def(riscv.IntRegisterType)
     size = operand_def(riscv.IntRegisterType)
     config = operand_def(riscv.IntRegisterType)
+    """
+    config* determines the following parameters of the
+    transfer:
+
+    | Bit(s)     | Field         | Description                                            |
+    |------------|---------------|--------------------------------------------------------|
+    | config[0]  | decouple_rw   | Decouple the handshakes of the read and write channels |
+    | config[1]  | enable_2d     | Enable two-dimensional transfer                        |
+    | config[4:2]| channel_sel   | Selects the DMA backend if a multi-channel DMA is used |
+    """
 
     assembly_format = (
         "$size `,` $config attr-dict `:` functional-type(operands, results)"
     )
 
     traits = traits_def(
-        StaticInsnRepresentation(insn=".insn r 0x2b, 0, 3, {0}, {1}, {2}")
+        StaticInsnRepresentation(insn=".insn r 0x2b, 0, 3, {0}, {1}, {2}"),
+        MemoryReadEffect(),
+        MemoryWriteEffect(),
     )
 
     def __init__(
@@ -734,7 +768,8 @@ class DMStatOp(RISCVInstruction):
     assembly_format = "$status attr-dict `:` functional-type(operands, results)"
 
     traits = traits_def(
-        StaticInsnRepresentation(insn=".insn r 0x2b, 0, 5, {0}, {1}, {2}")
+        StaticInsnRepresentation(insn=".insn r 0x2b, 0, 5, {0}, {1}, {2}"),
+        MemoryReadEffect(),
     )
 
     def __init__(
@@ -750,18 +785,38 @@ class DMStatOp(RISCVInstruction):
 
 @irdl_op_definition
 class DMCopyImmOp(RISCVInstruction):
+    """
+    DMCPY and DMCPYI initiate an asynchronous data movement with the parameters
+    configured by the previous DM instructions. A transfer id is placed in register rd,
+    which is necessary to later check for transfer completion. size contains the number
+    of consecutive bytes to transfer. For multi-dimensional transfers this is the size
+    of the innermost dimension.
+    """
+
     name = "riscv_snitch.dmcpyi"
 
     dest = result_def(riscv.IntRegisterType)
     size = operand_def(riscv.IntRegisterType)
     config = prop_def(IntegerAttr[UI5])
+    """
+    config* determines the following parameters of the
+    transfer:
+
+    | Bit(s)     | Field         | Description                                            |
+    |------------|---------------|--------------------------------------------------------|
+    | config[0]  | decouple_rw   | Decouple the handshakes of the read and write channels |
+    | config[1]  | enable_2d     | Enable two-dimensional transfer                        |
+    | config[4:2]| channel_sel   | Selects the DMA backend if a multi-channel DMA is used |
+    """
 
     assembly_format = (
         "$size `,` $config attr-dict `:` functional-type(operands, results)"
     )
 
     traits = traits_def(
-        StaticInsnRepresentation(insn=".insn r 0x2b, 0, 2, {0}, {1}, {2}")
+        StaticInsnRepresentation(insn=".insn r 0x2b, 0, 2, {0}, {1}, {2}"),
+        MemoryReadEffect(),
+        MemoryWriteEffect(),
     )
 
     def __init__(
@@ -792,7 +847,8 @@ class DMStatImmOp(RISCVInstruction):
     assembly_format = "$status attr-dict `:` `(` `)` `->` type($dest)"
 
     traits = traits_def(
-        StaticInsnRepresentation(insn=".insn r 0x2b, 0, 4, {0}, {1}, {2}")
+        StaticInsnRepresentation(insn=".insn r 0x2b, 0, 4, {0}, {1}, {2}"),
+        MemoryReadEffect(),
     )
 
     def __init__(

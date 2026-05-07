@@ -378,6 +378,11 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
 
         return Wasm
 
+    def get_wasmssa():
+        from xdsl.dialects.wasmssa import WasmSSA
+
+        return WasmSSA
+
     def get_x86():
         from xdsl.dialects.x86 import X86
 
@@ -467,6 +472,7 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "varith": get_varith,
         "vector": get_vector,
         "wasm": get_wasm,
+        "wasmssa": get_wasmssa,
         "x86": get_x86,
         "x86_func": get_x86_func,
         "x86_scf": get_x86_scf,

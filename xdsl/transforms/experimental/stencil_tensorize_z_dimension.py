@@ -21,7 +21,7 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.dialects.experimental import dmp
 from xdsl.dialects.func import FuncOp
-from xdsl.dialects.linalg import FillOp
+from xdsl.dialects.linalg.ops import FillOp
 from xdsl.dialects.stencil import (
     AccessOp,
     AccessPattern,
@@ -295,7 +295,8 @@ class DmpSwapOpTensorize(RewritePattern):
             and op.swapped_values
             and not is_tensorized(op.swapped_values.type)
         ):
-            rewriter.replace_matched_op(
+            rewriter.replace_op(
+                op,
                 dmp.SwapOp.get(op.input_stencil, op.strategy, ArrayAttr(op.swaps.data)),
             )
 

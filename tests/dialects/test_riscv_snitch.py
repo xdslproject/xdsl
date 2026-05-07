@@ -3,13 +3,17 @@ import pytest
 from xdsl import ir, irdl
 from xdsl.backend.register_type import RegisterAllocatedMemoryEffect
 from xdsl.builder import ImplicitBuilder
-from xdsl.dialects import riscv, riscv_snitch
+from xdsl.dialects import riscv, riscv_snitch, snitch
 from xdsl.dialects.riscv import RISCVInstruction
 from xdsl.traits import (
     EffectInstance,
     HasInsnRepresentation,
+    MemoryEffect,
     MemoryEffectKind,
     MemoryReadEffect,
+    MemoryWriteEffect,
+    NoMemoryEffect,
+    RecursiveMemoryEffect,
     get_effects,
 )
 from xdsl.utils.test_value import create_ssa_value
@@ -85,3 +89,97 @@ def test_frep_recursive_effects():
 
     assert get_effects(inner_op) == {EffectInstance(MemoryEffectKind.READ)}
     assert get_effects(frep_op) == {EffectInstance(MemoryEffectKind.READ)}
+
+
+def test_exclude_registers():
+    read_op = riscv_snitch.ReadOp(
+        create_ssa_value(snitch.ReadableStreamType(riscv.Registers.A0))
+    )
+    read_op.verify()
+    assert set(read_op.iter_excluded_registers()) == {
+        riscv.Registers.FT0,
+        riscv.Registers.FT1,
+        riscv.Registers.FT2,
+    }
+
+    write_op = riscv_snitch.WriteOp(
+        create_ssa_value(riscv.Registers.A0),
+        create_ssa_value(snitch.WritableStreamType(riscv.Registers.A0)),
+    )
+    write_op.verify()
+    assert set(write_op.iter_excluded_registers()) == {
+        riscv.Registers.FT0,
+        riscv.Registers.FT1,
+        riscv.Registers.FT2,
+    }
+
+
+def test_effect_traits():
+    """
+    Check effects of operations in the riscv_snitch dialect.
+    """
+    operations = tuple(riscv_snitch.RISCV_Snitch.operations)
+    effects_ops = {op for op in operations if op.has_trait(MemoryEffect)}
+    unknown_effects_ops = {op for op in operations if op not in effects_ops}
+
+    # Sentinels to remind us to update this test when updating the dialect
+    assert len(effects_ops) == 26
+    assert not unknown_effects_ops
+
+    all_effects_trait_types = {
+        type(trait)
+        for op in effects_ops
+        for trait in op.get_traits_of_type(MemoryEffect)
+    }
+
+    # Check below separately for each of these
+    assert all_effects_trait_types == {
+        MemoryReadEffect,
+        MemoryWriteEffect,
+        NoMemoryEffect,
+        RecursiveMemoryEffect,
+        RegisterAllocatedMemoryEffect,
+    }
+
+    memory_read_effects_ops = {
+        op for op in effects_ops if op.has_trait(MemoryReadEffect)
+    }
+    memory_write_effects_ops = {
+        op for op in effects_ops if op.has_trait(MemoryWriteEffect)
+    }
+    recursive_memory_effects_ops = {
+        op for op in effects_ops if op.has_trait(RecursiveMemoryEffect)
+    }
+    register_allocated_memory_effects_ops = {
+        op for op in effects_ops if op.has_trait(RegisterAllocatedMemoryEffect)
+    }
+    no_effects_ops = {op for op in effects_ops if op.has_trait(NoMemoryEffect)}
+
+    assert memory_read_effects_ops == {
+        riscv_snitch.DMCopyImmOp,
+        riscv_snitch.DMCopyOp,
+        riscv_snitch.DMStatImmOp,
+        riscv_snitch.DMStatOp,
+        riscv_snitch.ReadOp,
+    }
+    assert memory_write_effects_ops == {
+        riscv_snitch.DMCopyImmOp,
+        riscv_snitch.DMCopyOp,
+        riscv_snitch.DMDestinationOp,
+        riscv_snitch.DMDestinationOp,
+        riscv_snitch.DMRepOp,
+        riscv_snitch.DMSourceOp,
+        riscv_snitch.DMStrideOp,
+        riscv_snitch.ReadOp,
+        riscv_snitch.ScfgwiOp,
+        riscv_snitch.ScfgwOp,
+        riscv_snitch.WriteOp,
+    }
+    assert recursive_memory_effects_ops == {
+        riscv_snitch.FrepOuterOp,
+        riscv_snitch.FrepInnerOp,
+    }
+    assert len(register_allocated_memory_effects_ops) == 25
+    assert no_effects_ops == {
+        riscv_snitch.GetStreamOp,
+    }

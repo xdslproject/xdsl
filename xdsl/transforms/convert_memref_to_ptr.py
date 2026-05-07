@@ -417,7 +417,7 @@ class ConvertCastOp(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: memref.CastOp, rewriter: PatternRewriter, /):
         assert isa(op.source.type, memref.MemRefType)
-        rewriter.replace_matched_op((), (op.source,))
+        rewriter.replace_op(op, (), (op.source,))
 
 
 @dataclass

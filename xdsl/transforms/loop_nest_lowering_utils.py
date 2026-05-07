@@ -261,7 +261,7 @@ def rewrite_linalg_structured_to_loops(
         # Erase the yield op, we still have access to its operands
         rewriter.erase_op(yield_op)
 
-        index_ops = tuple(op for op in block.ops if isa(op, linalg.IndexOp))
+        index_ops = tuple(op for op in block.ops if isa(op, linalg.ops.IndexOp))
 
         while block.args:
             rewriter.erase_block_argument(block.args[0])

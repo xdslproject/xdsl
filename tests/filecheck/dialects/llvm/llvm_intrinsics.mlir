@@ -86,6 +86,15 @@
 %maxnum_vec = llvm.intr.maxnum(%vec_f32, %vec_f32) : (vector<4xf32>, vector<4xf32>) -> vector<4xf32>
 // CHECK-NEXT: %maxnum_vec = llvm.intr.maxnum(%vec_f32, %vec_f32) : (vector<4xf32>, vector<4xf32>) -> vector<4xf32>
 
+%fma_f32 = llvm.intr.fma(%f32, %f32, %f32) : (f32, f32, f32) -> f32
+// CHECK: %fma_f32 = llvm.intr.fma(%f32, %f32, %f32) : (f32, f32, f32) -> f32
+
+%fma_vec = llvm.intr.fma(%vec_f32, %vec_f32, %vec_f32) : (vector<4xf32>, vector<4xf32>, vector<4xf32>) -> vector<4xf32>
+// CHECK-NEXT: %fma_vec = llvm.intr.fma(%vec_f32, %vec_f32, %vec_f32) : (vector<4xf32>, vector<4xf32>, vector<4xf32>) -> vector<4xf32>
+
+%fma_fast = llvm.intr.fma(%f32, %f32, %f32) {fastmathFlags = #llvm.fastmath<fast>} : (f32, f32, f32) -> f32
+// CHECK-NEXT: %fma_fast = llvm.intr.fma(%f32, %f32, %f32) {fastmathFlags = #llvm.fastmath<fast>} : (f32, f32, f32) -> f32
+
 "test.op"() ({
 ^bb0(%br_arg: i32):
   llvm.br ^bb1(%br_arg : i32)

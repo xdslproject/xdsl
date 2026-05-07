@@ -48,7 +48,7 @@ def get_scalar_const(op: SSAValue) -> FloatAttr | IntegerAttr | None:
 
 
 def transform_op(
-    op: linalg.NamedOperation,
+    op: linalg.abstract_ops.NamedOperation,
     rewriter: PatternRewriter,
     f16: type[csl.BuiltinDsdOp],
     f32: type[csl.BuiltinDsdOp],
@@ -81,7 +81,7 @@ class ConvertLinalgGenericFMAPass(RewritePattern):
     """Lowers `linalg.generic` fused multiply-adds to csl builtin ops."""
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: linalg.GenericOp, rewriter: PatternRewriter, /):
+    def match_and_rewrite(self, op: linalg.ops.GenericOp, rewriter: PatternRewriter, /):
         if not self.is_fma(op) or not isa(op.outputs.types[0], MemRefType):
             return
 
@@ -112,7 +112,7 @@ class ConvertLinalgGenericFMAPass(RewritePattern):
         rewriter.replace_op(op, csl_op(operands=[[r, y, x, a]]))
 
     @staticmethod
-    def is_fma(op: linalg.GenericOp) -> bool:
+    def is_fma(op: linalg.ops.GenericOp) -> bool:
         """Returns if a given `generic` op is a fused multiply-add"""
         return (
             len(op.inputs) == 3
@@ -125,7 +125,7 @@ class ConvertLinalgGenericFMAPass(RewritePattern):
             and isinstance(add := mul.next_op, arith.AddfOp)
             and add.lhs == mul.result
             and add.rhs == block.args[2]
-            and isinstance(yld := add.next_op, linalg.YieldOp)
+            and isinstance(yld := add.next_op, linalg.ops.YieldOp)
             and yld.operands[0] == add.result
         )
 
@@ -139,7 +139,7 @@ class ConvertLinalgMinPass(RewritePattern):
     """
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: linalg.MinOp, rewriter: PatternRewriter, /):
+    def match_and_rewrite(self, op: linalg.ops.MinOp, rewriter: PatternRewriter, /):
         if not isa(op.outputs.types[0], MemRefType):
             return
 
@@ -163,25 +163,25 @@ class ConvertLinalgMinPass(RewritePattern):
 
 class ConvertLinalgAddPass(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: linalg.AddOp, rewriter: PatternRewriter, /):
+    def match_and_rewrite(self, op: linalg.ops.AddOp, rewriter: PatternRewriter, /):
         transform_op(op, rewriter, f16=csl.FaddhOp, f32=csl.FaddsOp)
 
 
 class ConvertLinalgSubPass(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: linalg.SubOp, rewriter: PatternRewriter, /):
+    def match_and_rewrite(self, op: linalg.ops.SubOp, rewriter: PatternRewriter, /):
         transform_op(op, rewriter, f16=csl.FsubhOp, f32=csl.FsubsOp)
 
 
 class ConvertLinalgMulPass(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: linalg.MulOp, rewriter: PatternRewriter, /):
+    def match_and_rewrite(self, op: linalg.ops.MulOp, rewriter: PatternRewriter, /):
         transform_op(op, rewriter, f16=csl.FmulhOp, f32=csl.FmulsOp)
 
 
 class ConvertLinalgMaxPass(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: linalg.MaxOp, rewriter: PatternRewriter, /):
+    def match_and_rewrite(self, op: linalg.ops.MaxOp, rewriter: PatternRewriter, /):
         transform_op(op, rewriter, f16=csl.FmaxhOp, f32=csl.FmaxsOp)
 
 

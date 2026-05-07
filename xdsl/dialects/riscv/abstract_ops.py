@@ -42,7 +42,12 @@ from xdsl.irdl import (
 from xdsl.parser import Parser, UnresolvedOperand
 from xdsl.pattern_rewriter import RewritePattern
 from xdsl.printer import Printer
-from xdsl.traits import HasCanonicalizationPatternsTrait, Pure
+from xdsl.traits import (
+    HasCanonicalizationPatternsTrait,
+    MemoryReadEffect,
+    MemoryWriteEffect,
+    Pure,
+)
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.target import Target
 
@@ -191,6 +196,8 @@ class RISCVInstruction(RISCVAsmOperation, RISCVRegallocOperation, ABC):
     """
     An optional comment that will be printed along with the instruction.
     """
+
+    traits = traits_def(RegisterAllocatedMemoryEffect())
 
     @abstractmethod
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
@@ -435,8 +442,6 @@ class RdRsRsRsFloatOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
     rs2 = operand_def(FloatRegisterType)
     rs3 = operand_def(FloatRegisterType)
 
-    traits = traits_def(RegisterAllocatedMemoryEffect())
-
     def __init__(
         self,
         rs1: Operation | SSAValue,
@@ -530,10 +535,6 @@ class RdRsRsFloatOperationWithFastMath(
     rs1 = operand_def(FloatRegisterType)
     rs2 = operand_def(FloatRegisterType)
     fastmath = opt_attr_def(FastMathFlagsAttr)
-
-    # https://github.com/xdslproject/xdsl/issues/5882
-    # Move to appropriate superclass in the future
-    traits = traits_def(RegisterAllocatedMemoryEffect())
 
     def __init__(
         self,
@@ -1051,6 +1052,9 @@ class RsRsImmIntegerOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC)
     rs2 = operand_def(IntRegisterType)
     immediate = attr_def(IntegerAttr[SI12])
 
+    # All S-Type operations write to memory
+    traits = traits_def(MemoryWriteEffect())
+
     def __init__(
         self,
         rs1: Operation | SSAValue,
@@ -1169,6 +1173,8 @@ class CsrReadWriteOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
     csr = attr_def(IntegerAttr)
     writeonly = opt_attr_def(UnitAttr)
 
+    traits = traits_def(MemoryReadEffect(), MemoryWriteEffect())
+
     def __init__(
         self,
         rs1: Operation | SSAValue,
@@ -1241,6 +1247,10 @@ class CsrBitwiseOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
     csr = attr_def(IntegerAttr)
     readonly = opt_attr_def(UnitAttr)
 
+    # Conservatively set the write effect, in the future we should be conditional on
+    # the `readonly` flag.
+    traits = traits_def(MemoryReadEffect(), MemoryWriteEffect())
+
     def __init__(
         self,
         rs1: Operation | SSAValue,
@@ -1311,6 +1321,8 @@ class CsrReadWriteImmOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC
     csr = attr_def(IntegerAttr)
     immediate = attr_def(IntegerAttr)
     writeonly = opt_attr_def(UnitAttr)
+
+    traits = traits_def(MemoryReadEffect(), MemoryWriteEffect())
 
     def __init__(
         self,
@@ -1386,6 +1398,8 @@ class CsrBitwiseImmOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
     rd = result_def(IntRegisterType)
     csr = attr_def(IntegerAttr)
     immediate = attr_def(IntegerAttr)
+
+    traits = traits_def(MemoryReadEffect(), MemoryWriteEffect())
 
     def __init__(
         self,

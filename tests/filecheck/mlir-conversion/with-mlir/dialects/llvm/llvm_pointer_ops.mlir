@@ -25,6 +25,9 @@ builtin.module {
   %ev_arr = llvm.extractvalue %agg[1, 2] : !llvm.struct<(i32, !llvm.array<3 x i32>)>
   %iv = llvm.insertvalue %ev_field, %agg[0] : !llvm.struct<(i32, !llvm.array<3 x i32>)>
   %iv_arr = llvm.insertvalue %ev_field, %agg[1, 0] : !llvm.struct<(i32, !llvm.array<3 x i32>)>
+
+  %vec, %val, %idx = "test.op"() : () -> (vector<4xf32>, f32, i32)
+  %ie = llvm.insertelement %val, %vec[%idx : i32] : vector<4xf32>
 }
 
 // CHECK:       builtin.module {
@@ -50,4 +53,6 @@ builtin.module {
 // CHECK-NEXT:    {{%.*}} = llvm.extractvalue [[AGG]][1, 2] : !llvm.struct<(i32, !llvm.array<3 x i32>)>
 // CHECK-NEXT:    {{%.*}} = llvm.insertvalue [[EVF]], [[AGG]][0] : !llvm.struct<(i32, !llvm.array<3 x i32>)>
 // CHECK-NEXT:    {{%.*}} = llvm.insertvalue [[EVF]], [[AGG]][1, 0] : !llvm.struct<(i32, !llvm.array<3 x i32>)>
+// CHECK-NEXT:    [[VEC:%.*]], [[VAL:%.*]], [[IDX:%.*]] = "test.op"() : () -> (vector<4xf32>, f32, i32)
+// CHECK-NEXT:    {{%.*}} = llvm.insertelement [[VAL]], [[VEC]]{{\[}}[[IDX]] : i32] : vector<4xf32>
 // CHECK-NEXT:  }

@@ -1,11 +1,12 @@
 import pytest
 
+from xdsl.backend.register_type import RegisterAllocatedMemoryEffect
 from xdsl.dialects import riscv, rv64
 from xdsl.dialects.builtin import (
     IntegerAttr,
     Signedness,
 )
-from xdsl.traits import ConstantLike
+from xdsl.traits import ConstantLike, MemoryEffect, NoMemoryEffect, Pure
 from xdsl.transforms.canonicalization_patterns.riscv import get_constant_value
 from xdsl.utils.exceptions import VerifyException
 
@@ -40,3 +41,36 @@ def test_get_constant_value():
     zero_op = rv64.GetRegisterOp(riscv.Registers.ZERO)
     zero_val = get_constant_value(zero_op.res)
     assert zero_val == IntegerAttr(0, 64)
+
+
+def test_effect_traits():
+    """
+    Check effects of operations in the rv64 dialect.
+    """
+    operations = tuple(rv64.RV64.operations)
+    effects_ops = {op for op in operations if op.has_trait(MemoryEffect)}
+    unknown_effects_ops = {op for op in operations if op not in effects_ops}
+
+    # Sentinels to remind us to update this test when updating the dialect
+    assert len(effects_ops) == 2
+    assert not unknown_effects_ops
+
+    all_effects_trait_types = {
+        type(trait)
+        for op in effects_ops
+        for trait in op.get_traits_of_type(MemoryEffect)
+    }
+
+    # Check below separately for each of these
+    assert all_effects_trait_types == {
+        Pure,
+        RegisterAllocatedMemoryEffect,
+    }
+
+    register_effects_ops = {
+        op for op in effects_ops if op.has_trait(RegisterAllocatedMemoryEffect)
+    }
+    no_effects_ops = {op for op in effects_ops if op.has_trait(NoMemoryEffect)}
+
+    assert register_effects_ops == {rv64.LiOp}
+    assert no_effects_ops == {rv64.GetRegisterOp}

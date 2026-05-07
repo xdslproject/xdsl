@@ -70,11 +70,6 @@ from xdsl.dialects.builtin import (
 from xdsl.ir import Attribute, Data, ParametrizedAttribute, TypeAttribute
 from xdsl.ir.affine import AffineMap, AffineSet
 from xdsl.irdl import base
-from xdsl.utils.bitwise_casts import (
-    convert_u16_to_f16,
-    convert_u32_to_f32,
-    convert_u64_to_f64,
-)
 from xdsl.utils.exceptions import ParseError, VerifyException
 from xdsl.utils.hints import isa
 from xdsl.utils.lexer import Position, Span
@@ -264,14 +259,16 @@ class AttrParser(BaseParser):
         if attr_def is None:
             self.raise_error(f"'{attr_name}' is not registered")
         if issubclass(attr_def, UnregisteredAttr):
-            if not is_opaque:
-                if self.parse_optional_punctuation("<") is None:
-                    return attr_def(attr_name, is_type, is_opaque, "")
-            body = self._parse_unregistered_attr_body(starting_opaque_pos)
-            attr = attr_def(attr_name, is_type, is_opaque, body)
-            if not is_opaque:
-                self.parse_punctuation(">")
-            return attr
+            if starting_opaque_pos is not None:
+                gt_pos = self._raw_scan_balanced(starting_opaque_pos)
+                body = self.lexer.input.content[starting_opaque_pos:gt_pos]
+                self.lexer.pos = gt_pos
+                self._parser_state.current_token = self.lexer.lex()
+            elif self._current_token.kind != MLIRTokenKind.LESS:
+                body = ""
+            else:
+                body = self._parse_dialect_symbol_body()
+            return attr_def(attr_name, is_type, is_opaque, body)
 
         elif issubclass(attr_def, ParametrizedAttribute):
             param_list = attr_def.parse_parameters(self)
@@ -343,6 +340,76 @@ class AttrParser(BaseParser):
             self.parse_punctuation(">")
 
         return attr
+
+    def _raw_scan_balanced(self, pos: Position) -> Position:
+        """
+        Scan raw characters for balanced brackets starting from ``pos``.
+
+        ``pos`` must point to the first character after an opening ``<``.
+        Returns the position of the matching closing ``>``.
+        """
+        content = self.lexer.input.content
+        length = self.lexer.input.len
+        closers = {">": "<", ")": "(", "]": "[", "}": "{"}
+        nesting: list[str] = []
+
+        while pos < length:
+            c = content[pos]
+            pos += 1
+
+            if c in "<([{":
+                nesting.append(c)
+            elif c == "-" and pos < length and content[pos] == ">":
+                pos += 1
+            elif c in closers:
+                if not nesting:
+                    if c == ">":
+                        return pos - 1
+                    self.raise_error(
+                        f"Unbalanced '{c}' in dialect symbol body",
+                        pos - 1,
+                    )
+                if nesting[-1] != closers[c]:
+                    self.raise_error(
+                        f"Unbalanced '{c}' in dialect symbol body",
+                        pos - 1,
+                    )
+                nesting.pop()
+            elif c == '"':
+                str_start = pos - 1
+                while pos < length:
+                    sc = content[pos]
+                    pos += 1
+                    if sc == "\\":
+                        pos += 1
+                    elif sc == '"':
+                        break
+                else:
+                    self.raise_error(
+                        "Unterminated string literal in dialect symbol body",
+                        str_start,
+                    )
+
+        self.raise_error("Unexpected end of file in dialect symbol body")
+
+    def _parse_dialect_symbol_body(self) -> str:
+        """
+        Extract a dialect symbol body via raw character scanning.
+
+        The current token must be `<`.  Scans the input directly (bypassing
+        the tokenizer) to find the matching `>`, handling nested brackets
+        and string literals.  This matches MLIR's `parseDialectSymbolBody`.
+
+        After this call the lexer is positioned past the closing `>`.
+
+        Returns the body text between the outer `<` and `>` (exclusive).
+        """
+        body_start = self._current_token.span.start + 1
+        gt_pos = self._raw_scan_balanced(body_start)
+
+        self.lexer.pos = gt_pos + 1
+        self._parser_state.current_token = self.lexer.lex()
+        return self.lexer.input.content[body_start:gt_pos]
 
     def _parse_unregistered_attr_body(self, start_pos: Position | None) -> str:
         """
@@ -1377,17 +1444,8 @@ class AttrParser(BaseParser):
         if isinstance(type, AnyFloat):
             if is_hexadecimal_token:
                 assert isinstance(value, int)
-                match type:
-                    case Float16Type():
-                        return FloatAttr(convert_u16_to_f16(value), type)
-                    case Float32Type():
-                        return FloatAttr(convert_u32_to_f32(value), type)
-                    case Float64Type():
-                        return FloatAttr(convert_u64_to_f64(value), type)
-                    case _:
-                        raise NotImplementedError(
-                            f"Cannot parse hexadecimal literal for float type of bit width {type}"
-                        )
+                raw = value.to_bytes(type.compile_time_size, "little")
+                return FloatAttr(next(type.iter_unpack(raw)), type)
             return FloatAttr(float(value), type)
 
         if isa(type, IntegerType | IndexType):
