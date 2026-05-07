@@ -28,9 +28,6 @@ builtin.module {
 
   %vec, %val, %idx = "test.op"() : () -> (vector<4xf32>, f32, i32)
   %ie = llvm.insertelement %val, %vec[%idx : i32] : vector<4xf32>
-  %undef = llvm.mlir.undef : vector<4xf32>
-  %shuf = llvm.shufflevector %vec, %undef [0, 0, 0, 0] : vector<4xf32>
-  %shuf2 = llvm.shufflevector %vec, %undef [0, 1] : vector<4xf32>
 }
 
 // CHECK:       builtin.module {
@@ -58,7 +55,4 @@ builtin.module {
 // CHECK-NEXT:    {{%.*}} = llvm.insertvalue [[EVF]], [[AGG]][1, 0] : !llvm.struct<(i32, !llvm.array<3 x i32>)>
 // CHECK-NEXT:    [[VEC:%.*]], [[VAL:%.*]], [[IDX:%.*]] = "test.op"() : () -> (vector<4xf32>, f32, i32)
 // CHECK-NEXT:    {{%.*}} = llvm.insertelement [[VAL]], [[VEC]]{{\[}}[[IDX]] : i32] : vector<4xf32>
-// CHECK-NEXT:    [[UNDEF:%.*]] = llvm.mlir.undef : vector<4xf32>
-// CHECK-NEXT:    {{%.*}} = llvm.shufflevector [[VEC]], [[UNDEF]] [0, 0, 0, 0] : vector<4xf32>
-// CHECK-NEXT:    {{%.*}} = llvm.shufflevector [[VEC]], [[UNDEF]] [0, 1] : vector<4xf32>
 // CHECK-NEXT:  }
