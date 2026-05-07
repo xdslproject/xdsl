@@ -1018,10 +1018,6 @@ def test_routine_op_full_population():
 
 
 def test_global_ctor_dtor_builder_shortcuts():
-    """`GlobalConstructorOp` / `GlobalDestructorOp` accept both a `str` and a
-    `StringAttr` for `sym_name`. The filecheck parser bypasses `__init__`
-    (it goes through IRDL's generic constructor), so the str → StringAttr
-    branch and the StringAttr-passthrough branch are only exercised here."""
     ctor = acc.GlobalConstructorOp(
         sym_name="acc_constructor",
         region=Region(Block([acc.TerminatorOp()])),
