@@ -231,7 +231,7 @@ class SignlessIntegerBinaryOperation(IRDLOperation, HasFolderInterface, abc.ABC)
                 assert lhs.type == rhs.type
                 result = self.py_operation(lhs.value.data, rhs.value.data)
                 if result is not None:
-                    return (IntegerAttr(result, lhs.type),)
+                    return (IntegerAttr(result, lhs.type, truncate_bits=True),)
         if isa(rhs, IntegerAttr) and self.is_right_unit(rhs):
             return (self.lhs,)
         if not self.has_trait(Commutative):
