@@ -453,7 +453,7 @@ def _emit_clause_keyword(
 ) -> None:
     """Print whitespace + a clause keyword and update print state so the
     body's first character (typically ``(``) lands adjacent (e.g.
-    ``async(``). Shared between every oilist-style clause printer."""
+    ``async(``). Used by the three clauses of `KernelEnvironmentClauses`."""
     state.print_whitespace(printer)
     printer.print_string(keyword)
     state.should_emit_space = True
