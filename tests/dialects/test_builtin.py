@@ -144,12 +144,6 @@ def test_FloatType_packing():
     assert bf16.unpack(bf16_buffer, len(nums)) == nums
 
 
-def test_bf16_attr_construction_roundtrips():
-    # 1.5 is exactly representable in bf16.
-    a = FloatAttr(1.5, bf16)
-    assert a.value.data == 1.5
-
-
 @pytest.mark.parametrize(
     "value, expected_raw",
     [
@@ -185,19 +179,28 @@ def test_bf16_pack_rounds_to_nearest_even():
     assert bf16.pack((just_above,)) == (0x3F81).to_bytes(2, "little")
 
 
-def test_bf16_unpack_is_lossy():
-    # 0.1 is not exactly representable in bf16; round-trip is within ULP.
-    rt = bf16.unpack(bf16.pack((0.1,)), 1)[0]
-    assert rt != 0.1
-    assert abs(rt - 0.1) < 2**-6
-
-
-def test_FloatAttr_skips_normalisation_for_unsupported_widths():
-    # f80 and f128 have no precision-normalisation path (their format
-    # raises NotImplementedError). FloatAttr.__init__ must take the
-    # else-branch and store the Python float as-is.
-    assert FloatAttr(0.1, f80).value.data == 0.1
-    assert FloatAttr(0.1, f128).value.data == 0.1
+@pytest.mark.parametrize(
+    "value, type_, tolerance",
+    [
+        # f80 and f128 have no precision-normalisation path (their format
+        # raises NotImplementedError); FloatAttr stores the float as-is.
+        (0.1, f80, None),
+        (0.1, f128, None),
+        # bf16 normalises through pack/unpack; 1.5 is exactly representable.
+        (1.5, bf16, None),
+        # 0.1 is not exactly representable in bf16; round-trip is within ULP.
+        (0.1, bf16, 2**-6),
+    ],
+)
+def test_FloatAttr_normalisation(
+    value: float, type_: AnyFloat, tolerance: float | None
+):
+    data = FloatAttr(value, type_).value.data
+    if tolerance is None:
+        assert data == value
+    else:
+        assert data != value
+        assert abs(data - value) < tolerance
 
 
 def test_IntegerType_size():
