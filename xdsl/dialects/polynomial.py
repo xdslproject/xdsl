@@ -39,9 +39,6 @@ class RingAttr(ParametrizedAttribute):
 
     coefficient_type: Attribute
 
-    def __init__(self, coefficient_type: Attribute):
-        super().__init__(coefficient_type)
-
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> Sequence[Attribute]:
         with parser.in_angle_brackets():
@@ -67,9 +64,6 @@ class PolynomialType(ParametrizedAttribute, TypeAttribute):
     name = "polynomial.polynomial"
 
     ring: RingAttr
-
-    def __init__(self, ring: RingAttr):
-        super().__init__(ring)
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> Sequence[Attribute]:
