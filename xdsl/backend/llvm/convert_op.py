@@ -9,7 +9,7 @@ from llvmlite.ir.values import Block as LLVMBlock
 from llvmlite.ir.values import Value
 
 from xdsl.backend.llvm.convert_type import convert_type
-from xdsl.dialects import llvm, vector
+from xdsl.dialects import llvm
 from xdsl.dialects.builtin import (
     AnyFloat,
     DenseIntOrFPElementsAttr,
@@ -429,20 +429,6 @@ def _convert_call_intrinsic(
         val_map[op.ress] = result
 
 
-def _convert_broadcast(
-    op: vector.BroadcastOp,
-    builder: ir.IRBuilder,
-    val_map: dict[SSAValue, ir.Value],
-):
-    source_val = val_map[op.source]
-    vec_type = convert_type(op.vector.type)
-    n_lanes = op.vector.type.get_shape()[0]
-    undef = ir.Constant(vec_type, ir.Undefined)
-    inserted = builder.insert_element(undef, source_val, ir.Constant(ir.IntType(32), 0))
-    mask = ir.Constant(ir.VectorType(ir.IntType(32), n_lanes), [0] * n_lanes)
-    val_map[op.vector] = builder.shuffle_vector(inserted, undef, mask)
-
-
 def _convert_shuffle_vector(
     op: llvm.ShuffleVectorOp,
     builder: ir.IRBuilder,
@@ -564,8 +550,6 @@ def convert_op(
             _convert_shuffle_vector(op, builder, val_map)
         case llvm.FMAOp():
             _convert_fma(op, builder, val_map)
-        case vector.BroadcastOp():
-            _convert_broadcast(op, builder, val_map)
         case llvm.ConstantOp():
             _convert_constant(op, builder, val_map)
         case _:
