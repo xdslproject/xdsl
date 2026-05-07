@@ -285,7 +285,7 @@ class RegisterAllocatedMemoryEffect(MemoryEffect):
         from xdsl.backend.register_allocatable import RegisterAllocatableOperation
 
         if isinstance(op, RegisterAllocatableOperation) and (
-            op.iter_used_registers  # pyright: ignore[reportDeprecated]
+            type(op).iter_used_registers  # pyright: ignore[reportDeprecated]
             is not RegisterAllocatableOperation.iter_used_registers  # pyright: ignore[reportDeprecated]
         ):
             warnings.warn(
