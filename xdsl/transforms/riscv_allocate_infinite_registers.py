@@ -13,6 +13,8 @@ from xdsl.utils.exceptions import PassFailedException
 class RISCVAllocateInfiniteRegistersPass(ModulePass):
     """
     Allocates infinite registers to physical registers in the module.
+
+    Assumes ParallelMovOps are legalized.
     """
 
     name = "riscv-allocate-infinite-registers"
@@ -22,15 +24,54 @@ class RISCVAllocateInfiniteRegistersPass(ModulePass):
             register_stack = RiscvRegisterStack.get()
 
             # remove registers from stack that are already used in body
-            for reg in RegisterAllocatableOperation.iter_all_used_registers(
-                func_op.body
-            ):
-                register_stack.exclude_register(reg)
+            # up till the first parallel move op
+            for inner_op in func_op.walk():
+                if isinstance(inner_op, riscv.ParallelMovOp):
+                    # only consider uses for pmov
+                    for reg in inner_op.operand_types:
+                        if (
+                            isinstance(reg, riscv.RISCVRegisterType)
+                            and reg.is_allocated
+                        ):
+                            register_stack.exclude_register(reg)
+                    break
+
+                if isinstance(inner_op, RegisterAllocatableOperation):
+                    for reg in inner_op.iter_used_registers():
+                        register_stack.exclude_register(reg)
 
             phys_reg_by_inf_reg: dict[
                 riscv.RISCVRegisterType, riscv.RISCVRegisterType
             ] = {}
             for inner_op in func_op.walk():
+                if isinstance(inner_op, riscv.ParallelMovOp):
+                    # Reset the register stack and search until the next pmov op
+                    register_stack = RiscvRegisterStack.get()
+                    # exclude allocated definitions
+                    for reg in inner_op.result_types:
+                        if (
+                            isinstance(reg, riscv.RISCVRegisterType)
+                            and reg.is_allocated
+                        ):
+                            register_stack.exclude_register(reg)
+                    # remove registers from stack that are already used in body
+                    # up till the next parallel move op
+                    next_op = inner_op
+                    while (next_op := next_op.next_op) is not None:
+                        if isinstance(next_op, riscv.ParallelMovOp):
+                            # only consider uses for pmov
+                            for reg in next_op.operand_types:
+                                if (
+                                    isinstance(reg, riscv.RISCVRegisterType)
+                                    and reg.is_allocated
+                                ):
+                                    register_stack.exclude_register(reg)
+                            break
+
+                        if isinstance(next_op, RegisterAllocatableOperation):
+                            for reg in next_op.iter_used_registers():
+                                register_stack.exclude_register(reg)
+
                 for result in inner_op.results:
                     result_reg = result.type
                     if not isinstance(result_reg, riscv.RISCVRegisterType):
