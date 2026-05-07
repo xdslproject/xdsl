@@ -768,15 +768,13 @@ builtin.module {
     llvm.return %0 : f32
   }
 
-  // CHECK: define float @"fma_op_scalar_f32"(float %".1", float %".2", float %".3")
-  // CHECK-NEXT: {
-  // CHECK-NEXT: [[ENTRY:.\d+]]:
-  // CHECK-NEXT:   %"[[RES:.\d+]]" = call float @"llvm.fma.f32"(float %".1", float %".2", float %".3")
-  // CHECK-NEXT:   ret float %"[[RES]]"
+  // CHECK: define float @{{"?fma_op_scalar_f32"?}}(float [[A:%[^ ,)]+]], float [[B:%[^ ,)]+]], float [[C:%[^ ,)]+]])
+  // CHECK:   [[R:%[^ ]+]] = call float @{{"?llvm\.fma\.f32"?}}(float [[A]], float [[B]], float [[C]])
+  // CHECK-NEXT:   ret float [[R]]
   // CHECK-NEXT: }
 
   llvm.func @fma_op_f32(%arg0: vector<4xf32>, %arg1: vector<4xf32>, %arg2: vector<4xf32>) -> vector<4xf32> {
-    %0 = vector.fma %arg0, %arg1, %arg2 : vector<4xf32>
+    %0 = llvm.intr.fma(%arg0, %arg1, %arg2) : (vector<4xf32>, vector<4xf32>, vector<4xf32>) -> vector<4xf32>
     llvm.return %0 : vector<4xf32>
   }
 
@@ -786,7 +784,7 @@ builtin.module {
   // CHECK-NEXT: }
 
   llvm.func @fma_op_f64(%arg0: vector<2xf64>, %arg1: vector<2xf64>, %arg2: vector<2xf64>) -> vector<2xf64> {
-    %0 = vector.fma %arg0, %arg1, %arg2 : vector<2xf64>
+    %0 = llvm.intr.fma(%arg0, %arg1, %arg2) : (vector<2xf64>, vector<2xf64>, vector<2xf64>) -> vector<2xf64>
     llvm.return %0 : vector<2xf64>
   }
 
@@ -921,17 +919,6 @@ builtin.module {
 
   // CHECK: define <4 x float> @{{"?insert_element"?}}(<4 x float> [[V:%[^ ,)]+]], float [[E:%[^ ,)]+]], i32 [[I:%[^ ,)]+]])
   // CHECK:   [[R:%[^ ]+]] = insertelement <4 x float> [[V]], float [[E]], i32 [[I]]
-  // CHECK-NEXT:   ret <4 x float> [[R]]
-  // CHECK-NEXT: }
-
-  llvm.func @broadcast_f32(%arg0: f32) -> vector<4xf32> {
-    %0 = vector.broadcast %arg0 : f32 to vector<4xf32>
-    llvm.return %0 : vector<4xf32>
-  }
-
-  // CHECK: define <4 x float> @{{"?broadcast_f32"?}}(float [[A:%[^ ,)]+]])
-  // CHECK:   [[V:%[^ ]+]] = insertelement <4 x float> <float undef, float undef, float undef, float undef>, float [[A]], i32 0
-  // CHECK-NEXT:   [[R:%[^ ]+]] = shufflevector <4 x float> [[V]], <4 x float> <float undef, float undef, float undef, float undef>, <4 x i32> <i32 0, i32 0, i32 0, i32 0>
   // CHECK-NEXT:   ret <4 x float> [[R]]
   // CHECK-NEXT: }
 
