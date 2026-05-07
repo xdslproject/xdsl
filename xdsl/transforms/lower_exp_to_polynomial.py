@@ -1,6 +1,7 @@
 import math as pymath
 from collections.abc import Callable
 from dataclasses import dataclass
+from typing import cast
 
 from xdsl.context import Context
 from xdsl.dialects import math, polynomial
@@ -23,7 +24,7 @@ from xdsl.pattern_rewriter import (
     op_type_rewrite_pattern,
 )
 
-_UNDERFLOW_LOWER_BOUND: dict[type, float] = {
+UNDERFLOW_LOWER_BOUND: dict[type, float] = {
     # Float16Type: pymath.log(2.0**-24),  # ≈ -16.64
     # BFloat16Type: pymath.log(2.0**-133),  # ≈ -92.18
     # Float32Type: pymath.log(2.0**-149),  # ≈ -103.28
@@ -35,7 +36,7 @@ _UNDERFLOW_LOWER_BOUND: dict[type, float] = {
 }
 
 # Largest x such that exp(x) is still representable in the given precision.
-_OVERFLOW_UPPER_BOUND: dict[type, float] = {
+OVERFLOW_UPPER_BOUND: dict[type, float] = {
     Float16Type: 16.0 * pymath.log(2.0),  # ≈ 11.09
     BFloat16Type: 128.0 * pymath.log(2.0),  # ≈ 88.72
     Float32Type: 128.0 * pymath.log(2.0),  # ≈ 88.72
@@ -70,7 +71,7 @@ def _chebyshev_coefficients(
 
 def _element_float_type(tp: Attribute) -> Attribute:
     if isinstance(tp, (VectorType, TensorType)):
-        return tp.get_element_type()
+        return cast(Attribute, tp.get_element_type())
     return tp
 
 
@@ -96,8 +97,8 @@ class LowerExpToPolynomial(RewritePattern):
     def match_and_rewrite(self, op: math.ExpOp, rewriter: PatternRewriter) -> None:
         # representable range for the precision format; specific to exp
         elem_ty = _element_float_type(op.operand.type)
-        underflow = _UNDERFLOW_LOWER_BOUND.get(type(elem_ty))
-        overflow = _OVERFLOW_UPPER_BOUND.get(type(elem_ty))
+        underflow = UNDERFLOW_LOWER_BOUND.get(type(elem_ty))
+        overflow = OVERFLOW_UPPER_BOUND.get(type(elem_ty))
         if underflow is None or overflow is None:
             return
 
