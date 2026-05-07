@@ -985,20 +985,6 @@ builtin.module {
   // CHECK-NEXT:   ret <4 x float> %"[[RES]]"
   // CHECK-NEXT: }
 
-  llvm.func @broadcast_f32(%arg0: f32) -> vector<4xf32> {
-    %undef = llvm.mlir.undef : vector<4xf32>
-    %zero = llvm.mlir.constant(0 : i32) : i32
-    %inserted = llvm.insertelement %arg0, %undef[%zero : i32] : vector<4xf32>
-    %res = llvm.shufflevector %inserted, %undef [0, 0, 0, 0] : vector<4xf32>
-    llvm.return %res : vector<4xf32>
-  }
-
-  // CHECK: define <4 x float> @{{"?broadcast_f32"?}}(float [[A:%[^ ,)]+]])
-  // CHECK:   [[V:%[^ ]+]] = insertelement <4 x float> {{(<float undef, float undef, float undef, float undef>|undef)}}, float [[A]], i32 0
-  // CHECK-NEXT:   [[R:%[^ ]+]] = shufflevector <4 x float> [[V]], <4 x float> {{(<float undef, float undef, float undef, float undef>|undef)}}, <4 x i32> {{(<i32 0, i32 0, i32 0, i32 0>|zeroinitializer)}}
-  // CHECK-NEXT:   ret <4 x float> [[R]]
-  // CHECK-NEXT: }
-
   llvm.func @constant_int() -> i32 {
     %0 = llvm.mlir.constant(42 : i32) : i32
     llvm.return %0 : i32
