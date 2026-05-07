@@ -448,9 +448,7 @@ def _print_typed_operand(printer: Printer, operand: SSAValue) -> None:
     printer.print_attribute(operand.type)
 
 
-def _emit_clause_keyword(
-    printer: Printer, state: PrintingState, keyword: str
-) -> None:
+def _emit_clause_keyword(printer: Printer, state: PrintingState, keyword: str) -> None:
     """Print whitespace + a clause keyword and update print state so the
     body's first character (typically ``(``) lands adjacent (e.g.
     ``async(``). Used by the three clauses of `KernelEnvironmentClauses`."""
