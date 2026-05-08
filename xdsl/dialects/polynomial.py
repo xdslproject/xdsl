@@ -127,9 +127,9 @@ class ChebyshevPolynomialAttr(ParametrizedAttribute):
         return len(self.coefficients) - 1
 
     @property
-    def coeff_values(self) -> list[float]:
+    def coeff_values(self) -> tuple[float, ...]:
         """Extract coefficient values as Python floats."""
-        return [c.value.data for c in self.coefficients]
+        return tuple(c.value.data for c in self.coefficients)
 
 
 @irdl_attr_definition
@@ -186,7 +186,7 @@ class TypedChebyshevPolynomialAttr(ParametrizedAttribute):
         return self.value.degree
 
     @property
-    def coeff_values(self) -> list[float]:
+    def coeff_values(self) -> tuple[float, ...]:
         return self.value.coeff_values
 
 

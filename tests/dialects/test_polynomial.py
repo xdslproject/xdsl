@@ -18,20 +18,20 @@ from xdsl.dialects.polynomial import (
 @pytest.mark.parametrize(
     "coefficients, expected_degree, expected_coeffs",
     [
-        pytest.param((0.5, 1.2, 0.3), 2, [0.5, 1.2, 0.3], id="float_tuple"),
+        pytest.param((0.5, 1.2, 0.3), 2, (0.5, 1.2, 0.3), id="float_tuple"),
         pytest.param(
             ArrayAttr([FloatAttr(1.0, f64), FloatAttr(2.0, f64)]),
             1,
-            [1.0, 2.0],
+            (1.0, 2.0),
             id="array_attr",
         ),
-        pytest.param((42.0,), 0, [42.0], id="single_coefficient"),
+        pytest.param((42.0,), 0, (42.0,), id="single_coefficient"),
     ],
 )
 def test_attr_construction(
     coefficients: tuple[float, ...] | ArrayAttr[FloatAttr],
     expected_degree: int,
-    expected_coeffs: list[float],
+    expected_coeffs: tuple[float, ...],
 ):
     attr = ChebyshevPolynomialAttr(coefficients)
     assert attr.degree == expected_degree
@@ -55,7 +55,7 @@ def test_typed_chebyshev_polynomial_from_tuple():
     poly_ty = PolynomialType(RingAttr(f64))
     typed = TypedChebyshevPolynomialAttr(poly_ty, (1.0, 2.0, 3.0))
     assert typed.degree == 2
-    assert typed.coeff_values == [1.0, 2.0, 3.0]
+    assert typed.coeff_values == (1.0, 2.0, 3.0)
     assert typed.type == poly_ty
 
 
