@@ -186,6 +186,25 @@ def test_parallel_wait_print_without_metadata():
     assert "devnum:" not in text
 
 
+def test_parallel_wait_only_keyword_only_no_operands_print():
+    """`_print_wait_body` has a printer-only branch — `wait_only` set to a
+    non-default device-type list with no `wait_operands` — that the parser
+    can never produce (`_parse_wait_body` requires a `,` after the
+    `[dt-list]`). This is the Python-only state the roadmap exception
+    covers: a property combination constructable only from the builder."""
+    nvidia = acc.DeviceTypeAttr(acc.DeviceType.NVIDIA)
+    op = acc.ParallelOp(
+        region=Region(Block([acc.YieldOp()])),
+        wait_only=ArrayAttr([nvidia]),
+    )
+    op.verify()
+    assert len(op.wait_operands) == 0
+
+    out = io.StringIO()
+    Printer(stream=out).print_op(op)
+    assert "wait([#acc.device_type<nvidia>])" in out.getvalue()
+
+
 def test_parallel_unit_and_default_attrs():
     """self_attr / combined accept bool shortcuts; default_attr accepts enum."""
     op = acc.ParallelOp(
