@@ -411,15 +411,8 @@ def test_host_data_init_bool_shortcut():
     assert isinstance(op.if_present, UnitAttr)
 
 
-def _empty_kernel_environment_block() -> Block:
-    """`acc.kernel_environment` has `NoTerminator` so the body is a single
-    block that need not end in a terminator. Build one with a single
-    placeholder op so the SizedRegion<1> verifier sees a non-empty region."""
-    return Block([TestOp()])
-
-
 def test_kernel_environment_empty_verifies():
-    op = acc.KernelEnvironmentOp(region=Region(_empty_kernel_environment_block()))
+    op = acc.KernelEnvironmentOp(region=Region(Block([TestOp()])))
     op.verify()
 
     assert len(op.data_clause_operands) == 0
@@ -438,7 +431,7 @@ def test_kernel_environment_unset_props_absent_from_dict():
     when not provided (rather than stored as None). The MLIR-interop
     round-trip relies on this — extra all-None entries would print as
     explicit attributes in the trailing attr-dict."""
-    op = acc.KernelEnvironmentOp(region=Region(_empty_kernel_environment_block()))
+    op = acc.KernelEnvironmentOp(region=Region(Block([TestOp()])))
 
     for prop in (
         "asyncOperandsDeviceType",
@@ -459,7 +452,7 @@ def test_kernel_environment_wait_only_no_operands_print():
     combination constructable only from the builder."""
     nvidia = acc.DeviceTypeAttr(acc.DeviceType.NVIDIA)
     op = acc.KernelEnvironmentOp(
-        region=Region(_empty_kernel_environment_block()),
+        region=Region(Block([TestOp()])),
         wait_only=ArrayAttr([nvidia]),
     )
     op.verify()
