@@ -68,7 +68,7 @@ class InlineRegionOp(IRDLOperation):
 class GetOperationOp(IRDLOperation):
     name = "pdl_interp_region.get_operation"
     index = prop_def(IntegerAttr[I32])
-    opt_name = opt_prop_def(StringAttr, prop_name="opt_name")
+    opt_name = prop_def(StringAttr, prop_name="opt_name")
     input_region = operand_def(RegionType)
     opt_operands = var_operand_def(AnyPDLType | RangeType[AnyPDLType])
 
@@ -76,7 +76,7 @@ class GetOperationOp(IRDLOperation):
 
     assembly_format = (
         "`(` ($opt_operands^ `:` type($opt_operands))? `)` "
-        "(` called` $opt_name^)? ` `"
+        "` called` $opt_name ` `"
         "$index `of` $input_region "
         "attr-dict"
     )

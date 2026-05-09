@@ -2,9 +2,10 @@ from typing import Any, cast, List, Tuple
 
 from xdsl.context import Context
 from xdsl.dialects import pdl, pdl_interp, pdl_region, pdl_interp_region
-from xdsl.dialects.builtin import SymbolRefAttr
+from xdsl.dialects.builtin import SymbolRefAttr, IntegerAttr
 from xdsl.dialects.func import FuncOp, CallOp
 from xdsl.dialects.pdl import RangeType, ValueType
+from xdsl.dialects.pdl_types import AttributeType, TypeType
 from xdsl.dialects.scf import YieldOp
 from xdsl.interpreter import (
     Interpreter,
@@ -667,7 +668,69 @@ class PDLInterpFunctions(InterpreterFunctions):
             op: pdl_interp_region.GetOperationOp,
             args: tuple[Any, ...],
     ) -> tuple[Any, ...]:
+        index = op.properties['index'].value.data
+        name = op.properties['opt_name'].data
 
+        region = args[0]
+        assert isinstance(region, Region)
+
+        opt_attributes: list[Attribute] = []
+        opt_types: list[Attribute] = []
+        opt_operands: list[OpResult] = []
+
+        for arg in args[1:]:
+            if arg is None:
+                continue
+            if isinstance(arg, OpResult):
+                opt_operands.append(arg)
+                continue
+            if isinstance(arg, Attribute):
+                if hasattr(arg, "data"):
+                    opt_attributes.append(arg)
+                else:
+                    opt_types.append(arg)
+
+        for candidate in region.walk():
+            if candidate.name != name:
+                continue
+
+            # Match operands, attributes, and result types independently.
+            if len(candidate.operands) < len(opt_operands):
+                continue
+            if len(candidate.results) <= index:
+                continue
+
+            operands_match = True
+            for expected, actual in zip(opt_operands, candidate.operands):
+                if expected != actual:
+                    operands_match = False
+                    break
+            if not operands_match:
+                continue
+
+            attributes_match = True
+            candidate_attrs = list(candidate.attributes.values())
+            if len(candidate_attrs) < len(opt_attributes):
+                continue
+            for expected, actual in zip(opt_attributes, candidate_attrs):
+                if expected != actual:
+                    attributes_match = False
+                    break
+            if not attributes_match:
+                continue
+
+            types_match = True
+            candidate_result_types = list(candidate.result_types)
+            if len(candidate_result_types) < len(opt_types):
+                continue
+            for expected, actual in zip(opt_types, candidate_result_types):
+                if expected != actual:
+                    types_match = False
+                    break
+            if not types_match:
+                continue
+
+            return (candidate.results[index].op,)
 
         return (None,)
 
