@@ -10,7 +10,7 @@ from xdsl.dialects.builtin import (
 from xdsl.dialects.irdl import AttributeType
 from xdsl.dialects.pdl import (
     OperationType,
-    ValueType, RangeType, TypeType,
+    ValueType, RangeType, TypeType, AnyPDLTypeConstr, AnyPDLType,
 )
 from xdsl.dialects.pdl_region import (
     RegionType,
@@ -25,7 +25,7 @@ from xdsl.irdl import (
     operand_def,
     prop_def,
     result_def,
-    var_operand_def, opt_prop_def, AttrSizedOperandSegments, opt_operand_def
+    var_operand_def, opt_prop_def, AttrSizedOperandSegments, opt_operand_def, base
 )
 from xdsl.parser import Parser
 from xdsl.printer import Printer
@@ -69,18 +69,21 @@ class GetOperationOp(IRDLOperation):
     name = "pdl_interp_region.get_operation"
     index = prop_def(IntegerAttr[I32])
     input_region = operand_def(RegionType)
-    # opt_operand = opt_operand_def(ValueType | TypeType | AttributeType | RangeType[ValueType | TypeType | AttributeType])
-    # opt_name = opt_prop_def(StringAttr, prop_name="name")
+    opt_operands = var_operand_def(AnyPDLType | RangeType[AnyPDLType])
 
     result_op = result_def(OperationType)
 
-    assembly_format = "$index `of` $input_region attr-dict"
+    assembly_format = (
+        "`(` ($opt_operands^ `:` type($opt_operands))?`)` "
+        "$index `of` $input_region "
+        "attr-dict"
+    )
 
     def __init__(
         self,
         index: int | IntegerAttr[I32],
         input_region: SSAValue,
-        opt_operands: SSAValue | None = None,
+        opt_operands: Sequence[SSAValue] | None = None,
         opt_attributes: SSAValue | None = None,
         opt_name: str | StringAttr | None = None,
         opt_type: SSAValue | None = None,
