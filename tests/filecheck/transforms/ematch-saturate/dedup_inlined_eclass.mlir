@@ -54,7 +54,7 @@ pdl_interp.func @matcher(%arg0 : !pdl.operation) {
       %101 = pdl_interp_region.get_region 0 of %100 : !pdl_region.region
       %a = pdl_interp.get_result 0 of %arg0
       %b = pdl_interp.get_value_type of %a : !pdl.type
-      %1011 = pdl_interp_region.get_operation(%110, %a, %b, %101 : !pdl.attribute, !pdl.value, !pdl.type, !pdl_region.region) 0 of %101
+      %1011 = pdl_interp_region.get_operation(%110, %a, %b, %101 : !pdl.attribute, !pdl.value, !pdl.type, !pdl_region.region) called "arith.constant" 0 of %101
       %102 = pdl_interp.apply_constraint "replace_return_with_yield"(%101 : !pdl_region.region) : !pdl_region.region -> ^bb43, ^bb1
     ^bb43:
       %103 = pdl_interp.apply_constraint "get_arguments_of_function"(%100 : !pdl.operation) : !pdl.range<value> -> ^bb46, ^bb1

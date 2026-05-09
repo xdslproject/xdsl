@@ -68,16 +68,19 @@ class InlineRegionOp(IRDLOperation):
 class GetOperationOp(IRDLOperation):
     name = "pdl_interp_region.get_operation"
     index = prop_def(IntegerAttr[I32])
+    opt_name = opt_prop_def(StringAttr, prop_name="opt_name")
     input_region = operand_def(RegionType)
     opt_operands = var_operand_def(AnyPDLType | RangeType[AnyPDLType])
 
     result_op = result_def(OperationType)
 
     assembly_format = (
-        "`(` ($opt_operands^ `:` type($opt_operands))?`)` "
+        "`(` ($opt_operands^ `:` type($opt_operands))? `)` "
+        "(` called` $opt_name^)? ` `"
         "$index `of` $input_region "
         "attr-dict"
     )
+    " (`called` $opt_name^)?"
 
     def __init__(
         self,
@@ -90,11 +93,11 @@ class GetOperationOp(IRDLOperation):
     ):
         if isinstance(index, int):
             index = IntegerAttr.from_int_and_width(index, 32)
-        # if isinstance(opt_name, str):
-        #     opt_name = StringAttr(opt_name)
+        if isinstance(opt_name, str):
+            opt_name = StringAttr(opt_name)
 
         super().__init__(
-            properties={"index": index},
+            properties={"index": index, "name": opt_name},
             operands=[input_region, opt_operands, opt_attributes, opt_type],
             result_types=[OperationType()],
         )
