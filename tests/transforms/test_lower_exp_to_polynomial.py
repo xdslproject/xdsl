@@ -87,10 +87,14 @@ def test_acc_bounds_in_range(elem_ty: _FloatTy):
 
 @PRECISIONS
 def test_acc_lower_out_of_range(elem_ty: _FloatTy):
-    """acc_bound + lower < underflow -> lower clamped to underflow."""
+    """acc_bound + lower < underflow -> lower clamped to underflow.
+
+    -1000 is below every supported precision's underflow (f16 ~= -16.64,
+    bf16 ~= -92.18, f32 ~= -103.28, f64 ~= -744.44).
+    """
     module = _run_pass(
         elem_ty,
-        {"acc_bound": 1e-3, "lower_bound": -100.0, "upper_bound": 0.5},
+        {"acc_bound": 1e-3, "lower_bound": -1000.0, "upper_bound": 0.5},
     )
     eval_op = next(iter(module.body.block.ops))
     assert isinstance(eval_op, polynomial.EvalOp)
@@ -134,7 +138,7 @@ def test_acc_lower_only_in_range(elem_ty: _FloatTy):
 @PRECISIONS
 def test_acc_lower_only_out_of_range(elem_ty: _FloatTy):
     """acc_bound + lower only (out of range) -> [underflow, overflow]."""
-    module = _run_pass(elem_ty, {"acc_bound": 1e-3, "lower_bound": -100.0})
+    module = _run_pass(elem_ty, {"acc_bound": 1e-3, "lower_bound": -1000.0})
     eval_op = next(iter(module.body.block.ops))
     assert isinstance(eval_op, polynomial.EvalOp)
     assert eval_op.domain_lower is not None
