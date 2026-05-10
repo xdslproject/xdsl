@@ -25,14 +25,10 @@ from xdsl.pattern_rewriter import (
 )
 
 UNDERFLOW_LOWER_BOUND: dict[type, float] = {
-    # Float16Type: pymath.log(2.0**-24),  # ≈ -16.64
-    # BFloat16Type: pymath.log(2.0**-133),  # ≈ -92.18
-    # Float32Type: pymath.log(2.0**-149),  # ≈ -103.28
-    # Float64Type: pymath.log(2.0**-1074),  # ≈ -744.44
-    Float16Type: -1,
-    BFloat16Type: -1,
-    Float32Type: -1,
-    Float64Type: -1,
+    Float16Type: pymath.log(2.0**-24),  # ≈ -16.64
+    BFloat16Type: pymath.log(2.0**-133),  # ≈ -92.18
+    Float32Type: pymath.log(2.0**-149),  # ≈ -103.28
+    Float64Type: pymath.log(2.0**-1074),  # ≈ -744.44
 }
 
 # Largest x such that exp(x) is still representable in the given precision.
