@@ -670,10 +670,14 @@ class PDLInterpFunctions(InterpreterFunctions):
     ) -> tuple[Any, ...]:
         assert args
 
-        insert_op = args[0]
-        if insert_op is None:
+        insert_op_old = args[0]
+        if insert_op_old is None:
             return tuple([Region()])
-        assert isinstance(insert_op, Operation)
+        assert isinstance(insert_op_old, Operation)
+        insert_op = insert_op_old.clone()
+
+        rewriter = self.get_rewriter(interpreter)
+        rewriter.erase_op(insert_op_old, safe_erase=False)
 
         region = args[-1]
         assert isinstance(region, Region)
@@ -829,11 +833,11 @@ class PDLInterpFunctions(InterpreterFunctions):
             if not types_match:
                 continue
 
-            candidates.append(candidate.results[0])
+            candidates.append(candidate)
 
         if len(candidates) <= index:
             return (None,)
-        return (candidates[index].op,)
+        return (candidates[index],)
 
     @impl(pdl_interp_region.InlineRegionOp)
     def run_inline_region(
