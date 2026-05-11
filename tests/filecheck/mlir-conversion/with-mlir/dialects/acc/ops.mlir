@@ -1632,4 +1632,46 @@ builtin.module {
   // CHECK-NEXT:    acc.terminator
   // CHECK-NEXT:  }
 
+  // acc.atomic.read / acc.atomic.write — leaf atomic ops with the shared
+  // `if(%cond)` optional clause (oilist). The pretty form must round-trip
+  // bit-identically through mlir-opt, including the implicit `i1` typing
+  // of the if-cond operand.
+  func.func @acc_atomic_read(%v: memref<i32>, %x: memref<i32>) {
+    acc.atomic.read %v = %x : memref<i32>, memref<i32>, i32
+    %c = arith.constant true
+    acc.atomic.read if(%c) %v = %x : memref<i32>, memref<i32>, i32
+    func.return
+  }
+  // CHECK:       func.func @acc_atomic_read(
+  // CHECK:         acc.atomic.read %{{.*}} = %{{.*}} : memref<i32>, memref<i32>, i32
+  // CHECK-NEXT:    %{{.*}} = arith.constant true
+  // CHECK-NEXT:    acc.atomic.read if(%{{.*}}) %{{.*}} = %{{.*}} : memref<i32>, memref<i32>, i32
+
+  func.func @acc_atomic_write(%x: memref<i32>, %expr: i32) {
+    acc.atomic.write %x = %expr : memref<i32>, i32
+    %c = arith.constant true
+    acc.atomic.write if(%c) %x = %expr : memref<i32>, i32
+    func.return
+  }
+  // CHECK:       func.func @acc_atomic_write(
+  // CHECK:         acc.atomic.write %{{.*}} = %{{.*}} : memref<i32>, i32
+  // CHECK-NEXT:    %{{.*}} = arith.constant true
+  // CHECK-NEXT:    acc.atomic.write if(%{{.*}}) %{{.*}} = %{{.*}} : memref<i32>, i32
+
+  // Generic-form input — proves a hand-written generic spelling survives the
+  // xdsl ↔ mlir-opt round-trip in both directions. Operand order in generic
+  // form is `(x, v[, if_cond])` for read and `(x, expr[, if_cond])` for write.
+  func.func @acc_atomic_generic(%v: memref<i32>, %x: memref<i32>, %expr: i32, %c: i1) {
+    "acc.atomic.read"(%x, %v) <{element_type = i32}> : (memref<i32>, memref<i32>) -> ()
+    "acc.atomic.read"(%x, %v, %c) <{element_type = i32}> : (memref<i32>, memref<i32>, i1) -> ()
+    "acc.atomic.write"(%x, %expr) : (memref<i32>, i32) -> ()
+    "acc.atomic.write"(%x, %expr, %c) : (memref<i32>, i32, i1) -> ()
+    func.return
+  }
+  // CHECK:       func.func @acc_atomic_generic(
+  // CHECK:         acc.atomic.read %{{.*}} = %{{.*}} : memref<i32>, memref<i32>, i32
+  // CHECK-NEXT:    acc.atomic.read if(%{{.*}}) %{{.*}} = %{{.*}} : memref<i32>, memref<i32>, i32
+  // CHECK-NEXT:    acc.atomic.write %{{.*}} = %{{.*}} : memref<i32>, i32
+  // CHECK-NEXT:    acc.atomic.write if(%{{.*}}) %{{.*}} = %{{.*}} : memref<i32>, i32
+
 }
