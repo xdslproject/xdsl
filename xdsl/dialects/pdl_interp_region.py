@@ -102,6 +102,28 @@ class GetOperationOp(IRDLOperation):
             result_types=[OperationType()],
         )
 
+
+@irdl_op_definition
+class CreateRegionOp(IRDLOperation):
+    name = "pdl_interp_region.create_region"
+    opt_operands = var_operand_def(OperationType | RangeType[OperationType])
+
+    result_op = result_def(RegionType)
+
+    assembly_format = (
+        "`(` ($opt_operands^ `:` type($opt_operands))? `)` "
+        "attr-dict"
+    )
+
+    def __init__(
+        self,
+        opt_operands: Sequence[SSAValue] | None = None,
+    ):
+        super().__init__(
+            operands=[opt_operands],
+            result_types=[RegionType()]
+        )
+
 @irdl_op_definition
 class CreateOperationRegionOp(IRDLOperation):
     """
@@ -272,5 +294,7 @@ PDLInterpRegion = Dialect(
         InlineRegionOp,
         GetOperationOp,
         CreateOperationRegionOp,
+        CreateRegionOp,
+
     ],
 )

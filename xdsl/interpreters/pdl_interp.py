@@ -18,7 +18,7 @@ from xdsl.interpreter import (
     impl_terminator,
     register_impls, impl_external,
 )
-from xdsl.ir import Attribute, Operation, OpResult, SSAValue, Region, Block, BlockArgument, OpOperands
+from xdsl.ir import Attribute, Operation, OpResult, SSAValue, Region, Block, BlockArgument, OpOperands, TypeAttribute
 from xdsl.irdl import IRDLOperation
 from xdsl.pattern_rewriter import PatternRewriter
 from xdsl.rewriter import InsertPoint
@@ -661,6 +661,19 @@ class PDLInterpFunctions(InterpreterFunctions):
 
         return (args[0].regions[op.index.value.data],)
 
+    @impl(pdl_interp_region.CreateRegionOp)
+    def run_create_region(
+            self,
+            interpreter: Interpreter,
+            op: pdl_interp_region.CreateRegionOp,
+            args: tuple[Any, ...],
+    ) -> tuple[Any, ...]:
+        new_block = Block()
+        new_region = Region([new_block])
+
+
+        return (new_region,)
+
     @impl(pdl_interp_region.GetOperationOp)
     def run_get_operation(
             self,
@@ -672,7 +685,8 @@ class PDLInterpFunctions(InterpreterFunctions):
         name = op.properties['opt_name'].data
 
         region = args[0]
-        assert isinstance(region, Region)
+        if not isinstance(region, Region):
+            return (None,)
 
         opt_attributes: list[Attribute] = []
         opt_types: list[Attribute] = []
@@ -681,14 +695,30 @@ class PDLInterpFunctions(InterpreterFunctions):
         for arg in args[1:]:
             if arg is None:
                 continue
+
+            # Values (PDL value placeholders) are represented as SSA result wrappers.
             if isinstance(arg, OpResult):
                 opt_operands.append(arg)
                 continue
+
+            # Broadly treat anything that isa TypeAttribute as a *type* filter
+            # (covers IntegerType, FloatType, etc. represented as type attributes).
+            if isa(arg, TypeAttribute):
+                opt_types.append(arg)
+                continue
+
+            # Anything that is an Attribute (but not a TypeAttribute) is an attribute filter
+            # (covers IntegerAttr, StringAttr, SymbolRefAttr, ...).
             if isinstance(arg, Attribute):
-                if hasattr(arg, "data"):
-                    opt_attributes.append(arg)
-                else:
-                    opt_types.append(arg)
+                opt_attributes.append(arg)
+                continue
+
+            # Fallback heuristic: many attrs expose a `.data` field (e.g. IntegerAttr).
+            # If present, assume attribute; otherwise, assume a type-like object.
+            if hasattr(arg, "data"):
+                opt_attributes.append(arg)
+            else:
+                opt_types.append(arg)
 
         for candidate in region.walk():
             if candidate.name != name:
@@ -709,7 +739,7 @@ class PDLInterpFunctions(InterpreterFunctions):
                 continue
 
             attributes_match = True
-            candidate_attrs = list(candidate.attributes.values())
+            candidate_attrs = list(candidate.attributes.values()) + list(candidate.properties.values())
             if len(candidate_attrs) < len(opt_attributes):
                 continue
             for expected, actual in zip(opt_attributes, candidate_attrs):
