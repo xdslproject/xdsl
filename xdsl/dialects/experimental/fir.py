@@ -14,6 +14,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import Enum
+from typing import cast
 
 from xdsl.dialects.arith import FastMathFlagsAttr
 from xdsl.dialects.builtin import (
@@ -134,6 +135,344 @@ class FortranVariableFlagsAttrBase(Data[tuple[FortranVariableFlags, ...]]):
 @irdl_attr_definition
 class FortranVariableFlagsAttr(FortranVariableFlagsAttrBase):
     name = "fir.var_attrs"
+
+
+class FortranProcedureFlags(Enum):
+    """Fortran procedure attributes (F2023 15.6.2.1). BIND attribute (18.3.7)
+    is also tracked in the same enum."""
+
+    NOATTRIBUTES = "none"
+    ELEMENTAL = "elemental"
+    PURE = "pure"
+    NON_RECURSIVE = "non_recursive"
+    SIMPLE = "simple"
+    BIND_C = "bind_c"
+
+    @staticmethod
+    def try_parse(parser: AttrParser) -> set[FortranProcedureFlags] | None:
+        for option in FortranProcedureFlags:
+            if parser.parse_optional_characters(option.value) is not None:
+                return {option}
+        return None
+
+
+@dataclass(frozen=True)
+class FortranProcedureFlagsAttrBase(Data[tuple[FortranProcedureFlags, ...]]):
+    @property
+    def flags(self) -> set[FortranProcedureFlags]:
+        return set(self.data)
+
+    def __init__(self, flags: Sequence[FortranProcedureFlags]):
+        super().__init__(tuple(set(flags)))
+
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> tuple[FortranProcedureFlags, ...]:
+        with parser.in_angle_brackets():
+            flags = FortranProcedureFlags.try_parse(parser)
+            if flags is None:
+                return tuple()
+            while parser.parse_optional_punctuation(",") is not None:
+                flag = parser.expect(
+                    lambda: FortranProcedureFlags.try_parse(parser),
+                    "fortran procedure flag expected",
+                )
+                flags.update(flag)
+            return tuple(flags)
+
+    def print_parameter(self, printer: Printer):
+        with printer.in_angle_brackets():
+            flags = self.data
+            printer.print_list(
+                tuple(flag.value for flag in FortranProcedureFlags if flag in flags),
+                printer.print_string,
+                ",",
+            )
+
+
+@irdl_attr_definition
+class FortranProcedureFlagsAttr(FortranProcedureFlagsAttrBase):
+    name = "fir.proc_attrs"
+
+
+class FortranInlineFlags(Enum):
+    """Fortran inline hint attributes for fir.call."""
+
+    NONE = "none"
+    NO_INLINE = "no_inline"
+    ALWAYS_INLINE = "always_inline"
+    INLINE_HINT = "inline_hint"
+
+    @staticmethod
+    def try_parse(parser: AttrParser) -> set[FortranInlineFlags] | None:
+        for option in FortranInlineFlags:
+            if parser.parse_optional_characters(option.value) is not None:
+                return {option}
+        return None
+
+
+@dataclass(frozen=True)
+class FortranInlineFlagsAttrBase(Data[tuple[FortranInlineFlags, ...]]):
+    @property
+    def flags(self) -> set[FortranInlineFlags]:
+        return set(self.data)
+
+    def __init__(self, flags: Sequence[FortranInlineFlags]):
+        super().__init__(tuple(set(flags)))
+
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> tuple[FortranInlineFlags, ...]:
+        with parser.in_angle_brackets():
+            flags = FortranInlineFlags.try_parse(parser)
+            if flags is None:
+                return tuple()
+            while parser.parse_optional_punctuation(",") is not None:
+                flag = parser.expect(
+                    lambda: FortranInlineFlags.try_parse(parser),
+                    "fortran inline flag expected",
+                )
+                flags.update(flag)
+            return tuple(flags)
+
+    def print_parameter(self, printer: Printer):
+        with printer.in_angle_brackets():
+            flags = self.data
+            printer.print_list(
+                tuple(flag.value for flag in FortranInlineFlags if flag in flags),
+                printer.print_string,
+                ",",
+            )
+
+
+@irdl_attr_definition
+class FortranInlineFlagsAttr(FortranInlineFlagsAttrBase):
+    name = "fir.inline_attrs"
+
+
+class PackArrayHeuristics(Enum):
+    """Optimization heuristics for fir.pack_array."""
+
+    NONE = "none"
+    LOOP_ONLY = "loop_only"
+
+    @staticmethod
+    def try_parse(parser: AttrParser) -> set[PackArrayHeuristics] | None:
+        for option in PackArrayHeuristics:
+            if parser.parse_optional_characters(option.value) is not None:
+                return {option}
+        return None
+
+
+@dataclass(frozen=True)
+class PackArrayHeuristicsAttrBase(Data[tuple[PackArrayHeuristics, ...]]):
+    @property
+    def flags(self) -> set[PackArrayHeuristics]:
+        return set(self.data)
+
+    def __init__(self, flags: Sequence[PackArrayHeuristics]):
+        super().__init__(tuple(set(flags)))
+
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> tuple[PackArrayHeuristics, ...]:
+        with parser.in_angle_brackets():
+            flags = PackArrayHeuristics.try_parse(parser)
+            if flags is None:
+                return tuple()
+            while parser.parse_optional_punctuation(",") is not None:
+                flag = parser.expect(
+                    lambda: PackArrayHeuristics.try_parse(parser),
+                    "pack_array heuristic expected",
+                )
+                flags.update(flag)
+            return tuple(flags)
+
+    def print_parameter(self, printer: Printer):
+        with printer.in_angle_brackets():
+            flags = self.data
+            printer.print_list(
+                tuple(flag.value for flag in PackArrayHeuristics if flag in flags),
+                printer.print_string,
+                ",",
+            )
+
+
+@irdl_attr_definition
+class PackArrayHeuristicsAttr(PackArrayHeuristicsAttrBase):
+    name = "fir.pack_array_heuristics"
+
+
+class ReduceOperator(Enum):
+    """Intrinsic reduction operations for DO CONCURRENT REDUCE.
+    Upstream this is an I32BitEnumAttr; in practice each reduction
+    declaration selects a single operation, so a single value is stored."""
+
+    ADD = "add"
+    MULTIPLY = "multiply"
+    AND = "and"
+    OR = "or"
+    EQV = "eqv"
+    NEQV = "neqv"
+    MAX = "max"
+    MIN = "min"
+    IAND = "iand"
+    IOR = "ior"
+    IEOR = "ieor"
+
+    @staticmethod
+    def try_parse(parser: AttrParser) -> ReduceOperator | None:
+        for option in ReduceOperator:
+            if parser.parse_optional_characters(option.value) is not None:
+                return option
+        return None
+
+
+@dataclass(frozen=True)
+class ReduceAttrBase(Data[ReduceOperator]):
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> ReduceOperator:
+        with parser.in_angle_brackets():
+            return parser.expect(
+                lambda: ReduceOperator.try_parse(parser),
+                "reduce operation expected",
+            )
+
+    def print_parameter(self, printer: Printer):
+        with printer.in_angle_brackets():
+            printer.print_string(self.data.value)
+
+
+@irdl_attr_definition
+class ReduceAttr(ReduceAttrBase):
+    name = "fir.reduce_attr"
+
+
+class LocationKind(Enum):
+    """Flang location kind for debug info."""
+
+    BASE = "base"
+    INCLUSION = "inclusion"
+
+    @staticmethod
+    def try_parse(parser: AttrParser) -> LocationKind | None:
+        for option in LocationKind:
+            if parser.parse_optional_characters(option.value) is not None:
+                return option
+        return None
+
+
+@dataclass(frozen=True)
+class LocationKindAttrBase(Data[LocationKind]):
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> LocationKind:
+        with parser.in_angle_brackets():
+            return parser.expect(
+                lambda: LocationKind.try_parse(parser),
+                "location kind expected",
+            )
+
+    def print_parameter(self, printer: Printer):
+        with printer.in_angle_brackets():
+            printer.print_string(self.data.value)
+
+
+@irdl_attr_definition
+class LocationKindAttr(LocationKindAttrBase):
+    name = "fir.loc_kind"
+
+
+@dataclass(frozen=True)
+class LocationKindArrayAttrBase(Data[tuple[LocationKind, ...]]):
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> tuple[LocationKind, ...]:
+        with parser.in_square_brackets():
+            kinds: list[LocationKind] = []
+            first = LocationKind.try_parse(parser)
+            if first is None:
+                return tuple()
+            kinds.append(first)
+            while parser.parse_optional_punctuation(",") is not None:
+                kinds.append(
+                    parser.expect(
+                        lambda: LocationKind.try_parse(parser),
+                        "location kind expected",
+                    )
+                )
+            return tuple(kinds)
+
+    def print_parameter(self, printer: Printer):
+        with printer.in_square_brackets():
+            printer.print_list(
+                tuple(k.value for k in self.data),
+                printer.print_string,
+                ",",
+            )
+
+
+@irdl_attr_definition
+class LocationKindArrayAttr(LocationKindArrayAttrBase):
+    name = "fir.loc_kind_array"
+
+
+class LocalitySpecifierType(Enum):
+    """Locality kind for fir.local: LOCAL vs LOCAL_INIT."""
+
+    LOCAL = "local"
+    LOCAL_INIT = "local_init"
+
+    @staticmethod
+    def try_parse(parser: AttrParser) -> LocalitySpecifierType | None:
+        for option in LocalitySpecifierType:
+            if parser.parse_optional_characters(option.value) is not None:
+                return option
+        return None
+
+
+@dataclass(frozen=True)
+class LocalitySpecifierTypeAttrBase(Data[LocalitySpecifierType]):
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> LocalitySpecifierType:
+        parser.parse_punctuation("{")
+        parser.parse_keyword("type")
+        parser.parse_punctuation("=")
+        value = parser.expect(
+            lambda: LocalitySpecifierType.try_parse(parser),
+            "locality specifier type expected",
+        )
+        parser.parse_punctuation("}")
+        return value
+
+    def print_parameter(self, printer: Printer):
+        printer.print_string("{type = ")
+        printer.print_string(self.data.value)
+        printer.print_string("}")
+
+
+@irdl_attr_definition
+class LocalitySpecifierTypeAttr(LocalitySpecifierTypeAttrBase):
+    name = "fir.locality_specifier_type"
+
+
+@irdl_attr_definition
+class UseRenameAttr(ParametrizedAttribute):
+    """A single rename mapping for a Fortran USE statement: local_name => module_var."""
+
+    name = "fir.use_rename"
+
+    local_name: StringAttr
+    symbol: SymbolRefAttr
+
+
+@irdl_attr_definition
+class OpenACCSafeTempArrayCopyAttr(ParametrizedAttribute):
+    """Marker attribute implementing SafeTempArrayCopyAttrInterface for OpenACC."""
+
+    name = "fir.acc_safe_temp_array_copy"
+
+
+@irdl_attr_definition
+class OpenMPSafeTempArrayCopyAttr(ParametrizedAttribute):
+    """Marker attribute implementing SafeTempArrayCopyAttrInterface for OpenMP."""
+
+    name = "fir.omp_safe_temp_array_copy"
 
 
 @irdl_attr_definition
@@ -349,6 +688,77 @@ class CharacterType(ParametrizedAttribute, TypeAttribute):
             else:
                 upper = IntAttr(1)
         return [lower, upper]
+
+
+@irdl_attr_definition
+class RecordType(ParametrizedAttribute, TypeAttribute):
+    """
+    Fortran derived type (TYPE).
+
+    The name includes any KIND type parameters. The record may carry runtime
+    slots for LEN type parameters and for data components. Both lists are
+    optional in the assembly form.
+
+    Examples:
+        !fir.type<t>
+        !fir.type<t{i:i32,c:!fir.char<1,10>}>
+        !fir.type<tp(len1:i32){i:i32}>
+
+    Self-referential derived types (e.g. !fir.type<t{p:!fir.ptr<!fir.type<t>>}>)
+    are not yet supported and will fail to parse if encountered.
+    """
+
+    name = "fir.type"
+
+    type_name: StringAttr
+    lenparams: ArrayAttr
+    components: ArrayAttr
+
+    def print_parameters(self, printer: Printer) -> None:
+        def print_pair(pair: Attribute) -> None:
+            arr = cast(ArrayAttr[Attribute], pair)
+            field_name = arr.data[0]
+            field_type = arr.data[1]
+            assert isinstance(field_name, StringAttr)
+            printer.print_string(field_name.data)
+            printer.print_string(":")
+            printer.print_attribute(field_type)
+
+        with printer.in_angle_brackets():
+            printer.print_string(self.type_name.data)
+            if len(self.lenparams.data) > 0:
+                printer.print_string("(")
+                printer.print_list(self.lenparams.data, print_pair, ",")
+                printer.print_string(")")
+            if len(self.components.data) > 0:
+                printer.print_string("{")
+                printer.print_list(self.components.data, print_pair, ",")
+                printer.print_string("}")
+
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
+        def parse_pair() -> ArrayAttr:
+            field_name = parser.parse_identifier()
+            parser.parse_punctuation(":")
+            field_type = parser.parse_type()
+            return ArrayAttr([StringAttr(field_name), field_type])
+
+        with parser.in_angle_brackets():
+            type_name = parser.parse_identifier()
+            lenparams: list[Attribute] = []
+            if parser.parse_optional_punctuation("(") is not None:
+                lenparams.append(parse_pair())
+                while parser.parse_optional_punctuation(",") is not None:
+                    lenparams.append(parse_pair())
+                parser.parse_punctuation(")")
+            components: list[Attribute] = []
+            if parser.parse_optional_punctuation("{") is not None:
+                if parser.parse_optional_punctuation("}") is None:
+                    components.append(parse_pair())
+                    while parser.parse_optional_punctuation(",") is not None:
+                        components.append(parse_pair())
+                    parser.parse_punctuation("}")
+        return [StringAttr(type_name), ArrayAttr(lenparams), ArrayAttr(components)]
 
 
 @irdl_attr_definition
@@ -1297,6 +1707,8 @@ class CallOp(IRDLOperation):
     name = "fir.call"
     callee = prop_def()
     fastmath = opt_prop_def(FastMathFlagsAttr)
+    procedure_attrs = opt_prop_def(FortranProcedureFlagsAttr)
+    inline_attr = opt_prop_def(FortranInlineFlagsAttr)
     result_0 = opt_result_def()
     args = var_operand_def()
     regs = var_region_def()
@@ -2117,6 +2529,20 @@ class ResultOp(IRDLOperation):
 
 
 @irdl_op_definition
+class YieldOp(IRDLOperation):
+    """
+    fir.yield yields SSA values from a fir dialect op region and terminates the
+    region. Used as the terminator for fir.local and fir.declare_reduction
+    bodies.
+    """
+
+    name = "fir.yield"
+    _results = var_operand_def()
+
+    traits = traits_def(IsTerminator())
+
+
+@irdl_op_definition
 class SaveResultOp(IRDLOperation):
     """
     Save the result of a function returning an array, box, or record type value
@@ -2603,7 +3029,7 @@ class LocalitySpecifierOp(IRDLOperation):
     name = "fir.local"
     sym_name = prop_def(SymbolNameConstraint())
     type = prop_def()
-    locality_specifier_type = prop_def()
+    locality_specifier_type = prop_def(LocalitySpecifierTypeAttr)
     init_region = region_def()
     copy_region = region_def()
     dealloc_region = region_def()
@@ -2624,7 +3050,7 @@ class PackArrayOp(IRDLOperation):
     max_size = opt_prop_def(IntegerAttr)
     max_element_size = opt_prop_def(IntegerAttr)
     min_stride = opt_prop_def(IntegerAttr)
-    heuristics = opt_prop_def(Attribute)
+    heuristics = opt_prop_def(PackArrayHeuristicsAttr)
     is_safe = opt_prop_def(ArrayAttr)
     result = result_def()
 
@@ -2805,9 +3231,20 @@ FIR = Dialect(
         TypeInfoOp,
         UseStmtOp,
         VolatileCastOp,
+        YieldOp,
     ],
     [
         FortranVariableFlagsAttr,
+        FortranProcedureFlagsAttr,
+        FortranInlineFlagsAttr,
+        PackArrayHeuristicsAttr,
+        ReduceAttr,
+        LocationKindAttr,
+        LocationKindArrayAttr,
+        LocalitySpecifierTypeAttr,
+        UseRenameAttr,
+        OpenACCSafeTempArrayCopyAttr,
+        OpenMPSafeTempArrayCopyAttr,
         ReferenceType,
         DeferredAttr,
         DummyScopeType,
@@ -2833,5 +3270,6 @@ FIR = Dialect(
         VoidType,
         SliceType,
         VectorType,
+        RecordType,
     ],
 )

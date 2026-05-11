@@ -12,6 +12,9 @@ See external [documentation](https://flang.llvm.org/docs/HighLevelFIR.html).
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+from enum import Enum
+
 from xdsl.dialects.arith import FastMathFlagsAttr
 from xdsl.dialects.builtin import (
     ArrayAttr,
@@ -29,7 +32,7 @@ from xdsl.dialects.experimental.fir import (
     FortranVariableFlagsAttr,
     NoneType,
 )
-from xdsl.ir import Dialect, TypeAttribute
+from xdsl.ir import Data, Dialect, TypeAttribute
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
@@ -49,6 +52,40 @@ from xdsl.irdl import (
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
 from xdsl.traits import IsTerminator
+
+
+class CharExtremumPredicate(Enum):
+    """min / max selector for hlfir.char_extremum."""
+
+    MIN = "min"
+    MAX = "max"
+
+    @staticmethod
+    def try_parse(parser: AttrParser) -> CharExtremumPredicate | None:
+        for option in CharExtremumPredicate:
+            if parser.parse_optional_characters(option.value) is not None:
+                return option
+        return None
+
+
+@dataclass(frozen=True)
+class CharExtremumPredicateAttrBase(Data[CharExtremumPredicate]):
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> CharExtremumPredicate:
+        with parser.in_angle_brackets():
+            return parser.expect(
+                lambda: CharExtremumPredicate.try_parse(parser),
+                "char_extremum predicate (min or max) expected",
+            )
+
+    def print_parameter(self, printer: Printer):
+        with printer.in_angle_brackets():
+            printer.print_string(self.data.value)
+
+
+@irdl_attr_definition
+class CharExtremumPredicateAttr(CharExtremumPredicateAttrBase):
+    name = "hlfir.char_extremum_predicate"
 
 
 @irdl_attr_definition
@@ -1110,11 +1147,9 @@ class CharExtremumOp(IRDLOperation):
     """  # noqa E501
 
     name = "hlfir.char_extremum"
-    predicate = operand_def()
+    predicate = prop_def(CharExtremumPredicateAttr)
     strings = var_operand_def()
     result = result_def()
-
-    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
 
 @irdl_op_definition
@@ -1295,5 +1330,6 @@ HLFIR = Dialect(
     ],
     [
         ExprType,
+        CharExtremumPredicateAttr,
     ],
 )
