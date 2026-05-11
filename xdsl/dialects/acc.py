@@ -785,6 +785,116 @@ class NumGangs(CustomDirective):
         state.last_was_punctuation = False
 
 
+def _parse_wait_body(
+    parser: Parser,
+) -> tuple[
+    Sequence[UnresolvedOperand],
+    Sequence[Attribute],
+    ArrayAttr[DeviceTypeAttr] | None,
+    DenseArrayBase | None,
+    ArrayAttr[BoolAttr] | None,
+    ArrayAttr[DeviceTypeAttr] | None,
+]:
+    """Parse the post-keyword body of a `wait` clause.
+
+    Returns ``(operands, types, device_types, segments, has_devnum,
+    keyword_only)``. The bare-keyword form (no parens) yields
+    ``keyword_only = [#acc.device_type<none>]`` and all other slots
+    ``None`` / empty.
+    """
+    if not parser.parse_optional_punctuation("("):
+        return (
+            (),
+            (),
+            None,
+            None,
+            None,
+            ArrayAttr([DeviceTypeAttr(DeviceType.NONE)]),
+        )
+
+    kw_only = parser.parse_optional_comma_separated_list(
+        parser.Delimiter.SQUARE, lambda: _parse_device_type_attr(parser)
+    )
+    keyword_only = ArrayAttr(kw_only) if kw_only is not None else None
+    if keyword_only is not None:
+        parser.parse_punctuation(",")
+
+    groups = parser.parse_comma_separated_list(
+        parser.Delimiter.NONE, lambda: _parse_wait_group(parser)
+    )
+    parser.parse_punctuation(")")
+
+    all_operands: list[UnresolvedOperand] = []
+    all_types: list[Attribute] = []
+    dts: list[DeviceTypeAttr] = []
+    devnum_flags: list[BoolAttr] = []
+    segs: list[int] = []
+    for group_operands, group_types, dt, devnum in groups:
+        all_operands.extend(group_operands)
+        all_types.extend(group_types)
+        dts.append(dt)
+        devnum_flags.append(devnum)
+        segs.append(len(group_operands))
+
+    return (
+        tuple(all_operands),
+        tuple(all_types),
+        ArrayAttr(dts),
+        DenseArrayBase.from_list(i32, segs),
+        ArrayAttr(devnum_flags),
+        keyword_only,
+    )
+
+
+def _print_wait_body(
+    printer: Printer,
+    state: PrintingState,
+    operands: Sequence[SSAValue],
+    keyword_only: Attribute | None,
+    device_types: Attribute | None,
+    segments: Attribute | None,
+    has_devnum: Attribute | None,
+) -> None:
+    """Print the post-keyword body of a `wait` clause.
+
+    Mirror of :func:`_parse_wait_body`. Emits nothing when both ``operands``
+    is empty and ``keyword_only`` is the all-`#none` sentinel — matching
+    upstream's "bare wait keyword" elision.
+    """
+    if not operands and keyword_only == _DEVICE_TYPE_ONLY_NONE:
+        return
+
+    printer.print_string("(")
+    if (
+        isa(keyword_only, ArrayAttr)
+        and keyword_only.data
+        and keyword_only != _DEVICE_TYPE_ONLY_NONE
+    ):
+        printer.print_string("[")
+        printer.print_list(keyword_only.data, printer.print_attribute)
+        printer.print_string("]")
+        if operands:
+            printer.print_string(", ")
+    if operands:
+        dts = (
+            attr.data
+            if isa(attr := device_types, ArrayAttr)
+            else (DeviceTypeAttr(DeviceType.NONE),)
+        )
+        seg_values: Sequence[int] = (
+            segments.get_values()
+            if isinstance(segments, DenseArrayBase)
+            else (len(operands),)
+        )
+        devnum_flags: Sequence[Attribute] = (
+            has_devnum.data if isa(has_devnum, ArrayAttr) else ()
+        )
+        _print_groups(printer, operands, dts, seg_values, devnum_flags=devnum_flags)
+    printer.print_string(")")
+    state.should_emit_space = True
+    state.last_was_punctuation = False
+
+
 @irdl_custom_directive
 class WaitClause(CustomDirective):
     """Port of upstream `custom<WaitClause>`.
@@ -795,6 +905,10 @@ class WaitClause(CustomDirective):
       `(` `[` dts `]` `,` group (`,` group)* `)`          → kw-only + operand groups
       `(` group (`,` group)* `)`                          → operand groups only
     where each group is `{ (`devnum:`)? %v : type, ... } (`[` dt `]`)?`.
+
+    The post-keyword body parse/print is shared via :func:`_parse_wait_body`
+    / :func:`_print_wait_body` so other oilist-style directives can reuse
+    the same spelling.
     """
 
     operands: VariadicOperandVariable
@@ -822,81 +936,29 @@ class WaitClause(CustomDirective):
         self.operand_types.set(state, ())
 
     def parse(self, parser: Parser, state: ParsingState) -> bool:
-        if not parser.parse_optional_punctuation("("):
-            self.keyword_only.set(state, ArrayAttr([DeviceTypeAttr(DeviceType.NONE)]))
-            self.operands.set(state, ())
-            self.operand_types.set(state, ())
-            return True
-
-        kw_only = parser.parse_optional_comma_separated_list(
-            parser.Delimiter.SQUARE, lambda: _parse_device_type_attr(parser)
-        )
+        operands, types, dts, segs, devnum, kw_only = _parse_wait_body(parser)
+        self.operands.set(state, operands)
+        self.operand_types.set(state, types)
+        if dts is not None:
+            self.device_types.set(state, dts)
+        if segs is not None:
+            self.segments.set(state, segs)
+        if devnum is not None:
+            self.has_devnum.set(state, devnum)
         if kw_only is not None:
-            self.keyword_only.set(state, ArrayAttr(kw_only))
-            parser.parse_punctuation(",")
-
-        groups = parser.parse_comma_separated_list(
-            parser.Delimiter.NONE, lambda: _parse_wait_group(parser)
-        )
-        parser.parse_punctuation(")")
-
-        all_operands: list[UnresolvedOperand] = []
-        all_types: list[Attribute] = []
-        dts: list[DeviceTypeAttr] = []
-        devnum_flags: list[BoolAttr] = []
-        segs: list[int] = []
-        for group_operands, group_types, dt, devnum in groups:
-            all_operands.extend(group_operands)
-            all_types.extend(group_types)
-            dts.append(dt)
-            devnum_flags.append(devnum)
-            segs.append(len(group_operands))
-
-        self.operands.set(state, tuple(all_operands))
-        self.operand_types.set(state, tuple(all_types))
-        self.device_types.set(state, ArrayAttr(dts))
-        self.segments.set(state, DenseArrayBase.from_list(i32, segs))
-        self.has_devnum.set(state, ArrayAttr(devnum_flags))
+            self.keyword_only.set(state, kw_only)
         return True
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
-        operands = self.operands.get(op)
-        keyword_only = self.keyword_only.get(op)
-
-        if not operands and keyword_only == _DEVICE_TYPE_ONLY_NONE:
-            return
-
-        printer.print_string("(")
-        if (
-            isa(keyword_only, ArrayAttr)
-            and keyword_only.data
-            and keyword_only != _DEVICE_TYPE_ONLY_NONE
-        ):
-            printer.print_string("[")
-            printer.print_list(keyword_only.data, printer.print_attribute)
-            printer.print_string("]")
-            if operands:
-                printer.print_string(", ")
-        if operands:
-            dts = (
-                attr.data
-                if isa(attr := self.device_types.get(op), ArrayAttr)
-                else (DeviceTypeAttr(DeviceType.NONE),)
-            )
-            seg_values: Sequence[int] = (
-                segments.get_values()
-                if isinstance(segments := self.segments.get(op), DenseArrayBase)
-                else (len(operands),)
-            )
-            devnum_flags: Sequence[Attribute] = (
-                devnum_attrs.data
-                if isa(devnum_attrs := self.has_devnum.get(op), ArrayAttr)
-                else ()
-            )
-            _print_groups(printer, operands, dts, seg_values, devnum_flags=devnum_flags)
-        printer.print_string(")")
-        state.should_emit_space = True
-        state.last_was_punctuation = False
+        _print_wait_body(
+            printer,
+            state,
+            self.operands.get(op),
+            self.keyword_only.get(op),
+            self.device_types.get(op),
+            self.segments.get(op),
+            self.has_devnum.get(op),
+        )
 
 
 @irdl_custom_directive
