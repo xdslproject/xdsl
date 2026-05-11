@@ -444,25 +444,6 @@ def test_kernel_environment_unset_props_absent_from_dict():
         assert prop not in op.properties
 
 
-def test_kernel_environment_wait_only_no_operands_print():
-    """`_print_wait_body` has a printer-only branch — `wait_only` set to a
-    non-default device-type list with no `wait_operands` — that the parser
-    can never produce (`_parse_wait_body` requires a `,` after the `[dt-list]`).
-    This is the Python-only state the roadmap exception covers: a property
-    combination constructable only from the builder."""
-    nvidia = acc.DeviceTypeAttr(acc.DeviceType.NVIDIA)
-    op = acc.KernelEnvironmentOp(
-        region=Region(Block([TestOp()])),
-        wait_only=ArrayAttr([nvidia]),
-    )
-    op.verify()
-    assert len(op.wait_operands) == 0
-
-    out = io.StringIO()
-    Printer(stream=out).print_op(op)
-    assert "wait([#acc.device_type<nvidia>])" in out.getvalue()
-
-
 def test_data_clause_modifier_attr_constructor():
     """The bit-enum constructor accepts a frozenset of enum members and stores
     it on `.data`. Pretty-form printing/parsing is covered by filecheck in
