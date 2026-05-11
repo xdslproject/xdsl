@@ -932,3 +932,43 @@ func.func @routine_bind_bad() {
 }
 acc.routine @rt_bind_bad func(@routine_bind_bad) bind(1 : i64)
 // CHECK: expected SymbolRef or string attribute in bind clause
+
+// -----
+
+// acc.kernel_environment uses `SizedRegion<1>`: the body must be exactly
+// one block. A multi-block body is rejected by the region's single-block
+// constraint (independent of `NoTerminator`, which only relaxes the
+// terminator requirement).
+func.func @ke_multi_block() {
+  "acc.kernel_environment"() <{operandSegmentSizes = array<i32: 0, 0, 0>}> ({
+  ^bb0:
+    "cf.br"()[^bb1] : () -> ()
+  ^bb1:
+  }) : () -> ()
+  func.return
+}
+// CHECK: Region 'region' at position 0 expected a single block, but got 2 blocks
+
+// -----
+
+// `SizedRegion<1>` also rejects a 0-block body. Both upstream MLIR and
+// xDSL refuse the empty `({})` form.
+func.func @ke_no_block() {
+  "acc.kernel_environment"() <{operandSegmentSizes = array<i32: 0, 0, 0>}> ({
+  }) : () -> ()
+  func.return
+}
+// CHECK: Region 'region' at position 0 expected a single block, but got 0 blocks
+
+// -----
+
+// The oilist directive lets the three clauses appear in any order, but
+// each clause may appear at most once. Repeating a keyword fires the
+// directive's own diagnostic.
+func.func @ke_duplicate_async() {
+  acc.kernel_environment async async {
+    "test.op"() : () -> ()
+  }
+  func.return
+}
+// CHECK: 'async' clause specified twice

@@ -411,6 +411,39 @@ def test_host_data_init_bool_shortcut():
     assert isinstance(op.if_present, UnitAttr)
 
 
+def test_kernel_environment_empty_verifies():
+    op = acc.KernelEnvironmentOp(region=Region(Block([TestOp()])))
+    op.verify()
+
+    assert len(op.data_clause_operands) == 0
+    assert len(op.async_operands) == 0
+    assert len(op.wait_operands) == 0
+    assert op.async_operands_device_type is None
+    assert op.async_only is None
+    assert op.wait_operands_segments is None
+    assert op.wait_operands_device_type is None
+    assert op.has_wait_devnum is None
+    assert op.wait_only is None
+
+
+def test_kernel_environment_unset_props_absent_from_dict():
+    """The optional clause properties are *absent* from `op.properties`
+    when not provided (rather than stored as None). The MLIR-interop
+    round-trip relies on this — extra all-None entries would print as
+    explicit attributes in the trailing attr-dict."""
+    op = acc.KernelEnvironmentOp(region=Region(Block([TestOp()])))
+
+    for prop in (
+        "asyncOperandsDeviceType",
+        "asyncOnly",
+        "waitOperandsSegments",
+        "waitOperandsDeviceType",
+        "hasWaitDevnum",
+        "waitOnly",
+    ):
+        assert prop not in op.properties
+
+
 def test_data_clause_modifier_attr_constructor():
     """The bit-enum constructor accepts a frozenset of enum members and stores
     it on `.data`. Pretty-form printing/parsing is covered by filecheck in
