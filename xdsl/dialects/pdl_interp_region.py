@@ -124,6 +124,60 @@ class CreateRegionOp(IRDLOperation):
             result_types=[RegionType()]
         )
 
+
+@irdl_op_definition
+class InsertOpIntoRegionOp(IRDLOperation):
+    name = "pdl_interp_region.insert_op_into_region"
+    opt_operand = operand_def(OperationType)
+    opt_before = opt_operand_def(OperationType)
+    region = operand_def(RegionType)
+
+    result_op = result_def(RegionType)
+
+    assembly_format = (
+        "`(` $opt_operand `:` type($opt_operand) `)` "
+        "(`before` $opt_before^)? "
+        "`of` $region "
+        "attr-dict"
+    )
+
+    def __init__(
+        self,
+        opt_operand: SSAValue,
+        region: SSAValue,
+        opt_before: SSAValue | None = None,
+    ):
+        super().__init__(
+            operands=[opt_operand, opt_before, region],
+            result_types=[RegionType()]
+        )
+
+
+@irdl_op_definition
+class DeleteOpFromRegionOp(IRDLOperation):
+    name = "pdl_interp_region.delete_op_from_region"
+    opt_operand = operand_def(OperationType)
+    region = operand_def(RegionType)
+
+    result_op = result_def(RegionType)
+
+    assembly_format = (
+        "`(` $opt_operand `:` type($opt_operand) `)` "
+        "`of` $region "
+        "attr-dict"
+    )
+
+    def __init__(
+        self,
+        opt_operand: SSAValue,
+        region: SSAValue,
+    ):
+        super().__init__(
+            operands=[opt_operand, region],
+            result_types=[RegionType()]
+        )
+
+
 @irdl_op_definition
 class CreateOperationRegionOp(IRDLOperation):
     """
@@ -295,6 +349,7 @@ PDLInterpRegion = Dialect(
         GetOperationOp,
         CreateOperationRegionOp,
         CreateRegionOp,
-
+        InsertOpIntoRegionOp,
+        DeleteOpFromRegionOp,
     ],
 )

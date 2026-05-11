@@ -661,6 +661,77 @@ class PDLInterpFunctions(InterpreterFunctions):
 
         return (args[0].regions[op.index.value.data],)
 
+    @impl(pdl_interp_region.InsertOpIntoRegionOp)
+    def run_insert_op_into_region(
+            self,
+            interpreter: Interpreter,
+            op: pdl_interp_region.InsertOpIntoRegionOp,
+            args: tuple[Any, ...]
+    ) -> tuple[Any, ...]:
+        assert args
+
+        insert_op = args[0]
+        if insert_op is None:
+            return tuple([Region()])
+        assert isinstance(insert_op, Operation)
+        insert_op = insert_op.clone()
+
+        region = args[-1]
+        assert isinstance(region, Region)
+        before = args[1] if len(args) == 3 else None
+
+        # Only single block regions are allowed.
+        if len(region.blocks) != 1:
+            return tuple([Region()])
+
+        block = region.blocks[0]
+        if before is not None:
+            if not isinstance(before, Operation) or before.parent_block() is not block:
+                return ()
+            if insert_op is before:
+                block.add_op(insert_op)
+                return ()
+            block.insert_op_before(insert_op, before)
+        elif len(block.ops) == 0:
+            block.add_op(insert_op)
+        else:
+            block.insert_op_after(insert_op, block.last_op)
+
+        return tuple([Region(block)])
+
+    @impl(pdl_interp_region.DeleteOpFromRegionOp)
+    def run_delete_op_from_region(
+            self,
+            interpreter: Interpreter,
+            op: pdl_interp_region.DeleteOpFromRegionOp,
+            args: tuple[Any, ...]
+    ) -> tuple[Any, ...]:
+        assert len(args) == 2
+
+        operation = args[0]
+        region = args[1]
+
+        if operation is None:
+            return (region,)
+        assert isinstance(operation, Operation)
+        assert isinstance(region, Region)
+
+        # Only single block regions are allowed.
+        if len(region.blocks) != 1:
+            return (region,)
+        block = region.blocks[0]
+
+        # Only erase if the operation actually belongs to this block.
+        if operation.parent_block() is not block:
+            return (region,)
+
+        rewriter = PDLInterpFunctions.get_rewriter(interpreter)
+        rewriter.handle_operation_removal(operation)
+        block.erase_op(operation, safe_erase=False)
+
+        # Return the same mutated region object.
+        return (region,)
+
     @impl(pdl_interp_region.CreateRegionOp)
     def run_create_region(
             self,
@@ -720,14 +791,13 @@ class PDLInterpFunctions(InterpreterFunctions):
             else:
                 opt_types.append(arg)
 
+        candidates = []
         for candidate in region.walk():
             if candidate.name != name:
                 continue
 
             # Match operands, attributes, and result types independently.
             if len(candidate.operands) < len(opt_operands):
-                continue
-            if len(candidate.results) <= index:
                 continue
 
             operands_match = True
@@ -760,9 +830,11 @@ class PDLInterpFunctions(InterpreterFunctions):
             if not types_match:
                 continue
 
-            return (candidate.results[index].op,)
+            candidates.append(candidate.results[0])
 
-        return (None,)
+        if len(candidates) <= index:
+            return (None,)
+        return (candidates[index].op,)
 
     @impl(pdl_interp_region.InlineRegionOp)
     def run_inline_region(
