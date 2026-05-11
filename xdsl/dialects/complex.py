@@ -51,7 +51,7 @@ from xdsl.irdl import (
 )
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
-from xdsl.traits import ConstantLike, Commutative, Pure
+from xdsl.traits import Commutative, ConstantLike, Pure
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
@@ -425,22 +425,16 @@ class DivOp(ComplexBinaryOp):
         re_rhs, im_rhs = rhs[0], rhs[1]
         # 0.0 == -0.0 -> True
         if re_rhs == 0.0 and im_rhs == 0.0:
+            inf = float("inf")
             if re_lhs == 0.0:
                 real = float("nan")
             else:
-                if math.copysign(re_lhs, re_rhs) > 0:
-                    positive = True if re_lhs > 0 else False
-                else:
-                    positive = True if re_lhs < 0 else False
-                real = float("inf") if positive else float("-inf")
+                real = math.copysign(inf, re_lhs) / math.copysign(1.0, re_rhs)
             if im_lhs == 0.0:
                 imag = float("nan")
             else:
-                if math.copysign(im_lhs, im_rhs) > 0:
-                    positive = True if im_lhs > 0 else False
-                else:
-                    positive = True if im_lhs < 0 else False
-                imag = float("inf") if positive else float("-inf")
+                # Positive infinity if signs match, negative otherwise
+                imag = math.copysign(inf, im_lhs) / math.copysign(1.0, im_rhs)
         else:
             real = (re_lhs * re_rhs + im_lhs * im_rhs) / (re_rhs**2 + im_rhs**2)
             imag = (im_lhs * re_rhs - re_lhs * im_rhs) / (re_rhs**2 + im_rhs**2)
@@ -562,10 +556,7 @@ class TanhOp(ComplexUnaryComplexResultOperation):
 
 class ComplexConstantMaterializationInterface(ConstantMaterializationInterface):
     def materialize_constant(self, value: Attribute, type: Attribute) -> Operation:
-        return cast(
-            Operation,
-            ConstantOp.build(properties={"value": value}, result_types=(type,)),
-        )
+        return ConstantOp.build(properties={"value": value}, result_types=(type,))
 
 
 Complex = Dialect(
