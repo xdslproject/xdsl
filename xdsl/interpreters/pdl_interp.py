@@ -674,7 +674,6 @@ class PDLInterpFunctions(InterpreterFunctions):
         if insert_op is None:
             return tuple([Region()])
         assert isinstance(insert_op, Operation)
-        insert_op = insert_op.clone()
 
         region = args[-1]
         assert isinstance(region, Region)
@@ -697,7 +696,7 @@ class PDLInterpFunctions(InterpreterFunctions):
         else:
             block.insert_op_after(insert_op, block.last_op)
 
-        return tuple([Region(block)])
+        return tuple([block.parent])
 
     @impl(pdl_interp_region.DeleteOpFromRegionOp)
     def run_delete_op_from_region(
