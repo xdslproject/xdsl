@@ -42,7 +42,7 @@ module @rewriters {
       %2 = pdl_interp_region.get_operation(%a, %b : !pdl.attribute, !pdl.type) called "arith.constant" 0 of %1
       %x = pdl_interp_region.delete_op_from_region(%2 : !pdl.operation) of %1
 
-      %3 = pdl_interp_region.create_region()
+      %3 = pdl_interp_region.create_region
       %y = pdl_interp_region.insert_op_into_region(%2 : !pdl.operation) of %3
 
       %45 = pdl_interp_region.get_operation(%a, %b : !pdl.attribute, !pdl.type) called "arith.constant" 0 of %y
