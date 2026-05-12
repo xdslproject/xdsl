@@ -992,3 +992,57 @@ func.func @atomic_write_bad_type(%addr : memref<memref<i32>>, %val : i32) {
   func.return
 }
 // CHECK: address must dereference to value type
+
+// -----
+
+// acc.atomic.update's region argument type must match the pointee of `x`.
+// A memref<i32> with an f32 block argument fails the verifier.
+func.func @atomic_update_arg_type_mismatch(%x : memref<i32>, %expr : f32) {
+  acc.atomic.update %x : memref<i32> {
+  ^bb0(%xval: f32):
+    %newval = arith.addf %xval, %expr : f32
+    acc.yield %newval : f32
+  }
+  func.return
+}
+// CHECK: the type of the operand must be a pointer type whose element type is the same as that of the region argument
+
+// -----
+
+// acc.atomic.update's yield must produce exactly one value — the updated
+// scalar.
+func.func @atomic_update_multi_yield(%x : memref<i32>, %expr : i32) {
+  acc.atomic.update %x : memref<i32> {
+  ^bb0(%xval: i32):
+    %newval = arith.addi %xval, %expr : i32
+    acc.yield %newval, %expr : i32, i32
+  }
+  func.return
+}
+// CHECK: only updated value must be returned
+
+// -----
+
+// acc.atomic.update's yielded value must have the same type as the region
+// argument.
+func.func @atomic_update_yield_type_mismatch(%x : memref<i32>, %y : f32) {
+  acc.atomic.update %x : memref<i32> {
+  ^bb0(%xval: i32):
+    acc.yield %y : f32
+  }
+  func.return
+}
+// CHECK: input and yielded value must have the same type
+
+// -----
+
+// acc.atomic.update's region must accept exactly one block argument.
+func.func @atomic_update_too_many_args(%x : memref<i32>, %expr : i32) {
+  acc.atomic.update %x : memref<i32> {
+  ^bb0(%xval: i32, %tmp: i32):
+    %newval = arith.addi %xval, %expr : i32
+    acc.yield %newval : i32
+  }
+  func.return
+}
+// CHECK: the region must accept exactly one argument

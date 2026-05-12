@@ -2401,4 +2401,62 @@ builtin.module {
   // CHECK-NEXT:    acc.atomic.read if(%{{.*}}) %{{.*}} = %{{.*}} : memref<i32>, memref<i32>, i32
   // CHECK-NEXT:    acc.atomic.write %{{.*}} = %{{.*}} : memref<i32>, i32
   // CHECK-NEXT:    acc.atomic.write if(%{{.*}}) %{{.*}} = %{{.*}} : memref<i32>, i32
+
+  // acc.atomic.update — single-operand region op whose body takes the
+  // current value of `x` as its single block argument and yields the
+  // updated value via acc.yield. Implicit-terminator: omitting acc.yield
+  // is fine at print time but the verifier still pins the yielded type to
+  // the block argument's type.
+  func.func @acc_atomic_update(%x: memref<i32>, %expr: i32) {
+    acc.atomic.update %x : memref<i32> {
+    ^bb0(%xval: i32):
+      %newval = arith.addi %xval, %expr : i32
+      acc.yield %newval : i32
+    }
+    %c = arith.constant true
+    acc.atomic.update if(%c) %x : memref<i32> {
+    ^bb0(%xval: i32):
+      %newval = arith.addi %xval, %expr : i32
+      acc.yield %newval : i32
+    }
+    // No-op update: yielding the argument unchanged is a valid form.
+    acc.atomic.update %x : memref<i32> {
+    ^bb0(%xval: i32):
+      acc.yield %xval : i32
+    }
+    func.return
+  }
+  // CHECK-LABEL: func.func @acc_atomic_update(
+  // CHECK:         acc.atomic.update %{{.*}} : memref<i32> {
+  // CHECK-NEXT:    ^{{.*}}(%{{.*}}: i32):
+  // CHECK-NEXT:      %{{.*}} = arith.addi %{{.*}}, %{{.*}} : i32
+  // CHECK-NEXT:      acc.yield %{{.*}} : i32
+  // CHECK-NEXT:    }
+  // CHECK:         acc.atomic.update if(%{{.*}}) %{{.*}} : memref<i32> {
+  // CHECK-NEXT:    ^{{.*}}(%{{.*}}: i32):
+  // CHECK-NEXT:      %{{.*}} = arith.addi %{{.*}}, %{{.*}} : i32
+  // CHECK-NEXT:      acc.yield %{{.*}} : i32
+  // CHECK-NEXT:    }
+  // CHECK:         acc.atomic.update %{{.*}} : memref<i32> {
+  // CHECK-NEXT:    ^{{.*}}(%[[XVAL:.*]]: i32):
+  // CHECK-NEXT:      acc.yield %[[XVAL]] : i32
+  // CHECK-NEXT:    }
+
+  // Generic-form roundtrip insurance for atomic.update — covers the parser
+  // path that bypasses the AtomicIfClause custom directive.
+  func.func @acc_atomic_update_generic(%x: memref<i32>, %expr: i32, %c: i1) {
+    "acc.atomic.update"(%x) ({
+    ^bb0(%xval: i32):
+      %newval = arith.addi %xval, %expr : i32
+      "acc.yield"(%newval) : (i32) -> ()
+    }) : (memref<i32>) -> ()
+    "acc.atomic.update"(%x, %c) ({
+    ^bb0(%xval: i32):
+      "acc.yield"(%xval) : (i32) -> ()
+    }) : (memref<i32>, i1) -> ()
+    func.return
+  }
+  // CHECK-LABEL: func.func @acc_atomic_update_generic(
+  // CHECK:         acc.atomic.update %{{.*}} : memref<i32> {
+  // CHECK:         acc.atomic.update if(%{{.*}}) %{{.*}} : memref<i32> {
 }
