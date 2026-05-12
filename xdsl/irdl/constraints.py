@@ -11,6 +11,7 @@ from typing import (
     TypeAlias,
     TypeGuard,
     cast,
+    get_origin,
 )
 
 from typing_extensions import TypeVar, deprecated
@@ -623,7 +624,7 @@ ParametrizedAttributeCovT = TypeVar(
 )
 
 
-@dataclass(frozen=True, init=False)
+@dataclass(frozen=True)
 class ParamAttrConstraint(
     AttrConstraint[ParametrizedAttributeCovT], Generic[ParametrizedAttributeCovT]
 ):
@@ -638,19 +639,25 @@ class ParamAttrConstraint(
     param_constrs: tuple[AttrConstraint, ...]
     """The attribute parameter constraints"""
 
-    def __init__(
-        self,
-        base_attr: type[ParametrizedAttributeCovT],
-        param_constrs: Sequence[IRDLAttrConstraint | None],
-    ):
+    @staticmethod
+    def get(
+        base_attr: type[ParametrizedAttributeT],
+        *param_constrs: IRDLAttrConstraint | None,
+    ) -> AttrConstraint[ParametrizedAttributeT]:
         from xdsl.irdl import irdl_to_attr_constraint
 
         constrs = tuple(
             irdl_to_attr_constraint(constr) if constr is not None else AnyAttr()
             for constr in param_constrs
         )
-        object.__setattr__(self, "base_attr", base_attr)
-        object.__setattr__(self, "param_constrs", constrs)
+
+        # We don't want to allow instantiated generics here, as they don't get checked
+        if get_origin(base_attr) is not None:
+            raise PyRDLError(
+                f"Argument to ParamAttConstraint {base_attr} should not be an instantiated generic"
+            )
+
+        return ParamAttrConstraint[ParametrizedAttributeT](base_attr, constrs)
 
     def __repr__(self):
         return f"ParamAttrConstraint({self.base_attr.__name__}, {self.param_constrs!r})"

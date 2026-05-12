@@ -1,6 +1,7 @@
 import re
 from abc import ABC
 from dataclasses import dataclass
+from typing import Generic
 
 import pytest
 from typing_extensions import TypeVar
@@ -375,3 +376,15 @@ def test_mapping_type_vars():
     assert int_attr_constr.mapping_type_vars({_IntT: my_constr}) == IntAttrConstraint(
         my_constr
     )
+
+
+_T = TypeVar("_T")
+
+
+class AttrE(ParametrizedAttribute, Generic[_T]):
+    param: _T
+
+
+def test_param_instantiated_generic():
+    with pytest.raises(PyRDLError):
+        ParamAttrConstraint.get(AttrE[AttrB])

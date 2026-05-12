@@ -3,7 +3,7 @@ from __future__ import annotations
 import textwrap
 from collections.abc import Callable
 from io import StringIO
-from typing import ClassVar, Generic
+from typing import ClassVar, Generic, cast
 
 import pytest
 from typing_extensions import TypeVar
@@ -2804,10 +2804,12 @@ def test_nested_inference():
             n: AttrConstraint | None = None,
             p: AttrConstraint[_T] | None = None,
             q: AttrConstraint | None = None,
-        ) -> BaseAttr[ParamOne[_T]] | ParamAttrConstraint[ParamOne[_T]]:
+        ) -> AttrConstraint[ParamOne[_T]]:
             if n is None and p is None and q is None:
                 return BaseAttr[ParamOne[_T]](ParamOne)
-            return ParamAttrConstraint[ParamOne[_T]](ParamOne, (n, p, q))
+            return cast(
+                AttrConstraint[ParamOne[_T]], ParamAttrConstraint.get(ParamOne, n, p, q)
+            )
 
     @irdl_op_definition
     class TwoOperandsNestedVarOp(IRDLOperation):

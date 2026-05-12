@@ -236,7 +236,7 @@ def _(ConstraintContext, IntAttr, VerifyException, i32, i64):
     from xdsl.irdl import ParamAttrConstraint
 
     # Construct the constraint. Note that we are using the coercion defined previously.
-    param_constraint = ParamAttrConstraint(IntegerAttr, [IntAttr, i32])
+    param_constraint = ParamAttrConstraint.get(IntegerAttr, IntAttr, i32)
 
     # This will pass without triggering an exception.
     param_constraint.verify(IntegerAttr(IntAttr(42), i32), ConstraintContext())
