@@ -4522,9 +4522,7 @@ class AtomicCaptureOp(IRDLOperation):
                 "terminator, and two atomic ops)"
             )
         first_op, second_op, _terminator = ops
-        if isinstance(first_op, AtomicUpdateOp) and isinstance(
-            second_op, AtomicReadOp
-        ):
+        if isinstance(first_op, AtomicUpdateOp) and isinstance(second_op, AtomicReadOp):
             if first_op.x is not second_op.x:
                 raise VerifyException(
                     "updated variable in atomic.update must be captured in "
