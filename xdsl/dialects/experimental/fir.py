@@ -2148,7 +2148,9 @@ class FieldIndexOp(IRDLOperation):
     """
 
     name = "fir.field_index"
-    typeparams = operand_def()
+    field_id = prop_def(StringAttr)
+    on_type = prop_def()
+    typeparams = var_operand_def()
     res = result_def()
     regs = var_region_def()
 
