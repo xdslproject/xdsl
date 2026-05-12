@@ -380,6 +380,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return linalg_generalize_named_ops.LinalgGeneralizeNamedOpsPass
 
+    def get_test_linalg_tiling():
+        from xdsl.transforms.test_linalg_tiling import TestLinalgTilingPass
+
+        return TestLinalgTilingPass
+
     def get_linalg_to_csl():
         from xdsl.transforms.linalg_to_csl import LinalgToCsl
 
@@ -789,6 +794,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "stencil-unroll": get_stencil_unroll,
         "test-add-timers-to-top-level-funcs": get_test_add_timers_to_top_level_funcs,
         "test-constant-folding": get_test_constant_folding,
+        "test-linalg-tiling": get_test_linalg_tiling,
         "test-lower-linalg-to-snitch": get_test_lower_linalg_to_snitch,
         "test-specialised-constant-folding": get_test_specialised_constant_folding,
         "test-transform-dialect-erase-schedule": get_test_transform_dialect_erase_schedule,
