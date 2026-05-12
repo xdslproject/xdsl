@@ -1674,4 +1674,59 @@ builtin.module {
   // CHECK-NEXT:    acc.atomic.write %{{.*}} = %{{.*}} : memref<i32>, i32
   // CHECK-NEXT:    acc.atomic.write if(%{{.*}}) %{{.*}} = %{{.*}} : memref<i32>, i32
 
+  // acc.atomic.update — region op with `SingleBlockImplicitTerminator<YieldOp>`.
+  // Round-trips with mlir-opt in both pretty and generic form.
+  func.func @acc_atomic_update(%x: memref<i32>, %expr: i32) {
+    acc.atomic.update %x : memref<i32> {
+    ^bb0(%xval: i32):
+      %newval = arith.addi %xval, %expr : i32
+      acc.yield %newval : i32
+    }
+    %c = arith.constant true
+    acc.atomic.update if(%c) %x : memref<i32> {
+    ^bb0(%xval: i32):
+      %newval = arith.addi %xval, %expr : i32
+      acc.yield %newval : i32
+    }
+    // No-op update: yielding the argument unchanged is a valid form.
+    acc.atomic.update %x : memref<i32> {
+    ^bb0(%xval: i32):
+      acc.yield %xval : i32
+    }
+    func.return
+  }
+  // CHECK:       func.func @acc_atomic_update(
+  // CHECK:         acc.atomic.update %{{.*}} : memref<i32> {
+  // CHECK-NEXT:    ^{{.*}}(%{{.*}}: i32):
+  // CHECK-NEXT:      %{{.*}} = arith.addi %{{.*}}, %{{.*}} : i32
+  // CHECK-NEXT:      acc.yield %{{.*}} : i32
+  // CHECK-NEXT:    }
+  // CHECK:         acc.atomic.update if(%{{.*}}) %{{.*}} : memref<i32> {
+  // CHECK-NEXT:    ^{{.*}}(%{{.*}}: i32):
+  // CHECK-NEXT:      %{{.*}} = arith.addi %{{.*}}, %{{.*}} : i32
+  // CHECK-NEXT:      acc.yield %{{.*}} : i32
+  // CHECK-NEXT:    }
+  // CHECK:         acc.atomic.update %{{.*}} : memref<i32> {
+  // CHECK-NEXT:    ^{{.*}}(%[[XVAL:.*]]: i32):
+  // CHECK-NEXT:      acc.yield %[[XVAL]] : i32
+  // CHECK-NEXT:    }
+
+  // Generic-form input for atomic.update — proves the hand-written generic
+  // spelling survives the xdsl ↔ mlir-opt round-trip.
+  func.func @acc_atomic_update_generic(%x: memref<i32>, %expr: i32, %c: i1) {
+    "acc.atomic.update"(%x) ({
+    ^bb0(%xval: i32):
+      %newval = arith.addi %xval, %expr : i32
+      "acc.yield"(%newval) : (i32) -> ()
+    }) : (memref<i32>) -> ()
+    "acc.atomic.update"(%x, %c) ({
+    ^bb0(%xval: i32):
+      "acc.yield"(%xval) : (i32) -> ()
+    }) : (memref<i32>, i1) -> ()
+    func.return
+  }
+  // CHECK:       func.func @acc_atomic_update_generic(
+  // CHECK:         acc.atomic.update %{{.*}} : memref<i32> {
+  // CHECK:         acc.atomic.update if(%{{.*}}) %{{.*}} : memref<i32> {
+
 }
