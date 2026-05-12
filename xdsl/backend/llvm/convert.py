@@ -37,7 +37,6 @@ _ARG_ATTR_TYPES = {
     "llvm.sret": "sret",
     "llvm.inalloca": "inalloca",
     "llvm.preallocated": "preallocated",
-    "llvm.elementtype": "elementtype",
 }
 
 

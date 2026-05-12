@@ -2453,6 +2453,16 @@ class FuncOp(IRDLOperation):
             case _:
                 raise AssertionError("Invalid unnamed_addr value")
 
+    def verify_(self, verify_nested_ops: bool = True) -> None:
+        if self.arg_attrs is None:
+            return
+        for i, attrs in enumerate(self.arg_attrs):
+            if "llvm.elementtype" in attrs.data:
+                raise VerifyException(
+                    f"'llvm.elementtype' on parameter {i} is invalid: "
+                    "elementtype can only be applied to intrinsic callsites"
+                )
+
     def print(self, printer: Printer):
         if self.linkage.linkage.data != "external":
             printer.print_string(" ")
@@ -2579,6 +2589,12 @@ class CallIntrinsicOp(IRDLOperation):
         AttrSizedOperandSegments(as_property=True),
         ParsePropInAttrDict(),
     )
+
+    def verify_(self) -> None:
+        if not self.intrin.data.startswith("llvm."):
+            raise VerifyException(
+                f"intrinsic name must start with 'llvm.', got '{self.intrin.data}'"
+            )
 
     def __init__(
         self,
