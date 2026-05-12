@@ -159,10 +159,9 @@ class TypedChebyshevPolynomialAttr(ParametrizedAttribute):
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> Sequence[Attribute]:
-        # Accept either inline form or full attribute
-        # references (`#alias`, `#polynomial.typed_chebyshev_polynomial<...>`).
-        # HEIR's printer often hoists ring attributes into top-level
-        # aliases, so both need to be handled on round-trip.
+        # Accept either the inline form (`<[coeffs]> : !poly_type`) or an
+        # explicit attribute-alias reference (`#alias`), where the alias
+        # already resolves to a TypedChebyshevPolynomialAttr.
         attr = parser.parse_optional_attribute()
         if attr is not None:
             if not isinstance(attr, TypedChebyshevPolynomialAttr):
