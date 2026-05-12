@@ -2,7 +2,6 @@ import argparse
 import dataclasses
 import inspect
 import sys
-import warnings
 from collections.abc import Callable, Sequence
 from importlib.metadata import version
 from io import StringIO
@@ -90,9 +89,6 @@ class xDSLOptMain(CommandLineTool):
         """
         Executes the different steps.
         """
-        # Python ignores DeprecationWarnings and some others by default:
-        # https://docs.python.org/3/library/warnings.html#default-warning-filter
-        warnings.filterwarnings("default", category=DeprecationWarning)
         chunks, file_extension = self.prepare_input()
         output_stream = self.prepare_output()
         try:
