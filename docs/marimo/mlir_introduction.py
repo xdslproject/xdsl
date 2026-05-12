@@ -1,18 +1,20 @@
 import marimo
 
-__generated_with = "0.17.8"
+__generated_with = "0.23.4"
 app = marimo.App()
 
 
 @app.cell(hide_code=True)
 def _():
     import marimo as mo
+
     return (mo,)
 
 
 @app.cell(hide_code=True)
 def _():
     from xdsl.utils import marimo as xmo
+
     return (xmo,)
 
 
@@ -40,6 +42,12 @@ def _(mo, xmo):
 
     all_dialects = get_all_dialects()
 
+    def get_ctx() -> Context:
+        context = Context()
+        for dialect in ("builtin", "scf", "arith", "printf"):
+            context.register_dialect(dialect, all_dialects[dialect])
+        return context
+
     def to_mlir(code: str) -> builtin.ModuleOp:
         module = builtin.ModuleOp([])
         builder = Builder(InsertPoint.at_start(module.body.block))
@@ -47,10 +55,7 @@ def _(mo, xmo):
         return module
 
     def parse_mlir(code: str) -> builtin.ModuleOp:
-        context = Context()
-        for dialect in ("builtin", "scf", "arith", "printf"):
-            context.register_dialect(dialect, all_dialects[dialect])
-        parser = Parser(context, code)
+        parser = Parser(get_ctx(), code)
         return parser.parse_module(code)
 
     def compilation_output(code_editor: Any) -> mo.md:
@@ -73,7 +78,8 @@ def _(mo, xmo):
         pipeline = PassPipeline.parse_spec(all_passes, pass_editor.value, callback)
         titles = xmo.pipeline_titles(pipeline.passes)
         labels = ["Initial IR"] + ["IR after " + t for t in titles]
-        pipeline.apply(Context(), module)
+        ctx = get_ctx()
+        pipeline.apply(ctx, module)
         module_list.append(module.clone())
         if result == "md":
             return [(label, xmo.module_md(module)) for label, module in zip(labels, module_list, strict=True)]
@@ -102,10 +108,10 @@ def _(mo, xmo):
             print(e.__notes__[0], file=_error_output9)
             print(e, file=_error_output9)
             return False, mo.md("/// attention | Compilation error:\n" + "`" * 3 + "\n" + _error_output9.getvalue() + "`" * 3 + "\n///")
+
     return (
         CommonSubexpressionElimination,
         ConstantFoldInterpPass,
-        Context,
         DeadCodeElimination,
         LowerListToTensor,
         OptimizeListOps,
@@ -114,6 +120,7 @@ def _(mo, xmo):
         execute_and_catch_exceptions,
         get_all_passes,
         get_compilation_outputs_with_passes,
+        get_ctx,
         parse_mlir,
         to_mlir,
     )
@@ -265,6 +272,7 @@ def _(editor_add_expr, mo, prefix, to_mlir, xmo):
 @app.cell
 def _():
     from xdsl.frontend.listlang import marimo as lmo
+
     return (lmo,)
 
 
@@ -698,6 +706,7 @@ def _(editor8, lmo, parse_mlir):
         module.verify()
         result = int(lmo.interp(module))
         return result
+
     return (run8_with_values,)
 
 
@@ -771,6 +780,7 @@ def _(editor9, lmo, parse_mlir):
         module.verify()
         result = int(lmo.interp(module))
         return result
+
     return (run9_with_values,)
 
 
@@ -966,10 +976,10 @@ def _(mo, reset_button10):
 
 @app.cell
 def _(
-    Context,
     DeadCodeElimination,
     example_editor10,
     execute_and_catch_exceptions,
+    get_ctx,
     mo,
     parse_mlir,
     xmo,
@@ -977,7 +987,7 @@ def _(
     def _execute():
         module = parse_mlir(example_editor10.value)
         str_module = str(module)
-        DeadCodeElimination().apply(Context(), module)
+        DeadCodeElimination().apply(get_ctx(), module)
         if str(module) == str_module:
             return False, mo.md("❌ The `dce` pass had no effects on the given program.")
         return True, mo.vstack([mo.md("✅ Some operations were removed!\n\nHere is the resulting program:\n"), xmo.module_md(module)])
@@ -1018,9 +1028,9 @@ def _(mo, reset_button12):
 @app.cell
 def _(
     ConstantFoldInterpPass,
-    Context,
     example_editor12,
     execute_and_catch_exceptions,
+    get_ctx,
     mo,
     parse_mlir,
     xmo,
@@ -1028,7 +1038,7 @@ def _(
     def _execute():
         module = parse_mlir(example_editor12.value)
         str_module = str(module)
-        ConstantFoldInterpPass().apply(Context(), module)
+        ConstantFoldInterpPass().apply(get_ctx(), module)
         if str(module) == str_module:
             return False, mo.md("❌ The `constant-fold-interp` pass had no effects on the given program.")
         return True, mo.vstack([mo.md("✅ Some operations were removed!\n\nHere is the resulting program:\n"), xmo.module_md(module)])
@@ -1069,9 +1079,9 @@ def _(mo, reset_button11):
 @app.cell
 def _(
     CommonSubexpressionElimination,
-    Context,
     example_editor11,
     execute_and_catch_exceptions,
+    get_ctx,
     mo,
     parse_mlir,
     xmo,
@@ -1079,7 +1089,7 @@ def _(
     def _execute():
         module = parse_mlir(example_editor11.value)
         str_module = str(module)
-        CommonSubexpressionElimination().apply(Context(), module)
+        CommonSubexpressionElimination().apply(get_ctx(), module)
         if str(module) == str_module:
             return False, mo.md("❌ The `cse` pass had no effects on the given program.")
         return True, mo.vstack([mo.md("✅ Some operations were removed!\n\nHere is the resulting program:\n"), xmo.module_md(module)])
@@ -1286,13 +1296,13 @@ def _(mo, reset_button20):
 
 @app.cell
 def _(
-    Context,
     LowerListToTensor,
     OptimizeListOps,
     PassPipeline,
     example_editor20,
     execute_and_catch_exceptions,
     get_all_passes,
+    get_ctx,
     lmo,
     pass_editor20,
     to_mlir,
@@ -1302,7 +1312,8 @@ def _(
         _all_passes = get_all_passes()
         _all_passes["lower-list-to-tensor"] = lambda: LowerListToTensor()
         _all_passes["optimize-lists"] = lambda: OptimizeListOps()
-        PassPipeline.parse_spec(_all_passes, pass_editor20.value).apply(Context(), _module)
+        ctx = get_ctx()
+        PassPipeline.parse_spec(_all_passes, pass_editor20.value).apply(ctx, _module)
         return True, lmo.interp(_module)
 
     _, exec_res20 = execute_and_catch_exceptions(_exec)
