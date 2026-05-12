@@ -175,6 +175,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return convert_riscv_scf_to_riscv_cf.ConvertRiscvScfToRiscvCfPass
 
+    def get_convert_riscv_stack_to_riscv():
+        from xdsl.backend.riscv.lowering import convert_riscv_stack_to_riscv
+
+        return convert_riscv_stack_to_riscv.ConvertRiscvStackToRiscvPass
+
     def get_convert_riscv_to_llvm():
         from xdsl.transforms import convert_riscv_to_llvm
 
@@ -610,6 +615,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return test_lower_linalg_to_snitch.TestLowerLinalgToSnitchPass
 
+    def get_test_riscv_spilling():
+        from xdsl.transforms import test_riscv_spilling
+
+        return test_riscv_spilling.TestRiscvSpillingPass
+
     def get_test_specialised_constant_folding():
         from xdsl.transforms import test_constant_folding
 
@@ -703,6 +713,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "convert-ptr-to-x86": get_convert_ptr_to_x86,
         "convert-riscv-scf-for-to-frep": get_convert_riscv_scf_for_to_frep,
         "convert-riscv-scf-to-riscv-cf": get_convert_riscv_scf_to_riscv_cf,
+        "convert-riscv-stack-to-riscv": get_convert_riscv_stack_to_riscv,
         "convert-riscv-to-llvm": get_convert_riscv_to_llvm,
         "convert-scf-to-cf": get_convert_scf_to_cf,
         "convert-scf-to-openmp": get_convert_scf_to_openmp,
@@ -790,6 +801,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "test-add-timers-to-top-level-funcs": get_test_add_timers_to_top_level_funcs,
         "test-constant-folding": get_test_constant_folding,
         "test-lower-linalg-to-snitch": get_test_lower_linalg_to_snitch,
+        "test-riscv-spilling": get_test_riscv_spilling,
         "test-specialised-constant-folding": get_test_specialised_constant_folding,
         "test-transform-dialect-erase-schedule": get_test_transform_dialect_erase_schedule,
         "test-vectorize-matmul": get_test_vectorize_matmul,

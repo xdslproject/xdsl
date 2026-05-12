@@ -9,6 +9,7 @@ from xdsl.ir import Dialect
 
 # The imports with re-export are to preserve the API of the dialect, as it was when it
 # was a single file. They will be deprecated and removed in the future.
+from . import stack as stack
 from .abstract_ops import (
     AssemblyInstructionArg as AssemblyInstructionArg,
 )
