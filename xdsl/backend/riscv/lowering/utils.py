@@ -173,6 +173,12 @@ def cast_op_results(builder: Builder, op: Operation) -> list[SSAValue]:
     return [result.results[0] for result in results]
 
 
+def width_for_register_type(value_type: Attribute):
+    if isinstance(value_type, builtin.FixedBitwidthType):
+        return value_type.bitwidth
+    raise NotImplementedError(f"Unsupported type: {value_type}")
+
+
 def cast_block_args_from_a_regs(block: Block, rewriter: PatternRewriter):
     """
     Change the type of the block arguments to "a" registers and add cast operations just
@@ -184,23 +190,27 @@ def cast_block_args_from_a_regs(block: Block, rewriter: PatternRewriter):
     new_ops: list[Operation] = []
     counter = Counter[type[riscv.RISCVRegisterType]]()
 
-    for arg in block.args:
+    pmov_op = riscv.ParallelMovOp(
+        block.args,
+        [register_type_for_type(arg.type).unallocated() for arg in block.args],
+        builtin.DenseArrayBase.from_list(
+            builtin.i32, [width_for_register_type(arg.type) for arg in block.args]
+        ),
+    )
+
+    for arg, new_value in zip(block.args, pmov_op.outputs):
         register_type = register_type_for_type(arg.type)
-        move_op, new_value = move_ops_for_value(
-            arg, arg.type, register_type.unallocated()
-        )
         cast_op = builtin.UnrealizedConversionCastOp.get((new_value,), (arg.type,))
-        new_ops.append(move_op)
         new_ops.append(cast_op)
 
         index = counter[register_type]
         rewriter.replace_uses_with_if(
-            arg, cast_op.results[0], lambda use: use.operation != move_op
+            arg, cast_op.results[0], lambda use: use.operation != pmov_op
         )
         rewriter.replace_value_with_new_type(arg, register_type.a_register(index))
         counter[register_type] += 1
 
-    rewriter.insert_op(new_ops, InsertPoint.at_start(block))
+    rewriter.insert_op((pmov_op, *new_ops), InsertPoint.at_start(block))
 
 
 def cast_block_args_to_regs(block: Block, rewriter: PatternRewriter):
