@@ -28,6 +28,7 @@ from xdsl.dialects.builtin import (
     SymbolNameConstraint,
     SymbolRefAttr,
     UnitAttr,
+    i1,
     i32,
 )
 from xdsl.dialects.utils import AbstractYieldOperation, BitEnumAttribute
@@ -1186,6 +1187,49 @@ class OperandsWithKeywordOnly(CustomDirective):
         printer.print_list(
             (operand.type for operand in operands), printer.print_attribute
         )
+        printer.print_string(")")
+        state.should_emit_space = True
+        state.last_was_punctuation = False
+
+
+@irdl_custom_directive
+class AtomicIfClause(CustomDirective):
+    """Port of the `acc.atomic.*` family's `oilist( \\`if\\` \\`(\\` $ifCond \\`)\\` )`.
+
+    Single-clause oilist shared by `acc.atomic.read` / `acc.atomic.write` /
+    `acc.atomic.update` / `acc.atomic.capture`. When absent on parse, no
+    operand is set; when present, parses `if(%cond)` and types the operand
+    as `i1` implicitly (upstream `Optional<I1>:$ifCond`).
+    """
+
+    if_cond: OptionalOperandVariable
+    if_cond_type: TypeDirective
+
+    def is_optional_like(self) -> bool:
+        return True
+
+    def set_empty(self, state: ParsingState) -> None:
+        self.if_cond.set(state, None)
+        self.if_cond_type.set(state, ())
+
+    def parse(self, parser: Parser, state: ParsingState) -> bool:
+        self.set_empty(state)
+        if parser.parse_optional_keyword("if") is None:
+            return True
+        parser.parse_punctuation("(")
+        operand = parser.parse_unresolved_operand()
+        parser.parse_punctuation(")")
+        self.if_cond.set(state, operand)
+        self.if_cond_type.set(state, (i1,))
+        return True
+
+    def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
+        if_cond = self.if_cond.get(op)
+        if if_cond is None:
+            return
+        state.print_whitespace(printer)
+        printer.print_string("if(")
+        printer.print_ssa_value(if_cond)
         printer.print_string(")")
         state.should_emit_space = True
         state.last_was_punctuation = False
@@ -4228,6 +4272,108 @@ class UpdateOp(IRDLOperation):
 
 
 # ---------------------------------------------------------------------------
+# Atomic family
+# ---------------------------------------------------------------------------
+#
+# `acc.atomic.read` and `acc.atomic.write` are the leaf atomic ops. Each has
+# two pointer-like operands plus an optional `if(%cond)` clause shared with
+# the rest of the family via the `AtomicIfClause` custom directive.
+# `acc.atomic.update` and `acc.atomic.capture` follow in subsequent PRs.
+
+
+@irdl_op_definition
+class AtomicReadOp(IRDLOperation):
+    """
+    Implementation of upstream acc.atomic.read — performs an atomic read.
+
+    The operand `x` is the address from where the value is atomically read.
+    The operand `v` is the address where the value is stored after reading.
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenACCDialect/#accatomicread-accatomicreadop).
+    """
+
+    name = "acc.atomic.read"
+
+    x = operand_def()
+    v = operand_def()
+    if_cond = opt_operand_def(I1)
+
+    element_type = prop_def(TypeAttribute)
+
+    irdl_options = (ParsePropInAttrDict(),)
+
+    custom_directives = (AtomicIfClause,)
+
+    assembly_format = (
+        "custom<AtomicIfClause>($if_cond, type($if_cond))"
+        " $v `=` $x `:` type($v) `,` type($x) `,` $element_type attr-dict"
+    )
+
+    def __init__(
+        self,
+        *,
+        x: SSAValue | Operation,
+        v: SSAValue | Operation,
+        element_type: TypeAttribute,
+        if_cond: SSAValue | Operation | None = None,
+    ) -> None:
+        super().__init__(
+            operands=[x, v, if_cond],
+            properties={"element_type": element_type},
+        )
+
+    def verify_(self) -> None:
+        # Mirrors upstream `AtomicReadOpInterface::verifyCommon`.
+        if self.x is self.v:
+            raise VerifyException(
+                "read and write must not be to the same location for atomic reads"
+            )
+
+
+@irdl_op_definition
+class AtomicWriteOp(IRDLOperation):
+    """
+    Implementation of upstream acc.atomic.write — performs an atomic write.
+
+    The operand `x` is the address to where `expr` is atomically written.
+    In general the type of `x` must dereference to the type of `expr`.
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenACCDialect/#accatomicwrite-accatomicwriteop).
+    """
+
+    name = "acc.atomic.write"
+
+    x = operand_def()
+    expr = operand_def()
+    if_cond = opt_operand_def(I1)
+
+    custom_directives = (AtomicIfClause,)
+
+    assembly_format = (
+        "custom<AtomicIfClause>($if_cond, type($if_cond))"
+        " $x `=` $expr `:` type($x) `,` type($expr) attr-dict"
+    )
+
+    def __init__(
+        self,
+        *,
+        x: SSAValue | Operation,
+        expr: SSAValue | Operation,
+        if_cond: SSAValue | Operation | None = None,
+    ) -> None:
+        super().__init__(operands=[x, expr, if_cond])
+
+    def verify_(self) -> None:
+        # Mirrors upstream `AtomicWriteOpInterface::verifyCommon`: the
+        # pointee type of `x` (currently restricted to `MemRefType`) must
+        # match `expr`'s type. Non-memref pointer-likes are not yet
+        # modelled in xDSL's `acc` dialect; when they land, extend the
+        # element-type lookup accordingly.
+        x_type = self.x.type
+        if isa(x_type, MemRefType):
+            if x_type.element_type != self.expr.type:
+                raise VerifyException("address must dereference to value type")
+
+
+# ---------------------------------------------------------------------------
 # Declare family
 # ---------------------------------------------------------------------------
 #
@@ -5271,6 +5417,8 @@ ACC = Dialect(
         EnterDataOp,
         ExitDataOp,
         UpdateOp,
+        AtomicReadOp,
+        AtomicWriteOp,
         DeclareEnterOp,
         DeclareExitOp,
         DeclareOp,

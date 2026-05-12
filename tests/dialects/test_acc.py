@@ -1085,3 +1085,29 @@ def test_global_ctor_dtor_builder_shortcuts():
         region=Region(Block([acc.TerminatorOp()])),
     )
     assert dtor.sym_name == StringAttr("acc_destructor")
+
+
+def test_atomic_read_write_builders():
+    """The `AtomicReadOp` / `AtomicWriteOp` Python builders are exercised
+    here — the filecheck round-trip path constructs via the IRDL generic
+    constructor and never runs `__init__`, so the builder bodies are only
+    reachable from Python."""
+    x = create_ssa_value(MemRefType(i32, ()))
+    v = create_ssa_value(MemRefType(i32, ()))
+    expr = create_ssa_value(i32)
+    cond = create_ssa_value(i1)
+    acc.AtomicReadOp(x=x, v=v, element_type=i32).verify()
+    acc.AtomicReadOp(x=x, v=v, element_type=i32, if_cond=cond).verify()
+    acc.AtomicWriteOp(x=x, expr=expr).verify()
+    acc.AtomicWriteOp(x=x, expr=expr, if_cond=cond).verify()
+
+
+def test_atomic_write_skips_check_for_non_memref():
+    """`AtomicWriteOp.verify_` only checks the pointee-type match when `x`
+    is a `MemRefType` — for other types the check is skipped, mirroring
+    upstream's null-element-type guard. xDSL's `acc` dialect doesn't yet
+    model non-memref pointer-likes, so this branch isn't reachable from
+    filecheck."""
+    x = create_ssa_value(i32)
+    expr = create_ssa_value(i32)
+    acc.AtomicWriteOp(x=x, expr=expr).verify()

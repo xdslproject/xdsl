@@ -972,3 +972,23 @@ func.func @ke_duplicate_async() {
   func.return
 }
 // CHECK: 'async' clause specified twice
+
+// -----
+
+// acc.atomic.read forbids reading and writing to the same location — the
+// source `x` and destination `v` operands must be distinct SSA values.
+func.func @atomic_read_same(%x : memref<i32>) {
+  acc.atomic.read %x = %x : memref<i32>, memref<i32>, i32
+  func.return
+}
+// CHECK: read and write must not be to the same location for atomic reads
+
+// -----
+
+// acc.atomic.write checks that the pointer operand `x` dereferences to the
+// value operand `expr`'s type — a nested memref<memref<...>> won't.
+func.func @atomic_write_bad_type(%addr : memref<memref<i32>>, %val : i32) {
+  acc.atomic.write %addr = %val : memref<memref<i32>>, i32
+  func.return
+}
+// CHECK: address must dereference to value type

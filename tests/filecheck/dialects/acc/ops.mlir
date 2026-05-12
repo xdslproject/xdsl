@@ -2355,4 +2355,50 @@ builtin.module {
   // CHECK-LABEL: acc.global_dtor @acc_dtor_generic {
   // CHECK-NEXT:    acc.terminator
   // CHECK-NEXT:  }
+
+  // acc.atomic.read — two pointer-like operands plus an optional `if(%cond)`
+  // clause shared with the rest of the atomic family. The pretty form is
+  // `dest = source`; the value-type spelling `: type(v), type(x), element_type`
+  // tails the operand list and the `element_type` TypeAttr is round-tripped
+  // as a bare type.
+  func.func @acc_atomic_read(%v: memref<i32>, %x: memref<i32>) {
+    acc.atomic.read %v = %x : memref<i32>, memref<i32>, i32
+    %c = arith.constant true
+    acc.atomic.read if(%c) %v = %x : memref<i32>, memref<i32>, i32
+    func.return
+  }
+  // CHECK-LABEL: func.func @acc_atomic_read(
+  // CHECK:         acc.atomic.read %{{.*}} = %{{.*}} : memref<i32>, memref<i32>, i32
+  // CHECK-NEXT:    %{{.*}} = arith.constant true
+  // CHECK-NEXT:    acc.atomic.read if(%{{.*}}) %{{.*}} = %{{.*}} : memref<i32>, memref<i32>, i32
+
+  // acc.atomic.write — same shape as read but the right-hand-side is an
+  // arbitrary-typed value rather than a pointer; pretty form is `addr = expr`.
+  func.func @acc_atomic_write(%x: memref<i32>, %expr: i32) {
+    acc.atomic.write %x = %expr : memref<i32>, i32
+    %c = arith.constant true
+    acc.atomic.write if(%c) %x = %expr : memref<i32>, i32
+    func.return
+  }
+  // CHECK-LABEL: func.func @acc_atomic_write(
+  // CHECK:         acc.atomic.write %{{.*}} = %{{.*}} : memref<i32>, i32
+  // CHECK-NEXT:    %{{.*}} = arith.constant true
+  // CHECK-NEXT:    acc.atomic.write if(%{{.*}}) %{{.*}} = %{{.*}} : memref<i32>, i32
+
+  // Generic-form roundtrip insurance — covers the parser path that bypasses
+  // the AtomicIfClause custom directive. Note the operand order in the
+  // generic form is `(x, v[, if_cond])` for read and `(x, expr[, if_cond])`
+  // for write, matching the upstream td-definition order of the operands.
+  func.func @acc_atomic_generic(%v: memref<i32>, %x: memref<i32>, %expr: i32, %c: i1) {
+    "acc.atomic.read"(%x, %v) <{element_type = i32}> : (memref<i32>, memref<i32>) -> ()
+    "acc.atomic.read"(%x, %v, %c) <{element_type = i32}> : (memref<i32>, memref<i32>, i1) -> ()
+    "acc.atomic.write"(%x, %expr) : (memref<i32>, i32) -> ()
+    "acc.atomic.write"(%x, %expr, %c) : (memref<i32>, i32, i1) -> ()
+    func.return
+  }
+  // CHECK-LABEL: func.func @acc_atomic_generic(
+  // CHECK:         acc.atomic.read %{{.*}} = %{{.*}} : memref<i32>, memref<i32>, i32
+  // CHECK-NEXT:    acc.atomic.read if(%{{.*}}) %{{.*}} = %{{.*}} : memref<i32>, memref<i32>, i32
+  // CHECK-NEXT:    acc.atomic.write %{{.*}} = %{{.*}} : memref<i32>, i32
+  // CHECK-NEXT:    acc.atomic.write if(%{{.*}}) %{{.*}} = %{{.*}} : memref<i32>, i32
 }
