@@ -917,15 +917,15 @@ builtin.module {
   // CHECK-NEXT:   ret <4 x float> %"[[RES]]"
   // CHECK-NEXT: }
 
-  llvm.func @call_intrinsic_void(%arg0: i32) {
-    llvm.call_intrinsic "llvm.donothing"(%arg0) : (i32) -> ()
+  llvm.func @call_intrinsic_void() {
+    llvm.call_intrinsic "llvm.donothing"() : () -> ()
     llvm.return
   }
 
-  // CHECK: define void @"call_intrinsic_void"(i32 %".1")
+  // CHECK: define void @"call_intrinsic_void"()
   // CHECK-NEXT: {
   // CHECK-NEXT: [[ENTRY:.\d+]]:
-  // CHECK-NEXT:   call void @"llvm.donothing"(i32 %".1")
+  // CHECK-NEXT:   call void @"llvm.donothing"()
   // CHECK-NEXT:   ret void
   // CHECK-NEXT: }
 

@@ -2590,6 +2590,12 @@ class CallIntrinsicOp(IRDLOperation):
         ParsePropInAttrDict(),
     )
 
+    def verify_(self) -> None:
+        if not self.intrin.data.startswith("llvm."):
+            raise VerifyException(
+                f"intrinsic name must start with 'llvm.', got '{self.intrin.data}'"
+            )
+
     def __init__(
         self,
         intrin: StringAttr | str,
