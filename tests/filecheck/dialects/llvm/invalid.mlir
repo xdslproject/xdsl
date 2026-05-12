@@ -182,3 +182,12 @@ llvm.func @elementtype_on_func(%arg0: !llvm.ptr {llvm.elementtype = f32}) {
 }
 
 // CHECK: 'llvm.elementtype' on parameter 0 is invalid: elementtype can only be applied to intrinsic callsites
+
+// -----
+
+func.func @call_intrinsic_bad_name() {
+  llvm.call_intrinsic "not_an_intrinsic"() : () -> ()
+  func.return
+}
+
+// CHECK: intrinsic name must start with 'llvm.'
