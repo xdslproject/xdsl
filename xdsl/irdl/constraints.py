@@ -706,6 +706,7 @@ class ParamAttrConstraint(
         if (
             not isinstance(value, ParamAttrConstraint)
             or self.base_attr is not cast(ParamAttrConstraint[Any], value).base_attr
+            or len(self.param_constrs) > 1
         ):
             return super().__or__(value)  # pyright: ignore[reportUnknownArgumentType]
         return ParamAttrConstraint(
