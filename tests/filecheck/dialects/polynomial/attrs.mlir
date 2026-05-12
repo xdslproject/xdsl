@@ -25,13 +25,6 @@
 // CHECK-NEXT:   "test.op"() {poly = #polynomial.typed_chebyshev_polynomial<[1.000000e+00 : f64, 2.000000e+00 : f64, 3.000000e+00 : f64]> : !polynomial.polynomial<ring = <coefficientType = f64>>} : () -> ()
 "test.op"() {poly = #polynomial.typed_chebyshev_polynomial<[1.000000e+00 : f64, 2.000000e+00 : f64, 3.000000e+00 : f64]> : !polynomial.polynomial<ring = <coefficientType = f64>>} : () -> ()
 
-// --- TypedChebyshevPolynomialAttr via attribute alias ---
-
-#inner = #polynomial.typed_chebyshev_polynomial<[1.000000e+00 : f64]> : !polynomial.polynomial<ring = <coefficientType = f64>>
-
-// CHECK-NEXT: "test.op"() {p = #polynomial.typed_chebyshev_polynomial<[1.000000e+00 : f64]> : !polynomial.polynomial<ring = <coefficientType = f64>>} : () -> ()
-"test.op"() {p = #polynomial.typed_chebyshev_polynomial #inner} : () -> ()
-
 // --- HEIR-style aliased input (ring alias + type alias + generic-form attribute) ---
 
 #ring_f64_alias = #polynomial.ring<coefficientType = f64>

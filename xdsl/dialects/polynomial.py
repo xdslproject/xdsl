@@ -159,14 +159,6 @@ class TypedChebyshevPolynomialAttr(ParametrizedAttribute):
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> Sequence[Attribute]:
-        # Accept either the inline form (`<[coeffs]> : !poly_type`) or an
-        # explicit attribute-alias reference (`#alias`), where the alias
-        # already resolves to a TypedChebyshevPolynomialAttr.
-        attr = parser.parse_optional_attribute()
-        if attr is not None:
-            if not isinstance(attr, TypedChebyshevPolynomialAttr):
-                parser.raise_error(f"expected TypedChebyshevPolynomialAttr, got {attr}")
-            return (attr.type, attr.value)
         with parser.in_angle_brackets():
             coeffs = parser.parse_attribute()
         parser.parse_punctuation(":")
