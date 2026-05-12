@@ -14,7 +14,6 @@ def _():
 @app.cell(hide_code=True)
 def _():
     from xdsl.utils import marimo as xmo
-
     return (xmo,)
 
 
