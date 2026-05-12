@@ -341,6 +341,7 @@ class ConcatOp(IRDLOperation):
     name = "hlfir.concat"
     strings = var_operand_def()
     length = operand_def()
+    result = result_def()
 
     irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
