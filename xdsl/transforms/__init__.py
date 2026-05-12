@@ -530,6 +530,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return riscv_lower_parallel_mov.RISCVLowerParallelMovPass
 
+    def get_riscv_reorder_infinite():
+        from xdsl.transforms import riscv_reorder_infinite
+
+        return riscv_reorder_infinite.RISCVReorderInfinitePass
+
     def get_riscv_prologue_epilogue_insertion():
         from xdsl.backend.riscv import prologue_epilogue_insertion
 
@@ -784,6 +789,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "riscv-allocate-registers": get_riscv_allocate_registers,
         "riscv-legalize-parallel-mov": get_riscv_legalize_parallel_mov,
         "riscv-lower-parallel-mov": get_riscv_lower_parallel_mov,
+        "riscv-reorder-infinite": get_riscv_reorder_infinite,
         "riscv-prologue-epilogue-insertion": get_riscv_prologue_epilogue_insertion,
         "riscv-scf-loop-range-folding": get_riscv_scf_loop_range_folding,
         "scf-for-loop-flatten": get_scf_for_loop_flatten,
