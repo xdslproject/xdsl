@@ -2,6 +2,8 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import cast
 
+from ordered_set import OrderedSet
+
 from xdsl.context import Context
 from xdsl.dialects import riscv_func
 from xdsl.dialects.builtin import DenseArrayBase, ModuleOp, i32
@@ -53,7 +55,7 @@ class RISCVLegalizeParallelMovPass(ModulePass):
             self.process_func(func_op)
 
     def process_func(self, func_op: riscv_func.FuncOp):
-        live_values = set[SSAValue]()
+        live_values: OrderedSet[SSAValue] = OrderedSet([])
         for inner_op in func_op.walk(reverse=True):
             if isinstance(inner_op, ParallelMovOp):
                 self.fill_live_values(inner_op, live_values)
@@ -64,7 +66,9 @@ class RISCVLegalizeParallelMovPass(ModulePass):
             for use in inner_op.operands:
                 live_values.add(use)
 
-    def fill_live_values(self, pmov_op: ParallelMovOp, live_values: set[SSAValue]):
+    def fill_live_values(
+        self, pmov_op: ParallelMovOp, live_values: OrderedSet[SSAValue]
+    ):
         new_values: list[SSAValue] = []
         for value in live_values:
             if value not in pmov_op.results:
