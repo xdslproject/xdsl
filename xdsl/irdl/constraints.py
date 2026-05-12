@@ -277,21 +277,6 @@ class TypeVarConstraint(AttrConstraint):
         return res
 
 
-@dataclass(frozen=True, init=True)
-class ConstraintVar:
-    """
-    Annotation used in PyRDL to define a constraint variable.
-    For instance, the following code defines a constraint variable T,
-    that can then be used in PyRDL:
-    ```python
-    T = Annotated[PyRDLConstraint, ConstraintVar("T")]
-    ```
-    """
-
-    name: str
-    """The variable name. All uses of that name refer to the same variable."""
-
-
 @dataclass(frozen=True)
 class EqAttrConstraint(AttrConstraint[AttributeCovT], Generic[AttributeCovT]):
     """Constrain an attribute to be equal to another attribute."""

@@ -8,15 +8,12 @@ from enum import Enum
 from types import FunctionType
 from typing import (
     TYPE_CHECKING,
-    Annotated,
     Any,
     ClassVar,
     Generic,
     Literal,
     TypeAlias,
     cast,
-    get_args,
-    get_origin,
     overload,
 )
 
@@ -54,7 +51,6 @@ from .constraints import (  # noqa: TID251
     AnyAttr,
     AttrConstraint,
     ConstraintContext,
-    ConstraintVar,
     IntConstraint,
     RangeConstraint,
     RangeOf,
@@ -1055,17 +1051,6 @@ class OpDef:
                     value, FunctionType | PropertyType | classmethod | staticmethod
                 ):
                     continue
-                # Constraint variables are deprecated
-                if get_origin(value) is Annotated:
-                    if any(isinstance(arg, ConstraintVar) for arg in get_args(value)):
-                        import warnings
-
-                        warnings.warn(
-                            "The use of `ConstraintVar` is deprecated, please use `VarConstraint`",
-                            DeprecationWarning,
-                            stacklevel=2,
-                        )
-                        continue
 
                 # Get attribute constraints from a list of pyrdl constraints
                 def get_constraint(
