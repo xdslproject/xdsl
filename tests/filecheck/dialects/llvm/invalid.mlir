@@ -174,3 +174,11 @@ func.func @shufflevector_mask_out_of_range() {
 }
 
 // CHECK: Mask value 5 out of range [-1, 4)
+
+// -----
+
+llvm.func @elementtype_on_func(%arg0: !llvm.ptr {llvm.elementtype = f32}) {
+  llvm.return
+}
+
+// CHECK: 'llvm.elementtype' on parameter 0 is invalid: elementtype can only be applied to intrinsic callsites

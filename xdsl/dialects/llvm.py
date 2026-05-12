@@ -2453,6 +2453,16 @@ class FuncOp(IRDLOperation):
             case _:
                 raise AssertionError("Invalid unnamed_addr value")
 
+    def verify_(self, verify_nested_ops: bool = True) -> None:
+        if self.arg_attrs is None:
+            return
+        for i, attrs in enumerate(self.arg_attrs):
+            if "llvm.elementtype" in attrs.data:
+                raise VerifyException(
+                    f"'llvm.elementtype' on parameter {i} is invalid: "
+                    "elementtype can only be applied to intrinsic callsites"
+                )
+
     def print(self, printer: Printer):
         if self.linkage.linkage.data != "external":
             printer.print_string(" ")
