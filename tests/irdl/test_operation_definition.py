@@ -27,7 +27,6 @@ from xdsl.irdl import (
     AttrSizedRegionSegments,
     AttrSizedResultSegments,
     BaseAttr,
-    ConstraintVar,
     EqAttrConstraint,
     IntVarConstraint,
     IRDLOperation,
@@ -192,90 +191,6 @@ def test_attr_verify():
     op = AttrOp.create(attributes={"attr": IntAttr(1)})
     with pytest.raises(
         VerifyException, match="#builtin.int<1> should be of base attribute string"
-    ):
-        op.verify()
-
-
-with pytest.deprecated_call():
-    # TODO: remove this test once the Annotated API is deprecated
-    @irdl_op_definition
-    class ConstraintVarOp(IRDLOperation):
-        name = "test.constraint_var_op"
-
-        T = Annotated[IntegerType | IndexType, ConstraintVar("T")]
-
-        operand = operand_def(T)
-        result = result_def(T)
-        attribute = attr_def(T)
-
-
-def test_constraint_var():
-    i32_operand = create_ssa_value(i32)
-    index_operand = create_ssa_value(IndexType())
-    op = ConstraintVarOp.create(
-        operands=[i32_operand], result_types=[i32], attributes={"attribute": i32}
-    )
-    op.verify()
-
-    op2 = ConstraintVarOp.create(
-        operands=[index_operand],
-        result_types=[IndexType()],
-        attributes={"attribute": IndexType()},
-    )
-    op2.verify()
-
-
-def test_constraint_var_fail_non_equal():
-    """Check that all uses of a constraint variable are of the same attribute."""
-    i32_operand = create_ssa_value(i32)
-    index_operand = create_ssa_value(IndexType())
-
-    # Fail because of operand
-    op = ConstraintVarOp.create(
-        operands=[index_operand], result_types=[i32], attributes={"attribute": i32}
-    )
-    with pytest.raises(
-        DiagnosticException,
-        match="Operation does not verify: result 'result' at position 0 does not verify",
-    ):
-        op.verify()
-
-    # Fail because of result
-    op2 = ConstraintVarOp.create(
-        operands=[i32_operand],
-        result_types=[IndexType()],
-        attributes={"attribute": i32},
-    )
-    with pytest.raises(
-        DiagnosticException,
-        match="Operation does not verify: result 'result' at position 0 does not verify",
-    ):
-        op2.verify()
-
-    # Fail because of attribute
-    op3 = ConstraintVarOp.create(
-        operands=[i32_operand],
-        result_types=[i32],
-        attributes={"attribute": IndexType()},
-    )
-    with pytest.raises(
-        DiagnosticException,
-        match="Operation does not verify: attribute i32 expected from variable 'T', but got index",
-    ):
-        op3.verify()
-
-
-def test_constraint_var_fail_not_satisfy_constraint():
-    """Check that all uses of a constraint variable are satisfying the constraint."""
-    test_operand = create_ssa_value(TestType("foo"))
-    op = ConstraintVarOp.create(
-        operands=[test_operand],
-        result_types=[TestType("foo")],
-        attributes={"attribute": TestType("foo")},
-    )
-    with pytest.raises(
-        DiagnosticException,
-        match="Operation does not verify: operand 'operand' at position 0 does not verify",
     ):
         op.verify()
 
