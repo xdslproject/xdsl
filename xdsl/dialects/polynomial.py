@@ -16,6 +16,7 @@ from collections.abc import Sequence
 from typing import ClassVar
 
 from xdsl.dialects.builtin import (
+    AnyFloat,
     AnyFloatConstr,
     ArrayAttr,
     ContainerOf,
@@ -277,7 +278,7 @@ class EvalOp(IRDLOperation):
         cls,
         value: Operation | SSAValue,
         coefficients: tuple[float, ...],
-        element_type: Attribute,
+        element_type: AnyFloat,
         scheme: EvalScheme | str,
         domain_lower: float | None = None,
         domain_upper: float | None = None,
