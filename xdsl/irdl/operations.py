@@ -1791,6 +1791,9 @@ class BaseAccessor(ABC):
         args = get_op_constructs(obj, self.construct)
         return self.index(args)
 
+    def __set__(self, obj, value):
+        raise NotImplementedError("Setting operands via accessors is not implemented")
+
 
 @dataclass(frozen=True)
 class BeforeVariadicSingleAccessor(BaseAccessor):
