@@ -786,13 +786,7 @@ builtin.module {
 
   // forward_ref_caller calls forward_ref_callee which is defined AFTER it
   llvm.func @forward_ref_caller(%arg0: i32) -> i32 {
-    %0 = "llvm.call"(%arg0) <{
-      callee = @forward_ref_callee,
-      fastmathFlags = #llvm.fastmath<none>,
-      CConv = #llvm.cconv<ccc>,
-      TailCallKind = #llvm.tailcallkind<none>,
-      operandSegmentSizes = array<i32: 1, 0>
-    }> : (i32) -> i32
+    %0 = llvm.call @forward_ref_callee(%arg0) : (i32) -> i32
     llvm.return %0 : i32
   }
 
@@ -961,7 +955,7 @@ builtin.module {
 
   llvm.func @addressof_op() {
     %0 = llvm.mlir.addressof @addressof_target : !llvm.ptr
-    "llvm.call"(%0) <{callee = @callee, fastmathFlags = #llvm.fastmath<>, CConv = #llvm.cconv<ccc>, TailCallKind = #llvm.tailcallkind<none>, operandSegmentSizes = array<i32: 1, 0>}> : (!llvm.ptr) -> ()
+    llvm.call @callee(%0) : (!llvm.ptr) -> ()
     llvm.return
   }
 
