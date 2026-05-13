@@ -35,6 +35,7 @@ from xdsl.irdl import (
     base,
     eq,
     irdl_attr_definition,
+    irdl_to_attr_constraint,
 )
 from xdsl.utils.exceptions import PyRDLError
 
@@ -388,3 +389,40 @@ class AttrE(ParametrizedAttribute, Generic[_T]):
 def test_param_instantiated_generic():
     with pytest.raises(PyRDLError):
         ParamAttrConstraint.get(AttrE[AttrB])
+
+
+class AttrF(ParametrizedAttribute):
+    param1: Attribute
+    param2: Attribute
+
+
+@pytest.mark.parametrize(
+    "constr, expected",
+    [
+        (ParamAttrConstraint.get(AttrA), ParamAttrConstraint(AttrA, ())),
+        (
+            ParamAttrConstraint.get(AttrB, None),
+            ParamAttrConstraint(AttrB, (AnyAttr(),)),
+        ),
+        (
+            ParamAttrConstraint.get(AttrF, None, None),
+            ParamAttrConstraint(AttrF, (AnyAttr(), AnyAttr())),
+        ),
+        (
+            ParamAttrConstraint.get(AttrF, AttrA, AttrB),
+            ParamAttrConstraint(
+                AttrF, (irdl_to_attr_constraint(AttrA), irdl_to_attr_constraint(AttrB))
+            ),
+        ),
+        (
+            ParamAttrConstraint.get(
+                AttrF, None, ParamAttrConstraint.get(AttrF, None, None)
+            ),
+            ParamAttrConstraint(
+                AttrF, (AnyAttr(), ParamAttrConstraint(AttrF, (AnyAttr(), AnyAttr())))
+            ),
+        ),
+    ],
+)
+def test_param_attr_get(constr: AttrConstraint, expected: AttrConstraint):
+    assert constr == expected
