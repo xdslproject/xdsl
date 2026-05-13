@@ -4522,32 +4522,23 @@ class AtomicCaptureOp(IRDLOperation):
                 "terminator, and two atomic ops)"
             )
         first_op, second_op, _terminator = ops
-        if isinstance(first_op, AtomicUpdateOp) and isinstance(second_op, AtomicReadOp):
-            if first_op.x is not second_op.x:
+        match first_op, second_op:
+            case AtomicUpdateOp(), AtomicReadOp():
+                if first_op.x is not second_op.x:
+                    raise VerifyException(
+                        "updated variable in atomic.update must be captured in "
+                        "second operation"
+                    )
+            case AtomicReadOp(), (AtomicUpdateOp() | AtomicWriteOp()):
+                if first_op.x is not second_op.x:
+                    raise VerifyException(
+                        "captured variable in atomic.read must be updated in "
+                        "second operation"
+                    )
+            case _:
                 raise VerifyException(
-                    "updated variable in atomic.update must be captured in "
-                    "second operation"
+                    "invalid sequence of operations in the capture region"
                 )
-        elif isinstance(first_op, AtomicReadOp) and isinstance(
-            second_op, AtomicUpdateOp
-        ):
-            if first_op.x is not second_op.x:
-                raise VerifyException(
-                    "captured variable in atomic.read must be updated in "
-                    "second operation"
-                )
-        elif isinstance(first_op, AtomicReadOp) and isinstance(
-            second_op, AtomicWriteOp
-        ):
-            if first_op.x is not second_op.x:
-                raise VerifyException(
-                    "captured variable in atomic.read must be updated in "
-                    "second operation"
-                )
-        else:
-            raise VerifyException(
-                "invalid sequence of operations in the capture region"
-            )
 
 
 # ---------------------------------------------------------------------------
