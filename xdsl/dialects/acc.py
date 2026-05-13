@@ -55,6 +55,7 @@ from xdsl.irdl import (
     operand_def,
     opt_operand_def,
     opt_prop_def,
+    param_def,
     prop_def,
     region_def,
     result_def,
@@ -623,6 +624,23 @@ class DeclareAttr(ParametrizedAttribute):
         return [seen["dataClause"], seen.get("implicit", IntegerAttr.from_bool(False))]
 
 
+def _coerce_optional_symref(
+    value: SymbolRefAttr | str | None,
+) -> SymbolRefAttr | NoneAttr:
+    """`param_def` converter for `DeclareActionAttr`'s four slots.
+    Absent (None) → `NoneAttr`; bare name → `SymbolRefAttr`; an
+    already-built `SymbolRefAttr` passes through unchanged. Only fires
+    on the Python-construction path; the parser bypasses converters
+    via `attr_def.new(...)`, so parser-produced values must already be
+    `SymbolRefAttr` / `NoneAttr`.
+    """
+    if value is None:
+        return NoneAttr()
+    if isinstance(value, str):
+        return SymbolRefAttr(value)
+    return value
+
+
 @irdl_attr_definition
 class DeclareActionAttr(ParametrizedAttribute):
     """
@@ -643,10 +661,12 @@ class DeclareActionAttr(ParametrizedAttribute):
 
     name = "acc.declare_action"
 
-    pre_alloc: SymbolRefAttr | NoneAttr
-    post_alloc: SymbolRefAttr | NoneAttr
-    pre_dealloc: SymbolRefAttr | NoneAttr
-    post_dealloc: SymbolRefAttr | NoneAttr
+    pre_alloc: SymbolRefAttr | NoneAttr = param_def(converter=_coerce_optional_symref)
+    post_alloc: SymbolRefAttr | NoneAttr = param_def(converter=_coerce_optional_symref)
+    pre_dealloc: SymbolRefAttr | NoneAttr = param_def(converter=_coerce_optional_symref)
+    post_dealloc: SymbolRefAttr | NoneAttr = param_def(
+        converter=_coerce_optional_symref
+    )
 
     def __init__(
         self,
@@ -655,12 +675,7 @@ class DeclareActionAttr(ParametrizedAttribute):
         pre_dealloc: SymbolRefAttr | str | None = None,
         post_dealloc: SymbolRefAttr | str | None = None,
     ) -> None:
-        super().__init__(
-            _coerce_optional_symref(pre_alloc),
-            _coerce_optional_symref(post_alloc),
-            _coerce_optional_symref(pre_dealloc),
-            _coerce_optional_symref(post_dealloc),
-        )
+        super().__init__(pre_alloc, post_alloc, pre_dealloc, post_dealloc)
 
     def print_parameters(self, printer: Printer) -> None:
         slots = (
@@ -702,14 +717,6 @@ class DeclareActionAttr(ParametrizedAttribute):
                 parser.raise_error(f"duplicate struct parameter name: {key}")
             seen[key] = ref
         return [seen.get(name, NoneAttr()) for name in fields]
-
-
-def _coerce_optional_symref(value: SymbolRefAttr | str | None) -> Attribute:
-    if value is None:
-        return NoneAttr()
-    if isinstance(value, str):
-        return SymbolRefAttr(value)
-    return value
 
 
 @irdl_attr_definition
