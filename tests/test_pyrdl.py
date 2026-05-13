@@ -278,7 +278,7 @@ def test_allof_verify_multiple_failures():
 def test_param_attr_verify():
     bool_true = BoolData(True)
     constraint = ParamAttrConstraint(
-        DoubleParamAttr, [EqAttrConstraint(bool_true), BaseAttr(IntData)]
+        DoubleParamAttr, (EqAttrConstraint(bool_true), BaseAttr(IntData))
     )
     constraint.verify(DoubleParamAttr(bool_true, IntData(0)), ConstraintContext())
     constraint.verify(DoubleParamAttr(bool_true, IntData(42)), ConstraintContext())
@@ -287,7 +287,7 @@ def test_param_attr_verify():
 def test_param_attr_verify_base_fail():
     bool_true = BoolData(True)
     constraint = ParamAttrConstraint(
-        DoubleParamAttr, [EqAttrConstraint(bool_true), BaseAttr(IntData)]
+        DoubleParamAttr, (EqAttrConstraint(bool_true), BaseAttr(IntData))
     )
     with pytest.raises(
         VerifyException,
@@ -298,7 +298,7 @@ def test_param_attr_verify_base_fail():
 
 def test_param_attr_verify_params_num_params_fail():
     bool_true = BoolData(True)
-    constraint = ParamAttrConstraint(DoubleParamAttr, [EqAttrConstraint(bool_true)])
+    constraint = ParamAttrConstraint(DoubleParamAttr, (EqAttrConstraint(bool_true),))
     attr = DoubleParamAttr(bool_true, IntData(0))
     with pytest.raises(VerifyException, match="1 parameters expected, but got 2"):
         constraint.verify(attr, ConstraintContext())
@@ -308,7 +308,11 @@ def test_param_attr_verify_params_fail():
     bool_true = BoolData(True)
     bool_false = BoolData(False)
     constraint = ParamAttrConstraint(
-        DoubleParamAttr, [EqAttrConstraint(bool_true), BaseAttr(IntData)]
+        DoubleParamAttr,
+        (
+            EqAttrConstraint(bool_true),
+            BaseAttr(IntData),
+        ),
     )
 
     with pytest.raises(

@@ -2844,10 +2844,10 @@ def test_nested_inference_variable():
         p: _T
 
         @staticmethod
-        def constr(
-            *, p: AttrConstraint[_T] | None = None
-        ) -> ParamAttrConstraint[ParamOne[_T]]:
-            return ParamAttrConstraint[ParamOne[_T]](ParamOne, (p,))
+        def constr(*, p: AttrConstraint[_T]) -> AttrConstraint[ParamOne[_T]]:
+            return cast(
+                AttrConstraint[ParamOne[_T]], ParamAttrConstraint(ParamOne, (p,))
+            )
 
     @irdl_op_definition
     class ResultTypeIsOperandParamOp(IRDLOperation):

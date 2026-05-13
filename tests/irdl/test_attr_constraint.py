@@ -100,8 +100,8 @@ class AttrD(Base):
         ),
         (AllOf((AnyAttr(), BaseAttr(Base))), None),
         (AllOf((AnyAttr(), BaseAttr(AttrA))), {AttrA}),
-        (ParamAttrConstraint(AttrB, [BaseAttr(AttrA)]), {AttrB}),
-        (ParamAttrConstraint(Base, [BaseAttr(AttrA)]), None),
+        (ParamAttrConstraint(AttrB, (BaseAttr(AttrA),)), {AttrB}),
+        (ParamAttrConstraint(Base, (BaseAttr(AttrA),)), None),
         (VarConstraint("T", BaseAttr(Base)), None),
         (VarConstraint("T", BaseAttr(AttrA)), {AttrA}),
         (
