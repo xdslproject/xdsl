@@ -462,6 +462,19 @@ def test_data_clause_modifier_attr_constructor():
     )
 
 
+def test_var_name_attr_constructor():
+    """`VarNameAttr` accepts both `str` and `StringAttr` and stores the
+    StringAttr on `.var_name`. Pretty-form `<"..."` printing/parsing is
+    covered by filecheck in `tests/filecheck/dialects/acc/attrs.mlir`."""
+    from_str = acc.VarNameAttr("foo")
+    assert isinstance(from_str.var_name, StringAttr)
+    assert from_str.var_name.data == "foo"
+
+    from_attr = acc.VarNameAttr(StringAttr("bar"))
+    assert isinstance(from_attr.var_name, StringAttr)
+    assert from_attr.var_name.data == "bar"
+
+
 def test_copyin_minimal_defaulted_props_absent_from_dict():
     """Defaulted props (`dataClause` / `structured` / `implicit` / `modifiers`)
     must be *absent* from `op.properties` when not explicitly set, even though
