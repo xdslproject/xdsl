@@ -1117,6 +1117,29 @@ def test_atomic_update_builder():
     acc.AtomicUpdateOp(x=x, region=_body(), if_cond=cond).verify()
 
 
+def test_atomic_capture_builder():
+    """The `AtomicCaptureOp` Python builder — filecheck constructs via the
+    IRDL generic constructor and never runs `__init__`."""
+    v = create_ssa_value(MemRefType(i32, ()))
+    x = create_ssa_value(MemRefType(i32, ()))
+    expr = create_ssa_value(i32)
+    cond = create_ssa_value(i1)
+
+    def _body() -> Region:
+        return Region(
+            Block(
+                [
+                    acc.AtomicReadOp(x=x, v=v, element_type=i32),
+                    acc.AtomicWriteOp(x=x, expr=expr),
+                    acc.TerminatorOp(),
+                ]
+            )
+        )
+
+    acc.AtomicCaptureOp(region=_body()).verify()
+    acc.AtomicCaptureOp(region=_body(), if_cond=cond).verify()
+
+
 def test_atomic_write_skips_check_for_non_memref():
     """`AtomicWriteOp.verify_` only checks the pointee-type match when `x`
     is a `MemRefType` — for other types the check is skipped, mirroring
