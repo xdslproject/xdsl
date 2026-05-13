@@ -12,6 +12,7 @@ from typing import (
     ClassVar,
     Generic,
     Literal,
+    NoReturn,
     TypeAlias,
     cast,
     overload,
@@ -1791,6 +1792,13 @@ class BaseAccessor(ABC):
         args = get_op_constructs(obj, self.construct)
         return self.index(args)
 
+    def __set__(self, instance, value) -> NoReturn:
+        """Writing to a named Operation construct is unsupported.
+        It is recommended to create a new operation instead."""
+        raise AssertionError(
+            "Cannot write to named operands, regions, results, or successors."
+        )
+
 
 @dataclass(frozen=True)
 class BeforeVariadicSingleAccessor(BaseAccessor):
@@ -1916,6 +1924,13 @@ class BaseAttrAccessor(ABC):
         attr = self.option.container(obj)[self.option.attribute_name]
         args = get_op_constructs(obj, self.construct)
         return self.index(attr.get_values(), args)  # pyright: ignore[reportUnknownMemberType,reportAttributeAccessIssue,reportUnknownArgumentType]
+
+    def __set__(self, instance, value) -> NoReturn:
+        """Writing to a named Operation construct is unsupported.
+        It is recommended to create a new operation instead."""
+        raise AssertionError(
+            "Cannot write to named operands, regions, results, or successors."
+        )
 
 
 @dataclass(frozen=True)

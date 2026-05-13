@@ -18,18 +18,28 @@ from xdsl.dialects.builtin import (
 from xdsl.dialects.cf import Cf
 from xdsl.dialects.func import Func
 from xdsl.ir import (
+    Attribute,
     Block,
     ErasedSSAValue,
     Operation,
+    OpResult,
     Region,
     SSAValue,
+    SSAValues,
 )
 from xdsl.irdl import (
+    AttrSizedOperandSegments,
+    AttrSizedRegionSegments,
+    AttrSizedResultSegments,
+    AttrSizedSuccessorSegments,
     IRDLOperation,
     irdl_op_definition,
     operand_def,
     prop_def,
+    var_operand_def,
     var_region_def,
+    var_result_def,
+    var_successor_def,
 )
 from xdsl.parser import Parser
 from xdsl.utils.exceptions import VerifyException
@@ -245,6 +255,76 @@ def test_op_operands_comparison():
     op1.verify()
 
     assert op1.operands != op2.operands
+
+
+def test_op_accessor_assignment():
+    """Test that operation constructs cannot be assigned via an op's named constructs."""
+    val1, val2 = create_ssa_value(i32), create_ssa_value(i32)
+    op1 = test.TestTermOp.create(operands=[val1, val2])
+    op1.verify()
+
+    new_operands: SSAValues[SSAValue[Attribute]] = SSAValues((val1, val2))
+    with pytest.raises(AssertionError):
+        op1.ops = new_operands
+
+    new_results: SSAValues[OpResult[Attribute]] = SSAValues((val1, val2))
+    with pytest.raises(AssertionError):
+        op1.res = new_results
+
+    with pytest.raises(AssertionError):
+        op1.regs = (Region(),)
+
+    with pytest.raises(AssertionError):
+        op1.successor = [Block(), Block()]
+
+
+def test_op_segmented_accessor_assignment():
+    """Test that operation constructs cannot be assigned via an op's named constructs when using segment size based accessors."""
+
+    @irdl_op_definition
+    class TestSegmentedOp(IRDLOperation):
+        name = "test.segmentedop"
+        operands1 = var_operand_def()
+        operands2 = var_operand_def()
+
+        results1 = var_result_def()
+        results2 = var_result_def()
+
+        regions1 = var_region_def()
+        regions2 = var_region_def()
+
+        successors1 = var_successor_def()
+        successors2 = var_successor_def()
+
+        irdl_options = (
+            AttrSizedOperandSegments(as_property=True),
+            AttrSizedResultSegments(as_property=True),
+            AttrSizedRegionSegments(as_property=True),
+            AttrSizedSuccessorSegments(as_property=True),
+        )
+
+    val1, val2 = create_ssa_value(i32), create_ssa_value(i32)
+    op1 = TestSegmentedOp.build(
+        operands=[[val1], [val2]],
+        result_types=[[], []],
+        regions=[[], []],
+        successors=[[], []],
+    )
+    op1.verify()
+
+    new_operands: SSAValues[SSAValue[Attribute]] = SSAValues((val1, val2))
+    with pytest.raises(AssertionError):
+        op1.operands1 = new_operands
+
+    new_results: SSAValues[OpResult[Attribute]] = SSAValues((val1, val2))
+    with pytest.raises(AssertionError):
+        op1.results1 = new_results
+
+    with pytest.raises(AssertionError):
+        op1.regions1 = (Region(),)
+
+    with pytest.raises(AssertionError):
+        op1.successors1 = [Block(), Block()]
 
 
 def test_op_clone():
