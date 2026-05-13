@@ -1433,20 +1433,43 @@ def irdl_op_verify_regions(
     op: Operation, op_def: OpDef, constraint_context: ConstraintContext
 ):
     verify_variadic_size(op, op_def, VarIRConstruct.REGION)
-    for i, (region, (name, region_def)) in enumerate(zip(op.regions, op_def.regions)):
-        if isinstance(region_def, SingleBlockRegionDef) and len(region.blocks) != 1:
-            raise VerifyException(
-                f"Region '{name}' at position {i} expected a single block, but got "
-                f"{len(region.blocks)} blocks"
-            )
-        if (first_block := region.blocks.first) is not None:
-            entry_args_types = first_block.arg_types
-            try:
-                region_def.entry_args.verify(entry_args_types, constraint_context)
-            except VerifyException as e:
-                raise VerifyException(
-                    f"region #{i} entry arguments do not verify:\n{e}"
-                ) from e
+
+    idx = 0
+    for region_def_name, region_def in op_def.regions:
+        regions: None | Region | tuple[Region, ...] = getattr(op, region_def_name)
+        block_counts: list[int] = []
+        entry_arg_types_list: list[None | Sequence[Attribute]] = []
+        if isinstance(regions, tuple):
+            for region in regions:
+                block_counts.append(len(region.blocks))
+                entry_block = region.first_block
+                entry_arg_types_list.append(entry_block and entry_block.arg_types)
+        elif isinstance(regions, Region):
+            block_counts.append(len(regions.blocks))
+            entry_block = regions.first_block
+            entry_arg_types_list.append(entry_block and entry_block.arg_types)
+
+        if isinstance(
+            region_def,
+            SingleBlockRegionDef | VarSingleBlockRegionDef | OptSingleBlockRegionDef,
+        ):
+            for i, block_count in enumerate(block_counts):
+                if block_count != 1:
+                    idx_msg = f"[{i}]" if isinstance(regions, tuple) else ""
+                    raise VerifyException(
+                        f"Region '{region_def_name}{idx_msg}' at position {idx + i} expected a single block, but got "
+                        f"{block_count} blocks"
+                    )
+        for i, entry_arg_types in enumerate(entry_arg_types_list):
+            if entry_arg_types is not None:
+                try:
+                    region_def.entry_args.verify(entry_arg_types, constraint_context)
+                except VerifyException as e:
+                    idx_msg = f"[{i}]" if isinstance(regions, tuple) else ""
+                    raise VerifyException(
+                        f"Region '{region_def_name}{idx_msg}' at position {idx + i} entry arguments do not verify:\n{e}"
+                    ) from e
+        idx += len(block_counts)
 
 
 def irdl_op_verify_arg_list(

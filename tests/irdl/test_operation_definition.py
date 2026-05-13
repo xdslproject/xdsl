@@ -873,7 +873,7 @@ def test_entry_args_op():
     with pytest.raises(
         VerifyException,
         match="""\
-Operation does not verify: region #0 entry arguments do not verify:
+Operation does not verify: Region 'body' at position 0 entry arguments do not verify:
 .*Expected attribute i32 but got i64""",
     ):
         op.verify()
@@ -882,10 +882,47 @@ Operation does not verify: region #0 entry arguments do not verify:
     with pytest.raises(
         VerifyException,
         match="""\
-Operation does not verify: region #0 entry arguments do not verify:
+Operation does not verify: Region 'body' at position 0 entry arguments do not verify:
 .*Expected attribute i32 but got i64""",
     ):
         op.verify()
+
+
+@irdl_op_definition
+class MultipleEntryArgsOp(IRDLOperation):
+    name = "test.entry_args"
+    body1 = opt_region_def(entry_args=RangeOf(AnyAttr()).of_length(1))
+    bodies1 = var_region_def(entry_args=RangeOf(AnyAttr()).of_length(2))
+    bodies2 = var_region_def(entry_args=RangeOf(AnyAttr()).of_length(3))
+
+    traits = traits_def(NoTerminator())
+
+    irdl_options = (AttrSizedRegionSegments(),)
+
+
+def test_multiple_entry_args_op():
+
+    op = MultipleEntryArgsOp.build(regions=[None, [], []])
+    op.verify()
+
+    op = MultipleEntryArgsOp.build(regions=[Region(Block(arg_types=[i32])), [], []])
+    op.verify()
+
+    op = MultipleEntryArgsOp.build(regions=[None, [Region(Block(arg_types=[i32]))], []])
+    with pytest.raises(
+        VerifyException,
+        match=r"Region 'bodies1\[0\]' at position 0 entry arguments do not verify:",
+    ):
+        op.verify()
+
+    op = MultipleEntryArgsOp.build(
+        regions=[
+            Region(Block(arg_types=[i32])),
+            [Region(Block(arg_types=[i32, i32])), Region(Block(arg_types=[i32, i32]))],
+            [],
+        ]
+    )
+    op.verify()
 
 
 class OptionlessMultipleVarOp(IRDLOperation):
