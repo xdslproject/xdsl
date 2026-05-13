@@ -613,7 +613,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
     def get_test_deprecation():
         from xdsl.transforms import test_deprecation
 
-        return test_deprecation.TestDeprecationPass
+        return test_deprecation.TestDeprecationPass  # pyright: ignore[reportDeprecated]
 
     def get_test_specialised_constant_folding():
         from xdsl.transforms import test_constant_folding
