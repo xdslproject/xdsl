@@ -39,6 +39,14 @@ OVERFLOW_UPPER_BOUND: dict[type, float] = {
     Float64Type: 1024.0 * pymath.log(2.0),  # ≈ 709.78
 }
 
+# Mantissa width including the hidden bit, per IEEE-754 / brain-float layout.
+_PRECISION_BITS: dict[type, int] = {
+    Float16Type: 11,  # 10 stored + 1 hidden
+    BFloat16Type: 8,  # 7 stored + 1 hidden
+    Float32Type: 24,  # 23 stored + 1 hidden
+    Float64Type: 53,  # 52 stored + 1 hidden
+}
+
 # Hard cap on the polynomial degree the chooser will grow to.
 _MAX_DEGREE = 30
 
@@ -72,18 +80,39 @@ def _element_float_type(tp: Attribute) -> Attribute:
 
 
 def _choose_polynomial(
-    acc_bound: float,
+    max_bits_lost: float,
     lower: float,
     upper: float,
+    precision_bits: int,
 ) -> list[float]:
-    """Smallest degree such that the Lobatto Chebyshev bound for exp on [a,b] is <= acc_bound.
-    Capped at _MAX_DEGREE."""
+    """Smallest degree such that the Chebyshev-Lobatto *bits-lost* upper bound
+    for exp on [lower, upper] in the target precision is <= max_bits_lost.
+
+    bits_lost = log2(ULP error) — the number of low-order mantissa bits that
+    are unreliable.
+    max_bits_lost = 0 targets 1-ULP-quality (libm-grade); each
+    additional unit doubles the allowed ULP error.
+    max_bits_lost = -1 targets orrectly-rounded (<= 0.5 ULP).
+
+    Derivation: the conservative Chebyshev approximation bound gives
+        |err|_inf <= exp(upper) * width^(d+1) / (2 * 4^d * (d+1)!).
+    Dividing by min|exp| = exp(lower) yields the relative error bound:
+        rel_err <= exp(width) * width^(d+1) / (2 * 4^d * (d+1)!).
+    Multiplying by 2^(precision_bits - 1) converts to ULP error, and taking
+    log2 gives bits_lost. Inherits the original bound's ~2x conservatism;
+    expect the picked degree to be ~1 higher than empirically optimal.
+    """
     width = upper - lower
     degree = 0
-    bound = pymath.exp(upper) * width
-    while bound > acc_bound and degree < _MAX_DEGREE:
+    # bits_lost upper bound at degree 0: log2(exp(width) * width) + (p - 1)
+    bits_lost = (
+        width * pymath.log2(pymath.e) + pymath.log2(width) + (precision_bits - 1)
+    )
+    while bits_lost > max_bits_lost and degree < _MAX_DEGREE:
         degree += 1
-        bound *= width / (4 * (degree + 1))
+        # multiplier bound(d+1) / bound(d) = width / (4 * (degree + 1))
+        # in log2 space:                   = log2(width) - 2 - log2(degree + 1)
+        bits_lost += pymath.log2(width) - 2 - pymath.log2(degree + 1)
 
     return _chebyshev_coefficients(pymath.exp, degree, lower, upper)
 
@@ -91,18 +120,20 @@ def _choose_polynomial(
 class LowerExpToPolynomial(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: math.ExpOp, rewriter: PatternRewriter) -> None:
-        # representable range for the precision format; specific to exp
         elem_ty = _element_float_type(op.operand.type)
         underflow = UNDERFLOW_LOWER_BOUND.get(type(elem_ty))
         overflow = OVERFLOW_UPPER_BOUND.get(type(elem_ty))
-        if underflow is None or overflow is None:
+        precision_bits = _PRECISION_BITS.get(type(elem_ty))
+        if underflow is None or overflow is None or precision_bits is None:
             return
 
-        # if no acc_bound attr, do not optimize exp
-        acc_bound_attr = op.attributes.get("acc_bound")
-        if not isinstance(acc_bound_attr, FloatAttr):
-            return
-        acc_bound = acc_bound_attr.value.data
+        # If no acc bound, compute correctly-rounded result
+        max_bits_lost_attr = op.attributes.get("max_bits_lost")
+        max_bits_lost = (
+            max_bits_lost_attr.value.data
+            if isinstance(max_bits_lost_attr, FloatAttr)
+            else -1.0
+        )
 
         # Polynomial domain: each side independently clamped to its representable
         # extreme. Missing lower_bound -> underflow; missing upper_bound -> overflow.
@@ -120,7 +151,7 @@ class LowerExpToPolynomial(RewritePattern):
         )
 
         # choose which polynomial family and degree to use, and compute coefficients
-        coeffs = _choose_polynomial(acc_bound, lower, upper)
+        coeffs = _choose_polynomial(max_bits_lost, lower, upper, precision_bits)
 
         # insert polynomial into the IR replacing exp
         rewriter.replace_op(
