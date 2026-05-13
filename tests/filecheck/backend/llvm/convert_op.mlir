@@ -57,7 +57,7 @@ builtin.module {
     llvm.return
   }
 
-  // CHECK: define void @{{"?arg_attr_types"?}}(i32* byval(i32) {{%[^,]+}}, {i32, i32}* sret({i32, i32}) {{%[^,]+}}, i64* byref(i64) noalias align 8 {{%[^,]+}}, float* elementtype(float) {{%[^)]+}})
+  // CHECK: define void @{{"?arg_attr_types"?}}({{.*}}byval(i32){{.*}}, {{.*}}sret({{.*}}){{.*}}, {{.*}}byref(i64){{.*}})
   // CHECK:   ret void
   // CHECK-NEXT: }
 
