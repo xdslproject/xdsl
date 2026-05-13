@@ -6,6 +6,7 @@ from typing import cast
 from xdsl.context import Context
 from xdsl.dialects import math, polynomial
 from xdsl.dialects.builtin import (
+    AnyFloat,
     BFloat16Type,
     Float16Type,
     Float32Type,
@@ -159,9 +160,10 @@ class LowerExpToPolynomial(RewritePattern):
         # insert polynomial into the IR replacing exp
         rewriter.replace_op(
             op,
-            polynomial.EvalOp(
+            polynomial.EvalOp.get(
                 value=op.operand,
-                polynomial=tuple(coeffs),
+                coefficients=tuple(coeffs),
+                element_type=cast(AnyFloat, elem_ty),
                 scheme=polynomial.EvalScheme.CLENSHAW,
                 domain_lower=lower,
                 domain_upper=upper,
