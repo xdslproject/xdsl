@@ -1674,4 +1674,127 @@ builtin.module {
   // CHECK-NEXT:    acc.atomic.write %{{.*}} = %{{.*}} : memref<i32>, i32
   // CHECK-NEXT:    acc.atomic.write if(%{{.*}}) %{{.*}} = %{{.*}} : memref<i32>, i32
 
+  // acc.atomic.update — region op with `SingleBlockImplicitTerminator<YieldOp>`.
+  // Round-trips with mlir-opt in both pretty and generic form.
+  func.func @acc_atomic_update(%x: memref<i32>, %expr: i32) {
+    acc.atomic.update %x : memref<i32> {
+    ^bb0(%xval: i32):
+      %newval = arith.addi %xval, %expr : i32
+      acc.yield %newval : i32
+    }
+    %c = arith.constant true
+    acc.atomic.update if(%c) %x : memref<i32> {
+    ^bb0(%xval: i32):
+      %newval = arith.addi %xval, %expr : i32
+      acc.yield %newval : i32
+    }
+    // No-op update: yielding the argument unchanged is a valid form.
+    acc.atomic.update %x : memref<i32> {
+    ^bb0(%xval: i32):
+      acc.yield %xval : i32
+    }
+    func.return
+  }
+  // CHECK:       func.func @acc_atomic_update(
+  // CHECK:         acc.atomic.update %{{.*}} : memref<i32> {
+  // CHECK-NEXT:    ^{{.*}}(%{{.*}}: i32):
+  // CHECK-NEXT:      %{{.*}} = arith.addi %{{.*}}, %{{.*}} : i32
+  // CHECK-NEXT:      acc.yield %{{.*}} : i32
+  // CHECK-NEXT:    }
+  // CHECK:         acc.atomic.update if(%{{.*}}) %{{.*}} : memref<i32> {
+  // CHECK-NEXT:    ^{{.*}}(%{{.*}}: i32):
+  // CHECK-NEXT:      %{{.*}} = arith.addi %{{.*}}, %{{.*}} : i32
+  // CHECK-NEXT:      acc.yield %{{.*}} : i32
+  // CHECK-NEXT:    }
+  // CHECK:         acc.atomic.update %{{.*}} : memref<i32> {
+  // CHECK-NEXT:    ^{{.*}}(%[[XVAL:.*]]: i32):
+  // CHECK-NEXT:      acc.yield %[[XVAL]] : i32
+  // CHECK-NEXT:    }
+
+  // Generic-form input for atomic.update — proves the hand-written generic
+  // spelling survives the xdsl ↔ mlir-opt round-trip.
+  func.func @acc_atomic_update_generic(%x: memref<i32>, %expr: i32, %c: i1) {
+    "acc.atomic.update"(%x) ({
+    ^bb0(%xval: i32):
+      %newval = arith.addi %xval, %expr : i32
+      "acc.yield"(%newval) : (i32) -> ()
+    }) : (memref<i32>) -> ()
+    "acc.atomic.update"(%x, %c) ({
+    ^bb0(%xval: i32):
+      "acc.yield"(%xval) : (i32) -> ()
+    }) : (memref<i32>, i1) -> ()
+    func.return
+  }
+  // CHECK:       func.func @acc_atomic_update_generic(
+  // CHECK:         acc.atomic.update %{{.*}} : memref<i32> {
+  // CHECK:         acc.atomic.update if(%{{.*}}) %{{.*}} : memref<i32> {
+
+  // acc.atomic.capture — the body's implicit acc.terminator is stripped on
+  // print to mirror upstream and inserted on parse, so the round-trip with
+  // mlir-opt is bit-identical without an explicit terminator.
+  func.func @acc_atomic_capture(%v: memref<i32>, %x: memref<i32>, %expr: i32) {
+    acc.atomic.capture {
+      acc.atomic.update %x : memref<i32> {
+      ^bb0(%xval: i32):
+        %newval = arith.addi %xval, %expr : i32
+        acc.yield %newval : i32
+      }
+      acc.atomic.read %v = %x : memref<i32>, memref<i32>, i32
+    }
+    acc.atomic.capture {
+      acc.atomic.read %v = %x : memref<i32>, memref<i32>, i32
+      acc.atomic.update %x : memref<i32> {
+      ^bb0(%xval: i32):
+        %newval = arith.addi %xval, %expr : i32
+        acc.yield %newval : i32
+      }
+    }
+    acc.atomic.capture {
+      acc.atomic.read %v = %x : memref<i32>, memref<i32>, i32
+      acc.atomic.write %x = %expr : memref<i32>, i32
+    }
+    %c = arith.constant true
+    acc.atomic.capture if(%c) {
+      acc.atomic.read %v = %x : memref<i32>, memref<i32>, i32
+      acc.atomic.write %x = %expr : memref<i32>, i32
+    }
+    func.return
+  }
+  // CHECK:       func.func @acc_atomic_capture(
+  // CHECK:         acc.atomic.capture {
+  // CHECK-NEXT:      acc.atomic.update %{{.*}} : memref<i32> {
+  // CHECK:           acc.atomic.read %{{.*}} = %{{.*}} : memref<i32>, memref<i32>, i32
+  // CHECK-NEXT:    }
+  // CHECK:         acc.atomic.capture {
+  // CHECK-NEXT:      acc.atomic.read %{{.*}} = %{{.*}} : memref<i32>, memref<i32>, i32
+  // CHECK-NEXT:      acc.atomic.update %{{.*}} : memref<i32> {
+  // CHECK:         }
+  // CHECK:         acc.atomic.capture {
+  // CHECK-NEXT:      acc.atomic.read %{{.*}} = %{{.*}} : memref<i32>, memref<i32>, i32
+  // CHECK-NEXT:      acc.atomic.write %{{.*}} = %{{.*}} : memref<i32>, i32
+  // CHECK-NEXT:    }
+  // CHECK:         acc.atomic.capture if(%{{.*}}) {
+  // CHECK-NEXT:      acc.atomic.read %{{.*}} = %{{.*}} : memref<i32>, memref<i32>, i32
+  // CHECK-NEXT:      acc.atomic.write %{{.*}} = %{{.*}} : memref<i32>, i32
+  // CHECK-NEXT:    }
+
+  // Generic-form input for atomic.capture — the implicit terminator IS
+  // user-visible in the generic spelling.
+  func.func @acc_atomic_capture_generic(%v: memref<i32>, %x: memref<i32>, %expr: i32, %c: i1) {
+    "acc.atomic.capture"() ({
+      "acc.atomic.read"(%x, %v) <{element_type = i32}> : (memref<i32>, memref<i32>) -> ()
+      "acc.atomic.write"(%x, %expr) : (memref<i32>, i32) -> ()
+      "acc.terminator"() : () -> ()
+    }) : () -> ()
+    "acc.atomic.capture"(%c) ({
+      "acc.atomic.read"(%x, %v) <{element_type = i32}> : (memref<i32>, memref<i32>) -> ()
+      "acc.atomic.write"(%x, %expr) : (memref<i32>, i32) -> ()
+      "acc.terminator"() : () -> ()
+    }) : (i1) -> ()
+    func.return
+  }
+  // CHECK:       func.func @acc_atomic_capture_generic(
+  // CHECK:         acc.atomic.capture {
+  // CHECK:         acc.atomic.capture if(%{{.*}}) {
+
 }

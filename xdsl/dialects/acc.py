@@ -84,6 +84,7 @@ from xdsl.traits import (
     RecursiveMemoryEffect,
     SingleBlockImplicitTerminator,
     SymbolOpInterface,
+    ensure_terminator,
 )
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
@@ -4373,6 +4374,173 @@ class AtomicWriteOp(IRDLOperation):
                 raise VerifyException("address must dereference to value type")
 
 
+@irdl_op_definition
+class AtomicUpdateOp(IRDLOperation):
+    """
+    Implementation of upstream acc.atomic.update — performs an atomic update.
+
+    The operand `x` is the address of the variable being updated. The region
+    describes how to update the value: it takes the current value at `x` as
+    its single block argument and must yield the updated value via acc.yield.
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenACCDialect/#accatomicupdate-accatomicupdateop).
+    """
+
+    name = "acc.atomic.update"
+
+    x = operand_def()
+    if_cond = opt_operand_def(I1)
+
+    region = region_def("single_block")
+
+    custom_directives = (AtomicIfClause,)
+
+    assembly_format = (
+        "custom<AtomicIfClause>($if_cond, type($if_cond))"
+        " $x `:` type($x) $region attr-dict"
+    )
+
+    traits = lazy_traits_def(
+        lambda: (
+            SingleBlockImplicitTerminator(YieldOp),
+            RecursiveMemoryEffect(),
+        )
+    )
+
+    def __init__(
+        self,
+        *,
+        x: SSAValue | Operation,
+        region: Region,
+        if_cond: SSAValue | Operation | None = None,
+    ) -> None:
+        super().__init__(
+            operands=[x, if_cond],
+            regions=[region],
+        )
+
+    def verify_(self) -> None:
+        # Mirrors upstream `AtomicUpdateOpInterface::verifyCommon` +
+        # `verifyRegionsCommon`. The terminator-kind / single-block /
+        # non-empty-block checks are handled by the
+        # `SingleBlockImplicitTerminator(YieldOp)` trait.
+        block = self.region.block
+        if len(block.args) != 1:
+            raise VerifyException("the region must accept exactly one argument")
+
+        arg_type = block.args[0].type
+        x_type = self.x.type
+        if isa(x_type, MemRefType) and x_type.element_type != arg_type:
+            raise VerifyException(
+                "the type of the operand must be a pointer type whose "
+                "element type is the same as that of the region argument"
+            )
+
+        terminator = cast(YieldOp, block.last_op)
+        if len(terminator.operands) != 1:
+            raise VerifyException("only updated value must be returned")
+        if terminator.operands[0].type != arg_type:
+            raise VerifyException("input and yielded value must have the same type")
+
+
+@irdl_op_definition
+class AtomicCaptureOp(IRDLOperation):
+    """
+    Implementation of upstream acc.atomic.capture — performs an atomic capture.
+
+    The region contains exactly two atomic ops (plus an implicit acc.terminator)
+    in one of three allowed orderings: `update + read`, `read + update`, or
+    `read + write`. The two operations must operate on the same memory
+    location.
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/OpenACCDialect/#accatomiccapture-accatomiccaptureop).
+    """
+
+    name = "acc.atomic.capture"
+
+    if_cond = opt_operand_def(I1)
+
+    region = region_def("single_block")
+
+    traits = lazy_traits_def(
+        lambda: (
+            SingleBlockImplicitTerminator(TerminatorOp),
+            RecursiveMemoryEffect(),
+        )
+    )
+
+    @classmethod
+    def parse(cls, parser: Parser) -> "AtomicCaptureOp":
+        # Mirror upstream `oilist( \`if\` \`(\` $ifCond \`)\` ) $region attr-dict`
+        # plus `SingleBlockImplicitTerminator(TerminatorOp)`: accept the body
+        # without an explicit `acc.terminator` and insert one.
+        if_cond: SSAValue | None = None
+        if parser.parse_optional_keyword("if") is not None:
+            parser.parse_punctuation("(")
+            unresolved = parser.parse_unresolved_operand()
+            parser.parse_punctuation(")")
+            if_cond = parser.resolve_operand(unresolved, i1)
+        region = parser.parse_region()
+        attrs = parser.parse_optional_attr_dict()
+        op = cls(region=region, if_cond=if_cond)
+        op.attributes = {**op.attributes, **attrs}
+        for trait in op.get_traits_of_type(SingleBlockImplicitTerminator):
+            ensure_terminator(op, trait)
+        return op
+
+    def print(self, printer: Printer) -> None:
+        if self.if_cond is not None:
+            printer.print_string(" if(")
+            printer.print_ssa_value(self.if_cond)
+            printer.print_string(")")
+        printer.print_string(" ")
+        # Strip the implicit `acc.terminator` to mirror upstream's print
+        # behavior. The `SingleBlockImplicitTerminator` trait re-inserts
+        # one on parse, so this round-trips through both xdsl-opt and
+        # mlir-opt bit-identically.
+        printer.print_region(self.region, print_block_terminators=False)
+        printer.print_op_attributes(self.attributes)
+
+    def __init__(
+        self,
+        *,
+        region: Region,
+        if_cond: SSAValue | Operation | None = None,
+    ) -> None:
+        super().__init__(
+            operands=[if_cond],
+            regions=[region],
+        )
+
+    def verify_(self) -> None:
+        # Mirrors upstream AtomicCaptureOpInterface::verifyRegionsCommon.
+        # SingleBlockImplicitTerminator(TerminatorOp) guarantees the last
+        # op is an acc.terminator, so the valid op count is exactly 3:
+        # two atomic ops plus the terminator.
+        ops = list(self.region.block.ops)
+        if len(ops) != 3:
+            raise VerifyException(
+                "expected three operations in atomic.capture region (one "
+                "terminator, and two atomic ops)"
+            )
+        first_op, second_op, _terminator = ops
+        match first_op, second_op:
+            case AtomicUpdateOp(), AtomicReadOp():
+                if first_op.x is not second_op.x:
+                    raise VerifyException(
+                        "updated variable in atomic.update must be captured in "
+                        "second operation"
+                    )
+            case AtomicReadOp(), (AtomicUpdateOp() | AtomicWriteOp()):
+                if first_op.x is not second_op.x:
+                    raise VerifyException(
+                        "captured variable in atomic.read must be updated in "
+                        "second operation"
+                    )
+            case _:
+                raise VerifyException(
+                    "invalid sequence of operations in the capture region"
+                )
+
+
 # ---------------------------------------------------------------------------
 # Declare family
 # ---------------------------------------------------------------------------
@@ -5346,6 +5514,7 @@ class TerminatorOp(IRDLOperation):
                 HostDataOp,
                 GlobalConstructorOp,
                 GlobalDestructorOp,
+                AtomicCaptureOp,
             ),
         )
     )
@@ -5374,6 +5543,7 @@ class YieldOp(AbstractYieldOperation[Attribute]):
                 PrivateRecipeOp,
                 FirstprivateRecipeOp,
                 ReductionRecipeOp,
+                AtomicUpdateOp,
             ),
         )
     )
@@ -5419,6 +5589,8 @@ ACC = Dialect(
         UpdateOp,
         AtomicReadOp,
         AtomicWriteOp,
+        AtomicUpdateOp,
+        AtomicCaptureOp,
         DeclareEnterOp,
         DeclareExitOp,
         DeclareOp,

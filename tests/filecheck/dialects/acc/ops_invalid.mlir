@@ -992,3 +992,129 @@ func.func @atomic_write_bad_type(%addr : memref<memref<i32>>, %val : i32) {
   func.return
 }
 // CHECK: address must dereference to value type
+
+// -----
+
+// acc.atomic.update's region argument type must match the pointee of `x`.
+// A memref<i32> with an f32 block argument fails the verifier.
+func.func @atomic_update_arg_type_mismatch(%x : memref<i32>, %expr : f32) {
+  acc.atomic.update %x : memref<i32> {
+  ^bb0(%xval: f32):
+    %newval = arith.addf %xval, %expr : f32
+    acc.yield %newval : f32
+  }
+  func.return
+}
+// CHECK: the type of the operand must be a pointer type whose element type is the same as that of the region argument
+
+// -----
+
+// acc.atomic.update's yield must produce exactly one value — the updated
+// scalar.
+func.func @atomic_update_multi_yield(%x : memref<i32>, %expr : i32) {
+  acc.atomic.update %x : memref<i32> {
+  ^bb0(%xval: i32):
+    %newval = arith.addi %xval, %expr : i32
+    acc.yield %newval, %expr : i32, i32
+  }
+  func.return
+}
+// CHECK: only updated value must be returned
+
+// -----
+
+// acc.atomic.update's yielded value must have the same type as the region
+// argument.
+func.func @atomic_update_yield_type_mismatch(%x : memref<i32>, %y : f32) {
+  acc.atomic.update %x : memref<i32> {
+  ^bb0(%xval: i32):
+    acc.yield %y : f32
+  }
+  func.return
+}
+// CHECK: input and yielded value must have the same type
+
+// -----
+
+// acc.atomic.update's region must accept exactly one block argument.
+func.func @atomic_update_too_many_args(%x : memref<i32>, %expr : i32) {
+  acc.atomic.update %x : memref<i32> {
+  ^bb0(%xval: i32, %tmp: i32):
+    %newval = arith.addi %xval, %expr : i32
+    acc.yield %newval : i32
+  }
+  func.return
+}
+// CHECK: the region must accept exactly one argument
+
+// -----
+
+// acc.atomic.capture's region must contain exactly two atomic ops plus the
+// implicit terminator. A single op + terminator is rejected.
+func.func @atomic_capture_too_few_ops(%v : memref<i32>, %x : memref<i32>) {
+  acc.atomic.capture {
+    acc.atomic.read %v = %x : memref<i32>, memref<i32>, i32
+  }
+  func.return
+}
+// CHECK: expected three operations in atomic.capture region (one terminator, and two atomic ops)
+
+// -----
+
+// acc.atomic.capture rejects sequences other than (update,read), (read,update),
+// or (read,write). Two reads in a row trips the sequence check.
+func.func @atomic_capture_invalid_sequence(%v : memref<i32>, %x : memref<i32>) {
+  acc.atomic.capture {
+    acc.atomic.read %v = %x : memref<i32>, memref<i32>, i32
+    acc.atomic.read %v = %x : memref<i32>, memref<i32>, i32
+  }
+  func.return
+}
+// CHECK: invalid sequence of operations in the capture region
+
+// -----
+
+// acc.atomic.capture with (update, read) requires both ops to refer to the
+// same address `x`.
+func.func @atomic_capture_update_read_var_mismatch(%x : memref<i32>, %y : memref<i32>, %v : memref<i32>, %expr : i32) {
+  acc.atomic.capture {
+    acc.atomic.update %x : memref<i32> {
+    ^bb0(%xval: i32):
+      %newval = arith.addi %xval, %expr : i32
+      acc.yield %newval : i32
+    }
+    acc.atomic.read %v = %y : memref<i32>, memref<i32>, i32
+  }
+  func.return
+}
+// CHECK: updated variable in atomic.update must be captured in second operation
+
+// -----
+
+// acc.atomic.capture with (read, update) requires both ops to refer to the
+// same address `x`.
+func.func @atomic_capture_read_update_var_mismatch(%x : memref<i32>, %y : memref<i32>, %v : memref<i32>, %expr : i32) {
+  acc.atomic.capture {
+    acc.atomic.read %v = %y : memref<i32>, memref<i32>, i32
+    acc.atomic.update %x : memref<i32> {
+    ^bb0(%xval: i32):
+      %newval = arith.addi %xval, %expr : i32
+      acc.yield %newval : i32
+    }
+  }
+  func.return
+}
+// CHECK: captured variable in atomic.read must be updated in second operation
+
+// -----
+
+// acc.atomic.capture with (read, write) requires both ops to refer to the
+// same address `x`.
+func.func @atomic_capture_read_write_var_mismatch(%x : memref<i32>, %y : memref<i32>, %v : memref<i32>, %expr : i32) {
+  acc.atomic.capture {
+    acc.atomic.read %v = %x : memref<i32>, memref<i32>, i32
+    acc.atomic.write %y = %expr : memref<i32>, i32
+  }
+  func.return
+}
+// CHECK: captured variable in atomic.read must be updated in second operation

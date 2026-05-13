@@ -61,7 +61,6 @@ from .constraints import (  # noqa: TID251
     AttrConstraint,
     BaseAttr,
     ConstraintContext,
-    ConstraintVar,
     EqAttrConstraint,
     EqIntConstraint,
     IntConstraint,
@@ -72,7 +71,6 @@ from .constraints import (  # noqa: TID251
     RangeOf,
     SingleOf,
     TypeVarConstraint,
-    VarConstraint,
 )
 
 _DataElement = TypeVar("_DataElement", bound=Hashable, covariant=True)
@@ -264,17 +262,6 @@ class ParamAttrDef:
                     if value.converter is not None:
                         converter = value.converter
 
-                # Constraint variables are deprecated
-                elif get_origin(value) is Annotated or any(
-                    isinstance(arg, ConstraintVar) for arg in get_args(value)
-                ):
-                    import warnings
-
-                    warnings.warn(
-                        "The use of `ConstraintVar` is deprecated, please use `VarConstraint`",
-                        DeprecationWarning,
-                        stacklevel=2,
-                    )
                 else:
                     raise PyRDLAttrDefinitionError(
                         f"{field_name} is not a parameter definition."
@@ -283,21 +270,9 @@ class ParamAttrDef:
             parameters[field_name] = ParamDef(constraint, converter)
 
         for field_name, value in field_values.items():
-            # Anything left is a field without an annotation or a constaint var.
-            if get_origin(value) is Annotated or any(
-                isinstance(arg, ConstraintVar) for arg in get_args(value)
-            ):
-                import warnings
-
-                warnings.warn(
-                    "The use of `ConstraintVar` is deprecated, please use `VarConstraint`",
-                    DeprecationWarning,
-                    stacklevel=2,
-                )
-            else:
-                raise PyRDLAttrDefinitionError(
-                    f"Missing field type for parameter name {field_name}"
-                )
+            raise PyRDLAttrDefinitionError(
+                f"Missing field type for parameter name {field_name}"
+            )
 
         return ParamAttrDef(name, list(parameters.items()))
 
@@ -464,15 +439,6 @@ def irdl_list_to_attr_constraint(
     If there is a `ConstraintVar` annotation, we add the entire constraint to
     the constraint variable.
     """
-    # Check for a constraint varibale first
-    for idx, arg in enumerate(pyrdl_constraints):
-        if isinstance(arg, ConstraintVar):
-            constraint = irdl_list_to_attr_constraint(
-                list(pyrdl_constraints[:idx]) + list(pyrdl_constraints[idx + 1 :]),
-                allow_type_var=allow_type_var,
-            )
-            return VarConstraint(arg.name, constraint)
-
     constraints = tuple(
         irdl_to_attr_constraint(arg, allow_type_var=allow_type_var)
         for arg in pyrdl_constraints
