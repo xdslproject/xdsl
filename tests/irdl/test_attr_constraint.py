@@ -285,6 +285,15 @@ def test_constraint_simplification(lhs: AttrConstraint, rhs: AttrConstraint):
     assert lhs == rhs
 
 
+def test_param_attr_merge_failure():
+    # ParamAttrConstraints as below cannot be merged into a single constraint
+    # Therefore the 'any_of' fails
+    with pytest.raises(PyRDLError):
+        _ = ParamAttrConstraint(
+            AttrB, (BaseAttr(AttrA), BaseAttr(AttrA))
+        ) | ParamAttrConstraint(AttrB, (BaseAttr(AttrC), BaseAttr(AttrC)))
+
+
 @pytest.mark.parametrize(
     "c1, c2, msg",
     [
