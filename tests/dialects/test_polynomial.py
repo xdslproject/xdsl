@@ -78,73 +78,67 @@ def test_typed_chebyshev_polynomial_from_attr():
 # --- EvalOp construction ---
 
 
-def test_eval_basic_construction():
+def test_eval_init_stores_attributes_verbatim():
+    """`__init__` takes pre-built attributes and stores them as-is."""
+    poly_ty = PolynomialType(RingAttr(f64))
+    typed = TypedChebyshevPolynomialAttr(poly_ty, (1.0, 2.0, 3.0))
+    scheme_attr = StringAttr("clenshaw")
+    x = create_ssa_value(f64)
+    op = EvalOp(x, typed, scheme_attr)
+    assert op.polynomial is typed
+    assert op.scheme is scheme_attr
+
+
+def test_eval_get_basic_construction():
     x = create_ssa_value(f32)
-    op = EvalOp(x, (0.5, 1.2, 0.3), EvalScheme.CLENSHAW)
+    op = EvalOp.get(x, (0.5, 1.2, 0.3), f32, EvalScheme.CLENSHAW)
     assert op.value.type == f32
     assert op.result.type == f32
     assert op.degree == 2
     assert op.polynomial.coeff_values == (0.5, 1.2, 0.3)
+    assert op.polynomial.type == PolynomialType(RingAttr(f32))
     assert op.scheme.data == EvalScheme.CLENSHAW.value
     assert op.eval_scheme == EvalScheme.CLENSHAW
 
 
-def test_eval_pre_built_typed_attr():
-    poly_ty = PolynomialType(RingAttr(f64))
-    typed = TypedChebyshevPolynomialAttr(poly_ty, (1.0, 2.0, 3.0))
-    x = create_ssa_value(f64)
-    op = EvalOp(x, typed, EvalScheme.CLENSHAW)
-    assert op.polynomial is typed
-
-
-def test_eval_pre_built_untyped_attr_is_wrapped():
-    """An untyped ChebyshevPolynomialAttr is auto-wrapped with the default type."""
-    untyped = ChebyshevPolynomialAttr((1.0, 2.0, 3.0))
-    x = create_ssa_value(f64)
-    op = EvalOp(x, untyped, EvalScheme.CLENSHAW)
-    assert isinstance(op.polynomial, TypedChebyshevPolynomialAttr)
-    assert op.polynomial.value is untyped
-
-
 @pytest.mark.parametrize(
-    "tp",
-    [f16, f32, f64, VectorType(f32, [4]), TensorType(f64, [8])],
+    "value_type, element_type",
+    [
+        (f16, f16),
+        (f32, f32),
+        (f64, f64),
+        (VectorType(f32, [4]), f32),
+        (TensorType(f64, [8]), f64),
+    ],
 )
-def test_eval_type_polymorphism(tp: Attribute):
-    x = create_ssa_value(tp)
-    op = EvalOp(x, (1.0, 2.0), EvalScheme.CLENSHAW)
-    assert op.value.type == tp
-    assert op.result.type == tp
+def test_eval_get_type_polymorphism(value_type: Attribute, element_type: Attribute):
+    x = create_ssa_value(value_type)
+    op = EvalOp.get(x, (1.0, 2.0), element_type, EvalScheme.CLENSHAW)
+    assert op.value.type == value_type
+    assert op.result.type == value_type
+    assert op.polynomial.type == PolynomialType(RingAttr(element_type))
 
 
-def test_eval_domain_bounds_propagated():
+def test_eval_get_domain_bounds_use_element_type():
     x = create_ssa_value(f32)
-    op = EvalOp(
-        x, (1.0, 2.0), EvalScheme.CLENSHAW, domain_lower=-10.0, domain_upper=0.0
+    op = EvalOp.get(
+        x,
+        (1.0, 2.0),
+        f32,
+        EvalScheme.CLENSHAW,
+        domain_lower=-10.0,
+        domain_upper=0.0,
     )
     assert op.domain_lower is not None
     assert op.domain_upper is not None
     assert op.domain_lower.value.data == -10.0
     assert op.domain_upper.value.data == 0.0
+    assert op.domain_lower.type == f32
+    assert op.domain_upper.type == f32
 
 
-def test_eval_scheme_propagated():
+def test_eval_get_accepts_str_scheme():
     x = create_ssa_value(f32)
-    op = EvalOp(x, (1.0, 2.0), EvalScheme.CLENSHAW)
-    assert op.scheme.data == EvalScheme.CLENSHAW.value
-    assert op.eval_scheme == EvalScheme.CLENSHAW
-
-
-def test_eval_scheme_accepts_string_attr():
-    x = create_ssa_value(f32)
-    attr = StringAttr("clenshaw")
-    op = EvalOp(x, (1.0, 2.0), attr)
-    assert op.scheme is attr
-    assert op.eval_scheme == EvalScheme.CLENSHAW
-
-
-def test_eval_scheme_accepts_str():
-    x = create_ssa_value(f32)
-    op = EvalOp(x, (1.0, 2.0), "clenshaw")
+    op = EvalOp.get(x, (1.0, 2.0), f32, "clenshaw")
     assert op.scheme.data == "clenshaw"
     assert op.eval_scheme == EvalScheme.CLENSHAW

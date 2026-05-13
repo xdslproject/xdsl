@@ -211,10 +211,6 @@ class TypedChebyshevPolynomialAttr(ParametrizedAttribute):
         return self.value.coeff_values
 
 
-_DEFAULT_POLYNOMIAL_TYPE = PolynomialType(RingAttr(f64))
-"""Default polynomial type for f64 Chebyshev coefficients."""
-
-
 @irdl_op_definition
 class EvalOp(IRDLOperation):
     """
@@ -255,40 +251,17 @@ class EvalOp(IRDLOperation):
 
     def __init__(
         self,
-        value: Operation | SSAValue,
-        polynomial: (
-            TypedChebyshevPolynomialAttr | ChebyshevPolynomialAttr | tuple[float, ...]
-        ),
-        scheme: StringAttr | EvalScheme | str,
-        domain_lower: float | FloatAttr | None = None,
-        domain_upper: float | FloatAttr | None = None,
+        value: SSAValue,
+        polynomial: TypedChebyshevPolynomialAttr,
+        scheme: StringAttr,
+        domain_lower: FloatAttr | None = None,
+        domain_upper: FloatAttr | None = None,
     ):
-        if isinstance(polynomial, tuple):
-            polynomial = TypedChebyshevPolynomialAttr(
-                _DEFAULT_POLYNOMIAL_TYPE, polynomial
-            )
-        elif isinstance(polynomial, ChebyshevPolynomialAttr):
-            polynomial = TypedChebyshevPolynomialAttr(
-                _DEFAULT_POLYNOMIAL_TYPE, polynomial
-            )
-
-        if isinstance(scheme, EvalScheme):
-            scheme = StringAttr(scheme.value)
-        elif isinstance(scheme, str):
-            scheme = StringAttr(scheme)
-
-        value = SSAValue.get(value)
-
-        if isinstance(domain_lower, (int, float)):
-            domain_lower = FloatAttr(float(domain_lower), f64)
-        if isinstance(domain_upper, (int, float)):
-            domain_upper = FloatAttr(float(domain_upper), f64)
-
-        attrs: dict[str, StringAttr | FloatAttr] = {"scheme": scheme}
-        if domain_lower is not None:
-            attrs["domain_lower"] = domain_lower
-        if domain_upper is not None:
-            attrs["domain_upper"] = domain_upper
+        attrs = {
+            "scheme": scheme,
+            "domain_lower": domain_lower,
+            "domain_upper": domain_upper,
+        }
 
         super().__init__(
             operands=[value],
@@ -298,6 +271,41 @@ class EvalOp(IRDLOperation):
             },
             attributes=attrs,
         )
+
+    @classmethod
+    def get(
+        cls,
+        value: Operation | SSAValue,
+        coefficients: tuple[float, ...],
+        element_type: Attribute,
+        scheme: EvalScheme | str,
+        domain_lower: float | None = None,
+        domain_upper: float | None = None,
+    ) -> EvalOp:
+        """
+        Build an `EvalOp` from raw Python floats.
+
+        `element_type` is the floating-point type used for the polynomial
+        coefficients, the ring's coefficient type, and the domain bounds.
+        """
+        value = SSAValue.get(value)
+
+        coeff_attrs = ArrayAttr([FloatAttr(c, element_type) for c in coefficients])
+        polynomial = TypedChebyshevPolynomialAttr(
+            PolynomialType(RingAttr(element_type)),
+            ChebyshevPolynomialAttr(coeff_attrs),
+        )
+
+        scheme_attr = StringAttr(
+            scheme.value if isinstance(scheme, EvalScheme) else scheme
+        )
+        lower_attr = (
+            FloatAttr(domain_lower, element_type) if domain_lower is not None else None
+        )
+        upper_attr = (
+            FloatAttr(domain_upper, element_type) if domain_upper is not None else None
+        )
+        return cls(value, polynomial, scheme_attr, lower_attr, upper_attr)
 
     def verify_(self) -> None:
         if self.domain_lower is not None and self.domain_upper is not None:
