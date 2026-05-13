@@ -103,6 +103,49 @@
                 #acc.var_name<"a_longer_variable_name">,
                 // CHECK-SAME: #acc.var_name<"a_longer_variable_name">
 
+                // Parallelism-level attribute. Standalone dot form
+                // (matching upstream's `EnumAttr` default
+                // `assemblyFormat = "`<` $value `>`"`); the inline
+                // spelling without the `#acc.par_level` prefix is
+                // exercised through `#acc.specialized_routine` below.
+                #acc.par_level<seq>,
+                // CHECK-SAME: #acc.par_level<seq>
+                #acc.par_level<gang_dim1>,
+                // CHECK-SAME: #acc.par_level<gang_dim1>
+                #acc.par_level<gang_dim2>,
+                // CHECK-SAME: #acc.par_level<gang_dim2>
+                #acc.par_level<gang_dim3>,
+                // CHECK-SAME: #acc.par_level<gang_dim3>
+                #acc.par_level<worker>,
+                // CHECK-SAME: #acc.par_level<worker>
+                #acc.par_level<vector>,
+                // CHECK-SAME: #acc.par_level<vector>
+
+                // Routine-info metadata attribute. Upstream attaches it
+                // as a discardable attribute on `func.func` declarations
+                // referenced by an `acc routine` directive. Carrying it
+                // here proves the xdsl `<[...]>` spelling is bit-
+                // compatible with upstream `mlir-opt`. Note: upstream's
+                // tablegen-generated parser rejects `<[]>` — the array
+                // must be non-empty — so the empty case lives in
+                // `tests/dialects/test_acc.py` (Python API) instead.
+                #acc.routine_info<[@rt1]>,
+                // CHECK-SAME: #acc.routine_info<[@rt1]>
+                #acc.routine_info<[@rt_gang, @rt_vector]>,
+                // CHECK-SAME: #acc.routine_info<[@rt_gang, @rt_vector]>
+
+                // Specialized-routine metadata attribute. Upstream
+                // attaches this to device-specialized `func.func`s
+                // produced by the routine-specialization pass. The
+                // `$level` slot is the `par_level` enum and prints
+                // inline as `<value>` (no `#acc.par_level` prefix).
+                #acc.specialized_routine<@rt_gang, <gang_dim1>, "foo">,
+                // CHECK-SAME: #acc.specialized_routine<@rt_gang, <gang_dim1>, "foo">
+                #acc.specialized_routine<@rt_vector, <vector>, "foo">,
+                // CHECK-SAME: #acc.specialized_routine<@rt_vector, <vector>, "foo">
+                #acc.specialized_routine<@scope::@rt_worker, <worker>, "bar">,
+                // CHECK-SAME: #acc.specialized_routine<@scope::@rt_worker, <worker>, "bar">
+
                 // Combined constructs attribute. Upstream's `EnumAttr`
                 // default produces the dot form `#acc.combined_constructs<...>`
                 // — *not* the spaced opaque form

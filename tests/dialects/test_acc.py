@@ -475,6 +475,44 @@ def test_var_name_attr_constructor():
     assert from_attr.var_name.data == "bar"
 
 
+def test_routine_info_attr_constructor():
+    """`RoutineInfoAttr` accepts either an `ArrayAttr[SymbolRefAttr]` or
+    a plain `Sequence[SymbolRefAttr]` (Python-builder convenience) and
+    stores the result on `.acc_routines`. Pretty-form `<[...]>` is
+    covered by filecheck in `tests/filecheck/dialects/acc/attrs.mlir`."""
+    rt1 = SymbolRefAttr("rt1")
+    rt2 = SymbolRefAttr("rt2")
+
+    from_seq = acc.RoutineInfoAttr([rt1, rt2])
+    assert isinstance(from_seq.acc_routines, ArrayAttr)
+    assert tuple(from_seq.acc_routines.data) == (rt1, rt2)
+
+    from_array = acc.RoutineInfoAttr(ArrayAttr([rt1]))
+    assert tuple(from_array.acc_routines.data) == (rt1,)
+
+
+def test_specialized_routine_attr_constructor():
+    """`SpecializedRoutineAttr` accepts plain `str` for `routine` /
+    `func_name` and a bare `ParLevel` enum value for `level`, normalising
+    each to its attribute counterpart. Filecheck owns pretty-form
+    round-tripping; the conversions here are Python-only and would not
+    otherwise be exercised."""
+    from_strings = acc.SpecializedRoutineAttr("rt1", acc.ParLevel.GANG_DIM1, "foo")
+    assert from_strings.routine == SymbolRefAttr("rt1")
+    assert isinstance(from_strings.level, acc.ParLevelAttr)
+    assert from_strings.level.data == acc.ParLevel.GANG_DIM1
+    assert from_strings.func_name == StringAttr("foo")
+
+    from_attrs = acc.SpecializedRoutineAttr(
+        SymbolRefAttr("rt2"),
+        acc.ParLevelAttr(acc.ParLevel.VECTOR),
+        StringAttr("bar"),
+    )
+    assert from_attrs.routine == SymbolRefAttr("rt2")
+    assert from_attrs.level.data == acc.ParLevel.VECTOR
+    assert from_attrs.func_name == StringAttr("bar")
+
+
 def test_copyin_minimal_defaulted_props_absent_from_dict():
     """Defaulted props (`dataClause` / `structured` / `implicit` / `modifiers`)
     must be *absent* from `op.properties` when not explicitly set, even though

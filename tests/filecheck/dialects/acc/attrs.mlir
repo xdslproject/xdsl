@@ -94,6 +94,47 @@
                 #acc.var_name<"a_longer_variable_name">,
                 // CHECK-SAME: #acc.var_name<"a_longer_variable_name">
 
+                // Parallelism-level attribute. Consumed inline as the
+                // `$level` parameter of `#acc.specialized_routine` and
+                // also reachable standalone (dot form
+                // `#acc.par_level<value>`).
+                #acc.par_level<seq>,
+                // CHECK-SAME: #acc.par_level<seq>
+                #acc.par_level<gang_dim1>,
+                // CHECK-SAME: #acc.par_level<gang_dim1>
+                #acc.par_level<gang_dim2>,
+                // CHECK-SAME: #acc.par_level<gang_dim2>
+                #acc.par_level<gang_dim3>,
+                // CHECK-SAME: #acc.par_level<gang_dim3>
+                #acc.par_level<worker>,
+                // CHECK-SAME: #acc.par_level<worker>
+                #acc.par_level<vector>,
+                // CHECK-SAME: #acc.par_level<vector>
+
+                // Routine-info metadata attribute. Upstream attaches it
+                // as a discardable attribute on `func.func` declarations
+                // referenced by an `acc routine` directive — the array
+                // points back at the matching `acc.routine` symbols.
+                #acc.routine_info<[]>,
+                // CHECK-SAME: #acc.routine_info<[]>
+                #acc.routine_info<[@rt1]>,
+                // CHECK-SAME: #acc.routine_info<[@rt1]>
+                #acc.routine_info<[@rt_gang, @rt_vector]>,
+                // CHECK-SAME: #acc.routine_info<[@rt_gang, @rt_vector]>
+
+                // Specialized-routine metadata attribute. Attached to
+                // the device-specialized `func.func` produced by the
+                // routine-specialization pass. The `$level` slot prints
+                // inline as `<value>` (no `#acc.par_level` prefix), so
+                // the on-the-wire form is
+                // `<@routine, <level>, "origname">`.
+                #acc.specialized_routine<@rt_gang, <gang_dim1>, "foo">,
+                // CHECK-SAME: #acc.specialized_routine<@rt_gang, <gang_dim1>, "foo">
+                #acc.specialized_routine<@rt_vector, <vector>, "foo">,
+                // CHECK-SAME: #acc.specialized_routine<@rt_vector, <vector>, "foo">
+                #acc.specialized_routine<@scope::@rt_worker, <worker>, "bar">,
+                // CHECK-SAME: #acc.specialized_routine<@scope::@rt_worker, <worker>, "bar">
+
                 // Combined constructs attribute. Used by `acc.loop` to
                 // identify the user-level `kernels loop` / `parallel loop`
                 // / `serial loop` it was decomposed from.

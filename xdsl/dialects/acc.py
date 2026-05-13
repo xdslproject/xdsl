@@ -235,6 +235,24 @@ class CombinedConstructsType(StrEnum):
     SERIAL_LOOP = "serial_loop"
 
 
+class ParLevel(StrEnum):
+    """Parallelism level used by `acc.specialized_routine` to mark a
+    function variant for a specific OpenACC level.
+
+    See upstream `mlir::acc::ParLevel`. `gang_dim1` is the default gang
+    level (equivalent to a bare `gang`); `gang_dim2` / `gang_dim3` cover
+    `gang(dim:2)` / `gang(dim:3)`. The enum is consumed by
+    `SpecializedRoutineAttr` — it is not stored on any op directly.
+    """
+
+    SEQ = "seq"
+    GANG_DIM1 = "gang_dim1"
+    GANG_DIM2 = "gang_dim2"
+    GANG_DIM3 = "gang_dim3"
+    WORKER = "worker"
+    VECTOR = "vector"
+
+
 @irdl_attr_definition
 class DeviceTypeAttr(EnumAttribute[DeviceType]):
     """
@@ -379,6 +397,32 @@ class CombinedConstructsTypeAttr(EnumAttribute[CombinedConstructsType]):
 
 
 @irdl_attr_definition
+class ParLevelAttr(EnumAttribute[ParLevel]):
+    """
+    Parallelism level attribute consumed by `SpecializedRoutineAttr` to
+    record which OpenACC level (`seq` / `gang_dim*` / `worker` /
+    `vector`) a function variant was specialized for. Prints using the
+    pretty form `#acc.par_level<value>` to match upstream MLIR (whose
+    `EnumAttr` default `assemblyFormat = "`<` $value `>`"` produces the
+    dot form). When embedded as the `$level` parameter of
+    `#acc.specialized_routine`, the surrounding attribute prints just
+    the `<value>` slice — matching upstream's inline spelling
+    `<@routine, <gang_dim1>, "foo">`.
+    """
+
+    name = "acc.par_level"
+
+    def print_parameter(self, printer: Printer) -> None:
+        with printer.in_angle_brackets():
+            printer.print_string(self.data.value)
+
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> ParLevel:
+        with parser.in_angle_brackets():
+            return parser.parse_str_enum(ParLevel)
+
+
+@irdl_attr_definition
 class VarNameAttr(ParametrizedAttribute):
     """
     Variable-name metadata attribute (upstream `#acc.var_name<"x">`).
@@ -409,6 +453,108 @@ class VarNameAttr(ParametrizedAttribute):
         with parser.in_angle_brackets():
             var_name = parser.parse_str_literal()
         return [StringAttr(var_name)]
+
+
+@irdl_attr_definition
+class RoutineInfoAttr(ParametrizedAttribute):
+    """
+    Records the `acc.routine` declarations associated with a function
+    (upstream `#acc.routine_info<[@rt1, @rt2]>`).
+
+    Upstream attaches this as a *discardable* attribute on `func.func`
+    declarations whose names were referenced by `acc routine`
+    directives. It is **not** an op argument on any acc op — the
+    `acc.routine` op itself holds the per-directive clauses, and this
+    attribute is the back-edge from the routine target back to its
+    declarations.
+    """
+
+    name = "acc.routine_info"
+
+    acc_routines: ArrayAttr[SymbolRefAttr]
+
+    def __init__(
+        self, acc_routines: ArrayAttr[SymbolRefAttr] | Sequence[SymbolRefAttr]
+    ) -> None:
+        if not isinstance(acc_routines, ArrayAttr):
+            acc_routines = ArrayAttr(acc_routines)
+        super().__init__(acc_routines)
+
+    def print_parameters(self, printer: Printer) -> None:
+        with printer.in_angle_brackets():
+            with printer.in_square_brackets():
+                printer.print_list(self.acc_routines.data, printer.print_attribute)
+
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
+        with parser.in_angle_brackets():
+            refs = parser.parse_comma_separated_list(
+                AttrParser.Delimiter.SQUARE, parser.parse_attribute
+            )
+        for ref in refs:
+            if not isinstance(ref, SymbolRefAttr):
+                parser.raise_error(
+                    f"expected symbol reference in #acc.routine_info, got {ref}"
+                )
+        return [ArrayAttr(cast(list[SymbolRefAttr], refs))]
+
+
+@irdl_attr_definition
+class SpecializedRoutineAttr(ParametrizedAttribute):
+    """
+    Marks a function as a device-specialized variant of an `acc.routine`
+    (upstream `#acc.specialized_routine<@routine, <par_level>, "name">`).
+
+    Upstream attaches this as a *discardable* attribute on the
+    specialized `func.func` produced by the routine-specialization pass.
+    It captures the parallelism level, a `SymbolRefAttr` reference back
+    to the originating `acc.routine`, and the *original* (pre-rename)
+    function name. The `par_level` parameter prints inline as
+    `<gang_dim1>` (no `#acc.par_level` prefix) to match upstream's
+    spelling.
+    """
+
+    name = "acc.specialized_routine"
+
+    routine: SymbolRefAttr
+    level: ParLevelAttr
+    func_name: StringAttr
+
+    def __init__(
+        self,
+        routine: SymbolRefAttr | str,
+        level: ParLevelAttr | ParLevel,
+        func_name: StringAttr | str,
+    ) -> None:
+        if isinstance(routine, str):
+            routine = SymbolRefAttr(routine)
+        if isinstance(level, ParLevel):
+            level = ParLevelAttr(level)
+        if isinstance(func_name, str):
+            func_name = StringAttr(func_name)
+        super().__init__(routine, level, func_name)
+
+    def print_parameters(self, printer: Printer) -> None:
+        with printer.in_angle_brackets():
+            printer.print_attribute(self.routine)
+            printer.print_string(", ")
+            self.level.print_parameter(printer)
+            printer.print_string(", ")
+            printer.print_attribute(self.func_name)
+
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
+        with parser.in_angle_brackets():
+            routine = parser.parse_attribute()
+            if not isinstance(routine, SymbolRefAttr):
+                parser.raise_error(
+                    f"expected symbol reference in #acc.specialized_routine, got {routine}"
+                )
+            parser.parse_punctuation(",")
+            level = ParLevelAttr(ParLevelAttr.parse_parameter(parser))
+            parser.parse_punctuation(",")
+            func_name = parser.parse_str_literal()
+        return [routine, level, StringAttr(func_name)]
 
 
 @irdl_attr_definition
@@ -5650,6 +5796,9 @@ ACC = Dialect(
         GangArgTypeAttr,
         CombinedConstructsTypeAttr,
         VarNameAttr,
+        ParLevelAttr,
+        RoutineInfoAttr,
+        SpecializedRoutineAttr,
         DataBoundsType,
         DeclareTokenType,
     ],
