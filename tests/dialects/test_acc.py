@@ -534,15 +534,18 @@ def test_declare_attr_constructor():
 
 
 def test_declare_action_attr_constructor():
-    """The filecheck round-trip never reaches
-    `DeclareActionAttr.__init__` / `_coerce_optional_symref` (the
-    parser builds the parameter tuple directly), so the three coercion
-    branches — `None` -> `NoneAttr`, `str` -> `SymbolRefAttr`,
-    `SymbolRefAttr` pass-through — are only exercised here. A single
-    call hits all three across the four slots."""
+    """The filecheck round-trip never reaches the
+    `_coerce_optional_symref` converter (the parser builds the
+    parameter tuple directly via `attr_def.new`, which bypasses
+    converters), so the three coercion branches — `None` ->
+    `NoneAttr`, `str` -> `SymbolRefAttr`, `SymbolRefAttr` pass-through
+    — are only exercised here. A single call hits all three across
+    the four (positional) slots."""
     attr = acc.DeclareActionAttr(
-        pre_alloc="a",
-        pre_dealloc=SymbolRefAttr("scope", ["inner"]),
+        "a",
+        None,
+        SymbolRefAttr("scope", ["inner"]),
+        None,
     )
     assert attr.pre_alloc == SymbolRefAttr("a")
     assert isinstance(attr.post_alloc, NoneAttr)

@@ -668,15 +668,6 @@ class DeclareActionAttr(ParametrizedAttribute):
         converter=_coerce_optional_symref
     )
 
-    def __init__(
-        self,
-        pre_alloc: SymbolRefAttr | str | None = None,
-        post_alloc: SymbolRefAttr | str | None = None,
-        pre_dealloc: SymbolRefAttr | str | None = None,
-        post_dealloc: SymbolRefAttr | str | None = None,
-    ) -> None:
-        super().__init__(pre_alloc, post_alloc, pre_dealloc, post_dealloc)
-
     def print_parameters(self, printer: Printer) -> None:
         slots = (
             ("preAlloc", self.pre_alloc),
