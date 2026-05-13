@@ -91,11 +91,11 @@ def test_eval_init_stores_attributes_verbatim():
 
 def test_eval_get_basic_construction():
     x = create_ssa_value(f32)
-    op = EvalOp.get(x, (0.5, 1.2, 0.3), f32, EvalScheme.CLENSHAW)
+    op = EvalOp.get(x, (0.5, 1.25, 0.375), f32, EvalScheme.CLENSHAW)
     assert op.value.type == f32
     assert op.result.type == f32
     assert op.degree == 2
-    assert op.polynomial.coeff_values == (0.5, 1.2, 0.3)
+    assert op.polynomial.coeff_values == (0.5, 1.25, 0.375)
     assert op.polynomial.type == PolynomialType(RingAttr(f32))
     assert op.scheme.data == EvalScheme.CLENSHAW.value
     assert op.eval_scheme == EvalScheme.CLENSHAW
