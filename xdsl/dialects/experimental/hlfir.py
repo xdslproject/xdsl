@@ -12,13 +12,15 @@ See external [documentation](https://flang.llvm.org/docs/HighLevelFIR.html).
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+from enum import Enum
+
 from xdsl.dialects.arith import FastMathFlagsAttr
 from xdsl.dialects.builtin import (
     ArrayAttr,
     Attribute,
     BoolAttr,
     DenseArrayBase,
-    IntAttr,
     IntegerAttr,
     ParametrizedAttribute,
     StringAttr,
@@ -29,7 +31,7 @@ from xdsl.dialects.experimental.fir import (
     FortranVariableFlagsAttr,
     NoneType,
 )
-from xdsl.ir import Dialect, TypeAttribute
+from xdsl.ir import Data, Dialect, TypeAttribute
 from xdsl.irdl import (
     AttrSizedOperandSegments,
     IRDLOperation,
@@ -38,17 +40,50 @@ from xdsl.irdl import (
     operand_def,
     opt_operand_def,
     opt_prop_def,
+    opt_region_def,
     prop_def,
     region_def,
     result_def,
     traits_def,
     var_operand_def,
-    var_region_def,
-    var_result_def,
 )
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
-from xdsl.traits import IsTerminator
+from xdsl.traits import HasParent, IsTerminator, Pure
+
+
+class CharExtremumPredicate(Enum):
+    """min / max selector for hlfir.char_extremum."""
+
+    MIN = "min"
+    MAX = "max"
+
+    @staticmethod
+    def try_parse(parser: AttrParser) -> CharExtremumPredicate | None:
+        for option in CharExtremumPredicate:
+            if parser.parse_optional_characters(option.value) is not None:
+                return option
+        return None
+
+
+@dataclass(frozen=True)
+class CharExtremumPredicateAttrBase(Data[CharExtremumPredicate]):
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> CharExtremumPredicate:
+        with parser.in_angle_brackets():
+            return parser.expect(
+                lambda: CharExtremumPredicate.try_parse(parser),
+                "char_extremum predicate (min or max) expected",
+            )
+
+    def print_parameter(self, printer: Printer):
+        with printer.in_angle_brackets():
+            printer.print_string(self.data.value)
+
+
+@irdl_attr_definition
+class CharExtremumPredicateAttr(CharExtremumPredicateAttrBase):
+    name = "hlfir.char_extremum_predicate"
 
 
 @irdl_attr_definition
@@ -152,8 +187,9 @@ class DeclareOp(IRDLOperation):
     dummy_scope = opt_operand_def()
     storage = opt_operand_def()
     storage_offset = opt_prop_def(IntegerAttr)
-    uniq_name = opt_prop_def(StringAttr)
+    uniq_name = prop_def(StringAttr)
     fortran_attrs = opt_prop_def(FortranVariableFlagsAttr)
+    data_attr = opt_prop_def(Attribute)
     skip_rebox = opt_prop_def(UnitAttr)
     dummy_arg_no = opt_prop_def(IntegerAttr)
     result = result_def()
@@ -255,8 +291,8 @@ class AssignOp(IRDLOperation):
     """
 
     name = "hlfir.assign"
-    lhs = operand_def()
     rhs = operand_def()
+    lhs = operand_def()
     realloc = opt_prop_def(UnitAttr)
     keep_lhs_length_if_realloc = opt_prop_def(UnitAttr)
     temporary_lhs = opt_prop_def(UnitAttr)
@@ -304,6 +340,7 @@ class ConcatOp(IRDLOperation):
     name = "hlfir.concat"
     strings = var_operand_def()
     length = operand_def()
+    result = result_def()
 
     irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
@@ -437,6 +474,8 @@ class GetLengthOp(IRDLOperation):
     name = "hlfir.get_length"
     expr = operand_def()
     result = result_def()
+
+    traits = traits_def(Pure())
 
 
 @irdl_op_definition
@@ -634,8 +673,8 @@ class ElementalOp(IRDLOperation):
     mold = opt_operand_def()
     typeparams = var_operand_def()
     unordered = opt_prop_def(UnitAttr)
-    regs = var_region_def()
     result = result_def()
+    region = region_def("single_block")
 
     irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
@@ -653,7 +692,7 @@ class YieldElementOp(IRDLOperation):
     name = "hlfir.yield_element"
     element_value = operand_def()
 
-    traits = traits_def(IsTerminator())
+    traits = traits_def(IsTerminator(), HasParent(ElementalOp), Pure())
 
 
 @irdl_op_definition
@@ -755,7 +794,8 @@ class CopyInOp(IRDLOperation):
     var = operand_def()
     tempBox = operand_def()
     var_is_present = opt_operand_def()
-    result = var_result_def()
+    copied_in = result_def()
+    was_copied = result_def()
 
 
 @irdl_op_definition
@@ -791,6 +831,8 @@ class ShapeOfOp(IRDLOperation):
     expr = operand_def()
     result = result_def()
 
+    traits = traits_def(Pure())
+
 
 @irdl_op_definition
 class GetExtentOp(IRDLOperation):
@@ -803,8 +845,10 @@ class GetExtentOp(IRDLOperation):
 
     name = "hlfir.get_extent"
     shape = operand_def()
-    dim = prop_def(IntAttr)
+    dim = prop_def(IntegerAttr)
     result = result_def()
+
+    traits = traits_def(Pure())
 
 
 @irdl_op_definition
@@ -846,9 +890,9 @@ class RegionAssignOp(IRDLOperation):
     """
 
     name = "hlfir.region_assign"
-    rhs_region = region_def()
-    lhs_region = region_def()
-    user_defined_assignment = region_def()
+    rhs_region = region_def("single_block")
+    lhs_region = region_def("single_block")
+    user_defined_assignment = opt_region_def()
 
 
 @irdl_op_definition
@@ -874,7 +918,7 @@ class YieldOp(IRDLOperation):
 
     name = "hlfir.yield"
     entity = operand_def()
-    cleanup = region_def()
+    cleanup = opt_region_def()
 
     traits = traits_def(IsTerminator())
 
@@ -922,8 +966,10 @@ class ElementalAddrOp(IRDLOperation):
     mold = opt_operand_def()
     typeparams = var_operand_def()
     unordered = opt_prop_def(UnitAttr)
-    body = region_def()
-    cleanup = region_def()
+    body = region_def("single_block")
+    cleanup = opt_region_def()
+
+    traits = traits_def(IsTerminator(), HasParent(RegionAssignOp))
 
     irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
@@ -981,10 +1027,10 @@ class ForallOp(IRDLOperation):
     """
 
     name = "hlfir.forall"
-    lb_region = region_def()
-    ub_region = region_def()
-    step_region = region_def()
-    body = region_def()
+    lb_region = region_def("single_block")
+    ub_region = region_def("single_block")
+    step_region = opt_region_def()
+    body = region_def("single_block")
 
 
 @irdl_op_definition
@@ -1021,8 +1067,8 @@ class ForallMaskOp(IRDLOperation):
     """
 
     name = "hlfir.forall_mask"
-    mask_region = region_def()
-    body = region_def()
+    mask_region = region_def("single_block")
+    body = region_def("single_block")
 
 
 @irdl_op_definition
@@ -1046,8 +1092,8 @@ class AssignmentMaskOp(IRDLOperation):
     """
 
     name = "hlfir.where"
-    mask_region = region_def()
-    body = region_def()
+    mask_region = region_def("single_block")
+    body = region_def("single_block")
 
 
 @irdl_op_definition
@@ -1068,8 +1114,10 @@ class ElseWhereOp(IRDLOperation):
     """
 
     name = "hlfir.elsewhere"
-    mask_region = region_def()
-    body = region_def()
+    mask_region = opt_region_def()
+    body = region_def("single_block")
+
+    traits = traits_def(IsTerminator())
 
 
 @irdl_op_definition
@@ -1093,8 +1141,10 @@ class ForallIndexOp(IRDLOperation):
 
     name = "hlfir.forall_index"
     index = operand_def()
-    indexname = prop_def(StringAttr)
+    index_name = prop_def(StringAttr, prop_name="name")
     result = result_def()
+
+    traits = traits_def(Pure())
 
 
 @irdl_op_definition
@@ -1110,11 +1160,9 @@ class CharExtremumOp(IRDLOperation):
     """  # noqa E501
 
     name = "hlfir.char_extremum"
-    predicate = operand_def()
+    predicate = prop_def(CharExtremumPredicateAttr)
     strings = var_operand_def()
     result = result_def()
-
-    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
 
 @irdl_op_definition
@@ -1131,7 +1179,7 @@ class CmpCharOp(IRDLOperation):
     """Lexicographic compare of two character strings."""
 
     name = "hlfir.cmpchar"
-    predicate = prop_def(Attribute)
+    predicate = prop_def(IntegerAttr)
     lchr = operand_def()
     rchr = operand_def()
     result = result_def()
@@ -1190,7 +1238,7 @@ class IndexOp(IRDLOperation):
 
     name = "hlfir.index"
     substr = operand_def()
-    string = operand_def()
+    str = operand_def()
     back = opt_operand_def()
     result = result_def()
 
@@ -1295,5 +1343,6 @@ HLFIR = Dialect(
     ],
     [
         ExprType,
+        CharExtremumPredicateAttr,
     ],
 )
