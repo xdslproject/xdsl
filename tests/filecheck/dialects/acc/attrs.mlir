@@ -83,6 +83,17 @@
                 #acc.gang_arg_type<Static>,
                 // CHECK-SAME: #acc.gang_arg_type<Static>
 
+                // Variable-name metadata attribute. Upstream uses it
+                // purely as a discardable attribute on non-acc ops
+                // (e.g. `memref.alloca`) to preserve source-level
+                // variable names through transforms. Included here so
+                // the xdsl-only round-trip is exercised alongside
+                // every other `acc.*` attribute.
+                #acc.var_name<"foo">,
+                // CHECK-SAME: #acc.var_name<"foo">
+                #acc.var_name<"a_longer_variable_name">,
+                // CHECK-SAME: #acc.var_name<"a_longer_variable_name">
+
                 // Combined constructs attribute. Used by `acc.loop` to
                 // identify the user-level `kernels loop` / `parallel loop`
                 // / `serial loop` it was decomposed from.

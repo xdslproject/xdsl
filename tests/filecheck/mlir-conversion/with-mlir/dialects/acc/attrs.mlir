@@ -92,6 +92,17 @@
                 #acc.gang_arg_type<Static>,
                 // CHECK-SAME: #acc.gang_arg_type<Static>
 
+                // Variable-name metadata attribute. Upstream uses it
+                // purely as a discardable attribute on non-acc ops
+                // (e.g. `memref.alloca`) to preserve source-level
+                // variable names through transforms. Including it on
+                // the carrier `"test.op"` is enough to prove the
+                // xdsl `<"..."` spelling round-trips through `mlir-opt`.
+                #acc.var_name<"foo">,
+                // CHECK-SAME: #acc.var_name<"foo">
+                #acc.var_name<"a_longer_variable_name">,
+                // CHECK-SAME: #acc.var_name<"a_longer_variable_name">
+
                 // Combined constructs attribute. Upstream's `EnumAttr`
                 // default produces the dot form `#acc.combined_constructs<...>`
                 // — *not* the spaced opaque form

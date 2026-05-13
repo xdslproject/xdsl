@@ -379,6 +379,39 @@ class CombinedConstructsTypeAttr(EnumAttribute[CombinedConstructsType]):
 
 
 @irdl_attr_definition
+class VarNameAttr(ParametrizedAttribute):
+    """
+    Variable-name metadata attribute (upstream `#acc.var_name<"x">`).
+
+    Upstream attaches this purely as a *discardable* attribute on
+    non-acc-dialect ops (e.g. `memref.alloca`, casts) to preserve
+    source-level variable names through transformations. It is **not**
+    an op argument on any acc op — the `name` slot on the data-clause
+    family is `OptionalAttr<StrAttr>:$name` upstream, so xDSL keeps the
+    plain `StringAttr` there too.
+    """
+
+    name = "acc.var_name"
+
+    var_name: StringAttr
+
+    def __init__(self, name: str | StringAttr) -> None:
+        if isinstance(name, str):
+            name = StringAttr(name)
+        super().__init__(name)
+
+    def print_parameters(self, printer: Printer) -> None:
+        with printer.in_angle_brackets():
+            printer.print_attribute(self.var_name)
+
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
+        with parser.in_angle_brackets():
+            var_name = parser.parse_str_literal()
+        return [StringAttr(var_name)]
+
+
+@irdl_attr_definition
 class DataBoundsType(ParametrizedAttribute, TypeAttribute):
     """
     Type used for `acc.bounds` results. Holds normalized bounds information
@@ -5616,6 +5649,7 @@ ACC = Dialect(
         ReductionOpKindAttr,
         GangArgTypeAttr,
         CombinedConstructsTypeAttr,
+        VarNameAttr,
         DataBoundsType,
         DeclareTokenType,
     ],
