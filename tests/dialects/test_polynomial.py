@@ -1,6 +1,7 @@
 import pytest
 
 from xdsl.dialects.builtin import (
+    AnyFloat,
     ArrayAttr,
     FloatAttr,
     StringAttr,
@@ -111,7 +112,7 @@ def test_eval_get_basic_construction():
         (TensorType(f64, [8]), f64),
     ],
 )
-def test_eval_get_type_polymorphism(value_type: Attribute, element_type: Attribute):
+def test_eval_get_type_polymorphism(value_type: Attribute, element_type: AnyFloat):
     x = create_ssa_value(value_type)
     op = EvalOp.get(x, (1.0, 2.0), element_type, EvalScheme.CLENSHAW)
     assert op.value.type == value_type
