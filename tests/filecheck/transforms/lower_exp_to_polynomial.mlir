@@ -38,7 +38,7 @@ builtin.module {
 // Without max_bits_lost, math.exp is still lowered using the default
 // correctly-rounded target and [underflow, overflow] domain.
 // CHECK:      func.func @exp_f32(%[[X32:.*]]: f32) -> f32 {
-// CHECK-NEXT:   %[[R32:.*]] = polynomial.eval #polynomial.typed_chebyshev_polynomial<[{{.*}}]> : !polynomial.polynomial<ring = <coefficientType = f64>>, %[[X32]] {scheme = "clenshaw", domain_lower = {{.*}} : f64, domain_upper = {{.*}} : f64} : f32
+// CHECK-NEXT:   %[[R32:.*]] = polynomial.eval #polynomial.typed_chebyshev_polynomial<[{{.*}}]> : !polynomial.polynomial<ring = <coefficientType = f32>>, %[[X32]] {scheme = "clenshaw", domain_lower = {{.*}} : f32, domain_upper = {{.*}} : f32} : f32
 // CHECK-NEXT:   func.return %[[R32]] : f32
 // CHECK-NEXT: }
 
@@ -50,16 +50,16 @@ builtin.module {
 // Without explicit lower/upper bounds, the polynomial domain defaults to
 // [underflow, overflow] for the precision (f32: ~[-103.28, 88.72]).
 // CHECK:      func.func @exp_f32_with_max_bits_lost(%[[XB:.*]]: f32) -> f32 {
-// CHECK-NEXT:   %[[RB:.*]] = polynomial.eval #polynomial.typed_chebyshev_polynomial<[{{.*}}]> : !polynomial.polynomial<ring = <coefficientType = f64>>, %[[XB]] {scheme = "clenshaw", domain_lower = {{.*}} : f64, domain_upper = {{.*}} : f64} : f32
+// CHECK-NEXT:   %[[RB:.*]] = polynomial.eval #polynomial.typed_chebyshev_polynomial<[{{.*}}]> : !polynomial.polynomial<ring = <coefficientType = f32>>, %[[XB]] {scheme = "clenshaw", domain_lower = {{.*}} : f32, domain_upper = {{.*}} : f32} : f32
 // CHECK-NEXT:   func.return %[[RB]] : f32
 // CHECK-NEXT: }
 
 // CHECK:      func.func @exp_f32_clamped_lower(%[[XC:.*]]: f32) -> f32 {
-// CHECK-NEXT:   %[[RC:.*]] = polynomial.eval #polynomial.typed_chebyshev_polynomial<[{{.*}}]> : !polynomial.polynomial<ring = <coefficientType = f64>>, %[[XC]] {scheme = "clenshaw", domain_lower = -2.000000e+00 : f64, domain_upper = 5.000000e+00 : f64} : f32
+// CHECK-NEXT:   %[[RC:.*]] = polynomial.eval #polynomial.typed_chebyshev_polynomial<[{{.*}}]> : !polynomial.polynomial<ring = <coefficientType = f32>>, %[[XC]] {scheme = "clenshaw", domain_lower = -2.000000e+00 : f32, domain_upper = 5.000000e+00 : f32} : f32
 // CHECK-NEXT:   func.return %[[RC]] : f32
 // CHECK-NEXT: }
 
 // CHECK:      func.func @exp_f32_tight_bounds(%[[XT:.*]]: f32) -> f32 {
-// CHECK-NEXT:   %[[RT:.*]] = polynomial.eval #polynomial.typed_chebyshev_polynomial<[{{.*}}]> : !polynomial.polynomial<ring = <coefficientType = f64>>, %[[XT]] {scheme = "clenshaw", domain_lower = -5.000000e-01 : f64, domain_upper = 5.000000e-01 : f64} : f32
+// CHECK-NEXT:   %[[RT:.*]] = polynomial.eval #polynomial.typed_chebyshev_polynomial<[{{.*}}]> : !polynomial.polynomial<ring = <coefficientType = f32>>, %[[XT]] {scheme = "clenshaw", domain_lower = -5.000000e-01 : f32, domain_upper = 5.000000e-01 : f32} : f32
 // CHECK-NEXT:   func.return %[[RT]] : f32
 // CHECK-NEXT: }
