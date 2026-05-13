@@ -211,9 +211,8 @@ class TypedChebyshevPolynomialAttr(ParametrizedAttribute):
         return self.value.coeff_values
 
 
-def _default_polynomial_type() -> PolynomialType:
-    """Default polynomial type for f64 Chebyshev coefficients."""
-    return PolynomialType(RingAttr(f64))
+_DEFAULT_POLYNOMIAL_TYPE = PolynomialType(RingAttr(f64))
+"""Default polynomial type for f64 Chebyshev coefficients."""
 
 
 @irdl_op_definition
@@ -266,11 +265,11 @@ class EvalOp(IRDLOperation):
     ):
         if isinstance(polynomial, tuple):
             polynomial = TypedChebyshevPolynomialAttr(
-                _default_polynomial_type(), polynomial
+                _DEFAULT_POLYNOMIAL_TYPE, polynomial
             )
         elif isinstance(polynomial, ChebyshevPolynomialAttr):
             polynomial = TypedChebyshevPolynomialAttr(
-                _default_polynomial_type(), polynomial
+                _DEFAULT_POLYNOMIAL_TYPE, polynomial
             )
 
         if isinstance(scheme, EvalScheme):
