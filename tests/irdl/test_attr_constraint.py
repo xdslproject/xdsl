@@ -384,3 +384,15 @@ def test_mapping_type_vars():
     assert int_attr_constr.mapping_type_vars({_IntT: my_constr}) == IntAttrConstraint(
         my_constr
     )
+
+
+@pytest.mark.parametrize(
+    "constr, expected",
+    [
+        (VarConstraint.get("T"), VarConstraint("T", AnyAttr())),
+        (VarConstraint.get("T", AttrA), VarConstraint("T", BaseAttr(AttrA))),
+        (VarConstraint.get("T", BaseAttr(AttrA)), VarConstraint("T", BaseAttr(AttrA))),
+    ],
+)
+def test_constraint_get(constr: AttrConstraint, expected: AttrConstraint):
+    assert constr == expected
