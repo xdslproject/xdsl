@@ -1,51 +1,55 @@
 // RUN: xdsl-opt -p lower-exp-to-polynomial %s | filecheck %s
 
 builtin.module {
+  // No max_bits_lost: pass picks the default (-1 = correctly-rounded target),
+  // domain falls back to [underflow, overflow] of f32.
   func.func @exp_f32(%x: f32) -> f32 {
     %r = math.exp %x : f32
     func.return %r : f32
   }
 
+  // No max_bits_lost: same default behavior, but f64 domain.
   func.func @exp_f64(%x: f64) -> f64 {
     %r = math.exp %x : f64
     func.return %r : f64
   }
 
-  // acc_bound is preserved on math.exp by step 1 and drives the polynomial
+  // max_bits_lost is preserved on math.exp by step 1 and drives the polynomial
   // degree picked by _choose_polynomial.
-  func.func @exp_f32_with_acc_bound(%x: f32) -> f32 {
-    %r = math.exp %x {acc_bound = 1.000000e-03 : f64} : f32
+  func.func @exp_f32_with_max_bits_lost(%x: f32) -> f32 {
+    %r = math.exp %x {max_bits_lost = 2 : i64} : f32
     func.return %r : f32
   }
 
   // user lower_bound = -2 > underflow (~-103.28) -> kept at -2
   // user upper_bound =  5 < overflow  (~ 88.72)  -> kept at 5
   func.func @exp_f32_clamped_lower(%x: f32) -> f32 {
-    %r = math.exp %x {acc_bound = 1.000000e-03 : f64, lower_bound = -2.000000e+00 : f32, upper_bound = 5.000000e+00 : f32} : f32
+    %r = math.exp %x {max_bits_lost = 2 : i64, lower_bound = -2.000000e+00 : f32, upper_bound = 5.000000e+00 : f32} : f32
     func.return %r : f32
   }
 
   // both user bounds inside representable range -> used as-is
   func.func @exp_f32_tight_bounds(%x: f32) -> f32 {
-    %r = math.exp %x {acc_bound = 1.000000e-03 : f64, lower_bound = -5.000000e-01 : f32, upper_bound = 5.000000e-01 : f32} : f32
+    %r = math.exp %x {max_bits_lost = 2 : i64, lower_bound = -5.000000e-01 : f32, upper_bound = 5.000000e-01 : f32} : f32
     func.return %r : f32
   }
 }
 
-// Without acc_bound, math.exp is left untouched.
+// Without max_bits_lost, math.exp is still lowered using the default
+// correctly-rounded target and [underflow, overflow] domain.
 // CHECK:      func.func @exp_f32(%[[X32:.*]]: f32) -> f32 {
-// CHECK-NEXT:   %[[R32:.*]] = math.exp %[[X32]] : f32
+// CHECK-NEXT:   %[[R32:.*]] = polynomial.eval #polynomial.typed_chebyshev_polynomial<[{{.*}}]> : !polynomial.polynomial<ring = <coefficientType = f64>>, %[[X32]] {scheme = "clenshaw", domain_lower = {{.*}} : f64, domain_upper = {{.*}} : f64} : f32
 // CHECK-NEXT:   func.return %[[R32]] : f32
 // CHECK-NEXT: }
 
 // CHECK:      func.func @exp_f64(%[[X64:.*]]: f64) -> f64 {
-// CHECK-NEXT:   %[[R64:.*]] = math.exp %[[X64]] : f64
+// CHECK-NEXT:   %[[R64:.*]] = polynomial.eval #polynomial.typed_chebyshev_polynomial<[{{.*}}]> : !polynomial.polynomial<ring = <coefficientType = f64>>, %[[X64]] {scheme = "clenshaw", domain_lower = {{.*}} : f64, domain_upper = {{.*}} : f64} : f64
 // CHECK-NEXT:   func.return %[[R64]] : f64
 // CHECK-NEXT: }
 
 // Without explicit lower/upper bounds, the polynomial domain defaults to
 // [underflow, overflow] for the precision (f32: ~[-103.28, 88.72]).
-// CHECK:      func.func @exp_f32_with_acc_bound(%[[XB:.*]]: f32) -> f32 {
+// CHECK:      func.func @exp_f32_with_max_bits_lost(%[[XB:.*]]: f32) -> f32 {
 // CHECK-NEXT:   %[[RB:.*]] = polynomial.eval #polynomial.typed_chebyshev_polynomial<[{{.*}}]> : !polynomial.polynomial<ring = <coefficientType = f64>>, %[[XB]] {scheme = "clenshaw", domain_lower = {{.*}} : f64, domain_upper = {{.*}} : f64} : f32
 // CHECK-NEXT:   func.return %[[RB]] : f32
 // CHECK-NEXT: }

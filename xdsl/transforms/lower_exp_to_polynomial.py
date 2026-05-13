@@ -11,6 +11,7 @@ from xdsl.dialects.builtin import (
     Float32Type,
     Float64Type,
     FloatAttr,
+    IntegerAttr,
     ModuleOp,
     TensorType,
     VectorType,
@@ -92,7 +93,7 @@ def _choose_polynomial(
     are unreliable.
     max_bits_lost = 0 targets 1-ULP-quality (libm-grade); each
     additional unit doubles the allowed ULP error.
-    max_bits_lost = -1 targets orrectly-rounded (<= 0.5 ULP).
+    max_bits_lost = -1 targets correctly-rounded (<= 0.5 ULP).
 
     Derivation: the conservative Chebyshev approximation bound gives
         |err|_inf <= exp(upper) * width^(d+1) / (2 * 4^d * (d+1)!).
@@ -127,12 +128,14 @@ class LowerExpToPolynomial(RewritePattern):
         if underflow is None or overflow is None or precision_bits is None:
             return
 
-        # If no acc bound, compute correctly-rounded result
+        # Optional max_bits_lost integer attribute; if absent, default to -1
+        # (target correctly-rounded — all mantissa bits guaranteed correct,
+        # capped at _MAX_DEGREE).
         max_bits_lost_attr = op.attributes.get("max_bits_lost")
         max_bits_lost = (
             max_bits_lost_attr.value.data
-            if isinstance(max_bits_lost_attr, FloatAttr)
-            else -1.0
+            if isinstance(max_bits_lost_attr, IntegerAttr)
+            else -1
         )
 
         # Polynomial domain: each side independently clamped to its representable
