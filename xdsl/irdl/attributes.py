@@ -554,7 +554,9 @@ def irdl_to_attr_constraint(
         else:
             base_constr = ParamAttrConstraint(
                 origin,
-                [param.constr for _, param in origin.get_irdl_definition().parameters],
+                tuple(
+                    param.constr for _, param in origin.get_irdl_definition().parameters
+                ),
             )
 
         type_vars = get_type_var_from_generic_class(cast(type, origin))
