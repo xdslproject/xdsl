@@ -421,6 +421,9 @@ class AnyOf(AttrConstraint[AttributeCovT], Generic[AttributeCovT]):
 
         constrs = tuple(irdl_to_attr_constraint(c) for c in attr_constrs)
 
+        if len(constrs) == 1:
+            return constrs[0]
+
         return AnyOf(constrs)
 
     def __init__(

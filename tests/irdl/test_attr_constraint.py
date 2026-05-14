@@ -447,7 +447,7 @@ class AttrF(ParametrizedAttribute):
         (VarConstraint.get("T", AttrA), VarConstraint("T", BaseAttr(AttrA))),
         (VarConstraint.get("T", BaseAttr(AttrA)), VarConstraint("T", BaseAttr(AttrA))),
         (AnyOf.get(), AnyOf(())),
-        (AnyOf.get(AttrA), AnyOf((BaseAttr(AttrA),))),
+        (AnyOf.get(AttrA), BaseAttr(AttrA)),
         (AnyOf.get(AttrA, AttrB), AnyOf((BaseAttr(AttrA), BaseAttr(AttrB)))),
     ],
 )
