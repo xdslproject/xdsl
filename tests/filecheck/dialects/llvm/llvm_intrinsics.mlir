@@ -140,6 +140,15 @@
 %fma_fast = llvm.intr.fma(%f32, %f32, %f32) {fastmathFlags = #llvm.fastmath<fast>} : (f32, f32, f32) -> f32
 // CHECK-NEXT: %fma_fast = llvm.intr.fma(%f32, %f32, %f32) {fastmathFlags = #llvm.fastmath<fast>} : (f32, f32, f32) -> f32
 
+%minnum_f32 = llvm.intr.minnum(%f32, %f32) : (f32, f32) -> f32
+// CHECK: %minnum_f32 = llvm.intr.minnum(%f32, %f32) : (f32, f32) -> f32
+
+%minnum_f64 = llvm.intr.minnum(%f64, %f64) : (f64, f64) -> f64
+// CHECK-NEXT: %minnum_f64 = llvm.intr.minnum(%f64, %f64) : (f64, f64) -> f64
+
+%minnum_vec = llvm.intr.minnum(%vec_f32, %vec_f32) : (vector<4xf32>, vector<4xf32>) -> vector<4xf32>
+// CHECK-NEXT: %minnum_vec = llvm.intr.minnum(%vec_f32, %vec_f32) : (vector<4xf32>, vector<4xf32>) -> vector<4xf32>
+
 "test.op"() ({
 ^bb0(%br_arg: i32):
   llvm.br ^bb1(%br_arg : i32)
