@@ -619,6 +619,109 @@ builtin.module {
   // CHECK-NEXT:    acc.kernels {
   // CHECK-NEXT:    }
 
+  // acc.kernel_environment — decomposition of a compute construct that
+  // captures only the data / async / wait clauses. Body is a `SizedRegion<1>`
+  // with no terminator (the trait is `NoTerminator`) and typically wraps a
+  // `gpu.launch`; here a `test.op` placeholder stands in. Clause shape
+  // mirrors acc.data: same custom directives for async / wait, plus the
+  // variadic dataOperands.
+  func.func @ke_data_operand(%m : memref<10xf32>) {
+    %c = acc.copyin varPtr(%m : memref<10xf32>) -> memref<10xf32>
+    acc.kernel_environment dataOperands(%c : memref<10xf32>) {
+      "test.op"() : () -> ()
+    }
+    func.return
+  }
+  // CHECK-LABEL: func.func @ke_data_operand(
+  // CHECK:         acc.kernel_environment dataOperands(%{{.*}} : memref<10xf32>) {
+  // CHECK-NEXT:      "test.op"() : () -> ()
+  // CHECK-NEXT:    }
+
+  func.func @ke_async_bare() {
+    acc.kernel_environment async {
+      "test.op"() : () -> ()
+    }
+    func.return
+  }
+  // CHECK-LABEL: func.func @ke_async_bare() {
+  // CHECK-NEXT:    acc.kernel_environment async {
+  // CHECK-NEXT:      "test.op"() : () -> ()
+  // CHECK-NEXT:    }
+
+  func.func @ke_async_dt_only() {
+    acc.kernel_environment async([#acc.device_type<nvidia>]) {
+      "test.op"() : () -> ()
+    }
+    func.return
+  }
+  // CHECK-LABEL: func.func @ke_async_dt_only() {
+  // CHECK-NEXT:    acc.kernel_environment async([#acc.device_type<nvidia>]) {
+
+  func.func @ke_async_operand(%a : i32) {
+    acc.kernel_environment async(%a : i32 [#acc.device_type<nvidia>]) {
+      "test.op"() : () -> ()
+    }
+    func.return
+  }
+  // CHECK-LABEL: func.func @ke_async_operand(
+  // CHECK:         acc.kernel_environment async(%{{.*}} : i32 [#acc.device_type<nvidia>]) {
+
+  func.func @ke_wait_bare() {
+    acc.kernel_environment wait {
+      "test.op"() : () -> ()
+    }
+    func.return
+  }
+  // CHECK-LABEL: func.func @ke_wait_bare() {
+  // CHECK-NEXT:    acc.kernel_environment wait {
+
+  func.func @ke_wait_devnum(%a : i64, %b : i32) {
+    acc.kernel_environment wait({devnum: %a : i64, %b : i32}) {
+      "test.op"() : () -> ()
+    }
+    func.return
+  }
+  // CHECK-LABEL: func.func @ke_wait_devnum(
+  // CHECK:         acc.kernel_environment wait({devnum: %{{.*}} : i64, %{{.*}} : i32}) {
+
+  func.func @ke_full(%a : i32, %w : i64, %m : memref<10xf32>) {
+    %c = acc.copyin varPtr(%m : memref<10xf32>) -> memref<10xf32>
+    acc.kernel_environment dataOperands(%c : memref<10xf32>) async(%a : i32) wait({%w : i64}) {
+      "test.op"() : () -> ()
+    }
+    func.return
+  }
+  // CHECK-LABEL: func.func @ke_full(
+  // CHECK:         acc.kernel_environment dataOperands(%{{.*}} : memref<10xf32>) async(%{{.*}} : i32) wait({%{{.*}} : i64}) {
+
+  // Source spells the clauses in non-canonical order (wait, dataOperands,
+  // async); the oilist directive accepts any order on parse and re-emits
+  // them in upstream's td-definition order (dataOperands, async, wait).
+  func.func @ke_clauses_reordered(%a : i32, %w : i64, %m : memref<10xf32>) {
+    %c = acc.copyin varPtr(%m : memref<10xf32>) -> memref<10xf32>
+    acc.kernel_environment wait({%w : i64}) dataOperands(%c : memref<10xf32>) async(%a : i32) {
+      "test.op"() : () -> ()
+    }
+    func.return
+  }
+  // CHECK-LABEL: func.func @ke_clauses_reordered(
+  // CHECK:         acc.kernel_environment dataOperands(%{{.*}} : memref<10xf32>) async(%{{.*}} : i32) wait({%{{.*}} : i64}) {
+
+  // Generic-form roundtrip insurance — proves the parser path that
+  // bypasses the declarative custom assembly format still parses. The body
+  // carries an op because `SizedRegion<1>` rejects an empty (0-block)
+  // region in both upstream and xDSL.
+  func.func @ke_generic_roundtrip_retained() {
+    "acc.kernel_environment"() <{operandSegmentSizes = array<i32: 0, 0, 0>}> ({
+      "test.op"() : () -> ()
+    }) : () -> ()
+    func.return
+  }
+  // CHECK-LABEL: func.func @ke_generic_roundtrip_retained() {
+  // CHECK-NEXT:    acc.kernel_environment {
+  // CHECK-NEXT:      "test.op"() : () -> ()
+  // CHECK-NEXT:    }
+
   // acc.data — structured data construct. Body uses acc.terminator (same
   // SingleBlockImplicitTerminator(TerminatorOp) shape as kernels). The
   // verifier additionally requires either at least one operand or
@@ -2252,4 +2355,179 @@ builtin.module {
   // CHECK-LABEL: acc.global_dtor @acc_dtor_generic {
   // CHECK-NEXT:    acc.terminator
   // CHECK-NEXT:  }
+
+  // acc.atomic.read — two pointer-like operands plus an optional `if(%cond)`
+  // clause shared with the rest of the atomic family. The pretty form is
+  // `dest = source`; the value-type spelling `: type(v), type(x), element_type`
+  // tails the operand list and the `element_type` TypeAttr is round-tripped
+  // as a bare type.
+  func.func @acc_atomic_read(%v: memref<i32>, %x: memref<i32>) {
+    acc.atomic.read %v = %x : memref<i32>, memref<i32>, i32
+    %c = arith.constant true
+    acc.atomic.read if(%c) %v = %x : memref<i32>, memref<i32>, i32
+    func.return
+  }
+  // CHECK-LABEL: func.func @acc_atomic_read(
+  // CHECK:         acc.atomic.read %{{.*}} = %{{.*}} : memref<i32>, memref<i32>, i32
+  // CHECK-NEXT:    %{{.*}} = arith.constant true
+  // CHECK-NEXT:    acc.atomic.read if(%{{.*}}) %{{.*}} = %{{.*}} : memref<i32>, memref<i32>, i32
+
+  // acc.atomic.write — same shape as read but the right-hand-side is an
+  // arbitrary-typed value rather than a pointer; pretty form is `addr = expr`.
+  func.func @acc_atomic_write(%x: memref<i32>, %expr: i32) {
+    acc.atomic.write %x = %expr : memref<i32>, i32
+    %c = arith.constant true
+    acc.atomic.write if(%c) %x = %expr : memref<i32>, i32
+    func.return
+  }
+  // CHECK-LABEL: func.func @acc_atomic_write(
+  // CHECK:         acc.atomic.write %{{.*}} = %{{.*}} : memref<i32>, i32
+  // CHECK-NEXT:    %{{.*}} = arith.constant true
+  // CHECK-NEXT:    acc.atomic.write if(%{{.*}}) %{{.*}} = %{{.*}} : memref<i32>, i32
+
+  // Generic-form roundtrip insurance — covers the parser path that bypasses
+  // the AtomicIfClause custom directive. Note the operand order in the
+  // generic form is `(x, v[, if_cond])` for read and `(x, expr[, if_cond])`
+  // for write, matching the upstream td-definition order of the operands.
+  func.func @acc_atomic_generic(%v: memref<i32>, %x: memref<i32>, %expr: i32, %c: i1) {
+    "acc.atomic.read"(%x, %v) <{element_type = i32}> : (memref<i32>, memref<i32>) -> ()
+    "acc.atomic.read"(%x, %v, %c) <{element_type = i32}> : (memref<i32>, memref<i32>, i1) -> ()
+    "acc.atomic.write"(%x, %expr) : (memref<i32>, i32) -> ()
+    "acc.atomic.write"(%x, %expr, %c) : (memref<i32>, i32, i1) -> ()
+    func.return
+  }
+  // CHECK-LABEL: func.func @acc_atomic_generic(
+  // CHECK:         acc.atomic.read %{{.*}} = %{{.*}} : memref<i32>, memref<i32>, i32
+  // CHECK-NEXT:    acc.atomic.read if(%{{.*}}) %{{.*}} = %{{.*}} : memref<i32>, memref<i32>, i32
+  // CHECK-NEXT:    acc.atomic.write %{{.*}} = %{{.*}} : memref<i32>, i32
+  // CHECK-NEXT:    acc.atomic.write if(%{{.*}}) %{{.*}} = %{{.*}} : memref<i32>, i32
+
+  // acc.atomic.update — single-operand region op whose body takes the
+  // current value of `x` as its single block argument and yields the
+  // updated value via acc.yield. Implicit-terminator: omitting acc.yield
+  // is fine at print time but the verifier still pins the yielded type to
+  // the block argument's type.
+  func.func @acc_atomic_update(%x: memref<i32>, %expr: i32) {
+    acc.atomic.update %x : memref<i32> {
+    ^bb0(%xval: i32):
+      %newval = arith.addi %xval, %expr : i32
+      acc.yield %newval : i32
+    }
+    %c = arith.constant true
+    acc.atomic.update if(%c) %x : memref<i32> {
+    ^bb0(%xval: i32):
+      %newval = arith.addi %xval, %expr : i32
+      acc.yield %newval : i32
+    }
+    // No-op update: yielding the argument unchanged is a valid form.
+    acc.atomic.update %x : memref<i32> {
+    ^bb0(%xval: i32):
+      acc.yield %xval : i32
+    }
+    func.return
+  }
+  // CHECK-LABEL: func.func @acc_atomic_update(
+  // CHECK:         acc.atomic.update %{{.*}} : memref<i32> {
+  // CHECK-NEXT:    ^{{.*}}(%{{.*}}: i32):
+  // CHECK-NEXT:      %{{.*}} = arith.addi %{{.*}}, %{{.*}} : i32
+  // CHECK-NEXT:      acc.yield %{{.*}} : i32
+  // CHECK-NEXT:    }
+  // CHECK:         acc.atomic.update if(%{{.*}}) %{{.*}} : memref<i32> {
+  // CHECK-NEXT:    ^{{.*}}(%{{.*}}: i32):
+  // CHECK-NEXT:      %{{.*}} = arith.addi %{{.*}}, %{{.*}} : i32
+  // CHECK-NEXT:      acc.yield %{{.*}} : i32
+  // CHECK-NEXT:    }
+  // CHECK:         acc.atomic.update %{{.*}} : memref<i32> {
+  // CHECK-NEXT:    ^{{.*}}(%[[XVAL:.*]]: i32):
+  // CHECK-NEXT:      acc.yield %[[XVAL]] : i32
+  // CHECK-NEXT:    }
+
+  // Generic-form roundtrip insurance for atomic.update — covers the parser
+  // path that bypasses the AtomicIfClause custom directive.
+  func.func @acc_atomic_update_generic(%x: memref<i32>, %expr: i32, %c: i1) {
+    "acc.atomic.update"(%x) ({
+    ^bb0(%xval: i32):
+      %newval = arith.addi %xval, %expr : i32
+      "acc.yield"(%newval) : (i32) -> ()
+    }) : (memref<i32>) -> ()
+    "acc.atomic.update"(%x, %c) ({
+    ^bb0(%xval: i32):
+      "acc.yield"(%xval) : (i32) -> ()
+    }) : (memref<i32>, i1) -> ()
+    func.return
+  }
+  // CHECK-LABEL: func.func @acc_atomic_update_generic(
+  // CHECK:         acc.atomic.update %{{.*}} : memref<i32> {
+  // CHECK:         acc.atomic.update if(%{{.*}}) %{{.*}} : memref<i32> {
+
+  // acc.atomic.capture — region op whose body must contain exactly two
+  // atomic ops in one of three allowed sequences: (update, read),
+  // (read, update), or (read, write). The implicit acc.terminator is
+  // stripped on print to mirror upstream's
+  // `SingleBlockImplicitTerminator<TerminatorOp>` behavior.
+  func.func @acc_atomic_capture(%v: memref<i32>, %x: memref<i32>, %expr: i32) {
+    acc.atomic.capture {
+      acc.atomic.update %x : memref<i32> {
+      ^bb0(%xval: i32):
+        %newval = arith.addi %xval, %expr : i32
+        acc.yield %newval : i32
+      }
+      acc.atomic.read %v = %x : memref<i32>, memref<i32>, i32
+    }
+    acc.atomic.capture {
+      acc.atomic.read %v = %x : memref<i32>, memref<i32>, i32
+      acc.atomic.update %x : memref<i32> {
+      ^bb0(%xval: i32):
+        %newval = arith.addi %xval, %expr : i32
+        acc.yield %newval : i32
+      }
+    }
+    acc.atomic.capture {
+      acc.atomic.read %v = %x : memref<i32>, memref<i32>, i32
+      acc.atomic.write %x = %expr : memref<i32>, i32
+    }
+    %c = arith.constant true
+    acc.atomic.capture if(%c) {
+      acc.atomic.read %v = %x : memref<i32>, memref<i32>, i32
+      acc.atomic.write %x = %expr : memref<i32>, i32
+    }
+    func.return
+  }
+  // CHECK-LABEL: func.func @acc_atomic_capture(
+  // CHECK:         acc.atomic.capture {
+  // CHECK-NEXT:      acc.atomic.update %{{.*}} : memref<i32>
+  // CHECK:           acc.atomic.read %{{.*}} = %{{.*}} : memref<i32>, memref<i32>, i32
+  // CHECK-NEXT:    }
+  // CHECK:         acc.atomic.capture {
+  // CHECK-NEXT:      acc.atomic.read %{{.*}} = %{{.*}} : memref<i32>, memref<i32>, i32
+  // CHECK-NEXT:      acc.atomic.update %{{.*}} : memref<i32>
+  // CHECK:         }
+  // CHECK:         acc.atomic.capture {
+  // CHECK-NEXT:      acc.atomic.read %{{.*}} = %{{.*}} : memref<i32>, memref<i32>, i32
+  // CHECK-NEXT:      acc.atomic.write %{{.*}} = %{{.*}} : memref<i32>, i32
+  // CHECK-NEXT:    }
+  // CHECK:         acc.atomic.capture if(%{{.*}}) {
+  // CHECK-NEXT:      acc.atomic.read %{{.*}} = %{{.*}} : memref<i32>, memref<i32>, i32
+  // CHECK-NEXT:      acc.atomic.write %{{.*}} = %{{.*}} : memref<i32>, i32
+  // CHECK-NEXT:    }
+
+  // Generic-form roundtrip insurance for atomic.capture — note the implicit
+  // acc.terminator must appear in generic form (it's user-visible in the
+  // generic spelling); the pretty form strips it on print.
+  func.func @acc_atomic_capture_generic(%v: memref<i32>, %x: memref<i32>, %expr: i32, %c: i1) {
+    "acc.atomic.capture"() ({
+      "acc.atomic.read"(%x, %v) <{element_type = i32}> : (memref<i32>, memref<i32>) -> ()
+      "acc.atomic.write"(%x, %expr) : (memref<i32>, i32) -> ()
+      "acc.terminator"() : () -> ()
+    }) : () -> ()
+    "acc.atomic.capture"(%c) ({
+      "acc.atomic.read"(%x, %v) <{element_type = i32}> : (memref<i32>, memref<i32>) -> ()
+      "acc.atomic.write"(%x, %expr) : (memref<i32>, i32) -> ()
+      "acc.terminator"() : () -> ()
+    }) : (i1) -> ()
+    func.return
+  }
+  // CHECK-LABEL: func.func @acc_atomic_capture_generic(
+  // CHECK:         acc.atomic.capture {
+  // CHECK:         acc.atomic.capture if(%{{.*}}) {
 }

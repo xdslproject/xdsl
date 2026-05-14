@@ -30,6 +30,24 @@
 
 %fsqrt_vec = llvm.intr.sqrt(%vec_f32) : (vector<4xf32>) -> vector<4xf32>
 // CHECK-NEXT: %fsqrt_vec = llvm.intr.sqrt(%vec_f32) : (vector<4xf32>) -> vector<4xf32>
+%fexp2_f32 = llvm.intr.exp2(%f32) : (f32) -> f32
+// CHECK: %fexp2_f32 = llvm.intr.exp2(%f32) : (f32) -> f32
+
+%fexp2_f64 = llvm.intr.exp2(%f64) : (f64) -> f64
+// CHECK-NEXT: %fexp2_f64 = llvm.intr.exp2(%f64) : (f64) -> f64
+
+%fexp2_vec = llvm.intr.exp2(%vec_f32) : (vector<4xf32>) -> vector<4xf32>
+// CHECK-NEXT: %fexp2_vec = llvm.intr.exp2(%vec_f32) : (vector<4xf32>) -> vector<4xf32>
+
+%ffloor_f32 = llvm.intr.floor(%f32) : (f32) -> f32
+// CHECK: %ffloor_f32 = llvm.intr.floor(%f32) : (f32) -> f32
+
+%ffloor_f64 = llvm.intr.floor(%f64) : (f64) -> f64
+// CHECK-NEXT: %ffloor_f64 = llvm.intr.floor(%f64) : (f64) -> f64
+
+%ffloor_vec = llvm.intr.floor(%vec_f32) : (vector<4xf32>) -> vector<4xf32>
+// CHECK-NEXT: %ffloor_vec = llvm.intr.floor(%vec_f32) : (vector<4xf32>) -> vector<4xf32>
+
 %flog_f32 = llvm.intr.log(%f32) : (f32) -> f32
 // CHECK: %flog_f32 = llvm.intr.log(%f32) : (f32) -> f32
 
@@ -38,6 +56,42 @@
 
 %flog_vec = llvm.intr.log(%vec_f32) : (vector<4xf32>) -> vector<4xf32>
 // CHECK-NEXT: %flog_vec = llvm.intr.log(%vec_f32) : (vector<4xf32>) -> vector<4xf32>
+
+%fexp_f32 = llvm.intr.exp(%f32) : (f32) -> f32
+// CHECK: %fexp_f32 = llvm.intr.exp(%f32) : (f32) -> f32
+
+%fexp_f64 = llvm.intr.exp(%f64) : (f64) -> f64
+// CHECK-NEXT: %fexp_f64 = llvm.intr.exp(%f64) : (f64) -> f64
+
+%fexp_vec = llvm.intr.exp(%vec_f32) : (vector<4xf32>) -> vector<4xf32>
+// CHECK-NEXT: %fexp_vec = llvm.intr.exp(%vec_f32) : (vector<4xf32>) -> vector<4xf32>
+
+%fsin_f32 = llvm.intr.sin(%f32) : (f32) -> f32
+// CHECK: %fsin_f32 = llvm.intr.sin(%f32) : (f32) -> f32
+
+%fsin_f64 = llvm.intr.sin(%f64) : (f64) -> f64
+// CHECK-NEXT: %fsin_f64 = llvm.intr.sin(%f64) : (f64) -> f64
+
+%fsin_vec = llvm.intr.sin(%vec_f32) : (vector<4xf32>) -> vector<4xf32>
+// CHECK-NEXT: %fsin_vec = llvm.intr.sin(%vec_f32) : (vector<4xf32>) -> vector<4xf32>
+
+%fcos_f32 = llvm.intr.cos(%f32) : (f32) -> f32
+// CHECK: %fcos_f32 = llvm.intr.cos(%f32) : (f32) -> f32
+
+%fcos_f64 = llvm.intr.cos(%f64) : (f64) -> f64
+// CHECK-NEXT: %fcos_f64 = llvm.intr.cos(%f64) : (f64) -> f64
+
+%fcos_vec = llvm.intr.cos(%vec_f32) : (vector<4xf32>) -> vector<4xf32>
+// CHECK-NEXT: %fcos_vec = llvm.intr.cos(%vec_f32) : (vector<4xf32>) -> vector<4xf32>
+
+%flog2_f32 = llvm.intr.log2(%f32) : (f32) -> f32
+// CHECK: %flog2_f32 = llvm.intr.log2(%f32) : (f32) -> f32
+
+%flog2_f64 = llvm.intr.log2(%f64) : (f64) -> f64
+// CHECK-NEXT: %flog2_f64 = llvm.intr.log2(%f64) : (f64) -> f64
+
+%flog2_vec = llvm.intr.log2(%vec_f32) : (vector<4xf32>) -> vector<4xf32>
+// CHECK-NEXT: %flog2_vec = llvm.intr.log2(%vec_f32) : (vector<4xf32>) -> vector<4xf32>
 
 %fneg_f32 = llvm.fneg %f32 : f32
 // CHECK: %fneg_f32 = llvm.fneg %f32 : f32
@@ -86,6 +140,15 @@
 %maxnum_vec = llvm.intr.maxnum(%vec_f32, %vec_f32) : (vector<4xf32>, vector<4xf32>) -> vector<4xf32>
 // CHECK-NEXT: %maxnum_vec = llvm.intr.maxnum(%vec_f32, %vec_f32) : (vector<4xf32>, vector<4xf32>) -> vector<4xf32>
 
+%copysign_f32 = llvm.intr.copysign(%f32, %f32) : (f32, f32) -> f32
+// CHECK: %copysign_f32 = llvm.intr.copysign(%f32, %f32) : (f32, f32) -> f32
+
+%copysign_f64 = llvm.intr.copysign(%f64, %f64) : (f64, f64) -> f64
+// CHECK-NEXT: %copysign_f64 = llvm.intr.copysign(%f64, %f64) : (f64, f64) -> f64
+
+%copysign_vec = llvm.intr.copysign(%vec_f32, %vec_f32) : (vector<4xf32>, vector<4xf32>) -> vector<4xf32>
+// CHECK-NEXT: %copysign_vec = llvm.intr.copysign(%vec_f32, %vec_f32) : (vector<4xf32>, vector<4xf32>) -> vector<4xf32>
+
 %fma_f32 = llvm.intr.fma(%f32, %f32, %f32) : (f32, f32, f32) -> f32
 // CHECK: %fma_f32 = llvm.intr.fma(%f32, %f32, %f32) : (f32, f32, f32) -> f32
 
@@ -94,6 +157,24 @@
 
 %fma_fast = llvm.intr.fma(%f32, %f32, %f32) {fastmathFlags = #llvm.fastmath<fast>} : (f32, f32, f32) -> f32
 // CHECK-NEXT: %fma_fast = llvm.intr.fma(%f32, %f32, %f32) {fastmathFlags = #llvm.fastmath<fast>} : (f32, f32, f32) -> f32
+
+%minnum_f32 = llvm.intr.minnum(%f32, %f32) : (f32, f32) -> f32
+// CHECK: %minnum_f32 = llvm.intr.minnum(%f32, %f32) : (f32, f32) -> f32
+
+%minnum_f64 = llvm.intr.minnum(%f64, %f64) : (f64, f64) -> f64
+// CHECK-NEXT: %minnum_f64 = llvm.intr.minnum(%f64, %f64) : (f64, f64) -> f64
+
+%minnum_vec = llvm.intr.minnum(%vec_f32, %vec_f32) : (vector<4xf32>, vector<4xf32>) -> vector<4xf32>
+// CHECK-NEXT: %minnum_vec = llvm.intr.minnum(%vec_f32, %vec_f32) : (vector<4xf32>, vector<4xf32>) -> vector<4xf32>
+
+%pow_f32 = llvm.intr.pow(%f32, %f32) : (f32, f32) -> f32
+// CHECK: %pow_f32 = llvm.intr.pow(%f32, %f32) : (f32, f32) -> f32
+
+%pow_f64 = llvm.intr.pow(%f64, %f64) : (f64, f64) -> f64
+// CHECK-NEXT: %pow_f64 = llvm.intr.pow(%f64, %f64) : (f64, f64) -> f64
+
+%pow_vec = llvm.intr.pow(%vec_f32, %vec_f32) : (vector<4xf32>, vector<4xf32>) -> vector<4xf32>
+// CHECK-NEXT: %pow_vec = llvm.intr.pow(%vec_f32, %vec_f32) : (vector<4xf32>, vector<4xf32>) -> vector<4xf32>
 
 "test.op"() ({
 ^bb0(%br_arg: i32):

@@ -160,7 +160,7 @@ class RangeOp(IRDLOperation):
 class YieldOp(IRDLOperation):
     name = "list.yield"
 
-    yielded = operand_def(AnyOf([builtin.IntegerType, ListType]))
+    yielded = operand_def(AnyOf.get(builtin.IntegerType, ListType))
 
     traits = lazy_traits_def(
         lambda: (

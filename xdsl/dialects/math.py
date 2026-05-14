@@ -30,7 +30,7 @@ from xdsl.irdl import (
 )
 from xdsl.traits import Pure, SameOperandsAndResultType
 
-signlessIntegerLike = ContainerOf(AnyOf([SignlessIntegerConstraint, IndexType]))
+signlessIntegerLike = ContainerOf(AnyOf.get(SignlessIntegerConstraint, IndexType))
 floatingPointLike = ContainerOf(AnyFloatConstr)
 
 

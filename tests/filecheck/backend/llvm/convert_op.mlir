@@ -59,14 +59,13 @@ builtin.module {
   llvm.func @arg_attr_types(
       %arg0: !llvm.ptr {llvm.byval = i32},
       %arg1: !llvm.ptr {llvm.sret = !llvm.struct<(i32, i32)>},
-      %arg2: !llvm.ptr {llvm.byref = i64, llvm.align = 8 : i64, llvm.noalias},
-      %arg3: !llvm.ptr {llvm.elementtype = f32}
+      %arg2: !llvm.ptr {llvm.byref = i64, llvm.align = 8 : i64, llvm.noalias}
   ) {
     llvm.return
   }
 
   // Type-valued attrs force a typed pointer so llvmlite can print name(T).
-  // CHECK: define void @"arg_attr_types"(i32* byval(i32) %".1", {i32, i32}* sret({i32, i32}) %".2", i64* byref(i64) noalias align 8 %".3", float* elementtype(float) %".4")
+  // CHECK: define void @"arg_attr_types"(i32* byval(i32) %".1", {i32, i32}* sret({i32, i32}) %".2", i64* byref(i64) noalias align 8 %".3")
   // CHECK-NEXT: {
   // CHECK-NEXT: {{.[0-9]+}}:
   // CHECK-NEXT:   ret void
@@ -725,6 +724,30 @@ builtin.module {
   // CHECK-NEXT:   ret float %"[[RES]]"
   // CHECK-NEXT: }
 
+  llvm.func @minnum_op(%arg0: f32, %arg1: f32) -> f32 {
+    %0 = llvm.intr.minnum(%arg0, %arg1) : (f32, f32) -> f32
+    llvm.return %0 : f32
+  }
+
+  // CHECK: define float @"minnum_op"(float %".1", float %".2")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: [[ENTRY:.\d+]]:
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = call float @"llvm.minnum"(float %".1", float %".2")
+  // CHECK-NEXT:   ret float %"[[RES]]"
+  // CHECK-NEXT: }
+
+  llvm.func @pow_op(%arg0: f32, %arg1: f32) -> f32 {
+    %0 = llvm.intr.pow(%arg0, %arg1) : (f32, f32) -> f32
+    llvm.return %0 : f32
+  }
+
+  // CHECK: define float @"pow_op"(float %".1", float %".2")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: [[ENTRY:.\d+]]:
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = call float @"llvm.pow"(float %".1", float %".2")
+  // CHECK-NEXT:   ret float %"[[RES]]"
+  // CHECK-NEXT: }
+
   llvm.func @fabs_op(%arg0: f32) -> f32 {
     %0 = llvm.intr.fabs(%arg0) : (f32) -> f32
     llvm.return %0 : f32
@@ -761,6 +784,27 @@ builtin.module {
   // CHECK-NEXT:   ret float %"[[RES]]"
   // CHECK-NEXT: }
 
+  llvm.func @ffloor_op(%arg0: f32) -> f32 {
+    %0 = llvm.intr.floor(%arg0) : (f32) -> f32
+    llvm.return %0 : f32
+  }
+
+  // CHECK: define float @"ffloor_op"(float %".1")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: [[ENTRY:.\d+]]:
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = call float @"llvm.floor"(float %".1")
+  llvm.func @fexp2_op(%arg0: f32) -> f32 {
+    %0 = llvm.intr.exp2(%arg0) : (f32) -> f32
+    llvm.return %0 : f32
+  }
+
+  // CHECK: define float @"fexp2_op"(float %".1")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: [[ENTRY:.\d+]]:
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = call float @"llvm.exp2"(float %".1")
+  // CHECK-NEXT:   ret float %"[[RES]]"
+  // CHECK-NEXT: }
+
   llvm.func @flog_op(%arg0: f32) -> f32 {
     %0 = llvm.intr.log(%arg0) : (f32) -> f32
     llvm.return %0 : f32
@@ -770,6 +814,66 @@ builtin.module {
   // CHECK-NEXT: {
   // CHECK-NEXT: [[ENTRY:.\d+]]:
   // CHECK-NEXT:   %"[[RES:.\d+]]" = call float @"llvm.log"(float %".1")
+  // CHECK-NEXT:   ret float %"[[RES]]"
+  // CHECK-NEXT: }
+
+  llvm.func @exp_op(%arg0: f32) -> f32 {
+    %0 = llvm.intr.exp(%arg0) : (f32) -> f32
+    llvm.return %0 : f32
+  }
+
+  // CHECK: define float @"exp_op"(float %".1")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: [[ENTRY:.\d+]]:
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = call float @"llvm.exp"(float %".1")
+  // CHECK-NEXT:   ret float %"[[RES]]"
+  // CHECK-NEXT: }
+
+  llvm.func @fsin_op(%arg0: f32) -> f32 {
+    %0 = llvm.intr.sin(%arg0) : (f32) -> f32
+    llvm.return %0 : f32
+  }
+
+  // CHECK: define float @"fsin_op"(float %".1")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: [[ENTRY:.\d+]]:
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = call float @"llvm.sin"(float %".1")
+  // CHECK-NEXT:   ret float %"[[RES]]"
+  // CHECK-NEXT: }
+
+  llvm.func @fcos_op(%arg0: f32) -> f32 {
+    %0 = llvm.intr.cos(%arg0) : (f32) -> f32
+    llvm.return %0 : f32
+  }
+
+  // CHECK: define float @"fcos_op"(float %".1")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: [[ENTRY:.\d+]]:
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = call float @"llvm.cos"(float %".1")
+  // CHECK-NEXT:   ret float %"[[RES]]"
+  // CHECK-NEXT: }
+
+  llvm.func @flog2_op(%arg0: f32) -> f32 {
+    %0 = llvm.intr.log2(%arg0) : (f32) -> f32
+    llvm.return %0 : f32
+  }
+
+  // CHECK: define float @"flog2_op"(float %".1")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: [[ENTRY:.\d+]]:
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = call float @"llvm.log2"(float %".1")
+  // CHECK-NEXT:   ret float %"[[RES]]"
+  // CHECK-NEXT: }
+
+  llvm.func @copysign_op(%arg0: f32, %arg1: f32) -> f32 {
+    %0 = llvm.intr.copysign(%arg0, %arg1) : (f32, f32) -> f32
+    llvm.return %0 : f32
+  }
+
+  // CHECK: define float @"copysign_op"(float %".1", float %".2")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: [[ENTRY:.\d+]]:
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = call float @"llvm.copysign"(float %".1", float %".2")
   // CHECK-NEXT:   ret float %"[[RES]]"
   // CHECK-NEXT: }
 
@@ -787,13 +891,7 @@ builtin.module {
 
   // forward_ref_caller calls forward_ref_callee which is defined AFTER it
   llvm.func @forward_ref_caller(%arg0: i32) -> i32 {
-    %0 = "llvm.call"(%arg0) <{
-      callee = @forward_ref_callee,
-      fastmathFlags = #llvm.fastmath<none>,
-      CConv = #llvm.cconv<ccc>,
-      TailCallKind = #llvm.tailcallkind<none>,
-      operandSegmentSizes = array<i32: 1, 0>
-    }> : (i32) -> i32
+    %0 = llvm.call @forward_ref_callee(%arg0) : (i32) -> i32
     llvm.return %0 : i32
   }
 
@@ -918,15 +1016,15 @@ builtin.module {
   // CHECK-NEXT:   ret <4 x float> %"[[RES]]"
   // CHECK-NEXT: }
 
-  llvm.func @call_intrinsic_void(%arg0: i32) {
-    llvm.call_intrinsic "llvm.donothing"(%arg0) : (i32) -> ()
+  llvm.func @call_intrinsic_void() {
+    llvm.call_intrinsic "llvm.donothing"() : () -> ()
     llvm.return
   }
 
-  // CHECK: define void @"call_intrinsic_void"(i32 %".1")
+  // CHECK: define void @"call_intrinsic_void"()
   // CHECK-NEXT: {
   // CHECK-NEXT: [[ENTRY:.\d+]]:
-  // CHECK-NEXT:   call void @"llvm.donothing"(i32 %".1")
+  // CHECK-NEXT:   call void @"llvm.donothing"()
   // CHECK-NEXT:   ret void
   // CHECK-NEXT: }
 
@@ -962,7 +1060,7 @@ builtin.module {
 
   llvm.func @addressof_op() {
     %0 = llvm.mlir.addressof @addressof_target : !llvm.ptr
-    "llvm.call"(%0) <{callee = @callee, fastmathFlags = #llvm.fastmath<>, CConv = #llvm.cconv<ccc>, TailCallKind = #llvm.tailcallkind<none>, operandSegmentSizes = array<i32: 1, 0>}> : (!llvm.ptr) -> ()
+    llvm.call @callee(%0) : (!llvm.ptr) -> ()
     llvm.return
   }
 

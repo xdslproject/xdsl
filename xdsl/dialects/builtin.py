@@ -19,7 +19,7 @@ from typing import (
 )
 
 from immutabledict import immutabledict
-from typing_extensions import Self, TypeVar, deprecated, override
+from typing_extensions import Self, TypeForm, TypeVar, deprecated, override
 
 from xdsl.dialect_interfaces.op_asm import OpAsmDialectInterface
 from xdsl.ir import (
@@ -55,6 +55,7 @@ from xdsl.irdl import (
     ConstraintContext,
     ConstraintConvertible,
     EqAttrConstraint,
+    EqIntConstraint,
     GenericData,
     IntConstraint,
     IntTypeVarConstraint,
@@ -66,6 +67,7 @@ from xdsl.irdl import (
     RangeConstraint,
     RangeOf,
     TypeVarConstraint,
+    get_int_constraint,
     irdl_attr_definition,
     irdl_op_definition,
     irdl_to_attr_constraint,
@@ -356,7 +358,7 @@ class EmptyArrayAttrConstraint(AttrConstraint):
 
 
 FlatSymbolRefAttrConstr = MessageConstraint(
-    ParamAttrConstraint(SymbolRefAttr, [AnyAttr(), EmptyArrayAttrConstraint()]),
+    ParamAttrConstraint.get(SymbolRefAttr, AnyAttr(), EmptyArrayAttrConstraint()),
     "Expected SymbolRefAttr with no nested symbols.",
 )
 """Constrain SymbolRef to be FlatSymbolRef"""
@@ -387,8 +389,10 @@ class IntAttr(GenericData[IntCovT], Generic[IntCovT]):
 
     @staticmethod
     @override
-    def constr(constr: IntConstraint | None = None) -> AttrConstraint[IntAttr]:
-        return IntAttrConstraint(
+    def constr(
+        constr: IntConstraint | int | TypeForm[int] | None = None,
+    ) -> AttrConstraint[IntAttr]:
+        return IntAttrConstraint.get(
             IntTypeVarConstraint(IntCovT, AnyInt()) if constr is None else constr
         )
 
@@ -398,6 +402,20 @@ class IntAttrConstraint(AttrConstraint[IntAttr]):
     """
     Constrains the value of an IntAttr.
     """
+
+    @staticmethod
+    def get(
+        int_constraint: IntConstraint | int | TypeForm[int] | None = None,
+    ) -> AttrConstraint[IntAttr]:
+        if int_constraint is None:
+            return BaseAttr(IntAttr)
+        if not isinstance(int_constraint, IntConstraint):
+            int_constraint = get_int_constraint(int_constraint)
+        if int_constraint == AnyInt():
+            return BaseAttr(IntAttr)
+        if isinstance(int_constraint, EqIntConstraint):
+            return EqAttrConstraint(IntAttr(int_constraint.value))
+        return IntAttrConstraint(int_constraint)
 
     int_constraint: IntConstraint
 
@@ -421,7 +439,7 @@ class IntAttrConstraint(AttrConstraint[IntAttr]):
     def mapping_type_vars(
         self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
     ):
-        return IntAttrConstraint(
+        return IntAttrConstraint.get(
             self.int_constraint.mapping_type_vars(type_var_mapping)
         )
 
@@ -968,7 +986,7 @@ _IntegerAttrType = TypeVar(
 _IntegerAttrTypeInvT = TypeVar("_IntegerAttrTypeInvT", bound=IntegerType | IndexType)
 IntegerAttrTypeConstr = IndexTypeConstr | BaseAttr(IntegerType)
 AnySignlessIntegerOrIndexType: TypeAlias = Annotated[
-    Attribute, AnyOf([IndexType, SignlessIntegerConstraint])
+    Attribute, AnyOf.get(IndexType, SignlessIntegerConstraint)
 ]
 """Type alias constrained to IndexType or signless IntegerType."""
 
@@ -1068,16 +1086,11 @@ class IntegerAttr(
         *,
         value: AttrConstraint | IntConstraint | None = None,
     ) -> AttrConstraint[IntegerAttr[_IntegerAttrType]]:
-        if value is None and type == AnyAttr():
-            return BaseAttr[IntegerAttr[_IntegerAttrType]](IntegerAttr)
         if isinstance(value, IntConstraint):
-            value = IntAttrConstraint(value)
-        return ParamAttrConstraint[IntegerAttr[_IntegerAttrType]](
-            IntegerAttr,
-            (
-                value,
-                type,
-            ),
+            value = IntAttrConstraint.get(value)
+        return cast(
+            AttrConstraint[IntegerAttr[_IntegerAttrType]],
+            ParamAttrConstraint.get(IntegerAttr, value, type),
         )
 
     def __bool__(self) -> bool:
@@ -1356,9 +1369,10 @@ class FloatAttr(BuiltinAttribute, TypedAttribute, Generic[_FloatAttrType]):
     def constr(
         type: IRDLAttrConstraint[_FloatAttrType] = AnyFloatConstr,
     ) -> AttrConstraint[FloatAttr[_FloatAttrType]]:
-        return ParamAttrConstraint[FloatAttr[_FloatAttrType]](
-            FloatAttr,
-            (
+        return cast(
+            AttrConstraint[FloatAttr[_FloatAttrType]],
+            ParamAttrConstraint.get(
+                FloatAttr,
                 None,
                 type,
             ),
@@ -1452,10 +1466,12 @@ class ComplexType(
     def constr(
         element_type: IRDLAttrConstraint[ComplexElementCovT] | None = None,
     ) -> AttrConstraint[ComplexType[ComplexElementCovT]]:
-        if element_type is None:
-            return BaseAttr[ComplexType[ComplexElementCovT]](ComplexType)
-        return ParamAttrConstraint[ComplexType[ComplexElementCovT]](
-            ComplexType, (element_type,)
+        return cast(
+            AttrConstraint[ComplexType[ComplexElementCovT]],
+            ParamAttrConstraint.get(
+                ComplexType,
+                element_type,
+            ),
         )
 
 
@@ -1498,8 +1514,8 @@ class VectorType(
 ):
     name = "vector"
 
-    shape: ArrayAttr[IntAttr]
     element_type: AttributeCovT
+    shape: ArrayAttr[IntAttr]
     scalable_dims: ArrayAttr[BoolAttr]
 
     def __init__(
@@ -1514,7 +1530,7 @@ class VectorType(
         if scalable_dims is None:
             false = BoolAttr(False, i1)
             scalable_dims = ArrayAttr(false for _ in shape)
-        super().__init__(shape, element_type, scalable_dims)
+        super().__init__(element_type, shape, scalable_dims)
 
     @staticmethod
     def _print_vector_dim(printer: Printer, pair: tuple[IntAttr, BoolAttr]):
@@ -1572,15 +1588,14 @@ class VectorType(
         shape: IRDLAttrConstraint[ArrayAttr[IntAttr]] | None = None,
         scalable_dims: IRDLAttrConstraint[ArrayAttr[BoolAttr]] | None = None,
     ) -> AttrConstraint[VectorType[AttributeCovT]]:
-        if element_type is None and shape is None and scalable_dims is None:
-            return BaseAttr[VectorType[AttributeCovT]](VectorType)
         shape_constr = AnyAttr() if shape is None else shape
         scalable_dims_constr = AnyAttr() if scalable_dims is None else scalable_dims
-        return ParamAttrConstraint[VectorType[AttributeCovT]](
-            VectorType,
-            (
-                shape_constr,
+        return cast(
+            AttrConstraint[VectorType[AttributeCovT]],
+            ParamAttrConstraint.get(
+                VectorType,
                 element_type,
+                shape_constr,
                 scalable_dims_constr,
             ),
         )
@@ -1640,11 +1655,9 @@ class TensorType(
         element_type: IRDLAttrConstraint[AttributeInvT] | None = None,
         shape: IRDLAttrConstraint[AttributeInvT] | None = None,
     ) -> AttrConstraint[TensorType[AttributeInvT]]:
-        if element_type is None and shape is None:
-            return BaseAttr[TensorType[AttributeInvT]](TensorType)
-        shape_constr = AnyAttr() if shape is None else shape
-        return ParamAttrConstraint[TensorType[AttributeInvT]](
-            TensorType, (shape_constr, element_type, AnyAttr())
+        return cast(
+            AttrConstraint[TensorType[AttributeInvT]],
+            ParamAttrConstraint.get(TensorType, shape, element_type, AnyAttr()),
         )
 
 
@@ -1955,10 +1968,9 @@ class DenseArrayBase(
     def constr(
         element_type: IRDLAttrConstraint[DenseArrayInvT] | None = None,
     ) -> AttrConstraint[DenseArrayBase[DenseArrayInvT]]:
-        if element_type is None:
-            return BaseAttr[DenseArrayBase[DenseArrayInvT]](DenseArrayBase)
-        return ParamAttrConstraint[DenseArrayBase[DenseArrayInvT]](
-            DenseArrayBase, (element_type, AnyAttr())
+        return cast(
+            AttrConstraint[DenseArrayBase[DenseArrayInvT]],
+            ParamAttrConstraint.get(DenseArrayBase, element_type, AnyAttr()),
         )
 
 
@@ -2629,15 +2641,11 @@ class MemRefType(
         layout: IRDLAttrConstraint | None = None,
         memory_space: IRDLAttrConstraint | None = None,
     ) -> AttrConstraint[MemRefType[_MemRefTypeElement]]:
-        if (
-            shape is None
-            and element_type == AnyAttr()
-            and layout is None
-            and memory_space is None
-        ):
-            return BaseAttr[MemRefType[_MemRefTypeElement]](MemRefType)
-        return ParamAttrConstraint[MemRefType[_MemRefTypeElement]](
-            MemRefType, (shape, element_type, layout, memory_space)
+        return cast(
+            AttrConstraint[MemRefType[_MemRefTypeElement]],
+            ParamAttrConstraint.get(
+                MemRefType, shape, element_type, layout, memory_space
+            ),
         )
 
 

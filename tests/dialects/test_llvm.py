@@ -607,10 +607,62 @@ def test_fsqrt_op():
     assert op.res.type == builtin.f32
 
 
+def test_ffloor_op():
+    val = create_ssa_value(builtin.f32)
+    op = llvm.FFloorOp(val)
+    assert op.arg == val
+    assert op.res.type == builtin.f32
+
+
+def test_fexp2_op():
+    val = create_ssa_value(builtin.f32)
+    op = llvm.FExp2Op(val)
+    assert op.arg == val
+    assert op.res.type == builtin.f32
+
+
 def test_flog_op():
     val = create_ssa_value(builtin.f32)
     op = llvm.FLogOp(val)
     assert op.arg == val
+    assert op.res.type == builtin.f32
+
+
+def test_fexp_op():
+    val = create_ssa_value(builtin.f32)
+    op = llvm.FExpOp(val)
+    assert op.arg == val
+    assert op.res.type == builtin.f32
+    assert op.name == "llvm.intr.exp"
+
+
+def test_fsin_op():
+    val = create_ssa_value(builtin.f32)
+    op = llvm.FSinOp(val)
+    assert op.arg == val
+    assert op.res.type == builtin.f32
+
+
+def test_fcos_op():
+    val = create_ssa_value(builtin.f32)
+    op = llvm.FCosOp(val)
+    assert op.arg == val
+    assert op.res.type == builtin.f32
+
+
+def test_flog2_op():
+    val = create_ssa_value(builtin.f32)
+    op = llvm.FLog2Op(val)
+    assert op.arg == val
+    assert op.res.type == builtin.f32
+
+
+def test_fcopysign_op():
+    lhs = create_ssa_value(builtin.f32)
+    rhs = create_ssa_value(builtin.f32)
+    op = llvm.FCopySignOp(lhs, rhs)
+    assert op.lhs == lhs
+    assert op.rhs == rhs
     assert op.res.type == builtin.f32
 
 
@@ -653,6 +705,24 @@ def test_vector_fmax_op():
     lhs = create_ssa_value(builtin.f32)
     rhs = create_ssa_value(builtin.f32)
     op = llvm.VectorFMaxOp(lhs, rhs)
+    assert op.lhs == lhs
+    assert op.rhs == rhs
+    assert op.res.type == builtin.f32
+
+
+def test_vector_fmin_op():
+    lhs = create_ssa_value(builtin.f32)
+    rhs = create_ssa_value(builtin.f32)
+    op = llvm.VectorFMinOp(lhs, rhs)
+    assert op.lhs == lhs
+    assert op.rhs == rhs
+    assert op.res.type == builtin.f32
+
+
+def test_fpow_op():
+    lhs = create_ssa_value(builtin.f32)
+    rhs = create_ssa_value(builtin.f32)
+    op = llvm.FPowOp(lhs, rhs)
     assert op.lhs == lhs
     assert op.rhs == rhs
     assert op.res.type == builtin.f32

@@ -206,7 +206,7 @@ builtin.module {
   }
 }
 
-// CHECK: region #0 entry arguments do not verify:
+// CHECK: Region 'body' at position 0 entry arguments do not verify:
 // CHECK: attribute f64 expected from variable 'T', but got i32
 
 // -----
@@ -265,5 +265,5 @@ builtin.module {
   }
 }
 
-// CHECK: region #0 entry arguments do not verify:
+// CHECK: Region 'body' at position 0 entry arguments do not verify:
 // CHECK: incorrect length for range variable

@@ -298,11 +298,9 @@ class ConstantOp(IRDLOperation, HasFolderInterface):
     value = prop_def(
         ArrayOfConstraint(
             RangeOf(
-                AnyOf(
-                    [
-                        ParamAttrConstraint(IntegerAttr, (AnyAttr(), T)),
-                        ParamAttrConstraint(FloatAttr, (AnyAttr(), T)),
-                    ]
+                AnyOf.get(
+                    ParamAttrConstraint(IntegerAttr, (AnyAttr(), T)),
+                    ParamAttrConstraint(FloatAttr, (AnyAttr(), T)),
                 )
             ).of_length(EqIntConstraint(2))
         )

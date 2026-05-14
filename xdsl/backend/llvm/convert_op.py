@@ -175,13 +175,22 @@ def _convert_fcmp(
 
 _UNARY_INTRINSIC_MAP: dict[type[Operation], str] = {
     llvm.FAbsOp: "llvm.fabs",
+    llvm.FExpOp: "llvm.exp",
     llvm.FCeilOp: "llvm.ceil",
+    llvm.FSinOp: "llvm.sin",
+    llvm.FFloorOp: "llvm.floor",
+    llvm.FExp2Op: "llvm.exp2",
     llvm.FSqrtOp: "llvm.sqrt",
     llvm.FLogOp: "llvm.log",
+    llvm.FCosOp: "llvm.cos",
+    llvm.FLog2Op: "llvm.log2",
 }
 
 _BINARY_INTRINSIC_MAP: dict[type[Operation], str] = {
+    llvm.FPowOp: "llvm.pow",
     llvm.VectorFMaxOp: "llvm.maxnum",
+    llvm.VectorFMinOp: "llvm.minnum",
+    llvm.FCopySignOp: "llvm.copysign",
 }
 
 
@@ -190,8 +199,9 @@ def _convert_unary_intrinsic(
 ):
     operand = val_map[op.operands[0]]
     fn_type = ir.FunctionType(operand.type, [operand.type])
-    intrinsic_name = _UNARY_INTRINSIC_MAP[type(op)]
-    intrinsic = builder.module.declare_intrinsic(intrinsic_name, fnty=fn_type)
+    intrinsic = builder.module.declare_intrinsic(
+        _UNARY_INTRINSIC_MAP[type(op)], fnty=fn_type
+    )
     val_map[op.results[0]] = builder.call(intrinsic, [operand])
 
 
@@ -201,8 +211,9 @@ def _convert_binary_intrinsic(
     lhs = val_map[op.operands[0]]
     rhs = val_map[op.operands[1]]
     fn_type = ir.FunctionType(lhs.type, [lhs.type, rhs.type])
-    intrinsic_name = _BINARY_INTRINSIC_MAP[type(op)]
-    intrinsic = builder.module.declare_intrinsic(intrinsic_name, fnty=fn_type)
+    intrinsic = builder.module.declare_intrinsic(
+        _BINARY_INTRINSIC_MAP[type(op)], fnty=fn_type
+    )
     val_map[op.results[0]] = builder.call(intrinsic, [lhs, rhs])
 
 

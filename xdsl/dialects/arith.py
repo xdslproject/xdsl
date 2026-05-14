@@ -64,7 +64,7 @@ from xdsl.utils.str_enum import StrEnum
 from xdsl.utils.type import get_element_type_or_self, have_compatible_shape
 
 boolLike = ContainerOf(IntegerType(1))
-signlessIntegerLike = ContainerOf(AnyOf([IntegerType, IndexType]))
+signlessIntegerLike = ContainerOf(AnyOf.get(IntegerType, IndexType))
 floatingPointLike = ContainerOf(AnyFloatConstr)
 
 
@@ -1191,11 +1191,11 @@ class BitcastOp(IRDLOperation):
     name = "arith.bitcast"
 
     input = operand_def(
-        ContainerOf(AnyOf((IntegerType, IndexType)) | AnyFloatConstr)
+        ContainerOf(AnyOf.get(IntegerType, IndexType, AnyFloatConstr))
         | MemRefType.constr(element_type=AnyFloatConstr | SignlessIntegerConstraint)
     )
     result = result_def(
-        ContainerOf(AnyOf((IntegerType, IndexType)) | AnyFloatConstr)
+        ContainerOf(AnyOf.get(IntegerType, IndexType, AnyFloatConstr))
         | MemRefType.constr(element_type=AnyFloatConstr | SignlessIntegerConstraint)
     )
 
