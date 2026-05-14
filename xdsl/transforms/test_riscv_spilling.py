@@ -1,3 +1,4 @@
+from collections import defaultdict
 from collections.abc import Callable
 from collections.abc import Set as AbstractSet
 from dataclasses import dataclass
@@ -69,19 +70,26 @@ class SpillPass(ModulePass):
         loaded_values = OrderedSet[SSAValue]([])
 
         die = self.get_die_set(func_op)
+        next_uses = self.get_next_uses(func_op)
 
         for i, inner_op in enumerate(func_op.walk()):
             if not isinstance(inner_op, RegisterAllocatableOperation):
                 continue
             uses = OrderedSet(i for i in inner_op.operands if is_valid_type(i.type))
-            free_values = iter(loaded_values - uses)  # values that we can use to spill
+            # sort the free values in next-use distance order, so we use
+            # the furthest use first to spill
+            free_values = iter(
+                sorted(
+                    loaded_values - uses,
+                    key=lambda a: next_uses[inner_op][a],
+                )
+            )  # values that we can use to spill
 
             # Process uses
             if len(loaded_values | uses) > total_regs:
                 # spill excess regs
                 num_regs_to_spill = len(uses | loaded_values) - total_regs
                 # get registers not used by current op
-                # TODO: use heuristic to select
                 regs_to_spill = OrderedSet(islice(free_values, num_regs_to_spill))
 
                 self.insert_spill(inner_op, regs_to_spill, die)
@@ -92,7 +100,7 @@ class SpillPass(ModulePass):
             # Remove dead values from live set
             for use in inner_op.operands:
                 if is_valid_type(use.type) and die[use] is inner_op:
-                    loaded_values.remove(use)
+                    loaded_values.discard(use)
 
             # Process definitions
             defns = OrderedSet(i for i in inner_op.results if is_valid_type(i.type))
@@ -100,7 +108,6 @@ class SpillPass(ModulePass):
                 # spill excess regs
                 num_regs_to_spill = len(loaded_values | defns) - total_regs
                 # get registers not used by current op
-                # TODO: use heuristic to select
                 regs_to_spill = OrderedSet(islice(free_values, num_regs_to_spill))
 
                 self.insert_spill(inner_op, regs_to_spill, die)
@@ -178,6 +185,18 @@ class SpillPass(ModulePass):
                 die[dead_val] = inner_op
             seen_vals |= uses
         return die
+
+    def get_next_uses(self, func_op: riscv_func.FuncOp):
+        """Calculate next uses for each value at every op."""
+        next_uses: dict[Operation, dict[SSAValue, int]] = {}
+        # use -1 as infinite distance
+        cur_next_use: dict[SSAValue, int] = defaultdict(lambda: -1)
+        for op_idx, inner_op in enumerate(func_op.walk(reverse=True)):
+            # update op uses
+            for use in inner_op.operands:
+                cur_next_use[use] = op_idx
+            next_uses[inner_op] = cur_next_use.copy()
+        return next_uses
 
 
 @dataclass(frozen=True)
