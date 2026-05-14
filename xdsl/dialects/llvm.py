@@ -2866,7 +2866,7 @@ class AbstractFloatArithOp(IRDLOperation, ABC):
         fast_math: FastMathAttr | FastMathFlag | None = None,
         attrs: dict[str, Attribute] | None = None,
     ):
-        if isinstance(fast_math, FastMathFlag | str | None):
+        if not isinstance(fast_math, FastMathAttr):
             fast_math = FastMathAttr(fast_math)
 
         super().__init__(
@@ -3029,7 +3029,7 @@ class FAbsOp(IRDLOperation):
         result_type: Attribute,
         fast_math: FastMathAttr | FastMathFlag | None = None,
     ):
-        if isinstance(fast_math, FastMathFlag | str | None):
+        if not isinstance(fast_math, FastMathAttr):
             fast_math = FastMathAttr(fast_math)
         super().__init__(
             operands=[input],
@@ -3062,7 +3062,7 @@ class FCeilOp(IRDLOperation):
         arg: Operation | SSAValue,
         fast_math: FastMathAttr | FastMathFlag | None = None,
     ):
-        if isinstance(fast_math, FastMathFlag | str | None):
+        if not isinstance(fast_math, FastMathAttr):
             fast_math = FastMathAttr(fast_math)
         super().__init__(
             operands=[arg],
@@ -3095,7 +3095,7 @@ class FSqrtOp(IRDLOperation):
         arg: Operation | SSAValue,
         fast_math: FastMathAttr | FastMathFlag | None = None,
     ):
-        if isinstance(fast_math, FastMathFlag | str | None):
+        if not isinstance(fast_math, FastMathAttr):
             fast_math = FastMathAttr(fast_math)
         super().__init__(
             operands=[arg],
@@ -3128,7 +3128,7 @@ class FLogOp(IRDLOperation):
         arg: Operation | SSAValue,
         fast_math: FastMathAttr | FastMathFlag | None = None,
     ):
-        if isinstance(fast_math, FastMathFlag | str | None):
+        if not isinstance(fast_math, FastMathAttr):
             fast_math = FastMathAttr(fast_math)
         super().__init__(
             operands=[arg],
@@ -3375,7 +3375,7 @@ class VectorFMaxOp(IRDLOperation):
         rhs: Operation | SSAValue,
         fast_math: FastMathAttr | FastMathFlag | None = None,
     ):
-        if isinstance(fast_math, FastMathFlag | str | None):
+        if not isinstance(fast_math, FastMathAttr):
             fast_math = FastMathAttr(fast_math)
         super().__init__(
             operands=[lhs, rhs],
@@ -3412,7 +3412,7 @@ class FMAOp(IRDLOperation):
         c: Operation | SSAValue,
         fast_math: FastMathAttr | FastMathFlag | None = None,
     ):
-        if isinstance(fast_math, FastMathFlag | str | None):
+        if not isinstance(fast_math, FastMathAttr):
             fast_math = FastMathAttr(fast_math)
         super().__init__(
             operands=[a, b, c],
