@@ -648,9 +648,11 @@ class ParamAttrConstraint(
                 f"Argument to ParamAttConstraint {base_attr} should not be an instantiated generic"
             )
 
-        if all(isinstance(c, EqAttrConstraint) for c in constrs):
+        if is_runtime_final(base_attr) and all(
+            isinstance(c, EqAttrConstraint) for c in constrs
+        ):
             return EqAttrConstraint(
-                base_attr(*(cast(EqAttrConstraint, c).attr for c in constrs))
+                base_attr.new(tuple(cast(EqAttrConstraint, c).attr for c in constrs))
             )
 
         return ParamAttrConstraint[ParametrizedAttributeT](base_attr, constrs)
