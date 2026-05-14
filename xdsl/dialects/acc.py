@@ -904,9 +904,6 @@ class DeviceTypeOperands(CustomDirective):
     def is_anchorable(self) -> bool:
         return True
 
-    def is_optional_like(self) -> bool:
-        return True
-
     def is_present(self, op: IRDLOperation) -> bool:
         return bool(self.operands.get(op))
 
@@ -1038,9 +1035,6 @@ class DeviceTypeOperandsWithKeywordOnly(CustomDirective):
     def is_anchorable(self) -> bool:
         return True
 
-    def is_optional_like(self) -> bool:
-        return True
-
     def is_present(self, op: IRDLOperation) -> bool:
         return (
             bool(self.operands.get(op))
@@ -1087,9 +1081,6 @@ class NumGangs(CustomDirective):
     segments: AttributeVariable
 
     def is_anchorable(self) -> bool:
-        return True
-
-    def is_optional_like(self) -> bool:
         return True
 
     def is_present(self, op: IRDLOperation) -> bool:
@@ -1266,9 +1257,6 @@ class WaitClause(CustomDirective):
     def is_anchorable(self) -> bool:
         return True
 
-    def is_optional_like(self) -> bool:
-        return True
-
     def is_present(self, op: IRDLOperation) -> bool:
         return (
             bool(self.operands.get(op))
@@ -1331,9 +1319,6 @@ class KernelEnvironmentClauses(CustomDirective):
     wait_segments: AttributeVariable
     wait_has_devnum: AttributeVariable
     wait_only: AttributeVariable
-
-    def is_optional_like(self) -> bool:
-        return True
 
     def set_empty(self, state: ParsingState) -> None:
         self.data_clause_operands.set(state, ())
@@ -1538,9 +1523,6 @@ class AtomicIfClause(CustomDirective):
     if_cond: OptionalOperandVariable
     if_cond_type: TypeDirective
 
-    def is_optional_like(self) -> bool:
-        return True
-
     def set_empty(self, state: ParsingState) -> None:
         self.if_cond.set(state, None)
         self.if_cond_type.set(state, ())
@@ -1593,12 +1575,6 @@ class AccVar(CustomDirective):
     acc_var: OperandVariable
     acc_var_type: TypeDirective
 
-    def is_anchorable(self) -> bool:
-        return False
-
-    def is_optional_like(self) -> bool:
-        return False
-
     def parse(self, parser: Parser, state: ParsingState) -> bool:
         if parser.parse_optional_keyword("accPtr") is None:
             parser.parse_keyword("accVar")
@@ -1636,12 +1612,6 @@ class Var(CustomDirective):
     var: OperandVariable
     var_type: TypeDirective
     var_type_attr: AttributeVariable
-
-    def is_anchorable(self) -> bool:
-        return False
-
-    def is_optional_like(self) -> bool:
-        return False
 
     def parse(self, parser: Parser, state: ParsingState) -> bool:
         if parser.parse_optional_keyword("varPtr") is None:
@@ -1698,9 +1668,6 @@ class DataEntryOilist(CustomDirective):
     async_device_type: AttributeVariable
     async_only: AttributeVariable
     recipe: AttributeVariable
-
-    def is_optional_like(self) -> bool:
-        return True
 
     def set_empty(self, state: ParsingState) -> None:
         self.var_ptr_ptr.set(state, None)
