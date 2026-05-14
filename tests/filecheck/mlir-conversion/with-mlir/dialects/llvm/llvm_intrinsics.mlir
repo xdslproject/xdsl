@@ -22,6 +22,15 @@
 %fexp_vec = llvm.intr.exp(%arg2) : (vector<4xf32>) -> vector<4xf32>
 // CHECK: llvm.intr.exp([[arg2]]) : (vector<4xf32>) -> vector<4xf32>
 
+%fsin_0 = llvm.intr.sin(%arg0) : (f32) -> f32
+// CHECK: llvm.intr.sin([[arg0]]) : (f32) -> f32
+
+%fsin_1 = llvm.intr.sin(%arg1) : (f64) -> f64
+// CHECK: llvm.intr.sin([[arg1]]) : (f64) -> f64
+
+%fsin_2 = llvm.intr.sin(%arg2) : (vector<4xf32>) -> vector<4xf32>
+// CHECK: llvm.intr.sin([[arg2]]) : (vector<4xf32>) -> vector<4xf32>
+
 %3 = llvm.fneg %arg0 : f32
 // CHECK: llvm.fneg [[arg0]] : f32
 

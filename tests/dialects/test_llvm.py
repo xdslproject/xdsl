@@ -622,6 +622,13 @@ def test_fexp_op():
     assert op.name == "llvm.intr.exp"
 
 
+def test_fsin_op():
+    val = create_ssa_value(builtin.f32)
+    op = llvm.FSinOp(val)
+    assert op.arg == val
+    assert op.res.type == builtin.f32
+
+
 def test_fneg_op():
     val = create_ssa_value(builtin.f32)
     op = llvm.FNegOp(val)
