@@ -1068,8 +1068,6 @@ class IntegerAttr(
         *,
         value: AttrConstraint | IntConstraint | None = None,
     ) -> AttrConstraint[IntegerAttr[_IntegerAttrType]]:
-        if value is None and type == AnyAttr():
-            return BaseAttr[IntegerAttr[_IntegerAttrType]](IntegerAttr)
         if isinstance(value, IntConstraint):
             value = IntAttrConstraint(value)
         return cast(
@@ -1450,8 +1448,6 @@ class ComplexType(
     def constr(
         element_type: IRDLAttrConstraint[ComplexElementCovT] | None = None,
     ) -> AttrConstraint[ComplexType[ComplexElementCovT]]:
-        if element_type is None:
-            return BaseAttr[ComplexType[ComplexElementCovT]](ComplexType)
         return cast(
             AttrConstraint[ComplexType[ComplexElementCovT]],
             ParamAttrConstraint.get(
@@ -1574,8 +1570,6 @@ class VectorType(
         shape: IRDLAttrConstraint[ArrayAttr[IntAttr]] | None = None,
         scalable_dims: IRDLAttrConstraint[ArrayAttr[BoolAttr]] | None = None,
     ) -> AttrConstraint[VectorType[AttributeCovT]]:
-        if element_type is None and shape is None and scalable_dims is None:
-            return BaseAttr[VectorType[AttributeCovT]](VectorType)
         shape_constr = AnyAttr() if shape is None else shape
         scalable_dims_constr = AnyAttr() if scalable_dims is None else scalable_dims
         return cast(
@@ -1643,12 +1637,9 @@ class TensorType(
         element_type: IRDLAttrConstraint[AttributeInvT] | None = None,
         shape: IRDLAttrConstraint[AttributeInvT] | None = None,
     ) -> AttrConstraint[TensorType[AttributeInvT]]:
-        if element_type is None and shape is None:
-            return BaseAttr[TensorType[AttributeInvT]](TensorType)
-        shape_constr = AnyAttr() if shape is None else shape
         return cast(
             AttrConstraint[TensorType[AttributeInvT]],
-            ParamAttrConstraint.get(TensorType, shape_constr, element_type, AnyAttr()),
+            ParamAttrConstraint.get(TensorType, shape, element_type, AnyAttr()),
         )
 
 
@@ -1959,8 +1950,6 @@ class DenseArrayBase(
     def constr(
         element_type: IRDLAttrConstraint[DenseArrayInvT] | None = None,
     ) -> AttrConstraint[DenseArrayBase[DenseArrayInvT]]:
-        if element_type is None:
-            return BaseAttr[DenseArrayBase[DenseArrayInvT]](DenseArrayBase)
         return cast(
             AttrConstraint[DenseArrayBase[DenseArrayInvT]],
             ParamAttrConstraint.get(DenseArrayBase, element_type, AnyAttr()),
@@ -2634,13 +2623,6 @@ class MemRefType(
         layout: IRDLAttrConstraint | None = None,
         memory_space: IRDLAttrConstraint | None = None,
     ) -> AttrConstraint[MemRefType[_MemRefTypeElement]]:
-        if (
-            shape is None
-            and element_type == AnyAttr()
-            and layout is None
-            and memory_space is None
-        ):
-            return BaseAttr[MemRefType[_MemRefTypeElement]](MemRefType)
         return cast(
             AttrConstraint[MemRefType[_MemRefTypeElement]],
             ParamAttrConstraint.get(

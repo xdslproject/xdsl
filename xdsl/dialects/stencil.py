@@ -35,7 +35,6 @@ from xdsl.irdl import (
     AnyAttr,
     AttrConstraint,
     AttrSizedOperandSegments,
-    BaseAttr,
     ConstraintContext,
     IRDLOperation,
     MessageConstraint,
@@ -399,8 +398,6 @@ class StencilType(
         bounds: AttrConstraint | None = None,
         element_type: AttrConstraint[_FieldTypeElement] | None = None,
     ) -> AttrConstraint[StencilType[_FieldTypeElement]]:
-        if bounds is None and element_type is None:
-            return BaseAttr[StencilType[_FieldTypeElement]](StencilType)
         return cast(
             AttrConstraint[StencilType[_FieldTypeElement]],
             ParamAttrConstraint.get(StencilType, bounds, element_type),
