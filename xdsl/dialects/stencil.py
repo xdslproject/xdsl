@@ -393,19 +393,18 @@ class StencilType(
                     printer.print_string("?x")
             printer.print_attribute(self.element_type)
 
-    @classmethod
+    @staticmethod
     def constr(
-        cls,
         *,
         bounds: AttrConstraint | None = None,
         element_type: AttrConstraint[_FieldTypeElement] | None = None,
-    ) -> (
-        BaseAttr[StencilType[_FieldTypeElement]]
-        | ParamAttrConstraint[StencilType[_FieldTypeElement]]
-    ):
+    ) -> AttrConstraint[StencilType[_FieldTypeElement]]:
         if bounds is None and element_type is None:
-            return BaseAttr(cls)
-        return ParamAttrConstraint(cls, (bounds, element_type))
+            return BaseAttr[StencilType[_FieldTypeElement]](StencilType)
+        return cast(
+            AttrConstraint[StencilType[_FieldTypeElement]],
+            ParamAttrConstraint.get(StencilType, bounds, element_type),
+        )
 
 
 @irdl_attr_definition(init=False)
@@ -1537,14 +1536,12 @@ class StoreResultOp(IRDLOperation):
         )
     )
     res = result_def(
-        ParamAttrConstraint(
+        ParamAttrConstraint.get(
             ResultType,
-            [
-                MessageConstraint(
-                    VarConstraint("T", AnyAttr()),
-                    "Expected return type to carry the operand type.",
-                )
-            ],
+            MessageConstraint(
+                VarConstraint("T", AnyAttr()),
+                "Expected return type to carry the operand type.",
+            ),
         )
     )
 

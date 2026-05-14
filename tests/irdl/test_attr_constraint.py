@@ -1,6 +1,7 @@
 import re
 from abc import ABC
 from dataclasses import dataclass
+from typing import Generic
 
 import pytest
 from typing_extensions import TypeVar
@@ -34,6 +35,7 @@ from xdsl.irdl import (
     base,
     eq,
     irdl_attr_definition,
+    irdl_to_attr_constraint,
 )
 from xdsl.utils.exceptions import PyRDLError
 
@@ -99,8 +101,8 @@ class AttrD(Base):
         ),
         (AllOf((AnyAttr(), BaseAttr(Base))), None),
         (AllOf((AnyAttr(), BaseAttr(AttrA))), {AttrA}),
-        (ParamAttrConstraint(AttrB, [BaseAttr(AttrA)]), {AttrB}),
-        (ParamAttrConstraint(Base, [BaseAttr(AttrA)]), None),
+        (ParamAttrConstraint(AttrB, (BaseAttr(AttrA),)), {AttrB}),
+        (ParamAttrConstraint(Base, (BaseAttr(AttrA),)), None),
         (VarConstraint("T", BaseAttr(Base)), None),
         (VarConstraint("T", BaseAttr(AttrA)), {AttrA}),
         (
@@ -386,9 +388,49 @@ def test_mapping_type_vars():
     )
 
 
+_T = TypeVar("_T")
+
+
+class AttrE(ParametrizedAttribute, Generic[_T]):
+    param: _T
+
+
+def test_param_instantiated_generic():
+    with pytest.raises(PyRDLError):
+        ParamAttrConstraint.get(AttrE[AttrB])
+
+
+class AttrF(ParametrizedAttribute):
+    param1: Attribute
+    param2: Attribute
+
+
 @pytest.mark.parametrize(
     "constr, expected",
     [
+        (ParamAttrConstraint.get(AttrA), ParamAttrConstraint(AttrA, ())),
+        (
+            ParamAttrConstraint.get(AttrB, None),
+            ParamAttrConstraint(AttrB, (AnyAttr(),)),
+        ),
+        (
+            ParamAttrConstraint.get(AttrF, None, None),
+            ParamAttrConstraint(AttrF, (AnyAttr(), AnyAttr())),
+        ),
+        (
+            ParamAttrConstraint.get(AttrF, AttrA, AttrB),
+            ParamAttrConstraint(
+                AttrF, (irdl_to_attr_constraint(AttrA), irdl_to_attr_constraint(AttrB))
+            ),
+        ),
+        (
+            ParamAttrConstraint.get(
+                AttrF, None, ParamAttrConstraint.get(AttrF, None, None)
+            ),
+            ParamAttrConstraint(
+                AttrF, (AnyAttr(), ParamAttrConstraint(AttrF, (AnyAttr(), AnyAttr())))
+            ),
+        ),
         (VarConstraint.get("T"), VarConstraint("T", AnyAttr())),
         (VarConstraint.get("T", AttrA), VarConstraint("T", BaseAttr(AttrA))),
         (VarConstraint.get("T", BaseAttr(AttrA)), VarConstraint("T", BaseAttr(AttrA))),
