@@ -82,7 +82,6 @@ class SpillPass(ModulePass):
                 sorted(
                     loaded_values - uses,
                     key=lambda a: next_uses[inner_op][a],
-                    reverse=True,
                 )
             )  # values that we can use to spill
 
@@ -101,7 +100,7 @@ class SpillPass(ModulePass):
             # Remove dead values from live set
             for use in inner_op.operands:
                 if is_valid_type(use.type) and die[use] is inner_op:
-                    loaded_values.remove(use)
+                    loaded_values.discard(use)
 
             # Process definitions
             defns = OrderedSet(i for i in inner_op.results if is_valid_type(i.type))
