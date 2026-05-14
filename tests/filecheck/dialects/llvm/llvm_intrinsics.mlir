@@ -84,6 +84,15 @@
 %fcos_vec = llvm.intr.cos(%vec_f32) : (vector<4xf32>) -> vector<4xf32>
 // CHECK-NEXT: %fcos_vec = llvm.intr.cos(%vec_f32) : (vector<4xf32>) -> vector<4xf32>
 
+%flog2_f32 = llvm.intr.log2(%f32) : (f32) -> f32
+// CHECK: %flog2_f32 = llvm.intr.log2(%f32) : (f32) -> f32
+
+%flog2_f64 = llvm.intr.log2(%f64) : (f64) -> f64
+// CHECK-NEXT: %flog2_f64 = llvm.intr.log2(%f64) : (f64) -> f64
+
+%flog2_vec = llvm.intr.log2(%vec_f32) : (vector<4xf32>) -> vector<4xf32>
+// CHECK-NEXT: %flog2_vec = llvm.intr.log2(%vec_f32) : (vector<4xf32>) -> vector<4xf32>
+
 %fneg_f32 = llvm.fneg %f32 : f32
 // CHECK: %fneg_f32 = llvm.fneg %f32 : f32
 

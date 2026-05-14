@@ -182,6 +182,7 @@ _UNARY_INTRINSIC_MAP: dict[type[Operation], str] = {
     llvm.FSqrtOp: "llvm.sqrt",
     llvm.FLogOp: "llvm.log",
     llvm.FCosOp: "llvm.cos",
+    llvm.FLog2Op: "llvm.log2",
 }
 
 _BINARY_INTRINSIC_MAP: dict[type[Operation], str] = {
