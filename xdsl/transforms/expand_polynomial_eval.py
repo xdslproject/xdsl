@@ -51,7 +51,7 @@ def _float_constant(
 def expand_clenshaw(
     op: polynomial.EvalOp,
     rewriter: PatternRewriter,
-    coeffs: tuple[float],
+    coeffs: tuple[float, ...],
     lower: float | None,
     upper: float | None,
 ) -> Operation:
