@@ -217,18 +217,11 @@ class EvalOp(IRDLOperation):
     """
     Evaluate a polynomial at a given point.
 
-    This op is *unevaluated* but carries all information needed for
+    This op is unevaluated but carries all information needed for
     later lowering to arithmetic ops, dispatched on `scheme`.
 
     Domain convention: `domain_lower` / `domain_upper` describe the interval
-    the Chebyshev coefficients were computed for. When both are present,
-    consumers (lowerings, cost models, interpreters) must affinely remap the
-    input from `[domain_lower, domain_upper]` to the canonical Chebyshev
-    domain `[-1, 1]` before evaluating the series. When both are absent, the
-    convention is that the coefficients were computed on `[-1, 1]` and the
-    input is already in that range -- no remap is performed. Producers that
-    computed coefficients on any non-canonical interval MUST set both bounds;
-    omitting them silently yields wrong numerical results.
+    the Chebyshev coefficients were computed for.  Default is [-1, 1].
 
     Syntax: polynomial.eval $polynomial `,` $value attr-dict `:` type($value)
     Example:
