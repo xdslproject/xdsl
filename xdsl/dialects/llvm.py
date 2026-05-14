@@ -3517,6 +3517,41 @@ class VectorFMaxOp(IRDLOperation):
 
 
 @irdl_op_definition
+class FCopySignOp(IRDLOperation):
+    T: ClassVar = VarConstraint("T", AnyFloatConstr | VectorType.constr(AnyFloatConstr))
+
+    name = "llvm.intr.copysign"
+
+    lhs = operand_def(T)
+    rhs = operand_def(T)
+    res = result_def(T)
+
+    fastmathFlags = prop_def(FastMathAttr, default_value=FastMathAttr(None))
+
+    assembly_format = (
+        "`(` operands `)` attr-dict `:` functional-type(operands, results)"
+    )
+
+    irdl_options = (ParsePropInAttrDict(),)
+
+    traits = traits_def(Pure())
+
+    def __init__(
+        self,
+        lhs: Operation | SSAValue,
+        rhs: Operation | SSAValue,
+        fast_math: FastMathAttr | FastMathFlag | None = None,
+    ):
+        if isinstance(fast_math, FastMathFlag | str | None):
+            fast_math = FastMathAttr(fast_math)
+        super().__init__(
+            operands=[lhs, rhs],
+            result_types=[SSAValue.get(lhs).type],
+            properties={"fastmathFlags": fast_math},
+        )
+
+
+@irdl_op_definition
 class FMAOp(IRDLOperation):
     T: ClassVar = VarConstraint("T", AnyFloatConstr | VectorType.constr(AnyFloatConstr))
 
@@ -3589,6 +3624,41 @@ class VectorFMinOp(IRDLOperation):
 
 
 @irdl_op_definition
+class FPowOp(IRDLOperation):
+    T: ClassVar = VarConstraint("T", AnyFloatConstr | VectorType.constr(AnyFloatConstr))
+
+    name = "llvm.intr.pow"
+
+    lhs = operand_def(T)
+    rhs = operand_def(T)
+    res = result_def(T)
+
+    fastmathFlags = prop_def(FastMathAttr, default_value=FastMathAttr(None))
+
+    assembly_format = (
+        "`(` operands `)` attr-dict `:` functional-type(operands, results)"
+    )
+
+    irdl_options = (ParsePropInAttrDict(),)
+
+    traits = traits_def(Pure())
+
+    def __init__(
+        self,
+        lhs: Operation | SSAValue,
+        rhs: Operation | SSAValue,
+        fast_math: FastMathAttr | FastMathFlag | None = None,
+    ):
+        if isinstance(fast_math, FastMathFlag | str | None):
+            fast_math = FastMathAttr(fast_math)
+        super().__init__(
+            operands=[lhs, rhs],
+            result_types=[SSAValue.get(lhs).type],
+            properties={"fastmathFlags": fast_math},
+        )
+
+
+@irdl_op_definition
 class UnreachableOp(IRDLOperation):
     name = "llvm.unreachable"
 
@@ -3615,6 +3685,7 @@ LLVM = Dialect(
         FAddOp,
         FCeilOp,
         FCmpOp,
+        FCopySignOp,
         FCosOp,
         FDivOp,
         FExpOp,
@@ -3626,6 +3697,7 @@ LLVM = Dialect(
         FMulOp,
         FNegOp,
         FPExtOp,
+        FPowOp,
         FRemOp,
         FSinOp,
         FSqrtOp,

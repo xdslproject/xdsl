@@ -186,8 +186,10 @@ _UNARY_INTRINSIC_MAP: dict[type[Operation], str] = {
 }
 
 _BINARY_INTRINSIC_MAP: dict[type[Operation], str] = {
+    llvm.FPowOp: "llvm.pow",
     llvm.VectorFMaxOp: "llvm.maxnum",
     llvm.VectorFMinOp: "llvm.minnum",
+    llvm.FCopySignOp: "llvm.copysign",
 }
 
 

@@ -657,6 +657,15 @@ def test_flog2_op():
     assert op.res.type == builtin.f32
 
 
+def test_fcopysign_op():
+    lhs = create_ssa_value(builtin.f32)
+    rhs = create_ssa_value(builtin.f32)
+    op = llvm.FCopySignOp(lhs, rhs)
+    assert op.lhs == lhs
+    assert op.rhs == rhs
+    assert op.res.type == builtin.f32
+
+
 def test_fneg_op():
     val = create_ssa_value(builtin.f32)
     op = llvm.FNegOp(val)
@@ -705,6 +714,15 @@ def test_vector_fmin_op():
     lhs = create_ssa_value(builtin.f32)
     rhs = create_ssa_value(builtin.f32)
     op = llvm.VectorFMinOp(lhs, rhs)
+    assert op.lhs == lhs
+    assert op.rhs == rhs
+    assert op.res.type == builtin.f32
+
+
+def test_fpow_op():
+    lhs = create_ssa_value(builtin.f32)
+    rhs = create_ssa_value(builtin.f32)
+    op = llvm.FPowOp(lhs, rhs)
     assert op.lhs == lhs
     assert op.rhs == rhs
     assert op.res.type == builtin.f32
