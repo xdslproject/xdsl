@@ -33,9 +33,10 @@ class ReorderParallelMovPattern(RewritePattern):
             for value in cur_op.results:
                 value_by_reg[value.type].append(value)
             cur_op = cur_op.next_op
-
         # Greedily swap regs to optimal for each in/out pair
-        for in_val, out_val in zip(op.inputs, op.outputs, strict=True):
+        # Inputs never change, so is safe to iterate over them here
+        for idx, in_val in enumerate(op.inputs):
+            out_val = op.outputs[idx]  # use index here since outputs will change
             in_reg = cast(RISCVRegisterType, in_val.type)
             out_reg = out_val.type
             # Only consider swapping if both in and out is infinite
