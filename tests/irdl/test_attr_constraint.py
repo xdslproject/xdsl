@@ -244,6 +244,23 @@ def test_memref_to_tensor(
     assert TensorFromMemRefConstraint.memref_to_tensor(input) == output
 
 
+_T = TypeVar("_T")
+
+
+class AttrE(ParametrizedAttribute, Generic[_T]):
+    param: _T
+
+
+def test_param_instantiated_generic():
+    with pytest.raises(PyRDLError):
+        ParamAttrConstraint.get(AttrE[AttrB])
+
+
+class AttrF(ParametrizedAttribute):
+    param1: Attribute
+    param2: Attribute
+
+
 @pytest.mark.parametrize(
     "lhs, rhs",
     [
@@ -281,6 +298,31 @@ def test_memref_to_tensor(
                     ParamAttrConstraint(AttrB, (BaseAttr(AttrA),)),
                     ParamAttrConstraint(AttrA, (BaseAttr(AttrB),)),
                 )
+            ),
+        ),
+        (
+            ParamAttrConstraint(AttrD, (BaseAttr(AttrA),))
+            | BaseAttr(AttrA)
+            | ParamAttrConstraint(AttrD, (BaseAttr(AttrC),)),
+            AnyOf(
+                (
+                    ParamAttrConstraint(AttrD, (BaseAttr(AttrA) | BaseAttr(AttrC),)),
+                    BaseAttr(AttrA),
+                )
+            ),
+        ),
+        (
+            ParamAttrConstraint(AttrF, (BaseAttr(AttrA), BaseAttr(AttrA)))
+            | ParamAttrConstraint(AttrF, (BaseAttr(AttrA), BaseAttr(AttrC))),
+            ParamAttrConstraint(
+                AttrF, (BaseAttr(AttrA), BaseAttr(AttrA) | BaseAttr(AttrC))
+            ),
+        ),
+        (
+            ParamAttrConstraint(AttrF, (BaseAttr(AttrA), BaseAttr(AttrA)))
+            | ParamAttrConstraint(AttrF, (BaseAttr(AttrC), BaseAttr(AttrA))),
+            ParamAttrConstraint(
+                AttrF, (BaseAttr(AttrA) | BaseAttr(AttrC), BaseAttr(AttrA))
             ),
         ),
     ],
@@ -392,23 +434,6 @@ def test_mapping_type_vars():
     assert int_attr_constr.mapping_type_vars({_IntT: my_constr_2}) == IntAttrConstraint(
         my_constr_2
     )
-
-
-_T = TypeVar("_T")
-
-
-class AttrE(ParametrizedAttribute, Generic[_T]):
-    param: _T
-
-
-def test_param_instantiated_generic():
-    with pytest.raises(PyRDLError):
-        ParamAttrConstraint.get(AttrE[AttrB])
-
-
-class AttrF(ParametrizedAttribute):
-    param1: Attribute
-    param2: Attribute
 
 
 @pytest.mark.parametrize(
