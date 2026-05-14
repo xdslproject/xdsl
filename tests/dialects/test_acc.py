@@ -24,7 +24,7 @@ from xdsl.dialects.builtin import (
 from xdsl.dialects.test import TestOp
 from xdsl.ir import Block, Region
 from xdsl.printer import Printer
-from xdsl.traits import NoMemoryEffect
+from xdsl.traits import AutomaticAllocationScope, NoMemoryEffect
 from xdsl.utils.test_value import create_ssa_value
 
 
@@ -1240,3 +1240,36 @@ def test_atomic_write_skips_check_for_non_memref():
     x = create_ssa_value(i32)
     expr = create_ssa_value(i32)
     acc.AtomicWriteOp(x=x, expr=expr).verify()
+
+
+def test_automatic_allocation_scope_trait_wiring():
+    """Compute constructs and privatization/reduction recipes carry
+    `AutomaticAllocationScope`, mirroring upstream MLIR. The trait is a marker
+    queried by passes (e.g. alloca promotion); it has no printed surface, so
+    coverage lives here rather than in filecheck."""
+    for op_type in (
+        acc.ParallelOp,
+        acc.SerialOp,
+        acc.KernelsOp,
+        acc.LoopOp,
+        acc.PrivateRecipeOp,
+        acc.FirstprivateRecipeOp,
+        acc.ReductionRecipeOp,
+    ):
+        assert op_type.has_trait(AutomaticAllocationScope), (
+            f"{op_type.__name__} is missing AutomaticAllocationScope"
+        )
+
+    for op_type in (
+        acc.DataOp,
+        acc.HostDataOp,
+        acc.RoutineOp,
+        acc.GlobalConstructorOp,
+        acc.GlobalDestructorOp,
+        acc.KernelEnvironmentOp,
+        acc.AtomicUpdateOp,
+        acc.AtomicCaptureOp,
+    ):
+        assert not op_type.has_trait(AutomaticAllocationScope), (
+            f"{op_type.__name__} unexpectedly carries AutomaticAllocationScope"
+        )

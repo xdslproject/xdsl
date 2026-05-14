@@ -78,6 +78,7 @@ from xdsl.irdl.declarative_assembly_format import (
 from xdsl.parser import AttrParser, Parser, UnresolvedOperand
 from xdsl.printer import Printer
 from xdsl.traits import (
+    AutomaticAllocationScope,
     HasParent,
     IsolatedFromAbove,
     IsTerminator,
@@ -2536,6 +2537,7 @@ class ParallelOp(IRDLOperation):
         lambda: (
             SingleBlockImplicitTerminator(YieldOp),
             RecursiveMemoryEffect(),
+            AutomaticAllocationScope(),
         )
     )
 
@@ -2686,6 +2688,7 @@ class SerialOp(IRDLOperation):
         lambda: (
             SingleBlockImplicitTerminator(YieldOp),
             RecursiveMemoryEffect(),
+            AutomaticAllocationScope(),
         )
     )
 
@@ -2845,6 +2848,7 @@ class KernelsOp(IRDLOperation):
         lambda: (
             SingleBlockImplicitTerminator(TerminatorOp),
             RecursiveMemoryEffect(),
+            AutomaticAllocationScope(),
         )
     )
 
@@ -3125,7 +3129,9 @@ class LoopOp(IRDLOperation):
         " attr-dict-with-keyword"
     )
 
-    traits = lazy_traits_def(lambda: (RecursiveMemoryEffect(),))
+    traits = lazy_traits_def(
+        lambda: (RecursiveMemoryEffect(), AutomaticAllocationScope())
+    )
 
     def __init__(
         self,
@@ -5223,7 +5229,13 @@ class PrivateRecipeOp(_RecipeOperation):
     init_region = region_def()
     destroy_region = region_def()
 
-    traits = lazy_traits_def(lambda: (IsolatedFromAbove(), SymbolOpInterface()))
+    traits = lazy_traits_def(
+        lambda: (
+            IsolatedFromAbove(),
+            SymbolOpInterface(),
+            AutomaticAllocationScope(),
+        )
+    )
 
     assembly_format = (
         "$sym_name `:` $type attr-dict-with-keyword"
@@ -5279,7 +5291,13 @@ class FirstprivateRecipeOp(_RecipeOperation):
     copy_region = region_def()
     destroy_region = region_def()
 
-    traits = lazy_traits_def(lambda: (IsolatedFromAbove(), SymbolOpInterface()))
+    traits = lazy_traits_def(
+        lambda: (
+            IsolatedFromAbove(),
+            SymbolOpInterface(),
+            AutomaticAllocationScope(),
+        )
+    )
 
     assembly_format = (
         "$sym_name `:` $type attr-dict-with-keyword"
@@ -5350,7 +5368,13 @@ class ReductionRecipeOp(_RecipeOperation):
     combiner_region = region_def()
     destroy_region = region_def()
 
-    traits = lazy_traits_def(lambda: (IsolatedFromAbove(), SymbolOpInterface()))
+    traits = lazy_traits_def(
+        lambda: (
+            IsolatedFromAbove(),
+            SymbolOpInterface(),
+            AutomaticAllocationScope(),
+        )
+    )
 
     # Note: `$reductionOperator` prints/parses as `<value>` (just the
     # parameter, no dialect prefix) because `ReductionOpKindAttr` overrides

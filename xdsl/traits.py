@@ -299,6 +299,18 @@ class IsolatedFromAbove(OpTrait):
                         regions += child_op.regions
 
 
+class AutomaticAllocationScope(OpTrait):
+    """
+    Marks an operation as the enclosing scope for automatic (stack-like)
+    allocations inside its regions. Allocations whose lifetime is tied to this
+    scope are released when control leaves it.
+
+    Carries no verifier — it is a marker queried by passes (e.g. promotion of
+    `memref.alloca` to the nearest scope). Compatible with MLIR's
+    [`AutomaticAllocationScope`](https://mlir.llvm.org/docs/Traits/#automaticallocationscope) trait.
+    """
+
+
 class SymbolUserOpInterface(OpTrait, abc.ABC):
     """
     Used to represent operations that reference Symbol operations. This provides the
