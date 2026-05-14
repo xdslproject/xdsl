@@ -4,11 +4,14 @@ from typing import Literal
 import pytest
 from typing_extensions import TypeVar
 
+from xdsl.dialects.builtin import IntAttr, IntAttrConstraint
 from xdsl.irdl import (
     AnyInt,
     AtLeast,
     AtMost,
+    BaseAttr,
     ConstraintContext,
+    EqAttrConstraint,
     EqIntConstraint,
     IntSetConstraint,
     IntTypeVarConstraint,
@@ -122,3 +125,17 @@ def test_get_int_constr():
 
     with pytest.raises(PyRDLTypeError, match="Unexpected int type: <class 'str'>"):
         get_int_constraint(str)  # pyright: ignore[reportArgumentType]
+
+
+def test_int_attr_get():
+    assert IntAttrConstraint.get() == BaseAttr(IntAttr)
+    assert IntAttrConstraint.get(int) == BaseAttr(IntAttr)
+    assert IntAttrConstraint.get(1) == EqAttrConstraint(IntAttr(1))
+    assert IntAttrConstraint.get(Literal[1, 2]) == IntAttrConstraint(
+        IntSetConstraint(frozenset((1, 2)))
+    )
+    assert IntAttrConstraint.get(AnyInt()) == BaseAttr(IntAttr)
+    assert IntAttrConstraint.get(
+        IntSetConstraint(frozenset((1, 2)))
+    ) == IntAttrConstraint(IntSetConstraint(frozenset((1, 2))))
+    assert IntAttrConstraint.get(EqIntConstraint(1)) == EqAttrConstraint(IntAttr(1))
