@@ -13,6 +13,7 @@ from xdsl.context import Context
 from xdsl.dialects import builtin
 from xdsl.passes import ModulePass
 from xdsl.transforms import (
+    attach_exp_bounds,
     canonicalize,
     convert_linalg_to_memref_stream,
     convert_memref_stream_to_loops,
@@ -59,6 +60,7 @@ LOWER_MEMREF_STREAM_TO_SNITCH_STREAM_PASSES: tuple[ModulePass, ...] = (
     lower_affine.LowerAffinePass(),
     convert_scf_to_riscv_scf.ConvertScfToRiscvPass(),
     expand_math_to_polynomials.ExpandMathToPolynomialsPass(),
+    attach_exp_bounds.AttachExpBoundsPass(),
     lower_exp_to_polynomial.LowerExpToPolynomialPass(),
     expand_polynomial_eval.ExpandPolynomialEvalPass(),
     convert_arith_to_riscv_snitch.ConvertArithToRiscvSnitchPass(),

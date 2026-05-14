@@ -36,6 +36,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return arith_add_fastmath.AddArithFastMathFlagsPass
 
+    def get_attach_exp_bounds():
+        from xdsl.transforms import attach_exp_bounds
+
+        return attach_exp_bounds.AttachExpBoundsPass
+
     def get_canonicalize_dmp():
         from xdsl.transforms import canonicalize_dmp
 
@@ -615,6 +620,23 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return test_lower_linalg_to_snitch.TestLowerLinalgToSnitchPass
 
+    def get_test_lower_memref_stream_to_snitch_stream():
+        from xdsl.transforms import test_lower_memref_stream_to_snitch_stream
+
+        return (
+            test_lower_memref_stream_to_snitch_stream.TestLowerMemRefStreamToSnitchStream
+        )
+
+    def get_test_lower_snitch_stream_to_asm():
+        from xdsl.transforms import test_lower_snitch_stream_to_asm
+
+        return test_lower_snitch_stream_to_asm.TestLowerSnitchStreamToAsm
+
+    def get_test_optimise_memref_stream():
+        from xdsl.transforms import test_optimise_memref_stream
+
+        return test_optimise_memref_stream.TestOptimiseMemRefStream
+
     def get_test_specialised_constant_folding():
         from xdsl.transforms import test_constant_folding
 
@@ -682,6 +704,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "apply-pdl-interp": get_apply_pdl_interp,
         "approximate-math-with-bitcast": get_approximate_math_with_bitcast,
         "arith-add-fastmath": get_arith_add_fastmath,
+        "attach-exp-bounds": get_attach_exp_bounds,
         "canonicalize-dmp": get_canonicalize_dmp,
         "canonicalize": get_canonicalize,
         "constant-fold-interp": get_constant_fold_interp,
@@ -796,6 +819,9 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "test-add-timers-to-top-level-funcs": get_test_add_timers_to_top_level_funcs,
         "test-constant-folding": get_test_constant_folding,
         "test-lower-linalg-to-snitch": get_test_lower_linalg_to_snitch,
+        "test-lower-memref-stream-to-snitch-stream": get_test_lower_memref_stream_to_snitch_stream,
+        "test-lower-snitch-stream-to-asm": get_test_lower_snitch_stream_to_asm,
+        "test-optimise-memref-stream": get_test_optimise_memref_stream,
         "test-specialised-constant-folding": get_test_specialised_constant_folding,
         "test-transform-dialect-erase-schedule": get_test_transform_dialect_erase_schedule,
         "test-vectorize-matmul": get_test_vectorize_matmul,
