@@ -610,6 +610,10 @@ def test_fsqrt_op():
 def test_ffloor_op():
     val = create_ssa_value(builtin.f32)
     op = llvm.FFloorOp(val)
+    assert op.arg == val
+    assert op.res.type == builtin.f32
+
+
 def test_fexp2_op():
     val = create_ssa_value(builtin.f32)
     op = llvm.FExp2Op(val)
