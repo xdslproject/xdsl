@@ -643,6 +643,13 @@ def test_fsin_op():
     assert op.res.type == builtin.f32
 
 
+def test_fcos_op():
+    val = create_ssa_value(builtin.f32)
+    op = llvm.FCosOp(val)
+    assert op.arg == val
+    assert op.res.type == builtin.f32
+
+
 def test_fneg_op():
     val = create_ssa_value(builtin.f32)
     op = llvm.FNegOp(val)
