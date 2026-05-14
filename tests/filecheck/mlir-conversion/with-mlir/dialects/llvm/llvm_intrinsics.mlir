@@ -30,6 +30,14 @@
 
 %fsin_2 = llvm.intr.sin(%arg2) : (vector<4xf32>) -> vector<4xf32>
 // CHECK: llvm.intr.sin([[arg2]]) : (vector<4xf32>) -> vector<4xf32>
+%ffloor_f32 = llvm.intr.floor(%arg0) : (f32) -> f32
+// CHECK: llvm.intr.floor([[arg0]]) : (f32) -> f32
+
+%ffloor_f64 = llvm.intr.floor(%arg1) : (f64) -> f64
+// CHECK: llvm.intr.floor([[arg1]]) : (f64) -> f64
+
+%ffloor_vec = llvm.intr.floor(%arg2) : (vector<4xf32>) -> vector<4xf32>
+// CHECK: llvm.intr.floor([[arg2]]) : (vector<4xf32>) -> vector<4xf32>
 
 %3 = llvm.fneg %arg0 : f32
 // CHECK: llvm.fneg [[arg0]] : f32
