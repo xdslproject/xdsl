@@ -283,6 +283,17 @@ def test_addressof_op():
     assert address_of.result.type == ptr_type
 
 
+def test_function_type_rejects_incompatible_types():
+    with pytest.raises(VerifyException, match="incompatible type"):
+        llvm.LLVMFunctionType([builtin.IndexType()])
+
+    with pytest.raises(VerifyException, match="incompatible type"):
+        llvm.LLVMFunctionType([], builtin.IndexType())
+
+    with pytest.raises(VerifyException, match="incompatible type"):
+        llvm.LLVMFunctionType([llvm.LLVMVoidType()])
+
+
 def test_implicit_void_func_return():
     func_type = llvm.LLVMFunctionType([])
 

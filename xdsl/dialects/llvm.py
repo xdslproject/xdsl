@@ -15,15 +15,22 @@ from xdsl.dialects.builtin import (
     I64,
     AnyFloatConstr,
     ArrayAttr,
+    BFloat16Type,
     DenseArrayBase,
     DenseIntOrFPElementsAttr,
     DictionaryAttr,
+    Float16Type,
+    Float32Type,
+    Float64Type,
+    Float80Type,
+    Float128Type,
     FloatAttr,
     FunctionType,
     IntAttr,
     IntegerAttr,
     IntegerType,
     NoneAttr,
+    Signedness,
     SignlessIntegerConstraint,
     StringAttr,
     SymbolNameConstraint,
@@ -230,6 +237,40 @@ class LLVMVoidType(ParametrizedAttribute, TypeAttribute):
     name = "llvm.void"
 
 
+def is_compatible_type(type_attr: Attribute) -> bool:
+    """
+    Check if a type is compatible with the LLVM dialect.
+
+    Matches MLIR's LLVMDialect::isCompatibleType: signless integers, floats,
+    LLVM dialect types, and 1-D fixed vectors of compatible element types.
+    """
+    if isa(type_attr, IntegerType):
+        return type_attr.signedness.data == Signedness.SIGNLESS
+    if isinstance(
+        type_attr,
+        (
+            BFloat16Type,
+            Float16Type,
+            Float32Type,
+            Float64Type,
+            Float80Type,
+            Float128Type,
+            LLVMStructType,
+            LLVMPointerType,
+            LLVMArrayType,
+            LLVMFunctionType,
+        ),
+    ):
+        return True
+    if isa(type_attr, VectorType):
+        return (
+            type_attr.get_num_dims() == 1
+            and type_attr.get_num_scalable_dims() == 0
+            and is_compatible_type(type_attr.element_type)
+        )
+    return False
+
+
 @irdl_attr_definition
 class LLVMFunctionType(ParametrizedAttribute, TypeAttribute):
     """
@@ -260,6 +301,19 @@ class LLVMFunctionType(ParametrizedAttribute, TypeAttribute):
     @property
     def is_variadic(self) -> bool:
         return isinstance(self.variadic, UnitAttr)
+
+    def verify(self) -> None:
+        for i, inp in enumerate(self.inputs):
+            if not is_compatible_type(inp):
+                raise VerifyException(
+                    f"LLVM function argument #{i} has incompatible type '{inp}'"
+                )
+        if not isinstance(self.output, LLVMVoidType) and not is_compatible_type(
+            self.output
+        ):
+            raise VerifyException(
+                f"LLVM function result has incompatible type '{self.output}'"
+            )
 
     def print_parameters(self, printer: Printer) -> None:
         with printer.in_angle_brackets():
