@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from ordered_set import OrderedSet
 
 from xdsl.backend.register_allocatable import RegisterAllocatableOperation, RegisterType
+from xdsl.backend.register_stack import OutOfRegisters
 from xdsl.backend.riscv.register_stack import RiscvRegisterStack
 from xdsl.context import Context
 from xdsl.dialects import builtin, riscv, riscv_func
@@ -100,3 +101,29 @@ class RISCVAllocateInfiniteRegistersPass(ModulePass):
                             phys_reg_by_inf_reg[result_reg] = phys_reg
 
                         Rewriter.replace_value_with_new_type(result, phys_reg)
+
+                if isinstance(inner_op, riscv.ParallelMovOp):
+                    free_regs = []
+                    reg_stack = RiscvRegisterStack.get()
+                    # The free registers are any registers not used by pmov
+                    # because no live ranges will cross a pmov
+                    for pmov_used_reg in inner_op.iter_used_registers():
+                        reg_stack.exclude_register(pmov_used_reg)
+                    for reg_type in (riscv.IntRegisterType, riscv.FloatRegisterType):
+                        while True:
+                            try:
+                                free_regs.append(reg_stack.pop(reg_type))
+                            except OutOfRegisters:
+                                break
+                    # Add free_registers to op
+                    Rewriter.replace_op(
+                        inner_op,
+                        [
+                            riscv.ParallelMovOp(
+                                inner_op.inputs,
+                                inner_op.result_types,
+                                inner_op.input_widths,
+                                free_registers=builtin.ArrayAttr(free_regs),
+                            )
+                        ],
+                    )
