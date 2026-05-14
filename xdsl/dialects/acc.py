@@ -24,6 +24,7 @@ from xdsl.dialects.builtin import (
     IntegerAttr,
     IntegerType,
     MemRefType,
+    NoneAttr,
     StringAttr,
     SymbolNameConstraint,
     SymbolRefAttr,
@@ -54,6 +55,7 @@ from xdsl.irdl import (
     operand_def,
     opt_operand_def,
     opt_prop_def,
+    param_def,
     prop_def,
     region_def,
     result_def,
@@ -235,6 +237,24 @@ class CombinedConstructsType(StrEnum):
     SERIAL_LOOP = "serial_loop"
 
 
+class ParLevel(StrEnum):
+    """Parallelism level used by `acc.specialized_routine` to mark a
+    function variant for a specific OpenACC level.
+
+    See upstream `mlir::acc::ParLevel`. `gang_dim1` is the default gang
+    level (equivalent to a bare `gang`); `gang_dim2` / `gang_dim3` cover
+    `gang(dim:2)` / `gang(dim:3)`. The enum is consumed by
+    `SpecializedRoutineAttr` — it is not stored on any op directly.
+    """
+
+    SEQ = "seq"
+    GANG_DIM1 = "gang_dim1"
+    GANG_DIM2 = "gang_dim2"
+    GANG_DIM3 = "gang_dim3"
+    WORKER = "worker"
+    VECTOR = "vector"
+
+
 @irdl_attr_definition
 class DeviceTypeAttr(EnumAttribute[DeviceType]):
     """
@@ -376,6 +396,318 @@ class CombinedConstructsTypeAttr(EnumAttribute[CombinedConstructsType]):
     def parse_parameter(cls, parser: AttrParser) -> CombinedConstructsType:
         with parser.in_angle_brackets():
             return parser.parse_str_enum(CombinedConstructsType)
+
+
+@irdl_attr_definition
+class ParLevelAttr(EnumAttribute[ParLevel]):
+    """
+    Parallelism level attribute consumed by `SpecializedRoutineAttr` to
+    record which OpenACC level (`seq` / `gang_dim*` / `worker` /
+    `vector`) a function variant was specialized for. Prints using the
+    pretty form `#acc.par_level<value>` to match upstream MLIR (whose
+    `EnumAttr` default `assemblyFormat = "`<` $value `>`"` produces the
+    dot form). When embedded as the `$level` parameter of
+    `#acc.specialized_routine`, the surrounding attribute prints just
+    the `<value>` slice — matching upstream's inline spelling
+    `<@routine, <gang_dim1>, "foo">`.
+    """
+
+    name = "acc.par_level"
+
+    def print_parameter(self, printer: Printer) -> None:
+        with printer.in_angle_brackets():
+            printer.print_string(self.data.value)
+
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> ParLevel:
+        with parser.in_angle_brackets():
+            return parser.parse_str_enum(ParLevel)
+
+
+@irdl_attr_definition
+class VarNameAttr(ParametrizedAttribute):
+    """
+    Variable-name metadata attribute (upstream `#acc.var_name<"x">`).
+
+    Upstream attaches this purely as a *discardable* attribute on
+    non-acc-dialect ops (e.g. `memref.alloca`, casts) to preserve
+    source-level variable names through transformations. It is **not**
+    an op argument on any acc op — the `name` slot on the data-clause
+    family is `OptionalAttr<StrAttr>:$name` upstream, so xDSL keeps the
+    plain `StringAttr` there too.
+    """
+
+    name = "acc.var_name"
+
+    var_name: StringAttr
+
+    def __init__(self, name: str | StringAttr) -> None:
+        if isinstance(name, str):
+            name = StringAttr(name)
+        super().__init__(name)
+
+    def print_parameters(self, printer: Printer) -> None:
+        with printer.in_angle_brackets():
+            printer.print_attribute(self.var_name)
+
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
+        with parser.in_angle_brackets():
+            var_name = parser.parse_str_literal()
+        return [StringAttr(var_name)]
+
+
+@irdl_attr_definition
+class RoutineInfoAttr(ParametrizedAttribute):
+    """
+    Records the `acc.routine` declarations associated with a function
+    (upstream `#acc.routine_info<[@rt1, @rt2]>`).
+
+    Upstream attaches this as a *discardable* attribute on `func.func`
+    declarations whose names were referenced by `acc routine`
+    directives. It is **not** an op argument on any acc op — the
+    `acc.routine` op itself holds the per-directive clauses, and this
+    attribute is the back-edge from the routine target back to its
+    declarations.
+    """
+
+    name = "acc.routine_info"
+
+    acc_routines: ArrayAttr[SymbolRefAttr]
+
+    def __init__(
+        self, acc_routines: ArrayAttr[SymbolRefAttr] | Sequence[SymbolRefAttr]
+    ) -> None:
+        if not isinstance(acc_routines, ArrayAttr):
+            acc_routines = ArrayAttr(acc_routines)
+        super().__init__(acc_routines)
+
+    def print_parameters(self, printer: Printer) -> None:
+        with printer.in_angle_brackets():
+            with printer.in_square_brackets():
+                printer.print_list(self.acc_routines.data, printer.print_attribute)
+
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
+        with parser.in_angle_brackets():
+            refs = parser.parse_comma_separated_list(
+                AttrParser.Delimiter.SQUARE, parser.parse_attribute
+            )
+        for ref in refs:
+            if not isinstance(ref, SymbolRefAttr):
+                parser.raise_error(
+                    f"expected symbol reference in #acc.routine_info, got {ref}"
+                )
+        return [ArrayAttr(cast(list[SymbolRefAttr], refs))]
+
+
+@irdl_attr_definition
+class SpecializedRoutineAttr(ParametrizedAttribute):
+    """
+    Marks a function as a device-specialized variant of an `acc.routine`
+    (upstream `#acc.specialized_routine<@routine, <par_level>, "name">`).
+
+    Upstream attaches this as a *discardable* attribute on the
+    specialized `func.func` produced by the routine-specialization pass.
+    It captures the parallelism level, a `SymbolRefAttr` reference back
+    to the originating `acc.routine`, and the *original* (pre-rename)
+    function name. The `par_level` parameter prints inline as
+    `<gang_dim1>` (no `#acc.par_level` prefix) to match upstream's
+    spelling.
+    """
+
+    name = "acc.specialized_routine"
+
+    routine: SymbolRefAttr
+    level: ParLevelAttr
+    func_name: StringAttr
+
+    def __init__(
+        self,
+        routine: SymbolRefAttr | str,
+        level: ParLevelAttr | ParLevel,
+        func_name: StringAttr | str,
+    ) -> None:
+        if isinstance(routine, str):
+            routine = SymbolRefAttr(routine)
+        if isinstance(level, ParLevel):
+            level = ParLevelAttr(level)
+        if isinstance(func_name, str):
+            func_name = StringAttr(func_name)
+        super().__init__(routine, level, func_name)
+
+    def print_parameters(self, printer: Printer) -> None:
+        with printer.in_angle_brackets():
+            printer.print_attribute(self.routine)
+            printer.print_string(", ")
+            self.level.print_parameter(printer)
+            printer.print_string(", ")
+            printer.print_attribute(self.func_name)
+
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
+        with parser.in_angle_brackets():
+            routine = parser.parse_attribute()
+            if not isinstance(routine, SymbolRefAttr):
+                parser.raise_error(
+                    f"expected symbol reference in #acc.specialized_routine, got {routine}"
+                )
+            parser.parse_punctuation(",")
+            level = ParLevelAttr(ParLevelAttr.parse_parameter(parser))
+            parser.parse_punctuation(",")
+            func_name = parser.parse_str_literal()
+        return [routine, level, StringAttr(func_name)]
+
+
+@irdl_attr_definition
+class DeclareAttr(ParametrizedAttribute):
+    """
+    Records that a variable is captured by an `acc declare` directive
+    (upstream `#acc.declare<dataClause = <clause>[, implicit = true]>`).
+
+    Upstream attaches this as a *discardable* attribute to the variable's
+    creation site — typically a global op (`memref.global`,
+    `llvm.mlir.global`, …) or its allocation site — to advertise which
+    user-level declare clause produced the capture. It pairs with
+    `acc.declare_enter` / `acc.declare_exit` ops, which describe *how*
+    the data action runs at runtime; the attribute itself just preserves
+    the source-level clause kind so analyses can find the variable.
+
+    Parameters mirror upstream: a required `DataClauseAttr` and a
+    defaulted `implicit` flag (`false` unless an OpenACC routine /
+    standalone-declare lowering produced the capture implicitly). When
+    `implicit` is `false` the print form omits it, matching upstream's
+    `DefaultValuedParameter<"bool", "false">` behaviour.
+    """
+
+    name = "acc.declare"
+
+    data_clause: DataClauseAttr
+    implicit: BoolAttr
+
+    def __init__(
+        self,
+        data_clause: DataClauseAttr | DataClause,
+        implicit: BoolAttr | bool = False,
+    ) -> None:
+        if isinstance(data_clause, DataClause):
+            data_clause = DataClauseAttr(data_clause)
+        if isinstance(implicit, bool):
+            implicit = IntegerAttr.from_bool(implicit)
+        super().__init__(data_clause, implicit)
+
+    def print_parameters(self, printer: Printer) -> None:
+        with printer.in_angle_brackets():
+            printer.print_string("dataClause = ")
+            printer.print_string(self.data_clause.data.value)
+            if self.implicit.value.data:
+                printer.print_string(", implicit = true")
+
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
+        def parse_field() -> tuple[str, Attribute]:
+            key = parser.parse_keyword_in(("dataClause", "implicit"))
+            parser.parse_punctuation("=")
+            if key == "dataClause":
+                return key, DataClauseAttr(parser.parse_str_enum(DataClause))
+            return key, IntegerAttr.from_bool(parser.parse_boolean())
+
+        seen: dict[str, Attribute] = {}
+        for key, value in parser.parse_comma_separated_list(
+            AttrParser.Delimiter.ANGLE, parse_field
+        ):
+            if key in seen:
+                parser.raise_error(f"duplicate struct parameter name: {key}")
+            seen[key] = value
+        if "dataClause" not in seen:
+            parser.raise_error("struct is missing required parameter: dataClause")
+        return [seen["dataClause"], seen.get("implicit", IntegerAttr.from_bool(False))]
+
+
+def _coerce_optional_symref(
+    value: SymbolRefAttr | str | None,
+) -> SymbolRefAttr | NoneAttr:
+    """`param_def` converter for `DeclareActionAttr`'s four slots.
+    Absent (None) → `NoneAttr`; bare name → `SymbolRefAttr`; an
+    already-built `SymbolRefAttr` passes through unchanged. Only fires
+    on the Python-construction path; the parser bypasses converters
+    via `attr_def.new(...)`, so parser-produced values must already be
+    `SymbolRefAttr` / `NoneAttr`.
+    """
+    if value is None:
+        return NoneAttr()
+    if isinstance(value, str):
+        return SymbolRefAttr(value)
+    return value
+
+
+@irdl_attr_definition
+class DeclareActionAttr(ParametrizedAttribute):
+    """
+    Per-variable pre/post (de)allocation hook bundle for the OpenACC
+    declare lowering (upstream
+    `#acc.declare_action<preAlloc = @sym, postAlloc = @sym, ...>`).
+
+    Upstream attaches this as a *discardable* attribute to the variable's
+    allocation site so the declare-directive lowering pass can find the
+    runtime helpers it must invoke around the allocation. Each of the
+    four slots is independently optional: a slot is *absent* if the
+    corresponding hook does not exist for this variable. Absence is
+    modelled with `NoneAttr` (xDSL has no `OptionalParameter` analogue
+    for `ParametrizedAttribute`), and the printer omits absent slots so
+    the on-the-wire form matches upstream's `struct(params)` spelling
+    (`<>` when every slot is absent).
+    """
+
+    name = "acc.declare_action"
+
+    pre_alloc: SymbolRefAttr | NoneAttr = param_def(converter=_coerce_optional_symref)
+    post_alloc: SymbolRefAttr | NoneAttr = param_def(converter=_coerce_optional_symref)
+    pre_dealloc: SymbolRefAttr | NoneAttr = param_def(converter=_coerce_optional_symref)
+    post_dealloc: SymbolRefAttr | NoneAttr = param_def(
+        converter=_coerce_optional_symref
+    )
+
+    def print_parameters(self, printer: Printer) -> None:
+        slots = (
+            ("preAlloc", self.pre_alloc),
+            ("postAlloc", self.post_alloc),
+            ("preDealloc", self.pre_dealloc),
+            ("postDealloc", self.post_dealloc),
+        )
+        present = [
+            (name, value) for name, value in slots if not isinstance(value, NoneAttr)
+        ]
+        with printer.in_angle_brackets():
+            for i, (name, value) in enumerate(present):
+                if i:
+                    printer.print_string(", ")
+                printer.print_string(f"{name} = ")
+                printer.print_attribute(value)
+
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
+        fields = ("preAlloc", "postAlloc", "preDealloc", "postDealloc")
+
+        def parse_field() -> tuple[str, SymbolRefAttr]:
+            key = parser.parse_keyword_in(fields)
+            parser.parse_punctuation("=")
+            ref = parser.parse_attribute()
+            if not isinstance(ref, SymbolRefAttr):
+                parser.raise_error(
+                    f"expected symbol reference for #acc.declare_action "
+                    f"parameter '{key}', got {ref}"
+                )
+            return key, ref
+
+        seen: dict[str, SymbolRefAttr] = {}
+        for key, ref in parser.parse_comma_separated_list(
+            AttrParser.Delimiter.ANGLE, parse_field
+        ):
+            if key in seen:
+                parser.raise_error(f"duplicate struct parameter name: {key}")
+            seen[key] = ref
+        return [seen.get(name, NoneAttr()) for name in fields]
 
 
 @irdl_attr_definition
@@ -5616,6 +5948,12 @@ ACC = Dialect(
         ReductionOpKindAttr,
         GangArgTypeAttr,
         CombinedConstructsTypeAttr,
+        VarNameAttr,
+        ParLevelAttr,
+        RoutineInfoAttr,
+        SpecializedRoutineAttr,
+        DeclareAttr,
+        DeclareActionAttr,
         DataBoundsType,
         DeclareTokenType,
     ],

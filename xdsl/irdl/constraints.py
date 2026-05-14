@@ -196,6 +196,29 @@ TypedAttributeT = TypeVar("TypedAttributeT", bound=TypedAttribute)
 
 
 @dataclass(frozen=True)
+class AnyAttr(AttrConstraint):
+    """Constraint that is verified by all attributes."""
+
+    def verify(
+        self,
+        attr: Attribute,
+        constraint_context: ConstraintContext,
+    ) -> None:
+        pass
+
+    def mapping_type_vars(
+        self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
+    ) -> AnyAttr:
+        return self
+
+    def __or__(self, value: AttrConstraint[_AttributeCovT], /):
+        return self
+
+    def __and__(self, value: AttrConstraint[AttributeCovT], /):
+        return value
+
+
+@dataclass(frozen=True)
 class VarConstraint(AttrConstraint[AttributeCovT]):
     """
     Constrain an attribute with the given constraint, and constrain all occurences
@@ -207,6 +230,12 @@ class VarConstraint(AttrConstraint[AttributeCovT]):
 
     constraint: AttrConstraint[AttributeCovT]
     """The constraint that the variable must satisfy."""
+
+    @staticmethod
+    def get(name: str, constraint: IRDLAttrConstraint[AttributeCovT] = AnyAttr()):
+        from xdsl.irdl import irdl_to_attr_constraint
+
+        return VarConstraint(name, irdl_to_attr_constraint(constraint))
 
     def verify(
         self,
@@ -362,29 +391,6 @@ def attr_constr_coercion(
     from xdsl.irdl import irdl_to_attr_constraint
 
     return irdl_to_attr_constraint(attr)
-
-
-@dataclass(frozen=True)
-class AnyAttr(AttrConstraint):
-    """Constraint that is verified by all attributes."""
-
-    def verify(
-        self,
-        attr: Attribute,
-        constraint_context: ConstraintContext,
-    ) -> None:
-        pass
-
-    def mapping_type_vars(
-        self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
-    ) -> AnyAttr:
-        return self
-
-    def __or__(self, value: AttrConstraint[_AttributeCovT], /):
-        return self
-
-    def __and__(self, value: AttrConstraint[AttributeCovT], /):
-        return value
 
 
 @dataclass(frozen=True, init=False)

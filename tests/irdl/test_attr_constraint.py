@@ -431,7 +431,10 @@ class AttrF(ParametrizedAttribute):
                 AttrF, (AnyAttr(), ParamAttrConstraint(AttrF, (AnyAttr(), AnyAttr())))
             ),
         ),
+        (VarConstraint.get("T"), VarConstraint("T", AnyAttr())),
+        (VarConstraint.get("T", AttrA), VarConstraint("T", BaseAttr(AttrA))),
+        (VarConstraint.get("T", BaseAttr(AttrA)), VarConstraint("T", BaseAttr(AttrA))),
     ],
 )
-def test_param_attr_get(constr: AttrConstraint, expected: AttrConstraint):
+def test_constraint_get(constr: AttrConstraint, expected: AttrConstraint):
     assert constr == expected
