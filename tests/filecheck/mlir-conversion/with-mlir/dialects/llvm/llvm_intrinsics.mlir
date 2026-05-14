@@ -39,6 +39,15 @@
 %ffloor_vec = llvm.intr.floor(%arg2) : (vector<4xf32>) -> vector<4xf32>
 // CHECK: llvm.intr.floor([[arg2]]) : (vector<4xf32>) -> vector<4xf32>
 
+%minnum_f32 = llvm.intr.minnum(%arg0, %arg0) : (f32, f32) -> f32
+// CHECK: llvm.intr.minnum([[arg0]], [[arg0]]) : (f32, f32) -> f32
+
+%minnum_f64 = llvm.intr.minnum(%arg1, %arg1) : (f64, f64) -> f64
+// CHECK: llvm.intr.minnum([[arg1]], [[arg1]]) : (f64, f64) -> f64
+
+%minnum_vec = llvm.intr.minnum(%arg2, %arg2) : (vector<4xf32>, vector<4xf32>) -> vector<4xf32>
+// CHECK: llvm.intr.minnum([[arg2]], [[arg2]]) : (vector<4xf32>, vector<4xf32>) -> vector<4xf32>
+
 %3 = llvm.fneg %arg0 : f32
 // CHECK: llvm.fneg [[arg0]] : f32
 
