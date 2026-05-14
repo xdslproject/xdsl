@@ -52,7 +52,9 @@ class ReorderParallelMovPattern(RewritePattern):
 
                     new_in_regs: list[SSAValue] = []
                     for value in value_by_reg[out_reg]:
-                        rewriter.replace_value_with_new_type(value, in_reg)
+                        new_in_regs.append(
+                            rewriter.replace_value_with_new_type(value, in_reg)
+                        )
                     # update map
                     value_by_reg[in_reg] = new_in_regs
                     value_by_reg[out_reg] = new_out_regs
@@ -60,7 +62,9 @@ class ReorderParallelMovPattern(RewritePattern):
                     # If its not already in the interval, we can just replace out_reg by in_reg
                     new_in_regs: list[SSAValue] = []
                     for value in value_by_reg[out_reg]:
-                        rewriter.replace_value_with_new_type(value, in_reg)
+                        new_in_regs.append(
+                            rewriter.replace_value_with_new_type(value, in_reg)
+                        )
                     # update map
                     value_by_reg[in_reg] = new_in_regs
 
