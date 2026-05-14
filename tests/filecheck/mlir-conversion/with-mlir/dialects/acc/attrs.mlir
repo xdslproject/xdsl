@@ -146,6 +146,53 @@
                 #acc.specialized_routine<@scope::@rt_worker, <worker>, "bar">,
                 // CHECK-SAME: #acc.specialized_routine<@scope::@rt_worker, <worker>, "bar">
 
+                // Declare-clause metadata attribute. Upstream attaches
+                // it to a variable's creation site (e.g. `memref.global`,
+                // `llvm.mlir.global`) to advertise which user-level
+                // `acc declare` clause produced the capture. Upstream's
+                // `struct(params)` printer adds extra whitespace around
+                // the `DataClauseAttr` value (`dataClause =  acc_create`)
+                // — xDSL emits the cleaner single-space form
+                // (`dataClause = acc_create`), and the final `xdsl-opt`
+                // re-emission in the round-trip chain produces the
+                // single-space form regardless of which spelling
+                // `mlir-opt` reflected back.
+                #acc.declare<dataClause = acc_create>,
+                // CHECK-SAME: #acc.declare<dataClause = acc_create>
+                #acc.declare<dataClause = acc_copyin, implicit = true>,
+                // CHECK-SAME: #acc.declare<dataClause = acc_copyin, implicit = true>
+                // `implicit = false` round-trips to the elided form on
+                // both sides — `DefaultValuedParameter<"bool", "false">`
+                // upstream and the matching Python-side default.
+                #acc.declare<dataClause = acc_copyout, implicit = false>,
+                // CHECK-SAME: #acc.declare<dataClause = acc_copyout>
+                // Field-reorder on parse: both dialects accept any
+                // order and re-emit in the upstream declaration order
+                // (`dataClause`, `implicit`).
+                #acc.declare<implicit = true, dataClause = acc_declare_device_resident>,
+                // CHECK-SAME: #acc.declare<dataClause = acc_declare_device_resident, implicit = true>
+
+                // Declare-action metadata attribute. Upstream attaches
+                // it to the variable's allocation site so the declare-
+                // directive lowering can find the pre/post (de)alloc
+                // hooks. All four slots are independently optional
+                // (`OptionalParameter<SymbolRefAttr>`), so the empty
+                // `<>` form is bit-compatible across both dialects.
+                #acc.declare_action<>,
+                // CHECK-SAME: #acc.declare_action<>
+                #acc.declare_action<postAlloc = @post_alloc_hook>,
+                // CHECK-SAME: #acc.declare_action<postAlloc = @post_alloc_hook>
+                // Nested symref slots round-trip identically.
+                #acc.declare_action<preAlloc = @scope::@pre_alloc_hook>,
+                // CHECK-SAME: #acc.declare_action<preAlloc = @scope::@pre_alloc_hook>
+                #acc.declare_action<preAlloc = @a, postAlloc = @b, preDealloc = @c, postDealloc = @d>,
+                // CHECK-SAME: #acc.declare_action<preAlloc = @a, postAlloc = @b, preDealloc = @c, postDealloc = @d>
+                // Subset + reordered input: both dialects re-emit in
+                // declaration order (preAlloc, postAlloc, preDealloc,
+                // postDealloc), dropping absent slots.
+                #acc.declare_action<postDealloc = @d, preAlloc = @a>,
+                // CHECK-SAME: #acc.declare_action<preAlloc = @a, postDealloc = @d>
+
                 // Combined constructs attribute. Upstream's `EnumAttr`
                 // default produces the dot form `#acc.combined_constructs<...>`
                 // — *not* the spaced opaque form

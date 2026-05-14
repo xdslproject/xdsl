@@ -24,6 +24,7 @@ from xdsl.dialects.builtin import (
     IntegerAttr,
     IntegerType,
     MemRefType,
+    NoneAttr,
     StringAttr,
     SymbolNameConstraint,
     SymbolRefAttr,
@@ -54,6 +55,7 @@ from xdsl.irdl import (
     operand_def,
     opt_operand_def,
     opt_prop_def,
+    param_def,
     prop_def,
     region_def,
     result_def,
@@ -555,6 +557,157 @@ class SpecializedRoutineAttr(ParametrizedAttribute):
             parser.parse_punctuation(",")
             func_name = parser.parse_str_literal()
         return [routine, level, StringAttr(func_name)]
+
+
+@irdl_attr_definition
+class DeclareAttr(ParametrizedAttribute):
+    """
+    Records that a variable is captured by an `acc declare` directive
+    (upstream `#acc.declare<dataClause = <clause>[, implicit = true]>`).
+
+    Upstream attaches this as a *discardable* attribute to the variable's
+    creation site — typically a global op (`memref.global`,
+    `llvm.mlir.global`, …) or its allocation site — to advertise which
+    user-level declare clause produced the capture. It pairs with
+    `acc.declare_enter` / `acc.declare_exit` ops, which describe *how*
+    the data action runs at runtime; the attribute itself just preserves
+    the source-level clause kind so analyses can find the variable.
+
+    Parameters mirror upstream: a required `DataClauseAttr` and a
+    defaulted `implicit` flag (`false` unless an OpenACC routine /
+    standalone-declare lowering produced the capture implicitly). When
+    `implicit` is `false` the print form omits it, matching upstream's
+    `DefaultValuedParameter<"bool", "false">` behaviour.
+    """
+
+    name = "acc.declare"
+
+    data_clause: DataClauseAttr
+    implicit: BoolAttr
+
+    def __init__(
+        self,
+        data_clause: DataClauseAttr | DataClause,
+        implicit: BoolAttr | bool = False,
+    ) -> None:
+        if isinstance(data_clause, DataClause):
+            data_clause = DataClauseAttr(data_clause)
+        if isinstance(implicit, bool):
+            implicit = IntegerAttr.from_bool(implicit)
+        super().__init__(data_clause, implicit)
+
+    def print_parameters(self, printer: Printer) -> None:
+        with printer.in_angle_brackets():
+            printer.print_string("dataClause = ")
+            printer.print_string(self.data_clause.data.value)
+            if self.implicit.value.data:
+                printer.print_string(", implicit = true")
+
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
+        def parse_field() -> tuple[str, Attribute]:
+            key = parser.parse_keyword_in(("dataClause", "implicit"))
+            parser.parse_punctuation("=")
+            if key == "dataClause":
+                return key, DataClauseAttr(parser.parse_str_enum(DataClause))
+            return key, IntegerAttr.from_bool(parser.parse_boolean())
+
+        seen: dict[str, Attribute] = {}
+        for key, value in parser.parse_comma_separated_list(
+            AttrParser.Delimiter.ANGLE, parse_field
+        ):
+            if key in seen:
+                parser.raise_error(f"duplicate struct parameter name: {key}")
+            seen[key] = value
+        if "dataClause" not in seen:
+            parser.raise_error("struct is missing required parameter: dataClause")
+        return [seen["dataClause"], seen.get("implicit", IntegerAttr.from_bool(False))]
+
+
+def _coerce_optional_symref(
+    value: SymbolRefAttr | str | None,
+) -> SymbolRefAttr | NoneAttr:
+    """`param_def` converter for `DeclareActionAttr`'s four slots.
+    Absent (None) → `NoneAttr`; bare name → `SymbolRefAttr`; an
+    already-built `SymbolRefAttr` passes through unchanged. Only fires
+    on the Python-construction path; the parser bypasses converters
+    via `attr_def.new(...)`, so parser-produced values must already be
+    `SymbolRefAttr` / `NoneAttr`.
+    """
+    if value is None:
+        return NoneAttr()
+    if isinstance(value, str):
+        return SymbolRefAttr(value)
+    return value
+
+
+@irdl_attr_definition
+class DeclareActionAttr(ParametrizedAttribute):
+    """
+    Per-variable pre/post (de)allocation hook bundle for the OpenACC
+    declare lowering (upstream
+    `#acc.declare_action<preAlloc = @sym, postAlloc = @sym, ...>`).
+
+    Upstream attaches this as a *discardable* attribute to the variable's
+    allocation site so the declare-directive lowering pass can find the
+    runtime helpers it must invoke around the allocation. Each of the
+    four slots is independently optional: a slot is *absent* if the
+    corresponding hook does not exist for this variable. Absence is
+    modelled with `NoneAttr` (xDSL has no `OptionalParameter` analogue
+    for `ParametrizedAttribute`), and the printer omits absent slots so
+    the on-the-wire form matches upstream's `struct(params)` spelling
+    (`<>` when every slot is absent).
+    """
+
+    name = "acc.declare_action"
+
+    pre_alloc: SymbolRefAttr | NoneAttr = param_def(converter=_coerce_optional_symref)
+    post_alloc: SymbolRefAttr | NoneAttr = param_def(converter=_coerce_optional_symref)
+    pre_dealloc: SymbolRefAttr | NoneAttr = param_def(converter=_coerce_optional_symref)
+    post_dealloc: SymbolRefAttr | NoneAttr = param_def(
+        converter=_coerce_optional_symref
+    )
+
+    def print_parameters(self, printer: Printer) -> None:
+        slots = (
+            ("preAlloc", self.pre_alloc),
+            ("postAlloc", self.post_alloc),
+            ("preDealloc", self.pre_dealloc),
+            ("postDealloc", self.post_dealloc),
+        )
+        present = [
+            (name, value) for name, value in slots if not isinstance(value, NoneAttr)
+        ]
+        with printer.in_angle_brackets():
+            for i, (name, value) in enumerate(present):
+                if i:
+                    printer.print_string(", ")
+                printer.print_string(f"{name} = ")
+                printer.print_attribute(value)
+
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
+        fields = ("preAlloc", "postAlloc", "preDealloc", "postDealloc")
+
+        def parse_field() -> tuple[str, SymbolRefAttr]:
+            key = parser.parse_keyword_in(fields)
+            parser.parse_punctuation("=")
+            ref = parser.parse_attribute()
+            if not isinstance(ref, SymbolRefAttr):
+                parser.raise_error(
+                    f"expected symbol reference for #acc.declare_action "
+                    f"parameter '{key}', got {ref}"
+                )
+            return key, ref
+
+        seen: dict[str, SymbolRefAttr] = {}
+        for key, ref in parser.parse_comma_separated_list(
+            AttrParser.Delimiter.ANGLE, parse_field
+        ):
+            if key in seen:
+                parser.raise_error(f"duplicate struct parameter name: {key}")
+            seen[key] = ref
+        return [seen.get(name, NoneAttr()) for name in fields]
 
 
 @irdl_attr_definition
@@ -5799,6 +5952,8 @@ ACC = Dialect(
         ParLevelAttr,
         RoutineInfoAttr,
         SpecializedRoutineAttr,
+        DeclareAttr,
+        DeclareActionAttr,
         DataBoundsType,
         DeclareTokenType,
     ],

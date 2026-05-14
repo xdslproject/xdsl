@@ -12,6 +12,7 @@ from xdsl.dialects.builtin import (
     IndexType,
     IntegerAttr,
     MemRefType,
+    NoneAttr,
     StringAttr,
     SymbolRefAttr,
     UnitAttr,
@@ -511,6 +512,45 @@ def test_specialized_routine_attr_constructor():
     assert from_attrs.routine == SymbolRefAttr("rt2")
     assert from_attrs.level.data == acc.ParLevel.VECTOR
     assert from_attrs.func_name == StringAttr("bar")
+
+
+def test_declare_attr_constructor():
+    """The filecheck round-trip never reaches `DeclareAttr.__init__`
+    (the parser builds the parameter tuple directly via
+    `super().__init__`), so the two `isinstance` coercion branches —
+    bare `DataClause` enum -> `DataClauseAttr`, bare `bool` ->
+    `BoolAttr` — are only exercised here. One case per branch keeps
+    the test tight."""
+    coerced = acc.DeclareAttr(acc.DataClause.ACC_CREATE, True)
+    assert coerced.data_clause.data == acc.DataClause.ACC_CREATE
+    assert coerced.implicit == IntegerAttr.from_bool(True)
+
+    pass_through = acc.DeclareAttr(
+        acc.DataClauseAttr(acc.DataClause.ACC_COPYOUT),
+        IntegerAttr.from_bool(False),
+    )
+    assert pass_through.data_clause.data == acc.DataClause.ACC_COPYOUT
+    assert pass_through.implicit == IntegerAttr.from_bool(False)
+
+
+def test_declare_action_attr_constructor():
+    """The filecheck round-trip never reaches the
+    `_coerce_optional_symref` converter (the parser builds the
+    parameter tuple directly via `attr_def.new`, which bypasses
+    converters), so the three coercion branches — `None` ->
+    `NoneAttr`, `str` -> `SymbolRefAttr`, `SymbolRefAttr` pass-through
+    — are only exercised here. A single call hits all three across
+    the four (positional) slots."""
+    attr = acc.DeclareActionAttr(
+        "a",
+        None,
+        SymbolRefAttr("scope", ["inner"]),
+        None,
+    )
+    assert attr.pre_alloc == SymbolRefAttr("a")
+    assert isinstance(attr.post_alloc, NoneAttr)
+    assert attr.pre_dealloc == SymbolRefAttr("scope", ["inner"])
+    assert isinstance(attr.post_dealloc, NoneAttr)
 
 
 def test_copyin_minimal_defaulted_props_absent_from_dict():

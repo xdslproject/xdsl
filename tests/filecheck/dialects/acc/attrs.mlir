@@ -135,6 +135,45 @@
                 #acc.specialized_routine<@scope::@rt_worker, <worker>, "bar">,
                 // CHECK-SAME: #acc.specialized_routine<@scope::@rt_worker, <worker>, "bar">
 
+                // Declare-clause metadata attribute. Upstream attaches it
+                // to a variable's creation site (e.g. `memref.global`,
+                // `llvm.mlir.global`, allocations) to advertise which
+                // user-level `acc declare` clause produced the capture.
+                // `implicit` defaults to `false` and is elided in that
+                // case; struct-style fields parse in any order but print
+                // in the upstream declaration order (`dataClause`,
+                // `implicit`).
+                #acc.declare<dataClause = acc_create>,
+                // CHECK-SAME: #acc.declare<dataClause = acc_create>
+                #acc.declare<dataClause = acc_copyin, implicit = true>,
+                // CHECK-SAME: #acc.declare<dataClause = acc_copyin, implicit = true>
+                // `implicit = false` round-trips to the elided form.
+                #acc.declare<dataClause = acc_copyout, implicit = false>,
+                // CHECK-SAME: #acc.declare<dataClause = acc_copyout>
+                // Field order is not load-bearing on parse.
+                #acc.declare<implicit = true, dataClause = acc_declare_device_resident>,
+                // CHECK-SAME: #acc.declare<dataClause = acc_declare_device_resident, implicit = true>
+
+                // Declare-action metadata attribute. Upstream attaches
+                // it to the variable's allocation site so the declare-
+                // directive lowering can find the pre/post (de)alloc
+                // hooks for the variable. Each of the four slots is
+                // independently optional; absent slots are stored as
+                // `NoneAttr` and elided on print. The all-empty form
+                // is `<>` (matches upstream).
+                #acc.declare_action<>,
+                // CHECK-SAME: #acc.declare_action<>
+                #acc.declare_action<preAlloc = @pre_alloc_hook>,
+                // CHECK-SAME: #acc.declare_action<preAlloc = @pre_alloc_hook>
+                #acc.declare_action<postAlloc = @scope::@post_alloc_hook>,
+                // CHECK-SAME: #acc.declare_action<postAlloc = @scope::@post_alloc_hook>
+                #acc.declare_action<preAlloc = @a, postAlloc = @b, preDealloc = @c, postDealloc = @d>,
+                // CHECK-SAME: #acc.declare_action<preAlloc = @a, postAlloc = @b, preDealloc = @c, postDealloc = @d>
+                // Subset + reordered input prints back in declaration
+                // order (preAlloc, postAlloc, preDealloc, postDealloc).
+                #acc.declare_action<postDealloc = @d, preAlloc = @a>,
+                // CHECK-SAME: #acc.declare_action<preAlloc = @a, postDealloc = @d>
+
                 // Combined constructs attribute. Used by `acc.loop` to
                 // identify the user-level `kernels loop` / `parallel loop`
                 // / `serial loop` it was decomposed from.
