@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from typing import Annotated, ClassVar, Generic
 
 import pytest
@@ -911,7 +912,9 @@ def test_multiple_entry_args_op():
     op = MultipleEntryArgsOp.build(regions=[None, [Region(Block(arg_types=[i32]))], []])
     with pytest.raises(
         VerifyException,
-        match=r"Region 'bodies1\[0\]' at position 0 entry arguments do not verify:",
+        match=re.escape(
+            "Region 'bodies1[0]' at position 0 entry arguments do not verify:"
+        ),
     ):
         op.verify()
 
