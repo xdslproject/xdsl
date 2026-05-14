@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from typing import Annotated, ClassVar, Generic
 
 import pytest
@@ -16,8 +17,8 @@ from xdsl.dialects.builtin import (
     i32,
     i64,
 )
-from xdsl.dialects.test import TestType
-from xdsl.ir import Block, Region
+from xdsl.dialects.test import TestTermOp, TestType
+from xdsl.ir import Attribute, Block, OpResult, Region, SSAValue, SSAValues
 from xdsl.irdl import (
     AnyAttr,
     AnyInt,
@@ -26,6 +27,7 @@ from xdsl.irdl import (
     AttrSizedOperandSegments,
     AttrSizedRegionSegments,
     AttrSizedResultSegments,
+    AttrSizedSuccessorSegments,
     BaseAttr,
     EqAttrConstraint,
     IntVarConstraint,
@@ -54,6 +56,7 @@ from xdsl.irdl import (
     var_operand_def,
     var_region_def,
     var_result_def,
+    var_successor_def,
 )
 from xdsl.parser import Parser
 from xdsl.traits import NoTerminator
@@ -281,8 +284,10 @@ def test_generic_constraint_var_fail_not_satisfy_constraint():
 class ConstraintRangeVarOp(IRDLOperation):
     name = "test.constraint_range_var"
 
-    operand = var_operand_def(RangeVarConstraint("T", RangeOf(AnyOf((i32, IndexType)))))
-    result = var_result_def(RangeVarConstraint("T", RangeOf(AnyOf((i32, IndexType)))))
+    operand = var_operand_def(
+        RangeVarConstraint("T", RangeOf(AnyOf.get(i32, IndexType)))
+    )
+    result = var_result_def(RangeVarConstraint("T", RangeOf(AnyOf.get(i32, IndexType))))
 
 
 def test_range_var():
@@ -620,6 +625,100 @@ def test_undefined_property():
         op.verify()
 
 
+def test_op_accessor_assignment():
+    """Test that operation constructs cannot be assigned via an op's named constructs."""
+    val1, val2 = create_ssa_value(i32), create_ssa_value(i32)
+    op1 = TestTermOp.create(operands=[val1, val2])
+    op1.verify()
+
+    new_operands: SSAValues[SSAValue[Attribute]] = SSAValues((val1, val2))
+    with pytest.raises(
+        NotImplementedError,
+        match="Cannot write to named operands, regions, results, or successors.",
+    ):
+        op1.ops = new_operands
+
+    new_results: SSAValues[OpResult[Attribute]] = SSAValues((val1, val2))
+    with pytest.raises(
+        NotImplementedError,
+        match="Cannot write to named operands, regions, results, or successors.",
+    ):
+        op1.res = new_results
+
+    with pytest.raises(
+        NotImplementedError,
+        match="Cannot write to named operands, regions, results, or successors.",
+    ):
+        op1.regs = (Region(),)
+
+    with pytest.raises(
+        NotImplementedError,
+        match="Cannot write to named operands, regions, results, or successors.",
+    ):
+        op1.successor = [Block(), Block()]
+
+
+def test_op_segmented_accessor_assignment():
+    """Test that operation constructs cannot be assigned via an op's named constructs when using segment size based accessors."""
+
+    @irdl_op_definition
+    class TestSegmentedOp(IRDLOperation):
+        name = "test.segmentedop"
+        operands1 = var_operand_def()
+        operands2 = var_operand_def()
+
+        results1 = var_result_def()
+        results2 = var_result_def()
+
+        regions1 = var_region_def()
+        regions2 = var_region_def()
+
+        successors1 = var_successor_def()
+        successors2 = var_successor_def()
+
+        irdl_options = (
+            AttrSizedOperandSegments(as_property=True),
+            AttrSizedResultSegments(as_property=True),
+            AttrSizedRegionSegments(as_property=True),
+            AttrSizedSuccessorSegments(as_property=True),
+        )
+
+    val1, val2 = create_ssa_value(i32), create_ssa_value(i32)
+    op1 = TestSegmentedOp.build(
+        operands=[[val1], [val2]],
+        result_types=[[], []],
+        regions=[[], []],
+        successors=[[], []],
+    )
+    op1.verify()
+
+    new_operands: SSAValues[SSAValue[Attribute]] = SSAValues((val1, val2))
+    with pytest.raises(
+        NotImplementedError,
+        match="Cannot write to named operands, regions, results, or successors.",
+    ):
+        op1.operands1 = new_operands
+
+    new_results: SSAValues[OpResult[Attribute]] = SSAValues((val1, val2))
+    with pytest.raises(
+        NotImplementedError,
+        match="Cannot write to named operands, regions, results, or successors.",
+    ):
+        op1.results1 = new_results
+
+    with pytest.raises(
+        NotImplementedError,
+        match="Cannot write to named operands, regions, results, or successors.",
+    ):
+        op1.regions1 = (Region(),)
+
+    with pytest.raises(
+        NotImplementedError,
+        match="Cannot write to named operands, regions, results, or successors.",
+    ):
+        op1.successors1 = [Block(), Block()]
+
+
 ################################################################################
 #                            Renamed attributes                                #
 ################################################################################
@@ -873,7 +972,7 @@ def test_entry_args_op():
     with pytest.raises(
         VerifyException,
         match="""\
-Operation does not verify: region #0 entry arguments do not verify:
+Operation does not verify: Region 'body' at position 0 entry arguments do not verify:
 .*Expected attribute i32 but got i64""",
     ):
         op.verify()
@@ -882,10 +981,49 @@ Operation does not verify: region #0 entry arguments do not verify:
     with pytest.raises(
         VerifyException,
         match="""\
-Operation does not verify: region #0 entry arguments do not verify:
+Operation does not verify: Region 'body' at position 0 entry arguments do not verify:
 .*Expected attribute i32 but got i64""",
     ):
         op.verify()
+
+
+@irdl_op_definition
+class MultipleEntryArgsOp(IRDLOperation):
+    name = "test.entry_args"
+    body1 = opt_region_def(entry_args=RangeOf(AnyAttr()).of_length(1))
+    bodies1 = var_region_def(entry_args=RangeOf(AnyAttr()).of_length(2))
+    bodies2 = var_region_def(entry_args=RangeOf(AnyAttr()).of_length(3))
+
+    traits = traits_def(NoTerminator())
+
+    irdl_options = (AttrSizedRegionSegments(),)
+
+
+def test_multiple_entry_args_op():
+
+    op = MultipleEntryArgsOp.build(regions=[None, [], []])
+    op.verify()
+
+    op = MultipleEntryArgsOp.build(regions=[Region(Block(arg_types=[i32])), [], []])
+    op.verify()
+
+    op = MultipleEntryArgsOp.build(regions=[None, [Region(Block(arg_types=[i32]))], []])
+    with pytest.raises(
+        VerifyException,
+        match=re.escape(
+            "Region 'bodies1[0]' at position 0 entry arguments do not verify:"
+        ),
+    ):
+        op.verify()
+
+    op = MultipleEntryArgsOp.build(
+        regions=[
+            Region(Block(arg_types=[i32])),
+            [Region(Block(arg_types=[i32, i32])), Region(Block(arg_types=[i32, i32]))],
+            [],
+        ]
+    )
+    op.verify()
 
 
 class OptionlessMultipleVarOp(IRDLOperation):

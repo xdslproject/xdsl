@@ -772,6 +772,18 @@ builtin.module {
   // CHECK-NEXT:   ret float %"[[RES]]"
   // CHECK-NEXT: }
 
+  llvm.func @exp_op(%arg0: f32) -> f32 {
+    %0 = llvm.intr.exp(%arg0) : (f32) -> f32
+    llvm.return %0 : f32
+  }
+
+  // CHECK: define float @"exp_op"(float %".1")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: [[ENTRY:.\d+]]:
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = call float @"llvm.exp"(float %".1")
+  // CHECK-NEXT:   ret float %"[[RES]]"
+  // CHECK-NEXT: }
+
   llvm.func @fneg_op(%arg0: f32) -> f32 {
     %0 = llvm.fneg %arg0 : f32
     llvm.return %0 : f32
@@ -786,13 +798,7 @@ builtin.module {
 
   // forward_ref_caller calls forward_ref_callee which is defined AFTER it
   llvm.func @forward_ref_caller(%arg0: i32) -> i32 {
-    %0 = "llvm.call"(%arg0) <{
-      callee = @forward_ref_callee,
-      fastmathFlags = #llvm.fastmath<none>,
-      CConv = #llvm.cconv<ccc>,
-      TailCallKind = #llvm.tailcallkind<none>,
-      operandSegmentSizes = array<i32: 1, 0>
-    }> : (i32) -> i32
+    %0 = llvm.call @forward_ref_callee(%arg0) : (i32) -> i32
     llvm.return %0 : i32
   }
 
@@ -961,7 +967,7 @@ builtin.module {
 
   llvm.func @addressof_op() {
     %0 = llvm.mlir.addressof @addressof_target : !llvm.ptr
-    "llvm.call"(%0) <{callee = @callee, fastmathFlags = #llvm.fastmath<>, CConv = #llvm.cconv<ccc>, TailCallKind = #llvm.tailcallkind<none>, operandSegmentSizes = array<i32: 1, 0>}> : (!llvm.ptr) -> ()
+    llvm.call @callee(%0) : (!llvm.ptr) -> ()
     llvm.return
   }
 

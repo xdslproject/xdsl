@@ -614,6 +614,14 @@ def test_flog_op():
     assert op.res.type == builtin.f32
 
 
+def test_fexp_op():
+    val = create_ssa_value(builtin.f32)
+    op = llvm.FExpOp(val)
+    assert op.arg == val
+    assert op.res.type == builtin.f32
+    assert op.name == "llvm.intr.exp"
+
+
 def test_fneg_op():
     val = create_ssa_value(builtin.f32)
     op = llvm.FNegOp(val)

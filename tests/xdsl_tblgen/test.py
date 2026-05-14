@@ -44,10 +44,10 @@ class Test_AnyAttrOfOp(IRDLOperation):
 
     attr = prop_def(
         AnyOf(
-            [
+            (
                 IntegerAttr.constr(EqAttrConstraint(IntegerType(32))),
                 BaseAttr(StringAttr),
-            ]
+            )
         )
     )
 
@@ -56,7 +56,7 @@ class Test_AnyAttrOfOp(IRDLOperation):
 class Test_AnyAttrOfSingleOp(IRDLOperation):
     name = "test.any_attr_of_i32"
 
-    attr = prop_def(AnyOf([IntegerAttr.constr(EqAttrConstraint(IntegerType(32)))]))
+    attr = prop_def(AnyOf((IntegerAttr.constr(EqAttrConstraint(IntegerType(32))),)))
 
 
 @irdl_op_definition

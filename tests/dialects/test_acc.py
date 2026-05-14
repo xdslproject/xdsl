@@ -12,6 +12,7 @@ from xdsl.dialects.builtin import (
     IndexType,
     IntegerAttr,
     MemRefType,
+    NoneAttr,
     StringAttr,
     SymbolRefAttr,
     UnitAttr,
@@ -460,6 +461,96 @@ def test_data_clause_modifier_attr_constructor():
     assert multi.data == frozenset(
         {acc.DataClauseModifier.READONLY, acc.DataClauseModifier.ZERO}
     )
+
+
+def test_var_name_attr_constructor():
+    """`VarNameAttr` accepts both `str` and `StringAttr` and stores the
+    StringAttr on `.var_name`. Pretty-form `<"..."` printing/parsing is
+    covered by filecheck in `tests/filecheck/dialects/acc/attrs.mlir`."""
+    from_str = acc.VarNameAttr("foo")
+    assert isinstance(from_str.var_name, StringAttr)
+    assert from_str.var_name.data == "foo"
+
+    from_attr = acc.VarNameAttr(StringAttr("bar"))
+    assert isinstance(from_attr.var_name, StringAttr)
+    assert from_attr.var_name.data == "bar"
+
+
+def test_routine_info_attr_constructor():
+    """`RoutineInfoAttr` accepts either an `ArrayAttr[SymbolRefAttr]` or
+    a plain `Sequence[SymbolRefAttr]` (Python-builder convenience) and
+    stores the result on `.acc_routines`. Pretty-form `<[...]>` is
+    covered by filecheck in `tests/filecheck/dialects/acc/attrs.mlir`."""
+    rt1 = SymbolRefAttr("rt1")
+    rt2 = SymbolRefAttr("rt2")
+
+    from_seq = acc.RoutineInfoAttr([rt1, rt2])
+    assert isinstance(from_seq.acc_routines, ArrayAttr)
+    assert tuple(from_seq.acc_routines.data) == (rt1, rt2)
+
+    from_array = acc.RoutineInfoAttr(ArrayAttr([rt1]))
+    assert tuple(from_array.acc_routines.data) == (rt1,)
+
+
+def test_specialized_routine_attr_constructor():
+    """`SpecializedRoutineAttr` accepts plain `str` for `routine` /
+    `func_name` and a bare `ParLevel` enum value for `level`, normalising
+    each to its attribute counterpart. Filecheck owns pretty-form
+    round-tripping; the conversions here are Python-only and would not
+    otherwise be exercised."""
+    from_strings = acc.SpecializedRoutineAttr("rt1", acc.ParLevel.GANG_DIM1, "foo")
+    assert from_strings.routine == SymbolRefAttr("rt1")
+    assert isinstance(from_strings.level, acc.ParLevelAttr)
+    assert from_strings.level.data == acc.ParLevel.GANG_DIM1
+    assert from_strings.func_name == StringAttr("foo")
+
+    from_attrs = acc.SpecializedRoutineAttr(
+        SymbolRefAttr("rt2"),
+        acc.ParLevelAttr(acc.ParLevel.VECTOR),
+        StringAttr("bar"),
+    )
+    assert from_attrs.routine == SymbolRefAttr("rt2")
+    assert from_attrs.level.data == acc.ParLevel.VECTOR
+    assert from_attrs.func_name == StringAttr("bar")
+
+
+def test_declare_attr_constructor():
+    """The filecheck round-trip never reaches `DeclareAttr.__init__`
+    (the parser builds the parameter tuple directly via
+    `super().__init__`), so the two `isinstance` coercion branches —
+    bare `DataClause` enum -> `DataClauseAttr`, bare `bool` ->
+    `BoolAttr` — are only exercised here. One case per branch keeps
+    the test tight."""
+    coerced = acc.DeclareAttr(acc.DataClause.ACC_CREATE, True)
+    assert coerced.data_clause.data == acc.DataClause.ACC_CREATE
+    assert coerced.implicit == IntegerAttr.from_bool(True)
+
+    pass_through = acc.DeclareAttr(
+        acc.DataClauseAttr(acc.DataClause.ACC_COPYOUT),
+        IntegerAttr.from_bool(False),
+    )
+    assert pass_through.data_clause.data == acc.DataClause.ACC_COPYOUT
+    assert pass_through.implicit == IntegerAttr.from_bool(False)
+
+
+def test_declare_action_attr_constructor():
+    """The filecheck round-trip never reaches the
+    `_coerce_optional_symref` converter (the parser builds the
+    parameter tuple directly via `attr_def.new`, which bypasses
+    converters), so the three coercion branches — `None` ->
+    `NoneAttr`, `str` -> `SymbolRefAttr`, `SymbolRefAttr` pass-through
+    — are only exercised here. A single call hits all three across
+    the four (positional) slots."""
+    attr = acc.DeclareActionAttr(
+        "a",
+        None,
+        SymbolRefAttr("scope", ["inner"]),
+        None,
+    )
+    assert attr.pre_alloc == SymbolRefAttr("a")
+    assert isinstance(attr.post_alloc, NoneAttr)
+    assert attr.pre_dealloc == SymbolRefAttr("scope", ["inner"])
+    assert isinstance(attr.post_dealloc, NoneAttr)
 
 
 def test_copyin_minimal_defaulted_props_absent_from_dict():
@@ -1115,6 +1206,29 @@ def test_atomic_update_builder():
 
     acc.AtomicUpdateOp(x=x, region=_body()).verify()
     acc.AtomicUpdateOp(x=x, region=_body(), if_cond=cond).verify()
+
+
+def test_atomic_capture_builder():
+    """The `AtomicCaptureOp` Python builder — filecheck constructs via the
+    IRDL generic constructor and never runs `__init__`."""
+    v = create_ssa_value(MemRefType(i32, ()))
+    x = create_ssa_value(MemRefType(i32, ()))
+    expr = create_ssa_value(i32)
+    cond = create_ssa_value(i1)
+
+    def _body() -> Region:
+        return Region(
+            Block(
+                [
+                    acc.AtomicReadOp(x=x, v=v, element_type=i32),
+                    acc.AtomicWriteOp(x=x, expr=expr),
+                    acc.TerminatorOp(),
+                ]
+            )
+        )
+
+    acc.AtomicCaptureOp(region=_body()).verify()
+    acc.AtomicCaptureOp(region=_body(), if_cond=cond).verify()
 
 
 def test_atomic_write_skips_check_for_non_memref():
