@@ -1795,7 +1795,7 @@ class BaseAccessor(ABC):
     def __set__(self, instance, value) -> NoReturn:
         """Writing to a named Operation construct is unsupported.
         It is recommended to create a new operation instead."""
-        raise AssertionError(
+        raise NotImplementedError(
             "Cannot write to named operands, regions, results, or successors."
         )
 
@@ -1928,7 +1928,7 @@ class BaseAttrAccessor(ABC):
     def __set__(self, instance, value) -> NoReturn:
         """Writing to a named Operation construct is unsupported.
         It is recommended to create a new operation instead."""
-        raise AssertionError(
+        raise NotImplementedError(
             "Cannot write to named operands, regions, results, or successors."
         )
 

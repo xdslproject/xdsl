@@ -264,17 +264,29 @@ def test_op_accessor_assignment():
     op1.verify()
 
     new_operands: SSAValues[SSAValue[Attribute]] = SSAValues((val1, val2))
-    with pytest.raises(AssertionError):
+    with pytest.raises(
+        NotImplementedError,
+        match="Cannot write to named operands, regions, results, or successors.",
+    ):
         op1.ops = new_operands
 
     new_results: SSAValues[OpResult[Attribute]] = SSAValues((val1, val2))
-    with pytest.raises(AssertionError):
+    with pytest.raises(
+        NotImplementedError,
+        match="Cannot write to named operands, regions, results, or successors.",
+    ):
         op1.res = new_results
 
-    with pytest.raises(AssertionError):
+    with pytest.raises(
+        NotImplementedError,
+        match="Cannot write to named operands, regions, results, or successors.",
+    ):
         op1.regs = (Region(),)
 
-    with pytest.raises(AssertionError):
+    with pytest.raises(
+        NotImplementedError,
+        match="Cannot write to named operands, regions, results, or successors.",
+    ):
         op1.successor = [Block(), Block()]
 
 
@@ -313,17 +325,29 @@ def test_op_segmented_accessor_assignment():
     op1.verify()
 
     new_operands: SSAValues[SSAValue[Attribute]] = SSAValues((val1, val2))
-    with pytest.raises(AssertionError):
+    with pytest.raises(
+        NotImplementedError,
+        match="Cannot write to named operands, regions, results, or successors.",
+    ):
         op1.operands1 = new_operands
 
     new_results: SSAValues[OpResult[Attribute]] = SSAValues((val1, val2))
-    with pytest.raises(AssertionError):
+    with pytest.raises(
+        NotImplementedError,
+        match="Cannot write to named operands, regions, results, or successors.",
+    ):
         op1.results1 = new_results
 
-    with pytest.raises(AssertionError):
+    with pytest.raises(
+        NotImplementedError,
+        match="Cannot write to named operands, regions, results, or successors.",
+    ):
         op1.regions1 = (Region(),)
 
-    with pytest.raises(AssertionError):
+    with pytest.raises(
+        NotImplementedError,
+        match="Cannot write to named operands, regions, results, or successors.",
+    ):
         op1.successors1 = [Block(), Block()]
 
 
