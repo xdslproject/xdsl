@@ -75,9 +75,11 @@ class RISCVLegalizeParallelMovPass(ModulePass):
 
             # Liveness analysis
             for defn in inner_op.results:
-                live_values.discard(defn)
+                if isinstance(defn.type, RISCVRegisterType):
+                    live_values.discard(defn)
             for use in inner_op.operands:
-                live_values.add(use)
+                if isinstance(use.type, RISCVRegisterType):
+                    live_values.add(use)
 
     def fill_live_values(
         self, pmov_op: ParallelMovOp, live_values: OrderedSet[SSAValue]
