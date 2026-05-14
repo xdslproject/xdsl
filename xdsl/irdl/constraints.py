@@ -707,10 +707,10 @@ class ParamAttrConstraint(
 
     def mapping_type_vars(
         self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
-    ) -> ParamAttrConstraint[ParametrizedAttributeCovT]:
-        return ParamAttrConstraint(
+    ) -> AttrConstraint[ParametrizedAttributeCovT]:
+        return ParamAttrConstraint.get(
             self.base_attr,
-            tuple(c.mapping_type_vars(type_var_mapping) for c in self.param_constrs),
+            *(c.mapping_type_vars(type_var_mapping) for c in self.param_constrs),
         )
 
     def __or__(self, value: AttrConstraint[_AttributeCovT], /):

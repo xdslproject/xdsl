@@ -9,6 +9,7 @@ from typing_extensions import TypeVar
 from xdsl.dialects.bufferization import TensorFromMemRefConstraint
 from xdsl.dialects.builtin import (
     IndexType,
+    IntAttr,
     IntAttrConstraint,
     IntegerType,
     MemRefType,
@@ -29,6 +30,7 @@ from xdsl.irdl import (
     ConstraintContext,
     EqAttrConstraint,
     EqIntConstraint,
+    IntSetConstraint,
     IntTypeVarConstraint,
     ParamAttrConstraint,
     VarConstraint,
@@ -383,8 +385,12 @@ def test_mapping_type_vars():
     tv_constr = IntTypeVarConstraint(_IntT, AnyInt())
     int_attr_constr = IntAttrConstraint(tv_constr)
     my_constr = EqIntConstraint(1)
-    assert int_attr_constr.mapping_type_vars({_IntT: my_constr}) == IntAttrConstraint(
-        my_constr
+    assert int_attr_constr.mapping_type_vars({_IntT: my_constr}) == EqAttrConstraint(
+        IntAttr(1)
+    )
+    my_constr_2 = IntSetConstraint(frozenset((1, 2)))
+    assert int_attr_constr.mapping_type_vars({_IntT: my_constr_2}) == IntAttrConstraint(
+        my_constr_2
     )
 
 
