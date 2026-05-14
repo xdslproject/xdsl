@@ -26,6 +26,17 @@ PRECISIONS = pytest.mark.parametrize(
 )
 
 
+def _underflow_at(elem_ty: _FloatTy) -> float:
+    """UNDERFLOW_LOWER_BOUND rounded to elem_ty's precision (matches what
+    the pass stores in `domain_lower` after `FloatAttr(_, elem_ty)`)."""
+    return FloatAttr(UNDERFLOW_LOWER_BOUND[type(elem_ty)], elem_ty).value.data
+
+
+def _overflow_at(elem_ty: _FloatTy) -> float:
+    """OVERFLOW_UPPER_BOUND rounded to elem_ty's precision."""
+    return FloatAttr(OVERFLOW_UPPER_BOUND[type(elem_ty)], elem_ty).value.data
+
+
 def _run_pass(elem_ty: _FloatTy, attrs: dict[str, int | float]) -> ModuleOp:
     operand = create_ssa_value(elem_ty)
     exp_op = math_dialect.ExpOp(operand)
@@ -50,8 +61,8 @@ def test_default_no_bounds(elem_ty: _FloatTy):
     assert isinstance(eval_op, polynomial.EvalOp)
     assert eval_op.domain_lower is not None
     assert eval_op.domain_upper is not None
-    assert eval_op.domain_lower.value.data == UNDERFLOW_LOWER_BOUND[type(elem_ty)]
-    assert eval_op.domain_upper.value.data == OVERFLOW_UPPER_BOUND[type(elem_ty)]
+    assert eval_op.domain_lower.value.data == _underflow_at(elem_ty)
+    assert eval_op.domain_upper.value.data == _overflow_at(elem_ty)
 
 
 @PRECISIONS
@@ -75,8 +86,8 @@ def test_max_bits_lost_only(elem_ty: _FloatTy):
     assert isinstance(eval_op, polynomial.EvalOp)
     assert eval_op.domain_lower is not None
     assert eval_op.domain_upper is not None
-    assert eval_op.domain_lower.value.data == UNDERFLOW_LOWER_BOUND[type(elem_ty)]
-    assert eval_op.domain_upper.value.data == OVERFLOW_UPPER_BOUND[type(elem_ty)]
+    assert eval_op.domain_lower.value.data == _underflow_at(elem_ty)
+    assert eval_op.domain_upper.value.data == _overflow_at(elem_ty)
 
 
 @PRECISIONS
@@ -109,7 +120,7 @@ def test_max_bits_lost_lower_out_of_range(elem_ty: _FloatTy):
     assert isinstance(eval_op, polynomial.EvalOp)
     assert eval_op.domain_lower is not None
     assert eval_op.domain_upper is not None
-    assert eval_op.domain_lower.value.data == UNDERFLOW_LOWER_BOUND[type(elem_ty)]
+    assert eval_op.domain_lower.value.data == _underflow_at(elem_ty)
     assert eval_op.domain_upper.value.data == 0.5
 
 
@@ -129,7 +140,7 @@ def test_max_bits_lost_upper_out_of_range(elem_ty: _FloatTy):
     assert eval_op.domain_lower is not None
     assert eval_op.domain_upper is not None
     assert eval_op.domain_lower.value.data == -0.5
-    assert eval_op.domain_upper.value.data == OVERFLOW_UPPER_BOUND[type(elem_ty)]
+    assert eval_op.domain_upper.value.data == _overflow_at(elem_ty)
 
 
 @PRECISIONS
@@ -141,7 +152,7 @@ def test_max_bits_lost_lower_only_in_range(elem_ty: _FloatTy):
     assert eval_op.domain_lower is not None
     assert eval_op.domain_upper is not None
     assert eval_op.domain_lower.value.data == -0.5
-    assert eval_op.domain_upper.value.data == OVERFLOW_UPPER_BOUND[type(elem_ty)]
+    assert eval_op.domain_upper.value.data == _overflow_at(elem_ty)
 
 
 @PRECISIONS
@@ -152,8 +163,8 @@ def test_max_bits_lost_lower_only_out_of_range(elem_ty: _FloatTy):
     assert isinstance(eval_op, polynomial.EvalOp)
     assert eval_op.domain_lower is not None
     assert eval_op.domain_upper is not None
-    assert eval_op.domain_lower.value.data == UNDERFLOW_LOWER_BOUND[type(elem_ty)]
-    assert eval_op.domain_upper.value.data == OVERFLOW_UPPER_BOUND[type(elem_ty)]
+    assert eval_op.domain_lower.value.data == _underflow_at(elem_ty)
+    assert eval_op.domain_upper.value.data == _overflow_at(elem_ty)
 
 
 @PRECISIONS
@@ -164,7 +175,7 @@ def test_max_bits_lost_upper_only_in_range(elem_ty: _FloatTy):
     assert isinstance(eval_op, polynomial.EvalOp)
     assert eval_op.domain_lower is not None
     assert eval_op.domain_upper is not None
-    assert eval_op.domain_lower.value.data == UNDERFLOW_LOWER_BOUND[type(elem_ty)]
+    assert eval_op.domain_lower.value.data == _underflow_at(elem_ty)
     assert eval_op.domain_upper.value.data == 0.5
 
 
@@ -176,5 +187,5 @@ def test_max_bits_lost_upper_only_out_of_range(elem_ty: _FloatTy):
     assert isinstance(eval_op, polynomial.EvalOp)
     assert eval_op.domain_lower is not None
     assert eval_op.domain_upper is not None
-    assert eval_op.domain_lower.value.data == UNDERFLOW_LOWER_BOUND[type(elem_ty)]
-    assert eval_op.domain_upper.value.data == OVERFLOW_UPPER_BOUND[type(elem_ty)]
+    assert eval_op.domain_lower.value.data == _underflow_at(elem_ty)
+    assert eval_op.domain_upper.value.data == _overflow_at(elem_ty)
