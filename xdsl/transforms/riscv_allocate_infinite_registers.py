@@ -6,7 +6,6 @@ from xdsl.context import Context
 from xdsl.dialects import builtin, riscv, riscv_func
 from xdsl.passes import ModulePass
 from xdsl.rewriter import Rewriter
-from xdsl.utils.exceptions import PassFailedException
 
 
 @dataclass(frozen=True)
@@ -75,7 +74,8 @@ class RISCVAllocateInfiniteRegistersPass(ModulePass):
                 for result in inner_op.results:
                     result_reg = result.type
                     if not isinstance(result_reg, riscv.RISCVRegisterType):
-                        raise PassFailedException("Operand type not a register")
+                        # Ignore non-register types
+                        continue
 
                     if (
                         isinstance(result_reg.index, builtin.IntAttr)
