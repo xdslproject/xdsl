@@ -31,8 +31,6 @@
 %fsqrt_vec = llvm.intr.sqrt(%vec_f32) : (vector<4xf32>) -> vector<4xf32>
 // CHECK-NEXT: %fsqrt_vec = llvm.intr.sqrt(%vec_f32) : (vector<4xf32>) -> vector<4xf32>
 
-<<<<<<< HEAD
-=======
 %ffloor_f32 = llvm.intr.floor(%f32) : (f32) -> f32
 // CHECK: %ffloor_f32 = llvm.intr.floor(%f32) : (f32) -> f32
 
@@ -42,7 +40,6 @@
 %ffloor_vec = llvm.intr.floor(%vec_f32) : (vector<4xf32>) -> vector<4xf32>
 // CHECK-NEXT: %ffloor_vec = llvm.intr.floor(%vec_f32) : (vector<4xf32>) -> vector<4xf32>
 
->>>>>>> 08857e1cb (dialects: (llvm) add FFloorOp)
 %flog_f32 = llvm.intr.log(%f32) : (f32) -> f32
 // CHECK: %flog_f32 = llvm.intr.log(%f32) : (f32) -> f32
 
