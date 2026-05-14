@@ -72,4 +72,7 @@ class RISCVReorderInfinitePass(ModulePass):
     name = "riscv-reorder-infinite"
 
     def apply(self, ctx: Context, op: ModuleOp) -> None:
-        PatternRewriteWalker(ReorderParallelMovPattern()).rewrite_module(op)
+        PatternRewriteWalker(
+            ReorderParallelMovPattern(),
+            apply_recursively=False,
+        ).rewrite_module(op)
