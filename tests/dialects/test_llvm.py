@@ -614,6 +614,13 @@ def test_ffloor_op():
     assert op.res.type == builtin.f32
 
 
+def test_fexp2_op():
+    val = create_ssa_value(builtin.f32)
+    op = llvm.FExp2Op(val)
+    assert op.arg == val
+    assert op.res.type == builtin.f32
+
+
 def test_flog_op():
     val = create_ssa_value(builtin.f32)
     op = llvm.FLogOp(val)
