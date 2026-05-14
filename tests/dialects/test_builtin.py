@@ -52,11 +52,13 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.ir import Attribute, Data
 from xdsl.irdl import (
+    AnyAttr,
     AnyInt,
     AtMost,
     BaseAttr,
     ConstraintContext,
     NotEqualIntConstraint,
+    ParamAttrConstraint,
     RangeLengthConstraint,
     RangeOf,
     RangeVarConstraint,
@@ -926,6 +928,7 @@ def test_integer_type_repr():
 
 def test_vector_constr():
     constr = VectorType.constr(i32)
+    assert constr == ParamAttrConstraint.get(VectorType, i32, AnyAttr(), AnyAttr())
     constr.verify(VectorType(i32, [1]), ConstraintContext())
     constr.verify(VectorType(i32, [1, 2]), ConstraintContext())
     with pytest.raises(VerifyException):
@@ -938,6 +941,7 @@ def test_vector_constr():
         shape=shape,
         scalable_dims=scalable_dims,
     )
+    assert constr == ParamAttrConstraint.get(VectorType, i32, shape, scalable_dims)
     constr.verify(VectorType(i32, shape, scalable_dims), ConstraintContext())
     with pytest.raises(VerifyException):
         constr.verify(VectorType(i32, [1, 2], scalable_dims), ConstraintContext())
