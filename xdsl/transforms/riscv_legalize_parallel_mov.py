@@ -11,6 +11,12 @@ from xdsl.dialects.riscv import RISCVRegisterType
 from xdsl.dialects.riscv.ops import ParallelMovOp
 from xdsl.ir import SSAValue
 from xdsl.passes import ModulePass
+from xdsl.pattern_rewriter import (
+    PatternRewriter,
+    PatternRewriteWalker,
+    RewritePattern,
+    op_type_rewrite_pattern,
+)
 from xdsl.rewriter import Rewriter
 
 
@@ -18,7 +24,6 @@ def extend_parallel_mov_op(
     pmov_op: ParallelMovOp, new_values: Sequence[SSAValue]
 ) -> ParallelMovOp:
     """Extend a ParallelMovOp with additional inputs/outputs that must cross it."""
-
     new_input_types: list[RISCVRegisterType] = []
     new_widths: list[int] = []
 
@@ -42,6 +47,13 @@ def extend_parallel_mov_op(
     )
 
 
+class RemoveEmptyParallelMovOps(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: ParallelMovOp, rewriter: PatternRewriter) -> None:
+        if len(op.inputs) == 0:
+            rewriter.replace_matched_op([], [])
+
+
 @dataclass(frozen=True)
 class RISCVLegalizeParallelMovPass(ModulePass):
     """Legalizes ParallelMovOp such that no live ranges cross it."""
@@ -49,6 +61,7 @@ class RISCVLegalizeParallelMovPass(ModulePass):
     name = "riscv-legalize-parallel-mov"
 
     def apply(self, ctx: Context, op: ModuleOp) -> None:
+        PatternRewriteWalker(RemoveEmptyParallelMovOps()).rewrite_module(op)
         for func_op in op.walk():
             if not isinstance(func_op, riscv_func.FuncOp):
                 continue
