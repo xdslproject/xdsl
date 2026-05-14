@@ -16,6 +16,7 @@ from xdsl.dialects.builtin import (
     FloatAttr,
     IntegerAttr,
 )
+from xdsl.dialects.vector import CombiningKindFlag, ReductionOp
 from xdsl.ir import Attribute, Block, Operation, SSAValue
 from xdsl.utils.type import get_element_type_or_self
 
@@ -362,6 +363,67 @@ def _convert_masked_store(
     builder.call(intrinsic, [value, ptr, alignment, mask])
 
 
+_FLOAT_TYPES = (ir.HalfType, ir.FloatType, ir.DoubleType)
+
+
+def _intrinsic_suffix(t: ir.Type) -> str:
+    if isinstance(t, ir.VectorType):
+        assert isinstance(t.element, _FLOAT_TYPES)
+        return f"v{t.count}{t.element.intrinsic_name}"
+    assert isinstance(t, (ir.HalfType, ir.FloatType, ir.DoubleType, ir.IntType))
+    return t.intrinsic_name
+
+
+def _declare_intrinsic(
+    module: ir.Module,
+    name: str,
+    tys: tuple[ir.Type, ...],
+    fnty: ir.FunctionType,
+) -> ir.Function:
+    full_name = ".".join([name] + [_intrinsic_suffix(t) for t in tys])
+    if full_name in module.globals:
+        return cast(ir.Function, module.globals[full_name])
+    return ir.Function(module, fnty, name=full_name)
+
+
+_REDUCTION_INTRINSIC: dict[CombiningKindFlag, tuple[str, float]] = {
+    CombiningKindFlag.ADD: ("llvm.vector.reduce.fadd", -0.0),
+    CombiningKindFlag.MUL: ("llvm.vector.reduce.fmul", 1.0),
+}
+
+
+def _convert_vector_reduction(
+    op: ReductionOp,
+    builder: ir.IRBuilder,
+    val_map: dict[SSAValue, ir.Value],
+):
+    kind = op.kind.data
+    if kind not in _REDUCTION_INTRINSIC:
+        raise NotImplementedError(
+            f"vector.reduction conversion not implemented for kind: {kind.value}"
+        )
+    intrinsic_prefix, identity = _REDUCTION_INTRINSIC[kind]
+
+    vector = val_map[op.vector]
+    vec_type = vector.type
+    assert isinstance(vec_type, ir.VectorType)
+    elt_type = vec_type.element
+    assert isinstance(elt_type, (ir.HalfType, ir.FloatType, ir.DoubleType))
+
+    if op.acc is not None:
+        start = val_map[op.acc]
+    else:
+        start = ir.Constant(elt_type, identity)
+
+    fn_type = ir.FunctionType(elt_type, [elt_type, vec_type])
+    intrinsic = _declare_intrinsic(
+        builder.module, intrinsic_prefix, (vec_type,), fn_type
+    )
+
+    flags = [f.value for f in op.fastmath.data]
+    val_map[op.dest] = builder.call(intrinsic, [start, vector], fastmath=flags)
+
+
 def _convert_fma(
     op: llvm.FMAOp,
     builder: ir.IRBuilder,
@@ -373,18 +435,8 @@ def _convert_fma(
     b = val_map[op.b]
     c = val_map[op.c]
     res_type = convert_type(op.res.type)
-    _float_types = (ir.HalfType, ir.FloatType, ir.DoubleType)
-    if isinstance(res_type, ir.VectorType):
-        assert isinstance(res_type.element, _float_types)
-        name = f"llvm.fma.v{res_type.count}{res_type.element.intrinsic_name}"
-    else:
-        assert isinstance(res_type, _float_types)
-        name = f"llvm.fma.{res_type.intrinsic_name}"
     fn_type = ir.FunctionType(res_type, [res_type, res_type, res_type])
-    try:
-        intrinsic = builder.module.get_global(name)
-    except KeyError:
-        intrinsic = ir.Function(builder.module, fn_type, name=name)
+    intrinsic = _declare_intrinsic(builder.module, "llvm.fma", (res_type,), fn_type)
     val_map[op.res] = builder.call(intrinsic, [a, b, c])
 
 
@@ -536,6 +588,8 @@ def convert_op(
             val_map[op.res] = ir.Constant(convert_type(op.res.type), None)
         case llvm.UndefOp():
             val_map[op.res] = ir.Constant(convert_type(op.res.type), ir.Undefined)
+        case ReductionOp():
+            _convert_vector_reduction(op, builder, val_map)
         case llvm.AddressOfOp():
             _convert_addressof(op, builder, val_map)
         case llvm.CallIntrinsicOp():
