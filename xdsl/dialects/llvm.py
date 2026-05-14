@@ -3161,7 +3161,7 @@ class FExpOp(IRDLOperation):
         arg: Operation | SSAValue,
         fast_math: FastMathAttr | FastMathFlag | None = None,
     ):
-        if isinstance(fast_math, FastMathFlag | str | None):
+        if not isinstance(fast_math, FastMathAttr):
             fast_math = FastMathAttr(fast_math)
         super().__init__(
             operands=[arg],
