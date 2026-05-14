@@ -55,6 +55,7 @@ from xdsl.irdl import (
     ConstraintContext,
     ConstraintConvertible,
     EqAttrConstraint,
+    EqIntConstraint,
     GenericData,
     IntConstraint,
     IntTypeVarConstraint,
@@ -387,8 +388,8 @@ class IntAttr(GenericData[IntCovT], Generic[IntCovT]):
 
     @staticmethod
     @override
-    def constr(constr: IntConstraint | None = None) -> AttrConstraint[IntAttr]:
-        return IntAttrConstraint(
+    def constr(constr: IntConstraint | int | None = None) -> AttrConstraint[IntAttr]:
+        return IntAttrConstraint.get(
             IntTypeVarConstraint(IntCovT, AnyInt()) if constr is None else constr
         )
 
@@ -398,6 +399,18 @@ class IntAttrConstraint(AttrConstraint[IntAttr]):
     """
     Constrains the value of an IntAttr.
     """
+
+    @staticmethod
+    def get(
+        int_constraint: IntConstraint | int | None = None,
+    ) -> AttrConstraint[IntAttr]:
+        if int_constraint is None or int_constraint == AnyInt():
+            return BaseAttr(IntAttr)
+        if isinstance(int_constraint, int):
+            int_constraint = EqIntConstraint(int_constraint)
+        if isinstance(int_constraint, EqIntConstraint):
+            return EqAttrConstraint(IntAttr(int_constraint.value))
+        return IntAttrConstraint(int_constraint)
 
     int_constraint: IntConstraint
 
@@ -421,7 +434,7 @@ class IntAttrConstraint(AttrConstraint[IntAttr]):
     def mapping_type_vars(
         self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
     ):
-        return IntAttrConstraint(
+        return IntAttrConstraint.get(
             self.int_constraint.mapping_type_vars(type_var_mapping)
         )
 
@@ -1069,7 +1082,7 @@ class IntegerAttr(
         value: AttrConstraint | IntConstraint | None = None,
     ) -> AttrConstraint[IntegerAttr[_IntegerAttrType]]:
         if isinstance(value, IntConstraint):
-            value = IntAttrConstraint(value)
+            value = IntAttrConstraint.get(value)
         return cast(
             AttrConstraint[IntegerAttr[_IntegerAttrType]],
             ParamAttrConstraint.get(IntegerAttr, value, type),

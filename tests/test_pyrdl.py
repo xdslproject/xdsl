@@ -16,6 +16,7 @@ from xdsl.dialects.builtin import (
     IntegerType,
     Signedness,
     SignednessAttr,
+    i32,
 )
 from xdsl.ir import Attribute, Data, ParametrizedAttribute
 from xdsl.irdl import (
@@ -445,30 +446,24 @@ def test_irdl_to_attr_constraint():
         )
     )
     assert irdl_to_attr_constraint(IntAttr) == BaseAttr(IntAttr)
-    assert irdl_to_attr_constraint(IntAttr[int]) == IntAttrConstraint(
-        int_constraint=AnyInt()
-    )
-    assert irdl_to_attr_constraint(IntAttr[Literal[1]]) == IntAttrConstraint(
-        int_constraint=EqIntConstraint(value=1)
-    )
-    assert irdl_to_attr_constraint(IntAttr[2]) == IntAttrConstraint(
-        int_constraint=EqIntConstraint(value=2)
-    )
+    assert irdl_to_attr_constraint(IntAttr[int]) == BaseAttr(IntAttr)
+    assert irdl_to_attr_constraint(IntAttr[Literal[1]]) == EqAttrConstraint(IntAttr(1))
+    assert irdl_to_attr_constraint(IntAttr[2]) == EqAttrConstraint(IntAttr(2))
 
     assert irdl_to_attr_constraint(IntegerType) == BaseAttr(IntegerType)
     # With one type arg, second default
     assert irdl_to_attr_constraint(IntegerType[int]) == ParamAttrConstraint(
         IntegerType,
-        (IntAttrConstraint(AnyInt()), BaseAttr(SignednessAttr)),
+        (BaseAttr(IntAttr), BaseAttr(SignednessAttr)),
     )
     # With both type args
     assert irdl_to_attr_constraint(IntegerType[int, Signedness]) == ParamAttrConstraint(
         IntegerType,
-        (IntAttrConstraint(AnyInt()), BaseAttr(SignednessAttr)),
+        (BaseAttr(IntAttr), BaseAttr(SignednessAttr)),
     )
     assert irdl_to_attr_constraint(IntegerType[32]) == ParamAttrConstraint(
         IntegerType,
-        (IntAttrConstraint(EqIntConstraint(32)), BaseAttr(SignednessAttr)),
+        (EqAttrConstraint(IntAttr(32)), BaseAttr(SignednessAttr)),
     )
     assert irdl_to_attr_constraint(IntegerType[Literal[32, 64]]) == ParamAttrConstraint(
         IntegerType,
@@ -477,7 +472,7 @@ def test_irdl_to_attr_constraint():
             BaseAttr(SignednessAttr),
         ),
     )
-
+    assert irdl_to_attr_constraint(I32) == EqAttrConstraint(i32)
     assert irdl_to_attr_constraint(Signedness.SIGNED) == EqAttrConstraint(
         SignednessAttr(Signedness.SIGNED)
     )
@@ -492,13 +487,7 @@ def test_irdl_to_attr_constraint():
         IntegerAttr,
         (
             BaseAttr(IntAttr),
-            ParamAttrConstraint(
-                IntegerType,
-                (
-                    IntAttrConstraint(EqIntConstraint(32)),
-                    EqAttrConstraint(SignednessAttr(Signedness.SIGNLESS)),
-                ),
-            ),
+            EqAttrConstraint(i32),
         ),
     )
     assert irdl_to_attr_constraint(IntegerAttr[IntegerType[32]]) == ParamAttrConstraint(
@@ -507,7 +496,7 @@ def test_irdl_to_attr_constraint():
             BaseAttr(IntAttr),
             ParamAttrConstraint(
                 IntegerType,
-                (IntAttrConstraint(EqIntConstraint(32)), BaseAttr(SignednessAttr)),
+                (EqAttrConstraint(IntAttr(32)), BaseAttr(SignednessAttr)),
             ),
         ),
     )

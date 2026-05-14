@@ -53,7 +53,6 @@ from xdsl.dialects.builtin import (
 from xdsl.ir import Attribute, Data
 from xdsl.irdl import (
     AnyAttr,
-    AnyInt,
     AtMost,
     BaseAttr,
     ConstraintContext,
@@ -643,7 +642,7 @@ def test_tensor_constr():
     # int32 constraint with rank <= 3
     shape = ArrayOfConstraint(
         RangeLengthConstraint(
-            constraint=RangeOf(IntAttrConstraint(AnyInt())), length=AtMost(3)
+            constraint=RangeOf(IntAttrConstraint.get()), length=AtMost(3)
         )
     )
     constr = TensorType.constr(i32, shape)
