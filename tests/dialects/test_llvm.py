@@ -703,6 +703,15 @@ def test_vector_fmin_op():
     assert op.res.type == builtin.f32
 
 
+def test_fpow_op():
+    lhs = create_ssa_value(builtin.f32)
+    rhs = create_ssa_value(builtin.f32)
+    op = llvm.FPowOp(lhs, rhs)
+    assert op.lhs == lhs
+    assert op.rhs == rhs
+    assert op.res.type == builtin.f32
+
+
 def test_cond_br_op():
     cond = create_ssa_value(builtin.i1)
     then_block = Block()

@@ -116,6 +116,15 @@
 %11 = llvm.select %select_cond, %select_f32_lhs, %select_f32_rhs : i1, f32
 // CHECK: llvm.select [[select_cond]], [[select_f32_lhs]], [[select_f32_rhs]] : i1, f32
 
+%12 = llvm.intr.pow(%arg0, %arg0) : (f32, f32) -> f32
+// CHECK: llvm.intr.pow([[arg0]], [[arg0]]) : (f32, f32) -> f32
+
+%13 = llvm.intr.pow(%arg1, %arg1) : (f64, f64) -> f64
+// CHECK: llvm.intr.pow([[arg1]], [[arg1]]) : (f64, f64) -> f64
+
+%14 = llvm.intr.pow(%arg2, %arg2) : (vector<4xf32>, vector<4xf32>) -> vector<4xf32>
+// CHECK: llvm.intr.pow([[arg2]], [[arg2]]) : (vector<4xf32>, vector<4xf32>) -> vector<4xf32>
+
 "test.op"() ({
 ^bb0(%cond_br_cond: i1, %cond_br_arg: i32):
   llvm.cond_br %cond_br_cond, ^bb1(%cond_br_arg: i32), ^bb2(%cond_br_arg: i32)
