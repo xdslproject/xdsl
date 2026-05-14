@@ -409,13 +409,14 @@ class AttrF(ParametrizedAttribute):
     "constr, expected",
     [
         (ParamAttrConstraint.get(AttrA), EqAttrConstraint(AttrA())),
+        (ParamAttrConstraint.get(AttrB, AttrA()), EqAttrConstraint(AttrB(AttrA()))),
         (
-            ParamAttrConstraint.get(AttrB, None),
-            ParamAttrConstraint(AttrB, (AnyAttr(),)),
+            ParamAttrConstraint.get(AttrB, AnyAttr()),
+            BaseAttr(AttrB),
         ),
         (
             ParamAttrConstraint.get(AttrF, None, None),
-            ParamAttrConstraint(AttrF, (AnyAttr(), AnyAttr())),
+            BaseAttr(AttrF),
         ),
         (
             ParamAttrConstraint.get(AttrF, AttrA, AttrB),
@@ -425,11 +426,18 @@ class AttrF(ParametrizedAttribute):
         ),
         (
             ParamAttrConstraint.get(
-                AttrF, None, ParamAttrConstraint.get(AttrF, None, None)
+                AttrF, None, ParamAttrConstraint.get(AttrF, AttrA, None)
             ),
             ParamAttrConstraint(
-                AttrF, (AnyAttr(), ParamAttrConstraint(AttrF, (AnyAttr(), AnyAttr())))
+                AttrF,
+                (AnyAttr(), ParamAttrConstraint(AttrF, (BaseAttr(AttrA), AnyAttr()))),
             ),
+        ),
+        (
+            ParamAttrConstraint.get(
+                AttrF, None, ParamAttrConstraint.get(AttrF, None, None)
+            ),
+            ParamAttrConstraint(AttrF, (AnyAttr(), BaseAttr(AttrF))),
         ),
         (
             ParamAttrConstraint.get(Base, AttrA()),

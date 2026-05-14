@@ -658,6 +658,9 @@ class ParamAttrConstraint(
                 base_attr.new(tuple(cast(EqAttrConstraint, c).attr for c in constrs))
             )
 
+        if all(c == AnyAttr() for c in constrs):
+            return BaseAttr(base_attr)
+
         return ParamAttrConstraint[ParametrizedAttributeT](base_attr, constrs)
 
     def __repr__(self):
