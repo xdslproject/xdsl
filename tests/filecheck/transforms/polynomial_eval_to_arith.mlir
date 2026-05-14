@@ -1,4 +1,4 @@
-// RUN: xdsl-opt -p expand-polynomial-eval %s | filecheck %s
+// RUN: xdsl-opt -p polynomial-eval-to-arith %s | filecheck %s
 
 builtin.module {
   // f64 with domain bounds [-5, 0], degree 2.

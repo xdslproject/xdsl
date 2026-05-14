@@ -29,6 +29,7 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
+from xdsl.utils.exceptions import PassFailedException
 
 
 def _float_constant(
@@ -104,7 +105,7 @@ def expand_clenshaw(
     return rewriter.insert(arith.SubfOp(add.result, b_prev2.result))
 
 
-class ExpandPolynomialEval(RewritePattern):
+class PolynomialEvalToArith(RewritePattern):
     """Replace each `polynomial.eval` op with the arith ops for its scheme."""
 
     @op_type_rewrite_pattern
@@ -116,21 +117,22 @@ class ExpandPolynomialEval(RewritePattern):
         upper = op.domain_upper.value.data if op.domain_upper is not None else None
 
         scheme = op.eval_scheme
-        if scheme is polynomial.EvalScheme.CLENSHAW:
-            expanded = expand_clenshaw(op, rewriter, coeffs, lower, upper)
-        else:
-            # Verifier already restricts `scheme` to known EvalScheme members,
-            # so this is only reachable if a new scheme is added without a
-            # corresponding lowering branch.
-            raise NotImplementedError(
-                f"polynomial.eval scheme {scheme.value!r} has no lowering"
-            )
 
+        match scheme:
+            case polynomial.EvalScheme.CLENSHAW:
+                expanded = expand_clenshaw(op, rewriter, coeffs, lower, upper)
+            case _:
+                # Verifier already restricts `scheme` to known EvalScheme members,
+                # so this is only reachable if a new scheme is added without a
+                # corresponding lowering branch.
+                raise PassFailedException(
+                    f"polynomial.eval scheme {scheme.value!r} has no lowering"
+                )
         rewriter.replace_op(op, (), (expanded.results[0],))
 
 
 @dataclass(frozen=True)
-class ExpandPolynomialEvalPass(ModulePass):
+class PolynomialEvalToArithPass(ModulePass):
     """
     Expand `polynomial.eval` ops to arithmetic operations.
 
@@ -139,10 +141,10 @@ class ExpandPolynomialEvalPass(ModulePass):
     parameters.
     """
 
-    name = "expand-polynomial-eval"
+    name = "polynomial-eval-to-arith"
 
     def apply(self, ctx: Context, op: ModuleOp) -> None:
         PatternRewriteWalker(
-            ExpandPolynomialEval(),
+            PolynomialEvalToArith(),
             apply_recursively=False,
         ).rewrite_module(op)
