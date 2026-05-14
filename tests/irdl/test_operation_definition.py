@@ -281,8 +281,10 @@ def test_generic_constraint_var_fail_not_satisfy_constraint():
 class ConstraintRangeVarOp(IRDLOperation):
     name = "test.constraint_range_var"
 
-    operand = var_operand_def(RangeVarConstraint("T", RangeOf(AnyOf((i32, IndexType)))))
-    result = var_result_def(RangeVarConstraint("T", RangeOf(AnyOf((i32, IndexType)))))
+    operand = var_operand_def(
+        RangeVarConstraint("T", RangeOf(AnyOf.get(i32, IndexType)))
+    )
+    result = var_result_def(RangeVarConstraint("T", RangeOf(AnyOf.get(i32, IndexType))))
 
 
 def test_range_var():

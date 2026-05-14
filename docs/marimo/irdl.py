@@ -182,7 +182,7 @@ def _(BaseAttr, EqAttrConstraint, StringAttr, i32):
 
     assert irdl_to_attr_constraint(i32) == EqAttrConstraint(i32)
     assert irdl_to_attr_constraint(StringAttr) == BaseAttr(StringAttr)
-    assert AnyOf([i32, StringAttr]) == AnyOf([EqAttrConstraint(i32), BaseAttr(StringAttr)])
+    assert AnyOf.get(i32, StringAttr) == AnyOf((EqAttrConstraint(i32), BaseAttr(StringAttr)))
     return AnyOf, irdl_to_attr_constraint
 
 
@@ -201,7 +201,7 @@ def _(mo):
 @app.cell
 def _(AnyOf, ConstraintContext, StringAttr, i32, i64):
     # Construct the constraint. Note that we are using the coercion defined previously.
-    or_constraint = AnyOf([i32, StringAttr])
+    or_constraint = AnyOf.get(i32, StringAttr)
 
     # This will pass without triggering an exception, since the first constraint is satisfied
     or_constraint.verify(i32, ConstraintContext())

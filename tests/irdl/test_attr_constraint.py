@@ -434,6 +434,9 @@ class AttrF(ParametrizedAttribute):
         (VarConstraint.get("T"), VarConstraint("T", AnyAttr())),
         (VarConstraint.get("T", AttrA), VarConstraint("T", BaseAttr(AttrA))),
         (VarConstraint.get("T", BaseAttr(AttrA)), VarConstraint("T", BaseAttr(AttrA))),
+        (AnyOf.get(), AnyOf(())),
+        (AnyOf.get(AttrA), AnyOf((BaseAttr(AttrA),))),
+        (AnyOf.get(AttrA, AttrB), AnyOf((BaseAttr(AttrA), BaseAttr(AttrB)))),
     ],
 )
 def test_constraint_get(constr: AttrConstraint, expected: AttrConstraint):

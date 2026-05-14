@@ -968,7 +968,7 @@ _IntegerAttrType = TypeVar(
 _IntegerAttrTypeInvT = TypeVar("_IntegerAttrTypeInvT", bound=IntegerType | IndexType)
 IntegerAttrTypeConstr = IndexTypeConstr | BaseAttr(IntegerType)
 AnySignlessIntegerOrIndexType: TypeAlias = Annotated[
-    Attribute, AnyOf([IndexType, SignlessIntegerConstraint])
+    Attribute, AnyOf.get(IndexType, SignlessIntegerConstraint)
 ]
 """Type alias constrained to IndexType or signless IntegerType."""
 
