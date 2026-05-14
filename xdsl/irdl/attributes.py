@@ -565,7 +565,7 @@ def irdl_to_attr_constraint(
                 )
             )
         if len(constraints) > 1:
-            return cast(AttrConstraint[AttributeInvT], AnyOf(constraints))
+            return cast(AttrConstraint[AttributeInvT], AnyOf.get(*constraints))
         return cast(AttrConstraint[AttributeInvT], constraints[0])
 
     if isclass(irdl) and issubclass(irdl, ConstraintConvertible):
@@ -576,7 +576,7 @@ def irdl_to_attr_constraint(
         literal_args = get_args(irdl)
         if len(literal_args) == 1:
             return irdl_to_attr_constraint(literal_args[0])
-        return AnyOf(literal_args)
+        return AnyOf.get(*literal_args)
 
     # Better error messages for missing GenericData in Data definitions
     if isclass(origin) and issubclass(origin, Data):

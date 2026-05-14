@@ -19,6 +19,7 @@ from typing_extensions import TypeVar, deprecated
 from xdsl.ir import (
     Attribute,
     AttributeCovT,
+    AttributeInvT,
     ParametrizedAttribute,
     TypedAttribute,
 )
@@ -166,7 +167,7 @@ class AttrConstraint(ABC, Generic[AttributeCovT]):
     ) -> AttrConstraint[AttributeCovT | _AttributeCovT]:
         if isinstance(value, AnyAttr) or self == value:
             return value  # pyright: ignore[reportReturnType]
-        return AnyOf((self, value))
+        return AnyOf.get(self, value)
 
     def __and__(self, value: AttrConstraint, /) -> AttrConstraint[AttributeCovT]:
         if isinstance(value, AnyAttr) or self == value:
@@ -412,25 +413,27 @@ class AnyOf(AttrConstraint[AttributeCovT], Generic[AttributeCovT]):
     )
     _abstr_constr: AttrConstraint[AttributeCovT] | None = field(hash=False, repr=False)
 
-    def __init__(
-        self,
-        attr_constrs: Sequence[
-            AttributeCovT | type[AttributeCovT] | AttrConstraint[AttributeCovT]
-        ],
-    ):
+    @staticmethod
+    def get(
+        *attr_constrs: IRDLAttrConstraint[AttributeInvT],
+    ) -> AttrConstraint[AttributeInvT]:
         from xdsl.irdl import irdl_to_attr_constraint
 
-        constrs: tuple[AttrConstraint[AttributeCovT], ...] = tuple(
-            irdl_to_attr_constraint(constr) for constr in attr_constrs
-        )
+        constrs = tuple(irdl_to_attr_constraint(c) for c in attr_constrs)
 
+        return AnyOf(constrs)
+
+    def __init__(
+        self,
+        attr_constrs: tuple[AttrConstraint[AttributeCovT], ...],
+    ):
         eq_constrs = set[Attribute]()
         based_constrs = dict[type[Attribute], AttrConstraint[AttributeCovT]]()
 
         bases = set[type[Attribute]]()
         eq_bases = set[type[Attribute]]()
         abstr_constr: AttrConstraint[AttributeCovT] | None = None
-        for i, c in enumerate(constrs):
+        for i, c in enumerate(attr_constrs):
             b = c.get_bases()
             if b is None:
                 if abstr_constr is not None:
@@ -449,7 +452,7 @@ class AnyOf(AttrConstraint[AttributeCovT], Generic[AttributeCovT]):
             if not b.isdisjoint(bases):
                 raise PyRDLError(
                     f"Constraint {c} shares a base with a non-equality constraint "
-                    f"in {set(constrs[0:i])} in `AnyOf` constraint."
+                    f"in {set(attr_constrs[0:i])} in `AnyOf` constraint."
                 )
 
             if isinstance(c, EqAttrConstraint):
@@ -459,7 +462,7 @@ class AnyOf(AttrConstraint[AttributeCovT], Generic[AttributeCovT]):
                 if not b.isdisjoint(eq_bases):
                     raise PyRDLError(
                         f"Non-equality constraint {c} shares a base with a constraint "
-                        f"in {set(constrs[0:i])} in `AnyOf` constraint."
+                        f"in {set(attr_constrs[0:i])} in `AnyOf` constraint."
                     )
                 for base in b:
                     based_constrs[base] = c
@@ -485,7 +488,7 @@ class AnyOf(AttrConstraint[AttributeCovT], Generic[AttributeCovT]):
         object.__setattr__(
             self,
             "attr_constrs",
-            constrs,
+            attr_constrs,
         )
         object.__setattr__(
             self,
@@ -514,8 +517,8 @@ class AnyOf(AttrConstraint[AttributeCovT], Generic[AttributeCovT]):
 
     def __or__(
         self, value: AttrConstraint[_AttributeCovT], /
-    ) -> AnyOf[AttributeCovT | _AttributeCovT]:
-        return AnyOf((*self.attr_constrs, value))
+    ) -> AttrConstraint[AttributeCovT | _AttributeCovT]:
+        return AnyOf.get(*(*self.attr_constrs, value))
 
     def variables(self) -> set[str]:
         if not self.attr_constrs:
@@ -536,9 +539,9 @@ class AnyOf(AttrConstraint[AttributeCovT], Generic[AttributeCovT]):
 
     def mapping_type_vars(
         self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
-    ) -> AnyOf[AttributeCovT]:
-        return AnyOf(
-            tuple(c.mapping_type_vars(type_var_mapping) for c in self.attr_constrs)
+    ) -> AttrConstraint[AttributeCovT]:
+        return AnyOf.get(
+            *(c.mapping_type_vars(type_var_mapping) for c in self.attr_constrs)
         )
 
 
