@@ -1500,8 +1500,8 @@ class VectorType(
 ):
     name = "vector"
 
-    shape: ArrayAttr[IntAttr]
     element_type: AttributeCovT
+    shape: ArrayAttr[IntAttr]
     scalable_dims: ArrayAttr[BoolAttr]
 
     def __init__(
@@ -1516,7 +1516,7 @@ class VectorType(
         if scalable_dims is None:
             false = BoolAttr(False, i1)
             scalable_dims = ArrayAttr(false for _ in shape)
-        super().__init__(shape, element_type, scalable_dims)
+        super().__init__(element_type, shape, scalable_dims)
 
     @staticmethod
     def _print_vector_dim(printer: Printer, pair: tuple[IntAttr, BoolAttr]):
@@ -1582,8 +1582,8 @@ class VectorType(
             AttrConstraint[VectorType[AttributeCovT]],
             ParamAttrConstraint.get(
                 VectorType,
-                shape_constr,
                 element_type,
+                shape_constr,
                 scalable_dims_constr,
             ),
         )

@@ -408,7 +408,7 @@ class AttrF(ParametrizedAttribute):
 @pytest.mark.parametrize(
     "constr, expected",
     [
-        (ParamAttrConstraint.get(AttrA), ParamAttrConstraint(AttrA, ())),
+        (ParamAttrConstraint.get(AttrA), EqAttrConstraint(AttrA())),
         (
             ParamAttrConstraint.get(AttrB, None),
             ParamAttrConstraint(AttrB, (AnyAttr(),)),
@@ -430,6 +430,10 @@ class AttrF(ParametrizedAttribute):
             ParamAttrConstraint(
                 AttrF, (AnyAttr(), ParamAttrConstraint(AttrF, (AnyAttr(), AnyAttr())))
             ),
+        ),
+        (
+            ParamAttrConstraint.get(Base, AttrA()),
+            ParamAttrConstraint(Base, (EqAttrConstraint(AttrA()),)),
         ),
         (VarConstraint.get("T"), VarConstraint("T", AnyAttr())),
         (VarConstraint.get("T", AttrA), VarConstraint("T", BaseAttr(AttrA))),
