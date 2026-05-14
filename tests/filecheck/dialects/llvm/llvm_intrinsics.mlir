@@ -66,6 +66,7 @@
 
 %fsin_vec = llvm.intr.sin(%vec_f32) : (vector<4xf32>) -> vector<4xf32>
 // CHECK-NEXT: %fsin_vec = llvm.intr.sin(%vec_f32) : (vector<4xf32>) -> vector<4xf32>
+
 %fcos_f32 = llvm.intr.cos(%f32) : (f32) -> f32
 // CHECK: %fcos_f32 = llvm.intr.cos(%f32) : (f32) -> f32
 
