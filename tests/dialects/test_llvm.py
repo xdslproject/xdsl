@@ -283,6 +283,40 @@ def test_addressof_op():
     assert address_of.result.type == ptr_type
 
 
+def test_is_compatible_type():
+    assert llvm.is_compatible_type(builtin.IntegerType(32))
+    assert llvm.is_compatible_type(builtin.IntegerType(1))
+    assert not llvm.is_compatible_type(
+        builtin.IntegerType(32, builtin.Signedness.SIGNED)
+    )
+    assert not llvm.is_compatible_type(
+        builtin.IntegerType(32, builtin.Signedness.UNSIGNED)
+    )
+
+    assert llvm.is_compatible_type(builtin.BFloat16Type())
+    assert llvm.is_compatible_type(builtin.Float16Type())
+    assert llvm.is_compatible_type(builtin.Float32Type())
+    assert llvm.is_compatible_type(builtin.Float64Type())
+    assert llvm.is_compatible_type(builtin.Float80Type())
+    assert llvm.is_compatible_type(builtin.Float128Type())
+
+    assert llvm.is_compatible_type(llvm.LLVMStructType.from_type_list([]))
+    assert llvm.is_compatible_type(llvm.LLVMPointerType())
+    assert llvm.is_compatible_type(llvm.LLVMArrayType(4, builtin.i32))
+    assert llvm.is_compatible_type(llvm.LLVMFunctionType([builtin.i32], builtin.i32))
+
+    assert llvm.is_compatible_type(builtin.VectorType(builtin.i32, [4]))
+    assert not llvm.is_compatible_type(builtin.VectorType(builtin.i32, [4, 4]))
+    scalable_dims = builtin.ArrayAttr([builtin.BoolAttr.from_bool(True)])
+    assert not llvm.is_compatible_type(
+        builtin.VectorType(builtin.i32, [4], scalable_dims=scalable_dims)
+    )
+    assert not llvm.is_compatible_type(builtin.VectorType(builtin.IndexType(), [4]))
+
+    assert not llvm.is_compatible_type(builtin.IndexType())
+    assert not llvm.is_compatible_type(llvm.LLVMVoidType())
+
+
 def test_function_type_rejects_incompatible_types():
     with pytest.raises(VerifyException, match="incompatible type"):
         llvm.LLVMFunctionType([builtin.IndexType()])
