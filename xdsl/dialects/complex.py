@@ -219,25 +219,24 @@ class ComplexBinaryOp(IRDLOperation, HasFolderInterface, abc.ABC):
         canonicalized to a constant with value `i` when the inputs are constants
         with values `lhs` and `rhs`.
         """
-        return None
 
     def fold(self) -> tuple[ArrayAttr[FloatAttr[AnyFloat]]] | None:
         lhs = ConstantLike.get_constant_value(self.lhs)
         rhs = ConstantLike.get_constant_value(self.rhs)
-        if lhs is not None and rhs is not None:
-            if isa(lhs, ArrayAttr[FloatAttr[AnyFloat]]) and isa(
-                rhs, ArrayAttr[FloatAttr[AnyFloat]]
-            ):
-                assert lhs.data[0].type == rhs.data[0].type
-                assert lhs.data[1].type == rhs.data[1].type
-                re_lhs, im_lhs = lhs.data[0].value.data, lhs.data[1].value.data
-                re_rhs, im_rhs = rhs.data[0].value.data, rhs.data[1].value.data
-                res = self.py_operation((re_lhs, im_lhs), (re_rhs, im_rhs))
-                if res is not None:
-                    type = lhs.data[0].type
-                    return (
-                        ArrayAttr([FloatAttr(res[0], type), FloatAttr(res[1], type)]),
-                    )
+        if (
+            lhs is not None
+            and rhs is not None
+            and isa(lhs, ArrayAttr[FloatAttr])
+            and isa(rhs, ArrayAttr[FloatAttr])
+        ):
+            assert lhs.data[0].type == rhs.data[0].type
+            assert lhs.data[1].type == rhs.data[1].type
+            re_lhs, im_lhs = lhs.data[0].value.data, lhs.data[1].value.data
+            re_rhs, im_rhs = rhs.data[0].value.data, rhs.data[1].value.data
+            res = self.py_operation((re_lhs, im_lhs), (re_rhs, im_rhs))
+            if res is not None:
+                type = lhs.data[0].type
+                return (ArrayAttr([FloatAttr(res[0], type), FloatAttr(res[1], type)]),)
 
 
 class ComplexCompareOp(IRDLOperation, abc.ABC):
@@ -421,8 +420,8 @@ class DivOp(ComplexBinaryOp):
     def py_operation(
         lhs: tuple[float, float], rhs: tuple[float, float]
     ) -> tuple[float, float]:
-        re_lhs, im_lhs = lhs[0], lhs[1]
-        re_rhs, im_rhs = rhs[0], rhs[1]
+        re_lhs, im_lhs = lhs
+        re_rhs, im_rhs = rhs
         # 0.0 == -0.0 -> True
         if re_rhs == 0.0 and im_rhs == 0.0:
             inf = float("inf")
@@ -484,8 +483,8 @@ class MulOp(ComplexBinaryOp):
     def py_operation(
         lhs: tuple[float, float], rhs: tuple[float, float]
     ) -> tuple[float, float]:
-        re_lhs, im_lhs = lhs[0], lhs[1]
-        re_rhs, im_rhs = rhs[0], rhs[1]
+        re_lhs, im_lhs = lhs
+        re_rhs, im_rhs = rhs
         return (re_lhs * re_rhs - im_lhs * im_rhs, re_lhs * im_rhs + im_lhs * re_rhs)
 
 
