@@ -1,9 +1,10 @@
+import re
 from collections.abc import Mapping, Sequence
 
 import pytest
 from typing_extensions import TypeVar
 
-from xdsl.dialects.builtin import StringAttr
+from xdsl.dialects.builtin import StringAttr, i32
 from xdsl.ir import Attribute
 from xdsl.irdl import (
     AnyAttr,
@@ -11,6 +12,7 @@ from xdsl.irdl import (
     AttrConstraint,
     BaseAttr,
     ConstraintContext,
+    EqAttrConstraint,
     EqIntConstraint,
     IntConstraint,
     IntTypeVarConstraint,
@@ -18,6 +20,8 @@ from xdsl.irdl import (
     RangeConstraint,
     RangeLengthConstraint,
     RangeOf,
+    RangeVarConstraint,
+    SingleOf,
     VarConstraint,
 )
 from xdsl.utils.exceptions import VerifyException
@@ -145,3 +149,84 @@ def test_empty_range():
     assert constr.can_infer(set(), length_known=False)
 
     assert constr.infer(ConstraintContext(), length=None) == ()
+
+
+def test_range_var_constraint():
+    RangeVarConstraint("R", SingleOf(EqAttrConstraint(i32))).verify(
+        (i32,), ConstraintContext()
+    )
+    RangeVarConstraint("R", SingleOf(AnyAttr())).verify(
+        (i32,), ConstraintContext({}, {"R": (i32,)})
+    )
+
+    with pytest.raises(
+        VerifyException,
+        match=re.escape(
+            "attributes ('i32',) expected from range variable 'R', but got ('i32', 'i32')"
+        ),
+    ):
+        RangeVarConstraint("R", SingleOf(AnyAttr())).verify(
+            (i32, i32), ConstraintContext({}, {"R": (i32,)})
+        )
+
+    assert (
+        RangeVarConstraint("R", SingleOf(AnyAttr())).can_infer(
+            set(), length_known=False
+        )
+        is False
+    )
+    assert (
+        RangeVarConstraint("R", SingleOf(EqAttrConstraint(i32))).can_infer(
+            set(), length_known=False
+        )
+        is True
+    )
+    assert (
+        RangeVarConstraint("R", RangeOf(EqAttrConstraint(i32))).can_infer(
+            set(), length_known=True
+        )
+        is True
+    )
+    assert (
+        RangeVarConstraint("R", RangeOf(EqAttrConstraint(i32))).can_infer(
+            set(), length_known=False
+        )
+        is False
+    )
+    assert (
+        RangeVarConstraint("R", AnyRangeConstraint()).can_infer(
+            {"R"}, length_known=True
+        )
+        is True
+    )
+    assert (
+        RangeVarConstraint("R", AnyRangeConstraint()).can_infer(
+            set(), length_known=True
+        )
+        is False
+    )
+    assert (
+        RangeVarConstraint("R", AnyRangeConstraint()).can_infer(
+            {"R"}, length_known=False
+        )
+        is True
+    )
+    assert (
+        RangeVarConstraint("R", AnyRangeConstraint()).can_infer(
+            set(), length_known=False
+        )
+        is False
+    )
+
+    assert RangeVarConstraint("R", SingleOf(EqAttrConstraint(i32))).infer(
+        ConstraintContext(), length=None
+    ) == (i32,)
+    assert RangeVarConstraint("R", RangeOf(EqAttrConstraint(i32))).infer(
+        ConstraintContext(), length=3
+    ) == (i32, i32, i32)
+    assert RangeVarConstraint("R", AnyRangeConstraint()).infer(
+        ConstraintContext({}, {"R": (i32, i32)}), length=2
+    ) == (i32, i32)
+    assert RangeVarConstraint("R", AnyRangeConstraint()).infer(
+        ConstraintContext({}, {"R": (i32, StringAttr("str"))}), length=None
+    ) == (i32, StringAttr("str"))

@@ -15,6 +15,7 @@ from xdsl.irdl import (
     EqIntConstraint,
     IntSetConstraint,
     IntTypeVarConstraint,
+    IntVarConstraint,
     get_int_constraint,
     get_optional_int_constraint,
 )
@@ -57,6 +58,32 @@ def test_at_most():
     AtMost(2).verify(1, ConstraintContext())
     with pytest.raises(VerifyException, match="Expected integer <= 2, got 3"):
         AtMost(2).verify(3, ConstraintContext())
+
+
+def test_int_var_constraint():
+    IntVarConstraint("I", EqIntConstraint(1)).verify(1, ConstraintContext())
+    IntVarConstraint("I", EqIntConstraint(2)).verify(2, ConstraintContext())
+    IntVarConstraint("I", AnyInt()).verify(3, ConstraintContext())
+    IntVarConstraint("I", AnyInt()).verify(4, ConstraintContext({}, {}, {"I": 4}))
+
+    with pytest.raises(
+        VerifyException, match="integer 2 expected from int variable 'I', but got 1"
+    ):
+        IntVarConstraint("I", AnyInt()).verify(1, ConstraintContext({}, {}, {"I": 2}))
+
+    assert IntVarConstraint("I", AnyInt()).can_infer(set()) is False
+    assert IntVarConstraint("I", AnyInt()).can_infer({"I"}) is True
+    assert IntVarConstraint("I", EqIntConstraint(1)).can_infer(set()) is True
+    assert IntVarConstraint("I", EqIntConstraint(1)).infer(ConstraintContext()) == 1
+    assert (
+        IntVarConstraint("I", EqIntConstraint(1)).infer(
+            ConstraintContext({}, {}, {"I": 2})
+        )
+        == 2
+    )
+    assert (
+        IntVarConstraint("I", AnyInt()).infer(ConstraintContext({}, {}, {"I": 2})) == 2
+    )
 
 
 def test_eq():
