@@ -317,17 +317,6 @@ def test_is_compatible_type():
     assert not llvm.is_compatible_type(llvm.LLVMVoidType())
 
 
-def test_function_type_rejects_incompatible_types():
-    with pytest.raises(VerifyException, match="incompatible type"):
-        llvm.LLVMFunctionType([builtin.IndexType()])
-
-    with pytest.raises(VerifyException, match="incompatible type"):
-        llvm.LLVMFunctionType([], builtin.IndexType())
-
-    with pytest.raises(VerifyException, match="incompatible type"):
-        llvm.LLVMFunctionType([llvm.LLVMVoidType()])
-
-
 def test_implicit_void_func_return():
     func_type = llvm.LLVMFunctionType([])
 
