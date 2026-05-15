@@ -889,3 +889,232 @@ func.func @wait_devnum_alone(%dn : i32) {
   func.return
 }
 // CHECK: wait_devnum cannot appear without waitOperands
+
+// -----
+
+// acc.routine: at most one of `gang`/`worker`/`vector`/`seq` may be set
+// for the `none` device type — built via generic form because the pretty
+// form also goes through this same verifier.
+func.func @routine_base_parallelism() {
+  func.return
+}
+"acc.routine"() <{func_name = @routine_base_parallelism, sym_name = "rt_bad_base", gang = [#acc.device_type<none>], worker = [#acc.device_type<none>]}> : () -> ()
+// CHECK: only one of `gang`, `worker`, `vector`, `seq` can be present at the same time
+
+// -----
+
+// acc.routine: same restriction per non-`none` device type — mirrors
+// upstream's `acc.routine` `device_type` parallelism diagnostic.
+func.func @routine_nvidia_parallelism() {
+  func.return
+}
+"acc.routine"() <{func_name = @routine_nvidia_parallelism, sym_name = "rt_bad_nvidia", gang = [#acc.device_type<nvidia>], worker = [#acc.device_type<nvidia>]}> : () -> ()
+// CHECK: only one of `gang`, `worker`, `vector`, `seq` can be present at the same time for device_type `nvidia`
+
+// -----
+
+// acc.routine: a `none`-device parallelism marker conflicts with any
+// per-device parallelism marker — the verifier emits the per-device
+// diagnostic for the conflicting non-`none` device.
+func.func @routine_none_plus_nvidia() {
+  func.return
+}
+"acc.routine"() <{func_name = @routine_none_plus_nvidia, sym_name = "rt_bad_mix", gang = [#acc.device_type<none>], worker = [#acc.device_type<nvidia>]}> : () -> ()
+// CHECK: only one of `gang`, `worker`, `vector`, `seq` can be present at the same time for device_type `nvidia`
+
+// -----
+
+// acc.routine: a `bind(...)` entry must be a SymbolRef (`@name`) or a
+// StringAttr (`"name"`). Any other attribute kind triggers BindName's
+// defensive parse_attribute → not-isinstance branch.
+func.func @routine_bind_bad() {
+  func.return
+}
+acc.routine @rt_bind_bad func(@routine_bind_bad) bind(1 : i64)
+// CHECK: expected SymbolRef or string attribute in bind clause
+
+// -----
+
+// acc.kernel_environment uses `SizedRegion<1>`: the body must be exactly
+// one block. A multi-block body is rejected by the region's single-block
+// constraint (independent of `NoTerminator`, which only relaxes the
+// terminator requirement).
+func.func @ke_multi_block() {
+  "acc.kernel_environment"() <{operandSegmentSizes = array<i32: 0, 0, 0>}> ({
+  ^bb0:
+    "cf.br"()[^bb1] : () -> ()
+  ^bb1:
+  }) : () -> ()
+  func.return
+}
+// CHECK: Region 'region' at position 0 expected a single block, but got 2 blocks
+
+// -----
+
+// `SizedRegion<1>` also rejects a 0-block body. Both upstream MLIR and
+// xDSL refuse the empty `({})` form.
+func.func @ke_no_block() {
+  "acc.kernel_environment"() <{operandSegmentSizes = array<i32: 0, 0, 0>}> ({
+  }) : () -> ()
+  func.return
+}
+// CHECK: Region 'region' at position 0 expected a single block, but got 0 blocks
+
+// -----
+
+// The oilist directive lets the three clauses appear in any order, but
+// each clause may appear at most once. Repeating a keyword fires the
+// directive's own diagnostic.
+func.func @ke_duplicate_async() {
+  acc.kernel_environment async async {
+    "test.op"() : () -> ()
+  }
+  func.return
+}
+// CHECK: 'async' clause specified twice
+
+// -----
+
+// acc.atomic.read forbids reading and writing to the same location — the
+// source `x` and destination `v` operands must be distinct SSA values.
+func.func @atomic_read_same(%x : memref<i32>) {
+  acc.atomic.read %x = %x : memref<i32>, memref<i32>, i32
+  func.return
+}
+// CHECK: read and write must not be to the same location for atomic reads
+
+// -----
+
+// acc.atomic.write checks that the pointer operand `x` dereferences to the
+// value operand `expr`'s type — a nested memref<memref<...>> won't.
+func.func @atomic_write_bad_type(%addr : memref<memref<i32>>, %val : i32) {
+  acc.atomic.write %addr = %val : memref<memref<i32>>, i32
+  func.return
+}
+// CHECK: address must dereference to value type
+
+// -----
+
+// acc.atomic.update's region argument type must match the pointee of `x`.
+// A memref<i32> with an f32 block argument fails the verifier.
+func.func @atomic_update_arg_type_mismatch(%x : memref<i32>, %expr : f32) {
+  acc.atomic.update %x : memref<i32> {
+  ^bb0(%xval: f32):
+    %newval = arith.addf %xval, %expr : f32
+    acc.yield %newval : f32
+  }
+  func.return
+}
+// CHECK: the type of the operand must be a pointer type whose element type is the same as that of the region argument
+
+// -----
+
+// acc.atomic.update's yield must produce exactly one value — the updated
+// scalar.
+func.func @atomic_update_multi_yield(%x : memref<i32>, %expr : i32) {
+  acc.atomic.update %x : memref<i32> {
+  ^bb0(%xval: i32):
+    %newval = arith.addi %xval, %expr : i32
+    acc.yield %newval, %expr : i32, i32
+  }
+  func.return
+}
+// CHECK: only updated value must be returned
+
+// -----
+
+// acc.atomic.update's yielded value must have the same type as the region
+// argument.
+func.func @atomic_update_yield_type_mismatch(%x : memref<i32>, %y : f32) {
+  acc.atomic.update %x : memref<i32> {
+  ^bb0(%xval: i32):
+    acc.yield %y : f32
+  }
+  func.return
+}
+// CHECK: input and yielded value must have the same type
+
+// -----
+
+// acc.atomic.update's region must accept exactly one block argument.
+func.func @atomic_update_too_many_args(%x : memref<i32>, %expr : i32) {
+  acc.atomic.update %x : memref<i32> {
+  ^bb0(%xval: i32, %tmp: i32):
+    %newval = arith.addi %xval, %expr : i32
+    acc.yield %newval : i32
+  }
+  func.return
+}
+// CHECK: the region must accept exactly one argument
+
+// -----
+
+// acc.atomic.capture's region must contain exactly two atomic ops plus the
+// implicit terminator. A single op + terminator is rejected.
+func.func @atomic_capture_too_few_ops(%v : memref<i32>, %x : memref<i32>) {
+  acc.atomic.capture {
+    acc.atomic.read %v = %x : memref<i32>, memref<i32>, i32
+  }
+  func.return
+}
+// CHECK: expected three operations in atomic.capture region (one terminator, and two atomic ops)
+
+// -----
+
+// acc.atomic.capture rejects sequences other than (update,read), (read,update),
+// or (read,write). Two reads in a row trips the sequence check.
+func.func @atomic_capture_invalid_sequence(%v : memref<i32>, %x : memref<i32>) {
+  acc.atomic.capture {
+    acc.atomic.read %v = %x : memref<i32>, memref<i32>, i32
+    acc.atomic.read %v = %x : memref<i32>, memref<i32>, i32
+  }
+  func.return
+}
+// CHECK: invalid sequence of operations in the capture region
+
+// -----
+
+// acc.atomic.capture with (update, read) requires both ops to refer to the
+// same address `x`.
+func.func @atomic_capture_update_read_var_mismatch(%x : memref<i32>, %y : memref<i32>, %v : memref<i32>, %expr : i32) {
+  acc.atomic.capture {
+    acc.atomic.update %x : memref<i32> {
+    ^bb0(%xval: i32):
+      %newval = arith.addi %xval, %expr : i32
+      acc.yield %newval : i32
+    }
+    acc.atomic.read %v = %y : memref<i32>, memref<i32>, i32
+  }
+  func.return
+}
+// CHECK: updated variable in atomic.update must be captured in second operation
+
+// -----
+
+// acc.atomic.capture with (read, update) requires both ops to refer to the
+// same address `x`.
+func.func @atomic_capture_read_update_var_mismatch(%x : memref<i32>, %y : memref<i32>, %v : memref<i32>, %expr : i32) {
+  acc.atomic.capture {
+    acc.atomic.read %v = %y : memref<i32>, memref<i32>, i32
+    acc.atomic.update %x : memref<i32> {
+    ^bb0(%xval: i32):
+      %newval = arith.addi %xval, %expr : i32
+      acc.yield %newval : i32
+    }
+  }
+  func.return
+}
+// CHECK: captured variable in atomic.read must be updated in second operation
+
+// -----
+
+// acc.atomic.capture with (read, write) requires both ops to refer to the
+// same address `x`.
+func.func @atomic_capture_read_write_var_mismatch(%x : memref<i32>, %y : memref<i32>, %v : memref<i32>, %expr : i32) {
+  acc.atomic.capture {
+    acc.atomic.read %v = %x : memref<i32>, memref<i32>, i32
+    acc.atomic.write %y = %expr : memref<i32>, i32
+  }
+  func.return
+}
+// CHECK: captured variable in atomic.read must be updated in second operation

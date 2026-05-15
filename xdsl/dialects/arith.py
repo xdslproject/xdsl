@@ -64,7 +64,7 @@ from xdsl.utils.str_enum import StrEnum
 from xdsl.utils.type import get_element_type_or_self, have_compatible_shape
 
 boolLike = ContainerOf(IntegerType(1))
-signlessIntegerLike = ContainerOf(AnyOf([IntegerType, IndexType]))
+signlessIntegerLike = ContainerOf(AnyOf.get(IntegerType, IndexType))
 floatingPointLike = ContainerOf(AnyFloatConstr)
 
 
@@ -231,7 +231,7 @@ class SignlessIntegerBinaryOperation(IRDLOperation, HasFolderInterface, abc.ABC)
                 assert lhs.type == rhs.type
                 result = self.py_operation(lhs.value.data, rhs.value.data)
                 if result is not None:
-                    return (IntegerAttr(result, lhs.type),)
+                    return (IntegerAttr(result, lhs.type, truncate_bits=True),)
         if isa(rhs, IntegerAttr) and self.is_right_unit(rhs):
             return (self.lhs,)
         if not self.has_trait(Commutative):
@@ -1191,11 +1191,11 @@ class BitcastOp(IRDLOperation):
     name = "arith.bitcast"
 
     input = operand_def(
-        ContainerOf(AnyOf((IntegerType, IndexType)) | AnyFloatConstr)
+        ContainerOf(AnyOf.get(IntegerType, IndexType, AnyFloatConstr))
         | MemRefType.constr(element_type=AnyFloatConstr | SignlessIntegerConstraint)
     )
     result = result_def(
-        ContainerOf(AnyOf((IntegerType, IndexType)) | AnyFloatConstr)
+        ContainerOf(AnyOf.get(IntegerType, IndexType, AnyFloatConstr))
         | MemRefType.constr(element_type=AnyFloatConstr | SignlessIntegerConstraint)
     )
 

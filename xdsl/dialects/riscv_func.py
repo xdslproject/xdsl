@@ -1,14 +1,10 @@
 from __future__ import annotations
 
 import itertools
-from collections.abc import Generator, Sequence
+from collections.abc import Sequence
 
 from xdsl.backend.assembly_printer import AssemblyPrintable, AssemblyPrinter
-from xdsl.backend.register_type import (
-    RegisterAllocatedMemoryEffect,
-    RegisterResource,
-    RegisterType,
-)
+from xdsl.backend.register_type import RegisterResource
 from xdsl.dialects import riscv
 from xdsl.dialects.builtin import (
     I8,
@@ -173,15 +169,6 @@ class CallOp(riscv.RISCVInstruction):
     def assembly_line_args(self) -> tuple[riscv.AssemblyInstructionArg | None, ...]:
         return (self.callee.string_value(),)
 
-    def iter_used_registers(self) -> Generator[RegisterType, None, None]:
-        # These registers are not guaranteed to hold the same values when the callee
-        # returns, according to the RISC-V calling convention.
-        # https://riscv.org/wp-content/uploads/2015/01/riscv-calling.pdf
-        yield from riscv.Registers.A
-        yield from riscv.Registers.T
-        yield from riscv.Registers.FA
-        yield from riscv.Registers.FT
-
 
 class FuncOpCallableInterface(CallableOpInterface):
     @classmethod
@@ -309,9 +296,6 @@ class ReturnOp(riscv.RISCVInstruction):
         IsTerminator(),
         HasParent(FuncOp),
         ReturnLike(),
-        # https://github.com/xdslproject/xdsl/issues/5882
-        # Move to appropriate superclass in the future
-        RegisterAllocatedMemoryEffect(),
     )
 
     assembly_format = "attr-dict ($values^ `:` type($values))?"

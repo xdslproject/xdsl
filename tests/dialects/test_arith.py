@@ -54,6 +54,7 @@ from xdsl.dialects.arith import (
     XOrIOp,
 )
 from xdsl.dialects.builtin import (
+    BoolAttr,
     DenseIntOrFPElementsAttr,
     DenseResourceAttr,
     FloatAttr,
@@ -572,6 +573,16 @@ def test_fold():
     # x + x cannot be folded
     addi_val_val = AddiOp(some_value, some_value)
     assert addi_val_val.fold() is None
+
+    false_attr = BoolAttr.from_bool(False)
+    false_op = ConstantOp(false_attr)
+    true_attr = BoolAttr.from_bool(True)
+    true_op = ConstantOp(true_attr)
+
+    assert AddiOp(false_op, false_op).fold() == (false_attr,)
+    assert AddiOp(false_op, true_op).fold() == (true_attr,)
+    assert AddiOp(true_op, false_op).fold() == (true_attr,)
+    assert AddiOp(true_op, true_op).fold() == (false_attr,)
 
 
 @pytest.mark.parametrize(

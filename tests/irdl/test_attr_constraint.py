@@ -1,6 +1,7 @@
 import re
 from abc import ABC
 from dataclasses import dataclass
+from typing import Generic
 
 import pytest
 from typing_extensions import TypeVar
@@ -8,6 +9,7 @@ from typing_extensions import TypeVar
 from xdsl.dialects.bufferization import TensorFromMemRefConstraint
 from xdsl.dialects.builtin import (
     IndexType,
+    IntAttr,
     IntAttrConstraint,
     IntegerType,
     MemRefType,
@@ -28,12 +30,14 @@ from xdsl.irdl import (
     ConstraintContext,
     EqAttrConstraint,
     EqIntConstraint,
+    IntSetConstraint,
     IntTypeVarConstraint,
     ParamAttrConstraint,
     VarConstraint,
     base,
     eq,
     irdl_attr_definition,
+    irdl_to_attr_constraint,
 )
 from xdsl.utils.exceptions import PyRDLError
 
@@ -99,8 +103,8 @@ class AttrD(Base):
         ),
         (AllOf((AnyAttr(), BaseAttr(Base))), None),
         (AllOf((AnyAttr(), BaseAttr(AttrA))), {AttrA}),
-        (ParamAttrConstraint(AttrB, [BaseAttr(AttrA)]), {AttrB}),
-        (ParamAttrConstraint(Base, [BaseAttr(AttrA)]), None),
+        (ParamAttrConstraint(AttrB, (BaseAttr(AttrA),)), {AttrB}),
+        (ParamAttrConstraint(Base, (BaseAttr(AttrA),)), None),
         (VarConstraint("T", BaseAttr(Base)), None),
         (VarConstraint("T", BaseAttr(AttrA)), {AttrA}),
         (
@@ -285,6 +289,15 @@ def test_constraint_simplification(lhs: AttrConstraint, rhs: AttrConstraint):
     assert lhs == rhs
 
 
+def test_param_attr_merge_failure():
+    # ParamAttrConstraints as below cannot be merged into a single constraint
+    # Therefore the 'any_of' fails
+    with pytest.raises(PyRDLError):
+        _ = ParamAttrConstraint(
+            AttrB, (BaseAttr(AttrA), BaseAttr(AttrA))
+        ) | ParamAttrConstraint(AttrB, (BaseAttr(AttrC), BaseAttr(AttrC)))
+
+
 @pytest.mark.parametrize(
     "c1, c2, msg",
     [
@@ -372,6 +385,77 @@ def test_mapping_type_vars():
     tv_constr = IntTypeVarConstraint(_IntT, AnyInt())
     int_attr_constr = IntAttrConstraint(tv_constr)
     my_constr = EqIntConstraint(1)
-    assert int_attr_constr.mapping_type_vars({_IntT: my_constr}) == IntAttrConstraint(
-        my_constr
+    assert int_attr_constr.mapping_type_vars({_IntT: my_constr}) == EqAttrConstraint(
+        IntAttr(1)
     )
+    my_constr_2 = IntSetConstraint(frozenset((1, 2)))
+    assert int_attr_constr.mapping_type_vars({_IntT: my_constr_2}) == IntAttrConstraint(
+        my_constr_2
+    )
+
+
+_T = TypeVar("_T")
+
+
+class AttrE(ParametrizedAttribute, Generic[_T]):
+    param: _T
+
+
+def test_param_instantiated_generic():
+    with pytest.raises(PyRDLError):
+        ParamAttrConstraint.get(AttrE[AttrB])
+
+
+class AttrF(ParametrizedAttribute):
+    param1: Attribute
+    param2: Attribute
+
+
+@pytest.mark.parametrize(
+    "constr, expected",
+    [
+        (ParamAttrConstraint.get(AttrA), EqAttrConstraint(AttrA())),
+        (ParamAttrConstraint.get(AttrB, AttrA()), EqAttrConstraint(AttrB(AttrA()))),
+        (
+            ParamAttrConstraint.get(AttrB, AnyAttr()),
+            BaseAttr(AttrB),
+        ),
+        (
+            ParamAttrConstraint.get(AttrF, None, None),
+            BaseAttr(AttrF),
+        ),
+        (
+            ParamAttrConstraint.get(AttrF, AttrA, AttrB),
+            ParamAttrConstraint(
+                AttrF, (irdl_to_attr_constraint(AttrA), irdl_to_attr_constraint(AttrB))
+            ),
+        ),
+        (
+            ParamAttrConstraint.get(
+                AttrF, None, ParamAttrConstraint.get(AttrF, AttrA, None)
+            ),
+            ParamAttrConstraint(
+                AttrF,
+                (AnyAttr(), ParamAttrConstraint(AttrF, (BaseAttr(AttrA), AnyAttr()))),
+            ),
+        ),
+        (
+            ParamAttrConstraint.get(
+                AttrF, None, ParamAttrConstraint.get(AttrF, None, None)
+            ),
+            ParamAttrConstraint(AttrF, (AnyAttr(), BaseAttr(AttrF))),
+        ),
+        (
+            ParamAttrConstraint.get(Base, AttrA()),
+            ParamAttrConstraint(Base, (EqAttrConstraint(AttrA()),)),
+        ),
+        (VarConstraint.get("T"), VarConstraint("T", AnyAttr())),
+        (VarConstraint.get("T", AttrA), VarConstraint("T", BaseAttr(AttrA))),
+        (VarConstraint.get("T", BaseAttr(AttrA)), VarConstraint("T", BaseAttr(AttrA))),
+        (AnyOf.get(), AnyOf(())),
+        (AnyOf.get(AttrA), BaseAttr(AttrA)),
+        (AnyOf.get(AttrA, AttrB), AnyOf((BaseAttr(AttrA), BaseAttr(AttrB)))),
+    ],
+)
+def test_constraint_get(constr: AttrConstraint, expected: AttrConstraint):
+    assert constr == expected

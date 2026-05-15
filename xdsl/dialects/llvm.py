@@ -2453,6 +2453,16 @@ class FuncOp(IRDLOperation):
             case _:
                 raise AssertionError("Invalid unnamed_addr value")
 
+    def verify_(self, verify_nested_ops: bool = True) -> None:
+        if self.arg_attrs is None:
+            return
+        for i, attrs in enumerate(self.arg_attrs):
+            if "llvm.elementtype" in attrs.data:
+                raise VerifyException(
+                    f"'llvm.elementtype' on parameter {i} is invalid: "
+                    "elementtype can only be applied to intrinsic callsites"
+                )
+
     def print(self, printer: Printer):
         if self.linkage.linkage.data != "external":
             printer.print_string(" ")
@@ -2579,6 +2589,12 @@ class CallIntrinsicOp(IRDLOperation):
         AttrSizedOperandSegments(as_property=True),
         ParsePropInAttrDict(),
     )
+
+    def verify_(self) -> None:
+        if not self.intrin.data.startswith("llvm."):
+            raise VerifyException(
+                f"intrinsic name must start with 'llvm.', got '{self.intrin.data}'"
+            )
 
     def __init__(
         self,
@@ -2850,7 +2866,7 @@ class AbstractFloatArithOp(IRDLOperation, ABC):
         fast_math: FastMathAttr | FastMathFlag | None = None,
         attrs: dict[str, Attribute] | None = None,
     ):
-        if isinstance(fast_math, FastMathFlag | str | None):
+        if not isinstance(fast_math, FastMathAttr):
             fast_math = FastMathAttr(fast_math)
 
         super().__init__(
@@ -3013,7 +3029,7 @@ class FAbsOp(IRDLOperation):
         result_type: Attribute,
         fast_math: FastMathAttr | FastMathFlag | None = None,
     ):
-        if isinstance(fast_math, FastMathFlag | str | None):
+        if not isinstance(fast_math, FastMathAttr):
             fast_math = FastMathAttr(fast_math)
         super().__init__(
             operands=[input],
@@ -3046,7 +3062,7 @@ class FCeilOp(IRDLOperation):
         arg: Operation | SSAValue,
         fast_math: FastMathAttr | FastMathFlag | None = None,
     ):
-        if isinstance(fast_math, FastMathFlag | str | None):
+        if not isinstance(fast_math, FastMathAttr):
             fast_math = FastMathAttr(fast_math)
         super().__init__(
             operands=[arg],
@@ -3079,7 +3095,73 @@ class FSqrtOp(IRDLOperation):
         arg: Operation | SSAValue,
         fast_math: FastMathAttr | FastMathFlag | None = None,
     ):
-        if isinstance(fast_math, FastMathFlag | str | None):
+        if not isinstance(fast_math, FastMathAttr):
+            fast_math = FastMathAttr(fast_math)
+        super().__init__(
+            operands=[arg],
+            result_types=[SSAValue.get(arg).type],
+            properties={"fastmathFlags": fast_math},
+        )
+
+
+@irdl_op_definition
+class FFloorOp(IRDLOperation):
+    T: ClassVar = VarConstraint("T", AnyFloatConstr | VectorType.constr(AnyFloatConstr))
+
+    name = "llvm.intr.floor"
+
+    arg = operand_def(T)
+    res = result_def(T)
+
+    fastmathFlags = prop_def(FastMathAttr, default_value=FastMathAttr(None))
+
+    assembly_format = (
+        "`(` operands `)` attr-dict `:` functional-type(operands, results)"
+    )
+
+    irdl_options = (ParsePropInAttrDict(),)
+
+    traits = traits_def(Pure())
+
+    def __init__(
+        self,
+        arg: Operation | SSAValue,
+        fast_math: FastMathAttr | FastMathFlag | None = None,
+    ):
+        if not isinstance(fast_math, FastMathAttr):
+            fast_math = FastMathAttr(fast_math)
+        super().__init__(
+            operands=[arg],
+            result_types=[SSAValue.get(arg).type],
+            properties={"fastmathFlags": fast_math},
+        )
+
+
+@irdl_op_definition
+class FExp2Op(IRDLOperation):
+    T: ClassVar = VarConstraint("T", AnyFloatConstr | VectorType.constr(AnyFloatConstr))
+
+    name = "llvm.intr.exp2"
+
+    arg = operand_def(T)
+    res = result_def(T)
+
+    fastmathFlags = prop_def(FastMathAttr, default_value=FastMathAttr(None))
+
+    assembly_format = (
+        "`(` operands `)` attr-dict `:` functional-type(operands, results)"
+    )
+
+    irdl_options = (ParsePropInAttrDict(),)
+
+    traits = traits_def(Pure())
+
+    def __init__(
+        self,
+        arg: Operation | SSAValue,
+        fast_math: FastMathAttr | FastMathFlag | None = None,
+    ):
+        if not isinstance(fast_math, FastMathAttr):
             fast_math = FastMathAttr(fast_math)
         super().__init__(
             operands=[arg],
@@ -3112,7 +3194,139 @@ class FLogOp(IRDLOperation):
         arg: Operation | SSAValue,
         fast_math: FastMathAttr | FastMathFlag | None = None,
     ):
-        if isinstance(fast_math, FastMathFlag | str | None):
+        if not isinstance(fast_math, FastMathAttr):
+            fast_math = FastMathAttr(fast_math)
+        super().__init__(
+            operands=[arg],
+            result_types=[SSAValue.get(arg).type],
+            properties={"fastmathFlags": fast_math},
+        )
+
+
+@irdl_op_definition
+class FExpOp(IRDLOperation):
+    T: ClassVar = VarConstraint("T", AnyFloatConstr | VectorType.constr(AnyFloatConstr))
+
+    name = "llvm.intr.exp"
+
+    arg = operand_def(T)
+    res = result_def(T)
+
+    fastmathFlags = prop_def(FastMathAttr, default_value=FastMathAttr(None))
+
+    assembly_format = (
+        "`(` operands `)` attr-dict `:` functional-type(operands, results)"
+    )
+
+    irdl_options = (ParsePropInAttrDict(),)
+
+    traits = traits_def(Pure())
+
+    def __init__(
+        self,
+        arg: Operation | SSAValue,
+        fast_math: FastMathAttr | FastMathFlag | None = None,
+    ):
+        if not isinstance(fast_math, FastMathAttr):
+            fast_math = FastMathAttr(fast_math)
+        super().__init__(
+            operands=[arg],
+            result_types=[SSAValue.get(arg).type],
+            properties={"fastmathFlags": fast_math},
+        )
+
+
+@irdl_op_definition
+class FSinOp(IRDLOperation):
+    T: ClassVar = VarConstraint("T", AnyFloatConstr | VectorType.constr(AnyFloatConstr))
+
+    name = "llvm.intr.sin"
+
+    arg = operand_def(T)
+    res = result_def(T)
+
+    fastmathFlags = prop_def(FastMathAttr, default_value=FastMathAttr(None))
+
+    assembly_format = (
+        "`(` operands `)` attr-dict `:` functional-type(operands, results)"
+    )
+
+    irdl_options = (ParsePropInAttrDict(),)
+
+    traits = traits_def(Pure())
+
+    def __init__(
+        self,
+        arg: Operation | SSAValue,
+        fast_math: FastMathAttr | FastMathFlag | None = None,
+    ):
+        if not isinstance(fast_math, FastMathAttr):
+            fast_math = FastMathAttr(fast_math)
+        super().__init__(
+            operands=[arg],
+            result_types=[SSAValue.get(arg).type],
+            properties={"fastmathFlags": fast_math},
+        )
+
+
+@irdl_op_definition
+class FCosOp(IRDLOperation):
+    T: ClassVar = VarConstraint("T", AnyFloatConstr | VectorType.constr(AnyFloatConstr))
+
+    name = "llvm.intr.cos"
+
+    arg = operand_def(T)
+    res = result_def(T)
+
+    fastmathFlags = prop_def(FastMathAttr, default_value=FastMathAttr(None))
+
+    assembly_format = (
+        "`(` operands `)` attr-dict `:` functional-type(operands, results)"
+    )
+
+    irdl_options = (ParsePropInAttrDict(),)
+
+    traits = traits_def(Pure())
+
+    def __init__(
+        self,
+        arg: Operation | SSAValue,
+        fast_math: FastMathAttr | FastMathFlag | None = None,
+    ):
+        if not isinstance(fast_math, FastMathAttr):
+            fast_math = FastMathAttr(fast_math)
+        super().__init__(
+            operands=[arg],
+            result_types=[SSAValue.get(arg).type],
+            properties={"fastmathFlags": fast_math},
+        )
+
+
+@irdl_op_definition
+class FLog2Op(IRDLOperation):
+    T: ClassVar = VarConstraint("T", AnyFloatConstr | VectorType.constr(AnyFloatConstr))
+
+    name = "llvm.intr.log2"
+
+    arg = operand_def(T)
+    res = result_def(T)
+
+    fastmathFlags = prop_def(FastMathAttr, default_value=FastMathAttr(None))
+
+    assembly_format = (
+        "`(` operands `)` attr-dict `:` functional-type(operands, results)"
+    )
+
+    irdl_options = (ParsePropInAttrDict(),)
+
+    traits = traits_def(Pure())
+
+    def __init__(
+        self,
+        arg: Operation | SSAValue,
+        fast_math: FastMathAttr | FastMathFlag | None = None,
+    ):
+        if not isinstance(fast_math, FastMathAttr):
             fast_math = FastMathAttr(fast_math)
         super().__init__(
             operands=[arg],
@@ -3293,7 +3507,149 @@ class VectorFMaxOp(IRDLOperation):
         rhs: Operation | SSAValue,
         fast_math: FastMathAttr | FastMathFlag | None = None,
     ):
-        if isinstance(fast_math, FastMathFlag | str | None):
+        if not isinstance(fast_math, FastMathAttr):
+            fast_math = FastMathAttr(fast_math)
+        super().__init__(
+            operands=[lhs, rhs],
+            result_types=[SSAValue.get(lhs).type],
+            properties={"fastmathFlags": fast_math},
+        )
+
+
+@irdl_op_definition
+class FCopySignOp(IRDLOperation):
+    T: ClassVar = VarConstraint("T", AnyFloatConstr | VectorType.constr(AnyFloatConstr))
+
+    name = "llvm.intr.copysign"
+
+    lhs = operand_def(T)
+    rhs = operand_def(T)
+    res = result_def(T)
+
+    fastmathFlags = prop_def(FastMathAttr, default_value=FastMathAttr(None))
+
+    assembly_format = (
+        "`(` operands `)` attr-dict `:` functional-type(operands, results)"
+    )
+
+    irdl_options = (ParsePropInAttrDict(),)
+
+    traits = traits_def(Pure())
+
+    def __init__(
+        self,
+        lhs: Operation | SSAValue,
+        rhs: Operation | SSAValue,
+        fast_math: FastMathAttr | FastMathFlag | None = None,
+    ):
+        if not isinstance(fast_math, FastMathAttr):
+            fast_math = FastMathAttr(fast_math)
+        super().__init__(
+            operands=[lhs, rhs],
+            result_types=[SSAValue.get(lhs).type],
+            properties={"fastmathFlags": fast_math},
+        )
+
+
+@irdl_op_definition
+class FMAOp(IRDLOperation):
+    T: ClassVar = VarConstraint("T", AnyFloatConstr | VectorType.constr(AnyFloatConstr))
+
+    name = "llvm.intr.fma"
+
+    a = operand_def(T)
+    b = operand_def(T)
+    c = operand_def(T)
+    res = result_def(T)
+
+    fastmathFlags = prop_def(FastMathAttr, default_value=FastMathAttr(None))
+
+    assembly_format = (
+        "`(` operands `)` attr-dict `:` functional-type(operands, results)"
+    )
+
+    irdl_options = (ParsePropInAttrDict(),)
+
+    traits = traits_def(Pure())
+
+    def __init__(
+        self,
+        a: Operation | SSAValue,
+        b: Operation | SSAValue,
+        c: Operation | SSAValue,
+        fast_math: FastMathAttr | FastMathFlag | None = None,
+    ):
+        if not isinstance(fast_math, FastMathAttr):
+            fast_math = FastMathAttr(fast_math)
+        super().__init__(
+            operands=[a, b, c],
+            result_types=[SSAValue.get(a).type],
+            properties={"fastmathFlags": fast_math},
+        )
+
+
+@irdl_op_definition
+class VectorFMinOp(IRDLOperation):
+    T: ClassVar = VarConstraint("T", AnyFloatConstr | VectorType.constr(AnyFloatConstr))
+
+    name = "llvm.intr.minnum"
+
+    lhs = operand_def(T)
+    rhs = operand_def(T)
+    res = result_def(T)
+
+    fastmathFlags = prop_def(FastMathAttr, default_value=FastMathAttr(None))
+
+    assembly_format = (
+        "`(` operands `)` attr-dict `:` functional-type(operands, results)"
+    )
+
+    irdl_options = (ParsePropInAttrDict(),)
+
+    traits = traits_def(Pure())
+
+    def __init__(
+        self,
+        lhs: Operation | SSAValue,
+        rhs: Operation | SSAValue,
+        fast_math: FastMathAttr | FastMathFlag | None = None,
+    ):
+        if not isinstance(fast_math, FastMathAttr):
+            fast_math = FastMathAttr(fast_math)
+        super().__init__(
+            operands=[lhs, rhs],
+            result_types=[SSAValue.get(lhs).type],
+            properties={"fastmathFlags": fast_math},
+        )
+
+
+@irdl_op_definition
+class FPowOp(IRDLOperation):
+    T: ClassVar = VarConstraint("T", AnyFloatConstr | VectorType.constr(AnyFloatConstr))
+
+    name = "llvm.intr.pow"
+
+    lhs = operand_def(T)
+    rhs = operand_def(T)
+    res = result_def(T)
+
+    fastmathFlags = prop_def(FastMathAttr, default_value=FastMathAttr(None))
+
+    assembly_format = (
+        "`(` operands `)` attr-dict `:` functional-type(operands, results)"
+    )
+
+    irdl_options = (ParsePropInAttrDict(),)
+
+    traits = traits_def(Pure())
+
+    def __init__(
+        self,
+        lhs: Operation | SSAValue,
+        rhs: Operation | SSAValue,
+        fast_math: FastMathAttr | FastMathFlag | None = None,
+    ):
+        if not isinstance(fast_math, FastMathAttr):
             fast_math = FastMathAttr(fast_math)
         super().__init__(
             operands=[lhs, rhs],
@@ -3329,12 +3685,21 @@ LLVM = Dialect(
         FAddOp,
         FCeilOp,
         FCmpOp,
+        FCopySignOp,
+        FCosOp,
         FDivOp,
+        FExpOp,
+        FFloorOp,
+        FExp2Op,
         FLogOp,
+        FLog2Op,
+        FMAOp,
         FMulOp,
         FNegOp,
         FPExtOp,
+        FPowOp,
         FRemOp,
+        FSinOp,
         FSqrtOp,
         FSubOp,
         FuncOp,
@@ -3367,6 +3732,7 @@ LLVM = Dialect(
         UndefOp,
         UnreachableOp,
         VectorFMaxOp,
+        VectorFMinOp,
         XOrOp,
         ZExtOp,
         ZeroOp,

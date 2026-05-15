@@ -1,5 +1,6 @@
 import math
 import re
+import struct
 from collections.abc import Sequence
 from io import StringIO
 
@@ -51,11 +52,12 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.ir import Attribute, Data
 from xdsl.irdl import (
-    AnyInt,
+    AnyAttr,
     AtMost,
     BaseAttr,
     ConstraintContext,
     NotEqualIntConstraint,
+    ParamAttrConstraint,
     RangeLengthConstraint,
     RangeOf,
     RangeVarConstraint,
@@ -77,8 +79,8 @@ def test_FloatType_bitwidths():
 
 
 def test_FloatType_formats():
-    with pytest.raises(NotImplementedError):
-        bf16.format
+    # bf16 subclasses PackableType directly (no struct format string).
+    assert not hasattr(bf16, "format")
     assert f16.format == "<e"
     assert f32.format == "<f"
     assert f64.format == "<d"
@@ -137,6 +139,69 @@ def test_FloatType_packing():
 
     pi = f64.unpack(f64.pack((math.pi,)), 1)[0]
     assert pi == math.pi
+
+    # bf16 has no struct format code; pack/unpack are overridden directly.
+    bf16_buffer = bf16.pack(nums)
+    assert bf16.unpack(bf16_buffer, len(nums)) == nums
+
+
+@pytest.mark.parametrize(
+    "value, expected_raw",
+    [
+        (0.0, b"\x00\x00"),
+        (-0.0, b"\x00\x80"),
+        (1.0, b"\x80\x3f"),
+        (-1.0, b"\x80\xbf"),
+        (2.0, b"\x00\x40"),
+        (float("inf"), b"\x80\x7f"),
+        (float("-inf"), b"\x80\xff"),
+    ],
+)
+def test_bf16_pack_bit_patterns(value: float, expected_raw: bytes):
+    assert bf16.pack((value,)) == expected_raw
+    # Round-trip via struct so +0.0 and -0.0 stay distinguishable.
+    decoded = bf16.unpack(expected_raw, 1)[0]
+    assert struct.pack(">f", decoded) == struct.pack(">f", value)
+
+
+def test_bf16_pack_nan_stays_quiet():
+    raw = bf16.pack((float("nan"),))
+    bits = int.from_bytes(raw, "little")
+    assert (bits & 0x7F80) == 0x7F80  # exponent all-ones
+    assert (bits & 0x007F) != 0  # mantissa non-zero
+    assert bits & 0x0040  # quiet bit set
+
+
+def test_bf16_pack_rounds_to_nearest_even():
+    # Halfway between two bf16 values; ties go to even (mantissa LSB 0).
+    halfway = 1.0 + 2.0**-8
+    assert bf16.pack((halfway,)) == (0x3F80).to_bytes(2, "little")
+    just_above = 1.0 + 2.0**-8 + 2.0**-20
+    assert bf16.pack((just_above,)) == (0x3F81).to_bytes(2, "little")
+
+
+@pytest.mark.parametrize(
+    "value, type_, tolerance",
+    [
+        # f80 and f128 have no precision-normalisation path (their format
+        # raises NotImplementedError); FloatAttr stores the float as-is.
+        (0.1, f80, None),
+        (0.1, f128, None),
+        # bf16 normalises through pack/unpack; 1.5 is exactly representable.
+        (1.5, bf16, None),
+        # 0.1 is not exactly representable in bf16; round-trip is within ULP.
+        (0.1, bf16, 2**-6),
+    ],
+)
+def test_FloatAttr_normalisation(
+    value: float, type_: AnyFloat, tolerance: float | None
+):
+    data = FloatAttr(value, type_).value.data
+    if tolerance is None:
+        assert data == value
+    else:
+        assert data != value
+        assert abs(data - value) < tolerance
 
 
 def test_IntegerType_size():
@@ -338,6 +403,22 @@ def test_IntegerType_packing():
     attrs_i64 = IntegerAttr.unpack(i64, buffer_i64, len(nums_i64))
     assert attrs_i64 == tuple(IntegerAttr(n, i64) for n in nums_i64)
     assert tuple(attr for attr in IntegerAttr.iter_unpack(i64, buffer_i64)) == attrs_i64
+
+    # bf16
+    nums_bf16 = (-3.140625, -1.0, 0.0, 1.0, 3.140625)
+    buffer_bf16 = bf16.pack(nums_bf16)
+    unpacked_bf16 = bf16.unpack(buffer_bf16, len(nums_bf16))
+    assert nums_bf16 == unpacked_bf16
+    attrs_bf16 = FloatAttr.unpack(bf16, buffer_bf16, len(nums_bf16))
+    assert attrs_bf16 == tuple(FloatAttr(n, bf16) for n in nums_bf16)
+    assert (
+        tuple(attr for attr in FloatAttr.iter_unpack(bf16, buffer_bf16)) == attrs_bf16
+    )
+    # pack_into mirrors pack for the same values.
+    pack_into_buffer = bytearray(2 * len(nums_bf16))
+    for i, n in enumerate(nums_bf16):
+        bf16.pack_into(pack_into_buffer, 2 * i, n)
+    assert bytes(pack_into_buffer) == buffer_bf16
 
     # f16
     nums_f16 = (-3.140625, -1.0, 0.0, 1.0, 3.140625)
@@ -561,7 +642,7 @@ def test_tensor_constr():
     # int32 constraint with rank <= 3
     shape = ArrayOfConstraint(
         RangeLengthConstraint(
-            constraint=RangeOf(IntAttrConstraint(AnyInt())), length=AtMost(3)
+            constraint=RangeOf(IntAttrConstraint.get()), length=AtMost(3)
         )
     )
     constr = TensorType.constr(i32, shape)
@@ -846,6 +927,7 @@ def test_integer_type_repr():
 
 def test_vector_constr():
     constr = VectorType.constr(i32)
+    assert constr == ParamAttrConstraint.get(VectorType, i32, AnyAttr(), AnyAttr())
     constr.verify(VectorType(i32, [1]), ConstraintContext())
     constr.verify(VectorType(i32, [1, 2]), ConstraintContext())
     with pytest.raises(VerifyException):
@@ -858,6 +940,7 @@ def test_vector_constr():
         shape=shape,
         scalable_dims=scalable_dims,
     )
+    assert constr == ParamAttrConstraint.get(VectorType, i32, shape, scalable_dims)
     constr.verify(VectorType(i32, shape, scalable_dims), ConstraintContext())
     with pytest.raises(VerifyException):
         constr.verify(VectorType(i32, [1, 2], scalable_dims), ConstraintContext())

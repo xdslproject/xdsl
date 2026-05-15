@@ -13,6 +13,58 @@
 %2 = llvm.intr.fabs(%arg2) : (vector<4xf32>) -> vector<4xf32>
 // CHECK: llvm.intr.fabs([[arg2]]) : (vector<4xf32>) -> vector<4xf32>
 
+%fexp_f32 = llvm.intr.exp(%arg0) : (f32) -> f32
+// CHECK: llvm.intr.exp([[arg0]]) : (f32) -> f32
+
+%fexp_f64 = llvm.intr.exp(%arg1) : (f64) -> f64
+// CHECK: llvm.intr.exp([[arg1]]) : (f64) -> f64
+
+%fexp_vec = llvm.intr.exp(%arg2) : (vector<4xf32>) -> vector<4xf32>
+// CHECK: llvm.intr.exp([[arg2]]) : (vector<4xf32>) -> vector<4xf32>
+
+%fsin_0 = llvm.intr.sin(%arg0) : (f32) -> f32
+// CHECK: llvm.intr.sin([[arg0]]) : (f32) -> f32
+
+%fsin_1 = llvm.intr.sin(%arg1) : (f64) -> f64
+// CHECK: llvm.intr.sin([[arg1]]) : (f64) -> f64
+
+%fsin_2 = llvm.intr.sin(%arg2) : (vector<4xf32>) -> vector<4xf32>
+// CHECK: llvm.intr.sin([[arg2]]) : (vector<4xf32>) -> vector<4xf32>
+%ffloor_f32 = llvm.intr.floor(%arg0) : (f32) -> f32
+// CHECK: llvm.intr.floor([[arg0]]) : (f32) -> f32
+
+%ffloor_f64 = llvm.intr.floor(%arg1) : (f64) -> f64
+// CHECK: llvm.intr.floor([[arg1]]) : (f64) -> f64
+
+%ffloor_vec = llvm.intr.floor(%arg2) : (vector<4xf32>) -> vector<4xf32>
+// CHECK: llvm.intr.floor([[arg2]]) : (vector<4xf32>) -> vector<4xf32>
+%fcos_f32 = llvm.intr.cos(%arg0) : (f32) -> f32
+// CHECK: llvm.intr.cos([[arg0]]) : (f32) -> f32
+
+%fcos_f64 = llvm.intr.cos(%arg1) : (f64) -> f64
+// CHECK: llvm.intr.cos([[arg1]]) : (f64) -> f64
+
+%fcos_vec = llvm.intr.cos(%arg2) : (vector<4xf32>) -> vector<4xf32>
+// CHECK: llvm.intr.cos([[arg2]]) : (vector<4xf32>) -> vector<4xf32>
+
+%exp2_f32 = llvm.intr.exp2(%arg0) : (f32) -> f32
+// CHECK: llvm.intr.exp2([[arg0]]) : (f32) -> f32
+
+%exp2_f64 = llvm.intr.exp2(%arg1) : (f64) -> f64
+// CHECK: llvm.intr.exp2([[arg1]]) : (f64) -> f64
+
+%exp2_vec = llvm.intr.exp2(%arg2) : (vector<4xf32>) -> vector<4xf32>
+// CHECK: llvm.intr.exp2([[arg2]]) : (vector<4xf32>) -> vector<4xf32>
+
+%minnum_f32 = llvm.intr.minnum(%arg0, %arg0) : (f32, f32) -> f32
+// CHECK: llvm.intr.minnum([[arg0]], [[arg0]]) : (f32, f32) -> f32
+
+%minnum_f64 = llvm.intr.minnum(%arg1, %arg1) : (f64, f64) -> f64
+// CHECK: llvm.intr.minnum([[arg1]], [[arg1]]) : (f64, f64) -> f64
+
+%minnum_vec = llvm.intr.minnum(%arg2, %arg2) : (vector<4xf32>, vector<4xf32>) -> vector<4xf32>
+// CHECK: llvm.intr.minnum([[arg2]], [[arg2]]) : (vector<4xf32>, vector<4xf32>) -> vector<4xf32>
+
 %3 = llvm.fneg %arg0 : f32
 // CHECK: llvm.fneg [[arg0]] : f32
 
@@ -24,6 +76,15 @@
 
 %6 = llvm.fneg %arg0 {fastmathFlags = #llvm.fastmath<fast>} : f32
 // CHECK: llvm.fneg [[arg0]] {fastmathFlags = #llvm.fastmath<fast>} : f32
+
+%fma_f32 = llvm.intr.fma(%arg0, %arg0, %arg0) : (f32, f32, f32) -> f32
+// CHECK: llvm.intr.fma([[arg0]], [[arg0]], [[arg0]]) : (f32, f32, f32) -> f32
+
+%fma_vec = llvm.intr.fma(%arg2, %arg2, %arg2) : (vector<4xf32>, vector<4xf32>, vector<4xf32>) -> vector<4xf32>
+// CHECK: llvm.intr.fma([[arg2]], [[arg2]], [[arg2]]) : (vector<4xf32>, vector<4xf32>, vector<4xf32>) -> vector<4xf32>
+
+%fma_fast = llvm.intr.fma(%arg0, %arg0, %arg0) {fastmathFlags = #llvm.fastmath<fast>} : (f32, f32, f32) -> f32
+// CHECK: llvm.intr.fma([[arg0]], [[arg0]], [[arg0]]) {fastmathFlags = #llvm.fastmath<fast>} : (f32, f32, f32) -> f32
 
 %fcmp_lhs, %fcmp_rhs = "test.op"() : () -> (f32, f32)
 // CHECK: [[fcmp_lhs:%\d+]], [[fcmp_rhs:%\d+]]
@@ -54,6 +115,15 @@
 
 %11 = llvm.select %select_cond, %select_f32_lhs, %select_f32_rhs : i1, f32
 // CHECK: llvm.select [[select_cond]], [[select_f32_lhs]], [[select_f32_rhs]] : i1, f32
+
+%12 = llvm.intr.pow(%arg0, %arg0) : (f32, f32) -> f32
+// CHECK: llvm.intr.pow([[arg0]], [[arg0]]) : (f32, f32) -> f32
+
+%13 = llvm.intr.pow(%arg1, %arg1) : (f64, f64) -> f64
+// CHECK: llvm.intr.pow([[arg1]], [[arg1]]) : (f64, f64) -> f64
+
+%14 = llvm.intr.pow(%arg2, %arg2) : (vector<4xf32>, vector<4xf32>) -> vector<4xf32>
+// CHECK: llvm.intr.pow([[arg2]], [[arg2]]) : (vector<4xf32>, vector<4xf32>) -> vector<4xf32>
 
 "test.op"() ({
 ^bb0(%cond_br_cond: i1, %cond_br_arg: i32):

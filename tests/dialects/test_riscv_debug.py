@@ -1,3 +1,4 @@
+from xdsl.backend.register_type import RegisterAllocatedMemoryEffect
 from xdsl.dialects import riscv_debug
 from xdsl.traits import (
     EffectInstance,
@@ -33,4 +34,15 @@ def test_effect_traits():
     }
 
     # Check below separately for each of these
-    assert all_effects_trait_types == {MemoryWriteEffect}
+    assert all_effects_trait_types == {
+        MemoryWriteEffect,
+        RegisterAllocatedMemoryEffect,
+    }
+
+    register_effects_ops = {
+        op for op in effects_ops if op.has_trait(RegisterAllocatedMemoryEffect)
+    }
+    write_effects_ops = {op for op in effects_ops if op.has_trait(MemoryWriteEffect)}
+
+    assert register_effects_ops == {riscv_debug.PrintfOp}
+    assert write_effects_ops == {riscv_debug.PrintfOp}
