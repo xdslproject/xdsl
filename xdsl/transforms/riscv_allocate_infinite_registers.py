@@ -1,8 +1,6 @@
 from dataclasses import dataclass
 
-from ordered_set import OrderedSet
-
-from xdsl.backend.register_allocatable import RegisterAllocatableOperation, RegisterType
+from xdsl.backend.register_allocatable import RegisterAllocatableOperation
 from xdsl.backend.register_stack import OutOfRegisters
 from xdsl.backend.riscv.register_stack import RiscvRegisterStack
 from xdsl.context import Context
@@ -27,7 +25,6 @@ class RISCVAllocateInfiniteRegistersPass(ModulePass):
 
             # remove registers from stack that are already used in body
             # up till the first parallel move op
-            excluded_registers: OrderedSet[RegisterType] = OrderedSet([])
             for inner_op in func_op.walk():
                 if isinstance(inner_op, riscv.ParallelMovOp):
                     # only consider uses for pmov
@@ -37,13 +34,11 @@ class RISCVAllocateInfiniteRegistersPass(ModulePass):
                             and reg.is_allocated
                         ):
                             register_stack.exclude_register(reg)
-                            excluded_registers.add(reg)
                     break
 
                 if isinstance(inner_op, RegisterAllocatableOperation):
                     for reg in inner_op.iter_used_registers():
                         register_stack.exclude_register(reg)
-                        excluded_registers.add(reg)
 
             phys_reg_by_inf_reg: dict[
                 riscv.RISCVRegisterType, riscv.RISCVRegisterType
@@ -51,9 +46,7 @@ class RISCVAllocateInfiniteRegistersPass(ModulePass):
             for inner_op in func_op.walk():
                 if isinstance(inner_op, riscv.ParallelMovOp):
                     # Reset the register stack and search until the next pmov op
-                    for reg in excluded_registers:
-                        register_stack.include_register(reg)
-                    excluded_registers = OrderedSet([])
+                    register_stack = RiscvRegisterStack.get()
                     # exclude allocated definitions
                     for reg in inner_op.result_types:
                         if (
@@ -61,7 +54,6 @@ class RISCVAllocateInfiniteRegistersPass(ModulePass):
                             and reg.is_allocated
                         ):
                             register_stack.exclude_register(reg)
-                            excluded_registers.add(reg)
                     # remove registers from stack that are already used in body
                     # up till the next parallel move op
                     next_op = inner_op
@@ -74,13 +66,27 @@ class RISCVAllocateInfiniteRegistersPass(ModulePass):
                                     and reg.is_allocated
                                 ):
                                     register_stack.exclude_register(reg)
-                                    excluded_registers.add(reg)
                             break
 
                         if isinstance(next_op, RegisterAllocatableOperation):
                             for reg in next_op.iter_used_registers():
                                 register_stack.exclude_register(reg)
-                                excluded_registers.add(reg)
+                    # Forward register mapping through blocks, but drop mapping
+                    # if the phys reg has been excluded
+                    for inf_reg, phys_reg in list(phys_reg_by_inf_reg.items()):
+                        assert isinstance(phys_reg.index, builtin.IntAttr)
+                        index = phys_reg.index.data
+                        if (
+                            index
+                            in register_stack.available_registers[
+                                phys_reg.register_pool_key()
+                            ]
+                        ):
+                            # This mapping is safe, keep the mapping and pop the value
+                            register_stack.exclude_register(phys_reg)
+                        else:
+                            # This mapping is no longer valid, drop the mapping
+                            del phys_reg_by_inf_reg[inf_reg]
 
                 for result in inner_op.results:
                     result_reg = result.type
