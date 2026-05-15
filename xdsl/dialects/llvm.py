@@ -244,7 +244,7 @@ def is_compatible_type(type_attr: Attribute) -> bool:
     Matches MLIR's LLVMDialect::isCompatibleType: signless integers, floats,
     LLVM dialect types, and 1-D fixed vectors of compatible element types.
     """
-    if isa(type_attr, IntegerType):
+    if isinstance(type_attr, IntegerType):
         return type_attr.signedness.data == Signedness.SIGNLESS
     if isinstance(
         type_attr,
@@ -262,7 +262,7 @@ def is_compatible_type(type_attr: Attribute) -> bool:
         ),
     ):
         return True
-    if isa(type_attr, VectorType):
+    if isinstance(type_attr, VectorType):
         return (
             type_attr.get_num_dims() == 1
             and type_attr.get_num_scalable_dims() == 0
