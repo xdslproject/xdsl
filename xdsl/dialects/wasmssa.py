@@ -2,23 +2,22 @@ from collections.abc import Sequence
 from typing import TypeAlias, cast
 
 from xdsl.dialects.builtin import (
+    I32,
+    I64,
+    I128,
+    Float32Type,
+    Float64Type,
     IntAttr,
     NoneAttr,
-    f32,
-    f64,
-    i32,
-    i64,
-    i128,
 )
 from xdsl.ir import (
-    Attribute,
     Dialect,
     OpaqueSyntaxAttribute,
     ParametrizedAttribute,
     SpacedOpaqueSyntaxAttribute,
     TypeAttribute,
 )
-from xdsl.irdl import AnyOf, irdl_attr_definition, param_def
+from xdsl.irdl import irdl_attr_definition
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
 
@@ -43,7 +42,9 @@ class ExternRefType(ParametrizedAttribute, TypeAttribute):
 
 RefType: TypeAlias = FuncRefType | ExternRefType
 """Type alias for opaque references in WebAssembly"""
-ValTypeConstr: AnyOf = AnyOf([i32, i64, i128, f32, f64, FuncRefType, ExternRefType])
+ValTypeConstr: TypeAlias = (
+    I32 | I64 | I128 | Float32Type | Float64Type | FuncRefType | ExternRefType
+)
 """Constraint for value types that are supported by WebAssembly"""
 
 
@@ -87,7 +88,7 @@ class LocalRefType(ParametrizedAttribute, SpacedOpaqueSyntaxAttribute, TypeAttri
 
     name = "wasmssa.local"
 
-    elementType: Attribute = param_def(ValTypeConstr)
+    elementType: ValTypeConstr
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> Sequence[TypeAttribute]:
