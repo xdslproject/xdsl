@@ -388,10 +388,10 @@ def _intrinsic_suffix(t: ir.Type) -> str:
 def _declare_intrinsic(
     module: ir.Module,
     name: str,
-    tys: tuple[ir.Type, ...],
+    ty: ir.Type,
     fnty: ir.FunctionType,
 ) -> ir.Function:
-    full_name = ".".join([name] + [_intrinsic_suffix(t) for t in tys])
+    full_name = f"{name}.{_intrinsic_suffix(ty)}"
     if full_name in module.globals:
         return cast(ir.Function, module.globals[full_name])
     return ir.Function(module, fnty, name=full_name)
@@ -427,9 +427,7 @@ def _convert_vector_reduction(
         start = ir.Constant(elt_type, identity)
 
     fn_type = ir.FunctionType(elt_type, [elt_type, vec_type])
-    intrinsic = _declare_intrinsic(
-        builder.module, intrinsic_prefix, (vec_type,), fn_type
-    )
+    intrinsic = _declare_intrinsic(builder.module, intrinsic_prefix, vec_type, fn_type)
 
     flags = [f.value for f in op.fastmath.data]
     val_map[op.dest] = builder.call(intrinsic, [start, vector], fastmath=flags)
@@ -447,7 +445,7 @@ def _convert_fma(
     c = val_map[op.c]
     res_type = convert_type(op.res.type)
     fn_type = ir.FunctionType(res_type, [res_type, res_type, res_type])
-    intrinsic = _declare_intrinsic(builder.module, "llvm.fma", (res_type,), fn_type)
+    intrinsic = _declare_intrinsic(builder.module, "llvm.fma", res_type, fn_type)
     val_map[op.res] = builder.call(intrinsic, [a, b, c])
 
 
