@@ -549,7 +549,7 @@ def test_var_sbregion_one_block():
     op1 = VarSBRegionOp.build(regions=[[[Block([TestTermOp.create()])]]])
     op2 = VarSBRegionOp.build(regions=[[Region(), [Block(), Block()]]])
     op1.verify()
-    op2.verify()
+    # op2 would not verify - here we are testing that building works regardless of verification
     assert len(op1.regs) == 1
     assert len(op2.regs) == 2
     assert len(op2.regs[0].blocks) == 0

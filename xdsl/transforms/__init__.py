@@ -610,6 +610,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return test_lower_linalg_to_snitch.TestLowerLinalgToSnitchPass
 
+    def get_test_deprecation():
+        from xdsl.transforms import test_deprecation
+
+        return test_deprecation.TestDeprecationPass  # pyright: ignore[reportDeprecated]
+
     def get_test_specialised_constant_folding():
         from xdsl.transforms import test_constant_folding
 
@@ -789,6 +794,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "stencil-unroll": get_stencil_unroll,
         "test-add-timers-to-top-level-funcs": get_test_add_timers_to_top_level_funcs,
         "test-constant-folding": get_test_constant_folding,
+        "test-deprecation": get_test_deprecation,
         "test-lower-linalg-to-snitch": get_test_lower_linalg_to_snitch,
         "test-specialised-constant-folding": get_test_specialised_constant_folding,
         "test-transform-dialect-erase-schedule": get_test_transform_dialect_erase_schedule,

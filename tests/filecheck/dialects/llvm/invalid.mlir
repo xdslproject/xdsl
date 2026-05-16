@@ -177,6 +177,23 @@ func.func @shufflevector_mask_out_of_range() {
 
 // -----
 
+llvm.func @elementtype_on_func(%arg0: !llvm.ptr {llvm.elementtype = f32}) {
+  llvm.return
+}
+
+// CHECK: 'llvm.elementtype' on parameter 0 is invalid: elementtype can only be applied to intrinsic callsites
+
+// -----
+
+func.func @call_intrinsic_bad_name() {
+  llvm.call_intrinsic "not_an_intrinsic"() : () -> ()
+  func.return
+}
+
+// CHECK: intrinsic name must start with 'llvm.'
+
+// -----
+
 builtin.module {
     %f = "test.op"() : () -> !llvm.func<void (index)>
 }

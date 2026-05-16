@@ -92,8 +92,8 @@ from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
 boolLike = ContainerOf(IntegerType(1))
-signlessIntegerLike = ContainerOf(AnyOf([IntegerType, IndexType]))
-floatingPointLike = ContainerOf(AnyOf([Float16Type, Float32Type, Float64Type]))
+signlessIntegerLike = ContainerOf(AnyOf.get(IntegerType, IndexType))
+floatingPointLike = ContainerOf(AnyOf.get(Float16Type, Float32Type, Float64Type))
 
 
 @irdl_op_definition
