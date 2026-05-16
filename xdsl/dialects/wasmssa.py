@@ -42,10 +42,10 @@ class ExternRefType(ParametrizedAttribute, TypeAttribute):
 
 RefType: TypeAlias = FuncRefType | ExternRefType
 """Type alias for opaque references in WebAssembly"""
-ValTypeConstr: TypeAlias = (
+ValType: TypeAlias = (
     I32 | I64 | I128 | Float32Type | Float64Type | FuncRefType | ExternRefType
 )
-"""Constraint for value types that are supported by WebAssembly"""
+"""Type alias for value types that are supported by WebAssembly"""
 
 
 @irdl_attr_definition
@@ -88,7 +88,7 @@ class LocalRefType(ParametrizedAttribute, SpacedOpaqueSyntaxAttribute, TypeAttri
 
     name = "wasmssa.local"
 
-    elementType: ValTypeConstr
+    elementType: ValType
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> Sequence[TypeAttribute]:
