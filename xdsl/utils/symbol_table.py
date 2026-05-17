@@ -47,6 +47,16 @@ class SymbolUse(NamedTuple):
     """The symbol reference that this use represents."""
 
 
+def get_name_if_symbol(op: Operation) -> None | str:
+    sym_interface = op.get_trait(traits.SymbolOpInterface)
+    if sym_interface is None:
+        return None
+
+    name_attr = sym_interface.get_sym_attr_name(op)
+
+    return name_attr.data if name_attr is not None else None
+
+
 class SymbolTable:
     """
     This class allows for representing and managing the symbol table used by operations
