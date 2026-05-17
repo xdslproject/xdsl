@@ -36,6 +36,7 @@ from xdsl.traits import (
     MemoryReadEffect,
     MemoryWriteEffect,
     Pure,
+    SymbolOpInterface,
 )
 
 
@@ -289,6 +290,46 @@ class TestType(Data[str], TypeAttribute):
             printer.print_string_literal(self.data)
 
 
+@irdl_op_definition
+class TestSymbolOp(IRDLOperation):
+    """
+    This operation can produce an arbitrary number of SSAValues with arbitrary
+    types. It is used in filecheck testing to reduce to artificial dependencies
+    on other dialects (i.e. dependencies that only come from the structure of
+    the test rather than the actual dialect).
+    Its main difference with TestOp is that it satisfies the SymbolOpInterface trait,
+    meaning that we can attach a symbol name to it.
+    """
+
+    name = "test.op_with_symbol"
+
+    res = var_result_def()
+    ops = var_operand_def()
+    regs = var_region_def()
+
+    prop1 = opt_prop_def()
+    prop2 = opt_prop_def()
+    prop3 = opt_prop_def()
+
+    traits = traits_def(SymbolOpInterface())
+
+    def __init__(
+        self,
+        operands: Sequence[SSAValue | Operation] = (),
+        result_types: Sequence[Attribute] = (),
+        attributes: Mapping[str, Attribute | None] | None = None,
+        properties: Mapping[str, Attribute | None] | None = None,
+        regions: Sequence[Region | Sequence[Operation] | Sequence[Block]] = (),
+    ):
+        super().__init__(
+            operands=(operands,),
+            result_types=(result_types,),
+            attributes=attributes,
+            properties=properties,
+            regions=(regions,),
+        )
+
+
 Test = Dialect(
     "test",
     [
@@ -297,6 +338,7 @@ Test = Dialect(
         TestReadOp,
         TestTermOp,
         TestWriteOp,
+        TestSymbolOp,
     ],
     [
         TestType,
