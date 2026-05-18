@@ -1,14 +1,23 @@
 import pytest
 
 from xdsl.dialects.builtin import ModuleOp, StringAttr
-from xdsl.dialects.test import TestOp
+from xdsl.dialects.test import TestOp, TestSymbolOp
 from xdsl.ir import Block, Region
 from xdsl.utils.symbol_table import (
     SymbolTable,
     SymbolTableCollection,
     Visibility,
+    get_name_if_symbol,
     walk_symbol_table,
 )
+
+
+def test_get_name_if_symbol():
+    symbol = TestSymbolOp(properties={"sym_name": StringAttr("a")})
+    not_symbol = TestOp()
+
+    assert get_name_if_symbol(symbol) == "a"
+    assert get_name_if_symbol(not_symbol) is None
 
 
 def test_walk_symbol_table():
