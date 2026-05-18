@@ -719,7 +719,7 @@ class SubviewOp(IRDLOperation):
         )
 
     @staticmethod
-    def _identity_strides_for_shape(shape: Sequence[int]) -> tuple[int | None, ...]:
+    def identity_strides_for_shape(shape: Sequence[int]) -> tuple[int | None, ...]:
         """
         Return row-major strides for a memref without an explicit layout.
         """
@@ -734,19 +734,20 @@ class SubviewOp(IRDLOperation):
         return tuple(strides)
 
     @staticmethod
-    def _get_strides_and_offset(
+    def get_strides_and_offset(
         source_type: MemRefType[Attribute],
     ) -> tuple[tuple[int | None, ...], int | None]:
         """
-        Return source strides and offset when the layout is strided-like.
+        Return source strides and offset when the layout is strided-like,
+        otherwise raises `ValueError`.
         """
         match source_type.layout:
             case NoneAttr():
-                return SubviewOp._identity_strides_for_shape(source_type.get_shape()), 0
+                return SubviewOp.identity_strides_for_shape(source_type.get_shape()), 0
             case StridedLayoutAttr() as layout:
                 strides = source_type.get_strides()
                 if strides is None:
-                    raise VerifyException(
+                    raise ValueError(
                         "cannot infer memref.subview result type from non-strided "
                         f"source type {source_type}"
                     )
@@ -754,7 +755,7 @@ class SubviewOp(IRDLOperation):
             case _:
                 strides = source_type.get_strides()
                 if strides is None:
-                    raise VerifyException(
+                    raise ValueError(
                         "cannot infer memref.subview result type from non-strided "
                         f"source type {source_type}"
                     )
@@ -782,7 +783,7 @@ class SubviewOp(IRDLOperation):
         static_offsets, _ = split_dynamic_index_list(offsets, DYNAMIC_INDEX)
         static_sizes, _ = split_dynamic_index_list(sizes, DYNAMIC_INDEX)
         static_strides, _ = split_dynamic_index_list(strides, DYNAMIC_INDEX)
-        source_strides, source_offset = SubviewOp._get_strides_and_offset(source_type)
+        source_strides, source_offset = SubviewOp.get_strides_and_offset(source_type)
 
         result_shape = tuple(static_sizes)
         result_strides = tuple(

@@ -334,6 +334,44 @@ def test_memref_subview_constant_parameters():
     assert subview.result.type.layout.offset.data == 222
 
 
+def test_memref_subview_identity_strides_for_shape():
+    assert SubviewOp.identity_strides_for_shape([2, 3, 4]) == (12, 4, 1)
+    assert SubviewOp.identity_strides_for_shape([2, DYNAMIC_INDEX, 4]) == (
+        None,
+        4,
+        1,
+    )
+
+
+def test_memref_subview_get_strides_and_offset_default_layout():
+    source_type = MemRefType(i32, [10, DYNAMIC_INDEX, 4])
+
+    strides, offset = SubviewOp.get_strides_and_offset(source_type)
+
+    assert strides == (None, 4, 1)
+    assert offset == 0
+
+
+def test_memref_subview_get_strides_and_offset_strided_layout():
+    source_type = MemRefType(i32, [10, 10], StridedLayoutAttr([None, 1], 5))
+
+    strides, offset = SubviewOp.get_strides_and_offset(source_type)
+
+    assert strides == (None, 1)
+    assert offset == 5
+
+
+def test_memref_subview_get_strides_and_offset_rejects_affine_map_layout():
+    source_type = MemRefType(
+        i32,
+        [10, 10],
+        AffineMapAttr(AffineMap.identity(2)),
+    )
+
+    with pytest.raises(ValueError, match="non-strided source type"):
+        SubviewOp.get_strides_and_offset(source_type)
+
+
 def test_memref_subview_infer_result_type_static():
     source_type = MemRefType(i32, [10, 10, 10])
 
@@ -453,7 +491,7 @@ def test_memref_subview_infer_result_type_rejects_affine_map_layout():
         AffineMapAttr(AffineMap.from_callable(lambda i, j: (i * 10 + j,))),
     )
 
-    with pytest.raises(VerifyException, match="non-strided source type"):
+    with pytest.raises(ValueError, match="non-strided source type"):
         SubviewOp.infer_result_type(
             source_type,
             [0, 0],
