@@ -49,13 +49,10 @@ class SymbolUse(NamedTuple):
 
 def get_name_if_symbol(op: Operation) -> None | str:
     """Returns the symbol name if this operation has one"""
-    sym_interface = op.get_trait(traits.SymbolOpInterface)
-    if sym_interface is None:
-        return None
-
-    name_attr = sym_interface.get_sym_attr_name(op)
-
-    return name_attr.data if name_attr is not None else None
+    if (sym_interface := op.get_trait(traits.SymbolOpInterface)) is not None and (
+        name_attr := sym_interface.get_sym_attr_name(op)
+    ) is not None:
+        return name_attr.data
 
 
 class SymbolTable:
