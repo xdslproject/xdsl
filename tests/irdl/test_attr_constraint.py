@@ -13,11 +13,14 @@ from xdsl.dialects.builtin import (
     IntAttrConstraint,
     IntegerType,
     MemRefType,
+    Signedness,
+    SignednessAttr,
     StringAttr,
     TensorType,
     UnrankedMemRefType,
     UnrankedTensorType,
     i32,
+    i64,
 )
 from xdsl.ir import Attribute, Data, ParametrizedAttribute
 from xdsl.irdl import (
@@ -32,6 +35,7 @@ from xdsl.irdl import (
     EqIntConstraint,
     IntSetConstraint,
     IntTypeVarConstraint,
+    MessageConstraint,
     ParamAttrConstraint,
     VarConstraint,
     base,
@@ -459,3 +463,59 @@ class AttrF(ParametrizedAttribute):
 )
 def test_constraint_get(constr: AttrConstraint, expected: AttrConstraint):
     assert constr == expected
+
+
+@pytest.mark.parametrize(
+    "constr, var_dict, inferred",
+    [
+        (AnyAttr(), {}, None),
+        (VarConstraint("A", AnyAttr()), {}, None),
+        (VarConstraint("A", AnyAttr()), {"A": i32}, i32),
+        (VarConstraint("A", EqAttrConstraint(i32)), {}, i32),
+        (EqAttrConstraint(i32), {}, i32),
+        (BaseAttr(type(i32)), {}, None),
+        (AnyOf((EqAttrConstraint(i32), EqAttrConstraint(i64))), {}, None),
+        (AnyOf((EqAttrConstraint(i32), EqAttrConstraint(i32))), {}, None),
+        (
+            AllOf(
+                (
+                    VarConstraint("A", AnyAttr()),
+                    EqAttrConstraint(i32),
+                )
+            ),
+            {},
+            i32,
+        ),
+        (
+            AllOf(
+                (
+                    VarConstraint("A", AnyAttr()),
+                    EqAttrConstraint(i32),
+                )
+            ),
+            {"A": i64},
+            i64,
+        ),
+        (ParamAttrConstraint(IntegerType, (AnyAttr(), AnyAttr())), {}, None),
+        (
+            ParamAttrConstraint(
+                IntegerType,
+                (
+                    EqAttrConstraint(IntAttr(32)),
+                    EqAttrConstraint(SignednessAttr(Signedness.SIGNLESS)),
+                ),
+            ),
+            {},
+            i32,
+        ),
+        (MessageConstraint(EqAttrConstraint(i32), "msg"), {}, i32),
+    ],
+)
+def test_constraint_inference(
+    constr: AttrConstraint, var_dict: dict[str, Attribute], inferred: Attribute | None
+) -> None:
+    if inferred is None:
+        assert not constr.can_infer(var_dict.keys())
+    else:
+        assert constr.can_infer(var_dict.keys())
+        assert constr.infer(ConstraintContext(var_dict)) == inferred

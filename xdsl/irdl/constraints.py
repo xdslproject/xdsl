@@ -259,10 +259,14 @@ class VarConstraint(AttrConstraint[AttributeCovT]):
 
     def infer(self, context: ConstraintContext) -> AttributeCovT:
         v = context.get_variable(self.name)
+        if v is None:
+            return self.constraint.infer(context)
         return cast(AttributeCovT, v)
 
     def can_infer(self, var_constraint_names: AbstractSet[str]) -> bool:
-        return self.name in var_constraint_names
+        return self.name in var_constraint_names or self.constraint.can_infer(
+            var_constraint_names
+        )
 
     def get_bases(self) -> set[type[Attribute]] | None:
         return self.constraint.get_bases()
@@ -988,14 +992,17 @@ class IntVarConstraint(IntConstraint):
         return self.constraint.variables() | {self.name}
 
     def can_infer(self, var_constraint_names: AbstractSet[str]) -> bool:
-        return self.name in var_constraint_names
+        return self.name in var_constraint_names or self.constraint.can_infer(
+            var_constraint_names
+        )
 
     def infer(
         self,
         context: ConstraintContext,
     ) -> int:
         v = context.get_int_variable(self.name)
-        assert isinstance(v, int)
+        if v is None:
+            return self.constraint.infer(context)
         return v
 
     def mapping_type_vars(
@@ -1234,12 +1241,16 @@ class RangeVarConstraint(RangeConstraint[AttributeCovT]):
     def can_infer(
         self, var_constraint_names: AbstractSet[str], *, length_known: bool
     ) -> bool:
-        return self.name in var_constraint_names
+        return self.name in var_constraint_names or self.constraint.can_infer(
+            var_constraint_names, length_known=length_known
+        )
 
     def infer(
         self, context: ConstraintContext, *, length: int | None
     ) -> Sequence[AttributeCovT]:
         v = context.get_range_variable(self.name)
+        if v is None:
+            return self.constraint.infer(context, length=length)
         return cast(Sequence[AttributeCovT], v)
 
     def mapping_type_vars(
