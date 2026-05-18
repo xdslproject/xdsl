@@ -963,7 +963,7 @@ class PadOp(IRDLOperation):
         # OR either pad amount on that dim is dynamic.
         dynamic_dims = tuple(
             i
-            for i, (s, l, h) in enumerate(
+            for i, i_dims in enumerate(
                 zip(
                     source_shape,
                     self.static_low.get_values(),
@@ -971,7 +971,7 @@ class PadOp(IRDLOperation):
                     strict=True,
                 )
             )
-            if s == DYNAMIC_INDEX or l == DYNAMIC_INDEX or h == DYNAMIC_INDEX
+            if DYNAMIC_INDEX in i_dims
         )
         result_dynamic_dims = tuple(
             i for i, s in enumerate(self.result.type.get_shape()) if s == DYNAMIC_INDEX
