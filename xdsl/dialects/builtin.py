@@ -127,11 +127,24 @@ class ShapedType(Attribute, ABC):
         return all(dim != DYNAMIC_INDEX for dim in self.get_shape())
 
     @staticmethod
-    def strides_for_shape(shape: Sequence[int], factor: int = 1) -> tuple[int, ...]:
-        import operator
-        from itertools import accumulate
-
-        return tuple(accumulate(reversed(shape), operator.mul, initial=factor))[-2::-1]
+    def strides_for_shape(
+        shape: Sequence[int], factor: int = 1
+    ) -> tuple[int | None, ...]:
+        """
+        Returns a tuple of strides for a given shape, with row-major layout.
+        Strides that depend on a dynamic index are returned as `None`.
+        The optional `factor` parameter specifies the stride for the innermost
+        dimension, defaulting to 1.
+        """
+        rev_strides: list[int | None] = []
+        stride: int | None = factor
+        for dim in reversed(shape):
+            rev_strides.append(stride)
+            if stride is None or dim == DYNAMIC_INDEX:
+                stride = None
+            else:
+                stride *= dim
+        return tuple(reversed(rev_strides))
 
 
 _ContainerElementTypeT = TypeVar(
