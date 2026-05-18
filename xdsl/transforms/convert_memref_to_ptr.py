@@ -97,7 +97,8 @@ def get_strides(
 
     shape = memref_type.get_shape()
     if builtin.DYNAMIC_INDEX not in shape:
-        return builtin.ShapedType.strides_for_shape(shape)
+        static_strides = builtin.ShapedType.strides_for_shape(shape)
+        return cast(tuple[int], static_strides)
 
     rank = len(shape)
     strides: list[int | SSAValue] = [1] * rank

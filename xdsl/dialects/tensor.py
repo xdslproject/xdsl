@@ -952,24 +952,26 @@ class PadOp(IRDLOperation):
                 f"pad sizes low ({len(self.static_low)}) and high ({len(self.static_high)})"
                 " must have an equal number of dimensions"
             )
-        source_type = self.source.type
-        if isinstance(source_type, TensorType) and len(self.static_low) != len(
-            source_type.get_shape()
-        ):
+        source_type = cast(TensorType[Attribute], self.source.type)  # verified by IRDL
+        source_shape = source_type.get_shape()
+        if len(self.static_low) != len(source_shape):
             raise VerifyException(
                 f"number of pad sizes ({len(self.static_low)}) must equal number of dimensions"
                 f" in source tensor ({len(source_type.get_shape())})"
             )
+        # A result dim is dynamic when the source dim is dynamic
+        # OR either pad amount on that dim is dynamic.
         dynamic_dims = tuple(
             i
-            for i, (l, h) in enumerate(
+            for i, i_dims in enumerate(
                 zip(
+                    source_shape,
                     self.static_low.get_values(),
                     self.static_high.get_values(),
                     strict=True,
                 )
             )
-            if l == DYNAMIC_INDEX or h == DYNAMIC_INDEX
+            if DYNAMIC_INDEX in i_dims
         )
         result_dynamic_dims = tuple(
             i for i, s in enumerate(self.result.type.get_shape()) if s == DYNAMIC_INDEX

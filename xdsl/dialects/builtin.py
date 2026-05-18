@@ -127,11 +127,24 @@ class ShapedType(Attribute, ABC):
         return all(dim != DYNAMIC_INDEX for dim in self.get_shape())
 
     @staticmethod
-    def strides_for_shape(shape: Sequence[int], factor: int = 1) -> tuple[int, ...]:
-        import operator
-        from itertools import accumulate
-
-        return tuple(accumulate(reversed(shape), operator.mul, initial=factor))[-2::-1]
+    def strides_for_shape(
+        shape: Sequence[int], factor: int = 1
+    ) -> tuple[int | None, ...]:
+        """
+        Returns a tuple of strides for a given shape, with row-major layout.
+        Strides that depend on a dynamic index are returned as `None`.
+        The optional `factor` parameter specifies the stride for the innermost
+        dimension, defaulting to 1.
+        """
+        rev_strides: list[int | None] = []
+        stride: int | None = factor
+        for dim in reversed(shape):
+            rev_strides.append(stride)
+            if stride is None or dim == DYNAMIC_INDEX:
+                stride = None
+            else:
+                stride *= dim
+        return tuple(reversed(rev_strides))
 
 
 _ContainerElementTypeT = TypeVar(
@@ -771,11 +784,13 @@ class IntegerType(
         return f[format_index]
 
 
+I128: TypeAlias = IntegerType[Literal[128], Literal[Signedness.SIGNLESS]]
 I64: TypeAlias = IntegerType[Literal[64], Literal[Signedness.SIGNLESS]]
 I32: TypeAlias = IntegerType[Literal[32], Literal[Signedness.SIGNLESS]]
 I16: TypeAlias = IntegerType[Literal[16], Literal[Signedness.SIGNLESS]]
 I8: TypeAlias = IntegerType[Literal[8], Literal[Signedness.SIGNLESS]]
 I1: TypeAlias = IntegerType[Literal[1], Literal[Signedness.SIGNLESS]]
+i128: I128 = IntegerType(128)
 i64: I64 = IntegerType(64)
 i32: I32 = IntegerType(32)
 i16: I16 = IntegerType(16)
