@@ -47,6 +47,16 @@ class SymbolUse(NamedTuple):
     """The symbol reference that this use represents."""
 
 
+def get_name_if_symbole(op: Operation):
+    sym_interface = op.get_trait(traits.SymbolOpInterface)
+    if sym_interface is None:
+        return None
+
+    name_attr = sym_interface.get_sym_attr_name(op)
+
+    return name_attr.name if name_attr is not None else None
+
+
 class SymbolTable:
     """
     This class allows for representing and managing the symbol table used by operations
@@ -66,9 +76,29 @@ class SymbolTable:
     """
 
     def __init__(self, symbol_table_op: Operation):
+        sym_trait = symbol_table_op.get_trait(traits.SymbolTable)
+        if sym_trait is None:
+            raise Exception("Expected operation to have SymbolTable trait")
+        sym_trait.verify(symbol_table_op)
+
         self._symbol_table_op = symbol_table_op
         self._symbol_table = {}
         self._uniquing_counter = 0
+
+        # I completely stole this from traits.py, I thought it was excatly what I needed
+        # But it's duplicate code so I don't know
+        block = self._symbol_table_op.regions[0].blocks[0]
+        for o in block.ops:
+            if (sym_name := o.get_attr_or_prop("sym_name")) is None:
+                continue
+
+            if not isinstance(sym_name, StringAttr):
+                continue
+
+            if sym_name in self._symbol_table.keys():
+                raise Exception(f'Redefinition of symbol "{sym_name.data}"')
+
+            self._symbol_table[sym_name.name] = o
 
     def lookup(self, name: str | StringAttr) -> Operation | None:
         """
@@ -76,15 +106,27 @@ class SymbolTable:
         exists.
         Names never include the `@` on them.
         """
-        raise NotImplementedError
+        n: str = name.name if isinstance(name, StringAttr) else name
+        return self._symbol_table[n] if n in self._symbol_table.keys() else None
 
     def remove(self, op: Operation) -> None:
         """Remove the given symbol from the table, without deleting it."""
-        raise NotImplementedError
+        name = get_name_if_symbole(op)
+
+        if name is None:
+            raise Exception("Expected valid 'name' attribute")
+
+        if name not in self._symbol_table:
+            raise Exception(
+                "Expected this operation to be inside of the operation with this SymbolTable"
+            )
+
+        self._symbol_table.pop(name)
 
     def erase(self, op: Operation) -> None:
         """Erase the given symbol from the table and delete the operation."""
-        raise NotImplementedError
+        self.remove(op)
+        op.erase()
 
     def insert(self, symbol: Operation, insertion_point: InsertPoint) -> StringAttr:
         """
