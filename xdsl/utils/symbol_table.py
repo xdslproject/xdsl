@@ -48,6 +48,7 @@ class SymbolUse(NamedTuple):
 
 
 def get_name_if_symbol(op: Operation) -> None | str:
+    """Returns the symbol name if this operation has one"""
     sym_interface = op.get_trait(traits.SymbolOpInterface)
     if sym_interface is None:
         return None

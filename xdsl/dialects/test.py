@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 
 from xdsl.dialect_interfaces.op_asm import OpAsmDialectInterface
-from xdsl.dialects.builtin import IntegerAttr, IntegerType
+from xdsl.dialects.builtin import IntegerAttr, IntegerType, SymbolNameConstraint
 from xdsl.interfaces import HasFolderInterface
 from xdsl.ir import (
     Attribute,
@@ -307,10 +307,7 @@ class TestSymbolOp(IRDLOperation):
     ops = var_operand_def()
     regs = var_region_def()
 
-    prop1 = opt_prop_def()
-    prop2 = opt_prop_def()
-    prop3 = opt_prop_def()
-
+    sym_name = prop_def(SymbolNameConstraint())
     traits = traits_def(SymbolOpInterface())
 
     def __init__(
