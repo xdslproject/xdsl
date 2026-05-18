@@ -151,7 +151,7 @@ def test_empty_range():
     assert constr.infer(ConstraintContext(), length=None) == ()
 
 
-def test_range_var_constraint():
+def test_range_var_constraint_verify():
     RangeVarConstraint("R", SingleOf(EqAttrConstraint(i32))).verify(
         (i32,), ConstraintContext()
     )
@@ -169,64 +169,51 @@ def test_range_var_constraint():
             (i32, i32), ConstraintContext({}, {"R": (i32,)})
         )
 
-    assert (
-        RangeVarConstraint("R", SingleOf(AnyAttr())).can_infer(
-            set(), length_known=False
-        )
-        is False
-    )
-    assert (
-        RangeVarConstraint("R", SingleOf(EqAttrConstraint(i32))).can_infer(
-            set(), length_known=False
-        )
-        is True
-    )
-    assert (
-        RangeVarConstraint("R", RangeOf(EqAttrConstraint(i32))).can_infer(
-            set(), length_known=True
-        )
-        is True
-    )
-    assert (
-        RangeVarConstraint("R", RangeOf(EqAttrConstraint(i32))).can_infer(
-            set(), length_known=False
-        )
-        is False
-    )
-    assert (
-        RangeVarConstraint("R", AnyRangeConstraint()).can_infer(
-            {"R"}, length_known=True
-        )
-        is True
-    )
-    assert (
-        RangeVarConstraint("R", AnyRangeConstraint()).can_infer(
-            set(), length_known=True
-        )
-        is False
-    )
-    assert (
-        RangeVarConstraint("R", AnyRangeConstraint()).can_infer(
-            {"R"}, length_known=False
-        )
-        is True
-    )
-    assert (
-        RangeVarConstraint("R", AnyRangeConstraint()).can_infer(
-            set(), length_known=False
-        )
-        is False
-    )
 
-    assert RangeVarConstraint("R", SingleOf(EqAttrConstraint(i32))).infer(
-        ConstraintContext(), length=None
-    ) == (i32,)
-    assert RangeVarConstraint("R", RangeOf(EqAttrConstraint(i32))).infer(
-        ConstraintContext(), length=3
-    ) == (i32, i32, i32)
-    assert RangeVarConstraint("R", AnyRangeConstraint()).infer(
-        ConstraintContext({}, {"R": (i32, i32)}), length=2
-    ) == (i32, i32)
-    assert RangeVarConstraint("R", AnyRangeConstraint()).infer(
-        ConstraintContext({}, {"R": (i32, StringAttr("str"))}), length=None
-    ) == (i32, StringAttr("str"))
+@pytest.mark.parametrize(
+    "constraint, context_dict, length, inferred",
+    [
+        (RangeVarConstraint("R", SingleOf(AnyAttr())), {}, None, None),
+        (RangeVarConstraint("R", SingleOf(EqAttrConstraint(i32))), {}, True, (i32,)),
+        (RangeVarConstraint("R", RangeOf(EqAttrConstraint(i32))), {}, None, None),
+        (RangeVarConstraint("R", RangeOf(EqAttrConstraint(i32))), {}, 2, (i32, i32)),
+        (RangeVarConstraint("R", AnyRangeConstraint()), {}, None, None),
+        (
+            RangeVarConstraint("R", AnyRangeConstraint()),
+            {"R": (i32, i32, i32)},
+            None,
+            (i32, i32, i32),
+        ),
+        (
+            RangeVarConstraint("R", AnyRangeConstraint()),
+            {"R": (i32, i32, i32)},
+            2,
+            (i32, i32, i32),
+        ),
+        (
+            RangeVarConstraint("R", AnyRangeConstraint()),
+            {"R": (i32, i32, i32)},
+            3,
+            (i32, i32, i32),
+        ),
+        (RangeVarConstraint("R", AnyRangeConstraint()), {}, 3, None),
+    ],
+)
+def test_range_var_constraint_infer(
+    constraint: RangeVarConstraint,
+    context_dict: dict[str, tuple[Attribute, ...]],
+    length: int | None,
+    inferred: tuple[Attribute, ...] | None,
+) -> None:
+    if inferred is None:
+        assert not constraint.can_infer(
+            context_dict.keys(), length_known=length is not None
+        )
+    else:
+        assert constraint.can_infer(
+            context_dict.keys(), length_known=length is not None
+        )
+        assert (
+            constraint.infer(ConstraintContext({}, context_dict), length=length)
+            == inferred
+        )

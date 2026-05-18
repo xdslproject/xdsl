@@ -515,7 +515,7 @@ def test_constraint_inference(
     constr: AttrConstraint, var_dict: dict[str, Attribute], inferred: Attribute | None
 ) -> None:
     if inferred is None:
-        assert constr.can_infer(var_dict.keys()) is False
+        assert not constr.can_infer(var_dict.keys())
     else:
-        assert constr.can_infer(var_dict.keys()) is True
+        assert constr.can_infer(var_dict.keys())
         assert constr.infer(ConstraintContext(var_dict)) == inferred

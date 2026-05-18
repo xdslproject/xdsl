@@ -60,7 +60,7 @@ def test_at_most():
         AtMost(2).verify(3, ConstraintContext())
 
 
-def test_int_var_constraint():
+def test_int_var_constraint_verify():
     IntVarConstraint("I", EqIntConstraint(1)).verify(1, ConstraintContext())
     IntVarConstraint("I", EqIntConstraint(2)).verify(2, ConstraintContext())
     IntVarConstraint("I", AnyInt()).verify(3, ConstraintContext())
@@ -71,19 +71,26 @@ def test_int_var_constraint():
     ):
         IntVarConstraint("I", AnyInt()).verify(1, ConstraintContext({}, {}, {"I": 2}))
 
-    assert IntVarConstraint("I", AnyInt()).can_infer(set()) is False
-    assert IntVarConstraint("I", AnyInt()).can_infer({"I"}) is True
-    assert IntVarConstraint("I", EqIntConstraint(1)).can_infer(set()) is True
-    assert IntVarConstraint("I", EqIntConstraint(1)).infer(ConstraintContext()) == 1
-    assert (
-        IntVarConstraint("I", EqIntConstraint(1)).infer(
-            ConstraintContext({}, {}, {"I": 2})
-        )
-        == 2
-    )
-    assert (
-        IntVarConstraint("I", AnyInt()).infer(ConstraintContext({}, {}, {"I": 2})) == 2
-    )
+
+@pytest.mark.parametrize(
+    "constraint, context_dict, inferred",
+    [
+        (IntVarConstraint("I", AnyInt()), {}, None),
+        (IntVarConstraint("I", AnyInt()), {"I": 2}, 2),
+        (IntVarConstraint("I", EqIntConstraint(1)), {}, 1),
+        (IntVarConstraint("I", EqIntConstraint(1)), {"I": 2}, 2),
+    ],
+)
+def test_int_var_constraint_infer(
+    constraint: IntVarConstraint,
+    context_dict: dict[str, int],
+    inferred: int | None,
+) -> None:
+    if inferred is None:
+        assert not constraint.can_infer(context_dict.keys())
+    else:
+        assert constraint.can_infer(context_dict.keys())
+        assert constraint.infer(ConstraintContext({}, {}, context_dict)) == inferred
 
 
 def test_eq():
