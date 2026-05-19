@@ -2648,6 +2648,21 @@ class MemRefType(
             case _:
                 return self.layout.get_strides()
 
+    def get_offset(self) -> int | None:
+        """
+        Return the static offset of the memref layout.
+
+        Returns `0` for the default layout, and `None` when the offset is dynamic or
+        when the layout does not expose a strided offset.
+        """
+        match self.layout:
+            case NoneAttr():
+                return 0
+            case StridedLayoutAttr() as layout:
+                return layout.get_offset()
+            case _:
+                return None
+
     @staticmethod
     def constr(
         element_type: IRDLAttrConstraint[_MemRefTypeElement] = AnyAttr(),
