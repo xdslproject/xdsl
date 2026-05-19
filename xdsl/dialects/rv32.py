@@ -26,6 +26,7 @@ from xdsl.irdl import (
 )
 from xdsl.parser import Parser
 
+
 @irdl_op_definition
 class LiOp(LiOperation[I32]):
     """
