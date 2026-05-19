@@ -719,49 +719,6 @@ class SubviewOp(IRDLOperation):
         )
 
     @staticmethod
-    def identity_strides_for_shape(shape: Sequence[int]) -> tuple[int | None, ...]:
-        """
-        Return row-major strides for a memref without an explicit layout.
-        """
-        strides: list[int | None] = []
-        stride: int | None = 1
-        for dim in reversed(shape):
-            strides.insert(0, stride)
-            if dim == DYNAMIC_INDEX or stride is None:
-                stride = None
-            else:
-                stride *= dim
-        return tuple(strides)
-
-    @staticmethod
-    def get_strides_and_offset(
-        source_type: MemRefType[Attribute],
-    ) -> tuple[tuple[int | None, ...], int | None]:
-        """
-        Return source strides and offset when the layout is strided-like,
-        otherwise raises `ValueError`.
-        """
-        match source_type.layout:
-            case NoneAttr():
-                return SubviewOp.identity_strides_for_shape(source_type.get_shape()), 0
-            case StridedLayoutAttr() as layout:
-                strides = source_type.get_strides()
-                if strides is None:
-                    raise ValueError(
-                        "cannot infer memref.subview result type from non-strided "
-                        f"source type {source_type}"
-                    )
-                return tuple(strides), layout.get_offset()
-            case _:
-                strides = source_type.get_strides()
-                if strides is None:
-                    raise ValueError(
-                        "cannot infer memref.subview result type from non-strided "
-                        f"source type {source_type}"
-                    )
-                return tuple(strides), None
-
-    @staticmethod
     def infer_result_type(
         source_type: MemRefType[Attribute],
         offsets: Sequence[SSAValue | int],
@@ -780,15 +737,31 @@ class SubviewOp(IRDLOperation):
                 "expected offsets, sizes, and strides to match source rank"
             )
 
-        static_offsets, _ = split_dynamic_index_list(offsets, DYNAMIC_INDEX)
-        static_sizes, _ = split_dynamic_index_list(sizes, DYNAMIC_INDEX)
-        static_strides, _ = split_dynamic_index_list(strides, DYNAMIC_INDEX)
-        source_strides, source_offset = SubviewOp.get_strides_and_offset(source_type)
+        static_offsets = tuple(
+            value if isinstance(value, int) else None for value in offsets
+        )
+        static_sizes = tuple(
+            value if isinstance(value, int) else None for value in sizes
+        )
+        static_strides = tuple(
+            value if isinstance(value, int) else None for value in strides
+        )
 
-        result_shape = tuple(static_sizes)
+        source_strides = source_type.get_strides()
+        if source_strides is None:
+            raise ValueError(
+                "cannot infer memref.subview result type from non-strided "
+                f"source type {source_type}"
+            )
+        source_offset = source_type.get_offset()
+
+        result_shape = tuple(
+            DYNAMIC_INDEX if size is None else size for size in static_sizes
+        )
+
         result_strides = tuple(
             None
-            if source_stride is None or static_stride == DYNAMIC_INDEX
+            if source_stride is None or static_stride is None
             else source_stride * static_stride
             for source_stride, static_stride in zip(
                 source_strides, static_strides, strict=True
@@ -802,13 +775,13 @@ class SubviewOp(IRDLOperation):
             ):
                 if static_offset == 0:
                     continue
-                if static_offset == DYNAMIC_INDEX or source_stride is None:
+                if static_offset is None or source_stride is None:
                     result_offset = None
                     break
                 result_offset += static_offset * source_stride
 
         if reduce_rank:
-            if any(size == DYNAMIC_INDEX for size in result_shape):
+            if any(size is None for size in static_sizes):
                 raise VerifyException(
                     "cannot infer rank-reduced memref.subview result type with "
                     "dynamic sizes"
@@ -816,7 +789,8 @@ class SubviewOp(IRDLOperation):
 
             reduced_shape: list[int] = []
             reduced_strides: list[int | None] = []
-            for size, stride in zip(result_shape, result_strides, strict=True):
+            for size, stride in zip(static_sizes, result_strides, strict=True):
+                assert size is not None
                 if size == 1:
                     continue
                 reduced_shape.append(size)
