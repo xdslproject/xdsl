@@ -1010,7 +1010,7 @@ wheels = [
 
 [[package]]
 name = "heir-py"
-version = "2026.5.1"
+version = "2026.5.18"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "absl-py", marker = "python_full_version >= '3.11' and python_full_version < '3.13'" },
@@ -1020,11 +1020,11 @@ dependencies = [
     { name = "pybind11", marker = "python_full_version >= '3.11' and python_full_version < '3.13'" },
     { name = "pybind11-global", marker = "python_full_version >= '3.11' and python_full_version < '3.13'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/f2/14/d9a831d73119cfd4fc75bf566bbdade6ef11da8c03d55be0ce94cd5cc222/heir_py-2026.5.1.tar.gz", hash = "sha256:0bdfda5526f8d363fc336a01f24ff5f35566e12ba8a96b2fd6dd60cf9702f48e", size = 14125008, upload-time = "2026-05-04T18:46:19.651Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/39/4d/98ff2a7fd9b72c41b15f9ce2fe3eb42266d6b22a50bbf95abaef3cbe9ab0/heir_py-2026.5.18.tar.gz", hash = "sha256:588143448d4f97371201c2c640a2fb54205c9b6d89e83af39f76a83287c179f5", size = 14172358, upload-time = "2026-05-18T20:54:21.72Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/d2/37/08edae57f00d203b9624f01795ab588c5db9982dac045123a6efbd7b48d4/heir_py-2026.5.1-cp311-abi3-macosx_11_0_arm64.whl", hash = "sha256:e35461978995c7d0d6a8ae87bc580af6d4f1c24939e42b086583c6a1753d97e7", size = 39471486, upload-time = "2026-05-04T18:46:08.102Z" },
-    { url = "https://files.pythonhosted.org/packages/f3/f9/6715701b65ab0a5de77bd003c1e58f4058bfad30250d5641adeac2c46f62/heir_py-2026.5.1-cp311-abi3-manylinux_2_28_aarch64.whl", hash = "sha256:023179845841e2383cb84e10c2e6636c132e48d82a42686640f5a46058d5481e", size = 35172275, upload-time = "2026-05-04T18:46:11.523Z" },
-    { url = "https://files.pythonhosted.org/packages/57/0a/4ab848f7898ce62de56a508ab67a0961a12b9fe3d01e2f4142acd74a11ec/heir_py-2026.5.1-cp311-abi3-manylinux_2_28_x86_64.whl", hash = "sha256:0bd64ff9d7aa1575c0bd1e5f8170a82f0a944919e566a646928c63f90e97de39", size = 36604300, upload-time = "2026-05-04T18:46:15.696Z" },
+    { url = "https://files.pythonhosted.org/packages/18/fe/315fe91a97f56c6d98ebdbc30f56b81537523ef4dcc99146090a9c69ceb4/heir_py-2026.5.18-cp311-abi3-macosx_11_0_arm64.whl", hash = "sha256:0612aeddd8eab8244ce451142596987db0f6e8dccb762277dcf8d1f92638e1e6", size = 39956661, upload-time = "2026-05-18T20:54:12.54Z" },
+    { url = "https://files.pythonhosted.org/packages/9e/de/845a27fcffbe68cd5f830247241981ab00f7b04911371a0b2b349a78ed44/heir_py-2026.5.18-cp311-abi3-manylinux_2_28_aarch64.whl", hash = "sha256:ce67860eed50fa0fe6262426195c716ee2f82823bf60d465a31a42f7e05954a4", size = 35607712, upload-time = "2026-05-18T20:54:15.538Z" },
+    { url = "https://files.pythonhosted.org/packages/01/91/4d3bc6107db534638d4519d82d9e050b7987663120617aa1eb9371c49054/heir_py-2026.5.18-cp311-abi3-manylinux_2_28_x86_64.whl", hash = "sha256:3bc5403c0b48b70ab6e544aac3dc065a9a8ece424c3cff5cd59dd302eaaa0142", size = 37062168, upload-time = "2026-05-18T20:54:18.775Z" },
 ]
 
 [[package]]
@@ -4005,7 +4005,7 @@ docs = [
 requires-dist = [
     { name = "coverage", marker = "extra == 'dev'", specifier = "<8.0.0" },
     { name = "filecheck", marker = "extra == 'dev'", specifier = "==1.0.3" },
-    { name = "heir-py", marker = "python_full_version >= '3.11' and python_full_version < '3.13' and extra == 'heir'", specifier = "==2026.5.1" },
+    { name = "heir-py", marker = "python_full_version >= '3.11' and python_full_version < '3.13' and extra == 'heir'", specifier = "==2026.5.18" },
     { name = "immutabledict", specifier = "<4.3.2" },
     { name = "ipykernel", marker = "extra == 'dev'" },
     { name = "lit", marker = "extra == 'dev'", specifier = "<19.0.0" },
