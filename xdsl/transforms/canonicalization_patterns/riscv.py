@@ -657,6 +657,74 @@ _I32_I64_CONSTRAINT = irdl_to_attr_constraint(
 )
 
 
+class RemByOne(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: riscv.RemOp, rewriter: PatternRewriter) -> None:
+        """
+        x % 1 = 0
+        """
+        if (rs2 := get_constant_value(op.rs2)) is not None and rs2.value.data == 1:
+            rd = op.rd.type
+            rewriter.replace_op(
+                op,
+                (
+                    zero := rv32.GetRegisterOp(riscv.Registers.ZERO),
+                    riscv.MVOp(zero.res, rd=rd),
+                ),
+            )
+
+
+class RemuByOne(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: riscv.RemuOp, rewriter: PatternRewriter) -> None:
+        """
+        x %u 1 = 0
+        """
+        if (rs2 := get_constant_value(op.rs2)) is not None and rs2.value.data == 1:
+            rd = op.rd.type
+            rewriter.replace_op(
+                op,
+                (
+                    zero := rv32.GetRegisterOp(riscv.Registers.ZERO),
+                    riscv.MVOp(zero.res, rd=rd),
+                ),
+            )
+
+
+class SltSameOperand(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: riscv.SltOp, rewriter: PatternRewriter) -> None:
+        """
+        x <s x = 0
+        """
+        if op.rs1 == op.rs2:
+            rd = op.rd.type
+            rewriter.replace_op(
+                op,
+                (
+                    zero := rv32.GetRegisterOp(riscv.Registers.ZERO),
+                    riscv.MVOp(zero.res, rd=rd),
+                ),
+            )
+
+
+class SltuSameOperand(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: riscv.SltuOp, rewriter: PatternRewriter) -> None:
+        """
+        x <u x = 0
+        """
+        if op.rs1 == op.rs2:
+            rd = op.rd.type
+            rewriter.replace_op(
+                op,
+                (
+                    zero := rv32.GetRegisterOp(riscv.Registers.ZERO),
+                    riscv.MVOp(zero.res, rd=rd),
+                ),
+            )
+
+
 def get_constant_value(
     value: SSAValue,
 ) -> IntegerAttr[I32] | IntegerAttr[I64] | None:

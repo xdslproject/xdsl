@@ -192,6 +192,22 @@ builtin.module {
 
   // scfgw immediates
   riscv_snitch.scfgw %i1, %c1 : (!riscv.reg<a1>, !riscv.reg) -> ()
+
+  // rem x, 1 = 0
+  %rem_result = riscv.rem %i2, %c1 : (!riscv.reg, !riscv.reg) -> !riscv.reg
+  "test.op"(%rem_result) : (!riscv.reg) -> ()
+
+  // remu x, 1 = 0
+  %remu_result = riscv.remu %i2, %c1 : (!riscv.reg, !riscv.reg) -> !riscv.reg
+  "test.op"(%remu_result) : (!riscv.reg) -> ()
+
+  // slt x, x = 0
+  %slt_result = riscv.slt %i2, %i2 : (!riscv.reg, !riscv.reg) -> !riscv.reg
+  "test.op"(%slt_result) : (!riscv.reg) -> ()
+
+  // sltu x, x = 0
+  %sltu_result = riscv.sltu %i2, %i2 : (!riscv.reg, !riscv.reg) -> !riscv.reg
+  "test.op"(%sltu_result) : (!riscv.reg) -> ()
 }
 
 // CHECK: builtin.module {
@@ -380,6 +396,19 @@ builtin.module {
 // CHECK-NEXT:   "test.op"(%ori_immediate_zero) : (!riscv.reg<a0>) -> ()
 
 // CHECK-NEXT:   riscv_snitch.scfgwi %i1, 1 : (!riscv.reg<a1>) -> ()
+
+// CHECK-NEXT:   %rem_result = rv32.get_register : !riscv.reg<zero>
+// CHECK-NEXT:   %rem_result_1 = riscv.mv %rem_result : (!riscv.reg<zero>) -> !riscv.reg
+// CHECK-NEXT:   "test.op"(%rem_result_1) : (!riscv.reg) -> ()
+// CHECK-NEXT:   %remu_result = rv32.get_register : !riscv.reg<zero>
+// CHECK-NEXT:   %remu_result_1 = riscv.mv %remu_result : (!riscv.reg<zero>) -> !riscv.reg
+// CHECK-NEXT:   "test.op"(%remu_result_1) : (!riscv.reg) -> ()
+// CHECK-NEXT:   %slt_result = rv32.get_register : !riscv.reg<zero>
+// CHECK-NEXT:   %slt_result_1 = riscv.mv %slt_result : (!riscv.reg<zero>) -> !riscv.reg
+// CHECK-NEXT:   "test.op"(%slt_result_1) : (!riscv.reg) -> ()
+// CHECK-NEXT:   %sltu_result = rv32.get_register : !riscv.reg<zero>
+// CHECK-NEXT:   %sltu_result_1 = riscv.mv %sltu_result : (!riscv.reg<zero>) -> !riscv.reg
+// CHECK-NEXT:   "test.op"(%sltu_result_1) : (!riscv.reg) -> ()
 
 // CHECK-NEXT: }
 
