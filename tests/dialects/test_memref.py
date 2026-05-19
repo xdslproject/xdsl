@@ -334,6 +334,166 @@ def test_memref_subview_constant_parameters():
     assert subview.result.type.layout.offset.data == 222
 
 
+def test_memref_subview_infer_result_type_static():
+    source_type = MemRefType(i32, [10, 10, 10])
+
+    result_type = SubviewOp.infer_result_type(
+        source_type,
+        [2, 2, 2],
+        [2, 2, 2],
+        [3, 3, 3],
+    )
+
+    assert result_type.get_shape() == (2, 2, 2)
+    assert isinstance(result_type.layout, StridedLayoutAttr)
+    assert result_type.layout.get_strides() == (300, 30, 3)
+    assert result_type.layout.get_offset() == 222
+
+
+def test_memref_subview_infer_result_type_dynamic_source_shape():
+    source_type = MemRefType(i32, [2, DYNAMIC_INDEX, 4])
+
+    result_type = SubviewOp.infer_result_type(
+        source_type,
+        [0, 1, 0],
+        [2, 3, 4],
+        [1, 1, 1],
+    )
+
+    assert result_type.get_shape() == (2, 3, 4)
+    assert isinstance(result_type.layout, StridedLayoutAttr)
+    assert result_type.layout.get_strides() == (None, 4, 1)
+    assert result_type.layout.get_offset() == 4
+
+
+def test_memref_subview_infer_result_type_dynamic_source_shape_dynamic_offset():
+    source_type = MemRefType(i32, [2, DYNAMIC_INDEX, 4])
+
+    result_type = SubviewOp.infer_result_type(
+        source_type,
+        [1, 0, 0],
+        [2, 3, 4],
+        [1, 1, 1],
+    )
+
+    assert result_type.get_shape() == (2, 3, 4)
+    assert isinstance(result_type.layout, StridedLayoutAttr)
+    assert result_type.layout.get_strides() == (None, 4, 1)
+    assert result_type.layout.get_offset() is None
+
+
+def test_memref_subview_infer_result_type_reduce_rank():
+    source_type = MemRefType(i32, [4, 5, 6])
+
+    result_type = SubviewOp.infer_result_type(
+        source_type,
+        [0, 1, 2],
+        [1, 3, 1],
+        [1, 2, 1],
+        reduce_rank=True,
+    )
+
+    assert result_type.get_shape() == (3,)
+    assert isinstance(result_type.layout, StridedLayoutAttr)
+    assert result_type.layout.get_strides() == (12,)
+    assert result_type.layout.get_offset() == 8
+
+
+def test_memref_subview_infer_result_type_reduce_rank_rejects_dynamic_size():
+    dynamic_index = create_ssa_value(IndexType())
+    source_type = MemRefType(i32, [4, 5])
+
+    with pytest.raises(VerifyException, match="dynamic sizes"):
+        SubviewOp.infer_result_type(
+            source_type,
+            [0, 0],
+            [dynamic_index, 1],
+            [1, 1],
+            reduce_rank=True,
+        )
+
+
+def test_memref_subview_infer_result_type_dynamic_operands():
+    dynamic_index = create_ssa_value(IndexType())
+    source_type = MemRefType(i32, [10, 10])
+
+    result_type = SubviewOp.infer_result_type(
+        source_type,
+        [dynamic_index, 1],
+        [4, dynamic_index],
+        [2, dynamic_index],
+    )
+
+    assert result_type.get_shape() == (4, DYNAMIC_INDEX)
+    assert isinstance(result_type.layout, StridedLayoutAttr)
+    assert result_type.layout.get_strides() == (20, None)
+    assert result_type.layout.get_offset() is None
+
+
+def test_memref_subview_infer_result_type_dynamic_source_stride():
+    source_type = MemRefType(i32, [10, 10], StridedLayoutAttr([None, 1], 5))
+
+    result_type = SubviewOp.infer_result_type(
+        source_type,
+        [1, 2],
+        [4, 4],
+        [2, 3],
+    )
+
+    assert result_type.get_shape() == (4, 4)
+    assert isinstance(result_type.layout, StridedLayoutAttr)
+    assert result_type.layout.get_strides() == (None, 3)
+    assert result_type.layout.get_offset() is None
+
+
+def test_memref_subview_infer_result_type_dynamic_source_stride_zero_offset():
+    source_type = MemRefType(i32, [10, 10], StridedLayoutAttr([None, 1], 5))
+
+    result_type = SubviewOp.infer_result_type(
+        source_type,
+        [0, 2],
+        [4, 4],
+        [1, 1],
+    )
+
+    assert result_type.get_shape() == (4, 4)
+    assert isinstance(result_type.layout, StridedLayoutAttr)
+    assert result_type.layout.get_strides() == (None, 1)
+    assert result_type.layout.get_offset() == 7
+
+
+def test_memref_subview_infer_result_type_dynamic_source_offset():
+    source_type = MemRefType(i32, [10, 10], StridedLayoutAttr([10, 1], None))
+
+    result_type = SubviewOp.infer_result_type(
+        source_type,
+        [1, 2],
+        [4, 4],
+        [2, 3],
+    )
+
+    assert result_type.get_shape() == (4, 4)
+    assert isinstance(result_type.layout, StridedLayoutAttr)
+    assert result_type.layout.get_strides() == (20, 3)
+    assert result_type.layout.get_offset() is None
+
+
+def test_memref_subview_infer_result_type_rejects_affine_map_layout():
+    source_type = MemRefType(
+        i32,
+        [10, 10],
+        AffineMapAttr(AffineMap.from_callable(lambda i, j: (i * 10 + j,))),
+    )
+
+    with pytest.raises(ValueError, match="non-strided source type"):
+        SubviewOp.infer_result_type(
+            source_type,
+            [0, 0],
+            [4, 4],
+            [1, 1],
+        )
+
+
 def test_memref_cast():
     i32_memref_type = MemRefType(i32, [10, 2])
     memref_ssa_value = create_ssa_value(i32_memref_type)
