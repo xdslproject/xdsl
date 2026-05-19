@@ -779,7 +779,7 @@ class RdRsImmShiftOperation(RISCVInstruction, ABC):
     def __init__(
         self,
         rs1: Operation | SSAValue,
-        immediate: IntegerAttr[UI5],
+        immediate: int | IntegerAttr[UI5],
         *,
         rd: IntRegisterType = Registers.UNALLOCATED_INT,
         comment: str | StringAttr | None = None,
