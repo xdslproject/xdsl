@@ -140,25 +140,23 @@ class EmatchFunctions(InterpreterFunctions):
         of a range of values.
         """
         assert len(args) == 1
-        vals = args[0]
+        vals: tuple[SSAValue | None, ...] | None = args[0]
 
         if vals is None:
             return ((),)
 
-        results: list[SSAValue] = []
-        for val in vals:
-            if val is None:
-                results.append(val)
-            elif val.has_one_use():
-                user = val.get_user_of_unique_use()
-                if isinstance(user, equivalence.AnyClassOp):
-                    results.append(user.result)
-                else:
-                    results.append(val)
-            else:
-                results.append(val)
+        results = tuple(
+            user.result
+            if (
+                val is not None
+                and (unique_use := val.get_unique_use()) is not None
+                and isinstance(user := unique_use.operation, equivalence.AnyClassOp)
+            )
+            else val
+            for val in vals
+        )
 
-        return (tuple(results),)
+        return (results,)
 
     def get_or_create_class(
         self, interpreter: Interpreter, val: SSAValue

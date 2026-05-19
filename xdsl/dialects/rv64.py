@@ -25,6 +25,8 @@ from xdsl.irdl import (
     traits_def,
 )
 from xdsl.parser import Parser
+from xdsl.printer import Printer
+from xdsl.traits import ConstantLike
 
 
 @irdl_op_definition

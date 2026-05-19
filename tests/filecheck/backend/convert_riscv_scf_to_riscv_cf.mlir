@@ -1,4 +1,4 @@
-// RUN: xdsl-opt -p convert-riscv-scf-to-riscv-cf --split-input-file %s | filecheck %s
+// RUN: xdsl-opt -p convert-riscv-scf-to-riscv-cf --split-input-file --verify-diagnostics %s | filecheck %s
 
 
 builtin.module {
@@ -123,3 +123,51 @@ builtin.module {
 // CHECK-NEXT:      riscv_func.return %14 : !riscv.reg<a1>
 // CHECK-NEXT:    }
 // CHECK-NEXT:  }
+
+// -----
+
+
+riscv_func.func @static_step_loop_example(%src: !riscv.reg<a0>, %dst: !riscv.reg<a1>) {
+    %zero = rv32.li 0 : !riscv.reg<a2>
+    %forty = rv32.li 40 : !riscv.reg<a4>
+    riscv_scf.for %offset : !riscv.reg<a5> = %zero to %forty step 4 : si12 {
+        %srcptr = riscv.add %src, %offset : (!riscv.reg<a0>, !riscv.reg<a5>) -> !riscv.reg<a6>
+        %dstptr = riscv.add %dst, %offset : (!riscv.reg<a1>, !riscv.reg<a5>) -> !riscv.reg<a7>
+        %val = riscv.lw %srcptr, 0 : (!riscv.reg<a6>) -> !riscv.reg<t0>
+        riscv.sw %dstptr, %val, 0 : (!riscv.reg<a7>, !riscv.reg<t0>) -> ()
+        riscv_scf.yield
+    }
+    riscv_func.return
+}
+
+// CHECK:         riscv_func.func @static_step_loop_example(%src: !riscv.reg<a0>, %dst: !riscv.reg<a1>) {
+// CHECK-NEXT:      %zero = rv32.li 0 : !riscv.reg<a2>
+// CHECK-NEXT:      %forty = rv32.li 40 : !riscv.reg<a4>
+// CHECK-NEXT:      %0 = riscv.mv %zero : (!riscv.reg<a2>) -> !riscv.reg<a5>
+// CHECK-NEXT:      riscv_cf.bge %0 : !riscv.reg<a5>, %forty : !riscv.reg<a4>, ^bb0(%0 : !riscv.reg<a5>), ^bb1(%0 : !riscv.reg<a5>)
+// CHECK-NEXT:    ^bb1(%offset: !riscv.reg<a5>):
+// CHECK-NEXT:      riscv.label "scf_body_0_for"
+// CHECK-NEXT:      %srcptr = riscv.add %src, %offset : (!riscv.reg<a0>, !riscv.reg<a5>) -> !riscv.reg<a6>
+// CHECK-NEXT:      %dstptr = riscv.add %dst, %offset : (!riscv.reg<a1>, !riscv.reg<a5>) -> !riscv.reg<a7>
+// CHECK-NEXT:      %val = riscv.lw %srcptr, 0 : (!riscv.reg<a6>) -> !riscv.reg<t0>
+// CHECK-NEXT:      riscv.sw %dstptr, %val, 0 : (!riscv.reg<a7>, !riscv.reg<t0>) -> ()
+// CHECK-NEXT:      %1 = riscv.addi %offset, 4 : (!riscv.reg<a5>) -> !riscv.reg<a5>
+// CHECK-NEXT:      riscv_cf.blt %1 : !riscv.reg<a5>, %forty : !riscv.reg<a4>, ^bb1(%1 : !riscv.reg<a5>), ^bb0(%1 : !riscv.reg<a5>)
+// CHECK-NEXT:    ^bb0(%2: !riscv.reg<a5>):
+// CHECK-NEXT:      riscv.label "scf_body_end_0_for"
+// CHECK-NEXT:      riscv_func.return
+// CHECK-NEXT:    }
+
+// -----
+
+%lb, %ub = "test.op"() : () -> (!riscv.reg<a0>, !riscv.reg<a1>)
+%acc = rv32.li 0 : !riscv.reg<a2>
+
+%res = riscv_scf.for %i : !riscv.reg<a3> = %lb to %ub step 2 : i12 iter_args(%v = %acc) -> (!riscv.reg<a2>) {
+    %next = riscv.add %i, %v : (!riscv.reg<a3>, !riscv.reg<a2>) -> !riscv.reg<a2>
+    riscv_scf.yield %next : !riscv.reg<a2>
+}
+
+"test.op"(%res) : (!riscv.reg<a2>) -> ()
+
+// CHECK:    Error while applying pattern: riscv_scf.for static step must use type si12 (signed 12-bit) for addi lowering; got i12

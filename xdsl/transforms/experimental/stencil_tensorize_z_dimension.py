@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from typing import Any, TypeGuard
 
 from xdsl.context import Context
-from xdsl.dialects import builtin, varith
+from xdsl.dialects import builtin, csl_stencil, varith
 from xdsl.dialects.arith import (
     ConstantOp,
     FloatingPointLikeBinaryOperation,
@@ -19,10 +19,9 @@ from xdsl.dialects.builtin import (
     ShapedType,
     TensorType,
 )
-from xdsl.dialects.csl import csl_stencil
 from xdsl.dialects.experimental import dmp
 from xdsl.dialects.func import FuncOp
-from xdsl.dialects.linalg import FillOp
+from xdsl.dialects.linalg.ops import FillOp
 from xdsl.dialects.stencil import (
     AccessOp,
     AccessPattern,
@@ -296,7 +295,8 @@ class DmpSwapOpTensorize(RewritePattern):
             and op.swapped_values
             and not is_tensorized(op.swapped_values.type)
         ):
-            rewriter.replace_matched_op(
+            rewriter.replace_op(
+                op,
                 dmp.SwapOp.get(op.input_stencil, op.strategy, ArrayAttr(op.swaps.data)),
             )
 

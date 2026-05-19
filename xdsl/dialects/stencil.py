@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from itertools import pairwise
 from math import prod
 from operator import add, lt, neg
-from typing import Generic, TypeAlias, cast
+from typing import ClassVar, Generic, TypeAlias, cast
 
 from typing_extensions import TypeVar, deprecated
 
@@ -35,11 +35,11 @@ from xdsl.irdl import (
     AnyAttr,
     AttrConstraint,
     AttrSizedOperandSegments,
-    BaseAttr,
     ConstraintContext,
     IRDLOperation,
     MessageConstraint,
     ParamAttrConstraint,
+    RangeOf,
     VarConstraint,
     attr_def,
     base,
@@ -392,19 +392,16 @@ class StencilType(
                     printer.print_string("?x")
             printer.print_attribute(self.element_type)
 
-    @classmethod
+    @staticmethod
     def constr(
-        cls,
         *,
         bounds: AttrConstraint | None = None,
         element_type: AttrConstraint[_FieldTypeElement] | None = None,
-    ) -> (
-        BaseAttr[StencilType[_FieldTypeElement]]
-        | ParamAttrConstraint[StencilType[_FieldTypeElement]]
-    ):
-        if bounds is None and element_type is None:
-            return BaseAttr(cls)
-        return ParamAttrConstraint(cls, (bounds, element_type))
+    ) -> AttrConstraint[StencilType[_FieldTypeElement]]:
+        return cast(
+            AttrConstraint[StencilType[_FieldTypeElement]],
+            ParamAttrConstraint.get(StencilType, bounds, element_type),
+        )
 
 
 @irdl_attr_definition(init=False)
@@ -483,6 +480,7 @@ class ApplyMemoryEffect(RecursiveMemoryEffect):
     def get_effects(cls, op: Operation):
         effects = super().get_effects(op)
         if effects is not None:
+            effects = set(effects)
             for d in cast(ApplyOp, op).dest:
                 effects.add(EffectInstance(MemoryEffectKind.WRITE, d))
             for o in cast(ApplyOp, op).args:
@@ -1535,14 +1533,12 @@ class StoreResultOp(IRDLOperation):
         )
     )
     res = result_def(
-        ParamAttrConstraint(
+        ParamAttrConstraint.get(
             ResultType,
-            [
-                MessageConstraint(
-                    VarConstraint("T", AnyAttr()),
-                    "Expected return type to carry the operand type.",
-                )
-            ],
+            MessageConstraint(
+                VarConstraint("T", AnyAttr()),
+                "Expected return type to carry the operand type.",
+            ),
         )
     )
 
@@ -1620,6 +1616,63 @@ class ReturnOp(IRDLOperation):
                         f"stencil.apply result element types. Got {op_type} at index "
                         f"{j}, expected {res_type}."
                     )
+
+
+@irdl_op_definition
+class ReduceOp(IRDLOperation):
+    """
+    Reduce operation for accumulating values across stencil iterations.
+    """
+
+    name = "stencil.reduce"
+
+    T: ClassVar = VarConstraint("T", AnyAttr())
+
+    acc = operand_def(T)
+    init = operand_def(T)
+    body = region_def("single_block", entry_args=RangeOf(T).of_length(2))
+
+    assembly_format = "$acc `init` $init $body attr-dict `:` type($acc)"
+
+    def __init__(self, operand: SSAValue, init: SSAValue, body: Region):
+        super().__init__(operands=[operand, init], result_types=[], regions=[body])
+
+    def verify_(self) -> None:
+        body_block = self.body.block
+
+        if not body_block.ops:
+            raise VerifyException("stencil.reduce body must end with stencil.yield")
+
+        last_op = body_block.last_op
+        if not isinstance(last_op, YieldOp):
+            op_name = "<unknown>" if last_op is None else last_op.name
+            raise VerifyException(
+                f"stencil.reduce body must end with stencil.yield, got {op_name}"
+            )
+
+        if last_op.operand.type != self.acc.type:
+            raise VerifyException(
+                "stencil.reduce yield type must match reduce operand type, "
+                f"got {last_op.operand.type} and {self.acc.type}"
+            )
+
+
+@irdl_op_definition
+class YieldOp(IRDLOperation):
+    """
+    Simple terminator for stencil operations with regions.
+    """
+
+    name = "stencil.yield"
+
+    operand = operand_def()
+
+    assembly_format = "$operand attr-dict `:` type($operand)"
+
+    traits = traits_def(IsTerminator())
+
+    def __init__(self, result: SSAValue):
+        super().__init__(operands=[result])
 
 
 @dataclass(frozen=True)
@@ -1750,6 +1803,8 @@ Stencil = Dialect(
         ApplyOp,
         StoreResultOp,
         ReturnOp,
+        ReduceOp,
+        YieldOp,
     ],
     [
         FieldType,

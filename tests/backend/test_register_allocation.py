@@ -3,6 +3,7 @@ from collections.abc import Sequence
 from typing import ClassVar
 
 import pytest
+from typing_extensions import override
 
 from xdsl.backend.block_naive_allocator import BlockNaiveAllocator
 from xdsl.backend.register_allocatable import (
@@ -12,7 +13,7 @@ from xdsl.backend.register_allocatable import (
 )
 from xdsl.backend.register_allocator import ValueAllocator
 from xdsl.backend.register_stack import OutOfRegisters, RegisterStack
-from xdsl.backend.register_type import RegisterType
+from xdsl.backend.register_type import RegisterAllocatedMemoryEffect, RegisterType
 from xdsl.builder import Builder
 from xdsl.dialects.test import TestOp
 from xdsl.ir import Attribute, Block, SSAValue
@@ -26,6 +27,7 @@ from xdsl.irdl import (
     irdl_op_definition,
     operand_def,
     result_def,
+    traits_def,
     var_operand_def,
     var_result_def,
 )
@@ -46,6 +48,40 @@ class TestRegister(RegisterType):
         return "y"
 
 
+@irdl_attr_definition
+class TestAliasRegisterA(RegisterType):
+    name = "test.alias_a"
+
+    @classmethod
+    def index_by_name(cls) -> dict[str, int]:
+        return {"p0": 0, "p1": 1}
+
+    @classmethod
+    def infinite_register_prefix(cls):
+        return "inf_alias_a_"
+
+    @classmethod
+    def register_pool_key(cls) -> str:
+        return "test.alias_pool"
+
+
+@irdl_attr_definition
+class TestAliasRegisterB(RegisterType):
+    name = "test.alias_b"
+
+    @classmethod
+    def index_by_name(cls) -> dict[str, int]:
+        return {"q0": 0, "q1": 1}
+
+    @classmethod
+    def infinite_register_prefix(cls):
+        return "inf_alias_b_"
+
+    @classmethod
+    def register_pool_key(cls) -> str:
+        return "test.alias_pool"
+
+
 @irdl_op_definition
 class TestAllocatableOp(IRDLOperation, HasRegisterConstraints):
     name = "test.allocatable"
@@ -54,6 +90,8 @@ class TestAllocatableOp(IRDLOperation, HasRegisterConstraints):
     inout_operands = var_operand_def()
     out_results = var_result_def()
     inout_results = var_result_def()
+
+    traits = traits_def(RegisterAllocatedMemoryEffect())
 
     irdl_options = (AttrSizedOperandSegments(), AttrSizedResultSegments())
 
@@ -96,51 +134,77 @@ def test_gather_allocated():
     def no_preallocated_body() -> None:
         (v1,) = op((), u).results
         (v2,) = op((), u).results
-        op((v1, v2), u)
+        _op = op((v1, v2), u)
+        assert not set(RegisterAllocatedMemoryEffect.iter_used_registers(_op))
 
-    pa_regs = set(
-        RegisterAllocatableOperation.iter_all_used_registers(no_preallocated_body)
-    )
-
-    assert pa_regs == set()
+    assert not (RegisterAllocatableOperation.all_used_registers(no_preallocated_body))
 
     @Builder.implicit_region
     def one_preallocated_body() -> None:
         (v1,) = op((), u).results
         (v2,) = op((), x0).results
-        op((v1, v2), u)
+        _op = op((v1, v2), u)
+        assert set(RegisterAllocatedMemoryEffect.iter_used_registers(_op)) == {x0}
 
-    pa_regs = set(
-        RegisterAllocatableOperation.iter_all_used_registers(one_preallocated_body)
-    )
-
-    assert pa_regs == {x0}
+    assert RegisterAllocatableOperation.all_used_registers(one_preallocated_body) == {
+        x0
+    }
 
     @Builder.implicit_region
     def repeated_preallocated_body() -> None:
         (v1,) = op((), u).results
         (v2,) = op((), x0).results
         (v3,) = op((), x0).results
-        op((v1, v2, v3), u)
+        _op = op((v1, v2, v3), u)
+        assert set(RegisterAllocatedMemoryEffect.iter_used_registers(_op)) == {x0}
 
-    pa_regs = set(
-        RegisterAllocatableOperation.iter_all_used_registers(repeated_preallocated_body)
-    )
-
-    assert pa_regs == {x0}
+    assert RegisterAllocatableOperation.all_used_registers(
+        repeated_preallocated_body
+    ) == {x0}
 
     @Builder.implicit_region
     def multiple_preallocated_body() -> None:
         (v1,) = op((), u).results
         (v2,) = op((), x0).results
         (v3,) = op((), x1).results
-        op((v1, v2, v3), u)
+        _op = op((v1, v2, v3), u)
+        assert set(RegisterAllocatedMemoryEffect.iter_used_registers(_op)) == {x0, x1}
 
-    pa_regs = set(
-        RegisterAllocatableOperation.iter_all_used_registers(multiple_preallocated_body)
-    )
+        # Test that calling iter_used_registers is deprecated on a function that does
+        # not overload it.
+        with pytest.deprecated_call():
+            assert not set(_op.iter_used_registers())  # pyright: ignore[reportDeprecated]
 
-    assert pa_regs == {x0, x1}
+    assert RegisterAllocatableOperation.all_used_registers(
+        multiple_preallocated_body
+    ) == {x0, x1}
+
+
+def test_deprecated_iter_used_registers():
+    """
+    Test that functions that overload `iter_used_registers` still work as expected but
+    raise a deprecation warning.
+    """
+
+    x1 = TestRegister.from_name("x1")
+
+    @irdl_op_definition
+    class TestDepracatedAllocatableOp(IRDLOperation, HasRegisterConstraints):
+        name = "test.allocatable"
+
+        o = var_operand_def()
+        r = var_result_def()
+
+        traits = traits_def(RegisterAllocatedMemoryEffect())
+
+        @override
+        def iter_used_registers(self):
+            yield x1
+
+    o = TestDepracatedAllocatableOp.create()
+
+    with pytest.deprecated_call():
+        assert set(RegisterAllocatedMemoryEffect.iter_used_registers(o)) == {x1}
 
 
 def test_new_type_for_value():
@@ -401,3 +465,45 @@ def test_out_of_registers():
     register_stack = RegisterStack()
     with pytest.raises(OutOfRegisters, match="Out of registers."):
         register_stack.pop(TestRegister)
+
+
+def test_reserved_aliased_register():
+    assert TestAliasRegisterA.register_pool_key() != TestAliasRegisterA.name
+
+    stack = RegisterStack.get((TestAliasRegisterA.from_index(0),))
+    r = stack.pop(TestAliasRegisterB)
+    assert r == TestAliasRegisterB.from_index(0)
+
+    stack.push(r)
+    stack.reserve_register(r)
+    with pytest.raises(AssertionError, match="Cannot pop a reserved register"):
+        stack.pop(TestAliasRegisterA)
+
+
+def test_register_pool_key_alias_pool_shares_physical_indices():
+    """
+    Two register types with different IR names but the same register_pool_key() must
+    draw from one pool of ABI indices.
+    """
+    stack = RegisterStack.get(
+        (
+            TestAliasRegisterA.from_name("p0"),
+            TestAliasRegisterB.from_name("q0"),
+        )
+    )
+    assert stack.available_registers["test.alias_pool"] == [0]
+    assert stack.pop(TestAliasRegisterA) == TestAliasRegisterA.from_index(0)
+    with pytest.raises(OutOfRegisters):
+        stack.pop(TestAliasRegisterB)
+
+
+def test_register_pool_key_alias_exclude_by_index():
+    stack = RegisterStack.get(
+        (
+            TestAliasRegisterA.from_name("p0"),
+            TestAliasRegisterA.from_name("p1"),
+        )
+    )
+    stack.exclude_register(TestAliasRegisterB.from_name("q0"))
+    assert 0 not in stack.available_registers["test.alias_pool"]
+    assert stack.available_registers["test.alias_pool"] == [1]

@@ -29,6 +29,7 @@ from xdsl.dialects.builtin import (
     SymbolRefAttr,
     UnitAttr,
     UnknownLoc,
+    bf16,
     f32,
     i1,
     i32,
@@ -1007,6 +1008,10 @@ def test_float_attr_specials():
     _test_attr_print("0x7e00 : f16", FloatAttr(float("nan"), 16))
     _test_attr_print("0x7c00 : f16", FloatAttr(float("inf"), 16))
     _test_attr_print("0xfc00 : f16", FloatAttr(float("-inf"), 16))
+
+    _test_attr_print("0x7fc0 : bf16", FloatAttr(float("nan"), bf16))
+    _test_attr_print("0x7f80 : bf16", FloatAttr(float("inf"), bf16))
+    _test_attr_print("0xff80 : bf16", FloatAttr(float("-inf"), bf16))
 
     _test_attr_print("0x7fc00000 : f32", FloatAttr(float("nan"), 32))
     _test_attr_print("0x7f800000 : f32", FloatAttr(float("inf"), 32))

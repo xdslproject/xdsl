@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import abc
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from typing import ClassVar, Literal, cast
 
 from xdsl.dialect_interfaces.constant_materialization import (
@@ -14,9 +14,6 @@ from xdsl.dialects.builtin import (
     DenseIntOrFPElementsAttr,
     DenseResourceAttr,
     FixedBitwidthType,
-    Float16Type,
-    Float32Type,
-    Float64Type,
     FloatAttr,
     IndexType,
     IndexTypeConstr,
@@ -29,11 +26,10 @@ from xdsl.dialects.builtin import (
     UnrankedTensorType,
     VectorType,
 )
-from xdsl.dialects.utils import FastMathAttrBase, FastMathFlag
+from xdsl.dialects.utils import BitEnumAttribute, FastMathAttrBase, FastMathFlag
 from xdsl.interfaces import ConditionallySpeculatableInterface, HasFolderInterface
 from xdsl.ir import (
     Attribute,
-    BitEnumAttribute,
     Dialect,
     Operation,
     SSAValue,
@@ -68,8 +64,8 @@ from xdsl.utils.str_enum import StrEnum
 from xdsl.utils.type import get_element_type_or_self, have_compatible_shape
 
 boolLike = ContainerOf(IntegerType(1))
-signlessIntegerLike = ContainerOf(AnyOf([IntegerType, IndexType]))
-floatingPointLike = ContainerOf(AnyOf([Float16Type, Float32Type, Float64Type]))
+signlessIntegerLike = ContainerOf(AnyOf.get(IntegerType, IndexType))
+floatingPointLike = ContainerOf(AnyFloatConstr)
 
 
 CMPI_COMPARISON_OPERATIONS = [
@@ -113,7 +109,7 @@ class FastMathFlagsAttr(FastMathAttrBase):
 
     name = "arith.fastmath"
 
-    def __init__(self, flags: None | Sequence[FastMathFlag] | Literal["none", "fast"]):
+    def __init__(self, flags: None | Iterable[FastMathFlag] | Literal["none", "fast"]):
         # irdl_attr_definition defines an __init__ if none is defined, so we need to
         # explicitely define one here.
         super().__init__(flags)
@@ -130,7 +126,7 @@ class IntegerOverflowAttr(BitEnumAttribute[IntegerOverflowFlag]):
 
     none_value = "none"
 
-    def __init__(self, flags: None | Sequence[IntegerOverflowFlag] | Literal["none"]):
+    def __init__(self, flags: None | Iterable[IntegerOverflowFlag] | Literal["none"]):
         # irdl_attr_definition defines an __init__ if none is defined, so we need to
         # explicitely define one here.
         super().__init__(flags)
@@ -235,7 +231,7 @@ class SignlessIntegerBinaryOperation(IRDLOperation, HasFolderInterface, abc.ABC)
                 assert lhs.type == rhs.type
                 result = self.py_operation(lhs.value.data, rhs.value.data)
                 if result is not None:
-                    return (IntegerAttr(result, lhs.type),)
+                    return (IntegerAttr(result, lhs.type, truncate_bits=True),)
         if isa(rhs, IntegerAttr) and self.is_right_unit(rhs):
             return (self.lhs,)
         if not self.has_trait(Commutative):
@@ -1195,15 +1191,11 @@ class BitcastOp(IRDLOperation):
     name = "arith.bitcast"
 
     input = operand_def(
-        ContainerOf(
-            AnyOf((IntegerType, IndexType, Float16Type, Float32Type, Float64Type))
-        )
+        ContainerOf(AnyOf.get(IntegerType, IndexType, AnyFloatConstr))
         | MemRefType.constr(element_type=AnyFloatConstr | SignlessIntegerConstraint)
     )
     result = result_def(
-        ContainerOf(
-            AnyOf((IntegerType, IndexType, Float16Type, Float32Type, Float64Type))
-        )
+        ContainerOf(AnyOf.get(IntegerType, IndexType, AnyFloatConstr))
         | MemRefType.constr(element_type=AnyFloatConstr | SignlessIntegerConstraint)
     )
 

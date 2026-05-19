@@ -8,8 +8,10 @@ from typing_extensions import Self
 
 from xdsl.dialects.builtin import (
     DYNAMIC_INDEX,
+    I64,
     AnySignlessIntegerOrIndexType,
     ArrayAttr,
+    ArrayOfConstraint,
     DenseArrayBase,
     IndexType,
     IntegerAttr,
@@ -22,8 +24,6 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.dialects.utils import (
     AbstractYieldOperation,
-)
-from xdsl.dialects.utils.dynamic_index_list import (
     DynamicIndexList,
     parse_dynamic_index_list_without_types,
     print_dynamic_index_list,
@@ -35,9 +35,14 @@ from xdsl.dialects.utils.reshape_ops_utils import (
 from xdsl.ir import Attribute, Dialect, Operation, SSAValue
 from xdsl.irdl import (
     AnyAttr,
+    AtLeast,
+    AttrConstraint,
     AttrSizedOperandSegments,
+    IntConstraint,
+    IntVarConstraint,
     IRDLOperation,
     Operand,
+    RangeOf,
     VarConstraint,
     base,
     irdl_op_definition,
@@ -100,6 +105,123 @@ class CastOp(IRDLOperation):
                     raise VerifyException(
                         "source and destination constant dimensions should match"
                     )
+
+
+@irdl_op_definition
+class ConcatOp(IRDLOperation):
+    """
+    Tensor concatenation operation.
+
+    The “concat” operation constructs a tensor out of a variadic list of input tensors,
+    concatenated along a static dimension number. All inputs and the result type must share the
+    same rank.
+
+    ``dim`` specifies the dimension along which to concatenate. The size of the concatenated
+    dimension in the result must be equal to the sum of the sizes of the inputs along that
+    dimension. All other dimensions in both the inputs and result must be the same size.
+
+    https://mlir.llvm.org/docs/Dialects/TensorOps/#tensorconcat-tensorconcatop
+    """
+
+    name = "tensor.concat"
+    _TENSOR_ELEMENT: ClassVar[AttrConstraint] = VarConstraint(
+        "Tensor Element", AnyAttr()
+    )
+    _RANK: ClassVar[IntConstraint] = IntVarConstraint("Rank", AtLeast(1))
+    inputs = var_operand_def(
+        RangeOf(
+            TensorType.constr(
+                _TENSOR_ELEMENT, ArrayOfConstraint(RangeOf(AnyAttr()).of_length(_RANK))
+            )
+        ).of_length(AtLeast(1))
+    )
+    dim = prop_def(IntegerAttr[I64])
+    result = result_def(
+        TensorType.constr(
+            _TENSOR_ELEMENT, ArrayOfConstraint(RangeOf(AnyAttr()).of_length(_RANK))
+        )
+    )
+
+    traits = traits_def(Pure())
+
+    assembly_format = (
+        " `dim` `(` $dim `)` $inputs attr-dict `:` functional-type(operands, results)"
+    )
+
+    def __init__(
+        self,
+        inputs: Sequence[SSAValue | Operation],
+        dim: IntegerAttr | int,
+        result_type: TensorType,
+        attributes: Mapping[str, Attribute] | None = None,
+    ):
+        if isinstance(dim, int):
+            dim = IntegerAttr(dim, i64)
+        super().__init__(
+            operands=(inputs,),
+            result_types=(result_type,),
+            properties={"dim": dim},
+            attributes=attributes,
+        )
+
+    @staticmethod
+    def _expected_concatenated_dim(dims: tuple[int]) -> int:
+        """Return the expected length of concatenated dimension lengths for verifying the result type."""
+        return DYNAMIC_INDEX if DYNAMIC_INDEX in dims else sum(dims)
+
+    @staticmethod
+    def _verify_and_get_non_concatenated_dim(dims: tuple[int], dim_index: int) -> int:
+        """Raise a VerifyException if the lengths are inconsistent - ie. non-dynamic lengths are not all equal - else return the
+        expected length of the non-concatenated dimension.
+        """
+        dim = DYNAMIC_INDEX
+        for arg_dim in dims:
+            if dim == DYNAMIC_INDEX:
+                dim = arg_dim
+            elif arg_dim != DYNAMIC_INDEX and dim != arg_dim:
+                raise VerifyException(
+                    f"static concatenation size mismatch along non-concatenated dimension {dim_index}"
+                )
+        return dim
+
+    def _verify_result_shape(self, inferred_shape: tuple[int, ...]) -> None:
+        """Verify the tensor shape of ``self.result.type`` by comparing it to the given inferred shape.
+
+        Raises a VerifyException is any dimension that is not ``DYNAMIC_INDEX`` in either ``inferred_shape`` or the result type
+        shape is unequal between the inferred size and the result type shape's dimension size.
+
+        Expects that the length of inferred_shape is equal to the rank of the result type's shape, and that `self.result.type` is
+        a TensorType."""
+        for inferred_size, actual_size in zip(
+            inferred_shape, self.result.type.shape, strict=True
+        ):
+            if (
+                DYNAMIC_INDEX not in (inferred_size, actual_size.data)
+                and inferred_size != actual_size.data
+            ):
+                raise VerifyException(
+                    f"result type {self.result.type} does not match inferred shape {inferred_shape} static sizes"
+                )
+
+    def verify_(self) -> None:
+        concat_dim = self.dim.value.data
+        result_type = self.result.type
+        if concat_dim >= result_type.get_num_dims():
+            raise VerifyException("concatenation dim must be less than the tensor rank")
+
+        transposed_shapes = zip(
+            *(
+                (int_attr.data for int_attr in cast(TensorType, arg.type).shape)
+                for arg in self.inputs
+            )
+        )
+        expected_result_shape = tuple(
+            self._expected_concatenated_dim(grouped_dims)
+            if i == concat_dim
+            else self._verify_and_get_non_concatenated_dim(grouped_dims, i)
+            for i, grouped_dims in enumerate(transposed_shapes)
+        )
+        self._verify_result_shape(expected_result_shape)
 
 
 @irdl_op_definition
@@ -701,6 +823,19 @@ class FromElementsOp(IRDLOperation):
     assembly_format = "$elements attr-dict `:` type($result)"
     traits = traits_def(Pure())
 
+    def __init__(
+        self,
+        head_element: SSAValue,
+        *tail_elements: SSAValue,
+        result_type: Attribute | None = None,
+    ):
+        elements = (head_element,) + tail_elements
+
+        if result_type is None:
+            result_type = TensorType(head_element.type, (len(elements),))
+
+        super().__init__(operands=(elements,), result_types=(result_type,))
+
 
 @irdl_op_definition
 class SplatOp(IRDLOperation):
@@ -817,24 +952,26 @@ class PadOp(IRDLOperation):
                 f"pad sizes low ({len(self.static_low)}) and high ({len(self.static_high)})"
                 " must have an equal number of dimensions"
             )
-        source_type = self.source.type
-        if isinstance(source_type, TensorType) and len(self.static_low) != len(
-            source_type.get_shape()
-        ):
+        source_type = cast(TensorType[Attribute], self.source.type)  # verified by IRDL
+        source_shape = source_type.get_shape()
+        if len(self.static_low) != len(source_shape):
             raise VerifyException(
                 f"number of pad sizes ({len(self.static_low)}) must equal number of dimensions"
                 f" in source tensor ({len(source_type.get_shape())})"
             )
+        # A result dim is dynamic when the source dim is dynamic
+        # OR either pad amount on that dim is dynamic.
         dynamic_dims = tuple(
             i
-            for i, (l, h) in enumerate(
+            for i, i_dims in enumerate(
                 zip(
+                    source_shape,
                     self.static_low.get_values(),
                     self.static_high.get_values(),
                     strict=True,
                 )
             )
-            if l == DYNAMIC_INDEX or h == DYNAMIC_INDEX
+            if DYNAMIC_INDEX in i_dims
         )
         result_dynamic_dims = tuple(
             i for i, s in enumerate(self.result.type.get_shape()) if s == DYNAMIC_INDEX
@@ -861,6 +998,7 @@ Tensor = Dialect(
     [
         CastOp,
         CollapseShapeOp,
+        ConcatOp,
         DimOp,
         EmptyOp,
         ExpandShapeOp,

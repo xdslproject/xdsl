@@ -11,14 +11,13 @@ builtin.module {
     }) {sym_name = "main", function_type=() -> ()} : () -> ()
 }
 
-// CHECK:       %{{\d+}} = "llvm.mlir.addressof"() <{global_name = @Hello_f_842f9d94ff2eba9703926bef3c2bc5f427db9871}> : () -> !llvm.ptr
+// CHECK:       %{{\d+}} = llvm.mlir.addressof @Hello_f_842f9d94ff2eba9703926bef3c2bc5f427db9871 : !llvm.ptr
 
-// CHECK:       "llvm.call"(%{{\d+}}, %{{\d+}}, %{{\d+}}) <{callee = @printf{{.*}}}> : (!llvm.ptr, f64, i32) -> ()
+// CHECK:       llvm.call @printf(%{{\d+}}, %{{\d+}}, %{{\d+}}){{.*}} : (!llvm.ptr, f64, i32) -> ()
 
 // CHECK:       llvm.func @printf(!llvm.ptr, ...)
 
-// CHECK:       "llvm.mlir.global"() <{global_type = !llvm.array<14 x i8>, sym_name = "Hello_f_842f9d94ff2eba9703926bef3c2bc5f427db9871", linkage = #llvm.linkage<"internal">, addr_space = 0 : i32, constant, value = dense<[72, 101, 108, 108, 111, 58, 32, 37, 102, 32, 37, 105, 10, 0]> : tensor<14xi8>}> ({
-// CHECK-NEXT:  }) : () -> ()
+// CHECK:       llvm.mlir.global internal constant @Hello_f_842f9d94ff2eba9703926bef3c2bc5f427db9871(dense<[72, 101, 108, 108, 111, 58, 32, 37, 102, 32, 37, 105, 10, 0]> : tensor<14xi8>) {addr_space = 0 : i32} : !llvm.array<14 x i8>
 
 // -----
 

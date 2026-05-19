@@ -54,6 +54,7 @@ from xdsl.dialects.arith import (
     XOrIOp,
 )
 from xdsl.dialects.builtin import (
+    BoolAttr,
     DenseIntOrFPElementsAttr,
     DenseResourceAttr,
     FloatAttr,
@@ -64,8 +65,12 @@ from xdsl.dialects.builtin import (
     Signedness,
     TensorType,
     VectorType,
+    bf16,
+    f16,
     f32,
     f64,
+    f80,
+    f128,
     i1,
     i32,
     i64,
@@ -283,6 +288,20 @@ def test_select_op():
         (VectorType(i64, [3]), VectorType(f64, [3])),
         (VectorType(f32, [3]), VectorType(i32, [3])),
         (MemRefType(i32, [5]), MemRefType(f32, [5])),
+        (bf16, f16),
+        (f16, bf16),
+        (bf16, IntegerType(16)),
+        (IntegerType(16), bf16),
+        (VectorType(bf16, [4]), VectorType(IntegerType(16), [4])),
+        (MemRefType(bf16, [5]), MemRefType(IntegerType(16), [5])),
+        (f80, IntegerType(80)),
+        (IntegerType(80), f80),
+        (VectorType(f80, [4]), VectorType(IntegerType(80), [4])),
+        (MemRefType(f80, [5]), MemRefType(IntegerType(80), [5])),
+        (f128, IntegerType(128)),
+        (IntegerType(128), f128),
+        (VectorType(f128, [4]), VectorType(IntegerType(128), [4])),
+        (MemRefType(f128, [5]), MemRefType(IntegerType(128), [5])),
     ],
 )
 def test_bitcast_op(in_type: Attribute, out_type: Attribute):
@@ -311,6 +330,9 @@ BITWIDTH_MISMATCH = "operand and result types must have equal bitwidths or be In
         (VectorType(i32, [5]), VectorType(f64, [5]), BITWIDTH_MISMATCH),
         (MemRefType(i32, [5]), MemRefType(f32, [6]), SHAPE_MISMATCH),
         (MemRefType(i32, [5]), f32, SHAPE_MISMATCH),
+        (bf16, f32, BITWIDTH_MISMATCH),
+        (f80, f128, BITWIDTH_MISMATCH),
+        (f128, f64, BITWIDTH_MISMATCH),
     ],
 )
 def test_bitcast_incorrect(in_type: Attribute, out_type: Attribute, err_msg: str):
@@ -551,6 +573,16 @@ def test_fold():
     # x + x cannot be folded
     addi_val_val = AddiOp(some_value, some_value)
     assert addi_val_val.fold() is None
+
+    false_attr = BoolAttr.from_bool(False)
+    false_op = ConstantOp(false_attr)
+    true_attr = BoolAttr.from_bool(True)
+    true_op = ConstantOp(true_attr)
+
+    assert AddiOp(false_op, false_op).fold() == (false_attr,)
+    assert AddiOp(false_op, true_op).fold() == (true_attr,)
+    assert AddiOp(true_op, false_op).fold() == (true_attr,)
+    assert AddiOp(true_op, true_op).fold() == (false_attr,)
 
 
 @pytest.mark.parametrize(

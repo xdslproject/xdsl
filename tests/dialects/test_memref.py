@@ -515,3 +515,21 @@ def test_get_strides():
     t_id = MemRefType(i32, (2, 3, 4), strided)
     assert (strides := t_id.get_strides())
     assert tuple(strides) == (24, 4, 1)
+
+
+def test_get_offset():
+    strided = StridedLayoutAttr((24, 4, 1), 5)
+    strided_dynamic_offset = StridedLayoutAttr((24, 4, 1), None)
+    affine = AffineMapAttr(AffineMap.identity(3))
+
+    t_none = MemRefType(i32, (2, 3, 4))
+    assert t_none.get_offset() == 0
+
+    t_strided = MemRefType(i32, (2, 3, 4), strided)
+    assert t_strided.get_offset() == 5
+
+    t_dynamic_offset = MemRefType(i32, (2, 3, 4), strided_dynamic_offset)
+    assert t_dynamic_offset.get_offset() is None
+
+    t_affine = MemRefType(i32, (2, 3, 4), affine)
+    assert t_affine.get_offset() is None

@@ -21,7 +21,6 @@ from xdsl.dialects.builtin import (
     MemRefType,
     ModuleOp,
     NoneAttr,
-    ShapedType,
     StridedLayoutAttr,
     SymbolRefAttr,
     UnrealizedConversionCastOp,
@@ -98,13 +97,9 @@ def get_strided_pointer(
     assert isinstance(memref_type.element_type, FixedBitwidthType)
     bytes_per_element = memref_type.element_type.size
 
-    match memref_type.layout:
-        case NoneAttr():
-            strides = ShapedType.strides_for_shape(memref_type.get_shape())
-        case StridedLayoutAttr():
-            strides = memref_type.layout.get_strides()
-        case _:
-            raise DiagnosticException(f"Unsupported layout type {memref_type.layout}")
+    strides = memref_type.get_strides()
+    if strides is None:
+        raise DiagnosticException(f"Unsupported layout type {memref_type.layout}")
 
     ops: list[Operation] = []
 
@@ -425,7 +420,6 @@ class ConvertMemRefToRiscvPass(ModulePass):
                     ConvertMemRefGetGlobalOp(),
                     ConvertMemRefSubviewOp(),
                 ],
-                dce_enabled=False,
             )
         ).rewrite_module(op)
         if contains_malloc:

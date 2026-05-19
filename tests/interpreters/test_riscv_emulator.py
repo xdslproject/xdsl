@@ -12,7 +12,7 @@ from xdsl.transforms.riscv_allocate_registers import RISCVAllocateRegistersPass
 
 pytest.importorskip("riscemu", reason="riscemu is an optional dependency")
 
-from xdsl.interpreters.riscv_emulator import RV_Debug, run_riscv  # noqa: E402
+from xdsl.interpreters.riscv_emulator import RV_Debug, run_riscv
 
 ctx = Context()
 ctx.load_dialect(riscv.RISCV)

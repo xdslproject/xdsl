@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from typing import cast
 
 from xdsl.context import Context
-from xdsl.dialects import arith, func, memref
+from xdsl.dialects import arith, csl, csl_stencil, csl_wrapper, func, memref
 from xdsl.dialects.builtin import (
     AffineMapAttr,
     Float16Type,
@@ -18,7 +18,6 @@ from xdsl.dialects.builtin import (
     f32,
     i16,
 )
-from xdsl.dialects.csl import csl, csl_stencil, csl_wrapper
 from xdsl.ir import (
     Block,
     BlockArgument,

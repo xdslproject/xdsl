@@ -99,7 +99,7 @@ class _TrackingPredicate:
 
     def __init__(self, predicate: Callable[[Use], bool]):
         self.predicate = predicate
-        self.modified_ops: list[Operation] = []
+        self.modified_ops = []
 
     def __call__(self, use: Use) -> bool:
         if self.predicate(use):
@@ -206,6 +206,7 @@ class PatternRewriter(Builder, PatternRewriterListener):
         for op in tracking.modified_ops:
             self.handle_operation_modification(op)
 
+    @deprecated("Please use `replace_op(op, new_op)`")
     def replace_matched_op(
         self,
         new_ops: Operation | Sequence[Operation],

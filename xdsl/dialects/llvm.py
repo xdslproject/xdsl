@@ -2,11 +2,12 @@ from __future__ import annotations
 
 from abc import ABC
 from collections.abc import Mapping, Sequence
+from collections.abc import Set as AbstractSet
 from dataclasses import dataclass
 from types import EllipsisType
-from typing import ClassVar
+from typing import ClassVar, cast
 
-from typing_extensions import deprecated
+from typing_extensions import TypeVar, deprecated
 
 from xdsl.dialects.builtin import (
     I1,
@@ -14,13 +15,22 @@ from xdsl.dialects.builtin import (
     I64,
     AnyFloatConstr,
     ArrayAttr,
+    BFloat16Type,
     DenseArrayBase,
+    DenseIntOrFPElementsAttr,
     DictionaryAttr,
+    Float16Type,
+    Float32Type,
+    Float64Type,
+    Float80Type,
+    Float128Type,
+    FloatAttr,
     FunctionType,
     IntAttr,
     IntegerAttr,
     IntegerType,
     NoneAttr,
+    Signedness,
     SignlessIntegerConstraint,
     StringAttr,
     SymbolNameConstraint,
@@ -32,14 +42,16 @@ from xdsl.dialects.builtin import (
     i64,
 )
 from xdsl.dialects.utils import (
+    BitEnumAttribute,
     FastMathAttrBase,
     FastMathFlag,
+    parse_dynamic_index_list_without_types,
     parse_func_op_like,
+    print_dynamic_index_list,
     print_func_op_like,
 )
 from xdsl.ir import (
     Attribute,
-    BitEnumAttribute,
     Block,
     Dialect,
     EnumAttribute,
@@ -48,16 +60,23 @@ from xdsl.ir import (
     Region,
     SSAValue,
     TypeAttribute,
+    TypedAttribute,
 )
 from xdsl.irdl import (
     AnyAttr,
+    AttrConstraint,
     AttrSizedOperandSegments,
+    ConstraintContext,
+    EqIntConstraint,
+    IntConstraint,
     IRDLOperation,
     ParsePropInAttrDict,
+    RangeOf,
     VarConstraint,
     base,
     irdl_attr_definition,
     irdl_op_definition,
+    irdl_to_attr_constraint,
     operand_def,
     opt_operand_def,
     opt_prop_def,
@@ -78,6 +97,8 @@ from xdsl.traits import (
     Pure,
     SameOperandsAndResultType,
     SymbolOpInterface,
+    SymbolTable,
+    SymbolUserOpInterface,
 )
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
@@ -216,6 +237,40 @@ class LLVMVoidType(ParametrizedAttribute, TypeAttribute):
     name = "llvm.void"
 
 
+def is_compatible_type(type_attr: Attribute) -> bool:
+    """
+    Check if a type is compatible with the LLVM dialect.
+
+    Matches MLIR's LLVMDialect::isCompatibleType: signless integers, floats,
+    LLVM dialect types, and 1-D fixed vectors of compatible element types.
+    """
+    if isa(type_attr, IntegerType):
+        return type_attr.signedness.data == Signedness.SIGNLESS
+    if isinstance(
+        type_attr,
+        (
+            BFloat16Type,
+            Float16Type,
+            Float32Type,
+            Float64Type,
+            Float80Type,
+            Float128Type,
+            LLVMStructType,
+            LLVMPointerType,
+            LLVMArrayType,
+            LLVMFunctionType,
+        ),
+    ):
+        return True
+    if isa(type_attr, VectorType):
+        return (
+            type_attr.get_num_dims() == 1
+            and type_attr.get_num_scalable_dims() == 0
+            and is_compatible_type(type_attr.element_type)
+        )
+    return False
+
+
 @irdl_attr_definition
 class LLVMFunctionType(ParametrizedAttribute, TypeAttribute):
     """
@@ -246,6 +301,19 @@ class LLVMFunctionType(ParametrizedAttribute, TypeAttribute):
     @property
     def is_variadic(self) -> bool:
         return isinstance(self.variadic, UnitAttr)
+
+    def verify(self) -> None:
+        for i, inp in enumerate(self.inputs):
+            if not is_compatible_type(inp):
+                raise VerifyException(
+                    f"LLVM function argument #{i} has incompatible type '{inp}'"
+                )
+        if not isinstance(self.output, LLVMVoidType) and not is_compatible_type(
+            self.output
+        ):
+            raise VerifyException(
+                f"LLVM function result has incompatible type '{self.output}'"
+            )
 
     def print_parameters(self, printer: Printer) -> None:
         with printer.in_angle_brackets():
@@ -416,18 +484,17 @@ class OverflowAttr(OverflowAttrBase):
         return OverflowAttr("none")
 
     def print(self, printer: Printer):
-        if self.flags:
+        if self.data:
             printer.print_string(" overflow")
             self.print_parameter(printer)
 
     def to_int(self) -> int:
-        if len(self.data) == 0:
-            return 0
-        if len(self.data) == 2:
-            return 3
-        if self.data[0] == OverflowFlag.NO_SIGNED_WRAP:
-            return 1
-        return 2
+        res = 0
+        if OverflowFlag.NO_SIGNED_WRAP in self.data:
+            res |= 1
+        if OverflowFlag.NO_UNSIGNED_WRAP in self.data:
+            res |= 2
+        return res
 
     @staticmethod
     def from_int(i: int) -> OverflowAttr:
@@ -1163,6 +1230,50 @@ class GEPOp(IRDLOperation):
             inbounds=inbounds,
         )
 
+    def print(self, printer: Printer) -> None:
+        if self.inbounds is not None:
+            printer.print_string(" inbounds")
+        printer.print_string(" ")
+        printer.print_ssa_value(self.ptr)
+        print_dynamic_index_list(
+            printer,
+            GEP_USE_SSA_VAL,
+            self.ssa_indices,
+            self.rawConstantIndices.iter_values(),
+        )
+        printer.print_op_attributes(self.attributes)
+        printer.print_string(" : ")
+        printer.print_function_type(
+            [self.ptr.type, *(v.type for v in self.ssa_indices)],
+            [self.result.type],
+        )
+        printer.print_string(", ")
+        printer.print_attribute(self.elem_type)
+
+    @classmethod
+    def parse(cls, parser: Parser) -> GEPOp:
+        inbounds = parser.parse_optional_keyword("inbounds") is not None
+        ptr = parser.parse_unresolved_operand()
+        ssa_refs, const_indices = parse_dynamic_index_list_without_types(
+            parser, GEP_USE_SSA_VAL
+        )
+        attrs = parser.parse_optional_attr_dict()
+        parser.parse_punctuation(":")
+        ft = parser.parse_function_type()
+        parser.parse_punctuation(",")
+        elem_type = parser.parse_type()
+        resolved = parser.resolve_operands([ptr, *ssa_refs], ft.inputs.data, parser.pos)
+        op = cls(
+            resolved[0],
+            list(const_indices),
+            elem_type,
+            resolved[1:],
+            result_type=cast(LLVMPointerType, ft.outputs.data[0]),
+            inbounds=inbounds,
+        )
+        op.attributes |= attrs
+        return op
+
 
 @irdl_op_definition
 class AllocaOp(IRDLOperation):
@@ -1171,7 +1282,7 @@ class AllocaOp(IRDLOperation):
     size = operand_def(IntegerType)
 
     alignment = opt_prop_def(IntegerAttr)
-    elem_type = opt_prop_def()
+    elem_type = prop_def()
 
     res = result_def()
 
@@ -1187,10 +1298,42 @@ class AllocaOp(IRDLOperation):
 
         super().__init__(operands=[size], properties=props, result_types=[ptr_type])
 
+    def print(self, printer: Printer) -> None:
+        printer.print_string(" ")
+        printer.print_ssa_value(self.size)
+        printer.print_string(" x ")
+        printer.print_attribute(self.elem_type)
+        attrs = dict(self.attributes)
+        if self.alignment is not None:
+            attrs["alignment"] = self.alignment
+        printer.print_op_attributes(attrs)
+        printer.print_string(" : ")
+        printer.print_function_type([self.size.type], [self.res.type])
+
+    @classmethod
+    def parse(cls, parser: Parser) -> AllocaOp:
+        size = parser.parse_unresolved_operand()
+        parser.parse_keyword("x")
+        elem_type = parser.parse_type()
+        attrs = parser.parse_optional_attr_dict()
+        parser.parse_punctuation(":")
+        ft = parser.parse_function_type()
+        props: dict[str, Attribute] = {"elem_type": elem_type}
+        if (a := attrs.pop("alignment", None)) is not None:
+            props["alignment"] = a
+        return cls.create(
+            operands=[parser.resolve_operand(size, ft.inputs.data[0])],
+            properties=props,
+            result_types=list(ft.outputs.data),
+            attributes=attrs,
+        )
+
 
 @irdl_op_definition
 class IntToPtrOp(IRDLOperation):
     name = "llvm.inttoptr"
+
+    assembly_format = "$input attr-dict `:` type($input) `to` type($output)"
 
     input = operand_def(IntegerType)
 
@@ -1222,6 +1365,22 @@ class TailCallKindAttr(EnumAttribute[TailCallKind]):
     def print_parameter(self, printer: Printer) -> None:
         with printer.in_angle_brackets():
             super().print_parameter(printer)
+
+
+ASM_DIALECT_NAME_BY_KEY: dict[int, str] = {0: "att", 1: "intel"}
+"""
+Mapping from LLVM inline-assembly dialect integer values to their textual
+keyword form. See external
+[documentation](https://mlir.llvm.org/docs/Dialects/LLVM/#llvminline_asm-llvminlineasmop)
+for the MLIR op, and
+[LLVM LangRef](https://llvm.org/docs/LangRef.html#inline-assembler-expressions)
+for the underlying semantics.
+"""
+
+ASM_DIALECT_KEY_BY_NAME: dict[str, int] = {
+    v: k for k, v in ASM_DIALECT_NAME_BY_KEY.items()
+}
+"""Inverse of ASM_DIALECT_NAME_BY_KEY: maps keyword strings to integer keys."""
 
 
 @irdl_op_definition
@@ -1261,7 +1420,7 @@ class InlineAsmOp(IRDLOperation):
         constraints: str,
         operands: Sequence[SSAValue | Operation],
         res_types: Sequence[Attribute] | None = None,
-        asm_dialect: int = 0,
+        asm_dialect: int | None = None,
         has_side_effects: bool = False,
         is_align_stack: bool = False,
         tail_call_kind: TailCallKindAttr | None = None,
@@ -1269,7 +1428,9 @@ class InlineAsmOp(IRDLOperation):
         props: dict[str, Attribute | None] = {
             "asm_string": StringAttr(asm_string),
             "constraints": StringAttr(constraints),
-            "asm_dialect": IntegerAttr(asm_dialect, 64),
+            "asm_dialect": IntegerAttr(asm_dialect, 64)
+            if asm_dialect is not None
+            else None,
             "has_side_effects": UnitAttr() if has_side_effects else None,
             "is_align_stack": UnitAttr() if is_align_stack else None,
             "tail_call_kind": tail_call_kind,
@@ -1284,10 +1445,85 @@ class InlineAsmOp(IRDLOperation):
             result_types=[res_types],
         )
 
+    def print(self, printer: Printer) -> None:
+        if self.has_side_effects is not None:
+            printer.print_string(" has_side_effects")
+        if self.is_align_stack is not None:
+            printer.print_string(" is_align_stack")
+        if self.asm_dialect is not None:
+            printer.print_string(
+                f" asm_dialect = {ASM_DIALECT_NAME_BY_KEY[self.asm_dialect.value.data]}"
+            )
+        if (tck := self.tail_call_kind.data) != TailCallKind.NONE:
+            printer.print_string(f" tail_call_kind = <{tck.value}>")
+        printer.print_string(" ")
+        printer.print_string_literal(self.asm_string.data)
+        printer.print_string(", ")
+        printer.print_string_literal(self.constraints.data)
+        if self.operands_:
+            printer.print_string(" ")
+            printer.print_list(self.operands_, printer.print_ssa_value)
+        printer.print_op_attributes(self.attributes)
+        printer.print_string(" : ")
+        printer.print_function_type(
+            [v.type for v in self.operands_],
+            [self.res.type] if self.res is not None else [],
+        )
+
+    @classmethod
+    def parse(cls, parser: Parser) -> InlineAsmOp:
+        has_side_effects = parser.parse_optional_keyword("has_side_effects") is not None
+        is_align_stack = parser.parse_optional_keyword("is_align_stack") is not None
+        asm_dialect: int | None = None
+        if parser.parse_optional_keyword("asm_dialect") is not None:
+            parser.parse_punctuation("=")
+            if parser.parse_optional_keyword("att") is not None:
+                asm_dialect = ASM_DIALECT_KEY_BY_NAME["att"]
+            elif parser.parse_optional_keyword("intel") is not None:
+                asm_dialect = ASM_DIALECT_KEY_BY_NAME["intel"]
+            else:
+                parser.raise_error(
+                    "Expected one of 'att', 'intel' after 'asm_dialect ='"
+                )
+        tail_call_kind = TailCallKindAttr(TailCallKind.NONE)
+        if parser.parse_optional_keyword("tail_call_kind") is not None:
+            parser.parse_punctuation("=")
+            parser.parse_punctuation("<")
+            tail_call_kind = TailCallKindAttr(parser.parse_str_enum(TailCallKind))
+            parser.parse_punctuation(">")
+        asm_string = parser.parse_str_literal()
+        parser.parse_punctuation(",")
+        constraints = parser.parse_str_literal()
+        operands_pos = parser.pos
+        operands = (
+            parser.parse_optional_undelimited_comma_separated_list(
+                parser.parse_optional_unresolved_operand,
+                parser.parse_unresolved_operand,
+            )
+            or []
+        )
+        attrs = parser.parse_optional_attr_dict()
+        parser.parse_punctuation(":")
+        ft = parser.parse_function_type()
+        op = cls(
+            asm_string,
+            constraints,
+            parser.resolve_operands(operands, ft.inputs.data, operands_pos),
+            ft.outputs.data,
+            asm_dialect=asm_dialect,
+            has_side_effects=has_side_effects,
+            is_align_stack=is_align_stack,
+            tail_call_kind=tail_call_kind,
+        )
+        op.attributes |= attrs
+        return op
+
 
 @irdl_op_definition
 class PtrToIntOp(IRDLOperation):
     name = "llvm.ptrtoint"
+
+    assembly_format = "$input attr-dict `:` type($input) `to` type($output)"
 
     input = operand_def(LLVMPointerType)
 
@@ -1297,6 +1533,23 @@ class PtrToIntOp(IRDLOperation):
 
     def __init__(self, arg: SSAValue | Operation, int_type: Attribute = i64):
         super().__init__(operands=[arg], result_types=[int_type])
+
+
+ATOMIC_ORDERING_KEYWORDS: dict[int, str] = {
+    1: "unordered",
+    2: "monotonic",
+    4: "acquire",
+    5: "release",
+    6: "acq_rel",
+    7: "seq_cst",
+}
+"""
+Mapping from LLVM atomic ordering integer values to their textual keyword form.
+
+See [LLVM LangRef](https://llvm.org/docs/LangRef.html#ordering) for the
+semantics of each ordering, and [MLIR LLVM dialect](https://mlir.llvm.org/docs/Dialects/LLVM/#atomic-ordering)
+for the corresponding MLIR enum values.
+"""
 
 
 @irdl_op_definition
@@ -1325,6 +1578,50 @@ class LoadOp(IRDLOperation):
             props["alignment"] = IntegerAttr(alignment, i64)
 
         super().__init__(operands=[ptr], result_types=[result_type], properties=props)
+
+    def print(self, printer: Printer) -> None:
+        printer.print_string(" ")
+        printer.print_ssa_value(self.ptr)
+        if (ordering := self.ordering.value.data) != 0:
+            printer.print_string(f" atomic {ATOMIC_ORDERING_KEYWORDS[ordering]}")
+        attrs = dict(self.attributes)
+        if self.alignment is not None:
+            attrs["alignment"] = self.alignment
+        printer.print_op_attributes(attrs)
+        printer.print_string(" : ")
+        printer.print_attribute(self.ptr.type)
+        printer.print_string(" -> ")
+        printer.print_attribute(self.dereferenced_value.type)
+
+    @classmethod
+    def parse(cls, parser: Parser) -> LoadOp:
+        ptr = parser.parse_unresolved_operand()
+        ordering = 0
+        if parser.parse_optional_keyword("atomic") is not None:
+            kw = parser.parse_identifier()
+            for v, k in ATOMIC_ORDERING_KEYWORDS.items():
+                if k == kw:
+                    ordering = v
+                    break
+            else:
+                parser.raise_error(f"unknown atomic ordering '{kw}'")
+        attrs = parser.parse_optional_attr_dict()
+        parser.parse_punctuation(":")
+        ptr_type = parser.parse_type()
+        parser.parse_punctuation("->")
+        result_type = parser.parse_type()
+        alignment: int | None = None
+        if (a := attrs.pop("alignment", None)) is not None:
+            assert isinstance(a, IntegerAttr)
+            alignment = a.value.data
+        op = cls(
+            parser.resolve_operand(ptr, ptr_type),
+            result_type,
+            alignment=alignment,
+            ordering=ordering,
+        )
+        op.attributes |= attrs
+        return op
 
 
 @irdl_op_definition
@@ -1365,20 +1662,48 @@ class StoreOp(IRDLOperation):
             result_types=[],
         )
 
+    def print(self, printer: Printer) -> None:
+        printer.print_string(" ")
+        if self.volatile_ is not None:
+            printer.print_string("volatile ")
+        printer.print_ssa_value(self.value)
+        printer.print_string(", ")
+        printer.print_ssa_value(self.ptr)
+        attrs = dict(self.attributes)
+        if self.alignment is not None:
+            attrs["alignment"] = self.alignment
+        if self.nontemporal is not None:
+            attrs["nontemporal"] = self.nontemporal
+        printer.print_op_attributes(attrs)
+        printer.print_string(" : ")
+        printer.print_attribute(self.value.type)
+        printer.print_string(", ")
+        printer.print_attribute(self.ptr.type)
 
-@irdl_op_definition
-class NullOp(IRDLOperation):
-    name = "llvm.mlir.null"
-
-    nullptr = result_def(LLVMPointerType)
-
-    traits = traits_def(NoMemoryEffect())
-
-    def __init__(self, ptr_type: LLVMPointerType | None = None):
-        if ptr_type is None:
-            ptr_type = LLVMPointerType()
-
-        super().__init__(result_types=[ptr_type])
+    @classmethod
+    def parse(cls, parser: Parser) -> StoreOp:
+        volatile = parser.parse_optional_keyword("volatile") is not None
+        value = parser.parse_unresolved_operand()
+        parser.parse_punctuation(",")
+        ptr = parser.parse_unresolved_operand()
+        attrs = parser.parse_optional_attr_dict()
+        parser.parse_punctuation(":")
+        value_type = parser.parse_type()
+        parser.parse_punctuation(",")
+        ptr_type = parser.parse_type()
+        alignment: int | None = None
+        if (a := attrs.pop("alignment", None)) is not None:
+            assert isinstance(a, IntegerAttr)
+            alignment = a.value.data
+        op = cls(
+            parser.resolve_operand(value, value_type),
+            parser.resolve_operand(ptr, ptr_type),
+            alignment=alignment,
+            volatile=volatile,
+            nontemporal=attrs.pop("nontemporal", None) is not None,
+        )
+        op.attributes |= attrs
+        return op
 
 
 @irdl_op_definition
@@ -1409,6 +1734,43 @@ class ExtractValueOp(IRDLOperation):
             },
             result_types=[result_type],
         )
+
+    def print(self, printer: Printer) -> None:
+        printer.print_string(" ")
+        printer.print_ssa_value(self.container)
+        printer.print_string("[")
+        printer.print_list(self.position.iter_values(), printer.print_int)
+        printer.print_string("]")
+        printer.print_op_attributes(self.attributes, reserved_attr_names=("position",))
+        printer.print_string(" : ")
+        printer.print_attribute(self.container.type)
+
+    @classmethod
+    def parse(cls, parser: Parser) -> ExtractValueOp:
+        container = parser.parse_unresolved_operand()
+        indices = parser.parse_comma_separated_list(
+            parser.Delimiter.SQUARE,
+            lambda: parser.parse_integer(allow_boolean=False),
+        )
+        attributes = parser.parse_optional_attr_dict()
+        parser.parse_punctuation(":")
+        container_type = parser.parse_type()
+        t = container_type
+        for idx in indices:
+            match t:
+                case LLVMArrayType():
+                    t = t.type
+                case LLVMStructType(types=types):
+                    t = types.data[idx]
+                case _:
+                    parser.raise_error(f"cannot index into {t}")
+        op = cls(
+            DenseArrayBase.from_list(i64, indices),
+            parser.resolve_operand(container, container_type),
+            t,
+        )
+        op.attributes |= attributes
+        return op
 
 
 @irdl_op_definition
@@ -1441,6 +1803,87 @@ class InsertValueOp(IRDLOperation):
             result_types=[container.type],
         )
 
+    def print(self, printer: Printer) -> None:
+        printer.print_string(" ")
+        printer.print_ssa_value(self.value)
+        printer.print_string(", ")
+        printer.print_ssa_value(self.container)
+        printer.print_string("[")
+        printer.print_list(self.position.iter_values(), printer.print_int)
+        printer.print_string("]")
+        printer.print_op_attributes(self.attributes, reserved_attr_names=("position",))
+        printer.print_string(" : ")
+        printer.print_attribute(self.container.type)
+
+    @classmethod
+    def parse(cls, parser: Parser) -> InsertValueOp:
+        value = parser.parse_unresolved_operand()
+        parser.parse_punctuation(",")
+        container = parser.parse_unresolved_operand()
+        indices = parser.parse_comma_separated_list(
+            parser.Delimiter.SQUARE,
+            lambda: parser.parse_integer(allow_boolean=False),
+        )
+        attributes = parser.parse_optional_attr_dict()
+        parser.parse_punctuation(":")
+        container_type = parser.parse_type()
+        t = container_type
+        for idx in indices:
+            match t:
+                case LLVMArrayType():
+                    t = t.type
+                case LLVMStructType(types=types):
+                    t = types.data[idx]
+                case _:
+                    parser.raise_error(f"cannot index into {t}")
+        op = cls(
+            DenseArrayBase.from_list(i64, indices),
+            parser.resolve_operand(container, container_type),
+            parser.resolve_operand(value, t),
+        )
+        op.attributes |= attributes
+        return op
+
+
+@irdl_op_definition
+class InsertElementOp(IRDLOperation):
+    """
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/LLVM/#llvminsertelement-llvminsertelementop).
+    """
+
+    name = "llvm.insertelement"
+
+    ELEMENT: ClassVar = VarConstraint("ELEMENT", AnyAttr())
+    VECTOR: ClassVar = VarConstraint(
+        "VECTOR_T",
+        VectorType.constr(
+            ELEMENT,
+            shape=ArrayAttr.constr(RangeOf(IntAttr).of_length(1)),
+        ),
+    )
+
+    vector = operand_def(VECTOR)
+    value = operand_def(ELEMENT)
+    index = operand_def(SignlessIntegerConstraint)
+    res = result_def(VECTOR)
+
+    assembly_format = (
+        "$value `,` $vector `[` $index `:` type($index) `]` attr-dict `:` type($vector)"
+    )
+
+    traits = traits_def(NoMemoryEffect())
+
+    def __init__(
+        self,
+        vector: Operation | SSAValue,
+        value: Operation | SSAValue,
+        index: Operation | SSAValue,
+    ):
+        super().__init__(
+            operands=[vector, value, index],
+            result_types=[SSAValue.get(vector).type],
+        )
+
 
 @irdl_op_definition
 class UndefOp(IRDLOperation):
@@ -1450,12 +1893,130 @@ class UndefOp(IRDLOperation):
 
     name = "llvm.mlir.undef"
 
+    assembly_format = "attr-dict `:` type($res)"
+
     res = result_def(Attribute)
 
     traits = traits_def(NoMemoryEffect())
 
     def __init__(self, result_type: Attribute):
         super().__init__(result_types=[result_type])
+
+
+@dataclass(frozen=True)
+class ShuffleVectorResultConstraint(AttrConstraint[VectorType]):
+    """Infers a 1D VectorType result from the input element type and mask length.
+
+    The result shape is determined by the number of elements in the mask,
+    while the element type is propagated from the input vectors.
+    """
+
+    element_constr: AttrConstraint
+    mask_constr: VarConstraint
+
+    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
+        VectorType.constr(
+            self.element_constr,
+            shape=ArrayAttr.constr(
+                RangeOf(base(IntAttr)).of_length(EqIntConstraint(1))
+            ),
+        ).verify(attr, constraint_context)
+
+    def can_infer(self, var_constraint_names: AbstractSet[str]) -> bool:
+        return (
+            self.element_constr.can_infer(var_constraint_names)
+            and self.mask_constr.name in var_constraint_names
+        )
+
+    def infer(self, context: ConstraintContext) -> VectorType:
+        mask = context.get_variable(self.mask_constr.name)
+        assert mask is not None
+        mask = cast(DenseArrayBase[IntegerType], mask)
+        element_type = self.element_constr.infer(context)
+        return VectorType(element_type, [len(mask)])
+
+    def mapping_type_vars(
+        self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
+    ) -> AttrConstraint[VectorType]:
+        return ShuffleVectorResultConstraint(
+            self.element_constr.mapping_type_vars(type_var_mapping),
+            self.mask_constr.mapping_type_vars(type_var_mapping),
+        )
+
+
+@irdl_op_definition
+class ShuffleVectorOp(IRDLOperation):
+    """
+    Constructs a new 1D vector by selecting elements from two input vectors
+    according to a static mask of indices.
+
+    See external [documentation](https://mlir.llvm.org/docs/Dialects/LLVM/#llvmshufflevector-llvmshufflevectorop).
+    """
+
+    name = "llvm.shufflevector"
+
+    T: ClassVar = VarConstraint("T", AnyAttr())
+    VEC_TYPE: ClassVar = VarConstraint(
+        "VEC_TYPE",
+        VectorType.constr(
+            T,
+            shape=ArrayAttr.constr(RangeOf(base(IntAttr)).of_length(1)),
+        ),
+    )
+    MASK: ClassVar = VarConstraint("MASK", irdl_to_attr_constraint(DenseArrayBase[I32]))
+
+    v1 = operand_def(VEC_TYPE)
+    v2 = operand_def(VEC_TYPE)
+    mask = prop_def(MASK)
+    res = result_def(ShuffleVectorResultConstraint(T, MASK))
+
+    traits = traits_def(NoMemoryEffect())
+
+    assembly_format = "$v1 `,` $v2 $mask attr-dict `:` type($v1)"
+
+    def verify_(self) -> None:
+        v1_type = cast(VectorType, self.v1.type)
+        v1_size = v1_type.get_shape()[0]
+        v2_type = cast(VectorType, self.v2.type)
+        v2_size = v2_type.get_shape()[0]
+        dim_bound = v1_size + v2_size
+        for idx in self.mask.iter_values():
+            if not (-1 <= idx < dim_bound):
+                raise VerifyException(
+                    f"Mask value {idx} out of range [-1, {dim_bound})"
+                )
+
+    def __init__(
+        self,
+        v1: Operation | SSAValue,
+        v2: Operation | SSAValue,
+        mask: DenseArrayBase,
+        result_type: Attribute,
+    ):
+        super().__init__(
+            operands=[v1, v2],
+            result_types=[result_type],
+            properties={"mask": mask},
+        )
+
+
+UNNAMED_ADDR_KEYWORD_BY_KEY: dict[int, str] = {
+    1: "local_unnamed_addr",
+    2: "unnamed_addr",
+}
+"""
+Mapping from LLVM `unnamed_addr` integer values to their textual keyword form
+(0 = no keyword). See external
+[documentation](https://mlir.llvm.org/docs/Dialects/LLVM/#llvmmlirglobal-llvmglobalop)
+for the MLIR op, and
+[LLVM LangRef](https://llvm.org/docs/LangRef.html#global-variables) for the
+underlying semantics.
+"""
+
+UNNAMED_ADDR_KEY_BY_KEYWORD: dict[str, int] = {
+    v: k for k, v in UNNAMED_ADDR_KEYWORD_BY_KEY.items()
+}
+"""Reverse mapping from keyword string to integer key."""
 
 
 @irdl_op_definition
@@ -1536,10 +2097,98 @@ class GlobalOp(IRDLOperation):
 
         super().__init__(properties=props, regions=(body,))
 
+    def print(self, printer: Printer) -> None:
+        printer.print_string(" ")
+        printer.print_string(self.linkage.linkage.data)
+        if self.thread_local_ is not None:
+            printer.print_string(" thread_local")
+        if self.unnamed_addr is not None and (
+            kw := UNNAMED_ADDR_KEYWORD_BY_KEY.get(self.unnamed_addr.value.data)
+        ):
+            printer.print_string(f" {kw}")
+        if self.constant is not None:
+            printer.print_string(" constant")
+        printer.print_string(" ")
+        printer.print_symbol_name(self.sym_name.data)
+        printer.print_string("(")
+        if self.value is not None:
+            printer.print_attribute(self.value)
+        printer.print_string(")")
+        printer.print_op_attributes(
+            self.properties | self.attributes,
+            reserved_attr_names=(
+                "global_type",
+                "sym_name",
+                "linkage",
+                "constant",
+                "thread_local_",
+                "unnamed_addr",
+                "value",
+            ),
+        )
+        printer.print_string(" : ")
+        printer.print_attribute(self.global_type)
+        if self.body.blocks:
+            printer.print_string(" ")
+            printer.print_region(self.body)
+
+    @classmethod
+    def parse(cls, parser: Parser) -> GlobalOp:
+        linkage = parser.parse_optional_keyword_in(_LINKAGE_OPTIONS) or "external"
+        thread_local_ = parser.parse_optional_keyword("thread_local") is not None
+        unnamed_addr_kw = parser.parse_optional_keyword_in(
+            UNNAMED_ADDR_KEYWORD_BY_KEY.values()
+        )
+        unnamed_addr_val = (
+            UNNAMED_ADDR_KEY_BY_KEYWORD.get(unnamed_addr_kw)
+            if unnamed_addr_kw is not None
+            else None
+        )
+        constant = parser.parse_optional_keyword("constant") is not None
+        sym_name = parser.parse_symbol_name()
+        parser.parse_punctuation("(")
+        value = None
+        if parser.parse_optional_punctuation(")") is None:
+            value = parser.parse_attribute()
+            parser.parse_punctuation(")")
+        attrs = parser.parse_optional_attr_dict()
+        if parser.parse_optional_punctuation(":") is not None:
+            global_type = parser.parse_type()
+        elif isinstance(value, StringAttr):
+            global_type = LLVMArrayType(len(value.data), IntegerType(8))
+        elif isinstance(value, TypedAttribute):
+            global_type = value.get_type()
+        else:
+            parser.raise_error("expected `:` followed by global type")
+        addr_space = attrs.pop("addr_space", IntegerAttr(0, 32))
+        alignment = attrs.pop("alignment", None)
+        section = attrs.pop("section", None)
+        assert isinstance(addr_space, IntegerAttr)
+        assert alignment is None or isinstance(alignment, IntegerAttr)
+        assert section is None or isinstance(section, StringAttr)
+        op = cls(
+            global_type=global_type,
+            sym_name=sym_name,
+            linkage=linkage,
+            addr_space=addr_space.value.data,
+            constant=constant,
+            dso_local=attrs.pop("dso_local", None) is not None,
+            thread_local_=thread_local_,
+            value=value,
+            alignment=alignment.value.data if alignment is not None else None,
+            unnamed_addr=unnamed_addr_val,
+            section=section,
+            body=parser.parse_optional_region(),
+        )
+        op.attributes |= attrs
+        return op
+
 
 @irdl_op_definition
 class AddressOfOp(IRDLOperation):
     name = "llvm.mlir.addressof"
+
+    assembly_format = "$global_name attr-dict `:` type($result)"
 
     global_name = prop_def(SymbolRefAttr)
     result = result_def(LLVMPointerType)
@@ -1702,6 +2351,8 @@ class FuncOp(IRDLOperation):
     tune_cpu = opt_prop_def(StringAttr)
     unnamed_addr = opt_prop_def(IntegerAttr)
 
+    traits = traits_def(SymbolOpInterface())
+
     def __init__(
         self,
         sym_name: str | StringAttr,
@@ -1856,6 +2507,16 @@ class FuncOp(IRDLOperation):
             case _:
                 raise AssertionError("Invalid unnamed_addr value")
 
+    def verify_(self, verify_nested_ops: bool = True) -> None:
+        if self.arg_attrs is None:
+            return
+        for i, attrs in enumerate(self.arg_attrs):
+            if "llvm.elementtype" in attrs.data:
+                raise VerifyException(
+                    f"'llvm.elementtype' on parameter {i} is invalid: "
+                    "elementtype can only be applied to intrinsic callsites"
+                )
+
     def print(self, printer: Printer):
         if self.linkage.linkage.data != "external":
             printer.print_string(" ")
@@ -1913,7 +2574,7 @@ class ReturnOp(IRDLOperation):
 class ConstantOp(IRDLOperation):
     name = "llvm.mlir.constant"
     result = result_def(Attribute)
-    value = prop_def()
+    value = prop_def(IntegerAttr | FloatAttr | DenseIntOrFPElementsAttr)
 
     traits = traits_def(NoMemoryEffect())
 
@@ -1926,7 +2587,7 @@ class ConstantOp(IRDLOperation):
         if b is not None:
             return IntegerAttr.from_bool(b)
         attr = parser.parse_optional_attribute()
-        if attr:
+        if attr is not None:
             return attr
         return IntegerAttr(parser.parse_integer(), 64)
 
@@ -1962,14 +2623,32 @@ class CallIntrinsicOp(IRDLOperation):
 
     name = "llvm.call_intrinsic"
 
-    fastmathFlags = opt_prop_def(FastMathAttr)
+    fastmathFlags = prop_def(FastMathAttr, default_value=FastMathAttr(None))
     intrin = prop_def(StringAttr)
-    op_bundle_sizes = prop_def(DenseArrayBase.constr(i32))
+    op_bundle_sizes = prop_def(
+        DenseArrayBase.constr(i32),
+        default_value=DenseArrayBase.from_list(i32, ()),
+    )
     args = var_operand_def()
     op_bundle_operands = var_operand_def()
     ress = opt_result_def()
 
-    irdl_options = (AttrSizedOperandSegments(as_property=True),)
+    assembly_format = (
+        "$intrin `(` $args `)` (`[` $op_bundle_operands^ `:`"
+        " type($op_bundle_operands) `]`)?"
+        " attr-dict `:` functional-type($args, results)"
+    )
+
+    irdl_options = (
+        AttrSizedOperandSegments(as_property=True),
+        ParsePropInAttrDict(),
+    )
+
+    def verify_(self) -> None:
+        if not self.intrin.data.startswith("llvm."):
+            raise VerifyException(
+                f"intrinsic name must start with 'llvm.', got '{self.intrin.data}'"
+            )
 
     def __init__(
         self,
@@ -1977,7 +2656,7 @@ class CallIntrinsicOp(IRDLOperation):
         args: Sequence[SSAValue],
         result_types: Sequence[Attribute],
         *,
-        op_bundle_sizes: DenseArrayBase,
+        op_bundle_sizes: DenseArrayBase = DenseArrayBase.from_list(i32, ()),
         op_bundle_operands: Sequence[SSAValue] = (),
     ):
         if isinstance(intrin, str):
@@ -1990,6 +2669,32 @@ class CallIntrinsicOp(IRDLOperation):
                 "op_bundle_sizes": op_bundle_sizes,
             },
         )
+
+
+class CallOpSymbolUserOpInterface(SymbolUserOpInterface):
+    """
+    Verifies that a direct `llvm.call` resolves to an `llvm.func` in the enclosing
+    symbol table. Indirect calls (no `callee` symbol) are skipped.
+
+    Mirrors MLIR's `LLVM::CallOp::verifySymbolUses`:
+    https://github.com/llvm/llvm-project/blob/main/mlir/lib/Dialect/LLVMIR/IR/LLVMDialect.cpp
+    """
+
+    def verify(self, op: Operation) -> None:
+        assert isinstance(op, CallOp)
+
+        if op.callee is None:
+            return
+
+        found_callee = SymbolTable.lookup_symbol(op, op.callee)
+        if not found_callee:
+            raise VerifyException(f"'{op.callee}' could not be found in symbol table")
+
+        if not isinstance(found_callee, FuncOp):
+            raise VerifyException(
+                f"'{op.callee}' must reference an 'llvm.func', "
+                f"but found '{found_callee.name}'"
+            )
 
 
 @irdl_op_definition
@@ -2011,6 +2716,8 @@ class CallOp(IRDLOperation):
         TailCallKindAttr, default_value=TailCallKindAttr(TailCallKind.NONE)
     )
     returned = opt_result_def()
+
+    traits = traits_def(CallOpSymbolUserOpInterface())
 
     irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
@@ -2050,6 +2757,100 @@ class CallOp(IRDLOperation):
             },
             result_types=op_result_type,
         )
+
+    def print(self, printer: Printer) -> None:
+        if self.CConv.convention.data != "ccc":
+            printer.print_string(f" {self.CConv.convention.data}")
+        if self.TailCallKind.data != TailCallKind.NONE:
+            printer.print_string(f" {self.TailCallKind.data.value}")
+        printer.print_string(" ")
+        if self.callee is not None:
+            printer.print_attribute(self.callee)
+            call_args = self.args
+        else:
+            printer.print_ssa_value(self.args[0])
+            call_args = self.args[1:]
+        printer.print_string("(")
+        printer.print_list(call_args, printer.print_ssa_value)
+        printer.print_string(")")
+        if self.var_callee_type is not None:
+            printer.print_string(" vararg(")
+            printer.print_attribute(self.var_callee_type)
+            printer.print_string(")")
+        reserved = [
+            "callee",
+            "var_callee_type",
+            "CConv",
+            "TailCallKind",
+            "op_bundle_sizes",
+            "operandSegmentSizes",
+        ]
+        if self.fastmathFlags == FastMathAttr("none"):
+            reserved.append("fastmathFlags")
+        printer.print_op_attributes(
+            self.properties | self.attributes,
+            reserved_attr_names=reserved,
+        )
+        printer.print_string(" : ")
+        if self.callee is None:
+            printer.print_attribute(self.args[0].type)
+            printer.print_string(", ")
+        ret_types = [] if self.returned is None else [self.returned.type]
+        printer.print_function_type([v.type for v in call_args], ret_types)
+
+    @classmethod
+    def parse(cls, parser: Parser) -> CallOp:
+        cconv = CallingConventionAttr(
+            parser.parse_optional_keyword_in(LLVM_CALLING_CONVS - {"ccc"}) or "ccc"
+        )
+        tck_kw = parser.parse_optional_keyword_in(
+            {k.value for k in TailCallKind if k != TailCallKind.NONE}
+        )
+        tail_call_kind = TailCallKindAttr(
+            TailCallKind(tck_kw) if tck_kw else TailCallKind.NONE
+        )
+        sym_name = parser.parse_optional_symbol_name()
+        callee = SymbolRefAttr(sym_name) if sym_name else None
+        callee_ptr = None if callee else parser.parse_unresolved_operand()
+        args_unresolved = parser.parse_comma_separated_list(
+            parser.Delimiter.PAREN, parser.parse_unresolved_operand
+        )
+        var_callee_type: Attribute | None = None
+        if parser.parse_optional_keyword("vararg") is not None:
+            parser.parse_punctuation("(")
+            var_callee_type = parser.parse_type()
+            parser.parse_punctuation(")")
+        attrs = parser.parse_optional_attr_dict()
+        parser.parse_punctuation(":")
+        ptr_operands: list[SSAValue] = []
+        if callee_ptr is not None:
+            ptr_operands.append(parser.resolve_operand(callee_ptr, parser.parse_type()))
+            parser.parse_punctuation(",")
+        ft = parser.parse_function_type()
+        fastmath = attrs.pop("fastmathFlags", FastMathAttr("none"))
+        assert isinstance(fastmath, FastMathAttr)
+        all_args = [
+            *ptr_operands,
+            *parser.resolve_operands(args_unresolved, ft.inputs.data, parser.pos),
+        ]
+        props: dict[str, Attribute] = {
+            "fastmathFlags": fastmath,
+            "CConv": cconv,
+            "TailCallKind": tail_call_kind,
+            "op_bundle_sizes": DenseArrayBase.from_list(i32, ()),
+            "operandSegmentSizes": DenseArrayBase.from_list(i32, [len(all_args), 0]),
+        }
+        if callee is not None:
+            props["callee"] = callee
+        if var_callee_type is not None:
+            props["var_callee_type"] = var_callee_type
+        op = cls.create(
+            operands=all_args,
+            properties=props,
+            result_types=ft.outputs.data,
+        )
+        op.attributes |= attrs
+        return op
 
 
 LLVMType = (
@@ -2119,7 +2920,7 @@ class AbstractFloatArithOp(IRDLOperation, ABC):
         fast_math: FastMathAttr | FastMathFlag | None = None,
         attrs: dict[str, Attribute] | None = None,
     ):
-        if isinstance(fast_math, FastMathFlag | str | None):
+        if not isinstance(fast_math, FastMathAttr):
             fast_math = FastMathAttr(fast_math)
 
         super().__init__(
@@ -2282,11 +3083,308 @@ class FAbsOp(IRDLOperation):
         result_type: Attribute,
         fast_math: FastMathAttr | FastMathFlag | None = None,
     ):
-        if isinstance(fast_math, FastMathFlag | str | None):
+        if not isinstance(fast_math, FastMathAttr):
             fast_math = FastMathAttr(fast_math)
         super().__init__(
             operands=[input],
             result_types=[result_type],
+            properties={"fastmathFlags": fast_math},
+        )
+
+
+@irdl_op_definition
+class FCeilOp(IRDLOperation):
+    T: ClassVar = VarConstraint("T", AnyFloatConstr | VectorType.constr(AnyFloatConstr))
+
+    name = "llvm.intr.ceil"
+
+    arg = operand_def(T)
+    res = result_def(T)
+
+    fastmathFlags = prop_def(FastMathAttr, default_value=FastMathAttr(None))
+
+    assembly_format = (
+        "`(` operands `)` attr-dict `:` functional-type(operands, results)"
+    )
+
+    irdl_options = (ParsePropInAttrDict(),)
+
+    traits = traits_def(Pure())
+
+    def __init__(
+        self,
+        arg: Operation | SSAValue,
+        fast_math: FastMathAttr | FastMathFlag | None = None,
+    ):
+        if not isinstance(fast_math, FastMathAttr):
+            fast_math = FastMathAttr(fast_math)
+        super().__init__(
+            operands=[arg],
+            result_types=[SSAValue.get(arg).type],
+            properties={"fastmathFlags": fast_math},
+        )
+
+
+@irdl_op_definition
+class FSqrtOp(IRDLOperation):
+    T: ClassVar = VarConstraint("T", AnyFloatConstr | VectorType.constr(AnyFloatConstr))
+
+    name = "llvm.intr.sqrt"
+
+    arg = operand_def(T)
+    res = result_def(T)
+
+    fastmathFlags = prop_def(FastMathAttr, default_value=FastMathAttr(None))
+
+    assembly_format = (
+        "`(` operands `)` attr-dict `:` functional-type(operands, results)"
+    )
+
+    irdl_options = (ParsePropInAttrDict(),)
+
+    traits = traits_def(Pure())
+
+    def __init__(
+        self,
+        arg: Operation | SSAValue,
+        fast_math: FastMathAttr | FastMathFlag | None = None,
+    ):
+        if not isinstance(fast_math, FastMathAttr):
+            fast_math = FastMathAttr(fast_math)
+        super().__init__(
+            operands=[arg],
+            result_types=[SSAValue.get(arg).type],
+            properties={"fastmathFlags": fast_math},
+        )
+
+
+@irdl_op_definition
+class FFloorOp(IRDLOperation):
+    T: ClassVar = VarConstraint("T", AnyFloatConstr | VectorType.constr(AnyFloatConstr))
+
+    name = "llvm.intr.floor"
+
+    arg = operand_def(T)
+    res = result_def(T)
+
+    fastmathFlags = prop_def(FastMathAttr, default_value=FastMathAttr(None))
+
+    assembly_format = (
+        "`(` operands `)` attr-dict `:` functional-type(operands, results)"
+    )
+
+    irdl_options = (ParsePropInAttrDict(),)
+
+    traits = traits_def(Pure())
+
+    def __init__(
+        self,
+        arg: Operation | SSAValue,
+        fast_math: FastMathAttr | FastMathFlag | None = None,
+    ):
+        if not isinstance(fast_math, FastMathAttr):
+            fast_math = FastMathAttr(fast_math)
+        super().__init__(
+            operands=[arg],
+            result_types=[SSAValue.get(arg).type],
+            properties={"fastmathFlags": fast_math},
+        )
+
+
+@irdl_op_definition
+class FExp2Op(IRDLOperation):
+    T: ClassVar = VarConstraint("T", AnyFloatConstr | VectorType.constr(AnyFloatConstr))
+
+    name = "llvm.intr.exp2"
+
+    arg = operand_def(T)
+    res = result_def(T)
+
+    fastmathFlags = prop_def(FastMathAttr, default_value=FastMathAttr(None))
+
+    assembly_format = (
+        "`(` operands `)` attr-dict `:` functional-type(operands, results)"
+    )
+
+    irdl_options = (ParsePropInAttrDict(),)
+
+    traits = traits_def(Pure())
+
+    def __init__(
+        self,
+        arg: Operation | SSAValue,
+        fast_math: FastMathAttr | FastMathFlag | None = None,
+    ):
+        if not isinstance(fast_math, FastMathAttr):
+            fast_math = FastMathAttr(fast_math)
+        super().__init__(
+            operands=[arg],
+            result_types=[SSAValue.get(arg).type],
+            properties={"fastmathFlags": fast_math},
+        )
+
+
+@irdl_op_definition
+class FLogOp(IRDLOperation):
+    T: ClassVar = VarConstraint("T", AnyFloatConstr | VectorType.constr(AnyFloatConstr))
+
+    name = "llvm.intr.log"
+
+    arg = operand_def(T)
+    res = result_def(T)
+
+    fastmathFlags = prop_def(FastMathAttr, default_value=FastMathAttr(None))
+
+    assembly_format = (
+        "`(` operands `)` attr-dict `:` functional-type(operands, results)"
+    )
+
+    irdl_options = (ParsePropInAttrDict(),)
+
+    traits = traits_def(Pure())
+
+    def __init__(
+        self,
+        arg: Operation | SSAValue,
+        fast_math: FastMathAttr | FastMathFlag | None = None,
+    ):
+        if not isinstance(fast_math, FastMathAttr):
+            fast_math = FastMathAttr(fast_math)
+        super().__init__(
+            operands=[arg],
+            result_types=[SSAValue.get(arg).type],
+            properties={"fastmathFlags": fast_math},
+        )
+
+
+@irdl_op_definition
+class FExpOp(IRDLOperation):
+    T: ClassVar = VarConstraint("T", AnyFloatConstr | VectorType.constr(AnyFloatConstr))
+
+    name = "llvm.intr.exp"
+
+    arg = operand_def(T)
+    res = result_def(T)
+
+    fastmathFlags = prop_def(FastMathAttr, default_value=FastMathAttr(None))
+
+    assembly_format = (
+        "`(` operands `)` attr-dict `:` functional-type(operands, results)"
+    )
+
+    irdl_options = (ParsePropInAttrDict(),)
+
+    traits = traits_def(Pure())
+
+    def __init__(
+        self,
+        arg: Operation | SSAValue,
+        fast_math: FastMathAttr | FastMathFlag | None = None,
+    ):
+        if not isinstance(fast_math, FastMathAttr):
+            fast_math = FastMathAttr(fast_math)
+        super().__init__(
+            operands=[arg],
+            result_types=[SSAValue.get(arg).type],
+            properties={"fastmathFlags": fast_math},
+        )
+
+
+@irdl_op_definition
+class FSinOp(IRDLOperation):
+    T: ClassVar = VarConstraint("T", AnyFloatConstr | VectorType.constr(AnyFloatConstr))
+
+    name = "llvm.intr.sin"
+
+    arg = operand_def(T)
+    res = result_def(T)
+
+    fastmathFlags = prop_def(FastMathAttr, default_value=FastMathAttr(None))
+
+    assembly_format = (
+        "`(` operands `)` attr-dict `:` functional-type(operands, results)"
+    )
+
+    irdl_options = (ParsePropInAttrDict(),)
+
+    traits = traits_def(Pure())
+
+    def __init__(
+        self,
+        arg: Operation | SSAValue,
+        fast_math: FastMathAttr | FastMathFlag | None = None,
+    ):
+        if not isinstance(fast_math, FastMathAttr):
+            fast_math = FastMathAttr(fast_math)
+        super().__init__(
+            operands=[arg],
+            result_types=[SSAValue.get(arg).type],
+            properties={"fastmathFlags": fast_math},
+        )
+
+
+@irdl_op_definition
+class FCosOp(IRDLOperation):
+    T: ClassVar = VarConstraint("T", AnyFloatConstr | VectorType.constr(AnyFloatConstr))
+
+    name = "llvm.intr.cos"
+
+    arg = operand_def(T)
+    res = result_def(T)
+
+    fastmathFlags = prop_def(FastMathAttr, default_value=FastMathAttr(None))
+
+    assembly_format = (
+        "`(` operands `)` attr-dict `:` functional-type(operands, results)"
+    )
+
+    irdl_options = (ParsePropInAttrDict(),)
+
+    traits = traits_def(Pure())
+
+    def __init__(
+        self,
+        arg: Operation | SSAValue,
+        fast_math: FastMathAttr | FastMathFlag | None = None,
+    ):
+        if not isinstance(fast_math, FastMathAttr):
+            fast_math = FastMathAttr(fast_math)
+        super().__init__(
+            operands=[arg],
+            result_types=[SSAValue.get(arg).type],
+            properties={"fastmathFlags": fast_math},
+        )
+
+
+@irdl_op_definition
+class FLog2Op(IRDLOperation):
+    T: ClassVar = VarConstraint("T", AnyFloatConstr | VectorType.constr(AnyFloatConstr))
+
+    name = "llvm.intr.log2"
+
+    arg = operand_def(T)
+    res = result_def(T)
+
+    fastmathFlags = prop_def(FastMathAttr, default_value=FastMathAttr(None))
+
+    assembly_format = (
+        "`(` operands `)` attr-dict `:` functional-type(operands, results)"
+    )
+
+    irdl_options = (ParsePropInAttrDict(),)
+
+    traits = traits_def(Pure())
+
+    def __init__(
+        self,
+        arg: Operation | SSAValue,
+        fast_math: FastMathAttr | FastMathFlag | None = None,
+    ):
+        if not isinstance(fast_math, FastMathAttr):
+            fast_math = FastMathAttr(fast_math)
+        super().__init__(
+            operands=[arg],
+            result_types=[SSAValue.get(arg).type],
             properties={"fastmathFlags": fast_math},
         )
 
@@ -2386,6 +3484,22 @@ class SelectOp(IRDLOperation):
 
 
 @irdl_op_definition
+class BrOp(IRDLOperation):
+    name = "llvm.br"
+
+    arguments = var_operand_def()
+
+    successor = successor_def()
+
+    traits = traits_def(IsTerminator())
+
+    assembly_format = "$successor (`(` $arguments^ `:` type($arguments) `)`)? attr-dict"
+
+    def __init__(self, dest: Block, *ops: Operation | SSAValue):
+        super().__init__(operands=[[op for op in ops]], successors=[dest])
+
+
+@irdl_op_definition
 class CondBrOp(IRDLOperation):
     name = "llvm.cond_br"
 
@@ -2422,6 +3536,183 @@ class CondBrOp(IRDLOperation):
 
 
 @irdl_op_definition
+class VectorFMaxOp(IRDLOperation):
+    T: ClassVar = VarConstraint("T", AnyFloatConstr | VectorType.constr(AnyFloatConstr))
+
+    name = "llvm.intr.maxnum"
+
+    lhs = operand_def(T)
+    rhs = operand_def(T)
+    res = result_def(T)
+
+    fastmathFlags = prop_def(FastMathAttr, default_value=FastMathAttr(None))
+
+    assembly_format = (
+        "`(` operands `)` attr-dict `:` functional-type(operands, results)"
+    )
+
+    irdl_options = (ParsePropInAttrDict(),)
+
+    traits = traits_def(Pure())
+
+    def __init__(
+        self,
+        lhs: Operation | SSAValue,
+        rhs: Operation | SSAValue,
+        fast_math: FastMathAttr | FastMathFlag | None = None,
+    ):
+        if not isinstance(fast_math, FastMathAttr):
+            fast_math = FastMathAttr(fast_math)
+        super().__init__(
+            operands=[lhs, rhs],
+            result_types=[SSAValue.get(lhs).type],
+            properties={"fastmathFlags": fast_math},
+        )
+
+
+@irdl_op_definition
+class FCopySignOp(IRDLOperation):
+    T: ClassVar = VarConstraint("T", AnyFloatConstr | VectorType.constr(AnyFloatConstr))
+
+    name = "llvm.intr.copysign"
+
+    lhs = operand_def(T)
+    rhs = operand_def(T)
+    res = result_def(T)
+
+    fastmathFlags = prop_def(FastMathAttr, default_value=FastMathAttr(None))
+
+    assembly_format = (
+        "`(` operands `)` attr-dict `:` functional-type(operands, results)"
+    )
+
+    irdl_options = (ParsePropInAttrDict(),)
+
+    traits = traits_def(Pure())
+
+    def __init__(
+        self,
+        lhs: Operation | SSAValue,
+        rhs: Operation | SSAValue,
+        fast_math: FastMathAttr | FastMathFlag | None = None,
+    ):
+        if not isinstance(fast_math, FastMathAttr):
+            fast_math = FastMathAttr(fast_math)
+        super().__init__(
+            operands=[lhs, rhs],
+            result_types=[SSAValue.get(lhs).type],
+            properties={"fastmathFlags": fast_math},
+        )
+
+
+@irdl_op_definition
+class FMAOp(IRDLOperation):
+    T: ClassVar = VarConstraint("T", AnyFloatConstr | VectorType.constr(AnyFloatConstr))
+
+    name = "llvm.intr.fma"
+
+    a = operand_def(T)
+    b = operand_def(T)
+    c = operand_def(T)
+    res = result_def(T)
+
+    fastmathFlags = prop_def(FastMathAttr, default_value=FastMathAttr(None))
+
+    assembly_format = (
+        "`(` operands `)` attr-dict `:` functional-type(operands, results)"
+    )
+
+    irdl_options = (ParsePropInAttrDict(),)
+
+    traits = traits_def(Pure())
+
+    def __init__(
+        self,
+        a: Operation | SSAValue,
+        b: Operation | SSAValue,
+        c: Operation | SSAValue,
+        fast_math: FastMathAttr | FastMathFlag | None = None,
+    ):
+        if not isinstance(fast_math, FastMathAttr):
+            fast_math = FastMathAttr(fast_math)
+        super().__init__(
+            operands=[a, b, c],
+            result_types=[SSAValue.get(a).type],
+            properties={"fastmathFlags": fast_math},
+        )
+
+
+@irdl_op_definition
+class VectorFMinOp(IRDLOperation):
+    T: ClassVar = VarConstraint("T", AnyFloatConstr | VectorType.constr(AnyFloatConstr))
+
+    name = "llvm.intr.minnum"
+
+    lhs = operand_def(T)
+    rhs = operand_def(T)
+    res = result_def(T)
+
+    fastmathFlags = prop_def(FastMathAttr, default_value=FastMathAttr(None))
+
+    assembly_format = (
+        "`(` operands `)` attr-dict `:` functional-type(operands, results)"
+    )
+
+    irdl_options = (ParsePropInAttrDict(),)
+
+    traits = traits_def(Pure())
+
+    def __init__(
+        self,
+        lhs: Operation | SSAValue,
+        rhs: Operation | SSAValue,
+        fast_math: FastMathAttr | FastMathFlag | None = None,
+    ):
+        if not isinstance(fast_math, FastMathAttr):
+            fast_math = FastMathAttr(fast_math)
+        super().__init__(
+            operands=[lhs, rhs],
+            result_types=[SSAValue.get(lhs).type],
+            properties={"fastmathFlags": fast_math},
+        )
+
+
+@irdl_op_definition
+class FPowOp(IRDLOperation):
+    T: ClassVar = VarConstraint("T", AnyFloatConstr | VectorType.constr(AnyFloatConstr))
+
+    name = "llvm.intr.pow"
+
+    lhs = operand_def(T)
+    rhs = operand_def(T)
+    res = result_def(T)
+
+    fastmathFlags = prop_def(FastMathAttr, default_value=FastMathAttr(None))
+
+    assembly_format = (
+        "`(` operands `)` attr-dict `:` functional-type(operands, results)"
+    )
+
+    irdl_options = (ParsePropInAttrDict(),)
+
+    traits = traits_def(Pure())
+
+    def __init__(
+        self,
+        lhs: Operation | SSAValue,
+        rhs: Operation | SSAValue,
+        fast_math: FastMathAttr | FastMathFlag | None = None,
+    ):
+        if not isinstance(fast_math, FastMathAttr):
+            fast_math = FastMathAttr(fast_math)
+        super().__init__(
+            operands=[lhs, rhs],
+            result_types=[SSAValue.get(lhs).type],
+            properties={"fastmathFlags": fast_math},
+        )
+
+
+@irdl_op_definition
 class UnreachableOp(IRDLOperation):
     name = "llvm.unreachable"
 
@@ -2438,6 +3729,7 @@ LLVM = Dialect(
         AllocaOp,
         AndOp,
         BitcastOp,
+        BrOp,
         CallIntrinsicOp,
         CallOp,
         CondBrOp,
@@ -2445,25 +3737,37 @@ LLVM = Dialect(
         ExtractValueOp,
         FAbsOp,
         FAddOp,
+        FCeilOp,
         FCmpOp,
+        FCopySignOp,
+        FCosOp,
         FDivOp,
+        FExpOp,
+        FFloorOp,
+        FExp2Op,
+        FLogOp,
+        FLog2Op,
+        FMAOp,
         FMulOp,
         FNegOp,
         FPExtOp,
+        FPowOp,
         FRemOp,
+        FSinOp,
+        FSqrtOp,
         FSubOp,
         FuncOp,
         GEPOp,
         GlobalOp,
         ICmpOp,
         InlineAsmOp,
+        InsertElementOp,
         InsertValueOp,
         IntToPtrOp,
         LShrOp,
         LoadOp,
         MaskedStoreOp,
         MulOp,
-        NullOp,
         OrOp,
         PtrToIntOp,
         ReturnOp,
@@ -2473,6 +3777,7 @@ LLVM = Dialect(
         SIToFPOp,
         SRemOp,
         ShlOp,
+        ShuffleVectorOp,
         StoreOp,
         SubOp,
         TruncOp,
@@ -2480,6 +3785,8 @@ LLVM = Dialect(
         URemOp,
         UndefOp,
         UnreachableOp,
+        VectorFMaxOp,
+        VectorFMinOp,
         XOrOp,
         ZExtOp,
         ZeroOp,

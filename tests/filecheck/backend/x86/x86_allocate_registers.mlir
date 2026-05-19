@@ -46,16 +46,16 @@ x86_func.func @main_avx512() {
 // CHECK-LABEL:  @loops
 x86_func.func @loops() {
 
-// CHECK-NEXT:      %start, %end, %step = "test.op"() : () -> (!x86.reg<rcx>, !x86.reg<rdx>, !x86.reg<rax>)
-  %start, %end, %step = "test.op"() : () -> (!x86.reg, !x86.reg, !x86.reg)
+// CHECK-NEXT:      %start, %end, %step = "test.op"() : () -> (!x86.reg64<rcx>, !x86.reg64<rdx>, !x86.reg64<rax>)
+  %start, %end, %step = "test.op"() : () -> (!x86.reg64, !x86.reg64, !x86.reg64)
 
-// CHECK-NEXT:      %for_result = x86_scf.for %iv : !x86.reg<rcx>  = %start to %end step %step iter_args(%iter_val = %step) -> (!x86.reg<rax>) {
-// CHECK-NEXT:        %moved_val = x86.ds.mov %iter_val : (!x86.reg<rax>) -> !x86.reg<rax>
-// CHECK-NEXT:        x86_scf.yield %moved_val : !x86.reg<rax>
+// CHECK-NEXT:      %for_result = x86_scf.for %iv : !x86.reg64<rcx>  = %start to %end step %step iter_args(%iter_val = %step) -> (!x86.reg64<rax>) {
+// CHECK-NEXT:        %moved_val = x86.ds.mov %iter_val : (!x86.reg64<rax>) -> !x86.reg64<rax>
+// CHECK-NEXT:        x86_scf.yield %moved_val : !x86.reg64<rax>
 // CHECK-NEXT:      }
-  %for_result = x86_scf.for %iv : !x86.reg = %start to %end step %step iter_args(%iter_val = %step) -> (!x86.reg) {
-    %moved_val = x86.ds.mov %iter_val : (!x86.reg) -> !x86.reg
-    x86_scf.yield %moved_val : !x86.reg
+  %for_result = x86_scf.for %iv : !x86.reg64 = %start to %end step %step iter_args(%iter_val = %step) -> (!x86.reg64) {
+    %moved_val = x86.ds.mov %iter_val : (!x86.reg64) -> !x86.reg64
+    x86_scf.yield %moved_val : !x86.reg64
   }
 
 // CHECK-NEXT:      x86_func.ret

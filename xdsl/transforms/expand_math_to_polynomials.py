@@ -6,6 +6,7 @@ from xdsl.dialects.builtin import (
     AnyFloat,
     DenseIntOrFPElementsAttr,
     FloatAttr,
+    IntegerAttr,
     ModuleOp,
     TensorType,
     VectorType,
@@ -25,14 +26,29 @@ from xdsl.pattern_rewriter import (
 class ExpandExp(RewritePattern):
     """
     Replace `math.exp` operations with a polynomial expansion.
+
+    Only expands when the number of terms is specified, either via an
+    attribute on the operation or via the pass-level default.
     """
 
-    terms: int
-    """Number of terms to use when expanding `math.exp`."""
+    default_terms: int | None = None
+    """Pass-level default for number of terms. None means don't expand
+    unless the operation has an explicit terms attribute."""
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: math.ExpOp, rewriter: PatternRewriter) -> None:
-        expanded: Operation = expand_exp(op, rewriter, self.terms)
+        terms: int | None = None
+        if "terms" in op.attributes:
+            attr = op.attributes["terms"]
+            if isinstance(attr, IntegerAttr):
+                terms = attr.value.data
+        elif self.default_terms is not None:
+            terms = self.default_terms
+
+        if terms is None:
+            return
+
+        expanded: Operation = expand_exp(op, rewriter, terms)
         rewriter.replace_op(op, (), (expanded.results[0],))
 
 
@@ -55,9 +71,10 @@ def _float_constant(
 
 def expand_exp(op: math.ExpOp, rewriter: PatternRewriter, terms: int) -> Operation:
     """
-    Expand exp(x) using the Taylor-series loop from the pseudo-code:
+    Expand exp(x) using a Taylor-series polynomial expansion.
 
-        terms = 75
+    Pseudo-code::
+
         result = 1.0
         term = 1.0
         for i in range(1, terms): # loop will be unrolled by the rewriter
@@ -91,15 +108,20 @@ class ExpandMathToPolynomialsPass(ModulePass):
     This pass expands `math` operations to a polynomial expansion using the Taylor series.
 
     Currently only expands `math.exp` operations.
+
+    Operations are only expanded when the number of terms is specified,
+    either via a `terms` attribute on the operation itself or via the
+    pass-level `terms` parameter.
     """
 
     name = "expand-math-to-polynomials"
 
-    terms: int = 4
-    """Number of terms in the resulting polynomial expansion."""
+    terms: int | None = None
+    """Number of terms in the resulting polynomial expansion.
+    If not set, only operations with an explicit terms attribute are expanded."""
 
     def apply(self, ctx: Context, op: ModuleOp) -> None:
         PatternRewriteWalker(
-            ExpandExp(self.terms),
+            ExpandExp(default_terms=self.terms),
             apply_recursively=False,
         ).rewrite_module(op)

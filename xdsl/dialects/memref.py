@@ -33,10 +33,8 @@ from xdsl.dialects.builtin import (
     i64,
 )
 from xdsl.dialects.utils import (
-    split_dynamic_index_list,
-)
-from xdsl.dialects.utils.dynamic_index_list import (
     DynamicIndexList,
+    split_dynamic_index_list,
     verify_dynamic_index_list,
 )
 from xdsl.dialects.utils.reshape_ops_utils import (
@@ -489,6 +487,8 @@ class DimOp(IRDLOperation):
     result = result_def(IndexType)
 
     traits = traits_def(NoMemoryEffect())
+
+    assembly_format = "$source `,` $index attr-dict `:` type($source)"
 
     @staticmethod
     def from_source_and_index(

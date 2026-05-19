@@ -13,28 +13,30 @@ on:
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ['3.12']
+        python-version: ["3.12"]
 
     steps:
-    - uses: actions/checkout@v6
+      - uses: actions/checkout@v6
 
-    - name: Install uv
-      uses: astral-sh/setup-uv@v7
-      with:
-        enable-cache: true
-        cache-dependency-glob: "uv.lock"
+      - name: Install uv
+        uses: astral-sh/setup-uv@v8.1.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
 
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v6
-      with:
-        python-version: ${{ matrix.python-version }}
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
 
-    - name: Install the package locally and check for lockfile mismatch
-      run: |
-        # Install all default extras.
-        # Fail if the lockfile dependencies are out of date with pyproject.toml.
-        uv sync --all-extras --all-groups --locked
+      - name: Install the package locally and check for lockfile mismatch
+        run: |
+          # Install all default extras.
+          # Fail if the lockfile dependencies are out of date with pyproject.toml.
+          uv sync --all-extras --all-groups --locked
+
+      - name: Prune uv cache
+        run: uv cache prune --ci

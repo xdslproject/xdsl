@@ -1,11 +1,14 @@
 from io import StringIO
 
 import pytest
+from typing_extensions import TypeVar
 
 from xdsl.context import Context
 from xdsl.dialects import arith, builtin, llvm, test
 from xdsl.dialects.builtin import UnitAttr, i32
+from xdsl.dialects.llvm import ShuffleVectorResultConstraint
 from xdsl.ir import Attribute, Block, Region
+from xdsl.irdl import AnyAttr, EqAttrConstraint, TypeVarConstraint, VarConstraint
 from xdsl.parser import Parser
 from xdsl.printer import Printer
 from xdsl.utils.exceptions import VerifyException
@@ -98,7 +101,7 @@ def test_llvm_pointer_ops():
             idx := arith.ConstantOp.from_int_and_width(0, 64),
             ptr := llvm.AllocaOp(idx, builtin.i32),
             val := llvm.LoadOp(ptr, builtin.i32),
-            nullptr := llvm.NullOp(),
+            nullptr := llvm.ZeroOp(result_types=[llvm.LLVMPointerType()]),
             alloc_ptr := llvm.AllocaOp(idx, elem_type=builtin.IndexType()),
             llvm.LoadOp(alloc_ptr, builtin.IndexType()),
             store := llvm.StoreOp(
@@ -119,8 +122,8 @@ def test_llvm_pointer_ops():
     assert "alignment" in store.properties
     assert "ordering" in store.properties
 
-    assert isinstance(nullptr.nullptr.type, llvm.LLVMPointerType)
-    assert isinstance(nullptr.nullptr.type.addr_space, builtin.NoneAttr)
+    assert isinstance(nullptr.res.type, llvm.LLVMPointerType)
+    assert isinstance(nullptr.res.type.addr_space, builtin.NoneAttr)
 
 
 @pytest.mark.parametrize(
@@ -280,6 +283,40 @@ def test_addressof_op():
     assert address_of.result.type == ptr_type
 
 
+def test_is_compatible_type():
+    assert llvm.is_compatible_type(builtin.IntegerType(32))
+    assert llvm.is_compatible_type(builtin.IntegerType(1))
+    assert not llvm.is_compatible_type(
+        builtin.IntegerType(32, builtin.Signedness.SIGNED)
+    )
+    assert not llvm.is_compatible_type(
+        builtin.IntegerType(32, builtin.Signedness.UNSIGNED)
+    )
+
+    assert llvm.is_compatible_type(builtin.BFloat16Type())
+    assert llvm.is_compatible_type(builtin.Float16Type())
+    assert llvm.is_compatible_type(builtin.Float32Type())
+    assert llvm.is_compatible_type(builtin.Float64Type())
+    assert llvm.is_compatible_type(builtin.Float80Type())
+    assert llvm.is_compatible_type(builtin.Float128Type())
+
+    assert llvm.is_compatible_type(llvm.LLVMStructType.from_type_list([]))
+    assert llvm.is_compatible_type(llvm.LLVMPointerType())
+    assert llvm.is_compatible_type(llvm.LLVMArrayType(4, builtin.i32))
+    assert llvm.is_compatible_type(llvm.LLVMFunctionType([builtin.i32], builtin.i32))
+
+    assert llvm.is_compatible_type(builtin.VectorType(builtin.i32, [4]))
+    assert not llvm.is_compatible_type(builtin.VectorType(builtin.i32, [4, 4]))
+    scalable_dims = builtin.ArrayAttr([builtin.BoolAttr.from_bool(True)])
+    assert not llvm.is_compatible_type(
+        builtin.VectorType(builtin.i32, [4], scalable_dims=scalable_dims)
+    )
+    assert not llvm.is_compatible_type(builtin.VectorType(builtin.IndexType(), [4]))
+
+    assert not llvm.is_compatible_type(builtin.IndexType())
+    assert not llvm.is_compatible_type(llvm.LLVMVoidType())
+
+
 def test_implicit_void_func_return():
     func_type = llvm.LLVMFunctionType([])
 
@@ -426,7 +463,7 @@ def test_fastmath_attr_defaults_empty():
     # verify omitted fast_math results in empty flags
     lhs = create_ssa_value(builtin.f32)
     op = llvm.FAddOp(lhs, lhs)
-    assert op.fastmathFlags.data == ()
+    assert not op.fastmathFlags.data
 
 
 def test_undef_op():
@@ -481,11 +518,11 @@ def test_gep_op_inbounds_flag():
     assert "inbounds" in op.properties
 
 
-def test_null_op_with_address_space():
+def test_zero_op_with_address_space():
     # address space 1 (e.g. GPU global memory) instead of default address space 0
     ptr_type = llvm.LLVMPointerType(addr_space=builtin.IntAttr(1))
-    op = llvm.NullOp(ptr_type)
-    assert op.nullptr.type == ptr_type
+    op = llvm.ZeroOp(result_types=[ptr_type])
+    assert op.res.type == ptr_type
     assert isinstance(ptr_type.addr_space, builtin.IntAttr)
     assert ptr_type.addr_space.data == 1  # verify address space is actually set
 
@@ -558,12 +595,15 @@ def test_call_op_variadic():
 
 
 def test_call_intrinsic_op_converts_str_to_stringattr():
-    # verify string intrinsic name is auto-converted to StringAttr
-    op = llvm.CallIntrinsicOp(
-        "llvm.intr", [], [], op_bundle_sizes=llvm.DenseArrayBase.from_list(i32, [])
-    )
+    op = llvm.CallIntrinsicOp("llvm.intr", [], [])
     assert isinstance(op.intrin, builtin.StringAttr)
     assert op.intrin.data == "llvm.intr"
+
+
+def test_call_intrinsic_op_accepts_stringattr():
+    intrin = builtin.StringAttr("llvm.smax")
+    op = llvm.CallIntrinsicOp(intrin, [], [])
+    assert op.intrin is intrin
 
 
 def test_func_op_visibility_default():
@@ -585,6 +625,79 @@ def test_fabs_op():
     op = llvm.FAbsOp(val, builtin.f32)
     assert op.input == val
     assert op.result.type == builtin.f32
+
+
+def test_fceil_op():
+    val = create_ssa_value(builtin.f32)
+    op = llvm.FCeilOp(val)
+    assert op.arg == val
+    assert op.res.type == builtin.f32
+
+
+def test_fsqrt_op():
+    val = create_ssa_value(builtin.f32)
+    op = llvm.FSqrtOp(val)
+    assert op.arg == val
+    assert op.res.type == builtin.f32
+
+
+def test_ffloor_op():
+    val = create_ssa_value(builtin.f32)
+    op = llvm.FFloorOp(val)
+    assert op.arg == val
+    assert op.res.type == builtin.f32
+
+
+def test_fexp2_op():
+    val = create_ssa_value(builtin.f32)
+    op = llvm.FExp2Op(val)
+    assert op.arg == val
+    assert op.res.type == builtin.f32
+
+
+def test_flog_op():
+    val = create_ssa_value(builtin.f32)
+    op = llvm.FLogOp(val)
+    assert op.arg == val
+    assert op.res.type == builtin.f32
+
+
+def test_fexp_op():
+    val = create_ssa_value(builtin.f32)
+    op = llvm.FExpOp(val)
+    assert op.arg == val
+    assert op.res.type == builtin.f32
+    assert op.name == "llvm.intr.exp"
+
+
+def test_fsin_op():
+    val = create_ssa_value(builtin.f32)
+    op = llvm.FSinOp(val)
+    assert op.arg == val
+    assert op.res.type == builtin.f32
+
+
+def test_fcos_op():
+    val = create_ssa_value(builtin.f32)
+    op = llvm.FCosOp(val)
+    assert op.arg == val
+    assert op.res.type == builtin.f32
+
+
+def test_flog2_op():
+    val = create_ssa_value(builtin.f32)
+    op = llvm.FLog2Op(val)
+    assert op.arg == val
+    assert op.res.type == builtin.f32
+
+
+def test_fcopysign_op():
+    lhs = create_ssa_value(builtin.f32)
+    rhs = create_ssa_value(builtin.f32)
+    op = llvm.FCopySignOp(lhs, rhs)
+    assert op.lhs == lhs
+    assert op.rhs == rhs
+    assert op.res.type == builtin.f32
 
 
 def test_fneg_op():
@@ -614,6 +727,41 @@ def test_select_op():
     assert op.res.type == builtin.i32
 
 
+def test_br_op():
+    dest = Block(arg_types=[builtin.i32])
+    arg = create_ssa_value(builtin.i32)
+    op = llvm.BrOp(dest, arg)
+    assert op.successor is dest
+    assert op.arguments == (arg,)
+
+
+def test_vector_fmax_op():
+    lhs = create_ssa_value(builtin.f32)
+    rhs = create_ssa_value(builtin.f32)
+    op = llvm.VectorFMaxOp(lhs, rhs)
+    assert op.lhs == lhs
+    assert op.rhs == rhs
+    assert op.res.type == builtin.f32
+
+
+def test_vector_fmin_op():
+    lhs = create_ssa_value(builtin.f32)
+    rhs = create_ssa_value(builtin.f32)
+    op = llvm.VectorFMinOp(lhs, rhs)
+    assert op.lhs == lhs
+    assert op.rhs == rhs
+    assert op.res.type == builtin.f32
+
+
+def test_fpow_op():
+    lhs = create_ssa_value(builtin.f32)
+    rhs = create_ssa_value(builtin.f32)
+    op = llvm.FPowOp(lhs, rhs)
+    assert op.lhs == lhs
+    assert op.rhs == rhs
+    assert op.res.type == builtin.f32
+
+
 def test_cond_br_op():
     cond = create_ssa_value(builtin.i1)
     then_block = Block()
@@ -631,3 +779,42 @@ def test_masked_store_op():
     assert op.data == ptr
     assert op.mask == mask
     assert op.alignment.value.data == 16
+
+
+def test_shuffle_vector_op():
+    vec_type = builtin.VectorType(builtin.f32, [4])
+    v1 = create_ssa_value(vec_type)
+    v2 = create_ssa_value(vec_type)
+    mask = builtin.DenseArrayBase.from_list(builtin.i32, [0, 0, 0, 0])
+    op = llvm.ShuffleVectorOp(v1, v2, mask, vec_type)
+    assert op.v1 == v1
+    assert op.v2 == v2
+    assert op.mask is mask
+    assert op.res.type == vec_type
+
+
+def test_shuffle_vector_op_different_sizes():
+    input_type = builtin.VectorType(builtin.f32, [4])
+    result_type = builtin.VectorType(builtin.f32, [2])
+    v1 = create_ssa_value(input_type)
+    v2 = create_ssa_value(input_type)
+    mask = builtin.DenseArrayBase.from_list(builtin.i32, [0, 5])
+    op = llvm.ShuffleVectorOp(v1, v2, mask, result_type)
+    assert op.v1 == v1
+    assert op.v2 == v2
+    assert op.mask is mask
+    assert op.res.type == result_type
+
+
+def test_shuffle_vector_result_constraint_mapping_type_vars():
+    _T = TypeVar("_T", bound=Attribute)
+    elem_constr = TypeVarConstraint(_T, AnyAttr())
+    mask_constr = VarConstraint("MASK", AnyAttr())
+    constr = ShuffleVectorResultConstraint(elem_constr, mask_constr)
+
+    replacement = EqAttrConstraint(builtin.f32)
+    mapped = constr.mapping_type_vars({_T: replacement})
+
+    assert isinstance(mapped, ShuffleVectorResultConstraint)
+    assert mapped.element_constr == replacement
+    assert mapped.mask_constr == mask_constr
