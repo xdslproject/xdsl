@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterator, Mapping, Sequence
 from collections.abc import Set as AbstractSet
 from dataclasses import dataclass, field
 from typing import (
@@ -212,9 +212,6 @@ class AnyAttr(AttrConstraint):
     ) -> AnyAttr:
         return self
 
-    def __or__(self, value: AttrConstraint[_AttributeCovT], /):
-        return self
-
     def __and__(self, value: AttrConstraint[AttributeCovT], /):
         return value
 
@@ -414,12 +411,29 @@ class AnyOf(AttrConstraint[AttributeCovT], Generic[AttributeCovT]):
     _abstr_constr: AttrConstraint[AttributeCovT] | None = field(hash=False, repr=False)
 
     @staticmethod
+    def _gather_constraints(
+        constr: AttrConstraint[AttributeInvT],
+    ) -> Iterator[AttrConstraint[AttributeInvT]]:
+        if isinstance(constr, AnyOf):
+            for c in constr.attr_constrs:
+                yield from AnyOf._gather_constraints(c)
+        else:
+            yield constr
+
+    @staticmethod
     def get(
         *attr_constrs: IRDLAttrConstraint[AttributeInvT],
     ) -> AttrConstraint[AttributeInvT]:
         from xdsl.irdl import irdl_to_attr_constraint
 
-        constrs = tuple(irdl_to_attr_constraint(c) for c in attr_constrs)
+        constrs = tuple(
+            c
+            for constr in attr_constrs
+            for c in AnyOf._gather_constraints(irdl_to_attr_constraint(constr))
+        )
+
+        if any(isinstance(c, AnyAttr) for c in constrs):
+            return cast(AttrConstraint[AttributeInvT], AnyAttr())
 
         if len(constrs) == 1:
             return constrs[0]
@@ -517,11 +531,6 @@ class AnyOf(AttrConstraint[AttributeCovT], Generic[AttributeCovT]):
             self._abstr_constr.verify(attr, constraint_context)
             return
         raise VerifyException(f"Unexpected attribute {attr}")
-
-    def __or__(
-        self, value: AttrConstraint[_AttributeCovT], /
-    ) -> AttrConstraint[AttributeCovT | _AttributeCovT]:
-        return AnyOf.get(*(*self.attr_constrs, value))
 
     def variables(self) -> set[str]:
         if not self.attr_constrs:
