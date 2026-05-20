@@ -81,12 +81,10 @@ class SymbolTable:
         self._symbol_table = {}
         self._uniquing_counter = 0
 
-
         block = self._symbol_table_op.regions[0].blocks[0]
         for op in block.ops:
             if (name := get_name_if_symbol(op)) is not None:
                 self._symbol_table[name] = op
-
 
     def lookup(self, name: str | StringAttr) -> Operation | None:
         """
