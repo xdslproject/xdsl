@@ -1,43 +1,45 @@
 import marimo
 
-__generated_with = "0.15.3"
+__generated_with = "0.23.6"
 app = marimo.App(width="medium")
 
 
 @app.cell(hide_code=True)
 def _():
     import marimo as mo
+
     return (mo,)
 
 
 @app.cell(hide_code=True)
 def _():
     from xdsl.utils import marimo as xmo
+
     return (xmo,)
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        """
+    mo.md("""
     A small test-page to test mkdocs-marimo.
 
     ## Input
-    """
-    )
+    """)
     return
 
 
 @app.cell
 def _(mo):
-    expr_str = mo.ui.code_editor(value = "let c = 1 + 2;\nc + 3", language = "rust", debounce=False)
+    expr_str = mo.ui.code_editor(value = "let c = 1 + 2;\nc + 3", language = "rs", debounce=False)
     expr_str
     return (expr_str,)
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""## Output""")
+    mo.md("""
+    ## Output
+    """)
     return
 
 
@@ -77,7 +79,9 @@ def _(expr_str, get_state, mo, set_state, xmo):
 
 @app.cell
 def _(mo):
-    mo.md(r"""# Module post-modification""")
+    mo.md(r"""
+    # Module post-modification
+    """)
     return
 
 

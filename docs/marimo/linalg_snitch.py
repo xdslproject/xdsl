@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.19.4"
+__generated_with = "0.23.6"
 app = marimo.App(width="medium")
 
 
@@ -39,6 +39,7 @@ def _():
     from xdsl.transforms.canonicalize import CanonicalizePass
     from xdsl.transforms.riscv_allocate_registers import RISCVAllocateRegistersPass
     from xdsl.transforms.riscv_lower_parallel_mov import RISCVLowerParallelMovPass
+
     return (
         AffineMap,
         AffineMapAttr,
@@ -166,8 +167,7 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(k, m, mo, n):
-    mo.md(
-        f"""
+    mo.md(f"""
     We can parametrize the shapes of the matrices operated on:
 
     {m}{m.value}
@@ -175,8 +175,7 @@ def _(k, m, mo, n):
     {n}{n.value}
 
     {k}{k.value}
-    """
-    )
+    """)
     return
 
 
@@ -398,8 +397,7 @@ def _(snitch_stream_ctx, snitch_stream_module, xmo):
 
 @app.cell
 def _(k, m, mo, n):
-    mo.md(
-        f"""
+    mo.md(f"""
     We can see how changing our input sizes affects the assembly produced:
 
     {m}{m.value}
@@ -407,8 +405,7 @@ def _(k, m, mo, n):
     {n}{n.value}
 
     {k}{k.value}
-    """
-    )
+    """)
     return
 
 
