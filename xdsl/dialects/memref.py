@@ -730,10 +730,15 @@ class SubviewOp(IRDLOperation):
         """
         Infer the result type of a memref.subview from its source type and
         offsets/sizes/strides.
+
+        Raises:
+            ValueError: If offsets, sizes, and strides do not match the source rank,
+                if the source layout is not strided-like, or if rank reduction is
+                requested with dynamic sizes.
         """
         rank = source_type.get_num_dims()
         if not (len(offsets) == len(sizes) == len(strides) == rank):
-            raise VerifyException(
+            raise ValueError(
                 "expected offsets, sizes, and strides to match source rank"
             )
 
@@ -782,7 +787,7 @@ class SubviewOp(IRDLOperation):
 
         if reduce_rank:
             if any(size is None for size in static_sizes):
-                raise VerifyException(
+                raise ValueError(
                     "cannot infer rank-reduced memref.subview result type with "
                     "dynamic sizes"
                 )
@@ -814,6 +819,15 @@ class SubviewOp(IRDLOperation):
         strides: Sequence[int],
         reduce_rank: bool = False,
     ) -> SubviewOp:
+        """
+        Build a memref.subview from static offsets, sizes, and strides.
+
+        Raises:
+            ValueError: If offsets, sizes, and strides do not match the source rank,
+                if the source layout is not strided-like, or if rank reduction is
+                requested with dynamic sizes.
+        """
+
         source = SSAValue.get(source)
 
         return_type = SubviewOp.infer_result_type(
