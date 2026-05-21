@@ -1449,6 +1449,16 @@ class CsrBitwiseImmOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
 IWidth = TypeVar("IWidth", bound=I32 | I64)
 
 
+class LiOpHasCanonicalizationPatternTrait(HasCanonicalizationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.riscv import (
+            LoadImmediate0,
+        )
+
+        return (LoadImmediate0(),)
+
+
 class LiOperation(
     RISCVCustomFormatOperation,
     RISCVInstruction,
@@ -1457,9 +1467,7 @@ class LiOperation(
     Generic[IWidth],
 ):
     """
-    Loads a 32-bit immediate into rd.
-
-    This is an assembler pseudo-instruction.
+    Base class for RISC-V operations that load an immediate into rd.
 
     See external [documentation](https://github.com/riscv-non-isa/riscv-asm-manual/blob/main/src/asm-manual.adoc).
     """
@@ -1467,7 +1475,9 @@ class LiOperation(
     rd = result_def(IntRegisterType)
     immediate = attr_def(IntegerAttr[IWidth] | LabelAttr)
 
-    traits = traits_def(AlwaysSpeculatable(), ConstantLike())
+    traits = traits_def(
+        AlwaysSpeculatable(), ConstantLike(), LiOpHasCanonicalizationPatternTrait()
+    )
 
     def __init__(
         self,
