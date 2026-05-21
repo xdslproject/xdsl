@@ -1446,9 +1446,6 @@ class CsrBitwiseImmOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
         return {"csr", "immediate"}
 
 
-IWidth = TypeVar("IWidth", bound=I32 | I64)
-
-
 class LiOpHasCanonicalizationPatternTrait(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
@@ -1457,6 +1454,9 @@ class LiOpHasCanonicalizationPatternTrait(HasCanonicalizationPatternsTrait):
         )
 
         return (LoadImmediate0(),)
+
+
+IWidth = TypeVar("IWidth", bound=I32 | I64)
 
 
 class LiOperation(
