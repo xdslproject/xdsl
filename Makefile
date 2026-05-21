@@ -83,10 +83,13 @@ filecheck-toy: uv-installed ## run tests for Toy tutorial
 
 .PHONY: pytest-toy-nb
 pytest-toy-nb:
+	@uv run python -W error docs/marimo/toy_ch1.py
+	@uv run python -W error docs/marimo/toy_ch2.py
+	@uv run python -W error docs/marimo/toy_ch3.py
 	@if uv run python -c "import riscemu" > /dev/null 2>&1; then \
-		uv run pytest -W error --nbval $(PYTEST_OPTIONS) docs/Toy --nbval-current-env; \
+		uv run python -W error docs/marimo/toy_ch0.py; \
 	else \
-		echo "riscemu is not installed, skipping tests."; \
+		echo "riscemu is not installed, skipping docs/marimo/toy_ch0.py."; \
 	fi
 
 .PHONY: tests-toy
@@ -136,12 +139,8 @@ tests: tests-functional pyright ## run all tests
 
 
 .PHONY: rerun-notebooks
-rerun-notebooks: uv-installed ## re-generate the output from all jupyter notebooks in the docs directory
-	uv run jupyter nbconvert \
-		--ClearMetadataPreprocessor.enabled=True \
-		--inplace \
-		--to notebook \
-		--execute docs/*.ipynb docs/Toy/*.ipynb
+rerun-notebooks: uv-installed ## execute all marimo notebooks to validate they run
+	$(MAKE) tests-marimo
 
 .PHONY: precommit-install
 precommit-install: uv-installed ## set up all precommit hooks

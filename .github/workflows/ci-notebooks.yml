@@ -35,10 +35,9 @@ jobs:
       - name: Install the project
         run: make venv
 
-      - name: Run examples/tutorials
+      - name: Run Toy tutorial notebooks
         run: |
-          # mlir_interoperation.ipynb is dependent on MLIR, and is tested in the MLIR-enabled workflow.
-          uv run pytest -W error --nbval -vv docs --ignore=docs/mlir_interoperation.ipynb
+          make pytest-toy-nb
 
       - name: Test marimo notebooks
         run: |

@@ -31,6 +31,11 @@ async def _():
         print(f"DEBUG: notebook url (trimmed): {new_url}")
 
         await micropip.install("xdsl @ " + new_url + "/xdsl-0.0.0-py3-none-any.whl")
+        await micropip.install(
+            "xdsl-toy-tutorial @ "
+            + new_url
+            + "/xdsl_toy_tutorial-0.0.0-py3-none-any.whl"
+        )
 
     await import_xdsl()
     from xdsl.utils import marimo as xmo

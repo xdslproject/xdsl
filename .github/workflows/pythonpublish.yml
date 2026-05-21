@@ -21,4 +21,31 @@ jobs:
       - name: Build and publish
         run: |
           uv build
+          python - <<'PY'
+          import glob
+          import zipfile
+          import sys
+
+          wheels = sorted(glob.glob("dist/xdsl-*.whl"))
+          if not wheels:
+              print("No xdsl wheel found in dist/", file=sys.stderr)
+              sys.exit(1)
+
+          banned_prefixes = ("docs/Toy/", "tests/my_plugin/", "site/")
+          banned_substrings = ("toy/", "my_plugin/")
+
+          with zipfile.ZipFile(wheels[-1]) as zf:
+              bad = [
+                  name
+                  for name in zf.namelist()
+                  if name.startswith(banned_prefixes)
+                  or any(substr in name for substr in banned_substrings)
+              ]
+
+          if bad:
+              print("Root xdsl wheel contains forbidden paths:", file=sys.stderr)
+              for name in bad:
+                  print(f"  - {name}", file=sys.stderr)
+              sys.exit(1)
+          PY
           uvx twine upload -u __token__ -p ${{ secrets.PYPI_XDSL_TOKEN }} dist/*

@@ -1,6 +1,11 @@
+[build-system]
+build-backend = "setuptools.build_meta"
+requires = [ "setuptools>=64" ]
+
 [project]
 name = "toy"
-description = "Toy compiler tutorial"
+version = "0.0.0"
+description = "Toy compiler tutorial (xdsl repo only, not published)"
 requires-python = ">=3.10"
 classifiers = [
   "Programming Language :: Python :: 3 :: Only",
@@ -10,6 +15,11 @@ classifiers = [
   "Programming Language :: Python :: 3.13",
   "Programming Language :: Python :: 3.14",
 ]
-dynamic = [ "version" ]
-dependencies = [ "riscemu==2.2.7", "xdsl" ]
+dependencies = [ "riscemu", "xdsl" ]
 scripts.toyc = "toy.__main__:main"
+
+[tool.setuptools]
+package-dir.toy = "toy"
+packages.find.where = [ "." ]
+packages.find.include = [ "toy*" ]
+packages.find.namespaces = true

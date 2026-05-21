@@ -3674,6 +3674,7 @@ wheels = [
 
 [[package]]
 name = "toy"
+version = "0.0.0"
 source = { editable = "docs/Toy" }
 dependencies = [
     { name = "riscemu" },
@@ -3682,7 +3683,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "riscemu", specifier = "==2.2.7" },
+    { name = "riscemu" },
     { name = "xdsl" },
 ]
 
@@ -4027,7 +4028,7 @@ requires-dist = [
     { name = "marimo", marker = "extra == 'dev'", specifier = ">=0.23,<0.24" },
     { name = "nbconvert", marker = "extra == 'dev'", specifier = ">=7.7.2,<8" },
     { name = "nbval", marker = "extra == 'dev'", specifier = "<0.12" },
-    { name = "ordered-set", specifier = "==4.1" },
+    { name = "ordered-set", specifier = "==4.1.0" },
     { name = "prek", marker = "extra == 'dev'", specifier = "~=0.4.0" },
     { name = "pyclip", marker = "extra == 'gui'", specifier = "==0.7" },
     { name = "pyright", marker = "extra == 'dev'", specifier = "==1.1.409" },
@@ -4039,7 +4040,7 @@ requires-dist = [
     { name = "textual", marker = "extra == 'gui'", specifier = ">=8,<9" },
     { name = "textual-dev", marker = "extra == 'dev'", specifier = "==1.8" },
     { name = "toml", marker = "extra == 'dev'", specifier = "<0.11" },
-    { name = "typing-extensions", specifier = ">=4.7,<5" },
+    { name = "typing-extensions", specifier = ">=4.13,<5" },
 ]
 provides-extras = ["dev", "gui", "heir", "llvm"]
 

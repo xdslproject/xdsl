@@ -21,7 +21,7 @@ dynamic = [ "version" ]
 dependencies = [
   "immutabledict<4.3.2",
   "ordered-set==4.1",
-  "typing-extensions>=4.7,<5",
+  "typing-extensions>=4.13,<5",
 ]
 optional-dependencies.dev = [
   "coverage<8",
@@ -42,7 +42,9 @@ optional-dependencies.dev = [
   "toml<0.11",
 ]
 optional-dependencies.gui = [ "pyclip==0.7", "textual>=8,<9" ]
-optional-dependencies.heir = [ "heir-py==2026.5.18; python_version>='3.11' and python_version<'3.13'" ]
+optional-dependencies.heir = [
+  "heir-py==2026.5.18; python_version>='3.11' and python_version<'3.13'",
+]
 optional-dependencies.llvm = [ "llvmlite~=0.47.0" ]
 urls."Issue Tracker" = "https://github.com/xdslproject/xdsl/issues"
 urls."Source Code" = "https://github.com/xdslproject/xdsl"
@@ -83,7 +85,7 @@ bench = [
 platforms = [ "Linux", "Mac OS-X", "Unix" ]
 zip-safe = false
 package-data.xdsl = [ "**/*.irdl", "py.typed", "interactive/*.tcss" ]
-packages.find = {}
+packages.find.include = [ "xdsl*" ]
 
 [tool.setuptools_scm]
 
@@ -121,16 +123,19 @@ lint.ignore = [
 ]
 lint.per-file-ignores."**/filecheck/*" = [ "E501", "F811", "F841" ]
 lint.per-file-ignores."__init__.py" = [ "F403" ]
-lint.per-file-ignores."docs/Toy/Toy_Ch1.ipynb" = [ "E402" ]
-lint.per-file-ignores."docs/Toy/Toy_Ch2.ipynb" = [ "E402" ]
-lint.per-file-ignores."docs/Toy/Toy_Ch3.ipynb" = [ "E402" ]
 lint.per-file-ignores."scripts/**" = [ "INP" ]
 lint.per-file-ignores."tests/*" = [ "E501", "INP" ]
 lint.per-file-ignores."tests/test_declarative_assembly_format.py" = [ "F811" ]
-lint.per-file-ignores."tests/test_frontend_type_conversion.py" = [ "PYI042" ]  # typealias i32 error
+lint.per-file-ignores."tests/test_frontend_type_conversion.py" = [
+  "PYI042",
+]  # typealias i32 error
 lint.per-file-ignores."typings/**/*.pyi" = [ "F403", "F821", "PYI021", "PYI048" ]
-lint.per-file-ignores."xdsl/dialects/*.pyi" = [ "PYI021" ]  # auto-generated stubs have docstrings
-lint.per-file-ignores."xdsl/frontend/pyast/dialects/builtin.py" = [ "PYI042" ]  # typealias i32 error
+lint.per-file-ignores."xdsl/dialects/*.pyi" = [
+  "PYI021",
+]  # auto-generated stubs have docstrings
+lint.per-file-ignores."xdsl/frontend/pyast/dialects/builtin.py" = [
+  "PYI042",
+]  # typealias i32 error
 lint.flake8-tidy-imports.banned-api."typing.TypeVar".msg = "Use typing_extensions.TypeVar instead."
 lint.flake8-tidy-imports.banned-api."xdsl.dialects.utils.bit_enum_attribute".msg = "Use xdsl.dialects.utils instead"
 lint.flake8-tidy-imports.banned-api."xdsl.dialects.utils.dimension_list".msg = "Use xdsl.dialects.utils instead"
@@ -177,7 +182,11 @@ exclude = [ "docs/marimo" ]
 ini_options.python_files = [ "tests/*test_*.py", "docs/marimo/**.py" ]
 ini_options.python_classes = "Test_*"
 ini_options.python_functions = "test_*"
-ini_options.addopts = [ "--durations=20", "--maxfail=5", "--import-mode=importlib" ]
+ini_options.addopts = [
+  "--durations=20",
+  "--maxfail=5",
+  "--import-mode=importlib",
+]
 ini_options.asyncio_default_fixture_loop_scope = "function"
 
 [tool.coverage]

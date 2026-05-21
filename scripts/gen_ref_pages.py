@@ -61,6 +61,10 @@ with mkdocs_gen_files.open("reference/index.md", "w") as nav_file:
 
 
 NEW_MARIMO_NOTEBOOK_NAMES = [
+    "toy_ch0.py",
+    "toy_ch1.py",
+    "toy_ch2.py",
+    "toy_ch3.py",
     "expressions.py",
     "eqsat.py",
     "mlir_introduction.py",
@@ -120,7 +124,9 @@ def replace_xdsl_import(path: Path, destination_dir: Path):
     # Replace the SYNC_XDSL_IMPORT string with the import_code
     # Do not use regex; use simple string replacement
     if SYNC_XDSL_IMPORT not in notebook_text:
-        raise ValueError("SYNC_XDSL_IMPORT string not found in notebook text")
+        raise ValueError(
+            f"SYNC_XDSL_IMPORT string not found in notebook text at path {path}"
+        )
     notebook_text = notebook_text.replace(SYNC_XDSL_IMPORT, import_code)
 
     # Write the modified notebook to the temp directory
