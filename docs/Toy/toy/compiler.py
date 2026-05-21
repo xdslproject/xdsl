@@ -161,7 +161,9 @@ def compile(program: str) -> str:
     return io.getvalue()
 
 
-def emulate_riscv(program: str):
+def emulate_riscv(program: str) -> str:
     from xdsl.interpreters.riscv_emulator import run_riscv
 
-    run_riscv(program, unlimited_regs=True, verbosity=0)
+    io = StringIO()
+    run_riscv(program, unlimited_regs=True, verbosity=0, output=io)
+    return io.getvalue()

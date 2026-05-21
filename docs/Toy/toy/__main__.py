@@ -90,7 +90,7 @@ def main(path: Path, emit: str, ir: bool, print_generic: bool):
             print(code)
             return
 
-        emulate_riscv(code)
+        print(emulate_riscv(code))
         return
 
     if ir:

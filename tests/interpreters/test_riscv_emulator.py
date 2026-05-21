@@ -1,4 +1,3 @@
-from contextlib import redirect_stdout
 from io import StringIO
 
 import pytest
@@ -36,14 +35,11 @@ def test_simple():
 
     code = riscv.riscv_code(module)
 
-    with StringIO() as stream, redirect_stdout(stream):
-        run_riscv(
-            code,
-            extensions=[RV_Debug],
-            unlimited_regs=True,
-            verbosity=0,
-        )
-        assert stream.getvalue() == "42\n"
+    stream = StringIO()
+    run_riscv(
+        code, extensions=[RV_Debug], unlimited_regs=True, verbosity=0, output=stream
+    )
+    assert stream.getvalue() == "42\n"
 
 
 def test_multiply_add():
@@ -152,11 +148,8 @@ def test_multiply_add():
     RISCVAllocateRegistersPass().apply(ctx, module)
 
     code = riscv.riscv_code(module)
-    with StringIO() as stream, redirect_stdout(stream):
-        run_riscv(
-            code,
-            extensions=[RV_Debug],
-            unlimited_regs=True,
-            verbosity=0,
-        )
-        assert stream.getvalue() == "7\n"
+    stream = StringIO()
+    run_riscv(
+        code, extensions=[RV_Debug], unlimited_regs=True, verbosity=0, output=stream
+    )
+    assert stream.getvalue() == "7\n"
