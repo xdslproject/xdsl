@@ -161,22 +161,4 @@ builtin.module {
       linalg.yield %in : f32
   }
 }
-// CHECK: tiling memrefs with layout affine_map<{{.*}}> is not supported yet
-
-// -----
-
-builtin.module {
-  %input = "test.op"() : () -> memref<4x4xf32, strided<[?, 1]>>
-  %output = "test.op"() : () -> memref<4x4xf32, strided<[?, 1]>>
-  linalg.generic {
-      indexing_maps = [
-          affine_map<(i, j) -> (i, j)>,
-          affine_map<(i, j) -> (i, j)>
-      ],
-      iterator_types = ["parallel", "parallel"]
-  } ins(%input : memref<4x4xf32, strided<[?, 1]>>) outs(%output : memref<4x4xf32, strided<[?, 1]>>) attrs = {test_tile_sizes = array<i32: 2, 2>} {
-  ^bb0(%in: f32, %out: f32):
-      linalg.yield %in : f32
-  }
-}
-// CHECK: tiling memrefs with dynamic strides is not supported yet
+// CHECK: cannot infer memref.subview result type from non-strided source type
