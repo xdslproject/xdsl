@@ -302,7 +302,6 @@ def tile_linalg_generic(
         plan.tile_sizes,
         plan.tiled_dims,
     )
-    tiled_subviews: list[memref.SubviewOp] = []
     tiled_operands: list[SSAValue] = []
 
     for operand, operand_info, indexing_map in zip(
@@ -311,7 +310,6 @@ def tile_linalg_generic(
         subview = _build_tiled_subview(
             rewriter, inner_ip, operand, indexing_map.data, operand_info, tiled_loop_ivs
         )
-        tiled_subviews.append(subview)
         tiled_operands.append(subview.result)
 
     num_inputs = len(op.inputs)
@@ -322,7 +320,7 @@ def tile_linalg_generic(
         op.get_indexing_maps(),
         op.get_iterator_types(),
     )
-    rewriter.insert_op(tiled_generic, InsertPoint.after(tiled_subviews[-1]))
+    rewriter.insert_op(tiled_generic, inner_ip)
 
     for loop in reversed(loops):
         rewriter.insert_op(scf.YieldOp(), InsertPoint.at_end(loop.body.block))
