@@ -233,6 +233,8 @@ def _build_tile_loops(
 
 
 def _build_tiled_subview(
+    rewriter: PatternRewriter,
+    insertion_point: InsertPoint,
     operand: SSAValue,
     indexing_map: AffineMap,
     operand_info: OperandTileInfo,
@@ -267,13 +269,17 @@ def _build_tiled_subview(
     except ValueError as e:
         raise PassFailedException(str(e)) from e
 
-    return memref.SubviewOp.get(
+    subview = memref.SubviewOp.get(
         operand,
         offsets,
         sizes,
         strides,
         result_type,
     )
+
+    rewriter.insert_op(subview, insertion_point)
+
+    return subview
 
 
 
@@ -303,15 +309,13 @@ def tile_linalg_generic(
         op.operands, plan.operand_infos, op.get_indexing_maps(), strict=True
     ):
         subview = _build_tiled_subview(
-            operand, indexing_map.data, operand_info, tiled_loop_ivs
+            rewriter, inner_ip, operand, indexing_map.data, operand_info, tiled_loop_ivs
         )
         tiled_subviews.append(subview)
         tiled_operands.append(subview.result)
 
-    rewriter.insert_op(tiled_subviews, inner_ip)
-
     num_inputs = len(op.inputs)
-    tiled_generic = linalg.GenericOp(
+    tiled_generic = linalg.ops.GenericOp(
         tiled_operands[:num_inputs],
         tiled_operands[num_inputs:],
         op.body.clone(),
