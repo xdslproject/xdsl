@@ -84,9 +84,6 @@ class SymbolTable:
         block = self._symbol_table_op.regions[0].blocks[0]
         for op in block.ops:
             if (name := get_name_if_symbol(op)) is not None:
-                assert name not in self._symbol_table.keys(), (
-                    "Can't create SymbolTable with duplicate symbol names"
-                )
                 self._symbol_table[name] = op
 
     def lookup(self, name: str | StringAttr) -> Operation | None:
