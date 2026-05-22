@@ -2,8 +2,14 @@
 name = "toy"
 description = "Toy compiler tutorial"
 requires-python = ">=3.10"
-dependencies = ["xdsl"]
-dynamic = ["version"]
-
-[project.scripts]
-toyc = "toy.__main__:main"
+classifiers = [
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+]
+dynamic = [ "version" ]
+dependencies = [ "xdsl" ]
+scripts.toyc = "toy.__main__:main"
