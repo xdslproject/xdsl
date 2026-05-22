@@ -74,9 +74,17 @@ class SymbolTable:
     """
 
     def __init__(self, symbol_table_op: Operation):
+        assert symbol_table_op.get_trait(traits.SymbolTable) is not None, (
+            "Expected operation to have SymbolTable trait"
+        )
         self._symbol_table_op = symbol_table_op
         self._symbol_table = {}
         self._uniquing_counter = 0
+
+        block = self._symbol_table_op.regions[0].blocks[0]
+        for op in block.ops:
+            if (name := get_name_if_symbol(op)) is not None:
+                self._symbol_table[name] = op
 
     def lookup(self, name: str | StringAttr) -> Operation | None:
         """

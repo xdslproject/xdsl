@@ -49,7 +49,21 @@ def test_walk_symbol_table():
     assert len(unique_sym_names) == len(sym_names)
 
 
-# SymbolTable instance method tests
+def test_symbol_table_init():
+    op_a = TestSymbolOp(properties={"sym_name": StringAttr("a")})
+    op_b = TestSymbolOp(properties={"sym_name": StringAttr("b")})
+    op_not_symbol = TestOp(properties={"sym_name": StringAttr("c")})
+
+    module = ModuleOp([op_a, op_b, op_not_symbol])
+
+    assert SymbolTable(module) is not None
+
+    with pytest.raises(
+        AssertionError, match="Expected operation to have SymbolTable trait"
+    ):
+        SymbolTable(op_a)
+
+
 def test_symbol_table_lookup():
     """Test SymbolTable.lookup method."""
     module = ModuleOp([], sym_name=StringAttr("test_module"))
