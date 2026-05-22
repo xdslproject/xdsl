@@ -282,7 +282,6 @@ def _build_tiled_subview(
     return subview
 
 
-
 def tile_linalg_generic(
     rewriter: PatternRewriter,
     op: linalg.ops.GenericOp,
@@ -291,7 +290,11 @@ def tile_linalg_generic(
     """
     Rewrite supported `linalg.generic` ops into tiled formed.
     """
-    plan = TilingPlan.analyze_generic_op(op, tile_sizes)
+    try:
+        plan = TilingPlan.analyze_generic_op(op, tile_sizes)
+    except (ValueError, NotImplementedError) as e:
+        raise PassFailedException(str(e)) from e
+
     if not plan.tiled_dims:
         return False
 
