@@ -74,9 +74,9 @@ class SymbolTable:
     """
 
     def __init__(self, symbol_table_op: Operation):
-        sym_trait = symbol_table_op.get_trait(traits.SymbolTable)
-        assert sym_trait is not None, "Expected operation to have SymbolTable trait"
-
+        assert symbol_table_op.get_trait(traits.SymbolTable) is not None, (
+            "Expected operation to have SymbolTable trait"
+        )
         self._symbol_table_op = symbol_table_op
         self._symbol_table = {}
         self._uniquing_counter = 0
