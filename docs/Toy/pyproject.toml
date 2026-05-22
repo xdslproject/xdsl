@@ -1,0 +1,9 @@
+[project]
+name = "toy"
+description = "Toy compiler tutorial"
+requires-python = ">=3.10"
+dependencies = ["xdsl"]
+dynamic = ["version"]
+
+[project.scripts]
+toyc = "toy.__main__:main"

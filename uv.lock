@@ -3985,6 +3985,7 @@ bench = [
 dev = [
     { name = "my-plugin" },
     { name = "xdsl", extra = ["dev", "gui", "heir", "llvm"] },
+    { name = "toy" },
 ]
 docs = [
     { name = "lzstring2" },
@@ -4042,6 +4043,7 @@ bench = [
 dev = [
     { name = "my-plugin", editable = "tests/my_plugin" },
     { name = "xdsl", extras = ["dev", "gui", "llvm", "heir"] },
+    { name = "toy", editable = "docs/Toy" },
 ]
 docs = [
     { name = "lzstring2", git = "https://github.com/superlopuh/lz-string.git" },
@@ -4056,6 +4058,16 @@ docs = [
     { name = "pymdown-extensions", specifier = ">=10.7" },
     { name = "riscemu", specifier = "==2.2.7" },
 ]
+
+[[package]]
+name = "toy"
+source = { editable = "docs/Toy" }
+dependencies = [
+    { name = "xdsl" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "xdsl" }]
 
 [[package]]
 name = "yarl"

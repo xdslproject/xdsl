@@ -41,7 +41,7 @@ llvm = ["llvmlite~=0.47.0"]
 heir = ["heir_py==2026.5.18; python_version >= '3.11' and python_version < '3.13'"]
 
 [dependency-groups]
-dev = ["xdsl[dev,gui,llvm,heir]", "my_plugin"]
+dev = ["xdsl[dev,gui,llvm,heir]", "my_plugin", "toy"]
 bench = [
     "asv>=0.6.4",
     "snakeviz>=2.2.2",
@@ -92,6 +92,7 @@ zip-safe = false
 lzstring2 = { git = "https://github.com/superlopuh/lz-string.git" }
 bytesight = { git = "https://github.com/EdmundGoodman/bytesight.git", rev = "e8e8e45ec34316fdc99ee09ea8886c4f63c248be" }
 my_plugin = { path = "tests/my_plugin", editable = true }
+toy = { path = "docs/Toy", editable = true }
 
 [tool.setuptools.packages]
 find = {}
