@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from contextlib import redirect_stdout
 from dataclasses import dataclass
 from typing import IO
 
@@ -26,9 +25,9 @@ class RISCVEmulatorTarget(Target):
         from xdsl.dialects.riscv import riscv_code
 
         code = riscv_code(module)
-        with redirect_stdout(output):
-            run_riscv(
-                code,
-                unlimited_regs=self.unlimited_regs,
-                verbosity=self.verbosity,
-            )
+        run_riscv(
+            code,
+            unlimited_regs=self.unlimited_regs,
+            verbosity=self.verbosity,
+            output=output,
+        )
