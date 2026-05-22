@@ -24,7 +24,7 @@ def _(mo):
       for m in range(M):
         for n in range(N):
           for k in range(K):
-            C[m, n] += A[m, k] + B[k, n]
+            C[m, n] += A[m, k] * B[k, n]
 
     # Tiled in M and N by 16
     def after(A, B, C):
@@ -33,7 +33,7 @@ def _(mo):
           for m in range(m_outer, m_outer + 16):
             for n in range(n_outer, n_outer + 16):
               for k in range(K):
-                C[m, n] += A[m, k] + B[k, n]
+                C[m, n] += A[m, k] * B[k, n]
     ```
 
     The first function computes each element of the output matrix by doing a dot product of the corresponding row and column of the input matrices.
