@@ -1,4 +1,4 @@
-from xdsl.dialects.x86 import GeneralRegisterType
+from xdsl.dialects.x86 import Reg64Type
 from xdsl.dialects.x86.ops import (
     DI_Operation,
     DM_Operation,
@@ -18,11 +18,11 @@ from xdsl.dialects.x86.ops import (
 from xdsl.irdl import irdl_op_definition
 from xdsl.utils import test_value
 
-reg_type = GeneralRegisterType.infinite_register
+reg_type = Reg64Type.infinite_register
 
 
 @irdl_op_definition
-class TestRSOperation(RS_Operation[GeneralRegisterType, GeneralRegisterType]):
+class TestRSOperation(RS_Operation[Reg64Type, Reg64Type]):
     """Test operation that inherits from RS_Operation for testing register constraints."""
 
     name = "test.rs_operation"
@@ -42,7 +42,7 @@ def test_rs_operation_register_constraints():
 
 
 @irdl_op_definition
-class TestROperation(R_Operation[GeneralRegisterType]):
+class TestROperation(R_Operation[Reg64Type]):
     """Test operation that inherits from R_Operation for testing register constraints."""
 
     name = "test.r_operation"
@@ -61,7 +61,7 @@ def test_r_operation_register_constraints():
 
 
 @irdl_op_definition
-class TestRMOperation(RM_Operation[GeneralRegisterType, GeneralRegisterType]):
+class TestRMOperation(RM_Operation[Reg64Type, Reg64Type]):
     """Test operation that inherits from RM_Operation for testing register constraints."""
 
     name = "test.rm_operation"
@@ -84,7 +84,7 @@ def test_rm_operation_register_constraints():
 
 
 @irdl_op_definition
-class TestDMOperation(DM_Operation[GeneralRegisterType, GeneralRegisterType]):
+class TestDMOperation(DM_Operation[Reg64Type, Reg64Type]):
     """Test operation that inherits from DM_Operation for testing register constraints."""
 
     name = "test.dm_operation"
@@ -106,7 +106,7 @@ def test_dm_operation_register_constraints():
 
 
 @irdl_op_definition
-class TestRIOperation(RI_Operation[GeneralRegisterType]):
+class TestRIOperation(RI_Operation[Reg64Type]):
     """Test operation that inherits from RI_Operation for testing register constraints."""
 
     name = "test.ri_operation"
@@ -128,7 +128,7 @@ def test_ri_operation_register_constraints():
 
 
 @irdl_op_definition
-class TestMSOperation(MS_Operation[GeneralRegisterType, GeneralRegisterType]):
+class TestMSOperation(MS_Operation[Reg64Type, Reg64Type]):
     """Test operation that inherits from MS_Operation for testing register constraints."""
 
     name = "test.ms_operation"
@@ -153,7 +153,7 @@ def test_ms_operation_register_constraints():
 
 
 @irdl_op_definition
-class TestMIOperation(MI_Operation[GeneralRegisterType]):
+class TestMIOperation(MI_Operation[Reg64Type]):
     """Test operation that inherits from MI_Operation for testing register constraints."""
 
     name = "test.mi_operation"
@@ -175,7 +175,7 @@ def test_mi_operation_register_constraints():
 
 
 @irdl_op_definition
-class TestDSIOperation(DSI_Operation[GeneralRegisterType, GeneralRegisterType]):
+class TestDSIOperation(DSI_Operation[Reg64Type, Reg64Type]):
     """Test operation that inherits from DSI_Operation for testing register constraints."""
 
     name = "test.dsi_operation"
@@ -197,7 +197,7 @@ def test_dsi_operation_register_constraints():
 
 
 @irdl_op_definition
-class TestDMIOperation(DMI_Operation[GeneralRegisterType, GeneralRegisterType]):
+class TestDMIOperation(DMI_Operation[Reg64Type, Reg64Type]):
     """Test operation that inherits from DMI_Operation for testing register constraints."""
 
     name = "test.dmi_operation"
@@ -220,7 +220,7 @@ def test_dmi_operation_register_constraints():
 
 
 @irdl_op_definition
-class TestMOperation(M_Operation[GeneralRegisterType]):
+class TestMOperation(M_Operation[Reg64Type]):
     """Test operation that inherits from M_Operation for testing register constraints."""
 
     name = "test.m_operation"
@@ -241,9 +241,7 @@ def test_m_operation_register_constraints():
 
 
 @irdl_op_definition
-class TestRSSOperation(
-    RSS_Operation[GeneralRegisterType, GeneralRegisterType, GeneralRegisterType]
-):
+class TestRSSOperation(RSS_Operation[Reg64Type, Reg64Type, Reg64Type]):
     """Test operation that inherits from RSS_Operation for testing register constraints."""
 
     name = "test.rss_operation"
@@ -265,9 +263,7 @@ def test_rss_operation_register_constraints():
 
 
 @irdl_op_definition
-class TestDSSIOperation(
-    DSSI_Operation[GeneralRegisterType, GeneralRegisterType, GeneralRegisterType]
-):
+class TestDSSIOperation(DSSI_Operation[Reg64Type, Reg64Type, Reg64Type]):
     """Test operation that inherits from DSSI_Operation for testing register constraints."""
 
     name = "test.dssi_operation"
@@ -290,7 +286,7 @@ def test_irs_operation_register_constraints():
 
 
 @irdl_op_definition
-class TestDSOperation(DS_Operation[GeneralRegisterType, GeneralRegisterType]):
+class TestDSOperation(DS_Operation[Reg64Type, Reg64Type]):
     """Test operation that inherits from DS_Operation for testing register constraints."""
 
     name = "test.ds_operation"
@@ -311,7 +307,7 @@ def test_ds_operation_register_constraints():
 
 
 @irdl_op_definition
-class TestDIOperation(DI_Operation[GeneralRegisterType]):
+class TestDIOperation(DI_Operation[Reg64Type]):
     """Test operation that inherits from DI_Operation for testing register constraints."""
 
     name = "test.di_operation"

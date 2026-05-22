@@ -7,7 +7,13 @@
 riscv_scf.for %i : !riscv.reg = %lb to %ub step %step {
     riscv.addi %acc, 1 : (!riscv.reg<t0>) -> !riscv.reg<t0>
 }
+riscv_scf.for %i_static : !riscv.reg = %lb to %ub step 1 : si12 {
+    riscv.addi %acc, 1 : (!riscv.reg<t0>) -> !riscv.reg<t0>
+}
 riscv_scf.rof %j : !riscv.reg = %ub down to %lb step %step {
+    riscv.addi %acc, 1 : (!riscv.reg<t0>) -> !riscv.reg<t0>
+}
+riscv_scf.rof %j_static : !riscv.reg = %ub down to %lb step 2 : si12 {
     riscv.addi %acc, 1 : (!riscv.reg<t0>) -> !riscv.reg<t0>
 }
 %i_last, %ub_last, %step_last = riscv_scf.while (%i0 = %lb, %ub_arg0 = %ub, %step_arg0 = %step) : (!riscv.reg, !riscv.reg, !riscv.reg) -> (!riscv.reg, !riscv.reg, !riscv.reg) {
@@ -28,8 +34,14 @@ riscv_scf.rof %j : !riscv.reg = %ub down to %lb step %step {
 // CHECK-NEXT:   riscv_scf.for %i : !riscv.reg = %lb to %ub step %step {
 // CHECK-NEXT:     %0 = riscv.addi %acc, 1 : (!riscv.reg<t0>) -> !riscv.reg<t0>
 // CHECK-NEXT:   }
-// CHECK-NEXT:   riscv_scf.rof %j : !riscv.reg = %ub down to %lb step %step {
+// CHECK-NEXT:   riscv_scf.for %i_static : !riscv.reg = %lb to %ub step 1 : si12 {
 // CHECK-NEXT:     %1 = riscv.addi %acc, 1 : (!riscv.reg<t0>) -> !riscv.reg<t0>
+// CHECK-NEXT:   }
+// CHECK-NEXT:   riscv_scf.rof %j : !riscv.reg = %ub down to %lb step %step {
+// CHECK-NEXT:     %2 = riscv.addi %acc, 1 : (!riscv.reg<t0>) -> !riscv.reg<t0>
+// CHECK-NEXT:   }
+// CHECK-NEXT:   riscv_scf.rof %j_static : !riscv.reg = %ub down to %lb step 2 : si12 {
+// CHECK-NEXT:     %3 = riscv.addi %acc, 1 : (!riscv.reg<t0>) -> !riscv.reg<t0>
 // CHECK-NEXT:   }
 // CHECK-NEXT:     %i_last, %ub_last, %step_last = riscv_scf.while (%i0 = %lb, %ub_arg0 = %ub, %step_arg0 = %step) : (!riscv.reg, !riscv.reg, !riscv.reg) -> (!riscv.reg, !riscv.reg, !riscv.reg) {
 // CHECK-NEXT:             %cond = riscv.slt %i0, %ub_arg0 : (!riscv.reg, !riscv.reg) -> !riscv.reg

@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.13.6"
+__generated_with = "0.23.6"
 app = marimo.App()
 
 
@@ -12,6 +12,7 @@ def _():
     from xdsl.dialects.arith import AddiOp
     from xdsl.dialects.builtin import ModuleOp, IntegerType, IntegerAttr
     from xdsl.dialects.arith import ConstantOp
+
     return (
         AddiOp,
         Builder,
@@ -27,31 +28,35 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""# Builders""")
+    mo.md(r"""
+    # Builders
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""Builders are used to insert new operations in an existing block. While they also exist in MLIR, they work a bit differently in xDSL. In MLIR, builders are used to create operations, while in xDSL builders are used to insert already created operations.""")
+    mo.md(r"""
+    Builders are used to insert new operations in an existing block. While they also exist in MLIR, they work a bit differently in xDSL. In MLIR, builders are used to create operations, while in xDSL builders are used to insert already created operations.
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""## Operation Constructors""")
+    mo.md(r"""
+    ## Operation Constructors
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     In xDSL, ops often define a custom `__init__` constructor to make operation creation easier.
 
     For example, here is the API for creating an `arith.constant` instance:
-    """
-    )
+    """)
     return
 
 
@@ -64,7 +69,9 @@ def _(ConstantOp, IntegerAttr):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""Similarly, here is the API for creating an `arith.addi` instance:""")
+    mo.md(r"""
+    Similarly, here is the API for creating an `arith.addi` instance:
+    """)
     return
 
 
@@ -77,27 +84,29 @@ def _(AddiOp, c0):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""Generally, it is recommended to look at the definition of the operation you would like to create to see the API. Here is the xDSL generated documentation for the [`arith` dialect](https://docs.xdsl.dev/reference/dialects/arith/) and the [`scf` dialect](https://docs.xdsl.dev/reference/dialects/scf/).""")
+    mo.md(r"""
+    Generally, it is recommended to look at the definition of the operation you would like to create to see the API. Here is the xDSL generated documentation for the [`arith` dialect](https://docs.xdsl.dev/reference/dialects/arith/) and the [`scf` dialect](https://docs.xdsl.dev/reference/dialects/scf/).
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""## Using the `Builder`""")
+    mo.md(r"""
+    ## Using the `Builder`
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     A `Builder` insert new operations at a given insertion point (A position before an operation, or at the end of a block). Whenever a builder inserts a new operation, it updates its insertion point to be after the inserted operation.
 
     The `Builder` constructor takes a single argument, which is an `InsertPoint`. An `InsertPoint` can be created using the static methods `before`, `after`, `at_start`, and `at_end`.
 
     Let's look at the following program:
-    """
-    )
+    """)
     return
 
 
@@ -115,7 +124,9 @@ def _(ConstantOp, IntegerAttr, IntegerType, ModuleOp, xmo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""The following code inserts the constant `3` and `4` in the IR using the builders.""")
+    mo.md("""
+    The following code inserts the constant `3` and `4` in the IR using the builders.
+    """)
     return
 
 
@@ -149,13 +160,11 @@ def _(module_cloned):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Small exercise
 
     As a simple task, insert the program so the operations are read in order `0, 1, 2, 3, 4, 5, 6, 7`
-    """
-    )
+    """)
     return
 
 

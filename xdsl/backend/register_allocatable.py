@@ -1,9 +1,12 @@
 import abc
 from collections.abc import Iterator, Sequence
+from collections.abc import Set as AbstractSet
 from typing import NamedTuple
 
+from typing_extensions import deprecated
+
 from xdsl.backend.register_allocator import BlockAllocator
-from xdsl.backend.register_type import RegisterType
+from xdsl.backend.register_type import RegisterAllocatedMemoryEffect, RegisterType
 from xdsl.ir import Operation, Region, SSAValue
 from xdsl.irdl import traits_def
 from xdsl.traits import OpTrait
@@ -16,18 +19,20 @@ class RegisterAllocatableOperation(Operation, abc.ABC):
     allocation.
     """
 
+    @deprecated("Use register effects instead")
     def iter_used_registers(self) -> Iterator[RegisterType]:
         """
         The registers whose contents may be overwritten when executing this operation.
         By default returns the types of operands and results that are allocated
         registers.
         """
-        return (
-            val.type
-            for vals in (self.operands, self.results)
-            for val in vals
-            if isinstance(val.type, RegisterType) and val.type.is_allocated
-        )
+        yield from ()
+
+    def iter_excluded_registers(self) -> Iterator[RegisterType]:
+        """
+        The registers that should not be used when this operation is present.
+        """
+        yield from ()
 
     @abc.abstractmethod
     def allocate_registers(self, allocator: BlockAllocator) -> None:
@@ -36,18 +41,32 @@ class RegisterAllocatableOperation(Operation, abc.ABC):
         """
 
     @staticmethod
-    def iter_all_used_registers(
+    def all_used_registers(
         region: Region,
-    ) -> Iterator[RegisterType]:
+    ) -> AbstractSet[RegisterType]:
         """
         All used registers of all operations within a region.
         """
-        return (
+        return {
             reg
             for op in region.walk()
             if isinstance(op, RegisterAllocatableOperation)
-            for reg in op.iter_used_registers()
-        )
+            for reg in RegisterAllocatedMemoryEffect.iter_used_registers(op)
+        }
+
+    @staticmethod
+    def all_excluded_registers(
+        region: Region,
+    ) -> AbstractSet[RegisterType]:
+        """
+        All excluded registers as declared by all operations within a region.
+        """
+        return {
+            reg
+            for op in region.walk()
+            if isinstance(op, RegisterAllocatableOperation)
+            for reg in op.iter_excluded_registers()
+        }
 
 
 class RegisterConstraints(NamedTuple):

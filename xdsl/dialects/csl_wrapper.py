@@ -4,7 +4,7 @@ import itertools
 from collections.abc import Iterable, Sequence
 from typing import cast
 
-from xdsl.dialects import builtin
+from xdsl.dialects import builtin, csl
 from xdsl.dialects.builtin import (
     ArrayAttr,
     IntegerAttr,
@@ -12,7 +12,6 @@ from xdsl.dialects.builtin import (
     NoneAttr,
     StringAttr,
 )
-from xdsl.dialects.csl import csl
 from xdsl.ir import (
     Attribute,
     Block,

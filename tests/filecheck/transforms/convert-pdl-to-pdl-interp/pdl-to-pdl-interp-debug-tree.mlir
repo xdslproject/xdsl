@@ -1,4 +1,6 @@
 // RUN: xdsl-opt -p convert-pdl-to-pdl-interp{print-debug-info=true} %s | filecheck %s
+// RUN: xdsl-opt -p "convert-pdl-to-pdl-interp{print-debug-info=true convert_individually=true}" %s | filecheck --check-prefix=INDIVIDUAL %s
+
 
 // CHECK:      Bool[root.result[0]] IsNotNullQuestion -> TrueAnswer()
 // CHECK-NEXT: ├── success:
@@ -61,6 +63,82 @@
 // CHECK-NEXT: │                                                                                                                                           └── SUCCESS(add_absf_right)
 // CHECK-NEXT: └── failure:
 // CHECK-NEXT:     └── EXIT
+
+// INDIVIDUAL:      Bool[root.result[0]] IsNotNullQuestion -> TrueAnswer()
+// INDIVIDUAL-NEXT: ├── success:
+// INDIVIDUAL-NEXT: │   └── Bool[root.operand[0].defining_op] IsNotNullQuestion -> TrueAnswer()
+// INDIVIDUAL-NEXT: │       └── success:
+// INDIVIDUAL-NEXT: │           └── Bool[root] OperationNameQuestion -> StringAnswer(value='arith.addf')
+// INDIVIDUAL-NEXT: │               └── success:
+// INDIVIDUAL-NEXT: │                   └── Bool[root] OperandCountQuestion -> UnsignedAnswer(value=2)
+// INDIVIDUAL-NEXT: │                       └── success:
+// INDIVIDUAL-NEXT: │                           └── Bool[root] ResultCountQuestion -> UnsignedAnswer(value=1)
+// INDIVIDUAL-NEXT: │                               └── success:
+// INDIVIDUAL-NEXT: │                                   └── Bool[root.operand[0]] IsNotNullQuestion -> TrueAnswer()
+// INDIVIDUAL-NEXT: │                                       └── success:
+// INDIVIDUAL-NEXT: │                                           └── Bool[root.operand[1]] IsNotNullQuestion -> TrueAnswer()
+// INDIVIDUAL-NEXT: │                                               └── success:
+// INDIVIDUAL-NEXT: │                                                   └── Bool[root.operand[0].defining_op] OperationNameQuestion -> StringAnswer(value='arith.absf')
+// INDIVIDUAL-NEXT: │                                                       └── success:
+// INDIVIDUAL-NEXT: │                                                           └── Bool[root.operand[0].defining_op] OperandCountQuestion -> UnsignedAnswer(value=1)
+// INDIVIDUAL-NEXT: │                                                               └── success:
+// INDIVIDUAL-NEXT: │                                                                   └── Bool[root.operand[0].defining_op] ResultCountQuestion -> UnsignedAnswer(value=1)
+// INDIVIDUAL-NEXT: │                                                                       └── success:
+// INDIVIDUAL-NEXT: │                                                                           └── Bool[root.operand[0].defining_op.operand[0]] IsNotNullQuestion -> TrueAnswer()
+// INDIVIDUAL-NEXT: │                                                                               └── success:
+// INDIVIDUAL-NEXT: │                                                                                   └── Bool[root.operand[0].defining_op.result[0]] IsNotNullQuestion -> TrueAnswer()
+// INDIVIDUAL-NEXT: │                                                                                       └── success:
+// INDIVIDUAL-NEXT: │                                                                                           └── Bool[root.operand[0].defining_op.result[0]] EqualToQuestion -> TrueAnswer()
+// INDIVIDUAL-NEXT: │                                                                                               └── success:
+// INDIVIDUAL-NEXT: │                                                                                                   └── Bool[root.operand[0].defining_op.operand[0].type] EqualToQuestion -> TrueAnswer()
+// INDIVIDUAL-NEXT: │                                                                                                       └── success:
+// INDIVIDUAL-NEXT: │                                                                                                           └── Bool[root.operand[0].defining_op.operand[0].type] EqualToQuestion -> TrueAnswer()
+// INDIVIDUAL-NEXT: │                                                                                                               └── success:
+// INDIVIDUAL-NEXT: │                                                                                                                   └── Bool[root.operand[0].defining_op.operand[0].type] EqualToQuestion -> TrueAnswer()
+// INDIVIDUAL-NEXT: │                                                                                                                       └── success:
+// INDIVIDUAL-NEXT: │                                                                                                                           └── Bool[root.operand[0].defining_op.operand[0].type] TypeConstraintQuestion -> TypeAnswer(value=Float32Type())
+// INDIVIDUAL-NEXT: │                                                                                                                               └── success:
+// INDIVIDUAL-NEXT: │                                                                                                                                   └── SUCCESS(add_absf_left)
+// INDIVIDUAL-NEXT: └── failure:
+// INDIVIDUAL-NEXT:     └── EXIT
+// INDIVIDUAL-NEXT: Bool[root.result[0]] IsNotNullQuestion -> TrueAnswer()
+// INDIVIDUAL-NEXT: ├── success:
+// INDIVIDUAL-NEXT: │   └── Bool[root.operand[1].defining_op] IsNotNullQuestion -> TrueAnswer()
+// INDIVIDUAL-NEXT: │       └── success:
+// INDIVIDUAL-NEXT: │           └── Bool[root] OperationNameQuestion -> StringAnswer(value='arith.addf')
+// INDIVIDUAL-NEXT: │               └── success:
+// INDIVIDUAL-NEXT: │                   └── Bool[root] OperandCountQuestion -> UnsignedAnswer(value=2)
+// INDIVIDUAL-NEXT: │                       └── success:
+// INDIVIDUAL-NEXT: │                           └── Bool[root] ResultCountQuestion -> UnsignedAnswer(value=1)
+// INDIVIDUAL-NEXT: │                               └── success:
+// INDIVIDUAL-NEXT: │                                   └── Bool[root.operand[0]] IsNotNullQuestion -> TrueAnswer()
+// INDIVIDUAL-NEXT: │                                       └── success:
+// INDIVIDUAL-NEXT: │                                           └── Bool[root.operand[1]] IsNotNullQuestion -> TrueAnswer()
+// INDIVIDUAL-NEXT: │                                               └── success:
+// INDIVIDUAL-NEXT: │                                                   └── Bool[root.operand[0].type] EqualToQuestion -> TrueAnswer()
+// INDIVIDUAL-NEXT: │                                                       └── success:
+// INDIVIDUAL-NEXT: │                                                           └── Bool[root.operand[0].type] TypeConstraintQuestion -> TypeAnswer(value=Float32Type())
+// INDIVIDUAL-NEXT: │                                                               └── success:
+// INDIVIDUAL-NEXT: │                                                                   └── Bool[root.operand[1].defining_op] OperationNameQuestion -> StringAnswer(value='arith.absf')
+// INDIVIDUAL-NEXT: │                                                                       └── success:
+// INDIVIDUAL-NEXT: │                                                                           └── Bool[root.operand[1].defining_op] OperandCountQuestion -> UnsignedAnswer(value=1)
+// INDIVIDUAL-NEXT: │                                                                               └── success:
+// INDIVIDUAL-NEXT: │                                                                                   └── Bool[root.operand[1].defining_op] ResultCountQuestion -> UnsignedAnswer(value=1)
+// INDIVIDUAL-NEXT: │                                                                                       └── success:
+// INDIVIDUAL-NEXT: │                                                                                           └── Bool[root.operand[1].defining_op.operand[0]] IsNotNullQuestion -> TrueAnswer()
+// INDIVIDUAL-NEXT: │                                                                                               └── success:
+// INDIVIDUAL-NEXT: │                                                                                                   └── Bool[root.operand[1].defining_op.result[0]] IsNotNullQuestion -> TrueAnswer()
+// INDIVIDUAL-NEXT: │                                                                                                       └── success:
+// INDIVIDUAL-NEXT: │                                                                                                           └── Bool[root.operand[1].defining_op.result[0]] EqualToQuestion -> TrueAnswer()
+// INDIVIDUAL-NEXT: │                                                                                                               └── success:
+// INDIVIDUAL-NEXT: │                                                                                                                   └── Bool[root.operand[1].defining_op.operand[0].type] EqualToQuestion -> TrueAnswer()
+// INDIVIDUAL-NEXT: │                                                                                                                       └── success:
+// INDIVIDUAL-NEXT: │                                                                                                                           └── Bool[root.operand[1].defining_op.result[0].type] EqualToQuestion -> TrueAnswer()
+// INDIVIDUAL-NEXT: │                                                                                                                               └── success:
+// INDIVIDUAL-NEXT: │                                                                                                                                   └── SUCCESS(add_absf_right)
+// INDIVIDUAL-NEXT: └── failure:
+// INDIVIDUAL-NEXT:     └── EXIT
+
 
 pdl.pattern @add_absf_left : benefit(1) {
   %0 = pdl.type : f32

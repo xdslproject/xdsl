@@ -61,6 +61,36 @@ memref_stream.write %val_vf32 to %vf32_writable : vector<2xf32>
 memref_stream.write %val_vf16 to %vf16_writable : vector<4xf16>
 
 
+// CHECK-NEXT:    %vf32_readable_multi = "test.op"() : () -> !memref_stream.readable<vector<2xf32>>
+%vf32_readable_multi = "test.op"() : () -> !memref_stream.readable<vector<2xf32>>
+
+// CHECK-NEXT:    %{{.*}} = builtin.unrealized_conversion_cast %vf32_readable_multi : !memref_stream.readable<vector<2xf32>> to !snitch.readable<!riscv.freg>
+// CHECK-NEXT:    %{{.*}} = riscv_snitch.read from %{{.*}} : !riscv.freg
+// CHECK-NEXT:    %{{.*}} = riscv.parallel_mov %{{.*}} [64] : (!riscv.freg) -> !riscv.freg
+// CHECK-NEXT:    %{{.*}} = builtin.unrealized_conversion_cast %{{.*}} : !riscv.freg to vector<2xf32>
+%val_vf32_multi = memref_stream.read from %vf32_readable_multi : vector<2xf32>
+
+// CHECK-NEXT:    "test.op"(%{{.*}}) : (vector<2xf32>) -> ()
+// CHECK-NEXT:    "test.op"(%{{.*}}) : (vector<2xf32>) -> ()
+"test.op"(%val_vf32_multi) : (vector<2xf32>) -> ()
+"test.op"(%val_vf32_multi) : (vector<2xf32>) -> ()
+
+
+// CHECK-NEXT:    %vf16_readable_multi = "test.op"() : () -> !memref_stream.readable<vector<4xf16>>
+%vf16_readable_multi = "test.op"() : () -> !memref_stream.readable<vector<4xf16>>
+
+// CHECK-NEXT:    %{{.*}} = builtin.unrealized_conversion_cast %vf16_readable_multi : !memref_stream.readable<vector<4xf16>> to !snitch.readable<!riscv.freg>
+// CHECK-NEXT:    %{{.*}} = riscv_snitch.read from %{{.*}} : !riscv.freg
+// CHECK-NEXT:    %{{.*}} = riscv.parallel_mov %{{.*}} [64] : (!riscv.freg) -> !riscv.freg
+// CHECK-NEXT:    %{{.*}} = builtin.unrealized_conversion_cast %{{.*}} : !riscv.freg to vector<4xf16>
+%val_vf16_multi = memref_stream.read from %vf16_readable_multi : vector<4xf16>
+
+// CHECK-NEXT:    "test.op"(%{{.*}}) : (vector<4xf16>) -> ()
+// CHECK-NEXT:    "test.op"(%{{.*}}) : (vector<4xf16>) -> ()
+"test.op"(%val_vf16_multi) : (vector<4xf16>) -> ()
+"test.op"(%val_vf16_multi) : (vector<4xf16>) -> ()
+
+
 %A, %B, %C = "test.op"() : () -> (memref<2xf64>, memref<3xf64>, memref<3x2xf64>)
 
 memref_stream.streaming_region {

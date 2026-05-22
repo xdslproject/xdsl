@@ -1,6 +1,6 @@
 from xdsl.dialects.builtin import DYNAMIC_INDEX, DenseArrayBase, TensorType, f64, i64
 from xdsl.dialects.stencil import IndexAttr
-from xdsl.dialects.tensor import ExtractSliceOp, InsertSliceOp
+from xdsl.dialects.tensor import ExtractSliceOp, FromElementsOp, InsertSliceOp
 from xdsl.dialects.test import TestOp
 from xdsl.utils.test_value import create_ssa_value
 
@@ -93,3 +93,22 @@ def test_insert_slice_dynamic():
     assert insert_slice.static_strides == DenseArrayBase.from_list(
         i64, 2 * [DYNAMIC_INDEX]
     )
+
+
+def test_insert_element_init():
+    test_op = TestOp(result_types=(i64, i64, f64, f64))
+    i64_0, i64_1, f64_0, f64_1 = test_op.results
+
+    # Scalar
+    assert FromElementsOp(
+        i64_0, result_type=TensorType(i64, ())
+    ).result.type == TensorType(i64, ())
+    # 1xi64
+    assert FromElementsOp(i64_0).result.type == TensorType(i64, (1,))
+    # 2xi64
+    assert FromElementsOp(i64_0, i64_1).result.type == TensorType(i64, (2,))
+    # 2xi64 Splat
+    assert FromElementsOp(*(i64_0, i64_1)).result.type == TensorType(i64, (2,))
+
+    # 2xf64
+    assert FromElementsOp(f64_0, f64_1).result.type == TensorType(f64, (2,))

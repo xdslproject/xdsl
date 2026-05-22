@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from contextlib import redirect_stdout
 from io import StringIO
+from typing import IO
 
 from riscemu.config import RunConfig
 from riscemu.instructions import (
@@ -18,9 +20,11 @@ from riscemu.riscemu_main import RiscemuMain, RiscemuSource
 
 def run_riscv(
     code: str,
+    *,
     extensions: Sequence[type[InstructionSet]] = (),
     unlimited_regs: bool = False,
     verbosity: int = 5,
+    output: IO[str],
 ):
     cfg = RunConfig(
         debug_instruction=False,
@@ -46,7 +50,8 @@ def run_riscv(
     source = RiscemuSource("example.asm", StringIO(code))
     main.input_files.append(source)
 
-    try:
-        main.run()
-    except Exception as ex:
-        print(ex)
+    with redirect_stdout(output):
+        try:
+            main.run()
+        except Exception as ex:
+            print(ex)

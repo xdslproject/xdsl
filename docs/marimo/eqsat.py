@@ -1,37 +1,39 @@
 import marimo
 
-__generated_with = "0.17.2"
+__generated_with = "0.23.6"
 app = marimo.App(width="medium")
 
 
 @app.cell(hide_code=True)
 def _():
     import marimo as mo
+
     return (mo,)
 
 
 @app.cell(hide_code=True)
 def _():
     from xdsl.utils import marimo as xmo
+
     return (xmo,)
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""# Embedding Equality Saturation in IR""")
+    mo.md(r"""
+    # Embedding Equality Saturation in IR
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     This notebook presents the `equivalence` dialect with examples.
     The `equivalence` dialect refers to [e-graph](https://egraphs-good.github.io/), a graph representation of multiple functionally equivalent programs.
 
     Here is an MLIR module with an input function and three rewrites lowered to the [pdl_interp dialect](https://mlir.llvm.org/docs/Dialects/PDLInterpOps/):
-    """
-    )
+    """)
     return
 
 
@@ -48,7 +50,9 @@ def _(ctx, input_module_string, xmo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""We start by adding e-class ops, which represent a union of multiple ways of calculating the same value:""")
+    mo.md(r"""
+    We start by adding e-class ops, which represent a union of multiple ways of calculating the same value:
+    """)
     return
 
 
@@ -64,7 +68,9 @@ def _(ctx, input_module, xmo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""We then execute the `apply-pdl-interp-eqsat` pass, which applies the rewrites non-destructively.""")
+    mo.md(r"""
+    We then execute the `apply-pdl-interp-eqsat` pass, which applies the rewrites non-destructively.
+    """)
     return
 
 
@@ -83,7 +89,9 @@ def _(Parser, ctx, eclass_module, pdl_interp_module_string, xmo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""We then add the costs. For now we give each operation a cost of `1`. This means the program with the lowest cost will be the program with the least amount of operations. Each e-class now also gets a `min_cost_index` attribute, referring to the value in its operand list with the lowest cost:""")
+    mo.md(r"""
+    We then add the costs. For now we give each operation a cost of `1`. This means the program with the lowest cost will be the program with the least amount of operations. Each e-class now also gets a `min_cost_index` attribute, referring to the value in its operand list with the lowest cost:
+    """)
     return
 
 
@@ -99,7 +107,9 @@ def _(ctx, saturated_module, xmo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""And then we extract to get the optimal result:""")
+    mo.md(r"""
+    And then we extract to get the optimal result:
+    """)
     return
 
 
@@ -120,6 +130,7 @@ def _(extracted_module):
         "Test that the extracted module doesn't contain e-class ops"
         eclass_ops = tuple(op for op in extracted_module.walk() if isinstance(op, ClassOp))
         assert not eclass_ops
+
     return
 
 

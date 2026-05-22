@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from io import StringIO
 from typing import IO, Generic, TypeAlias
 
-from typing_extensions import Self
+from typing_extensions import Self, TypeVar
 
 from xdsl.backend.assembly_printer import AssemblyPrinter, OneLineAssemblyPrintable
 from xdsl.backend.register_allocatable import (
@@ -18,12 +18,14 @@ from xdsl.backend.register_type import RegisterAllocatedMemoryEffect, RegisterTy
 from xdsl.context import Context
 from xdsl.dialects.builtin import (
     I32,
+    I64,
     IntegerAttr,
     IntegerType,
     ModuleOp,
     StringAttr,
     UnitAttr,
 )
+from xdsl.interfaces import HasFolderInterface
 from xdsl.ir import (
     Attribute,
     Dialect,
@@ -42,7 +44,14 @@ from xdsl.irdl import (
 from xdsl.parser import Parser, UnresolvedOperand
 from xdsl.pattern_rewriter import RewritePattern
 from xdsl.printer import Printer
-from xdsl.traits import HasCanonicalizationPatternsTrait, Pure
+from xdsl.traits import (
+    AlwaysSpeculatable,
+    ConstantLike,
+    HasCanonicalizationPatternsTrait,
+    MemoryReadEffect,
+    MemoryWriteEffect,
+    Pure,
+)
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.target import Target
 
@@ -191,6 +200,8 @@ class RISCVInstruction(RISCVAsmOperation, RISCVRegallocOperation, ABC):
     """
     An optional comment that will be printed along with the instruction.
     """
+
+    traits = traits_def(RegisterAllocatedMemoryEffect())
 
     @abstractmethod
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
@@ -434,8 +445,6 @@ class RdRsRsRsFloatOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
     rs1 = operand_def(FloatRegisterType)
     rs2 = operand_def(FloatRegisterType)
     rs3 = operand_def(FloatRegisterType)
-
-    traits = traits_def(RegisterAllocatedMemoryEffect())
 
     def __init__(
         self,
@@ -1047,6 +1056,9 @@ class RsRsImmIntegerOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC)
     rs2 = operand_def(IntRegisterType)
     immediate = attr_def(IntegerAttr[SI12])
 
+    # All S-Type operations write to memory
+    traits = traits_def(MemoryWriteEffect())
+
     def __init__(
         self,
         rs1: Operation | SSAValue,
@@ -1165,6 +1177,8 @@ class CsrReadWriteOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
     csr = attr_def(IntegerAttr)
     writeonly = opt_attr_def(UnitAttr)
 
+    traits = traits_def(MemoryReadEffect(), MemoryWriteEffect())
+
     def __init__(
         self,
         rs1: Operation | SSAValue,
@@ -1237,6 +1251,10 @@ class CsrBitwiseOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
     csr = attr_def(IntegerAttr)
     readonly = opt_attr_def(UnitAttr)
 
+    # Conservatively set the write effect, in the future we should be conditional on
+    # the `readonly` flag.
+    traits = traits_def(MemoryReadEffect(), MemoryWriteEffect())
+
     def __init__(
         self,
         rs1: Operation | SSAValue,
@@ -1307,6 +1325,8 @@ class CsrReadWriteImmOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC
     csr = attr_def(IntegerAttr)
     immediate = attr_def(IntegerAttr)
     writeonly = opt_attr_def(UnitAttr)
+
+    traits = traits_def(MemoryReadEffect(), MemoryWriteEffect())
 
     def __init__(
         self,
@@ -1383,6 +1403,8 @@ class CsrBitwiseImmOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
     csr = attr_def(IntegerAttr)
     immediate = attr_def(IntegerAttr)
 
+    traits = traits_def(MemoryReadEffect(), MemoryWriteEffect())
+
     def __init__(
         self,
         csr: IntegerAttr,
@@ -1422,6 +1444,83 @@ class CsrBitwiseImmOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
         printer.print_string(", ")
         print_immediate_value(printer, self.immediate)
         return {"csr", "immediate"}
+
+
+class LiOpHasCanonicalizationPatternTrait(HasCanonicalizationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.riscv import (
+            LoadImmediate0,
+        )
+
+        return (LoadImmediate0(),)
+
+
+IWidth = TypeVar("IWidth", bound=I32 | I64)
+
+
+class LiOperation(
+    RISCVCustomFormatOperation,
+    RISCVInstruction,
+    HasFolderInterface,
+    ABC,
+    Generic[IWidth],
+):
+    """
+    Base class for RISC-V operations that load an immediate into rd.
+
+    See external [documentation](https://github.com/riscv-non-isa/riscv-asm-manual/blob/main/src/asm-manual.adoc).
+    """
+
+    rd = result_def(IntRegisterType)
+    immediate = attr_def(IntegerAttr[IWidth] | LabelAttr)
+
+    traits = traits_def(
+        AlwaysSpeculatable(), ConstantLike(), LiOpHasCanonicalizationPatternTrait()
+    )
+
+    def __init__(
+        self,
+        immediate: IntegerAttr[IWidth] | str | LabelAttr,
+        *,
+        rd: IntRegisterType = Registers.UNALLOCATED_INT,
+        comment: str | StringAttr | None = None,
+    ):
+        if isinstance(immediate, str):
+            immediate = LabelAttr(immediate)
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            result_types=[rd],
+            attributes={
+                "immediate": immediate,
+                "comment": comment,
+            },
+        )
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
+        return self.rd, self.immediate
+
+    def fold(self) -> tuple[IntegerAttr[IWidth] | LabelAttr]:
+        return (self.immediate,)
+
+    def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
+        printer.print_string(" ")
+        print_immediate_value(printer, self.immediate)
+        return {"immediate", "fastmath"}
+
+    @classmethod
+    def parse_op_type(
+        cls, parser: Parser
+    ) -> tuple[Sequence[Attribute], Sequence[Attribute]]:
+        parser.parse_punctuation(":")
+        res_type = parser.parse_attribute()
+        return (), (res_type,)
+
+    def print_op_type(self, printer: Printer) -> None:
+        printer.print_string(" : ")
+        printer.print_attribute(self.rd.type)
 
 
 class GetAnyRegisterOperation(

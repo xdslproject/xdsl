@@ -19,7 +19,7 @@ _index_type = builtin.IndexType()
 @dataclass
 class VectorizeMatmulOp(RewritePattern):
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, op: linalg.MatmulOp, rewriter: PatternRewriter, /):
+    def match_and_rewrite(self, op: linalg.ops.MatmulOp, rewriter: PatternRewriter, /):
         # C += A * B
         # C: M x N, A: M x K, B: K x N
 

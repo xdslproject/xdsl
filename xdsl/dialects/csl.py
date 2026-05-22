@@ -211,7 +211,7 @@ class InModuleKind(OpTrait):
     direct_child: bool = field(default=True)
 
     def verify(self, op: Operation) -> None:
-        from xdsl.dialects.csl import csl_wrapper
+        from xdsl.dialects import csl_wrapper
 
         kind: ModuleKind = self.kind
         direct_child: bool = self.direct_child

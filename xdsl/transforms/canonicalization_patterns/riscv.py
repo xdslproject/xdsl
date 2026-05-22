@@ -235,8 +235,8 @@ class AndiImmediate(RewritePattern):
             op.immediate, IntegerAttr
         ):
             rd = op.rd.type
-            rewriter.replace_matched_op(
-                rv32.LiOp(rs1.value.data & op.immediate.value.data, rd=rd)
+            rewriter.replace_op(
+                op, rv32.LiOp(rs1.value.data & op.immediate.value.data, rd=rd)
             )
 
 
@@ -245,7 +245,7 @@ class AndiZero(RewritePattern):
     def match_and_rewrite(self, op: riscv.AndiOp, rewriter: PatternRewriter) -> None:
         if isinstance(op.immediate, IntegerAttr) and op.immediate.value.data == 0:
             rd = op.rd.type
-            rewriter.replace_matched_op(rv32.LiOp(0, rd=rd))
+            rewriter.replace_op(op, rv32.LiOp(0, rd=rd))
 
 
 class OriImmediate(RewritePattern):
@@ -255,8 +255,8 @@ class OriImmediate(RewritePattern):
             op.immediate, IntegerAttr
         ):
             rd = op.rd.type
-            rewriter.replace_matched_op(
-                rv32.LiOp(rs1.value.data | op.immediate.value.data, rd=rd)
+            rewriter.replace_op(
+                op, rv32.LiOp(rs1.value.data | op.immediate.value.data, rd=rd)
             )
 
 
@@ -299,8 +299,8 @@ class XoriImmediate(RewritePattern):
             op.immediate, IntegerAttr
         ):
             rd = op.rd.type
-            rewriter.replace_matched_op(
-                rv32.LiOp(rs1.value.data ^ op.immediate.value.data, rd=rd)
+            rewriter.replace_op(
+                op, rv32.LiOp(rs1.value.data ^ op.immediate.value.data, rd=rd)
             )
 
 
@@ -474,7 +474,7 @@ class AdditionOfSameVariablesToMultiplyByTwo(RewritePattern):
 
 
 def _has_contract_flag(op: riscv.RdRsRsFloatOperationWithFastMath) -> bool:
-    return op.fastmath is not None and FastMathFlag.ALLOW_CONTRACT in op.fastmath.flags
+    return op.fastmath is not None and FastMathFlag.ALLOW_CONTRACT in op.fastmath.data
 
 
 class FuseMultiplyAddD(RewritePattern):

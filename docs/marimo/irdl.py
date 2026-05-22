@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.13.6"
+__generated_with = "0.23.6"
 app = marimo.App(width="medium")
 
 
@@ -31,50 +31,42 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     # IRDL tutorial
 
     ## An Intermediate Representation Definition Language (IRDL) for SSA Compilers
-    """
-    )
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Introduction
 
     xDSL is an extensible compiler, meaning that new operations, attributes, and types can be added. xDSL provides an embedded DSL, IRDL, to define new dialects.
     This tutorial aims to show the different features IRDL has, and presents examples on how to use them.
-    """
-    )
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ### Attribute constraints
 
     Attribute constraints represent invariants over attributes, and are an important concept for defining new attributes and operations. In practice, an attribute constraint is a child class of `AttrConstraint` that implements a `verify` method. The method takes an attribute to verify as parameter, and a dictionary associating constraint variables to attributes. `verify` does not return anything, but raises an exception if the invariant is not respected.
-    """
-    )
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     #### Any Constraint
 
     An `Any` constraint will never trigger an exception, and will always pass:
-    """
-    )
+    """)
     return
 
 
@@ -94,13 +86,11 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     #### Equality Constraint
 
     An equality constraint ensures that the attribute is equal to one provided to the constraint:
-    """
-    )
+    """)
     return
 
 
@@ -124,13 +114,11 @@ def _(ConstraintContext, i32, i64):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     #### Base Attribute Constraint
 
     A base attribute constraint ensures that the attribute base type is equal to an expected attribute base type:
-    """
-    )
+    """)
     return
 
 
@@ -166,13 +154,11 @@ def _(ConstraintContext, IntAttr, VerifyException, base_constraint):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     #### Attribute Constraint Coercion
 
     To simplify the definitions of constraints, constraint constructors expecting an attribute constraints will coerce `Attribute` to an equality attribute constraint, and will coerce an `Attribute` type to a base attribute constraint. this is done using the `irdl_to_attr_constraint` function:
-    """
-    )
+    """)
     return
 
 
@@ -182,26 +168,24 @@ def _(BaseAttr, EqAttrConstraint, StringAttr, i32):
 
     assert irdl_to_attr_constraint(i32) == EqAttrConstraint(i32)
     assert irdl_to_attr_constraint(StringAttr) == BaseAttr(StringAttr)
-    assert AnyOf([i32, StringAttr]) == AnyOf([EqAttrConstraint(i32), BaseAttr(StringAttr)])
+    assert AnyOf.get(i32, StringAttr) == AnyOf((EqAttrConstraint(i32), BaseAttr(StringAttr)))
     return AnyOf, irdl_to_attr_constraint
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     #### Or Constraint
 
     An `or` constraint ensures that one of the given attribute constraints is satisfied by the attribute:
-    """
-    )
+    """)
     return
 
 
 @app.cell
 def _(AnyOf, ConstraintContext, StringAttr, i32, i64):
     # Construct the constraint. Note that we are using the coercion defined previously.
-    or_constraint = AnyOf([i32, StringAttr])
+    or_constraint = AnyOf.get(i32, StringAttr)
 
     # This will pass without triggering an exception, since the first constraint is satisfied
     or_constraint.verify(i32, ConstraintContext())
@@ -220,13 +204,11 @@ def _(AnyOf, ConstraintContext, StringAttr, i32, i64):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     #### Parametric Attribute Constraint
 
     A parametric attribute constraint is satisfied by parametric attributes of a certain base type. In addition, parametric attribute constraints specify constraints for each of the parameters of the attribute:
-    """
-    )
+    """)
     return
 
 
@@ -236,7 +218,7 @@ def _(ConstraintContext, IntAttr, VerifyException, i32, i64):
     from xdsl.irdl import ParamAttrConstraint
 
     # Construct the constraint. Note that we are using the coercion defined previously.
-    param_constraint = ParamAttrConstraint(IntegerAttr, [IntAttr, i32])
+    param_constraint = ParamAttrConstraint.get(IntegerAttr, IntAttr, i32)
 
     # This will pass without triggering an exception.
     param_constraint.verify(IntegerAttr(IntAttr(42), i32), ConstraintContext())
@@ -270,14 +252,12 @@ def _(
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     #### Constraint Variables
 
     Constraint variables are used to specify equality between attributes in operation and attribute definitions. They also contain a constraint that must be satisfied.
     The first time a constraint variable is used, it will check that the constraint is satisfied. If it is satisfied, it sets the variable to the given attribute. If a constraint variable is already set, it will check that the given attribute is equal to the one already set. Two constraint variables with the same name are considered equal, and are expected to carry the same constraint.
-    """
-    )
+    """)
     return
 
 
@@ -316,13 +296,11 @@ def _(VerifyException, constraint_context, i64, var_constraint):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     #### Custom Constraints
 
     Users can define their own constraints for their own types. For instance, here is the definition of the `ArrayOfConstraint` constraint, which expects an `ArrayAttr` where all elements of the array satisfy a specific constraint:
-    """
-    )
+    """)
     return
 
 
@@ -391,19 +369,19 @@ def _(ArrayAttr, ConstraintContext, IntAttr, StringAttr, array_constraint):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""### Attribute Definition""")
+    mo.md(r"""
+    ### Attribute Definition
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     #### Data Attributes
 
     `Data` attribute types are defined by inheriting the python `Data` class. Each data attribute definition should define a `name`, and two methods for conversion to a string representation. Here is for example the definition of `IntAttr`:
-    """
-    )
+    """)
     return
 
 
@@ -433,15 +411,13 @@ def _(Printer, printer):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     #### Parametrized Attributes
 
     `ParametrizedAttribute` attribute types are defined using the `irdl_attr_definition` decorator on a class. Such class should contain a `name` field specifying the attribute name. Parameters are added to attribute definitions by defining fields with a type, and optionally with a `param_def`. The field names correspond to the parameter names, and `param_def` contains an optional constraint that should be respected by this parameter. The order of the fields correspond to the order of the parameters when using the attribute. Upon construction of an attribute, all constraints will be checked, and an exception will be raised if the invariants are not satisfied.
 
     Here is an example of an integer type definition:
-    """
-    )
+    """)
     return
 
 
@@ -481,7 +457,9 @@ def _(EqAttrConstraint, IntAttr, StringAttr, irdl_attr_definition):
 
 @app.cell
 def _(mo):
-    mo.md(r"""Each parameter can be accessed using the `parameters` field.""")
+    mo.md(r"""
+    Each parameter can be accessed using the `parameters` field.
+    """)
     return
 
 
@@ -493,7 +471,9 @@ def _(my_i32):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""Our attribute definition also defines accessors for each parameter based on the name given in the `param_def` field:""")
+    mo.md(r"""
+    Our attribute definition also defines accessors for each parameter based on the name given in the `param_def` field:
+    """)
     return
 
 
@@ -505,13 +485,11 @@ def _(my_i32):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ### Operation Definition
 
     Operations are defined similarly to `ParametrizedAttribute`, by using the `irdl_op_definition` decorator. The decorator allows the definition of expected operands, results, attributes, and regions. Each definition should contain a `name` static field, which is used for parsing and printing:
-    """
-    )
+    """)
     return
 
 
@@ -532,15 +510,13 @@ def _(printer):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     #### Operands and Results
 
     Operands and results are added using fields containing `Operand` and `OpResult`, which each contain an attribute constraint. The order correspond to the operand and result order, and the constraint applies on the SSA variable type.
 
     Here is an example of an operation defining operands and a result:
-    """
-    )
+    """)
     return
 
 
@@ -582,7 +558,9 @@ def _(IRDLOperation, IntegerAttr, i32, irdl_op_definition, printer):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""The operation expects exactly the number of operands and results defined and checks that operands and results satisfy their invariants using the `verify` method.""")
+    mo.md(r"""
+    The operation expects exactly the number of operands and results defined and checks that operands and results satisfy their invariants using the `verify` method.
+    """)
     return
 
 
@@ -629,7 +607,9 @@ def _(Addi32Op, i32_ssa_var, i64):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""As with `ParametrizedAttribute`, each operand and result definition defines accessors to easily access operands and results:""")
+    mo.md(r"""
+    As with `ParametrizedAttribute`, each operand and result definition defines accessors to easily access operands and results:
+    """)
     return
 
 
@@ -643,13 +623,11 @@ def _(my_addi32):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     #### Constraint Variables
 
     Constraint variables can directly be used in Operation and Attribute definitions by using a `TypeAlias` annotated with a `ConstraintVar`.
-    """
-    )
+    """)
     return
 
 
@@ -693,13 +671,11 @@ def _(
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     #### Variadic Operands and Results
 
     Operand and result definitions can be defined variadic, meaning that their definition can have different numbers of operands or results. Variadic definitions are defined with `var_operand_def` and `var_result_def`.
-    """
-    )
+    """)
     return
 
 
@@ -733,7 +709,9 @@ def _(
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""Generated accessors return a list of SSA variables instead of a single variable:""")
+    mo.md(r"""
+    Generated accessors return a list of SSA variables instead of a single variable:
+    """)
     return
 
 
@@ -745,7 +723,9 @@ def _(add_op):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""Since it may be ambiguous, it is not possible to simply define two variadic operands, or two variadic results. To do so, the operation definition requires the `AttrSizedOperandSegments` or `AttrSizedResultSegments` IRDL option, which require the operation to contain a `operandSegmentSizes` or `resultSegmentSizes` attribute, containing the size of the variadic operands, and variadic results.""")
+    mo.md(r"""
+    Since it may be ambiguous, it is not possible to simply define two variadic operands, or two variadic results. To do so, the operation definition requires the `AttrSizedOperandSegments` or `AttrSizedResultSegments` IRDL option, which require the operation to contain a `operandSegmentSizes` or `resultSegmentSizes` attribute, containing the size of the variadic operands, and variadic results.
+    """)
     return
 
 
@@ -786,7 +766,9 @@ def _(
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""In addition to variadic operands and results, IRDL also allows the definition of optional operands and results. Optional operands and results are essentially variadic operands and regions that are constrained to have either 0 or 1 elements. They are defined using `OptOperand` and `OptResultDef`, and define accessors returning optional SSA variables.""")
+    mo.md(r"""
+    In addition to variadic operands and results, IRDL also allows the definition of optional operands and results. Optional operands and results are essentially variadic operands and regions that are constrained to have either 0 or 1 elements. They are defined using `OptOperand` and `OptResultDef`, and define accessors returning optional SSA variables.
+    """)
     return
 
 
@@ -824,13 +806,11 @@ def _(
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     #### Attributes Definition
 
     Attribute definitions are defined using `OpAttr`. The field name correspond to the expected attribute name.
-    """
-    )
+    """)
     return
 
 
@@ -853,7 +833,9 @@ def _(IRDLOperation, StringAttr, irdl_op_definition, printer):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""The defined verifier ensures that the attribute is present:""")
+    mo.md(r"""
+    The defined verifier ensures that the attribute is present:
+    """)
     return
 
 
@@ -869,7 +851,9 @@ def _(StringAttrOp):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""And expects that the attribute respect the constraint:""")
+    mo.md(r"""
+    And expects that the attribute respect the constraint:
+    """)
     return
 
 
@@ -884,7 +868,9 @@ def _(IntAttr, StringAttrOp):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""Note that contrary to operands and results, other attributes may appear in an operation, even though they are not defined by the operation:""")
+    mo.md(r"""
+    Note that contrary to operands and results, other attributes may appear in an operation, even though they are not defined by the operation:
+    """)
     return
 
 
@@ -900,13 +886,11 @@ def _(IntAttr, StringAttr, StringAttrOp, printer):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     #### Regions
 
     Regions definitions are defined using `Region` or `SingleBlockRegion` annotations. The second definition constrains the region to contain a single block, and both definitions allows to further constraint the region by giving a constraint for the entry basic block parameters.
-    """
-    )
+    """)
     return
 
 
@@ -932,13 +916,11 @@ def _(IRDLOperation, i32, irdl_op_definition, printer):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     #### Additional Verifiers
 
     `irdl_op_definition` is not expressive enough to define arbitrary constraints, especially for constraints spanning over multiple operand and result definitions. To circumvent that, definitions may define a `verify_` method that will be called in the generated verifier:
-    """
-    )
+    """)
     return
 
 

@@ -41,7 +41,6 @@ from xdsl.pattern_rewriter import (
 from xdsl.rewriter import InsertPoint
 from xdsl.traits import MemoryEffectKind, get_effects
 from xdsl.transforms.canonicalization_patterns.stencil import ApplyUnusedResults
-from xdsl.transforms.dead_code_elimination import RemoveUnusedOperations
 from xdsl.utils.hints import isa
 
 _TypeElement = TypeVar("_TypeElement", bound=Attribute)
@@ -151,12 +150,16 @@ def is_inplace(apply: ApplyOp, field: SSAValue):
     return not any(
         access
         for access in apply.walk()
-        if isinstance(access, AccessOp)
-        and access.temp in field_args
-        and any(o != 0 for o in access.offset)
-        or isinstance(access, DynAccessOp)
-        and access.temp in field_args
-        and any(o != 0 for o in chain(access.lb, access.ub))
+        if (
+            isinstance(access, AccessOp)
+            and access.temp in field_args
+            and any(o != 0 for o in access.offset)
+        )
+        or (
+            isinstance(access, DynAccessOp)
+            and access.temp in field_args
+            and any(o != 0 for o in chain(access.lb, access.ub))
+        )
     )
 
 
@@ -390,7 +393,7 @@ class BufferAlloc(RewritePattern):
     %forward = stencil.load %alloc : !stencil.field<[0,32]>xf64 -> !stencil.temp<[0,32]>
     // [...]
     ```
-    """  # noqa: E501
+    """
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: BufferOp, rewriter: PatternRewriter):
@@ -588,7 +591,6 @@ class StencilBufferize(ModulePass):
                     CombineStoreFold(),
                     LoadBufferFoldPattern(),
                     ApplyStoreFoldPattern(),
-                    RemoveUnusedOperations(),
                     ApplyUnusedResults(),
                     SwapBufferize(),
                 ]

@@ -74,7 +74,7 @@ uv run pytest
 make pytest
 ```
 
-### FileCheck Tests
+### Lit/FileCheck Tests
 
 File-based tests in `tests/filecheck` using `filecheck` (a Python reimplementation of
 LLVM's FileCheck) to verify tool output. These tests rely on the textual format to
@@ -88,6 +88,38 @@ uv run lit tests/filecheck
 # or via makefile
 make filecheck
 ```
+
+Note that when a `lit` test fails, it also prints the command that was run, which can
+usually be quickly copy/pasted to the terminal to inspect the unexpected output.
+
+#### Bootstrapping and Updating FileCheck Tests with `filecheckize`
+
+When adding or updating tests, sometimes large chunks of `CHECK` lines will have to be
+added or updated.
+Our team created a tool called `filecheckize` that can sometimes be useful to ease this
+work.
+It's not added by default to the developer installation, but can still be used via uvx
+(installed with uv) like so:
+
+```sh
+echo "%c1 = arith.constant 1 : index
+%res = arith.addi %c1, %c1 : index
+" | uvx filecheckize
+```
+
+This will print the following:
+
+```mlir
+// CHECK:       %c1 = arith.constant 1 : index
+// CHECK-NEXT:  %res = arith.addi %c1, %c1 : index
+```
+
+`filecheckize` provides handy options like `--mlir-anonymize` to convert SSA value names
+to `{{.*}}` and `--check-prefix` to customize `CHECK` commands.
+
+It's rarely a good idea to use the ouput of `filecheckize` directly as the test for your
+transformation or printing/parsing test, but it can be handy as a starting point to go
+from the output of your command.
 
 ### Coverage Tests
 
@@ -174,24 +206,42 @@ We aim to follow these rules for all changes in this repository:
 - We aim for consistency in the code style and architectural patterns throughout the
   codebase in order to make it as easy as possible to understand and modify any part of
   xDSL.
+
 - We fix issues immediately rather than relying on future refactoring, as technical debt
   tends to accumulate and become harder to address over time.
+
 - We prefer simplicity: no code is better than obvious code, which is better than clever
   code. Premature abstraction often adds complexity without clear benefit.
+
 - We prioritize code locality over DRY (Don't Repeat Yourself). Keeping related logic close
   together - even if it results in slight duplication - makes it easier to understand
   code in isolation. We minimize variable scope.
+
 - We write self-describing code by using descriptive variable names and constant
   intermediary variables rather than relying heavily on comments.
+
 - We use guard-first logic, handling edge cases, invalid inputs and errors at the start
   of functions. Returning early keeps the "happy path" at the lowest indentation level,
   making the main logic easier to follow.
+
 - We keep if/else blocks small and avoid nesting beyond two levels when possible, as
   flat structures are easier to read and reason about.
+
 - We centralize control flow in parent functions, keeping leaf functions as pure logic.
   This separation makes the codebase more predictable and testable.
+
+- We access operation properties and attributes via the attribute shortcut
+  `op.someprop` rather than `op.properties["someprop"]` or `op.attributes["someprop"]`,
+  as the shortcut is concise and benefits from static type checking.
+
 - We fail fast by detecting unexpected conditions immediately and raising exceptions
   rather than corrupting state, as this makes debugging easier.
+
+- We use truthiness (`if x:`) whenever possible, e.g. instead of length checks
+  (`len(x) == 0`), as `__bool__` is often O(1). The one exception is Optional values:
+  use `is not None` instead of truthiness, because many xDSL types define `__bool__`
+  and truthiness silently skips valid falsy values.
+
 - We follow the Python philosophy of
   "[ask for forgiveness not permission](https://docs.python.org/3/glossary.html#term-EAFP)":
   assume keys and attributes exist and catch exceptions when they don't. For single-value

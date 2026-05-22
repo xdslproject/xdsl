@@ -44,11 +44,13 @@ from xdsl.parser import Parser
 from xdsl.pattern_rewriter import RewritePattern
 from xdsl.printer import Printer
 from xdsl.traits import (
+    AlwaysSpeculatable,
     HasCanonicalizationPatternsTrait,
     IsolatedFromAbove,
     IsTerminator,
+    MemoryReadEffect,
+    MemoryWriteEffect,
     NoTerminator,
-    Pure,
 )
 from xdsl.utils.exceptions import VerifyException
 
@@ -127,7 +129,7 @@ class AddiOp(RdRsImmIntegerOperation):
 
     name = "riscv.addi"
 
-    traits = traits_def(Pure(), AddiOpHasCanonicalizationPatternsTrait())
+    traits = traits_def(AlwaysSpeculatable(), AddiOpHasCanonicalizationPatternsTrait())
 
 
 @irdl_op_definition
@@ -306,7 +308,7 @@ class AddiwOp(RdRsImmIntegerOperation):
 
     name = "riscv.addiw"
 
-    traits = traits_def(Pure())
+    traits = traits_def(AlwaysSpeculatable())
 
 
 @irdl_op_definition
@@ -322,7 +324,7 @@ class SlliwOp(RdRsImmShiftOperation):
 
     name = "riscv.slliw"
 
-    traits = traits_def(Pure())
+    traits = traits_def(AlwaysSpeculatable())
 
 
 @irdl_op_definition
@@ -339,7 +341,7 @@ class SrliwOp(RdRsImmShiftOperation):
 
     name = "riscv.srliw"
 
-    traits = traits_def(Pure())
+    traits = traits_def(AlwaysSpeculatable())
 
 
 @irdl_op_definition
@@ -356,7 +358,7 @@ class SraiwOp(RdRsImmIntegerOperation):
 
     name = "riscv.sraiw"
 
-    traits = traits_def(Pure())
+    traits = traits_def(AlwaysSpeculatable())
 
 
 @irdl_op_definition
@@ -374,7 +376,7 @@ class AddwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
 
     name = "riscv.addw"
 
-    traits = traits_def(Pure())
+    traits = traits_def(AlwaysSpeculatable())
 
 
 @irdl_op_definition
@@ -392,7 +394,7 @@ class SubwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
 
     name = "riscv.subw"
 
-    traits = traits_def(Pure())
+    traits = traits_def(AlwaysSpeculatable())
 
 
 @irdl_op_definition
@@ -409,7 +411,7 @@ class SllwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
 
     name = "riscv.sllw"
 
-    traits = traits_def(Pure())
+    traits = traits_def(AlwaysSpeculatable())
 
 
 @irdl_op_definition
@@ -427,7 +429,7 @@ class SrlwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
 
     name = "riscv.srlw"
 
-    traits = traits_def(Pure())
+    traits = traits_def(AlwaysSpeculatable())
 
 
 @irdl_op_definition
@@ -444,7 +446,7 @@ class SrawOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
 
     name = "riscv.sraw"
 
-    traits = traits_def(Pure())
+    traits = traits_def(AlwaysSpeculatable())
 
 
 @irdl_op_definition
@@ -497,7 +499,7 @@ class MVOp(RdRsIntegerOperation[IntRegisterType]):
     name = "riscv.mv"
 
     traits = traits_def(
-        Pure(),
+        AlwaysSpeculatable(),
         MVHasCanonicalizationPatternsTrait(),
     )
 
@@ -535,7 +537,7 @@ class ZextBOp(RdRsIntegerOperation[IntRegisterType]):
 
     name = "riscv.zext.b"
 
-    traits = traits_def(Pure())
+    traits = traits_def(AlwaysSpeculatable())
 
 
 @irdl_op_definition
@@ -551,7 +553,7 @@ class ZextWOp(RdRsIntegerOperation[IntRegisterType]):
 
     name = "riscv.zext.w"
 
-    traits = traits_def(Pure())
+    traits = traits_def(AlwaysSpeculatable())
 
 
 @irdl_op_definition
@@ -566,7 +568,7 @@ class SextWOp(RdRsIntegerOperation[IntRegisterType]):
 
     name = "riscv.sext.w"
 
-    traits = traits_def(Pure())
+    traits = traits_def(AlwaysSpeculatable())
 
 
 class FMVHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
@@ -592,7 +594,7 @@ class FMVOp(RdRsFloatOperation[FloatRegisterType]):
     name = "riscv.fmv.s"
 
     traits = traits_def(
-        Pure(),
+        AlwaysSpeculatable(),
         FMVHasCanonicalizationPatternsTrait(),
     )
 
@@ -627,7 +629,7 @@ class AddOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     name = "riscv.add"
 
     traits = traits_def(
-        Pure(),
+        AlwaysSpeculatable(),
         AddOpHasCanonicalizationPatternsTrait(),
     )
 
@@ -1006,6 +1008,8 @@ class LbOp(RdRsImmIntegerOperation):
 
     name = "riscv.lb"
 
+    traits = traits_def(MemoryReadEffect())
+
 
 @irdl_op_definition
 class LbuOp(RdRsImmIntegerOperation):
@@ -1021,6 +1025,8 @@ class LbuOp(RdRsImmIntegerOperation):
     """
 
     name = "riscv.lbu"
+
+    traits = traits_def(MemoryReadEffect())
 
 
 @irdl_op_definition
@@ -1038,6 +1044,8 @@ class LhOp(RdRsImmIntegerOperation):
 
     name = "riscv.lh"
 
+    traits = traits_def(MemoryReadEffect())
+
 
 @irdl_op_definition
 class LhuOp(RdRsImmIntegerOperation):
@@ -1053,6 +1061,8 @@ class LhuOp(RdRsImmIntegerOperation):
     """
 
     name = "riscv.lhu"
+
+    traits = traits_def(MemoryReadEffect())
 
 
 class LwOpHasCanonicalizationPatternTrait(HasCanonicalizationPatternsTrait):
@@ -1080,7 +1090,7 @@ class LwOp(RdRsImmIntegerOperation):
 
     name = "riscv.lw"
 
-    traits = traits_def(LwOpHasCanonicalizationPatternTrait())
+    traits = traits_def(LwOpHasCanonicalizationPatternTrait(), MemoryReadEffect())
 
     def assembly_line(self) -> str | None:
         instruction_name = self.assembly_instruction_name()
@@ -1324,7 +1334,7 @@ class MulOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
 
     name = "riscv.mul"
 
-    traits = traits_def(MulOpHasCanonicalizationPatternsTrait(), Pure())
+    traits = traits_def(MulOpHasCanonicalizationPatternsTrait(), AlwaysSpeculatable())
 
 
 @irdl_op_definition
@@ -1402,7 +1412,7 @@ class DivOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
 
     name = "riscv.div"
-    traits = traits_def(DivOpHasCanonicalizationPatternsTrait(), Pure())
+    traits = traits_def(DivOpHasCanonicalizationPatternsTrait(), AlwaysSpeculatable())
 
 
 @irdl_op_definition
@@ -1519,7 +1529,7 @@ class RolOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
 
     name = "riscv.rol"
 
-    traits = traits_def(Pure())
+    traits = traits_def(AlwaysSpeculatable())
 
 
 @irdl_op_definition
@@ -1538,7 +1548,7 @@ class RorOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
 
     name = "riscv.ror"
 
-    traits = traits_def(Pure())
+    traits = traits_def(AlwaysSpeculatable())
 
 
 @irdl_op_definition
@@ -1554,7 +1564,7 @@ class SextHOp(RdRsIntegerOperation[IntRegisterType]):
 
     name = "riscv.sext.h"
 
-    traits = traits_def(Pure())
+    traits = traits_def(AlwaysSpeculatable())
 
 
 @irdl_op_definition
@@ -1570,7 +1580,7 @@ class ZextHOp(RdRsIntegerOperation[IntRegisterType]):
 
     name = "riscv.zext.h"
 
-    traits = traits_def(Pure())
+    traits = traits_def(AlwaysSpeculatable())
 
 
 @irdl_op_definition
@@ -1586,7 +1596,7 @@ class SextBOp(RdRsIntegerOperation[IntRegisterType]):
 
     name = "riscv.sext.b"
 
-    traits = traits_def(Pure())
+    traits = traits_def(AlwaysSpeculatable())
 
 
 @irdl_op_definition
@@ -1603,7 +1613,7 @@ class BclrOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
 
     name = "riscv.bclr"
 
-    traits = traits_def(Pure())
+    traits = traits_def(AlwaysSpeculatable())
 
 
 @irdl_op_definition
@@ -1621,7 +1631,7 @@ class BclrIOp(RdRsImmBitManipOperation):
 
     name = "riscv.bclri"
 
-    traits = traits_def(Pure())
+    traits = traits_def(AlwaysSpeculatable())
 
 
 @irdl_op_definition
@@ -1638,7 +1648,7 @@ class BextOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
 
     name = "riscv.bext"
 
-    traits = traits_def(Pure())
+    traits = traits_def(AlwaysSpeculatable())
 
 
 @irdl_op_definition
@@ -1656,7 +1666,7 @@ class BextIOp(RdRsImmBitManipOperation):
 
     name = "riscv.bexti"
 
-    traits = traits_def(Pure())
+    traits = traits_def(AlwaysSpeculatable())
 
 
 @irdl_op_definition
@@ -1674,7 +1684,7 @@ class BinvOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
 
     name = "riscv.binv"
 
-    traits = traits_def(Pure())
+    traits = traits_def(AlwaysSpeculatable())
 
 
 @irdl_op_definition
@@ -1692,7 +1702,7 @@ class BinvIOp(RdRsImmBitManipOperation):
 
     name = "riscv.binvi"
 
-    traits = traits_def(Pure())
+    traits = traits_def(AlwaysSpeculatable())
 
 
 @irdl_op_definition
@@ -1709,7 +1719,7 @@ class BsetOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
 
     name = "riscv.bset"
 
-    traits = traits_def(Pure())
+    traits = traits_def(AlwaysSpeculatable())
 
 
 @irdl_op_definition
@@ -1727,7 +1737,7 @@ class BsetIOp(RdRsImmBitManipOperation):
 
     name = "riscv.bseti"
 
-    traits = traits_def(Pure())
+    traits = traits_def(AlwaysSpeculatable())
 
 
 @irdl_op_definition
@@ -1747,7 +1757,7 @@ class RolwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
 
     name = "riscv.rolw"
 
-    traits = traits_def(Pure())
+    traits = traits_def(AlwaysSpeculatable())
 
 
 @irdl_op_definition
@@ -1767,7 +1777,7 @@ class RorwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
 
     name = "riscv.rorw"
 
-    traits = traits_def(Pure())
+    traits = traits_def(AlwaysSpeculatable())
 
 
 @irdl_op_definition
@@ -1787,7 +1797,7 @@ class RoriOp(RdRsImmBitManipOperation):
 
     name = "riscv.rori"
 
-    traits = traits_def(Pure())
+    traits = traits_def(AlwaysSpeculatable())
 
 
 @irdl_op_definition
@@ -1806,7 +1816,7 @@ class RoriwOp(RdRsImmBitManipOperation):
 
     name = "riscv.roriw"
 
-    traits = traits_def(Pure())
+    traits = traits_def(AlwaysSpeculatable())
 
 
 @irdl_op_definition
@@ -1824,7 +1834,7 @@ class AddUwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
 
     name = "riscv.add.uw"
 
-    traits = traits_def(Pure())
+    traits = traits_def(AlwaysSpeculatable())
 
 
 @irdl_op_definition
@@ -1839,7 +1849,7 @@ class Sh1addOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
 
     name = "riscv.sh1add"
 
-    traits = traits_def(Pure())
+    traits = traits_def(AlwaysSpeculatable())
 
 
 @irdl_op_definition
@@ -1854,7 +1864,7 @@ class Sh2addOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
 
     name = "riscv.sh2add"
 
-    traits = traits_def(Pure())
+    traits = traits_def(AlwaysSpeculatable())
 
 
 @irdl_op_definition
@@ -1869,7 +1879,7 @@ class Sh3addOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
 
     name = "riscv.sh3add"
 
-    traits = traits_def(Pure())
+    traits = traits_def(AlwaysSpeculatable())
 
 
 @irdl_op_definition
@@ -1889,7 +1899,7 @@ class Sh1addUwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
 
     name = "riscv.sh1add.uw"
 
-    traits = traits_def(Pure())
+    traits = traits_def(AlwaysSpeculatable())
 
 
 @irdl_op_definition
@@ -1908,7 +1918,7 @@ class Sh2addUwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
 
     name = "riscv.sh2add.uw"
 
-    traits = traits_def(Pure())
+    traits = traits_def(AlwaysSpeculatable())
 
 
 @irdl_op_definition
@@ -1928,7 +1938,7 @@ class Sh3addUwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
 
     name = "riscv.sh3add.uw"
 
-    traits = traits_def(Pure())
+    traits = traits_def(AlwaysSpeculatable())
 
 
 @irdl_op_definition
@@ -1944,7 +1954,7 @@ class SlliUwOp(RdRsImmBitManipOperation):
 
     name = "riscv.slli.uw"
 
-    traits = traits_def(Pure())
+    traits = traits_def(AlwaysSpeculatable())
 
 
 @irdl_op_definition
@@ -1959,7 +1969,7 @@ class AndnOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
 
     name = "riscv.andn"
 
-    traits = traits_def(Pure())
+    traits = traits_def(AlwaysSpeculatable())
 
 
 @irdl_op_definition
@@ -1974,7 +1984,7 @@ class OrnOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
 
     name = "riscv.orn"
 
-    traits = traits_def(Pure())
+    traits = traits_def(AlwaysSpeculatable())
 
 
 @irdl_op_definition
@@ -1989,7 +1999,7 @@ class XnorOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
 
     name = "riscv.xnor"
 
-    traits = traits_def(Pure())
+    traits = traits_def(AlwaysSpeculatable())
 
 
 @irdl_op_definition
@@ -2010,7 +2020,7 @@ class MaxOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
 
     name = "riscv.max"
 
-    traits = traits_def(Pure())
+    traits = traits_def(AlwaysSpeculatable())
 
 
 @irdl_op_definition
@@ -2030,7 +2040,7 @@ class MaxUOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
 
     name = "riscv.maxu"
 
-    traits = traits_def(Pure())
+    traits = traits_def(AlwaysSpeculatable())
 
 
 @irdl_op_definition
@@ -2050,7 +2060,7 @@ class MinOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
 
     name = "riscv.min"
 
-    traits = traits_def(Pure())
+    traits = traits_def(AlwaysSpeculatable())
 
 
 @irdl_op_definition
@@ -2070,7 +2080,7 @@ class MinUOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
 
     name = "riscv.minu"
 
-    traits = traits_def(Pure())
+    traits = traits_def(AlwaysSpeculatable())
 
 
 # endregion
@@ -2103,16 +2113,6 @@ class CZeroNezOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
 
 # region Assembler pseudo-instructions
 # See external [documentation](https://github.com/riscv-non-isa/riscv-asm-manual/blob/master/riscv-asm.md).
-
-
-class LiOpHasCanonicalizationPatternTrait(HasCanonicalizationPatternsTrait):
-    @classmethod
-    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.transforms.canonicalization_patterns.riscv import (
-            LoadImmediate0,
-        )
-
-        return (LoadImmediate0(),)
 
 
 @irdl_op_definition
@@ -2560,7 +2560,7 @@ class FAddSOp(RdRsRsFloatOperationWithFastMath):
 
     name = "riscv.fadd.s"
 
-    traits = traits_def(Pure())
+    traits = traits_def(AlwaysSpeculatable())
 
 
 @irdl_op_definition
@@ -2884,7 +2884,7 @@ class FLwOp(RdRsImmFloatOperation):
 
     name = "riscv.flw"
 
-    traits = traits_def(FLwOpHasCanonicalizationPatternTrait())
+    traits = traits_def(FLwOpHasCanonicalizationPatternTrait(), MemoryReadEffect())
 
     def assembly_line(self) -> str | None:
         instruction_name = self.assembly_instruction_name()
@@ -2918,7 +2918,7 @@ class FSwOp(RsRsImmFloatOperation):
 
     name = "riscv.fsw"
 
-    traits = traits_def(FSwOpHasCanonicalizationPatternTrait())
+    traits = traits_def(FSwOpHasCanonicalizationPatternTrait(), MemoryWriteEffect())
 
     def assembly_line(self) -> str | None:
         instruction_name = self.assembly_instruction_name()
@@ -2947,7 +2947,7 @@ class FMAddDOp(RdRsRsRsFloatOperation):
 
     name = "riscv.fmadd.d"
 
-    traits = traits_def(Pure())
+    traits = traits_def(AlwaysSpeculatable())
 
 
 @irdl_op_definition
@@ -2962,7 +2962,7 @@ class FMSubDOp(RdRsRsRsFloatOperation):
 
     name = "riscv.fmsub.d"
 
-    traits = traits_def(Pure())
+    traits = traits_def(AlwaysSpeculatable())
 
 
 class FuseMultiplyAddDCanonicalizationPatternTrait(HasCanonicalizationPatternsTrait):
@@ -2988,7 +2988,7 @@ class FAddDOp(RdRsRsFloatOperationWithFastMath):
     name = "riscv.fadd.d"
 
     traits = traits_def(
-        Pure(),
+        AlwaysSpeculatable(),
         FuseMultiplyAddDCanonicalizationPatternTrait(),
     )
 
@@ -3005,7 +3005,7 @@ class FSubDOp(RdRsRsFloatOperationWithFastMath):
 
     name = "riscv.fsub.d"
 
-    traits = traits_def(Pure())
+    traits = traits_def(AlwaysSpeculatable())
 
 
 @irdl_op_definition
@@ -3020,7 +3020,7 @@ class FMulDOp(RdRsRsFloatOperationWithFastMath):
 
     name = "riscv.fmul.d"
 
-    traits = traits_def(Pure())
+    traits = traits_def(AlwaysSpeculatable())
 
 
 @irdl_op_definition
@@ -3058,7 +3058,7 @@ class FMinDOp(RdRsRsFloatOperationWithFastMath):
 
     name = "riscv.fmin.d"
 
-    traits = traits_def(Pure())
+    traits = traits_def(AlwaysSpeculatable())
 
 
 @irdl_op_definition
@@ -3073,7 +3073,7 @@ class FMaxDOp(RdRsRsFloatOperationWithFastMath):
 
     name = "riscv.fmax.d"
 
-    traits = traits_def(Pure())
+    traits = traits_def(AlwaysSpeculatable())
 
 
 @irdl_op_definition
@@ -3089,7 +3089,7 @@ class FCvtDWOp(RdRsFloatOperation[IntRegisterType]):
 
     name = "riscv.fcvt.d.w"
 
-    traits = traits_def(Pure())
+    traits = traits_def(AlwaysSpeculatable())
 
 
 @irdl_op_definition
@@ -3105,7 +3105,7 @@ class FCvtDWuOp(RdRsFloatOperation[IntRegisterType]):
 
     name = "riscv.fcvt.d.wu"
 
-    traits = traits_def(Pure())
+    traits = traits_def(AlwaysSpeculatable())
 
 
 @irdl_op_definition
@@ -3122,7 +3122,7 @@ class FLdOp(RdRsImmFloatOperation):
 
     name = "riscv.fld"
 
-    traits = traits_def(FLdOpHasCanonicalizationPatternTrait())
+    traits = traits_def(FLdOpHasCanonicalizationPatternTrait(), MemoryReadEffect())
 
     def assembly_line(self) -> str | None:
         instruction_name = self.assembly_instruction_name()
@@ -3161,7 +3161,7 @@ class FSdOp(RsRsImmFloatOperation):
 
     name = "riscv.fsd"
 
-    traits = traits_def(FSdOpHasCanonicalizationPatternTrait())
+    traits = traits_def(FSdOpHasCanonicalizationPatternTrait(), MemoryWriteEffect())
 
     def assembly_line(self) -> str | None:
         instruction_name = self.assembly_instruction_name()
@@ -3192,7 +3192,7 @@ class FMvDOp(RdRsFloatOperation[FloatRegisterType]):
     name = "riscv.fmv.d"
 
     traits = traits_def(
-        Pure(),
+        AlwaysSpeculatable(),
         FMvDHasCanonicalizationPatternsTrait(),
     )
 
@@ -3221,7 +3221,7 @@ class VFAddSOp(RdRsRsFloatOperation[FloatRegisterType, FloatRegisterType]):
 
     name = "riscv.vfadd.s"
 
-    traits = traits_def(Pure())
+    traits = traits_def(AlwaysSpeculatable())
 
 
 @irdl_op_definition
@@ -3235,7 +3235,7 @@ class VFMulSOp(RdRsRsFloatOperation[FloatRegisterType, FloatRegisterType]):
 
     name = "riscv.vfmul.s"
 
-    traits = traits_def(Pure())
+    traits = traits_def(AlwaysSpeculatable())
 
 
 # endregion

@@ -17,24 +17,24 @@ from xdsl.pattern_rewriter import (
 
 def build_generic_fma(
     mul_op1: SSAValue, mul_op2: SSAValue, add_op: SSAValue, out: SSAValue
-) -> linalg.GenericOp:
+) -> linalg.ops.GenericOp:
     inputs = (mul_op1, mul_op2, add_op)
     outputs = (out,)
 
-    arg_types = linalg.NamedOperation.body_arg_types((*inputs, *outputs))
+    arg_types = linalg.abstract_ops.NamedOperation.body_arg_types((*inputs, *outputs))
 
     @Builder.implicit_region(arg_types)
     def body(args: tuple[BlockArgument, ...]) -> None:
         m = arith.MulfOp(args[0], args[1])
         a = arith.AddfOp(m, args[2])
-        linalg.YieldOp(a)
+        linalg.ops.YieldOp(a)
 
-    return linalg.GenericOp(
+    return linalg.ops.GenericOp(
         inputs,
         outputs,
         body,
         4 * [AffineMapAttr(AffineMap.from_callable(lambda i,: (i,)))],
-        [linalg.IteratorTypeAttr.parallel()],
+        [linalg.attrs.IteratorTypeAttr.parallel()],
         [out.type],
     )
 
@@ -45,10 +45,9 @@ class FuseMultiplyAddPass(RewritePattern):
     require_erasable_mul: bool
 
     @op_type_rewrite_pattern
-    def match_and_rewrite(self, mul: linalg.MulOp, rewriter: PatternRewriter, /):
-        if (
-            len(mul.res) != 1
-            or self.require_erasable_mul
+    def match_and_rewrite(self, mul: linalg.ops.MulOp, rewriter: PatternRewriter, /):
+        if len(mul.res) != 1 or (
+            self.require_erasable_mul
             and len(set(use.operation for use in mul.res[0].uses)) != 1
         ):
             return
@@ -56,7 +55,7 @@ class FuseMultiplyAddPass(RewritePattern):
         for add in set(
             use.operation
             for use in mul.res[0].uses
-            if isinstance(use.operation, linalg.AddOp)
+            if isinstance(use.operation, linalg.ops.AddOp)
             and mul.res[0] in use.operation.inputs
         ):
             # if the `require_scalar_factor` flag is set, check if either operand of `mul` is a scalar

@@ -72,3 +72,146 @@ func.func @gep_struct_out_of_range() {
 }
 
 // CHECK: GEP index #1: 5 is out of range for struct with 2 field(s)
+
+// -----
+
+func.func @constant_op_rejects_invalid_prop() {
+  %0 = "llvm.mlir.constant"() <{value = "invalid"}> : () -> i32
+  func.return
+}
+
+// CHECK: Unexpected attribute "invalid"
+
+// -----
+
+llvm.func @caller(%arg0: i32) -> i32 {
+  %0 = "llvm.call"(%arg0) <{callee = @unknown_fn, op_bundle_sizes = array<i32>, operandSegmentSizes = array<i32: 1, 0>}> : (i32) -> i32
+  llvm.return %0 : i32
+}
+
+// CHECK: '@unknown_fn' could not be found in symbol table
+
+// -----
+
+func.func @not_llvm_func(%arg0: i32) -> i32 {
+  func.return %arg0 : i32
+}
+
+llvm.func @caller(%arg0: i32) -> i32 {
+  %0 = "llvm.call"(%arg0) <{callee = @not_llvm_func, op_bundle_sizes = array<i32>, operandSegmentSizes = array<i32: 1, 0>}> : (i32) -> i32
+  llvm.return %0 : i32
+}
+
+// CHECK: '@not_llvm_func' must reference an 'llvm.func', but found 'func.func'
+
+// -----
+
+func.func @load_unknown_atomic_ordering() {
+  %ptr = "test.op"() : () -> !llvm.ptr
+  %v = llvm.load %ptr atomic bogus : !llvm.ptr -> i32
+  func.return
+}
+
+// CHECK: unknown atomic ordering 'bogus'
+
+// -----
+
+func.func @extractvalue_into_scalar() {
+  %v = "test.op"() : () -> i32
+  %r = llvm.extractvalue %v[0] : i32
+  func.return
+}
+
+// CHECK: cannot index into i32
+
+// -----
+
+func.func @insertvalue_into_scalar() {
+  %v = "test.op"() : () -> i32
+  %w = "test.op"() : () -> i32
+  %r = llvm.insertvalue %w, %v[0] : i32
+  func.return
+}
+
+// CHECK: cannot index into i32
+
+// -----
+
+func.func @inline_asm_unknown_dialect() {
+  %v = "test.op"() : () -> i32
+  llvm.inline_asm asm_dialect = bogus "nop", "" %v : (i32) -> ()
+  func.return
+}
+
+// CHECK: Expected one of 'att', 'intel' after 'asm_dialect ='
+
+// -----
+
+builtin.module {
+  llvm.mlir.global external @no_type_no_value() {addr_space = 0 : i32}
+}
+
+// CHECK: expected `:` followed by global type
+
+// -----
+
+func.func @insertelement_2d_vector() {
+  %vec, %val, %idx = "test.op"() : () -> (vector<4x4xf32>, f32, i32)
+  %r = llvm.insertelement %val, %vec[%idx : i32] : vector<4x4xf32>
+  func.return
+}
+
+// CHECK: incorrect length for range variable:
+// CHECK-NEXT: Invalid value 2, expected 1
+
+// -----
+
+func.func @shufflevector_mask_out_of_range() {
+  %v1 = "test.op"() : () -> vector<2xf32>
+  %v2 = "test.op"() : () -> vector<2xf32>
+  %shuf = llvm.shufflevector %v1, %v2 [0, 5] : vector<2xf32>
+  func.return
+}
+
+// CHECK: Mask value 5 out of range [-1, 4)
+
+// -----
+
+llvm.func @elementtype_on_func(%arg0: !llvm.ptr {llvm.elementtype = f32}) {
+  llvm.return
+}
+
+// CHECK: 'llvm.elementtype' on parameter 0 is invalid: elementtype can only be applied to intrinsic callsites
+
+// -----
+
+func.func @call_intrinsic_bad_name() {
+  llvm.call_intrinsic "not_an_intrinsic"() : () -> ()
+  func.return
+}
+
+// CHECK: intrinsic name must start with 'llvm.'
+
+// -----
+
+builtin.module {
+    %f = "test.op"() : () -> !llvm.func<void (index)>
+}
+
+// CHECK: LLVM function argument #0 has incompatible type 'index'
+
+// -----
+
+builtin.module {
+    %f = "test.op"() : () -> !llvm.func<index ()>
+}
+
+// CHECK: LLVM function result has incompatible type 'index'
+
+// -----
+
+builtin.module {
+    %f = "test.op"() : () -> !llvm.func<void (!llvm.void)>
+}
+
+// CHECK: LLVM function argument #0 has incompatible type '!llvm.void'

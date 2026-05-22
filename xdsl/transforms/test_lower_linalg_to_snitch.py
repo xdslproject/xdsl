@@ -18,6 +18,7 @@ from xdsl.transforms import (
     convert_memref_stream_to_loops,
     convert_memref_stream_to_snitch_stream,
     convert_riscv_scf_for_to_frep,
+    expand_math_to_polynomials,
     lower_affine,
     lower_snitch,
     memref_stream_fold_fill,
@@ -31,6 +32,7 @@ from xdsl.transforms import (
     reconcile_unrealized_casts,
     riscv_allocate_registers,
     riscv_lower_parallel_mov,
+    riscv_scf_for_infer_constant_step,
     riscv_scf_loop_range_folding,
     scf_for_loop_flatten,
     snitch_allocate_registers,
@@ -55,6 +57,7 @@ LOWER_MEMREF_STREAM_TO_SNITCH_STREAM_PASSES: tuple[ModulePass, ...] = (
     convert_memref_to_riscv.ConvertMemRefToRiscvPass(),
     lower_affine.LowerAffinePass(),
     convert_scf_to_riscv_scf.ConvertScfToRiscvPass(),
+    expand_math_to_polynomials.ExpandMathToPolynomialsPass(),
     convert_arith_to_riscv_snitch.ConvertArithToRiscvSnitchPass(),
     convert_arith_to_riscv.ConvertArithToRiscvPass(),
     convert_func_to_riscv_func.ConvertFuncToRiscvFuncPass(),
@@ -64,6 +67,7 @@ LOWER_MEMREF_STREAM_TO_SNITCH_STREAM_PASSES: tuple[ModulePass, ...] = (
 
 LOWER_SNITCH_STREAM_TO_ASM_PASSES: tuple[ModulePass, ...] = (
     canonicalize.CanonicalizePass(),
+    riscv_scf_for_infer_constant_step.RiscvScfForInferConstantStepPass(),
     convert_riscv_scf_for_to_frep.ConvertRiscvScfForToFrepPass(),
     snitch_allocate_registers.SnitchAllocateRegistersPass(),
     convert_snitch_stream_to_snitch.ConvertSnitchStreamToSnitch(),

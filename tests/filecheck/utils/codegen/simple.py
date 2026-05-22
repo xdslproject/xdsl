@@ -203,7 +203,8 @@ dump_dialect_pyfile(
 # CHECK-NEXT:  from xdsl.irdl import *
 # CHECK-NEXT:  from xdsl.traits import *
 
-# CHECK:       # ruff: noqa: F403, F405
+# CHECK:       # ruff
+# CHECK-SAME:  noqa: F403, F405
 
 # CHECK:       @irdl_attr_definition
 # CHECK-NEXT:  class Test_SingletonAType(ParametrizedAttribute, TypeAttribute):

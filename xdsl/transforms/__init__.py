@@ -530,6 +530,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return riscv_scf_loop_range_folding.RiscvScfLoopRangeFoldingPass
 
+    def get_riscv_scf_for_infer_constant_step():
+        from xdsl.transforms import riscv_scf_for_infer_constant_step
+
+        return riscv_scf_for_infer_constant_step.RiscvScfForInferConstantStepPass
+
     def get_scf_for_loop_flatten():
         from xdsl.transforms import scf_for_loop_flatten
 
@@ -604,6 +609,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         from xdsl.transforms import test_lower_linalg_to_snitch
 
         return test_lower_linalg_to_snitch.TestLowerLinalgToSnitchPass
+
+    def get_test_deprecation():
+        from xdsl.transforms import test_deprecation
+
+        return test_deprecation.TestDeprecationPass  # pyright: ignore[reportDeprecated]
 
     def get_test_specialised_constant_folding():
         from xdsl.transforms import test_constant_folding
@@ -768,6 +778,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "riscv-allocate-registers": get_riscv_allocate_registers,
         "riscv-lower-parallel-mov": get_riscv_lower_parallel_mov,
         "riscv-prologue-epilogue-insertion": get_riscv_prologue_epilogue_insertion,
+        "riscv-scf-for-infer-constant-step": get_riscv_scf_for_infer_constant_step,
         "riscv-scf-loop-range-folding": get_riscv_scf_loop_range_folding,
         "scf-for-loop-flatten": get_scf_for_loop_flatten,
         "scf-for-loop-range-folding": get_scf_for_loop_range_folding,
@@ -783,6 +794,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "stencil-unroll": get_stencil_unroll,
         "test-add-timers-to-top-level-funcs": get_test_add_timers_to_top_level_funcs,
         "test-constant-folding": get_test_constant_folding,
+        "test-deprecation": get_test_deprecation,
         "test-lower-linalg-to-snitch": get_test_lower_linalg_to_snitch,
         "test-specialised-constant-folding": get_test_specialised_constant_folding,
         "test-transform-dialect-erase-schedule": get_test_transform_dialect_erase_schedule,

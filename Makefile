@@ -74,8 +74,8 @@ filecheck: uv-installed ## run filecheck tests
 	uv run lit $(LIT_OPTIONS) tests/filecheck
 
 .PHONY: pytest
-pytest: uv-installed ## run pytest tests
-	uv run pytest tests -W error $(PYTEST_OPTIONS)
+pytest: uv-installed ## run pytest tests on tests and marimo (paths specified in pyproject.toml)
+	uv run pytest -W error $(PYTEST_OPTIONS)
 
 .PHONY: filecheck-toy
 filecheck-toy: uv-installed ## run tests for Toy tutorial
