@@ -271,6 +271,17 @@ class OriImmediateZero(RewritePattern):
             rewriter.replace_op(op, riscv.MVOp(op.rs1, rd=op.rd.type))
 
 
+class XoriZero(RewritePattern):
+    """
+    xor(x, 0) -> mv x
+    """
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: riscv.XoriOp, rewriter: PatternRewriter) -> None:
+        if isinstance(op.immediate, IntegerAttr) and op.immediate.value.data == 0:
+            rewriter.replace_op(op, riscv.MVOp(op.rs1, rd=op.rd.type))
+
+
 class XoriSelfInverse(RewritePattern):
     """
     (x ^ a) ^ a -> x

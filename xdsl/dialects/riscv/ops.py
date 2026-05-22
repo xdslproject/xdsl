@@ -221,9 +221,10 @@ class XoriOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
         from xdsl.transforms.canonicalization_patterns.riscv import (
             XoriImmediate,
             XoriSelfInverse,
+            XoriZero,
         )
 
-        return (XoriSelfInverse(), XoriImmediate())
+        return (XoriZero(), XoriSelfInverse(), XoriImmediate())
 
 
 @irdl_op_definition
