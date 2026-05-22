@@ -56,7 +56,20 @@ scripts.xdsl-tblgen = "xdsl.tools.xdsl_tblgen:main"
 entry-points."xdsl.universe".xdsl = "xdsl.universe:XDSL_UNIVERSE"
 
 [dependency-groups]
+<<<<<<< HEAD
 dev = [ "my-plugin", "toy", "xdsl[dev,gui,heir,llvm]" ]
+=======
+dev = ["xdsl[dev,gui,llvm,heir]", "my_plugin", "toy"]
+bench = [
+    "asv>=0.6.4",
+    "snakeviz>=2.2.2",
+    "viztracer>=1.0.1",
+    "flameprof>=0.4",
+    "orjson>=3.10.15",
+    "pyinstrument>=5.0.1",
+    "bytesight",
+]
+>>>>>>> bb1d5f25 (documentation: make toy a Python package installed in dev environments (#6104))
 docs = [
   "lzstring2",
   "micropip>=0.7",
