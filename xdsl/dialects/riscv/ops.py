@@ -2115,16 +2115,6 @@ class CZeroNezOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
 # See external [documentation](https://github.com/riscv-non-isa/riscv-asm-manual/blob/master/riscv-asm.md).
 
 
-class LiOpHasCanonicalizationPatternTrait(HasCanonicalizationPatternsTrait):
-    @classmethod
-    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.transforms.canonicalization_patterns.riscv import (
-            LoadImmediate0,
-        )
-
-        return (LoadImmediate0(),)
-
-
 @irdl_op_definition
 class EcallOp(NullaryOperation):
     """
