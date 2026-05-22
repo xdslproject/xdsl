@@ -52,17 +52,25 @@ def test_walk_symbol_table():
 def test_symbol_table_init():
     op_a = TestSymbolOp(properties={"sym_name": StringAttr("a")})
     op_b = TestSymbolOp(properties={"sym_name": StringAttr("b")})
-
     op_not_symbol = TestOp(properties={"sym_name": StringAttr("c")})
 
+    op_c = TestSymbolOp(properties={"sym_name": StringAttr("c")})
+    op_c_dup = TestSymbolOp(properties={"sym_name": StringAttr("c")})
+
     module = ModuleOp([op_a, op_b, op_not_symbol])
+    module_dup = ModuleOp([op_c, op_c_dup])
 
     assert SymbolTable(module) is not None
 
     with pytest.raises(
-        ValueError, match="Expected operation to have SymbolTable trait"
+        AssertionError, match="Expected operation to have SymbolTable trait"
     ):
         SymbolTable(op_a)
+
+    with pytest.raises(
+        AssertionError, match="Can't create SymbolTable with duplicate symbol names"
+    ):
+        SymbolTable(module_dup)
 
 
 def test_symbol_table_lookup():
