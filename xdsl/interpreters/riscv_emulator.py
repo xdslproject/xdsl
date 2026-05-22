@@ -24,7 +24,7 @@ def run_riscv(
     extensions: Sequence[type[InstructionSet]] = (),
     unlimited_regs: bool = False,
     verbosity: int = 5,
-    output: IO[str] | None = None,
+    output: IO[str],
 ):
     cfg = RunConfig(
         debug_instruction=False,
