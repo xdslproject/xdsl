@@ -18,13 +18,14 @@ from xdsl.interpreters.scf import ScfFunctions
 from xdsl.parser import Parser as IRParser
 from xdsl.printer import Printer
 
-from .compiler import context, emulate_riscv, transform
+from .compiler import context, transform
 from .emulator.toy_accelerator_instruction_functions import (
     ToyAcceleratorInstructionFunctions,
 )
 from .frontend.ir_gen import IRGen
 from .frontend.parser import ToyParser as ToyParser
 from .interpreter import Interpreter, ToyFunctions
+from .riscv_emulator import emulate_riscv
 
 
 def main() -> None:
