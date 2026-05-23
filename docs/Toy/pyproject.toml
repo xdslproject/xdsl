@@ -11,5 +11,5 @@ classifiers = [
   "Programming Language :: Python :: 3.14",
 ]
 dynamic = [ "version" ]
-dependencies = [ "xdsl" ]
+dependencies = [ "riscemu==2.2.7", "xdsl" ]
 scripts.toyc = "toy.__main__:main"

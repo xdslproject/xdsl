@@ -68,7 +68,6 @@ docs = [
   "mkdocs-simple-hooks>=0.1.5",
   "mkdocstrings[python]>=0.27",
   "pymdown-extensions>=10.7",
-  "riscemu==2.2.7",
 ]
 bench = [
   "asv>=0.6.4",
@@ -175,7 +174,7 @@ include = [ "docs", "xdsl", "tests", "benchmarks" ]
 exclude = [ "docs/marimo" ]
 
 [tool.pytest]
-ini_options.python_files = [ "tests/*test_*.py", "docs/*test_*.py", "docs/marimo/**.py" ]
+ini_options.python_files = [ "tests/*test_*.py", "docs/marimo/**.py" ]
 ini_options.python_classes = "Test_*"
 ini_options.python_functions = "test_*"
 ini_options.addopts = [ "--durations=20", "--maxfail=5", "--import-mode=importlib" ]
