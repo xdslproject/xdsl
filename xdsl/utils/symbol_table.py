@@ -97,17 +97,13 @@ class SymbolTable:
 
     def remove(self, op: Operation) -> None:
         """Remove the given symbol from the table, without deleting it."""
-        name = get_name_if_symbol(op)
-
-        if name is None:
+        if (name := get_name_if_symbol(op)) is None:
             raise ValueError("Expected valid 'name' attribute")
 
-        if name not in self._symbol_table:
+        if self._symbol_table.pop(name, None) is None:
             raise ValueError(
                 "Expected this operation to be inside of the operation with this SymbolTable"
             )
-
-        self._symbol_table.pop(name)
 
     def erase(self, op: Operation) -> None:
         """Erase the given symbol from the table and delete the operation."""
