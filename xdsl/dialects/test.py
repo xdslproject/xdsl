@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 
+from xdsl.backend.register_type import RegisterType
 from xdsl.dialect_interfaces.op_asm import OpAsmDialectInterface
 from xdsl.dialects.builtin import IntegerAttr, IntegerType, SymbolNameConstraint
 from xdsl.interfaces import HasFolderInterface
@@ -327,6 +328,19 @@ class TestSymbolOp(IRDLOperation):
         )
 
 
+@irdl_attr_definition
+class TestRegisterType(RegisterType):
+    name = "test.reg"
+
+    @classmethod
+    def index_by_name(cls) -> dict[str, int]:
+        return {"x0": 0, "x1": 1, "a0": 0, "a1": 1}
+
+    @classmethod
+    def infinite_register_prefix(cls):
+        return "y"
+
+
 Test = Dialect(
     "test",
     [
@@ -339,6 +353,7 @@ Test = Dialect(
     ],
     [
         TestType,
+        TestRegisterType,
     ],
     [OpAsmDialectInterface()],
 )
