@@ -63,7 +63,7 @@ Here are some examples of first PRs from existing contributors:
 The first step is finding a missing optimisation pattern.
 You're welcome to come up with your own, or do one of the following:
 
-- `xori %x, 0`  to `mv %x` (always x)
+- `%y = xori %x, a; %z = xori %y, b`  to `%z = xori %x, a ^ b` ((x ^ a) ^ b = x ^ (a ^ b))
 - `div 0, %x` to `li 0` (%x != 0)
 
 The patterns are defined in
