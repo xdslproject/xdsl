@@ -2,14 +2,17 @@
 The `asm` dialect provides utilities for embedding assembly-level abstractions in higher-level functions.
 """
 
+from collections.abc import Sequence
+
 from xdsl import ir, irdl
 from xdsl.backend.register_type import RegisterType
+from xdsl.interfaces import HasFolderInterface
 from xdsl.traits import Pure
 from xdsl.utils.exceptions import VerifyException
 
 
 @irdl.irdl_op_definition
-class FromRegOp(irdl.IRDLOperation):
+class FromRegOp(irdl.IRDLOperation, HasFolderInterface):
     """
     Get the value stored in a given register.
     """
@@ -36,9 +39,13 @@ class FromRegOp(irdl.IRDLOperation):
                 f"equal to own value type {self.value.type}."
             )
 
+    def fold(self) -> Sequence[ir.SSAValue | ir.Attribute] | None:
+        if isinstance(to_reg_op := self.register.owner, ToRegOp):
+            return (to_reg_op.value,)
+
 
 @irdl.irdl_op_definition
-class ToRegOp(irdl.IRDLOperation):
+class ToRegOp(irdl.IRDLOperation, HasFolderInterface):
     """
     Get the register holding a given value.
     """
@@ -64,6 +71,10 @@ class ToRegOp(irdl.IRDLOperation):
                 f"Expected original register type {from_reg_op.register.type} to be "
                 f"equal to own register type {self.register.type}."
             )
+
+    def fold(self) -> Sequence[ir.SSAValue | ir.Attribute] | None:
+        if isinstance(from_reg_op := self.value.owner, FromRegOp):
+            return (from_reg_op.register,)
 
 
 ASM = ir.Dialect(
