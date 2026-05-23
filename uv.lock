@@ -3673,6 +3673,20 @@ wheels = [
 ]
 
 [[package]]
+name = "toy"
+source = { editable = "docs/Toy" }
+dependencies = [
+    { name = "riscemu" },
+    { name = "xdsl" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "riscemu", specifier = "==2.2.7" },
+    { name = "xdsl" },
+]
+
+[[package]]
 name = "traitlets"
 version = "5.15.0"
 source = { registry = "https://pypi.org/simple" }
@@ -3984,8 +3998,8 @@ bench = [
 ]
 dev = [
     { name = "my-plugin" },
-    { name = "xdsl", extra = ["dev", "gui", "heir", "llvm"] },
     { name = "toy" },
+    { name = "xdsl", extra = ["dev", "gui", "heir", "llvm"] },
 ]
 docs = [
     { name = "lzstring2" },
@@ -3999,36 +4013,35 @@ docs = [
     { name = "mkdocs-simple-hooks" },
     { name = "mkdocstrings", extra = ["python"] },
     { name = "pymdown-extensions" },
-    { name = "riscemu" },
 ]
 
 [package.metadata]
 requires-dist = [
-    { name = "coverage", marker = "extra == 'dev'", specifier = "<8.0.0" },
+    { name = "coverage", marker = "extra == 'dev'", specifier = "<8" },
     { name = "filecheck", marker = "extra == 'dev'", specifier = "==1.0.3" },
     { name = "heir-py", marker = "python_full_version >= '3.11' and python_full_version < '3.13' and extra == 'heir'", specifier = "==2026.5.18" },
     { name = "immutabledict", specifier = "<4.3.2" },
     { name = "ipykernel", marker = "extra == 'dev'" },
-    { name = "lit", marker = "extra == 'dev'", specifier = "<19.0.0" },
+    { name = "lit", marker = "extra == 'dev'", specifier = "<19" },
     { name = "llvmlite", marker = "extra == 'llvm'", specifier = "~=0.47.0" },
     { name = "marimo", marker = "extra == 'dev'", specifier = ">=0.23,<0.24" },
-    { name = "nbconvert", marker = "extra == 'dev'", specifier = ">=7.7.2,<8.0.0" },
+    { name = "nbconvert", marker = "extra == 'dev'", specifier = ">=7.7.2,<8" },
     { name = "nbval", marker = "extra == 'dev'", specifier = "<0.12" },
-    { name = "ordered-set", specifier = "==4.1.0" },
+    { name = "ordered-set", specifier = "==4.1" },
     { name = "prek", marker = "extra == 'dev'", specifier = "~=0.4.0" },
     { name = "pyclip", marker = "extra == 'gui'", specifier = "==0.7" },
     { name = "pyright", marker = "extra == 'dev'", specifier = "==1.1.409" },
     { name = "pytest", marker = "extra == 'dev'", specifier = "<9.1" },
-    { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = "==1.3.0" },
+    { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = "==1.3" },
     { name = "pytest-cov", marker = "extra == 'dev'" },
     { name = "ruff", marker = "extra == 'dev'", specifier = "==0.15.14" },
-    { name = "sympy", marker = "extra == 'dev'", specifier = "==1.14.0" },
+    { name = "sympy", marker = "extra == 'dev'", specifier = "==1.14" },
     { name = "textual", marker = "extra == 'gui'", specifier = ">=8,<9" },
-    { name = "textual-dev", marker = "extra == 'dev'", specifier = "==1.8.0" },
+    { name = "textual-dev", marker = "extra == 'dev'", specifier = "==1.8" },
     { name = "toml", marker = "extra == 'dev'", specifier = "<0.11" },
     { name = "typing-extensions", specifier = ">=4.7,<5" },
 ]
-provides-extras = ["dev", "gui", "llvm", "heir"]
+provides-extras = ["dev", "gui", "heir", "llvm"]
 
 [package.metadata.requires-dev]
 bench = [
@@ -4042,32 +4055,21 @@ bench = [
 ]
 dev = [
     { name = "my-plugin", editable = "tests/my_plugin" },
-    { name = "xdsl", extras = ["dev", "gui", "llvm", "heir"] },
     { name = "toy", editable = "docs/Toy" },
+    { name = "xdsl", extras = ["dev", "gui", "heir", "llvm"] },
 ]
 docs = [
     { name = "lzstring2", git = "https://github.com/superlopuh/lz-string.git" },
     { name = "micropip", specifier = ">=0.7" },
     { name = "mkdocs", specifier = ">=1.6.1" },
     { name = "mkdocs-awesome-nav", specifier = ">=3.1.2" },
-    { name = "mkdocs-gen-files", specifier = ">=0.5.0" },
+    { name = "mkdocs-gen-files", specifier = ">=0.5" },
     { name = "mkdocs-marimo", specifier = ">=0.2.1" },
     { name = "mkdocs-material", specifier = ">=9.5.49" },
     { name = "mkdocs-simple-hooks", specifier = ">=0.1.5" },
-    { name = "mkdocstrings", extras = ["python"], specifier = ">=0.27.0" },
+    { name = "mkdocstrings", extras = ["python"], specifier = ">=0.27" },
     { name = "pymdown-extensions", specifier = ">=10.7" },
-    { name = "riscemu", specifier = "==2.2.7" },
 ]
-
-[[package]]
-name = "toy"
-source = { editable = "docs/Toy" }
-dependencies = [
-    { name = "xdsl" },
-]
-
-[package.metadata]
-requires-dist = [{ name = "xdsl" }]
 
 [[package]]
 name = "yarl"
