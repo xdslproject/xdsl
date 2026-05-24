@@ -3713,6 +3713,39 @@ class FPowOp(IRDLOperation):
 
 
 @irdl_op_definition
+class VectorReduceFAddOp(IRDLOperation):
+    T: ClassVar = VarConstraint("T", AnyFloatConstr)
+
+    name = "llvm.intr.vector.reduce.fadd"
+
+    start_value = operand_def(T)
+    vector = operand_def(VectorType.constr(T))
+    res = result_def(T)
+
+    fastmathFlags = prop_def(FastMathAttr, default_value=FastMathAttr(None))
+
+    assembly_format = "`(` $start_value `,` $vector `)` attr-dict `:` type($vector)"
+
+    irdl_options = (ParsePropInAttrDict(),)
+
+    traits = traits_def(Pure())
+
+    def __init__(
+        self,
+        start_value: Operation | SSAValue,
+        vector: Operation | SSAValue,
+        fast_math: FastMathAttr | FastMathFlag | None = None,
+    ):
+        if not isinstance(fast_math, FastMathAttr):
+            fast_math = FastMathAttr(fast_math)
+        super().__init__(
+            operands=[start_value, vector],
+            result_types=[SSAValue.get(start_value).type],
+            properties={"fastmathFlags": fast_math},
+        )
+
+
+@irdl_op_definition
 class UnreachableOp(IRDLOperation):
     name = "llvm.unreachable"
 
@@ -3787,6 +3820,7 @@ LLVM = Dialect(
         UnreachableOp,
         VectorFMaxOp,
         VectorFMinOp,
+        VectorReduceFAddOp,
         XOrOp,
         ZExtOp,
         ZeroOp,

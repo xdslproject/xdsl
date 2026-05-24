@@ -762,6 +762,15 @@ def test_fpow_op():
     assert op.res.type == builtin.f32
 
 
+def test_vector_reduce_fadd_op():
+    start = create_ssa_value(builtin.f32)
+    vec = create_ssa_value(builtin.VectorType(builtin.f32, [4]))
+    op = llvm.VectorReduceFAddOp(start, vec)
+    assert op.start_value == start
+    assert op.vector == vec
+    assert op.res.type == builtin.f32
+
+
 def test_cond_br_op():
     cond = create_ssa_value(builtin.i1)
     then_block = Block()
