@@ -176,6 +176,18 @@
 %pow_vec = llvm.intr.pow(%vec_f32, %vec_f32) : (vector<4xf32>, vector<4xf32>) -> vector<4xf32>
 // CHECK-NEXT: %pow_vec = llvm.intr.pow(%vec_f32, %vec_f32) : (vector<4xf32>, vector<4xf32>) -> vector<4xf32>
 
+%scalar_f64 = "test.op"() : () -> f64
+%vec_f64 = "test.op"() : () -> vector<2xf64>
+
+%reduce_fmul_f32 = llvm.intr.vector.reduce.fmul(%f32, %vec_f32) : vector<4xf32>
+// CHECK: %reduce_fmul_f32 = llvm.intr.vector.reduce.fmul(%f32, %vec_f32) : vector<4xf32>
+
+%reduce_fmul_f64 = llvm.intr.vector.reduce.fmul(%scalar_f64, %vec_f64) : vector<2xf64>
+// CHECK: %reduce_fmul_f64 = llvm.intr.vector.reduce.fmul(%scalar_f64, %vec_f64) : vector<2xf64>
+
+%reduce_fmul_fast = llvm.intr.vector.reduce.fmul(%f32, %vec_f32) {fastmathFlags = #llvm.fastmath<fast>} : vector<4xf32>
+// CHECK: %reduce_fmul_fast = llvm.intr.vector.reduce.fmul(%f32, %vec_f32) {fastmathFlags = #llvm.fastmath<fast>} : vector<4xf32>
+
 "test.op"() ({
 ^bb0(%br_arg: i32):
   llvm.br ^bb1(%br_arg : i32)
