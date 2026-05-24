@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 from xdsl.backend.x86.lowering.helpers import Arch
 from xdsl.context import Context
-from xdsl.dialects import builtin, func, x86, x86_func
+from xdsl.dialects import asm, builtin, func, x86, x86_func
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.dialects.x86.registers import GeneralRegisterType
 from xdsl.ir import Attribute, Block
@@ -89,11 +89,9 @@ class LowerFuncOp(RewritePattern):
             mov_op = x86.DS_MovOp(
                 source=register, destination=register_type.unallocated()
             )
-            cast_op, parameter = builtin.UnrealizedConversionCastOp.cast_one(
-                mov_op.destination, arg.type
-            )
+            cast_op = asm.FromRegOp.get(mov_op.destination, arg.type)
             rewriter.insert_op([mov_op, cast_op], insertion_point)
-            arg.replace_all_uses_with(parameter)
+            arg.replace_all_uses_with(cast_op.value)
             first_block.erase_arg(arg)
 
         # The last argument of the basic block should be the stack pointer
@@ -116,9 +114,7 @@ class LowerFuncOp(RewritePattern):
                 destination=destination_reg,
                 comment=f"Load the {i + MAX_REG_PASSING_INPUTS + 1}th argument of the function",
             )
-            cast_op = builtin.UnrealizedConversionCastOp.get(
-                (mov_op.destination,), (arg.type,)
-            )
+            cast_op = asm.FromRegOp.get(mov_op.destination, arg.type)
             rewriter.insert_op([mov_op, cast_op], insertion_point)
             arg.replace_all_uses_with(cast_op.results[0])
             first_block.erase_arg(arg)
@@ -169,9 +165,7 @@ class LowerReturnOp(RewritePattern):
             )
 
         ret_unalloc = self.arch.register_type_for_type(return_value.type).unallocated()
-        cast_op = builtin.UnrealizedConversionCastOp.get(
-            (return_value,), (ret_unalloc,)
-        )
+        cast_op = asm.ToRegOp.get(return_value, ret_unalloc)
         mov_op = x86.ops.DS_MovOp(
             cast_op, destination=ret_unalloc.from_index(RETURN_PASSING_REGISTER)
         )

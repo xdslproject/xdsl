@@ -5,9 +5,8 @@ from typing import cast, overload
 
 from typing_extensions import deprecated
 
-from xdsl.backend.utils import cast_to_regs
 from xdsl.builder import Builder
-from xdsl.dialects import ptr, x86
+from xdsl.dialects import asm, ptr, x86
 from xdsl.dialects.builtin import (
     FixedBitwidthType,
     IndexType,
@@ -104,7 +103,12 @@ class Arch(StrEnum):
     def cast_to_regs(
         self, values: Sequence[SSAValue], builder: Builder
     ) -> list[SSAValue]:
-        return cast_to_regs(values, self.register_type_for_type, builder)
+        return [
+            builder.insert(
+                asm.ToRegOp.get(v, self.register_type_for_type(v.type).unallocated())
+            ).register
+            for v in values
+        ]
 
     @deprecated("Please use `arch.cast_to_regs(values, rewriter)`")
     def cast_operands_to_regs(self, rewriter: PatternRewriter) -> list[SSAValue]:
