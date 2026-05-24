@@ -3,7 +3,7 @@
 from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import auto
-from typing import Literal
+from typing import Any, Literal
 
 import pytest
 from typing_extensions import Self, TypeVar
@@ -157,6 +157,20 @@ def test_base_attr_verify_wrong_base_fail():
         VerifyException, match=f"{int_zero} should be of base attribute {BoolData.name}"
     ):
         eq_true_constraint.verify(int_zero, ConstraintContext())
+
+
+def test_base_attr_verify_wrong_abstractbase_fail():
+    """
+    Check that a BaseAttr constraint fails to verify an attribute with a
+    different base attribute.
+    """
+    any_data_constraint = BaseAttr[Data[Any]](Data)
+    parametrized_attr = DoubleParamAttr(IntData(0), IntData(1))
+    with pytest.raises(
+        VerifyException,
+        match=f"{parametrized_attr} should be of attribute subclassing `Data`",
+    ):
+        any_data_constraint.verify(parametrized_attr, ConstraintContext())
 
 
 def test_any_attr_verify():

@@ -358,9 +358,14 @@ class BaseAttr(AttrConstraint[AttributeCovT], Generic[AttributeCovT]):
         constraint_context: ConstraintContext,
     ) -> None:
         if not isinstance(attr, self.attr):
-            raise VerifyException(
-                f"{attr} should be of base attribute {self.attr.name}"
-            )
+            if hasattr(self.attr, "name"):
+                raise VerifyException(
+                    f"{attr} should be of base attribute {self.attr.name}"
+                )
+            else:
+                raise VerifyException(
+                    f"{attr} should be of attribute subclassing `{self.attr.__name__}`"
+                )
 
     def can_infer(self, var_constraint_names: AbstractSet[str]) -> bool:
         return (
