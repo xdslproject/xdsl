@@ -762,6 +762,13 @@ def test_fpow_op():
     assert op.res.type == builtin.f32
 
 
+def test_stacksave_op():
+    op = llvm.StackSaveOp()
+    assert not op.operands
+    assert isinstance(op.res.type, llvm.LLVMPointerType)
+    assert isinstance(op.res.type.addr_space, builtin.NoneAttr)
+
+
 def test_cond_br_op():
     cond = create_ssa_value(builtin.i1)
     then_block = Block()
