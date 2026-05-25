@@ -3725,6 +3725,18 @@ class StackSaveOp(IRDLOperation):
 
 
 @irdl_op_definition
+class StackRestoreOp(IRDLOperation):
+    name = "llvm.intr.stackrestore"
+
+    ptr = operand_def(LLVMPointerType)
+
+    assembly_format = "$ptr attr-dict `:` type($ptr)"
+
+    def __init__(self, ptr: Operation | SSAValue):
+        super().__init__(operands=[ptr])
+
+
+@irdl_op_definition
 class UnreachableOp(IRDLOperation):
     name = "llvm.unreachable"
 
@@ -3790,6 +3802,7 @@ LLVM = Dialect(
         SRemOp,
         ShlOp,
         ShuffleVectorOp,
+        StackRestoreOp,
         StackSaveOp,
         StoreOp,
         SubOp,
