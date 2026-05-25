@@ -151,3 +151,6 @@
 
 llvm.intr.masked.store %vec_val, %ptr, %vec_mask {alignment = 32 : i32} : vector<4xf32>, vector<4xi1> into !llvm.ptr
 // CHECK: llvm.intr.masked.store [[vec_val]], [[ptr]], [[vec_mask]] {alignment = 32 : i32} : vector<4xf32>, vector<4xi1> into !llvm.ptr
+
+%stack = llvm.intr.stacksave : !llvm.ptr
+// CHECK: llvm.intr.stacksave : !llvm.ptr
