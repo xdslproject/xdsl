@@ -3724,6 +3724,44 @@ class StackSaveOp(IRDLOperation):
         super().__init__(result_types=[LLVMPointerType()])
 
 
+class VectorReduceOperation(IRDLOperation, ABC):
+    T: ClassVar = VarConstraint("T", AnyFloatConstr)
+
+    start_value = operand_def(T)
+    vector = operand_def(VectorType.constr(T))
+    res = result_def(T)
+
+    fastmathFlags = prop_def(FastMathAttr, default_value=FastMathAttr(None))
+
+    irdl_options = (ParsePropInAttrDict(),)
+
+    traits = traits_def(Pure())
+
+    def __init__(
+        self,
+        start_value: Operation | SSAValue,
+        vector: Operation | SSAValue,
+        fast_math: FastMathAttr | FastMathFlag | None = None,
+    ):
+        if not isinstance(fast_math, FastMathAttr):
+            fast_math = FastMathAttr(fast_math)
+        super().__init__(
+            operands=[start_value, vector],
+            result_types=[SSAValue.get(start_value).type],
+            properties={"fastmathFlags": fast_math},
+        )
+
+
+@irdl_op_definition
+class VectorReduceFAddOp(VectorReduceOperation):
+    name = "llvm.intr.vector.reduce.fadd"
+
+
+@irdl_op_definition
+class VectorReduceFMulOp(VectorReduceOperation):
+    name = "llvm.intr.vector.reduce.fmul"
+
+
 @irdl_op_definition
 class UnreachableOp(IRDLOperation):
     name = "llvm.unreachable"
@@ -3800,6 +3838,8 @@ LLVM = Dialect(
         UnreachableOp,
         VectorFMaxOp,
         VectorFMinOp,
+        VectorReduceFAddOp,
+        VectorReduceFMulOp,
         XOrOp,
         ZExtOp,
         ZeroOp,
