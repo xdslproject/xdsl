@@ -373,50 +373,6 @@ def _convert_masked_store(
     builder.call(intrinsic, [value, ptr, alignment, mask])
 
 
-_FLOAT_TYPES = (ir.HalfType, ir.FloatType, ir.DoubleType)
-
-
-def _intrinsic_suffix(t: ir.Type) -> str:
-    if isinstance(t, ir.VectorType):
-        assert isinstance(t.element, _FLOAT_TYPES)
-        return f"v{t.count}{t.element.intrinsic_name}"
-    assert isinstance(t, (ir.HalfType, ir.FloatType, ir.DoubleType, ir.IntType))
-    return t.intrinsic_name
-
-
-def _declare_intrinsic(
-    module: ir.Module,
-    name: str,
-    ty: ir.Type,
-    fnty: ir.FunctionType,
-) -> ir.Function:
-    full_name = f"{name}.{_intrinsic_suffix(ty)}"
-    if full_name in module.globals:
-        return cast(ir.Function, module.globals[full_name])
-    return ir.Function(module, fnty, name=full_name)
-
-
-_VECTOR_REDUCE_INTRINSIC_MAP: dict[type[Operation], str] = {
-    llvm.VectorReduceFAddOp: "llvm.vector.reduce.fadd",
-    llvm.VectorReduceFMulOp: "llvm.vector.reduce.fmul",
-}
-
-
-def _convert_vector_reduce(
-    op: Operation, builder: ir.IRBuilder, val_map: dict[SSAValue, ir.Value]
-):
-    start = val_map[op.operands[0]]
-    vector = val_map[op.operands[1]]
-    vec_type = vector.type
-    assert isinstance(vec_type, ir.VectorType)
-    elt_type = vec_type.element
-    fn_type = ir.FunctionType(elt_type, [elt_type, vec_type])
-    intrinsic = _declare_intrinsic(
-        builder.module, _VECTOR_REDUCE_INTRINSIC_MAP[type(op)], vec_type, fn_type
-    )
-    val_map[op.results[0]] = builder.call(intrinsic, [start, vector])
-
-
 def _convert_fma(
     op: llvm.FMAOp,
     builder: ir.IRBuilder,
@@ -428,8 +384,18 @@ def _convert_fma(
     b = val_map[op.b]
     c = val_map[op.c]
     res_type = convert_type(op.res.type)
+    _float_types = (ir.HalfType, ir.FloatType, ir.DoubleType)
+    if isinstance(res_type, ir.VectorType):
+        assert isinstance(res_type.element, _float_types)
+        name = f"llvm.fma.v{res_type.count}{res_type.element.intrinsic_name}"
+    else:
+        assert isinstance(res_type, _float_types)
+        name = f"llvm.fma.{res_type.intrinsic_name}"
     fn_type = ir.FunctionType(res_type, [res_type, res_type, res_type])
-    intrinsic = _declare_intrinsic(builder.module, "llvm.fma", res_type, fn_type)
+    try:
+        intrinsic = builder.module.get_global(name)
+    except KeyError:
+        intrinsic = ir.Function(builder.module, fn_type, name=name)
     val_map[op.res] = builder.call(intrinsic, [a, b, c])
 
 
@@ -541,8 +507,6 @@ def convert_op(
             _convert_unary_intrinsic(op, builder, val_map)
         case op if type(op) in _BINARY_INTRINSIC_MAP:
             _convert_binary_intrinsic(op, builder, val_map)
-        case op if type(op) in _VECTOR_REDUCE_INTRINSIC_MAP:
-            _convert_vector_reduce(op, builder, val_map)
         case llvm.FNegOp():
             _convert_fneg(op, builder, val_map)
         case llvm.CallOp():
