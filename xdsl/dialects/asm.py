@@ -5,6 +5,7 @@ The `asm` dialect provides utilities for embedding assembly-level abstractions i
 from xdsl import ir, irdl
 from xdsl.backend.register_type import RegisterType
 from xdsl.traits import Pure
+from xdsl.utils.exceptions import VerifyException
 
 
 @irdl.irdl_op_definition
@@ -25,6 +26,16 @@ class FromRegOp(irdl.IRDLOperation):
     def __init__(self, register: ir.SSAValue | ir.Operation, result_type: ir.Attribute):
         super().__init__(operands=(register,), result_types=(result_type,))
 
+    def verify_(self) -> None:
+        if (
+            isinstance(to_reg_op := self.register.owner, ToRegOp)
+            and to_reg_op.value.type != self.value.type
+        ):
+            raise VerifyException(
+                f"Expected original value type {to_reg_op.value.type} to be "
+                f"equal to own value type {self.value.type}."
+            )
+
 
 @irdl.irdl_op_definition
 class ToRegOp(irdl.IRDLOperation):
@@ -43,6 +54,16 @@ class ToRegOp(irdl.IRDLOperation):
 
     def __init__(self, value: ir.SSAValue | ir.Operation, result_type: RegisterType):
         super().__init__(operands=(value,), result_types=(result_type,))
+
+    def verify_(self) -> None:
+        if (
+            isinstance(from_reg_op := self.value.owner, FromRegOp)
+            and from_reg_op.register.type != self.register.type
+        ):
+            raise VerifyException(
+                f"Expected original register type {from_reg_op.register.type} to be "
+                f"equal to own register type {self.register.type}."
+            )
 
 
 ASM = ir.Dialect(
