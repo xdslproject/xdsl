@@ -6,6 +6,7 @@ for more details.
 
 from collections.abc import Mapping
 from dataclasses import dataclass
+from itertools import pairwise
 from typing import cast
 
 from typing_extensions import TypeVar
@@ -59,7 +60,7 @@ class ContiguousArrayOfIntArray(AttrConstraint[ArrayOfIntArrayAttr]):
         # Flatten all integer values from all inner arrays
         flat_values = [e.value.data for inner in attr.data for e in inner.data]
         # Check that the flattened list is contiguous
-        for prev, curr in zip(flat_values, flat_values[1:]):
+        for prev, curr in pairwise(flat_values):
             if curr != prev + 1:
                 raise VerifyException(f"All inner arrays must be contiguous: {attr}")
 

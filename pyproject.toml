@@ -112,7 +112,6 @@ lint.ignore = [
   "RUF002", # https://docs.astral.sh/ruff/rules/ambiguous-unicode-character-docstring
   "RUF003", # https://docs.astral.sh/ruff/rules/ambiguous-unicode-character-comment
   "RUF005", # https://docs.astral.sh/ruff/rules/collection-literal-concatenation
-  "RUF007", # https://docs.astral.sh/ruff/rules/zip-instead-of-pairwise
   "RUF012", # https://docs.astral.sh/ruff/rules/mutable-class-default
   "RUF015", # https://docs.astral.sh/ruff/rules/unnecessary-iterable-allocation-for-first-element
   "RUF018", # https://docs.astral.sh/ruff/rules/assignment-in-assert
