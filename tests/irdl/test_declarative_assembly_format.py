@@ -86,6 +86,7 @@ from xdsl.irdl.declarative_assembly_format import (
     FormatProgram,
     OperandsDirective,
     OperandVariable,
+    OptionalFormatDirective,
     ParsingState,
     PrintingState,
     PunctuationDirective,
@@ -3873,9 +3874,8 @@ def test_qualified_attr():
 
 @irdl_custom_directive
 class Hello(CustomDirective):
-    def parse(self, parser: Parser, state: ParsingState) -> bool:
+    def parse(self, parser: Parser, state: ParsingState):
         parser.parse_keyword("hello")
-        return True
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         state.print_whitespace(printer)
@@ -3906,12 +3906,12 @@ def test_custom_directive(program: str):
 
 
 @irdl_custom_directive
-class Bars(CustomDirective):
+class Bars(CustomDirective, OptionalFormatDirective):
     """We print the operands with bars between, because why not."""
 
     var: VariadicOperandVariable
 
-    def parse(self, parser: Parser, state: ParsingState) -> bool:
+    def parse_optional(self, parser: Parser, state: ParsingState) -> bool:
         first = parser.parse_optional_unresolved_operand()
         if first is None:
             operands = []
@@ -3963,10 +3963,10 @@ def test_non_upper_classvar():
     ):
 
         @irdl_custom_directive
-        class BadClassVar(CustomDirective):  # pyright: ignore[reportUnusedClass]
+        class BadClassVar(CustomDirective, OptionalFormatDirective):  # pyright: ignore[reportUnusedClass]
             bad: ClassVar
 
-            def parse(self, parser: Parser, state: ParsingState) -> bool:
+            def parse(self, parser: Parser, state: ParsingState) -> None:
                 raise NotImplementedError()
 
             def print(
@@ -3985,7 +3985,7 @@ def test_bad_parameter():
         class BadParam(CustomDirective):  # pyright: ignore[reportUnusedClass]
             int_param: int
 
-            def parse(self, parser: Parser, state: ParsingState) -> bool:
+            def parse(self, parser: Parser, state: ParsingState) -> None:
                 raise NotImplementedError()
 
             def print(
@@ -4007,8 +4007,7 @@ class EmptyDirectiveWithParams(CustomDirective):
     operand_types: TypeDirective
     results: TypeDirective
 
-    def parse(self, parser: Parser, state: ParsingState) -> bool:
-        return True
+    def parse(self, parser: Parser, state: ParsingState) -> None: ...
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
         pass
