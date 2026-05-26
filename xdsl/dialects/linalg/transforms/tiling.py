@@ -6,7 +6,6 @@ from xdsl.dialects import linalg
 from xdsl.dialects.builtin import MemRefType
 from xdsl.ir import Attribute
 from xdsl.ir.affine import AffineDimExpr, AffineMap
-from xdsl.utils.exceptions import PassFailedException
 from xdsl.utils.hints import isa
 
 
@@ -126,15 +125,15 @@ def _verify_generic_is_tileable(
     """
 
     if any(tile_sizes[dim] < 0 for dim in tiled_dims):
-        raise PassFailedException("negative tile sizes are not supported")
+        raise ValueError("negative tile sizes are not supported")
 
     if op.res:
-        raise PassFailedException(
+        raise NotImplementedError(
             "tiling linalg.generic with tensor results is not supported yet"
         )
 
     if any(isa(body_op, linalg.ops.IndexOp) for body_op in op.body.walk()):
-        raise PassFailedException(
+        raise ValueError(
             "tiling linalg.generic using linalg.index is not supported yet"
         )
 
@@ -142,7 +141,7 @@ def _verify_generic_is_tileable(
     if any(
         iterator_types[dim] != linalg.attrs.IteratorType.PARALLEL for dim in tiled_dims
     ):
-        raise PassFailedException(
+        raise ValueError(
             "tiling of non-parallel iterator dimensions is not supported yet"
         )
 
@@ -151,23 +150,23 @@ def _verify_generic_is_tileable(
         raw_operand_type = operand.type
 
         if not isa(raw_operand_type, MemRefType):
-            raise PassFailedException(
+            raise NotImplementedError(
                 "tiling linalg.generic with non-memref operands is not supported yet"
             )
         operand_type = raw_operand_type
 
         if any(dim < 0 for dim in operand_type.get_shape()):
-            raise PassFailedException(
+            raise ValueError(
                 "tiling linalg.generic with dynamic operand shapes is not supported yet"
             )
 
         if not indexing_map.is_projected_permutation():
-            raise PassFailedException(
+            raise ValueError(
                 "tiling linalg.generic with non-projected-permutation indexing maps is not supported yet"
             )
 
     loop_ranges = op.get_static_loop_ranges()
     if any(loop_ranges[dim] % tile_sizes[dim] for dim in tiled_dims):
-        raise PassFailedException("partial tiles are not supported yet")
+        raise ValueError("partial tiles are not supported yet")
 
     return loop_ranges
