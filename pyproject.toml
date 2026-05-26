@@ -34,7 +34,7 @@ optional-dependencies.dev = [
   "prek~=0.4.0",
   "pyright==1.1.409",
   "pytest<9.1",
-  "pytest-asyncio==1.4.0",
+  "pytest-asyncio",
   "pytest-cov",
   "ruff==0.15.14",
   "sympy==1.14",
