@@ -3,11 +3,12 @@ The `asm` dialect provides utilities for embedding assembly-level abstractions i
 """
 
 from collections.abc import Sequence
+from typing import ClassVar
 
 from xdsl import ir, irdl
-from xdsl.backend.register_type import RegisterType
+from xdsl.backend.register_type import RegisterAllocatedMemoryEffect, RegisterType
 from xdsl.interfaces import HasFolderInterface
-from xdsl.traits import Pure
+from xdsl.traits import HasParent, IsolatedFromAbove, IsTerminator, Pure
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -97,11 +98,74 @@ class ToRegOp(irdl.IRDLOperation, HasFolderInterface):
             return (from_reg_op.register,)
 
 
+@irdl.irdl_op_definition
+class RegionOp(irdl.IRDLOperation):
+    """
+    Contains target-specific code.
+    Operands take values, stored in the body's entry block arguments' registers.
+    Yields resulting registers, and returns the values they contain.
+    """
+
+    name = "asm.region"
+
+    OPERAND_COUNT: ClassVar = irdl.IntVarConstraint("OPERAND_COUNT", irdl.AnyInt())
+
+    operands_ = irdl.var_operand_def(
+        irdl.RangeOf(irdl.AnyAttr()).of_length(OPERAND_COUNT)
+    )
+    results_ = irdl.var_result_def()
+    body = irdl.region_def(
+        entry_args=irdl.RangeOf(RegisterType).of_length(OPERAND_COUNT)
+    )
+
+    traits = irdl.traits_def(IsolatedFromAbove())
+
+    assembly_format = "( `(` operands^ `)` )? attr-dict-with-keyword $body `:` functional-type(operands, results)"
+
+    def __init__(
+        self,
+        operands: Sequence[ir.SSAValue],
+        body: ir.Region,
+        result_types: Sequence[ir.Attribute],
+    ):
+        super().__init__(
+            operands=(operands,),
+            result_types=(result_types,),
+            regions=(body,),
+        )
+
+
+@irdl.irdl_op_definition
+class YieldOp(irdl.IRDLOperation):
+    """
+    Terminates an `asm.region` operation.
+    The yielded registers contain the return values of the parent `asm.region`
+    operation.
+    """
+
+    name = "asm.yield"
+
+    arguments = irdl.var_operand_def(RegisterType)
+
+    assembly_format = "attr-dict ($arguments^ `:` type($arguments))?"
+
+    traits = irdl.traits_def(
+        IsTerminator(),
+        RegisterAllocatedMemoryEffect(),
+        HasParent(RegionOp),
+    )
+
+    def __init__(self, *arguments: ir.SSAValue[RegisterType]):
+        super().__init__(operands=(arguments,))
+
+
 ASM = ir.Dialect(
     "asm",
     [
         FromRegOp,
+        RegionOp,
         ToRegOp,
+        YieldOp,
     ],
     [],
     [],
