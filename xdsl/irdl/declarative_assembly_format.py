@@ -929,8 +929,7 @@ class FunctionalTypeDirective(FormatDirective):
     result_typeable_directive: TypeableDirective
 
     def parse(self, parser: Parser, state: ParsingState) -> bool:
-        if not parser.parse_optional_punctuation("("):
-            return False
+        parser.parse_punctuation("(")
         self.operand_typeable_directive.parse_types(parser, state)
         parser.parse_punctuation(")")
         parser.parse_punctuation("->")

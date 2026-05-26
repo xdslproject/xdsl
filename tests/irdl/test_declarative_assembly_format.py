@@ -2196,6 +2196,36 @@ def test_functional_type_with_operands_and_results(program: str):
     check_roundtrip(program, ctx)
 
 
+def test_functional_type_rejects_non_parenthesized_operand_types():
+    @irdl_op_definition
+    class FunctionalTypeOp(IRDLOperation):
+        name = "test.functional_type"
+
+        ops = var_operand_def()
+        res = var_result_def()
+
+        assembly_format = "$ops attr-dict `:` functional-type($ops, $res)"
+
+    ctx = Context()
+    ctx.load_op(FunctionalTypeOp)
+    ctx.load_dialect(Test)
+
+    parser = Parser(
+        ctx,
+        textwrap.dedent(
+            """\
+            %input = "test.op"() : () -> i32
+            %output = test.functional_type %input : i32 -> i32"""
+        ),
+    )
+    parser.parse_operation()
+
+    with pytest.raises(ParseError) as exc_info:
+        parser.parse_operation()
+
+    assert "AnyAttr()" not in str(exc_info.value)
+
+
 ################################################################################
 # Regions                                                                     #
 ################################################################################
