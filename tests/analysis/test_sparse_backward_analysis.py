@@ -178,7 +178,7 @@ def test_visit_operation_registers_result_dependencies():
 
 
 def test_visit_operation_with_regions_raises():
-    """Phase 1 refuses operations with regions (when they have operands)."""
+    """Currently, operations with regions are unsupported (when they have operands)."""
     ctx = Context()
     solver = DataFlowSolver(ctx)
     analysis = CopyBackwardAnalysis(solver)
@@ -195,7 +195,7 @@ def test_visit_operation_with_regions_raises():
 
 
 def test_visit_operation_with_successors_raises():
-    """Phase 1 refuses operations with block successors (when they have operands)."""
+    """Currently, operations with block successors are unsupported."""
     ctx = Context()
     solver = DataFlowSolver(ctx)
     analysis = CopyBackwardAnalysis(solver)
