@@ -13,8 +13,8 @@ from xdsl.analysis.dataflow import (
 from xdsl.analysis.dead_code_analysis import Executable
 from xdsl.analysis.sparse_analysis import (
     AbstractLatticeValue,
-    AbstractSparseBackwardDataFlowAnalysis,
     Lattice,
+    SparseBackwardDataFlowAnalysis,
 )
 from xdsl.context import Context
 from xdsl.dialects import test
@@ -57,7 +57,7 @@ class LiveLattice(Lattice[LiveValue]):
 # region Concrete backward analysis
 
 
-class CopyBackwardAnalysis(AbstractSparseBackwardDataFlowAnalysis[LiveLattice]):
+class CopyBackwardAnalysis(SparseBackwardDataFlowAnalysis[LiveLattice]):
     """
     Test analysis: meet each operand with each result. Effectively, an operand
     is live iff any of the op's results are live. No interface dispatch needed.

@@ -384,7 +384,7 @@ class SparseForwardDataFlowAnalysis(
         ...
 
 
-class AbstractSparseBackwardDataFlowAnalysis(
+class SparseBackwardDataFlowAnalysis(
     DataFlowAnalysis, ABC, Generic[PropagatingLatticeInvT]
 ):
     """
