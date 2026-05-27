@@ -195,14 +195,14 @@ def _build_tile_loops(
         - `current_insertion_point`: the place to insert `tiled subview` and the `tiled generic`
     """
 
-    zero = arith.ConstantOp(IntegerAttr.from_index_int_value(0))
+    index = IndexType()
+    zero = arith.ConstantOp(IntegerAttr(0, index))
     ub_ops = {
-        dim: arith.ConstantOp(IntegerAttr.from_index_int_value(loop_ranges[dim]))
+        dim: arith.ConstantOp(IntegerAttr(loop_ranges[dim], index))
         for dim in tiled_dims
     }
     tile_ops = {
-        dim: arith.ConstantOp(IntegerAttr.from_index_int_value(tile_sizes[dim]))
-        for dim in tiled_dims
+        dim: arith.ConstantOp(IntegerAttr(tile_sizes[dim], index)) for dim in tiled_dims
     }
     rewriter.insert_op(
         [
@@ -222,7 +222,7 @@ def _build_tile_loops(
             ub_ops[dim].result,
             tile_ops[dim].result,
             (),
-            Region(Block(arg_types=(IndexType(),))),
+            Region(Block(arg_types=(index,))),
         )
         rewriter.insert_op(loop, current_insertion_point)
         loops.append(loop)

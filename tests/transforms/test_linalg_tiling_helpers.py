@@ -9,12 +9,18 @@ from xdsl.dialects.builtin import (
     DYNAMIC_INDEX,
     AffineMapAttr,
     MemRefType,
+    ModuleOp,
     TensorType,
     f32,
 )
-from xdsl.dialects.linalg.transforms.tiling import OperandTileInfo, TilingPlan
+from xdsl.dialects.linalg.transforms.tiling import (
+    OperandTileInfo,
+    TilingPlan,
+    tile_linalg_generic,
+)
 from xdsl.ir import Attribute
 from xdsl.ir.affine import AffineExpr, AffineMap
+from xdsl.pattern_rewriter import PatternRewriter
 from xdsl.utils.test_value import create_ssa_value
 
 
@@ -180,3 +186,11 @@ def test_tiling_plan_rejects_partial_tiles():
 
     with pytest.raises(ValueError, match="partial tiles"):
         TilingPlan.analyze_generic_op(op, (3, 0))
+
+
+def test_tile_linalg_generic_returns_false_without_tiled_dims():
+    op = _generic_2d_copy_op()
+    ModuleOp([op])
+    rewriter = PatternRewriter(op)
+
+    assert not tile_linalg_generic(rewriter, op, (0, 0))
