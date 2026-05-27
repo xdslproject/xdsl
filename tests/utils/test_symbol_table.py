@@ -115,7 +115,17 @@ def test_symbol_table_remove():
         match="Expected this operation to be inside of the operation with this SymbolTable",
     ):
         empty_table.remove(op_a)
+
+    with pytest.raises(
+        ValueError,
+        match="Expected this operation to be inside of the operation with this SymbolTable",
+    ):
         table.remove(op_b)
+
+    with pytest.raises(
+        ValueError,
+        match="Expected this operation to be inside of the operation with this SymbolTable",
+    ):
         table.remove(op_c)
 
 
