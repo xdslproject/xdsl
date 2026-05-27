@@ -36,6 +36,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return arith_add_fastmath.AddArithFastMathFlagsPass
 
+    def get_asm_to_llvm():
+        from xdsl.transforms import asm_to_llvm
+
+        return asm_to_llvm.AsmToLLVMPass
+
     def get_canonicalize_dmp():
         from xdsl.transforms import canonicalize_dmp
 
@@ -682,6 +687,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "apply-pdl-interp": get_apply_pdl_interp,
         "approximate-math-with-bitcast": get_approximate_math_with_bitcast,
         "arith-add-fastmath": get_arith_add_fastmath,
+        "asm-to-llvm": get_asm_to_llvm,
         "canonicalize-dmp": get_canonicalize_dmp,
         "canonicalize": get_canonicalize,
         "constant-fold-interp": get_constant_fold_interp,
