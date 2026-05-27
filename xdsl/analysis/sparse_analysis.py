@@ -391,26 +391,6 @@ class AbstractSparseBackwardDataFlowAnalysis(
     Base class for sparse backward data-flow analyses. It propagates lattices
     attached to SSA values *against* the direction of data flow: information
     placed on an operation's results is meet-combined into its operands.
-
-    Compared to [SparseForwardDataFlowAnalysis][xdsl.analysis.sparse_analysis.SparseForwardDataFlowAnalysis],
-    the backward variant differs in three ways:
-
-    1. **Direction**: the transfer function reads result lattices (const) and
-       writes operand lattices (mutable).
-    2. **Combinator**: lattice information is combined via `meet` rather than
-       `join`. Subclasses typically register interest on lattices using `meet`.
-    3. **Dependency wiring**: when a result lattice changes, the *defining*
-       operation must be re-visited. This is a one-to-one relationship (one def
-       per value), handled by registering an `add_dependency` on the result
-       lattice (via `get_lattice_element_for`). No subscriber set is needed —
-       contrast with the use-def subscriber mechanism used for forward, where
-       one def fans out to many users.
-
-    Phase 1 scope: only purely SSA operations (no regions, no block successors,
-    not a call, not a return-like terminator) are supported by the default
-    dispatch. Interface-dependent paths raise `NotImplementedError`, to be
-    filled in once the corresponding op interfaces land in xDSL — mirroring the
-    forward analysis's current scope.
     """
 
     def __init__(
@@ -420,11 +400,7 @@ class AbstractSparseBackwardDataFlowAnalysis(
         self.lattice_type = lattice_type
 
     def initialize(self, op: Operation) -> None:
-        # Iteratively visit all ops to build initial dependencies. Within each
-        # block, operations are visited in reverse order — this lets a single
-        # initialization pass propagate as much information as possible without
-        # re-enqueueing each op via the solver worklist (matches MLIR's
-        # `initializeRecursively` for backward analysis).
+        # Iteratively visit all ops to build initial dependencies.
         stack: list[Operation] = [op]
 
         while stack:
@@ -446,13 +422,12 @@ class AbstractSparseBackwardDataFlowAnalysis(
             self.visit_operation(point.op)
         # Block-start points are no-ops for backward analysis: block arguments
         # receive their lattice information from terminator operands (handled
-        # via BranchOpInterface / RegionBranchOpInterface in Phase 2), not from
+        # via BranchOpInterface / RegionBranchOpInterface), not from
         # the block itself.
 
     def visit_operation(self, op: Operation) -> None:
         """Transfer function reading result lattices, writing operand lattices."""
         # Nothing to propagate backward into if the op has no operands.
-        # (Symmetric to forward's `if not op.results: return`.)
         if not op.operands:
             return
 
@@ -472,7 +447,6 @@ class AbstractSparseBackwardDataFlowAnalysis(
         operand_lattices = [self.get_lattice_element(o) for o in op.operands]
         result_lattices = [self.get_lattice_element_for(point, r) for r in op.results]
 
-        # Phase 1: refuse interface-dependent operations.
         if op.regions:
             raise NotImplementedError(
                 f"Operation {op.name} has regions. Backward propagation across "
