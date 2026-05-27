@@ -6,6 +6,9 @@ from collections.abc import Sequence
 from typing import ClassVar
 
 from xdsl import ir, irdl
+from xdsl.backend.block_naive_allocator import BlockNaiveAllocator
+from xdsl.backend.register_allocatable import RegisterAllocatableContentsOperation
+from xdsl.backend.register_stack import RegisterStack
 from xdsl.backend.register_type import RegisterAllocatedMemoryEffect, RegisterType
 from xdsl.interfaces import HasFolderInterface
 from xdsl.traits import HasParent, IsolatedFromAbove, IsTerminator, Pure
@@ -99,7 +102,7 @@ class ToRegOp(irdl.IRDLOperation, HasFolderInterface):
 
 
 @irdl.irdl_op_definition
-class RegionOp(irdl.IRDLOperation):
+class RegionOp(irdl.IRDLOperation, RegisterAllocatableContentsOperation):
     """
     Contains target-specific code.
     Operands take values, stored in the body's entry block arguments' registers.
@@ -133,6 +136,14 @@ class RegionOp(irdl.IRDLOperation):
             result_types=(result_types,),
             regions=(body,),
         )
+
+    def allocate_registers(self, register_stack: RegisterStack):
+        from xdsl.dialects.x86.registers import X86RegisterType
+
+        # TODO: avoid X86RegisterType
+        allocator = BlockNaiveAllocator(register_stack, X86RegisterType)
+
+        allocator.allocate_region(self.body)
 
 
 @irdl.irdl_op_definition

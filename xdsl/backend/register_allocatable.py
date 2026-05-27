@@ -6,11 +6,24 @@ from typing import NamedTuple
 from typing_extensions import deprecated
 
 from xdsl.backend.register_allocator import BlockAllocator
+from xdsl.backend.register_stack import RegisterStack
 from xdsl.backend.register_type import RegisterAllocatedMemoryEffect, RegisterType
 from xdsl.ir import Operation, Region, SSAValue
 from xdsl.irdl import traits_def
 from xdsl.traits import OpTrait
 from xdsl.utils.exceptions import VerifyException
+
+
+class RegisterAllocatableContentsOperation(Operation, abc.ABC):
+    """
+    Abstract base class for operations whose contents can be allocated.
+    """
+
+    @abc.abstractmethod
+    def allocate_registers(self, register_stack: RegisterStack):
+        """
+        Allocate the contents of this operation.
+        """
 
 
 class RegisterAllocatableOperation(Operation, abc.ABC):

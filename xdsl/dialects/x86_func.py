@@ -3,12 +3,16 @@ from __future__ import annotations
 from collections.abc import Sequence
 
 from xdsl.backend.assembly_printer import AssemblyPrintable, AssemblyPrinter
+from xdsl.backend.block_naive_allocator import BlockNaiveAllocator
+from xdsl.backend.register_allocatable import RegisterAllocatableContentsOperation
+from xdsl.backend.register_stack import RegisterStack
 from xdsl.dialects.builtin import FunctionType, StringAttr, SymbolNameConstraint
 from xdsl.dialects.utils import (
     parse_func_op_like,
     print_func_op_like,
 )
 from xdsl.dialects.x86.ops import X86Instruction
+from xdsl.dialects.x86.registers import X86RegisterType
 from xdsl.ir import Attribute, Dialect, Operation, Region
 from xdsl.irdl import (
     IRDLOperation,
@@ -48,7 +52,7 @@ class FuncOpCallableInterface(CallableOpInterface):
 
 
 @irdl_op_definition
-class FuncOp(IRDLOperation, AssemblyPrintable):
+class FuncOp(IRDLOperation, AssemblyPrintable, RegisterAllocatableContentsOperation):
     """x86 function definition operation"""
 
     name = "x86_func.func"
@@ -134,6 +138,14 @@ class FuncOp(IRDLOperation, AssemblyPrintable):
                     )
 
         printer.print_string(f"{self.sym_name.data}:\n")
+
+    def allocate_registers(self, register_stack: RegisterStack):
+        if not self.body.blocks:
+            # External function declaration
+            return
+        allocator = BlockNaiveAllocator(register_stack, X86RegisterType)
+
+        allocator.allocate_region(self.body)
 
 
 @irdl_op_definition

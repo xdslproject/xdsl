@@ -1,9 +1,8 @@
 from dataclasses import dataclass
 
-from xdsl.backend.x86.register_allocation import X86RegisterAllocator
+from xdsl.backend.register_allocatable import RegisterAllocatableContentsOperation
 from xdsl.backend.x86.register_stack import X86RegisterStack
 from xdsl.context import Context
-from xdsl.dialects import x86_func
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.passes import ModulePass
 
@@ -18,7 +17,6 @@ class X86AllocateRegisters(ModulePass):
 
     def apply(self, ctx: Context, op: ModuleOp) -> None:
         for inner_op in op.walk():
-            if isinstance(inner_op, x86_func.FuncOp):
+            if isinstance(inner_op, RegisterAllocatableContentsOperation):
                 available_registers = X86RegisterStack.get()
-                allocator = X86RegisterAllocator(available_registers)
-                allocator.allocate_func(inner_op)
+                inner_op.allocate_registers(available_registers)
