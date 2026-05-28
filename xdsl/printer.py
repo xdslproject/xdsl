@@ -302,26 +302,7 @@ class Printer(BasePrinter):
             self.print_list(params, self.print_attribute)
 
     def print_string_literal(self, string: str):
-        # Emit MLIR string-literal syntax: only \\, \", \n, \t are named
-        # escapes; every other non-printable byte is \HH over the UTF-8
-        # encoding. (Don't delegate to print_bytes_literal — bytes literals
-        # intentionally stay hex-only to keep raw-binary output uniform.)
-        self.print_string('"')
-        for byte in string.encode("utf-8"):
-            match byte:
-                case 0x5C:  # ord("\\")
-                    self.print_string("\\\\")
-                case 0x22:  # ord('"')
-                    self.print_string('\\"')
-                case 0x0A:  # ord("\n")
-                    self.print_string("\\n")
-                case 0x09:  # ord("\t")
-                    self.print_string("\\t")
-                case _ if 0x20 > byte or byte > 0x7E:
-                    self.print_string(f"\\{byte:02X}")
-                case _:
-                    self.print_string(chr(byte))
-        self.print_string('"')
+        self.print_bytes_literal(string.encode("utf-8"))
 
     def print_identifier_or_string_literal(self, string: str):
         """
