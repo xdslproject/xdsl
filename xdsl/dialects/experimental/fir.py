@@ -528,6 +528,34 @@ class DeferredAttr(ParametrizedAttribute, TypeAttribute):
 
 
 @irdl_attr_definition
+class PointAttr(ParametrizedAttribute):
+    """`#fir.point` case-tag — exact match `case (X)` in SELECT CASE."""
+
+    name = "fir.point"
+
+
+@irdl_attr_definition
+class LowerAttr(ParametrizedAttribute):
+    """`#fir.lower` case-tag — open lower bound `case (X:)` (selector >= X)."""
+
+    name = "fir.lower"
+
+
+@irdl_attr_definition
+class UpperAttr(ParametrizedAttribute):
+    """`#fir.upper` case-tag — open upper bound `case (:X)` (selector <= X)."""
+
+    name = "fir.upper"
+
+
+@irdl_attr_definition
+class IntervalAttr(ParametrizedAttribute):
+    """`#fir.interval` case-tag — closed range `case (lo:hi)` (lo <= sel <= hi)."""
+
+    name = "fir.interval"
+
+
+@irdl_attr_definition
 class DummyScopeType(ParametrizedAttribute, TypeAttribute):
     """
     fir.dscope is a type returned by fir.dummy_scope operation.
@@ -1041,7 +1069,7 @@ class HeapType(ParametrizedAttribute, TypeAttribute):
 
     name = "fir.heap"
 
-    type: SequenceType | CharacterType
+    type: SequenceType | CharacterType | RecordType
 
 
 @irdl_attr_definition
@@ -3289,6 +3317,10 @@ FIR = Dialect(
         UseRenameAttr,
         OpenACCSafeTempArrayCopyAttr,
         OpenMPSafeTempArrayCopyAttr,
+        PointAttr,
+        LowerAttr,
+        UpperAttr,
+        IntervalAttr,
         ReferenceType,
         DeferredAttr,
         DummyScopeType,
