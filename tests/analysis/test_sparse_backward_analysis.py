@@ -158,6 +158,57 @@ def test_visit_operation_skips_non_executable_blocks():
     assert op not in analysis.visited_ops
 
 
+def test_visit_operation_skips_when_parent_block_not_executable():
+    """An op with operands whose parent block is not marked live is skipped
+    before any lattice propagation happens."""
+    ctx = Context()
+    solver = DataFlowSolver(ctx)
+    analysis = CopyBackwardAnalysis(solver)
+
+    producer = test.TestOp(result_types=[i32])
+    consumer = test.TestOp(operands=[producer.results[0]], result_types=[i32])
+    block = Block([producer, consumer])
+    # Explicitly mark the block as not live.
+    point = ProgramPoint.at_start_of_block(block)
+    solver.get_or_create_state(point, Executable).live = False
+
+    analysis.visit_operation(consumer)
+
+    assert consumer not in analysis.visited_ops
+    # No lattice should have been created for the consumer's result either,
+    # since we bailed out before touching any lattices.
+    assert solver.lookup_state(consumer.results[0], LiveLattice) is None
+
+
+def test_visit_with_block_point_is_noop():
+    """For backward analysis, visiting a program point whose `op is None`
+    (i.e., a block-anchored point) must be a no-op: it must not invoke
+    `visit_operation` nor create any lattice state."""
+    ctx = Context()
+    solver = DataFlowSolver(ctx)
+    analysis = CopyBackwardAnalysis(solver)
+
+    # An empty block yields a ProgramPoint whose entity is the Block itself,
+    # so `point.op is None`.
+    empty_block = Block([])
+    block_point = ProgramPoint.at_start_of_block(empty_block)
+    assert block_point.op is None
+    assert block_point.block is empty_block
+
+    # Also exercise the end-of-block point of a non-empty block, which is
+    # likewise anchored to the Block (op is None).
+    op = test.TestOp(result_types=[i32])
+    nonempty_block = Block([op])
+    end_point = ProgramPoint.at_end_of_block(nonempty_block)
+    assert end_point.op is None
+
+    analysis.visit(block_point)
+    analysis.visit(end_point)
+
+    assert analysis.visited_ops == []
+    assert solver.lookup_state(op.results[0], LiveLattice) is None
+
+
 def test_visit_operation_registers_result_dependencies():
     """Result lattices must register the op's program point as a dependent."""
     ctx = Context()
