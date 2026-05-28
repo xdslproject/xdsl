@@ -499,7 +499,6 @@ class SparseBackwardDataFlowAnalysis(
         User-defined transfer function. Should read `result_lattices` and use
         `meet` to push information into `operand_lattices`.
         """
-        ...
 
     @abstractmethod
     def set_to_exit_state(self, lattice: PropagatingLatticeInvT) -> None:
@@ -510,4 +509,3 @@ class SparseBackwardDataFlowAnalysis(
         blocks — for those, the analysis cannot assume any structure and must
         conservatively widen.
         """
-        ...
