@@ -398,6 +398,27 @@ def declare_intrinsic(
     return ir.Function(module, fnty, name=full_name)
 
 
+_VECTOR_REDUCE_INTRINSIC_MAP: dict[type[Operation], str] = {
+    llvm.VectorReduceFAddOp: "llvm.vector.reduce.fadd",
+    llvm.VectorReduceFMulOp: "llvm.vector.reduce.fmul",
+}
+
+
+def _convert_vector_reduce(
+    op: Operation, builder: ir.IRBuilder, val_map: dict[SSAValue, ir.Value]
+):
+    start = val_map[op.operands[0]]
+    vector = val_map[op.operands[1]]
+    vec_type = vector.type
+    assert isinstance(vec_type, ir.VectorType)
+    elt_type = vec_type.element
+    fn_type = ir.FunctionType(elt_type, [elt_type, vec_type])
+    intrinsic = declare_intrinsic(
+        builder.module, _VECTOR_REDUCE_INTRINSIC_MAP[type(op)], vec_type, fn_type
+    )
+    val_map[op.results[0]] = builder.call(intrinsic, [start, vector])
+
+
 def _convert_fma(
     op: llvm.FMAOp,
     builder: ir.IRBuilder,
@@ -522,6 +543,8 @@ def convert_op(
             _convert_unary_intrinsic(op, builder, val_map)
         case op if type(op) in _BINARY_INTRINSIC_MAP:
             _convert_binary_intrinsic(op, builder, val_map)
+        case op if type(op) in _VECTOR_REDUCE_INTRINSIC_MAP:
+            _convert_vector_reduce(op, builder, val_map)
         case llvm.FNegOp():
             _convert_fneg(op, builder, val_map)
         case llvm.CallOp():
