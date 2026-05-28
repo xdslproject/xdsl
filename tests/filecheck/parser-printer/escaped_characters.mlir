@@ -23,4 +23,16 @@
   "test.op"() {name = "\202"} : () -> ()
   // CHECK-NEXT: "test.op"() {name = " 2"} : () -> ()
 
+  // ASCII-only string with control bytes — exercises the StringAttr print path.
+  // Pre-fix this round-tripped through json.dumps producing "\uXXXX" escapes
+  // that xDSL's (and mlir-opt's) lexer reject.
+  "test.op"() {name = "NUL:\00 BEL:\07 ESC:\1B DEL:\7F end"} : () -> ()
+  // CHECK-NEXT: "test.op"() {name = "NUL:\00 BEL:\07 ESC:\1B DEL:\7F end"} : () -> ()
+
+  "test.op"() {name = "Hello\00\00"} : () -> ()
+  // CHECK-NEXT: "test.op"() {name = "Hello\00\00"} : () -> ()
+
+  "test.op"() {name = "CR\0Dhere"} : () -> ()
+  // CHECK-NEXT: "test.op"() {name = "CR\0Dhere"} : () -> ()
+
 }) : () -> ()
