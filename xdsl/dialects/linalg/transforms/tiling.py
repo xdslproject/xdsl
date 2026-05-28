@@ -2,10 +2,17 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import cast
 
-from xdsl.dialects import linalg
-from xdsl.dialects.builtin import MemRefType
-from xdsl.ir import Attribute
+from xdsl.dialects import arith, linalg, memref, scf
+from xdsl.dialects.builtin import (
+    IndexType,
+    IntegerAttr,
+    MemRefType,
+)
+from xdsl.ir import Attribute, Block, Region, SSAValue
 from xdsl.ir.affine import AffineDimExpr, AffineMap
+from xdsl.pattern_rewriter import PatternRewriter
+from xdsl.rewriter import InsertPoint
+from xdsl.utils.exceptions import PassFailedException
 from xdsl.utils.hints import isa
 
 
@@ -170,3 +177,156 @@ def _verify_generic_is_tileable(
         raise ValueError("partial tiles are not supported yet")
 
     return loop_ranges
+
+
+def _build_tile_loops(
+    rewriter: PatternRewriter,
+    insertion_point: InsertPoint,
+    loop_ranges: Sequence[int],
+    tile_sizes: Sequence[int],
+    tiled_dims: Sequence[int],
+) -> tuple[list[scf.ForOp], dict[int, SSAValue], InsertPoint]:
+    """
+    Build the outer tiled loops.
+
+    Return:
+        - `loops`: the outer `scf.for` ops
+        - `tiled_loop_ivs`: a map from loop dimensions to induction variables
+        - `current_insertion_point`: the place to insert `tiled subview` and the `tiled generic`
+    """
+
+    index = IndexType()
+    zero = arith.ConstantOp(IntegerAttr(0, index))
+    ub_ops = {
+        dim: arith.ConstantOp(IntegerAttr(loop_ranges[dim], index))
+        for dim in tiled_dims
+    }
+    tile_ops = {
+        dim: arith.ConstantOp(IntegerAttr(tile_sizes[dim], index)) for dim in tiled_dims
+    }
+    rewriter.insert_op(
+        [
+            zero,
+            *(ub_ops[dim] for dim in tiled_dims),
+            *(tile_ops[dim] for dim in tiled_dims),
+        ],
+        insertion_point,
+    )
+
+    current_insertion_point = insertion_point
+    loops: list[scf.ForOp] = []
+    tiled_loop_ivs: dict[int, SSAValue] = {}
+    for dim in tiled_dims:
+        loop = scf.ForOp(
+            zero.result,
+            ub_ops[dim].result,
+            tile_ops[dim].result,
+            (),
+            Region(Block(arg_types=(index,))),
+        )
+        rewriter.insert_op(loop, current_insertion_point)
+        loops.append(loop)
+        tiled_loop_ivs[dim] = loop.body.block.args[0]
+        current_insertion_point = InsertPoint.at_start(loop.body.block)
+
+    return loops, tiled_loop_ivs, current_insertion_point
+
+
+def _build_tiled_subview(
+    rewriter: PatternRewriter,
+    insertion_point: InsertPoint,
+    operand: SSAValue,
+    indexing_map: AffineMap,
+    operand_info: OperandTileInfo,
+    tiled_loop_ivs: dict[int, SSAValue],
+) -> memref.SubviewOp:
+    """
+    Build `the subview` for one operand at the current tile position.
+    """
+
+    source_shape = operand_info.source_type.get_shape()
+
+    offsets: list[SSAValue | int] = []
+    sizes: list[int] = []
+    for result_index, expr in enumerate(indexing_map.results):
+        assert isinstance(expr, AffineDimExpr)
+        loop_dim = operand_info.loop_dims[result_index]
+        if loop_dim in tiled_loop_ivs:
+            offsets.append(tiled_loop_ivs[loop_dim])
+            sizes.append(operand_info.result_shape[result_index])
+        else:
+            offsets.append(0)
+            sizes.append(source_shape[result_index])
+
+    strides = (1,) * len(source_shape)
+    try:
+        result_type = memref.SubviewOp.infer_result_type(
+            operand_info.source_type,
+            offsets,
+            sizes,
+            strides,
+        )
+    except ValueError as e:
+        raise PassFailedException(str(e)) from e
+
+    subview = memref.SubviewOp.get(
+        operand,
+        offsets,
+        sizes,
+        strides,
+        result_type,
+    )
+
+    rewriter.insert_op(subview, insertion_point)
+
+    return subview
+
+
+def tile_linalg_generic(
+    rewriter: PatternRewriter,
+    op: linalg.ops.GenericOp,
+    tile_sizes: tuple[int, ...],
+) -> bool:
+    """
+    Rewrite supported `linalg.generic` ops into tiled formed.
+    """
+    try:
+        plan = TilingPlan.analyze_generic_op(op, tile_sizes)
+    except (ValueError, NotImplementedError) as e:
+        raise PassFailedException(str(e)) from e
+
+    if not plan.tiled_dims:
+        return False
+
+    loops, tiled_loop_ivs, inner_ip = _build_tile_loops(
+        rewriter,
+        InsertPoint.before(op),
+        plan.loop_ranges,
+        plan.tile_sizes,
+        plan.tiled_dims,
+    )
+    tiled_operands: list[SSAValue] = []
+
+    for operand, operand_info, indexing_map in zip(
+        op.operands, plan.operand_infos, op.get_indexing_maps(), strict=True
+    ):
+        subview = _build_tiled_subview(
+            rewriter, inner_ip, operand, indexing_map.data, operand_info, tiled_loop_ivs
+        )
+        tiled_operands.append(subview.result)
+
+    num_inputs = len(op.inputs)
+    tiled_generic = linalg.ops.GenericOp(
+        tiled_operands[:num_inputs],
+        tiled_operands[num_inputs:],
+        op.body.clone(),
+        op.get_indexing_maps(),
+        op.get_iterator_types(),
+    )
+    rewriter.insert_op(tiled_generic, inner_ip)
+
+    for loop in reversed(loops):
+        rewriter.insert_op(scf.YieldOp(), InsertPoint.at_end(loop.body.block))
+
+    rewriter.erase_op(op)
+    return True

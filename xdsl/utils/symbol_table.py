@@ -92,15 +92,24 @@ class SymbolTable:
         exists.
         Names never include the `@` on them.
         """
-        raise NotImplementedError
+        name = name.data if isinstance(name, StringAttr) else name
+        return self._symbol_table.get(name)
 
     def remove(self, op: Operation) -> None:
         """Remove the given symbol from the table, without deleting it."""
-        raise NotImplementedError
+        if (name := get_name_if_symbol(op)) is None:
+            raise ValueError("Expected valid 'name' attribute")
+
+        if self._symbol_table.pop(name, None) is None:
+            raise ValueError(
+                "Expected this operation to be inside of the operation with this SymbolTable"
+            )
 
     def erase(self, op: Operation) -> None:
         """Erase the given symbol from the table and delete the operation."""
-        raise NotImplementedError
+        self.remove(op)
+        op.detach()
+        op.erase()
 
     def insert(self, symbol: Operation, insertion_point: InsertPoint) -> StringAttr:
         """
