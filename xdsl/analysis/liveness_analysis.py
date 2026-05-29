@@ -67,7 +67,7 @@ class Liveness(PropagatingLattice):
         return ChangeResult.NO_CHANGE
 
     def __str__(self) -> str:
-        return "live" if self.is_live else "not live"
+        return "live" if self.is_live else "dead"
 
 
 class LivenessAnalysis(SparseBackwardDataFlowAnalysis[Liveness]):

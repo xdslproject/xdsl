@@ -232,6 +232,15 @@ def test_liveness_meet_is_or():
     assert lhs2.is_live
 
 
+def test_liveness_str():
+    a = test.TestPureOp(result_types=[i32])
+    lattice = Liveness(a.results[0])
+
+    assert str(lattice) == "dead"
+    lattice.mark_live()
+    assert str(lattice) == "live"
+
+
 def test_set_to_exit_state_marks_live():
     ctx = Context()
     solver = DataFlowSolver(ctx)
