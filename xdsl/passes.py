@@ -127,7 +127,15 @@ def get_pass_option_infos(
     )
 
 
-Callback = Callable[[ModulePass | None, builtin.ModuleOp, ModulePass | None], None]
+PassPipelineCallbackType = Callable[
+    [ModulePass | None, builtin.ModuleOp, ModulePass | None], None
+]
+"""
+Type of callback functions that can be given to a PassPipeline
+The first argument of the function is the previous pass applied (if any).
+The second argument is the current state of the module.
+The third argument is the pass which is about to be applied (if any).
+"""
 
 
 @dataclass(frozen=True)
@@ -142,7 +150,7 @@ class PassPipeline:
     These will be executed sequentially during the execution of the pipeline.
     """
 
-    callback: Callback | None = field(default=None)
+    callback: PassPipelineCallbackType | None = field(default=None)
     """
     Function called in between every pass, taking the pass that just ran, the module,
     and the next pass.
@@ -175,7 +183,7 @@ class PassPipeline:
     def parse_spec(
         available_passes: dict[str, Callable[[], type[ModulePass]]],
         spec: str,
-        callback: Callback | None = None,
+        callback: PassPipelineCallbackType | None = None,
     ) -> PassPipeline:
         specs = tuple(parse_pipeline(spec))
         unrecognised_passes = tuple(

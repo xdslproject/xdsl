@@ -20,7 +20,7 @@ from xdsl.frontend.pyast.utils.type_conversion import (
     TypeRegistry,
 )
 from xdsl.ir import Dialect, Operation, TypeAttribute
-from xdsl.passes import ModulePass, PassPipeline
+from xdsl.passes import ModulePass, PassPipeline, PassPipelineCallbackType
 from xdsl.transforms.desymref import FrontendDesymrefyPass
 
 
@@ -38,10 +38,11 @@ class FuncInfo(NamedTuple):
 
 
 def default_pipeline_callback(
-    _previous_pass: ModulePass, module: ModuleOp, _next_pass: ModulePass
+    previous_pass: ModulePass | None, module: ModuleOp, next_pass: ModulePass | None
 ) -> None:
     """Default callback to verify the module after each transformation pass."""
-    module.verify()
+    if previous_pass and next_pass:
+        module.verify()
 
 
 @dataclass
@@ -62,9 +63,7 @@ class PyASTContext:
     )
     """An ordered list of passes to apply to the built module."""
 
-    post_callback: Callable[[ModulePass, ModuleOp, ModulePass], None] | None = (
-        default_pipeline_callback
-    )
+    post_callback: PassPipelineCallbackType | None = default_pipeline_callback
     """Callback to run between post transforms."""
 
     ir_context: Context = field(
