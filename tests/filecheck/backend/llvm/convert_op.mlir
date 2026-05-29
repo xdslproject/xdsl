@@ -1115,4 +1115,52 @@ builtin.module {
   // CHECK-NEXT: {{.[0-9]+}}:
   // CHECK-NEXT:   ret <4 x i32> <i32 1, i32 2, i32 3, i32 4>
   // CHECK-NEXT: }
+
+  llvm.func @reduce_fadd_f32(%arg0: f32, %arg1: vector<4xf32>) -> f32 {
+    %0 = "llvm.intr.vector.reduce.fadd"(%arg0, %arg1) <{fastmathFlags = #llvm.fastmath<none>}> : (f32, vector<4xf32>) -> f32
+    llvm.return %0 : f32
+  }
+
+  // CHECK: define float @"reduce_fadd_f32"(float %".1", <4 x float> %".2")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: [[ENTRY:.\d+]]:
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = call float @"llvm.vector.reduce.fadd.v4f32"(float %".1", <4 x float> %".2")
+  // CHECK-NEXT:   ret float %"[[RES]]"
+  // CHECK-NEXT: }
+
+  llvm.func @reduce_fadd_f64(%arg0: f64, %arg1: vector<2xf64>) -> f64 {
+    %0 = "llvm.intr.vector.reduce.fadd"(%arg0, %arg1) <{fastmathFlags = #llvm.fastmath<none>}> : (f64, vector<2xf64>) -> f64
+    llvm.return %0 : f64
+  }
+
+  // CHECK: define double @"reduce_fadd_f64"(double %".1", <2 x double> %".2")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: [[ENTRY:.\d+]]:
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = call double @"llvm.vector.reduce.fadd.v2f64"(double %".1", <2 x double> %".2")
+  // CHECK-NEXT:   ret double %"[[RES]]"
+  // CHECK-NEXT: }
+
+  llvm.func @reduce_fmul_f32(%arg0: f32, %arg1: vector<4xf32>) -> f32 {
+    %0 = "llvm.intr.vector.reduce.fmul"(%arg0, %arg1) <{fastmathFlags = #llvm.fastmath<none>}> : (f32, vector<4xf32>) -> f32
+    llvm.return %0 : f32
+  }
+
+  // CHECK: define float @"reduce_fmul_f32"(float %".1", <4 x float> %".2")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: [[ENTRY:.\d+]]:
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = call float @"llvm.vector.reduce.fmul.v4f32"(float %".1", <4 x float> %".2")
+  // CHECK-NEXT:   ret float %"[[RES]]"
+  // CHECK-NEXT: }
+
+  llvm.func @reduce_fmul_f64(%arg0: f64, %arg1: vector<2xf64>) -> f64 {
+    %0 = "llvm.intr.vector.reduce.fmul"(%arg0, %arg1) <{fastmathFlags = #llvm.fastmath<none>}> : (f64, vector<2xf64>) -> f64
+    llvm.return %0 : f64
+  }
+
+  // CHECK: define double @"reduce_fmul_f64"(double %".1", <2 x double> %".2")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: [[ENTRY:.\d+]]:
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = call double @"llvm.vector.reduce.fmul.v2f64"(double %".1", <2 x double> %".2")
+  // CHECK-NEXT:   ret double %"[[RES]]"
+  // CHECK-NEXT: }
 }
