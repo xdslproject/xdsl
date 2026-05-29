@@ -156,28 +156,25 @@ class PassPipeline:
     and the next pass.
     """
 
-    @staticmethod
-    def _default_callback(
-        before: ModulePass | None, op: builtin.ModuleOp, next: ModulePass | None
-    ):
-        return
-
     def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
-        callback = self.callback or PassPipeline._default_callback
         if not self.passes:
-            callback(None, op, None)
+            if self.callback is not None:
+                self.callback(None, op, None)
             # Early exit to avoid fetching a non-existing last pass.
             return
 
-        callback(None, op, self.passes[0])
+        if self.callback is not None:
+            self.callback(None, op, self.passes[0])
 
         for prev, next in zip(self.passes[:-1], self.passes[1:]):
             prev.apply(ctx, op)
-            callback(prev, op, next)
+            if self.callback is not None:
+                self.callback(prev, op, next)
 
         self.passes[-1].apply(ctx, op)
 
-        callback(self.passes[-1], op, None)
+        if self.callback is not None:
+            self.callback(self.passes[-1], op, None)
 
     @staticmethod
     def parse_spec(
