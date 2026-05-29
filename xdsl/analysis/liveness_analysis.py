@@ -50,9 +50,20 @@ class Liveness(PropagatingLattice):
         self.is_live = True
         return ChangeResult.CHANGE
 
+    def mark_dead(self) -> ChangeResult:
+        if not self.is_live:
+            return ChangeResult.NO_CHANGE
+        self.is_live = False
+        return ChangeResult.CHANGE
+
     def meet(self, other: Liveness) -> ChangeResult:
         if other.is_live:
             return self.mark_live()
+        return ChangeResult.NO_CHANGE
+
+    def join(self, other: Liveness) -> ChangeResult:
+        if not other.is_live:
+            return self.mark_dead()
         return ChangeResult.NO_CHANGE
 
     def __str__(self) -> str:
