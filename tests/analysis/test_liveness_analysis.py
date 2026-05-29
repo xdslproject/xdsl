@@ -232,6 +232,29 @@ def test_liveness_meet_is_or():
     assert lhs2.is_live
 
 
+def test_liveness_join_is_and():
+    from xdsl.analysis.dataflow import ChangeResult
+
+    a = test.TestPureOp(result_types=[i32])
+    b = test.TestPureOp(result_types=[i32])
+    lhs = Liveness(a.results[0])
+    rhs = Liveness(b.results[0])
+
+    # dead join dead -> dead, no change
+    assert lhs.join(rhs) == ChangeResult.NO_CHANGE
+    assert not lhs.is_live
+
+    # live join dead -> dead, change
+    lhs.is_live = True
+    assert lhs.join(rhs) == ChangeResult.CHANGE
+    assert not lhs.is_live
+
+    # live join live -> live, no change
+    rhs.is_live = True
+    assert lhs.join(rhs) == ChangeResult.NO_CHANGE
+    assert not lhs.is_live
+
+
 def test_liveness_str():
     a = test.TestPureOp(result_types=[i32])
     lattice = Liveness(a.results[0])
