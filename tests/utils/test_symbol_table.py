@@ -215,11 +215,30 @@ def test_symbol_table_set_symbol_name():
 
 def test_symbol_table_get_symbol_visibility():
     """Test SymbolTable.get_symbol_visibility static method."""
-    test_op = TestOp()
+    public_op = TestSymbolOp(properties={"sym_name": StringAttr("public_symbol")})
+    explicit_public_op = TestSymbolOp(
+        properties={
+            "sym_name": StringAttr("explicit_public_symbol"),
+            "sym_visibility": StringAttr("public"),
+        }
+    )
+    private_op = TestSymbolOp(
+        properties={
+            "sym_name": StringAttr("private_symbol"),
+            "sym_visibility": StringAttr("private"),
+        }
+    )
+    nested_op = TestSymbolOp(
+        properties={
+            "sym_name": StringAttr("nested_symbol"),
+            "sym_visibility": StringAttr("nested"),
+        }
+    )
 
-    # This will raise NotImplementedError until implemented
-    with pytest.raises(NotImplementedError):
-        SymbolTable.get_symbol_visibility(test_op)
+    assert SymbolTable.get_symbol_visibility(public_op) is Visibility.PUBLIC
+    assert SymbolTable.get_symbol_visibility(explicit_public_op) is Visibility.PUBLIC
+    assert SymbolTable.get_symbol_visibility(private_op) is Visibility.PRIVATE
+    assert SymbolTable.get_symbol_visibility(nested_op) is Visibility.NESTED
 
 
 def test_symbol_table_set_symbol_visibility():
@@ -234,11 +253,12 @@ def test_symbol_table_set_symbol_visibility():
 
 def test_symbol_table_get_nearest_symbol_table():
     """Test SymbolTable.get_nearest_symbol_table static method."""
-    test_op = TestOp()
+    nested_op = TestOp()
+    module = ModuleOp([TestOp(regions=[Region(Block([nested_op]))])])
 
-    # This will raise NotImplementedError until implemented
-    with pytest.raises(NotImplementedError):
-        SymbolTable.get_nearest_symbol_table(test_op)
+    assert SymbolTable.get_nearest_symbol_table(nested_op) is module
+    assert SymbolTable.get_nearest_symbol_table(module) is module
+    assert SymbolTable.get_nearest_symbol_table(TestOp()) is None
 
 
 def test_symbol_table_walk_symbol_tables():

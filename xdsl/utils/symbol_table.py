@@ -161,7 +161,12 @@ class SymbolTable:
     @staticmethod
     def get_symbol_visibility(symbol: Operation) -> Visibility:
         """Returns the visibility of the given symbol operation."""
-        raise NotImplementedError
+        visibility = symbol.get_attr_or_prop("sym_visibility")
+        if visibility is None:
+            return Visibility.PUBLIC
+        if not isinstance(visibility, StringAttr):
+            raise ValueError("Expected 'sym_visibility' to be a StringAttr")
+        return Visibility(visibility.data)
 
     @staticmethod
     def set_symbol_visibility(symbol: Operation, vis: Visibility) -> None:
@@ -174,7 +179,12 @@ class SymbolTable:
         Returns the nearest symbol table from a given operation `from`.
         Returns `None` if no valid parent symbol table could be found.
         """
-        raise NotImplementedError
+        op: Operation | None = from_op
+        while op is not None:
+            if op.has_trait(traits.SymbolTable, value_if_unregistered=False):
+                return op
+            op = op.parent_op()
+        return None
 
     @staticmethod
     def walk_symbol_tables(
