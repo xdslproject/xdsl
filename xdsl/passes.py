@@ -127,6 +127,9 @@ def get_pass_option_infos(
     )
 
 
+Callback = Callable[[ModulePass | None, builtin.ModuleOp, ModulePass | None], None]
+
+
 @dataclass(frozen=True)
 class PassPipeline:
     """
@@ -138,33 +141,41 @@ class PassPipeline:
     """
     These will be executed sequentially during the execution of the pipeline.
     """
-    callback: Callable[[ModulePass, builtin.ModuleOp, ModulePass], None] | None = field(
-        default=None
-    )
+
+    callback: Callback | None = field(default=None)
     """
     Function called in between every pass, taking the pass that just ran, the module,
     and the next pass.
     """
 
+    @staticmethod
+    def _default_callback(
+        before: ModulePass | None, op: builtin.ModuleOp, next: ModulePass | None
+    ):
+        return
+
     def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
+        callback = self.callback or PassPipeline._default_callback
         if not self.passes:
+            callback(None, op, None)
             # Early exit to avoid fetching a non-existing last pass.
             return
-        callback = self.callback
+
+        callback(None, op, self.passes[0])
 
         for prev, next in zip(self.passes[:-1], self.passes[1:]):
             prev.apply(ctx, op)
-            if callback is not None:
-                callback(prev, op, next)
+            callback(prev, op, next)
 
         self.passes[-1].apply(ctx, op)
+
+        callback(self.passes[-1], op, None)
 
     @staticmethod
     def parse_spec(
         available_passes: dict[str, Callable[[], type[ModulePass]]],
         spec: str,
-        callback: Callable[[ModulePass, builtin.ModuleOp, ModulePass], None]
-        | None = None,
+        callback: Callback | None = None,
     ) -> PassPipeline:
         specs = tuple(parse_pipeline(spec))
         unrecognised_passes = tuple(

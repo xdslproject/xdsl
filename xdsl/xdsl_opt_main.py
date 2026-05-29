@@ -99,8 +99,8 @@ class xDSLOptMain(CommandLineTool):
                     module = self.parse_chunk(chunk, file_extension, offset)
 
                     if module is not None:
-                        if self.apply_passes(module):
-                            output_stream.write(self.output_resulting_program(module))
+                        self.apply_passes(module)
+                        output_stream.write(self.output_resulting_program(module))
                     output_stream.flush()
                 except ParseError as e:
                     s = e.span
@@ -271,11 +271,13 @@ class xDSLOptMain(CommandLineTool):
         """
 
         def callback(
-            previous_pass: ModulePass, module: ModuleOp, next_pass: ModulePass
+            previous_pass: ModulePass | None,
+            module: ModuleOp,
+            next_pass: ModulePass | None,
         ) -> None:
             if not self.args.disable_verify:
                 module.verify()
-            if self.args.print_between_passes:
+            if previous_pass and next_pass and self.args.print_between_passes:
                 print(f"IR after {previous_pass.name}:")
                 printer = Printer(stream=sys.stdout)
                 printer.print_op(module)
@@ -325,14 +327,9 @@ class xDSLOptMain(CommandLineTool):
         else:
             return open(self.args.output_file, "w")
 
-    def apply_passes(self, prog: ModuleOp) -> bool:
+    def apply_passes(self, prog: ModuleOp):
         """Apply passes in order."""
-        if not self.args.disable_verify:
-            prog.verify()
         self.pipeline.apply(self.ctx, prog)
-        if not self.args.disable_verify:
-            prog.verify()
-        return True
 
     def output_resulting_program(self, prog: ModuleOp) -> str:
         """Get the resulting program."""
