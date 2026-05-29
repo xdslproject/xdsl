@@ -528,6 +528,120 @@ class DeferredAttr(ParametrizedAttribute, TypeAttribute):
 
 
 @irdl_attr_definition
+class PointAttr(ParametrizedAttribute):
+    """`#fir.point` case-tag — exact match `case (X)` in SELECT CASE."""
+
+    name = "fir.point"
+
+
+@irdl_attr_definition
+class LowerAttr(ParametrizedAttribute):
+    """`#fir.lower` case-tag — open lower bound `case (X:)` (selector >= X)."""
+
+    name = "fir.lower"
+
+
+@irdl_attr_definition
+class UpperAttr(ParametrizedAttribute):
+    """`#fir.upper` case-tag — open upper bound `case (:X)` (selector <= X)."""
+
+    name = "fir.upper"
+
+
+@irdl_attr_definition
+class IntervalAttr(ParametrizedAttribute):
+    """`#fir.interval` case-tag — closed range `case (lo:hi)` (lo <= sel <= hi)."""
+
+    name = "fir.interval"
+
+
+@irdl_attr_definition
+class ExactTypeAttr(ParametrizedAttribute):
+    """
+    `#fir.type_is<T>` case-tag — matches when the dynamic type of the selector
+    is exactly `T`. Used in `fir.select_type` to encode Fortran's `TYPE IS (...)`
+    SELECT TYPE arm.
+    """
+
+    name = "fir.type_is"
+
+    type: Attribute
+
+    def print_parameters(self, printer: Printer) -> None:
+        with printer.in_angle_brackets():
+            printer.print_attribute(self.type)
+
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
+        with parser.in_angle_brackets():
+            ty = parser.parse_type()
+        return [ty]
+
+
+@irdl_attr_definition
+class SubclassAttr(ParametrizedAttribute):
+    """
+    `#fir.class_is<T>` case-tag — matches when the dynamic type of the selector
+    is `T` or an extension of `T`. Used in `fir.select_type` to encode Fortran's
+    `CLASS IS (...)` SELECT TYPE arm.
+    """
+
+    name = "fir.class_is"
+
+    type: Attribute
+
+    def print_parameters(self, printer: Printer) -> None:
+        with printer.in_angle_brackets():
+            printer.print_attribute(self.type)
+
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
+        with parser.in_angle_brackets():
+            ty = parser.parse_type()
+        return [ty]
+
+
+@irdl_attr_definition
+class RealAttr(ParametrizedAttribute):
+    """
+    `#fir.real<kind, value>` — a Fortran REAL constant of a given KIND. The
+    second field is stored verbatim as a textual payload because Flang accepts
+    two interchangeable forms: a decimal float literal (e.g. `3.14`) and a hex
+    bit-pattern (e.g. `i x4048F5C3`).
+
+    This attribute exists to round-trip Flang output; xDSL does not interpret
+    the payload numerically.
+    """
+
+    name = "fir.real"
+
+    fkind: IntAttr
+    value: StringAttr
+
+    def print_parameters(self, printer: Printer) -> None:
+        with printer.in_angle_brackets():
+            printer.print_int(self.fkind.data)
+            printer.print_string(", ")
+            printer.print_string(self.value.data)
+
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
+        with parser.in_angle_brackets():
+            kind = parser.parse_integer(allow_boolean=False)
+            parser.parse_punctuation(",")
+            # The payload is either `i xHEX` or a float literal; capture
+            # whichever form appears, up to the closing `>`.
+            if parser.parse_optional_keyword("i") is not None:
+                # Flang prints `i x<hex>`; the `x<hex>` is one keyword token.
+                hex_kw = parser.parse_identifier()
+                value = StringAttr(f"i {hex_kw}")
+            else:
+                f = parser.parse_float()
+                value = StringAttr(str(f))
+        return [IntAttr(kind), value]
+
+
+@irdl_attr_definition
 class DummyScopeType(ParametrizedAttribute, TypeAttribute):
     """
     fir.dscope is a type returned by fir.dummy_scope operation.
@@ -1041,7 +1155,7 @@ class HeapType(ParametrizedAttribute, TypeAttribute):
 
     name = "fir.heap"
 
-    type: SequenceType | CharacterType
+    type: SequenceType | CharacterType | RecordType
 
 
 @irdl_attr_definition
@@ -3289,6 +3403,13 @@ FIR = Dialect(
         UseRenameAttr,
         OpenACCSafeTempArrayCopyAttr,
         OpenMPSafeTempArrayCopyAttr,
+        PointAttr,
+        LowerAttr,
+        UpperAttr,
+        IntervalAttr,
+        ExactTypeAttr,
+        SubclassAttr,
+        RealAttr,
         ReferenceType,
         DeferredAttr,
         DummyScopeType,
