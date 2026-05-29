@@ -55,10 +55,6 @@ class Liveness(PropagatingLattice):
             return self.mark_live()
         return ChangeResult.NO_CHANGE
 
-    def join(self, other: Liveness) -> ChangeResult:
-        # Not used for backward analyses, but provided for completeness.
-        return self.meet(other)
-
     def __str__(self) -> str:
         return "live" if self.is_live else "not live"
 
