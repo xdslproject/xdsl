@@ -215,7 +215,7 @@ class SymbolTable:
         op: Operation,
         symbol: StringAttr | SymbolRefAttr | str,
         *,
-        all_symbols: Literal[False],
+        all_symbols: Literal[False] = False,
     ) -> Operation | None: ...
 
     @staticmethod
@@ -358,8 +358,8 @@ class SymbolTableCollection:
         return self._symbol_tables
 
     @overload
-    @staticmethod
     def lookup_symbol_in(
+        self,
         op: Operation,
         symbol: StringAttr | SymbolRefAttr | str,
         *,
@@ -367,16 +367,16 @@ class SymbolTableCollection:
     ) -> list[Operation] | None: ...
 
     @overload
-    @staticmethod
     def lookup_symbol_in(
+        self,
         op: Operation,
         symbol: StringAttr | SymbolRefAttr | str,
         *,
-        all_symbols: Literal[False],
+        all_symbols: Literal[False] = False,
     ) -> Operation | None: ...
 
-    @staticmethod
     def lookup_symbol_in(
+        self,
         op: Operation,
         symbol: StringAttr | SymbolRefAttr | str,
         *,
@@ -389,11 +389,25 @@ class SymbolTableCollection:
         `op` is required to be an operation with the 'xdsl.traits.SymbolTable' trait.
         If `all_symbols` is `True`, returns all symbols referenced by the symbol.
         """
-        raise NotImplementedError
+        if isinstance(symbol, str | StringAttr):
+            symbol_op = self.get_symbol_table(op).lookup(symbol)
+            if all_symbols:
+                return [symbol_op] if symbol_op is not None else None
+            return symbol_op
 
-    @staticmethod
+        symbols = _lookup_symbol_ref_in(
+            op,
+            symbol,
+            lambda symbol_table_op, name: self.get_symbol_table(symbol_table_op).lookup(
+                name
+            ),
+        )
+        if symbols is None:
+            return None
+        return symbols if all_symbols else symbols[-1]
+
     def lookup_nearest_symbol_from(
-        from_op: Operation, symbol: StringAttr | SymbolRefAttr
+        self, from_op: Operation, symbol: StringAttr | SymbolRefAttr | str
     ) -> Operation | None:
         """
         Returns the operation registered with the given symbol name within the closest
@@ -401,13 +415,20 @@ class SymbolTableCollection:
         [`SymbolTable`][xdsl.traits.SymbolTable] trait.
         Returns `None` if no valid symbol was found.
         """
-        raise NotImplementedError
+        symbol_table_op = SymbolTable.get_nearest_symbol_table(from_op)
+        if symbol_table_op is None:
+            return None
+        return self.lookup_symbol_in(symbol_table_op, symbol)
 
     def get_symbol_table(self, op: Operation) -> SymbolTable:
         """
         Lookup, or create, a symbol table for an operation.
         """
-        raise NotImplementedError
+        symbol_table = self._symbol_tables.get(op)
+        if symbol_table is None:
+            symbol_table = SymbolTable(op)
+            self._symbol_tables[op] = symbol_table
+        return symbol_table
 
 
 def walk_symbol_table(op: Operation) -> Iterator[Operation]:
