@@ -373,6 +373,31 @@ def _convert_masked_store(
     builder.call(intrinsic, [value, ptr, alignment, mask])
 
 
+_FLOAT_TYPES = (ir.HalfType, ir.FloatType, ir.DoubleType)
+
+
+def intrinsic_suffix(t: ir.Type) -> str:
+    """Return the LLVM intrinsic name suffix for a type, e.g. 'f32' or 'v4f32'."""
+    if isinstance(t, ir.VectorType):
+        assert isinstance(t.element, _FLOAT_TYPES)
+        return f"v{t.count}{t.element.intrinsic_name}"
+    assert isinstance(t, (ir.HalfType, ir.FloatType, ir.DoubleType, ir.IntType))
+    return t.intrinsic_name
+
+
+def declare_intrinsic(
+    module: ir.Module,
+    name: str,
+    ty: ir.Type,
+    fnty: ir.FunctionType,
+) -> ir.Function:
+    """Declare an LLVM intrinsic with a type-mangled name, reusing an existing declaration if present."""
+    full_name = f"{name}.{intrinsic_suffix(ty)}"
+    if full_name in module.globals:
+        return cast(ir.Function, module.globals[full_name])
+    return ir.Function(module, fnty, name=full_name)
+
+
 def _convert_fma(
     op: llvm.FMAOp,
     builder: ir.IRBuilder,
@@ -384,18 +409,8 @@ def _convert_fma(
     b = val_map[op.b]
     c = val_map[op.c]
     res_type = convert_type(op.res.type)
-    _float_types = (ir.HalfType, ir.FloatType, ir.DoubleType)
-    if isinstance(res_type, ir.VectorType):
-        assert isinstance(res_type.element, _float_types)
-        name = f"llvm.fma.v{res_type.count}{res_type.element.intrinsic_name}"
-    else:
-        assert isinstance(res_type, _float_types)
-        name = f"llvm.fma.{res_type.intrinsic_name}"
     fn_type = ir.FunctionType(res_type, [res_type, res_type, res_type])
-    try:
-        intrinsic = builder.module.get_global(name)
-    except KeyError:
-        intrinsic = ir.Function(builder.module, fn_type, name=name)
+    intrinsic = declare_intrinsic(builder.module, "llvm.fma", res_type, fn_type)
     val_map[op.res] = builder.call(intrinsic, [a, b, c])
 
 
