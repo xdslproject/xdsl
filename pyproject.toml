@@ -80,10 +80,10 @@ bench = [
 ]
 
 [tool.setuptools]
+packages.find = {}
+package-data.xdsl = [ "**/*.irdl", "interactive/*.tcss", "py.typed" ]
 platforms = [ "Linux", "Mac OS-X", "Unix" ]
 zip-safe = false
-package-data.xdsl = [ "**/*.irdl", "py.typed", "interactive/*.tcss" ]
-packages.find = {}
 
 [tool.setuptools_scm]
 
@@ -156,6 +156,10 @@ lint.mccabe.max-complexity = 10
 lint.pycodestyle.max-line-length = 130
 
 [tool.pyright]
+typeCheckingMode = "strict"
+include = [ "benchmarks", "docs", "tests", "xdsl" ]
+exclude = [ "docs/marimo" ]
+extraPaths = [ "tests" ]
 # We need this for TypeForm, should remove it once that's in
 enableExperimentalFeatures = true
 # Use specific rule ignore instead if necessary
@@ -167,13 +171,9 @@ reportMissingModuleSource = false
 reportUnnecessaryCast = true
 reportUnnecessaryIsInstance = true
 reportUnnecessaryTypeIgnoreComment = true
-typeCheckingMode = "strict"
-extraPaths = [ "tests" ]
-include = [ "docs", "xdsl", "tests", "benchmarks" ]
-exclude = [ "docs/marimo" ]
 
 [tool.pytest]
-ini_options.python_files = [ "tests/*test_*.py", "docs/marimo/**.py" ]
+ini_options.python_files = [ "docs/marimo/**.py", "tests/*test_*.py" ]
 ini_options.python_classes = "Test_*"
 ini_options.python_functions = "test_*"
 ini_options.addopts = [ "--durations=20", "--maxfail=5", "--import-mode=importlib" ]
