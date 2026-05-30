@@ -12,6 +12,7 @@ from xdsl.pattern_rewriter import (
     op_type_rewrite_pattern,
 )
 from xdsl.rewriter import BlockInsertPoint, InsertPoint
+from xdsl.utils.exceptions import PassFailedException
 from xdsl.utils.hints import isa
 
 
@@ -100,6 +101,11 @@ class LowerX86ScfForPattern(RewritePattern):
         iv = first_body_block.args[0]
         assert isa(iv, SSAValue[GeneralRegisterType])
         iv_reg = iv.type
+        ub = op.ub
+        if not isinstance(ub, SSAValue):
+            raise PassFailedException(
+                "convert-x86-scf-to-x86 expects x86_scf.for upper bound to be an SSAValue"
+            )
 
         # Append the induction variable stepping logic to the last body block, add
         # comparison with upper bound, and conditionally branch back into the body.
@@ -113,7 +119,7 @@ class LowerX86ScfForPattern(RewritePattern):
                 inc_op := x86.ops.R_IncOp(
                     cast(SSAValue[GeneralRegisterType], mv_op.destination)
                 ),
-                cmp_op := x86.ops.SS_CmpOp(inc_op.register_out, op.ub, result=RFLAGS),
+                cmp_op := x86.ops.SS_CmpOp(inc_op.register_out, ub, result=RFLAGS),
                 x86.ops.C_JlOp(
                     cmp_op.result,
                     (inc_op.register_out, *yield_op.operands),
@@ -135,7 +141,7 @@ class LowerX86ScfForPattern(RewritePattern):
         rewriter.insert_op(
             (
                 mv_op := x86.ops.DS_MovOp(op.lb, destination=iv_reg),
-                cmp_op := x86.ops.SS_CmpOp(mv_op.destination, op.ub, result=RFLAGS),
+                cmp_op := x86.ops.SS_CmpOp(mv_op.destination, ub, result=RFLAGS),
                 x86.ops.C_JgeOp(
                     cmp_op.result,
                     (mv_op.destination, *op.iter_args),
