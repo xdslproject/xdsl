@@ -174,7 +174,12 @@ class SymbolTable:
         Returns the nearest symbol table from a given operation `from`.
         Returns `None` if no valid parent symbol table could be found.
         """
-        raise NotImplementedError
+        op: Operation | None = from_op
+        while op is not None:
+            if op.has_trait(traits.SymbolTable, value_if_unregistered=False):
+                return op
+            op = op.parent_op()
+        return None
 
     @staticmethod
     def walk_symbol_tables(

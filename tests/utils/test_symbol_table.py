@@ -234,11 +234,13 @@ def test_symbol_table_set_symbol_visibility():
 
 def test_symbol_table_get_nearest_symbol_table():
     """Test SymbolTable.get_nearest_symbol_table static method."""
-    test_op = TestOp()
+    detached_op = TestOp()
+    nested_op = TestOp()
+    module = ModuleOp([nested_op])
 
-    # This will raise NotImplementedError until implemented
-    with pytest.raises(NotImplementedError):
-        SymbolTable.get_nearest_symbol_table(test_op)
+    assert SymbolTable.get_nearest_symbol_table(detached_op) is None
+    assert SymbolTable.get_nearest_symbol_table(module) is module
+    assert SymbolTable.get_nearest_symbol_table(nested_op) is module
 
 
 def test_symbol_table_walk_symbol_tables():
