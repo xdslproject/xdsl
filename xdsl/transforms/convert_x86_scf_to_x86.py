@@ -1,5 +1,3 @@
-from typing import cast
-
 from xdsl.context import Context
 from xdsl.dialects import builtin, x86, x86_scf
 from xdsl.dialects.x86.registers import RFLAGS, GeneralRegisterType
@@ -12,8 +10,6 @@ from xdsl.pattern_rewriter import (
     op_type_rewrite_pattern,
 )
 from xdsl.rewriter import BlockInsertPoint, InsertPoint
-from xdsl.utils.exceptions import PassFailedException
-from xdsl.utils.hints import isa
 
 
 class LowerX86ScfForPattern(RewritePattern):
@@ -98,32 +94,46 @@ class LowerX86ScfForPattern(RewritePattern):
         last_body_block = op.body.blocks[-1]
 
         # Get the induction variable and its register
-        iv = first_body_block.args[0]
-        assert isa(iv, SSAValue[GeneralRegisterType])
+        iv = SSAValue.get(first_body_block.args[0], type=GeneralRegisterType)
         iv_reg = iv.type
         ub = op.ub
-        if not isinstance(ub, SSAValue):
-            raise PassFailedException(
-                "convert-x86-scf-to-x86 expects x86_scf.for upper bound to be an SSAValue"
-            )
+        step = op.step
 
         # Append the induction variable stepping logic to the last body block, add
         # comparison with upper bound, and conditionally branch back into the body.
         yield_op = last_body_block.last_op
         assert isinstance(yield_op, x86_scf.YieldOp)
 
+        mv_op = x86.ops.DS_MovOp(iv, destination=iv_reg)
+        match step:
+            case SSAValue():
+                step_op = x86.ops.RS_AddOp(mv_op.destination, step)
+            case builtin.IntegerAttr():
+                step_immediate = step
+                if step.value.data == 1:
+                    step_op = x86.ops.R_IncOp(mv_op.destination)
+                else:
+                    step_op = x86.ops.RI_AddOp(
+                        mv_op.destination,
+                        step_immediate,
+                    )
+        new_iv = step_op.register_out
+        match ub:
+            case SSAValue():
+                cmp_op = x86.ops.SS_CmpOp(new_iv, ub, result=RFLAGS)
+            case builtin.IntegerAttr():
+                cmp_op = x86.ops.SI_CmpOp(new_iv, ub)
+
         rewriter.replace_op(
             yield_op,
             (
-                mv_op := x86.ops.DS_MovOp(iv, destination=iv_reg),
-                inc_op := x86.ops.R_IncOp(
-                    cast(SSAValue[GeneralRegisterType], mv_op.destination)
-                ),
-                cmp_op := x86.ops.SS_CmpOp(inc_op.register_out, ub, result=RFLAGS),
+                mv_op,
+                step_op,
+                cmp_op,
                 x86.ops.C_JlOp(
                     cmp_op.result,
-                    (inc_op.register_out, *yield_op.operands),
-                    (inc_op.register_out, *yield_op.operands),
+                    (new_iv, *yield_op.operands),
+                    (new_iv, *yield_op.operands),
                     first_body_block,
                     end_block,
                 ),
@@ -131,7 +141,7 @@ class LowerX86ScfForPattern(RewritePattern):
         )
 
         mv_op.destination.name_hint = iv.name_hint
-        inc_op.register_out.name_hint = iv.name_hint
+        step_op.register_out.name_hint = iv.name_hint
         end_block.args[0].name_hint = iv.name_hint
 
         rewriter.inline_region(op.body, BlockInsertPoint.before(end_block))
@@ -141,7 +151,14 @@ class LowerX86ScfForPattern(RewritePattern):
         rewriter.insert_op(
             (
                 mv_op := x86.ops.DS_MovOp(op.lb, destination=iv_reg),
-                cmp_op := x86.ops.SS_CmpOp(mv_op.destination, ub, result=RFLAGS),
+                cmp_op := (
+                    x86.ops.SS_CmpOp(mv_op.destination, ub, result=RFLAGS)
+                    if isinstance(ub, SSAValue)
+                    else x86.ops.SI_CmpOp(
+                        mv_op.destination,
+                        ub,
+                    )
+                ),
                 x86.ops.C_JgeOp(
                     cmp_op.result,
                     (mv_op.destination, *op.iter_args),

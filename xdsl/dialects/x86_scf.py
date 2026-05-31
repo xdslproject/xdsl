@@ -8,12 +8,13 @@ from typing_extensions import Self
 
 from xdsl.backend.register_allocatable import RegisterAllocatableOperation
 from xdsl.backend.register_allocator import BlockAllocator
-from xdsl.dialects.builtin import IntegerAttr, IntegerType
+from xdsl.dialects.builtin import IntegerAttr
 from xdsl.dialects.utils import (
     AbstractYieldOperation,
     parse_for_op_like,
     print_for_op_like,
 )
+from xdsl.dialects.x86.ops import SI32
 from xdsl.dialects.x86.registers import GeneralRegisterType, X86RegisterType
 from xdsl.ir import Dialect
 from xdsl.irdl import (
@@ -62,9 +63,9 @@ class YieldOp(AbstractYieldOperation[X86RegisterType]):
 class ForRofOperation(RegisterAllocatableOperation, IRDLOperation, ABC):
     lb = operand_def(GeneralRegisterType)
     ub_val = opt_operand_def(GeneralRegisterType)
-    ub_attr = opt_prop_def(IntegerAttr[IntegerType])
+    ub_attr = opt_prop_def(IntegerAttr[SI32])
     step_val = opt_operand_def(GeneralRegisterType)
-    step_attr = opt_prop_def(IntegerAttr[IntegerType])
+    step_attr = opt_prop_def(IntegerAttr[SI32])
 
     iter_args = var_operand_def(X86RegisterType)
 
@@ -76,7 +77,7 @@ class ForRofOperation(RegisterAllocatableOperation, IRDLOperation, ABC):
     irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
     @property
-    def ub(self) -> IntegerAttr[IntegerType] | SSAValue:
+    def ub(self) -> IntegerAttr[SI32] | SSAValue:
         """Static upper bound (typed integer) or dynamic register SSA value."""
         if self.ub_attr is not None:
             return self.ub_attr
@@ -87,7 +88,7 @@ class ForRofOperation(RegisterAllocatableOperation, IRDLOperation, ABC):
             return self.ub_val
 
     @property
-    def step(self) -> IntegerAttr[IntegerType] | SSAValue:
+    def step(self) -> IntegerAttr[SI32] | SSAValue:
         """Static step (typed integer) or dynamic register SSA value."""
         if self.step_attr is not None:
             return self.step_attr
