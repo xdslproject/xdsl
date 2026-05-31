@@ -346,7 +346,11 @@ class SymbolTableCollection:
         """
         Lookup, or create, a symbol table for an operation.
         """
-        raise NotImplementedError
+        symbol_table = self._symbol_tables.get(op)
+        if symbol_table is None:
+            symbol_table = SymbolTable(op)
+            self._symbol_tables[op] = symbol_table
+        return symbol_table
 
 
 def walk_symbol_table(op: Operation) -> Iterator[Operation]:
