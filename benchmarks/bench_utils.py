@@ -3,6 +3,7 @@
 
 import cProfile
 import subprocess
+import sys
 import time
 from argparse import ArgumentParser, Namespace
 from collections.abc import Callable
@@ -28,6 +29,20 @@ class Benchmark(NamedTuple):
 
     body: Callable[[], Any]
     setup: Callable[[], Any] | None = None
+
+
+def benchmark_root_directory() -> Path:
+    """
+    Resolve the path for this test fixture.
+
+    Prefer the ASV per-commit checkout (<env>/project) so benchmark inputs match
+    the commit under test, and fall back to the benchmark checkout for local runs.
+    """
+    asv_project_path = Path(sys.executable).parents[1] / "project"
+    asv_file = asv_project_path
+    if asv_file.exists():
+        return asv_file
+    return Path(__file__).parents[1]
 
 
 def parse_arguments(benchmark_names: list[str]) -> ArgumentParser:
