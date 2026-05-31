@@ -90,6 +90,18 @@ x86_func.func @nested(%src: !x86.reg64<rax>, %dst: !x86.reg64<rbx>) {
 // CHECK: x86.si.cmp
 // CHECK: x86.rs.add
 // CHECK: x86.si.cmp
+x86_func.func @static_ub_dynamic_step(%lb: !x86.reg64<rcx>) {
+    %step = x86.di.mov 2 : () -> !x86.reg64<rdx>
+    x86_scf.for %i : !x86.reg64<r9> = %lb to 10 : si32 step %step {
+        x86_scf.yield
+    }
+    ret
+}
+
+// -----
+// CHECK-LABEL: x86_func.func @static_ub_dynamic_step
+// CHECK: x86.rs.add
+// CHECK: x86.si.cmp
 x86_func.func @static_ub_dynamic_step() {
     %zero = x86.di.mov 0 : () -> !x86.reg64<rcx>
     %step = x86.di.mov 2 : () -> !x86.reg64<rdx>
@@ -120,9 +132,8 @@ x86_func.func @dynamic_ub_static_step() {
 // CHECK: x86.si.cmp
 // CHECK: x86.r.inc
 // CHECK: x86.si.cmp
-x86_func.func @static_ub_static_step() {
-    %zero = x86.di.mov 0 : () -> !x86.reg64<rcx>
-    x86_scf.for %i : !x86.reg64<r9> = %zero to 12 : si32 step 1 : si32 {
+x86_func.func @static_ub_static_step(%lb: !x86.reg64<rcx>) {
+    x86_scf.for %i : !x86.reg64<r9> = %lb to 12 : si32 step 1 : si32 {
         x86_scf.yield
     }
     ret
