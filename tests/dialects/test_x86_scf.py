@@ -5,7 +5,8 @@ import pytest
 from xdsl import ir
 from xdsl.builder import ImplicitBuilder
 from xdsl.dialects import test, x86, x86_scf
-from xdsl.dialects.builtin import IntegerAttr, i64
+from xdsl.dialects.builtin import IntegerAttr
+from xdsl.dialects.x86.ops import si32
 from xdsl.traits import (
     EffectInstance,
     MemoryEffect,
@@ -64,8 +65,8 @@ def test_for_rof_bounds_and_step(
     lb = create_ssa_value(reg)
     ub_val = create_ssa_value(reg)
     step_val = create_ssa_value(reg)
-    ub_attr = IntegerAttr(42, i64)
-    step_attr = IntegerAttr(3, i64)
+    ub_attr = IntegerAttr(42, si32)
+    step_attr = IntegerAttr(3, si32)
 
     ub = ub_attr if static_ub else ub_val
     step = step_attr if static_step else step_val
