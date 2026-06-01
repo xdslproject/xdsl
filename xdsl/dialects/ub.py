@@ -56,6 +56,10 @@ class PoisonOp(IRDLOperation):
 
     name = "ub.poison"
 
+    # MLIR constrains this to `PoisonAttrInterface` (an attribute interface).
+    # xDSL does not model that interface yet, so we accept any `Attribute` for
+    # now; this should be tightened to a `PoisonAttrInterface` check once the
+    # interface is available.
     value = prop_def(Attribute, default_value=PoisonAttr())
 
     result = result_def()
