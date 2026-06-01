@@ -1577,7 +1577,7 @@ class DS_MovOpHasCanonicalizationPatterns(HasCanonicalizationPatternsTrait):
 
 
 @irdl_op_definition
-class DS_MovOp(DS_Operation[X86RegisterType, GeneralRegisterType]):
+class DS_MovOp(DS_Operation[GeneralRegisterType, GeneralRegisterType]):
     """
     Copies the value of s into r.
     ```C
