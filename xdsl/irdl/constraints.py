@@ -442,7 +442,6 @@ class AnyOf(AttrConstraint[AttributeCovT], Generic[AttributeCovT]):
         eq_constrs = set[Attribute]()
         based_constrs = dict[type[Attribute], AttrConstraint[AttributeCovT]]()
 
-        bases = set[type[Attribute]]()
         eq_bases = set[type[Attribute]]()
         abstr_constr: AttrConstraint[AttributeCovT] | None = None
         for i, c in enumerate(attr_constrs):
@@ -461,7 +460,7 @@ class AnyOf(AttrConstraint[AttributeCovT], Generic[AttributeCovT]):
                 abstr_constr = c
                 continue
 
-            if not b.isdisjoint(bases):
+            if not b.isdisjoint(based_constrs.keys()):
                 raise PyRDLError(
                     f"Constraint {c} shares a base with a non-equality constraint "
                     f"in {set(attr_constrs[0:i])} in `AnyOf` constraint."
@@ -478,7 +477,6 @@ class AnyOf(AttrConstraint[AttributeCovT], Generic[AttributeCovT]):
                     )
                 for base in b:
                     based_constrs[base] = c
-                bases |= b
 
         # check for overlaps with the abstract constraint
         if abstr_constr is not None:
@@ -490,7 +488,7 @@ class AnyOf(AttrConstraint[AttributeCovT], Generic[AttributeCovT]):
                         f"constraint {abstr_constr} in `AnyOf` constraint."
                     )
             # bases should not overlap via issubclass
-            for base in bases:
+            for base in based_constrs.keys():
                 if issubclass(base, abstr_constr.attr):
                     raise PyRDLError(
                         f"Non-equality constraint {based_constrs[base]} overlaps with "
