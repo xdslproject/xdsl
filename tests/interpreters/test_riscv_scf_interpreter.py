@@ -33,18 +33,17 @@ def sum_to_for_op():
     with ImplicitBuilder(func.FuncOp("sum_to", ((register,), (register,))).body) as (
         ub,
     ):
-        lb = rv32.LiOp(0)
-        step = rv32.LiOp(1)
-        initial = rv32.LiOp(0)
+        lb = rv32.LiOp(0).rd
+        step = rv32.LiOp(1).rd
+        initial = rv32.LiOp(0).rd
 
-        @Builder.implicit_region((register, register))
-        def for_loop_region(args: tuple[BlockArgument, ...]):
-            (i, acc) = args
+        func_op = riscv_scf.ForOp(lb, ub, step, (initial,))
+
+        with ImplicitBuilder(func_op.body) as (i, acc):
             res = riscv.AddOp(i, acc)
             riscv_scf.YieldOp(res)
 
-        result = riscv_scf.ForOp(lb, ub, step, (initial,), for_loop_region)
-        func.ReturnOp(result)
+        func.ReturnOp(*func_op.results)
 
 
 # Python implementation of `sum_to_while_op`

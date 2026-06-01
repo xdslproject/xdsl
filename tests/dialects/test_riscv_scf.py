@@ -3,9 +3,10 @@ from collections.abc import Callable
 import pytest
 
 from xdsl import ir
+from xdsl.builder import ImplicitBuilder
 from xdsl.dialects import riscv, riscv_scf, test
 from xdsl.dialects.builtin import IntegerAttr
-from xdsl.dialects.riscv.attrs import i12
+from xdsl.dialects.riscv.attrs import I12, i12
 from xdsl.traits import (
     EffectInstance,
     MemoryEffect,
@@ -18,39 +19,48 @@ from xdsl.utils.test_value import create_ssa_value
 
 
 @pytest.mark.parametrize("loop_cls", [riscv_scf.ForOp, riscv_scf.RofOp])
-def test_for_rof_step(
+@pytest.mark.parametrize(
+    "step", [IntegerAttr(1, i12), create_ssa_value(riscv.Registers.A2)]
+)
+@pytest.mark.parametrize("iter_arg_types", [(), (riscv.Registers.T0,)])
+@pytest.mark.parametrize("gen_block", [True, False])
+def test_for_rof_init(
     loop_cls: type[riscv_scf.ForOp | riscv_scf.RofOp],
+    step: IntegerAttr[I12] | ir.SSAValue,
+    iter_arg_types: tuple[ir.Attribute, ...],
+    gen_block: bool,
 ):
     lb = create_ssa_value(riscv.Registers.A0)
     ub = create_ssa_value(riscv.Registers.A1)
-    step_val = create_ssa_value(riscv.Registers.A2)
-    step_attr = IntegerAttr(1, i12)
+    operands = tuple(create_ssa_value(t) for t in iter_arg_types)
+
+    if gen_block:
+        body = ir.Block(
+            arg_types=[riscv.Registers.A0, *iter_arg_types],
+        )
+    else:
+        body = None
 
     op = loop_cls(
         lb,
         ub,
-        step_val,
-        (),
-        ir.Block((riscv_scf.YieldOp(),), arg_types=[riscv.Registers.UNALLOCATED_INT]),
+        step,
+        operands,
+        body,
     )
+    assert op.body.block.arg_types == (riscv.Registers.A0, *iter_arg_types)
+    with ImplicitBuilder(op.body) as (_i, *args):
+        riscv_scf.YieldOp(*args)
     op.verify()
 
-    assert op.step_attr is None
-    assert op.step_val is step_val
-    assert op.step is step_val
+    if isinstance(step, ir.SSAValue):
+        assert op.step_attr is None
+        assert op.step_val is step
+    else:
+        assert op.step_attr is step
+        assert op.step_val is None
 
-    op = loop_cls(
-        lb,
-        ub,
-        step_attr,
-        (),
-        ir.Block((riscv_scf.YieldOp(),), arg_types=[riscv.Registers.UNALLOCATED_INT]),
-    )
-    op.verify()
-
-    assert op.step_attr is step_attr
-    assert op.step_val is None
-    assert op.step is step_attr
+    assert op.step is step
 
 
 @pytest.mark.parametrize("loop_cls", [riscv_scf.ForOp, riscv_scf.RofOp])
