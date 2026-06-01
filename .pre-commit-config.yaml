@@ -32,5 +32,3 @@ repos:
     rev: "v2.23.0"
     hooks:
       - id: pyproject-fmt
-        # Pin broken transitive dependency for now
-        additional_dependencies: [toml-fmt-common<1.3.3]
