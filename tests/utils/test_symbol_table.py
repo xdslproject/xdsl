@@ -331,9 +331,12 @@ def test_symbol_table_collection_lookup_nearest_symbol_from():
 
 def test_symbol_table_collection_get_symbol_table():
     """Test SymbolTableCollection.get_symbol_table method."""
+    op_a = TestSymbolOp(properties={"sym_name": StringAttr("a")})
+    module = ModuleOp([op_a])
     collection = SymbolTableCollection()
-    test_op = TestOp()
+    table = collection.get_symbol_table(module)
 
-    # This will raise NotImplementedError until implemented
-    with pytest.raises(NotImplementedError):
-        collection.get_symbol_table(test_op)
+    assert isinstance(table, SymbolTable)
+    assert table.lookup("a") is op_a
+    assert collection.symbol_tables[module] is table
+    assert collection.get_symbol_table(module) is table
