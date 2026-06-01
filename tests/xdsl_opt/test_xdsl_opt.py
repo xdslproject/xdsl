@@ -168,6 +168,25 @@ def test_print_between_passes():
     assert len([l for l in output.split("\n") if "builtin.module" in l]) == len(passes)
 
 
+def test_time_passes():
+    filename_in = "tests/xdsl_opt/empty_program.mlir"
+    passes = ["canonicalize", "cse", "dce"]
+    flags = ["--time-passes", "-p", ",".join(passes)]
+
+    f = StringIO("")
+
+    opt = xDSLOptMain(args=[*flags, filename_in])
+
+    with redirect_stdout(f):
+        opt.run()
+
+    output = f.getvalue()
+    lines = output.split("\n")
+    assert lines[0].startswith("Pass canonicalize took ")
+    assert lines[1].startswith("Pass cse took ")
+    assert lines[2].startswith("Pass dce took ")
+
+
 def test_verify_diagnostics_output():
     """
     Diagnostic exceptions raised when printing output should be redirected to stdout if
