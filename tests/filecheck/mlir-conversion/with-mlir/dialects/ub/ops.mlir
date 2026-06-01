@@ -17,4 +17,7 @@ builtin.module {
   // upstream to produce a non-elided spelling).
   // CHECK: %{{.*}} = ub.poison : f32
   %2 = ub.poison <#ub.poison> : f32
+
+  // CHECK: ub.unreachable
+  ub.unreachable
 }

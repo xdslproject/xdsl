@@ -17,7 +17,7 @@ from xdsl.irdl import (
     result_def,
     traits_def,
 )
-from xdsl.traits import ConstantLike, Pure
+from xdsl.traits import ConstantLike, IsTerminator, Pure
 
 
 @irdl_attr_definition
@@ -79,10 +79,30 @@ class PoisonOp(IRDLOperation):
         )
 
 
+@irdl_op_definition
+class UnreachableOp(IRDLOperation):
+    """
+    Triggers immediate undefined behavior if executed.
+
+    Example:
+
+    ```mlir
+    ub.unreachable
+    ```
+    """
+
+    name = "ub.unreachable"
+
+    traits = traits_def(IsTerminator())
+
+    assembly_format = "attr-dict"
+
+
 UB = Dialect(
     "ub",
     [
         PoisonOp,
+        UnreachableOp,
     ],
     [
         PoisonAttr,
