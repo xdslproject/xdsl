@@ -94,8 +94,8 @@ class LowerX86ScfForPattern(RewritePattern):
         last_body_block = op.body.blocks[-1]
 
         # Get the induction variable and its register
-        iv = SSAValue.get(first_body_block.args[0], type=GeneralRegisterType)
-        iv_reg = iv.type
+        iv_body = SSAValue.get(first_body_block.args[0], type=GeneralRegisterType)
+        iv_reg = iv_body.type
         ub = op.ub
         step = op.step
 
@@ -106,14 +106,14 @@ class LowerX86ScfForPattern(RewritePattern):
 
         match step:
             case SSAValue():
-                step_op = x86.ops.RS_AddOp(iv, step)
+                step_op = x86.ops.RS_AddOp(iv_body, step)
             case builtin.IntegerAttr():
                 step_immediate = step
                 if step.value.data == 1:
-                    step_op = x86.ops.R_IncOp(iv)
+                    step_op = x86.ops.R_IncOp(iv_body)
                 else:
                     step_op = x86.ops.RI_AddOp(
-                        iv,
+                        iv_body,
                         step_immediate,
                     )
         new_iv = step_op.register_out
@@ -138,8 +138,8 @@ class LowerX86ScfForPattern(RewritePattern):
             ),
         )
 
-        step_op.register_out.name_hint = iv.name_hint
-        end_block.args[0].name_hint = iv.name_hint
+        step_op.register_out.name_hint = iv_body.name_hint
+        end_block.args[0].name_hint = iv_body.name_hint
 
         rewriter.inline_region(op.body, BlockInsertPoint.before(end_block))
 
@@ -163,29 +163,33 @@ class LowerX86ScfForPattern(RewritePattern):
         else:
             # Move lb to new register to initialize the iv.
             # Skip for loop if condition is not satisfied at start.
+            if op.lb.type == iv_reg:
+                # Just use lb for iv, no need to move to self
+                iv_condition = op.lb
+            else:
+                iv_condition = rewriter.insert_op(
+                    x86.ops.DS_MovOp(op.lb, destination=iv_reg),
+                    InsertPoint.at_end(init_block),
+                ).destination
+                iv_condition.name_hint = op.lb.name_hint
+
             rewriter.insert_op(
                 (
-                    mv_op := x86.ops.DS_MovOp(op.lb, destination=iv_reg),
                     cmp_op := (
-                        x86.ops.SS_CmpOp(mv_op.destination, ub, result=RFLAGS)
+                        x86.ops.SS_CmpOp(iv_condition, ub, result=RFLAGS)
                         if isinstance(ub, SSAValue)
-                        else x86.ops.SI_CmpOp(
-                            mv_op.destination,
-                            ub,
-                        )
+                        else x86.ops.SI_CmpOp(iv_condition, ub)
                     ),
                     x86.ops.C_JgeOp(
                         cmp_op.result,
-                        (mv_op.destination, *op.iter_args),
-                        (mv_op.destination, *op.iter_args),
+                        (iv_condition, *op.iter_args),
+                        (iv_condition, *op.iter_args),
                         end_block,
                         first_body_block,
                     ),
                 ),
                 InsertPoint.at_end(init_block),
             )
-
-        mv_op.destination.name_hint = op.lb.name_hint
 
         # Insert label at the start of the first body block.
         rewriter.insert_op(
