@@ -110,13 +110,12 @@ class LowerX86ScfForPattern(RewritePattern):
         yield_op = last_body_block.last_op
         assert isinstance(yield_op, x86_scf.YieldOp)
 
-        mv_op = x86.ops.DS_MovOp(iv, destination=iv_reg)
         match step:
             case SSAValue():
-                step_op = x86.ops.RS_AddOp(mv_op.destination, step)
+                step_op = x86.ops.RS_AddOp(iv, step)
             case builtin.IntegerAttr():
                 step_op = x86.ops.RI_AddOp(
-                    mv_op.destination,
+                    iv,
                     step,
                 )
         new_iv = step_op.register_out
@@ -129,7 +128,6 @@ class LowerX86ScfForPattern(RewritePattern):
         rewriter.replace(
             yield_op,
             (
-                mv_op,
                 step_op,
                 cmp_op,
                 x86.ops.C_JlOp(
@@ -142,7 +140,6 @@ class LowerX86ScfForPattern(RewritePattern):
             ),
         )
 
-        mv_op.destination.name_hint = iv.name_hint
         step_op.register_out.name_hint = iv.name_hint
         end_block.args[0].name_hint = iv.name_hint
 
