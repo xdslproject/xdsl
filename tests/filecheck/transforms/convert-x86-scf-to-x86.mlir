@@ -31,6 +31,35 @@ x86_func.func @copy10(%src: !x86.reg64<rax>, %dst: !x86.reg64<rbx>) {
 
 // -----
 
+// CHECK-LABEL:    @lb_i_same_type
+//  CHECK-NEXT:      %zero = x86.di.mov 0 : () -> !x86.reg64<rcx>
+//  CHECK-NEXT:      %step = x86.di.mov 4 : () -> !x86.reg64<rdx>
+//  CHECK-NEXT:      %forty = x86.di.mov 40 : () -> !x86.reg64<r8>
+//  CHECK-NEXT:      %0 = x86.ss.cmp %zero, %forty : (!x86.reg64<rcx>, !x86.reg64<r8>) -> !x86.rflags<rflags>
+//  CHECK-NEXT:      x86.c.jge %0 : !x86.rflags<rflags>, ^bb0(%zero : !x86.reg64<rcx>), ^bb1(%zero : !x86.reg64<rcx>)
+//  CHECK-NEXT:    ^bb1(%offset: !x86.reg64<rcx>):
+//  CHECK-NEXT:      x86.label "scf_body_0_for"
+//  CHECK-NEXT:      "test.op"(%offset, %src, %dst) : (!x86.reg64<rcx>, !x86.reg64<rax>, !x86.reg64<rbx>) -> ()
+//  CHECK-NEXT:      %offset_1 = x86.rs.add %offset, %step : (!x86.reg64<rcx>, !x86.reg64<rdx>) -> !x86.reg64<rcx>
+//  CHECK-NEXT:      %1 = x86.ss.cmp %offset_1, %forty : (!x86.reg64<rcx>, !x86.reg64<r8>) -> !x86.rflags<rflags>
+//  CHECK-NEXT:      x86.c.jl %1 : !x86.rflags<rflags>, ^bb1(%offset_1 : !x86.reg64<rcx>), ^bb0(%offset_1 : !x86.reg64<rcx>)
+//  CHECK-NEXT:    ^bb0(%offset_2: !x86.reg64<rcx>):
+//  CHECK-NEXT:      x86.label "scf_body_end_0_for"
+//  CHECK-NEXT:      x86_func.ret
+//  CHECK-NEXT:    }
+x86_func.func @lb_i_same_type(%src: !x86.reg64<rax>, %dst: !x86.reg64<rbx>) {
+    %zero = x86.di.mov 0 : () -> !x86.reg64<rcx>
+    %step = x86.di.mov 4 : () -> !x86.reg64<rdx>
+    %forty = x86.di.mov 40 : () -> !x86.reg64<r8>
+    x86_scf.for %offset : !x86.reg64<rcx> = %zero to %forty step %step {
+        "test.op"(%offset, %src, %dst) :  (!x86.reg64<rcx>, !x86.reg64<rax>, !x86.reg64<rbx>) -> ()
+        yield
+    }
+    ret
+}
+
+// -----
+
 // CHECK-LABEL:    x86_func.func @nested(%src: !x86.reg64<rax>, %dst: !x86.reg64<rbx>) {
 //  CHECK-NEXT:      %zero_outer = x86.di.mov 0 : () -> !x86.reg64<rcx>
 //  CHECK-NEXT:      %step_outer = x86.di.mov 4 : () -> !x86.reg64<rdx>
