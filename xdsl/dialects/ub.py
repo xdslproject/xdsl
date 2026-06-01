@@ -71,7 +71,7 @@ class PoisonOp(IRDLOperation):
     ):
         super().__init__(
             result_types=[result_type],
-            properties={"value": value if value is not None else PoisonAttr()},
+            properties={"value": value} if value is not None else {},
         )
 
 
