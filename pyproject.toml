@@ -42,7 +42,7 @@ optional-dependencies.dev = [
   "toml<0.11",
 ]
 optional-dependencies.gui = [ "pyclip==0.7", "textual>=8,<9" ]
-optional-dependencies.heir = [ "heir-py==2026.5.18; python_version>='3.11' and python_version<'3.13'" ]
+optional-dependencies.heir = [ "heir-py==2026.6.1; python_version>='3.11' and python_version<'3.13'" ]
 optional-dependencies.llvm = [ "llvmlite~=0.47.0" ]
 urls."Issue Tracker" = "https://github.com/xdslproject/xdsl/issues"
 urls."Source Code" = "https://github.com/xdslproject/xdsl"
