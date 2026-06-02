@@ -1,6 +1,6 @@
 import pytest
 
-from xdsl.dialects.builtin import ModuleOp, StringAttr
+from xdsl.dialects.builtin import IntegerAttr, ModuleOp, StringAttr
 from xdsl.dialects.test import TestOp, TestSymbolOp
 from xdsl.ir import Block, Region
 from xdsl.utils.symbol_table import (
@@ -215,11 +215,46 @@ def test_symbol_table_set_symbol_name():
 
 def test_symbol_table_get_symbol_visibility():
     """Test SymbolTable.get_symbol_visibility static method."""
-    test_op = TestOp()
+    public_op = TestSymbolOp(properties={"sym_name": StringAttr("public_symbol")})
+    explicit_public_op = TestSymbolOp(
+        properties={
+            "sym_name": StringAttr("explicit_public_symbol"),
+            "sym_visibility": StringAttr("public"),
+        }
+    )
+    private_op = TestSymbolOp(
+        properties={
+            "sym_name": StringAttr("private_symbol"),
+            "sym_visibility": StringAttr("private"),
+        }
+    )
+    nested_op = TestSymbolOp(
+        properties={
+            "sym_name": StringAttr("nested_symbol"),
+            "sym_visibility": StringAttr("nested"),
+        }
+    )
+    attr_visibility_op = TestSymbolOp(
+        attributes={"sym_visibility": StringAttr("private")},
+        properties={"sym_name": StringAttr("attr_visibility_symbol")},
+    )
+    invalid_visibility_op = TestSymbolOp(
+        properties={
+            "sym_name": StringAttr("invalid_visibility_symbol"),
+            "sym_visibility": IntegerAttr(1, 32),
+        }
+    )
 
-    # This will raise NotImplementedError until implemented
-    with pytest.raises(NotImplementedError):
-        SymbolTable.get_symbol_visibility(test_op)
+    assert SymbolTable.get_symbol_visibility(public_op) is Visibility.PUBLIC
+    assert SymbolTable.get_symbol_visibility(explicit_public_op) is Visibility.PUBLIC
+    assert SymbolTable.get_symbol_visibility(private_op) is Visibility.PRIVATE
+    assert SymbolTable.get_symbol_visibility(nested_op) is Visibility.NESTED
+    assert SymbolTable.get_symbol_visibility(attr_visibility_op) is Visibility.PRIVATE
+
+    with pytest.raises(
+        ValueError, match="Expected 'sym_visibility' to be a StringAttr"
+    ):
+        SymbolTable.get_symbol_visibility(invalid_visibility_op)
 
 
 def test_symbol_table_set_symbol_visibility():
