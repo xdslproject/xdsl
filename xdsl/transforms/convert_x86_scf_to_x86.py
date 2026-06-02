@@ -159,6 +159,17 @@ class LowerX86ScfForPattern(RewritePattern):
 
         rewriter.inline_region(op.body, BlockInsertPoint.before(end_block))
 
+        # Move lb to new register to initialize the iv.
+        if op.lb.type == iv_reg:
+            # Just use lb for iv, no need to move to self
+            iv_condition = op.lb
+        else:
+            iv_condition = rewriter.insert_op(
+                x86.ops.DS_MovOp(op.lb, destination=iv_reg),
+                InsertPoint.at_end(init_block),
+            ).destination
+            iv_condition.name_hint = op.lb.name_hint
+
         if (
             isinstance(lb_owner := op.lb.owner, Operation)
             and isinstance(lb_owner, x86.DI_MovOp)
@@ -168,27 +179,15 @@ class LowerX86ScfForPattern(RewritePattern):
             # Loop executes at least once, fallthrough directly into it without runtime checks
             rewriter.insert_op(
                 (
-                    mv_op := x86.ops.DS_MovOp(op.lb, destination=iv_reg),
                     x86.ops.FallthroughOp(
-                        (mv_op.destination, *op.iter_args),
+                        (iv_condition, *op.iter_args),
                         first_body_block,
                     ),
                 ),
                 InsertPoint.at_end(init_block),
             )
         else:
-            # Move lb to new register to initialize the iv.
             # Skip for loop if condition is not satisfied at start.
-            if op.lb.type == iv_reg:
-                # Just use lb for iv, no need to move to self
-                iv_condition = op.lb
-            else:
-                iv_condition = rewriter.insert_op(
-                    x86.ops.DS_MovOp(op.lb, destination=iv_reg),
-                    InsertPoint.at_end(init_block),
-                ).destination
-                iv_condition.name_hint = op.lb.name_hint
-
             rewriter.insert_op(
                 (
                     cmp_op := (
