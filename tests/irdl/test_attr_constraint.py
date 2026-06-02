@@ -39,6 +39,7 @@ from xdsl.irdl import (
     EqIntConstraint,
     IntSetConstraint,
     IntTypeVarConstraint,
+    IntVarConstraint,
     MessageConstraint,
     ParamAttrConstraint,
     SizedConstraint,
@@ -244,6 +245,20 @@ def test_sized_constraint(sized_attribute: Attribute):
 
     with pytest.raises(VerifyException, match="expected integer >= 3, got 2"):
         constr_fails.verify(sized_attribute, ConstraintContext())
+
+
+def test_sized_constraint_ops():
+    sized_constraint = SizedConstraint(IntVarConstraint("I", AnyInt()))
+
+    assert sized_constraint.variables() == {"I"}
+
+    I = TypeVar("I")
+
+    type_var_constraint = SizedConstraint(IntTypeVarConstraint(I, AnyInt()))
+
+    assert type_var_constraint.mapping_type_vars(
+        {I: EqIntConstraint(2)}
+    ) == SizedConstraint(EqIntConstraint(2))
 
 
 def test_not_sized_constraint():
