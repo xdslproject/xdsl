@@ -95,13 +95,14 @@ class LowerX86ScfForPattern(RewritePattern):
 
         # Get the induction variable and its register
         iv_body = SSAValue.get(first_body_block.args[0], type=GeneralRegisterType)
+        iv_used = iv_body.first_use is not None
         iv_reg = iv_body.type
         ub = op.ub
         step = op.step
 
         # Insert label at the start of the first body block.
         rewriter.insert(
-            x86.ops.LabelOp(f"scf_body_{suffix}"),
+            body_label_op := x86.ops.LabelOp(f"scf_body_{suffix}"),
             InsertPoint.at_start(first_body_block),
         )
 
@@ -118,17 +119,19 @@ class LowerX86ScfForPattern(RewritePattern):
                     iv_body,
                     step,
                 )
+        step_op.register_out.name_hint = iv_body.name_hint
         new_iv = step_op.register_out
+
         match ub:
             case SSAValue():
                 cmp_op = x86.ops.SS_CmpOp(new_iv, ub, result=RFLAGS)
             case builtin.IntegerAttr():
                 cmp_op = x86.ops.SI_CmpOp(new_iv, ub)
 
+        # Insert comparison and jump to beginning of loop
         rewriter.replace(
             yield_op,
             (
-                step_op,
                 cmp_op,
                 x86.ops.C_JlOp(
                     cmp_op.result,
@@ -140,7 +143,14 @@ class LowerX86ScfForPattern(RewritePattern):
             ),
         )
 
-        step_op.register_out.name_hint = iv_body.name_hint
+        # Insert iv increment
+        # If iv was not used prior to lowering, then put it at the start of the loop as
+        # an optimisation to avoid cycles waiting for the increment.
+        rewriter.insert(
+            step_op,
+            InsertPoint.before(cmp_op) if iv_used else InsertPoint.after(body_label_op),
+        )
+
         end_block.args[0].name_hint = iv_body.name_hint
 
         rewriter.inline_region(op.body, BlockInsertPoint.before(end_block))
