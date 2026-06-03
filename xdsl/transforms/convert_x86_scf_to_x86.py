@@ -186,6 +186,13 @@ class LowerX86ScfForPattern(RewritePattern):
                 ),
                 InsertPoint.at_end(init_block),
             )
+
+            # Replace operation by arguments to the newly added end block.
+            rewriter.replace_op(
+                op,
+                (),
+                end_block.args[1:],
+            )
         else:
             # Skip for loop if condition is not satisfied at start.
             rewriter.insert_op(
@@ -206,12 +213,12 @@ class LowerX86ScfForPattern(RewritePattern):
                 InsertPoint.at_end(init_block),
             )
 
-        # Replace operation by arguments to the newly end block.
-        rewriter.replace_op(
-            op,
-            x86.ops.LabelOp(f"scf_body_end_{suffix}"),
-            end_block.args[1:],
-        )
+            # Replace operation by arguments to the newly added end block.
+            rewriter.replace_op(
+                op,
+                x86.ops.LabelOp(f"scf_body_end_{suffix}"),
+                end_block.args[1:],
+            )
 
 
 class ConvertX86ScfToX86Pass(ModulePass):
