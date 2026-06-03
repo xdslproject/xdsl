@@ -79,20 +79,6 @@ class ConstraintContext:
     def int_variables(self) -> AbstractSet[str]:
         return self._int_variables.keys()
 
-    @deprecated("ConstraintContexts should not be copied")
-    def copy(self):
-        return ConstraintContext(
-            self._variables.copy(),
-            self._range_variables.copy(),
-            self._int_variables.copy(),
-        )
-
-    @deprecated("ConstraintContexts should only be updated by set_* methods")
-    def update(self, other: ConstraintContext):
-        self._variables.update(other._variables)
-        self._range_variables.update(other._range_variables)
-        self._int_variables.update(other._int_variables)
-
 
 _AttributeCovT = TypeVar(
     "_AttributeCovT", bound=Attribute, default=Attribute, covariant=True
