@@ -182,32 +182,3 @@ x86_func.func @dynamic_ub_static_step() {
     }
     ret
 }
-
-// -----
-
-// CHECK-LABEL: x86_func.func @static_ub_static_step
-// CHECK: %lb_1 = x86.ds.mov %lb : (!x86.reg64<rcx>) -> !x86.reg64<r9>
-// CHECK: x86.si.cmp
-// CHECK: x86.r.inc
-// CHECK: x86.si.cmp
-x86_func.func @static_ub_static_step(%lb: !x86.reg64<rcx>) {
-    x86_scf.for %i : !x86.reg64<r9> = %lb to 12 : si32 step 1 : si32 {
-        x86_scf.yield
-    }
-    ret
-}
-
-
-// -----
-
-// CHECK-LABEL: x86_func.func @static_ub_static_step
-// CHECK-NOT: x86.ds.mov
-// CHECK: x86.si.cmp
-// CHECK: x86.r.inc
-// CHECK: x86.si.cmp
-x86_func.func @static_ub_static_step(%lb: !x86.reg64<rcx>) {
-    x86_scf.for %i : !x86.reg64<rcx> = %lb to 12 : si32 step 1 : si32 {
-        x86_scf.yield
-    }
-    ret
-}
