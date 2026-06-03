@@ -115,14 +115,10 @@ class LowerX86ScfForPattern(RewritePattern):
             case SSAValue():
                 step_op = x86.ops.RS_AddOp(iv_body, step)
             case builtin.IntegerAttr():
-                step_immediate = step
-                if step.value.data == 1:
-                    step_op = x86.ops.R_IncOp(iv_body)
-                else:
-                    step_op = x86.ops.RI_AddOp(
-                        iv_body,
-                        step_immediate,
-                    )
+                step_op = x86.ops.RI_AddOp(
+                    iv_body,
+                    step,
+                )
         step_op.register_out.name_hint = iv_body.name_hint
         new_iv = step_op.register_out
 
