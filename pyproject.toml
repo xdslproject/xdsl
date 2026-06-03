@@ -88,7 +88,8 @@ zip-safe = false
 [tool.setuptools_scm]
 
 [tool.uv]
-override-dependencies = [ "llvmlite~=0.47.0" ]
+# Heir's frontend dependencies conflict with out llvmlite pinned version
+dependency-metadata = [ { name = "heir-py", requires-dist = [] } ]
 sources.bytesight = { git = "https://github.com/EdmundGoodman/bytesight.git", rev = "e8e8e45ec34316fdc99ee09ea8886c4f63c248be" }
 # No config necessary
 sources.lzstring2 = { git = "https://github.com/superlopuh/lz-string.git" }
