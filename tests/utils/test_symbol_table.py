@@ -307,6 +307,10 @@ def test_symbol_table_lookup_symbol_in():
     assert SymbolTable.lookup_symbol_in(module, "a") is op_a
     assert SymbolTable.lookup_symbol_in(module, StringAttr("b")) is op_b
     assert SymbolTable.lookup_symbol_in(module, "missing") is None
+    assert (
+        SymbolTable.lookup_symbol_in(module, SymbolRefAttr("missing", ["nested"]))
+        is None
+    )
     assert SymbolTable.lookup_symbol_in(module, "a", all_symbols=True) == [op_a]
 
     assert (
