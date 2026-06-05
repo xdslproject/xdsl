@@ -19,6 +19,14 @@ module {
   %14 = arith.truncf %2 : f64 to bf16
   %15 = arith.truncf %f80v : f80 to f32
   %16 = arith.truncf %f128v : f128 to f64
+  %vecf16, %vecf32, %vecf64 = "test.op"() : () -> (vector<4xf16>, vector<4xf32>, vector<4xf64>)
+  %17 = arith.extf %vecf16 : vector<4xf16> to vector<4xf32>
+  %18 = arith.extf %vecf32 : vector<4xf32> to vector<4xf64>
+  %19 = arith.truncf %vecf64 : vector<4xf64> to vector<4xf32>
+  %20 = arith.truncf %vecf32 : vector<4xf32> to vector<4xf16>
+  %tenf32, %tenf64 = "test.op"() : () -> (tensor<2x3xf32>, tensor<2x3xf64>)
+  %21 = arith.extf %tenf32 : tensor<2x3xf32> to tensor<2x3xf64>
+  %22 = arith.truncf %tenf64 : tensor<2x3xf64> to tensor<2x3xf32>
 }
 
 // CHECK:        %{{.*}} = arith.extf %{{.*}} : f16 to f32
@@ -35,3 +43,9 @@ module {
 // CHECK:        %{{.*}} = arith.truncf %{{.*}} : f64 to bf16
 // CHECK:        %{{.*}} = arith.truncf %{{.*}} : f80 to f32
 // CHECK:        %{{.*}} = arith.truncf %{{.*}} : f128 to f64
+// CHECK:        %{{.*}} = arith.extf %{{.*}} : vector<4xf16> to vector<4xf32>
+// CHECK:        %{{.*}} = arith.extf %{{.*}} : vector<4xf32> to vector<4xf64>
+// CHECK:        %{{.*}} = arith.truncf %{{.*}} : vector<4xf64> to vector<4xf32>
+// CHECK:        %{{.*}} = arith.truncf %{{.*}} : vector<4xf32> to vector<4xf16>
+// CHECK:        %{{.*}} = arith.extf %{{.*}} : tensor<2x3xf32> to tensor<2x3xf64>
+// CHECK:        %{{.*}} = arith.truncf %{{.*}} : tensor<2x3xf64> to tensor<2x3xf32>
