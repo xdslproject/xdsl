@@ -1668,7 +1668,7 @@ class TensorType(
     @staticmethod
     def constr(
         element_type: IRDLAttrConstraint[AttributeInvT] | None = None,
-        shape: IRDLAttrConstraint[ArrayAttr[IntAttr]] | None = None,
+        shape: IRDLAttrConstraint | None = None,
     ) -> AttrConstraint[TensorType[AttributeInvT]]:
         return cast(
             AttrConstraint[TensorType[AttributeInvT]],
