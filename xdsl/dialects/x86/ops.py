@@ -275,7 +275,7 @@ class RS_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT]):
     """
 
     register_in = operand_def(R1InvT)
-    register_out = result_def(R1InvT)
+    register_out: OpResult[R1InvT] = result_def(R1InvT)
 
     source = operand_def(R2InvT)
 
@@ -470,7 +470,7 @@ class R_Operation(X86Instruction, ABC, Generic[R1InvT]):
     """
 
     register_in = operand_def(R1InvT)
-    register_out = result_def(R1InvT)
+    register_out: OpResult[R1InvT] = result_def(R1InvT)
 
     assembly_format = (
         "$register_in attr-dict `:` `(` type($register_in) `)` `->` type($register_out)"
@@ -509,7 +509,7 @@ class RM_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT]):
     """
 
     register_in = operand_def(R1InvT)
-    register_out = result_def(R1InvT)
+    register_out: OpResult[R1InvT] = result_def(R1InvT)
 
     memory = operand_def(R2InvT)
     memory_offset = attr_def(IntegerAttr[I64], default_value=IntegerAttr(0, i64))
@@ -573,7 +573,7 @@ class DM_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT]):
     A base class for x86 operations that load from memory into a destination register.
     """
 
-    destination = result_def(R1InvT)
+    destination: OpResult[R1InvT] = result_def(R1InvT)
     memory = operand_def(R2InvT)
     memory_offset = attr_def(IntegerAttr[I64], default_value=IntegerAttr(0, i64))
 
@@ -675,7 +675,7 @@ class DI_Operation(X86Instruction, ABC, Generic[R1InvT]):
     # In the future, we should look into the legal bitwidths in the binary
     # representation.
     immediate = attr_def(IntegerAttr[SI32])
-    destination = result_def(R1InvT)
+    destination: OpResult[R1InvT] = result_def(R1InvT)
 
     assembly_format = "$immediate attr-dict `:` `(` `)` `->` type($destination)"
 
@@ -710,7 +710,7 @@ class RI_Operation(X86Instruction, ABC, Generic[R1InvT]):
     """
 
     register_in = operand_def(R1InvT)
-    register_out = result_def(R1InvT)
+    register_out: OpResult[R1InvT] = result_def(R1InvT)
 
     # In the future, we should look into the legal bitwidths in the binary
     # representation.
@@ -923,7 +923,7 @@ class DSI_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT]):
     register and an immediate value.
     """
 
-    destination = result_def(R1InvT)
+    destination: OpResult[R1InvT] = result_def(R1InvT)
     source = operand_def(R2InvT)
     # In the future, we should look into the legal bitwidths in the binary
     # representation.
@@ -966,7 +966,7 @@ class DMI_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT]):
     reference and an immediate value.
     """
 
-    destination = result_def(R1InvT)
+    destination: OpResult[R1InvT] = result_def(R1InvT)
     memory = operand_def(R2InvT)
     # In the future, we should look into the legal bitwidths in the binary
     # representation.
@@ -1187,7 +1187,7 @@ class RSS_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT, R3InvT]):
     """
 
     register_in = operand_def(R1InvT)
-    register_out = result_def(R1InvT)
+    register_out: OpResult[R1InvT] = result_def(R1InvT)
     source1 = operand_def(R2InvT)
     source2 = operand_def(R3InvT)
 
@@ -1298,7 +1298,7 @@ class DSS_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT, R3InvT]):
     registers.
     """
 
-    destination = result_def(R1InvT)
+    destination: OpResult[R1InvT] = result_def(R1InvT)
     source1 = operand_def(R2InvT)
     source2 = operand_def(R3InvT)
 
@@ -1342,7 +1342,7 @@ class RSM_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT, R4InvT]):
     """
 
     register_in = operand_def(R1InvT)
-    register_out = result_def(R1InvT)
+    register_out: OpResult[R1InvT] = result_def(R1InvT)
     source1 = operand_def(R2InvT)
     memory = operand_def(R4InvT)
     memory_offset = attr_def(IntegerAttr[SI64], default_value=IntegerAttr(0, si64))
@@ -1400,7 +1400,7 @@ class DSSI_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT, R3InvT]):
     register and an immediate value.
     """
 
-    destination = result_def(R1InvT)
+    destination: OpResult[R1InvT] = result_def(R1InvT)
     source0 = operand_def(R2InvT)
     source1 = operand_def(R3InvT)
     immediate = attr_def(IntegerAttr[UI8])
