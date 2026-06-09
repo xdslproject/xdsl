@@ -1632,7 +1632,7 @@ class S_PushOp(X86Instruction):
 
     rsp_in = operand_def(RSP)
     rsp_out = result_def(RSP)
-    source = operand_def(X86RegisterType)
+    source = operand_def(GeneralRegisterType)
 
     assembly_format = (
         "$rsp_in `,` $source attr-dict `:` "
@@ -1673,7 +1673,7 @@ class D_PopOp(X86Instruction):
 
     rsp_in = operand_def(RSP)
     rsp_out = result_def(RSP)
-    destination = result_def(X86RegisterType)
+    destination: OpResult[GeneralRegisterType] = result_def(GeneralRegisterType)
 
     assembly_format = (
         "$rsp_in attr-dict `:` "
