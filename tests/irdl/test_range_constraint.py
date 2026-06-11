@@ -1,9 +1,10 @@
+import re
 from collections.abc import Mapping, Sequence
 
 import pytest
 from typing_extensions import TypeVar
 
-from xdsl.dialects.builtin import StringAttr
+from xdsl.dialects.builtin import StringAttr, i32
 from xdsl.ir import Attribute
 from xdsl.irdl import (
     AnyAttr,
@@ -11,6 +12,7 @@ from xdsl.irdl import (
     AttrConstraint,
     BaseAttr,
     ConstraintContext,
+    EqAttrConstraint,
     EqIntConstraint,
     IntConstraint,
     IntTypeVarConstraint,
@@ -18,6 +20,8 @@ from xdsl.irdl import (
     RangeConstraint,
     RangeLengthConstraint,
     RangeOf,
+    RangeVarConstraint,
+    SingleOf,
     VarConstraint,
 )
 from xdsl.utils.exceptions import VerifyException
@@ -113,6 +117,17 @@ def test_verify_range_length_constraint():
     ) == (world, world, world)
 
 
+def test_of_length():
+    range_constraint = RangeOf(AnyAttr())
+
+    range_len_1 = RangeLengthConstraint(range_constraint, EqIntConstraint(2))
+    range_len_2 = range_constraint.of_length(EqIntConstraint(2))
+    range_len_3 = range_constraint.of_length(2)
+
+    assert range_len_1 == range_len_2
+    assert range_len_1 == range_len_3
+
+
 def test_mapping_type_vars():
     _IntT = TypeVar("_IntT", bound=int, default=int)
     tv_constr = IntTypeVarConstraint(_IntT, AnyInt())
@@ -126,3 +141,79 @@ def test_mapping_type_vars():
 def test_init_irdl_constraint():
     range_constr = RangeOf(Attribute)
     assert range_constr.constr == AnyAttr()
+
+
+def test_empty_range():
+    constr = AnyRangeConstraint().of_length(EqIntConstraint(0))
+
+    assert constr.can_infer(set(), length_known=False)
+
+    assert constr.infer(ConstraintContext(), length=None) == ()
+
+
+def test_range_var_constraint_verify():
+    RangeVarConstraint("R", SingleOf(EqAttrConstraint(i32))).verify(
+        (i32,), ConstraintContext()
+    )
+    RangeVarConstraint("R", SingleOf(AnyAttr())).verify(
+        (i32,), ConstraintContext({}, {"R": (i32,)})
+    )
+
+    with pytest.raises(
+        VerifyException,
+        match=re.escape(
+            "attributes ('i32',) expected from range variable 'R', but got ('i32', 'i32')"
+        ),
+    ):
+        RangeVarConstraint("R", SingleOf(AnyAttr())).verify(
+            (i32, i32), ConstraintContext({}, {"R": (i32,)})
+        )
+
+
+@pytest.mark.parametrize(
+    "constraint, context_dict, length, inferred",
+    [
+        (RangeVarConstraint("R", SingleOf(AnyAttr())), {}, None, None),
+        (RangeVarConstraint("R", SingleOf(EqAttrConstraint(i32))), {}, True, (i32,)),
+        (RangeVarConstraint("R", RangeOf(EqAttrConstraint(i32))), {}, None, None),
+        (RangeVarConstraint("R", RangeOf(EqAttrConstraint(i32))), {}, 2, (i32, i32)),
+        (RangeVarConstraint("R", AnyRangeConstraint()), {}, None, None),
+        (
+            RangeVarConstraint("R", AnyRangeConstraint()),
+            {"R": (i32, i32, i32)},
+            None,
+            (i32, i32, i32),
+        ),
+        (
+            RangeVarConstraint("R", AnyRangeConstraint()),
+            {"R": (i32, i32, i32)},
+            2,
+            (i32, i32, i32),
+        ),
+        (
+            RangeVarConstraint("R", AnyRangeConstraint()),
+            {"R": (i32, i32, i32)},
+            3,
+            (i32, i32, i32),
+        ),
+        (RangeVarConstraint("R", AnyRangeConstraint()), {}, 3, None),
+    ],
+)
+def test_range_var_constraint_infer(
+    constraint: RangeVarConstraint,
+    context_dict: dict[str, tuple[Attribute, ...]],
+    length: int | None,
+    inferred: tuple[Attribute, ...] | None,
+) -> None:
+    if inferred is None:
+        assert not constraint.can_infer(
+            context_dict.keys(), length_known=length is not None
+        )
+    else:
+        assert constraint.can_infer(
+            context_dict.keys(), length_known=length is not None
+        )
+        assert (
+            constraint.infer(ConstraintContext({}, context_dict), length=length)
+            == inferred
+        )

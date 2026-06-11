@@ -3,7 +3,7 @@ site_url: https://xdsl.dev/
 site_description: xDSL -- a Python-native compiler framework
 site_author: xDSL developers
 copyright: Copyright &copy xDSL developers
-repo_name:  xdslproject/xdsl
+repo_name: xdslproject/xdsl
 repo_url: https://github.com/xdslproject/xdsl
 
 strict: true
@@ -42,25 +42,25 @@ extra_css:
   - stylesheets/extra.css
 
 plugins:
-- search
-- gen-files:
-    scripts:
-    - scripts/gen_ref_pages.py
-- awesome-nav
-- marimo
-- mkdocstrings:
-    handlers:
-      python:
-        options:
-          docstring_style: google
-          members_order: source
-          show_root_heading: true
-          show_root_full_path: false
-          show_signature_annotations: true
-          show_if_no_docstring: true
-- mkdocs-simple-hooks:
-    hooks:
-      on_post_build: "scripts.hooks:build_xdsl_wheel"
+  - search
+  - gen-files:
+      scripts:
+        - scripts/gen_ref_pages.py
+  - awesome-nav
+  - marimo
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            docstring_style: google
+            members_order: source
+            show_root_heading: true
+            show_root_full_path: false
+            show_signature_annotations: true
+            show_if_no_docstring: true
+  - mkdocs-simple-hooks:
+      hooks:
+        on_post_build: "scripts.hooks:build_xdsl_wheel"
 
 extra:
   social:

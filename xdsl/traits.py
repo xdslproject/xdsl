@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import abc
 from collections.abc import Iterator, Sequence
+from collections.abc import Set as AbstractSet
 from dataclasses import dataclass, field
 from enum import Enum, auto
 from typing import TYPE_CHECKING
@@ -37,19 +38,30 @@ class ConstantLike(OpTrait, abc.ABC):
     """
     Operation known to be constant-like.
 
+    To participate in constant folding and other generic mechanisms implement
+    `HasFolder` or `HasFolderInterface` for your operation.
+
     See external [documentation](https://mlir.llvm.org/doxygen/classmlir_1_1OpTrait_1_1ConstantLike.html).
     """
 
-    @classmethod
-    @abc.abstractmethod
-    def get_constant_value(cls, op: Operation) -> Attribute:
+    @staticmethod
+    def get_constant_value(ssa_value: SSAValue) -> Attribute | None:
         """
-        Get the constant value from this constant-like operation.
+        If the value is the result of a `ConstantLike` operation that implements
+        `HasFolderInterface`, return the attribute returned by `fold` corresponding to
+        the value's index in the list of results.
+        """
+        from xdsl.ir import Attribute, OpResult
 
-        Returns:
-            The constant value as an Attribute, or None if the value cannot be determined.
-        """
-        raise NotImplementedError()
+        if (
+            isinstance(ssa_value, OpResult)
+            and (op := ssa_value.owner)
+            and op.has_trait(ConstantLike)
+            and (t := op.get_trait(HasFolder)) is not None
+            and (values := t.fold(op)) is not None
+            and isinstance(value := values[ssa_value.index], Attribute)
+        ):
+            return value
 
 
 class HasFolder(OpTrait):
@@ -618,7 +630,7 @@ class MemoryEffect(OpTrait):
 
     @classmethod
     @abc.abstractmethod
-    def get_effects(cls, op: Operation) -> set[EffectInstance] | None:
+    def get_effects(cls, op: Operation) -> AbstractSet[EffectInstance] | None:
         """
         Returns the concrete side effects of the operation.
 
@@ -661,7 +673,7 @@ def is_side_effect_free(op: Operation) -> bool:
     return effects is not None and len(effects) == 0
 
 
-def get_effects(op: Operation) -> set[EffectInstance] | None:
+def get_effects(op: Operation) -> AbstractSet[EffectInstance] | None:
     """
     Helper to get known side effects of an operation.
     None means that the operation has unknown effects, for safety.
@@ -687,8 +699,15 @@ class NoMemoryEffect(MemoryEffect):
     """
 
     @classmethod
-    def get_effects(cls, op: Operation) -> set[EffectInstance]:
-        return set()
+    def get_effects(cls, op: Operation) -> AbstractSet[EffectInstance]:
+        return frozenset()
+
+
+# Frozen sets to avoid re-creating a set every time
+_MEMORY_READ_EFFECT_SET = frozenset((EffectInstance(MemoryEffectKind.READ),))
+_MEMORY_WRITE_EFFECT_SET = frozenset((EffectInstance(MemoryEffectKind.WRITE),))
+_MEMORY_ALLOC_EFFECT_SET = frozenset((EffectInstance(MemoryEffectKind.ALLOC),))
+_MEMORY_FREE_EFFECT_SET = frozenset((EffectInstance(MemoryEffectKind.FREE),))
 
 
 class MemoryReadEffect(MemoryEffect):
@@ -697,8 +716,8 @@ class MemoryReadEffect(MemoryEffect):
     """
 
     @classmethod
-    def get_effects(cls, op: Operation) -> set[EffectInstance]:
-        return {EffectInstance(MemoryEffectKind.READ)}
+    def get_effects(cls, op: Operation) -> AbstractSet[EffectInstance]:
+        return _MEMORY_READ_EFFECT_SET
 
 
 class MemoryWriteEffect(MemoryEffect):
@@ -707,8 +726,8 @@ class MemoryWriteEffect(MemoryEffect):
     """
 
     @classmethod
-    def get_effects(cls, op: Operation) -> set[EffectInstance]:
-        return {EffectInstance(MemoryEffectKind.WRITE)}
+    def get_effects(cls, op: Operation) -> AbstractSet[EffectInstance]:
+        return _MEMORY_WRITE_EFFECT_SET
 
 
 class MemoryAllocEffect(MemoryEffect):
@@ -717,8 +736,8 @@ class MemoryAllocEffect(MemoryEffect):
     """
 
     @classmethod
-    def get_effects(cls, op: Operation) -> set[EffectInstance]:
-        return {EffectInstance(MemoryEffectKind.ALLOC)}
+    def get_effects(cls, op: Operation) -> AbstractSet[EffectInstance]:
+        return _MEMORY_ALLOC_EFFECT_SET
 
 
 class MemoryFreeEffect(MemoryEffect):
@@ -727,8 +746,8 @@ class MemoryFreeEffect(MemoryEffect):
     """
 
     @classmethod
-    def get_effects(cls, op: Operation) -> set[EffectInstance]:
-        return {EffectInstance(MemoryEffectKind.FREE)}
+    def get_effects(cls, op: Operation) -> AbstractSet[EffectInstance]:
+        return _MEMORY_FREE_EFFECT_SET
 
 
 class RecursiveMemoryEffect(MemoryEffect):
@@ -738,7 +757,7 @@ class RecursiveMemoryEffect(MemoryEffect):
     """
 
     @classmethod
-    def get_effects(cls, op: Operation):
+    def get_effects(cls, op: Operation) -> AbstractSet[EffectInstance] | None:
         effects = set[EffectInstance]()
         for r in op.regions:
             for b in r.blocks:
@@ -778,8 +797,7 @@ def is_speculatable(op: Operation):
 
 class Pure(NoMemoryEffect, AlwaysSpeculatable):
     """
-    In MLIR, Pure is NoMemoryEffect + AlwaysSpeculatable, but the latter is nowhere to be
-    found here.
+    In MLIR, Pure is NoMemoryEffect + AlwaysSpeculatable.
     """
 
 

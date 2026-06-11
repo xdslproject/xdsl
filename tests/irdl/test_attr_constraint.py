@@ -1,21 +1,29 @@
 import re
 from abc import ABC
 from dataclasses import dataclass
+from typing import Generic
 
 import pytest
 from typing_extensions import TypeVar
 
 from xdsl.dialects.bufferization import TensorFromMemRefConstraint
 from xdsl.dialects.builtin import (
+    ArrayAttr,
+    DenseArrayBase,
+    DenseIntElementsAttr,
     IndexType,
+    IntAttr,
     IntAttrConstraint,
     IntegerType,
     MemRefType,
+    Signedness,
+    SignednessAttr,
     StringAttr,
     TensorType,
     UnrankedMemRefType,
     UnrankedTensorType,
     i32,
+    i64,
 )
 from xdsl.ir import Attribute, Data, ParametrizedAttribute
 from xdsl.irdl import (
@@ -23,19 +31,25 @@ from xdsl.irdl import (
     AnyAttr,
     AnyInt,
     AnyOf,
+    AtLeast,
     AttrConstraint,
     BaseAttr,
     ConstraintContext,
     EqAttrConstraint,
     EqIntConstraint,
+    IntSetConstraint,
     IntTypeVarConstraint,
+    IntVarConstraint,
+    MessageConstraint,
     ParamAttrConstraint,
+    SizedConstraint,
     VarConstraint,
     base,
     eq,
     irdl_attr_definition,
+    irdl_to_attr_constraint,
 )
-from xdsl.utils.exceptions import PyRDLError
+from xdsl.utils.exceptions import PyRDLError, VerifyException
 
 
 def test_failing_inference():
@@ -99,8 +113,8 @@ class AttrD(Base):
         ),
         (AllOf((AnyAttr(), BaseAttr(Base))), None),
         (AllOf((AnyAttr(), BaseAttr(AttrA))), {AttrA}),
-        (ParamAttrConstraint(AttrB, [BaseAttr(AttrA)]), {AttrB}),
-        (ParamAttrConstraint(Base, [BaseAttr(AttrA)]), None),
+        (ParamAttrConstraint(AttrB, (BaseAttr(AttrA),)), {AttrB}),
+        (ParamAttrConstraint(Base, (BaseAttr(AttrA),)), None),
         (VarConstraint("T", BaseAttr(Base)), None),
         (VarConstraint("T", BaseAttr(AttrA)), {AttrA}),
         (
@@ -215,6 +229,46 @@ def test_constraint_repr(constr: AttrConstraint, expected: str):
 
 
 @pytest.mark.parametrize(
+    "sized_attribute",
+    [
+        ArrayAttr((AttrA(), AttrC())),
+        DenseIntElementsAttr.from_list(TensorType(i32, (2,)), (1, 2)),
+        DenseArrayBase.from_list(i32, (1, 2)),
+    ],
+)
+def test_sized_constraint(sized_attribute: Attribute):
+    constr_passes = SizedConstraint(EqIntConstraint(2))
+
+    constr_passes.verify(sized_attribute, ConstraintContext())
+
+    constr_fails = SizedConstraint(AtLeast(3))
+
+    with pytest.raises(VerifyException, match="expected integer >= 3, got 2"):
+        constr_fails.verify(sized_attribute, ConstraintContext())
+
+
+def test_sized_constraint_ops():
+    sized_constraint = SizedConstraint(IntVarConstraint("I", AnyInt()))
+
+    assert sized_constraint.variables() == {"I"}
+
+    I = TypeVar("I")
+
+    type_var_constraint = SizedConstraint(IntTypeVarConstraint(I, AnyInt()))
+
+    assert type_var_constraint.mapping_type_vars(
+        {I: EqIntConstraint(2)}
+    ) == SizedConstraint(EqIntConstraint(2))
+
+
+def test_not_sized_constraint():
+    constr = SizedConstraint(AnyInt())
+
+    with pytest.raises(VerifyException, match="Expected #test.attr_a to be sized"):
+        constr.verify(AttrA(), ConstraintContext())
+
+
+@pytest.mark.parametrize(
     "input, output",
     [
         (TensorType(i32, [2, 2]), MemRefType(i32, [2, 2])),
@@ -283,6 +337,15 @@ def test_memref_to_tensor(
 )
 def test_constraint_simplification(lhs: AttrConstraint, rhs: AttrConstraint):
     assert lhs == rhs
+
+
+def test_param_attr_merge_failure():
+    # ParamAttrConstraints as below cannot be merged into a single constraint
+    # Therefore the 'any_of' fails
+    with pytest.raises(PyRDLError):
+        _ = ParamAttrConstraint(
+            AttrB, (BaseAttr(AttrA), BaseAttr(AttrA))
+        ) | ParamAttrConstraint(AttrB, (BaseAttr(AttrC), BaseAttr(AttrC)))
 
 
 @pytest.mark.parametrize(
@@ -372,6 +435,133 @@ def test_mapping_type_vars():
     tv_constr = IntTypeVarConstraint(_IntT, AnyInt())
     int_attr_constr = IntAttrConstraint(tv_constr)
     my_constr = EqIntConstraint(1)
-    assert int_attr_constr.mapping_type_vars({_IntT: my_constr}) == IntAttrConstraint(
-        my_constr
+    assert int_attr_constr.mapping_type_vars({_IntT: my_constr}) == EqAttrConstraint(
+        IntAttr(1)
     )
+    my_constr_2 = IntSetConstraint(frozenset((1, 2)))
+    assert int_attr_constr.mapping_type_vars({_IntT: my_constr_2}) == IntAttrConstraint(
+        my_constr_2
+    )
+
+
+_T = TypeVar("_T")
+
+
+class AttrE(ParametrizedAttribute, Generic[_T]):
+    param: _T
+
+
+def test_param_instantiated_generic():
+    with pytest.raises(PyRDLError):
+        ParamAttrConstraint.get(AttrE[AttrB])
+
+
+class AttrF(ParametrizedAttribute):
+    param1: Attribute
+    param2: Attribute
+
+
+@pytest.mark.parametrize(
+    "constr, expected",
+    [
+        (ParamAttrConstraint.get(AttrA), EqAttrConstraint(AttrA())),
+        (ParamAttrConstraint.get(AttrB, AttrA()), EqAttrConstraint(AttrB(AttrA()))),
+        (
+            ParamAttrConstraint.get(AttrB, AnyAttr()),
+            BaseAttr(AttrB),
+        ),
+        (
+            ParamAttrConstraint.get(AttrF, None, None),
+            BaseAttr(AttrF),
+        ),
+        (
+            ParamAttrConstraint.get(AttrF, AttrA, AttrB),
+            ParamAttrConstraint(
+                AttrF, (irdl_to_attr_constraint(AttrA), irdl_to_attr_constraint(AttrB))
+            ),
+        ),
+        (
+            ParamAttrConstraint.get(
+                AttrF, None, ParamAttrConstraint.get(AttrF, AttrA, None)
+            ),
+            ParamAttrConstraint(
+                AttrF,
+                (AnyAttr(), ParamAttrConstraint(AttrF, (BaseAttr(AttrA), AnyAttr()))),
+            ),
+        ),
+        (
+            ParamAttrConstraint.get(
+                AttrF, None, ParamAttrConstraint.get(AttrF, None, None)
+            ),
+            ParamAttrConstraint(AttrF, (AnyAttr(), BaseAttr(AttrF))),
+        ),
+        (
+            ParamAttrConstraint.get(Base, AttrA()),
+            ParamAttrConstraint(Base, (EqAttrConstraint(AttrA()),)),
+        ),
+        (VarConstraint.get("T"), VarConstraint("T", AnyAttr())),
+        (VarConstraint.get("T", AttrA), VarConstraint("T", BaseAttr(AttrA))),
+        (VarConstraint.get("T", BaseAttr(AttrA)), VarConstraint("T", BaseAttr(AttrA))),
+        (AnyOf.get(), AnyOf(())),
+        (AnyOf.get(AttrA), BaseAttr(AttrA)),
+        (AnyOf.get(AttrA, AttrB), AnyOf((BaseAttr(AttrA), BaseAttr(AttrB)))),
+    ],
+)
+def test_constraint_get(constr: AttrConstraint, expected: AttrConstraint):
+    assert constr == expected
+
+
+@pytest.mark.parametrize(
+    "constr, var_dict, inferred",
+    [
+        (AnyAttr(), {}, None),
+        (VarConstraint("A", AnyAttr()), {}, None),
+        (VarConstraint("A", AnyAttr()), {"A": i32}, i32),
+        (VarConstraint("A", EqAttrConstraint(i32)), {}, i32),
+        (EqAttrConstraint(i32), {}, i32),
+        (BaseAttr(type(i32)), {}, None),
+        (AnyOf((EqAttrConstraint(i32), EqAttrConstraint(i64))), {}, None),
+        (AnyOf((EqAttrConstraint(i32), EqAttrConstraint(i32))), {}, None),
+        (
+            AllOf(
+                (
+                    VarConstraint("A", AnyAttr()),
+                    EqAttrConstraint(i32),
+                )
+            ),
+            {},
+            i32,
+        ),
+        (
+            AllOf(
+                (
+                    VarConstraint("A", AnyAttr()),
+                    EqAttrConstraint(i32),
+                )
+            ),
+            {"A": i64},
+            i64,
+        ),
+        (ParamAttrConstraint(IntegerType, (AnyAttr(), AnyAttr())), {}, None),
+        (
+            ParamAttrConstraint(
+                IntegerType,
+                (
+                    EqAttrConstraint(IntAttr(32)),
+                    EqAttrConstraint(SignednessAttr(Signedness.SIGNLESS)),
+                ),
+            ),
+            {},
+            i32,
+        ),
+        (MessageConstraint(EqAttrConstraint(i32), "msg"), {}, i32),
+    ],
+)
+def test_constraint_inference(
+    constr: AttrConstraint, var_dict: dict[str, Attribute], inferred: Attribute | None
+) -> None:
+    if inferred is None:
+        assert not constr.can_infer(var_dict.keys())
+    else:
+        assert constr.can_infer(var_dict.keys())
+        assert constr.infer(ConstraintContext(var_dict)) == inferred

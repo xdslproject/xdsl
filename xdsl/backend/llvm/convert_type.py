@@ -1,5 +1,4 @@
 from collections.abc import Callable
-from functools import cache
 from typing import Any
 
 import llvmlite.ir as ir
@@ -33,7 +32,7 @@ def _convert_integer_type(type_attr: IntegerType) -> ir.Type:
 
 def _convert_pointer_type(type_attr: LLVMPointerType) -> ir.Type:
     if isinstance(type_attr.addr_space, IntAttr):
-        return ir.PointerType(type_attr.addr_space.data)
+        return ir.PointerType(addrspace=type_attr.addr_space.data)
     return ir.PointerType()
 
 
@@ -100,7 +99,6 @@ _TYPE_CONVERTERS: dict[type[Attribute], Callable[[Any], ir.Type]] = {
 }
 
 
-@cache
 def convert_type(type_attr: Attribute) -> ir.Type:
     """
     Convert an xDSL type attribute to an LLVM IR type.

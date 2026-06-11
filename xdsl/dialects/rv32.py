@@ -7,10 +7,6 @@ using 5-bit immediates for 32-bit architectures.
 
 from __future__ import annotations
 
-from abc import ABC
-from collections.abc import Sequence
-from collections.abc import Set as AbstractSet
-
 from xdsl.dialects.builtin import I32, IntegerAttr, StringAttr, i32
 from xdsl.dialects.riscv import (
     UI5,
@@ -18,14 +14,11 @@ from xdsl.dialects.riscv import (
     IntRegisterType,
     LabelAttr,
     Registers,
-    RISCVCustomFormatOperation,
-    RISCVInstruction,
     parse_immediate_value,
     print_immediate_value,
     ui5,
 )
-from xdsl.dialects.riscv.ops import LiOpHasCanonicalizationPatternTrait
-from xdsl.interfaces import ConstantLikeInterface
+from xdsl.dialects.riscv.abstract_ops import GetAnyRegisterOperation, LiOperation
 from xdsl.ir import (
     Attribute,
     Dialect,
@@ -33,7 +26,6 @@ from xdsl.ir import (
     SSAValue,
 )
 from xdsl.irdl import (
-    attr_def,
     irdl_op_definition,
     operand_def,
     result_def,
@@ -46,6 +38,8 @@ from xdsl.traits import (
     HasCanonicalizationPatternsTrait,
     Pure,
 )
+)
+from xdsl.parser import Parser
 
 
 class RdRsImmShiftOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
@@ -119,6 +113,9 @@ class SlliOp(RdRsImmShiftOperation):
     name = "rv32.slli"
 
     traits = traits_def(SlliOpHasCanonicalizationPatternsTrait())
+    
+    def py_operation(self, rs1: IntegerAttr[I32]) -> IntegerAttr[I32]:
+        return IntegerAttr(rs1.value.data << self.immediate.value.data, i32)
 
 
 class SrliOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
@@ -147,6 +144,10 @@ class SrliOp(RdRsImmShiftOperation):
 
     traits = traits_def(SrliOpHasCanonicalizationPatternsTrait())
 
+    def py_operation(self, rs1: IntegerAttr[I32]) -> IntegerAttr[I32]:
+        return IntegerAttr(
+            (rs1.value.data % 0x100000000) >> self.immediate.value.data, i32
+        )
 
 @irdl_op_definition
 class SraiOp(RdRsImmShiftOperation):
@@ -160,99 +161,13 @@ class SraiOp(RdRsImmShiftOperation):
     """
 
     name = "rv32.srai"
+    
+    def py_operation(self, rs1: IntegerAttr[I32]) -> IntegerAttr[I32]:
+        return IntegerAttr(rs1.value.data >> self.immediate.value.data, i32)
 
 
 @irdl_op_definition
-class RoriOp(RdRsImmShiftOperation):
-    """
-    Right rotation of rs1 by the amount in the least-significant
-    log2(XLEN) bits of shamt. For RV32, the encodings corresponding to shamt[5]=1 are reserved.
-    ```
-    let shamt = if   xlen == 32
-                    then shamt[4..0]
-                    else shamt[5..0];
-    let result = (X(rs1) >> shamt) | (X(rs2) << (xlen - shamt));
-    X(rd) = result;
-    ```
-    See external [documentation](https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-rori).
-    """
-
-    name = "rv32.rori"
-
-    traits = traits_def(Pure())
-
-
-@irdl_op_definition
-class BclrIOp(RdRsImmShiftOperation):
-    """
-    This instruction returns rs1 with a single bit cleared at the index specified in shamt.
-    The index is read from the lower log2(XLEN) bits of shamt. For RV32, the encodings corresponding
-    to shamt[5]=1 are reserved.
-    ```
-    let index = shamt & (XLEN - 1);
-    X(rd) = X(rs1) & ~(1 << index)
-    ```
-    See external [documentation](https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-bclri).
-    """
-
-    name = "rv32.bclri"
-
-    traits = traits_def(Pure())
-
-
-@irdl_op_definition
-class BextIOp(RdRsImmShiftOperation):
-    """
-    This instruction returns a single bit extracted from rs1 at the index specified in rs2.
-    The index is read from the lower log2(XLEN) bits of shamt. For RV32, the encodings corresponding
-    to shamt[5]=1 are reserved.
-    ```
-    let index = shamt & (XLEN - 1);
-    X(rd) = (X(rs1) >> index) & 1;
-    ```
-    See external [documentation](https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-bexti).
-    """
-
-    name = "rv32.bexti"
-
-
-@irdl_op_definition
-class BinvIOp(RdRsImmShiftOperation):
-    """
-    This instruction returns rs1 with a single bit cleared at the index specified in shamt. The index
-    is read from the lower log2(XLEN) bits of shamt. For RV32, the encodings corresponding
-    to shamt[5]=1 are reserved.
-    ```
-    let index = shamt & (XLEN - 1);
-    x[rd] = x[rs1] & ~(1 << index)
-    ```
-    See external [documentation](https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-binvi).
-    """
-
-    name = "rv32.binvi"
-
-    traits = traits_def(Pure())
-
-
-@irdl_op_definition
-class BsetIOp(RdRsImmShiftOperation):
-    """
-    This instruction returns rs1 with a single bit set at the index specified in rs2.
-    The index is read from the lower log2(XLEN) bits of rs2.
-    ```
-    let index = X(rs2) & (XLEN - 1);
-    X(rd) = X(rs1) | (1 << index)
-    ```
-    See external [documentation](https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-bset).
-    """
-
-    name = "rv32.bseti"
-
-    traits = traits_def(Pure())
-
-
-@irdl_op_definition
-class LiOp(RISCVCustomFormatOperation, RISCVInstruction, ConstantLikeInterface, ABC):
+class LiOp(LiOperation[I32]):
     """
     Loads a 32-bit immediate into rd.
 
@@ -263,11 +178,6 @@ class LiOp(RISCVCustomFormatOperation, RISCVInstruction, ConstantLikeInterface, 
 
     name = "rv32.li"
 
-    rd = result_def(IntRegisterType)
-    immediate = attr_def(IntegerAttr[I32] | LabelAttr)
-
-    traits = traits_def(Pure(), LiOpHasCanonicalizationPatternTrait())
-
     def __init__(
         self,
         immediate: int | IntegerAttr[I32] | str | LabelAttr,
@@ -277,24 +187,7 @@ class LiOp(RISCVCustomFormatOperation, RISCVInstruction, ConstantLikeInterface, 
     ):
         if isinstance(immediate, int):
             immediate = IntegerAttr(immediate, i32)
-        elif isinstance(immediate, str):
-            immediate = LabelAttr(immediate)
-        if isinstance(comment, str):
-            comment = StringAttr(comment)
-
-        super().__init__(
-            result_types=[rd],
-            attributes={
-                "immediate": immediate,
-                "comment": comment,
-            },
-        )
-
-    def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
-        return self.rd, self.immediate
-
-    def get_constant_value(self):
-        return self.immediate
+        super().__init__(immediate, rd=rd, comment=comment)
 
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
@@ -302,22 +195,10 @@ class LiOp(RISCVCustomFormatOperation, RISCVInstruction, ConstantLikeInterface, 
         attributes["immediate"] = parse_immediate_value(parser, i32)
         return attributes
 
-    def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
-        printer.print_string(" ")
-        print_immediate_value(printer, self.immediate)
-        return {"immediate", "fastmath"}
 
-    @classmethod
-    def parse_op_type(
-        cls, parser: Parser
-    ) -> tuple[Sequence[Attribute], Sequence[Attribute]]:
-        parser.parse_punctuation(":")
-        res_type = parser.parse_attribute()
-        return (), (res_type,)
-
-    def print_op_type(self, printer: Printer) -> None:
-        printer.print_string(" : ")
-        printer.print_attribute(self.rd.type)
+@irdl_op_definition
+class GetRegisterOp(GetAnyRegisterOperation[IntRegisterType]):
+    name = "rv32.get_register"
 
 
 RV32 = Dialect(
@@ -326,12 +207,9 @@ RV32 = Dialect(
         SlliOp,
         SrliOp,
         SraiOp,
-        RoriOp,
-        BclrIOp,
-        BextIOp,
-        BinvIOp,
-        BsetIOp,
         LiOp,
+        LiOp,
+        GetRegisterOp,
     ],
     [],
 )

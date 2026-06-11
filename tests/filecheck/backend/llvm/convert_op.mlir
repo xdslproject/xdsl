@@ -1,27 +1,91 @@
 // RUN: xdsl-opt -t llvm %s | filecheck %s
 
 builtin.module {
-  "llvm.func"() <{
-    sym_name = "declaration",
-    function_type = !llvm.func<void ()>,
-    CConv = #llvm.cconv<ccc>,
-    linkage = #llvm.linkage<external>,
-    visibility_ = 0 : i64
-  }> ({
-  }) : () -> ()
+  llvm.func @declaration()
 
   // CHECK: declare void @"declaration"()
 
-  "llvm.func"() <{
-    sym_name = "named_entry",
-    function_type = !llvm.func<void ()>,
-    CConv = #llvm.cconv<ccc>,
-    linkage = #llvm.linkage<external>,
-    visibility_ = 0 : i64
-  }> ({
+  llvm.func @noalias_all(%arg0: !llvm.ptr {llvm.noalias}, %arg1: !llvm.ptr {llvm.noalias}) {
+    llvm.return
+  }
+
+  // CHECK: define void @"noalias_all"(ptr noalias %".1", ptr noalias %".2")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT:   ret void
+  // CHECK-NEXT: }
+
+  llvm.func @noalias_partial(%arg0: !llvm.ptr {llvm.noalias}, %arg1: !llvm.ptr) {
+    llvm.return
+  }
+
+  // CHECK: define void @"noalias_partial"(ptr noalias %".1", ptr %".2")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT:   ret void
+  // CHECK-NEXT: }
+
+  llvm.func @arg_attr_flags(
+      %arg0: !llvm.ptr {llvm.nocapture, llvm.nofree, llvm.nonnull, llvm.readonly},
+      %arg1: i32 {llvm.noundef, llvm.signext, llvm.inreg},
+      %arg2: i32 {llvm.zeroext, llvm.returned},
+      %arg3: !llvm.ptr {llvm.nest}
+  ) -> i32 {
+    llvm.return %arg2 : i32
+  }
+
+  // llvm.readonly is dropped. llvmlite prints in alphabetical order.
+  // CHECK: define i32 @"arg_attr_flags"(ptr nocapture nofree nonnull %".1", i32 inreg noundef signext %".2", i32 returned zeroext %".3", ptr nest %".4")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT:   ret i32 %".3"
+  // CHECK-NEXT: }
+
+  llvm.func @arg_attr_ints(
+      %arg0: !llvm.ptr {llvm.align = 16 : i64},
+      %arg1: !llvm.ptr {llvm.dereferenceable = 32 : i64},
+      %arg2: !llvm.ptr {llvm.dereferenceable_or_null = 64 : i64},
+      %arg3: !llvm.ptr {llvm.align = 8 : i64, llvm.dereferenceable = 128 : i64, llvm.noalias}
+  ) {
+    llvm.return
+  }
+
+  // CHECK: define void @"arg_attr_ints"(ptr align 16 %".1", ptr dereferenceable(32) %".2", ptr dereferenceable_or_null(64) %".3", ptr noalias align 8 dereferenceable(128) %".4")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT:   ret void
+  // CHECK-NEXT: }
+
+  llvm.func @arg_attr_types(
+      %arg0: !llvm.ptr {llvm.byval = i32},
+      %arg1: !llvm.ptr {llvm.sret = !llvm.struct<(i32, i32)>},
+      %arg2: !llvm.ptr {llvm.byref = i64, llvm.align = 8 : i64, llvm.noalias}
+  ) {
+    llvm.return
+  }
+
+  // Type-valued attrs force a typed pointer so llvmlite can print name(T).
+  // CHECK: define void @"arg_attr_types"(i32* byval(i32) %".1", {i32, i32}* sret({i32, i32}) %".2", i64* byref(i64) noalias align 8 %".3")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT:   ret void
+  // CHECK-NEXT: }
+
+  llvm.func @arg_attr_unknown(%arg0: !llvm.ptr {llvm.readonly}, %arg1: i32) {
+    llvm.return
+  }
+
+  // Unsupported attrs are dropped.
+  // CHECK: define void @"arg_attr_unknown"(ptr %".1", i32 %".2")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT:   ret void
+  // CHECK-NEXT: }
+
+  llvm.func @named_entry() {
   ^entry:
     llvm.return
-  }) : () -> ()
+  }
 
   // CHECK: define void @"named_entry"()
   // CHECK-NEXT: {
@@ -29,16 +93,10 @@ builtin.module {
   // CHECK-NEXT:   ret void
   // CHECK-NEXT: }
 
-  "llvm.func"() <{
-    sym_name = "custom_name",
-    function_type = !llvm.func<void ()>,
-    CConv = #llvm.cconv<ccc>,
-    linkage = #llvm.linkage<external>,
-    visibility_ = 0 : i64
-  }> ({
+  llvm.func @custom_name() {
   ^my_block:
     llvm.return
-  }) : () -> ()
+  }
 
   // CHECK: define void @"custom_name"()
   // CHECK-NEXT: {
@@ -46,15 +104,9 @@ builtin.module {
   // CHECK-NEXT:   ret void
   // CHECK-NEXT: }
 
-  "llvm.func"() <{
-    sym_name = "return_void",
-    function_type = !llvm.func<void ()>,
-    CConv = #llvm.cconv<ccc>,
-    linkage = #llvm.linkage<external>,
-    visibility_ = 0 : i64
-  }> ({
+  llvm.func @return_void() {
     llvm.return
-  }) : () -> ()
+  }
 
   // CHECK: define void @"return_void"()
   // CHECK-NEXT: {
@@ -62,16 +114,9 @@ builtin.module {
   // CHECK-NEXT:   ret void
   // CHECK-NEXT: }
 
-  "llvm.func"() <{
-    sym_name = "return_arg",
-    function_type = !llvm.func<i32 (i32)>,
-    CConv = #llvm.cconv<ccc>,
-    linkage = #llvm.linkage<external>,
-    visibility_ = 0 : i64
-  }> ({
-  ^bb0(%arg0 : i32):
+  llvm.func @return_arg(%arg0: i32) -> i32 {
     llvm.return %arg0 : i32
-  }) : () -> ()
+  }
 
   // CHECK: define i32 @"return_arg"(i32 %".1")
   // CHECK-NEXT: {
@@ -79,16 +124,9 @@ builtin.module {
   // CHECK-NEXT:   ret i32 %".1"
   // CHECK-NEXT: }
 
-  "llvm.func"() <{
-    sym_name = "return_second_arg",
-    function_type = !llvm.func<i32 (i32, i32)>,
-    CConv = #llvm.cconv<ccc>,
-    linkage = #llvm.linkage<external>,
-    visibility_ = 0 : i64
-  }> ({
-  ^bb0(%arg0 : i32, %arg1 : i32):
+  llvm.func @return_second_arg(%arg0: i32, %arg1: i32) -> i32 {
     llvm.return %arg1 : i32
-  }) : () -> ()
+  }
 
   // CHECK: define i32 @"return_second_arg"(i32 %".1", i32 %".2")
   // CHECK-NEXT: {
@@ -96,14 +134,7 @@ builtin.module {
   // CHECK-NEXT:   ret i32 %".2"
   // CHECK-NEXT: }
 
-  "llvm.func"() <{
-    sym_name = "binops",
-    function_type = !llvm.func<void (i32, i32, f32, f32)>,
-    CConv = #llvm.cconv<ccc>,
-    linkage = #llvm.linkage<external>,
-    visibility_ = 0 : i64
-  }> ({
-  ^bb0(%arg0 : i32, %arg1 : i32, %arg2 : f32, %arg3 : f32):
+  llvm.func @binops(%arg0: i32, %arg1: i32, %arg2: f32, %arg3: f32) {
     %0 = llvm.add %arg0, %arg1 : i32
     %1 = llvm.fadd %arg2, %arg3 : f32
     %2 = llvm.sub %arg0, %arg1 : i32
@@ -123,7 +154,7 @@ builtin.module {
     %16 = llvm.or %arg0, %arg1 : i32
     %17 = llvm.xor %arg0, %arg1 : i32
     llvm.return
-  }) : () -> ()
+  }
 
   // CHECK: define void @"binops"(i32 %".1", i32 %".2", float %".3", float %".4")
   // CHECK-NEXT: {
@@ -149,26 +180,987 @@ builtin.module {
   // CHECK-NEXT:   ret void
   // CHECK-NEXT: }
 
-  "llvm.func"() <{
-    sym_name = "inline_asm",
-    function_type = !llvm.func<void (i32)>,
-    CConv = #llvm.cconv<ccc>,
-    linkage = #llvm.linkage<external>,
-    visibility_ = 0 : i64
-  }> ({
-  ^bb0(%arg0: i32):
-    "llvm.inline_asm"(%arg0) <{
-      asm_string = "add $0, 1",
-      constraints = "r",
-      has_side_effects
-    }> : (i32) -> ()
+  llvm.func @binops_flags(%arg0: i32, %arg1: i32, %arg2: f32, %arg3: f32) {
+
+    // CHECK: define void @"binops_flags"(i32 %".1", i32 %".2", float %".3", float %".4")
+    // CHECK-NEXT: {
+    // CHECK-NEXT: {{.[0-9]+}}:
+
+    %add_none = llvm.add %arg0, %arg1 : i32
+    %add_nsw = llvm.add %arg0, %arg1 overflow<nsw> : i32
+    %add_nuw = llvm.add %arg0, %arg1 overflow<nuw> : i32
+    %add_nsw_nuw = llvm.add %arg0, %arg1 overflow<nsw, nuw> : i32
+
+    // CHECK-NEXT:   {{%.+}} = add i32 %".1", %".2"
+    // CHECK-NEXT:   {{%.+}} = add nsw i32 %".1", %".2"
+    // CHECK-NEXT:   {{%.+}} = add nuw i32 %".1", %".2"
+    // CHECK-NEXT:   {{%.+}} = add {{(nsw nuw|nuw nsw)}} i32 %".1", %".2"
+
+    %sub_none = llvm.sub %arg0, %arg1 : i32
+    %sub_nsw = llvm.sub %arg0, %arg1 overflow<nsw> : i32
+    %sub_nuw = llvm.sub %arg0, %arg1 overflow<nuw> : i32
+    %sub_nsw_nuw = llvm.sub %arg0, %arg1 overflow<nsw, nuw> : i32
+
+    // CHECK-NEXT:   {{%.+}} = sub i32 %".1", %".2"
+    // CHECK-NEXT:   {{%.+}} = sub nsw i32 %".1", %".2"
+    // CHECK-NEXT:   {{%.+}} = sub nuw i32 %".1", %".2"
+    // CHECK-NEXT:   {{%.+}} = sub {{(nsw nuw|nuw nsw)}} i32 %".1", %".2"
+
+    %mul_none = llvm.mul %arg0, %arg1 : i32
+    %mul_nsw = llvm.mul %arg0, %arg1 overflow<nsw> : i32
+    %mul_nuw = llvm.mul %arg0, %arg1 overflow<nuw> : i32
+    %mul_nsw_nuw = llvm.mul %arg0, %arg1 overflow<nsw, nuw> : i32
+
+    // CHECK-NEXT:   {{%.+}} = mul i32 %".1", %".2"
+    // CHECK-NEXT:   {{%.+}} = mul nsw i32 %".1", %".2"
+    // CHECK-NEXT:   {{%.+}} = mul nuw i32 %".1", %".2"
+    // CHECK-NEXT:   {{%.+}} = mul {{(nsw nuw|nuw nsw)}} i32 %".1", %".2"
+
+    %shl_none = llvm.shl %arg0, %arg1 : i32
+    %shl_nsw = llvm.shl %arg0, %arg1 overflow<nsw> : i32
+    %shl_nuw = llvm.shl %arg0, %arg1 overflow<nuw> : i32
+    %shl_nsw_nuw = llvm.shl %arg0, %arg1 overflow<nsw, nuw> : i32
+
+    // CHECK-NEXT:   {{%.+}} = shl i32 %".1", %".2"
+    // CHECK-NEXT:   {{%.+}} = shl nsw i32 %".1", %".2"
+    // CHECK-NEXT:   {{%.+}} = shl nuw i32 %".1", %".2"
+    // CHECK-NEXT:   {{%.+}} = shl {{(nsw nuw|nuw nsw)}} i32 %".1", %".2"
+
+    %udiv_none = llvm.udiv %arg0, %arg1 : i32
+    %udiv_exact = llvm.udiv exact %arg0, %arg1 : i32
+
+    // CHECK-NEXT:   {{%.+}} = udiv i32 %".1", %".2"
+    // CHECK-NEXT:   {{%.+}} = udiv exact i32 %".1", %".2"
+
+    %sdiv_none = llvm.sdiv %arg0, %arg1 : i32
+    %sdiv_exact = llvm.sdiv exact %arg0, %arg1 : i32
+
+    // CHECK-NEXT:   {{%.+}} = sdiv i32 %".1", %".2"
+    // CHECK-NEXT:   {{%.+}} = sdiv exact i32 %".1", %".2"
+
+    %lshr_none = llvm.lshr %arg0, %arg1 : i32
+    %lshr_exact = llvm.lshr exact %arg0, %arg1 : i32
+
+    // CHECK-NEXT:   {{%.+}} = lshr i32 %".1", %".2"
+    // CHECK-NEXT:   {{%.+}} = lshr exact i32 %".1", %".2"
+
+    %ashr_none = llvm.ashr %arg0, %arg1 : i32
+    %ashr_exact = llvm.ashr exact %arg0, %arg1 : i32
+
+    // CHECK-NEXT:   {{%.+}} = ashr i32 %".1", %".2"
+    // CHECK-NEXT:   {{%.+}} = ashr exact i32 %".1", %".2"
+
+    %or_none = llvm.or %arg0, %arg1 : i32
+    %or_disjoint = llvm.or disjoint %arg0, %arg1 : i32
+
+    // CHECK-NEXT:   {{%.+}} = or i32 %".1", %".2"
+    // CHECK-NEXT:   {{%.+}} = or disjoint i32 %".1", %".2"
+
+    %fadd_none = llvm.fadd %arg2, %arg3 : f32
+    %fadd_reassoc = llvm.fadd %arg2, %arg3 {fastmathFlags = #llvm.fastmath<reassoc>} : f32
+    %fadd_nnan = llvm.fadd %arg2, %arg3 {fastmathFlags = #llvm.fastmath<nnan>} : f32
+    %fadd_ninf = llvm.fadd %arg2, %arg3 {fastmathFlags = #llvm.fastmath<ninf>} : f32
+    %fadd_nsz = llvm.fadd %arg2, %arg3 {fastmathFlags = #llvm.fastmath<nsz>} : f32
+    %fadd_arcp = llvm.fadd %arg2, %arg3 {fastmathFlags = #llvm.fastmath<arcp>} : f32
+    %fadd_contract = llvm.fadd %arg2, %arg3 {fastmathFlags = #llvm.fastmath<contract>} : f32
+    %fadd_afn = llvm.fadd %arg2, %arg3 {fastmathFlags = #llvm.fastmath<afn>} : f32
+    %fadd_fast = llvm.fadd %arg2, %arg3 {fastmathFlags = #llvm.fastmath<fast>} : f32
+
+    // CHECK-NEXT:   {{%.+}} = fadd float %".3", %".4"
+    // CHECK-NEXT:   {{%.+}} = fadd reassoc float %".3", %".4"
+    // CHECK-NEXT:   {{%.+}} = fadd nnan float %".3", %".4"
+    // CHECK-NEXT:   {{%.+}} = fadd ninf float %".3", %".4"
+    // CHECK-NEXT:   {{%.+}} = fadd nsz float %".3", %".4"
+    // CHECK-NEXT:   {{%.+}} = fadd arcp float %".3", %".4"
+    // CHECK-NEXT:   {{%.+}} = fadd contract float %".3", %".4"
+    // CHECK-NEXT:   {{%.+}} = fadd afn float %".3", %".4"
+    // CHECK-NEXT:   {{%.+}} = fadd {{.*}} float %".3", %".4"
+
+    %fsub_none = llvm.fsub %arg2, %arg3 : f32
+    %fsub_reassoc = llvm.fsub %arg2, %arg3 {fastmathFlags = #llvm.fastmath<reassoc>} : f32
+    %fsub_nnan = llvm.fsub %arg2, %arg3 {fastmathFlags = #llvm.fastmath<nnan>} : f32
+    %fsub_ninf = llvm.fsub %arg2, %arg3 {fastmathFlags = #llvm.fastmath<ninf>} : f32
+    %fsub_nsz = llvm.fsub %arg2, %arg3 {fastmathFlags = #llvm.fastmath<nsz>} : f32
+    %fsub_arcp = llvm.fsub %arg2, %arg3 {fastmathFlags = #llvm.fastmath<arcp>} : f32
+    %fsub_contract = llvm.fsub %arg2, %arg3 {fastmathFlags = #llvm.fastmath<contract>} : f32
+    %fsub_afn = llvm.fsub %arg2, %arg3 {fastmathFlags = #llvm.fastmath<afn>} : f32
+    %fsub_fast = llvm.fsub %arg2, %arg3 {fastmathFlags = #llvm.fastmath<fast>} : f32
+
+    // CHECK-NEXT:   {{%.+}} = fsub float %".3", %".4"
+    // CHECK-NEXT:   {{%.+}} = fsub reassoc float %".3", %".4"
+    // CHECK-NEXT:   {{%.+}} = fsub nnan float %".3", %".4"
+    // CHECK-NEXT:   {{%.+}} = fsub ninf float %".3", %".4"
+    // CHECK-NEXT:   {{%.+}} = fsub nsz float %".3", %".4"
+    // CHECK-NEXT:   {{%.+}} = fsub arcp float %".3", %".4"
+    // CHECK-NEXT:   {{%.+}} = fsub contract float %".3", %".4"
+    // CHECK-NEXT:   {{%.+}} = fsub afn float %".3", %".4"
+    // CHECK-NEXT:   {{%.+}} = fsub {{.*}} float %".3", %".4"
+
+    %fmul_none = llvm.fmul %arg2, %arg3 : f32
+    %fmul_reassoc = llvm.fmul %arg2, %arg3 {fastmathFlags = #llvm.fastmath<reassoc>} : f32
+    %fmul_nnan = llvm.fmul %arg2, %arg3 {fastmathFlags = #llvm.fastmath<nnan>} : f32
+    %fmul_ninf = llvm.fmul %arg2, %arg3 {fastmathFlags = #llvm.fastmath<ninf>} : f32
+    %fmul_nsz = llvm.fmul %arg2, %arg3 {fastmathFlags = #llvm.fastmath<nsz>} : f32
+    %fmul_arcp = llvm.fmul %arg2, %arg3 {fastmathFlags = #llvm.fastmath<arcp>} : f32
+    %fmul_contract = llvm.fmul %arg2, %arg3 {fastmathFlags = #llvm.fastmath<contract>} : f32
+    %fmul_afn = llvm.fmul %arg2, %arg3 {fastmathFlags = #llvm.fastmath<afn>} : f32
+    %fmul_fast = llvm.fmul %arg2, %arg3 {fastmathFlags = #llvm.fastmath<fast>} : f32
+
+    // CHECK-NEXT:   {{%.+}} = fmul float %".3", %".4"
+    // CHECK-NEXT:   {{%.+}} = fmul reassoc float %".3", %".4"
+    // CHECK-NEXT:   {{%.+}} = fmul nnan float %".3", %".4"
+    // CHECK-NEXT:   {{%.+}} = fmul ninf float %".3", %".4"
+    // CHECK-NEXT:   {{%.+}} = fmul nsz float %".3", %".4"
+    // CHECK-NEXT:   {{%.+}} = fmul arcp float %".3", %".4"
+    // CHECK-NEXT:   {{%.+}} = fmul contract float %".3", %".4"
+    // CHECK-NEXT:   {{%.+}} = fmul afn float %".3", %".4"
+    // CHECK-NEXT:   {{%.+}} = fmul {{.*}} float %".3", %".4"
+
+    %fdiv_none = llvm.fdiv %arg2, %arg3 : f32
+    %fdiv_reassoc = llvm.fdiv %arg2, %arg3 {fastmathFlags = #llvm.fastmath<reassoc>} : f32
+    %fdiv_nnan = llvm.fdiv %arg2, %arg3 {fastmathFlags = #llvm.fastmath<nnan>} : f32
+    %fdiv_ninf = llvm.fdiv %arg2, %arg3 {fastmathFlags = #llvm.fastmath<ninf>} : f32
+    %fdiv_nsz = llvm.fdiv %arg2, %arg3 {fastmathFlags = #llvm.fastmath<nsz>} : f32
+    %fdiv_arcp = llvm.fdiv %arg2, %arg3 {fastmathFlags = #llvm.fastmath<arcp>} : f32
+    %fdiv_contract = llvm.fdiv %arg2, %arg3 {fastmathFlags = #llvm.fastmath<contract>} : f32
+    %fdiv_afn = llvm.fdiv %arg2, %arg3 {fastmathFlags = #llvm.fastmath<afn>} : f32
+    %fdiv_fast = llvm.fdiv %arg2, %arg3 {fastmathFlags = #llvm.fastmath<fast>} : f32
+
+    // CHECK-NEXT:   {{%.+}} = fdiv float %".3", %".4"
+    // CHECK-NEXT:   {{%.+}} = fdiv reassoc float %".3", %".4"
+    // CHECK-NEXT:   {{%.+}} = fdiv nnan float %".3", %".4"
+    // CHECK-NEXT:   {{%.+}} = fdiv ninf float %".3", %".4"
+    // CHECK-NEXT:   {{%.+}} = fdiv nsz float %".3", %".4"
+    // CHECK-NEXT:   {{%.+}} = fdiv arcp float %".3", %".4"
+    // CHECK-NEXT:   {{%.+}} = fdiv contract float %".3", %".4"
+    // CHECK-NEXT:   {{%.+}} = fdiv afn float %".3", %".4"
+    // CHECK-NEXT:   {{%.+}} = fdiv {{.*}} float %".3", %".4"
+
+    %frem_none = llvm.frem %arg2, %arg3 : f32
+    %frem_reassoc = llvm.frem %arg2, %arg3 {fastmathFlags = #llvm.fastmath<reassoc>} : f32
+    %frem_nnan = llvm.frem %arg2, %arg3 {fastmathFlags = #llvm.fastmath<nnan>} : f32
+    %frem_ninf = llvm.frem %arg2, %arg3 {fastmathFlags = #llvm.fastmath<ninf>} : f32
+    %frem_nsz = llvm.frem %arg2, %arg3 {fastmathFlags = #llvm.fastmath<nsz>} : f32
+    %frem_arcp = llvm.frem %arg2, %arg3 {fastmathFlags = #llvm.fastmath<arcp>} : f32
+    %frem_contract = llvm.frem %arg2, %arg3 {fastmathFlags = #llvm.fastmath<contract>} : f32
+    %frem_afn = llvm.frem %arg2, %arg3 {fastmathFlags = #llvm.fastmath<afn>} : f32
+    %frem_fast = llvm.frem %arg2, %arg3 {fastmathFlags = #llvm.fastmath<fast>} : f32
+
+    // CHECK-NEXT:   {{%.+}} = frem float %".3", %".4"
+    // CHECK-NEXT:   {{%.+}} = frem reassoc float %".3", %".4"
+    // CHECK-NEXT:   {{%.+}} = frem nnan float %".3", %".4"
+    // CHECK-NEXT:   {{%.+}} = frem ninf float %".3", %".4"
+    // CHECK-NEXT:   {{%.+}} = frem nsz float %".3", %".4"
+    // CHECK-NEXT:   {{%.+}} = frem arcp float %".3", %".4"
+    // CHECK-NEXT:   {{%.+}} = frem contract float %".3", %".4"
+    // CHECK-NEXT:   {{%.+}} = frem afn float %".3", %".4"
+    // CHECK-NEXT:   {{%.+}} = frem {{.*}} float %".3", %".4"
+
     llvm.return
-  }) : () -> ()
+  }
+
+  llvm.func @inline_asm(%arg0: i32) {
+    llvm.inline_asm has_side_effects "add $0, 1", "r" %arg0 : (i32) -> ()
+    llvm.inline_asm "add $0, 1", "r" %arg0 : (i32) -> ()
+    llvm.inline_asm asm_dialect = att "add $0, 1", "r" %arg0 : (i32) -> ()
+    llvm.inline_asm asm_dialect = intel "add $0, 1", "r" %arg0 : (i32) -> ()
+    llvm.return
+  }
 
   // CHECK: define void @"inline_asm"(i32 %".1")
   // CHECK-NEXT: {
   // CHECK-NEXT: {{.[0-9]+}}:
   // CHECK-NEXT:   call void asm sideeffect "add $0, 1", "r"(i32 %".1")
+  // CHECK-NEXT:   call void asm  "add $0, 1", "r"(i32 %".1")
+  // CHECK-NEXT:   call void asm  "add $0, 1", "r"(i32 %".1")
+  // CHECK-NEXT:   call void asm  "add $0, 1", "r"(i32 %".1")
   // CHECK-NEXT:   ret void
+  // CHECK-NEXT: }
+
+  llvm.func @inline_asm_with_result(%arg0: i32) -> i32 {
+    %0 = llvm.inline_asm "mov $0, $1", "=r,r" %arg0 : (i32) -> i32
+    llvm.return %0 : i32
+  }
+
+  // CHECK: define i32 @"inline_asm_with_result"(i32 %".1")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT:   {{%.+}} = call i32 asm  "mov $0, $1", "=r,r"(i32 %".1")
+  // CHECK-NEXT:   ret i32 {{%.+}}
+  // CHECK-NEXT: }
+
+  llvm.func @alloca_op(%arg0: i32) {
+    %0 = llvm.alloca %arg0 x i32 : (i32) -> !llvm.ptr
+    llvm.return
+  }
+
+  // CHECK: define void @"alloca_op"(i32 %".1")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT:   {{%.+}} = alloca i32, i32 %".1"
+  // CHECK-NEXT:   ret void
+  // CHECK-NEXT: }
+
+  llvm.func @alloca_op_with_alignment(%arg0: i32) {
+    %0 = llvm.alloca %arg0 x i32 {alignment = 32 : i64} : (i32) -> !llvm.ptr
+    llvm.return
+  }
+
+  // CHECK: define void @"alloca_op_with_alignment"(i32 %".1")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT:   {{%.+}} = alloca i32, i32 %".1", align 32
+  // CHECK-NEXT:   ret void
+  // CHECK-NEXT: }
+
+  llvm.func @load_op(%arg0: !llvm.ptr) {
+    %0 = llvm.load %arg0 : !llvm.ptr -> i32
+    llvm.return
+  }
+
+  // CHECK: define void @"load_op"(ptr %".1")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT:   {{%.+}} = load i32, ptr %".1"
+  // CHECK-NEXT:   ret void
+  // CHECK-NEXT: }
+
+  llvm.func @load_op_with_alignment(%arg0: !llvm.ptr) {
+    %0 = llvm.load %arg0 {alignment = 16 : i64} : !llvm.ptr -> i32
+    llvm.return
+  }
+
+  // CHECK: define void @"load_op_with_alignment"(ptr %".1")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT:   {{%.+}} = load i32, ptr %".1", align 16
+  // CHECK-NEXT:   ret void
+  // CHECK-NEXT: }
+
+  llvm.func @store_op(%arg0: i32, %arg1: !llvm.ptr) {
+    llvm.store %arg0, %arg1 : i32, !llvm.ptr
+    llvm.return
+  }
+
+  // CHECK: define void @"store_op"(i32 %".1", ptr %".2")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT:   store i32 %".1", ptr %".2"
+  // CHECK-NEXT:   ret void
+  // CHECK-NEXT: }
+
+  llvm.func @store_op_with_alignment(%arg0: i32, %arg1: !llvm.ptr) {
+    llvm.store %arg0, %arg1 {alignment = 8 : i64} : i32, !llvm.ptr
+    llvm.return
+  }
+
+  // CHECK: define void @"store_op_with_alignment"(i32 %".1", ptr %".2")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT:   store i32 %".1", ptr %".2", align 8
+  // CHECK-NEXT:   ret void
+  // CHECK-NEXT: }
+
+  llvm.func @extract_op(%arg0: !llvm.struct<(i32, f32)>) {
+    %0 = llvm.extractvalue %arg0[0] : !llvm.struct<(i32, f32)>
+    llvm.return
+  }
+
+  // CHECK: define void @"extract_op"({i32, float} %".1")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT:   {{%.+}} = extractvalue {i32, float} %".1", 0
+  // CHECK-NEXT:   ret void
+  // CHECK-NEXT: }
+
+  llvm.func @insert_op(%arg0: !llvm.struct<(i32, f32)>, %arg1: i32) {
+    %0 = llvm.insertvalue %arg1, %arg0[0] : !llvm.struct<(i32, f32)>
+    llvm.return
+  }
+
+  // CHECK: define void @"insert_op"({i32, float} %".1", i32 %".2")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT:   {{%.+}} = insertvalue {i32, float} %".1", i32 %".2", 0
+  // CHECK-NEXT:   ret void
+  // CHECK-NEXT: }
+
+  llvm.func @unreachable_op() {
+    llvm.unreachable
+  }
+
+  // CHECK: define void @"unreachable_op"()
+  // CHECK-NEXT: {
+  // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT:   unreachable
+  // CHECK-NEXT: }
+
+  llvm.func @casts(%arg0: i32, %arg1: i64, %arg2: !llvm.ptr, %arg3: f32) {
+    %0 = llvm.trunc %arg1 : i64 to i32
+    %1 = llvm.zext %arg0 : i32 to i64
+    %2 = llvm.sext %arg0 : i32 to i64
+    %3 = llvm.ptrtoint %arg2 : !llvm.ptr to i64
+    %4 = llvm.inttoptr %arg1 : i64 to !llvm.ptr
+    %5 = llvm.bitcast %arg1 : i64 to f64
+    %6 = llvm.fpext %arg3 : f32 to f64
+    %7 = llvm.sitofp %arg0 : i32 to f32
+    llvm.return
+  }
+
+  // CHECK: define void @"casts"(i32 %".1", i64 %".2", ptr %".3", float %".4")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT:   {{%.+}} = trunc i64 %".2" to i32
+  // CHECK-NEXT:   {{%.+}} = zext i32 %".1" to i64
+  // CHECK-NEXT:   {{%.+}} = sext i32 %".1" to i64
+  // CHECK-NEXT:   {{%.+}} = ptrtoint ptr %".3" to i64
+  // CHECK-NEXT:   {{%.+}} = inttoptr i64 %".2" to ptr
+  // CHECK-NEXT:   {{%.+}} = bitcast i64 %".2" to double
+  // CHECK-NEXT:   {{%.+}} = fpext float %".4" to double
+  // CHECK-NEXT:   {{%.+}} = sitofp i32 %".1" to float
+  // CHECK-NEXT:   ret void
+  // CHECK-NEXT: }
+
+  llvm.func @casts_with_flags(%arg0: i32, %arg1: i64) {
+    // llvm.TruncOp with overflow flags (IntegerConversionOpOverflow)
+    %trunc_none = llvm.trunc %arg1 : i64 to i32
+    %trunc_nsw = llvm.trunc %arg1 overflow<nsw> : i64 to i32
+    %trunc_nuw = llvm.trunc %arg1 overflow<nuw> : i64 to i32
+    %trunc_both = llvm.trunc %arg1 overflow<nsw, nuw> : i64 to i32
+
+    // llvm.ZExtOp with nneg flag (IntegerConversionOpNNeg)
+    %zext_none = llvm.zext %arg0 : i32 to i64
+    %zext_nneg = llvm.zext nneg %arg0 : i32 to i64
+
+    llvm.return
+  }
+
+  // CHECK: define void @"casts_with_flags"(i32 %".1", i64 %".2")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT:   {{%.+}} = trunc i64 %".2" to i32
+  // CHECK-NEXT:   {{%.+}} = trunc nsw i64 %".2" to i32
+  // CHECK-NEXT:   {{%.+}} = trunc nuw i64 %".2" to i32
+  // CHECK-NEXT:   {{%.+}} = trunc {{(nsw nuw|nuw nsw)}} i64 %".2" to i32
+  // CHECK-NEXT:   {{%.+}} = zext i32 %".1" to i64
+  // CHECK-NEXT:   {{%.+}} = zext nneg i32 %".1" to i64
+
+  // void gep_constant(int (*ptr)[10]) {
+  //   int* result = &ptr[1][2];
+  // }
+  llvm.func @gep_constant(%arg0: !llvm.ptr) {
+    %0 = llvm.getelementptr %arg0[1, 2] : (!llvm.ptr) -> !llvm.ptr, !llvm.array<10 x i32>
+    llvm.return
+  }
+
+  // CHECK: define void @"gep_constant"(ptr %".1")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT:   {{%.+}} = getelementptr [10 x i32], ptr %".1", i32 1, i32 2
+  // CHECK-NEXT:   ret void
+  // CHECK-NEXT: }
+
+  // void gep_ssa(int* ptr, int index) {
+  //   int* result = &ptr[index];
+  // }
+  llvm.func @gep_ssa(%arg0: !llvm.ptr, %arg1: i32) {
+    %0 = llvm.getelementptr %arg0[%arg1] : (!llvm.ptr, i32) -> !llvm.ptr, i32
+    llvm.return
+  }
+
+  // CHECK: define void @"gep_ssa"(ptr %".1", i32 %".2")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT:   {{%.+}} = getelementptr i32, ptr %".1", i32 %".2"
+  // CHECK-NEXT:   ret void
+  // CHECK-NEXT: }
+
+  // void gep_mixed(ptr, int i, int j) {
+  //   // e.g. ptr[1][i].field2[j]
+  //   int* result = &ptr[1][i].field2[j];
+  // }
+  llvm.func @gep_mixed(%arg0: !llvm.ptr, %arg1: i32, %arg2: i32) {
+    %0 = llvm.getelementptr %arg0[1, %arg1, 2, %arg2] : (!llvm.ptr, i32, i32) -> !llvm.ptr, !llvm.array<10 x !llvm.struct<(i32, i32, !llvm.array<10 x i32>)>>
+    llvm.return
+  }
+
+  // CHECK: define void @"gep_mixed"(ptr %".1", i32 %".2", i32 %".3")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT:   {{%.+}} = getelementptr [10 x {i32, i32, [10 x i32]}], ptr %".1", i32 1, i32 %".2", i32 2, i32 %".3"
+  // CHECK-NEXT:   ret void
+  // CHECK-NEXT: }
+
+  // void gep_inbounds(int* ptr, int idx) {
+  //   // same as gep_ssa, but we assume that 'ptr + idx' stays within the same 'object'
+  //   int* result = &ptr[idx]; 
+  // }
+  llvm.func @gep_inbounds(%arg0: !llvm.ptr, %arg1: i32) {
+    %0 = llvm.getelementptr inbounds %arg0[%arg1] : (!llvm.ptr, i32) -> !llvm.ptr, i32
+    llvm.return
+  }
+
+  // CHECK: define void @"gep_inbounds"(ptr %".1", i32 %".2")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT:   {{%.+}} = getelementptr inbounds i32, ptr %".1", i32 %".2"
+  // CHECK-NEXT:   ret void
+  // CHECK-NEXT: }
+
+  llvm.func @comparisons(%arg0: i32, %arg1: i32) {
+    %0 = llvm.icmp "eq" %arg0, %arg1 : i32
+    %1 = llvm.icmp "ne" %arg0, %arg1 : i32
+    %2 = llvm.icmp "slt" %arg0, %arg1 : i32
+    %3 = llvm.icmp "sle" %arg0, %arg1 : i32
+    %4 = llvm.icmp "ult" %arg0, %arg1 : i32
+    %5 = llvm.icmp "ule" %arg0, %arg1 : i32
+    %6 = llvm.icmp "sgt" %arg0, %arg1 : i32
+    %7 = llvm.icmp "sge" %arg0, %arg1 : i32
+    %8 = llvm.icmp "ugt" %arg0, %arg1 : i32
+    %9 = llvm.icmp "uge" %arg0, %arg1 : i32
+    llvm.return
+  }
+
+  // CHECK: define void @"comparisons"(i32 %".1", i32 %".2")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT:   {{%.+}} = icmp eq i32 %".1", %".2"
+  // CHECK-NEXT:   {{%.+}} = icmp ne i32 %".1", %".2"
+  // CHECK-NEXT:   {{%.+}} = icmp slt i32 %".1", %".2"
+  // CHECK-NEXT:   {{%.+}} = icmp sle i32 %".1", %".2"
+  // CHECK-NEXT:   {{%.+}} = icmp ult i32 %".1", %".2"
+  // CHECK-NEXT:   {{%.+}} = icmp ule i32 %".1", %".2"
+  // CHECK-NEXT:   {{%.+}} = icmp sgt i32 %".1", %".2"
+  // CHECK-NEXT:   {{%.+}} = icmp sge i32 %".1", %".2"
+  // CHECK-NEXT:   {{%.+}} = icmp ugt i32 %".1", %".2"
+  // CHECK-NEXT:   {{%.+}} = icmp uge i32 %".1", %".2"
+  // CHECK-NEXT:   ret void
+  // CHECK-NEXT: }
+
+  llvm.func @fcmp_op(%arg0: f32, %arg1: f32) {
+    %0 = llvm.fcmp "oeq" %arg0, %arg1 : f32
+    %1 = llvm.fcmp "ult" %arg0, %arg1 : f32
+    llvm.return
+  }
+
+  // CHECK: define void @"fcmp_op"(float %".1", float %".2")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT:   {{%.+}} = fcmp oeq float %".1", %".2"
+  // CHECK-NEXT:   {{%.+}} = fcmp ult float %".1", %".2"
+  // CHECK-NEXT:   ret void
+  // CHECK-NEXT: }
+
+  llvm.func @select_op(%arg0: i1, %arg1: i32, %arg2: i32) -> i32 {
+    %0 = llvm.select %arg0, %arg1, %arg2 : i1, i32
+    llvm.return %0 : i32
+  }
+
+  // CHECK: define i32 @"select_op"(i1 %".1", i32 %".2", i32 %".3")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT:   {{%.+}} = select {{.*}}i1 %".1", i32 %".2", i32 %".3"
+  // CHECK-NEXT:   ret i32 {{%.+}}
+  // CHECK-NEXT: }
+
+  llvm.func @br_op_no_args() {
+    llvm.br ^bb1
+  ^bb1:
+    llvm.return
+  }
+
+  // CHECK: define void @"br_op_no_args"()
+  // CHECK-NEXT: {
+  // CHECK-NEXT: [[BB0:.\d+]]:
+  // CHECK-NEXT:   br label %"[[BB1:.\d+]]"
+  // CHECK-NEXT: [[BB1]]:
+  // CHECK-NEXT:   ret void
+  // CHECK-NEXT: }
+
+  llvm.func @br_op(%arg0: i32) -> i32 {
+    llvm.br ^bb1(%arg0: i32)
+  ^bb1(%0: i32):
+    llvm.return %0 : i32
+  }
+
+  // CHECK: define i32 @"br_op"(i32 %".1")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: [[BB0:.\d+]]:
+  // CHECK-NEXT:   br label %"[[BB1:.\d+]]"
+  // CHECK-NEXT: [[BB1]]:
+  // CHECK-NEXT:   %"[[V1:.\d+]]" = phi  i32 [%".1", %"[[BB0]]"]
+  // CHECK-NEXT:   ret i32 %"[[V1]]"
+  // CHECK-NEXT: }
+
+  llvm.func @cond_br_op(%arg0: i1, %arg1: i32, %arg2: i32) -> i32 {
+    llvm.cond_br %arg0, ^bb1(%arg1: i32), ^bb2(%arg2: i32)
+  ^bb1(%0: i32):
+    llvm.return %0 : i32
+  ^bb2(%1: i32):
+    llvm.return %1 : i32
+  }
+
+  // CHECK: define i32 @"cond_br_op"(i1 %".1", i32 %".2", i32 %".3")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: [[BB0:.\d+]]:
+  // CHECK-NEXT:   br i1 %".1", label %"[[BB1:.\d+]]", label %"[[BB2:.\d+]]"
+  // CHECK-NEXT: [[BB1]]:
+  // CHECK-NEXT:   %"[[V1:.\d+]]" = phi  i32 [%".2", %"[[BB0]]"]
+  // CHECK-NEXT:   ret i32 %"[[V1]]"
+  // CHECK-NEXT: [[BB2]]:
+  // CHECK-NEXT:   %"[[V2:.\d+]]" = phi  i32 [%".3", %"[[BB0]]"]
+  // CHECK-NEXT:   ret i32 %"[[V2]]"
+  // CHECK-NEXT: }
+
+  llvm.func @maxnum_op(%arg0: f32, %arg1: f32) -> f32 {
+    %0 = llvm.intr.maxnum(%arg0, %arg1) : (f32, f32) -> f32
+    llvm.return %0 : f32
+  }
+
+  // CHECK: define float @"maxnum_op"(float %".1", float %".2")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: [[ENTRY:.\d+]]:
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = call float @"llvm.maxnum"(float %".1", float %".2")
+  // CHECK-NEXT:   ret float %"[[RES]]"
+  // CHECK-NEXT: }
+
+  llvm.func @minnum_op(%arg0: f32, %arg1: f32) -> f32 {
+    %0 = llvm.intr.minnum(%arg0, %arg1) : (f32, f32) -> f32
+    llvm.return %0 : f32
+  }
+
+  // CHECK: define float @"minnum_op"(float %".1", float %".2")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: [[ENTRY:.\d+]]:
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = call float @"llvm.minnum"(float %".1", float %".2")
+  // CHECK-NEXT:   ret float %"[[RES]]"
+  // CHECK-NEXT: }
+
+  llvm.func @pow_op(%arg0: f32, %arg1: f32) -> f32 {
+    %0 = llvm.intr.pow(%arg0, %arg1) : (f32, f32) -> f32
+    llvm.return %0 : f32
+  }
+
+  // CHECK: define float @"pow_op"(float %".1", float %".2")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: [[ENTRY:.\d+]]:
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = call float @"llvm.pow"(float %".1", float %".2")
+  // CHECK-NEXT:   ret float %"[[RES]]"
+  // CHECK-NEXT: }
+
+  llvm.func @fabs_op(%arg0: f32) -> f32 {
+    %0 = llvm.intr.fabs(%arg0) : (f32) -> f32
+    llvm.return %0 : f32
+  }
+
+  // CHECK: define float @"fabs_op"(float %".1")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: [[ENTRY:.\d+]]:
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = call float @"llvm.fabs"(float %".1")
+  // CHECK-NEXT:   ret float %"[[RES]]"
+  // CHECK-NEXT: }
+
+  llvm.func @fceil_op(%arg0: f32) -> f32 {
+    %0 = llvm.intr.ceil(%arg0) : (f32) -> f32
+    llvm.return %0 : f32
+  }
+
+  // CHECK: define float @"fceil_op"(float %".1")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: [[ENTRY:.\d+]]:
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = call float @"llvm.ceil"(float %".1")
+  // CHECK-NEXT:   ret float %"[[RES]]"
+  // CHECK-NEXT: }
+
+  llvm.func @fsqrt_op(%arg0: f32) -> f32 {
+    %0 = llvm.intr.sqrt(%arg0) : (f32) -> f32
+    llvm.return %0 : f32
+  }
+
+  // CHECK: define float @"fsqrt_op"(float %".1")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: [[ENTRY:.\d+]]:
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = call float @"llvm.sqrt"(float %".1")
+  // CHECK-NEXT:   ret float %"[[RES]]"
+  // CHECK-NEXT: }
+
+  llvm.func @ffloor_op(%arg0: f32) -> f32 {
+    %0 = llvm.intr.floor(%arg0) : (f32) -> f32
+    llvm.return %0 : f32
+  }
+
+  // CHECK: define float @"ffloor_op"(float %".1")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: [[ENTRY:.\d+]]:
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = call float @"llvm.floor"(float %".1")
+  llvm.func @fexp2_op(%arg0: f32) -> f32 {
+    %0 = llvm.intr.exp2(%arg0) : (f32) -> f32
+    llvm.return %0 : f32
+  }
+
+  // CHECK: define float @"fexp2_op"(float %".1")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: [[ENTRY:.\d+]]:
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = call float @"llvm.exp2"(float %".1")
+  // CHECK-NEXT:   ret float %"[[RES]]"
+  // CHECK-NEXT: }
+
+  llvm.func @flog_op(%arg0: f32) -> f32 {
+    %0 = llvm.intr.log(%arg0) : (f32) -> f32
+    llvm.return %0 : f32
+  }
+
+  // CHECK: define float @"flog_op"(float %".1")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: [[ENTRY:.\d+]]:
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = call float @"llvm.log"(float %".1")
+  // CHECK-NEXT:   ret float %"[[RES]]"
+  // CHECK-NEXT: }
+
+  llvm.func @exp_op(%arg0: f32) -> f32 {
+    %0 = llvm.intr.exp(%arg0) : (f32) -> f32
+    llvm.return %0 : f32
+  }
+
+  // CHECK: define float @"exp_op"(float %".1")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: [[ENTRY:.\d+]]:
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = call float @"llvm.exp"(float %".1")
+  // CHECK-NEXT:   ret float %"[[RES]]"
+  // CHECK-NEXT: }
+
+  llvm.func @fsin_op(%arg0: f32) -> f32 {
+    %0 = llvm.intr.sin(%arg0) : (f32) -> f32
+    llvm.return %0 : f32
+  }
+
+  // CHECK: define float @"fsin_op"(float %".1")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: [[ENTRY:.\d+]]:
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = call float @"llvm.sin"(float %".1")
+  // CHECK-NEXT:   ret float %"[[RES]]"
+  // CHECK-NEXT: }
+
+  llvm.func @fcos_op(%arg0: f32) -> f32 {
+    %0 = llvm.intr.cos(%arg0) : (f32) -> f32
+    llvm.return %0 : f32
+  }
+
+  // CHECK: define float @"fcos_op"(float %".1")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: [[ENTRY:.\d+]]:
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = call float @"llvm.cos"(float %".1")
+  // CHECK-NEXT:   ret float %"[[RES]]"
+  // CHECK-NEXT: }
+
+  llvm.func @flog2_op(%arg0: f32) -> f32 {
+    %0 = llvm.intr.log2(%arg0) : (f32) -> f32
+    llvm.return %0 : f32
+  }
+
+  // CHECK: define float @"flog2_op"(float %".1")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: [[ENTRY:.\d+]]:
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = call float @"llvm.log2"(float %".1")
+  // CHECK-NEXT:   ret float %"[[RES]]"
+  // CHECK-NEXT: }
+
+  llvm.func @copysign_op(%arg0: f32, %arg1: f32) -> f32 {
+    %0 = llvm.intr.copysign(%arg0, %arg1) : (f32, f32) -> f32
+    llvm.return %0 : f32
+  }
+
+  // CHECK: define float @"copysign_op"(float %".1", float %".2")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: [[ENTRY:.\d+]]:
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = call float @"llvm.copysign"(float %".1", float %".2")
+  // CHECK-NEXT:   ret float %"[[RES]]"
+  // CHECK-NEXT: }
+
+  llvm.func @fneg_op(%arg0: f32) -> f32 {
+    %0 = llvm.fneg %arg0 : f32
+    llvm.return %0 : f32
+  }
+
+  // CHECK: define float @"fneg_op"(float %".1")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: [[ENTRY:.\d+]]:
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = fneg float %".1"
+  // CHECK-NEXT:   ret float %"[[RES]]"
+  // CHECK-NEXT: }
+
+  // forward_ref_caller calls forward_ref_callee which is defined AFTER it
+  llvm.func @forward_ref_caller(%arg0: i32) -> i32 {
+    %0 = llvm.call @forward_ref_callee(%arg0) : (i32) -> i32
+    llvm.return %0 : i32
+  }
+
+  // CHECK: define i32 @"forward_ref_caller"(i32 %".1")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: [[ENTRY:.\d+]]:
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = call ccc i32 @"forward_ref_callee"(i32 %".1")
+  // CHECK-NEXT:   ret i32 %"[[RES]]"
+  // CHECK-NEXT: }
+
+  llvm.func @forward_ref_callee(%arg0: i32) -> i32 {
+    llvm.return %arg0 : i32
+  }
+
+  // CHECK: define i32 @"forward_ref_callee"(i32 %".1")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: [[ENTRY:.\d+]]:
+  // CHECK-NEXT:   ret i32 %".1"
+  // CHECK-NEXT: }
+
+  llvm.func @helper(%arg0: i32) -> i32 {
+    llvm.return %arg0 : i32
+  }
+
+  // CHECK: define i32 @"helper"(i32 %".1")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: [[ENTRY:.\d+]]:
+  // CHECK-NEXT:   ret i32 %".1"
+  // CHECK-NEXT: }
+
+  llvm.func @call_op(%arg0: i32) -> i32 {
+    %0 = llvm.call fastcc tail @helper(%arg0) {fastmathFlags = #llvm.fastmath<nnan, ninf>} : (i32) -> i32
+    llvm.return %0 : i32
+  }
+
+  // CHECK: define i32 @"call_op"(i32 %".1")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: [[ENTRY:.\d+]]:
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = tail call fastcc i32 @"helper"(i32 %".1")
+  // CHECK-NEXT:   ret i32 %"[[RES]]"
+  // CHECK-NEXT: }
+
+  llvm.func @masked_store_op(%arg0: vector<4xf32>, %arg1: !llvm.ptr, %arg2: vector<4xi1>) {
+    llvm.intr.masked.store %arg0, %arg1, %arg2 {alignment = 16 : i32} : vector<4xf32>, vector<4xi1> into !llvm.ptr
+    llvm.return
+  }
+
+  // CHECK: define void @"masked_store_op"(<4 x float> %".1", ptr %".2", <4 x i1> %".3")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: [[ENTRY:.\d+]]:
+  // CHECK-NEXT:   call void @"llvm.masked.store"(<4 x float> %".1", ptr %".2", i32 16, <4 x i1> %".3")
+  // CHECK-NEXT:   ret void
+  // CHECK-NEXT: }
+
+  llvm.func @zero_op() -> !llvm.ptr {
+    %0 = llvm.mlir.zero : !llvm.ptr
+    llvm.return %0 : !llvm.ptr
+  }
+
+  // CHECK: define ptr @"zero_op"()
+  // CHECK-NEXT: {
+  // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT:   ret ptr null
+  // CHECK-NEXT: }
+
+  llvm.func @undef_i32() -> i32 {
+    %0 = llvm.mlir.undef : i32
+    llvm.return %0 : i32
+  }
+
+  // CHECK: define i32 @"undef_i32"()
+  // CHECK-NEXT: {
+  // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT:   ret i32 undef
+  // CHECK-NEXT: }
+
+  llvm.func @fma_op_scalar_f32(%arg0: f32, %arg1: f32, %arg2: f32) -> f32 {
+    %0 = llvm.intr.fma(%arg0, %arg1, %arg2) : (f32, f32, f32) -> f32
+    llvm.return %0 : f32
+  }
+
+  // CHECK: define float @"fma_op_scalar_f32"(float %".1", float %".2", float %".3")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: [[ENTRY:.\d+]]:
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = call float @"llvm.fma.f32"(float %".1", float %".2", float %".3")
+  // CHECK-NEXT:   ret float %"[[RES]]"
+  // CHECK-NEXT: }
+
+  llvm.func @fma_op_f32(%arg0: vector<4xf32>, %arg1: vector<4xf32>, %arg2: vector<4xf32>) -> vector<4xf32> {
+    %0 = llvm.intr.fma(%arg0, %arg1, %arg2) : (vector<4xf32>, vector<4xf32>, vector<4xf32>) -> vector<4xf32>
+    llvm.return %0 : vector<4xf32>
+  }
+
+  // CHECK: define <4 x float> @"fma_op_f32"(<4 x float> %".1", <4 x float> %".2", <4 x float> %".3")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: [[ENTRY:.\d+]]:
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = call <4 x float> @"llvm.fma.v4f32"(<4 x float> %".1", <4 x float> %".2", <4 x float> %".3")
+  // CHECK-NEXT:   ret <4 x float> %"[[RES]]"
+  // CHECK-NEXT: }
+
+  llvm.func @fma_op_f64(%arg0: vector<2xf64>, %arg1: vector<2xf64>, %arg2: vector<2xf64>) -> vector<2xf64> {
+    %0 = llvm.intr.fma(%arg0, %arg1, %arg2) : (vector<2xf64>, vector<2xf64>, vector<2xf64>) -> vector<2xf64>
+    llvm.return %0 : vector<2xf64>
+  }
+
+  // CHECK: define <2 x double> @"fma_op_f64"(<2 x double> %".1", <2 x double> %".2", <2 x double> %".3")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: [[ENTRY:.\d+]]:
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = call <2 x double> @"llvm.fma.v2f64"(<2 x double> %".1", <2 x double> %".2", <2 x double> %".3")
+  // CHECK-NEXT:   ret <2 x double> %"[[RES]]"
+  // CHECK-NEXT: }
+
+  llvm.func @call_intrinsic_fma(%arg0: vector<4xf32>, %arg1: vector<4xf32>, %arg2: vector<4xf32>) -> vector<4xf32> {
+    %0 = llvm.call_intrinsic "llvm.fma.v4f32"(%arg0, %arg1, %arg2) : (vector<4xf32>, vector<4xf32>, vector<4xf32>) -> vector<4xf32>
+    llvm.return %0 : vector<4xf32>
+  }
+
+  // CHECK: define <4 x float> @"call_intrinsic_fma"(<4 x float> %".1", <4 x float> %".2", <4 x float> %".3")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: [[ENTRY:.\d+]]:
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = call <4 x float> @"llvm.fma.v4f32"(<4 x float> %".1", <4 x float> %".2", <4 x float> %".3")
+  // CHECK-NEXT:   ret <4 x float> %"[[RES]]"
+  // CHECK-NEXT: }
+
+  llvm.func @call_intrinsic_void() {
+    llvm.call_intrinsic "llvm.donothing"() : () -> ()
+    llvm.return
+  }
+
+  // CHECK: define void @"call_intrinsic_void"()
+  // CHECK-NEXT: {
+  // CHECK-NEXT: [[ENTRY:.\d+]]:
+  // CHECK-NEXT:   call void @"llvm.donothing"()
+  // CHECK-NEXT:   ret void
+  // CHECK-NEXT: }
+
+  llvm.func @shuffle_vector_f32(%arg0: vector<4xf32>, %arg1: vector<4xf32>) -> vector<4xf32> {
+    %res = llvm.shufflevector %arg0, %arg1 [0, 0, 0, 0] : vector<4xf32>
+    llvm.return %res : vector<4xf32>
+  }
+
+  // CHECK: define <4 x float> @"shuffle_vector_f32"(<4 x float> %".1", <4 x float> %".2")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: [[ENTRY:.\d+]]:
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = shufflevector <4 x float> %".1", <4 x float> %".2", <4 x i32> <i32 0, i32 0, i32 0, i32 0>
+  // CHECK-NEXT:   ret <4 x float> %"[[RES]]"
+  // CHECK-NEXT: }
+
+  llvm.func @shuffle_vector_different_sizes(%arg0: vector<4xf32>, %arg1: vector<4xf32>) -> vector<2xf32> {
+    %res = llvm.shufflevector %arg0, %arg1 [0, 5] : vector<4xf32>
+    llvm.return %res : vector<2xf32>
+  }
+
+  // CHECK: define <2 x float> @"shuffle_vector_different_sizes"(<4 x float> %".1", <4 x float> %".2")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: [[ENTRY:.\d+]]:
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = shufflevector <4 x float> %".1", <4 x float> %".2", <2 x i32> <i32 0, i32 5>
+  // CHECK-NEXT:   ret <2 x float> %"[[RES]]"
+  // CHECK-NEXT: }
+
+  llvm.func @callee(!llvm.ptr)
+
+  llvm.func @addressof_target() {
+    llvm.return
+  }
+
+  llvm.func @addressof_op() {
+    %0 = llvm.mlir.addressof @addressof_target : !llvm.ptr
+    llvm.call @callee(%0) : (!llvm.ptr) -> ()
+    llvm.return
+  }
+
+  // CHECK: define void @"addressof_op"()
+  // CHECK-NEXT: {
+  // CHECK-NEXT: [[ENTRY:.\d+]]:
+  // CHECK-NEXT:   call ccc void @"callee"(void ()* @"addressof_target")
+  // CHECK-NEXT:   ret void
+  // CHECK-NEXT: }
+
+  llvm.func @insert_element(%arg0: vector<4xf32>, %arg1: f32, %arg2: i32) -> vector<4xf32> {
+    %0 = llvm.insertelement %arg1, %arg0[%arg2 : i32] : vector<4xf32>
+    llvm.return %0 : vector<4xf32>
+  }
+
+  // CHECK: define <4 x float> @"insert_element"(<4 x float> %".1", float %".2", i32 %".3")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: [[ENTRY:.\d+]]:
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = insertelement <4 x float> %".1", float %".2", i32 %".3"
+  // CHECK-NEXT:   ret <4 x float> %"[[RES]]"
+  // CHECK-NEXT: }
+
+  llvm.func @constant_int() -> i32 {
+    %0 = llvm.mlir.constant(42 : i32) : i32
+    llvm.return %0 : i32
+  }
+
+  // CHECK: define i32 @"constant_int"()
+  // CHECK-NEXT: {
+  // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT:   ret i32 42
+  // CHECK-NEXT: }
+
+  llvm.func @constant_float() -> f32 {
+    %0 = llvm.mlir.constant(3.14 : f32) : f32
+    llvm.return %0 : f32
+  }
+
+  // CHECK: define float @"constant_float"()
+  // CHECK-NEXT: {
+  // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT:   ret float 0x40091eb860000000
+  // CHECK-NEXT: }
+
+  llvm.func @constant_dense_vector() -> vector<4xi32> {
+    %0 = llvm.mlir.constant(dense<[1, 2, 3, 4]> : vector<4xi32>) : vector<4xi32>
+    llvm.return %0 : vector<4xi32>
+  }
+
+  // CHECK: define <4 x i32> @"constant_dense_vector"()
+  // CHECK-NEXT: {
+  // CHECK-NEXT: {{.[0-9]+}}:
+  // CHECK-NEXT:   ret <4 x i32> <i32 1, i32 2, i32 3, i32 4>
+  // CHECK-NEXT: }
+
+  llvm.func @reduce_fadd_f32(%arg0: f32, %arg1: vector<4xf32>) -> f32 {
+    %0 = "llvm.intr.vector.reduce.fadd"(%arg0, %arg1) <{fastmathFlags = #llvm.fastmath<none>}> : (f32, vector<4xf32>) -> f32
+    llvm.return %0 : f32
+  }
+
+  // CHECK: define float @"reduce_fadd_f32"(float %".1", <4 x float> %".2")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: [[ENTRY:.\d+]]:
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = call float @"llvm.vector.reduce.fadd.v4f32"(float %".1", <4 x float> %".2")
+  // CHECK-NEXT:   ret float %"[[RES]]"
+  // CHECK-NEXT: }
+
+  llvm.func @reduce_fadd_f64(%arg0: f64, %arg1: vector<2xf64>) -> f64 {
+    %0 = "llvm.intr.vector.reduce.fadd"(%arg0, %arg1) <{fastmathFlags = #llvm.fastmath<none>}> : (f64, vector<2xf64>) -> f64
+    llvm.return %0 : f64
+  }
+
+  // CHECK: define double @"reduce_fadd_f64"(double %".1", <2 x double> %".2")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: [[ENTRY:.\d+]]:
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = call double @"llvm.vector.reduce.fadd.v2f64"(double %".1", <2 x double> %".2")
+  // CHECK-NEXT:   ret double %"[[RES]]"
+  // CHECK-NEXT: }
+
+  llvm.func @reduce_fmul_f32(%arg0: f32, %arg1: vector<4xf32>) -> f32 {
+    %0 = "llvm.intr.vector.reduce.fmul"(%arg0, %arg1) <{fastmathFlags = #llvm.fastmath<none>}> : (f32, vector<4xf32>) -> f32
+    llvm.return %0 : f32
+  }
+
+  // CHECK: define float @"reduce_fmul_f32"(float %".1", <4 x float> %".2")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: [[ENTRY:.\d+]]:
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = call float @"llvm.vector.reduce.fmul.v4f32"(float %".1", <4 x float> %".2")
+  // CHECK-NEXT:   ret float %"[[RES]]"
+  // CHECK-NEXT: }
+
+  llvm.func @reduce_fmul_f64(%arg0: f64, %arg1: vector<2xf64>) -> f64 {
+    %0 = "llvm.intr.vector.reduce.fmul"(%arg0, %arg1) <{fastmathFlags = #llvm.fastmath<none>}> : (f64, vector<2xf64>) -> f64
+    llvm.return %0 : f64
+  }
+
+  // CHECK: define double @"reduce_fmul_f64"(double %".1", <2 x double> %".2")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: [[ENTRY:.\d+]]:
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = call double @"llvm.vector.reduce.fmul.v2f64"(double %".1", <2 x double> %".2")
+  // CHECK-NEXT:   ret double %"[[RES]]"
   // CHECK-NEXT: }
 }

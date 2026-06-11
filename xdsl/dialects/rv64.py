@@ -12,26 +12,14 @@ from collections.abc import Sequence
 from collections.abc import Set as AbstractSet
 from typing import Literal, TypeAlias
 
-from xdsl.dialects.builtin import (
-    I64,
-    IntegerAttr,
-    IntegerType,
-    Signedness,
-    StringAttr,
-    i64,
-)
+from xdsl.dialects.builtin import I64, IntegerAttr, StringAttr, i64
 from xdsl.dialects.riscv import (
-    AssemblyInstructionArg,
     IntRegisterType,
     LabelAttr,
     Registers,
-    RISCVCustomFormatOperation,
-    RISCVInstruction,
     parse_immediate_value,
-    print_immediate_value,
 )
-from xdsl.dialects.riscv.ops import LiOpHasCanonicalizationPatternTrait
-from xdsl.interfaces import ConstantLikeInterface
+from xdsl.dialects.riscv.abstract_ops import GetAnyRegisterOperation, LiOperation
 from xdsl.ir import (
     Attribute,
     Dialect,
@@ -39,7 +27,6 @@ from xdsl.ir import (
     SSAValue,
 )
 from xdsl.irdl import (
-    attr_def,
     irdl_op_definition,
     operand_def,
     result_def,
@@ -52,6 +39,8 @@ from xdsl.traits import (
     HasCanonicalizationPatternsTrait,
     Pure,
 )
+)
+from xdsl.parser import Parser
 
 UI6: TypeAlias = IntegerType[Literal[6], Literal[Signedness.UNSIGNED]]
 ui6: UI6 = IntegerType(6, Signedness.UNSIGNED)
@@ -128,6 +117,11 @@ class SlliOp(RdRsImmShiftOperation):
     name = "rv64.slli"
 
     traits = traits_def(SlliOpHasCanonicalizationPatternsTrait())
+    
+    def __ini
+    
+    def py_operation(self, rs1: IntegerAttr[I64]) -> IntegerAttr[I64]:
+        return IntegerAttr(rs1.value.data << self.immediate.value.data, i64)
 
 
 class SrliOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
@@ -155,6 +149,11 @@ class SrliOp(RdRsImmShiftOperation):
     name = "rv64.srli"
 
     traits = traits_def(SrliOpHasCanonicalizationPatternsTrait())
+    
+    def py_operation(self, rs1: IntegerAttr[I64]) -> IntegerAttr[I64]:
+        return IntegerAttr(
+            (rs1.value.data % 0x100000000) >> self.immediate.value.data, i64
+        )
 
 
 @irdl_op_definition
@@ -169,6 +168,9 @@ class SraiOp(RdRsImmShiftOperation):
     """
 
     name = "rv64.srai"
+    
+    def py_operation(self, rs1: IntegerAttr[I64]) -> IntegerAttr[I64]:
+        return IntegerAttr(rs1.value.data >> self.immediate.value.data, i64)
 
 
 @irdl_op_definition
@@ -208,128 +210,7 @@ class SrliwOp(RdRsImmShiftOperation):
 
 
 @irdl_op_definition
-class RoriOp(RdRsImmShiftOperation):
-    """
-    Right rotation of rs1 by the amount in the least-significant
-    log2(XLEN) bits of shamt.
-    ```
-    let shamt = if   xlen == 32
-                    then shamt[4..0]
-                    else shamt[5..0];
-    let result = (X(rs1) >> shamt) | (X(rs2) << (xlen - shamt));
-    X(rd) = result;
-    ```
-    See external [documentation](https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-rori).
-    """
-
-    name = "rv64.rori"
-
-    traits = traits_def(Pure())
-
-
-@irdl_op_definition
-class RoriwOp(RdRsImmShiftOperation):
-    """
-    Right rotation on the least-significant word of rs1 by the amount in
-    the least-significant log2(XLEN) bits of shamt. The resulting word value is sign-extended by
-    copying bit 31 to all of the more-significant bits.
-    ```
-    let rs1 = EXTZ(X(rs1)[31..0];
-    let result = (rs1 >> shamt[4..0]) | (X(rs1) << (32 - shamt[4..0]));
-    X(rd) = EXTS(result[31..0]);
-    ```
-    See external [documentation](https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-roriw).
-    """
-
-    name = "rv64.roriw"
-
-    traits = traits_def(Pure())
-
-
-@irdl_op_definition
-class SlliUwOp(RdRsImmShiftOperation):
-    """
-    This instruction takes the least-significant word of rs1, zero-extends it,
-    and shifts it left by the immediate.
-    ```
-    x[rd] = (EXTZ(x[rs][31..0]) << shamt);
-    ```
-    See external [documentation](https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-slli_uw).
-    """
-
-    name = "rv64.slli.uw"
-
-    traits = traits_def(Pure())
-
-
-@irdl_op_definition
-class BclrIOp(RdRsImmShiftOperation):
-    """
-    This instruction returns rs1 with a single bit cleared at the index specified in shamt.
-    The index is read from the lower log2(XLEN) bits of shamt.
-    ```
-    let index = shamt & (XLEN - 1);
-    X(rd) = X(rs1) & ~(1 << index)
-    ```
-    See external [documentation](https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-bclri).
-    """
-
-    name = "rv64.bclri"
-
-    traits = traits_def(Pure())
-
-
-@irdl_op_definition
-class BextIOp(RdRsImmShiftOperation):
-    """
-    This instruction returns a single bit extracted from rs1 at the index specified in rs2.
-    The index is read from the lower log2(XLEN) bits of shamt.
-    ```
-    let index = shamt & (XLEN - 1);
-    X(rd) = (X(rs1) >> index) & 1;
-    ```
-    See external [documentation](https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-bexti).
-    """
-
-    name = "rv64.bexti"
-
-
-@irdl_op_definition
-class BinvIOp(RdRsImmShiftOperation):
-    """
-    This instruction returns rs1 with a single bit cleared at the index specified in shamt. The index
-    is read from the lower log2(XLEN) bits of shamt.
-    ```
-    let index = shamt & (XLEN - 1);
-    x[rd] = x[rs1] & ~(1 << index)
-    ```
-    See external [documentation](https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-binvi).
-    """
-
-    name = "rv64.binvi"
-
-    traits = traits_def(Pure())
-
-
-@irdl_op_definition
-class BsetIOp(RdRsImmShiftOperation):
-    """
-    This instruction returns rs1 with a single bit set at the index specified in shamt. The index is read
-    from the lower log2(XLEN) bits of shamt.
-    ```
-    let index = shamt & (XLEN - 1);
-    x[rd] = x[rs1] | (1 << index)
-    ```
-    See external [documentation](https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-bseti).
-    """
-
-    name = "rv64.bseti"
-
-    traits = traits_def(Pure())
-
-
-@irdl_op_definition
-class LiOp(RISCVCustomFormatOperation, RISCVInstruction, ConstantLikeInterface, ABC):
+class LiOp(LiOperation[I64]):
     """
     Loads a 64-bit immediate into rd.
 
@@ -340,11 +221,6 @@ class LiOp(RISCVCustomFormatOperation, RISCVInstruction, ConstantLikeInterface, 
 
     name = "rv64.li"
 
-    rd = result_def(IntRegisterType)
-    immediate = attr_def(IntegerAttr[I64] | LabelAttr)
-
-    traits = traits_def(Pure(), LiOpHasCanonicalizationPatternTrait())
-
     def __init__(
         self,
         immediate: int | IntegerAttr[I64] | str | LabelAttr,
@@ -354,24 +230,7 @@ class LiOp(RISCVCustomFormatOperation, RISCVInstruction, ConstantLikeInterface, 
     ):
         if isinstance(immediate, int):
             immediate = IntegerAttr(immediate, i64)
-        elif isinstance(immediate, str):
-            immediate = LabelAttr(immediate)
-        if isinstance(comment, str):
-            comment = StringAttr(comment)
-
-        super().__init__(
-            result_types=[rd],
-            attributes={
-                "immediate": immediate,
-                "comment": comment,
-            },
-        )
-
-    def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
-        return self.rd, self.immediate
-
-    def get_constant_value(self):
-        return self.immediate
+        super().__init__(immediate, rd=rd, comment=comment)
 
     @classmethod
     def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
@@ -379,22 +238,10 @@ class LiOp(RISCVCustomFormatOperation, RISCVInstruction, ConstantLikeInterface, 
         attributes["immediate"] = parse_immediate_value(parser, i64)
         return attributes
 
-    def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
-        printer.print_string(" ")
-        print_immediate_value(printer, self.immediate)
-        return {"immediate", "fastmath"}
 
-    @classmethod
-    def parse_op_type(
-        cls, parser: Parser
-    ) -> tuple[Sequence[Attribute], Sequence[Attribute]]:
-        parser.parse_punctuation(":")
-        res_type = parser.parse_attribute()
-        return (), (res_type,)
-
-    def print_op_type(self, printer: Printer) -> None:
-        printer.print_string(" : ")
-        printer.print_attribute(self.rd.type)
+@irdl_op_definition
+class GetRegisterOp(GetAnyRegisterOperation[IntRegisterType]):
+    name = "rv64.get_register"
 
 
 RV64 = Dialect(
@@ -405,14 +252,9 @@ RV64 = Dialect(
         SraiOp,
         SlliwOp,
         SrliwOp,
-        RoriOp,
-        RoriwOp,
-        SlliUwOp,
-        BclrIOp,
-        BextIOp,
-        BinvIOp,
-        BsetIOp,
         LiOp,
+        LiOp,
+        GetRegisterOp,
     ],
     [],
 )

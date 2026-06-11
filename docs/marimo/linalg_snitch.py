@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.19.4"
+__generated_with = "0.23.6"
 app = marimo.App(width="medium")
 
 
@@ -39,6 +39,7 @@ def _():
     from xdsl.transforms.canonicalize import CanonicalizePass
     from xdsl.transforms.riscv_allocate_registers import RISCVAllocateRegistersPass
     from xdsl.transforms.riscv_lower_parallel_mov import RISCVLowerParallelMovPass
+
     return (
         AffineMap,
         AffineMapAttr,
@@ -116,7 +117,7 @@ def _(
         b.name_hint = "B"
         c.name_hint = "C"
         body = Region(Block(arg_types = (f64, f64, f64)))
-        linalg.GenericOp(
+        linalg.ops.GenericOp(
             inputs=(a, b),
             outputs=(c,),
             body=body,
@@ -126,15 +127,15 @@ def _(
                 AffineMapAttr(AffineMap.from_callable(lambda m, n, k: (m, n))),
             ),
             iterator_types=(
-                linalg.IteratorTypeAttr.parallel(),
-                linalg.IteratorTypeAttr.parallel(),
-                linalg.IteratorTypeAttr.reduction(),
+                linalg.attrs.IteratorTypeAttr.parallel(),
+                linalg.attrs.IteratorTypeAttr.parallel(),
+                linalg.attrs.IteratorTypeAttr.reduction(),
             )
         )
         with ImplicitBuilder(body) as (a_val, b_val, acc_old_val):
             prod_val = arith.MulfOp(a_val, b_val).result
             acc_new_val = arith.AddfOp(acc_old_val, prod_val).result
-            linalg.YieldOp(acc_new_val)
+            linalg.ops.YieldOp(acc_new_val)
             # Add more name hints to make it easier to track how values are lowered
             a_val.name_hint = "a"
             b_val.name_hint = "b"
@@ -166,8 +167,7 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(k, m, mo, n):
-    mo.md(
-        f"""
+    mo.md(f"""
     We can parametrize the shapes of the matrices operated on:
 
     {m}{m.value}
@@ -175,8 +175,7 @@ def _(k, m, mo, n):
     {n}{n.value}
 
     {k}{k.value}
-    """
-    )
+    """)
     return
 
 
@@ -398,8 +397,7 @@ def _(snitch_stream_ctx, snitch_stream_module, xmo):
 
 @app.cell
 def _(k, m, mo, n):
-    mo.md(
-        f"""
+    mo.md(f"""
     We can see how changing our input sizes affects the assembly produced:
 
     {m}{m.value}
@@ -407,8 +405,7 @@ def _(k, m, mo, n):
     {n}{n.value}
 
     {k}{k.value}
-    """
-    )
+    """)
     return
 
 

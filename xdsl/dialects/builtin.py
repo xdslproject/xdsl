@@ -19,7 +19,7 @@ from typing import (
 )
 
 from immutabledict import immutabledict
-from typing_extensions import Self, TypeVar, deprecated, override
+from typing_extensions import Self, TypeForm, TypeVar, deprecated, override
 
 from xdsl.dialect_interfaces.op_asm import OpAsmDialectInterface
 from xdsl.ir import (
@@ -55,6 +55,7 @@ from xdsl.irdl import (
     ConstraintContext,
     ConstraintConvertible,
     EqAttrConstraint,
+    EqIntConstraint,
     GenericData,
     IntConstraint,
     IntTypeVarConstraint,
@@ -66,6 +67,7 @@ from xdsl.irdl import (
     RangeConstraint,
     RangeOf,
     TypeVarConstraint,
+    get_int_constraint,
     irdl_attr_definition,
     irdl_op_definition,
     irdl_to_attr_constraint,
@@ -125,11 +127,24 @@ class ShapedType(Attribute, ABC):
         return all(dim != DYNAMIC_INDEX for dim in self.get_shape())
 
     @staticmethod
-    def strides_for_shape(shape: Sequence[int], factor: int = 1) -> tuple[int, ...]:
-        import operator
-        from itertools import accumulate
-
-        return tuple(accumulate(reversed(shape), operator.mul, initial=factor))[-2::-1]
+    def strides_for_shape(
+        shape: Sequence[int], factor: int = 1
+    ) -> tuple[int | None, ...]:
+        """
+        Returns a tuple of strides for a given shape, with row-major layout.
+        Strides that depend on a dynamic index are returned as `None`.
+        The optional `factor` parameter specifies the stride for the innermost
+        dimension, defaulting to 1.
+        """
+        rev_strides: list[int | None] = []
+        stride: int | None = factor
+        for dim in reversed(shape):
+            rev_strides.append(stride)
+            if stride is None or dim == DYNAMIC_INDEX:
+                stride = None
+            else:
+                stride *= dim
+        return tuple(reversed(rev_strides))
 
 
 _ContainerElementTypeT = TypeVar(
@@ -356,7 +371,7 @@ class EmptyArrayAttrConstraint(AttrConstraint):
 
 
 FlatSymbolRefAttrConstr = MessageConstraint(
-    ParamAttrConstraint(SymbolRefAttr, [AnyAttr(), EmptyArrayAttrConstraint()]),
+    ParamAttrConstraint.get(SymbolRefAttr, AnyAttr(), EmptyArrayAttrConstraint()),
     "Expected SymbolRefAttr with no nested symbols.",
 )
 """Constrain SymbolRef to be FlatSymbolRef"""
@@ -387,8 +402,10 @@ class IntAttr(GenericData[IntCovT], Generic[IntCovT]):
 
     @staticmethod
     @override
-    def constr(constr: IntConstraint | None = None) -> AttrConstraint[IntAttr]:
-        return IntAttrConstraint(
+    def constr(
+        constr: IntConstraint | int | TypeForm[int] | None = None,
+    ) -> AttrConstraint[IntAttr]:
+        return IntAttrConstraint.get(
             IntTypeVarConstraint(IntCovT, AnyInt()) if constr is None else constr
         )
 
@@ -398,6 +415,20 @@ class IntAttrConstraint(AttrConstraint[IntAttr]):
     """
     Constrains the value of an IntAttr.
     """
+
+    @staticmethod
+    def get(
+        int_constraint: IntConstraint | int | TypeForm[int] | None = None,
+    ) -> AttrConstraint[IntAttr]:
+        if int_constraint is None:
+            return BaseAttr(IntAttr)
+        if not isinstance(int_constraint, IntConstraint):
+            int_constraint = get_int_constraint(int_constraint)
+        if int_constraint == AnyInt():
+            return BaseAttr(IntAttr)
+        if isinstance(int_constraint, EqIntConstraint):
+            return EqAttrConstraint(IntAttr(int_constraint.value))
+        return IntAttrConstraint(int_constraint)
 
     int_constraint: IntConstraint
 
@@ -421,7 +452,7 @@ class IntAttrConstraint(AttrConstraint[IntAttr]):
     def mapping_type_vars(
         self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
     ):
-        return IntAttrConstraint(
+        return IntAttrConstraint.get(
             self.int_constraint.mapping_type_vars(type_var_mapping)
         )
 
@@ -753,11 +784,13 @@ class IntegerType(
         return f[format_index]
 
 
+I128: TypeAlias = IntegerType[Literal[128], Literal[Signedness.SIGNLESS]]
 I64: TypeAlias = IntegerType[Literal[64], Literal[Signedness.SIGNLESS]]
 I32: TypeAlias = IntegerType[Literal[32], Literal[Signedness.SIGNLESS]]
 I16: TypeAlias = IntegerType[Literal[16], Literal[Signedness.SIGNLESS]]
 I8: TypeAlias = IntegerType[Literal[8], Literal[Signedness.SIGNLESS]]
 I1: TypeAlias = IntegerType[Literal[1], Literal[Signedness.SIGNLESS]]
+i128: I128 = IntegerType(128)
 i64: I64 = IntegerType(64)
 i32: I32 = IntegerType(32)
 i16: I16 = IntegerType(16)
@@ -779,6 +812,44 @@ class UnitAttr(ParametrizedAttribute, BuiltinAttribute):
 
     def print_builtin(self, printer: Printer) -> None:
         printer.print_string("unit")
+
+
+class LocationConstraint(AttrConstraint):
+    """
+    Check if an attribute is one of the supported location types.
+    """
+
+    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
+        if isinstance(attr, LocationAttr) or isinstance(attr, NoneAttr):
+            return
+        raise VerifyException(f"{attr} is not a location attribute")
+
+    def mapping_type_vars(
+        self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
+    ) -> AttrConstraint:
+        # No type variables to map in this constraint
+        return self
+
+
+class LocationsArrayConstraint(AttrConstraint):
+    """
+    Check if an attribute is one of the supported location types.
+    """
+
+    def __init__(self):
+        self.location_constraint = LocationConstraint()
+
+    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
+        array = cast(ArrayAttr[Attribute], attr)
+        element: Attribute
+        for element in array:
+            self.location_constraint.verify(element, constraint_context)
+
+    def mapping_type_vars(
+        self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
+    ) -> AttrConstraint:
+        # No type variables to map in this constraint
+        return self
 
 
 @irdl_attr_definition
@@ -805,7 +876,8 @@ class UnknownLoc(ParametrizedAttribute, BuiltinAttribute):
     name = "unknown_loc"
 
     def print_builtin(self, printer: Printer) -> None:
-        printer.print_string("loc(unknown)")
+        with printer.in_location():
+            printer.print_string("unknown")
 
 
 @irdl_attr_definition
@@ -836,8 +908,7 @@ class FileLineColLoc(ParametrizedAttribute, BuiltinAttribute):
     column: IntAttr = param_def()
 
     def print_builtin(self, printer: Printer) -> None:
-        printer.print_string("loc")
-        with printer.in_parens():
+        with printer.in_location():
             printer.print_string_literal(self.filename.data)
             printer.print_string(":")
             printer.print_int(self.line.data)
@@ -845,7 +916,65 @@ class FileLineColLoc(ParametrizedAttribute, BuiltinAttribute):
             printer.print_int(self.column.data)
 
 
-LocationAttr: TypeAlias = UnknownLoc | FileLineColLoc
+@irdl_attr_definition
+class CallSiteLoc(ParametrizedAttribute, BuiltinAttribute):
+    name = "builtin.callsite_loc"
+
+    callee: Attribute = param_def(LocationConstraint())
+    caller: Attribute = param_def(LocationConstraint())
+
+    def print_builtin(self, printer: Printer) -> None:
+        with printer.in_location():
+            printer.print_string("callsite(")
+            printer.print_attribute(self.callee)
+            printer.print_string(" at ")
+            printer.print_attribute(self.caller)
+            printer.print_string(")")
+
+
+@irdl_attr_definition
+class FusedLoc(ParametrizedAttribute, BuiltinAttribute):
+    name = "builtin.fused_loc"
+
+    locations: Attribute = param_def(
+        constraint=LocationsArrayConstraint(), converter=ArrayAttr[Attribute].get
+    )
+    metadata: Attribute = param_def()
+
+    def print_builtin(self, printer: Printer) -> None:
+        with printer.in_location():
+            printer.print_string("fused")
+            if not isinstance(self.metadata, NoneAttr):
+                printer.print_string("<")
+                printer.print_attribute(self.metadata)
+                printer.print_string(">")
+            printer.print_attribute(self.locations)
+
+
+@irdl_attr_definition
+class NameLoc(ParametrizedAttribute, BuiltinAttribute):
+    name = "builtin.name_loc"
+
+    desc: StringAttr = param_def()
+    location: Attribute = param_def(LocationConstraint())
+
+    def print_builtin(self, printer: Printer) -> None:
+        with printer.in_location():
+            printer.print_attribute(self.desc)
+            if not isinstance(self.location, NoneAttr):
+                printer.print_string("(")
+                printer.print_attribute(self.location)
+                printer.print_string(")")
+
+
+LocationAttr: TypeAlias = UnknownLoc | FileLineColLoc | CallSiteLoc | NameLoc | FusedLoc
+"""
+Union of all MLIR location attribute types. Represents source location
+information that can be attached to operations, covering unknown locations,
+file/line/column positions, call-site chains, named locations, and fused
+(multi-location) aggregates.
+"""
+UNKNOWN_LOC: LocationAttr = UnknownLoc()
 
 
 @irdl_attr_definition
@@ -872,7 +1001,7 @@ _IntegerAttrType = TypeVar(
 _IntegerAttrTypeInvT = TypeVar("_IntegerAttrTypeInvT", bound=IntegerType | IndexType)
 IntegerAttrTypeConstr = IndexTypeConstr | BaseAttr(IntegerType)
 AnySignlessIntegerOrIndexType: TypeAlias = Annotated[
-    Attribute, AnyOf([IndexType, SignlessIntegerConstraint])
+    Attribute, AnyOf.get(IndexType, SignlessIntegerConstraint)
 ]
 """Type alias constrained to IndexType or signless IntegerType."""
 
@@ -924,6 +1053,7 @@ class IntegerAttr(
                 value = normalized_value
         super().__init__(IntAttr(value), value_type)
 
+    @deprecated("Please use IntegerAttr(value, width) instead")
     @staticmethod
     def from_int_and_width(
         value: int, width: IntCovT
@@ -971,16 +1101,11 @@ class IntegerAttr(
         *,
         value: AttrConstraint | IntConstraint | None = None,
     ) -> AttrConstraint[IntegerAttr[_IntegerAttrType]]:
-        if value is None and type == AnyAttr():
-            return BaseAttr[IntegerAttr[_IntegerAttrType]](IntegerAttr)
         if isinstance(value, IntConstraint):
-            value = IntAttrConstraint(value)
-        return ParamAttrConstraint[IntegerAttr[_IntegerAttrType]](
-            IntegerAttr,
-            (
-                value,
-                type,
-            ),
+            value = IntAttrConstraint.get(value)
+        return cast(
+            AttrConstraint[IntegerAttr[_IntegerAttrType]],
+            ParamAttrConstraint.get(IntegerAttr, value, type),
         )
 
     def __bool__(self) -> bool:
@@ -1010,7 +1135,7 @@ class IntegerAttr(
 BoolAttr: TypeAlias = IntegerAttr[Annotated[IntegerType, IntegerType(1)]]
 
 
-class _FloatType(StructPackableType[float], FixedBitwidthType, BuiltinAttribute, ABC):
+class _FloatType(PackableType[float], FixedBitwidthType, BuiltinAttribute, ABC):
     @property
     @abstractmethod
     def bitwidth(self) -> int:
@@ -1030,12 +1155,50 @@ class BFloat16Type(ParametrizedAttribute, _FloatType):
         return 16
 
     @property
-    def format(self) -> str:
-        raise NotImplementedError()
+    def compile_time_size(self) -> int:
+        return 2
+
+    @staticmethod
+    def _encode(value: float) -> bytes:
+        """
+        Encode a Python float (IEEE 754 binary32 after Python's f64 -> f32
+        narrowing) as bf16 bytes, little-endian. Round-to-nearest-even,
+        quiet-NaN preservation; matches LLVM APFloat semantics.
+        """
+        f32_bits = struct.unpack("<I", struct.pack("<f", value))[0]
+        # NaN must remain a NaN after truncation; force the quiet bit on so a
+        # signaling NaN with mantissa entirely in the truncated bits doesn't
+        # become inf.
+        if (f32_bits & 0x7FFFFFFF) > 0x7F800000:
+            bits = ((f32_bits >> 16) | 0x0040) & 0xFFFF
+        else:
+            rounding_bias = 0x7FFF + ((f32_bits >> 16) & 1)
+            bits = ((f32_bits + rounding_bias) >> 16) & 0xFFFF
+        return bits.to_bytes(2, "little")
+
+    @staticmethod
+    def _decode(raw: bytes) -> float:
+        # bf16 is the high 16 bits of an f32 with the low 16 truncated; the
+        # inverse is to zero-extend with two low bytes in little-endian.
+        return struct.unpack("<f", b"\x00\x00" + raw)[0]
+
+    def iter_unpack(self, buffer: ReadableBuffer, /) -> Iterator[float]:
+        mv = memoryview(buffer)
+        for i in range(0, len(mv), 2):
+            yield self._decode(bytes(mv[i : i + 2]))
+
+    def unpack(self, buffer: ReadableBuffer, num: int, /) -> tuple[float, ...]:
+        return tuple(res for _, res in zip(range(num), self.iter_unpack(buffer)))
+
+    def pack_into(self, buffer: WriteableBuffer, offset: int, value: float) -> None:
+        memoryview(buffer)[offset : offset + 2] = self._encode(value)
+
+    def pack(self, values: Sequence[float]) -> bytes:
+        return b"".join(self._encode(v) for v in values)
 
 
 @irdl_attr_definition
-class Float16Type(ParametrizedAttribute, _FloatType):
+class Float16Type(ParametrizedAttribute, _FloatType, StructPackableType[float]):
     name = "f16"
 
     @property
@@ -1048,7 +1211,7 @@ class Float16Type(ParametrizedAttribute, _FloatType):
 
 
 @irdl_attr_definition
-class Float32Type(ParametrizedAttribute, _FloatType):
+class Float32Type(ParametrizedAttribute, _FloatType, StructPackableType[float]):
     name = "f32"
 
     @property
@@ -1061,7 +1224,7 @@ class Float32Type(ParametrizedAttribute, _FloatType):
 
 
 @irdl_attr_definition
-class Float64Type(ParametrizedAttribute, _FloatType):
+class Float64Type(ParametrizedAttribute, _FloatType, StructPackableType[float]):
     name = "f64"
 
     @property
@@ -1074,7 +1237,7 @@ class Float64Type(ParametrizedAttribute, _FloatType):
 
 
 @irdl_attr_definition
-class Float80Type(ParametrizedAttribute, _FloatType):
+class Float80Type(ParametrizedAttribute, _FloatType, StructPackableType[float]):
     name = "f80"
 
     @property
@@ -1087,7 +1250,7 @@ class Float80Type(ParametrizedAttribute, _FloatType):
 
 
 @irdl_attr_definition
-class Float128Type(ParametrizedAttribute, _FloatType):
+class Float128Type(ParametrizedAttribute, _FloatType, StructPackableType[float]):
     name = "f128"
 
     @property
@@ -1128,7 +1291,8 @@ class FloatData(Data[float]):
     def __eq__(self, other: object):
         # avoid triggering `float('nan') != float('nan')` inequality
         return isinstance(other, FloatData) and (
-            math.isnan(self.data) and math.isnan(other.data) or self.data == other.data
+            (math.isnan(self.data) and math.isnan(other.data))
+            or self.data == other.data
         )
 
     def __hash__(self):
@@ -1174,7 +1338,7 @@ class FloatAttr(BuiltinAttribute, TypedAttribute, Generic[_FloatAttrType]):
         value: float = data.data if isinstance(data, FloatData) else data
         # for supported types, constrain value to precision of floating point type
         # else, allow full python float precision
-        if isinstance(type, Float64Type | Float32Type | Float16Type):
+        if isinstance(type, Float64Type | Float32Type | Float16Type | BFloat16Type):
             value = type.unpack(type.pack((value,)), 1)[0]
 
         data_attr = FloatData(value)
@@ -1220,9 +1384,10 @@ class FloatAttr(BuiltinAttribute, TypedAttribute, Generic[_FloatAttrType]):
     def constr(
         type: IRDLAttrConstraint[_FloatAttrType] = AnyFloatConstr,
     ) -> AttrConstraint[FloatAttr[_FloatAttrType]]:
-        return ParamAttrConstraint[FloatAttr[_FloatAttrType]](
-            FloatAttr,
-            (
+        return cast(
+            AttrConstraint[FloatAttr[_FloatAttrType]],
+            ParamAttrConstraint.get(
+                FloatAttr,
                 None,
                 type,
             ),
@@ -1316,10 +1481,12 @@ class ComplexType(
     def constr(
         element_type: IRDLAttrConstraint[ComplexElementCovT] | None = None,
     ) -> AttrConstraint[ComplexType[ComplexElementCovT]]:
-        if element_type is None:
-            return BaseAttr[ComplexType[ComplexElementCovT]](ComplexType)
-        return ParamAttrConstraint[ComplexType[ComplexElementCovT]](
-            ComplexType, (element_type,)
+        return cast(
+            AttrConstraint[ComplexType[ComplexElementCovT]],
+            ParamAttrConstraint.get(
+                ComplexType,
+                element_type,
+            ),
         )
 
 
@@ -1362,8 +1529,8 @@ class VectorType(
 ):
     name = "vector"
 
-    shape: ArrayAttr[IntAttr]
     element_type: AttributeCovT
+    shape: ArrayAttr[IntAttr]
     scalable_dims: ArrayAttr[BoolAttr]
 
     def __init__(
@@ -1378,7 +1545,7 @@ class VectorType(
         if scalable_dims is None:
             false = BoolAttr(False, i1)
             scalable_dims = ArrayAttr(false for _ in shape)
-        super().__init__(shape, element_type, scalable_dims)
+        super().__init__(element_type, shape, scalable_dims)
 
     @staticmethod
     def _print_vector_dim(printer: Printer, pair: tuple[IntAttr, BoolAttr]):
@@ -1436,15 +1603,14 @@ class VectorType(
         shape: IRDLAttrConstraint[ArrayAttr[IntAttr]] | None = None,
         scalable_dims: IRDLAttrConstraint[ArrayAttr[BoolAttr]] | None = None,
     ) -> AttrConstraint[VectorType[AttributeCovT]]:
-        if element_type is None and shape is None and scalable_dims is None:
-            return BaseAttr[VectorType[AttributeCovT]](VectorType)
         shape_constr = AnyAttr() if shape is None else shape
         scalable_dims_constr = AnyAttr() if scalable_dims is None else scalable_dims
-        return ParamAttrConstraint[VectorType[AttributeCovT]](
-            VectorType,
-            (
-                shape_constr,
+        return cast(
+            AttrConstraint[VectorType[AttributeCovT]],
+            ParamAttrConstraint.get(
+                VectorType,
                 element_type,
+                shape_constr,
                 scalable_dims_constr,
             ),
         )
@@ -1502,13 +1668,11 @@ class TensorType(
     @staticmethod
     def constr(
         element_type: IRDLAttrConstraint[AttributeInvT] | None = None,
-        shape: IRDLAttrConstraint[AttributeInvT] | None = None,
+        shape: IRDLAttrConstraint | None = None,
     ) -> AttrConstraint[TensorType[AttributeInvT]]:
-        if element_type is None and shape is None:
-            return BaseAttr[TensorType[AttributeInvT]](TensorType)
-        shape_constr = AnyAttr() if shape is None else shape
-        return ParamAttrConstraint[TensorType[AttributeInvT]](
-            TensorType, (shape_constr, element_type, AnyAttr())
+        return cast(
+            AttrConstraint[TensorType[AttributeInvT]],
+            ParamAttrConstraint.get(TensorType, shape, element_type, AnyAttr()),
         )
 
 
@@ -1819,10 +1983,9 @@ class DenseArrayBase(
     def constr(
         element_type: IRDLAttrConstraint[DenseArrayInvT] | None = None,
     ) -> AttrConstraint[DenseArrayBase[DenseArrayInvT]]:
-        if element_type is None:
-            return BaseAttr[DenseArrayBase[DenseArrayInvT]](DenseArrayBase)
-        return ParamAttrConstraint[DenseArrayBase[DenseArrayInvT]](
-            DenseArrayBase, (element_type, AnyAttr())
+        return cast(
+            AttrConstraint[DenseArrayBase[DenseArrayInvT]],
+            ParamAttrConstraint.get(DenseArrayBase, element_type, AnyAttr()),
         )
 
 
@@ -1906,6 +2069,15 @@ class MemRefLayoutAttr(Attribute, ABC):
 
         This is only applicable to hyper-rectangular layouts.
         If this is not applicable for a given layout, returns None
+        """
+        return None
+
+    def get_offset(self) -> int | None:
+        """
+        (optional) Return the static offset of this memref layout, if available.
+
+        Returns `None` when the offset is dynamic or when this layout does not
+        expose a strided offset.
         """
         return None
 
@@ -2145,6 +2317,7 @@ class UnregisteredOp(Operation, ABC):
                 result_types: Sequence[Attribute] = (),
                 properties: Mapping[str, Attribute] = {},
                 attributes: Mapping[str, Attribute] = {},
+                location: LocationAttr | None = None,
                 successors: Sequence[Block] = (),
                 regions: Sequence[Region] = (),
             ):
@@ -2153,6 +2326,7 @@ class UnregisteredOp(Operation, ABC):
                     result_types=result_types,
                     properties=properties,
                     attributes=attributes,
+                    location=location,
                     successors=successors,
                     regions=regions,
                 )
@@ -2483,6 +2657,19 @@ class MemRefType(
             case _:
                 return self.layout.get_strides()
 
+    def get_offset(self) -> int | None:
+        """
+        Return the static offset of the memref layout.
+
+        Returns `0` for the default layout, and `None` when the offset is dynamic or
+        when the layout does not expose a strided offset.
+        """
+        match self.layout:
+            case NoneAttr():
+                return 0
+            case _:
+                return self.layout.get_offset()
+
     @staticmethod
     def constr(
         element_type: IRDLAttrConstraint[_MemRefTypeElement] = AnyAttr(),
@@ -2491,15 +2678,11 @@ class MemRefType(
         layout: IRDLAttrConstraint | None = None,
         memory_space: IRDLAttrConstraint | None = None,
     ) -> AttrConstraint[MemRefType[_MemRefTypeElement]]:
-        if (
-            shape is None
-            and element_type == AnyAttr()
-            and layout is None
-            and memory_space is None
-        ):
-            return BaseAttr[MemRefType[_MemRefTypeElement]](MemRefType)
-        return ParamAttrConstraint[MemRefType[_MemRefTypeElement]](
-            MemRefType, (shape, element_type, layout, memory_space)
+        return cast(
+            AttrConstraint[MemRefType[_MemRefTypeElement]],
+            ParamAttrConstraint.get(
+                MemRefType, shape, element_type, layout, memory_space
+            ),
         )
 
 

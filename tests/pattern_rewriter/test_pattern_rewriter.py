@@ -19,6 +19,7 @@ from xdsl.dialects.builtin import (
     i32,
     i64,
 )
+from xdsl.dialects.test import TestOp
 from xdsl.ir import Block, Operation, SSAValue
 from xdsl.irdl import BaseAttr
 from xdsl.parser import Parser
@@ -256,8 +257,8 @@ def test_recursive_rewriter():
             val = op_val.value.data
             if val == 0 or val == 1:
                 return
-            constant_op = ConstantOp(IntegerAttr.from_int_and_width(val - 1, 32), i32)
-            constant_one = ConstantOp(IntegerAttr.from_int_and_width(1, 32), i32)
+            constant_op = ConstantOp(IntegerAttr(val - 1, 32), i32)
+            constant_one = ConstantOp(IntegerAttr(1, 32), i32)
             add_op = AddiOp(constant_op, constant_one)
             rewriter.replace_op(op, [constant_op, constant_one, add_op])
 
@@ -299,8 +300,8 @@ def test_recursive_rewriter_reversed():
             val = op_val.value.data
             if val == 0 or val == 1:
                 return
-            constant_op = ConstantOp(IntegerAttr.from_int_and_width(val - 1, 32), i32)
-            constant_one = ConstantOp(IntegerAttr.from_int_and_width(1, 32), i32)
+            constant_op = ConstantOp(IntegerAttr(val - 1, 32), i32)
+            constant_one = ConstantOp(IntegerAttr(1, 32), i32)
             add_op = AddiOp(constant_op, constant_one)
             rewriter.replace_op(op, [constant_op, constant_one, add_op])
 
@@ -772,6 +773,115 @@ def test_replace_uses_with_if():
         PatternRewriteWalker(Rewrite(), apply_recursively=False),
         # This counts each use individually:
         op_modified=2,
+        expect_rewrite=True,
+    )
+
+
+def test_replace_uses_with_if_no_action():
+    """Test rewrites where a predicates stops any changes actually being made to the IR."""
+
+    prog = """"builtin.module"() ({
+  "test.op"() ({
+    %0 = "arith.constant"() <{value = 5 : i32}> : () -> i32
+    %1 = "arith.constant"() <{value = 42 : i32}> : () -> i32
+    %2 = "arith.addi"(%0, %0) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
+    %3 = "arith.addi"(%0, %0) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
+  }) : () -> ()
+}) : () -> ()"""
+
+    expected = """"builtin.module"() ({
+  "test.op"() ({
+    %0 = "arith.constant"() <{value = 5 : i32}> : () -> i32
+    %1 = "arith.constant"() <{value = 42 : i32}> : () -> i32
+    %2 = "arith.addi"(%0, %0) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
+    %3 = "arith.addi"(%0, %0) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
+  }) : () -> ()
+}) : () -> ()"""
+
+    class Rewrite(RewritePattern):
+        @op_type_rewrite_pattern
+        def match_and_rewrite(self, op: test.TestOp, rewriter: PatternRewriter):
+            first_op = op.regions[0].block.ops.first
+            assert first_op is not None
+            second_op = first_op.next_op
+            assert second_op is not None
+
+            val = first_op.results[0]
+            newval = second_op.results[0]
+            rewriter.replace_uses_with_if(
+                val,
+                newval,
+                lambda _use: False,
+            )
+
+    rewrite_and_compare(
+        prog,
+        expected,
+        PatternRewriteWalker(Rewrite(), apply_recursively=False),
+        # replace_uses_with_if's predicate will never return True so there no rewriting.
+        expect_rewrite=False,
+    )
+
+
+def test_replace_uses_with_if_same_value():
+    """Test rewrites where a value is replaced by the same value so there is no change."""
+
+    prog = """"builtin.module"() ({
+  "test.op"() ({
+    %0 = "arith.constant"() <{value = 5 : i32}> : () -> i32
+    %1 = "arith.addi"(%0, %0) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
+  }) : () -> ()
+}) : () -> ()"""
+
+    class Rewrite(RewritePattern):
+        @op_type_rewrite_pattern
+        def match_and_rewrite(self, op: test.TestOp, rewriter: PatternRewriter):
+            first_op = op.regions[0].block.ops.first
+            assert first_op is not None
+
+            val = first_op.results[0]
+            rewriter.replace_uses_with_if(
+                val,
+                val,
+                lambda _use: pytest.fail("Predicate should never be reached."),
+            )
+
+    rewrite_and_compare(
+        prog,
+        prog,
+        PatternRewriteWalker(Rewrite(), apply_recursively=False),
+        # Replacing with the same value, so there is no change to the IR.
+        expect_rewrite=False,
+    )
+
+
+def test_replace_all_uses_with_same_value():
+    """Test rewrites where a value is replaced by the same value so there is no change."""
+
+    prog = """"builtin.module"() ({
+  "test.op"() ({
+    %0 = "arith.constant"() <{value = 5 : i32}> : () -> i32
+    %1 = "arith.addi"(%0, %0) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
+  }) : () -> ()
+}) : () -> ()"""
+
+    class Rewrite(RewritePattern):
+        @op_type_rewrite_pattern
+        def match_and_rewrite(self, op: test.TestOp, rewriter: PatternRewriter):
+            first_op = op.regions[0].block.ops.first
+            assert first_op is not None
+
+            val = first_op.results[0]
+            rewriter.replace_all_uses_with(
+                val,
+                val,
+            )
+
+    rewrite_and_compare(
+        prog,
+        prog,
+        PatternRewriteWalker(Rewrite(), apply_recursively=False),
+        # Replacing with the same value, so there is no change to the IR.
         expect_rewrite=False,
     )
 
@@ -782,7 +892,7 @@ def test_block_argument_type_change():
     prog = """\
 "builtin.module"() ({
   %0 = "test.op"() ({
-  ^bb0(%1 : !test.type<"int">):
+  ^bb0(%1: !test.type<"int">):
     %2 = "test.op"() : () -> !test.type<"int">
   }) : () -> !test.type<"int">
 }) : () -> ()
@@ -791,7 +901,7 @@ def test_block_argument_type_change():
     expected = """\
 "builtin.module"() ({
   %0 = "test.op"() ({
-  ^bb0(%1 : i64):
+  ^bb0(%1: i64):
     %2 = "test.op"() : () -> !test.type<"int">
   }) : () -> !test.type<"int">
 }) : () -> ()
@@ -819,7 +929,7 @@ def test_block_argument_erasure():
     prog = """\
 "builtin.module"() ({
   %0 = "test.op"() ({
-  ^bb0(%1 : !test.type<"int">):
+  ^bb0(%1: !test.type<"int">):
     %2 = "test.op"() : () -> !test.type<"int">
   }, {
   ^bb0:
@@ -864,7 +974,7 @@ def test_block_argument_insertion():
     expected = """\
 "builtin.module"() ({
   %0 = "test.op"() ({
-  ^bb0(%1 : !test.type<"int">):
+  ^bb0(%1: !test.type<"int">):
     %2 = "test.op"() : () -> !test.type<"int">
   }, {
   ^bb1:
@@ -1026,9 +1136,9 @@ def test_inline_block_before_with_args():
 "builtin.module"() ({
   %0 = "test.op"() : () -> !test.type<"int">
   %1 = "test.op"() ({
-  ^bb0(%arg0 : !test.type<"int">):
+  ^bb0(%arg0: !test.type<"int">):
     %1 = "test.op"() ({
-    ^bb1(%arg1 : !test.type<"int">):
+    ^bb1(%arg1: !test.type<"int">):
       %1 = "test.op"(%arg1) : (!test.type<"int">) -> !test.type<"int">
     }, {
     ^bb2:
@@ -1043,7 +1153,7 @@ def test_inline_block_before_with_args():
 "builtin.module"() ({
   %0 = "test.op"() : () -> !test.type<"int">
   %1 = "test.op"() ({
-  ^bb0(%arg0 : !test.type<"int">):
+  ^bb0(%arg0: !test.type<"int">):
     %2 = "test.op"(%arg0) : (!test.type<"int">) -> !test.type<"int">
     %3 = "test.op"() ({
     }, {
@@ -1572,7 +1682,7 @@ def test_type_conversion():
     prog = """\
 "builtin.module"() ({
   "func.func"() ({
-  ^bb0(%arg : i32):
+  ^bb0(%arg: i32):
   }) : () -> ()
   %0 = "test.op"() {nested = memref<*xi32>} : () -> i32
   %1 = "test.op"() {type = () -> memref<*xi32>} : () -> f32
@@ -1586,7 +1696,7 @@ def test_type_conversion():
     expected = """\
 "builtin.module"() ({
   "func.func"() ({
-  ^bb0(%arg : index):
+  ^bb0(%arg: index):
   }) : () -> ()
   %0 = "test.op"() {nested = memref<*xindex>} : () -> index
   %1 = "test.op"() {type = () -> memref<*xindex>} : () -> f32
@@ -1635,7 +1745,7 @@ def test_type_conversion():
     non_rec_expected = """\
 "builtin.module"() ({
   "func.func"() ({
-  ^bb0(%arg : index):
+  ^bb0(%arg: index):
   }) : () -> ()
   %0 = "test.op"() {nested = memref<*xi32>} : () -> index
   %1 = "test.op"() {type = () -> memref<*xi32>} : () -> f32
@@ -1677,7 +1787,7 @@ def test_type_conversion():
     expected = """\
 "builtin.module"() ({
   "func.func"() ({
-  ^bb0(%arg : i32):
+  ^bb0(%arg: i32):
   }) : () -> ()
   %0 = "test.op"() {nested = memref<*xindex>} : () -> index
   %1 = "test.op"() {type = () -> memref<*xindex>} : () -> f32
@@ -1732,7 +1842,7 @@ def test_type_conversion():
     prog = """\
 "builtin.module"() ({
   "func.func"() ({
-  ^bb0(%arg : i6):
+  ^bb0(%arg: i6):
   }) : () -> ()
   %0 = "test.op"() {nested = memref<*xi4>} : () -> i6
   %1 = "test.op"() {type = () -> memref<*xi32>} : () -> f32
@@ -1746,7 +1856,7 @@ def test_type_conversion():
     expected = """\
 "builtin.module"() ({
   "func.func"() ({
-  ^bb0(%arg : i6):
+  ^bb0(%arg: i6):
   }) : () -> ()
   %0 = "test.op"() {nested = memref<*xi4>} : () -> i6
   %1 = "test.op"() {type = () -> memref<*xindex>} : () -> f32
@@ -1800,7 +1910,7 @@ def test_recursive_type_conversion_in_regions():
     prog = """\
 "builtin.module"() ({
   "func.func"() <{function_type = (memref<2x4xui16>) -> (), sym_name = "main", sym_visibility = "private"}> ({
-  ^bb0(%arg0 : memref<2x4xui16>):
+  ^bb0(%arg0: memref<2x4xui16>):
     "func.return"() : () -> ()
   }) : () -> ()
 }) : () -> ()
@@ -1808,7 +1918,7 @@ def test_recursive_type_conversion_in_regions():
     expected_prog = """\
 "builtin.module"() ({
   "func.func"() <{function_type = (memref<2x4xindex>) -> (), sym_name = "main", sym_visibility = "private"}> ({
-  ^bb0(%arg0 : memref<2x4xindex>):
+  ^bb0(%arg0: memref<2x4xindex>):
     "func.return"() : () -> ()
   }) : () -> ()
 }) : () -> ()
@@ -1880,9 +1990,9 @@ builtin.module {
     class Rewrite(RewritePattern):
         @op_type_rewrite_pattern
         def match_and_rewrite(self, matched_op: test.TestOp, rewriter: PatternRewriter):
-            if matched_op.attributes.get(
-                "erroneous", IntegerAttr.from_int_and_width(0, 1)
-            ) == IntegerAttr.from_int_and_width(1, 1):
+            if matched_op.attributes.get("erroneous", IntegerAttr(0, 1)) == IntegerAttr(
+                1, 1
+            ):
                 raise ValueError("Expected operation to not be erroneous!")
             return
 
@@ -1903,7 +2013,7 @@ def test_attr_constr_rewrite_pattern():
     prog = """\
 "builtin.module"() ({
   "func.func"() <{function_type = (memref<2x4xui16>) -> (), sym_name = "main", sym_visibility = "private"}> ({
-  ^bb0(%arg0 : memref<2x4xui16>):
+  ^bb0(%arg0: memref<2x4xui16>):
     "func.return"() : () -> ()
   }) : () -> ()
 }) : () -> ()
@@ -1911,7 +2021,7 @@ def test_attr_constr_rewrite_pattern():
     expected_prog = """\
 "builtin.module"() ({
   "func.func"() <{function_type = (memref<2x4xindex>) -> (), sym_name = "main", sym_visibility = "private"}> ({
-  ^bb0(%arg0 : memref<2x4xindex>):
+  ^bb0(%arg0: memref<2x4xindex>):
     "func.return"() : () -> ()
   }) : () -> ()
 }) : () -> ()
@@ -1990,4 +2100,67 @@ def test_pattern_rewriter_notify_op_modified():
         expected,
         PatternRewriteWalker(Rewrite(), apply_recursively=True),
         op_modified=3,
+    )
+
+
+def test_erase_matched_op():
+    prog = """
+"builtin.module"() ({
+  "test.op"() {op1} : () -> ()
+  "test.op"() {op2} : () -> ()
+  "test.op"() {op3} : () -> ()
+}) : () -> ()"""
+
+    expected = """
+"builtin.module"() ({
+  "test.op"() {op1} : () -> ()
+  "test.op"() {op3} : () -> ()
+}) : () -> ()"""
+
+    class Rewrite(RewritePattern):
+        @op_type_rewrite_pattern
+        def match_and_rewrite(self, op: test.TestOp, rewriter: PatternRewriter):
+            if "op2" not in op.attributes:
+                return
+            with pytest.deprecated_call():
+                rewriter.erase_matched_op()  # pyright: ignore[reportDeprecated]
+
+    rewrite_and_compare(
+        prog,
+        expected,
+        PatternRewriteWalker(Rewrite(), apply_recursively=True),
+        op_removed=1,
+    )
+
+
+def test_replace_matched_op():
+    prog = """
+"builtin.module"() ({
+  "test.op"() {op1} : () -> ()
+  "test.op"() {op2} : () -> ()
+  "test.op"() {op3} : () -> ()
+}) : () -> ()"""
+
+    expected = """
+"builtin.module"() ({
+  "test.op"() {op1} : () -> ()
+  "test.op"() : () -> ()
+  "test.op"() {op3} : () -> ()
+}) : () -> ()"""
+
+    class Rewrite(RewritePattern):
+        @op_type_rewrite_pattern
+        def match_and_rewrite(self, op: test.TestOp, rewriter: PatternRewriter):
+            if "op2" not in op.attributes:
+                return
+            with pytest.deprecated_call():
+                rewriter.replace_matched_op(TestOp())  # pyright: ignore[reportDeprecated]
+
+    rewrite_and_compare(
+        prog,
+        expected,
+        PatternRewriteWalker(Rewrite(), apply_recursively=True),
+        op_inserted=1,
+        op_removed=1,
+        op_replaced=1,
     )

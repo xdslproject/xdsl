@@ -3,10 +3,11 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from collections.abc import Set as AbstractSet
+from dataclasses import dataclass
 from io import StringIO
-from typing import IO, Generic, TypeAlias
+from typing import IO, ClassVar, Generic, TypeAlias
 
-from typing_extensions import Self
+from typing_extensions import Self, TypeVar
 
 from xdsl.backend.assembly_printer import AssemblyPrinter, OneLineAssemblyPrintable
 from xdsl.backend.register_allocatable import (
@@ -14,13 +15,18 @@ from xdsl.backend.register_allocatable import (
     RegisterConstraints,
 )
 from xdsl.backend.register_type import RegisterAllocatedMemoryEffect, RegisterType
+from xdsl.context import Context
 from xdsl.dialects.builtin import (
+    I32,
+    I64,
     IntegerAttr,
     IntegerType,
     ModuleOp,
     StringAttr,
     UnitAttr,
 )
+from xdsl.dialects.rv64 import UI6
+from xdsl.interfaces import HasFolderInterface
 from xdsl.ir import (
     Attribute,
     Dialect,
@@ -37,9 +43,18 @@ from xdsl.irdl import (
     traits_def,
 )
 from xdsl.parser import Parser, UnresolvedOperand
+from xdsl.pattern_rewriter import RewritePattern
 from xdsl.printer import Printer
-from xdsl.traits import Pure
+from xdsl.traits import (
+    AlwaysSpeculatable,
+    ConstantLike,
+    HasCanonicalizationPatternsTrait,
+    MemoryReadEffect,
+    MemoryWriteEffect,
+    Pure,
+)
 from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.target import Target
 
 from .attrs import (
     I12,
@@ -187,6 +202,8 @@ class RISCVInstruction(RISCVAsmOperation, RISCVRegallocOperation, ABC):
     An optional comment that will be printed along with the instruction.
     """
 
+    traits = traits_def(RegisterAllocatedMemoryEffect())
+
     @abstractmethod
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
         """
@@ -240,6 +257,14 @@ def riscv_code(module: ModuleOp) -> str:
     stream = StringIO()
     print_assembly(module, stream)
     return stream.getvalue()
+
+
+@dataclass(frozen=True)
+class RISCVAsmTarget(Target):
+    name = "riscv-asm"
+
+    def emit(self, ctx: Context, module: ModuleOp, output: IO[str]) -> None:
+        print_assembly(module, output)
 
 
 # endregion
@@ -421,8 +446,6 @@ class RdRsRsRsFloatOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
     rs1 = operand_def(FloatRegisterType)
     rs2 = operand_def(FloatRegisterType)
     rs3 = operand_def(FloatRegisterType)
-
-    traits = traits_def(RegisterAllocatedMemoryEffect())
 
     def __init__(
         self,
@@ -720,7 +743,20 @@ class RdRsImmIntegerOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC)
         return {"immediate"}
 
 
-class RdRsImmShiftOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
+class ImmShiftOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.riscv import (
+            ShiftbyZero,
+            ShiftConstantFolding,
+        )
+
+        return (ShiftbyZero(), ShiftConstantFolding())
+
+ShiftImmT = TypeVar("ShiftImmT", bound = UI5 | UI6)
+ShiftImmTAttr = TypeVar("ShiftImmTAttr", bound=I32 | I64)
+
+class RdRsImmShiftOperation(RISCVInstruction, ABC, Generic[ShiftImmT, ShiftImmTAttr]):
     """
     A base class for RISC-V operations that have one destination register, one source
     register and one immediate operand.
@@ -732,6 +768,66 @@ class RdRsImmShiftOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
 
     For RV32I, SLLI, SRLI, and SRAI generate an illegal instruction exception if
     imm[5] 6 != 0 but the shift amount is encoded in the lower 6 bits of the I-immediate field for RV64I.
+    """
+
+    rd = result_def(IntRegisterType)
+    rs1 = operand_def(IntRegisterType)
+    immediate = attr_def(IntegerAttr[ShiftImmT])
+    
+    traits = traits_def(ImmShiftOpHasCanonicalizationPatternsTrait())
+
+    assembly_format = (
+        "$rs1 `,` $immediate attr-dict `:` `(` type($rs1) `)` `->` type($rd)"
+    )
+
+    def __init__(
+        self,
+        rs1: Operation | SSAValue,
+        immediate: IntegerAttr[ShiftImmT],
+        *,
+        rd: IntRegisterType = Registers.UNALLOCATED_INT,
+        comment: str | StringAttr | None = None,
+    ):
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+        super().__init__(
+            operands=[rs1],
+            result_types=[rd],
+            attributes={
+                "immediate": immediate,
+                "comment": comment,
+            },
+        )
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
+        return self.rd, self.rs1, self.immediate
+
+    @abstractmethod
+    def py_operation(self, rs1: IntegerAttr[ShiftImmTAttr]) -> IntegerAttr[ShiftImmTAttr]:
+        """
+        Performs a python function corresponding to this operation.
+
+        If `i := py_operation(rs1)` is an IntegerAttr[ShiftImmTAttr], then this operation can be
+        canonicalized to a constant with value `i` when the inputs are constants
+        with values `rs1`. The immediate value is retrieved from the `immediate` attribute of the operation.
+        """
+
+        raise NotImplementedError(
+            "RdRsImmShiftOperation py_operation is not yet implemented"
+        )
+
+
+class RdRsImmBitManipOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
+    """
+    A base class for RISC-V operations that have one destination register, one source
+    register and one immediate operand.
+
+    These operations are from the Zba, Zbb, and Zbs extensions.
+
+    The immediate value is encoded in the lower 5 bits of the immediate field for RV32
+    and the lower 6 bits for RV64.
+
+    See external [documentation](https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#).
     """
 
     rd = result_def(IntRegisterType)
@@ -961,6 +1057,9 @@ class RsRsImmIntegerOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC)
     rs2 = operand_def(IntRegisterType)
     immediate = attr_def(IntegerAttr[SI12])
 
+    # All S-Type operations write to memory
+    traits = traits_def(MemoryWriteEffect())
+
     def __init__(
         self,
         rs1: Operation | SSAValue,
@@ -1079,6 +1178,8 @@ class CsrReadWriteOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
     csr = attr_def(IntegerAttr)
     writeonly = opt_attr_def(UnitAttr)
 
+    traits = traits_def(MemoryReadEffect(), MemoryWriteEffect())
+
     def __init__(
         self,
         rs1: Operation | SSAValue,
@@ -1151,6 +1252,10 @@ class CsrBitwiseOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
     csr = attr_def(IntegerAttr)
     readonly = opt_attr_def(UnitAttr)
 
+    # Conservatively set the write effect, in the future we should be conditional on
+    # the `readonly` flag.
+    traits = traits_def(MemoryReadEffect(), MemoryWriteEffect())
+
     def __init__(
         self,
         rs1: Operation | SSAValue,
@@ -1221,6 +1326,8 @@ class CsrReadWriteImmOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC
     csr = attr_def(IntegerAttr)
     immediate = attr_def(IntegerAttr)
     writeonly = opt_attr_def(UnitAttr)
+
+    traits = traits_def(MemoryReadEffect(), MemoryWriteEffect())
 
     def __init__(
         self,
@@ -1297,6 +1404,8 @@ class CsrBitwiseImmOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
     csr = attr_def(IntegerAttr)
     immediate = attr_def(IntegerAttr)
 
+    traits = traits_def(MemoryReadEffect(), MemoryWriteEffect())
+
     def __init__(
         self,
         csr: IntegerAttr,
@@ -1338,6 +1447,83 @@ class CsrBitwiseImmOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
         return {"csr", "immediate"}
 
 
+class LiOpHasCanonicalizationPatternTrait(HasCanonicalizationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.riscv import (
+            LoadImmediate0,
+        )
+
+        return (LoadImmediate0(),)
+
+
+IWidth = TypeVar("IWidth", bound=I32 | I64)
+
+
+class LiOperation(
+    RISCVCustomFormatOperation,
+    RISCVInstruction,
+    HasFolderInterface,
+    ABC,
+    Generic[IWidth],
+):
+    """
+    Base class for RISC-V operations that load an immediate into rd.
+
+    See external [documentation](https://github.com/riscv-non-isa/riscv-asm-manual/blob/main/src/asm-manual.adoc).
+    """
+
+    rd = result_def(IntRegisterType)
+    immediate = attr_def(IntegerAttr[IWidth] | LabelAttr)
+
+    traits = traits_def(
+        AlwaysSpeculatable(), ConstantLike(), LiOpHasCanonicalizationPatternTrait()
+    )
+
+    def __init__(
+        self,
+        immediate: IntegerAttr[IWidth] | str | LabelAttr,
+        *,
+        rd: IntRegisterType = Registers.UNALLOCATED_INT,
+        comment: str | StringAttr | None = None,
+    ):
+        if isinstance(immediate, str):
+            immediate = LabelAttr(immediate)
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            result_types=[rd],
+            attributes={
+                "immediate": immediate,
+                "comment": comment,
+            },
+        )
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
+        return self.rd, self.immediate
+
+    def fold(self) -> tuple[IntegerAttr[IWidth] | LabelAttr]:
+        return (self.immediate,)
+
+    def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
+        printer.print_string(" ")
+        print_immediate_value(printer, self.immediate)
+        return {"immediate", "fastmath"}
+
+    @classmethod
+    def parse_op_type(
+        cls, parser: Parser
+    ) -> tuple[Sequence[Attribute], Sequence[Attribute]]:
+        parser.parse_punctuation(":")
+        res_type = parser.parse_attribute()
+        return (), (res_type,)
+
+    def print_op_type(self, printer: Printer) -> None:
+        printer.print_string(" : ")
+        printer.print_attribute(self.rd.type)
+
+
 class GetAnyRegisterOperation(
     RISCVCustomFormatOperation,
     RISCVAsmOperation,
@@ -1359,9 +1545,9 @@ class GetAnyRegisterOperation(
     One needs to do the following:
 
     ``` python
-    rhs = riscv.GetRegisterOp(Registers.s0).res
+    rhs = rv32.GetRegisterOp(Registers.s0).res
     riscv.JalOp("my_func")
-    lhs = riscv.GetRegisterOp(Registers.A0).res
+    lhs = rv32.GetRegisterOp(Registers.A0).res
     sum = riscv.AddOp(lhs, rhs, Registers.A0).rd
     ```
     """

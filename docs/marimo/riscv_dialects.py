@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.14.10"
+__generated_with = "0.23.6"
 app = marimo.App(width="medium")
 
 
@@ -10,11 +10,12 @@ def _():
     from xdsl.utils import marimo as xmo
     from xdsl.ir import Block, Region
     from xdsl.builder import Builder, InsertPoint
-    from xdsl.dialects import builtin, riscv, riscv_cf, riscv_func
+    from xdsl.dialects import builtin, riscv, riscv_cf, riscv_func, rv32
     from xdsl.printer import Printer
     from xdsl.parser import Parser
     from xdsl.context import Context
     import difflib
+
     return (
         Block,
         Builder,
@@ -28,25 +29,26 @@ def _():
         riscv,
         riscv_cf,
         riscv_func,
+        rv32,
         xmo,
     )
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""# RISC-V Dialects""")
+    mo.md(r"""
+    # RISC-V Dialects
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## RISC-V
 
     The [RISC-V](https://riscv.org/) instruction set is a small, extensible set of instructions that is gaining in popularity in research and industry.
-    """
-    )
+    """)
     return
 
 
@@ -70,14 +72,15 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""## Simple Arithmetic in RISC-V""")
+    mo.md(r"""
+    ## Simple Arithmetic in RISC-V
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     Here is a simple C function and its corresponding assembly:
 
     ```C
@@ -100,34 +103,32 @@ def _(mo):
     ```
 
     ([Compiler Explorer](https://godbolt.org/z/vscn4n1oh))
-    """
-    )
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     A few aspects of assembly make it difficult to reason about directly.
     It doesn't track dependencies explicitly, making it difficult to know what the values in the inputs of an operation are, and whether its results will be used.
     Control flow is done via jumps to labels, such as the `multiply_add` above.
     In order to represent and reason about assembly-level code, we introduce a set of backend dialects: `riscv`, `riscv_func`, and `riscv_cf`.
-    """
-    )
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""## The `riscv` Dialect""")
+    mo.md(r"""
+    ## The `riscv` Dialect
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     The `risv` dialect contains definitions for static information and operations.
 
     The four kinds of static information in RISC-V assembly are strings, integers, labels, and registers.
@@ -135,8 +136,7 @@ def _(mo):
     Both of these register classes encode both the information about the binary encoding of the register (e.g. `x0`, `x11`) and its pretty assembly name (e.g. `zero`, `a1`).
 
     The pretty assembly names reflect the RISC-V ABI. The registers `x0` to `x4` are specified to store some system information: `zero` for a register that always has the 0 value, `ra` to store the return address to jump to, `sp` for stack pointer, `gp` for global pointer, `tp` for thread pointer. The `a0-a7` registers are used to pass function arguments and results. The `s0-s11` registers are expected to have the same values before and after function calls. The `t0-t6` registers are temporary registers that are not expected to have the same values before and after function calls.
-    """
-    )
+    """)
     return
 
 
@@ -158,12 +158,10 @@ def _(riscv):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     We use these registers as the types of the operands and results of operations in the riscv dialect.
     Let's construct a dummy block with some operations in it:
-    """
-    )
+    """)
     return
 
 
@@ -184,8 +182,7 @@ def _(Block, Builder, InsertPoint, Printer, riscv):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     Note that the _i_ in the `addi` operation above stands for _immediate_, or a constant value in the assembly.
     These can be integers or labels, in which case the assembler will resolve the immediate to the value referred to by the label.
 
@@ -193,20 +190,23 @@ def _(mo):
     RISC-V assembly has operations that correspond 1:1 with instructions, as well as pseudo-operations that are syntactic sugar for other operations, such as the `nop` instruction that desugars to `addi x0, x0, 0`.
 
     [The RISC-V Assembly Manual](https://github.com/riscv-non-isa/riscv-asm-manual/blob/main/src/asm-manual.adoc#a-listing-of-standard-risc-v-pseudoinstructions) has the list of pseudo-instructions in RISC-V.
-    """
-    )
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""## Printing Assembly""")
+    mo.md(r"""
+    ## Printing Assembly
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""All operations in the `riscv` dialect implement an `assembly_line` function that communicates how they should be displayed in assembly:""")
+    mo.md(r"""
+    All operations in the `riscv` dialect implement an `assembly_line` function that communicates how they should be displayed in assembly:
+    """)
     return
 
 
@@ -219,28 +219,28 @@ def _(block):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""## Functions and the `riscv_func` Dialect""")
+    mo.md(r"""
+    ## Functions and the `riscv_func` Dialect
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     When compiling a function for certain hardware, an Application Binary Interface (ABI) specifies things like which registers will hold the function arguments when the function begins, which registers will hold the results when the function ends, which registers are overridden, etc.
 
     We use the `riscv_func` dialect to represent RISC-V-specific functions that encode these calling convention considerations in the IR.
 
     Here is our `mul` function from above:
-    """
-    )
+    """)
     return
 
 
 @app.cell
 def _():
     mul_ir = """
-    riscv_func.func @mul(%num : !riscv.reg<a0>) -> !riscv.reg<a0> {
+    riscv_func.func @mul(%num: !riscv.reg<a0>) -> !riscv.reg<a0> {
       %res = riscv.mul %num, %num : (!riscv.reg<a0>, !riscv.reg<a0>) -> !riscv.reg<a0>
       riscv_func.return %res : !riscv.reg<a0>
     }
@@ -258,20 +258,23 @@ def _(Parser, ctx, mul_ir, riscv, xmo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""## Unstructured Control Flow and the `riscv_cf` Dialect""")
+    mo.md(r"""
+    ## Unstructured Control Flow and the `riscv_cf` Dialect
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""The C programming language allows for both _structured_ control flow with the `if`, `for`, and `while` constructs, and _unstructured_ flow using goto. The two functions below lower to exactly the same assembly:""")
+    mo.md(r"""
+    The C programming language allows for both _structured_ control flow with the `if`, `for`, and `while` constructs, and _unstructured_ flow using goto. The two functions below lower to exactly the same assembly:
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ```C
     int switch1(int a, int b, int c) {
         if (a) {
@@ -292,29 +295,26 @@ def _(mo):
     ```
 
     ([Compiler Explorer](https://godbolt.org/z/Mzh4ojG3r))
-    """
-    )
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     At the assembly level, the code structure looks much more like the code in `switch2`.
 
     To represent jumps in the assembly, we use blocks and successors.
     For example, the [beq](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#beq) instruction, which jumps by (or _breaks to_) the specified offset (or to the specified label) if the values in the source registers are equal, is represented with the `riscv.BeqOp` operation:
-    """
-    )
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(Parser, ctx, xmo):
     switch_ir = """\
-    riscv_func.func @switch(%a : !riscv.reg<a0>, %b : !riscv.reg<a1>, %c : !riscv.reg<a2>) -> !riscv.reg<a0> {
-      %zero = riscv.get_register : !riscv.reg<zero>
+    riscv_func.func @switch(%a: !riscv.reg<a0>, %b: !riscv.reg<a1>, %c: !riscv.reg<a2>) -> !riscv.reg<a0> {
+      %zero = rv32.get_register : !riscv.reg<zero>
       riscv_cf.beq %a : !riscv.reg<a0>, %zero : !riscv.reg<zero>, ^bb2(), ^bb1()
     ^bb1():
       %res_b = riscv.mv %b : (!riscv.reg<a1>) -> !riscv.reg<a0>
@@ -341,21 +341,21 @@ def _(riscv, switch_module):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     Note that there are a few discrepancies between the assembly and the IR.
     While in the IR we specified both the "then" and the "else" successors, in assembly the block implicitly falls through.
     We represent this by adding a verification method to the jump operations that checks that the "else" block is the one immediately following the conditional jump.
     The second discrepancy is that the conditional jump in assembly specifies the label to jump to.
     During assembly printing, the `BeqOp` looks at the first operation in the block and, if it finds a `LabelOperation`, prints the corresponding value.
-    """
-    )
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""## Exercise: Fib IR""")
+    mo.md(r"""
+    ## Exercise: Fib IR
+    """)
     return
 
 
@@ -389,8 +389,7 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     In this exercise, we will rewrite the following function to assembly-level IR:
 
     ```C
@@ -406,22 +405,19 @@ def _(mo):
         return a;
     }
     ```
-    """
-    )
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(fib_text, mo):
-    mo.md(
-        fr"""
+    mo.md(fr"""
     This is the expected assembly:
 
     ```asm
     {fib_text}
     ```
-    """
-    )
+    """)
     return
 
 
@@ -434,14 +430,14 @@ def _(comment_only_line, fib_text):
 @app.cell(hide_code=True)
 def _(mo):
     fib_editor = mo.ui.code_editor("""\
-    riscv_func.func @fib(%num : !riscv.reg<a0>) -> !riscv.reg<a0> {
-      %zero = riscv.get_register : !riscv.reg<zero>
+    riscv_func.func @fib(%num: !riscv.reg<a0>) -> !riscv.reg<a0> {
+      %zero = rv32.get_register : !riscv.reg<zero>
       riscv_cf.bge %zero: !riscv.reg<zero>, %num :!riscv.reg<a0>, ^bb4(), ^bb1()
     ^bb1():
       %a_init = rv32.li 1 : !riscv.reg<a2>
       %b_init = rv32.li 1 : !riscv.reg<a3>
       riscv_cf.branch ^bb2 (%num : !riscv.reg<a0>, %a_init : !riscv.reg<a2>, %b_init : !riscv.reg<a3>)
-    ^bb2(%i : !riscv.reg<a0>, %a_in : !riscv.reg<a2>, %b_in : !riscv.reg<a3>):
+    ^bb2(%i: !riscv.reg<a0>, %a_in: !riscv.reg<a2>, %b_in: !riscv.reg<a3>):
       riscv.label ".LBB1_2"
       %sum = rv32.li 2 : !riscv.reg<a4>
       %i_next = rv32.li 3 : !riscv.reg<a0>
@@ -462,13 +458,11 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(fib_editor, mo):
-    mo.md(
-        f"""
+    mo.md(f"""
     Modify the following IR to reduce the diff below:
 
     {fib_editor}
-    """
-    )
+    """)
     return
 
 
@@ -500,14 +494,14 @@ def _():
     # Solution
 
     _ = """\
-    riscv_func.func @fib(%num : !riscv.reg<a0>) -> !riscv.reg<a0> {
-      %zero = riscv.get_register : !riscv.reg<zero>
+    riscv_func.func @fib(%num: !riscv.reg<a0>) -> !riscv.reg<a0> {
+      %zero = rv32.get_register : !riscv.reg<zero>
       riscv_cf.bge %zero: !riscv.reg<zero>, %num :!riscv.reg<a0>, ^bb4(), ^bb1()
     ^bb1():
       %a_init = rv32.li 1 : !riscv.reg<a2>
       %b_init = rv32.li 1 : !riscv.reg<a3>
       riscv_cf.branch ^bb2 (%num : !riscv.reg<a0>, %a_init : !riscv.reg<a2>, %b_init : !riscv.reg<a3>)
-    ^bb2(%i : !riscv.reg<a0>, %a_in : !riscv.reg<a2>, %b_in : !riscv.reg<a3>):
+    ^bb2(%i: !riscv.reg<a0>, %a_in: !riscv.reg<a2>, %b_in: !riscv.reg<a3>):
       riscv.label ".LBB1_2"
       %sum = riscv.add %a_in, %b_in : (!riscv.reg<a2>, !riscv.reg<a3>) -> !riscv.reg<a4>
       %i_next = riscv.addi %i, -1 : (!riscv.reg<a0>) -> !riscv.reg<a0>
@@ -528,12 +522,13 @@ def _():
 
 
 @app.cell(hide_code=True)
-def _(Context, builtin, riscv, riscv_cf, riscv_func):
+def _(Context, builtin, riscv, riscv_cf, riscv_func, rv32):
     ctx = Context()
     ctx.load_dialect(builtin.Builtin)
     ctx.load_dialect(riscv.RISCV)
     ctx.load_dialect(riscv_cf.RISCV_Cf)
     ctx.load_dialect(riscv_func.RISCV_Func)
+    ctx.load_dialect(rv32.RV32)
     return (ctx,)
 
 

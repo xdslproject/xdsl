@@ -4,10 +4,11 @@ from abc import ABC
 from collections.abc import Sequence
 from typing import ClassVar, Literal, TypeAlias, cast
 
-from typing_extensions import Self
+from typing_extensions import Self, override
 
 from xdsl.backend.register_allocatable import RegisterConstraints
 from xdsl.backend.register_allocator import BlockAllocator
+from xdsl.backend.register_type import RegisterAllocatedMemoryEffect, RegisterResource
 from xdsl.backend.riscv.traits import StaticInsnRepresentation
 from xdsl.dialects import riscv, snitch
 from xdsl.dialects.builtin import (
@@ -62,12 +63,17 @@ from xdsl.parser import Parser, UnresolvedOperand
 from xdsl.pattern_rewriter import RewritePattern
 from xdsl.printer import Printer
 from xdsl.traits import (
+    AlwaysSpeculatable,
     HasCanonicalizationPatternsTrait,
     HasParent,
     IsTerminator,
-    Pure,
+    MemoryReadEffect,
+    MemoryWriteEffect,
+    NoMemoryEffect,
+    RecursiveMemoryEffect,
     SingleBlockImplicitTerminator,
     ensure_terminator,
+    get_effects,
 )
 from xdsl.utils.exceptions import VerifyException
 
@@ -97,7 +103,7 @@ class ScfgwOp(RsRsIntegerOperation):
 
     name = "riscv_snitch.scfgw"
 
-    traits = traits_def(ScfgwOpHasCanonicalizationPatternsTrait())
+    traits = traits_def(MemoryWriteEffect(), ScfgwOpHasCanonicalizationPatternsTrait())
 
 
 @irdl_op_definition
@@ -115,6 +121,8 @@ class ScfgwiOp(RISCVCustomFormatOperation, RISCVInstruction):
 
     rs1 = operand_def(IntRegisterType)
     immediate = attr_def(IntegerAttr[SI12])
+
+    traits = traits_def(MemoryWriteEffect())
 
     def __init__(
         self,
@@ -157,7 +165,11 @@ class FrepYieldOp(
     name = "riscv_snitch.frep_yield"
 
     traits = lazy_traits_def(
-        lambda: (IsTerminator(), HasParent(FrepInnerOp, FrepOuterOp))
+        lambda: (
+            IsTerminator(),
+            HasParent(FrepInnerOp, FrepOuterOp),
+            RegisterAllocatedMemoryEffect(),
+        )
     )
 
     def assembly_line(self) -> str | None:
@@ -175,6 +187,11 @@ class ReadOp(RISCVAsmOperation, RISCVRegallocOperation):
 
     assembly_format = "`from` $stream attr-dict `:` type($res)"
 
+    # Reads from memory and updates stream state
+    traits = traits_def(
+        MemoryWriteEffect(), MemoryReadEffect(), RegisterAllocatedMemoryEffect()
+    )
+
     def __init__(self, stream_val: SSAValue, result_type: Attribute | None = None):
         if result_type is None:
             assert isinstance(stream_type := stream_val.type, snitch.ReadableStreamType)
@@ -185,7 +202,8 @@ class ReadOp(RISCVAsmOperation, RISCVRegallocOperation):
     def assembly_line(self) -> str | None:
         return None
 
-    def iter_used_registers(self):
+    @override
+    def iter_excluded_registers(self):
         # When streaming, FT0, FT1, and FT2 cannot be used as general-purpose float
         # registers
         yield riscv.Registers.FT0
@@ -204,13 +222,17 @@ class WriteOp(RISCVAsmOperation, RISCVRegallocOperation):
 
     assembly_format = "$value `to` $stream attr-dict `:` type($value)"
 
+    # Writes to memory and updates stream state
+    traits = traits_def(MemoryWriteEffect(), RegisterAllocatedMemoryEffect())
+
     def __init__(self, value: SSAValue, stream: SSAValue):
         super().__init__(operands=[value, stream])
 
     def assembly_line(self) -> str | None:
         return None
 
-    def iter_used_registers(self):
+    @override
+    def iter_excluded_registers(self):
         # When streaming, FT0, FT1, and FT2 cannot be used as general-purpose float
         # registers
         yield riscv.Registers.FT0
@@ -218,12 +240,38 @@ class WriteOp(RISCVAsmOperation, RISCVRegallocOperation):
         yield riscv.Registers.FT2
 
 
-ALLOWED_FREP_OP_TYPES = (
-    FrepYieldOp,
+ALLOWED_FREP_OP_TYPES: tuple[type[Operation], ...] = (
     ReadOp,
     WriteOp,
     UnrealizedConversionCastOp,
 )
+
+
+def is_valid_frep_body_op(operation: Operation) -> bool:
+    """
+    Helper method to determine whether the `frep` loop on the Snitch core can contain
+    the given operation.
+    `frep` loops can only contain instructions that are executed on the FPU, and only
+    contain memory effects via `ReadOp` / `WriteOp`.
+    We also allow `UnrealizedConversionCastOp` to support partial lowering of dialects.
+    """
+    if isinstance(operation, ALLOWED_FREP_OP_TYPES):
+        # Exceptions to the rules
+        return True
+
+    effects = get_effects(operation)
+
+    if effects is None:
+        # No effects interface
+        return False
+
+    # All effects are on float registers
+    return all(
+        isinstance(effect.resource, RegisterResource)
+        and isinstance(effect.resource.register, FloatRegisterType)
+        for effect in effects
+    )
+
 
 I3: TypeAlias = IntegerType[Literal[3]]
 I4: TypeAlias = IntegerType[Literal[4]]
@@ -272,7 +320,9 @@ class FRepOperation(RISCVInstruction):
     Loop-carried variable initial values.
     """
 
-    traits = lazy_traits_def(lambda: (SingleBlockImplicitTerminator(FrepYieldOp),))
+    traits = lazy_traits_def(
+        lambda: (SingleBlockImplicitTerminator(FrepYieldOp), RecursiveMemoryEffect())
+    )
 
     def __init__(
         self,
@@ -409,9 +459,7 @@ class FRepOperation(RISCVInstruction):
         if self.stagger_mask.value.data:
             raise VerifyException("Non-zero stagger mask currently unsupported")
         for instruction in self.body.ops:
-            if not instruction.has_trait(Pure) and not isinstance(
-                instruction, ALLOWED_FREP_OP_TYPES
-            ):
+            if not is_valid_frep_body_op(instruction):
                 raise VerifyException(
                     "Frep operation body may not contain instructions "
                     f"with side-effects, found {instruction.name}"
@@ -553,6 +601,8 @@ class GetStreamOp(RISCVAsmOperation, RISCVRegallocOperation):
         | snitch.WritableStreamType.constr(BaseAttr(riscv.FloatRegisterType))
     )
 
+    traits = traits_def(NoMemoryEffect())
+
     def __init__(self, result_type: Attribute):
         super().__init__(result_types=[result_type])
 
@@ -587,7 +637,8 @@ class DMSourceOp(RISCVInstruction):
     assembly_format = "$ptrlo `,` $ptrhi attr-dict `:` `(` type($ptrlo) `,` type($ptrhi) `)` `->` `(` `)`"
 
     traits = traits_def(
-        StaticInsnRepresentation(insn=".insn r 0x2b, 0, 0, x0, {0}, {1}")
+        StaticInsnRepresentation(insn=".insn r 0x2b, 0, 0, x0, {0}, {1}"),
+        MemoryWriteEffect(),
     )
 
     def __init__(self, ptrlo: SSAValue | Operation, ptrhi: SSAValue | Operation):
@@ -607,7 +658,8 @@ class DMDestinationOp(RISCVInstruction):
     assembly_format = "$ptrlo `,` $ptrhi attr-dict `:` `(` type($ptrlo) `,` type($ptrhi) `)` `->` `(` `)`"
 
     traits = traits_def(
-        StaticInsnRepresentation(insn=".insn r 0x2b, 0, 1, x0, {0}, {1}")
+        StaticInsnRepresentation(insn=".insn r 0x2b, 0, 1, x0, {0}, {1}"),
+        MemoryWriteEffect(),
     )
 
     def __init__(self, ptrlo: SSAValue | Operation, ptrhi: SSAValue | Operation):
@@ -627,7 +679,8 @@ class DMStrideOp(RISCVInstruction):
     assembly_format = "$srcstrd `,` $dststrd attr-dict `:` `(` type($srcstrd) `,` type($dststrd) `)` `->` `(` `)`"
 
     traits = traits_def(
-        StaticInsnRepresentation(insn=".insn r 0x2b, 0, 6, x0, {0}, {1}")
+        StaticInsnRepresentation(insn=".insn r 0x2b, 0, 6, x0, {0}, {1}"),
+        MemoryWriteEffect(),
     )
 
     def __init__(self, srcstrd: SSAValue | Operation, dststrd: SSAValue | Operation):
@@ -646,7 +699,8 @@ class DMRepOp(RISCVInstruction):
     assembly_format = "$reps attr-dict `:` `(` type($reps) `)` `->` `(` `)`"
 
     traits = traits_def(
-        StaticInsnRepresentation(insn=".insn r 0x2b, 0, 7, x0, {0}, x0")
+        StaticInsnRepresentation(insn=".insn r 0x2b, 0, 7, x0, {0}, x0"),
+        MemoryWriteEffect(),
     )
 
     def __init__(self, reps: SSAValue | Operation):
@@ -658,18 +712,38 @@ class DMRepOp(RISCVInstruction):
 
 @irdl_op_definition
 class DMCopyOp(RISCVInstruction):
+    """
+    DMCPY and DMCPYI initiate an asynchronous data movement with the parameters
+    configured by the previous DM instructions. A transfer id is placed in register rd,
+    which is necessary to later check for transfer completion. size contains the number
+    of consecutive bytes to transfer. For multi-dimensional transfers this is the size
+    of the innermost dimension.
+    """
+
     name = "riscv_snitch.dmcpy"
 
     dest = result_def(riscv.IntRegisterType)
     size = operand_def(riscv.IntRegisterType)
     config = operand_def(riscv.IntRegisterType)
+    """
+    config* determines the following parameters of the
+    transfer:
+
+    | Bit(s)     | Field         | Description                                            |
+    |------------|---------------|--------------------------------------------------------|
+    | config[0]  | decouple_rw   | Decouple the handshakes of the read and write channels |
+    | config[1]  | enable_2d     | Enable two-dimensional transfer                        |
+    | config[4:2]| channel_sel   | Selects the DMA backend if a multi-channel DMA is used |
+    """
 
     assembly_format = (
         "$size `,` $config attr-dict `:` functional-type(operands, results)"
     )
 
     traits = traits_def(
-        StaticInsnRepresentation(insn=".insn r 0x2b, 0, 3, {0}, {1}, {2}")
+        StaticInsnRepresentation(insn=".insn r 0x2b, 0, 3, {0}, {1}, {2}"),
+        MemoryReadEffect(),
+        MemoryWriteEffect(),
     )
 
     def __init__(
@@ -694,7 +768,8 @@ class DMStatOp(RISCVInstruction):
     assembly_format = "$status attr-dict `:` functional-type(operands, results)"
 
     traits = traits_def(
-        StaticInsnRepresentation(insn=".insn r 0x2b, 0, 5, {0}, {1}, {2}")
+        StaticInsnRepresentation(insn=".insn r 0x2b, 0, 5, {0}, {1}, {2}"),
+        MemoryReadEffect(),
     )
 
     def __init__(
@@ -710,18 +785,38 @@ class DMStatOp(RISCVInstruction):
 
 @irdl_op_definition
 class DMCopyImmOp(RISCVInstruction):
+    """
+    DMCPY and DMCPYI initiate an asynchronous data movement with the parameters
+    configured by the previous DM instructions. A transfer id is placed in register rd,
+    which is necessary to later check for transfer completion. size contains the number
+    of consecutive bytes to transfer. For multi-dimensional transfers this is the size
+    of the innermost dimension.
+    """
+
     name = "riscv_snitch.dmcpyi"
 
     dest = result_def(riscv.IntRegisterType)
     size = operand_def(riscv.IntRegisterType)
     config = prop_def(IntegerAttr[UI5])
+    """
+    config* determines the following parameters of the
+    transfer:
+
+    | Bit(s)     | Field         | Description                                            |
+    |------------|---------------|--------------------------------------------------------|
+    | config[0]  | decouple_rw   | Decouple the handshakes of the read and write channels |
+    | config[1]  | enable_2d     | Enable two-dimensional transfer                        |
+    | config[4:2]| channel_sel   | Selects the DMA backend if a multi-channel DMA is used |
+    """
 
     assembly_format = (
         "$size `,` $config attr-dict `:` functional-type(operands, results)"
     )
 
     traits = traits_def(
-        StaticInsnRepresentation(insn=".insn r 0x2b, 0, 2, {0}, {1}, {2}")
+        StaticInsnRepresentation(insn=".insn r 0x2b, 0, 2, {0}, {1}, {2}"),
+        MemoryReadEffect(),
+        MemoryWriteEffect(),
     )
 
     def __init__(
@@ -752,7 +847,8 @@ class DMStatImmOp(RISCVInstruction):
     assembly_format = "$status attr-dict `:` `(` `)` `->` type($dest)"
 
     traits = traits_def(
-        StaticInsnRepresentation(insn=".insn r 0x2b, 0, 4, {0}, {1}, {2}")
+        StaticInsnRepresentation(insn=".insn r 0x2b, 0, 4, {0}, {1}, {2}"),
+        MemoryReadEffect(),
     )
 
     def __init__(
@@ -801,7 +897,7 @@ class VFCpkASSOp(
 
     name = "riscv_snitch.vfcpka.s.s"
 
-    traits = traits_def(Pure())
+    traits = traits_def(AlwaysSpeculatable())
 
 
 @irdl_op_definition
@@ -819,7 +915,7 @@ class VFMulSOp(riscv.RdRsRsFloatOperationWithFastMath):
 
     name = "riscv_snitch.vfmul.s"
 
-    traits = traits_def(Pure())
+    traits = traits_def(AlwaysSpeculatable())
 
 
 @irdl_op_definition
@@ -837,7 +933,25 @@ class VFAddSOp(riscv.RdRsRsFloatOperationWithFastMath):
 
     name = "riscv_snitch.vfadd.s"
 
-    traits = traits_def(Pure())
+    traits = traits_def(AlwaysSpeculatable())
+
+
+@irdl_op_definition
+class VFSubSOp(riscv.RdRsRsFloatOperationWithFastMath):
+    """
+    Performs vectorial subtraction of corresponding f32 values from
+    rs1 and rs2 and stores the results in the corresponding f32 lanes
+    into the vectorial 2xf32 rd operand, such as:
+
+    ```C
+    f[rd][lo] = f[rs1][lo] - f[rs2][lo]
+    f[rd][hi] = f[rs1][hi] - f[rs2][hi]
+    ```
+    """
+
+    name = "riscv_snitch.vfsub.s"
+
+    traits = traits_def(AlwaysSpeculatable())
 
 
 @irdl_op_definition
@@ -857,7 +971,47 @@ class VFAddHOp(riscv.RdRsRsFloatOperationWithFastMath):
 
     name = "riscv_snitch.vfadd.h"
 
-    traits = traits_def(Pure())
+    traits = traits_def(AlwaysSpeculatable())
+
+
+@irdl_op_definition
+class VFSubHOp(riscv.RdRsRsFloatOperationWithFastMath):
+    """
+    Performs vectorial subtraction of corresponding f16 values from
+    rs1 and rs2 and stores the results in the corresponding f16 lanes
+    into the vectorial 4xf16 rd operand, such as:
+
+    ```C
+    f[rd][0] = f[rs1][0] - f[rs2][0]
+    f[rd][1] = f[rs1][1] - f[rs2][1]
+    f[rd][2] = f[rs1][2] - f[rs2][2]
+    f[rd][3] = f[rs1][3] - f[rs2][3]
+    ```
+    """
+
+    name = "riscv_snitch.vfsub.h"
+
+    traits = traits_def(AlwaysSpeculatable())
+
+
+@irdl_op_definition
+class VFMulHOp(riscv.RdRsRsFloatOperationWithFastMath):
+    """
+    Performs vectorial multiplication of corresponding f16 values from
+    rs1 and rs2 and stores the results in the corresponding f16 lanes
+    into the vectorial 4xf16 rd operand, such as:
+
+    ```C
+    f[rd][0] = f[rs1][0] * f[rs2][0]
+    f[rd][1] = f[rs1][1] * f[rs2][1]
+    f[rd][2] = f[rs1][2] * f[rs2][2]
+    f[rd][3] = f[rs1][3] * f[rs2][3]
+    ```
+    """
+
+    name = "riscv_snitch.vfmul.h"
+
+    traits = traits_def(AlwaysSpeculatable())
 
 
 @irdl_op_definition
@@ -875,7 +1029,7 @@ class VFMaxSOp(riscv.RdRsRsFloatOperationWithFastMath):
 
     name = "riscv_snitch.vfmax.s"
 
-    traits = traits_def(Pure())
+    traits = traits_def(AlwaysSpeculatable())
 
 
 class RdRsRsAccumulatingFloatOperationWithFastMath(
@@ -897,6 +1051,8 @@ class RdRsRsAccumulatingFloatOperationWithFastMath(
     rs2 = operand_def(FloatRegisterType)
 
     fastmath = opt_attr_def(FastMathFlagsAttr)
+
+    traits = traits_def(AlwaysSpeculatable())
 
     def __init__(
         self,
@@ -959,6 +1115,8 @@ class RdRsAccumulatingFloatOperation(RISCVCustomFormatOperation, RISCVInstructio
     rd_in = operand_def(SAME_FLOAT_REGISTER_TYPE)
     rs = operand_def(FloatRegisterType)
 
+    traits = traits_def(AlwaysSpeculatable())
+
     def __init__(
         self,
         rd: Operation | SSAValue,
@@ -1001,8 +1159,6 @@ class VFMacSOp(RdRsRsAccumulatingFloatOperationWithFastMath):
 
     name = "riscv_snitch.vfmac.s"
 
-    traits = traits_def(Pure())
-
 
 @irdl_op_definition
 class VFSumSOp(RdRsAccumulatingFloatOperation):
@@ -1016,8 +1172,6 @@ class VFSumSOp(RdRsAccumulatingFloatOperation):
     """
 
     name = "riscv_snitch.vfsum.s"
-
-    traits = traits_def(Pure())
 
 
 # endregion
@@ -1043,10 +1197,13 @@ RISCV_Snitch = Dialect(
         DMStatImmOp,
         VFMulSOp,
         VFAddSOp,
+        VFSubSOp,
         VFCpkASSOp,
         VFMacSOp,
         VFSumSOp,
+        VFMulHOp,
         VFAddHOp,
+        VFSubHOp,
         VFMaxSOp,
     ],
     [],

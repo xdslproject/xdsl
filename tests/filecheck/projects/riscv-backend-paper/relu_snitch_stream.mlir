@@ -12,7 +12,7 @@ builtin.module {
   riscv_func.func public @main() attributes {p2align = 2 : i8} {
     %A = rv32.li "a" : !riscv.reg
     %B = rv32.li "b" : !riscv.reg
-    %zero = riscv.get_register : !riscv.reg<sp>
+    %zero = rv32.get_register : !riscv.reg<sp>
     %zero_1 = rv32.li 0 : !riscv.reg
     riscv.sw %zero, %zero_1, -4 : (!riscv.reg<sp>, !riscv.reg) -> ()
     %zero_2 = rv32.li 0 : !riscv.reg
@@ -22,7 +22,7 @@ builtin.module {
       "stride_patterns" = [#snitch_stream.stride_pattern<ub = [2, 3], strides = [24, 8]>],
       operandSegmentSizes = array<i32: 1, 1>
     }> ({
-    ^bb0(%a_stream : !snitch.readable<!riscv.freg<ft0>>, %b_stream : !snitch.writable<!riscv.freg<ft1>>):
+    ^bb0(%a_stream: !snitch.readable<!riscv.freg<ft0>>, %b_stream: !snitch.writable<!riscv.freg<ft1>>):
       %c5 = rv32.li 5 : !riscv.reg
       riscv_snitch.frep_outer %c5 {
         %a = riscv_snitch.read from %a_stream : !riscv.freg<ft0>

@@ -1,54 +1,24 @@
 import pytest
 
+from xdsl.backend.register_type import RegisterAllocatedMemoryEffect
 from xdsl.dialects import x86
-from xdsl.dialects.builtin import IntegerAttr
-from xdsl.dialects.x86.ops import (
-    DM_LeaOp,
-    DM_MovOp,
-    DM_VbroadcastsdOp,
-    DM_VbroadcastssOp,
-    DM_VmovupdOp,
-    DM_VmovupsOp,
-    DMI_ImulOp,
-    M_DecOp,
-    M_IDivOp,
-    M_ImulOp,
-    M_IncOp,
-    M_NegOp,
-    M_NotOp,
-    MI_AddOp,
-    MI_AndOp,
-    MI_CmpOp,
-    MI_MovOp,
-    MI_OrOp,
-    MI_SubOp,
-    MI_XorOp,
-    MS_AddOp,
-    MS_AndOp,
-    MS_CmpOp,
-    MS_MovOp,
-    MS_OrOp,
-    MS_SubOp,
-    MS_XorOp,
-    RM_AddOp,
-    RM_AndOp,
-    RM_ImulOp,
-    RM_OrOp,
-    RM_SubOp,
-    RM_XorOp,
-    SM_CmpOp,
-    si32,
+from xdsl.dialects.builtin import IntegerAttr, StringAttr
+from xdsl.dialects.x86.ops import si32
+from xdsl.ir import Block
+from xdsl.traits import (
+    MemoryEffect,
+    MemoryReadEffect,
+    MemoryWriteEffect,
+    NoMemoryEffect,
 )
-from xdsl.ir import Block, Operation
-from xdsl.traits import MemoryReadEffect
 from xdsl.transforms.canonicalization_patterns.x86 import get_constant_value
 from xdsl.utils.test_value import create_ssa_value
 
 
 def test_unallocated_register():
-    unallocated = x86.registers.GeneralRegisterType.from_name("")
+    unallocated = x86.registers.Reg64Type.from_name("")
     assert not unallocated.is_allocated
-    assert unallocated == x86.registers.UNALLOCATED_GENERAL
+    assert unallocated == x86.registers.UNALLOCATED_REG64
 
     unallocated = x86.registers.RFLAGSRegisterType.from_name("")
     assert not unallocated.is_allocated
@@ -78,16 +48,14 @@ def test_unallocated_register():
         (x86.registers.RBP, "rbp"),
         (x86.registers.RSI, "rsi"),
         (x86.registers.RDI, "rdi"),
-        # Currently don't support 32-bit registers
-        # https://github.com/xdslproject/xdsl/issues/4737
-        # (x86.register.EAX, "eax"),
-        # (x86.register.ECX, "ecx"),
-        # (x86.register.EDX, "edx"),
-        # (x86.register.EBX, "ebx"),
-        # (x86.register.ESP, "esp"),
-        # (x86.register.EBP, "ebp"),
-        # (x86.register.ESI, "esi"),
-        # (x86.register.EDI, "edi"),
+        (x86.registers.EAX, "eax"),
+        (x86.registers.ECX, "ecx"),
+        (x86.registers.EDX, "edx"),
+        (x86.registers.EBX, "ebx"),
+        (x86.registers.ESP, "esp"),
+        (x86.registers.EBP, "ebp"),
+        (x86.registers.ESI, "esi"),
+        (x86.registers.EDI, "edi"),
         (x86.registers.R8, "r8"),
         (x86.registers.R9, "r9"),
         (x86.registers.R10, "r10"),
@@ -98,7 +66,9 @@ def test_unallocated_register():
         (x86.registers.R15, "r15"),
     ],
 )
-def test_register(register: x86.registers.GeneralRegisterType, name: str):
+def test_register(
+    register: x86.registers.Reg64Type | x86.registers.Reg32Type, name: str
+):
     assert register.is_allocated
     assert register.register_name.data == name
 
@@ -272,7 +242,7 @@ def test_mr_vops(
 ):
     output = x86.ops.GetRegisterOp(dest)
     input = x86.ops.GetAVXRegisterOp(src)
-    op = OpClass(memory=output, source=input, memory_offset=IntegerAttr(0, 64))
+    op = OpClass(memory=output, source=input, memory_offset=0)
     assert op.memory.type == dest
     assert op.source.type == src
 
@@ -350,7 +320,7 @@ def test_dss_vops(
 
 
 def test_get_constant_value():
-    U = x86.registers.UNALLOCATED_GENERAL
+    U = x86.registers.UNALLOCATED_REG64
     unknown_value = create_ssa_value(U)
     assert get_constant_value(unknown_value) is None
     known_value = x86.DI_MovOp(42, destination=U).destination
@@ -364,49 +334,6 @@ def test_get_constant_value():
     assert get_constant_value(block.args[0]) is None
 
 
-@pytest.mark.parametrize(
-    "op",
-    [
-        DM_MovOp,
-        DM_LeaOp,
-        DM_VmovupsOp,
-        DM_VmovupdOp,
-        DM_VbroadcastsdOp,
-        DM_VbroadcastssOp,
-        RM_AddOp,
-        RM_SubOp,
-        RM_ImulOp,
-        RM_AndOp,
-        RM_OrOp,
-        RM_XorOp,
-        MS_AddOp,
-        MS_SubOp,
-        MS_AndOp,
-        MS_OrOp,
-        MS_XorOp,
-        MS_MovOp,
-        MI_AddOp,
-        MI_SubOp,
-        MI_AndOp,
-        MI_OrOp,
-        MI_XorOp,
-        MI_MovOp,
-        DMI_ImulOp,
-        M_NegOp,
-        M_NotOp,
-        M_IncOp,
-        M_DecOp,
-        M_IDivOp,
-        M_ImulOp,
-        SM_CmpOp,
-        MS_CmpOp,
-        MI_CmpOp,
-    ],
-)
-def test_read_effects(op: type[Operation]):
-    assert MemoryReadEffect() in op.traits.traits
-
-
 def test_jmp_numeric_label_not_implemented():
     label_op = x86.ops.LabelOp("123")
     op = x86.ops.C_JmpOp(block_values=[], successor=Block([label_op]))
@@ -415,7 +342,7 @@ def test_jmp_numeric_label_not_implemented():
         match="Assembly printing for jumps to numeric labels not implemented",
     ):
         op.assembly_line_args()
-    label_op.label = x86.attributes.LabelAttr("hello")
+    label_op.label = StringAttr("hello")
     assert op.assembly_line_args() == ("hello",)
 
 
@@ -434,5 +361,134 @@ def test_conditional_jump_numeric_label_not_implemented():
         match="Assembly printing for jumps to numeric labels not implemented",
     ):
         op.assembly_line_args()
-    label_op.label = x86.attributes.LabelAttr("hello")
+    label_op.label = StringAttr("hello")
     assert op.assembly_line_args() == ("hello",)
+
+
+def test_effect_traits():
+    """
+    Check effects of operations in the x86 dialect.
+    """
+    operations = tuple(x86.X86.operations)
+    effects_ops = {op for op in operations if op.has_trait(MemoryEffect)}
+    unknown_effects_ops = {op for op in operations if op not in effects_ops}
+
+    # Sentinels to remind us to update this test when updating the dialect
+    assert len(effects_ops) == 135
+    assert unknown_effects_ops == {
+        x86.ops.LabelOp,
+        x86.ops.DirectiveOp,
+    }
+
+    all_effects_trait_types = {
+        type(trait)
+        for op in effects_ops
+        for trait in op.get_traits_of_type(MemoryEffect)
+    }
+
+    # Check below separately for each of these
+    assert all_effects_trait_types == {
+        MemoryReadEffect,
+        MemoryWriteEffect,
+        NoMemoryEffect,
+        RegisterAllocatedMemoryEffect,
+    }
+
+    register_effects_ops = {
+        op for op in effects_ops if op.has_trait(RegisterAllocatedMemoryEffect)
+    }
+    memory_read_effects_ops = {
+        op for op in effects_ops if op.has_trait(MemoryReadEffect)
+    }
+    memory_write_effects_ops = {
+        op for op in effects_ops if op.has_trait(MemoryWriteEffect)
+    }
+    no_effects_ops = {op for op in effects_ops if op.has_trait(NoMemoryEffect)}
+
+    assert len(register_effects_ops) == 131
+    assert memory_read_effects_ops == {
+        x86.ops.DM_LeaOp,
+        x86.ops.DM_MovOp,
+        x86.ops.DM_VbroadcastsdOp,
+        x86.ops.DM_VbroadcastssOp,
+        x86.ops.DM_VmovapdOp,
+        x86.ops.DM_VmovapsOp,
+        x86.ops.DM_VmovupdOp,
+        x86.ops.DM_VmovupsOp,
+        x86.ops.DMI_ImulOp,
+        x86.ops.DMK_VmovapdOp,
+        x86.ops.DMK_VmovapsOp,
+        x86.ops.DMK_VmovupdOp,
+        x86.ops.DMK_VmovupsOp,
+        x86.ops.M_DecOp,
+        x86.ops.M_IDivOp,
+        x86.ops.M_ImulOp,
+        x86.ops.M_IncOp,
+        x86.ops.M_NegOp,
+        x86.ops.M_NotOp,
+        x86.ops.MI_AddOp,
+        x86.ops.MI_AndOp,
+        x86.ops.MI_CmpOp,
+        x86.ops.MI_MovOp,
+        x86.ops.MI_OrOp,
+        x86.ops.MI_SubOp,
+        x86.ops.MI_XorOp,
+        x86.ops.MS_AddOp,
+        x86.ops.MS_AndOp,
+        x86.ops.MS_CmpOp,
+        x86.ops.MS_MovOp,
+        x86.ops.MS_OrOp,
+        x86.ops.MS_SubOp,
+        x86.ops.MS_VmovapdOp,
+        x86.ops.MS_VmovapsOp,
+        x86.ops.MS_VmovntpdOp,
+        x86.ops.MS_VmovntpsOp,
+        x86.ops.MS_VmovupdOp,
+        x86.ops.MS_VmovupsOp,
+        x86.ops.MS_XorOp,
+        x86.ops.RM_AddOp,
+        x86.ops.RM_AndOp,
+        x86.ops.RM_ImulOp,
+        x86.ops.RM_OrOp,
+        x86.ops.RM_SubOp,
+        x86.ops.RM_XorOp,
+        x86.ops.RSM_Vfmadd231pdOp,
+        x86.ops.RSM_Vfmadd231psOp,
+        x86.ops.SM_CmpOp,
+    }
+    assert memory_write_effects_ops == {
+        x86.ops.M_DecOp,
+        x86.ops.M_IncOp,
+        x86.ops.M_NegOp,
+        x86.ops.M_NotOp,
+        x86.ops.M_PopOp,
+        x86.ops.M_PushOp,
+        x86.ops.MI_AddOp,
+        x86.ops.MI_AndOp,
+        x86.ops.MI_MovOp,
+        x86.ops.MI_OrOp,
+        x86.ops.MI_SubOp,
+        x86.ops.MI_XorOp,
+        x86.ops.MS_AddOp,
+        x86.ops.MS_AndOp,
+        x86.ops.MS_MovOp,
+        x86.ops.MS_OrOp,
+        x86.ops.MS_SubOp,
+        x86.ops.MS_VmovapdOp,
+        x86.ops.MS_VmovapsOp,
+        x86.ops.MS_VmovntpdOp,
+        x86.ops.MS_VmovntpsOp,
+        x86.ops.MS_VmovupdOp,
+        x86.ops.MS_VmovupsOp,
+        x86.ops.MS_XorOp,
+        x86.ops.MSK_VmovapdOp,
+        x86.ops.MSK_VmovapsOp,
+        x86.ops.MSK_VmovupdOp,
+        x86.ops.MSK_VmovupsOp,
+    }
+    assert no_effects_ops == {
+        x86.ops.FallthroughOp,
+        x86.ops.GetAVXRegisterOp,
+        x86.ops.GetMaskRegisterOp,
+        x86.ops.GetRegisterOp,
+    }

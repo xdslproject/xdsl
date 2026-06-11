@@ -3,13 +3,16 @@ from __future__ import annotations
 from typing import Any
 
 from xdsl.dialects import rv64
+from xdsl.dialects.builtin import IntegerAttr, i64
 from xdsl.interpreter import (
     Interpreter,
     InterpreterFunctions,
+    PythonValues,
     impl,
     register_impls,
 )
 from xdsl.interpreters.riscv import RiscvFunctions
+from xdsl.utils.exceptions import InterpretationError
 
 
 @register_impls
@@ -22,11 +25,13 @@ class Rv64Functions(InterpreterFunctions):
         args: tuple[Any, ...],
     ):
         args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
-        imm = RiscvFunctions.get_immediate_value(interpreter, op.immediate)
-        assert isinstance(imm, int)
-        results = (args[0] << imm,)
+        assert len(args) == 1
+        assert isinstance(args[0], int)
+        py_op_result = op.py_operation(IntegerAttr(args[0], i64))
+        assert py_op_result is not None
+        results = (py_op_result.value.data,)
         return RiscvFunctions.set_reg_values(interpreter, op.results, results)
-
+    
     @impl(rv64.LiOp)
     def run_li(
         self,
@@ -36,3 +41,25 @@ class Rv64Functions(InterpreterFunctions):
     ):
         results = (RiscvFunctions.get_immediate_value(interpreter, op.immediate),)
         return RiscvFunctions.set_reg_values(interpreter, op.results, results)
+
+    @impl(rv64.GetRegisterOp)
+    def run_get_register(
+        self, interpreter: Interpreter, op: rv64.GetRegisterOp, args: PythonValues
+    ) -> PythonValues:
+        attr = op.res.type
+
+        if not attr.is_allocated:
+            raise InterpretationError(
+                f"Cannot get value for unallocated register {attr}"
+            )
+
+        name = attr.register_name
+
+        registers = RiscvFunctions.registers(interpreter)
+
+        if name not in registers:
+            raise InterpretationError(f"Value not found for register name {name.data}")
+
+        stored_value = registers[name]
+
+        return (stored_value,)

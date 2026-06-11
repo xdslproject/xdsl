@@ -1,5 +1,6 @@
 import pytest
 
+from xdsl.backend.register_type import RegisterAllocatedMemoryEffect
 from xdsl.context import Context
 from xdsl.dialects import riscv
 from xdsl.dialects.builtin import (
@@ -10,6 +11,13 @@ from xdsl.dialects.builtin import (
     i32,
 )
 from xdsl.parser import Parser
+from xdsl.traits import (
+    MemoryEffect,
+    MemoryReadEffect,
+    MemoryWriteEffect,
+    NoMemoryEffect,
+    Pure,
+)
 from xdsl.utils.exceptions import ParseError, VerifyException
 from xdsl.utils.test_value import create_ssa_value
 
@@ -208,6 +216,19 @@ def test_immediate_jalr_inst():
     riscv.JalrOp(a1, (1 << 11) - 1, rd=riscv.Registers.A0)
 
 
+def test_immediate_shift_inst():
+    # Shift instructions (SLLI, SRLI, SRAI) - 5-bits immediate
+    a1 = create_ssa_value(riscv.Registers.A1)
+
+    with pytest.raises(VerifyException):
+        riscv.SlliOp(a1, 1 << 5, rd=riscv.Registers.A0)
+
+    with pytest.raises(VerifyException):
+        riscv.SlliOp(a1, -1, rd=riscv.Registers.A0)
+
+    riscv.SlliOp(a1, (1 << 5) - 1, rd=riscv.Registers.A0)
+
+
 def test_float_register():
     with pytest.raises(
         VerifyException, match="Invalid register name ft9 for register type riscv.reg."
@@ -343,3 +364,75 @@ def test_float_from_index():
     assert riscv.FloatRegisterType.from_index(
         -10
     ) == riscv.FloatRegisterType.infinite_register(9)
+
+
+def test_effect_traits():
+    """
+    Check effects of operations in the riscv dialect.
+    """
+    operations = tuple(riscv.RISCV.operations)
+    effects_ops = {op for op in operations if op.has_trait(MemoryEffect)}
+    unknown_effects_ops = {op for op in operations if op not in effects_ops}
+
+    # Sentinels to remind us to update this test when updating the dialect
+    assert len(effects_ops) == 153
+    assert unknown_effects_ops == {
+        riscv.ops.CommentOp,
+        riscv.ops.AssemblySectionOp,
+        riscv.ops.DirectiveOp,
+        riscv.ops.ParallelMovOp,
+        riscv.ops.LabelOp,
+    }
+
+    all_effects_trait_types = {
+        type(trait)
+        for op in effects_ops
+        for trait in op.get_traits_of_type(MemoryEffect)
+    }
+
+    # Check below separately for each of these
+    assert all_effects_trait_types == {
+        RegisterAllocatedMemoryEffect,
+        MemoryReadEffect,
+        MemoryWriteEffect,
+        Pure,
+    }
+
+    register_effects_ops = {
+        op for op in effects_ops if op.has_trait(RegisterAllocatedMemoryEffect)
+    }
+    read_effects_ops = {op for op in effects_ops if op.has_trait(MemoryReadEffect)}
+    write_effects_ops = {op for op in effects_ops if op.has_trait(MemoryWriteEffect)}
+
+    no_effects_ops = {op for op in effects_ops if op.has_trait(NoMemoryEffect)}
+
+    assert len(register_effects_ops) == 152
+    assert read_effects_ops == {
+        riscv.CsrrciOp,
+        riscv.CsrrcOp,
+        riscv.CsrrsiOp,
+        riscv.CsrrsOp,
+        riscv.CsrrwiOp,
+        riscv.CsrrwOp,
+        riscv.FLdOp,
+        riscv.FLwOp,
+        riscv.LbOp,
+        riscv.LbuOp,
+        riscv.LhOp,
+        riscv.LhuOp,
+        riscv.LwOp,
+    }
+    assert write_effects_ops == {
+        riscv.CsrrciOp,
+        riscv.CsrrcOp,
+        riscv.CsrrsiOp,
+        riscv.CsrrsOp,
+        riscv.CsrrwiOp,
+        riscv.CsrrwOp,
+        riscv.FSdOp,
+        riscv.FSwOp,
+        riscv.SbOp,
+        riscv.ShOp,
+        riscv.SwOp,
+    }
+    assert no_effects_ops == {riscv.ops.GetFloatRegisterOp}

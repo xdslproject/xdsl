@@ -4,7 +4,7 @@ Helper methods and classes to reason about operations that refer to other operat
 
 from __future__ import annotations
 
-from collections.abc import Iterator, Mapping, Sequence
+from collections.abc import Callable, Iterator, Mapping, Sequence
 from typing import Literal, NamedTuple, overload
 
 from xdsl import traits
@@ -47,6 +47,14 @@ class SymbolUse(NamedTuple):
     """The symbol reference that this use represents."""
 
 
+def get_name_if_symbol(op: Operation) -> None | str:
+    """Returns the symbol name if this operation has one"""
+    if (sym_interface := op.get_trait(traits.SymbolOpInterface)) is not None and (
+        name_attr := sym_interface.get_sym_attr_name(op)
+    ) is not None:
+        return name_attr.data
+
+
 class SymbolTable:
     """
     This class allows for representing and managing the symbol table used by operations
@@ -66,9 +74,17 @@ class SymbolTable:
     """
 
     def __init__(self, symbol_table_op: Operation):
+        assert symbol_table_op.get_trait(traits.SymbolTable) is not None, (
+            "Expected operation to have SymbolTable trait"
+        )
         self._symbol_table_op = symbol_table_op
         self._symbol_table = {}
         self._uniquing_counter = 0
+
+        block = self._symbol_table_op.regions[0].blocks[0]
+        for op in block.ops:
+            if (name := get_name_if_symbol(op)) is not None:
+                self._symbol_table[name] = op
 
     def lookup(self, name: str | StringAttr) -> Operation | None:
         """
@@ -76,15 +92,24 @@ class SymbolTable:
         exists.
         Names never include the `@` on them.
         """
-        raise NotImplementedError
+        name = name.data if isinstance(name, StringAttr) else name
+        return self._symbol_table.get(name)
 
     def remove(self, op: Operation) -> None:
         """Remove the given symbol from the table, without deleting it."""
-        raise NotImplementedError
+        if (name := get_name_if_symbol(op)) is None:
+            raise ValueError("Expected valid 'name' attribute")
+
+        if self._symbol_table.pop(name, None) is None:
+            raise ValueError(
+                "Expected this operation to be inside of the operation with this SymbolTable"
+            )
 
     def erase(self, op: Operation) -> None:
         """Erase the given symbol from the table and delete the operation."""
-        raise NotImplementedError
+        self.remove(op)
+        op.detach()
+        op.erase()
 
     def insert(self, symbol: Operation, insertion_point: InsertPoint) -> StringAttr:
         """
@@ -136,7 +161,12 @@ class SymbolTable:
     @staticmethod
     def get_symbol_visibility(symbol: Operation) -> Visibility:
         """Returns the visibility of the given symbol operation."""
-        raise NotImplementedError
+        visibility = symbol.get_attr_or_prop("sym_visibility")
+        if visibility is None:
+            return Visibility.PUBLIC
+        if not isinstance(visibility, StringAttr):
+            raise ValueError("Expected 'sym_visibility' to be a StringAttr")
+        return Visibility(visibility.data)
 
     @staticmethod
     def set_symbol_visibility(symbol: Operation, vis: Visibility) -> None:
@@ -149,7 +179,12 @@ class SymbolTable:
         Returns the nearest symbol table from a given operation `from`.
         Returns `None` if no valid parent symbol table could be found.
         """
-        raise NotImplementedError
+        op: Operation | None = from_op
+        while op is not None:
+            if op.has_trait(traits.SymbolTable, value_if_unregistered=False):
+                return op
+            op = op.parent_op()
+        return None
 
     @staticmethod
     def walk_symbol_tables(
@@ -180,7 +215,7 @@ class SymbolTable:
         op: Operation,
         symbol: StringAttr | SymbolRefAttr | str,
         *,
-        all_symbols: Literal[False],
+        all_symbols: Literal[False] = False,
     ) -> Operation | None: ...
 
     @staticmethod
@@ -196,7 +231,19 @@ class SymbolTable:
         `op` is required to be an operation with the 'xdsl.traits.SymbolTable' trait.
         If `all_symbols` is `True`, returns all symbols referenced by the symbol.
         """
-        raise NotImplementedError
+        assert op.get_trait(traits.SymbolTable) is not None, (
+            "Expected operation to have SymbolTable trait"
+        )
+        if isinstance(symbol, str | StringAttr):
+            symbol_op = _lookup_symbol_in_direct_children(op, symbol)
+            if all_symbols:
+                return [symbol_op] if symbol_op is not None else None
+            return symbol_op
+
+        symbols = _lookup_symbol_ref_in(op, symbol, _lookup_symbol_in_direct_children)
+        if symbols is None:
+            return None
+        return symbols if all_symbols else symbols[-1]
 
     @staticmethod
     def lookup_nearest_symbol_from(
@@ -252,6 +299,42 @@ class SymbolTable:
         uses are replaced and `False` is returned.
         """
         raise NotImplementedError
+
+
+def _lookup_symbol_in_direct_children(
+    symbol_table_op: Operation, symbol: StringAttr | str
+) -> Operation | None:
+    symbol_name = symbol.data if isinstance(symbol, StringAttr) else symbol
+    block = symbol_table_op.regions[0].blocks[0]
+    for op in block.ops:
+        if get_name_if_symbol(op) == symbol_name:
+            return op
+    return None
+
+
+def _lookup_symbol_ref_in(
+    symbol_table_op: Operation,
+    symbol: SymbolRefAttr,
+    lookup_symbol: Callable[[Operation, StringAttr], Operation | None],
+) -> list[Operation] | None:
+    symbol_op = lookup_symbol(symbol_table_op, symbol.root_reference)
+    if symbol_op is None:
+        return None
+
+    symbols = [symbol_op]
+    for nested_reference in symbol.nested_references.data:
+        if not symbol_op.has_trait(traits.SymbolTable, value_if_unregistered=False):
+            return None
+
+        symbol_op = lookup_symbol(symbol_op, nested_reference)
+        if (
+            symbol_op is None
+            or SymbolTable.get_symbol_visibility(symbol_op) is Visibility.PRIVATE
+        ):
+            return None
+        symbols.append(symbol_op)
+
+    return symbols
 
 
 class SymbolTableCollection:
@@ -321,7 +404,11 @@ class SymbolTableCollection:
         """
         Lookup, or create, a symbol table for an operation.
         """
-        raise NotImplementedError
+        symbol_table = self._symbol_tables.get(op)
+        if symbol_table is None:
+            symbol_table = SymbolTable(op)
+            self._symbol_tables[op] = symbol_table
+        return symbol_table
 
 
 def walk_symbol_table(op: Operation) -> Iterator[Operation]:

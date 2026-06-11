@@ -3,8 +3,8 @@
 
 "builtin.module"() ({
   riscv_func.func @main() {
-    %0 = riscv.get_register : !riscv.reg
-    %1 = riscv.get_register : !riscv.reg
+    %0 = rv32.get_register : !riscv.reg
+    %1 = rv32.get_register : !riscv.reg
     // RV32I/RV64I: 2.4 Integer Computational Instructions
 
     // Integer Register-Immediate Instructions
@@ -97,8 +97,8 @@
 
     riscv.ret
     // CHECK-NEXT: riscv.ret
-  ^bb0(%2 : !riscv.reg, %3 : !riscv.reg):
-  // CHECK-NEXT: ^bb0(%2 : !riscv.reg, %3 : !riscv.reg):
+  ^bb0(%2: !riscv.reg, %3: !riscv.reg):
+  // CHECK-NEXT: ^bb0(%2: !riscv.reg, %3: !riscv.reg):
 
     // Conditional Branch Instructions
     riscv.beq %0, %1, 1 : (!riscv.reg, !riscv.reg) -> ()
@@ -441,8 +441,8 @@
 
 // CHECK-GENERIC:       "builtin.module"() ({
 // CHECK-GENERIC-NEXT:    "riscv_func.func"() ({
-// CHECK-GENERIC-NEXT:      %0 = "riscv.get_register"() : () -> !riscv.reg
-// CHECK-GENERIC-NEXT:      %1 = "riscv.get_register"() : () -> !riscv.reg
+// CHECK-GENERIC-NEXT:      %0 = "rv32.get_register"() : () -> !riscv.reg
+// CHECK-GENERIC-NEXT:      %1 = "rv32.get_register"() : () -> !riscv.reg
 // CHECK-GENERIC-NEXT:      %addi = "riscv.addi"(%0) {immediate = 1 : si12} : (!riscv.reg) -> !riscv.reg
 // CHECK-GENERIC-NEXT:      %slti = "riscv.slti"(%0) {immediate = 1 : si12} : (!riscv.reg) -> !riscv.reg
 // CHECK-GENERIC-NEXT:      %sltiu = "riscv.sltiu"(%0) {immediate = 1 : si12} : (!riscv.reg) -> !riscv.reg
@@ -483,7 +483,7 @@
 // CHECK-GENERIC-NEXT:      "riscv.jalr"(%0) {immediate = 1 : si12, rd = !riscv.reg} : (!riscv.reg) -> ()
 // CHECK-GENERIC-NEXT:      "riscv.jalr"(%0) {immediate = #riscv.label<"label">} : (!riscv.reg) -> ()
 // CHECK-GENERIC-NEXT:      "riscv.ret"() : () -> ()
-// CHECK-GENERIC-NEXT:    ^bb0(%2 : !riscv.reg, %3 : !riscv.reg):
+// CHECK-GENERIC-NEXT:    ^bb0(%2: !riscv.reg, %3: !riscv.reg):
 // CHECK-GENERIC-NEXT:      "riscv.beq"(%0, %1) {offset = 1 : si12} : (!riscv.reg, !riscv.reg) -> ()
 // CHECK-GENERIC-NEXT:      "riscv.bne"(%0, %1) {offset = 1 : si12} : (!riscv.reg, !riscv.reg) -> ()
 // CHECK-GENERIC-NEXT:      "riscv.blt"(%0, %1) {offset = 1 : si12} : (!riscv.reg, !riscv.reg) -> ()

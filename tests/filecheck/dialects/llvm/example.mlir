@@ -7,7 +7,7 @@ builtin.module {
     func.return %0 : !llvm.struct<(i32)>
   }
 
-// CHECK:       func.func private @struct_to_struct(%0 : !llvm.struct<(i32)>) -> !llvm.struct<(i32)> {
+// CHECK:       func.func private @struct_to_struct(%0: !llvm.struct<(i32)>) -> !llvm.struct<(i32)> {
 // CHECK-NEXT:    func.return %0 : !llvm.struct<(i32)>
 // CHECK-NEXT:  }
 
@@ -16,7 +16,7 @@ builtin.module {
     func.return %0 : !llvm.struct<(i32, i32)>
   }
 
-// CHECK:       func.func private @struct_to_struct2(%0 : !llvm.struct<(i32, i32)>) -> !llvm.struct<(i32, i32)> {
+// CHECK:       func.func private @struct_to_struct2(%0: !llvm.struct<(i32, i32)>) -> !llvm.struct<(i32, i32)> {
 // CHECK-NEXT:    func.return %0 : !llvm.struct<(i32, i32)>
 // CHECK-NEXT:  }
 
@@ -24,7 +24,7 @@ builtin.module {
     func.return %0 : !llvm.struct<(!llvm.struct<(i32)>)>
   }
 
-// CHECK:       func.func private @nested_struct_to_struct(%0 : !llvm.struct<(!llvm.struct<(i32)>)>) -> !llvm.struct<(!llvm.struct<(i32)>)> {
+// CHECK:       func.func private @nested_struct_to_struct(%0: !llvm.struct<(!llvm.struct<(i32)>)>) -> !llvm.struct<(!llvm.struct<(i32)>)> {
 // CHECK-NEXT:    func.return %0 : !llvm.struct<(!llvm.struct<(i32)>)>
 // CHECK-NEXT:  }
 
@@ -32,17 +32,17 @@ builtin.module {
     func.return %0 : !llvm.struct<(!llvm.struct<(i32)>)>
   }
 
-// CHECK:       func.func private @nested_struct_to_struct2(%0 : !llvm.struct<(!llvm.struct<(i32)>)>) -> !llvm.struct<(!llvm.struct<(i32)>)> {
+// CHECK:       func.func private @nested_struct_to_struct2(%0: !llvm.struct<(!llvm.struct<(i32)>)>) -> !llvm.struct<(!llvm.struct<(i32)>)> {
 // CHECK-NEXT:    func.return %0 : !llvm.struct<(!llvm.struct<(i32)>)>
 // CHECK-NEXT:  }
 
-  func.func private @array(%0 : !llvm.array<2 x i64>) -> !llvm.array<1 x i32> {
-    %1 = "llvm.mlir.undef"() : () -> !llvm.array<1 x i32>
+  func.func private @array(%0: !llvm.array<2 x i64>) -> !llvm.array<1 x i32> {
+    %1 = llvm.mlir.undef : !llvm.array<1 x i32>
     func.return %1 : !llvm.array<1 x i32>
   }
 
-// CHECK:       func.func private @array(%0 : !llvm.array<2 x i64>) -> !llvm.array<1 x i32> {
-// CHECK-NEXT:    %1 = "llvm.mlir.undef"() : () -> !llvm.array<1 x i32>
+// CHECK:       func.func private @array(%0: !llvm.array<2 x i64>) -> !llvm.array<1 x i32> {
+// CHECK-NEXT:    %1 = llvm.mlir.undef : !llvm.array<1 x i32>
 // CHECK-NEXT:    func.return %1 : !llvm.array<1 x i32>
 // CHECK-NEXT:  }
 
@@ -68,18 +68,18 @@ builtin.module {
   // Op tests
   func.func public @main() {
     %0 = arith.constant 1 : i32
-    %1 = "llvm.mlir.undef"() : () -> !llvm.struct<(i32)>
-    %2 = "llvm.insertvalue"(%1, %0) {"position" = array<i64: 0>} : (!llvm.struct<(i32)>, i32) -> !llvm.struct<(i32)>
-    %3 = "llvm.extractvalue"(%2) {"position" = array<i64: 0>} : (!llvm.struct<(i32)>) -> i32
+    %1 = llvm.mlir.undef : !llvm.struct<(i32)>
+    %2 = llvm.insertvalue %0, %1[0] : !llvm.struct<(i32)>
+    %3 = llvm.extractvalue %2[0] : !llvm.struct<(i32)>
     %4 = llvm.mlir.zero : !llvm.struct<(i32, f32)>
     func.return
   }
 
 // CHECK:       func.func public @main() {
 // CHECK-NEXT:      %0 = arith.constant 1 : i32
-// CHECK-NEXT:      %1 = "llvm.mlir.undef"() : () -> !llvm.struct<(i32)>
-// CHECK-NEXT:      %2 = "llvm.insertvalue"(%1, %0) <{position = array<i64: 0>}> : (!llvm.struct<(i32)>, i32) -> !llvm.struct<(i32)>
-// CHECK-NEXT:      %3 = "llvm.extractvalue"(%2) <{position = array<i64: 0>}> : (!llvm.struct<(i32)>) -> i32
+// CHECK-NEXT:      %1 = llvm.mlir.undef : !llvm.struct<(i32)>
+// CHECK-NEXT:      %2 = llvm.insertvalue %0, %1[0] : !llvm.struct<(i32)>
+// CHECK-NEXT:      %3 = llvm.extractvalue %2[0] : !llvm.struct<(i32)>
 // CHECK-NEXT:      %4 = llvm.mlir.zero : !llvm.struct<(i32, f32)>
 // CHECK-NEXT:      func.return
 // CHECK-NEXT:    }
@@ -98,6 +98,18 @@ builtin.module {
   %fval3 = llvm.fpext %fval : f32 to f64
 
 // CHECK-NEXT: %fval3 = llvm.fpext %fval : f32 to f64
+
+  %vec1 = "test.op"() : () -> vector<4xf32>
+  %vec2 = "test.op"() : () -> vector<4xf32>
+  %shuf = llvm.shufflevector %vec1, %vec2 [0, 1, 2, 3] : vector<4xf32>
+
+// CHECK-NEXT: %vec1 = "test.op"() : () -> vector<4xf32>
+// CHECK-NEXT: %vec2 = "test.op"() : () -> vector<4xf32>
+// CHECK-NEXT: %shuf = llvm.shufflevector %vec1, %vec2 [0, 1, 2, 3] : vector<4xf32>
+
+  %shuf2 = llvm.shufflevector %vec1, %vec2 [0, 5] : vector<4xf32>
+
+// CHECK-NEXT: %shuf2 = llvm.shufflevector %vec1, %vec2 [0, 5] : vector<4xf32>
 
   llvm.unreachable {my_attr}
 

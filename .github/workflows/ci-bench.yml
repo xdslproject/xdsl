@@ -1,0 +1,78 @@
+name: CI - Benchmarks
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  bench:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v8.2.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      # ASV discovery imports all benchmark modules without optional extras.
+      - name: Install xdsl (no extras)
+        run: uv pip install --system .
+
+      - name: Verify benchmark discovery without extras
+        run: |
+          python -c "
+          import importlib
+          from pathlib import Path
+
+          failures = []
+          for p in sorted(Path('benchmarks').glob('*.py')):
+              if p.stem == '__init__':
+                  continue
+              mod = f'benchmarks.{p.stem}'
+              try:
+                  importlib.import_module(mod)
+              except ImportError as e:
+                  failures.append(f'{mod}: {e}')
+
+          if failures:
+              for f in failures:
+                  print(f)
+              raise SystemExit(1)
+          "
+
+      # Verify [llvm] extra is installed.
+      # On failure check asv.conf.json install_command and pyproject.toml.
+      - name: Install xdsl[llvm]
+        run: uv pip install --system ".[llvm]"
+
+      - name: Verify llvm extra is installed
+        run: python -c "import llvmlite"
+
+      - name: Verify benchmark entrypoints
+        run: |
+          failed=""
+          for f in benchmarks/*.py; do
+            if grep -q 'if __name__ == "__main__":' "$f"; then
+              echo "Testing $f --help"
+              if ! python "$f" --help > /dev/null; then
+                failed="$failed $f"
+              fi
+            fi
+          done
+          if [ -n "$failed" ]; then
+            echo "Failed:$failed"
+            exit 1
+          fi
+
+      - name: Prune uv cache
+        run: uv cache prune --ci

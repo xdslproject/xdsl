@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import ClassVar
 
-from xdsl.dialects.builtin import IntegerType
+from xdsl.dialects.builtin import i1
 from xdsl.ir import Dialect, ParametrizedAttribute, SSAValue, TypeAttribute
 from xdsl.irdl import (
     AnyOf,
@@ -51,7 +51,7 @@ class AndOp(IRDLOperation):
 
     name = "ltl.and"
 
-    T: ClassVar = VarConstraint("T", AnyOf([Sequence, Property, IntegerType(1)]))
+    T: ClassVar = VarConstraint("T", AnyOf.get(Sequence, Property, i1))
 
     input = var_operand_def(T)
 

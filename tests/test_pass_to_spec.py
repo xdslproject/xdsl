@@ -5,7 +5,7 @@ import pytest
 from xdsl.context import Context
 from xdsl.dialects import builtin
 from xdsl.passes import ModulePass
-from xdsl.utils.parse_pipeline import PipelinePassSpec
+from xdsl.utils.arg_spec import ArgSpec
 
 
 @dataclass(frozen=True)
@@ -50,7 +50,7 @@ class SimplePass(ModulePass):
     [
         (
             CustomPass(3, (1, 2), None, ("clown", "season")),
-            PipelinePassSpec(
+            ArgSpec(
                 "custom-pass",
                 {
                     "number": (3,),
@@ -61,16 +61,16 @@ class SimplePass(ModulePass):
                 },
             ),
         ),
-        (EmptyPass(), PipelinePassSpec("empty", {})),
+        (EmptyPass(), ArgSpec("empty", {})),
         (
             SimplePass((3.14, 2.13), 2),
-            PipelinePassSpec("simple", {"a": (3.14, 2.13), "b": (2,)}),
+            ArgSpec("simple", {"a": (3.14, 2.13), "b": (2,)}),
         ),
     ],
 )
 def test_pass_to_spec_include_default(
     test_pass: ModulePass,
-    test_spec: PipelinePassSpec,
+    test_spec: ArgSpec,
 ):
     assert test_pass.pipeline_pass_spec(include_default=True) == test_spec
 
@@ -80,7 +80,7 @@ def test_pass_to_spec_include_default(
     [
         (
             CustomPass(3, (1, 2), None, ("clown", "season")),
-            PipelinePassSpec(
+            ArgSpec(
                 "custom-pass",
                 {
                     "number": (3,),
@@ -89,16 +89,14 @@ def test_pass_to_spec_include_default(
                 },
             ),
         ),
-        (EmptyPass(), PipelinePassSpec("empty", {})),
+        (EmptyPass(), ArgSpec("empty", {})),
         (
             SimplePass((3.14, 2.13), 2),
-            PipelinePassSpec("simple", {"a": (3.14, 2.13), "b": (2,)}),
+            ArgSpec("simple", {"a": (3.14, 2.13), "b": (2,)}),
         ),
     ],
 )
-def test_pass_to_spec_exclude_default(
-    test_pass: ModulePass, test_spec: PipelinePassSpec
-):
+def test_pass_to_spec_exclude_default(test_pass: ModulePass, test_spec: ArgSpec):
     assert test_pass.pipeline_pass_spec(include_default=False) == test_spec
     assert test_pass.pipeline_pass_spec() == test_spec
     assert str(test_pass) == str(test_spec)

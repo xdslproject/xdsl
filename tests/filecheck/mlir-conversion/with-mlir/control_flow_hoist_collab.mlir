@@ -1,7 +1,7 @@
 // RUN: xdsl-opt -p "mlir-opt[loop-invariant-code-motion]" %s | filecheck %s --check-prefix WITHOUT
 // RUN: xdsl-opt -p "control-flow-hoist,mlir-opt[loop-invariant-code-motion]" %s | filecheck %s --check-prefix WITH
 
-func.func @nested_loop_invariant(%n : index) {
+func.func @nested_loop_invariant(%n: index) {
     %0 = arith.constant 0 : index
     %1 = arith.constant 1 : index
     %100 = arith.constant 100 : index
@@ -26,7 +26,7 @@ func.func @nested_loop_invariant(%n : index) {
 
 // Currently, loop-invariant-code-motion does not help.
 
-// WITHOUT:         func.func @nested_loop_invariant(%arg0 : index) {
+// WITHOUT:         func.func @nested_loop_invariant(%arg0: index) {
 // WITHOUT-NEXT:      %0 = arith.constant 0 : index
 // WITHOUT-NEXT:      %1 = arith.constant 1 : index
 // WITHOUT-NEXT:      %2 = arith.constant 100 : index
@@ -47,7 +47,7 @@ func.func @nested_loop_invariant(%n : index) {
 // MLIR already provides the opposit control-flow-sink to put whatever was *invariant* back in the right branches
 // if so desired
 
-// WITH:         func.func @nested_loop_invariant(%arg0 : index) {
+// WITH:         func.func @nested_loop_invariant(%arg0: index) {
 // WITH-NEXT:      %0 = arith.constant 0 : index
 // WITH-NEXT:      %1 = arith.constant 1 : index
 // WITH-NEXT:      %2 = arith.constant 100 : index

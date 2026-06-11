@@ -2,6 +2,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from xdsl.dialects import riscv_scf
+from xdsl.dialects.builtin import IntAttr, IntegerAttr
 from xdsl.interpreter import (
     Interpreter,
     InterpreterFunctions,
@@ -26,7 +27,11 @@ class RiscvScfFunctions(InterpreterFunctions):
         args: tuple[Any, ...],
     ):
         args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
-        lb, ub, step, *loop_args = args
+        match op.step:
+            case IntegerAttr(value=IntAttr(data=step)):
+                lb, ub, *loop_args = args
+            case _:
+                lb, ub, step, *loop_args = args
         loop_args = tuple(loop_args)
 
         for i in range(lb, ub, step):

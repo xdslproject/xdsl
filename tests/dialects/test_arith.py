@@ -54,6 +54,7 @@ from xdsl.dialects.arith import (
     XOrIOp,
 )
 from xdsl.dialects.builtin import (
+    BoolAttr,
     DenseIntOrFPElementsAttr,
     DenseResourceAttr,
     FloatAttr,
@@ -64,14 +65,19 @@ from xdsl.dialects.builtin import (
     Signedness,
     TensorType,
     VectorType,
+    bf16,
+    f16,
     f32,
     f64,
+    f80,
+    f128,
     i1,
     i32,
     i64,
 )
-from xdsl.ir import Attribute
-from xdsl.traits import ConstantLike
+from xdsl.dialects.test import TestConstantOp
+from xdsl.ir import Attribute, SSAValue
+from xdsl.traits import ConstantLike, is_speculatable
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.test_value import create_ssa_value
 
@@ -130,26 +136,21 @@ class Test_integer_arith_construction:
 
 
 def test_constant_construction():
-    c1 = ConstantOp(IntegerAttr(1, i32))
+    attr1 = IntegerAttr(1, i32)
+    c1 = ConstantOp(attr1)
     assert c1.value.type == i32
-    constantlike1 = c1.get_trait(ConstantLike)
-    assert constantlike1 is not None
-    assert constantlike1.get_constant_value(c1) == IntegerAttr(1, i32)
+    assert ConstantLike.get_constant_value(c1.result) == attr1
 
-    c3 = ConstantOp(FloatAttr(1.0, f32))
-    assert c3.value.type == f32
-    constantlike3 = c3.get_trait(ConstantLike)
-    assert constantlike3 is not None
-    assert constantlike3.get_constant_value(c3) == FloatAttr(1.0, f32)
+    attr2 = FloatAttr(1.0, f32)
+    c2 = ConstantOp(attr2)
+    assert c2.value.type == f32
+    assert ConstantLike.get_constant_value(c2.result) == attr2
 
     value_type = TensorType(i32, [2, 2])
-    c5 = ConstantOp(DenseIntOrFPElementsAttr.from_list(value_type, [1, 2, 3, 4]))
-    assert c5.value.type == value_type
-    constantlike5 = c5.get_trait(ConstantLike)
-    assert constantlike5 is not None
-    assert constantlike5.get_constant_value(c5) == DenseIntOrFPElementsAttr.from_list(
-        value_type, [1, 2, 3, 4]
-    )
+    attr3 = DenseIntOrFPElementsAttr.from_list(value_type, [1, 2, 3, 4])
+    c3 = ConstantOp(attr3)
+    assert c3.value.type == value_type
+    assert ConstantLike.get_constant_value(c3.result) == attr3
 
 
 @pytest.mark.parametrize(
@@ -287,6 +288,20 @@ def test_select_op():
         (VectorType(i64, [3]), VectorType(f64, [3])),
         (VectorType(f32, [3]), VectorType(i32, [3])),
         (MemRefType(i32, [5]), MemRefType(f32, [5])),
+        (bf16, f16),
+        (f16, bf16),
+        (bf16, IntegerType(16)),
+        (IntegerType(16), bf16),
+        (VectorType(bf16, [4]), VectorType(IntegerType(16), [4])),
+        (MemRefType(bf16, [5]), MemRefType(IntegerType(16), [5])),
+        (f80, IntegerType(80)),
+        (IntegerType(80), f80),
+        (VectorType(f80, [4]), VectorType(IntegerType(80), [4])),
+        (MemRefType(f80, [5]), MemRefType(IntegerType(80), [5])),
+        (f128, IntegerType(128)),
+        (IntegerType(128), f128),
+        (VectorType(f128, [4]), VectorType(IntegerType(128), [4])),
+        (MemRefType(f128, [5]), MemRefType(IntegerType(128), [5])),
     ],
 )
 def test_bitcast_op(in_type: Attribute, out_type: Attribute):
@@ -315,6 +330,9 @@ BITWIDTH_MISMATCH = "operand and result types must have equal bitwidths or be In
         (VectorType(i32, [5]), VectorType(f64, [5]), BITWIDTH_MISMATCH),
         (MemRefType(i32, [5]), MemRefType(f32, [6]), SHAPE_MISMATCH),
         (MemRefType(i32, [5]), f32, SHAPE_MISMATCH),
+        (bf16, f32, BITWIDTH_MISMATCH),
+        (f80, f128, BITWIDTH_MISMATCH),
+        (f128, f64, BITWIDTH_MISMATCH),
     ],
 )
 def test_bitcast_incorrect(in_type: Attribute, out_type: Attribute, err_msg: str):
@@ -500,9 +518,9 @@ def test_extui_incorrect_bitwidth():
 def test_constant_materialization():
     interface = Arith.get_interface(ConstantMaterializationInterface)
     assert interface is not None
-    const = interface.materialize_constant(IntegerAttr.from_int_and_width(42, 32), i32)
+    const = interface.materialize_constant(IntegerAttr(42, 32), i32)
     assert isinstance(const, ConstantOp)
-    assert const.value == IntegerAttr.from_int_and_width(42, 32)
+    assert const.value == IntegerAttr(42, 32)
     assert const.result_types[0] == i32
 
     const = interface.materialize_constant(FloatAttr(42.0, f64), f64)
@@ -555,3 +573,62 @@ def test_fold():
     # x + x cannot be folded
     addi_val_val = AddiOp(some_value, some_value)
     assert addi_val_val.fold() is None
+
+    false_attr = BoolAttr.from_bool(False)
+    false_op = ConstantOp(false_attr)
+    true_attr = BoolAttr.from_bool(True)
+    true_op = ConstantOp(true_attr)
+
+    assert AddiOp(false_op, false_op).fold() == (false_attr,)
+    assert AddiOp(false_op, true_op).fold() == (true_attr,)
+    assert AddiOp(true_op, false_op).fold() == (true_attr,)
+    assert AddiOp(true_op, true_op).fold() == (false_attr,)
+
+
+@pytest.mark.parametrize(
+    ("rhs", "speculatability"),
+    [
+        pytest.param(create_ssa_value(i32), False, id="non-constant-rhs"),
+        pytest.param(
+            ConstantOp.from_int_and_width(0, i32).result, False, id="zero-rhs"
+        ),
+        pytest.param(
+            ConstantOp.from_int_and_width(1, i32).result, True, id="non-zero-rhs"
+        ),
+        pytest.param(TestConstantOp(0, i32).result, False, id="constantlike-zero-rhs"),
+        pytest.param(
+            TestConstantOp(1, i32).result, True, id="constantlike-non-zero-rhs"
+        ),
+    ],
+)
+def test_divui_speculatability(rhs: SSAValue, speculatability: bool):
+    lhs = create_ssa_value(i32)
+    op = DivUIOp(lhs, rhs)
+
+    assert op.is_speculatable() is speculatability
+    assert is_speculatable(op) is speculatability
+
+
+@pytest.mark.parametrize(
+    ("rhs", "speculatability"),
+    [
+        pytest.param(create_ssa_value(i32), False, id="non-constant-rhs"),
+        pytest.param(
+            ConstantOp.from_int_and_width(0, i32).result, False, id="zero-rhs"
+        ),
+        pytest.param(ConstantOp.from_int_and_width(1, i32).result, True, id="one-rhs"),
+        pytest.param(
+            ConstantOp.from_int_and_width(-1, i32).result, False, id="minus-one-rhs"
+        ),
+        pytest.param(TestConstantOp(1, i32).result, True, id="constantlike-one-rhs"),
+        pytest.param(
+            TestConstantOp(-1, i32).result, False, id="constantlike-minus-one-rhs"
+        ),
+    ],
+)
+def test_divsi_speculatability(rhs: SSAValue, speculatability: bool):
+    lhs = create_ssa_value(i32)
+    op = DivSIOp(lhs, rhs)
+
+    assert op.is_speculatable() is speculatability
+    assert is_speculatable(op) is speculatability

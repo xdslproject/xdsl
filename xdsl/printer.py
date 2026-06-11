@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-import json
 import math
-from collections.abc import Callable, Iterable, Mapping, Sequence
+from collections.abc import Callable, Generator, Iterable, Mapping, Sequence
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from itertools import chain
 from typing import Any, cast
@@ -15,14 +15,12 @@ from xdsl.dialects.builtin import (
     AnyFloat,
     BuiltinAttribute,
     ComplexType,
-    Float16Type,
     Float32Type,
     Float64Type,
     FunctionType,
     IndexType,
     IntegerType,
     UnitAttr,
-    UnknownLoc,
     UnregisteredOp,
     i1,
 )
@@ -43,7 +41,6 @@ from xdsl.ir import (
 from xdsl.traits import IsolatedFromAbove, IsTerminator
 from xdsl.utils.base_printer import BasePrinter
 from xdsl.utils.bitwise_casts import (
-    convert_f16_to_u16,
     convert_f32_to_u32,
     convert_f64_to_u64,
 )
@@ -58,6 +55,7 @@ class Printer(BasePrinter):
     print_properties_as_attributes: bool = field(default=False)
     print_debuginfo: bool = field(default=False)
     diagnostic: Diagnostic = field(default_factory=Diagnostic)
+    printing_location: bool = field(default=False)
 
     _ssa_values: dict[SSAValue, str] = field(
         default_factory=dict[SSAValue, str], init=False
@@ -239,11 +237,11 @@ class Printer(BasePrinter):
         """
         self.print_ssa_value(arg)
         if print_type:
-            self.print_string(" : ")
+            self.print_string(": ")
             self.print_attribute(arg.type)
             if self.print_debuginfo:
                 self.print_string(" ")
-                self.print_attribute(UnknownLoc())
+                self.print_attribute(arg.location)
 
     def print_region(
         self,
@@ -304,7 +302,7 @@ class Printer(BasePrinter):
             self.print_list(params, self.print_attribute)
 
     def print_string_literal(self, string: str):
-        self.print_string(json.dumps(string))
+        self.print_bytes_literal(string.encode("utf-8"))
 
     def print_identifier_or_string_literal(self, string: str):
         """
@@ -358,16 +356,8 @@ class Printer(BasePrinter):
 
     def print_float(self, value: float, type: AnyFloat):
         if math.isnan(value) or math.isinf(value):
-            if isinstance(type, Float16Type):
-                self.print_string(hex(convert_f16_to_u16(value)))
-            elif isinstance(type, Float32Type):
-                self.print_string(hex(convert_f32_to_u32(value)))
-            elif isinstance(type, Float64Type):
-                self.print_string(hex(convert_f64_to_u64(value)))
-            else:
-                raise NotImplementedError(
-                    f"Cannot print '{value}' value for float type {str(type)}"
-                )
+            raw = type.pack((value,))
+            self.print_string(f"0x{raw[::-1].hex()}")
         else:
             # to mirror mlir-opt, attempt to print scientific notation iff the value parses losslessly
             float_str = f"{value:.5e}"
@@ -395,7 +385,7 @@ class Printer(BasePrinter):
                         self.print_string(f"0x{convert_f64_to_u64(value):X}")
                 else:
                     # default to full python precision
-                    self.print_string(f"{repr(value)}")
+                    self.print_string(f"{value!r}")
 
     def print_int(self, value: int, type: IntegerType | IndexType | None = None):
         """
@@ -420,9 +410,9 @@ class Printer(BasePrinter):
         """
         self.print_list(
             dims,
-            lambda x: self.print_int(x)
-            if x != DYNAMIC_INDEX
-            else self.print_string("?"),
+            lambda x: (
+                self.print_int(x) if x != DYNAMIC_INDEX else self.print_string("?")
+            ),
             "x",
         )
 
@@ -583,7 +573,7 @@ class Printer(BasePrinter):
         self.print_function_type(op.operand_types, op.result_types)
         if self.print_debuginfo:
             self.print_string(" ")
-            self.print_attribute(UnknownLoc())
+            self.print_attribute(op.location)
 
     def enter_scope(self) -> None:
         self._next_valid_name_id.append(self._next_valid_name_id[-1])
@@ -624,6 +614,9 @@ class Printer(BasePrinter):
             op.attributes["op_name__"] = op_name
         elif use_custom_format:
             op.print(self)
+            if self.print_debuginfo:
+                self.print_string(" ")
+                self.print_attribute(op.location)
         else:
             self.print_op_with_default_format(op)
         if scope:
@@ -693,3 +686,21 @@ class Printer(BasePrinter):
         """
         self.print_string("@")
         self.print_identifier_or_string_literal(sym_name)
+
+    @contextmanager
+    def in_location(self) -> Generator[None, None, None]:
+        """
+        Provides a context for printing locations. As some locations are
+        recursive and only the top-level location should be wrapped in `loc()`,
+        the printer maintains a state to determine whether a context is already
+        being printed.
+        """
+        if self.printing_location:
+            yield
+        else:
+            self.printing_location = True
+            self.print_string("loc")
+            self.print_string("(")
+            yield
+            self.print_string(")")
+            self.printing_location = False

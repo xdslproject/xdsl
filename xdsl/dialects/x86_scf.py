@@ -1,14 +1,13 @@
 from __future__ import annotations
 
 from abc import ABC
-from collections.abc import Generator, Sequence
+from collections.abc import Sequence
 from typing import cast
 
 from typing_extensions import Self
 
 from xdsl.backend.register_allocatable import RegisterAllocatableOperation
 from xdsl.backend.register_allocator import BlockAllocator
-from xdsl.backend.register_type import RegisterType
 from xdsl.dialects.utils import (
     AbstractYieldOperation,
     parse_for_op_like,
@@ -35,6 +34,8 @@ from xdsl.printer import Printer
 from xdsl.traits import (
     HasParent,
     IsTerminator,
+    NoMemoryEffect,
+    RecursiveMemoryEffect,
     SingleBlockImplicitTerminator,
     ensure_terminator,
 )
@@ -45,7 +46,13 @@ from xdsl.utils.exceptions import VerifyException
 class YieldOp(AbstractYieldOperation[X86RegisterType]):
     name = "x86_scf.yield"
 
-    traits = lazy_traits_def(lambda: (IsTerminator(), HasParent(ForRofOperation)))
+    traits = lazy_traits_def(
+        lambda: (
+            IsTerminator(),
+            HasParent(ForRofOperation),
+            NoMemoryEffect(),
+        )
+    )
 
 
 class ForRofOperation(RegisterAllocatableOperation, IRDLOperation, ABC):
@@ -59,16 +66,22 @@ class ForRofOperation(RegisterAllocatableOperation, IRDLOperation, ABC):
 
     body = region_def("single_block")
 
-    traits = traits_def(SingleBlockImplicitTerminator(YieldOp))
+    traits = traits_def(SingleBlockImplicitTerminator(YieldOp), RecursiveMemoryEffect())
 
     def __init__(
         self,
         lb: SSAValue | Operation,
         ub: SSAValue | Operation,
         step: SSAValue | Operation,
-        iter_args: Sequence[SSAValue | Operation],
-        body: Region | Sequence[Operation] | Sequence[Block] | Block,
+        iter_args: Sequence[SSAValue],
+        body: Region | Sequence[Operation] | Sequence[Block] | Block | None = None,
     ):
+        lb = SSAValue.get(lb)
+        if body is None:
+            body = Region(
+                Block(arg_types=(lb.type, *(iter_arg.type for iter_arg in iter_args)))
+            )
+
         if isinstance(body, Block):
             body = [body]
 
@@ -89,7 +102,7 @@ class ForRofOperation(RegisterAllocatableOperation, IRDLOperation, ABC):
             if not isinstance(iter_var.type, GeneralRegisterType):
                 raise VerifyException(
                     f"The first block argument of the body is of type {iter_var.type}"
-                    " instead of riscv.IntRegisterType"
+                    " instead of x86 GeneralRegisterType"
                 )
         for idx, (arg, block_arg) in enumerate(
             zip(self.iter_args, self.body.block.args[1:])
@@ -115,11 +128,6 @@ class ForRofOperation(RegisterAllocatableOperation, IRDLOperation, ABC):
                         f"riscv_scf.for's riscv_scf.yield must match carried"
                         f"variables types."
                     )
-
-    def iter_used_registers(self) -> Generator[RegisterType, None, None]:
-        # We know that all the registers for the inputs and outputs are the same, and
-        # that these registers will have been iterated earlier in the IR.
-        yield from ()
 
     def allocate_registers(self, allocator: BlockAllocator) -> None:
         # Allocate values used inside the body but defined outside.

@@ -159,9 +159,7 @@ def compose_name_hints(*names: SSAValue | str) -> str:
 T = TypeVar("T")
 
 
-# TODO: Drop Python 3.11 support to use proper type parameters.
-# Linting is disabled for the time being.
-def parse_comma_separated(  # noqa: UP047
+def parse_comma_separated(
     ctx: ParsingContext, p: Callable[[], Located[T | None]]
 ) -> Sequence[Located[T]]:
     result: list[Located[T]] = []

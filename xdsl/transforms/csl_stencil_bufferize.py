@@ -2,7 +2,16 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 
 from xdsl.context import Context
-from xdsl.dialects import arith, bufferization, func, linalg, memref, stencil, tensor
+from xdsl.dialects import (
+    arith,
+    bufferization,
+    csl_stencil,
+    func,
+    linalg,
+    memref,
+    stencil,
+    tensor,
+)
 from xdsl.dialects.builtin import (
     DYNAMIC_INDEX,
     AnyDenseElement,
@@ -16,7 +25,6 @@ from xdsl.dialects.builtin import (
     TensorType,
     i64,
 )
-from xdsl.dialects.csl import csl_stencil
 from xdsl.ir import (
     Attribute,
     AttributeInvT,
@@ -211,10 +219,10 @@ class ApplyOpBufferize(RewritePattern):
         way bufferization works, causing it to use `iter_arg` as an accumulator
         and avoiding having an extra alloc + memref.copy.
         """
-        linalg_op: linalg.NamedOperation | None = None
+        linalg_op: linalg.abstract_ops.NamedOperation | None = None
         for curr_op in op.receive_chunk.block.ops:
             if (
-                isinstance(curr_op, linalg.NamedOperation)
+                isinstance(curr_op, linalg.abstract_ops.NamedOperation)
                 and len(curr_op.outputs) > 0
                 and curr_op.outputs.types[0] == chunk_type
             ):
@@ -423,7 +431,7 @@ class InjectApplyOutsIntoLinalgOuts(RewritePattern):
                 or not isinstance(yld_arg.op.tensor, OpResult)
                 or not isinstance(
                     linalg_op := yld_arg.op.tensor.op,
-                    linalg.NamedOperation | linalg.GenericOp,
+                    linalg.abstract_ops.NamedOperation | linalg.ops.GenericOp,
                 )
                 or not isa(arg_t := arg.type, MemRefType)
                 or not isa(yld_arg.type, MemRefType)
@@ -504,7 +512,10 @@ class ReselectLinalgOutsFromInputs(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(
-        self, op: linalg.NamedOperation | linalg.GenericOp, rewriter: PatternRewriter, /
+        self,
+        op: linalg.abstract_ops.NamedOperation | linalg.ops.GenericOp,
+        rewriter: PatternRewriter,
+        /,
     ):
         # only apply rewrite when re-selecting `outs` from `ins`
         if (
@@ -527,7 +538,7 @@ class ReselectLinalgOutsFromInputs(RewritePattern):
 
                 # check for a linalg op input with no later uses and keep looking
                 if isinstance(arg, OpResult) and isinstance(
-                    arg.op, linalg.NamedOperation | linalg.GenericOp
+                    arg.op, linalg.abstract_ops.NamedOperation | linalg.ops.GenericOp
                 ):
                     out = arg
 

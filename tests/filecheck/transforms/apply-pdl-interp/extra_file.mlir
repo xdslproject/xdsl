@@ -2,7 +2,7 @@
 
 // Support file for apply_pdl_interp_extra_file.mlir
 
-pdl_interp.func @matcher(%arg2 : !pdl.operation) {
+pdl_interp.func @matcher(%arg2: !pdl.operation) {
   %0 = pdl_interp.get_operand 1 of %arg2
   %1 = pdl_interp.get_defining_op of %0 : !pdl.value
   pdl_interp.is_not_null %1 : !pdl.operation -> ^bb0, ^bb1
@@ -46,7 +46,7 @@ pdl_interp.func @matcher(%arg2 : !pdl.operation) {
   pdl_interp.record_match @rewriters::@pdl_generated_rewriter(%2, %arg2 : !pdl.value, !pdl.operation) : benefit(2), loc([%1, %arg2]), root("arith.addi") -> ^bb1
 }
 builtin.module @rewriters {
-  pdl_interp.func @pdl_generated_rewriter(%arg0 : !pdl.value, %arg1 : !pdl.operation) {
+  pdl_interp.func @pdl_generated_rewriter(%arg0: !pdl.value, %arg1: !pdl.operation) {
     pdl_interp.replace %arg1 with (%arg0 : !pdl.value)
     pdl_interp.finalize
   }

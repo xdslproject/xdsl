@@ -14,9 +14,13 @@ from xdsl.dialects.builtin import ModuleOp
 from xdsl.frontend.pyast.program import FrontendProgram, P, PyASTProgram, R
 from xdsl.frontend.pyast.utils.builder import PyASTBuilder
 from xdsl.frontend.pyast.utils.python_code_check import PythonCodeCheck
-from xdsl.frontend.pyast.utils.type_conversion import FunctionRegistry, TypeRegistry
+from xdsl.frontend.pyast.utils.type_conversion import (
+    FunctionRegistry,
+    LiteralRegistry,
+    TypeRegistry,
+)
 from xdsl.ir import Dialect, Operation, TypeAttribute
-from xdsl.passes import ModulePass, PassPipeline
+from xdsl.passes import ModulePass, PassPipeline, PassPipelineCallbackType
 from xdsl.transforms.desymref import FrontendDesymrefyPass
 
 
@@ -34,10 +38,11 @@ class FuncInfo(NamedTuple):
 
 
 def default_pipeline_callback(
-    _previous_pass: ModulePass, module: ModuleOp, _next_pass: ModulePass
+    previous_pass: ModulePass | None, module: ModuleOp, next_pass: ModulePass | None
 ) -> None:
     """Default callback to verify the module after each transformation pass."""
-    module.verify()
+    if previous_pass and next_pass:
+        module.verify()
 
 
 @dataclass
@@ -50,14 +55,15 @@ class PyASTContext:
     function_registry: FunctionRegistry = field(default_factory=FunctionRegistry)
     """Mappings between functions and their operation types."""
 
+    literal_registry: LiteralRegistry = field(default_factory=LiteralRegistry)
+    """Mappings between literal types and their operation constructors."""
+
     post_transforms: list[ModulePass] = field(
         default_factory=lambda: [FrontendDesymrefyPass()]
     )
     """An ordered list of passes to apply to the built module."""
 
-    post_callback: Callable[[ModulePass, ModuleOp, ModulePass], None] | None = (
-        default_pipeline_callback
-    )
+    post_callback: PassPipelineCallbackType | None = default_pipeline_callback
     """Callback to run between post transforms."""
 
     ir_context: Context = field(
@@ -78,6 +84,12 @@ class PyASTContext:
     ) -> None:
         """Associate a method on an object in the source code with its IR implementation."""
         self.function_registry.insert(function, ir_constructor)
+
+    def register_literal(
+        self, value_type: type[object], ir_constructor: Callable[[Any], Operation]
+    ) -> None:
+        """Associate a Python literal type with an IR constructor."""
+        self.literal_registry.insert(value_type, ir_constructor)
 
     def register_post_transform(self, transform: ModulePass) -> None:
         """Add a module pass to be run on the generated IR."""
@@ -142,6 +154,7 @@ class PyASTContext:
         builder = PyASTBuilder(
             type_registry=self.type_registry,
             function_registry=self.function_registry,
+            literal_registry=self.literal_registry,
             file=func_file,
             globals=func_globals,
             function_ast=func_ast,

@@ -14,11 +14,13 @@ from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import Enum
+from typing import cast
 
 from xdsl.dialects.arith import FastMathFlagsAttr
 from xdsl.dialects.builtin import (
     AnyFloat,
     ArrayAttr,
+    BoolAttr,
     IndexType,
     IntAttr,
     IntegerAttr,
@@ -42,19 +44,25 @@ from xdsl.irdl import (
     irdl_attr_definition,
     irdl_op_definition,
     operand_def,
+    opt_attr_def,
     opt_operand_def,
     opt_prop_def,
-    opt_result_def,
+    opt_region_def,
     prop_def,
+    region_def,
     result_def,
     traits_def,
     var_operand_def,
-    var_region_def,
     var_result_def,
+    var_successor_def,
 )
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
-from xdsl.traits import IsTerminator, SymbolOpInterface
+from xdsl.traits import (
+    IsolatedFromAbove,
+    IsTerminator,
+    SymbolOpInterface,
+)
 
 
 class FortranVariableFlags(Enum):
@@ -76,6 +84,8 @@ class FortranVariableFlags(Enum):
     VOLATILE = "volatile"
     HOSTASSOC = "host_assoc"
     INTERNALASSOC = "internal_assoc"
+    CRAY_POINTER = "cray_pointer"
+    CRAY_POINTEE = "cray_pointee"
 
     @staticmethod
     def try_parse(parser: AttrParser) -> set[FortranVariableFlags] | None:
@@ -132,14 +142,377 @@ class FortranVariableFlagsAttr(FortranVariableFlagsAttrBase):
     name = "fir.var_attrs"
 
 
+class FortranProcedureFlags(Enum):
+    """Fortran procedure attributes (F2023 15.6.2.1). BIND attribute (18.3.7)
+    is also tracked in the same enum."""
+
+    NOATTRIBUTES = "none"
+    ELEMENTAL = "elemental"
+    PURE = "pure"
+    NON_RECURSIVE = "non_recursive"
+    SIMPLE = "simple"
+    BIND_C = "bind_c"
+
+    @staticmethod
+    def try_parse(parser: AttrParser) -> set[FortranProcedureFlags] | None:
+        for option in FortranProcedureFlags:
+            if parser.parse_optional_characters(option.value) is not None:
+                return {option}
+        return None
+
+
+@dataclass(frozen=True)
+class FortranProcedureFlagsAttrBase(Data[tuple[FortranProcedureFlags, ...]]):
+    @property
+    def flags(self) -> set[FortranProcedureFlags]:
+        return set(self.data)
+
+    def __init__(self, flags: Sequence[FortranProcedureFlags]):
+        super().__init__(tuple(set(flags)))
+
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> tuple[FortranProcedureFlags, ...]:
+        with parser.in_angle_brackets():
+            flags = FortranProcedureFlags.try_parse(parser)
+            if flags is None:
+                return tuple()
+            while parser.parse_optional_punctuation(",") is not None:
+                flag = parser.expect(
+                    lambda: FortranProcedureFlags.try_parse(parser),
+                    "fortran procedure flag expected",
+                )
+                flags.update(flag)
+            return tuple(flags)
+
+    def print_parameter(self, printer: Printer):
+        with printer.in_angle_brackets():
+            flags = self.data
+            printer.print_list(
+                tuple(flag.value for flag in FortranProcedureFlags if flag in flags),
+                printer.print_string,
+                ",",
+            )
+
+
+@irdl_attr_definition
+class FortranProcedureFlagsAttr(FortranProcedureFlagsAttrBase):
+    name = "fir.proc_attrs"
+
+
+class FortranInlineFlags(Enum):
+    """Fortran inline hint attributes for fir.call."""
+
+    NONE = "none"
+    NO_INLINE = "no_inline"
+    ALWAYS_INLINE = "always_inline"
+    INLINE_HINT = "inline_hint"
+
+    @staticmethod
+    def try_parse(parser: AttrParser) -> set[FortranInlineFlags] | None:
+        for option in FortranInlineFlags:
+            if parser.parse_optional_characters(option.value) is not None:
+                return {option}
+        return None
+
+
+@dataclass(frozen=True)
+class FortranInlineFlagsAttrBase(Data[tuple[FortranInlineFlags, ...]]):
+    @property
+    def flags(self) -> set[FortranInlineFlags]:
+        return set(self.data)
+
+    def __init__(self, flags: Sequence[FortranInlineFlags]):
+        super().__init__(tuple(set(flags)))
+
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> tuple[FortranInlineFlags, ...]:
+        with parser.in_angle_brackets():
+            flags = FortranInlineFlags.try_parse(parser)
+            if flags is None:
+                return tuple()
+            while parser.parse_optional_punctuation(",") is not None:
+                flag = parser.expect(
+                    lambda: FortranInlineFlags.try_parse(parser),
+                    "fortran inline flag expected",
+                )
+                flags.update(flag)
+            return tuple(flags)
+
+    def print_parameter(self, printer: Printer):
+        with printer.in_angle_brackets():
+            flags = self.data
+            printer.print_list(
+                tuple(flag.value for flag in FortranInlineFlags if flag in flags),
+                printer.print_string,
+                ",",
+            )
+
+
+@irdl_attr_definition
+class FortranInlineFlagsAttr(FortranInlineFlagsAttrBase):
+    name = "fir.inline_attrs"
+
+
+class PackArrayHeuristics(Enum):
+    """Optimization heuristics for fir.pack_array."""
+
+    NONE = "none"
+    LOOP_ONLY = "loop_only"
+
+    @staticmethod
+    def try_parse(parser: AttrParser) -> set[PackArrayHeuristics] | None:
+        for option in PackArrayHeuristics:
+            if parser.parse_optional_characters(option.value) is not None:
+                return {option}
+        return None
+
+
+@dataclass(frozen=True)
+class PackArrayHeuristicsAttrBase(Data[tuple[PackArrayHeuristics, ...]]):
+    @property
+    def flags(self) -> set[PackArrayHeuristics]:
+        return set(self.data)
+
+    def __init__(self, flags: Sequence[PackArrayHeuristics]):
+        super().__init__(tuple(set(flags)))
+
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> tuple[PackArrayHeuristics, ...]:
+        with parser.in_angle_brackets():
+            flags = PackArrayHeuristics.try_parse(parser)
+            if flags is None:
+                return tuple()
+            while parser.parse_optional_punctuation(",") is not None:
+                flag = parser.expect(
+                    lambda: PackArrayHeuristics.try_parse(parser),
+                    "pack_array heuristic expected",
+                )
+                flags.update(flag)
+            return tuple(flags)
+
+    def print_parameter(self, printer: Printer):
+        with printer.in_angle_brackets():
+            flags = self.data
+            printer.print_list(
+                tuple(flag.value for flag in PackArrayHeuristics if flag in flags),
+                printer.print_string,
+                ",",
+            )
+
+
+@irdl_attr_definition
+class PackArrayHeuristicsAttr(PackArrayHeuristicsAttrBase):
+    name = "fir.pack_array_heuristics"
+
+
+class ReduceOperator(Enum):
+    """Intrinsic reduction operations for DO CONCURRENT REDUCE.
+    Upstream this is an I32BitEnumAttr; in practice each reduction
+    declaration selects a single operation, so a single value is stored."""
+
+    ADD = "add"
+    MULTIPLY = "multiply"
+    AND = "and"
+    OR = "or"
+    EQV = "eqv"
+    NEQV = "neqv"
+    MAX = "max"
+    MIN = "min"
+    IAND = "iand"
+    IOR = "ior"
+    IEOR = "ieor"
+
+    @staticmethod
+    def try_parse(parser: AttrParser) -> ReduceOperator | None:
+        for option in ReduceOperator:
+            if parser.parse_optional_characters(option.value) is not None:
+                return option
+        return None
+
+
+@dataclass(frozen=True)
+class ReduceAttrBase(Data[ReduceOperator]):
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> ReduceOperator:
+        with parser.in_angle_brackets():
+            return parser.expect(
+                lambda: ReduceOperator.try_parse(parser),
+                "reduce operation expected",
+            )
+
+    def print_parameter(self, printer: Printer):
+        with printer.in_angle_brackets():
+            printer.print_string(self.data.value)
+
+
+@irdl_attr_definition
+class ReduceAttr(ReduceAttrBase):
+    name = "fir.reduce_attr"
+
+
+class LocationKind(Enum):
+    """Flang location kind for debug info."""
+
+    BASE = "base"
+    INCLUSION = "inclusion"
+
+    @staticmethod
+    def try_parse(parser: AttrParser) -> LocationKind | None:
+        for option in LocationKind:
+            if parser.parse_optional_characters(option.value) is not None:
+                return option
+        return None
+
+
+@dataclass(frozen=True)
+class LocationKindAttrBase(Data[LocationKind]):
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> LocationKind:
+        with parser.in_angle_brackets():
+            return parser.expect(
+                lambda: LocationKind.try_parse(parser),
+                "location kind expected",
+            )
+
+    def print_parameter(self, printer: Printer):
+        with printer.in_angle_brackets():
+            printer.print_string(self.data.value)
+
+
+@irdl_attr_definition
+class LocationKindAttr(LocationKindAttrBase):
+    name = "fir.loc_kind"
+
+
+@dataclass(frozen=True)
+class LocationKindArrayAttrBase(Data[tuple[LocationKind, ...]]):
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> tuple[LocationKind, ...]:
+        with parser.in_square_brackets():
+            kinds: list[LocationKind] = []
+            first = LocationKind.try_parse(parser)
+            if first is None:
+                return tuple()
+            kinds.append(first)
+            while parser.parse_optional_punctuation(",") is not None:
+                kinds.append(
+                    parser.expect(
+                        lambda: LocationKind.try_parse(parser),
+                        "location kind expected",
+                    )
+                )
+            return tuple(kinds)
+
+    def print_parameter(self, printer: Printer):
+        with printer.in_square_brackets():
+            printer.print_list(
+                tuple(k.value for k in self.data),
+                printer.print_string,
+                ",",
+            )
+
+
+@irdl_attr_definition
+class LocationKindArrayAttr(LocationKindArrayAttrBase):
+    name = "fir.loc_kind_array"
+
+
+class LocalitySpecifierType(Enum):
+    """Locality kind for fir.local: LOCAL vs LOCAL_INIT."""
+
+    LOCAL = "local"
+    LOCAL_INIT = "local_init"
+
+    @staticmethod
+    def try_parse(parser: AttrParser) -> LocalitySpecifierType | None:
+        for option in LocalitySpecifierType:
+            if parser.parse_optional_characters(option.value) is not None:
+                return option
+        return None
+
+
+@dataclass(frozen=True)
+class LocalitySpecifierTypeAttrBase(Data[LocalitySpecifierType]):
+    @classmethod
+    def parse_parameter(cls, parser: AttrParser) -> LocalitySpecifierType:
+        parser.parse_punctuation("{")
+        parser.parse_keyword("type")
+        parser.parse_punctuation("=")
+        value = parser.expect(
+            lambda: LocalitySpecifierType.try_parse(parser),
+            "locality specifier type expected",
+        )
+        parser.parse_punctuation("}")
+        return value
+
+    def print_parameter(self, printer: Printer):
+        printer.print_string("{type = ")
+        printer.print_string(self.data.value)
+        printer.print_string("}")
+
+
+@irdl_attr_definition
+class LocalitySpecifierTypeAttr(LocalitySpecifierTypeAttrBase):
+    name = "fir.locality_specifier_type"
+
+
+@irdl_attr_definition
+class UseRenameAttr(ParametrizedAttribute):
+    """A single rename mapping for a Fortran USE statement: local_name => module_var."""
+
+    name = "fir.use_rename"
+
+    local_name: StringAttr
+    symbol: SymbolRefAttr
+
+
+@irdl_attr_definition
+class OpenACCSafeTempArrayCopyAttr(ParametrizedAttribute):
+    """Marker attribute implementing SafeTempArrayCopyAttrInterface for OpenACC."""
+
+    name = "fir.acc_safe_temp_array_copy"
+
+
+@irdl_attr_definition
+class OpenMPSafeTempArrayCopyAttr(ParametrizedAttribute):
+    """Marker attribute implementing SafeTempArrayCopyAttrInterface for OpenMP."""
+
+    name = "fir.omp_safe_temp_array_copy"
+
+
 @irdl_attr_definition
 class ReferenceType(ParametrizedAttribute, TypeAttribute):
     """
     The type of a reference to an entity in memory.
+
+    Flang 22.x added an optional ``volatile`` marker that, when present,
+    indicates the reference wraps a Fortran VOLATILE entity. The textual
+    form is ``!fir.ref<T>`` for the default and ``!fir.ref<T, volatile>``
+    when set.
     """
 
     name = "fir.ref"
+
     type: Attribute
+    is_volatile: BoolAttr
+
+    def __init__(self, type: Attribute, is_volatile: bool = False) -> None:
+        super().__init__(type, BoolAttr.from_bool(is_volatile))
+
+    def print_parameters(self, printer: Printer) -> None:
+        with printer.in_angle_brackets():
+            printer.print_attribute(self.type)
+            if self.is_volatile.value.data:
+                printer.print_string(", volatile")
+
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
+        with parser.in_angle_brackets():
+            ty = parser.parse_type()
+            is_volatile = parser.parse_optional_punctuation(",") is not None
+            if is_volatile:
+                parser.parse_keyword("volatile")
+        return [ty, BoolAttr.from_bool(is_volatile)]
 
 
 @irdl_attr_definition
@@ -152,6 +525,120 @@ class DeferredAttr(ParametrizedAttribute, TypeAttribute):
 
     def print_parameters(self, printer: Printer) -> None:
         printer.print_string("?")
+
+
+@irdl_attr_definition
+class PointAttr(ParametrizedAttribute):
+    """`#fir.point` case-tag — exact match `case (X)` in SELECT CASE."""
+
+    name = "fir.point"
+
+
+@irdl_attr_definition
+class LowerAttr(ParametrizedAttribute):
+    """`#fir.lower` case-tag — open lower bound `case (X:)` (selector >= X)."""
+
+    name = "fir.lower"
+
+
+@irdl_attr_definition
+class UpperAttr(ParametrizedAttribute):
+    """`#fir.upper` case-tag — open upper bound `case (:X)` (selector <= X)."""
+
+    name = "fir.upper"
+
+
+@irdl_attr_definition
+class IntervalAttr(ParametrizedAttribute):
+    """`#fir.interval` case-tag — closed range `case (lo:hi)` (lo <= sel <= hi)."""
+
+    name = "fir.interval"
+
+
+@irdl_attr_definition
+class ExactTypeAttr(ParametrizedAttribute):
+    """
+    `#fir.type_is<T>` case-tag — matches when the dynamic type of the selector
+    is exactly `T`. Used in `fir.select_type` to encode Fortran's `TYPE IS (...)`
+    SELECT TYPE arm.
+    """
+
+    name = "fir.type_is"
+
+    type: Attribute
+
+    def print_parameters(self, printer: Printer) -> None:
+        with printer.in_angle_brackets():
+            printer.print_attribute(self.type)
+
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
+        with parser.in_angle_brackets():
+            ty = parser.parse_type()
+        return [ty]
+
+
+@irdl_attr_definition
+class SubclassAttr(ParametrizedAttribute):
+    """
+    `#fir.class_is<T>` case-tag — matches when the dynamic type of the selector
+    is `T` or an extension of `T`. Used in `fir.select_type` to encode Fortran's
+    `CLASS IS (...)` SELECT TYPE arm.
+    """
+
+    name = "fir.class_is"
+
+    type: Attribute
+
+    def print_parameters(self, printer: Printer) -> None:
+        with printer.in_angle_brackets():
+            printer.print_attribute(self.type)
+
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
+        with parser.in_angle_brackets():
+            ty = parser.parse_type()
+        return [ty]
+
+
+@irdl_attr_definition
+class RealAttr(ParametrizedAttribute):
+    """
+    `#fir.real<kind, value>` — a Fortran REAL constant of a given KIND. The
+    second field is stored verbatim as a textual payload because Flang accepts
+    two interchangeable forms: a decimal float literal (e.g. `3.14`) and a hex
+    bit-pattern (e.g. `i x4048F5C3`).
+
+    This attribute exists to round-trip Flang output; xDSL does not interpret
+    the payload numerically.
+    """
+
+    name = "fir.real"
+
+    fkind: IntAttr
+    value: StringAttr
+
+    def print_parameters(self, printer: Printer) -> None:
+        with printer.in_angle_brackets():
+            printer.print_int(self.fkind.data)
+            printer.print_string(", ")
+            printer.print_string(self.value.data)
+
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
+        with parser.in_angle_brackets():
+            kind = parser.parse_integer(allow_boolean=False)
+            parser.parse_punctuation(",")
+            # The payload is either `i xHEX` or a float literal; capture
+            # whichever form appears, up to the closing `>`.
+            if parser.parse_optional_keyword("i") is not None:
+                # Flang prints `i x<hex>`; the `x<hex>` is one keyword token.
+                hex_kw = parser.parse_identifier()
+                value = StringAttr(f"i {hex_kw}")
+            else:
+                f = parser.parse_float()
+                value = StringAttr(str(f))
+        return [IntAttr(kind), value]
 
 
 @irdl_attr_definition
@@ -274,23 +761,21 @@ class SequenceType(ParametrizedAttribute, TypeAttribute):
 
         shape: list[IntegerAttr[IntegerType] | DeferredAttr] = []
         type2 = NoneType()
-        parser.parse_characters("<")
-        has_tuple = parser.parse_optional_characters("0")
-        if has_tuple is not None:
-            parser.parse_characters("xtuple")
-            parser.parse_characters("<")
-            type1 = parser.parse_type()
-            parser.parse_characters(",")
-            type2 = parser.parse_type()
-            parser.parse_characters(">")
-            shape.append(IntegerAttr(1, 32))
-        else:
-            type1 = parser.parse_optional_type()
-            while type1 is None:
-                shape.append(parse_interval())
-                parser.parse_shape_delimiter()
+        with parser.in_angle_brackets():
+            has_tuple = parser.parse_optional_characters("0")
+            if has_tuple is not None:
+                parser.parse_characters("xtuple")
+                with parser.in_angle_brackets():
+                    type1 = parser.parse_type()
+                    parser.parse_characters(",")
+                    type2 = parser.parse_type()
+                shape.append(IntegerAttr(1, 32))
+            else:
                 type1 = parser.parse_optional_type()
-        parser.parse_characters(">")
+                while type1 is None:
+                    shape.append(parse_interval())
+                    parser.parse_shape_delimiter()
+                    type1 = parser.parse_optional_type()
         return [ArrayAttr(shape), type1, type2]
 
     def hasDeferredShape(self):
@@ -339,15 +824,85 @@ class CharacterType(ParametrizedAttribute, TypeAttribute):
             else:
                 return IntAttr(parser.parse_integer(allow_boolean=False))
 
-        parser.parse_characters("<")
-        lower = parse_value()
-        has_upper = parser.parse_optional_characters(",")
-        if has_upper:
-            upper = parse_value()
-        else:
-            upper = IntAttr(1)
-        parser.parse_characters(">")
+        with parser.in_angle_brackets():
+            lower = parse_value()
+            has_upper = parser.parse_optional_characters(",")
+            if has_upper:
+                upper = parse_value()
+            else:
+                upper = IntAttr(1)
         return [lower, upper]
+
+
+@irdl_attr_definition
+class RecordType(ParametrizedAttribute, TypeAttribute):
+    """
+    Fortran derived type (TYPE).
+
+    The name includes any KIND type parameters. The record may carry runtime
+    slots for LEN type parameters and for data components. Both lists are
+    optional in the assembly form.
+
+    Examples:
+        !fir.type<t>
+        !fir.type<t{i:i32,c:!fir.char<1,10>}>
+        !fir.type<tp(len1:i32){i:i32}>
+
+    Self-referential derived types (e.g. !fir.type<t{p:!fir.ptr<!fir.type<t>>}>)
+    are not yet supported and will fail to parse if encountered.
+    """
+
+    name = "fir.type"
+
+    type_name: StringAttr
+    lenparams: ArrayAttr
+    components: ArrayAttr
+
+    def print_parameters(self, printer: Printer) -> None:
+        def print_pair(pair: Attribute) -> None:
+            arr = cast(ArrayAttr[Attribute], pair)
+            field_name = arr.data[0]
+            field_type = arr.data[1]
+            assert isinstance(field_name, StringAttr)
+            printer.print_string(field_name.data)
+            printer.print_string(":")
+            printer.print_attribute(field_type)
+
+        with printer.in_angle_brackets():
+            printer.print_string(self.type_name.data)
+            if len(self.lenparams.data) > 0:
+                printer.print_string("(")
+                printer.print_list(self.lenparams.data, print_pair, ",")
+                printer.print_string(")")
+            if len(self.components.data) > 0:
+                printer.print_string("{")
+                printer.print_list(self.components.data, print_pair, ",")
+                printer.print_string("}")
+
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
+        def parse_pair() -> ArrayAttr:
+            field_name = parser.parse_identifier()
+            parser.parse_punctuation(":")
+            field_type = parser.parse_type()
+            return ArrayAttr([StringAttr(field_name), field_type])
+
+        with parser.in_angle_brackets():
+            type_name = parser.parse_identifier()
+            lenparams: list[Attribute] = []
+            if parser.parse_optional_punctuation("(") is not None:
+                lenparams.append(parse_pair())
+                while parser.parse_optional_punctuation(",") is not None:
+                    lenparams.append(parse_pair())
+                parser.parse_punctuation(")")
+            components: list[Attribute] = []
+            if parser.parse_optional_punctuation("{") is not None:
+                if parser.parse_optional_punctuation("}") is None:
+                    components.append(parse_pair())
+                    while parser.parse_optional_punctuation(",") is not None:
+                        components.append(parse_pair())
+                    parser.parse_punctuation("}")
+        return [StringAttr(type_name), ArrayAttr(lenparams), ArrayAttr(components)]
 
 
 @irdl_attr_definition
@@ -367,34 +922,156 @@ class LogicalType(ParametrizedAttribute, TypeAttribute):
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
-        parser.parse_characters("<")
-        s = parser.parse_integer(allow_boolean=False)
-        parser.parse_characters(">")
+        with parser.in_angle_brackets():
+            s = parser.parse_integer(allow_boolean=False)
         return [IntAttr(s)]
 
 
 @irdl_attr_definition
-class ComplexType(ParametrizedAttribute, TypeAttribute):
-    """
-    Model of a Fortran COMPLEX intrinsic type, including the KIND type
-    parameter. COMPLEX is a floating point type with a real and imaginary
-    member.
-    """
+class IntType(ParametrizedAttribute, TypeAttribute):
+    """Model of a Fortran INTEGER intrinsic type, including the KIND type parameter."""
 
-    name = "fir.complex"
-
-    width: IntAttr
+    name = "fir.int"
+    fkind: IntAttr
 
     def print_parameters(self, printer: Printer) -> None:
         with printer.in_angle_brackets():
-            printer.print_int(self.width.data)
+            printer.print_int(self.fkind.data)
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
-        parser.parse_characters("<")
-        s = parser.parse_integer(allow_boolean=False)
-        parser.parse_characters(">")
+        with parser.in_angle_brackets():
+            s = parser.parse_integer(allow_boolean=False)
         return [IntAttr(s)]
+
+
+@irdl_attr_definition
+class UnsignedType(ParametrizedAttribute, TypeAttribute):
+    """Model of the Fortran UNSIGNED extension intrinsic type, including the KIND type parameter."""
+
+    name = "fir.unsigned"
+    fkind: IntAttr
+
+    def print_parameters(self, printer: Printer) -> None:
+        with printer.in_angle_brackets():
+            printer.print_int(self.fkind.data)
+
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
+        with parser.in_angle_brackets():
+            s = parser.parse_integer(allow_boolean=False)
+        return [IntAttr(s)]
+
+
+@irdl_attr_definition
+class ClassType(ParametrizedAttribute, TypeAttribute):
+    """
+    Class type is used to model the Fortran CLASS intrinsic type. A class type
+    is equivalent to a fir.box type with a dynamic type.
+
+    Flang 22.x added an optional ``volatile`` marker mirroring fir.box.
+    """
+
+    name = "fir.class"
+
+    type: Attribute
+    is_volatile: BoolAttr
+
+    def __init__(self, type: Attribute, is_volatile: bool = False) -> None:
+        super().__init__(type, BoolAttr.from_bool(is_volatile))
+
+    def print_parameters(self, printer: Printer) -> None:
+        with printer.in_angle_brackets():
+            printer.print_attribute(self.type)
+            if self.is_volatile.value.data:
+                printer.print_string(", volatile")
+
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
+        with parser.in_angle_brackets():
+            ty = parser.parse_type()
+            is_volatile = parser.parse_optional_punctuation(",") is not None
+            if is_volatile:
+                parser.parse_keyword("volatile")
+        return [ty, BoolAttr.from_bool(is_volatile)]
+
+
+@irdl_attr_definition
+class BoxProcType(ParametrizedAttribute, TypeAttribute):
+    """The type of a Fortran procedure pointer, optionally including a host context."""
+
+    name = "fir.boxproc"
+    type: Attribute
+
+
+@irdl_attr_definition
+class FieldType(ParametrizedAttribute, TypeAttribute):
+    """The type of a derived-type field name."""
+
+    name = "fir.field"
+
+
+@irdl_attr_definition
+class LenType(ParametrizedAttribute, TypeAttribute):
+    """The type of a LEN type-parameter name."""
+
+    name = "fir.len"
+
+
+@irdl_attr_definition
+class TypeDescType(ParametrizedAttribute, TypeAttribute):
+    """The type of a type descriptor for a Fortran derived type."""
+
+    name = "fir.tdesc"
+    type: Attribute
+
+
+@irdl_attr_definition
+class VoidType(ParametrizedAttribute, TypeAttribute):
+    """The empty/unit type."""
+
+    name = "fir.void"
+
+
+@irdl_attr_definition
+class SliceType(ParametrizedAttribute, TypeAttribute):
+    """Type of an array slice descriptor."""
+
+    name = "fir.slice"
+    rank: IntAttr
+
+    def print_parameters(self, printer: Printer) -> None:
+        with printer.in_angle_brackets():
+            printer.print_int(self.rank.data)
+
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
+        with parser.in_angle_brackets():
+            s = parser.parse_integer(allow_boolean=False)
+        return [IntAttr(s)]
+
+
+@irdl_attr_definition
+class VectorType(ParametrizedAttribute, TypeAttribute):
+    """A SIMD vector type with a fixed length and element type."""
+
+    name = "fir.vector"
+    length: IntAttr
+    type: Attribute
+
+    def print_parameters(self, printer: Printer) -> None:
+        with printer.in_angle_brackets():
+            printer.print_int(self.length.data)
+            printer.print_string(":")
+            printer.print_attribute(self.type)
+
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
+        with parser.in_angle_brackets():
+            length = parser.parse_integer(allow_boolean=False)
+            parser.parse_characters(":")
+            ty = parser.parse_type()
+        return [IntAttr(length), ty]
 
 
 @irdl_attr_definition
@@ -415,9 +1092,8 @@ class ShiftType(ParametrizedAttribute, TypeAttribute):
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
-        parser.parse_characters("<")
-        s = parser.parse_integer(allow_boolean=False)
-        parser.parse_characters(">")
+        with parser.in_angle_brackets():
+            s = parser.parse_integer(allow_boolean=False)
         return [IntAttr(s)]
 
 
@@ -439,9 +1115,8 @@ class ShapeType(ParametrizedAttribute, TypeAttribute):
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
-        parser.parse_characters("<")
-        s = parser.parse_integer(allow_boolean=False)
-        parser.parse_characters(">")
+        with parser.in_angle_brackets():
+            s = parser.parse_integer(allow_boolean=False)
         return [IntAttr(s)]
 
 
@@ -464,9 +1139,8 @@ class ShapeShiftType(ParametrizedAttribute, TypeAttribute):
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
-        parser.parse_characters("<")
-        s = parser.parse_integer(allow_boolean=False)
-        parser.parse_characters(">")
+        with parser.in_angle_brackets():
+            s = parser.parse_integer(allow_boolean=False)
         return [IntAttr(s)]
 
 
@@ -481,7 +1155,7 @@ class HeapType(ParametrizedAttribute, TypeAttribute):
 
     name = "fir.heap"
 
-    type: SequenceType | CharacterType
+    type: SequenceType | CharacterType | RecordType
 
 
 @irdl_attr_definition
@@ -490,11 +1164,35 @@ class BoxType(ParametrizedAttribute, TypeAttribute):
     Descriptors are tuples of information that describe an entity being passed
     from a calling context. This information might include (but is not limited
     to) whether the entity is an array, its size, or what type it has.
+
+    Flang 22.x added an optional ``volatile`` marker that, when present,
+    indicates the descriptor wraps a Fortran VOLATILE entity. The textual
+    form is ``!fir.box<T>`` for the default and ``!fir.box<T, volatile>``
+    when set.
     """
 
     name = "fir.box"
 
     type: Attribute
+    is_volatile: BoolAttr
+
+    def __init__(self, type: Attribute, is_volatile: bool = False) -> None:
+        super().__init__(type, BoolAttr.from_bool(is_volatile))
+
+    def print_parameters(self, printer: Printer) -> None:
+        with printer.in_angle_brackets():
+            printer.print_attribute(self.type)
+            if self.is_volatile.value.data:
+                printer.print_string(", volatile")
+
+    @classmethod
+    def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
+        with parser.in_angle_brackets():
+            ty = parser.parse_type()
+            is_volatile = parser.parse_optional_punctuation(",") is not None
+            if is_volatile:
+                parser.parse_keyword("volatile")
+        return [ty, BoolAttr.from_bool(is_volatile)]
 
 
 @irdl_attr_definition
@@ -515,9 +1213,8 @@ class BoxCharType(ParametrizedAttribute, TypeAttribute):
 
     @classmethod
     def parse_parameters(cls, parser: AttrParser) -> list[Attribute]:
-        parser.parse_characters("<")
-        s = parser.parse_integer(allow_boolean=False)
-        parser.parse_characters(">")
+        with parser.in_angle_brackets():
+            s = parser.parse_integer(allow_boolean=False)
         return [IntAttr(s)]
 
 
@@ -538,7 +1235,6 @@ class AbsentOp(IRDLOperation):
 
     name = "fir.absent"
     intype = result_def()
-    regs = var_region_def()
 
 
 @irdl_op_definition
@@ -548,7 +1244,6 @@ class AddcOp(IRDLOperation):
     rhs = operand_def()
     fastmath = opt_prop_def(FastMathFlagsAttr)
     result = result_def()
-    regs = var_region_def()
 
 
 @irdl_op_definition
@@ -564,7 +1259,6 @@ class AddressOfOp(IRDLOperation):
     name = "fir.address_of"
     symbol = prop_def(SymbolRefAttr)
     resTy = result_def()
-    regs = var_region_def()
 
 
 @irdl_op_definition
@@ -587,7 +1281,6 @@ class AllocmemOp(IRDLOperation):
     shape = var_operand_def()
 
     result_0 = result_def()
-    regs = var_region_def()
 
     irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
@@ -662,8 +1355,6 @@ class AllocaOp(IRDLOperation):
     typeparams = var_operand_def()
     shape = var_operand_def()
     result_0 = result_def()
-    regs = var_region_def()
-    valuebyref = opt_prop_def(UnitAttr)
     pinned = opt_prop_def(UnitAttr)
 
     irdl_options = (AttrSizedOperandSegments(as_property=True),)
@@ -711,10 +1402,11 @@ class ArrayAccessOp(IRDLOperation):
 
     name = "fir.array_access"
     sequence = operand_def()
-    indices = operand_def()
-    typeparams = operand_def()
+    indices = var_operand_def()
+    typeparams = var_operand_def()
     element = result_def()
-    regs = var_region_def()
+
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
 
 @irdl_op_definition
@@ -740,7 +1432,6 @@ class ArrayAmendOp(IRDLOperation):
     sequence = operand_def()
     memref = operand_def()
     result_0 = result_def()
-    regs = var_region_def()
 
 
 @irdl_op_definition
@@ -765,12 +1456,13 @@ class ArrayCoorOp(IRDLOperation):
 
     name = "fir.array_coor"
     memref = operand_def()
-    shape = operand_def()
-    slice = operand_def()
-    indices = operand_def()
-    typeparams = operand_def()
+    shape = opt_operand_def()
+    slice = opt_operand_def()
+    indices = var_operand_def()
+    typeparams = var_operand_def()
     result_0 = result_def()
-    regs = var_region_def()
+
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
 
 @irdl_op_definition
@@ -798,10 +1490,11 @@ class ArrayFetchOp(IRDLOperation):
 
     name = "fir.array_fetch"
     sequence = operand_def()
-    indices = operand_def()
-    typeparams = operand_def()
+    indices = var_operand_def()
+    typeparams = var_operand_def()
     element = result_def()
-    regs = var_region_def()
+
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
 
 @irdl_op_definition
@@ -838,11 +1531,12 @@ class ArrayLoadOp(IRDLOperation):
 
     name = "fir.array_load"
     memref = operand_def()
-    shape = operand_def()
-    slice = operand_def()
-    typeparams = operand_def()
+    shape = opt_operand_def()
+    slice = opt_operand_def()
+    typeparams = var_operand_def()
     result_0 = result_def()
-    regs = var_region_def()
+
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
 
 @irdl_op_definition
@@ -869,9 +1563,10 @@ class ArrayMergeStoreOp(IRDLOperation):
     original = operand_def()
     sequence = operand_def()
     memref = operand_def()
-    slice = operand_def()
-    typeparams = operand_def()
-    regs = var_region_def()
+    slice = opt_operand_def()
+    typeparams = var_operand_def()
+
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
 
 @irdl_op_definition
@@ -907,11 +1602,12 @@ class ArrayModifyOp(IRDLOperation):
 
     name = "fir.array_modify"
     sequence = operand_def()
-    indices = operand_def()
-    typeparams = operand_def()
+    indices = var_operand_def()
+    typeparams = var_operand_def()
     result_0 = result_def()
     result_1 = result_def()
-    regs = var_region_def()
+
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
 
 @irdl_op_definition
@@ -945,10 +1641,11 @@ class ArrayUpdateOp(IRDLOperation):
     name = "fir.array_update"
     sequence = operand_def()
     merge = operand_def()
-    indices = operand_def()
-    typeparams = operand_def()
+    indices = var_operand_def()
+    typeparams = var_operand_def()
     result_0 = result_def()
-    regs = var_region_def()
+
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
 
 @irdl_op_definition
@@ -967,7 +1664,6 @@ class BoxAddrOp(IRDLOperation):
     name = "fir.box_addr"
     val = operand_def()
     result_0 = result_def()
-    regs = var_region_def()
 
 
 @irdl_op_definition
@@ -982,7 +1678,6 @@ class BoxcharLenOp(IRDLOperation):
     name = "fir.boxchar_len"
     val = operand_def()
     result_0 = result_def()
-    regs = var_region_def()
 
 
 @irdl_op_definition
@@ -1007,7 +1702,6 @@ class BoxDimsOp(IRDLOperation):
     result_0 = result_def()
     result_1 = result_def()
     result_2 = result_def()
-    regs = var_region_def()
 
 
 @irdl_op_definition
@@ -1026,7 +1720,6 @@ class BoxElesizeOp(IRDLOperation):
     name = "fir.box_elesize"
     val = operand_def()
     result_0 = result_def()
-    regs = var_region_def()
 
 
 @irdl_op_definition
@@ -1047,7 +1740,6 @@ class BoxIsallocOp(IRDLOperation):
     name = "fir.box_isalloc"
     val = operand_def()
     result_0 = result_def()
-    regs = var_region_def()
 
 
 @irdl_op_definition
@@ -1067,7 +1759,6 @@ class BoxIsarrayOp(IRDLOperation):
     name = "fir.box_isarray"
     val = operand_def()
     result_0 = result_def()
-    regs = var_region_def()
 
 
 @irdl_op_definition
@@ -1083,7 +1774,6 @@ class BoxIsptrOp(IRDLOperation):
     name = "fir.box_isptr"
     val = operand_def()
     result_0 = result_def()
-    regs = var_region_def()
 
 
 @irdl_op_definition
@@ -1104,8 +1794,8 @@ class BoxOffsetOp(IRDLOperation):
     """
 
     name = "fir.box_offset"
+    box_ref = operand_def()
     field = prop_def()
-    val = operand_def()
     result_0 = result_def()
 
 
@@ -1126,7 +1816,6 @@ class BoxprocHostOp(IRDLOperation):
     name = "fir.boxproc_host"
     val = operand_def()
     result_0 = result_def()
-    regs = var_region_def()
 
 
 @irdl_op_definition
@@ -1146,7 +1835,6 @@ class BoxRankOp(IRDLOperation):
     name = "fir.box_rank"
     val = operand_def()
     result_0 = result_def()
-    regs = var_region_def()
 
 
 @irdl_op_definition
@@ -1162,7 +1850,6 @@ class BoxTdescOp(IRDLOperation):
     name = "fir.box_tdesc"
     val = operand_def()
     result_0 = result_def()
-    regs = var_region_def()
 
 
 @irdl_op_definition
@@ -1175,11 +1862,12 @@ class CallOp(IRDLOperation):
     """
 
     name = "fir.call"
-    callee = prop_def()
+    callee = opt_prop_def(SymbolRefAttr)
     fastmath = opt_prop_def(FastMathFlagsAttr)
-    result_0 = opt_result_def()
+    procedure_attrs = opt_prop_def(FortranProcedureFlagsAttr)
+    inline_attr = opt_prop_def(FortranInlineFlagsAttr)
     args = var_operand_def()
-    regs = var_region_def()
+    result_0 = var_result_def()
 
 
 @irdl_op_definition
@@ -1207,7 +1895,6 @@ class CharConvertOp(IRDLOperation):
     _from = operand_def()
     count = operand_def()
     to = operand_def()
-    regs = var_region_def()
 
 
 @irdl_op_definition
@@ -1217,23 +1904,11 @@ class CmpcOp(IRDLOperation):
     """
 
     name = "fir.cmpc"
+    predicate = prop_def(IntegerAttr)
+    fastmath = opt_prop_def(FastMathFlagsAttr)
     lhs = operand_def()
     rhs = operand_def()
     result_0 = result_def()
-    regs = var_region_def()
-
-
-@irdl_op_definition
-class ConstcOp(IRDLOperation):
-    """
-    A complex constant. Similar to the standard dialect complex type, but this
-    extension allows constants with APFloat values that are not supported in
-    the standard dialect.
-    """
-
-    name = "fir.constc"
-    result_0 = result_def()
-    regs = var_region_def()
 
 
 @irdl_op_definition
@@ -1253,7 +1928,6 @@ class ConvertOp(IRDLOperation):
     name = "fir.convert"
     value = operand_def()
     res = result_def()
-    regs = var_region_def()
 
 
 @irdl_op_definition
@@ -1279,10 +1953,10 @@ class CoordinateOfOp(IRDLOperation):
 
     name = "fir.coordinate_of"
     baseType = prop_def()
+    field_indices = opt_prop_def()
     ref = operand_def()
     coor = var_operand_def()
     result_0 = result_def()
-    regs = var_region_def()
 
 
 @irdl_op_definition
@@ -1324,10 +1998,18 @@ class DeclareOp(IRDLOperation):
 
     name = "fir.declare"
     memref = operand_def()
-    shape = operand_def()
+    shape = opt_operand_def()
     typeparams = var_operand_def()
+    dummy_scope = opt_operand_def()
+    storage = opt_operand_def()
+    storage_offset = opt_prop_def(IntegerAttr)
     uniq_name = prop_def(StringAttr)
     fortran_attrs = opt_prop_def(FortranVariableFlagsAttr)
+    data_attr = opt_prop_def(Attribute)
+    dummy_arg_no = opt_prop_def(IntegerAttr)
+    result = result_def()
+
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
 
 @irdl_op_definition
@@ -1343,7 +2025,9 @@ class DtEntryOp(IRDLOperation):
     """
 
     name = "fir.dt_entry"
-    regs = var_region_def()
+    method = prop_def(StringAttr)
+    proc = prop_def(SymbolRefAttr)
+    deferred = opt_prop_def(UnitAttr)
 
 
 @irdl_op_definition
@@ -1362,35 +2046,11 @@ class DispatchOp(IRDLOperation):
     """
 
     name = "fir.dispatch"
+    method = prop_def(StringAttr)
     pass_arg_pos = opt_prop_def(IntegerAttr)
     object = operand_def()
-    args = operand_def()
-    result_0 = result_def()
-    regs = var_region_def()
-
-
-@irdl_op_definition
-class DispatchTableOp(IRDLOperation):
-    """
-    Define a dispatch table for a derived type with type-bound procedures.
-
-    A dispatch table is an untyped symbol that contains a list of associations
-    between method identifiers and corresponding 'FuncOp' symbols.
-
-    The ordering of associations in the map is determined by the front end.
-
-    fir.dispatch_table @_QDTMquuzTfoo {
-      fir.dt_entry method1, @_QFNMquuzTfooPmethod1AfooR
-      fir.dt_entry method2, @_QFNMquuzTfooPmethod2AfooII
-    }
-    """
-
-    name = "fir.dispatch_table"
-
-    sym_name = prop_def(SymbolNameConstraint())
-    regs = var_region_def()
-
-    traits = traits_def(SymbolOpInterface())
+    args = var_operand_def()
+    result_0 = var_result_def()
 
 
 @irdl_op_definition
@@ -1400,7 +2060,6 @@ class DivcOp(IRDLOperation):
     rhs = operand_def()
     fastmath = opt_prop_def(FastMathFlagsAttr)
     result = result_def()
-    regs = var_region_def()
 
 
 @irdl_op_definition
@@ -1429,10 +2088,12 @@ class DoLoopOp(IRDLOperation):
     step = operand_def()
     reduceOperands = var_operand_def()
     initArgs = var_operand_def()
-    finalValue = opt_prop_def()
-    initArgs = opt_operand_def()
+    unordered = opt_prop_def(UnitAttr)
+    finalValue = opt_prop_def(UnitAttr)
+    reduceAttrs = opt_prop_def(ArrayAttr)
+    loopAnnotation = opt_prop_def(Attribute)
     _results = var_result_def()
-    regs = var_region_def()
+    region = region_def("single_block")
 
     irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
@@ -1537,7 +2198,6 @@ class EmboxcharOp(IRDLOperation):
     memref = operand_def()
     len = operand_def()
     result_0 = result_def()
-    regs = var_region_def()
 
 
 @irdl_op_definition
@@ -1569,8 +2229,9 @@ class EmboxOp(IRDLOperation):
     slice = var_operand_def()
     typeparams = var_operand_def()
     sourceBox = var_operand_def()
+    accessMap = opt_prop_def(Attribute)
+    allocator_idx = opt_prop_def(IntegerAttr)
     result_0 = result_def()
-    regs = var_region_def()
 
     irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
@@ -1599,9 +2260,8 @@ class EmboxprocOp(IRDLOperation):
 
     name = "fir.emboxproc"
     func = operand_def()
-    host = operand_def()
+    host = opt_operand_def()
     result_0 = result_def()
-    regs = var_region_def()
 
 
 @irdl_op_definition
@@ -1623,9 +2283,8 @@ class ExtractValueOp(IRDLOperation):
 
     name = "fir.extract_value"
     adt = operand_def()
-    coor = opt_prop_def()
+    coor = prop_def(ArrayAttr)
     res = result_def()
-    regs = var_region_def()
 
 
 @irdl_op_definition
@@ -1642,9 +2301,10 @@ class FieldIndexOp(IRDLOperation):
     """
 
     name = "fir.field_index"
-    typeparams = operand_def()
+    field_id = prop_def(StringAttr)
+    on_type = prop_def()
+    typeparams = var_operand_def()
     res = result_def()
-    regs = var_region_def()
 
 
 @irdl_op_definition
@@ -1657,7 +2317,6 @@ class EndOp(IRDLOperation):
     """
 
     name = "fir.end"
-    regs = var_region_def()
 
     traits = traits_def(IsTerminator())
 
@@ -1678,23 +2337,6 @@ class FreememOp(IRDLOperation):
 
     name = "fir.freemem"
     heapref = operand_def()
-    regs = var_region_def()
-
-
-@irdl_op_definition
-class GentypedescOp(IRDLOperation):
-    """
-    Generates a constant object that is an abstract type descriptor of the
-    specified type.  The meta-type of a type descriptor for the type 'T'
-    is '!fir.tdesc<T>'.
-
-    !T = !fir.type<T{...}>
-    %t = fir.gentypedesc !T  // returns value of !fir.tdesc<!T>
-    """
-
-    name = "fir.gentypedesc"
-    res = result_def()
-    regs = var_region_def()
 
 
 @irdl_op_definition
@@ -1712,7 +2354,8 @@ class GlobalLenOp(IRDLOperation):
     """
 
     name = "fir.global_len"
-    regs = var_region_def()
+    lenparam = prop_def(StringAttr)
+    intval = prop_def(IntegerAttr)
 
 
 @irdl_op_definition
@@ -1737,7 +2380,7 @@ class GlobalOp(IRDLOperation):
     """
 
     name = "fir.global"
-    regs = var_region_def()
+    region = opt_region_def()
     sym_name = prop_def(SymbolNameConstraint())
     symref = prop_def(SymbolRefAttr)
     type = prop_def()
@@ -1748,7 +2391,7 @@ class GlobalOp(IRDLOperation):
     data_attr = opt_prop_def()
     alignment = opt_prop_def(IntegerAttr)
 
-    traits = traits_def(SymbolOpInterface())
+    traits = traits_def(SymbolOpInterface(), IsolatedFromAbove())
 
 
 @irdl_op_definition
@@ -1770,7 +2413,6 @@ class HasValueOp(IRDLOperation):
 
     name = "fir.has_value"
     resval = operand_def()
-    regs = var_region_def()
 
     traits = traits_def(IsTerminator())
 
@@ -1792,7 +2434,9 @@ class IfOp(IRDLOperation):
 
     name = "fir.if"
     condition = operand_def()
-    regs = var_region_def()
+    output = var_result_def()
+    then_region = region_def()
+    else_region = opt_region_def()
 
 
 @irdl_op_definition
@@ -1814,10 +2458,10 @@ class InsertOnRangeOp(IRDLOperation):
     """
 
     name = "fir.insert_on_range"
+    coor = prop_def()
     seq = operand_def()
     val = operand_def()
     result_0 = result_def()
-    regs = var_region_def()
 
 
 @irdl_op_definition
@@ -1842,9 +2486,8 @@ class InsertValueOp(IRDLOperation):
     name = "fir.insert_value"
     adt = operand_def()
     val = operand_def()
-    coor = opt_prop_def()
+    coor = prop_def(ArrayAttr)
     result_0 = result_def()
-    regs = var_region_def()
 
 
 @irdl_op_definition
@@ -1861,7 +2504,6 @@ class IsPresentOp(IRDLOperation):
     name = "fir.is_present"
     val = operand_def()
     result_0 = result_def()
-    regs = var_region_def()
 
 
 @irdl_op_definition
@@ -1892,13 +2534,14 @@ class IterateWhileOp(IRDLOperation):
     """
 
     name = "fir.iterate_while"
+    finalValue = opt_prop_def(UnitAttr)
     lowerBound = operand_def()
     upperBound = operand_def()
     step = operand_def()
     iterateIn = operand_def()
-    initArgs = operand_def()
+    initArgs = var_operand_def()
     _results = var_result_def()
-    regs = var_region_def()
+    region = region_def("single_block")
 
 
 @irdl_op_definition
@@ -1915,9 +2558,10 @@ class LenParamIndexOp(IRDLOperation):
     """
 
     name = "fir.len_param_index"
-    typeparams = operand_def()
+    field_id = prop_def(StringAttr)
+    on_type = prop_def()
+    typeparams = var_operand_def()
     res = result_def()
-    regs = var_region_def()
 
 
 @irdl_op_definition
@@ -1937,7 +2581,6 @@ class LoadOp(IRDLOperation):
     name = "fir.load"
     memref = operand_def()
     res = result_def()
-    regs = var_region_def()
 
 
 @irdl_op_definition
@@ -1947,7 +2590,6 @@ class MulcOp(IRDLOperation):
     rhs = operand_def()
     fastmath = opt_prop_def(FastMathFlagsAttr)
     result = result_def()
-    regs = var_region_def()
 
 
 @irdl_op_definition
@@ -1955,7 +2597,6 @@ class NegcOp(IRDLOperation):
     name = "fir.negc"
     operand = operand_def()
     result = result_def()
-    regs = var_region_def()
 
 
 @irdl_op_definition
@@ -1977,7 +2618,6 @@ class NoReassocOp(IRDLOperation):
     name = "fir.no_reassoc"
     val = operand_def()
     res = result_def()
-    regs = var_region_def()
 
 
 @irdl_op_definition
@@ -2013,11 +2653,10 @@ class ReboxOp(IRDLOperation):
     """
 
     name = "fir.rebox"
-    box = opt_operand_def()
+    box = operand_def()
     shape = opt_operand_def()
     slice = opt_operand_def()
     result_0 = result_def()
-    regs = var_region_def()
 
     irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
@@ -2032,7 +2671,20 @@ class ResultOp(IRDLOperation):
     """
 
     name = "fir.result"
-    regs = var_region_def()
+    _results = var_operand_def()
+
+    traits = traits_def(IsTerminator())
+
+
+@irdl_op_definition
+class YieldOp(IRDLOperation):
+    """
+    fir.yield yields SSA values from a fir dialect op region and terminates the
+    region. Used as the terminator for fir.local and fir.declare_reduction
+    bodies.
+    """
+
+    name = "fir.yield"
     _results = var_operand_def()
 
     traits = traits_def(IsTerminator())
@@ -2071,9 +2723,10 @@ class SaveResultOp(IRDLOperation):
     name = "fir.save_result"
     value = operand_def()
     memref = operand_def()
-    shape = operand_def()
-    typeparams = operand_def()
-    regs = var_region_def()
+    shape = opt_operand_def()
+    typeparams = var_operand_def()
+
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
 
 @irdl_op_definition
@@ -2095,9 +2748,13 @@ class SelectCaseOp(IRDLOperation):
 
     name = "fir.select_case"
     selector = operand_def()
-    compareArgs = operand_def()
-    targetArgs = operand_def()
-    regs = var_region_def()
+    compareArgs = var_operand_def()
+    targetArgs = var_operand_def()
+    case_tags = prop_def(ArrayAttr)
+    targets = var_successor_def()
+
+    traits = traits_def(IsTerminator())
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
 
 @irdl_op_definition
@@ -2119,9 +2776,13 @@ class SelectOp(IRDLOperation):
 
     name = "fir.select"
     selector = operand_def()
-    compareArgs = operand_def()
-    targetArgs = operand_def()
-    regs = var_region_def()
+    compareArgs = var_operand_def()
+    targetArgs = var_operand_def()
+    case_tags = prop_def(ArrayAttr)
+    targets = var_successor_def()
+
+    traits = traits_def(IsTerminator())
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
 
 @irdl_op_definition
@@ -2142,9 +2803,13 @@ class SelectRankOp(IRDLOperation):
 
     name = "fir.select_rank"
     selector = operand_def()
-    compareArgs = operand_def()
-    targetArgs = operand_def()
-    regs = var_region_def()
+    compareArgs = var_operand_def()
+    targetArgs = var_operand_def()
+    case_tags = prop_def(ArrayAttr)
+    targets = var_successor_def()
+
+    traits = traits_def(IsTerminator())
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
 
 @irdl_op_definition
@@ -2166,9 +2831,13 @@ class SelectTypeOp(IRDLOperation):
 
     name = "fir.select_type"
     selector = operand_def()
-    compareArgs = operand_def()
-    targetArgs = operand_def()
-    regs = var_region_def()
+    compareArgs = var_operand_def()
+    targetArgs = var_operand_def()
+    case_tags = prop_def(ArrayAttr)
+    targets = var_successor_def()
+
+    traits = traits_def(IsTerminator())
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
 
 @irdl_op_definition
@@ -2204,7 +2873,6 @@ class ShapeShiftOp(IRDLOperation):
     name = "fir.shape_shift"
     pairs = var_operand_def()
     result_0 = result_def()
-    regs = var_region_def()
 
 
 @irdl_op_definition
@@ -2222,7 +2890,6 @@ class ShiftOp(IRDLOperation):
     name = "fir.shift"
     origins = var_operand_def()
     result_0 = result_def()
-    regs = var_region_def()
 
 
 @irdl_op_definition
@@ -2254,11 +2921,12 @@ class SliceOp(IRDLOperation):
     """
 
     name = "fir.slice"
-    triples = operand_def()
-    fields = operand_def()
-    substr = operand_def()
+    triples = var_operand_def()
+    fields = var_operand_def()
+    substr = var_operand_def()
     result_0 = result_def()
-    regs = var_region_def()
+
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
 
 
 @irdl_op_definition
@@ -2280,7 +2948,6 @@ class StoreOp(IRDLOperation):
     name = "fir.store"
     value = operand_def()
     memref = operand_def()
-    regs = var_region_def()
 
 
 @irdl_op_definition
@@ -2298,7 +2965,8 @@ class StringLitOp(IRDLOperation):
 
     name = "fir.string_lit"
     size = attr_def(IntegerAttr[IntegerType])
-    value = attr_def(StringAttr)
+    value = opt_attr_def(StringAttr)
+    xlist = opt_attr_def(ArrayAttr)
     result_0 = result_def()
 
 
@@ -2309,7 +2977,6 @@ class SubcOp(IRDLOperation):
     rhs = operand_def()
     fastmath = opt_prop_def(FastMathFlagsAttr)
     result = result_def()
-    regs = var_region_def()
 
 
 @irdl_op_definition
@@ -2326,7 +2993,6 @@ class UnboxcharOp(IRDLOperation):
     boxchar = operand_def()
     result_0 = result_def()
     result_1 = result_def()
-    regs = var_region_def()
 
 
 @irdl_op_definition
@@ -2343,7 +3009,6 @@ class UnboxprocOp(IRDLOperation):
     boxproc = operand_def()
     result_0 = result_def()
     refTuple = result_def()
-    regs = var_region_def()
 
 
 @irdl_op_definition
@@ -2361,7 +3026,6 @@ class UndefinedOp(IRDLOperation):
 
     name = "fir.undefined"
     intype = result_def()
-    regs = var_region_def()
 
 
 @irdl_op_definition
@@ -2377,7 +3041,6 @@ class UnreachableOp(IRDLOperation):
     """
 
     name = "fir.unreachable"
-    regs = var_region_def()
 
     traits = traits_def(IsTerminator())
 
@@ -2395,7 +3058,238 @@ class ZeroBitsOp(IRDLOperation):
 
     name = "fir.zero_bits"
     intype = result_def()
-    regs = var_region_def()
+
+
+@irdl_op_definition
+class AssumedSizeExtentOp(IRDLOperation):
+    """Returns the magic extent value used for the last assumed-size dimension."""
+
+    name = "fir.assumed_size_extent"
+    result = result_def()
+
+
+@irdl_op_definition
+class BoxTotalElementsOp(IRDLOperation):
+    """Returns the total number of elements described by a Fortran descriptor."""
+
+    name = "fir.box_total_elements"
+    box = operand_def()
+    result = result_def()
+
+
+@irdl_op_definition
+class BoxTypeCodeOp(IRDLOperation):
+    """Returns the CFI type code stored in a descriptor."""
+
+    name = "fir.box_typecode"
+    box = operand_def()
+    result = result_def()
+
+
+@irdl_op_definition
+class CopyOp(IRDLOperation):
+    """Copy a Fortran entity from source to destination, with optional no-overlap promise."""
+
+    name = "fir.copy"
+    source = operand_def()
+    destination = operand_def()
+    no_overlap = opt_prop_def(UnitAttr)
+
+
+@irdl_op_definition
+class DeclareReductionOp(IRDLOperation):
+    """User-defined reduction declaration used by fir.do_concurrent.loop."""
+
+    name = "fir.declare_reduction"
+    sym_name = prop_def(SymbolNameConstraint())
+    type = prop_def()
+    byref_element_type = opt_prop_def()
+    allocRegion = opt_region_def()
+    initializerRegion = region_def()
+    reductionRegion = region_def()
+    atomicReductionRegion = region_def()
+    cleanupRegion = region_def()
+    dataPtrPtrRegion = region_def()
+
+    traits = traits_def(SymbolOpInterface(), IsolatedFromAbove())
+
+
+@irdl_op_definition
+class DoConcurrentOp(IRDLOperation):
+    """Wrapper region for a Fortran DO CONCURRENT loop nest."""
+
+    name = "fir.do_concurrent"
+    region = region_def("single_block")
+
+
+@irdl_op_definition
+class DoConcurrentLoopOp(IRDLOperation):
+    """Inner loop nest of a fir.do_concurrent."""
+
+    name = "fir.do_concurrent.loop"
+    lowerBound = var_operand_def()
+    upperBound = var_operand_def()
+    step = var_operand_def()
+    local_vars = var_operand_def()
+    reduce_vars = var_operand_def()
+    loopAnnotation = opt_prop_def(Attribute)
+    local_syms = opt_prop_def(ArrayAttr)
+    reduce_byref = opt_prop_def(Attribute)
+    reduce_syms = opt_prop_def(ArrayAttr)
+    reduce_attrs = opt_prop_def(ArrayAttr)
+    region = region_def("single_block")
+
+    irdl_options = (AttrSizedOperandSegments(as_property=True),)
+
+
+@irdl_op_definition
+class DTComponentOp(IRDLOperation):
+    """A component descriptor entry inside a fir.type_info."""
+
+    name = "fir.dt_component"
+    name_attr = prop_def(StringAttr, prop_name="name")
+    lower_bounds = opt_prop_def(Attribute)
+    init_val = opt_prop_def(SymbolRefAttr)
+
+
+@irdl_op_definition
+class IsAssumedSizeOp(IRDLOperation):
+    """True iff the box describes a Fortran assumed-size array."""
+
+    name = "fir.is_assumed_size"
+    val = operand_def()
+    result = result_def()
+
+
+@irdl_op_definition
+class IsAssumedSizeExtentOp(IRDLOperation):
+    """True iff the integer is the magic assumed-size extent value."""
+
+    name = "fir.is_assumed_size_extent"
+    val = operand_def()
+    result = result_def()
+
+
+@irdl_op_definition
+class IsContiguousBoxOp(IRDLOperation):
+    """Runtime predicate: is the box contiguous (optionally only innermost)?"""
+
+    name = "fir.is_contiguous_box"
+    box = operand_def()
+    innermost = opt_prop_def(UnitAttr)
+    result = result_def()
+
+
+@irdl_op_definition
+class LocalitySpecifierOp(IRDLOperation):
+    """LOCAL/LOCAL_INIT specifier for fir.do_concurrent."""
+
+    name = "fir.local"
+    sym_name = prop_def(SymbolNameConstraint())
+    type = prop_def()
+    locality_specifier_type = prop_def(LocalitySpecifierTypeAttr)
+    init_region = region_def()
+    copy_region = region_def()
+    dealloc_region = region_def()
+
+    traits = traits_def(SymbolOpInterface(), IsolatedFromAbove())
+
+
+@irdl_op_definition
+class PackArrayOp(IRDLOperation):
+    """Repack an array into a contiguous temporary."""
+
+    name = "fir.pack_array"
+    array = operand_def()
+    typeparams = var_operand_def()
+    stack = opt_prop_def(UnitAttr)
+    innermost = opt_prop_def(UnitAttr)
+    no_copy = opt_prop_def(UnitAttr)
+    max_size = opt_prop_def(IntegerAttr)
+    max_element_size = opt_prop_def(IntegerAttr)
+    min_stride = opt_prop_def(IntegerAttr)
+    heuristics = opt_prop_def(PackArrayHeuristicsAttr)
+    is_safe = opt_prop_def(ArrayAttr)
+    result = result_def()
+
+
+@irdl_op_definition
+class UnpackArrayOp(IRDLOperation):
+    """Inverse of fir.pack_array."""
+
+    name = "fir.unpack_array"
+    temp = operand_def()
+    original = operand_def()
+    stack = opt_prop_def(UnitAttr)
+    no_copy = opt_prop_def(UnitAttr)
+    is_safe = opt_prop_def(ArrayAttr)
+
+
+@irdl_op_definition
+class PrefetchOp(IRDLOperation):
+    """Cache prefetch hint for a memory reference."""
+
+    name = "fir.prefetch"
+    memref = operand_def()
+    rw = opt_prop_def(UnitAttr)
+    localityHint = prop_def(IntegerAttr)
+    cacheType = opt_prop_def(UnitAttr)
+
+
+@irdl_op_definition
+class ReboxAssumedRankOp(IRDLOperation):
+    """Rebox an assumed-rank descriptor with a different lower-bound modifier."""
+
+    name = "fir.rebox_assumed_rank"
+    box = operand_def()
+    lbs_modifier = prop_def(Attribute)
+    result = result_def()
+
+
+@irdl_op_definition
+class TypeDescOp(IRDLOperation):
+    """Get the SSA value of a derived type's runtime type descriptor."""
+
+    name = "fir.type_desc"
+    in_type = prop_def()
+    result = result_def()
+
+
+@irdl_op_definition
+class TypeInfoOp(IRDLOperation):
+    """Container for a derived type's dispatch table and component info."""
+
+    name = "fir.type_info"
+    sym_name = prop_def(SymbolNameConstraint())
+    type = prop_def()
+    parent_type = opt_prop_def()
+    abstract = opt_prop_def(UnitAttr)
+    no_init = opt_prop_def(UnitAttr)
+    no_destroy = opt_prop_def(UnitAttr)
+    no_final = opt_prop_def(UnitAttr)
+    dispatch_table = region_def()
+    component_info = region_def()
+
+    traits = traits_def(SymbolOpInterface(), IsolatedFromAbove())
+
+
+@irdl_op_definition
+class UseStmtOp(IRDLOperation):
+    """Marker for Fortran USE-association (debug-info only)."""
+
+    name = "fir.use_stmt"
+    module_name = prop_def(StringAttr)
+    only_symbols = opt_prop_def(ArrayAttr)
+    renames = opt_prop_def(ArrayAttr)
+
+
+@irdl_op_definition
+class VolatileCastOp(IRDLOperation):
+    """Cast that adds or drops the descriptor 'volatile' flag."""
+
+    name = "fir.volatile_cast"
+    value = operand_def()
+    res = result_def()
 
 
 FIR = Dialect(
@@ -2428,13 +3322,11 @@ FIR = Dialect(
         CallOp,
         CharConvertOp,
         CmpcOp,
-        ConstcOp,
         ConvertOp,
         CoordinateOfOp,
         DeclareOp,
         DtEntryOp,
         DispatchOp,
-        DispatchTableOp,
         DivcOp,
         DoLoopOp,
         DummyScopeOp,
@@ -2445,7 +3337,6 @@ FIR = Dialect(
         FieldIndexOp,
         EndOp,
         FreememOp,
-        GentypedescOp,
         GlobalLenOp,
         GlobalOp,
         HasValueOp,
@@ -2478,9 +3369,47 @@ FIR = Dialect(
         UndefinedOp,
         UnreachableOp,
         ZeroBitsOp,
+        AssumedSizeExtentOp,
+        BoxTotalElementsOp,
+        BoxTypeCodeOp,
+        CopyOp,
+        DeclareReductionOp,
+        DoConcurrentOp,
+        DoConcurrentLoopOp,
+        DTComponentOp,
+        IsAssumedSizeOp,
+        IsAssumedSizeExtentOp,
+        IsContiguousBoxOp,
+        LocalitySpecifierOp,
+        PackArrayOp,
+        UnpackArrayOp,
+        PrefetchOp,
+        ReboxAssumedRankOp,
+        TypeDescOp,
+        TypeInfoOp,
+        UseStmtOp,
+        VolatileCastOp,
+        YieldOp,
     ],
     [
         FortranVariableFlagsAttr,
+        FortranProcedureFlagsAttr,
+        FortranInlineFlagsAttr,
+        PackArrayHeuristicsAttr,
+        ReduceAttr,
+        LocationKindAttr,
+        LocationKindArrayAttr,
+        LocalitySpecifierTypeAttr,
+        UseRenameAttr,
+        OpenACCSafeTempArrayCopyAttr,
+        OpenMPSafeTempArrayCopyAttr,
+        PointAttr,
+        LowerAttr,
+        UpperAttr,
+        IntervalAttr,
+        ExactTypeAttr,
+        SubclassAttr,
+        RealAttr,
         ReferenceType,
         DeferredAttr,
         DummyScopeType,
@@ -2496,6 +3425,16 @@ FIR = Dialect(
         BoxType,
         BoxCharType,
         ShiftType,
-        ComplexType,
+        IntType,
+        UnsignedType,
+        ClassType,
+        BoxProcType,
+        FieldType,
+        LenType,
+        TypeDescType,
+        VoidType,
+        SliceType,
+        VectorType,
+        RecordType,
     ],
 )

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import Sequence
+from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
 
 from typing_extensions import Self
@@ -19,7 +19,13 @@ from xdsl.ir import (
 )
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
-from xdsl.traits import EffectInstance, MemoryEffect, MemoryEffectKind, Resource
+from xdsl.traits import (
+    EffectInstance,
+    MemoryEffect,
+    MemoryEffectKind,
+    Resource,
+    get_effects,
+)
 from xdsl.utils.exceptions import VerifyException
 
 
@@ -27,10 +33,41 @@ from xdsl.utils.exceptions import VerifyException
 class RegisterType(ParametrizedAttribute, TypeAttribute, ABC):
     """
     An abstract register type for target ISA-specific dialects.
+
+    Registers have a name, as used in assembly, and an index as used in the binary
+    encoding.
+
+    Some approaches for register allocation have stages where values are assigned to a
+    fixed set of registers that is distinct from the registers that exist on a target
+    platform, to separate the graph coloring from roles of registers in the target ABI.
+    In order to support this scenario, negative indices are allowed in the index,
+    denoting an infinite register set without any representation in the ABI.
+    These are printed with a prefix as defined by the `infinite_register_prefix`
+    class method, which must not be a prefix of any of the register names defined by
+    the `index_by_name` class method.
     """
 
     index: IntAttr | NoneAttr
     register_name: StringAttr
+
+    def __init_subclass__(cls) -> None:
+        # Detect register names clashing with the infinite register prefix
+        try:
+            prefix = cls.infinite_register_prefix()
+            names = cls.index_by_name()
+        except NotImplementedError:
+            # Skip for abstract subclasses
+            return
+
+        clashing_register_names = tuple(
+            register_name for register_name in names if register_name.startswith(prefix)
+        )
+
+        if clashing_register_names:
+            raise ValueError(
+                f"Infinite register prefix '{prefix}' clashes with register names "
+                f"{list(clashing_register_names)}."
+            )
 
     @classmethod
     def unallocated(cls) -> Self:
@@ -146,6 +183,14 @@ class RegisterType(ParametrizedAttribute, TypeAttribute, ABC):
         return ()
 
     @classmethod
+    def register_pool_key(cls) -> str:
+        """
+        Pool key used when allocating unallocated values of this type and for infinite
+        spill registers. Defaults to the dialect type name (``cls.name``).
+        """
+        return cls.name
+
+    @classmethod
     @abstractmethod
     def index_by_name(cls) -> dict[str, int]:
         raise NotImplementedError()
@@ -219,3 +264,33 @@ class RegisterAllocatedMemoryEffect(MemoryEffect):
                     EffectInstance(MemoryEffectKind.READ, resource=RegisterResource(r))
                 )
         return effects
+
+    @staticmethod
+    def iter_used_registers(op: Operation) -> Iterator[RegisterType]:
+        """
+        Iterator over the registers read from or written to according to the operation's
+        memory effects with resource `RegisterResource`.
+        """
+        effects = get_effects(op)
+        if effects is not None:
+            yield from (
+                resource.register
+                for effect in effects
+                if isinstance(resource := effect.resource, RegisterResource)
+            )
+
+        # Include registers from deprecated call:
+        import warnings
+
+        from xdsl.backend.register_allocatable import RegisterAllocatableOperation
+
+        if isinstance(op, RegisterAllocatableOperation) and (
+            type(op).iter_used_registers  # pyright: ignore[reportDeprecated]
+            is not RegisterAllocatableOperation.iter_used_registers  # pyright: ignore[reportDeprecated]
+        ):
+            warnings.warn(
+                "RegisterAllocatableOperation.iter_used_registers is "
+                "deprecated, use register effects instead.",
+                DeprecationWarning,
+            )
+            yield from op.iter_used_registers()  # pyright: ignore[reportDeprecated]

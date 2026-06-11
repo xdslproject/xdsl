@@ -2,13 +2,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from io import StringIO
-from typing import NoReturn
+from typing import ClassVar, NoReturn
 
 from xdsl.ir import Block, IRNode, Operation, Region
 
 
 @dataclass
 class Diagnostic:
+    colored: ClassVar = False
     op_messages: dict[Operation, list[str]] = field(
         default_factory=dict[Operation, list[str]]
     )
@@ -19,10 +20,13 @@ class Diagnostic:
 
     def raise_exception(self, ir: IRNode, underlying_error: Exception) -> NoReturn:
         """Raise an exception, that will also print all messages in the IR."""
-        from xdsl.printer import Printer
+        if self.colored:
+            from xdsl.syntax_printer import SyntaxPrinter as DiagnosticPrinter
+        else:
+            from xdsl.printer import Printer as DiagnosticPrinter
 
         f = StringIO()
-        p = Printer(stream=f, diagnostic=self, print_generic_format=True)
+        p = DiagnosticPrinter(stream=f, diagnostic=self, print_generic_format=True)
         toplevel = ir.get_toplevel_object()
         match toplevel:
             case Operation():

@@ -31,25 +31,30 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from collections.abc import Set as AbstractSet
+from dataclasses import dataclass
 from io import StringIO
 from typing import IO, ClassVar, Generic, Literal, TypeAlias, cast
 
 from typing_extensions import Self, TypeVar
 
-from xdsl.backend.assembly_printer import AssemblyPrinter, OneLineAssemblyPrintable
+from xdsl.backend.assembly_printer import AssemblyPrinter, OneLineAssemblyPrintable, reg
 from xdsl.backend.register_allocatable import (
     HasRegisterConstraints,
     RegisterConstraints,
 )
 from xdsl.backend.register_type import RegisterAllocatedMemoryEffect
+from xdsl.context import Context
 from xdsl.dialects.builtin import (
+    I64,
     ArrayAttr,
     IntegerAttr,
     IntegerType,
     ModuleOp,
+    NoneAttr,
     Signedness,
     StringAttr,
     UnitAttr,
+    i64,
 )
 from xdsl.ir import (
     Attribute,
@@ -80,26 +85,25 @@ from xdsl.parser import Parser, UnresolvedOperand
 from xdsl.pattern_rewriter import RewritePattern
 from xdsl.printer import Printer
 from xdsl.traits import (
+    AlwaysSpeculatable,
     HasCanonicalizationPatternsTrait,
     IsTerminator,
     MemoryReadEffect,
     MemoryWriteEffect,
-    Pure,
+    NoMemoryEffect,
 )
 from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.target import Target
 
 from .assembly import (
     AssemblyInstructionArg,
     assembly_arg_str,
+    masked_memory_access_str,
     masked_source_str,
     memory_access_str,
-    parse_immediate_value,
-    parse_optional_immediate_value,
     parse_type_pair,
-    print_immediate_value,
     print_type_pair,
 )
-from .attributes import LabelAttr
 from .registers import (
     RAX,
     RDX,
@@ -108,6 +112,7 @@ from .registers import (
     AVX512MaskRegisterType,
     AVX512RegisterType,
     GeneralRegisterType,
+    Reg32Type,
     RFLAGSRegisterType,
     X86RegisterType,
     X86VectorRegisterType,
@@ -138,8 +143,6 @@ class X86RegallocOperation(IRDLOperation, HasRegisterConstraints, ABC):
     Base class for operations that can take part in register allocation.
     """
 
-    traits = traits_def(RegisterAllocatedMemoryEffect())
-
     def get_register_constraints(self) -> RegisterConstraints:
         # The default register constraints are that all operands are "in", and all
         # results are "out" registers.
@@ -164,15 +167,6 @@ class X86CustomFormatOperation(IRDLOperation, ABC):
             result_types=result_types,
             attributes=attributes,
             regions=regions,
-        )
-
-    @classmethod
-    def parse_optional_memory_access_offset(
-        cls, parser: Parser, integer_type: IntegerType = si64
-    ) -> Attribute | None:
-        return parse_optional_immediate_value(
-            parser,
-            integer_type,
         )
 
     @classmethod
@@ -238,6 +232,8 @@ class X86Instruction(X86AsmOperation, X86RegallocOperation):
     The name of the operation will be used as the x86 assembly instruction name.
     """
 
+    traits = traits_def(RegisterAllocatedMemoryEffect())
+
     comment = opt_attr_def(StringAttr)
     """
     An optional comment that will be printed along with the instruction.
@@ -279,7 +275,7 @@ class RS_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT]):
     """
 
     register_in = operand_def(R1InvT)
-    register_out = result_def(R1InvT)
+    register_out: OpResult[R1InvT] = result_def(R1InvT)
 
     source = operand_def(R2InvT)
 
@@ -311,7 +307,7 @@ class RS_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT]):
         )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
-        return self.register_in, self.source
+        return reg(self.register_in), reg(self.source)
 
     def get_register_constraints(self) -> RegisterConstraints:
         return RegisterConstraints(
@@ -351,7 +347,7 @@ class DS_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT]):
         )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
-        return (self.destination, self.source)
+        return (reg(self.destination), reg(self.source))
 
 
 class DSK_Operation(X86Instruction, ABC):
@@ -393,7 +389,79 @@ class DSK_Operation(X86Instruction, ABC):
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
         register_out = masked_source_str(self.destination, self.mask_reg, self.z)
-        return register_out, self.source
+        return register_out, reg(self.source)
+
+
+class DK_Operation(
+    X86Instruction, X86CustomFormatOperation, HasRegisterConstraints, ABC
+):
+    """
+    A base class for x86 operations that have one general purpose destination register
+    and one writemask source register.
+    """
+
+    destination: OpResult[GeneralRegisterType] = result_def(GeneralRegisterType)
+    source = operand_def(AVX512MaskRegisterType)
+
+    def __init__(
+        self,
+        source: Operation | SSAValue,
+        *,
+        comment: str | StringAttr | None = None,
+        destination: GeneralRegisterType,
+    ):
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            operands=(source,),
+            attributes={
+                "comment": comment,
+            },
+            result_types=(destination,),
+        )
+
+    def get_register_constraints(self) -> RegisterConstraints:
+        return RegisterConstraints((self.source,), (self.destination,), ())
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        return reg(self.destination), reg(self.source)
+
+
+class KS_Operation(
+    X86Instruction, X86CustomFormatOperation, HasRegisterConstraints, ABC
+):
+    """
+    A base class for x86 operations that have one general purpose destination register
+    and one writemask source register.
+    """
+
+    destination: OpResult[AVX512MaskRegisterType] = result_def(AVX512MaskRegisterType)
+    source = operand_def(GeneralRegisterType)
+
+    def __init__(
+        self,
+        source: Operation | SSAValue,
+        *,
+        comment: str | StringAttr | None = None,
+        destination: AVX512MaskRegisterType,
+    ):
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            operands=(source,),
+            attributes={
+                "comment": comment,
+            },
+            result_types=(destination,),
+        )
+
+    def get_register_constraints(self) -> RegisterConstraints:
+        return RegisterConstraints((self.source,), (self.destination,), ())
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        return reg(self.destination), reg(self.source)
 
 
 class R_Operation(X86Instruction, ABC, Generic[R1InvT]):
@@ -402,7 +470,7 @@ class R_Operation(X86Instruction, ABC, Generic[R1InvT]):
     """
 
     register_in = operand_def(R1InvT)
-    register_out = result_def(R1InvT)
+    register_out: OpResult[R1InvT] = result_def(R1InvT)
 
     assembly_format = (
         "$register_in attr-dict `:` `(` type($register_in) `)` `->` type($register_out)"
@@ -428,39 +496,42 @@ class R_Operation(X86Instruction, ABC, Generic[R1InvT]):
         )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
-        return (self.register_in,)
+        return (reg(self.register_in),)
 
     def get_register_constraints(self) -> RegisterConstraints:
         return RegisterConstraints((), (), ((self.register_in, self.register_out),))
 
 
-class RM_Operation(
-    X86Instruction, X86CustomFormatOperation, ABC, Generic[R1InvT, R2InvT]
-):
+class RM_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT]):
     """
     A base class for x86 operations that have one register read and written to and one
     memory access with an optional offset.
     """
 
     register_in = operand_def(R1InvT)
-    register_out = result_def(R1InvT)
+    register_out: OpResult[R1InvT] = result_def(R1InvT)
 
     memory = operand_def(R2InvT)
-    memory_offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
+    memory_offset = attr_def(IntegerAttr[I64], default_value=IntegerAttr(0, i64))
 
     traits = traits_def(MemoryReadEffect())
+
+    assembly_format = (
+        "$register_in `,` `[` $memory (`+` $memory_offset^)? `]` attr-dict `:` "
+        "`(` type($register_in) `,` type($memory) `)` `->` type($register_out)"
+    )
 
     def __init__(
         self,
         register_in: Operation | SSAValue,
         memory: Operation | SSAValue,
-        memory_offset: int | IntegerAttr,
+        memory_offset: int | IntegerAttr[I64],
         *,
         comment: str | StringAttr | None = None,
         register_out: R1InvT | None = None,
     ):
         if isinstance(memory_offset, int):
-            memory_offset = IntegerAttr(memory_offset, 64)
+            memory_offset = IntegerAttr(memory_offset, i64)
         if isinstance(comment, str):
             comment = StringAttr(comment)
         register_in = SSAValue.get(register_in)
@@ -478,20 +549,8 @@ class RM_Operation(
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
         memory_access = memory_access_str(self.memory, self.memory_offset)
-        destination = assembly_arg_str(self.register_in)
+        destination = assembly_arg_str(reg(self.register_in))
         return (destination, memory_access)
-
-    @classmethod
-    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
-        attributes = dict[str, Attribute]()
-        if offset := cls.parse_optional_memory_access_offset(parser):
-            attributes["memory_offset"] = offset
-        return attributes
-
-    def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
-        printer.print_string(", ")
-        print_immediate_value(printer, self.memory_offset)
-        return {"memory_offset"}
 
     def get_register_constraints(self) -> RegisterConstraints:
         return RegisterConstraints(
@@ -509,20 +568,23 @@ class DM_OperationHasCanonicalizationPatterns(HasCanonicalizationPatternsTrait):
         return (DM_Operation_ConstantOffset(),)
 
 
-class DM_Operation(
-    X86Instruction, X86CustomFormatOperation, ABC, Generic[R1InvT, R2InvT]
-):
+class DM_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT]):
     """
     A base class for x86 operations that load from memory into a destination register.
     """
 
-    destination = result_def(R1InvT)
+    destination: OpResult[R1InvT] = result_def(R1InvT)
     memory = operand_def(R2InvT)
-    memory_offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
+    memory_offset = attr_def(IntegerAttr[I64], default_value=IntegerAttr(0, i64))
 
     traits = traits_def(
         DM_OperationHasCanonicalizationPatterns(),
         MemoryReadEffect(),
+    )
+
+    assembly_format = (
+        "` ` `[` $memory (`+` $memory_offset^)? `]` attr-dict `:` "
+        "functional-type($memory, $destination)"
     )
 
     def __init__(
@@ -534,7 +596,7 @@ class DM_Operation(
         destination: R1InvT,
     ):
         if isinstance(memory_offset, int):
-            memory_offset = IntegerAttr(memory_offset, 64)
+            memory_offset = IntegerAttr(memory_offset, i64)
         if isinstance(comment, str):
             comment = StringAttr(comment)
         super().__init__(
@@ -548,23 +610,63 @@ class DM_Operation(
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
         memory_access = memory_access_str(self.memory, self.memory_offset)
-        destination = assembly_arg_str(self.destination)
+        destination = assembly_arg_str(reg(self.destination))
         return (destination, memory_access)
 
-    @classmethod
-    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
-        attributes = dict[str, Attribute]()
-        if offset := cls.parse_optional_memory_access_offset(parser):
-            attributes["memory_offset"] = offset
-        return attributes
 
-    def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
-        printer.print_string(", ")
-        print_immediate_value(printer, self.memory_offset)
-        return {"memory_offset"}
+class DMK_Operation(X86Instruction, ABC, Generic[R1InvT]):
+    """
+    A base class for x86 AVX512 operations that have one destination register d that is
+    written to, a source register m that contains a pointer, a constant offset, and a
+    mask register k. The z attribute enables zero masking, which sets the elements of
+    the destination register to zero where the corresponding bit in the mask is zero.
+    """
+
+    destination = result_def(AVX512RegisterType)
+    memory = operand_def(R1InvT)
+    memory_offset = attr_def(IntegerAttr[I64], default_value=IntegerAttr(0, i64))
+    mask_reg = operand_def(AVX512MaskRegisterType)
+    z = opt_attr_def(UnitAttr)
+
+    traits = traits_def(MemoryReadEffect())
+
+    assembly_format = (
+        "`[` $memory (`+` $memory_offset^)? `]` `,` $mask_reg attr-dict `:` "
+        "`(` type($memory) `,` type($mask_reg) `)` `->` type($destination)"
+    )
+
+    def __init__(
+        self,
+        memory: Operation | SSAValue,
+        mask_reg: Operation | SSAValue,
+        memory_offset: int | IntegerAttr,
+        *,
+        z: bool = False,
+        comment: str | StringAttr | None = None,
+        destination: AVX512RegisterType,
+    ):
+        if isinstance(memory_offset, int):
+            memory_offset = IntegerAttr(memory_offset, i64)
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            operands=(memory, mask_reg),
+            attributes={
+                "memory_offset": memory_offset,
+                "z": UnitAttr() if z else None,
+                "comment": comment,
+            },
+            result_types=(destination,),
+        )
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        memory_access = memory_access_str(self.memory, self.memory_offset)
+        destination = masked_source_str(self.destination, self.mask_reg, self.z)
+        return (destination, memory_access)
 
 
-class DI_Operation(X86Instruction, X86CustomFormatOperation, ABC, Generic[R1InvT]):
+class DI_Operation(X86Instruction, ABC, Generic[R1InvT]):
     """
     A base class for x86 operations that have one destination register and an immediate
     value.
@@ -573,7 +675,9 @@ class DI_Operation(X86Instruction, X86CustomFormatOperation, ABC, Generic[R1InvT
     # In the future, we should look into the legal bitwidths in the binary
     # representation.
     immediate = attr_def(IntegerAttr[SI32])
-    destination = result_def(R1InvT)
+    destination: OpResult[R1InvT] = result_def(R1InvT)
+
+    assembly_format = "$immediate attr-dict `:` `(` `)` `->` type($destination)"
 
     def __init__(
         self,
@@ -596,30 +700,26 @@ class DI_Operation(X86Instruction, X86CustomFormatOperation, ABC, Generic[R1InvT
         )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
-        return self.destination, self.immediate
-
-    @classmethod
-    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
-        return {"immediate": parse_immediate_value(parser, si32)}
-
-    def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
-        printer.print_string(" ", indent=0)
-        print_immediate_value(printer, self.immediate)
-        return {"immediate"}
+        return reg(self.destination), self.immediate
 
 
-class RI_Operation(X86Instruction, X86CustomFormatOperation, ABC, Generic[R1InvT]):
+class RI_Operation(X86Instruction, ABC, Generic[R1InvT]):
     """
     A base class for x86 operations that have one register that is read and written to
     and an immediate value.
     """
 
     register_in = operand_def(R1InvT)
-    register_out = result_def(R1InvT)
+    register_out: OpResult[R1InvT] = result_def(R1InvT)
 
     # In the future, we should look into the legal bitwidths in the binary
     # representation.
     immediate = attr_def(IntegerAttr[SI32])
+
+    assembly_format = (
+        "$register_in `,` $immediate attr-dict `:` "
+        "`(` type($register_in) `)` `->` type($register_out)"
+    )
 
     def __init__(
         self,
@@ -647,20 +747,7 @@ class RI_Operation(X86Instruction, X86CustomFormatOperation, ABC, Generic[R1InvT
         )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
-        return self.register_in, self.immediate
-
-    @classmethod
-    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
-        attributes = dict[str, Attribute]()
-        temp = parse_optional_immediate_value(parser, si32)
-        if temp is not None:
-            attributes["immediate"] = temp
-        return attributes
-
-    def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
-        printer.print_string(", ")
-        print_immediate_value(printer, self.immediate)
-        return {"immediate"}
+        return reg(self.register_in), self.immediate
 
     def get_register_constraints(self) -> RegisterConstraints:
         return RegisterConstraints((), (), ((self.register_in, self.register_out),))
@@ -676,16 +763,14 @@ class MS_OperationHasCanonicalizationPatterns(HasCanonicalizationPatternsTrait):
         return (MS_Operation_ConstantOffset(),)
 
 
-class MS_Operation(
-    X86Instruction, X86CustomFormatOperation, ABC, Generic[R1InvT, R2InvT]
-):
+class MS_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT]):
     """
     A base class for x86 operations that have one memory reference and one source
     register.
     """
 
     memory = operand_def(R1InvT)
-    memory_offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
+    memory_offset = attr_def(IntegerAttr[I64], default_value=IntegerAttr(0, i64))
     source = operand_def(R2InvT)
 
     traits = traits_def(
@@ -694,16 +779,21 @@ class MS_Operation(
         MemoryWriteEffect(),
     )
 
+    assembly_format = (
+        "` ` `[` $memory (`+` $memory_offset^)? `]` `,` $source attr-dict `:` "
+        "`(` type($memory) `,` type($source) `)` `->` `(` `)`"
+    )
+
     def __init__(
         self,
         memory: Operation | SSAValue,
         source: Operation | SSAValue,
-        memory_offset: int | IntegerAttr,
+        memory_offset: int | IntegerAttr[I64],
         *,
         comment: str | StringAttr | None = None,
     ):
         if isinstance(memory_offset, int):
-            memory_offset = IntegerAttr(memory_offset, 64)
+            memory_offset = IntegerAttr(memory_offset, i64)
         if isinstance(comment, str):
             comment = StringAttr(comment)
 
@@ -718,22 +808,66 @@ class MS_Operation(
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
         memory_access = memory_access_str(self.memory, self.memory_offset)
-        return memory_access, self.source
-
-    @classmethod
-    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
-        attributes = dict[str, Attribute]()
-        if offset := cls.parse_optional_memory_access_offset(parser):
-            attributes["memory_offset"] = offset
-        return attributes
-
-    def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
-        printer.print_string(", ")
-        print_immediate_value(printer, self.memory_offset)
-        return {"memory_offset"}
+        return memory_access, reg(self.source)
 
 
-class MI_Operation(X86Instruction, X86CustomFormatOperation, ABC, Generic[R1InvT]):
+class MSK_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT]):
+    """
+    A base class for x86 AVX512 operations that have one destination register that is
+    written to, a memory operand (with optional offset), a source register, and a mask
+    register. The z attribute enables zero-masking, which sets the elements of the
+    destination register to zero where the mask is zero.
+
+    Typical usage: d[k] := op([m+offset], s)
+    where d is the destination AVX512 register, [m+offset] is the memory location
+    addressed by the base register and offset, s is the source register, and k is the mask.
+    """
+
+    memory = operand_def(R1InvT)
+    memory_offset = attr_def(IntegerAttr[I64], default_value=IntegerAttr(0, i64))
+    source = operand_def(R2InvT)
+    mask_reg = operand_def(AVX512MaskRegisterType)
+    z = opt_attr_def(UnitAttr)
+
+    traits = traits_def(MemoryWriteEffect())
+
+    assembly_format = (
+        "`[` $memory (`+` $memory_offset^)? `]` `,` $source `,` $mask_reg attr-dict `:` "
+        "`(` type($memory) `,` type($source) `,` type($mask_reg) `)` `->` `(` `)`"
+    )
+
+    def __init__(
+        self,
+        memory: Operation | SSAValue,
+        source: Operation | SSAValue,
+        mask_reg: Operation | SSAValue,
+        memory_offset: int | IntegerAttr,
+        *,
+        z: bool = False,
+        comment: str | StringAttr | None = None,
+    ):
+        if isinstance(memory_offset, int):
+            memory_offset = IntegerAttr(memory_offset, i64)
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            operands=[memory, source, mask_reg],
+            attributes={
+                "memory_offset": memory_offset,
+                "z": UnitAttr() if z else None,
+                "comment": comment,
+            },
+        )
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        masked_mem = masked_memory_access_str(
+            self.memory, self.memory_offset, self.mask_reg, self.z
+        )
+        return (masked_mem, reg(self.source))
+
+
+class MI_Operation(X86Instruction, ABC, Generic[R1InvT]):
     """
     A base class for x86 operations that have one memory reference and an immediate
     value.
@@ -746,6 +880,11 @@ class MI_Operation(X86Instruction, X86CustomFormatOperation, ABC, Generic[R1InvT
     immediate = attr_def(IntegerAttr[SI32])
 
     traits = traits_def(MemoryReadEffect(), MemoryWriteEffect())
+
+    assembly_format = (
+        "` ` `[` $memory (`+` $memory_offset^)? `]` `,` $immediate attr-dict `:` "
+        "`(` type($memory) `)` `->` `(` `)`"
+    )
 
     def __init__(
         self,
@@ -777,38 +916,23 @@ class MI_Operation(X86Instruction, X86CustomFormatOperation, ABC, Generic[R1InvT
         memory_access = memory_access_str(self.memory, self.memory_offset)
         return memory_access, immediate
 
-    @classmethod
-    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
-        attributes = dict[str, Attribute]()
-        temp = parse_immediate_value(parser, si32)
-        attributes["immediate"] = temp
-        if parser.parse_optional_punctuation(",") is not None:
-            if offset := cls.parse_optional_memory_access_offset(parser):
-                attributes["memory_offset"] = offset
-        return attributes
 
-    def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
-        printer.print_string(", ")
-        print_immediate_value(printer, self.immediate)
-        if self.memory_offset.value.data != 0:
-            printer.print_string(", ")
-            print_immediate_value(printer, self.memory_offset)
-        return {"immediate", "memory_offset"}
-
-
-class DSI_Operation(
-    X86Instruction, X86CustomFormatOperation, ABC, Generic[R1InvT, R2InvT]
-):
+class DSI_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT]):
     """
     A base class for x86 operations that have one destination register, one source
     register and an immediate value.
     """
 
-    destination = result_def(R1InvT)
+    destination: OpResult[R1InvT] = result_def(R1InvT)
     source = operand_def(R2InvT)
     # In the future, we should look into the legal bitwidths in the binary
     # representation.
     immediate = attr_def(IntegerAttr[SI32])
+
+    assembly_format = (
+        "$source `,` $immediate attr-dict `:` "
+        "`(` type($source) `)` `->` type($destination)"
+    )
 
     def __init__(
         self,
@@ -833,36 +957,27 @@ class DSI_Operation(
         )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
-        return self.destination, self.source, self.immediate
-
-    @classmethod
-    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
-        attributes = dict[str, Attribute]()
-        temp = parse_immediate_value(parser, si32)
-        attributes["immediate"] = temp
-        return attributes
-
-    def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
-        printer.print_string(", ")
-        print_immediate_value(printer, self.immediate)
-        return {"immediate"}
+        return reg(self.destination), reg(self.source), self.immediate
 
 
-class DMI_Operation(
-    X86Instruction, X86CustomFormatOperation, ABC, Generic[R1InvT, R2InvT]
-):
+class DMI_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT]):
     """
     A base class for x86 operations that have one destination register, one memory
     reference and an immediate value.
     """
 
-    destination = result_def(R1InvT)
+    destination: OpResult[R1InvT] = result_def(R1InvT)
     memory = operand_def(R2InvT)
     # In the future, we should look into the legal bitwidths in the binary
     # representation.
     memory_offset = attr_def(IntegerAttr[SI64], default_value=IntegerAttr(0, si64))
     immediate = attr_def(IntegerAttr[SI32])
     traits = traits_def(MemoryReadEffect())
+
+    assembly_format = (
+        "` ` `[` $memory (`+` $memory_offset^)? `]` `,` $immediate attr-dict `:` "
+        "`(` type($memory) `)` `->` type($destination)"
+    )
 
     def __init__(
         self,
@@ -891,31 +1006,13 @@ class DMI_Operation(
         )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
-        destination = assembly_arg_str(self.destination)
+        destination = assembly_arg_str(reg(self.destination))
         immediate = assembly_arg_str(self.immediate)
         memory_access = memory_access_str(self.memory, self.memory_offset)
         return destination, memory_access, immediate
 
-    @classmethod
-    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
-        attributes = dict[str, Attribute]()
-        temp = parse_immediate_value(parser, si32)
-        attributes["immediate"] = temp
-        if parser.parse_optional_punctuation(",") is not None:
-            if offset := cls.parse_optional_memory_access_offset(parser):
-                attributes["memory_offset"] = offset
-        return attributes
 
-    def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
-        printer.print_string(", ")
-        print_immediate_value(printer, self.immediate)
-        if self.memory_offset.value.data != 0:
-            printer.print_string(", ")
-            print_immediate_value(printer, self.memory_offset)
-        return {"immediate", "memory_offset"}
-
-
-class M_Operation(X86Instruction, X86CustomFormatOperation, ABC, Generic[R1InvT]):
+class M_Operation(X86Instruction, ABC, Generic[R1InvT]):
     """
     A base class for x86 operations with a memory reference.
     """
@@ -923,6 +1020,11 @@ class M_Operation(X86Instruction, X86CustomFormatOperation, ABC, Generic[R1InvT]
     memory = operand_def(R1InvT)
     memory_offset = attr_def(IntegerAttr[SI64], default_value=IntegerAttr(0, si64))
     traits = traits_def(MemoryWriteEffect(), MemoryReadEffect())
+
+    assembly_format = (
+        "` ` `[` $memory (`+` $memory_offset^)? `]` attr-dict `:` "
+        "`(` type($memory) `)` `->` `(` `)`"
+    )
 
     def __init__(
         self,
@@ -948,18 +1050,6 @@ class M_Operation(X86Instruction, X86CustomFormatOperation, ABC, Generic[R1InvT]
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
         memory_access = memory_access_str(self.memory, self.memory_offset)
         return (memory_access,)
-
-    @classmethod
-    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
-        attributes = dict[str, Attribute]()
-        if offset := cls.parse_optional_memory_access_offset(parser):
-            attributes["memory_offset"] = offset
-        return attributes
-
-    def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
-        printer.print_string(", ")
-        print_immediate_value(printer, self.memory_offset)
-        return {"memory_offset"}
 
 
 class ConditionalJumpOperation(X86Instruction, X86CustomFormatOperation, ABC):
@@ -1097,7 +1187,7 @@ class RSS_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT, R3InvT]):
     """
 
     register_in = operand_def(R1InvT)
-    register_out = result_def(R1InvT)
+    register_out: OpResult[R1InvT] = result_def(R1InvT)
     source1 = operand_def(R2InvT)
     source2 = operand_def(R3InvT)
 
@@ -1130,7 +1220,11 @@ class RSS_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT, R3InvT]):
         )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
-        return self.register_in, self.source1, self.source2
+        return (
+            reg(self.register_in),
+            reg(self.source1),
+            reg(self.source2),
+        )
 
     def get_register_constraints(self) -> RegisterConstraints:
         return RegisterConstraints(
@@ -1188,7 +1282,7 @@ class RSSK_Operation(X86Instruction, ABC):
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
         register_in = masked_source_str(self.register_in, self.mask_reg, self.z)
-        return register_in, self.source1, self.source2
+        return register_in, reg(self.source1), reg(self.source2)
 
     def get_register_constraints(self) -> RegisterConstraints:
         return RegisterConstraints(
@@ -1204,7 +1298,7 @@ class DSS_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT, R3InvT]):
     registers.
     """
 
-    destination = result_def(R1InvT)
+    destination: OpResult[R1InvT] = result_def(R1InvT)
     source1 = operand_def(R2InvT)
     source2 = operand_def(R3InvT)
 
@@ -1233,7 +1327,7 @@ class DSS_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT, R3InvT]):
         )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
-        return self.destination, self.source1, self.source2
+        return reg(self.destination), reg(self.source1), reg(self.source2)
 
     def get_register_constraints(self) -> RegisterConstraints:
         return RegisterConstraints(
@@ -1241,21 +1335,25 @@ class DSS_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT, R3InvT]):
         )
 
 
-class RSM_Operation(
-    X86Instruction, X86CustomFormatOperation, ABC, Generic[R1InvT, R2InvT, R4InvT]
-):
+class RSM_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT, R4InvT]):
     """
     A base class for x86 operations that have one register that is read and written to,
     one source register and one memory source operand.
     """
 
     register_in = operand_def(R1InvT)
-    register_out = result_def(R1InvT)
+    register_out: OpResult[R1InvT] = result_def(R1InvT)
     source1 = operand_def(R2InvT)
     memory = operand_def(R4InvT)
     memory_offset = attr_def(IntegerAttr[SI64], default_value=IntegerAttr(0, si64))
 
     traits = traits_def(MemoryReadEffect())
+
+    assembly_format = (
+        "$register_in `,` $source1 `,` `[` $memory (`+` $memory_offset^)? `]` attr-dict `:` "
+        "`(` type($register_in) `,` type($source1) `,` type($memory) `)` "
+        "`->` type($register_out)"
+    )
 
     def __init__(
         self,
@@ -1286,21 +1384,9 @@ class RSM_Operation(
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
         memory_access = memory_access_str(self.memory, self.memory_offset)
-        src1 = assembly_arg_str(self.source1)
-        destination = assembly_arg_str(self.register_in)
+        src1 = reg(self.source1)
+        destination = reg(self.register_in)
         return destination, src1, memory_access
-
-    @classmethod
-    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
-        attributes = dict[str, Attribute]()
-        if offset := cls.parse_optional_memory_access_offset(parser):
-            attributes["memory_offset"] = offset
-        return attributes
-
-    def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
-        printer.print_string(", ")
-        print_immediate_value(printer, self.memory_offset)
-        return {"memory_offset"}
 
     def get_register_constraints(self) -> RegisterConstraints:
         return RegisterConstraints(
@@ -1308,18 +1394,21 @@ class RSM_Operation(
         )
 
 
-class DSSI_Operation(
-    X86Instruction, X86CustomFormatOperation, ABC, Generic[R1InvT, R2InvT, R3InvT]
-):
+class DSSI_Operation(X86Instruction, ABC, Generic[R1InvT, R2InvT, R3InvT]):
     """
     A base class for x86 operations that have one destination register, one source
     register and an immediate value.
     """
 
-    destination = result_def(R1InvT)
+    destination: OpResult[R1InvT] = result_def(R1InvT)
     source0 = operand_def(R2InvT)
     source1 = operand_def(R3InvT)
     immediate = attr_def(IntegerAttr[UI8])
+
+    assembly_format = (
+        "$source0 `,` $source1 `,` $immediate attr-dict "
+        "`:` `(` type($source0) `,` type($source1) `)` `->`  type($destination)"
+    )
 
     def __init__(
         self,
@@ -1345,19 +1434,12 @@ class DSSI_Operation(
         )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
-        return self.destination, self.source0, self.source1, self.immediate
-
-    @classmethod
-    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
-        attributes = dict[str, Attribute]()
-        temp = parse_immediate_value(parser, ui8)
-        attributes["immediate"] = temp
-        return attributes
-
-    def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
-        printer.print_string(", ")
-        print_immediate_value(printer, self.immediate)
-        return {"immediate"}
+        return (
+            reg(self.destination),
+            reg(self.source0),
+            reg(self.source1),
+            self.immediate,
+        )
 
 
 # endregion
@@ -1384,7 +1466,7 @@ class RS_AddOp(RS_Operation[GeneralRegisterType, GeneralRegisterType]):
 
     name = "x86.rs.add"
 
-    traits = traits_def(Pure(), RS_AddOpHasCanonicalizationPatterns())
+    traits = traits_def(AlwaysSpeculatable(), RS_AddOpHasCanonicalizationPatterns())
 
 
 @irdl_op_definition
@@ -1495,7 +1577,7 @@ class DS_MovOpHasCanonicalizationPatterns(HasCanonicalizationPatternsTrait):
 
 
 @irdl_op_definition
-class DS_MovOp(DS_Operation[X86RegisterType, GeneralRegisterType]):
+class DS_MovOp(DS_Operation[GeneralRegisterType, GeneralRegisterType]):
     """
     Copies the value of s into r.
     ```C
@@ -1507,7 +1589,7 @@ class DS_MovOp(DS_Operation[X86RegisterType, GeneralRegisterType]):
 
     name = "x86.ds.mov"
 
-    traits = traits_def(Pure(), DS_MovOpHasCanonicalizationPatterns())
+    traits = traits_def(AlwaysSpeculatable(), DS_MovOpHasCanonicalizationPatterns())
 
 
 @irdl_op_definition
@@ -1539,7 +1621,7 @@ class DS_VpbroadcastqOp(DS_Operation[X86VectorRegisterType, GeneralRegisterType]
 
 
 @irdl_op_definition
-class S_PushOp(X86Instruction, X86CustomFormatOperation):
+class S_PushOp(X86Instruction):
     """
     Decreases %rsp and places s at the new memory location pointed to by %rsp.
 
@@ -1550,7 +1632,12 @@ class S_PushOp(X86Instruction, X86CustomFormatOperation):
 
     rsp_in = operand_def(RSP)
     rsp_out = result_def(RSP)
-    source = operand_def(X86RegisterType)
+    source = operand_def(GeneralRegisterType)
+
+    assembly_format = (
+        "$rsp_in `,` $source attr-dict `:` "
+        "`(` type($rsp_in) `,` type($source) `)` `->` type($rsp_out)"
+    )
 
     def __init__(
         self,
@@ -1571,11 +1658,11 @@ class S_PushOp(X86Instruction, X86CustomFormatOperation):
         )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
-        return (self.source,)
+        return (reg(self.source),)
 
 
 @irdl_op_definition
-class D_PopOp(X86Instruction, X86CustomFormatOperation):
+class D_PopOp(X86Instruction):
     """
     Copies the value at the top of the stack into d and increases %rsp.
 
@@ -1586,7 +1673,12 @@ class D_PopOp(X86Instruction, X86CustomFormatOperation):
 
     rsp_in = operand_def(RSP)
     rsp_out = result_def(RSP)
-    destination = result_def(X86RegisterType)
+    destination: OpResult[GeneralRegisterType] = result_def(GeneralRegisterType)
+
+    assembly_format = (
+        "$rsp_in attr-dict `:` "
+        "`(` type($rsp_in) `)` `->` `(` type($rsp_out) `,` type($destination) `)`"
+    )
 
     def __init__(
         self,
@@ -1607,7 +1699,7 @@ class D_PopOp(X86Instruction, X86CustomFormatOperation):
         )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
-        return (self.destination,)
+        return (reg(self.destination),)
 
 
 @irdl_op_definition
@@ -1667,7 +1759,7 @@ class R_DecOp(R_Operation[GeneralRegisterType]):
 
 
 @irdl_op_definition
-class S_IDivOp(X86Instruction, X86CustomFormatOperation):
+class S_IDivOp(X86Instruction):
     """
     Divides the value in RDX:RAX by s and stores the quotient in RAX and the remainder
     in RDX.
@@ -1683,6 +1775,12 @@ class S_IDivOp(X86Instruction, X86CustomFormatOperation):
 
     rdx_output = result_def(RDX)
     rax_output = result_def(RAX)
+
+    assembly_format = (
+        "$source `,` $rdx_input `,` $rax_input attr-dict `:` "
+        "`(` type($source) `,` type($rdx_input) `,` type($rax_input) `)` "
+        "`->` `(` type($rdx_output) `,` type($rax_output) `)`"
+    )
 
     def __init__(
         self,
@@ -1706,11 +1804,11 @@ class S_IDivOp(X86Instruction, X86CustomFormatOperation):
         )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
-        return (self.source,)
+        return (reg(self.source),)
 
 
 @irdl_op_definition
-class S_ImulOp(X86Instruction, X86CustomFormatOperation):
+class S_ImulOp(X86Instruction):
     """
     The source operand is multiplied by the value in the RAX register and the product is
     stored in the RDX:RAX registers.
@@ -1728,6 +1826,12 @@ class S_ImulOp(X86Instruction, X86CustomFormatOperation):
 
     rdx_output = result_def(RDX)
     rax_output = result_def(RAX)
+
+    assembly_format = (
+        "$source `,` $rax_input attr-dict `:` "
+        "`(` type($source) `,` type($rax_input) `)` "
+        "`->` `(` type($rdx_output) `,` type($rax_output) `)`"
+    )
 
     def __init__(
         self,
@@ -1750,7 +1854,7 @@ class S_ImulOp(X86Instruction, X86CustomFormatOperation):
         )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
-        return (self.source,)
+        return (reg(self.source),)
 
 
 @irdl_op_definition
@@ -1951,7 +2055,7 @@ class DI_MovOp(DI_Operation[GeneralRegisterType]):
 
     name = "x86.di.mov"
 
-    traits = traits_def(Pure())
+    traits = traits_def(AlwaysSpeculatable())
 
 
 @irdl_op_definition
@@ -2131,7 +2235,7 @@ class DMI_ImulOp(DMI_Operation[GeneralRegisterType, GeneralRegisterType]):
 
 
 @irdl_op_definition
-class M_PushOp(X86Instruction, X86CustomFormatOperation):
+class M_PushOp(X86Instruction):
     """
     Decreases %rsp and places [m] at the new memory location pointed to by %rsp.
 
@@ -2144,9 +2248,14 @@ class M_PushOp(X86Instruction, X86CustomFormatOperation):
     rsp_out = result_def(RSP)
 
     memory = operand_def(X86RegisterType)
-    memory_offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
+    memory_offset = attr_def(IntegerAttr[I64], default_value=IntegerAttr(0, i64))
 
     traits = traits_def(MemoryWriteEffect())
+
+    assembly_format = (
+        "$rsp_in `,` `[` $memory (`+` $memory_offset^)? `]` attr-dict `:` "
+        "`(` type($rsp_in) `,` type($memory) `)` `->` type($rsp_out)"
+    )
 
     def __init__(
         self,
@@ -2160,7 +2269,7 @@ class M_PushOp(X86Instruction, X86CustomFormatOperation):
         if isinstance(comment, str):
             comment = StringAttr(comment)
         if isinstance(memory_offset, int):
-            memory_offset = IntegerAttr(memory_offset, 64)
+            memory_offset = IntegerAttr(memory_offset, i64)
 
         super().__init__(
             operands=[rsp_in, memory],
@@ -2175,21 +2284,9 @@ class M_PushOp(X86Instruction, X86CustomFormatOperation):
         memory_access = memory_access_str(self.memory, self.memory_offset)
         return (memory_access,)
 
-    @classmethod
-    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
-        attributes = dict[str, Attribute]()
-        if offset := cls.parse_optional_memory_access_offset(parser):
-            attributes["memory_offset"] = offset
-        return attributes
-
-    def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
-        printer.print_string(", ")
-        print_immediate_value(printer, self.memory_offset)
-        return {"memory_offset"}
-
 
 @irdl_op_definition
-class M_PopOp(X86Instruction, X86CustomFormatOperation):
+class M_PopOp(X86Instruction):
     """
     Copies the value at the top of the stack into [m] and increases %rsp.
     The value held by m is a pointer to the memory location where the value is stored.
@@ -2202,10 +2299,15 @@ class M_PopOp(X86Instruction, X86CustomFormatOperation):
 
     rsp_in = operand_def(RSP)
     memory = operand_def(GeneralRegisterType)
-    memory_offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
+    memory_offset = attr_def(IntegerAttr[I64], default_value=IntegerAttr(0, i64))
     rsp_out = result_def(RSP)
 
     traits = traits_def(MemoryWriteEffect())
+
+    assembly_format = (
+        "$rsp_in `,` `[` $memory (`+` $memory_offset^)? `]` attr-dict `:` "
+        "`(` type($rsp_in) `,` type($memory) `)` `->` type($rsp_out)"
+    )
 
     def __init__(
         self,
@@ -2217,13 +2319,14 @@ class M_PopOp(X86Instruction, X86CustomFormatOperation):
         rsp_out: GeneralRegisterType,
     ):
         if isinstance(memory_offset, int):
-            memory_offset = IntegerAttr(memory_offset, 64)
+            memory_offset = IntegerAttr(memory_offset, i64)
         if isinstance(comment, str):
             comment = StringAttr(comment)
 
         super().__init__(
             operands=[rsp_in, memory],
             attributes={
+                "memory_offset": memory_offset,
                 "comment": comment,
             },
             result_types=[rsp_out],
@@ -2232,19 +2335,6 @@ class M_PopOp(X86Instruction, X86CustomFormatOperation):
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
         memory_access = memory_access_str(self.memory, self.memory_offset)
         return (memory_access,)
-
-    @classmethod
-    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
-        attributes = dict[str, Attribute]()
-        temp = parse_optional_immediate_value(parser, si64)
-        if temp is not None:
-            attributes["memory_offset"] = temp
-        return attributes
-
-    def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
-        printer.print_string(", ")
-        print_immediate_value(printer, self.memory_offset)
-        return {"memory_offset"}
 
 
 @irdl_op_definition
@@ -2300,7 +2390,7 @@ class M_DecOp(M_Operation[GeneralRegisterType]):
 
 
 @irdl_op_definition
-class M_IDivOp(X86Instruction, X86CustomFormatOperation):
+class M_IDivOp(X86Instruction):
     """
     Divides the value in RDX:RAX by [m] and stores the quotient in RAX and the remainder in RDX.
 
@@ -2310,13 +2400,19 @@ class M_IDivOp(X86Instruction, X86CustomFormatOperation):
     name = "x86.m.idiv"
 
     memory = operand_def(X86RegisterType)
-    memory_offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
+    memory_offset = attr_def(IntegerAttr[I64], default_value=IntegerAttr(0, i64))
     rdx_in = operand_def(RDX)
     rdx_out = result_def(RDX)
     rax_in = operand_def(RAX)
     rax_out = result_def(RAX)
 
     traits = traits_def(MemoryReadEffect())
+
+    assembly_format = (
+        "` ` `[` $memory (`+` $memory_offset^)? `]` `,` $rdx_in `,` $rax_in attr-dict `:` "
+        "`(` type($memory) `,` type($rdx_in) `,` type($rax_in) `)` "
+        "`->` `(` type($rdx_out) `,` type($rax_out) `)`"
+    )
 
     def __init__(
         self,
@@ -2330,7 +2426,7 @@ class M_IDivOp(X86Instruction, X86CustomFormatOperation):
         rax_out: GeneralRegisterType,
     ):
         if isinstance(memory_offset, int):
-            memory_offset = IntegerAttr(memory_offset, 64)
+            memory_offset = IntegerAttr(memory_offset, i64)
         if isinstance(comment, str):
             comment = StringAttr(comment)
 
@@ -2347,21 +2443,9 @@ class M_IDivOp(X86Instruction, X86CustomFormatOperation):
         memory_access = memory_access_str(self.memory, self.memory_offset)
         return (memory_access,)
 
-    @classmethod
-    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
-        attributes = dict[str, Attribute]()
-        if offset := cls.parse_optional_memory_access_offset(parser):
-            attributes["memory_offset"] = offset
-        return attributes
-
-    def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
-        printer.print_string(", ")
-        print_immediate_value(printer, self.memory_offset)
-        return {"memory_offset"}
-
 
 @irdl_op_definition
-class M_ImulOp(X86Instruction, X86CustomFormatOperation):
+class M_ImulOp(X86Instruction):
     """
     The source operand is multiplied by the value in the RAX register and the product is stored in the RDX:RAX registers.
     x[RDX:RAX] = x[RAX] * [x[m]]
@@ -2372,14 +2456,19 @@ class M_ImulOp(X86Instruction, X86CustomFormatOperation):
     name = "x86.m.imul"
 
     memory = operand_def(GeneralRegisterType)
-    memory_offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
+    memory_offset = attr_def(IntegerAttr[I64], default_value=IntegerAttr(0, i64))
 
     rdx_out = result_def(RDX)
-
     rax_in = operand_def(RAX)
     rax_out = result_def(RAX)
 
     traits = traits_def(MemoryReadEffect())
+
+    assembly_format = (
+        "` ` `[` $memory (`+` $memory_offset^)? `]` `,` $rax_in attr-dict `:` "
+        "`(` type($memory) `,` type($rax_in) `)` "
+        "`->` `(` type($rdx_out) `,` type($rax_out) `)`"
+    )
 
     def __init__(
         self,
@@ -2392,7 +2481,7 @@ class M_ImulOp(X86Instruction, X86CustomFormatOperation):
         rax_out: GeneralRegisterType,
     ):
         if isinstance(memory_offset, int):
-            memory_offset = IntegerAttr(memory_offset, 64)
+            memory_offset = IntegerAttr(memory_offset, i64)
         if isinstance(comment, str):
             comment = StringAttr(comment)
 
@@ -2409,39 +2498,28 @@ class M_ImulOp(X86Instruction, X86CustomFormatOperation):
         memory_access = memory_access_str(self.memory, self.memory_offset)
         return (memory_access,)
 
-    @classmethod
-    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
-        attributes = dict[str, Attribute]()
-        temp = parse_optional_immediate_value(parser, si64)
-        if temp is not None:
-            attributes["memory_offset"] = temp
-        return attributes
-
-    def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
-        printer.print_string(", ")
-        print_immediate_value(printer, self.memory_offset)
-        return {"memory_offset"}
-
 
 @irdl_op_definition
-class LabelOp(X86AsmOperation, X86RegallocOperation, X86CustomFormatOperation):
+class LabelOp(X86AsmOperation, X86RegallocOperation):
     """
     The label operation is used to emit text labels (e.g. loop:) that are used
     as branch, unconditional jump targets and symbol offsets.
     """
 
     name = "x86.label"
-    label = attr_def(LabelAttr)
+    label = attr_def(StringAttr)
     comment = opt_attr_def(StringAttr)
+
+    assembly_format = "$label attr-dict"
 
     def __init__(
         self,
-        label: str | LabelAttr,
+        label: str | StringAttr,
         *,
         comment: str | StringAttr | None = None,
     ):
         if isinstance(label, str):
-            label = LabelAttr(label)
+            label = StringAttr(label)
         if isinstance(comment, str):
             comment = StringAttr(comment)
 
@@ -2454,26 +2532,6 @@ class LabelOp(X86AsmOperation, X86RegallocOperation, X86CustomFormatOperation):
 
     def assembly_line(self) -> str | None:
         return AssemblyPrinter.append_comment(f"{self.label.data}:", self.comment)
-
-    @classmethod
-    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
-        attributes = dict[str, Attribute]()
-        attributes["label"] = LabelAttr(parser.parse_str_literal("Expected label"))
-        return attributes
-
-    def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
-        printer.print_string(" ")
-        printer.print_string_literal(self.label.data)
-        return {"label"}
-
-    def print_op_type(self, printer: Printer) -> None:
-        return
-
-    @classmethod
-    def parse_op_type(
-        cls, parser: Parser
-    ) -> tuple[Sequence[Attribute], Sequence[Attribute]]:
-        return (), ()
 
 
 @irdl_op_definition
@@ -2640,7 +2698,7 @@ class FallthroughOp(X86AsmOperation, X86RegallocOperation, X86CustomFormatOperat
 
     successor = successor_def()
 
-    traits = traits_def(IsTerminator())
+    traits = traits_def(IsTerminator(), NoMemoryEffect())
 
     def __init__(
         self,
@@ -2702,7 +2760,7 @@ class FallthroughOp(X86AsmOperation, X86RegallocOperation, X86CustomFormatOperat
 
 
 @irdl_op_definition
-class SS_CmpOp(X86Instruction, X86CustomFormatOperation):
+class SS_CmpOp(X86Instruction):
     """
     Compares the first source operand with the second source operand and sets the status
     flags in the EFLAGS register according to the results.
@@ -2716,6 +2774,11 @@ class SS_CmpOp(X86Instruction, X86CustomFormatOperation):
     source2 = operand_def(X86RegisterType)
 
     result = result_def(RFLAGSRegisterType)
+
+    assembly_format = (
+        "$source1 `,` $source2 attr-dict `:` "
+        "`(` type($source1) `,` type($source2) `)` `->` type($result)"
+    )
 
     def __init__(
         self,
@@ -2737,11 +2800,11 @@ class SS_CmpOp(X86Instruction, X86CustomFormatOperation):
         )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
-        return self.source1, self.source2
+        return reg(self.source1), reg(self.source2)
 
 
 @irdl_op_definition
-class SM_CmpOp(X86Instruction, X86CustomFormatOperation):
+class SM_CmpOp(X86Instruction):
     """
     Compares the first source operand with the second source operand and sets the status
     flags in the EFLAGS register according to the results.
@@ -2753,11 +2816,16 @@ class SM_CmpOp(X86Instruction, X86CustomFormatOperation):
 
     source = operand_def(GeneralRegisterType)
     memory = operand_def(GeneralRegisterType)
-    memory_offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
+    memory_offset = attr_def(IntegerAttr[I64], default_value=IntegerAttr(0, i64))
 
     result = result_def(RFLAGSRegisterType)
 
     traits = traits_def(MemoryReadEffect())
+
+    assembly_format = (
+        "$source `,` `[` $memory (`+` $memory_offset^)? `]` attr-dict `:` "
+        "`(` type($source) `,` type($memory) `)` `->` type($result)"
+    )
 
     def __init__(
         self,
@@ -2769,7 +2837,7 @@ class SM_CmpOp(X86Instruction, X86CustomFormatOperation):
         result: RFLAGSRegisterType,
     ):
         if isinstance(memory_offset, int):
-            memory_offset = IntegerAttr(memory_offset, 64)
+            memory_offset = IntegerAttr(memory_offset, i64)
         if isinstance(comment, str):
             comment = StringAttr(comment)
 
@@ -2784,24 +2852,11 @@ class SM_CmpOp(X86Instruction, X86CustomFormatOperation):
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
         memory_access = memory_access_str(self.memory, self.memory_offset)
-        return self.source, memory_access
-
-    @classmethod
-    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
-        attributes = dict[str, Attribute]()
-        temp = parse_optional_immediate_value(parser, si64)
-        if temp is not None:
-            attributes["memory_offset"] = temp
-        return attributes
-
-    def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
-        printer.print_string(", ")
-        print_immediate_value(printer, self.memory_offset)
-        return {"memory_offset"}
+        return reg(self.source), memory_access
 
 
 @irdl_op_definition
-class SI_CmpOp(X86Instruction, X86CustomFormatOperation):
+class SI_CmpOp(X86Instruction):
     """
     Compares the first source operand with the second source operand and sets the status
     flags in the EFLAGS register according to the results.
@@ -2815,6 +2870,10 @@ class SI_CmpOp(X86Instruction, X86CustomFormatOperation):
     immediate = attr_def(IntegerAttr[SI32])
 
     result = result_def(RFLAGS)
+
+    assembly_format = (
+        "$source `,` $immediate attr-dict `:` `(` type($source) `)` `->` type($result)"
+    )
 
     def __init__(
         self,
@@ -2838,23 +2897,11 @@ class SI_CmpOp(X86Instruction, X86CustomFormatOperation):
         )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
-        return self.source, self.immediate
-
-    @classmethod
-    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
-        attributes = dict[str, Attribute]()
-        temp = parse_immediate_value(parser, si32)
-        attributes["immediate"] = temp
-        return attributes
-
-    def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
-        printer.print_string(", ")
-        print_immediate_value(printer, self.immediate)
-        return {"immediate"}
+        return reg(self.source), self.immediate
 
 
 @irdl_op_definition
-class MS_CmpOp(X86Instruction, X86CustomFormatOperation):
+class MS_CmpOp(X86Instruction):
     """
     Compares the first source operand with the second source operand and sets the status
     flags in the EFLAGS register according to the results.
@@ -2865,12 +2912,17 @@ class MS_CmpOp(X86Instruction, X86CustomFormatOperation):
     name = "x86.ms.cmp"
 
     memory = operand_def(GeneralRegisterType)
-    memory_offset = attr_def(IntegerAttr, default_value=IntegerAttr(0, 64))
+    memory_offset = attr_def(IntegerAttr[I64], default_value=IntegerAttr(0, i64))
     source = operand_def(GeneralRegisterType)
 
     result = result_def(RFLAGSRegisterType)
 
     traits = traits_def(MemoryReadEffect())
+
+    assembly_format = (
+        "` ` `[` $memory (`+` $memory_offset^)? `]` `,` $source attr-dict `:` "
+        "`(` type($memory) `,` type($source) `)` `->` type($result)"
+    )
 
     def __init__(
         self,
@@ -2882,7 +2934,7 @@ class MS_CmpOp(X86Instruction, X86CustomFormatOperation):
         result: RFLAGSRegisterType,
     ):
         if isinstance(memory_offset, int):
-            memory_offset = IntegerAttr(memory_offset, 64)
+            memory_offset = IntegerAttr(memory_offset, i64)
         if isinstance(comment, str):
             comment = StringAttr(comment)
 
@@ -2897,24 +2949,11 @@ class MS_CmpOp(X86Instruction, X86CustomFormatOperation):
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
         memory_access = memory_access_str(self.memory, self.memory_offset)
-        return memory_access, self.source
-
-    @classmethod
-    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
-        attributes = dict[str, Attribute]()
-        temp = parse_optional_immediate_value(parser, si64)
-        if temp is not None:
-            attributes["memory_offset"] = temp
-        return attributes
-
-    def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
-        printer.print_string(", ")
-        print_immediate_value(printer, self.memory_offset)
-        return {"memory_offset"}
+        return memory_access, reg(self.source)
 
 
 @irdl_op_definition
-class MI_CmpOp(X86Instruction, X86CustomFormatOperation):
+class MI_CmpOp(X86Instruction):
     """
     Compares the first source operand with the second source operand and sets the status
     flags in the EFLAGS register according to the results.
@@ -2931,6 +2970,11 @@ class MI_CmpOp(X86Instruction, X86CustomFormatOperation):
     result = result_def(RFLAGSRegisterType)
 
     traits = traits_def(MemoryReadEffect())
+
+    assembly_format = (
+        "` ` `[` $memory (`+` $memory_offset^)? `]` `,` $immediate attr-dict `:`"
+        "type($memory) `->` type($result)"
+    )
 
     def __init__(
         self,
@@ -2962,24 +3006,6 @@ class MI_CmpOp(X86Instruction, X86CustomFormatOperation):
         immediate = assembly_arg_str(self.immediate)
         memory_access = memory_access_str(self.memory, self.memory_offset)
         return memory_access, immediate
-
-    @classmethod
-    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
-        attributes = dict[str, Attribute]()
-        temp = parse_immediate_value(parser, si32)
-        attributes["immediate"] = temp
-        if parser.parse_optional_punctuation(",") is not None:
-            temp2 = parse_optional_immediate_value(parser, si64)
-            if temp2 is not None:
-                attributes["memory_offset"] = temp2
-        return attributes
-
-    def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
-        printer.print_string(", ")
-        print_immediate_value(printer, self.immediate)
-        printer.print_string(", ")
-        print_immediate_value(printer, self.memory_offset)
-        return {"immediate", "memory_offset"}
 
 
 @irdl_op_definition
@@ -3535,6 +3561,102 @@ class DM_VmovupsOp(DM_Operation[X86VectorRegisterType, GeneralRegisterType]):
 
 
 @irdl_op_definition
+class DMK_VmovapdOp(DMK_Operation[GeneralRegisterType]):
+    """
+    Move aligned packed double precision floating-point values from memory to vector
+    register using writemask k.
+
+    See external [documentation](https://www.felixcloutier.com/x86/movapd).
+    """
+
+    name = "x86.dmk.vmovapd"
+
+
+@irdl_op_definition
+class DMK_VmovupdOp(DMK_Operation[GeneralRegisterType]):
+    """
+    Move unaligned packed double precision floating-point values from memory to vector
+    register using writemask k.
+
+    See external [documentation](https://www.felixcloutier.com/x86/movupd).
+    """
+
+    name = "x86.dmk.vmovupd"
+
+
+@irdl_op_definition
+class DMK_VmovapsOp(DMK_Operation[GeneralRegisterType]):
+    """
+    Move aligned packed single precision floating-point values from memory to vector
+    register using writemask k.
+
+    See external [documentation](https://www.felixcloutier.com/x86/movaps).
+    """
+
+    name = "x86.dmk.vmovaps"
+
+
+@irdl_op_definition
+class DMK_VmovupsOp(DMK_Operation[GeneralRegisterType]):
+    """
+    Move unaligned packed single precision floating-point values from memory to vector
+    register using writemask k.
+
+    See external [documentation](https://www.felixcloutier.com/x86/movups).
+    """
+
+    name = "x86.dmk.vmovups"
+
+
+@irdl_op_definition
+class MSK_VmovapdOp(MSK_Operation[GeneralRegisterType, AVX512RegisterType]):
+    """
+    Move aligned packed double precision floating-point values from vector register to
+    memory using writemask k.
+
+    See external [documentation](https://www.felixcloutier.com/x86/movapd).
+    """
+
+    name = "x86.msk.vmovapd"
+
+
+@irdl_op_definition
+class MSK_VmovupdOp(MSK_Operation[GeneralRegisterType, AVX512RegisterType]):
+    """
+    Move unaligned packed double precision floating-point values from vector register to
+    memory using writemask k.
+
+    See external [documentation](https://www.felixcloutier.com/x86/movupd).
+    """
+
+    name = "x86.msk.vmovupd"
+
+
+@irdl_op_definition
+class MSK_VmovapsOp(MSK_Operation[GeneralRegisterType, AVX512RegisterType]):
+    """
+    Move aligned packed single precision floating-point values from vector register to
+    memory using writemask k.
+
+    See external [documentation](https://www.felixcloutier.com/x86/movaps).
+    """
+
+    name = "x86.msk.vmovaps"
+
+
+@irdl_op_definition
+class MSK_VmovupsOp(MSK_Operation[GeneralRegisterType, AVX512RegisterType]):
+    """
+    Move unaligned packed single precision floating-point values from vector register to
+    memory using writemask k.
+
+    See external [documentation](https://www.felixcloutier.com/x86/movups).
+    """
+
+    name = "x86.msk.vmovups"
+
+
+@irdl_op_definition
 class MS_VmovntpdOp(MS_Operation[GeneralRegisterType, X86VectorRegisterType]):
     """
     Moves the packed double precision floating-point values in the source operand to the
@@ -3583,6 +3705,151 @@ class DM_VbroadcastssOp(DM_Operation[X86VectorRegisterType, GeneralRegisterType]
 
 
 @irdl_op_definition
+class DK_KMovBOp(DK_Operation):
+    """
+    Move 8 bits mask from source mask register to general-purpose register.
+
+    See external [documentation](https://www.felixcloutier.com/x86/kmovw:kmovb:kmovq:kmovd).
+    """
+
+    name = "x86.dk.kmovb"
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        # kmovb uses r32 operands in assembly; convert the 64-bit register
+        # index to its 32-bit name via Reg32Type.
+        dest = self.destination.type
+        if isinstance(dest.index, NoneAttr):
+            raise ValueError("Unallocated register in assembly printing")
+        dest_32 = Reg32Type.from_index(dest.index.data)
+        return dest_32.register_name.data, reg(self.source)
+
+
+@irdl_op_definition
+class KS_KMovBOp(KS_Operation):
+    """
+    Move 8 bits mask from general-purpose register to destination mask register.
+
+    See external [documentation](https://www.felixcloutier.com/x86/kmovw:kmovb:kmovq:kmovd).
+    """
+
+    name = "x86.ks.kmovb"
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        # kmovb uses r32 operands in assembly; convert the 64-bit register
+        # index to its 32-bit name via Reg32Type.
+        source = self.source.type
+        assert isinstance(source, GeneralRegisterType)
+        if isinstance(source.index, NoneAttr):
+            raise ValueError("Unallocated register in assembly printing")
+        source_32 = Reg32Type.from_index(source.index.data)
+        return reg(self.destination), source_32.register_name.data
+
+
+@irdl_op_definition
+class DK_KMovWOp(DK_Operation):
+    """
+    Move 16 bits mask from source mask register to general-purpose register.
+
+    See external [documentation](https://www.felixcloutier.com/x86/kmovw:kmovb:kmovq:kmovd).
+    """
+
+    name = "x86.dk.kmovw"
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        # kmovw uses r32 operands in assembly; convert the 64-bit register
+        # index to its 32-bit name via Reg32Type.
+        dest = self.destination.type
+        if isinstance(dest.index, NoneAttr):
+            raise ValueError("Unallocated register in assembly printing")
+        dest_32 = Reg32Type.from_index(dest.index.data)
+        return dest_32.register_name.data, reg(self.source)
+
+
+@irdl_op_definition
+class KS_KMovWOp(KS_Operation):
+    """
+    Move 16 bits mask from general-purpose register to destination mask register.
+
+    See external [documentation](https://www.felixcloutier.com/x86/kmovw:kmovb:kmovq:kmovd).
+    """
+
+    name = "x86.ks.kmovw"
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        # kmovw uses r32 operands in assembly; convert the 64-bit register
+        # index to its 32-bit name via Reg32Type.
+        source = self.source.type
+        assert isinstance(source, GeneralRegisterType)
+        if isinstance(source.index, NoneAttr):
+            raise ValueError("Unallocated register in assembly printing")
+        source_32 = Reg32Type.from_index(source.index.data)
+        return reg(self.destination), source_32.register_name.data
+
+
+@irdl_op_definition
+class DK_KMovDOp(DK_Operation):
+    """
+    Move 32 bits mask from source mask register to general-purpose register.
+
+    See external [documentation](https://www.felixcloutier.com/x86/kmovw:kmovb:kmovq:kmovd).
+    """
+
+    name = "x86.dk.kmovd"
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        # kmovd uses r32 operands in assembly; convert the 64-bit register
+        # index to its 32-bit name via Reg32Type.
+        dest = self.destination.type
+        if isinstance(dest.index, NoneAttr):
+            raise ValueError("Unallocated register in assembly printing")
+        dest_32 = Reg32Type.from_index(dest.index.data)
+        return dest_32.register_name.data, reg(self.source)
+
+
+@irdl_op_definition
+class KS_KMovDOp(KS_Operation):
+    """
+    Move 32 bits mask from general-purpose register to destination mask register.
+
+    See external [documentation](https://www.felixcloutier.com/x86/kmovw:kmovb:kmovq:kmovd).
+    """
+
+    name = "x86.ks.kmovd"
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg | None, ...]:
+        # kmovd uses r32 operands in assembly; convert the 64-bit register
+        # index to its 32-bit name via Reg32Type.
+        source = self.source.type
+        assert isinstance(source, GeneralRegisterType)
+        if isinstance(source.index, NoneAttr):
+            raise ValueError("Unallocated register in assembly printing")
+        source_32 = Reg32Type.from_index(source.index.data)
+        return reg(self.destination), source_32.register_name.data
+
+
+@irdl_op_definition
+class DK_KMovQOp(DK_Operation):
+    """
+    Move 64 bits mask from source mask register to general-purpose register.
+
+    See external [documentation](https://www.felixcloutier.com/x86/kmovw:kmovb:kmovq:kmovd).
+    """
+
+    name = "x86.dk.kmovq"
+
+
+@irdl_op_definition
+class KS_KMovQOp(KS_Operation):
+    """
+    Move 64 bits mask from general-purpose register to destination mask register.
+
+    See external [documentation](https://www.felixcloutier.com/x86/kmovw:kmovb:kmovq:kmovd).
+    """
+
+    name = "x86.ks.kmovq"
+
+
+@irdl_op_definition
 class DSSI_ShufpsOp(
     DSSI_Operation[X86VectorRegisterType, X86VectorRegisterType, X86VectorRegisterType]
 ):
@@ -3618,6 +3885,8 @@ class GetAnyRegisterOperation(
 
     assembly_format = "attr-dict `:` type($result)"
 
+    traits = traits_def(NoMemoryEffect())
+
     def __init__(
         self,
         register_type: R1InvT,
@@ -3652,6 +3921,8 @@ class ParallelMovOp(X86RegallocOperation):
 
     assembly_format = "$inputs attr-dict `:` functional-type($inputs, $outputs)"
     irdl_options = (ParsePropInAttrDict(),)
+
+    traits = traits_def(RegisterAllocatedMemoryEffect())
 
     def __init__(
         self,
@@ -3696,3 +3967,11 @@ def x86_code(module: ModuleOp) -> str:
     stream = StringIO()
     print_assembly(module, stream)
     return stream.getvalue()
+
+
+@dataclass(frozen=True)
+class X86AsmTarget(Target):
+    name = "x86-asm"
+
+    def emit(self, ctx: Context, module: ModuleOp, output: IO[str]) -> None:
+        print_assembly(module, output)

@@ -1,13 +1,16 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from functools import singledispatchmethod
-from typing import cast
+from typing import IO, cast
 
+from xdsl.context import Context
 from xdsl.dialects import arith, builtin, gpu, memref
-from xdsl.dialects.builtin import MemRefType
+from xdsl.dialects.builtin import MemRefType, ModuleOp
 from xdsl.ir import Operation, SSAValue
 from xdsl.utils.base_printer import BasePrinter
 from xdsl.utils.hints import isa
+from xdsl.utils.target import Target
 
 
 class WGSLPrinter(BasePrinter):
@@ -233,3 +236,14 @@ class WGSLPrinter(BasePrinter):
         self.print_string("\n")
         with self.indented(2):
             self.print_string(f"let {op_name_hint} = {lhs} - {rhs};")
+
+
+@dataclass(frozen=True)
+class WGSLTarget(Target):
+    name = "wgsl"
+
+    def emit(self, ctx: Context, module: ModuleOp, output: IO[str]) -> None:
+        for op in module.ops:
+            if isinstance(op, gpu.ModuleOp):
+                printer = WGSLPrinter(stream=output)
+                printer.print(op)

@@ -6,8 +6,8 @@ from textual.screen import Screen
 from textual.widgets import Button, TextArea
 
 from xdsl.passes import ModulePass, get_pass_option_infos
-from xdsl.utils.exceptions import PassPipelineParseError
-from xdsl.utils.parse_pipeline import parse_pipeline
+from xdsl.utils.arg_spec import parse_pipeline
+from xdsl.utils.exceptions import ArgSpecParseError
 
 
 class AddArguments(Screen[ModulePass | None]):
@@ -62,12 +62,12 @@ class AddArguments(Screen[ModulePass | None]):
                     f"{self.selected_pass_type.name}{{{concatenated_arg_val}}}"
                 )
             )[0]
-        except PassPipelineParseError:
+        except ArgSpecParseError:
             self.selected_pass_value = None
             return
 
         missing_fields = self.selected_pass_type.required_fields().difference(
-            parsed_spec.args.keys()
+            parsed_spec.parameters.keys()
         )
 
         if missing_fields:

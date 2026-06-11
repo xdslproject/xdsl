@@ -8,7 +8,7 @@ from xdsl.dialects.func import Func
 from xdsl.dialects.test import Test
 from xdsl.ir import Operation
 from xdsl.parser import Parser
-from xdsl.rewriting.composable_rewriting.immutable_ir.immutable_ir import (  # noqa
+from xdsl.rewriting.composable_rewriting.immutable_ir.immutable_ir import (
     get_immutable_copy,
 )
 
@@ -55,7 +55,7 @@ program_add_2 = """
 program_func = """
 "builtin.module"() ({
   "func.func"() <{"sym_name" = "test", "function_type" = (i32, i32) -> i32, "sym_visibility" = "private"}> ({
-  ^bb0(%0 : i32, %1 : i32):
+  ^bb0(%0: i32, %1: i32):
     %2 = "arith.addi"(%0, %1) : (i32, i32) -> i32
     "func.return"(%2) : (i32) -> ()
   }) : () -> ()

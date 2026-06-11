@@ -2,6 +2,7 @@ from typing import Any, cast
 
 from xdsl.context import Context
 from xdsl.dialects import pdl_interp
+from xdsl.dialects.builtin import SymbolRefAttr
 from xdsl.dialects.pdl import RangeType, ValueType
 from xdsl.interpreter import (
     Interpreter,
@@ -62,6 +63,19 @@ class PDLInterpFunctions(InterpreterFunctions):
             PDLInterpFunctions,
             "ctx",
             ctx,
+        )
+
+    @staticmethod
+    def get_pending_rewrites(
+        interpreter: Interpreter,
+    ) -> list[tuple[SymbolRefAttr, Operation, tuple[Any, ...]]]:
+        """
+        Returns the list of pending rewrites to be executed. Each entry is a tuple of (rewriter, root, args).
+        """
+        return interpreter.get_data(
+            PDLInterpFunctions,
+            "pending_rewrites",
+            lambda: [],
         )
 
     @staticmethod
@@ -487,14 +501,19 @@ class PDLInterpFunctions(InterpreterFunctions):
         op: pdl_interp.RecordMatchOp,
         args: tuple[Any, ...],
     ):
-        interpreter.call_op(op.rewriter, args)
+        PDLInterpFunctions.get_pending_rewrites(interpreter).append(
+            (
+                op.rewriter,
+                PDLInterpFunctions.get_rewriter(interpreter).current_operation,
+                args,
+            )
+        )
         return Successor(op.dest, ()), ()
 
     @impl_terminator(pdl_interp.FinalizeOp)
     def run_finalize(
         self, interpreter: Interpreter, op: pdl_interp.FinalizeOp, args: tuple[Any, ...]
     ):
-        PDLInterpFunctions.set_rewriter(interpreter, None)
         return ReturnedValues(()), ()
 
     @impl_terminator(pdl_interp.ForEachOp)
@@ -518,3 +537,13 @@ class PDLInterpFunctions(InterpreterFunctions):
         self, interpreter: Interpreter, op: pdl_interp.ContinueOp, args: tuple[Any, ...]
     ):
         return ReturnedValues(args), ()
+
+    def apply_pending_rewrites(self, interpreter: Interpreter):
+        rewriter = PDLInterpFunctions.get_rewriter(interpreter)
+        pending_rewrites = PDLInterpFunctions.get_pending_rewrites(interpreter)
+        for rewriter_op, root, args in pending_rewrites:
+            rewriter.current_operation = root
+            rewriter.insertion_point = InsertPoint.before(root)
+
+            interpreter.call_op(rewriter_op, args)
+        pending_rewrites.clear()
