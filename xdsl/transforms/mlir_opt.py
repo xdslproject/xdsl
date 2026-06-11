@@ -1,3 +1,4 @@
+import os
 import shutil
 import subprocess
 from dataclasses import dataclass, field
@@ -11,17 +12,25 @@ from xdsl.printer import Printer
 from xdsl.rewriter import Rewriter
 from xdsl.utils.exceptions import DiagnosticException, ParseError
 
+DEFAULT_MLIR_OPT_EXECUTABLE = os.environ.get("XDSL_MLIR_OPT") or "mlir-opt"
+"""
+Command to run for mlir-opt, defaults to contents of `XDSL_MLIR_OPT` in environment,
+falling back to `mlir-opt`.
+"""
+
 
 @dataclass(frozen=True)
 class MLIROptPass(ModulePass):
     """
     A pass for calling the `mlir-opt` tool with specified parameters. Will fail if
     `mlir-opt` is not available.
+
+    Uses `XDSL_MLIR_OPT` when set, otherwise `mlir-opt` on PATH.
     """
 
     name = "mlir-opt"
 
-    executable: str = field(default="mlir-opt")
+    executable: str = field(default=DEFAULT_MLIR_OPT_EXECUTABLE)
     generic: bool = field(default=True)
     arguments: tuple[str, ...] = field(default=())
 
