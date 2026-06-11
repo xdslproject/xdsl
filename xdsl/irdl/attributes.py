@@ -8,10 +8,11 @@
 import sys
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Hashable, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from inspect import get_annotations, isclass
 from types import FunctionType, GenericAlias, UnionType
 from typing import (
+    TYPE_CHECKING,
     Annotated,
     Any,
     Generic,
@@ -30,11 +31,12 @@ from typing_extensions import TypeVar, dataclass_transform
 if sys.version_info >= (3, 14, 0):
     from typing_extensions import TypeForm
 else:
-    from typing import TYPE_CHECKING
-
     if TYPE_CHECKING:
         from typing_extensions import TypeForm
 
+if TYPE_CHECKING:
+    from xdsl.parser import AttrParser
+    from xdsl.printer import Printer
 
 from xdsl.ir import (
     Attribute,
@@ -46,7 +48,7 @@ from xdsl.ir import (
     TypedAttribute,
 )
 from xdsl.utils.classvar import is_const_classvar
-from xdsl.utils.exceptions import PyRDLAttrDefinitionError, PyRDLTypeError
+from xdsl.utils.exceptions import ParseError, PyRDLAttrDefinitionError, PyRDLTypeError
 from xdsl.utils.hints import (
     PropertyType,
     get_type_var_from_generic_class,
@@ -184,6 +186,7 @@ class ParamAttrDef:
 
     name: str
     parameters: list[tuple[str, ParamDef]]
+    custom_directives: dict[str, type[Any]] = field(default_factory=lambda: {})
 
     @staticmethod
     def from_pyrdl(
@@ -223,6 +226,9 @@ class ParamAttrDef:
             if (
                 # Ignore name field
                 field_name != "name"
+                # Ignore assembly_format and custom_directives (handled separately)
+                and field_name != "assembly_format"
+                and field_name != "custom_directives"
                 # Ignore functions
                 and not isinstance(
                     field_value,
@@ -274,14 +280,17 @@ class ParamAttrDef:
                 f"Missing field type for parameter name {field_name}"
             )
 
-        return ParamAttrDef(name, list(parameters.items()))
+        custom_dirs = getattr(pyrdl_def, "custom_directives", ())
+        custom_directives = {d.__name__: d for d in custom_dirs}
+
+        return ParamAttrDef(name, list(parameters.items()), custom_directives)
 
     def verify(self, attr: ParametrizedAttribute):
         """Verify that `attr` satisfies the invariants."""
 
         constraint_context = ConstraintContext()
-        for field, param_def in self.parameters:
-            param_def.constr.verify(getattr(attr, field), constraint_context)
+        for param_name, param_def in self.parameters:
+            param_def.constr.verify(getattr(attr, param_name), constraint_context)
 
 
 _PAttrTT = TypeVar("_PAttrTT", bound=type[ParametrizedAttribute])
@@ -300,6 +309,44 @@ def irdl_param_attr_definition(cls: _PAttrTT) -> _PAttrTT:
 
     attr_def = ParamAttrDef.from_pyrdl(cls)
     new_fields = get_accessors_from_param_attr_def(attr_def)
+
+    assembly_format = getattr(cls, "assembly_format", None)
+    if assembly_format is not None:
+        if not attr_def.parameters:
+            raise PyRDLAttrDefinitionError(
+                "Cannot use assembly_format on attribute with no parameters"
+            )
+        if "parse_parameters" in cls.__dict__:
+            raise PyRDLAttrDefinitionError(
+                "Cannot use assembly_format with custom parse_parameters"
+            )
+        if "print_parameters" in cls.__dict__:
+            raise PyRDLAttrDefinitionError(
+                "Cannot use assembly_format with custom print_parameters"
+            )
+
+        from xdsl.irdl.declarative_assembly_format import AttrFormatProgram
+
+        try:
+            program = AttrFormatProgram.from_str(assembly_format, attr_def)
+        except ParseError as e:
+            raise PyRDLAttrDefinitionError(
+                "Error during the parsing of the assembly format: ", e.args
+            ) from e
+
+        @classmethod
+        def parse_with_format(
+            cls: type[ParametrizedAttribute], parser: "AttrParser"
+        ) -> list[Attribute]:
+            with parser.in_angle_brackets():
+                return program.parse(parser, attr_def)
+
+        def print_with_format(self: ParametrizedAttribute, printer: "Printer") -> None:
+            with printer.in_angle_brackets():
+                program.print(printer, self)
+
+        new_fields["parse_parameters"] = parse_with_format
+        new_fields["print_parameters"] = print_with_format
 
     if issubclass(cls, TypedAttribute):
         type_indexes = tuple(
