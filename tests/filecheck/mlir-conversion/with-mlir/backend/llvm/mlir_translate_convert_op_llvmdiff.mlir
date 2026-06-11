@@ -1,4 +1,4 @@
-// REQUIRES: llvm-diff
+// REQUIRES: MLIR_TRANSLATE, LLVM_DIFF
 // RUN: xdsl-opt -t llvm %S/../../../../backend/llvm/convert_op.mlir > %t.xdsl.ll
-// RUN: mlir-translate --mlir-to-llvmir %S/../../../../backend/llvm/convert_op.mlir > %t.mlir.ll
-// RUN: %llvm-diff %t.xdsl.ll %t.mlir.ll
+// RUN: %MLIR_TRANSLATE --mlir-to-llvmir %S/../../../../backend/llvm/convert_op.mlir > %t.mlir.ll
+// RUN: %LLVM_DIFF %t.xdsl.ll %t.mlir.ll

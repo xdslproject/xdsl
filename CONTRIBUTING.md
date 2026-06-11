@@ -42,12 +42,19 @@ Please take a look at the [Makefile](./Makefile)
 for the available commands such as running specific tests,
 running the documentation website locally, and others.
 
-To make a custom mlir-opt available in the virtual environment, set the
-`XDSL_MLIR_OPT_PATH` variable when running `make venv`, like so:
+MLIR/LLVM compatibility tests under `tests/filecheck/mlir-conversion/with-mlir/`
+are opt-in and require explicit paths to upstream tools:
 
-``` bash
-XDSL_MLIR_OPT_PATH=/PATH/TO/LLVM/BUILD/bin/mlir-opt make venv
-```
+- `XDSL_MLIR_OPT` — path to `mlir-opt`
+- `XDSL_MLIR_TRANSLATE` — path to `mlir-translate`
+- `XDSL_LLVM_DIFF` — path to `llvm-diff`
+
+If you use **Nix**, `nix develop` sets these automatically via the flake
+`shellHook` — no extra configuration is needed.
+
+If you do **not** use Nix, copy `.env.example` to `.env`, set the paths to your
+LLVM/MLIR build, and run `make filecheck` (the Makefile passes `.env` to `uv run`
+via `--env-file` when the file exists).
 
 ### Alternative installations
 

@@ -13,6 +13,7 @@
           pkgs = import nixpkgs {
             inherit system;
           };
+          llvm = pkgs.llvmPackages_22;
         in
           {
             devShells.default = with pkgs; mkShell {
@@ -20,9 +21,20 @@
               buildInputs = [
                 uv
                 nodejs_22
-                llvmPackages_22.mlir
-                llvmPackages_22.tblgen
+                (symlinkJoin {
+                  name = "llvm-mlir-tools";
+                  paths = [
+                    llvm.mlir
+                    llvm.llvm
+                    llvm.tblgen
+                  ];
+                })
               ];
+              shellHook = ''
+                export XDSL_MLIR_OPT="${llvm.mlir}/bin/mlir-opt"
+                export XDSL_MLIR_TRANSLATE="${llvm.mlir}/bin/mlir-translate"
+                export XDSL_LLVM_DIFF="${llvm.llvm}/bin/llvm-diff"
+              '';
             };
           }
     );

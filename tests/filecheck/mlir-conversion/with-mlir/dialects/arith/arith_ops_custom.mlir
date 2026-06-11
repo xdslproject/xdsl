@@ -33,7 +33,7 @@
   %minsi = arith.minsi %lhsi32, %rhsi32 : i32
   %maxui = arith.maxui %lhsi32, %rhsi32 : i32
   %minui = arith.minui %lhsi32, %rhsi32 : i32
-  
+
   // CHECK-NEXT: {{%.*}} = arith.maxsi {{%.*}}#0, {{%.*}}#1 : i32
   // CHECK-NEXT: {{%.*}} = arith.minsi {{%.*}}#0, {{%.*}}#1 : i32
   // CHECK-NEXT: {{%.*}} = arith.maxui {{%.*}}#0, {{%.*}}#1 : i32
