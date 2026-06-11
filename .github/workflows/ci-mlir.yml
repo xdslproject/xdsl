@@ -23,6 +23,7 @@ jobs:
     env:
       LLVM_SYMBOLIZER_PATH: /usr/lib/llvm-11/bin/llvm-symbolizer
       COLLECT_COVERAGE: ${{ matrix.python-version == '3.13' }}
+      XDSL_LLVM_DIFF: /usr/bin/llvm-diff-22
     steps:
       - uses: actions/checkout@v6
         with:
