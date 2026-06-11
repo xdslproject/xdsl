@@ -87,8 +87,8 @@ llvm.func protected unnamed_addr @func_vis2_unnameaddr2()
 
 //
 // generic format tests
-// 
-// the comments above each test encode the following values: 
+//
+// the comments above each test encode the following values:
 // <in_vis> ┆ <in_unnamed> ┆ <out_vis> ┆ <out_unnamed>
 //
 
