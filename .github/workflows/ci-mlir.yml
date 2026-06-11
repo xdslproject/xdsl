@@ -23,9 +23,9 @@ jobs:
     env:
       LLVM_SYMBOLIZER_PATH: /usr/lib/llvm-11/bin/llvm-symbolizer
       COLLECT_COVERAGE: ${{ matrix.python-version == '3.13' }}
-      XDSL_MLIR_OPT: ${{ github.workspace }}/llvm-project/build/bin/mlir-opt
-      XDSL_MLIR_TRANSLATE: ${{ github.workspace }}/llvm-project/build/bin/mlir-translate
-      XDSL_LLVM_DIFF: ${{ github.workspace }}/llvm-project/build/bin/llvm-diff
+      XDSL_MLIR_OPT: /usr/bin/mlir-opt
+      XDSL_MLIR_TRANSLATE: /usr/bin/mlir-translate
+      XDSL_LLVM_DIFF: /usr/bin/llvm-diff-22
     steps:
       - uses: actions/checkout@v6
         with:
@@ -67,9 +67,7 @@ jobs:
           fi
 
       - name: Test MLIR dependent examples/tutorials
-        run: |
-          export PATH=$PATH:${GITHUB_WORKSPACE}/llvm-project/build/bin/
-          make tests-marimo
+        run: make tests-marimo
 
       - name: Combine coverage data
         if: matrix.python-version == '3.13'
