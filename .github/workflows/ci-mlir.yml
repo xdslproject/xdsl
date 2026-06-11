@@ -23,9 +23,9 @@ jobs:
     env:
       LLVM_SYMBOLIZER_PATH: /usr/lib/llvm-11/bin/llvm-symbolizer
       COLLECT_COVERAGE: ${{ matrix.python-version == '3.13' }}
-      XDSL_MLIR_OPT: ${GITHUB_WORKSPACE}/llvm-project/build/bin/mlir-opt
-      XDSL_MLIR_TRANSLATE: ${GITHUB_WORKSPACE}/llvm-project/build/bin/mlir-translate
-      XDSL_LLVM_DIFF: ${GITHUB_WORKSPACE}/llvm-project/build/bin/llvm-diff
+      XDSL_MLIR_OPT: ${{ github.workspace }}/llvm-project/build/bin/mlir-opt
+      XDSL_MLIR_TRANSLATE: ${{ github.workspace }}/llvm-project/build/bin/mlir-translate
+      XDSL_LLVM_DIFF: ${{ github.workspace }}/llvm-project/build/bin/llvm-diff
     steps:
       - uses: actions/checkout@v6
         with:
