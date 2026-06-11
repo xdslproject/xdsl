@@ -1,2 +1,2 @@
 // REQUIRES: MLIR_TRANSLATE
-// RUN: xdsl-opt %S/../../../../backend/llvm/convert_op.mlir | %MLIR_TRANSLATE --mlir-to-llvmir > /dev/null
+// RUN: xdsl-opt %S/../../../../backend/llvm/convert_op.mlir | mlir-translate --mlir-to-llvmir > /dev/null
