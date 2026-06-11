@@ -9,7 +9,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from enum import auto
 from io import StringIO
-from typing import Annotated, ClassVar, Generic, TypeAlias
+from typing import Annotated, ClassVar, Generic, TypeAlias, cast
 
 import pytest
 from typing_extensions import TypeVar, override
@@ -473,6 +473,59 @@ def test_typed_attribute_parsing_printing():
     assert attr == TypedAttr(IntAttr(42), i32)
 
     assert str(attr) == "#test.typed<42> : i32"
+
+
+################################################################################
+# Parameterized Attribute
+################################################################################
+
+
+def test_parameterized_attribute_verify_called():
+    """Test that a custom verify method of a ParametrizedAttribute is called."""
+
+    @irdl_attr_definition
+    class MyAttr(ParametrizedAttribute):
+        name = "test.my_attr"
+
+        def verify(self):
+            raise VerifyException("Always fails")
+
+    with pytest.raises(VerifyException, match="Always fails"):
+        MyAttr()
+
+
+def test_parameterized_attribute_verify_constraints():
+    """Test that a ParametrizedAttribute verifies its given child attribute constraints."""
+
+    class FailConstraint(AttrConstraint[NoneAttr]):
+        def verify(self, attr: Attribute, constraint_context: ConstraintContext):
+            raise VerifyException("Always fails")
+
+        def mapping_type_vars(
+            self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
+        ) -> FailConstraint:
+            return self
+
+    @irdl_attr_definition
+    class MyAttr(ParametrizedAttribute):
+        name = "test.my_attr"
+
+        child_1: NoneAttr
+        child_2: NoneAttr = param_def(FailConstraint())
+
+    with pytest.raises(
+        VerifyException,
+        match=re.escape(
+            "parameter 'child_1' does not verify:\n#builtin.int<1> should be of base attribute none"
+        ),
+    ):
+        MyAttr(cast(NoneAttr, IntAttr(1)), NoneAttr())
+
+    with pytest.raises(
+        VerifyException,
+        match=re.escape("parameter 'child_2' does not verify:\nAlways fails"),
+    ):
+        MyAttr(NoneAttr(), NoneAttr())
 
 
 ################################################################################
