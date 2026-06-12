@@ -1,4 +1,4 @@
-// RUN: mlir-opt %s | filecheck %s
+// RUN: $XDSL_MLIR_OPT %s | filecheck %s
 // RUN: xdsl-opt %s | filecheck %s
 
 // CHECK: module {

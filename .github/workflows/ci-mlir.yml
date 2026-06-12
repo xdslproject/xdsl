@@ -65,8 +65,6 @@ jobs:
             chmod +x "$FAKE_BIN/$tool"
           done
           export PATH="$FAKE_BIN:$PATH"
-          # Add mlir-opt to the path
-          export PATH=$PATH:${GITHUB_WORKSPACE}/llvm-project/build/bin/
           if [ "$COLLECT_COVERAGE" = "true" ]; then
             uv run lit -v tests/filecheck/ -DCOVERAGE
             uv run lit -v docs/Toy/examples/ -DCOVERAGE
