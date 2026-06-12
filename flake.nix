@@ -13,7 +13,6 @@
           pkgs = import nixpkgs {
             inherit system;
           };
-          llvm = pkgs.llvmPackages_22;
         in
           {
             devShells.default = with pkgs; mkShell {
