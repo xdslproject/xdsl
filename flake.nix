@@ -20,9 +20,11 @@
               buildInputs = [
                 uv
                 nodejs_22
+                llvmPackages_22.llvm
                 llvmPackages_22.mlir
                 llvmPackages_22.tblgen
               ];
+              XDSL_LLVM_DIFF = "${llvmPackages_22.llvm}/bin/llvm-diff";
             };
           }
     );
