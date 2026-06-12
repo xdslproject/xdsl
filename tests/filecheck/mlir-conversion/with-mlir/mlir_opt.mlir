@@ -30,12 +30,12 @@ module attributes {gpu.container_module} {
 // Check executables
 
 // Neither env var nor custom executable param
-// RUN: xdsl-opt %s -p "mlir-opt" | filecheck %s --check-prefix CHECK-NEITHER
+// RUN: xdsl-opt %s -p mlir-opt | filecheck %s --check-prefix CHECK-NEITHER
 
 // CHECK-NEITHER: @do_nothing
 
 // Env var but not custom executable param
-// RUN: env XDSL_MLIR_OPT=%S/mlir_opt_foo.sh xdsl-opt %s -p "mlir-opt" | filecheck %s --check-prefix CHECK-ENV
+// RUN: env XDSL_MLIR_OPT=%S/mlir_opt_foo.sh xdsl-opt %s -p mlir-opt | filecheck %s --check-prefix CHECK-ENV
 
 // CHECK-ENV: @foo
 
