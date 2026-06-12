@@ -58,6 +58,15 @@ jobs:
 
       - name: Execute lit tests
         run: |
+          # Add decoy executables that should be XDSL_ env vars in tests instead
+          FAKE_BIN=$(mktemp -d)
+          for tool in mlir-opt mlir-translate llvm-diff; do
+            printf '%s\n' '#!/bin/sh' "echo \"bare $tool on PATH forbidden; use lit substitution\" >&2" 'exit 1' > "$FAKE_BIN/$tool"
+            chmod +x "$FAKE_BIN/$tool"
+          done
+          export PATH="$FAKE_BIN:$PATH"
+          # Add mlir-opt to the path
+          export PATH=$PATH:${GITHUB_WORKSPACE}/llvm-project/build/bin/
           if [ "$COLLECT_COVERAGE" = "true" ]; then
             uv run lit -v tests/filecheck/ -DCOVERAGE
             uv run lit -v docs/Toy/examples/ -DCOVERAGE

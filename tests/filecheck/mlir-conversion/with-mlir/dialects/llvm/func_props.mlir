@@ -3,7 +3,7 @@
 // RUN: MLIR_ROUNDTRIP
 // RUN: XDSL_GENERIC_ROUNDTRIP
 // RUN: MLIR_GENERIC_ROUNDTRIP
-// RUN: xdsl-opt %s | mlir-translate --mlir-to-llvmir > /dev/null
+// RUN: xdsl-opt %s | $XDSL_MLIR_TRANSLATE --mlir-to-llvmir > /dev/null
 
 llvm.func @func_vis0_unnameaddr0()
 

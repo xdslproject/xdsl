@@ -21,20 +21,13 @@
               buildInputs = [
                 uv
                 nodejs_22
-                (symlinkJoin {
-                  name = "llvm-mlir-tools";
-                  paths = [
-                    llvm.mlir
-                    llvm.llvm
-                    llvm.tblgen
-                  ];
-                })
+                llvmPackages_22.llvm
+                llvmPackages_22.mlir
+                llvmPackages_22.tblgen
               ];
-              shellHook = ''
-                export XDSL_MLIR_OPT="${llvm.mlir}/bin/mlir-opt"
-                export XDSL_MLIR_TRANSLATE="${llvm.mlir}/bin/mlir-translate"
-                export XDSL_LLVM_DIFF="${llvm.llvm}/bin/llvm-diff"
-              '';
+              XDSL_MLIR_OPT = "${llvmPackages_22.mlir}/bin/mlir-opt";
+              XDSL_MLIR_TRANSLATE = "${llvmPackages_22.mlir}/bin/mlir-translate";
+              XDSL_LLVM_DIFF = "${llvmPackages_22.llvm}/bin/llvm-diff";
             };
           }
     );
