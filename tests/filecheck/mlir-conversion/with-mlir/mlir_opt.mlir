@@ -12,7 +12,7 @@
 // RUN: xdsl-opt %s -p mlir-opt{generic=true\ arguments='--cse','--mlir-print-op-generic'} --print-op-generic | filecheck %s
 
 // Check that manually passing an executable works
-// RUN: xdsl-opt %s -p mlir-opt{executable=mlir-opt\ generic=true\ arguments='--cse','--mlir-print-op-generic'} --print-op-generic | filecheck %s
+// RUN: xdsl-opt %s -p mlir-opt{executable=$XDSL_MLIR_OPT\ generic=true\ arguments='--cse','--mlir-print-op-generic'} --print-op-generic | filecheck %s
 
 module attributes {gpu.container_module} {
   func.func @do_nothing() -> () {
