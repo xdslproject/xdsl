@@ -1,6 +1,6 @@
 import pytest
 
-from xdsl.dialects.builtin import ModuleOp, StringAttr
+from xdsl.dialects.builtin import IntegerAttr, ModuleOp, StringAttr, SymbolRefAttr
 from xdsl.dialects.test import TestOp, TestSymbolOp
 from xdsl.ir import Block, Region
 from xdsl.utils.symbol_table import (
@@ -215,11 +215,46 @@ def test_symbol_table_set_symbol_name():
 
 def test_symbol_table_get_symbol_visibility():
     """Test SymbolTable.get_symbol_visibility static method."""
-    test_op = TestOp()
+    public_op = TestSymbolOp(properties={"sym_name": StringAttr("public_symbol")})
+    explicit_public_op = TestSymbolOp(
+        properties={
+            "sym_name": StringAttr("explicit_public_symbol"),
+            "sym_visibility": StringAttr("public"),
+        }
+    )
+    private_op = TestSymbolOp(
+        properties={
+            "sym_name": StringAttr("private_symbol"),
+            "sym_visibility": StringAttr("private"),
+        }
+    )
+    nested_op = TestSymbolOp(
+        properties={
+            "sym_name": StringAttr("nested_symbol"),
+            "sym_visibility": StringAttr("nested"),
+        }
+    )
+    attr_visibility_op = TestSymbolOp(
+        attributes={"sym_visibility": StringAttr("private")},
+        properties={"sym_name": StringAttr("attr_visibility_symbol")},
+    )
+    invalid_visibility_op = TestSymbolOp(
+        properties={
+            "sym_name": StringAttr("invalid_visibility_symbol"),
+            "sym_visibility": IntegerAttr(1, 32),
+        }
+    )
 
-    # This will raise NotImplementedError until implemented
-    with pytest.raises(NotImplementedError):
-        SymbolTable.get_symbol_visibility(test_op)
+    assert SymbolTable.get_symbol_visibility(public_op) is Visibility.PUBLIC
+    assert SymbolTable.get_symbol_visibility(explicit_public_op) is Visibility.PUBLIC
+    assert SymbolTable.get_symbol_visibility(private_op) is Visibility.PRIVATE
+    assert SymbolTable.get_symbol_visibility(nested_op) is Visibility.NESTED
+    assert SymbolTable.get_symbol_visibility(attr_visibility_op) is Visibility.PRIVATE
+
+    with pytest.raises(
+        ValueError, match="Expected 'sym_visibility' to be a StringAttr"
+    ):
+        SymbolTable.get_symbol_visibility(invalid_visibility_op)
 
 
 def test_symbol_table_set_symbol_visibility():
@@ -270,12 +305,47 @@ def test_symbol_table_walk_symbol_tables():
 
 def test_symbol_table_lookup_symbol_in():
     """Test SymbolTable.lookup_symbol_in static method."""
-    test_op = TestOp()
-    symbol = StringAttr("test_symbol")
+    op_a = TestSymbolOp(properties={"sym_name": StringAttr("a")})
+    op_b = TestSymbolOp(properties={"sym_name": StringAttr("b")})
+    nested_symbol = TestSymbolOp(properties={"sym_name": StringAttr("nested")})
+    nested_private_symbol = TestSymbolOp(
+        properties={
+            "sym_name": StringAttr("private_nested"),
+            "sym_visibility": StringAttr("private"),
+        }
+    )
+    nested_table = ModuleOp(
+        [nested_symbol, nested_private_symbol], sym_name=StringAttr("nested_table")
+    )
+    non_table_root = TestSymbolOp(properties={"sym_name": StringAttr("non_table")})
+    module = ModuleOp([op_a, op_b, nested_table, non_table_root])
 
-    # This will raise NotImplementedError until implemented
-    with pytest.raises(NotImplementedError):
-        SymbolTable.lookup_symbol_in(test_op, symbol, all_symbols=False)
+    assert SymbolTable.lookup_symbol_in(module, "a") is op_a
+    assert SymbolTable.lookup_symbol_in(module, StringAttr("b")) is op_b
+    assert SymbolTable.lookup_symbol_in(module, "missing") is None
+    assert (
+        SymbolTable.lookup_symbol_in(module, SymbolRefAttr("missing", ["nested"]))
+        is None
+    )
+    assert SymbolTable.lookup_symbol_in(module, "a", all_symbols=True) == [op_a]
+
+    assert (
+        SymbolTable.lookup_symbol_in(module, SymbolRefAttr("nested_table", ["nested"]))
+        is nested_symbol
+    )
+    assert (
+        SymbolTable.lookup_symbol_in(module, SymbolRefAttr("non_table", ["nested"]))
+        is None
+    )
+    assert (
+        SymbolTable.lookup_symbol_in(
+            module, SymbolRefAttr("nested_table", ["private_nested"])
+        )
+        is None
+    )
+    assert SymbolTable.lookup_symbol_in(
+        module, SymbolRefAttr("nested_table", ["nested"]), all_symbols=True
+    ) == [nested_table, nested_symbol]
 
 
 def test_symbol_table_lookup_nearest_symbol_from():
@@ -347,9 +417,12 @@ def test_symbol_table_collection_lookup_nearest_symbol_from():
 
 def test_symbol_table_collection_get_symbol_table():
     """Test SymbolTableCollection.get_symbol_table method."""
+    op_a = TestSymbolOp(properties={"sym_name": StringAttr("a")})
+    module = ModuleOp([op_a])
     collection = SymbolTableCollection()
-    test_op = TestOp()
+    table = collection.get_symbol_table(module)
 
-    # This will raise NotImplementedError until implemented
-    with pytest.raises(NotImplementedError):
-        collection.get_symbol_table(test_op)
+    assert isinstance(table, SymbolTable)
+    assert table.lookup("a") is op_a
+    assert collection.symbol_tables[module] is table
+    assert collection.get_symbol_table(module) is table

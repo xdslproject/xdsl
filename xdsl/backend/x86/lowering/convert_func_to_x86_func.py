@@ -86,6 +86,7 @@ class LowerFuncOp(RewritePattern):
         for i, register_type in enumerate(reg_args_types):
             arg = first_block.args[i]
             register = first_block.insert_arg(register_type, i)
+            assert isinstance(register_type, GeneralRegisterType)
             mov_op = x86.DS_MovOp(
                 source=register, destination=register_type.unallocated()
             )
@@ -169,6 +170,7 @@ class LowerReturnOp(RewritePattern):
             )
 
         ret_unalloc = self.arch.register_type_for_type(return_value.type).unallocated()
+        assert isinstance(ret_unalloc, GeneralRegisterType)
         cast_op = builtin.UnrealizedConversionCastOp.get(
             (return_value,), (ret_unalloc,)
         )

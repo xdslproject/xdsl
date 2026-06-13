@@ -46,7 +46,11 @@ from xdsl.ir import (
     TypedAttribute,
 )
 from xdsl.utils.classvar import is_const_classvar
-from xdsl.utils.exceptions import PyRDLAttrDefinitionError, PyRDLTypeError
+from xdsl.utils.exceptions import (
+    PyRDLAttrDefinitionError,
+    PyRDLTypeError,
+    VerifyException,
+)
 from xdsl.utils.hints import (
     PropertyType,
     get_type_var_from_generic_class,
@@ -281,7 +285,12 @@ class ParamAttrDef:
 
         constraint_context = ConstraintContext()
         for field, param_def in self.parameters:
-            param_def.constr.verify(getattr(attr, field), constraint_context)
+            try:
+                param_def.constr.verify(getattr(attr, field), constraint_context)
+            except VerifyException as e:
+                raise VerifyException(
+                    f"parameter '{field}' does not verify:\n{e}"
+                ) from e
 
 
 _PAttrTT = TypeVar("_PAttrTT", bound=type[ParametrizedAttribute])

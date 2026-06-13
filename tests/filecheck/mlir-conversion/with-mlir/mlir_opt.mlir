@@ -14,16 +14,37 @@
 // Check that manually passing an executable works
 // RUN: xdsl-opt %s -p mlir-opt{executable=mlir-opt\ generic=true\ arguments='--cse','--mlir-print-op-generic'} --print-op-generic | filecheck %s
 
-"builtin.module"() ({
-  "func.func"() ({
-    %0 = "arith.constant"() {"value" = 1 : i32} : () -> i32
-    "func.return"() : () -> ()
-  }) {function_type = () -> (), sym_name = "do_nothing"} : () -> ()
-}) {"gpu.container_module"} : () -> ()
-
+module attributes {gpu.container_module} {
+  func.func @do_nothing() -> () {
+    %0 = arith.constant 1 : i32
+    return
+  }
+}
 
 // CHECK:         "builtin.module"() ({
 // CHECK-NEXT:      "func.func"() <{function_type = () -> (), sym_name = "do_nothing"}> ({
 // CHECK-NEXT:        "func.return"() : () -> ()
 // CHECK-NEXT:      }) : () -> ()
 // CHECK-NEXT:    }) {gpu.container_module} : () -> ()
+
+// Check executables
+
+// Neither env var nor custom executable param
+// RUN: xdsl-opt %s -p mlir-opt | filecheck %s --check-prefix CHECK-NEITHER
+
+// CHECK-NEITHER: @do_nothing
+
+// Env var but not custom executable param
+// RUN: env XDSL_MLIR_OPT=%S/mlir_opt_foo.sh xdsl-opt %s -p mlir-opt | filecheck %s --check-prefix CHECK-ENV
+
+// CHECK-ENV: @foo
+
+// Custom executable param but not env var
+// RUN: xdsl-opt %s -p mlir-opt{executable='"%S/mlir_opt_bar.sh"'} | filecheck %s --check-prefix CHECK-PARAM
+
+// CHECK-PARAM: @bar
+
+// Custom executable param but not env var
+// RUN: env XDSL_MLIR_OPT=%S/mlir_opt_foo.sh xdsl-opt %s -p mlir-opt{executable='"%S/mlir_opt_bar.sh"'} | filecheck %s --check-prefix CHECK-BOTH
+
+// CHECK-BOTH: @bar

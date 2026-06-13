@@ -32,17 +32,17 @@ optional-dependencies.dev = [
   "nbconvert>=7.7.2,<8",
   "nbval<0.12",
   "prek~=0.4.0",
-  "pyright==1.1.409",
+  "pyright==1.1.410",
   "pytest<9.1",
   "pytest-asyncio",
   "pytest-cov",
-  "ruff==0.15.15",
+  "ruff==0.15.17",
   "sympy==1.14",
   "textual-dev==1.8",
   "toml<0.11",
 ]
 optional-dependencies.gui = [ "pyclip==0.7", "textual>=8,<9" ]
-optional-dependencies.heir = [ "heir-py==2026.5.18; python_version>='3.11' and python_version<'3.13'" ]
+optional-dependencies.heir = [ "heir-py==2026.6.5.dev0" ]
 optional-dependencies.llvm = [ "llvmlite~=0.47.0" ]
 urls."Issue Tracker" = "https://github.com/xdslproject/xdsl/issues"
 urls."Source Code" = "https://github.com/xdslproject/xdsl"
@@ -88,7 +88,6 @@ zip-safe = false
 [tool.setuptools_scm]
 
 [tool.uv]
-override-dependencies = [ "llvmlite~=0.47.0" ]
 sources.bytesight = { git = "https://github.com/EdmundGoodman/bytesight.git", rev = "e8e8e45ec34316fdc99ee09ea8886c4f63c248be" }
 # No config necessary
 sources.lzstring2 = { git = "https://github.com/superlopuh/lz-string.git" }
