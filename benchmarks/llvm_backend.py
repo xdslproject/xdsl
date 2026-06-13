@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-from pathlib import Path
-
+from benchmarks.bench_utils import benchmark_root_directory
 from xdsl.context import Context
 from xdsl.dialects.builtin import Builtin, ModuleOp
 from xdsl.dialects.llvm import LLVM
@@ -8,13 +7,16 @@ from xdsl.dialects.vector import Vector
 from xdsl.parser import Parser
 
 FILECHECK_TEST = (
-    Path(__file__).parents[1]
+    benchmark_root_directory()
     / "tests"
     / "filecheck"
     / "backend"
     / "llvm"
     / "convert_op.mlir"
 )
+"""
+Root directory of the benchmark, handling running under ASV or directly.
+"""
 
 
 def _parse_module() -> ModuleOp:

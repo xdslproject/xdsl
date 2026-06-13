@@ -787,6 +787,13 @@ def test_stacksave_op():
     assert isinstance(op.res.type.addr_space, builtin.NoneAttr)
 
 
+def test_stackrestore_op():
+    ptr = create_ssa_value(llvm.LLVMPointerType())
+    op = llvm.StackRestoreOp(ptr)
+    assert op.ptr is ptr
+    assert not op.results
+
+
 def test_cond_br_op():
     cond = create_ssa_value(builtin.i1)
     then_block = Block()

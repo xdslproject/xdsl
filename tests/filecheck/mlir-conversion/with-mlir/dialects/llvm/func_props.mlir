@@ -1,8 +1,9 @@
+// REQUIRES: MLIR_TRANSLATE
 // RUN: XDSL_ROUNDTRIP
 // RUN: MLIR_ROUNDTRIP
 // RUN: XDSL_GENERIC_ROUNDTRIP
 // RUN: MLIR_GENERIC_ROUNDTRIP
-// RUN: xdsl-opt %s | mlir-translate --mlir-to-llvmir > /dev/null
+// RUN: xdsl-opt %s | $XDSL_MLIR_TRANSLATE --mlir-to-llvmir > /dev/null
 
 llvm.func @func_vis0_unnameaddr0()
 
@@ -87,8 +88,8 @@ llvm.func protected unnamed_addr @func_vis2_unnameaddr2()
 
 //
 // generic format tests
-// 
-// the comments above each test encode the following values: 
+//
+// the comments above each test encode the following values:
 // <in_vis> ┆ <in_unnamed> ┆ <out_vis> ┆ <out_unnamed>
 //
 

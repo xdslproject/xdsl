@@ -1,6 +1,6 @@
 // RUN: XDSL_ROUNDTRIP
 builtin.module {
-  llvm.mlir.global internal constant @str0("Hello world!\n") {addr_space = 0 : i32} : !llvm.array<13 x i8>
+  llvm.mlir.global internal constant @str0("Hello world!\0A") {addr_space = 0 : i32} : !llvm.array<13 x i8>
   llvm.mlir.global external @x() {addr_space = 0 : i32} : i32
   llvm.mlir.global private @y(42 : i32) {addr_space = 0 : i32} : i32
   llvm.mlir.global external thread_local @tl() {addr_space = 0 : i32} : i32
@@ -17,7 +17,7 @@ builtin.module {
 }
 
 // CHECK: builtin.module {
-// CHECK-NEXT:   llvm.mlir.global internal constant @str0("Hello world!\n") {addr_space = 0 : i32} : !llvm.array<13 x i8>
+// CHECK-NEXT:   llvm.mlir.global internal constant @str0("Hello world!\0A") {addr_space = 0 : i32} : !llvm.array<13 x i8>
 // CHECK-NEXT:   llvm.mlir.global external @x() {addr_space = 0 : i32} : i32
 // CHECK-NEXT:   llvm.mlir.global private @y(42 : i32) {addr_space = 0 : i32} : i32
 // CHECK-NEXT:   llvm.mlir.global external thread_local @tl() {addr_space = 0 : i32} : i32

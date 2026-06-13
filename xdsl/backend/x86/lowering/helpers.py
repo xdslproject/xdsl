@@ -141,7 +141,7 @@ class Arch(StrEnum):
                         "Float precision must be half, single or double."
                     )
         else:
-            if not isinstance(reg_type := value.type, X86RegisterType):
+            if not isinstance(reg_type := value.type, GeneralRegisterType):
                 raise ValueError(f"Invalid type for move {value_type}")
             mov_op = x86.DS_MovOp(value, destination=type(reg_type).unallocated())
 

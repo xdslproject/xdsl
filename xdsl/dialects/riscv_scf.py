@@ -94,9 +94,15 @@ class ForRofOperation(RegisterAllocatableOperation, IRDLOperation, ABC):
         lb: SSAValue | Operation,
         ub: SSAValue | Operation,
         step: SSAValue | Operation | IntegerAttr,
-        iter_args: Sequence[SSAValue | Operation],
-        body: Region | Sequence[Operation] | Sequence[Block] | Block,
+        iter_args: Sequence[SSAValue],
+        body: Region | Sequence[Operation] | Sequence[Block] | Block | None = None,
     ):
+        lb = SSAValue.get(lb)
+        if body is None:
+            body = Region(
+                Block(arg_types=(lb.type, *(iter_arg.type for iter_arg in iter_args)))
+            )
+
         if isinstance(body, Block):
             body = [body]
 

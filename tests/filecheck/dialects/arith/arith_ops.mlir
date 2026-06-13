@@ -213,6 +213,10 @@
 
 // CHECK-NEXT: %extf = arith.extf %lhsf32 : f32 to f64
 
+%extf_vector = "arith.extf"(%lhsvec) : (vector<4xf32>) -> vector<4xf64>
+
+// CHECK-NEXT: %extf_vector = arith.extf %lhsvec : vector<4xf32> to vector<4xf64>
+
 %extui = "arith.extui"(%lhsi32) : (i32) -> i64
 
 // CHECK-NEXT: %extui = arith.extui %lhsi32 : i32 to i64
@@ -220,6 +224,10 @@
 %truncf = "arith.truncf"(%lhsf64) : (f64) -> f32
 
 // CHECK-NEXT: %truncf = arith.truncf %lhsf64 : f64 to f32
+
+%truncf_vector = "arith.truncf"(%lhsvec) : (vector<4xf32>) -> vector<4xf16>
+
+// CHECK-NEXT: %truncf_vector = arith.truncf %lhsvec : vector<4xf32> to vector<4xf16>
 
 %trunci = "arith.trunci"(%lhsi64) : (i64) -> i32
 

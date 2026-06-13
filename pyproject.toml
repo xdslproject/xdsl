@@ -32,17 +32,17 @@ optional-dependencies.dev = [
   "nbconvert>=7.7.2,<8",
   "nbval<0.12",
   "prek~=0.4.0",
-  "pyright==1.1.409",
+  "pyright==1.1.410",
   "pytest<9.1",
-  "pytest-asyncio==1.4.0",
+  "pytest-asyncio",
   "pytest-cov",
-  "ruff==0.15.14",
+  "ruff==0.15.17",
   "sympy==1.14",
   "textual-dev==1.8",
   "toml<0.11",
 ]
 optional-dependencies.gui = [ "pyclip==0.7", "textual>=8,<9" ]
-optional-dependencies.heir = [ "heir-py==2026.5.18; python_version>='3.11' and python_version<'3.13'" ]
+optional-dependencies.heir = [ "heir-py==2026.6.5.dev0" ]
 optional-dependencies.llvm = [ "llvmlite~=0.47.0" ]
 urls."Issue Tracker" = "https://github.com/xdslproject/xdsl/issues"
 urls."Source Code" = "https://github.com/xdslproject/xdsl"
@@ -80,15 +80,14 @@ bench = [
 ]
 
 [tool.setuptools]
+packages.find = {}
+package-data.xdsl = [ "**/*.irdl", "interactive/*.tcss", "py.typed" ]
 platforms = [ "Linux", "Mac OS-X", "Unix" ]
 zip-safe = false
-package-data.xdsl = [ "**/*.irdl", "py.typed", "interactive/*.tcss" ]
-packages.find = {}
 
 [tool.setuptools_scm]
 
 [tool.uv]
-override-dependencies = [ "llvmlite~=0.47.0" ]
 sources.bytesight = { git = "https://github.com/EdmundGoodman/bytesight.git", rev = "e8e8e45ec34316fdc99ee09ea8886c4f63c248be" }
 # No config necessary
 sources.lzstring2 = { git = "https://github.com/superlopuh/lz-string.git" }
@@ -156,6 +155,10 @@ lint.mccabe.max-complexity = 10
 lint.pycodestyle.max-line-length = 130
 
 [tool.pyright]
+typeCheckingMode = "strict"
+include = [ "benchmarks", "docs", "tests", "xdsl" ]
+exclude = [ "docs/marimo" ]
+extraPaths = [ "tests" ]
 # We need this for TypeForm, should remove it once that's in
 enableExperimentalFeatures = true
 # Use specific rule ignore instead if necessary
@@ -167,13 +170,9 @@ reportMissingModuleSource = false
 reportUnnecessaryCast = true
 reportUnnecessaryIsInstance = true
 reportUnnecessaryTypeIgnoreComment = true
-typeCheckingMode = "strict"
-extraPaths = [ "tests" ]
-include = [ "docs", "xdsl", "tests", "benchmarks" ]
-exclude = [ "docs/marimo" ]
 
 [tool.pytest]
-ini_options.python_files = [ "tests/*test_*.py", "docs/marimo/**.py" ]
+ini_options.python_files = [ "docs/marimo/**.py", "tests/*test_*.py" ]
 ini_options.python_classes = "Test_*"
 ini_options.python_functions = "test_*"
 ini_options.addopts = [ "--durations=20", "--maxfail=5", "--import-mode=importlib" ]

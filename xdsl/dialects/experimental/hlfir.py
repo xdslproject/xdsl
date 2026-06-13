@@ -342,8 +342,6 @@ class ConcatOp(IRDLOperation):
     length = operand_def()
     result = result_def()
 
-    irdl_options = (AttrSizedOperandSegments(as_property=True),)
-
 
 @irdl_op_definition
 class AllOp(IRDLOperation):

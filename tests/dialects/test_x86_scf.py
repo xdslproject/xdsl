@@ -3,6 +3,7 @@ from collections.abc import Callable
 import pytest
 
 from xdsl import ir
+from xdsl.builder import ImplicitBuilder
 from xdsl.dialects import test, x86, x86_scf
 from xdsl.traits import (
     EffectInstance,
@@ -13,6 +14,41 @@ from xdsl.traits import (
     get_effects,
 )
 from xdsl.utils.test_value import create_ssa_value
+
+
+@pytest.mark.parametrize("loop_cls", [x86_scf.ForOp, x86_scf.RofOp])
+@pytest.mark.parametrize("iter_arg_types", [(), (x86.registers.R11,)])
+@pytest.mark.parametrize("gen_block", [True, False])
+def test_for_rof_init(
+    loop_cls: type[x86_scf.ForOp | x86_scf.RofOp],
+    iter_arg_types: tuple[ir.Attribute, ...],
+    gen_block: bool,
+):
+    lb = create_ssa_value(x86.registers.R12)
+    ub = create_ssa_value(x86.registers.R13)
+    step = create_ssa_value(x86.registers.R10)
+    operands = tuple(create_ssa_value(t) for t in iter_arg_types)
+
+    if gen_block:
+        body = ir.Block(
+            arg_types=[x86.registers.R12, *iter_arg_types],
+        )
+    else:
+        body = None
+
+    op = loop_cls(
+        lb,
+        ub,
+        step,
+        operands,
+        body,
+    )
+    assert op.body.block.arg_types == (x86.registers.R12, *iter_arg_types)
+    with ImplicitBuilder(op.body) as (_i, *args):
+        x86_scf.YieldOp(*args)
+    op.verify()
+
+    assert op.step is step
 
 
 @pytest.mark.parametrize("loop_cls", [x86_scf.ForOp, x86_scf.RofOp])
