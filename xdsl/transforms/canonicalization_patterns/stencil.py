@@ -96,7 +96,7 @@ class ApplyUnusedResults(RewritePattern):
             return_args.pop(i)
 
         new = stencil.ApplyOp.build(
-            operands=[op.args, op.dest],
+            operands=[op.args, op.dest, []],
             regions=[Region(block)],
             result_types=[[r.type for r in results]],
             properties=op.properties.copy(),
