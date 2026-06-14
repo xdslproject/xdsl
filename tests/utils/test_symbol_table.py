@@ -277,6 +277,23 @@ def test_symbol_table_get_nearest_symbol_table():
     assert SymbolTable.get_nearest_symbol_table(module) is module
     assert SymbolTable.get_nearest_symbol_table(nested_op) is module
 
+    # TestOp(TestOp()) is a nested operation, so it should not have a symbol table
+    nested_test_op = TestOp()
+    parent_test_op = TestOp(regions=[Region(Block([nested_test_op]))])
+
+    assert SymbolTable.get_nearest_symbol_table(parent_test_op) is None
+    assert SymbolTable.get_nearest_symbol_table(nested_test_op) is None
+
+    # Module(module(TestOp(TestOp()))) is a nested operation
+    # Should return inner module for both Op
+    inner_module = ModuleOp([parent_test_op])
+    outer_module = ModuleOp([inner_module])
+
+    assert SymbolTable.get_nearest_symbol_table(outer_module) is outer_module
+    assert SymbolTable.get_nearest_symbol_table(inner_module) is inner_module
+    assert SymbolTable.get_nearest_symbol_table(parent_test_op) is inner_module
+    assert SymbolTable.get_nearest_symbol_table(nested_test_op) is inner_module
+
 
 def test_symbol_table_walk_symbol_tables():
     """Test SymbolTable.walk_symbol_tables static method."""
