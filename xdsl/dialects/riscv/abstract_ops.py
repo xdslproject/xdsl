@@ -5,7 +5,7 @@ from collections.abc import Sequence
 from collections.abc import Set as AbstractSet
 from dataclasses import dataclass
 from io import StringIO
-from typing import IO, Generic, TypeAlias
+from typing import IO, ClassVar, Generic, TypeAlias
 
 from typing_extensions import Self, TypeVar
 
@@ -25,6 +25,7 @@ from xdsl.dialects.builtin import (
     StringAttr,
     UnitAttr,
 )
+from xdsl.dialects.rv64 import UI6
 from xdsl.interfaces import HasFolderInterface
 from xdsl.ir import (
     Attribute,
@@ -752,8 +753,10 @@ class ImmShiftOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrai
 
         return (ShiftbyZero(), ShiftConstantFolding())
 
+ShiftImmT = TypeVar("ShiftImmT", bound = UI5 | UI6)
+ShiftImmTAttr = TypeVar("ShiftImmTAttr", bound=I32 | I64)
 
-class RdRsImmShiftOperation(RISCVInstruction, ABC):
+class RdRsImmShiftOperation(RISCVInstruction, ABC, Generic[ShiftImmT, ShiftImmTAttr]):
     """
     A base class for RISC-V operations that have one destination register, one source
     register and one immediate operand.
@@ -769,7 +772,8 @@ class RdRsImmShiftOperation(RISCVInstruction, ABC):
 
     rd = result_def(IntRegisterType)
     rs1 = operand_def(IntRegisterType)
-    immediate = attr_def(IntegerAttr[UI5])
+    immediate = attr_def(IntegerAttr[ShiftImmT])
+    
     traits = traits_def(ImmShiftOpHasCanonicalizationPatternsTrait())
 
     assembly_format = (
@@ -779,14 +783,11 @@ class RdRsImmShiftOperation(RISCVInstruction, ABC):
     def __init__(
         self,
         rs1: Operation | SSAValue,
-        immediate: int | IntegerAttr[UI5],
+        immediate: IntegerAttr[ShiftImmT],
         *,
         rd: IntRegisterType = Registers.UNALLOCATED_INT,
         comment: str | StringAttr | None = None,
     ):
-        if isinstance(immediate, int):
-            immediate = IntegerAttr(immediate, ui5)
-
         if isinstance(comment, str):
             comment = StringAttr(comment)
         super().__init__(
@@ -802,11 +803,11 @@ class RdRsImmShiftOperation(RISCVInstruction, ABC):
         return self.rd, self.rs1, self.immediate
 
     @abstractmethod
-    def py_operation(self, rs1: IntegerAttr[I32]) -> IntegerAttr[I32]:
+    def py_operation(self, rs1: IntegerAttr[ShiftImmTAttr]) -> IntegerAttr[ShiftImmTAttr]:
         """
         Performs a python function corresponding to this operation.
 
-        If `i := py_operation(rs1)` is an IntegerAttr[I32], then this operation can be
+        If `i := py_operation(rs1)` is an IntegerAttr[ShiftImmTAttr], then this operation can be
         canonicalized to a constant with value `i` when the inputs are constants
         with values `rs1`. The immediate value is retrieved from the `immediate` attribute of the operation.
         """

@@ -302,6 +302,8 @@ class RiscvFunctions(InterpreterFunctions):
         results = (args[0] - args[1],)
         return RiscvFunctions.set_reg_values(interpreter, op.results, results)
 
+<<<<<<< HEAD
+=======
     @impl(riscv.SlliOp)
     def run_shift_left_i(
         self,
@@ -317,6 +319,7 @@ class RiscvFunctions(InterpreterFunctions):
         results = (py_op_result.value.data,)
         return RiscvFunctions.set_reg_values(interpreter, op.results, results)
 
+>>>>>>> origin/main
     @impl(riscv.SllOp)
     def run_shift_left(
         self,

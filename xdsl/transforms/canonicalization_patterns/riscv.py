@@ -663,9 +663,15 @@ class LoadImmediate0(RewritePattern):
             )
 
 
+<<<<<<< HEAD
+def get_constant_value(value: SSAValue) -> IntegerAttr[I32] | IntegerAttr[I64] | None:
+    if value.type == riscv.Registers.ZERO:
+        return IntegerAttr(0, i32)
+=======
 _I32_I64_CONSTRAINT = irdl_to_attr_constraint(
     IntegerAttr[IntegerType[Literal[32, 64], Literal[Signedness.SIGNLESS]]]
 )
+>>>>>>> origin/main
 
 
 def get_constant_value(
@@ -683,7 +689,15 @@ def get_constant_value(
     if isinstance(value.op, riscv.MVOp):
         return get_constant_value(value.op.rs)
 
+<<<<<<< HEAD
+    constant_like = value.op.get_trait(ConstantLike)
+    if constant_like is not None:
+        result = constant_like.get_constant_value(value.op)
+        if isinstance(result, IntegerAttr):
+            return cast(IntegerAttr[I32] | IntegerAttr[I64], result)
+=======
     if (
         result := ConstantLike.get_constant_value(value)
     ) is not None and _I32_I64_CONSTRAINT.verifies(result):
         return cast(IntegerAttr[I32] | IntegerAttr[I64], result)
+>>>>>>> origin/main

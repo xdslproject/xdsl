@@ -16,6 +16,36 @@ from xdsl.utils.exceptions import InterpretationError
 
 @register_impls
 class Rv32Functions(InterpreterFunctions):
+    @impl(rv32.SlliOp)
+    def run_shift_left_i(
+        self,
+        interpreter: Interpreter,
+        op: rv32.SlliOp,
+        args: tuple[Any, ...],
+    ):
+        args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
+        imm = RiscvFunctions.get_immediate_value(interpreter, op.immediate)
+        assert isinstance(imm, int)
+        results = (args[0] << imm,)
+        return RiscvFunctions.set_reg_values(interpreter, op.results, results)
+
+
+    @impl(rv32.SlliOp)
+    def run_shift_left_i(
+        self,
+        interpreter: Interpreter,
+        op: rv32.SlliOp,
+        args: tuple[Any, ...],
+    ):
+        args = RiscvFunctions.get_reg_values(interpreter, op.operands, args)
+        assert len(args) == 1
+        assert isinstance(args[0], int)
+        py_op_result = op.py_operation(IntegerAttr(args[0], i32))
+        assert py_op_result is not None
+        results = (py_op_result.value.data,)
+        return RiscvFunctions.set_reg_values(interpreter, op.results, results)
+
+
     @impl(rv32.LiOp)
     def run_li(
         self,
