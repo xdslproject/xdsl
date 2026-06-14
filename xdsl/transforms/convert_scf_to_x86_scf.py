@@ -3,7 +3,7 @@ from dataclasses import dataclass, field
 from xdsl.backend.riscv.lowering.utils import cast_op_results
 from xdsl.backend.x86.lowering.helpers import Arch
 from xdsl.context import Context
-from xdsl.dialects import builtin, scf, x86_scf
+from xdsl.dialects import asm, builtin, scf, x86_scf
 from xdsl.ir import Block
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
@@ -24,9 +24,7 @@ def cast_block_args_to_regs(block: Block, arch: Arch, rewriter: PatternRewriter)
 
     for arg in block.args:
         rewriter.insert_op(
-            cast_op := builtin.UnrealizedConversionCastOp(
-                operands=[arg], result_types=[arg.type]
-            ),
+            cast_op := asm.FromRegOp.get(arg, arg.type),
             InsertPoint.at_start(block),
         )
         new_val = cast_op.results[0]
