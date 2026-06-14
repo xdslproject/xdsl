@@ -16,6 +16,7 @@ from xdsl.dialects.builtin import (
     Builtin,
     DenseArrayBase,
     IntegerType,
+    NoneAttr,
     SymbolNameConstraint,
     UnitAttr,
 )
@@ -32,6 +33,7 @@ from xdsl.irdl import (
     OptSingleBlockRegionDef,
     OptSuccessorDef,
     ParamAttrConstraint,
+    ParamAttrDef,
     ParsePropInAttrDict,
     SameVariadicOperandSize,
     SameVariadicResultSize,
@@ -45,7 +47,12 @@ from xdsl.irdl import (
 )
 from xdsl.irdl.declarative_assembly_format import (
     AttrDictDirective,
+    AttrFormatDirective,
+    AttrFormatProgram,
     AttributeVariable,
+    AttrKeywordDirective,
+    AttrPunctuationDirective,
+    AttrWhitespaceDirective,
     DenseArrayAttributeVariable,
     Directive,
     FormatDirective,
@@ -61,6 +68,7 @@ from xdsl.irdl.declarative_assembly_format import (
     OptionalResultVariable,
     OptionalSuccessorVariable,
     OptionalUnitAttrVariable,
+    ParameterVariable,
     PunctuationDirective,
     RegionDirective,
     RegionVariable,
@@ -900,3 +908,96 @@ class FormatParser(BaseParser):
         if not inside_ref:
             self.seen_result_types = [True] * len(self.seen_result_types)
         return ResultsDirective()
+
+
+@dataclass(init=False)
+class AttrFormatParser(BaseParser):
+    """Parser for attribute/type declarative assembly format strings."""
+
+    attr_def: ParamAttrDef
+    seen_parameters: set[str]
+
+    def __init__(self, input_str: str, attr_def: ParamAttrDef):
+        super().__init__(ParserState(FormatLexer(Input(input_str, "<attr-format>"))))
+        self.attr_def = attr_def
+        self.seen_parameters = set()
+
+    def parse_format(self) -> AttrFormatProgram:
+        elements: list[AttrFormatDirective] = []
+        while self._current_token.kind != MLIRTokenKind.EOF:
+            elements.append(self.parse_format_directive())
+        self.verify_parameters()
+        return AttrFormatProgram(tuple(elements))
+
+    def verify_parameters(self) -> None:
+        for name, _ in self.attr_def.parameters:
+            if name not in self.seen_parameters:
+                self.raise_error(
+                    f"parameter '{name}' not found in format string, "
+                    f"consider adding a '${name}' directive"
+                )
+
+    def parse_format_directive(self) -> AttrFormatDirective:
+        if self._current_token.text == "`":
+            return self.parse_keyword_or_punctuation()
+        if self._current_token.text == "$":
+            return self.parse_variable()
+        self.raise_error(f"unexpected token '{self._current_token.text}'")
+
+    def parse_variable(self, inside_ref: bool = False) -> ParameterVariable:
+        self._consume_token(MLIRTokenKind.BARE_IDENT)
+        token = self._current_token
+        name = self.parse_identifier(" after '$'")
+
+        for idx, (param_name, param_def) in enumerate(self.attr_def.parameters):
+            if name == param_name:
+                if not inside_ref:
+                    if name in self.seen_parameters:
+                        self.raise_error(
+                            f"parameter '{name}' is already bound", token.span
+                        )
+                    self.seen_parameters.add(name)
+                is_optional = param_def.constr.verifies(NoneAttr())
+                return ParameterVariable(name, idx, is_optional)
+
+        self.raise_error(
+            f"'{name}' does not refer to a parameter of this attribute", token.span
+        )
+
+    def parse_keyword_or_punctuation(self) -> AttrFormatDirective:
+        start_token = self._current_token
+        self.parse_characters("`")
+
+        # \n case
+        if self.parse_optional_keyword("\\"):
+            self.parse_keyword("n")
+            self.parse_characters("`")
+            return AttrWhitespaceDirective("\n")
+
+        # Space or empty backtick case
+        end_token = self._current_token
+        if self.parse_optional_characters("`"):
+            whitespace = self.lexer.input.content[
+                start_token.span.end : end_token.span.start
+            ]
+            if whitespace != " " and whitespace != "":
+                self.raise_error(
+                    "unexpected whitespace in directive, "
+                    "only ` ` or `` whitespace is allowed"
+                )
+            return AttrWhitespaceDirective(whitespace)
+
+        # Punctuation case
+        if self._current_token.kind.is_punctuation():
+            punctuation = self._consume_token().text
+            self.parse_characters("`")
+            assert MLIRTokenKind.is_spelling_of_punctuation(punctuation)
+            return AttrPunctuationDirective(punctuation)
+
+        # Identifier case
+        ident = self.parse_optional_identifier()
+        if ident is None or ident == "`":
+            self.raise_error("punctuation or identifier expected")
+
+        self.parse_characters("`")
+        return AttrKeywordDirective(ident)
