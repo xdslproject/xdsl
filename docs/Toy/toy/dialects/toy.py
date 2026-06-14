@@ -5,8 +5,9 @@ Toy language dialect from MLIR tutorial.
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import TypeAlias
+from typing import TypeAlias, cast
 
+from xdsl.dialect_interfaces import DialectInterface
 from xdsl.dialects.builtin import (
     DenseIntOrFPElementsAttr,
     Float64Type,
@@ -23,6 +24,7 @@ from xdsl.ir import (
     Attribute,
     Block,
     Dialect,
+    IRNode,
     Operation,
     Region,
     SSAValue,
@@ -506,7 +508,7 @@ class CastOp(IRDLOperation):
 
     traits = traits_def(Pure(), CastOpHasShapeInferencePatternsTrait())
 
-    def __init__(self, arg: SSAValue, res: AnyTensorTypeF64 | None = None):
+    def __init__(self, arg: SSAValue, res: Attribute | None = None):
         if res is None:
             res = UnrankedTensorType(f64)
 
@@ -514,6 +516,64 @@ class CastOp(IRDLOperation):
             operands=[arg],
             result_types=[res],
         )
+
+
+# region: ToyInlinerInterface
+
+
+class ToyInlinerInterface(DialectInterface):
+    """
+    This class defines the interface for handling inlining with Toy operations.
+    """
+
+    # Analysis hooks
+
+    def is_legal_to_inline(
+        self, call: Operation, callable: Operation, would_be_cloned: bool
+    ) -> bool:
+        # All call operations within toy can be inlined.
+        return True
+
+    def is_legal_to_inline_operation(
+        self, operation: Operation, region: Region, ir_mapping: dict[IRNode, IRNode]
+    ) -> bool:
+        # All operations within toy can be inlined.
+        return True
+
+    def is_legal_to_inline_region(
+        self, src_region: Region, dest_region: Region, ir_mapping: dict[IRNode, IRNode]
+    ) -> bool:
+        # All functions within toy can be inlined.
+        return True
+
+    # Transformation Hooks
+
+    def handle_terminator(
+        self, op: Operation, values_to_replace: Sequence[SSAValue]
+    ) -> None:
+        # Handle the given inlined terminator(toy.return) by replacing it with a new
+        # operation as necessary.
+
+        # Only "toy.return" needs to be handled here.
+        return_op = cast(ReturnOp, op)
+
+        # Replace the values directly with the return operands.
+        assert len(return_op.operands) == len(values_to_replace)
+        for value, operand in zip(values_to_replace, return_op.operands):
+            value.replace_all_uses_with(operand)
+
+    def materialize_call_conversion(
+        self, input: SSAValue, result_type: Attribute
+    ) -> Operation:
+        # Attempts to materialize a conversion for a type mismatch between a call
+        # from this dialect and a callable region. This method should generate an
+        # operation that takes 'input' as the only operand, and produces a single
+        # result of 'result_type'. If a conversion cannot be generated, None
+        # should be returned.
+        return CastOp(input, result_type)
+
+
+# endregion
 
 
 Toy = Dialect(
@@ -531,4 +591,7 @@ Toy = Dialect(
         CastOp,
     ],
     [],
+    [
+        ToyInlinerInterface(),
+    ],
 )
