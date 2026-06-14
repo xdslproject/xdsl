@@ -290,6 +290,7 @@ def test_symbol_table_get_nearest_symbol_table():
     outer_module = ModuleOp([inner_module])
 
     assert SymbolTable.get_nearest_symbol_table(outer_module) is outer_module
+    assert SymbolTable.get_nearest_symbol_table(inner_module) is inner_module
     assert SymbolTable.get_nearest_symbol_table(parent_test_op) is inner_module
     assert SymbolTable.get_nearest_symbol_table(nested_test_op) is inner_module
 
