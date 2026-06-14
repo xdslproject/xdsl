@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s | xdsl-opt | mlir-opt | filecheck %s
+// RUN: xdsl-opt %s | xdsl-opt | $XDSL_MLIR_OPT | filecheck %s
 
 func.func @while() {
     %init = arith.constant 0 : i32
