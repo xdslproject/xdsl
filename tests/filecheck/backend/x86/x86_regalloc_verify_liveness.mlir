@@ -1,4 +1,4 @@
-// RUN: xdsl-opt -p verify-register-allocation --verify-diagnostics --split-input-file %s | filecheck %s
+// RUN: xdsl-opt -p x86-regalloc-verify-liveness --verify-diagnostics --split-input-file %s | filecheck %s
 
 // CHECK-LABEL:    @inc
 x86_func.func @inc(%ptr: !x86.reg64<rax>) {
