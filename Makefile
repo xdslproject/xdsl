@@ -14,6 +14,10 @@ export UV_PROJECT_ENVIRONMENT=$(if $(VIRTUAL_ENV),$(VIRTUAL_ENV),$(VENV_DIR))
 VENV_EXTRAS ?= --all-extras
 VENV_GROUPS ?= --all-groups
 
+# load .env for lit when present
+UV_ENV_FILE := $(if $(wildcard .env),.env,)
+UV_RUN = uv run $(if $(UV_ENV_FILE),--env-file $(UV_ENV_FILE),)
+
 
 # default lit options
 LIT_OPTIONS ?= -v --order=smart
@@ -53,9 +57,6 @@ uv-installed:
 .PHONY: ${VENV_DIR}/
 ${VENV_DIR}/: uv-installed
 	uv sync ${VENV_EXTRAS} ${VENV_GROUPS}
-	@if [ ! -z "$(XDSL_MLIR_OPT_PATH)" ]; then \
-		ln -sf $(XDSL_MLIR_OPT_PATH) ${VENV_DIR}/bin/mlir-opt; \
-	fi
 
 .PHONY: venv
 venv: ${VENV_DIR}/ ## make sure `make venv` also works correctly
@@ -71,7 +72,7 @@ clean: clean-caches ## remove all caches and the venv
 
 .PHONY: filecheck
 filecheck: uv-installed ## run filecheck tests
-	uv run lit $(LIT_OPTIONS) tests/filecheck
+	$(UV_RUN) lit $(LIT_OPTIONS) tests/filecheck
 
 .PHONY: pytest
 pytest: uv-installed ## run pytest tests on tests and marimo (paths specified in pyproject.toml)
@@ -79,7 +80,7 @@ pytest: uv-installed ## run pytest tests on tests and marimo (paths specified in
 
 .PHONY: filecheck-toy
 filecheck-toy: uv-installed ## run tests for Toy tutorial
-	uv run lit $(LIT_OPTIONS) docs/Toy/examples
+	$(UV_RUN) lit $(LIT_OPTIONS) docs/Toy/examples
 
 .PHONY: pytest-toy-nb
 pytest-toy-nb:
@@ -166,7 +167,7 @@ coverage-tests: uv-installed ## use different coverage data file per coverage ru
 
 .PHONY: coverage-filecheck-tests
 coverage-filecheck-tests: uv-installed ## run coverage over filecheck tests
-	uv run lit $(LIT_OPTIONS) tests/filecheck/ -DCOVERAGE
+	$(UV_RUN) lit $(LIT_OPTIONS) tests/filecheck/ -DCOVERAGE
 
 .PHONY: coverage-report-html
 coverage-report-html: uv-installed ## generate html coverage report

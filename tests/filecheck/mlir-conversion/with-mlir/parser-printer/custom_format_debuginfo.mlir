@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s --print-debuginfo | mlir-opt --allow-unregistered-dialect --mlir-print-debuginfo --mlir-print-local-scope | xdsl-opt --print-debuginfo | filecheck %s --check-prefix=CHECK-DEBUG-INFO
+// RUN: xdsl-opt %s --print-debuginfo | $XDSL_MLIR_OPT --allow-unregistered-dialect --mlir-print-debuginfo --mlir-print-local-scope | xdsl-opt --print-debuginfo | filecheck %s --check-prefix=CHECK-DEBUG-INFO
 
 %0 = arith.constant 1 : i32
 %1 = arith.constant 2 : i32
