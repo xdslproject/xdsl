@@ -175,6 +175,15 @@ class DisjointSet(Generic[_T]):
         index = self._base[self._index_by_value[value]]
         return self._values[index]
 
+    def get(self, value: _T) -> _T | None:
+        """
+        Get the representative value for the set containing the given value,
+        or return None if it is not in the disjoint set.
+        """
+        index = self._index_by_value.get(value)
+        if index is not None:
+            return self._values[self._base[index]]
+
     def union_left(self, lhs: _T, rhs: _T) -> bool:
         """
         Merge the sets containing the two given values, with `rhs`'s tree being attached to `lhs`'s tree.

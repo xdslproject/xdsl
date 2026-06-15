@@ -222,3 +222,17 @@ def test_generic_disjoint_set_rooted_union():
 
     with pytest.raises(KeyError):
         ds.union_left("nonexistent", "a")
+
+
+def test_generic_union_find_get():
+    ds = DisjointSet(["a", "b"])
+
+    assert ds.get("a") == "a"
+    assert ds.get("b") == "b"
+    assert ds.get("c") is None
+
+    ds.union("a", "b")
+
+    assert ds.get("a") is not None
+    assert ds.get("b") is not None
+    assert ds.get("a") == ds.get("b")
