@@ -23,6 +23,8 @@ jobs:
     env:
       LLVM_SYMBOLIZER_PATH: /usr/lib/llvm-11/bin/llvm-symbolizer
       COLLECT_COVERAGE: ${{ matrix.python-version == '3.13' }}
+      XDSL_MLIR_TRANSLATE: /usr/bin/mlir-translate
+      XDSL_LLVM_DIFF: /usr/bin/llvm-diff-22
     steps:
       - uses: actions/checkout@v6
         with:
@@ -55,8 +57,13 @@ jobs:
 
       - name: Execute lit tests
         run: |
-          # Add mlir-opt to the path
-          export PATH=$PATH:${GITHUB_WORKSPACE}/llvm-project/build/bin/
+          # Add decoy executables that should be XDSL_ env vars in tests instead
+          FAKE_BIN=$(mktemp -d)
+          for tool in mlir-translate llvm-diff; do
+            printf '%s\n' '#!/bin/sh' "echo \"bare $tool on PATH forbidden; use lit substitution\" >&2" 'exit 1' > "$FAKE_BIN/$tool"
+            chmod +x "$FAKE_BIN/$tool"
+          done
+          export PATH="$FAKE_BIN:$PATH"
           if [ "$COLLECT_COVERAGE" = "true" ]; then
             uv run lit -v tests/filecheck/ -DCOVERAGE
             uv run lit -v docs/Toy/examples/ -DCOVERAGE
@@ -66,10 +73,7 @@ jobs:
           fi
 
       - name: Test MLIR dependent examples/tutorials
-        run: |
-          # Add mlir-opt to the path
-          export PATH=$PATH:${GITHUB_WORKSPACE}/llvm-project/build/bin/
-          make tests-marimo
+        run: make tests-marimo
 
       - name: Combine coverage data
         if: matrix.python-version == '3.13'

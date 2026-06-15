@@ -20,9 +20,12 @@
               buildInputs = [
                 uv
                 nodejs_22
+                llvmPackages_22.llvm
                 llvmPackages_22.mlir
                 llvmPackages_22.tblgen
               ];
+              XDSL_MLIR_TRANSLATE = "${llvmPackages_22.mlir}/bin/mlir-translate";
+              XDSL_LLVM_DIFF = "${llvmPackages_22.llvm}/bin/llvm-diff";
             };
           }
     );
