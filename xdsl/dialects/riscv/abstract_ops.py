@@ -5,7 +5,7 @@ from collections.abc import Sequence
 from collections.abc import Set as AbstractSet
 from dataclasses import dataclass
 from io import StringIO
-from typing import IO, Generic, TypeAlias
+from typing import IO, Any, Generic, TypeAlias
 
 from typing_extensions import Self, TypeVar
 
@@ -744,6 +744,12 @@ class RdRsImmIntegerOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC)
 
 
 class ImmShiftOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
+    li_op: type[LiOperation[Any]]
+
+    def __init_subclass__(cls, li_op: type[LiOperation[Any]], **kwargs: Any) -> None:
+        super().__init_subclass__(**kwargs)
+        cls.li_op = li_op
+
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.riscv import (
@@ -751,8 +757,7 @@ class ImmShiftOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrai
             ShiftConstantFolding,
         )
 
-        return (ShiftbyZero(), ShiftConstantFolding())
-
+        return (ShiftbyZero(), ShiftConstantFolding(cls.li_op))
 
 ShiftImmT = TypeVar("ShiftImmT", bound=UI5 | UI6)
 ShiftImmTAttr = TypeVar("ShiftImmTAttr", bound=I32 | I64)
@@ -775,8 +780,6 @@ class RdRsImmShiftOperation(RISCVInstruction, ABC, Generic[ShiftImmT, ShiftImmTA
     rd = result_def(IntRegisterType)
     rs1 = operand_def(IntRegisterType)
     immediate = attr_def(IntegerAttr[ShiftImmT])
-
-    traits = traits_def(ImmShiftOpHasCanonicalizationPatternsTrait())
 
     assembly_format = (
         "$rs1 `,` $immediate attr-dict `:` `(` type($rs1) `)` `->` type($rd)"

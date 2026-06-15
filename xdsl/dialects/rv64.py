@@ -22,6 +22,7 @@ from xdsl.dialects.riscv import (
 )
 from xdsl.dialects.riscv.abstract_ops import (
     GetAnyRegisterOperation,
+    ImmShiftOpHasCanonicalizationPatternsTrait,
     LiOperation,
     RdRsImmShiftOperation,
 )
@@ -37,15 +38,51 @@ from xdsl.irdl import (
     traits_def,
 )
 from xdsl.parser import Parser
-from xdsl.pattern_rewriter import RewritePattern
 from xdsl.traits import (
     AlwaysSpeculatable,
-    HasCanonicalizationPatternsTrait,
 )
+
+
+@irdl_op_definition
+class LiOp(LiOperation[I64]):
+    """
+    Loads a 64-bit immediate into rd.
+
+    This is an assembler pseudo-instruction.
+
+    See external [documentation](https://github.com/riscv-non-isa/riscv-asm-manual/blob/main/src/asm-manual.adoc).
+    """
+
+    name = "rv64.li"
+
+    def __init__(
+        self,
+        immediate: int | IntegerAttr[I64] | str | LabelAttr,
+        *,
+        rd: IntRegisterType = Registers.UNALLOCATED_INT,
+        comment: str | StringAttr | None = None,
+    ):
+        if isinstance(immediate, int):
+            immediate = IntegerAttr(immediate, i64)
+        super().__init__(immediate, rd=rd, comment=comment)
+
+    @classmethod
+    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
+        attributes = dict[str, Attribute]()
+        attributes["immediate"] = parse_immediate_value(parser, i64)
+        return attributes
+
+
+class RV64ShiftCanonicalizationTrait(
+    ImmShiftOpHasCanonicalizationPatternsTrait, li_op=LiOp
+):
+    pass
 
 
 class RdRsImmShiftOperationRV64(RdRsImmShiftOperation[UI6, I64]):
     """Base class for RISC-V 64-bit shift immediate operations with rd, rs1 and imm6."""
+
+    traits = traits_def(RV64ShiftCanonicalizationTrait())
 
     def __init__(
         self,
@@ -68,28 +105,6 @@ class RdRsImmShiftOperationRV64(RdRsImmShiftOperation[UI6, I64]):
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
         return self.rd, self.rs1, self.immediate
 
-    # @classmethod
-    # def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
-    #     attributes = dict[str, Attribute]()
-    #     attributes["immediate"] = parse_immediate_value(parser, ui6)
-    #     return attributes
-
-    # def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
-    #     printer.print_string(", ")
-    #     print_immediate_value(printer, self.immediate)
-    #     return {"immediate"}
-
-
-class SlliOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
-    @classmethod
-    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.transforms.canonicalization_patterns.riscv import (
-            ShiftbyZero,
-            ShiftConstantFolding,
-        )
-
-        return (ShiftbyZero(), ShiftConstantFolding())
-
 
 @irdl_op_definition
 class SlliOp(RdRsImmShiftOperationRV64):
@@ -104,22 +119,9 @@ class SlliOp(RdRsImmShiftOperationRV64):
 
     name = "rv64.slli"
 
-    traits = traits_def(SlliOpHasCanonicalizationPatternsTrait())
-
     def py_operation(self, rs1: IntegerAttr[I64]) -> IntegerAttr[I64]:
         assert isinstance(self.immediate, IntegerAttr)
         return IntegerAttr(rs1.value.data << self.immediate.value.data, i64)
-
-
-class SrliOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
-    @classmethod
-    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.transforms.canonicalization_patterns.riscv import (
-            ShiftbyZero,
-            ShiftConstantFolding,
-        )
-
-        return (ShiftbyZero(), ShiftConstantFolding())
 
 
 @irdl_op_definition
@@ -135,24 +137,11 @@ class SrliOp(RdRsImmShiftOperationRV64):
 
     name = "rv64.srli"
 
-    traits = traits_def(SrliOpHasCanonicalizationPatternsTrait())
-
     def py_operation(self, rs1: IntegerAttr[I64]) -> IntegerAttr[I64]:
         assert isinstance(self.immediate, IntegerAttr)
         return IntegerAttr(
             (rs1.value.data % 0x10000000000000000) >> self.immediate.value.data, i64
         )
-
-
-class SraiOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
-    @classmethod
-    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.transforms.canonicalization_patterns.riscv import (
-            ShiftbyZero,
-            ShiftConstantFolding,
-        )
-
-        return (ShiftbyZero(), ShiftConstantFolding())
 
 
 @irdl_op_definition
@@ -167,8 +156,6 @@ class SraiOp(RdRsImmShiftOperationRV64):
     """
 
     name = "rv64.srai"
-
-    traits = traits_def(SraiOpHasCanonicalizationPatternsTrait())
 
     def py_operation(self, rs1: IntegerAttr[I64]) -> IntegerAttr[I64]:
         assert isinstance(self.immediate, IntegerAttr)
@@ -209,36 +196,6 @@ class SrliwOp(RdRsImmShiftOperationRV64):
     name = "rv64.srliw"
 
     traits = traits_def(AlwaysSpeculatable())
-
-
-@irdl_op_definition
-class LiOp(LiOperation[I64]):
-    """
-    Loads a 64-bit immediate into rd.
-
-    This is an assembler pseudo-instruction.
-
-    See external [documentation](https://github.com/riscv-non-isa/riscv-asm-manual/blob/main/src/asm-manual.adoc).
-    """
-
-    name = "rv64.li"
-
-    def __init__(
-        self,
-        immediate: int | IntegerAttr[I64] | str | LabelAttr,
-        *,
-        rd: IntRegisterType = Registers.UNALLOCATED_INT,
-        comment: str | StringAttr | None = None,
-    ):
-        if isinstance(immediate, int):
-            immediate = IntegerAttr(immediate, i64)
-        super().__init__(immediate, rd=rd, comment=comment)
-
-    @classmethod
-    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
-        attributes = dict[str, Attribute]()
-        attributes["immediate"] = parse_immediate_value(parser, i64)
-        return attributes
 
 
 @irdl_op_definition

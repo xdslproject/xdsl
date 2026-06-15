@@ -1,4 +1,4 @@
-from typing import Literal, cast
+from typing import Any, Literal, cast
 
 from xdsl.dialects import riscv, riscv_snitch, rv32, rv64
 from xdsl.dialects.builtin import (
@@ -10,6 +10,7 @@ from xdsl.dialects.builtin import (
     i32,
     i64,
 )
+from xdsl.dialects.riscv.abstract_ops import LiOperation
 from xdsl.dialects.utils import FastMathFlag
 from xdsl.ir import OpResult, SSAValue
 from xdsl.irdl import irdl_to_attr_constraint
@@ -336,6 +337,9 @@ class ShiftConstantFolding(RewritePattern):
     shift(c1, c2) -> c3
     """
 
+    def __init__(self, li_op: type[LiOperation[I32 | I64]]):
+        self.li_op = li_op
+
     @op_type_rewrite_pattern
     def match_and_rewrite(
         self,
@@ -344,14 +348,8 @@ class ShiftConstantFolding(RewritePattern):
     ) -> None:
         if (rs1 := get_constant_value(op.rs1)) is not None:
             rd = op.rd.type
-            if isinstance(op, rv64.RdRsImmShiftOperationRV64):
-                val = cast(IntegerAttr[I64], rs1)
-                result = op.py_operation(val)
-                rewriter.replace_op(op, rv64.LiOp(result, rd=rd))
-            else:
-                val = cast(IntegerAttr[I32], rs1)
-                result = op.py_operation(val)
-                rewriter.replace_op(op, rv32.LiOp(result, rd=rd))
+            result = op.py_operation(cast(Any, rs1))
+            rewriter.replace_op(op, self.li_op(result, rd=rd))
 
 
 class LoadWordWithKnownOffset(RewritePattern):
