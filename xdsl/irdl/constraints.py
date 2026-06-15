@@ -14,7 +14,7 @@ from typing import (
     get_origin,
 )
 
-from typing_extensions import TypeVar, deprecated
+from typing_extensions import TypeVar
 
 from xdsl.ir import (
     Attribute,
@@ -374,19 +374,6 @@ class BaseAttr(AttrConstraint[AttributeCovT], Generic[AttributeCovT]):
         self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
     ) -> AttrConstraint[AttributeCovT]:
         return self
-
-
-@deprecated("Please use `irdl_to_attr_constraint` instead")
-def attr_constr_coercion(
-    attr: AttributeCovT | type[AttributeCovT] | AttrConstraint[AttributeCovT],
-) -> AttrConstraint[AttributeCovT]:
-    """
-    Attributes are coerced into EqAttrConstraints,
-    and Attribute types are coerced into BaseAttr.
-    """
-    from xdsl.irdl import irdl_to_attr_constraint
-
-    return irdl_to_attr_constraint(attr)
 
 
 @dataclass(frozen=True, init=False)
