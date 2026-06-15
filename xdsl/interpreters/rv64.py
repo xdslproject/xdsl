@@ -31,7 +31,7 @@ class Rv64Functions(InterpreterFunctions):
         assert py_op_result is not None
         results = (py_op_result.value.data,)
         return RiscvFunctions.set_reg_values(interpreter, op.results, results)
-    
+
     @impl(rv64.LiOp)
     def run_li(
         self,

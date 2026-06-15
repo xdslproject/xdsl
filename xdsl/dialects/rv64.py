@@ -7,19 +7,25 @@ using 6-bit immediates for 64-bit architectures.
 
 from __future__ import annotations
 
-from abc import ABC
-from collections.abc import Sequence
-from collections.abc import Set as AbstractSet
-from typing import Literal, TypeAlias
-
-from xdsl.dialects.builtin import I64, IntegerAttr, StringAttr, i64
+from xdsl.dialects.builtin import (
+    I64,
+    IntegerAttr,
+    StringAttr,
+    i64,
+)
 from xdsl.dialects.riscv import (
+    AssemblyInstructionArg,
     IntRegisterType,
     LabelAttr,
     Registers,
     parse_immediate_value,
 )
-from xdsl.dialects.riscv.abstract_ops import GetAnyRegisterOperation, LiOperation
+from xdsl.dialects.riscv.abstract_ops import (
+    GetAnyRegisterOperation,
+    LiOperation,
+    RdRsImmShiftOperation,
+)
+from xdsl.dialects.riscv.attrs import UI6, ui6
 from xdsl.ir import (
     Attribute,
     Dialect,
@@ -28,83 +34,65 @@ from xdsl.ir import (
 )
 from xdsl.irdl import (
     irdl_op_definition,
-    operand_def,
-    result_def,
     traits_def,
 )
 from xdsl.parser import Parser
 from xdsl.pattern_rewriter import RewritePattern
-from xdsl.printer import Printer
 from xdsl.traits import (
+    AlwaysSpeculatable,
     HasCanonicalizationPatternsTrait,
-    Pure,
 )
-)
-from xdsl.parser import Parser
-
-UI6: TypeAlias = IntegerType[Literal[6], Literal[Signedness.UNSIGNED]]
-ui6: UI6 = IntegerType(6, Signedness.UNSIGNED)
 
 
-class RdRsImmShiftOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
+class RdRsImmShiftOperationRV64(RdRsImmShiftOperation[UI6, I64]):
     """Base class for RISC-V 64-bit shift immediate operations with rd, rs1 and imm6."""
-
-    rd = result_def(IntRegisterType)
-    rs1 = operand_def(IntRegisterType)
-    immediate = attr_def(IntegerAttr[UI6] | LabelAttr)
 
     def __init__(
         self,
         rs1: Operation | SSAValue,
-        immediate: int | IntegerAttr[UI6] | str | LabelAttr,
+        immediate: int | IntegerAttr[UI6],
         *,
         rd: IntRegisterType = Registers.UNALLOCATED_INT,
         comment: str | StringAttr | None = None,
     ):
         if isinstance(immediate, int):
             immediate = IntegerAttr(immediate, ui6)
-        elif isinstance(immediate, str):
-            immediate = LabelAttr(immediate)
 
-        if isinstance(comment, str):
-            comment = StringAttr(comment)
         super().__init__(
-            operands=[rs1],
-            result_types=[rd],
-            attributes={
-                "immediate": immediate,
-                "comment": comment,
-            },
+            rs1=rs1,
+            immediate=immediate,
+            rd=rd,
+            comment=comment,
         )
 
     def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
         return self.rd, self.rs1, self.immediate
 
-    @classmethod
-    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
-        attributes = dict[str, Attribute]()
-        attributes["immediate"] = parse_immediate_value(parser, ui6)
-        return attributes
+    # @classmethod
+    # def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
+    #     attributes = dict[str, Attribute]()
+    #     attributes["immediate"] = parse_immediate_value(parser, ui6)
+    #     return attributes
 
-    def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
-        printer.print_string(", ")
-        print_immediate_value(printer, self.immediate)
-        return {"immediate"}
+    # def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
+    #     printer.print_string(", ")
+    #     print_immediate_value(printer, self.immediate)
+    #     return {"immediate"}
 
 
 class SlliOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.transforms.canonicalization_patterns.rv64 import (
-            ShiftLeftbyZero,
-            ShiftLeftImmediate,
+        from xdsl.transforms.canonicalization_patterns.riscv import (
+            ShiftbyZero,
+            ShiftConstantFolding,
         )
 
-        return (ShiftLeftImmediate(), ShiftLeftbyZero())
+        return (ShiftbyZero(), ShiftConstantFolding())
 
 
 @irdl_op_definition
-class SlliOp(RdRsImmShiftOperation):
+class SlliOp(RdRsImmShiftOperationRV64):
     """
     Performs logical left shift on the value in register rs1 by the shift amount
     held in the 6-bit immediate.
@@ -117,26 +105,25 @@ class SlliOp(RdRsImmShiftOperation):
     name = "rv64.slli"
 
     traits = traits_def(SlliOpHasCanonicalizationPatternsTrait())
-    
-    def __ini
-    
+
     def py_operation(self, rs1: IntegerAttr[I64]) -> IntegerAttr[I64]:
+        assert isinstance(self.immediate, IntegerAttr)
         return IntegerAttr(rs1.value.data << self.immediate.value.data, i64)
 
 
 class SrliOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.transforms.canonicalization_patterns.rv64 import (
-            ShiftRightbyZero,
-            ShiftRightImmediate,
+        from xdsl.transforms.canonicalization_patterns.riscv import (
+            ShiftbyZero,
+            ShiftConstantFolding,
         )
 
-        return (ShiftRightbyZero(), ShiftRightImmediate())
+        return (ShiftbyZero(), ShiftConstantFolding())
 
 
 @irdl_op_definition
-class SrliOp(RdRsImmShiftOperation):
+class SrliOp(RdRsImmShiftOperationRV64):
     """
     Performs logical right shift on the value in register rs1 by the shift amount held
     in the 6-bit immediate.
@@ -149,15 +136,26 @@ class SrliOp(RdRsImmShiftOperation):
     name = "rv64.srli"
 
     traits = traits_def(SrliOpHasCanonicalizationPatternsTrait())
-    
+
     def py_operation(self, rs1: IntegerAttr[I64]) -> IntegerAttr[I64]:
+        assert isinstance(self.immediate, IntegerAttr)
         return IntegerAttr(
-            (rs1.value.data % 0x100000000) >> self.immediate.value.data, i64
+            (rs1.value.data % 0x10000000000000000) >> self.immediate.value.data, i64
         )
 
 
+class SraiOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.riscv import (
+            ShiftbyZero,
+            ShiftConstantFolding,
+        )
+
+        return (ShiftbyZero(), ShiftConstantFolding())
+
 @irdl_op_definition
-class SraiOp(RdRsImmShiftOperation):
+class SraiOp(RdRsImmShiftOperationRV64):
     """
     Performs arithmetic right shift on the value in register rs1 by the shift amount
     held in the 6-bit immediate.
@@ -168,13 +166,16 @@ class SraiOp(RdRsImmShiftOperation):
     """
 
     name = "rv64.srai"
-    
+
+    traits = traits_def(SraiOpHasCanonicalizationPatternsTrait())
+
     def py_operation(self, rs1: IntegerAttr[I64]) -> IntegerAttr[I64]:
+        assert isinstance(self.immediate, IntegerAttr)
         return IntegerAttr(rs1.value.data >> self.immediate.value.data, i64)
 
 
 @irdl_op_definition
-class SlliwOp(RdRsImmShiftOperation):
+class SlliwOp(RdRsImmShiftOperationRV64):
     """
     Performs logical left shift on the lower 32 bits of the value in register rs1
     by the shift amount held in the immediate (RV64-only instruction).
@@ -188,11 +189,11 @@ class SlliwOp(RdRsImmShiftOperation):
 
     name = "rv64.slliw"
 
-    traits = traits_def(Pure())
+    traits = traits_def(AlwaysSpeculatable())
 
 
 @irdl_op_definition
-class SrliwOp(RdRsImmShiftOperation):
+class SrliwOp(RdRsImmShiftOperationRV64):
     """
     Performs arithmetic right shift on the 32-bit of value in register rs1
     by the shift amount held in the lower 5 bits of the immediate. (RV64-only instruction).
@@ -206,7 +207,8 @@ class SrliwOp(RdRsImmShiftOperation):
 
     name = "rv64.srliw"
 
-    traits = traits_def(Pure())
+    traits = traits_def(AlwaysSpeculatable())
+
 
 
 @irdl_op_definition
@@ -252,7 +254,6 @@ RV64 = Dialect(
         SraiOp,
         SlliwOp,
         SrliwOp,
-        LiOp,
         LiOp,
         GetRegisterOp,
     ],

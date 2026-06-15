@@ -177,9 +177,6 @@ builtin.module {
   %xori_immediate = riscv.xori %i3, 7 : (!riscv.reg) -> !riscv.reg<a0>
   "test.op"(%xori_immediate) : (!riscv.reg<a0>) -> ()
 
-<<<<<<< HEAD
-  %shift_left_zero_r0 = rv32.slli %i2, 0 : (!riscv.reg) -> !riscv.reg<a0>
-=======
   %xori_zero = riscv.xori %i2, 0 : (!riscv.reg) -> !riscv.reg<a0>
 
   // (x ^ a) ^ a -> x, intermediate has one use
@@ -192,8 +189,7 @@ builtin.module {
   %xori_self_inverse_multi = riscv.xori %xori_tmp_multi, 42 : (!riscv.reg) -> !riscv.reg<a0>
   "test.op"(%xori_tmp_multi, %xori_self_inverse_multi) : (!riscv.reg, !riscv.reg<a0>) -> ()
 
-  %shift_left_zero_r0 = riscv.slli %i2, 0 : (!riscv.reg) -> !riscv.reg<a0>
->>>>>>> origin/main
+  %shift_left_zero_r0 = rv32.slli %i2, 0 : (!riscv.reg) -> !riscv.reg<a0>
   "test.op"(%shift_left_zero_r0) : (!riscv.reg<a0>) -> ()
 
   %shift_right_zero_r0 = rv32.srli %i2, 0 : (!riscv.reg) -> !riscv.reg<a0>
@@ -303,6 +299,12 @@ builtin.module {
 // CHECK-NEXT:   %andi_immediate = rv32.li 4 : !riscv.reg<a0>
 // CHECK-NEXT:   "test.op"(%andi_immediate) : (!riscv.reg<a0>) -> ()
 
+// CHECK-NEXT:   %shift_left_immediate = rv32.li 32 : !riscv.reg<a0>
+// CHECK-NEXT:   "test.op"(%shift_left_immediate) : (!riscv.reg<a0>) -> ()
+
+// CHECK-NEXT:   %shift_right_immediate = rv32.li 4 : !riscv.reg<a0>
+// CHECK-NEXT:   "test.op"(%shift_right_immediate) : (!riscv.reg<a0>) -> ()
+
 // CHECK-NEXT:   %andi_zero = rv32.get_register : !riscv.reg<zero>
 // CHECK-NEXT:   %andi_zero_1 = riscv.mv %andi_zero : (!riscv.reg<zero>) -> !riscv.reg<a0>
 // CHECK-NEXT:   "test.op"(%andi_zero_1) : (!riscv.reg<a0>) -> ()
@@ -311,7 +313,7 @@ builtin.module {
 // CHECK-NEXT:   "test.op"(%sll_imm) : (!riscv.reg<a0>) -> ()
 
 // CHECK-NEXT:   %srl_immediate = rv32.get_register : !riscv.reg<zero>
-// CHECK-NEXT:   riscv.mv %srl_immediate : (!riscv.reg<zero>) -> !riscv.reg<a0>
+// CHECK-NEXT:   %srl_immediate_1 = riscv.mv %srl_immediate : (!riscv.reg<zero>) -> !riscv.reg<a0>
 // CHECK-NEXT:   "test.op"(%srl_immediate_1) : (!riscv.reg<a0>) -> ()
 
 // CHECK-NEXT:   %sra_immediate = rv32.get_register : !riscv.reg<zero>

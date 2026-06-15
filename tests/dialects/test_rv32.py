@@ -66,7 +66,7 @@ def test_effect_traits():
     unknown_effects_ops = {op for op in operations if op not in effects_ops}
 
     # Sentinels to remind us to update this test when updating the dialect
-    assert len(effects_ops) == 2
+    assert len(effects_ops) == 5
     assert not unknown_effects_ops
 
     all_effects_trait_types = {
@@ -87,6 +87,9 @@ def test_effect_traits():
     no_effects_ops = {op for op in effects_ops if op.has_trait(NoMemoryEffect)}
 
     assert register_effects_ops == {
+        rv32.SlliOp,
+        rv32.SrliOp,
+        rv32.SraiOp,
         rv32.LiOp,
     }
     assert no_effects_ops == {

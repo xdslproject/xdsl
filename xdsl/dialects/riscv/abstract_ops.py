@@ -5,7 +5,7 @@ from collections.abc import Sequence
 from collections.abc import Set as AbstractSet
 from dataclasses import dataclass
 from io import StringIO
-from typing import IO, ClassVar, Generic, TypeAlias
+from typing import IO, Generic, TypeAlias
 
 from typing_extensions import Self, TypeVar
 
@@ -25,7 +25,6 @@ from xdsl.dialects.builtin import (
     StringAttr,
     UnitAttr,
 )
-from xdsl.dialects.rv64 import UI6
 from xdsl.interfaces import HasFolderInterface
 from xdsl.ir import (
     Attribute,
@@ -62,6 +61,7 @@ from .attrs import (
     SI12,
     SI20,
     UI5,
+    UI6,
     FastMathFlagsAttr,
     LabelAttr,
     i12,
@@ -754,7 +754,7 @@ class ImmShiftOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrai
         return (ShiftbyZero(), ShiftConstantFolding())
 
 ShiftImmT = TypeVar("ShiftImmT", bound = UI5 | UI6)
-ShiftImmTAttr = TypeVar("ShiftImmTAttr", bound=I32 | I64)
+ShiftImmTAttr = TypeVar("ShiftImmTAttr", bound= I32 | I64)
 
 class RdRsImmShiftOperation(RISCVInstruction, ABC, Generic[ShiftImmT, ShiftImmTAttr]):
     """
@@ -773,7 +773,7 @@ class RdRsImmShiftOperation(RISCVInstruction, ABC, Generic[ShiftImmT, ShiftImmTA
     rd = result_def(IntRegisterType)
     rs1 = operand_def(IntRegisterType)
     immediate = attr_def(IntegerAttr[ShiftImmT])
-    
+
     traits = traits_def(ImmShiftOpHasCanonicalizationPatternsTrait())
 
     assembly_format = (

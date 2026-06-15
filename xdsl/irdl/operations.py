@@ -2231,6 +2231,7 @@ def irdl_op_definition(cls: type[IRDLOperationInvT]) -> type[IRDLOperationInvT]:
     op_def = OpDef.from_pyrdl(cls)
     new_attrs = get_accessors_from_op_def(op_def, getattr(cls, "verify_", None))
 
+    bases = tuple(b for b in cls.__mro__ if b is not Generic)
     return type.__new__(
-        type(cls), cls.__name__, cls.__mro__, {**cls.__dict__, **new_attrs}
+        type(cls), cls.__name__, bases, {**cls.__dict__, **new_attrs}
     )
