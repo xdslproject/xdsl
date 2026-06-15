@@ -29,6 +29,16 @@ class FromRegOp(irdl.IRDLOperation, HasFolderInterface):
     def __init__(self, register: ir.SSAValue | ir.Operation, result_type: ir.Attribute):
         super().__init__(operands=(register,), result_types=(result_type,))
 
+    @classmethod
+    def get(cls, register: ir.SSAValue | ir.Operation, result_type: ir.Attribute):
+        """
+        Create the operation, and set the result's name hint to `register`'s name hint.
+        """
+        register = ir.SSAValue.get(register)
+        op = cls(register, result_type)
+        op.value.name_hint = register.name_hint
+        return op
+
     def verify_(self) -> None:
         if (
             isinstance(to_reg_op := self.register.owner, ToRegOp)
@@ -61,6 +71,16 @@ class ToRegOp(irdl.IRDLOperation, HasFolderInterface):
 
     def __init__(self, value: ir.SSAValue | ir.Operation, result_type: RegisterType):
         super().__init__(operands=(value,), result_types=(result_type,))
+
+    @classmethod
+    def get(cls, value: ir.SSAValue | ir.Operation, result_type: RegisterType):
+        """
+        Create the operation, and set the result's name hint to `value`'s name hint.
+        """
+        value = ir.SSAValue.get(value)
+        op = cls(value, result_type)
+        op.register.name_hint = value.name_hint
+        return op
 
     def verify_(self) -> None:
         if (
