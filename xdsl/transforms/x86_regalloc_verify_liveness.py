@@ -10,7 +10,7 @@ from xdsl.utils.exceptions import VerifyException
 
 
 @dataclass(frozen=True)
-class X86RegallocVerifyLiveness(ModulePass):
+class X86RegallocVerifyLivenessPass(ModulePass):
     """
     Verify that, assuming the dominance property is respected, the
     use of a register value as inout is its last use.

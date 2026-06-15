@@ -675,7 +675,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
     def get_x86_regalloc_verify_liveness():
         from xdsl.transforms import x86_regalloc_verify_liveness
 
-        return x86_regalloc_verify_liveness.X86RegallocVerifyLiveness
+        return x86_regalloc_verify_liveness.X86RegallocVerifyLivenessPass
 
     # Please insert pass and `get_` function in alphabetical order
 
