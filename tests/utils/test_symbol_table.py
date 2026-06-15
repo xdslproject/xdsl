@@ -351,12 +351,27 @@ def test_symbol_table_lookup_symbol_in():
 
 def test_symbol_table_lookup_nearest_symbol_from():
     """Test SymbolTable.lookup_nearest_symbol_from static method."""
-    test_op = TestOp()
-    symbol = StringAttr("test_symbol")
+    module_symbol = TestSymbolOp(properties={"sym_name": StringAttr("module_symbol")})
+    nested_from_op = TestOp()
+    ModuleOp([module_symbol, TestOp(regions=[Region(Block([nested_from_op]))])])
 
-    # This will raise NotImplementedError until implemented
-    with pytest.raises(NotImplementedError):
-        SymbolTable.lookup_nearest_symbol_from(test_op, symbol)
+    assert (
+        SymbolTable.lookup_nearest_symbol_from(nested_from_op, "module_symbol")
+        is module_symbol
+    )
+    assert SymbolTable.lookup_nearest_symbol_from(nested_from_op, "missing") is None
+    assert SymbolTable.lookup_nearest_symbol_from(TestOp(), "module_symbol") is None
+
+    outer_symbol = TestSymbolOp(properties={"sym_name": StringAttr("scoped_symbol")})
+    inner_symbol = TestSymbolOp(properties={"sym_name": StringAttr("scoped_symbol")})
+    inner_from_op = TestOp()
+    inner_module = ModuleOp([inner_symbol, inner_from_op], sym_name=StringAttr("inner"))
+    ModuleOp([outer_symbol, inner_module])
+
+    assert (
+        SymbolTable.lookup_nearest_symbol_from(inner_from_op, "scoped_symbol")
+        is inner_symbol
+    )
 
 
 def test_symbol_table_get_symbol_uses():
