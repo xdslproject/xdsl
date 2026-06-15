@@ -4,9 +4,9 @@
 %v0 = ptr_xdsl.load %ptr0 : !ptr_xdsl.ptr -> vector<8xf32>
 // CHECK:       builtin.module {
 // CHECK-NEXT:    %ptr0 = "test.op"() : () -> !ptr_xdsl.ptr
-// CHECK-NEXT:    %ptr0_1 = builtin.unrealized_conversion_cast %ptr0 : !ptr_xdsl.ptr to !x86.reg64
+// CHECK-NEXT:    %ptr0_1 = asm.to_reg %ptr0 : !ptr_xdsl.ptr -> !x86.reg64
 // CHECK-NEXT:    %v0 = x86.dm.vmovups [%ptr0_1] : (!x86.reg64) -> !x86.avx2reg
-// CHECK-NEXT:    %v0_1 = builtin.unrealized_conversion_cast %v0 : !x86.avx2reg to vector<8xf32>
+// CHECK-NEXT:    %v0_1 = asm.from_reg %v0 : !x86.avx2reg -> vector<8xf32>
 // CHECK-NEXT:  }
 
 // -----
@@ -15,9 +15,9 @@
 %v0b = ptr_xdsl.load %ptr0b : !ptr_xdsl.ptr -> vector<16xf32>
 // CHECK:       builtin.module {
 // CHECK-NEXT:    %ptr0b = "test.op"() : () -> !ptr_xdsl.ptr
-// CHECK-NEXT:    %ptr0b_1 = builtin.unrealized_conversion_cast %ptr0b : !ptr_xdsl.ptr to !x86.reg64
+// CHECK-NEXT:    %ptr0b_1 = asm.to_reg %ptr0b : !ptr_xdsl.ptr -> !x86.reg64
 // CHECK-NEXT:    %v0b = x86.dm.vmovups [%ptr0b_1] : (!x86.reg64) -> !x86.avx512reg
-// CHECK-NEXT:    %v0b_1 = builtin.unrealized_conversion_cast %v0b : !x86.avx512reg to vector<16xf32>
+// CHECK-NEXT:    %v0b_1 = asm.from_reg %v0b : !x86.avx512reg -> vector<16xf32>
 // CHECK-NEXT:  }
 
 // -----
@@ -26,9 +26,9 @@
 %v1 = ptr_xdsl.load %ptr1 : !ptr_xdsl.ptr -> f32
 // CHECK:      builtin.module {
 // CHECK-NEXT:   %ptr1 = "test.op"() : () -> !ptr_xdsl.ptr
-// CHECK-NEXT:   %ptr1_1 = builtin.unrealized_conversion_cast %ptr1 : !ptr_xdsl.ptr to !x86.reg64
+// CHECK-NEXT:   %ptr1_1 = asm.to_reg %ptr1 : !ptr_xdsl.ptr -> !x86.reg64
 // CHECK-NEXT:   %v1 = x86.dm.mov [%ptr1_1] : (!x86.reg64) -> !x86.reg64
-// CHECK-NEXT:   %v1_1 = builtin.unrealized_conversion_cast %v1 : !x86.reg64 to f32
+// CHECK-NEXT:   %v1_1 = asm.from_reg %v1 : !x86.reg64 -> f32
 // CHECK-NEXT: }
 
 // -----
@@ -44,9 +44,9 @@
 
 // CHECK:      builtin.module {
 // CHECK-NEXT:   %ptr3 = "test.op"() : () -> !ptr_xdsl.ptr
-// CHECK-NEXT:   %ptr3_1 = builtin.unrealized_conversion_cast %ptr3 : !ptr_xdsl.ptr to !x86.reg64
+// CHECK-NEXT:   %ptr3_1 = asm.to_reg %ptr3 : !ptr_xdsl.ptr -> !x86.reg64
 // CHECK-NEXT:   %v3 = x86.dm.vmovupd [%ptr3_1] : (!x86.reg64) -> !x86.avx2reg
-// CHECK-NEXT:   %v3_1 = builtin.unrealized_conversion_cast %v3 : !x86.avx2reg to vector<4xf64>
+// CHECK-NEXT:   %v3_1 = asm.from_reg %v3 : !x86.avx2reg -> vector<4xf64>
 // CHECK-NEXT: }
 
 // -----
@@ -70,8 +70,8 @@ ptr_xdsl.store %v6, %ptr6 : vector<8xf32>, !ptr_xdsl.ptr
 // CHECK:      builtin.module {
 // CHECK-NEXT:   %ptr6 = "test.op"() : () -> !ptr_xdsl.ptr
 // CHECK-NEXT:   %v6 = "test.op"() : () -> vector<8xf32>
-// CHECK-NEXT:   %ptr6_1 = builtin.unrealized_conversion_cast %ptr6 : !ptr_xdsl.ptr to !x86.reg64
-// CHECK-NEXT:   %v6_1 = builtin.unrealized_conversion_cast %v6 : vector<8xf32> to !x86.avx2reg
+// CHECK-NEXT:   %ptr6_1 = asm.to_reg %ptr6 : !ptr_xdsl.ptr -> !x86.reg64
+// CHECK-NEXT:   %v6_1 = asm.to_reg %v6 : vector<8xf32> -> !x86.avx2reg
 // CHECK-NEXT:   x86.ms.vmovups [%ptr6_1], %v6_1 : (!x86.reg64, !x86.avx2reg) -> ()
 // CHECK-NEXT: }
 
@@ -84,8 +84,8 @@ ptr_xdsl.store %v6b, %ptr6b : vector<16xf32>, !ptr_xdsl.ptr
 // CHECK:      builtin.module {
 // CHECK-NEXT:   %ptr6b = "test.op"() : () -> !ptr_xdsl.ptr
 // CHECK-NEXT:   %v6b = "test.op"() : () -> vector<16xf32>
-// CHECK-NEXT:   %ptr6b_1 = builtin.unrealized_conversion_cast %ptr6b : !ptr_xdsl.ptr to !x86.reg64
-// CHECK-NEXT:   %v6b_1 = builtin.unrealized_conversion_cast %v6b : vector<16xf32> to !x86.avx512reg
+// CHECK-NEXT:   %ptr6b_1 = asm.to_reg %ptr6b : !ptr_xdsl.ptr -> !x86.reg64
+// CHECK-NEXT:   %v6b_1 = asm.to_reg %v6b : vector<16xf32> -> !x86.avx512reg
 // CHECK-NEXT:   x86.ms.vmovups [%ptr6b_1], %v6b_1 : (!x86.reg64, !x86.avx512reg) -> ()
 // CHECK-NEXT: }
 
@@ -98,8 +98,8 @@ ptr_xdsl.store %v6, %ptr6 : vector<4xf64>, !ptr_xdsl.ptr
 // CHECK:      builtin.module {
 // CHECK-NEXT:   %ptr6 = "test.op"() : () -> !ptr_xdsl.ptr
 // CHECK-NEXT:   %v6 = "test.op"() : () -> vector<4xf64>
-// CHECK-NEXT:   %ptr6_1 = builtin.unrealized_conversion_cast %ptr6 : !ptr_xdsl.ptr to !x86.reg64
-// CHECK-NEXT:   %v6_1 = builtin.unrealized_conversion_cast %v6 : vector<4xf64> to !x86.avx2reg
+// CHECK-NEXT:   %ptr6_1 = asm.to_reg %ptr6 : !ptr_xdsl.ptr -> !x86.reg64
+// CHECK-NEXT:   %v6_1 = asm.to_reg %v6 : vector<4xf64> -> !x86.avx2reg
 // CHECK-NEXT:   x86.ms.vmovapd [%ptr6_1], %v6_1 : (!x86.reg64, !x86.avx2reg) -> ()
 // CHECK-NEXT: }
 
@@ -126,8 +126,8 @@ ptr_xdsl.store %v6, %ptr6 : f32, !ptr_xdsl.ptr
 // CHECK:      builtin.module {
 // CHECK-NEXT:   %ptr6 = "test.op"() : () -> !ptr_xdsl.ptr
 // CHECK-NEXT:   %v6 = "test.op"() : () -> f32
-// CHECK-NEXT:   %ptr6_1 = builtin.unrealized_conversion_cast %ptr6 : !ptr_xdsl.ptr to !x86.reg64
-// CHECK-NEXT:   %v6_1 = builtin.unrealized_conversion_cast %v6 : f32 to !x86.reg32
+// CHECK-NEXT:   %ptr6_1 = asm.to_reg %ptr6 : !ptr_xdsl.ptr -> !x86.reg64
+// CHECK-NEXT:   %v6_1 = asm.to_reg %v6 : f32 -> !x86.reg32
 // CHECK-NEXT:   x86.ms.mov [%ptr6_1], %v6_1 : (!x86.reg64, !x86.reg32) -> ()
 // CHECK-NEXT: }
 
@@ -140,9 +140,9 @@ ptr_xdsl.store %v6, %ptr6 : f32, !ptr_xdsl.ptr
 // CHECK:      builtin.module {
 // CHECK-NEXT:   %p = "test.op"() : () -> !ptr_xdsl.ptr
 // CHECK-NEXT:   %idx = "test.op"() : () -> index
-// CHECK-NEXT:   %r0 = builtin.unrealized_conversion_cast %p : !ptr_xdsl.ptr to !x86.reg64
-// CHECK-NEXT:   %r0_1 = builtin.unrealized_conversion_cast %idx : index to !x86.reg64
-// CHECK-NEXT:   %r0_2 = x86.ds.mov %r0 : (!x86.reg64) -> !x86.reg64
-// CHECK-NEXT:   %r0_3 = x86.rs.add %r0_2, %r0_1 : (!x86.reg64, !x86.reg64) -> !x86.reg64
-// CHECK-NEXT:   %r0_4 = builtin.unrealized_conversion_cast %r0_3 : !x86.reg64 to !ptr_xdsl.ptr
+// CHECK-NEXT:   %p_1 = asm.to_reg %p : !ptr_xdsl.ptr -> !x86.reg64
+// CHECK-NEXT:   %idx_1 = asm.to_reg %idx : index -> !x86.reg64
+// CHECK-NEXT:   %r0 = x86.ds.mov %p_1 : (!x86.reg64) -> !x86.reg64
+// CHECK-NEXT:   %r0_1 = x86.rs.add %r0, %idx_1 : (!x86.reg64, !x86.reg64) -> !x86.reg64
+// CHECK-NEXT:   %r0_2 = asm.from_reg %r0_1 : !x86.reg64 -> !ptr_xdsl.ptr
 // CHECK-NEXT: }

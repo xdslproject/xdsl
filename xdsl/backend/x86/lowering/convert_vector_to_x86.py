@@ -1,14 +1,11 @@
 from dataclasses import dataclass
 from typing import cast
 
+from xdsl import ir
 from xdsl.backend.x86.lowering.helpers import Arch
 from xdsl.context import Context
-from xdsl.dialects import builtin, vector, x86
-from xdsl.dialects.builtin import (
-    FixedBitwidthType,
-    UnrealizedConversionCastOp,
-    VectorType,
-)
+from xdsl.dialects import asm, builtin, vector, x86
+from xdsl.dialects.builtin import FixedBitwidthType, VectorType
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
     GreedyRewritePatternApplier,
@@ -44,17 +41,14 @@ class VectorBroadcastToX86(RewritePattern):
                     "Float precision must be half, single or double."
                 )
         scalar_reg_type = self.arch.register_type_for_type(element_type)
-        source_cast_op, source_x86 = UnrealizedConversionCastOp.cast_one(
-            op.source, scalar_reg_type.unallocated()
-        )
+        source_cast_op = asm.ToRegOp.get(op.source, scalar_reg_type.unallocated())
+        source_x86 = source_cast_op.register
         broadcast_op = broadcast(
             source=source_x86,
             destination=self.arch.register_type_for_type(op.vector.type).unallocated(),
         )
         # Get back the abstract vector
-        dest_cast_op, _ = UnrealizedConversionCastOp.cast_one(
-            broadcast_op.destination, op.vector.type
-        )
+        dest_cast_op = asm.FromRegOp.get(broadcast_op.destination, op.vector.type)
 
         rewriter.replace_op(op, [source_cast_op, broadcast_op, dest_cast_op])
 
@@ -68,14 +62,13 @@ class VectorFMAToX86(RewritePattern):
         vect_type = cast(VectorType, op.acc.type)
         x86_vect_type = self.arch.register_type_for_type(vect_type).unallocated()
         # Pointer casts
-        lhs_cast_op, lhs_new = UnrealizedConversionCastOp.cast_one(
-            op.lhs, x86_vect_type
-        )
-        rhs_cast_op, rhs_new = UnrealizedConversionCastOp.cast_one(
-            op.rhs, x86_vect_type
-        )
-        acc_cast_op, acc_new = UnrealizedConversionCastOp.cast_one(
-            op.acc, x86_vect_type
+        lhs_cast_op = asm.ToRegOp.get(op.lhs, x86_vect_type)
+        lhs_new = lhs_cast_op.register
+        rhs_cast_op = asm.ToRegOp.get(op.rhs, x86_vect_type)
+        rhs_new = rhs_cast_op.register
+        acc_cast_op = asm.ToRegOp.get(op.acc, x86_vect_type)
+        acc_new = cast(
+            ir.SSAValue[x86.registers.X86VectorRegisterType], acc_cast_op.register
         )
         # Instruction selection
         element_size = cast(FixedBitwidthType, vect_type.get_element_type()).bitwidth
@@ -94,9 +87,7 @@ class VectorFMAToX86(RewritePattern):
                 )
         fma_op = fma(acc_new, lhs_new, rhs_new)
 
-        res_cast_op = UnrealizedConversionCastOp.get(
-            (fma_op.register_out,), (vect_type,)
-        )
+        res_cast_op = asm.FromRegOp.get(fma_op.register_out, vect_type)
         rewriter.replace_op(
             op, [lhs_cast_op, rhs_cast_op, acc_cast_op, fma_op, res_cast_op]
         )
