@@ -123,6 +123,7 @@ class SrliOp(RdRsImmShiftOperationRV32):
             (rs1.value.data % 0x100000000) >> self.immediate.value.data, i32
         )
 
+
 class SraiOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:

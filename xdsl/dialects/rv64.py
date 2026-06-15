@@ -154,6 +154,7 @@ class SraiOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
 
         return (ShiftbyZero(), ShiftConstantFolding())
 
+
 @irdl_op_definition
 class SraiOp(RdRsImmShiftOperationRV64):
     """
@@ -208,7 +209,6 @@ class SrliwOp(RdRsImmShiftOperationRV64):
     name = "rv64.srliw"
 
     traits = traits_def(AlwaysSpeculatable())
-
 
 
 @irdl_op_definition

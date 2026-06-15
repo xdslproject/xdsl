@@ -25,6 +25,7 @@ class FastMathFlagsAttr(FastMathAttrBase):
         # explicitely define one here.
         super().__init__(flags)
 
+
 UI5: TypeAlias = IntegerType[Literal[5], Literal[Signedness.UNSIGNED]]
 UI6: TypeAlias = IntegerType[Literal[6], Literal[Signedness.UNSIGNED]]
 SI20: TypeAlias = IntegerType[Literal[20], Literal[Signedness.SIGNED]]

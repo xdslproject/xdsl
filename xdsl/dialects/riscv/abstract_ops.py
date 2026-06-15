@@ -753,8 +753,10 @@ class ImmShiftOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrai
 
         return (ShiftbyZero(), ShiftConstantFolding())
 
-ShiftImmT = TypeVar("ShiftImmT", bound = UI5 | UI6)
-ShiftImmTAttr = TypeVar("ShiftImmTAttr", bound= I32 | I64)
+
+ShiftImmT = TypeVar("ShiftImmT", bound=UI5 | UI6)
+ShiftImmTAttr = TypeVar("ShiftImmTAttr", bound=I32 | I64)
+
 
 class RdRsImmShiftOperation(RISCVInstruction, ABC, Generic[ShiftImmT, ShiftImmTAttr]):
     """
@@ -803,7 +805,9 @@ class RdRsImmShiftOperation(RISCVInstruction, ABC, Generic[ShiftImmT, ShiftImmTA
         return self.rd, self.rs1, self.immediate
 
     @abstractmethod
-    def py_operation(self, rs1: IntegerAttr[ShiftImmTAttr]) -> IntegerAttr[ShiftImmTAttr]:
+    def py_operation(
+        self, rs1: IntegerAttr[ShiftImmTAttr]
+    ) -> IntegerAttr[ShiftImmTAttr]:
         """
         Performs a python function corresponding to this operation.
 

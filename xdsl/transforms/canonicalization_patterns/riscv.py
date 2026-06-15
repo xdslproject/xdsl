@@ -322,7 +322,9 @@ class ShiftbyZero(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(
-        self, op: rv32.RdRsImmShiftOperationRV32 | rv64.RdRsImmShiftOperationRV64, rewriter: PatternRewriter
+        self,
+        op: rv32.RdRsImmShiftOperationRV32 | rv64.RdRsImmShiftOperationRV64,
+        rewriter: PatternRewriter,
     ) -> None:
         # check if the shift amount is zero
         if op.immediate.value.data == 0:
@@ -336,7 +338,9 @@ class ShiftConstantFolding(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(
-        self, op: rv32.RdRsImmShiftOperationRV32 | rv64.RdRsImmShiftOperationRV64, rewriter: PatternRewriter
+        self,
+        op: rv32.RdRsImmShiftOperationRV32 | rv64.RdRsImmShiftOperationRV64,
+        rewriter: PatternRewriter,
     ) -> None:
         if (rs1 := get_constant_value(op.rs1)) is not None:
             rd = op.rd.type

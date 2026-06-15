@@ -32,7 +32,6 @@ class Rv32Functions(InterpreterFunctions):
         results = (py_op_result.value.data,)
         return RiscvFunctions.set_reg_values(interpreter, op.results, results)
 
-
     @impl(rv32.LiOp)
     def run_li(
         self,
