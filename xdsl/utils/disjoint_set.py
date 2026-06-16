@@ -214,3 +214,12 @@ class DisjointSet(Generic[_T]):
         return self._base.connected(
             self._index_by_value[lhs], self._index_by_value[rhs]
         )
+
+    def __str__(self) -> str:
+        values_by_root: dict[_T, list[_T]] = {}
+        for v in self._values:
+            root = self.find(v)
+            if root not in values_by_root:
+                values_by_root[root] = []
+            values_by_root[root].append(v)
+        return str(values_by_root)
