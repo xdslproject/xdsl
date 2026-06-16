@@ -1,9 +1,9 @@
 # RUN: python %s | filecheck %s
 
 from collections.abc import Callable
-from ctypes import CFUNCTYPE, c_double
+from ctypes import CFUNCTYPE
 from dataclasses import dataclass
-from typing import Generic, ParamSpec
+from typing import Any, Generic, ParamSpec
 
 import llvmlite
 import llvmlite.binding
@@ -11,7 +11,9 @@ import llvmlite.ir as llvm_ir
 from typing_extensions import TypeVar
 
 from xdsl.backend.llvm.convert import convert_module
+from xdsl.backend.llvm.convert_ctypes import CTypeContext, register_builtin_ctypes
 from xdsl.dialects import arith, builtin, func, llvm
+from xdsl.dialects.builtin import ModuleOp
 from xdsl.frontend.pyast.context import PyASTContext
 from xdsl.transforms.desymref import FrontendDesymrefyPass
 from xdsl.transforms.mlir_opt import MLIROptPass
@@ -44,10 +46,12 @@ class McJitKeepalive(Generic[P, R]):
         return self.func(*args, **kwargs)
 
 
-# TODO: support automatic conversion of types
-def mcjit_f64_f64_f64_binary(
-    llvm_module: llvm_ir.Module, symbol: str
-) -> McJitKeepalive[[float, float], float]:
+def mcjit_compile(
+    xdsl_module: ModuleOp,
+    symbol: str,
+    ctype_ctx: CTypeContext,
+) -> McJitKeepalive[..., Any]:
+    llvm_module: llvm_ir.Module = convert_module(xdsl_module)
     llvm_ir_text = str(llvm_module)
     llvmlite.binding.initialize_native_target()  # pyright: ignore
     llvmlite.binding.initialize_native_asmprinter()  # pyright: ignore
@@ -59,19 +63,25 @@ def mcjit_f64_f64_f64_binary(
     engine.finalize_object()  # pyright: ignore
     engine.run_static_constructors()  # pyright: ignore
 
+    func_op = next(
+        op
+        for op in xdsl_module.ops
+        if isinstance(op, llvm.FuncOp) and op.sym_name.data == symbol
+    )
+    ret_ctype = ctype_ctx.to_ctype(func_op.function_type.output)
+    arg_ctypes = [ctype_ctx.to_ctype(t) for t in func_op.function_type.inputs]
+    fn_type = CFUNCTYPE(ret_ctype, *arg_ctypes)
+
     func_ptr = engine.get_function_address(symbol)  # pyright: ignore
-    fn_type = CFUNCTYPE(c_double, c_double, c_double)
     fn = fn_type(func_ptr)  # pyright: ignore
 
-    keepalive = McJitKeepalive(
+    return McJitKeepalive(
         target=target,  # pyright: ignore
         target_machine=target_machine,  # pyright: ignore
         backing_mod=backing_mod,  # pyright: ignore
         engine=engine,  # pyright: ignore
         func=fn,
     )
-
-    return keepalive
 
 
 # JIT
@@ -80,6 +90,7 @@ def mcjit_f64_f64_f64_binary(
 # TODO: support extending the JIT with more functionality
 class JITContext:
     pyast_ctx: PyASTContext
+    ctype_ctx: CTypeContext
 
     def __init__(self):
         ctx = PyASTContext(post_transforms=[FrontendDesymrefyPass(), convert_to_llvm])
@@ -91,12 +102,12 @@ class JITContext:
         ctx.register_dialect(func.Func)
         self.pyast_ctx = ctx
 
-    def jit(
-        self, func: Callable[[float, float], float]
-    ) -> McJitKeepalive[[float, float], float]:
+        self.ctype_ctx = CTypeContext()
+        register_builtin_ctypes(self.ctype_ctx)
+
+    def jit(self, func: Callable[P, R]) -> McJitKeepalive[P, R]:
         parsed_program = self.pyast_ctx.parse_program(func)
-        module = convert_module(parsed_program.module)
-        return mcjit_f64_f64_f64_binary(module, parsed_program.name)
+        return mcjit_compile(parsed_program.module, parsed_program.name, self.ctype_ctx)
 
 
 # Test
