@@ -7,6 +7,7 @@ from xdsl.dialects.builtin import ModuleOp
 from xdsl.frontend.pyast.code_generation import CodeGeneration
 from xdsl.frontend.pyast.utils.type_conversion import (
     FunctionRegistry,
+    LiteralRegistry,
     TypeConverter,
     TypeRegistry,
 )
@@ -22,6 +23,9 @@ class PyASTBuilder:
 
     function_registry: FunctionRegistry
     """Mappings between functions and their operation types."""
+
+    literal_registry: LiteralRegistry
+    """Mappings between literal types and their operation constructors."""
 
     file: str | None
     """The file path of the function being built."""
@@ -45,6 +49,7 @@ class PyASTBuilder:
             self.globals,
             self.type_registry,
             self.function_registry,
+            self.literal_registry,
         )
         module = CodeGeneration.run_with_type_converter(
             type_converter,

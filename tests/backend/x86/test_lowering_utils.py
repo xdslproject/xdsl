@@ -7,7 +7,7 @@ from xdsl.dialects.builtin import VectorType, f64, i64
 from xdsl.dialects.x86.ops import DS_MovOp, DS_Operation, DS_VmovapdOp
 from xdsl.dialects.x86.registers import (
     AVX2RegisterType,
-    GeneralRegisterType,
+    Reg64Type,
     X86RegisterType,
 )
 from xdsl.ir import Attribute, Block
@@ -20,10 +20,10 @@ from xdsl.utils.test_value import create_ssa_value
     [
         (
             Arch.UNKNOWN,
-            GeneralRegisterType,
+            Reg64Type,
             i64,
             DS_MovOp,
-            GeneralRegisterType.unallocated(),
+            Reg64Type.unallocated(),
         ),
         (
             Arch.AVX2,
@@ -55,5 +55,4 @@ def test_move_value_to_unallocated(
     [Arch.AVX2, Arch.AVX512, Arch.UNKNOWN],
 )
 def test_register_type_for_ptr_type(arch: Arch):
-    # All architectures: ptr type should use GeneralRegisterType
-    assert arch.register_type_for_type(ptr.PtrType()) == GeneralRegisterType
+    assert arch.register_type_for_type(ptr.PtrType()) == Reg64Type

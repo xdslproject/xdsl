@@ -1,19 +1,21 @@
 from __future__ import annotations
 
-from collections.abc import Generator, Sequence
+import itertools
+from collections.abc import Sequence
 
 from xdsl.backend.assembly_printer import AssemblyPrintable, AssemblyPrinter
-from xdsl.backend.register_type import RegisterType
+from xdsl.backend.register_type import RegisterResource
 from xdsl.dialects import riscv
 from xdsl.dialects.builtin import (
     I8,
+    I32,
     FunctionType,
     IntegerAttr,
-    IntegerType,
     StringAttr,
     SymbolNameConstraint,
     SymbolRefAttr,
     i8,
+    i32,
 )
 from xdsl.dialects.utils import (
     parse_func_op_like,
@@ -35,30 +37,65 @@ from xdsl.parser import Parser
 from xdsl.printer import Printer
 from xdsl.traits import (
     CallableOpInterface,
+    EffectInstance,
     HasParent,
     IsolatedFromAbove,
     IsTerminator,
+    MemoryAllocEffect,
+    MemoryEffect,
+    MemoryEffectKind,
+    MemoryFreeEffect,
+    MemoryReadEffect,
+    MemoryWriteEffect,
     ReturnLike,
     SymbolOpInterface,
 )
 from xdsl.utils.exceptions import DiagnosticException, VerifyException
+
+_FUNCTION_CALL_EFFECTS = frozenset(
+    EffectInstance(MemoryEffectKind.WRITE, resource=RegisterResource(r))
+    for r in itertools.chain(
+        riscv.Registers.A, riscv.Registers.T, riscv.Registers.FA, riscv.Registers.FT
+    )
+)
+
+
+class RiscvFunctionCallMemoryEffect(MemoryEffect):
+    """
+    An assembly operation that corresponds to a function call in the RISC-V ABI,
+    overwwriting the A, T, FA, and FT registers.
+    """
+
+    @classmethod
+    def get_effects(cls, op: Operation) -> frozenset[EffectInstance]:
+        return _FUNCTION_CALL_EFFECTS
 
 
 @irdl_op_definition
 class SyscallOp(IRDLOperation):
     name = "riscv_func.syscall"
     args = var_operand_def(riscv.IntRegisterType)
-    syscall_num = attr_def(IntegerAttr[IntegerType])
+    syscall_num = attr_def(IntegerAttr[I32])
     result = opt_result_def(riscv.IntRegisterType)
+
+    # Function calls can have arbitrary memory effects, and may overwrite the
+    # A, T, FA, and FT registers
+    traits = traits_def(
+        MemoryAllocEffect(),
+        MemoryFreeEffect(),
+        MemoryReadEffect(),
+        MemoryWriteEffect(),
+        RiscvFunctionCallMemoryEffect(),
+    )
 
     def __init__(
         self,
-        num: int | IntegerAttr,
+        num: int | IntegerAttr[I32],
         has_result: bool = False,
         operands: list[SSAValue | Operation] = [],
     ):
         if isinstance(num, int):
-            num = IntegerAttr.from_int_and_width(num, 32)
+            num = IntegerAttr(num, i32)
         super().__init__(
             operands=[operands],
             attributes={"syscall_num": num},
@@ -87,6 +124,16 @@ class CallOp(riscv.RISCVInstruction):
 
     assembly_format = (
         "$callee `(` $args `)` attr-dict `:` functional-type($args, $ress)"
+    )
+
+    # Function calls can have arbitrary memory effects, and may overwrite the
+    # A, T, FA, and FT registers
+    traits = traits_def(
+        MemoryAllocEffect(),
+        MemoryFreeEffect(),
+        MemoryReadEffect(),
+        MemoryWriteEffect(),
+        RiscvFunctionCallMemoryEffect(),
     )
 
     def __init__(
@@ -121,15 +168,6 @@ class CallOp(riscv.RISCVInstruction):
 
     def assembly_line_args(self) -> tuple[riscv.AssemblyInstructionArg | None, ...]:
         return (self.callee.string_value(),)
-
-    def iter_used_registers(self) -> Generator[RegisterType, None, None]:
-        # These registers are not guaranteed to hold the same values when the callee
-        # returns, according to the RISC-V calling convention.
-        # https://riscv.org/wp-content/uploads/2015/01/riscv-calling.pdf
-        yield from riscv.Registers.A
-        yield from riscv.Registers.T
-        yield from riscv.Registers.FA
-        yield from riscv.Registers.FT
 
 
 class FuncOpCallableInterface(CallableOpInterface):
@@ -254,7 +292,11 @@ class ReturnOp(riscv.RISCVInstruction):
     values = var_operand_def(riscv.RISCVRegisterType)
     comment = opt_attr_def(StringAttr)
 
-    traits = traits_def(IsTerminator(), HasParent(FuncOp), ReturnLike())
+    traits = traits_def(
+        IsTerminator(),
+        HasParent(FuncOp),
+        ReturnLike(),
+    )
 
     assembly_format = "attr-dict ($values^ `:` type($values))?"
 

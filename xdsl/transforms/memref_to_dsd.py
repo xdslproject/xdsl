@@ -19,7 +19,6 @@ from xdsl.dialects.builtin import (
     i8,
     i16,
 )
-from xdsl.dialects.csl.csl import ZerosOpAttr
 from xdsl.ir import Operation, OpResult, SSAValue
 from xdsl.ir.affine import AffineConstantExpr, AffineDimExpr, AffineExpr, AffineMap
 from xdsl.passes import ModulePass
@@ -39,7 +38,7 @@ class LowerAllocOpPass(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: memref.AllocOp, rewriter: PatternRewriter, /):
         assert (
-            MemRefType[ZerosOpAttr]
+            MemRefType[csl.ZerosOpAttr]
             .constr(csl.ZerosOpAttrConstr)
             .verifies(memref_type := op.memref.type)
         )
@@ -268,8 +267,8 @@ class LowerSubviewOpPass(RewritePattern):
         elif (
             isinstance(subview.source.type.layout, StridedLayoutAttr)
             and static_offsets[0] != (subview.source.type.layout.get_offset() or 0)
-            or isinstance(subview.source.type.layout, NoneAttr)
-            and static_offsets[0] != 0
+        ) or (
+            isinstance(subview.source.type.layout, NoneAttr) and static_offsets[0] != 0
         ):
             # update offsets only if they differ from op.source.type
             ops.append(

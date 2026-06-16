@@ -68,10 +68,10 @@ def test_func():
 def test_func_II():
     # Create constants and add them, add them in blocks, blocks in
     # a region and create a function
-    a = ConstantOp(IntegerAttr.from_int_and_width(1, 32), i32)
-    b = ConstantOp(IntegerAttr.from_int_and_width(2, 32), i32)
-    c = ConstantOp(IntegerAttr.from_int_and_width(3, 32), i32)
-    d = ConstantOp(IntegerAttr.from_int_and_width(4, 32), i32)
+    a = ConstantOp(IntegerAttr(1, 32), i32)
+    b = ConstantOp(IntegerAttr(2, 32), i32)
+    c = ConstantOp(IntegerAttr(3, 32), i32)
+    d = ConstantOp(IntegerAttr(4, 32), i32)
 
     # Operation to add these constants
     e = AddiOp(a, b)

@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s -p printf-to-llvm | mlir-opt --convert-to-llvm  | filecheck %s
+// RUN: xdsl-opt %s -p printf-to-llvm | $XDSL_MLIR_OPT --convert-to-llvm  | filecheck %s
 // this tests straight to llvmir to verify intended target compatibility
 
 builtin.module {

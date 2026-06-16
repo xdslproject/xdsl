@@ -1,22 +1,24 @@
 import marimo
 
-__generated_with = "0.15.2"
+__generated_with = "0.23.6"
 app = marimo.App()
 
 
 @app.cell(hide_code=True)
 def _():
     import marimo as mo
+
     return (mo,)
 
 
 @app.cell(hide_code=True)
 def _():
     from xdsl.utils import marimo as xmo
+
     return (xmo,)
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo, xmo):
     from typing import Any
     from io import StringIO
@@ -40,6 +42,12 @@ def _(mo, xmo):
 
     all_dialects = get_all_dialects()
 
+    def get_ctx() -> Context:
+        context = Context()
+        for dialect in ("builtin", "scf", "arith", "printf"):
+            context.register_dialect(dialect, all_dialects[dialect])
+        return context
+
     def to_mlir(code: str) -> builtin.ModuleOp:
         module = builtin.ModuleOp([])
         builder = Builder(InsertPoint.at_start(module.body.block))
@@ -47,10 +55,7 @@ def _(mo, xmo):
         return module
 
     def parse_mlir(code: str) -> builtin.ModuleOp:
-        context = Context()
-        for dialect in ("builtin", "scf", "arith", "printf"):
-            context.register_dialect(dialect, all_dialects[dialect])
-        parser = Parser(context, code)
+        parser = Parser(get_ctx(), code)
         return parser.parse_module(code)
 
     def compilation_output(code_editor: Any) -> mo.md:
@@ -64,7 +69,7 @@ def _(mo, xmo):
             module = to_mlir(code_editor.value)
         else:
             module = parse_mlir(code_editor.value)
-        module_list = [module.clone()]
+        module_list = []
         def callback(pass1, module, pass2):
             module_list.append(module.clone())
         all_passes = get_all_passes()
@@ -73,8 +78,8 @@ def _(mo, xmo):
         pipeline = PassPipeline.parse_spec(all_passes, pass_editor.value, callback)
         titles = xmo.pipeline_titles(pipeline.passes)
         labels = ["Initial IR"] + ["IR after " + t for t in titles]
-        pipeline.apply(Context(), module)
-        module_list.append(module.clone())
+        ctx = get_ctx()
+        pipeline.apply(ctx, module)
         if result == "md":
             return [(label, xmo.module_md(module)) for label, module in zip(labels, module_list, strict=True)]
         return [(label, module) for label, module in zip(labels, module_list, strict=True)]
@@ -102,10 +107,10 @@ def _(mo, xmo):
             print(e.__notes__[0], file=_error_output9)
             print(e, file=_error_output9)
             return False, mo.md("/// attention | Compilation error:\n" + "`" * 3 + "\n" + _error_output9.getvalue() + "`" * 3 + "\n///")
+
     return (
         CommonSubexpressionElimination,
         ConstantFoldInterpPass,
-        Context,
         DeadCodeElimination,
         LowerListToTensor,
         OptimizeListOps,
@@ -114,6 +119,7 @@ def _(mo, xmo):
         execute_and_catch_exceptions,
         get_all_passes,
         get_compilation_outputs_with_passes,
+        get_ctx,
         parse_mlir,
         to_mlir,
     )
@@ -121,26 +127,22 @@ def _(mo, xmo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     # An Introduction to SSA & MLIR
 
     We explore the ideas behind SSA & MLIR through a small Rust-like Array DSL.
-    """
-    )
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        f"""
+    mo.md(f"""
     <br>
     ## Interactive & Reactive!
 
     This notebook is *reactive*, meaning you can *interact* with our examples. Try the sliders!
-    """
-    )
+    """)
     return
 
 
@@ -175,7 +177,13 @@ def _(interact_x, interact_y, mo):
     challenge = mo.md(f"<br>\n### Exercise &nbsp; &nbsp;{check}\nAdjust the sliders such that: `10 * (x + y) = x * y`" +
                      f", &nbsp;&nbsp;&nbsp; {10*result_add} = {result_mul} &nbsp;&nbsp; {check}")
 
-    mo.vstack([code_examples, challenge])
+    hint = mo.md("""
+    /// details | Need a hint?
+
+    Set y to 30 (to the very right). Then play with the left slider.
+    """)
+
+    mo.vstack([code_examples, challenge, hint])
     return
 
 
@@ -220,7 +228,9 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""Our compiler translates the code above into MLIR's intermediate representation (IR):""")
+    mo.md(r"""
+    Our compiler translates the code above into MLIR's intermediate representation (IR):
+    """)
     return
 
 
@@ -261,6 +271,7 @@ def _(editor_add_expr, mo, prefix, to_mlir, xmo):
 @app.cell
 def _():
     from xdsl.frontend.listlang import marimo as lmo
+
     return (lmo,)
 
 
@@ -268,14 +279,18 @@ def _():
 def _(arithmetic_module, lmo, mo):
     exp_output = lmo.interp(arithmetic_module)
     exp_check = "✅ " if exp_output == "38" else "❌"
-    mo.md(f"Interpreting the IR yields: {exp_output}\n### Exercise &nbsp;&nbsp; {exp_check} \nChange the expression to compute 38. &nbsp;&nbsp; {exp_check}")
+    exp_hint = """\n
+    /// details | Need a hint?
+
+        Set output to `y * z`. The interpreter will yield 35? Which value do you need to add to get to 38?
+        """
+    mo.md(f"Interpreting the IR yields: {exp_output}\n### Exercise &nbsp;&nbsp; {exp_check} \nChange the expression to compute 38. &nbsp;&nbsp; {exp_check}" + exp_hint)
     return
 
 
 @app.cell
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     /// details | MLIR IR - What do we see?
 
     1) An MLIR program consists of a list of *operations* (e.g., `arith.constant`, `arith.addi`, `arith.muli`).<br>
@@ -292,22 +307,19 @@ def _(mo):
     <span data-tooltip="The dialect (namespace) of the operation">`printf`</span>`.`<span data-tooltip="The name of the operation">`print_format`</span> <span data-tooltip="Call-site specific static information">`"{}"`</span>`,`  <span data-tooltip="A list of operands">`%result`</span>  `:` <span data-tooltip="The type of the operand"> i32</span>
 
     Explore by hovering over the IR.
-    """
-    )
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(bool_all_check, mo):
-    mo.md(
-        f"""
+    mo.md(f"""
     <br>\n## Boolean Expressions
 
     ### Exercise {bool_all_check}
 
     Find a Boolean expression that holds for all cases below. Use `true`, `false`, `&&`, `||`, `==`, `!=`, `<`, `>`, `<=`, `>=`.
-    """
-    )
+    """)
     return
 
 
@@ -354,7 +366,7 @@ def _(bool_edit, lmo, mo, to_mlir, xmo):
     bool_3_ok = bool_3_output == bool_3_expected
     bool_3_check = "✅ " if bool_3_ok else "❌"
 
-    bool_3_cmp = mo.md(f"expected: {bool_3_expected}" + "&nbsp; &nbsp; ↔ &nbsp; " + f"current: {bool_1_output}")
+    bool_3_cmp = mo.md(f"expected: {bool_3_expected}" + "&nbsp; &nbsp; ↔ &nbsp; " + f"current: {bool_3_output}")
     bool_3_stack = mo.vstack([mo.md("### Case 3 &nbsp;&nbsp;" + bool_3_check), lmo.rust_md(bool_3_prefix), bool_3_cmp])
 
     bool_4_prefix = "let x = 3; let y = 5;"
@@ -376,13 +388,58 @@ def _(bool_edit, lmo, mo, to_mlir, xmo):
 
     mo.vstack([bool_res, mo.hstack([bool_1_stack, bool_2_stack]), mo.md("<br>"),
     mo.hstack([bool_3_stack, bool_4_stack])])
-    return (bool_all_check,)
+    return (
+        bool_1_expected,
+        bool_1_prefix,
+        bool_2_expected,
+        bool_2_prefix,
+        bool_3_expected,
+        bool_3_prefix,
+        bool_4_expected,
+        bool_4_prefix,
+        bool_all_check,
+    )
+
+
+@app.cell(hide_code=True)
+def _(lmo, to_mlir):
+    def test_marimo_bool_print_true() -> None:
+        module = to_mlir("0 < 1")
+        assert lmo.interp(module) == "true"
+
+    def test_marimo_bool_print_false() -> None:
+        module = to_mlir("1 < 0")
+        assert lmo.interp(module) == "false"
+
+    return
+
+
+@app.cell(hide_code=True)
+def _(
+    bool_1_expected,
+    bool_1_prefix,
+    bool_2_expected,
+    bool_2_prefix,
+    bool_3_expected,
+    bool_3_prefix,
+    bool_4_expected,
+    bool_4_prefix,
+    lmo,
+    to_mlir,
+):
+    def test_boolean_expr_exercise_solution() -> None:
+        solution = "x != y"
+        assert lmo.interp(to_mlir(bool_1_prefix + solution)) == bool_1_expected
+        assert lmo.interp(to_mlir(bool_2_prefix + solution)) == bool_2_expected
+        assert lmo.interp(to_mlir(bool_3_prefix + solution)) == bool_3_expected
+        assert lmo.interp(to_mlir(bool_4_prefix + solution)) == bool_4_expected
+
+    return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     /// details | What did you notice?
 
     - Booleans are represented as `i1` (a single bit integer)
@@ -392,14 +449,15 @@ def _(mo):
         - have two operands of a potentially wider integer type, e.g., `i32`
         - and return their boolean result as `i1`
     ///
-    """
-    )
+    """)
     return
 
 
 @app.cell
 def _(mo):
-    mo.md(r"""## Get your hands dirty - with the `arith` dialect""")
+    mo.md(r"""
+    ## Get your hands dirty - with the `arith` dialect
+    """)
     return
 
 
@@ -437,7 +495,9 @@ def _(match_editor, match_listlang, mo, to_mlir, xmo):
 
 @app.cell
 def _(mo, write_check):
-    mo.md(rf"""### Exercise: Write your own MLIR program &nbsp;&nbsp; {write_check}""")
+    mo.md(rf"""
+    ### Exercise: Write your own MLIR program &nbsp;&nbsp; {write_check}
+    """)
     return
 
 
@@ -457,10 +517,15 @@ def _(lmo, mo):
 
 
 @app.cell
-def _(mo, to_mlir, write_editor, write_listlang):
+def _(mo, parse_mlir, to_mlir, write_editor, write_listlang):
     write_mlir = to_mlir(write_listlang)
 
-    write_check = "✅ " if str(write_mlir) == str(write_editor.value) else "❌"
+    try:
+        user = parse_mlir(write_editor.value)
+    except:
+        user = ""
+
+    write_check = "✅ " if str(write_mlir) == str(user) else "❌"
 
     write_hint = """/// details | Need a hint?
     * Make sure the names are correct
@@ -473,8 +538,7 @@ def _(mo, to_mlir, write_editor, write_listlang):
 
 @app.cell(hide_code=True)
 def _(check_ssa, mo):
-    mo.md(
-        rf"""
+    mo.md(rf"""
     <br>
     ## Static Single-Assignment (SSA)
 
@@ -483,8 +547,7 @@ def _(check_ssa, mo):
     ### Exercise &nbsp;&nbsp; {check_ssa}
 
     Try to SSA-ify the following rust program to make it look like the result on the right!
-    """
-    )
+    """)
     return
 
 
@@ -533,16 +596,14 @@ def _(compilation_output, example_editor3, mo, to_mlir, xmo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     <br>
     ## Control flow with Regions
 
     Now, let's look at how MLIR can handle control-flow with **regions**!
 
     Here is a simple program that has an if condition. Take a look at how it is compiled to MLIR, and feel free to change the original program. What happens when you nest if statements?
-    """
-    )
+    """)
     return
 
 
@@ -573,22 +634,19 @@ def _(compilation_output, editor5):
 
 @app.cell
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     /// details | What do you see?
     * If expressions are represented by an `scf.if`.
     * An `scf.if` contains two regions, similar to an if expression.
     * Each region ends with an operation called a **terminator**. For `scf.if`, it is an `scf.yield`, and it returns the value computed in the region.
     ///
-    """
-    )
+    """)
     return
 
 
 @app.cell
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     Here is the skeleton of an `scf.if`:
 
     <span data-tooltip="The if expression return value">`%res`</span> = <span data-tooltip="The operation name">scf.if</span> <span data-tooltip="The condition (of type i1)"> `%cond` </span> `->` <span data-tooltip="The if expression return type">`(i32)`</span> {<br>
@@ -598,15 +656,13 @@ def _(mo):
       &nbsp;&nbsp;&nbsp;&nbsp;<span data-tooltip="The operations to execute in the false branch">`%val_false = arith.addi %x, %y : i32`</span><br>
       &nbsp;&nbsp;&nbsp;&nbsp;<span data-tooltip="The scf.if terminator operation">`scf.yield`</span> <span data-tooltip="The value to return when the condition is false">`%val_false`</span> `:` <span data-tooltip="The if expression return type">`i32`</span><br>
     }
-    """
-    )
+    """)
     return
 
 
 @app.cell
 def _(exercise8_tick, mo):
-    mo.md(
-        rf"""
+    mo.md(rf"""
     <br>
     ## Get your hands dirty - with the `scf` dialect
 
@@ -614,8 +670,7 @@ def _(exercise8_tick, mo):
 
     Write the MLIR code that computes the minimum of 2 values.
     Use the variables `%x` and `%y`, and place the result in the `%res` variable. For comparisons, use signed opcodes (e.g. `slt, sle`).
-    """
-    )
+    """)
     return
 
 
@@ -650,6 +705,7 @@ def _(editor8, lmo, parse_mlir):
         module.verify()
         result = int(lmo.interp(module))
         return result
+
     return (run8_with_values,)
 
 
@@ -676,14 +732,12 @@ def _(editor8, execute_and_catch_exceptions, mo, run8_with_values):
 
 @app.cell
 def _(exercise9_tick, mo):
-    mo.md(
-        rf"""
+    mo.md(rf"""
     ### Exercise: Minimum of 3 values &nbsp;&nbsp; {exercise9_tick}
 
     Write the MLIR code that computes the minimum of 3 values.
     Use the variables `%x`, `%y`, and `%z`, and place the result in the `%res` variable. For comparisons, use signed opcodes (e.g. `slt, sle`).
-    """
-    )
+    """)
     return
 
 
@@ -725,6 +779,7 @@ def _(editor9, lmo, parse_mlir):
         module.verify()
         result = int(lmo.interp(module))
         return result
+
     return (run9_with_values,)
 
 
@@ -751,8 +806,7 @@ def _(editor9, execute_and_catch_exceptions, mo, run9_with_values):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     <br>
     ## Applying compilation passes
 
@@ -763,20 +817,17 @@ def _(mo):
     * `cse` (Constant Sub-expression Elimination): De-duplicate identical operations.
     * `dce` (Dead-Code Elimination): Removes unused side-effect free operations.
     * `constant-fold-interp`: Evaluate operations that only have constant inputs.
-    """
-    )
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(check_optimizations, mo):
-    mo.md(
-        rf"""
+    mo.md(rf"""
     ## What passes optimize these programs? &nbsp;&nbsp; {check_optimizations}
 
     For each of the following programs, what passes do you think will modify the program?
-    """
-    )
+    """)
     return
 
 
@@ -887,19 +938,19 @@ def _(
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Write non-optimal programs
 
     Can you write, for each pass, a program that would be optimized by it?
-    """
-    )
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(dce_example_tick, mo):
-    mo.md(rf"""### Case 1: Program optimized by `dce` &nbsp; {dce_example_tick}""")
+    mo.md(rf"""
+    ### Case 1: Program optimized by `dce` &nbsp; {dce_example_tick}
+    """)
     return
 
 
@@ -924,10 +975,10 @@ def _(mo, reset_button10):
 
 @app.cell
 def _(
-    Context,
     DeadCodeElimination,
     example_editor10,
     execute_and_catch_exceptions,
+    get_ctx,
     mo,
     parse_mlir,
     xmo,
@@ -935,7 +986,7 @@ def _(
     def _execute():
         module = parse_mlir(example_editor10.value)
         str_module = str(module)
-        DeadCodeElimination().apply(Context(), module)
+        DeadCodeElimination().apply(get_ctx(), module)
         if str(module) == str_module:
             return False, mo.md("❌ The `dce` pass had no effects on the given program.")
         return True, mo.vstack([mo.md("✅ Some operations were removed!\n\nHere is the resulting program:\n"), xmo.module_md(module)])
@@ -948,7 +999,9 @@ def _(
 
 @app.cell
 def _(fold_example_tick, mo):
-    mo.md(rf"""### Case 2: Program optimized by `constant-fold-interp` &nbsp; {fold_example_tick}""")
+    mo.md(rf"""
+    ### Case 2: Program optimized by `constant-fold-interp` &nbsp; {fold_example_tick}
+    """)
     return
 
 
@@ -974,9 +1027,9 @@ def _(mo, reset_button12):
 @app.cell
 def _(
     ConstantFoldInterpPass,
-    Context,
     example_editor12,
     execute_and_catch_exceptions,
+    get_ctx,
     mo,
     parse_mlir,
     xmo,
@@ -984,7 +1037,7 @@ def _(
     def _execute():
         module = parse_mlir(example_editor12.value)
         str_module = str(module)
-        ConstantFoldInterpPass().apply(Context(), module)
+        ConstantFoldInterpPass().apply(get_ctx(), module)
         if str(module) == str_module:
             return False, mo.md("❌ The `constant-fold-interp` pass had no effects on the given program.")
         return True, mo.vstack([mo.md("✅ Some operations were removed!\n\nHere is the resulting program:\n"), xmo.module_md(module)])
@@ -997,7 +1050,9 @@ def _(
 
 @app.cell
 def _(cse_example_tick, mo):
-    mo.md(rf"""### Case 3: Program optimized by `cse` &nbsp; {cse_example_tick}""")
+    mo.md(rf"""
+    ### Case 3: Program optimized by `cse` &nbsp; {cse_example_tick}
+    """)
     return
 
 
@@ -1023,9 +1078,9 @@ def _(mo, reset_button11):
 @app.cell
 def _(
     CommonSubexpressionElimination,
-    Context,
     example_editor11,
     execute_and_catch_exceptions,
+    get_ctx,
     mo,
     parse_mlir,
     xmo,
@@ -1033,7 +1088,7 @@ def _(
     def _execute():
         module = parse_mlir(example_editor11.value)
         str_module = str(module)
-        CommonSubexpressionElimination().apply(Context(), module)
+        CommonSubexpressionElimination().apply(get_ctx(), module)
         if str(module) == str_module:
             return False, mo.md("❌ The `cse` pass had no effects on the given program.")
         return True, mo.vstack([mo.md("✅ Some operations were removed!\n\nHere is the resulting program:\n"), xmo.module_md(module)])
@@ -1046,13 +1101,11 @@ def _(
 
 @app.cell
 def _(exercise4_tick, mo):
-    mo.md(
-        rf"""
+    mo.md(rf"""
     ### Case 4: All the above! {exercise4_tick}
 
     When we write a compilation pipeline, we use way more than a single pass. Can you find a program that gets optimized at each step of the pipeline? Here, the passes `dce`, `cse`, `constant-fold-interp, dce` are called in order. Note that `dce` is called twice in the pipeline.
-    """
-    )
+    """)
     return
 
 
@@ -1133,8 +1186,7 @@ def _(mo, slider4, tabs4):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Adding new abstractions with dialects
 
     Let's now introduce lists in our language. For that, we add the following operations:
@@ -1146,8 +1198,7 @@ def _(mo):
     To represent them in MLIR, we create our own collection of operations and types, which is called a **dialect**.
 
     Try to write some programs using these features, and look at the MLIR output.
-    """
-    )
+    """)
     return
 
 
@@ -1187,23 +1238,20 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     /// details | What do you see?
 
     * Types in MLIR are displayed with the syntax `!dialect.type`.
     * User-defined operations, as well as the custom type all start with `list`, the dialect name.
     * `list.map` uses a region to represent the function to be applied on each element of the list. This region has an argument, terminated by `list.yield`.
     ///
-    """
-    )
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(exercise20_tick, mo):
-    mo.md(
-        rf"""
+    mo.md(rf"""
     ## Lowering our abstractions to MLIR {exercise20_tick}
 
     Now, we need to compile our abstractions to abstractions defined by MLIR. From there, we can use existing MLIR passes to lower our code to LLVM.
@@ -1219,8 +1267,7 @@ def _(exercise20_tick, mo):
     * `lower-list-to-tensor` : Compiles the list abstraction to the `scf` and `tensor` dialects
     * `licm` (Loop Invariant Code Motion) : Hoist variables outside of loops when they do not depend on any variables inside the loop
     * `optimize-lists: Apply domain-specific optimizations on the `list` dialect
-    """
-    )
+    """)
     return
 
 
@@ -1248,13 +1295,13 @@ def _(mo, reset_button20):
 
 @app.cell
 def _(
-    Context,
     LowerListToTensor,
     OptimizeListOps,
     PassPipeline,
     example_editor20,
     execute_and_catch_exceptions,
     get_all_passes,
+    get_ctx,
     lmo,
     pass_editor20,
     to_mlir,
@@ -1264,7 +1311,8 @@ def _(
         _all_passes = get_all_passes()
         _all_passes["lower-list-to-tensor"] = lambda: LowerListToTensor()
         _all_passes["optimize-lists"] = lambda: OptimizeListOps()
-        PassPipeline.parse_spec(_all_passes, pass_editor20.value).apply(Context(), _module)
+        ctx = get_ctx()
+        PassPipeline.parse_spec(_all_passes, pass_editor20.value).apply(ctx, _module)
         return True, lmo.interp(_module)
 
     _, exec_res20 = execute_and_catch_exceptions(_exec)

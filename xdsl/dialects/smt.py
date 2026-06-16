@@ -7,7 +7,7 @@ from typing import ClassVar, TypeAlias, overload
 from typing_extensions import Self
 
 from xdsl.dialects.builtin import ArrayAttr, BoolAttr, IntAttr, StringAttr
-from xdsl.interfaces import ConstantLikeInterface
+from xdsl.interfaces import HasFolderInterface
 from xdsl.ir import (
     Attribute,
     Dialect,
@@ -41,7 +41,7 @@ from xdsl.irdl import (
 )
 from xdsl.parser import AttrParser, Parser
 from xdsl.printer import Printer
-from xdsl.traits import HasParent, IsTerminator, Pure
+from xdsl.traits import ConstantLike, HasParent, IsTerminator, Pure
 from xdsl.utils.exceptions import VerifyException
 from xdsl.utils.hints import isa
 
@@ -265,7 +265,7 @@ class ApplyFuncOp(IRDLOperation):
 
 
 @irdl_op_definition
-class ConstantBoolOp(IRDLOperation, ConstantLikeInterface):
+class ConstantBoolOp(IRDLOperation, HasFolderInterface):
     """
     This operation represents a constant boolean value. The semantics are
     equivalent to the ‘true’ and ‘false’ keywords in the Core theory of the
@@ -277,7 +277,7 @@ class ConstantBoolOp(IRDLOperation, ConstantLikeInterface):
     value_attr = prop_def(BoolAttr, prop_name="value")
     result = result_def(BoolType())
 
-    traits = traits_def(Pure())
+    traits = traits_def(Pure(), ConstantLike())
 
     assembly_format = "qualified($value) attr-dict"
 
@@ -289,8 +289,8 @@ class ConstantBoolOp(IRDLOperation, ConstantLikeInterface):
     def value(self) -> bool:
         return bool(self.value_attr)
 
-    def get_constant_value(self) -> Attribute:
-        return self.value_attr
+    def fold(self) -> tuple[BoolAttr]:
+        return (self.value_attr,)
 
 
 @irdl_op_definition
@@ -604,7 +604,7 @@ class AssertOp(IRDLOperation):
 
 
 @irdl_op_definition
-class BvConstantOp(IRDLOperation, ConstantLikeInterface):
+class BvConstantOp(IRDLOperation, HasFolderInterface):
     """
     This operation produces an SSA value equal to the bitvector constant specified
     by the ‘value’ attribute.
@@ -619,7 +619,7 @@ class BvConstantOp(IRDLOperation, ConstantLikeInterface):
 
     assembly_format = "qualified($value) attr-dict"
 
-    traits = traits_def(Pure())
+    traits = traits_def(Pure(), ConstantLike())
 
     @overload
     def __init__(self, value: BitVectorAttr) -> None: ...
@@ -640,8 +640,8 @@ class BvConstantOp(IRDLOperation, ConstantLikeInterface):
             value = BitVectorAttr(value, type)
         super().__init__(properties={"value": value}, result_types=[value.type])
 
-    def get_constant_value(self) -> Attribute:
-        return self.value
+    def fold(self) -> tuple[Attribute]:
+        return (self.value,)
 
 
 class UnaryBVOp(IRDLOperation, ABC):

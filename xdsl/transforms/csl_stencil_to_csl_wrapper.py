@@ -3,7 +3,17 @@ from dataclasses import dataclass
 
 from xdsl.builder import ImplicitBuilder
 from xdsl.context import Context
-from xdsl.dialects import arith, builtin, func, llvm, memref, stencil
+from xdsl.dialects import (
+    arith,
+    builtin,
+    csl,
+    csl_stencil,
+    csl_wrapper,
+    func,
+    llvm,
+    memref,
+    stencil,
+)
 from xdsl.dialects.builtin import (
     ArrayAttr,
     DictionaryAttr,
@@ -16,7 +26,6 @@ from xdsl.dialects.builtin import (
     StringAttr,
     TensorType,
 )
-from xdsl.dialects.csl import csl, csl_stencil, csl_wrapper
 from xdsl.ir import Attribute, BlockArgument, Operation, OpResult, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (

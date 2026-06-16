@@ -7,7 +7,7 @@
 
 import marimo
 
-__generated_with = "0.13.6"
+__generated_with = "0.23.6"
 app = marimo.App(width="medium")
 
 
@@ -85,6 +85,7 @@ def _():
     from xdsl.builder import Builder, InsertPoint
     from xdsl.transforms.common_subexpression_elimination import cse
     from xdsl.transforms.dead_code_elimination import dce
+
     return (
         Abs,
         Add,
@@ -149,8 +150,7 @@ def _(Function):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        """
+    mo.md("""
     # Exercise: Add a `complex` dialect
 
     Your task is to:
@@ -158,15 +158,13 @@ def _(mo):
     * Write a new set of `complex` operations
     * Add a lowering from `complex` to `arith`
     * Add optimizations for the `complex` dialect
-    """
-    )
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        """
+    mo.md("""
     ## Defining the `complex` dialect
 
     You should write the following operations:
@@ -179,8 +177,7 @@ def _(mo):
     * "complex.norm": returns the norm of two complex numbers
 
     Here is the definition of the `!complex.complex` type, and the definition of `complex.re`. Complete it with the other ops:
-    """
-    )
+    """)
     return
 
 
@@ -263,18 +260,17 @@ def _(
 
         def __init__(self, arg: SSAValue):
             raise NotImplementedError("NormOp __init__ is not yet implemented")
+
     return AddcOp, ComplexType, CreateOp, ImOp, MulcOp, NormOp, ReOp
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        """
+    mo.md("""
     ### Solution
 
     Hidden below is the definition of all operations
-    """
-    )
+    """)
     return
 
 
@@ -377,19 +373,18 @@ def _(
 
             def __init__(self, arg: SSAValue):
                 super().__init__(operands=[arg], result_types=[Float64Type()])
+
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     ## Filling the IR emitter with `complex` operations:
 
     Now that our new operations are defined, we can add support for them in the IR emitter.
     We completed this for you below.
-    """
-    )
+    """)
     return
 
 
@@ -452,6 +447,7 @@ def _(
             print("\n\n")
         except NotImplementedError as e:
             print("Error:", e)
+
     return emit_ir, print_ir
 
 
@@ -464,6 +460,7 @@ def _(Attribute, ComplexType, Expr, Float64Type, IntegerType):
             return Float64Type()
         else:
             return ComplexType()
+
     return (get_mlir_type,)
 
 
@@ -679,12 +676,15 @@ def _(
             return res
 
         raise NotImplementedError(f"No IR emitter for float function {expr.func}")
+
     return (emit_op,)
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""Here are a few examples of the code that we can generate:""")
+    mo.md(r"""
+    Here are a few examples of the code that we can generate:
+    """)
     return
 
 
@@ -714,8 +714,7 @@ def _(I, Norm, print_ir, x, y):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        """
+    mo.md("""
     ## Lowering the complex dialect
 
     Now that we emitted IR using the `complex` dialect, we can lower it to `arith`.
@@ -726,8 +725,7 @@ def _(mo):
     * Write patterns to rewrite `complex.add`, `complex.mul`, and `complex.norm` into `arith` and `complex.create`, `complex.re`, and `complex.im` ops. For instance, `add(x, y)` should be rewritten to `create(re(x) + re(y), im(x) + im(y))`.
 
     This will effectively lower the `complex` dialect, as all these patterns will be applied until convergence. We give you the pattern `re(create(x, y)) -> x` and the lowering of `complex.mul`
-    """
-    )
+    """)
     return
 
 
@@ -812,12 +810,15 @@ def _(
             # Implement the lowering of norm
             # The formula is `norm(z) = (re(z) * re(z) + im(z) * im(z)) ^ 0.5`
             return
+
     return (lower_complex,)
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""You can test your code using the `print_ir_with_complex_lowering` function:""")
+    mo.md(r"""
+    You can test your code using the `print_ir_with_complex_lowering` function:
+    """)
     return
 
 
@@ -846,6 +847,7 @@ def _(Expr, cse, emit_ir, lower_complex):
             print("\n\n")
         except NotImplementedError as e:
             print("Error:", e)
+
     return (print_ir_with_complex_lowering,)
 
 
@@ -857,13 +859,11 @@ def _(I, Norm, print_ir_with_complex_lowering, x, y):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        """
+    mo.md("""
     ### Solution
 
     Hidden below is a possible lowering:
-    """
-    )
+    """)
     return
 
 
@@ -983,13 +983,13 @@ def _(
                 pow = rewriter.insert(PowFOp(add, half)).result
 
                 rewriter.replace_op(op, [], new_results=[pow])
+
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        """
+    mo.md("""
     ## Optimizing our dialects
 
     As a last task, you have to write your own optimizations patterns to improve as much as possible the performance of the generated code. This includes reducing the amount of floating point power and multiplication functions.
@@ -999,8 +999,7 @@ def _(mo):
     Your objective is to optimize the function `Norm(z1) * Norm(z2)`.
 
     As a hint, this expression is equivalent to `Norm(z1 * z2)`, which is much easier to express as a `complex` dialect optimization than an `arith` optimization. You may also add other `arith` and `complex` optimizations.
-    """
-    )
+    """)
     return
 
 
@@ -1042,6 +1041,7 @@ def _(Expr, cse, dce, emit_ir, lower_complex, optimize):
             print("\n\n")
         except NotImplementedError as e:
             print("Error:", e)
+
     return (print_ir_with_pipeline,)
 
 

@@ -2,11 +2,9 @@ from dataclasses import dataclass
 
 from xdsl.backend.x86.lowering.helpers import Arch
 from xdsl.context import Context
-from xdsl.dialects import arith, builtin, x86
-from xdsl.dialects.builtin import (
-    IntegerAttr,
-    UnrealizedConversionCastOp,
-)
+from xdsl.dialects import arith, asm, builtin, x86
+from xdsl.dialects.builtin import IntegerAttr
+from xdsl.dialects.x86.registers import GeneralRegisterType
 from xdsl.ir import Operation
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (
@@ -22,18 +20,20 @@ from xdsl.utils.hints import isa
 
 @dataclass
 class ArithConstantToX86(RewritePattern):
+    arch: Arch
+
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: arith.ConstantOp, rewriter: PatternRewriter):
         if not isa(op.value, IntegerAttr):
             raise DiagnosticException(
                 "Lowering of arith.constant is only implemented for integers"
             )
+        reg_type = self.arch.register_type_for_type(op.result.type)
+        assert issubclass(reg_type, GeneralRegisterType)
         mov_op = x86.DI_MovOp(
-            immediate=op.value.value.data, destination=x86.registers.UNALLOCATED_GENERAL
+            immediate=op.value.value.data, destination=reg_type.unallocated()
         )
-        cast_op, _ = UnrealizedConversionCastOp.cast_one(
-            mov_op.destination, op.result.type
-        )
+        cast_op = asm.FromRegOp.get(mov_op.destination, op.result.type)
         rewriter.replace_op(op, [mov_op, cast_op])
 
 
@@ -62,14 +62,12 @@ class ArithBinaryToX86(RewritePattern):
             )
         rewriter.name_hint = op.results[0].name_hint
 
-        lhs_x86, rhs_x86 = self.arch.cast_operands_to_regs(rewriter)
+        lhs_x86, rhs_x86 = self.arch.cast_to_regs(op.operands, rewriter)
         moved_rhs = self.arch.move_value_to_unallocated(
             rhs_x86, op.operands[1].type, rewriter
         )
         add_op = new_type(source=lhs_x86, register_in=moved_rhs)
-        result_cast_op, _ = UnrealizedConversionCastOp.cast_one(
-            add_op.register_out, lhs.type
-        )
+        result_cast_op = asm.FromRegOp.get(add_op.register_out, lhs.type)
         rewriter.replace_op(op, [add_op, result_cast_op])
 
 
@@ -83,8 +81,8 @@ class ConvertArithToX86Pass(ModulePass):
             GreedyRewritePatternApplier(
                 [
                     ArithBinaryToX86(arch),
-                    ArithConstantToX86(),
-                ]
+                    ArithConstantToX86(arch),
+                ],
             ),
             apply_recursively=False,
         ).rewrite_module(op)

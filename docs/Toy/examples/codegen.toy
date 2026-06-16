@@ -1,4 +1,4 @@
-# RUN: python -m toy %s --emit=toy --ir | filecheck %s
+# RUN: toyc %s --emit=toy --ir | filecheck %s
 
 # User defined generic function that operates on unknown shaped arguments
 def multiply_transpose(a, b) {
@@ -15,7 +15,7 @@ def main() {
 
 # CHECK:       builtin.module {
 # CHECK-NEXT:    "toy.func"() ({
-# CHECK-NEXT:    ^bb0(%{{.*}} : tensor<*xf64>, %{{.*}} : tensor<*xf64>):
+# CHECK-NEXT:    ^bb0(%{{.*}}: tensor<*xf64>, %{{.*}}: tensor<*xf64>):
 # CHECK-NEXT:      %{{.*}} = "toy.transpose"(%{{.*}}) : (tensor<*xf64>) -> tensor<*xf64>
 # CHECK-NEXT:      %{{.*}} = "toy.transpose"(%{{.*}}) : (tensor<*xf64>) -> tensor<*xf64>
 # CHECK-NEXT:      %{{.*}} = "toy.mul"(%{{.*}}, %{{.*}}) : (tensor<*xf64>, tensor<*xf64>) -> tensor<*xf64>

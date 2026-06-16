@@ -39,7 +39,7 @@ class ApplyRedundantOperands(RewritePattern):
         for i, a in enumerate(bbargs):
             if rbargs[i] == i:
                 continue
-            a.replace_by(bbargs[rbargs[i]])
+            a.replace_all_uses_with(bbargs[rbargs[i]])
 
         cse(op.region.block, rewriter)
 
@@ -62,7 +62,7 @@ class ApplyUnusedOperands(RewritePattern):
         for arg in unused:
             op.region.block.erase_arg(arg)
 
-        new = stencil.ApplyOp.get(
+        new = stencil.ApplyOp(
             operands,
             block := Block(arg_types=bbargs_type),
             [r.type for r in op.res],
@@ -107,7 +107,7 @@ class ApplyUnusedResults(RewritePattern):
         for i in unused:
             replace_results.insert(i, None)
 
-        rewriter.replace_op(old_return, stencil.ReturnOp.get(return_args))
+        rewriter.replace_op(old_return, stencil.ReturnOp(return_args))
         rewriter.replace_op(op, new, replace_results)
 
 

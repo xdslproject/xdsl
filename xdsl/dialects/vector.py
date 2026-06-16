@@ -35,11 +35,11 @@ from xdsl.dialects.builtin import (
     i64,
 )
 from xdsl.dialects.utils import (
+    DynamicIndexList,
     get_dynamic_index_list,
     split_dynamic_index_list,
     verify_dynamic_index_list,
 )
-from xdsl.dialects.utils.dynamic_index_list import DynamicIndexList
 from xdsl.ir import (
     Attribute,
     Dialect,
@@ -92,7 +92,7 @@ class LoadOp(IRDLOperation):
     result = result_def(VectorType)
     nontemporal = opt_prop_def(BoolAttr, default_value=BoolAttr.from_bool(False))
 
-    irdl_options = [ParsePropInAttrDict()]
+    irdl_options = (ParsePropInAttrDict(),)
     assembly_format = (
         "$base `[` $indices `]` attr-dict `:` type($base) `,` type($result)"
     )
@@ -137,7 +137,7 @@ class StoreOp(IRDLOperation):
     indices = var_operand_def(IndexType)
     nontemporal = opt_prop_def(BoolAttr, default_value=BoolAttr.from_bool(False))
 
-    irdl_options = [ParsePropInAttrDict()]
+    irdl_options = (ParsePropInAttrDict(),)
     assembly_format = (
         "$vector `,` $base `[` $indices `]` attr-dict `:` type($base) `,` type($vector)"
     )
@@ -294,7 +294,7 @@ class ShuffleOp(IRDLOperation):
     mask = prop_def(MASK)
     result = result_def(RES)
 
-    irdl_options = [ParsePropInAttrDict()]
+    irdl_options = (ParsePropInAttrDict(),)
     traits = traits_def(NoMemoryEffect())
 
     assembly_format = "operands $mask attr-dict `:` type(operands)"
@@ -690,6 +690,7 @@ class ExtractOp(IRDLOperation):
         )
 
 
+@deprecated("use vector.extract instead")
 @irdl_op_definition
 class ExtractElementOp(IRDLOperation):
     name = "vector.extractelement"
@@ -831,6 +832,7 @@ class InsertOp(IRDLOperation):
         )
 
 
+@deprecated("use vector.insert instead")
 @irdl_op_definition
 class InsertElementOp(IRDLOperation):
     name = "vector.insertelement"
@@ -1134,7 +1136,7 @@ class VectorTransferOperation(IRDLOperation, ABC):
         if len(in_bounds) != len(permutation_map.results):
             raise VerifyException(
                 f'"{op.name}" expects the in_bounds attr of same rank as permutation_map results: '
-                f"{str(permutation_map)} vs in_bounds of of size {len(in_bounds)}"
+                f"{permutation_map!s} vs in_bounds of of size {len(in_bounds)}"
             )
 
     @staticmethod
@@ -1184,7 +1186,10 @@ class TransferReadOp(VectorTransferOperation):
 
     result = result_def(VectorType)
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True), ParsePropInAttrDict()]
+    irdl_options = (
+        AttrSizedOperandSegments(as_property=True),
+        ParsePropInAttrDict(),
+    )
 
     def __init__(
         self,
@@ -1334,7 +1339,10 @@ class TransferWriteOp(VectorTransferOperation):
 
     result = opt_result_def(TensorType)
 
-    irdl_options = [AttrSizedOperandSegments(as_property=True), ParsePropInAttrDict()]
+    irdl_options = (
+        AttrSizedOperandSegments(as_property=True),
+        ParsePropInAttrDict(),
+    )
 
     def __init__(
         self,
@@ -1609,10 +1617,10 @@ Vector = Dialect(
         BitcastOp,
         BroadcastOp,
         CreateMaskOp,
-        ExtractElementOp,
+        ExtractElementOp,  # pyright: ignore[reportDeprecated]
         ExtractOp,
         FMAOp,
-        InsertElementOp,
+        InsertElementOp,  # pyright: ignore[reportDeprecated]
         InsertOp,
         LoadOp,
         MaskedLoadOp,

@@ -15,85 +15,81 @@ from xdsl.interpreter import (
 from xdsl.interpreters.shaped_array import ShapedArray
 
 
+def run_linalg_structured_op(
+    interpreter: Interpreter,
+    op: linalg.abstract_ops.LinalgStructuredOperation,
+    args: tuple[ShapedArray[float] | float, ...],
+):
+    """
+    Helper function for interpreting ops inheriting from
+    [`LinalgStructuredOperation`][xdsl.dialects.linalg.abstract_ops.LinalgStructuredOperation].
+    """
+    body = op.body
+    inputs_count = len(op.inputs)
+    input_args = args[:inputs_count]
+    output_args = args[inputs_count:]
+    results = op.results
+    indexing_maps = tuple(attr.data for attr in op.get_indexing_maps())
+    loop_ranges = op.get_static_loop_ranges()
+
+    if any(not isinstance(arg, ShapedArray) for arg in output_args):
+        raise NotImplementedError("Only shaped out results are implemented")
+    output_args = cast(tuple[ShapedArray[float], ...], output_args)
+    if results:
+        # If there are results, they must be tensors, initialised with the
+        # `output_args`. If not, the results are stored in output_args directly.
+        outputs = tuple(arg.copy() for arg in output_args)
+    else:
+        outputs = output_args
+
+    loop_shaped_args = input_args + outputs
+
+    output_indexing_maps = indexing_maps[inputs_count:]
+
+    for indices in product(*(range(loop_range) for loop_range in loop_ranges)):
+        loop_scalar_args = tuple(
+            (
+                i.load(indexing_map.eval(indices, ()))
+                if isinstance(i, ShapedArray)
+                else i
+            )
+            for i, indexing_map in zip(loop_shaped_args, indexing_maps, strict=True)
+        )
+        loop_results = interpreter.run_ssacfg_region(body, loop_scalar_args, "for_loop")
+        for res, indexing_map in zip(loop_results, output_indexing_maps, strict=True):
+            result_indices = indexing_map.eval(indices, ())
+            outputs[0].store(result_indices, res)
+
+    return outputs if results else ()
+
+
 @register_impls
 class LinalgFunctions(InterpreterFunctions):
-    @impl(linalg.GenericOp)
+    @impl(linalg.ops.GenericOp)
     def run_generic(
-        self, interpreter: Interpreter, op: linalg.GenericOp, args: tuple[Any, ...]
+        self, interpreter: Interpreter, op: linalg.ops.GenericOp, args: tuple[Any, ...]
     ) -> PythonValues:
         if op.library_call is not None:
             raise NotImplementedError(
                 "library_call not yet supported in linalg.generic interpreter"
             )
-        inputs_count = len(op.inputs)
-        input_args = args[:inputs_count]
-        output_args = args[inputs_count:]
+        return run_linalg_structured_op(interpreter, op, args)
 
-        for arg in output_args:
-            assert isinstance(arg, ShapedArray)
-
-        output_args = cast(tuple[ShapedArray[float], ...], output_args)
-        if op.results:
-            # If there are results, they must be tensors, initialised with the
-            # `output_args`. If not, the results are stored in output_args directly.
-            outputs = tuple(arg.copy() for arg in output_args)
-        else:
-            outputs = output_args
-
-        loop_shaped_args = input_args + outputs
-
-        indexing_maps = op.get_indexing_maps()
-        output_indexing_maps = indexing_maps[inputs_count:]
-
-        loop_ranges = op.get_static_loop_ranges()
-
-        for indices in product(*(range(loop_range) for loop_range in loop_ranges)):
-            loop_args = tuple(
-                (
-                    (cast(ShapedArray[Any], i)).load(indexing_map.eval(indices, ()))
-                    if isinstance(i, ShapedArray)
-                    else i
-                )
-                for i, indexing_map in zip(loop_shaped_args, indexing_maps, strict=True)
-            )
-            loop_results = interpreter.run_ssacfg_region(op.body, loop_args, "for_loop")
-            for res, indexing_map in zip(
-                loop_results, output_indexing_maps, strict=True
-            ):
-                result_indices = indexing_map.eval(indices, ())
-                outputs[0].store(result_indices, res)
-
-        return outputs if op.results else ()
-
-    @impl_terminator(linalg.YieldOp)
+    @impl_terminator(linalg.ops.YieldOp)
     def run_yield(
-        self, interpreter: Interpreter, op: linalg.YieldOp, args: tuple[Any, ...]
+        self, interpreter: Interpreter, op: linalg.ops.YieldOp, args: tuple[Any, ...]
     ):
         return ReturnedValues(args), ()
 
-    @impl(linalg.AddOp)
+    @impl(linalg.ops.AddOp)
     def run_add(
-        self, interpreter: Interpreter, op: linalg.AddOp, args: tuple[Any, ...]
+        self, interpreter: Interpreter, op: linalg.ops.AddOp, args: tuple[Any, ...]
     ) -> tuple[Any, ...]:
-        (lhs, rhs, res) = (args[0], args[1], args[2])
-        assert isinstance(lhs, ShapedArray)
-        assert isinstance(rhs, ShapedArray)
-        assert isinstance(res, ShapedArray)
-        lhs = cast(ShapedArray[float], lhs)
-        rhs = cast(ShapedArray[float], rhs)
-        res = cast(ShapedArray[float], res)
-        if not all(res.data_ptr[i] == 0.0 for i in range(len(res.data))):
-            raise NotImplementedError()
-        assert lhs.shape == rhs.shape == res.shape
-        for i in range(len(lhs.data)):
-            res.data_ptr[i] = lhs.data_ptr[i] + rhs.data_ptr[i]
-        if len(op.results) > 0:
-            return (res,)
-        return ()
+        return run_linalg_structured_op(interpreter, op, args)
 
-    @impl(linalg.FillOp)
+    @impl(linalg.ops.FillOp)
     def run_fill(
-        self, interpreter: Interpreter, op: linalg.FillOp, args: tuple[Any, ...]
+        self, interpreter: Interpreter, op: linalg.ops.FillOp, args: tuple[Any, ...]
     ) -> tuple[Any, ...]:
         operand, res = args[0], args[1]
         assert isinstance(operand, ShapedArray)
@@ -108,80 +104,32 @@ class LinalgFunctions(InterpreterFunctions):
             return (res,)
         return ()
 
-    @impl(linalg.MulOp)
+    @impl(linalg.ops.MulOp)
     def run_mul(
-        self, interpreter: Interpreter, op: linalg.MulOp, args: tuple[Any, ...]
+        self, interpreter: Interpreter, op: linalg.ops.MulOp, args: tuple[Any, ...]
     ) -> tuple[Any, ...]:
-        lhs, rhs, res = args[0], args[1], args[2]
-        assert isinstance(lhs, ShapedArray)
-        assert isinstance(rhs, ShapedArray)
-        assert isinstance(res, ShapedArray)
-        lhs = cast(ShapedArray[float], lhs)
-        rhs = cast(ShapedArray[float], rhs)
-        res = cast(ShapedArray[float], res)
-        if not all(res.data_ptr[i] == 0.0 for i in range(len(res.data))):
-            raise NotImplementedError()
-        assert lhs.shape == rhs.shape == res.shape
-        for i in range(len(lhs.data)):
-            res.data_ptr[i] = lhs.data_ptr[i] * rhs.data_ptr[i]
-        if len(op.results) > 0:
-            return (res,)
-        return ()
+        return run_linalg_structured_op(interpreter, op, args)
 
-    @impl(linalg.TransposeOp)
+    @impl(linalg.ops.TransposeOp)
     def run_transpose(
-        self, interpreter: Interpreter, op: linalg.TransposeOp, args: tuple[Any, ...]
+        self,
+        interpreter: Interpreter,
+        op: linalg.ops.TransposeOp,
+        args: tuple[Any, ...],
     ) -> tuple[Any, ...]:
-        operand, res = args[0], args[1]
-        assert isinstance(operand, ShapedArray)
-        assert isinstance(res, ShapedArray)
-        operand = cast(ShapedArray[float], operand)
-        res = cast(ShapedArray[float], res)
-        if not all(res.data_ptr[i] == 0.0 for i in range(len(res.data))):
-            raise NotImplementedError()
-        assert len(operand.shape) == 2
-        assert len(res.shape) == 2
-        rows, cols = operand.shape
-        for i in range(rows):
-            for j in range(cols):
-                res.data_ptr[j * rows + i] = operand.data_ptr[i * cols + j]
-        if len(op.results) > 0:
-            return (res,)
-        return ()
+        return run_linalg_structured_op(interpreter, op, args)
 
-    @impl(linalg.MatmulOp)
+    @impl(linalg.ops.MatmulOp)
     def run_mat_mul(
-        self, interpreter: Interpreter, op: linalg.MatmulOp, args: tuple[Any, ...]
+        self, interpreter: Interpreter, op: linalg.ops.MatmulOp, args: tuple[Any, ...]
     ) -> tuple[Any, ...]:
-        lhs, rhs, res = args[0], args[1], args[2]
-        assert isinstance(lhs, ShapedArray)
-        assert isinstance(rhs, ShapedArray)
-        assert isinstance(res, ShapedArray)
-        lhs = cast(ShapedArray[float], lhs)
-        rhs = cast(ShapedArray[float], rhs)
-        res = cast(ShapedArray[float], res)
-        if not all(res.data_ptr[i] == 0.0 for i in range(len(res.data))):
-            raise NotImplementedError()
-        rows = lhs.shape[0]
-        cols = rhs.shape[1]
-        assert rows == cols
-        for i in range(rows):
-            for j in range(cols):
-                res.data_ptr[i * cols + j] = sum(
-                    lhs.data_ptr[i * lhs.shape[1] + k]
-                    * rhs.data_ptr[k * rhs.shape[1] + j]
-                    for k in range(lhs.shape[1])
-                )
+        return run_linalg_structured_op(interpreter, op, args)
 
-        if len(op.results) > 0:
-            return (res,)
-        return ()
-
-    @impl(linalg.PoolingNchwMaxOp)
+    @impl(linalg.ops.PoolingNchwMaxOp)
     def run_pooling_nchw_max(
         self,
         interpreter: Interpreter,
-        op: linalg.PoolingNchwMaxOp,
+        op: linalg.ops.PoolingNchwMaxOp,
         args: tuple[Any, ...],
     ) -> tuple[Any, ...]:
         input, kernel_filter, res = args[0], args[1], args[2]
@@ -223,11 +171,11 @@ class LinalgFunctions(InterpreterFunctions):
             return (res,)
         return ()
 
-    @impl(linalg.Conv2DNchwFchwOp)
+    @impl(linalg.ops.Conv2DNchwFchwOp)
     def run_conv_2d_nchw_fchw(
         self,
         interpreter: Interpreter,
-        op: linalg.Conv2DNchwFchwOp,
+        op: linalg.ops.Conv2DNchwFchwOp,
         args: tuple[Any, ...],
     ) -> tuple[Any, ...]:
         input, kernel_filter, res = args[0], args[1], args[2]

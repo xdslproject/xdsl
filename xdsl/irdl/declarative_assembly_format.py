@@ -1252,14 +1252,14 @@ class UniqueBaseAttributeVariable(AttributeVariable):
             unique_base = cast(type[Data[Any]], unique_base)
             return unique_base.new(unique_base.parse_parameter(parser))
         else:
-            raise ValueError("Attributes must be Data or ParameterizedAttribute.")
+            raise ValueError("Attributes must be Data or ParametrizedAttribute.")
 
     def print_attr(self, printer: Printer, attr: Attribute) -> None:
         if isinstance(attr, ParametrizedAttribute):
             return attr.print_parameters(printer)
         if isinstance(attr, Data):
             return attr.print_parameter(printer)
-        raise ValueError("Attributes must be Data or ParameterizedAttribute!")
+        raise ValueError("Attributes must be Data or ParametrizedAttribute!")
 
 
 @dataclass(frozen=True)

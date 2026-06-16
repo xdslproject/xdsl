@@ -137,6 +137,40 @@ def test_replace_op_new_results():
     rewrite_and_compare(prog, expected, transformation)
 
 
+# Test an operation replacement with name hints
+def test_replace_op_name_hints():
+    prog = """\
+"builtin.module"() ({
+  %a = "arith.constant"() <{value = 2 : i32}> : () -> i32
+  %b, %c, %0 = "test.op"(%a, %a) : (i32, i32) -> (i32, i32, i32)
+}) : () -> ()
+"""
+
+    expected = """\
+"builtin.module"() ({
+  %a = "arith.constant"() <{value = 2 : i32}> : () -> i32
+  %B = "test.op"() : () -> i32
+  %c = "test.op"() : () -> i32
+  %d = "test.op"() : () -> i32
+}) : () -> ()
+"""
+
+    def transformation(module: ModuleOp, rewriter: Rewriter) -> None:
+        old_op = module.ops.last
+        assert old_op is not None
+        new_op1 = test.TestOp(result_types=(i32,))
+        new_op1.results[0].name_hint = "B"
+        new_op2 = test.TestOp(result_types=(i32,))
+        new_op3 = test.TestOp(result_types=(i32,))
+        new_op3.results[0].name_hint = "d"
+        new_ops = [new_op1, new_op2, new_op3]
+        new_results = [op.results[0] for op in new_ops]
+
+        rewriter.replace_op(old_op, new_ops, new_results)
+
+    rewrite_and_compare(prog, expected, transformation)
+
+
 def test_inline_block_at_end():
     """Test the inlining of a block at end."""
 

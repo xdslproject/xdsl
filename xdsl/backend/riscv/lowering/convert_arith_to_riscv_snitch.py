@@ -76,6 +76,12 @@ class LowerBinaryFloatVectorOp(RewritePattern):
 lower_arith_addf = LowerBinaryFloatVectorOp(
     arith.AddfOp, riscv.FAddDOp, riscv_snitch.VFAddSOp, riscv_snitch.VFAddHOp
 )
+lower_arith_subf = LowerBinaryFloatVectorOp(
+    arith.SubfOp, riscv.FSubDOp, riscv_snitch.VFSubSOp, riscv_snitch.VFSubHOp
+)
+lower_arith_mulf = LowerBinaryFloatVectorOp(
+    arith.MulfOp, riscv.FMulDOp, riscv_snitch.VFMulSOp, riscv_snitch.VFMulHOp
+)
 
 
 class ConvertArithToRiscvSnitchPass(ModulePass):
@@ -86,7 +92,9 @@ class ConvertArithToRiscvSnitchPass(ModulePass):
             GreedyRewritePatternApplier(
                 [
                     lower_arith_addf,
-                ]
+                    lower_arith_subf,
+                    lower_arith_mulf,
+                ],
             ),
             apply_recursively=False,
         )

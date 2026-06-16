@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from typing import cast
 
 from xdsl.context import Context
-from xdsl.dialects import arith, func, memref
+from xdsl.dialects import arith, csl, csl_stencil, csl_wrapper, func, memref
 from xdsl.dialects.builtin import (
     AffineMapAttr,
     Float16Type,
@@ -18,7 +18,6 @@ from xdsl.dialects.builtin import (
     f32,
     i16,
 )
-from xdsl.dialects.csl import csl, csl_stencil, csl_wrapper
 from xdsl.ir import (
     Block,
     BlockArgument,
@@ -284,7 +283,7 @@ class InlineApplyOpArgs(RewritePattern):
                 new_arg := arg.op.clone(),
                 InsertPoint.at_start(region.block),
             )
-            block_arg.replace_by(SSAValue.get(new_arg))
+            block_arg.replace_all_uses_with(SSAValue.get(new_arg))
 
 
 @dataclass(frozen=True)

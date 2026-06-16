@@ -161,7 +161,7 @@ class StreamOpLowering(RewritePattern):
         )
         if len(set(stride_patterns)) == 1:
             stride_patterns = (stride_patterns[0],)
-        new_operands = cast_operands_to_regs(rewriter)
+        new_operands = cast_operands_to_regs(rewriter, op)
         new_inputs = new_operands[: len(op.inputs)]
         new_outputs = new_operands[len(op.inputs) :]
         freg = riscv.Registers.UNALLOCATED_FLOAT
@@ -188,8 +188,8 @@ class StreamOpLowering(RewritePattern):
                 cast_op := builtin.UnrealizedConversionCastOp.get((arg,), (arg.type,)),
                 InsertPoint.at_start(new_body),
             )
-            arg.replace_by_if(
-                cast_op.results[0], lambda use: use.operation is not cast_op
+            rewriter.replace_uses_with_if(
+                arg, cast_op.results[0], lambda use: use.operation is not cast_op
             )
             rewriter.replace_value_with_new_type(arg, stream_type)
 

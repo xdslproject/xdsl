@@ -13,7 +13,7 @@ class X86RegisterStack(RegisterStack):
     """
 
     DEFAULT_ALLOCATABLE_REGISTERS = (
-        *reversed(registers.GeneralRegisterType.allocatable_registers()),
+        *reversed(registers.Reg64Type.allocatable_registers()),
         *reversed(registers.AVX2RegisterType.allocatable_registers()),
         *reversed(registers.AVX512RegisterType.allocatable_registers()),
     )

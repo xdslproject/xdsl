@@ -26,7 +26,7 @@ riscv_func.func @call_void_attributes() {
 // CHECK-NEXT:      jal call_void_attributes
 // CHECK-NEXT:      ret
 
-riscv_func.func @arg_rec(%0 : !riscv.reg) -> !riscv.reg {
+riscv_func.func @arg_rec(%0: !riscv.reg) -> !riscv.reg {
   %1 = riscv_func.call @arg_rec(%0) : (!riscv.reg) -> !riscv.reg
   riscv_func.return %1 : !riscv.reg
 }
@@ -36,7 +36,7 @@ riscv_func.func @arg_rec(%0 : !riscv.reg) -> !riscv.reg {
 // CHECK-NEXT:      ret
 
 riscv_func.func @arg_rec_block(!riscv.reg) -> !riscv.reg {
-^bb0(%2 : !riscv.reg):
+^bb0(%2: !riscv.reg):
   %3 = riscv_func.call @arg_rec_block(%2) : (!riscv.reg) -> !riscv.reg
   riscv_func.return %3 : !riscv.reg
 }
@@ -45,7 +45,7 @@ riscv_func.func @arg_rec_block(!riscv.reg) -> !riscv.reg {
 // CHECK-NEXT:      jal arg_rec_block
 // CHECK-NEXT:      ret
 
-riscv_func.func @multi_return_body(%a : !riscv.reg) -> (!riscv.reg, !riscv.reg) {
+riscv_func.func @multi_return_body(%a: !riscv.reg) -> (!riscv.reg, !riscv.reg) {
   riscv_func.return %a, %a : !riscv.reg, !riscv.reg
 }
 

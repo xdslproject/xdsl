@@ -4,7 +4,7 @@
     "gpu.module"()({
         %init = "arith.constant"() {"value" = 42 : index} : () -> index
         %sum = "gpu.all_reduce"(%init) ({
-        ^bb(%lhs : index, %rhs : index):
+        ^bb(%lhs: index, %rhs: index):
             %sum = "arith.addi"(%lhs, %rhs) : (index, index) -> index
             "gpu.yield"(%sum) : (index) -> ()
         }) {"op" = #gpu<all_reduce_op add>} : (index) -> index
@@ -26,7 +26,7 @@
     "gpu.module"()({
         %init = "arith.constant"() {"value" = 42 : index} : () -> index
         %sum = "gpu.all_reduce"(%init) ({
-        ^bb(%lhs : index):
+        ^bb(%lhs: index):
             %c = "arith.constant"() {"value" = 42 : index} : () -> index
             %sum = "arith.addi"(%lhs, %c) : (index, index) -> index
             "gpu.yield"(%sum) : (index) -> ()
@@ -84,7 +84,7 @@
 
         "gpu.launch"(%one, %one, %n, %one, %one, %one) ({
         ^bb0(%bx : index, %by : index, %bz : index,
-            %tx : index, %ty : index, %tz : index):
+            %tx : index, %ty: index, %tz: index):
             %sum = "gpu.all_reduce"(%tx) ({
             }) {"op" = #gpu<all_reduce_op add>} : (index) -> index
             %final = "arith.muli"(%sum, %one) : (index, index) -> index
@@ -112,7 +112,7 @@
 // -----
 
 "builtin.module"() ({
-    %memref = "memref.alloc"() {"alignment" = 0 : i64, operandSegmentSizes = array<i32: 0, 0>} : () -> memref<10x10xi32>
+    %memref = "memref.alloc"() {operandSegmentSizes = array<i32: 0, 0>} : () -> memref<10x10xi32>
     %ten = "arith.constant"() {"value" = 10 : index} : () -> index
     %gmemref = "gpu.alloc"(%ten, %ten) {operandSegmentSizes = array<i32: 0, 2, 0>} : (index, index) -> memref<?x?xi32>
 
@@ -139,7 +139,7 @@
     "gpu.module"()({
         %init = "arith.constant"() {"value" = 42 : index} : () -> index
         %sum = "gpu.all_reduce"(%init) ({
-        ^bb(%lhs : index, %rhs : index):
+        ^bb(%lhs: index, %rhs: index):
             %sum = "arith.addi"(%lhs, %rhs) : (index, index) -> index
             %float = "arith.constant"() {"value" = 42.0 : f32} : () -> f32
             "gpu.yield"(%float) : (f32) -> ()

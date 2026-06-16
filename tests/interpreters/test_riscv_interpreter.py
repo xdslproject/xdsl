@@ -52,15 +52,10 @@ def test_riscv_interpreter():
     riscv_functions = RiscvFunctions(
         custom_instructions={"my_custom_instruction": my_custom_instruction},
     )
+
     interpreter = Interpreter(module_op)
     interpreter.register_implementations(riscv_functions)
 
-    assert interpreter.run_op(riscv.LiOp("label0"), ()) == (
-        TypedPtr.new_int32((42,)).raw,
-    )
-    assert interpreter.run_op(riscv.LiOp("label1"), ()) == (
-        TypedPtr.new_int32((59,)).raw,
-    )
     assert interpreter.run_op(riscv.MVOp(create_ssa_value(register)), (42,)) == (42,)
 
     assert interpreter.run_op(riscv.SltiuOp(create_ssa_value(register), 5), (0,)) == (
@@ -296,15 +291,6 @@ def test_riscv_interpreter():
     test_buffer.float32[3] = 6.0
     assert buffer == test_buffer
 
-    assert interpreter.run_op(riscv.GetRegisterOp(riscv.Registers.ZERO), ()) == (0,)
-
-    get_non_zero = riscv.GetRegisterOp(riscv.Registers.UNALLOCATED_INT)
-    with pytest.raises(
-        InterpretationError,
-        match="Cannot get value for unallocated register !riscv.reg",
-    ):
-        interpreter.run_op(get_non_zero, ())
-
 
 def test_get_data():
     @ModuleOp
@@ -377,9 +363,6 @@ def test_register_contents():
         InterpretationError, match="Runtime and stored value mismatch: 2 != 1"
     ):
         RiscvFunctions.get_reg_value(interpreter, riscv.Registers.T0, 2)
-
-    assert interpreter.run_op(riscv.GetRegisterOp(riscv.Registers.ZERO), ()) == (0,)
-    assert interpreter.run_op(riscv.GetRegisterOp(riscv.Registers.T0), ()) == (1,)
 
 
 def test_values():

@@ -19,6 +19,8 @@ from xdsl.interpreters import (
     riscv_libc,
     riscv_scf,
     riscv_snitch,
+    rv32,
+    rv64,
     scf,
     snitch_stream,
     tensor,
@@ -44,6 +46,8 @@ def register_implementations(interpreter: Interpreter, ctx: Context):
     interpreter.register_implementations(riscv_scf.RiscvScfFunctions())
     interpreter.register_implementations(riscv_snitch.RiscvSnitchFunctions())
     interpreter.register_implementations(riscv.RiscvFunctions())
+    interpreter.register_implementations(rv32.Rv32Functions())
+    interpreter.register_implementations(rv64.Rv64Functions())
     interpreter.register_implementations(scf.ScfFunctions())
     interpreter.register_implementations(snitch_stream.SnitchStreamFunctions())
     interpreter.register_implementations(tensor.TensorFunctions())

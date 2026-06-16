@@ -4,14 +4,18 @@ from typing import Literal
 import pytest
 from typing_extensions import TypeVar
 
+from xdsl.dialects.builtin import IntAttr, IntAttrConstraint
 from xdsl.irdl import (
     AnyInt,
     AtLeast,
     AtMost,
+    BaseAttr,
     ConstraintContext,
+    EqAttrConstraint,
     EqIntConstraint,
     IntSetConstraint,
     IntTypeVarConstraint,
+    IntVarConstraint,
     get_int_constraint,
     get_optional_int_constraint,
 )
@@ -54,6 +58,39 @@ def test_at_most():
     AtMost(2).verify(1, ConstraintContext())
     with pytest.raises(VerifyException, match="Expected integer <= 2, got 3"):
         AtMost(2).verify(3, ConstraintContext())
+
+
+def test_int_var_constraint_verify():
+    IntVarConstraint("I", EqIntConstraint(1)).verify(1, ConstraintContext())
+    IntVarConstraint("I", EqIntConstraint(2)).verify(2, ConstraintContext())
+    IntVarConstraint("I", AnyInt()).verify(3, ConstraintContext())
+    IntVarConstraint("I", AnyInt()).verify(4, ConstraintContext({}, {}, {"I": 4}))
+
+    with pytest.raises(
+        VerifyException, match="integer 2 expected from int variable 'I', but got 1"
+    ):
+        IntVarConstraint("I", AnyInt()).verify(1, ConstraintContext({}, {}, {"I": 2}))
+
+
+@pytest.mark.parametrize(
+    "constraint, context_dict, inferred",
+    [
+        (IntVarConstraint("I", AnyInt()), {}, None),
+        (IntVarConstraint("I", AnyInt()), {"I": 2}, 2),
+        (IntVarConstraint("I", EqIntConstraint(1)), {}, 1),
+        (IntVarConstraint("I", EqIntConstraint(1)), {"I": 2}, 2),
+    ],
+)
+def test_int_var_constraint_infer(
+    constraint: IntVarConstraint,
+    context_dict: dict[str, int],
+    inferred: int | None,
+) -> None:
+    if inferred is None:
+        assert not constraint.can_infer(context_dict.keys())
+    else:
+        assert constraint.can_infer(context_dict.keys())
+        assert constraint.infer(ConstraintContext({}, {}, context_dict)) == inferred
 
 
 def test_eq():
@@ -122,3 +159,17 @@ def test_get_int_constr():
 
     with pytest.raises(PyRDLTypeError, match="Unexpected int type: <class 'str'>"):
         get_int_constraint(str)  # pyright: ignore[reportArgumentType]
+
+
+def test_int_attr_get():
+    assert IntAttrConstraint.get() == BaseAttr(IntAttr)
+    assert IntAttrConstraint.get(int) == BaseAttr(IntAttr)
+    assert IntAttrConstraint.get(1) == EqAttrConstraint(IntAttr(1))
+    assert IntAttrConstraint.get(Literal[1, 2]) == IntAttrConstraint(
+        IntSetConstraint(frozenset((1, 2)))
+    )
+    assert IntAttrConstraint.get(AnyInt()) == BaseAttr(IntAttr)
+    assert IntAttrConstraint.get(
+        IntSetConstraint(frozenset((1, 2)))
+    ) == IntAttrConstraint(IntSetConstraint(frozenset((1, 2))))
+    assert IntAttrConstraint.get(EqIntConstraint(1)) == EqAttrConstraint(IntAttr(1))

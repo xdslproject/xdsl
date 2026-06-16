@@ -1,7 +1,7 @@
 from abc import ABC
 from dataclasses import dataclass
 
-from xdsl.ir import BitEnumAttribute
+from xdsl.dialects.utils import BitEnumAttribute
 from xdsl.utils.str_enum import StrEnum
 
 

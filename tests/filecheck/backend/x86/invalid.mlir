@@ -27,7 +27,7 @@ func.func @foo_int() -> (i32,i32) {
 
 // -----
 
-// CHECK: Cannot lower function return values bigger than 64 bits (not implemented)
+// CHECK: Error while applying pattern: Register type for type i128 not supported.
 func.func @foo_int() -> (i128) {
   %a = "test.op"(): () -> i128
   func.return %a: i128
@@ -35,7 +35,7 @@ func.func @foo_int() -> (i128) {
 
 // -----
 
-// CHECK: Cannot lower shaped function output (not implemented)
+// CHECK: Error while applying pattern: Register type for type memref<1xf32> not supported.
 func.func @f() -> (memref<1xf32>) {
   %a = "test.op"(): () -> memref<1xf32>
   func.return %a: memref<1xf32>

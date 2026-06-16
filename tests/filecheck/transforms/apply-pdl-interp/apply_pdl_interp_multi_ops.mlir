@@ -63,7 +63,7 @@ pdl_interp.func @matcher(%arg0: !pdl.operation) {
 }
 module @rewriters {
   pdl_interp.func @pdl_generated_rewriter(%arg0: !pdl.value, %arg1: !pdl.value, %arg2: !pdl.type, %arg3: !pdl.value, %arg4: !pdl.operation) {
-    %0 = pdl_interp.create_operation "arith.subi"(%arg0, %arg1 : !pdl.value, !pdl.value) -> (%arg2 : !pdl.type)
+    %0 = pdl_interp.create_operation "arith.subi"(%arg0, %arg1: !pdl.value, !pdl.value) -> (%arg2 : !pdl.type)
     %1 = pdl_interp.get_result 0 of %0
     %2 = pdl_interp.create_operation "arith.addi"(%arg3, %1 : !pdl.value, !pdl.value)  -> (%arg2 : !pdl.type)
     %3 = pdl_interp.get_result 0 of %2

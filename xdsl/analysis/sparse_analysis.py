@@ -382,3 +382,130 @@ class SparseForwardDataFlowAnalysis(
     def set_to_entry_state(self, lattice: PropagatingLatticeInvT) -> None:
         """Sets a lattice to its most pessimistic (entry) state."""
         ...
+
+
+class SparseBackwardDataFlowAnalysis(
+    DataFlowAnalysis, ABC, Generic[PropagatingLatticeInvT]
+):
+    """
+    Base class for sparse backward data-flow analyses. It propagates lattices
+    attached to SSA values *against* the direction of data flow: information
+    placed on an operation's results is meet-combined into its operands.
+    """
+
+    def __init__(
+        self, solver: DataFlowSolver, lattice_type: type[PropagatingLatticeInvT]
+    ):
+        super().__init__(solver)
+        self.lattice_type = lattice_type
+
+    def initialize(self, op: Operation) -> None:
+        # Iteratively visit all ops to build initial dependencies.
+        stack: list[Operation] = [op]
+
+        while stack:
+            current_op = stack.pop()
+
+            self.visit(ProgramPoint.before(current_op))
+
+            for region in current_op.regions:
+                for block in region.blocks:
+                    block_start_point = ProgramPoint.at_start_of_block(block)
+                    executable = self.get_or_create_state(block_start_point, Executable)
+                    executable.block_content_subscribers.add(self)
+                    # Push children in forward order so they are popped in
+                    # reverse — yielding the backward walk within the block.
+                    stack.extend(block.ops)
+
+    def visit(self, point: ProgramPoint) -> None:
+        if point.op is not None:
+            self.visit_operation(point.op)
+        # Block-start points are no-ops for backward analysis: block arguments
+        # receive their lattice information from terminator operands (handled
+        # via BranchOpInterface / RegionBranchOpInterface), not from
+        # the block itself.
+
+    def visit_operation(self, op: Operation) -> None:
+        """Transfer function reading result lattices, writing operand lattices."""
+        # Nothing to propagate backward into if the op has no operands.
+        if not op.operands:
+            return
+
+        # If the parent block is not executable, do nothing.
+        if (
+            op.parent is not None
+            and not self.get_or_create_state(
+                ProgramPoint.at_start_of_block(op.parent), Executable
+            ).live
+        ):
+            return
+
+        # Gather lattices. Result lattices register this op's program point as
+        # a dependent, so that when an upstream backward analysis writes to a
+        # result, this op is re-enqueued to push the info into its operands.
+        point = ProgramPoint.before(op)
+        operand_lattices = [self.get_lattice_element(o) for o in op.operands]
+        result_lattices = [self.get_lattice_element_for(point, r) for r in op.results]
+
+        if op.regions:
+            raise NotImplementedError(
+                f"Operation {op.name} has regions. Backward propagation across "
+                "region boundaries requires RegionBranchOpInterface and "
+                "RegionBranchTerminatorOpInterface."
+            )
+
+        if op.successors:
+            raise NotImplementedError(
+                f"Operation {op.name} has block successors. Mapping operands to "
+                "successor block arguments for backward propagation requires "
+                "BranchOpInterface."
+            )
+
+        # TODO: dispatch CallOpInterface once a SymbolTableCollection equivalent
+        #       is available — backward analysis must connect call-site operands
+        #       to callee entry-block arguments, and callee return-op operands
+        #       back to call-site results.
+        # TODO: dispatch return-like ops in callable regions once
+        #       CallableOpInterface support lands.
+
+        self.visit_operation_impl(op, operand_lattices, result_lattices)
+
+    def meet(self, lhs: PropagatingLatticeInvT, rhs: PropagatingLatticeInvT) -> None:
+        """Meets the rhs lattice into the lhs and propagates if changed."""
+        self.propagate_if_changed(lhs, lhs.meet(rhs))
+
+    def get_lattice_element(self, value: SSAValue) -> PropagatingLatticeInvT:
+        return self.get_or_create_state(value, self.lattice_type)
+
+    def get_lattice_element_for(
+        self, point: ProgramPoint, value: SSAValue
+    ) -> PropagatingLatticeInvT:
+        lattice = self.get_lattice_element(value)
+        self.add_dependency(lattice, point)
+        return lattice
+
+    def set_all_to_exit_states(self, lattices: list[PropagatingLatticeInvT]) -> None:
+        for lattice in lattices:
+            self.set_to_exit_state(lattice)
+
+    @abstractmethod
+    def visit_operation_impl(
+        self,
+        op: Operation,
+        operand_lattices: list[PropagatingLatticeInvT],
+        result_lattices: list[PropagatingLatticeInvT],
+    ) -> None:
+        """
+        User-defined transfer function. Should read `result_lattices` and use
+        `meet` to push information into `operand_lattices`.
+        """
+
+    @abstractmethod
+    def set_to_exit_state(self, lattice: PropagatingLatticeInvT) -> None:
+        """
+        Sets a lattice to its most pessimistic (exit) state. Called for values
+        whose backward propagation reaches an external boundary, e.g. operands
+        of public function returns or arguments of public function entry
+        blocks — for those, the analysis cannot assume any structure and must
+        conservatively widen.
+        """

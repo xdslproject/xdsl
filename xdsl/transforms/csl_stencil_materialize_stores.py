@@ -1,9 +1,8 @@
 from dataclasses import dataclass
 
 from xdsl.context import Context
-from xdsl.dialects import memref, scf
+from xdsl.dialects import csl_stencil, csl_wrapper, memref, scf
 from xdsl.dialects.builtin import ModuleOp
-from xdsl.dialects.csl import csl_stencil, csl_wrapper
 from xdsl.ir import Block, Operation, Region, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (

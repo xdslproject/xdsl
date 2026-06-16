@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from typing import Any, TypeGuard
 
 from xdsl.context import Context
-from xdsl.dialects import builtin, varith
+from xdsl.dialects import builtin, csl_stencil, varith
 from xdsl.dialects.arith import (
     ConstantOp,
     FloatingPointLikeBinaryOperation,
@@ -19,10 +19,9 @@ from xdsl.dialects.builtin import (
     ShapedType,
     TensorType,
 )
-from xdsl.dialects.csl import csl_stencil
 from xdsl.dialects.experimental import dmp
 from xdsl.dialects.func import FuncOp
-from xdsl.dialects.linalg import FillOp
+from xdsl.dialects.linalg.ops import FillOp
 from xdsl.dialects.stencil import (
     AccessOp,
     AccessPattern,
@@ -135,7 +134,7 @@ class AccessOpTensorize(RewritePattern):
             tuple(o for o in op.offset)[:-1],
             tuple(o for o in op.offset)[-1],
         )
-        a = AccessOp.get(op.temp, xy_offsets)
+        a = AccessOp(op.temp, xy_offsets)
         # this conditional controls if ExtractSliceOps for x/y accesses should be generated
         # if xy_offsets[0] != 0 or xy_offsets[1] != 0:
         #     rewriter.replace_op(op, a)
@@ -224,8 +223,8 @@ class ApplyOpTensorize(RewritePattern):
             for access_op in op.region.walk():
                 if isinstance(access_op, AccessOp):
                     z_shift = -access_patterns[access_op.temp].halo_in_axis(2)[0]
-                    access_op.offset = IndexAttr.get(
-                        *access_op.offset.array.data[:-1],
+                    access_op.offset = IndexAttr.from_indices(
+                        *[idx.data for idx in access_op.offset.array.data[:-1]],
                         access_op.offset.array.data[-1].data + z_shift,
                     )
 
@@ -236,7 +235,7 @@ class ApplyOpTensorize(RewritePattern):
 
             rewriter.replace_op(
                 op,
-                ApplyOp.get(
+                ApplyOp(
                     op.args,
                     body,
                     [stencil_temp_to_tensor(r.type) for r in op.res],
@@ -280,10 +279,10 @@ class LoadOpTensorize(RewritePattern):
         assert isinstance(bounds := op.res.type.bounds, StencilBoundsAttr)
         rewriter.replace_op(
             op,
-            LoadOp.get(
+            LoadOp(
                 op.field,
-                IndexAttr.get(*[lb for lb in bounds.lb][:-1]),
-                IndexAttr.get(*[ub for ub in bounds.ub][:-1]),
+                IndexAttr.from_indices(*[lb for lb in bounds.lb][:-1]),
+                IndexAttr.from_indices(*[ub for ub in bounds.ub][:-1]),
             ),
         )
 
@@ -312,7 +311,7 @@ class StoreOpTensorize(RewritePattern):
         ):
             rewriter.replace_op(
                 op,
-                StoreOp.get(
+                StoreOp(
                     op.temp,
                     op.field,
                     StencilBoundsAttr(

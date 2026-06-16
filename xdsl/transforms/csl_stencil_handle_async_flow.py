@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 from xdsl.builder import ImplicitBuilder
 from xdsl.context import Context
-from xdsl.dialects import arith, scf
+from xdsl.dialects import arith, csl, csl_stencil, csl_wrapper, scf
 from xdsl.dialects.builtin import (
     FunctionType,
     IndexType,
@@ -12,7 +12,6 @@ from xdsl.dialects.builtin import (
     SymbolRefAttr,
     i32,
 )
-from xdsl.dialects.csl import csl, csl_stencil, csl_wrapper
 from xdsl.ir import (
     Block,
     Operation,
@@ -279,7 +278,11 @@ class CopyArithConstants(RewritePattern):
             use_func = self._get_enclosing_function(use.operation)
             if use_func != parent_func:
                 rewriter.insert_op(cln := op.clone(), InsertPoint.before(use.operation))
-                op.result.replace_by_if(cln.result, lambda x: x == use)
+                rewriter.replace_uses_with_if(
+                    op.result,
+                    cln.result,
+                    lambda x: x == use,
+                )
 
     @staticmethod
     def _get_enclosing_function(op: Operation) -> csl.FuncOp | None:

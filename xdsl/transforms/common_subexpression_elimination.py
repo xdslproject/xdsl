@@ -146,7 +146,7 @@ class CSEDriver:
 
         for o, n in zip(op.results, existing.results, strict=True):
             if all(wasVisited(u) for u in o.uses):
-                o.replace_by(n)
+                o.replace_all_uses_with(n)
 
         # If no uses remain, we can mark this operation for erasure
         if all(not r.uses for r in op.results):

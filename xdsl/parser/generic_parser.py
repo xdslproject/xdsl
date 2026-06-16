@@ -3,8 +3,8 @@ This file contains the definition of `BaseParser`, a recursive descent parser
 that is inherited from the different parsers used in xDSL.
 """
 
-from collections.abc import Callable, Iterable
-from contextlib import contextmanager
+from collections.abc import Callable, Generator, Iterable
+from contextlib import AbstractContextManager, contextmanager
 from dataclasses import dataclass
 from enum import Enum
 from typing import Generic, NoReturn, overload
@@ -188,15 +188,21 @@ class GenericParser(Generic[TokenKindT]):
         METADATA_TOKEN = ("{-#", "#-}")
         NONE = None
 
-    def parse_comma_separated_list(
-        self, delimiter: Delimiter, parse: Callable[[], _AnyInvT], context_msg: str = ""
+    def parse_list(
+        self,
+        delimiter: Delimiter,
+        parse: Callable[[], _AnyInvT],
+        separator: str = ",",
+        context_msg: str = "",
     ) -> list[_AnyInvT]:
         """
-        Parses greedily a list of elements separated by commas, and delimited
-        by the specified delimiter. The parsing stops when the delimiter is
-        closed, or when an error is produced. If no delimiter is specified, at
-        least one element is expected to be parsed.
+        Parses greedily a list of elements separated by a specified separator
+        (by default, a comma), and delimited by the specified delimiter. The
+        parsing stops when the delimiter is closed, or when an error is
+        produced. If no delimiter is specified, at least one element is
+        expected to be parsed.
         """
+
         # Parse the opening bracket, and possibly the closing bracket, if a delimiter
         # was provided
         match delimiter.value:
@@ -209,7 +215,7 @@ class GenericParser(Generic[TokenKindT]):
 
         # Parse the list of elements
         elems = [parse()]
-        while self.parse_optional_characters(",") is not None:
+        while self.parse_optional_characters(separator) is not None:
             elems.append(parse())
 
         # Parse the closing bracket, if a delimiter was provided
@@ -220,6 +226,17 @@ class GenericParser(Generic[TokenKindT]):
                 self.parse_characters(right_punctuation, context_msg)
 
         return elems
+
+    def parse_comma_separated_list(
+        self, delimiter: Delimiter, parse: Callable[[], _AnyInvT], context_msg: str = ""
+    ) -> list[_AnyInvT]:
+        """
+        Parses greedily a list of elements separated by commas, and delimited
+        by the specified delimiter. The parsing stops when the delimiter is
+        closed, or when an error is produced. If no delimiter is specified, at
+        least one element is expected to be parsed.
+        """
+        return self.parse_list(delimiter, parse, ",", context_msg)
 
     def parse_optional_comma_separated_list(
         self, delimiter: Delimiter, parse: Callable[[], _AnyInvT], context_msg: str = ""
@@ -245,13 +262,7 @@ class GenericParser(Generic[TokenKindT]):
             return None
         if self.parse_optional_characters(right_punctuation) is not None:
             return []
-
-        # Parse the list of elements
-        elems = [parse()]
-        while self.parse_optional_characters(",") is not None:
-            elems.append(parse())
-
-        # Parse the closing bracket
+        elems = self.parse_list(delimiter.NONE, parse, ",", context_msg)
         self.parse_characters(right_punctuation, context_msg)
 
         return elems
@@ -274,8 +285,8 @@ class GenericParser(Generic[TokenKindT]):
 
         # Parse the remaining elements
         elems = [first_elem]
-        while self.parse_optional_characters(",") is not None:
-            elems.append(parse())
+        if self.parse_optional_characters(",") is not None:
+            elems.extend(self.parse_list(self.Delimiter.NONE, parse))
 
         return elems
 
@@ -302,19 +313,19 @@ class GenericParser(Generic[TokenKindT]):
         self.raise_error(f"'{text}' expected" + context_msg)
 
     @contextmanager
-    def delimited(self, start: str, end: str):
+    def delimited(self, start: str, end: str) -> Generator[None, None, None]:
         self.parse_characters(start)
         yield
         self.parse_characters(end)
 
-    def in_angle_brackets(self):
+    def in_angle_brackets(self) -> AbstractContextManager[None]:
         return self.delimited("<", ">")
 
-    def in_square_brackets(self):
+    def in_square_brackets(self) -> AbstractContextManager[None]:
         return self.delimited("[", "]")
 
-    def in_parens(self):
+    def in_parens(self) -> AbstractContextManager[None]:
         return self.delimited("(", ")")
 
-    def in_braces(self):
+    def in_braces(self) -> AbstractContextManager[None]:
         return self.delimited("{", "}")

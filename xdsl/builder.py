@@ -14,7 +14,6 @@ from xdsl.ir import (
     Block,
     BlockArgument,
     Operation,
-    OperationInvT,
     Region,
     SSAValue,
 )
@@ -80,18 +79,14 @@ class Builder(BuilderListener):
     def name_hint(self, name: str | None):
         self._name_hint = SSAValue.extract_valid_name(name)
 
-    def insert(self, op: OperationInvT) -> OperationInvT:
-        """
-        Inserts op at the current location and returns it.
-        """
-        return self.insert_op(op)
-
-    def insert_op(
+    def insert(
         self,
         op: InsertOpInvT,
         insertion_point: InsertPoint | None = None,
     ) -> InsertOpInvT:
-        """Inserts op(s) at the current insertion point."""
+        """
+        Inserts op(s) at the current location and returns it.
+        """
         ops = (op,) if isinstance(op, Operation) else op
         if not ops:
             return ops
@@ -114,6 +109,14 @@ class Builder(BuilderListener):
             self.handle_operation_insertion(op_)
 
         return op
+
+    def insert_op(
+        self,
+        op: InsertOpInvT,
+        insertion_point: InsertPoint | None = None,
+    ) -> InsertOpInvT:
+        """Inserts op(s) at the current insertion point."""
+        return self.insert(op, insertion_point)
 
     def create_block(
         self, insert_point: BlockInsertPoint, arg_types: Iterable[Attribute] = ()

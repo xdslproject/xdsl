@@ -39,7 +39,7 @@ class InlineFunctions(RewritePattern):
 
         # Replace block args with operand casts
         for i, arg in zip(inputs, impl_block.args):
-            arg.replace_by(i.res)
+            arg.replace_all_uses_with(i.res)
 
         # remove block args
         while len(impl_block.args):

@@ -28,7 +28,7 @@ class FuncOpToPdlRewritePattern(RewritePattern):
         op.detach_region(func_body := op.regions[0])
         rewrite_root = pdl_root.results[0]
         for arg in func_body.block.args:
-            arg.replace_by(rewrite_root)
+            arg.replace_all_uses_with(rewrite_root)
             func_body.block.erase_arg(arg)
 
         pdl_pattern = pdl.PatternOp(

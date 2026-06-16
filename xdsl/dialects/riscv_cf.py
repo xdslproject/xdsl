@@ -57,7 +57,7 @@ class ConditionalBranchOperation(
     then_arguments = var_operand_def(RISCVRegisterType)
     else_arguments = var_operand_def(RISCVRegisterType)
 
-    irdl_options = [AttrSizedOperandSegments()]
+    irdl_options = (AttrSizedOperandSegments(),)
 
     then_block = successor_def()
     else_block = successor_def()

@@ -3,8 +3,7 @@ from pathlib import Path
 
 from xdsl.builder import ImplicitBuilder
 from xdsl.context import Context
-from xdsl.dialects import arith, builtin, scf
-from xdsl.dialects.csl import csl, csl_wrapper
+from xdsl.dialects import arith, builtin, csl, csl_wrapper, scf
 from xdsl.ir import Block, Operation, Region, SSAValue
 from xdsl.passes import ModulePass
 from xdsl.pattern_rewriter import (

@@ -8,6 +8,11 @@ from xdsl.utils.dialect_loader import IRDLDialectFinder
 def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
     """Returns all available dialects."""
 
+    def get_acc():
+        from xdsl.dialects.acc import ACC
+
+        return ACC
+
     def get_accfg():
         from xdsl.dialects.accfg import ACCFG
 
@@ -42,6 +47,11 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         from xdsl.dialects.arm_neon import ARM_NEON
 
         return ARM_NEON
+
+    def get_asm():
+        from xdsl.dialects.asm import ASM
+
+        return ASM
 
     def get_bigint():
         from xdsl.dialects.bigint import BigInt
@@ -84,12 +94,12 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         return CSL
 
     def get_csl_stencil():
-        from xdsl.dialects.csl.csl_stencil import CSL_STENCIL
+        from xdsl.dialects.csl_stencil import CSL_STENCIL
 
         return CSL_STENCIL
 
     def get_csl_wrapper():
-        from xdsl.dialects.csl.csl_wrapper import CSL_WRAPPER
+        from xdsl.dialects.csl_wrapper import CSL_WRAPPER
 
         return CSL_WRAPPER
 
@@ -103,15 +113,20 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
 
         return DMP
 
+    def get_ematch():
+        from xdsl.dialects.ematch import Ematch
+
+        return Ematch
+
     def get_emitc():
         from xdsl.dialects.emitc import EmitC
 
         return EmitC
 
-    def get_eqsat():
-        from xdsl.dialects.eqsat import EqSat
+    def get_equivalence():
+        from xdsl.dialects.equivalence import Equivalence
 
-        return EqSat
+        return Equivalence
 
     def get_eqsat_pdl_interp():
         from xdsl.dialects.eqsat_pdl_interp import EqSatPDLInterp
@@ -193,11 +208,6 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
 
         return MemRefStream
 
-    def get_mesh():
-        from xdsl.dialects.mesh import Mesh
-
-        return Mesh
-
     def get_ml_program():
         from xdsl.dialects.ml_program import MLProgram
 
@@ -228,6 +238,11 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
 
         return PDLInterp
 
+    def get_polynomial():
+        from xdsl.dialects.polynomial import Polynomial
+
+        return Polynomial
+
     def get_printf():
         from xdsl.dialects.printf import Printf
 
@@ -238,6 +253,11 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
 
         return Ptr
 
+    def get_py():
+        from xdsl.dialects.py import Py
+
+        return Py
+
     def get_riscv_debug():
         from xdsl.dialects.riscv_debug import RISCV_Debug
 
@@ -247,6 +267,16 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         from xdsl.dialects.riscv import RISCV
 
         return RISCV
+
+    def get_RV32():
+        from xdsl.dialects.rv32 import RV32
+
+        return RV32
+
+    def get_RV64():
+        from xdsl.dialects.rv64 import RV64
+
+        return RV64
 
     def get_riscv_func():
         from xdsl.dialects.riscv_func import RISCV_Func
@@ -277,6 +307,11 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         from xdsl.dialects.seq import Seq
 
         return Seq
+
+    def get_shard():
+        from xdsl.dialects.shard import Shard
+
+        return Shard
 
     def get_smt():
         from xdsl.dialects.smt import SMT
@@ -328,6 +363,16 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
 
         return TOSA
 
+    def get_transform():
+        from xdsl.dialects.transform import Transform
+
+        return Transform
+
+    def get_ub():
+        from xdsl.dialects.ub import UB
+
+        return UB
+
     def get_varith():
         from xdsl.dialects.varith import Varith
 
@@ -342,6 +387,11 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         from xdsl.dialects.wasm import Wasm
 
         return Wasm
+
+    def get_wasmssa():
+        from xdsl.dialects.wasmssa import WasmSSA
+
+        return WasmSSA
 
     def get_x86():
         from xdsl.dialects.x86 import X86
@@ -358,12 +408,8 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
 
         return X86_Scf
 
-    def get_transform():
-        from xdsl.dialects.transform import Transform
-
-        return Transform
-
     return {
+        "acc": get_acc,
         "accfg": get_accfg,
         "affine": get_affine,
         "air": get_air,
@@ -371,6 +417,7 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "arm": get_arm,
         "arm_func": get_arm_func,
         "arm_neon": get_arm_neon,
+        "asm": get_asm,
         "bigint": get_bigint,
         "bufferization": get_bufferization,
         "builtin": get_builtin,
@@ -383,8 +430,9 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "csl_wrapper": get_csl_wrapper,
         "dlti": get_dlti,
         "dmp": get_dmp,
+        "ematch": get_ematch,
         "emitc": get_emitc,
-        "eqsat": get_eqsat,
+        "equivalence": get_equivalence,
         "eqsat_pdl_interp": get_eqsat_pdl_interp,
         "fir": get_fir,
         "fsm": get_fsm,
@@ -401,16 +449,19 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "math_xdsl": get_math_xdsl,
         "memref": get_memref,
         "memref_stream": get_memref_stream,
-        "mesh": get_mesh,
         "ml_program": get_ml_program,
         "mod_arith": get_mod_arith,
         "mpi": get_mpi,
         "omp": get_omp,
         "pdl": get_pdl,
         "pdl_interp": get_pdl_interp,
+        "polynomial": get_polynomial,
         "printf": get_printf,
         "ptr_xdsl": get_ptr_xdsl,
+        "py": get_py,
         "riscv": get_riscv,
+        "rv32": get_RV32,
+        "rv64": get_RV64,
         "riscv_debug": get_riscv_debug,
         "riscv_func": get_riscv_func,
         "riscv_scf": get_riscv_scf,
@@ -418,6 +469,7 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "riscv_snitch": get_riscv_snitch,
         "scf": get_scf,
         "seq": get_seq,
+        "shard": get_shard,
         "smt": get_smt,
         "snitch": get_snitch,
         "snrt": get_snitch_runtime,
@@ -428,9 +480,11 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "tensor": get_tensor,
         "test": get_test,
         "tosa": get_tosa,
+        "ub": get_ub,
         "varith": get_varith,
         "vector": get_vector,
         "wasm": get_wasm,
+        "wasmssa": get_wasmssa,
         "x86": get_x86,
         "x86_func": get_x86_func,
         "x86_scf": get_x86_scf,

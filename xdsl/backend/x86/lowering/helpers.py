@@ -3,16 +3,24 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import cast, overload
 
-from xdsl.backend.utils import cast_to_regs
+from typing_extensions import deprecated
+
 from xdsl.builder import Builder
-from xdsl.dialects import ptr, x86
+from xdsl.dialects import asm, ptr, x86
 from xdsl.dialects.builtin import (
     FixedBitwidthType,
     IndexType,
-    ShapedType,
     VectorType,
 )
-from xdsl.dialects.x86.registers import X86RegisterType, X86VectorRegisterType
+from xdsl.dialects.x86.registers import (
+    GeneralRegisterType,
+    Reg8Type,
+    Reg16Type,
+    Reg32Type,
+    Reg64Type,
+    X86RegisterType,
+    X86VectorRegisterType,
+)
 from xdsl.ir import Attribute, SSAValue
 from xdsl.pattern_rewriter import PatternRewriter
 from xdsl.utils.exceptions import DiagnosticException
@@ -58,16 +66,22 @@ class Arch(StrEnum):
                     f"The vector size ({vector_size} bits) and target architecture `{self}` are inconsistent."
                 )
 
-    def _scalar_type_for_type(self, value_type: Attribute) -> type[X86RegisterType]:
-        assert not isinstance(value_type, ShapedType)
-        if (
-            (isinstance(value_type, FixedBitwidthType) and value_type.bitwidth <= 64)
-            or isinstance(value_type, IndexType)
-            or isinstance(value_type, ptr.PtrType)
-        ):
-            return x86.registers.GeneralRegisterType
-        else:
-            raise DiagnosticException("Not implemented for bitwidth larger than 64.")
+    def _scalar_type_for_type(self, value_type: Attribute) -> type[GeneralRegisterType]:
+        if isinstance(value_type, FixedBitwidthType):
+            match value_type.bitwidth:
+                case 64:
+                    return Reg64Type
+                case 32:
+                    return Reg32Type
+                case 16:
+                    return Reg16Type
+                case 8:
+                    return Reg8Type
+                case _:
+                    ...
+        if isinstance(value_type, IndexType) or isinstance(value_type, ptr.PtrType):
+            return Reg64Type
+        raise DiagnosticException(f"Register type for type {value_type} not supported.")
 
     @overload
     def register_type_for_type(
@@ -89,14 +103,16 @@ class Arch(StrEnum):
     def cast_to_regs(
         self, values: Sequence[SSAValue], builder: Builder
     ) -> list[SSAValue]:
-        return cast_to_regs(values, self.register_type_for_type, builder)
+        return [
+            builder.insert(
+                asm.ToRegOp.get(v, self.register_type_for_type(v.type).unallocated())
+            ).register
+            for v in values
+        ]
 
+    @deprecated("Please use `arch.cast_to_regs(values, rewriter)`")
     def cast_operands_to_regs(self, rewriter: PatternRewriter) -> list[SSAValue]:
-        new_operands = cast_to_regs(
-            rewriter.current_operation.operands,
-            self.register_type_for_type,
-            rewriter,
-        )
+        new_operands = self.cast_to_regs(rewriter.current_operation.operands, rewriter)
         return new_operands
 
     def move_value_to_unallocated(
@@ -125,7 +141,7 @@ class Arch(StrEnum):
                         "Float precision must be half, single or double."
                     )
         else:
-            if not isinstance(reg_type := value.type, X86RegisterType):
+            if not isinstance(reg_type := value.type, GeneralRegisterType):
                 raise ValueError(f"Invalid type for move {value_type}")
             mov_op = x86.DS_MovOp(value, destination=type(reg_type).unallocated())
 

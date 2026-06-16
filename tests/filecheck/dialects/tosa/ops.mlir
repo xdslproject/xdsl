@@ -104,8 +104,8 @@ func.func @test_max_pool2d_f16(%arg0: tensor<1x32x32x8xf16>) -> tensor<1x32x32x8
 // -----
 // CHECK-LABEL: rescale
 func.func @test_rescale(%arg0: tensor<13x21x3xi32>, %multiplier: tensor<1xi32>, %shift: tensor<1xi8>, %input_zp: tensor<1xi32>, %output_zp: tensor<1xi32>) -> tensor<13x21x3xi32> {
-    // CHECK: %{{.*}} = tosa.rescale %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}} {input_unsigned = false, output_unsigned = false, per_channel = false, rounding_mode = "SINGLE_ROUND", scale32 = true} : (tensor<13x21x3xi32>, tensor<1xi32>, tensor<1xi8>, tensor<1xi32>, tensor<1xi32>) -> tensor<13x21x3xi32>
-    %0 = tosa.rescale %arg0, %multiplier, %shift, %input_zp, %output_zp {input_unsigned = false, output_unsigned = false, per_channel = false, rounding_mode = "SINGLE_ROUND", scale32 = true} : (tensor<13x21x3xi32>, tensor<1xi32>, tensor<1xi8>, tensor<1xi32>, tensor<1xi32>) -> tensor<13x21x3xi32>
+    // CHECK: %{{.*}} = tosa.rescale %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}, %{{.*}} {input_unsigned = false, output_unsigned = false, per_channel = false, rounding_mode = SINGLE_ROUND, scale32 = true} : (tensor<13x21x3xi32>, tensor<1xi32>, tensor<1xi8>, tensor<1xi32>, tensor<1xi32>) -> tensor<13x21x3xi32>
+    %0 = tosa.rescale %arg0, %multiplier, %shift, %input_zp, %output_zp {input_unsigned = false, output_unsigned = false, per_channel = false, rounding_mode = SINGLE_ROUND, scale32 = true} : (tensor<13x21x3xi32>, tensor<1xi32>, tensor<1xi8>, tensor<1xi32>, tensor<1xi32>) -> tensor<13x21x3xi32>
     return %0 : tensor<13x21x3xi32>
 }
 
@@ -185,7 +185,7 @@ func.func @test_reduce_sum(%arg0: tensor<31x5x3xf32>) -> tensor<1x5x3xf32> {
 // CHECK-LABEL: cond_if
 func.func @test_cond_if(%arg0: tensor<i1>, %arg1: tensor<3x4x5xf32>) -> tensor<3x4x5xf32> {
   // CHECK: {{%.*}} = tosa.cond_if {{%.*}} -> (tensor<3x4x5xf32>) {
-  %0 = tosa.cond_if %arg0 -> (tensor<3x4x5xf32>) {
+  %0 = tosa.cond_if %arg0: tensor<i1> -> (tensor<3x4x5xf32>) {
     // CHECK-NEXT: tosa.yield {{%.*}} : tensor<3x4x5xf32>
     tosa.yield %arg1 : tensor<3x4x5xf32>
     // CHECK-NEXT: } else {

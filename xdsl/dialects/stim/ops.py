@@ -1,6 +1,7 @@
 from abc import ABC
 from collections.abc import Sequence
 from io import StringIO
+from typing import ClassVar
 
 from xdsl.dialects.builtin import ArrayAttr, FloatData, IntAttr, f64
 from xdsl.dialects.stim.stim_printer_parser import StimPrintable, StimPrinter
@@ -15,6 +16,7 @@ from xdsl.irdl import (
 )
 from xdsl.parser import AttrParser
 from xdsl.printer import Printer
+from xdsl.utils.exceptions import VerifyException
 
 
 @irdl_attr_definition
@@ -91,9 +93,11 @@ class QubitMappingAttr(StimPrintable, ParametrizedAttribute):
         parser.parse_punctuation("<")
         coords = parser.parse_comma_separated_list(
             delimiter=parser.Delimiter.PAREN,
-            parse=lambda: IntAttr(x)
-            if type(x := parser.parse_number(allow_boolean=False)) is int
-            else FloatData(x),
+            parse=lambda: (
+                IntAttr(x)
+                if type(x := parser.parse_number(allow_boolean=False)) is int
+                else FloatData(x)
+            ),
         )
         parser.parse_punctuation(",")
         qubit = parser.parse_attribute()
@@ -107,9 +111,11 @@ class QubitMappingAttr(StimPrintable, ParametrizedAttribute):
             with printer.in_parens():
                 printer.print_list(
                     self.coords,
-                    lambda c: printer.print_int(c.data)
-                    if isinstance(c, IntAttr)
-                    else printer.print_float(c.data, f64),
+                    lambda c: (
+                        printer.print_int(c.data)
+                        if isinstance(c, IntAttr)
+                        else printer.print_float(c.data, f64)
+                    ),
                 )
             printer.print_string(", ")
             printer.print_attribute(self.qubit_name)
@@ -194,3 +200,326 @@ class QubitCoordsOp(AnnotationOp):
     def print_stim(self, printer: StimPrinter) -> None:
         printer.print_string("QUBIT_COORDS")
         self.qubitmapping.print_stim(printer)
+
+
+"""
+Single-Qubit Gate Operations
+
+These operations represent quantum gates that act on individual qubits.
+"""
+
+
+class SingleQubitGateOp(StimPrintable, IRDLOperation, ABC):
+    """
+    Base operation for single-qubit gates.
+    """
+
+    STIM_NAME: ClassVar[str]
+
+    targets = prop_def(ArrayAttr[QubitAttr])
+
+    assembly_format = "$targets attr-dict"
+
+    def __init__(self, targets: Sequence[QubitAttr | int]):
+        targets = [QubitAttr(t) if isinstance(t, int) else t for t in targets]
+        super().__init__(properties={"targets": ArrayAttr(targets)})
+
+    def print_stim(self, printer: StimPrinter) -> None:
+        printer.print_string(self.STIM_NAME)
+        for target in self.targets:
+            printer.print_string(" ")
+            target.print_stim(printer)
+
+
+@irdl_op_definition
+class HOp(SingleQubitGateOp):
+    name = "stim.h"
+    STIM_NAME: ClassVar[str] = "H"
+
+
+@irdl_op_definition
+class SOp(SingleQubitGateOp):
+    name = "stim.s"
+    STIM_NAME: ClassVar[str] = "S"
+
+
+@irdl_op_definition
+class SDagOp(SingleQubitGateOp):
+    name = "stim.s_dag"
+    STIM_NAME: ClassVar[str] = "S_DAG"
+
+
+@irdl_op_definition
+class XOp(SingleQubitGateOp):
+    name = "stim.x"
+    STIM_NAME: ClassVar[str] = "X"
+
+
+@irdl_op_definition
+class YOp(SingleQubitGateOp):
+    name = "stim.y"
+    STIM_NAME: ClassVar[str] = "Y"
+
+
+@irdl_op_definition
+class ZOp(SingleQubitGateOp):
+    name = "stim.z"
+    STIM_NAME: ClassVar[str] = "Z"
+
+
+@irdl_op_definition
+class IOp(SingleQubitGateOp):
+    name = "stim.i"
+    STIM_NAME: ClassVar[str] = "I"
+
+
+@irdl_op_definition
+class SqrtXOp(SingleQubitGateOp):
+    name = "stim.sqrt_x"
+    STIM_NAME: ClassVar[str] = "SQRT_X"
+
+
+@irdl_op_definition
+class SqrtXDagOp(SingleQubitGateOp):
+    name = "stim.sqrt_x_dag"
+    STIM_NAME: ClassVar[str] = "SQRT_X_DAG"
+
+
+@irdl_op_definition
+class SqrtYOp(SingleQubitGateOp):
+    name = "stim.sqrt_y"
+    STIM_NAME: ClassVar[str] = "SQRT_Y"
+
+
+@irdl_op_definition
+class SqrtYDagOp(SingleQubitGateOp):
+    name = "stim.sqrt_y_dag"
+    STIM_NAME: ClassVar[str] = "SQRT_Y_DAG"
+
+
+"""
+Two-Qubit Gate Operations
+
+These operations represent quantum gates that act on pairs of qubits.
+"""
+
+
+class TwoQubitGateOp(StimPrintable, IRDLOperation, ABC):
+    """
+    Base operation for two-qubit gates.
+    """
+
+    STIM_NAME: ClassVar[str]
+
+    targets = prop_def(ArrayAttr[QubitAttr])
+
+    assembly_format = "$targets attr-dict"
+
+    def __init__(self, targets: Sequence[QubitAttr | int]):
+        targets = [QubitAttr(t) if isinstance(t, int) else t for t in targets]
+        super().__init__(properties={"targets": ArrayAttr(targets)})
+
+    def verify_(self) -> None:
+        if len(self.targets) % 2:
+            raise VerifyException(
+                f"Expected an even number of targets for {self.STIM_NAME}, got {len(self.targets)}"
+            )
+
+    def print_stim(self, printer: StimPrinter) -> None:
+        printer.print_string(self.STIM_NAME)
+        for target in self.targets:
+            printer.print_string(" ")
+            target.print_stim(printer)
+
+
+@irdl_op_definition
+class CXOp(TwoQubitGateOp):
+    name = "stim.cx"
+    STIM_NAME: ClassVar[str] = "CX"
+
+
+@irdl_op_definition
+class CYOp(TwoQubitGateOp):
+    name = "stim.cy"
+    STIM_NAME: ClassVar[str] = "CY"
+
+
+@irdl_op_definition
+class CZOp(TwoQubitGateOp):
+    name = "stim.cz"
+    STIM_NAME: ClassVar[str] = "CZ"
+
+
+@irdl_op_definition
+class SwapOp(TwoQubitGateOp):
+    name = "stim.swap"
+    STIM_NAME: ClassVar[str] = "SWAP"
+
+
+@irdl_op_definition
+class ISwapOp(TwoQubitGateOp):
+    name = "stim.iswap"
+    STIM_NAME: ClassVar[str] = "ISWAP"
+
+
+@irdl_op_definition
+class ISwapDagOp(TwoQubitGateOp):
+    name = "stim.iswap_dag"
+    STIM_NAME: ClassVar[str] = "ISWAP_DAG"
+
+
+# Measurement Operations
+#
+# Measurements (M, MX, MY) support an optional flip probability argument.
+
+
+class MeasurementOperation(StimPrintable, IRDLOperation, ABC):
+    """
+    Base operation for measurement gates (M, MX, MY).
+    """
+
+    STIM_NAME: ClassVar[str]
+
+    targets = prop_def(ArrayAttr[QubitAttr])
+    flip_prob = opt_prop_def(FloatData)
+
+    assembly_format = "(`flip_prob` $flip_prob^)? $targets attr-dict"
+
+    def __init__(
+        self,
+        targets: Sequence[QubitAttr | int],
+        flip_prob: float | FloatData | None = None,
+    ):
+        targets = [QubitAttr(t) if isinstance(t, int) else t for t in targets]
+        if not isinstance(flip_prob, FloatData | None):
+            flip_prob = FloatData(flip_prob)
+        super().__init__(
+            properties={"targets": ArrayAttr(targets), "flip_prob": flip_prob}
+        )
+
+    def print_stim(self, printer: StimPrinter) -> None:
+        printer.print_string(self.STIM_NAME)
+        if self.flip_prob is not None:
+            printer.print_string(f"({self.flip_prob.data})")
+        for target in self.targets:
+            printer.print_string(" ")
+            target.print_stim(printer)
+
+
+@irdl_op_definition
+class MOp(MeasurementOperation):
+    name = "stim.m"
+    STIM_NAME: ClassVar[str] = "M"
+
+
+@irdl_op_definition
+class MXOp(MeasurementOperation):
+    name = "stim.mx"
+    STIM_NAME: ClassVar[str] = "MX"
+
+
+@irdl_op_definition
+class MYOp(MeasurementOperation):
+    name = "stim.my"
+    STIM_NAME: ClassVar[str] = "MY"
+
+
+# Reset Operations
+#
+# Resets (R, RX, RY) do not take a flip probability.
+
+
+class ResetOperation(StimPrintable, IRDLOperation, ABC):
+    """
+    Base operation for reset gates (R, RX, RY).
+    """
+
+    STIM_NAME: ClassVar[str]
+
+    targets = prop_def(ArrayAttr[QubitAttr])
+
+    assembly_format = "$targets attr-dict"
+
+    def __init__(self, targets: Sequence[QubitAttr | int]):
+        targets = [QubitAttr(t) if isinstance(t, int) else t for t in targets]
+        super().__init__(properties={"targets": ArrayAttr(targets)})
+
+    def print_stim(self, printer: StimPrinter) -> None:
+        printer.print_string(self.STIM_NAME)
+        for target in self.targets:
+            printer.print_string(" ")
+            target.print_stim(printer)
+
+
+@irdl_op_definition
+class ROp(ResetOperation):
+    name = "stim.r"
+    STIM_NAME: ClassVar[str] = "R"
+
+
+@irdl_op_definition
+class RXOp(ResetOperation):
+    name = "stim.rx"
+    STIM_NAME: ClassVar[str] = "RX"
+
+
+@irdl_op_definition
+class RYOp(ResetOperation):
+    name = "stim.ry"
+    STIM_NAME: ClassVar[str] = "RY"
+
+
+# Measure-Reset Operations
+#
+# Measure-resets (MR, MRX, MRY) support an optional flip probability argument.
+
+
+class MeasureResetOperation(StimPrintable, IRDLOperation, ABC):
+    """
+    Base operation for combined measure-reset gates (MR, MRX, MRY).
+    """
+
+    STIM_NAME: ClassVar[str]
+
+    targets = prop_def(ArrayAttr[QubitAttr])
+    flip_prob = opt_prop_def(FloatData)
+
+    assembly_format = "(`flip_prob` $flip_prob^)? $targets attr-dict"
+
+    def __init__(
+        self,
+        targets: Sequence[QubitAttr | int],
+        flip_prob: float | FloatData | None = None,
+    ):
+        targets = [QubitAttr(t) if isinstance(t, int) else t for t in targets]
+        if not isinstance(flip_prob, FloatData | None):
+            flip_prob = FloatData(flip_prob)
+        super().__init__(
+            properties={"targets": ArrayAttr(targets), "flip_prob": flip_prob}
+        )
+
+    def print_stim(self, printer: StimPrinter) -> None:
+        printer.print_string(self.STIM_NAME)
+        if self.flip_prob is not None:
+            printer.print_string(f"({self.flip_prob.data})")
+        for target in self.targets:
+            printer.print_string(" ")
+            target.print_stim(printer)
+
+
+@irdl_op_definition
+class MROp(MeasureResetOperation):
+    name = "stim.mr"
+    STIM_NAME: ClassVar[str] = "MR"
+
+
+@irdl_op_definition
+class MRXOp(MeasureResetOperation):
+    name = "stim.mrx"
+    STIM_NAME: ClassVar[str] = "MRX"
+
+
+@irdl_op_definition
+class MRYOp(MeasureResetOperation):
+    name = "stim.mry"
+    STIM_NAME: ClassVar[str] = "MRY"
