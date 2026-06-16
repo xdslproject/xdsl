@@ -222,3 +222,11 @@ def test_generic_disjoint_set_rooted_union():
 
     with pytest.raises(KeyError):
         ds.union_left("nonexistent", "a")
+
+
+def test_generic_disjoint_set_str():
+    assert str(DisjointSet()) == "{}"
+    ds = DisjointSet(("a", "b", "c"))
+    assert str(ds) == "{'a': ['a'], 'b': ['b'], 'c': ['c']}"
+    ds.union("a", "b")
+    assert str(ds) == "{'a': ['a', 'b'], 'c': ['c']}"
