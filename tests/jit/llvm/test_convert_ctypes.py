@@ -2,7 +2,6 @@ import ctypes
 
 import pytest
 
-from xdsl.backend.llvm.convert_ctypes import CTypeContext, register_builtin_ctypes
 from xdsl.dialects.builtin import (
     Float16Type,
     Float32Type,
@@ -15,6 +14,7 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.dialects.llvm import LLVMPointerType, LLVMVoidType
 from xdsl.ir import Attribute
+from xdsl.jit.llvm.convert_ctypes import CTypeContext, register_builtin_ctypes
 from xdsl.utils.exceptions import LLVMTranslationException
 
 
