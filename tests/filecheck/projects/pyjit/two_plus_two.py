@@ -103,6 +103,7 @@ class JITContext:
         self.ctype_ctx = CTypeContext()
         register_builtin_ctypes(self.ctype_ctx)
 
+    # TODO: pair with a Python-type registry so unsupported P/R fail here, not deep in MCJIT.
     def jit(self, func: Callable[P, R]) -> McJitKeepalive[P, R]:
         parsed_program = self.pyast_ctx.parse_program(func)
         return mcjit_compile(parsed_program.module, parsed_program.name, self.ctype_ctx)
