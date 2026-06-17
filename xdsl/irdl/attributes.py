@@ -296,19 +296,16 @@ class ParamAttrDef:
 _PAttrTT = TypeVar("_PAttrTT", bound=type[ParametrizedAttribute])
 
 
-def get_accessors_from_param_attr_def(attr_def: ParamAttrDef) -> dict[str, Any]:
-    @classmethod
-    def get_irdl_definition(cls: type[ParametrizedAttribute]):
-        return attr_def
-
-    return {"get_irdl_definition": get_irdl_definition}
-
-
 def irdl_param_attr_definition(cls: _PAttrTT) -> _PAttrTT:
     """Decorator used on classes to define a new attribute definition."""
 
     attr_def = ParamAttrDef.from_pyrdl(cls)
-    new_fields = get_accessors_from_param_attr_def(attr_def)
+
+    @classmethod
+    def get_irdl_definition(cls: type[ParametrizedAttribute]):
+        return attr_def
+
+    cls.get_irdl_definition = get_irdl_definition
 
     if issubclass(cls, TypedAttribute):
         type_indexes = tuple(
@@ -324,18 +321,9 @@ def irdl_param_attr_definition(cls: _PAttrTT) -> _PAttrTT:
         def get_type_index(cls: Any) -> int:
             return type_index
 
-        new_fields["get_type_index"] = get_type_index
+        setattr(cls, "get_type_index", get_type_index)
 
-    return runtime_final(
-        dataclass(frozen=True, init=False)(
-            type.__new__(
-                type(cls),
-                cls.__name__,
-                (cls,),
-                {**cls.__dict__, **new_fields},
-            )
-        )
-    )
+    return runtime_final(dataclass(frozen=True, init=False)(cls))
 
 
 TypeAttributeInvT = TypeVar("TypeAttributeInvT", bound=type[Attribute])
