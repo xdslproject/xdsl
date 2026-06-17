@@ -10,21 +10,6 @@ from typing import Generic
 from typing_extensions import TypeVar
 
 
-class RootsIterator(Iterator[int]):
-    _parent: Iterator[int]
-    _index: int
-
-    def __init__(self, parent: Iterator[int]):
-        self._parent = parent
-        self._index = 0
-
-    def __next__(self) -> int:
-        while (root := next(self._parent)) != self._index:
-            self._index += 1
-        self._index += 1
-        return root
-
-
 class IntDisjointSet:
     """
     Represents a collection of disjoint sets of integers.
@@ -142,7 +127,9 @@ class IntDisjointSet:
         """
         Returns an iterator over the roots of the disjoint set.
         """
-        return RootsIterator(iter(self._parent))
+        for i, root in enumerate(self._parent):
+            if i == root:
+                yield i
 
 
 _T = TypeVar("_T", bound=Hashable)
