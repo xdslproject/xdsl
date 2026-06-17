@@ -14,7 +14,7 @@ from xdsl.backend.llvm.convert import convert_module
 from xdsl.dialects import arith, builtin, func, llvm
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.frontend.pyast.context import PyASTContext
-from xdsl.jit.llvm.convert_ctypes import CTypeContext, register_builtin_ctypes
+from xdsl.jit.llvm.ctype_context import CTypeContext, register_builtin_ctypes
 from xdsl.traits import SymbolTable
 from xdsl.transforms.desymref import FrontendDesymrefyPass
 from xdsl.transforms.mlir_opt import MLIROptPass
