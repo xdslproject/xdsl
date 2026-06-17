@@ -11,10 +11,10 @@ import llvmlite.ir as llvm_ir
 from typing_extensions import TypeVar
 
 from xdsl.backend.llvm.convert import convert_module
-from xdsl.backend.llvm.convert_ctypes import CTypeContext, register_builtin_ctypes
 from xdsl.dialects import arith, builtin, func, llvm
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.frontend.pyast.context import PyASTContext
+from xdsl.jit.llvm.convert_ctypes import CTypeContext, register_builtin_ctypes
 from xdsl.transforms.desymref import FrontendDesymrefyPass
 from xdsl.transforms.mlir_opt import MLIROptPass
 
