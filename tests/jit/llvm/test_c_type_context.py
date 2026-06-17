@@ -14,7 +14,7 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.dialects.llvm import LLVMPointerType, LLVMVoidType
 from xdsl.ir import Attribute
-from xdsl.jit.llvm.ctype_context import CTypeContext, register_builtin_ctypes
+from xdsl.jit.llvm.c_type_context import CTypeContext, register_builtin_ctypes
 from xdsl.utils.exceptions import LLVMTranslationException
 
 
