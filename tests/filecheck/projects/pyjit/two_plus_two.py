@@ -15,6 +15,7 @@ from xdsl.dialects import arith, builtin, func, llvm
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.frontend.pyast.context import PyASTContext
 from xdsl.jit.llvm.convert_ctypes import CTypeContext, register_builtin_ctypes
+from xdsl.traits import SymbolTable
 from xdsl.transforms.desymref import FrontendDesymrefyPass
 from xdsl.transforms.mlir_opt import MLIROptPass
 
@@ -63,11 +64,8 @@ def mcjit_compile(
     engine.finalize_object()  # pyright: ignore
     engine.run_static_constructors()  # pyright: ignore
 
-    func_op = next(
-        op
-        for op in xdsl_module.ops
-        if isinstance(op, llvm.FuncOp) and op.sym_name.data == symbol
-    )
+    func_op = SymbolTable.lookup_symbol(xdsl_module, symbol)
+    assert isinstance(func_op, llvm.FuncOp)
     ret_ctype = ctype_ctx.to_ctype(func_op.function_type.output)
     arg_ctypes = [ctype_ctx.to_ctype(t) for t in func_op.function_type.inputs]
     fn_type = CFUNCTYPE(ret_ctype, *arg_ctypes)
