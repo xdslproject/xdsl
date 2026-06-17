@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from xdsl.backend.x86.lowering.helpers import Arch
+from xdsl.backend.x86.arch import X86Arch
 from xdsl.context import Context
 from xdsl.dialects import asm, builtin, ptr, x86
 from xdsl.dialects.builtin import (
@@ -22,7 +22,7 @@ from xdsl.utils.hints import isa
 
 @dataclass
 class PtrAddToX86(RewritePattern):
-    arch: Arch
+    arch: X86Arch
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ptr.PtrAddOp, rewriter: PatternRewriter):
@@ -46,7 +46,7 @@ class PtrAddToX86(RewritePattern):
 
 @dataclass
 class PtrStoreToX86(RewritePattern):
-    arch: Arch
+    arch: X86Arch
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ptr.StoreOp, rewriter: PatternRewriter):
@@ -86,7 +86,7 @@ class PtrStoreToX86(RewritePattern):
 
 @dataclass
 class PtrLoadToX86(RewritePattern):
-    arch: Arch
+    arch: X86Arch
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ptr.LoadOp, rewriter: PatternRewriter):
@@ -131,7 +131,7 @@ class ConvertPtrToX86Pass(ModulePass):
     arch: str
 
     def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
-        arch = Arch.arch_for_name(self.arch)
+        arch = X86Arch.arch_for_name(self.arch)
         PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [
