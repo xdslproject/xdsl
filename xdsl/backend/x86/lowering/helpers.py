@@ -3,8 +3,6 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import cast, overload
 
-from typing_extensions import deprecated
-
 from xdsl.builder import Builder
 from xdsl.dialects import asm, ptr, x86
 from xdsl.dialects.builtin import (
@@ -22,7 +20,6 @@ from xdsl.dialects.x86.registers import (
     X86VectorRegisterType,
 )
 from xdsl.ir import Attribute, SSAValue
-from xdsl.pattern_rewriter import PatternRewriter
 from xdsl.utils.exceptions import DiagnosticException
 from xdsl.utils.hints import isa
 from xdsl.utils.str_enum import StrEnum
@@ -109,11 +106,6 @@ class Arch(StrEnum):
             ).register
             for v in values
         ]
-
-    @deprecated("Please use `arch.cast_to_regs(values, rewriter)`")
-    def cast_operands_to_regs(self, rewriter: PatternRewriter) -> list[SSAValue]:
-        new_operands = self.cast_to_regs(rewriter.current_operation.operands, rewriter)
-        return new_operands
 
     def move_value_to_unallocated(
         self, value: SSAValue, value_type: Attribute, builder: Builder
