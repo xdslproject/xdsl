@@ -52,7 +52,6 @@ from xdsl.traits import (
     MemoryWriteEffect,
     NoTerminator,
 )
-from xdsl.utils.comparisons import to_unsigned
 from xdsl.utils.exceptions import VerifyException
 
 from .abstract_ops import (
@@ -346,9 +345,7 @@ class SrliwOp(RdRsImmShiftOperation):
     traits = traits_def(AlwaysSpeculatable())
 
     def py_operation(self, rs1: IntegerAttr[I32]) -> IntegerAttr[I32]:
-        val = to_unsigned(rs1.value.data, 32)
-        val >>= self.immediate.value.data
-        return IntegerAttr(val, i32)
+        raise NotImplementedError
 
 
 @irdl_op_definition
