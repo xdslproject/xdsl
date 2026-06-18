@@ -1,3 +1,6 @@
+import math
+from typing import cast
+
 import pytest
 
 from xdsl.builder import ImplicitBuilder
@@ -12,12 +15,14 @@ from xdsl.dialects.builtin import (
     StringAttr,
     TensorType,
     f32,
+    f64,
     i32,
     i64,
 )
 from xdsl.interpreter import Interpreter
 from xdsl.interpreters.arith import ArithFunctions
 from xdsl.interpreters.linalg import LinalgFunctions
+from xdsl.interpreters.math import MathFunctions
 from xdsl.interpreters.shaped_array import ShapedArray
 from xdsl.interpreters.utils.ptr import TypedPtr
 from xdsl.ir import Block, Region
@@ -190,11 +195,20 @@ def test_linalg_generic_reduction():
     assert c.data == [32]
 
 
-def test_linalg_add():
+@pytest.mark.parametrize(
+    "op_type,expected",
+    [
+        (linalg.ops.AddOp, [7.0, 6.0, 12.0, 9.0]),
+        (linalg.ops.MulOp, [6.0, 8.0, 27.0, 20.0]),
+    ],
+)
+def test_linalg_binary_elementwise(
+    op_type: type[linalg.abstract_ops.ElementwiseOperation], expected: list[float]
+):
     interpreter = Interpreter(ModuleOp([]))
     interpreter.register_implementations(LinalgFunctions())
     interpreter.register_implementations(ArithFunctions())
-    op = linalg.ops.AddOp(
+    op = op_type(
         (
             create_ssa_value(TensorType(f32, [2, 2])),
             create_ssa_value(TensorType(f32, [2, 2])),
@@ -209,7 +223,48 @@ def test_linalg_add():
 
     (c,) = interpreter.run_op(op, (a, b, c))
 
-    assert c == ShapedArray(TypedPtr.new_float32([7, 6, 12, 9]), [2, 2])
+    assert c == ShapedArray(TypedPtr.new_float32(expected), [2, 2])
+
+
+@pytest.mark.parametrize(
+    "op_type,expected",
+    [
+        (
+            linalg.ops.ExpOp,
+            [math.exp(1.0), math.exp(2.0), math.exp(3.0), math.exp(4.0)],
+        ),
+        (
+            linalg.ops.LogOp,
+            [math.log(6.0), math.log(4.0), math.log(9.0), math.log(5.0)],
+        ),
+        (
+            linalg.ops.SqrtOp,
+            [math.sqrt(6.0), math.sqrt(4.0), math.sqrt(9.0), math.sqrt(5.0)],
+        ),
+    ],
+)
+def test_linalg_unary_elementwise(
+    op_type: type[linalg.abstract_ops.ElementwiseOperation], expected: list[float]
+):
+    interpreter = Interpreter(ModuleOp([]))
+    interpreter.register_implementations(LinalgFunctions())
+    interpreter.register_implementations(ArithFunctions())
+    interpreter.register_implementations(MathFunctions())
+    op = op_type(
+        (create_ssa_value(TensorType(f64, [2, 2])),),
+        (create_ssa_value(TensorType(f64, [2, 2])),),
+        (TensorType(f64, [2, 2]),),
+    )
+
+    i = ShapedArray(TypedPtr.new_float64([1.0, 2.0, 3.0, 4.0]), [2, 2])
+    o = ShapedArray(TypedPtr.new_float64([0.0, 0.0, 0.0, 0.0]), [2, 2])
+
+    (o,) = interpreter.run_op(op, (i, o))
+
+    assert isinstance(o, ShapedArray)
+    o = cast(ShapedArray[float], o)
+    assert o.data == expected
+    assert o == ShapedArray(TypedPtr.new_float64(expected), [2, 2])
 
 
 def test_fill_op():
@@ -228,27 +283,6 @@ def test_fill_op():
     assert b == ShapedArray(
         TypedPtr.new_float32([1.0, 1.0, 1.0, 1.0, 1.0, 1.0]), [2, 3]
     )
-
-
-def test_linalg_mul():
-    interpreter = Interpreter(ModuleOp([]))
-    interpreter.register_implementations(LinalgFunctions())
-    interpreter.register_implementations(ArithFunctions())
-    op = linalg.ops.MulOp(
-        (
-            create_ssa_value(TensorType(f32, [2, 2])),
-            create_ssa_value(TensorType(f32, [2, 2])),
-        ),
-        (create_ssa_value(TensorType(f32, [2, 2])),),
-        (TensorType(f32, [2, 2]),),
-    )
-
-    a = ShapedArray(TypedPtr.new_float32([1.0, 0.0, 8.0, 4.0]), [2, 2])
-    b = ShapedArray(TypedPtr.new_float32([3.0, 9.0, 1.0, 6.0]), [2, 2])
-    c = ShapedArray(TypedPtr.new_float32([0.0, 0.0, 0.0, 0.0]), [2, 2])
-
-    (c,) = interpreter.run_op(op, (a, b, c))
-    assert c == ShapedArray(TypedPtr.new_float32([3.0, 0.0, 8.0, 24.0]), [2, 2])
 
 
 def test_linalg_transpose():
