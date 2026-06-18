@@ -127,9 +127,7 @@ class IntDisjointSet:
         """
         Returns an iterator over the roots of the disjoint set.
         """
-        for i, root in enumerate(self._parent):
-            if i == root:
-                yield i
+        yield from (root for i, root in enumerate(self._parent) if i == root)
 
 
 _T = TypeVar("_T", bound=Hashable)
@@ -227,8 +225,7 @@ class DisjointSet(Generic[_T]):
         """
         Returns an iterator over the roots of the disjoint set.
         """
-        for root in self._base.roots():
-            yield self._values[root]
+        yield from (self._values[root] for root in self._base.roots())
 
     def __str__(self) -> str:
         values_by_root: dict[_T, list[_T]] = {}
