@@ -643,12 +643,13 @@ class Worklist(Generic[_T]):
         # All `_MISSING` items at the end of the stack are discarded,
         # as they were removed previously.
         # We return the last item that is not `_MISSING`.
-        while self._stack:
-            op = self._stack.pop()
-            if op is not _MISSING:
-                del self._map[op]
-                return op
-        raise IndexError("pop from empty worklist")
+        try:
+            while (item := self._stack.pop()) is _MISSING:
+                pass
+            del self._map[item]
+            return item
+        except IndexError:
+            raise IndexError("pop from empty worklist")
 
     def remove(self, item: _T):
         """Remove an item from the worklist."""
