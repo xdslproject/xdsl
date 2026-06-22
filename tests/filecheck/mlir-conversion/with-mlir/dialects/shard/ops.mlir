@@ -1,4 +1,4 @@
-// RUN: xdsl-opt %s | xdsl-opt --print-op-generic | mlir-opt --mlir-print-op-generic --allow-unregistered-dialect | xdsl-opt | mlir-opt --allow-unregistered-dialect | filecheck %s
+// RUN: xdsl-opt %s | xdsl-opt --print-op-generic | $XDSL_MLIR_OPT --mlir-print-op-generic --allow-unregistered-dialect | xdsl-opt | $XDSL_MLIR_OPT --allow-unregistered-dialect | filecheck %s
 
 shard.grid @mesh0(shape = 2x2x4)
 // CHECK:      shard.grid @mesh0(shape = 2x2x4)

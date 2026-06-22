@@ -23,6 +23,7 @@ jobs:
     env:
       LLVM_SYMBOLIZER_PATH: /usr/lib/llvm-11/bin/llvm-symbolizer
       COLLECT_COVERAGE: ${{ matrix.python-version == '3.13' }}
+      XDSL_MLIR_OPT: /usr/bin/mlir-opt
       XDSL_MLIR_TRANSLATE: /usr/bin/mlir-translate
       XDSL_LLVM_DIFF: /usr/bin/llvm-diff-22
     steps:
@@ -59,7 +60,7 @@ jobs:
         run: |
           # Add decoy executables that should be XDSL_ env vars in tests instead
           FAKE_BIN=$(mktemp -d)
-          for tool in mlir-translate llvm-diff; do
+          for tool in mlir-opt mlir-translate llvm-diff; do
             printf '%s\n' '#!/bin/sh' "echo \"bare $tool on PATH forbidden; use lit substitution\" >&2" 'exit 1' > "$FAKE_BIN/$tool"
             chmod +x "$FAKE_BIN/$tool"
           done
