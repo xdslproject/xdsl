@@ -759,6 +759,7 @@ class ImmShiftOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrai
 
         return (ShiftbyZero(), ShiftConstantFolding(cls.li_op))
 
+
 ShiftImmT = TypeVar("ShiftImmT", bound=UI5 | UI6)
 ShiftImmTAttr = TypeVar("ShiftImmTAttr", bound=I32 | I64)
 
