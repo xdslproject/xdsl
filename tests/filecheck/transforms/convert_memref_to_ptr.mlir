@@ -279,6 +279,122 @@ memref.store %fv4, %mstr4[%idx4] {"nontemporal" = false} : memref<2xf32, strided
 
 // -----
 
+// memref.alloca: 0-d scalar
+%s = memref.alloca() : memref<i32>
+"test.op"(%s) : (memref<i32>) -> ()
+
+// CHECK:      %c1 = arith.constant 1 : i32
+// CHECK-NEXT: %s = llvm.alloca %c1 x i32 {alignment = 32 : i64} : (i32) -> !llvm.ptr
+// CHECK-NEXT: %0 = builtin.unrealized_conversion_cast %s : !llvm.ptr to !ptr_xdsl.ptr
+// CHECK-NEXT: %s_1 = ptr_xdsl.from_ptr %0 : !ptr_xdsl.ptr -> memref<i32>
+// CHECK-NEXT: "test.op"(%s_1) : (memref<i32>) -> ()
+
+// -----
+
+// memref.alloca: 1-D static
+%arr1d = memref.alloca() : memref<10xi32>
+"test.op"(%arr1d) : (memref<10xi32>) -> ()
+
+// CHECK:      %c10 = arith.constant 10 : i32
+// CHECK-NEXT: %arr1d = llvm.alloca %c10 x i32 {alignment = 32 : i64} : (i32) -> !llvm.ptr
+// CHECK-NEXT: %0 = builtin.unrealized_conversion_cast %arr1d : !llvm.ptr to !ptr_xdsl.ptr
+// CHECK-NEXT: %arr1d_1 = ptr_xdsl.from_ptr %0 : !ptr_xdsl.ptr -> memref<10xi32>
+// CHECK-NEXT: "test.op"(%arr1d_1) : (memref<10xi32>) -> ()
+
+// -----
+
+// memref.alloca: 2-D static, 4*8 = 32 bytes to allocate
+%arr2d = memref.alloca() : memref<4x8xi32>
+"test.op"(%arr2d) : (memref<4x8xi32>) -> ()
+
+// CHECK:      %c32 = arith.constant 32 : i32
+// CHECK-NEXT: %arr2d = llvm.alloca %c32 x i32 {alignment = 32 : i64} : (i32) -> !llvm.ptr
+// CHECK-NEXT: %0 = builtin.unrealized_conversion_cast %arr2d : !llvm.ptr to !ptr_xdsl.ptr
+// CHECK-NEXT: %arr2d_1 = ptr_xdsl.from_ptr %0 : !ptr_xdsl.ptr -> memref<4x8xi32>
+// CHECK-NEXT: "test.op"(%arr2d_1) : (memref<4x8xi32>) -> ()
+
+// -----
+
+// memref.alloca: 1-D dynamic, cast %n to i32
+%n = "test.op"() : () -> index
+%dyn1d = memref.alloca(%n) : memref<?xi32>
+"test.op"(%dyn1d) : (memref<?xi32>) -> ()
+
+// CHECK:      %n = "test.op"() : () -> index
+// CHECK-NEXT: %0 = arith.index_cast %n : index to i32
+// CHECK-NEXT: %dyn1d = llvm.alloca %0 x i32 {alignment = 32 : i64} : (i32) -> !llvm.ptr
+// CHECK-NEXT: %1 = builtin.unrealized_conversion_cast %dyn1d : !llvm.ptr to !ptr_xdsl.ptr
+// CHECK-NEXT: %dyn1d_1 = ptr_xdsl.from_ptr %1 : !ptr_xdsl.ptr -> memref<?xi32>
+// CHECK-NEXT: "test.op"(%dyn1d_1) : (memref<?xi32>) -> ()
+
+// -----
+
+// memref.alloca: 2-D mixed (static leading dim 4, dynamic trailing), c4 * %m at runtime
+%m = "test.op"() : () -> index
+%mixed = memref.alloca(%m) : memref<4x?xi32>
+"test.op"(%mixed) : (memref<4x?xi32>) -> ()
+
+// CHECK:      %m = "test.op"() : () -> index
+// CHECK-NEXT: %c4 = arith.constant 4 : i32
+// CHECK-NEXT: %0 = arith.index_cast %m : index to i32
+// CHECK-NEXT: %1 = arith.muli %c4, %0 : i32
+// CHECK-NEXT: %mixed = llvm.alloca %1 x i32 {alignment = 32 : i64} : (i32) -> !llvm.ptr
+// CHECK-NEXT: %2 = builtin.unrealized_conversion_cast %mixed : !llvm.ptr to !ptr_xdsl.ptr
+// CHECK-NEXT: %mixed_1 = ptr_xdsl.from_ptr %2 : !ptr_xdsl.ptr -> memref<4x?xi32>
+// CHECK-NEXT: "test.op"(%mixed_1) : (memref<4x?xi32>) -> ()
+
+// -----
+
+// memref.alloca: 2-D mixed (dynamic leading dim, static trailing 4), %r * c4 at runtime
+%r = "test.op"() : () -> index
+%mixed2 = memref.alloca(%r) : memref<?x4xi32>
+"test.op"(%mixed2) : (memref<?x4xi32>) -> ()
+
+// CHECK:      %r = "test.op"() : () -> index
+// CHECK-NEXT: %c4 = arith.constant 4 : i32
+// CHECK-NEXT: %0 = arith.index_cast %r : index to i32
+// CHECK-NEXT: %1 = arith.muli %c4, %0 : i32
+// CHECK-NEXT: %mixed2 = llvm.alloca %1 x i32 {alignment = 32 : i64} : (i32) -> !llvm.ptr
+// CHECK-NEXT: %2 = builtin.unrealized_conversion_cast %mixed2 : !llvm.ptr to !ptr_xdsl.ptr
+// CHECK-NEXT: %mixed2_1 = ptr_xdsl.from_ptr %2 : !ptr_xdsl.ptr -> memref<?x4xi32>
+// CHECK-NEXT: "test.op"(%mixed2_1) : (memref<?x4xi32>) -> ()
+
+// -----
+
+// memref.alloca: 2-D fully dynamic, %p * %q at runtime
+%p = "test.op"() : () -> index
+%q = "test.op"() : () -> index
+%dyn2d = memref.alloca(%p, %q) : memref<?x?xi32>
+"test.op"(%dyn2d) : (memref<?x?xi32>) -> ()
+
+// CHECK:      %p = "test.op"() : () -> index
+// CHECK-NEXT: %q = "test.op"() : () -> index
+// CHECK-NEXT: %0 = arith.muli %p, %q : index
+// CHECK-NEXT: %1 = arith.index_cast %0 : index to i32
+// CHECK-NEXT: %dyn2d = llvm.alloca %1 x i32 {alignment = 32 : i64} : (i32) -> !llvm.ptr
+// CHECK-NEXT: %2 = builtin.unrealized_conversion_cast %dyn2d : !llvm.ptr to !ptr_xdsl.ptr
+// CHECK-NEXT: %dyn2d_1 = ptr_xdsl.from_ptr %2 : !ptr_xdsl.ptr -> memref<?x?xi32>
+// CHECK-NEXT: "test.op"(%dyn2d_1) : (memref<?x?xi32>) -> ()
+
+// -----
+
+// memref.alloca: 2-D fully dynamic, %p * %q at runtime, f64 version
+%p = "test.op"() : () -> index
+%q = "test.op"() : () -> index
+%dyn2d = memref.alloca(%p, %q) : memref<?x?xf64>
+"test.op"(%dyn2d) : (memref<?x?xf64>) -> ()
+
+// CHECK:        %p = "test.op"() : () -> index
+// CHECK-NEXT:   %q = "test.op"() : () -> index
+// CHECK-NEXT:   %0 = arith.muli %p, %q : index
+// CHECK-NEXT:   %1 = arith.index_cast %0 : index to i32
+// CHECK-NEXT:   %dyn2d = llvm.alloca %1 x f64 {alignment = 32 : i64} : (i32) -> !llvm.ptr
+// CHECK-NEXT:   %2 = builtin.unrealized_conversion_cast %dyn2d : !llvm.ptr to !ptr_xdsl.ptr
+// CHECK-NEXT:   %dyn2d_1 = ptr_xdsl.from_ptr %2 : !ptr_xdsl.ptr -> memref<?x?xf64>
+// CHECK-NEXT:   "test.op"(%dyn2d_1) : (memref<?x?xf64>) -> ()
+
+// -----
+
 %fv, %idx, %mstr = "test.op"() : () -> (f64, index, memref<2xf64, strided<[?]>>)
 memref.store %fv, %mstr[%idx] {"nontemporal" = false} : memref<2xf64, strided<[?]>>
 
