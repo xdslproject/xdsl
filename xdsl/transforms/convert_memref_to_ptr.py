@@ -466,10 +466,7 @@ class ConvertAllocaPattern(RewritePattern):
 
         # Static size
         static_size: None | SSAValue = None
-        size = math.prod([
-            s for s in shape
-            if s != builtin.DYNAMIC_INDEX
-        ])
+        size = math.prod([s for s in shape if s != builtin.DYNAMIC_INDEX])
         if size > 1:
             static_size = rewriter.insert_op(
                 arith.ConstantOp.from_int_and_width(size, builtin.IntegerType(32))
@@ -495,7 +492,6 @@ class ConvertAllocaPattern(RewritePattern):
                 arith.IndexCastOp(dynamic_size, builtin.IntegerType(32))
             ).result
 
-
         # Merge static and dynamic
         if dynamic_size is None:
             total = static_size
@@ -504,9 +500,7 @@ class ConvertAllocaPattern(RewritePattern):
             total = dynamic_size
 
         else:
-            total = rewriter.insert_op(
-                arith.MuliOp(static_size, dynamic_size)
-            ).result
+            total = rewriter.insert_op(arith.MuliOp(static_size, dynamic_size)).result
 
         # Unranked memref (both static and dynamic is None)
         if total is None:
@@ -516,11 +510,8 @@ class ConvertAllocaPattern(RewritePattern):
             total.name_hint = "c1"
 
         # llvm.alloca %count x element_type -> !llvm.ptr
-        alloca = rewriter.insert_op(
-            llvm.AllocaOp(total, memref_type.element_type)
-        )
-        if op.memref.name_hint:
-            alloca.res.name_hint = op.memref.name_hint
+        alloca = rewriter.insert_op(llvm.AllocaOp(total, memref_type.element_type))
+        alloca.res.name_hint = op.memref.name_hint
 
         # !llvm.ptr -> !ptr_xdsl.ptr  (reconcilable bridge cast)
         cast = rewriter.insert_op(
