@@ -464,6 +464,131 @@ class JOp(RISCVInstruction):
         return (dest_label.label,)
 
 
+@irdl_op_definition
+class BnezOp(RISCVInstruction):
+    """
+    A pseudo-instruction that branches if register rs is not equal to zero.
+    Equivalent to BneOp with rs2 = x0.
+
+    if (x[rs] != 0) pc += sext(offset)
+    """
+
+    name = "riscv_cf.bnez"
+
+    rs = operand_def(IntRegisterType)
+
+    then_arguments = var_operand_def(RISCVRegisterType)
+    else_arguments = var_operand_def(RISCVRegisterType)
+
+    irdl_options = (AttrSizedOperandSegments(),)
+
+    then_block = successor_def()
+    else_block = successor_def()
+
+    traits = traits_def(IsTerminator())
+
+    def __init__(
+        self,
+        rs: Operation | SSAValue,
+        then_arguments: Sequence[SSAValue],
+        else_arguments: Sequence[SSAValue],
+        then_block: Successor,
+        else_block: Successor,
+        *,
+        comment: str | StringAttr | None = None,
+    ):
+        if isinstance(comment, str):
+            comment = StringAttr(comment)
+
+        super().__init__(
+            operands=[rs, then_arguments, else_arguments],
+            attributes={
+                "comment": comment,
+            },
+            successors=(then_block, else_block),
+        )
+
+    def verify_(self) -> None:
+        if not isinstance(self.then_block.first_op, riscv.LabelOp):
+            raise VerifyException(
+                "riscv_cf.bnez operation then block must have a riscv.label operation as a "
+                f"first op, found {self.then_block.first_op}"
+            )
+
+        for op_arg, block_arg in zip(self.then_arguments, self.then_block.args):
+            if op_arg.type != block_arg.type:
+                raise VerifyException(
+                    f"Block arg types must match {op_arg.type} {block_arg.type}"
+                )
+
+        for op_arg, block_arg in zip(self.else_arguments, self.else_block.args):
+            if op_arg.type != block_arg.type:
+                raise VerifyException(
+                    f"Block arg types must match {op_arg.type} {block_arg.type}"
+                )
+
+        parent_block = self.parent
+        if parent_block is None:
+            return
+
+        parent_region = parent_block.parent
+        if parent_region is None:
+            return
+
+        if parent_block.next_block is not self.else_block:
+            raise VerifyException(
+                "riscv_cf.bnez operation else block must be immediately after op"
+            )
+
+    def print(self, printer: Printer) -> None:
+        printer.print_string(" ")
+        _print_type_pair(printer, self.rs)
+        printer.print_string(", ")
+        printer.print_block_name(self.then_block)
+        printer.print_string("(")
+        printer.print_list(
+            self.then_arguments, lambda val: _print_type_pair(printer, val)
+        )
+        printer.print_string("), ")
+        printer.print_block_name(self.else_block)
+        printer.print_string("(")
+        printer.print_list(
+            self.else_arguments, lambda val: _print_type_pair(printer, val)
+        )
+        printer.print_string(")")
+        if self.attributes:
+            printer.print_op_attributes(
+                self.attributes,
+                reserved_attr_names="operandSegmentSizes",
+                print_keyword=True,
+            )
+
+    @classmethod
+    def parse(cls, parser: Parser) -> Self:
+        rs = _parse_type_pair(parser)
+        parser.parse_punctuation(",")
+        then_block = parser.parse_successor()
+        then_args = parser.parse_comma_separated_list(
+            parser.Delimiter.PAREN, lambda: _parse_type_pair(parser)
+        )
+        parser.parse_punctuation(",")
+        else_block = parser.parse_successor()
+        else_args = parser.parse_comma_separated_list(
+            parser.Delimiter.PAREN, lambda: _parse_type_pair(parser)
+        )
+        attrs = parser.parse_optional_attr_dict_with_keyword()
+        op = cls(rs, then_args, else_args, then_block, else_block)
+        if attrs is not None:
+            op.attributes |= attrs.data
+        return op
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
+        then_label = self.then_block.first_op
+        assert isinstance(then_label, riscv.LabelOp)
+        return (self.rs, then_label.label)
+
+
+
 RISCV_Cf = Dialect(
     "riscv_cf",
     [
@@ -475,5 +600,6 @@ RISCV_Cf = Dialect(
         BgeOp,
         BltuOp,
         BgeuOp,
+        BnezOp,
     ],
 )
