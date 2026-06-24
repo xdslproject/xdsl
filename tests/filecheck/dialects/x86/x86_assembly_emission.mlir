@@ -402,6 +402,12 @@ x86_func.func @funcyasm() {
 // CHECK: vfmadd231pd zmm0, zmm1, [rdx]
 %rrm_vfmadd231ps_avx512 = x86.rsm.vfmadd231ps %rrm_vfmadd231pd_avx512_no_offset, %zmm1, [%1 + 1] : (!x86.avx512reg<zmm0>, !x86.avx512reg<zmm1>, !x86.reg64<rdx>) -> !x86.avx512reg<zmm0>
 // CHECK: vfmadd231ps zmm0, zmm1, [rdx+1]
+
+%rrm_vfmadd231pd_avx512_fsdbcst = x86.rsm.vfmadd231pd %rrm_vfmadd231ps_avx512, %zmm1, [%1 + 512] {broadcast} : (!x86.avx512reg<zmm0>, !x86.avx512reg<zmm1>, !x86.reg64<rdx>) -> !x86.avx512reg<zmm0>
+// CHECK: vfmadd231pd zmm0, zmm1, [rdx+512]{1to8}
+%rrm_vfmadd231ps_avx512_fsdbcst = x86.rsm.vfmadd231ps %rrm_vfmadd231pd_avx512_fsdbcst, %zmm1, [%1 + 4] {broadcast} : (!x86.avx512reg<zmm0>, !x86.avx512reg<zmm1>, !x86.reg64<rdx>) -> !x86.avx512reg<zmm0>
+// CHECK: vfmadd231ps zmm0, zmm1, [rdx+4]{1to16}
+
 %dss_addpd_avx512 = x86.dss.addpd %zmm1, %zmm2 : (!x86.avx512reg<zmm1>, !x86.avx512reg<zmm2>) -> !x86.avx512reg<zmm0>
 // CHECK-NEXT: addpd zmm0, zmm1, zmm2
 %dss_addps_avx512 = x86.dss.addps %zmm1, %zmm2 : (!x86.avx512reg<zmm1>, !x86.avx512reg<zmm2>) -> !x86.avx512reg<zmm0>
