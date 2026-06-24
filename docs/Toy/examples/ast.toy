@@ -1,4 +1,4 @@
-# RUN: python -m toy %s --emit=ast | filecheck %s --strict-whitespace --match-full-lines
+# RUN: toyc %s --emit=ast | filecheck %s --strict-whitespace --match-full-lines
 
 # User defined generic function that operates on unknown shaped arguments.
 def multiply_transpose(a, b) {

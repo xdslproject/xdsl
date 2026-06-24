@@ -283,6 +283,40 @@ def test_addressof_op():
     assert address_of.result.type == ptr_type
 
 
+def test_is_compatible_type():
+    assert llvm.is_compatible_type(builtin.IntegerType(32))
+    assert llvm.is_compatible_type(builtin.IntegerType(1))
+    assert not llvm.is_compatible_type(
+        builtin.IntegerType(32, builtin.Signedness.SIGNED)
+    )
+    assert not llvm.is_compatible_type(
+        builtin.IntegerType(32, builtin.Signedness.UNSIGNED)
+    )
+
+    assert llvm.is_compatible_type(builtin.BFloat16Type())
+    assert llvm.is_compatible_type(builtin.Float16Type())
+    assert llvm.is_compatible_type(builtin.Float32Type())
+    assert llvm.is_compatible_type(builtin.Float64Type())
+    assert llvm.is_compatible_type(builtin.Float80Type())
+    assert llvm.is_compatible_type(builtin.Float128Type())
+
+    assert llvm.is_compatible_type(llvm.LLVMStructType.from_type_list([]))
+    assert llvm.is_compatible_type(llvm.LLVMPointerType())
+    assert llvm.is_compatible_type(llvm.LLVMArrayType(4, builtin.i32))
+    assert llvm.is_compatible_type(llvm.LLVMFunctionType([builtin.i32], builtin.i32))
+
+    assert llvm.is_compatible_type(builtin.VectorType(builtin.i32, [4]))
+    assert not llvm.is_compatible_type(builtin.VectorType(builtin.i32, [4, 4]))
+    scalable_dims = builtin.ArrayAttr([builtin.BoolAttr.from_bool(True)])
+    assert not llvm.is_compatible_type(
+        builtin.VectorType(builtin.i32, [4], scalable_dims=scalable_dims)
+    )
+    assert not llvm.is_compatible_type(builtin.VectorType(builtin.IndexType(), [4]))
+
+    assert not llvm.is_compatible_type(builtin.IndexType())
+    assert not llvm.is_compatible_type(llvm.LLVMVoidType())
+
+
 def test_implicit_void_func_return():
     func_type = llvm.LLVMFunctionType([])
 
@@ -614,6 +648,13 @@ def test_ffloor_op():
     assert op.res.type == builtin.f32
 
 
+def test_fexp2_op():
+    val = create_ssa_value(builtin.f32)
+    op = llvm.FExp2Op(val)
+    assert op.arg == val
+    assert op.res.type == builtin.f32
+
+
 def test_flog_op():
     val = create_ssa_value(builtin.f32)
     op = llvm.FLogOp(val)
@@ -633,6 +674,29 @@ def test_fsin_op():
     val = create_ssa_value(builtin.f32)
     op = llvm.FSinOp(val)
     assert op.arg == val
+    assert op.res.type == builtin.f32
+
+
+def test_fcos_op():
+    val = create_ssa_value(builtin.f32)
+    op = llvm.FCosOp(val)
+    assert op.arg == val
+    assert op.res.type == builtin.f32
+
+
+def test_flog2_op():
+    val = create_ssa_value(builtin.f32)
+    op = llvm.FLog2Op(val)
+    assert op.arg == val
+    assert op.res.type == builtin.f32
+
+
+def test_fcopysign_op():
+    lhs = create_ssa_value(builtin.f32)
+    rhs = create_ssa_value(builtin.f32)
+    op = llvm.FCopySignOp(lhs, rhs)
+    assert op.lhs == lhs
+    assert op.rhs == rhs
     assert op.res.type == builtin.f32
 
 
@@ -678,6 +742,56 @@ def test_vector_fmax_op():
     assert op.lhs == lhs
     assert op.rhs == rhs
     assert op.res.type == builtin.f32
+
+
+def test_vector_fmin_op():
+    lhs = create_ssa_value(builtin.f32)
+    rhs = create_ssa_value(builtin.f32)
+    op = llvm.VectorFMinOp(lhs, rhs)
+    assert op.lhs == lhs
+    assert op.rhs == rhs
+    assert op.res.type == builtin.f32
+
+
+def test_fpow_op():
+    lhs = create_ssa_value(builtin.f32)
+    rhs = create_ssa_value(builtin.f32)
+    op = llvm.FPowOp(lhs, rhs)
+    assert op.lhs == lhs
+    assert op.rhs == rhs
+    assert op.res.type == builtin.f32
+
+
+def test_vector_reduce_fadd_op():
+    start = create_ssa_value(builtin.f32)
+    vec = create_ssa_value(builtin.VectorType(builtin.f32, [4]))
+    op = llvm.VectorReduceFAddOp(start, vec)
+    assert op.start_value == start
+    assert op.vector == vec
+    assert op.res.type == builtin.f32
+
+
+def test_vector_reduce_fmul_op():
+    start = create_ssa_value(builtin.f32)
+    vec = create_ssa_value(builtin.VectorType(builtin.f32, [4]))
+    op = llvm.VectorReduceFMulOp(start, vec)
+    assert op.start_value == start
+    assert op.vector == vec
+    assert op.res.type == builtin.f32
+
+
+def test_stacksave_op():
+    op = llvm.StackSaveOp()
+    assert not op.operands
+    assert isinstance(op.res.type, llvm.LLVMPointerType)
+    assert isinstance(op.res.type.addr_space, builtin.NoneAttr)
+
+
+def test_stackrestore_op():
+    ptr = create_ssa_value(llvm.LLVMPointerType())
+    op = llvm.StackRestoreOp(ptr)
+    assert op.ptr is ptr
+    assert not op.results
 
 
 def test_cond_br_op():

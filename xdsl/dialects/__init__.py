@@ -48,6 +48,11 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
 
         return ARM_NEON
 
+    def get_asm():
+        from xdsl.dialects.asm import ASM
+
+        return ASM
+
     def get_bigint():
         from xdsl.dialects.bigint import BigInt
 
@@ -363,6 +368,11 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
 
         return Transform
 
+    def get_ub():
+        from xdsl.dialects.ub import UB
+
+        return UB
+
     def get_varith():
         from xdsl.dialects.varith import Varith
 
@@ -407,6 +417,7 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "arm": get_arm,
         "arm_func": get_arm_func,
         "arm_neon": get_arm_neon,
+        "asm": get_asm,
         "bigint": get_bigint,
         "bufferization": get_bufferization,
         "builtin": get_builtin,
@@ -469,6 +480,7 @@ def get_all_dialects() -> dict[str, Callable[[], Dialect]]:
         "tensor": get_tensor,
         "test": get_test,
         "tosa": get_tosa,
+        "ub": get_ub,
         "varith": get_varith,
         "vector": get_vector,
         "wasm": get_wasm,

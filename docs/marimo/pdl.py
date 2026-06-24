@@ -1,18 +1,20 @@
 import marimo
 
-__generated_with = "0.15.2"
+__generated_with = "0.23.6"
 app = marimo.App(width="medium")
 
 
 @app.cell
 def _():
     import marimo as mo
+
     return (mo,)
 
 
 @app.cell
 def _():
     from xdsl.utils import marimo as xmo
+
     return (xmo,)
 
 
@@ -45,32 +47,36 @@ def _():
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md("""# Pattern Description Language (PDL)""")
+    mo.md("""
+    # Pattern Description Language (PDL)
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     One of the most frequent kinds of transformations on intermediate representations in compilers are local, "peephole", rewrites, which transform an operation by inspecting its local context only.
     An example of this might be rewriting `arith.add` into `llvm.add`, which can be done just by inspecting the type of the operation, or local optimisations such as rewriting an `arith.add` with `0` to the other operand.
     In both MLIR and xDSL these can be written using the native language API (C++ or Python), a flexible and productive approach with two important flaws: reasoning about these rewrites requires reasoning about the semantics of the host language, which is famously difficult for both C++ and Python, and generating them is much less convenient than generating MLIR IR directly.
     The `pdl` dialect addresses both of these issues.
-    """
-    )
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""## PDL Patterns""")
+    mo.md(r"""
+    ## PDL Patterns
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""First let's look at the pattern that rewrites `first` to `second`:""")
+    mo.md(r"""
+    First let's look at the pattern that rewrites `first` to `second`:
+    """)
     return
 
 
@@ -100,13 +106,11 @@ def _(Parser, builtin, ctx, xmo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     Note that these are equivalent, as `x * 0 = 0` for all `x`.
 
     The following pattern implements the rewrite for 32-bit integers:
-    """
-    )
+    """)
     return
 
 
@@ -141,13 +145,13 @@ def _(ApplyPDLPass, builtin, ctx, first_op, second_op, times_zero_op):
         module = builtin.ModuleOp([input_copy, pattern_copy])
         ApplyPDLPass().apply(ctx, module)
         assert str(input_copy) == str(second_op)
+
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
+    mo.md(r"""
     Let's look at the pattern in more detail.
 
     The [`pdl.pattern` operation](https://mlir.llvm.org/docs/Dialects/PDLOps/#pdlpattern-pdlpatternop) has an optional name, a "benefit" field, and a body.
@@ -200,20 +204,17 @@ def _(mo):
     ```
 
     Please refer to the [dialect reference](https://mlir.llvm.org/docs/Dialects/PDLOps/) for the full list of operations and types.
-    """
-    )
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo, write_check):
-    mo.md(
-        rf"""
+    mo.md(rf"""
     ## Exercises {write_check}
 
     In this notebook, you'll write patterns in PDL to transform this input function:
-    """
-    )
+    """)
     return
 
 
@@ -246,13 +247,17 @@ def _(mo, pyast_ctx):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""As you can see, it just returns `c`, we'll want to rewrite our program to return `c` directly, without the useless computations.""")
+    mo.md(r"""
+    As you can see, it just returns `c`, we'll want to rewrite our program to return `c` directly, without the useless computations.
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""Here is the corresponding IR:""")
+    mo.md(r"""
+    Here is the corresponding IR:
+    """)
     return
 
 
@@ -545,6 +550,7 @@ def _(
         dce(_module)
         _results_text = str(_cloned_func)
         assert _results_text == expected_text
+
     return
 
 

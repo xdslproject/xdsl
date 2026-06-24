@@ -1,109 +1,164 @@
+[build-system]
+build-backend = "setuptools.build_meta"
+requires = [ "setuptools>=64", "setuptools-scm>=8" ]
+
 [project]
 name = "xdsl"
 description = "xDSL"
 readme = "README.md"
-requires-python = ">=3.10"
 license = { text = "Apache License v2.0 with LLVM Exceptions" }
-authors = [{ name = "Mathieu Fehr", email = "mathieu.fehr@ed.ac.uk" }]
-classifiers = ["Programming Language :: Python :: 3"]
+authors = [ { name = "Mathieu Fehr", email = "mathieu.fehr@ed.ac.uk" } ]
+requires-python = ">=3.10"
+classifiers = [
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+]
+dynamic = [ "version" ]
 dependencies = [
-    "immutabledict<4.3.2",
-    "typing-extensions>=4.7,<5",
-    "ordered-set==4.1.0",
+  "immutabledict<4.3.2",
+  "ordered-set==4.1",
+  "typing-extensions>=4.7,<5",
 ]
-dynamic = ["version"]
-
-[project.entry-points.'xdsl.universe']
-xdsl = 'xdsl.universe:XDSL_UNIVERSE'
-
-
-[project.optional-dependencies]
-dev = [
-    "toml<0.11",
-    "pytest-cov",
-    "coverage<8.0.0",
-    "ipykernel",
-    "pytest<9.1",
-    "nbval<0.12",
-    "filecheck==1.0.3",
-    "lit<19.0.0",
-    "marimo>=0.23,<0.24",
-    "prek~=0.4.0",
-    "ruff==0.15.12",
-    "nbconvert>=7.7.2,<8.0.0",
-    "textual-dev==1.8.0",
-    "pytest-asyncio==1.3.0",
-    "pyright==1.1.409",
-    "sympy==1.14.0",
+optional-dependencies.dev = [
+  "coverage<8",
+  "filecheck==1.0.3",
+  "ipykernel",
+  "lit<19",
+  "marimo>=0.23,<0.24",
+  "nbconvert>=7.7.2,<8",
+  "nbval<0.12",
+  "prek~=0.4.0",
+  "pyright==1.1.410",
+  "pytest<9.2",
+  "pytest-asyncio",
+  "pytest-cov",
+  "ruff==0.15.19",
+  "sympy==1.14",
+  "textual-dev==1.8",
+  "toml<0.11",
 ]
-gui = ["textual>=8,<9", "pyclip==0.7"]
-llvm = ["llvmlite~=0.47.0"]
-heir = ["heir_py==2026.5.1; python_version >= '3.11' and python_version < '3.13'"]
+optional-dependencies.gui = [ "pyclip==0.7", "textual>=8,<9" ]
+optional-dependencies.heir = [ "heir-py==2026.6.5.dev0" ]
+optional-dependencies.llvm = [ "llvmlite~=0.47.0" ]
+urls."Issue Tracker" = "https://github.com/xdslproject/xdsl/issues"
+urls."Source Code" = "https://github.com/xdslproject/xdsl"
+urls.Homepage = "https://xdsl.dev/"
+scripts.irdl-to-pyrdl = "xdsl.tools.irdl_to_pyrdl:main"
+scripts.xdsl-gui = "xdsl.interactive.app:main"
+scripts.xdsl-opt = "xdsl.tools.xdsl_opt:main"
+scripts.xdsl-run = "xdsl.tools.xdsl_run:main"
+scripts.xdsl-stubgen = "xdsl.utils.dialect_stub:make_all_stubs"
+scripts.xdsl-tblgen = "xdsl.tools.xdsl_tblgen:main"
+entry-points."xdsl.universe".xdsl = "xdsl.universe:XDSL_UNIVERSE"
 
 [dependency-groups]
-dev = ["xdsl[dev,gui,llvm,heir]", "my_plugin"]
-bench = [
-    "asv>=0.6.4",
-    "snakeviz>=2.2.2",
-    "viztracer>=1.0.1",
-    "flameprof>=0.4",
-    "orjson>=3.10.15",
-    "pyinstrument>=5.0.1",
-    "bytesight",
-]
+dev = [ "my-plugin", "toy", "xdsl[dev,gui,heir,llvm]" ]
 docs = [
-    "lzstring2",
-    "mkdocs-awesome-nav>=3.1.2",
-    "mkdocs-gen-files>=0.5.0",
-    "mkdocs-marimo>=0.2.1",
-    "mkdocs-material>=9.5.49",
-    "mkdocs-simple-hooks>=0.1.5",
-    "mkdocs>=1.6.1",
-    "mkdocstrings[python]>=0.27.0",
-    "pymdown-extensions>=10.7",
-    "riscemu==2.2.7",
-    "micropip>=0.7",
+  "lzstring2",
+  "micropip>=0.7",
+  "mkdocs>=1.6.1",
+  "mkdocs-awesome-nav>=3.1.2",
+  "mkdocs-gen-files>=0.5",
+  "mkdocs-marimo>=0.2.1",
+  "mkdocs-material>=9.5.49",
+  "mkdocs-simple-hooks>=0.1.5",
+  "mkdocstrings[python]>=0.27",
+  "pymdown-extensions>=10.7",
 ]
-
-[tool.uv]
-override-dependencies = ["llvmlite~=0.47.0"]
-
-[project.urls]
-Homepage = "https://xdsl.dev/"
-"Source Code" = "https://github.com/xdslproject/xdsl"
-"Issue Tracker" = "https://github.com/xdslproject/xdsl/issues"
-
-[project.scripts]
-xdsl-opt = "xdsl.tools.xdsl_opt:main"
-irdl-to-pyrdl = "xdsl.tools.irdl_to_pyrdl:main"
-xdsl-run = "xdsl.tools.xdsl_run:main"
-xdsl-gui = "xdsl.interactive.app:main"
-xdsl-stubgen = "xdsl.utils.dialect_stub:make_all_stubs"
-xdsl-tblgen = "xdsl.tools.xdsl_tblgen:main"
+bench = [
+  "asv>=0.6.4",
+  "bytesight",
+  "flameprof>=0.4",
+  "orjson>=3.10.15",
+  "pyinstrument>=5.0.1",
+  "snakeviz>=2.2.2",
+  "viztracer>=1.0.1",
+]
 
 [tool.setuptools]
-platforms = ["Linux", "Mac OS-X", "Unix"]
+packages.find = {}
+package-data.xdsl = [ "**/*.irdl", "interactive/*.tcss", "py.typed" ]
+platforms = [ "Linux", "Mac OS-X", "Unix" ]
 zip-safe = false
 
 [tool.setuptools_scm]
+
+[tool.uv]
+sources.bytesight = { git = "https://github.com/EdmundGoodman/bytesight.git", rev = "e8e8e45ec34316fdc99ee09ea8886c4f63c248be" }
 # No config necessary
+sources.lzstring2 = { git = "https://github.com/superlopuh/lz-string.git" }
+sources.my_plugin = { path = "tests/my_plugin", editable = true }
+sources.toy = { path = "docs/Toy", editable = true }
 
-[tool.uv.sources]
-lzstring2 = { git = "https://github.com/superlopuh/lz-string.git" }
-bytesight = { git = "https://github.com/EdmundGoodman/bytesight.git", rev = "e8e8e45ec34316fdc99ee09ea8886c4f63c248be" }
-my_plugin = { path = "tests/my_plugin", editable = true }
-
-[tool.setuptools.packages]
-find = {}
-
-[tool.setuptools.package-data]
-xdsl = ["**/*.irdl", "py.typed", "interactive/*.tcss"]
-
-[build-system]
-requires = ["setuptools>=64", "setuptools-scm>=8"]
-build-backend = "setuptools.build_meta"
+[tool.ruff]
+target-version = "py310"
+extend-include = [ "*.ipynb", "*.pyi" ]
+exclude = [ ".venv", "docs/marimo" ]
+format.exclude = [ "docs/marimo/**/*.py" ]
+lint.select = [ "E", "F", "I", "INP", "PT", "PYI", "RUF", "TID251", "UP", "W" ]
+lint.ignore = [
+  "E741",   # https://beta.ruff.rs/docs/rules/ambiguous-variable-name/
+  "PT006",  # https://beta.ruff.rs/docs/rules/pytest-parametrize-names-wrong-type/
+  "PT012",  # https://beta.ruff.rs/docs/rules/pytest-raises-with-multiple-statements/
+  "PYI041", # https://docs.astral.sh/ruff/rules/redundant-numeric-union
+  # Help welcome removing ignores below
+  # https://github.com/xdslproject/xdsl/issues/5927
+  "RUF001", # https://docs.astral.sh/ruff/rules/ambiguous-unicode-character-string
+  "RUF002", # https://docs.astral.sh/ruff/rules/ambiguous-unicode-character-docstring
+  "RUF003", # https://docs.astral.sh/ruff/rules/ambiguous-unicode-character-comment
+  "RUF005", # https://docs.astral.sh/ruff/rules/collection-literal-concatenation
+  "RUF012", # https://docs.astral.sh/ruff/rules/mutable-class-default
+  "RUF015", # https://docs.astral.sh/ruff/rules/unnecessary-iterable-allocation-for-first-element
+  "RUF018", # https://docs.astral.sh/ruff/rules/assignment-in-assert
+  "RUF033", # https://docs.astral.sh/ruff/rules/post-init-default
+  "RUF043", # https://docs.astral.sh/ruff/rules/pytest-raises-ambiguous-pattern
+]
+lint.per-file-ignores."**/filecheck/*" = [ "E501", "F811", "F841" ]
+lint.per-file-ignores."__init__.py" = [ "F403" ]
+lint.per-file-ignores."docs/Toy/Toy_Ch1.ipynb" = [ "E402" ]
+lint.per-file-ignores."docs/Toy/Toy_Ch2.ipynb" = [ "E402" ]
+lint.per-file-ignores."docs/Toy/Toy_Ch3.ipynb" = [ "E402" ]
+lint.per-file-ignores."scripts/**" = [ "INP" ]
+lint.per-file-ignores."tests/*" = [ "E501", "INP" ]
+lint.per-file-ignores."tests/test_declarative_assembly_format.py" = [ "F811" ]
+lint.per-file-ignores."tests/test_frontend_type_conversion.py" = [ "PYI042" ]  # typealias i32 error
+lint.per-file-ignores."typings/**/*.pyi" = [ "F403", "F821", "PYI021", "PYI048" ]
+lint.per-file-ignores."xdsl/dialects/*.pyi" = [ "PYI021" ]  # auto-generated stubs have docstrings
+lint.per-file-ignores."xdsl/frontend/pyast/dialects/builtin.py" = [ "PYI042" ]  # typealias i32 error
+lint.flake8-tidy-imports.banned-api."typing.TypeVar".msg = "Use typing_extensions.TypeVar instead."
+lint.flake8-tidy-imports.banned-api."xdsl.dialects.utils.bit_enum_attribute".msg = "Use xdsl.dialects.utils instead"
+lint.flake8-tidy-imports.banned-api."xdsl.dialects.utils.dimension_list".msg = "Use xdsl.dialects.utils instead"
+lint.flake8-tidy-imports.banned-api."xdsl.dialects.utils.dynamic_index_list".msg = "Use xdsl.dialects.utils instead"
+lint.flake8-tidy-imports.banned-api."xdsl.dialects.utils.fast_math".msg = "Use xdsl.dialects.utils instead"
+lint.flake8-tidy-imports.banned-api."xdsl.dialects.utils.format".msg = "Use xdsl.dialects.utils instead"
+lint.flake8-tidy-imports.banned-api."xdsl.ir.affine.affine_expr".msg = "Use xdsl.ir.affine instead"
+lint.flake8-tidy-imports.banned-api."xdsl.ir.affine.affine_map".msg = "Use xdsl.ir.affine instead"
+lint.flake8-tidy-imports.banned-api."xdsl.ir.affine.affine_set".msg = "Use xdsl.ir.affine instead"
+lint.flake8-tidy-imports.banned-api."xdsl.ir.core".msg = "Use xdsl.ir instead."
+lint.flake8-tidy-imports.banned-api."xdsl.irdl.attributes".msg = "Use xdsl.irdl instead"
+lint.flake8-tidy-imports.banned-api."xdsl.irdl.common".msg = "Use xdsl.irdl instead"
+lint.flake8-tidy-imports.banned-api."xdsl.irdl.constraints".msg = "Use xdsl.irdl instead"
+lint.flake8-tidy-imports.banned-api."xdsl.irdl.operations".msg = "Use xdsl.irdl instead"
+lint.flake8-tidy-imports.banned-api."xdsl.parser.affine_parser".msg = "Use xdsl.parser instead."
+lint.flake8-tidy-imports.banned-api."xdsl.parser.attribute_parser".msg = "Use xdsl.parser instead."
+lint.flake8-tidy-imports.banned-api."xdsl.parser.base_parser".msg = "Use xdsl.parser instead."
+lint.flake8-tidy-imports.banned-api."xdsl.parser.core".msg = "Use xdsl.parser instead."
+lint.flake8-tidy-imports.banned-api."xdsl.parser.generic_parser".msg = "Use xdsl.parser instead."
+lint.mccabe.max-complexity = 10
+# TODO: remove this setting and go to default line length of 88
+# Removing this line length results in a large number of errors for doc strings, ideally
+# these should be ignored separately.
+lint.pycodestyle.max-line-length = 130
 
 [tool.pyright]
+typeCheckingMode = "strict"
+include = [ "benchmarks", "docs", "tests", "xdsl" ]
+exclude = [ "docs/marimo" ]
+extraPaths = [ "tests" ]
 # We need this for TypeForm, should remove it once that's in
 enableExperimentalFeatures = true
 # Use specific rule ignore instead if necessary
@@ -115,122 +170,37 @@ reportMissingModuleSource = false
 reportUnnecessaryCast = true
 reportUnnecessaryIsInstance = true
 reportUnnecessaryTypeIgnoreComment = true
-typeCheckingMode = "strict"
-extraPaths = ["tests"]
-"include" = ["docs", "xdsl", "tests", "benchmarks"]
-"exclude" = ["docs/marimo"]
 
-[tool.ruff]
-target-version = "py310"
-extend-include = ["*.ipynb", "*.pyi"]
-exclude = [".venv", "docs/marimo"]
+[tool.pytest]
+ini_options.python_files = [ "docs/marimo/**.py", "tests/*test_*.py" ]
+ini_options.python_classes = "Test_*"
+ini_options.python_functions = "test_*"
+ini_options.addopts = [ "--durations=20", "--maxfail=5", "--import-mode=importlib" ]
+ini_options.asyncio_default_fixture_loop_scope = "function"
 
-[tool.ruff.lint]
-select = ["E", "F", "W", "I", "UP", "PT", "TID251", "INP", "PYI", "RUF"]
-ignore = [
-    "E741",   # https://beta.ruff.rs/docs/rules/ambiguous-variable-name/
-    "PT006",  # https://beta.ruff.rs/docs/rules/pytest-parametrize-names-wrong-type/
-    "PT012",  # https://beta.ruff.rs/docs/rules/pytest-raises-with-multiple-statements/
-    "PYI041", # https://docs.astral.sh/ruff/rules/redundant-numeric-union
-    # Help welcome removing ignores below
-    # https://github.com/xdslproject/xdsl/issues/5927
-    "RUF001", # https://docs.astral.sh/ruff/rules/ambiguous-unicode-character-string
-    "RUF002", # https://docs.astral.sh/ruff/rules/ambiguous-unicode-character-docstring
-    "RUF003", # https://docs.astral.sh/ruff/rules/ambiguous-unicode-character-comment
-    "RUF005", # https://docs.astral.sh/ruff/rules/collection-literal-concatenation
-    "RUF007", # https://docs.astral.sh/ruff/rules/zip-instead-of-pairwise
-    "RUF012", # https://docs.astral.sh/ruff/rules/mutable-class-default
-    "RUF015", # https://docs.astral.sh/ruff/rules/unnecessary-iterable-allocation-for-first-element
-    "RUF018", # https://docs.astral.sh/ruff/rules/assignment-in-assert
-    "RUF033", # https://docs.astral.sh/ruff/rules/post-init-default
-    "RUF043", # https://docs.astral.sh/ruff/rules/pytest-raises-ambiguous-pattern
+[tool.coverage]
+run.branch = true
+run.concurrency = [ "multiprocessing" ]
+run.omit = [
+  "benchmarks/*",
+  # Autogenerated missed code handles other VCSes.
+  "tests/*",
 ]
-
-[tool.ruff.lint.pycodestyle]
-# TODO: remove this setting and go to default line length of 88
-# Removing this line length results in a large number of errors for doc strings, ideally
-# these should be ignored separately.
-max-line-length = 130
-
-[tool.ruff.lint.flake8-tidy-imports.banned-api]
-"typing.TypeVar".msg = "Use typing_extensions.TypeVar instead."
-"xdsl.dialects.utils.bit_enum_attribute".msg = "Use xdsl.dialects.utils instead"
-"xdsl.dialects.utils.dimension_list".msg = "Use xdsl.dialects.utils instead"
-"xdsl.dialects.utils.dynamic_index_list".msg = "Use xdsl.dialects.utils instead"
-"xdsl.dialects.utils.fast_math".msg = "Use xdsl.dialects.utils instead"
-"xdsl.dialects.utils.format".msg = "Use xdsl.dialects.utils instead"
-"xdsl.ir.affine.affine_expr".msg = "Use xdsl.ir.affine instead"
-"xdsl.ir.affine.affine_map".msg = "Use xdsl.ir.affine instead"
-"xdsl.ir.affine.affine_set".msg = "Use xdsl.ir.affine instead"
-"xdsl.ir.core".msg = "Use xdsl.ir instead."
-"xdsl.irdl.attributes".msg = "Use xdsl.irdl instead"
-"xdsl.irdl.common".msg = "Use xdsl.irdl instead"
-"xdsl.irdl.constraints".msg = "Use xdsl.irdl instead"
-"xdsl.irdl.operations".msg = "Use xdsl.irdl instead"
-"xdsl.parser.affine_parser".msg = "Use xdsl.parser instead."
-"xdsl.parser.attribute_parser".msg = "Use xdsl.parser instead."
-"xdsl.parser.base_parser".msg = "Use xdsl.parser instead."
-"xdsl.parser.core".msg = "Use xdsl.parser instead."
-"xdsl.parser.generic_parser".msg = "Use xdsl.parser instead."
-
-
-[tool.ruff.lint.per-file-ignores]
-"__init__.py" = ["F403"]
-"**/filecheck/*" = ["F811", "F841", "E501"]
-"docs/database_example.ipynb" = ["ALL"]
-"docs/irdl.ipynb" = ["ALL"]
-"docs/mlir_interoperation.ipynb" = ["E402"]
-"docs/Toy/Toy_Ch1.ipynb" = ["E402"]
-"docs/Toy/Toy_Ch2.ipynb" = ["E402"]
-"docs/Toy/Toy_Ch3.ipynb" = ["E402"]
-"docs/tutorial.ipynb" = ["ALL"]
-"docs/xdsl-introduction.ipynb" = ["ALL"]
-"scripts/**" = ["INP"]
-"tests/*" = ["E501", "INP"]
-"tests/test_declarative_assembly_format.py" = ["F811"]
-"tests/test_frontend_type_conversion.py" = ["PYI042"]  # typealias i32 error
-"xdsl/frontend/pyast/dialects/builtin.py" = ["PYI042"] # typealias i32 error
-"xdsl/dialects/*.pyi" = ["PYI021"]  # auto-generated stubs have docstrings
-"typings/**/*.pyi" = ["PYI021", "PYI048", "F821", "F403"]
-
-[tool.ruff.lint.mccabe]
-max-complexity = 10
-
-[tool.ruff.format]
-exclude = ["docs/marimo/**/*.py"]
-
-[tool.pytest.ini_options]
-python_files = ["tests/*test_*.py", "docs/*test_*.py", "docs/marimo/**.py"]
-python_classes = "Test_*"
-python_functions = "test_*"
-addopts = ["--durations=20", "--maxfail=5", "--import-mode=importlib"]
-asyncio_default_fixture_loop_scope = "function"
-
-[tool.coverage.run]
-relative_files = true
-branch = true
-omit = [
-    # Autogenerated missed code handles other VCSes.
-    "tests/*",
-    "benchmarks/*",
-]
-concurrency = ["multiprocessing"]
-parallel = true
-
-[tool.coverage.report]
+run.parallel = true
+run.relative_files = true
 # Regexes for lines to exclude from consideration
-exclude_lines = [
-    # Don't complain about missing debug-only code:
-    "def __repr__",
-    # Don't complain if tests don't hit defensive assertion code:
-    "raise NotImplementedError",
-    "raise ValueError",
-    "raise TypeError",
-    "raise RuntimeError",
-    "assert_never",
+report.exclude_lines = [
+  "assert_never",
+  # Don't complain about missing debug-only code:
+  "def __repr__",
+  # Don't complain if tests don't hit defensive assertion code:
+  "raise NotImplementedError",
+  "raise RuntimeError",
+  "raise TypeError",
+  "raise ValueError",
 ]
-format = "markdown"
+report.format = "markdown"
 # Converts some errors to warnings
 # we should investigate whether this is still necessary once the online codecov reporting is fixed
 # https://github.com/nedbat/coveragepy/blob/1aecfa7ae2a81aa9c278cbb43718ae7e4bdcf5b5/coverage/report_core.py#L108
-ignore_errors = true
+report.ignore_errors = true

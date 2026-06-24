@@ -10,15 +10,15 @@ from xdsl.utils.exceptions import VerifyException
 
 
 @dataclass(frozen=True)
-class VerifyRegisterAllocationPass(ModulePass):
+class X86RegallocVerifyLivenessPass(ModulePass):
     """
     Verify that, assuming the dominance property is respected, the
     use of a register value as inout is its last use.
     """
 
-    name = "verify-register-allocation"
+    name = "x86-regalloc-verify-liveness"
 
-    def _process_region(self, region: Region, alive: set[SSAValue] = set()) -> None:
+    def _process_region(self, region: Region, alive: set[SSAValue]) -> None:
         alive_card = len(alive)
         if not region.blocks:
             return
@@ -46,4 +46,4 @@ class VerifyRegisterAllocationPass(ModulePass):
         assert alive_card == len(alive)
 
     def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
-        self._process_region(op.body)
+        self._process_region(op.body, set())

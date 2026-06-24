@@ -136,29 +136,6 @@ class PatternRewriter(Builder, PatternRewriterListener):
         self.has_done_action = True
         return super().insert_op(op, insertion_point)
 
-    @deprecated(
-        "Please use `rewriter.insert_op(op, InsertPoint.before(rewriter.current_operation))` instead"
-    )
-    def insert_op_before_matched_op(self, op: InsertOpInvT) -> InsertOpInvT:
-        """Insert operations before the matched operation."""
-        return self.insert_op(op, InsertPoint.before(self.current_operation))
-
-    @deprecated(
-        "Please use `rewriter.insert_op(op, InsertPoint.after(rewriter.current_operation))` instead"
-    )
-    def insert_op_after_matched_op(self, op: InsertOpInvT) -> InsertOpInvT:
-        """Insert operations after the matched operation."""
-        return self.insert_op(op, InsertPoint.after(self.current_operation))
-
-    @deprecated("Please use `erase_op(op)` instead")
-    def erase_matched_op(self, safe_erase: bool = True):
-        """
-        Erase the operation that was matched to.
-        If safe_erase is True, check that the operation has no uses.
-        Otherwise, replace its uses with ErasedSSAValue.
-        """
-        self.erase_op(self.current_operation, safe_erase=safe_erase)
-
     def erase_op(self, op: Operation, safe_erase: bool = True):
         """
         Erase an operation.
@@ -319,30 +296,6 @@ class PatternRewriter(Builder, PatternRewriterListener):
         """
         self.has_done_action = True
         Rewriter.inline_block(block, insertion_point, arg_values=arg_values)
-
-    @deprecated("Please use `inline_block(block, InsertPoint.before(op))`")
-    def inline_block_before_matched_op(
-        self, block: Block, arg_values: Sequence[SSAValue] = ()
-    ):
-        """
-        Move the block operations before the matched operation.
-        The block should not be a parent of the operation.
-        """
-        self.inline_block(
-            block, InsertPoint.before(self.current_operation), arg_values=arg_values
-        )
-
-    @deprecated("Please use `inline_block(block, InsertPoint.after(op))`")
-    def inline_block_after_matched_op(
-        self, block: Block, arg_values: Sequence[SSAValue] = ()
-    ):
-        """
-        Move the block operations after the matched operation.
-        The block should not be a parent of the operation.
-        """
-        self.inline_block(
-            block, InsertPoint.after(self.current_operation), arg_values=arg_values
-        )
 
     def move_region_contents_to_new_regions(self, region: Region) -> Region:
         """Move the region blocks to a new region."""

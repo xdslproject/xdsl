@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import math
 from collections.abc import Callable, Generator, Iterable, Mapping, Sequence
 from contextlib import contextmanager
@@ -303,7 +302,7 @@ class Printer(BasePrinter):
             self.print_list(params, self.print_attribute)
 
     def print_string_literal(self, string: str):
-        self.print_string(json.dumps(string))
+        self.print_bytes_literal(string.encode("utf-8"))
 
     def print_identifier_or_string_literal(self, string: str):
         """

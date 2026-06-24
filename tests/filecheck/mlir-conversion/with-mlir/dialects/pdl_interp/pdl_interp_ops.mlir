@@ -1,5 +1,5 @@
-// RUN: xdsl-opt %s --print-op-generic | mlir-opt --mlir-print-op-generic | xdsl-opt | filecheck %s
-// RUN: xdsl-opt %s | mlir-opt | xdsl-opt | filecheck %s
+// RUN: xdsl-opt %s --print-op-generic | $XDSL_MLIR_OPT --mlir-print-op-generic | xdsl-opt | filecheck %s
+// RUN: xdsl-opt %s | $XDSL_MLIR_OPT | xdsl-opt | filecheck %s
 
 pdl_interp.func @matcher(%arg0: !pdl.operation) {
   %0 = pdl_interp.get_result 0 of %arg0

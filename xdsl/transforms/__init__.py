@@ -380,6 +380,11 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return linalg_generalize_named_ops.LinalgGeneralizeNamedOpsPass
 
+    def get_test_linalg_tiling():
+        from xdsl.transforms.test_linalg_tiling import TestLinalgTilingPass
+
+        return TestLinalgTilingPass
+
     def get_linalg_to_csl():
         from xdsl.transforms.linalg_to_csl import LinalgToCsl
 
@@ -652,25 +657,25 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
 
         return x86_allocate_registers.X86AllocateRegisters
 
-    def get_x86_prologue_epilogue_insertion():
-        from xdsl.backend.x86 import prologue_epilogue_insertion
-
-        return prologue_epilogue_insertion.X86PrologueEpilogueInsertion
-
-    def get_x86_legalize_for_regalloc():
-        from xdsl.transforms import x86_legalize_for_regalloc
-
-        return x86_legalize_for_regalloc.X86LegalizeForRegallocPass
-
     def get_x86_infer_broadcast():
         from xdsl.transforms import x86_infer_broadcast
 
         return x86_infer_broadcast.X86InferBroadcast
 
-    def get_verify_register_allocation():
-        from xdsl.transforms import verify_register_allocation
+    def get_x86_regalloc_legalize():
+        from xdsl.transforms import x86_regalloc_legalize
 
-        return verify_register_allocation.VerifyRegisterAllocationPass
+        return x86_regalloc_legalize.X86RegallocLegalizePass
+
+    def get_x86_prologue_epilogue_insertion():
+        from xdsl.backend.x86 import prologue_epilogue_insertion
+
+        return prologue_epilogue_insertion.X86PrologueEpilogueInsertion
+
+    def get_x86_regalloc_verify_liveness():
+        from xdsl.transforms import x86_regalloc_verify_liveness
+
+        return x86_regalloc_verify_liveness.X86RegallocVerifyLivenessPass
 
     # Please insert pass and `get_` function in alphabetical order
 
@@ -795,6 +800,7 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "test-add-timers-to-top-level-funcs": get_test_add_timers_to_top_level_funcs,
         "test-constant-folding": get_test_constant_folding,
         "test-deprecation": get_test_deprecation,
+        "test-linalg-tiling": get_test_linalg_tiling,
         "test-lower-linalg-to-snitch": get_test_lower_linalg_to_snitch,
         "test-specialised-constant-folding": get_test_specialised_constant_folding,
         "test-transform-dialect-erase-schedule": get_test_transform_dialect_erase_schedule,
@@ -803,8 +809,8 @@ def get_all_passes() -> dict[str, Callable[[], type[ModulePass]]]:
         "varith-fuse-repeated-operands": get_varith_fuse_repeated_operands,
         "vector-split-load-extract": get_vector_split_load_extract,
         "x86-allocate-registers": get_x86_allocate_registers,
-        "x86-prologue-epilogue-insertion": get_x86_prologue_epilogue_insertion,
-        "x86-legalize-for-regalloc": get_x86_legalize_for_regalloc,
         "x86-infer-broadcast": get_x86_infer_broadcast,
-        "verify-register-allocation": get_verify_register_allocation,
+        "x86-regalloc-legalize": get_x86_regalloc_legalize,
+        "x86-prologue-epilogue-insertion": get_x86_prologue_epilogue_insertion,
+        "x86-regalloc-verify-liveness": get_x86_regalloc_verify_liveness,
     }

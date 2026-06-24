@@ -79,6 +79,15 @@ def test_disjoint_set_path_compression():
     assert ds._parent[0] == root  # pyright: ignore[reportPrivateUsage]
 
 
+def test_disjoint_set_roots():
+    ds = IntDisjointSet(size=4)
+    assert tuple(ds.roots()) == (0, 1, 2, 3)
+
+    ds.union_left(1, 2)
+
+    assert tuple(ds.roots()) == (0, 1, 3)
+
+
 def test_generic_disjoint_set():
     ds = DisjointSet(["a", "b", "c", "d"])
 
@@ -222,3 +231,20 @@ def test_generic_disjoint_set_rooted_union():
 
     with pytest.raises(KeyError):
         ds.union_left("nonexistent", "a")
+
+
+def test_generic_disjoint_set_roots():
+    ds = DisjointSet(("a", "b", "c", "d"))
+    assert tuple(ds.roots()) == ("a", "b", "c", "d")
+
+    ds.union_left("b", "c")
+
+    assert tuple(ds.roots()) == ("a", "b", "d")
+
+
+def test_generic_disjoint_set_str():
+    assert str(DisjointSet()) == "{}"
+    ds = DisjointSet(("a", "b", "c"))
+    assert str(ds) == "{'a': ['a'], 'b': ['b'], 'c': ['c']}"
+    ds.union("a", "b")
+    assert str(ds) == "{'a': ['a', 'b'], 'c': ['c']}"

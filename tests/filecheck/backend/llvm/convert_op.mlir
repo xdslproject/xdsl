@@ -724,6 +724,30 @@ builtin.module {
   // CHECK-NEXT:   ret float %"[[RES]]"
   // CHECK-NEXT: }
 
+  llvm.func @minnum_op(%arg0: f32, %arg1: f32) -> f32 {
+    %0 = llvm.intr.minnum(%arg0, %arg1) : (f32, f32) -> f32
+    llvm.return %0 : f32
+  }
+
+  // CHECK: define float @"minnum_op"(float %".1", float %".2")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: [[ENTRY:.\d+]]:
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = call float @"llvm.minnum"(float %".1", float %".2")
+  // CHECK-NEXT:   ret float %"[[RES]]"
+  // CHECK-NEXT: }
+
+  llvm.func @pow_op(%arg0: f32, %arg1: f32) -> f32 {
+    %0 = llvm.intr.pow(%arg0, %arg1) : (f32, f32) -> f32
+    llvm.return %0 : f32
+  }
+
+  // CHECK: define float @"pow_op"(float %".1", float %".2")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: [[ENTRY:.\d+]]:
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = call float @"llvm.pow"(float %".1", float %".2")
+  // CHECK-NEXT:   ret float %"[[RES]]"
+  // CHECK-NEXT: }
+
   llvm.func @fabs_op(%arg0: f32) -> f32 {
     %0 = llvm.intr.fabs(%arg0) : (f32) -> f32
     llvm.return %0 : f32
@@ -769,6 +793,15 @@ builtin.module {
   // CHECK-NEXT: {
   // CHECK-NEXT: [[ENTRY:.\d+]]:
   // CHECK-NEXT:   %"[[RES:.\d+]]" = call float @"llvm.floor"(float %".1")
+  llvm.func @fexp2_op(%arg0: f32) -> f32 {
+    %0 = llvm.intr.exp2(%arg0) : (f32) -> f32
+    llvm.return %0 : f32
+  }
+
+  // CHECK: define float @"fexp2_op"(float %".1")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: [[ENTRY:.\d+]]:
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = call float @"llvm.exp2"(float %".1")
   // CHECK-NEXT:   ret float %"[[RES]]"
   // CHECK-NEXT: }
 
@@ -805,6 +838,42 @@ builtin.module {
   // CHECK-NEXT: {
   // CHECK-NEXT: [[ENTRY:.\d+]]:
   // CHECK-NEXT:   %"[[RES:.\d+]]" = call float @"llvm.sin"(float %".1")
+  // CHECK-NEXT:   ret float %"[[RES]]"
+  // CHECK-NEXT: }
+
+  llvm.func @fcos_op(%arg0: f32) -> f32 {
+    %0 = llvm.intr.cos(%arg0) : (f32) -> f32
+    llvm.return %0 : f32
+  }
+
+  // CHECK: define float @"fcos_op"(float %".1")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: [[ENTRY:.\d+]]:
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = call float @"llvm.cos"(float %".1")
+  // CHECK-NEXT:   ret float %"[[RES]]"
+  // CHECK-NEXT: }
+
+  llvm.func @flog2_op(%arg0: f32) -> f32 {
+    %0 = llvm.intr.log2(%arg0) : (f32) -> f32
+    llvm.return %0 : f32
+  }
+
+  // CHECK: define float @"flog2_op"(float %".1")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: [[ENTRY:.\d+]]:
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = call float @"llvm.log2"(float %".1")
+  // CHECK-NEXT:   ret float %"[[RES]]"
+  // CHECK-NEXT: }
+
+  llvm.func @copysign_op(%arg0: f32, %arg1: f32) -> f32 {
+    %0 = llvm.intr.copysign(%arg0, %arg1) : (f32, f32) -> f32
+    llvm.return %0 : f32
+  }
+
+  // CHECK: define float @"copysign_op"(float %".1", float %".2")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: [[ENTRY:.\d+]]:
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = call float @"llvm.copysign"(float %".1", float %".2")
   // CHECK-NEXT:   ret float %"[[RES]]"
   // CHECK-NEXT: }
 
@@ -1045,5 +1114,53 @@ builtin.module {
   // CHECK-NEXT: {
   // CHECK-NEXT: {{.[0-9]+}}:
   // CHECK-NEXT:   ret <4 x i32> <i32 1, i32 2, i32 3, i32 4>
+  // CHECK-NEXT: }
+
+  llvm.func @reduce_fadd_f32(%arg0: f32, %arg1: vector<4xf32>) -> f32 {
+    %0 = "llvm.intr.vector.reduce.fadd"(%arg0, %arg1) <{fastmathFlags = #llvm.fastmath<none>}> : (f32, vector<4xf32>) -> f32
+    llvm.return %0 : f32
+  }
+
+  // CHECK: define float @"reduce_fadd_f32"(float %".1", <4 x float> %".2")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: [[ENTRY:.\d+]]:
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = call float @"llvm.vector.reduce.fadd.v4f32"(float %".1", <4 x float> %".2")
+  // CHECK-NEXT:   ret float %"[[RES]]"
+  // CHECK-NEXT: }
+
+  llvm.func @reduce_fadd_f64(%arg0: f64, %arg1: vector<2xf64>) -> f64 {
+    %0 = "llvm.intr.vector.reduce.fadd"(%arg0, %arg1) <{fastmathFlags = #llvm.fastmath<none>}> : (f64, vector<2xf64>) -> f64
+    llvm.return %0 : f64
+  }
+
+  // CHECK: define double @"reduce_fadd_f64"(double %".1", <2 x double> %".2")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: [[ENTRY:.\d+]]:
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = call double @"llvm.vector.reduce.fadd.v2f64"(double %".1", <2 x double> %".2")
+  // CHECK-NEXT:   ret double %"[[RES]]"
+  // CHECK-NEXT: }
+
+  llvm.func @reduce_fmul_f32(%arg0: f32, %arg1: vector<4xf32>) -> f32 {
+    %0 = "llvm.intr.vector.reduce.fmul"(%arg0, %arg1) <{fastmathFlags = #llvm.fastmath<none>}> : (f32, vector<4xf32>) -> f32
+    llvm.return %0 : f32
+  }
+
+  // CHECK: define float @"reduce_fmul_f32"(float %".1", <4 x float> %".2")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: [[ENTRY:.\d+]]:
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = call float @"llvm.vector.reduce.fmul.v4f32"(float %".1", <4 x float> %".2")
+  // CHECK-NEXT:   ret float %"[[RES]]"
+  // CHECK-NEXT: }
+
+  llvm.func @reduce_fmul_f64(%arg0: f64, %arg1: vector<2xf64>) -> f64 {
+    %0 = "llvm.intr.vector.reduce.fmul"(%arg0, %arg1) <{fastmathFlags = #llvm.fastmath<none>}> : (f64, vector<2xf64>) -> f64
+    llvm.return %0 : f64
+  }
+
+  // CHECK: define double @"reduce_fmul_f64"(double %".1", <2 x double> %".2")
+  // CHECK-NEXT: {
+  // CHECK-NEXT: [[ENTRY:.\d+]]:
+  // CHECK-NEXT:   %"[[RES:.\d+]]" = call double @"llvm.vector.reduce.fmul.v2f64"(double %".1", <2 x double> %".2")
+  // CHECK-NEXT:   ret double %"[[RES]]"
   // CHECK-NEXT: }
 }

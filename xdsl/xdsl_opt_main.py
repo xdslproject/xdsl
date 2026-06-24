@@ -2,6 +2,7 @@ import argparse
 import dataclasses
 import inspect
 import sys
+import time
 from collections.abc import Callable, Sequence
 from importlib.metadata import version
 from io import StringIO
@@ -99,8 +100,8 @@ class xDSLOptMain(CommandLineTool):
                     module = self.parse_chunk(chunk, file_extension, offset)
 
                     if module is not None:
-                        if self.apply_passes(module):
-                            output_stream.write(self.output_resulting_program(module))
+                        self.apply_passes(module)
+                        output_stream.write(self.output_resulting_program(module))
                     output_stream.flush()
                 except ParseError as e:
                     s = e.span
@@ -170,6 +171,13 @@ class xDSLOptMain(CommandLineTool):
             default=False,
             action="store_true",
             help="Print the IR between each pass",
+        )
+
+        arg_parser.add_argument(
+            "--time-passes",
+            default=False,
+            action="store_true",
+            help="Print timing information for each pass",
         )
 
         arg_parser.add_argument(
@@ -270,16 +278,29 @@ class xDSLOptMain(CommandLineTool):
         Fails, if not all passes are registered.
         """
 
+        start_timer = time.perf_counter()
+
         def callback(
-            previous_pass: ModulePass, module: ModuleOp, next_pass: ModulePass
+            previous_pass: ModulePass | None,
+            module: ModuleOp,
+            next_pass: ModulePass | None,
         ) -> None:
+            nonlocal start_timer
+            if self.args.time_passes and previous_pass is not None:
+                end_timer = time.perf_counter()
+                duration = end_timer - start_timer
+                print(f"Pass {previous_pass.name} took {duration} seconds")
+
             if not self.args.disable_verify:
                 module.verify()
-            if self.args.print_between_passes:
+            if previous_pass and next_pass and self.args.print_between_passes:
                 print(f"IR after {previous_pass.name}:")
                 printer = Printer(stream=sys.stdout)
                 printer.print_op(module)
                 print("\n\n\n")
+
+            if self.args.time_passes and next_pass is not None:
+                start_timer = time.perf_counter()
 
         self.pipeline = PassPipeline.parse_spec(
             self.available_passes,
@@ -325,14 +346,9 @@ class xDSLOptMain(CommandLineTool):
         else:
             return open(self.args.output_file, "w")
 
-    def apply_passes(self, prog: ModuleOp) -> bool:
+    def apply_passes(self, prog: ModuleOp):
         """Apply passes in order."""
-        if not self.args.disable_verify:
-            prog.verify()
         self.pipeline.apply(self.ctx, prog)
-        if not self.args.disable_verify:
-            prog.verify()
-        return True
 
     def output_resulting_program(self, prog: ModuleOp) -> str:
         """Get the resulting program."""

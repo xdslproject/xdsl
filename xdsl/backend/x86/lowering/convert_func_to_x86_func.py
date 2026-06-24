@@ -1,8 +1,8 @@
 from dataclasses import dataclass
 
-from xdsl.backend.x86.lowering.helpers import Arch
+from xdsl.backend.x86.arch import X86Arch
 from xdsl.context import Context
-from xdsl.dialects import builtin, func, x86, x86_func
+from xdsl.dialects import asm, builtin, func, x86, x86_func
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.dialects.x86.registers import GeneralRegisterType
 from xdsl.ir import Attribute, Block
@@ -49,7 +49,7 @@ STACK_SLOT_SIZE_BYTES = 8
 
 @dataclass
 class LowerFuncOp(RewritePattern):
-    arch: Arch
+    arch: X86Arch
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: func.FuncOp, rewriter: PatternRewriter):
@@ -86,14 +86,13 @@ class LowerFuncOp(RewritePattern):
         for i, register_type in enumerate(reg_args_types):
             arg = first_block.args[i]
             register = first_block.insert_arg(register_type, i)
+            assert isinstance(register_type, GeneralRegisterType)
             mov_op = x86.DS_MovOp(
                 source=register, destination=register_type.unallocated()
             )
-            cast_op, parameter = builtin.UnrealizedConversionCastOp.cast_one(
-                mov_op.destination, arg.type
-            )
+            cast_op = asm.FromRegOp.get(mov_op.destination, arg.type)
             rewriter.insert_op([mov_op, cast_op], insertion_point)
-            arg.replace_all_uses_with(parameter)
+            arg.replace_all_uses_with(cast_op.value)
             first_block.erase_arg(arg)
 
         # The last argument of the basic block should be the stack pointer
@@ -116,9 +115,7 @@ class LowerFuncOp(RewritePattern):
                 destination=destination_reg,
                 comment=f"Load the {i + MAX_REG_PASSING_INPUTS + 1}th argument of the function",
             )
-            cast_op = builtin.UnrealizedConversionCastOp.get(
-                (mov_op.destination,), (arg.type,)
-            )
+            cast_op = asm.FromRegOp.get(mov_op.destination, arg.type)
             rewriter.insert_op([mov_op, cast_op], insertion_point)
             arg.replace_all_uses_with(cast_op.results[0])
             first_block.erase_arg(arg)
@@ -142,7 +139,7 @@ class LowerFuncOp(RewritePattern):
 
 @dataclass
 class LowerReturnOp(RewritePattern):
-    arch: Arch
+    arch: X86Arch
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: func.ReturnOp, rewriter: PatternRewriter):
@@ -169,9 +166,8 @@ class LowerReturnOp(RewritePattern):
             )
 
         ret_unalloc = self.arch.register_type_for_type(return_value.type).unallocated()
-        cast_op = builtin.UnrealizedConversionCastOp.get(
-            (return_value,), (ret_unalloc,)
-        )
+        assert isinstance(ret_unalloc, GeneralRegisterType)
+        cast_op = asm.ToRegOp.get(return_value, ret_unalloc)
         mov_op = x86.ops.DS_MovOp(
             cast_op, destination=ret_unalloc.from_index(RETURN_PASSING_REGISTER)
         )
@@ -186,7 +182,7 @@ class ConvertFuncToX86FuncPass(ModulePass):
     arch: str | None = None
 
     def apply(self, ctx: Context, op: ModuleOp) -> None:
-        arch = Arch.arch_for_name(self.arch)
+        arch = X86Arch.arch_for_name(self.arch)
         PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [

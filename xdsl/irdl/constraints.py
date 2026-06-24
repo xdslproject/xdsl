@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping, Sequence, Sized
 from collections.abc import Set as AbstractSet
 from dataclasses import dataclass, field
 from typing import (
@@ -13,7 +13,7 @@ from typing import (
     get_origin,
 )
 
-from typing_extensions import TypeVar, deprecated
+from typing_extensions import TypeVar
 
 from xdsl.ir import (
     Attribute,
@@ -77,20 +77,6 @@ class ConstraintContext:
     @property
     def int_variables(self) -> AbstractSet[str]:
         return self._int_variables.keys()
-
-    @deprecated("ConstraintContexts should not be copied")
-    def copy(self):
-        return ConstraintContext(
-            self._variables.copy(),
-            self._range_variables.copy(),
-            self._int_variables.copy(),
-        )
-
-    @deprecated("ConstraintContexts should only be updated by set_* methods")
-    def update(self, other: ConstraintContext):
-        self._variables.update(other._variables)
-        self._range_variables.update(other._range_variables)
-        self._int_variables.update(other._int_variables)
 
 
 _AttributeCovT = TypeVar(
@@ -261,10 +247,14 @@ class VarConstraint(AttrConstraint[AttributeCovT]):
 
     def infer(self, context: ConstraintContext) -> AttributeCovT:
         v = context.get_variable(self.name)
+        if v is None:
+            return self.constraint.infer(context)
         return cast(AttributeCovT, v)
 
     def can_infer(self, var_constraint_names: AbstractSet[str]) -> bool:
-        return self.name in var_constraint_names
+        return self.name in var_constraint_names or self.constraint.can_infer(
+            var_constraint_names
+        )
 
     def get_bases(self) -> set[type[Attribute]] | None:
         return self.constraint.get_bases()
@@ -356,9 +346,14 @@ class BaseAttr(AttrConstraint[AttributeCovT], Generic[AttributeCovT]):
         constraint_context: ConstraintContext,
     ) -> None:
         if not isinstance(attr, self.attr):
-            raise VerifyException(
-                f"{attr} should be of base attribute {self.attr.name}"
-            )
+            if hasattr(self.attr, "name"):
+                raise VerifyException(
+                    f"{attr} should be of base attribute {self.attr.name}"
+                )
+            else:
+                raise VerifyException(
+                    f"{attr} should be of attribute subclassing `{self.attr.__name__}`"
+                )
 
     def can_infer(self, var_constraint_names: AbstractSet[str]) -> bool:
         return (
@@ -381,19 +376,6 @@ class BaseAttr(AttrConstraint[AttributeCovT], Generic[AttributeCovT]):
         self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
     ) -> AttrConstraint[AttributeCovT]:
         return self
-
-
-@deprecated("Please use `irdl_to_attr_constraint` instead")
-def attr_constr_coercion(
-    attr: AttributeCovT | type[AttributeCovT] | AttrConstraint[AttributeCovT],
-) -> AttrConstraint[AttributeCovT]:
-    """
-    Attributes are coerced into EqAttrConstraints,
-    and Attribute types are coerced into BaseAttr.
-    """
-    from xdsl.irdl import irdl_to_attr_constraint
-
-    return irdl_to_attr_constraint(attr)
 
 
 @dataclass(frozen=True, init=False)
@@ -455,7 +437,6 @@ class AnyOf(AttrConstraint[AttributeCovT], Generic[AttributeCovT]):
         eq_constrs = set[Attribute]()
         based_constrs = dict[type[Attribute], AttrConstraint[AttributeCovT]]()
 
-        bases = set[type[Attribute]]()
         eq_bases = set[type[Attribute]]()
         abstr_constr: AttrConstraint[AttributeCovT] | None = None
         for i, c in enumerate(attr_constrs):
@@ -474,7 +455,7 @@ class AnyOf(AttrConstraint[AttributeCovT], Generic[AttributeCovT]):
                 abstr_constr = c
                 continue
 
-            if not b.isdisjoint(bases):
+            if not b.isdisjoint(based_constrs.keys()):
                 raise PyRDLError(
                     f"Constraint {c} shares a base with a non-equality constraint "
                     f"in {set(attr_constrs[0:i])} in `AnyOf` constraint."
@@ -491,7 +472,6 @@ class AnyOf(AttrConstraint[AttributeCovT], Generic[AttributeCovT]):
                     )
                 for base in b:
                     based_constrs[base] = c
-                bases |= b
 
         # check for overlaps with the abstract constraint
         if abstr_constr is not None:
@@ -503,7 +483,7 @@ class AnyOf(AttrConstraint[AttributeCovT], Generic[AttributeCovT]):
                         f"constraint {abstr_constr} in `AnyOf` constraint."
                     )
             # bases should not overlap via issubclass
-            for base in bases:
+            for base in based_constrs.keys():
                 if issubclass(base, abstr_constr.attr):
                     raise PyRDLError(
                         f"Non-equality constraint {based_constrs[base]} overlaps with "
@@ -1010,14 +990,17 @@ class IntVarConstraint(IntConstraint):
         return self.constraint.variables() | {self.name}
 
     def can_infer(self, var_constraint_names: AbstractSet[str]) -> bool:
-        return self.name in var_constraint_names
+        return self.name in var_constraint_names or self.constraint.can_infer(
+            var_constraint_names
+        )
 
     def infer(
         self,
         context: ConstraintContext,
     ) -> int:
         v = context.get_int_variable(self.name)
-        assert isinstance(v, int)
+        if v is None:
+            return self.constraint.infer(context)
         return v
 
     def mapping_type_vars(
@@ -1056,6 +1039,28 @@ class IntTypeVarConstraint(IntConstraint):
         if not isinstance(res, IntConstraint):
             raise ValueError(f"Unexpected constraint {res} for TypeVar {self.type_var}")
         return res
+
+
+@dataclass(frozen=True)
+class SizedConstraint(AttrConstraint):
+    """
+    Constraint the length of a sized attribute with an int constraint
+    """
+
+    len_constraint: IntConstraint
+
+    def verify(self, attr: Attribute, constraint_context: ConstraintContext) -> None:
+        if not isinstance(attr, Sized):
+            raise VerifyException(f"Expected {attr} to be sized")
+        self.len_constraint.verify(len(attr), constraint_context)
+
+    def variables(self) -> set[str]:
+        return self.len_constraint.variables()
+
+    def mapping_type_vars(
+        self, type_var_mapping: Mapping[TypeVar, AttrConstraint | IntConstraint]
+    ) -> AttrConstraint:
+        return SizedConstraint(self.len_constraint.mapping_type_vars(type_var_mapping))
 
 
 @dataclass(frozen=True)
@@ -1256,12 +1261,16 @@ class RangeVarConstraint(RangeConstraint[AttributeCovT]):
     def can_infer(
         self, var_constraint_names: AbstractSet[str], *, length_known: bool
     ) -> bool:
-        return self.name in var_constraint_names
+        return self.name in var_constraint_names or self.constraint.can_infer(
+            var_constraint_names, length_known=length_known
+        )
 
     def infer(
         self, context: ConstraintContext, *, length: int | None
     ) -> Sequence[AttributeCovT]:
         v = context.get_range_variable(self.name)
+        if v is None:
+            return self.constraint.infer(context, length=length)
         return cast(Sequence[AttributeCovT], v)
 
     def mapping_type_vars(

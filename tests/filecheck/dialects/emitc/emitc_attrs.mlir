@@ -7,6 +7,6 @@
 "test.op"() {
   // CHECK: opaque_attr = #emitc.opaque<"some_value">
   opaque_attr = #emitc.opaque<"some_value">,
-  // CHECK-SAME: quoted_attr = #emitc.opaque<"\"quoted_attr\"">
+  // CHECK-SAME: quoted_attr = #emitc.opaque<"\22quoted_attr\22">
   quoted_attr = #emitc.opaque<"\"quoted_attr\"">
 }: () -> ()

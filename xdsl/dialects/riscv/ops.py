@@ -221,9 +221,10 @@ class XoriOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
         from xdsl.transforms.canonicalization_patterns.riscv import (
             XoriImmediate,
             XoriSelfInverse,
+            XoriZero,
         )
 
-        return (XoriSelfInverse(), XoriImmediate())
+        return (XoriZero(), XoriSelfInverse(), XoriImmediate())
 
 
 @irdl_op_definition
@@ -2113,16 +2114,6 @@ class CZeroNezOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
 
 # region Assembler pseudo-instructions
 # See external [documentation](https://github.com/riscv-non-isa/riscv-asm-manual/blob/master/riscv-asm.md).
-
-
-class LiOpHasCanonicalizationPatternTrait(HasCanonicalizationPatternsTrait):
-    @classmethod
-    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.transforms.canonicalization_patterns.riscv import (
-            LoadImmediate0,
-        )
-
-        return (LoadImmediate0(),)
 
 
 @irdl_op_definition

@@ -127,6 +127,17 @@ def get_pass_option_infos(
     )
 
 
+PassPipelineCallbackType = Callable[
+    [ModulePass | None, builtin.ModuleOp, ModulePass | None], None
+]
+"""
+Type of callback functions that can be given to a PassPipeline
+The first argument of the function is the previous pass applied (if any).
+The second argument is the current state of the module.
+The third argument is the pass which is about to be applied (if any).
+"""
+
+
 @dataclass(frozen=True)
 class PassPipeline:
     """
@@ -138,9 +149,8 @@ class PassPipeline:
     """
     These will be executed sequentially during the execution of the pipeline.
     """
-    callback: Callable[[ModulePass, builtin.ModuleOp, ModulePass], None] | None = field(
-        default=None
-    )
+
+    callback: PassPipelineCallbackType | None = field(default=None)
     """
     Function called in between every pass, taking the pass that just ran, the module,
     and the next pass.
@@ -148,23 +158,29 @@ class PassPipeline:
 
     def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
         if not self.passes:
+            if self.callback is not None:
+                self.callback(None, op, None)
             # Early exit to avoid fetching a non-existing last pass.
             return
-        callback = self.callback
+
+        if self.callback is not None:
+            self.callback(None, op, self.passes[0])
 
         for prev, next in zip(self.passes[:-1], self.passes[1:]):
             prev.apply(ctx, op)
-            if callback is not None:
-                callback(prev, op, next)
+            if self.callback is not None:
+                self.callback(prev, op, next)
 
         self.passes[-1].apply(ctx, op)
+
+        if self.callback is not None:
+            self.callback(self.passes[-1], op, None)
 
     @staticmethod
     def parse_spec(
         available_passes: dict[str, Callable[[], type[ModulePass]]],
         spec: str,
-        callback: Callable[[ModulePass, builtin.ModuleOp, ModulePass], None]
-        | None = None,
+        callback: PassPipelineCallbackType | None = None,
     ) -> PassPipeline:
         specs = tuple(parse_pipeline(spec))
         unrecognised_passes = tuple(

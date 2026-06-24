@@ -46,7 +46,11 @@ from xdsl.ir import (
     TypedAttribute,
 )
 from xdsl.utils.classvar import is_const_classvar
-from xdsl.utils.exceptions import PyRDLAttrDefinitionError, PyRDLTypeError
+from xdsl.utils.exceptions import (
+    PyRDLAttrDefinitionError,
+    PyRDLTypeError,
+    VerifyException,
+)
 from xdsl.utils.hints import (
     PropertyType,
     get_type_var_from_generic_class,
@@ -281,25 +285,27 @@ class ParamAttrDef:
 
         constraint_context = ConstraintContext()
         for field, param_def in self.parameters:
-            param_def.constr.verify(getattr(attr, field), constraint_context)
+            try:
+                param_def.constr.verify(getattr(attr, field), constraint_context)
+            except VerifyException as e:
+                raise VerifyException(
+                    f"parameter '{field}' does not verify:\n{e}"
+                ) from e
 
 
 _PAttrTT = TypeVar("_PAttrTT", bound=type[ParametrizedAttribute])
-
-
-def get_accessors_from_param_attr_def(attr_def: ParamAttrDef) -> dict[str, Any]:
-    @classmethod
-    def get_irdl_definition(cls: type[ParametrizedAttribute]):
-        return attr_def
-
-    return {"get_irdl_definition": get_irdl_definition}
 
 
 def irdl_param_attr_definition(cls: _PAttrTT) -> _PAttrTT:
     """Decorator used on classes to define a new attribute definition."""
 
     attr_def = ParamAttrDef.from_pyrdl(cls)
-    new_fields = get_accessors_from_param_attr_def(attr_def)
+
+    @classmethod
+    def get_irdl_definition(cls: type[ParametrizedAttribute]):
+        return attr_def
+
+    cls.get_irdl_definition = get_irdl_definition
 
     if issubclass(cls, TypedAttribute):
         type_indexes = tuple(
@@ -315,18 +321,9 @@ def irdl_param_attr_definition(cls: _PAttrTT) -> _PAttrTT:
         def get_type_index(cls: Any) -> int:
             return type_index
 
-        new_fields["get_type_index"] = get_type_index
+        setattr(cls, "get_type_index", get_type_index)
 
-    return runtime_final(
-        dataclass(frozen=True, init=False)(
-            type.__new__(
-                type(cls),
-                cls.__name__,
-                (cls,),
-                {**cls.__dict__, **new_fields},
-            )
-        )
-    )
+    return runtime_final(dataclass(frozen=True, init=False)(cls))
 
 
 TypeAttributeInvT = TypeVar("TypeAttributeInvT", bound=type[Attribute])

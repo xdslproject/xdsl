@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Sequence
+from contextlib import redirect_stdout
 from io import StringIO
 
 from riscemu.config import RunConfig
@@ -9,24 +9,21 @@ from riscemu.instructions import (
     RV32F,
     RV32I,
     RV32M,
-    InstructionSet,
     RV_Debug,
     Zicsr,
 )
 from riscemu.riscemu_main import RiscemuMain, RiscemuSource
 
 
-def run_riscv(
-    code: str,
-    extensions: Sequence[type[InstructionSet]] = (),
-    unlimited_regs: bool = False,
-    verbosity: int = 5,
-):
+def emulate_riscv(code: str) -> str:
+    """
+    Emulates RISC-V assembly using the default options for Toy tutorial notebooks.
+    """
     cfg = RunConfig(
         debug_instruction=False,
-        verbosity=verbosity,
+        verbosity=0,
         debug_on_exception=False,
-        unlimited_registers=unlimited_regs,
+        unlimited_registers=True,
         use_libc=True,
         flen=64,
     )
@@ -39,14 +36,16 @@ def run_riscv(
         RV32D,
         Zicsr,
         RV_Debug,
-        *extensions,
     ]
     main.register_all_program_loaders()
 
     source = RiscemuSource("example.asm", StringIO(code))
     main.input_files.append(source)
 
-    try:
-        main.run()
-    except Exception as ex:
-        print(ex)
+    io = StringIO()
+    with redirect_stdout(io):
+        try:
+            main.run()
+        except Exception as ex:
+            print(ex)
+    return io.getvalue()

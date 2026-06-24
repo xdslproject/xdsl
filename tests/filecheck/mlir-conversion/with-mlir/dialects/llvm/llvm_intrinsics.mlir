@@ -38,6 +38,32 @@
 
 %ffloor_vec = llvm.intr.floor(%arg2) : (vector<4xf32>) -> vector<4xf32>
 // CHECK: llvm.intr.floor([[arg2]]) : (vector<4xf32>) -> vector<4xf32>
+%fcos_f32 = llvm.intr.cos(%arg0) : (f32) -> f32
+// CHECK: llvm.intr.cos([[arg0]]) : (f32) -> f32
+
+%fcos_f64 = llvm.intr.cos(%arg1) : (f64) -> f64
+// CHECK: llvm.intr.cos([[arg1]]) : (f64) -> f64
+
+%fcos_vec = llvm.intr.cos(%arg2) : (vector<4xf32>) -> vector<4xf32>
+// CHECK: llvm.intr.cos([[arg2]]) : (vector<4xf32>) -> vector<4xf32>
+
+%exp2_f32 = llvm.intr.exp2(%arg0) : (f32) -> f32
+// CHECK: llvm.intr.exp2([[arg0]]) : (f32) -> f32
+
+%exp2_f64 = llvm.intr.exp2(%arg1) : (f64) -> f64
+// CHECK: llvm.intr.exp2([[arg1]]) : (f64) -> f64
+
+%exp2_vec = llvm.intr.exp2(%arg2) : (vector<4xf32>) -> vector<4xf32>
+// CHECK: llvm.intr.exp2([[arg2]]) : (vector<4xf32>) -> vector<4xf32>
+
+%minnum_f32 = llvm.intr.minnum(%arg0, %arg0) : (f32, f32) -> f32
+// CHECK: llvm.intr.minnum([[arg0]], [[arg0]]) : (f32, f32) -> f32
+
+%minnum_f64 = llvm.intr.minnum(%arg1, %arg1) : (f64, f64) -> f64
+// CHECK: llvm.intr.minnum([[arg1]], [[arg1]]) : (f64, f64) -> f64
+
+%minnum_vec = llvm.intr.minnum(%arg2, %arg2) : (vector<4xf32>, vector<4xf32>) -> vector<4xf32>
+// CHECK: llvm.intr.minnum([[arg2]], [[arg2]]) : (vector<4xf32>, vector<4xf32>) -> vector<4xf32>
 
 %3 = llvm.fneg %arg0 : f32
 // CHECK: llvm.fneg [[arg0]] : f32
@@ -90,6 +116,15 @@
 %11 = llvm.select %select_cond, %select_f32_lhs, %select_f32_rhs : i1, f32
 // CHECK: llvm.select [[select_cond]], [[select_f32_lhs]], [[select_f32_rhs]] : i1, f32
 
+%12 = llvm.intr.pow(%arg0, %arg0) : (f32, f32) -> f32
+// CHECK: llvm.intr.pow([[arg0]], [[arg0]]) : (f32, f32) -> f32
+
+%13 = llvm.intr.pow(%arg1, %arg1) : (f64, f64) -> f64
+// CHECK: llvm.intr.pow([[arg1]], [[arg1]]) : (f64, f64) -> f64
+
+%14 = llvm.intr.pow(%arg2, %arg2) : (vector<4xf32>, vector<4xf32>) -> vector<4xf32>
+// CHECK: llvm.intr.pow([[arg2]], [[arg2]]) : (vector<4xf32>, vector<4xf32>) -> vector<4xf32>
+
 "test.op"() ({
 ^bb0(%cond_br_cond: i1, %cond_br_arg: i32):
   llvm.cond_br %cond_br_cond, ^bb1(%cond_br_arg: i32), ^bb2(%cond_br_arg: i32)
@@ -116,3 +151,26 @@
 
 llvm.intr.masked.store %vec_val, %ptr, %vec_mask {alignment = 32 : i32} : vector<4xf32>, vector<4xi1> into !llvm.ptr
 // CHECK: llvm.intr.masked.store [[vec_val]], [[ptr]], [[vec_mask]] {alignment = 32 : i32} : vector<4xf32>, vector<4xi1> into !llvm.ptr
+
+%scalar_f64 = "test.op"() : () -> f64
+// CHECK: [[scalar_f64:%\d+]] = "test.op"
+%vec_f64 = "test.op"() : () -> vector<2xf64>
+// CHECK: [[vec_f64:%\d+]] = "test.op"
+
+%reduce_fadd_f32 = "llvm.intr.vector.reduce.fadd"(%arg0, %arg2) <{fastmathFlags = #llvm.fastmath<none>}> : (f32, vector<4xf32>) -> f32
+// CHECK: "llvm.intr.vector.reduce.fadd"([[arg0]], [[arg2]]) <{fastmathFlags = #llvm.fastmath<none>}> : (f32, vector<4xf32>) -> f32
+
+%reduce_fadd_f64 = "llvm.intr.vector.reduce.fadd"(%scalar_f64, %vec_f64) <{fastmathFlags = #llvm.fastmath<none>}> : (f64, vector<2xf64>) -> f64
+// CHECK: "llvm.intr.vector.reduce.fadd"([[scalar_f64]], [[vec_f64]]) <{fastmathFlags = #llvm.fastmath<none>}> : (f64, vector<2xf64>) -> f64
+
+%reduce_fmul_f32 = "llvm.intr.vector.reduce.fmul"(%arg0, %arg2) <{fastmathFlags = #llvm.fastmath<none>}> : (f32, vector<4xf32>) -> f32
+// CHECK: "llvm.intr.vector.reduce.fmul"([[arg0]], [[arg2]]) <{fastmathFlags = #llvm.fastmath<none>}> : (f32, vector<4xf32>) -> f32
+
+%reduce_fmul_f64 = "llvm.intr.vector.reduce.fmul"(%scalar_f64, %vec_f64) <{fastmathFlags = #llvm.fastmath<none>}> : (f64, vector<2xf64>) -> f64
+// CHECK: "llvm.intr.vector.reduce.fmul"([[scalar_f64]], [[vec_f64]]) <{fastmathFlags = #llvm.fastmath<none>}> : (f64, vector<2xf64>) -> f64
+
+%stack = llvm.intr.stacksave : !llvm.ptr
+// CHECK: llvm.intr.stacksave : !llvm.ptr
+
+llvm.intr.stackrestore %stack : !llvm.ptr
+// CHECK: llvm.intr.stackrestore %{{.*}} : !llvm.ptr

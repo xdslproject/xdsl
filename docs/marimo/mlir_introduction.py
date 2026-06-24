@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.23.4"
+__generated_with = "0.23.6"
 app = marimo.App()
 
 
@@ -14,6 +14,7 @@ def _():
 @app.cell(hide_code=True)
 def _():
     from xdsl.utils import marimo as xmo
+
     return (xmo,)
 
 
@@ -68,7 +69,7 @@ def _(mo, xmo):
             module = to_mlir(code_editor.value)
         else:
             module = parse_mlir(code_editor.value)
-        module_list = [module.clone()]
+        module_list = []
         def callback(pass1, module, pass2):
             module_list.append(module.clone())
         all_passes = get_all_passes()
@@ -79,7 +80,6 @@ def _(mo, xmo):
         labels = ["Initial IR"] + ["IR after " + t for t in titles]
         ctx = get_ctx()
         pipeline.apply(ctx, module)
-        module_list.append(module.clone())
         if result == "md":
             return [(label, xmo.module_md(module)) for label, module in zip(labels, module_list, strict=True)]
         return [(label, module) for label, module in zip(labels, module_list, strict=True)]

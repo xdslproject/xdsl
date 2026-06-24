@@ -2,8 +2,9 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 
+from xdsl.backend.register_type import RegisterType
 from xdsl.dialect_interfaces.op_asm import OpAsmDialectInterface
-from xdsl.dialects.builtin import IntegerAttr, IntegerType
+from xdsl.dialects.builtin import IntegerAttr, IntegerType, SymbolNameConstraint
 from xdsl.interfaces import HasFolderInterface
 from xdsl.ir import (
     Attribute,
@@ -36,6 +37,7 @@ from xdsl.traits import (
     MemoryReadEffect,
     MemoryWriteEffect,
     Pure,
+    SymbolOpInterface,
 )
 
 
@@ -289,6 +291,56 @@ class TestType(Data[str], TypeAttribute):
             printer.print_string_literal(self.data)
 
 
+@irdl_op_definition
+class TestSymbolOp(IRDLOperation):
+    """
+    This operation can produce an arbitrary number of SSAValues with arbitrary
+    types. It is used in filecheck testing to reduce to artificial dependencies
+    on other dialects (i.e. dependencies that only come from the structure of
+    the test rather than the actual dialect).
+    Its main difference with TestOp is that it satisfies the SymbolOpInterface trait,
+    meaning that we can attach a symbol name to it.
+    """
+
+    name = "test.op_with_symbol"
+
+    res = var_result_def()
+    ops = var_operand_def()
+    regs = var_region_def()
+
+    sym_name = prop_def(SymbolNameConstraint())
+    traits = traits_def(SymbolOpInterface())
+
+    def __init__(
+        self,
+        operands: Sequence[SSAValue | Operation] = (),
+        result_types: Sequence[Attribute] = (),
+        attributes: Mapping[str, Attribute | None] | None = None,
+        properties: Mapping[str, Attribute | None] | None = None,
+        regions: Sequence[Region | Sequence[Operation] | Sequence[Block]] = (),
+    ):
+        super().__init__(
+            operands=(operands,),
+            result_types=(result_types,),
+            attributes=attributes,
+            properties=properties,
+            regions=(regions,),
+        )
+
+
+@irdl_attr_definition
+class TestRegisterType(RegisterType):
+    name = "test.reg"
+
+    @classmethod
+    def index_by_name(cls) -> dict[str, int]:
+        return {"x0": 0, "x1": 1, "a0": 0, "a1": 1}
+
+    @classmethod
+    def infinite_register_prefix(cls):
+        return "y"
+
+
 Test = Dialect(
     "test",
     [
@@ -297,9 +349,11 @@ Test = Dialect(
         TestReadOp,
         TestTermOp,
         TestWriteOp,
+        TestSymbolOp,
     ],
     [
         TestType,
+        TestRegisterType,
     ],
     [OpAsmDialectInterface()],
 )
