@@ -621,11 +621,11 @@ class Worklist:
     remove it in O(1).
     """
 
-    def is_empty(self) -> bool:
-        """Check if the worklist is empty."""
+    def __bool__(self) -> bool:
+        """Check if the worklist is non-empty."""
         while self._op_stack and self._op_stack[-1] is None:
             self._op_stack.pop()
-        return not bool(self._op_stack)
+        return bool(self._op_stack)
 
     def push(self, op: Operation):
         """
@@ -635,18 +635,18 @@ class Worklist:
             self._map[op] = len(self._op_stack)
             self._op_stack.append(op)
 
-    def pop(self) -> Operation | None:
+    def pop(self) -> Operation:
         """Pop the operation at the end of the worklist."""
-        # All `None` operations at the end of the stack are discarded,
+        # All `None` items at the end of the stack are discarded,
         # as they were removed previously.
-        # We either return `None` if the stack is empty, or the last operation
-        # that is not `None`.
-        while self._op_stack:
-            op = self._op_stack.pop()
-            if op is not None:
-                del self._map[op]
-                return op
-        return None
+        # We return the last item that is not `None`.
+        try:
+            while (item := self._op_stack.pop()) is None:
+                pass
+            del self._map[item]
+            return item
+        except IndexError:
+            raise IndexError("pop from empty worklist")
 
     def remove(self, op: Operation):
         """Remove an operation from the worklist."""
@@ -813,9 +813,9 @@ class PatternRewriteWalker:
         rewriter_has_done_action = False
 
         # Handle empty worklist
-        op = self._worklist.pop()
-        if op is None:
+        if not self._worklist:
             return rewriter_has_done_action
+        op = self._worklist.pop()
 
         # Create a rewriter on the first operation
         rewriter = PatternRewriter(op)
@@ -840,6 +840,6 @@ class PatternRewriteWalker:
             rewriter_has_done_action |= rewriter.has_done_action
 
             # If the worklist is empty, we are done
-            op = self._worklist.pop()
-            if op is None:
+            if not self._worklist:
                 return rewriter_has_done_action
+            op = self._worklist.pop()
