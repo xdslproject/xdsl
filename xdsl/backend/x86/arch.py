@@ -11,11 +11,14 @@ from xdsl.dialects.builtin import (
     VectorType,
 )
 from xdsl.dialects.x86.registers import (
+    AVX2RegisterType,
+    AVX512RegisterType,
     GeneralRegisterType,
     Reg8Type,
     Reg16Type,
     Reg32Type,
     Reg64Type,
+    SSERegisterType,
     X86RegisterType,
     X86VectorRegisterType,
 )
@@ -51,17 +54,12 @@ class X86Arch(StrEnum):
         element_type = cast(FixedBitwidthType, value_type.get_element_type())
         element_size = element_type.bitwidth
         vector_size = vector_num_elements * element_size
-        match self, vector_size:
-            case ((X86Arch.AVX2 | X86Arch.AVX512), 256):
-                return x86.registers.AVX2RegisterType
-            case X86Arch.AVX512, 512:
-                return x86.registers.AVX512RegisterType
-            case _, 128:
-                return x86.registers.SSERegisterType
-            case _:
-                raise DiagnosticException(
-                    f"The vector size ({vector_size} bits) and target architecture `{self}` are inconsistent."
-                )
+        try:
+            return _VECTOR_TYPES_BY_BITWIDTH_BY_ARCH[self][vector_size]
+        except KeyError:
+            raise DiagnosticException(
+                f"The vector size ({vector_size} bits) and target architecture `{self}` are inconsistent."
+            )
 
     def _scalar_type_for_type(self, value_type: Attribute) -> type[GeneralRegisterType]:
         if isinstance(value_type, FixedBitwidthType):
@@ -138,6 +136,20 @@ class X86Arch(StrEnum):
             mov_op = x86.DS_MovOp(value, destination=type(reg_type).unallocated())
 
         return builder.insert_op(mov_op).results[0]
+
+
+_VECTOR_TYPES_BY_BITWIDTH_BY_ARCH = {
+    X86Arch.UNKNOWN: {128: SSERegisterType},
+    X86Arch.AVX2: {128: SSERegisterType, 256: AVX2RegisterType},
+    X86Arch.AVX512: {
+        128: SSERegisterType,
+        256: AVX2RegisterType,
+        512: AVX512RegisterType,
+    },
+}
+"""
+For each supported target architecture, the vector type for a vector size.
+"""
 
 
 _ARCH_BY_NAME = {str(case): case for case in X86Arch}
