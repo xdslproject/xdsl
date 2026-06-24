@@ -87,6 +87,24 @@ class LinalgFunctions(InterpreterFunctions):
     ) -> tuple[Any, ...]:
         return run_linalg_structured_op(interpreter, op, args)
 
+    @impl(linalg.ops.ExpOp)
+    def run_exp(
+        self, interpreter: Interpreter, op: linalg.ops.ExpOp, args: tuple[Any, ...]
+    ) -> tuple[Any, ...]:
+        return run_linalg_structured_op(interpreter, op, args)
+
+    @impl(linalg.ops.LogOp)
+    def run_log(
+        self, interpreter: Interpreter, op: linalg.ops.LogOp, args: tuple[Any, ...]
+    ) -> tuple[Any, ...]:
+        return run_linalg_structured_op(interpreter, op, args)
+
+    @impl(linalg.ops.SqrtOp)
+    def run_sqrt(
+        self, interpreter: Interpreter, op: linalg.ops.SqrtOp, args: tuple[Any, ...]
+    ) -> tuple[Any, ...]:
+        return run_linalg_structured_op(interpreter, op, args)
+
     @impl(linalg.ops.FillOp)
     def run_fill(
         self, interpreter: Interpreter, op: linalg.ops.FillOp, args: tuple[Any, ...]
