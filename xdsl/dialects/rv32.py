@@ -30,7 +30,7 @@ from xdsl.ir import (
 )
 from xdsl.irdl import (
     irdl_op_definition,
-    traits_def,
+    lazy_traits_def,
 )
 from xdsl.parser import Parser
 
@@ -65,16 +65,12 @@ class LiOp(LiOperation[I32]):
         return attributes
 
 
-class RV32ShiftCanonicalizationTrait(
-    ImmShiftOpHasCanonicalizationPatternsTrait, li_op=LiOp
-):
-    pass
-
-
 class RdRsImmShiftOperationRV32(RdRsImmShiftOperation[UI5, I32]):
     """Base class for RISC-V 32-bit shift immediate operations with rd, rs1 and imm5."""
 
-    traits = traits_def(RV32ShiftCanonicalizationTrait())
+    traits = lazy_traits_def(
+        lambda: (ImmShiftOpRV32HasCanonicalizationPatternsTrait(),)
+    )
 
     def __init__(
         self,
@@ -93,6 +89,14 @@ class RdRsImmShiftOperationRV32(RdRsImmShiftOperation[UI5, I32]):
             rd=rd,
             comment=comment,
         )
+
+
+class ImmShiftOpRV32HasCanonicalizationPatternsTrait(
+    ImmShiftOpHasCanonicalizationPatternsTrait[I32],
+    li_op_type=LiOp,
+    shift_op_type=RdRsImmShiftOperationRV32,
+):
+    """Trait for RISC-V 32-bit shift immediate operations with canonicalization patterns."""
 
 
 @irdl_op_definition

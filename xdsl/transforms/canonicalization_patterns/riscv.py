@@ -340,8 +340,12 @@ class ShiftConstantFolding(RewritePattern, Generic[IWidth]):
     li_op_type: type[LiOperation[IWidth]]
     shift_op_type: type[riscv.RdRsImmShiftOperation[Any, IWidth]]
 
-    def __init__(self, li_op: type[LiOperation[IWidth]], shift_op_type: type[riscv.RdRsImmShiftOperation[Any, IWidth]]):
-        self.li_op = li_op
+    def __init__(
+        self,
+        li_op_type: type[LiOperation[IWidth]],
+        shift_op_type: type[riscv.RdRsImmShiftOperation[Any, IWidth]],
+    ):
+        self.li_op_type = li_op_type
         self.shift_op_type = shift_op_type
 
     def match_and_rewrite(
@@ -349,10 +353,13 @@ class ShiftConstantFolding(RewritePattern, Generic[IWidth]):
         op: Operation,
         rewriter: PatternRewriter,
     ) -> None:
-        if isa(op, self.shift_op_type) and (rs1 := get_constant_value(op.rs1)) is not None:
+        if (
+            isa(op, self.shift_op_type)
+            and (rs1 := get_constant_value(op.rs1)) is not None
+        ):
             rd = op.rd.type
             result = op.py_operation(cast(IntegerAttr[IWidth], rs1))
-            rewriter.replace_op(op, self.li_op(result, rd=rd))
+            rewriter.replace_op(op, self.li_op_type(result, rd=rd))
 
 
 class LoadWordWithKnownOffset(RewritePattern):

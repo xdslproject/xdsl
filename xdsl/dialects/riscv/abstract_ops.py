@@ -743,23 +743,7 @@ class RdRsImmIntegerOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC)
         return {"immediate"}
 
 
-class ImmShiftOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
-    li_op: type[LiOperation[Any]]
-
-    def __init_subclass__(cls, li_op: type[LiOperation[Any]], **kwargs: Any) -> None:
-        super().__init_subclass__(**kwargs)
-        cls.li_op = li_op
-
-    @classmethod
-    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.transforms.canonicalization_patterns.riscv import (
-            ShiftbyZero,
-            ShiftConstantFolding,
-        )
-
-        return (ShiftbyZero(), ShiftConstantFolding(cls.li_op))
-
-
+IWidth = TypeVar("IWidth", bound=I32 | I64)
 ShiftImmT = TypeVar("ShiftImmT", bound=UI5 | UI6)
 ShiftImmTAttr = TypeVar("ShiftImmTAttr", bound=I32 | I64)
 
@@ -823,6 +807,32 @@ class RdRsImmShiftOperation(RISCVInstruction, ABC, Generic[ShiftImmT, ShiftImmTA
         raise NotImplementedError(
             "RdRsImmShiftOperation py_operation is not yet implemented"
         )
+
+
+class ImmShiftOpHasCanonicalizationPatternsTrait(
+    HasCanonicalizationPatternsTrait, Generic[IWidth]
+):
+    li_op_type: type[LiOperation[IWidth]]
+    shift_op_type: type[RdRsImmShiftOperation[Any, IWidth]]
+
+    def __init_subclass__(
+        cls,
+        li_op_type: type[LiOperation[IWidth]],
+        shift_op_type: type[RdRsImmShiftOperation[Any, IWidth]],
+        **kwargs: Any,
+    ) -> None:
+        super().__init_subclass__(**kwargs)
+        cls.li_op_type = li_op_type
+        cls.shift_op_type = shift_op_type
+
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.riscv import (
+            ShiftbyZero,
+            ShiftConstantFolding,
+        )
+
+        return (ShiftbyZero(), ShiftConstantFolding(cls.li_op_type, cls.shift_op_type))
 
 
 class RdRsImmBitManipOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):
@@ -1463,9 +1473,6 @@ class LiOpHasCanonicalizationPatternTrait(HasCanonicalizationPatternsTrait):
         )
 
         return (LoadImmediate0(),)
-
-
-IWidth = TypeVar("IWidth", bound=I32 | I64)
 
 
 class LiOperation(
