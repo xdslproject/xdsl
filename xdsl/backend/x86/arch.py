@@ -3,8 +3,6 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import cast, overload
 
-from typing_extensions import deprecated
-
 from xdsl.builder import Builder
 from xdsl.dialects import asm, ptr, x86
 from xdsl.dialects.builtin import (
@@ -22,21 +20,20 @@ from xdsl.dialects.x86.registers import (
     X86VectorRegisterType,
 )
 from xdsl.ir import Attribute, SSAValue
-from xdsl.pattern_rewriter import PatternRewriter
 from xdsl.utils.exceptions import DiagnosticException
 from xdsl.utils.hints import isa
 from xdsl.utils.str_enum import StrEnum
 
 
-class Arch(StrEnum):
+class X86Arch(StrEnum):
     UNKNOWN = "unknown"
     AVX2 = "avx2"
     AVX512 = "avx512"
 
     @staticmethod
-    def arch_for_name(name: str | None) -> Arch:
+    def arch_for_name(name: str | None) -> X86Arch:
         if name is None:
-            return Arch.UNKNOWN
+            return X86Arch.UNKNOWN
         try:
             return _ARCH_BY_NAME[name]
         except KeyError:
@@ -55,9 +52,9 @@ class Arch(StrEnum):
         element_size = element_type.bitwidth
         vector_size = vector_num_elements * element_size
         match self, vector_size:
-            case ((Arch.AVX2 | Arch.AVX512), 256):
+            case ((X86Arch.AVX2 | X86Arch.AVX512), 256):
                 return x86.registers.AVX2RegisterType
-            case Arch.AVX512, 512:
+            case X86Arch.AVX512, 512:
                 return x86.registers.AVX512RegisterType
             case _, 128:
                 return x86.registers.SSERegisterType
@@ -110,11 +107,6 @@ class Arch(StrEnum):
             for v in values
         ]
 
-    @deprecated("Please use `arch.cast_to_regs(values, rewriter)`")
-    def cast_operands_to_regs(self, rewriter: PatternRewriter) -> list[SSAValue]:
-        new_operands = self.cast_to_regs(rewriter.current_operation.operands, rewriter)
-        return new_operands
-
     def move_value_to_unallocated(
         self, value: SSAValue, value_type: Attribute, builder: Builder
     ) -> SSAValue:
@@ -148,7 +140,7 @@ class Arch(StrEnum):
         return builder.insert_op(mov_op).results[0]
 
 
-_ARCH_BY_NAME = {str(case): case for case in Arch}
+_ARCH_BY_NAME = {str(case): case for case in X86Arch}
 """
 Handled architectures in x86 backend.
 """

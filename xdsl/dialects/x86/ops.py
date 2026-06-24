@@ -3435,6 +3435,60 @@ class DSS_AddpsOp(
 
 
 @irdl_op_definition
+class DSS_VpxordOp(
+    DSS_Operation[X86VectorRegisterType, X86VectorRegisterType, X86VectorRegisterType]
+):
+    """
+    Bitwise XOR of packed doubleword integers in s1 and s2 and store the result in d.
+
+    See external [documentation](https://www.felixcloutier.com/x86/pxor).
+    """
+
+    name = "x86.dss.vpxord"
+
+
+@irdl_op_definition
+class DSS_VpxorqOp(
+    DSS_Operation[X86VectorRegisterType, X86VectorRegisterType, X86VectorRegisterType]
+):
+    """
+    Bitwise XOR of packed quadword integers in s1 and s2 and store the result in d.
+
+    See external [documentation](https://www.felixcloutier.com/x86/pxor).
+    """
+
+    name = "x86.dss.vpxorq"
+
+
+@irdl_op_definition
+class DSS_VxorpdOp(
+    DSS_Operation[X86VectorRegisterType, X86VectorRegisterType, X86VectorRegisterType]
+):
+    """
+    Bitwise XOR of packed double-precision floating-point elements in s1 and s2 and
+    store the result in d.
+
+    See external [documentation](https://www.felixcloutier.com/x86/xorpd).
+    """
+
+    name = "x86.dss.vxorpd"
+
+
+@irdl_op_definition
+class DSS_VxorpsOp(
+    DSS_Operation[X86VectorRegisterType, X86VectorRegisterType, X86VectorRegisterType]
+):
+    """
+    Bitwise XOR of packed single-precision floating-point elements in s1 and s2 and
+    store the result in d.
+
+    See external [documentation](https://www.felixcloutier.com/x86/xorps).
+    """
+
+    name = "x86.dss.vxorps"
+
+
+@irdl_op_definition
 class DS_VmovapdOp(DS_Operation[X86VectorRegisterType, X86VectorRegisterType]):
     """
     Move aligned packed double precision floating-point values from zmm1 to zmm2

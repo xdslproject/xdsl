@@ -22,7 +22,7 @@ jobs:
       PYRIGHT_VERSION: 1.0
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Install uv
         uses: astral-sh/setup-uv@v8.2.0
