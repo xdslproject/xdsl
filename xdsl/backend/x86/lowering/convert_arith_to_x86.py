@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from xdsl.backend.x86.lowering.helpers import Arch
+from xdsl.backend.x86.arch import X86Arch
 from xdsl.context import Context
 from xdsl.dialects import arith, asm, builtin, x86
 from xdsl.dialects.builtin import IntegerAttr
@@ -20,7 +20,7 @@ from xdsl.utils.hints import isa
 
 @dataclass
 class ArithConstantToX86(RewritePattern):
-    arch: Arch
+    arch: X86Arch
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: arith.ConstantOp, rewriter: PatternRewriter):
@@ -47,7 +47,7 @@ X86_OP_BY_ARITH_BINARY_OP = {
 
 @dataclass
 class ArithBinaryToX86(RewritePattern):
-    arch: Arch
+    arch: X86Arch
 
     def match_and_rewrite(self, op: Operation, rewriter: PatternRewriter):
         new_type = X86_OP_BY_ARITH_BINARY_OP.get(type(op))  # pyright: ignore
@@ -76,7 +76,7 @@ class ConvertArithToX86Pass(ModulePass):
     name = "convert-arith-to-x86"
 
     def apply(self, ctx: Context, op: builtin.ModuleOp) -> None:
-        arch = Arch.arch_for_name(None)
+        arch = X86Arch.arch_for_name(None)
         PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [

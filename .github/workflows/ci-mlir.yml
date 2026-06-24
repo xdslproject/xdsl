@@ -27,7 +27,7 @@ jobs:
       XDSL_MLIR_TRANSLATE: /usr/bin/mlir-translate
       XDSL_LLVM_DIFF: /usr/bin/llvm-diff-22
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 2
 

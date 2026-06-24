@@ -406,9 +406,8 @@ class SymbolTableCollection:
             return None
         return symbols if all_symbols else symbols[-1]
 
-    @staticmethod
     def lookup_nearest_symbol_from(
-        from_op: Operation, symbol: StringAttr | SymbolRefAttr
+        self, from_op: Operation, symbol: StringAttr | SymbolRefAttr | str
     ) -> Operation | None:
         """
         Returns the operation registered with the given symbol name within the closest
@@ -416,7 +415,10 @@ class SymbolTableCollection:
         [`SymbolTable`][xdsl.traits.SymbolTable] trait.
         Returns `None` if no valid symbol was found.
         """
-        raise NotImplementedError
+        symbol_table_op = SymbolTable.get_nearest_symbol_table(from_op)
+        if symbol_table_op is None:
+            return None
+        return self.lookup_symbol_in(symbol_table_op, symbol)
 
     def get_symbol_table(self, op: Operation) -> SymbolTable:
         """
