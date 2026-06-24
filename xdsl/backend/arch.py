@@ -6,13 +6,12 @@ architecture.
 
 import abc
 
-from typing_extensions import Self
-
 
 class Arch(abc.ABC):
+    @staticmethod
     @abc.abstractmethod
-    @classmethod
-    def arch_for_name(cls, name: str | None) -> Self:
+    def name() -> str:
         """
-        Returns an instance of Arch for a given name, or default if none is provided.
+        The name that this architecture/microarchitecture can be referred by, should be
+        unique per backend.
         """

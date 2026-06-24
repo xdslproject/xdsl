@@ -362,7 +362,7 @@ class AddOp(ElementwiseOperation):
 
 
 @irdl_op_definition
-class ExpOp(NamedOperation):
+class ExpOp(ElementwiseOperation, NamedOperation):
     """
     Applies exp(x) elementwise.
 
@@ -406,7 +406,7 @@ class ExpOp(NamedOperation):
 
 
 @irdl_op_definition
-class LogOp(NamedOperation):
+class LogOp(ElementwiseOperation, NamedOperation):
     """
     Applies log(x) elementwise.
 
@@ -497,7 +497,7 @@ class SubOp(ElementwiseOperation):
 
 
 @irdl_op_definition
-class SqrtOp(NamedOperation):
+class SqrtOp(ElementwiseOperation, NamedOperation):
     """
     Applies sqrt(x) elementwise.
 

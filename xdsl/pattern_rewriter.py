@@ -30,6 +30,7 @@ from xdsl.irdl import AttrConstraint, base
 from xdsl.rewriter import BlockInsertPoint, InsertPoint, Rewriter
 from xdsl.traits import ConstantLike, HasFolder
 from xdsl.utils.hints import isa
+from xdsl.utils.worklist import Worklist
 
 
 @dataclass(eq=False)
@@ -135,29 +136,6 @@ class PatternRewriter(Builder, PatternRewriterListener):
         """Insert operations at a certain location in a block."""
         self.has_done_action = True
         return super().insert_op(op, insertion_point)
-
-    @deprecated(
-        "Please use `rewriter.insert_op(op, InsertPoint.before(rewriter.current_operation))` instead"
-    )
-    def insert_op_before_matched_op(self, op: InsertOpInvT) -> InsertOpInvT:
-        """Insert operations before the matched operation."""
-        return self.insert_op(op, InsertPoint.before(self.current_operation))
-
-    @deprecated(
-        "Please use `rewriter.insert_op(op, InsertPoint.after(rewriter.current_operation))` instead"
-    )
-    def insert_op_after_matched_op(self, op: InsertOpInvT) -> InsertOpInvT:
-        """Insert operations after the matched operation."""
-        return self.insert_op(op, InsertPoint.after(self.current_operation))
-
-    @deprecated("Please use `erase_op(op)` instead")
-    def erase_matched_op(self, safe_erase: bool = True):
-        """
-        Erase the operation that was matched to.
-        If safe_erase is True, check that the operation has no uses.
-        Otherwise, replace its uses with ErasedSSAValue.
-        """
-        self.erase_op(self.current_operation, safe_erase=safe_erase)
 
     def erase_op(self, op: Operation, safe_erase: bool = True):
         """
@@ -319,30 +297,6 @@ class PatternRewriter(Builder, PatternRewriterListener):
         """
         self.has_done_action = True
         Rewriter.inline_block(block, insertion_point, arg_values=arg_values)
-
-    @deprecated("Please use `inline_block(block, InsertPoint.before(op))`")
-    def inline_block_before_matched_op(
-        self, block: Block, arg_values: Sequence[SSAValue] = ()
-    ):
-        """
-        Move the block operations before the matched operation.
-        The block should not be a parent of the operation.
-        """
-        self.inline_block(
-            block, InsertPoint.before(self.current_operation), arg_values=arg_values
-        )
-
-    @deprecated("Please use `inline_block(block, InsertPoint.after(op))`")
-    def inline_block_after_matched_op(
-        self, block: Block, arg_values: Sequence[SSAValue] = ()
-    ):
-        """
-        Move the block operations after the matched operation.
-        The block should not be a parent of the operation.
-        """
-        self.inline_block(
-            block, InsertPoint.after(self.current_operation), arg_values=arg_values
-        )
 
     def move_region_contents_to_new_regions(self, region: Region) -> Region:
         """Move the region blocks to a new region."""
@@ -649,60 +603,6 @@ class GreedyRewritePatternApplier(RewritePattern):
         return
 
 
-@dataclass(eq=False)
-class Worklist:
-    _op_stack: list[Operation | None] = field(
-        default_factory=list[Operation | None], init=False
-    )
-    """
-    The list of operations to iterate over, used as a last-in-first-out stack.
-    Operations are added and removed at the end of the list.
-    Operation that are `None` are meant to be discarded, and are used to
-    keep removal of operations O(1).
-    """
-
-    _map: dict[Operation, int] = field(default_factory=dict[Operation, int], init=False)
-    """
-    The map of operations to their index in the stack.
-    It is used to check if an operation is already in the stack, and to
-    remove it in O(1).
-    """
-
-    def is_empty(self) -> bool:
-        """Check if the worklist is empty."""
-        while self._op_stack and self._op_stack[-1] is None:
-            self._op_stack.pop()
-        return not bool(self._op_stack)
-
-    def push(self, op: Operation):
-        """
-        Push an operation to the end of the worklist, if it is not already in it.
-        """
-        if op not in self._map:
-            self._map[op] = len(self._op_stack)
-            self._op_stack.append(op)
-
-    def pop(self) -> Operation | None:
-        """Pop the operation at the end of the worklist."""
-        # All `None` operations at the end of the stack are discarded,
-        # as they were removed previously.
-        # We either return `None` if the stack is empty, or the last operation
-        # that is not `None`.
-        while self._op_stack:
-            op = self._op_stack.pop()
-            if op is not None:
-                del self._map[op]
-                return op
-        return None
-
-    def remove(self, op: Operation):
-        """Remove an operation from the worklist."""
-        if op in self._map:
-            index = self._map[op]
-            self._op_stack[index] = None
-            del self._map[op]
-
-
 @dataclass(eq=False, repr=False)
 class PatternRewriteWalker:
     """
@@ -860,9 +760,9 @@ class PatternRewriteWalker:
         rewriter_has_done_action = False
 
         # Handle empty worklist
-        op = self._worklist.pop()
-        if op is None:
+        if not self._worklist:
             return rewriter_has_done_action
+        op = self._worklist.pop()
 
         # Create a rewriter on the first operation
         rewriter = PatternRewriter(op)
@@ -887,6 +787,6 @@ class PatternRewriteWalker:
             rewriter_has_done_action |= rewriter.has_done_action
 
             # If the worklist is empty, we are done
-            op = self._worklist.pop()
-            if op is None:
+            if not self._worklist:
                 return rewriter_has_done_action
+            op = self._worklist.pop()

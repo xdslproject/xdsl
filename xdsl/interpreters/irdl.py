@@ -25,7 +25,6 @@ from xdsl.irdl import (
     ResultDef,
     VarConstraint,
     get_accessors_from_op_def,
-    get_accessors_from_param_attr_def,
 )
 from xdsl.traits import SymbolTable
 
@@ -163,9 +162,12 @@ class IRDLFunctions(InterpreterFunctions):
 
         attr = self.get_attr(interpreter, name)
         attr_def = self._get_attr_def(interpreter, name)
-        to_inject = get_accessors_from_param_attr_def(attr_def)
-        for k, v in to_inject.items():
-            setattr(attr, k, v)
+
+        @classmethod
+        def get_irdl_definition(cls: type[ParametrizedAttribute]):
+            return attr_def
+
+        setattr(attr, "get_irdl_definition", get_irdl_definition)
         return ()
 
     @impl(irdl.OperandsOp)
