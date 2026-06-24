@@ -507,6 +507,33 @@ class BnezOp(RISCVInstruction):
             successors=(then_block, else_block),
         )
 
+    def verify_(self) -> None:
+
+        for op_arg, block_arg in zip(self.then_arguments, self.then_block.args):
+            if op_arg.type != block_arg.type:
+                raise VerifyException(
+                    f"Block arg types must match {op_arg.type} {block_arg.type}"
+                )
+
+        for op_arg, block_arg in zip(self.else_arguments, self.else_block.args):
+            if op_arg.type != block_arg.type:
+                raise VerifyException(
+                    f"Block arg types must match {op_arg.type} {block_arg.type}"
+                )
+
+        parent_block = self.parent
+        if parent_block is None:
+            return
+
+        parent_region = parent_block.parent
+        if parent_region is None:
+            return
+
+        if parent_block.next_block is not self.else_block:
+            raise VerifyException(
+                "riscv_cf.bnez operation else block must be immediately after op"
+            )
+
     def print(self, printer: Printer) -> None:
         printer.print_string(" ")
         _print_type_pair(printer, self.rs)
