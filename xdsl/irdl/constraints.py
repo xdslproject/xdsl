@@ -147,10 +147,13 @@ class AttrConstraint(ABC, Generic[AttributeCovT]):
         """
         return None
 
-    def merge(
+    def relax_constraint(
         self, other: AttrConstraint[AttributeCovT]
     ) -> AttrConstraint[AttributeCovT] | None:
-        """Attempt to merge this constraint with another, returning the result if successful."""
+        """
+        Attempt to relax this constraint by merging it with `other`,
+        returning the result if successful.
+        """
         return None
 
     def __or__(
@@ -417,7 +420,7 @@ class AnyOf(AttrConstraint[AttributeCovT], Generic[AttributeCovT]):
             # This is a quadratic check, but should likely be fine in practice
             merged = False
             for k, c2 in enumerate(constrs[:i]):
-                if (v := c2.merge(c)) is not None:
+                if (v := c2.relax_constraint(c)) is not None:
                     merged = True
                     constrs[k] = v
                     constrs.pop(i)
@@ -713,7 +716,7 @@ class ParamAttrConstraint(
             *(c.mapping_type_vars(type_var_mapping) for c in self.param_constrs),
         )
 
-    def merge(
+    def relax_constraint(
         self, other: AttrConstraint[ParametrizedAttributeCovT]
     ) -> AttrConstraint[ParametrizedAttributeCovT] | None:
         if not isinstance(other, ParamAttrConstraint):
