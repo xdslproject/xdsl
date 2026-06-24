@@ -1,3 +1,5 @@
+import pytest
+
 from xdsl.dialects import test
 from xdsl.pattern_rewriter import Worklist
 
@@ -22,9 +24,9 @@ def test_worklist_push_pop():
     assert worklist.pop() is op4
     assert worklist.pop() is op3
     assert worklist.pop() is op1
-    assert worklist.is_empty()
-    assert worklist.pop() is None
-    assert worklist.is_empty()
+    assert not worklist
+    with pytest.raises(IndexError, match="pop from empty worklist"):
+        worklist.pop()
 
 
 def test_worklist_push_already_inserted():
@@ -41,9 +43,9 @@ def test_worklist_push_already_inserted():
 
     assert worklist.pop() is op2
     assert worklist.pop() is op1
-    assert worklist.is_empty()
-    assert worklist.pop() is None
-    assert worklist.is_empty()
+    assert not worklist
+    with pytest.raises(IndexError, match="pop from empty worklist"):
+        worklist.pop()
 
 
 def test_worklist_remove():
@@ -66,6 +68,6 @@ def test_worklist_remove():
 
     assert worklist.pop() is op4
     assert worklist.pop() is op3
-    assert worklist.is_empty()
-    assert worklist.pop() is None
-    assert worklist.is_empty()
+    assert not worklist
+    with pytest.raises(IndexError, match="pop from empty worklist"):
+        worklist.pop()
