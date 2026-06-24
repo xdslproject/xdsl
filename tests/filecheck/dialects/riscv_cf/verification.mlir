@@ -121,7 +121,7 @@
     riscv_cf.j ^then(%1 : !riscv.reg<a2>, %2 : !riscv.reg<a3>)
 }) : () -> ()
 
-// CHECK: Operation does not verify: riscv_cf branch op then block first op must be a label
+// CHECK: Operation does not verify: riscv_cf.bnez operation then block must have a riscv.label operation as a first argument, found
 
 // -----
 
@@ -169,4 +169,4 @@
     riscv_cf.j ^then(%1 : !riscv.reg<a2>, %2 : !riscv.reg<a3>)
 }) : () -> ()
 
-// CHECK: Operation does not verify: riscv_cf branch op else block must be immediately after op
+// CHECK: Operation does not verify: riscv_cf.bnez operation else block must be immediately after op

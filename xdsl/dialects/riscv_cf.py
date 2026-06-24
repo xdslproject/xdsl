@@ -508,6 +508,11 @@ class BnezOp(RISCVInstruction):
         )
 
     def verify_(self) -> None:
+        if not isinstance(self.then_block.first_op, riscv.LabelOp):
+            raise VerifyException(
+                "riscv_cf.bnez operation then block must have a riscv.label operation as a "
+                f"first argument, found {self.then_block.first_op}"
+            )
 
         for op_arg, block_arg in zip(self.then_arguments, self.then_block.args):
             if op_arg.type != block_arg.type:
