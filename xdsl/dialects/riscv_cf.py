@@ -97,7 +97,6 @@ class ConditionalBranchOperation(
             )
 
         # Types of arguments must match arg types of blocks
-
         for op_arg, block_arg in zip(self.then_arguments, self.then_block.args):
             if op_arg.type != block_arg.type:
                 raise VerifyException(
@@ -508,38 +507,6 @@ class BnezOp(RISCVInstruction):
             successors=(then_block, else_block),
         )
 
-    def verify_(self) -> None:
-        if not isinstance(self.then_block.first_op, riscv.LabelOp):
-            raise VerifyException(
-                "riscv_cf.bnez operation then block must have a riscv.label operation as a "
-                f"first op, found {self.then_block.first_op}"
-            )
-
-        for op_arg, block_arg in zip(self.then_arguments, self.then_block.args):
-            if op_arg.type != block_arg.type:
-                raise VerifyException(
-                    f"Block arg types must match {op_arg.type} {block_arg.type}"
-                )
-
-        for op_arg, block_arg in zip(self.else_arguments, self.else_block.args):
-            if op_arg.type != block_arg.type:
-                raise VerifyException(
-                    f"Block arg types must match {op_arg.type} {block_arg.type}"
-                )
-
-        parent_block = self.parent
-        if parent_block is None:
-            return
-
-        parent_region = parent_block.parent
-        if parent_region is None:
-            return
-
-        if parent_block.next_block is not self.else_block:
-            raise VerifyException(
-                "riscv_cf.bnez operation else block must be immediately after op"
-            )
-
     def print(self, printer: Printer) -> None:
         printer.print_string(" ")
         _print_type_pair(printer, self.rs)
@@ -586,7 +553,6 @@ class BnezOp(RISCVInstruction):
         then_label = self.then_block.first_op
         assert isinstance(then_label, riscv.LabelOp)
         return (self.rs, then_label.label)
-
 
 
 RISCV_Cf = Dialect(
