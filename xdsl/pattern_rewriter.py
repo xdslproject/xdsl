@@ -622,7 +622,10 @@ class Worklist:
     """
 
     def __bool__(self) -> bool:
-        """Check if the worklist is non-empty."""
+        """
+        Check if the worklist is non-empty.
+        Runs in worst case O(n) time (amortized constant).
+        """
         while self._op_stack and self._op_stack[-1] is None:
             self._op_stack.pop()
         return bool(self._op_stack)
