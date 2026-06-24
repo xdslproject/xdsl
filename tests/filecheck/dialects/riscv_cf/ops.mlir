@@ -20,8 +20,8 @@
     riscv.label "else4"
     riscv_cf.bgeu %0 : !riscv.reg<a0>, %1 : !riscv.reg<a1>, ^then(%2 : !riscv.reg<a2>, %3 : !riscv.reg<a3>), ^else5(%4 : !riscv.reg<a2>, %5 : !riscv.reg<a3>)
   ^else5(%e50: !riscv.reg<a2>, %e51: !riscv.reg<a3>):
-    riscv.label "else5"
-    riscv_cf.bnez %0 : !riscv.reg<a0>, ^then(%2 : !riscv.reg<a2>, %3 : !riscv.reg<a3>), ^else6(%4 : !riscv.reg<a2>, %5 : !riscv.reg<a3>)
+    riscv.label "else5" 
+    riscv_cf.bnez %0 : !riscv.reg<a0>, ^then(%2 : !riscv.reg<a2>, %3 : !riscv.reg<a3>), ^else6(%4 : !riscv.reg<a2>, %5 : !riscv.reg<a3>) attributes {"comment" = "comment"}
   ^else6(%e60: !riscv.reg<a2>, %e61: !riscv.reg<a3>):
     riscv.label "else6"
     riscv_cf.branch ^then(%2 : !riscv.reg<a2>, %3 : !riscv.reg<a3>) attributes {"hello" = "world"}
@@ -51,7 +51,7 @@
 // CHECK-NEXT:      riscv_cf.bgeu %0 : !riscv.reg<a0>, %1 : !riscv.reg<a1>, ^{{.+}}(%2 : !riscv.reg<a2>, %3 : !riscv.reg<a3>), ^{{.+}}(%4 : !riscv.reg<a2>, %5 : !riscv.reg<a3>)
 // CHECK-NEXT:    ^{{.+}}(%{{.+}}: !riscv.reg<a2>, %{{.+}}: !riscv.reg<a3>):
 // CHECK-NEXT:      riscv.label "else5"
-// CHECK-NEXT:      riscv_cf.bnez %0 : !riscv.reg<a0>, ^{{.+}}(%2 : !riscv.reg<a2>, %3 : !riscv.reg<a3>), ^{{.+}}(%4 : !riscv.reg<a2>, %5 : !riscv.reg<a3>)
+// CHECK-NEXT:      riscv_cf.bnez %0 : !riscv.reg<a0>, ^{{.+}}(%2 : !riscv.reg<a2>, %3 : !riscv.reg<a3>), ^{{.+}}(%4 : !riscv.reg<a2>, %5 : !riscv.reg<a3>) attributes {"comment" = "comment"}
 // CHECK-NEXT:    ^{{.+}}(%{{.+}}: !riscv.reg<a2>, %{{.+}}: !riscv.reg<a3>):
 // CHECK-NEXT:      riscv.label "else6"
 // CHECK-NEXT:      riscv_cf.branch ^{{.+}}(%2 : !riscv.reg<a2>, %3 : !riscv.reg<a3>) attributes {hello = "world"}
