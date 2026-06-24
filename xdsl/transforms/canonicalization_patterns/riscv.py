@@ -1,4 +1,4 @@
-from typing import Any, Literal, cast
+from typing import Any, Generic, Literal, cast
 
 from xdsl.dialects import riscv, riscv_snitch, rv32, rv64
 from xdsl.dialects.builtin import (
@@ -10,10 +10,10 @@ from xdsl.dialects.builtin import (
     i32,
     i64,
 )
-from xdsl.dialects.riscv.abstract_ops import LiOperation
+from xdsl.dialects.riscv.abstract_ops import IWidth, LiOperation
 from xdsl.dialects.utils import FastMathFlag
-from xdsl.ir import OpResult, SSAValue
-from xdsl.irdl import irdl_to_attr_constraint
+from xdsl.ir import Operation, OpResult, SSAValue
+from xdsl.irdl import irdl_to_attr_constraint, isa
 from xdsl.pattern_rewriter import (
     PatternRewriter,
     RewritePattern,
@@ -332,23 +332,26 @@ class ShiftbyZero(RewritePattern):
             rewriter.replace_op(op, riscv.MVOp(op.rs1, rd=op.rd.type))
 
 
-class ShiftConstantFolding(RewritePattern):
+class ShiftConstantFolding(RewritePattern, Generic[IWidth]):
     """
     shift(c1, c2) -> c3
     """
 
-    def __init__(self, li_op: type[LiOperation[I32 | I64]]):
-        self.li_op = li_op
+    li_op_type: type[LiOperation[IWidth]]
+    shift_op_type: type[riscv.RdRsImmShiftOperation[Any, IWidth]]
 
-    @op_type_rewrite_pattern
+    def __init__(self, li_op: type[LiOperation[IWidth]], shift_op_type: type[riscv.RdRsImmShiftOperation[Any, IWidth]]):
+        self.li_op = li_op
+        self.shift_op_type = shift_op_type
+
     def match_and_rewrite(
         self,
-        op: rv32.RdRsImmShiftOperationRV32 | rv64.RdRsImmShiftOperationRV64,
+        op: Operation,
         rewriter: PatternRewriter,
     ) -> None:
-        if (rs1 := get_constant_value(op.rs1)) is not None:
+        if isa(op, self.shift_op_type) and (rs1 := get_constant_value(op.rs1)) is not None:
             rd = op.rd.type
-            result = op.py_operation(cast(Any, rs1))
+            result = op.py_operation(cast(IntegerAttr[IWidth], rs1))
             rewriter.replace_op(op, self.li_op(result, rd=rd))
 
 
