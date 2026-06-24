@@ -16,7 +16,7 @@ from xdsl.ir import Region
 from xdsl.ir.post_order import PostOrderIterator
 from xdsl.irdl import VarIRConstruct, verify_variadic_size
 from xdsl.parser import Parser as XdslParser
-from xdsl.pattern_rewriter import PatternRewriter, Worklist
+from xdsl.pattern_rewriter import PatternRewriter
 from xdsl.rewriter import InsertPoint
 from xdsl.traits import (
     HasCanonicalizationPatternsTrait,
@@ -34,6 +34,7 @@ from xdsl.transforms.test_constant_folding import (
     TestConstantFoldingPass,
     TestSpecialisedConstantFoldingPass,
 )
+from xdsl.utils.worklist import Worklist
 
 CTX = Context(allow_unregistered=True)
 CTX.load_dialect(Arith)
