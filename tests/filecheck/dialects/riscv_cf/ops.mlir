@@ -51,7 +51,7 @@
 // CHECK-NEXT:      riscv_cf.bgeu %0 : !riscv.reg<a0>, %1 : !riscv.reg<a1>, ^{{.+}}(%2 : !riscv.reg<a2>, %3 : !riscv.reg<a3>), ^{{.+}}(%4 : !riscv.reg<a2>, %5 : !riscv.reg<a3>)
 // CHECK-NEXT:    ^{{.+}}(%{{.+}}: !riscv.reg<a2>, %{{.+}}: !riscv.reg<a3>):
 // CHECK-NEXT:      riscv.label "else5"
-// CHECK-NEXT:      riscv_cf.bnez %0 : !riscv.reg<a0>, ^{{.+}}(%2 : !riscv.reg<a2>, %3 : !riscv.reg<a3>), ^{{.+}}(%4 : !riscv.reg<a2>, %5 : !riscv.reg<a3>) attributes {"comment" = "comment"}
+// CHECK-NEXT:      riscv_cf.bnez %0 : !riscv.reg<a0>, ^{{.+}}(%2 : !riscv.reg<a2>, %3 : !riscv.reg<a3>), ^{{.+}}(%4 : !riscv.reg<a2>, %5 : !riscv.reg<a3>) attributes {comment = "comment"}
 // CHECK-NEXT:    ^{{.+}}(%{{.+}}: !riscv.reg<a2>, %{{.+}}: !riscv.reg<a3>):
 // CHECK-NEXT:      riscv.label "else6"
 // CHECK-NEXT:      riscv_cf.branch ^{{.+}}(%2 : !riscv.reg<a2>, %3 : !riscv.reg<a3>) attributes {hello = "world"}
