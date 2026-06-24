@@ -235,11 +235,11 @@ def test_linalg_binary_elementwise(
         ),
         (
             linalg.ops.LogOp,
-            [math.log(6.0), math.log(4.0), math.log(9.0), math.log(5.0)],
+            [math.log(1.0), math.log(2.0), math.log(3.0), math.log(4.0)],
         ),
         (
             linalg.ops.SqrtOp,
-            [math.sqrt(6.0), math.sqrt(4.0), math.sqrt(9.0), math.sqrt(5.0)],
+            [math.sqrt(1.0), math.sqrt(2.0), math.sqrt(3.0), math.sqrt(4.0)],
         ),
     ],
 )
