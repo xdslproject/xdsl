@@ -469,7 +469,7 @@ class ConvertAllocaPattern(RewritePattern):
         size = math.prod([s for s in shape if s != builtin.DYNAMIC_INDEX])
         if size > 1:
             static_size = rewriter.insert_op(
-                arith.ConstantOp.from_int_and_width(size, builtin.IntegerType(32))
+                arith.ConstantOp.from_int_and_width(size, builtin.IntegerType(64))
             ).result
             static_size.name_hint = f"c{size}"
 
@@ -486,10 +486,10 @@ class ConvertAllocaPattern(RewritePattern):
                     arith.MuliOp(dynamic_size, dyn)
                 ).result
 
-        # Cast dynamic size to i32
+        # Cast dynamic size to i64
         if isinstance(dynamic_size, SSAValue):
             dynamic_size = rewriter.insert_op(
-                arith.IndexCastOp(dynamic_size, builtin.IntegerType(32))
+                arith.IndexCastOp(dynamic_size, builtin.IntegerType(64))
             ).result
 
         # Merge static and dynamic
@@ -505,7 +505,7 @@ class ConvertAllocaPattern(RewritePattern):
         # Unranked memref (both static and dynamic is None)
         if total is None:
             total = rewriter.insert_op(
-                arith.ConstantOp.from_int_and_width(1, builtin.IntegerType(32))
+                arith.ConstantOp.from_int_and_width(1, builtin.IntegerType(64))
             ).result
             total.name_hint = "c1"
 
