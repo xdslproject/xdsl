@@ -1,7 +1,7 @@
 import pytest
 
 from xdsl.dialects import test
-from xdsl.pattern_rewriter import Worklist
+from xdsl.utils.worklist import Worklist
 
 
 def test_worklist_push_pop():
