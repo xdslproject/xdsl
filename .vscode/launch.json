@@ -11,10 +11,8 @@
             "module": "xdsl.tools.xdsl_opt",
             "justMyCode": true,
             "args": [
-                "${file}",
-                "-p",
-                "riscv-allocate-registers{allocation_strategy=LivenessBlockNaive}"
-            ]
+"${file}",
+]
         },
         {
             "name": "xdsl-run",
