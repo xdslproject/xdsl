@@ -12,6 +12,8 @@
             "justMyCode": true,
             "args": [
                 "${file}",
+                "-p",
+                "riscv-allocate-registers{allocation_strategy=LivenessBlockNaive}"
             ]
         },
         {

@@ -5,17 +5,21 @@ riscv_func.func @external() -> ()
 riscv_func.func @main() {
   %0 = rv32.li 6 : !riscv.reg
   %1 = rv32.li 5 : !riscv.reg
+  %2 = rv32.li 5 : !riscv.reg
+  %3 = rv32.li 5 : !riscv.reg
   %5 = riscv.add %0, %1 : (!riscv.reg, !riscv.reg) -> !riscv.reg
-  riscv_cf.bge %0 : !riscv.reg, %1 : !riscv.reg, ^then(), ^else(%0 : !riscv.reg, %5 : !riscv.reg)
+  riscv_cf.bge %0 : !riscv.reg, %3 : !riscv.reg, ^then(%0 : !riscv.reg, %5 : !riscv.reg), ^else(%0 : !riscv.reg, %5 : !riscv.reg)
 
   ^else(%e0 : !riscv.reg, %e1 : !riscv.reg):
     riscv.label "else"
     %e2 = riscv.add %e0, %e1 : (!riscv.reg, !riscv.reg) -> !riscv.reg
+    %e3 = riscv.add %2, %e0 : (!riscv.reg, !riscv.reg) -> !riscv.reg
     riscv_func.return
 
   ^then(%t0 : !riscv.reg, %t1 : !riscv.reg):
     riscv.label "then"
     %t2 = riscv.add %t0, %t1 : (!riscv.reg, !riscv.reg) -> !riscv.reg
+    %t3 = riscv.add %t0, %2 : (!riscv.reg, !riscv.reg) -> !riscv.reg
     riscv_func.return
 }
 

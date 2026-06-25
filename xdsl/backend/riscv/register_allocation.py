@@ -61,7 +61,6 @@ class RegisterAllocatorLivenessBlockNaive(BlockNaiveAllocator):
 
         for block in PostOrderIterator(func.body.blocks[0]):
             self.live_ins_per_block = live_ins_per_block(block)
-            assert not self.live_ins_per_block[block]
 
             self.allocate_block(block)
 
@@ -90,5 +89,5 @@ class RegisterAllocatorLivenessBlockNaive(BlockNaiveAllocator):
                     InsertPoint.before(func),
                 )
 
-            for arg in block.args:
+            for arg in reversed(block.args):
                 self.free_value(arg)
