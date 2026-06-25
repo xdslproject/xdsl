@@ -10,6 +10,7 @@ from xdsl.backend.register_type import RegisterType
 from xdsl.dialects import riscv, riscv_func
 from xdsl.dialects.riscv import Registers, RISCVRegisterType
 from xdsl.ir import SSAValue
+from xdsl.ir.post_order import PostOrderIterator
 from xdsl.rewriter import InsertPoint, Rewriter
 from xdsl.transforms.canonicalization_patterns.riscv import get_constant_value
 
@@ -52,46 +53,44 @@ class RegisterAllocatorLivenessBlockNaive(BlockNaiveAllocator):
             # External function declaration
             return
 
-        if len(func.body.blocks) != 1:
-            raise NotImplementedError(
-                f"Cannot register allocate func with {len(func.body.blocks)} blocks."
-            )
-
         preallocated = RegisterAllocatableOperation.all_used_registers(func.body)
         excluded = RegisterAllocatableOperation.all_excluded_registers(func.body)
 
         for pa_reg in preallocated | excluded:
             self.available_registers.exclude_register(pa_reg)
 
-        block = func.body.block
+        for block in PostOrderIterator(func.body.blocks[0]):
+            print(block.name_hint)
 
-        self.live_ins_per_block = live_ins_per_block(block)
-        assert not self.live_ins_per_block[block]
+            self.live_ins_per_block = live_ins_per_block(block)
+            assert not self.live_ins_per_block[block]
 
-        self.allocate_block(block)
+            if add_regalloc_stats:
+                preallocated_stats = reg_types_by_name(preallocated)
+                excluded_stats = reg_types_by_name(excluded)
+                allocated_stats = reg_types_by_name(
+                    val.type
+                    for op in block.walk()
+                    for vals in (op.results, op.operands)
+                    for val in vals
+                    if isinstance(val.type, RISCVRegisterType)
+                )
+                stats = {
+                    "preallocated_float": sorted(preallocated_stats["riscv.freg"]),
+                    "preallocated_int": sorted(preallocated_stats["riscv.reg"]),
+                    "excluded_float": sorted(excluded_stats["riscv.freg"]),
+                    "excluded_int": sorted(excluded_stats["riscv.reg"]),
+                    "allocated_float": sorted(allocated_stats["riscv.freg"]),
+                    "allocated_int": sorted(allocated_stats["riscv.reg"]),
+                }
 
-        if add_regalloc_stats:
-            preallocated_stats = reg_types_by_name(preallocated)
-            excluded_stats = reg_types_by_name(excluded)
-            allocated_stats = reg_types_by_name(
-                val.type
-                for op in block.walk()
-                for vals in (op.results, op.operands)
-                for val in vals
-                if isinstance(val.type, RISCVRegisterType)
-            )
-            stats = {
-                "preallocated_float": sorted(preallocated_stats["riscv.freg"]),
-                "preallocated_int": sorted(preallocated_stats["riscv.reg"]),
-                "excluded_float": sorted(excluded_stats["riscv.freg"]),
-                "excluded_int": sorted(excluded_stats["riscv.reg"]),
-                "allocated_float": sorted(allocated_stats["riscv.freg"]),
-                "allocated_int": sorted(allocated_stats["riscv.reg"]),
-            }
+                stats_str = json.dumps(stats)
+                Rewriter.insert_op(
+                    riscv.CommentOp(f"Regalloc stats: {stats_str}"),
+                    InsertPoint.before(func),
+                )
 
-            stats_str = json.dumps(stats)
+            self.allocate_block(block)
 
-            Rewriter.insert_op(
-                riscv.CommentOp(f"Regalloc stats: {stats_str}"),
-                InsertPoint.before(func),
-            )
+            for arg in block.args:
+                self.free_value(arg)
