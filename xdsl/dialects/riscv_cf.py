@@ -191,6 +191,9 @@ class ConditionalBranchOperation(
     def allocate_registers(self, allocator: BlockAllocator) -> None:
         """
         Allocates registers to the operands of this operation.
+        
+        The successors must already be allocated, else raises PassFailedException.
+        Allocates operands corresponding to block arguments to corresponding registers, then allocates rs1 and rs2.
         """
         for operand, arg in zip(self.then_arguments, self.then_block.args):
             allocator.allocate_values_same_reg([operand, arg])
