@@ -60,8 +60,6 @@ class RegisterAllocatorLivenessBlockNaive(BlockNaiveAllocator):
             self.available_registers.exclude_register(pa_reg)
 
         for block in PostOrderIterator(func.body.blocks[0]):
-            print(block.name_hint)
-
             self.live_ins_per_block = live_ins_per_block(block)
             assert not self.live_ins_per_block[block]
 
