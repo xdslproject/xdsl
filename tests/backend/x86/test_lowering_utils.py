@@ -1,6 +1,6 @@
 import pytest
 
-from xdsl.backend.x86.arch import X86Arch
+from xdsl.backend.x86 import arch
 from xdsl.builder import Builder
 from xdsl.dialects import ptr
 from xdsl.dialects.builtin import VectorType, f64, i64
@@ -19,14 +19,14 @@ from xdsl.utils.test_value import create_ssa_value
     "arch, reg_type, value_type, expected_op, expected_unallocated_type",
     [
         (
-            X86Arch.UNKNOWN,
+            arch.UNKNOWN,
             Reg64Type,
             i64,
             DS_MovOp,
             Reg64Type.unallocated(),
         ),
         (
-            X86Arch.AVX2,
+            arch.AVX2,
             AVX2RegisterType,
             VectorType(f64, (4,)),
             DS_VmovapdOp,
@@ -35,7 +35,7 @@ from xdsl.utils.test_value import create_ssa_value
     ],
 )
 def test_move_value_to_unallocated(
-    arch: X86Arch,
+    arch: arch.X86Arch,
     reg_type: type[X86RegisterType],
     value_type: Attribute,
     expected_op: type[DS_Operation[X86RegisterType, X86RegisterType]],
@@ -52,7 +52,7 @@ def test_move_value_to_unallocated(
 
 @pytest.mark.parametrize(
     "arch",
-    [X86Arch.AVX2, X86Arch.AVX512, X86Arch.UNKNOWN],
+    [arch.AVX2, arch.AVX512, arch.UNKNOWN],
 )
-def test_register_type_for_ptr_type(arch: X86Arch):
+def test_register_type_for_ptr_type(arch: arch.X86Arch):
     assert arch.register_type_for_type(ptr.PtrType()) == Reg64Type

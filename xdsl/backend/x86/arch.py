@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import cast, overload
+from typing import ClassVar, cast, overload
 
 from xdsl.builder import Builder
 from xdsl.dialects import asm, ptr, x86
@@ -25,18 +25,24 @@ from xdsl.dialects.x86.registers import (
 from xdsl.ir import Attribute, SSAValue
 from xdsl.utils.exceptions import DiagnosticException
 from xdsl.utils.hints import isa
-from xdsl.utils.str_enum import StrEnum
 
 
-class X86Arch(StrEnum):
-    UNKNOWN = "unknown"
-    AVX2 = "avx2"
-    AVX512 = "avx512"
+class X86Arch:
+    VECTOR_TYPES_BY_BITWIDTH: ClassVar[dict[int, type[X86VectorRegisterType]]] = {
+        128: SSERegisterType
+    }
+    """
+    Supported vector type for a given vector size.
+    """
+
+    @staticmethod
+    def name() -> str:
+        return "unknown"
 
     @staticmethod
     def arch_for_name(name: str | None) -> X86Arch:
         if name is None:
-            return X86Arch.UNKNOWN
+            return UNKNOWN
         try:
             return _ARCH_BY_NAME[name]
         except KeyError:
@@ -55,10 +61,10 @@ class X86Arch(StrEnum):
         element_size = element_type.bitwidth
         vector_size = vector_num_elements * element_size
         try:
-            return _VECTOR_TYPES_BY_BITWIDTH_BY_ARCH[self][vector_size]
+            return self.VECTOR_TYPES_BY_BITWIDTH[vector_size]
         except KeyError:
             raise DiagnosticException(
-                f"The vector size ({vector_size} bits) and target architecture `{self}` are inconsistent."
+                f"The vector size ({vector_size} bits) and target architecture `{self.name()}` are inconsistent."
             )
 
     def _scalar_type_for_type(self, value_type: Attribute) -> type[GeneralRegisterType]:
@@ -138,21 +144,38 @@ class X86Arch(StrEnum):
         return builder.insert_op(mov_op).results[0]
 
 
-_VECTOR_TYPES_BY_BITWIDTH_BY_ARCH = {
-    X86Arch.UNKNOWN: {128: SSERegisterType},
-    X86Arch.AVX2: {128: SSERegisterType, 256: AVX2RegisterType},
-    X86Arch.AVX512: {
+UNKNOWN = X86Arch()
+
+
+class AVX2Arch(X86Arch):
+    @staticmethod
+    def name() -> str:
+        return "avx2"
+
+    VECTOR_TYPES_BY_BITWIDTH = {128: SSERegisterType, 256: AVX2RegisterType}
+
+
+AVX2 = AVX2Arch()
+
+
+class AVX512Arch(X86Arch):
+    @staticmethod
+    def name() -> str:
+        return "avx512"
+
+    VECTOR_TYPES_BY_BITWIDTH = {
         128: SSERegisterType,
         256: AVX2RegisterType,
         512: AVX512RegisterType,
-    },
+    }
+
+
+AVX512 = AVX512Arch()
+
+
+_ARCH_BY_NAME = {
+    arch_type.name(): arch_type() for arch_type in (X86Arch, AVX2Arch, AVX512Arch)
 }
-"""
-For each supported target architecture, the vector type for a vector size.
-"""
-
-
-_ARCH_BY_NAME = {str(case): case for case in X86Arch}
 """
 Handled architectures in x86 backend.
 """
