@@ -11,8 +11,8 @@
             "module": "xdsl.tools.xdsl_opt",
             "justMyCode": true,
             "args": [
-"${file}",
-]
+                "${file}",
+            ]
         },
         {
             "name": "xdsl-run",
