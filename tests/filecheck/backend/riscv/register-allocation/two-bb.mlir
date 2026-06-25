@@ -27,16 +27,20 @@ riscv_func.func @main() {
 // CHECK-NEXT:   riscv_func.func @external() -> ()
 // CHECK-NEXT:   riscv_func.func @main() {
 // CHECK-NEXT:     %0 = rv32.li 6 : !riscv.reg<t0>
-// CHECK-NEXT:     %1 = rv32.li 5 : !riscv.reg<t1>
-// CHECK-NEXT:     %2 = riscv.add %0, %1 : (!riscv.reg<t0>, !riscv.reg<t1>) -> !riscv.reg<t2>
-// CHECK-NEXT:     riscv_cf.bge %0 : !riscv.reg<t0>, %1 : !riscv.reg<t1>, ^then(), ^else(%0 : !riscv.reg<t0>, %2 : !riscv.reg<t2>)
-// CHECK-NEXT:   ^else(%e0: !riscv.reg<t1>, %e1: !riscv.reg<t0>):
+// CHECK-NEXT:     %1 = rv32.li 5 : !riscv.reg<t2>
+// CHECK-NEXT:     %2 = rv32.li 5 : !riscv.reg<t1>
+// CHECK-NEXT:     %3 = rv32.li 5 : !riscv.reg<t5>
+// CHECK-NEXT:     %4 = riscv.add %0, %1 : (!riscv.reg<t0>, !riscv.reg<t2>) -> !riscv.reg<t2>
+// CHECK-NEXT:     riscv_cf.bge %0 : !riscv.reg<t0>, %3 : !riscv.reg<t5>, ^then(%0 : !riscv.reg<t0>, %4 : !riscv.reg<t2>), ^else(%0 : !riscv.reg<t0>, %4 : !riscv.reg<t2>)
+// CHECK-NEXT:   ^else(%e0: !riscv.reg<t0>, %e1: !riscv.reg<t2>):
 // CHECK-NEXT:     riscv.label "else"
-// CHECK-NEXT:     %e2 = riscv.add %e0, %e1 : (!riscv.reg<t1>, !riscv.reg<t0>) -> !riscv.reg<t1>
+// CHECK-NEXT:     %e2 = riscv.add %e0, %e1 : (!riscv.reg<t0>, !riscv.reg<t2>) -> !riscv.reg<t2>
+// CHECK-NEXT:     %e3 = riscv.add %2, %e0 : (!riscv.reg<t1>, !riscv.reg<t0>) -> !riscv.reg<t0>
 // CHECK-NEXT:     riscv_func.return
-// CHECK-NEXT:   ^then(%t0: !riscv.reg<t0>, %t1: !riscv.reg<t1>):
+// CHECK-NEXT:   ^then(%t0: !riscv.reg<t0>, %t1: !riscv.reg<t2>):
 // CHECK-NEXT:     riscv.label "then"
-// CHECK-NEXT:     %t2 = riscv.add %t0, %t1 : (!riscv.reg<t0>, !riscv.reg<t1>) -> !riscv.reg<t0>
+// CHECK-NEXT:     %t2 = riscv.add %t0, %t1 : (!riscv.reg<t0>, !riscv.reg<t2>) -> !riscv.reg<t2>
+// CHECK-NEXT:     %t3 = riscv.add %t0, %2 : (!riscv.reg<t0>, !riscv.reg<t1>) -> !riscv.reg<t0>
 // CHECK-NEXT:     riscv_func.return
 // CHECK-NEXT:   }
 // CHECK-NEXT: }
