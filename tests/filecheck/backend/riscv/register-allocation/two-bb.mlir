@@ -1,7 +1,5 @@
 // RUN: xdsl-opt -p "riscv-allocate-registers{allocation_strategy=LivenessBlockNaive}" --disable-verify %s | filecheck %s
 
-riscv_func.func @external() -> ()
-
 riscv_func.func @main() {
   %0 = rv32.li 6 : !riscv.reg
   %1 = rv32.li 5 : !riscv.reg
@@ -24,7 +22,6 @@ riscv_func.func @main() {
 }
 
 // CHECK:      builtin.module {
-// CHECK-NEXT:   riscv_func.func @external() -> ()
 // CHECK-NEXT:   riscv_func.func @main() {
 // CHECK-NEXT:     %0 = rv32.li 6 : !riscv.reg<t0>
 // CHECK-NEXT:     %1 = rv32.li 5 : !riscv.reg<t2>
