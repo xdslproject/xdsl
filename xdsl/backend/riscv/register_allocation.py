@@ -65,6 +65,8 @@ class RegisterAllocatorLivenessBlockNaive(BlockNaiveAllocator):
             self.live_ins_per_block = live_ins_per_block(block)
             assert not self.live_ins_per_block[block]
 
+            self.allocate_block(block)
+
             if add_regalloc_stats:
                 preallocated_stats = reg_types_by_name(preallocated)
                 excluded_stats = reg_types_by_name(excluded)
@@ -89,8 +91,6 @@ class RegisterAllocatorLivenessBlockNaive(BlockNaiveAllocator):
                     riscv.CommentOp(f"Regalloc stats: {stats_str}"),
                     InsertPoint.before(func),
                 )
-
-            self.allocate_block(block)
 
             for arg in block.args:
                 self.free_value(arg)
