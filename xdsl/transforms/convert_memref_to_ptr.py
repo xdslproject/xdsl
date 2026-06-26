@@ -17,13 +17,14 @@ On the other hand, operations that create views of memrefs from other memrefs mu
 to the relevant pointer arithmetic to encode the new inner buffer offset, when possible.
 """
 
+import math
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from typing import cast
 
 from xdsl.builder import Builder
 from xdsl.context import Context
-from xdsl.dialects import arith, builtin, func, memref, ptr
+from xdsl.dialects import arith, builtin, func, llvm, memref, ptr
 from xdsl.ir import Attribute, Operation, SSAValue
 from xdsl.irdl import Any
 from xdsl.passes import ModulePass
@@ -451,6 +452,76 @@ class ConvertReinterpretCastOp(RewritePattern):
         rewriter.replace_op(op, ptr.FromPtrOp(pointer, op.result.type))
 
 
+@dataclass
+class ConvertAllocaPattern(RewritePattern):
+    """
+    Lowers `memref.alloca` to `llvm.alloca + ptr.from_ptr`.
+    If static shape, the element count is computed at compile time, otherwise, we use a runtime product for dynamic dimension.
+    """
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: memref.AllocaOp, rewriter: PatternRewriter, /):
+        assert isa(memref_type := op.memref.type, memref.MemRefType)
+        shape = memref_type.get_shape()
+
+        # Static size
+        static_size: None | SSAValue = None
+        size = math.prod([s for s in shape if s != builtin.DYNAMIC_INDEX])
+        if size > 1:
+            static_size = rewriter.insert_op(
+                arith.ConstantOp.from_int_and_width(size, builtin.IntegerType(64))
+            ).result
+            static_size.name_hint = f"c{size}"
+
+        # Dynamic size
+        dynamic_size: SSAValue | None = None
+        for dyn in op.dynamic_sizes:
+            # No previous size
+            if dynamic_size is None:
+                dynamic_size = dyn
+
+            # Multiply with previous size
+            else:
+                dynamic_size = rewriter.insert_op(
+                    arith.MuliOp(dynamic_size, dyn)
+                ).result
+
+        # Cast dynamic size to i64
+        if isinstance(dynamic_size, SSAValue):
+            dynamic_size = rewriter.insert_op(
+                arith.IndexCastOp(dynamic_size, builtin.IntegerType(64))
+            ).result
+
+        # Merge static and dynamic
+        if dynamic_size is None:
+            total = static_size
+
+        elif static_size is None:
+            total = dynamic_size
+
+        else:
+            total = rewriter.insert_op(arith.MuliOp(static_size, dynamic_size)).result
+
+        # Unranked memref (both static and dynamic is None)
+        if total is None:
+            total = rewriter.insert_op(
+                arith.ConstantOp.from_int_and_width(1, builtin.IntegerType(64))
+            ).result
+            total.name_hint = "c1"
+
+        # llvm.alloca %count x element_type -> !llvm.ptr
+        alloca = rewriter.insert_op(llvm.AllocaOp(total, memref_type.element_type))
+        alloca.res.name_hint = op.memref.name_hint
+
+        # !llvm.ptr -> !ptr_xdsl.ptr  (reconcilable bridge cast)
+        cast = rewriter.insert_op(
+            builtin.UnrealizedConversionCastOp.get([alloca.res], [ptr.PtrType()])
+        )
+
+        # !ptr_xdsl.ptr -> memref<T>  (restores the original type for downstream users)
+        rewriter.replace_op(op, ptr.FromPtrOp(cast.results[0], memref_type))
+
+
 @dataclass(frozen=True)
 class ConvertMemRefToPtr(ModulePass):
     name = "convert-memref-to-ptr"
@@ -461,6 +532,7 @@ class ConvertMemRefToPtr(ModulePass):
         PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [
+                    ConvertAllocaPattern(),
                     ConvertStorePattern(),
                     ConvertLoadPattern(),
                     ConvertSubviewPattern(),
