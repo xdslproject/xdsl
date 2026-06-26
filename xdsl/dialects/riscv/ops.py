@@ -344,6 +344,9 @@ class SrliwOp(RdRsImmShiftOperation):
 
     traits = traits_def(AlwaysSpeculatable())
 
+    def py_operation(self, rs1: IntegerAttr[I32]) -> IntegerAttr[I32]:
+        raise NotImplementedError
+
 
 @irdl_op_definition
 class SraiwOp(RdRsImmIntegerOperation):
