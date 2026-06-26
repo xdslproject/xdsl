@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import ClassVar, cast, overload
 
+from xdsl.backend.arch import Arch
 from xdsl.builder import Builder
 from xdsl.dialects import asm, ptr, x86
 from xdsl.dialects.builtin import (
@@ -27,7 +28,7 @@ from xdsl.utils.exceptions import DiagnosticException
 from xdsl.utils.hints import isa
 
 
-class X86Arch:
+class X86Arch(Arch):
     VECTOR_TYPES_BY_BITWIDTH: ClassVar[dict[int, type[X86VectorRegisterType]]] = {
         128: SSERegisterType
     }
