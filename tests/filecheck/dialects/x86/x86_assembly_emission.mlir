@@ -412,6 +412,10 @@ x86_func.func @funcyasm() {
 // CHECK-NEXT: addpd zmm0, zmm1, zmm2
 %dss_addps_avx512 = x86.dss.addps %zmm1, %zmm2 : (!x86.avx512reg<zmm1>, !x86.avx512reg<zmm2>) -> !x86.avx512reg<zmm0>
 // CHECK-NEXT: addps zmm0, zmm1, zmm2
+%dss_vaddpd_avx512 = x86.dss.vaddpd %zmm1, %zmm2 : (!x86.avx512reg<zmm1>, !x86.avx512reg<zmm2>) -> !x86.avx512reg<zmm0>
+// CHECK-NEXT: vaddpd zmm0, zmm1, zmm2
+%dss_vaddps_avx512 = x86.dss.vaddps %zmm1, %zmm2 : (!x86.avx512reg<zmm1>, !x86.avx512reg<zmm2>) -> !x86.avx512reg<zmm0>
+// CHECK-NEXT: vaddps zmm0, zmm1, zmm2
 %dss_vpxord_avx512 = x86.dss.vpxord %zmm1, %zmm2 : (!x86.avx512reg<zmm1>, !x86.avx512reg<zmm2>) -> !x86.avx512reg<zmm0>
 // CHECK-NEXT: vpxord zmm0, zmm1, zmm2
 %dss_vpxord_zero_avx512 = x86.dss.vpxord %zmm1, %zmm1 : (!x86.avx512reg<zmm1>, !x86.avx512reg<zmm1>) -> !x86.avx512reg<zmm1>
