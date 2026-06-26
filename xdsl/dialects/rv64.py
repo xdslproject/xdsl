@@ -7,22 +7,41 @@ using 6-bit immediates for 64-bit architectures.
 
 from __future__ import annotations
 
-from xdsl.dialects.builtin import I64, IntegerAttr, StringAttr, i64
+from xdsl.dialects.builtin import (
+    I64,
+    IntegerAttr,
+    StringAttr,
+    i64,
+)
 from xdsl.dialects.riscv import (
+    AssemblyInstructionArg,
     IntRegisterType,
     LabelAttr,
     Registers,
     parse_immediate_value,
 )
-from xdsl.dialects.riscv.abstract_ops import GetAnyRegisterOperation, LiOperation
+from xdsl.dialects.riscv.abstract_ops import (
+    GetAnyRegisterOperation,
+    ImmShiftOpHasCanonicalizationPatternsTrait,
+    LiOperation,
+    RdRsImmShiftOperation,
+)
+from xdsl.dialects.riscv.attrs import UI6, ui6
 from xdsl.ir import (
     Attribute,
     Dialect,
+    Operation,
+    SSAValue,
 )
 from xdsl.irdl import (
     irdl_op_definition,
+    lazy_traits_def,
+    traits_def,
 )
 from xdsl.parser import Parser
+from xdsl.traits import (
+    AlwaysSpeculatable,
+)
 
 
 @irdl_op_definition
@@ -55,6 +74,135 @@ class LiOp(LiOperation[I64]):
         return attributes
 
 
+class RdRsImmShiftOperationRV64(RdRsImmShiftOperation[UI6, I64]):
+    """Base class for RISC-V 64-bit shift immediate operations with rd, rs1 and imm6."""
+
+    traits = lazy_traits_def(
+        lambda: (ImmShiftOpRV64HasCanonicalizationPatternsTrait(),)
+    )
+
+    def __init__(
+        self,
+        rs1: Operation | SSAValue,
+        immediate: int | IntegerAttr[UI6],
+        *,
+        rd: IntRegisterType = Registers.UNALLOCATED_INT,
+        comment: str | StringAttr | None = None,
+    ):
+        if isinstance(immediate, int):
+            immediate = IntegerAttr(immediate, ui6)
+
+        super().__init__(
+            rs1=rs1,
+            immediate=immediate,
+            rd=rd,
+            comment=comment,
+        )
+
+    def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
+        return self.rd, self.rs1, self.immediate
+
+
+class ImmShiftOpRV64HasCanonicalizationPatternsTrait(
+    ImmShiftOpHasCanonicalizationPatternsTrait[I64],
+    li_op_type=LiOp,
+    shift_op_type=RdRsImmShiftOperationRV64,
+):
+    """Trait for RISC-V 64-bit shift immediate operations with canonicalization patterns."""
+
+
+@irdl_op_definition
+class SlliOp(RdRsImmShiftOperationRV64):
+    """
+    Performs logical left shift on the value in register rs1 by the shift amount
+    held in the 6-bit immediate.
+
+    x[rd] = x[rs1] << shamt
+
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#slli).
+    """
+
+    name = "rv64.slli"
+
+    def py_operation(self, rs1: IntegerAttr[I64]) -> IntegerAttr[I64]:
+        assert isinstance(self.immediate, IntegerAttr)
+        return IntegerAttr(rs1.value.data << self.immediate.value.data, i64)
+
+
+@irdl_op_definition
+class SrliOp(RdRsImmShiftOperationRV64):
+    """
+    Performs logical right shift on the value in register rs1 by the shift amount held
+    in the 6-bit immediate.
+
+    x[rd] = x[rs1] >>u shamt
+
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#srli).
+    """
+
+    name = "rv64.srli"
+
+    def py_operation(self, rs1: IntegerAttr[I64]) -> IntegerAttr[I64]:
+        assert isinstance(self.immediate, IntegerAttr)
+        return IntegerAttr(
+            (rs1.value.data % 0x10000000000000000) >> self.immediate.value.data, i64
+        )
+
+
+@irdl_op_definition
+class SraiOp(RdRsImmShiftOperationRV64):
+    """
+    Performs arithmetic right shift on the value in register rs1 by the shift amount
+    held in the 6-bit immediate.
+
+    x[rd] = x[rs1] >>s shamt
+
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#srai).
+    """
+
+    name = "rv64.srai"
+
+    def py_operation(self, rs1: IntegerAttr[I64]) -> IntegerAttr[I64]:
+        assert isinstance(self.immediate, IntegerAttr)
+        return IntegerAttr(rs1.value.data >> self.immediate.value.data, i64)
+
+
+@irdl_op_definition
+class SlliwOp(RdRsImmShiftOperationRV64):
+    """
+    Performs logical left shift on the lower 32 bits of the value in register rs1
+    by the shift amount held in the immediate (RV64-only instruction).
+    The result is sign-extended to 64 bits.
+    ```
+    x[rd] = sext((x[rs1] << shamt)[31:0])
+    ```
+
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rv64i.html#slliw).
+    """
+
+    name = "rv64.slliw"
+
+    traits = traits_def(AlwaysSpeculatable())
+
+
+@irdl_op_definition
+class SrliwOp(RdRsImmShiftOperationRV64):
+    """
+    Performs arithmetic right shift on the 32-bit of value in register rs1
+    by the shift amount held in the lower 5 bits of the immediate. (RV64-only instruction).
+    The result is sign-extended to 64 bits.
+    ```
+    x[rd] = sext((x[rs1] << shamt)[31:0])
+    ```
+
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rv64i.html#srliw).
+    """
+
+    name = "rv64.srliw"
+
+    traits = traits_def(AlwaysSpeculatable())
+
+
 @irdl_op_definition
 class GetRegisterOp(GetAnyRegisterOperation[IntRegisterType]):
     name = "rv64.get_register"
@@ -63,6 +211,11 @@ class GetRegisterOp(GetAnyRegisterOperation[IntRegisterType]):
 RV64 = Dialect(
     "rv64",
     [
+        SlliOp,
+        SrliOp,
+        SraiOp,
+        SlliwOp,
+        SrliwOp,
         LiOp,
         GetRegisterOp,
     ],

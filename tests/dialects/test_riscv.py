@@ -2,7 +2,7 @@ import pytest
 
 from xdsl.backend.register_type import RegisterAllocatedMemoryEffect
 from xdsl.context import Context
-from xdsl.dialects import riscv
+from xdsl.dialects import riscv, rv32
 from xdsl.dialects.builtin import (
     IntAttr,
     IntegerAttr,
@@ -221,12 +221,12 @@ def test_immediate_shift_inst():
     a1 = create_ssa_value(riscv.Registers.A1)
 
     with pytest.raises(VerifyException):
-        riscv.SlliOp(a1, 1 << 5, rd=riscv.Registers.A0)
+        rv32.SlliOp(a1, 1 << 5, rd=riscv.Registers.A0)
 
     with pytest.raises(VerifyException):
-        riscv.SlliOp(a1, -1, rd=riscv.Registers.A0)
+        rv32.SlliOp(a1, -1, rd=riscv.Registers.A0)
 
-    riscv.SlliOp(a1, (1 << 5) - 1, rd=riscv.Registers.A0)
+    rv32.SlliOp(a1, (1 << 5) - 1, rd=riscv.Registers.A0)
 
 
 def test_float_register():
@@ -375,7 +375,7 @@ def test_effect_traits():
     unknown_effects_ops = {op for op in operations if op not in effects_ops}
 
     # Sentinels to remind us to update this test when updating the dialect
-    assert len(effects_ops) == 153
+    assert len(effects_ops) == 149
     assert unknown_effects_ops == {
         riscv.ops.CommentOp,
         riscv.ops.AssemblySectionOp,
@@ -406,7 +406,7 @@ def test_effect_traits():
 
     no_effects_ops = {op for op in effects_ops if op.has_trait(NoMemoryEffect)}
 
-    assert len(register_effects_ops) == 152
+    assert len(register_effects_ops) == 148
     assert read_effects_ops == {
         riscv.CsrrciOp,
         riscv.CsrrcOp,

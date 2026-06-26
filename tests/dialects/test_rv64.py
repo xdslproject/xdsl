@@ -9,6 +9,7 @@ from xdsl.dialects.builtin import (
 from xdsl.traits import ConstantLike, MemoryEffect, NoMemoryEffect, Pure
 from xdsl.transforms.canonicalization_patterns.riscv import get_constant_value
 from xdsl.utils.exceptions import VerifyException
+from xdsl.utils.test_value import create_ssa_value
 
 
 def test_immediate_pseudo_inst():
@@ -25,6 +26,19 @@ def test_immediate_pseudo_inst():
 
     rv64.LiOp(ub - 1, rd=riscv.Registers.A0)
     rv64.LiOp(lb, rd=riscv.Registers.A0)
+
+
+def test_immediate_shift_inst():
+    # Shift instructions (SLLI, SRLI, SRAI) - 6-bits immediate for RV64
+    a1 = create_ssa_value(riscv.Registers.A1)
+
+    with pytest.raises(VerifyException):
+        rv64.SlliOp(a1, 1 << 6, rd=riscv.Registers.A0)
+
+    with pytest.raises(VerifyException):
+        rv64.SlliOp(a1, -1, rd=riscv.Registers.A0)
+
+    rv64.SlliOp(a1, (1 << 6) - 1, rd=riscv.Registers.A0)
 
 
 def test_get_constant_value():
@@ -52,7 +66,7 @@ def test_effect_traits():
     unknown_effects_ops = {op for op in operations if op not in effects_ops}
 
     # Sentinels to remind us to update this test when updating the dialect
-    assert len(effects_ops) == 2
+    assert len(effects_ops) == 7
     assert not unknown_effects_ops
 
     all_effects_trait_types = {
@@ -72,5 +86,12 @@ def test_effect_traits():
     }
     no_effects_ops = {op for op in effects_ops if op.has_trait(NoMemoryEffect)}
 
-    assert register_effects_ops == {rv64.LiOp}
+    assert register_effects_ops == {
+        rv64.SlliOp,
+        rv64.SrliOp,
+        rv64.SraiOp,
+        rv64.SlliwOp,
+        rv64.SrliwOp,
+        rv64.LiOp,
+    }
     assert no_effects_ops == {rv64.GetRegisterOp}

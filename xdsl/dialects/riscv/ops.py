@@ -69,7 +69,6 @@ from .abstract_ops import (
     RdRsImmFloatOperation,
     RdRsImmIntegerOperation,
     RdRsImmJumpOperation,
-    RdRsImmShiftOperation,
     RdRsIntegerOperation,
     RdRsRsFloatFloatIntegerOperationWithFastMath,
     RdRsRsFloatOperation,
@@ -243,59 +242,6 @@ class XoriOp(RdRsImmIntegerOperation):
 
 
 @irdl_op_definition
-class SlliOp(RdRsImmShiftOperation):
-    """
-    Performs logical left shift on the value in register rs1 by the shift amount
-    held in the lower 5 bits of the immediate.
-
-    x[rd] = x[rs1] << shamt
-
-    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#slli).
-    """
-
-    name = "riscv.slli"
-
-    def py_operation(self, rs1: IntegerAttr[I32]) -> IntegerAttr[I32]:
-        return IntegerAttr(rs1.value.data << self.immediate.value.data, i32)
-
-
-@irdl_op_definition
-class SrliOp(RdRsImmShiftOperation):
-    """
-    Performs logical right shift on the value in register rs1 by the shift amount held
-    in the lower 5 bits of the immediate.
-
-    x[rd] = x[rs1] >>u shamt
-
-    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#srli).
-    """
-
-    name = "riscv.srli"
-
-    def py_operation(self, rs1: IntegerAttr[I32]) -> IntegerAttr[I32]:
-        return IntegerAttr(
-            (rs1.value.data % 0x100000000) >> self.immediate.value.data, i32
-        )
-
-
-@irdl_op_definition
-class SraiOp(RdRsImmShiftOperation):
-    """
-    Performs arithmetic right shift on the value in register rs1 by the shift amount
-    held in the lower 5 bits of the immediate.
-
-    x[rd] = x[rs1] >>s shamt
-
-    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#srai).
-    """
-
-    name = "riscv.srai"
-
-    def py_operation(self, rs1: IntegerAttr[I32]) -> IntegerAttr[I32]:
-        return IntegerAttr(rs1.value.data >> self.immediate.value.data, i32)
-
-
-@irdl_op_definition
 class AddiwOp(RdRsImmIntegerOperation):
     """
     Adds the sign-extended 12-bit immediate to register rs1 and produces the proper sign-extension of a 32-bit result in rd.
@@ -308,39 +254,6 @@ class AddiwOp(RdRsImmIntegerOperation):
     """
 
     name = "riscv.addiw"
-
-    traits = traits_def(AlwaysSpeculatable())
-
-
-@irdl_op_definition
-class SlliwOp(RdRsImmShiftOperation):
-    """
-    Performs logical left shift on the 32-bit of value in register rs1 by the
-    shift amount held in the lower 5 bits of the immediate.
-    ```
-    x[rd] = sext((x[rs1] << shamt)[31:0])
-    ```
-    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#slliw).
-    """
-
-    name = "riscv.slliw"
-
-    traits = traits_def(AlwaysSpeculatable())
-
-
-@irdl_op_definition
-class SrliwOp(RdRsImmShiftOperation):
-    """
-    Performs logical right shift on the 32-bit of value in register rs1 by the shift amount held in the
-    lower 5 bits of the immediate.
-    ```
-    x[rd] = sext(x[rs1][31:0] >>u shamt)
-    ```
-
-    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#srliw).
-    """
-
-    name = "riscv.srliw"
 
     traits = traits_def(AlwaysSpeculatable())
 
@@ -3251,9 +3164,6 @@ RISCV = Dialect(
         AndiOp,
         OriOp,
         XoriOp,
-        SlliOp,
-        SrliOp,
-        SraiOp,
         LuiOp,
         AuipcOp,
         MVOp,
@@ -3308,7 +3218,6 @@ RISCV = Dialect(
         RolOp,
         RorOp,
         RemuwOp,
-        SrliwOp,
         SraiwOp,
         AddwOp,
         SubwOp,
