@@ -17,5 +17,18 @@
   "rangeStrategy": "replace",
   "lockFileMaintenance": {
     "enabled": true
-  }
+  },
+  "packageRules": [
+    {
+      "description": "Only major and minor updates for pre-commit hooks",
+      "matchManagers": [
+        "pre-commit"
+      ],
+      "matchUpdateTypes": [
+        "patch",
+        "digest"
+      ],
+      "enabled": false
+    }
+  ]
 }
