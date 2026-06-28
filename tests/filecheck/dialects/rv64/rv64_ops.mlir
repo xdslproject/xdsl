@@ -21,8 +21,8 @@ riscv_func.func @main() {
 // CHECK-GENERIC:       "builtin.module"() ({
 // CHECK-GENERIC-NEXT:    "riscv_func.func"() ({
 // CHECK-GENERIC-NEXT:      %li = "rv64.li"() {immediate = 1 : i64} : () -> !riscv.reg
-// CHECK-GENERIC-NEXT:      %ld = "rv64.ld"(%li) {immediate = 8 : i12} : (!riscv.reg) -> !riscv.reg
-// CHECK-GENERIC-NEXT:      "rv64.sd"(%li, %ld) {immediate = 16 : i12} : (!riscv.reg, !riscv.reg) -> ()
+// CHECK-GENERIC-NEXT:      %ld = "rv64.ld"(%li) {immediate = 8 : si12} : (!riscv.reg) -> !riscv.reg
+// CHECK-GENERIC-NEXT:      "rv64.sd"(%li, %ld) {immediate = 16 : si12} : (!riscv.reg, !riscv.reg) -> ()
 // CHECK-GENERIC-NEXT:      "riscv_func.return"() : () -> ()
 // CHECK-GENERIC-NEXT:    }) {sym_name = "main", function_type = () -> ()} : () -> ()
 // CHECK-GENERIC-NEXT:  }) : () -> ()

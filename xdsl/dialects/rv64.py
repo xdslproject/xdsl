@@ -7,6 +7,7 @@ using 6-bit immediates for 64-bit architectures.
 
 from __future__ import annotations
 
+from xdsl.backend.assembly_printer import AssemblyPrinter
 from xdsl.dialects.builtin import I64, IntegerAttr, StringAttr, i64
 from xdsl.dialects.riscv import (
     IntRegisterType,
@@ -16,16 +17,14 @@ from xdsl.dialects.riscv import (
 )
 from xdsl.dialects.riscv.abstract_ops import (
     GetAnyRegisterOperation,
-    LdOperation,
     LiOperation,
-    SdOperation,
+    RdRsImmIntegerOperation,
+    RsRsImmIntegerOperation,
+    assembly_arg_str,
 )
-from xdsl.dialects.riscv.attrs import I12, i12
 from xdsl.ir import (
     Attribute,
     Dialect,
-    Operation,
-    SSAValue,
 )
 from xdsl.irdl import (
     irdl_op_definition,
@@ -66,7 +65,7 @@ class LiOp(LiOperation[I64]):
 
 
 @irdl_op_definition
-class LdOp(LdOperation[I12]):
+class LdOp(RdRsImmIntegerOperation):
     """
     Loads a 64-bit value from memory into register rd for RV64I.
     ```C
@@ -80,21 +79,18 @@ class LdOp(LdOperation[I12]):
 
     traits = traits_def(MemoryReadEffect())
 
-    def __init__(
-        self,
-        rs1: Operation | SSAValue,
-        immediate: int | IntegerAttr[I12],
-        *,
-        rd: IntRegisterType = Registers.UNALLOCATED_INT,
-        comment: str | StringAttr | None = None,
-    ):
-        if isinstance(immediate, int):
-            immediate = IntegerAttr(immediate, i12)
-        super().__init__(rs1, immediate, rd=rd, comment=comment)
+    def assembly_line(self) -> str | None:
+        instruction_name = self.assembly_instruction_name()
+        value = assembly_arg_str(self.rd)
+        imm = assembly_arg_str(self.immediate)
+        base = assembly_arg_str(self.rs1)
+        return AssemblyPrinter.assembly_line(
+            instruction_name, f"{value}, {imm}({base})", self.comment
+        )
 
 
 @irdl_op_definition
-class SdOp(SdOperation[I12]):
+class SdOp(RsRsImmIntegerOperation):
     """
     Store 64-bit, values from register rs2 to memory.
     ```C
@@ -106,17 +102,14 @@ class SdOp(SdOperation[I12]):
 
     name = "rv64.sd"
 
-    def __init__(
-        self,
-        rs1: Operation | SSAValue,
-        rs2: Operation | SSAValue,
-        immediate: int | IntegerAttr[I12],
-        *,
-        comment: str | StringAttr | None = None,
-    ):
-        if isinstance(immediate, int):
-            immediate = IntegerAttr(immediate, i12)
-        super().__init__(rs1, rs2, immediate, comment=comment)
+    def assembly_line(self) -> str | None:
+        instruction_name = self.assembly_instruction_name()
+        value = assembly_arg_str(self.rs2)
+        imm = assembly_arg_str(self.immediate)
+        base = assembly_arg_str(self.rs1)
+        return AssemblyPrinter.assembly_line(
+            instruction_name, f"{value}, {imm}({base})", self.comment
+        )
 
 
 @irdl_op_definition

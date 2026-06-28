@@ -6,6 +6,7 @@ from xdsl.dialects.builtin import (
     IntegerAttr,
     Signedness,
 )
+from xdsl.dialects.riscv.attrs import si12
 from xdsl.traits import (
     ConstantLike,
     MemoryEffect,
@@ -52,7 +53,7 @@ def test_get_constant_value():
 
 
 def test_ld_op_construction():
-    lb, ub = Signedness.SIGNLESS.value_range(12)
+    lb, ub = Signedness.SIGNED.value_range(12)
     rs1 = create_ssa_value(riscv.Registers.A1)
 
     with pytest.raises(VerifyException):
@@ -67,11 +68,11 @@ def test_ld_op_construction():
 
     ld = rv64.LdOp(rs1, 8, rd=riscv.Registers.A0)
     assert ld.rd.type == riscv.Registers.A0
-    assert ld.immediate == IntegerAttr(8, 12)
+    assert ld.immediate == IntegerAttr(8, si12)
 
 
 def test_sd_op_construction():
-    lb, ub = Signedness.SIGNLESS.value_range(12)
+    lb, ub = Signedness.SIGNED.value_range(12)
     rs1 = create_ssa_value(riscv.Registers.A1)
     rs2 = create_ssa_value(riscv.Registers.A2)
 
@@ -86,7 +87,7 @@ def test_sd_op_construction():
     rv64.SdOp(rs1, rs2, 0)
 
     sd = rv64.SdOp(rs1, rs2, 8)
-    assert sd.immediate == IntegerAttr(8, 12)
+    assert sd.immediate == IntegerAttr(8, si12)
 
 
 def test_effect_traits():
