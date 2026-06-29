@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from collections.abc import Set as AbstractSet
+from re import I
 from typing import ClassVar, cast
 
 from xdsl.backend.assembly_printer import (
@@ -87,6 +88,7 @@ from .abstract_ops import (
 )
 from .attrs import (
     SI20,
+    UI5,
     FastMathFlagsAttr,
     LabelAttr,
 )
@@ -243,7 +245,7 @@ class XoriOp(RdRsImmIntegerOperation):
 
 
 @irdl_op_definition
-class SlliOp(RdRsImmShiftOperation):
+class SlliOp(RdRsImmShiftOperation[UI5, I32]):
     """
     Performs logical left shift on the value in register rs1 by the shift amount
     held in the lower 5 bits of the immediate.
@@ -260,7 +262,7 @@ class SlliOp(RdRsImmShiftOperation):
 
 
 @irdl_op_definition
-class SrliOp(RdRsImmShiftOperation):
+class SrliOp(RdRsImmShiftOperation[UI5, I32]):
     """
     Performs logical right shift on the value in register rs1 by the shift amount held
     in the lower 5 bits of the immediate.
@@ -279,7 +281,7 @@ class SrliOp(RdRsImmShiftOperation):
 
 
 @irdl_op_definition
-class SraiOp(RdRsImmShiftOperation):
+class SraiOp(RdRsImmShiftOperation[UI5, I32]):
     """
     Performs arithmetic right shift on the value in register rs1 by the shift amount
     held in the lower 5 bits of the immediate.
@@ -313,7 +315,7 @@ class AddiwOp(RdRsImmIntegerOperation):
 
 
 @irdl_op_definition
-class SlliwOp(RdRsImmShiftOperation):
+class SlliwOp(RdRsImmShiftOperation[UI5, I32]):
     """
     Performs logical left shift on the 32-bit of value in register rs1 by the
     shift amount held in the lower 5 bits of the immediate.
@@ -329,7 +331,7 @@ class SlliwOp(RdRsImmShiftOperation):
 
 
 @irdl_op_definition
-class SrliwOp(RdRsImmShiftOperation):
+class SrliwOp(RdRsImmShiftOperation[UI5, I32]):
     """
     Performs logical right shift on the 32-bit of value in register rs1 by the shift amount held in the
     lower 5 bits of the immediate.

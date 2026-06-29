@@ -1,4 +1,4 @@
-from typing import Literal, cast
+from typing import Any, Generic, Literal, cast
 
 from xdsl.dialects import riscv, riscv_snitch, rv32, rv64
 from xdsl.dialects.builtin import (
@@ -10,9 +10,10 @@ from xdsl.dialects.builtin import (
     i32,
     i64,
 )
+from xdsl.dialects.riscv.abstract_ops import IWidth, LiOperation
 from xdsl.dialects.utils import FastMathFlag
-from xdsl.ir import OpResult, SSAValue
-from xdsl.irdl import irdl_to_attr_constraint
+from xdsl.ir import Operation, OpResult, SSAValue
+from xdsl.irdl import irdl_to_attr_constraint, isa
 from xdsl.pattern_rewriter import (
     PatternRewriter,
     RewritePattern,
@@ -315,34 +316,59 @@ class XoriImmediate(RewritePattern):
             )
 
 
-class ShiftbyZero(RewritePattern):
+class ShiftbyZero(RewritePattern, Generic[IWidth]):
     """
     shift(x, 0) -> x
     """
 
+    shift_op_type: type[riscv.RdRsImmShiftOperation[Any, IWidth]]
+
+    def __init__(
+        self,
+        shift_op_type: type[riscv.RdRsImmShiftOperation[Any, IWidth]],
+    ):
+        self.shift_op_type = shift_op_type
+        
     @op_type_rewrite_pattern
     def match_and_rewrite(
-        self, op: riscv.RdRsImmShiftOperation, rewriter: PatternRewriter
+        self,
+        op: Operation,
+        rewriter: PatternRewriter,
     ) -> None:
         # check if the shift amount is zero
-        if op.immediate.value.data == 0:
+        if isa(op, self.shift_op_type) and (op.immediate.value.data == 0):
             rewriter.replace_op(op, riscv.MVOp(op.rs1, rd=op.rd.type))
 
 
-class ShiftConstantFolding(RewritePattern):
+class ShiftConstantFolding(RewritePattern, Generic[IWidth]):
     """
     shift(c1, c2) -> c3
     """
 
+    li_op_type: type[LiOperation[IWidth]]
+    shift_op_type: type[riscv.RdRsImmShiftOperation[Any, IWidth]]
+
+    def __init__(
+        self,
+        li_op_type: type[LiOperation[IWidth]],
+        shift_op_type: type[riscv.RdRsImmShiftOperation[Any, IWidth]],
+    ):
+        self.li_op_type = li_op_type
+        self.shift_op_type = shift_op_type
+
     @op_type_rewrite_pattern
     def match_and_rewrite(
-        self, op: riscv.RdRsImmShiftOperation, rewriter: PatternRewriter
+        self,
+        op: Operation,
+        rewriter: PatternRewriter,
     ) -> None:
-        if (rs1 := get_constant_value(op.rs1)) is not None:
+        if (
+            isa(op, self.shift_op_type)
+            and (rs1 := get_constant_value(op.rs1)) is not None
+        ):
             rd = op.rd.type
-            val = cast(IntegerAttr[I32], rs1)
-            result = op.py_operation(val)
-            rewriter.replace_op(op, rv32.LiOp(result, rd=rd))
+            result = op.py_operation(cast(IntegerAttr[IWidth], rs1))
+            rewriter.replace_op(op, self.li_op_type(result, rd=rd))
 
 
 class LoadWordWithKnownOffset(RewritePattern):
