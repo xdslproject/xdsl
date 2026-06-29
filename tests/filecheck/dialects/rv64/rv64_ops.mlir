@@ -12,6 +12,9 @@ riscv_func.func @main() {
   %srai = rv64.srai %0, 1: (!riscv.reg<j_1>) -> !riscv.reg<j_1>
   // CHECK-NEXT: %{{.*}} = rv64.srai %{{.*}}, 1 : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
 
+  %li = rv64.li 1 : !riscv.reg
+  // CHECK: %{{.*}} = rv64.li 1 : !riscv.reg
+  
   // Load 64-bit value from memory
   %ld = rv64.ld %li, 8 : (!riscv.reg) -> !riscv.reg
   // CHECK: %{{.*}} = rv64.ld %{{.*}}, 8 : (!riscv.reg) -> !riscv.reg
@@ -42,4 +45,7 @@ riscv_func.func @main() {
 // CHECK-ASM-NEXT:      slli j_1, j_1, 1
 // CHECK-ASM-NEXT:      srli j_1, j_1, 1
 // CHECK-ASM-NEXT:      srai j_1, j_1, 1
+// CHECK-ASM-NEXT:      li , 1
+// CHECK-ASM-NEXT:      ld , 8()
+// CHECK-ASM-NEXT:      sd , 16()
 // CHECK-ASM-NEXT:      ret

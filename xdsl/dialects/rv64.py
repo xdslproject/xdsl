@@ -7,14 +7,13 @@ using 6-bit immediates for 64-bit architectures.
 
 from __future__ import annotations
 
+from xdsl.backend.assembly_printer import AssemblyPrinter
 from xdsl.dialects.builtin import (
     I64,
     IntegerAttr,
     StringAttr,
     i64,
 )
-from xdsl.backend.assembly_printer import AssemblyPrinter
-from xdsl.dialects.builtin import I64, IntegerAttr, StringAttr, i64
 from xdsl.dialects.riscv import (
     AssemblyInstructionArg,
     IntRegisterType,
@@ -26,13 +25,14 @@ from xdsl.dialects.riscv.abstract_ops import (
     GetAnyRegisterOperation,
     ImmShiftOpHasCanonicalizationPatternsTrait,
     LiOperation,
-    RdRsImmShiftOperation,
-)
-from xdsl.dialects.riscv.attrs import UI6, ui6
-    LiOperation,
     RdRsImmIntegerOperation,
+    RdRsImmShiftOperation,
     RsRsImmIntegerOperation,
     assembly_arg_str,
+)
+from xdsl.dialects.riscv.attrs import (
+    UI6,
+    ui6,
 )
 from xdsl.ir import (
     Attribute,
@@ -48,6 +48,7 @@ from xdsl.irdl import (
 from xdsl.parser import Parser
 from xdsl.traits import (
     AlwaysSpeculatable,
+    MemoryReadEffect,
 )
 
 
