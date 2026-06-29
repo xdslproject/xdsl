@@ -1,7 +1,7 @@
 import pytest
 
 from xdsl.dialects import test
-from xdsl.pattern_rewriter import Worklist
+from xdsl.utils.worklist import Worklist
 
 
 def test_worklist_push_pop():
@@ -71,3 +71,34 @@ def test_worklist_remove():
     assert not worklist
     with pytest.raises(IndexError, match="pop from empty worklist"):
         worklist.pop()
+
+
+def test_worklist_non_default():
+    worklist = Worklist[int]()
+
+    worklist.push(1)
+    worklist.push(2)
+    assert worklist.pop() == 2
+    assert worklist.pop() == 1
+    assert not worklist
+
+
+def test_worklist_with_none():
+    worklist = Worklist[int | None]()
+
+    worklist.push(None)
+    worklist.push(1)
+    assert worklist.pop() == 1
+    assert worklist.pop() is None
+
+    with pytest.raises(IndexError, match="pop from empty worklist"):
+        worklist.pop()
+
+    worklist.push(1)
+    worklist.push(None)
+    worklist.push(2)
+    worklist.remove(None)
+
+    assert worklist.pop() == 2
+    assert worklist.pop() == 1
+    assert not worklist
