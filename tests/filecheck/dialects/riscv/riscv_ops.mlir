@@ -262,8 +262,19 @@
     // CHECK-NEXT: %{{.*}} = riscv.min %{{.*}}, %{{.*}} : (!riscv.reg, !riscv.reg) -> !riscv.reg
     %minu = riscv.minu %0, %1 : (!riscv.reg, !riscv.reg) -> !riscv.reg
     // CHECK-NEXT: %{{.*}} = riscv.minu %{{.*}}, %{{.*}} : (!riscv.reg, !riscv.reg) -> !riscv.reg
-
-
+    %clz = riscv.clz %0 : (!riscv.reg) -> !riscv.reg
+    // CHECK-NEXT: %{{.*}} = riscv.clz %{{.*}} : (!riscv.reg) -> !riscv.reg
+    %clzw = riscv.clzw %0 : (!riscv.reg) -> !riscv.reg
+    // CHECK-NEXT: %{{.*}} = riscv.clzw %{{.*}} : (!riscv.reg) -> !riscv.reg
+    %cpop = riscv.cpop %0 : (!riscv.reg) -> !riscv.reg
+    // CHECK-NEXT: %{{.*}} = riscv.cpop %{{.*}} : (!riscv.reg) -> !riscv.reg
+    %cpopw = riscv.cpopw %0 : (!riscv.reg) -> !riscv.reg
+    // CHECK-NEXT: %{{.*}} = riscv.cpopw %{{.*}} : (!riscv.reg) -> !riscv.reg
+    %ctz = riscv.ctz %0 : (!riscv.reg) -> !riscv.reg
+    // CHECK-NEXT: %{{.*}} = riscv.ctz %{{.*}} : (!riscv.reg) -> !riscv.reg
+    %ctzw = riscv.ctzw %0 : (!riscv.reg) -> !riscv.reg
+    // CHECK-NEXT: %{{.*}} = riscv.ctzw %{{.*}} : (!riscv.reg) -> !riscv.reg
+    
     // RV32/RV64 Zicond extension for conditional operations
 
     %czeroeqzop = riscv.czero.eqz %0, %1 : (!riscv.reg, !riscv.reg) -> !riscv.reg
@@ -567,6 +578,12 @@
 // CHECK-GENERIC-NEXT:      %maxu = "riscv.maxu"(%0, %1) : (!riscv.reg, !riscv.reg) -> !riscv.reg
 // CHECK-GENERIC-NEXT:      %min = "riscv.min"(%0, %1) : (!riscv.reg, !riscv.reg) -> !riscv.reg
 // CHECK-GENERIC-NEXT:      %minu = "riscv.minu"(%0, %1) : (!riscv.reg, !riscv.reg) -> !riscv.reg
+// CHECK-GENERIC-NEXT:      %clz = "riscv.clz"(%0) : (!riscv.reg) -> !riscv.reg
+// CHECK-GENERIC-NEXT:      %clzw = "riscv.clzw"(%0) : (!riscv.reg) -> !riscv.reg
+// CHECK-GENERIC-NEXT:      %cpop = "riscv.cpop"(%0) : (!riscv.reg) -> !riscv.reg
+// CHECK-GENERIC-NEXT:      %cpopw = "riscv.cpopw"(%0) : (!riscv.reg) -> !riscv.reg
+// CHECK-GENERIC-NEXT:      %ctz = "riscv.ctz"(%0) : (!riscv.reg) -> !riscv.reg
+// CHECK-GENERIC-NEXT:      %ctzw = "riscv.ctzw"(%0) : (!riscv.reg) -> !riscv.reg
 // CHECK-GENERIC-NEXT:      %czeroeqzop = "riscv.czero.eqz"(%0, %1) : (!riscv.reg, !riscv.reg) -> !riscv.reg
 // CHECK-GENERIC-NEXT:      %czeronezop = "riscv.czero.nez"(%0, %1) : (!riscv.reg, !riscv.reg) -> !riscv.reg
 // CHECK-GENERIC-NEXT:      "riscv.ecall"() : () -> ()
