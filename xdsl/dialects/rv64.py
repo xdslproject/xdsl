@@ -7,6 +7,7 @@ using 6-bit immediates for 64-bit architectures.
 
 from __future__ import annotations
 
+from xdsl.backend.assembly_printer import AssemblyPrinter
 from xdsl.dialects.builtin import I64, IntegerAttr, StringAttr, i64
 from xdsl.dialects.riscv import (
     IntRegisterType,
@@ -14,15 +15,23 @@ from xdsl.dialects.riscv import (
     Registers,
     parse_immediate_value,
 )
-from xdsl.dialects.riscv.abstract_ops import GetAnyRegisterOperation, LiOperation
+from xdsl.dialects.riscv.abstract_ops import (
+    GetAnyRegisterOperation,
+    LiOperation,
+    RdRsImmIntegerOperation,
+    RsRsImmIntegerOperation,
+    assembly_arg_str,
+)
 from xdsl.ir import (
     Attribute,
     Dialect,
 )
 from xdsl.irdl import (
     irdl_op_definition,
+    traits_def,
 )
 from xdsl.parser import Parser
+from xdsl.traits import MemoryReadEffect
 
 
 @irdl_op_definition
@@ -56,6 +65,54 @@ class LiOp(LiOperation[I64]):
 
 
 @irdl_op_definition
+class LdOp(RdRsImmIntegerOperation):
+    """
+    Loads a 64-bit value from memory into register rd for RV64I.
+    ```C
+    x[rd] = M[x[rs1] + sext(offset)][63:0]
+    ```
+
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/#_ld).
+    """
+
+    name = "rv64.ld"
+
+    traits = traits_def(MemoryReadEffect())
+
+    def assembly_line(self) -> str | None:
+        instruction_name = self.assembly_instruction_name()
+        value = assembly_arg_str(self.rd)
+        imm = assembly_arg_str(self.immediate)
+        base = assembly_arg_str(self.rs1)
+        return AssemblyPrinter.assembly_line(
+            instruction_name, f"{value}, {imm}({base})", self.comment
+        )
+
+
+@irdl_op_definition
+class SdOp(RsRsImmIntegerOperation):
+    """
+    Store 64-bit, values from register rs2 to memory.
+    ```C
+    M[x[rs1] + sext(offset)] = x[rs2][63:0]
+    ```
+
+    See external [documentation](https://msyksphinz-self.github.io/riscv-isadoc/#_sd).
+    """
+
+    name = "rv64.sd"
+
+    def assembly_line(self) -> str | None:
+        instruction_name = self.assembly_instruction_name()
+        value = assembly_arg_str(self.rs2)
+        imm = assembly_arg_str(self.immediate)
+        base = assembly_arg_str(self.rs1)
+        return AssemblyPrinter.assembly_line(
+            instruction_name, f"{value}, {imm}({base})", self.comment
+        )
+
+
+@irdl_op_definition
 class GetRegisterOp(GetAnyRegisterOperation[IntRegisterType]):
     name = "rv64.get_register"
 
@@ -64,6 +121,8 @@ RV64 = Dialect(
     "rv64",
     [
         LiOp,
+        LdOp,
+        SdOp,
         GetRegisterOp,
     ],
     [],
