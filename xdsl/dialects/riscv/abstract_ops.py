@@ -1526,67 +1526,6 @@ class LiOperation(
 IOffset = TypeVar("IOffset", bound=I12 | SI12)
 
 
-class SdOperation(
-    RISCVCustomFormatOperation,
-    RISCVInstruction,
-    ABC,
-    Generic[IOffset],
-):
-    """
-    Base class for RISC-V store operations that store a value from rs2
-    to memory at address rs1 + sext(immediate).
-
-    This is an S-Type operation.
-    """
-
-    rs1 = operand_def(IntRegisterType)
-    rs2 = operand_def(IntRegisterType)
-    immediate = attr_def(IntegerAttr[IOffset])
-
-    traits = traits_def(MemoryWriteEffect())
-
-    def __init__(
-        self,
-        rs1: Operation | SSAValue,
-        rs2: Operation | SSAValue,
-        immediate: IntegerAttr[IOffset],
-        *,
-        comment: str | StringAttr | None = None,
-    ):
-        if isinstance(comment, str):
-            comment = StringAttr(comment)
-        super().__init__(
-            operands=[rs1, rs2],
-            attributes={
-                "immediate": immediate,
-                "comment": comment,
-            },
-        )
-
-    def assembly_line(self) -> str | None:
-        instruction_name = self.assembly_instruction_name()
-        value = assembly_arg_str(self.rs2)
-        imm = assembly_arg_str(self.immediate)
-        base = assembly_arg_str(self.rs1)
-        return AssemblyPrinter.assembly_line(
-            instruction_name, f"{value}, {imm}({base})", self.comment
-        )
-
-    def assembly_line_args(self) -> tuple[AssemblyInstructionArg, ...]:
-        return self.rs1, self.rs2, self.immediate
-
-    @classmethod
-    def custom_parse_attributes(cls, parser: Parser) -> dict[str, Attribute]:
-        attributes = dict[str, Attribute]()
-        attributes["immediate"] = parse_immediate_value(parser, i12)
-        return attributes
-
-    def custom_print_attributes(self, printer: Printer) -> AbstractSet[str]:
-        printer.print_string(", ")
-        print_immediate_value(printer, self.immediate)
-        return {"immediate"}
-
-
 class GetAnyRegisterOperation(
     RISCVCustomFormatOperation,
     RISCVAsmOperation,
