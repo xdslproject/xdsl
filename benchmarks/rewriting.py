@@ -16,7 +16,7 @@ from xdsl.ir import Region
 from xdsl.ir.post_order import PostOrderIterator
 from xdsl.irdl import VarIRConstruct, verify_variadic_size
 from xdsl.parser import Parser as XdslParser
-from xdsl.pattern_rewriter import PatternRewriter, Worklist
+from xdsl.pattern_rewriter import PatternRewriter
 from xdsl.rewriter import InsertPoint
 from xdsl.traits import (
     HasCanonicalizationPatternsTrait,
@@ -34,6 +34,7 @@ from xdsl.transforms.test_constant_folding import (
     TestConstantFoldingPass,
     TestSpecialisedConstantFoldingPass,
 )
+from xdsl.utils.worklist import Worklist
 
 CTX = Context(allow_unregistered=True)
 CTX.load_dialect(Arith)
@@ -122,7 +123,7 @@ class RewritingMicrobenchmarks:
         self.add_op_def = AddiOp.get_irdl_definition()
         self.add_op_construct = VarIRConstruct.OPERAND
         self.add_op_result = self.add_op.result
-        self.add_op_result_use = list(self.add_op_result.uses)[0]
+        self.add_op_result_use = next(iter(self.add_op_result.uses))
         self.sub_op = SubiOp(self.const_1, self.const_0)
         self.sub_op_result = self.sub_op.result
         self.insert_point = InsertPoint.before(self.add_op)

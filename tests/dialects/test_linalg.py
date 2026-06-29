@@ -7,6 +7,7 @@ from xdsl.dialects import arith, func, linalg, memref
 from xdsl.dialects.builtin import (
     DYNAMIC_INDEX,
     AffineMapAttr,
+    ArrayAttr,
     FloatAttr,
     MemRefType,
     TensorType,
@@ -185,3 +186,45 @@ def test_deprecated_top_level_linalg_api_still_works():
         structured_op = linalg.LinalgStructuredOperation
 
     assert structured_op is linalg.abstract_ops.LinalgStructuredOperation
+
+
+@pytest.mark.parametrize(
+    "op_type",
+    [
+        linalg.ops.ExpOp,
+        linalg.ops.LogOp,
+        linalg.ops.SqrtOp,
+    ],
+)
+@pytest.mark.parametrize(
+    "shape",
+    [
+        (2, 2),
+        (1,),
+        (3, 1),
+        (4, 3, 2),
+    ],
+)
+def test_unary_elementwise_op_identity_map_and_parallel_iters(
+    op_type: type[linalg.ops.ExpOp | linalg.ops.LogOp | linalg.ops.SqrtOp],
+    shape: tuple[int, ...],
+):
+    t = TensorType(f32, shape)
+
+    op = op_type(
+        [create_ssa_value(t)],
+        [create_ssa_value(t)],
+    )
+
+    # Should have exactly 2 access maps: [in, out]
+    assert op.get_indexing_maps() == ArrayAttr(
+        (
+            AffineMapAttr(AffineMap.identity(len(shape))),
+            AffineMapAttr(AffineMap.identity(len(shape))),
+        )
+    )
+
+    # Should have all parallel iterators
+    assert op.get_iterator_types() == ArrayAttr(
+        [linalg.attrs.IteratorTypeAttr.parallel() for _ in range(len(shape))]
+    )

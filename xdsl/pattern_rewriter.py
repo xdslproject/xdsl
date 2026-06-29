@@ -30,6 +30,7 @@ from xdsl.irdl import AttrConstraint, base
 from xdsl.rewriter import BlockInsertPoint, InsertPoint, Rewriter
 from xdsl.traits import ConstantLike, HasFolder
 from xdsl.utils.hints import isa
+from xdsl.utils.worklist import Worklist
 
 
 @dataclass(eq=False)
@@ -602,60 +603,6 @@ class GreedyRewritePatternApplier(RewritePattern):
         return
 
 
-@dataclass(eq=False)
-class Worklist:
-    _op_stack: list[Operation | None] = field(
-        default_factory=list[Operation | None], init=False
-    )
-    """
-    The list of operations to iterate over, used as a last-in-first-out stack.
-    Operations are added and removed at the end of the list.
-    Operation that are `None` are meant to be discarded, and are used to
-    keep removal of operations O(1).
-    """
-
-    _map: dict[Operation, int] = field(default_factory=dict[Operation, int], init=False)
-    """
-    The map of operations to their index in the stack.
-    It is used to check if an operation is already in the stack, and to
-    remove it in O(1).
-    """
-
-    def is_empty(self) -> bool:
-        """Check if the worklist is empty."""
-        while self._op_stack and self._op_stack[-1] is None:
-            self._op_stack.pop()
-        return not bool(self._op_stack)
-
-    def push(self, op: Operation):
-        """
-        Push an operation to the end of the worklist, if it is not already in it.
-        """
-        if op not in self._map:
-            self._map[op] = len(self._op_stack)
-            self._op_stack.append(op)
-
-    def pop(self) -> Operation | None:
-        """Pop the operation at the end of the worklist."""
-        # All `None` operations at the end of the stack are discarded,
-        # as they were removed previously.
-        # We either return `None` if the stack is empty, or the last operation
-        # that is not `None`.
-        while self._op_stack:
-            op = self._op_stack.pop()
-            if op is not None:
-                del self._map[op]
-                return op
-        return None
-
-    def remove(self, op: Operation):
-        """Remove an operation from the worklist."""
-        if op in self._map:
-            index = self._map[op]
-            self._op_stack[index] = None
-            del self._map[op]
-
-
 @dataclass(eq=False, repr=False)
 class PatternRewriteWalker:
     """
@@ -813,9 +760,9 @@ class PatternRewriteWalker:
         rewriter_has_done_action = False
 
         # Handle empty worklist
-        op = self._worklist.pop()
-        if op is None:
+        if not self._worklist:
             return rewriter_has_done_action
+        op = self._worklist.pop()
 
         # Create a rewriter on the first operation
         rewriter = PatternRewriter(op)
@@ -840,6 +787,6 @@ class PatternRewriteWalker:
             rewriter_has_done_action |= rewriter.has_done_action
 
             # If the worklist is empty, we are done
-            op = self._worklist.pop()
-            if op is None:
+            if not self._worklist:
                 return rewriter_has_done_action
+            op = self._worklist.pop()

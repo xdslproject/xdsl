@@ -1542,6 +1542,9 @@ class LiOperation(
         printer.print_attribute(self.rd.type)
 
 
+IOffset = TypeVar("IOffset", bound=I12 | SI12)
+
+
 class GetAnyRegisterOperation(
     RISCVCustomFormatOperation,
     RISCVAsmOperation,
