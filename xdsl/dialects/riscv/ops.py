@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from collections.abc import Set as AbstractSet
-from re import I
 from typing import ClassVar, cast
 
 from xdsl.backend.assembly_printer import (

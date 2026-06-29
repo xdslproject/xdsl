@@ -36,12 +36,12 @@ from xdsl.ir import (
 from xdsl.irdl import (
     IRDLOperation,
     attr_def,
+    lazy_traits_def,
     operand_def,
     opt_attr_def,
     result_def,
     traits_def,
 )
-from xdsl.irdl.operations import lazy_traits_def
 from xdsl.parser import Parser, UnresolvedOperand
 from xdsl.pattern_rewriter import RewritePattern
 from xdsl.printer import Printer
@@ -747,6 +747,7 @@ class RdRsImmIntegerOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC)
 IWidth = TypeVar("IWidth", bound=I32 | I64)
 ShiftImmT = TypeVar("ShiftImmT", bound=UI5 | UI6)
 ShiftImmTAttr = TypeVar("ShiftImmTAttr", bound=I32 | I64)
+
 
 class RdRsImmShiftOperation(RISCVInstruction, ABC, Generic[ShiftImmT, ShiftImmTAttr]):
     """
