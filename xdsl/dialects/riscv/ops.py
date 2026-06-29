@@ -1742,6 +1742,94 @@ class BsetIOp(RdRsImmBitManipOperation):
 
 
 @irdl_op_definition
+class ClzOp(RdRsIntegerOperation[IntRegisterType]):
+    """
+    This instruction counts the number of 0’s before the first 1, starting at the most-significant bit
+    (i.e., XLEN-1) and progressing to bit 0. Accordingly, if the input is 0, the output is XLEN, and if
+    the most-significant bit of the input is a 1, the output is 0.
+
+    See external [documentation](https://docs.riscv.org/reference/isa/v20260120/unpriv/b-st-ext.html#insns-clz)
+    """
+
+    name = "riscv.clz"
+
+    traits = traits_def(AlwaysSpeculatable())
+
+
+@irdl_op_definition
+class ClzwOp(RdRsIntegerOperation[IntRegisterType]):
+    """
+    This instruction counts the number of 0’s before the first 1 starting at bit 31 and progressing to
+    bit 0. Accordingly, if the least-significant word is 0, the output is 32, and if the most-significant
+    bit of the word (i.e., bit 31) is a 1, the output is 0.
+
+    See external [documentation](https://docs.riscv.org/reference/isa/v20260120/unpriv/b-st-ext.html#insns-clzw)
+    """
+
+    name = "riscv.clzw"
+
+    traits = traits_def(AlwaysSpeculatable())
+
+
+@irdl_op_definition
+class CpopOp(RdRsIntegerOperation[IntRegisterType]):
+    """
+    This instructions counts the number of 1’s (i.e., set bits) in the source register.
+
+    See external [documentation](https://docs.riscv.org/reference/isa/v20260120/unpriv/b-st-ext.html#insns-cpop)
+    """
+
+    name = "riscv.cpop"
+
+    traits = traits_def(AlwaysSpeculatable())
+
+
+@irdl_op_definition
+class CpopwOp(RdRsIntegerOperation[IntRegisterType]):
+    """
+    This instructions counts the number of 1’s (i.e., set bits) in the least-significant word of the
+    source register.
+
+    See external [documentation](https://docs.riscv.org/reference/isa/v20260120/unpriv/b-st-ext.html#insns-cpopw)
+    """
+
+    name = "riscv.cpopw"
+
+    traits = traits_def(AlwaysSpeculatable())
+
+
+@irdl_op_definition
+class CtzOp(RdRsIntegerOperation[IntRegisterType]):
+    """
+    This instruction counts the number of 0’s before the first 1, starting at the least-significant bit
+    (i.e., 0) and progressing to the most-significant bit (i.e., XLEN-1). Accordingly, if the input is 0,
+    the output is XLEN, and if the least-significant bit of the input is a 1, the output is 0.
+
+    See external [documentation](https://docs.riscv.org/reference/isa/v20260120/unpriv/b-st-ext.html#insns-ctz)
+    """
+
+    name = "riscv.ctz"
+
+    traits = traits_def(AlwaysSpeculatable())
+
+
+@irdl_op_definition
+class CtzwOp(RdRsIntegerOperation[IntRegisterType]):
+    """
+    This instruction counts the number of 0’s before the first 1, starting at the least-significant bit
+    (i.e., 0) and progressing to the most-significant bit of the least-significant word (i.e., 31).
+    Accordingly, if the least-significant word is 0, the output is 32, and if the least-significant bit
+    of the input is a 1, the output is 0.
+
+    See external [documentation](https://docs.riscv.org/reference/isa/v20260120/unpriv/b-st-ext.html#insns-ctz)
+    """
+
+    name = "riscv.ctzw"
+
+    traits = traits_def(AlwaysSpeculatable())
+
+
+@irdl_op_definition
 class RolwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     This instruction performs a rotate left on the least-significant word of rs1 by the amount in
@@ -3404,6 +3492,12 @@ RISCV = Dialect(
         VFAddSOp,
         VFMulSOp,
         ParallelMovOp,
+        ClzOp,
+        ClzwOp,
+        CpopOp,
+        CpopwOp,
+        CtzOp,
+        CtzwOp,
     ],
     [
         IntRegisterType,
