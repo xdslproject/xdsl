@@ -163,7 +163,10 @@ class PatternRewriting(RewritingMicrobenchmarks):
         relying on operation's `__hash__` function. This is used to process
         items sequentially from the worklist as a stack.
         """
-        self.worklist.pop()
+        try:
+            self.worklist.pop()
+        except IndexError:
+            pass
 
     def time_get_trait(self) -> None:
         """Time `Operation.get_trait`.
