@@ -832,7 +832,10 @@ class ImmShiftOpHasCanonicalizationPatternsTrait(
             ShiftConstantFolding,
         )
 
-        return (ShiftbyZero(), ShiftConstantFolding(cls.li_op_type, cls.shift_op_type))
+        return (
+            ShiftbyZero(cls.shift_op_type),
+            ShiftConstantFolding(cls.li_op_type, cls.shift_op_type),
+        )
 
 
 class RdRsImmBitManipOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):

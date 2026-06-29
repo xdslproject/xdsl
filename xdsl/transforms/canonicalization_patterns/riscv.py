@@ -316,19 +316,27 @@ class XoriImmediate(RewritePattern):
             )
 
 
-class ShiftbyZero(RewritePattern):
+class ShiftbyZero(RewritePattern, Generic[IWidth]):
     """
     shift(x, 0) -> x
     """
 
+    shift_op_type: type[riscv.RdRsImmShiftOperation[Any, IWidth]]
+
+    def __init__(
+        self,
+        shift_op_type: type[riscv.RdRsImmShiftOperation[Any, IWidth]],
+    ):
+        self.shift_op_type = shift_op_type
+
     @op_type_rewrite_pattern
     def match_and_rewrite(
         self,
-        op: rv32.RdRsImmShiftOperationRV32 | rv64.RdRsImmShiftOperationRV64,
+        op: Operation,
         rewriter: PatternRewriter,
     ) -> None:
         # check if the shift amount is zero
-        if op.immediate.value.data == 0:
+        if isa(op, self.shift_op_type) and (op.immediate.value.data == 0):
             rewriter.replace_op(op, riscv.MVOp(op.rs1, rd=op.rd.type))
 
 
