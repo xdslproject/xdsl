@@ -4,11 +4,16 @@ from unittest.mock import MagicMock
 import pytest
 from llvmlite import ir
 
-from xdsl.backend.llvm.convert_op import convert_op, declare_intrinsic, intrinsic_suffix
+from xdsl.backend.llvm.convert_op import (
+    convert_op,
+    create_constant,
+    declare_intrinsic,
+    intrinsic_suffix,
+)
 from xdsl.dialects import llvm
-from xdsl.dialects.builtin import i32
+from xdsl.dialects.builtin import FloatAttr, IntegerAttr, f32, f64, i32, i64
 from xdsl.dialects.utils import FastMathFlag
-from xdsl.ir import Block, SSAValue
+from xdsl.ir import Attribute, Block, SSAValue
 
 
 def test_convert_indirect_call_raises():
@@ -100,3 +105,26 @@ def test_convert_zero():
     convert_op(op, MagicMock(), val_map)
 
     assert str(val_map[op.res]) == "ptr null"
+
+
+@pytest.mark.parametrize(
+    "xdsl_type, attr, llvmlite_type, value",
+    [
+        (i32, IntegerAttr(1, i32), ir.IntType(32), 1),
+        (
+            i64,
+            IntegerAttr(123, i64),
+            ir.IntType(64),
+            123,
+        ),
+        (f32, FloatAttr(3.0, f32), ir.FloatType(), 3.0),
+        (f64, FloatAttr(-42.5, f64), ir.DoubleType(), -42.5),
+    ],
+)
+def test_create_constant(
+    xdsl_type: Attribute,
+    attr: Attribute,
+    llvmlite_type: ir.Type,
+    value: object,
+) -> None:
+    assert create_constant(xdsl_type, attr) == ir.Constant(llvmlite_type, value)
