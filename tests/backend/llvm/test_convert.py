@@ -173,4 +173,4 @@ def test_convert_global_initializer_not_implemented(
         NotImplementedError,
         match="Global values that are not declarations not yet supported",
     ):
-        convert_module(module)
+        convert_module(module, fallback_target_triple="")
