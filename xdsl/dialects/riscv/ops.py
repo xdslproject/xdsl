@@ -1711,26 +1711,6 @@ class RorwOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
 
 
 @irdl_op_definition
-class RoriOp(RdRsImmBitManipOperation):
-    """
-    This instruction performs a rotate right of rs1 by the amount in the least-significant
-    log2(XLEN) bits of shamt. For RV32, the encodings corresponding to shamt[5]=1 are reserved.
-    ```
-    let shamt = if   xlen == 32
-                    then shamt[4..0]
-                    else shamt[5..0];
-    let result = (X(rs1) >> shamt) | (X(rs2) << (xlen - shamt));
-    X(rd) = result;
-    ```
-    See external [documentation](https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-rori).
-    """
-
-    name = "riscv.rori"
-
-    traits = traits_def(AlwaysSpeculatable())
-
-
-@irdl_op_definition
 class RoriwOp(RdRsImmBitManipOperation):
     """
     This instruction performs a rotate right on the least-significant word of rs1 by the amount in
@@ -3269,7 +3249,6 @@ RISCV = Dialect(
         MaxUOp,
         MinOp,
         MinUOp,
-        RoriOp,
         RoriwOp,
         SlliUwOp,
         EcallOp,

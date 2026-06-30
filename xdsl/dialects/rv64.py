@@ -224,7 +224,27 @@ class BsetIOp(RV64RdRsImmShiftOperation):
 
     def py_operation(self, rs1: IntegerAttr[I64]) -> IntegerAttr[I64]:
         assert isinstance(self.immediate, IntegerAttr)
-        return IntegerAttr(rs1.value.data ^ (1 << self.immediate.value.data), i64)
+        return IntegerAttr(rs1.value.data | (1 << self.immediate.value.data), i64)
+
+
+@irdl_op_definition
+class RorIOp(RV64RdRsImmShiftOperation):
+    """
+    This instruction performs a rotate right of rs1 by the amount in the least-significant log2(XLEN)
+    bits of shamt. For RV32, the encodings corresponding to shamt[5]=1 are reserved.
+
+    See external [documentation](https://docs.riscv.org/reference/isa/v20260120/unpriv/b-st-ext.html#insns-rori).
+    """
+
+    name = "rv64.rori"
+
+    def py_operation(self, rs1: IntegerAttr[I64]) -> IntegerAttr[I64]:
+        assert isinstance(self.immediate, IntegerAttr)
+        return IntegerAttr(
+            rs1.value.data >> self.immediate.value.data
+            | rs1.value.data << (64 - self.immediate.value.data),
+            i64,
+        )
 
 
 @irdl_op_definition
@@ -346,6 +366,7 @@ RV64 = Dialect(
         BextIOp,
         BinvIOp,
         BsetIOp,
+        RorIOp,
         LiOp,
         LdOp,
         SdOp,

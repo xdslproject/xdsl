@@ -66,7 +66,7 @@ def test_effect_traits():
     unknown_effects_ops = {op for op in operations if op not in effects_ops}
 
     # Sentinels to remind us to update this test when updating the dialect
-    assert len(effects_ops) == 9
+    assert len(effects_ops) == 10
     assert not unknown_effects_ops
 
     all_effects_trait_types = {
@@ -94,6 +94,7 @@ def test_effect_traits():
         rv32.BextIOp,
         rv32.BinvIOp,
         rv32.BsetIOp,
+        rv32.RorIOp,
         rv32.LiOp,
     }
     assert no_effects_ops == {
