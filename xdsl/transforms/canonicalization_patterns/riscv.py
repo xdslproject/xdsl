@@ -329,7 +329,6 @@ class ShiftbyZero(RewritePattern, Generic[IWidth]):
     ):
         self.shift_op_type = shift_op_type
 
-    @op_type_rewrite_pattern
     def match_and_rewrite(
         self,
         op: Operation,
