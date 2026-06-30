@@ -166,7 +166,7 @@ def convert_module(
     Raises:
         LLVMTranslationException: If the ``llvm.target_triple`` attribute is present
             but is not a ``StringAttr``.
-        NotImplementedError: If the module contains an op that is not a ``FuncOp``.
+        NotImplementedError: If the module contains an op that is not a ``llvm.func`` or ``llvm.global``.
     """
     llvm_module = ir.Module()
     module_triple = module.attributes.get("llvm.target_triple")
