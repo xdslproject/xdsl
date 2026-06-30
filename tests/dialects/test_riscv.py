@@ -362,7 +362,7 @@ def test_effect_traits():
     unknown_effects_ops = {op for op in operations if op not in effects_ops}
 
     # Sentinels to remind us to update this test when updating the dialect
-    assert len(effects_ops) == 155
+    assert len(effects_ops) == 154
     assert unknown_effects_ops == {
         riscv.ops.CommentOp,
         riscv.ops.AssemblySectionOp,
@@ -393,7 +393,7 @@ def test_effect_traits():
 
     no_effects_ops = {op for op in effects_ops if op.has_trait(NoMemoryEffect)}
 
-    assert len(register_effects_ops) == 154
+    assert len(register_effects_ops) == 153
     assert read_effects_ops == {
         riscv.CsrrciOp,
         riscv.CsrrcOp,

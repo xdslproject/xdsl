@@ -1531,24 +1531,6 @@ class BclrOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
 
 
 @irdl_op_definition
-class BclrIOp(RdRsImmBitManipOperation):
-    """
-    This instruction returns rs1 with a single bit cleared at the index specified in shamt.
-    The index is read from the lower log2(XLEN) bits of shamt. For RV32, the encodings corresponding
-    to shamt[5]=1 are reserved.
-    ```
-    let index = shamt & (XLEN - 1);
-    X(rd) = X(rs1) & ~(1 << index)
-    ```
-    See external [documentation](https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-bclri).
-    """
-
-    name = "riscv.bclri"
-
-    traits = traits_def(AlwaysSpeculatable())
-
-
-@irdl_op_definition
 class BextOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     This instruction returns a single bit extracted from rs1 at the index specified in rs2.
@@ -3341,7 +3323,6 @@ RISCV = Dialect(
         MaxUOp,
         MinOp,
         MinUOp,
-        BclrIOp,
         BextIOp,
         BsetIOp,
         BinvIOp,

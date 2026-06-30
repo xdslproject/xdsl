@@ -158,6 +158,23 @@ class SrliOp(RV64RdRsImmShiftOperation):
 
 
 @irdl_op_definition
+class BclriOp(RV64RdRsImmShiftOperation):
+    """
+    This instruction returns rs1 with a single bit cleared at the index specified in shamt.
+    The index is read from the lower log2(XLEN) bits of shamt. For RV32, the encodings corresponding
+    to shamt[5]=1 are reserved.
+
+    See external [documentation](https://docs.riscv.org/reference/isa/v20260120/unpriv/b-st-ext.html#insns-bclri).
+    """
+
+    name = "rv64.bclri"
+
+    def py_operation(self, rs1: IntegerAttr[I64]) -> IntegerAttr[I64]:
+        assert isinstance(self.immediate, IntegerAttr)
+        return IntegerAttr(rs1.value.data & (~(1 << self.immediate.value.data)), i64)
+
+
+@irdl_op_definition
 class SraiOp(RV64RdRsImmShiftOperation):
     """
     Performs arithmetic right shift on the value in register rs1 by the shift amount
@@ -272,6 +289,7 @@ RV64 = Dialect(
         SraiOp,
         SlliwOp,
         SrliwOp,
+        BclriOp,
         LiOp,
         LdOp,
         SdOp,
