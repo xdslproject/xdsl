@@ -119,7 +119,9 @@ def convert_module(
                 else 0
             )
             arg_types.append(ir.PointerType(convert_type(elem), addrspace=addrspace))
-        func_type = ir.FunctionType(ret_type, arg_types)
+        func_type = ir.FunctionType(
+            ret_type, arg_types, var_arg=op.function_type.is_variadic
+        )
         fn = ir.Function(llvm_module, func_type, name=op.sym_name.data)
 
         if op.arg_attrs is None:
