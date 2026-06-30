@@ -1,6 +1,10 @@
 // RUN: xdsl-opt -t llvm %s | filecheck %s
 
-builtin.module {
+builtin.module attributes {llvm.target_triple = "test-test-test"} {
+  //      CHECK:  ; ModuleID = ""
+  // CHECK-NEXT:  target triple = "test-test-test"
+  // CHECK-NEXT:  datalayout = ""
+
   llvm.func @declaration()
 
   // CHECK: declare void @"declaration"()
@@ -593,7 +597,7 @@ builtin.module {
 
   // void gep_inbounds(int* ptr, int idx) {
   //   // same as gep_ssa, but we assume that 'ptr + idx' stays within the same 'object'
-  //   int* result = &ptr[idx]; 
+  //   int* result = &ptr[idx];
   // }
   llvm.func @gep_inbounds(%arg0: !llvm.ptr, %arg1: i32) {
     %0 = llvm.getelementptr inbounds %arg0[%arg1] : (!llvm.ptr, i32) -> !llvm.ptr, i32
