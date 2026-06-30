@@ -354,6 +354,19 @@
     // CHECK-NEXT: vfadd.s fj_3, fj_0, fj_1
     %vfmul_s = riscv.vfmul.s %f0, %f1 : (!riscv.freg<fj_0>, !riscv.freg<fj_1>) -> !riscv.freg<fj_3>
     // CHECK-NEXT: vfmul.s fj_3, fj_0, fj_1
+    
+    %clz = riscv.clz %1 : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
+    // CHECK-NEXT: clz j_1, j_1
+    %clzw = riscv.clzw %1 : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
+    // CHECK-NEXT: clzw j_1, j_1
+    %cpop = riscv.cpop %1 : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
+    // CHECK-NEXT: cpop j_1, j_1
+    %cpopw = riscv.cpopw %1 : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
+    // CHECK-NEXT: cpopw j_1, j_1
+    %ctz = riscv.ctz %1 : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
+    // CHECK-NEXT: ctz j_1, j_1
+    %ctzw = riscv.ctzw %1 : (!riscv.reg<j_1>) -> !riscv.reg<j_1>
+    // CHECK-NEXT: ctzw j_1, j_1
 
     // Terminate block
     riscv_func.return
