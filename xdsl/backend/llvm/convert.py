@@ -128,6 +128,29 @@ def convert_module(
 ) -> ir.Module:
     """
     Convert an xDSL module to an LLVM module.
+
+    Args:
+        module: The xDSL module to convert.
+        fallback_target_triple: The target triple to use when the module does not
+            carry an ``llvm.target_triple`` attribute. The triple of the resulting
+            module is resolved as follows:
+
+            1. If the module has an ``llvm.target_triple`` attribute, its value is
+               always used and ``fallback_target_triple`` is ignored.
+            2. Otherwise, if ``fallback_target_triple`` is not ``None``, it is used
+               as-is.
+            3. Otherwise (it is ``None``), the host's default triple, as reported by
+               ``llvmlite.binding.get_default_triple()``, is used.
+        data_layout: The data layout to set on the resulting module. If empty, no
+            data layout is set.
+
+    Returns:
+        The corresponding llvmlite IR module.
+
+    Raises:
+        LLVMTranslationException: If the ``llvm.target_triple`` attribute is present
+            but is not a ``StringAttr``.
+        NotImplementedError: If the module contains an op that is not a ``FuncOp``.
     """
     llvm_module = ir.Module()
     module_triple = module.attributes.get("llvm.target_triple")
