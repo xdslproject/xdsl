@@ -122,7 +122,8 @@ def _convert_func(op: llvm.FuncOp, llvm_module: ir.Module):
 
 def convert_module(
     module: ModuleOp,
-    target_triple: str = "",
+    *,
+    fallback_target_triple: str | None,
     data_layout: str = "",
 ) -> ir.Module:
     """
@@ -136,8 +137,12 @@ def convert_module(
                 f"Unsupported llvm.target_triple attribute: {module_triple}"
             )
         llvm_module.triple = module_triple.data
-    if target_triple:
-        llvm_module.triple = target_triple
+    else:
+        if fallback_target_triple is None:
+            from llvmlite import binding
+
+            fallback_target_triple = binding.get_default_triple()
+        llvm_module.triple = fallback_target_triple
     if data_layout:
         llvm_module.data_layout = data_layout
 
@@ -164,5 +169,5 @@ class LLVMTarget(Target):
     name = "llvm"
 
     def emit(self, ctx: Context, module: ModuleOp, output: IO[str]) -> None:
-        llvm_module = convert_module(module)
+        llvm_module = convert_module(module, fallback_target_triple=None)
         print(llvm_module, file=output)
