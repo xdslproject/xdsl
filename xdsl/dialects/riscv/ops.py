@@ -87,7 +87,6 @@ from .abstract_ops import (
 )
 from .attrs import (
     SI20,
-    UI5,
     FastMathFlagsAttr,
     LabelAttr,
 )
@@ -244,7 +243,7 @@ class XoriOp(RdRsImmIntegerOperation):
 
 
 @irdl_op_definition
-class SlliOp(RdRsImmShiftOperation[UI5, I32]):
+class SlliOp(RdRsImmShiftOperation):
     """
     Performs logical left shift on the value in register rs1 by the shift amount
     held in the lower 5 bits of the immediate.
@@ -261,7 +260,7 @@ class SlliOp(RdRsImmShiftOperation[UI5, I32]):
 
 
 @irdl_op_definition
-class SrliOp(RdRsImmShiftOperation[UI5, I32]):
+class SrliOp(RdRsImmShiftOperation):
     """
     Performs logical right shift on the value in register rs1 by the shift amount held
     in the lower 5 bits of the immediate.
@@ -280,7 +279,7 @@ class SrliOp(RdRsImmShiftOperation[UI5, I32]):
 
 
 @irdl_op_definition
-class SraiOp(RdRsImmShiftOperation[UI5, I32]):
+class SraiOp(RdRsImmShiftOperation):
     """
     Performs arithmetic right shift on the value in register rs1 by the shift amount
     held in the lower 5 bits of the immediate.
@@ -314,7 +313,7 @@ class AddiwOp(RdRsImmIntegerOperation):
 
 
 @irdl_op_definition
-class SlliwOp(RdRsImmShiftOperation[UI5, I32]):
+class SlliwOp(RdRsImmShiftOperation):
     """
     Performs logical left shift on the 32-bit of value in register rs1 by the
     shift amount held in the lower 5 bits of the immediate.
@@ -330,7 +329,7 @@ class SlliwOp(RdRsImmShiftOperation[UI5, I32]):
 
 
 @irdl_op_definition
-class SrliwOp(RdRsImmShiftOperation[UI5, I32]):
+class SrliwOp(RdRsImmShiftOperation):
     """
     Performs logical right shift on the 32-bit of value in register rs1 by the shift amount held in the
     lower 5 bits of the immediate.

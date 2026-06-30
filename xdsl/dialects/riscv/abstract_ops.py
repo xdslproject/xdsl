@@ -744,12 +744,17 @@ class RdRsImmIntegerOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC)
         return {"immediate"}
 
 
-IWidth = TypeVar("IWidth", bound=I32 | I64)
-ShiftImmT = TypeVar("ShiftImmT", bound=UI5 | UI6)
-ShiftImmTAttr = TypeVar("ShiftImmTAttr", bound=I32 | I64)
+class ImmShiftOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
+    @classmethod
+    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
+        from xdsl.transforms.canonicalization_patterns.riscv import (
+            ShiftbyZero,
+            ShiftConstantFolding,
+        )
 
+        return (ShiftbyZero(), ShiftConstantFolding())
 
-class RdRsImmShiftOperation(RISCVInstruction, ABC, Generic[ShiftImmT, ShiftImmTAttr]):
+class RdRsImmShiftOperation(RISCVInstruction, ABC):
     """
     A base class for RISC-V operations that have one destination register, one source
     register and one immediate operand.
@@ -765,10 +770,8 @@ class RdRsImmShiftOperation(RISCVInstruction, ABC, Generic[ShiftImmT, ShiftImmTA
 
     rd = result_def(IntRegisterType)
     rs1 = operand_def(IntRegisterType)
-    immediate = attr_def(IntegerAttr[ShiftImmT])
-    traits = lazy_traits_def(
-        lambda: (ImmShiftOpHasCanonicalizationPatternsTrait[I32](),)
-    )
+    immediate = attr_def(IntegerAttr[UI5])
+    traits = traits_def(ImmShiftOpHasCanonicalizationPatternsTrait())
 
     assembly_format = (
         "$rs1 `,` $immediate attr-dict `:` `(` type($rs1) `)` `->` type($rd)"
@@ -777,11 +780,14 @@ class RdRsImmShiftOperation(RISCVInstruction, ABC, Generic[ShiftImmT, ShiftImmTA
     def __init__(
         self,
         rs1: Operation | SSAValue,
-        immediate: IntegerAttr[ShiftImmT],
+        immediate: int | IntegerAttr[UI5],
         *,
         rd: IntRegisterType = Registers.UNALLOCATED_INT,
         comment: str | StringAttr | None = None,
     ):
+        if isinstance(immediate, int):
+            immediate = IntegerAttr(immediate, ui5)
+
         if isinstance(comment, str):
             comment = StringAttr(comment)
         super().__init__(
@@ -797,9 +803,7 @@ class RdRsImmShiftOperation(RISCVInstruction, ABC, Generic[ShiftImmT, ShiftImmTA
         return self.rd, self.rs1, self.immediate
 
     @abstractmethod
-    def py_operation(
-        self, rs1: IntegerAttr[ShiftImmTAttr]
-    ) -> IntegerAttr[ShiftImmTAttr]:
+    def py_operation(self, rs1: IntegerAttr[I32]) -> IntegerAttr[I32]:
         """
         Performs a python function corresponding to this operation.
 
@@ -810,35 +814,6 @@ class RdRsImmShiftOperation(RISCVInstruction, ABC, Generic[ShiftImmT, ShiftImmTA
 
         raise NotImplementedError(
             "RdRsImmShiftOperation py_operation is not yet implemented"
-        )
-
-
-class ImmShiftOpHasCanonicalizationPatternsTrait(
-    HasCanonicalizationPatternsTrait, Generic[IWidth]
-):
-    li_op_type: type[LiOperation[IWidth]]
-    shift_op_type: type[RdRsImmShiftOperation[Any, IWidth]]
-
-    def __init_subclass__(
-        cls,
-        li_op_type: type[LiOperation[IWidth]],
-        shift_op_type: type[RdRsImmShiftOperation[Any, IWidth]],
-        **kwargs: Any,
-    ) -> None:
-        super().__init_subclass__(**kwargs)
-        cls.li_op_type = li_op_type
-        cls.shift_op_type = shift_op_type
-
-    @classmethod
-    def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
-        from xdsl.transforms.canonicalization_patterns.riscv import (
-            ShiftbyZero,
-            ShiftConstantFolding,
-        )
-
-        return (
-            ShiftbyZero(cls.shift_op_type),
-            ShiftConstantFolding(cls.li_op_type, cls.shift_op_type),
         )
 
 
