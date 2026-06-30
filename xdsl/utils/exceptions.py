@@ -145,9 +145,7 @@ class ArgSpecParseError(BaseException):
         )
 
 
-class LLVMTranslationException(Exception):
+class LLVMTranslationException(DiagnosticException):
     """
     Exception raised during LLVM translation.
     """
-
-    pass

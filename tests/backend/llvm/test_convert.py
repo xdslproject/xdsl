@@ -1,7 +1,7 @@
 import pytest
 
 from xdsl.dialects import llvm
-from xdsl.dialects.builtin import ModuleOp, i32
+from xdsl.dialects.builtin import ModuleOp, StringAttr, i32
 from xdsl.dialects.test import TestOp
 from xdsl.ir import Block, Region
 
@@ -26,12 +26,36 @@ def test_convert_module_with_op_raises():
         convert_module(module)
 
 
-def test_convert_module_target_triple():
-    module = ModuleOp([])
+@pytest.mark.parametrize(
+    "module_triple,arg_triple,expected",
+    [
+        # neither the module nor the call specifies a triple: llvmlite default
+        (None, "", "unknown-unknown-unknown"),
+        # only the call specifies a triple
+        (None, "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-gnu"),
+        # only the module specifies a triple
+        ("aarch64-unknown-linux-gnu", "", "aarch64-unknown-linux-gnu"),
+        # both specify a triple: the call argument overrides the module attribute
+        (
+            "aarch64-unknown-linux-gnu",
+            "x86_64-unknown-linux-gnu",
+            "x86_64-unknown-linux-gnu",
+        ),
+    ],
+)
+def test_convert_module_target_triple(
+    module_triple: str | None, arg_triple: str, expected: str
+):
+    attributes = (
+        {"llvm.target_triple": StringAttr(module_triple)}
+        if module_triple is not None
+        else None
+    )
+    module = ModuleOp([], attributes)
 
-    llvm_module = convert_module(module, target_triple="x86_64-unknown-linux-gnu")
+    llvm_module = convert_module(module, target_triple=arg_triple)
 
-    assert llvm_module.triple == "x86_64-unknown-linux-gnu"
+    assert llvm_module.triple == expected
 
 
 def test_convert_module_data_layout():

@@ -7,8 +7,9 @@ from xdsl.backend.llvm.convert_op import convert_op
 from xdsl.backend.llvm.convert_type import convert_type
 from xdsl.context import Context
 from xdsl.dialects import llvm
-from xdsl.dialects.builtin import IntAttr, IntegerAttr, ModuleOp
+from xdsl.dialects.builtin import IntAttr, IntegerAttr, ModuleOp, StringAttr
 from xdsl.ir import Block, SSAValue
+from xdsl.utils.exceptions import LLVMTranslationException
 from xdsl.utils.target import Target
 
 _ARG_ATTR_FLAGS = {
@@ -87,6 +88,13 @@ def convert_module(
     Convert an xDSL module to an LLVM module.
     """
     llvm_module = ir.Module()
+    module_triple = module.attributes.get("llvm.target_triple")
+    if module_triple is not None:
+        if not isinstance(module_triple, StringAttr):
+            raise LLVMTranslationException(
+                f"Unsupported llvm.target_triple attribute: {module_triple}"
+            )
+        llvm_module.triple = module_triple.data
     if target_triple:
         llvm_module.triple = target_triple
     if data_layout:
