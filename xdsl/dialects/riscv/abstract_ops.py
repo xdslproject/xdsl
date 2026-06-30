@@ -745,10 +745,10 @@ class RdRsImmIntegerOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC)
 
 IWidth = TypeVar("IWidth", bound=I32 | I64)
 ShiftImmT = TypeVar("ShiftImmT", bound=UI5 | UI6)
-ShiftImmTAttr = TypeVar("ShiftImmTAttr", bound=I32 | I64)
+ShiftImmAttrT = TypeVar("ShiftImmAttrT", bound=I32 | I64)
 
 
-class RdRsImmShiftOperation(RISCVInstruction, ABC, Generic[ShiftImmT, ShiftImmTAttr]):
+class RdRsImmShiftOperation(RISCVInstruction, ABC, Generic[ShiftImmT, ShiftImmAttrT]):
     """
     A base class for RISC-V operations that have one destination register, one source
     register and one immediate operand.
@@ -794,12 +794,12 @@ class RdRsImmShiftOperation(RISCVInstruction, ABC, Generic[ShiftImmT, ShiftImmTA
 
     @abstractmethod
     def py_operation(
-        self, rs1: IntegerAttr[ShiftImmTAttr]
-    ) -> IntegerAttr[ShiftImmTAttr]:
+        self, rs1: IntegerAttr[ShiftImmAttrT]
+    ) -> IntegerAttr[ShiftImmAttrT]:
         """
         Performs a python function corresponding to this operation.
 
-        If `i := py_operation(rs1)` is an IntegerAttr[ShiftImmTAttr], then this operation can be
+        If `i := py_operation(rs1)` is an IntegerAttr[ShiftImmAttrT], then this operation can be
         canonicalized to a constant with value `i` when the inputs are constants
         with values `rs1`. The immediate value is retrieved from the `immediate` attribute of the operation.
         """

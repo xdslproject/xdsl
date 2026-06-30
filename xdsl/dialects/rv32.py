@@ -65,7 +65,7 @@ class LiOp(LiOperation[I32]):
         return attributes
 
 
-class RdRsImmShiftOperationRV32(RdRsImmShiftOperation[UI5, I32]):
+class RV32RdRsImmShiftOperation(RdRsImmShiftOperation[UI5, I32]):
     """Base class for RISC-V 32-bit shift immediate operations with rd, rs1 and imm5."""
 
     traits = lazy_traits_def(
@@ -94,13 +94,13 @@ class RdRsImmShiftOperationRV32(RdRsImmShiftOperation[UI5, I32]):
 class ImmShiftOpRV32HasCanonicalizationPatternsTrait(
     ImmShiftOpHasCanonicalizationPatternsTrait[I32],
     li_op_type=LiOp,
-    shift_op_type=RdRsImmShiftOperationRV32,
+    shift_op_type=RV32RdRsImmShiftOperation,
 ):
     """Trait for RISC-V 32-bit shift immediate operations with canonicalization patterns."""
 
 
 @irdl_op_definition
-class SlliOp(RdRsImmShiftOperationRV32):
+class SlliOp(RV32RdRsImmShiftOperation):
     """
     Performs logical left shift on the value in register rs1 by the shift amount
     held in the lower 5 bits of the immediate.
@@ -118,7 +118,7 @@ class SlliOp(RdRsImmShiftOperationRV32):
 
 
 @irdl_op_definition
-class SrliOp(RdRsImmShiftOperationRV32):
+class SrliOp(RV32RdRsImmShiftOperation):
     """
     Performs logical right shift on the value in register rs1 by the shift amount held
     in the lower 5 bits of the immediate.
@@ -138,7 +138,7 @@ class SrliOp(RdRsImmShiftOperationRV32):
 
 
 @irdl_op_definition
-class SraiOp(RdRsImmShiftOperationRV32):
+class SraiOp(RV32RdRsImmShiftOperation):
     """
     Performs arithmetic right shift on the value in register rs1 by the shift amount
     held in the lower 5 bits of the immediate.

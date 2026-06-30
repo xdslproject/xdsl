@@ -82,7 +82,7 @@ class LiOp(LiOperation[I64]):
         return attributes
 
 
-class RdRsImmShiftOperationRV64(RdRsImmShiftOperation[UI6, I64]):
+class RV64RdRsImmShiftOperation(RdRsImmShiftOperation[UI6, I64]):
     """Base class for RISC-V 64-bit shift immediate operations with rd, rs1 and imm6."""
 
     traits = lazy_traits_def(
@@ -114,13 +114,13 @@ class RdRsImmShiftOperationRV64(RdRsImmShiftOperation[UI6, I64]):
 class ImmShiftOpRV64HasCanonicalizationPatternsTrait(
     ImmShiftOpHasCanonicalizationPatternsTrait[I64],
     li_op_type=LiOp,
-    shift_op_type=RdRsImmShiftOperationRV64,
+    shift_op_type=RV64RdRsImmShiftOperation,
 ):
     """Trait for RISC-V 64-bit shift immediate operations with canonicalization patterns."""
 
 
 @irdl_op_definition
-class SlliOp(RdRsImmShiftOperationRV64):
+class SlliOp(RV64RdRsImmShiftOperation):
     """
     Performs logical left shift on the value in register rs1 by the shift amount
     held in the 6-bit immediate.
@@ -138,7 +138,7 @@ class SlliOp(RdRsImmShiftOperationRV64):
 
 
 @irdl_op_definition
-class SrliOp(RdRsImmShiftOperationRV64):
+class SrliOp(RV64RdRsImmShiftOperation):
     """
     Performs logical right shift on the value in register rs1 by the shift amount held
     in the 6-bit immediate.
@@ -158,7 +158,7 @@ class SrliOp(RdRsImmShiftOperationRV64):
 
 
 @irdl_op_definition
-class SraiOp(RdRsImmShiftOperationRV64):
+class SraiOp(RV64RdRsImmShiftOperation):
     """
     Performs arithmetic right shift on the value in register rs1 by the shift amount
     held in the 6-bit immediate.
@@ -176,7 +176,7 @@ class SraiOp(RdRsImmShiftOperationRV64):
 
 
 @irdl_op_definition
-class SlliwOp(RdRsImmShiftOperationRV64):
+class SlliwOp(RV64RdRsImmShiftOperation):
     """
     Performs logical left shift on the lower 32 bits of the value in register rs1
     by the shift amount held in the immediate (RV64-only instruction).
@@ -194,7 +194,7 @@ class SlliwOp(RdRsImmShiftOperationRV64):
 
 
 @irdl_op_definition
-class SrliwOp(RdRsImmShiftOperationRV64):
+class SrliwOp(RV64RdRsImmShiftOperation):
     """
     Performs arithmetic right shift on the 32-bit of value in register rs1
     by the shift amount held in the lower 5 bits of the immediate. (RV64-only instruction).
