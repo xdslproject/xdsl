@@ -191,6 +191,23 @@ class BinvIOp(RV32RdRsImmShiftOperation):
 
 
 @irdl_op_definition
+class BsetIOp(RV32RdRsImmShiftOperation):
+    """
+    This instruction returns rs1 with a single bit set at the index specified in shamt.
+    The index is read from the lower log2(XLEN) bits of shamt. For RV32, the encodings corresponding
+    to shamt[5]=1 are reserved.
+
+    See external [documentation](https://docs.riscv.org/reference/isa/v20260120/unpriv/b-st-ext.html#insns-bseti).
+    """
+
+    name = "rv32.bseti"
+
+    def py_operation(self, rs1: IntegerAttr[I32]) -> IntegerAttr[I32]:
+        assert isinstance(self.immediate, IntegerAttr)
+        return IntegerAttr(rs1.value.data | (1 << self.immediate.value.data), i32)
+
+
+@irdl_op_definition
 class SraiOp(RV32RdRsImmShiftOperation):
     """
     Performs arithmetic right shift on the value in register rs1 by the shift amount
@@ -222,6 +239,7 @@ RV32 = Dialect(
         BclrIOp,
         BextIOp,
         BinvIOp,
+        BsetIOp,
         LiOp,
         GetRegisterOp,
     ],

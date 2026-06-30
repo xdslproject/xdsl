@@ -1583,24 +1583,6 @@ class BsetOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
 
 
 @irdl_op_definition
-class BsetIOp(RdRsImmBitManipOperation):
-    """
-    This instruction returns rs1 with a single bit set at the index specified in shamt. The index is read
-    from the lower log2(XLEN) bits of shamt. For RV32, the encodings corresponding
-    to shamt[5]=1 are reserved.
-    ```
-    let index = shamt & (XLEN - 1);
-    x[rd] = x[rs1] | (1 << index)
-    ```
-    See external [documentation](https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-bseti).
-    """
-
-    name = "riscv.bseti"
-
-    traits = traits_def(AlwaysSpeculatable())
-
-
-@irdl_op_definition
 class ClzOp(RdRsIntegerOperation[IntRegisterType]):
     """
     This instruction counts the number of 0’s before the first 1, starting at the most-significant bit
@@ -3287,7 +3269,6 @@ RISCV = Dialect(
         MaxUOp,
         MinOp,
         MinUOp,
-        BsetIOp,
         RoriOp,
         RoriwOp,
         SlliUwOp,
