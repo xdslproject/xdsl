@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 """Benchmarks for the pattern rewriter of the xDSL implementation."""
 
-from typing import cast
+from collections.abc import Callable
+from typing import Any, cast
+
+from typing_extensions import TypeVar
 
 from benchmarks.workloads import WorkloadBuilder
 from xdsl.context import Context
@@ -43,6 +46,23 @@ CTX.load_dialect(Builtin)
 CANONICALIZE_PASS = CanonicalizePass()
 CONSTANT_FOLDING_SIMPLE_PASS = TestConstantFoldingPass()
 CONSTANT_FOLDING_SPECIALISED_PASS = TestSpecialisedConstantFoldingPass()
+
+_BenchmarkMethodT = TypeVar("_BenchmarkMethodT", bound=Callable[..., Any])
+
+
+def run_once(benchmark: _BenchmarkMethodT) -> _BenchmarkMethodT:
+    """Run a timed benchmark once per `setup`, instead of in a loop.
+
+    ASV re-runs the timed function many times per `setup`, which breaks
+    benchmarks that consume state prepared in `setup` (e.g. popping the only
+    item off a worklist). `setattr` is used as ASV reads these off the function.
+    See https://asv.readthedocs.io/en/latest/benchmarks.html#timing-benchmarks.
+    """
+    # `number=1` skips calibration, which otherwise ramps up calls-per-sample.
+    setattr(benchmark, "number", 1)
+    # `warmup_time=0` skips the warmup loop, which otherwise calls repeatedly.
+    setattr(benchmark, "warmup_time", 0)
+    return benchmark
 
 
 def parse_module(context: Context, contents: str) -> ModuleOp:
@@ -156,6 +176,7 @@ class PatternRewriting(RewritingMicrobenchmarks):
         """
         self.worklist.push(self.add_op)
 
+    @run_once
     def time_worklist_pop(self) -> None:
         """Time `Worklist.pop`.
 
