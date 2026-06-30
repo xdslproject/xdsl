@@ -1548,24 +1548,6 @@ class BextOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
 
 
 @irdl_op_definition
-class BextIOp(RdRsImmBitManipOperation):
-    """
-    This instruction returns a single bit extracted from rs1 at the index specified in rs2.
-    The index is read from the lower log2(XLEN) bits of shamt. For RV32, the encodings corresponding
-    to shamt[5]=1 are reserved.
-    ```
-    let index = shamt & (XLEN - 1);
-    X(rd) = (X(rs1) >> index) & 1;
-    ```
-    See external [documentation](https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-bexti).
-    """
-
-    name = "riscv.bexti"
-
-    traits = traits_def(AlwaysSpeculatable())
-
-
-@irdl_op_definition
 class BinvOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
     This instruction returns rs1 with a single bit inverted at the index specified in shamt.
@@ -1579,24 +1561,6 @@ class BinvOp(RdRsRsIntegerOperation[IntRegisterType, IntRegisterType]):
     """
 
     name = "riscv.binv"
-
-    traits = traits_def(AlwaysSpeculatable())
-
-
-@irdl_op_definition
-class BinvIOp(RdRsImmBitManipOperation):
-    """
-    This instruction returns rs1 with a single bit cleared at the index specified in shamt. The index
-    is read from the lower log2(XLEN) bits of shamt. For RV32, the encodings corresponding
-    to shamt[5]=1 are reserved.
-    ```
-    let index = shamt & (XLEN - 1);
-    x[rd] = x[rs1] & ~(1 << index)
-    ```
-    See external [documentation](https://five-embeddev.com/riscv-bitmanip/1.0.0/bitmanip.html#insns-binvi).
-    """
-
-    name = "riscv.binvi"
 
     traits = traits_def(AlwaysSpeculatable())
 
@@ -3323,9 +3287,7 @@ RISCV = Dialect(
         MaxUOp,
         MinOp,
         MinUOp,
-        BextIOp,
         BsetIOp,
-        BinvIOp,
         RoriOp,
         RoriwOp,
         SlliUwOp,

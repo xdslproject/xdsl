@@ -158,7 +158,7 @@ class SrliOp(RV64RdRsImmShiftOperation):
 
 
 @irdl_op_definition
-class BclriOp(RV64RdRsImmShiftOperation):
+class BclrIOp(RV64RdRsImmShiftOperation):
     """
     This instruction returns rs1 with a single bit cleared at the index specified in shamt.
     The index is read from the lower log2(XLEN) bits of shamt. For RV32, the encodings corresponding
@@ -172,6 +172,42 @@ class BclriOp(RV64RdRsImmShiftOperation):
     def py_operation(self, rs1: IntegerAttr[I64]) -> IntegerAttr[I64]:
         assert isinstance(self.immediate, IntegerAttr)
         return IntegerAttr(rs1.value.data & (~(1 << self.immediate.value.data)), i64)
+
+
+@irdl_op_definition
+class BextIOp(RV64RdRsImmShiftOperation):
+    """
+    This instruction returns a single bit extracted from rs1 at the index specified in shamt.
+    The index is read from the lower log2(XLEN) bits of shamt. For RV32, the encodings corresponding
+    to shamt[5]=1 are reserved.
+
+    See external [documentation](https://docs.riscv.org/reference/isa/v20260120/unpriv/b-st-ext.html#insns-bexti).
+    """
+
+    name = "rv64.bexti"
+
+    def py_operation(self, rs1: IntegerAttr[I64]) -> IntegerAttr[I64]:
+        assert isinstance(self.immediate, IntegerAttr)
+        return IntegerAttr(
+            1 if (rs1.value.data & (1 << self.immediate.value.data)) != 0 else 0, i64
+        )
+
+
+@irdl_op_definition
+class BinvIOp(RV64RdRsImmShiftOperation):
+    """
+    This instruction returns rs1 with a single bit inverted at the index specified in shamt.
+    The index is read from the lower log2(XLEN) bits of shamt. For RV32, the encodings corresponding
+    to shamt[5]=1 are reserved.
+
+    See external [documentation](https://docs.riscv.org/reference/isa/v20260120/unpriv/b-st-ext.html#insns-binvi).
+    """
+
+    name = "rv64.binvi"
+
+    def py_operation(self, rs1: IntegerAttr[I64]) -> IntegerAttr[I64]:
+        assert isinstance(self.immediate, IntegerAttr)
+        return IntegerAttr(rs1.value.data ^ (1 << self.immediate.value.data), i64)
 
 
 @irdl_op_definition
@@ -289,7 +325,9 @@ RV64 = Dialect(
         SraiOp,
         SlliwOp,
         SrliwOp,
-        BclriOp,
+        BclrIOp,
+        BextIOp,
+        BinvIOp,
         LiOp,
         LdOp,
         SdOp,
