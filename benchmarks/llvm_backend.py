@@ -35,7 +35,7 @@ class LLVMBackend:
     def time_convert_module(self) -> None:
         from xdsl.backend.llvm.convert import convert_module
 
-        convert_module(LLVMBackend.MODULE)
+        convert_module(LLVMBackend.MODULE, fallback_target_triple=None)
 
 
 if __name__ == "__main__":
