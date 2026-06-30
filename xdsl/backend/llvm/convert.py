@@ -41,6 +41,47 @@ _ARG_ATTR_TYPES = {
 }
 
 
+def _declare_func(op: llvm.FuncOp, llvm_module: ir.Module):
+    ret_type = convert_type(op.function_type.output)
+    arg_types: list[ir.Type] = []
+    for idx, mlir_type in enumerate(op.function_type.inputs):
+        if not (
+            isinstance(mlir_type, llvm.LLVMPointerType) and op.arg_attrs is not None
+        ):
+            arg_types.append(convert_type(mlir_type))
+            continue
+        attrs = op.arg_attrs.data[idx].data
+        elem = next((attrs[n] for n in _ARG_ATTR_TYPES if n in attrs), None)
+        if elem is None:
+            arg_types.append(convert_type(mlir_type))
+            continue
+        addrspace = (
+            mlir_type.addr_space.data
+            if isinstance(mlir_type.addr_space, IntAttr)
+            else 0
+        )
+        arg_types.append(ir.PointerType(convert_type(elem), addrspace=addrspace))
+    func_type = ir.FunctionType(
+        ret_type, arg_types, var_arg=op.function_type.is_variadic
+    )
+    fn = ir.Function(llvm_module, func_type, name=op.sym_name.data)
+
+    if op.arg_attrs is None:
+        return
+    for llvm_arg, attr_dict in zip(fn.args, op.arg_attrs):
+        for mlir_name, value in attr_dict.data.items():
+            if mlir_name in _ARG_ATTR_FLAGS:
+                llvm_arg.add_attribute(_ARG_ATTR_FLAGS[mlir_name])
+                continue
+            if mlir_name in _ARG_ATTR_TYPES:
+                llvm_arg.add_attribute(_ARG_ATTR_TYPES[mlir_name])
+                continue
+            if mlir_name not in _ARG_ATTR_INTS:
+                continue
+            assert isinstance(value, IntegerAttr)
+            setattr(llvm_arg.attributes, _ARG_ATTR_INTS[mlir_name], value.value.data)
+
+
 def _convert_func(op: llvm.FuncOp, llvm_module: ir.Module):
     func = llvm_module.get_global(op.sym_name.data)
 
@@ -108,46 +149,7 @@ def convert_module(
 
     # Declare all functions (enables forward references)
     for op in func_ops:
-        ret_type = convert_type(op.function_type.output)
-        arg_types: list[ir.Type] = []
-        for idx, mlir_type in enumerate(op.function_type.inputs):
-            if not (
-                isinstance(mlir_type, llvm.LLVMPointerType) and op.arg_attrs is not None
-            ):
-                arg_types.append(convert_type(mlir_type))
-                continue
-            attrs = op.arg_attrs.data[idx].data
-            elem = next((attrs[n] for n in _ARG_ATTR_TYPES if n in attrs), None)
-            if elem is None:
-                arg_types.append(convert_type(mlir_type))
-                continue
-            addrspace = (
-                mlir_type.addr_space.data
-                if isinstance(mlir_type.addr_space, IntAttr)
-                else 0
-            )
-            arg_types.append(ir.PointerType(convert_type(elem), addrspace=addrspace))
-        func_type = ir.FunctionType(
-            ret_type, arg_types, var_arg=op.function_type.is_variadic
-        )
-        fn = ir.Function(llvm_module, func_type, name=op.sym_name.data)
-
-        if op.arg_attrs is None:
-            continue
-        for llvm_arg, attr_dict in zip(fn.args, op.arg_attrs):
-            for mlir_name, value in attr_dict.data.items():
-                if mlir_name in _ARG_ATTR_FLAGS:
-                    llvm_arg.add_attribute(_ARG_ATTR_FLAGS[mlir_name])
-                    continue
-                if mlir_name in _ARG_ATTR_TYPES:
-                    llvm_arg.add_attribute(_ARG_ATTR_TYPES[mlir_name])
-                    continue
-                if mlir_name not in _ARG_ATTR_INTS:
-                    continue
-                assert isinstance(value, IntegerAttr)
-                setattr(
-                    llvm_arg.attributes, _ARG_ATTR_INTS[mlir_name], value.value.data
-                )
+        _declare_func(op, llvm_module)
 
     # Generate function bodies
     for func_op in func_ops:
