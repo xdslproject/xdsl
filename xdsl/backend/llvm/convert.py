@@ -3,7 +3,7 @@ from typing import IO
 
 import llvmlite.ir as ir
 
-from xdsl.backend.llvm.convert_op import convert_op
+from xdsl.backend.llvm.convert_op import convert_op, create_constant
 from xdsl.backend.llvm.convert_type import convert_type
 from xdsl.context import Context
 from xdsl.dialects import llvm
@@ -131,9 +131,12 @@ def _convert_global(op: llvm.GlobalOp, llvm_module: ir.Module) -> None:
     if op.constant is not None:
         gvar.global_constant = True
     if op.value is not None:
-        raise NotImplementedError(
-            "Global values that are not declarations not yet supported"
-        )
+        if isinstance(op.value, StringAttr):
+            raw = op.value.data.encode("utf-8")
+            arr_type = ir.ArrayType(ir.IntType(8), len(raw))
+            gvar.initializer = ir.Constant(arr_type, bytearray(raw))
+        else:
+            gvar.initializer = create_constant(op.global_type, op.value)
 
 
 def convert_module(
