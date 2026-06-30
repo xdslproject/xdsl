@@ -62,7 +62,6 @@ from .attrs import (
     SI12,
     SI20,
     UI5,
-    UI6,
     FastMathFlagsAttr,
     LabelAttr,
     i12,
@@ -745,6 +744,16 @@ class RdRsImmIntegerOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC)
 
 
 class ImmShiftOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
+    shift_op_type: type[RdRsImmShiftOperation]
+
+    def __init_subclass__(
+        cls,
+        shift_op_type: type[RdRsImmShiftOperation],
+        **kwargs: Any,
+    ) -> None:
+        super().__init_subclass__(**kwargs)
+        cls.shift_op_type = shift_op_type
+
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.riscv import (
@@ -752,7 +761,11 @@ class ImmShiftOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrai
             ShiftConstantFolding,
         )
 
-        return (ShiftbyZero(), ShiftConstantFolding())
+        return (
+            ShiftbyZero(cls.shift_op_type),
+            ShiftConstantFolding(cls.shift_op_type),
+        )
+
 
 class RdRsImmShiftOperation(RISCVInstruction, ABC):
     """
@@ -771,7 +784,9 @@ class RdRsImmShiftOperation(RISCVInstruction, ABC):
     rd = result_def(IntRegisterType)
     rs1 = operand_def(IntRegisterType)
     immediate = attr_def(IntegerAttr[UI5])
-    traits = traits_def(ImmShiftOpHasCanonicalizationPatternsTrait())
+    traits = lazy_traits_def(
+        lambda: (ImmShiftOpRV32HasCanonicalizationPatternsTrait(),)
+    )
 
     assembly_format = (
         "$rs1 `,` $immediate attr-dict `:` `(` type($rs1) `)` `->` type($rd)"
@@ -815,6 +830,13 @@ class RdRsImmShiftOperation(RISCVInstruction, ABC):
         raise NotImplementedError(
             "RdRsImmShiftOperation py_operation is not yet implemented"
         )
+
+
+class ImmShiftOpRV32HasCanonicalizationPatternsTrait(
+    ImmShiftOpHasCanonicalizationPatternsTrait,
+    shift_op_type=RdRsImmShiftOperation,
+):
+    """Trait for RISC-V 32-bit shift immediate operations with canonicalization patterns."""
 
 
 class RdRsImmBitManipOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):

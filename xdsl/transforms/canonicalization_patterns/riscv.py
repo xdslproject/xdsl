@@ -1,4 +1,4 @@
-from typing import Any, Generic, Literal, cast
+from typing import Literal, cast
 
 from xdsl.dialects import riscv, riscv_snitch, rv32, rv64
 from xdsl.dialects.builtin import (
@@ -10,7 +10,6 @@ from xdsl.dialects.builtin import (
     i32,
     i64,
 )
-from xdsl.dialects.riscv.abstract_ops import IWidth, LiOperation
 from xdsl.dialects.utils import FastMathFlag
 from xdsl.ir import Operation, OpResult, SSAValue
 from xdsl.irdl import irdl_to_attr_constraint, isa
@@ -316,16 +315,16 @@ class XoriImmediate(RewritePattern):
             )
 
 
-class ShiftbyZero(RewritePattern, Generic[IWidth]):
+class ShiftbyZero(RewritePattern):
     """
     shift(x, 0) -> x
     """
 
-    shift_op_type: type[riscv.RdRsImmShiftOperation[Any, IWidth]]
+    shift_op_type: type[riscv.RdRsImmShiftOperation]
 
     def __init__(
         self,
-        shift_op_type: type[riscv.RdRsImmShiftOperation[Any, IWidth]],
+        shift_op_type: type[riscv.RdRsImmShiftOperation],
     ):
         self.shift_op_type = shift_op_type
 
@@ -340,20 +339,17 @@ class ShiftbyZero(RewritePattern, Generic[IWidth]):
             rewriter.replace_op(op, riscv.MVOp(op.rs1, rd=op.rd.type))
 
 
-class ShiftConstantFolding(RewritePattern, Generic[IWidth]):
+class ShiftConstantFolding(RewritePattern):
     """
     shift(c1, c2) -> c3
     """
 
-    li_op_type: type[LiOperation[IWidth]]
-    shift_op_type: type[riscv.RdRsImmShiftOperation[Any, IWidth]]
+    shift_op_type: type[riscv.RdRsImmShiftOperation]
 
     def __init__(
         self,
-        li_op_type: type[LiOperation[IWidth]],
-        shift_op_type: type[riscv.RdRsImmShiftOperation[Any, IWidth]],
+        shift_op_type: type[riscv.RdRsImmShiftOperation],
     ):
-        self.li_op_type = li_op_type
         self.shift_op_type = shift_op_type
 
     @op_type_rewrite_pattern
@@ -367,8 +363,8 @@ class ShiftConstantFolding(RewritePattern, Generic[IWidth]):
             and (rs1 := get_constant_value(op.rs1)) is not None
         ):
             rd = op.rd.type
-            result = op.py_operation(cast(IntegerAttr[IWidth], rs1))
-            rewriter.replace_op(op, self.li_op_type(result, rd=rd))
+            result = op.py_operation(cast(IntegerAttr[I32], rs1))
+            rewriter.replace_op(op, rv32.LiOp(result, rd=rd))
 
 
 class LoadWordWithKnownOffset(RewritePattern):
