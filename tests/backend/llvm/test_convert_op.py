@@ -11,9 +11,10 @@ from xdsl.backend.llvm.convert_op import (
     intrinsic_suffix,
 )
 from xdsl.dialects import llvm
-from xdsl.dialects.builtin import FloatAttr, IntegerAttr, f32, f64, i32, i64
+from xdsl.dialects.builtin import FloatAttr, IntegerAttr, UnitAttr, f32, f64, i32, i64
 from xdsl.dialects.utils import FastMathFlag
 from xdsl.ir import Attribute, Block, SSAValue
+from xdsl.utils.exceptions import LLVMTranslationException
 
 
 def test_convert_indirect_call_raises():
@@ -128,3 +129,10 @@ def test_create_constant(
     value: object,
 ) -> None:
     assert create_constant(xdsl_type, attr) == ir.Constant(llvmlite_type, value)
+
+
+def test_create_constant_invalid():
+    with pytest.raises(
+        LLVMTranslationException, match="Unsupported constant attribute type"
+    ):
+        create_constant(i32, UnitAttr())
