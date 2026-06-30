@@ -1,9 +1,20 @@
 import pytest
 
 from xdsl.dialects import llvm
-from xdsl.dialects.builtin import ModuleOp, StringAttr, i32
+from xdsl.dialects.builtin import (
+    BytesAttr,
+    DenseIntOrFPElementsAttr,
+    FloatAttr,
+    IntegerAttr,
+    ModuleOp,
+    StringAttr,
+    TensorType,
+    f64,
+    i8,
+    i32,
+)
 from xdsl.dialects.test import TestOp
-from xdsl.ir import Block, Region
+from xdsl.ir import Attribute, Block, Region
 
 ir = pytest.importorskip("llvmlite.ir")
 from xdsl.backend.llvm.convert import convert_module  # noqa: E402
@@ -125,3 +136,36 @@ def test_convert_module_forward_reference():
     assert callee_fn is not None
     assert caller_fn.basic_blocks
     assert callee_fn.basic_blocks
+
+
+@pytest.mark.parametrize(
+    "global_type,value",
+    [
+        # typed attribute initializers
+        (i32, IntegerAttr(42, 32)),
+        (f64, FloatAttr(3.14, f64)),
+        (
+            llvm.LLVMArrayType(3, i8),
+            DenseIntOrFPElementsAttr(TensorType(i8, [3]), BytesAttr(b"Hi\x00")),
+        ),
+        # string attribute initializers
+        (llvm.LLVMArrayType(3, i8), StringAttr("Hi\x00")),
+    ],
+)
+def test_convert_global_initializer_not_implemented(
+    global_type: Attribute, value: Attribute
+):
+    global_op = llvm.GlobalOp(
+        global_type,
+        "my_global",
+        "internal",
+        constant=True,
+        value=value,
+    )
+    module = ModuleOp([global_op])
+
+    with pytest.raises(
+        NotImplementedError,
+        match="Global values that are not declarations not yet supported",
+    ):
+        convert_module(module)

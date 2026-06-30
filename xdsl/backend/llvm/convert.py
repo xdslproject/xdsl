@@ -120,6 +120,22 @@ def _convert_func(op: llvm.FuncOp, llvm_module: ir.Module):
             convert_op(op_in_block, builder, val_map, block_map)
 
 
+def _convert_global(op: llvm.GlobalOp, llvm_module: ir.Module) -> None:
+    gvar = ir.GlobalVariable(
+        llvm_module,
+        convert_type(op.global_type),
+        name=op.sym_name.data,
+        addrspace=op.addr_space.value.data,
+    )
+    gvar.linkage = op.linkage.linkage.data
+    if op.constant is not None:
+        gvar.global_constant = True
+    if op.value is not None:
+        raise NotImplementedError(
+            "Global values that are not declarations not yet supported"
+        )
+
+
 def convert_module(
     module: ModuleOp,
     target_triple: str = "",
@@ -141,11 +157,22 @@ def convert_module(
     if data_layout:
         llvm_module.data_layout = data_layout
 
+    global_ops: list[llvm.GlobalOp] = []
     func_ops: list[llvm.FuncOp] = []
     for op in module.ops:
-        if not isinstance(op, llvm.FuncOp):
-            raise NotImplementedError(f"Conversion not implemented for op: {op.name}")
-        func_ops.append(op)
+        match op:
+            case llvm.GlobalOp():
+                global_ops.append(op)
+            case llvm.FuncOp():
+                func_ops.append(op)
+            case _:
+                raise NotImplementedError(
+                    f"Conversion not implemented for op: {op.name}"
+                )
+
+    # Convert globals first so that addressof lookups can always find them
+    for global_op in global_ops:
+        _convert_global(global_op, llvm_module)
 
     # Declare all functions (enables forward references)
     for op in func_ops:
