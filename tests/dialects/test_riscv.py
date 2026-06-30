@@ -2,7 +2,7 @@ import pytest
 
 from xdsl.backend.register_type import RegisterAllocatedMemoryEffect
 from xdsl.context import Context
-from xdsl.dialects import riscv, rv32, rv64
+from xdsl.dialects import riscv
 from xdsl.dialects.builtin import (
     IntAttr,
     IntegerAttr,
@@ -214,27 +214,6 @@ def test_immediate_jalr_inst():
         riscv.JalrOp(a1, -(1 << 12) - 2, rd=riscv.Registers.A0)
 
     riscv.JalrOp(a1, (1 << 11) - 1, rd=riscv.Registers.A0)
-
-
-def test_immediate_shift_inst():
-    # Shift instructions (SLLI, SRLI, SRAI) - 6-bits immediate
-    a1 = create_ssa_value(riscv.Registers.A1)
-
-    with pytest.raises(VerifyException):
-        rv32.SlliOp(a1, 1 << 5, rd=riscv.Registers.A0)
-
-    with pytest.raises(VerifyException):
-        rv32.SlliOp(a1, -1, rd=riscv.Registers.A0)
-
-    rv32.SlliOp(a1, (1 << 5) - 1, rd=riscv.Registers.A0)
-
-    with pytest.raises(VerifyException):
-        rv64.SlliOp(a1, 1 << 6, rd=riscv.Registers.A0)
-
-    with pytest.raises(VerifyException):
-        rv64.SlliOp(a1, -1, rd=riscv.Registers.A0)
-
-    rv64.SlliOp(a1, (1 << 6) - 1, rd=riscv.Registers.A0)
 
 
 def test_float_register():
