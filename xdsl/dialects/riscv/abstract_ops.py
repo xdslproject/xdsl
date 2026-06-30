@@ -5,7 +5,7 @@ from collections.abc import Sequence
 from collections.abc import Set as AbstractSet
 from dataclasses import dataclass
 from io import StringIO
-from typing import IO, Generic, TypeAlias
+from typing import IO, Any, Generic, TypeAlias
 
 from typing_extensions import Self, TypeVar
 
@@ -36,6 +36,7 @@ from xdsl.ir import (
 from xdsl.irdl import (
     IRDLOperation,
     attr_def,
+    lazy_traits_def,
     operand_def,
     opt_attr_def,
     result_def,
@@ -743,6 +744,16 @@ class RdRsImmIntegerOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC)
 
 
 class ImmShiftOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrait):
+    shift_op_type: type[RdRsImmShiftOperation]
+
+    def __init_subclass__(
+        cls,
+        shift_op_type: type[RdRsImmShiftOperation],
+        **kwargs: Any,
+    ) -> None:
+        super().__init_subclass__(**kwargs)
+        cls.shift_op_type = shift_op_type
+
     @classmethod
     def get_canonicalization_patterns(cls) -> tuple[RewritePattern, ...]:
         from xdsl.transforms.canonicalization_patterns.riscv import (
@@ -750,7 +761,10 @@ class ImmShiftOpHasCanonicalizationPatternsTrait(HasCanonicalizationPatternsTrai
             ShiftConstantFolding,
         )
 
-        return (ShiftbyZero(), ShiftConstantFolding())
+        return (
+            ShiftbyZero(cls.shift_op_type),
+            ShiftConstantFolding(cls.shift_op_type),
+        )
 
 
 class RdRsImmShiftOperation(RISCVInstruction, ABC):
@@ -770,7 +784,9 @@ class RdRsImmShiftOperation(RISCVInstruction, ABC):
     rd = result_def(IntRegisterType)
     rs1 = operand_def(IntRegisterType)
     immediate = attr_def(IntegerAttr[UI5])
-    traits = traits_def(ImmShiftOpHasCanonicalizationPatternsTrait())
+    traits = lazy_traits_def(
+        lambda: (ImmShiftOpRV32HasCanonicalizationPatternsTrait(),)
+    )
 
     assembly_format = (
         "$rs1 `,` $immediate attr-dict `:` `(` type($rs1) `)` `->` type($rd)"
@@ -806,7 +822,7 @@ class RdRsImmShiftOperation(RISCVInstruction, ABC):
         """
         Performs a python function corresponding to this operation.
 
-        If `i := py_operation(rs1)` is an IntegerAttr[I32], then this operation can be
+        If `i := py_operation(rs1)` is an IntegerAttr[ShiftImmTAttr], then this operation can be
         canonicalized to a constant with value `i` when the inputs are constants
         with values `rs1`. The immediate value is retrieved from the `immediate` attribute of the operation.
         """
@@ -814,6 +830,13 @@ class RdRsImmShiftOperation(RISCVInstruction, ABC):
         raise NotImplementedError(
             "RdRsImmShiftOperation py_operation is not yet implemented"
         )
+
+
+class ImmShiftOpRV32HasCanonicalizationPatternsTrait(
+    ImmShiftOpHasCanonicalizationPatternsTrait,
+    shift_op_type=RdRsImmShiftOperation,
+):
+    """Trait for RISC-V 32-bit shift immediate operations with canonicalization patterns."""
 
 
 class RdRsImmBitManipOperation(RISCVCustomFormatOperation, RISCVInstruction, ABC):

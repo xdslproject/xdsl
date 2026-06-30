@@ -11,8 +11,8 @@ from xdsl.dialects.builtin import (
     i64,
 )
 from xdsl.dialects.utils import FastMathFlag
-from xdsl.ir import OpResult, SSAValue
-from xdsl.irdl import irdl_to_attr_constraint
+from xdsl.ir import Operation, OpResult, SSAValue
+from xdsl.irdl import irdl_to_attr_constraint, isa
 from xdsl.pattern_rewriter import (
     PatternRewriter,
     RewritePattern,
@@ -320,12 +320,21 @@ class ShiftbyZero(RewritePattern):
     shift(x, 0) -> x
     """
 
-    @op_type_rewrite_pattern
+    shift_op_type: type[riscv.RdRsImmShiftOperation]
+
+    def __init__(
+        self,
+        shift_op_type: type[riscv.RdRsImmShiftOperation],
+    ):
+        self.shift_op_type = shift_op_type
+
     def match_and_rewrite(
-        self, op: riscv.RdRsImmShiftOperation, rewriter: PatternRewriter
+        self,
+        op: Operation,
+        rewriter: PatternRewriter,
     ) -> None:
         # check if the shift amount is zero
-        if op.immediate.value.data == 0:
+        if isa(op, self.shift_op_type) and (op.immediate.value.data == 0):
             rewriter.replace_op(op, riscv.MVOp(op.rs1, rd=op.rd.type))
 
 
@@ -334,14 +343,25 @@ class ShiftConstantFolding(RewritePattern):
     shift(c1, c2) -> c3
     """
 
-    @op_type_rewrite_pattern
+    shift_op_type: type[riscv.RdRsImmShiftOperation]
+
+    def __init__(
+        self,
+        shift_op_type: type[riscv.RdRsImmShiftOperation],
+    ):
+        self.shift_op_type = shift_op_type
+
     def match_and_rewrite(
-        self, op: riscv.RdRsImmShiftOperation, rewriter: PatternRewriter
+        self,
+        op: Operation,
+        rewriter: PatternRewriter,
     ) -> None:
-        if (rs1 := get_constant_value(op.rs1)) is not None:
+        if (
+            isa(op, self.shift_op_type)
+            and (rs1 := get_constant_value(op.rs1)) is not None
+        ):
             rd = op.rd.type
-            val = cast(IntegerAttr[I32], rs1)
-            result = op.py_operation(val)
+            result = op.py_operation(cast(IntegerAttr[I32], rs1))
             rewriter.replace_op(op, rv32.LiOp(result, rd=rd))
 
 
