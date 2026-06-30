@@ -5,6 +5,10 @@ builtin.module {
 
   // CHECK: declare void @"declaration"()
 
+  llvm.func @printf(!llvm.ptr, ...) -> i32
+
+  // CHECK: declare i32 @"printf"(ptr {{.*}}, ...)
+
   llvm.func @noalias_all(%arg0: !llvm.ptr {llvm.noalias}, %arg1: !llvm.ptr {llvm.noalias}) {
     llvm.return
   }
