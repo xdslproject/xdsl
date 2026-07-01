@@ -3,12 +3,12 @@
 from collections.abc import Callable
 from ctypes import CFUNCTYPE, c_double
 from dataclasses import dataclass
-from typing import Generic, ParamSpec
+from typing import Any, Generic, NamedTuple, ParamSpec, get_args
 
 import llvmlite
 import llvmlite.binding
 import llvmlite.ir as llvm_ir
-from typing_extensions import TypeVar
+from typing_extensions import TypeForm, TypeVar
 
 from xdsl.backend.llvm.convert import convert_module
 from xdsl.dialects import arith, builtin, func, llvm
@@ -39,15 +39,26 @@ class McJitKeepalive(Generic[P, R]):
     backing_mod: object
     engine: object
     func: Callable[P, R]
+    c_types_func: Callable[..., object]
 
     def __call__(self, *args: P.args, **kwargs: P.kwargs) -> R:
         return self.func(*args, **kwargs)
 
 
+class TypeMap(NamedTuple):
+    python_type: type[Any]
+    ctype_type: type[Any]
+    to_ctype: Callable[[Any], Any]
+    from_ctype: Callable[[Any], Any]
+
+
+bla: dict[type[Any], TypeMap] = {float: TypeMap(float, c_double, c_double, float)}
+
+
 # TODO: support automatic conversion of types
-def mcjit_f64_f64_f64_binary(
-    llvm_module: llvm_ir.Module, symbol: str
-) -> McJitKeepalive[[float, float], float]:
+def mcjit_binary(
+    llvm_module: llvm_ir.Module, symbol: str, t: TypeForm[Callable[P, R]]
+) -> McJitKeepalive[P, R]:
     llvm_ir_text = str(llvm_module)
     llvmlite.binding.initialize_native_target()  # pyright: ignore
     llvmlite.binding.initialize_native_asmprinter()  # pyright: ignore
@@ -60,15 +71,26 @@ def mcjit_f64_f64_f64_binary(
     engine.run_static_constructors()  # pyright: ignore
 
     func_ptr = engine.get_function_address(symbol)  # pyright: ignore
-    fn_type = CFUNCTYPE(c_double, c_double, c_double)
-    fn = fn_type(func_ptr)  # pyright: ignore
 
-    keepalive = McJitKeepalive(
+    # Create mapping
+    param_types, return_type = get_args(t)
+    param_maps = tuple(bla[py_type] for py_type in param_types)
+    return_map = bla[return_type]
+
+    fn_type = CFUNCTYPE(return_map.ctype_type, *(m.ctype_type for m in param_maps))
+    c_types_fn = fn_type(func_ptr)  # pyright: ignore
+
+    def fn(*args: P.args, **kwargs: P.kwargs) -> R:
+        ctype_args = tuple(m.to_ctype(a) for m, a in zip(param_maps, args, strict=True))
+        return return_map.from_ctype(c_types_fn(*ctype_args))
+
+    keepalive = McJitKeepalive[P, R](
         target=target,  # pyright: ignore
         target_machine=target_machine,  # pyright: ignore
         backing_mod=backing_mod,  # pyright: ignore
         engine=engine,  # pyright: ignore
         func=fn,
+        c_types_func=c_types_fn,
     )
 
     return keepalive
@@ -92,11 +114,14 @@ class JITContext:
         self.pyast_ctx = ctx
 
     def jit(
-        self, func: Callable[[float, float], float]
-    ) -> McJitKeepalive[[float, float], float]:
-        parsed_program = self.pyast_ctx.parse_program(func)
-        module = convert_module(parsed_program.module, fallback_target_triple=None)
-        return mcjit_f64_f64_f64_binary(module, parsed_program.name)
+        self, signature: TypeForm[Callable[P, R]]
+    ) -> Callable[[Callable[P, R]], McJitKeepalive[P, R]]:
+        def inner(func: Callable[P, R]) -> McJitKeepalive[P, R]:
+            parsed_program = self.pyast_ctx.parse_program(func)
+            module = convert_module(parsed_program.module, fallback_target_triple=None)
+            return mcjit_binary(module, parsed_program.name, signature)
+
+        return inner
 
 
 # Test
@@ -104,7 +129,7 @@ class JITContext:
 ctx = JITContext()
 
 
-@ctx.jit
+@ctx.jit(Callable[[float, float], float])
 def plus(a: float, b: float) -> float:
     return a + b
 
@@ -118,3 +143,8 @@ print(f"{plus(3.0, 4.0) = }")
 # CHECK: plus.func(3.0, 4.0) = 7.0
 print(f"{plus.func(2.0, 2.0) = }")
 print(f"{plus.func(3.0, 4.0) = }")
+
+# CHECK: plus.func(2.0, 2.0) = 4.0
+# CHECK: plus.func(3.0, 4.0) = 7.0
+print(f"{plus.c_types_func(2.0, 2.0) = }")
+print(f"{plus.c_types_func(3.0, 4.0) = }")
