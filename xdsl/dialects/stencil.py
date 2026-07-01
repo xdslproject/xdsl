@@ -509,6 +509,7 @@ class ApplyOp(IRDLOperation):
 
     args = var_operand_def(Attribute)
     dest = var_operand_def(FieldType)
+    reductions = var_operand_def()
     region = region_def()
     res = var_result_def(TempType)
 
@@ -528,7 +529,7 @@ class ApplyOp(IRDLOperation):
         properties = {"bounds": bounds} if bounds else {}
 
         super().__init__(
-            operands=[list(args), []],
+            operands=[list(args), [], []],
             regions=[body],
             result_types=[result_types],
             properties=properties,
@@ -569,6 +570,12 @@ class ApplyOp(IRDLOperation):
             printer.print_string(" -> ")
             with printer.in_parens():
                 printer.print_list(self.res.types, printer.print_attribute)
+
+        if self.reductions:
+            printer.print_string(" reductions ")
+            with printer.in_parens():
+                printer.print_list(self.reductions, print_destination_operand)
+
         printer.print_string(" ")
         printer.print_op_attributes(self.attributes, print_keyword=True)
         printer.print_region(self.region, print_entry_block_args=False)
@@ -599,6 +606,7 @@ class ApplyOp(IRDLOperation):
         args: tuple[Parser.Argument, ...]
         operands: tuple[SSAValue, ...]
         args, operands = zip(*assign_args) if assign_args else ((), ())
+        reductions = []
 
         if parser.parse_optional_punctuation("->"):
             parser.parse_punctuation("(")
@@ -606,6 +614,7 @@ class ApplyOp(IRDLOperation):
                 parser.parse_optional_attribute, parser.parse_attribute
             )
             destinations = []
+            parser.parse_punctuation(")")
         else:
             parser.parse_keyword("outs")
             parser.parse_punctuation("(")
@@ -613,7 +622,15 @@ class ApplyOp(IRDLOperation):
                 parser.Delimiter.NONE, parse_operand
             )
             result_types = []
-        parser.parse_punctuation(")")
+            parser.parse_punctuation(")")
+
+            if parser.parse_optional_keyword("reductions"):
+                parser.parse_punctuation("(")
+                reductions = parser.parse_comma_separated_list(
+                    parser.Delimiter.NONE, parse_operand
+                )
+                parser.parse_punctuation(")")
+
         attrs = parser.parse_optional_attr_dict_with_keyword()
         if attrs is not None:
             attrs = dict(attrs.data)
@@ -628,7 +645,7 @@ class ApplyOp(IRDLOperation):
         else:
             bounds = None
         return cls.build(
-            operands=[operands, destinations or []],
+            operands=[operands, destinations or [], reductions],
             result_types=[result_types or []],
             regions=[region],
             attributes=attrs,
@@ -642,6 +659,7 @@ class ApplyOp(IRDLOperation):
         body: Block | Region,
         result_types: Sequence[TempType[Attribute]] = (),
         bounds: StencilBoundsAttr | None = None,
+        reductions: Sequence[SSAValue] | Sequence[Operation] = (),
     ):
         return ApplyOp(args, body, result_types, bounds)
 
