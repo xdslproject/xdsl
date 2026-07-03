@@ -67,32 +67,67 @@ uv run benchmarks/lexer.py Lexer.empty_program dis
 
 ## Adding new benchmarks
 
-1. Create a new method on the relevant benchmark class.
+1. Add a new `time_*` benchmark function or method.
 
-   For example, to add a new dialect to the `ImportDialect` class, you might write:
+   Benchmarks can be defined as methods on a class, or as standalone functions
+   at module scope. When several benchmarks share a `setup` method on the same
+   class, inherit `BenchmarkClass` from `bench_utils`. If a timed call may
+   consume or alter state prepared in `setup`, leave it on the `BenchmarkClass`
+   default. If each call is independent of the last — for example it only reads
+   immutable inputs or allocates fresh objects — decorate it with
+   `@idempotent`.
+
+   For example, to benchmark loading a new dialect you might write either:
 
    ```python
-    def time_newdialect_load(self) -> None:
-        """Time loading the `newdialect` dialect."""
-        importlib.reload(xdsl.dialects.newdialect)
-    ```
+   import importlib
+
+   import xdsl.dialects.newdialect
+   from benchmarks.bench_utils import BenchmarkClass, idempotent
+
+   class ImportDialects(BenchmarkClass):
+       @idempotent
+       def time_newdialect_load(self) -> None:
+           """Time loading the `newdialect` dialect."""
+           importlib.reload(xdsl.dialects.newdialect)
+   ```
+
+   or as a standalone function at module scope:
+
+   ```python
+   import importlib
+
+   import xdsl.dialects.newdialect
+   from benchmarks.bench_utils import idempotent
+
+   @idempotent
+   def time_newdialect_load() -> None:
+       """Time loading the `newdialect` dialect."""
+       importlib.reload(xdsl.dialects.newdialect)
+   ```
+
+   Standalone functions do not inherit `BenchmarkClass`; see the docstrings on
+   `BenchmarkClass` and `idempotent` in `bench_utils` for how repeated
+   timing is configured. Functions and methods named `time_*` are also picked up
+   automatically by [airspeed velocity](https://asv.readthedocs.io/en/latest/)
+   for tracking performance over time.
 
 2. If the test operates on an xDSL operation or other workload which needs to be set up,
 this is best added in `benchmarks/workloads.py` as a new class method on `WorkloadBuilder`.
 
-3. Associate the method with a name in the main code at the bottom of the file
+3. For local profiling, associate the benchmark with a name in the `profile` call at
+   the bottom of the file.
 
-   For example, to add this new method, you might write
+   For example, for a module-level benchmark function:
 
    ```python
-    from bench_utils import Benchmark, profile
+   from bench_utils import BenchmarkFunction, profile
 
-    DIALECTS = ImportDialects()
-    profile(
-        {
-            # [snip...]
-            "Dialects.affine_load": Benchmark(DIALECTS.time_newdialect_load),
-            # [snip...]
-        }
-    )
-    ```
+   profile(
+       {
+           # [snip...]
+           "Dialects.newdialect_load": BenchmarkFunction(time_newdialect_load),
+           # [snip...]
+       }
+   )
+   ```
