@@ -463,12 +463,21 @@ class GlobalValue(NamedValue, _ConstOpMixin, _HasMetadata):
 
     name_prefix = ...
     deduplicate_name = ...
+    linkage: str
+    storage_class: str
+    section: str
     def __init__(self, *args, **kwargs) -> None: ...
 
 class GlobalVariable(GlobalValue):
     """
     A global variable.
     """
+
+    global_constant: bool
+    unnamed_addr: bool
+    thread_local: bool
+    initializer: Value | None
+    align: int | None
     def __init__(self, module, typ, name, addrspace=...) -> None: ...
     def descr(self, buf):  # -> None:
         ...

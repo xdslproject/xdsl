@@ -36,6 +36,19 @@ def test_immediate_pseudo_inst():
     rv64.LiOp(lb, rd=riscv.Registers.A0)
 
 
+def test_immediate_shift_inst():
+    # Shift instructions (SLLI, SRLI, SRAI) - 6-bits immediate for RV64
+    a1 = create_ssa_value(riscv.Registers.A1)
+
+    with pytest.raises(VerifyException):
+        rv64.SlliOp(a1, 1 << 6, rd=riscv.Registers.A0)
+
+    with pytest.raises(VerifyException):
+        rv64.SlliOp(a1, -1, rd=riscv.Registers.A0)
+
+    rv64.SlliOp(a1, (1 << 6) - 1, rd=riscv.Registers.A0)
+
+
 def test_get_constant_value():
     # Test 64-bit LiOp
     li_op = rv64.LiOp(1)
@@ -99,7 +112,7 @@ def test_effect_traits():
     unknown_effects_ops = {op for op in operations if op not in effects_ops}
 
     # Sentinels to remind us to update this test when updating the dialect
-    assert len(effects_ops) == 4
+    assert len(effects_ops) == 9
     assert not unknown_effects_ops
 
     all_effects_trait_types = {
@@ -124,7 +137,16 @@ def test_effect_traits():
     no_effects_ops = {op for op in effects_ops if op.has_trait(NoMemoryEffect)}
 
     # RISCVInstruction base adds RegisterAllocatedMemoryEffect to all instructions
-    assert register_effects_ops == {rv64.LiOp, rv64.LdOp, rv64.SdOp}
+    assert register_effects_ops == {
+        rv64.SlliOp,
+        rv64.SrliOp,
+        rv64.SraiOp,
+        rv64.SlliwOp,
+        rv64.SrliwOp,
+        rv64.LiOp,
+        rv64.LdOp,
+        rv64.SdOp,
+    }
     assert read_effects_ops == {rv64.LdOp}
     assert write_effects_ops == {rv64.SdOp}
     assert no_effects_ops == {rv64.GetRegisterOp}
