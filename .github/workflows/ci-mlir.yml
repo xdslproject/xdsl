@@ -26,6 +26,7 @@ jobs:
       XDSL_MLIR_OPT: /usr/bin/mlir-opt
       XDSL_MLIR_TRANSLATE: /usr/bin/mlir-translate
       XDSL_LLVM_DIFF: /usr/bin/llvm-diff-22
+      XDSL_LLI: /usr/bin/lli-22
     steps:
       - uses: actions/checkout@v7
         with:

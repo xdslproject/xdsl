@@ -17,6 +17,7 @@ from xdsl.dialects.builtin import (
     IntegerAttr,
 )
 from xdsl.ir import Attribute, Block, Operation, SSAValue
+from xdsl.utils.exceptions import LLVMTranslationException
 from xdsl.utils.type import get_element_type_or_self
 
 _BINARY_OP_MAP: dict[
@@ -487,25 +488,20 @@ def _convert_shuffle_vector(
 
 
 _CONSTANT_VALUE_MAP: dict[type[Attribute], Callable[[Attribute], object]] = {
-    DenseIntOrFPElementsAttr: lambda v: list(
-        cast(DenseIntOrFPElementsAttr, v).iter_values()
-    ),
+    DenseIntOrFPElementsAttr: lambda v: cast(DenseIntOrFPElementsAttr, v).get_values(),
     IntegerAttr: lambda v: cast(IntegerAttr, v).value.data,
     FloatAttr: lambda v: cast(FloatAttr, v).value.data,
 }
 
 
-def _convert_constant(
-    op: llvm.ConstantOp, builder: ir.IRBuilder, val_map: dict[SSAValue, ir.Value]
-):
-    value = op.value
+def create_constant(result_type: Attribute, value: Attribute) -> ir.Constant:
     try:
         handler = _CONSTANT_VALUE_MAP[type(value)]
     except KeyError:
-        raise NotImplementedError(
+        raise LLVMTranslationException(
             f"Unsupported constant attribute type: {type(value)}"
         ) from None
-    val_map[op.result] = ir.Constant(convert_type(op.result.type), handler(value))
+    return ir.Constant(convert_type(result_type), handler(value))
 
 
 def convert_op(
@@ -600,6 +596,6 @@ def convert_op(
         case llvm.FMAOp():
             _convert_fma(op, builder, val_map)
         case llvm.ConstantOp():
-            _convert_constant(op, builder, val_map)
+            val_map[op.result] = create_constant(op.result.type, op.value)
         case _:
             raise NotImplementedError(f"Conversion not implemented for op: {op.name}")

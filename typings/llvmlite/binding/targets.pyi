@@ -55,7 +55,7 @@ def get_host_cpu_features():  # -> FeatureMap:
     """
     ...
 
-def get_default_triple():  # -> str:
+def get_default_triple() -> str:
     """
     Return the default target triple LLVM is configured to produce code for.
     """
