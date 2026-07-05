@@ -3,9 +3,11 @@ from __future__ import annotations
 from xdsl.dialects.builtin import (
     Attribute,
     DenseArrayBase,
+    IntegerAttr,
     IntegerType,
     ParametrizedAttribute,
     StringAttr,
+    UnitAttr,
     i64,
 )
 from xdsl.ir import Dialect, Operation, Region, SSAValue, TypeAttribute
@@ -87,6 +89,80 @@ class PragmaArrayPartitionOp(IRDLOperation):
         )
 
 
+@irdl_op_definition
+class PragmaInterfaceOp(IRDLOperation):
+    """Models a Vitis HLS INTERFACE pragma on a kernel argument.
+
+    The operation intentionally keeps the pragma options as attributes so the
+    dialect can represent the surface syntax even when a backend only supports a
+    subset of modes.
+    """
+
+    name = "hls.interface"
+    port = operand_def()
+
+    mode = attr_def(StringAttr)
+    bundle = opt_attr_def(StringAttr)
+    offset = opt_attr_def(StringAttr)
+    clock = opt_attr_def(StringAttr)
+    depth = opt_attr_def(IntegerAttr[IntegerType])
+    register = opt_attr_def(UnitAttr)
+    register_mode = opt_attr_def(StringAttr)
+    storage_type = opt_attr_def(StringAttr)
+    impl = opt_attr_def(StringAttr)
+    latency = opt_attr_def(IntegerAttr[IntegerType])
+    num_read_outstanding = opt_attr_def(IntegerAttr[IntegerType])
+    num_write_outstanding = opt_attr_def(IntegerAttr[IntegerType])
+    max_read_burst_length = opt_attr_def(IntegerAttr[IntegerType])
+    max_write_burst_length = opt_attr_def(IntegerAttr[IntegerType])
+    port_name = opt_attr_def(StringAttr, attr_name="name")
+
+    def __init__(
+        self,
+        port: SSAValue | Operation,
+        mode: StringAttr,
+        bundle: StringAttr | None = None,
+        offset: StringAttr | None = None,
+        clock: StringAttr | None = None,
+        depth: IntegerAttr[IntegerType] | None = None,
+        register: UnitAttr | None = None,
+        register_mode: StringAttr | None = None,
+        storage_type: StringAttr | None = None,
+        impl: StringAttr | None = None,
+        latency: IntegerAttr[IntegerType] | None = None,
+        num_read_outstanding: IntegerAttr[IntegerType] | None = None,
+        num_write_outstanding: IntegerAttr[IntegerType] | None = None,
+        max_read_burst_length: IntegerAttr[IntegerType] | None = None,
+        max_write_burst_length: IntegerAttr[IntegerType] | None = None,
+        port_name: StringAttr | None = None,
+    ):
+        attributes: dict[str, Attribute] = {"mode": mode}
+        optional_attributes: tuple[tuple[str, Attribute | None], ...] = (
+            ("bundle", bundle),
+            ("offset", offset),
+            ("clock", clock),
+            ("depth", depth),
+            ("register", register),
+            ("register_mode", register_mode),
+            ("storage_type", storage_type),
+            ("impl", impl),
+            ("latency", latency),
+            ("num_read_outstanding", num_read_outstanding),
+            ("num_write_outstanding", num_write_outstanding),
+            ("max_read_burst_length", max_read_burst_length),
+            ("max_write_burst_length", max_write_burst_length),
+            ("name", port_name),
+        )
+        attributes.update(
+            {
+                attr_name: attr_value
+                for attr_name, attr_value in optional_attributes
+                if attr_value is not None
+            }
+        )
+        super().__init__(operands=[port], attributes=attributes)
+
+
 @irdl_attr_definition
 class HLSStreamType(ParametrizedAttribute, TypeAttribute):
     name = "hls.streamtype"
@@ -163,6 +239,7 @@ HLS = Dialect(
         PragmaUnrollOp,
         PragmaDataflowOp,
         PragmaArrayPartitionOp,
+        PragmaInterfaceOp,
         HLSStreamOp,
         HLSStreamWriteOp,
         HLSStreamReadOp,

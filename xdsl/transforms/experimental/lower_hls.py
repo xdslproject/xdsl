@@ -1,3 +1,4 @@
+import re
 import typing
 from dataclasses import dataclass
 from typing import Any, cast
@@ -14,6 +15,7 @@ from xdsl.dialects.experimental.hls import (
     HLSStreamWriteOp,
     HLSYieldOp,
     PragmaDataflowOp,
+    PragmaInterfaceOp,
     PragmaPipelineOp,
     PragmaUnrollOp,
 )
@@ -299,6 +301,43 @@ class PragmaUnrollToFunc(RewritePattern):
         rewriter.replace_op(op, call1)
 
 
+def _sanitize_interface_symbol_part(part: str) -> str:
+    return re.sub(r"\W", "_", part)
+
+
+def _interface_marker_mode(mode: str) -> str:
+    if mode == "m_axi":
+        return "maxi"
+    return mode
+
+
+@dataclass
+class PragmaInterfaceToFunc(RewritePattern):
+    module: builtin.ModuleOp
+    declared_interface_names: set[str]
+
+    def __init__(self, op: builtin.ModuleOp):
+        self.module = op
+        self.declared_interface_names = set()
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: PragmaInterfaceOp, rewriter: PatternRewriter, /):
+        mode = _sanitize_interface_symbol_part(_interface_marker_mode(op.mode.data))
+        bundle = "none"
+        if op.bundle is not None:
+            bundle = _sanitize_interface_symbol_part(op.bundle.data)
+
+        interface_func_name = f"_interface_{mode}_{bundle}"
+        interface_func = FuncOp.external(interface_func_name, [op.port.type], [])
+        interface_call = CallOp(interface_func_name, [op.port], [])
+
+        if interface_func_name not in self.declared_interface_names:
+            self.module.body.block.add_op(interface_func)
+            self.declared_interface_names.add(interface_func_name)
+
+        rewriter.replace_op(op, interface_call)
+
+
 # @dataclass
 # class PragmaDataflowToFunc(RewritePattern):
 #    def __init__(self, op: builtin.ModuleOp):
@@ -522,6 +561,7 @@ class LowerHLSPass(ModulePass):
                 # SCFParallelToHLSPipelinedFor(),
                 PragmaPipelineToFunc(op),
                 PragmaUnrollToFunc(op),
+                PragmaInterfaceToFunc(op),
                 # PragmaDataflowToFunc(op),
                 LowerDataflow(op),
                 LowerHLSStreamToAlloca(op),
