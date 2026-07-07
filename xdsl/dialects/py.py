@@ -1,3 +1,10 @@
+"""
+The py dialect is intended to represent a Python-like language.
+
+It is high-level enough to be translated back into Python.
+However, it also includes additional operators to represent more complex mechanisms, such as exceptions.
+"""
+
 from __future__ import annotations
 
 from collections.abc import Sequence

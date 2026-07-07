@@ -6,7 +6,10 @@ from dis import dis
 from pathlib import Path
 from typing import Any, NamedTuple
 
-from pydialect import (
+from pysemantics import dunder_op_name, type_name
+
+from xdsl.dialects.builtin import ArrayAttr, FunctionType, ModuleOp
+from xdsl.dialects.py import (
     CallOp,
     ConstantOp,
     ConstantValue,
@@ -15,9 +18,6 @@ from pydialect import (
     ReturnOp,
     Type,
 )
-from pysemantics import dunder_op_name, type_name
-
-from xdsl.dialects.builtin import ArrayAttr, FunctionType, ModuleOp
 from xdsl.frontend.pyast.utils.exceptions import FrontendProgramException
 from xdsl.ir import Attribute, Block, Operation, Region, SSAValue
 
