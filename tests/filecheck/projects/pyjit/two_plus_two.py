@@ -10,6 +10,7 @@ import llvmlite.binding
 import llvmlite.ir as llvm_ir
 from typing_extensions import TypeForm, TypeVar
 
+from xdsl import ir
 from xdsl.backend.llvm.convert import convert_module
 from xdsl.dialects import arith, builtin, func, llvm
 from xdsl.frontend.pyast.context import PyASTContext
@@ -55,6 +56,36 @@ class TypeMap(NamedTuple):
 bla: dict[type[Any], TypeMap] = {float: TypeMap(float, c_double, c_double, float)}
 
 
+class FuncTypeMap(NamedTuple):
+    arg_maps: tuple[TypeMap, ...]
+    res_map: TypeMap
+
+    @staticmethod
+    def from_signature(signature: TypeForm[Callable[P, R]]) -> "FuncTypeMap":
+        param_types, return_type = get_args(signature)
+        return FuncTypeMap(
+            tuple(bla[py_type] for py_type in param_types), bla[return_type]
+        )
+
+    def c_func_type(self):
+        return CFUNCTYPE(
+            self.res_map.ctype_type, *(m.ctype_type for m in self.arg_maps)
+        )
+
+
+class CTypeConverter:
+    def convert_type(self, attribute: ir.Attribute) -> Any:
+        assert attribute == builtin.f64
+        return c_double
+
+    def c_func_type_from_func_type(
+        self, arg_types: tuple[ir.Attribute], res_type: ir.Attribute
+    ):
+        return CFUNCTYPE(
+            self.convert_type(res_type), *(self.convert_type(arg) for arg in arg_types)
+        )
+
+
 # TODO: support automatic conversion of types
 def mcjit_binary(
     llvm_module: llvm_ir.Module, symbol: str, t: TypeForm[Callable[P, R]]
@@ -72,17 +103,17 @@ def mcjit_binary(
 
     func_ptr = engine.get_function_address(symbol)  # pyright: ignore
 
-    # Create mapping
-    param_types, return_type = get_args(t)
-    param_maps = tuple(bla[py_type] for py_type in param_types)
-    return_map = bla[return_type]
+    func_type_map = FuncTypeMap.from_signature(t)
+    fn_type = func_type_map.c_func_type()
 
-    fn_type = CFUNCTYPE(return_map.ctype_type, *(m.ctype_type for m in param_maps))
     c_types_fn = fn_type(func_ptr)  # pyright: ignore
 
     def fn(*args: P.args, **kwargs: P.kwargs) -> R:
-        ctype_args = tuple(m.to_ctype(a) for m, a in zip(param_maps, args, strict=True))
-        return return_map.from_ctype(c_types_fn(*ctype_args))
+        assert not kwargs
+        ctype_args = tuple(
+            m.to_ctype(a) for m, a in zip(func_type_map.arg_maps, args, strict=True)
+        )
+        return func_type_map.res_map.from_ctype(c_types_fn(*ctype_args))
 
     keepalive = McJitKeepalive[P, R](
         target=target,  # pyright: ignore
@@ -144,7 +175,7 @@ print(f"{plus(3.0, 4.0) = }")
 print(f"{plus.func(2.0, 2.0) = }")
 print(f"{plus.func(3.0, 4.0) = }")
 
-# CHECK: plus.func(2.0, 2.0) = 4.0
-# CHECK: plus.func(3.0, 4.0) = 7.0
+# CHECK: plus.c_types_func(2.0, 2.0) = 4.0
+# CHECK: plus.c_types_func(3.0, 4.0) = 7.0
 print(f"{plus.c_types_func(2.0, 2.0) = }")
 print(f"{plus.c_types_func(3.0, 4.0) = }")
