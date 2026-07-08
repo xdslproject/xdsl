@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-from benchmarks.bench_utils import benchmark_root_directory
+from benchmarks.bench_utils import (
+    BenchmarkClass,
+    benchmark_root_directory,
+    safe_to_repeat,
+)
 from xdsl.context import Context
 from xdsl.dialects.builtin import Builtin, ModuleOp
 from xdsl.dialects.llvm import LLVM
@@ -29,9 +33,10 @@ def _parse_module() -> ModuleOp:
     return module
 
 
-class LLVMBackend:
+class LLVMBackend(BenchmarkClass):
     MODULE = _parse_module()
 
+    @safe_to_repeat
     def time_convert_module(self) -> None:
         from xdsl.backend.llvm.convert import convert_module
 
@@ -39,11 +44,13 @@ class LLVMBackend:
 
 
 if __name__ == "__main__":
-    from bench_utils import Benchmark, profile
+    from bench_utils import BenchmarkFunction, profile
 
     BACKEND = LLVMBackend()
     profile(
         {
-            "LLVMBackend.convert_module": Benchmark(BACKEND.time_convert_module),
+            "LLVMBackend.convert_module": BenchmarkFunction(
+                BACKEND.time_convert_module
+            ),
         }
     )
