@@ -3,7 +3,7 @@
 
 from typing import cast
 
-from benchmarks.bench_utils import BenchmarkClass, idempotent
+from benchmarks.bench_utils import BenchmarkClass, safe_to_repeat
 from benchmarks.workloads import WorkloadBuilder
 from xdsl.context import Context
 from xdsl.dialects.arith import (
@@ -139,7 +139,7 @@ class RewritingMicrobenchmarks(BenchmarkClass):
 class PatternRewriting(RewritingMicrobenchmarks):
     """Microbenchmarks for general pattern rewriting of constant folding."""
 
-    @idempotent
+    @safe_to_repeat
     def time_region_walk(self) -> None:
         """Time `Region.walk`.
 
@@ -167,7 +167,7 @@ class PatternRewriting(RewritingMicrobenchmarks):
         """
         self.worklist.pop()
 
-    @idempotent
+    @safe_to_repeat
     def time_get_trait(self) -> None:
         """Time `Operation.get_trait`.
 
@@ -177,7 +177,7 @@ class PatternRewriting(RewritingMicrobenchmarks):
         """
         self.add_op.get_trait(HasCanonicalizationPatternsTrait)
 
-    @idempotent
+    @safe_to_repeat
     def time_insert_point_before(self) -> None:
         """Time `InsertPoint.before`.
 
@@ -193,7 +193,7 @@ class PatternRewriting(RewritingMicrobenchmarks):
         """
         self.pattern_rewriter.insert_op((self.sub_op,), self.insert_point)
 
-    @idempotent
+    @safe_to_repeat
     def time_verify_variadic_size(self) -> None:
         """Time `verify_variadic_size`.
 
@@ -271,7 +271,7 @@ class Canonicalization(RewritingMicrobenchmarks):
         """
         self.add_op_result.erase(safe_erase=False)
 
-    @idempotent
+    @safe_to_repeat
     def time_integer_attr_creation(self) -> None:
         """Time `IntegerAttr.__init__`.
 
@@ -281,7 +281,7 @@ class Canonicalization(RewritingMicrobenchmarks):
         """
         IntegerAttr(0, 64)
 
-    @idempotent
+    @safe_to_repeat
     def time_integer_type_normalized_value(self) -> None:
         """Time `IntegerType.normalized_value`.
 
@@ -290,7 +290,7 @@ class Canonicalization(RewritingMicrobenchmarks):
         """
         self.integer_type.normalized_value(0)
 
-    @idempotent
+    @safe_to_repeat
     def time_integer_attr_verify(self) -> None:
         """Time `IntegerAttr._verify`.
 
@@ -299,7 +299,7 @@ class Canonicalization(RewritingMicrobenchmarks):
         """
         self.integer_attr._verify()  # pyright: ignore[reportPrivateUsage]
 
-    @idempotent
+    @safe_to_repeat
     def time_operation_create(self) -> None:
         """Time `AddiOp.__init__`.
 
@@ -307,7 +307,7 @@ class Canonicalization(RewritingMicrobenchmarks):
         """
         AddiOp(self.const_1, self.const_0)
 
-    @idempotent
+    @safe_to_repeat
     def time_const_evaluate_operand(self) -> None:
         """Time `const_evaluate_operand`.
 
@@ -319,7 +319,7 @@ class Canonicalization(RewritingMicrobenchmarks):
 class RemoveUnused(RewritingMicrobenchmarks):
     """Microbenchmarks for unused code removal rewriting of constant folding."""
 
-    @idempotent
+    @safe_to_repeat
     def time_is_trivially_dead(self) -> None:
         """Time `is_trivially_dead`.
 
@@ -329,7 +329,7 @@ class RemoveUnused(RewritingMicrobenchmarks):
         """
         is_trivially_dead(self.add_op)
 
-    @idempotent
+    @safe_to_repeat
     def time_would_be_trivially_dead(self) -> None:
         """Time `would_be_trivially_dead`.
 
@@ -339,7 +339,7 @@ class RemoveUnused(RewritingMicrobenchmarks):
         """
         would_be_trivially_dead(self.add_op)
 
-    @idempotent
+    @safe_to_repeat
     def time_result_only_effects(self) -> None:
         """Time `result_only_effects`.
 
@@ -348,7 +348,7 @@ class RemoveUnused(RewritingMicrobenchmarks):
         """
         result_only_effects(self.add_op)
 
-    @idempotent
+    @safe_to_repeat
     def time_operation_get_traits_of_type(self) -> None:
         """Time `Operation.get_traits_of_type`.
 
@@ -361,7 +361,7 @@ class RemoveUnused(RewritingMicrobenchmarks):
 class RegionDCE(RewritingMicrobenchmarks):
     """Microbenchmarks for region dead-code elimination of constant folding."""
 
-    @idempotent
+    @safe_to_repeat
     def time_post_order_iterator(self) -> None:
         """Time `PostOrderIterator`.
 

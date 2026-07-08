@@ -38,7 +38,7 @@ class BenchmarkClass:
     once per ``setup``.
 
     For methods that are safe to call repeatedly per ``setup`` without changing
-    what is measured, use :func:`idempotent` for a more accurate measurement.
+    what is measured, use :func:`safe_to_repeat` for a more accurate measurement.
 
     See https://asv.readthedocs.io/en/latest/benchmarks.html#timing-benchmarks.
     """
@@ -47,7 +47,7 @@ class BenchmarkClass:
     warmup_time = 0
 
 
-def idempotent(benchmark: _BenchmarkMethodT) -> _BenchmarkMethodT:
+def safe_to_repeat(benchmark: _BenchmarkMethodT) -> _BenchmarkMethodT:
     """Mark a benchmark as safe to time with repeated calls per setup.
 
     Use on ``time_*`` functions or methods that do not consume or mutate state

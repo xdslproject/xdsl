@@ -75,7 +75,7 @@ uv run benchmarks/lexer.py Lexer.empty_program dis
    consume or alter state prepared in `setup`, leave it on the `BenchmarkClass`
    default. If each call is independent of the last — for example it only reads
    immutable inputs or allocates fresh objects — decorate it with
-   `@idempotent`.
+   `@safe_to_repeat`.
 
    For example, to benchmark loading a new dialect you might write either:
 
@@ -83,10 +83,10 @@ uv run benchmarks/lexer.py Lexer.empty_program dis
    import importlib
 
    import xdsl.dialects.newdialect
-   from benchmarks.bench_utils import BenchmarkClass, idempotent
+   from benchmarks.bench_utils import BenchmarkClass, safe_to_repeat
 
    class ImportDialects(BenchmarkClass):
-       @idempotent
+       @safe_to_repeat
        def time_newdialect_load(self) -> None:
            """Time loading the `newdialect` dialect."""
            importlib.reload(xdsl.dialects.newdialect)
@@ -98,16 +98,16 @@ uv run benchmarks/lexer.py Lexer.empty_program dis
    import importlib
 
    import xdsl.dialects.newdialect
-   from benchmarks.bench_utils import idempotent
+   from benchmarks.bench_utils import safe_to_repeat
 
-   @idempotent
+   @safe_to_repeat
    def time_newdialect_load() -> None:
        """Time loading the `newdialect` dialect."""
        importlib.reload(xdsl.dialects.newdialect)
    ```
 
    Standalone functions do not inherit `BenchmarkClass`; see the docstrings on
-   `BenchmarkClass` and `idempotent` in `bench_utils` for how repeated
+   `BenchmarkClass` and `safe_to_repeat` in `bench_utils` for how repeated
    timing is configured. Functions and methods named `time_*` are also picked up
    automatically by [airspeed velocity](https://asv.readthedocs.io/en/latest/)
    for tracking performance over time.

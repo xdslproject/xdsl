@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-from benchmarks.bench_utils import BenchmarkClass, benchmark_root_directory, idempotent
+from benchmarks.bench_utils import (
+    BenchmarkClass,
+    benchmark_root_directory,
+    safe_to_repeat,
+)
 from xdsl.context import Context
 from xdsl.dialects.builtin import Builtin, ModuleOp
 from xdsl.dialects.llvm import LLVM
@@ -32,7 +36,7 @@ def _parse_module() -> ModuleOp:
 class LLVMBackend(BenchmarkClass):
     MODULE = _parse_module()
 
-    @idempotent
+    @safe_to_repeat
     def time_convert_module(self) -> None:
         from xdsl.backend.llvm.convert import convert_module
 

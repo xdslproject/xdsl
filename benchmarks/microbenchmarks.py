@@ -3,7 +3,7 @@
 
 from __future__ import annotations
 
-from benchmarks.bench_utils import BenchmarkClass, idempotent
+from benchmarks.bench_utils import BenchmarkClass, safe_to_repeat
 from xdsl.dialects.arith import ConstantOp
 from xdsl.dialects.builtin import IntAttr, IntegerAttr, ModuleOp, i32
 from xdsl.ir import Block, OpResult, SSAValues
@@ -70,7 +70,7 @@ class IRTraversal(BenchmarkClass):
     EXAMPLE_OPS = [EmptyOp() for _ in range(EXAMPLE_BLOCK_NUM_OPS)]
     EXAMPLE_BLOCK = Block(ops=EXAMPLE_OPS)
 
-    @idempotent
+    @safe_to_repeat
     def time_iterate_ops(self) -> None:
         """Time directly iterating over a python list of operations.
 
@@ -94,7 +94,7 @@ class IRTraversal(BenchmarkClass):
         for op in IRTraversal.EXAMPLE_OPS:
             op  # pyright: ignore[reportUnusedExpression]
 
-    @idempotent
+    @safe_to_repeat
     def time_iterate_block_ops(self) -> None:
         """Time directly iterating over the linked list of a block's operations.
 
@@ -118,7 +118,7 @@ class IRTraversal(BenchmarkClass):
         for op in IRTraversal.EXAMPLE_BLOCK.ops:
             op  # pyright: ignore[reportUnusedExpression]
 
-    @idempotent
+    @safe_to_repeat
     def time_walk_block_ops(self) -> None:
         """Time walking a block's operations.
 
@@ -150,12 +150,12 @@ class Extensibility(BenchmarkClass):
     TRAIT_4 = optrait_subclasses[4]
     TRAIT_4_INSTANCE = TRAIT_4()
 
-    @idempotent
+    @safe_to_repeat
     def time_interface_check_trait(self) -> None:
         """Time checking the class hierarchy of a trait."""
         isinstance(Extensibility.HAS_TRAIT_A_OP, HasTraitAOp)  # pyright: ignore[reportUnnecessaryIsInstance]
 
-    @idempotent
+    @safe_to_repeat
     def time_interface_check(self) -> None:
         """Time checking the class hierarchy of an operation.
 
@@ -179,7 +179,7 @@ class Extensibility(BenchmarkClass):
         """
         isinstance(Extensibility.EMPTY_OP, EmptyOp)  # pyright: ignore[reportUnnecessaryIsInstance]
 
-    @idempotent
+    @safe_to_repeat
     def time_trait_check(self) -> None:
         """Time checking the trait of an operation.
 
@@ -210,12 +210,12 @@ class Extensibility(BenchmarkClass):
         """
         assert Extensibility.OP_WITH_REGION.has_trait(Extensibility.TRAIT_4)
 
-    @idempotent
+    @safe_to_repeat
     def time_trait_check_single(self) -> None:
         """Time checking the trait of an operation with one trait."""
         Extensibility.HAS_TRAIT_A_OP.has_trait(TraitA)
 
-    @idempotent
+    @safe_to_repeat
     def time_trait_check_neg(self) -> None:
         """Time checking the trait of an operation.
 
@@ -255,7 +255,7 @@ class OpCreation(BenchmarkClass):
     CLONE_OPERATION = get_clone_op()
     EMPTY_OP = EmptyOp()
 
-    @idempotent
+    @safe_to_repeat
     def time_operation_create(self) -> None:
         """Time creating an empty operation.
 
@@ -273,7 +273,7 @@ class OpCreation(BenchmarkClass):
         """
         EmptyOp.create()
 
-    @idempotent
+    @safe_to_repeat
     def time_operation_build(self) -> None:
         """Time building an empty operation.
 
@@ -293,7 +293,7 @@ class OpCreation(BenchmarkClass):
         """
         EmptyOp.build()
 
-    @idempotent
+    @safe_to_repeat
     def time_operation_create_optimised(self) -> None:
         """Time creating an empty operation directly."""
         empty_op = EmptyOp.__new__(EmptyOp)
@@ -304,12 +304,12 @@ class OpCreation(BenchmarkClass):
         empty_op._successors = ()  # pyright: ignore[reportPrivateUsage]
         empty_op.regions = ()
 
-    @idempotent
+    @safe_to_repeat
     def time_operation_constant_init(self) -> None:
         """Time instantiating a constant integer."""
         ConstantOp(IntegerAttr(100, i32))
 
-    @idempotent
+    @safe_to_repeat
     def time_operation_constant_create(self) -> None:
         """Time creating a constant integer."""
         int_attr = IntAttr.__new__(IntAttr)
@@ -325,7 +325,7 @@ class OpCreation(BenchmarkClass):
         constant_op._successors = ()  # pyright: ignore[reportPrivateUsage]
         constant_op.regions = ()
 
-    @idempotent
+    @safe_to_repeat
     def time_operation_clone(self) -> None:
         """Time cloning an module of 100 empty operations.
 
@@ -348,7 +348,7 @@ class OpCreation(BenchmarkClass):
         """
         OpCreation.CLONE_OPERATION.clone()
 
-    @idempotent
+    @safe_to_repeat
     def time_operation_clone_single(self) -> None:
         """Time cloning an empty operation."""
         OpCreation.EMPTY_OP.clone()

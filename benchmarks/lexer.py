@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Benchmarks for the lexer of the xDSL implementation."""
 
-from benchmarks.bench_utils import BenchmarkClass, idempotent
+from benchmarks.bench_utils import BenchmarkClass, safe_to_repeat
 from benchmarks.workloads import WorkloadBuilder
 from xdsl.utils.lexer import Input
 from xdsl.utils.mlir_lexer import MLIRLexer, MLIRTokenKind
@@ -16,7 +16,7 @@ class Lexer(BenchmarkClass):
     WORKLOAD_LARGE_DENSE_ATTR = WorkloadBuilder.large_dense_attr()
     WORKLOAD_LARGE_DENSE_ATTR_HEX = WorkloadBuilder.large_dense_attr_hex()
 
-    @idempotent
+    @safe_to_repeat
     def time_empty_program(self) -> None:
         """Time lexing an empty program."""
         lexer_input = Input(Lexer.WORKLOAD_EMPTY, "empty")
@@ -24,7 +24,7 @@ class Lexer(BenchmarkClass):
         while lexer.lex().kind is not MLIRTokenKind.EOF:
             pass
 
-    @idempotent
+    @safe_to_repeat
     def time_constant_100(self) -> None:
         """Time lexing constant folding for 100 items."""
         lexer_input = Input(Lexer.WORKLOAD_CONSTANT_100, "constant_100")
@@ -32,7 +32,7 @@ class Lexer(BenchmarkClass):
         while lexer.lex().kind is not MLIRTokenKind.EOF:
             pass
 
-    @idempotent
+    @safe_to_repeat
     def time_constant_1000(self) -> None:
         """Time lexing constant folding for 1000 items."""
         lexer_input = Input(Lexer.WORKLOAD_CONSTANT_1000, "constant_1000")

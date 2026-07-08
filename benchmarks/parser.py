@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Benchmarks for the parser of the xDSL implementation."""
 
-from benchmarks.bench_utils import BenchmarkClass, idempotent
+from benchmarks.bench_utils import BenchmarkClass, safe_to_repeat
 from benchmarks.workloads import WorkloadBuilder
 from xdsl.context import Context
 from xdsl.dialects.arith import Arith
@@ -26,12 +26,12 @@ class Parser(BenchmarkClass):
         WorkloadBuilder.large_constant_tensor((500, 500))
     )
 
-    @idempotent
+    @safe_to_repeat
     def time_constant_100(self) -> None:
         """Time parsing constant folding for 100 items."""
         XdslParser(CTX, Parser.WORKLOAD_CONSTANT_100).parse_module()
 
-    @idempotent
+    @safe_to_repeat
     def time_constant_1000(self) -> None:
         """Time parsing constant folding for 1000 items."""
         XdslParser(CTX, Parser.WORKLOAD_CONSTANT_1000).parse_module()
@@ -44,7 +44,7 @@ class Parser(BenchmarkClass):
         """Time parsing a 1024x1024xi8 dense attribute given as a hex string."""
         XdslParser(CTX, Parser.WORKLOAD_LARGE_DENSE_ATTR_HEX).parse_module()
 
-    @idempotent
+    @safe_to_repeat
     def time_large_constant_tensor(self) -> None:
         """Time parsing a large constant tensor."""
         XdslParser(CTX, Parser.WORKLOAD_LARGE_CONSTANT_TENSOR).parse_module()

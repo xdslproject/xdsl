@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Benchmarks for the verifier of the xDSL implementation."""
 
-from benchmarks.bench_utils import BenchmarkClass, idempotent
+from benchmarks.bench_utils import BenchmarkClass, safe_to_repeat
 from benchmarks.workloads import WorkloadBuilder
 
 
@@ -21,17 +21,17 @@ class Verifier(BenchmarkClass):
     WORKLOAD_CONSTANT_1000 = WorkloadBuilder.constant_folding_module(1000)
     WORKLOAD_LARGE_DENSE_ATTR = WorkloadBuilder.large_dense_attr_module()
 
-    @idempotent
+    @safe_to_repeat
     def time_constant_100(self) -> None:
         """Time verifying constant folding for 100 items."""
         Verifier.WORKLOAD_CONSTANT_100.verify()
 
-    @idempotent
+    @safe_to_repeat
     def time_constant_1000(self) -> None:
         """Time verifying constant folding for 1000 items."""
         Verifier.WORKLOAD_CONSTANT_1000.verify()
 
-    @idempotent
+    @safe_to_repeat
     def time_dense_attr_hex(self) -> None:
         """Time verifying a 1024x1024xi8 dense attribute given as a hex string."""
         Verifier.WORKLOAD_LARGE_DENSE_ATTR.verify()

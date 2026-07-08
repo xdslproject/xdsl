@@ -33,13 +33,13 @@ import xdsl.interpreters.riscv_scf
 import xdsl.interpreters.riscv_snitch
 import xdsl.interpreters.scf
 import xdsl.interpreters.tensor
-from benchmarks.bench_utils import BenchmarkClass, idempotent
+from benchmarks.bench_utils import BenchmarkClass, safe_to_repeat
 
 
 class ImportXDSL(BenchmarkClass):
     """Benchmark importing xDSL."""
 
-    @idempotent
+    @safe_to_repeat
     def time_import_xdsl(self) -> None:
         """Time importing xDSL using the default asv mechanism."""
         importlib.reload(xdsl)
@@ -73,7 +73,7 @@ class ImportDialects(BenchmarkClass):
         """Time loading the `test` dialect."""
         importlib.reload(xdsl.dialects.test)
 
-    @idempotent
+    @safe_to_repeat
     def time_all_constant_load(self) -> None:
         """Time all dialects used by the constant folding workload."""
         self.ignore_time_affine_load()
@@ -84,7 +84,7 @@ class ImportDialects(BenchmarkClass):
 class ImportInterpreters(BenchmarkClass):
     """Benchmark loading interpreters in xDSL."""
 
-    @idempotent
+    @safe_to_repeat
     def time_all_constant_load(self) -> None:
         """Time all interpreters used by the constant folding workload."""
         importlib.reload(xdsl.dialects.test)

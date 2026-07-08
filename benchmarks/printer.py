@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Benchmarks for the printer of the xDSL implementation."""
 
-from benchmarks.bench_utils import BenchmarkClass, idempotent
+from benchmarks.bench_utils import BenchmarkClass, safe_to_repeat
 from benchmarks.workloads import WorkloadBuilder
 from xdsl.printer import Printer as XdslPrinter
 
@@ -16,22 +16,22 @@ class Printer(BenchmarkClass):
     WORKLOAD_CONSTANT_1000 = WorkloadBuilder.constant_folding_module(1000)
     WORKLOAD_LARGE_DENSE_ATTR = WorkloadBuilder.large_dense_attr_module()
 
-    @idempotent
+    @safe_to_repeat
     def time_constant_0(self) -> None:
         """Time printing a constant folded workload."""
         MODULE_PRINTER.print_op(Printer.WORKLOAD_CONSTANT_0)
 
-    @idempotent
+    @safe_to_repeat
     def time_constant_100(self) -> None:
         """Time printing constant folding for 100 items."""
         MODULE_PRINTER.print_op(Printer.WORKLOAD_CONSTANT_100)
 
-    @idempotent
+    @safe_to_repeat
     def time_constant_1000(self) -> None:
         """Time printing constant folding for 1000 items."""
         MODULE_PRINTER.print_op(Printer.WORKLOAD_CONSTANT_1000)
 
-    @idempotent
+    @safe_to_repeat
     def time_dense_attr(self) -> None:
         """Time printing a 1024x1024xi8 dense attribute given as a hex string."""
         MODULE_PRINTER.print_op(Printer.WORKLOAD_LARGE_DENSE_ATTR)
