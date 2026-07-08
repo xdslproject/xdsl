@@ -49,9 +49,6 @@ from xdsl.irdl.declarative_assembly_format import (
     AttrFormatDirective,
     AttrFormatProgram,
     AttributeVariable,
-    AttrKeywordDirective,
-    AttrPunctuationDirective,
-    AttrWhitespaceDirective,
     DenseArrayAttributeVariable,
     Directive,
     FormatDirective,
@@ -925,44 +922,4 @@ class AttrFormatParser(BaseParser):
         return AttrFormatProgram(tuple(elements))
 
     def parse_format_directive(self) -> AttrFormatDirective:
-        if self._current_token.text == "`":
-            return self.parse_keyword_or_punctuation()
         self.raise_error(f"unexpected token '{self._current_token.text}'")
-
-    def parse_keyword_or_punctuation(self) -> AttrFormatDirective:
-        start_token = self._current_token
-        self.parse_characters("`")
-
-        # \n case
-        if self.parse_optional_keyword("\\"):
-            self.parse_keyword("n")
-            self.parse_characters("`")
-            return AttrWhitespaceDirective("\n")
-
-        # Space or empty backtick case
-        end_token = self._current_token
-        if self.parse_optional_characters("`"):
-            whitespace = self.lexer.input.content[
-                start_token.span.end : end_token.span.start
-            ]
-            if whitespace != " " and whitespace != "":
-                self.raise_error(
-                    "unexpected whitespace in directive, "
-                    "only ` ` or `` whitespace is allowed"
-                )
-            return AttrWhitespaceDirective(whitespace)
-
-        # Punctuation case
-        if self._current_token.kind.is_punctuation():
-            punctuation = self._consume_token().text
-            self.parse_characters("`")
-            assert MLIRTokenKind.is_spelling_of_punctuation(punctuation)
-            return AttrPunctuationDirective(punctuation)
-
-        # Identifier case
-        ident = self.parse_optional_identifier()
-        if ident is None or ident == "`":
-            self.raise_error("punctuation or identifier expected")
-
-        self.parse_characters("`")
-        return AttrKeywordDirective(ident)

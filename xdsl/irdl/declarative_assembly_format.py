@@ -1359,47 +1359,6 @@ class OptionalUnitAttrVariable(AttributeVariable):
         return False
 
 
-# ===========================================================================
-# Shared print helpers for structural directives (whitespace, punctuation,
-# keyword). These are used by both the op-side and attr-side directive classes.
-# ===========================================================================
-
-
-def _print_whitespace(printer: Printer, state: PrintingState, whitespace: str) -> None:
-    printer.print_string(whitespace)
-    state.last_was_punctuation = whitespace == ""
-    state.should_emit_space = False
-
-
-def _print_punctuation(
-    printer: Printer, state: PrintingState, punctuation: PunctuationSpelling
-) -> None:
-    emit_space = False
-    if state.should_emit_space:
-        if state.last_was_punctuation:
-            if punctuation not in (">", ")", "}", "]", ","):
-                emit_space = True
-        elif punctuation not in ("<", ">", "(", ")", "{", "}", "[", "]", ","):
-            emit_space = True
-
-        if emit_space:
-            printer.print_string(" ")
-
-    printer.print_string(punctuation)
-
-    state.should_emit_space = punctuation not in ("<", "(", "{", "[")
-    state.last_was_punctuation = True
-
-
-def _print_keyword(printer: Printer, state: PrintingState, keyword: str) -> None:
-    if state.should_emit_space:
-        printer.print_string(" ")
-    state.should_emit_space = True
-    state.last_was_punctuation = False
-
-    printer.print_string(keyword)
-
-
 @dataclass(frozen=True)
 class WhitespaceDirective(FormatDirective):
     """
@@ -1417,7 +1376,9 @@ class WhitespaceDirective(FormatDirective):
         return False
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
-        _print_whitespace(printer, state, self.whitespace)
+        printer.print_string(self.whitespace)
+        state.last_was_punctuation = self.whitespace == ""
+        state.should_emit_space = False
 
 
 @dataclass(frozen=True)
@@ -1439,7 +1400,21 @@ class PunctuationDirective(FormatDirective):
         return parser.parse_optional_punctuation(self.punctuation) is not None
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
-        _print_punctuation(printer, state, self.punctuation)
+        emit_space = False
+        if state.should_emit_space:
+            if state.last_was_punctuation:
+                if self.punctuation not in (">", ")", "}", "]", ","):
+                    emit_space = True
+            elif self.punctuation not in ("<", ">", "(", ")", "{", "}", "[", "]", ","):
+                emit_space = True
+
+            if emit_space:
+                printer.print_string(" ")
+
+        printer.print_string(self.punctuation)
+
+        state.should_emit_space = self.punctuation not in ("<", "(", "{", "[")
+        state.last_was_punctuation = True
 
     def is_optional_like(self) -> bool:
         return True
@@ -1461,7 +1436,12 @@ class KeywordDirective(FormatDirective):
         return parser.parse_optional_keyword(self.keyword) is not None
 
     def print(self, printer: Printer, state: PrintingState, op: IRDLOperation) -> None:
-        _print_keyword(printer, state, self.keyword)
+        if state.should_emit_space:
+            printer.print_string(" ")
+        state.should_emit_space = True
+        state.last_was_punctuation = False
+
+        printer.print_string(self.keyword)
 
     def is_optional_like(self) -> bool:
         return True
@@ -1545,56 +1525,6 @@ class AttrFormatDirective(ABC):
         self, printer: Printer, state: PrintingState, attr: ParametrizedAttribute, /
     ) -> None:
         """Print the directive."""
-
-
-# ===========================================================================
-# Attr-side structural directives
-# ===========================================================================
-
-
-@dataclass(frozen=True)
-class AttrWhitespaceDirective(AttrFormatDirective):
-    """Whitespace directive for attribute/type assembly format."""
-
-    whitespace: Literal[" ", "\n", ""]
-
-    def parse(self, parser: AttrParser, state: AttrParsingState) -> bool:
-        return False
-
-    def print(
-        self, printer: Printer, state: PrintingState, attr: ParametrizedAttribute, /
-    ) -> None:
-        _print_whitespace(printer, state, self.whitespace)
-
-
-@dataclass(frozen=True)
-class AttrPunctuationDirective(AttrFormatDirective):
-    """Punctuation directive for attribute/type assembly format."""
-
-    punctuation: PunctuationSpelling
-
-    def parse(self, parser: AttrParser, state: AttrParsingState) -> bool:
-        return parser.parse_optional_punctuation(self.punctuation) is not None
-
-    def print(
-        self, printer: Printer, state: PrintingState, attr: ParametrizedAttribute, /
-    ) -> None:
-        _print_punctuation(printer, state, self.punctuation)
-
-
-@dataclass(frozen=True)
-class AttrKeywordDirective(AttrFormatDirective):
-    """Keyword directive for attribute/type assembly format."""
-
-    keyword: str
-
-    def parse(self, parser: AttrParser, state: AttrParsingState) -> bool:
-        return parser.parse_optional_keyword(self.keyword) is not None
-
-    def print(
-        self, printer: Printer, state: PrintingState, attr: ParametrizedAttribute, /
-    ) -> None:
-        _print_keyword(printer, state, self.keyword)
 
 
 @dataclass(frozen=True)
