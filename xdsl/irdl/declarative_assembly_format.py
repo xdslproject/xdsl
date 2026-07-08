@@ -1496,7 +1496,9 @@ class OptionalGroupDirective(FormatDirective):
 
 @dataclass
 class AttrParsingState:
-    """State during parsing of a ParametrizedAttribute using declarative format."""
+    """
+    State during parsing of a ParametrizedAttribute using declarative format.
+    """
 
     parameters: list[Attribute | None]
     attr_def: ParamAttrDef
@@ -1508,7 +1510,8 @@ class AttrParsingState:
 
 @dataclass(frozen=True)
 class AttrFormatDirective(ABC):
-    """Base class for attribute/type format directives.
+    """
+    Base class for attribute/type format directives.
 
     Separate from FormatDirective because operation formats parse full ops
     (operands, results, regions, etc.) using Parser and ParsingState, while
@@ -1518,13 +1521,17 @@ class AttrFormatDirective(ABC):
 
     @abstractmethod
     def parse(self, parser: AttrParser, state: AttrParsingState) -> bool:
-        """Parse the directive, returning True if input was consumed."""
+        """
+        Parse the directive, returning True if input was consumed.
+        """
 
     @abstractmethod
     def print(
         self, printer: Printer, state: PrintingState, attr: ParametrizedAttribute, /
     ) -> None:
-        """Print the directive."""
+        """
+        Print the directive.
+        """
 
 
 @dataclass(frozen=True)
@@ -1535,7 +1542,9 @@ class AttrFormatProgram:
     """
 
     stmts: tuple[AttrFormatDirective, ...]
-    """The statements composing the program. They are executed in order."""
+    """
+    The statements composing the program. They are executed in order.
+    """
 
     @staticmethod
     def from_str(format_str: str, attr_def: ParamAttrDef) -> AttrFormatProgram:
@@ -1544,17 +1553,16 @@ class AttrFormatProgram:
         return AttrFormatParser(format_str, attr_def).parse_format()
 
     def parse(self, parser: AttrParser, attr_def: ParamAttrDef) -> list[Attribute]:
-        """Run each directive in order, returning the parsed parameter values.
-
-        IRDL constraint verification runs when the attribute is constructed,
-        not during this parse step.
         """
+        Return the parsed parameter values.
+
+        Only the empty format is supported at this stage, so there are no
+        directives to run yet; IRDL constraint verification runs when the
+        attribute is constructed, not during this parse step.
+        """
+        assert not self.stmts
         state = AttrParsingState(attr_def)
-        for stmt in self.stmts:
-            stmt.parse(parser, state)
         return cast(list[Attribute], state.parameters)
 
     def print(self, printer: Printer, attr: ParametrizedAttribute) -> None:
-        state = PrintingState(last_was_punctuation=True, should_emit_space=False)
-        for stmt in self.stmts:
-            stmt.print(printer, state, attr)
+        assert not self.stmts

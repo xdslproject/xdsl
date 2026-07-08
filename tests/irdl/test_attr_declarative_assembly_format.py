@@ -39,11 +39,19 @@ def _parse(format_str: str, body: str) -> list[Attribute]:
     return _program(format_str).parse(parser, EmptyType.get_irdl_definition())
 
 
-def test_empty_format_is_valid():
-    program = _program("")
-    assert program.stmts == ()
+def test_empty_format_produces_empty_program():
+    assert _program("").stmts == ()
+
+
+def test_empty_format_prints_and_parses_nothing():
     assert _print("") == ""
     assert _parse("", "") == []
+
+
+def test_parse_attribute_end_to_end():
+    ctx = Context()
+    ctx.load_attr_or_type(EmptyType)
+    assert Parser(ctx, "!test_af.empty").parse_type() == EmptyType()
 
 
 def test_error_unexpected_token():
