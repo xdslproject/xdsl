@@ -32,6 +32,7 @@ from xdsl.irdl import (
     OptSingleBlockRegionDef,
     OptSuccessorDef,
     ParamAttrConstraint,
+    ParamAttrDef,
     ParsePropInAttrDict,
     SameVariadicOperandSize,
     SameVariadicResultSize,
@@ -45,6 +46,8 @@ from xdsl.irdl import (
 )
 from xdsl.irdl.declarative_assembly_format import (
     AttrDictDirective,
+    AttrFormatDirective,
+    AttrFormatProgram,
     AttributeVariable,
     DenseArrayAttributeVariable,
     Directive,
@@ -900,3 +903,23 @@ class FormatParser(BaseParser):
         if not inside_ref:
             self.seen_result_types = [True] * len(self.seen_result_types)
         return ResultsDirective()
+
+
+@dataclass(init=False)
+class AttrFormatParser(BaseParser):
+    """Parser for attribute/type declarative assembly format strings."""
+
+    attr_def: ParamAttrDef
+
+    def __init__(self, input_str: str, attr_def: ParamAttrDef):
+        super().__init__(ParserState(FormatLexer(Input(input_str, "<attr-format>"))))
+        self.attr_def = attr_def
+
+    def parse_format(self) -> AttrFormatProgram:
+        elements: list[AttrFormatDirective] = []
+        while self._current_token.kind != MLIRTokenKind.EOF:
+            elements.append(self.parse_format_directive())
+        return AttrFormatProgram(tuple(elements))
+
+    def parse_format_directive(self) -> AttrFormatDirective:
+        self.raise_error(f"unexpected token '{self._current_token.text}'")
