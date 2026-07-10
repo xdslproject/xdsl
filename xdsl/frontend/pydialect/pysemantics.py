@@ -37,15 +37,8 @@ TYPES_TO_NAME = {int: "int", float: "float"}
 
 
 def dunder_op_name(v: Any):
-    t: type[Any] = type(v)
-    if t not in OPERATOR_TO_DUNDER:
-        raise NotImplementedError(f"Unsupported operator {t}")
-
-    return OPERATOR_TO_DUNDER[t]
+    return OPERATOR_TO_DUNDER[type(v)]
 
 
 def type_name(v: Any) -> str:
-    t = type(v)
-    if t not in TYPES_TO_NAME:
-        raise NotImplementedError()
     return TYPES_TO_NAME[type(v)]
