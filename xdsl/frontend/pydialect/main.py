@@ -160,8 +160,10 @@ class PyBuilder(ast.NodeVisitor):
         self.inserter.insert_op(fundef)
         self.inserter.set_insertion_point_from_block(body)
 
+        assert fundef.body.first_block is not None
+
         for arg_name, arg_type, arg_ssa in zip(
-            arg_names, fundef.body.first_block.arg_types, fundef.body.first_block.args
+            arg_names, arg_types, fundef.body.first_block.args
         ):
             self.symbol_table.add_symbol(arg_name, Symbol(arg_type, arg_ssa))
 
@@ -186,6 +188,7 @@ class PyBuilder(ast.NodeVisitor):
             self.visit(node.right)
             rhs = self.inserter.get_operand()
 
+        print(node.op, type(node.op))
         dunder = dunder_op_name(node.op)
 
         result_type = lhs.type if (lhs.type == rhs.type) else ObjectType("Unknown")
