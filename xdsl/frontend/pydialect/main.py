@@ -14,9 +14,9 @@ from xdsl.dialects.py import (
     ConstantOp,
     ConstantValue,
     FuncOp,
+    ObjectType,
     PassOp,
     ReturnOp,
-    Type,
 )
 from xdsl.frontend.pyast.utils.exceptions import FrontendProgramException
 from xdsl.ir import Attribute, Block, Operation, Region, SSAValue
@@ -87,7 +87,7 @@ class OpInserter:
 
 class Symbol(NamedTuple):
     name: str
-    type: Type
+    type: ObjectType
     ssa: SSAValue
 
 
@@ -173,7 +173,7 @@ class PyBuilder(ast.NodeVisitor):
 
         dunder = dunder_op_name(node.op)
 
-        result_type = lhs.type if (lhs.type == rhs.type) else Type("Unknown")
+        result_type = lhs.type if (lhs.type == rhs.type) else ObjectType("Unknown")
 
         self.inserter.insert_op(CallOp(dunder, [lhs, rhs], [result_type]))
 
@@ -183,7 +183,8 @@ class PyBuilder(ast.NodeVisitor):
     def visit_Constant(self, node: ast.Constant) -> Any:
         self.inserter.insert_op(
             ConstantOp(
-                value=ConstantValue(node.value), result_type=Type(type_name(node.value))
+                value=ConstantValue(node.value),
+                result_type=ObjectType(type_name(node.value)),
             )
         )
 
@@ -211,16 +212,16 @@ class PyBuilder(ast.NodeVisitor):
         name = extract_Name_id(node.func)
 
         # Call(expr func, expr* args, keyword* keywords)
-        self.inserter.insert_op(CallOp(name, args, [Type("Unknown")]))
+        self.inserter.insert_op(CallOp(name, args, [ObjectType("Unknown")]))
 
 
-def extract_arguments(node: ast.arguments) -> tuple[list[str], list[Type]]:
+def extract_arguments(node: ast.arguments) -> tuple[list[str], list[ObjectType]]:
     return extract_args(node.args)
 
 
-def extract_args(args: list[ast.arg]) -> tuple[list[str], list[Type]]:
+def extract_args(args: list[ast.arg]) -> tuple[list[str], list[ObjectType]]:
     arg_names: Sequence[str] = []
-    arg_types: Sequence[Type] = []
+    arg_types: Sequence[ObjectType] = []
 
     for arg in args:
         name, arg_type = extract_arg(arg)
@@ -230,7 +231,7 @@ def extract_args(args: list[ast.arg]) -> tuple[list[str], list[Type]]:
     return arg_names, arg_types
 
 
-def extract_arg(node: ast.arg) -> tuple[str, Type]:
+def extract_arg(node: ast.arg) -> tuple[str, ObjectType]:
     if not isinstance(node.annotation, ast.Name):
         raise NotImplementedError("Only Name annotations are supported")
 
@@ -238,14 +239,14 @@ def extract_arg(node: ast.arg) -> tuple[str, Type]:
     if type_annotation == "":
         raise NotImplementedError("Arguments needs a type annotation")
 
-    return node.arg, Type(type_annotation)
+    return node.arg, ObjectType(type_annotation)
 
 
-def extract_return(node: ast.expr | None) -> Type:
+def extract_return(node: ast.expr | None) -> ObjectType:
     if not isinstance(node, ast.Name):
         raise NotImplementedError("Only Name returns are supported")
 
-    return Type(extract_Name_id(node))
+    return ObjectType(extract_Name_id(node))
 
 
 def extract_Name_id(node: ast.Name) -> str:
