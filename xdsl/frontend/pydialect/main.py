@@ -86,7 +86,6 @@ class OpInserter:
 
 
 class Symbol(NamedTuple):
-    name: str
     type: ObjectType
     ssa: SSAValue
 
@@ -105,8 +104,22 @@ class PySymbolTable:
     def get_symbol(self, symbol_name: str):
         self.symbol_need_presence(symbol_name)
 
-    def add_symbol(self, symbol: Symbol):
-        self._symbols[symbol.name] = symbol
+    def get_symbol_type(self, symbol_name: str) -> ObjectType:
+        return self._symbols[symbol_name].type
+
+    def get_symbol_ssa(self, symbol_name: str) -> SSAValue:
+        return self._symbols[symbol_name].ssa
+
+    def add_symbol(self, symbol_name: str, symbol: Symbol):
+        self._symbols[symbol_name] = symbol
+
+    def set_symbol_type(self, symbol_name: str, type: ObjectType) -> None:
+        s = self._symbols[symbol_name]
+        self._symbols[symbol_name] = Symbol(s.type, s.ssa)
+
+    def set_symbol_ssa(self, symbol_name: str, ssa: SSAValue) -> None:
+        s = self._symbols[symbol_name]
+        self._symbols[symbol_name] = Symbol(s.type, s.ssa)
 
 
 @dataclass(init=False)
@@ -121,7 +134,7 @@ class PyBuilder(ast.NodeVisitor):
         assert len(module.body.blocks) == 1
         self.inserter = OpInserter(module.body.block)
 
-        self.symbol_table: dict = dict()
+        self.symbol_table: PySymbolTable = PySymbolTable()
 
     def gen_py(self, program: ast.AST):
         self.visit(program)
@@ -147,8 +160,10 @@ class PyBuilder(ast.NodeVisitor):
         self.inserter.insert_op(fundef)
         self.inserter.set_insertion_point_from_block(body)
 
-        for arg_name, arg_ssa in zip(arg_names, fundef.body.first_block.args):
-            self.symbol_table[arg_name] = arg_ssa
+        for arg_name, arg_type, arg_ssa in zip(
+            arg_names, fundef.body.first_block.arg_types, fundef.body.first_block.args
+        ):
+            self.symbol_table.add_symbol(arg_name, Symbol(arg_type, arg_ssa))
 
         for stmt in node.body:
             self.visit(stmt)
@@ -159,14 +174,14 @@ class PyBuilder(ast.NodeVisitor):
     def visit_BinOp(self, node: ast.BinOp) -> Any:
         if isinstance(node.left, ast.Name):
             name = self.visit(node.left)
-            lhs = self.symbol_table[name]
+            lhs = self.symbol_table.get_symbol_ssa(name)
         else:
             self.visit(node.left)
             lhs = self.inserter.get_operand()
 
         if isinstance(node.right, ast.Name):
             name = self.visit(node.right)
-            rhs = self.symbol_table[name]
+            rhs = self.symbol_table.get_symbol_ssa(name)
         else:
             self.visit(node.right)
             rhs = self.inserter.get_operand()
